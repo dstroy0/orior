@@ -11,7 +11,7 @@
 // body sets a variable of the file, and a line of `> ` after a body, a handler of JetBrains' that runs a script, is
 // passed over: a request here runs nothing.
 //
-// `{{name}}` stands for the value of a variable: of the file, or of the environment chosen, read from
+// `{{name}}` is for the value of a variable: of the file, or of the environment chosen, read from
 // http-client.env.json and the reader's own http-client.private.env.json, each the nearest beside the file or in a
 // folder above it within the tree, the private values over the shared ones and `$shared` giving values to every
 // environment; or it is one of `{{$uuid}}`, `{{$timestamp}}`, `{{$isoTimestamp}}` and `{{$randomInt}}`. The private
@@ -112,15 +112,15 @@ EMBED_TABLE_STORAGE CliRequestsTextNs cli_requests_text_table EMBED_UNUSED = {
     .curl = cli_requests_curl,
 };
 
-// The Requests view of the Comms pane as the window reads it (requests_pane.c): for the file of requests shown, the
-// answers stored for the request its cursor stands in, read again where the cursor moves into another request. Over
+// The Requests view of the Comms pane as the window reads it (requests_pane.c): for the file of requests displayed, the
+// answers stored for the request its cursor is in, read again where the cursor moves into another request. Over
 // the rows the head's choices: Send, which reads Sending and is inert while a send runs, Copy as curl, then No
 // environment and each environment of the file, the one chosen lit. The rows: where the last send was refused, its
-// refusal; the shown answer's status, colored good, moved or failed by its class, with its total time, its size and
+// refusal; the displayed answer's status, colored good, moved or failed by its class, with its total time, its size and
 // its redirects, or why it failed; its times; a group row Headers opening to a row each header; a group row Sent
-// opening to what was sent; its body a row a line, laid out where it is JSON, with a row that reads so where it is cut
+// opening to what was sent; its body a row a line, arranged where it is JSON, with a row that reads so where it is cut
 // or not text; and with two answers or more a group row Last answers, a row each answer with its box lit where it is
-// checked and the one shown marked, and a Compare row inert unless two are checked, the two compared after it a row a
+// checked and the one displayed marked, and a Compare row inert unless two are checked, the two compared after it a row a
 // line with a sign: a space for a line both have, a minus for one only the older has, a plus for one only the newer
 // has. With no answer, one row reads so. Every text is copied into the row's own bytes with its length, cut to
 // CLI_REQUESTS_ROW_TEXT
@@ -150,7 +150,7 @@ EMBED_TABLE_STORAGE CliRequestsTextNs cli_requests_text_table EMBED_UNUSED = {
 #define CLI_REQUESTS_CHOICE_SEND 0u
 #define CLI_REQUESTS_CHOICE_CURL 1u
 #define CLI_REQUESTS_CHOICE_ENV 2u
-// the most answers the view lists and checks, a bit of a word each; and the most bytes of a row's text with its end
+// the max answers the view lists and checks, a bit of a word each; and the max bytes of a row's text with its end
 #define CLI_REQUESTS_ANSWERS_MAX 32u
 #define CLI_REQUESTS_ROW_TEXT 2048u
 typedef struct
@@ -165,25 +165,25 @@ typedef struct
     int open;
     int checked;
     int inert;
-    int shown;
+    int displayed;
     char text_copied[CLI_REQUESTS_ROW_TEXT];
 } CliRequestsRow;
 
 typedef struct CliRequestsPaneCfg CliRequestsPaneCfg;
 // the pane begun, `woken` waking the view's thread as an answer comes in; the request the cursor of the view `key` at
-// `path` stands in at `line`, the shown view's where `key` is NULL, in the tree at `root`, the command line's where it
+// `path` is in at `line`, the displayed view's where `key` is NULL, in the tree at `root`, the command line's where it
 // is NULL, sent on a worker of its own and its stored answers read again there: 1 where it started,
 // 0 where a send runs or nothing is to send; whether a send runs; and the answer of a send taken in where one came in,
-// and while `shown` the answers followed to the request the shown view's cursor stands in: 1 where the rows changed
+// and while `displayed` the answers followed to the request the displayed view's cursor is in: 1 where the rows changed
 void cli_requests_pane_begin(const CliRequestsPaneCfg *args);
 int cli_requests_pane_send(const CliRequestsPaneCfg *args);
 int cli_requests_pane_sending(const CliRequestsPaneCfg *args);
 int cli_requests_pane_step(const CliRequestsPaneCfg *args);
-// the answers stored for the request the line `line` of the view `key` at `path` stands in read where its request is
-// another than the one shown, or where `force`, with the file's environments: 1 where the rows changed
+// the answers stored for the request the line `line` of the view `key` at `path` is in read where its request is
+// another than the one displayed, or where `force`, with the file's environments: 1 where the rows changed
 int cli_requests_pane_follow(const CliRequestsPaneCfg *args);
 // the environment chosen, `at` among the head's choices; how many rows there are; the row `at` into `row`: 1, or 0 past
-// the last; the group of the row `at` opened or closed; the answer of the row `at` shown; its box checked, or not
+// the last; the group of the row `at` opened or closed; the answer of the row `at` displayed; its box checked, or not
 // where it is; and the two answers checked compared: 1 where they were
 void cli_requests_pane_env(const CliRequestsPaneCfg *args);
 unsigned int cli_requests_pane_rows(const CliRequestsPaneCfg *args);
@@ -192,7 +192,7 @@ void cli_requests_pane_toggle(const CliRequestsPaneCfg *args);
 void cli_requests_pane_show(const CliRequestsPaneCfg *args);
 void cli_requests_pane_check(const CliRequestsPaneCfg *args);
 int cli_requests_pane_compare(const CliRequestsPaneCfg *args);
-// the curl line of the request at `line` of the view `key` at `path`, the shown view's where `key` is NULL as for a
+// the curl line of the request at `line` of the view `key` at `path`, the displayed view's where `key` is NULL as for a
 // send, in the environment chosen written into `out`: 1,
 // or 0 with why written; the same put on the system's clipboard: 1 where it went; how many choices the head has; and
 // the choice `at` into `row`, its text, lit where it is the environment chosen, inert where it can do nothing: 1, or 0
@@ -210,7 +210,7 @@ struct CliRequestsPaneCfg
     unsigned long long line;
     unsigned int at;
     CliRequestsRow *row;
-    int shown;
+    int displayed;
     int force;
     unsigned long long now_ms;
     VerbaLinea *out;

@@ -130,10 +130,10 @@ int Decoding::log_read(const char *qry)
             // a put walks its registers over several queries, and what the part answered of every case is the same at
             // every count it answered at: the put retains an answered query's cases over one read from R or refused
             std::stringstream words(line);
-            std::string kind;
+            std::string type;
             std::string number;
             std::string answer_text;
-            words >> kind >> number >> answer_text;
+            words >> type >> number >> answer_text;
             const int answered = (answer_text != "recorded") && (answer_text != "refused");
             came_back = (answered || !block_answered) ? answer_text : came_back;
             block_answered |= answered ? 1 : 0;

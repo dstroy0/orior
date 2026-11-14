@@ -1,21 +1,21 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// ipc_internal.h: what the door's sources share: one end of a connection, the platform's pipe or socket, and the
+// ipc_internal.h: what the interface's sources share: one end of a connection, the platform's pipe or socket, and the
 // frames and regions that go over it
-#ifndef DOOR_INTERNAL_H
-#define DOOR_INTERNAL_H
-#include "door.h"
+#ifndef INTERFACE_INTERNAL_H
+#define INTERFACE_INTERNAL_H
+#include "interface.h"
 #include "embed_atomic.h"
 #include "embed_dispatch_layout.h"
 #include "embed_ticket_ring.h"
 #include "transfer.h"
 
-// the most clients in one process, the messages queued for one client as a two's power, and the bytes their rings'
+// the max clients in one process, the messages queued for one client as a two's power, and the bytes their rings'
 // slots take, the clients' part of the rings block
 #define CLI_IPC_CLIENTS 2u
 #define CLI_IPC_RECV_SHIFT 6u
 #define CLI_IPC_RECV_QUEUE (1u << CLI_IPC_RECV_SHIFT)
-#define CLI_DOOR_CLIENTS_RING_BYTES                                                                                    \
+#define CLI_INTERFACE_CLIENTS_RING_BYTES                                                                                    \
     ((unsigned long long)CLI_IPC_CLIENTS * CLI_IPC_RECV_QUEUE * sizeof(EmbedTicketRingSlot))
 
 typedef struct CliIpcErrMsgCtx CliIpcErrMsgCtx;
@@ -38,7 +38,7 @@ typedef struct CliIpcEndBytesCtx CliIpcEndBytesCtx;
 
 // A frame is its bytes' count in four bytes, least first, then its type's byte and its fields, each text ended by a 0.
 // A process's first frame joins by its key; each after it listens on a channel, or sends on one a byte saying where the
-// body is and the body or a transfer. The door answers each with a refusal and why, or an answer and what it has to
+// body is and the body or a transfer. The interface answers each with a refusal and why, or an answer and what it has to
 // say, a name or a count; and it sends what comes on a channel as a message: the channel, who sent it, and the same
 // byte and body
 #define CLI_IPC_TYPE_JOIN 'J'
@@ -90,7 +90,7 @@ typedef struct
 
 // a listener made into `listener`, its address into `address`, sized for CLI_PATH_MAX_LEN; the next process to
 // join it taken,
-// its end into `end` and the process at the other end into `peer`, where the system reports it; the door at `address`
+// its end into `end` and the process at the other end into `peer`, where the system reports it; the interface at `address`
 // joined, waiting up to five seconds while every instance of a pipe is taken; `size` bytes read whole; `size` bytes
 // written whole, the region's descriptor going with the first byte on a socket; the next descriptor that came with
 // what was read, -1 where none did or on Windows; a reader of the end woken to its end; and the end let go
@@ -104,19 +104,19 @@ int cli_ipc_descriptor(const CliIpcErrMsgCtx *args);
 void cli_ipc_shut(const CliIpcCtx *args);
 void cli_ipc_close(const CliIpcCtx *args);
 
-// what reading a frame came to: read whole, the end broken or the frame past the most, or the frame past the capacity
+// what reading a frame came to: read whole, the end broken or the frame past the max, or the frame past the capacity
 // it is read into, read past and passed over
 #define CLI_IPC_FRAME_READ 1
 #define CLI_IPC_FRAME_BROKEN 0
 #define CLI_IPC_FRAME_PASSED (-1)
 
 // a frame read into `frame`, sized for `capacity`, its size into `size`: what it came to, why given where it broke; a
-// frame of `size` bytes at `bytes` written, the region handed over with it where one is given: 1, or 0 where it could
+// frame of `size` bytes at `bytes` written, the region passed over with it where one is given: 1, or 0 where it could
 // not be; a text field of `size` bytes of `frame` from `at`: where it ends, past its 0, or 0 where it is not ended;
 // what a transfer handing over `region` describes, its length and the handle made in the process `to` where it is given
-// on Windows, written into `out`: 1, or 0 with why given; the region the transfer of `length` and `handle` hands over,
+// on Windows, written into `out`: 1, or 0 with why given; the region the transfer of `length` and `handle` passes over,
 // taken from the process `from` where it is given on Windows, else from the descriptors that came with the frame: 1,
-// or 0 with why given; and the transfer at `transfer`, `size` bytes, read: 1, or 0 with why given (door.c)
+// or 0 with why given; and the transfer at `transfer`, `size` bytes, read: 1, or 0 with why given (interface.c)
 int cli_ipc_frame_read(const CliIpcErrMsgEndCtx *args);
 int cli_ipc_frame_write(const CliIpcEndCtx *args);
 unsigned long long cli_ipc_field_end(const char *frame, unsigned long long size, unsigned long long at);

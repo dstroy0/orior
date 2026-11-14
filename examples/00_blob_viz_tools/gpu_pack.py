@@ -113,11 +113,11 @@ def host_pack(shape, dims, fraction, candidates, seed):
     gap = fraction * usual
     limit = gap * gap
 
-    kept = []
+    retained = []
     for _ in range(candidates):
         point = maker(dims, draw)
         clear = True
-        for other in kept:
+        for other in retained:
             total = 0.0
             for at in range(dims):
                 step = point[at] - other[at]
@@ -128,8 +128,8 @@ def host_pack(shape, dims, fraction, candidates, seed):
                 clear = False
                 break
         if clear:
-            kept.append(point)
-    return gap, usual, len(kept)
+            retained.append(point)
+    return gap, usual, len(retained)
 
 
 def device_pack(shape, dims, fraction, candidates, seed, wide=0):
@@ -145,12 +145,12 @@ def device_pack(shape, dims, fraction, candidates, seed, wide=0):
         sys.stderr.write("the packer said: %s%s\n" % (done.stdout, done.stderr))
         raise SystemExit(1)
     return {"shape": parts[0], "dims": int(parts[1]), "gap": float(parts[2]),
-            "typical": float(parts[3]), "kept": int(parts[4]), "tried": int(parts[5]),
+            "typical": float(parts[3]), "retained": int(parts[4]), "tried": int(parts[5]),
             "state": parts[6], "math": parts[7]}
 
 
-def constant(shape, dims, gap, kept):
-    return kept * math.pow(gap, dims - 1) / measure(shape, dims)
+def constant(shape, dims, gap, retained):
+    return retained * math.pow(gap, dims - 1) / measure(shape, dims)
 
 
 # The gap has to be small against the shape's own geometry, and that is not the same as being a
@@ -168,7 +168,7 @@ def constant(shape, dims, gap, kept):
 # and hold to within a tenth of each other through five.
 #
 # The price is that staying in this regime costs points. Five dimensions took ten million candidates
-# for twenty thousand kept, and the count needed grows with the dimension the way a packing number
+# for twenty thousand retained, and the count needed grows with the dimension the way a packing number
 # does. That is a structural limit and not a compute budget: no card makes the flat regime cheap at
 # nineteen dimensions. The exact routes on a sphere and a flat torus are what reach up there.
 SPAN = 0.30
@@ -182,22 +182,22 @@ def _check():
     print("  Shapes against each other, on the device, one dimension at a time.")
     print("")
     print("  %-10s %5s %8s %9s %10s %14s %10s  %s" %
-          ("shape", "dims", "kept", "gap", "tried", "measure", "constant", "state"))
+          ("shape", "dims", "retained", "gap", "tried", "measure", "constant", "state"))
 
     for dims, fraction, candidates in PLAN:
         rows = []
         for shape in SHAPES:
             got = device_pack(shape, dims, fraction, candidates, 7)
-            here = constant(shape, dims, got["gap"], got["kept"])
+            here = constant(shape, dims, got["gap"], got["retained"])
             rows.append((shape, here, got))
             print("  %-10s %5d %8d %9.4f %10d %14.5g %10.4f  %s" %
-                  (shape, dims, got["kept"], got["gap"], got["tried"],
+                  (shape, dims, got["retained"], got["gap"], got["tried"],
                    measure(shape, dims), here, got["state"]))
 
         loose = [one for one in rows if one[2]["state"] == "ranout"]
         walled = [one for one in rows if one[2]["state"] == "capped"]
         wide = [one for one in rows if one[2]["gap"] > SPAN]
-        thin = [one for one in rows if one[2]["kept"] < FLOOR]
+        thin = [one for one in rows if one[2]["retained"] < FLOOR]
 
         if wide:
             print("  %-10s %5d out of regime, gap past %.2f of the shape itself: %s" %
@@ -212,7 +212,7 @@ def _check():
             print("")
             continue
         if thin:
-            print("  %-10s %5d too few kept for the spread to mean anything: %s" %
+            print("  %-10s %5d too few retained for the spread to mean anything: %s" %
                   ("", dims, ", ".join(one[0] for one in thin)))
             print("  %-10s %5d not decided here" % ("", dims))
             print("")
@@ -234,16 +234,16 @@ def _check():
     print("  The device against the host, where the host can still reach.")
     print("")
     print("  %-10s %5s %10s %10s %10s %10s" %
-          ("shape", "dims", "host kept", "card kept", "host const", "card const"))
+          ("shape", "dims", "host retained", "card retained", "host const", "card const"))
     for dims, fraction in ((3, 0.40), (5, 0.44)):
         for shape in SHAPES:
-            gap, _, kept = host_pack(shape, dims, fraction, 24000, 31)
-            mine = constant(shape, dims, gap, kept)
+            gap, _, retained = host_pack(shape, dims, fraction, 24000, 31)
+            mine = constant(shape, dims, gap, retained)
             got = device_pack(shape, dims, fraction, 4000000, 7)
-            theirs = constant(shape, dims, got["gap"], got["kept"])
+            theirs = constant(shape, dims, got["gap"], got["retained"])
             apart = max(mine, theirs) / max(1e-12, min(mine, theirs))
             print("  %-10s %5d %10d %10d %10.4f %10.4f%s" %
-                  (shape, dims, kept, got["kept"], mine, theirs,
+                  (shape, dims, retained, got["retained"], mine, theirs,
                    "" if apart < 1.25 else "   APART %.2f times" % apart))
             if apart >= 1.25:
                 bad += 1
@@ -256,9 +256,9 @@ def _check():
         for shape in SHAPES:
             one = device_pack(shape, dims, fraction, 6000000, 7, wide=0)
             two = device_pack(shape, dims, fraction, 6000000, 7, wide=1)
-            same = one["kept"] == two["kept"]
+            same = one["retained"] == two["retained"]
             print("  %-10s %5d  single %7d  double %7d  %s" %
-                  (shape, dims, one["kept"], two["kept"], "same" if same else "MOVED"))
+                  (shape, dims, one["retained"], two["retained"], "same" if same else "MOVED"))
             if not same:
                 moved += 1
     if moved:

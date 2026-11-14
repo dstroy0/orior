@@ -6,17 +6,17 @@
 // Inline Variable. Each reads the code by its lines in the file's language, as the outline does.
 //
 // Extract Variable puts the expression selected on one line into a variable declared on a line of
-// its own above the statement that kept it. Extract Constant puts it into a constant declared at the
+// its own above the statement that retained it. Extract Constant puts it into a constant declared at the
 // head of the file, after what the file brings in. Both leave the new name selected where it is
 // declared and where it is used: the name typed next replaces both. Inline Variable takes a
-// variable declared on one line, puts its value where each use of it stands, in parentheses where the
+// variable declared on one line, puts its value where each use of it is, in parentheses where the
 // value is more than a name, a call or a literal, and takes the declaration out.
 
 import { cmp, pos } from "./editor/document.js";
 import { endOfSel, startOf } from "./editor/view.js";
 import { say } from "./statusbar.js";
 
-// The C family's type that stands for whatever the value is: C++ and CUDA infer it with auto, and C
+// The C family's type that is for whatever the value is: C++ and CUDA infer it with auto, and C
 // with GNU C's __auto_type.
 export const inferred = (path) => (/\.[ch]$/i.test(path ?? "") ? "__auto_type" : "auto");
 
@@ -176,7 +176,7 @@ function formsOf(editor, what) {
 }
 
 // Inserts `declaration` as the line before line `at`, at `indent`, puts the name where the value
-// stood, and selects the name in both.
+// was, and selects the name in both.
 function declareAndUse(editor, { at, indent, declaration, name, use, from, to }) {
   const inserted = `${indent}${declaration}\n`;
   const nameIn = declaration.indexOf(name);
@@ -291,7 +291,7 @@ export function extractConstant(editor) {
 
 // A value that reads the same wherever it is put, with no parentheses about it: a name, a member, a
 // call, an index, a literal or a value already in brackets.
-const standsAlone = (value) =>
+const isAlone = (value) =>
   /^[$\w.]+(?:\([^()]*\)|\[[^[\]]*\])*$/.test(value) || /^"(?:[^"\\]|\\.)*"$|^'(?:[^'\\]|\\.)*'$/.test(value) || /^\((?:[^()]|\([^()]*\))*\)$/.test(value) || /^-?\d[\w.]*$/.test(value);
 
 export function inlineVariable(editor) {
@@ -356,7 +356,7 @@ export function inlineVariable(editor) {
       }
     }
   }
-  const put = standsAlone(value) ? value : `(${value})`;
+  const put = isAlone(value) ? value : `(${value})`;
   const edits = [{ from: pos(declared, 0), to: declared + 1 < doc.count ? pos(declared + 1, 0) : pos(declared, doc.line(declared).length), text: "" }, ...uses.map((use) => ({ ...use, text: put }))];
   editor.change(edits, null, (map) => {
     const at = map(uses[0]?.from ?? pos(declared, 0), false);

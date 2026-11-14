@@ -6,20 +6,20 @@
 // one gate: its index, its program's sweep, and the outputs narrowed back into the state
 static int qasm_sweep(QasmSpace *space, const QasmProgram *programs, const QasmGate *gate, EngineError *error)
 {
-    const QasmProgram *const program = &programs[gate->kind - 1u];
+    const QasmProgram *const program = &programs[gate->type - 1u];
     const unsigned int members = qasm_gate_members(gate);
     unsigned int records[QASM_PAIR_ROWS * QASM_PAIR_ROW_LIMBS];
     unsigned int *const gate_records =
-        (gate->kind == QASM_GATE_PAIR) ? space->pair_rows
-                                       : ((gate->kind == QASM_GATE_DIAGONAL) ? space->diagonal_entries : space->phases);
-    const size_t record_bytes = (gate->kind == QASM_GATE_PAIR)
+        (gate->type == QASM_GATE_PAIR) ? space->pair_rows
+                                       : ((gate->type == QASM_GATE_DIAGONAL) ? space->diagonal_entries : space->phases);
+    const size_t record_bytes = (gate->type == QASM_GATE_PAIR)
                                     ? (QASM_PAIR_ROWS * QASM_PAIR_ROW_LIMBS * sizeof(unsigned int))
                                     : (QASM_DIAGONAL_ENTRIES * QASM_DIAGONAL_ENTRY_LIMBS * sizeof(unsigned int));
     const unsigned long long lanes = space->lanes;
     const unsigned int out_limbs = program->layout.out_limbs;
     if (space->on_host != 0)
     {
-        if (gate->kind != QASM_GATE_PERMUTE)
+        if (gate->type != QASM_GATE_PERMUTE)
         {
             qasm_gate_records(gate, records);
             memcpy(gate_records, records, record_bytes);
@@ -56,7 +56,7 @@ static int qasm_sweep(QasmSpace *space, const QasmProgram *programs, const QasmG
         }
         return QASM_CHECK(fits != 0, gate, error, ENGINE_ERROR_LOGIC);
     }
-    if (gate->kind != QASM_GATE_PERMUTE)
+    if (gate->type != QASM_GATE_PERMUTE)
     {
         qasm_gate_records(gate, records);
         if (!QASM_STATUS_CHECK(cudaMemcpy(gate_records, records, record_bytes, cudaMemcpyHostToDevice), gate_records,

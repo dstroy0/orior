@@ -3,11 +3,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: PRO-x-005
 #
-# The Ramachandran rules, kept in one place so the protein stages read them the same way.
+# The Ramachandran rules, retained in one place so the protein stages read them the same way.
 #
 #   Usage:  from ramachandran_rules import angle, load_contours, region, score
 #
-# The engine hands back a torsion as exact integer terms and stops there, because the atan2 that
+# The engine passes back a torsion as exact integer terms and stops there, because the atan2 that
 # turns them into a degree is the only irrational step in the path and does not belong in the reader.
 # It is taken here, in decimal and to a precision stated below, well under the grid the
 # answer is read against. Nothing here imports numpy or any other computing library. Python's own

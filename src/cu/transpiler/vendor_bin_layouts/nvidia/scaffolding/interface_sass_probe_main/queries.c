@@ -85,7 +85,7 @@ int sass_lane_written(SassProbe *probe)
     return (s_before.count - same_count) <= 2u;
 }
 
-// every kernel interface_ptx_probe handed the toolchain's compiler, counted on the compile channel from what it
+// every kernel interface_ptx_probe passed the toolchain's compiler, counted on the compile channel from what it
 // printed: a line "cubin <number> <name>" is a kernel the compiler emitted, and a line "errored: nvJitLink did not
 // assemble" is one it refused. The kernel and the resident are compiled before every question and print no line of
 // their own when they are emitted: both are counted with the first question's line

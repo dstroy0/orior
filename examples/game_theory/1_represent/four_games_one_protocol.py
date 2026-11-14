@@ -7,7 +7,7 @@
 #
 #   Usage:  python examples/game_theory/1_represent/four_games_one_protocol.py
 #
-# What a game keeps and what it throws away. A position here is a tuple: a board, whose turn it is,
+# What a game retains and what it throws away. A position here is a tuple: a board, whose turn it is,
 # and whatever else the rules need to say what happens next. Nothing is remembered about how the
 # position was reached, because nothing in the rules depends on it -- except the things that do, and
 # those are in the state explicitly. Castling rights are in the chess state for that reason, and so

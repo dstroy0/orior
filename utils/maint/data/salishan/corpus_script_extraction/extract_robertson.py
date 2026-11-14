@@ -2,7 +2,7 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# Extract the two Salish letters from Robertson's Chinuk pipa study, ICSNL 47.
+# Extract the two Salish characters from Robertson's Chinuk pipa study, ICSNL 47.
 #
 #   Usage:  python maint/data/salishan/corpus_script_extraction/extract_robertson.py
 #
@@ -10,31 +10,31 @@
 # shorthand, and it prints six texts written in that script by Indigenous writers around 1900. Two
 # of the six are Salish and four are Chinook Jargon.
 #
-#   Text 1  Nɬeʔkepmxcín, a letter by Charley Alexis Mayoos, published in Kamloops Wawa in 1893
-#   Text 2  Secwepemctsín, the parting salutation of a letter by William Celestin
+#   Text 1  Nɬeʔkepmxcín, a character by Charley Alexis Mayoos, published in Kamloops Wawa in 1893
+#   Text 2  Secwepemctsín, the parting salutation of a character by William Celestin
 #   Texts 3 to 6  Chinook Jargon, which is a pidgin
 #
 # Only the first two are target-language material. Chinook Jargon is a language of its own and a
 # pidgin besides. Nothing from Texts 3 to 6 or from the phonological analysis reaches the pure
-# stream. Those lines are kept in the record and flagged, never dropped.
+# stream. Those lines are retained in the record and flagged, never dropped.
 #
 # TWO THINGS THIS PAPER DOES THAT NO OTHER ONE HERE DOES
 #
 # The transliteration line is written in plain ASCII. Mayoos wrote in shorthand and Robertson
-# transliterates it letter for letter. The line reads o l ha l kukpi, and carries not one
+# transliterates it character for character. The line reads o l ha l kukpi, and carries not one
 # character of the modern orthography. The character test every other reader here leans on calls
 # that line English. It is Nɬeʔkepmxcín, and the only thing that says so is where it sits. The
-# pipa rows are marked T by position and never by their letters.
+# pipa rows are marked T by position and never by their characters.
 #
 # The extraction breaks words across lines with no hyphen, 42 times. Some of the breaks fall inside
 # a gloss: A above UG-, s above ick, gr above eet. joined() puts those back. It errors on the join
 # where the line under the fragment is itself short, because the alphabet tables set the Chinuk pipa
-# letter names wa, wi and waw one to a line and joining those would invent words.
+# character names wa, wi and waw one to a line and joining those would invent words.
 #
 # WHAT THE SOURCE STILL LOSES
 #
 # Labialization. Page 30 sets /kʷú[·kʷ]piʔ and the text gives /kwú[·kw]pi. The raised w is gone and
-# a plain one stands where it was. This reader writes what the file holds and the hand extraction
+# a plain one is where it was. This reader writes what the file holds and the hand extraction
 # carries what the page prints. theory/theory/Salishan has the measurement.
 
 import io
@@ -140,8 +140,8 @@ PARENTHESIZED = re.compile(r"^\(.*\)$")
 
 # A footnote marker inside a transliteration row. The page sets it as a superscript and the
 # extraction puts it on the line. Stanza 5 arrives as skwa(l)inšut, 31 and stanza 9 as
-# hawsšin 33 hawi. The Chinuk pipa transliteration of the two Salish letters is letters and
-# punctuation throughout. A run of digits standing on its own in one is always a marker. Text 3
+# hawsšin 33 hawi. The Chinuk pipa transliteration of the two Salish characters is characters and
+# punctuation throughout. A run of digits located on its own in one is always a marker. Text 3
 # sets a date, Mi 4 1892, where the digits are the text, and this is asked of the Salish texts
 # alone for that reason.
 MARKER = re.compile(r"(?:(?<=\s)|^)\d{1,3}(?=\s|$)")
@@ -202,21 +202,21 @@ def main():
     plain = []
 
     def flush():
-        """The block just read, written out one row per kind, in the order the paper prints them."""
-        for kind in ("pipa", "morphemic", "gloss"):
-            pieces = pending.get(kind)
+        """The block just read, written out one row per type, in the order the paper prints them."""
+        for type in ("pipa", "morphemic", "gloss"):
+            pieces = pending.get(type)
             if pieces:
                 mark = "T" if (text in SALISH_TEXTS) else "N"
                 rows.append(
-                    (mark, number or 0, "Text %d" % text, kind, " ".join(pieces))
+                    (mark, number or 0, "Text %d" % text, type, " ".join(pieces))
                 )
         for body in plain:
             rows.append(("N", number or 0, "Text %d" % text, "gloss", body))
-        for kind in ("cj translation", "translation"):
-            pieces = pending.get(kind)
+        for type in ("cj translation", "translation"):
+            pieces = pending.get(type)
             if pieces:
                 rows.append(
-                    ("N", number or 0, "Text %d" % text, kind, " ".join(pieces))
+                    ("N", number or 0, "Text %d" % text, type, " ".join(pieces))
                 )
         pending.clear()
         del plain[:]
@@ -280,7 +280,7 @@ def main():
 
         if found:
             # A number that does not continue the run opens a footnote, and a footnote sits between
-            # two stanzas. Closing the block here keeps footnote 30's abbreviation list out
+            # two stanzas. Closing the block here retains footnote 30's abbreviation list out
             # of stanza 2: without it the cycle went on reading prose as pipa, morphemic and gloss
             # until stanza 3 arrived. The stanza count is not touched, because stanza 3 still has
             # to follow stanza 2 across the footnote that sits between them.
@@ -294,7 +294,7 @@ def main():
             rows.append(("N", 0, "Text %d" % text, UNCLASSIFIED, trimmed))
             continue
 
-        # A footnote marker the page set as a superscript and the extraction left standing on a
+        # A footnote marker the page set as a superscript and the extraction left located on a
         # line of its own. Counting it as the next row of the cycle put stanza 6's gloss where its
         # transliteration belongs and every row after it one place out.
         if trimmed.isdigit():
@@ -310,9 +310,9 @@ def main():
             pending.setdefault("translation", []).append(trimmed)
             continue
 
-        kind = BLOCK_ROWS[step % len(BLOCK_ROWS)]
+        type = BLOCK_ROWS[step % len(BLOCK_ROWS)]
         step += 1
-        pending.setdefault(kind, []).append(trimmed)
+        pending.setdefault(type, []).append(trimmed)
     if text is not None:
         flush()
 
@@ -339,48 +339,48 @@ def main():
         handle.write("# William Celestin of the Salmon Arm area.\n")
         handle.write("#\n")
         handle.write(
-            "# Mark is language.layer.kind. T is Salish, N is anything else. Texts 3 to 6\n"
+            "# Mark is language.layer.type. T is Salish, N is anything else. Texts 3 to 6\n"
         )
         handle.write(
             "# are Chinook Jargon, which is a pidgin and a language of its own, and they\n"
         )
         handle.write("# are recorded here and excluded from the pure stream.\n")
         handle.write(
-            "# The pipa row is Mayoos' own shorthand transliterated letter for letter. It\n"
+            "# The pipa row is Mayoos' own shorthand transliterated character for character. It\n"
         )
         handle.write(
             "# is plain ASCII and carries no mark of the modern orthography. It is\n"
         )
-        handle.write("# marked by where it sits and not by its letters.\n")
+        handle.write("# marked by where it sits and not by its characters.\n")
         handle.write(
             "# The morphemic row is Robertson's analysis and holds forms nobody wrote.\n"
         )
         handle.write("# It is in the record and out of the pure stream.\n")
-        handle.write("line\tsection\tkind\tswitches\tcontent\n")
-        for mark, count, section, kind, body in rows:
-            layer = LAYER[kind]
-            if (mark == "T") and (kind == "morphemic"):
-                content = rendered(body, layer, kind, MARKS)
+        handle.write("line\tsection\ttype\tswitches\tcontent\n")
+        for mark, count, section, type, body in rows:
+            layer = LAYER[type]
+            if (mark == "T") and (type == "morphemic"):
+                content = rendered(body, layer, type, MARKS)
                 crossings = switches(body, MARKS)
             elif mark == "T":
                 # The pipa row, whole. tagged_spans reads it by its characters and it has none.
-                content = "T.%s.%s:{%s}" % (layer, kind, body)
+                content = "T.%s.%s:{%s}" % (layer, type, body)
                 crossings = 0
             else:
-                content = "N.%s.%s:{%s}" % (layer, kind, body)
+                content = "N.%s.%s:{%s}" % (layer, type, body)
                 crossings = 0
             handle.write(
                 "line#${%d}\t%s\t%s\t%d\t%s\n"
-                % (count, section, kind, crossings, content)
+                % (count, section, type, crossings, content)
             )
 
     pure = TARGET[:-4] + ".pure.txt"
-    kept = 0
+    retained = 0
     repeated = 0
     already = set()
     with open(pure, "w", encoding="utf-8", newline="") as handle:
-        for mark, count, section, kind, body in rows:
-            if (mark != "T") or (kind != "pipa"):
+        for mark, count, section, type, body in rows:
+            if (mark != "T") or (type != "pipa"):
                 continue
             key = " ".join(body.split())
             if key in already:
@@ -388,13 +388,13 @@ def main():
                 continue
             already.add(key)
             handle.write("%s\n" % key)
-            kept += 1
+            retained += 1
 
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
         (0, "%s block %d" % (section, count), UNKNOWN_KIND, "", body)
-        for mark, count, section, kind, body in rows
-        if (kind == UNCLASSIFIED) and not section.startswith("not reached")
+        for mark, count, section, type, body in rows
+        if (type == UNCLASSIFIED) and not section.startswith("not reached")
     ]
     flagged.extend(missed)
     # Every join is reported, because a join this reader took is a decision a person has to be able
@@ -415,7 +415,7 @@ def main():
 
     out.write("  %d lines written to\n  %s\n" % (len(rows), os.path.basename(TARGET)))
     out.write(
-        "  %d target-language lines written to\n  %s\n" % (kept, os.path.basename(pure))
+        "  %d target-language lines written to\n  %s\n" % (retained, os.path.basename(pure))
     )
     out.write("  %d lines skipped as already written\n" % repeated)
     out.write("  %d words put back together across a line break\n" % len(welds))
@@ -424,12 +424,12 @@ def main():
         % (stuck_count, os.path.basename(stuck))
     )
 
-    kinds = {}
-    for mark, count, section, kind, body in rows:
-        kinds[kind] = kinds.get(kind, 0) + 1
+    types = {}
+    for mark, count, section, type, body in rows:
+        types[type] = types.get(type, 0) + 1
     out.write(
-        "\n  by kind: %s\n"
-        % ", ".join("%s %d" % (one, kinds[one]) for one in sorted(kinds))
+        "\n  by type: %s\n"
+        % ", ".join("%s %d" % (one, types[one]) for one in sorted(types))
     )
     for which in (1, 2, 3, 4, 5, 6):
         numbers = sorted(

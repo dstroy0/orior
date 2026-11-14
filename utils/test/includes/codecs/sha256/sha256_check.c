@@ -3,7 +3,7 @@
 // sha256_check.c: sha256 checked against NIST's published SHA-256 vectors (CAVP, the SHAVS files vendored under
 // utils/test/src/cu/transpiler/qasm/vectors). Each message file gives a length, a message and its digest, the byte
 // files a length in whole bytes and the bit files any count of bits; the Monte file gives a seed and the digest of
-// every hundred-and-first link of a chain, each link the digest of the three before it laid end to end (SHAVS
+// every hundred-and-first link of a chain, each link the digest of the three before it positioned end to end (SHAVS
 // section 6.4).
 //
 //     sha256_check <message file>... --monte <monte file>
@@ -140,7 +140,7 @@ static int check_monte(const char *path, unsigned int *passed, unsigned int *fai
         {
             continue;
         }
-        // the three links before the next, laid end to end, the oldest first
+        // the three links before the next, positioned end to end, the oldest first
         unsigned char links[3u * SHA256_BYTES];
         memcpy(&links[0], seed, SHA256_BYTES);
         memcpy(&links[SHA256_BYTES], seed, SHA256_BYTES);

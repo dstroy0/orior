@@ -7,26 +7,26 @@
 // The way a query enters the part, its vector: the registers it declares, the lanes it is put over, a case a lane, and
 // the operands of a case its code loads. A query is put at the least magnitude, the registers its chain names as
 // `mark`, the engine's high water mark. Where the part refuses it there and answers it declaring every register its
-// file uses, the fewest it answers at is walked between the two, and the query stands at the fewest; where the part
-// refuses it at both, the refusal is not the registers', and it stands refused. 1 where the part answers it alike with
+// file uses, the fewest it answers at is walked between the two, and the query is at the fewest; where the part
+// refuses it at both, the refusal is not the registers', and it is refused. 1 where the part answers it alike with
 // the host on every case it computes, 0 otherwise, its registers in `question`
 int vector_alike(const std::vector<unsigned char> &code, const std::vector<std::string> &host,
                  const std::vector<unsigned int> &places, RunQuestion *question, unsigned long long *queries,
                  unsigned int mark)
 {
-    const unsigned int most = 255u;
-    question->registers = ((mark != 0u) && (mark < most)) ? mark : most;
+    const unsigned int max = 255u;
+    question->registers = ((mark != 0u) && (mark < max)) ? mark : max;
     const int least_alike = question_alike(code, host, places, question, queries);
-    if ((question->outcome == RUN_ANSWERED) || (question->registers == most))
+    if ((question->outcome == RUN_ANSWERED) || (question->registers == max))
     {
         return least_alike;
     }
     const unsigned int least = question->registers;
-    question->registers = most;
-    const int most_alike = question_alike(code, host, places, question, queries);
+    question->registers = max;
+    const int max_alike = question_alike(code, host, places, question, queries);
     if (question->outcome != RUN_ANSWERED)
     {
-        return most_alike;
+        return max_alike;
     }
     const auto answers_declaring = [&](long long count) -> int {
         question->registers = (unsigned int)count;
@@ -34,19 +34,19 @@ int vector_alike(const std::vector<unsigned char> &code, const std::vector<std::
         return (question->outcome == RUN_ANSWERED) ? 1 : 0;
     };
     // the query at the fewest is in R once the walk has put it, and is read from there
-    question->registers = (unsigned int)walk_halved(answers_declaring, (long long)most, (long long)least);
+    question->registers = (unsigned int)walk_halved(answers_declaring, (long long)max, (long long)least);
     return question_alike(code, host, places, question, queries);
 }
 
-// The carrier `text`, its links `links`, cut at the form standing at link `link_at` over `form_lines` links, the value
-// of `read` stored in place of the carrier's answer: the carrier's links before the form, `standing` in the form's
+// The carrier `text`, its links `links`, cut at the form located at link `link_at` over `form_lines` links, the value
+// of `read` stored in place of the carrier's answer: the carrier's links before the form, `located` in the form's
 // place where it is given, the register the store reads written with the value, a flag's as 1 where it is true, the
 // carrier's own links after the form, those no operand of a case reaches, and then its store and what follows. With no
-// form standing, `read` is a value the form reads; with one, a value it writes. Empty where a link of the carrier's own
+// form located, `read` is a value the form reads; with one, a value it writes. Empty where a link of the carrier's own
 // after the form names the stored register, or `read` is a uniform register
 std::string carrier_cut_at_read(const std::vector<CarrierLink> &links, long cases_defined,
                                        const std::string &text, long link_at, long form_lines, const std::string &read,
-                                       const std::string &standing, int wide)
+                                       const std::string &located, int wide)
 {
     const std::vector<std::string> lines = carrier_pieces(text, '\n');
     long stored_at = -1;
@@ -69,7 +69,7 @@ std::string carrier_cut_at_read(const std::vector<CarrierLink> &links, long case
     {
         cut += lines[(size_t)at] + "\n";
     }
-    cut += standing.empty() ? std::string() : (standing + ((standing.back() == '\n') ? "" : "\n"));
+    cut += located.empty() ? std::string() : (located + ((located.back() == '\n') ? "" : "\n"));
     cut += (read[0] == 'P') ? ("\tSEL \t" + stored + ", RZ, 1, !" + read + ";\n")
                             : ("\tMOV \t" + stored + ", " + read + ";\n");
     cut += "\tMOV \t" + stored + ".hi, " + (wide ? (read + ".hi") : std::string("RZ")) + ";\n";
@@ -118,14 +118,14 @@ std::string read_shape(const std::vector<CarrierLink> &links, const std::vector<
 }
 
 // A form's text, each parameter a marker, cut into its tokens: a marker one token with the part of a pair it names,
-// `.hi`, a run of letters, digits, `_` and `.` one, and every other mark one, the space between passed over
+// `.hi`, a run of characters, digits, `_` and `.` one, and every other mark one, the space between passed over
 std::vector<std::string> form_tokens(const std::string &text)
 {
     std::vector<std::string> tokens;
     for (size_t at = 0u; at < text.size();)
     {
-        const char letter = text[at];
-        if ((letter == '\x01') && ((at + 2u) < text.size()))
+        const char character = text[at];
+        if ((character == '\x01') && ((at + 2u) < text.size()))
         {
             size_t end = at + 3u;
             if ((end < text.size()) && (text[end] == '.'))
@@ -140,13 +140,13 @@ std::vector<std::string> form_tokens(const std::string &text)
             at = end;
             continue;
         }
-        if (isspace((unsigned char)letter))
+        if (isspace((unsigned char)character))
         {
             at += 1u;
             continue;
         }
         size_t end = at + 1u;
-        if (isalnum((unsigned char)letter) || (letter == '_') || (letter == '.'))
+        if (isalnum((unsigned char)character) || (character == '_') || (character == '.'))
         {
             while ((end < text.size()) &&
                    (isalnum((unsigned char)text[end]) || (text[end] == '_') || (text[end] == '.')))
@@ -163,7 +163,7 @@ std::vector<std::string> form_tokens(const std::string &text)
 // The form `to_text` read against the form `from_text`, token by token, each parameter a marker: each parameter of
 // `to` bound in `bound` to what `from` writes in its place, a marker of one of `from`'s parameters or a literal, and
 // each parameter of `from` that `to` writes a literal in place of bound in `fixed` to that literal. A marker naming a
-// part of a pair stands against the same part of a marker, and against the fixed zero, whose every part is zero. 1
+// part of a pair is against the same part of a marker, and against the fixed zero, whose every part is zero. 1
 // where every other token is the same: `to` is `from` with the parameters `fixed` names bound, one structure
 int form_unified(const Ruleset *sass, const std::string &to_text, const std::string &from_text,
                  std::map<char, std::string> *bound, std::map<char, std::string> *fixed)
@@ -187,14 +187,14 @@ int form_unified(const Ruleset *sass, const std::string &to_text, const std::str
         const std::string from_part = from_marker ? from_token.substr(3u) : std::string();
         if (to_marker)
         {
-            // a part of a pair stands against the same part of another, and a whole against a marker or a literal
-            const std::string standing = from_marker ? from_token.substr(0u, 3u) : from_token;
-            const int parts_stand = from_marker ? (to_part == from_part) : (to_part.empty() || (from_token == zero));
-            if (!parts_stand || ((bound->count(to_token[1]) != 0u) && ((*bound)[to_token[1]] != standing)))
+            // a part of a pair is against the same part of another, and a whole against a marker or a literal
+            const std::string located = from_marker ? from_token.substr(0u, 3u) : from_token;
+            const int parts_are = from_marker ? (to_part == from_part) : (to_part.empty() || (from_token == zero));
+            if (!parts_are || ((bound->count(to_token[1]) != 0u) && ((*bound)[to_token[1]] != located)))
             {
                 return 0;
             }
-            (*bound)[to_token[1]] = standing;
+            (*bound)[to_token[1]] = located;
             continue;
         }
         if (from_marker)
@@ -297,7 +297,7 @@ static int opcode_operates(const std::string &opcode)
 }
 
 // 1 where `instruction` gives one value with its first two sources taken either way round: an add, a multiply, a
-// least or a most, a bitwise table that reads its first two inputs alike, or an equality
+// least or a max, a bitwise table that reads its first two inputs alike, or an equality
 static int instruction_commutes(const std::vector<std::string> &instruction)
 {
     static const std::regex s_commutes("U?(IADD3|IMAD|IMUL|IMNMX|VABSDIFF|FADD|FMUL|FFMA|FMNMX|DADD|DMUL|DFMA|HADD2|HMUL2|"

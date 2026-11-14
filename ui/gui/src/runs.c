@@ -260,7 +260,7 @@ static int runs_press(const GuiPaneCfg *args)
 // the runs listed anew as the pane shows
 static void runs_read(const GuiPaneCfg *args)
 {
-    if (args->event == GUI_PANE_SHOWN)
+    if (args->event == GUI_PANE_DISPLAYED)
     {
         EMBED_CALL(cli_runs_pane.relist, CliRunsPaneCfg, .root = args->root, .now_ms = cli_clock_milliseconds());
     }

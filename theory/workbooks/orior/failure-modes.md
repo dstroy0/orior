@@ -192,7 +192,7 @@ there is evidence about the reference arm and not about the vector arm. The vect
 instead by `kat_validation` asserting it equal to the reference on the FIPS vectors, the genesis
 block, block 125552 and 1000 consecutive real headers - which is a strong check, but it is a
 different check, and reading the audit table as though all three columns meant the same thing for
-those two rows would be exactly the kind of substitution this register exists to catch.
+those two rows would be exactly the type of substitution this register exists to catch.
 
 ## 9. Prose contradicting its own table - *open*
 
@@ -210,7 +210,7 @@ table are informative.
 **The subtraction:** naming discipline. Two quantities that differ get two names, and the name records
 which one is meant.
 
-## 11. Partial standing in for the whole - *partial*
+## 11. Partial located in for the whole - *partial*
 
 **Caught:** reduced rounds in five benches, one output word of eight, a 64-bit prefix of a 256-bit
 digest, one frame, one constant, chunk two without the header, sampling in place of enumeration.
@@ -227,27 +227,27 @@ Reporting the largest of many bins against the expectation for one bin.
 **Caught:** the 775,000x of H29, corrected to 184.5x by H31.
 
 **The subtraction:** the permutation null, or an extreme-value reference. Drawing `n` samples into
-`r` bins gives an expected maximum well above `n/r`, and that expectation is the reference.
+`r` bins gives an expected max well above `n/r`, and that expectation is the reference.
 
 ## 13. Argmax over a tied set - *partial, and freshly caught*
 
-Selecting "the most common" value where many values share the top count, where the selection is made by
+Selecting "the usual" value where many values share the top count, where the selection is made by
 the sort's tiebreak and not by the data.
 
-**Caught:** `bench_canary` steers a walk through delta space by following the most common outgoing
-delta. Counting how many share that maximum:
+**Caught:** `bench_canary` steers a walk through delta space by following the usual outgoing
+delta. Counting how many share that max:
 
 | round | 0 | 1 | 2 | 3 | 4 | 5 | 6 |
 |---|---|---|---|---|---|---|---|
 | deltas tied at the peak | 1 | **12** | **21** | **19** | **17** | **29** | **17** |
 
-From round one onward there is no single most common delta. Between twelve and twenty-nine of them
+From round one onward there is no single usual delta. Between twelve and twenty-nine of them
 share a top count of two occurrences in 400,000 draws, and the walk follows whichever has the largest
 numeric value. **The comparison between the peak-steered and tail-steered walks - the entire point of
 that bench - is a comparison between two tiebreaks from round one on.**
 
 **What remains:** the peak *value* is unaffected, since a tie does not change the height of the
-maximum, only which delta carries it. The compound figure and H30's conclusion stand. The strategy
+max, only which delta carries it. The compound figure and H30's conclusion are. The strategy
 comparison does not.
 
 **The subtraction:** count the ties at the argmax and print the count beside it. Done in
@@ -280,7 +280,7 @@ both rules. The histogram copy applied the first rule to order one and put **0.2
 **Caught again, one layer out.** The Poisson prediction at order one was missing a `- log2(mean)`
 term. That term is exactly zero when the mean count is one, the full-domain case, and the
 wrong formula **agreed perfectly at the only point it was being read at** and disagreed everywhere
-else. A defect that hides precisely at the operating point is the worst kind to leave in, and it was
+else. A defect that hides precisely at the operating point is the worst type to leave in, and it was
 only visible because a smoke run at a smaller domain existed.
 
 **The subtraction:** one function, `deficit_term`, that knows the empty-bin rule for every order, and
@@ -314,7 +314,7 @@ Five modes are closed, five are partial, five have no detector. Of what remains,
 test) and mode 5 (printing the detection floor before the result) are both mechanical and are next.
 Modes 9 and 10 are discipline instead of instrumentation and will not yield to a tool.
 
-Mode 15 arrived last and deserves the most weight, because it was caught inside the instrument
+Mode 15 arrived last and deserves the max weight, because it was caught inside the instrument
 built to catch the others. The sieve does not exempt itself. Both of its instances were found by
 running the same code at a domain it was not designed around, the cheapest detector on this
 whole list, and still not a habit: **run every bench at a second scale, and compare the shape

@@ -17,9 +17,9 @@
 # WHERE THIS WRITES. repos/external/datasets at tree level, outside this repository, flat names and
 # no nesting. That directory is not a git repository at all. Nothing here can be committed by
 # accident. The rule this repo's .gitignore already states is the same one: what a tool can fetch is
-# not carried here. The repository keeps this manifest.
+# not carried here. The repository retains this manifest.
 #
-# WHY THESE DATASETS AND NOT A LEADERBOARD. The permutation null measure carries most of the
+# WHY THESE DATASETS AND NOT A LEADERBOARD. The permutation null measure carries the majority of the
 # findings in this work and has no positive control from outside it, which theory/workbooks/orior calls the
 # largest single gap in the work. The shift agreement detector has three, all from published crystal
 # cell edges. These datasets ship published ground truth tracking annotations, a

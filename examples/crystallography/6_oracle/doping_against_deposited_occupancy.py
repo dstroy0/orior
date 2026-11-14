@@ -32,7 +32,7 @@
 #
 # The repair is to say what distinguishes them, which is reading the deposit. COD 1011256, from
 # 1933, writes `Si1 Si4+ 8 d 0.25 0.25 0.875 1.` and `Al1 Al3+ 8 d 0.25 0.25 0.875 1.`: identical
-# coordinates, identical Wyckoff letter, both at full occupancy, sixteen atoms on eight places. The
+# coordinates, identical Wyckoff character, both at full occupancy, sixteen atoms on eight places. The
 # coordinates being character for character the same is what rules out the reading and leaves the
 # deposit. That is an older convention for a disordered site, naming both partners without
 # normalizing, and not a substitution this instrument invented.
@@ -80,7 +80,7 @@ SLACK = 2 * (10 ** (exact.SCALE_DIGITS - 2))
 FULL = 10**exact.SCALE_DIGITS
 
 # Entries listed one by one before the run is summarized.
-SHOWN = 18
+DISPLAYED = 18
 
 
 def sites_at_positions(text):
@@ -89,7 +89,7 @@ def sites_at_positions(text):
     `occ` is the occupancy text as published, or None where the deposit carries no such column.
     A site whose coordinates are not plain decimal text is skipped and counted.
     """
-    # A projection of crystal.exact_sites, which is where the reading lives. This one keeps the
+    # A projection of crystal.exact_sites, which is where the reading lives. This one retains the
     # occupancy, the field stage four deliberately does not look at, and groups by
     # position, a shared site arrives as one entry holding several elements.
     grouped = {}
@@ -193,7 +193,7 @@ def main():
             if under == 0:
                 full_at_shared += 1
 
-            if listed < SHOWN:
+            if listed < DISPLAYED:
                 listed += 1
                 written = "  ".join(
                     occupancy if occupancy else "none"
@@ -253,7 +253,7 @@ def main():
         "     `Si1 Si4+ 8 d 0.25 0.25 0.875 1.` and `Al1 Al3+ 8 d 0.25 0.25 0.875 1.`,\n"
     )
     out.write(
-        "     identical coordinates and Wyckoff letter, both at full occupancy, which is\n"
+        "     identical coordinates and Wyckoff character, both at full occupancy, which is\n"
     )
     out.write(
         "     sixteen atoms on eight places. It is how an older deposit describes a\n"

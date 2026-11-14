@@ -12,9 +12,9 @@
 //   added      what a run puts is added after every record stored and before the pairs, after a who record of the code
 //              that put it, under one cycle numbered after the record's own, a seed and a round where they were marked,
 //              and nothing where nothing new was put
-//   samples    every sample is read back as it was stored, its launches' least and most where it has them
+//   samples    every sample is read back as it was stored, its launches' least and max where it has them
 //   pairs      every pair is read back, and the pairs a run reads off its queries take the place of those before
-//   refused    a line the oracle gives no kind of is refused with its line
+//   refused    a line the oracle gives no type of is refused with its line
 //   rows       a record made a view of the run's table of queries is put together from its rows as it is stored, every
 //              text and every record in its order, before and after what a run puts, and the bytes written are linked
 //              to the rows they were written from; with no run it is no table's
@@ -24,7 +24,7 @@
 //
 //     kqr_check <folder> [<a part's .kqr>]...
 //
-// It runs in a query run (qry_run.sh): every record it writes is handed to the run's writer.
+// It runs in a query run (qry_run.sh): every record it writes is passed to the run's writer.
 #include "../../../../../../../includes/file_defs/kqr/kqr_record.h"
 #include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
 
@@ -48,8 +48,8 @@ static void check_that(int passed, const char *what)
     }
 }
 
-// the rooms a file read or a record rendered is stored in, so that four stand at once, and the bytes each contains. A
-// file is at most what a record contains, but its text form is not bounded by it: a word of one byte in the record can
+// the rooms a file read or a record rendered is stored in, so that four are at once, and the bytes each contains. A
+// file is at max what a record contains, but its text form is not bounded by it: a word of one byte in the record can
 // be sixteen hex digits in the text, and a room grows to what it is required to contain
 static char *s_room[4];
 static size_t s_room_bytes[4];
@@ -119,15 +119,15 @@ static const char *const s_written =
 
 static KqrRecord s_record;
 
-// 1 where the two files are of one kind, the same texts in the same order and the same records, the bytes each is
+// 1 where the two files are of one type, the same texts in the same order and the same records, the bytes each is
 // written as
 static int files_same(const KrepFile *one, const KrepFile *other)
 {
     int same =
-        (memcmp(one->kind, other->kind, 4u) == 0) && (one->texts == other->texts) && (one->records == other->records);
+        (memcmp(one->type, other->type, 4u) == 0) && (one->texts == other->texts) && (one->records == other->records);
     for (unsigned int number = 0u; same && (number < one->texts); number += 1u)
     {
-        // a text is at most the bytes of a file read whole, which a size_t counts
+        // a text is at max the bytes of a file read whole, which a size_t counts
         same = (one->text_length[number] == other->text_length[number]) &&
                (memcmp(one->text[number], other->text[number], (size_t)one->text_length[number]) == 0);
     }
@@ -265,7 +265,7 @@ int main(int count, char **words)
     snprintf(path, sizeof(path), "%s/kqr_check.kqr", words[1]);
     if (qry_member_filed(path, s_written, strlen(s_written)) == 0ull)
     {
-        printf("  %s could not be written: no run's writer runs, or it stands outside the tree\n", path);
+        printf("  %s could not be written: no run's writer runs, or it is outside the tree\n", path);
         return 2;
     }
 
@@ -279,7 +279,7 @@ int main(int count, char **words)
     check_that(kqr_write(&s_record, path) == 1, "it is written as records");
     char *bytes = file_read(path, &size, 0u);
     check_that((bytes != NULL) && (size > 16u) && (memcmp(bytes, "KREP\0\0\0\0KQR\0", 12u) == 0),
-               "which open with the k-file head and the .kqr's kind");
+               "which open with the k-file head and the .kqr's type");
     check_that(kqr_read(&s_record, path, "part", error, sizeof(error)) == 1, "the records are read back");
     text = rendered(&s_record, &size, 1u);
     check_that((text != NULL) && (strcmp(text, s_written) == 0), "as the text form byte for byte");
@@ -341,7 +341,7 @@ int main(int count, char **words)
     s_sample.nanoseconds = 300ull;
     s_sample.launched = 1;
     s_sample.least = 2ull;
-    s_sample.most = 5ull;
+    s_sample.max = 5ull;
     kqr_sample_by(&s_record, &s_sample, put);
     memset(&s_sample, 0, sizeof(s_sample));
     s_sample.identity = identity_of("00000000000000f3 12 256 4096 100 648 00000000000000bb");
@@ -357,8 +357,8 @@ int main(int count, char **words)
     identity = identity_of("00000000000000f0 12 0 0 0 2 00000000000000bb");
     check_that(kqr_find(&s_record, &identity, &s_found) && (s_found.word[1] == 9ull), "a new query is stored");
     check_that(kqr_sample_read(&s_record, 2u, &s_sample) && s_sample.launched && (s_sample.least == 2ull) &&
-                   (s_sample.most == 5ull),
-               "a sample is read back with its launches' least and most");
+                   (s_sample.max == 5ull),
+               "a sample is read back with its launches' least and max");
     check_that(kqr_sample_read(&s_record, 3u, &s_sample) && (strcmp(s_sample.refusal, "the gate blocked it") == 0),
                "and a sample refused with its refusal");
     kqr_paths_clear(&s_record);
@@ -376,17 +376,17 @@ int main(int count, char **words)
     check_that(written_from(path, key), "its bytes are linked to the rows they were written from");
     check_that(kqr_read(&s_record, path, "part", error, sizeof(error)) == 1, "and read back");
     text = rendered(&s_record, &size, 1u);
-    char put_code[WHO_CODE_LETTERS + 1u];
+    char put_code[WHO_CODE_CHARACTERS + 1u];
     who_code(put, put_code, sizeof(put_code));
-    // a who line is `who`, a space, the code's letters and the line's end
-    const size_t who_line = 4u + WHO_CODE_LETTERS + 1u;
+    // a who line is `who`, a space, the code's characters and the line's end
+    const size_t who_line = 4u + WHO_CODE_CHARACTERS + 1u;
     const char *const resolved_at =
         (text != NULL)
             ? strstr(text, "query 00000000000000ad 12 0 0 0 2 00000000000000bb answers 7 9\nwho -\ncycle 2 pair\n")
             : NULL;
     check_that((resolved_at != NULL) && ((size_t)(resolved_at - text) > who_line) &&
                    (strncmp(resolved_at - who_line, "who ", 4u) == 0),
-               "the resolved query stands where the timed out one stood, between its who and the who before, none");
+               "the resolved query is where the timed out one was, between its who and the who before, none");
     const char *const cycle_at = (text != NULL) ? strstr(text, "answers 1800000\n") : NULL;
     check_that(
         (cycle_at != NULL) && (strncmp(cycle_at + 16, "who ", 4u) == 0) &&
@@ -416,8 +416,8 @@ int main(int count, char **words)
     kqr_free(&s_record);
 
     const char *const unknown = "kqr part\nquery 00000000000000aa 12 0 0 0 3 00000000000000bb answers\nwhat\n";
-    check_that(qry_member_filed(path, unknown, strlen(unknown)) != 0ull, "a record with a line of no kind is written");
-    check_that(kqr_read(&s_record, path, "part", error, sizeof(error)) == 0, "a line of no kind is refused");
+    check_that(qry_member_filed(path, unknown, strlen(unknown)) != 0ull, "a record with a line of no type is written");
+    check_that(kqr_read(&s_record, path, "part", error, sizeof(error)) == 0, "a line of no type is refused");
     check_that(strstr(error, ":3: what is no line of a query record") != NULL, "with its line");
     check_that(s_record.open && (s_record.query_count == 0u), "and the record is open and empty");
     kqr_free(&s_record);

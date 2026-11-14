@@ -3,27 +3,27 @@
 
 // The protocol panel's reading of a run: the course of a pass, known before it starts, as a line of
 // labeled nodes with the fuse between them, and the fire walking the line as the run's writer
-// places the blobs that say each node is reached. The whole line stands from the first moment;
+// places the blobs that say each node is reached. The whole line is from the first moment;
 // nothing on it appears or moves as blobs come in. Nothing here touches the page: the run page
 // draws what this reads.
 //
 // A blob is `{ sequence, nanoseconds, priority, name, size }` as the window's reader reads it off the
 // run's buffer, the priority 0 a panic, 1 critical, 2 ordinary. The reading is a fold: `panelStart()` is the
 // reading of no blobs, `panelStep(reading, blob)` takes one more as it is read, and `panelRead` gives
-// the nodes and where the fire stands.
+// the nodes and where the fire is.
 
 export const PANIC = 0;
 
-// The most questions one round carries, as the scheduler puts them (scheduler.h).
-export const ROUND_MOST = 8192;
+// The max questions one round carries, as the scheduler puts them (scheduler.h).
+export const ROUND_MAX = 8192;
 
-// The most rounds the line shows one node each; a plan of more rounds shows them as one stretch of the
+// The max rounds the line shows one node each; a plan of more rounds shows them as one stretch of the
 // line, its node named for the round under way out of all of them.
-export const ROUNDS_SHOWN = 12;
+export const ROUNDS_DISPLAYED = 12;
 
 // The nodes of a pass's line, in order. The rounds between Plan and Written are one node a round
 // once the plan says how many: a costs pass puts one form a round, a cost mode of the identity every
-// question in one round, every other pass ROUND_MOST questions a round. Before the plan is known the
+// question in one round, every other pass ROUND_MAX questions a round. Before the plan is known the
 // rounds are one node named for the pass, with the round under way where one is.
 export function nodesOf(pass, plan, underWay = 1) {
   const nodes = [
@@ -33,7 +33,7 @@ export function nodesOf(pass, plan, underWay = 1) {
     { key: "plan", label: "Plan" },
   ];
   const rounds = roundsOf(plan);
-  if (plan && rounds > ROUNDS_SHOWN) {
+  if (plan && rounds > ROUNDS_DISPLAYED) {
     const round = Math.max(1, Math.min(rounds, underWay));
     nodes.push({ key: `round${round}`, label: `Round ${round} of ${rounds}`, round, rounds });
   } else if (plan) {
@@ -47,7 +47,7 @@ export function nodesOf(pass, plan, underWay = 1) {
   return nodes;
 }
 
-// How many rounds a plan takes: a costs pass puts one form a round, every other pass ROUND_MOST questions a round.
+// How many rounds a plan takes: a costs pass puts one form a round, every other pass ROUND_MAX questions a round.
 export function roundsOf(plan) {
   if (!plan) {
     return 1;
@@ -58,7 +58,7 @@ export function roundsOf(plan) {
   if (plan.pass === "cost") {
     return 1;
   }
-  return Math.max(1, Math.ceil(plan.questions / ROUND_MOST));
+  return Math.max(1, Math.ceil(plan.questions / ROUND_MAX));
 }
 
 // A question's answer: `answers<n>.txt`, the carrier's answer to question n of the round, and `answers.txt` the
@@ -72,7 +72,7 @@ const TABLE_FILE = /\.(ksc|khw|krs|kqr)$/;
 // list's size until its answers say it exactly.
 const LIST_LINE = 64;
 
-// The plan the teacher hands as a pass starts, `<pass> <questions>`, read off the text of `plan.txt`
+// The plan the teacher passes as a pass starts, `<pass> <questions>`, read off the text of `plan.txt`
 // or off the teacher's console line `plan: <pass> <questions>`.
 export function planOf(text) {
   const words = String(text ?? "").trim().replace(/^plan:\s*/, "").split(/\s+/);
@@ -85,10 +85,10 @@ export function panelStart() {
   return { carried: false, rounds: 0, asked: 0, answered: 0, written: false, panic: null, blobs: new Map() };
 }
 
-// The most blobs a node keeps for showing; past that the count goes on and the first ones stand.
-export const KEPT_BLOBS = 4096;
+// The max blobs a node retains for showing; past that the count goes on and the first ones are.
+export const RETAINED_BLOBS = 4096;
 
-// The node a blob belongs to, by where the reading stands as it is placed: a file written is Written's,
+// The node a blob belongs to, by where the reading is as it is placed: a file written is Written's,
 // a blob of a round is that round's, one before the plan's first round is Plan's where a round has been put
 // and Carried in's before.
 function nodeOfBlob(reading, blob, plan) {
@@ -133,19 +133,19 @@ export function panelStep(reading, blob, { plan = null } = {}) {
     reading.written = true;
   }
   const node = nodeOfBlob(reading, blob, plan);
-  const kept = reading.blobs.get(node) ?? { count: 0, list: [] };
-  kept.count += 1;
-  if (kept.list.length < KEPT_BLOBS) {
-    kept.list.push(blob);
+  const retained = reading.blobs.get(node) ?? { count: 0, list: [] };
+  retained.count += 1;
+  if (retained.list.length < RETAINED_BLOBS) {
+    retained.list.push(blob);
   }
-  reading.blobs.set(node, kept);
+  reading.blobs.set(node, retained);
   return reading;
 }
 
 // What the panel shows of a reading: `nodes` the line, each node with whether it is reached; `at`
 // the index of the furthest node reached; `place` how far the fire has burnt, 0 to 1, the node
 // reached plus the current round's answered over asked toward the next; `panic` the first panic's
-// blob or null, each node with the count of blobs it keeps. `tools` says the tools were built, `started` that the run's first blob was read, `plan`
+// blob or null, each node with the count of blobs it retains. `tools` says the tools were built, `started` that the run's first blob was read, `plan`
 // the plan where it has come, `ended` that the run ended.
 export function panelRead(reading, { pass = "", plan = null, tools = false, started = false, ended = false } = {}) {
   const nodes = nodesOf(pass, plan, Math.max(1, reading.rounds));
@@ -170,12 +170,12 @@ export function panelRead(reading, { pass = "", plan = null, tools = false, star
     }
   };
   let at = -1;
-  const shown = nodes.map((node, index) => {
+  const displayed = nodes.map((node, index) => {
     // a stretch of rounds is reached once its first round is, and its node is the round under way
     const is = node.rounds ? Boolean(plan) && reading.rounds >= 1 : reached(node);
     at = is ? index : at;
-    const kept = reading.blobs.get(node.key);
-    return { key: node.key, label: node.label, reached: is, blobs: kept?.count ?? 0, round: node.round ?? null, rounds: node.rounds ?? null };
+    const retained = reading.blobs.get(node.key);
+    return { key: node.key, label: node.label, reached: is, blobs: retained?.count ?? 0, round: node.round ?? null, rounds: node.rounds ?? null };
   });
   const last = nodes.length - 1;
   const current = nodes[at + 1];
@@ -183,31 +183,31 @@ export function panelRead(reading, { pass = "", plan = null, tools = false, star
   let fraction = current?.round && reading.rounds === current.round - 1 ? answered : 0;
   const stretch = nodes[at];
   if (stretch?.rounds) {
-    // along a stretch the fire stands at the rounds done over all of them, the round under way part way
+    // along a stretch the fire is at the rounds done over all of them, the round under way part way
     const done = reading.rounds - 1 + (reading.rounds <= stretch.rounds ? answered : 1);
     fraction = Math.max(0, Math.min(1, done / stretch.rounds));
   }
   const place = ended ? 1 : Math.max(0, Math.min(1, (at + fraction) / last));
-  return { nodes: shown, at, place, round: { rounds: reading.rounds, asked: reading.asked, answered: reading.answered }, panic: reading.panic };
+  return { nodes: displayed, at, place, round: { rounds: reading.rounds, asked: reading.asked, answered: reading.answered }, panic: reading.panic };
 }
 
 // The reading folded again now that `plan` is known: the blobs placed before the plan's line came are
-// read as the plan reads them. The blobs are those the nodes kept, in the order placed; a node that kept
-// fewer than it saw is read from those it kept.
+// read as the plan reads them. The blobs are those the nodes retained, in the order placed; a node that retained
+// fewer than it saw is read from those it retained.
 export function panelReplanned(reading, plan) {
-  const blobs = [...reading.blobs.values()].flatMap((kept) => kept.list).sort((one, two) => one.sequence - two.sequence);
+  const blobs = [...reading.blobs.values()].flatMap((retained) => retained.list).sort((one, two) => one.sequence - two.sequence);
   return blobs.reduce((read, blob) => panelStep(read, blob, { plan }), panelStart());
 }
 
-// The blobs a node keeps, in the order placed, and how many it saw in all.
+// The blobs a node retains, in the order placed, and how many it saw in all.
 export function blobsOfNode(reading, key) {
-  const kept = reading.blobs.get(key);
-  return kept ? { count: kept.count, list: kept.list } : { count: 0, list: [] };
+  const retained = reading.blobs.get(key);
+  return retained ? { count: retained.count, list: retained.list } : { count: 0, list: [] };
 }
 
 // What the panel shows of `blobs` read whole, as the fold of the three above.
-export function panelOf(blobs, shown = {}) {
-  return panelRead(blobs.reduce((reading, blob) => panelStep(reading, blob, shown), panelStart()), shown);
+export function panelOf(blobs, displayed = {}) {
+  return panelRead(blobs.reduce((reading, blob) => panelStep(reading, blob, displayed), panelStart()), displayed);
 }
 
 // The telemetry of a run, read off the run's database and the console as the four signals a service is watched by:
@@ -219,7 +219,7 @@ export function panelOf(blobs, shown = {}) {
 // times the time the last rounds took. Nothing here touches the page.
 export const RATE_WINDOW_MS = 10000;
 
-// How many seconds of the rate the history keeps for drawing.
+// How many seconds of the rate the history retains for drawing.
 export const HISTORY_SECONDS = 120;
 
 // The teacher's line as a round ends: the questions put and the airlock's, pop's, cross's and carrier's seconds.
@@ -230,7 +230,7 @@ export function telemetryStart() {
 }
 
 // A cellblock's report, `cells/<name>` holding `<pool's bytes> <persistent peak> <temporary peak>`: each module reports
-// its own as its peaks rise, and the latest of each name stands.
+// its own as its peaks rise, and the latest of each name is.
 const CELLS = /^cells\/(.+)$/;
 const CELLS_TEXT = /^(\d+) (\d+) (\d+)$/;
 
@@ -240,8 +240,8 @@ export function telemetryStep(telemetry, blob, atMs) {
   telemetry.lastAt = atMs;
   if (ANSWER.test(blob.name)) {
     telemetry.answered.push(atMs);
-    const kept = atMs - HISTORY_SECONDS * 1000;
-    while (telemetry.answered.length && telemetry.answered[0] < kept) {
+    const retained = atMs - HISTORY_SECONDS * 1000;
+    while (telemetry.answered.length && telemetry.answered[0] < retained) {
       telemetry.answered.shift();
     }
   }
@@ -286,7 +286,7 @@ export function telemetryLine(telemetry, text) {
 
 // The readings at `nowMs`: `rate` answers a second over the window and `recent` the count behind it; `gone`
 // ms since the first blob; `left` ms to the end from the rounds left and the last rounds' spacing, null
-// before two rounds or where no plan was handed; the latency, the errors, `unanswered`, and each cellblock's
+// before two rounds or where no plan was passed; the latency, the errors, `unanswered`, and each cellblock's
 // report as `cells`.
 export function telemetryRead(telemetry, { nowMs, plan = null, reading, ended = false }) {
   const recent = telemetry.answered.filter((at) => at >= nowMs - RATE_WINDOW_MS).length;
@@ -366,7 +366,7 @@ export function valuesOfWords(params, words) {
       }
       continue;
     }
-    const taker = params.find((param) => open(param) && (param.kind !== "choice" || offers(param, word)));
+    const taker = params.find((param) => open(param) && (param.type !== "choice" || offers(param, word)));
     if (taker) {
       values[taker.key] = [word];
     }
@@ -412,7 +412,7 @@ export function courseLine(course, text) {
 // What the line shows of a course: each step a node, reached once a later step is under way or the course ended,
 // current while under way, failed where the course stopped at it; and `place`, how far the fire has burnt along the
 // line, 0 to 1: the steps done, and the step under way part way to the next by `passPlace`, how far its own pass has
-// come. A course that ended burns the whole line; one that stopped stands where it stopped.
+// come. A course that ended burns the whole line; one that stopped is where it stopped.
 export function courseRead(course, passPlace, ended) {
   const count = course.steps.length;
   const done = course.ended || (ended && course.stopped === null);

@@ -7,8 +7,8 @@
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_a_notice_answering_a_command_shows_at_once_and_stands_five_seconds(void);
-extern void test_a_failure_stands_fifteen_seconds_and_shows_its_first_line(void);
+extern void test_a_notice_answering_a_command_shows_at_once_and_is_five_seconds(void);
+extern void test_a_failure_is_fifteen_seconds_and_shows_its_first_line(void);
 extern void test_a_notice_answering_nothing_waits_for_the_keys_to_rest(void);
 extern void test_a_break_shows_the_last_notice_waiting(void);
 extern void test_focus_stops_every_notice_until_it_ends(void);
@@ -74,8 +74,8 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\notices\\test_notices\\test_notices.c");
-  run_test(test_a_notice_answering_a_command_shows_at_once_and_stands_five_seconds, "test_a_notice_answering_a_command_shows_at_once_and_stands_five_seconds", 52);
-  run_test(test_a_failure_stands_fifteen_seconds_and_shows_its_first_line, "test_a_failure_stands_fifteen_seconds_and_shows_its_first_line", 67);
+  run_test(test_a_notice_answering_a_command_shows_at_once_and_is_five_seconds, "test_a_notice_answering_a_command_shows_at_once_and_is_five_seconds", 52);
+  run_test(test_a_failure_is_fifteen_seconds_and_shows_its_first_line, "test_a_failure_is_fifteen_seconds_and_shows_its_first_line", 67);
   run_test(test_a_notice_answering_nothing_waits_for_the_keys_to_rest, "test_a_notice_answering_nothing_waits_for_the_keys_to_rest", 78);
   run_test(test_a_break_shows_the_last_notice_waiting, "test_a_break_shows_the_last_notice_waiting", 91);
   run_test(test_focus_stops_every_notice_until_it_ends, "test_focus_stops_every_notice_until_it_ends", 104);

@@ -18,7 +18,7 @@ unsigned int khw_fixed_register(const char *name)
         if (ksc_row_read(s_file.line[at], "run", &s_row) && (strcmp(s_row.answer, "answers") == 0) &&
             (strcmp(s_row.question, query_text) == 0))
         {
-            // a register's number is at most eight hex digits
+            // a register's number is at max eight hex digits
             found = (unsigned int)s_row.value;
         }
     }
@@ -97,7 +97,7 @@ unsigned int khw_fields_listed(unsigned int *first, unsigned int *bits, unsigned
 }
 
 // 1 where the instruction `low` and `high` contains `value` in some run of its bits, `value` not 0: a number a form
-// writes stands in the instruction, and a constant it computes does not
+// writes is in the instruction, and a constant it computes does not
 static int khw_encoding_matches(unsigned long long low, unsigned long long high, unsigned long long value)
 {
     if ((value == 0ull) || (value > 0xffffffffull))
@@ -175,7 +175,7 @@ void khw_frame_stalled(unsigned long long *low, unsigned long long *high)
 // The question of the frame added to the round being written: the kernel with `low` and `high` at the probe point,
 // the changed place stalled the longest, named at the probe point as every question is, read by the cross and the
 // gate as every question is, and a fault it causes recorded as every fault is. Over `count` cases from `word`. Its
-// place in the round, or SCHEDULER_ROUND_MOST where the round is full
+// place in the round, or SCHEDULER_ROUND_MAX where the round is full
 unsigned int khw_frame_pooled(unsigned long long low, unsigned long long high, const unsigned int word[][2],
                               unsigned int count)
 {
@@ -222,7 +222,7 @@ void khw_frame_nothing_read(const RunQuestion *question)
 // the count of survivors. The candidates in their order: lane, block, the load of the first word and of the second,
 // the store of the second, exit, number where every case answers one constant, the first case's, and the
 // instruction `form` contains that constant in its immediate field, dim where every case answers the block size and the
-// immediate field does not contain it, and parameter where every case answers the count the launch hands the kernel,
+// immediate field does not contain it, and parameter where every case answers the count the launch passes the kernel,
 // read at the count's place among the parameters. 1 where one survived
 int khw_frame_of(const RunQuestion *question, KhwAnswered *form)
 {
@@ -233,7 +233,7 @@ int khw_frame_of(const RunQuestion *question, KhwAnswered *form)
     const unsigned long long reading[KHW_FRAME_CANDIDATES] = {
         0ull, 0ull, 0ull, 1ull, 1ull, 0ull, question->answered[0], 0ull, (unsigned long long)RUN_COUNT_PLACE};
     khw_frame_cases_written();
-    // a number stands in the field the .ksc names `immediate`, where a number operand lies: a place containing its
+    // a number is in the field the .ksc names `immediate`, where a number operand lies: a place containing its
     // constant there is a number, and one containing the block size there is a number and names no dim. A bit run
     // anywhere else reads one set bit over eight clear ones as the block size, which nearly every encoding contains,
     // and shows nothing; where the .ksc names no immediate field, a number is read as any bit run of the instruction. A

@@ -13,11 +13,11 @@ against the tree. Points marked **declared** were read and not exercised.
 
 A single descent over a fixed corpus and needle is a finite automaton with data dependent control
 flow. The destroy test reads the corpus and can end the descent early. Corpus content decides the
-depth downward. `while (placed < count)` bounds it above, and `count` is at most
+depth downward. `while (placed < count)` bounds it above, and `count` is at max
 `ORIOR_STEER_ANCHORS`. Depth is therefore a steer, not a constant, and the bound above is a
 constant.
 
-Most of this document rests on that single fact. A machine whose depth the data can
+The majority of this document rests on that single fact. A machine whose depth the data can
 move is a machine whose run has something to report, and every counter below exists because
 somebody wanted to know what the data did to a particular run.
 
@@ -51,7 +51,7 @@ to nothing and the object stays as it was.
 | point                        | where              | what it says                                                                 |
 | ---------------------------- | ------------------ | ---------------------------------------------------------------------------- |
 | `orior_probes` | `orior.h` | corpus bytes read by an anchor probe since the last reset |
-| `orior_verifications` | `orior.h` | exact compares since the last reset, each reading at most `needle_len` bytes |
+| `orior_verifications` | `orior.h` | exact compares since the last reset, each reading at max `needle_len` bytes |
 | `orior_counters_reset` | `orior.h` | sets both to zero |
 
 **Why they are two numbers and not one.** A probe read is one byte. A verification is up to
@@ -78,7 +78,7 @@ agree. These two prove the engine the machine carries actually ran. The header r
 motivated them: an AVX2 engine was built, graded against portable and benched at 33 times its rate
 while the planner went on running its own scalar loop, and nothing in the suite said so. A vectorized
 engine that reports itself present and never gets called produces no wrong answer. Every count
-stays identical and every test keeps passing.
+stays identical and every test retains passing.
 
 **Run.** The wiring check reports `avx2 | 189 | 189 | 100% | ok`. Wide calls equal total calls,
 the ratio is 1 and the claim is not vacuous.
@@ -92,7 +92,7 @@ the ratio is 1 and the claim is not vacuous.
 | ----------------------- | ----------------------------------------------------------------------------------------------------- |
 | return value            | 1 projected, 0 refused. On a refusal it is the ONLY signal, because no refusal path writes `distinct` |
 | `distinct`              | surviving component count, after merges                                                               |
-| `ranks`                 | one rarity rank per position, rarest first. Rank 0 is the class that refutes most alignments          |
+| `ranks`                 | one rarity rank per position, rarest first. Rank 0 is the class that refutes max alignments          |
 | `class_of_position`     | which class each position fell in                                                                     |
 | `members_in_class`      | how many positions each class holds, the field's frequency distribution                               |
 | `rarity_place_of_class` | where each class sits in the rarity order                                                             |
@@ -162,7 +162,7 @@ scores disagree, and both are printed for that reason.
 | `orior_volume_device_available` | `orior_raster.h` | 0 on every build |
 
 **The inference.** These ask the processor instead of trusting the build. A NULL means absent and is
-distinguishable from present and broken, and a capability probe answering 0 honestly keeps a
+distinguishable from present and broken, and a capability probe answering 0 honestly retains a
 stub from reporting itself present.
 
 ## 8. What cannot be inspected, and why

@@ -53,7 +53,7 @@ def ste_copies_same():
 
 
 def cmd_ste(a):
-    """The ratchet checked and the copies compared, or the findings shown, or the ratchet lowered."""
+    """The ratchet checked and the copies compared, or the findings displayed, or the ratchet lowered."""
     if a.show is not None:
         return subprocess.run([sys.executable, STE_CHECK] + (a.show or ["."]), cwd=ROOT).returncode
     if a.lower:

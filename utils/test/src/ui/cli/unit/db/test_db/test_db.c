@@ -387,7 +387,7 @@ void test_a_table_lists_its_columns_and_indexes(void)
     {
         const unsigned int part = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = s_json, .array = found, .index = at);
         mmgr_line_put(&line, (at > 0u) ? "|" : "");
-        mmgr_line_put(&line, cli_unity_member_text(part, "kind"));
+        mmgr_line_put(&line, cli_unity_member_text(part, "type"));
         mmgr_line_ch(&line, ' ');
         mmgr_line_put(&line, cli_unity_member_text(part, "label"));
     }

@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // A file's changes side by side, over the editor: the last commit's text on the left and the text as
-// it stands on the right, each with its line numbers, lines the two share level with each other.
+// it is on the right, each with its line numbers, lines the two share level with each other.
 // A line changed is marked on both sides, a line added on the right with an empty row across from it
 // on the left, and a line taken out the other way. The bar over it names the file, steps to the
 // next change and the one before (F7 and Shift+F7), and closes it, as Escape does. Its box sets
-// changes to white space aside, lines that differ only in it standing level as the same, and the
-// choice is kept under orior.diff-space.
+// changes to white space aside, lines that differ only in it located level as the same, and the
+// choice is retained under orior.diff-space.
 //
-// Its second box compares by structure, in the app's window's side, and the choice is kept under
-// orior.diff-structure. Lines then stand level by the tokens they hold, a line moved is marked as
+// Its second box compares by structure, in the app's window's side, and the choice is retained under
+// orior.diff-structure. Lines then are level by the tokens they hold, a line moved is marked as
 // moved on both sides, a name changed to one other name everywhere as renamed, and a line whose
 // tokens are the same and only its layout changed as reshaped; within a line, each token taken out or
 // put in is marked, and the bar's second line says what was renamed, moved and reshaped.
 //
-// Where the right side is a file's, its review comments stand under their lines, a press on a right
+// Where the right side is a file's, its review comments are under their lines, a press on a right
 // line's number leaves one, and each comment's buttons resolve it, open it again or delete it.
 
 import { invoke } from "./bridge.js";
@@ -29,7 +29,7 @@ const state = { node: null, hunks: [], at: -1, rows: null, ticket: 0, redraw: nu
 
 onReview(() => state.node && state.redraw?.());
 
-// The review comments of a file by the line of `lines` each stands at.
+// The review comments of a file by the line of `lines` each is at.
 function commentsAt(path, lines) {
   const at = new Map();
   for (const comment of comments().filter((one) => one.path === path)) {
@@ -69,13 +69,13 @@ function openNote(row, line, review, lines) {
   const save = Object.assign(document.createElement("button"), { type: "button", className: "diff-comment-act primary-ish", textContent: "Comment" });
   const cancel = Object.assign(document.createElement("button"), { type: "button", className: "diff-comment-act", textContent: "Cancel" });
   const note = element("div", { className: "diff-comment diff-comment-new" }, field, save, cancel);
-  const keepIt = () => field.value.trim() && addComment(review, line, lines[line] ?? "", field.value.trim());
-  save.addEventListener("click", keepIt);
+  const retainIt = () => field.value.trim() && addComment(review, line, lines[line] ?? "", field.value.trim());
+  save.addEventListener("click", retainIt);
   cancel.addEventListener("click", () => note.remove());
   field.addEventListener("keydown", (event) => {
     if (event.key === "Enter" && event.ctrlKey) {
       event.preventDefault();
-      keepIt();
+      retainIt();
     } else if (event.key === "Escape") {
       event.preventDefault();
       event.stopPropagation();
@@ -211,9 +211,9 @@ function step(direction) {
 
 // Shows `path`'s changes from `then`, the last commit's text or null where it holds none, to `now`,
 // over `host`. `sides` names the two texts where the left one is not the last commit, and `same` says
-// they do not differ. `review` is the file of the tree whose review comments stand under the right
+// they do not differ. `review` is the file of the tree whose review comments are under the right
 // side's lines and are left there, where the right side is a file's; `scroll` is where the view opens
-// scrolled to, where it is shown again.
+// scrolled to, where it is displayed again.
 export async function showDiff(host, path, then, now, { sides = null, same = "No change from the last commit.", review = null, scroll = null } = {}) {
   state.ticket += 1;
   const ticket = state.ticket;
@@ -241,17 +241,17 @@ export async function showDiff(host, path, then, now, { sides = null, same = "No
     "div",
     { className: "diff-bar" },
     element("span", { className: "diff-name", textContent: path }),
-    element("span", { className: "diff-sides", textContent: sides ?? (then === null ? "not in the last commit" : "last commit, then as it stands") }),
+    element("span", { className: "diff-sides", textContent: sides ?? (then === null ? "not in the last commit" : "last commit, then as it is") }),
     element("span", { className: "diff-where" }),
     button("chevron", "Next Change (F7)", () => step(1)),
     button("chevron", "Previous Change (Shift+F7)", () => step(-1)),
     button("close", "Close (Escape)", closeDiff),
   );
   bar.children[4].classList.add("diff-up");
-  // Structure sets white space aside on its own, and its box stands unused while structure is chosen.
+  // Structure sets white space aside on its own, and its box is unused while structure is chosen.
   const space = element("input", { type: "checkbox", checked: localStorage.getItem(SPACE_KEY) === "aside", disabled: structured });
   space.addEventListener("change", () => {
-    localStorage.setItem(SPACE_KEY, space.checked ? "aside" : "shown");
+    localStorage.setItem(SPACE_KEY, space.checked ? "aside" : "displayed");
     showDiff(host, path, then, now, { sides, same, review });
   });
   const structure = element("input", { type: "checkbox", checked: structured });

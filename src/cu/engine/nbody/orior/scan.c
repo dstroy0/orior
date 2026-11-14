@@ -10,7 +10,7 @@
  * @brief The steering scan in portable C11, the reference every other scan arm is graded against.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
- * ONE PRIMITIVE. Fixed at one needle offset, count the alignments still standing whose corpus byte at
+ * ONE PRIMITIVE. Fixed at one needle offset, count the alignments still located whose corpus byte at
  * that offset equals the needle byte the level is testing. That is the operation a planner requests
  * of a scan engine, and it is the same question every wide arm answers faster.
  *
@@ -35,7 +35,7 @@ size_t orior_steer_truthy_after_portable(const uint8_t *corpus, size_t alignment
         return 0u;
     }
 
-    size_t standing = 0u;
+    size_t located = 0u;
     for (size_t at = 0u; at < alignments; at += 1u)
     {
         if (alive[at] == 0u)
@@ -44,10 +44,10 @@ size_t orior_steer_truthy_after_portable(const uint8_t *corpus, size_t alignment
         }
         if (corpus[at + offset] == wanted)
         {
-            standing += 1u;
+            located += 1u;
         }
     }
-    return standing;
+    return located;
 }
 
 const OriorSteerEngine *orior_steer_portable_engine(void)

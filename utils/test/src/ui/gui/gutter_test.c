@@ -84,7 +84,7 @@ int main(void)
                .glyphs = &glyphs, .palette = palette, .place = place, .scale = 100, .key = s_key);
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                        .pixels = GUI_CODE_SIZE, .scale = 100);
-    const float cell = EMBED_CALL(gui_glyphs_face_letter.cell, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs, .size = size);
+    const float cell = EMBED_CALL(gui_glyphs_face_character.cell, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs, .size = size);
     const int text_x = place.x + EMBED_CALL(gui_editor_position_cell.gutter, GuiEditorPositionCellCfg,
                                             .editor_read = &editor, .cell = cell, .scale = 100);
     const int column = text_x - GUI_GUTTER_MARK_RIGHT - 1;

@@ -89,7 +89,7 @@ static void git_head_draw(const GuiPaneCfg *args)
                .text = query, .length = query_length, .placeholder = GIT_PLACEHOLDER, .keys = args->pane_read->keys);
 }
 
-// the action at x, y: the field where the pixel stands in it, else the choice
+// the action at x, y: the field where the pixel is in it, else the choice
 static unsigned int git_head_hit(const GuiPaneCfg *args)
 {
     if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
@@ -219,7 +219,7 @@ EMBED_INLINE void git_stroke_draw(const GitCtx *args)
 
 // a row drawn: the branch's name bold with the commits counted after it; a commit's strokes and dot, the branches and
 // tags at it in pills, its subject cut before its author and its day at the right; a file's guide, mark, name, folder
-// and state letter; or the notice
+// and state character; or the notice
 static void git_row_draw(const GuiPaneCfg *args)
 {
     const GuiPalette *const palette = args->palette;
@@ -288,7 +288,7 @@ static void git_row_draw(const GuiPaneCfg *args)
     }
     // the row's parts are far fewer pixels than an int counts
     x += ((int)row.across * lane) + gap;
-    // the day at the right, the author before it where authors show, and what stands before them cut before the author
+    // the day at the right, the author before it where authors show, and what is before them cut before the author
     int limit =
         rect.x + rect.width - EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_GIT_RIGHT_PAD);
     const float day_width = EMBED_CALL(gui_pane_part.text_width, GuiPanePartCfg, .pane = args, .face = GUI_FACE_HEAD,
@@ -302,8 +302,8 @@ static void git_row_draw(const GuiPaneCfg *args)
     {
         const float measured = EMBED_CALL(gui_pane_part.text_width, GuiPanePartCfg, .pane = args, .face = GUI_FACE_HEAD,
                                           .size = GUI_GIT_SMALL_SIZE, .text = row.second, .length = row.second_length);
-        const int most = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_GIT_AUTHOR_MAX);
-        const int author_width = (measured < (float)most) ? (int)(measured + 0.5f) : most;
+        const int max = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_GIT_AUTHOR_MAX);
+        const int author_width = (measured < (float)max) ? (int)(measured + 0.5f) : max;
         limit -= author_width;
         (void)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .clipped = 1, .face = GUI_FACE_HEAD,
                          .size = GUI_GIT_SMALL_SIZE, .x_f32 = (float)limit, .text = row.second,
@@ -311,7 +311,7 @@ static void git_row_draw(const GuiPaneCfg *args)
                          .clip = (GuiRect){limit, rect.y, author_width, rect.height});
         limit -= gap;
     }
-    // the branches and tags at the commit, each in a pill between its least and most widths, HEAD's in signal and a
+    // the branches and tags at the commit, each in a pill between its least and max widths, HEAD's in signal and a
     // tag's in the third mark
     const int ref_pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_GIT_REF_PAD);
     const int ref_min = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_GIT_REF_MIN);
@@ -369,7 +369,7 @@ static int git_press(const GuiPaneCfg *args)
 // the repositories and the graph read anew as the pane shows
 static void git_read(const GuiPaneCfg *args)
 {
-    if (args->event == GUI_PANE_SHOWN)
+    if (args->event == GUI_PANE_DISPLAYED)
     {
         EMBED_CALL(cli_git_log.relist, CliGitLogCfg, .root = args->root, .now_ms = cli_clock_milliseconds());
     }

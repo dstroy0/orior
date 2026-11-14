@@ -32,11 +32,11 @@ container before its effect on the motion is read, and the last proved section s
 the fluid in a box costs.
 
 This is the first observation of the thought experiment behind it. Every term is written in vector
-form, and nothing is kept fixed that the fluid has not been asked for. The observations that follow
-from it go in later chapters. The next one, \emph{What the average keeps}, places the molecules
+form, and nothing is retained fixed that the fluid has not been asked for. The observations that follow
+from it go in later chapters. The next one, \emph{What the average retains}, places the molecules
 in this field and bounds where an average of the two over a cell holds.
 
-\section{The balance laws, kept whole}
+\section{The balance laws, retained whole}
 
 Write $\rho$ for density, $u$ for velocity, $T$ for temperature, $\theta = \nabla\cdot u$ for the
 rate of volume change, and $D = \tfrac12(\nabla u + \nabla u^{\mathsf T})$ for the rate of strain.
@@ -151,7 +151,7 @@ action of the wall on the fluid diminishes as the temperature rises, and his equ
 constants fixed.
 
 \textbf{A gap, stated here.} Proposition 2 puts a nonzero $\nabla T$ somewhere in every interval of
-motion. Proposition 3 needs it at a point where $D\nabla T \neq 0$. Whether a flow can keep its own
+motion. Proposition 3 needs it at a point where $D\nabla T \neq 0$. Whether a flow can retain its own
 temperature gradient inside the null space of its own rate of strain at every point and time is not
 settled in this chapter.
 
@@ -170,7 +170,7 @@ $0 = \nabla\cdot(k\nabla T) + 2\mu|D|^2$. \hfill\qedsymbol
 Condition (2), taken together with a density that depends on temperature, therefore requires heat
 conduction to remove exactly the heat that shear puts in, at every point and every moment. A fluid
 that expands when heated does not do that. At a temperature where $\rho'$ vanishes the proposition
-says nothing, and water has one: IAPWS R6-95 (2018)~\cite{src:IAPWS-R6-95-2018} puts its density maximum at $3.978\,^\circ$C at
+says nothing, and water has one: IAPWS R6-95 (2018)~\cite{src:IAPWS-R6-95-2018} puts its density max at $3.978\,^\circ$C at
 atmospheric pressure. That is the only temperature at
 which condition (2) and thermal expansion agree without a further condition.
 
@@ -208,7 +208,7 @@ For the third, a smooth solution with compact support satisfies the energy equal
 \[
 \tfrac12\|u(t)\|^2 + \nu\int_0^t\|\nabla u\|^2 = \tfrac12\|u(0)\|^2 + \int_0^t\!\!\int f\cdot u ,
 \]
-and the right side is at most
+and the right side is at max
 $\tfrac12\|u(0)\|^2 + \sup_s\|u(s)\|_{L^2}\int_0^{T^*}\|f(s)\|_{L^2}\,ds$. \hfill\qedsymbol
 
 In the construction that settles statement (C), the heat that shear puts into the fluid arrives at a
@@ -219,12 +219,12 @@ small needs a bound on each of its factors. Of the three, $D$ is the factor equa
 determines, and it has none.
 
 \textbf{What Proposition 5 does not show.} It does not show that the temperature gradient becomes
-large in the collapsing region, that keeping the coupling stops the collapse, or that the coupled
+large in the collapsing region, that retention the coupling stops the collapse, or that the coupled
 system is regular. The workbook carries a scaling estimate on the first of these, marked as theory.
 
-\section{What keeping a magnitude does}
+\section{What retention a magnitude does}
 
-The stress law can keep what equation (1) drops. A viscosity that depends on the magnitude of the
+The stress law can retain what equation (1) drops. A viscosity that depends on the magnitude of the
 rate of strain, $\mu(|D|) = \mu_0|D|^{p-2}$ with $p > 1$, puts a vector magnitude where equation (1)
 puts a constant, and $p = 2$ returns equation (1). Lienstromberg, Schiffer and Schubert~\cite{src:Lienstromberg-Schiffer-Schubert-2025} state that
 for $p > 11/5$ in three dimensions their approximations converge strongly to a solution that obeys
@@ -233,7 +233,7 @@ traces back to Ladyzhenskaya~\cite{src:Ladyzhenskaya-1967,src:Ladyzhenskaya-1968
 and that in the Newtonian case, $p = 2$, it is still not known whether a solution obeying an energy
 equality exists even for very regular initial data.
 
-Which dependence the stress law keeps therefore changes which statements can be proved. This
+Which dependence the stress law retains therefore changes which statements can be proved. This
 section shows that the choice decides the question. It does not show which stress law water obeys:
 the dependence of water's viscosity measured in this chapter is on temperature, not on $|D|$.
 
@@ -242,13 +242,13 @@ the dependence of water's viscosity measured in this chapter is on temperature, 
 Statements (B) and (D) pose the problem on $\R^3/\Z^3$: the fluid in a periodic box of side one.
 Statement (D) is reached in the forced construction by placing the compact supports inside one
 cube and summing integer translates. Whether the box is a container the fluid is in, or one it is
-put in, decides what it keeps.
+put in, decides what it retains.
 
 Write $\hat u(\xi) = \int_{\R^3} u(x)\,e^{-2\pi i\,\xi\cdot x}\,dx$, and for a rapidly decaying smooth
 $u$ on $\R^3$ let $(Pu)(x) = \sum_{k\in\Z^3} u(x+k)$, the field put in the box.
 
 \textbf{Proposition 6.} $Pu$ is smooth and periodic, and its Fourier coefficients are
-$\widehat{Pu}(m) = \hat u(m)$ for $m\in\Z^3$. The box therefore keeps $\hat u$ on the integer
+$\widehat{Pu}(m) = \hat u(m)$ for $m\in\Z^3$. The box therefore retains $\hat u$ on the integer
 lattice and nothing between its points. There are nonzero smooth rapidly decaying fields $u$ with
 $\nabla\cdot u = 0$ and $Pu = 0$. If $u$ is supported inside one open unit cube, $Pu$ equals $u$
 on that cube and nothing is lost.
@@ -265,7 +265,7 @@ $\nabla\cdot u = 0$. For a field supported in one open cube the translates do no
 
 Distinct flows on $\R^3$, as many as there are such $\varphi$, all enter the box as the same flow.
 The box loses nothing exactly when the fluid already fits inside one cell of it, and the forced
-construction uses that case. For a fluid larger than the box, the box keeps a lattice of samples of
+construction uses that case. For a fluid larger than the box, the box retains a lattice of samples of
 its transform and drops the rest.
 
 \textbf{Proposition 7.} The rotations and reflections of $\R^3$ that fix the origin form an infinite
@@ -290,8 +290,8 @@ the removed viscous term is zero only where the temperature gradient lies in the
 rate of strain. Any viscous motion that decays at infinity makes a temperature gradient. Condition
 (2), with a density that depends on temperature, forces conduction to cancel shear heating at every
 point. In the class of the forced construction, the rate of shear heating has no bound at the
-singular time. Putting a fluid larger than the box into it keeps its transform on a lattice and
-drops the rest, and the box keeps 48 of the rotations about a point. None of the dropped terms is
+singular time. Putting a fluid larger than the box into it retains its transform on a lattice and
+drops the rest, and the box retains 48 of the rotations about a point. None of the dropped terms is
 zero, and none was dropped with a bound that travels
 with the equation.
 
@@ -299,7 +299,7 @@ with the equation.
 statements, the order in which its constants are chosen and its closing estimates were read; its
 technical bounds were followed and not checked line by line, and nothing read bears against it. A
 theorem about equation (1) is a theorem about equation (1), and
-the theorem stands as one. What this chapter bounds is what such a theorem is about: an equation
+the theorem is as one. What this chapter bounds is what such a theorem is about: an equation
 from which the temperature has been removed, and not a fluid that has one. Questions (A) and (B)
 remain well posed questions about equation (1), and nothing here answers either.
 

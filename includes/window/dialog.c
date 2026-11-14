@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// dialog.c: the modal dialog. The window that owns it hands it the texts and reads its answer. This file holds no
-// setting and asks no module: it lays the parts out, draws them and turns each input into a change
+// dialog.c: the modal dialog. The window that owns it passes it the texts and reads its answer. This file holds no
+// setting and asks no module: it positions the parts out, draws them and turns each input into a change
 #include "dialog.h"
 #include "memoria_operor/memoria_operor.h"
 #include "cellularum_laboro/cellularum_laboro.h"
@@ -264,7 +264,7 @@ GuiRect gui_dialog_button_rect(const GuiDialogReadCfg *args)
     const int edge = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_MAT + GUI_DIALOG_PAD, .scale = scale);
     const int height = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_BUTTON_HEIGHT, .scale = scale);
     const int space = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_BUTTON_SPACE, .scale = scale);
-    // The buttons stand in their order and end at the foot's right edge. Each button after `at` and its space come
+    // The buttons are in their order and end at the foot's right edge. Each button after `at` and its space come
     // before that edge
     // a client's side is far inside what an int holds
     int right = (int)dialog->width - edge;
@@ -293,7 +293,7 @@ EMBED_INLINE unsigned int dialog_button_at(const DialogCtx *args)
     return GUI_DIALOG_BUTTONS_MAX;
 }
 
-// whether x, y stands on the close mark
+// whether x, y is on the close mark
 EMBED_INLINE int dialog_close_at(const DialogCtx *args)
 {
     return EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
@@ -302,7 +302,7 @@ EMBED_INLINE int dialog_close_at(const DialogCtx *args)
                       .x = args->x, .y = args->y);
 }
 
-// the dialog ended: no longer shown, and no press held
+// the dialog ended: no longer displayed, and no press held
 EMBED_INLINE void dialog_end(const DialogCtx *args)
 {
     args->dialog->displayed = 0;
@@ -440,9 +440,9 @@ EMBED_INLINE void dialog_close_draw(const DialogCtx *args)
                .x1 = left, .y1 = top + side, .color = color);
 }
 
-// The button `at`: a box with rounded corners and a line one pixel wide about it. The preferred button stands on the
-// shown tab's ground. The line is the signal on the button with the keys while the dialog holds the focus, the hover
-// color under the pointer, else the widget's line. The label stands in the middle
+// The button `at`: a box with rounded corners and a line one pixel wide about it. The preferred button is on the
+// displayed tab's ground. The line is the signal on the button with the keys while the dialog holds the focus, the hover
+// color under the pointer, else the widget's line. The label is in the middle
 EMBED_INLINE void dialog_button_draw(const DialogCtx *args)
 {
     const GuiDialog *const dialog = args->dialog_read;
@@ -454,7 +454,7 @@ EMBED_INLINE void dialog_button_draw(const DialogCtx *args)
     const int one = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = 1, .scale = dialog->scale);
     const int keyed = (args->at == dialog->marked) && dialog->focused;
     const GuiColor pointed_line = (args->at == dialog->pointed) ? palette->hover : palette->widget_line;
-    // each button a pane of glass, the preferred one tinted as the shown tab's ground
+    // each button a pane of glass, the preferred one tinted as the displayed tab's ground
     EMBED_CALL(gui_glass_button.draw, GuiGlassButtonCfg, .raster = args->raster, .rect = box, .radius = radius,
                .tint = (args->at == dialog->preferred)
                            ? palette->tab_background
@@ -487,8 +487,8 @@ void gui_dialog_draw(const GuiDialogDrawCfg *args)
     const GuiUnder clear = {args->ground, 0u, NULL, 0u, palette->deep};
     EMBED_CALL(gui_raster_rect_radius_background.pane, GuiRasterRectRadiusBackgroundCfg, .raster = raster,
                .background_fill = table, .rect = clip, .radius = 0u, .inner = palette->glass);
-    // The sheet stands in from the sides in the editor's ground at the editor's opacity. The head band at its top
-    // stands in the tabs row's surface, its top corners round with the sheet's
+    // The sheet is in from the sides in the editor's ground at the editor's opacity. The head band at its top
+    // is in the tabs row's surface, its top corners round with the sheet's
     // a rounding in pixels is not negative
     const unsigned int pane_radius =
         (unsigned int)EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_WORK_RADIUS, .scale = scale);
@@ -505,7 +505,7 @@ void gui_dialog_draw(const GuiDialogDrawCfg *args)
     const int one = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = 1, .scale = scale);
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
                .rect = (GuiRect){sheet.x, sheet.y + head - one, sheet.width, one}, .color = palette->line);
-    // the work's lines about the sheet, as the main window's work stands in them
+    // the work's lines about the sheet, as the main window's work is in them
     const GuiColor work_line = palette->work_line;
     const GuiOutline outline = {work_line,
                                 work_line,
@@ -551,8 +551,8 @@ void gui_dialog_draw(const GuiDialogDrawCfg *args)
                    .palette = palette, .at = at, .clip = clip);
     }
     // The window's own border, as the compositor draws none: a line one pixel wide about the whole, its corners
-    // rounded. While the dialog holds the focus, it stands in the error color for an error, else in the signal.
-    // Without the focus it stands in the widget's line
+    // rounded. While the dialog holds the focus, it is in the error color for an error, else in the signal.
+    // Without the focus it is in the widget's line
     // a rounding in pixels is not negative
     const unsigned int window_radius =
         (unsigned int)EMBED_CALL(dialog_pixels, DialogCtx, .pixels = (int)GUI_DIALOG_WINDOW_RADIUS, .scale = scale);

@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// file_writing.c: files written whole through a stage, each whole stage handed to the sealed writer (ksg_writing.h),
+// file_writing.c: files written whole through a stage, each whole stage passed to the sealed writer (ksg_writing.h),
 // which writes the file beside its place under a name of this process's own, seals it where it is of a type ksg seals,
 // and puts it in its place once every byte is on the disk, so a write that fails leaves the file it would have
 // replaced as it was; and a file written as pieces in turn the same way
 #include "cli_internal.h"
 #include "pool.h"
 
-// the most bytes of the name a file is written under beside its place: a dot, this process's id, a dot, a count of
+// the max bytes of the name a file is written under beside its place: a dot, this process's id, a dot, a count of
 // its own, and `.writing`
 #define CLI_WRITING_MAX_LEN 64u
 

@@ -239,7 +239,7 @@ static unsigned int npy_resolve(const char *path, const char *member, const Engi
 static unsigned int npy_same_extent(const EngineArrayExtent *found, const EngineArrayExtent *given)
 {
     int same = (found->rank == given->rank) && (found->element_bytes == given->element_bytes) &&
-               (found->element_kind == given->element_kind);
+               (found->element_type == given->element_type);
     for (unsigned int axis = 0u; same && (axis < found->rank); axis += 1u)
     {
         same = (found->sizes[axis] == given->sizes[axis]) && (found->axes[axis] == given->axes[axis]);

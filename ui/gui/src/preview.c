@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// preview.c: the preview's items drawn as the CLI lays them, each type in the raster's own strokes: a run of text in
+// preview.c: the preview's items drawn as the CLI positions them, each type in the raster's own strokes: a run of text in
 // its face and size, struck through or underlined by its flags; a box filled in its role and bordered in its stroke; a
 // rule; a line segment; and a block marked by the cursor's line outlined in the signal. Every color is a role the
-// palette answers; every place a page pixel the frame's scale lays
+// palette answers; every place a page pixel the frame's scale positions
 #include "preview.h"
 
 typedef struct
@@ -191,8 +191,8 @@ EMBED_INLINE void preview_thumb_draw(const PreviewCtx *args)
     }
     const int least = EMBED_CALL(preview_scaled, PreviewCtx, .preview = preview, .pixels = GUI_PREVIEW_THUMB_MIN);
     // a share of the rectangle's height is no taller than it, an int
-    const int shown = (int)(((long long)rect.height * (long long)rect.height) / (long long)extent);
-    const int height = (shown > least) ? shown : least;
+    const int displayed = (int)(((long long)rect.height * (long long)rect.height) / (long long)extent);
+    const int height = (displayed > least) ? displayed : least;
     const int top = EMBED_CALL(preview_scaled, PreviewCtx, .preview = preview, .pixels = args->top);
     const int travel = rect.height - height;
     // the top has come no further than the items less the rectangle, so its share of the travel is within it

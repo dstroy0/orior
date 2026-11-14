@@ -9,17 +9,17 @@ The engine searches by placing anchors on the needle and testing them at every a
 
 Each probe tests whether the corpus at some offset carries the needle's own byte at that offset (`src/cu/engine/nbody/orior/orior_core.c`). A true occurrence agrees at every offset. It agrees at every probe. Each probe is therefore a necessary condition of an occurrence, a conjunction of necessary conditions is itself one, and no true occurrence is lost by any probe set. Survivors are then filtered by a full compare (`src/cu/engine/nbody/orior/orior_core.c`), which removes the false ones. The count is exact for any probe set whatever.
 
-Two different invariants follow, and keeping them apart matters. Reordering a probe set leaves the surviving set itself identical, because conjunction commutes. Moving a probe or changing its shape gives a different probe set, which is a different conjunction and a different surviving set: the survivors of one probe strictly contain the survivors of that probe and a second. What stays identical across every probe set is the COUNT, because every surviving set contains all the true occurrences and the full compare removes the rest.
+Two different invariants follow, and retention them apart matters. Reordering a probe set leaves the surviving set itself identical, because conjunction commutes. Moving a probe or changing its shape gives a different probe set, which is a different conjunction and a different surviving set: the survivors of one probe strictly contain the survivors of that probe and a second. What stays identical across every probe set is the COUNT, because every surviving set contains all the true occurrences and the full compare removes the rest.
 
-The survivor count depending on which probe is placed is the steering signal itself, measured in `steer_truthy_after_probe` (`src/cu/engine/nbody/orior/orior_steer_plan.c`). A reading that kept the surviving set fixed across different probe sets would leave the planner with nothing to rank.
+The survivor count depending on which probe is placed is the steering signal itself, measured in `steer_truthy_after_probe` (`src/cu/engine/nbody/orior/orior_steer_plan.c`). A reading that retained the surviving set fixed across different probe sets would leave the planner with nothing to rank.
 
 This tree calls a move that cannot change the answer a null. Reordering is a null on the surviving set, and every probe set whatever is a null on the count.
 
-One consequence shapes the whole design. A planner that samples badly, ranks wrongly, or contains a defect still produces some probe set, and every probe set yields the same count. Correctness is not a quantity the planner can spend. Speed is the only one it can spend, and that bounds the damage a bad planner does to the time it takes. The empty plan makes this vivid: destroy every probe, send every alignment to the full compare, and the answer is still exactly right at maximum cost.
+One consequence shapes the whole design. A planner that samples badly, ranks wrongly, or contains a defect still produces some probe set, and every probe set yields the same count. Correctness is not a quantity the planner can spend. Speed is the only one it can spend, and that bounds the damage a bad planner does to the time it takes. The empty plan makes this vivid: destroy every probe, send every alignment to the full compare, and the answer is still exactly right at max cost.
 
-## What keeps a probe inside the family
+## What retains a probe inside the family
 
-The guarantee above covers necessary conditions and nothing wider. The value of the guarantee depends on every probe staying inside that family. Three things in the code hold the boundary. `orior_steer_probe_fits` keeps the origin below `needle_len` and requires every position the probe reads to stay inside the needle (`src/cu/engine/nbody/orior/orior_steer_plan.c`). Candidate generation rejects any shape failing that test before it is scored (`src/cu/engine/nbody/orior/orior_steer_count.c`). The comparison reads `needle[offset]`, the needle's own byte at the offset being tested (`src/cu/engine/nbody/orior/orior_core.c`).
+The guarantee above covers necessary conditions and nothing wider. The value of the guarantee depends on every probe staying inside that family. Three things in the code hold the boundary. `orior_steer_probe_fits` retains the origin below `needle_len` and requires every position the probe reads to stay inside the needle (`src/cu/engine/nbody/orior/orior_steer_plan.c`). Candidate generation rejects any shape failing that test before it is scored (`src/cu/engine/nbody/orior/orior_steer_count.c`). The comparison reads `needle[offset]`, the needle's own byte at the offset being tested (`src/cu/engine/nbody/orior/orior_core.c`).
 
 Three shapes would leave the family, and a probe type added later can leave it silently with a missing occurrence as the only symptom.
 
@@ -39,7 +39,7 @@ The theory states the ordering term as rarity, the negative log probability of t
 
 ## Truthy and falsy steering
 
-The steering signal is the survivor vector and not the symbol histogram. Each alignment is truthy while it is still standing and falsy once some probe has rejected it. `steer_truthy_after` counts how many currently truthy alignments would remain truthy if a given probe were placed (`src/cu/engine/nbody/orior/orior_steer.c`), and the descent spawns the probe leaving fewest.
+The steering signal is the survivor vector and not the symbol histogram. Each alignment is truthy while it is still located and falsy once some probe has rejected it. `steer_truthy_after` counts how many currently truthy alignments would remain truthy if a given probe were placed (`src/cu/engine/nbody/orior/orior_steer.c`), and the descent spawns the probe leaving fewest.
 
 Measuring survivors directly accounts for correlation between positions. A histogram says how often a symbol appears; it does not say whether the alignments that agreed at one position tend to agree at another. The survivor count answers the second question, because it is taken over the population that actually survived.
 
@@ -47,7 +47,7 @@ Measuring survivors directly accounts for correlation between positions. A histo
 
 `orior_steer_plan_recursive` reorders offsets a caller has already placed, and `orior_steer_spawn_coarms` chooses the positions itself (`src/cu/engine/nbody/orior/orior_descent.h`). Both descend through the same core.
 
-A single pass ranks every anchor against the whole field. That is the correct question to ask first and the wrong one to ask second. Once the first probe has rejected most alignments, the ones still standing are the subset that agreed with one particular symbol. Within that subset the remaining probes have different pruning power than they had over the field. Each level here ranks against the alignments that survived the levels above it, taking the conditional distribution in place of the marginal one.
+A single pass ranks every anchor against the whole field. That is the correct question to ask first and the wrong one to ask second. Once the first probe has rejected max alignments, the ones still located are the subset that agreed with one particular symbol. Within that subset the remaining probes have different pruning power than they had over the field. Each level here ranks against the alignments that survived the levels above it, taking the conditional distribution in place of the marginal one.
 
 ### Signature
 
@@ -58,23 +58,23 @@ size_t orior_steer_spawn_coarms(const OriorSteerDescent *args);
 Its one argument is a pointer to a const argument structure. Build the structure at the call site with `ORIOR_STEER_CALL`, which gives it automatic storage and zeroes every member the caller does not name. The members this entry reads (`src/cu/engine/nbody/orior/orior_descent.h`):
 
 - `offsets` [BORROWS] out. Chosen offsets, written in evaluation order. Owned by the caller.
-- `count` in. How many coarms to spawn, at most `ORIOR_STEER_ANCHORS`.
+- `count` in. How many coarms to spawn, at max `ORIOR_STEER_ANCHORS`.
 - `corpus`, `corpus_len` [BORROWS] in. The bytes the search will run over. Unread where `any` is set.
 - `needle`, `needle_len` [BORROWS] in. The bytes to find. Unread where `any` is set.
-- `survivors`, `survivors_length` [BORROWS] out. Which alignments the probes left standing, one byte each. Size it at `corpus_len - needle_len + 1`.
+- `survivors`, `survivors_length` [BORROWS] out. Which alignments the probes left located, one byte each. Size it at `corpus_len - needle_len + 1`.
 - `sample_stride` in. Plan on every Nth alignment. A value of 0 is treated as 1.
 - `force_full_depth` in. Non-zero descends every level and ignores the destroy rule.
 - `any` [BORROWS] in. A field of any symbol type. Null takes the byte path.
 
-`survivors` is the descent's output and not a working buffer. It records, per alignment, whether the probes left that alignment standing, and it is the only place that information appears: the return value gives the depth reached and says nothing about which alignments survived. A caller wanting only the depth may ignore it, and a caller wanting the surviving set has no other route to it. This is also why the descent is not a streaming algorithm and why bounds stated for streaming matchers do not describe it.
+`survivors` is the descent's output and not a working buffer. It records, per alignment, whether the probes left that alignment located, and it is the only place that information appears: the return value gives the depth reached and says nothing about which alignments survived. A caller wanting only the depth may ignore it, and a caller wanting the surviving set has no other route to it. This is also why the descent is not a streaming algorithm and why bounds stated for streaming matchers do not describe it.
 
-Returns the number of coarms placed, at most `count`. Returns 0 without writing `offsets` when a pointer is null, when `count` exceeds `ORIOR_STEER_ANCHORS`, or when `survivors_length` does not reach the alignment count (`src/cu/engine/nbody/orior/orior_steer_plan.c`). The kernel allocates nothing. A buffer too small is refused instead of being worked around.
+Returns the number of coarms placed, at max `count`. Returns 0 without writing `offsets` when a pointer is null, when `count` exceeds `ORIOR_STEER_ANCHORS`, or when `survivors_length` does not reach the alignment count (`src/cu/engine/nbody/orior/orior_steer_plan.c`). The kernel allocates nothing. A buffer too small is refused instead of being worked around.
 
 ## Why halting is the wrong question
 
 Two separate properties hold, and the second one carries the argument.
 
-The descent is bounded from above. One probe is placed per level, a placed probe is never reconsidered, and the depth is AT MOST `wanted`, which the guard holds at or under `ORIOR_STEER_ANCHORS` (`src/cu/engine/nbody/orior/orior_steer_plan.c`). That constant is 4 (`src/cu/engine/nbody/orior/orior_core.h`). The loop cannot run longer than that whatever the corpus holds, and it therefore terminates.
+The descent is bounded from above. One probe is placed per level, a placed probe is never reconsidered, and the depth is AT MAX `wanted`, which the guard holds at or under `ORIOR_STEER_ANCHORS` (`src/cu/engine/nbody/orior/orior_steer_plan.c`). That constant is 4 (`src/cu/engine/nbody/orior/orior_core.h`). The loop cannot run longer than that whatever the corpus holds, and it therefore terminates.
 
 It can run shorter, and the corpus decides when. The destroy test compares the best candidate's surviving population against the current one, and that count is read off the corpus. Where nothing prunes the descent breaks early. `force_full_depth` exists to override exactly that, and an omitted member is zero. On the default path the field ends the descent. `bench_sigma` measures it: `wanted` fixed at 4 on every row while `placed` returns 2 at an alphabet of 2^8 and 1 from 2^16 up.
 
@@ -92,9 +92,9 @@ The halting problem asks whether termination can be decided for an arbitrary pro
 
 A level that finds no candidate leaving fewer survivors than it started with has found a probe that rejects nothing an earlier probe had not already rejected. Placing it would read a byte per alignment and buy none. The descent stops there and every level below it is destroyed with it, and the returned count tells the caller how many probes survived (`src/cu/engine/nbody/orior/orior_steer_plan.c`).
 
-`orior_anchors_for` already does this for one case, returning a single anchor on a periodic corpus because at a period the offsets cancel and every anchor tests the same congruence (`src/cu/engine/nbody/orior/orior_core.h`). The rule here reaches further. The header warns that a period found is not a period the whole corpus keeps, that a partially coherent corpus wants a count between one and the full set, and that nothing there measures that case (`src/cu/engine/nbody/orior/orior_core.h`). This rule measures it, along with redundancy from constant runs, local low entropy and correlated positions, none of which a period argument sees.
+`orior_anchors_for` already does this for one case, returning a single anchor on a periodic corpus because at a period the offsets cancel and every anchor tests the same congruence (`src/cu/engine/nbody/orior/orior_core.h`). The rule here reaches further. The header warns that a period found is not a period the whole corpus retains, that a partially coherent corpus wants a count between one and the full set, and that nothing there measures that case (`src/cu/engine/nbody/orior/orior_core.h`). This rule measures it, along with redundancy from constant runs, local low entropy and correlated positions, none of which a period argument sees.
 
-The two are different kinds of statement and the guide keeps them apart. The period argument is a theorem over every corpus of that period. This rule is an observation about one field, taken on a sample of it when `sample_stride` is above one. "pruned nothing on this sample" does not establish "can prune nothing". Being wrong costs speed and cannot cost the count.
+The two are different types of statement and the guide retains them apart. The period argument is a theorem over every corpus of that period. This rule is an observation about one field, taken on a sample of it when `sample_stride` is above one. "pruned nothing on this sample" does not establish "can prune nothing". Being wrong costs speed and cannot cost the count.
 
 Destroying the levels below a destroyed probe costs nothing, and the reason is inductive instead of a matter of budget.
 
@@ -102,7 +102,7 @@ The destroy test compares the minimum over every candidate against the current p
 
 Stopping is therefore equivalent to continuing, and the probe set is not smaller than the field would have supported.
 
-The induction needs one property of the enumeration: the candidate set is non-increasing along the descent. Both planners have it. The sweep enumerates the same set at every level, and the coarm descent removes each placed position from consideration (`src/cu/engine/nbody/orior/orior_steer_plan.c`), which is a strict subset. A set that grows at a deeper level voids the theorem, because a candidate absent from the level that fired has never been shown to prune nothing. A set that varies for any other reason voids it as well, since the two cases become indistinguishable from inside.
+The induction needs one property of the enumeration: the candidate set is non-increasing along the descent. Both planners have it. The sweep enumerates the same set at every level, and the coarm descent removes each placed position from consideration (`src/cu/engine/nbody/orior/orior_steer_plan.c`), which is a strict subset. A set that grows at a deeper level voids the theorem, because a candidate absent from the level that fired has never been displayed to prune nothing. A set that varies for any other reason voids it as well, since the two cases become indistinguishable from inside.
 
 The argument is exact over the population the planner sees: the sampled one when `sample_stride` is above one. Against the full field it carries the same sample caveat as the destroy rule itself.
 
@@ -135,13 +135,13 @@ The bound is on read events, the test counts read events, and nothing here bound
 
 The bound is attained. The empty probe set takes no probe reads and sends every alignment to the compare, which reads at least one byte each, giving exactly `N`. The configuration that steers least sits exactly on the floor. The floor therefore belongs to the problem; no steering lowers it.
 
-`test_steer` asserts this on all five fields. It checks that every route's probe reads plus compares reaches `N`, and that the empty probe set takes exactly zero probe reads and exactly `N` compares (`test/engine/nbody/orior/test_steer_grading.c`). The floor is kept out of the route table for a reason: the table counts probe reads and the floor counts total reads, and one column carrying two units invites a reader to compare a bound against a cost. In real bytes the empty probe set is the most expensive route there is, since every alignment takes a full compare.
+`test_steer` asserts this on all five fields. It checks that every route's probe reads plus compares reaches `N`, and that the empty probe set takes exactly zero probe reads and exactly `N` compares (`test/engine/nbody/orior/test_steer_grading.c`). The floor is retained out of the route table for a reason: the table counts probe reads and the floor counts total reads, and one column carrying two units invites a reader to compare a bound against a cost. In real bytes the empty probe set is the max expensive route there is, since every alignment takes a full compare.
 
-**What the theorem does not cover.** It binds engines that decide an alignment from reads at that alignment. A skipping search breaks that premise deliberately: it uses a read at one alignment to decide a range of others, and never visits most of them. Its reads per alignment are taken over a sparse subset of `A` and fall below one for that reason. That is a different quantity wearing the same name, and no ratio between the two measures anything.
+**What the theorem does not cover.** It binds engines that decide an alignment from reads at that alignment. A skipping search breaks that premise deliberately: it uses a read at one alignment to decide a range of others, and never visits the majority of them. Its reads per alignment are taken over a sparse subset of `A` and fall below one for that reason. That is a different quantity wearing the same name, and no ratio between the two measures anything.
 
 ## One invocation is total. The system is not, by design
 
-Bounding the loops does not establish that the engine is not Turing complete: it analyzes a single invocation and draws a conclusion about the system. The error is worth keeping because it is easy to repeat.
+Bounding the loops does not establish that the engine is not Turing complete: it analyzes a single invocation and draws a conclusion about the system. The error is worth retention because it is easy to repeat.
 
 **What is true of one invocation.** Every loop inside one call is bounded by a quantity fixed before that call runs. The sweep over alignments runs to `N`, the descent runs to `ORIOR_STEER_ANCHORS`, and the shape enumeration runs to `needle_len` and to a caller's `max_length`. No continuation depends on a predicate computed from corpus content. One call is total and its running time is a function of the input sizes.
 
@@ -157,7 +157,7 @@ What follows separates what is settled from what is open, and the open part is m
 
 **Failing to halt is not Turing completeness.** A process can fail to halt by cycling among three states. Turing completeness needs storage that grows during execution together with the ability to compute arbitrary functions of it. Concluding the engine is Turing complete because its outer loop is unbounded conflates the two, and that does not follow.
 
-**The engine's implementation is finite.** `ORIOR_STEER_ANCHORS` is 4. The descent places at most four probes and spawns at most four coarms. `ORIOR_EXACT_LIMBS` is 128 by default, which is 4096 bits. A build may select any power of two from 1 to 32768 limbs, and the engine refuses fewer than 8 (`includes/exact_types/integers/exact_integer.h`). A fixed width counter is a finite state machine at any width. For a fixed corpus the survivor set is a subset of the alignments and the probe family is bounded by the needle length. Nothing in the engine as built grows while it runs.
+**The engine's implementation is finite.** `ORIOR_STEER_ANCHORS` is 4. The descent places at max four probes and spawns at max four coarms. `ORIOR_EXACT_LIMBS` is 128 by default, which is 4096 bits. A build may select any power of two from 1 to 32768 limbs, and the engine refuses fewer than 8 (`includes/exact_types/integers/exact_integer.h`). A fixed width counter is a finite state machine at any width. For a fixed corpus the survivor set is a subset of the alignments and the probe family is bounded by the needle length. Nothing in the engine as built grows while it runs.
 
 **The methodological error is the durable finding and it survives either answer.** Concluding the system is total by observing that every loop inside one invocation is bounded uses only a property of one invocation. A system halting on every input decides its own halting. The claim needs the outer loop and never looks at it.
 
@@ -165,7 +165,7 @@ What follows separates what is settled from what is open, and the open part is m
 
 The question was whether the construction admits unbounded storage, and it was framed as turning on the coarm count: if an engine spawned coarms that each carried their own survivor vector, the state would be a tuple whose size grows with the arm count.
 
-**Settled, by the bound from above.** One coarm per level means the arms do not multiply: the descent is a single chain with no branching. The state never becomes a tuple whose size grows, and the premise the growing answer needs is false here. The loop is `while (placed < count)` with `count` at most `ORIOR_STEER_ANCHORS`. It cannot run longer than a constant whatever the corpus holds.
+**Settled, by the bound from above.** One coarm per level means the arms do not multiply: the descent is a single chain with no branching. The state never becomes a tuple whose size grows, and the premise the growing answer needs is false here. The loop is `while (placed < count)` with `count` at max `ORIOR_STEER_ANCHORS`. It cannot run longer than a constant whatever the corpus holds.
 
 One descent is therefore a finite automaton WITH data dependent control flow, bounded above by a constant. It is not a fixed depth decision procedure, because the destroy test is a genuine conditional branch on data that decides whether to recurse.
 
@@ -179,15 +179,15 @@ This classifies ONE DESCENT over a fixed corpus and needle. `wanted` is a caller
 
 ### What would move the answer, which is one interface and not a rewrite
 
-The engine reads `const uint8_t *corpus` with a `corpus_len`. It cannot ask for more field than it was handed. Replace that with a reader it may call for more and the picture changes, for a reason worth stating because it is not obvious.
+The engine reads `const uint8_t *corpus` with a `corpus_len`. It cannot ask for more field than it was passed. Replace that with a reader it may call for more and the picture changes, for a reason worth stating because it is not obvious.
 
 Unbounded reading alone buys nothing. A finite automaton over an infinite read-only input is still a finite automaton, because nothing it computes can reach it again. But a reader is a callback the CALLER backs, and a caller may back it with a store that the previous descent's results extend. The write then lives in the caller's loop, the engine stays `const` and gains no write primitive, and the engine still ends up reading what it itself produced.
 
-What it composes into keeps everything this document argues for. Growth happens only between descents, on the branch where a descent refuses: the shape of asking another slightly different question. Inside a descent the survivors still only shrink. Soundness, the anytime property and termination all hold at the inner level, because all three follow from that one monotonicity. The outer machine is universal and every inner step of it is a sound, terminating, interruptible filter.
+What it composes into retains everything this document argues for. Growth happens only between descents, on the branch where a descent refuses: the shape of asking another slightly different question. Inside a descent the survivors still only shrink. Soundness, the anytime property and termination all hold at the inner level, because all three follow from that one monotonicity. The outer machine is universal and every inner step of it is a sound, terminating, interruptible filter.
 
 Nobody would owe a universality proof for it either. Read a window, act on what was read, append, continue is a tag system, and 2-tag systems have been known universal since Minsky in 1961. The proof still owes an encoding into that shape.
 
-The price falls exactly on the property the engine is sold on. At the outer level termination goes, and that is the evidence and not a defect to repair: if it stayed decidable whether an outer run finishes, the thing would not be universal. The inner loop keeps its guarantee and the outer one gives up the one it never claimed.
+The price falls exactly on the property the engine is sold on. At the outer level termination goes, and that is the evidence and not a defect to repair: if it stayed decidable whether an outer run finishes, the thing would not be universal. The inner loop retains its guarantee and the outer one gives up the one it never claimed.
 
 None of this settles the question above. It names what would move the answer and not what the answer is, and nothing in the tree is being built toward it.
 
@@ -199,9 +199,9 @@ The boundary function is `orior_steer_probe_fits`, whose domain is probes paired
 
 The gap is at length one. `orior_steer_probe_fits` returns 1 for a length one probe at ANY step, zero included, because the length test returns before the step test. The sweep sets its step limit to 2 at length one and generates step 1 alone. So legal probes exist that the sweep never produces: origin 3 length 1 at steps 0, 2, 7, 13, 64 and 100000 all fit, and all return the same count through `orior_steer_count_with_probes`, because a probe of length one reads one position and its step is unread. The header says exactly that already.
 
-Quotient the legal set by "reads the same needle positions" and the sweep enumerates one member of every class. The guarantee needs no more, since two probes reading the same positions refute the same alignments and have the same marginal gain. A maximum over the representatives is a maximum over the set. Nothing is unsound.
+Quotient the legal set by "reads the same needle positions" and the sweep enumerates one member of every class. The guarantee needs no more, since two probes reading the same positions refute the same alignments and have the same marginal gain. A max over the representatives is a max over the set. Nothing is unsound.
 
-At length two with a needle of twelve, the highest fitting step at origin zero is eleven while the sweep tries to twelve. One iteration per origin and length is always refused. `max_length` is an argument. The next section's ratio is exact over probes of length at most `max_length` and not over probes of any length.
+At length two with a needle of twelve, the highest fitting step at origin zero is eleven while the sweep tries to twelve. One iteration per origin and length is always refused. `max_length` is an argument. The next section's ratio is exact over probes of length at max `max_length` and not over probes of any length.
 
 ## The descent is greedy coverage, and that is a named result
 
@@ -213,7 +213,7 @@ Fix the corpus and the needle. Each candidate probe `p` rejects a definite set o
 
 `f` is a coverage function. It is monotone, because adding a probe never un-rejects an alignment, and it is submodular, because an alignment already rejected by some probe in `P` contributes nothing when a later probe rejects it again. Coverage functions are the textbook example of monotone submodularity, and this one needs no assumption about the corpus to be one.
 
-The descent maximizes `f` greedily. At each level it scores every candidate by the survivors it would leave and keeps the smallest count (`src/cu/engine/nbody/orior/orior_steer_plan.c`), and fewest survivors left is most alignments newly rejected is the largest marginal gain in `f` given what is already placed. Nemhauser, Wolsey and Fisher proved in 1978 that greedy maximization of a monotone submodular function under a cardinality constraint returns at least `1 - 1/e` of what the best set of that size achieves. The probe set the descent places rejects at least about 63 percent of the alignments the optimal probe set of the same size rejects. Nothing in the engine has to be changed for that to hold. It holds because of what the objective is.
+The descent maximizes `f` greedily. At each level it scores every candidate by the survivors it would leave and retains the smallest count (`src/cu/engine/nbody/orior/orior_steer_plan.c`), and fewest survivors left is max alignments newly rejected is the largest marginal gain in `f` given what is already placed. Nemhauser, Wolsey and Fisher proved in 1978 that greedy maximization of a monotone submodular function under a cardinality constraint returns at least `1 - 1/e` of what the best set of that size achieves. The probe set the descent places rejects at least about 63 percent of the alignments the optimal probe set of the same size rejects. Nothing in the engine has to be changed for that to hold. It holds because of what the objective is.
 
 Two things follow that the hand induction had to work for.
 
@@ -237,11 +237,11 @@ Nothing here has been measured against the optimal probe set, because computing 
 
 An arm reads one position and an eye reads a line of them. `OriorProbe` records an origin, a step and a length, and an arm is a probe of length one (`src/cu/engine/nbody/orior/orior_descent.h`). One test walks both. The difference between a region integral and a line integral lives in the support and not in the arithmetic applied to it.
 
-`orior_steer_sweep_probes` considers every origin in the needle, every step that keeps the probe inside it, and every length up to a caller's maximum, scoring each shape by survivors (`src/cu/engine/nbody/orior/orior_steer_count.c`). A step of zero at a length above one reads one position repeatedly, and `orior_steer_probe_fits` refuses it (`src/cu/engine/nbody/orior/orior_steer_plan.c`).
+`orior_steer_sweep_probes` considers every origin in the needle, every step that retains the probe inside it, and every length up to a caller's max, scoring each shape by survivors (`src/cu/engine/nbody/orior/orior_steer_count.c`). A step of zero at a length above one reads one position repeatedly, and `orior_steer_probe_fits` refuses it (`src/cu/engine/nbody/orior/orior_steer_plan.c`).
 
 ## An eye does not reduce reads
 
-The table below runs on five fields. The three synthetic kinds are generated by `bench_corpora`, which the grader links instead of carrying its own copy. Skewed means one thing across this tree (`test/engine/nbody/orior/test_steer_internal.h`). Needle length 24, built with MSVC 14.44 at the default CMake configuration, every route graded against `orior_naive`. Cells are reads per alignment:
+The table below runs on five fields. The three synthetic types are generated by `bench_corpora`, which the grader links instead of carrying its own copy. Skewed means one thing across this tree (`test/engine/nbody/orior/test_steer_internal.h`). Needle length 24, built with MSVC 14.44 at the default CMake configuration, every route graded against `orior_naive`. Cells are reads per alignment:
 
 | field                      | alignments | spatial, unsteered | recursive reorder | coarms spawned | eyes and arms swept |
 | -------------------------- | ---------- | ------------------ | ----------------- | -------------- | ------------------- |
@@ -253,7 +253,7 @@ The table below runs on five fields. The three synthetic kinds are generated by 
 
 Every route on every field returned the reference count.
 
-The family shows three things one field could not. Steering pays nothing on a uniform field, where no symbol is rarer than another and the ordering has nothing to order by. It pays most where the field repeats or its rarity spreads, taking 1.877 to 1.067 on the skewed field and 1.187 to an exact 1.000 on the period 16 field, which the planner reaches with one probe where the unsteered route places four. And the two mechanisms separate: on the skewed field the recursive reorder moves 1.877 to 1.875 while spawning coarms moves it to 1.067. There the spawning pays and the ordering does not. On the license text both routes move together and the distinction is invisible.
+The family shows three things one field could not. Steering pays nothing on a uniform field, where no symbol is rarer than another and the ordering has nothing to order by. It pays max where the field repeats or its rarity spreads, taking 1.877 to 1.067 on the skewed field and 1.187 to an exact 1.000 on the period 16 field, which the planner reaches with one probe where the unsteered route places four. And the two mechanisms separate: on the skewed field the recursive reorder moves 1.877 to 1.875 while spawning coarms moves it to 1.067. There the spawning pays and the ordering does not. On the license text both routes move together and the distinction is invisible.
 
 **The weakest field is uniform.** Read the best steered route and not the reorder column: the license text goes 1.072 to an exact 1.000 on coarms, the floor. Uniform goes 1.003 to 1.003 and does not move at all, on any route, because a uniform field has no rarity for the steering to spend and there is nothing for an ordering to order by. That is the honest worst case and the one to quote against.
 
@@ -275,7 +275,7 @@ A classical bad character table is indexed by symbol and spends both. A structur
 maint/engine/build_engine.sh
 ```
 
-The script configures, builds named targets and runs the graders. `test_steer` grades the ordering against `orior_naive` at seven needle lengths, measures the probe reduction, carries a negative control that orders the commonest symbol first and must read more, checks the exact dispatch against four fields whose answers are derived by hand, asserts that the widest scan engine the machine carries actually ran, and grades arms, eyes and coarms on five fields: the synthetic skewed field, the three `bench_corpora` kinds, and the license text.
+The script configures, builds named targets and runs the graders. `test_steer` grades the ordering against `orior_naive` at seven needle lengths, measures the probe reduction, carries a negative control that orders the commonest symbol first and must read more, checks the exact dispatch against four fields whose answers are derived by hand, asserts that the widest scan engine the machine carries actually ran, and grades arms, eyes and coarms on five fields: the synthetic skewed field, the three `bench_corpora` types, and the license text.
 
 Two drivers in `bench/` do not compile with MSVC and the script does not build them. `bench_dispatch.c` uses `CLOCK_MONOTONIC`, which is POSIX. `bench_lattice.c` onward does not parse. Neither is on the path the engine needs.
 

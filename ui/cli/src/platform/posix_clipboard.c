@@ -29,7 +29,7 @@
 #define CLI_X11_NAMED 8u
 #endif
 #if (!defined(_WIN32)) && !((defined(__APPLE__)))
-// One connection to the X server: its socket, the window it reads the clipboard into or owns it with, the most bytes
+// One connection to the X server: its socket, the window it reads the clipboard into or owns it with, the max bytes
 // one request takes, and the atoms it interned
 typedef struct
 {
@@ -45,7 +45,7 @@ typedef struct
 typedef struct
 {
 #if (!defined(_WIN32))
-    unsigned char letter;
+    unsigned char character;
     VerbaLinea *out;
     const char *path;
     char digit;
@@ -101,12 +101,12 @@ typedef struct
     const char *input;
 #endif
 } PosixClipboardCtx;
-// whether `letter` stands in a file URI as it is
+// whether `character` is in a file URI as it is
 EMBED_INLINE int clipboard_unreserved(const PosixClipboardCtx *args)
 {
-    return ((args->letter >= 'a') && (args->letter <= 'z')) || ((args->letter >= 'A') && (args->letter <= 'Z')) ||
-           ((args->letter >= '0') && (args->letter <= '9')) || (args->letter == '-') || (args->letter == '.') ||
-           (args->letter == '_') || (args->letter == '~') || (args->letter == '/');
+    return ((args->character >= 'a') && (args->character <= 'z')) || ((args->character >= 'A') && (args->character <= 'Z')) ||
+           ((args->character >= '0') && (args->character <= '9')) || (args->character == '-') || (args->character == '.') ||
+           (args->character == '_') || (args->character == '~') || (args->character == '/');
 }
 
 // `path` written as a file URI, each byte a URI does not save written as `%XX`
@@ -116,9 +116,9 @@ EMBED_INLINE void clipboard_uri_write(const PosixClipboardCtx *args)
     mmgr_line_put(args->out, CLI_CLIPBOARD_FILE_SCHEME);
     for (const unsigned char *at = (const unsigned char *)args->path; *at != 0u; at += 1)
     {
-        if (EMBED_CALL(clipboard_unreserved, PosixClipboardCtx, .letter = *at))
+        if (EMBED_CALL(clipboard_unreserved, PosixClipboardCtx, .character = *at))
         {
-            // a byte a URI saves is an ASCII letter
+            // a byte a URI saves is an ASCII character
             mmgr_line_ch(args->out, (char)*at);
         }
         else
@@ -130,7 +130,7 @@ EMBED_INLINE void clipboard_uri_write(const PosixClipboardCtx *args)
     }
 }
 
-// each file of a list of URIs, `size` bytes of `list`, one to a line, its comments passed over, handed to `each` as a
+// each file of a list of URIs, `size` bytes of `list`, one to a line, its comments passed over, passed to `each` as a
 // path, its host taken off and its escapes read: how many
 static unsigned int clipboard_uris_read(const PosixClipboardCtx *args)
 {
@@ -144,11 +144,11 @@ static unsigned int clipboard_uris_read(const PosixClipboardCtx *args)
         const unsigned long long scheme = sizeof(CLI_CLIPBOARD_FILE_SCHEME) - 1u;
         int file = (end - at > scheme);
         {
-            unsigned long long letter = 0ULL;
-            while (file && (letter < scheme))
+            unsigned long long character = 0ULL;
+            while (file && (character < scheme))
             {
-                file = args->list[at + letter] == CLI_CLIPBOARD_FILE_SCHEME[letter];
-                letter += 1ULL;
+                file = args->list[at + character] == CLI_CLIPBOARD_FILE_SCHEME[character];
+                character += 1ULL;
             }
         }
         if (file)
@@ -158,20 +158,20 @@ static unsigned int clipboard_uris_read(const PosixClipboardCtx *args)
                               .size = end, .set = "/");
             char path[CLI_PATH_MAX_LEN];
             VerbaLinea decoded = {path, sizeof(path), 0ULL};
-            unsigned long long letter = from;
-            while (letter < end)
+            unsigned long long character = from;
+            while (character < end)
             {
-                const unsigned int high = (letter + 2ULL < end) ? EMBED_CALL(cli_text_byte.hex_digit, CliTextByteCfg,
-                                                                             .byte = args->list[letter + 1ULL])
+                const unsigned int high = (character + 2ULL < end) ? EMBED_CALL(cli_text_byte.hex_digit, CliTextByteCfg,
+                                                                             .byte = args->list[character + 1ULL])
                                                                 : 16u;
-                const unsigned int low = (letter + 2ULL < end) ? EMBED_CALL(cli_text_byte.hex_digit, CliTextByteCfg,
-                                                                            .byte = args->list[letter + 2ULL])
+                const unsigned int low = (character + 2ULL < end) ? EMBED_CALL(cli_text_byte.hex_digit, CliTextByteCfg,
+                                                                            .byte = args->list[character + 2ULL])
                                                                : 16u;
-                const int escaped = (args->list[letter] == '%') && (high < 16u) && (low < 16u);
+                const int escaped = (args->list[character] == '%') && (high < 16u) && (low < 16u);
                 // two hexadecimal digits make a byte, below 256
-                mmgr_line_ch(&decoded, escaped ? (char)((high << 4u) | low) : args->list[letter]);
-                letter += escaped ? 2ULL : 0ULL;
-                letter += 1ULL;
+                mmgr_line_ch(&decoded, escaped ? (char)((high << 4u) | low) : args->list[character]);
+                character += escaped ? 2ULL : 0ULL;
+                character += 1ULL;
             }
             if (mmgr_line_finish(&decoded) != 0ULL)
             {
@@ -201,7 +201,7 @@ static const char s_emptied_script[] = "ObjC.import('AppKit'); $.NSPasteboard.ge
 // the encoding pbcopy and pbpaste read and write the text in
 static const CliSetting s_utf8[1] = {{"LANG", "en_US.UTF-8"}};
 
-// `words` run, `size` bytes of `input` fed to it, what it wrote handed to `out` where `out` is not NULL: 1, or 0 where
+// `words` run, `size` bytes of `input` fed to it, what it wrote passed to `out` where `out` is not NULL: 1, or 0 where
 // it did not run or ended with a code other than 0
 EMBED_INLINE int clipboard_run(const PosixClipboardCtx *args)
 {
@@ -258,7 +258,7 @@ int cli_clipboard_files_append(const CliCountCtx *args)
     return put;
 }
 
-// a path osascript wrote, one to a line, handed on
+// a path osascript wrote, one to a line, passed on
 typedef struct
 {
     void (*each)(const CliEachPathCfg *args);
@@ -337,8 +337,8 @@ void cli_clipboard_clear(void)
 #define CLI_X11_CONVERT 24u
 #define CLI_X11_SEND_EVENT 25u
 
-// the milliseconds an answer the clipboard's owner sends is waited for; the bytes of a property read at once; the most
-// bytes a content is sent in at once, below one request's capacity; and the most bytes of the reader's Xauthority file
+// the milliseconds an answer the clipboard's owner sends is waited for; the bytes of a property read at once; the max
+// bytes a content is sent in at once, below one request's capacity; and the max bytes of the reader's Xauthority file
 // read
 #define CLI_X11_WAIT 2000
 #define CLI_X11_PIECE (64u << 10u)
@@ -406,7 +406,7 @@ EMBED_INLINE int x11_send(const PosixClipboardCtx *args)
     return 1;
 }
 
-// `size` bytes read whole from the server, each piece waited for `wait` milliseconds at the most, -1 for as long as it
+// `size` bytes read whole from the server, each piece waited for `wait` milliseconds at max, -1 for as long as it
 // takes: 1, or 0 where none came in time or the connection is gone
 EMBED_INLINE int x11_receive(const PosixClipboardCtx *args)
 {
@@ -546,7 +546,7 @@ EMBED_INLINE int x11_socket(const PosixClipboardCtx *args)
             memor.set(&(MemoriaCfg){.dst = &address, .val = 0, .bytes = sizeof(address)});
             address.sun_family = AF_UNIX;
             VerbaLinea path = {address.sun_path + abstract, sizeof(address.sun_path) - abstract, 0ULL};
-            // the X server's socket stands at this path on every system
+            // the X server's socket is at this path on every system
             mmgr_line_put(&path, "/tmp/.X11-unix/X"); // NOSONAR
             mmgr_line_decimal(&path, args->number, 1u);
             const unsigned long long length = mmgr_line_finish(&path);
@@ -595,7 +595,7 @@ EMBED_INLINE int x11_socket(const PosixClipboardCtx *args)
     return made;
 }
 
-// a field of the Xauthority file at `at`, its length first, two bytes most first: its bytes and their count, the
+// a field of the Xauthority file at `at`, its length first, two bytes max first: its bytes and their count, the
 // place after it into `at`, or NULL where the file ends inside it
 EMBED_INLINE const unsigned char *x11_authority_field(const PosixClipboardCtx *args)
 {
@@ -689,7 +689,7 @@ EMBED_INLINE int x11_cookie(const PosixClipboardCtx *args)
 }
 
 // the server's answer to the connection's setup read: the window's id made from the ids it gives, the root window and
-// the most bytes one request takes: 1, or 0 where it refused the connection
+// the max bytes one request takes: 1, or 0 where it refused the connection
 EMBED_INLINE int x11_set_up(const PosixClipboardCtx *args)
 {
     unsigned int *root = args->root;
@@ -1129,8 +1129,8 @@ EMBED_INLINE void owner_request(const PosixClipboardCtx *args)
         return;
     }
     const unsigned int type = (target == x11->atom[CLI_X11_TEXT]) ? x11->atom[CLI_X11_UTF8] : target;
-    const unsigned long long most = (x11->request_max > 64ULL) ? x11->request_max - 64ULL : 0ULL;
-    const unsigned long long whole = (most < CLI_X11_SENT_MAX) ? most : CLI_X11_SENT_MAX;
+    const unsigned long long max = (x11->request_max > 64ULL) ? x11->request_max - 64ULL : 0ULL;
+    const unsigned long long whole = (max < CLI_X11_SENT_MAX) ? max : CLI_X11_SENT_MAX;
     if (s_owner.size[place] <= whole)
     {
         // the content read out of its cell into a cell of this call and sent whole
@@ -1323,7 +1323,7 @@ int cli_clipboard_text_write(const CliSizeTextCtx *args)
 
 int cli_clipboard_files_append(const CliCountCtx *args)
 {
-    // a path's byte is written as at most 3 in a URI, and each path adds its scheme and a line's end
+    // a path's byte is written as at max 3 in a URI, and each path adds its scheme and a line's end
     const unsigned long long uri_capacity = (unsigned long long)args->count * ((3ULL * CLI_PATH_MAX_LEN) + 16ULL);
     const unsigned long long text_capacity = (unsigned long long)args->count * (CLI_PATH_MAX_LEN + 1ULL);
     char *const uris_cell = g_cli_guard->temporary_buf_alloc(uri_capacity + 1ULL, g_cli_platform_owner);
@@ -1358,7 +1358,7 @@ int cli_clipboard_files_append(const CliCountCtx *args)
     return owner;
 }
 
-// the files GNOME's copied-files target holds, `size` bytes of `list`, its first line `cut` or `copy`, handed to
+// the files GNOME's copied-files target holds, `size` bytes of `list`, its first line `cut` or `copy`, passed to
 // `each`, 1 in `cut` where they were cut: how many
 EMBED_INLINE unsigned int clipboard_copied_read(const PosixClipboardCtx *args)
 {

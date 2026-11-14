@@ -30,7 +30,7 @@ quoted below are quoted from the published papers named beside them, as a reader
 | P2 | How does a glottalized resonant fare under reduplication in the five languages left Unclear? | Mellesmoen & Urbanczyk 2021, Table 4 | doubled consonant pairs, glottalization of each copy | the survey's classified languages, its own papers left out | **method agrees 7 of 10 on all 254 tables (7 of 8 on 138); the blanks stay blank** |
 | P3 | Is Nuxalk's reputation for vowelless words in large part spacing, clitics printed apart? | Robertson 2020 (blog comment, read) | obstruent-only tokens in two oral texts, clitics joined and opened | the same text counted both ways | **supported: 0.9% joined, 18.5% opened** |
 | P4 | How common are free obstruent-only words in Nuxalk, and is there more than one made of stops only? | Mellesmoen 2021 against Nater 2024 | Mellesmoen's own definition applied outside both disputants' papers | both disputants' papers excluded | **9.2% of 1332 distinct free words; three stops-only words attested** |
-| P5 | Which branch does Nuxalk share most vocabulary with? | the family's standing puzzle | P0's measure, Nuxalk rows | P0 | **not read on all 254 tables: P0 fails** (undetermined on 138) |
+| P5 | Which branch does Nuxalk share max vocabulary with? | the family's located puzzle | P0's measure, Nuxalk rows | P0 | **not read on all 254 tables: P0 fails** (undetermined on 138) |
 | P6 | Do Southern Interior languages with word-initial glottalized resonants also shift the quality of schwa? | Mellesmoen & Urbanczyk 2021, section 4 | none possible here | none | **not testable on these tables**: it needs phonetic measurement |
 
 ## What the tables hold
@@ -42,7 +42,7 @@ the paper states in its ops header, or the one recorded in `paper_config.PAPERS`
 extracted before ops files existed, or the language of 70% or more of the paper's own placed form rows.
 
 Salish form rows placed, by branch: Northern Interior 10,585; Central 9,755; Nuxalk 2,993; Southern
-Interior 2,500; Tsamosan 332; Tillamook 52. 209 form rows stay unplaced. Most carry a label for a group
+Interior 2,500; Tsamosan 332; Tillamook 52. 209 form rows stay unplaced. Max carry a label for a group
 ("Salish" 82, "Interior Salish" 23) or a language outside the family cited in a typological comparison;
 14 name a person in a paper that states no language. 6,343 segmentation rows pair with a gloss row. The
 tables are weighted toward modern syntax and semantics papers, and it matters for every entry below:
@@ -111,25 +111,25 @@ it is read until it passes.
 
 The question. Kinkade (1998, "Origins of Salishan Lexical Suffixes", ICSNL 33) defines lexical suffixes
 as suffixes with the meaning of a noun that "lack phonological similarity" to it, then argues that each
-language keeps a handful of nouns built as a consonant plus the suffix of the same meaning, his [C + LS]
+language retains a handful of nouns built as a consonant plus the suffix of the same meaning, his [C + LS]
 forms (Upper Chehalis mus 'eye' beside =us), from which the suffixes came. He found "anywhere from 6 to
 14" per language. He quotes Mithun (1984:887) that "a derivational relationship between the affixes and
 independent N's is not now discernable". Mithun is cited here through Kinkade's quotation.
 
 The test. Suffixes are cited-affix rows, and =-morphemes after a root carrying an English gloss. Nouns
-are single-morpheme forms, an s- nominalizer set aside. Both are kept only when a sense falls in a fixed
+are single-morpheme forms, an s- nominalizer set aside. Both are retained only when a sense falls in a fixed
 list of 53 generic nominal meanings (hand, foot, head, face, eye, mouth, water, house and the rest, with
 81 English glosses folded to them). The Kinkade shape is a noun one or two segments longer than a
 same-meaning suffix and ending in it; the tail shape is any longer noun ending in it. The null shuffles
 which meaning each noun carries, inside its language, 5000 times.
 
 The result. Six languages give 86 same-meaning suffix/noun pairs: Halkomelem, Lushootseed, ʔayʔaǰuθəm,
-Nɬeʔkepmxcín, Twana and Upper Chehalis. The tail shape: 5 observed, shuffled mean 0.45, shuffled maximum
+Nɬeʔkepmxcín, Twana and Upper Chehalis. The tail shape: 5 observed, shuffled mean 0.45, shuffled max
 4, p = 0.0002. The Kinkade shape: 1 observed (Halkomelem xʷəlməxʷ 'people' beside =əlməxʷ, consonant plus
 suffix exactly), shuffled mean 0.11, p = 0.11.
 
 What it shows. Across these tables, nouns of a suffix's own meaning end in that suffix far more often
-than chance, against the letter of "lack phonological similarity". It does not decide Kinkade's
+than chance, against the character of "lack phonological similarity". It does not decide Kinkade's
 direction of derivation. The longer nouns in the tail pairs (Lushootseed sxəyʼus 'head' beside =us,
 Twana sčka·psəb 'neck' beside =psəb) may themselves be derived with the suffix, and synchronic tables
 cannot tell a noun built with a suffix from the noun a suffix came from. The [C + LS] shape proper is
@@ -154,7 +154,7 @@ The Kinkade shape: 1 observed, the same Halkomelem pair, null mean 619/5000, p =
 pair is Halkomelem məstiməxʷ 'people' beside =məxʷ. The run in Python over the same tables gives the same
 counts, with p 0.0002 and 0.1248.
 
-The reading stands on all tables: the tail relation is above chance and the [C + LS] shape is too rare
+The reading is on all tables: the tail relation is above chance and the [C + LS] shape is too rare
 to test.
 
 ## P2, 2026-09-24: glottalized resonants under reduplication
@@ -244,7 +244,7 @@ lists 127 voiceless words and roots, and maintains that the language is non-syll
 
 The test. Mellesmoen's definition, applied to the Nuxalk free words in every paper except those two:
 cited forms that are one token and are neither starred, a root, an affix nor a clitic. Stops are p, t, k, q
-and their ejectives; c and ƛ are affricates, kept apart as she keeps them.
+and their ejectives; c and ƛ are affricates, retained apart as she retains them.
 
 The result. 1332 distinct free words, 122 obstruent-only (9.2%). 1262 of them come from Nater's 2013
 comparative list "How Salish is Bella Coola?", and 118 of those are obstruent-only. Three are made of
@@ -296,15 +296,15 @@ of Nuxalk's excesses here.
   Replaced by the fixed list of nominal meanings, applied to suffixes and nouns alike before any pair
   was counted.
 - **Withdrawn.** P0 criterion (d) as first fixed: no outside language above the largest excess its own
-  shuffles produce. **What killed it:** the maximum of a shuffle depends on how many shuffles are run.
+  shuffles produce. **What killed it:** the max of a shuffle depends on how many shuffles are run.
   Kwak'wala with ʔayʔaǰuθəm (+0.144 over 17 meanings, against a ceiling of +0.086) failed at 200
   shuffles and passed at 500. Replaced, after that run and recorded as a change, by a shuffle p below
   0.01.
-- **Withdrawn.** P0's first reading that Nuxalk stands nearest ʔayʔaǰuθəm (+0.235 over 22 meanings).
+- **Withdrawn.** P0's first reading that Nuxalk is nearest ʔayʔaǰuθəm (+0.235 over 22 meanings).
   **What killed it:** the matching meanings were 'mother', 'father', 'child' and 'money'. Parent and
   child terms built on m, n, p, t match across unrelated languages, and 'money' is a loan. Those
   meanings and other post-contact ones are now excluded, a choice made after seeing this run; the P0
-  verdicts stood after it, and the excess fell to +0.080 over 18.
+  verdicts was after it, and the excess fell to +0.080 over 18.
 - **Withdrawn.** P2's first counts, which scored each word and read Nsyilxcən as disagreeing with Table 4
   (10 identical to 4 split). **What killed it:** one Nsyilxcən word was counted three times with footnote
   numbers stuck to it, and one doubled root was counted again in each derived word. Counting each root

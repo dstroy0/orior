@@ -37,32 +37,32 @@ typedef struct CliFilesCfg CliFilesCfg;
 typedef struct CliFilesPathTypeCfg CliFilesPathTypeCfg;
 typedef struct CliFilesGitCfg CliFilesGitCfg;
 
-// the most paths the tree's list contains, and the most bytes of them
+// the max paths the tree's list contains, and the max bytes of them
 #define CLI_FILES_MAX 50000u
 
 #define CLI_FILES_TEXT (1u << 23u)
 
-// A list of paths: each path where it starts in the text, ended by a 0, `count` of them in capacity for `most`; and the
+// A list of paths: each path where it starts in the text, ended by a 0, `count` of them in capacity for `max`; and the
 // bytes the text uses, in capacity for `text_max`. Its starts and text are cells of the cellblock, counted to the
 // files, taken at the sizes known as it is made
 typedef struct
 {
     unsigned int *start;
     unsigned int count;
-    unsigned int most;
+    unsigned int max;
     char *text;
     unsigned long long used;
     unsigned long long text_max;
 } CliFiles;
 
-// every file of the tree at `root`, at most CLI_FILES_MAX of them, sorted, laid flat in the temporary tier for the
+// every file of the tree at `root`, at max CLI_FILES_MAX of them, sorted, positioned flat in the temporary tier for the
 // length of one call, until cli_files_let gives it back; or NULL where the cellblock cannot meet it (files_seen.c)
 const CliFiles *cli_files_view(const CliFilesRootPathsCfg *args);
 void cli_files_let(const CliFilesCfg *args);
 // the files of the folder at `root`, less `.git` and `target`, walked from its top: each file's path from the top
-// handed to `each`, at most CLI_FILES_MAX of them (files_seen.c)
+// passed to `each`, at max CLI_FILES_MAX of them (files_seen.c)
 void cli_files_walk(const CliFilesRootEachContextCfg *args);
-// each path the tree lists off its trunk handed to `each`, git's where git reads the tree, its word into `*git`: 1
+// each path the tree lists off its trunk passed to `each`, git's where git reads the tree, its word into `*git`: 1
 // where the listing is whole; and a folder's alone, by the same means. Whether a path runs through a folder a walk does
 // not go into, `git` naming whether git decides the rest. Which of `paths`, `count` of them, git ignores, 1 into
 // `ignored` for each (files_seen.c)
@@ -70,10 +70,10 @@ int cli_files_on_list(const CliFilesRootEachContextCfg *args);
 int cli_files_folder_list(const CliFilesRootEachCfg *args);
 int cli_files_path_skip(const CliFilesGitCfg *args);
 void cli_files_ignored_read(const CliFilesRootPathsCfg *args);
-// the name of every file of the tree, and every ending, `.lean` from a name's last dot, each once, sorted, laid flat
+// the name of every file of the tree, and every ending, `.lean` from a name's last dot, each once, sorted, positioned flat
 // for one call and given back by cli_files_let; or NULL as there (files_seen.c)
 const CliFiles *cli_files_types_view(const CliFilesRootPathsCfg *args);
-// the files' own report, `<pool's bytes> <their mark> 0`, the most the views and lists occupied of the cellblock at
+// the files' own report, `<pool's bytes> <their mark> 0`, the max the views and lists occupied of the cellblock at
 // once, written into `out`; the path at `index`; and whether `path` is among the files, which are sorted
 // (files_cells.c)
 void cli_files_cells_usage_write(const CliFilesRootOutDirCfg *args);
@@ -121,11 +121,11 @@ EMBED_TABLE_STORAGE CliFilesListingNs cli_files_listing EMBED_UNUSED = {
     .entries_alloc = cli_files_entries_alloc,
 };
 
-// the folders the explorer lists at the most
+// the folders the explorer lists at max
 #define CLI_FILES_EXPLORER_FOLDERS 4096u
 
-// One row of the explorer: the path from the tree's top and the name, standing as long as its folder's listing does;
-// how deep it stands; whether it is a folder; whether git ignores it; and whether it is open
+// One row of the explorer: the path from the tree's top and the name, located as long as its folder's listing does;
+// how deep it is; whether it is a folder; whether git ignores it; and whether it is open
 typedef struct
 {
     const char *path;
@@ -136,7 +136,7 @@ typedef struct
     int open;
 } CliExplorerRow;
 
-// the explorer's top folder of the tree `root`, which stands until the explorer ends, listed and opened the first time;
+// the explorer's top folder of the tree `root`, which is until the explorer ends, listed and opened the first time;
 // and every listing let go (files_list.c). The rows are each listed folder's entries in their order, an open folder's
 // own after it a level deeper: the row `at` into `row` where `row` is not NULL: 1, or 0 past them; how many there are;
 // and a press on the row `at`, a folder opened, listed the first time, or closed: 1, or 0 where the row is a file,
@@ -147,7 +147,7 @@ int cli_files_explorer_row(unsigned int at, CliExplorerRow *row);
 unsigned int cli_files_explorer_rows(void);
 int cli_files_explorer_press(unsigned int at);
 // the folder at `path` among the rows opened or closed as a press on its row does: 1, or 0 where no row is a folder at
-// the path; every listed folder listed again, those open standing open; every folder but the top closed; and the menu
+// the path; every listed folder listed again, those open located open; every folder but the top closed; and the menu
 // of the row `at` built as the menus' own rows, a folder's Open or Close, a file's Open, then Copy path, and past the
 // rows the pane's own, Refresh Explorer and Collapse Folders in Explorer: 1, or 0 where the tree is not listed
 int cli_files_explorer_open(const char *path);
@@ -159,19 +159,19 @@ int cli_files_explorer_menu(unsigned int at);
 void cli_files_explorer_stale(void);
 int cli_files_explorer_changed(void);
 
-// the most letters a text a match reads contains
-#define CLI_FUZZY_LETTERS 4096u
+// the max characters a text a match reads contains
+#define CLI_FUZZY_CHARACTERS 4096u
 
-// the places in `text` that match `query`, counted in letters, into `hits`, sized for CLI_FUZZY_LETTERS, their count
-// into `count`, and the match's score into `score`: 1, or 0 where it does not match. The query's letters match in
-// order anywhere in the text, case aside, in no more pieces than half its letters or three. A letter scores more at the
-// start of a word or past `from`, where the text's name starts; the letters of `query` a match looks for, in lower
-// case, its spaces left out; a text's letters as a match reads them, as they are and in lower case; and the match of
-// letters already read, `required` in a text's `displayed` and `lower`, `count` letters each, `latest` sized for
-// CLI_FUZZY_LETTERS for the match's own use (files_fuzzy.c)
+// the places in `text` that match `query`, counted in characters, into `hits`, sized for CLI_FUZZY_CHARACTERS, their count
+// into `count`, and the match's score into `score`: 1, or 0 where it does not match. The query's characters match in
+// order anywhere in the text, case aside, in no more pieces than half its characters or three. A character scores more at the
+// start of a word or past `from`, where the text's name starts; the characters of `query` a match looks for, in lower
+// case, its spaces left out; a text's characters as a match reads them, as they are and in lower case; and the match of
+// characters already read, `required` in a text's `displayed` and `lower`, `count` characters each, `latest` sized for
+// CLI_FUZZY_CHARACTERS for the match's own use (files_fuzzy.c)
 int cli_files_fuzzy(const CliFilesQueryCfg *args);
 unsigned int cli_files_want(const CliFilesQueryLettersCfg *args);
-unsigned int cli_files_letters(const CliFilesTextCfg *args);
+unsigned int cli_files_characters(const CliFilesTextCfg *args);
 int cli_files_fuzzy_matches(const CliFilesCountCfg *args);
 
 // the tree listed behind the window for the quick open, where it is not listed; and whether it is not listed yet
@@ -179,11 +179,11 @@ int cli_files_fuzzy_matches(const CliFilesCountCfg *args);
 void cli_files_read_behind(const CliFilesRootPathsCfg *args);
 int cli_files_unread(const CliFilesRootPathsCfg *args);
 
-// the most files a ranked find answers
-#define CLI_FILES_RANKED_MOST 200u
+// the max files a ranked find answers
+#define CLI_FILES_RANKED_MAX 200u
 
-// A file that answers a query: its path from the tree's top, its score, and the places of its path's letters that
-// matched, counted in letters, `hit_count` of them from `hit_first` among the answer's places
+// A file that answers a query: its path from the tree's top, its score, and the places of its path's characters that
+// matched, counted in characters, `hit_count` of them from `hit_first` among the answer's places
 typedef struct
 {
     const char *path;
@@ -193,7 +193,7 @@ typedef struct
 } CliFileRanked;
 
 // The files that answer a query, in one cell, NULL where none do: how many, the files best first, the places their
-// letters matched, and whether the tree's files are still being read, so that more may answer
+// characters matched, and whether the tree's files are still being read, so that more may answer
 typedef struct
 {
     void *cell;
@@ -203,11 +203,11 @@ typedef struct
     int reading;
 } CliFilesRanked;
 
-// the tree's files at `root` that answer `query`, at most `most` of them and no more than CLI_FILES_RANKED_MOST, the
+// the tree's files at `root` that answer `query`, at max `max` of them and no more than CLI_FILES_RANKED_MAX, the
 // best first in one pass over the sorted files, into `rows`, its cell of `owner` released and taken anew sized to the
 // answer: a file whose name equals the query scores CLI_FILES_RANKED_EXACT over the match, one whose name starts with
 // it half that, and one among the `recents` paths of `recent` CLI_FILES_RANKED_LATELY over it; with `fuzzy` off a
-// file answers only where its path contains the query's letters in a row, case aside; until the tree is listed the
+// file answers only where its path contains the query's characters in a row, case aside; until the tree is listed the
 // paths of `recent` alone answer and `reading` is 1. 1, or 0 where the cells cannot meet the answer, `rows` empty
 #define CLI_FILES_RANKED_EXACT 100000.0
 #define CLI_FILES_RANKED_LATELY 6.0
@@ -220,7 +220,7 @@ typedef struct
     int regex;
 } CliSearching;
 
-// A line a search found handed on: its file's path from the top of the tree, its line and column counted from 1, and
+// A line a search found passed on: its file's path from the top of the tree, its line and column counted from 1, and
 // the bytes of its text a hit retains
 typedef struct
 {
@@ -232,10 +232,10 @@ typedef struct
     unsigned long long size;
 } CliEachHitCfg;
 
-// every line in the tree's files that contains the query, at most 2000 of them, less the files the search's patterns
+// every line in the tree's files that contains the query, at max 2000 of them, less the files the search's patterns
 // hide, and only in the files `set` includes where it includes any, written as `[{"path", "line", "col", "text"}]`, or
-// where `each` is not NULL each handed to it with `context` and nothing written: 1, or 0 with why in `err_msg`; and
-// every listed file whose path contains each word of the query, case aside, at most 500 of them, less the files the
+// where `each` is not NULL each passed to it with `context` and nothing written: 1, or 0 with why in `err_msg`; and
+// every listed file whose path contains each word of the query, case aside, at max 500 of them, less the files the
 // explorer's patterns hide, written as a JSON array of paths (files_search.c, files_find.c)
 int cli_files_search(const CliFilesRootOutErrMsgCfg *args);
 
@@ -329,9 +329,9 @@ struct CliFilesCountOutCfg
     const char *query;
     const char *const *recent;
     unsigned int recents;
-    unsigned int most;
+    unsigned int max;
     int fuzzy;
-    const char *const *files_letters;
+    const char *const *files_characters;
 };
 
 struct CliFilesRootCountCfg
@@ -352,7 +352,7 @@ struct CliFilesRootRowsCfg
     const char *query;
     const char *const *recent;
     unsigned int recents;
-    unsigned int most;
+    unsigned int max;
     int fuzzy;
     const CellOwner *owner;
 };
@@ -388,7 +388,7 @@ struct CliFilesRootOutErrMsgCfg
     const CliPatterns *set;
     void (*each)(const CliEachHitCfg *args);
     void *context;
-    int standing;
+    int located;
 };
 
 struct CliFilesRootEachCfg
@@ -469,7 +469,7 @@ struct CliFilesPathErrMsgCfg
 struct CliFilesQueryLettersCfg
 {
     const char *query;
-    unsigned int *letters;
+    unsigned int *characters;
     unsigned int capacity;
 };
 
@@ -606,17 +606,17 @@ typedef struct
     unsigned int (*want)(const CliFilesQueryLettersCfg *args);
 } CliFilesQueryLettersNs;
 EMBED_TABLE_LAYOUT(CliFilesQueryLettersNs, want);
-EMBED_TABLE_STORAGE CliFilesQueryLettersNs cli_files_query_letters EMBED_UNUSED = {
+EMBED_TABLE_STORAGE CliFilesQueryLettersNs cli_files_query_characters EMBED_UNUSED = {
     .want = cli_files_want,
 };
 
 typedef struct
 {
-    unsigned int (*letters)(const CliFilesTextCfg *args);
+    unsigned int (*characters)(const CliFilesTextCfg *args);
 } CliFilesTextNs;
-EMBED_TABLE_LAYOUT(CliFilesTextNs, letters);
+EMBED_TABLE_LAYOUT(CliFilesTextNs, characters);
 EMBED_TABLE_STORAGE CliFilesTextNs cli_files_text EMBED_UNUSED = {
-    .letters = cli_files_letters,
+    .characters = cli_files_characters,
 };
 
 typedef struct
@@ -689,10 +689,10 @@ EMBED_TABLE_STORAGE CliFilesRootErrMsgNs cli_files_root_err_msg EMBED_UNUSED = {
 // expressions each turn on and off beside the field, and under it the search is set to the whole tree or to a set of
 // files Preferences lists under `search.sets`, `<name>:` on a line and its patterns on the lines after, the set chosen
 // saved under `search.set`. Typing rests CLI_SEARCH_REST_MS before the tree is searched; a choice flipped searches at
-// once; what stands found is found again as files git sees change. A file's row closes and opens its lines, which
+// once; what is found is found again as files git sees change. A file's row closes and opens its lines, which
 // stays with the file across searches, and a line's row opens the file at the match
-// the most bytes a query takes with its end, the rest typing takes before the search, the most bytes of the report
-// with its end, the most sets Preferences lists and the most bytes of a set's name with its end
+// the max bytes a query takes with its end, the rest typing takes before the search, the max bytes of the report
+// with its end, the max sets Preferences lists and the max bytes of a set's name with its end
 #define CLI_SEARCH_QUERY_MAX 512u
 #define CLI_SEARCH_REST_MS 300ULL
 #define CLI_SEARCH_REPORT 128u
@@ -709,7 +709,7 @@ EMBED_TABLE_STORAGE CliFilesRootErrMsgNs cli_files_root_err_msg EMBED_UNUSED = {
 #define CLI_SEARCH_REGEX 4u
 #define CLI_SEARCH_SET 5u
 
-// the most bytes of a line row's text with its end
+// the max bytes of a line row's text with its end
 #define CLI_SEARCH_ROW_TEXT 1024u
 
 // A row of the pane: its type; the file's path from the top of the tree; a file row's name with its bytes and the
@@ -741,7 +741,7 @@ typedef struct CliSearchPaneCfg CliSearchPaneCfg;
 // restored from the saved `entries`, which the sets are read from after
 void cli_search_pane_begin(const CliSearchPaneCfg *args);
 // `size` bytes of `text` typed at the query's end at `now_ms`; the key `name` pressed in the field at `now_ms`:
-// Backspace erases the query's last letter and Enter searches at the next step, 1 where the key was one of those; and
+// Backspace erases the query's last character and Enter searches at the next step, 1 where the key was one of those; and
 // the choice `which` flipped, or the set moved to the next, at `now_ms`, searched at the next step
 void cli_search_pane_type(const CliSearchPaneCfg *args);
 int cli_search_pane_key(const CliSearchPaneCfg *args);

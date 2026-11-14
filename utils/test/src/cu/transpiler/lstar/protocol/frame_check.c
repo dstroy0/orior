@@ -6,13 +6,13 @@
 //              span, and 0 where nothing past 0 is true
 //   head       orior_krs_write's two head lines come from the .ksc's rows, each left out where its row is missing and
 //              named
-//   opening    the kernel mode's place comes from the .ksc's row, 0 where none stands, and its probe place from the
-//              probe place's row, none where none stands
-//   fixed      a register's reading at the probe place is classified from its values over the cases, each kind once,
+//   opening    the kernel mode's place comes from the .ksc's row, 0 where none is, and its probe place from the
+//              probe place's row, none where none is
+//   fixed      a register's reading at the probe place is classified from its values over the cases, each type once,
 //              and orior_krs_write's fixed lines come from the .ksc's rows, the ruleset's own line retained where no
-//              row stands, each left out where it has neither and named
+//              row is, each left out where it has neither and named
 //   frame      orior_krs_write's frame lines come from the table of frame forms and the named ruleset's parameters, the
-//              writers of one placed text being one, the ruleset's own line retained where the run hands none and
+//              writers of one placed text being one, the ruleset's own line retained where the run passes none and
 //              stored in the .krf where a written one replaces it
 //
 //     frame_check <folder>
@@ -118,7 +118,7 @@ int main(int count, char **words)
     snprintf(path, sizeof(path), "%s/frame_check_absent.ksc", words[1]);
     check_that(khw_opening_read(path) == 0u, "and 0 where there is no .ksc");
 
-    // the probe place, read from the .ksc's row where one stands
+    // the probe place, read from the .ksc's row where one is
     snprintf(path, sizeof(path), "%s/frame_check_probe.ksc", words[1]);
     const char *const place_row = "ksc part\nrun answers 00000001 opening least\nrun answers 00000010 probe place\n";
     check_that(qry_member_filed(path, place_row, strlen(place_row)) != 0ull,
@@ -140,49 +140,49 @@ int main(int count, char **words)
         second[at] = 0x200u + (at * 5u);
         values[at] = at;
     }
-    check_that(fixed_kind(values, first, second, 8u) == FIXED_LANE_NUMBER,
+    check_that(fixed_type(values, first, second, 8u) == FIXED_LANE_NUMBER,
                "values that are their case's number are the lane's number");
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         values[at] = 0x7ffff000ull + (16ull * at);
     }
-    check_that(fixed_kind(values, first, second, 8u) == FIXED_RECORD, "values stepping 16 a case are the record");
+    check_that(fixed_type(values, first, second, 8u) == FIXED_RECORD, "values stepping 16 a case are the record");
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         values[at] = 0xfffffff0ull + (16ull * at);
     }
-    check_that(fixed_kind(values, first, second, 8u) == FIXED_RECORD,
+    check_that(fixed_type(values, first, second, 8u) == FIXED_RECORD,
                "and still the record where the low word wraps past the 32-bit end");
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         values[at] = 0x7ffff000ull + (32ull * at);
     }
-    check_that(fixed_kind(values, first, second, 8u) == FIXED_INDEX, "values stepping 32 a case are the index");
+    check_that(fixed_type(values, first, second, 8u) == FIXED_INDEX, "values stepping 32 a case are the index");
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         values[at] = first[at];
     }
-    check_that(fixed_kind(values, first, second, 8u) == FIXED_CASE_WORD_0, "values that are the case's first word");
+    check_that(fixed_type(values, first, second, 8u) == FIXED_CASE_WORD_0, "values that are the case's first word");
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         values[at] = second[at];
     }
-    check_that(fixed_kind(values, first, second, 8u) == FIXED_CASE_WORD_1, "and its second");
+    check_that(fixed_type(values, first, second, 8u) == FIXED_CASE_WORD_1, "and its second");
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         values[at] = 7ull;
     }
-    check_that(fixed_kind(values, first, second, 8u) == FIXED_NOTHING, "one constant is nothing fixed");
+    check_that(fixed_type(values, first, second, 8u) == FIXED_NOTHING, "one constant is nothing fixed");
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         values[at] = 0ull;
     }
-    check_that(fixed_kind(values, first, second, 8u) == FIXED_NOTHING, "and so is 0");
-    check_that(fixed_kind(values, first, second, 1u) == FIXED_NOTHING, "and so is one case alone");
-    check_that((strcmp(fixed_kind_question(FIXED_RECORD), "fixed record") == 0) &&
-                   (strcmp(fixed_kind_question(FIXED_CASE_WORD_1), "case word 1") == 0) &&
-                   (fixed_kind_question(FIXED_NOTHING)[0] == '\0'),
-               "a kind's row question names it, and nothing's is empty");
+    check_that(fixed_type(values, first, second, 8u) == FIXED_NOTHING, "and so is 0");
+    check_that(fixed_type(values, first, second, 1u) == FIXED_NOTHING, "and so is one case alone");
+    check_that((strcmp(fixed_type_question(FIXED_RECORD), "fixed record") == 0) &&
+                   (strcmp(fixed_type_question(FIXED_CASE_WORD_1), "case word 1") == 0) &&
+                   (fixed_type_question(FIXED_NOTHING)[0] == '\0'),
+               "a type's row question names it, and nothing's is empty");
 
     // orior_krs_write's fixed lines from a .ksc with the four rows and the field, with the zero row alone and no field,
     // and with none
@@ -244,7 +244,7 @@ int main(int count, char **words)
     check_that((mmgr_line_finish(&head_line) != 0u) &&
                    (strcmp(head_line.out, "fixed zero = RZ\nfixed lane_number = R0\nfixed record = R4\nfixed body = "
                                           "R3\nfixed carry = R12\n") == 0),
-               "the queried four in their order, the row's line where a row stands and the given where none, then the "
+               "the queried four in their order, the row's line where a row is and the given where none, then the "
                "rest as given");
     check_that(strcmp(missing, "index") == 0, "and the one with neither is named missing");
     static KrfFile s_removed;
@@ -290,7 +290,7 @@ int main(int count, char **words)
     const KrsFrameForm dim = {"frame.dim", "MOV {0}, c[0x0][0x0]"};
     check_that(krs_frame_named(&dim, named, line, sizeof(line)) &&
                    (strcmp(line, "form block_dim_x to = MOV {to}, c[0x0][0x0]\\n\n") == 0),
-               "a dim form is named block_dim_x, its destination as to and the constant bank's operand as it stands");
+               "a dim form is named block_dim_x, its destination as to and the constant bank's operand as it is");
     const KrsFrameForm guarded = {"frame.exit", "@{0} EXIT"};
     check_that(krs_frame_named(&guarded, named, line, sizeof(line)) &&
                    (strcmp(line, "form exit_if where = @{where} EXIT\\n\n") == 0),
@@ -310,7 +310,7 @@ int main(int count, char **words)
     check_that(!krs_frame_named(&unknown, named, line, sizeof(line)), "and nor is a relation the table maps none of");
 
     // the frame lines written: two loads of one text are one line, a lane's line replaces the given one and the
-    // given goes to the .krf, and a row the run hands none for retains its given line, in the table's order
+    // given goes to the .krf, and a row the run passes none for retains its given line, in the table's order
     snprintf(ruleset_path, sizeof(ruleset_path), "%s/frame_check_frame.krs", words[1]);
     const char *const frame_given =
         "krs 1\nform thread_idx_x to = S2R {to}, SR_TID.X\\n\nform block_idx_x to = S2R {to}, SR_CTAID.X\\n\n";
@@ -321,10 +321,10 @@ int main(int count, char **words)
     const char *const frame_fresh = "krf frame_check_frame\n";
     check_that(qry_member_filed(removals, frame_fresh, strlen(frame_fresh)) != 0ull,
                "and the .krf beside its .ksc, its head alone");
-    const KrsFrameForm handed[4] = {load, {"frame.load", "LD {2}, [{0}.64], {1}"}, lane, guarded};
+    const KrsFrameForm passed[4] = {load, {"frame.load", "LD {2}, [{0}.64], {1}"}, lane, guarded};
     static char s_frame_forms_bytes[QRY_WRITER_RING_BYTES / 2ull];
     VerbaLinea frame_forms = {s_frame_forms_bytes, sizeof(s_frame_forms_bytes), 0ull};
-    check_that(krs_frame_written(frame_forms.out, frame_forms.capacity, &frame_forms.at, handed, 4u, named,
+    check_that(krs_frame_written(frame_forms.out, frame_forms.capacity, &frame_forms.at, passed, 4u, named,
                                  ruleset_path, path) == 5u,
                "five lines come from two loads of one text, a lane, a guarded exit and the block's given line");
     check_that((mmgr_line_finish(&frame_forms) != 0u) &&
@@ -342,28 +342,28 @@ int main(int count, char **words)
                "the given lane line the written one replaced is stored in the .krf, under a who line");
     krf_free(&s_frame_removed);
 
-    // the mirror rows: an at-most form writes its own test and the greater-or-equal test with its words changed over,
-    // and a test two rows write is one line, from its own relation's form where one is handed
+    // the mirror rows: an at-max form writes its own test and the greater-or-equal test with its words changed over,
+    // and a test two rows write is one line, from its own relation's form where one is passed
     snprintf(named, sizeof(named), "%s/frame_check_tests.krs", words[1]);
     const char *const tests = "krs 1\nruleset cu\nform test_word_le where left right = {where} = ({left} <= "
                               "{right});\\n\nform test_word_ge where left right = {where} = ({left} >= {right});\\n\n";
     check_that(qry_member_filed(named, tests, strlen(tests)) != 0ull,
-               "a ruleset naming the two tests of at most and at least is written");
-    const KrsFrameForm at_most = {"ladder.at_most", "ISETP.LE.U32.AND {2}, PT, {0}, {1}, PT"};
+               "a ruleset naming the two tests of at max and at least is written");
+    const KrsFrameForm at_max = {"ladder.at_max", "ISETP.LE.U32.AND {2}, PT, {0}, {1}, PT"};
     static char s_mirrored_bytes[QRY_WRITER_RING_BYTES / 2ull];
     VerbaLinea mirrored = {s_mirrored_bytes, sizeof(s_mirrored_bytes), 0ull};
-    check_that(krs_frame_written(mirrored.out, mirrored.capacity, &mirrored.at, &at_most, 1u, named, NULL, path) == 2u,
-               "two lines come from one at-most form");
+    check_that(krs_frame_written(mirrored.out, mirrored.capacity, &mirrored.at, &at_max, 1u, named, NULL, path) == 2u,
+               "two lines come from one at-max form");
     check_that((mmgr_line_finish(&mirrored) != 0u) &&
                    (strcmp(mirrored.out, "form test_word_le where left right = ISETP.LE.U32.AND {where}, PT, {left}, "
                                          "{right}, PT\\n\nform test_word_ge where left right = ISETP.LE.U32.AND "
                                          "{where}, PT, {right}, {left}, PT\\n\n") == 0),
                "its own test, and the greater-or-equal test with left and right changed over");
-    const KrsFrameForm both_tests[2] = {at_most, {"ladder.at_least", "ISETP.GE.U32.AND {2}, PT, {0}, {1}, PT"}};
+    const KrsFrameForm both_tests[2] = {at_max, {"ladder.at_least", "ISETP.GE.U32.AND {2}, PT, {0}, {1}, PT"}};
     static char s_own_bytes[QRY_WRITER_RING_BYTES / 2ull];
     VerbaLinea own = {s_own_bytes, sizeof(s_own_bytes), 0ull};
     check_that(krs_frame_written(own.out, own.capacity, &own.at, both_tests, 2u, named, NULL, path) == 2u,
-               "an at-most and an at-least form write two lines, each test once");
+               "an at-max and an at-least form write two lines, each test once");
     check_that((mmgr_line_finish(&own) != 0u) &&
                    (strcmp(own.out, "form test_word_le where left right = ISETP.LE.U32.AND {where}, PT, {left}, "
                                     "{right}, PT\\n\nform test_word_ge where left right = ISETP.GE.U32.AND {where}, "

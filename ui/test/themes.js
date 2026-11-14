@@ -11,7 +11,7 @@ import { choose, deleteTheme, saveTheme } from "../gui/src-js/themes.js";
 // page until its close is heard, with its own rows.
 export const inSheet = (selector) => [...(document.querySelector("dialog.sheet[open]")?.querySelectorAll(selector) ?? [])];
 
-// Makes the theme `name` over the scheme shown, from `parts`, and chooses it.
+// Makes the theme `name` over the scheme displayed, from `parts`, and chooses it.
 export function useTheme(name, parts) {
   saveTheme({ name, base: scheme(), colors: {}, ...parts });
   choose(scheme(), name);

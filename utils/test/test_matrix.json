@@ -895,7 +895,7 @@
       }
     },
     "record_tower": {
-      "desc": "The record tower test, its lanes compiled as PTX and kept as PTX (rule (i) off); every compiled launch held to the interpreter.",
+      "desc": "The record tower test, its lanes compiled as PTX and retained as PTX (rule (i) off); every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_tower_test.sh",
       "src": [
         "+<cu/engine/analysis/tower/*>",

@@ -4,31 +4,31 @@
 import { invoke } from "../bridge.js";
 import { askFor, sheet } from "../menubar.js";
 import { say } from "../statusbar.js";
-import { chosen, element, KEPT_DEPTH, KEPT_MOST, KEPT_WIDTH, pausedOf, state } from "../debug.js";
+import { chosen, element, RETAINED_DEPTH, RETAINED_MAX, RETAINED_WIDTH, pausedOf, state } from "../debug.js";
 import { drawVariables, frameMenu, variableRow } from "./variables.js";
 
-// Values kept to compare.
+// Values retained to compare.
 
-// A value read whole, as deep as KEPT_DEPTH and as wide as KEPT_WIDTH at each level.
+// A value read whole, as deep as RETAINED_DEPTH and as wide as RETAINED_WIDTH at each level.
 export async function readWhole(variable, depth = 0) {
-  const tree = { name: variable.name, value: variable.value, kind: variable.kind, children: [] };
-  if (variable.reference && depth < KEPT_DEPTH) {
+  const tree = { name: variable.name, value: variable.value, type: variable.type, children: [] };
+  if (variable.reference && depth < RETAINED_DEPTH) {
     const found = await invoke("debug_variables", { session: chosen().info.id, reference: variable.reference }).catch(() => []);
-    for (const child of found.slice(0, KEPT_WIDTH)) {
+    for (const child of found.slice(0, RETAINED_WIDTH)) {
       tree.children.push(await readWhole(child, depth + 1));
     }
   }
   return tree;
 }
 
-export async function keepValue(variable) {
+export async function retainValue(variable) {
   const paused = pausedOf();
   const frame = paused?.frames[paused.at];
   const tree = await readWhole(variable);
   const where = frame?.path ? ` at ${frame.path.split("/").pop()}:${frame.line + 1}` : "";
-  state.kept.unshift({ label: `${variable.name}${where}`, tree });
-  state.kept.length = Math.min(state.kept.length, KEPT_MOST);
-  say(`${variable.name} is kept as it stands${where}.`);
+  state.retained.unshift({ label: `${variable.name}${where}`, tree });
+  state.retained.length = Math.min(state.retained.length, RETAINED_MAX);
+  say(`${variable.name} is retained as it is${where}.`);
   drawVariables();
 }
 
@@ -41,12 +41,12 @@ function fieldsOf(tree, prefix = "", into = new Map()) {
   return into;
 }
 
-// The sheet that sets a kept value beside one read now, field by field, a field that differs marked.
-export function compareValues(kept, now) {
-  const before = fieldsOf(kept.tree, kept.tree.name);
-  const after = fieldsOf(now, kept.tree.name);
+// The sheet that sets a retained value beside one read now, field by field, a field that differs marked.
+export function compareValues(retained, now) {
+  const before = fieldsOf(retained.tree, retained.tree.name);
+  const after = fieldsOf(now, retained.tree.name);
   const paths = [...new Set([...before.keys(), ...after.keys()])];
-  const table = element("table", { className: "debug-compare" }, element("thead", {}, element("tr", {}, element("th", { textContent: "Field" }), element("th", { textContent: kept.label }), element("th", { textContent: "Now" }))));
+  const table = element("table", { className: "debug-compare" }, element("thead", {}, element("tr", {}, element("th", { textContent: "Field" }), element("th", { textContent: retained.label }), element("th", { textContent: "Now" }))));
   const body = element("tbody");
   let differ = 0;
   for (const path of paths) {
@@ -197,7 +197,7 @@ export async function showMachineCode() {
 
 // The value under the pointer.
 
-// The expression a place of a line stands in: the name there and the names and dots before it.
+// The expression a place of a line is in: the name there and the names and dots before it.
 function expressionAt(text, col) {
   let from = col;
   let to = col;
@@ -233,7 +233,7 @@ export async function valueAt(file, doc, p) {
   const node = element("div", { className: "debug-hover" });
   const add = (one, depth, into) => {
     let open = false;
-    let shown = null;
+    let displayed = null;
     const holder = variableRow(one, depth, false, () => {}, null);
     const twisty = holder.querySelector(".debug-twisty");
     const fresh = twisty.cloneNode(true);
@@ -242,12 +242,12 @@ export async function valueAt(file, doc, p) {
       open = !open;
       fresh.textContent = open ? "▾" : "▸";
       if (open) {
-        shown = element("div");
+        displayed = element("div");
         const children = await invoke("debug_variables", { session: session.info.id, reference: one.reference }).catch(() => []);
-        children.slice(0, 200).forEach((child) => add(child, depth + 1, shown));
-        holder.append(shown);
+        children.slice(0, 200).forEach((child) => add(child, depth + 1, displayed));
+        holder.append(displayed);
       } else {
-        shown?.remove();
+        displayed?.remove();
       }
     });
     into.append(holder);

@@ -6,7 +6,7 @@
 #include "../text/text.h"
 #include "python_paths_internal.h"
 
-// the most folders one folder contains that a loop over its entries takes
+// the max folders one folder contains that a loop over its entries takes
 #define CLI_PY_FOLDERS 4096u
 #define CLI_PY_FOLDER_TEXT (1u << 20u)
 
@@ -39,7 +39,7 @@ static CliValues cli_none(void)
 typedef struct
 {
     const VerbaLinea *line;
-    char letter;
+    char character;
     const char *part;
     const char *base;
     VerbaLinea *out;
@@ -69,7 +69,7 @@ EMBED_INLINE void cli_line_append(const PythonPathsEvalCtx *args)
 // whether a byte parts a path
 EMBED_INLINE int cli_parts(const PythonPathsEvalCtx *args)
 {
-    return (args->letter == '/') || (args->letter == '\\');
+    return (args->character == '/') || (args->character == '\\');
 }
 
 void cli_py_parent(const CliPythonPathsOutCtx *args)
@@ -100,12 +100,12 @@ void cli_py_parent(const CliPythonPathsOutCtx *args)
     mmgr_line_put_n(args->out, args->path, length);
 }
 
-// whether a path stands alone when it is joined onto another
+// whether a path is alone when it is joined onto another
 EMBED_INLINE int cli_absolute(const PythonPathsEvalCtx *args)
 {
 #if defined(_WIN32)
     const int drive = (((args->part[0] | 0x20) >= 'a') && ((args->part[0] | 0x20) <= 'z')) && (args->part[1] == ':') &&
-                      EMBED_CALL(cli_parts, PythonPathsEvalCtx, .letter = args->part[2]);
+                      EMBED_CALL(cli_parts, PythonPathsEvalCtx, .character = args->part[2]);
     return drive || ((args->part[0] == '\\') && (args->part[1] == '\\'));
 #else
     return args->part[0] == '/';
@@ -122,14 +122,14 @@ EMBED_INLINE void cli_join(const PythonPathsEvalCtx *args)
     }
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_POOL_BYTES});
     mmgr_line_put(args->out, args->base);
-    if (!EMBED_CALL(cli_parts, PythonPathsEvalCtx, .letter = args->base[length - 1ULL]))
+    if (!EMBED_CALL(cli_parts, PythonPathsEvalCtx, .character = args->base[length - 1ULL]))
     {
         mmgr_line_ch(args->out, CLI_PY_SEPARATOR);
     }
     mmgr_line_put(args->out, args->part);
 }
 
-// every pairing of the values of `one` and `other`, joined, or added where `join` is 0, at most CLI_PY_PAIRS of them
+// every pairing of the values of `one` and `other`, joined, or added where `join` is 0, at max CLI_PY_PAIRS of them
 EMBED_INLINE CliValues cli_pairs(const PythonPathsEvalCtx *args)
 {
     static char s_created[CLI_PATH_MAX_LEN * 2u];

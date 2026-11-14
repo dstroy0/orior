@@ -1,8 +1,8 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 title	Thom Hess	title	The Morph /-(ə)b/ in Snohomish	the paper's title, carrying footnote 1
-§1	Thom Hess	note	The morph /-(ə)b/ occurs as a verb suffix in a variety of environments. In most cases its significance is elusive. The problem is to determine how many different morphemes are represented by it and, if possible, their meaning or grammatical function.	the first mention carries footnote 2
+§1	Thom Hess	note	The morph /-(ə)b/ occurs as a verb suffix in a variety of environments. In general its significance is elusive. The problem is to determine how many different morphemes are represented by it and, if possible, their meaning or grammatical function.	the first mention carries footnote 2
 §1	Snohomish	cited affix	/-(ə)b/	the verb suffix the paper is about
-§1	Thom Hess	note	/-b/ has cognates in most, if not all, Salish languages. In the Straits group it is realized as /-ŋ/. In Tillamook it is /-w/. In all other languages, so far as I know, it is /-m/. Thus the problem is of general Salish interest. It is hoped that our combined knowledge will provide new insights.	the mention of /-ŋ/ carries footnote 3
+§1	Thom Hess	note	/-b/ has cognates in max, if not all, Salish languages. In the Straits group it is realized as /-ŋ/. In Tillamook it is /-w/. In all other languages, so far as I know, it is /-m/. Thus the problem is of general Salish interest. It is hoped that our combined knowledge will provide new insights.	the mention of /-ŋ/ carries footnote 3
 §1	Snohomish	cited affix	/-b/	the suffix without its epenthetic vowel
 §1	Straits	cited affix	/-ŋ/	the Straits realization of the cognate
 §1	Tillamook	cited affix	/-w/	the Tillamook realization of the cognate
@@ -20,9 +20,9 @@ footnote 3	Lummi	note	In Lummi a few cognate forms are found with /-m/ in stead 
 section 1	Thom Hess	heading	1. root - b	the first environment, set with spaces around the hyphen
 section 1	Snohomish	cited form	root - b	the theme construction this section is about
 section 1	Thom Hess	note	This construction is a theme. Themes are the fundamental descriptive unit of the Snohomish verb. (There are three other theme types.) The roots involved belong to two classes, those always bound to /-b/ and those that can occur with other suffixes or none.
-section 1	Thom Hess	note	Themes characterized by the suffix /-b/ belong to several subclasses on the basis of the kind of transitive expansion possible.
+section 1	Thom Hess	note	Themes characterized by the suffix /-b/ belong to several subclasses on the basis of the type of transitive expansion possible.
 section 1.i	Thom Hess	heading	1.i.
-section 1.i	Thom Hess	note	Most members of this class are never found with a transitive suffix. The few that are take {-T} 'general transitive'. These themes express inherent qualities such	the sentence breaks off at the foot of page 2 and finishes on page 3, and 'general transitive' carries footnote 4
+section 1.i	Thom Hess	note	Max members of this class are never found with a transitive suffix. The few that are take {-T} 'general transitive'. These themes express inherent qualities such	the sentence breaks off at the foot of page 2 and finishes on page 3, and 'general transitive' carries footnote 4
 section 1.i	Snohomish	cited affix	{-T}	'general transitive'
 footnote 4	Thom Hess	note	This morpheme has the shape /-(ə)d/ under the same conditions listed for the morph /-(ə)b/ in footnote 2. Its other allomorphs are discussed as they appear in subsequent sections of the paper.
 footnote 4	Snohomish	cited affix	/-(ə)d/	the shape {-T} takes under the conditions footnote 2 lists
@@ -30,7 +30,7 @@ footnote 4	Thom Hess	note	{-T} is variously glossed as 'him, her, it, them' as c
 section 1.i	Thom Hess	note	as taste, size or shape, and conditions of weather. They also designate involuntary physical reactions. Examples:	the sentence begun at the foot of page 2 finishes here
 section 1.i	Thom Hess	symbol note	ƛ̓ is an x body with a bar through it and a glottal tick, t̓ is the same t as in the English word taste with a tick added, and plain x has neither	settled on this page. xáyəb 'laugh' and xʷúyub 'sell' print a bare x in the same table where ƛ̓áɬəb 'salty' prints the barred body with the tick, and t̓ác̓əb 'bitter' prints the taste t with a tick, so all three contrast within one table. Two later readings agree and neither is the authority for what this page prints: 1975_Hilbert_Hess sets the same ƛ̓ in dəxʷgʷəƛ̓əlads and its oracle names it, and Nater's Coast Salish *ƛ̓aɬ 'bitter, salt' matches ƛ̓áɬəb segment for segment
 section 1.i	Thom Hess	symbol note	this paper writes its uvular fricative as x with a dot below, first at sx̣ʷáʔiluɬ on page 7	1975_Hilbert_Hess writes the same sound as x under a caron, so the two typescripts do not share the mark
-section 1.i	Thom Hess	symbol note	two letters carry a comma hook joined to the body: q̓, whose stem runs below the baseline to a foot bar and also rises above the x-height into the hook, and c̓, whose hook meets its upper terminal and whose bowl stays open on the right between the hook and the lower terminal	read at 2400 dpi: q̓áƛ̓əb 'cloud' and t̓ác̓əb 'bitter' stand in one table, the q̓ stem matching the plain q of qʷə́šəb 'smoke'. The final d of c̓ágʷ-abəc-əd has no such gap: its stem runs straight from its top serif to a foot serif at the baseline
+section 1.i	Thom Hess	symbol note	two characters carry a comma hook joined to the body: q̓, whose stem runs below the baseline to a foot bar and also rises above the x-height into the hook, and c̓, whose hook meets its upper terminal and whose bowl stays open on the right between the hook and the lower terminal	read at 2400 dpi: q̓áƛ̓əb 'cloud' and t̓ác̓əb 'bitter' are in one table, the q̓ stem matching the plain q of qʷə́šəb 'smoke'. The final d of c̓ágʷ-abəc-əd has no such gap: its stem runs straight from its top serif to a foot serif at the baseline
 section 1.i	Snohomish	cited form	ƛ̓áɬəb	salty
 section 1.i	Snohomish	cited form	qʷágʷəb	sweet
 section 1.i	Snohomish	cited form	č̓ápəb	sour
@@ -55,7 +55,7 @@ section 1.i	Snohomish	cited form	ƛ̓áɬəbəd	the same form written without th
 section 1.i	Snohomish	impossible	*qʷágʷəbəd	'sweeten it', starred on the page and stated to be impossible
 section 1.i	Snohomish	impossible	*č̓ápəbəd	'make it sour', starred on the page and stated to be impossible
 section 1.ii	Thom Hess	heading	1.ii.
-section 1.ii	Thom Hess	note	Themes of this group can take the transitive suffix {-tu} 'causative'. Most of them express various vocalizations and intransitive motions. Compare the following:
+section 1.ii	Thom Hess	note	Themes of this group can take the transitive suffix {-tu} 'causative'. The majority of them express various vocalizations and intransitive motions. Compare the following:
 section 1.ii	Snohomish	cited affix	{-tu}	'causative'
 section 1.ii	Snohomish	cited form	t̓ílib	sing
 section 1.ii	Snohomish	cited form	t̓ílib-txʷ	play radio, phonograph, and this one carries footnote 5
@@ -163,10 +163,10 @@ section 2.iv	Thom Hess	heading	2.iv. noun -áb
 section 2.iv	Thom Hess	note	The noun suffix {-ab} 'by means of' may prove to be derived from the secondary theme suffix {-a-} 'specialized', 1.iv., plus the /-b/ in question. Compare the following constructions with those in 1.iv, pages 4 and 5:
 section 2.iv	Snohomish	cited affix	{-ab}	'by means of', the noun suffix
 section 2.iv	Snohomish	cited form	sxəy̓us-áb	by means of the head
-section 2.iv	Snohomish	cited example	sxəy̓usáb tə səskìiss.	He is standing on his head.
+section 2.iv	Snohomish	cited example	sxəy̓usáb tə səskìiss.	He is located on his head.
 section 2.iv	Snohomish	cited form	sxəy̓ús	head
-section 2.iv	Snohomish	cited form	čələs-áb	by means of the hands
-section 2.iv	Snohomish	cited example	čələsáb tə səʔìbəšs.	He is walking on his hands.
+section 2.iv	Snohomish	cited form	čələs-áb	by means of the passes
+section 2.iv	Snohomish	cited example	čələsáb tə səʔìbəšs.	He is walking on his passes.
 section 2.iv	Snohomish	cited form	čáləs	hand
 footnote 11	Thom Hess	note	/-yi-/ is one allomorph of the suffix {-I-} 'in place of'. This morpheme is not a benefactive. Although it can mean to do something for someone as a favor; it also means the opposite. Here it means to steal from her.	not is underlined on the page
 footnote 11	Snohomish	cited affix	/-yi-/	one allomorph of {-I-}

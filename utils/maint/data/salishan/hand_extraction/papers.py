@@ -27,7 +27,7 @@ from paper_config import PAPERS  # noqa: E402
 # Papers whose text extraction is not what the page says. Both are TeX Type1 with a custom encoding
 # and no ToUnicode map, and pypdf and pypdfium2 lose the same things: the page prints cítxʷsəlx uɬ ti
 # nyʕip and the text holds cítxws@lx uì ’ti ny ’Qip, with the ejective mark landing in front of its
-# letter instead of over it.
+# character instead of over it.
 #
 # draft_page_text.py writes build/papers/<stem>.page.txt for these, line for line with the
 # extraction, and the checks read that instead. Every rule it applies came off a rendered page, but

@@ -61,8 +61,8 @@ static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success"
 #define CYCLE_STATUS_CHECK(call_, evacaddr_, error_)                                                                   \
     engine_status_check((int)(call_), ENGINE_MODULE_CYCLE, (unsigned int)__LINE__, (const void *)(evacaddr_), (error_))
 
-#define CYCLE_CHECK(condition_, evacaddr_, error_, kind_)                                                              \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_CYCLE, (unsigned int)__LINE__, (const void *)(evacaddr_),  \
+#define CYCLE_CHECK(condition_, evacaddr_, error_, type_)                                                              \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_CYCLE, (unsigned int)__LINE__, (const void *)(evacaddr_),  \
                        (error_))
 
 // compiled is 1 where the program runs as its own kernel (below, the record program compiled), whose library the

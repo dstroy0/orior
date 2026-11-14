@@ -3,7 +3,7 @@
 
 \section{\texorpdfstring{The data and the output}{The data and the output}}
 
-Each sample is a light-sheet recording of a developing zebrafish embryo with fluorescently labeled nuclei. Light-sheet microscopy of this kind records the nuclei of a whole embryo over hours of development, as Keller et al.~\cite{src:Keller-2008} showed for the zebrafish. A sample is an OME-Zarr array of shape (T, Z, Y, X): 100 frames of 64 × 256 × 256 voxels, sampled at 1.625 µm in Z and 0.40625 µm in Y and X, as the organizers~\cite{src:Biohub-competition} specify.
+Each sample is a light-sheet recording of a developing zebrafish embryo with fluorescently labeled nuclei. Light-sheet microscopy of this type records the nuclei of a whole embryo over hours of development, as Keller et al.~\cite{src:Keller-2008} showed for the zebrafish. A sample is an OME-Zarr array of shape (T, Z, Y, X): 100 frames of 64 × 256 × 256 voxels, sampled at 1.625 µm in Z and 0.40625 µm in Y and X, as the organizers~\cite{src:Biohub-competition} specify.
 
 The answer is a graph in the Graph Exchange File Format~\cite{src:GEFF}. Each node is one cell in one frame, placed at its center (t, z, y, x). An edge joins a cell to itself in the next frame, and a division is one node with edges to two nodes in the next frame.
 
@@ -21,4 +21,4 @@ Two consequences follow. A tracker that detects pieces of cells instead of cells
 
 \section{\texorpdfstring{The methods it is set against}{The methods it is set against}}
 
-Current trackers detect cells and then join the detections by one optimization over the whole recording. One form is a min-cost flow in which a division is a node that sends two units of flow, as in Haubold et al.~\cite{src:Haubold-2016}. Another chooses among candidate segmentations drawn from several hierarchies with an integer linear program, as Ultrack~\cite{src:Ultrack} does. The proposal keeps the whole-recording solve. It changes the evidence the solve is given: each cell's shape and a record of change over the whole recording, in place of costs with weights set by hand or learned.
+Current trackers detect cells and then join the detections by one optimization over the whole recording. One form is a min-cost flow in which a division is a node that sends two units of flow, as in Haubold et al.~\cite{src:Haubold-2016}. Another chooses among candidate segmentations drawn from several hierarchies with an integer linear program, as Ultrack~\cite{src:Ultrack} does. The proposal retains the whole-recording solve. It changes the evidence the solve is given: each cell's shape and a record of change over the whole recording, in place of costs with weights set by hand or learned.

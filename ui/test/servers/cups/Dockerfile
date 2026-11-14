@@ -3,7 +3,7 @@
 #
 # The print server orior's printing is tested against: CUPS, with three IPP Everywhere printers of
 # CUPS's own ippeveprinter, one that takes PDF, one that takes only PWG raster and one that takes
-# only Apple raster, each keeping what it is sent, and cups-filters to read a raster back. Avahi
+# only Apple raster, each retention what it is sent, and cups-filters to read a raster back. Avahi
 # announces the printers, as ippeveprinter asks.
 
 FROM debian:bookworm-slim

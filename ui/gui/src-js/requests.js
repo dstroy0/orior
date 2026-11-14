@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // Requests: a file of HTTP requests, `.http` or `.rest`, each sent from the window's own process
-// (requests.rs) and its answers shown in the preview beside it. Ctrl+Enter, or Send over the
-// answers, sends the request the cursor stands in, with the variables of the environment chosen
+// (requests.rs) and its answers displayed in the preview beside it. Ctrl+Enter, or Send over the
+// answers, sends the request the cursor is in, with the variables of the environment chosen
 // there; the preview turns on beside the text where it is off. An answer shows its status, how long
-// each part took, its headers, what was sent, and its body: JSON laid out, an image as itself, and
-// any other text as it came. The last answers of the request the cursor stands in stand under it,
+// each part took, its headers, what was sent, and its body: JSON arranged, an image as itself, and
+// any other text as it came. The last answers of the request the cursor is in are under it,
 // the last first; a press shows one, and two of them checked are compared side by side. Copy as
 // curl puts the request on the clipboard as a curl line, a curl line pasted into the file becomes a
 // request, and Private Environment File opens the reader's own file of values, made where it is not
@@ -20,10 +20,10 @@ import { say } from "./statusbar.js";
 
 const ENV = "orior.requests.env";
 
-// The most of a body drawn, in characters; the rest is said and not drawn.
-const MOST_DRAWN = 1 << 20;
+// The max of a body drawn, in characters; the rest is said and not drawn.
+const MAX_DRAWN = 1 << 20;
 
-const state = { holder: null, session: null, path: null, key: null, answers: [], shown: 0, checked: new Set(), envs: [], sending: 0 };
+const state = { holder: null, session: null, path: null, key: null, answers: [], displayed: 0, checked: new Set(), envs: [], sending: 0 };
 
 export const isRequests = (path) => /\.(http|rest)$/i.test(path ?? "");
 
@@ -35,8 +35,8 @@ function element(tag, props = {}, ...children) {
 
 // The environment chosen, or null for none: of those `names` gives, where it is among them.
 const chosen = (names = state.envs) => {
-  const kept = localStorage.getItem(ENV);
-  return kept && names.includes(kept) ? kept : null;
+  const retained = localStorage.getItem(ENV);
+  return retained && names.includes(retained) ? retained : null;
 };
 
 // The environment chosen for the file of requests at `path`, its environments read anew.
@@ -45,7 +45,7 @@ async function chosenFor(path) {
   return chosen(read.names ?? []);
 }
 
-// The line the cursor stands on in the file shown, where it is the file of requests shown here.
+// The line the cursor is on in the file displayed, where it is the file of requests displayed here.
 function cursorLine() {
   const view = editing().editor;
   return view && view.s === state.session ? (view.head()?.line ?? 0) : 0;
@@ -56,7 +56,7 @@ const ms = (value) => `${value < 10 ? value.toFixed(1) : Math.round(value)} ms`;
 const header = (answer, name) => answer.headers.find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1] ?? "";
 const timeOf = (at) => new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
-// The body of an answer as it reads: JSON laid out, any other text as it came.
+// The body of an answer as it reads: JSON arranged, any other text as it came.
 export function bodyText(answer) {
   if (answer.binary) {
     return "";
@@ -83,7 +83,7 @@ function drawBar() {
   const select = element("select", { className: "rq-env", title: "The environment whose variables fill the request" });
   select.append(element("option", { value: "", textContent: "No environment" }), ...state.envs.map((name) => element("option", { value: name, textContent: name, selected: name === chosen() })));
   select.addEventListener("change", () => localStorage.setItem(ENV, select.value));
-  const send = element("button", { type: "button", className: "rq-send", textContent: state.sending ? "Sending" : "Send", disabled: state.sending > 0, title: "Send the request the cursor stands in (Ctrl+Enter)" });
+  const send = element("button", { type: "button", className: "rq-send", textContent: state.sending ? "Sending" : "Send", disabled: state.sending > 0, title: "Send the request the cursor is in (Ctrl+Enter)" });
   send.addEventListener("click", () => sendRequest());
   const curl = element("button", { type: "button", className: "rq-curl", textContent: "Copy as curl" });
   curl.addEventListener("click", () => copyCurl());
@@ -97,7 +97,7 @@ function drawTimes(times) {
 
 function drawAnswer(answer) {
   if (!answer) {
-    return element("p", { className: "rq-empty" }, "No answer yet. Ctrl+Enter sends the request the cursor stands in.");
+    return element("p", { className: "rq-empty" }, "No answer yet. Ctrl+Enter sends the request the cursor is in.");
   }
   const sent = answer.sent;
   const sentText = [`${sent.method} ${sent.url}`, ...sent.headers.map(([name, value]) => `${name}: ${value}`), ...(sent.body ? ["", sent.body] : [])].join("\n");
@@ -117,9 +117,9 @@ function drawAnswer(answer) {
     body = element("p", { className: "rq-empty" }, `${bytes(answer.size)} of ${contentType || "bytes"}, not text.`);
   } else {
     const text = bodyText(answer);
-    body = element("pre", { className: "rq-body" }, text.length > MOST_DRAWN ? text.slice(0, MOST_DRAWN) : text);
-    if (text.length > MOST_DRAWN || answer.cut) {
-      body = element("div", {}, body, element("p", { className: "rq-empty" }, `Only the first ${bytes(Math.min(text.length, MOST_DRAWN))} of the body is shown.`));
+    body = element("pre", { className: "rq-body" }, text.length > MAX_DRAWN ? text.slice(0, MAX_DRAWN) : text);
+    if (text.length > MAX_DRAWN || answer.cut) {
+      body = element("div", {}, body, element("p", { className: "rq-empty" }, `Only the first ${bytes(Math.min(text.length, MAX_DRAWN))} of the body is displayed.`));
     }
   }
   return element("div", { className: "rq-answer" }, status, drawTimes(answer.times), headers, sentBox, body);
@@ -142,9 +142,9 @@ function drawHistory() {
       draw();
     });
     const label = answer.failed ? "failed" : `${answer.status}`;
-    const show = element("button", { type: "button", className: `rq-past${at === state.shown ? " shown" : ""}`, textContent: `${timeOf(answer.at)}  ${label}  ${ms(answer.times.total)}  ${bytes(answer.size)}` });
+    const show = element("button", { type: "button", className: `rq-past${at === state.displayed ? " displayed" : ""}`, textContent: `${timeOf(answer.at)}  ${label}  ${ms(answer.times.total)}  ${bytes(answer.size)}` });
     show.addEventListener("click", () => {
-      state.shown = at;
+      state.displayed = at;
       draw();
     });
     return element("li", {}, check, show);
@@ -157,7 +157,7 @@ function draw() {
     return;
   }
   const scroll = state.holder.scrollTop;
-  state.holder.replaceChildren(drawBar(), drawAnswer(state.answers[state.shown]), drawHistory());
+  state.holder.replaceChildren(drawBar(), drawAnswer(state.answers[state.displayed]), drawHistory());
   state.holder.scrollTop = scroll;
 }
 
@@ -167,21 +167,21 @@ async function readEnvironments() {
   draw();
 }
 
-// Reads the answers kept for the request the cursor stands on at `line`, where it is another than
-// the one shown.
+// Reads the answers retained for the request the cursor is on at `line`, where it is another than
+// the one displayed.
 async function readAnswers(line, force = false) {
   const path = state.path;
   const read = await invoke("requests_answers", { path, text: state.session.doc.text(), line }).catch(() => null);
   if (!read || state.path !== path || (read.key === state.key && !force)) {
     return;
   }
-  Object.assign(state, { key: read.key, answers: read.answers, shown: 0, checked: new Set() });
+  Object.assign(state, { key: read.key, answers: read.answers, displayed: 0, checked: new Set() });
   draw();
 }
 
 // Shows the answers of the file of requests `path`, whose text is the session `session`, in `holder`.
 export function showRequests(holder, session, path) {
-  Object.assign(state, { holder, session, path, key: null, answers: [], shown: 0, checked: new Set() });
+  Object.assign(state, { holder, session, path, key: null, answers: [], displayed: 0, checked: new Set() });
   draw();
   readEnvironments();
   readAnswers(cursorLine(), true);
@@ -191,17 +191,17 @@ export function hideRequests() {
   Object.assign(state, { holder: null, session: null, path: null, key: null, answers: [] });
 }
 
-// The cursor stands on line `line`: the answers shown are those of the request it stands in.
+// The cursor is on line `line`: the answers displayed are those of the request it is in.
 export function requestsCursor(line) {
   if (state.holder) {
     readAnswers(line);
   }
 }
 
-// What the last drawing shows, for the tests: the request's key, its answers and the one shown.
-export const shownAnswers = () => ({ key: state.key, answers: state.answers, shown: state.shown });
+// What the last drawing shows, for the tests: the request's key, its answers and the one displayed.
+export const displayedAnswers = () => ({ key: state.key, answers: state.answers, displayed: state.displayed });
 
-// Sends the request the cursor stands in, and shows its answer first among the request's last.
+// Sends the request the cursor is in, and shows its answer first among the request's last.
 export async function sendRequest() {
   const { editor, active } = editing();
   if (!editor || !isRequests(active)) {
@@ -233,7 +233,7 @@ export async function sendRequest() {
   }
 }
 
-// Puts the request the cursor stands in on the clipboard as a curl line.
+// Puts the request the cursor is in on the clipboard as a curl line.
 export async function copyCurl() {
   const { editor, active } = editing();
   if (!editor || !isRequests(active)) {

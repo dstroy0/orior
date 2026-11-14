@@ -165,7 +165,7 @@ extern "C" long hessian_find(const HessianRequest *request)
     const unsigned int blocks = (unsigned int)((threads + HESSIAN_THREADS - 1ull) / HESSIAN_THREADS);
     if (ok != 0)
     {
-        // the count is at most the frame's voxels, below 2^31. It narrows to unsigned int exactly
+        // the count is at max the frame's voxels, below 2^31. It narrows to unsigned int exactly
         hessian_kernel<<<blocks, HESSIAN_THREADS>>>(request->device_residual, request->depth, request->height,
                                                     request->width, request->limbs, (unsigned int)count,
                                                     resident->voxels, resident->faces, resident->differences);
@@ -175,6 +175,6 @@ extern "C" long hessian_find(const HessianRequest *request)
              (cudaMemcpy(request->differences, resident->differences, words * sizeof(unsigned int),
                          cudaMemcpyDeviceToHost) == cudaSuccess);
     }
-    // a count that is at most the frame's voxels is below 2^31. It narrows to long exactly
+    // a count that is at max the frame's voxels is below 2^31. It narrows to long exactly
     return (ok != 0) ? (long)count : HESSIAN_ERROR;
 }

@@ -40,7 +40,7 @@ REGISTER = (
     # read, buy, pay, spend, earn, win, price and slot bans went when they came out below.
     # Section 143 states the rule those bans were breaking: "a word that reads as a tic in one
     # construction only is bounded to that construction." This is the construction.
-    r"\bis what (separates|keeps|tells|puts|says|makes|supplies|gives|decides|holds|stops|lets"
+    r"\bis what (separates|retains|tells|puts|says|makes|supplies|gives|decides|holds|stops|lets"
     r"|carries|costs|reads|buys|pays|spends|earns|wins|prices|slots|books)\b",
     # The X-not-Y shape wearing never instead of not. The first sweep wrote these by hand.
     r"\b(is|was|are|were) an? [\w-]+ and never an? [\w-]+",
@@ -51,14 +51,14 @@ REGISTER = (
     r"\bthe one (thing|place|case|word|reason|table|file|grain|repair|mistake|addition|column)\b",
     r"\bthe whole of (the|what|it)\b",
     r"\bis precisely (what|why|the)\b",
-    r"\b(what|that) matters (is|here|most)\b",
+    r"\b(what|that) matters (is|here|max)\b",
     #
     # The machine-prose vocabulary. None of these is wrong English and none is a claim about a
     # measurement. None of them breaks a build. They are the words a reader has learned
     # to read as unwritten, and a page carrying them gets skimmed instead of read. Nothing in a
     # library about memory, entropy or crystal axes needs any of them.
     #
-    # Two rules kept words off this list. A term the field owns stays: a grammatical paradigm, a
+    # Two rules retained words off this list. A term the field owns stays: a grammatical paradigm, a
     # robust estimator, a significant difference, an alignment. And a word that only reads as a
     # tic in one construction is bounded to that construction instead of banned outright.
     r"\bdelve",
@@ -144,13 +144,13 @@ REGISTER = (
     r"\bsheds light on\b",
     r"\bpaves the way\b",
     r"\bplays an? [\w-]*\s?role\b",
-    r"\b(serves|stands) as an?\b",
+    r"\b(serves|is) as an?\b",
     r"\bstands out\b",
     r"\bsets it apart\b",
     r"\bat (its core|the heart of)\b",
     r"\blies at the\b",
-    r"\bone of the most\b",
-    r"\bsome of the most\b",
+    r"\bone of the max\b",
+    r"\bsome of the max\b",
     # Filler that opens a sentence and carries nothing.
     r"\bit (is|'s) (important|worth|useful|helpful) (to note|noting|to remember|to mention|mentioning)\b",
     r"\bit should be noted\b",
@@ -232,14 +232,14 @@ REGISTER = (
     # arm amplifies, an audio band is boosted, and a quantity is maximized in the ordinary math
     # sense.
     r"\b(enhance|augment)\b",
-    # transform came off this line and cost the most. A Fourier transform, inverse transform
+    # transform came off this line and cost the max. A Fourier transform, inverse transform
     # sampling and a reversible transform are all nouns of art in this tree, and the pattern
     # reported 22 correct sites. The inflating use is a marketing verb; it is not worth this.
     r"\b(redefine|reimagine|reinvent)(s|ed|ing)?\b",
     r"\b(traverse|venture|spotlight|champion|nurture)\b",
     r"\btap into\b",
     r"\bbridge the gap\b",
-    r"\b(open the door|set the stage|lay the foundation)\b",
+    r"\b(open the door|set the stage|position the foundation)\b",
     # Office idiom. Every one of these replaces a fact with a gesture at one.
     r"\ba double.edged sword\b",
     r"\bthe tip of the iceberg\b",

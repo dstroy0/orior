@@ -437,7 +437,7 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
     size_t widths_written = 0u;
     for (unsigned int listed_place = 0u; steps_succeeded && (listed_place < listed_count); listed_place += 1u)
     {
-        // widths_written is at most staged_count, bounded within 32 bits above. It narrows from size_t to unsigned int
+        // widths_written is at max staged_count, bounded within 32 bits above. It narrows from size_t to unsigned int
         // exactly
         machine->core_width_first[listed_place] = (unsigned int)widths_written;
         memcpy(&machine->core_fields[widths_written * CLIMB_MACHINE_CORE_FIELDS],

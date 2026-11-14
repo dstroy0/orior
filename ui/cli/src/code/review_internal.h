@@ -13,8 +13,8 @@ typedef struct CliReviewCtx CliReviewCtx;
 typedef struct CliReviewTextLengthCtx CliReviewTextLengthCtx;
 typedef struct CliReviewTextLengthTypeCtx CliReviewTextLengthTypeCtx;
 
-// the most files a change reviewed touches and the bytes of their texts; the most pieces and the bytes of their
-// texts; the bytes each text is read in; and the most calls the pieces make in all
+// the max files a change reviewed touches and the bytes of their texts; the max pieces and the bytes of their
+// texts; the bytes each text is read in; and the max calls the pieces make in all
 #define CLI_REVIEW_FILES 1024u
 #define CLI_REVIEW_TEXT (1u << 25u)
 #define CLI_REVIEW_PIECES 8192u
@@ -22,7 +22,7 @@ typedef struct CliReviewTextLengthTypeCtx CliReviewTextLengthTypeCtx;
 #define CLI_REVIEW_TEXT_CAPACITY (16ull << 20u)
 #define CLI_REVIEW_CALLS (1u << 18u)
 
-// the most lines of a text the review reads
+// the max lines of a text the review reads
 #define CLI_REVIEW_LINES (1u << 18u)
 
 // A file a change touched: its path now and its path before, and its text before and now, each where it has one, as
@@ -58,7 +58,7 @@ typedef struct
 } CliReviewPiece;
 
 // A review: the files, their texts, the pieces, their texts and calls, and the files named apart; the texts and the
-// calls stand in one cell at their most, the comparison's capacity a cell of cli_review_compared_bytes(), each taken
+// calls are in one cell at their max, the comparison's capacity a cell of cli_review_compared_bytes(), each taken
 // for one review under its lock and given back before the lock is
 typedef struct
 {

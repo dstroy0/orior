@@ -37,9 +37,9 @@ typedef struct CliRequestsNameAnswerCtx CliRequestsNameAnswerCtx;
 typedef struct CliRequestsOutSecondsCtx CliRequestsOutSecondsCtx;
 typedef struct CliRequestsPoolCtx CliRequestsPoolCtx;
 
-// the most requests a file contains that are read, headers a request contains, variables a file sets, values an
-// environment gives, and the bytes their texts take; the most of an answer's body read, and of it stored with the
-// answers; how many answers each request retains; and the most redirects one request follows
+// the max requests a file contains that are read, headers a request contains, variables a file sets, values an
+// environment gives, and the bytes their texts take; the max of an answer's body read, and of it stored with the
+// answers; how many answers each request retains; and the max redirects one request follows
 #define CLI_REQUESTS_MAX 1024u
 #define CLI_REQUESTS_HEADERS 64u
 #define CLI_REQUESTS_VARIABLES 256u
@@ -140,7 +140,7 @@ typedef struct
     double total;
 } CliRequestsTimes;
 
-// the bytes of an answer's head stored and the most headers it contains; and the bytes a connection's reading buffers,
+// the bytes of an answer's head stored and the max headers it contains; and the bytes a connection's reading buffers,
 // the longest line of a head and one read past it
 #define CLI_REQUESTS_HEAD (1u << 20u)
 #define CLI_REQUESTS_ANSWER_HEADERS 4096u
@@ -182,8 +182,8 @@ typedef struct
     char target[CLI_REQUESTS_ADDRESS + 1u];
 } CliRequestsAddress;
 
-// the bytes a request's body and an answer's body as read are written in, each a line at their most, the answer's to
-// CLI_REQUESTS_BODY at the most
+// the bytes a request's body and an answer's body as read are written in, each a line at their max, the answer's to
+// CLI_REQUESTS_BODY at max
 #define CLI_REQUESTS_HEAD_CAPACITY (1ull << 20u)
 
 // The work state a request is sent in: the request as it was made ready and its body, a line, the request as it goes on
@@ -211,9 +211,9 @@ extern CliRequestsParsed g_cli_requests_parsed;
 // a file of requests read into `parsed`, what it contained before given back, the lock above acquired: 1, or 0 where it
 // is larger than `parsed` fits or its cells are refused; its cells given back, `parsed` left empty; the request whose
 // part contains line `line`, or the last before it, the first where none does: NULL where the file contains none; a
-// text of the pool (requests_white.c); the part of a text from `start` to `end` with the white letters at its two ends
-// passed over, as Rust's str::trim trims it; and the bytes of the white letter at `at` of a text ending at `end`, 0
-// where the letter there is not white (requests_parse.c, requests_white.c)
+// text of the pool (requests_white.c); the part of a text from `start` to `end` with the white characters at its two ends
+// passed over, as Rust's str::trim trims it; and the bytes of the white character at `at` of a text ending at `end`, 0
+// where the character there is not white (requests_parse.c, requests_white.c)
 int cli_requests_parse(const CliRequestsTextSizeParsedCtx *args);
 const CliRequest *cli_requests_at(const CliRequestsCtx *args);
 const char *cli_requests_text(const CliRequestsPoolCtx *args);
@@ -250,7 +250,7 @@ void cli_requests_curl_write(const CliRequestsOutCtx *args);
 int cli_requests_ready(const CliRequestsTextCtx *args);
 
 // `size` bytes of `text` read as Rust reads an unsigned integer of base `base`, 10 or 16, a `+` let before its digits,
-// into `value`: 1, or 0 where it is no such integer or is above `most`; whether `size` bytes of `text` contain
+// into `value`: 1, or 0 where it is no such integer or is above `max`; whether `size` bytes of `text` contain
 // `needle`, written in lower case, ASCII case aside; an address taken apart into `address`: 1, or 0 with why given; the
 // address `location` names, read from the address `base` it was given at, into `out`; and a header of an answer by its
 // name, ASCII case aside, NULL where it has none (requests_url.c)
@@ -278,14 +278,14 @@ int cli_requests_is_text(const CliRequestsNameAnswerCtx *args);
 CliRequestsWorkState *cli_requests_work_state_alloc(void);
 void cli_requests_work_state_free(const CliRequestsSizeErrMsgCtx *args);
 
-// an answer written as serde writes it, with what was sent, its body cut to `most` bytes of its text at a letter's
+// an answer written as serde writes it, with what was sent, its body cut to `max` bytes of its text at a character's
 // start, `cut` then true; and the answer stored first among the answers of the request named `key` of the file at
 // `path`, its body cut to CLI_REQUESTS_HISTORY_BODY_MAX, and the last CLI_REQUESTS_HISTORY_MAX of them only: 1, or 0
 // with why given (requests_history.c)
 void cli_requests_answer_write(const CliRequestsOutCtx *args);
 int cli_requests_history_save(const CliRequestsErrMsgCtx *args);
 
-// the bytes of a curl line read and the most words it contains
+// the bytes of a curl line read and the max words it contains
 #define CLI_REQUESTS_CURL_TEXT (1u << 22u)
 #define CLI_REQUESTS_CURL_WORDS 65536u
 
@@ -299,7 +299,7 @@ typedef struct
 } CliRequestsWords;
 
 // the words of `size` bytes of a shell line as bash reads them into `words`: 1, or 0 with why given; and `size` bytes
-// of a line copied for cmd as bash reads it, each caret taking the letter after it as it is and a caret at the end of a
+// of a line copied for cmd as bash reads it, each caret taking the character after it as it is and a caret at the end of a
 // line joining it to the next, into `out` (requests_words.c)
 int cli_requests_words(const CliRequestsSizeCtx *args);
 void cli_requests_uncareted(const CliRequestsSizeOutCtx *args);
@@ -343,7 +343,7 @@ struct CliRequestsTextSizeBaseCtx
     const char *text;
     unsigned long long size;
     unsigned int base;
-    unsigned long long most;
+    unsigned long long max;
     unsigned long long *value_u64s;
 };
 
@@ -369,7 +369,7 @@ struct CliRequestsOutCtx
 {
     VerbaLinea *out;
     const CliRequestsSent *sent;
-    unsigned long long most;
+    unsigned long long max;
     const CliRequestsAnswer *answer;
 };
 

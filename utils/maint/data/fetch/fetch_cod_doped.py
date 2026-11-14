@@ -34,7 +34,7 @@
 #
 # THE RIGHT ANGLE RESTRICTION IS DELIBERATELY NOT APPLIED
 #
-# Most of these are monoclinic or triclinic. The exact reading path does not need a right angle: it
+# The majority of these are monoclinic or triclinic. The exact reading path does not need a right angle: it
 # multiplies a fractional coordinate by an edge length and never consults a cell angle. The doping
 # measure needs even less than that, reading only the atom site loop.
 #
@@ -85,7 +85,7 @@ TRIES = 3
 # the sweep reached its second name. The cap below is what actually holds.
 #
 # Set against the target and not for its own sake. At 60 the name list tops out well short of
-# ten thousand, because most names return fewer than sixty and the overlap between related names is
+# ten thousand, because max names return fewer than sixty and the overlap between related names is
 # large.
 #
 # Raising it alone would undo what it was introduced for. Walking the families in order with a high

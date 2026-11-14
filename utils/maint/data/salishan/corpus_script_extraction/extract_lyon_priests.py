@@ -7,17 +7,17 @@
 #   Usage:  python maint/data/salishan/corpus_script_extraction/extract_lyon_priests.py
 #
 # Written for one paper, and this is the only one so far whose characters had to be repaired before it
-# could be read at all. Its font wrote plain letters in place of the orthography. The text arrives as
+# could be read at all. Its font wrote plain characters in place of the orthography. The text arrives as
 # iP naPì ʼqwQaylqs where it should read iʔ naʔɬ ʼqwʕaylqs.
 #
 # The mapping was tested instead of assumed. font_substitution.py applies a candidate table to the damaged
 # tokens and counts how many become forms attested in Lyon's recent papers on the same language, whose
-# extraction kept its characters. Before the mapping, 1 token of 3599 was attested. After it, 811. The
+# extraction retained its characters. Before the mapping, 1 token of 3599 was attested. After it, 811. The
 # same table tested on the other damaged Lyon paper moved 2 of 4332 to 965. A wrong mapping cannot do
 # that, because a wrong substitution produces strings the language does not contain.
 #
 # What the table does not cover is recorded with it. The caron entries are written by this font as a
-# separate character before their letter. X̌ arrives as ˇx, and the order of replacement matters.
+# separate character before their character. X̌ arrives as ˇx, and the order of replacement matters.
 #
 # Three speakers, and the permissions are named in the paper. Conversation with the priest was told by
 # George Lezard of the Penticton Indian Reserve in 1966 when he was eighty-five, recorded by Randy
@@ -106,7 +106,7 @@ ROOT = _repository_root()
 PAPERS = os.path.join(ROOT, "build", "papers")
 CORPORA = os.path.join(ROOT, "build", "corpora")
 
-# The drafted page text instead of the extraction. This paper's PDF hands back the font's own alphabet,
+# The drafted page text instead of the extraction. This paper's PDF passes back the font's own alphabet,
 # and a corpus built on that is not the language. draft_page_text.py writes it back into the
 # orthography and this reader applies no substitution of its own.
 SOURCE = os.path.join(PAPERS, "19-Lyon_ICSNL50_final-78.page.txt")
@@ -131,13 +131,13 @@ NUMBERED_BLOCK = re.compile(r"^\((\d{1,4})\)\s*(.*)$")
 QUOTED = re.compile(r"^['‘]")
 
 # A segmentation line joins its morphemes with a hyphen or an equals sign, and neither character is
-# touched by the font repair below. Testing for one keeps a wrapped transcription line or a
+# touched by the font repair below. Testing for one retains a wrapped transcription line or a
 # page number from entering the record as segmentation because nothing else matched it.
 SEGMENTED = re.compile(r"[-=]")
 
 # The extraction ran the first two columns of a word together wherever the segmentation opens at
 # the root, giving ’qwQaylqs√ ’qwQay=lqs on one line. A segmentation of its own can also hold √,
-# as in-ks-√ ’ma ’y-ìt-ím does, and what tells the two apart is what stands before the root: a
+# as in-ks-√ ’ma ’y-ìt-ím does, and what tells the two apart is what is before the root: a
 # merged line has a bare word there, a segmentation has morpheme separators. This paper separates
 # with + as well as with a hyphen or an equals sign, as s+√na ’qw and c+n+√ʔuɬxw-s do. + belongs
 # in the class with them. Leaving it out reads the front of a segmentation as a word of the story.
@@ -167,7 +167,7 @@ LAYER = {
     "segmentation": DERIVED,
     "gloss": DERIVED,
     "word gloss": DERIVED,
-    # Kept and marked, excluded from the ingestion stream until someone has classified it.
+    # Retained and marked, excluded from the ingestion stream until someone has classified it.
     UNCLASSIFIED: DERIVED,
 }
 
@@ -177,7 +177,7 @@ def carries_language(text):
     return any(mark in text for mark in MARKS)
 
 
-def kind_by_notation(text):
+def type_by_notation(text):
     """What a line is, from the notation this paper defines, where its position is unavailable.
 
     Used only inside a block whose cycle slipped. Position is the better evidence and it is gone.
@@ -198,7 +198,7 @@ def kind_by_notation(text):
 def split_merged(text):
     """Put back the space between two columns the extraction ran together.
 
-    Applied where a block could not be read by position and its lines are kept as they arrived. The
+    Applied where a block could not be read by position and its lines are retained as they arrived. The
     line still holds ʔacəcqáʔ√ʔac•c•qáʔ-wi as one token there, and a reader looking for the word
     ʔacəcqáʔ in the record does not find it inside that. The rule is the same one four_line_words uses.
     """
@@ -216,10 +216,10 @@ def split_merged(text):
 def four_line_words(block):
     """One numbered block of the interlinear, as the four lines the paper gives for each word.
 
-    The PDF handed this paper's interlinear over a column at a time. A word arrives as four
+    The PDF passed this paper's interlinear over a column at a time. A word arrives as four
     consecutive lines: the word as spoken, its segmentation, its gloss, and an English word for it.
     Position in that cycle is what fixes which line is which. Content cannot, because a short word
-    written in plain letters comes out the same on the first two lines and carries nothing to test.
+    written in plain characters comes out the same on the first two lines and carries nothing to test.
     Block 1 opens with p, then p again, and only the order separates the two.
 
     Two things break the cycle and both are handled. Where the extraction ran the first two columns
@@ -229,7 +229,7 @@ def four_line_words(block):
     A third breaks it and cannot be handled: a word given no English gloss takes three lines instead
     of four, and block 44 opens with one. Nothing in the lines themselves marks it, and every word
     after it lands a position early. That is caught and not repaired. An uppercase category label belongs
-    to a gloss and cannot stand in a spoken word or its segmentation. Finding one in either of those
+    to a gloss and cannot are in a spoken word or its segmentation. Finding one in either of those
     positions is proof the count has slipped, and the caller is told.
 
     Returns the words, the free translation that closes the block, any line left over, and whether
@@ -259,11 +259,11 @@ def four_line_words(block):
             continue
         # The fourth line is an English word for the word above it, and the paper does not always
         # give one: block 44 opens with ixí P / ixíP / DEM and no fourth line. Where it is missing,
-        # the next word's own first line stands in that place, and reading it as a gloss puts every
+        # the next word's own first line is in that place, and reading it as a gloss puts every
         # word after it a position early. A word gloss is English and carries none of the damaged
         # orthography, and that separates you.all and priest from yaQyá;;Qt and t@twít.
-        # A single-letter line does not close a block early, though l, p and t are proclitics and
-        # never an English gloss: a single letter stands in that position often enough to matter.
+        # A single-character line does not close a block early, though l, p and t are proclitics and
+        # never an English gloss: a single character is in that position often enough to matter.
         if (slot == 3) and any(carries_orthography(one) for one in line.split()):
             close()
             slot = 0
@@ -358,7 +358,7 @@ def main():
 
         if section.endswith(".1"):
             # A footnote or an acknowledgment printed inside a story section is English throughout,
-            # and the repair hides that by putting a glottal stop where its capital P stood. So the
+            # and the repair hides that by putting a glottal stop where its capital P was. So the
             # test runs on the line as it arrived. A line of these stories always holds a word with
             # an accented vowel or a glottalization mark in it and English prose does not.
             if not language_line(trimmed):
@@ -369,7 +369,7 @@ def main():
             # The running text of a story is the language from end to end. Every substitution
             # applies to it and no token in it needs guarding. Where the extraction broke a word in
             # two is not known yet: the interlinear says that and has not been read. So the row is
-            # written now to keep the paper's order, its place is remembered, and the words are put
+            # written now to retain the paper's order, its place is remembered, and the words are put
             # back together below once the list exists.
             fixed = repaired(trimmed)
             if carries_language(fixed):
@@ -423,9 +423,9 @@ def main():
                 # Which column each line belongs to is the unknown here. The repair is chosen
                 # from what the line itself turns out to be.
                 fixed = repaired_line(split_merged(one))
-                kind = kind_by_notation(fixed)
+                type = type_by_notation(fixed)
                 rows.append(
-                    ("N" if kind == "gloss" else "T", number, section, kind, who, fixed)
+                    ("N" if type == "gloss" else "T", number, section, type, who, fixed)
                 )
             continue
         said = " ".join(repaired(welded(one[0])) for one in words if one[0])
@@ -472,7 +472,7 @@ def main():
                 rows.append(("T", number, section, UNCLASSIFIED, who, fixed))
 
     # The running text, with the words the extraction broke put back together. Its rows were
-    # written above to keep the paper's order, and the list that says where the breaks are only
+    # written above to retain the paper's order, and the list that says where the breaks are only
     # exists now that the interlinear has been read.
     for at in running_at:
         row = rows[at]
@@ -542,7 +542,7 @@ def main():
         )
         handle.write("#\n")
         handle.write(
-            "# READ FROM THE PAGE. This paper's PDF hands back the font's own alphabet\n"
+            "# READ FROM THE PAGE. This paper's PDF passes back the font's own alphabet\n"
         )
         handle.write(
             "# and not what the page prints. This reader takes build/papers/\n"
@@ -564,32 +564,32 @@ def main():
         handle.write("# was read off the pages and settles both.\n")
         handle.write("#\n")
         handle.write(
-            "# Mark is language.layer.kind. T is Okanagan, N is anything else.\n"
+            "# Mark is language.layer.type. T is Okanagan, N is anything else.\n"
         )
         handle.write(
             "# Gloss categories are the paper's own, from its first footnote, unchanged.\n"
         )
-        handle.write("line\tsection\tkind\tspeaker\tswitches\tcontent\n")
-        for mark, count, sect, kind, who, text in rows:
-            layer = LAYER[kind]
+        handle.write("line\tsection\ttype\tspeaker\tswitches\tcontent\n")
+        for mark, count, sect, type, who, text in rows:
+            layer = LAYER[type]
             if mark == "T":
-                content = rendered(text, layer, kind, MARKS)
+                content = rendered(text, layer, type, MARKS)
                 crossings = switches(text)
             else:
-                content = "N.%s.%s:{%s}" % (layer, kind, text)
+                content = "N.%s.%s:{%s}" % (layer, type, text)
                 crossings = 0
             handle.write(
                 "line#${%d}\t%s\t%s\t%s\t%d\t%s\n"
-                % (count, sect, kind, who, crossings, content)
+                % (count, sect, type, who, crossings, content)
             )
 
     pure = TARGET[:-4] + ".pure.txt"
-    kept = 0
+    retained = 0
     repeated = 0
     already = set()
     with open(pure, "w", encoding="utf-8", newline="") as handle:
-        for mark, count, sect, kind, who, text in rows:
-            if (mark != "T") or (LAYER[kind] != SPOKEN):
+        for mark, count, sect, type, who, text in rows:
+            if (mark != "T") or (LAYER[type] != SPOKEN):
                 continue
             for span, run in tagged_spans(text, MARKS):
                 if (span != "T") or (not run.strip()):
@@ -600,7 +600,7 @@ def main():
                     continue
                 already.add(key)
                 handle.write("%s\n" % key)
-                kept += 1
+                retained += 1
 
     # A file of its own for what the tool could not sort: a line inside a story that none of the
     # tests typed, and a line no section reached, which here is the front matter and the prose
@@ -610,15 +610,15 @@ def main():
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
         (0, "%s block %d" % (sect, count), UNKNOWN_KIND, "", text)
-        for mark, count, sect, kind, who, text in rows
-        if (kind == UNCLASSIFIED) and not sect.startswith("not reached")
+        for mark, count, sect, type, who, text in rows
+        if (type == UNCLASSIFIED) and not sect.startswith("not reached")
     ]
     flagged.extend(missed)
     stuck_count = write_unsorted(stuck, "Three Okanagan stories about priests", flagged)
 
     out.write("  %d lines written to\n  %s\n" % (len(rows), os.path.basename(TARGET)))
     out.write(
-        "  %d target-language spans written to\n  %s\n" % (kept, os.path.basename(pure))
+        "  %d target-language spans written to\n  %s\n" % (retained, os.path.basename(pure))
     )
     out.write("  %d spans skipped as already written\n" % repeated)
     out.write(
@@ -632,9 +632,9 @@ def main():
     )
 
     counted = {}
-    for mark, count, sect, kind, who, text in rows:
-        counted[(sect, kind)] = counted.get((sect, kind), 0) + 1
-    out.write("\n  %-8s %-18s %s\n" % ("section", "kind", "lines"))
+    for mark, count, sect, type, who, text in rows:
+        counted[(sect, type)] = counted.get((sect, type), 0) + 1
+    out.write("\n  %-8s %-18s %s\n" % ("section", "type", "lines"))
     for key in sorted(counted):
         out.write("  %-8s %-18s %d\n" % (key[0], key[1], counted[key]))
 

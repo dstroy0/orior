@@ -19,21 +19,21 @@ typedef struct CliTerminalShellCfg CliTerminalShellCfg;
 
 // how long a shell starting is quiet before the text typed while it started goes to it; how long a shell hung up on
 // goes on before it is killed; how often a running shell's pipe is looked at; how long an ended shell's pipe is quiet
-// before its end is printed, and the most its last output is waited for
+// before its end is printed, and the max its last output is waited for
 #define CLI_TERMINAL_SETTLE_MS 300ULL
 #define CLI_TERMINAL_HANG_UP_MS 1000ULL
 #define CLI_TERMINAL_LOOK_MS 16ULL
 #define CLI_TERMINAL_EXIT_QUIET_MS 100ULL
-#define CLI_TERMINAL_EXIT_MOST_MS 2000ULL
+#define CLI_TERMINAL_EXIT_MAX_MS 2000ULL
 // the bytes typed while a shell starts that wait for it
 #define CLI_TERMINAL_WAITING_MAX 4096u
 
-// where a shell stands: not started, running, or ended with its end printed
+// where a shell is: not started, running, or ended with its end printed
 #define CLI_TERMINAL_SHELL_IDLE 0u
 #define CLI_TERMINAL_SHELL_RUNNING 1u
 #define CLI_TERMINAL_SHELL_EXITED 2u
 
-// One shell: the process; where it stands; whether it was hung up on and when, and whether it was killed; whether its
+// One shell: the process; where it is; whether it was hung up on and when, and whether it was killed; whether its
 // process has ended, with its code, when it ended and when its pipe last gave bytes after it; whether typed text goes
 // straight to it, whether it has written and when it last did; and the text typed while it started
 typedef struct
@@ -54,7 +54,7 @@ typedef struct
     unsigned char waiting[CLI_TERMINAL_WAITING_MAX];
 } CliTerminalShell;
 
-// the shell started in `folder`, the folder this process stands in where it is NULL, its pseudo-terminal the size of
+// the shell started in `folder`, the folder this process is in where it is NULL, its pseudo-terminal the size of
 // `xterm`: `words`, the program first and NULL after the last, or where `words` is NULL the reader's shell:
 // ORIOR_SHELL, else on Windows Git's bash as a login shell and cmd where there is none, else SHELL as a login shell and
 // bash where it is not set. Its environment this process's with TERM xterm-256color, COLORTERM truecolor, the PATH a
@@ -62,7 +62,7 @@ typedef struct
 // `err_msg` and the shell as it was
 int cli_terminal_shell_start(const CliTerminalShellCfg *args);
 // `size` bytes of `bytes` typed into the shell, waiting while it starts; a running shell told its xterm's size; and
-// the shell hung up on at `now_ms`, after which it ends and its owner drains it until it stands exited
+// the shell hung up on at `now_ms`, after which it ends and its owner drains it until it is exited
 void cli_terminal_shell_write(const CliTerminalShellCfg *args);
 void cli_terminal_shell_resize(const CliTerminalShellCfg *args);
 void cli_terminal_shell_end(const CliTerminalShellCfg *args);

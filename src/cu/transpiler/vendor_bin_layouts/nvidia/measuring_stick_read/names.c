@@ -27,7 +27,7 @@ void *stick_allocated(void *pointer)
     return pointer;
 }
 
-// `length` letters at `text` copied into an allocation of their own, ended
+// `length` characters at `text` copied into an allocation of their own, ended
 char *stick_copy(const char *text, size_t length)
 {
     char *const copy = (char *)stick_allocated(malloc(length + 1u));
@@ -49,10 +49,10 @@ void stick_number_add(StickNumbers *numbers, unsigned int number)
     numbers->count += 1u;
 }
 
-// the number of the name `length` letters at `text`, the name put in the table where it contains none
+// the number of the name `length` characters at `text`, the name put in the table where it contains none
 unsigned int stick_named(const char *text, size_t length)
 {
-    // FNV-1a over the name's letters
+    // FNV-1a over the name's characters
     unsigned int hash = 2166136261u;
     for (size_t at = 0u; at < length; at += 1u)
     {

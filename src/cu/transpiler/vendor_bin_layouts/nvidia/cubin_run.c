@@ -5,7 +5,7 @@
 // NVIDIA's driver (run_channel.h). A question is carried in a process of its own, so a part that refuses one takes
 // this process with it and nothing else, or with --list, many untimed questions in one process, the driver opened
 // once, each answered to its own blob as it is carried: a part that refuses one takes the process with it, every
-// answer written before it stands, and the questions after it are left for the channel to carry again.
+// answer written before it is, and the questions after it are left for the channel to carry again.
 //
 //     orior_cubin_run <machine file> <layout> <code> <registers> <cases> <answers> <probe> [<launches> [<threads>
 //     <blocks>]] orior_cubin_run <machine file> <layout> --list <list>      a line a question, <code> <registers>
@@ -15,28 +15,28 @@
 //
 // The carrier runs only where a run's writer runs, the .qry QRY names (qry_member.h): every input named, the code, the
 // cases, the list and the gated list, is the latest blob of that name in the run, and every answer, dry record
-// and container is handed to it, a refusal critical and on disk before the carrier goes on: the carrier writes no
-// file. Where none runs it carries nothing and exits 2, since the record of what the part was handed and of any fault
+// and container is passed to it, a refusal critical and on disk before the carrier goes on: the carrier writes no
+// file. Where none runs it carries nothing and exits 2, since the record of what the part was passed and of any fault
 // would have nowhere to go.
 //
 // A dry run writes and gates every question as ever and stops before the driver: each question is answered
-// `skipped dry, the part taken out`, and what it would have handed the part is handed as the run's blob dry.txt
-// (cubin_run_dry_written). Handed the list a dry run of the protocol writes (run_channel.h), it checks every
+// `skipped dry, the part taken out`, and what it would have passed the part is passed as the run's blob dry.txt
+// (cubin_run_dry_written). Passed the list a dry run of the protocol writes (run_channel.h), it checks every
 // question the protocol put.
 //
 // After --dry come the facets, each popping out one object of the carry so it can be read off the part; --full pops
 // them all:
 //   --query                      the query object: every place of the code read back as our reader names it, not
 //                                only the places that are not as the run's first question contains them
-//   --gate-check                 the safety word laid on and cubin_safe's verdict on what it then contains
-//   --diff-output-against-vendor the post-safety-word container as it would reach the part, handed named as the answers
+//   --gate-check                 the safety word positioned on and cubin_safe's verdict on what it then contains
+//   --diff-output-against-vendor the post-safety-word container as it would reach the part, passed named as the answers
 //                                with .cubin, for scaffolding to read against the vendor's own disassembler, the same
 //                                C compiled through the vendor's compiler beside it. Our gate judges by operation key;
 //                                only the vendor's reader knows a whole encoding illegal
 //
 // The code is the question's machine code, sixteen bytes an instruction. The layout's container rows define the
 // container (cubin_write.h), and the code, the registers and the exits are put in it. The cases are one a line, up to
-// eight words in hex, the words a line leaves out zero, and the kernel is handed the stick's arity: in, eight words a
+// eight words in hex, the words a line leaves out zero, and the kernel is passed the stick's arity: in, eight words a
 // thread, out, room for eight words a thread, and the count of threads. The answers are read as the kernel wrote them:
 // how far apart its threads write and how many words each writes are read from where the part wrote, and a case's
 // answer is the first two words its thread wrote (cubin_run_answers_read). It is launched in blocks of <threads>,
@@ -69,13 +69,13 @@
 // microseconds and so never trips rule 6's bound, before its fault storm reaches the system's watchdog.
 //
 // Given a count of launches, a question that answered is launched that many times more, one at a time, and a second
-// line gives the block latencies of those launches summed, then the least and the most of them, the runs P6 reads
+// line gives the block latencies of those launches summed, then the least and the max of them, the runs P6 reads
 // (cubin_run_timed):
 //
-//     timed <launches> <nanoseconds> <least> <most>
+//     timed <launches> <nanoseconds> <least> <max>
 //
 // As a list ends the carrier reports where its time went, one line of its own output: `carrier: <questions> questions;
-// input, gate, load, memory, launch, telemetry, handed`, the seconds each stage took summed over the list
+// input, gate, load, memory, launch, telemetry, passed`, the seconds each stage took summed over the list
 // (CubinRunClocks). The part's memory a launch takes and the events it is carried between are allotted once for the
 // process and retained at the largest a question requires; a question's module is given back as it is answered.
 //
@@ -91,8 +91,8 @@
 
 int main(int count, char **words)
 {
-    // the run: every input after is read from it and every answer handed to it. A live run's record of what
-    // the part was handed and of any fault it gives back is critical, no setting turns it off, and with no writer it
+    // the run: every input after is read from it and every answer passed to it. A live run's record of what
+    // the part was passed and of any fault it gives back is critical, no setting turns it off, and with no writer it
     // has nowhere to go: nothing is carried
     s_run = qry_member_run();
     if (s_run == NULL)
@@ -251,10 +251,10 @@ int main(int count, char **words)
     cubin_run_lines_close(&list);
     // the carrier's account of where its time went over the list, a stage a clock, summed over every question
     printf("carrier: %u questions; input %.3f s, gate %.3f s, load %.3f s, memory %.3f s, launch %.3f s, telemetry "
-           "%.3f s, handed %.3f s\n",
+           "%.3f s, passed %.3f s\n",
            questions, (double)s_clocks.input / 1000000000.0, (double)s_clocks.gate / 1000000000.0,
            (double)s_clocks.load / 1000000000.0, (double)s_clocks.memory / 1000000000.0,
            (double)s_clocks.launch / 1000000000.0, (double)s_clocks.telemetry / 1000000000.0,
-           (double)s_clocks.handed / 1000000000.0);
+           (double)s_clocks.passed / 1000000000.0);
     return (carried == 2) ? 2 : 0;
 }

@@ -52,12 +52,12 @@ EV.centroidText = (object, cell, places) => {
 };
 
 EV.table = (element, rows) => {
-  element.replaceChildren(...rows.map(([name, value, kind]) => {
+  element.replaceChildren(...rows.map(([name, value, type]) => {
     const row = document.createElement("tr");
     const left = document.createElement("td");
     const right = document.createElement("td");
     left.textContent = name;
-    right.className = "num" + (kind ? ` ${kind}` : "");
+    right.className = "num" + (type ? ` ${type}` : "");
     right.textContent = value;
     row.append(left, right);
     return row;
@@ -192,10 +192,10 @@ EV.paintLineage = (app) => {
     const frame = object.cellFrame[one];
     byFrame.set(frame, [...(byFrame.get(frame) || []), one]);
   }
-  const shownPerFrame = 12;
+  const displayedPerFrame = 12;
   const rows = [...byFrame.entries()].sort((left, right) => left[0] - right[0]).map(([frame, members]) => {
-    const more = members.length - shownPerFrame;
-    const words = members.slice(0, shownPerFrame).map((one) => {
+    const more = members.length - displayedPerFrame;
+    const words = members.slice(0, displayedPerFrame).map((one) => {
       const children = object.forward.start[one + 1] - object.forward.start[one];
       const onward = object.frames[10 * frame + 8] > 0;
       const mark = children >= 2 ? (human ? " divides" : " /2+") : onward && children === 0 ? (human ? " ends" : " end") : "";
@@ -214,7 +214,7 @@ EV.paintLegend = (app) => {
   const human = EV.human();
   const swatch = (color, text) => `<div class="row"><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:${color}"></span><span>${text}</span></div>`;
   const palette = {
-    lineage: "Each lineage has its own color, kept from frame to frame.",
+    lineage: "Each lineage has its own color, retained from frame to frame.",
     okabe_ito: "Each lineage has one of eight colors chosen to stay distinct under color blindness.",
     cell: "Each cell has its own color in every frame.",
     volume: "Color runs from purple for the smallest cells to yellow for the largest.",
@@ -222,7 +222,7 @@ EV.paintLegend = (app) => {
   EV.$("legendBody").innerHTML = [
     `<p class="note">${palette}</p>`,
     swatch("#009E73", human ? "answer key link the tracker got right" : "edge status 0 correct"),
-    swatch("#E69F00", human ? "the right cell, among several the tracker kept" : "edge status 1 branched"),
+    swatch("#E69F00", human ? "the right cell, among several the tracker retained" : "edge status 1 branched"),
     swatch("#D55E00", human ? "answer key link the tracker got wrong" : "edge status 2 wrong"),
     swatch("#CC79A7", human ? "answer key link the tracker did not make" : "edge status 3 no link"),
     `<p class="note">${human
@@ -236,17 +236,17 @@ EV.paintReview = (app) => {
   const human = EV.human();
   const list = EV.$("reviewList");
   EV.$("reviewNote").textContent = human
-    ? "Links the answer key marks wrong or missing, then the most linked and the largest cells, which can be several cells counted as one. Click an item to go to it."
+    ? "Links the answer key marks wrong or missing, then the max linked and the largest cells, which can be several cells counted as one. Click an item to go to it."
     : "status 2 and 3 edges, then top 12 by degree and by n";
   list.replaceChildren(...object.review.slice(0, 80).map((item) => {
     const entry = document.createElement("li");
     const cells = item.cells.map((one) => `#${one}`).join(" to ");
-    entry.textContent = item.text || (item.kind === "most linked"
+    entry.textContent = item.text || (item.type === "max linked"
       ? `${cells}, ${item.degree} links, frame ${item.frame + (human ? 1 : 0)}`
-      : item.kind === "largest"
+      : item.type === "largest"
         ? `${cells}, ${EV.grouped(item.voxels)} voxels, frame ${item.frame + (human ? 1 : 0)}`
-        : `${item.kind}: ${cells}, frame ${item.frame + (human ? 1 : 0)}`);
-    entry.className = item.kind === "wrong" || item.kind === "no link" || item.kind === "control" ? "bad" : "";
+        : `${item.type}: ${cells}, frame ${item.frame + (human ? 1 : 0)}`);
+    entry.className = item.type === "wrong" || item.type === "no link" || item.type === "control" ? "bad" : "";
     entry.addEventListener("click", () => {
       EV.goTo(app, item.frame);
       EV.choose(app, item.cells, "set");
@@ -311,12 +311,12 @@ EV.paintTags = (app) => {
     return;
   }
   app.pins = app.pins || new Map();
-  const shown = [...app.chosen].filter((cell) => {
+  const displayed = [...app.chosen].filter((cell) => {
     const frame = object.cellFrame[cell];
     return frame === app.frame || (frame === app.frame + 1 && app.progress >= 2048);
   }).slice(0, 24);
   const human = EV.human();
-  const targets = shown.map((cell) => ({ cell, at: EV.screenOf(app, cell) })).sort((left, right) => left.at[0] - right.at[0]);
+  const targets = displayed.map((cell) => ({ cell, at: EV.screenOf(app, cell) })).sort((left, right) => left.at[0] - right.at[0]);
   const panel = EV.$("panel").getBoundingClientRect();
   let x = Math.max(panel.right + 12, 12);
   const width = window.innerWidth;
@@ -414,7 +414,7 @@ EV.paintLines = (app) => {
 };
 
 EV.afterRender = (app, regions) => {
-  // The right column stops above the slice when the slice is shown.
+  // The right column stops above the slice when the slice is displayed.
   const ratio = window.devicePixelRatio || 1;
   const right = EV.$("right");
   const bottom = regions && regions.slice ? Math.floor(regions.slice[1] / ratio) - 12 : window.innerHeight - 80;

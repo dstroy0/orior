@@ -12,7 +12,7 @@ static const char s_keyed[] = "\"(?:[^\"\\\\]|\\\\.)*\"(?=\\s*:)";
 
 static CliRegexpWorkState s_work_state;
 static CliRegexp s_regexp;
-static unsigned int s_letters[1u << 18u];
+static unsigned int s_characters[1u << 18u];
 static unsigned long long s_offset[(1u << 18u) + 1u];
 static CliRegexpSpan s_groups[CLI_REGEXP_GROUPS + 1u];
 static char s_text[1u << 18u];
@@ -27,29 +27,29 @@ static int regexp_read(const char *source, const char *flags)
     return EMBED_CALL(cli_regexp_source.read, CliRegexpSourceCfg, .regexp_out = &s_regexp, .source = source, .flags = flags, .err_msg = &err_msg);
 }
 
-// `text` decoded into s_letters, the byte each letter starts at into s_offset: the count of letters
-static unsigned long long letters_of(const char *text)
+// `text` decoded into s_characters, the byte each character starts at into s_offset: the count of characters
+static unsigned long long characters_of(const char *text)
 {
     const unsigned long long size = CLI_UNITY_LENGTH(text);
-    const unsigned long long count = EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text, .size = size, .letters = s_letters, .capacity_u64 = sizeof(s_letters) / sizeof(s_letters[0]));
-    unsigned long long letter = 0ull;
+    const unsigned long long count = EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = text, .size = size, .characters = s_characters, .capacity_u64 = sizeof(s_characters) / sizeof(s_characters[0]));
+    unsigned long long character = 0ull;
     for (unsigned long long at = 0ull; at < size; at += 1ull)
     {
         if ((((unsigned char)text[at]) & 0xc0u) != 0x80u)
         {
-            s_offset[letter] = at;
-            letter += 1ull;
+            s_offset[character] = at;
+            character += 1ull;
         }
     }
     s_offset[count] = size;
     return count;
 }
 
-// the match of `source` with `flags` at letter `from` of `text`, into s_found: 1 with the letters it uses in `taken`, or 0 where none matches
+// the match of `source` with `flags` at character `from` of `text`, into s_found: 1 with the characters it uses in `taken`, or 0 where none matches
 static int matched_at(const char *source, const char *flags, const char *text, unsigned long long from, unsigned long long *taken)
 {
-    const unsigned long long count = letters_of(text);
-    if (!regexp_read(source, flags) || !EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = &s_regexp, .text_u32s = s_letters, .length = count, .at = from, .groups = s_groups))
+    const unsigned long long count = characters_of(text);
+    if (!regexp_read(source, flags) || !EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = &s_regexp, .text_u32s = s_characters, .length = count, .at = from, .groups = s_groups))
     {
         return 0;
     }
@@ -61,7 +61,7 @@ static int matched_at(const char *source, const char *flags, const char *text, u
     return 1;
 }
 
-// the match of `source` with `flags` at letter `from` of `text` is `wanted`
+// the match of `source` with `flags` at character `from` of `text` is `wanted`
 static void assert_match(const char *wanted, const char *source, const char *flags, const char *text, unsigned long long from)
 {
     unsigned long long taken = 0ull;
@@ -69,7 +69,7 @@ static void assert_match(const char *wanted, const char *source, const char *fla
     TEST_ASSERT_EQUAL_STRING_MESSAGE(wanted, s_found, source);
 }
 
-// `source` with `flags` does not match at letter `from` of `text`
+// `source` with `flags` does not match at character `from` of `text`
 static void assert_no_match(const char *source, const char *flags, const char *text, unsigned long long from)
 {
     unsigned long long taken = 0ull;
@@ -79,11 +79,11 @@ static void assert_no_match(const char *source, const char *flags, const char *t
 // each group of `source`'s match at the start of `text`, joined by `|`, `-` for one that took no part, is `wanted`
 static void assert_groups(const char *wanted, const char *source, const char *text)
 {
-    const unsigned long long count = letters_of(text);
+    const unsigned long long count = characters_of(text);
     char out[256];
     VerbaLinea line = {out, sizeof(out), 0ull};
     TEST_ASSERT_TRUE(regexp_read(source, ""));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = &s_regexp, .text_u32s = s_letters, .length = count, .at = 0ull, .groups = s_groups));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = &s_regexp, .text_u32s = s_characters, .length = count, .at = 0ull, .groups = s_groups));
     for (unsigned int group = 0u; group <= s_regexp.groups; group += 1u)
     {
         mmgr_line_put(&line, (group > 0u) ? "|" : "");
@@ -100,7 +100,7 @@ static void assert_groups(const char *wanted, const char *source, const char *te
     CLI_TEST_ASSERT_TEXT(wanted, out, line.at);
 }
 
-// `count` letters a and the string `after` into s_text
+// `count` characters a and the string `after` into s_text
 static void run_written(unsigned int count, const char *after)
 {
     memor.set(&(MemoriaCfg){.dst = s_text, .val = 'a', .bytes = count});
@@ -316,7 +316,7 @@ void test_with_no_case_flag_case_matters(void)
     assert_no_match("select", "", "SELECT", 0ull);
 }
 
-void test_letter_and_number_properties_under_the_u_flag(void)
+void test_character_and_number_properties_under_the_u_flag(void)
 {
     assert_match("\xCE\xB1\xCE\xB2_1'", "[\\p{L}_][\\p{L}\\p{N}_']*", "u", "\xCE\xB1\xCE\xB2_1' x", 0ull);
 }

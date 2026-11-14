@@ -9,9 +9,9 @@
 THE CLAIM
 
 A value below the NTT modulus is spottable by its power-of-two structure: its two-adic valuation, the
-count of factors of two it carries, and whether it sits low in the ring. A maximum-entropy value has
+count of factors of two it carries, and whether it sits low in the ring. A max-entropy value has
 the geometric valuation distribution any uniform residue has, half odd, a quarter valuation one, and
-so on. A value that is composite in this way, not maximum entropy, carries a higher valuation than
+so on. A value that is composite in this way, not max entropy, carries a higher valuation than
 that. The claim is that the winning nonce and hash, reduced into the proven ring, are enriched in
 these composite values over a uniform residue.
 

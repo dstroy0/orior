@@ -10,7 +10,7 @@
 #           python examples/art/4_measure/classify_reject_recover.py --mode fixed-pattern --in DIR --out DIR
 #           python examples/art/4_measure/classify_reject_recover.py --mode repeat --in DIR --out DIR
 #
-# This is the proofing filter. It reads a stack of same-source images laid one after another as a flat
+# This is the proofing filter. It reads a stack of same-source images positioned one after another as a flat
 # sequence whose period is the frame size, and a pixel and the same pixel one frame later fall in one
 # phase class. The engine already reads that shape: measure.periodic_energy detects and
 # reference.periodic rejects, the same files ART-4-005 and ART-4-006 use. A stack goes in; a verdict, a
@@ -28,7 +28,7 @@
 #                          the stack; the shortfall on real content is the floor, a static feature shaped
 #                          exactly like the pattern.
 #   --mode repeat        : the subject is the SAME in every frame; the shared component is the SUBJECT to
-#                          KEEP. The noise is the per-frame deviation. Reject it by per-pixel consensus,
+#                          RETAIN. The noise is the per-frame deviation. Reject it by per-pixel consensus,
 #                          exact where a strict majority survives; a class with no majority is the floor.
 # Running fixed-pattern removal on a repeat erases the subject, and running consensus on a varying
 # subject returns nothing any frame contained. The mode is the guard against both, and there is no default
@@ -108,7 +108,7 @@ def fixed_pattern(frame, amplitude, seed):
 
 
 def repeating_subject(frame, frames, seed):
-    """One image kept identical in every frame: the case --mode repeat is written for."""
+    """One image retained identical in every frame: the case --mode repeat is written for."""
     rng = random.Random(seed)
     one = [rng.randint(0, 200) for _ in range(frame)]
     return [one[index % frame] for index in range(frame * frames)], one
@@ -142,7 +142,7 @@ def reduction(noisy, cleaned, target):
 
 
 def detect_fixed_pattern(stack, frame):
-    """Whether a coherent component stands at the frame period above the drawn null band."""
+    """Whether a coherent component is at the frame period above the drawn null band."""
     view = byte_view(stack)
     period, live, dead = recover_period(view, frame)
     band = null_band(view, frame, DRAWS)
@@ -166,7 +166,7 @@ def reject_fixed_pattern(stack, frame):
 
 
 def reject_repeat(stack, frame):
-    """Keep the per-pixel consensus subject; flag the classes with no majority as the floor.
+    """Retain the per-pixel consensus subject; flag the classes with no majority as the floor.
 
     Two routes build the consensus, greatest count and median. Where they agree the value has a strict
     majority of the frames behind it and the recovery is exact; where they differ the class has no
@@ -234,7 +234,7 @@ def run_controls(out):
     report_control(out, "incoherent on a repeat", "repeat", gaussian_repeat, frame, one)
 
     out.write("  fixed-pattern removes a shared pattern from a varying subject to the bit and declines\n")
-    out.write("  incoherent noise. repeat keeps a shared subject and recovers it exactly where a majority\n")
+    out.write("  incoherent noise. repeat retains a shared subject and recovers it exactly where a majority\n")
     out.write("  survives, flagging the rest. neither mode guesses which the shared component is.\n")
 
 

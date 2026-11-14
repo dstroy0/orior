@@ -53,7 +53,7 @@ export function undoGroup(type, back, own) {
       continue;
     }
     const step = back ? doc.steps.get(doc.id) : doc.steps.get(doc.next.get(doc.id));
-    if (step?.kind !== type) {
+    if (step?.type !== type) {
       continue;
     }
     doc.writer = tab.session;
@@ -194,12 +194,12 @@ export function moveHere(ask) {
 }
 
 // Holds the app's memory to `budget` bytes: the servers no open tab needs stop, and where that is not
-// enough, the one that holds the most and does not serve the tab shown. The tabs a stopped server had
-// open lose their diagnostics and are handed to a server again as each shows.
+// enough, the one that holds the max and does not serve the tab displayed. The tabs a stopped server had
+// open lose their diagnostics and are passed to a server again as each shows.
 export async function holdMemory(budget) {
   const open = [...new Set(state.tabs.map((tab) => tab.session?.language?.id).filter(Boolean))];
-  const shown = tabOf(state.active)?.session?.language?.id ?? null;
-  const answer = await invoke("servers_unneeded_stop", { open, shown, budget }).catch(() => null);
+  const displayed = tabOf(state.active)?.session?.language?.id ?? null;
+  const answer = await invoke("servers_unneeded_stop", { open, displayed, budget }).catch(() => null);
   if (!answer?.stopped.length) {
     return;
   }
@@ -216,6 +216,6 @@ export async function holdMemory(budget) {
     }
   }
   problemsChanged();
-  say(`${answer.stopped.join(", ")} stopped to hold memory to its budget; ${answer.files.length ? "its files are handed to it again as each shows" : "no open tab needed it"}.`);
+  say(`${answer.stopped.join(", ")} stopped to hold memory to its budget; ${answer.files.length ? "its files are passed to it again as each shows" : "no open tab needed it"}.`);
 }
 

@@ -18,7 +18,7 @@ program is written in. It is not derived and its vocabulary does not move.
 
 **`L*`** is the map from gnascor to a target's definitions, and it is the derived part. The compiler emits whole
 files of relations in a shuffled order, which leaves a part nothing to tell measurement from work by, runs them,
-and keeps whichever definition produced the relation.
+and retains whichever definition produced the relation.
 
     .ksc   the relations put and what came back                       derived
     .kdm   the part keyed to operators: every chain, each costed      derived
@@ -76,7 +76,7 @@ written, with its anchor as the representative (Open 5 of the query protocol tab
 **`.kdm` grows to whatever specificity a part needs.** It holds as many answers as it has: a general answer
 block, and under it a map specific enough to be optimal on one device and nowhere else. A driver written by
 hand is general worst case because a person writes it once and cannot write one per device. Nobody writes
-these. A specific map therefore costs nothing to keep, and the general block stays as the fallback for a part
+these. A specific map therefore costs nothing to retain, and the general block stays as the fallback for a part
 with no map yet.
 
 ## The method
@@ -99,11 +99,11 @@ of remembered asks. Nothing is modeled, nothing is predicted, and a known entry 
 **Gate, then rank. Never one score.** A relation holds or it does not, and that answer carries no noise. A
 cost is measured and every cost carries noise. The two do different jobs and are never added together.
 Precepts filter the candidates down to the admissible ones, and cost orders whatever survives. Put both in one
-number and a cheap wrong arrangement outranks a correct slow one, with nothing in the result saying which kind
-of agreement won. Kept apart, measurement noise can cost speed and can never cost correctness, because wrong
+number and a cheap wrong arrangement outranks a correct slow one, with nothing in the result saying which type
+of agreement won. Retained apart, measurement noise can cost speed and can never cost correctness, because wrong
 was excluded before anything was ranked.
 
-How many arrangements survive the gate is itself a reading and is kept. One survivor means the precepts decide
+How many arrangements survive the gate is itself a reading and is retained. One survivor means the precepts decide
 that operator. Many means they do not, and the answer to that is another relation, never more measurement.
 
 **A precept is a question to put, never an answer to write.** Asking a target whether `1,1 -> 2` holds in its
@@ -129,7 +129,7 @@ fallback for a member with nothing measured, and never a result borrowed from a 
 
 ## Functions on every part
 
-**The engine asks the part and builds the code that answers.** No `.g`, no `.gsm` and no gnascor stands between a
+**The engine asks the part and builds the code that answers.** No `.g`, no `.gsm` and no gnascor is between a
 function and the part that runs it.
 
 **Tessera is the boundary between host and device.** Every process that crosses it is identified there by its
@@ -138,7 +138,7 @@ system. A file, a socket, a process or a clock is asked for through tessera and 
 
 **The transpiler emits the device code.** A program it emits is built from any form `L*` has learned for a part,
 and it can do anything that part can do, branches and loops included wherever the part has the forms. The record
-machine's straight-line program is one kind of emitted program and not the limit on them.
+machine's straight-line program is one type of emitted program and not the limit on them.
 
 **Every function is in every container.** `c/`, `cu/` and `python/` are one container per host entry point, and
 every function is in all three under one name (`TREE_LAYOUT_PLAN.md`). A function a container lacks is not ported
@@ -207,7 +207,7 @@ reads has changed.
        `run_channel_carrier`, and nothing defines one of them. `tessera_run` defines a `run_channel_open` and a
        `run_channel_close` that take other arguments. The channel written under these names cannot link beside it.
      - No ask reaches a target. `query_put`, `query_order_put` and the sweeps run on the host alone.
-     - `period_read` is not the stride's source: `bus_enum` reads the stride off the kinds alone.
+     - `period_read` is not the stride's source: `bus_enum` reads the stride off the types alone.
      - `engine_lattice_bits` has no caller, and the noise root box is priced only where a caller passes a cost.
      - `max_tree_probe_levels`, `max_tree_nodes`, `max_tree_pairs` and `max_tree_overlap_sums` are called by tests
        alone. `max_tree_slide` and `max_tree_overlap` are called only from `slide_score.cu`, which nothing builds.
@@ -218,7 +218,7 @@ reads has changed.
        constants have no caller.
      - `src/build_engine.sh` names 51 module folders that are not in the tree (`engine/compiler/cycle`,
        `engine/nbody/max_tree`, `engine/formats/zarr` and the rest). Its `.cu` glob passes over a missing folder
-       without a word; its portable `.c` loop hands a pattern no file matches to the compiler.
+       without a word; its portable `.c` loop passes a pattern no file matches to the compiler.
        `examples/cell_tracking/build_engine.sh` carries the `c/...` folders that are, and stops at
        `engine_internal.h`'s `codegen_device.h`, whose folder its include path does not carry.
        `examples/cell_tracking/build_driver.sh` carries it.
@@ -230,18 +230,18 @@ reads has changed.
        1182-step spiral, and `track_driver` sets the globals `g_survey` and `g_schedule_path`.
      - Numbers written into the machine: the noise detector's bins and windows from one data set's transfer curve in
        `compression_table.md`; the Rice block, `k` width and escape; the tessera and qasm job times.
-     - `tessera_core_wants` reserves the more of standing plus declared and the kept peak, the rule the scheduler
-       document says is not approved. `tessera_core_remember` keeps the last run's peak and not the most: one light
+     - `tessera_core_wants` reserves the more of located plus declared and the retained peak, the rule the scheduler
+       document says is not approved. `tessera_core_remember` retains the last run's peak and not the max: one light
        run lowers the next reservation.
      - Modules outside the engine's shape answer a bare -1 or an int with no `EngineError`: `body_overlap`,
        `heaviest_matching`, `shift_agreement`, `golden_bands`, `residual_survey`, `climb_machine`, `schedule` and
-       `radix_keys`. orior and render keep their own house style. `container_write`, `container_layout` and
+       `radix_keys`. orior and render retain their own house style. `container_write`, `container_layout` and
        `sass_assemble` give their reasons by `printf`.
      - Six files pass 500 lines: `sass_assemble.c` 1002, `sass_machine.c` 550, `cycle_compile.cu` 524,
        `code_generator.cu` 523, `cycle_record_launch.cu` 511 and `cycle.c` 508.
    - Documents the tree contradicts.
      - CRC-64 guards `EngineProgramBlock`, the `.oapx` and the `.bapx`; the seal guards the `.kcr`.
-       `compression_tower.md`'s byte table for 44b6_0113de3b lays a CRC-64 word in the `.kcr`, and the table is
+       `compression_tower.md`'s byte table for 44b6_0113de3b positions a CRC-64 word in the `.kcr`, and the table is
        mended by measuring that file again.
      - `file_types_table.md` has no `.kdm` or `.ksc` and holds `.ksh` and `.ans`, where this plan's six are `.kcr`,
        `.krs`, `.kcs`, `.knf`, `.kdm` and `.ksc`.
@@ -281,7 +281,7 @@ reads has changed.
    sees for more than 1800 s: the harness ends it. It alone
    puts cubins our own assembler wrote on the part, and every one is read on the host first: `cubin_safe`
    (`src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe.{h,c}`) holds each instruction a kernel reaches to the safe scheduler word, to
-   no branch and no wait, to one instruction at most that no form holds, and to an EXIT every thread takes, and
+   no branch and no wait, to one instruction at max that no form holds, and to an EXIT every thread takes, and
    both `interface_sass_run` and `interface_sass_probe` refuse a cubin that breaks a rule before the driver sees it.
    `src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/cubin_safe_check.sh` holds the gate to one case a rule, 15 checks, 0 failed,
    and finds 105 of the 106 cubins a fields run left safe, the one refused holding no code section.
@@ -291,7 +291,7 @@ reads has changed.
    branches by its nature and is withheld from the part until a rule says when a loop ends.
 
 7. **One function of 132 runs on the device.** `includes/exact_types/integerfloats/double_fields/double_fields.cu` holds
-    `double_fields.c`'s four functions as one record program, encoded, laid out and loaded by the calls
+    `double_fields.c`'s four functions as one record program, encoded, arranged and loaded by the calls
     `engine_record_encode` makes, swept on the device and run on the host. `double_fields_test.cu` holds it 1:1
     against the C on 4110 lanes, the edges of a double and 4096 drawn words, with merges past every mask: the
     device equals the host word for word, both equal the C on every lane, and a mask one short fails 2049 lanes

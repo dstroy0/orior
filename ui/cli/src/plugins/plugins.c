@@ -77,8 +77,8 @@ static void cli_user_each(const CliEachNameIsFolderCfg *args)
     user->count += 1u;
 }
 
-// every plugin handed on, the lock acquired: the reader's counted, their ids taken into a cell of their count, and each
-// plugin.json handed on mapped where it lies
+// every plugin passed on, the lock acquired: the reader's counted, their ids taken into a cell of their count, and each
+// plugin.json passed on mapped where it lies
 EMBED_INLINE void cli_each_lock(const PluginsCtx *args)
 {
     for (unsigned int at = 0u; at < g_cli_bundled_count; at += 1u)
@@ -180,20 +180,20 @@ EMBED_INLINE void cli_map(const PluginsCtx *args)
     args->languages->count += 1u;
 }
 
-// a text in lower case, letter by letter, put after `prefix` into `out`, sized for CLI_NAME_MAX_LEN: its length
+// a text in lower case, character by character, put after `prefix` into `out`, sized for CLI_NAME_MAX_LEN: its length
 EMBED_INLINE unsigned long long cli_on_lower(const PluginsCtx *args)
 {
     const char *text = args->text;
-    unsigned int letters[CLI_NAME_MAX_LEN];
+    unsigned int characters[CLI_NAME_MAX_LEN];
     const unsigned long long count =
-        EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text, .size = args->length, .letters = letters,
+        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = text, .size = args->length, .characters = characters,
                    .capacity_u64 = CLI_NAME_MAX_LEN);
     VerbaLinea line = {args->out, CLI_NAME_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->prefix);
     for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
-        EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line,
-                   .letter = EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = letters[at]));
+        EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line,
+                   .character = EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = characters[at]));
     }
     return mmgr_line_finish(&line);
 }
@@ -210,7 +210,7 @@ EMBED_INLINE unsigned long long cli_extension_key(const PluginsCtx *args)
     return mmgr_line_finish(&line);
 }
 
-// The folders a plugin stands for as they are listed: the languages they are mapped into, the plugin's `each` in its
+// The folders a plugin is for as they are listed: the languages they are mapped into, the plugin's `each` in its
 // tree, the tree the tables are read from, and the plugin's id
 typedef struct
 {
@@ -265,7 +265,7 @@ static void cli_language_each(const CliEachPluginCfg *args)
         (root != CLI_JSON_NONE)
             ? EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
                          .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
-                                            .object = root, .name = "kind"),
+                                            .object = root, .name = "type"),
                          .length_pointer = NULL)
             : NULL;
     if ((root == CLI_JSON_NONE) ||
@@ -325,7 +325,7 @@ static void cli_language_each(const CliEachPluginCfg *args)
             }
         }
     }
-    // a plugin standing for each folder of the tree that holds its table
+    // a plugin located for each folder of the tree that holds its table
     const unsigned int each = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                          .object = root, .name = "each");
     char tree[CLI_PATH_MAX_LEN];
@@ -394,7 +394,7 @@ int cli_plugins_language_for(const CliPluginsLanguagesPathCfg *args)
             return 1;
         }
     }
-    // the path's letters are no more than its bytes, and the work state a pattern is read into is taken only where a
+    // the path's characters are no more than its bytes, and the work state a pattern is read into is taken only where a
     // key is a pattern
     int patterned = 0;
     for (unsigned int at = 0u; (at < args->languages_read->count) && !patterned; at += 1u)
@@ -407,8 +407,8 @@ int cli_plugins_language_for(const CliPluginsLanguagesPathCfg *args)
     CliRegexpWorkState *const work_state =
         (slashed != NULL) ? g_cli_guard->temporary_buf_alloc(sizeof(CliRegexpWorkState), g_cli_plugins_owner) : NULL;
     const unsigned long long length = (work_state != NULL)
-                                          ? EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->path,
-                                                       .size = bytes, .letters = slashed, .capacity_u64 = bytes + 1ULL)
+                                          ? EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = args->path,
+                                                       .size = bytes, .characters = slashed, .capacity_u64 = bytes + 1ULL)
                                           : 0ULL;
     for (unsigned long long at = 0ULL; at < length; at += 1ULL)
     {
@@ -576,12 +576,12 @@ void cli_plugins_slug(const CliPluginsIdNameCfg *args)
         const char *at = from;
         while ((at < to) && ((length + 1ULL) < CLI_NAME_MAX_LEN))
         {
-            const char letter = at[0];
-            const int allowed = ((letter >= 'a') && (letter <= 'z')) || ((letter >= 'A') && (letter <= 'Z')) ||
-                                ((letter >= '0') && (letter <= '9'));
+            const char character = at[0];
+            const int allowed = ((character >= 'a') && (character <= 'z')) || ((character >= 'A') && (character <= 'Z')) ||
+                                ((character >= '0') && (character <= '9'));
             if (allowed)
             {
-                args->id_out[length] = ((letter >= 'A') && (letter <= 'Z')) ? (char)(letter + 32) : letter;
+                args->id_out[length] = ((character >= 'A') && (character <= 'Z')) ? (char)(character + 32) : character;
                 length += 1ULL;
             }
             else if ((length != 0ULL) && (args->id_out[length - 1u] != '-'))
@@ -589,7 +589,7 @@ void cli_plugins_slug(const CliPluginsIdNameCfg *args)
                 args->id_out[length] = '-';
                 length += 1ULL;
             }
-            // a byte past ASCII that starts or carries a letter is no letter or digit here, and one run of them one
+            // a byte past ASCII that starts or carries a character is no character or digit here, and one run of them one
             // dash
             at += 1;
         }

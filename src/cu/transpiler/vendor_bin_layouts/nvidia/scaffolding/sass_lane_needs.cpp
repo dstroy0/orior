@@ -5,9 +5,9 @@
 //     sass_lane_needs
 //
 // sass.krs leaves 33 of its forms empty, and filling all 33 is not the work: the work is the lane emitted to SASS.
-// So the record programs the host oracle runs are laid out and decided for the SASS generator, and every form the
+// So the record programs the host oracle runs are arranged and decided for the SASS generator, and every form the
 // core decides is counted. A form the lane never decides is not a blocker whatever the ruleset specifies about it, and
-// a form it decides that the ruleset leaves empty stands between here and a lane. No device, no toolchain, and nothing
+// a form it decides that the ruleset leaves empty is between here and a lane. No device, no toolchain, and nothing
 // is written: decide() only reports which forms a lane is made of.
 #include "../../../../../../utils/test/src/cu/engine/analysis/cycle/record_programs.h"
 
@@ -37,7 +37,7 @@ extern "C" const char __ehdr_start = 0;
 #endif
 
 // the schema's forms by their place in it, each with the parameters it takes, as machine_ir_types.h gives them
-#define LANE_FORM_TEXT(name_, text_, parameters_, kind_) {text_, parameters_},
+#define LANE_FORM_TEXT(name_, text_, parameters_, type_) {text_, parameters_},
 
 static const struct
 {
@@ -70,13 +70,13 @@ static unsigned int lane_assembles(const std::string &lane, unsigned int *refuse
         const size_t end = lane.find('\n', at);
         const size_t stop = (end == std::string::npos) ? lane.size() : end;
         const std::string line = lane.substr(at, stop - at) + "\n";
-        size_t letter = 0u;
-        while ((letter < line.size()) && ((line[letter] == ' ') || (line[letter] == '\t')))
+        size_t character = 0u;
+        while ((character < line.size()) && ((line[character] == ' ') || (line[character] == '\t')))
         {
-            letter += 1u;
+            character += 1u;
         }
         // a label, a note, a directive and a blank line are not instructions and assemble to nothing
-        const int instruction = (letter < (line.size() - 1u)) && (line[letter] != '.') && (line[letter] != '/') &&
+        const int instruction = (character < (line.size() - 1u)) && (line[character] != '.') && (line[character] != '/') &&
                                 (line.find(':') == std::string::npos) && (line.find('`') == std::string::npos);
         if (instruction != 0)
         {
@@ -93,15 +93,15 @@ static unsigned int lane_assembles(const std::string &lane, unsigned int *refuse
 }
 
 // every form `program` decides, counted into `queried`
-static void lane_decide(const HostProgram *program, int reuse, unsigned int *queried, unsigned int *laid)
+static void lane_decide(const HostProgram *program, int reuse, unsigned int *queried, unsigned int *positioned)
 {
     HostLoaded loaded;
     if (host_load(program, reuse, &loaded) == 0)
     {
-        printf("  %s: not laid out\n", program->name);
+        printf("  %s: not arranged\n", program->name);
         return;
     }
-    *laid += 1u;
+    *positioned += 1u;
     std::vector<MachineInstr> items;
     unsigned int places = 0u;
     if (sass_target().decided(&loaded.layout, &places, &items) == 0)
@@ -112,7 +112,7 @@ static void lane_decide(const HostProgram *program, int reuse, unsigned int *que
     }
     for (const MachineInstr &item : items)
     {
-        // the header stands in the items as a form of all ones, and is the listing's opening, not a form
+        // the header is in the items as a form of all ones, and is the listing's opening, not a form
         if (item.form < OPCODE_COUNT)
         {
             queried[item.form] += 1u;
@@ -159,37 +159,37 @@ int main(void)
     s_machine_read = sass_machine_read(&s_machine, "src/cu/transpiler/lstar/protocol/table/sm_86.khw");
     printf("machine %s: %u forms\n", s_machine.part, s_machine.forms);
     static unsigned int queried[OPCODE_COUNT];
-    unsigned int laid = 0u;
+    unsigned int positioned = 0u;
     HostProgram program;
     HostProgram bare;
     // the record programs the host oracle runs, each decided with the registers fresh and again with them reused
     for (int reuse = 0; reuse <= 1; reuse += 1)
     {
         host_arithmetic(&program);
-        lane_decide(&program, reuse, queried, &laid);
+        lane_decide(&program, reuse, queried, &positioned);
         host_division(&program);
-        lane_decide(&program, reuse, queried, &laid);
+        lane_decide(&program, reuse, queried, &positioned);
         host_bitwise(&program);
-        lane_decide(&program, reuse, queried, &laid);
+        lane_decide(&program, reuse, queried, &positioned);
         host_members(&program);
-        lane_decide(&program, reuse, queried, &laid);
+        lane_decide(&program, reuse, queried, &positioned);
         host_affine_limit(&program);
-        lane_decide(&program, reuse, queried, &laid);
+        lane_decide(&program, reuse, queried, &positioned);
         host_bare_divisor(&bare);
-        lane_decide(&bare, reuse, queried, &laid);
+        lane_decide(&bare, reuse, queried, &positioned);
         host_inexact(&program, &bare);
-        lane_decide(&program, reuse, queried, &laid);
+        lane_decide(&program, reuse, queried, &positioned);
         // the two tables the program reads through, sized as the host oracle sizes them
         unsigned int *const wide = (unsigned int *)malloc(512u * sizeof(unsigned int));
         unsigned int *const narrow = (unsigned int *)malloc(4096u * sizeof(unsigned int));
         host_tables(&program, wide, narrow);
-        lane_decide(&program, reuse, queried, &laid);
+        lane_decide(&program, reuse, queried, &positioned);
         free(wide);
         free(narrow);
     }
     unsigned int decided = 0u;
     unsigned int blocking = 0u;
-    printf("%u layouts decided for SASS\n", laid);
+    printf("%u layouts decided for SASS\n", positioned);
     // A form the code generator leaves out is never requested from the ruleset, whatever the lane's items contain. SASS
     // answers 0 to program_unit_written: its resident reaches it already built in the part's own compiler's cubin,
     // and the lane is written into that. Counting such a form as blocking reads the lane's item list where the

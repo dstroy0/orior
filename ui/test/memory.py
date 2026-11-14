@@ -5,9 +5,9 @@
 # Watches the memory of every command of orior's menus, walked as walk.py walks them on its scratch
 # tree of dummy files, each pressed once under V8's sampling heap profiler: what the page still holds
 # once the command is closed and put back and the heap collected, by module and by function; the
-# heap's growth; each process's; and the bytes each call of the tree's side took and kept, which the
+# heap's growth; each process's; and the bytes each call of the tree's side took and retained, which the
 # window counts as its allocator gives them. Nothing is timed or filmed, the profiler taking the
-# page's time. memory.md says it, the most retained first, beside memory.json.
+# page's time. memory.md says it, the max retained first, beside memory.json.
 #
 #   Usage:  python -I ui/test/memory.py [--only <command,...>] [--menus <title,...>] [--skip <command,...>]
 #                                            [--port 9222] [--wait 8] [--sampling 64]

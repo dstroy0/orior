@@ -25,7 +25,7 @@
 // reading and Table 4 class.
 //
 // Checks:
-//   1. each program imprints and lays out;
+//   1. each program imprints and arranges;
 //   2. each program loads onto the device and every lane runs it;
 //   3. the host's records of each program equal the device's word for word;
 //   4. the device's sums of each run equal the host's;
@@ -199,7 +199,7 @@ int main(int count, char **arguments)
     memset(&tally_stage, 0, sizeof(tally_stage));
     tally_stage.name = "tally";
     doubled_tally_program(&tally_stage.program);
-    int ok = stage_lay(&job, &tally_stage, &error);
+    int ok = stage_position(&job, &tally_stage, &error);
     const unsigned long long lanes = (unsigned long long)languages.size() * run;
     const unsigned int limbs = (tally_stage.program.record_bits + 31u) / 32u;
     std::vector<unsigned int> records((size_t)(lanes * limbs), 0u);
@@ -296,13 +296,13 @@ int main(int count, char **arguments)
 
     if (ok)
     {
-        printf("%s %-9s %9s %6s %9s %6s  %s\n", stage_shown("language", 18u, 1).c_str(), "Table 4", "IDENTICAL",
+        printf("%s %-9s %9s %6s %9s %6s  %s\n", stage_displayed("language", 18u, 1).c_str(), "Table 4", "IDENTICAL",
                "SPLIT", "share", "papers", "reading");
         for (size_t at = 0u; at < languages.size(); at += 1u)
         {
             const DoubledLanguage &language = languages[at];
             const int judged = (language.table != "-") && (language.table != "UNCLEAR");
-            printf("%s %-9s %9s %6s %9s %6s  %-9s %s\n", stage_shown(language.name, 18u, 1).c_str(),
+            printf("%s %-9s %9s %6s %9s %6s  %-9s %s\n", stage_displayed(language.name, 18u, 1).c_str(),
                    language.table.c_str(), stage_text_of(language.identical).c_str(),
                    stage_text_of(language.split).c_str(), language.share.c_str(),
                    stage_text_of(language.papers).c_str(), language.reading.c_str(),

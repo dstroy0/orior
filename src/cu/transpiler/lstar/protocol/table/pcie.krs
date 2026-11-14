@@ -4,7 +4,7 @@ krs 1
 # and the line reads all ones where no part answered. A part that sits silent can still be probed, by writing a word
 # and reading what comes back, but a part doing work does not need it. The one write the common run makes is a found
 # part's own base register, sized once. The format is the comment at the head of ptx.krs: a line's first word names
-# its kind, {p} is parameter p's argument, \t is a tab, \n a line's end and \\ a backslash, and a line that begins
+# its type, {p} is parameter p's argument, \t is a tab, \n a line's end and \\ a backslash, and a line that begins
 # with # is a comment.
 ruleset pcie
 # the root reads and writes config space through its own window (ECAM, or the address and data ports); no part's

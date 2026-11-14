@@ -4,7 +4,7 @@ An earlier version of this test compared each pool's peak-minus-trough against t
 and reported that eight pools cleared it and their troughs spanned twenty hours. Both halves of that
 were artifacts.
 
-Peak minus trough is a maximum minus a minimum over twenty-four bins, and that spans three and a
+Peak minus trough is a max minus a minimum over twenty-four bins, and that spans three and a
 half to four and a half standard deviations for pure noise, by construction. A bar set at two, or
 even at four, is at or below what chance produces. Every pool clears it. And eight trough hours
 drawn uniformly from twenty-four span about nineteen hours on average. A twenty hour spread is

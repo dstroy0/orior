@@ -28,7 +28,7 @@ WHY THE DEVICE ARM IS HERE
 Two arms of the same width differ only in where they ran. Their disagreement separates the
 device from the format. Two arms of the same side differ only in width. Their disagreement
 separates the format from the device. One arm alone confounds them, and the confound is the failure
-this tree keeps finding under new disguises.
+this tree retains finding under new disguises.
 """
 
 import argparse
@@ -207,7 +207,7 @@ def _check():
     lines = []
     failed = 0
 
-    # The fit has to recover a slope it is handed, or the number it reports about the real data
+    # The fit has to recover a slope it is passed, or the number it reports about the real data
     # means nothing. Built on exact points. The answer is known.
     made = [(float(d), "decimal", 10.0 ** (-1.0 * d), "made %d" % d) for d in (10, 20, 30, 40)]
     slope, _, worst = fitted_slope(made)

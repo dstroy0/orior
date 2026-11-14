@@ -188,7 +188,7 @@ if [ "${TESSERA_DEVICE:-1}" = "1" ]; then
         # once it holds, tessera_run and the daemon it starts are published together into build/tessera_host, where
         # every build that wraps itself in a host job finds them; the device daemons beside the programs are untouched.
         # A copy that is running is renamed aside first (Windows lets a running program be renamed, not overwritten),
-        # and the jobs already under it keep it; the ones set aside before are removed once nothing runs them
+        # and the jobs already under it retain it; the ones set aside before are removed once nothing runs them
         if [ "$STATUS" -eq 0 ] && [ "$FINAL" != "$OUT" ]; then
             HOST="$FINAL/tessera_host"
             mkdir -p "$HOST"

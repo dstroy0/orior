@@ -19,8 +19,8 @@
 # stated in.
 #
 # The null is built by deletion, as everywhere else here, and which property it deletes decides the
-# question. Shuffling the values among fixed points deletes composition and keeps geometry, and a
-# protein is ordered geometrically. That null cancels the structure. Scattering the points and keeping
+# question. Shuffling the values among fixed points deletes composition and retains geometry, and a
+# protein is ordered geometrically. That null cancels the structure. Scattering the points and retention
 # the values deletes geometry instead, and that second null shows it.
 
 import os
@@ -86,14 +86,14 @@ def cascade(cloud, rng, shuffled):
     if shuffled and NULL_MODE == "values":
         # Deletes which residue sits where and leaves every coordinate alone. That is the wrong property
         # to remove here: the rules a protein obeys, backbone angles and secondary structure and bond
-        # lengths, constrain where the points are. This null keeps all of it. It appears in both arms
+        # lengths, constrain where the points are. This null retains all of it. It appears in both arms
         # and cancels
         keys = list(places)
         values = [places[key] for key in keys]
         rng.shuffle(values)
         places = dict(zip(keys, values))
     elif shuffled:
-        # Deletes the geometry and keeps the composition, by scattering the same values over the same
+        # Deletes the geometry and retains the composition, by scattering the same values over the same
         # bounding box. Whatever the fold constrains is then present in one arm and absent from the other
         keys = list(places)
         lows = [min(key[axis] for key in keys) for axis in range(3)]

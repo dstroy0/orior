@@ -26,7 +26,7 @@
 #endif
 
 // a NOP for the architecture: put in place of an instruction the vendor calls illegal so the run reads past it. The
-// instruction it stands in for is already blocked; its own reading is never used
+// instruction it is in for is already blocked; its own reading is never used
 static const unsigned char s_nop[16] = {0x18u, 0x79u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
                                         0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0xc0u, 0x0fu, 0x00u};
 
@@ -38,11 +38,11 @@ static const char *const s_control[] = {"BRA",   "BRX",   "JMP",  "JMX",      "C
 // an executable section of an ELF, by the flag its header carries
 #define MSQ_EXECUTABLE 0x4ull
 
-// the most registers a reading names, past the most a kernel allots and the widest operand past it
+// the max registers a reading names, past the max a kernel allots and the widest operand past it
 #define MSQ_REGISTERS 512u
 
-// the most registers a kernel allots a thread, R254 the highest a field names short of RZ
-#define MSQ_ALLOTTED_MOST 255u
+// the max registers a kernel allots a thread, R254 the highest a field names short of RZ
+#define MSQ_ALLOTTED_MAX 255u
 
 static const char s_illegal_why[] = "the vendor reads an illegal instruction our gate's key passed";
 
@@ -57,7 +57,7 @@ typedef enum
 
 typedef struct
 {
-    MsqKind kind;
+    MsqKind type;
     char operation[48];
     const char *body;
 } MsqReading;
@@ -89,7 +89,7 @@ typedef struct
 } MsqBytes;
 
 // a question: its answers' stem, its code's name, its position, the registers its kernel allots, its container's code, and
-// its probe instruction as the part would be handed it, where the code contains the probe
+// its probe instruction as the part would be passed it, where the code contains the probe
 typedef struct
 {
     char stem[256];
@@ -107,8 +107,8 @@ typedef struct
     size_t piece_key[2];
 } MsqQuestion;
 
-// A reader of the vendor's disassembler over raw runs: the stream its runs are handed as, the run it is handing, the
-// output it was handed back, and the count of runs it read. `ident` records the blob names of readers that run at once
+// A reader of the vendor's disassembler over raw runs: the stream its runs are passed as, the run it is handing, the
+// output it was passed back, and the count of runs it read. `ident` records the blob names of readers that run at once
 // apart, and `stream` their streams
 typedef struct
 {
@@ -159,7 +159,7 @@ typedef enum
     MSQ_PIECE_TAIL = 2
 } MsqPieceKind;
 
-// where a piece stands after the accumulated run: read in it, stopped at by the vendor and so set aside, or set aside
+// where a piece is after the accumulated run: read in it, stopped at by the vendor and so set aside, or set aside
 // unread where the vendor stopped at no address it named
 typedef enum
 {
@@ -168,11 +168,11 @@ typedef enum
     MSQ_PIECE_UNREAD = 2
 } MsqPieceState;
 
-// a piece: its kind, its index among the distinct ones of its kind, its bytes, where it stood in the last run read, and
-// how it stands
+// a piece: its type, its index among the distinct ones of its type, its bytes, where it was in the last run read, and
+// how it is
 typedef struct
 {
-    MsqPieceKind kind;
+    MsqPieceKind type;
     size_t index;
     MsqBytes bytes;
     unsigned long long start;
@@ -181,7 +181,7 @@ typedef struct
 
 // The pieces set aside from the accumulated run, each read alone by a pool of reader threads at once, each thread a
 // reader of its own: `aside` lists them by their place in `pieces`, every one put before a thread starts, and a thread
-// takes the next by `next`. What each reads goes where its kind's reading is stored: a probe encoding's into
+// takes the next by `next`. What each reads goes where its type's reading is stored: a probe encoding's into
 // `readings`, a frame's into `frame_read`, a tail's addressed registers into `addressed`
 typedef struct
 {
@@ -242,7 +242,7 @@ int msq_register_reached(const char *body, unsigned int registers, unsigned long
 void msq_registers_written(const char *body, MsqRegisters *set);
 int msq_memory(const char *body);
 int msq_container_code(const MsqBytes *container, MsqBytes *code);
-int msq_distinct_made(MsqDistinct *set, size_t most);
+int msq_distinct_made(MsqDistinct *set, size_t max);
 size_t msq_distinct_index(MsqDistinct *set, const MsqBytes *item);
 void msq_distinct_free(MsqDistinct *set);
 int msq_illegal_found(const char *text, size_t length);

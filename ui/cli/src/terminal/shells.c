@@ -5,8 +5,8 @@
 #include "../runs/runner.h"
 #include "../toolchains/toolchains.h"
 
-// the settings the reader's shell starts with, at the most; the bytes read from a shell's pipe at once; and the reads
-// of one drain, at the most, so a shell that writes without rest does not hold its owner's thread
+// the settings the reader's shell starts with, at max; the bytes read from a shell's pipe at once; and the reads
+// of one drain, at max, so a shell that writes without rest does not hold its owner's thread
 #define SHELLS_SETTINGS 5u
 #define SHELLS_PIECE 4096u
 #define SHELLS_PIECES 64u
@@ -35,7 +35,7 @@ typedef struct
 
 static ShellsStart s_start;
 
-// the PATH a run takes into s_start.path, with the folder orior stands in after it where it fits
+// the PATH a run takes into s_start.path, with the folder orior is in after it where it fits
 EMBED_INLINE void shells_path(void)
 {
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_start.path,
@@ -178,7 +178,7 @@ void cli_terminal_shell_write(const CliTerminalShellCfg *args)
     const unsigned long long left = (unsigned long long)CLI_TERMINAL_WAITING_MAX - shell->waiting_size;
     const unsigned long long taken = (args->size < left) ? args->size : left;
     memor.cpy(&(MemoriaCfg){.dst = shell->waiting + shell->waiting_size, .src = args->bytes, .bytes = taken});
-    // what is taken is at most CLI_TERMINAL_WAITING_MAX, which an unsigned int counts
+    // what is taken is at max CLI_TERMINAL_WAITING_MAX, which an unsigned int counts
     shell->waiting_size += (unsigned int)taken;
 }
 
@@ -314,7 +314,7 @@ int cli_terminal_shell_drain(const CliTerminalShellCfg *args)
     {
         shell->quiet_ms = received ? args->now_ms : shell->quiet_ms;
         if ((args->now_ms >= (shell->quiet_ms + CLI_TERMINAL_EXIT_QUIET_MS)) ||
-            (args->now_ms >= (shell->ended_ms + CLI_TERMINAL_EXIT_MOST_MS)))
+            (args->now_ms >= (shell->ended_ms + CLI_TERMINAL_EXIT_MAX_MS)))
         {
             EMBED_CALL(shells_exited, ShellsCtx, .shell = shell, .xterm = args->xterm, .code = shell->code);
             return 1;

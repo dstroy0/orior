@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // comms.c: the Comms pane in the panel at the work's foot: its head's four choices, the Channels view's count and
 // Read Again, and its rows as the CLI lists them, each drawn from the CLI's texts and numbers; the Requests view's
-// head, rows and presses handed to its table
+// head, rows and presses passed to its table
 #include "comms.h"
 
 #include "../../cli/src/command_line/cli_internal.h"
@@ -15,7 +15,7 @@ typedef struct
     unsigned int which;
 } CommsPartCtx;
 
-// the view shown, as the CLI answers it
+// the view displayed, as the CLI answers it
 EMBED_INLINE unsigned int comms_view(const CommsPartCtx *args)
 {
     (void)args;
@@ -54,7 +54,7 @@ EMBED_INLINE GuiRect comms_choice_rect(const CommsPartCtx *args)
                      EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args->pane, .x = GUI_PANE_CHOICE)};
 }
 
-// the head under the choices' row, where the view shown lays its own
+// the head under the choices' row, where the view displayed positions its own
 EMBED_INLINE GuiRect comms_under_rect(const CommsPartCtx *args)
 {
     const GuiRect rect = args->pane->rect;
@@ -71,7 +71,7 @@ EMBED_INLINE GuiRect comms_again_rect(const CommsPartCtx *args)
                      EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args->pane, .x = GUI_PANE_CHOICE)};
 }
 
-// the pane as the view shown reads it: its head under the choices, and the action the pointer stands on as its own
+// the pane as the view displayed reads it: its head under the choices, and the action the pointer is on as its own
 EMBED_INLINE GuiPaneCfg comms_forwarded(const CommsPartCtx *args)
 {
     GuiPaneCfg forwarded = *args->pane;
@@ -79,7 +79,7 @@ EMBED_INLINE GuiPaneCfg comms_forwarded(const CommsPartCtx *args)
     return forwarded;
 }
 
-// the head drawn: the four choices, the view shown lit; under them the Channels view's count and Read Again, or the
+// the head drawn: the four choices, the view displayed lit; under them the Channels view's count and Read Again, or the
 // Requests view's head
 static void comms_head_draw(const GuiPaneCfg *args)
 {
@@ -155,12 +155,12 @@ static void comms_action(const GuiPaneCfg *args)
     if ((args->which >= CLI_COMMS_CHOOSE) && (args->which < CLI_COMMS_CHOOSE + CLI_COMMS_VIEWS))
     {
         EMBED_CALL(cli_comms_pane.choose, CliCommsPaneCfg, .view = args->which - CLI_COMMS_CHOOSE);
-        (void)EMBED_CALL(cli_comms_pane.step, CliCommsPaneCfg, .root = args->root, .shown = 1, .force = 1);
+        (void)EMBED_CALL(cli_comms_pane.step, CliCommsPaneCfg, .root = args->root, .displayed = 1, .force = 1);
         return;
     }
     if (args->which == CLI_COMMS_READ)
     {
-        (void)EMBED_CALL(cli_comms_pane.step, CliCommsPaneCfg, .root = args->root, .shown = 1, .force = 1);
+        (void)EMBED_CALL(cli_comms_pane.step, CliCommsPaneCfg, .root = args->root, .displayed = 1, .force = 1);
         return;
     }
     if ((args->which > CLI_COMMS_FORWARD) &&
@@ -253,9 +253,9 @@ static int comms_press(const GuiPaneCfg *args)
 // the layer listed again as the pane shows
 static void comms_read(const GuiPaneCfg *args)
 {
-    if (args->event == GUI_PANE_SHOWN)
+    if (args->event == GUI_PANE_DISPLAYED)
     {
-        (void)EMBED_CALL(cli_comms_pane.step, CliCommsPaneCfg, .root = args->root, .shown = 1, .force = 1);
+        (void)EMBED_CALL(cli_comms_pane.step, CliCommsPaneCfg, .root = args->root, .displayed = 1, .force = 1);
     }
 }
 

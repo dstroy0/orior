@@ -8,7 +8,7 @@
 #
 #   Usage:  python evidence/proofs/posits/proof_pi_clears_the_term.py
 #
-# The posit. Draw the term as a vertical bar, a tower. Pi does not stand on the tower; it clears it. An
+# The posit. Draw the term as a vertical bar, a tower. Pi does not are on the tower; it clears it. An
 # alternating series encloses pi between two exact rationals that agree to more places as the term grows.
 # That enclosure is the boundary, exact at every floor, and pi is strictly inside every finite bracket.
 # No finite computation ever holds pi. This is the exact boundary read without touching exactly. The

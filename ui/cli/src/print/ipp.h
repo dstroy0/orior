@@ -40,7 +40,7 @@ typedef struct CliIppCodeCfg CliIppCodeCfg;
 #define CLI_IPP_LANGUAGE 0x48u
 #define CLI_IPP_MIME 0x49u
 
-// the most groups, attributes and values a message contains, and the bytes of their names and texts
+// the max groups, attributes and values a message contains, and the bytes of their names and texts
 #define CLI_IPP_GROUPS 256u
 
 #define CLI_IPP_ATTRIBUTES 8192u
@@ -138,10 +138,10 @@ int cli_ipp_first_number(const CliIppNameCfg *args);
 // or 0 with why given
 int cli_ipp_address(const CliIppErrMsgCfg *args);
 // `request` sent to the printer at `uri`, `document` of `size` bytes after it, and its answer read into `answer`,
-// each read waited on 30 seconds at most: 1, or 0 with why given
+// each read waited on 30 seconds at max: 1, or 0 with why given
 int cli_ipp_exchange(const CliIppSizeCfg *args);
 
-// the most texts of one attribute read
+// the max texts of one attribute read
 #define CLI_IPP_LISTING 64u
 
 // How a job is printed: its name, its document's format, and the job's own settings

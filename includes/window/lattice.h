@@ -1,14 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // lattice.h: the lattice's computing for the window: its numbers, the stage of its loop, each slot's lattice, the pens
-// its dots are shaded from and the dots themselves. The lattice (lattice.c) lays out, moves, shades and judges the
+// its dots are shaded from and the dots themselves. The lattice (lattice.c) arranges, moves, shades and judges the
 // points; the window draws the dots into its ground (ground.c)
 #ifndef LATTICE_H
 #define LATTICE_H
 
 #include "embed_types.h"
 
-// how far the most disordered point goes from its place, in pixels, and the seed of every lattice's points
+// how far the max disordered point goes from its place, in pixels, and the seed of every lattice's points
 #define LATTICE_REACH (22.0 * 2.4)
 #define LATTICE_SEED 1729u
 // where one side is ordered: the share of the lattice before its points start to move, and the share over which they
@@ -16,7 +16,7 @@
 #define LATTICE_ORDERED 0.1
 #define LATTICE_RAMP 0.54
 #define LATTICE_PI 3.141592653589793
-// the lattices kept at once, the window's in the first and the checks' in the others; the levels of pen the dots are
+// the lattices retained at once, the window's in the first and the checks' in the others; the levels of pen the dots are
 // shaded from; and the share of a pen's radius a dot is drawn at
 #define LATTICE_SLOTS 8u
 #define LATTICE_LEVELS 24
@@ -36,7 +36,7 @@ enum LatticeStageType
     LATTICE_GATHER = 3,
 };
 
-// where the loop stands: its stage's type, the angle of a side, the front of a spread and the share of the stage
+// where the loop is: its stage's type, the angle of a side, the front of a spread and the share of the stage
 // done
 typedef struct
 {
@@ -56,7 +56,7 @@ typedef struct
     embed_u32 color;
 } LatticeDot;
 
-_Static_assert(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__, "LatticeDot: a color's bytes stand red first in memory");
+_Static_assert(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__, "LatticeDot: a color's bytes are red first in memory");
 
 // the pens the dots are shaded from, one a level of disorder from ordered to the least ordered: each color's red,
 // green, blue and alpha from 0 to 1, and its radius in pixels
@@ -78,9 +78,9 @@ typedef struct
 // how far a point's offset reaches as a signed byte: the radius of its circle of movement
 #define LATTICE_OFFSET_MAX 127.0
 
-// one lattice: its points stand on a grid, `columns` across and `rows` down, the first `half` a step in from the top
+// one lattice: its points are on a grid, `columns` across and `rows` down, the first `half` a step in from the top
 // left and the rest a `step` apart: a point's origin is its row and column, and it stays where it is whatever the box
-// it is laid out over; each keeps the place it moves toward on its circle around its origin, drawn from a seed of its
+// it is arranged over; each retains the place it moves toward on its circle around its origin, drawn from a seed of its
 // row and column, as its offset across and down, a signed byte each, the circle's radius LATTICE_OFFSET_MAX, two bytes
 // a point for as many as `capacity` points. Made once the window draws with them, as many as `dots_capacity` hold:
 // each point moved and shaded as a dot
@@ -100,16 +100,16 @@ typedef struct
 // the lattice of `slot`, which is below LATTICE_SLOTS
 LatticeSlot *lattice_slot(embed_u32 slot);
 
-// lays out the lattice of `slot` over a box `width` by `height` pixels: the points a step apart from half a step in
-// from the top left, as many as stand inside the box, at least one each way; each point's place on its circle drawn
+// arranges the lattice of `slot` over a box `width` by `height` pixels: the points a step apart from half a step in
+// from the top left, as many as are inside the box, at least one each way; each point's place on its circle drawn
 // from its own seed, its way round and its share of the radius. The count of points, 0 where `slot` is past the last
 // or the memory cannot hold them
-embed_u32 lattice_lay(embed_u32 slot, double width, double height);
+embed_u32 lattice_position(embed_u32 slot, double width, double height);
 
-// where the loop stands at `seconds`
+// where the loop is at `seconds`
 LatticeStageAt *lattice_stage(double seconds);
 
-// the shades made from `pens`: each the two pens either side of its disorder blended by where it stands between them,
+// the shades made from `pens`: each the two pens either side of its disorder blended by where it is between them,
 // its radius at LATTICE_FITS of theirs
 void lattice_shaded(const LatticePens *pens, LatticeShades *shades);
 
@@ -123,9 +123,9 @@ embed_u32 lattice_shows(double then, double now);
 
 // the soonest moment from `from` on at which the loop has moved since `then` enough to be seen: the moment a window
 // that drew the loop at `then` next draws it; `from` and a loop past it where none shows
-double lattice_shown_after(double then, double from);
+double lattice_displayed_after(double then, double from);
 
-// the cells of `slot` given back, its lattice laid out over nothing
+// the cells of `slot` given back, its lattice arranged over nothing
 void lattice_given(embed_u32 slot);
 
 #endif

@@ -10,7 +10,7 @@ static char s_text[8192];
 static unsigned long long wrapper_of(const char *program)
 {
     VerbaLinea line = {s_text, sizeof(s_text) - 1u, 0ull};
-    EMBED_CALL(cli_host.stand_in, CliHostCfg, .name = program, .line = &line);
+    EMBED_CALL(cli_host.are_in, CliHostCfg, .name = program, .line = &line);
     s_text[line.at] = '\0';
     return line.at;
 }
@@ -63,7 +63,7 @@ void test_writing_wrappers_skips_the_sandbox_tools_and_bad_names(void)
     (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = folder);
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    TEST_ASSERT_EQUAL_INT64(1ll, EMBED_CALL(cli_host_into.stand_ins_write, CliHostIntoCfg, .into = folder, .names = "git\nflatpak-spawn\norior\n../x\n\n", .err_msg = &err_msg));
+    TEST_ASSERT_EQUAL_INT64(1ll, EMBED_CALL(cli_host_into.are_ins_write, CliHostIntoCfg, .into = folder, .names = "git\nflatpak-spawn\norior\n../x\n\n", .err_msg = &err_msg));
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "git", .joined = path);
     TEST_ASSERT_TRUE(EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path));
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "flatpak-spawn", .joined = path);

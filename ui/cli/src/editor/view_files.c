@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // view_files.c: the files open as views, which are the window's tabs. A file is read where it is opened, its text
 // stored whole or paged under a key of its path's own and its grammar applied, and its view opened on the text at the
-// editor's size. The session is the views' paths in order, a line each, the shown one's first, saved in orior's folder
+// editor's size. The session is the views' paths in order, a line each, the displayed one's first, saved in orior's folder
 // under a key of the tree's own
 #include "view.h"
 
@@ -11,7 +11,7 @@
 #include "../text/text.h"
 #include "files.h"
 
-// the head of the key a file's text is stored under, and the key of orior's folder the session stands under, the
+// the head of the key a file's text is stored under, and the key of orior's folder the session is under, the
 // tree's folder after it
 #define CLI_VIEW_KEY_HEAD "window:"
 #define CLI_VIEW_SESSION_KEY "window.session."
@@ -28,7 +28,7 @@ typedef struct
 } ViewFilesCtx;
 
 // the line and the column the `length` bytes at `path` end in, each a colon and digits counted from 1, as a place
-// counted from 0 into `place`, a line alone standing at the line's start: how many bytes stand before them, `length`
+// counted from 0 into `place`, a line alone located at the line's start: how many bytes are before them, `length`
 // where the bytes end in no colon and digits
 EMBED_INLINE unsigned long long view_files_place(const ViewFilesCtx *args)
 {
@@ -176,7 +176,7 @@ int cli_view_file_open(const char *root, const char *path, unsigned int rows, un
         }
         const CliViewInput sized = {.type = CLI_VIEW_SIZE, .rows = rows, .columns = columns};
         (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = key, .input = &sized, .err_msg = err_msg);
-        // the view opened stands last in the table, which is fewer than an int counts
+        // the view opened is last in the table, which is fewer than an int counts
         at = (int)cli_view_count() - 1;
     }
     if (at < 0)
@@ -214,7 +214,7 @@ void cli_view_session_save(const char *root)
         return;
     }
     const unsigned int count = cli_view_count();
-    const int shown = cli_view_shown();
+    const int displayed = cli_view_displayed();
     unsigned long long bytes = 2ULL;
     char path[CLI_PATH_MAX_LEN];
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -223,20 +223,20 @@ void cli_view_session_save(const char *root)
             (cli_view_path_at(at, path) ? cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}) : 0ULL) +
             1ULL;
     }
-    // the view shown is among the views
-    char shown_path[CLI_PATH_MAX_LEN];
-    if ((shown < 0) || !cli_view_path_at((unsigned int)shown, shown_path))
+    // the view displayed is among the views
+    char displayed_path[CLI_PATH_MAX_LEN];
+    if ((displayed < 0) || !cli_view_path_at((unsigned int)displayed, displayed_path))
     {
-        shown_path[0] = '\0';
+        displayed_path[0] = '\0';
     }
-    bytes += cellul.len(&(CatenaFinitaCfg){.src = shown_path, .cap = CLI_PATH_MAX_LEN});
+    bytes += cellul.len(&(CatenaFinitaCfg){.src = displayed_path, .cap = CLI_PATH_MAX_LEN});
     char *const cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_views_owner);
     if (cell == NULL)
     {
         return;
     }
     VerbaLinea text = {cell, bytes, 0ULL};
-    mmgr_line_put(&text, shown_path);
+    mmgr_line_put(&text, displayed_path);
     mmgr_line_ch(&text, '\n');
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -278,9 +278,9 @@ void cli_view_session_restore(const char *root, const CliStateEntries *entries, 
         return;
     }
     char why[CLI_ERR_MSG_MAX_LEN];
-    const unsigned long long shown_end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+    const unsigned long long displayed_end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                     .text = session, .at = 0ULL, .size = size, .set = "\n");
-    for (unsigned long long at = shown_end + 1ULL; at < size;)
+    for (unsigned long long at = displayed_end + 1ULL; at < size;)
     {
         const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                   .text = session, .at = at, .size = size, .set = "\n");
@@ -294,13 +294,13 @@ void cli_view_session_restore(const char *root, const CliStateEntries *entries, 
         }
         at = end + 1ULL;
     }
-    char shown[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {shown, sizeof(shown), 0ULL};
-    mmgr_line_put_n(&line, session, shown_end);
+    char displayed[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {displayed, sizeof(displayed), 0ULL};
+    mmgr_line_put_n(&line, session, displayed_end);
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    if ((shown_end != 0ULL) && (mmgr_line_finish(&line) != 0ULL))
+    if ((displayed_end != 0ULL) && (mmgr_line_finish(&line) != 0ULL))
     {
-        (void)cli_view_file_open(root, shown, rows, columns, NULL, &err_msg);
+        (void)cli_view_file_open(root, displayed, rows, columns, NULL, &err_msg);
     }
     g_cli_guard->persistent_buf_release(session, g_cli_editor_owner);
 }

@@ -11,7 +11,7 @@
 # The engine reads a recurrence in two composed steps that already exist. measure.periodicity finds
 # the period by scoring a candidate against its own family of multiples, and a sequence that repeats
 # every three is read as three and not as six, a trap caught earlier on protein backbones. Then
-# reference.periodic builds the maximum entropy background at that one period, binding each position to
+# reference.periodic builds the max entropy background at that one period, binding each position to
 # the positions congruent to it modulo the period. Both steps fix a single period: phase is the index
 # modulo P, and there is exactly one P.
 #
@@ -28,13 +28,13 @@
 # partition module names. It is not stipulated, a boundary set picked by judgment, the bounding
 # this work forbids. It cannot be estimated from the sequence, because a sweep for one period cannot
 # recover a growing one, and that attempt is the trap below. It is supervised, ground truth from outside
-# the sample, which the partition module places in oracle. So the shell boundaries are the same kind of
+# the sample, which the partition module places in oracle. So the shell boundaries are the same type of
 # fact as the bond-length oracle, reached from a second direction: the departure is measured, and the
 # partition that makes it readable comes from outside.
 #
-# Two routes are read and shown able to disagree. Route one is the engine's single-period reader, which
+# Two routes are read and displayed able to disagree. Route one is the engine's single-period reader, which
 # estimates a period and reports how far its best candidate beat the lags outside that candidate's
-# family. Route two is a supervised-partition reader, handed the boundaries and asked whether each
+# family. Route two is a supervised-partition reader, passed the boundaries and asked whether each
 # segment repeats the first, the reading that needs the ledger. On a constant recurrence both
 # routes depart from the shuffle. On a growing recurrence route one stays inside the shuffle band while
 # route two departs. Neither route is the other twice. The null is drawn, never assumed: the same
@@ -71,7 +71,7 @@ def sawtooth(segment_lengths):
 
 
 def boundaries_of(segment_lengths):
-    """The index each segment starts at, the supervised partition a reader is handed."""
+    """The index each segment starts at, the supervised partition a reader is passed."""
     starts = []
     cursor = 0
     for length in segment_lengths:
@@ -167,7 +167,7 @@ def main():
         sys.stdout.buffer, encoding="utf-8", errors="replace", newline=""
     )
     out.write(
-        "  A recurrence read two ways. Route one estimates a single period; route two is handed\n"
+        "  A recurrence read two ways. Route one estimates a single period; route two is passed\n"
     )
     out.write(
         "  the boundaries. Each is read against its own shuffle of the same values.\n\n"
@@ -214,7 +214,7 @@ def main():
 
     disagree = growing_one != growing_two
     out.write(
-        "  two routes, shown able to disagree: on the growing recurrence they %s. Neither route\n"
+        "  two routes, displayed able to disagree: on the growing recurrence they %s. Neither route\n"
         % ("disagree" if disagree else "agree")
     )
     out.write("  is the other twice.\n")

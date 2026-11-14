@@ -11,7 +11,7 @@
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 // A language server in Python that answers initialize, writes on its errors each file it is sent, and ends as orior/end requests
-static const char s_stand_in[] = "import json, sys\n"
+static const char s_are_in[] = "import json, sys\n"
                                  "def read():\n"
                                  "    length = 0\n"
                                  "    while True:\n"
@@ -114,8 +114,8 @@ static CliLsp *server_started(const char *name, void (*on_request)(const CliLspR
         TEST_IGNORE_MESSAGE("no Python on this machine");
     }
     cli_unity_folder(name, dir);
-    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = dir, .relative = "stand_in.py", .joined = script);
-    TEST_ASSERT_TRUE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = script, .bytes = s_stand_in, .size = sizeof(s_stand_in) - 1u));
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = dir, .relative = "are_in.py", .joined = script);
+    TEST_ASSERT_TRUE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = script, .bytes = s_are_in, .size = sizeof(s_are_in) - 1u));
     const char *const args[1] = {script};
     return EMBED_CALL(cli_lsp_err_msg.start, CliLspErrMsgCfg, .program = python, .request = args, .count = 1u, .root = dir, .options = "null", .length = 4ull, .settings = NULL, .setting_count = 0u, .recv = on_request, .context = context, .err_msg = &err_msg);
 }
@@ -132,7 +132,7 @@ static void ended_run_result(void)
         return;
     }
     s_ended_run_result = 1;
-    CliLsp *const server = server_started("lsp_stand_in", request_answered_null, NULL, dir);
+    CliLsp *const server = server_started("lsp_are_in", request_answered_null, NULL, dir);
     s_ended_started = (server != NULL) && EMBED_CALL(cli_lsp_context.alive, CliLspContextCfg, .lsp = server);
     if (server == NULL)
     {
@@ -183,7 +183,7 @@ void tearDown(void)
 {
 }
 
-void test_a_path_is_written_as_a_file_uri_its_letters_escaped(void)
+void test_a_path_is_written_as_a_file_uri_its_characters_escaped(void)
 {
 #if defined(_WIN32)
     static const char s_path[] = "D:\\a b\\c#.cu";
@@ -247,7 +247,7 @@ void test_a_requests_answer_is_the_message_returned_its_result_ended_by_a_0(void
     char dir[CLI_PATH_MAX_LEN];
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    CliLsp *const server = server_started("lsp_handed", request_answered_null, NULL, dir);
+    CliLsp *const server = server_started("lsp_passed", request_answered_null, NULL, dir);
     TEST_ASSERT_NOT_NULL(server);
     CliLspAnswer answer;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_lsp_err_msg_length.request, CliLspErrMsgLengthCfg, .lsp = server, .method = "orior/echo", .params = "[1,2]", .length = 5ull, .wait = 5000ull, .answer = &answer, .err_msg = &err_msg));
@@ -265,7 +265,7 @@ void test_an_answers_cell_stays_allocated_until_the_caller_releases_it(void)
     char dir[CLI_PATH_MAX_LEN];
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    CliLsp *const server = server_started("lsp_handed", request_answered_null, NULL, dir);
+    CliLsp *const server = server_started("lsp_passed", request_answered_null, NULL, dir);
     TEST_ASSERT_NOT_NULL(server);
     const unsigned long long before = mmgr_owner_in_use(g_cli_servers_owner);
     CliLspAnswer answer;
@@ -282,7 +282,7 @@ void test_a_request_the_server_refuses_returns_nothing_and_records_its_reason(vo
     char dir[CLI_PATH_MAX_LEN];
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    CliLsp *const server = server_started("lsp_handed", request_answered_null, NULL, dir);
+    CliLsp *const server = server_started("lsp_passed", request_answered_null, NULL, dir);
     TEST_ASSERT_NOT_NULL(server);
     const unsigned long long before = mmgr_owner_in_use(g_cli_servers_owner);
     CliLspAnswer answer;

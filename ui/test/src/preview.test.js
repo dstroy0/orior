@@ -4,12 +4,12 @@
 // The live preview, beside the text and alone: Markdown drawn as the text changes, a block at a time,
 // and scrolled with the text by their lines; a page of HTML patched where it changed and its
 // stylesheet swapped in place; a CSS file over a page of its own; SVG and a Mermaid file drawn; and
-// the place the cursor stands marked in each.
+// the place the cursor is marked in each.
 
 import { invoke } from "../../gui/src-js/bridge.js";
 import { editing, openFile } from "../../gui/src-js/edit.js";
 import { runCommand } from "../../gui/src-js/menubar.js";
-import { kindOf: typeOf, lastDrawing, previewMode, resolveFrom, setPreview } from "../../gui/src-js/preview.js";
+import { typeOf: typeOf, lastDrawing, previewMode, resolveFrom, setPreview } from "../../gui/src-js/preview.js";
 import { showView } from "../../gui/src-js/views.js";
 
 const { test, assert, ui } = window.__harness;
@@ -36,7 +36,7 @@ function retype(text) {
   editor.type(text);
 }
 
-test("each kind of file that sets how something looks has a preview, and no other", () => {
+test("each type of file that sets how something looks has a preview, and no other", () => {
   const types = ["a.md", "a.MARKDOWN", "b.html", "b.htm", "c.css", "d.svg", "e.mmd", "e.mermaid", "f.tex", "a.js", "a.rs", null].map(typeOf);
   assert.deepEqual(types, ["markdown", "markdown", "html", "html", "css", "svg", "mermaid", "mermaid", "latex", null, null, null]);
 });
@@ -58,7 +58,7 @@ test("View, Preview shows the Markdown file in the editor beside its text", asyn
   runCommand("preview");
   await ui.waitFor(() => !pane().hidden && pane().querySelector("h1"), 3000);
   assert.equal(desk().dataset.preview, "beside");
-  assert.equal(pane().dataset.kind, "markdown");
+  assert.equal(pane().dataset.type, "markdown");
   assert.equal(pane().querySelector("h1").textContent, "The preview");
   assert.equal(pane().querySelectorAll("h2").length, 60);
 });
@@ -71,10 +71,10 @@ test("a key typed redraws only the block it changed, in time the page has free",
   await ui.waitFor(() => /Changed: The text of section 0/.test(pane().textContent), 3000);
   const drawn = lastDrawing();
   assert.equal(drawn.drawn, 1, `one block drawn again: ${JSON.stringify(drawn)}`);
-  assert.ok(drawn.kept > 100, "the others kept");
+  assert.ok(drawn.retained > 100, "the others retained");
 });
 
-test("the block the cursor stands in is marked", async () => {
+test("the block the cursor is in is marked", async () => {
   const { editor } = editing();
   editor.goTo(6, 2);
   await ui.waitFor(() => pane().querySelector(".here")?.textContent === "Section 1", 2000).catch((error) => {
@@ -89,11 +89,11 @@ test("the preview scrolls with the text by their lines, and the text with the pr
   editor.place(150 * (editor.scroller.scrollHeight / Math.max(1, editor.allRows())));
   const topLine = () => Number([...pane().children].find((one) => one.offsetTop + one.offsetHeight > pane().scrollTop)?.dataset.line);
   await ui.waitFor(() => Math.abs(topLine() - 150) <= 4, 3000).catch((error) => {
-    throw new Error(`${error.message}: the preview's top stands at line ${topLine()}, scrolled ${pane().scrollTop} of ${pane().scrollHeight}; the editor's at ${editor.scrollY()}`);
+    throw new Error(`${error.message}: the preview's top is at line ${topLine()}, scrolled ${pane().scrollTop} of ${pane().scrollHeight}; the editor's at ${editor.scrollY()}`);
   });
   pane().scrollTop = 0;
   await ui.waitFor(() => editor.scrollY() < 40, 3000).catch((error) => {
-    throw new Error(`${error.message}: the editor stands at ${editor.scrollY()} with the preview scrolled ${pane().scrollTop}`);
+    throw new Error(`${error.message}: the editor is at ${editor.scrollY()} with the preview scrolled ${pane().scrollTop}`);
   });
 });
 
@@ -116,13 +116,13 @@ test("a page of HTML is drawn in a frame that runs none of its scripts, its link
   await open("site/index.html");
   setPreview("beside");
   await ui.waitFor(() => page()?.getElementById("end"), 3000);
-  assert.equal(pane().dataset.kind, "html");
+  assert.equal(pane().dataset.type, "html");
   assert.equal(frame().getAttribute("sandbox"), "allow-same-origin");
   assert.notEqual(page().title, "ran", "the page's script did not run");
   await ui.waitFor(() => page().defaultView.getComputedStyle(page().querySelector("h1")).color === "rgb(10, 20, 30)", 3000);
 });
 
-test("a change to the page is patched where it changed, its scroll and its fields kept", async () => {
+test("a change to the page is patched where it changed, its scroll and its fields retained", async () => {
   retype(HTML);
   await ui.waitFor(() => !page().querySelector("script"), 3000);
   const before = page();
@@ -140,12 +140,12 @@ test("a change to the page is patched where it changed, its scroll and its field
   assert.equal(page(), before, "the same page, not loaded again");
   assert.equal(page().getElementById("field").value, "typed");
   // the keys typed claim the window's edges and the frame grows by what they give it, which brings the page's
-  // bottom up: a page left at its bottom stands at its bottom as it is now
-  const most = page().scrollingElement.scrollHeight - page().defaultView.innerHeight;
-  assert.equal(page().scrollingElement.scrollTop, Math.min(bottom, most), "at the same scroll");
+  // bottom up: a page left at its bottom is at its bottom as it is now
+  const max = page().scrollingElement.scrollHeight - page().defaultView.innerHeight;
+  assert.equal(page().scrollingElement.scrollTop, Math.min(bottom, max), "at the same scroll");
 });
 
-test("the element the cursor stands in is outlined over the frame, and brought into sight", async () => {
+test("the element the cursor is in is outlined over the frame, and brought into sight", async () => {
   const { editor } = editing();
   editor.goTo(7, 3);
   const here = () => pane().querySelector(".preview-here");
@@ -156,15 +156,15 @@ test("the element the cursor stands in is outlined over the frame, and brought i
     return !here().hidden && Math.abs(box.top - (outer.top + field.top)) < 2 && Math.abs(box.width - field.width) < 2 && field.top >= 0;
   };
   await ui.waitFor(over, 3000).catch((error) => {
-    throw new Error(`${error.message}: the outline stands at ${JSON.stringify(here().getBoundingClientRect())}, the field at ${JSON.stringify(page().getElementById("field").getBoundingClientRect())}`);
+    throw new Error(`${error.message}: the outline is at ${JSON.stringify(here().getBoundingClientRect())}, the field at ${JSON.stringify(page().getElementById("field").getBoundingClientRect())}`);
   });
 });
 
-test("while its stylesheet is edited the page stays shown, the sheet swapped into it as it is typed", async () => {
+test("while its stylesheet is edited the page stays displayed, the sheet swapped into it as it is typed", async () => {
   const before = page();
   page().scrollingElement.scrollTop = 600;
   await open("site/look.css");
-  assert.equal(pane().dataset.kind, "html", "still the page");
+  assert.equal(pane().dataset.type, "html", "still the page");
   const { editor } = editing();
   editor.goTo(0, 0);
   editor.focus();
@@ -175,11 +175,11 @@ test("while its stylesheet is edited the page stays shown, the sheet swapped int
   assert.ok(page().querySelector('style[data-orior-sheet="look.css"]'), "the tab's text in place of the link");
 });
 
-test("a CSS file no page shown links is drawn over a page of its own, made from its selectors", async () => {
+test("a CSS file no page displayed links is drawn over a page of its own, made from its selectors", async () => {
   await invoke("file_write", { path: "alone.css", text: "h2.big { font-size: 40px; }\nbutton:hover { x: y }\n" });
   await open("alone.css");
   await ui.waitFor(() => page()?.querySelector("h2.big"), 3000);
-  assert.equal(pane().dataset.kind, "css");
+  assert.equal(pane().dataset.type, "css");
   assert.equal(page().querySelector("h2.big").textContent, "h2.big");
   assert.equal(page().defaultView.getComputedStyle(page().querySelector("h2.big")).fontSize, "40px");
   assert.equal(page().querySelector("button").textContent, "button:hover");
@@ -189,7 +189,7 @@ test("SVG is drawn on a page of its own, and patched as it changes", async () =>
   await invoke("file_write", { path: "shape.svg", text: '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40">\n<rect id="r" width="10" height="10"/>\n</svg>\n' });
   await open("shape.svg");
   await ui.waitFor(() => page()?.getElementById("r"), 3000);
-  assert.equal(pane().dataset.kind, "svg");
+  assert.equal(pane().dataset.type, "svg");
   const rect = page().getElementById("r");
   retype('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40">\n<rect id="r" width="30" height="10"/>\n</svg>\n');
   await ui.waitFor(() => page().getElementById("r").getAttribute("width") === "30", 3000);
@@ -200,7 +200,7 @@ test("a Mermaid file is drawn as its diagram, drawn again only when its text cha
   await invoke("file_write", { path: "flow.mmd", text: "graph TD\n  A[Start] --> B[End]\n  B --> C[Again]\n" });
   await open("flow.mmd");
   await ui.waitFor(() => pane().querySelectorAll(".mm-node-group").length === 3, 3000);
-  assert.equal(pane().dataset.kind, "mermaid");
+  assert.equal(pane().dataset.type, "mermaid");
   const { editor } = editing();
   editor.goTo(2, 2);
   await ui.waitFor(() => pane().querySelectorAll(".mm-node-group.here").length === 2, 2000);
@@ -212,6 +212,6 @@ test("a Mermaid file is drawn as its diagram, drawn again only when its text cha
   editor.focus();
   await ui.type("  D --> A\n");
   await ui.waitFor(() => pane().querySelectorAll(".mm-node-group").length === 4, 3000);
-  assert.deepEqual(lastDrawing(), { kept: 0, moved: 0, drawn: 1 });
+  assert.deepEqual(lastDrawing(), { retained: 0, moved: 0, drawn: 1 });
   setPreview("off");
 });

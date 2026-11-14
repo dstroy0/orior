@@ -120,13 +120,13 @@ class Connection:
                     return self._unread(whole, error)
 
     def _unread(self, whole, error):
-        """A message that is no JSON, kept whole under build/harness/cdp_unread.json and named by the error it raised,
+        """A message that is no JSON, retained whole under build/harness/cdp_unread.json and named by the error it raised,
         answered as an error to the call whose id it carries. The reading goes on and that call waits no longer."""
-        kept = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "build", "harness", "cdp_unread.json")
-        os.makedirs(os.path.dirname(kept), exist_ok=True)
-        with open(kept, "wb") as out:
+        retained = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "build", "harness", "cdp_unread.json")
+        os.makedirs(os.path.dirname(retained), exist_ok=True)
+        with open(retained, "wb") as out:
             out.write(whole)
-        print(f"a message of {len(whole)} bytes read as no JSON ({error}), kept in {os.path.normpath(kept)}")
+        print(f"a message of {len(whole)} bytes read as no JSON ({error}), retained in {os.path.normpath(retained)}")
         found = re.match(rb'\{"id":(\d+),', whole)
         reason = {"message": f"its answer read as no JSON: {error}"}
         return {"id": int(found.group(1)), "error": reason} if found else {"method": None}
@@ -184,7 +184,7 @@ class Connection:
         self._send(json.dumps({"id": next(self.ids), "method": method, "params": params}))
 
     def on(self, method, handler):
-        """Hands each event of `method` to `handler`, on the reading thread."""
+        """Passes each event of `method` to `handler`, on the reading thread."""
         self.handlers.setdefault(method, []).append(handler)
 
     def evaluate(self, expression, timeout=60):

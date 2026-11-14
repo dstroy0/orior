@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The sections of Preferences that show the window's settings: the zoom, the language, the cores kept, each part's
+// The sections of Preferences that show the window's settings: the zoom, the language, the cores retained, each part's
 // opacity and each setting a menu turns on or off; the fonts; the files' patterns; the settings in force; the
 // notices put away; and the settings carried to another machine. Each section takes the sheet it is drawn in.
 
 import { invoke, pick } from "../bridge.js";
 import { carryInto } from "../carry.js";
-import { coresKept, KEPT_LEAST, machineCores, setCoresKept } from "../cores.js";
+import { coresKept, RETAINED_LEAST, machineCores, setCoresKept } from "../cores.js";
 import { FONT_SETTINGS, fontDefault, fonts, setFont } from "../fonts.js";
 import { chosenLanguage, languages, setLanguage } from "../language.js";
 import { OPACITY_SETTINGS, opacity, setOpacity, STEPS as OPACITY_STEPS } from "../opacity.js";
@@ -44,16 +44,16 @@ export function settingsSection(at) {
   });
   languageSelect.addEventListener("change", () => setLanguage(languageSelect.value));
   rows.push(element("label", { className: "report-row" }, element("span", { textContent: "Language" }), languageSelect));
-  // The cores kept for the reader, from KEPT_LEAST to all the machine's but one.
+  // The cores retained for the reader, from RETAINED_LEAST to all the machine's but one.
   const machine = machineCores();
-  const cores = element("select", { className: "report-field prefs-cores", ariaLabel: "Cores kept for you" }, ...Array.from({ length: Math.max(1, machine - KEPT_LEAST) }, (_, at) => KEPT_LEAST + at).map((kept) => element("option", { value: String(kept), textContent: `${kept} of ${machine}`, selected: kept === coresKept() })));
+  const cores = element("select", { className: "report-field prefs-cores", ariaLabel: "Cores retained for you" }, ...Array.from({ length: Math.max(1, machine - RETAINED_LEAST) }, (_, at) => RETAINED_LEAST + at).map((retained) => element("option", { value: String(retained), textContent: `${retained} of ${machine}`, selected: retained === coresKept() })));
   cores.addEventListener("change", () => setCoresKept(Number(cores.value)));
-  rows.push(element("label", { className: "report-row" }, element("span", { textContent: "Cores kept for you" }), cores));
+  rows.push(element("label", { className: "report-row" }, element("span", { textContent: "Cores retained for you" }), cores));
   // Each part's opacity a slider by the steps, its share said beside it, the window changing as it moves.
   for (const setting of OPACITY_SETTINGS) {
     const slider = element("input", { type: "range", className: "prefs-opacity-slider", min: String(OPACITY_STEPS[0]), max: String(OPACITY_STEPS.at(-1)), step: String(OPACITY_STEPS[1] - OPACITY_STEPS[0]), value: String(opacity(setting)), ariaLabel: setting.label });
     const said = element("span", { className: "prefs-opacity-said", textContent: `${opacity(setting)}%` });
-    // the share the slider stands at, for the track's fill to stop at
+    // the share the slider is at, for the track's fill to stop at
     slider.style.setProperty("--share", slider.value);
     slider.addEventListener("input", () => {
       setOpacity(setting, Number(slider.value));
@@ -107,7 +107,7 @@ export function fontsSection() {
   return element("section", { className: "prefs-fonts" }, element("h3", { textContent: "Fonts" }), ...rows);
 }
 
-// The patterns that keep the explorer, the search and the watching of files from files, one to a
+// The patterns that retain the explorer, the search and the watching of files from files, one to a
 // line, and the sets of files Find in Files searches in, each list taken when its field is left.
 export function patternsSection() {
   const rows = PATTERN_PARTS.map(({ part, label }) => {
@@ -122,7 +122,7 @@ export function patternsSection() {
 }
 
 // The settings in force: each setting a settings file sets, its value, the file and the part of it
-// the value comes from, and the files it stands over; the files read, each opened by a press, the
+// the value comes from, and the files it is over; the files read, each opened by a press, the
 // tree's in the editor and the reader's own as the system opens it; and what the files could not
 // say.
 export function inForceSection(at) {
@@ -184,7 +184,7 @@ export function inForceSection(at) {
   );
 }
 
-// Settings on every machine (carry.js): the file or folder they go through, and each taking kept.
+// Settings on every machine (carry.js): the file or folder they go through, and each taking retained.
 // The notices put away for good, each with a press that shows its type again.
 export function noticesSection(at) {
   const { draw } = at;
@@ -201,7 +201,7 @@ export function noticesSection(at) {
     "section",
     { className: "prefs-notices" },
     element("h3", { textContent: "Notices" }),
-    ...(rows.length ? rows : [element("p", { className: "prefs-said", textContent: "No notice is put away. Silence, beside a notice on the status bar, puts its kind away." })]),
+    ...(rows.length ? rows : [element("p", { className: "prefs-said", textContent: "No notice is put away. Silence, beside a notice on the status bar, puts its type away." })]),
   );
 }
 

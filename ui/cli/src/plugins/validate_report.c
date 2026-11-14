@@ -302,7 +302,7 @@ EMBED_INLINE void report_finding_write(const ValidateReportCtx *args)
     }
     mmgr_line_put(out, ",\"severity\":");
     mmgr_line_decimal(out, args->finding->severity, 1u);
-    mmgr_line_put(out, ",\"kind\":");
+    mmgr_line_put(out, ",\"type\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = args->finding->type,
                .length = cellul.len(&(CatenaFinitaCfg){.src = args->finding->type, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(out, ",\"barrier\":");

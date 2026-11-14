@@ -154,7 +154,7 @@ def main():
 
     # How far the same operation recurses. The contrast should not depend on the window, since a window
     # inside the block is entirely corrupt whatever its size, but the estimate is taken from the window's
-    # own symbols and an alphabet cannot be estimated from fewer draws than it has letters
+    # own symbols and an alphabet cannot be estimated from fewer draws than it has characters
     spoiled = corrupt(seats, 0.005, alphabet, 0x1E, True)
     out.write("\n  the same sieve at every window, one block at 0.005, alphabet %d\n" % len(alphabet))
     out.write("  %-9s %-11s %-11s %-9s %-11s %-11s %s\n"

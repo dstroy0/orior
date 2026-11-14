@@ -33,7 +33,7 @@
  * case was written so that every probe agrees and only the full compare refutes, and it never
  * fired. The steering defeats that construction: the odd byte is the rarest symbol the needle
  * carries. The ordering tests it FIRST, every alignment refutes at the first read, and the full
- * compare never runs. The case sat green and reading it would not have shown why. Mutating the
+ * compare never runs. The case sat green and reading it would not have displayed why. Mutating the
  * engine to drop the full compare, then watching the case stay green, is what exposed it.
  *
  * The repair is worth more than the catch. That case now runs UNSTEERED, places the difference at
@@ -41,7 +41,7 @@
  * probes is four reads an alignment and no fewer. A lower count means a probe is refuting and
  * the case has stopped testing what it claims. The premise check then caught the alignment off by
  * one on its own, four reads short of 16260, which is one alignment lost. A case asserting its own
- * preconditions is a different kind of object from one asserting only its conclusion, and every
+ * preconditions is a different type of object from one asserting only its conclusion, and every
  * case here that can be given a premise check should get one.
  *
  * FOUR OF THESE ARE DIFFERENTIAL. They compare two routes that must agree. No expected number is

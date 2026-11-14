@@ -3,18 +3,18 @@
 // forms.c: the forms: a form of the machine file's text listed, the vendor's run, and the forms read
 #include "khw_write.h"
 
-// the opening of a form line at `text`, `<operation> <kinds> 0x<low> 0x<high>`, into its parts, each into its room: 1,
+// the opening of a form line at `text`, `<operation> <types> 0x<low> 0x<high>`, into its parts, each into its room: 1,
 // or 0 where `text` does not open so
-static int khw_form_line_read(const char *text, char *operation, size_t operation_room, char *kinds, size_t kinds_room,
+static int khw_form_line_read(const char *text, char *operation, size_t operation_room, char *types, size_t types_room,
                               unsigned long long *low, unsigned long long *high)
 {
     const char *at = text;
-    return line_word(&at, operation, operation_room) && line_word(&at, kinds, kinds_room) && line_number(&at, 1, low) &&
+    return line_word(&at, operation, operation_room) && line_word(&at, types, types_room) && line_number(&at, 1, low) &&
            line_number(&at, 1, high);
 }
 
 // 1 where the machine file's text, `size` bytes at `bytes`, names the encoding `low` and `high` as one of its forms, a
-// line `form <operation> <kinds> 0x<low> 0x<high> ...`: the forms a word of the web is written by and ranked among
+// line `form <operation> <types> 0x<low> 0x<high> ...`: the forms a word of the web is written by and ranked among
 int khw_form_listed(const unsigned char *bytes, unsigned long long size, unsigned long long low,
                     unsigned long long high)
 {
@@ -23,11 +23,11 @@ int khw_form_listed(const unsigned char *bytes, unsigned long long size, unsigne
     while (line_read(bytes, size, &at, line, sizeof(line)))
     {
         char operation[64];
-        char kinds[256];
+        char types[256];
         unsigned long long listed_low = 0ull;
         unsigned long long listed_high = 0ull;
         if ((strncmp(line, "form ", 5u) == 0) &&
-            khw_form_line_read(line + 5, operation, sizeof(operation), kinds, sizeof(kinds), &listed_low,
+            khw_form_line_read(line + 5, operation, sizeof(operation), types, sizeof(types), &listed_low,
                                &listed_high) &&
             (listed_low == low) && (listed_high == high))
         {
@@ -37,8 +37,8 @@ int khw_form_listed(const unsigned char *bytes, unsigned long long size, unsigne
     return 0;
 }
 
-// The vendor's writer run through the interface in `mode`, handed the part, the file to write, the container layout,
-// the vendor's table and the answers file (vendor_writer_run.h), its output handed to the run as KHW_MACHINE_NAME. 1
+// The vendor's writer run through the interface in `mode`, passed the part, the file to write, the container layout,
+// the vendor's table and the answers file (vendor_writer_run.h), its output passed to the run as KHW_MACHINE_NAME. 1
 // where it ended clean
 int khw_vendor_run(const char *mode, const char *answers)
 {

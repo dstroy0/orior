@@ -15,11 +15,11 @@ To read the code instead of the papers, go in this order:
 
 ## Workbooks
 
-A workbook is the running record of one line of work. It keeps every claim, including the ones that turned out wrong.
+A workbook is the running record of one line of work. It retains every claim, including the ones that turned out wrong.
 
 ### [Workbook](https://github.com/dstroy0/orior/tree/main/theory/workbooks/orior)
 
-_Every claim, what killed it, and what still stands._ This is my workbook for building and testing the general method. It keeps every idea I tested and every result that proved one wrong.
+_Every claim, what killed it, and what still is._ This is my workbook for building and testing the general method. It retains every idea I tested and every result that proved one wrong.
 
 ### [Engine](https://github.com/dstroy0/orior/tree/main/theory/workbooks/engine)
 
@@ -99,16 +99,16 @@ These are ideas whose experiment can't be built as written. Each one comes with 
 
 _The method applied to ideas._ It covers:
 
-- a reference built from an object's own parts and laid over the object;
+- a reference built from an object's own parts and positioned over the object;
 - the delta null idea: three claims, of which two hold and one fails;
 - what a closed boundary holds;
 - the notebook's testable ideas, each with its test.
 
-Ideas that have no test yet are kept as wants in the workbook.
+Ideas that have no test yet are retained as wants in the workbook.
 
 ### [The Engine's Ideas, Stated So They Can Be Decided](https://github.com/dstroy0/orior/tree/main/theory/thought_experiments/engine)
 
-Sensor noise, threshold search, state vectors, dwell and entropy, self-reproduction, learned rulesets and identity, each with the test that decides it. Engine claims that have no such test yet are kept as wants in the engine workbook.
+Sensor noise, threshold search, state vectors, dwell and entropy, self-reproduction, learned rulesets and identity, each with the test that decides it. Engine claims that have no such test yet are retained as wants in the engine workbook.
 
 ### [Cell Lineage from Shape and Whole-Sequence Evidence](https://github.com/dstroy0/orior/tree/main/theory/thought_experiments/cell_tracking)
 

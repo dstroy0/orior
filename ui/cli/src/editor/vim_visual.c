@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// vim_visual.c: visual mode and visual line mode: the selection from the anchor to the head, both letters taken, or
+// vim_visual.c: visual mode and visual line mode: the selection from the anchor to the head, both characters taken, or
 // their lines whole, set as the view's selection; a text object taken as the selection, the ends swapped, and the
 // commands that act on what is chosen
 #include "vim_internal.h"
@@ -64,31 +64,31 @@ EMBED_INLINE void visual_pasted(const CliVimCtx *args)
     unsigned int at = CLI_VIM_REGISTERS;
     at = ((name == 0u) || (name == '"')) ? CLI_VIM_REGISTER_UNNAMED : at;
     at = (name == '0') ? CLI_VIM_REGISTER_YANKED : at;
-    at = ((name >= 'a') && (name <= 'z')) ? CLI_VIM_REGISTER_LETTERS + (name - 'a') : at;
-    at = ((name >= 'A') && (name <= 'Z')) ? CLI_VIM_REGISTER_LETTERS + (name - 'A') : at;
-    const unsigned long long kept_length =
+    at = ((name >= 'a') && (name <= 'z')) ? CLI_VIM_REGISTER_CHARACTERS + (name - 'a') : at;
+    at = ((name >= 'A') && (name <= 'Z')) ? CLI_VIM_REGISTER_CHARACTERS + (name - 'A') : at;
+    const unsigned long long retained_length =
         (at < CLI_VIM_REGISTERS) ? EMBED_CALL(cli_vim_internal.part_length, CliVimCtx, .part = at) : 0ULL;
-    if (kept_length == 0ULL)
+    if (retained_length == 0ULL)
     {
         return;
     }
     const unsigned long long bytes =
         EMBED_CALL(cli_view_vim.span_bytes, CliViewVimCfg, .key = args->key, .from = span->start, .to = span->end);
     // the register's text and the selection's, side by side, copied out of the text cell before the store writes it
-    char *const cell = g_cli_guard->temporary_buf_alloc(kept_length + bytes + 2ULL, g_cli_vim_owner);
+    char *const cell = g_cli_guard->temporary_buf_alloc(retained_length + bytes + 2ULL, g_cli_vim_owner);
     if (cell == NULL)
     {
         return;
     }
     (void)EMBED_CALL(cli_vim_internal.part_copy, CliVimCtx, .part = at, .bytes_out = cell,
-                     .length = kept_length + 1ULL);
-    VerbaLinea out = {cell + kept_length, bytes + 1ULL, 0ULL};
+                     .length = retained_length + 1ULL);
+    VerbaLinea out = {cell + retained_length, bytes + 1ULL, 0ULL};
     EMBED_CALL(cli_view_vim.span, CliViewVimCfg, .key = args->key, .from = span->start, .to = span->end, .out = &out);
     const unsigned long long chosen = mmgr_line_finish(&out);
-    EMBED_CALL(cli_vim_commands_internal.store, CliVimCtx, .register_name = 0u, .text = cell + kept_length,
+    EMBED_CALL(cli_vim_commands_internal.store, CliVimCtx, .register_name = 0u, .text = cell + retained_length,
                .length = chosen, .lines = span->lines, .yanked = 0);
     (void)EMBED_CALL(cli_view_vim.edit, CliViewVimCfg, .key = args->key, .from = span->start, .to = span->end,
-                     .text = cell, .length = kept_length, .err_msg = args->err_msg);
+                     .text = cell, .length = retained_length, .err_msg = args->err_msg);
     g_cli_guard->persistent_buf_release(cell, g_cli_vim_owner);
     EMBED_CALL(cli_vim_motions_internal.put, CliVimCtx, .at = args->at, .key = args->key, .place = span->start);
 }
@@ -106,7 +106,7 @@ void cli_vim_chosen_run(const CliVimCtx *args)
     {
         CliVimSpan object;
         EMBED_CALL(cli_vim_motions_internal.object, CliVimCtx, .key = args->key, .from = view.visual_head,
-                   .how = command->object_type, .letter = command->object_of, .count = command->count,
+                   .how = command->object_type, .character = command->object_of, .count = command->count,
                    .counted = command->counted, .span = &object);
         if (!object.found)
         {

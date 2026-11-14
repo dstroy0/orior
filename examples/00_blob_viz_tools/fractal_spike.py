@@ -18,7 +18,7 @@ WHAT IS ALREADY SETTLED AND IS NOT RE-ARGUED HERE. The stacked reading closes: a
 the SOURCE COUNT, measured at 64, 128, 256, 512 and 1024, with arms-to-closure equal to sources - 81
 every time, the 81 being the degree-8 harmonic block's own rank. There is no missing rank to find,
 and the reason is not empirical. At bandlimit L every function on the sphere lives in an (L+1)^2
-dimensional space, and EVERY reading of ANY kind - a region integral, a line integral, a point
+dimensional space, and EVERY reading of ANY type - a region integral, a line integral, a point
 evaluation, an integral against any measure whatever - is a linear functional on that space. The
 span of all conceivable integrals is therefore exactly (L+1)^2, and no integral nobody has thought
 of yet exceeds it. Beams added 175 dimensions at degree 8 not because a line integral escapes the
@@ -72,7 +72,7 @@ the source spacing and then collapses eleven orders of magnitude, taking 126 sou
 rows that touch nothing at all. Knowing the position is worth 13x in conditioning and the whole
 difference between a complete reading and a third of the object invisible. That is the null
 permutation with a number on it, and the number has to be paid in advance: the aiming IS the
-position, an instrument that uses it has been handed what it was built to find.
+position, an instrument that uses it has been passed what it was built to find.
 
 THE SHIPPED WIDTH IS A QUARTER TOO WIDE, found blind. 0.10 conditions at 8.32e+01 and 0.0687
 conditions at 6.23e+01, with both complete and neither using a source position.
@@ -81,7 +81,7 @@ WHAT IS NOT TESTED HERE and is the obvious next thing: the interleaved oblique a
 narrow sets placed in the GAPS of the wide ones and not along the same golden directions. Every
 rung in this file draws from the same golden placement at its own count. The wide and narrow
 rungs point down nearly the same lines and the wide rungs are largely redundant. That is a real
-defect in the ladder as built and it is the most likely reason layout came out second-order.
+defect in the ladder as built and it is the likely reason layout came out second-order.
 """
 
 import math
@@ -152,7 +152,7 @@ def ladder(exponent):
     share = sum(weights)
     counts = [max(1, int(round(TOTAL * one / share))) for one in weights]
 
-    # The rounding remainder goes on the narrowest rung, which holds the most beams. A single
+    # The rounding remainder goes on the narrowest rung, which holds the max beams. A single
     # beam changes it least.
     counts[0] = max(1, counts[0] + TOTAL - sum(counts))
     return list(zip(widths, counts)), spacing
@@ -161,7 +161,7 @@ def ladder(exponent):
 def spike_plan(rungs, shuffle_seed=None):
     """(origin, direction, width) per beam on the ladder, or with the widths shuffled.
 
-    WITH A SEED THE WIDTHS ARE PERMUTED ACROSS ALL THE DIRECTIONS. That keeps the multiset of widths
+    WITH A SEED THE WIDTHS ARE PERMUTED ACROSS ALL THE DIRECTIONS. That retains the multiset of widths
     exactly and destroys the correspondence between a beam's width and its place in the layout,
     the only thing "self-similar" adds over "multi-scale". Without this null any gain gets
     credited to self-similarity when a spread of widths at all would have done it.
@@ -236,7 +236,7 @@ def gap_filling(already, count, pool=8):
     number wanted. The pool is derived from the request instead of being a chosen constant.
 
     THIS COSTS NO KNOWLEDGE OF THE OBJECT. The aimed permutation that reaches condition
-    4.857e+00 uses the SOURCE positions: it is handed the answer. This
+    4.857e+00 uses the SOURCE positions: it is passed the answer. This
     uses only the directions of the beams already placed, which the instrument chose itself. A gain
     here is therefore free in a way the aimed gain never was, and it stays legal under the blind
     control.
@@ -247,7 +247,7 @@ def gap_filling(already, count, pool=8):
     # THE NEAREST-PLACED COSINE IS CARRIED FORWARD AND NOT RECOMPUTED. Scanning every candidate
     # against every placed direction on every pick is O(count^2 * pool) dot products in Python
     # and does not finish. Each pick only ever RAISES a candidate's nearest
-    # cosine. One maximum against the newly placed direction updates the whole column.
+    # cosine. One max against the newly placed direction updates the whole column.
     if len(already):
         nearest = candidates.dot(numpy.array(already, dtype=float).T).max(axis=1)
     else:
@@ -260,7 +260,7 @@ def gap_filling(already, count, pool=8):
         taken[at] = True
         chosen = candidates[at]
         picked.append(tuple(chosen))
-        nearest = numpy.maximum(nearest, candidates.dot(chosen))
+        nearest = numpy.max(nearest, candidates.dot(chosen))
     return picked
 
 
@@ -270,7 +270,7 @@ def oblique_set(points, rungs, offset, shuffle_seed=None, straight=False):
     THE DEFECT THIS FIXES IS REAL. Every rung of `spike_set` draws from the same golden
     placement at its own count, and golden_place(17) shares its first directions with
     golden_place(137). The wide balloons and the narrow spikes point down nearly the same lines.
-    The wide rungs are therefore largely redundant, the most likely reason the layout
+    The wide rungs are therefore largely redundant, the likely reason the layout
     effect comes out second-order.
 
     `offset` is the impact parameter as a fraction of the shell radius: 0 aims through the center
@@ -579,7 +579,7 @@ def _check():
     everything = numpy.vstack([harmonics, spike_set(points, rungs),
                                one_scale(points, TOTAL, beam_rows.BEAM_WIDTH)])
     rank, _values = arm_rank.rank_of(everything)
-    lines.append("  harmonics plus %d beams of every kind: rank %d, ceiling %d"
+    lines.append("  harmonics plus %d beams of every type: rank %d, ceiling %d"
                  % (everything.shape[0] - harmonics.shape[0], rank, TOTAL))
     if rank > TOTAL:
         lines.append("    FAIL the rank exceeded the source count, so the dual space is bigger")
@@ -670,14 +670,14 @@ def _oblique():
 
     verdict("obliquity", straight[1],
             "REAL: aiming the same directions at the center costs this much",
-            "inside the null's spread, so the off-axis tilt is not shown to do anything")
+            "inside the null's spread, so the off-axis tilt is not displayed to do anything")
     verdict("interleaving", best_flat[1],
             "REAL against the co-aligned ladder",
-            "NOT SHOWN: below the null's own spread, so the redundancy I blamed for the "
+            "NOT DISPLAYED: below the null's own spread, so the redundancy I blamed for the "
             "second-order layout effect is not demonstrated to be the cause")
     verdict("layout", min(shuffled),
             "REAL: the arrangement beats its own width-shuffle",
-            "NOT SHOWN: the shuffle does as well, so the gain is the spread of widths")
+            "NOT DISPLAYED: the shuffle does as well, so the gain is the spread of widths")
     verdict("vs shipped", baseline[1],
             "beats the shipped single scale, which no ladder had managed",
             "matches the shipped single scale")

@@ -3,17 +3,17 @@
 // khw.h: a part's machine file, <part>.khw beside its rulesets (khw.oracle.tsv), a k-file people read (kfile_lines.h).
 // Its first line is `forms 2`, then `part <name>`, then a line a form:
 //
-//     form <operation> <kind><mark>,... <low> <high> <operand>:<first>-<last>:<place>;... <relation> <signed>
+//     form <operation> <type><mark>,... <low> <high> <operand>:<first>-<last>:<place>;... <relation> <signed>
 //          <the instruction it was seen as>
 //
 // on one line, where <low> and <high> are the instruction's two 64-bit words in hex, low first, as a listing prints
 // them, and the runs are the bits that change each operand, by the operand's place in the printed text. A run's
-// <place> is where its operand stands in the relation's tuple, the words in their order and then the answer, as
+// <place> is where its operand is in the relation's tuple, the words in their order and then the answer, as
 // 1,1 -> 2 satisfies them (ladder.h), and - where the part answered it none. <relation> is the relation every case of
 // the form answered and <signed> 1 where the answers read a word signed, both - where the form was queried no relation.
 // A file at `forms 1` contains no place, relation or signedness, and reads as - in each.
 //
-// Its reader turns each kind and mark into its number as it reads it. A program that writes the file writes all of
+// Its reader turns each type and mark into its number as it reads it. A program that writes the file writes all of
 // it: each line the file contained retains the who that was in force over it, and every other line goes after a who
 // line of the program's (kfile_lines_written_by).
 #ifndef KHW_H
@@ -32,14 +32,14 @@ extern "C"
 // the format the lines after the first are written in
 #define KHW_VERSION 2u
 
-// the longest instruction text stored, the longest operation or operand, the most operands an instruction contains and
-// the most runs of bits one form's operands take between them
+// the longest instruction text stored, the longest operation or operand, the max operands an instruction contains and
+// the max runs of bits one form's operands take between them
 #define KHW_TEXT 192u
 #define KHW_TOKEN 64u
 #define KHW_OPERANDS 8u
 #define KHW_RUNS 32u
 
-// the place of a run whose operand stands nowhere in the relation's tuple, and the text it is written under
+// the place of a run whose operand is nowhere in the relation's tuple, and the text it is written under
 #define KHW_NO_PLACE 0xffffffffu
 #define KHW_NO_PLACE_TEXT "-"
 
@@ -59,7 +59,7 @@ extern "C"
     };
 #define KHW_KINDS 9u
 
-    // the mark an operand carries, by the place of its letter in the file: none, - , ~ and !
+    // the mark an operand carries, by the place of its character in the file: none, - , ~ and !
     enum KhwMark
     {
         KHW_MARK_NONE = 0,
@@ -85,7 +85,7 @@ extern "C"
     {
         char operation[KHW_TOKEN];
         unsigned int operands;
-        unsigned int kind[KHW_OPERANDS];
+        unsigned int type[KHW_OPERANDS];
         unsigned int mark[KHW_OPERANDS];
         unsigned long long low;
         unsigned long long high;
@@ -103,16 +103,16 @@ extern "C"
     // is no such file; 0 where there was no memory for a line
     int khw_read(KhwFile *file, const char *path);
 
-    // `file` handed to the run's writer as the file at `path`, written by `who` (kfile_lines_write_by): 1, or 0 where it
+    // `file` passed to the run's writer as the file at `path`, written by `who` (kfile_lines_write_by): 1, or 0 where it
     // could not be written
     int khw_write_by(const KhwFile *file, const char *path, Who who);
 
     // every line `file` contains let go, and the file zeros again
     void khw_free(KhwFile *file);
 
-    // the name of the kind `kind`, and the letter of the mark `mark`, as the file writes them: "unknown" for a kind
+    // the name of the type `type`, and the character of the mark `mark`, as the file writes them: "unknown" for a type
     // past the last, and "" for a mark past the last
-    const char *khw_kind_name(unsigned int kind);
+    const char *khw_type_name(unsigned int type);
     const char *khw_mark_name(unsigned int mark);
 
     // 1 with the format `line` names in `version` where it is `forms <n>`; 0 otherwise

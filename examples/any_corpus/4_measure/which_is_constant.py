@@ -10,11 +10,11 @@
 #
 # Collision entropy was recorded as near constant for a language at 3.800 bits over ten Gutenberg texts,
 # and it moves by 0.13 to 0.24 bits when the same language is measured from a different source. The
-# cause is the character inventory: one source keeps accents and punctuation the other flattens, and a
+# cause is the character inventory: one source retains accents and punctuation the other flattens, and a
 # larger inventory admits a higher $H_2$.
 #
 # The distance between boundaries should not care about that. It is set by how long words are, and a rare
-# accented letter appearing a few times per thousand symbols moves it by almost nothing. This measures
+# accented character appearing a few times per thousand symbols moves it by almost nothing. This measures
 # both quantities on every corpus given and reports the spread of each. Which one is stable is decided
 # by the numbers instead of argued.
 

@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // scheduler_check.c: a round checked against P13 on the run channel's dry carrier, which writes each question it is
-// handed in the order it is handed them and answers none
+// passed in the order it is passed them and answers none
 //
-//   order      the question that settles the most entries is put first, and two that settle as many in the order
-//              handed
-//   all        every question of a round is put, a round past SCHEDULER_ROUND_MOST to more than one process
+//   order      the question that settles the max entries is put first, and two that settle as many in the order
+//              passed
+//   all        every question of a round is put, a round past SCHEDULER_ROUND_MAX to more than one process
 //   gated      a question nothing carried answers nothing, and the round counts none answered
 //   stopped    a panic on the line ruled stops the run, and every question put after it is refused with that reason; a
 //              refusal the conference rules the instruction's own, the carrier ended clean, closes the line and
@@ -84,13 +84,13 @@ int main(int count, char **words)
     }
     check_that(gated == CHECK_QUESTIONS, "every question of the round is put, and reads gated");
 
-    // the order the dry channel handed them in, read back off each question's code in the run
+    // the order the dry channel passed them in, read back off each question's code in the run
     unsigned int written[CHECK_QUESTIONS];
     unsigned int written_count = 0u;
     const unsigned char *list = NULL;
     unsigned long long list_size = 0ull;
     const int listed = qry_member_blob("questions.txt", &list, &list_size, NULL);
-    check_that(listed, "the dry channel handed its list to the run's buffer");
+    check_that(listed, "the dry channel passed its list to the run's buffer");
     unsigned long long at_line = 0ull;
     while (listed && (at_line < list_size) && (written_count < CHECK_QUESTIONS))
     {
@@ -113,13 +113,13 @@ int main(int count, char **words)
             written_count += 1u;
         }
     }
-    check_that(written_count == CHECK_QUESTIONS, "the dry channel handed every question of the round");
-    // within each process the three-settling questions come first, in the order handed, then the rest
+    check_that(written_count == CHECK_QUESTIONS, "the dry channel passed every question of the round");
+    // within each process the three-settling questions come first, in the order passed, then the rest
     int ordered = 1;
-    for (unsigned int first = 0u; first < written_count; first += SCHEDULER_ROUND_MOST)
+    for (unsigned int first = 0u; first < written_count; first += SCHEDULER_ROUND_MAX)
     {
         const unsigned int last =
-            ((first + SCHEDULER_ROUND_MOST) < written_count) ? (first + SCHEDULER_ROUND_MOST) : written_count;
+            ((first + SCHEDULER_ROUND_MAX) < written_count) ? (first + SCHEDULER_ROUND_MAX) : written_count;
         for (unsigned int at = first + 1u; at < last; at += 1u)
         {
             const unsigned int before = written[at - 1u];
@@ -129,7 +129,7 @@ int main(int count, char **words)
             ordered = ordered && ((before_weight > now_weight) || ((before_weight == now_weight) && (before < now)));
         }
     }
-    check_that(ordered, "the most settling first, and the order handed between equals");
+    check_that(ordered, "the max settling first, and the order passed between equals");
 
     // the stop: a panic on the line ruled, and every question of the round after it refused with the stop's reason, on
     // the dry channel as on a live one

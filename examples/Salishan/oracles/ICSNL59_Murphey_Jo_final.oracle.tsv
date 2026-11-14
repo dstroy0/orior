@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Jocelyn Murphey	note	Papers for the International Conference on Salish and Neighbouring Languages 59. D. K. E. Reisinger, Laura Griffin, Ella Hannon, Gloria Mellesmoen, Sander Nederveen, Bruce Oliver, Julia Schillo, Lauren Schneider, Bailey Trotter (eds.). Vancouver, BC: UBCWPL, 2024.	page 1
 front	Haisla	cited affix	=guɫ	page 1
 front	Haisla	cited affix	=uɫ	page 1
@@ -10,7 +10,7 @@ front	Jocelyn Murphey	note	Abstract: Haisla is a language that is spoken in Nort
 §1	Jocelyn Murphey	heading	1 Introduction	page 1
 §1	Jocelyn Murphey	language	x̄á’islak̓ala	X̄a’islak̓ala, Haisla, in its own name
 §1	Jocelyn Murphey	note	The Haisla language, which is referred to as x̄á’islak̓ala (‘Haisla speak’) in the language, is part of the Wakashan language family on the Northwest Coast of British Columbia. The language is critically endangered, and the community is invested in language revitalization efforts. This paper seeks to provide a brief description of observed patterns for forming the past tense in Haisla. In Fall 2021 and Spring 2022, I worked with two Haisla speakers (Vera Wilson, and Nelson Grant)1 to create class content for undergraduate Haisla language learning courses that were offered through a partnership between Haisla Nation Council and the University of Northern British Columbia. Vera Wilson attended classes to teach the students how to use and pronounce the phrases and encourage the students in their language learning journey. Since my role was to work with the Haisla speakers to create the learning resources and curriculum for the classes, I felt the lack of a full grammar description of the Haisla language keenly.	page 1
-§1	Jocelyn Murphey	note	Haisla has been previously studied and published on, but the bulk of this information focuses on the lexical and phonological level, with some discussion of the morphological level. Most notably, there are two published dictionaries: Lincoln andRath (1986) andBach (2006) on the Haisla language. The latter includes two appendices: “Making Haisla Sentences” and “Making Haisla Words”. These appendices are very helpful, but there is much more research that must be done to give a full understanding of Haisla grammar. There are also two unpublished dictionaries: Bach	page 1
+§1	Jocelyn Murphey	note	Haisla has been previously studied and published on, but the bulk of this information focuses on the lexical and phonological level, with some discussion of the morphological level. In particular, there are two published dictionaries: Lincoln andRath (1986) andBach (2006) on the Haisla language. The latter includes two appendices: “Making Haisla Sentences” and “Making Haisla Words”. These appendices are very helpful, but there is much more research that must be done to give a full understanding of Haisla grammar. There are also two unpublished dictionaries: Bach	page 1
 (1998) line 1	Haisla	transcription	and Hein Vink (1980).	page 1, engine residue
 §1	Haisla	cited affix	=ƛ	page 1
 §1	Haisla	cited affix	=guɫ	page 1
@@ -124,7 +124,7 @@ footnote 3	Jocelyn Murphey	note	3 Abbreviations used in the paper: - = suffix, :
 (19) line 1	Haisla	transcription	qaqaɫélsnáxʷaguɫen ’uísda’enc.	page 5, engine language
 (19) line 2	Vera Wilson	translation	‘I sometimes used to visit my family.’	page 5, engine english, cited Vera Wilson, p.c., February 25, 2022
 (19) line 2	Jocelyn Murphey	citation	(Vera Wilson, p.c., February 25, 2022)	the tag or source at the right of the translation
-§4	Jocelyn Murphey	note	Example (19) contrasts with when the speaker wants to describe a recent visit, as shown in example (20).	page 5
+§4	Jocelyn Murphey	note	Example (19) contrasts with when the speaker wants to describe a recent visit, as displayed in example (20).	page 5
 (20) line 1	Haisla	transcription	qaqaɫélsten ’uísda’enc.	page 5, engine language
 (20) line 2	Vera Wilson	translation	‘I visited my family (recently).’	page 5, engine english, cited Vera Wilson, p.c., February 25, 2022
 (20) line 2	Jocelyn Murphey	citation	(Vera Wilson, p.c., February 25, 2022)	the tag or source at the right of the translation
@@ -174,7 +174,7 @@ footnote 3	Jocelyn Murphey	note	3 Abbreviations used in the paper: - = suffix, :
 §5	Jocelyn Murphey	note	This compound enclitic =guɫdi can also apply to inanimate objects, in which the object has recently changed in state or use.	page 6
 §5	Haisla	cited form	k̓	page 6
 §5	Haisla	cited form	uus=nugʷa	page 6
-§5	Haisla	cited form	lay̓axc̓i=guɫ	page 6
+§5	Haisla	cited form	position̓axc̓i=guɫ	page 6
 §5	Haisla	cited form	bekʷai=guɫdi=s	page 6
 §5	Haisla	cited form	wisem=a=x̄	page 6
 §5	Haisla	cited form	hixt̓i-nukʷ	page 6
@@ -182,7 +182,7 @@ footnote 3	Jocelyn Murphey	note	3 Abbreviations used in the paper: - = suffix, :
 §5	Haisla	cited form	’ux̄ʷ	page 6
 §5	Haisla	cited form	ƛ̓upa-su=s	page 6
 §5	Haisla	cited form	w̓	page 6
-§5	Jocelyn Murphey	note	k̓ uus=nugʷa lay̓axc̓i=guɫ NEG=1.SBJ leave=DIS.PST qi bekʷai=guɫdi=s qi wisem=a=x̄ i l=i k̓ es hixt̓i-nukʷ D³ body=FORMER=OBL D³ man=D₁³=D₂³ AUX=3³.SBJ NEG head-have λax̄dala=guɫdi=a=x̄i ’ux̄ʷ ƛ̓upa-su=s w̓ iget grey.cod=FORMER=D₁³=D₂³ also barbecue-PASS=OBL PROPN	page 6
+§5	Jocelyn Murphey	note	k̓ uus=nugʷa position̓axc̓i=guɫ NEG=1.SBJ leave=DIS.PST qi bekʷai=guɫdi=s qi wisem=a=x̄ i l=i k̓ es hixt̓i-nukʷ D³ body=FORMER=OBL D³ man=D₁³=D₂³ AUX=3³.SBJ NEG head-have λax̄dala=guɫdi=a=x̄i ’ux̄ʷ ƛ̓upa-su=s w̓ iget grey.cod=FORMER=D₁³=D₂³ also barbecue-PASS=OBL PROPN	page 6
 (28) line 1	Haisla	transcription	hidá’in qi ƛ̓áq̓ʷet̓al̓asguɫdiax̄i	page 7, engine language
 (28) line 2	Haisla	segmentation	hida=’in qi ƛ̓aq̓ʷet̓al̓as=guɫdi=a=x̄i	page 7, engine language
 (28) line 3	Haisla	gloss	COP.3=PERF D³ alder.wood=FORMER=D₁³=D₂³	page 7, engine english
@@ -219,19 +219,19 @@ footnote 3	Jocelyn Murphey	note	3 Abbreviations used in the paper: - = suffix, :
 (33) line 4	Bach 1992:47	translation	‘…and my late uncle decided…’	page 7, engine english, cited Bach 1992:47
 (33) line 4	Jocelyn Murphey	citation	(Bach 1992:47)	the tag or source at the right of the translation
 §6	Haisla	cited affix	=guɫ	page 7
-§6	Jocelyn Murphey	note	While =uɫ is certainly the most common way to refer to a person who has passed away, in rare instances, the suffix =guɫ can also indicate that a person has passed. Example (34) shows a modern speaker using =guɫ in this way.	page 7
+§6	Jocelyn Murphey	note	While =uɫ is certainly the usual way to refer to a person who has passed away, in rare instances, the suffix =guɫ can also indicate that a person has passed. Example (34) shows a modern speaker using =guɫ in this way.	page 7
 (34) line 1	Haisla	transcription	…’áupguɫienc…	page 7, engine residue
 (34) line 2	Haisla	segmentation	’aup=guɫ=i=enc	page 7
 (34) line 3	Haisla	gloss	father=DIS.PST=REM=1.OBL	page 7
 (34) line 4	Nelson Grant	translation	‘…my late father…’	page 7, engine english, cited Nelson Grant, p.c., May 12, 2023
 (34) line 4	Jocelyn Murphey	citation	(Nelson Grant, p.c., May 12, 2023)	the tag or source at the right of the translation
-§6	Jocelyn Murphey	note	There is also one example of using =guɫ to talk about someone who has passed in the Haisla Nuyem from speaker Gordon Robertson, shown in (35):	page 8
+§6	Jocelyn Murphey	note	There is also one example of using =guɫ to talk about someone who has passed in the Haisla Nuyem from speaker Gordon Robertson, displayed in (35):	page 8
 (35) line 1	Haisla	transcription	… qi híɫaqic qi ’áupguɫaci.	page 8, engine language
 (35) line 2	Haisla	segmentation	qi hiɫaq=i=c=s qi ’aup=guɫ=a=c=si	page 8, engine language
 (35) line 3	Haisla	gloss	D³ cousin=D₁³=INV=OBL D³ father=DIS.PST=D₁³=INV=3³.POSS	page 8, engine english
 (35) line 4	Bach 1992:51	translation	‘…by the cousin of his late father.’	page 8, engine english, cited Bach 1992:51
 (35) line 4	Jocelyn Murphey	citation	(Bach 1992:51)	the tag or source at the right of the translation
-§6	Jocelyn Murphey	note	One further point regarding using the =guɫ enclitic is that it can also refer to animals that have died, as shown in examples (36) and (37).	page 8
+§6	Jocelyn Murphey	note	One further point regarding using the =guɫ enclitic is that it can also refer to animals that have died, as displayed in examples (36) and (37).	page 8
 (36) line 1	Haisla	transcription	w̓ac̓guɫi	page 8, engine language
 (36) line 2	Haisla	segmentation	w̓ac̓=guɫ=i	page 8, engine language
 (36) line 3	Haisla	gloss	dog=DIS.PST=D₁⁴	page 8, engine english
@@ -281,10 +281,10 @@ appendix	Haisla	cited affix	=uɫ	page 10
 appendix	Haisla	cited affix	=guɫdi	page 10
 appendix	Haisla	cited form	John-uɫi	page 10
 appendix	Haisla	cited form	’áupguɫienc	page 10
-appendix	Jocelyn Murphey	note	Also, when a speaker wants to make it clear that something happened a long time ago, they may use =guɫ, which is the distant past tense marker. For example, a speaker could say p̓álaguɫen la c̓imáuc̓ax̄i ‘I used to work in Kitimat village (over there)’ (Nelson Grant, p.c., January 29, 2023). Late and Former: =uɫ and =guɫdi When speakers refer to people who have passed on, they will most likely add the =uɫ, such as in John-uɫi meaning ‘the late John’ (Nelson Grant, p.c., March 9, 2023). Occasionally, a speaker could also use =guɫ when referring to someone who has passed, such as in ’áupguɫienc, which means ‘my late father’ (Nelson Grant, p.c., May 12, 2023). While the =uɫ ending is only used to refer to people, the =guɫ can also be used to refer to animals and objects.	page 10
+appendix	Jocelyn Murphey	note	Also, when a speaker wants to make it clear that something happened a long time ago, they may use =guɫ, which is the distant past tense marker. For example, a speaker could say p̓álaguɫen la c̓imáuc̓ax̄i ‘I used to work in Kitimat village (over there)’ (Nelson Grant, p.c., January 29, 2023). Late and Former: =uɫ and =guɫdi When speakers refer to people who have passed on, they will likely add the =uɫ, such as in John-uɫi meaning ‘the late John’ (Nelson Grant, p.c., March 9, 2023). Occasionally, a speaker could also use =guɫ when referring to someone who has passed, such as in ’áupguɫienc, which means ‘my late father’ (Nelson Grant, p.c., May 12, 2023). While the =uɫ ending is only used to refer to people, the =guɫ can also be used to refer to animals and objects.	page 10
 appendix	Haisla	cited form	λáx̄dalaguɫdiax̄i	page 10
 appendix	Haisla	cited form	’ux̄ʷ	page 10
 appendix	Haisla	cited form	ƛ̓úpasus	page 10
 appendix	Haisla	cited form	w̓íget	page 10
-appendix	Jocelyn Murphey	note	Another ending that is used to discuss someone/something that has died is =guɫdi. The =guɫ ‘distant past’ can also be combined with the =t ‘recent past’, which sounds like a [d] here, and =i ‘absental’ to communicate that a person, animal, or object is ‘recently deceased’, or made former in some way, such as if an object was previously used for a different purpose. This =guɫdi is most likely to occur in storytelling, where the speaker recounts that someone or something just died at that point in the story. For example, the phrase λáx̄dalaguɫdiax̄i ’ux̄ʷ ƛ̓úpasus w̓íget means ‘the grey cold that was barbecued by Wigit’, and =guɫdi is used in reference to cod that had recently died (Bach 1998:102). Refer to example (27) in the main body of the article for a more detailed analysis of this phrase.	page 10
+appendix	Jocelyn Murphey	note	Another ending that is used to discuss someone/something that has died is =guɫdi. The =guɫ ‘distant past’ can also be combined with the =t ‘recent past’, which sounds like a [d] here, and =i ‘absental’ to communicate that a person, animal, or object is ‘recently deceased’, or made former in some way, such as if an object was previously used for a different purpose. This =guɫdi is likely to occur in storytelling, where the speaker recounts that someone or something just died at that point in the story. For example, the phrase λáx̄dalaguɫdiax̄i ’ux̄ʷ ƛ̓úpasus w̓íget means ‘the grey cold that was barbecued by Wigit’, and =guɫdi is used in reference to cod that had recently died (Bach 1998:102). Refer to example (27) in the main body of the article for a more detailed analysis of this phrase.	page 10
 appendix	Jocelyn Murphey	note	Learners may notice that =guɫdi and =uɫ appear in stories and assume that these are past tense markers. However, these markers are only providing more information about the person, animal, or object. They do not change the sentence to make it in the past tense.	page 10

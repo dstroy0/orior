@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// sass_assemble_internal.h: what the modules of the assembler share: its includes, the guard and branch fields, the fields of each operand kind, the places, labels, holders and placed forms, and the functions one module reads from another (sass_assemble.h)
+// sass_assemble_internal.h: what the modules of the assembler share: its includes, the guard and branch fields, the fields of each operand type, the places, labels, holders and placed forms, and the functions one module reads from another (sass_assemble.h)
 #ifndef SASS_ASSEMBLE_INTERNAL_H
 #define SASS_ASSEMBLE_INTERNAL_H
 
@@ -37,7 +37,7 @@ typedef struct
 
 #define SASS_DESCRIPTOR_FIELDS (sizeof(s_descriptor_fields) / sizeof(s_descriptor_fields[0]))
 
-#define SASS_DESCRIPTOR_SHOWN 101u
+#define SASS_DESCRIPTOR_DISPLAYED 101u
 
 // the field's value for URZ, every bit of it set
 #define SASS_DESCRIPTOR_ZERO 63ull
@@ -61,7 +61,7 @@ typedef struct
     int has_descriptor;
 } SassPlace;
 
-// the most labels one text names, and the longest a label's name is
+// the max labels one text names, and the longest a label's name is
 #define SASS_LABELS 256u
 
 #define SASS_LABEL_TOKEN 64u
@@ -69,7 +69,7 @@ typedef struct
 // the form whose own bits the encoding carries outside what it leaves open, and that form's places through `places`.
 // Of several: one that reads every field before one with a relocated label, whose field contains nothing; a label
 // before a number of the same operation; then the one leaving the fewest bits open. NULL where none matches it
-// the most forms one encoding is matched by that the reader weighs
+// the max forms one encoding is matched by that the reader weighs
 #define SASS_HOLDERS 32u
 
 

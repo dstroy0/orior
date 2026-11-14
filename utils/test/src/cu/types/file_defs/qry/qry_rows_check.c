@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qry_rows_check.c: a text of the run's table of texts checked against table_text.h
 //
-//   texts      a text's number is the 64-bit FNV-1a hash of its bytes, its row handed once however often this process
+//   texts      a text's number is the 64-bit FNV-1a hash of its bytes, its row passed once however often this process
 //              numbers it: of no who, its number, its length and its bytes filled out to a whole word with zeros; an
 //              empty text has no number
-//   bare       a row of check_rows, a table with no oracle and no head, is handed to the run, which kdecode_check.sh
+//   bare       a row of check_rows, a table with no oracle and no head, is passed to the run, which kdecode_check.sh
 //              reads raw and decoded
 //
 //     qry_rows_check
@@ -95,7 +95,7 @@ int main(void)
     // bare
     const unsigned long long row[3] = {1ull, 2ull, 3ull};
     check_that(qry_member_append("check_rows", row, sizeof(row), QRY_ORDINARY) != 0ull,
-               "bare: a row of a table with no oracle and no head is handed to the run");
+               "bare: a row of a table with no oracle and no head is passed to the run");
 
     printf("qry_rows_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;

@@ -18,15 +18,15 @@ typedef struct GuiTipReadCfg GuiTipReadCfg;
 typedef struct GuiTipCfg GuiTipCfg;
 
 // the rest on a button before its tip shows, in milliseconds; and the sizes in the page's pixels: the box's padding
-// across and down, the gap between the label and the keys, and how far the box stands off the button
+// across and down, the gap between the label and the keys, and how far the box is off the button
 #define GUI_TIP_REST_MS 600ULL
 #define GUI_TIP_PAD_X 8
 #define GUI_TIP_PAD_Y 4
 #define GUI_TIP_GAP 10
 #define GUI_TIP_OFF 4
 
-// The tip: the label of the button the pointer stands on, NULL off every button, and its keys, NULL or empty for
-// none; the button's rectangle, and whether the box stands beside the button, at its right as a side_menu tool's does,
+// The tip: the label of the button the pointer is on, NULL off every button, and its keys, NULL or empty for
+// none; the button's rectangle, and whether the box is beside the button, at its right as a side_menu tool's does,
 // in place of under it; when the rest on it ends; whether the tip shows; and the box's rectangle where it was drawn
 // last, empty while it does not show
 typedef struct
@@ -42,8 +42,8 @@ typedef struct
 
 // a tip on no button
 void gui_tip_init(const GuiTipCfg *args);
-// the pointer at `time_ms` on the button `anchor` labelled `label` with `keys`, its box to stand `beside` the button
-// or under it, or on no button where `label` is NULL: another button starts the rest again, the same one keeps it: 1
+// the pointer at `time_ms` on the button `anchor` labelled `label` with `keys`, its box to be `beside` the button
+// or under it, or on no button where `label` is NULL: another button starts the rest again, the same one retains it: 1
 // where a tip that showed went
 int gui_tip_point(const GuiTipPointCfg *args);
 // the clock at `time_ms`: 1 where the rest ended and the tip came to show
@@ -51,7 +51,7 @@ int gui_tip_tick(const GuiTipTimeCfg *args);
 // when the tip next wants a tick, in milliseconds, 0 for never
 unsigned long long gui_tip_deadline_ms(const GuiTipReadCfg *args);
 // the tip drawn under its button, centred on it, above the button where below has no room, or at the button's right,
-// centred on its row, where the tip stands beside it, inside `bounds` at `scale`: the label in the interface face in
+// centred on its row, where the tip is beside it, inside `bounds` at `scale`: the label in the interface face in
 // the text's color and the keys after it in the quieter text; the box's rectangle recorded
 void gui_tip_draw(const GuiTipRasterCfg *args);
 struct GuiTipRasterCfg

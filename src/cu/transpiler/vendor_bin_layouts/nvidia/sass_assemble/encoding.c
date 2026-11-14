@@ -71,7 +71,7 @@ static unsigned int sass_open_bits(const SassForm *form, const SassPlace *places
         if (places[place].has_descriptor != 0)
         {
             sass_bits_write(low, high, places[place].descriptor.first, places[place].descriptor.bits, ~0ull);
-            sass_bits_write(low, high, SASS_DESCRIPTOR_SHOWN, 1u, ~0ull);
+            sass_bits_write(low, high, SASS_DESCRIPTOR_DISPLAYED, 1u, ~0ull);
         }
     }
     // an operand the form carries and does not print is the operand's, whatever value an encoding gives it
@@ -97,7 +97,7 @@ static int sass_form_relocated(const SassForm *form, const SassPlace *places)
     int relocated = 0;
     for (unsigned int place = 0u; place < form->operands; place += 1u)
     {
-        relocated = relocated || ((form->kind[place] == SASS_OPERAND_LABEL) && (places[place].by_text != 0));
+        relocated = relocated || ((form->type[place] == SASS_OPERAND_LABEL) && (places[place].by_text != 0));
     }
     return relocated;
 }
@@ -113,7 +113,7 @@ static int sass_form_lands(const SassForm *form, const SassForm *other)
     int lands = 0;
     for (unsigned int place = 0u; place < form->operands; place += 1u)
     {
-        lands = lands || ((form->kind[place] == SASS_OPERAND_LABEL) && (other->kind[place] == SASS_OPERAND_IMMEDIATE));
+        lands = lands || ((form->type[place] == SASS_OPERAND_LABEL) && (other->type[place] == SASS_OPERAND_IMMEDIATE));
     }
     return lands;
 }
@@ -138,8 +138,8 @@ static int sass_name_within(const char *plain, const char *named)
     return within;
 }
 
-// How `holder` stands against `sibling` where `holder` takes its name from one value of an operand: a sibling carrying
-// the same encoding, with the same operation's name before its first dot, the same kinds and the same marks, is named
+// How `holder` is against `sibling` where `holder` takes its name from one value of an operand: a sibling carrying
+// the same encoding, with the same operation's name before its first dot, the same types and the same marks, is named
 // shorter, and the two forms' own values of an operand differ. -1 where the encoding's value there is not `holder`'s,
 // which names it away; 1 where every such value is `holder`'s, which names it; 0 where the two are no such pair.
 // IMAD.MOV and IMAD.IADD are IMAD with a multiplier of 0 and of 1, and IMAD.MOV is IMAD with RZ as the register it
@@ -153,7 +153,7 @@ static int sass_holder_named(const SassHolder *holder, const SassHolder *sibling
                (form->operands == other->operands);
     for (unsigned int place = 0u; same && (place < form->operands); place += 1u)
     {
-        same = (form->kind[place] == other->kind[place]) && (form->mark[place] == other->mark[place]);
+        same = (form->type[place] == other->type[place]) && (form->mark[place] == other->mark[place]);
     }
     int differs = 0;
     int away = 0;
@@ -171,8 +171,8 @@ static int sass_holder_named(const SassHolder *holder, const SassHolder *sibling
         const unsigned long long given = sass_bits_read(low, high, field->first, field->bits);
         // the value a name is taken from is a multiplier of 0 or 1, a number 0 or 1 or the register RZ; a register
         // the two forms' encodings were seen with apart from that is the encoding's own and names nothing
-        const int naming = ((form->kind[place] == SASS_OPERAND_IMMEDIATE) && (own <= 1ull)) ||
-                           ((form->kind[place] == SASS_OPERAND_REGISTER) && (own == 255ull));
+        const int naming = ((form->type[place] == SASS_OPERAND_IMMEDIATE) && (own <= 1ull)) ||
+                           ((form->type[place] == SASS_OPERAND_REGISTER) && (own == 255ull));
         differs = differs || (naming && (own != theirs));
         away = away || (naming && (own != theirs) && (given != own));
     }
@@ -234,7 +234,7 @@ static const SassForm *sass_encoding_form(const SassMachine *machine, unsigned l
                 continue;
             }
         }
-        // a holder past the most the reader weighs is refused and not dropped: the form it would have been is unknown
+        // a holder past the max the reader weighs is refused and not dropped: the form it would have been is unknown
         if (found_count == SASS_HOLDERS)
         {
             printf("  sass_assemble: more than %u forms match the encoding %016llx %016llx\n", SASS_HOLDERS, high, low);
@@ -296,7 +296,7 @@ static void sass_operand_read(const SassForm *form, const SassInstructionParts *
     const unsigned long long mask = (place->value.bits < 64u) ? ((1ull << place->value.bits) - 1ull) : ~0ull;
     const unsigned long long value =
         ((place->value.inverted != 0u) ? (~operand_value & mask) : operand_value) * place->value.scale;
-    switch (form->kind[at])
+    switch (form->type[at])
     {
     case SASS_OPERAND_REGISTER:
         (value == 255ull) ? snprintf(operand, room, "%sRZ", mark) : snprintf(operand, room, "%sR%llu", mark, value);
@@ -348,10 +348,10 @@ static void sass_operand_read(const SassForm *form, const SassInstructionParts *
         {
             const unsigned long long descriptor =
                 sass_bits_read(low, high, place->descriptor.first, place->descriptor.bits);
-            const int shown = (int)sass_bits_read(low, high, SASS_DESCRIPTOR_SHOWN, 1u);
+            const int displayed = (int)sass_bits_read(low, high, SASS_DESCRIPTOR_DISPLAYED, 1u);
             (descriptor == SASS_DESCRIPTOR_ZERO)
-                ? snprintf(operand_value, sizeof(operand_value), "%s[URZ]", shown ? "desc" : "term")
-                : snprintf(operand_value, sizeof(operand_value), "%s[UR%llu]", shown ? "desc" : "term", descriptor);
+                ? snprintf(operand_value, sizeof(operand_value), "%s[URZ]", displayed ? "desc" : "term")
+                : snprintf(operand_value, sizeof(operand_value), "%s[UR%llu]", displayed ? "desc" : "term", descriptor);
         }
         (offset == 0ull) ? snprintf(operand, room, "%s[%s]", operand_value, named)
                          : snprintf(operand, room, "%s[%s+0x%llx]", operand_value, named, offset);
@@ -413,8 +413,8 @@ int sass_loop_walk(const SassMachine *machine, const SassLoopWalk *walk, unsigne
             int lands = 0;
             for (unsigned int place = 0u; place < form->operands; place += 1u)
             {
-                const unsigned int kind = form->kind[place];
-                if ((places[place].by_text != 0) || ((kind != SASS_OPERAND_LABEL) && (kind != SASS_OPERAND_IMMEDIATE)))
+                const unsigned int type = form->type[place];
+                if ((places[place].by_text != 0) || ((type != SASS_OPERAND_LABEL) && (type != SASS_OPERAND_IMMEDIATE)))
                 {
                     continue;
                 }
@@ -434,12 +434,12 @@ int sass_loop_walk(const SassMachine *machine, const SassLoopWalk *walk, unsigne
                 {
                     const unsigned long long first =
                         sass_bits_read(low, high, places[0].value.first, places[0].value.bits);
-                    for (unsigned int live = 0u; (form->kind[0] == SASS_OPERAND_REGISTER) && (live < walk->lives);
+                    for (unsigned int live = 0u; (form->type[0] == SASS_OPERAND_REGISTER) && (live < walk->lives);
                          live += 1u)
                     {
                         writes = writes || (first == walk->live[live]);
                     }
-                    writes = writes || ((form->kind[0] == SASS_OPERAND_PREDICATE) && (first == walk->flag));
+                    writes = writes || ((form->type[0] == SASS_OPERAND_PREDICATE) && (first == walk->flag));
                 }
                 if (!writes)
                 {

@@ -7,10 +7,10 @@
 
 // tessera's ledger decisions as one source the host and the device both compile. There are two tesseras: the host's
 // daemon (tessera_daemon_*.c) runs them through tessera_ledger.c over arrays it grows, with no CUDA context of its own,
-// and the device's tessera (tessera.cu) runs them in one thread over arrays it laid out in the device's memory.
+// and the device's tessera (tessera.cu) runs them in one thread over arrays it arranged in the device's memory.
 // The core never grows an array. Each decision errors where an array it needs is full, as the host's errored where a
 // an array did not grow, and tessera_core_call errors on a call before it changes anything where the ledger lacks room
-// for the most the call could add: the caller grows the arrays and makes the call again, which decides the same
+// for the max the call could add: the caller grows the arrays and makes the call again, which decides the same
 
 #include "tessera_ledger.h"
 
@@ -24,7 +24,7 @@
 
 #define TESSERA_FOREVER 0xFFFFFFFFFFFFFFFFull
 
-// the most a call can add to each of a ledger's arrays: its jobs, its tracked peaks and its deadlines
+// the max a call can add to each of a ledger's arrays: its jobs, its tracked peaks and its deadlines
 typedef struct
 {
     unsigned long long jobs;
@@ -32,10 +32,10 @@ typedef struct
     unsigned long long heap;
 } TesseraCapacity;
 
-TESSERA_CORE TesseraEvent tessera_core_event(TesseraEventKind kind, unsigned long long identity,
+TESSERA_CORE TesseraEvent tessera_core_event(TesseraEventKind type, unsigned long long identity,
                                              unsigned long long bytes, unsigned long long measured)
 {
-    const TesseraEvent event = {kind, identity, bytes, measured};
+    const TesseraEvent event = {type, identity, bytes, measured};
     return event;
 }
 
@@ -55,16 +55,16 @@ TESSERA_CORE int tessera_core_signum_same(const EngineSignum *left, const Engine
     return same;
 }
 
-// the arrays a ledger's call of `kind` can take: a job and a deadline for a submit, a tracked peak and a deadline for a
+// the arrays a ledger's call of `type` can take: a job and a deadline for a submit, a tracked peak and a deadline for a
 // release, a deadline for an idle, a tracked peak for a remember, and a deadline for each job an admit could start
-TESSERA_CORE TesseraCapacity tessera_core_capacity(const TesseraLedger *ledger, TesseraCallKind kind)
+TESSERA_CORE TesseraCapacity tessera_core_capacity(const TesseraLedger *ledger, TesseraCallKind type)
 {
     TesseraCapacity needed = {ledger->job_count, ledger->history_count, ledger->heap_count};
-    needed.jobs += (kind == TESSERA_CALL_SUBMIT) ? 1ull : 0ull;
-    needed.history += ((kind == TESSERA_CALL_RELEASE) || (kind == TESSERA_CALL_REMEMBER)) ? 1ull : 0ull;
-    needed.heap += ((kind == TESSERA_CALL_SUBMIT) || (kind == TESSERA_CALL_RELEASE) || (kind == TESSERA_CALL_IDLE))
+    needed.jobs += (type == TESSERA_CALL_SUBMIT) ? 1ull : 0ull;
+    needed.history += ((type == TESSERA_CALL_RELEASE) || (type == TESSERA_CALL_REMEMBER)) ? 1ull : 0ull;
+    needed.heap += ((type == TESSERA_CALL_SUBMIT) || (type == TESSERA_CALL_RELEASE) || (type == TESSERA_CALL_IDLE))
                        ? 1ull
-                       : ((kind == TESSERA_CALL_ADMIT) ? ledger->job_count : 0ull);
+                       : ((type == TESSERA_CALL_ADMIT) ? ledger->job_count : 0ull);
     return needed;
 }
 
@@ -76,7 +76,7 @@ TESSERA_CORE int tessera_core_fits(const TesseraLedger *ledger, const TesseraCap
 }
 
 TESSERA_CORE int tessera_core_heap_push(TesseraLedger *ledger, unsigned long long when, unsigned long long identity,
-                                        TesseraEventKind kind)
+                                        TesseraEventKind type)
 {
     if (ledger->heap_count >= ledger->heap_capacity)
     {
@@ -96,7 +96,7 @@ TESSERA_CORE int tessera_core_heap_push(TesseraLedger *ledger, unsigned long lon
     }
     ledger->heap[at].when = when;
     ledger->heap[at].identity = identity;
-    ledger->heap[at].kind = kind;
+    ledger->heap[at].type = type;
     return 1;
 }
 
@@ -200,7 +200,7 @@ TESSERA_CORE const TesseraHistory *tessera_core_history(const TesseraLedger *led
 TESSERA_CORE unsigned long long tessera_core_wants(const TesseraLedger *ledger, const TesseraJob *job)
 {
     const TesseraHistory *const previous = tessera_core_history(ledger, &job->request.signum);
-    const unsigned long long total = tessera_core_sum(job->request.standing, job->request.declared);
+    const unsigned long long total = tessera_core_sum(job->request.located, job->request.declared);
     return ((previous != NULL) && (previous->peak > total)) ? previous->peak : total;
 }
 
@@ -209,7 +209,7 @@ TESSERA_CORE unsigned long long tessera_core_wants(const TesseraLedger *ledger, 
 TESSERA_CORE unsigned long long tessera_core_needs(const TesseraLedger *ledger, const TesseraJob *job)
 {
     const unsigned long long wants = tessera_core_wants(ledger, job);
-    return (wants > job->request.standing) ? (wants - job->request.standing) : 0ull;
+    return (wants > job->request.located) ? (wants - job->request.located) : 0ull;
 }
 
 TESSERA_CORE int tessera_core_submit(TesseraLedger *ledger, const TesseraJobRequest *request, unsigned long long now,

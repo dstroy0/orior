@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// settings_sync_export.c: what travels written to one file, or laid out in a folder, which, where it is a repository,
+// settings_sync_export.c: what travels written to one file, or arranged in a folder, which, where it is a repository,
 // is committed and pushed
 #include "../code/git.h"
 #include "settings_sync_internal.h"

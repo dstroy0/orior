@@ -1,6 +1,6 @@
 # A finer alphabet, and what it would buy
 
-The eight-letter octant reading carries eight numbers about a source with 256 degrees of freedom.
+The eight-character octant reading carries eight numbers about a source with 256 degrees of freedom.
 `docs/octant-lexicon.md` carries that count and the reading it bounds. The obvious repair is a finer
 alphabet, and the candidate on the table is to subdivide each octant's spherical triangle, giving
 `8 * 4^k` cells at depth `k`.
@@ -20,7 +20,7 @@ are points to write into them.
 | 2 | 128 | 2 |
 | 3 | 512 | 0.5 |
 
-At `k = 3` there are twice as many cells as placement points, and most letters can never be written
+At `k = 3` there are twice as many cells as placement points, and max characters can never be written
 at all and the alphabet carries dead symbols. At `k = 2` the cell count equals the typical lit count,
 each cell holds two placement points, and the reading has stopped being a coarse-graining: it is close
 to a permuted list of which bits are lit. On a 256-point placement `k = 2` is the last depth that
@@ -53,7 +53,7 @@ The floor half of that is solid. Two independent states of the same weight give 
 as the square root of the cell count, which is ordinary redraw statistics and needs no assumption
 about the function being read. The delta half is only an expectation: a round's movement
 behaves like a partial redraw and is expected to scale the same way. An attempt to derive that
-equality is recorded below, along with the reason it does not stand.
+equality is recorded below, along with the reason it does not are.
 
 ## A derivation that did not hold
 
@@ -68,7 +68,7 @@ is 3.5% of the weight. A change in the denominator moves all eight shares even f
 moved, and the cancellation the argument rests on does not happen.
 
 **The test.** Predicting `s` from the ratio squared and counting the lit points that actually moved,
-over all 63 consecutive pairs, with the digest column kept beside it because the earlier version of
+over all 63 consecutive pairs, with the digest column retained beside it because the earlier version of
 this note was measured there:
 
 | quantity | working state | finalized digest |
@@ -138,7 +138,7 @@ match in sixty-four rounds. That test was run on digest frames, and it was measu
 feed-forward.
 
 What is not established is a link between the shift and the octant delta. The delta's early excess
-over the redraw floor is measured, and a rigid relabeling of indices is the kind of move that
+over the redraw floor is measured, and a rigid relabeling of indices is the type of move that
 produces such an excess, but attributing the excess to the register shift is a reading of why and
 has not been measured. The two statements sit at different levels and only the first is a count.
 
@@ -146,7 +146,7 @@ has not been measured. The two statements sit at different levels and only the f
 
 One run at `k = 1` and `k = 2`, each with its own redraw level computed at the matched weight,
 reporting the ratio and not the delta. Two ratios near the `k = 0` value confirm the expectation. A
-ratio that falls with `k` refutes it cheaply, and the two ceilings still stand either way.
+ratio that falls with `k` refutes it cheaply, and the two ceilings still are either way.
 
 Ownership: the subdivision candidate and the run are the engine's. The refutation of the `sqrt(s)`
 derivation is the engine's, and the rank bound is the engine's. The reproduction, the units

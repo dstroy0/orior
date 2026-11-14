@@ -4,7 +4,7 @@
 // The window in the reader's language. A language file, `languages/<tag>.json` in orior's own folder,
 // gives each of the window's texts in English the reader's own for it, as { "File": "…" }; the
 // language is the setting `language`, the system's where none is set, and English, the window's own,
-// takes no file. Each text of the window a file gives is shown in its words as it is drawn: a run of
+// takes no file. Each text of the window a file gives is displayed in its words as it is drawn: a run of
 // text an element shows, matched with its spaces trimmed, and each title, placeholder and name a
 // reader of the screen hears. The editor's text and the terminal's, the files' names and paths, and every text the
 // reader wrote are never changed; a text a file does not give stays in English.
@@ -18,10 +18,10 @@ const ATTRIBUTES = ["title", "placeholder", "aria-label"];
 // Where no text is changed: the editor, the terminal, the files' names and paths as the tabs, the
 // breadcrumbs and the explorer show them, code, keys, and what the reader types; and where no title
 // or name a reader of the screen hears is changed, those places that show files and text alone.
-const KEPT = ".ed, .xterm, #term, .term, .tab, .crumb, .node, .files, .name, .where, .path, code, kbd, pre, textarea, input, [contenteditable], .plugin-panel, .md-preview, iframe";
-const KEPT_WHOLE = ".ed, .xterm, #term, .term, .tab, .crumb, .node, .files, .plugin-panel, iframe";
+const RETAINED = ".ed, .xterm, #term, .term, .tab, .crumb, .node, .files, .name, .where, .path, code, kbd, pre, textarea, input, [contenteditable], .plugin-panel, .md-preview, iframe";
+const RETAINED_WHOLE = ".ed, .xterm, #term, .term, .tab, .crumb, .node, .files, .plugin-panel, iframe";
 
-// Each text and each attribute as first drawn in English, and as shown in the window's language.
+// Each text and each attribute as first drawn in English, and as displayed in the window's language.
 const state = { tag: "en", words: null, texts: new WeakMap(), attributes: new WeakMap(), units: new WeakMap(), watching: null };
 
 // The language the window is in, as a tag such as "de" or "pt-BR".
@@ -56,22 +56,22 @@ export function inLanguage(text) {
 // Shows the text node `node` in the window's language: from its English, where what it shows is what
 // this showed last, and from what it shows where the window wrote it anew.
 function turnText(node) {
-  if ((node.parentElement ?? null)?.closest(KEPT)) {
+  if ((node.parentElement ?? null)?.closest(RETAINED)) {
     return;
   }
   const original = state.texts.get(node);
-  const english = original && node.nodeValue === original.shown ? original.english : node.nodeValue;
+  const english = original && node.nodeValue === original.displayed ? original.english : node.nodeValue;
   const trimmed = english.trim();
   const given = trimmed ? state.words?.[trimmed] : undefined;
-  const shown = given === undefined ? english : english.replace(trimmed, given);
-  state.texts.set(node, { english, shown });
-  if (node.nodeValue !== shown) {
-    node.nodeValue = shown;
+  const displayed = given === undefined ? english : english.replace(trimmed, given);
+  state.texts.set(node, { english, displayed });
+  if (node.nodeValue !== displayed) {
+    node.nodeValue = displayed;
   }
 }
 
 function turnAttributes(element) {
-  if (element.closest(KEPT_WHOLE)) {
+  if (element.closest(RETAINED_WHOLE)) {
     return;
   }
   const original = state.attributes.get(element) ?? {};
@@ -80,12 +80,12 @@ function turnAttributes(element) {
       continue;
     }
     const now = element.getAttribute(name);
-    const english = original[name] && now === original[name].shown ? original[name].english : now;
+    const english = original[name] && now === original[name].displayed ? original[name].english : now;
     const given = state.words?.[english.trim()];
-    const shown = given === undefined ? english : given;
-    original[name] = { english, shown };
-    if (now !== shown) {
-      element.setAttribute(name, shown);
+    const displayed = given === undefined ? english : given;
+    original[name] = { english, displayed };
+    if (now !== displayed) {
+      element.setAttribute(name, displayed);
     }
   }
   state.attributes.set(element, original);
@@ -94,28 +94,28 @@ function turnAttributes(element) {
 // Whether `element` shows one text split by an underline of its access key, as a menu's title does.
 const underlined = (element) => element.nodeType === Node.ELEMENT_NODE && Boolean(element.querySelector(":scope > u")) && [...element.childNodes].every((node) => node.nodeType === Node.TEXT_NODE || node.tagName === "U");
 
-// Turns such an element as one text, its underline kept on the same letter where the language's
+// Turns such an element as one text, its underline retained on the same character where the language's
 // words hold it, and the text left plain where they do not; its key stays as it was.
 function turnUnderlined(element) {
-  if (element.closest(KEPT)) {
+  if (element.closest(RETAINED)) {
     return;
   }
   const original = state.units.get(element);
   const now = element.textContent;
-  const english = original && now === original.shown ? original.english : now;
-  const letter = original && now === original.shown ? original.letter : (element.querySelector(":scope > u")?.textContent ?? "");
+  const english = original && now === original.displayed ? original.english : now;
+  const character = original && now === original.displayed ? original.character : (element.querySelector(":scope > u")?.textContent ?? "");
   const trimmed = english.trim();
   const given = trimmed ? state.words?.[trimmed] : undefined;
-  const shown = given === undefined ? english : english.replace(trimmed, given);
-  state.units.set(element, { english, shown, letter });
-  if (original && now === shown) {
+  const displayed = given === undefined ? english : english.replace(trimmed, given);
+  state.units.set(element, { english, displayed, character });
+  if (original && now === displayed) {
     return;
   }
-  const at = given === undefined ? english.indexOf(letter) : shown.toLowerCase().indexOf(letter.toLowerCase());
-  if (letter && at >= 0) {
-    element.replaceChildren(shown.slice(0, at), Object.assign(document.createElement("u"), { textContent: shown[at] }), shown.slice(at + 1));
+  const at = given === undefined ? english.indexOf(character) : displayed.toLowerCase().indexOf(character.toLowerCase());
+  if (character && at >= 0) {
+    element.replaceChildren(displayed.slice(0, at), Object.assign(document.createElement("u"), { textContent: displayed[at] }), displayed.slice(at + 1));
   } else {
-    element.replaceChildren(shown);
+    element.replaceChildren(displayed);
   }
 }
 
@@ -154,7 +154,7 @@ function turnAll(root) {
   }
 }
 
-// Reads the language chosen and shows the window in it, and keeps each text drawn after in it.
+// Reads the language chosen and shows the window in it, and retains each text drawn after in it.
 export async function takeLanguage() {
   const tag = chosenLanguage();
   const base = tag.toLowerCase().split("-")[0];

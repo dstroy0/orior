@@ -31,9 +31,9 @@ typedef struct CliTestRunsPathCtx CliTestRunsPathCtx;
 typedef struct CliTestRunsPythonCtx CliTestRunsPythonCtx;
 typedef struct CliTestRunsWorkerLineCtx CliTestRunsWorkerLineCtx;
 
-// the runs open at once, a run going and the one before it ending; the most processes a run starts; the longest line
-// a process writes that is read whole, and the most bytes one thing a run reports takes; the bytes the names a run is
-// given take; the most tests a cargo run names, the results received and the bytes their names take; and the bytes of
+// the runs open at once, a run going and the one before it ending; the max processes a run starts; the longest line
+// a process writes that is read whole, and the max bytes one thing a run reports takes; the bytes the names a run is
+// given take; the max tests a cargo run names, the results received and the bytes their names take; and the bytes of
 // what a run reports at its end
 #define CLI_TEST_RUNS 2u
 #define CLI_TEST_WORKERS 64u
@@ -140,7 +140,7 @@ int cli_test_seen_any(const CliTestRunsRunLengthCtx *args);
 
 // a result reported, `{"type": "result", "run", "outcome": {...}}`, its file NULL and its line -1 where it has none;
 // the lines a process writes to its output read until its end or the run's stop, each stored in its output file and
-// handed to `line`; its errors read whole into its errors file, on a thread of their own, waited for; and a file of the
+// passed to `line`; its errors read whole into its errors file, on a thread of their own, waited for; and a file of the
 // run's folder read whole, NULL where it is not there (test_runs.c, test_read.c)
 void cli_test_result_emit(const CliTestRunsOutcomeCtx *args);
 typedef struct
@@ -161,7 +161,7 @@ void cli_test_file_let_go(const CliTestRunsTextWorkerCtx *args);
 int cli_cargo_workers_start(const CliTestRunsRunInputCtx *args);
 
 // whether `python` has pytest, queried in the tree at `root`; and the shares the Python tests given, `count` of them,
-// are spread over, at most `most`: whole files to a share, the files of most first, each to the share that has the
+// are spread over, at max `max`: whole files to a share, the files of max first, each to the share that has the
 // fewest so far, into the run's order and shares (test_python.c)
 int cli_test_has_pytest(const CliTestRunsPythonCtx *args);
 void cli_test_shares(const CliTestRunsRunCountCtx *args);
@@ -320,7 +320,7 @@ struct CliTestRunsRunCountCtx
 {
     CliTestRun *run;
     unsigned int count;
-    unsigned int most;
+    unsigned int max;
 };
 
 struct CliTestRunsTextWorkerCtx

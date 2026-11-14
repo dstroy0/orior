@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-import { most } from "../document.js";
+import { max } from "../document.js";
 import { pressed, status, write } from "../../status.js";
 import { enter, leave } from "../../trace.js";
 import { coloringReach, FLICK_KEY, FLICK_LEAST, FLICK_REST, FLICK_SLOWS, FLICK_STOP, GLIDE_PIECE, GLIDE_RATE, LINE, REST, SMOOTH_KEY } from "../view.js";
@@ -36,11 +36,11 @@ export function onWheel(event) {
   }
 }
 
-// Glides the scrolling space to `to`: from where it stands, or where a glide under way heads
-// there instead, keeping its speed.
+// Glides the scrolling space to `to`: from where it is, or where a glide under way heads
+// there instead, retention its speed.
 export function glideTo(to) {
-  const most = this.scroller.scrollHeight - this.scroller.clientHeight;
-  const target = Math.max(0, Math.min(most, to));
+  const max = this.scroller.scrollHeight - this.scroller.clientHeight;
+  const target = Math.max(0, Math.min(max, to));
   if (this.glide) {
     this.glide.to = target;
     return;
@@ -63,7 +63,7 @@ export function glideTo(to) {
 }
 
 // One frame of a glide: the spring moved on by the time since the frame before, and the space
-// scrolled to where it stands, the glide ended once it stands at its end.
+// scrolled to where it is, the glide ended once it is at its end.
 export function glided(glide, now, step) {
   let left = glide.last === null ? GLIDE_PIECE * 2 : Math.min(64, now - glide.last);
   glide.last = now;
@@ -82,7 +82,7 @@ export function glided(glide, now, step) {
   requestAnimationFrame(step);
 }
 
-// The touchpad's speed, the latest movement weighed most, and the run-on once it rests.
+// The touchpad's speed, the latest movement weighed max, and the run-on once it rests.
 export function track(by) {
   const now = performance.now();
   const spent = Math.max(1, now - (this.flickAt ?? now - 16));
@@ -132,7 +132,7 @@ export function setFlick(on) {
   localStorage.setItem(FLICK_KEY, String(on));
 }
 
-// Where the view is heading: the end of the glide under way, or where it stands.
+// Where the view is heading: the end of the glide under way, or where it is.
 export function headingY() {
   return this.glide ? this.glide.to - this.pad : this.scrollY();
 }
@@ -155,13 +155,13 @@ export function place(top) {
   const was = this.scroller.scrollTop;
   this.scroller.scrollTop = top + this.pad;
   this.placedTop = this.scroller.scrollTop === was ? null : this.scroller.scrollTop;
-  // where the view stands from now, before the scroll the placing makes is heard: a paged file's window moved under the
-  // view changes the padding above it, and the scroll last heard stands for another line until then
+  // where the view is from now, before the scroll the placing makes is heard: a paged file's window moved under the
+  // view changes the padding above it, and the scroll last heard is for another line until then
   this.lastTop = this.scroller.scrollTop;
 }
 
 export function onScroll() {
-  // Where the view stands, read before anything changes the page.
+  // Where the view is, read before anything changes the page.
   const top = this.scroller.scrollTop;
   const left = this.scroller.scrollLeft;
   this.scrolledNow = { top, left };
@@ -187,8 +187,8 @@ export function onScroll() {
   // The speed the view had as it came to rest, which the idle coloring reaches ahead by.
   this.lastSpeed = speed;
   write("scroll", { speed, heading: moved ? Math.sign(moved) : status.scroll.heading });
-  // The sheet and the gutter stand outside the scrolling space. They follow now and not a frame late, except into the
-  // lines a paged file's window has not read: there they stand as last drawn until the window comes to the view.
+  // The sheet and the gutter are outside the scrolling space. They follow now and not a frame late, except into the
+  // lines a paged file's window has not read: there they are as last drawn until the window comes to the view.
   if (!(this.pastWindowFrame === this.s && this.pastWindow(top))) {
     this.follow(top, left);
   }
@@ -196,7 +196,7 @@ export function onScroll() {
   this.schedule();
 }
 
-// Once the view has rested REST, its speed falls to nothing, the work kept back while it moved
+// Once the view has rested REST, its speed falls to nothing, the work retained back while it moved
 // goes on, and the lines ahead of where it was heading are colored while the page is idle.
 export function rest() {
   window.clearTimeout(this.restWait);
@@ -214,12 +214,12 @@ export function warm() {
     return;
   }
   const rows = this.rows();
-  const shown = Math.ceil(this.scroller.clientHeight / LINE);
+  const displayed = Math.ceil(this.scroller.clientHeight / LINE);
   const first = Math.floor(this.scrollY() / LINE);
   const heading = status.scroll.heading;
-  const from = heading > 0 ? first + shown : Math.max(0, first - 1);
+  const from = heading > 0 ? first + displayed : Math.max(0, first - 1);
   let row = from;
-  const reach = coloringReach(shown, this.lastSpeed ?? 0, this.screenColorMs ?? 0);
+  const reach = coloringReach(displayed, this.lastSpeed ?? 0, this.screenColorMs ?? 0);
   const end = heading > 0 ? Math.min(rows.size, from + reach) : Math.max(0, from - reach);
   const idle = (run) => (window.requestIdleCallback ? window.requestIdleCallback(run) : window.setTimeout(() => run({ timeRemaining: () => 8 }), 16));
   const slice = (deadline) => {
@@ -232,10 +232,10 @@ export function warm() {
       s.highlight.runsOf(rows.lineOf(row));
       row += heading;
     }
-    // How long a screen of lines takes to color, kept smoothed over the slices.
+    // How long a screen of lines takes to color, retained smoothed over the slices.
     const colored = Math.abs(row - was);
     if (colored > 0) {
-      const screen = ((performance.now() - began) / colored) * shown;
+      const screen = ((performance.now() - began) / colored) * displayed;
       this.screenColorMs = this.screenColorMs === undefined ? screen : 0.7 * this.screenColorMs + 0.3 * screen;
     }
     write("colors", { ahead: Math.abs(row - from) });

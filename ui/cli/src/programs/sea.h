@@ -20,7 +20,7 @@ typedef struct CliSeaErrMsgProgramCfg CliSeaErrMsgProgramCfg;
 typedef struct CliSeaErrMsgProgramSizeCfg CliSeaErrMsgProgramSizeCfg;
 typedef struct CliSeaCfg CliSeaCfg;
 
-// the most program headers a Linux node's are read with, the two this adds among them
+// the max program headers a Linux node's are read with, the two this adds among them
 #define CLI_SEA_HEADERS 4096u
 
 // the modules a script requires that Node does not contain itself, each named in a require(), an import or an import(),

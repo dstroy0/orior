@@ -3,13 +3,13 @@
 //
 // The record machine's lane as C source checked against the host oracle word for word, off the device (engine_table.md
 // item 11(f), C a language of the register lane). record_test's programs, drawn from the same stream in the same
-// order (record_image.h), are encoded, laid out and run by cycle_record_run_host; each is written as C by
+// order (record_image.h), are encoded, arranged and run by cycle_record_run_host; each is written as C by
 // code_generator("c.krs") (lstar/protocol/table/c.krs) into one translation unit with a host shim ahead of it, which writes
 // what NVRTC gives a device's C (__device__, __shared__, threadIdx, blockDim, atomicAdd) for one thread, and a bench
 // after it, which reads the memory image, turns its byte offsets into the host's addresses, runs every lane and writes the errors and
 // the records. The host's C++ compiler builds it and it runs in a work folder, and its records are compared with the
-// host's word for word. Its lines give the same input digests as the host test's. Each lane of at most
-// RECORD_C_TEXT_BYTES_MAX bytes is written again as the device writes it, on the host: the core's forms laid out as the
+// host's word for word. Its lines give the same input digests as the host test's. Each lane of at max
+// RECORD_C_TEXT_BYTES_MAX bytes is written again as the device writes it, on the host: the core's forms arranged as the
 // assembly printer's records and written by the host oracle (asm_printer.h), checked against the code generator's text
 // byte for byte.
 #include "asm_printer.h"
@@ -46,7 +46,7 @@ static void c_check(CResults *results, int passed, const std::string &what)
     printf("  %s %s\n", passed ? "ok  " : "FAIL", what.c_str());
 }
 
-// what NVRTC gives a device's C, written for one thread on the host, and the launch as the prelude lays it out. The
+// what NVRTC gives a device's C, written for one thread on the host, and the launch as the prelude positions it out. The
 // program's resident kernel (c.krs, program_unit) compiles against it and is not run: the bench runs the lanes
 static const char s_c_shim[] = "#include <stdio.h>\n"
                                "#include <stdlib.h>\n"
@@ -165,7 +165,7 @@ static int c_write(const std::string &path, const std::string &text)
     return (fclose(file) == 0) && written;
 }
 
-// the program laid out, run on the host, written as C, built and run over the same atoms; its line printed and its
+// the program arranged, run on the host, written as C, built and run over the same atoms; its line printed and its
 // check made. `errors` is 1 for a program the host must error: the lane as C must then error on a lane
 static void c_run(void *context, const HostProgram *program, int reuse, unsigned int *const *atoms,
                   const unsigned long long *bodies, const unsigned int *index, int errors)
@@ -175,7 +175,7 @@ static void c_run(void *context, const HostProgram *program, int reuse, unsigned
     HostLoaded loaded;
     if (host_load(program, reuse, &loaded) == 0)
     {
-        c_check(results, 0, name + " is laid out");
+        c_check(results, 0, name + " is arranged");
         return;
     }
     const EngineRecordLayout *const layout = &loaded.layout;
@@ -214,7 +214,7 @@ static void c_run(void *context, const HostProgram *program, int reuse, unsigned
         host_free(&loaded);
         return;
     }
-    // the lane as the device writes it, on the host: the core's forms laid out as the assembly printer's records by the
+    // the lane as the device writes it, on the host: the core's forms arranged as the assembly printer's records by the
     // functions the device runs, and written by the host oracle (asm_printer.h)
     if (lane.size() <= RECORD_C_TEXT_BYTES_MAX)
     {
@@ -258,8 +258,8 @@ static void c_run(void *context, const HostProgram *program, int reuse, unsigned
         printf("  %s: the lane as C did not build or run (status %d); its logs begin:\n", name.c_str(), status);
         const std::string show = "head -30 '" + results->work + "/build.log' '" + results->work + "/run.log'";
         fflush(stdout);
-        const int shown = system(show.c_str());
-        printf("  (the logs' head exited %d)\n", shown);
+        const int displayed = system(show.c_str());
+        printf("  (the logs' head exited %d)\n", displayed);
     }
     const int host_ran = ran == (long)HOST_TEST_LANES;
     printf("  %s: %u steps, %u out limbs, %zu lines of C, %u places, inputs %016llx, records %016llx as C, %016llx on "

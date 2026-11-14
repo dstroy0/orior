@@ -4,7 +4,7 @@
 
 This chapter says what each technical word in this research paper means, using the name the field already gives it.
 
-Most of the words here are standard and need no explanation. This chapter covers the rest: words with a narrow meaning in this paper, and ideas whose field name a reader might not expect. Where a field has a name for an idea, the paper uses that name and cites where it comes from.
+The majority of the words here are standard and need no explanation. This chapter covers the rest: words with a narrow meaning in this paper, and ideas whose field name a reader might not expect. Where a field has a name for an idea, the paper uses that name and cites where it comes from.
 
 \subsection{Sets and arrangements}
 
@@ -18,23 +18,23 @@ Most of the words here are standard and need no explanation. This chapter covers
 
 \noindent\textbf{residue class.} A congruence class modulo a stated number. It is never used here to mean a bucket, a cluster or a grid cell.
 
-\noindent\textbf{subconfiguration.} A subset \(A \subseteq D\) of a pattern's positions, used as a filter. Checking only these positions keeps the pattern's structure and drops some of its conditions.
+\noindent\textbf{subconfiguration.} A subset \(A \subseteq D\) of a pattern's positions, used as a filter. Checking only these positions retains the pattern's structure and drops some of its conditions.
 
 \noindent\textbf{support.} The finite set of positions a pattern occupies, written \(D \subset G\), or the set of outcomes a distribution gives nonzero probability. Both are the standard meanings of the word.
 
 \subsection{The permutation null}
 
-\noindent\textbf{permutation test.} A test that builds its null distribution from the data itself, by shuffling it many times and computing the same statistic on every shuffled copy \cite{src:Good-2005}. Here the shuffles keep the count of every symbol and any stated grouping. If \(\Pi_\Sigma\) is the set of those shuffles, then for a statistic \(M\) the quantity this paper reports is
+\noindent\textbf{permutation test.} A test that builds its null distribution from the data itself, by shuffling it many times and computing the same statistic on every shuffled copy \cite{src:Good-2005}. Here the shuffles retain the count of every symbol and any stated grouping. If \(\Pi_\Sigma\) is the set of those shuffles, then for a statistic \(M\) the quantity this paper reports is
 \[
 \Delta_\Sigma[M] = M(x) - \mathbb{E}_{\pi \sim \Pi_\Sigma}\!\left[M\bigl(\pi(x)\bigr)\right],
 \]
 the observed statistic minus its mean over the shuffled copies. It is a difference from a null and not a new operator. It says what the arrangement of the data adds beyond its symbol counts, and it does not say what produced the arrangement.
 
-\noindent\textbf{maximum entropy reference.} The shuffled copies are the most disordered arrangements the symbol counts allow. Building a reference that way is Jaynes's maximum entropy principle \cite{src:Jaynes}. The reference uses the counts and assumes nothing else. Entropy is strictly concave and a count constraint is linear. Exactly one distribution meets the constraint, and the reference is unique.
+\noindent\textbf{max entropy reference.} The shuffled copies are the max disordered arrangements the symbol counts allow. Building a reference that way is Jaynes's max entropy principle \cite{src:Jaynes}. The reference uses the counts and assumes nothing else. Entropy is strictly concave and a count constraint is linear. Exactly one distribution meets the constraint, and the reference is unique.
 
-\noindent\textbf{free energy above equilibrium.} The distance from a measured state to its own maximum entropy state under a constraint. Thermodynamics gives that quantity this name. The engine workbook \cite{src:Quigg-orior-workbook} records the match as exact, following Parrondo, Horowitz and Sagawa \cite{src:Parrondo}.
+\noindent\textbf{free energy above equilibrium.} The distance from a measured state to its own max entropy state under a constraint. Thermodynamics gives that quantity this name. The engine workbook \cite{src:Quigg-orior-workbook} records the match as exact, following Parrondo, Horowitz and Sagawa \cite{src:Parrondo}.
 
-\noindent\textbf{relative entropy.} Also called Kullback-Leibler divergence and written \texttt{D(p‖q)}, a distance between two distributions \cite{src:Kullback}. The match to free energy holds for the whole reference and does not carry over to each statistic. Section 4.3.1 of the first chapter shows that what decides a probe order's worth is not a relative entropy, and the engine workbook records the same \cite{src:Quigg-orior-workbook}. The tools compute either a spread of gaps against shuffled copies, or a standardized residual against pooled counts. Both measure a difference from a maximum entropy reference, and neither is a relative entropy.
+\noindent\textbf{relative entropy.} Also called Kullback-Leibler divergence and written \texttt{D(p‖q)}, a distance between two distributions \cite{src:Kullback}. The match to free energy holds for the whole reference and does not carry over to each statistic. Section 4.3.1 of the first chapter shows that what decides a probe order's worth is not a relative entropy, and the engine workbook records the same \cite{src:Quigg-orior-workbook}. The tools compute either a spread of gaps against shuffled copies, or a standardized residual against pooled counts. Both measure a difference from a max entropy reference, and neither is a relative entropy.
 
 \noindent\textbf{standardized residual against a pooled null.} A test that pools the counts of every run, spreads them evenly, and scores each run as its own binomial. A standardized residual is the observed count less the expected, over the square root of the expected \cite{src:Haberman-1973}.
 
@@ -46,9 +46,9 @@ the observed statistic minus its mean over the shuffled copies. It is a differen
 
 \noindent\textbf{probe.} One position of the pattern checked by the filter. A place in the text whose symbol at that offset differs from the pattern's cannot be a match. A probe is a necessary condition for a match and never a sufficient one.
 
-\noindent\textbf{probe sequence.} Probes applied one after another, each one checking only the places the previous ones kept. The depth \(\log_2 N / H_2\) appears throughout, and means the number of probes an independence model predicts before one candidate is left. The engine places at most four. How many it places depends on the number asked for, the candidates available and the text.
+\noindent\textbf{probe sequence.} Probes applied one after another, each one checking only the places the previous ones retained. The depth \(\log_2 N / H_2\) appears throughout, and means the number of probes an independence model predicts before one candidate is left. The engine places at max four. How many it places depends on the number asked for, the candidates available and the text.
 
-\noindent\textbf{candidate.} A place in the text that every probe so far has kept. It can still turn out not to match.
+\noindent\textbf{candidate.} A place in the text that every probe so far has retained. It can still turn out not to match.
 
 \noindent\textbf{false negative.} A true match the filter drops. A lossless filter has none, and every bench row in this paper counts them.
 
@@ -64,18 +64,18 @@ the observed statistic minus its mean over the shuffled copies. It is a differen
 
 \noindent\textbf{gold standard corpus.} A corpus checked by hand so that it can be trusted as correct \cite{src:Wissler-2014}. Here it is the output holding only speech in the target language, with reconstructions, rejected forms, other languages and analysis lines removed. It is checked in two directions against a hand extraction, and the Salishan research paper lists the papers in it \cite{src:Quigg-Salishan}.
 
-\noindent\textbf{extraction error classes.} The kinds of damage a PDF text extraction does, recorded for each paper to trace an error to its source. There are five: substitution, collapse, transposition, insertion and deletion. The classes that can be repaired are repaired automatically.
+\noindent\textbf{extraction error classes.} The types of damage a PDF text extraction does, recorded for each paper to trace an error to its source. There are five: substitution, collapse, transposition, insertion and deletion. The classes that can be repaired are repaired automatically.
 
 \noindent\textbf{split-half estimate.} The distance between two halves of one corpus, used as the smallest difference a comparison between corpora has to beat. Splitting one set of measurements in two and comparing the halves is the split-half method \cite{src:Spearman-1910, src:Brown-1910}. Cutting a corpus at its midpoint measures the order its papers are in, not the resolution, as the Salishan research paper shows \cite{src:Quigg-Salishan}. The halves are therefore sampled by alternating.
 
-\noindent\textbf{byte-pair histogram.} A text reduced to the counts of each pair of adjacent bytes. In the field this is a bigram distribution, the digram approximation of Shannon's paper \cite{src:Shannon}. A broader idea sits behind it, and nothing here measures it. An object spread over many dimensions cannot be known in full without measuring it, and nothing measures the infinite directly. What can be observed is how far the object is from its own most disordered state, because that state is fixed by what the object is made of. Flattening the object to a set of counts keeps that distance and loses the rest, and the counts are never cut off at a bound, because the object's own makeup already sets its limits.
+\noindent\textbf{byte-pair histogram.} A text reduced to the counts of each pair of adjacent bytes. In the field this is a bigram distribution, the digram approximation of Shannon's paper \cite{src:Shannon}. A broader idea sits behind it, and nothing here measures it. An object spread over many dimensions cannot be known in full without measuring it, and nothing measures the infinite directly. What can be observed is how far the object is from its own max disordered state, because that state is fixed by what the object is made of. Flattening the object to a set of counts retains that distance and loses the rest, and the counts are never cut off at a bound, because the object's own makeup already sets its limits.
 
 \subsection{Measurements}
 
 \enlargethispage{4\baselineskip}
 
-The two measurements below are different, and a row measured with one cannot stand in for a row measured with the other. Both rest on Section 2.2 of the first chapter.
+The two measurements below are different, and a row measured with one cannot are in for a row measured with the other. Both rest on Section 2.2 of the first chapter.
 
-\noindent\textbf{the permutation null.} The difference between an arrangement and the shuffled copies of the same symbols. Each copy is a Fisher-Yates shuffle \cite{src:Fisher}. It carries most of the results in the engine workbook \cite{src:Quigg-orior-workbook}, and no outside source has the answer to check it against. The conjecture behind it, which nothing here measures, is that the structure in \(\Sigma\) shuffles what the null set \(\text{null}_0\) could carry, and that the shuffled order shows what happens to \(\text{null}_0\).
+\noindent\textbf{the permutation null.} The difference between an arrangement and the shuffled copies of the same symbols. Each copy is a Fisher-Yates shuffle \cite{src:Fisher}. It carries the majority of the results in the engine workbook \cite{src:Quigg-orior-workbook}, and no outside source has the answer to check it against. The conjecture behind it, which nothing here measures, is that the structure in \(\Sigma\) shuffles what the null set \(\text{null}_0\) could carry, and that the shuffled order shows what happens to \(\text{null}_0\).
 
 \noindent\textbf{the shift agreement detector.} Finds a period or an offset by how often the data agrees with a shifted copy of itself. Published cell edges in the Crystallography Open Database \cite{src:Crystallography-Open-Database} check it three separate ways.

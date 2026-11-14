@@ -47,20 +47,20 @@ async function typeInto(label, text) {
   await ui.type(text);
 }
 
-// Chooses an option of a select of the sheet by typing its first letters, as the keyboard does; the
-// select reads letters typed within a second of each other as one word, and a choice waits that long.
-// Chooses the option of the list `label` that begins with `letters`, stepping to it with the arrow
-// keys as a person does: WebKitGTK moves a closed list on no letter typed, WebView2 and WebKitGTK
+// Chooses an option of a select of the sheet by typing its first characters, as the keyboard does; the
+// select reads characters typed within a second of each other as one word, and a choice waits that long.
+// Chooses the option of the list `label` that begins with `characters`, stepping to it with the arrow
+// keys as a person does: WebKitGTK moves a closed list on no character typed, WebView2 and WebKitGTK
 // alike on an arrow.
-async function choose(label, letters) {
+async function choose(label, characters) {
   const select = field(label);
   select.focus();
-  const wanted = (option) => option?.textContent.toLowerCase().startsWith(letters.toLowerCase());
+  const wanted = (option) => option?.textContent.toLowerCase().startsWith(characters.toLowerCase());
   const target = [...select.options].findIndex(wanted);
   for (let step = 0; step < select.options.length && target >= 0 && select.selectedIndex !== target; step += 1) {
     await ui.key(select.selectedIndex < target ? "Down" : "Up");
   }
-  assert.ok(wanted(select.selectedOptions[0]), `${label} reaches an option that begins with ${letters}`);
+  assert.ok(wanted(select.selectedOptions[0]), `${label} reaches an option that begins with ${characters}`);
   return select;
 }
 
@@ -92,19 +92,19 @@ test("the Database window opens and closes from its strip icon, and from View, D
   await ui.waitFor(() => /Choose a connection, or make one with New/.test(panel().querySelector(".db-tree")?.textContent ?? ""));
 });
 
-test("New makes a connection, its sheet showing the fields of its kind", async () => {
+test("New makes a connection, its sheet showing the fields of its type", async () => {
   const pg = server("PG");
   await openWindow();
   await ui.click(barButton("New…"));
   await ui.waitFor(() => sheetOpen());
   assert.equal(field("Host").closest("label").hidden, false, "a server's fields show for PostgreSQL");
   assert.equal(field("File").closest("label").hidden, true);
-  await choose("Kind", "S");
-  assert.equal(field("Kind").value, "sqlite");
+  await choose("Type", "S");
+  assert.equal(field("Type").value, "sqlite");
   assert.equal(field("Host").closest("label").hidden, true, "a SQLite file has no host");
   assert.equal(field("File").closest("label").hidden, false);
-  await choose("Kind", "P");
-  assert.equal(field("Kind").value, "postgres");
+  await choose("Type", "P");
+  assert.equal(field("Type").value, "postgres");
   await typeInto("Name", "harness-pg");
   await typeInto("Host", pg.host);
   await typeInto("Port", pg.port);
@@ -113,23 +113,23 @@ test("New makes a connection, its sheet showing the fields of its kind", async (
   await ui.click([...sheetOpen().querySelectorAll("button")].find((one) => one.textContent === "Add"));
   await ui.waitFor(() => !sheetOpen());
   const listed = await invoke("db_list");
-  assert.ok(listed.some((one) => one.connection.name === "harness-pg" && one.connection.port === Number(pg.port)), "databases.json keeps it");
+  assert.ok(listed.some((one) => one.connection.name === "harness-pg" && one.connection.port === Number(pg.port)), "databases.json retains it");
   assert.equal(bar().querySelector("select").value, "harness-pg", "it is the connection chosen");
 });
 
-test("Connect asks for the password the keychain lacks, and keeps it only where asked", async () => {
+test("Connect asks for the password the keychain lacks, and retains it only where asked", async () => {
   const pg = server("PG");
   await ui.click(barButton("Connect"));
   await ui.waitFor(() => sheetOpen()?.querySelector("input[type=password]"));
   await ui.type(pg.password);
-  const keep = sheetOpen().querySelector("input[type=checkbox]");
-  assert.equal(keep.checked, true, "keeping is offered");
-  await ui.click(keep);
-  assert.equal(keep.checked, false);
+  const retain = sheetOpen().querySelector("input[type=checkbox]");
+  assert.equal(retain.checked, true, "retention is offered");
+  await ui.click(retain);
+  assert.equal(retain.checked, false);
   await ui.click([...sheetOpen().querySelectorAll("button")].find((one) => one.textContent === "Connect"));
   await ui.waitFor(() => barButton("Disconnect"), 15000);
   const last = callsTo("db_connect").at(-1).args;
-  assert.equal(last.save, false, "the keychain was not asked to keep it");
+  assert.equal(last.save, false, "the keychain was not asked to retain it");
   await ui.waitFor(() => panel().querySelector('.db-node[data-label="public"]'), 10000);
 });
 
@@ -141,12 +141,12 @@ test("the schema opens a level at a time, as each level is pressed", async () =>
   await runOn("harness-pg", "INSERT INTO harness_t VALUES (1, 'one'), (2, 'two'), (3, 'three')", { answered: true });
   await ui.click('.db-node[data-label="public"]');
   const table = await ui.waitFor(() => panel().querySelector('.db-node[data-label="harness_t"]'), 10000);
-  assert.equal(table.dataset.kind, "table");
+  assert.equal(table.dataset.type, "table");
   await ui.click(table);
-  await ui.waitFor(() => panel().querySelector('.db-node[data-kind="column"][data-label="name"]'), 10000);
+  await ui.waitFor(() => panel().querySelector('.db-node[data-type="column"][data-label="name"]'), 10000);
 });
 
-test("Ctrl+Enter runs the statement the cursor stands in, and only it", async () => {
+test("Ctrl+Enter runs the statement the cursor is in, and only it", async () => {
   await showSql("harness-run.sql", "SELECT 41 + 1 AS answer;\n\nSELECT 'not this one';\n", 0, 3);
   const before = callsTo("db_run").length;
   await ui.key("Ctrl+Enter");
@@ -160,7 +160,7 @@ test("with the cursor in no statement, Ctrl+Enter runs nothing and says so", asy
   await showSql("harness-blank.sql", "SELECT 1;\n\n\nSELECT 2;\n", 1, 0);
   const before = callsTo("db_run").length;
   await ui.key("Ctrl+Enter");
-  await ui.waitFor(() => /stands in no statement/.test(document.getElementById("status-said").textContent), 5000);
+  await ui.waitFor(() => /is in no statement/.test(document.getElementById("status-said").textContent), 5000);
   assert.equal(callsTo("db_run").length, before, "nothing ran");
 });
 
@@ -178,7 +178,7 @@ test("Ctrl+Enter in a file that is not SQL is the editor's own: a line under the
   await ui.key("Ctrl+Z");
 });
 
-test("the status bar names the connection the SQL file shown runs on, and none for other files", async () => {
+test("the status bar names the connection the SQL file displayed runs on, and none for other files", async () => {
   await showSql("harness-status.sql", "SELECT 1;\n", 0);
   await ui.waitFor(() => !status().hidden);
   assert.match(status().textContent, /harness-pg/);
@@ -205,7 +205,7 @@ test("rows are read ahead the way the grid scrolls, as far as its speed carries 
   const grid = panel().querySelector(".db-grid");
   const asked = callsTo("db_rows").length;
   const first = () => Math.floor(grid.scrollTop / 22);
-  // Up from the end, past the most the grid holds, 600 rows: what it read on the way down goes.
+  // Up from the end, past the max the grid holds, 600 rows: what it read on the way down goes.
   const start = first();
   for (let turn = 0; turn < 60 && start - first() < 1600; turn += 1) {
     await ui.wheel(grid, -1500);
@@ -217,9 +217,9 @@ test("rows are read ahead the way the grid scrolls, as far as its speed carries 
   const cached = cachedRows();
   assert.ok(!cached.some((row) => row >= 4900), `the rows farthest behind the motion, at the end, went first: ${Math.max(...cached)}`);
   for (let row = first(); row < first() + 10; row += 1) {
-    assert.ok(cached.includes(row), `row ${row} in view is kept`);
+    assert.ok(cached.includes(row), `row ${row} in view is retained`);
   }
-  assert.ok(cached.length <= 600 + 200, `the grid holds no more than its most and a read: ${cached.length}`);
+  assert.ok(cached.length <= 600 + 200, `the grid holds no more than its max and a read: ${cached.length}`);
 });
 
 test("Stop stops a statement as it runs", async () => {
@@ -268,7 +268,7 @@ test("a statement the server finds wrong puts the cursor where the server says",
   await ui.waitFor(() => panel().querySelector(".database-failure"), 10000);
   assert.match(panel().querySelector(".database-failure").textContent, /nope/);
   const { head: cursor } = editing().editor.primary();
-  assert.deepEqual([cursor.line, cursor.col], [0, 7], "the cursor stands at nope");
+  assert.deepEqual([cursor.line, cursor.col], [0, 7], "the cursor is at nope");
 });
 
 test("a character past the basic plane before a statement moves neither the statement found nor the cursor", async () => {
@@ -280,7 +280,7 @@ test("a character past the basic plane before a statement moves neither the stat
   const at = () => editing().editor.primary().head;
   await ui.waitFor(() => at().line === 1 && at().col !== 2, 10000).catch(() => {});
   assert.match(callsTo("db_run").at(-1).args.sql.trim(), /^SELECT nope FROM harness_t;?$/);
-  assert.deepEqual([at().line, at().col], [1, 7], "the cursor stands at nope");
+  assert.deepEqual([at().line, at().col], [1, 7], "the cursor is at nope");
 });
 
 test("Export writes the rows to a file of the tree", async () => {
@@ -313,7 +313,7 @@ test("Run SQL File runs each statement in turn and stops at the first that fails
 test("a SQLite file of the tree is a connection with no password", async () => {
   await ui.click(barButton("New…"));
   await ui.waitFor(() => sheetOpen());
-  await choose("Kind", "S");
+  await choose("Type", "S");
   await typeInto("Name", "harness-lite");
   await typeInto("File", "harness.db");
   await ui.click([...sheetOpen().querySelectorAll("button")].find((one) => one.textContent === "Add"));
@@ -328,7 +328,7 @@ test("a SQLite file of the tree is a connection with no password", async () => {
 
 test("a MySQL connection signs in and reads rows", async () => {
   const my = server("MYSQL");
-  await invoke("db_save", { connection: { name: "harness-my", kind: "mysql", host: my.host, port: Number(my.port), user: "root", database: "", file: "", ssh: "", matters: false, guard: "" }, was: null, password: null });
+  await invoke("db_save", { connection: { name: "harness-my", type: "mysql", host: my.host, port: Number(my.port), user: "root", database: "", file: "", ssh: "", matters: false, guard: "" }, was: null, password: null });
   await invoke("db_connect", { name: "harness-my", password: my.password, save: false });
   await readConnections();
   const said = await runOn("harness-my", "SELECT 6 * 7 AS answer");
@@ -341,7 +341,7 @@ test("a connection through ssh reaches its server by a tunnel of the system's ss
   if (!through) {
     throw new Failure("no ssh test server: the harness starts one where Docker runs");
   }
-  const connection = { name: "harness-ssh", kind: "postgres", host: servers.ORIOR_TEST_SSH_TO, port: Number(pg.port), user: "postgres", database: "postgres", file: "", ssh: through, matters: false, guard: "" };
+  const connection = { name: "harness-ssh", type: "postgres", host: servers.ORIOR_TEST_SSH_TO, port: Number(pg.port), user: "postgres", database: "postgres", file: "", ssh: through, matters: false, guard: "" };
   await invoke("db_save", { connection, was: null, password: null });
   await readConnections();
   bar().querySelector("select").value = "harness-ssh";

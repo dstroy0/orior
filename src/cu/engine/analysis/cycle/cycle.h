@@ -45,9 +45,9 @@ extern "C"
     // CYCLE_RECORD_INTERPRET=1)
     int cycle_record_compiled(const CycleRecord *record);
 
-    // the host's copy of the loaded program's block, read back from the device as each launch ends: where it stands,
+    // the host's copy of the loaded program's block, read back from the device as each launch ends: where it is,
     // sealed whenever no launch references it. A compiled program runs resident and writes it on the device; a program
-    // on the interpreter leaves it laid out
+    // on the interpreter leaves it arranged
     const EngineProgramBlock *cycle_record_block(const CycleRecord *record);
 
     typedef struct
@@ -105,7 +105,7 @@ extern "C"
 
     // The sum: over each run of `group` consecutive records of `count`, the output at bit `offset`, `bits` wide, read
     // as two's complement, summed exactly into `sum_limbs` limbs of two's complement at `sums`, in host memory, one sum
-    // a run. `count` is a whole number of runs, a run contains at most 2^32 records, and sum_limbs * 32 represents
+    // a run. `count` is a whole number of runs, a run contains at max 2^32 records, and sum_limbs * 32 represents
     // `bits` and the bits of `group` beside them, and no sum wraps: a request that cannot represent its sums errors
     // before a record is read. The sum is associative and commutative, and any grouping of the records returns the
     // serial sum. cycle_record_sum reads records in device memory: each 32-bit limb of the field is summed over a run
@@ -132,7 +132,7 @@ extern "C"
 
     long cycle_record_sum_host(const CycleRecordSumRequest *request);
 
-    // cycle_record_sum retains its device scratch between calls, grown to the most a sum has requested; this gives it
+    // cycle_record_sum retains its device scratch between calls, grown to the max a sum has requested; this gives it
     // back
     void cycle_record_sum_release(void);
 
@@ -142,8 +142,8 @@ extern "C"
     // The sort: within each run of `group` consecutive records of `count`, the lanes in the order of their output at
     // bit `offset`, `bits` wide, read as a magnitude, least first, and records whose outputs are equal in the order of
     // their lanes. `order` takes `count` lanes, 32 bits each: entry i of a run is the lane of the run's record that
-    // stands i-th. `order` is an index a sweep reads its records through. `count` is a whole number of runs and at
-    // most 2^32 records. cycle_record_sort reads records and writes the order in device memory: a run whose records
+    // is i-th. `order` is an index a sweep reads its records through. `count` is a whole number of runs and at
+    // max 2^32 records. cycle_record_sort reads records and writes the order in device memory: a run whose records
     // and lanes fit one thread block's shared memory is sorted there by a bitonic network over (output, lane), and a
     // longer run by a radix sort of four bits a pass over the device, the output's bits and then the run's number.
     // cycle_record_sort_host reads and writes them in host memory, by a merge that preserves equal outputs in lane

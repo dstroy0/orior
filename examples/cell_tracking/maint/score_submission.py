@@ -59,7 +59,7 @@ def read_rows(handle, head, held):
 
 
 def read_rows_fast(handle, head, held):
-    # read_rows by column number: a column the head names twice is read at its last place, as dict(zip()) keeps it,
+    # read_rows by column number: a column the head names twice is read at its last place, as dict(zip()) retains it,
     # and an optional column the head lacks reads its default from a tail past the row's own fields. Rows come a frame
     # at a time. The frame's list is looked up only when the sample or time field changes
     index = {}
@@ -71,7 +71,7 @@ def read_rows_fast(handle, head, held):
         if name not in index:
             index[name] = width + len(tail)
             tail.append(fallback)
-    (sample, time, leaf, z, y, x, voxels, identity, members, forward, departure, kept, link, links, draws, at_least,
+    (sample, time, leaf, z, y, x, voxels, identity, members, forward, departure, retained, link, links, draws, at_least,
      best, split) = (index[name] for name in NODE_COLUMNS + tuple(name for name, _ in NODE_OPTIONAL))
     last = (None, None)
     frame = None
@@ -92,7 +92,7 @@ def read_rows_fast(handle, head, held):
             "members": int(parts[members]),
             "forward": int(parts[forward]),
             "departure": int(parts[departure]),
-            "held": int(parts[kept]),
+            "held": int(parts[retained]),
             "object_link": int(parts[link]),
             "object_links": int(parts[links]),
             "null_draws": int(parts[draws]),
@@ -144,7 +144,7 @@ def as_objects(frames):
                     target = object_of.get((later, one["forward"]), -1)
                     if target >= 0:
                         went[target] += one["voxels"]
-            ranked = [target for target, _ in went.most_common()]
+            ranked = [target for target, _ in went.max_common()]
             forward = leader["object_link"] if (leader["object_links"] > 0) else (ranked[0] if ranked else -1)
             rows.append({
                 "leaf": identity,
@@ -172,7 +172,7 @@ def cell_of(place):
 def match(predicted, truth_nodes, truth_places):
     # the true nodes in a grid of cells REACH_UM wide in scaled um, each listed under its own cell and the 26 around
     # it. The list under a predicted node's cell is every true node in that cell and the 26 around it. A pair within
-    # REACH_UM differs by at most one cell on every axis. No pair is lost; the pairs are measured and sorted as when
+    # REACH_UM differs by at max one cell on every axis. No pair is lost; the pairs are measured and sorted as when
     # every predicted node met every true node, and the matching is the same
     near = collections.defaultdict(list)
     for identity in truth_nodes:
@@ -339,7 +339,7 @@ def policy_still(count):
     return pick
 
 
-def policy_stands(_ignored=None):
+def policy_is(_ignored=None):
     def pick(frame):
         usable = [one for one in frame if one["forward"] >= 0]
         if not usable:
@@ -368,7 +368,7 @@ def policy_above_null(_ignored=None):
 
 
 POLICIES = {
-    "stands": policy_stands,
+    "is": policy_is,
     "above_null": policy_above_null,
     "all": lambda: policy_all,
     "largest": policy_largest,
@@ -391,9 +391,9 @@ def main():
         for objects in (False, True):
             grain = "object" if objects else "body"
             final, adjusted, jaccard, predicted, truth = score(
-                dumped, directory, policy_stands(), quiet=True, objects=objects)
+                dumped, directory, policy_is(), quiet=True, objects=objects)
             print("  %-8s %-10s %6s %12d %12.6f %12.6f  (target %d)"
-                  % (grain, "stands", "-", predicted, jaccard, final, truth))
+                  % (grain, "is", "-", predicted, jaccard, final, truth))
             final, adjusted, jaccard, predicted, _ = score(
                 dumped, directory, policy_all, quiet=True, objects=objects)
             print("  %-8s %-10s %6s %12d %12.6f %12.6f" % (grain, "all", "-", predicted, jaccard, final))

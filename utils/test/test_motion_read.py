@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
 # Tests for motion_read: each motion a recording holds found and read, a smooth one passing with nothing said and
-# each way a motion goes wrong found once, by its kind, on curves drawn here at sixty frames a second.
+# each way a motion goes wrong found once, by its type, on curves drawn here at sixty frames a second.
 #
 #   Usage:  python utils/test/test_motion_read.py
 
@@ -45,13 +45,13 @@ def moving(start_value, end_value, start, duration, curve=motion_read.ease):
 
 
 def recording(times, tracks, marks=()):
-    """A recording as motion.js keeps one: a frame each time, each track's value in it."""
+    """A recording as motion.js retains one: a frame each time, each track's value in it."""
     frames = [{"t": at, "values": {key: track(at) for key, track in tracks.items()}} for at in times]
     return {"frames": frames, "marks": [{"t": at, "label": label} for at, label in marks]}
 
 
-def kinds(reading):
-    return sorted({finding.kind for finding in reading.findings})
+def types(reading):
+    return sorted({finding.type for finding in reading.findings})
 
 
 class Ease(unittest.TestCase):
@@ -73,12 +73,12 @@ class OneMotion(unittest.TestCase):
 
     def test_a_late_frame_inside_a_motion(self):
         reading = motion_read.read(recording(clock(700, skip=(200, 250)), {"bar.top": moving(0, 100, 100, 300)}))
-        self.assertEqual(kinds(reading), ["late frame"])
+        self.assertEqual(types(reading), ["late frame"])
 
     def test_late_frames_under_two_parts_are_said_once(self):
         tracks = {"bar.top": moving(0, 100, 100, 300), "tabs.top": moving(0, 30, 100, 300)}
         reading = motion_read.read(recording(clock(700, skip=(200, 250)), tracks, [(90, "top in")]))
-        self.assertEqual(kinds(reading), ["late frame"])
+        self.assertEqual(types(reading), ["late frame"])
         self.assertEqual(len(reading.findings), 1)
         self.assertEqual(sorted(reading.findings[0].keys), ["bar.top", "tabs.top"])
 
@@ -86,7 +86,7 @@ class OneMotion(unittest.TestCase):
         rest = moving(35, 100, 150, 250)
         snapped = lambda at: 0.0 if at <= 100 else rest(at)  # noqa: E731
         reading = motion_read.read(recording(clock(700, skip=(100, 150)), {"bar.top": snapped}))
-        self.assertEqual(kinds(reading), ["late frame"])
+        self.assertEqual(types(reading), ["late frame"])
 
     def test_a_late_frame_while_nothing_moves_says_nothing(self):
         reading = motion_read.read(recording(clock(700, skip=(500, 560)), {"bar.top": moving(0, 100, 100, 300)}))
@@ -97,7 +97,7 @@ class OneMotion(unittest.TestCase):
         stalled = lambda at: smooth(180.0) if 180.0 <= at < 230.0 else smooth(at)  # noqa: E731
         reading = motion_read.read(recording(clock(700), {"bar.top": stalled}))
         self.assertEqual(len(reading.motions), 1)
-        self.assertEqual(kinds(reading), ["stall"])
+        self.assertEqual(types(reading), ["stall"])
 
     def test_a_slow_tail_on_the_layout_s_sixty_fourths_is_no_stall(self):
         fine = 1000.0 / 144.0
@@ -116,19 +116,19 @@ class OneMotion(unittest.TestCase):
         values[hitch] = values[hitch - 1] + 0.25 * (values[hitch] - values[hitch - 1])
         frames = [{"t": at, "values": {"bar.top": value}} for at, value in zip(times, values)]
         reading = motion_read.read({"frames": frames, "marks": []})
-        self.assertEqual(kinds(reading), ["hitch"])
+        self.assertEqual(types(reading), ["hitch"])
 
     def test_a_start_snap(self):
         rest = moving(40, 100, 100, 300)
         snapped = lambda at: 0.0 if at <= 100 else rest(at)  # noqa: E731
         reading = motion_read.read(recording(clock(700), {"bar.top": snapped}))
-        self.assertEqual(kinds(reading), ["start snap"])
+        self.assertEqual(types(reading), ["start snap"])
 
     def test_an_end_snap(self):
-        most = moving(0, 80, 100, 250)
-        snapped = lambda at: 100.0 if at >= 100 + 250 + FRAME else most(at)  # noqa: E731
+        max = moving(0, 80, 100, 250)
+        snapped = lambda at: 100.0 if at >= 100 + 250 + FRAME else max(at)  # noqa: E731
         reading = motion_read.read(recording(clock(700), {"bar.top": snapped}))
-        self.assertEqual(kinds(reading), ["end snap"])
+        self.assertEqual(types(reading), ["end snap"])
 
     def test_two_phases(self):
         first = moving(0, 50, 100, 150)
@@ -136,7 +136,7 @@ class OneMotion(unittest.TestCase):
         both = lambda at: first(at) if at < 250 else second(at)  # noqa: E731
         reading = motion_read.read(recording(clock(700), {"bar.top": both}))
         self.assertEqual(len(reading.motions), 1)
-        self.assertEqual(kinds(reading), ["two phases"])
+        self.assertEqual(types(reading), ["two phases"])
 
     def test_an_overshoot(self):
         out = moving(0, 106, 100, 250)
@@ -144,7 +144,7 @@ class OneMotion(unittest.TestCase):
         both = lambda at: out(at) if at < 350 else back(at)  # noqa: E731
         reading = motion_read.read(recording(clock(800), {"bar.top": both}))
         self.assertEqual(len(reading.motions), 1)
-        self.assertIn("overshoot", kinds(reading))
+        self.assertIn("overshoot", types(reading))
 
     def test_a_track_absent_between_two_stretches_joins_neither(self):
         times = clock(2000)
@@ -168,7 +168,7 @@ class OneMotion(unittest.TestCase):
         on = moving(40, 100, 310, 200)
         track = lambda at: out(at) if at < 250 else back(at) if at < 310 else on(at)  # noqa: E731
         reading = motion_read.read(recording(clock(800), {"bar.top": track}))
-        self.assertEqual(kinds(reading), ["reversal"])
+        self.assertEqual(types(reading), ["reversal"])
 
     def test_one_frame_stepping_back_less_than_a_reversal_is_no_hitch(self):
         times = clock(700)
@@ -178,8 +178,8 @@ class OneMotion(unittest.TestCase):
         values[back] = values[back - 1] - 0.5
         frames = [{"t": at, "values": {"bar.top": value}} for at, value in zip(times, values)]
         reading = motion_read.read({"frames": frames, "marks": []})
-        self.assertNotIn("hitch", kinds(reading))
-        self.assertNotIn("two phases", kinds(reading))
+        self.assertNotIn("hitch", types(reading))
+        self.assertNotIn("two phases", types(reading))
 
     def test_a_still_track_and_a_shiver_are_no_motion(self):
         shiver = lambda at: 50.0 + (0.004 if int(at / FRAME) % 2 else 0.0)  # noqa: E731
@@ -201,7 +201,7 @@ class Pairs(unittest.TestCase):
         outward = moving(100, 0, 1000, 500)
         track = lambda at: inward(at) if at < 1000 else outward(at)  # noqa: E731
         reading = motion_read.read(recording(clock(1800), {"strip.left": track}, [(90, "left in"), (990, "left out")]))
-        self.assertEqual(kinds(reading), ["in and out differ"])
+        self.assertEqual(types(reading), ["in and out differ"])
 
     def test_a_shared_track_s_motions_under_two_edges_are_no_pair(self):
         outward = moving(100, 0, 100, 220)
@@ -220,7 +220,7 @@ class Pairs(unittest.TestCase):
 
         marks = [(90, "top in"), (790, "top out"), (1490, "top in"), (2290, "top out")]
         reading = motion_read.read(recording(clock(3000), {"bar.top": track}, marks))
-        self.assertIn("repeat differs", kinds(reading))
+        self.assertIn("repeat differs", types(reading))
 
     def test_a_repeat_slowed_by_late_frames_is_the_late_frames_s(self):
         first = moving(0, 100, 100, 360)
@@ -229,7 +229,7 @@ class Pairs(unittest.TestCase):
         track = lambda at: first(at) if at < 900 else second(at) if at < 1600 else third(at)  # noqa: E731
         marks = [(90, "top in"), (890, "top out"), (1590, "top in")]
         reading = motion_read.read(recording(clock(2200, skip=(150, 200)), {"bar.top": track}, marks))
-        self.assertEqual(kinds(reading), ["late frame"])
+        self.assertEqual(types(reading), ["late frame"])
 
     def test_the_work_giving_way_and_the_controls_with_the_head_follow_no_rule(self):
         tracks = {"bar.top": moving(0, 30, 100, 300), "work.area": moving(0, 5000, 250, 150), "controls.top": moving(0, 30, 200, 300)}
@@ -249,7 +249,7 @@ class Pairs(unittest.TestCase):
     def test_a_part_that_starts_while_another_is_mid_way(self):
         tracks = {"bar.top": moving(0, 30, 100, 300), "strip.left": moving(0, 50, 250, 300)}
         reading = motion_read.read(recording(clock(900), tracks, [(90, "switch")]))
-        self.assertEqual(kinds(reading), ["starts mid-way"])
+        self.assertEqual(types(reading), ["starts mid-way"])
 
 
 if __name__ == "__main__":

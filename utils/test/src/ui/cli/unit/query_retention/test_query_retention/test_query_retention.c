@@ -237,7 +237,7 @@ void test_a_folder_whose_newest_writer_runs_is_left(void)
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "query0-20250101T000000.qry", .joined = old);
     TEST_ASSERT_TRUE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = old, .bytes = "", .size = 0ull));
     s_line_count = 0u;
-    EMBED_CALL(query_retention_context_own_internal.folder, QueryRetentionContextOwnCtx, .context = &s_context, .folder = folder, .crystal = NULL, .most = 64u, .own = &s_live.writer);
+    EMBED_CALL(query_retention_context_own_internal.folder, QueryRetentionContextOwnCtx, .context = &s_context, .folder = folder, .crystal = NULL, .max = 64u, .own = &s_live.writer);
     const int printed = printed_contains("left as it is, its newest run's writer runs");
     const int stayed = EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = old);
     err_msg.at = 0ull;

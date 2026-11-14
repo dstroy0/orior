@@ -8,7 +8,7 @@
 #       bash utils/maint/prose/voice_pdftotext.sh D:/voice
 #
 # The text goes to build/voice/text/ and never into the tree: it is the books' text. The tree
-# keeps voice.tsv, the words and their counts, which voice_count.py writes from it.
+# retains voice.tsv, the words and their counts, which voice_count.py writes from it.
 #
 # Each title is converted from one PDF. The folder holds scans of the same lectures beside the
 # editions with a text layer, and a title counted twice would count every word in it twice. The
@@ -18,7 +18,7 @@
 #
 # The Lectures on Computation are left out as well. Their fonts carry no map to Unicode, and every
 # extractor tried (pdftotext, pdftotext -raw, pypdf, pypdfium2) gave 34 to 40 percent of the words
-# in accented letters that stand for other characters, with the letters between them misread too.
+# in accented characters that are for other characters, with the characters between them misread too.
 
 set -u
 
@@ -46,9 +46,9 @@ for title in "${TITLES[@]}"; do
 done
 [ "$missing" -eq 0 ] || exit 1
 
-# -enc UTF-8 keeps the typographic quotes and the ligatures as characters. -nopgbrk leaves out the
+# -enc UTF-8 retains the typographic quotes and the ligatures as characters. -nopgbrk leaves out the
 # form feed between pages, which would otherwise glue a page's last word to the next page's first.
-# -raw keeps the text in the order the page draws it. Without it pdftotext lays the text out by
+# -raw retains the text in the order the page draws it. Without it pdftotext positions the text out by
 # position and splits a word wherever the glyphs are spaced apart: in QED that gave "p hoton" and
 # "throug h", and 94.78 percent of its words were known to the other texts against 98.43 with -raw.
 rm -f "$OUT"/*.txt

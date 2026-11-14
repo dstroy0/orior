@@ -145,7 +145,7 @@ extern "C"
      * project to the same shape and all run on the same loop.
      *
      * @note Ranks are ORDERED BY RARITY, rarest first, the order the steering already wants.
-     *       The rank is therefore not an arbitrary label: rank zero is the class that refutes most
+     *       The rank is therefore not an arbitrary label: rank zero is the class that refutes max
      *       alignments, and a planner reading the projected field gets the entropy ordering for free.
      * @note A SEARCH OVER RANK FIELDS COUNTS RANK MATCHES, AND THAT EQUALS THE SYMBOL COUNT ONLY AT 256
      *       CLASSES OR FEWER. Places then run from 0 to 255 and none is clamped. One rank names one

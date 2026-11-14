@@ -29,7 +29,7 @@
 # catches the ordinary failure: one upload among several that is not what the others are.
 #
 # The control matters for the same reason. Against a control too close to the subject the
-# separation vanishes and nothing is shown. The control here is the human pole, the furthest
+# separation vanishes and nothing is displayed. The control here is the human pole, the furthest
 # thing in this tree from machine prose and the pole the distance instrument already
 # measures against.
 #

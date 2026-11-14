@@ -12,7 +12,7 @@ typedef struct CliCheckersCtx CliCheckersCtx;
 typedef struct CliCheckersFileCtx CliCheckersFileCtx;
 typedef struct CliCheckersTextCtx CliCheckersTextCtx;
 
-// the most files and findings one check reads, and the bytes of their diagnostics
+// the max files and findings one check reads, and the bytes of their diagnostics
 #define CLI_CHECK_FILES 1024u
 #define CLI_CHECK_FINDINGS 65536u
 #define CLI_CHECK_TEXT (1u << 24u)
@@ -33,7 +33,7 @@ typedef struct
 } CliFindings;
 
 // the findings a checker named `name` that reads `reads` wrote, `out_size` bytes of output and `err_size` of errors,
-// read into `findings` by file: `path`, where it is given, stands for a file named `-`, `<stdin>` or `stdin`, and a
+// read into `findings` by file: `path`, where it is given, is for a file named `-`, `<stdin>` or `stdin`, and a
 // relative path is read from `root`; and the file at `path` among the findings: its place, put first where it is not
 // there and `first` is set (checkers_read.c)
 void cli_checkers_read(const CliCheckersNameCtx *args);

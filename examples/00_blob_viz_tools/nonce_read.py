@@ -17,7 +17,7 @@ which this machinery could touch mining.
 WHAT THIS TREE ALREADY KNOWS, STATED BEFORE THE RUN SO THE RESULT IS NOT A SURPRISE
 
 The transform workbook graded twenty hypotheses, H1 through H20, and they came back null: survivor
-counts track the cost model exactly, no bit or byte position departs from flat, and the standing
+counts track the cost model exactly, no bit or byte position departs from flat, and the located
 constraint recorded in PARTITION.tsv is that NO PROJECTION OVER THE DIGEST REDUCES THE NUMBER OF
 EVALUATIONS AT ALL. So the honest prior is that this returns null too.
 
@@ -144,7 +144,7 @@ def _report():
     print("")
 
     # MANY SHUFFLES AND NOT ONE. A single shuffled pairing gives a single draw of the null's
-    # maximum, which is itself noisy, and reading a real value against one draw produces spurious
+    # max, which is itself noisy, and reading a real value against one draw produces spurious
     # OVER rows. The bar is the distribution's own upper tail, drawn and not derived, the rule
     # anisotropy_detector.py also follows.
     draws = 200
@@ -227,7 +227,7 @@ def _report():
     print("  all candidates that were going to fail regardless. The saving is in the noise of the")
     print("  hash rate.")
     print("")
-    print("  SO THIS AGREES WITH H1 THROUGH H20 AND ADDS A BOUND TO THEM. The standing constraint")
+    print("  SO THIS AGREES WITH H1 THROUGH H20 AND ADDS A BOUND TO THEM. The located constraint")
     print("  is that no projection over the digest reduces the number of evaluations at all, and")
     print("  this is that constraint tested on the boundary reading specifically, with a matched")
     print("  null and a stated limit and not by assertion.")

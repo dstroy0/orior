@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // wordmark.h: the name, as wordmark.js, incised.js, loading.js and session.js draw and move it: orior over the eye
-// with TABVLA cut under it, standing large over the lattice on the pane the first start in the system's session
+// with TABVLA cut under it, located large over the lattice on the pane the first start in the system's session
 // shows while the tree is read, the view under it not drawn; orior and the eye poured up a funnel to the bar's head
 // as the pane leaves, TABVLA sliding up to the name's middle, staying whole and fading; and the eye alone in the bar
 // from then on, free at the window's top left while the claim holds and shrinking out toward its own top left with
@@ -32,8 +32,8 @@ typedef struct GuiWordmarkStillCfg GuiWordmarkStillCfg;
 #define GUI_WORDMARK_FRAME_MS 16ULL
 // the repository a press on the name opens, and the entry orior's folder saves the session last started in under
 
-// Where the large name stands in a frame: the pixels of its em; the box round orior and the eye; TABVLA's box; and how
-// far TABVLA rises, in pixels, to stand at the eye's middle, negative for up
+// Where the large name is in a frame: the pixels of its em; the box round orior and the eye; TABVLA's box; and how
+// far TABVLA rises, in pixels, to be at the eye's middle, negative for up
 typedef struct
 {
     unsigned int em;
@@ -51,12 +51,12 @@ typedef struct
     unsigned int cover;
 } GuiWordmarkSpan;
 
-// The wordmark: whether the eye stands in the bar; whether the pane stands, the view under it not drawn, when it was
-// shown and whether TABVLA has come whole on it; whether the tree has been read; when the name went, 0 where it has
-// not, whether it still pours up the funnel, and the funnel's tip on the bar's foot; where orior and the eye stood,
-// TABVLA's box, where its picture is laid and how far it rises; the em the pictures were made at and the word's width
+// The wordmark: whether the eye is in the bar; whether the pane is, the view under it not drawn, when it was
+// displayed and whether TABVLA has come whole on it; whether the tree has been read; when the name went, 0 where it has
+// not, whether it still pours up the funnel, and the funnel's tip on the bar's foot; where orior and the eye was,
+// TABVLA's box, where its picture is positioned and how far it rises; the em the pictures were made at and the word's width
 // at it; the window's width and inside the places were taken for; orior and the eye as one mask, and in its one cell
-// the row the funnel lays, that row's sums and each mask row's ink, its first column and the column past its last; the
+// the row the funnel positions, that row's sums and each mask row's ink, its first column and the column past its last; the
 // funnel's stages in a cell of their own while it pours, each stage's first span, the spans and their coverage, and
 // TABVLA's way up at each stage of its slide; TABVLA's picture, its cuts with their shade and their lip, with its own
 // alpha; the session last started in as orior's folder saves it; and whether less motion is asked for
@@ -80,8 +80,8 @@ typedef struct
     int rise;
     unsigned int created_em;
     float word_width;
-    unsigned int laid_width;
-    GuiRect laid_inside;
+    unsigned int positioned_width;
+    GuiRect positioned_inside;
     GuiMask name;
     unsigned char *row;
     unsigned int *row_sum;
@@ -93,14 +93,14 @@ typedef struct
     GuiRaster under;
 } GuiWordmark;
 
-// the wordmark made with no eye in the bar and nothing standing; and every cell of its given back
+// the wordmark made with no eye in the bar and nothing located; and every cell of its given back
 void gui_wordmark_init(const GuiWordmarkStillCfg *args);
-// less motion asked for or no longer: asked for, TABVLA stands whole with the name, the pane leaves with no flight, and
+// less motion asked for or no longer: asked for, TABVLA is whole with the name, the pane leaves with no flight, and
 // a flight under way ends with the eye home and nothing of the name saved
 void gui_wordmark_still(const GuiWordmarkStillCfg *args);
-// the pane shown, the name standing on it from `now`; the eye home at once, every start after the first; and the tree
-// read, the pane leaving once it has stood its least
-void gui_wordmark_stand(const GuiWordmarkFrameCfg *args);
+// the pane displayed, the name located on it from `now`; the eye home at once, every start after the first; and the tree
+// read, the pane leaving once it has was its least
+void gui_wordmark_are(const GuiWordmarkFrameCfg *args);
 void gui_wordmark_land(const GuiWordmarkStillCfg *args);
 void gui_wordmark_tree_read(const GuiWordmarkStillCfg *args);
 // the name's place in `frame`, on the frame's inside, as style.css sets it
@@ -111,14 +111,14 @@ void gui_wordmark_position(const GuiWordmarkGlyphsCfg *args);
 void gui_wordmark_under_at(const GuiWordmarkReadCfg *args);
 int gui_wordmark_tick(const GuiWordmarkFrameCfg *args);
 unsigned long long gui_wordmark_next_deadline_ms(const GuiWordmarkReadCfg *args);
-// the large name drawn as it stands or goes: orior and the eye on the pane or up the funnel, and TABVLA; and
-// the square the eye stands on in the bar, its size given the claim's numbers, empty where it has shrunk out; and the
+// the large name drawn as it is or goes: orior and the eye on the pane or up the funnel, and TABVLA; and
+// the square the eye is on in the bar, its size given the claim's numbers, empty where it has shrunk out; and the
 // eye drawn on it once it is home
 void gui_wordmark_draw(const GuiWordmarkFrameCfg *args);
 GuiRect gui_wordmark_logo_square(const GuiWordmarkFrameCfg *args);
 void gui_wordmark_logo_draw(const GuiWordmarkFrameCfg *args);
 // whether a press at x, y lands on the name: the eye once it is home, the large name where it was last drawn while it
-// stands
+// is
 int gui_wordmark_holds(const GuiWordmarkFrameCfg *args);
 struct GuiWordmarkFrameCfg
 {
@@ -172,16 +172,16 @@ EMBED_TABLE_STORAGE GuiWordmarkStillNs gui_wordmark_still_table EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*stand)(const GuiWordmarkFrameCfg *args);
+    void (*are)(const GuiWordmarkFrameCfg *args);
     int (*tick)(const GuiWordmarkFrameCfg *args);
     void (*draw)(const GuiWordmarkFrameCfg *args);
     GuiRect (*logo_square)(const GuiWordmarkFrameCfg *args);
     void (*logo_draw)(const GuiWordmarkFrameCfg *args);
     int (*holds)(const GuiWordmarkFrameCfg *args);
 } GuiWordmarkFrameNs;
-EMBED_TABLE_LAYOUT(GuiWordmarkFrameNs, stand, tick, draw, logo_square, logo_draw, holds);
+EMBED_TABLE_LAYOUT(GuiWordmarkFrameNs, are, tick, draw, logo_square, logo_draw, holds);
 EMBED_TABLE_STORAGE GuiWordmarkFrameNs gui_wordmark_frame EMBED_UNUSED = {
-    .stand = gui_wordmark_stand,
+    .are = gui_wordmark_are,
     .tick = gui_wordmark_tick,
     .draw = gui_wordmark_draw,
     .logo_square = gui_wordmark_logo_square,

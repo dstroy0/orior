@@ -56,7 +56,7 @@ static void expect_count(const char *label, unsigned int got, unsigned int wante
 
 // a row of the transpiler's test table, its operator cells 1 for each of `operators`, `count` of them, apart by tabs,
 // appended to `lines`
-static void blank(LngList *lines, const char *word, const char *kind, const char *bits, const char *sign,
+static void blank(LngList *lines, const char *word, const char *type, const char *bits, const char *sign,
                   const char *c_type, const char *complement, const char *const *operators, unsigned int count)
 {
     char cells[6][2] = {"", "", "", "", "", ""};
@@ -67,14 +67,14 @@ static void blank(LngList *lines, const char *word, const char *kind, const char
             cells[at][0] = (strcmp(s_operators[at], operators[one]) == 0) ? '1' : cells[at][0];
         }
     }
-    lng_list_printed(lines, "%s\t%s\t\t\t\t\t\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s", word, kind, bits, sign, c_type,
+    lng_list_printed(lines, "%s\t%s\t\t\t\t\t\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s", word, type, bits, sign, c_type,
                      complement, cells[0], cells[1], cells[2], cells[3], cells[4], cells[5]);
 }
 
 // the head of the transpiler's test table placed as the first of `lines`
 static void head(LngList *lines)
 {
-    lng_list_add(lines, "word\tkind\tnames\tselected_by_process\tselected_by_step\tselected_by_branch\t"
+    lng_list_add(lines, "word\ttype\tnames\tselected_by_process\tselected_by_step\tselected_by_branch\t"
                         "selected_by_fulltrace\tbits\tsigned\tc_type\tcomplement\t<\t>=\t+\t&\t&&\t-");
 }
 
@@ -102,16 +102,16 @@ static void clean(LngList *lines)
 }
 
 // a row of a high order test table, its cells apart by tabs, appended to `lines`
-static void hol_row(LngList *lines, const char *word, const char *kind, const char *bits, const char *sign,
+static void hol_row(LngList *lines, const char *word, const char *type, const char *bits, const char *sign,
                     const char *crossed, const char *below, const char *plus)
 {
-    lng_list_printed(lines, "%s\t%s\t\t\t\t\t\t%s\t%s\t%s\t%s\t%s", word, kind, bits, sign, crossed, below, plus);
+    lng_list_printed(lines, "%s\t%s\t\t\t\t\t\t%s\t%s\t%s\t%s\t%s", word, type, bits, sign, crossed, below, plus);
 }
 
 // the head of a high order test table placed as the first of `lines`
 static void hol_head(LngList *lines)
 {
-    lng_list_add(lines, "word\tkind\tnames\tselected_by_process\tselected_by_step\tselected_by_branch\t"
+    lng_list_add(lines, "word\ttype\tnames\tselected_by_process\tselected_by_step\tselected_by_branch\t"
                         "selected_by_fulltrace\tbits\tsigned\ttranspiler\t<\t+");
 }
 
@@ -149,7 +149,7 @@ int main(void)
     table_of(&lines, &table, &defects);
     expect_count("a clean table reads whole", table.rows, 5u);
     expect("a clean table reads whole", &defects, NULL, 0u);
-    lng_table_check(&table, g_lng_kinds, LNG_KINDS, &defects);
+    lng_table_check(&table, g_lng_types, LNG_KINDS, &defects);
     expect("a clean table has no defect", &defects, NULL, 0u);
     lng_table_findings(&table, &findings);
     expect("a clean table has no finding", &findings, NULL, 0u);
@@ -172,10 +172,10 @@ int main(void)
         blank(&lines, "add", "doing", "", "", "", "", s_add, 1u);
         blank(&lines, "word", "noun", "", "", "", "", NULL, 0u);
         table_of(&lines, &table, &defects);
-        lng_table_check(&table, g_lng_kinds, LNG_KINDS, &defects);
+        lng_table_check(&table, g_lng_types, LNG_KINDS, &defects);
         static const char *const s_wanted[4] = {
             "add doing is listed twice",
-            "word has the kind noun, which no table names",
+            "word has the type noun, which no table names",
             "below complements geq, which does not complement it back",
             "geq complements add, which does not complement it back",
         };
@@ -190,7 +190,7 @@ int main(void)
         blank(&lines, "below", "doing", "", "", "", "geq", s_below, 1u);
         blank(&lines, "geq", "doing", "", "", "", "below", s_plus, 1u);
         table_of(&lines, &table, &defects);
-        lng_table_check(&table, g_lng_kinds, LNG_KINDS, &defects);
+        lng_table_check(&table, g_lng_types, LNG_KINDS, &defects);
         static const char *const s_wanted[2] = {
             "below complements geq, and + does not negate <",
             "geq complements below, and < does not negate +",

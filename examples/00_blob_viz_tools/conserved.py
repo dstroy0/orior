@@ -97,8 +97,8 @@ def live_rank(matrix):
 def round_trip(matrix, weights):
     """Recover the weights from the reading alone, and report the relative error.
 
-    The recovery is a least-squares solve of the same map, the most favorable recovery
-    available: it is handed the exact map, exact arithmetic apart from rounding, and a noiseless
+    The recovery is a least-squares solve of the same map, the max favorable recovery
+    available: it is passed the exact map, exact arithmetic apart from rounding, and a noiseless
     reading. Anything it cannot recover under those conditions is not recoverable at all.
     """
     reading = matrix.dot(weights)
@@ -111,8 +111,8 @@ def kernel_basis(matrix):
     """An orthonormal basis of the map's null space, from the trailing right singular vectors."""
     _left, singular, right = numpy.linalg.svd(matrix)
     floor = singular[0] * max(matrix.shape) * numpy.finfo(float).eps
-    keep = int((singular > floor).sum())
-    return right[keep:].T
+    retain = int((singular > floor).sum())
+    return right[retain:].T
 
 
 def _report():
@@ -122,7 +122,7 @@ def _report():
 
     print("  %d sources at r/R %.2f. Recovering the sources from the reading alone, by least"
           % (COUNT, DEPTH))
-    print("  squares on the exact map with a noiseless reading, the most favorable")
+    print("  squares on the exact map with a noiseless reading, the max favorable")
     print("  recovery there is.")
     print("")
     print("  %7s %11s %7s %8s %16s %16s"
@@ -161,9 +161,9 @@ def _report():
 
     # The recovered vector should equal the visible part exactly, and hold nothing of the rest.
     visible_gap = float(numpy.linalg.norm(recovered - seen)) / size
-    kernel_kept = float(numpy.linalg.norm(null.T.dot(recovered))) / size
+    kernel_retained = float(numpy.linalg.norm(null.T.dot(recovered))) / size
     print("    the recovery reproduces the outside-kernel part to %.4e" % visible_gap)
-    print("    the recovery holds %.4e of any kernel component" % kernel_kept)
+    print("    the recovery holds %.4e of any kernel component" % kernel_retained)
     print("    total recovery error %.4e, all of it the kernel part" % error_all)
     print("")
     print("  SO THE READING LOSES EXACTLY THE KERNEL COMPONENT AND LOSES NOTHING ELSE. The part")
@@ -260,13 +260,13 @@ def _check():
     seen = weights - in_kernel
     size = float(numpy.linalg.norm(weights))
     visible_gap = float(numpy.linalg.norm(recovered - seen)) / size
-    kernel_kept = float(numpy.linalg.norm(null.T.dot(recovered))) / size
+    kernel_retained = float(numpy.linalg.norm(null.T.dot(recovered))) / size
     lines.append("  the visible part comes back to %.3e and the recovery holds %.3e of the kernel"
-                 % (visible_gap, kernel_kept))
+                 % (visible_gap, kernel_retained))
     if visible_gap > 1e-8:
         lines.append("    FAIL the part the map can see did not come back exactly")
         failed += 1
-    if kernel_kept > 1e-8:
+    if kernel_retained > 1e-8:
         lines.append("    FAIL the recovery invented a kernel component it could not have read")
         failed += 1
 

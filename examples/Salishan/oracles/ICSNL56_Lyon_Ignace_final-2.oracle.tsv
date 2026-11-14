@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	John Lyon and Marianne Ignace	title	Comparing Futures: Nsyilxcn mi and Secwepemctsin me7*	page 1, carries footnote *
 front	John Lyon and Marianne Ignace	byline	John Lyon Marianne Ignace University of British Columbia – Okanagan Simon Fraser University Simon Fraser University Skeetchestn Indian Band	page 1, the two authors side by side, each over two affiliations
 front	John Lyon and Marianne Ignace	name	John Lyon	author, University of British Columbia – Okanagan and Simon Fraser University
@@ -23,7 +23,7 @@ front	John Lyon and Marianne Ignace	language	Secwepemctsin	Shuswap, Northern Int
 §1	Secwepemctsin	cited form	Esk̓et	page 2
 §1	John Lyon and Marianne Ignace	note	Though Nsyilxcn and Secwepemctsin come from separate branches of Interior Salish, there are many similarities between the two languages. This comparative study examines the syntactic distributions of Nsyilxcn mi and Secwepemctsin me7, two cognate future tense particles which, with the exception of Kalispel reflex m, are not found in other Interior Salish languages. We provide additional examples and insight into syntactic patterns earlier described in Kuipers (1974), Gardiner (1993), Lai (1998), Kroeber (1999), and Lyon (2013), as well as describe previously undocumented syntactic patterns. With respect to Lai’s (1998) and Gardiner’s (1993) Secwepemctsin work in particular, this paper provides important potential dialectal points of contrast between Elder speakers from the northern dialect of Esk̓et with whom we are primarily working, and the Skeetchestn Elders with whom Lai and Gardiner worked.	page 1
 footnote *	John Lyon and Marianne Ignace	note	*John Lyon wishes to express his deep gratitude to Upper Nicola Elders Lottie Lindley and Sarah McLeod for sharing their stories and knowledge of their language with him, and to Sharon Lindley for helping to facilitate Nsyilxcn language work with members of the UNIB. Both authors also wish to express their deep appreciation and gratitude to Bridget Dan and Cecilia DeRose of Es k̓et, and to Daniel Calhoun, Garlene Dodson, Mona Jules, and Ron Ignace from Skeetchestn for sharing their knowledge of Secwepemctsin and for assisting with the LING 431–432 Structure of Secwepemctsin courses taught through Simon Fraser University’s Indigenous Languages Program during Spring-Summer 2021. This work has been financially supported by a partnership grant from the Social Sciences and Humanities Research Council of Canada (Marianne Ignace, PI), a SSHRC Insight Grant (Henry Davis, PI), the Jacobs Research Fund, and the Phillips Fund for Native American Research. Any transcription errors, or otherwise, remain the responsibility of the authors.	page 1, footnote
-§1	John Lyon and Marianne Ignace	note	The syntactic and semantic similarities between mi and me7 will be immediately apparent to any learner or linguist with even a moderate degree of familiarity with the two languages. Their differences are less apparent, however no less important. The primary goal of this paper therefore is to compare and contrast the syntactic distributions of mi and me7 structures (with minor notes on the semantics) in order to lay the foundation for further syntactic and semantic analysis of these particles in their respective languages.	page 2
+§1	John Lyon and Marianne Ignace	note	The syntactic and semantic similarities between mi and me7 will be immediately apparent to any learner or linguist with even a moderate degree of familiarity with the two languages. Their differences are less apparent, however no less important. The primary goal of this paper therefore is to compare and contrast the syntactic distributions of mi and me7 structures (with minor notes on the semantics) in order to position the foundation for further syntactic and semantic analysis of these particles in their respective languages.	page 2
 §1	John Lyon and Marianne Ignace	note	The linguistic similarities between Nsyilxcn mi and Secwepemctsin me7 which we examine in this paper seem likely due to areal influence, though this cannot be ascertained for certain without further historical work. Areal influence is not unexpected given the contiguous geographic locations of the two peoples. Factors such as trade, intermarriage, and warfare and peace-treaties between the two peoples supported ongoing language contact, and oral testimony from Elders shows that Syilx-Secwepemc bilingualism was common in both nations into the twentieth century (Ignace & Ignace 2017). A secondary goal of this paper is therefore to set the stage for further research on areal influences across Northern and Southern Interior Salish languages. This paper is organized into two major sections corresponding to two distinct uses of mi and me7: clefting1 vs. non-clefting (i.e., clause-initial) uses. Clefting uses of Nsyilxcn mi and Secwepemctsin me7 are generally distinguishable from clause-initial uses by the non-propositional status of the material which linearly precedes mi or me7 in clefting cases. Section 2 examines future mi and me7 in their functions as adjunct and argument clefting particles, with forays into their analogous non-future structures, pronominal agreement patterns in independent pronoun clefts, apparent vP-related restrictions on clefting uses of mi, negation and DP subject positions with respect to mi and me7, and syntactic reflexes of informational focus in mi and me7 argument clefts. Section 3 explores mi and me7 as they occur in clause-initial positions, including mono-clausal uses, ‘linking’ uses such as introducing future conditionals and in indicating event subsequence, as well as a minor foray into ‘doubling’ with Nsyilxcn mi. Section 4 summarizes, outlines future research, and concludes.	page 2
 §2	John Lyon and Marianne Ignace	heading	2 Clefting uses of mi and me7	page 2
 footnote 1	John Lyon and Marianne Ignace	note	1 We use the terms ‘cleft’ and ‘residue’ as purely descriptive terms in this paper, without specific theoretical implications: ‘Cleft’ refers to a syntactic structure with a left-focused constituent. ‘Residue’ refers to the remaining, non-focused material in the sentence. We also used the term ‘focus’ somewhat loosely, though in some cases contrastive focus is more clearly playing a role.	page 2, footnote
@@ -449,7 +449,7 @@ footnote 27	John Lyon and Marianne Ignace	note	27 Ungrammatical examples like th
 (21e) line 3	Secwepemctsin	gloss	DET black-robe FUT pitiful.DIM.RDP-mouth	page 15, engine english
 (21e) line 4	John Lyon and Marianne Ignace	translation	‘The priest will pray.’	page 15, engine english
 (21e) line 5	John Lyon and Marianne Ignace	citation	(Cecilia DeRose, 6/2/21)	page 15, engine english
-§2.2	John Lyon and Marianne Ignace	note	Example (22) shows cases involving clefted independent pronoun subjects, which can incidentally be conjoined (as shown in 22d,e). Example (22b) shows that person agreement between the independent pronoun and the verbal residue is variable in Secwepemctsin.28 Agreement patterns in independent pronoun clefts are discussed in more detail in Section 2.4.	page 15
+§2.2	John Lyon and Marianne Ignace	note	Example (22) shows cases involving clefted independent pronoun subjects, which can incidentally be conjoined (as displayed in 22d,e). Example (22b) shows that person agreement between the independent pronoun and the verbal residue is variable in Secwepemctsin.28 Agreement patterns in independent pronoun clefts are discussed in more detail in Section 2.4.	page 15
 (22a) line 1	Nsyilxcn	transcription	anwí mi kʷ qʷəlqʷílt.	page 15, engine language
 (22a) line 2	Nsyilxcn	segmentation	anwí mi kʷ qʷlqʷílt	page 15, engine language
 (22a) line 3	Nsyilxcn	gloss	2SG.INDEP FUT 2SG.SUB speak	page 15, engine english
@@ -560,7 +560,7 @@ footnote 33	John Lyon and Marianne Ignace	note	33 Though me7 occurs alongside ob
 (25b) line 4	John Lyon and Marianne Ignace	translation	‘When did you buy the car?’	page 18, engine english
 (25b) line 5	John Lyon and Marianne Ignace	citation	(Bridget Dan, Cecilia DeRose, 7/21/21)	page 18, engine english
 §2.3	Nsyilxcn	cited form	iʔ	page 18
-§2.3	John Lyon and Marianne Ignace	note	To be clear, Nsyilxcn non-future kiʔ is not a determiner: It can neither introduce a nominal argument, nor a clause from which a core nominal argument has been extracted. The latter is shown in (26). The determiner iʔ is always used in such cases.	page 18
+§2.3	John Lyon and Marianne Ignace	note	To be clear, Nsyilxcn non-future kiʔ is not a determiner: It can neither introduce a nominal argument, nor a clause from which a core nominal argument has been extracted. The latter is displayed in (26). The determiner iʔ is always used in such cases.	page 18
 (26a) line 1	Nsyilxcn	transcription	iʔ sqəltmíxʷ kils iʔ sƛ̓aʔcínəm iʔ/*kiʔ scwiks.	page 18, engine language
 (26a) line 2	Nsyilxcn	segmentation	iʔ sqltmíxʷ kil-s iʔ sƛ̓aʔcínm	page 18, engine language
 (26a) line 3	Nsyilxcn	gloss	DET man chase-[DIR]-3ERG DET deer	page 18, engine english
@@ -641,7 +641,7 @@ footnote 37	John Lyon and Marianne Ignace	note	37 Exceptions include simple noun
 §2.4	Nsyilxcn	cited form	səxʷm̓aʔm̓áyaʔm	page 20, ‘I’
 §2.4	Nsyilxcn	cited form	ylmíxʷəm	page 20, ‘I am the chief’
 §2.4	Secwepemctsin	cited form	k̓ét	page 21
-§2.4	John Lyon and Marianne Ignace	note	Parallel forms in Secwepemctsin prefer 3rd person agreement, but nevertheless allow 1st person subject agreement on future cleft residues, as shown with intransitive (30) and transitive examples with 1st person subjects and 2nd person objects (31a–b).38 Among the Es k̓ét speakers but less so among Skeetchestn speakers, there is a much stronger preference for 3rd person agreement in non- future 1st person pronoun clefts with 2nd person objects (30c, 31c), however, interestingly, 1st person agreement is required with 3rd person objects (31d).39	page 20
+§2.4	John Lyon and Marianne Ignace	note	Parallel forms in Secwepemctsin prefer 3rd person agreement, but nevertheless allow 1st person subject agreement on future cleft residues, as displayed with intransitive (30) and transitive examples with 1st person subjects and 2nd person objects (31a–b).38 Among the Es k̓ét speakers but less so among Skeetchestn speakers, there is a much stronger preference for 3rd person agreement in non- future 1st person pronoun clefts with 2nd person objects (30c, 31c), however, interestingly, 1st person agreement is required with 3rd person objects (31d).39	page 20
 (30a) line 1	Secwepemctsin	transcription	re ntsétswe7 me7 qweqwlút.	page 21, engine english, judged (CD: better)
 (30a) line 2	Secwepemctsin	transcription	re ntsétswe7 me7 qweqwlúl̓t-ken.	page 21, engine english, judged (CD: good)
 (30a) line 3	Secwepemctsin	segmentation	re ntsétswe7 me7 qweqwlú(l̓)t(-ken)	page 21, engine english
@@ -773,7 +773,7 @@ footnote 41	John Lyon and Marianne Ignace	note	41 In Upper Nicola Nsyilxcn, ther
 §2.4	Nsyilxcn	cited form	anwí	page 24
 §2.4	Nsyilxcn	cited form	ʔ	page 24
 §2.4	Nsyilxcn	cited form	səxʷk̓ʷúlɬxʷəm	page 24
-§2.4	John Lyon and Marianne Ignace	note	In Secwepemctsin, clefted 2nd person independent pronouns allow 2nd or 3rd person agreement in future clefts, as shown with intransitives (35a), transitive subjects (35b), and transitive objects (35c), with a slight preference for 3rd person agreement.	page 25
+§2.4	John Lyon and Marianne Ignace	note	In Secwepemctsin, clefted 2nd person independent pronouns allow 2nd or 3rd person agreement in future clefts, as displayed with intransitives (35a), transitive subjects (35b), and transitive objects (35c), with a slight preference for 3rd person agreement.	page 25
 (35a) line 1	Secwepemctsin	transcription	re7 newí7 me7 kúkwpi7(-k).	page 25, engine english
 (35a) line 2	Secwepemctsin	segmentation	re 7newí7 me7 kúkwpi7(-k)	page 25, engine english
 (35a) line 3	Secwepemctsin	gloss	DET 2SG.INDEP FUT chief(-2SG.SUB)	page 25, engine english
@@ -794,7 +794,7 @@ footnote 41	John Lyon and Marianne Ignace	note	41 In Upper Nicola Nsyilxcn, ther
 (35c) line 4	Secwepemctsin	gloss	DET 2SG.INDEP FUT help-DIR-3OBJ-2SG.OBJ-1SG.ERG	page 25, engine english
 (35c) line 5	John Lyon and Marianne Ignace	translation	‘You’re the one I will help.’	page 25, engine english
 (35c) line 6	John Lyon and Marianne Ignace	citation	(Cecilia DeRose, Bridget Dan, 7/14/21)	page 25, engine english
-§2.4	John Lyon and Marianne Ignace	note	Surprisingly, 2nd person ergative agreement is required with 1st person objects in non-future clefts (36a,b), in stark contrast to the 1 st person pattern shown above. Either 2nd or 3 rd ergative person agreement is allowed for 3rd person objects (36c) and 2nd person object agreement appears required with 3rd person subjects (36d).	page 25
+§2.4	John Lyon and Marianne Ignace	note	Surprisingly, 2nd person ergative agreement is required with 1st person objects in non-future clefts (36a,b), in stark contrast to the 1 st person pattern displayed above. Either 2nd or 3 rd ergative person agreement is allowed for 3rd person objects (36c) and 2nd person object agreement appears required with 3rd person subjects (36d).	page 25
 (36a) line 1	Secwepemctsin	transcription	re7 newí7 lu7 le knúncwentsemc.	page 25, engine english
 (36a) line 2	Secwepemctsin	transcription	* re7 newí7 lu7 le knúcwentsems.	page 25, engine english
 (36a) line 3	Secwepemctsin	segmentation	re 7newí7 lu7 le knúncw-en-tsem-c/-*s	page 25, engine english
@@ -829,7 +829,7 @@ Table 2 line 2	John Lyon and Marianne Ignace	note	1st person independent pronoun
 Table 2 line 3	John Lyon and Marianne Ignace	note	*1st/2nd → 1st/3rd *3rd/1st → 2nd/1st	page 20, 1st person clefts: *1st/2nd → 1st/3rd; 2nd person clefts: *3rd/1st → 2nd/1st
 Table 2 line 4	John Lyon and Marianne Ignace	note	*2nd/1st → 2nd/3rd 2nd/3rd ↔︎ 3rd/3rd	page 20, 1st person clefts: *2nd/1st → 2nd/3rd; 2nd person clefts: 2nd/3rd ↔︎ 3rd/3rd
 Table 2 line 5	John Lyon and Marianne Ignace	note	3rd/1st 3rd/2nd	page 20, 1st person clefts: 3rd/1st; 2nd person clefts: 3rd/2nd
-§2.4	John Lyon and Marianne Ignace	note	Overall, these patterns suggest a kind of person hierarchy in Secwepemctsin (cf. Gardiner 1993), such that 3rd person agreement is preferred to 2nd when a 1st person is emphasized, but 2nd agreement is preferred to 3rd when a 2nd person is emphasized.	page 20
+§2.4	John Lyon and Marianne Ignace	note	Overall, these patterns suggest a type of person hierarchy in Secwepemctsin (cf. Gardiner 1993), such that 3rd person agreement is preferred to 2nd when a 1st person is emphasized, but 2nd agreement is preferred to 3rd when a 2nd person is emphasized.	page 20
 footnote 42	John Lyon and Marianne Ignace	note	42 Compare for example the ungrammatical 1st person plural independent pronoun cleft with 1st person ergative agreement and a 2nd person object: *wellnewí7s kucw lu7 le knucwentst. ‘We’re the ones that helped you (sg.)’ as opposed to the same cleft with 3rd person ergative agreement which was judged as being grammatical: wellnewí7s kucw lu7 le knucwentss.	page 26, footnote
 §2.4	Secwepemctsin	cited form	wellnewí7s	page 26
 §2.4	John Lyon and Marianne Ignace	note	These patterns also indicate possible structural differences between future and non-future clefts in Secwepemctsin, since future judgements are less robust than non-future judgements. Given that me7 takes the place of determiners in clefting contexts, and that me7 occurs clause-initially in non- clefting contexts (see Section 3), there is no morpho-syntactic means of distinguishing clefted arguments from arguments which have been simply fronted in Secwepemctsin future contexts (as opposed to non-future 31a and 32, for example). While the presence vs. absence of agreement in these cases could indicate a cleft vs. non-cleft structure, the differences in the 1st and 2nd person agreement patterns described above suggest that other factors are at play.	page 26
@@ -979,7 +979,7 @@ footnote 43	John Lyon and Marianne Ignace	note	43 In Secwepemctsin, an epistemic
 (46a) line 5	John Lyon and Marianne Ignace	citation	(Sarah McLeod, VF, 3/8/13, 13517)	page 31, engine residue
 (46b) line 1	Nsyilxcn	transcription	ixíʔ mi ksc̓əlc̓ál.	page 31, engine residue
 (46b) line 2	Nsyilxcn	segmentation	ixíʔ mi k[ɬ]-s-c̓əl-c̓ál	page 31, engine language
-(46b) line 3	Nsyilxcn	gloss	that FUT IRR.N-NMLZ-PL.RDP-stand	page 31, engine english
+(46b) line 3	Nsyilxcn	gloss	that FUT IRR.N-NMLZ-PL.RDP-are	page 31, engine english
 (46b) line 4	Sarah McLeod, VF, 5/10/13, 14161	translation	‘These will be trees.’	page 31, engine english, cited Sarah McLeod, VF, 5/10/13, 14161
 (46b) line 5	John Lyon and Marianne Ignace	citation	(Sarah McLeod, VF, 5/10/13, 14161)	page 31, engine residue
 §2.5	John Lyon and Marianne Ignace	note	Context: Pointing at young sprouts in the ground.	page 31
@@ -1072,7 +1072,7 @@ footnote 45	John Lyon and Marianne Ignace	note	45 This is in contrast to non-fut
 (52b) line 3	Nsyilxcn	gloss	NEG to.there 2SG.POSS-PROS.NMLZ-go	page 34, engine english
 (52b) line 4	Sarah McLeod, VF, 10410	translation	‘Don’t go over there.’	page 34, engine english, cited Sarah McLeod, VF, 10410
 (52b) line 5	John Lyon and Marianne Ignace	citation	(Sarah McLeod, VF, 10410)	page 34, engine english
-§2.6	John Lyon and Marianne Ignace	note	In Secwepemctsin me7 clefts, there is no such incompatibility between negation and me7, as shown in (53) and (54).46	page 34
+§2.6	John Lyon and Marianne Ignace	note	In Secwepemctsin me7 clefts, there is no such incompatibility between negation and me7, as displayed in (53) and (54).46	page 34
 (53a) line 1	Secwepemctsin	transcription	héqen ye7éne me7 kwenc.	page 34, engine english
 (53a) line 2	Secwepemctsin	segmentation	héqen ye7éne me7 kwen-c	page 34, engine english
 (53a) line 3	Secwepemctsin	gloss	maybe this.VIS FUT take-[DIR]-2SG.ERG	page 34, engine english
@@ -1284,7 +1284,7 @@ footnote 50	John Lyon and Marianne Ignace	note	50 Given that cases like (58) are
 (66c)	Secwepemctsin	cited form	sqéqlemcw	in the speaker comment, page 40
 (66c)	Secwepemctsin	cited form	smúwe7	in the speaker comment, page 40
 (66c) line 1	John Lyon and Marianne Ignace	citation	(Bridget Dan, Cecilia DeRose)	page 40, engine english
-§2.7	John Lyon and Marianne Ignace	note	Similar data are possible with independent pronouns in both languages (67) (though as shown above, Secwepemctsin may only allow determiner re in these cases, not oblique te).	page 40
+§2.7	John Lyon and Marianne Ignace	note	Similar data are possible with independent pronouns in both languages (67) (though as displayed above, Secwepemctsin may only allow determiner re in these cases, not oblique te).	page 40
 (67a) line 1	Nsyilxcn	transcription	incá iʔ sqəltmíxʷ iʔ kn ksqʷən̓qʷan̓tmíxaʔx.	page 40, engine language
 (67a) line 2	Nsyilxcn	segmentation	incá iʔ sqəltmíxʷ iʔ kn ks-qʷn̓qʷan̓t-míxaʔx	page 40, engine language
 (67a) line 3	Nsyilxcn	gloss	1SG.INDEP DET man DET 1SG.SUB PROS-poor-INTR	page 40, engine english
@@ -1309,7 +1309,7 @@ footnote 50	John Lyon and Marianne Ignace	note	50 Given that cases like (58) are
 §3	John Lyon and Marianne Ignace	note	For clause-initial uses of mi and me7, any material which precedes mi and me7 must be construed as propositional. If no material precedes mi or me7, the condition is vacuously satisfied. This contrasts with clefting uses of mi and me7, where preceding material may not be construed as propositional. In this section, we make an additional distinction between:	page 41
 §3	John Lyon and Marianne Ignace	note	(i) mono-clause-initial uses of mi and me7 (Section 3.1) (ii) clause-initial uses where mi and me7 link two clauses together (Section 3.2) This distinction is motivated for Nsyilxcn because mono-clause-initial structures are often rejected in favour of a ks- prospective form, or else interpreted as incomplete instances of clausal-linking. This distinction is motivated for Secwepemctsin because mono-clause-initial uses do not involve subjunctive marking, whereas linking uses typically do. Nsyilxcn mi is more restricted as a clause- introducer for reasons which will be discussed.	page 41
 §3.1	John Lyon and Marianne Ignace	heading	3.1 Mono-clause initial uses of mi and me7	page 41
-§3.1	John Lyon and Marianne Ignace	note	Secwepemctsin me7 commonly occurs at the beginning of a mono-clause inflected with indicative, main-clause pronominal morphology. For Secwepemctsin, these are the most straightforward way to express a future proposition (68a–e). 2nd person forms tend to have imperative force.	page 41
+§3.1	John Lyon and Marianne Ignace	note	Secwepemctsin me7 commonly occurs at the beginning of a mono-clause inflected with indicative, main-clause pronominal morphology. For Secwepemctsin, these are the max straightforward way to express a future proposition (68a–e). 2nd person forms tend to have imperative force.	page 41
 (68a) line 1	Secwepemctsin	transcription	me7 nens-ken te ctuméllcw.	page 41, engine english
 (68a) line 2	Secwepemctsin	segmentation	me7 nens-ken te ctuméllcw	page 41, engine english
 (68a) line 3	Secwepemctsin	gloss	FUT go-1SG.SUB OBL store	page 41, engine english
@@ -1425,7 +1425,7 @@ footnote 52	John Lyon and Marianne Ignace	note	52 It is unclear whether such alt
 (76b) line 3	John Lyon and Marianne Ignace	citation	(Sarah McLeod, VF, 10/17/15, 14872)	page 45, engine residue
 §3.1	John Lyon and Marianne Ignace	note	We now turn to linking uses of mi and me7.	page 45
 §3.2	John Lyon and Marianne Ignace	heading	3.2 Linking clause-initial uses of mi and me7	page 45
-§3.2	John Lyon and Marianne Ignace	note	Linking uses of mi and me7 most notably include future conditional statements (§3.2.1) and event sequencing (§3.2.2).	page 45
+§3.2	John Lyon and Marianne Ignace	note	Linking uses of mi and me7 in particular include future conditional statements (§3.2.1) and event sequencing (§3.2.2).	page 45
 §3.2.1	John Lyon and Marianne Ignace	heading	3.2.1 Future conditionals	page 45
 §3.2.1	Nsyilxcn	cited form	ɬ(aʔ)	page 45, ‘if/when’
 §3.2.1	John Lyon and Marianne Ignace	note	Future mi and me7 often signal the consequent of a conditional clause. The antecedent clause is usually introduced by Nsyilxcn complementizer ɬ(aʔ) ‘if/when’ or Secwepemctsin irrealis complementizer e ‘if’ (77a–c), which generally requires subjunctive marking in the clause it introduces.53 The consequent me7 clause is the main clause, as indicated by the lack of subjunctive marking.	page 45
@@ -1497,7 +1497,7 @@ footnote 53	John Lyon and Marianne Ignace	note	53 Note that for Secwepemctsin e 
 (78e) line 5	John Lyon and Marianne Ignace	citation	(Kuipers 1974)	page 47, engine english
 §3.2.2	John Lyon and Marianne Ignace	heading	3.2.2 Temporal sequencing	page 47
 §3.2.2	Nsyilxcn	cited form	ɬaʔ	page 47
-§3.2.2	John Lyon and Marianne Ignace	note	Most clause-initial uses of Nsyilxcn mi involve temporal sequencing across clauses. This is also a common and natural use for Secwepemctsin me7. In such cases, mi and me7 introduce an event in a sequence of two or more temporally-ordered events, each event being expressed by its own verbal predicate which heads its own clause. The beginning of the mi or me7-introduced event typically occurs after the end of the preceding event. In other words, there is generally no temporal overlap, as there is for example with Nsyilxcn ɬaʔ clauses or Secwepemctsin le clauses.	page 47
+§3.2.2	John Lyon and Marianne Ignace	note	Max clause-initial uses of Nsyilxcn mi involve temporal sequencing across clauses. This is also a common and natural use for Secwepemctsin me7. In such cases, mi and me7 introduce an event in a sequence of two or more temporally-ordered events, each event being expressed by its own verbal predicate which heads its own clause. The beginning of the mi or me7-introduced event typically occurs after the end of the preceding event. In other words, there is generally no temporal overlap, as there is for example with Nsyilxcn ɬaʔ clauses or Secwepemctsin le clauses.	page 47
 §3.2.2	John Lyon and Marianne Ignace	note	The first event in the sequence is commonly marked as an imperative in both languages (79). Secwepemctsin requires subjunctive marking on the event introduced by me7 in these contexts.54,55	page 47
 (79a) line 1	Nsyilxcn	transcription	xʷt̓ílxəx mi kʷ x̌cməncút.	page 47, engine language
 (79a) line 2	Nsyilxcn	segmentation	xʷt̓-ílx-x mi kʷ x̌c-m-ncút	page 47, engine language
@@ -1506,8 +1506,8 @@ footnote 53	John Lyon and Marianne Ignace	note	53 Note that for Secwepemctsin e 
 (79a) line 5	John Lyon and Marianne Ignace	citation	(Lottie Lindley, VF, 7/29/09, 1972)	page 47, engine residue
 (79b) line 1	Nsyilxcn	transcription	ɬq̓ílxəx ilíʔ mi kʷ ƛ̓íləmstx.	page 47, engine language
 (79b) line 2	Nsyilxcn	segmentation	ɬq̓-ílx-x ilíʔ mi kʷ ƛ̓íl-mst-x	page 47, engine language
-(79b) line 3	Nsyilxcn	gloss	lie.down-AUT-IMP there FUT 2SG.SUB keep.still-INTR.REFL-IMP	page 47, engine english
-(79b) line 4	Sarah McLeod, VF, 7/24/10, 5274	translation	‘Lay down and keep still.’	page 47, engine english, cited Sarah McLeod, VF, 7/24/10, 5274
+(79b) line 3	Nsyilxcn	gloss	lie.down-AUT-IMP there FUT 2SG.SUB retain.still-INTR.REFL-IMP	page 47, engine english
+(79b) line 4	Sarah McLeod, VF, 7/24/10, 5274	translation	‘Position down and retain still.’	page 47, engine english, cited Sarah McLeod, VF, 7/24/10, 5274
 (79b) line 5	John Lyon and Marianne Ignace	citation	(Sarah McLeod, VF, 7/24/10, 5274)	page 47, engine residue
 (79c) line 1	Secwepemctsin	transcription	tsxwént(c)e me7 íll(e)nucw.	page 47, engine english
 (79c) line 2	Secwepemctsin	segmentation	tsxwént-(c)e me7 íll(e)n-ucw	page 47, engine residue
@@ -1545,7 +1545,7 @@ footnote 55	John Lyon and Marianne Ignace	note	55 A variant of (79c) with an ind
 (80d) line 3	Nsyilxcn	gloss	cross.over-handle-APPL-3PL.ERG FUT then go-hunt-MID-3PL	page 48, engine english
 (80d) line 4	Lindley & Lyon 2016, 3/19/10, cf. 5982	translation	‘They pray for themselves before they go hunting.’	page 48, engine english, cited Lindley & Lyon 2016, 3/19/10, cf. 5982
 (80d) line 5	John Lyon and Marianne Ignace	citation	(Lindley & Lyon 2016, 3/19/10, cf. 5982)	page 48, engine residue
-footnote 56	John Lyon and Marianne Ignace	note	56 In Nsyilxcn, modal elements like epistemic cəm̓ may precede mi when it links two clauses together: kʷu kst̓ʕapɬtísəlx, c əm̓ mi ƛ̓lal ‘They are going to shoot me, and he might die.’ (Sarah McLeod, VF, 10474). Similar facts obtain for Secwepemctsin, as shown by the following sentence with héqen ‘maybe, might’: héqen me7 nes re John. ‘Maybe John will go.’ (Cecilia DeRose, VF).	page 48, footnote
+footnote 56	John Lyon and Marianne Ignace	note	56 In Nsyilxcn, modal elements like epistemic cəm̓ may precede mi when it links two clauses together: kʷu kst̓ʕapɬtísəlx, c əm̓ mi ƛ̓lal ‘They are going to shoot me, and he might die.’ (Sarah McLeod, VF, 10474). Similar facts obtain for Secwepemctsin, as displayed by the following sentence with héqen ‘maybe, might’: héqen me7 nes re John. ‘Maybe John will go.’ (Cecilia DeRose, VF).	page 48, footnote
 §3.2.2	Nsyilxcn	cited form	cəm̓	page 48
 §3.2.2	Nsyilxcn	cited form	kʷu	page 48
 §3.2.2	Nsyilxcn	cited form	kst̓ʕapɬtísəlx	page 48
@@ -1619,13 +1619,13 @@ footnote 60	John Lyon and Marianne Ignace	note	60 In narratives by Skeetchestn s
 (81e) line 1	Nsyilxcn	transcription	nyʕ̓ip ɬʕat̓mi sic c̓ʕánc̓ən.	page 50, engine language
 (81e) line 2	Nsyilxcn	segmentation	nyʕ̓ip ɬʕat̓ mi sic c̓ʕán-c̓n	page 50, engine language
 (81e) line 3	Nsyilxcn	gloss	always wet FUT then RDP-tight	page 50, engine english
-(81e) line 4	Lindley & Lyon 2016, 9/15/09, 5940	translation	‘They keep it (i.e. roots) wet all the time so that it gets tight.’	page 50, engine english, cited Lindley & Lyon 2016, 9/15/09, 5940
+(81e) line 4	Lindley & Lyon 2016, 9/15/09, 5940	translation	‘They retain it (i.e. roots) wet all the time so that it gets tight.’	page 50, engine english, cited Lindley & Lyon 2016, 9/15/09, 5940
 (81e) line 5	John Lyon and Marianne Ignace	citation	(Lindley & Lyon 2016, 9/15/09, 5940)	page 50, engine residue
 §3.2.2	John Lyon and Marianne Ignace	note	Secwepemctsin me7, on the other hand, is not used to indicate causality. Instead, if a causal-link between two events is intended, “goal-directed” nominalizations (Kuipers 1974) must be used.61	page 50
 (82a) line 1	Secwepemctsin	transcription	tekwemtús me7 sllét̓enc ri7 es luts̓t.s.	page 50, engine english
 (82a) line 2	Secwepemctsin	segmentation	tekwemtús me7 s-llét̓-en-c ri7 e s-luts̓t-s	page 50, engine english
 (82a) line 3	Secwepemctsin	gloss	always FUT NMLZ-wet-DIR-2SG.ERG that.VIS IRR.C NMLZ-tight-3POS	page 50, engine english
-(82a) line 4	John Lyon and Marianne Ignace	translation	‘You keep it wet all the time so that it gets tight.’	page 50, engine english
+(82a) line 4	John Lyon and Marianne Ignace	translation	‘You retain it wet all the time so that it gets tight.’	page 50, engine english
 (82a) line 5	John Lyon and Marianne Ignace	citation	(Cecilia DeRose, 6/09/21)	page 50, engine english
 footnote 61	John Lyon and Marianne Ignace	note	61 The combination of me7 plus subjunctive marking provides temporal subsequence in future contexts, but there is no causal implication between events. For example, compare (82b) with the following: néns-ken te skul me7 tswéwllcwen tek tsitcw ‘I’m going to school and then build a house,’ which was judged as being a strange thing to say if one is going to school to learn how to build houses. Example (82b) was also later dispreferred to the following which also includes a goal-directed nominalization, but leaves off the noun tsitcw ‘house’ as redundant with the suffix -éllcw ‘house’: néns-ken te skul es xepqenwéw̓en k stswewéllcw ‘I’m going to school to learn how to build houses.’ (Bridget Dan, Cecilia DeRose, VF, 7/21/21).	page 50, footnote
 §3.2.2	Nsyilxcn	cited form	néns-ken	page 50
@@ -1643,7 +1643,7 @@ footnote 61	John Lyon and Marianne Ignace	note	61 The combination of me7 plus su
 (82c) line 4	John Lyon and Marianne Ignace	translation	‘I’m going to school to learn how to build a house.’	page 51, engine english
 (82c) line 5	John Lyon and Marianne Ignace	citation	(Cecilia DeRose, 6/09/21)	page 51, engine english
 §3.3	John Lyon and Marianne Ignace	heading	3.3 Negation and subject position in linking uses of mi and me7	page 51
-§3.3	John Lyon and Marianne Ignace	note	It was shown in Section 2.7 that negation and mi do not co-occur in Nsyilxcn clefting contexts, whereas negation and me7 do co-occur in Secwepemctsin clefting contexts. In linking contexts, however, negation and mi do co-occur in Nsyilxcn, with causal import as described above in Section 2.2.	page 51
+§3.3	John Lyon and Marianne Ignace	note	It was displayed in Section 2.7 that negation and mi do not co-occur in Nsyilxcn clefting contexts, whereas negation and me7 do co-occur in Secwepemctsin clefting contexts. In linking contexts, however, negation and mi do co-occur in Nsyilxcn, with causal import as described above in Section 2.2.	page 51
 (83a) line 1	Nsyilxcn	transcription	lkʷílx iʔ tl snɬq̓útn mi lut k̓əsəsípəlaʔs iʔ səxʷpíx̌əm.	page 51, engine language
 (83a) line 2	Nsyilxcn	segmentation	lkʷ-ílx iʔ tl snɬq̓útn mi lut k̓s-s-ípəlaʔ-s	page 51, engine language
 (83a) line 3	Nsyilxcn	gloss	far-AUT DET from bed FUT NEG bad-RDP-handle-[DIR]-3ERG	page 51, engine english
@@ -1677,7 +1677,7 @@ footnote 62	John Lyon and Marianne Ignace	note	62 Example (82c) is not quite a m
 (85b) line 3	Secwepemctsin	gloss	even if angry-INCH-2SG.SBJV NEG FUT 1SG.POSS-NMLZ-leave	page 52, engine english
 (85b) line 4	John Lyon and Marianne Ignace	translation	‘Even if you get mad, I won’t go.’	page 52, engine english
 (85b) line 5	John Lyon and Marianne Ignace	citation	(Bridget Dan, 7/6/21)	page 52, engine english
-§3.3	John Lyon and Marianne Ignace	note	It was also shown in Section 2.7 that DP subjects do not directly follow mi or me7 in clefting contexts. In Nsyilxcn, textual examples can be found of DP subjects directly following mi as a linker in both positive (86a) and negative (86b) contexts.	page 52
+§3.3	John Lyon and Marianne Ignace	note	It was also displayed in Section 2.7 that DP subjects do not directly follow mi or me7 in clefting contexts. In Nsyilxcn, textual examples can be found of DP subjects directly following mi as a linker in both positive (86a) and negative (86b) contexts.	page 52
 footnote 63	John Lyon and Marianne Ignace	note	63 Though even in antecedent if clauses, me7 is often dispreferred to a goal-directed nominalization: ta7 me7 skectsín e tá7es e stséwkstmenc (Bridget Dan, VF, 7/6/21) ‘I won’t give it to you if you don’t reach for it.’ *ta7 me7 skectsín e tá7es me7 stséwkstmenc (Bridget Dan, 7/6/21).	page 52, footnote
 §3.3	Secwepemctsin	cited form	skectsín	page 52
 §3.3	Secwepemctsin	cited form	tá7es	page 52
@@ -1761,7 +1761,7 @@ footnote 65	John Lyon and Marianne Ignace	note	65 This may or may not be related
 §4	John Lyon and Marianne Ignace	note	This paper has compared and contrasted the distributions of Nsyilxcn future marker mi with Secwepemctsin cognate me7 across a range of clefting and clause-initial contexts. The two particles pattern similarly in many contexts, however, a careful examination has uncovered important differences between the two.	page 55
 §4	Nsyilxcn	cited affix	kɬ-	page 55
 §4	John Lyon and Marianne Ignace	note	Nsyilxcn mi is more restricted in its distribution than Secwepemctsin me7 for reasons that remain unclear, but likely relate to there being other strategies to mark future in Nsyilxcn besides me7, notably prospective ks-, nominal irrealis kɬ-, and modal and adverbially-marked futures. Future mi strongly implies contrastive focus in non-clause-initial position, which leads to pragmatic infelicity in some contexts. The incompatibility of mi with negation in clefting contexts but not linking contexts, along with the ungrammaticality of DP subjects directly following mi and me7 in clefting contexts may suggest that mi and me7-headed clauses are not full CPs here, as opposed to non-clefting contexts. Nsyilxcn mi further exhibits an apparent vP dependency in its clefting use which Secwepemctsin me7 does not, as evidenced by the agentivity requirement. In their clause- initial uses, mi is consistent with causal interpretations whereas me7 is not, and mi can double within the same clause, while me7 cannot.	page 55
-§4	John Lyon and Marianne Ignace	note	While the data in this paper should offer much syntactic food for thought, many semantic questions remain. Most obviously, me7 is required for future interpretations in Secwepemctsin, but is certainly not in Nsyilxcn as evidenced for example by the use of bare modal futures. Second of all, neither mi nor me7 are particularly conducive to future-in-the-past interpretations: Nsyilxcn uses ks- prospective nominalizations in such cases, and Secwepemctsin uses goal-directed nominalizations.	page 55
+§4	John Lyon and Marianne Ignace	note	While the data in this paper should offer much syntactic food for thought, many semantic questions remain. Max obviously, me7 is required for future interpretations in Secwepemctsin, but is certainly not in Nsyilxcn as evidenced for example by the use of bare modal futures. Second of all, neither mi nor me7 are particularly conducive to future-in-the-past interpretations: Nsyilxcn uses ks- prospective nominalizations in such cases, and Secwepemctsin uses goal-directed nominalizations.	page 55
 (92a) line 1	Nsyilxcn	transcription	* iʔ kəkəwáp mi siwstx uɬ nx̌iɬ uɬ yalt.	page 55, engine language
 (92a) line 2	Nsyilxcn	segmentation	* iʔ kkwáp mi siwst-x uɬ nx̌iɬ uɬ yalt	page 55, engine language
 (92a) line 3	Nsyilxcn	gloss	DET dog FUT drink-INTR CONJ afraid CONJ run.away	page 55, engine english

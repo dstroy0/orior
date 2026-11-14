@@ -12,12 +12,12 @@
 #define NOMINMAX
 #include <windows.h>
 
-// the most bytes of a command line and of an environment block
+// the max bytes of a command line and of an environment block
 #define CLI_LINE_BYTES 32768u
 
 #define CLI_ENVIRONMENT_UNITS (1u << 17u)
 
-// the most settings a start names, and the bytes of a start's attribute list
+// the max settings a start names, and the bytes of a start's attribute list
 #define CLI_SPAWN_SETTINGS 64u
 
 #define CLI_SPAWN_ATTRIBUTES 256u
@@ -182,7 +182,7 @@ EMBED_INLINE int cli_environment(const WindowsSpawnCtx *args)
 }
 
 // A start's cell taken, its command line, folder and environment block made: the cell, or NULL with why given and no
-// cell kept
+// cell retained
 EMBED_INLINE WindowsSpawnCell *cli_spawn_prepare(const WindowsSpawnCtx *args)
 {
     WindowsSpawnCell *const cell = g_cli_guard->temporary_buf_alloc(sizeof(WindowsSpawnCell), g_cli_platform_owner);
@@ -212,7 +212,7 @@ EMBED_INLINE WindowsSpawnCell *cli_spawn_prepare(const WindowsSpawnCtx *args)
 }
 
 // The cell's attribute list made with the handles a child inherits and, where given, its job: 1 where the list holds
-// both, else 0 with no list kept. The child inherits the listed handles and no other, so a start on another thread
+// both, else 0 with no list retained. The child inherits the listed handles and no other, so a start on another thread
 // gives this child none of its pipe ends
 EMBED_INLINE int cli_spawn_attributes(const WindowsSpawnCtx *args)
 {
@@ -343,7 +343,7 @@ static int cli_spawn_with(const WindowsSpawnCtx *args)
                       CreatePipe(&err_read, &err_write, &inherited, 0u);
     if (piped)
     {
-        // the ends this process reads and writes are not handed to the child
+        // the ends this process reads and writes are not passed to the child
         SetHandleInformation(out_read, HANDLE_FLAG_INHERIT, 0u);
         SetHandleInformation(err_read, HANDLE_FLAG_INHERIT, 0u);
         if (in_write != NULL)
@@ -353,8 +353,8 @@ static int cli_spawn_with(const WindowsSpawnCtx *args)
     }
     // detached, a job which lets nothing break away and ends every process in it as its last handle closes, which
     // orior's own end closes with it, so a child outlives orior in no outer job; the child is created inside the job,
-    // through the job list attribute, so no instant stands between its creation and its membership in which this
-    // process's end would leave it standing; a job the system refuses leaves the child in none
+    // through the job list attribute, so no instant is between its creation and its membership in which this
+    // process's end would leave it located; a job the system refuses leaves the child in none
     HANDLE job = NULL;
     if (args->detached)
     {
@@ -402,7 +402,7 @@ static int cli_spawn_with(const WindowsSpawnCtx *args)
     g_cli_guard->persistent_buf_release(cell, g_cli_platform_owner);
     if ((job != NULL) && !made)
     {
-        // a child that did not start: the job stands empty and is closed
+        // a child that did not start: the job is empty and is closed
         CloseHandle(job);
         job = NULL;
     }
@@ -490,7 +490,7 @@ int cli_spawn_piped_as(const CliWordsErrMsgCtx *args)
 // a terminal's columns or rows as the console counts them, two at the fewest
 EMBED_INLINE SHORT cli_terminal_extent(const WindowsSpawnCtx *args)
 {
-    // a count saved between 2 and the console's most is what a SHORT stores
+    // a count saved between 2 and the console's max is what a SHORT stores
     const unsigned int bounded = (args->count > 0x7fffu) ? 0x7fffu : args->count;
     return (SHORT)((args->count < 2u) ? 2u : bounded);
 }
@@ -608,7 +608,7 @@ int cli_spawn_write(const CliPipeHandleCtx *args)
     while ((size > 0ull) && (args->pipe_handle != 0ull))
     {
         DWORD written = 0u;
-        // a piece is at most a gibibyte, which a DWORD counts
+        // a piece is at max a gibibyte, which a DWORD counts
         const DWORD chunk = (DWORD)((size < (1ull << 30u)) ? size : (1ull << 30u));
         if (!WriteFile((HANDLE)(embed_word)args->pipe_handle, at, chunk, &written, NULL) || (written == 0u))
         {
@@ -632,7 +632,7 @@ void cli_spawn_input_close(const CliSpawnedCtx *args)
 unsigned long long cli_spawn_read(const CliCapacityPipeHandleCtx *args)
 {
     DWORD read = 0u;
-    // a piece is at most a gibibyte, which a DWORD counts
+    // a piece is at max a gibibyte, which a DWORD counts
     const DWORD chunk = (DWORD)((args->capacity < (1ull << 30u)) ? args->capacity : (1ull << 30u));
     if ((args->pipe_handle == 0ull) ||
         !ReadFile((HANDLE)(embed_word)args->pipe_handle, args->piece, chunk, &read, NULL))

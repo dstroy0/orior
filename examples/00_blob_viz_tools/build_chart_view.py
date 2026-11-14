@@ -16,14 +16,14 @@ beside it and not in place of it.
 
     python examples/00_blob_viz_tools/build_chart_view.py readings.csv
     python examples/00_blob_viz_tools/build_chart_view.py readings.csv --x time --y temperature pressure
-    python examples/00_blob_viz_tools/build_chart_view.py points.csv --kind scatter
+    python examples/00_blob_viz_tools/build_chart_view.py points.csv --type scatter
 
   --x NAME       the column along the bottom. Default: the first column named one of time, t, x,
                  date, step, round, index, or failing that the first column that parses as numbers.
   --y NAME...    the columns to draw. Default: every other numeric column.
   --split NAME   a column whose distinct values split the rows into separate series, and is the
                  shape long-format data usually arrives in.
-  --kind KIND    line, scatter, step, bar or area. Default line.
+  --type KIND    line, scatter, step, bar or area. Default line.
   --title TEXT   heading for the page. Default: the file's name.
   --out FILE     where to write. Default: <name>_chart.html beside the table.
 
@@ -162,16 +162,16 @@ def main():
         sys.stderr.write("every row was dropped: check --x names a numeric column\n")
         return 1
 
-    kind = one("--kind") or "line"
-    if kind not in ("line", "scatter", "step", "bar", "area"):
-        sys.stderr.write("--kind must be line, scatter, step, bar or area\n")
+    type = one("--type") or "line"
+    if type not in ("line", "scatter", "step", "bar", "area"):
+        sys.stderr.write("--type must be line, scatter, step, bar or area\n")
         return 1
 
     title = one("--title") or os.path.basename(source)
     payload = {
         "title": title,
         "xLabel": x_at,
-        "kind": kind,
+        "type": type,
         "blurb": ("%s, %d series against %s. Hover to read the nearest point, drag across to zoom "
                   "to a range of %s, double click to go back. Series can be turned off one at a "
                   "time, and the y axis can be read on a log scale."

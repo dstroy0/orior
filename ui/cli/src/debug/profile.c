@@ -67,8 +67,8 @@ void cli_profile_stop(void)
     s_running = NULL;
 }
 
-// a line the program wrote reported as output, to its errors where `error`, in a cell of the most its quoting takes,
-// each byte at most `\u` and four digits
+// a line the program wrote reported as output, to its errors where `error`, in a cell of the max its quoting takes,
+// each byte at max `\u` and four digits
 EMBED_INLINE void profile_output_emit(const ProfileCtx *args)
 {
     const unsigned long long capacity = (args->size * 6ULL) + 64ULL;
@@ -78,7 +78,7 @@ EMBED_INLINE void profile_output_emit(const ProfileCtx *args)
         return;
     }
     VerbaLinea out = {json_buf, capacity, 0ULL};
-    mmgr_line_put(&out, "{\"kind\":\"output\",\"text\":");
+    mmgr_line_put(&out, "{\"type\":\"output\",\"text\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &out,
                .text_bytes = (const unsigned char *)args->line, .length = args->size);
     mmgr_line_put(&out, args->error ? ",\"error\":true}" : ",\"error\":false}");
@@ -113,7 +113,7 @@ static void profile_line(const CliProfileLineSizeCfg *args)
         return;
     }
     VerbaLinea out = {json_buf, capacity, 0ULL};
-    mmgr_line_put(&out, "{\"kind\":\"counts\",\"counts\":");
+    mmgr_line_put(&out, "{\"type\":\"counts\",\"counts\":");
     if (!EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = json, .size = length) ||
         !EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg, .text = json, .size = length, .out = &out))
     {
@@ -131,12 +131,12 @@ static void profile_line(const CliProfileLineSizeCfg *args)
         long long code = 0LL;
         int whole = (done_size > 0ULL);
         const int negative = whole && (json[at] == '-');
-        unsigned long long letter = at + (negative ? 1ULL : 0ULL);
-        while (whole && (letter < at + done_size))
+        unsigned long long character = at + (negative ? 1ULL : 0ULL);
+        while (whole && (character < at + done_size))
         {
-            whole = (json[letter] >= '0') && (json[letter] <= '9') && (code < 922337203685477580LL);
-            code = (code * 10LL) + (long long)(json[letter] - '0');
-            letter += 1ULL;
+            whole = (json[character] >= '0') && (json[character] <= '9') && (code < 922337203685477580LL);
+            code = (code * 10LL) + (long long)(json[character] - '0');
+            character += 1ULL;
         }
         profile->has_code = whole;
         profile->code = negative ? -code : code;
@@ -149,8 +149,8 @@ static void profile_line(const CliProfileLineSizeCfg *args)
     g_cli_guard->persistent_buf_release(json_buf, g_cli_profile_owner);
 }
 
-// the lines of a pipe read until it ends, each in one cell of CLI_PROFILE_LINE, handed on with its "\r" before "\n"
-// taken off, a longer line handed on in pieces of that length
+// the lines of a pipe read until it ends, each in one cell of CLI_PROFILE_LINE, passed on with its "\r" before "\n"
+// taken off, a longer line passed on in pieces of that length
 static void profile_lines(const ProfileCtx *args)
 {
     char *const line = g_cli_guard->temporary_buf_alloc(CLI_PROFILE_LINE, g_cli_profile_owner);
@@ -178,7 +178,7 @@ static void profile_lines(const ProfileCtx *args)
             at += fits;
             if (at < stop)
             {
-                // a line past the capacity is handed on as far as it reaches, the rest as a line after it
+                // a line past the capacity is passed on as far as it reaches, the rest as a line after it
                 EMBED_CALL(args->each_line, CliProfileLineSizeCfg, .profile = args->profile, .line = line,
                            .size = used);
                 used = 0ULL;
@@ -251,7 +251,7 @@ static void profile_output_read(void *context)
     const long long code = profile->has_code ? profile->code : status;
     char done[256];
     VerbaLinea out = {done, sizeof(done), 0ULL};
-    mmgr_line_put(&out, "{\"kind\":\"done\",\"code\":");
+    mmgr_line_put(&out, "{\"type\":\"done\",\"code\":");
     if (has_code)
     {
         mmgr_line_decimal_signed(&out, code);

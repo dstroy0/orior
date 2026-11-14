@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// base_test.c: the base's check: the map laid for a frame and laid again only as the frame changes, the frame's
+// base_test.c: the base's check: the map positioned for a frame and positioned again only as the frame changes, the frame's
 // start drawn through it in one pass, the editor's and the tabs row's grounds the fill's own blend, the sheet and a
 // pane the ink with the grain, the lines' ring and the map's column the lattice, and a hole the sheet
 #include "../../../../../includes/window/block.h"
@@ -23,7 +23,7 @@ static GuiColor over(GuiColor under, GuiColor color)
                    ((GUI_BLUE_OF(color) * share) + (GUI_BLUE_OF(under) * rest) + 127u) / 255u);
 }
 
-// whether two colors stand within a level of each other on every channel
+// whether two colors are within a level of each other on every channel
 static int adjacent(GuiColor one, GuiColor other)
 {
     const int red = (int)GUI_RED_OF(one) - (int)GUI_RED_OF(other);
@@ -32,7 +32,7 @@ static int adjacent(GuiColor one, GuiColor other)
     return (red >= -1) && (red <= 1) && (green >= -1) && (green <= 1) && (blue >= -1) && (blue <= 1);
 }
 
-// the grain's alpha at x, y as the window lays it
+// the grain's alpha at x, y as the window positions it
 static unsigned int grain_at(int x, int y)
 {
     return gui_grain()[(((unsigned int)y % GUI_GRAIN_TILE) * GUI_GRAIN_TILE) + ((unsigned int)x % GUI_GRAIN_TILE)];
@@ -55,10 +55,10 @@ int main(void)
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 800u, .height = 600u, .scale = 100);
     GuiBase base;
     cli_check(EMBED_CALL(gui_base_width.init, GuiBaseWidthCfg, .base = &base, .width = 800u, .height = 600u), "a base for a window of eight hundred by six hundred is made");
-    cli_check(!base.laid && (base.laid_count == 0u), "a base made is laid for nothing yet");
-    cli_check(EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0), "the map is laid for the frame");
-    cli_check(!EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0) && (base.laid_count == 1u), "laid again for the same frame it stands");
-    cli_check(GUI_BASE_GRAIN_LEVELS == (unsigned int)((GUI_GRAIN_ALPHA * 255.0) + 0.5) + 1u, "the grain's levels run to its most alpha");
+    cli_check(!base.positioned && (base.positioned_count == 0u), "a base made is positioned for nothing yet");
+    cli_check(EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0), "the map is positioned for the frame");
+    cli_check(!EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0) && (base.positioned_count == 1u), "positioned again for the same frame it is");
+    cli_check(GUI_BASE_GRAIN_LEVELS == (unsigned int)((GUI_GRAIN_ALPHA * 255.0) + 0.5) + 1u, "the grain's levels run to its max alpha");
 
     GuiRaster raster;
     cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 800u, .height = 600u), "a raster for the frame is made");
@@ -107,7 +107,7 @@ int main(void)
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
     GuiRect holes[4];
     cli_check(EMBED_CALL(gui_frame_holes_table.holes, GuiFrameHolesCfg, .frame_read = &frame, .holes = holes) >= 1u, "the bar's slat makes a hole in the work");
-    cli_check(EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0) && (base.laid_count == 2u), "the map is laid again for the claim's frame");
+    cli_check(EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0) && (base.positioned_count == 2u), "the map is positioned again for the claim's frame");
     EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .background_fill = NULL, .color = palette->background_fill);
     const int hole_x = holes[0].x + (holes[0].width / 2);
     const int below_band = frame.top_menu_band.y + frame.top_menu_band.height + 4;
@@ -116,8 +116,8 @@ int main(void)
     const int band_y = frame.top_menu_band.y + (frame.top_menu_band.height / 2);
     cli_check(adjacent(pixel(&raster, hole_x, band_y), over(over(palette->background_fill, pane), GUI_RGBA(0xffu, 0xffu, 0xffu, grain_at(hole_x, band_y)))),
               "a pixel of the slat in the hole is the pane");
-    cli_check(!EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0), "laid again for the claim's frame it stands");
-    // the bar a quarter revealed stands a quarter of the gap down less three quarters of its height, half a pixel
+    cli_check(!EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0), "positioned again for the claim's frame it is");
+    // the bar a quarter revealed is a quarter of the gap down less three quarters of its height, half a pixel
     // past a row's edge: its foot falls in the middle of a row, which takes the ink at an alpha halfway between the
     // pane's and the sheet's
     numbers.reveal_top = GUI_FIXED_ONE / 4;
@@ -135,8 +135,8 @@ int main(void)
     numbers.reveal_top = GUI_FIXED_ONE;
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
     (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0);
-    cli_check(EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 1) && (base.laid_count == 5u), "the controls' pane standing lays the map again");
-    // the controls' tab halfway down with the bar away: its pane laid by the base at the part halfway from the sheet's
+    cli_check(EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 1) && (base.positioned_count == 5u), "the controls' pane located positions the map again");
+    // the controls' tab halfway down with the bar away: its pane positioned by the base at the part halfway from the sheet's
     // tint to a pane's, as a slat's edge is
     numbers.reveal_top = 0;
     numbers.inset_top = 0;
@@ -147,7 +147,7 @@ int main(void)
                   (EMBED_CALL(gui_base_table.layer_at, GuiBaseCfg, .base_read = &base, .x = frame.controls_pane.x + (frame.controls_pane.width / 2),
                               .y = frame.controls_pane.y + (frame.controls_pane.height / 2)) ==
                    GUI_BASE_PANE_PART + (((GUI_BASE_PARTS / 2u) - 1u) * GUI_BASE_GRAIN_LEVELS)),
-              "the controls' pane coming down is laid by the base at its share's part");
+              "the controls' pane coming down is positioned by the base at its share's part");
     numbers.reveal_down = 0;
     // halfway through the claim's slide with the head not revealed, the tabs row's surface lies at half its alpha
     numbers.claim = GUI_FIXED_ONE / 2;
@@ -159,7 +159,7 @@ int main(void)
     const GuiColor half_surface = (palette->surface & 0x00ffffffu) | ((((GUI_ALPHA_OF(palette->surface) * 8u) + 8u) / 16u) << 24u);
     cli_check(pixel(&raster, frame.tabs.x + 10, frame.tabs.y + (frame.tabs.height / 2)) == EMBED_CALL(gui_color.over, GuiRasterCfg, .background_color = palette->background_fill, .color = half_surface),
               "halfway through the claim a pixel of the tabs row is its surface at half its alpha over the lattice");
-    // the side pane halfway gone: its ground where it stands at the part halfway, and the side it has left the lattice
+    // the side pane halfway gone: its ground where it is at the part halfway, and the side it has left the lattice
     numbers.claim = 0;
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
     EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 1, .away = GUI_FIXED_ONE / 2);
@@ -168,8 +168,8 @@ int main(void)
                GUI_BASE_SIDE_PART + ((GUI_BASE_PARTS / 2u) - 1u)) &&
                   (EMBED_CALL(gui_base_table.layer_at, GuiBaseCfg, .base_read = &base, .x = frame.side.x + frame.side.width - 2,
                               .y = frame.side.y + frame.side.height - 2) == GUI_BASE_CLEAR),
-              "the side pane halfway gone lies at its halfway part where it stands, and the side it has left is the lattice");
-    // the terminal's panel halfway through its arrival: its ground and its views' where they stand, each at the part
+              "the side pane halfway gone lies at its halfway part where it is, and the side it has left is the lattice");
+    // the terminal's panel halfway through its arrival: its ground and its views' where they are, each at the part
     // halfway, and the band above it that it has yet to come up to the lattice
     EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 0);
     EMBED_CALL(gui_frame_displayed.terminal, GuiFrameDisplayedCfg, .frame = &frame, .height = 240, .away = GUI_FIXED_ONE / 2);
@@ -180,7 +180,7 @@ int main(void)
                   (EMBED_CALL(gui_base_table.layer_at, GuiBaseCfg, .base_read = &base, .x = frame.terminal_views_drawn.x + 2, .y = frame.terminal_views_drawn.y + 2) ==
                    GUI_BASE_EDITOR_PART + ((GUI_BASE_PARTS / 2u) - 1u)) &&
                   (EMBED_CALL(gui_base_table.layer_at, GuiBaseCfg, .base_read = &base, .x = frame.terminal.x + 2, .y = frame.terminal.y + 2) == GUI_BASE_CLEAR),
-              "the panel halfway through its arrival lies at its halfway part where it stands, its views at the editor's, and the band above it is the lattice");
+              "the panel halfway through its arrival lies at its halfway part where it is, its views at the editor's, and the band above it is the lattice");
 
     background_fill.pixels = NULL;
     background_fill.width = 0u;
@@ -193,8 +193,8 @@ int main(void)
     base.tile_remainder = NULL;
     base.width = 0u;
     base.height = 0u;
-    base.laid = 0;
-    cli_check((base.tile_red_blue == NULL) && !base.laid, "a base given back holds no tables");
+    base.positioned = 0;
+    cli_check((base.tile_red_blue == NULL) && !base.positioned, "a base given back holds no tables");
     EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

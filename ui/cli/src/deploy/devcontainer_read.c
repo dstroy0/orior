@@ -180,7 +180,7 @@ EMBED_INLINE int cli_plan_lock(const DevcontainerReadCtx *args)
     EMBED_CALL(cli_devcontainer_root_name.name, CliDevcontainerRootNameCfg, .root = root, .name = name);
     plan->name = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_append, CliDevcontainerPlanTextCtx, .plan = plan,
                             .text = name);
-    // the description's folder, or the tree where it stands in none
+    // the description's folder, or the tree where it is in none
     char base[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){
         .dst = base, .src = file, .bytes = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_POOL_BYTES}) + 1u});

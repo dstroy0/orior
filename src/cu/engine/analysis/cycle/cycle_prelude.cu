@@ -6,7 +6,7 @@ static_assert((sizeof(EngineProgramBlock) % 8u) == 0u, "cycle: the block is 64-b
 static_assert(sizeof(EngineSignum) == 32u, "cycle: the block's signature is four words");
 
 // every C lane opens with this: the launch the kernel takes, and the lane a program defines. launch.places is the
-// words a thread stores in shared memory, a program's file where its language lays out the file there. The resident
+// words a thread stores in shared memory, a program's file where its language arranges the file there. The resident
 // kernel that runs the lanes is not in this prelude: each language writes it after the lane from its own ruleset
 // (program_unit)
 extern const char g_cycle_prelude[] = R"CYCLE(

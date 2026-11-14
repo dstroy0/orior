@@ -137,7 +137,7 @@ int orior_steer_prefers_free(const OriorFieldCensus *census)
     }
 
     // right = sum over symbols of count^2, accumulated in the limb form and not in a 64 bit
-    // counter. A single count squares to at most total^2, which already passes 2^64 on a four
+    // counter. A single count squares to at max total^2, which already passes 2^64 on a four
     // gigabyte corpus, and 256 of them are summed on top of that.
     orior_exact_zero(&right);
     for (unsigned int symbol = 0u; symbol < ORIOR_STEER_SYMBOLS; symbol += 1u)
@@ -208,7 +208,7 @@ size_t steer_truthy_after(const uint8_t *corpus, size_t corpus_len, const uint8_
     // path below is the specialization that can be made wide.
     if (any != NULL)
     {
-        size_t standing_any = 0u;
+        size_t located_any = 0u;
 
         for (size_t at = 0u; at < any->alignments; at += stride)
         {
@@ -218,10 +218,10 @@ size_t steer_truthy_after(const uint8_t *corpus, size_t corpus_len, const uint8_
             }
             if (any->same(any->field, at + offset, offset) != 0)
             {
-                standing_any += 1u;
+                located_any += 1u;
             }
         }
-        return standing_any;
+        return located_any;
     }
 
     const size_t alignments = (corpus_len - needle_len) + 1u;
@@ -254,7 +254,7 @@ size_t steer_truthy_after(const uint8_t *corpus, size_t corpus_len, const uint8_
         }
     }
 
-    size_t standing = 0u;
+    size_t located = 0u;
     for (size_t at = 0u; at < alignments; at += stride)
     {
         if (alive[at] == 0u)
@@ -263,10 +263,10 @@ size_t steer_truthy_after(const uint8_t *corpus, size_t corpus_len, const uint8_
         }
         if (corpus[at + offset] == wanted)
         {
-            standing += 1u;
+            located += 1u;
         }
     }
-    return standing;
+    return located;
 }
 
 /**
@@ -278,16 +278,16 @@ size_t steer_truthy_after(const uint8_t *corpus, size_t corpus_len, const uint8_
  */
 size_t steer_truthy_total(const uint8_t *alive, size_t alignments, size_t stride)
 {
-    size_t standing = 0u;
+    size_t located = 0u;
 
     for (size_t at = 0u; at < alignments; at += stride)
     {
         if (alive[at] != 0u)
         {
-            standing += 1u;
+            located += 1u;
         }
     }
-    return standing;
+    return located;
 }
 
 /**

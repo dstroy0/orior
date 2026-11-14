@@ -4,4 +4,4 @@ windows	orior-test-window-windows	ui/test/docker/windows	windows/amd64		the wind
 ubuntu_arm64	orior-test-window-ubuntu-arm64	ui/test/docker	linux/arm64		the window's system on Ubuntu 24.04 for arm64, run here under emulation
 rpi	orior-test-window-rpi	ui/test/docker	linux/arm64	BASE=debian:bookworm LLVM=14	the window's system on Raspberry Pi OS's Debian, bookworm for arm64, run here under emulation
 macos	dockurr/macos		linux/amd64		macOS run by KVM in a Linux container, pulled and never built
-tree_volume	orior-test-window-tree				the volume that keeps the container's copy of the tree and its builds
+tree_volume	orior-test-window-tree				the volume that retains the container's copy of the tree and its builds

@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// problems.h: the problems' side pane table, read where the servers' reports stand (servers/servers.h): the pane's
+// problems.h: the problems' side pane table, read where the servers' reports are (servers/servers.h): the pane's
 // head offers the tree's check and shows how far it has gone, then a row a file with its count and under it a row a
-// diagnostic, the worst first, a row pressed opening the file at the place; and the shown file's spans underlined in
+// diagnostic, the worst first, a row pressed opening the file at the place; and the displayed file's spans underlined in
 // the editor (problems.c)
 #ifndef GUI_WINDOW_PROBLEMS_H
 #define GUI_WINDOW_PROBLEMS_H
@@ -38,8 +38,8 @@ typedef struct GuiProblemsPathRasterCfg GuiProblemsPathRasterCfg;
 // the problems' pane table
 extern const GuiPaneTable gui_problems_table;
 
-// the spans of the file shown underlined in the editor drawn in `place` at `scale` with the code cell `cell`, each on
-// the rows it stands in, in its severity's color
+// the spans of the file displayed underlined in the editor drawn in `place` at `scale` with the code cell `cell`, each on
+// the rows it is in, in its severity's color
 void gui_problems_underlined(const GuiProblemsPathRasterCfg *args);
 struct GuiProblemsPathRasterCfg
 {

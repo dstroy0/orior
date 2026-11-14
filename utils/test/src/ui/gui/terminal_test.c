@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // terminal_test.c: the terminal pane's check: a line the xterm grammar reads, each escape sequence a keyword of a
-// dotted token, drawn through the pane as a tab's line is: the sequences take no column, the letter after
-// keyword.foreground.1 stands in the terminal's red, the letter after keyword.reset in the text's color, and the letter
+// dotted token, drawn through the pane as a tab's line is: the sequences take no column, the character after
+// keyword.foreground.1 is in the terminal's red, the character after keyword.reset in the text's color, and the character
 // after keyword.inverse on the text's color as its ground
 #include "../../../../../includes/window/block.h"
 #include "../../../../../ui/cli/src/plugins/plugins.h"
@@ -46,7 +46,7 @@ int main(void)
     GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
     EMBED_CALL(gui_frame_displayed.terminal, GuiFrameDisplayedCfg, .frame = &frame, .height = 240);
-    cli_check(frame.terminal_views.height > 0, "the frame lays the terminal's panel with a pane");
+    cli_check(frame.terminal_views.height > 0, "the frame positions the terminal's panel with a pane");
 
     // R after red, P after a reset, I after inverse
     static const char s_line[] = "\x1b[31mR\x1b[0mP\x1b[7mI";
@@ -82,7 +82,7 @@ int main(void)
         "the raster is taken");
     EMBED_CALL(gui_terminal.draw, GuiTerminalCfg, .terminal_read = &terminal, .frame = &frame, .glyphs = &glyphs,
                .raster = &raster, .palette = palette);
-    const int cell = (int)(EMBED_CALL(gui_glyphs_face_letter.cell, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs,
+    const int cell = (int)(EMBED_CALL(gui_glyphs_face_character.cell, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs,
                                       .size = GUI_TERMINAL_TEXT_SIZE) +
                            0.5f);
     const int left = frame.terminal_views.x + GUI_TERMINAL_PAD_SIDE;
@@ -91,11 +91,11 @@ int main(void)
     const GuiRect second = {left + cell, top, cell, GUI_TERMINAL_ROW};
     const GuiRect third = {left + (2 * cell), top, cell, GUI_TERMINAL_ROW};
     cli_check(colored(&raster, first, palette->terminal[1]),
-              "the sequences take no column, and the first letter stands in the terminal's red");
+              "the sequences take no column, and the first character is in the terminal's red");
     cli_check(colored(&raster, second, palette->text) && !colored(&raster, second, palette->terminal[1]),
-              "the letter after the reset stands in the text's color");
+              "the character after the reset is in the text's color");
     cli_check(raster.pixels[((unsigned int)third.y * raster.width) + (unsigned int)third.x] == palette->text,
-              "the letter after inverse stands on the text's color as its ground");
+              "the character after inverse is on the text's color as its ground");
 
     cli_view_frame_release((CliViewFrame *)terminal.frame[0]);
     g_cli_guard->persistent_buf_release((void *)terminal.names[0], g_checks_owner);

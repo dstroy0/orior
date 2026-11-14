@@ -237,7 +237,7 @@ static void knf_controls(SimResults *results, unsigned short *device_lanes, unsi
     const unsigned long long excess = (scaled > KNF_CONTROLS) ? (scaled - KNF_CONTROLS) : 0ull;
     sim_check(results, projected == KNF_CONTROLS, "every control volume renders and projects");
     sim_check(results, (excess * excess) <= (KNF_RANGE_SQUARED * KNF_CONTROLS * (KNF_DRAWS + 1ull)),
-              "alike voxels are identified in at most n/(draws + 1) + 5 sqrt(n p) of the n controls");
+              "alike voxels are identified in at max n/(draws + 1) + 5 sqrt(n p) of the n controls");
 }
 
 int main(int count, char **arguments)

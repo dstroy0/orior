@@ -17,21 +17,21 @@ unsigned int tower_test_random(void)
 // a volume's sample at a position: all 0, all at the lane's top, the two alternating, a ramp, or drawn
 unsigned short tower_test_sample(unsigned int volume, unsigned int position)
 {
-    const unsigned int kind = volume % 8u;
+    const unsigned int type = volume % 8u;
     unsigned int value = tower_test_random() & 0xFFFFu;
-    if (kind == 0u)
+    if (type == 0u)
     {
         value = 0u;
     }
-    else if (kind == 1u)
+    else if (type == 1u)
     {
         value = 0xFFFFu;
     }
-    else if (kind == 2u)
+    else if (type == 2u)
     {
         value = ((position & 1u) != 0u) ? 0xFFFFu : 0u;
     }
-    else if (kind == 3u)
+    else if (type == 3u)
     {
         value = (position * 977u) & 0xFFFFu;
     }
@@ -162,7 +162,7 @@ void tower_test_oracle(const unsigned long long extent[4], const TowerLiftingSte
     }
 }
 
-// encode, lay out with register reuse, and load: one field a 32-bit word, one member
+// encode, arrange with register reuse, and load: one field a 32-bit word, one member
 int tower_test_load(const std::vector<EngineRecordStep> &steps, const std::vector<unsigned int> &outputs,
                     const std::vector<unsigned int> &field_bits, TowerTestLoaded *loaded)
 {
@@ -284,7 +284,7 @@ int tower_test_kernels(const unsigned long long extent[4], const unsigned short 
     lower.rebuilt = rebuilt;
     lower.error = &error;
     ok = ok && (tower_lower(&lower) == 0L) && (mismatches == 0ull);
-    return ok && (error.kind == ENGINE_ERROR_NONE);
+    return ok && (error.type == ENGINE_ERROR_NONE);
 }
 
 // the operation read through T^-1: the block's sum, and its energy along x, the sum of the squared differences of x
@@ -334,7 +334,7 @@ int tower_test_build(const unsigned long long extent[4], const TowerTestRuleset 
     request.step_capacity = sized;
     ok =
         ok && (((inverse != 0) ? tower_record_lower(&request) : tower_record_lift(&request)) == 0L) && (count == sized);
-    return ok && (error.kind == ENGINE_ERROR_NONE);
+    return ok && (error.type == ENGINE_ERROR_NONE);
 }
 
 // a program's opening: one field for each position of the block, unsigned or signed

@@ -4,7 +4,7 @@
 import { indentOf } from "../folding.js";
 import { calm, nextSlice, status } from "../../status.js";
 import { authorsShown } from "../../authors.js";
-import { BRACKETS_KEY, BREAK_STRIP, COMMENTS_KEY, DRAW_SLICE, DRAWN_MOST, DRAWN_PAGED, empty, escapeHtml, historyChars, LINE, marked, MARKS_KEY, PAD, PAST_KEY, REACH_STEP, ROWS_KEPT, SHOWN } from "../view.js";
+import { BRACKETS_KEY, BREAK_STRIP, COMMENTS_KEY, DRAW_SLICE, DRAWN_MAX, DRAWN_PAGED, empty, escapeHtml, historyChars, LINE, marked, MARKS_KEY, PAD, PAST_KEY, REACH_STEP, ROWS_RETAINED, DISPLAYED } from "../view.js";
 
 // What the rows drawn were drawn in: the session and the origin. Drawn in any other, a row out of
 // sight is let go.
@@ -14,7 +14,7 @@ export function drawnFor() {
 
 // Draws the rows out from those drawn, a slice at a time, the way nextSlice says, in each idle
 // moment the view is not pressed in, as a large file is read: a scroll finds the rows it comes to
-// drawn. It stops at DRAWN_MOST rows, at the ends of the text, and where what the rows are drawn
+// drawn. It stops at DRAWN_MAX rows, at the ends of the text, and where what the rows are drawn
 // from changes, the next frame drawing what is in sight and starting it again.
 export async function drawOutward() {
   if (this.drawing) {
@@ -34,7 +34,7 @@ export async function drawOutward() {
       const canBelow = drawn.to < rows.size - 1;
       // a file stored as pages draws out no more than DRAWN_PAGED rows, and none while its view moves
       const paged = Boolean(this.s.window?.paged);
-      if ((!canAbove && !canBelow) || drawn.to - drawn.from + 1 >= (paged ? DRAWN_PAGED : DRAWN_MOST) || (paged && status.scroll.speed > 0)) {
+      if ((!canAbove && !canBelow) || drawn.to - drawn.from + 1 >= (paged ? DRAWN_PAGED : DRAWN_MAX) || (paged && status.scroll.speed > 0)) {
         return;
       }
       const goBelow = nextSlice({ canAbove, canBelow, moving: status.scroll.speed > 0, heading: status.scroll.heading, below }) === "below";
@@ -63,7 +63,7 @@ export function schedule() {
   }
 }
 
-// How many columns past its line's end a cursor stands: an empty selection at the end with its
+// How many columns past its line's end a cursor is: an empty selection at the end with its
 // column beyond it, where the setting lets cursors past line ends or the selection is a column
 // selection's.
 export function pastEnd(sel) {
@@ -76,7 +76,7 @@ export function pastEnd(sel) {
   return Math.max(0, Math.round(sel.goal) - this.vcol(sel.head));
 }
 
-// Writes spaces out to each cursor past its line's end, for text typed or pasted where it stands.
+// Writes spaces out to each cursor past its line's end, for text typed or pasted where it is.
 export function fillPastEnds() {
   const edits = this.s.selections.flatMap((sel) => {
     const columns = this.pastEnd(sel);
@@ -108,7 +108,7 @@ export function setMarks(on) {
   this.schedule();
 }
 
-// Comments hidden or shown again: their text not drawn, and the lines that hold a comment alone
+// Comments hidden or displayed again: their text not drawn, and the lines that hold a comment alone
 // out of sight, as a fold takes its lines.
 export function setCommentsHidden(on) {
   this.commentsHidden = on;
@@ -147,9 +147,9 @@ export function reach() {
 }
 
 // How many cols of the line `text` its rows draw: where lines wrap the whole line, each row drawing its own cols, and
-// else as far as the view reaches across, at most SHOWN.
-export function shownOf(text) {
-  return this.wrapOn ? text.length : Math.min(text.length, SHOWN, this.reach());
+// else as far as the view reaches across, at max DISPLAYED.
+export function displayedOf(text) {
+  return this.wrapOn ? text.length : Math.min(text.length, DISPLAYED, this.reach());
 }
 
 export function reachAt(left) {
@@ -161,20 +161,20 @@ export function reachAt(left) {
 }
 
 // The pieces a line's row is drawn from, in order: runs of the line's text, `[from, to, key]`, from its col `from` to
-// before `to` in the colors of the classes `key`, empty for none; and markup that stands between them, `[-1, -1,
+// before `to` in the colors of the classes `key`, empty for none; and markup that is between them, `[-1, -1,
 // html]`: a hint before the text from its col on, the mark at the line's end, a fold and the text it closes at. The
-// pieces of a line not folded are kept while what they are made from stays, as a wrapped line's rows read them one
+// pieces of a line not folded are retained while what they are made from stays, as a wrapped line's rows read them one
 // after the next.
 export function rowPieces(line) {
   const s = this.s;
   const text = s.doc.line(line);
   const runs = s.highlight.runsOf(line);
-  const shown = this.shownOf(text);
+  const displayed = this.displayedOf(text);
   const folded = s.folded.has(line);
-  const made = [s, line, text, runs, s.hints?.byLine.get(line) ?? null, this.hintKinds.parameter, this.hintKinds.type, this.marksOn, line + 1 < s.doc.count, shown];
-  const kept = this.piecesKept;
-  if (!folded && kept?.made.every((part, at) => part === made[at])) {
-    return kept.pieces;
+  const made = [s, line, text, runs, s.hints?.byLine.get(line) ?? null, this.hintKinds.parameter, this.hintKinds.type, this.marksOn, line + 1 < s.doc.count, displayed];
+  const retained = this.piecesKept;
+  if (!folded && retained?.made.every((part, at) => part === made[at])) {
+    return retained.pieces;
   }
   const hints = this.hintsOn(line);
   let hinted = 0;
@@ -187,7 +187,7 @@ export function rowPieces(line) {
   };
   for (let index = 0; index < runs.length; index += 1) {
     const [start, name] = runs[index];
-    const end = Math.min(runs[index + 1]?.[0] ?? shown, shown);
+    const end = Math.min(runs[index + 1]?.[0] ?? displayed, displayed);
     let from = start;
     while (from < end) {
       hintsTo(from);
@@ -208,25 +208,25 @@ export function rowPieces(line) {
   return pieces;
 }
 
-// The markup of a line's row, each run of its text with colors an element of its own. A row's markup is kept while its
+// The markup of a line's row, each run of its text with colors an element of its own. A row's markup is retained while its
 // text, its colors, its hints and its marks are the ones it was made from, so that a scroll makes only the rows that
 // come into view; a folded row reads the line its fold closes at, and is made each time.
 export function rowHtml(line) {
   const s = this.s;
-  // A text shown in the colors its codes set draws each line as they made it.
+  // A text displayed in the colors its codes set draws each line as they made it.
   if (s.colored) {
     return (s.colored[line] ?? "") + (s.folded.has(line) && s.endOf(line) >= 0 ? `<span class="ed-folded" data-fold="${line}">⋯</span>` : "");
   }
   const text = s.doc.line(line);
-  const shown = this.shownOf(text);
+  const displayed = this.displayedOf(text);
   const folded = s.folded.has(line);
-  const made = [text, s.highlight.runsOf(line), s.hints?.byLine.get(line) ?? null, this.marksOn, line + 1 < s.doc.count, this.hintKinds.parameter, this.hintKinds.type, shown];
-  if (this.rowsKept?.session !== s || this.rowsKept.rows.size > ROWS_KEPT) {
+  const made = [text, s.highlight.runsOf(line), s.hints?.byLine.get(line) ?? null, this.marksOn, line + 1 < s.doc.count, this.hintKinds.parameter, this.hintKinds.type, displayed];
+  if (this.rowsKept?.session !== s || this.rowsKept.rows.size > ROWS_RETAINED) {
     this.rowsKept = { session: s, rows: new Map() };
   }
-  const kept = folded ? null : this.rowsKept.rows.get(line);
-  if (kept && kept.made.every((part, at) => part === made[at])) {
-    return kept.html;
+  const retained = folded ? null : this.rowsKept.rows.get(line);
+  if (retained && retained.made.every((part, at) => part === made[at])) {
+    return retained.html;
   }
   const escaped = this.marksOn ? (part) => marked(escapeHtml(part)) : escapeHtml;
   let html = "";
@@ -239,10 +239,10 @@ export function rowHtml(line) {
   return html;
 }
 
-// The row `row` put into `node`, the one it is kept in, in place: its runs as runsPut puts them, a wrapped line's row
-// in its part as wide as the row's cols, the spans a row kept in its part or out of one taken in or out with it; true
+// The row `row` put into `node`, the one it is retained in, in place: its runs as runsPut puts them, a wrapped line's row
+// in its part as wide as the row's cols, the spans a row retained in its part or out of one taken in or out with it; true
 // where it was put, and false where its markup alone draws it: a wrapped line's row whose line holds a tab, a text in
-// the colors its codes set, marks shown, or a hint, a mark or a fold among its runs.
+// the colors its codes set, marks displayed, or a hint, a mark or a fold among its runs.
 export function rowPatched(node, row) {
   const rows = this.rows();
   const s = this.s;
@@ -280,13 +280,13 @@ export function rowPatched(node, row) {
   if (part.style.width !== width) {
     part.style.width = width;
   }
-  const shown = this.shownOf(text);
-  runsPut(part, text, pieces, start, end < 0 ? shown : Math.min(end, shown));
+  const displayed = this.displayedOf(text);
+  runsPut(part, text, pieces, start, end < 0 ? displayed : Math.min(end, displayed));
   return true;
 }
 
-// The runs of `pieces`, runs of a line's text alone in the order of their cols, that stand in its cols `from` to before
-// `to`, each cut to them, put into `host` in place: each run with colors the span standing at its place, given its
+// The runs of `pieces`, runs of a line's text alone in the order of their cols, that are in its cols `from` to before
+// `to`, each cut to them, put into `host` in place: each run with colors the span located at its place, given its
 // class and its text where they differ, each run without colors a text, and spans made or let go only where the runs
 // come to more or fewer than `host` holds. A span is taken for a run only where its class is all it carries, so no
 // hint's width or fold's line stays on a run's span.
@@ -337,23 +337,23 @@ function runsPut(host, text, pieces, from, to) {
 }
 
 // The markup of the row of a wrapped line that holds its cols from `start` to before `end`, `end` below 0 for the
-// line's end, in a cell as wide as those cols: the runs of its text that stand in them, each cut to them, and the
-// markup that stands between runs there, the marks at the line's end with its last row. A line with a tab, or a text
-// shown in the colors its codes set, is drawn whole in the row and moved left by the cols before it, its tabs standing
-// where the line sets them. A row's markup is kept as a line's is.
+// line's end, in a cell as wide as those cols: the runs of its text that are in them, each cut to them, and the
+// markup that is between runs there, the marks at the line's end with its last row. A line with a tab, or a text
+// displayed in the colors its codes set, is drawn whole in the row and moved left by the cols before it, its tabs located
+// where the line sets them. A row's markup is retained as a line's is.
 export function partCell(line, start, end) {
   const s = this.s;
   const text = s.doc.line(line);
-  const shown = this.shownOf(text);
+  const displayed = this.displayedOf(text);
   const folded = s.folded.has(line);
-  const made = [text, s.highlight.runsOf(line), s.hints?.byLine.get(line) ?? null, this.marksOn, line + 1 < s.doc.count, this.hintKinds.parameter, this.hintKinds.type, shown, end, this.cw];
-  if (this.rowsKept?.session !== s || this.rowsKept.rows.size > ROWS_KEPT) {
+  const made = [text, s.highlight.runsOf(line), s.hints?.byLine.get(line) ?? null, this.marksOn, line + 1 < s.doc.count, this.hintKinds.parameter, this.hintKinds.type, displayed, end, this.cw];
+  if (this.rowsKept?.session !== s || this.rowsKept.rows.size > ROWS_RETAINED) {
     this.rowsKept = { session: s, rows: new Map() };
   }
   const key = `${line}:${start}`;
-  const kept = folded ? null : this.rowsKept.rows.get(key);
-  if (kept && kept.made.every((part, at) => part === made[at])) {
-    return kept.html;
+  const retained = folded ? null : this.rowsKept.rows.get(key);
+  if (retained && retained.made.every((part, at) => part === made[at])) {
+    return retained.html;
   }
   let html;
   if (s.colored || text.includes("\t")) {
@@ -362,8 +362,8 @@ export function partCell(line, start, end) {
     html = `<span class="ed-seg"${width === null ? "" : ` style="width:${width}px"`}><span style="margin-left:${-shift}px">${this.rowHtml(line)}</span></span>`;
   } else {
     const escaped = this.marksOn ? (part) => marked(escapeHtml(part)) : escapeHtml;
-    const stop = end < 0 ? shown : Math.min(end, shown);
-    // the col the text drawn so far reaches: markup between runs stands there
+    const stop = end < 0 ? displayed : Math.min(end, displayed);
+    // the col the text drawn so far reaches: markup between runs is there
     let at = 0;
     let inside = "";
     for (const [from, to, key] of this.rowPieces(line)) {
@@ -458,7 +458,7 @@ export function linesInFile() {
   return s.base + s.doc.count + s.window.after;
 }
 
-// Where a row stands in the sheet, from the origin.
+// Where a row is in the sheet, from the origin.
 export function yOf(row) {
   return (row - this.originRow) * LINE;
 }

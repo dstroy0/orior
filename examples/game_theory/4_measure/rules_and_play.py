@@ -15,7 +15,7 @@
 # rule set's contribution is in every one of them.
 #
 # The three arms are the textbook ones. Drawing uniformly from the legal moves knows the rules.
-# Taking the move that turns over the most pieces is the standard weak heuristic and is
+# Taking the move that turns over the max pieces is the standard weak heuristic and is
 # weak here too. Taking a corner where one is offered, and otherwise turning over the fewest pieces,
 # is the standard improvement: a corner cannot be flipped back and a small flip leaves the opponent
 # fewer replies.
@@ -95,7 +95,7 @@ def main():
               % correlation(ratios, wins))
     out.write("\nThe rules are in every row and the play is in none of them. The flip rule turns over\n"
               "a bracketed run whoever picked the move. A strong player and a weak one leave the\n"
-              "same kind of trace and differ in where they put it. This measure reads what was done\n"
+              "same type of trace and differ in where they put it. This measure reads what was done\n"
               "to the board and not who chose it.\n")
 
     out.flush()

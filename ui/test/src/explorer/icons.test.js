@@ -17,24 +17,24 @@ test("every file has a mark and every folder the folder's shape, a character's w
   assert.equal(iconOf("Dockerfile.dev").textContent, "dk", "a name looked up without a type that has no mark");
   assert.equal(iconOf("license.py").textContent, "py", "and a type with a mark is its type");
   const other = iconOf("model.onnx");
-  assert.deepEqual([other.textContent, other.classList.contains("unmarked")], ["on", true], "a type with no mark is drawn with its own first letters");
+  assert.deepEqual([other.textContent, other.classList.contains("unmarked")], ["on", true], "a type with no mark is drawn with its own first characters");
   assert.equal(iconOf("NOTICE").textContent, "no", "and a name with no type with its own");
   for (const name of ["main.c", "view.tsx", "song.wav", "archive.zip", "Makefile", "LICENSE", ".env"]) {
     assert.ok(iconOf(name).textContent.trim(), `${name} has a mark`);
   }
-  await invoke("folder_create", { path: "kinds" }).catch(() => {});
-  await invoke("file_write", { path: "kinds/model.onnx", text: "x" });
+  await invoke("folder_create", { path: "types" }).catch(() => {});
+  await invoke("file_write", { path: "types/model.onnx", text: "x" });
   showView("edit");
   togglePane(true, { take: false, pin: true });
   showGroup("explorer");
   // The tree draws the rows in sight alone, so each row looked for is scrolled into sight first.
   const rows = () => [...document.querySelectorAll("#files .node")];
-  await ui.waitFor(() => treeRowShown("kinds"), 10000);
-  const types = treeRowShown("kinds");
+  await ui.waitFor(() => treeRowShown("types"), 10000);
+  const types = treeRowShown("types");
   if (types.getAttribute("aria-expanded") !== "true") {
     await ui.click(types);
   }
-  await ui.waitFor(() => treeRowShown("kinds/model.onnx"), 10000);
+  await ui.waitFor(() => treeRowShown("types/model.onnx"), 10000);
   for (const row of rows()) {
     const icon = row.querySelector(":scope > .icon");
     assert.ok(icon, `${row.dataset.key} has an icon`);
@@ -54,7 +54,7 @@ test("each file's mark in the tree has its ink centered on the middle of its nam
   togglePane(true, { take: false, pin: true });
   await document.fonts.ready;
   await ui.waitFor(() => document.querySelectorAll("#files .node:not(.dir) .icon").length >= 3, 10000);
-  // A box of no height set in a text stands on the text's line, wherever the text is moved to.
+  // A box of no height set in a text is on the text's line, wherever the text is moved to.
   const lineOf = (node) => {
     const probe = Object.assign(document.createElement("span"), { style: "display:inline-block;width:0;height:0;vertical-align:baseline" });
     node.append(probe);

@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // TeX's math as MathML, which the page draws as it draws text: the math GitHub's Markdown takes
-// between dollars and in math fences. Letters, numbers and operators; fractions, roots, binomials;
-// scripts above and below, and limits over and under a big operator in display; Greek letters and
+// between dollars and in math fences. Characters, numbers and operators; fractions, roots, binomials;
+// scripts above and below, and limits over and under a big operator in display; Greek characters and
 // the common symbols; the functions' names; delimiters sized to what they hold; accents; the type
-// faces; spaces; and matrices, cases and aligned lines. A command it does not know is shown as it
+// faces; spaces; and matrices, cases and aligned lines. A command it does not know is displayed as it
 // was written, marked as an error.
 
 const ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" };
-const escape = (text) => text.replace(/[&<>"]/g, (letter) => ESCAPES[letter]);
+const escape = (text) => text.replace(/[&<>"]/g, (character) => ESCAPES[character]);
 
 const GREEK = {
   alpha: "α", beta: "β", gamma: "γ", delta: "δ", epsilon: "ϵ", varepsilon: "ε", zeta: "ζ", eta: "η", theta: "θ", vartheta: "ϑ", iota: "ι", kappa: "κ", lambda: "λ", mu: "μ", nu: "ν", xi: "ξ", pi: "π", varpi: "ϖ", rho: "ρ", varrho: "ϱ", sigma: "σ", varsigma: "ς", tau: "τ", upsilon: "υ", phi: "ϕ", varphi: "φ", chi: "χ", psi: "ψ", omega: "ω",
@@ -35,7 +35,7 @@ const SPACES = { ",": "0.1667em", ":": "0.2222em", ">": "0.2222em", ";": "0.2778
 const DELIMITERS = { "(": "(", ")": ")", "[": "[", "]": "]", "\\{": "{", "\\}": "}", "|": "|", "\\|": "‖", ".": "", "\\langle": "⟨", "\\rangle": "⟩", "\\lfloor": "⌊", "\\rfloor": "⌋", "\\lceil": "⌈", "\\rceil": "⌉", "\\vert": "|", "\\Vert": "‖", "/": "/" };
 const MATRICES = { matrix: ["", ""], pmatrix: ["(", ")"], bmatrix: ["[", "]"], Bmatrix: ["{", "}"], vmatrix: ["|", "|"], Vmatrix: ["‖", "‖"], smallmatrix: ["", ""], cases: ["{", ""], aligned: ["", ""], align: ["", ""], "align*": ["", ""], gathered: ["", ""], array: ["", ""] };
 
-// The tokens of `tex`: a command with its name, a letter, a digit run, a symbol, or a run of spaces.
+// The tokens of `tex`: a command with its name, a character, a digit run, a symbol, or a run of spaces.
 function tokens(tex) {
   const found = [];
   const pattern = /\\([A-Za-z]+\*?|.)|(\d+(?:\.\d+)?)|(\s+)|([\s\S])/g;

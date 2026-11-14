@@ -28,7 +28,7 @@
 # of the n bit positions. The eigenvalues of that sum describe the shape of the occupied volume: spread
 # evenly when the bits are independent, concentrated when they are not. The statistic is how far that
 # spectrum sits from the even one, measured against the null used throughout, which permutes the symbols
-# and keeps their frequencies.
+# and retains their frequencies.
 
 import io
 import math
@@ -48,13 +48,13 @@ TARGET = os.path.join(ROOT, "build", "point_volume.csv")
 CAP = 120000
 WINDOWS = 40000
 # Swept to where the data runs out, not stopped at a chosen ceiling, because the volume has no bound to
-# pick and the sum is over every width. A ceiling is only allowed once the tail is shown to vanish.
+# pick and the sum is over every width. A ceiling is only allowed once the tail is displayed to vanish.
 WIDTHS = tuple(range(2, 65))
 SEED = 0x51F7
 
 
 def gray_bits(values):
-    """Gray code the symbols, then lay them out as one stream of bits."""
+    """Gray code the symbols, then position them out as one stream of bits."""
     coded = (values ^ (values >> 1)).astype(numpy.uint8)
     return numpy.unpackbits(coded)
 
@@ -110,7 +110,7 @@ def load(path, name):
     if name.endswith(".txt"):
         with open(path, encoding="utf-8", errors="replace") as handle:
             text = handle.read(CAP)
-        # Line endings folded, as everywhere here, to keep a publisher's wrapping out of the measurement
+        # Line endings folded, as everywhere here, to retain a publisher's wrapping out of the measurement
         text = text.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
         seating = {}
         for character in text:
@@ -172,13 +172,13 @@ def main():
     out.write("\n  growth of the excess with the window width, fitted over the widths above 8 bits\n")
     out.write("  %-26s %-11s %-11s %s\n" % ("corpus", "exponent", "fit r2", "excess at 64"))
     for label, widths, excess in rows:
-        keep = (widths >= 8.0) & (excess > 0.0)
-        if int(keep.sum()) < 12:
+        retain = (widths >= 8.0) & (excess > 0.0)
+        if int(retain.sum()) < 12:
             out.write("  %-26s %-11s %-11s %.4f\n"
                       % (label, "flat", "no growth", float(excess[-1])))
             continue
-        logs = numpy.log(widths[keep])
-        values = numpy.log(excess[keep])
+        logs = numpy.log(widths[retain])
+        values = numpy.log(excess[retain])
         exponent, intercept = numpy.polyfit(logs, values, 1)
         predicted = (exponent * logs) + intercept
         spread = float(((values - values.mean()) ** 2).sum())

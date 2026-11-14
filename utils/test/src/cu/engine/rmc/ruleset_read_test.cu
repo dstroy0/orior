@@ -8,7 +8,7 @@
 // A set fails where it contains a witnessed relation that is a verdict (RULESET_CORE_RELATION_VERDICT); one between two
 // forms' writings is written as retained, and an open one, a relation of absence no part of a set can decide
 // (RULESET_CORE_RELATION_OPEN, RULESET_CORE_MAP_OPEN), as open, and neither fails anything. The map's relations are the
-// lines a lane cannot be read through as it stands, written and failing nothing
+// lines a lane cannot be read through as it is, written and failing nothing
 #include "code_generator.h"
 #include "target_internal.h"
 
@@ -36,36 +36,36 @@ static void entry_print(const LanguageSet *set, unsigned int at)
 static void relation_print(const LanguageSet *set, const RulesetSchema *names, const RulesetCoreRelation *relation)
 {
     const RulesetCoreRelations *const relations = &set->relations;
-    const unsigned int kind = relation->kind;
-    printf(RULESET_CORE_RELATION_OPEN(kind)      ? "    open: "
-           : RULESET_CORE_RELATION_VERDICT(kind) ? "    "
+    const unsigned int type = relation->type;
+    printf(RULESET_CORE_RELATION_OPEN(type)      ? "    open: "
+           : RULESET_CORE_RELATION_VERDICT(type) ? "    "
                                                  : "    retained: ");
-    if (kind == RULESET_CORE_RELATION_SCHEMA_NOT_GIVEN)
+    if (type == RULESET_CORE_RELATION_SCHEMA_NOT_GIVEN)
     {
         const RulesetName *const list = (relation->other == 0u)   ? names->forms
                                         : (relation->other == 1u) ? names->banks
                                                                   : names->fixed;
-        printf("%s %s\n", list[relation->entry].text, ruleset_relation_text(kind));
+        printf("%s %s\n", list[relation->entry].text, ruleset_relation_text(type));
         return;
     }
     entry_print(set, relation->entry);
-    printf(" %s", ruleset_relation_text(kind));
-    if (kind == RULESET_CORE_RELATION_PARAMETER_UNWRITTEN)
+    printf(" %s", ruleset_relation_text(type));
+    if (type == RULESET_CORE_RELATION_PARAMETER_UNWRITTEN)
     {
         const RulesetCoreSpan parameter = ruleset_core_relation_part(
             relations->text, relations->entries[relation->entry].head, (unsigned char)' ', relation->other);
         printf(" %.*s", (int)parameter.length, (const char *)&relations->text[parameter.first]);
     }
-    else if ((kind == RULESET_CORE_RELATION_PLACE_UNKNOWN) || (kind == RULESET_CORE_RELATION_COUNT_DISAGREES))
+    else if ((type == RULESET_CORE_RELATION_PLACE_UNKNOWN) || (type == RULESET_CORE_RELATION_COUNT_DISAGREES))
     {
         printf(" %u", relation->other);
     }
-    else if (kind == RULESET_CORE_RELATION_SCHEMA_PARAMETERS)
+    else if (type == RULESET_CORE_RELATION_SCHEMA_PARAMETERS)
     {
         printf(" %s, %u", names->forms[relation->other].text, names->forms[relation->other].parameters);
     }
-    else if ((kind != RULESET_CORE_RELATION_NO_TEXT) && (kind != RULESET_CORE_RELATION_LINE_NOT_GIVEN) &&
-             (kind != RULESET_CORE_RELATION_CLASS_NOT_NAMED) && (kind != RULESET_CORE_RELATION_SCHEMA_NOT_NAMED))
+    else if ((type != RULESET_CORE_RELATION_NO_TEXT) && (type != RULESET_CORE_RELATION_LINE_NOT_GIVEN) &&
+             (type != RULESET_CORE_RELATION_CLASS_NOT_NAMED) && (type != RULESET_CORE_RELATION_SCHEMA_NOT_NAMED))
     {
         printf(" ");
         entry_print(set, relation->other);
@@ -95,8 +95,8 @@ static int relations_check(const char *label, const std::string *paths, unsigned
     for (unsigned int at = 0u; at < relation_count; at += 1u)
     {
         relation_print(set, names, &relations->relations[at]);
-        open += RULESET_CORE_RELATION_OPEN(relations->relations[at].kind) ? 1u : 0u;
-        verdicts += RULESET_CORE_RELATION_VERDICT(relations->relations[at].kind) ? 1u : 0u;
+        open += RULESET_CORE_RELATION_OPEN(relations->relations[at].type) ? 1u : 0u;
+        verdicts += RULESET_CORE_RELATION_VERDICT(relations->relations[at].type) ? 1u : 0u;
     }
     // a relation past the capacity is counted and not stored, and is read as a verdict
     verdicts += relations->relation_count - relation_count;
@@ -154,16 +154,16 @@ static void map_check(const char *label, const LanguageSet *from, const Language
     for (unsigned int at = 0u; (at < count) && (at < (unsigned int)maps.size()); at += 1u)
     {
         const RulesetCoreRelation *const map = &maps[at];
-        open += RULESET_CORE_MAP_OPEN(map->kind) ? 1u : 0u;
-        printf(RULESET_CORE_MAP_OPEN(map->kind) ? "    open: " : "    ");
+        open += RULESET_CORE_MAP_OPEN(map->type) ? 1u : 0u;
+        printf(RULESET_CORE_MAP_OPEN(map->type) ? "    open: " : "    ");
         entry_print(from, map->entry);
-        printf(" %s", ruleset_map_text(map->kind));
-        if ((map->kind == RULESET_CORE_MAP_BREAKS) || (map->kind == RULESET_CORE_MAP_COLLAPSES))
+        printf(" %s", ruleset_map_text(map->type));
+        if ((map->type == RULESET_CORE_MAP_BREAKS) || (map->type == RULESET_CORE_MAP_COLLAPSES))
         {
             printf(" ");
             entry_print(from, map->other);
         }
-        else if (map->kind == RULESET_CORE_MAP_KIND)
+        else if (map->type == RULESET_CORE_MAP_KIND)
         {
             printf(" ");
             entry_print(to, map->other);

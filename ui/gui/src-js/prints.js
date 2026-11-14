@@ -4,7 +4,7 @@
 // The debugger as simple as print. Print Here (Ctrl+Alt+P) puts on the cursor's line a message
 // breakpoint that writes the line's values each time the line runs under the debugger, the file
 // itself unchanged: the expression selected, or each name the line reads with its value. The print
-// statements a change added (prints.rs) stand in the Commit window, each opening at its line, and
+// statements a change added (prints.rs) are in the Commit window, each opening at its line, and
 // Take Them Out takes every one of them out in one step: into each tab that holds its file as one
 // edit undo takes back, and into each other file as it is written.
 
@@ -58,7 +58,7 @@ export function addedPrints() {
   return invoke("prints_added").catch(() => []);
 }
 
-// Takes the prints `prints` out, each line where it still stands or the nearest line that reads as it
+// Takes the prints `prints` out, each line where it still is or the nearest line that reads as it
 // did, in one step for each file. Says how many it took out.
 export async function takeOutPrints(prints) {
   const files = new Map();

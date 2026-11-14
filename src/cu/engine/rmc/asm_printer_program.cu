@@ -1,14 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// asm_printer_program.cu: the ruleset flattened for the core's build, its memory, and what the build laid out stored
+// asm_printer_program.cu: the ruleset flattened for the core's build, its memory, and what the build arranged stored
 #include "asm_printer_internal.h"
 
 // `text` taken on as a text of the flattened ruleset, its number returned
 static unsigned int asm_printer_flat_text(AsmPrinterFlat *flat, const std::string &text)
 {
-    // the ruleset's texts and letters are far fewer than 2^32; the build errors on more than its tables contain
-    const AsmPrinterCoreText taken = {(unsigned int)flat->letters.size(), (unsigned int)text.size()};
-    flat->letters.insert(flat->letters.end(), text.begin(), text.end());
+    // the ruleset's texts and characters are far fewer than 2^32; the build errors on more than its tables contain
+    const AsmPrinterCoreText taken = {(unsigned int)flat->characters.size(), (unsigned int)text.size()};
+    flat->characters.insert(flat->characters.end(), text.begin(), text.end());
     flat->texts.push_back(taken);
     return (unsigned int)(flat->texts.size() - 1u);
 }
@@ -58,9 +58,9 @@ void asm_printer_flatten(const Ruleset *rules, const TargetInfo *target, const s
     flattened->target_numbers[1] = (unsigned int)target->minor;
     flattened->target_numbers[2] = (unsigned int)target->nvrtc_major;
     flattened->target_numbers[3] = (unsigned int)target->nvrtc_minor;
-    // a vector's data is NULL where it is empty, and the core reads the letters at 0 for the empty word
-    flat->letters.push_back(0u);
-    flattened->letters = flat->letters.data();
+    // a vector's data is NULL where it is empty, and the core reads the characters at 0 for the empty word
+    flat->characters.push_back(0u);
+    flattened->characters = flat->characters.data();
     flattened->texts = flat->texts.data();
     flat->placeholders.push_back(0u);
     flattened->placeholders = flat->placeholders.data();
@@ -68,7 +68,7 @@ void asm_printer_flatten(const Ruleset *rules, const TargetInfo *target, const s
 
 void asm_printer_capacities(const AsmPrinterFlat *flat, unsigned int step_capacity, AsmPrinterCoreBuild *build)
 {
-    // every word is a text of the ruleset, the empty word, the minus or the hash; every letter is a text's, the minus's
+    // every word is a text of the ruleset, the empty word, the minus or the hash; every character is a text's, the minus's
     // or the hash's; each form takes a part for each four placeholders and one for none, and the header one more
     unsigned int form_parts = 0u;
     for (unsigned int form = 0u; form < OPCODE_COUNT; form += 1u)
@@ -79,9 +79,9 @@ void asm_printer_capacities(const AsmPrinterFlat *flat, unsigned int step_capaci
                           ? 1u
                           : ((placeholder_count + ASM_PRINTER_PLACEHOLDERS - 1u) / ASM_PRINTER_PLACEHOLDERS);
     }
-    // the texts, letters and placeholders are a few thousand
+    // the texts, characters and placeholders are a few thousand
     build->word_capacity = (unsigned int)flat->texts.size() + 3u;
-    build->letter_capacity = (unsigned int)flat->letters.size() + 1u + ASM_PRINTER_HASH_DIGITS;
+    build->character_capacity = (unsigned int)flat->characters.size() + 1u + ASM_PRINTER_HASH_DIGITS;
     build->form_part_capacity = form_parts;
     build->part_capacity = form_parts + 1u;
     build->placeholder_capacity = flat->rules.form_placeholder_first[OPCODE_COUNT];
@@ -100,7 +100,7 @@ void asm_printer_memory_size(AsmPrinterMemory *memory, AsmPrinterCoreBuild *buil
     // an empty vector's data is NULL, and every list is given at least one word
     memory->word_start.assign((size_t)build->word_capacity + 1u, 0u);
     memory->word_length.assign((size_t)build->word_capacity + 1u, 0u);
-    memory->word_letters.assign((size_t)build->letter_capacity + 1u, 0u);
+    memory->word_characters.assign((size_t)build->character_capacity + 1u, 0u);
     memory->part_pieces.assign(((size_t)build->part_capacity * ASM_PRINTER_PIECES) + 1u, 0u);
     memory->part_lanes.assign((size_t)build->part_capacity + 1u, 0u);
     memory->form_parts.assign((size_t)build->form_part_capacity + 1u, 0u);
@@ -108,7 +108,7 @@ void asm_printer_memory_size(AsmPrinterMemory *memory, AsmPrinterCoreBuild *buil
     memory->steps.assign((size_t)build->step_capacity, EngineRecordStep{});
     build->word_start = memory->word_start.data();
     build->word_length = memory->word_length.data();
-    build->word_letters = memory->word_letters.data();
+    build->word_characters = memory->word_characters.data();
     build->part_pieces = memory->part_pieces.data();
     build->part_lanes = memory->part_lanes.data();
     build->form_parts = memory->form_parts.data();
@@ -175,7 +175,7 @@ const char *asm_printer_ended(unsigned int end)
     case ASM_PRINTER_CORE_BANK:
         return "a bank writes its register with other than one number";
     case ASM_PRINTER_CORE_TABLES:
-        return "the ruleset and the header contain more words or letters than the assembly printer's tables support";
+        return "the ruleset and the header contain more words or characters than the assembly printer's tables support";
     default:
         return "the assembly printer's build ran past its memory";
     }

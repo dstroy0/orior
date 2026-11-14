@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // git_internal.h: what the git sources share: git started and what it gave read (git_run.c); and what the git check
-// reaches: a status's letter and the graph laid out
+// reaches: a status's character and the graph arranged
 #ifndef GIT_INTERNAL_H
 #define GIT_INTERNAL_H
 #include "embed_dispatch_layout.h"
@@ -20,7 +20,7 @@ typedef struct CliGitFromCtx CliGitFromCtx;
 typedef struct CliGitCtx CliGitCtx;
 typedef struct CliGitFoundCtx CliGitFoundCtx;
 
-// the most bytes of what git writes that are stored, the bytes one read of its pipe takes, and the most
+// the max bytes of what git writes that are stored, the bytes one read of its pipe takes, and the max
 // bytes of what it reports went wrong
 #define CLI_GIT_OUT (1u << 24u)
 #define CLI_GIT_READ 65536ull
@@ -75,7 +75,7 @@ int cli_git_is_id(const CliGitCtx *args);
 // `displayed`, each sized for CLI_PATH_MAX_LEN: the file's own folder, or the nearest one above it that is there where
 // that one is gone. 1, or 0 with why given where the file is not inside the tree
 int cli_git_adjacent(const CliGitRootErrMsgCtx *args);
-// the state letter for a porcelain status's two columns (git.c)
+// the state character for a porcelain status's two columns (git.c)
 char cli_git_state_get(const CliGitIndexCtx *args);
 // each commit of the graph given its column, its color and the strokes of its row (git_graph.c)
 void cli_git_layout_out(const CliGitFoundCtx *args);

@@ -13,7 +13,7 @@
 #
 # A frequency decomposition splits any set into how much of each frequency and where each sits.
 # One number rebuilds nothing. Every amount with the positions thrown away rebuilds nothing. Every
-# position with the amounts flattened rebuilds a great deal. Keeping both is the whole set and costs
+# position with the amounts flattened rebuilds a great deal. Retention both is the whole set and costs
 # everything, and nothing was found in between.
 #
 # That is this work's own first proposition turning up as a measurement. A cheap invariant is a
@@ -22,12 +22,12 @@
 #
 # Text fails differently and the difference decides how the number is read. A picture rebuilt to a
 # correlation of 0.97 is the picture, since a sample landing a level or two off is invisible. A
-# letter landing one code point off is a different letter. The share of symbols returned exactly
+# character landing one code point off is a different character. The share of symbols returned exactly
 # is the only measure that means anything for text, and it is far behind the correlation.
 #
 # The seating is swept too, because a share returned that moves when the alphabet is renumbered is
 # not a property of the corpus. The Iliad returns the least of anything measured at 0.056, and the
-# reason is that polytonic Greek needs 141 code points laid across a wide range.
+# reason is that polytonic Greek needs 141 code points positioned across a wide range.
 
 import io
 import os
@@ -82,7 +82,7 @@ def main():
 
     out = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", newline="")
     out.write("  each cell is the correlation, then the share of symbols returned exactly\n")
-    out.write("  angles quantized to a few steps around the circle, every amount kept\n\n")
+    out.write("  angles quantized to a few steps around the circle, every amount retained\n\n")
     out.write("  %-24s %-9s %s\n"
               % ("corpus", "spread", "  ".join("%13s" % ("%d bit" % bits) for bits in BITS)))
 
@@ -120,8 +120,8 @@ def main():
                   % (label, spread_of(series), spread_of(seated), was, now))
 
     out.write("\n  the correlation is worthless for text and the exact share is not. A sample\n")
-    out.write("  landing two levels off cannot be seen; a letter landing one code point off\n")
-    out.write("  is a different letter\n")
+    out.write("  landing two levels off cannot be seen; a character landing one code point off\n")
+    out.write("  is a different character\n")
     out.flush()
     return 0
 

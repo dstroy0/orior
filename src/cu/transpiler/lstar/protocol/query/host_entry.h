@@ -62,7 +62,7 @@ static inline unsigned int host_read(unsigned long long at)
     return *(volatile unsigned int *)(unsigned long long)at;
 }
 
-// the kind two read-backs name: `first` read after HOST_PATTERN_FIRST was put, `then` after HOST_PATTERN_THEN. This
+// the type two read-backs name: `first` read after HOST_PATTERN_FIRST was put, `then` after HOST_PATTERN_THEN. This
 // reads no address; it takes the two words already read. A sizing register's own values can be put to it with no bus
 static inline unsigned int host_address_classify(unsigned int first, unsigned int then)
 {

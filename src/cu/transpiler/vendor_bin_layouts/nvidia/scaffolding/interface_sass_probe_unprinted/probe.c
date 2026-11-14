@@ -187,7 +187,7 @@ int unprinted_run(const unsigned char *code, unsigned long long code_size, unsig
     }
     // the gate the carrier and the rest of the scaffolding share: a turned bit whose operation key transfers control or
     // waits would loop or stall the part and take the display down with it, and is blocked from the part here, never
-    // handed to the driver. The register count is left open (UNPRINTED_REGISTERS), since which registers the part
+    // passed to the driver. The register count is left open (UNPRINTED_REGISTERS), since which registers the part
     // allots is one of the things this probe reads
     unsigned long long value_at = 0ull;
     if (cubin_safe_image(&s_machine, s_cubin, size, written.registers, &value_at) != CUBIN_SAFE)

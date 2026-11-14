@@ -262,8 +262,8 @@ int tower_edge_reserve(unsigned int entries, EngineError *error)
     return 1;
 }
 
-// the pool's slices for `lanes`, in the order they are laid out and taken: the coefficients, the scratch, the flag and
-// the mismatch count; the plan is laid out from them, and a pool reserved from it takes them
+// the pool's slices for `lanes`, in the order they are arranged and taken: the coefficients, the scratch, the flag and
+// the mismatch count; the plan is arranged from them, and a pool reserved from it takes them
 DevicePoolPlan tower_plan(size_t lanes, EngineError *error, DevicePoolTakeRequest takes[TOWER_SLICES])
 {
     TowerResident *const resident = &g_tower_resident;

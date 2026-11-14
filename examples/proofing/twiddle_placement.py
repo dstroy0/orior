@@ -202,7 +202,7 @@ def fault_one_bit(table, prime):
 def fault_wrong_order(table, prime):
     """The table rebuilt on a root of half the order. It repeats halfway through.
 
-    This is the fiddled twiddle in its most plausible form: every entry is a real root of unity, the
+    This is the fiddled twiddle in its max plausible form: every entry is a real root of unity, the
     values look entirely ordinary, and the table is simply not the one the transform needs.
     """
     length = len(table)

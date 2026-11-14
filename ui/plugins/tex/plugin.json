@@ -2,7 +2,7 @@
   "id": "tex",
   "name": "TeX",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "extensions": ["tex","sty","cls","bib"],
   "comments": {"line":"%"},
   "pairs": ["{}","[]","()","$$"],

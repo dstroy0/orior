@@ -3,7 +3,7 @@
 // command_line_console.c: the commands the command line runs itself, in the terminal: the keys, what impero is and
 // its tree, errors filed on their own turned on or off, the bug report page opened, a search of the tree, the plugins,
 // the reader's stylesheet, the toolchains, a clone, the tree's dev container brought up and a window opened on it,
-// files formatted, run and validated; the tree's jobs listed, shown and run, its tests and its bridge listed, and the
+// files formatted, run and validated; the tree's jobs listed, displayed and run, its tests and its bridge listed, and the
 // words of `imp protocol` sent to a window open on the tree or run here. And a word that names a file of the tree
 #include "../deploy/devcontainer.h"
 #include "../editor/files.h"
@@ -116,7 +116,7 @@ static void console_docker_line(const CliEachLineSizeCfg *args)
                .size = mmgr_line_ok(&line) ? line.at : 0ULL);
 }
 
-// the tree's dev container brought up as its description specifies, docker's output shown as it comes, and its address
+// the tree's dev container brought up as its description specifies, docker's output displayed as it comes, and its address
 // written
 EMBED_INLINE int console_dev_container(const CommandLineConsoleCtx *args)
 {
@@ -158,7 +158,7 @@ static void console_protocol_line(const CliEachLineSizeCfg *args)
 
 // the words of `imp protocol`: sent to a window open on the tree, which runs the protocol command as its job and
 // shows the run in its protocol panel; with none open run here, and so does the job's own command, which carries the
-// window's door in its environment and must not reach the window again. A reading, `decode` and the two readings of a
+// window's interface in its environment and must not reach the window again. A reading, `decode` and the two readings of a
 // pulled table, prints here and is no job of the window's
 EMBED_INLINE int console_protocol(const CommandLineConsoleCtx *args)
 {
@@ -213,7 +213,7 @@ EMBED_INLINE int console_protocol(const CommandLineConsoleCtx *args)
     return (code < 0) ? CLI_WRONG : code;
 }
 
-// `imp file user-css`: the stylesheet the window lays over its own named, made empty but for a note where it is
+// `imp file user-css`: the stylesheet the window positions over its own named, made empty but for a note where it is
 // not there yet
 static int console_user_css(void)
 {
@@ -426,17 +426,17 @@ int cli_console_setting(const CliCommandLineWordsCountCtx *args)
             cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = g_cli_command_line_owner});
         // the text read out of the entries' cell into a cell of this call
         const unsigned long long size = cli_state_entry_size(&entries, key);
-        char *const standing_text =
+        char *const located_text =
             (size != CLI_STATE_NONE) ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_command_line_owner) : NULL;
-        const char *const standing =
-            (standing_text != NULL) ? cli_state_entry_value(&entries, key, standing_text, size + 1ULL) : NULL;
-        if (standing != NULL)
+        const char *const located =
+            (located_text != NULL) ? cli_state_entry_value(&entries, key, located_text, size + 1ULL) : NULL;
+        if (located != NULL)
         {
-            EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = standing);
+            EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = located);
         }
-        g_cli_guard->persistent_buf_release(standing_text, g_cli_command_line_owner);
+        g_cli_guard->persistent_buf_release(located_text, g_cli_command_line_owner);
         cli_state_entries_release(&entries);
-        return (standing != NULL) ? 0 : CLI_WRONG;
+        return (located != NULL) ? 0 : CLI_WRONG;
     }
     VerbaLinea value = {s_line, sizeof(s_line), 0ULL};
     if (!EMBED_CALL(console_setting_value, CommandLineConsoleCtx, .one = args->args_text, .words = args->words,

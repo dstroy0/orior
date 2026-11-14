@@ -32,7 +32,7 @@ int run_channel_open(const char *const *carrier, unsigned long long limit_micros
             return 0;
         }
         VerbaLinea word = {part[*count], RUN_PATH_MAX_LEN, 0ull};
-        mmgr_line_put_most(&word, carrier[at], RUN_PATH_MAX_LEN - 1u);
+        mmgr_line_put_max(&word, carrier[at], RUN_PATH_MAX_LEN - 1u);
         mmgr_line_finish(&word);
         *count += 1u;
     }
@@ -54,7 +54,7 @@ int run_channel_open(const char *const *carrier, unsigned long long limit_micros
         if (strcmp(s_channel.word[at], "--gated") == 0)
         {
             VerbaLinea gated_line = {s_channel.gated_list, sizeof(s_channel.gated_list), 0ull};
-            mmgr_line_put_most(&gated_line, s_channel.word[at + 1u], sizeof(s_channel.gated_list) - 1u);
+            mmgr_line_put_max(&gated_line, s_channel.word[at + 1u], sizeof(s_channel.gated_list) - 1u);
             mmgr_line_finish(&gated_line);
             s_channel.gated_given = 1;
         }
@@ -62,7 +62,7 @@ int run_channel_open(const char *const *carrier, unsigned long long limit_micros
     if ((s_channel.pop_words != 0u) && !s_channel.gated_given)
     {
         run_channel_trace_line(
-            "run_channel: an airlock's carrier reads the cross's gated list, and this one is handed none (--gated)\n");
+            "run_channel: an airlock's carrier reads the cross's gated list, and this one is passed none (--gated)\n");
         return 0;
     }
     s_channel.buffer = qry_member_run();
@@ -94,7 +94,7 @@ int run_channel_listed(const char *line, size_t length)
     return 1;
 }
 
-// the question's code and cases handed as the blobs `code_name` and `cases_name`, the cases a line each as the
+// the question's code and cases passed as the blobs `code_name` and `cases_name`, the cases a line each as the
 // carrier reads them: 1, or 0 where either was dumped
 int run_channel_write(const RunQuestion *question, const char *code_name, const char *cases_name)
 {
@@ -119,16 +119,16 @@ int run_channel_write(const RunQuestion *question, const char *code_name, const 
     return mmgr_line_ok(&cases) && (qry_member_append(cases_name, s_cases_text, cases.at, QRY_ORDINARY) != 0);
 }
 
-// The blob the carrier handed for `answers_name` after the round handed as `after`, read into `question`: the outcome
+// The blob the carrier passed for `answers_name` after the round passed as `after`, read into `question`: the outcome
 // its first line names, each case's answer where it answered, and where the question is timed, the time the second
-// gives, its launches together and the least and the most one took. A blob of the name from before the round is an
+// gives, its launches together and the least and the max one took. A blob of the name from before the round is an
 // older question's, and is none. A timed question the carrier gives no time for answered nothing worth reading
 void run_channel_read(RunQuestion *question, const char *answers_name, unsigned long long after)
 {
     question->outcome = RUN_NOTHING;
     question->nanoseconds = 0ull;
     question->least = 0ull;
-    question->most = 0ull;
+    question->max = 0ull;
     question->clock_address = 0u;
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
@@ -144,7 +144,7 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
         return;
     }
     // the first line, the answer; and after it, in any order, the lines the carrier adds: the registers it read off
-    // the part, and the time its launches took, which is read wherever it stands
+    // the part, and the time its launches took, which is read wherever it is
     const unsigned char *const first_end = (const unsigned char *)memchr(bytes, '\n', (size_t)size);
     const size_t first_length = (first_end != NULL) ? (size_t)(first_end - bytes) : (size_t)size;
     const size_t copied = (first_length < (sizeof(s_answer_line) - 1u)) ? first_length : (sizeof(s_answer_line) - 1u);
@@ -162,7 +162,7 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
         if (strncmp(line, "timed ", 6u) == 0)
         {
             VerbaLinea timed_text = {timed_line, sizeof(timed_line), 0ull};
-            mmgr_line_put_most(&timed_text, line, sizeof(timed_line) - 1u);
+            mmgr_line_put_max(&timed_text, line, sizeof(timed_line) - 1u);
             mmgr_line_finish(&timed_text);
         }
         if (strncmp(line, "clock address ", 14u) == 0)
@@ -173,12 +173,12 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
     }
     unsigned int launches = 0u;
     const char *timed_at = timed_line;
-    int timed = line_letters(&timed_at, "timed ") && line_unsigned(&timed_at, &launches) &&
+    int timed = line_characters(&timed_at, "timed ") && line_unsigned(&timed_at, &launches) &&
                 line_number(&timed_at, 0, &question->nanoseconds);
-    // the least launch and the most follow where the carrier timed them
+    // the least launch and the max follow where the carrier timed them
     if (timed && line_number(&timed_at, 0, &question->least))
     {
-        line_number(&timed_at, 0, &question->most);
+        line_number(&timed_at, 0, &question->max);
     }
     timed = timed && (launches == question->launches);
     s_answer_line[strcspn(s_answer_line, "\r\n")] = '\0';
@@ -187,15 +187,15 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
         question->outcome =
             (strncmp(s_answer_line, "skipped", 7u) == 0) ? (unsigned int)RUN_GATED : (unsigned int)RUN_ILLEGAL;
         VerbaLinea refused = {question->refused, sizeof(question->refused), 0ull};
-        mmgr_line_put_most(&refused, s_answer_line, 120ull);
+        mmgr_line_put_max(&refused, s_answer_line, 120ull);
         mmgr_line_finish(&refused);
-        // a refusal calls a conference, the carrier's accounts after the refusal's line handed with the teacher's
+        // a refusal calls a conference, the carrier's accounts after the refusal's line passed with the teacher's
         if (question->outcome == RUN_ILLEGAL)
         {
             char how[160];
             VerbaLinea how_line = {how, sizeof(how), 0ull};
             mmgr_line_put(&how_line, "the part refused it, ");
-            mmgr_line_put_most(&how_line, s_answer_line, 120ull);
+            mmgr_line_put_max(&how_line, s_answer_line, 120ull);
             mmgr_line_finish(&how_line);
             const unsigned long long output_at =
                 (first_end != NULL) ? (unsigned long long)(first_end - bytes) + 1ull : size;
@@ -234,7 +234,7 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
     question->outcome = RUN_ANSWERED;
 }
 
-// `question` handed as the next question of a dry run, its line added to the run's list, and read as gated: nothing
+// `question` passed as the next question of a dry run, its line added to the run's list, and read as gated: nothing
 // carries it and nothing answers it
 void run_channel_dry_written(RunQuestion *question)
 {
@@ -256,11 +256,11 @@ void run_channel_dry_written(RunQuestion *question)
 
 void run_channel_close(void)
 {
-    // the dry run's list, every question it wrote, handed whole
+    // the dry run's list, every question it wrote, passed whole
     if (s_channel.open && s_channel.dry && (s_channel.list_size != 0u) &&
         (qry_member_append("questions.txt", s_channel_list, s_channel.list_size, QRY_ORDINARY) == 0))
     {
-        run_channel_trace_line("run_channel: the dry run's list could not be handed to the run\n");
+        run_channel_trace_line("run_channel: the dry run's list could not be passed to the run\n");
     }
     // R written back where it changed and was read whole
     if (s_record.changed && (s_record_path[0] != '\0') && !kqr_write(&s_record, s_record_path))

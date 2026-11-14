@@ -5,14 +5,14 @@
 // The curves R contains at every point of a cell, and the logarithm the phase turns by, one lane a point, swept on the
 // device as two programs of the record machine, one job on the device's tessera daemon. Every value is a mantissa in a
 // register and a binary exponent the program stores: a product multiplies the mantissas and adds the exponents, a power
-// of two is where a mantissa is laid in the record, and nothing is divided.
+// of two is where a mantissa is positioned in the record, and nothing is divided.
 //
 //   Usage:  exact_zeta_lobes <input> <output>
 //
-// Lane l stands at x = nu + l / 2^b, X = nu 2^b + l, and z = 1 - 2p = Zt / 2^b with Zt = 2^b - 2l. C_n(z) is
+// Lane l is at x = nu + l / 2^b, X = nu 2^b + l, and z = 1 - 2p = Zt / 2^b with Zt = 2^b - 2l. C_n(z) is
 // sum over j of g_(n,j) z^j, each g a mantissa at the exponent -E, read by Horner's rule as the integer
 // H_n = sum over j of g_(n,j) Zt^j 2^(b (J_n - 1 - j)) at the exponent -(E + b (J_n - 1)). The record contains each
-// g_(n,j) 2^(b (J_n - 1 - j)), the mantissa laid b (J_n - 1 - j) bits up with zeros below, and each step of Horner's
+// g_(n,j) 2^(b (J_n - 1 - j)), the mantissa positioned b (J_n - 1 - j) bits up with zeros below, and each step of Horner's
 // rule is then one product by Zt and one sum. With the sign s = (-1)^(nu - 1),
 // the curve n's part of R x^(1/2) is s C_n(z) x^(-n) = s H_n 2^(b n) / X^n, and over the common denominator X^K every
 // curve is the integer T_n = s H_n 2^(b n) X^(K - n), each at its own exponent, each stored as an output.
@@ -97,7 +97,7 @@ static unsigned int lobes_constant(LobesProgram *program, unsigned long long val
                       0u);
 }
 
-// a field of the shared record, `bits` wide and signed, laid at the record's next bit; the step that reads it is
+// a field of the shared record, `bits` wide and signed, positioned at the record's next bit; the step that reads it is
 // written where it is read, and the register is live only from there to its reader
 static unsigned int lobes_field(LobesProgram *program, unsigned int bits)
 {
@@ -120,7 +120,7 @@ static void lobes_output(LobesStage *stage, const std::string &name, unsigned in
     stage->exponents.push_back(exponent);
 }
 
-// the lane, at most 2^b, and the and with 2^(b + 1) - 1 gives its register that width and preserves its value
+// the lane, at max 2^b, and the and with 2^(b + 1) - 1 gives its register that width and preserves its value
 static unsigned int lobes_lane(LobesProgram *program, unsigned int b)
 {
     const unsigned int counted = lobes_step(program, ENGINE_RECORD_LANE, 0u, 0u, 0u);
@@ -197,14 +197,14 @@ static void lobes_log_build(LobesStage *stage, unsigned int b, unsigned int nu_b
     const unsigned int big_d = lobes_step(program, ENGINE_RECORD_SUM, big_x, lobes_read(program, floor_field), 0u);
     const unsigned int u = lobes_step(program, ENGINE_RECORD_PRODUCT, lane, lane, 0u);
     const unsigned int v = lobes_step(program, ENGINE_RECORD_PRODUCT, big_d, big_d, 0u);
-    // Horner's rule from c_(L-1) down: the step that adds c_(k-1) turns the sum by l^2 and lays c_(k-1) at D^(2(L - k))
+    // Horner's rule from c_(L-1) down: the step that adds c_(k-1) turns the sum by l^2 and positions c_(k-1) at D^(2(L - k))
     unsigned int acc = lobes_read(program, c[terms - 1u]);
     unsigned int v_power = v;
     for (unsigned int k = terms - 1u; k > 0u; k -= 1u)
     {
         const unsigned int turned = lobes_step(program, ENGINE_RECORD_PRODUCT, acc, u, 0u);
-        const unsigned int laid = lobes_step(program, ENGINE_RECORD_PRODUCT, lobes_read(program, c[k - 1u]), v_power, 0u);
-        acc = lobes_step(program, ENGINE_RECORD_SUM, turned, laid, 0u);
+        const unsigned int positioned = lobes_step(program, ENGINE_RECORD_PRODUCT, lobes_read(program, c[k - 1u]), v_power, 0u);
+        acc = lobes_step(program, ENGINE_RECORD_SUM, turned, positioned, 0u);
         if (k > 1u)
         {
             v_power = lobes_step(program, ENGINE_RECORD_PRODUCT, v_power, v, 0u);
@@ -256,7 +256,7 @@ static std::vector<unsigned int> lobes_shifted(const std::vector<unsigned int> &
     return out;
 }
 
-// `bits` of a two's complement value, its magnitude's limbs given, laid into the record at `offset`
+// `bits` of a two's complement value, its magnitude's limbs given, positioned into the record at `offset`
 static void lobes_put(unsigned int *record, unsigned int offset, unsigned int bits, const std::vector<unsigned int> &limbs,
                       long long sign)
 {
@@ -284,7 +284,7 @@ static void lobes_put(unsigned int *record, unsigned int offset, unsigned int bi
     }
 }
 
-// the record a stage's fields are laid into, sized to them
+// the record a stage's fields are positioned into, sized to them
 static void lobes_open_shared(LobesStage *stage)
 {
     stage->shared.assign((stage->program.shared_bits + 31u) / 32u + 1u, 0u);
@@ -307,8 +307,8 @@ static void lobes_open_stage(LobesStage *stage, const char *name)
     stage->same = 0;
 }
 
-// imprints and lays out a stage's program, and reports where the imprint stops when it does
-static int lobes_lay(SimResults *job, LobesStage *stage, EngineError *error)
+// imprints and arranges a stage's program, and reports where the imprint stops when it does
+static int lobes_position(SimResults *job, LobesStage *stage, EngineError *error)
 {
     LobesProgram *const program = &stage->program;
     const unsigned int fields = (unsigned int)program->field_bits.size();
@@ -336,10 +336,10 @@ static int lobes_lay(SimResults *job, LobesStage *stage, EngineError *error)
     }
     sim_check(job, ok, (std::string("keymath imprints the ") + stage->name + " program").c_str());
     unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {(program->shared_bits + 31u) / 32u, 0u, 0u};
-    const KeyScheduleRecordRequest lay = {&stage->key, program->field_offset.data(), fields, in_limbs, 1, &stage->layout,
+    const KeyScheduleRecordRequest position = {&stage->key, program->field_offset.data(), fields, in_limbs, 1, &stage->layout,
                                           error};
-    const int laid = ok && (key_schedule_record_layout(&lay) != KEY_SCHEDULE_ERROR);
-    if (ok && !laid)
+    const int positioned = ok && (key_schedule_record_layout(&position) != KEY_SCHEDULE_ERROR);
+    if (ok && !positioned)
     {
         const char *const end = (error->evacaddr == (const void *)&stage->key)       ? "the register file"
                                 : (error->evacaddr == (const void *)stage->key.output) ? "the outputs"
@@ -349,8 +349,8 @@ static int lobes_lay(SimResults *job, LobesStage *stage, EngineError *error)
         fprintf(stderr, "  exact_zeta_lobes: the %s layout ends at %s, step %lld of %zu\n", stage->name, end, step,
                 program->steps.size());
     }
-    ok = laid;
-    sim_check(job, ok, (std::string("the scheduler lays the ") + stage->name + " program out").c_str());
+    ok = positioned;
+    sim_check(job, ok, (std::string("the scheduler positions the ") + stage->name + " program out").c_str());
     stage->shared.resize((program->shared_bits + 31u) / 32u);
     return ok;
 }
@@ -507,9 +507,9 @@ int main(int count, char **arguments)
         const unsigned int magnitude_count = (unsigned int)magnitudes[n].size();
         for (unsigned int j = 0u; j < magnitude_count; j += 1u, field += 1u)
         {
-            const std::vector<unsigned int> laid = lobes_shifted(magnitudes[n][j], b * (magnitude_count - 1u - j));
+            const std::vector<unsigned int> positioned = lobes_shifted(magnitudes[n][j], b * (magnitude_count - 1u - j));
             lobes_put(curve_stage.shared.data(), curve_stage.program.field_offset[field],
-                      curve_stage.program.field_bits[field], laid, signs[n][j]);
+                      curve_stage.program.field_bits[field], positioned, signs[n][j]);
         }
     }
 
@@ -529,8 +529,8 @@ int main(int count, char **arguments)
                   c_magnitudes[k], c_signs[k]);
     }
 
-    int ok = lobes_lay(&job, &curve_stage, &error);
-    ok = ok && lobes_lay(&job, &log_stage, &error);
+    int ok = lobes_position(&job, &curve_stage, &error);
+    ok = ok && lobes_position(&job, &log_stage, &error);
     const unsigned long long declared =
         lobes_declared(&curve_stage, lanes) + lobes_declared(&log_stage, lanes) + (256ull << 20u);
     ok = ok && sim_job_submit(&job, "exact_zeta_lobes", count, arguments, declared);

@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// git.c: the commit and the branch a tree stands at, and the files that differ from their last commits
+// git.c: the commit and the branch a tree is at, and the files that differ from their last commits
 #include "../text/text.h"
 #include "git_internal.h"
 
-// the state letter for a porcelain status's two columns
+// the state character for a porcelain status's two columns
 char cli_git_state_get(const CliGitIndexCtx *args)
 {
     if ((args->index_value == '?') && (args->tree == '?'))
@@ -67,8 +67,8 @@ int cli_git_head(const CliGitRootCommitCfg *args)
         {
             for (unsigned long long at = 0ULL; all_white && (at < result->out_size); at += 1ULL)
             {
-                const char letter = result->out[at];
-                all_white = (letter == ' ') || ((letter >= '\t') && (letter <= '\r'));
+                const char character = result->out[at];
+                all_white = (character == ' ') || ((character >= '\t') && (character <= '\r'));
             }
             *clean = all_white;
         }

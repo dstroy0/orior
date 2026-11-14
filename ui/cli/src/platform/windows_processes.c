@@ -16,7 +16,7 @@
 
 typedef LONG(NTAPI *CliQueryProcess)(HANDLE process, ULONG type, PVOID info, ULONG length, PULONG returned);
 
-// what NtQueryInformationProcess is queried for: the line a process was started with; the most bytes it is read in; and
+// what NtQueryInformationProcess is queried for: the line a process was started with; the max bytes it is read in; and
 // the access a process is opened with to read it
 #define CLI_PROCESS_COMMAND_LINE 60u
 #define CLI_PROCESS_COMMAND_MAX (1u << 20u)
@@ -36,7 +36,7 @@ typedef struct
     DWORD pid;
 #endif
 } WindowsProcessesCtx;
-// `count` UTF-16 units written as UTF-8 into `out`, sized for `capacity`, each unit that starts no whole letter as
+// `count` UTF-16 units written as UTF-8 into `out`, sized for `capacity`, each unit that starts no whole character as
 // U+FFFD
 EMBED_INLINE void processes_utf8(const WindowsProcessesCtx *args)
 {
@@ -77,7 +77,7 @@ EMBED_INLINE char *processes_command_get(const WindowsProcessesCtx *args)
         const embed_word length = (embed_word)bytes / 2u;
         const unsigned char *const end = base + capacity;
         // the text read lies within the capacity, as the system wrote it there, and each of its units is three bytes of
-        // UTF-8 at the most, below an int's reach as the capacity is
+        // UTF-8 at max, below an int's reach as the capacity is
         if ((start != NULL) && ((const unsigned char *)start >= base) &&
             ((const unsigned char *)(start + length) <= end))
         {

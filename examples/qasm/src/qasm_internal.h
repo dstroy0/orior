@@ -60,7 +60,7 @@ typedef enum
 
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int start;
     unsigned int length;
     unsigned int line;

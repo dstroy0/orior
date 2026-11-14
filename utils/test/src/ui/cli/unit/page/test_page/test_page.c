@@ -82,23 +82,23 @@ void tearDown(void)
 void test_a_long_lines_second_row_has_no_number(void)
 {
     const CliPrintLayout layout = a4_layout(0);
-    const CliPrintLaid *const laid = EMBED_CALL(cli_print_layout_listing_out.lay_out, CliPrintLayoutListingOutCfg, .listing = listing_of(3u, three_lines), .layout = &layout);
-    TEST_ASSERT_GREATER_OR_EQUAL_UINT(4u, laid->rows);
-    TEST_ASSERT_TRUE(laid->row[0].numbered);
-    TEST_ASSERT_EQUAL_UINT64(1ull, laid->row[0].number);
-    TEST_ASSERT_TRUE(laid->row[1].numbered);
-    TEST_ASSERT_EQUAL_UINT64(2ull, laid->row[1].number);
-    TEST_ASSERT_FALSE(laid->row[2].numbered);
+    const CliPrintLaid *const positioned = EMBED_CALL(cli_print_layout_listing_out.position_out, CliPrintLayoutListingOutCfg, .listing = listing_of(3u, three_lines), .layout = &layout);
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT(4u, positioned->rows);
+    TEST_ASSERT_TRUE(positioned->row[0].numbered);
+    TEST_ASSERT_EQUAL_UINT64(1ull, positioned->row[0].number);
+    TEST_ASSERT_TRUE(positioned->row[1].numbered);
+    TEST_ASSERT_EQUAL_UINT64(2ull, positioned->row[1].number);
+    TEST_ASSERT_FALSE(positioned->row[2].numbered);
 }
 
 void test_a_long_lines_first_row_is_cut_to_the_page(void)
 {
     const CliPrintLayout layout = a4_layout(0);
-    const CliPrintLaid *const laid = EMBED_CALL(cli_print_layout_listing_out.lay_out, CliPrintLayoutListingOutCfg, .listing = listing_of(3u, three_lines), .layout = &layout);
+    const CliPrintLaid *const positioned = EMBED_CALL(cli_print_layout_listing_out.position_out, CliPrintLayoutListingOutCfg, .listing = listing_of(3u, three_lines), .layout = &layout);
     unsigned long long width = 0ull;
-    for (unsigned int piece = 0u; piece < laid->row[1].pieces; piece += 1u)
+    for (unsigned int piece = 0u; piece < positioned->row[1].pieces; piece += 1u)
     {
-        width += laid->piece[laid->row[1].first + piece].length;
+        width += positioned->piece[positioned->row[1].first + piece].length;
     }
     TEST_ASSERT_LESS_THAN_UINT64(200ull, width);
     TEST_ASSERT_GREATER_THAN_UINT64(60ull, width);
@@ -107,23 +107,23 @@ void test_a_long_lines_first_row_is_cut_to_the_page(void)
 void test_a_tab_is_four_spaces_wide(void)
 {
     const CliPrintLayout layout = a4_layout(0);
-    const CliPrintLaid *const laid = EMBED_CALL(cli_print_layout_listing_out.lay_out, CliPrintLayoutListingOutCfg, .listing = listing_of(3u, three_lines), .layout = &layout);
-    const CliPrintPiece *const after = &laid->piece[laid->row[laid->rows - 1u].first];
-    CLI_TEST_ASSERT_TEXT("    after", laid->text + after->text, after->length);
+    const CliPrintLaid *const positioned = EMBED_CALL(cli_print_layout_listing_out.position_out, CliPrintLayoutListingOutCfg, .listing = listing_of(3u, three_lines), .layout = &layout);
+    const CliPrintPiece *const after = &positioned->piece[positioned->row[positioned->rows - 1u].first];
+    CLI_TEST_ASSERT_TEXT("    after", positioned->text + after->text, after->length);
 }
 
 void test_two_hundred_lines_alloc_at_min_three_pages(void)
 {
     const CliPrintLayout layout = a4_layout(0);
-    TEST_ASSERT_GREATER_OR_EQUAL_UINT(3u, EMBED_CALL(cli_print_layout_listing_out.lay_out, CliPrintLayoutListingOutCfg, .listing = listing_of(200u, numbered_lines), .layout = &layout)->pages);
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT(3u, EMBED_CALL(cli_print_layout_listing_out.position_out, CliPrintLayoutListingOutCfg, .listing = listing_of(200u, numbered_lines), .layout = &layout)->pages);
 }
 
 void test_a_landscape_page_fits_fewer_rows(void)
 {
     const CliPrintLayout portrait = a4_layout(0);
     const CliPrintLayout landscape = a4_layout(1);
-    const unsigned int portrait_pages = EMBED_CALL(cli_print_layout_listing_out.lay_out, CliPrintLayoutListingOutCfg, .listing = listing_of(200u, numbered_lines), .layout = &portrait)->pages;
-    TEST_ASSERT_GREATER_THAN_UINT(portrait_pages, EMBED_CALL(cli_print_layout_listing_out.lay_out, CliPrintLayoutListingOutCfg, .listing = listing_of(200u, numbered_lines), .layout = &landscape)->pages);
+    const unsigned int portrait_pages = EMBED_CALL(cli_print_layout_listing_out.position_out, CliPrintLayoutListingOutCfg, .listing = listing_of(200u, numbered_lines), .layout = &portrait)->pages;
+    TEST_ASSERT_GREATER_THAN_UINT(portrait_pages, EMBED_CALL(cli_print_layout_listing_out.position_out, CliPrintLayoutListingOutCfg, .listing = listing_of(200u, numbered_lines), .layout = &landscape)->pages);
 }
 
 void test_the_named_pages_print(void)

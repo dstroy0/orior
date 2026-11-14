@@ -83,9 +83,9 @@ EMBED_INLINE int results_real(const DbResultsCtx *args)
         unsigned long long one = 0ULL;
         while (same && (one < rest))
         {
-            const char letter = text[at + one];
+            const char character = text[at + one];
             same =
-                (((letter >= 'A') && (letter <= 'Z')) ? (char)(letter - 'A' + 'a') : letter) == s_words[word_text][one];
+                (((character >= 'A') && (character <= 'Z')) ? (char)(character - 'A' + 'a') : character) == s_words[word_text][one];
             one += 1ULL;
         }
         if (same)
@@ -271,7 +271,7 @@ static int results_read_on(const CliEachLinkFailureCfg *args)
                       .tag = read_state->tag, .failure = failure);
 }
 
-// the lines of the buffered rows from `start` to `end` handed to `each`, read from their file from the mark before the
+// the lines of the buffered rows from `start` to `end` passed to `each`, read from their file from the mark before the
 // first
 void cli_db_results_lines(const CliDbContextCtx *args)
 {

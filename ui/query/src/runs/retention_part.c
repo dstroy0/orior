@@ -115,7 +115,7 @@ int query_part_free(const QueryRetentionContextErrMsgCtx *args)
     // the part's allowed use in percent, as QRY_PART_USED gives it, 10 where it is not set or is no number; a negative
     // bound bounds the part used whatever it reads
     char supplied[32];
-    const long long most =
+    const long long max =
         EMBED_CALL(query_retention_input_internal.part_used_max, QueryRetentionInputCtx,
                    .supplied = EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx,
                                           .name = "QRY_PART_USED", .value_out = supplied, .capacity = sizeof(supplied))
@@ -134,7 +134,7 @@ int query_part_free(const QueryRetentionContextErrMsgCtx *args)
             mmgr_line_put(args->err_msg, "the part's use was not read");
             return 0;
         }
-        if (percent > most)
+        if (percent > max)
         {
             mmgr_line_put(args->err_msg, "the part is used ");
             mmgr_line_decimal(args->err_msg, (unsigned long long)percent, 0u);
@@ -264,7 +264,7 @@ void query_crystals(const QueryRetentionContextOwnCtx *args)
             size_t len = cellul.len(&(CatenaFinitaCfg){.src = s_output, .cap = CLI_POOL_BYTES});
             len = (size_t)EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = s_output,
                                      .at = len, .set = "\n\r");
-            mmgr_line_put_most(&line, s_output, len);
+            mmgr_line_put_max(&line, s_output, len);
             mmgr_line_put(&line, ", in ");
             mmgr_line_decimal(&line, (query_now() - began) * 1000ULL, 0u);
             mmgr_line_put(&line, " ms");

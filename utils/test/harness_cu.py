@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import harness_unity  # noqa: E402
 
 ROOT = findroot.root()
-# each tree of .cu sources beside the folder its wrappers and suites stand in, both from the top of the tree; the first
+# each tree of .cu sources beside the folder its wrappers and suites are in, both from the top of the tree; the first
 # folder holds the CMake lists that build every wrapper and suite
 TREES = (("src/cu", "utils/test/src/cu/unit"), ("includes", "utils/test/includes/unit"))
 SUITES = tuple(suites for _, suites in TREES)

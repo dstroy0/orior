@@ -84,7 +84,7 @@ static double two_to_the(double exponent)
 
 typedef struct
 {
-    CorpusKind kind;
+    CorpusKind type;
     double entropy;
     size_t distinct;
     OriorFieldCensus census;
@@ -176,14 +176,14 @@ static uint64_t time_arm(OriorEngine arm, const uint8_t *corpus, size_t corpus_l
 
 static size_t measure_rows(Row *rows, uint8_t *corpus, uint8_t *absent)
 {
-    const size_t kind_count = sizeof KINDS / sizeof KINDS[0];
+    const size_t type_count = sizeof KINDS / sizeof KINDS[0];
     const size_t needle_count = sizeof NEEDLE_LENGTHS / sizeof NEEDLE_LENGTHS[0];
     const size_t widest = NEEDLE_LENGTHS[needle_count - 1u];
     size_t written = 0u;
 
     for (unsigned present = 0u; present <= 1u; present += 1u)
     {
-        for (size_t which = 0u; which < kind_count; which += 1u)
+        for (size_t which = 0u; which < type_count; which += 1u)
         {
             bench_build_bytes(corpus, CORPUS_BYTES, KINDS[which], CORPUS_SEED);
             bench_build_bytes(absent, widest * NEEDLES_PER_ROW, KINDS[which], ABSENT_SEED);
@@ -211,7 +211,7 @@ static size_t measure_rows(Row *rows, uint8_t *corpus, uint8_t *absent)
                     exit(1);
                 }
 
-                rows[written].kind = KINDS[which];
+                rows[written].type = KINDS[which];
                 rows[written].entropy = entropy;
                 rows[written].distinct = distinct;
                 orior_field_census(corpus, CORPUS_BYTES, &rows[written].census);
@@ -236,7 +236,7 @@ static void print_rows(const Row *rows, size_t count)
         const uint64_t slower = inorder_wins ? rows[at].freed : rows[at].inorder;
 
         printf("  %-12s %-7.3f %-9llu %-9.4f %-6llu %-4s %-13llu %-13llu %-9s %.2fx\n",
-               bench_corpus_name(rows[at].kind), rows[at].entropy, (unsigned long long)rows[at].distinct,
+               bench_corpus_name(rows[at].type), rows[at].entropy, (unsigned long long)rows[at].distinct,
                flatness(&rows[at]), (unsigned long long)rows[at].needle_len, (rows[at].present != 0u) ? "yes" : "no",
                (unsigned long long)rows[at].inorder, (unsigned long long)rows[at].freed,
                inorder_wins ? "orior_inorder" : "orior_free", (double)slower / (double)quickest(&rows[at]));
@@ -304,11 +304,11 @@ static void recommend_constants(const Row *rows, size_t count)
 
 static void recommend_per_corpus(const Row *rows, size_t count)
 {
-    const size_t kind_count = sizeof KINDS / sizeof KINDS[0];
+    const size_t type_count = sizeof KINDS / sizeof KINDS[0];
 
     printf("\n  %-12s %-9s %-15s %-15s %-13s %s\n", "corpus", "flatness", "run this",
            "free arm at", "over the other", "widest row");
-    for (size_t which = 0u; which < kind_count; which += 1u)
+    for (size_t which = 0u; which < type_count; which += 1u)
     {
         const size_t ceiling_count = sizeof CEILINGS / sizeof CEILINGS[0];
         double inorder_total = 0.0;
@@ -319,7 +319,7 @@ static void recommend_per_corpus(const Row *rows, size_t count)
 
         for (size_t at = 0u; at < count; at += 1u)
         {
-            if (rows[at].kind != KINDS[which])
+            if (rows[at].type != KINDS[which])
             {
                 continue;
             }
@@ -349,7 +349,7 @@ static void recommend_per_corpus(const Row *rows, size_t count)
 
             for (size_t at = 0u; at < count; at += 1u)
             {
-                if (rows[at].kind != KINDS[which])
+                if (rows[at].type != KINDS[which])
                 {
                     continue;
                 }

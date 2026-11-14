@@ -7,7 +7,7 @@
 #include "../text/text.h"
 #include "executables_internal.h"
 
-// the most bytes of a tree's .env read
+// the max bytes of a tree's .env read
 #define CLI_ENV_BYTES (1u << 16u)
 
 typedef struct
@@ -122,7 +122,7 @@ EMBED_INLINE void cli_with_extension(const ExecutablesSignCtx *args)
 #endif
 
 #if defined(_WIN32)
-// a word put after a command and after the line shown for it
+// a word put after a command and after the line displayed for it
 EMBED_INLINE void cli_both(const ExecutablesSignCtx *args)
 {
     CliCommand *command = args->command;
@@ -163,7 +163,7 @@ int cli_executables_sign_steps(const CliExecutablesErrMsgCfg *args)
                .displayed_word = "/fd");
     EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .displayed = &line, .word = "sha256",
                .displayed_word = "sha256");
-    // the certificate's last four letters in lower case, which name a .pfx or .p12 file
+    // the certificate's last four characters in lower case, which name a .pfx or .p12 file
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = certificate, .cap = CLI_POOL_BYTES});
     char tail[5] = "";
     for (unsigned long long at = 0ULL; (length >= 4ULL) && (at < 4ULL); at += 1ULL)
@@ -261,7 +261,7 @@ int cli_executables_sign_steps(const CliExecutablesErrMsgCfg *args)
     char zip[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_with_extension, ExecutablesSignCtx, .path = args->file, .extension = "zip", .out = zip);
     EMBED_CALL(cli_runner.command_begin, CliRunnerCfg, .command = &args->commands[1], .program = "ditto");
-    static const char *const s_ditto[3] = {"-c", "-k", "--keepParent"};
+    static const char *const s_ditto[3] = {"-c", "-k", "--retainParent"};
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         EMBED_CALL(cli_runner_command_word.command_word, CliRunnerCommandWordCfg, .command = &args->commands[1],
@@ -272,7 +272,7 @@ int cli_executables_sign_steps(const CliExecutablesErrMsgCfg *args)
     EMBED_CALL(cli_runner_command_word.command_word, CliRunnerCommandWordCfg, .command = &args->commands[1],
                .word_text = zip);
     VerbaLinea pack = {displayed[1], CLI_PATH_MAX_LEN * 4u, 0ULL};
-    mmgr_line_put(&pack, "ditto -c -k --keepParent ");
+    mmgr_line_put(&pack, "ditto -c -k --retainParent ");
     mmgr_line_put(&pack, args->file);
     mmgr_line_ch(&pack, ' ');
     mmgr_line_put(&pack, zip);

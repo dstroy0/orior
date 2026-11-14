@@ -13,7 +13,7 @@ Questions asked across the whole tree at once, feeding sections of `theory/workb
 
 |                                   |                                                                                            |
 | --------------------------------- | ------------------------------------------------------------------------------------------ |
-| `gate_report.py`, `gate_sweep.py` | every corpus in the tree through the English gate, and what has been standing in the poles |
+| `gate_report.py`, `gate_sweep.py` | every corpus in the tree through the English gate, and what has been located in the poles |
 | `paper_slice.py`                  | one paper cut out of an extracted proceedings volume. It can be read whole                 |
 | `papers_probe.py`                 | where the same problem has been worked on, language by language                            |
 | `read_length_stability.py`        | replacing a statistic that grows with the amount of data read                              |

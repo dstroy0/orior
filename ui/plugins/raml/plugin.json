@@ -2,7 +2,7 @@
   "id": "raml",
   "name": "RAML",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "extensions": ["raml"],
   "comments": {"line":"#"},
   "pairs": ["()","[]","{}"],
@@ -39,7 +39,7 @@
           ["","delimiter","predefined","delimiter"]
         ],
         [
-          "^(\\s*)(-\\s+)?(title|version|baseUri|baseUriParameters|protocols|mediaType|documentation|types|traits|resourceTypes|securitySchemes|securedBy|uses|annotationTypes|description|displayName|queryParameters|queryString|uriParameters|headers|body|responses|is|type|properties|required|enum|pattern|minLength|maxLength|minimum|maximum|example|examples|items|default|content)(\\??:)(?=\\s|$)",
+          "^(\\s*)(-\\s+)?(title|version|baseUri|baseUriParameters|protocols|mediaType|documentation|types|traits|resourceTypes|securitySchemes|securedBy|uses|annotationTypes|description|displayName|queryParameters|queryString|uriParameters|headers|body|responses|is|type|properties|required|enum|pattern|minLength|maxLength|minimum|max|example|examples|items|default|content)(\\??:)(?=\\s|$)",
           ["","delimiter","keyword","delimiter"]
         ],
         [

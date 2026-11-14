@@ -4,15 +4,15 @@
 // the form reads there, and what it and its stand-in write
 #include "pair.h"
 
-// The put beneath its query in the log: the link as it stood, the link standing in its place, each on one line of
-// the log, and the operands only the form it stood as names. Then the product: what the form reads at the link
+// The put beneath its query in the log: the link as it was, the link located in its place, each on one line of
+// the log, and the operands only the form it was as names. Then the product: what the form reads at the link
 // and what it and its stand-in write, queried over the cases and put to the product, and a product the question's
 // cases leave short of whole queried again over every combination of the values the cases are made of. 1 where a
 // put added a row that came back one way, signal, 0 where it added none or only rows that came back both ways
 int PutLink::logged(PairWork &work) const
 {
     std::string from_line = found.str(0);
-    std::string to_line = standing;
+    std::string to_line = located;
     std::replace(from_line.begin(), from_line.end(), '\n', ' ');
     std::replace(to_line.begin(), to_line.end(), '\n', ' ');
     query_log_print(s_query_log, "pair %s in place of %s at %s\nfrom %s\nto %s\nonly", to.c_str(), from.c_str(),
@@ -127,14 +127,14 @@ int PutLink::logged(PairWork &work) const
         }
         // the form's product and its stand-in's, each the value it writes on every case as the part stores
         // it at the form, the carrier cut just after it: the links after the form are a delta of their own
-        const std::string sides[2] = {form_found, standing};
+        const std::string sides[2] = {form_found, located};
         const char *const side_names[2] = {"from", "to"};
         for (unsigned int side = 0u; side < 2u; side += 1u)
         {
             int wide = 0;
             const std::string product = carrier_form_product(sides[side], &wide);
             // the stand-in's side is left unwritten where a lesson blocks the stand-in from the part
-            const std::string cut = (product.empty() || ((side == 1u) && stand_in_blocked))
+            const std::string cut = (product.empty() || ((side == 1u) && are_in_blocked))
                                         ? std::string()
                                         : carrier_cut_at_read(flow.first, flow.second, chain.second, link_at,
                                                               form_lines, product, sides[side], wide);

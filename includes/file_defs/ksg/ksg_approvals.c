@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// ksg_approvals.c: the ksg program's approvals, as ksa.h lays them out: an approver's keys made from the system's
+// ksg_approvals.c: the ksg program's approvals, as ksa.h positions them out: an approver's keys made from the system's
 // randomness and stored as k-files, the secret protected from every reader but its owner; a seal approved and the
 // approval put in the list beside it through `<file>.ksa.part`, made durable and put in its place whole; and every
 // approval in a list verified against its seal, with the approvers a check requires found among those that are valid
@@ -26,7 +26,7 @@
 typedef struct
 {
     unsigned long long count;
-    KsaApproval approval[KSA_APPROVALS_MOST];
+    KsaApproval approval[KSA_APPROVALS_MAX];
 } KsgList;
 
 static KsgList s_list;
@@ -51,11 +51,11 @@ static unsigned long long ksg_word_got(const unsigned char *bytes)
     return word;
 }
 
-// the k-file head of `kind` into `head`
-static void ksg_head_of(const char *kind, unsigned char *head)
+// the k-file head of `type` into `head`
+static void ksg_head_of(const char *type, unsigned char *head)
 {
     ksg_head(head);
-    memcpy(head + 8u, kind, 4u);
+    memcpy(head + 8u, type, 4u);
 }
 
 // `size` bytes of the system's randomness into `bytes`: 1, or 0 where it gave none
@@ -119,14 +119,14 @@ static int ksg_written(const char *path, const unsigned char *const *pieces, con
     return whole;
 }
 
-// a key k-file of `kind` read into its scheme and its bytes, `bytes` of them most: the scheme, or NULL with why
+// a key k-file of `type` read into its scheme and its bytes, `bytes` of them max: the scheme, or NULL with why
 // reported
-static const KsaScheme *ksg_key_read(const char *path, const char *kind, int secret, unsigned char *bytes)
+static const KsaScheme *ksg_key_read(const char *path, const char *type, int secret, unsigned char *bytes)
 {
     unsigned char head[KREP_HEAD_BYTES];
     unsigned char stored_head[KREP_HEAD_BYTES];
     char tag[KSA_TAG_BYTES];
-    ksg_head_of(kind, head);
+    ksg_head_of(type, head);
     FILE *const file = fopen(path, "rb");
     const int opened = (file != NULL) && (fread(stored_head, 1u, sizeof(stored_head), file) == sizeof(stored_head)) &&
                        (memcmp(stored_head, head, sizeof(head)) == 0) &&
@@ -158,8 +158,8 @@ int ksg_keys_made(const char *name, const char *secret_path, const char *public_
         ksg_print("\n");
         return 0;
     }
-    unsigned char secret[KSA_SECRET_MOST];
-    unsigned char key[KSA_KEY_MOST];
+    unsigned char secret[KSA_SECRET_MAX];
+    unsigned char key[KSA_KEY_MAX];
     if (!ksg_random(secret, scheme->secret_bytes))
     {
         ksg_print("the system gave no randomness for the key\n");
@@ -219,7 +219,7 @@ static int ksg_list_read(const char *path)
     int whole = (fread(stored_head, 1u, sizeof(stored_head), file) == sizeof(stored_head)) &&
                 (memcmp(stored_head, head, sizeof(head)) == 0) && (fread(word, 1u, sizeof(word), file) == sizeof(word));
     const unsigned long long count = whole ? ksg_word_got(word) : 0ull;
-    whole = whole && (count <= KSA_APPROVALS_MOST);
+    whole = whole && (count <= KSA_APPROVALS_MAX);
     for (unsigned long long at = 0ull; whole && (at < count); at += 1ull)
     {
         KsaApproval *const approval = &s_list.approval[at];
@@ -228,10 +228,10 @@ static int ksg_list_read(const char *path)
                 (fread(sizes, 1u, sizeof(sizes), file) == sizeof(sizes));
         const unsigned long long key_bytes = whole ? ksg_word_got(sizes) : 0ull;
         const unsigned long long signature_bytes = whole ? ksg_word_got(sizes + 8u) : 0ull;
-        whole = whole && (key_bytes <= KSA_KEY_MOST) && (signature_bytes <= KSA_SIGNATURE_MOST) &&
+        whole = whole && (key_bytes <= KSA_KEY_MAX) && (signature_bytes <= KSA_SIGNATURE_MAX) &&
                 (fread(approval->key, 1u, (size_t)key_bytes, file) == key_bytes) &&
                 (fread(approval->signature, 1u, (size_t)signature_bytes, file) == signature_bytes);
-        // each count was bounded at most KSA_KEY_MOST or KSA_SIGNATURE_MOST just above
+        // each count was bounded at max KSA_KEY_MAX or KSA_SIGNATURE_MAX just above
         approval->key_bytes = (unsigned int)key_bytes;
         approval->signature_bytes = (unsigned int)signature_bytes;
     }
@@ -245,7 +245,7 @@ static int ksg_list_written(const char *path)
 {
     static char s_listed[KSG_PATH_MAX_LEN];
     static unsigned char s_bytes[KREP_HEAD_BYTES + 8u +
-                                 (KSA_APPROVALS_MOST * (KSA_TAG_BYTES + 16u + KSA_KEY_MOST + KSA_SIGNATURE_MOST))];
+                                 (KSA_APPROVALS_MAX * (KSA_TAG_BYTES + 16u + KSA_KEY_MAX + KSA_SIGNATURE_MAX))];
     if (!ksg_path_with(path, KSA_SUFFIX, s_listed))
     {
         return 0;
@@ -282,7 +282,7 @@ static int ksg_same_key(const KsaApproval *one, const KsaApproval *other)
 
 int ksg_approval_added(const char *secret_path, const char *path, const unsigned char *trailer)
 {
-    unsigned char secret[KSA_SECRET_MOST];
+    unsigned char secret[KSA_SECRET_MAX];
     const KsaScheme *const scheme = ksg_key_read(secret_path, KSA_SECRET_KIND, 1, secret);
     if (scheme == NULL)
     {
@@ -302,11 +302,11 @@ int ksg_approval_added(const char *secret_path, const char *path, const unsigned
     {
         at += 1ull;
     }
-    if (at == KSA_APPROVALS_MOST)
+    if (at == KSA_APPROVALS_MAX)
     {
         ksg_print(path);
         ksg_print(": its list contains ");
-        ksg_print_number(KSA_APPROVALS_MOST);
+        ksg_print_number(KSA_APPROVALS_MAX);
         ksg_print(" approvals already\n");
         return 0;
     }
@@ -329,7 +329,7 @@ int ksg_approval_added(const char *secret_path, const char *path, const unsigned
 int ksg_approvals_checked(const char *path, const unsigned char *trailer, const KsaApproval *required,
                           unsigned int count)
 {
-    static int s_verified[KSA_APPROVALS_MOST];
+    static int s_verified[KSA_APPROVALS_MAX];
     if (!ksg_list_read(path))
     {
         ksg_print("  the list of approvals beside it is not whole\n");

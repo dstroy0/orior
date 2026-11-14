@@ -56,6 +56,6 @@ obsignatio_sim.obj
     1  6060  0  8  1  0.0001111010000000011011  2  1042287 (x73.06)
     2  6060  0  8  1  0.0001111010000000011011  2  15959314 (x15.31)
     3  6060  0  9  0  0.0001111010000000011011  2  145120505 (x9.09)
-  Omega_nil at most 0.0011100011011000100111 at every depth; 6060 programs halt at every depth
+  Omega_nil at max 0.0011100011011000100111 at every depth; 6060 programs halt at every depth
   omega computer: 5 checks, 0 failed
   omega_computer exit 0

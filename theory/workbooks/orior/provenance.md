@@ -64,7 +64,7 @@ work of the whole chain from that point forward. The consequence is the property
 That is the correct use of the chain for this purpose, and it is the instrument that answers *no one
 can be first ahead of me*. The digest goes on chain. Nothing else does.
 
-**Add independent third-party records.** Each carries its own date, kept by a body with no stake in
+**Add independent third-party records.** Each carries its own date, retained by a body with no stake in
 the claim:
 
 * the Wayback Machine, for the published pages
@@ -76,7 +76,7 @@ alone is already stronger than anything self-asserted.
 
 ## 4. Terms
 
-The AGPL is doing real work and should stay. It keeps a derivative that is offered as a network
+The AGPL is doing real work and should stay. It retains a derivative that is offered as a network
 service obliged to offer its source, covering the gap the GPL leaves. That coverage is the reason to
 pick it.
 
@@ -91,7 +91,7 @@ and it is not a protection for a secret.
 
 ## 5. Mechanisms That Do Not Work
 
-Three were proposed. Each is written out here with its failure, to keep any of them from being reached for
+Three were proposed. Each is written out here with its failure, to retain any of them from being reached for
 again on the assumption it was never considered.
 
 ### 5.1 Embedding the private key in the library
@@ -125,7 +125,7 @@ signature, and never the passphrase.
 
 **Proposed:** put the key in a Bitcoin status message so it stays available.
 
-**Why it fails.** This is 5.1 published to the most permanent medium that exists. Bitcoin is
+**Why it fails.** This is 5.1 published to the max permanent medium that exists. Bitcoin is
 immutable and globally replicated by design: there is neither deletion, expiry nor
 jurisdiction to appeal to. An encrypted key on chain is a fixed target that every future attacker
 can grind against with better hardware than exists today, and the grinding is invisible.
@@ -184,9 +184,9 @@ The real answer to *what if I go headless*, since the proposals in section 5 wer
   cannot be retired and its identity stays live indefinitely.
 * **A paper or metal backup of the secret key, offline, in a separate physical location.** This is
   the standard practice and it is not exotic.
-* **Everything in sections 2 to 4 keeps verifying with the key gone.** Signatures already made
+* **Everything in sections 2 to 4 retains verifying with the key gone.** Signatures already made
   verify against the published public key forever. Chain anchors verify against the chain forever.
-  Archive records stand on their own. A lost key stops new attestations and invalidates none of the
+  Archive records are on their own. A lost key stops new attestations and invalidates none of the
   old ones.
 
 The work is protected by records that are already published, and not by the key's continued

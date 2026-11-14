@@ -158,7 +158,7 @@ def main(argv):
     print("  is the top row: plain Grover, no dimensional split. The recursion buys the tens-of-calls")
     print("  bottom row only if the descent leaks which survivor advances, and it does not.")
     print("")
-    print("  and the fleet result stands whatever the credit: parallel Grover over m machines buys")
+    print("  and the fleet result is whatever the credit: parallel Grover over m machines buys")
     print("  root m where classical buys m. The square root that helps one searcher hurts a fleet,")
     print("  and mining is a fleet. Recorded in docs/grover-against-the-chain.md.")
     return 0

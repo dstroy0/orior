@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Sander Nederveen	language	St’át’imcets	St’át’imcets, Lillooet
 front	Sander Nederveen	language	Nłeʔkepmxcín	Nłeʔkepmxcín, Thompson River Salish
 title	Sander Nederveen	title	Bare Roots or a Lack Thereof in Interior Salish *	page 1, the title, its star the acknowledgement footnote's
@@ -102,7 +102,7 @@ footnote 2	Sander Nederveen	note	2 Instructional contexts are lacking from this 
 footnote 3	Sander Nederveen	note	3 If the agent is known or if the agent would have been prominent in the context, I expect a passive construction to be used.	page 3, footnote
 footnote 4	Sander Nederveen	note	4 The immediate marker is somewhat mysterious, and its precise meaning is not fully understood. However, (Thompson and Thompson 1992:92) describe immediate marking as follows: “[the immediate form] refers to states and actions which have just gone into effect. The point of reference may be some time in the past, so that an immediate form can indicate some state of affairs in the past. The emphasis is on the state of affairs, rather than on the change implied.”	page 3, footnote
 footnote 5	Sander Nederveen	note	5 Abbreviations: ADD = additive, CAUS = causative, CTR = control, D/C = determiner/complementizer, DEM = demonstrative, DET = determiner, ERG = ergative, EXCL = exclusive, FUT = future, IMM = immediate, INCH = inchoative, INFER = inferential, IPFV = imperfective, NEG = negative, NMLZ = nominalizer, POSS = possessive, PREP = preposition, SBJ = subject, SBJV = subjunctive, SG = singular, STAT = stative, TR = transitive.	page 3, footnote
-footnote 6	Sander Nederveen	note	6 In the Nłeʔkepmxcin examples, I use the practical orthography of the language in the top line, which results in some clitics being presented as free morphemes. The gloss line includes detailed morpheme boundaries. Material which is underlyingly present but has been deleted by a regular phonological process is marked by square brackets [...] in the gloss line. Clitics are indicated with equal signs (=), and suffixes with hyphens (-). Furthermore, ‘vf’ stands for volunteered form by the consultant, ‘sf’ stands for suggested or supplied form by	page 3, footnote
+footnote 6	Sander Nederveen	note	6 In the Nłeʔkepmxcin examples, I use the practical orthography of the language in the top line, which results in some clitics being presented as free morphemes. The gloss line includes detailed morpheme boundaries. Material which is underlyingly present but has been deleted by a regular phonological process is marked by square brackets [...] in the gloss line. Clitics are indicated with equal signs (=), and suffixes with hyphens (-). Furthermore, ‘vf’ is for volunteered form by the consultant, ‘sf’ is for suggested or supplied form by	page 3, footnote
 §2	Sander Nederveen	language	Nłeʔkepmxcin	Nłeʔkepmxcín, without the accent
 §2	Sander Nederveen	note	1. Speaker does not know, care about, or wish to reveal the identity of the agent 2. Instructional contexts in which the agent is generic [e.g., ‘First, the cars get cleaned. Then they get polished.’] In this paper, all of the data fall in the first category, where there is no reference to an agent in the context, and in which the identity of the agent is irrelevant for the situation.2,3 Below follows a sequence of examples from Nłeʔkepmxcín in contexts where the agent is backgrounded and where the bare root is illicit. In all cases where a bare form was rejected, volunteered alternatives (marked as ‘vf correction’) primarily involved the stative marker ʔes-, the inchoative -ʔ- or -ә́p, or the immediate morpheme -t. 4,5,6 (i) bare roots, or (ii) with minimal inflection. All elicited instructional contexts involved either the imperative	page 3
 (3) line 1	Sander Nederveen	note	Context: There used to be some bread on the counter, but it’s gone, except for a few crumbs.	page 4, engine english
@@ -244,7 +244,7 @@ footnote 7	Sander Nederveen	note	7 There is an additional interesting finding th
 (8b) line 9	nɬeʔkepmxcín	gloss	PREP=pot	page 6, engine english
 (8b) line 10	Bev Phillips	translation	‘Fat gets melted in a pan.’	page 6, engine english, cited BP | vf correction | 05.30.2024, BP | vf correction | 05.30.2024
 (8b) line 10	Sander Nederveen	citation	(BP | vf correction | 05.30.2024)	the tag or source at the right of the translation
-(9) line 1	Sander Nederveen	note	Context: Fat melts in warm environments, if not kept cool. No agency involved	page 6, engine english
+(9) line 1	Sander Nederveen	note	Context: Fat melts in warm environments, if not retained cool. No agency involved	page 6, engine english
 (9a) line 1	nɬeʔkepmxcín	transcription	#zéxʷ	page 6, engine language
 (9a) line 2	nɬeʔkepmxcín	segmentation	zéxʷ	page 6, engine language
 (9a) line 3	nɬeʔkepmxcín	gloss	get.melted	page 6, engine english
@@ -260,7 +260,7 @@ footnote 7	Sander Nederveen	note	7 There is an additional interesting finding th
 (9a) line 13	nɬeʔkepmxcín	transcription	k sәc̓éłs.	page 6, engine language
 (9a) line 14	nɬeʔkepmxcín	segmentation	k=sә-c̓éł-s	page 6, engine language
 (9a) line 15	nɬeʔkepmxcín	gloss	D/C=NMLZ-cold-3POSS	page 6, engine english
-(9a) line 16	Bev Phillips	translation	Intended: ‘Fat melts if it is not kept cool.’	page 6, engine english, cited BP | sf | 05.30.2024, BP | sf | 05.30.2024
+(9a) line 16	Bev Phillips	translation	Intended: ‘Fat melts if it is not retained cool.’	page 6, engine english, cited BP | sf | 05.30.2024, BP | sf | 05.30.2024
 (9a) line 16	Sander Nederveen	citation	(BP | sf | 05.30.2024)	the tag or source at the right of the translation
 (9b) line 1	nɬeʔkepmxcín	transcription	zʔéxʷ	page 6, engine language
 (9b) line 2	nɬeʔkepmxcín	segmentation	z<ʔ>éxʷ	page 6, engine language
@@ -277,7 +277,7 @@ footnote 7	Sander Nederveen	note	7 There is an additional interesting finding th
 (9b) line 13	nɬeʔkepmxcín	transcription	k sәc̓ełs.	page 6, engine language
 (9b) line 14	nɬeʔkepmxcín	segmentation	k=sә-c̓éł-s	page 6, engine language
 (9b) line 15	nɬeʔkepmxcín	gloss	D/C=NMLZ-cold-3POSS	page 6, engine english
-(9b) line 16	Bev Phillips	translation	‘Fat melts if it is not kept cool.’	page 6, engine english, cited BP | vf correction | 05.30.2024, BP | vf correction | 05.30.2024
+(9b) line 16	Bev Phillips	translation	‘Fat melts if it is not retained cool.’	page 6, engine english, cited BP | vf correction | 05.30.2024, BP | vf correction | 05.30.2024
 (9b) line 16	Sander Nederveen	citation	(BP | vf correction | 05.30.2024)	the tag or source at the right of the translation
 §2	Sander Nederveen	note	Given the inability for bare roots to surface independently in Nłeʔkepmxcín, questions arise about the lexical semantic representation of bare CoS verb roots. Recall from the introduction that Davis (2021) argues that in Salish, all verb roots culminate and have the aspectual profile of an achievement. An alternative proposal for Salish CoS roots by Lyon (2023) is based on findings from the Southern Interior Salish language Nsyilxcn. Following Kratzer (2000), Lyon (2023) proposes that bare verb roots contain both an eventive and stative component, and must compose with other aspectual morphology in order to have an interpretable surface form.	page 6
 §2	Sander Nederveen	note	In the next section, I present a brief discussion of the semantic profile of CoS roots in Interior Salish and highlight areas for further research.	page 6

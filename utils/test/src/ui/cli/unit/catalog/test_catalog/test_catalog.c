@@ -15,7 +15,7 @@ static unsigned int s_lists[32768];
 static char s_text[1u << 21u];
 static CliCatalog s_catalog;
 static CliValues s_values;
-static char s_shown[512];
+static char s_displayed[512];
 static char s_root[CLI_PATH_MAX_LEN];
 static char s_script[CLI_PATH_MAX_LEN];
 
@@ -44,15 +44,15 @@ static const CliParam *param_of(unsigned int job, const char *key)
 // the line the job's step shows recorded
 static void line_recorded(const CliEachDisplayedCfg *args)
 {
-    memor.cpy(&(MemoriaCfg){.dst = s_shown, .src = args->displayed, .bytes = CLI_UNITY_LENGTH(args->displayed) + 1ull});
+    memor.cpy(&(MemoriaCfg){.dst = s_displayed, .src = args->displayed, .bytes = CLI_UNITY_LENGTH(args->displayed) + 1ull});
 }
 
-// the line the job shows with its trace `trace`, in s_shown, the test ignored where it shows none for want of bash
+// the line the job shows with its trace `trace`, in s_displayed, the test ignored where it shows none for want of bash
 static void line_displayed(const char *trace)
 {
     EMBED_CALL(cli_catalog_key_values.values_begin, CliCatalogKeyValuesCfg, .values_out = &s_values);
     EMBED_CALL(cli_catalog_key_values.values_append, CliCatalogKeyValuesCfg, .values_out = &s_values, .key = CLI_TRACE, .value = trace);
-    s_shown[0] = '\0';
+    s_displayed[0] = '\0';
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     if (!EMBED_CALL(cli_runner_err_msg_root.show, CliRunnerErrMsgRootCfg, .root = s_root, .catalog = &s_catalog, .job = 0u, .values = &s_values, .each = line_recorded, .context = NULL, .err_msg = &err_msg))
@@ -116,14 +116,14 @@ void test_a_traced_build_runs_bash_with_xtrace(void)
 {
     script_read("build");
     line_displayed(CLI_TRACE_VERBOSE);
-    TEST_ASSERT_EQUAL_STRING("SHELLOPTS=xtrace bash src/build_it.sh", s_shown);
+    TEST_ASSERT_EQUAL_STRING("SHELLOPTS=xtrace bash src/build_it.sh", s_displayed);
 }
 
 void test_a_quiet_build_runs_bash_without_xtrace(void)
 {
     script_read("build");
     line_displayed(CLI_TRACE_QUIET);
-    TEST_ASSERT_EQUAL_STRING("bash src/build_it.sh", s_shown);
+    TEST_ASSERT_EQUAL_STRING("bash src/build_it.sh", s_displayed);
 }
 
 void test_a_script_that_is_not_a_build_is_not_traced(void)

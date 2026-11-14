@@ -33,8 +33,8 @@ static char s_given[KRS_FORMS][KRS_LINE * 2u];
 static char s_given_name[KRS_FORMS][KRS_NAME];
 static unsigned int s_givens;
 
-// The vendor's writer run through the interface in its krs mode, handed the part, the machine file, the container
-// layout, the vendor's table and the name to give the forms as (vendor_writer_run.h), its output handed to the run as
+// The vendor's writer run through the interface in its krs mode, passed the part, the machine file, the container
+// layout, the vendor's table and the name to give the forms as (vendor_writer_run.h), its output passed to the run as
 // KRS_MACHINE_NAME. 1 where it ended clean
 int krs_vendor_run(char *const *word)
 {
@@ -111,7 +111,7 @@ unsigned int krs_costs_read(const char *path)
         KrsCost cost;
         const char *question = s_row.question;
         if (ksc_row_read(s_file.line[at], "run", &s_row) && (strcmp(s_row.answer, "answers") == 0) &&
-            line_letters(&question, "cost ") && line_number(&question, 1, &cost.low) &&
+            line_characters(&question, "cost ") && line_number(&question, 1, &cost.low) &&
             line_number(&question, 1, &cost.high) && line_number(&question, 1, &cost.spread))
         {
             cost.least = s_row.value;
@@ -150,10 +150,10 @@ unsigned int krs_given_read(const char *path)
     char line[KRS_LINE * 2u];
     while ((line_read(file_bytes, file_size, &file_at, line, sizeof(line))) && (s_givens < KRS_FORMS))
     {
-        char kind[KRS_NAME];
+        char type[KRS_NAME];
         char name[KRS_NAME];
         const char *at = line;
-        if (line_word(&at, kind, sizeof(kind)) && line_word(&at, name, sizeof(name)) && (strcmp(kind, "form") == 0))
+        if (line_word(&at, type, sizeof(type)) && line_word(&at, name, sizeof(name)) && (strcmp(type, "form") == 0))
         {
             line[strcspn(line, "\r\n")] = '\0';
             snprintf(s_given[s_givens], sizeof(s_given[s_givens]), "%s", line);

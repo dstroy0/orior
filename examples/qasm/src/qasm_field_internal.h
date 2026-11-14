@@ -15,8 +15,8 @@ _Static_assert(ORIOR_EXACT_LIMBS <= 0xFFFFFFFFull, "qasm: a number's bytes count
 #define QASM_STATUS_CHECK(status_, evacaddr_, error_)                                                                  \
     engine_status_check((int)(status_), ENGINE_MODULE_QASM, (unsigned int)__LINE__, (const void *)(evacaddr_), (error_))
 
-#define QASM_CHECK(condition_, evacaddr_, error_, kind_)                                                               \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_QASM, (unsigned int)__LINE__, (const void *)(evacaddr_),   \
+#define QASM_CHECK(condition_, evacaddr_, error_, type_)                                                               \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_QASM, (unsigned int)__LINE__, (const void *)(evacaddr_),   \
                        (error_))
 
 // 10^9 exceeds 2^29. Each decimal chunk takes at least 29 of the width's bits

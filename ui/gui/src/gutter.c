@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// gutter.c: a row's change mark, as the store's diff answers it for the rows in view, laid as a bar in the gutter's
+// gutter.c: a row's change mark, as the store's diff answers it for the rows in view, positioned as a bar in the gutter's
 // column before the text
 #include "gutter.h"
 
@@ -13,7 +13,7 @@ typedef struct
     int scale;
 } GutterCtx;
 
-// the marks' column: its left and its width in pixels, the bar standing GUI_GUTTER_MARK_RIGHT before the text
+// the marks' column: its left and its width in pixels, the bar located GUI_GUTTER_MARK_RIGHT before the text
 EMBED_INLINE GuiRect gutter_column(const GutterCtx *args)
 {
     const int right = args->text_x - EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,

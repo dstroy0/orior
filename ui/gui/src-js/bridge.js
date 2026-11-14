@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The page's one door to the app: the IPC bridge the Rust side puts in every window. A command is
+// The page's one interface to the app: the IPC bridge the Rust side puts in every window. A command is
 // called by name and answers with a promise, and an event calls its handler with { event, payload }.
 // Nothing else in the page reaches the bridge.
 //
@@ -19,10 +19,10 @@ const WINDOW = new Set([
 // `name` where orior's side knows it by another, its answer dropped where `dropped`, and `failed` given in its place
 // where the call fails. Every other own call goes as it is named and fails as it fails.
 const OWN = new Map([
-  ["remote_get", { name: "link_standing", failed: () => null }],
+  ["remote_get", { name: "link_located", failed: () => null }],
   ["remote_rejoin", { name: "link_drop", dropped: true, failed: () => null }],
   ["launch_take", { failed: () => null }],
-  ["kept_now", { name: "state_now", failed: () => null }],
+  ["retained_now", { name: "state_now", failed: () => null }],
   ["carry_takings", { failed: () => null }],
   ["plugin_settings_write", { dropped: true }],
   ["network_hold", { name: "network_disable", dropped: true, failed: () => null }],
@@ -49,7 +49,7 @@ const OWN = new Map([
     "plugins_catalog_install", "plugin_request", "image_data", "report_error", "report_bug", "report_prompted", "branch_open", "branch_view",
     "branch_language", "branch_signature", "branch_pair", "branch_runs", "branch_at", "branch_cells", "branch_new", "document_edit", "document_changes", "document_find", "structure_compare", "workspace_read", "inspect_languages", "code_docstring", "fill_paragraph", "code_sort",
     "templates_list", "project_create", "checkers_known", "parse_classes", "file_read_any", "toolchain_install", "repo_clone", "repos_folder", "plugin_code",
-    "home_folder", "plugin_draft", "plugin_create", "window_open", "memory_usage", "servers_unneeded_stop", "session_key", "scrollback_open", "scrollback_keep",
+    "home_folder", "plugin_draft", "plugin_create", "window_open", "memory_usage", "servers_unneeded_stop", "session_key", "scrollback_open", "scrollback_retain",
     "scrollback_read", "scrollback_close", "scrollback_reset", "term_open", "term_write", "term_resize", "term_close",
     "clip_read", "clip_write", "clip_files", "files_copy", "files_paste", "pick", "view_window",
   ].map((name) => [name, {}]),
@@ -153,13 +153,13 @@ export function invoke(command, args = {}) {
 
 export async function listen(event, handler) {
   const id = bridge().transformCallback(handler);
-  await invoke("plugin:event|listen", { event, target: { kind: "Any" }, handler: id });
+  await invoke("plugin:event|listen", { event, target: { type: "Any" }, handler: id });
 }
 
 // The system's picker: "dir" and "save-dir" a folder, "save" a file to write, anything else a file
 // to read. Answers the path chosen, or null.
 export function pick(type) {
-  return invoke("pick", { kind: type });
+  return invoke("pick", { type: type });
 }
 
 // A page the tree holds opened in a window of its own: orior's side names the window, its title and the address it

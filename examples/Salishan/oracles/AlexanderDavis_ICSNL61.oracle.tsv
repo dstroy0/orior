@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 title	Carl Alexander Qwa7yán’ak	title	I Tsícwas sQwa7yán’ak Áku7 Graveyard Valley	When Qwa7yán’ak went to Graveyard Valley
 title	Carl Alexander Qwa7yán’ak	name	Qwa7yán’ak	Carl Alexander, the speaker
 title	Henry Davis	place	Nxwísten	Bridge River, where the recording was made
@@ -33,7 +33,7 @@ References	Henry Davis	url slug	nelh-skelkekla7lhkalha-tales-of-our-elders	part 
 §1.3	Henry Davis	cited clitic	=as	the third person subjunctive enclitic that follows =wit
 §1.3	Henry Davis	cited form	lh=t’iq=wit=as	if/when they arrive, where the order shows overtly
 §1.3	Henry Davis	cited form	t’íq.wit	they arrived
-§1.3	Henry Davis	segmentation	t’iq=Ø=wit	the analysis that keeps the subjunctive order in the indicative
+§1.3	Henry Davis	segmentation	t’iq=Ø=wit	the analysis that retains the subjunctive order in the indicative
 §1.3	Henry Davis	cited suffix	-wit	the plural object suffix
 §1.3	Henry Davis	cited form	ats’xenwítkan	I saw them
 §1.3	Henry Davis	segmentation	ats’x-en-Ø-wít=kan	the analysis, with agreement and plural reversed
@@ -238,7 +238,7 @@ footnote 8	Henry Davis	name	Tmícwus	the late Roger Adolph's St’át’imcets n
 4.1 36	Henry Davis	translation	‘The road was very bad… there were a lot of potholes.’
 4.1 37	Henry Davis	segmentation	lh<vnvn>v́n=Ø láti7, nilh=Ø ku=n-kéla7=tu7 wa7 t’ak áku7 kaoh wa7 cwel-cwélp-cen láta7, nilh=Ø=t’u7 ses áxw<exw> ta=c.wálh=a.
 4.1 37	Henry Davis	gloss	vibrate<ITER>=3SUBJ there COP=3SUBJ DET=LOC-first=REM IPFV go.along to.there.INVIS car IPFV PLU-turn-foot there.DIST COP=3SUBJ=EXCL NMLZ+IPFV+3POSS dug.out<COS> DET=road=EXIS
-4.1 37	Henry Davis	translation	‘It [the truck] kept shaking because the wheels of the vehicles that had gone up there before had churned up the road.’
+4.1 37	Henry Davis	translation	‘It [the truck] retained shaking because the wheels of the vehicles that had gone up there before had churned up the road.’
 4.1 38	Henry Davis	segmentation	[nilh=Ø]=t’u7 s=7álas[=ts]=t’u7 qvl ta=c.wálh=a.
 4.1 38	Henry Davis	gloss	[COP=3SUBJ]=EXCL NMLZ=very[=3POSS]=EXCL bad DET=road=EXIS
 4.1 38	Henry Davis	translation	‘So the road was very bad.’
@@ -271,7 +271,7 @@ footnote 8	Henry Davis	name	Tmícwus	the late Roger Adolph's St’át’imcets n
 4.1 47	Henry Davis	translation	‘I got lost on the way, so I went back and looked for the horses’ tracks.’
 4.1 48	Henry Davis	segmentation	pún-Ø=lhkan, ní::lh=Ø=t’u7 nswa t’ak n-k’wan-cn-án’-Ø-wit láti7.
 4.1 48	Henry Davis	gloss	find+DIR-3OBJ=1SG.SUBJ COP=3SUBJ=EXCL 1PL.POSS+NMLZ+IPFV go.along LOC-see-foot-DIR-3OBJ-3PL there
-4.1 48	Henry Davis	translation	‘I found them, and then I kept tracking them.’
+4.1 48	Henry Davis	translation	‘I found them, and then I retained tracking them.’
 4.1 49	Henry Davis	segmentation	suxwast=wit=Ø=k’á=tu7 ta=kwíkws=a s-qwé<qw>em’ láti7 nílh=Ø=t’u7 s=t’ák=i i7wa7-mín-Ø-itas lati7 ta=stswáw’c=a.
 4.1 49	Henry Davis	gloss	descend=3PL=3SUBJ=EPIS=REM DET=small=EXIS NMLZ-mountain<DIM> there COP=3SUBJ=EXCL NMLZ=go.along=3PL.POSS accompany-RLT-3OBJ-3PL.ERG there DET=creek=EXIS
 4.1 49	Henry Davis	translation	‘They must have gone down a little hill, and then carried on alongside a creek.’
@@ -280,7 +280,7 @@ footnote 8	Henry Davis	name	Tmícwus	the late Roger Adolph's St’át’imcets n
 4.1 50	Henry Davis	translation	‘Then they went uphill again, got close to the trail, and then followed it.’
 4.1 51	Henry Davis	segmentation	t’á::k=kan aw’t matq.
 4.1 51	Henry Davis	gloss	go.along=1SG.SUBJ behind walk
-4.1 51	Henry Davis	translation	‘I kept on walking along behind.’
+4.1 51	Henry Davis	translation	‘I retained on walking along behind.’
 4.1 52	Henry Davis	segmentation	pzán-Ø=lhkan láti7 [ta=]n-snúk’w7=a, s-…Xwel’ácken, nílh=Ø=t’u7 s=tsún-Ø-an:
 4.1 52	Henry Davis	gloss	meet+DIR-3OBJ=1SG.SUBJ there [DET=]1SG.POSS-friend=EXIS NMLZ-Xwel’ácken COP=3SUBJ=EXCL NMLZ=say+DIR-3OBJ=1SG.ERG
 4.1 52	Henry Davis	translation	‘Then I met my friend Xwel’ácken, so I said to him:’
@@ -322,7 +322,7 @@ footnote 8	Henry Davis	name	Tmícwus	the late Roger Adolph's St’át’imcets n
 4.1 64	Henry Davis	translation	‘“Okay then”, I told him:’
 4.1 65	Henry Davis	segmentation	‘“n-s-kal-(e)s-tumin=lhkan=kélh=t’u7.”’
 4.1 65	Henry Davis	gloss	LOC-STAT-follow-CAUS-2SG.OBJ=1SG.SUBJ=FUT=EXCL
-4.1 65	Henry Davis	translation	“I’ll keep on following you.”
+4.1 65	Henry Davis	translation	“I’ll retain on following you.”
 4.1 66	Henry Davis	segmentation	ni::lh=Ø s=t’ák=kalh.
 4.1 66	Henry Davis	gloss	COP=3SUBJ NMLZ=go.along=1PL.SUBJ
 4.1 66	Henry Davis	translation	‘So on we went.’
@@ -334,7 +334,7 @@ footnote 8	Henry Davis	name	Tmícwus	the late Roger Adolph's St’át’imcets n
 4.2 68	Henry Davis	gloss	IPFV=3SUBJ say+DIR-1SG.OBJ-3ERG there NMLZ-T’ámus
 4.2 68	Henry Davis	translation	‘T’ámus said to me:’
 4.2 69	Henry Davis	segmentation	“tsúlhaka7=Ø l-ts7a s-tix i=wa7 es-lép’ l-ts7a, nílh=Ø=iz’ cuz’ kéla7 lám-cit-Ø-em láti7.”
-4.2 69	Henry Davis	gloss	seven=3SUBJ at-this STAT-laid.out PL.DET=IPFV+EXIS STAT-buried at-this COP=3SUBJ=those PROS first pray-RDR-3OBJ-1PL.ERG there
+4.2 69	Henry Davis	gloss	seven=3SUBJ at-this STAT-positioned.out PL.DET=IPFV+EXIS STAT-buried at-this COP=3SUBJ=those PROS first pray-RDR-3OBJ-1PL.ERG there
 4.2 69	Henry Davis	translation	‘“There are seven who have been buried here, those are the ones we’re going to pray for first.”’
 4.2 70	Henry Davis	segmentation	wa7=Ø tsún-ts-as:
 4.2 70	Henry Davis	gloss	IPFV=3SUBJ say+DIR-1SG.OBJ-3ERG
@@ -359,7 +359,7 @@ footnote 8	Henry Davis	name	Tmícwus	the late Roger Adolph's St’át’imcets n
 4.2 76	Henry Davis	translation	‘“Okay”, I told T’ámus.’
 4.2 77	Henry Davis	segmentation	“t’ák=kacw=t’u7 xek-cít-{t}s [lh=]nká7=as.”
 4.2 77	Henry Davis	gloss	go.along=2SG.SUBJ=EXCL instruct-RDR-1SG.OBJ [COMP=]where=3SBJV
-4.2 77	Henry Davis	translation	‘“You keep telling me where they are.”’
+4.2 77	Henry Davis	translation	‘“You retain telling me where they are.”’
 4.2 78	Henry Davis	segmentation	ni[lh]=Ø [s=]súxwast=kalh e-t7ú::
 4.2 78	Henry Davis	gloss	COP=3SUBJ [NMLZ=]go.downhill=1PL.SUBJ to-that.DIST
 4.2 78	Henry Davis	translation	‘So we went down there.’

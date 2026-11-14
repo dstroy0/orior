@@ -48,7 +48,7 @@
     "const": true,
     "enum": {"type": "array", "items": true},
     "multipleOf": {"type": "number", "exclusiveMinimum": 0},
-    "maximum": {"type": "number"},
+    "max": {"type": "number"},
     "exclusiveMaximum": {"type": "number"},
     "minimum": {"type": "number"},
     "exclusiveMinimum": {"type": "number"},

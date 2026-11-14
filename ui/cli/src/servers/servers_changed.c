@@ -125,7 +125,7 @@ EMBED_INLINE int changed_stem(const ServersChangedCtx *args)
     return 1;
 }
 
-// whether `size` bytes of `stem` stand in the line as a word, with no letter, digit or `_` either side
+// whether `size` bytes of `stem` are in the line as a word, with no character, digit or `_` either side
 EMBED_INLINE int changed_word(const ServersChangedCtx *args)
 {
     unsigned long long length = args->length;
@@ -140,18 +140,18 @@ EMBED_INLINE int changed_word(const ServersChangedCtx *args)
         const unsigned long long end = start + size;
         unsigned long long reserved = 0ULL;
         const unsigned int before = (start > 0ULL)
-                                        ? EMBED_CALL(cli_text_length.letter_before, CliTextLengthCfg,
+                                        ? EMBED_CALL(cli_text_length.character_before, CliTextLengthCfg,
                                                      .text = args->line, .end_value = start, .length = &reserved)
                                         : 0u;
-        const unsigned int after = (end < length) ? EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->line,
+        const unsigned int after = (end < length) ? EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = args->line,
                                                                .size = length, .at = end, .length = &reserved)
                                                   : 0u;
         const int bounded_before =
             (start == 0ULL) ||
-            (!EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .letter = before) && (before != '_'));
+            (!EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .character = before) && (before != '_'));
         const int bounded_after =
             (end == length) ||
-            (!EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .letter = after) && (after != '_'));
+            (!EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .character = after) && (after != '_'));
         if (bounded_before && bounded_after)
         {
             return 1;
@@ -235,7 +235,7 @@ EMBED_INLINE int changed_names(const ServersChangedCtx *args)
 static void changed_removed_find(const CliEachKeyedEntryCfg *args)
 {
     CliServersEvents *const events = args->context;
-    // the key and the URI beside it, each a path's length at most, read out of the entry's cell
+    // the key and the URI beside it, each a path's length at max, read out of the entry's cell
     char key[CLI_PATH_MAX_LEN];
     char uri[CLI_PATH_MAX_LEN];
     const unsigned long long key_bytes =
@@ -327,7 +327,7 @@ EMBED_INLINE void changed_removed_emit(const ServersChangedCtx *args)
 EMBED_INLINE void changed_emit(const ServersChangedCtx *args)
 {
     const char *root = args->root;
-    // a change's URI is at most a path's, written with every byte escaped; a URI gone is one stored beside its key
+    // a change's URI is at max a path's, written with every byte escaped; a URI gone is one stored beside its key
     const unsigned long long stored =
         EMBED_CALL(cli_keyed_table.listed_size, CliKeyedCfg, .keyed = &g_cli_servers_published);
     const unsigned long long removed_capacity = stored + 1ULL;

@@ -32,9 +32,9 @@ void tearDown(void)
 
 void test_a_scripts_comment_end_its_license(void)
 {
-    assert_comment("The live preview: the file in the editor shown as it reads.", "a.js",
+    assert_comment("The live preview: the file in the editor displayed as it reads.", "a.js",
                    "// orior - Copyright (C) 2026\n// SPDX-License-Identifier: AGPL-3.0\n\n// The live preview: the file\n"
-                   "// in the editor shown as it reads.\n\nimport x from \"./x.js\";\n// later\n");
+                   "// in the editor displayed as it reads.\n\nimport x from \"./x.js\";\n// later\n");
 }
 
 void test_a_rust_files_comment(void)

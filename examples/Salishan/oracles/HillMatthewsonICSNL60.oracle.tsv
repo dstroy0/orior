@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Hector Hill and Lisa Matthewson	note	In Proceedings of the International Conference on Salish and Neighbouring Languages 60, Ella Hannon, Brian Diep, Laura Griffin, Mila Loginova, Bruce Oliver, Lauren Schneider, Reed Steiner, and Bailey Trotter (eds.). Vancouver, BC: UBCWPL, 2025.	page 1
 front	Hector Hill and Lisa Matthewson	note	Abstract: This paper is about asking and answering polar questions in Gitksan. We hope that the paper will be useful for Gitksan community members who are (re-)learning their language. There are several different ways to ask a polar question like ‘Is it raining?’ in Gitksan, and the best way to use depends on the context of the conversation you are in. We show that how you ask a question matters, how you answer it matters, and who you are talking to matters.	page 1
 front	Hector Hill	transcription	Hlisima halaaxdis	page 1, under the abstract
@@ -23,7 +23,7 @@ footnote 2	Hector Hill and Lisa Matthewson	note	2 Abbreviations: 1/2/3 = first/s
 (1) line 3	Gitksan	gloss	wake=PN Louise=Q	page 2, engine english
 (1) line 4	Hector Hill and Lisa Matthewson	translation	‘Is Louise awake?’	page 2, engine english
 (1) line 4	Hector Hill and Lisa Matthewson	citation	(volunteered HH)	the tag or source at the right of the translation
-§1.1	Hector Hill and Lisa Matthewson	note	This paper is not about content questions, which require different kinds of answers, such as ‘I helped Louise’ in example (2).	page 2
+§1.1	Hector Hill and Lisa Matthewson	note	This paper is not about content questions, which require different types of answers, such as ‘I helped Louise’ in example (2).	page 2
 (2) line 1	Gitksan	transcription	Naahl hlimooyin?	page 2, engine english
 (2) line 2	Gitksan	segmentation	Naa=hl hlimoo-yi-n?	page 2, engine residue
 (2) line 3	Gitksan	gloss	who=CN help-TR-2SG.II	page 2, engine english
@@ -123,8 +123,8 @@ footnote 5 (i) line 3	Gitksan	gloss	NEG=FOC go-1SG.II	page 5, footnote 5
 footnote 5 (i) line 4	Rigsby 1986:200	translation	‘I didn’t go.’	page 5, footnote 5
 footnote 5 (i) line 4	Hector Hill and Lisa Matthewson	citation	(Rigsby 1986:200)	the source of the example
 §2.2	Hector Hill and Lisa Matthewson	heading	2.2 Questions with just aa	page 6
-§2.2	Hector Hill and Lisa Matthewson	note	When the questioner believes the answerer will confirm the sentence being asked about, fluent speakers are most likely to use just aa and not nee or nee dii. An example is shown in the storyboard in Figure 1. Rose sees Bob coming in wearing raingear and holding an umbrella, so she is pretty sure he’s going to confirm that it’s raining.	page 6
-§2.2	Hector Hill and Lisa Matthewson	note	Figure 1: Raingear storyboard (adapted from Gunlogson 2008:104) When Gitksan fluent speakers were shown this context, they translated Rose’s question using just aa, as shown in (6). Most of the speakers did not like to use nee in this context, as shown in (6) and by the comments they gave. It’s also not good to use nee dii here, as shown in (6).	page 6
+§2.2	Hector Hill and Lisa Matthewson	note	When the questioner believes the answerer will confirm the sentence being asked about, fluent speakers are likely to use just aa and not nee or nee dii. An example is displayed in the storyboard in Figure 1. Rose sees Bob coming in wearing raingear and holding an umbrella, so she is pretty sure he’s going to confirm that it’s raining.	page 6
+§2.2	Hector Hill and Lisa Matthewson	note	Figure 1: Raingear storyboard (adapted from Gunlogson 2008:104) When Gitksan fluent speakers were displayed this context, they translated Rose’s question using just aa, as displayed in (6). The majority of the speakers did not like to use nee in this context, as displayed in (6) and by the comments they gave. It’s also not good to use nee dii here, as displayed in (6).	page 6
 (6) line 1	Hector Hill and Lisa Matthewson	note	Context: Raingear storyboard	page 6, engine english
 (6a) line 1	Gitksan	transcription	Yukwhl wis aa?	page 7, engine english
 (6a) line 2	Gitksan	segmentation	Yukw=hl wis=aa?	page 7, engine language
@@ -174,7 +174,7 @@ footnote 5 (i) line 4	Hector Hill and Lisa Matthewson	citation	(Rigsby 1986:200)
 (7e) line 4	Hector Hill and Lisa Matthewson	citation	(volunteered in different context BS, JH)	the tag or source at the right of the translation
 (7e) line 5	Barbara Sennott	speaker comment	Comment on (7): “No, I wouldn’t say that. Nee dii is no.” [corrects to (7)] (BS)	page 9, engine english
 §2.2	Hector Hill and Lisa Matthewson	note	So far we have been looking at contexts where the questioner expects the answerer to answer with a confirmation. Another feature of the contexts so far is that the questioner themselves was fairly neutral until just before they asked the question. In the raining case for example, Rose was in an office without windows and she had no clue about the weather until she saw Bob in his raingear. Next we will look at what happens if the questioner expects the answerer to confirm, but the questioner is also surprised because they had thought the answer was going to be ‘no’. In this case, fluent speakers still use aa and no nee or nee dii, but they tend to add the marker k'ap or ap, which is an emphasis word meaning something like ‘really’ (called ‘verum’ by linguists; see Matthewson 2021). (Whether a speaker uses k'ap or ap depends on the dialect. Gyeets (west/downstream) speakers tend to use k'ap and Gigeenix (east/upstream) speakers tend to use ap.) Hector says that when the person asking a question uses k'ap/ap, that tells the other person that she or he knows the answer already. Sometimes a question with k'ap/ap is used to see if the other person was looking at what she or he was saying.	page 9
-§2.2	Hector Hill and Lisa Matthewson	note	A scenario where k'ap/ap is appropriate is shown in Figure 3 When Bob asks his question, Rose has already basically given him the answer: she’s going to the party. But previously Rose had made it seem like she wouldn’t be going, so in his question he expresses his surprise. Figure 3: Olivia’s party – really? storyboard	page 9
+§2.2	Hector Hill and Lisa Matthewson	note	A scenario where k'ap/ap is appropriate is displayed in Figure 3 When Bob asks his question, Rose has already basically given him the answer: she’s going to the party. But previously Rose had made it seem like she wouldn’t be going, so in his question he expresses his surprise. Figure 3: Olivia’s party – really? storyboard	page 9
 (8) line 1	Hector Hill and Lisa Matthewson	note	Context: Olivia’s party – really? storyboard	page 11, engine english
 (8a) line 1	Gitksan	transcription	Dim k'ap hukws 'niin go'ohl liligets Olivia haa?	page 11, engine english
 (8a) line 2	Gitksan	segmentation	Dim k'ap hukws 'niin go'o=hl liliget-s Olivia=haa?	page 11, engine english, carries footnote 6, written here without its digit
@@ -232,7 +232,7 @@ footnote 8	Hector Hill and Lisa Matthewson	note	8 When different speakers used d
 §2.2	Hector Hill and Lisa Matthewson	note	There is one last type of context where questions are made with just aa, no nee or nee dii. This context seems quite different from the other ones we showed so far: it’s when the questioner knows for sure that the statement contained in the question is true, and they also know that the answerer does not know the answer to the question, and they are implicitly asking a slightly different question. This might sound complicated, but an example will hopefully make it clear. Look at the scenario in Figure 4.	page 13
 footnote 9	Hector Hill and Lisa Matthewson	note	9 Adapted from Farkas and Roelofsen (2017:276).	page 13, footnote
 §2.2	Hector Hill and Lisa Matthewson	note	Figure 4: She’s five? storyboard (adapted from Goodhue 2024:955) In this scenario, the questioner knows perfectly well that his daughter is five, and the person he is talking to has no idea how old she is, so he is definitely not asking her whether it’s true that his daughter is five. In English, we would raise the intonation of our voice here to make it sound like a question. By the rising intonation, the father gets across his uncertainty about whether there will be room for his daughter in swimming class, given that she is five.	page 14
-§2.2	Hector Hill and Lisa Matthewson	note	In contexts like this, you can use a question with aa, as shown in (11). If nee is added, it will be interpreted as the father asking the pool worker whether his daughter is five – so it is no longer appropriate in this context.	page 14
+§2.2	Hector Hill and Lisa Matthewson	note	In contexts like this, you can use a question with aa, as displayed in (11). If nee is added, it will be interpreted as the father asking the pool worker whether his daughter is five – so it is no longer appropriate in this context.	page 14
 §2.2	Gitksan	cited form	aa	page 6, italic in the prose
 §2.2	Gitksan	cited form	nee	page 6, italic in the prose
 §2.2	Gitksan	cited form	nee dii	page 6, italic in the prose
@@ -255,7 +255,7 @@ footnote 9	Hector Hill and Lisa Matthewson	note	9 Adapted from Farkas and Roelof
 (11b) line 6	Hector Hill	speaker comment	Hector: “No, no. That means he doesn’t know anything about his daughter.”	page 14, engine english
 §2.3	Hector Hill and Lisa Matthewson	heading	2.3 Questions with nee and aa	page 14
 §2.3	Hector Hill and Lisa Matthewson	name	Büring	Daniel Büring, Büring and Gunlogson 2000
-§2.3	Hector Hill and Lisa Matthewson	note	When do fluent speakers use nee in polar questions? There are a couple of types of scenario. The first scenario where questions with nee are a good choice is when the questioner has no prior belief about whether the answer will be positive or negative, and there is also no evidence in the context about what the answer will be. In other words, these are very neutral contexts. In the storyboard in Figure 5, the questioner probably has no idea what the weather is like in her friend’s town, and he also hasn’t given her any clues because they just started the conversation. The most usual way for the speakers to make the question is to start it with nee, as shown in (12). Figure 5: Phone sunny storyboard (Büring and Gunlogson 2000:8)	page 14
+§2.3	Hector Hill and Lisa Matthewson	note	When do fluent speakers use nee in polar questions? There are a couple of types of scenario. The first scenario where questions with nee are a good choice is when the questioner has no prior belief about whether the answer will be positive or negative, and there is also no evidence in the context about what the answer will be. In other words, these are very neutral contexts. In the storyboard in Figure 5, the questioner probably has no idea what the weather is like in her friend’s town, and he also hasn’t given her any clues because they just started the conversation. The max usual way for the speakers to make the question is to start it with nee, as displayed in (12). Figure 5: Phone sunny storyboard (Büring and Gunlogson 2000:8)	page 14
 (12) line 1	Hector Hill and Lisa Matthewson	note	Context: Phone sunny storyboard	page 15, engine english
 (12a) line 1	Gitksan	transcription	Neehl goymaxhl hloxws aa?	page 15, engine english
 (12a) line 2	Gitksan	segmentation	Nee=hl goymax=hl hloxws=aa?	page 15, engine residue
@@ -298,7 +298,7 @@ footnote 9	Hector Hill and Lisa Matthewson	note	9 Adapted from Farkas and Roelof
 (13c) line 4	Hector Hill and Lisa Matthewson	citation	(HH)	the tag or source at the right of the translation
 footnote 10	Hector Hill and Lisa Matthewson	note	10 Adapted from AnderBois (2019:124).	page 16, footnote
 (13c) line 5	Hector Hill	speaker comment	Comment on (13): “Right now there’s food for the bear: fish, berries, potatoes and other food. The only thing that the bear’s eating now is the fish and then everybody looks and says “Oo, [(13)].” They’re curious; he’s not eating the potatoes. In that context that would work.” (HH)	page 17, engine english
-§2.3	Hector Hill and Lisa Matthewson	note	Another example of a neutral context is bureaucratic forms. Example (14) shows that the most preferred form of the question contains nee but not dii. A question with just aa is also acceptable, but the speaker’s comment in (14) suggests that when you ask it this way, the question isn’t completely neutral about the answer. (The question mark in brackets means that the sentence is sometimes accepted and sometimes judged as not very good in this context.)	page 17
+§2.3	Hector Hill and Lisa Matthewson	note	Another example of a neutral context is bureaucratic forms. Example (14) shows that the max preferred form of the question contains nee but not dii. A question with just aa is also acceptable, but the speaker’s comment in (14) suggests that when you ask it this way, the question isn’t completely neutral about the answer. (The question mark in brackets means that the sentence is sometimes accepted and sometimes judged as not very good in this context.)	page 17
 (14) line 1	Hector Hill and Lisa Matthewson	note	Context: On a health insurance form11	page 17, engine english
 (14a) line 1	Gitksan	transcription	(?) Naks/neks 'niin aa?	page 17, engine english
 (14a) line 2	Gitksan	segmentation	(?) Naks/neks 'niin=aa?	page 17, engine english
@@ -369,7 +369,7 @@ footnote 12	Hector Hill and Lisa Matthewson	note	12 Adapted from Domaneschi et a
 (17b) line 3	Gitksan	gloss	shine=CN sun=Q	page 20, engine english
 (17b) line 4	Hector Hill and Lisa Matthewson	translation	‘Is it sunny?’	page 20, engine english
 (17b) line 4	Hector Hill and Lisa Matthewson	citation	(HH)	the tag or source at the right of the translation
-§2.3	Hector Hill and Lisa Matthewson	note	Another case like this is in (18). All the five speakers who were shown this context offered questions that began with nee; one example is given in (18a). Using just aa is not appropriate, as shown in (18b), and nee dii can be okay, as in (18).	page 20
+§2.3	Hector Hill and Lisa Matthewson	note	Another case like this is in (18). All the five speakers who were displayed this context offered questions that began with nee; one example is given in (18a). Using just aa is not appropriate, as displayed in (18b), and nee dii can be okay, as in (18).	page 20
 §2.3	Gitksan	cited form	nee	page 16, italic in the prose
 §2.3	Gitksan	cited form	aa	page 16, italic in the prose
 §2.3	Gitksan	cited form	nee dii	page 16, italic in the prose
@@ -417,7 +417,7 @@ footnote 12	Hector Hill and Lisa Matthewson	note	12 Adapted from Domaneschi et a
 (19d) line 4	Hector Hill and Lisa Matthewson	translation	‘Is there a good restaurant here?’	page 22, engine english
 (19d) line 4	Hector Hill and Lisa Matthewson	citation	(HH)	the tag or source at the right of the translation
 (19d) line 5	Hector Hill	speaker comment	Comment on (19): “No, when you say [(19)] it’s literally telling him that there’s a good restaurant here. Because there’s no nee dii or neehl.” (HH)	page 22, engine english
-§2.4	Hector Hill and Lisa Matthewson	note	Another case where the questioner was neutral before, but now expects the person to answer negatively, is shown in (20).	page 22
+§2.4	Hector Hill and Lisa Matthewson	note	Another case where the questioner was neutral before, but now expects the person to answer negatively, is displayed in (20).	page 22
 (20) line 1	Hector Hill and Lisa Matthewson	note	Context: Tomorrow you need to go from Vancouver to Seattle as early as possible. You have no idea what time the buses might go. You go to the ticket office and ask for a bus ticket for the next morning. The agent says ‘The only bus is at 1 o’clock.’ You say:13	page 22, engine english
 (20a) line 1	Gitksan	transcription	(Oo,) nee dii baxhl/golhl jikjik/bus ahl hiihluxw aa?	page 22, engine english
 (20a) line 2	Gitksan	segmentation	(Oo,) nee=dii bax/gol=hl jikjik/bus a=hl hiihluxw=aa?	page 22, engine residue
@@ -434,7 +434,7 @@ footnote 12	Hector Hill and Lisa Matthewson	note	12 Adapted from Domaneschi et a
 (20c) line 3	Gitksan	gloss	run=CN vehicle=CN morning=Q	page 22, engine english
 (20c) line 4	Hector Hill and Lisa Matthewson	translation	‘Is a bus running in the morning?’	page 22, engine english
 (20c) line 4	Hector Hill and Lisa Matthewson	citation	(HH)	the tag or source at the right of the translation
-(20c) line 5	Hector Hill	speaker comment	Comment on (20): “Usually when people ask a question they wanna know the answer. When you say [(20)] it’s pretty hard to say yes or no. Because it’s almost like a direct answer to the question in answering. It’s kind of direct, putting it right back to the individual.” [Judges (20) as “much worse” than (20).] (HH)	page 22, engine english
+(20c) line 5	Hector Hill	speaker comment	Comment on (20): “Usually when people ask a question they wanna know the answer. When you say [(20)] it’s pretty hard to say yes or no. Because it’s almost like a direct answer to the question in answering. It’s type of direct, putting it right back to the individual.” [Judges (20) as “much worse” than (20).] (HH)	page 22, engine english
 §2.4	Hector Hill and Lisa Matthewson	note	The second main case where nee dii is used is a pretty uncommon type of context. It’s when the questioner thought before that the answer to the question was ‘no’, but the person they are asking seems to be neutral about the answer. So the questioner is double-checking the negative answer. An example is given in (21). The speakers always volunteer nee dii in this type of context (21), and other versions are not accepted (21).	page 22
 footnote 13	Hector Hill and Lisa Matthewson	note	13 Adapted from Domaneschi et al. (2017:14).	page 22, footnote
 (21) line 1	Hector Hill and Lisa Matthewson	note	Context: A is learning to become a Gitksan teacher and wants some practice at teaching beginners. B knows that Charlie has never learnt the language. B says:14	page 23, engine english
@@ -480,7 +480,7 @@ footnote 14	Hector Hill and Lisa Matthewson	note	14 Adapted from Romero and Han 
 (23b) line 4	Hector Hill and Lisa Matthewson	citation	(VG)	the tag or source at the right of the translation
 (23b) line 5	Vincent Gogag	speaker comment	Comment on (23): “In that context I would have said [(23)].” (VG)	page 24, engine english
 §2.5	Hector Hill and Lisa Matthewson	heading	2.5 Always use aa	page 24
-§2.5	Hector Hill and Lisa Matthewson	note	The last thing we want to say about making polar questions in Gitksan is that speakers don’t usually accept it when the aa is missing. This is different from in English, which has a construction called a ‘declarative question’, which is when you ask a question without doing anything except raising your tone. This is shown in 0. In 0, the declarative question has the same words in the same order as an ordinary statement, but if the tone rises it is interpreted as a question (request for confirmation).	page 24
+§2.5	Hector Hill and Lisa Matthewson	note	The last thing we want to say about making polar questions in Gitksan is that speakers don’t usually accept it when the aa is missing. This is different from in English, which has a construction called a ‘declarative question’, which is when you ask a question without doing anything except raising your tone. This is displayed in 0. In 0, the declarative question has the same words in the same order as an ordinary statement, but if the tone rises it is interpreted as a question (request for confirmation).	page 24
 (24) line 1	Hector Hill and Lisa Matthewson	note	Context: Raingear storyboard (see Figure 1)	page 24, engine english
 (24a) line 1	Hector Hill and Lisa Matthewson	note	Is it raining? ORDINARY QUESTION	page 24, an English question and the type the page names beside it
 (24b) line 1	Hector Hill and Lisa Matthewson	note	It’s raining? DECLARATIVE QUESTION	page 24, an English question and the type the page names beside it
@@ -493,7 +493,7 @@ footnote 14	Hector Hill and Lisa Matthewson	note	14 Adapted from Romero and Han 
 (25) line 4	Hector Hill and Lisa Matthewson	translation	Intended: ‘It’s raining?’	page 24, engine english
 (25) line 4	Hector Hill and Lisa Matthewson	citation	(HH)	the tag or source at the right of the translation
 (25) line 5	Hector Hill	speaker comment	Comment: “No. You need the aa.” (HH)	page 24, engine english
-(26) line 1	Hector Hill and Lisa Matthewson	note	Context: At Katie’s graduation; Katie is standing next to an older woman. You ask the older woman:	page 25, carries footnote 15, written here without its digit
+(26) line 1	Hector Hill and Lisa Matthewson	note	Context: At Katie’s graduation; Katie is located next to an older woman. You ask the older woman:	page 25, carries footnote 15, written here without its digit
 (26) line 1	Gitksan	transcription	# Noxs Katie 'niin?	page 25
 (26) line 1	Gitksan	segmentation	# Nox-s Katie 'niin? [pronounced with rising intonation]	page 25, with the note in brackets the page sets beside it
 (26) line 1	Gitksan	gloss	mother[-3.II]=PN Katie 2SG.III	page 25
@@ -535,7 +535,7 @@ footnote 15	Hector Hill and Lisa Matthewson	note	15 Adapted from Poschmann (2008
 §4	Hector Hill and Lisa Matthewson	heading	4 Conclusion	page 26
 §4.1	Hector Hill and Lisa Matthewson	heading	4.1 Summary	page 26
 §4.1	Hector Hill and Lisa Matthewson	note	To ask and answer polar questions in a really fluent way in Gitksan, it’s important to understand cultural aspects about when to ask, when to answer, and how to adapt your questions and answers depending on who you are talking to. To ask and answer questions like a fluent speaker it’s also good to understand when you should use just aa, when you should use nee as well as aa, when it’s best to use nee dii, and when you should add k'ap/ap.	page 26
-§4.1	Hector Hill and Lisa Matthewson	note	As we mentioned earlier, the best way to absorb the information is to talk to fluent speakers and listen to how they ask and answer questions. The more you listen and the more you practice, the more you will naturally be able to use the questions in the most authentic way. In 0 we summarize some of the main ideas we have presented about the different ways to make a question in Gitksan.	page 26
+§4.1	Hector Hill and Lisa Matthewson	note	As we mentioned earlier, the best way to absorb the information is to talk to fluent speakers and listen to how they ask and answer questions. The more you listen and the more you practice, the more you will naturally be able to use the questions in the max authentic way. In 0 we summarize some of the main ideas we have presented about the different ways to make a question in Gitksan.	page 26
 footnote 16	Hector Hill and Lisa Matthewson	note	16 This matches what Rigsby says about answering (1986:296): ‘[Polar] questions can be answered minimally with the particles Ee'e. /ʔe•ʔ/ Yes. or Nee. /ne•/ No., as in English, but good speakers say that it is better to frame fuller answers or replies in terms of the predicate and nominal adjuncts of the question sentence.’	page 26, footnote
 footnote 16	Rigsby 1986:296	cited form	Ee'e.	page 26, footnote 16, ‘Yes.’
 footnote 16	Rigsby 1986:296	cited form	Nee.	page 26, footnote 16, ‘No.’

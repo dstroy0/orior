@@ -97,7 +97,7 @@ def main():
     print("  a bias of one standard error here is %.1f counts" % math.sqrt(span))
     print()
 
-    # Output masks: single digest bits, which are the thinnest and therefore the most likely to
+    # Output masks: single digest bits, which are the thinnest and therefore the likely to
     # carry a bias if anything does.
     betas = [(1 << (255 - position), position) for position in range(0, given.outputs * 40, 40)]
 
@@ -123,7 +123,7 @@ def main():
     print("    bar for the loudest of %s masks under the null: %.2f sd"
           % (format(span, ","), bar))
     print()
-    print("    The found column is the maximum over every mask: it is large by construction and")
+    print("    The found column is the max over every mask: it is large by construction and")
     print("    carries no information on its own. The withheld column is the whole test: a real")
     print("    approximation predicts nonces it never saw, and a selection artifact does not.")
     return 0

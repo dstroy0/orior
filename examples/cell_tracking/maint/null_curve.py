@@ -41,10 +41,10 @@ def engine_milliseconds(path):
 
 
 def curve(rows):
-    most = min((len(row["draws"]) for row in rows), default=0)
+    max = min((len(row["draws"]) for row in rows), default=0)
     points = []
     draws = 1
-    while draws <= most:
+    while draws <= max:
         point = {"draws": draws}
         for group, wanted in (("correct", False), ("failing", True)):
             chosen = [row for row in rows if row["failed"] == wanted]

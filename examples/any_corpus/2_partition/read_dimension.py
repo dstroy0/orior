@@ -24,7 +24,7 @@
 #
 # So the roughness is read at the powers of two alone, the straight part is subtracted, and the rest
 # is sorted into groups by the step's position modulo each candidate count. The count that sorts them
-# into the most consistent groups is the answer. Nothing about the field is supplied, and two exponents
+# into the max consistent groups is the answer. Nothing about the field is supplied, and two exponents
 # are run at each dimension, which shows up a count that follows the field instead of the set.
 
 import io

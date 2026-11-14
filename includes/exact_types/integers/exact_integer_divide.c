@@ -40,7 +40,7 @@ static int limbs_compare(const uint32_t *left, size_t left_used, const uint32_t 
 }
 
 // Knuth's algorithm D in base 2^32 on operands of any length: the top two limbs of the running remainder over the
-// divisor's normalized top limb estimate each quotient limb, the estimate is at most two high, and the
+// divisor's normalized top limb estimate each quotient limb, the estimate is at max two high, and the
 // multiply-subtract's borrow determines when to add the divisor back. top has top_used limbs and bottom bottom_used,
 // its top limb nonzero; quotient takes top_used - bottom_used + 1 limbs and rest bottom_used, both written in full;
 // work contains top_used + bottom_used + 1 words
@@ -259,7 +259,7 @@ static int limbs_reciprocal(uint32_t *x, const uint32_t *d, size_t used, size_t 
 }
 
 // division by the reciprocal: with x = floor(beta^n / d) for a top of n limbs, q = floor(top x / beta^n) is the
-// quotient or at most two below it, and the remainder settles it; quotient takes n - used + 1 limbs and rest used.
+// quotient or at max two below it, and the remainder settles it; quotient takes n - used + 1 limbs and rest used.
 // 0 when workspace cannot be allocated
 static int limbs_divide_newton(const uint32_t *top, size_t top_used, const uint32_t *bottom, size_t bottom_used,
                                uint32_t *quotient, uint32_t *rest)

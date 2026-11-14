@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Brent Hall and Bev Phillips	note	Papers for the International Conference on Salish and Neighbouring Languages 59. D. K. E. Reisinger, Laura Griffin, Ella Hannon, Gloria Mellesmoen, Sander Nederveen, Bruce Oliver, Julia Schillo, Lauren Schneider, Bailey Trotter (eds.). Vancouver, BC: UBCWPL, 2024.	page 1
 front	nɬeʔkepmxcín	cited form	xʷíʔ	page 1
 front	nɬeʔkepmxcín	cited form	kʷ	page 1
@@ -26,7 +26,7 @@ footnote *	Brent Hall and Bev Phillips	note	This project was funded by the Jacob
 §1.1	nɬeʔkepmxcín	cited form	c̓úʔsinek	page 1, the name of Marty Aspinall
 §1.1	nɬeʔkepmxcín	cited form	kʷukʷstéyp	page 1, thank you
 §1.1	Brent Hall and Bev Phillips	name	Nlaka’pamux	page 1, the people, in the translation of Bernice Garcia
-§1.1	Brent Hall and Bev Phillips	note	Nɬeʔkepmxcín is a Salish language of the Northern Interior subfamily spoken along the Fraser and Nicola rivers in South Central British Columbia, Canada in communities such as Lytton, Spuzzum, Coldwater, and Shulus, to name a few. The dialects spoken in Spuzzum and Lytton are the most documented, with the Spuzzum dialect being the predominant one reflected in the grammar and the dictionary (Thompson & Thompson 1992, 1996) and the Lytton dialect being featured heavily in more recent literature (Koch 2004, 2005, 2006, 2008, 2011, 2013). Recent work, though, has included the Coldwater dialect (Hannon et al. 2023). As of 2022, there are about 105 fluent speakers of the language (Gessner et al. 2022).	page 1
+§1.1	Brent Hall and Bev Phillips	note	Nɬeʔkepmxcín is a Salish language of the Northern Interior subfamily spoken along the Fraser and Nicola rivers in South Central British Columbia, Canada in communities such as Lytton, Spuzzum, Coldwater, and Shulus, to name a few. The dialects spoken in Spuzzum and Lytton are the max documented, with the Spuzzum dialect being the predominant one reflected in the grammar and the dictionary (Thompson & Thompson 1992, 1996) and the Lytton dialect being featured heavily in more recent literature (Koch 2004, 2005, 2006, 2008, 2011, 2013). Recent work, though, has included the Coldwater dialect (Hannon et al. 2023). As of 2022, there are about 105 fluent speakers of the language (Gessner et al. 2022).	page 1
 §1.2	Brent Hall and Bev Phillips	heading	1.2 Recording the story	page 2
 §1.2	Brent Hall and Bev Phillips	language	Nɬeʔkepmxcín	Nɬeʔkepmxcín, Thompson River Salish, the language of the story
 §1.2	nɬeʔkepmxcín	cited form	xʷíʔ	page 2
@@ -40,7 +40,7 @@ footnote *	Brent Hall and Bev Phillips	note	This project was funded by the Jacob
 §1.4	Brent Hall and Bev Phillips	language	Nɬeʔkepmxcín	Nɬeʔkepmxcín, Thompson River Salish, the language of the story
 §1.4	Brent Hall and Bev Phillips	note	After telling the story, Bev shared her original copy which was written in the Nɬeʔkepmxcín orthography commonly used in Lytton. Using words that I was already familiar with as keys, I converted her orthography into the North American Phonetic Alphabet (NAPA) as employed by Thompson and Thompson (T&T) in their grammar and dictionary (1992, 1996). This was done because NAPA is the orthography used for Nɬeʔkepmxcín in the linguistic literature. Once I had converted the orthography, I listened to the recording numerous times to check for any differences between it and the transcription. Upon finding some, Bev instructed me, on a case- by-case basis, to follow either her writing or the recording. Differences between the recording and transcription are identified in the footnotes of Section 4.	page 2
 footnote 1	Brent Hall and Bev Phillips	note	1 Thank you to Noah Luntzlara for both providing and operating the microphone during this session.	page 2, footnote
-§1.4	Brent Hall and Bev Phillips	note	While revising the transcription, I also worked on the four-line gloss found in Section 4. The first line is the orthography line where the sentences are transcribed in NAPA as they would be written or spoken. For spelling, I followed conventions used by T&T (1992, 1996) when they aligned with the recording, which was the case for the vast majority of morphemes. In other cases, the spelling of a given word reflects more closely the way it was pronounced in the recording, rather than previously attested spellings. Primary stress is also indicated in this line with an acute accent since this is part of T&T’s (1992, 1996) use of the orthography, though they do not always mark it consistently. To my knowledge, there is not a standardized way to mark stress in the language, so I used my best judgment to mark it accurately, and as a result, I expect the possibility of mistakes. The second line is the segmentation line where sentences are segmented into morphemes written in their underlying representations. Since roots, at least in this story, typically are not subject to any phonological processes, they are mostly transcribed identically in both the orthography line and the segmentation line, and they are spelled as they appear in T&T (1996). Grammatical categories, on the other hand, are more often subject to phonological processes, especially the transitive agreement morphology. For most of these morphemes, only T&T (1992) have postulated underlying representations, and to my knowledge, there hasn’t been any later scrutinizing of these proposed forms. The determiners, though, are the one exception since they’re sometimes spelled or analyzed differently in later literature, see Kroeber (1997) and Koch (2008:47–52). It should be noted then that I use forms of grammatical categories that reflect the most current research. For any morpheme that I suspected of having a different underlying representation from the one(s) proposed in previous research, I represent it in the segmentation line as it appears in the orthography line. In cases where a morpheme has been proposed to have more than one possible underlying representation by the same researcher(s), I use the one that more closely resembles the corresponding form in the orthography line. Similarly, reduplicative affixation appears in this line as it does in the orthography line. It should also be noted that some morphemes are underlyingly stressed in Nɬeʔkepmxcín. However, my knowledge of the stress system in the language is limited, so I mark primary stress in both the orthography line and the segmentation line on the same syllable. By using these first two lines as outlined above, I aim to depict the phonology of the language as accurately as possible.2 However, since I was not always sure of the underlying representation (s) of a given morpheme, I caution the reader to not draw any conclusions about the phonology based on this paper alone.	page 2
+§1.4	Brent Hall and Bev Phillips	note	While revising the transcription, I also worked on the four-line gloss found in Section 4. The first line is the orthography line where the sentences are transcribed in NAPA as they would be written or spoken. For spelling, I followed conventions used by T&T (1992, 1996) when they aligned with the recording, which was the case for the vast majority of morphemes. In other cases, the spelling of a given word reflects more closely the way it was pronounced in the recording, rather than previously attested spellings. Primary stress is also indicated in this line with an acute accent since this is part of T&T’s (1992, 1996) use of the orthography, though they do not always mark it consistently. To my knowledge, there is not a standardized way to mark stress in the language, so I used my best judgment to mark it accurately, and as a result, I expect the possibility of mistakes. The second line is the segmentation line where sentences are segmented into morphemes written in their underlying representations. Since roots, at least in this story, typically are not subject to any phonological processes, they are mostly transcribed identically in both the orthography line and the segmentation line, and they are spelled as they appear in T&T (1996). Grammatical categories, on the other hand, are more often subject to phonological processes, especially the transitive agreement morphology. For the majority of these morphemes, only T&T (1992) have postulated underlying representations, and to my knowledge, there hasn’t been any later scrutinizing of these proposed forms. The determiners, though, are the one exception since they’re sometimes spelled or analyzed differently in later literature, see Kroeber (1997) and Koch (2008:47–52). It should be noted then that I use forms of grammatical categories that reflect the max current research. For any morpheme that I suspected of having a different underlying representation from the one(s) proposed in previous research, I represent it in the segmentation line as it appears in the orthography line. In cases where a morpheme has been proposed to have more than one possible underlying representation by the same researcher(s), I use the one that more closely resembles the corresponding form in the orthography line. Similarly, reduplicative affixation appears in this line as it does in the orthography line. It should also be noted that some morphemes are underlyingly stressed in Nɬeʔkepmxcín. However, my knowledge of the stress system in the language is limited, so I mark primary stress in both the orthography line and the segmentation line on the same syllable. By using these first two lines as outlined above, I aim to depict the phonology of the language as accurately as possible.2 However, since I was not always sure of the underlying representation (s) of a given morpheme, I caution the reader to not draw any conclusions about the phonology based on this paper alone.	page 2
 §1.4	nɬeʔkepmxcín	cited form	Nɬab	page 3
 §1.4	Brent Hall and Bev Phillips	note	The third line is the gloss line where each morpheme is assigned a meaning. This was done with an English translation from T&T (1996) where possible, such as in the case of lexical items, prepositions, and coordinators. Other morphemes are labeled by their linguistic function. This portion was completed over the course of months by carefully reviewing the literature and consulting with my colleagues in Nɬab.	page 3
 §1.4	Brent Hall and Bev Phillips	note	The fourth and final line is the translation line where the entirety of the sentence is translated into English. This was the work of Bev using her original written copy of the story with only some minor editing from myself. The translations in this line are identical to those found in Section 3.	page 3
@@ -56,7 +56,7 @@ footnote 2	Brent Hall and Bev Phillips	note	2 For an overview of the phonology o
 §2	Bev Phillips	running speech	xʷúy̓ceʔ qʷincútm ɬ qəɬmín te séytknmx “té nke téʔe k sxʷəzstéys ɬ qəɬmín te stéməs k skntéys.” ʔé sʔíƛ̓ms ɬ qəɬmín, “ʔe tém us teʔ k smnúncmxʷ ƛ̓uʔ xʷíʔ kʷ páq.” tékɬ ƛ̓eʔ nc̓ə́ktm e sqʷúy̓iʔ, ʔé sxʷə́sts ɬ sqʷúy̓iʔ peɬ stékɬ. kíces e séytknmx ɬ qəɬmín ʔé sx̣ʔéns, “ʔe tém us k smnúncip, ƛ̓uʔ xʷíʔ kp páq. y̓hékstuze e tmíxʷep.”	page 5, the story as Bev Phillips wrote and told it
 §3	Brent Hall and Bev Phillips	heading	3 English	page 5
 §3	Bev Phillips	translation	Since the time when Old One created the earth, he was watching it to see if the people were looking after their land. Since the white people came to the land, the native people dropped his teachings. First, he looked at the ocean where the muddy water river (Fraser River) and all the creeks and water from the land mixed. He looked at the ocean and saw what the people threw away. Mixed into it were bottles and unknown things that people threw away. It was plastic that was floating in the water. He saw the big animals that swim there. They were tied with nets and rope. Some were poked with plastic in their noses. Because he watched those that live in the water, he knew that they also ate what the people threw away. Because he was the medicine man, he sensed if they were well, and he sensed if those who live in the ocean and everything else that grew there were getting sick from something. He was heartbroken from seeing the animals that way and the ocean. From there, Old One went north up the river. He looked at the mountains, prairies, and all the land. He already knew what it was like. A lot of the trees were cut, the earth was piled up, and trees were stacked on top of each other. All the trees that must have grown there were cut. There were no birds and no four-legged animals. Old One was very heartbroken.	page 5, the story in English
-§3	Bev Phillips	translation	He went north where he saw a hole in the ground where the white men were digging to look for silver and gold and every other kind of metal. It was a huge hole in the earth there. It could never be returned to the way it was. Old One was heartbroken. He saw more of the people’s garbage on the land and in the river. He knew that he wouldn’t be able to take away the plastic and Styrofoam from the land. The plastic was already in the people. There was a lot more that Old One saw the people do to their home, but this was the first time that he saw it and thought about it. And he said, “I made this land for the people, but they didn’t care for it. They will be sorry that they did this.” And Old One went to visit Sun, and he spoke to him. “Hey Sun, chief of the sky, I’m going to talk to you. The people have treated the land really poorly. They have thrown all kinds of things in the water and on the land. They have cut down many trees and dug in the land. And they have done much more than this. I am very angry and heartbroken. On a certain day that I tell you, you will become hotter. You will not feel sorry for anyone until I tell you to be cool.” “Oh okay, Old One.” And Old One told him, “I’m also going to talk to your younger brother, Wind.” And Old One sang, “If you do not listen to me, you will be sorry.” And he visited Wind. “Hey Wind, I am very angry at the people for mistreating the earth. I’m going to teach them that that is not right. On a certain day, you will blow very hard. You will not feel sorry for anyone. And Sun will also shine a lot.” And Wind said, “Oh okay, Old One.” And Old One told him, “I am also going to talk to Lightning and Thunder.” And Old One sang, “If you do not listen to me, you will be sorry.” He went to look for Lightning and Thunder. “Ah older brother, Thunder, and younger brother, Lightning. I am very angry at the people for mistreating the earth. On a certain day, you will be loud, Thunder, and you, Lightning, will strike intensely. You will strike the trees and the land. Neither of you will feel sorry for anyone. Both of you will do that until I tell you.” And they said, “Oh okay, Old One.” And Old One sang, “If you do not listen to me, you will be sorry.” And Old One thought, “I am also going to talk to Cloud and his older brother, Rain.” He reached Cloud and Rain. “Hey, Cloud and your older brother, Rain. I am very angry at the people for mistreating the earth. I am going to teach them that that is not right. I have already talked to Sun and Wind, Lightning and Thunder, and you two. From this day until summer, the two of you will gather all the water from the sky. You, Cloud, will hold and store it. You, Rain, will not fall. I know it will be heavy, but I will help you. I will hide you until it is summer. You two will do this until I tell you.” And they said, “Okay, Old One.” And Old One sang, “If you do not listen to me, you will be sorry.” From that time on, it did not rain, and it must not have rained for three months. During picking month, Old One went to talk to Sun. And Sun shone very hotly. Wind was reached by Old One and blew intensely. Because it did not rain, the land got very hot. Old One reached Thunder and Lightning. Thunder was loud, and Lightning threw his bolts. The people noticed how hot Sun was, how strong Wind was, and how loud Thunder was. They were very afraid when they heard Thunder. But when they saw Lightning, they cried.	page 5, the story in English
+§3	Bev Phillips	translation	He went north where he saw a hole in the ground where the white men were digging to look for silver and gold and every other type of metal. It was a huge hole in the earth there. It could never be returned to the way it was. Old One was heartbroken. He saw more of the people’s garbage on the land and in the river. He knew that he wouldn’t be able to take away the plastic and Styrofoam from the land. The plastic was already in the people. There was a lot more that Old One saw the people do to their home, but this was the first time that he saw it and thought about it. And he said, “I made this land for the people, but they didn’t care for it. They will be sorry that they did this.” And Old One went to visit Sun, and he spoke to him. “Hey Sun, chief of the sky, I’m going to talk to you. The people have treated the land really poorly. They have thrown all types of things in the water and on the land. They have cut down many trees and dug in the land. And they have done much more than this. I am very angry and heartbroken. On a certain day that I tell you, you will become hotter. You will not feel sorry for anyone until I tell you to be cool.” “Oh okay, Old One.” And Old One told him, “I’m also going to talk to your younger brother, Wind.” And Old One sang, “If you do not listen to me, you will be sorry.” And he visited Wind. “Hey Wind, I am very angry at the people for mistreating the earth. I’m going to teach them that that is not right. On a certain day, you will blow very hard. You will not feel sorry for anyone. And Sun will also shine a lot.” And Wind said, “Oh okay, Old One.” And Old One told him, “I am also going to talk to Lightning and Thunder.” And Old One sang, “If you do not listen to me, you will be sorry.” He went to look for Lightning and Thunder. “Ah older brother, Thunder, and younger brother, Lightning. I am very angry at the people for mistreating the earth. On a certain day, you will be loud, Thunder, and you, Lightning, will strike intensely. You will strike the trees and the land. Neither of you will feel sorry for anyone. Both of you will do that until I tell you.” And they said, “Oh okay, Old One.” And Old One sang, “If you do not listen to me, you will be sorry.” And Old One thought, “I am also going to talk to Cloud and his older brother, Rain.” He reached Cloud and Rain. “Hey, Cloud and your older brother, Rain. I am very angry at the people for mistreating the earth. I am going to teach them that that is not right. I have already talked to Sun and Wind, Lightning and Thunder, and you two. From this day until summer, the two of you will gather all the water from the sky. You, Cloud, will hold and store it. You, Rain, will not fall. I know it will be heavy, but I will help you. I will hide you until it is summer. You two will do this until I tell you.” And they said, “Okay, Old One.” And Old One sang, “If you do not listen to me, you will be sorry.” From that time on, it did not rain, and it must not have rained for three months. During picking month, Old One went to talk to Sun. And Sun shone very hotly. Wind was reached by Old One and blew intensely. Because it did not rain, the land got very hot. Old One reached Thunder and Lightning. Thunder was loud, and Lightning threw his bolts. The people noticed how hot Sun was, how strong Wind was, and how loud Thunder was. They were very afraid when they heard Thunder. But when they saw Lightning, they cried.	page 5, the story in English
 §3	Bev Phillips	translation	And they said, “Old One must not love us because he hasn’t helped us.” It wasn’t long before Lightning was able to hit the trees, and the land burned. Because the wind was intense, the fire ran quickly. Lots of the land and homes burned. The people tried to talk to Old One, but he did not listen.	page 6, the story in English
 §3	Bev Phillips	translation	And Old One sang, “If you do not listen to me, you will be sorry.” However, Rain and Cloud weren’t visible because Old One hid them. Lots of the land burned; it didn’t seem like there were any trees living. The people escaped to the north of the fire and then went south because the fire caught up to them. On a certain day, Old One spoke to Cloud and Rain, and Cloud showed himself, and Sun cooled. Wind did not blow as strong. Cloud became heavy and let go of the rain. Sun and Wind went home, and Lightning and Thunder did the same. However, Rain put out the fire, but because the trees burned, there were lots of landslides. The landslides covered the road, and bridges were washed away.	page 6, the story in English
 §3	Bev Phillips	translation	The people once again spoke to Old One, “Old One must not love us because he is not helping us.” And Old One sang, “If you do not listen to me, you will be sorry.” It rained until Cloud was empty, and Cloud and Rain went home. Old One reached the people and warned them. “If you do not listen to me, you will be sorry. Look after your land.”	page 6, the story in English
@@ -85,7 +85,7 @@ footnote 2	Brent Hall and Bev Phillips	note	2 For an overview of the phonology o
 (2) line 9	nɬeʔkepmxcín	gloss	OBL=DET=NMLZ=tell-?6-INDR-TR-3OBJ-3ERG	page 7, engine english
 (2) line 10	Brent Hall and Bev Phillips	translation	‘Since the white people came to the land, the native people dropped his teachings.’	page 7, engine english
 footnote 3	Brent Hall and Bev Phillips	note	3 Abbreviations follow Leipzig glossing rules with the following additions largely from Thompson and Thompson (1992, 1996) and Kroeber (1997, 1999): ADD = additive, AFF = affective, AUG = augmentative, AUT = autonomous intransitivizer, CHR = characteristic, CNSQ = consequential, CTR = control, D/C = determiner-complementizer, DVL = developmental, EMPH = emphatic, EXT = stem extender, IMM = immediate, INCH = inchoative, INDEP = independent pronoun, INDR = indirective applicative, INFER = inferential evidential, INT = introductory predicate, LC = limited control, MID = middle, OOC = out-of-control, PRP = proportional, PROSP = prospective, QLT = qualitative, RFM = reaffirmative, REM = remote, RLT = relational applicative, WH = wh-word. The boundaries of non-reduplicative prefixes and suffixes are marked with hyphens (-), while those of reduplicative prefixes and suffixes are marked with tildes (~). Infixes are enclosed between angle brackets (< >), and clitic boundaries are marked with equal signs (=). In cases where segments are omitted, but present in the underlying representation, as a result of morphophonological processes or allegro speech, they are transcribed between square brackets ([ ]).	page 7, footnote
-footnote 4	Brent Hall and Bev Phillips	note	4 The title of the story is shown below in an interlinear gloss:	page 7, footnote
+footnote 4	Brent Hall and Bev Phillips	note	4 The title of the story is displayed below in an interlinear gloss:	page 7, footnote
 footnote 4 (i) line 1	nɬeʔkepmxcín	transcription	xʷíʔ kʷ páq.	page 7, engine language
 footnote 4 (i) line 2	nɬeʔkepmxcín	segmentation	xʷ[u]y̓=kʷ páq	page 7, engine language
 footnote 4 (i) line 3	nɬeʔkepmxcín	gloss	PROSP=2SG.SBJ sorry	page 7, engine english
@@ -238,7 +238,7 @@ footnote 8	Brent Hall and Bev Phillips	note	8 This seems to be a rare instance o
 (19) line 13	nɬeʔkepmxcín	transcription	tk wəlwəlím.	page 11, engine language
 (19) line 14	nɬeʔkepmxcín	segmentation	t=k=wəl~wəlím	page 11, engine language
 (19) line 15	nɬeʔkepmxcín	gloss	OBL=DET=AUG~metal	page 11, engine english
-(19) line 16	Brent Hall and Bev Phillips	translation	‘He went north where he saw a hole in the ground where the white men were digging to look for silver and gold and every other kind of metal.’	page 11, engine english
+(19) line 16	Brent Hall and Bev Phillips	translation	‘He went north where he saw a hole in the ground where the white men were digging to look for silver and gold and every other type of metal.’	page 11, engine english
 (20) line 1	nɬeʔkepmxcín	transcription	x̣zúm néʔe e sx̣ətə́q ne tmíxʷ.	page 12, engine language
 (20) line 2	nɬeʔkepmxcín	segmentation	x̣zúm==néʔe e=s-x̣ətə́q n=e=tmíxʷ	page 12, engine language
 (20) line 3	nɬeʔkepmxcín	gloss	big=3SBJ=DEM DET=NMLZ-hole at=DET=land	page 12, engine english
@@ -311,47 +311,47 @@ footnote 9	Brent Hall and Bev Phillips	note	9 Though Bev pronounces the prospect
 (28) line 8	nɬeʔkepmxcín	segmentation	ɬ=s-k̓ʷák̓ʷes	page 13, engine language
 (28) line 9	nɬeʔkepmxcín	gloss	DET.REM=NMLZ-sun	page 13, engine english
 (28) line 10	Brent Hall and Bev Phillips	translation	‘And Old One went to visit Sun, and he spoke to him.’	page 13, engine english
-(29) line 1	nɬeʔkepmxcín	transcription	“téye sk̓ʷák̓ʷes, kʷúkʷpiʔ ne sƛ̓íqt, xʷíʔ	page 13, engine language, its opening quotation mark kept
+(29) line 1	nɬeʔkepmxcín	transcription	“téye sk̓ʷák̓ʷes, kʷúkʷpiʔ ne sƛ̓íqt, xʷíʔ	page 13, engine language, its opening quotation mark retained
 (29) line 2	nɬeʔkepmxcín	segmentation	téye s-k̓ʷák̓ʷes kʷú<kʷ>piʔ n=e=s-ƛ̓íqt xʷ[u]y̓=	page 13, engine language, a morpheme line
 (29) line 3	nɬeʔkepmxcín	gloss	hey NMLZ-sun <DIM>chief at=DET=NMLZ-sky PROSP=3SBJ	page 13, engine english
 (29) line 4	nɬeʔkepmxcín	transcription	qʷincín.	page 13, engine language
 (29) line 5	nɬeʔkepmxcín	segmentation	qʷin-[n]-t-sí-[e]n	page 13, engine language
 (29) line 6	nɬeʔkepmxcín	gloss	speak-CTR-TR-2SG.OBJ-1SG.ERG	page 13, engine english
 (29) line 7	Brent Hall and Bev Phillips	translation	‘“Hey Sun, chief of the sky, I’m going to talk to you.’	page 13, engine english
-(30) line 1	nɬeʔkepmxcín	transcription	“ném e spz̓eɬstíyxs e séytknmx e tmíxʷ.	page 14, engine language, its opening quotation mark kept
+(30) line 1	nɬeʔkepmxcín	transcription	“ném e spz̓eɬstíyxs e séytknmx e tmíxʷ.	page 14, engine language, its opening quotation mark retained
 (30) line 2	nɬeʔkepmxcín	segmentation	ném= e=s=pz̓eɬ-s-t--íyxs e=séytkn-[e]mx e=tmíxʷ	page 14, engine language, a morpheme line
 (30) line 3	nɬeʔkepmxcín	gloss	intense=3SBJ D/C=NMLZ=worthless-CAUS-TR-3OBJ-3PL DET=native-people DET=land	page 14, engine english
 (30) line 4	Brent Hall and Bev Phillips	translation	‘“The people have treated the land really poorly.’	page 14, engine english
-(31) line 1	nɬeʔkepmxcín	transcription	“ʔustíyxs e tetéʔe	page 14, engine language, its opening quotation mark kept
+(31) line 1	nɬeʔkepmxcín	transcription	“ʔustíyxs e tetéʔe	page 14, engine language, its opening quotation mark retained
 (31) line 2	nɬeʔkepmxcín	segmentation	ʔus-[n]-t--íyxs= e=te[ʔ]==téʔe	page 14, engine language, a morpheme line
 (31) line 3	nɬeʔkepmxcín	gloss	discard-CTR-TR-3OBJ-3PL=3SBJ DET=NEG=3SBJ=DEM	page 14, engine english
 (31) line 4	nɬeʔkepmxcín	transcription	k x ʔesx̣ə́ks ne qʷúʔ ʔeɬ e tmíxʷ.	page 14, engine language
 (31) line 5	nɬeʔkepmxcín	segmentation	k=[ʔe]x=[s]=ʔes-x̣ə́k=s n=e=qʷúʔ ʔeɬ e=tmíxʷ	page 14, engine language
 (31) line 6	nɬeʔkepmxcín	gloss	D/C=IPFV=NMLZ=STAT-know=3POSS at=DET=water and DET=land	page 14, engine english
-(31) line 7	Brent Hall and Bev Phillips	translation	‘“They have thrown all kinds of things in the water and on the land.’	page 14, engine english
-(32) line 1	nɬeʔkepmxcín	transcription	“nik̓etíyxs e xʷʔít te sɣəpɣép ʔeɬ	page 14, engine language, its opening quotation mark kept
+(31) line 7	Brent Hall and Bev Phillips	translation	‘“They have thrown all types of things in the water and on the land.’	page 14, engine english
+(32) line 1	nɬeʔkepmxcín	transcription	“nik̓etíyxs e xʷʔít te sɣəpɣép ʔeɬ	page 14, engine language, its opening quotation mark retained
 (32) line 2	nɬeʔkepmxcín	segmentation	nik̓-n-t--íyxs= e=xʷʔít t=e=s-ɣəp~ɣép ʔeɬ	page 14, engine language, a morpheme line
 (32) line 3	nɬeʔkepmxcín	gloss	cut-CTR-TR-3OBJ-3PL=3SBJ DET=much OBL=DET=NMLZ-AUG~tree and	page 14, engine english
 (32) line 4	nɬeʔkepmxcín	transcription	nciqetíyxs e tmíxʷ.	page 14, engine language
 (32) line 5	nɬeʔkepmxcín	segmentation	n-ciq-n-t--íyxs= e=tmíxʷ	page 14, engine language
 (32) line 6	nɬeʔkepmxcín	gloss	LOC-dig-CTR-TR-3OBJ-3PL=3SBJ DET=land	page 14, engine english
 (32) line 7	Brent Hall and Bev Phillips	translation	‘“They have cut down many trees and dug in the land.’	page 14, engine english
-(33) line 1	nɬeʔkepmxcín	transcription	“ʔeɬ xʷʔít xʷúy̓ceʔ e scuwíyxs.	page 14, engine language, its opening quotation mark kept
+(33) line 1	nɬeʔkepmxcín	transcription	“ʔeɬ xʷʔít xʷúy̓ceʔ e scuwíyxs.	page 14, engine language, its opening quotation mark retained
 (33) line 2	nɬeʔkepmxcín	segmentation	ʔeɬ xʷʔít= xʷúy̓ceʔ e=s=cuw-íyx=s	page 14, engine language, a morpheme line
 (33) line 3	nɬeʔkepmxcín	gloss	and much=3SBJ more D/C=NMLZ=do-AUT=3POSS	page 14, engine english
 (33) line 4	Brent Hall and Bev Phillips	translation	‘“And they have done much more than this.’	page 14, engine english
-(34) line 1	nɬeʔkepmxcín	transcription	“ném e nsqlíl ʔeɬ qʷnóx̣ʷ nsxʷáwkʷ.	page 14, engine language, its opening quotation mark kept
+(34) line 1	nɬeʔkepmxcín	transcription	“ném e nsqlíl ʔeɬ qʷnóx̣ʷ nsxʷáwkʷ.	page 14, engine language, its opening quotation mark retained
 (34) line 2	nɬeʔkepmxcín	segmentation	ném= e=n=s=qlíl ʔeɬ qʷnóx̣ʷ= n-s-xʷáwkʷ	page 14, engine language, a morpheme line
 (34) line 3	nɬeʔkepmxcín	gloss	intense=3SBJ D/C=1SG.POSS=NMLZ=angry and sick=3SBJ 1SG.POSS-NMLZ-heart	page 14, engine english
 (34) line 4	Brent Hall and Bev Phillips	translation	‘“I am very angry and heartbroken.’	page 14, engine english
-(35) line 1	nɬeʔkepmxcín	transcription	“ʔe n hén̓ te síƛ̓q̓t e cúncn us,	page 14, engine language, its opening quotation mark kept
+(35) line 1	nɬeʔkepmxcín	transcription	“ʔe n hén̓ te síƛ̓q̓t e cúncn us,	page 14, engine language, its opening quotation mark retained
 (35) line 2	nɬeʔkepmxcín	segmentation	ʔe=n=hén̓= t=e=síƛ̓-[es]q̓t e=cún-[n]-t-s[i]-[e]n=us	page 14, engine language, a morpheme line
 (35) line 3	nɬeʔkepmxcín	gloss	COMP=at=WH=3SBJ OBL=DET=day-sky D/C=tell-CTR-TR-2SG.OBJ-1SG.ERG=3SBJV	page 14, engine english
 (35) line 4	nɬeʔkepmxcín	transcription	xʷíʔ kʷ c̓lox̣ʷwíʔx.	page 14, engine language
 (35) line 5	nɬeʔkepmxcín	segmentation	xʷ[u]y̓=kʷ c̓lox̣ʷ-wíʔx	page 14, engine language
 (35) line 6	nɬeʔkepmxcín	gloss	PROSP=2SG.SBJ hot-DVL	page 14, engine english
 (35) line 7	Brent Hall and Bev Phillips	translation	‘“On a certain day that I tell you, you will become hotter.’	page 14, engine english
-(36) line 1	nɬeʔkepmxcín	transcription	“tetéʔe xʷíʔ k sxəƛ̓stéxʷ teʔ	page 15, engine language, its opening quotation mark kept
+(36) line 1	nɬeʔkepmxcín	transcription	“tetéʔe xʷíʔ k sxəƛ̓stéxʷ teʔ	page 15, engine language, its opening quotation mark retained
 (36) line 2	nɬeʔkepmxcín	segmentation	te[ʔ]==téʔe xʷ[u]y̓ k=s=xəƛ̓-s-t--éxʷ teʔ	page 15, engine language, a morpheme line
 (36) line 3	nɬeʔkepmxcín	gloss	NEG=3SBJ=DEM PROSP D/C=NMLZ=care.for-CAUS-TR-3OBJ-2SG.ERG DEM	page 15, engine english
 (36) line 4	nɬeʔkepmxcín	transcription	k swét ƛ̓eʔ cúncn ʔiɬ	page 15, engine language
@@ -361,7 +361,7 @@ footnote 9	Brent Hall and Bev Phillips	note	9 Though Bev pronounces the prospect
 (36) line 8	nɬeʔkepmxcín	segmentation	[ʔ]e=c<ʔ>ek-wíʔx=kʷ	page 15, engine language
 (36) line 9	nɬeʔkepmxcín	gloss	COMP=<INCH>cool-DVL=2SG.SBJ	page 15, engine english
 (36) line 10	Brent Hall and Bev Phillips	translation	‘“You will not feel sorry for anyone until I tell you to be cool.”’	page 15, engine english
-(37) line 1	nɬeʔkepmxcín	transcription	“ʔúu hum̓éɬ, qəɬmín.”	page 15, engine language, its opening quotation mark kept
+(37) line 1	nɬeʔkepmxcín	transcription	“ʔúu hum̓éɬ, qəɬmín.”	page 15, engine language, its opening quotation mark retained
 (37) line 2	nɬeʔkepmxcín	segmentation	ʔúu hum̓éɬ qəɬmín	page 15
 (37) line 3	nɬeʔkepmxcín	gloss	oh alright old.one	page 15
 (37) line 4	Brent Hall and Bev Phillips	translation	‘(Sun says) “Oh okay, Old One.”’	page 15
@@ -390,35 +390,35 @@ footnote 9	Brent Hall and Bev Phillips	note	9 Though Bev pronounces the prospect
 footnote 11	Brent Hall and Bev Phillips	note	11 There are many different glosses for the morpheme(s) transcribed as ƛ̓uʔ. Here, it seems to mean something along the lines of ‘then’ considering its context in the sentence and the translation, and, as such, that’s how it is glossed.	page 15, footnote
 §4	nɬeʔkepmxcín	cited form	ƛ̓uʔ	page 15
 footnote 10	Brent Hall and Bev Phillips	note	10 The root here is better translated as ‘blow’, but I gloss this as ‘wind’ when the whole word refers to the character in an attempt to avoid confusion with the verb néw̓t (‘blow’) used later in the story.	page 15
-(41) line 1	nɬeʔkepmxcín	transcription	“téye snéw̓t, ném e sqlílmne	page 16, engine language, its opening quotation mark kept
+(41) line 1	nɬeʔkepmxcín	transcription	“téye snéw̓t, ném e sqlílmne	page 16, engine language, its opening quotation mark retained
 (41) line 2	nɬeʔkepmxcín	segmentation	téye s-néw̓-t ném= e=s=qlíl-m[in]-[t]--[e]ne	page 16, engine language, a morpheme line
 (41) line 3	nɬeʔkepmxcín	gloss	hey NMLZ-wind-IMM intense=3SBJ D/C=NMLZ=angry-RLT-TR-3OBJ-1SG.ERG	page 16, engine english
 (41) line 4	nɬeʔkepmxcín	transcription	e séytknmx te spz̓eɬstíyxs e tmíxʷ.	page 16, engine language
 (41) line 5	nɬeʔkepmxcín	segmentation	e=séytkn-[e]mx t=e=s=pz̓eɬ-s-t--íyxs e=tmíxʷ	page 16, engine language
 (41) line 6	nɬeʔkepmxcín	gloss	DET=native-people OBL=D/C=NMLZ=worthless-CAUS-TR-3OBJ-3PL DET=land	page 16, engine english
 (41) line 7	Brent Hall and Bev Phillips	translation	‘“Hey Wind, I am very angry at the people for mistreating the earth.’	page 16, engine english
-(42) line 1	nɬeʔkepmxcín	transcription	“xʷíʔ cunem̓xtíyxsne k stetéʔe	page 16, engine language, its opening quotation mark kept
+(42) line 1	nɬeʔkepmxcín	transcription	“xʷíʔ cunem̓xtíyxsne k stetéʔe	page 16, engine language, its opening quotation mark retained
 (42) line 2	nɬeʔkepmxcín	segmentation	xʷ[u]y̓= cun-em̓-x-t-íyxs-[n]-[t]--[e]ne k=s=te[ʔ]=téʔe	page 16, engine language, a morpheme line
 (42) line 3	nɬeʔkepmxcín	gloss	PROSP=3SBJ tell-?-INDR-TR-3PL-CTR-TR-3OBJ-1SG.ERG D/C=NMLZ=NEG=DEM	page 16, engine english
 (42) line 4	nɬeʔkepmxcín	transcription	k stíʔtax̣ʷs xéʔe.	page 16, engine language
 (42) line 5	nɬeʔkepmxcín	segmentation	k=s=t<íʔta>x̣ʷ=s xéʔe	page 16, engine language
 (42) line 6	nɬeʔkepmxcín	gloss	D/C=NMLZ=right<PRP>=3POSS DEM	page 16, engine english
 (42) line 7	Brent Hall and Bev Phillips	translation	‘“I’m going to teach them that that is not right.’	page 16, engine english
-(43) line 1	nɬeʔkepmxcín	transcription	“ʔe n hén̓ tk síƛ̓q̓t, xʷíʔ kʷ nuʔnéw̓t	page 16, engine language, its opening quotation mark kept
+(43) line 1	nɬeʔkepmxcín	transcription	“ʔe n hén̓ tk síƛ̓q̓t, xʷíʔ kʷ nuʔnéw̓t	page 16, engine language, its opening quotation mark retained
 (43) line 2	nɬeʔkepmxcín	segmentation	ʔe=n=hén̓= t=k=síƛ̓-[es]q̓t xʷ[u]y̓=kʷ nuʔ~néw̓-t	page 16, engine language, a morpheme line
 (43) line 3	nɬeʔkepmxcín	gloss	COMP=at=WH=3SBJ OBL=DET=day-sky PROSP=2SG.SBJ AUG~blow-IMM	page 16, engine english
 (43) line 4	nɬeʔkepmxcín	transcription	tk néxʷ	page 16, engine language
 (43) line 5	nɬeʔkepmxcín	segmentation	t=k=néxʷ	page 16, engine language
 (43) line 6	nɬeʔkepmxcín	gloss	OBL=D/C=intense	page 16, engine english
 (43) line 7	Brent Hall and Bev Phillips	translation	‘“On a certain day, you will blow very hard.’	page 16, engine english
-(44) line 1	nɬeʔkepmxcín	transcription	“tetéʔe k sxʷúy̓s xəƛ̓stéxʷ teʔ	page 16, engine language, its opening quotation mark kept
+(44) line 1	nɬeʔkepmxcín	transcription	“tetéʔe k sxʷúy̓s xəƛ̓stéxʷ teʔ	page 16, engine language, its opening quotation mark retained
 (44) line 2	nɬeʔkepmxcín	segmentation	te[ʔ]==téʔe k=s=xʷúy̓=s xəƛ̓-s-t--éxʷ teʔ	page 16, engine language, a morpheme line
 (44) line 3	nɬeʔkepmxcín	gloss	NEG=3SBJ=DEM D/C=NMLZ=PROSP=3POSS care.for-CAUS-TR-3OBJ-2SG.ERG DEM	page 16, engine english
 (44) line 4	nɬeʔkepmxcín	transcription	k swét.	page 16, engine language
 (44) line 5	nɬeʔkepmxcín	segmentation	k=s-wét	page 16, engine language
 (44) line 6	nɬeʔkepmxcín	gloss	DET=NMLZ-who	page 16, engine english
 (44) line 7	Brent Hall and Bev Phillips	translation	‘“You will not feel sorry for anyone.’	page 16, engine english
-(45) line 1	nɬeʔkepmxcín	transcription	“xʷíʔ ʔeɬƛ̓uʔ ném tk ʕʷəsʕʷə́st ɬ sk̓ʷák̓ʷes.”	page 16, engine language, its opening quotation mark kept
+(45) line 1	nɬeʔkepmxcín	transcription	“xʷíʔ ʔeɬƛ̓uʔ ném tk ʕʷəsʕʷə́st ɬ sk̓ʷák̓ʷes.”	page 16, engine language, its opening quotation mark retained
 (45) line 2	nɬeʔkepmxcín	segmentation	xʷ[u]y̓==ʔeɬƛ̓uʔ ném t=k=ʕʷəs~ʕʷə́s-t ɬ=s-k̓ʷák̓ʷes	page 16, engine language, a morpheme line
 (45) line 3	nɬeʔkepmxcín	gloss	PROSP=3SBJ=ADD intense OBL=D/C=AUG~shine-IMM DET.REM=NMLZ-sun	page 16, engine english
 (45) line 4	Brent Hall and Bev Phillips	translation	‘“And Sun will also shine a lot.”’	page 16, engine english
@@ -450,21 +450,21 @@ footnote 10	Brent Hall and Bev Phillips	note	10 The root here is better translat
 (49) line 5	nɬeʔkepmxcín	segmentation	s-kíʔ<kiʔ>x̣	page 17, engine language
 (49) line 6	nɬeʔkepmxcín	gloss	NMLZ-thunder<CHR>	page 17, engine english
 (49) line 7	Brent Hall and Bev Phillips	translation	‘He went to look for Lightning and Thunder.’	page 17, engine english
-(50) line 1	nɬeʔkepmxcín	transcription	“ʔá qéck, ɬ skíʔkiʔx̣, ʔeɬ sínciʔ,	page 17, engine language, its opening quotation mark kept
+(50) line 1	nɬeʔkepmxcín	transcription	“ʔá qéck, ɬ skíʔkiʔx̣, ʔeɬ sínciʔ,	page 17, engine language, its opening quotation mark retained
 (50) line 2	nɬeʔkepmxcín	segmentation	ʔá qéck ɬ=s-kíʔ<kiʔ>x̣. ʔeɬ sínciʔ	page 17, engine language, a morpheme line
 (50) line 3	nɬeʔkepmxcín	gloss	ah older.brother DET.REM=NMLZ-thunder<CHR> and younger.brother	page 17, engine english
 (50) line 4	nɬeʔkepmxcín	transcription	ɬ nmaʕmáʕm.	page 17, engine language
 (50) line 5	nɬeʔkepmxcín	segmentation	ɬ=n-maʕ~máʕ-m	page 17, engine language
 (50) line 6	nɬeʔkepmxcín	gloss	DET.REM=LOC-AUG~light-CTR.MID	page 17, engine english
 (50) line 7	Brent Hall and Bev Phillips	translation	‘“Ah older brother, Thunder, and younger brother, Lightning.’	page 17, engine english
-(51) line 1	nɬeʔkepmxcín	transcription	“ném e sqlílmne ɬ séytknmx	page 17, engine language, its opening quotation mark kept
+(51) line 1	nɬeʔkepmxcín	transcription	“ném e sqlílmne ɬ séytknmx	page 17, engine language, its opening quotation mark retained
 (51) line 2	nɬeʔkepmxcín	segmentation	ném= e=s=qlíl-m[in]-[t]--[e]ne ɬ=séytkn-[e]mx	page 17, engine language, a morpheme line
 (51) line 3	nɬeʔkepmxcín	gloss	intense=3SBJ D/C=NMLZ=angry-RLT-TR-3OBJ-1SG.ERG DET.REM=native-people	page 17, engine english
 (51) line 4	nɬeʔkepmxcín	transcription	te spz̓eɬstíyxs e tmíxʷ.	page 17, engine language
 (51) line 5	nɬeʔkepmxcín	segmentation	t=e=s=pz̓eɬ-s-t--íyxs e=tmíxʷ	page 17, engine language
 (51) line 6	nɬeʔkepmxcín	gloss	OBL=D/C=NMLZ=worthless-CAUS-TR-3OBJ-3PL DET=land	page 17, engine english
 (51) line 7	Brent Hall and Bev Phillips	translation	‘“I am very angry at the people for mistreating the earth.’	page 17, engine english
-(52) line 1	nɬeʔkepmxcín	transcription	“ʔe n hén̓ néʔe tk síƛ̓q̓t, xʷíʔ kʷ nəxʷcín,	page 18, engine language, its opening quotation mark kept
+(52) line 1	nɬeʔkepmxcín	transcription	“ʔe n hén̓ néʔe tk síƛ̓q̓t, xʷíʔ kʷ nəxʷcín,	page 18, engine language, its opening quotation mark retained
 (52) line 2	nɬeʔkepmxcín	segmentation	ʔe=n=hén̓==néʔe t=k=síƛ̓-[es]q̓t xʷ[u]y̓=kʷ nəxʷ-cín	page 18, engine language, a morpheme line
 (52) line 3	nɬeʔkepmxcín	gloss	COMP=at=WH=3SBJ=DEM OBL=DET=day-sky PROSP=2SG.SBJ intense-mouth	page 18, engine english
 (52) line 4	nɬeʔkepmxcín	transcription	skíʔkiʔx̣, ʔeɬ eʔwí, nmaʕmáʕm,	page 18, engine language
@@ -474,7 +474,7 @@ footnote 10	Brent Hall and Bev Phillips	note	10 The root here is better translat
 (52) line 8	nɬeʔkepmxcín	segmentation	xʷ[u]y̓=kʷ n-maʕ~máʕ-m t=e=néxʷ	page 18, engine language
 (52) line 9	nɬeʔkepmxcín	gloss	PROSP=2SG.SBJ LOC-AUG~light-CTR.MID OBL=D/C=intense	page 18, engine english
 (52) line 10	Brent Hall and Bev Phillips	translation	‘“On a certain day, you will be loud, Thunder, and you, Lightning, will strike intensely.’	page 18, engine english
-(53) line 1	nɬeʔkepmxcín	transcription	“xʷíʔ c̓əq̓téxʷ e sɣəpɣép ʔeɬ e tmíxʷ.	page 18, engine language, its opening quotation mark kept
+(53) line 1	nɬeʔkepmxcín	transcription	“xʷíʔ c̓əq̓téxʷ e sɣəpɣép ʔeɬ e tmíxʷ.	page 18, engine language, its opening quotation mark retained
 (53) line 2	nɬeʔkepmxcín	segmentation	xʷ[u]y̓= c̓əq̓-[n]-t--éxʷ e=s-ɣəp~ɣép ʔeɬ e=tmíxʷ	page 18, engine language, a morpheme line
 (53) line 3	nɬeʔkepmxcín	gloss	PROSP=3SBJ strike-CTR-TR-3OBJ-2SG.ERG DET=NMLZ-AUG~tree and DET=land	page 18, engine english
 (53) line 4	Brent Hall and Bev Phillips	translation	‘“You will strike the trees and the land.’	page 18, engine english
@@ -485,7 +485,7 @@ footnote 10	Brent Hall and Bev Phillips	note	10 The root here is better translat
 (54) line 5	nɬeʔkepmxcín	segmentation	k=s-wét	page 18, engine language
 (54) line 6	nɬeʔkepmxcín	gloss	DET=NMLZ-who	page 18, engine english
 (54) line 7	Brent Hall and Bev Phillips	translation	‘“Neither of you will feel sorry for anyone.’	page 18, engine english
-(55) line 1	nɬeʔkepmxcín	transcription	“xʷíʔ kp x̣íym tʔé ƛ̓eʔ cúntimn us.”	page 18, engine language, its opening quotation mark kept
+(55) line 1	nɬeʔkepmxcín	transcription	“xʷíʔ kp x̣íym tʔé ƛ̓eʔ cúntimn us.”	page 18, engine language, its opening quotation mark retained
 (55) line 2	nɬeʔkepmxcín	segmentation	xʷ[u]y̓=kp x̣íy-m tʔé ƛ̓eʔ=cún-[n]-t-[u]ym-[e]n=us	page 18, engine language, a morpheme line
 (55) line 3	nɬeʔkepmxcín	gloss	PROSP=2PL.SBJ do-CTR.MID DEM until=tell-CTR-TR-2PL.OBJ-1SG.ERG=3SBJV	page 18, engine english
 (55) line 4	Brent Hall and Bev Phillips	translation	‘“Both of you will do that until I tell you.”’	page 18, engine english
@@ -517,61 +517,61 @@ footnote 12	Brent Hall and Bev Phillips	note	12 The gloss for the morpheme y̓e 
 (59) line 2	nɬeʔkepmxcín	segmentation	kíc-n-[t]--[e]s= ɬ=s-qʷúy̓iʔ ʔeɬ s-tékɬ	page 19, engine language
 (59) line 3	nɬeʔkepmxcín	gloss	reach-CTR-TR-3OBJ-3ERG=3SBJ DET.REM=NMLZ-cloud and NMLZ-rain	page 19, engine english
 (59) line 4	Brent Hall and Bev Phillips	translation	‘He reached Cloud and Rain.’	page 19, engine english
-(60) line 1	nɬeʔkepmxcín	transcription	“téye, sqʷúy̓iʔ ʔeɬ eʔqéck, stékɬ.	page 19, engine language, its opening quotation mark kept
+(60) line 1	nɬeʔkepmxcín	transcription	“téye, sqʷúy̓iʔ ʔeɬ eʔqéck, stékɬ.	page 19, engine language, its opening quotation mark retained
 (60) line 2	nɬeʔkepmxcín	transcription	téye s-qʷúy̓iʔ ʔeɬ eʔ-qéck s-tékɬ	page 19, engine language
 (60) line 3	nɬeʔkepmxcín	gloss	hey NMLZ-cloud and 2SG.POSS-older.brother NMLZ-rain	page 19, engine english
 (60) line 4	Brent Hall and Bev Phillips	translation	‘“Hey, Cloud and your older brother, Rain.’	page 19, engine english
-(61) line 1	nɬeʔkepmxcín	transcription	“ném e sqlílmne e séytknmx	page 19, engine language, its opening quotation mark kept
+(61) line 1	nɬeʔkepmxcín	transcription	“ném e sqlílmne e séytknmx	page 19, engine language, its opening quotation mark retained
 (61) line 2	nɬeʔkepmxcín	segmentation	ném= e=s=qlíl-m[in]-[t]--[e]ne e=séytkn-[e]mx	page 19, engine language, a morpheme line
 (61) line 3	nɬeʔkepmxcín	gloss	intense=3SBJ D/C=NMLZ=angry-RLT-TR-3OBJ-1SG.ERG DET=native-people	page 19, engine english
 (61) line 4	nɬeʔkepmxcín	transcription	te spz̓eɬstíyxs e tmíxʷ.	page 19, engine language
 (61) line 5	nɬeʔkepmxcín	segmentation	t=e=s=pz̓eɬ-s-t--íyxs e=tmíxʷ	page 19, engine language
 (61) line 6	nɬeʔkepmxcín	gloss	OBL=D/C=NMLZ=worthless-CAUS-TR-3OBJ-3PL DET=land	page 19, engine english
 (61) line 7	Brent Hall and Bev Phillips	translation	‘“I am very angry at the people for mistreating the earth.’	page 19, engine english
-(62) line 1	nɬeʔkepmxcín	transcription	“xʷíʔ cunem̓xtíyxsne k stetéʔe	page 19, engine language, its opening quotation mark kept
+(62) line 1	nɬeʔkepmxcín	transcription	“xʷíʔ cunem̓xtíyxsne k stetéʔe	page 19, engine language, its opening quotation mark retained
 (62) line 2	nɬeʔkepmxcín	segmentation	xʷ[u]y̓= cun-em̓-x[i]-t-íyxs-[n]-[t]--[e]ne k=s=te[ʔ]=téʔe	page 19, engine language, a morpheme line
 (62) line 3	nɬeʔkepmxcín	gloss	PROSP=3SBJ tell-?-INDR-TR-3PL-CTR-TR-3OBJ-1SG.ERG D/C=NMLZ=NEG=DEM	page 19, engine english
 (62) line 4	nɬeʔkepmxcín	transcription	k stíʔtax̣ʷs xéʔe.	page 19, engine language
 (62) line 5	nɬeʔkepmxcín	segmentation	k=s=t<íʔta>x̣ʷ=s xéʔe	page 19, engine language
 (62) line 6	nɬeʔkepmxcín	gloss	D/C=NMLZ=right<PRP>=3POSS DEM	page 19, engine english
 (62) line 7	Brent Hall and Bev Phillips	translation	‘“I am going to teach them that that is not right.’	page 19, engine english
-(63) line 1	nɬeʔkepmxcín	transcription	“nwén̓ qʷinténe ɬ sk̓ʷák̓ʷes ʔeɬ snéw̓t,	page 19, engine language, its opening quotation mark kept
+(63) line 1	nɬeʔkepmxcín	transcription	“nwén̓ qʷinténe ɬ sk̓ʷák̓ʷes ʔeɬ snéw̓t,	page 19, engine language, its opening quotation mark retained
 (63) line 2	nɬeʔkepmxcín	segmentation	nwén̓= qʷin-[n]-t--éne ɬ=s-k̓ʷák̓ʷes ʔeɬ s-néw̓-t	page 19, engine language, a morpheme line
 (63) line 3	nɬeʔkepmxcín	gloss	PFV=3SBJ speak-CTR-TR-3OBJ-1SG.ERG DET.REM=NMLZ-sun and NMLZ-wind-IMM	page 19, engine english
 (63) line 4	nɬeʔkepmxcín	transcription	ɬ nmaʕmáʕm ʔeɬ skíʔkiʔx̣ʔeɬ pyépst.	page 19, engine language
 (63) line 5	nɬeʔkepmxcín	segmentation	ɬ=n-maʕ~máʕ-m ʔeɬ s-kíʔ<kiʔ>x̣ʔeɬ pyépst	page 19, engine language
 (63) line 6	nɬeʔkepmxcín	gloss	DET.REM=LOC-AUG~light-CTR.MID and NMLZ-thunder<CHR> and 2PL.INDEP	page 19, engine english
 (63) line 7	Brent Hall and Bev Phillips	translation	‘“I have already talked to Sun and Wind, Lightning and Thunder, and you two.’	page 19, engine english
-(64) line 1	nɬeʔkepmxcín	transcription	“tuɬ cʔéyɬ tk síƛ̓q̓t ƛ̓eʔ spénck, xʷíʔ	page 20, engine language, its opening quotation mark kept
+(64) line 1	nɬeʔkepmxcín	transcription	“tuɬ cʔéyɬ tk síƛ̓q̓t ƛ̓eʔ spénck, xʷíʔ	page 20, engine language, its opening quotation mark retained
 (64) line 2	nɬeʔkepmxcín	segmentation	tu=ɬ=c-ʔéyɬ t=k=síƛ̓-[es]q̓t ƛ̓eʔ=s-pénck xʷ[u]y̓=	page 20, engine language, a morpheme line
 (64) line 3	nɬeʔkepmxcín	gloss	from=DET.REM=EMPH-now OBL=DET=day-sky until=NMLZ-summer PROSP=3SBJ	page 20, engine english
 (64) line 4	nɬeʔkepmxcín	transcription	móqʷetp e tékm te qʷúʔ ne sƛ̓íqt.	page 20, engine language
 (64) line 5	nɬeʔkepmxcín	segmentation	móqʷ-n-t--[e]p e=tékm t=e=qʷúʔ n=e=s-ƛ̓íqt	page 20, engine language
 (64) line 6	nɬeʔkepmxcín	gloss	gather-CTR-TR-3OBJ-2PL.ERG DET=all OBL=DET=water at=DET=NMLZ-sky	page 20, engine english
 (64) line 7	Brent Hall and Bev Phillips	translation	‘“From this day until summer, the two of you will gather all the water from the sky.’	page 20, engine english
-(65) line 1	nɬeʔkepmxcín	transcription	“eʔwí, sqʷúy̓iʔ, xʷíʔ ʔeskʷúkʷstxʷ, xʷíʔ	page 20, engine language, its opening quotation mark kept
+(65) line 1	nɬeʔkepmxcín	transcription	“eʔwí, sqʷúy̓iʔ, xʷíʔ ʔeskʷúkʷstxʷ, xʷíʔ	page 20, engine language, its opening quotation mark retained
 (65) line 2	nɬeʔkepmxcín	segmentation	eʔwí s-qʷúy̓iʔ xʷ[u]y̓= ʔes-kʷúkʷ-s-t--[e]xʷ xʷ[u]y̓=	page 20, engine language, a morpheme line
 (65) line 3	nɬeʔkepmxcín	gloss	2SG.INDEP NMLZ-cloud PROSP=3SBJ STAT-save-CAUS-TR-3OBJ-2SG.ERG PROSP=3SBJ	page 20, engine english
 (65) line 4	nɬeʔkepmxcín	transcription	ʔescestéxʷ.	page 20, engine language
 (65) line 5	nɬeʔkepmxcín	segmentation	ʔes-ce-s-t--éxʷ	page 20, engine language
 (65) line 6	nɬeʔkepmxcín	gloss	STAT-store-CAUS-TR-3OBJ-2SG.ERG	page 20, engine english
 (65) line 7	Brent Hall and Bev Phillips	translation	‘“You, Cloud, will hold and store it.’	page 20, engine english
-(66) line 1	nɬeʔkepmxcín	transcription	“eʔwí, stékɬ, tetéʔe k eʔsxʷíʔ kʷís.	page 20, engine language, its opening quotation mark kept
+(66) line 1	nɬeʔkepmxcín	transcription	“eʔwí, stékɬ, tetéʔe k eʔsxʷíʔ kʷís.	page 20, engine language, its opening quotation mark retained
 (66) line 2	nɬeʔkepmxcín	segmentation	eʔwí s-tékɬ te[ʔ]==téʔe k=eʔ=s=xʷ[u]y̓ kʷís	page 20, engine language, a morpheme line
 (66) line 3	nɬeʔkepmxcín	gloss	2SG.INDEP NMLZ-rain NEG=3SBJ=DEM D/C=2SG.POSS=NMLZ=PROSP fall	page 20, engine english
 (66) line 4	Brent Hall and Bev Phillips	translation	‘“You, Rain, will not fall.’	page 20, engine english
-(67) line 1	nɬeʔkepmxcín	transcription	“x̣əksténe k sxʷúy̓s x̣menkwíʔx, ƛ̓uʔ	page 20, engine language, its opening quotation mark kept
+(67) line 1	nɬeʔkepmxcín	transcription	“x̣əksténe k sxʷúy̓s x̣menkwíʔx, ƛ̓uʔ	page 20, engine language, its opening quotation mark retained
 (67) line 2	nɬeʔkepmxcín	segmentation	x̣ək-s-t--éne= k=s=xʷúy̓=s x̣m-enk-wíʔx ƛ̓uʔ	page 20, engine language, a morpheme line
 (67) line 3	nɬeʔkepmxcín	gloss	know-CAUS-TR-3OBJ-1SG.ERG=3SBJ D/C=NMLZ=PROSP=3POSS heavy-belly-DVL but	page 20, engine english
 (67) line 4	nɬeʔkepmxcín	transcription	xʷíʔ kncín.	page 20, engine language
 (67) line 5	nɬeʔkepmxcín	segmentation	xʷ[u]y̓= kn-[n]-t-sí-[e]n	page 20, engine residue
 (67) line 6	nɬeʔkepmxcín	gloss	PROSP=3SBJ help-CTR-TR-2SG.OBJ-1SG.ERG	page 20, engine english
 (67) line 7	Brent Hall and Bev Phillips	translation	‘“I know it will be heavy, but I will help you.’	page 20, engine english
-(68) line 1	nɬeʔkepmxcín	transcription	“xʷíʔ yoʕʷcín ƛ̓eʔ e spénck us.	page 20, engine language, its opening quotation mark kept
+(68) line 1	nɬeʔkepmxcín	transcription	“xʷíʔ yoʕʷcín ƛ̓eʔ e spénck us.	page 20, engine language, its opening quotation mark retained
 (68) line 2	nɬeʔkepmxcín	segmentation	xʷ[u]y̓= yoʕʷ-[n]-t-sí-[e]n ƛ̓eʔ=[ʔ]e=s-pénck=us	page 20, engine language, a morpheme line
 (68) line 3	nɬeʔkepmxcín	gloss	PROSP=3SBJ hide-CTR-TR-2SG.OBJ-1SG.ERG until=COMP=NMLZ-summer=3SBJV	page 20, engine english
 (68) line 4	Brent Hall and Bev Phillips	translation	‘“I will hide you until it is summer.’	page 20, engine english
-(69) line 1	nɬeʔkepmxcín	transcription	“xʷíʔ kp x̣íym tʔé ƛ̓eʔ cúntimn us.”	page 20, engine language, its opening quotation mark kept
+(69) line 1	nɬeʔkepmxcín	transcription	“xʷíʔ kp x̣íym tʔé ƛ̓eʔ cúntimn us.”	page 20, engine language, its opening quotation mark retained
 (69) line 2	nɬeʔkepmxcín	segmentation	xʷ[u]y̓=kp x̣íy-m tʔé ƛ̓eʔ=cún-[n]-t-[u]ym-[e]n=us	page 20, engine language, a morpheme line
 (69) line 3	nɬeʔkepmxcín	gloss	PROSP=2PL.SBJ do-CTR.MID DEM until=tell-CTR-TR-2PL.OBJ-1SG.ERG=3SBJV	page 20, engine english
 (69) line 4	Brent Hall and Bev Phillips	translation	‘“You two will do this until I tell you.’”	page 20, engine english
@@ -819,7 +819,7 @@ footnote 15	Brent Hall and Bev Phillips	note	15 T&T (1996:428) claim this word m
 (99) line 5	nɬeʔkepmxcín	segmentation	[e]=s=x̣ʔ-é-n-[t]--[e]s	page 27, engine residue
 (99) line 6	nɬeʔkepmxcín	gloss	D/C=NMLZ=warn-EXT-CTR-TR-3OBJ-3ERG	page 27, engine english
 (99) line 7	Brent Hall and Bev Phillips	translation	‘Old One reached the people and warned them.’	page 27, engine english
-(100) line 1	nɬeʔkepmxcín	transcription	“ʔe tém us k smnúncip, ƛ̓uʔ	page 27, engine language, its opening quotation mark kept, carries footnote 16, written here without its digit
+(100) line 1	nɬeʔkepmxcín	transcription	“ʔe tém us k smnúncip, ƛ̓uʔ	page 27, engine language, its opening quotation mark retained, carries footnote 16, written here without its digit
 (100) line 2	nɬeʔkepmxcín	segmentation	ʔe=tém=us k=s=mnú-n-t-s[e]y-[e]p ƛ̓uʔ	page 27, engine language, a morpheme line
 (100) line 3	nɬeʔkepmxcín	gloss	COMP=NEG=3SBJV D/C=NMLZ=notice-CTR-TR-1SG.OBJ-2PL.ERG then	page 27, engine english
 (100) line 4	nɬeʔkepmxcín	transcription	xʷíʔ kp páq. y̓hékstuze e tmíxʷep.”	page 27, engine language
@@ -877,7 +877,7 @@ footnote 17	Brent Hall and Bev Phillips	note	17 The labels “nonlocative obliqu
 (83) line 7	Brent Hall and Bev Phillips	translation	‘It wasn’t long before Lightning was able to hit the trees...’	page 28, engine english
 §5	nɬeʔkepmxcín	cited form	xʷʔít	page 28
 §5	nɬeʔkepmxcín	cited form	xín̓	page 28
-§5	Brent Hall and Bev Phillips	note	In the case of (26), one might argue that xʷʔít tuʔ xʷéʔe is the whole extracted constituent since the predicate in the residue has a middle suffix -m, and patients of predicates derived by this suffix are introduced by the oblique preposition t=, thus making the nominalization a result of extracting a nonlocative oblique argument and keeping in line with Kroeber’s description. The same might be argued for (83) since expressions of temporal duration (in this case xín̓) are also introduced by the oblique preposition t=. However, in (12) for example, the matrix clause consists only of tuʔ xʷéʔe, so there must be some other explanation for cases like this. Regardless of the explanation, I wish to only present this as a possible avenue for future research.	page 28
+§5	Brent Hall and Bev Phillips	note	In the case of (26), one might argue that xʷʔít tuʔ xʷéʔe is the whole extracted constituent since the predicate in the residue has a middle suffix -m, and patients of predicates derived by this suffix are introduced by the oblique preposition t=, thus making the nominalization a result of extracting a nonlocative oblique argument and retention in line with Kroeber’s description. The same might be argued for (83) since expressions of temporal duration (in this case xín̓) are also introduced by the oblique preposition t=. However, in (12) for example, the matrix clause consists only of tuʔ xʷéʔe, so there must be some other explanation for cases like this. Regardless of the explanation, I wish to only present this as a possible avenue for future research.	page 28
 references	Brent Hall and Bev Phillips	heading	References	page 29
 references	nɬeʔkepmxcín	cited form	ɬ	page 29
 references	nɬeʔkepmxcín	cited form	máʕxetn	page 29

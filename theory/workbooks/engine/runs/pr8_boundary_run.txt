@@ -37,7 +37,7 @@ cycle_boundary.obj
     heap by floor, ramp +-8: 1214 727 487 371 318 371 487 727 1214; pinch 3.81
     heap by floor, ramp +-1024: 1217 936 794 724 690 724 794 936 1217; pinch 1.76
     heap by floor, noise: 1471 1468 1467 1468 1468 1468 1467 1468 1471; pinch 1.00
-  top projection, x / 2^k for k = 3, 7, 5 and c = 3, 5, 12345 over 196608 lanes: nested quotients agree on 196608, the order is kept on 196608 (tied on 0), the sum is within one on 196608 (carried on 92848); the 8-bit wrap reverses the order on 98168
+  top projection, x / 2^k for k = 3, 7, 5 and c = 3, 5, 12345 over 196608 lanes: nested quotients agree on 196608, the order is retained on 196608 (tied on 0), the sum is within one on 196608 (carried on 92848); the 8-bit wrap reverses the order on 98168
   counted: T and T^-1 over 4 samples and one level, every input quantum at level w + 3 for w = 1 and 2, from two windows; 8 of 8 runs send exactly 4096 input quanta onto every output quantum
   volume: det M = 1 and det M^-1 = 1 exactly, by primes past 779 and 775 bits; M M^-1 = I holds
   record boundary test: 48 checks, 0 failed

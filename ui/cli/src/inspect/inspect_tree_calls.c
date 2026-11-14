@@ -69,7 +69,7 @@ EMBED_INLINE int calls_text_is(const InspectTreeCallsCtx *args)
                                                    .bytes = (embed_word)args->size}) == 0);
 }
 
-// the functions of the tree's files, and the most calls one function makes
+// the functions of the tree's files, and the max calls one function makes
 EMBED_INLINE void calls_count(const InspectTreeCallsCtx *args)
 {
     unsigned long long *functions = args->functions;
@@ -290,7 +290,7 @@ EMBED_INLINE unsigned int calls_call_reach(const InspectTreeCallsCtx *args)
     return EMBED_CALL(calls_reach, InspectTreeCallsCtx, .file = args->file, .name = text, .size = name->name.size);
 }
 
-// the file at `file` handed to `each` as the function at `at` of it, with `count` sites from `grouped`
+// the file at `file` passed to `each` as the function at `at` of it, with `count` sites from `grouped`
 EMBED_INLINE void calls_hand(const InspectTreeCallsCtx *args)
 {
     CliTreeFile tree_file;
@@ -302,7 +302,7 @@ EMBED_INLINE void calls_hand(const InspectTreeCallsCtx *args)
                .function = args->at, .sites = args->grouped, .count = (unsigned int)args->sites);
 }
 
-// the callees of the function at `at` of the file at `file`, `sites` calls counted, handed to `each`
+// the callees of the function at `at` of the file at `file`, `sites` calls counted, passed to `each`
 EMBED_INLINE void calls_callees_dispatch(const InspectTreeCallsCtx *args)
 {
     unsigned char *const cell = EMBED_CALL(calls_callees_alloc, InspectTreeCallsCtx, .sites = args->sites_max);
@@ -465,7 +465,7 @@ void cli_inspect_tree_callers(const CliInspectTreePathCfg *args)
                             .dst = name,
                             .bytes = function.name.size});
     const unsigned long long size = function.name.size;
-    // the files in the order of their paths, and the calls of one caller, a cell sized to the files and the most calls
+    // the files in the order of their paths, and the calls of one caller, a cell sized to the files and the max calls
     // one function makes
     unsigned long long functions = 0ULL;
     unsigned long long calls_max = 0ULL;

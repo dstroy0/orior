@@ -55,13 +55,13 @@ def rotl(value, amount):
     return ((value << amount) | (value >> (32 - amount))) & MASK
 
 
-def compress(block, handed, rounds=64):
-    """One block of SHA-256. handed is +1 for the standard function, -1 for its mirror.
+def compress(block, passed, rounds=64):
+    """One block of SHA-256. passed is +1 for the standard function, -1 for its mirror.
 
     Only the rotation DIRECTION changes. Amounts, constants, additions, the nonlinear terms and the
     round count are identical. The two functions differ in one property.
     """
-    turn = rotr if handed > 0 else rotl
+    turn = rotr if passed > 0 else rotl
     w = list(block)
     for t in range(16, 64):
         s0 = turn(w[t - 15], 7) ^ turn(w[t - 15], 18) ^ (w[t - 15] >> 3)
@@ -87,34 +87,34 @@ def digest_bits(words):
     return bits
 
 
-def survey(handed, trials, rng):
+def survey(passed, trials, rng):
     """Bit shares and the avalanche count, for one handedness."""
     counts = [0] * 256
     flips = []
     for _ in range(trials):
         block = [rng.getrandbits(32) for _ in range(16)]
-        one = digest_bits(compress(block, handed))
+        one = digest_bits(compress(block, passed))
         for at in range(256):
             counts[at] += one[at]
         changed = list(block)
         changed[rng.randrange(16)] ^= 1 << rng.randrange(32)
-        two = digest_bits(compress(changed, handed))
+        two = digest_bits(compress(changed, passed))
         flips.append(sum(1 for at in range(256) if one[at] != two[at]))
     return counts, flips
 
 
-def diffusion_depth(handed, trials, rng):
+def diffusion_depth(passed, trials, rng):
     """The round at which a single input bit first reaches half the output. Chirality, if it
-    matters anywhere, is most likely to show as a difference in how fast the thing mixes."""
+    matters anywhere, is likely to show as a difference in how fast the thing mixes."""
     out = []
     for rounds in range(1, 33):
         total = 0
         for _ in range(trials):
             block = [rng.getrandbits(32) for _ in range(16)]
-            one = digest_bits(compress(block, handed, rounds))
+            one = digest_bits(compress(block, passed, rounds))
             changed = list(block)
             changed[rng.randrange(16)] ^= 1 << rng.randrange(32)
-            two = digest_bits(compress(changed, handed, rounds))
+            two = digest_bits(compress(changed, passed, rounds))
             total += sum(1 for at in range(256) if one[at] != two[at])
         out.append(total / float(trials))
     return out

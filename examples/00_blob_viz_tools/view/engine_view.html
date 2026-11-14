@@ -90,7 +90,7 @@ beside it; edit those, never the built page.
     scrollbar-width: thin; scrollbar-color: color-mix(in oklab, var(--blue) 28%, transparent) transparent;
   }
   .box:not(:hover):not(:focus-within), .glass:not(:hover):not(:focus-within) { scrollbar-color: transparent transparent; }
-  .box h4 { margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.01em; color: var(--ink); cursor: move; user-select: none; }
+  .box h4 { margin: 0 0 8px; font-size: 11px; font-weight: 600; character-spacing: 0.01em; color: var(--ink); cursor: move; user-select: none; }
 
   /* A row: its label, its control, and the value the control holds, on the same three columns everywhere. */
   .row { display: grid; grid-template-columns: 92px minmax(0, 1fr) 48px; align-items: center; column-gap: 8px; min-height: 24px; }
@@ -106,7 +106,7 @@ beside it; edit those, never the built page.
   /* Buttons. */
   button {
     height: 26px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--control-edge); background: var(--control);
-    color: var(--control-ink); font: 500 11.5px/1 var(--font); letter-spacing: 0.005em; cursor: pointer;
+    color: var(--control-ink); font: 500 11.5px/1 var(--font); character-spacing: 0.005em; cursor: pointer;
     transition: border-color 120ms var(--ease), background-color 120ms var(--ease), box-shadow 160ms var(--ease), color 120ms var(--ease);
   }
   button:hover { border-color: color-mix(in oklab, var(--blue) 38%, transparent); background: var(--control-hi); color: var(--ink); }
@@ -189,7 +189,7 @@ beside it; edit those, never the built page.
   details.section:first-of-type { border-top: 0; }
   details.section > summary {
     list-style: none; display: flex; align-items: center; gap: 8px; height: 30px; cursor: pointer; user-select: none;
-    font-size: 11px; font-weight: 600; letter-spacing: 0.01em; color: var(--ink);
+    font-size: 11px; font-weight: 600; character-spacing: 0.01em; color: var(--ink);
   }
   details.section > summary::-webkit-details-marker { display: none; }
   details.section > summary::after {
@@ -254,10 +254,10 @@ beside it; edit those, never the built page.
   }
 
   .toolbar-head { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; height: var(--button); }
-  .toolbar-title { font-size: 11px; font-weight: 600; letter-spacing: 0.01em; color: var(--ink); opacity: 0; transition: opacity 160ms var(--ease); }
+  .toolbar-title { font-size: 11px; font-weight: 600; character-spacing: 0.01em; color: var(--ink); opacity: 0; transition: opacity 160ms var(--ease); }
   .toolbar.open .toolbar-title { opacity: 1; transition-delay: 120ms; }
 
-  /* The menu button keeps its own glass: closed, it reads as a whole button. Its three lines turn into a cross. */
+  /* The menu button retains its own glass: closed, it reads as a whole button. Its three lines turn into a cross. */
   .toolbar-button {
     position: relative; flex: 0 0 auto; width: var(--button); height: var(--button); margin: -1px; padding: 0; border-radius: 10px;
     border: 1px solid var(--hair); background: linear-gradient(180deg, var(--glass-top), var(--glass-low)); box-shadow: var(--shadow);
@@ -402,7 +402,7 @@ const EV = {};
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// The floating toolbar emitter. A page hands EV.toolbar a spec and gets back one toolbar in a corner: a menu button
+// The floating toolbar emitter. A page passes EV.toolbar a spec and gets back one toolbar in a corner: a menu button
 // that opens it, and folding sections of rows. Every control is emitted with the id the spec gives it, and the page
 // binds its controls by id as it would hand-written markup. A slider's value shows in an output whose id is the
 // slider's id followed by "Out".
@@ -759,7 +759,7 @@ EV.watchLoop = (label, step, options = {}) => {
 
   return {
     record,
-    // Asks for turns. A loop already awake keeps running, and a stopped loop stays stopped.
+    // Asks for turns. A loop already awake retains running, and a stopped loop stays stopped.
     wake: () => {
       if (stopped || record.awake) {
         return;
@@ -779,8 +779,8 @@ EV.watchLoop = (label, step, options = {}) => {
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// Every setting has a kind and a range, stored in EV.VIEW_SCHEME by name. Applying a view is partial: names
-// it does not carry keep their values. A name the scheme does not have, a fraction, a value of the wrong kind
+// Every setting has a type and a range, stored in EV.VIEW_SCHEME by name. Applying a view is partial: names
+// it does not carry retain their values. A name the scheme does not have, a fraction, a value of the wrong type
 // or one outside its range is reported by name and not applied.
 
 EV.defaultView = () => {
@@ -794,19 +794,19 @@ EV.defaultView = () => {
 // Checks one value against its rule; returns the reason it errors, or null.
 EV.errorValue = (rule, value) => {
   const integer = (one) => Number.isInteger(one) && one >= rule.low && one <= rule.high;
-  if (rule.kind === "integer") {
+  if (rule.type === "integer") {
     return integer(value) ? null : `an integer from ${rule.low} to ${rule.high}`;
   }
-  if (rule.kind === "switch") {
+  if (rule.type === "switch") {
     return typeof value === "boolean" ? null : "true or false";
   }
-  if (rule.kind === "word") {
+  if (rule.type === "word") {
     return rule.words.includes(value) ? null : `one of ${rule.words.join(", ")}`;
   }
-  if (rule.kind === "words") {
+  if (rule.type === "words") {
     return Array.isArray(value) && value.every((one) => rule.words.includes(one)) ? null : `a list of ${rule.words.join(", ")}`;
   }
-  if (rule.kind === "lights") {
+  if (rule.type === "lights") {
     const light = (one) => one && typeof one === "object" && Object.keys(one).every((key) => ["turn", "tilt", "strength"].includes(key))
       && Number.isInteger(one.turn) && one.turn >= 0 && one.turn <= 359
       && Number.isInteger(one.tilt) && one.tilt >= -89 && one.tilt <= 89
@@ -914,7 +914,7 @@ EV.readHead = async (reader, count) => {
   return pending;
 };
 
-// The rest of a stream, its head already read, laid into the landing from a byte place; nothing lands past the limit.
+// The rest of a stream, its head already read, positioned into the landing from a byte place; nothing lands past the limit.
 // Returns the stream's whole length.
 EV.streamInto = async (reader, landing, at, limit, head) => {
   let written = 0;
@@ -948,7 +948,7 @@ EV.pickAt = async (gpu, x, y) => {
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // The engine view's shaders. Every position is integer arithmetic in doubled voxel units until the clip boundary,
-// where one conversion to f32 hands it to the rasterizer. Every pick is a select; nothing is discarded. A primitive
+// where one conversion to f32 passes it to the rasterizer. Every pick is a select; nothing is discarded. A primitive
 // that should not be drawn is moved outside the clip volume in the vertex stage.
 
 EV.LAYOUT_WORDS = 88;
@@ -985,7 +985,7 @@ const HIDDEN: vec4<f32> = vec4<f32>(4.0, 4.0, 4.0, 1.0);
 // Each run's leaf: the largest leaf whose first run is at or before the run, by 24 halvings.
 EV.RESOLVE = EV.PRELUDE + `
 @group(0) @binding(0) var<storage, read> obj: array<u32>;
-@group(0) @binding(1) var<uniform> lay: Layout;
+@group(0) @binding(1) var<uniform> position: Layout;
 @group(0) @binding(2) var<storage, read_write> run_leaf: array<u32>;
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
@@ -993,10 +993,10 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   var leaf = 0u;
   for (var step = 0u; step < 24u; step++) {
     let probe = leaf + ((1u << 23u) >> step);
-    let first = obj[lay.leaves_at + 4u * min(probe, lay.leaf_total - 1u) + 2u];
-    leaf = select(leaf, probe, (probe < lay.leaf_total) && (first <= run));
+    let first = obj[position.leaves_at + 4u * min(probe, position.leaf_total - 1u) + 2u];
+    leaf = select(leaf, probe, (probe < position.leaf_total) && (first <= run));
   }
-  run_leaf[select(lay.run_total, run, run < lay.run_total)] = leaf;
+  run_leaf[select(position.run_total, run, run < position.run_total)] = leaf;
 }`;
 
 EV.CHOSEN = `
@@ -1004,28 +1004,28 @@ fn chosen_bit(cell: u32) -> u32 {
   return (chosen[cell >> 5u] >> (cell & 31u)) & 1u;
 }`;
 
-// Each leaf in range: its runs where it is kept, else zero; past the range, zero.
-EV.KEEP = EV.PRELUDE + `
+// Each leaf in range: its runs where it is retained, else zero; past the range, zero.
+EV.RETAIN = EV.PRELUDE + `
 @group(0) @binding(0) var<storage, read> obj: array<u32>;
-@group(0) @binding(1) var<uniform> lay: Layout;
+@group(0) @binding(1) var<uniform> position: Layout;
 @group(0) @binding(2) var<storage, read> chosen: array<u32>;
 @group(0) @binding(3) var<storage, read_write> prefix: array<u32>;
 ${EV.CHOSEN}
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   let slot = id.x + id.y * STRIDE;
-  let at = lay.leaves_at + 4u * (lay.leaf_first + slot);
+  let at = position.leaves_at + 4u * (position.leaf_first + slot);
   let cell = obj[at];
-  let big = u32(obj[lay.cells_at + 4u * cell] >= lay.min_voxels);
-  let kept = select(1u, chosen_bit(cell), lay.only_chosen == 1u) * big * u32(slot < lay.leaf_span);
-  prefix[select(lay.pow2, slot, slot < lay.pow2)] = obj[at + 3u] * kept;
+  let big = u32(obj[position.cells_at + 4u * cell] >= position.min_voxels);
+  let retained = select(1u, chosen_bit(cell), position.only_chosen == 1u) * big * u32(slot < position.leaf_span);
+  prefix[select(position.pow2, slot, slot < position.pow2)] = obj[at + 3u] * retained;
 }`;
 
 // One Sklansky level: every element with the level's bit set adds the last element of the half block below it.
 EV.LEVEL = EV.PRELUDE + `
 struct Level { bit: u32, spare0: u32, spare1: u32, spare2: u32 }
 @group(0) @binding(0) var<uniform> level: Level;
-@group(0) @binding(1) var<uniform> lay: Layout;
+@group(0) @binding(1) var<uniform> position: Layout;
 @group(0) @binding(2) var<storage, read_write> prefix: array<u32>;
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
@@ -1034,13 +1034,13 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   let block = (walk >> level.bit) << (level.bit + 1u);
   let slot = block | (1u << level.bit) | (walk & low);
   let source = block | low;
-  prefix[select(lay.pow2, slot, slot < lay.pow2)] += prefix[min(source, lay.pow2)];
+  prefix[select(position.pow2, slot, slot < position.pow2)] += prefix[min(source, position.pow2)];
 }`;
 
-// Each run in range lands at its leaf's kept runs before it plus its place in its leaf; a run not kept lands in position 0.
+// Each run in range lands at its leaf's retained runs before it plus its place in its leaf; a run not retained lands in position 0.
 EV.SCATTER = EV.PRELUDE + `
 @group(0) @binding(0) var<storage, read> obj: array<u32>;
-@group(0) @binding(1) var<uniform> lay: Layout;
+@group(0) @binding(1) var<uniform> position: Layout;
 @group(0) @binding(2) var<storage, read> chosen: array<u32>;
 @group(0) @binding(3) var<storage, read> prefix: array<u32>;
 @group(0) @binding(4) var<storage, read> run_leaf: array<u32>;
@@ -1048,29 +1048,29 @@ EV.SCATTER = EV.PRELUDE + `
 ${EV.CHOSEN}
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
-  let run = lay.run_first + id.x + id.y * STRIDE;
-  let leaf = run_leaf[min(run, lay.run_total)];
-  let at = lay.leaves_at + 4u * leaf;
+  let run = position.run_first + id.x + id.y * STRIDE;
+  let leaf = run_leaf[min(run, position.run_total)];
+  let at = position.leaves_at + 4u * leaf;
   let cell = obj[at];
-  let big = u32(obj[lay.cells_at + 4u * cell] >= lay.min_voxels);
-  let kept = select(1u, chosen_bit(cell), lay.only_chosen == 1u) * big * u32(run < lay.run_past);
-  let before = prefix[min(leaf - lay.leaf_first, lay.pow2)] - obj[at + 3u] * kept;
-  compact[kept * (before + (run - obj[at + 2u]) + 1u)] = run;
+  let big = u32(obj[position.cells_at + 4u * cell] >= position.min_voxels);
+  let retained = select(1u, chosen_bit(cell), position.only_chosen == 1u) * big * u32(run < position.run_past);
+  let before = prefix[min(leaf - position.leaf_first, position.pow2)] - obj[at + 3u] * retained;
+  compact[retained * (before + (run - obj[at + 2u]) + 1u)] = run;
 }`;
 
 EV.COUNT = EV.PRELUDE + `
-@group(0) @binding(0) var<uniform> lay: Layout;
+@group(0) @binding(0) var<uniform> position: Layout;
 @group(0) @binding(1) var<storage, read> prefix: array<u32>;
 @group(0) @binding(2) var<storage, read_write> drawn: array<u32, 8>;
 @compute @workgroup_size(1)
 fn main() {
-  // Two sets of drawIndirect arguments over the same kept runs: 18 vertices for a box's three faces, 6 for a capsule.
+  // Two sets of drawIndirect arguments over the same retained runs: 18 vertices for a box's three faces, 6 for a capsule.
   drawn[0] = 18u;
-  drawn[1] = prefix[lay.pow2 - 1u];
+  drawn[1] = prefix[position.pow2 - 1u];
   drawn[2] = 0u;
   drawn[3] = 0u;
   drawn[4] = 6u;
-  drawn[5] = prefix[lay.pow2 - 1u];
+  drawn[5] = prefix[position.pow2 - 1u];
   drawn[6] = 0u;
   drawn[7] = 0u;
 }`;
@@ -1087,7 +1087,7 @@ fn main() {
 
 EV.RENDER_BINDINGS = `
 @group(0) @binding(0) var<storage, read> obj: array<u32>;
-@group(0) @binding(1) var<uniform> lay: Layout;
+@group(0) @binding(1) var<uniform> position: Layout;
 @group(0) @binding(2) var<storage, read> chosen: array<u32>;
 @group(0) @binding(3) var<storage, read> motion: array<i32>;
 `;
@@ -1124,11 +1124,11 @@ fn hue(key: u32) -> vec3<u32> {
 // 0 by cell, 1 by lineage, 2 by volume, 3 lineage in the Okabe-Ito colors that stay apart under color blindness.
 fn paint(cell: u32) -> vec3<u32> {
   let root = u32(motion[cell * 8u + 6u]);
-  let size = max(obj[lay.cells_at + 4u * cell], 1u);
+  let size = max(obj[position.cells_at + 4u * cell], 1u);
   let level = min(((31u - countLeadingZeros(size)) * 8u) / 23u, 7u);
   let okabe = unpack(OKABE[(root * 2654435761u) >> 29u]);
-  return select(select(select(hue(cell), hue(root), lay.palette == 1u), unpack(RAMP[level]), lay.palette == 2u),
-                okabe, lay.palette == 3u);
+  return select(select(select(hue(cell), hue(root), position.palette == 1u), unpack(RAMP[level]), position.palette == 2u),
+                okabe, position.palette == 3u);
 }
 
 fn ease(progress: u32) -> i32 {
@@ -1138,42 +1138,42 @@ fn ease(progress: u32) -> i32 {
 
 // The turn: yaw about z, then pitch about the turned x, both as integers scaled by 2^14.
 fn project(x: i32, y: i32, z: i32, frame: u32) -> vec4<f32> {
-  let x1 = (lay.yaw_cos * x - lay.yaw_sin * y) >> 14u;
-  let y1 = (lay.yaw_sin * x + lay.yaw_cos * y) >> 14u;
-  let y2 = (lay.pitch_cos * y1 - lay.pitch_sin * z) >> 14u;
-  let z2 = (lay.pitch_sin * y1 + lay.pitch_cos * z) >> 14u;
-  let shift = ((i32(frame) - i32(lay.frame_now)) * lay.spread) - ((ease(lay.progress) * lay.spread) >> 12u);
-  return vec4<f32>(f32((x1 + shift) * lay.zoom + lay.pan_x) / f32(lay.half_w * 256),
-                   f32(z2 * lay.zoom + lay.pan_y) / f32(lay.half_h * 256),
+  let x1 = (position.yaw_cos * x - position.yaw_sin * y) >> 14u;
+  let y1 = (position.yaw_sin * x + position.yaw_cos * y) >> 14u;
+  let y2 = (position.pitch_cos * y1 - position.pitch_sin * z) >> 14u;
+  let z2 = (position.pitch_sin * y1 + position.pitch_cos * z) >> 14u;
+  let shift = ((i32(frame) - i32(position.frame_now)) * position.spread) - ((ease(position.progress) * position.spread) >> 12u);
+  return vec4<f32>(f32((x1 + shift) * position.zoom + position.pan_x) / f32(position.half_w * 256),
+                   f32(z2 * position.zoom + position.pan_y) / f32(position.half_h * 256),
                    f32(8192 + y2) / 16384.0, 1.0);
 }
 
 // A cell's step across the transition: toward its children for frame t, in from its parents for frame t + 1.
 fn step_of(cell: u32, frame: u32) -> vec3<i32> {
   let at = cell * 8u;
-  let eased = ease(lay.progress);
-  let toward = vec3<i32>(motion[at], motion[at + 1u], (motion[at + 2u] * lay.z_scale) / 2);
-  let inward = vec3<i32>(motion[at + 3u], motion[at + 4u], (motion[at + 5u] * lay.z_scale) / 2);
-  let now = frame == lay.frame_now;
-  let next = frame == lay.frame_now + 1u;
+  let eased = ease(position.progress);
+  let toward = vec3<i32>(motion[at], motion[at + 1u], (motion[at + 2u] * position.z_scale) / 2);
+  let inward = vec3<i32>(motion[at + 3u], motion[at + 4u], (motion[at + 5u] * position.z_scale) / 2);
+  let now = frame == position.frame_now;
+  let next = frame == position.frame_now + 1u;
   return select(vec3<i32>(0), (toward * eased) / 4096, now) - select(vec3<i32>(0), (inward * (4096 - eased)) / 4096, next);
 }
 
 fn centroid(cell: u32) -> vec3<i32> {
-  let at = lay.cells_at + 4u * cell;
+  let at = position.cells_at + 4u * cell;
   let size = max(obj[at], 1u);
   let doubled_z = i32((2u * obj[at + 1u] + size) / size);
-  return vec3<i32>(i32((2u * obj[at + 3u] + size) / size) - i32(lay.width),
-                   i32((2u * obj[at + 2u] + size) / size) - i32(lay.height),
-                   (lay.z_scale * (doubled_z - i32(lay.depth))) / 2);
+  return vec3<i32>(i32((2u * obj[at + 3u] + size) / size) - i32(position.width),
+                   i32((2u * obj[at + 2u] + size) / size) - i32(position.height),
+                   (position.z_scale * (doubled_z - i32(position.depth))) / 2);
 }
 
 fn frame_of_cell(cell: u32) -> u32 {
   var frame = 0u;
   for (var step = 0u; step < 8u; step++) {
     let probe = frame + (128u >> step);
-    let first = obj[lay.frames_at + 10u * min(probe, lay.frame_total - 1u) + 5u];
-    frame = select(frame, probe, (probe < lay.frame_total) && (first <= cell));
+    let first = obj[position.frames_at + 10u * min(probe, position.frame_total - 1u) + 5u];
+    frame = select(frame, probe, (probe < position.frame_total) && (first <= cell));
   }
   return frame;
 }
@@ -1181,15 +1181,15 @@ fn frame_of_cell(cell: u32) -> u32 {
 // Shaded, faded by age, grayed where cells are chosen and this one is not, lifted where it is hovered or glows.
 fn lit(cell: u32, frame: u32, shade: u32) -> vec4<f32> {
   let base = (paint(cell) * shade) / 256u;
-  let age = select(0u, lay.frame_now - frame, frame < lay.frame_now);
-  let bright = 256u - min(age * lay.ghost_fade, 224u);
+  let age = select(0u, position.frame_now - frame, frame < position.frame_now);
+  let bright = 256u - min(age * position.ghost_fade, 224u);
   let faded = (base * bright) / 256u;
   let picked = chosen_bit(cell);
-  let dim = (lay.chosen_weight * (1u - picked)) / 1u;
+  let dim = (position.chosen_weight * (1u - picked)) / 1u;
   let gray = vec3<u32>((faded.x + faded.y + faded.z) / 10u);
-  let shown = (faded * (256u - dim) + gray * dim) / 256u;
-  let lift = 48u * u32(lay.hover_cell == cell + 1u) + 64u * lay.glow * picked;
-  let raised = min(shown + vec3<u32>(lift), vec3<u32>(255u));
+  let displayed = (faded * (256u - dim) + gray * dim) / 256u;
+  let lift = 48u * u32(position.hover_cell == cell + 1u) + 64u * position.glow * picked;
+  let raised = min(displayed + vec3<u32>(lift), vec3<u32>(255u));
   return vec4<f32>(vec3<f32>(raised) / 255.0, 1.0);
 }
 `;
@@ -1207,36 +1207,36 @@ EV.RENDER = EV.PRELUDE + EV.RENDER_BINDINGS + `
 @vertex
 fn box(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instance: u32) -> Out {
   let run = compact[instance + 1u];
-  let voxel = obj[lay.runs_at + 2u * run];
-  let span = i32(obj[lay.runs_at + 2u * run + 1u]);
+  let voxel = obj[position.runs_at + 2u * run];
+  let span = i32(obj[position.runs_at + 2u * run + 1u]);
   let leaf = run_leaf[run];
-  let cell = obj[lay.leaves_at + 4u * leaf];
-  let frame = obj[lay.leaves_at + 4u * leaf + 1u];
-  let x0 = 2 * i32(voxel % lay.width) - i32(lay.width);
-  let y0 = 2 * i32((voxel / lay.width) % lay.height) - i32(lay.height);
-  let z0 = (lay.z_scale * (2 * i32(voxel / lay.plane) - i32(lay.depth))) / 2;
+  let cell = obj[position.leaves_at + 4u * leaf];
+  let frame = obj[position.leaves_at + 4u * leaf + 1u];
+  let x0 = 2 * i32(voxel % position.width) - i32(position.width);
+  let y0 = 2 * i32((voxel / position.width) % position.height) - i32(position.height);
+  let z0 = (position.z_scale * (2 * i32(voxel / position.plane) - i32(position.depth))) / 2;
   let face = vertex / 6u;
   let corner = vertex % 6u;
   let u = i32((0x16u >> corner) & 1u);
   let v = i32((0x34u >> corner) & 1u);
   let top = face == 0u;
   let side_x = face == 1u;
-  let x_face = select(x0, x0 + 2 * span, lay.yaw_sin < 0);
-  let y_face = select(y0, y0 + 2, lay.yaw_cos < 0);
-  let z_face = select(z0, z0 + lay.z_scale, lay.pitch_sin > 0);
+  let x_face = select(x0, x0 + 2 * span, position.yaw_sin < 0);
+  let y_face = select(y0, y0 + 2, position.yaw_cos < 0);
+  let z_face = select(z0, z0 + position.z_scale, position.pitch_sin > 0);
   let step = step_of(cell, frame);
   let x = select(x0 + u * 2 * span, x_face, side_x) + step.x;
   let y = select(select(y_face, y0 + u * 2, side_x), y0 + v * 2, top) + step.y;
-  let z = select(z0 + v * lay.z_scale, z_face, top) + step.z;
-  let facing = select(select(select(-lay.light_y, lay.light_y, lay.yaw_cos < 0),
-                             select(-lay.light_x, lay.light_x, lay.yaw_sin < 0), side_x),
-                      select(-lay.light_z, lay.light_z, lay.pitch_sin > 0), top);
-  let shade = select(256u - face * 40u, u32(72 + (max(facing, 0) * 184) / 256), lay.shade_on == 1u);
+  let z = select(z0 + v * position.z_scale, z_face, top) + step.z;
+  let facing = select(select(select(-position.light_y, position.light_y, position.yaw_cos < 0),
+                             select(-position.light_x, position.light_x, position.yaw_sin < 0), side_x),
+                      select(-position.light_z, position.light_z, position.pitch_sin > 0), top);
+  let shade = select(256u - face * 40u, u32(72 + (max(facing, 0) * 184) / 256), position.shade_on == 1u);
   let grain = (run * 2654435761u) >> 20u;
-  let eased = u32(ease(lay.progress));
-  let shown = select(select(true, grain < eased, frame == lay.frame_now + 1u), grain >= eased, frame == lay.frame_now);
+  let eased = u32(ease(position.progress));
+  let displayed = select(select(true, grain < eased, frame == position.frame_now + 1u), grain >= eased, frame == position.frame_now);
   var out: Out;
-  out.place = select(HIDDEN, project(x, y, z, frame), shown);
+  out.place = select(HIDDEN, project(x, y, z, frame), displayed);
   out.color = lit(cell, frame, shade);
   out.pick = cell + 1u;
   return out;
@@ -1247,7 +1247,7 @@ fn box(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instance: u3
 fn blob(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instance: u32) -> Out {
   let cell = instance;
   let frame = frame_of_cell(cell);
-  let size = obj[lay.cells_at + 4u * cell];
+  let size = obj[position.cells_at + 4u * cell];
   var side = 0u;
   for (var step = 0u; step < 8u; step++) {
     let probe = side + (128u >> step);
@@ -1261,18 +1261,18 @@ fn blob(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instance: u
   let v = i32((0x34u >> corner) & 1u);
   let top = face == 0u;
   let side_x = face == 1u;
-  let low = middle - vec3<i32>(half, half, half * lay.z_scale / 2);
-  let high = middle + vec3<i32>(half, half, half * lay.z_scale / 2);
-  let x_face = select(low.x, high.x, lay.yaw_sin < 0);
-  let y_face = select(low.y, high.y, lay.yaw_cos < 0);
-  let z_face = select(low.z, high.z, lay.pitch_sin > 0);
+  let low = middle - vec3<i32>(half, half, half * position.z_scale / 2);
+  let high = middle + vec3<i32>(half, half, half * position.z_scale / 2);
+  let x_face = select(low.x, high.x, position.yaw_sin < 0);
+  let y_face = select(low.y, high.y, position.yaw_cos < 0);
+  let z_face = select(low.z, high.z, position.pitch_sin > 0);
   let x = select(low.x + u * (high.x - low.x), x_face, side_x);
   let y = select(select(y_face, low.y + u * (high.y - low.y), side_x), low.y + v * (high.y - low.y), top);
   let z = select(low.z + v * (high.z - low.z), z_face, top);
-  let kept = select(true, chosen_bit(cell) == 1u, lay.only_chosen == 1u) && (size >= lay.min_voxels);
-  let in_range = (frame + lay.ghost_frames >= lay.frame_now) && (frame <= lay.frame_now);
+  let retained = select(true, chosen_bit(cell) == 1u, position.only_chosen == 1u) && (size >= position.min_voxels);
+  let in_range = (frame + position.ghost_frames >= position.frame_now) && (frame <= position.frame_now);
   var out: Out;
-  out.place = select(HIDDEN, project(x, y, z, frame), kept && in_range);
+  out.place = select(HIDDEN, project(x, y, z, frame), retained && in_range);
   out.color = lit(cell, frame, 256u - face * 40u);
   out.pick = cell + 1u;
   return out;
@@ -1292,16 +1292,16 @@ fn paint_fragment(input: Out) -> Drawn {
 EV.LINES = EV.PRELUDE + EV.RENDER_BINDINGS + EV.RENDER_COMMON + `
 @vertex
 fn link(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instance: u32) -> Out {
-  let at = lay.links_at + 2u * instance;
+  let at = position.links_at + 2u * instance;
   let source = obj[at];
   let cell = obj[at + (vertex & 1u)];
   let frame = frame_of_cell(source) + (vertex & 1u);
   let middle = centroid(cell);
   let either = chosen_bit(obj[at]) | chosen_bit(obj[at + 1u]);
-  let kept = select(true, either == 1u, lay.only_chosen == 1u);
+  let retained = select(true, either == 1u, position.only_chosen == 1u);
   let tone = (paint(cell) * (96u + 160u * either)) / 256u;
   var out: Out;
-  out.place = select(HIDDEN, project(middle.x, middle.y, middle.z, frame), kept);
+  out.place = select(HIDDEN, project(middle.x, middle.y, middle.z, frame), retained);
   out.color = vec4<f32>(vec3<f32>(tone) / 255.0, 1.0);
   out.pick = 0u;
   return out;
@@ -1309,15 +1309,15 @@ fn link(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instance: u
 
 @vertex
 fn edge(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instance: u32) -> Out {
-  let at = lay.edges_at + 3u * instance;
+  let at = position.edges_at + 3u * instance;
   let source = obj[at];
   let status = min(obj[at + 2u], 4u);
   let whole = (source != 0xFFFFFFFFu) && (obj[at + 1u] != 0xFFFFFFFFu);
   let cell = select(0u, obj[at + (vertex & 1u)], whole);
   let middle = centroid(cell);
   let from_frame = frame_of_cell(select(0u, source, whole));
-  let near = (from_frame + lay.ghost_frames >= lay.frame_now) && (from_frame <= lay.frame_now + 1u);
-  let wanted = ((lay.status_mask >> status) & 1u) == 1u;
+  let near = (from_frame + position.ghost_frames >= position.frame_now) && (from_frame <= position.frame_now + 1u);
+  let wanted = ((position.status_mask >> status) & 1u) == 1u;
   var out: Out;
   out.place = select(HIDDEN, project(middle.x, middle.y, middle.z, from_frame + (vertex & 1u)), whole && near && wanted);
   out.color = vec4<f32>(vec3<f32>(unpack(STATUS[status])) / 255.0, 1.0);
@@ -1365,34 +1365,34 @@ fn id_at(texel: vec2<i32>) -> u32 {
 
 @fragment
 fn slice_paint(@builtin(position) at: vec4<f32>) -> Drawn {
-  let right = i32(at.x) - lay.slice_x0;
-  let down = i32(at.y) - lay.slice_y0;
-  let inside = (right >= 0) && (down >= 0) && (right < lay.slice_w) && (down < lay.slice_h);
-  // The image: the volume itself laid flat on the plane. The square's pixel is a place on that plane, in the same
+  let right = i32(at.x) - position.slice_x0;
+  let down = i32(at.y) - position.slice_y0;
+  let inside = (right >= 0) && (down >= 0) && (right < position.slice_w) && (down < position.slice_h);
+  // The image: the volume itself positioned flat on the plane. The square's pixel is a place on that plane, in the same
   // doubled and centered units the cells are turned in, and the ray behind it is walked back through the volume by
   // the camera's own turn read the other way round: what the cells' turn scatters out, this gathers in. The
-  // brightest voxel along the ray stands. So the whole volume is on the plane, and none of it is a box kept still.
+  // brightest voxel along the ray is. So the whole volume is on the plane, and none of it is a box retained still.
   // The plane is overhead and holds still. The pixel is the column straight under it, the image centered in
   // the square with row zero at the top. Nothing here turns; only what falls on the plane does.
-  let column = vec2<i32>(i32(lay.width) / 2 + ((right - lay.slice_w / 2) * 256) / max(lay.slice_scale, 1),
-                         i32(lay.height) / 2 + ((down - lay.slice_h / 2) * 256) / max(lay.slice_scale, 1));
-  let on_image = (column.x >= 0) && (column.y >= 0) && (column.x < i32(lay.width)) && (column.y < i32(lay.height));
-  // The whole volume is given up onto that one place: the brightest voxel of the column standing for all of it,
+  let column = vec2<i32>(i32(position.width) / 2 + ((right - position.slice_w / 2) * 256) / max(position.slice_scale, 1),
+                         i32(position.height) / 2 + ((down - position.slice_h / 2) * 256) / max(position.slice_scale, 1));
+  let on_image = (column.x >= 0) && (column.y >= 0) && (column.x < i32(position.width)) && (column.y < i32(position.height));
+  // The whole volume is given up onto that one place: the brightest voxel of the column located for all of it,
   // or one layer where the map is asked for a layer.
-  let layers = select(1u, lay.depth, lay.map_projection == 1u);
-  let first_layer = select(lay.slice_z, 0u, lay.map_projection == 1u);
-  let at_column = clamp(column, vec2<i32>(0), vec2<i32>(i32(lay.width) - 1, i32(lay.height) - 1)) * i32(lay.raw_on);
+  let layers = select(1u, position.depth, position.map_projection == 1u);
+  let first_layer = select(position.slice_z, 0u, position.map_projection == 1u);
+  let at_column = clamp(column, vec2<i32>(0), vec2<i32>(i32(position.width) - 1, i32(position.height) - 1)) * i32(position.raw_on);
   var raw_value = 0u;
   for (var layer = 0u; layer < max(layers, 1u); layer++) {
-    let at_layer = i32(min(first_layer + layer, lay.depth - 1u)) * i32(lay.raw_on);
+    let at_layer = i32(min(first_layer + layer, position.depth - 1u)) * i32(position.raw_on);
     raw_value = max(raw_value, textureLoad(raw, vec3<i32>(at_column, at_layer), 0).r);
   }
-  raw_value = raw_value * u32(on_image) * lay.raw_on;
-  let span = max(lay.window_high, lay.window_low + 1u) - lay.window_low;
-  let gray = (min(max(raw_value, lay.window_low) - lay.window_low, span) * 255u) / span * lay.raw_on * u32(on_image);
+  raw_value = raw_value * u32(on_image) * position.raw_on;
+  let span = max(position.window_high, position.window_low + 1u) - position.window_low;
+  let gray = (min(max(raw_value, position.window_low) - position.window_low, span) * 255u) / span * position.raw_on * u32(on_image);
   // The cells: the square's pixel read as a texel of the turned, projected cell numbers.
   let size = i32(textureDimensions(ids).x);
-  let texel = vec2<i32>((right * size) / max(lay.slice_w, 1), (down * size) / max(lay.slice_h, 1));
+  let texel = vec2<i32>((right * size) / max(position.slice_w, 1), (down * size) / max(position.slice_h, 1));
   let id = id_at(texel);
   let outline = (id != id_at(texel + vec2<i32>(1, 0))) || (id != id_at(texel - vec2<i32>(1, 0)))
              || (id != id_at(texel + vec2<i32>(0, 1))) || (id != id_at(texel - vec2<i32>(0, 1)));
@@ -1409,9 +1409,9 @@ fn slice_paint(@builtin(position) at: vec4<f32>) -> Drawn {
   let alpha = select((covered * 88u) / 255u, 255u, outline && filled);
   let tone = select(flattened, vec3<u32>(255u), outline && filled && (picked == 1u));
   let mixed = (vec3<u32>(gray) * (256u - alpha) + tone * alpha) / 256u;
-  let hovered = u32(filled && (lay.hover_cell == id)) * 40u;
-  let shown = min(mixed + vec3<u32>(hovered), vec3<u32>(255u));
-  return Drawn(select(vec4<f32>(0.03, 0.035, 0.045, 1.0), vec4<f32>(vec3<f32>(shown) / 255.0, 1.0), inside),
+  let hovered = u32(filled && (position.hover_cell == id)) * 40u;
+  let displayed = min(mixed + vec3<u32>(hovered), vec3<u32>(255u));
+  return Drawn(select(vec4<f32>(0.03, 0.035, 0.045, 1.0), vec4<f32>(vec3<f32>(displayed) / 255.0, 1.0), inside),
                select(0u, id, inside));
 }`;
 
@@ -1428,7 +1428,7 @@ fn slice_paint(@builtin(position) at: vec4<f32>) -> Drawn {
 // Positions are integers up to the clip boundary, as everywhere; past it the ellipses and the blend are display
 // arithmetic in f32 and feed no count. The blend is weighted, blended order-independent transparency (McGuire and
 // Bavoil, 2013): every splat adds its weighted color to one target and multiplies its transparency into another, and
-// the composite divides the first by its weight and lays the result over the page by the second. No sort is needed.
+// the composite divides the first by its weight and positions the result over the page by the second. No sort is needed.
 // Splats and walls take the same palette, the same step and a dissolve grain like the run's box. The smooth cells
 // move and shimmer as the voxel cells do.
 
@@ -1459,7 +1459,7 @@ struct WallDrawn {
 // farthest. The view depth is clip z * 16384 - 8192 doubled units, and no point of the volume lies farther from its
 // center than the length of its half diagonal, width, height and depth * z_scale / 2 doubled units.
 fn farness(clip_z: f32) -> f32 {
-  let reach = length(vec3<f32>(f32(lay.width), f32(lay.height), f32(i32(lay.depth) * lay.z_scale) * 0.5));
+  let reach = length(vec3<f32>(f32(position.width), f32(position.height), f32(i32(position.depth) * position.z_scale) * 0.5));
   return clamp((clip_z * 16384.0 - 8192.0 + reach) / (2.0 * reach), 0.0, 1.0);
 }
 
@@ -1467,38 +1467,38 @@ fn farness(clip_z: f32) -> f32 {
 // and z: along x half the run's length plus a reach of soft_radius halves of a voxel, along y that reach, and along z
 // that reach in layers plus half a layer. Neighboring rows and layers overlap from every angle and the density does
 // not band by layer. The reach grows with distance, by 35% at the far side. Far cells soften a little while near
-// ones keep their shape.
+// ones retain their shape.
 //
 // An ellipsoid with semi-axis vectors a, b, c projects orthographically to the ellipse of points p with
 // p' M^-1 p <= 1, M = a a' + b b' + c c' taken on the screen: the same ellipse from any turn and tilt.
 @vertex
 fn soft(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instance: u32) -> SoftOut {
   let run = compact[instance + 1u];
-  let voxel = obj[lay.runs_at + 2u * run];
-  let span = i32(obj[lay.runs_at + 2u * run + 1u]);
+  let voxel = obj[position.runs_at + 2u * run];
+  let span = i32(obj[position.runs_at + 2u * run + 1u]);
   let leaf = run_leaf[run];
-  let cell = obj[lay.leaves_at + 4u * leaf];
-  let frame = obj[lay.leaves_at + 4u * leaf + 1u];
+  let cell = obj[position.leaves_at + 4u * leaf];
+  let frame = obj[position.leaves_at + 4u * leaf + 1u];
   let step = step_of(cell, frame);
-  let x = 2 * i32(voxel % lay.width) - i32(lay.width) + span + step.x;
-  let y = 2 * i32((voxel / lay.width) % lay.height) - i32(lay.height) + 1 + step.y;
-  let z = (lay.z_scale * (2 * i32(voxel / lay.plane) - i32(lay.depth) + 1)) / 2 + step.z;
-  let half = vec2<f32>(f32(lay.half_w), f32(lay.half_h));
+  let x = 2 * i32(voxel % position.width) - i32(position.width) + span + step.x;
+  let y = 2 * i32((voxel / position.width) % position.height) - i32(position.height) + 1 + step.y;
+  let z = (position.z_scale * (2 * i32(voxel / position.plane) - i32(position.depth) + 1)) / 2 + step.z;
+  let half = vec2<f32>(f32(position.half_w), f32(position.half_h));
   let middle = project(x, y, z, frame);
   let center = middle.xy * half;
   // A voxel and a layer on the screen, each measured over 32 of them so the integer turn's rounding is a 32nd.
   let across_x = (project(x + 64, y, z, frame).xy * half - center) / 32.0;
   let across_y = (project(x, y + 64, z, frame).xy * half - center) / 32.0;
-  let across_z = (project(x, y, z + 32 * lay.z_scale, frame).xy * half - center) / 32.0;
+  let across_z = (project(x, y, z + 32 * position.z_scale, frame).xy * half - center) / 32.0;
   // The distance is the cell's, taken at its centroid: every run of a cell carries one weight. Where two cells
   // overlap on the screen the nearer one wins throughout, never row by row.
   let own_center = centroid(cell) + step;
   let far = farness(project(own_center.x, own_center.y, own_center.z, frame).z);
-  let reach = f32(lay.soft_radius) * 0.5 * (1.0 + 0.35 * far);
+  let reach = f32(position.soft_radius) * 0.5 * (1.0 + 0.35 * far);
   let a = across_x * (f32(span) * 0.5 + reach);
   let b = across_y * reach;
   let c = across_z * (reach + 0.5);
-  // Half a pixel added on the diagonal keeps an ellipse seen edge on from collapsing to a line.
+  // Half a pixel added on the diagonal retains an ellipse seen edge on from collapsing to a line.
   let m00 = a.x * a.x + b.x * b.x + c.x * c.x + 0.25;
   let m01 = a.x * a.y + b.x * b.y + c.x * c.y;
   let m11 = a.y * a.y + b.y * b.y + c.y * c.y + 0.25;
@@ -1508,10 +1508,10 @@ fn soft(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instance: u
   let offset = vec2<f32>(select(-extent.x, extent.x, ((0x16u >> corner) & 1u) == 1u),
                          select(-extent.y, extent.y, ((0x34u >> corner) & 1u) == 1u));
   let grain = (run * 2654435761u) >> 20u;
-  let eased = u32(ease(lay.progress));
-  let shown = select(select(true, grain < eased, frame == lay.frame_now + 1u), grain >= eased, frame == lay.frame_now);
+  let eased = u32(ease(position.progress));
+  let displayed = select(select(true, grain < eased, frame == position.frame_now + 1u), grain >= eased, frame == position.frame_now);
   var out: SoftOut;
-  out.place = select(HIDDEN, vec4<f32>((center + offset) / half, middle.z, 1.0), shown);
+  out.place = select(HIDDEN, vec4<f32>((center + offset) / half, middle.z, 1.0), displayed);
   out.local = offset;
   out.inverse = vec3<f32>(m11, -m01, m00) / determinant;
   out.cell = cell + 1u;
@@ -1519,7 +1519,7 @@ fn soft(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instance: u
   // The cell's own lift or dim, as its body and wall take it. The blur of neighbors of one lineage differs too.
   let own = 0.84 + 0.32 * f32((cell * 2246822519u) >> 24u) / 255.0;
   let tone = min(lit(cell, frame, 256u).rgb * own, vec3<f32>(1.0));
-  out.color = vec4<f32>(tone, f32(lay.soft_alpha) / 255.0);
+  out.color = vec4<f32>(tone, f32(position.soft_alpha) / 255.0);
   return out;
 }
 
@@ -1530,7 +1530,7 @@ fn falloff_of(input: SoftOut) -> f32 {
 }
 
 // A Gaussian: the ellipse's edge lies at two and a half standard deviations. With the reach of one and a half rows
-// and two layers the deviation is 0.6 of a row and 0.8 of a layer, and Gaussians laid at that spacing sum to a density
+// and two layers the deviation is 0.6 of a row and 0.8 of a layer, and Gaussians positioned at that spacing sum to a density
 // that ripples by under 1%: no row or layer shows as a band from any angle. The blend's weight falls as the fourth
 // power of the distance into the volume, a thousand to one from the near side to the far. A near cell holds its own
 // pixels against everything behind it; a far splat is also drawn at 70% of its opacity.
@@ -1553,14 +1553,14 @@ fn soft_fragment(input: SoftOut) -> SoftDrawn {
 // transition.
 fn cell_ellipse(vertex: u32, cell: u32, wall: bool) -> SoftOut {
   let frame = frame_of_cell(cell);
-  let size = obj[lay.cells_at + 4u * cell];
+  let size = obj[position.cells_at + 4u * cell];
   let middle = centroid(cell) + step_of(cell, frame);
-  let half = vec2<f32>(f32(lay.half_w), f32(lay.half_h));
+  let half = vec2<f32>(f32(position.half_w), f32(position.half_h));
   let projected = project(middle.x, middle.y, middle.z, frame);
   let center = projected.xy * half;
   let per_x = (project(middle.x + 64, middle.y, middle.z, frame).xy * half - center) / 32.0;
   let per_y = (project(middle.x, middle.y + 64, middle.z, frame).xy * half - center) / 32.0;
-  let per_z = (project(middle.x, middle.y, middle.z + 32 * lay.z_scale, frame).xy * half - center) / 32.0;
+  let per_z = (project(middle.x, middle.y, middle.z + 32 * position.z_scale, frame).xy * half - center) / 32.0;
   let at = 6u * cell;
   let zz = f32(shape[at]) / 256.0;
   let yy = f32(shape[at + 1u]) / 256.0;
@@ -1578,7 +1578,7 @@ fn cell_ellipse(vertex: u32, cell: u32, wall: bool) -> SoftOut {
                    + zy * (per_y.x * per_z.y + per_z.x * per_y.y));
   // The membrane shrinks every radius by the same number of voxels; a voxel is |per_x| pixels.
   let radius = sqrt(max(0.5 * (m00 + m11), 0.0001));
-  let membrane = select(0.0, (f32(lay.wall_inset) / 65536.0) * length(per_x), wall);
+  let membrane = select(0.0, (f32(position.wall_inset) / 65536.0) * length(per_x), wall);
   let shrink = max(radius - membrane, 0.5) / radius;
   let n00 = m00 * shrink * shrink + 0.25;
   let n11 = m11 * shrink * shrink + 0.25;
@@ -1589,13 +1589,13 @@ fn cell_ellipse(vertex: u32, cell: u32, wall: bool) -> SoftOut {
   let offset = vec2<f32>(select(-extent.x, extent.x, ((0x16u >> corner) & 1u) == 1u),
                          select(-extent.y, extent.y, ((0x34u >> corner) & 1u) == 1u));
   let grain = (cell * 2654435761u) >> 20u;
-  let eased = u32(ease(lay.progress));
-  let now = frame == lay.frame_now;
-  let next = frame == lay.frame_now + 1u;
-  let shown = select(select(false, grain < eased, next), grain >= eased, now);
-  let kept = select(true, chosen_bit(cell) == 1u, lay.only_chosen == 1u) && (size >= lay.min_voxels);
+  let eased = u32(ease(position.progress));
+  let now = frame == position.frame_now;
+  let next = frame == position.frame_now + 1u;
+  let displayed = select(select(false, grain < eased, next), grain >= eased, now);
+  let retained = select(true, chosen_bit(cell) == 1u, position.only_chosen == 1u) && (size >= position.min_voxels);
   var out: SoftOut;
-  out.place = select(HIDDEN, vec4<f32>((center + offset) / half, projected.z, 1.0), shown && kept);
+  out.place = select(HIDDEN, vec4<f32>((center + offset) / half, projected.z, 1.0), displayed && retained);
   out.local = offset;
   out.inverse = vec3<f32>(n11, -n01, n00) / determinant;
   out.cell = cell + 1u;
@@ -1614,10 +1614,10 @@ fn cell_ellipse(vertex: u32, cell: u32, wall: bool) -> SoftOut {
   let tone = min(lit(cell, frame, 256u).rgb * own, vec3<f32>(1.0));
   // A wall's tone is lifted toward white and its alpha carries its nearness and solidity. The composite fades walls
   // with distance and sprawl; a body's tone is the cell's own at the body's opacity times its solidity.
-  let typical = f32(max(lay.typical_voxels, 1u));
+  let typical = f32(max(position.typical_voxels, 1u));
   let solid = smoothstep(0.1, 0.4, compact) * (1.0 - smoothstep(8.0 * typical, 32.0 * typical, f32(size)));
-  out.color = select(vec4<f32>(tone, solid * f32(lay.body_alpha) / 255.0),
-                      vec4<f32>(tone + (vec3<f32>(1.0) - tone) * (f32(lay.wall_tone) / 255.0), (1.0 - 0.35 * far) * solid), wall);
+  out.color = select(vec4<f32>(tone, solid * f32(position.body_alpha) / 255.0),
+                      vec4<f32>(tone + (vec3<f32>(1.0) - tone) * (f32(position.wall_tone) / 255.0), (1.0 - 0.35 * far) * solid), wall);
   return out;
 }
 
@@ -1625,24 +1625,24 @@ fn cell_ellipse(vertex: u32, cell: u32, wall: bool) -> SoftOut {
 // projected orthographically by dropping the view depth, and fitted so the volume's half diagonal, map_reach doubled
 // units, fills the square texture of cell numbers. Nothing of zoom, pan or spread applies. The composite fills each
 // cell's ellipse with its color and outlines it; the nearest cell is in front.
-// The plane stays overhead and never turns: a place on it is where the cell stands seen from straight above, laid
+// The plane stays overhead and never turns: a place on it is where the cell is seen from straight above, positioned
 // on the same still image the map draws under it. The map holds while the view moves. Row zero is at the top,
 // as the image has it, and the clip space counts the other way.
 fn map_place(x: i32, y: i32, z: i32) -> vec3<f32> {
-  let across = f32(x * lay.slice_scale) / f32(256 * max(lay.slice_w, 1));
-  let down = f32(y * lay.slice_scale) / f32(256 * max(lay.slice_h, 1));
-  let reach = f32(lay.map_reach);
+  let across = f32(x * position.slice_scale) / f32(256 * max(position.slice_w, 1));
+  let down = f32(y * position.slice_scale) / f32(256 * max(position.slice_h, 1));
+  let reach = f32(position.map_reach);
   // Overhead, the nearest cell is the highest one. Its own height is the depth it is written at.
   return vec3<f32>(across, -down, (f32(z) + reach) / (2.0 * reach));
 }
 
-// What the camera makes of a step in the volume: the cells keep the shape the view gives them as it turns, and
+// What the camera makes of a step in the volume: the cells retain the shape the view gives them as it turns, and
 // that shape is what falls on the plane below. Only the shape turns; where it falls does not.
 fn map_turn(x: i32, y: i32, z: i32) -> vec2<f32> {
-  let x1 = (lay.yaw_cos * x - lay.yaw_sin * y) >> 14u;
-  let y1 = (lay.yaw_sin * x + lay.yaw_cos * y) >> 14u;
-  let z2 = (lay.pitch_sin * y1 + lay.pitch_cos * z) >> 14u;
-  let reach = f32(lay.map_reach);
+  let x1 = (position.yaw_cos * x - position.yaw_sin * y) >> 14u;
+  let y1 = (position.yaw_sin * x + position.yaw_cos * y) >> 14u;
+  let z2 = (position.pitch_sin * y1 + position.pitch_cos * z) >> 14u;
+  let reach = f32(position.map_reach);
   return vec2<f32>(f32(x1) / reach, f32(z2) / reach);
 }
 
@@ -1650,7 +1650,7 @@ fn map_turn(x: i32, y: i32, z: i32) -> vec2<f32> {
 fn map_cell(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instance: u32) -> SoftOut {
   let cell = instance;
   let frame = frame_of_cell(cell);
-  let size = obj[lay.cells_at + 4u * cell];
+  let size = obj[position.cells_at + 4u * cell];
   let middle = centroid(cell) + step_of(cell, frame);
   // The map texture is EV.MAP_SIZE texels across; a unit of the fitted projection is half of that.
   let half = vec2<f32>(f32(${EV.MAP_SIZE}) * 0.5);
@@ -1660,7 +1660,7 @@ fn map_cell(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instanc
   let turned = map_turn(middle.x, middle.y, middle.z) * half;
   let per_x = (map_turn(middle.x + 64, middle.y, middle.z) * half - turned) / 32.0;
   let per_y = (map_turn(middle.x, middle.y + 64, middle.z) * half - turned) / 32.0;
-  let per_z = (map_turn(middle.x, middle.y, middle.z + 32 * lay.z_scale) * half - turned) / 32.0;
+  let per_z = (map_turn(middle.x, middle.y, middle.z + 32 * position.z_scale) * half - turned) / 32.0;
   let at = 6u * cell;
   let zz = f32(shape[at]) / 256.0;
   let yy = f32(shape[at + 1u]) / 256.0;
@@ -1681,16 +1681,16 @@ fn map_cell(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instanc
   let offset = vec2<f32>(select(-extent.x, extent.x, ((0x16u >> corner) & 1u) == 1u),
                          select(-extent.y, extent.y, ((0x34u >> corner) & 1u) == 1u));
   let grain = (cell * 2654435761u) >> 20u;
-  let eased = u32(ease(lay.progress));
-  let shown = select(select(false, grain < eased, frame == lay.frame_now + 1u), grain >= eased, frame == lay.frame_now);
-  let kept = select(true, chosen_bit(cell) == 1u, lay.only_chosen == 1u) && (size >= lay.min_voxels);
+  let eased = u32(ease(position.progress));
+  let displayed = select(select(false, grain < eased, frame == position.frame_now + 1u), grain >= eased, frame == position.frame_now);
+  let retained = select(true, chosen_bit(cell) == 1u, position.only_chosen == 1u) && (size >= position.min_voxels);
   // A fused object is left off the map as it is left out of the bodies: by its share of its ellipsoid and its size.
   let spread = xx * (yy * zz - zy * zy) - yx * (yx * zz - zy * zx) + zx * (yx * zy - yy * zx);
   let compact = clamp(f32(size) / (4.18879 * sqrt(max(125.0 * spread, 0.0001))), 0.0, 1.0);
-  let typical = f32(max(lay.typical_voxels, 1u));
+  let typical = f32(max(position.typical_voxels, 1u));
   let solid = smoothstep(0.1, 0.4, compact) * (1.0 - smoothstep(8.0 * typical, 32.0 * typical, f32(size)));
   var out: SoftOut;
-  out.place = select(HIDDEN, vec4<f32>((center + offset) / half, projected.z, 1.0), shown && kept && (solid >= 0.5));
+  out.place = select(HIDDEN, vec4<f32>((center + offset) / half, projected.z, 1.0), displayed && retained && (solid >= 0.5));
   out.local = offset;
   out.inverse = vec3<f32>(m11, -m01, m00) / determinant;
   out.cell = cell + 1u;
@@ -1753,11 +1753,11 @@ fn body_fragment(input: SoftOut) -> SoftDrawn {
   let rim = sqrt(max(1.0 - q, 0.0));
   let tilt = gradient * inverseSqrt(max(dot(gradient, gradient) / max(q, 0.000001), 0.000001));
   let normal = normalize(vec3<f32>(tilt, rim + 0.0001));
-  let count = lay.light_count;
-  let shade = 0.22 + light_at(normal, lay.light0_x, lay.light0_y, lay.light0_z, lay.light0_strength, count > 0u)
-                   + light_at(normal, lay.light1_x, lay.light1_y, lay.light1_z, lay.light1_strength, count > 1u)
-                   + light_at(normal, lay.light2_x, lay.light2_y, lay.light2_z, lay.light2_strength, count > 2u)
-                   + light_at(normal, lay.light3_x, lay.light3_y, lay.light3_z, lay.light3_strength, count > 3u);
+  let count = position.light_count;
+  let shade = 0.22 + light_at(normal, position.light0_x, position.light0_y, position.light0_z, position.light0_strength, count > 0u)
+                   + light_at(normal, position.light1_x, position.light1_y, position.light1_z, position.light1_strength, count > 1u)
+                   + light_at(normal, position.light2_x, position.light2_y, position.light2_z, position.light2_strength, count > 2u)
+                   + light_at(normal, position.light3_x, position.light3_y, position.light3_z, position.light3_strength, count > 3u);
   let falloff = clamp(1.0 - q, 0.0, 1.0);
   let alpha = input.color.a * smoothstep(0.0, 0.12, falloff);
   let far = input.far;
@@ -1766,10 +1766,10 @@ fn body_fragment(input: SoftOut) -> SoftDrawn {
   return SoftDrawn(vec4<f32>(color * alpha * weight, alpha * weight), vec4<f32>(alpha));
 }
 
-// The wall's cell at a pixel is the nearest cell there, and between cells at one depth the one whose ellipse is most
+// The wall's cell at a pixel is the nearest cell there, and between cells at one depth the one whose ellipse is max
 // central: the depth written is the view depth plus the distance from the ellipse's center, scaled to about two voxels
-// of depth. The depth test keeps cells in front and settles touching cells by their rounded shapes. Outside an
-// ellipse the depth is 1, which never passes the cleared depth. The region outside every cell keeps cell 0 and the
+// of depth. The depth test retains cells in front and settles touching cells by their rounded shapes. Outside an
+// ellipse the depth is 1, which never passes the cleared depth. The region outside every cell retains cell 0 and the
 // wall between a cell and the outside follows the ellipses' rounded union.
 @fragment
 fn wall_soft_fragment(input: SoftOut) -> WallDrawn {
@@ -1782,40 +1782,40 @@ EV.SOFT_COMPOSITE = EV.PRELUDE + `
 @group(0) @binding(1) var revealed: texture_2d<f32>;
 @group(0) @binding(2) var wall_ids: texture_2d<u32>;
 @group(0) @binding(3) var wall_tones: texture_2d<f32>;
-@group(0) @binding(4) var<uniform> lay: Layout;
+@group(0) @binding(4) var<uniform> position: Layout;
 @group(0) @binding(5) var raw: texture_3d<u32>;
 
 // The slide under the cells: the microscope's own voxels, gathered along the very ray the view is looking down.
-// The image and what the engine made of it stand in the same place at the same turn. The pixel is carried back
-// through the turn, the brightest voxel along it stands, and the slider says how much of it is seen against the
+// The image and what the engine made of it are in the same place at the same turn. The pixel is carried back
+// through the turn, the brightest voxel along it is, and the slider says how much of it is seen against the
 // representation. Nothing of the two is drawn twice: one fades in as the other fades out.
 fn slide_gray(pixel: vec2<i32>) -> vec2<f32> {
-  let wide = i32(lay.half_w);
-  let high = i32(lay.half_h);
+  let wide = i32(position.half_w);
+  let high = i32(position.half_h);
   // Back through the view's own placing: the pixel as the turned place it came from, before the zoom and the pan.
-  let across = (((pixel.x - wide) * 256 * 128) / max(lay.zoom, 1) - lay.pan_x * 128 / max(lay.zoom, 1)) / 128;
-  let up = (((high - pixel.y) * 256 * 128) / max(lay.zoom, 1) - lay.pan_y * 128 / max(lay.zoom, 1)) / 128;
-  let reach = i32(lay.map_reach);
+  let across = (((pixel.x - wide) * 256 * 128) / max(position.zoom, 1) - position.pan_x * 128 / max(position.zoom, 1)) / 128;
+  let up = (((high - pixel.y) * 256 * 128) / max(position.zoom, 1) - position.pan_y * 128 / max(position.zoom, 1)) / 128;
+  let reach = i32(position.map_reach);
   var brightest = 0u;
   var held_any = false;
   for (var step = 0u; step < ${EV.MAP_STEPS}u; step++) {
     let deep = -reach + i32((2u * u32(reach) * step) / (${EV.MAP_STEPS}u - 1u));
-    let y1 = (lay.pitch_cos * deep + lay.pitch_sin * up) >> 14u;
-    let turned_z = (lay.pitch_cos * up - lay.pitch_sin * deep) >> 14u;
-    let turned_x = (lay.yaw_cos * across + lay.yaw_sin * y1) >> 14u;
-    let turned_y = (lay.yaw_cos * y1 - lay.yaw_sin * across) >> 14u;
-    let voxel = vec3<i32>((turned_x + i32(lay.width)) / 2, (turned_y + i32(lay.height)) / 2,
-                          ((turned_z * 2) / max(i32(lay.z_scale), 1) + i32(lay.depth)) / 2);
-    let held = (voxel.x >= 0) && (voxel.y >= 0) && (voxel.z >= 0) && (voxel.x < i32(lay.width))
-            && (voxel.y < i32(lay.height)) && (voxel.z < i32(lay.depth));
+    let y1 = (position.pitch_cos * deep + position.pitch_sin * up) >> 14u;
+    let turned_z = (position.pitch_cos * up - position.pitch_sin * deep) >> 14u;
+    let turned_x = (position.yaw_cos * across + position.yaw_sin * y1) >> 14u;
+    let turned_y = (position.yaw_cos * y1 - position.yaw_sin * across) >> 14u;
+    let voxel = vec3<i32>((turned_x + i32(position.width)) / 2, (turned_y + i32(position.height)) / 2,
+                          ((turned_z * 2) / max(i32(position.z_scale), 1) + i32(position.depth)) / 2);
+    let held = (voxel.x >= 0) && (voxel.y >= 0) && (voxel.z >= 0) && (voxel.x < i32(position.width))
+            && (voxel.y < i32(position.height)) && (voxel.z < i32(position.depth));
     held_any = held_any || held;
-    let at_voxel = clamp(voxel, vec3<i32>(0), vec3<i32>(i32(lay.width) - 1, i32(lay.height) - 1, i32(lay.depth) - 1));
-    let read = textureLoad(raw, at_voxel * i32(lay.raw_on), 0).r;
-    brightest = max(brightest, read * u32(held) * lay.raw_on);
+    let at_voxel = clamp(voxel, vec3<i32>(0), vec3<i32>(i32(position.width) - 1, i32(position.height) - 1, i32(position.depth) - 1));
+    let read = textureLoad(raw, at_voxel * i32(position.raw_on), 0).r;
+    brightest = max(brightest, read * u32(held) * position.raw_on);
   }
-  let span = max(lay.window_high, lay.window_low + 1u) - lay.window_low;
-  let gray = f32(min(max(brightest, lay.window_low) - lay.window_low, span)) / f32(span);
-  return vec2<f32>(gray * f32(lay.raw_on), select(0.0, 1.0, held_any && (lay.raw_on == 1u)));
+  let span = max(position.window_high, position.window_low + 1u) - position.window_low;
+  let gray = f32(min(max(brightest, position.window_low) - position.window_low, span)) / f32(span);
+  return vec2<f32>(gray * f32(position.raw_on), select(0.0, 1.0, held_any && (position.raw_on == 1u)));
 }
 
 @vertex
@@ -1859,19 +1859,19 @@ fn compose(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
   let edge = (own != 0u) && differs;
   // A wall is drawn at its tone's alpha: full for a near compact cell, 65% at the far side, less with sprawl.
   let wall_tone = textureLoad(wall_tones, pixel, 0);
-  let wall_alpha = select(0.0, f32(lay.wall_alpha) / 255.0, edge && (lay.wall_on == 1u)) * wall_tone.a;
+  let wall_alpha = select(0.0, f32(position.wall_alpha) / 255.0, edge && (position.wall_on == 1u)) * wall_tone.a;
   let wall = wall_tone.rgb;
   let alpha = blob_alpha + wall_alpha * (1.0 - blob_alpha);
   let mixed = (blob * blob_alpha * (1.0 - wall_alpha) + wall * wall_alpha) / max(alpha, 0.00001);
-  // The slider between what the microscope saw and what the engine made of it: at nothing only the cells stand,
+  // The slider between what the microscope saw and what the engine made of it: at nothing only the cells are,
   // at full only the slide, and between them each is there in its own measure, in the same place at the same turn.
-  let slide = f32(lay.slide) / 255.0;
+  let slide = f32(position.slide) / 255.0;
   let seen = slide_gray(pixel);
   let slide_alpha = seen.y * slide;
   let ours = alpha * (1.0 - slide);
   let together = ours + slide_alpha * (1.0 - ours);
-  let shown = (mixed * ours * (1.0 - slide_alpha) + vec3<f32>(seen.x) * slide_alpha) / max(together, 0.00001);
-  return vec4<f32>(shown, together);
+  let displayed = (mixed * ours * (1.0 - slide_alpha) + vec3<f32>(seen.x) * slide_alpha) / max(together, 0.00001);
+  return vec4<f32>(displayed, together);
 }`;
 
 // ---- toolbox/volume/object.js ----
@@ -1879,8 +1879,8 @@ fn compose(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // The object as the host holds it: the header, the small sections copied out of the mapped buffer, and what the
-// panels read from them. The runs stay on the card. Every number here is an integer; a fraction is shown by
-// integer division to the places asked for. The object is two files, laid end to end in one buffer: the .vbo (the
+// panels read from them. The runs stay on the card. Every number here is an integer; a fraction is displayed by
+// integer division to the places asked for. The object is two files, positioned end to end in one buffer: the .vbo (the
 // header, frames, leaves, cells, runs and the .cfg) and the .ibo (its own short header, the links and the edges). A
 // run is two words, its first voxel in the frame and its length; the header's version is 2.
 
@@ -2097,13 +2097,13 @@ EV.lineage = (object, seeds) => {
   return [...seen].sort((left, right) => left - right);
 };
 
-// What a reader should look at, each item naming its frame and cells. Rankings, never cutoffs: the most linked and
+// What a reader should look at, each item naming its frame and cells. Rankings, never cutoffs: the max linked and
 // the largest cells are listed first, and the reader decides where concern starts.
 EV.reviewList = (object) => {
   const header = object.header;
   const items = [];
   if (header.aberrant_leaves || header.aberrant_voxels || header.wide_sums) {
-    items.push({ kind: "control", frame: 0, cells: [], text: `control: ${header.aberrant_leaves} leaves, ${header.aberrant_voxels} voxels, ${header.wide_sums} wide sums` });
+    items.push({ type: "control", frame: 0, cells: [], text: `control: ${header.aberrant_leaves} leaves, ${header.aberrant_voxels} voxels, ${header.wide_sums} wide sums` });
   }
   for (let edge = 0; edge < header.edge_total; edge += 1) {
     const status = object.edges[3 * edge + 2];
@@ -2112,7 +2112,7 @@ EV.reviewList = (object) => {
     if (status === 2 || status === 3) {
       const cells = [source, target].filter((cell) => cell !== EV.NONE);
       const frame = source !== EV.NONE ? object.cellFrame[source] : 0;
-      items.push({ kind: EV.STATUS_NAMES[status], frame, cells, edge });
+      items.push({ type: EV.STATUS_NAMES[status], frame, cells, edge });
     }
   }
   const byDegree = [];
@@ -2125,10 +2125,10 @@ EV.reviewList = (object) => {
   byDegree.sort((left, right) => right[0] - left[0] || left[1] - right[1]);
   bySize.sort((left, right) => right[0] - left[0] || left[1] - right[1]);
   for (const [degree, cell] of byDegree.slice(0, 12)) {
-    items.push({ kind: "most linked", frame: object.cellFrame[cell], cells: [cell], degree });
+    items.push({ type: "max linked", frame: object.cellFrame[cell], cells: [cell], degree });
   }
   for (const [voxels, cell] of bySize.slice(0, 12)) {
-    items.push({ kind: "largest", frame: object.cellFrame[cell], cells: [cell], voxels });
+    items.push({ type: "largest", frame: object.cellFrame[cell], cells: [cell], voxels });
   }
   return items;
 };
@@ -2187,8 +2187,8 @@ EV.startGpu = async (canvas) => {
   const clearing = { color: { srcFactor: "zero", dstFactor: "one-minus-src", operation: "add" }, alpha: { srcFactor: "zero", dstFactor: "one-minus-src", operation: "add" } };
   const over = { color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha", operation: "add" }, alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha", operation: "add" } };
   const splatTargets = [{ format: "rgba16float", blend: adding }, { format: "r8unorm", blend: clearing }];
-  const [resolve, keep, level, scatter, count, box, blob, link, edge, mapIds, mapPaint, sliceComposite, soft, softCompose, boxPick, wall, body] = await Promise.all([
-    compute(EV.RESOLVE), compute(EV.KEEP), compute(EV.LEVEL), compute(EV.SCATTER), compute(EV.COUNT),
+  const [resolve, retain, level, scatter, count, box, blob, link, edge, mapIds, mapPaint, sliceComposite, soft, softCompose, boxPick, wall, body] = await Promise.all([
+    compute(EV.RESOLVE), compute(EV.RETAIN), compute(EV.LEVEL), compute(EV.SCATTER), compute(EV.COUNT),
     draw(renderModule, "box", "paint_fragment", "triangle-list", solid),
     draw(renderModule, "blob", "paint_fragment", "triangle-list", solid),
     draw(linesModule, "link", "paint_fragment", "line-list", { format: "depth24plus", depthWriteEnabled: false, depthCompare: "less" }, quiet),
@@ -2227,7 +2227,7 @@ EV.startGpu = async (canvas) => {
   ]);
   const gpu = {
     adapter, device, context, format, canvas,
-    pipelines: { resolve, keep, level, scatter, count, box, blob, link, edge, mapIds, mapPaint, sliceComposite, soft, softCompose, boxPick, wall, body },
+    pipelines: { resolve, retain, level, scatter, count, box, blob, link, edge, mapIds, mapPaint, sliceComposite, soft, softCompose, boxPick, wall, body },
     compileMs: Math.round(performance.now() - began),
     layoutBytes: new ArrayBuffer(EV.LAYOUT_WORDS * 4),
     layoutBuffer: device.createBuffer({ size: EV.LAYOUT_WORDS * 4, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST }),
@@ -2283,7 +2283,7 @@ EV.fit = (gpu) => {
   });
 };
 
-// The raw voxels of one whole frame, every layer, or none: a 1 by 1 by 1 texture keeps the binding whole when no
+// The raw voxels of one whole frame, every layer, or none: a 1 by 1 by 1 texture retains the binding whole when no
 // stack is served.
 EV.setRaw = (gpu, voxels, width, height, depth) => {
   gpu.rawTexture?.destroy();
@@ -2296,7 +2296,7 @@ EV.setRaw = (gpu, voxels, width, height, depth) => {
   gpu.rawOn = voxels ? 1 : 0;
   gpu.compositeGroup = null;
   // The composite of the view reads these voxels too, for the slide under the cells. Its group is made again
-  // against the texture that stands now and never against the one just let go.
+  // against the texture that is now and never against the one just let go.
   if (gpu.composeGroup) {
     gpu.composeGroup = gpu.device.createBindGroup({
       layout: gpu.pipelines.softCompose.getBindGroupLayout(0),
@@ -2363,7 +2363,7 @@ EV.loadObject = async (gpu, sources) => {
     shape: storage(EV.words(header.cell_total * 6)),
     ids: device.createTexture({ size: [EV.MAP_SIZE, EV.MAP_SIZE], format: "r32uint", usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING }),
     idsDepth: device.createTexture({ size: [EV.MAP_SIZE, EV.MAP_SIZE], format: "depth24plus", usage: GPUTextureUsage.RENDER_ATTACHMENT }),
-    // The plane's own color: every cell of the volume added into it, with no depth standing between them.
+    // The plane's own color: every cell of the volume added into it, with no depth located between them.
     painted: device.createTexture({ size: [EV.MAP_SIZE, EV.MAP_SIZE], format: "rgba16float",
                                     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING }),
   };
@@ -2372,23 +2372,23 @@ EV.loadObject = async (gpu, sources) => {
   const group = (pipeline, entries) => EV.bindGroup(device, pipeline, entries);
   const numbered = (pipeline, pairs) => EV.bindNumbered(device, pipeline, pairs);
   const p = gpu.pipelines;
-  const lay = gpu.layoutBuffer;
+  const position = gpu.layoutBuffer;
   held.groups = {
-    resolve: group(p.resolve, [buffer, lay, held.runLeaf]),
-    keep: group(p.keep, [buffer, lay, held.chosen, held.prefix]),
-    levels: gpu.levels.map((level) => group(p.level, [level, lay, held.prefix])),
-    scatter: group(p.scatter, [buffer, lay, held.chosen, held.prefix, held.runLeaf, held.compact]),
-    count: group(p.count, [lay, held.prefix, gpu.drawn]),
-    box: group(p.box, [buffer, lay, held.chosen, held.motion, held.runLeaf, held.compact]),
-    boxPick: group(p.boxPick, [buffer, lay, held.chosen, held.motion, held.runLeaf, held.compact]),
-    soft: group(p.soft, [buffer, lay, held.chosen, held.motion, held.runLeaf, held.compact]),
-    wall: numbered(p.wall, [[0, buffer], [1, lay], [2, held.chosen], [3, held.motion], [6, held.shape]]),
-    body: numbered(p.body, [[0, buffer], [1, lay], [2, held.chosen], [3, held.motion], [6, held.shape]]),
-    blob: group(p.blob, [buffer, lay, held.chosen, held.motion]),
-    link: group(p.link, [buffer, lay, held.chosen, held.motion]),
-    edge: group(p.edge, [buffer, lay]),
-    mapIds: numbered(p.mapIds, [[0, buffer], [1, lay], [2, held.chosen], [3, held.motion], [6, held.shape]]),
-    mapPaint: numbered(p.mapPaint, [[0, buffer], [1, lay], [2, held.chosen], [3, held.motion], [6, held.shape]]),
+    resolve: group(p.resolve, [buffer, position, held.runLeaf]),
+    retain: group(p.retain, [buffer, position, held.chosen, held.prefix]),
+    levels: gpu.levels.map((level) => group(p.level, [level, position, held.prefix])),
+    scatter: group(p.scatter, [buffer, position, held.chosen, held.prefix, held.runLeaf, held.compact]),
+    count: group(p.count, [position, held.prefix, gpu.drawn]),
+    box: group(p.box, [buffer, position, held.chosen, held.motion, held.runLeaf, held.compact]),
+    boxPick: group(p.boxPick, [buffer, position, held.chosen, held.motion, held.runLeaf, held.compact]),
+    soft: group(p.soft, [buffer, position, held.chosen, held.motion, held.runLeaf, held.compact]),
+    wall: numbered(p.wall, [[0, buffer], [1, position], [2, held.chosen], [3, held.motion], [6, held.shape]]),
+    body: numbered(p.body, [[0, buffer], [1, position], [2, held.chosen], [3, held.motion], [6, held.shape]]),
+    blob: group(p.blob, [buffer, position, held.chosen, held.motion]),
+    link: group(p.link, [buffer, position, held.chosen, held.motion]),
+    edge: group(p.edge, [buffer, position]),
+    mapIds: numbered(p.mapIds, [[0, buffer], [1, position], [2, held.chosen], [3, held.motion], [6, held.shape]]),
+    mapPaint: numbered(p.mapPaint, [[0, buffer], [1, position], [2, held.chosen], [3, held.motion], [6, held.shape]]),
   };
   gpu.held = held;
   gpu.object = object;
@@ -2434,7 +2434,7 @@ EV.writeChosen = (gpu, chosen) => {
   gpu.device.queue.writeBuffer(gpu.held.chosen, 0, bits);
 };
 
-// Counts the kept runs of each leaf in range, prefix sums them in place, scatters the kept runs into one list and
+// Counts the retained runs of each leaf in range, prefix sums them in place, scatters the retained runs into one list and
 // writes the draw count where drawIndirect reads it. The layout must already hold the range.
 EV.compact = async (gpu, leafSpan, runSpan) => {
   const began = performance.now();
@@ -2443,8 +2443,8 @@ EV.compact = async (gpu, leafSpan, runSpan) => {
   const pow2 = EV.nextPower(Math.max(1, leafSpan));
   const encoder = gpu.device.createCommandEncoder();
   const pass = encoder.beginComputePass();
-  pass.setPipeline(p.keep);
-  pass.setBindGroup(0, groups.keep);
+  pass.setPipeline(p.retain);
+  pass.setBindGroup(0, groups.retain);
   pass.dispatchWorkgroups(...EV.workgroups(pow2));
   pass.setPipeline(p.level);
   for (let bit = 0; (1 << bit) < pow2; bit += 1) {
@@ -2588,62 +2588,62 @@ EV.render = (gpu, plan) => {
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// The view section of a .cfg: every setting the page has, by the name the .cfg uses, with its kind and its range.
+// The view section of a .cfg: every setting the page has, by the name the .cfg uses, with its type and its range.
 // The tracker copies this section into each object untouched and the page opens in it. Applying a .cfg is partial:
-// names it does not carry keep their values. A name the scheme does not have, a fraction, a value of the wrong kind
+// names it does not carry retain their values. A name the scheme does not have, a fraction, a value of the wrong type
 // or one outside its range is reported by name and not applied.
 
 EV.VIEW_SCHEME = {
-  face: { kind: "word", words: ["human", "machine"], fallback: "human" },
-  frame: { kind: "integer", low: 0, high: 65535, fallback: 0 },
-  ghosts: { kind: "integer", low: 0, high: 8, fallback: 0 },
-  ghost_fade: { kind: "integer", low: 0, high: 224, fallback: 48 },
-  turn: { kind: "integer", low: 0, high: 359, fallback: 30 },
-  tilt: { kind: "integer", low: -89, high: 89, fallback: 35 },
-  zoom: { kind: "integer", low: 0, high: 1024, fallback: 0 },
-  pan_x: { kind: "integer", low: -1048576, high: 1048576, fallback: 0 },
-  pan_y: { kind: "integer", low: -1048576, high: 1048576, fallback: 0 },
-  z_scale: { kind: "integer", low: 2, high: 16, fallback: 8 },
-  spread: { kind: "integer", low: 0, high: 2048, fallback: 0 },
-  body: { kind: "word", words: ["smooth", "voxels", "centroids"], fallback: "smooth" },
-  smooth_radius: { kind: "integer", low: 1, high: 8, fallback: 3 },
-  smooth_opacity: { kind: "integer", low: 1, high: 255, fallback: 16 },
-  walls: { kind: "switch", fallback: true },
-  wall_tone: { kind: "integer", low: 0, high: 255, fallback: 110 },
-  wall_opacity: { kind: "integer", low: 1, high: 255, fallback: 220 },
-  slice_follow: { kind: "switch", fallback: true },
-  map: { kind: "word", words: ["projection", "slice"], fallback: "projection" },
-  palette: { kind: "word", words: ["lineage", "okabe_ito", "cell", "volume"], fallback: "okabe_ito" },
-  min_voxels: { kind: "integer", low: 0, high: 65536, fallback: 0 },
-  light: { kind: "switch", fallback: true },
-  lights: { kind: "lights", fallback: [{ turn: 300, tilt: 50, strength: 210 }, { turn: 130, tilt: 20, strength: 90 }] },
-  body_opacity: { kind: "integer", low: 0, high: 255, fallback: 160 },
+  face: { type: "word", words: ["human", "machine"], fallback: "human" },
+  frame: { type: "integer", low: 0, high: 65535, fallback: 0 },
+  ghosts: { type: "integer", low: 0, high: 8, fallback: 0 },
+  ghost_fade: { type: "integer", low: 0, high: 224, fallback: 48 },
+  turn: { type: "integer", low: 0, high: 359, fallback: 30 },
+  tilt: { type: "integer", low: -89, high: 89, fallback: 35 },
+  zoom: { type: "integer", low: 0, high: 1024, fallback: 0 },
+  pan_x: { type: "integer", low: -1048576, high: 1048576, fallback: 0 },
+  pan_y: { type: "integer", low: -1048576, high: 1048576, fallback: 0 },
+  z_scale: { type: "integer", low: 2, high: 16, fallback: 8 },
+  spread: { type: "integer", low: 0, high: 2048, fallback: 0 },
+  body: { type: "word", words: ["smooth", "voxels", "centroids"], fallback: "smooth" },
+  smooth_radius: { type: "integer", low: 1, high: 8, fallback: 3 },
+  smooth_opacity: { type: "integer", low: 1, high: 255, fallback: 16 },
+  walls: { type: "switch", fallback: true },
+  wall_tone: { type: "integer", low: 0, high: 255, fallback: 110 },
+  wall_opacity: { type: "integer", low: 1, high: 255, fallback: 220 },
+  slice_follow: { type: "switch", fallback: true },
+  map: { type: "word", words: ["projection", "slice"], fallback: "projection" },
+  palette: { type: "word", words: ["lineage", "okabe_ito", "cell", "volume"], fallback: "okabe_ito" },
+  min_voxels: { type: "integer", low: 0, high: 65536, fallback: 0 },
+  light: { type: "switch", fallback: true },
+  lights: { type: "lights", fallback: [{ turn: 300, tilt: 50, strength: 210 }, { turn: 130, tilt: 20, strength: 90 }] },
+  body_opacity: { type: "integer", low: 0, high: 255, fallback: 160 },
   // Nothing of the microscope at 0, all of it at 255, and the two of them together anywhere between.
-  slide: { kind: "integer", low: 0, high: 255, fallback: 0 },
-  links: { kind: "switch", fallback: true },
-  tracks: { kind: "switch", fallback: false },
-  edges: { kind: "switch", fallback: true },
-  correct: { kind: "switch", fallback: true },
-  branched: { kind: "switch", fallback: true },
-  wrong: { kind: "switch", fallback: true },
-  no_link: { kind: "switch", fallback: true },
-  only_chosen: { kind: "switch", fallback: false },
-  glow: { kind: "switch", fallback: true },
-  labels: { kind: "switch", fallback: true },
-  ride: { kind: "switch", fallback: false },
-  slice: { kind: "switch", fallback: true },
-  slice_z: { kind: "integer", low: -1, high: 65535, fallback: -1 },
-  window_low: { kind: "integer", low: 0, high: 65535, fallback: 0 },
-  window_high: { kind: "integer", low: 1, high: 65535, fallback: 1024 },
-  rate: { kind: "integer", low: 0, high: 60, fallback: 2 },
-  step: { kind: "integer", low: 1, high: 64, fallback: 1 },
-  loop: { kind: "switch", fallback: true },
-  sheer: { kind: "integer", low: 20, high: 100, fallback: 90 },
-  text_size: { kind: "integer", low: 80, high: 200, fallback: 100 },
-  theme: { kind: "word", words: ["dark", "light"], fallback: "dark" },
-  vsync: { kind: "switch", fallback: true },
-  panels: { kind: "words", words: ["counts", "dims", "lineage", "legend", "review", "machine"], fallback: ["counts"] },
-  chosen: { kind: "integers", low: 0, high: 4294967294, fallback: [] },
+  slide: { type: "integer", low: 0, high: 255, fallback: 0 },
+  links: { type: "switch", fallback: true },
+  tracks: { type: "switch", fallback: false },
+  edges: { type: "switch", fallback: true },
+  correct: { type: "switch", fallback: true },
+  branched: { type: "switch", fallback: true },
+  wrong: { type: "switch", fallback: true },
+  no_link: { type: "switch", fallback: true },
+  only_chosen: { type: "switch", fallback: false },
+  glow: { type: "switch", fallback: true },
+  labels: { type: "switch", fallback: true },
+  ride: { type: "switch", fallback: false },
+  slice: { type: "switch", fallback: true },
+  slice_z: { type: "integer", low: -1, high: 65535, fallback: -1 },
+  window_low: { type: "integer", low: 0, high: 65535, fallback: 0 },
+  window_high: { type: "integer", low: 1, high: 65535, fallback: 1024 },
+  rate: { type: "integer", low: 0, high: 60, fallback: 2 },
+  step: { type: "integer", low: 1, high: 64, fallback: 1 },
+  loop: { type: "switch", fallback: true },
+  sheer: { type: "integer", low: 20, high: 100, fallback: 90 },
+  text_size: { type: "integer", low: 80, high: 200, fallback: 100 },
+  theme: { type: "word", words: ["dark", "light"], fallback: "dark" },
+  vsync: { type: "switch", fallback: true },
+  panels: { type: "words", words: ["counts", "dims", "lineage", "legend", "review", "machine"], fallback: ["counts"] },
+  chosen: { type: "integers", low: 0, high: 4294967294, fallback: [] },
 };
 
 // The whole .cfg: the object's own sections as the tracker wrote them, with the page's view in place of its view.
@@ -2676,7 +2676,7 @@ EV.specimen = (cfgText) => {
   };
 };
 
-// Reads a .cfg's text for the page: checks the scheme, version and every section name, and hands back the view.
+// Reads a .cfg's text for the page: checks the scheme, version and every section name, and passes back the view.
 EV.parseCfg = (text) => {
   let cfg;
   try {
@@ -2963,7 +2963,7 @@ EV.frameLoop = (app, now) => {
 };
 
 // The frame loop runs under the toolbox's watch, which reports a throw or a loop that stops turning. With vsync
-// the view is drawn at most once per display refresh, and only when something changed. Without it every turn
+// the view is drawn at max once per display refresh, and only when something changed. Without it every turn
 // draws, and the next turn waits for the card to finish the last one. The rate is the card's own and the queue
 // never grows.
 EV.startLoop = (app) => {
@@ -3036,12 +3036,12 @@ EV.centroidText = (object, cell, places) => {
 };
 
 EV.table = (element, rows) => {
-  element.replaceChildren(...rows.map(([name, value, kind]) => {
+  element.replaceChildren(...rows.map(([name, value, type]) => {
     const row = document.createElement("tr");
     const left = document.createElement("td");
     const right = document.createElement("td");
     left.textContent = name;
-    right.className = "num" + (kind ? ` ${kind}` : "");
+    right.className = "num" + (type ? ` ${type}` : "");
     right.textContent = value;
     row.append(left, right);
     return row;
@@ -3176,10 +3176,10 @@ EV.paintLineage = (app) => {
     const frame = object.cellFrame[one];
     byFrame.set(frame, [...(byFrame.get(frame) || []), one]);
   }
-  const shownPerFrame = 12;
+  const displayedPerFrame = 12;
   const rows = [...byFrame.entries()].sort((left, right) => left[0] - right[0]).map(([frame, members]) => {
-    const more = members.length - shownPerFrame;
-    const words = members.slice(0, shownPerFrame).map((one) => {
+    const more = members.length - displayedPerFrame;
+    const words = members.slice(0, displayedPerFrame).map((one) => {
       const children = object.forward.start[one + 1] - object.forward.start[one];
       const onward = object.frames[10 * frame + 8] > 0;
       const mark = children >= 2 ? (human ? " divides" : " /2+") : onward && children === 0 ? (human ? " ends" : " end") : "";
@@ -3198,7 +3198,7 @@ EV.paintLegend = (app) => {
   const human = EV.human();
   const swatch = (color, text) => `<div class="row"><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:${color}"></span><span>${text}</span></div>`;
   const palette = {
-    lineage: "Each lineage has its own color, kept from frame to frame.",
+    lineage: "Each lineage has its own color, retained from frame to frame.",
     okabe_ito: "Each lineage has one of eight colors chosen to stay distinct under color blindness.",
     cell: "Each cell has its own color in every frame.",
     volume: "Color runs from purple for the smallest cells to yellow for the largest.",
@@ -3206,7 +3206,7 @@ EV.paintLegend = (app) => {
   EV.$("legendBody").innerHTML = [
     `<p class="note">${palette}</p>`,
     swatch("#009E73", human ? "answer key link the tracker got right" : "edge status 0 correct"),
-    swatch("#E69F00", human ? "the right cell, among several the tracker kept" : "edge status 1 branched"),
+    swatch("#E69F00", human ? "the right cell, among several the tracker retained" : "edge status 1 branched"),
     swatch("#D55E00", human ? "answer key link the tracker got wrong" : "edge status 2 wrong"),
     swatch("#CC79A7", human ? "answer key link the tracker did not make" : "edge status 3 no link"),
     `<p class="note">${human
@@ -3220,17 +3220,17 @@ EV.paintReview = (app) => {
   const human = EV.human();
   const list = EV.$("reviewList");
   EV.$("reviewNote").textContent = human
-    ? "Links the answer key marks wrong or missing, then the most linked and the largest cells, which can be several cells counted as one. Click an item to go to it."
+    ? "Links the answer key marks wrong or missing, then the max linked and the largest cells, which can be several cells counted as one. Click an item to go to it."
     : "status 2 and 3 edges, then top 12 by degree and by n";
   list.replaceChildren(...object.review.slice(0, 80).map((item) => {
     const entry = document.createElement("li");
     const cells = item.cells.map((one) => `#${one}`).join(" to ");
-    entry.textContent = item.text || (item.kind === "most linked"
+    entry.textContent = item.text || (item.type === "max linked"
       ? `${cells}, ${item.degree} links, frame ${item.frame + (human ? 1 : 0)}`
-      : item.kind === "largest"
+      : item.type === "largest"
         ? `${cells}, ${EV.grouped(item.voxels)} voxels, frame ${item.frame + (human ? 1 : 0)}`
-        : `${item.kind}: ${cells}, frame ${item.frame + (human ? 1 : 0)}`);
-    entry.className = item.kind === "wrong" || item.kind === "no link" || item.kind === "control" ? "bad" : "";
+        : `${item.type}: ${cells}, frame ${item.frame + (human ? 1 : 0)}`);
+    entry.className = item.type === "wrong" || item.type === "no link" || item.type === "control" ? "bad" : "";
     entry.addEventListener("click", () => {
       EV.goTo(app, item.frame);
       EV.choose(app, item.cells, "set");
@@ -3295,12 +3295,12 @@ EV.paintTags = (app) => {
     return;
   }
   app.pins = app.pins || new Map();
-  const shown = [...app.chosen].filter((cell) => {
+  const displayed = [...app.chosen].filter((cell) => {
     const frame = object.cellFrame[cell];
     return frame === app.frame || (frame === app.frame + 1 && app.progress >= 2048);
   }).slice(0, 24);
   const human = EV.human();
-  const targets = shown.map((cell) => ({ cell, at: EV.screenOf(app, cell) })).sort((left, right) => left.at[0] - right.at[0]);
+  const targets = displayed.map((cell) => ({ cell, at: EV.screenOf(app, cell) })).sort((left, right) => left.at[0] - right.at[0]);
   const panel = EV.$("panel").getBoundingClientRect();
   let x = Math.max(panel.right + 12, 12);
   const width = window.innerWidth;
@@ -3398,7 +3398,7 @@ EV.paintLines = (app) => {
 };
 
 EV.afterRender = (app, regions) => {
-  // The right column stops above the slice when the slice is shown.
+  // The right column stops above the slice when the slice is displayed.
   const ratio = window.devicePixelRatio || 1;
   const right = EV.$("right");
   const bottom = regions && regions.slice ? Math.floor(regions.slice[1] / ratio) - 12 : window.innerHeight - 80;
@@ -3522,16 +3522,16 @@ EV.PALETTE_WORDS = { 0: "cell", 1: "lineage", 2: "volume", 3: "okabe_ito" };
 // Writes the view into every control and the page's own styles.
 EV.showView = (app) => {
   const view = app.view;
-  for (const [id, name, kind] of EV.CONTROLS) {
+  for (const [id, name, type] of EV.CONTROLS) {
     const element = EV.$(id);
     const value = view[name];
-    if (kind === "switch") {
+    if (type === "switch") {
       element.checked = !!value;
-    } else if (kind === "body") {
+    } else if (type === "body") {
       element.value = String(EV.BODY_WORDS.indexOf(value));
-    } else if (kind === "palette") {
+    } else if (type === "palette") {
       element.value = Object.keys(EV.PALETTE_WORDS).find((key) => EV.PALETTE_WORDS[key] === value);
-    } else if (kind === "power") {
+    } else if (type === "power") {
       element.value = String(value ? 32 - Math.clz32(value) : 0);
     } else if (id === "sliceZ" && value < 0 && app.object) {
       element.value = String(app.object.header.depth >> 1);
@@ -3540,7 +3540,7 @@ EV.showView = (app) => {
     }
     const out = EV.$(`${id}Out`);
     if (out) {
-      out.textContent = kind === "power" ? EV.grouped(value) : kind === "switch" ? "" : String(element.value);
+      out.textContent = type === "power" ? EV.grouped(value) : type === "switch" ? "" : String(element.value);
     }
   }
   const root = document.documentElement;
@@ -3565,13 +3565,13 @@ EV.showView = (app) => {
   EV.remember(app);
 };
 
-EV.readControl = (app, id, name, kind) => {
+EV.readControl = (app, id, name, type) => {
   const element = EV.$(id);
-  const value = kind === "switch" ? element.checked
-    : kind === "body" ? EV.BODY_WORDS[Number(element.value)]
-      : kind === "palette" ? EV.PALETTE_WORDS[element.value]
-        : kind === "power" ? (Number(element.value) ? 2 ** (Number(element.value) - 1) : 0)
-          : kind === "word" ? element.value : Math.trunc(Number(element.value));
+  const value = type === "switch" ? element.checked
+    : type === "body" ? EV.BODY_WORDS[Number(element.value)]
+      : type === "palette" ? EV.PALETTE_WORDS[element.value]
+        : type === "power" ? (Number(element.value) ? 2 ** (Number(element.value) - 1) : 0)
+          : type === "word" ? element.value : Math.trunc(Number(element.value));
   const error = EV.errorValue(EV.VIEW_SCHEME[name], value);
   if (!error) {
     app.view[name] = value;
@@ -3733,9 +3733,9 @@ EV.remember = (app) => {
 
 EV.recall = (app) => {
   try {
-    const kept = JSON.parse(localStorage.getItem("engine_view") || "{}");
-    EV.applyView(app.view, { face: kept.face, theme: kept.theme, text_size: kept.text_size, sheer: kept.sheer });
-    EV.controlBar.setOpen(!!kept.pinned);
+    const retained = JSON.parse(localStorage.getItem("engine_view") || "{}");
+    EV.applyView(app.view, { face: retained.face, theme: retained.theme, text_size: retained.text_size, sheer: retained.sheer });
+    EV.controlBar.setOpen(!!retained.pinned);
   } catch (error) {
     // Nothing remembered.
   }
@@ -3770,13 +3770,13 @@ EV.openSource = async (app, sources, sample, fromFile) => {
   app.compacted = "";
   app.rawKey = "";
   // The object opens in the view its .cfg carries; the page's remembered face, theme and text size stay the reader's.
-  const kept = { face: app.view.face, theme: app.view.theme, text_size: app.view.text_size, sheer: app.view.sheer };
+  const retained = { face: app.view.face, theme: app.view.theme, text_size: app.view.text_size, sheer: app.view.sheer };
   app.view = EV.defaultView();
   const parsed = EV.parseCfg(object.cfgText);
   if (parsed.view) {
     EV.applyView(app.view, parsed.view);
   }
-  EV.applyView(app.view, kept);
+  EV.applyView(app.view, retained);
   // What the object's .cfg says about the specimen: the voxel's size and the membrane's thickness, both in picometers,
   // give the wall's inset as the membrane in voxels times 65536.
   const specimen = EV.specimen(object.cfgText);
@@ -3839,9 +3839,9 @@ EV.csv = (app) => {
 };
 
 EV.bindControls = (app) => {
-  for (const [id, name, kind] of EV.CONTROLS) {
+  for (const [id, name, type] of EV.CONTROLS) {
     const element = EV.$(id);
-    element.addEventListener(element.type === "range" ? "input" : "change", () => EV.readControl(app, id, name, kind));
+    element.addEventListener(element.type === "range" ? "input" : "change", () => EV.readControl(app, id, name, type));
   }
   EV.$("sample").addEventListener("change", async (event) => {
     await EV.openSource(app, await EV.fetchSample(event.target.value), event.target.value, false);
@@ -3978,7 +3978,7 @@ EV.bindPointer = (app) => {
       app.dirty = true;
       return;
     }
-    // Hovering: the cell under the pointer, read back at most every 80 ms.
+    // Hovering: the cell under the pointer, read back at max every 80 ms.
     const now = performance.now();
     if (!app.object || app.picking || now - (app.hoverAt || 0) < 80) {
       return;
@@ -4066,7 +4066,7 @@ EV.bindKeys = (app) => {
       "+": () => { view.zoom = Math.min(8192, (view.zoom || app.live.zoom) + Math.max(1, (view.zoom || app.live.zoom) >> 3)); },
       "-": () => { view.zoom = Math.max(1, (view.zoom || app.live.zoom) - Math.max(1, (view.zoom || app.live.zoom) >> 3)); },
       l: () => EV.choose(app, EV.lineage(app.object, [...app.chosen]), "set"),
-      w: () => EV.choose(app, app.object.review.filter((item) => item.kind === "wrong" || item.kind === "no link").flatMap((item) => item.cells), "set"),
+      w: () => EV.choose(app, app.object.review.filter((item) => item.type === "wrong" || item.type === "no link").flatMap((item) => item.cells), "set"),
       f: () => { view.only_chosen = !view.only_chosen; },
       k: () => { view.links = !view.links; },
       e: () => { view.edges = !view.edges; },

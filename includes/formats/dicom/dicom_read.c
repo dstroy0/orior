@@ -53,7 +53,7 @@ static void dicom_extent(EngineArrayExtent *extent)
     extent->sizes[3] = lead->columns;
     memcpy(extent->axes, "tzyx", 4u);
     extent->element_bytes = lead->bits_allocated / 8u;
-    extent->element_kind = (lead->pixel_representation != 0u) ? ENGINE_ELEMENT_SIGNED : ENGINE_ELEMENT_UNSIGNED;
+    extent->element_type = (lead->pixel_representation != 0u) ? ENGINE_ELEMENT_SIGNED : ENGINE_ELEMENT_UNSIGNED;
 }
 
 int dicom_zip_has_member(const EngineIngestTools *tools, const char *path, const char *member)
@@ -248,7 +248,7 @@ long long dicom_read(const EngineArrayRead *request)
     const unsigned long long slice_bytes = resident->slices[0].pixel_bytes;
     const unsigned long long total = slice_bytes * resident->count;
     int agrees = (found.rank == request->extent->rank) && (found.element_bytes == request->extent->element_bytes) &&
-                 (found.element_kind == request->extent->element_kind) && (request->first == 0ull) &&
+                 (found.element_type == request->extent->element_type) && (request->first == 0ull) &&
                  (request->end == 1ull) && (total <= request->out_capacity);
     for (unsigned int axis = 0u; agrees && (axis < found.rank); axis += 1u)
     {

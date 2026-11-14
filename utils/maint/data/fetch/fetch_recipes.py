@@ -9,7 +9,7 @@
 # Everything read here is either formal procedure or no procedure at all. Source code is a procedure
 # written to be executed exactly, and every other corpus is narrative, scripture or reference. A recipe
 # is the case in between: it tells someone how to do something, in the order it must be done, and it
-# leaves out most of what the reader is assumed to know.
+# leaves out the majority of what the reader is assumed to know.
 #
 # That omission is the point of testing it. A recipe written in 1390 assumes a kitchen, a set of tools and
 # a shared sense of how much is enough, none of which it states and none of which survives. What is left
@@ -96,8 +96,8 @@ def main():
                 continue
 
             link = None
-            for kind, address in entry.get("formats", {}).items():
-                if kind.startswith("text/plain") and not address.endswith(".zip"):
+            for type, address in entry.get("formats", {}).items():
+                if type.startswith("text/plain") and not address.endswith(".zip"):
                     link = address
                     break
             if not link:

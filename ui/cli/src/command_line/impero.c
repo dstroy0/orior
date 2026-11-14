@@ -25,7 +25,7 @@ int main(int count, char **supplied)
         EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_line,
                    .size = mmgr_line_ok(&msg) ? msg.at : 0ULL);
     }
-    // every process a command starts stands under this one, and ends with it
+    // every process a command starts is under this one, and ends with it
     (void)cli_container_init();
     const unsigned int words =
         EMBED_CALL(cli_capacity_count_internal.arguments, CliCapacityCountCtx, .count_i32 = count, .supplied = supplied,

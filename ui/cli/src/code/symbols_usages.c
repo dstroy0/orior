@@ -6,7 +6,7 @@
 // the place: the define in effect, else the first declaration of the name the file's walk met, so a function a header
 // declares and a file defines is one function, and a static of the same name in another file is another. Each file
 // holding the name is walked once, its leaves of the name noted as the walk passes them, and one that a local of the
-// function it stands in shadows set aside. A name, a local, a parameter, a region's brackets and a statement's end
+// function it is in shadows set aside. A name, a local, a parameter, a region's brackets and a statement's end
 // are known by the roles their grammar's tokens name; a function's region by its head declaring a function
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
@@ -16,8 +16,8 @@
 
 // One leaf of the name a walk noted: its line, its span in UTF-16 units, its line's text, a place among the texts, and
 // how many bytes; the definition in effect there, its path a place among the paths, CLI_JSON_NONE for none, and its
-// line; whether the function region it stands in declares the name a local or a parameter; and that region's first
-// leaf, CLI_JSON_NONE where it stands in none
+// line; whether the function region it is in declares the name a local or a parameter; and that region's first
+// leaf, CLI_JSON_NONE where it is in none
 typedef struct
 {
     unsigned int line;
@@ -161,7 +161,7 @@ EMBED_INLINE void usages_regions_read(const SymbolsUsagesCtx *args)
     args->usages_out->refused |= !mmgr_line_ok(&args->usages_out->regions.line);
 }
 
-// the place among the regions of the one the leaf `leaf` stands in, CLI_JSON_NONE where it stands in none
+// the place among the regions of the one the leaf `leaf` is in, CLI_JSON_NONE where it is in none
 EMBED_INLINE unsigned int usages_region_get(const SymbolsUsagesCtx *args)
 {
     unsigned int low = 0u;
@@ -209,7 +209,7 @@ EMBED_INLINE int usages_region_declares(const SymbolsUsagesCtx *args)
 }
 
 // a leaf of the name a walk passes noted with the definition in effect there, its line's text and its span, and
-// whether a local of the function region it stands in shadows it
+// whether a local of the function region it is in shadows it
 static void usages_note(const CliEffectNotedCfg *args)
 {
     const CliLeafRead *read = args->read;
@@ -310,7 +310,7 @@ EMBED_INLINE int usages_same(const SymbolsUsagesCtx *args)
                .src = args->usages->paths.cell + args->one->defined, .other = args->defined, .cap = CLI_POOL_BYTES});
 }
 
-// each note of the branch at `path` handed on as a usage where it stands in the region `region` of a local, else where
+// each note of the branch at `path` passed on as a usage where it is in the region `region` of a local, else where
 // a local does not shadow it and its definition is `defined` at `line`
 EMBED_INLINE void usages_dispatch(const SymbolsUsagesCtx *args)
 {
@@ -330,7 +330,7 @@ EMBED_INLINE void usages_dispatch(const SymbolsUsagesCtx *args)
     }
 }
 
-// the first note of the branch at `path` handed on as the definition: the first in the region `region` of a local, else
+// the first note of the branch at `path` passed on as the definition: the first in the region `region` of a local, else
 // the first on the line `line` whose definition is `defined` at `line`; whether one was
 EMBED_INLINE int usages_first_dispatch(const SymbolsUsagesCtx *args)
 {
@@ -407,7 +407,7 @@ EMBED_INLINE unsigned long long usages_name_at(const SymbolsUsagesCtx *args)
         const unsigned long long at =
             start + EMBED_CALL(cli_symbols_size_internal.byte_at, CliSymbolsSizeCtx, .line = text + start,
                                .size = end - start, .col = col, .byte = &byte, .at = &units);
-        // the leaf the place stands in, else the one it ends where that one is a name
+        // the leaf the place is in, else the one it ends where that one is a name
         while ((leaf < read.count) && (read.leaf[leaf].line == line) && (read.leaf[leaf].to <= at))
         {
             leaf += 1u;
@@ -470,7 +470,7 @@ EMBED_INLINE void usages_tree_paths(const SymbolsUsagesCtx *args)
 }
 
 // the usages read across the tree's files but `path`, each holding the name walked, the notes whose definition is
-// `defined` at `line` handed on: 1, or 0 with why given
+// `defined` at `line` passed on: 1, or 0 with why given
 EMBED_INLINE int usages_across(const SymbolsUsagesCtx *args)
 {
     CliGrownLine paths;
@@ -517,7 +517,7 @@ EMBED_INLINE int usages_across(const SymbolsUsagesCtx *args)
 }
 
 // the leaf of the name on the line `line` of the tree's file `defined`, the definition in effect at the place asked
-// about in the file at `path`, handed on, that file walked where it is not `path`: 1, 0 where its walk notes none
+// about in the file at `path`, passed on, that file walked where it is not `path`: 1, 0 where its walk notes none
 // there, as for a define the compile database gives, or -1 with why given
 EMBED_INLINE int usages_definition_dispatch(const SymbolsUsagesCtx *args)
 {
@@ -631,7 +631,7 @@ static int usages_request(const SymbolsUsagesCtx *args)
         (text != NULL) ? EMBED_CALL(usages_name_at, SymbolsUsagesCtx, .path = args->path, .text = text, .size = size,
                                     .line = args->line, .col = args->col, .name = name)
                        : 0ULL;
-    // the four lines begun where a name stands at the place, each grown to what it holds
+    // the four lines begun where a name is at the place, each grown to what it holds
     CliUsages usages;
     memor.set(&(MemoriaCfg){.dst = &usages, .val = 0, .bytes = sizeof(usages)});
     usages.name = name;

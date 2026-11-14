@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_notebook_cells.c: an open notebook's model: a Jupyter notebook and a percent script read as the same rows, a row
 // found among the cells' starts, a kernel's messages applied by the step to the cell their run is bound to and to the
-// model their context is, one standing until its run is bound, the ring sized to the bytes pending and released
+// model their context is, one located until its run is bound, the ring sized to the bytes pending and released
 // drained, the out of date marks and their sentence, the sentences the rows show, the save and the changed mark, and the
-// frame laid and released with the owner's bytes back where they began, the top moved and stopped at the last row
+// frame positioned and released with the owner's bytes back where they began, the top moved and stopped at the last row
 #include "ui/cli/src/notebooks/notebook_cells_internal.h"
 #include "ui/cli/src/notebooks/notebook_edit.h"
 #include "ui/cli/src/notebooks/notebook_kernel.h"
@@ -58,7 +58,7 @@ static CliNotebookRow row_of(const char *key, unsigned int at)
     return row;
 }
 
-// a kernel's message of `msg_type` answering `parent` with `content` handed to the receiver as the model's kernel
+// a kernel's message of `msg_type` answering `parent` with `content` passed to the receiver as the model's kernel
 static void received(CliNotebookModel *model, const char *msg_type, const char *parent, const char *content)
 {
     char message[1u << 15u];
@@ -162,7 +162,7 @@ void test_the_step_applies_each_message_to_the_cell_its_run_answers(void)
     received(model, "stream", "r1", "{\"name\":\"stdout\",\"text\":\"a\\n\"}");
     received(model, "stream", "r1", "{\"name\":\"stdout\",\"text\":\"b\\n\"}");
     received(model, "execute_result", "r1", "{\"data\":{\"text/plain\":\"3\"},\"execution_count\":5,\"metadata\":{}}");
-    received(model, "display_data", "r1", "{\"data\":{\"text/plain\":\"<shown>\"},\"metadata\":{},\"transient\":{}}");
+    received(model, "display_data", "r1", "{\"data\":{\"text/plain\":\"<displayed>\"},\"metadata\":{},\"transient\":{}}");
     received(model, "error", "r1", "{\"ename\":\"E\",\"evalue\":\"v\",\"traceback\":[\"first\",\"second\"]}");
     received(model, "execute_reply", "r1", "{\"status\":\"error\",\"execution_count\":5}");
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_cells_step.step, CliNotebookCellsStepCfg, .woken = NULL));
@@ -183,7 +183,7 @@ void test_the_step_applies_each_message_to_the_cell_its_run_answers(void)
     TEST_ASSERT_TRUE((printed.flags & CLI_NOTEBOOK_FLAG_FAILED) != 0u);
 }
 
-void test_a_message_whose_run_is_not_yet_bound_stands_until_it_is(void)
+void test_a_message_whose_run_is_not_yet_bound_is_until_it_is(void)
 {
     CliNotebookModel *const model = opened("nb:a", "one.ipynb", s_notebook);
     received(model, "stream", "r9", "{\"name\":\"stderr\",\"text\":\"late\"}");
@@ -236,7 +236,7 @@ void test_the_ring_grows_to_the_bytes_pending_and_is_given_back_cleared(void)
     const unsigned long long pending = model->ring_used;
     (void)EMBED_CALL(cli_notebook_cells_step.step, CliNotebookCellsStepCfg, .woken = NULL);
     TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_KERNEL_BUSY, model->state);
-    // the status message applied; the stream message, bound to no run, put back to stand in the kept cell
+    // the status message applied; the stream message, bound to no run, put back to be in the retained cell
     TEST_ASSERT_TRUE(model->ring_used < pending);
     TEST_ASSERT_TRUE(model->ring_used != 0ULL);
     TEST_ASSERT_NOT_NULL(model->ring_cell);
@@ -245,7 +245,7 @@ void test_the_ring_grows_to_the_bytes_pending_and_is_given_back_cleared(void)
     TEST_ASSERT_EQUAL_UINT64(0ULL, model->ring_capacity);
 }
 
-void test_a_cell_is_out_of_date_after_a_cell_it_stands_on_changes_runs_again_or_goes(void)
+void test_a_cell_is_out_of_date_after_a_cell_it_is_on_changes_runs_again_or_goes(void)
 {
     CliNotebookModel *const model = opened("nb:a", "one.ipynb", s_notebook);
     model->clock = 2u;
@@ -269,12 +269,12 @@ void test_a_cell_is_out_of_date_after_a_cell_it_stands_on_changes_runs_again_or_
                                         .input = &typed, .err_msg = &err_msg));
     TEST_ASSERT_EQUAL_INT(1, notebook_cell_at(model, 2u).stale);
     sentence_is("nb:a", CLI_NOTEBOOK_TEXT_STALE, 2u, CLI_NOTEBOOK_NONE,
-                "Out of date: it stands on cell 1, changed, run again or deleted since this cell ran");
+                "Out of date: it is on cell 1, changed, run again or deleted since this cell ran");
     TEST_ASSERT_EQUAL_INT(1,
                           EMBED_CALL(cli_notebook_edit_cell.remove, CliNotebookEditCellCfg, .key = "nb:a", .cell = 0u));
     TEST_ASSERT_EQUAL_INT(1, notebook_cell_at(model, 1u).stale);
     sentence_is("nb:a", CLI_NOTEBOOK_TEXT_STALE, 1u, CLI_NOTEBOOK_NONE,
-                "Out of date: it stands on a cell since deleted, changed, run again or deleted since this cell ran");
+                "Out of date: it is on a cell since deleted, changed, run again or deleted since this cell ran");
     (void)EMBED_CALL(cli_notebook_kernel_stop.restart, CliNotebookKernelStopCfg, .key = "nb:a", .err_msg = &err_msg);
     TEST_ASSERT_EQUAL_INT(0, notebook_cell_at(model, 1u).stale);
     TEST_ASSERT_EQUAL_UINT(0u, model->gone_count);
@@ -320,8 +320,8 @@ void test_the_sentences_the_rows_show(void)
     TEST_ASSERT_EQUAL_UINT(rows + 100u - ((2u * CLI_NOTEBOOK_CUT_LINES) + 1u),
                            EMBED_CALL(cli_notebook_cells_row.rows, CliNotebookCellsRowCfg, .key = "nb:a"));
     // the kernel's state as its status messages set it, the display text the notebook records before it
-    static char s_kernel_stand_in;
-    model->kernel = (CliKernel *)(void *)&s_kernel_stand_in;
+    static char s_kernel_are_in;
+    model->kernel = (CliKernel *)(void *)&s_kernel_are_in;
     const char *const states[3][2] = {{"starting", "Python 3: starting"}, {"idle", "Python 3: idle"},
                                       {"busy", "Python 3: busy"}};
     for (unsigned int at = 0u; at < 3u; at += 1u)
@@ -371,7 +371,7 @@ void test_the_save_writes_the_notebook_and_clears_the_changed_mark(void)
     TEST_ASSERT_EQUAL_UINT(1u, notebook_cell_at(saved, 0u).count);
 }
 
-void test_the_frame_lays_the_rows_asked_and_its_release_returns_its_cells(void)
+void test_the_frame_positions_the_rows_asked_and_its_release_returns_its_cells(void)
 {
     (void)opened("nb:a", "one.ipynb", s_notebook);
     const unsigned long long before = mmgr_owner_in_use(g_cli_notebook_open_owner);

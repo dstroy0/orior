@@ -27,11 +27,11 @@ typedef struct CliDebugErrMsgIdCtx CliDebugErrMsgIdCtx;
 typedef struct CliDebugFileCtx CliDebugFileCtx;
 typedef struct CliDebugCtx CliDebugCtx;
 
-// the most requests sent to adapters at once, and the most bytes of a request's arguments
+// the max requests sent to adapters at once, and the max bytes of a request's arguments
 #define CLI_DEBUG_ANSWERS 4u
 #define CLI_DEBUG_ARGS (1ull << 20u)
 
-// the most sessions at once, one adapter each; the exceptions one adapter can stop on; the most breakpoints the reader
+// the max sessions at once, one adapter each; the exceptions one adapter can stop on; the max breakpoints the reader
 // placed that a session stores, and its data breakpoints, and those each list is taken with; and the nodes and bytes
 // over an event's own its tree is read with, for what a stop rewritten adds
 #define CLI_DEBUG_SESSIONS CLI_DAPS_MAX
@@ -40,7 +40,7 @@ typedef struct CliDebugCtx CliDebugCtx;
 #define CLI_DEBUG_DATA 256u
 #define CLI_DEBUG_EVENT_MORE_NODES 8u
 #define CLI_DEBUG_EVENT_MORE_TEXT 64u
-// the most nodes and bytes of the adapter's spec and the launch's arguments a session is started with, the tree's cell
+// the max nodes and bytes of the adapter's spec and the launch's arguments a session is started with, the tree's cell
 // taken as the session is planned and given back as its place is freed
 #define CLI_DEBUG_START_NODES 8192u
 #define CLI_DEBUG_START_TEXT (1u << 18u)
@@ -97,7 +97,7 @@ typedef struct
 // lldb; the native session whose breakpoints of a step across go at the next stop; the process the adapter reports it
 // debugs; whether the adapter reported it is initialized; where its events go; the threads that let the adapter go and
 // take a step across's breakpoints away, and the session whose breakpoints they take; and the tree the session's start
-// is made in. The two lists are movable cells at their most, a data breakpoint CLI_NAME_MAX_LEN bytes and a placed
+// is made in. The two lists are movable cells at their max, a data breakpoint CLI_NAME_MAX_LEN bytes and a placed
 // breakpoint a number, read out by copy, and they and the tree are given back with the place
 typedef struct
 {

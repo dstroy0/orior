@@ -22,7 +22,7 @@
 // kernel as written against nvcc's listing of it:
 //
 //   - register put for to: a form whose sass.krs text moves one word of the constant bank into its to writes nothing,
-//     and the word stands as the operand of each form that reads it. Found where nvcc's listing reads the word as the
+//     and the word is as the operand of each form that reads it. Found where nvcc's listing reads the word as the
 //     operand of an instruction other than a move.
 //   - pow2 put for a parameter: a multiply by a power of two is written as the shift of the multiply's stem, by the
 //     power's log2. Found where nvcc's listing contains the shift's operation with that log2.
@@ -34,7 +34,7 @@
 // this run queried dropped, and every fold this run found taken. The last round is written out: each kernel as
 // <out>/NNNN.sass and its encodings <out>/NNNN.bin. Nothing goes to a device.
 //
-// Each kernel's trace is handed to the query run QRY names as the blob NNNN.trace, as every path's trace is unless
+// Each kernel's trace is passed to the query run QRY names as the blob NNNN.trace, as every path's trace is unless
 // (qry_member.h); with no run's writer to take it, nothing is read.
 extern "C"
 {
@@ -70,7 +70,7 @@ extern "C"
 extern "C" const char __ehdr_start = 0;
 #endif
 
-// the most rounds the stick is read in
+// the max rounds the stick is read in
 #define STICK_ROUNDS 4u
 
 // the part the stick is assembled for, and the folder its machine file and its .kdm are in
@@ -90,7 +90,7 @@ static std::string s_part;
 #define STICK_COUNT_BITS 0u
 
 // the schema's forms by their place in it, as machine_ir_types.h names them
-#define STICK_FORM_NAME(name_, text_, parameters_, kind_) text_,
+#define STICK_FORM_NAME(name_, text_, parameters_, type_) text_,
 
 static const char *const s_form_names[OPCODE_COUNT] = {OPCODES(STICK_FORM_NAME)};
 
@@ -201,7 +201,7 @@ static std::string stick_operation(const std::string &token)
 }
 
 // `expression` cut into C's tokens as it is written, its white space parting them: names, a member of one taken with
-// it, numbers with their suffixes, and each operator, the longest that stands at its place, stored as stick_operator()
+// it, numbers with their suffixes, and each operator, the longest that is at its place, stored as stick_operator()
 // gives it. `a - -b` is cut as `a`, `-`, `-`, `b` and `a--b` as `a`, `--`, `b`, as C cuts them
 static std::vector<std::string> stick_tokens(const std::string &expression)
 {
@@ -210,14 +210,14 @@ static std::vector<std::string> stick_tokens(const std::string &expression)
     size_t at = 0u;
     while (at < expression.size())
     {
-        const char letter = expression[at];
-        if (isspace((unsigned char)letter) != 0)
+        const char character = expression[at];
+        if (isspace((unsigned char)character) != 0)
         {
             at += 1u;
             continue;
         }
         size_t end = at + 1u;
-        if ((isalnum((unsigned char)letter) != 0) || (letter == '_'))
+        if ((isalnum((unsigned char)character) != 0) || (character == '_'))
         {
             while ((end < expression.size()) && ((isalnum((unsigned char)expression[end]) != 0) ||
                                                  (expression[end] == '_') || (expression[end] == '.')))
@@ -257,7 +257,7 @@ struct StickPattern
 
 // The trace of the kernel being read: every reading tried, nested as it is tried, every
 // form whose text matches and every choice of its operands with why it fails, what each reading gives, every line
-// written and every question put, gathered in memory and handed to the run once the kernel is read. Nothing
+// written and every question put, gathered in memory and passed to the run once the kernel is read. Nothing
 // is gathered where s_tracing is false
 static std::string s_trace;
 static bool s_tracing = false;
@@ -314,7 +314,7 @@ enum StickLeaf
 };
 
 // an expression as read: what it is, its form, its text, its number, its count of forms and its width; the readings
-// of its parameters; where it is folded, the word it stands as; and whether a flag is read as its complement
+// of its parameters; where it is folded, the word it is as; and whether a flag is read as its complement
 struct StickReading
 {
     StickLeaf leaf;
@@ -328,7 +328,7 @@ struct StickReading
     int negated = 0;
 };
 
-// a register the kernel stores a value in, as sass.krs writes it, or the word a folded value stands as; its width,
+// a register the kernel stores a value in, as sass.krs writes it, or the word a folded value is as; its width,
 // whether its type is signed, and its type's place in s_types
 struct StickValue
 {
@@ -381,17 +381,17 @@ struct StickListingQuery
 static std::string stick_bare(const std::string &text)
 {
     std::string bare;
-    for (const char letter : text)
+    for (const char character : text)
     {
-        if ((letter != ' ') && (letter != '\t') && (letter != '\n') && (letter != '\r'))
+        if ((character != ' ') && (character != '\t') && (character != '\n') && (character != '\r'))
         {
-            bare += letter;
+            bare += character;
         }
     }
     return bare;
 }
 
-// 1 where `text` is an expression other than `name` itself that reads `name`: the name standing in it with no letter,
+// 1 where `text` is an expression other than `name` itself that reads `name`: the name located in it with no character,
 // digit, `_` or `.` either side of it
 static int stick_reads_name(const std::string &text, const std::string &name)
 {
@@ -399,8 +399,8 @@ static int stick_reads_name(const std::string &text, const std::string &name)
     {
         return 0;
     }
-    const auto joins = [](char letter)
-    { return (isalnum((unsigned char)letter) != 0) || (letter == '_') || (letter == '.'); };
+    const auto joins = [](char character)
+    { return (isalnum((unsigned char)character) != 0) || (character == '_') || (character == '.'); };
     for (size_t at = text.find(name); at != std::string::npos; at = text.find(name, at + 1u))
     {
         const size_t end = at + name.size();
@@ -416,12 +416,12 @@ static int stick_reads_name(const std::string &text, const std::string &name)
 static std::string stick_squeeze(const std::string &text)
 {
     std::string squeezed;
-    for (const char letter : text)
+    for (const char character : text)
     {
-        const int space = (letter == ' ') || (letter == '\t') || (letter == '\n') || (letter == '\r');
+        const int space = (character == ' ') || (character == '\t') || (character == '\n') || (character == '\r');
         if (space == 0)
         {
-            squeezed += letter;
+            squeezed += character;
         }
         else if (!squeezed.empty() && (squeezed.back() != ' '))
         {
@@ -439,10 +439,10 @@ static std::string stick_squeeze(const std::string &text)
 static int stick_balanced(const std::string &text)
 {
     int depth = 0;
-    for (const char letter : text)
+    for (const char character : text)
     {
-        depth += ((letter == '(') || (letter == '[')) ? 1 : 0;
-        depth -= ((letter == ')') || (letter == ']')) ? 1 : 0;
+        depth += ((character == '(') || (character == '[')) ? 1 : 0;
+        depth -= ((character == ')') || (character == ']')) ? 1 : 0;
         if (depth < 0)
         {
             return 0;
@@ -615,19 +615,19 @@ static std::pair<unsigned int, unsigned int> stick_pipe_lane(const std::vector<s
 static std::regex stick_line_pattern(const std::string &squeezed)
 {
     std::string pattern = "^";
-    for (const char letter : squeezed)
+    for (const char character : squeezed)
     {
-        if ((letter >= '\x01') && (letter <= '\x09'))
+        if ((character >= '\x01') && (character <= '\x09'))
         {
             pattern += "([^,\\[\\]\\s;]+)";
         }
-        else if (strchr(".^$|()[]{}*+?\\", letter) != NULL)
+        else if (strchr(".^$|()[]{}*+?\\", character) != NULL)
         {
-            pattern += std::string("\\") + letter;
+            pattern += std::string("\\") + character;
         }
         else
         {
-            pattern += letter;
+            pattern += character;
         }
     }
     return std::regex(pattern + "$");
@@ -685,7 +685,7 @@ static std::string stick_constant(const std::string &text)
 
 // a register a form's scratch is written with where its text is only looked at or assembled, and never run: one no
 // stand-in names
-static std::string stick_scratch_stand_in(const std::string &bank)
+static std::string stick_scratch_are_in(const std::string &bank)
 {
     return (bank == "wide") ? std::string("R200") : ((bank == "predicate") ? std::string("P5") : std::string("R202"));
 }
@@ -704,7 +704,7 @@ static std::vector<unsigned int> stick_parameter_bits(const Ruleset *sass, unsig
     }
     std::vector<unsigned int> bits(count, STICK_REGISTER_BITS);
     std::string text;
-    if (ruleset_opcode(sass, s_form_names[form], markers, stick_scratch_stand_in, text) == 0)
+    if (ruleset_opcode(sass, s_form_names[form], markers, stick_scratch_are_in, text) == 0)
     {
         return bits;
     }
@@ -734,7 +734,7 @@ static unsigned int stick_own_cast(const std::string &piece)
     return 0u;
 }
 
-// Every form cu.krs gives as an expression or as a statement of its own, each with a letter of its own text. A cast
+// Every form cu.krs gives as an expression or as a statement of its own, each with a character of its own text. A cast
 // to a register's own type just before a parameter converts nothing where the parameter is stored in a register of that
 // width, and the form is also read with the cast left out, the parameter then stored at the cast's width
 static std::vector<StickPattern> stick_patterns(const Ruleset *rules, const Ruleset *sass)
@@ -902,7 +902,7 @@ static std::string stick_operation(const Ruleset *sass, unsigned int form)
 {
     std::vector<std::string> arguments(sass->schema->forms[form].parameters, std::string("R2"));
     std::string text;
-    if (ruleset_opcode(sass, s_form_names[form], arguments, stick_scratch_stand_in, text) == 0)
+    if (ruleset_opcode(sass, s_form_names[form], arguments, stick_scratch_are_in, text) == 0)
     {
         return std::string();
     }
@@ -910,12 +910,12 @@ static std::string stick_operation(const Ruleset *sass, unsigned int form)
     return squeezed.substr(0u, squeezed.find(' '));
 }
 
-// the line sass.ksc gives a fold of `kind` put for parameter `parameter` of form `form`, and the line's opening
-static std::string stick_fold_line(const Ruleset *sass, unsigned int form, const char *kind, unsigned int parameter,
+// the line sass.ksc gives a fold of `type` put for parameter `parameter` of form `form`, and the line's opening
+static std::string stick_fold_line(const Ruleset *sass, unsigned int form, const char *type, unsigned int parameter,
                                    int opening)
 {
     const std::vector<std::string> names = ruleset_parameters(sass, s_form_names[form]);
-    const std::string line = std::string(s_form_names[form]) + ": the system folds the " + kind + " put for ";
+    const std::string line = std::string(s_form_names[form]) + ": the system folds the " + type + " put for ";
     return (opening != 0) ? line : (line + ((parameter < names.size()) ? names[parameter] : std::string()));
 }
 
@@ -1005,7 +1005,7 @@ class StickKernel
     }
 
     // `name` stored in `value` as a value of type `type`, or as a word of no type of C where `type` is -1, never
-    // negative where `nonnegative` is set. A name stored anew is read from `value` alone, whatever stood for it before,
+    // negative where `nonnegative` is set. A name stored anew is read from `value` alone, whatever was for it before,
     // and every expression stored that reads the name is let go: its value is of what the name stored when it was read
     void bind(const std::string &name, StickValue value, int type, int nonnegative = 0)
     {
@@ -1017,7 +1017,7 @@ class StickKernel
         }
         bound_values[name] = value;
         readings.clear();
-        standing.erase(name);
+        located.erase(name);
         flags.erase(name);
         nonnegatives.erase(name);
         if (nonnegative != 0)
@@ -1037,9 +1037,9 @@ class StickKernel
     }
 
     // `name` read as `value`, written where the name is read and only as much of it as is read there
-    void stand(const std::string &name, const StickTyped &value)
+    void are(const std::string &name, const StickTyped &value)
     {
-        standing[name] = value;
+        located[name] = value;
     }
 
     // `expression` typed, and written out with every conversion C makes in it, for the reader to read through
@@ -1527,12 +1527,12 @@ class StickKernel
         question = question.empty() ? why : question;
     }
 
-    // 1 where this kernel folds and sass.ksc contains a fold of `kind` put for form `form`'s parameter `parameter`
-    int folded(unsigned int form, const char *kind, unsigned int parameter) const
+    // 1 where this kernel folds and sass.ksc contains a fold of `type` put for form `form`'s parameter `parameter`
+    int folded(unsigned int form, const char *type, unsigned int parameter) const
     {
         for (const RulesetFold &fold : sass->folds)
         {
-            if ((folding != 0) && (fold.form == form) && (fold.kind == kind) && (fold.parameter == parameter))
+            if ((folding != 0) && (fold.form == form) && (fold.type == type) && (fold.parameter == parameter))
             {
                 return 1;
             }
@@ -1612,7 +1612,7 @@ class StickKernel
     // each bool stored as a flag, by its name, and the expression it is the flag of
     std::map<std::string, StickTyped> flags;
     // each name read as an expression not yet written, by the name
-    std::map<std::string, StickTyped> standing;
+    std::map<std::string, StickTyped> located;
     // the tokens of the expression typed() reads, and the next it takes
     std::vector<std::string> tokens;
     size_t token_at = 0u;
@@ -1769,16 +1769,16 @@ class StickKernel
     // the name stores no value of C to step
     StickTyped stepped(const std::string &name, const std::string &step, StickTyped *before)
     {
-        const auto stands = standing.find(name);
-        const int type = (stands != standing.end()) ? stands->second.type : type_of(name);
+        const auto is = located.find(name);
+        const int type = (is != located.end()) ? is->second.type : type_of(name);
         if ((type < 0) || (flags.count(name) != 0u) || !stick_operation(name).empty() ||
             (isdigit((unsigned char)name[0]) != 0))
         {
             return refuse("a step of what stores no value of C: " + name);
         }
         const int nonnegative =
-            (stands != standing.end()) ? stands->second.nonnegative : ((nonnegatives.count(name) != 0u) ? 1 : 0);
-        const StickValue read_value = value((stands != standing.end()) ? stands->second.text : name);
+            (is != located.end()) ? is->second.nonnegative : ((nonnegatives.count(name) != 0u) ? 1 : 0);
+        const StickValue read_value = value((is != located.end()) ? is->second.text : name);
         if (read_value.name.empty())
         {
             return StickTyped{"", -1};
@@ -1910,10 +1910,10 @@ class StickKernel
         {
             return flag->second;
         }
-        const auto stands = standing.find(token);
-        if (stands != standing.end())
+        const auto is = located.find(token);
+        if (is != located.end())
         {
-            return stands->second;
+            return is->second;
         }
         const int type = type_of(token);
         return (type < 0) ? refuse("a name nothing here types: " + token)
@@ -1928,7 +1928,7 @@ class StickKernel
         const unsigned long long number = strtoull(token.c_str(), &end, 0);
         std::string suffix = (end == NULL) ? std::string() : std::string(end);
         std::transform(suffix.begin(), suffix.end(), suffix.begin(),
-                       [](unsigned char letter) { return (char)tolower(letter); });
+                       [](unsigned char character) { return (char)tolower(character); });
         const int unsigned_one = (suffix.find('u') != std::string::npos);
         const int wide = (suffix.find("ll") != std::string::npos) || (number > 0xFFFFFFFFull);
         if (number > 0xFFFFFFFFull)
@@ -1955,7 +1955,7 @@ class StickKernel
         std::vector<std::string> given = {"\x01"};
         given.insert(given.end(), arguments.begin(), arguments.end());
         std::string lines;
-        if (ruleset_opcode(sass, s_form_names[form], given, stick_scratch_stand_in, lines) == 0)
+        if (ruleset_opcode(sass, s_form_names[form], given, stick_scratch_are_in, lines) == 0)
         {
             return std::string();
         }
@@ -1982,7 +1982,7 @@ class StickKernel
     {
         std::string lines;
         if ((sass->schema->forms[form].parameters != 2u) ||
-            (ruleset_opcode(sass, s_form_names[form], {"\x01", "\x02"}, stick_scratch_stand_in, lines) == 0))
+            (ruleset_opcode(sass, s_form_names[form], {"\x01", "\x02"}, stick_scratch_are_in, lines) == 0))
         {
             return 0;
         }
@@ -1990,8 +1990,8 @@ class StickKernel
     }
 
     // the operands of a form's parameters past its outputs, as `children` are written: a number or a folded word in
-    // place, and a register or predicate of its width otherwise, stand-ins numbered from `stand_in`
-    std::vector<std::string> stand_ins(const std::vector<StickReading> &children, unsigned int stand_in) const
+    // place, and a register or predicate of its width otherwise, stand-ins numbered from `are_in`
+    std::vector<std::string> are_ins(const std::vector<StickReading> &children, unsigned int are_in) const
     {
         std::vector<std::string> arguments;
         unsigned int predicate = 1u;
@@ -2013,14 +2013,14 @@ class StickKernel
                 predicate += 1u;
                 continue;
             }
-            stand_in += ((child.bits == 64u) && ((stand_in % 2u) != 0u)) ? 1u : 0u;
-            arguments.push_back("R" + std::to_string(stand_in));
-            stand_in += (child.bits == 64u) ? 2u : 1u;
+            are_in += ((child.bits == 64u) && ((are_in % 2u) != 0u)) ? 1u : 0u;
+            arguments.push_back("R" + std::to_string(are_in));
+            are_in += (child.bits == 64u) ? 2u : 1u;
         }
         return arguments;
     }
 
-    // 1 where sass.krs's text for `form` assembles with `outputs` and `children` as stand_ins writes them
+    // 1 where sass.krs's text for `form` assembles with `outputs` and `children` as are_ins writes them
     int assembles(unsigned int form, const std::vector<std::string> &outputs,
                   const std::vector<StickReading> &children) const
     {
@@ -2032,17 +2032,17 @@ class StickKernel
                                 : (output.compare(0u, 2u, "%r") == 0) ? std::string("R3")
                                                                       : output);
         }
-        const std::vector<std::string> operands = stand_ins(children, 8u);
+        const std::vector<std::string> operands = are_ins(children, 8u);
         arguments.insert(arguments.end(), operands.begin(), operands.end());
         std::string lines;
-        if (ruleset_opcode(sass, s_form_names[form], arguments, stick_scratch_stand_in, lines) == 0)
+        if (ruleset_opcode(sass, s_form_names[form], arguments, stick_scratch_are_in, lines) == 0)
         {
             return 0;
         }
         unsigned int count = 0u;
-        for (const char letter : lines)
+        for (const char character : lines)
         {
-            count += (letter == '\n') ? 1u : 0u;
+            count += (character == '\n') ? 1u : 0u;
         }
         const auto listing_query = s_stick_assembled.find(std::make_pair(machine, lines));
         if (listing_query != s_stick_assembled.end())
@@ -2153,8 +2153,8 @@ class StickKernel
         return chosen;
     }
 
-    // `reading` as the word it stands as where the system folds the register put for its form's to and `in_place`
-    // lets it stand: unchanged otherwise
+    // `reading` as the word it is as where the system folds the register put for its form's to and `in_place`
+    // lets it are: unchanged otherwise
     void fold(StickReading *reading, int in_place) const
     {
         if ((in_place == 0) || ((reading->leaf != STICK_FORM) && (reading->leaf != STICK_PARAMETER)) ||
@@ -2162,7 +2162,7 @@ class StickKernel
         {
             return;
         }
-        const std::string word = moves(reading->form, stand_ins(reading->children, 8u));
+        const std::string word = moves(reading->form, are_ins(reading->children, 8u));
         if (!word.empty())
         {
             reading->place = word;
@@ -2360,7 +2360,7 @@ class StickKernel
     }
 
     // `reading` written in sass.krs, its parameters first, into a register of its own, stored for its text: a folded
-    // reading writes nothing and is the word it stands as
+    // reading writes nothing and is the word it is as
     StickValue written(const StickReading &reading)
     {
         if (!reading.place.empty())
@@ -2471,12 +2471,12 @@ static std::vector<StickSource> stick_sources(const char *path)
         }
         int depth = 0;
         std::string statement;
-        for (const char letter : body)
+        for (const char character : body)
         {
-            depth += ((letter == '(') || (letter == '{') || (letter == '[')) ? 1 : 0;
-            depth -= ((letter == ')') || (letter == '}') || (letter == ']')) ? 1 : 0;
-            statement += letter;
-            if (((letter == ';') || (letter == '}')) && (depth == 0))
+            depth += ((character == '(') || (character == '{') || (character == '[')) ? 1 : 0;
+            depth -= ((character == ')') || (character == '}') || (character == ']')) ? 1 : 0;
+            statement += character;
+            if (((character == ';') || (character == '}')) && (depth == 0))
             {
                 source.statements.push_back(stick_squeeze(statement));
                 statement.clear();
@@ -2713,7 +2713,7 @@ static std::string stick_kernel(const StickSource &source, StickKernel *kernel)
                 {
                     return kernel->question;
                 }
-                kernel->stand(name, narrowed);
+                kernel->are(name, narrowed);
                 continue;
             }
             const int read_as = (whole != 0) ? element : word;
@@ -2908,7 +2908,7 @@ static void stick_folds_write(const Ruleset *sass, const std::set<std::string> &
 
 // The lane the system moves each operation it writes on either pipe in, read off nvcc's listing and stored in the
 // part's .kdm: of every least count of the integer pipe and every count over the FMA pipe, the pair under which the
-// most of the listing's writings of the operation are on the pipe the listing wrote them on, the smaller pair where two
+// the majority of the listing's writings of the operation are on the pipe the listing wrote them on, the smaller pair where two
 // tie as many
 static void stick_pipes_write(const std::map<std::string, std::vector<std::string>> &listing)
 {
@@ -2971,7 +2971,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "measuring_stick_engine <stick .cu> <nvcc listing> <out directory>\n");
         return 2;
     }
-    // the run every file the engine leaves is handed to, and each kernel's trace
+    // the run every file the engine leaves is passed to, and each kernel's trace
     const int tracing = 1;
     QryShared *const run = qry_member_run();
     if (run == NULL)
@@ -3020,7 +3020,7 @@ int main(int argc, char **argv)
     }
     stick_pipes_write(listing);
     const std::string out = argv[3];
-    // engine.tsv, each kernel's line, and each kernel's <number>.sass, .bin and .registers, every one handed to the
+    // engine.tsv, each kernel's line, and each kernel's <number>.sass, .bin and .registers, every one passed to the
     // run's writer as a file it writes as the run ends (qry_member_filed)
     static char s_table_bytes[QRY_WRITER_RING_BYTES / 2ull];
     VerbaLinea table = {s_table_bytes, sizeof(s_table_bytes), 0ull};
@@ -3030,7 +3030,7 @@ int main(int argc, char **argv)
     for (const StickSource &source : sources)
     {
         StickKernel kernel(cu, sass, &machine, &patterns, 1);
-        // the run handed <number>.trace once the kernel is read
+        // the run passed <number>.trace once the kernel is read
         s_tracing = (traced != NULL);
         s_trace.clear();
         const std::string question = stick_kernel(source, &kernel);

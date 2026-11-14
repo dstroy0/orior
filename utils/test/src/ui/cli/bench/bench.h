@@ -46,7 +46,7 @@ BenchMeasure bench_search(const BenchCorpus *corpus, const char *needle);
 BenchMeasure bench_colored(const char *key, const BenchFile *files, unsigned int count, unsigned int repeat,
                            unsigned long long largest);
 
-// each rule of the C grammar's root tried at every letter of every loaded file, a row for each; the cost of a
+// each rule of the C grammar's root tried at every character of every loaded file, a row for each; the cost of a
 // line's coloring is seen rule by rule; then the corpus colored with grammars cut down to a few of the C grammar's
 // rules, a row for each; the cost of each part of a line's coloring is therefore seen apart (cli_bench_rules.c)
 void bench_rules(const char *root, const BenchFile *files, unsigned int count, unsigned int repeat,

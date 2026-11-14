@@ -13,8 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define PARQUET_CHECK(condition_, evacaddr_, error_, kind_)                                                            \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_PARQUET, (unsigned int)__LINE__,                           \
+#define PARQUET_CHECK(condition_, evacaddr_, error_, type_)                                                            \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_PARQUET, (unsigned int)__LINE__,                           \
                        (const void *)(evacaddr_), (error_))
 
 // the four bytes that open and close a parquet file, and the trailer before the closing four: the footer's length,
@@ -23,18 +23,18 @@
 #define PARQUET_MAGIC_BYTES 4u
 #define PARQUET_TRAILER_BYTES 8u
 
-// the most leaves a schema and row groups a footer may name, a leaf's dotted path with its terminator, the most
+// the max leaves a schema and row groups a footer may name, a leaf's dotted path with its terminator, the max
 // bytes a footer may contain, and the deepest a schema and a skipped Thrift value may nest
-#define PARQUET_LEAVES_MOST 64u
-#define PARQUET_ROW_GROUPS_MOST 256u
+#define PARQUET_LEAVES_MAX 64u
+#define PARQUET_ROW_GROUPS_MAX 256u
 #define PARQUET_PATH_BYTES 128u
-#define PARQUET_FOOTER_BYTES_MOST (16ull * 1024ull * 1024ull)
-#define PARQUET_SCHEMA_DEPTH_MOST 16u
-#define PARQUET_THRIFT_DEPTH_MOST 16u
+#define PARQUET_FOOTER_BYTES_MAX (16ull * 1024ull * 1024ull)
+#define PARQUET_SCHEMA_DEPTH_MAX 16u
+#define PARQUET_THRIFT_DEPTH_MAX 16u
 
-// a level is at most the schema's depth and the leaf's own one, and is stored in a byte
-_Static_assert((PARQUET_SCHEMA_DEPTH_MOST + 1u) <= UCHAR_MAX,
-               "PARQUET_SCHEMA_DEPTH_MOST: a definition or repetition level must fit the byte it is stored in");
+// a level is at max the schema's depth and the leaf's own one, and is stored in a byte
+_Static_assert((PARQUET_SCHEMA_DEPTH_MAX + 1u) <= UCHAR_MAX,
+               "PARQUET_SCHEMA_DEPTH_MAX: a definition or repetition level must fit the byte it is stored in");
 
 // Thrift compact protocol type codes. A struct field's code 0 is the stop byte
 #define PARQUET_THRIFT_STOP 0u
@@ -83,8 +83,8 @@ typedef struct
     char path[PARQUET_PATH_BYTES];
     ParquetPhysical physical;
     unsigned int fixed_bytes;
-    unsigned int definition_most;
-    unsigned int repetition_most;
+    unsigned int definition_max;
+    unsigned int repetition_max;
 } ParquetLeaf;
 
 // one column chunk's place in the file and the sizes the footer states for it
@@ -100,7 +100,7 @@ typedef struct
 typedef struct
 {
     unsigned long long rows;
-    ParquetChunk chunk[PARQUET_LEAVES_MOST];
+    ParquetChunk chunk[PARQUET_LEAVES_MAX];
 } ParquetRowGroup;
 
 // the footer as this reader stores it, and where its bytes sit in the file. Large: it is allocated on the heap
@@ -111,8 +111,8 @@ typedef struct
     unsigned long long footer_bytes;
     unsigned int leaf_count;
     unsigned int row_group_count;
-    ParquetLeaf leaf[PARQUET_LEAVES_MOST];
-    ParquetRowGroup row_group[PARQUET_ROW_GROUPS_MOST];
+    ParquetLeaf leaf[PARQUET_LEAVES_MAX];
+    ParquetRowGroup row_group[PARQUET_ROW_GROUPS_MAX];
 } ParquetFooter;
 
 // bytes that grow as they are appended to
@@ -155,11 +155,11 @@ unsigned long long parquet_nonnegative_read(ParquetCursor *cursor);
 
 const unsigned char *parquet_binary_read(ParquetCursor *cursor, unsigned long long *length);
 
-unsigned long long parquet_list_header_read(ParquetCursor *cursor, unsigned int *element_kind);
+unsigned long long parquet_list_header_read(ParquetCursor *cursor, unsigned int *element_type);
 
 unsigned int parquet_field_read(ParquetCursor *cursor, long long *field_id);
 
-void parquet_value_skip(ParquetCursor *cursor, unsigned int kind);
+void parquet_value_skip(ParquetCursor *cursor, unsigned int type);
 
 int parquet_bytes_append(ParquetBytes *bytes, const unsigned char *from, unsigned long long count);
 

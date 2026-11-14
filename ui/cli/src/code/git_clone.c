@@ -19,7 +19,7 @@ typedef struct
     void (*progress_line)(const CliEachLineEndedCfg *args);
     void *context;
 } CliProgress;
-// the most bytes of the PATH a clone runs with, and of a line of git's progress
+// the max bytes of the PATH a clone runs with, and of a line of git's progress
 #define CLI_GIT_RUN_PATH (1u << 15u)
 
 int cli_git_clone_parent(const CliGitErrMsgFolderCfg *args)
@@ -102,7 +102,7 @@ int cli_git_clone_folder(const CliGitErrMsgFolderCfg *args)
     return 1;
 }
 
-// whether a folder contains anything, counted as its entries are handed
+// whether a folder contains anything, counted as its entries are passed
 static void cli_folder_entry_count(const CliEachNameIsFolderCfg *args)
 {
     void *context = args->context;

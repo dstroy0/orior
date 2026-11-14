@@ -121,7 +121,7 @@ int khw_relation_of(const RunQuestion *question, KhwAnswered *form, int guarded)
 // read by the gate (khw_relation_of). 1 where one relation survived
 static int khw_relation_read(KhwAnswered *form)
 {
-    static unsigned long long s_answered[RUN_CASES_MOST];
+    static unsigned long long s_answered[RUN_CASES_MAX];
     khw_union_written();
     khw_question_put(s_union_word, s_union_cases, s_probe_place, s_answered);
     return khw_relation_of(&s_question, form, khw_store_is_guarded());
@@ -129,7 +129,7 @@ static int khw_relation_read(KhwAnswered *form)
 
 // 1 where `question`, put plain, answered the second word on every case: the probe left the register the kernel
 // stores alone, as a form that writes a predicate does, and the question is put again with the store guarded
-int khw_second_word_standing(const RunQuestion *question)
+int khw_second_word_located(const RunQuestion *question)
 {
     if (question->outcome != RUN_ANSWERED)
     {
@@ -146,7 +146,7 @@ int khw_second_word_standing(const RunQuestion *question)
 }
 
 // the relation `low` and `high` at the probe place answers, read as khw_relation_read reads it, plain and then, where
-// no relation answered and the second word stood on every case, with the store guarded. 1 where one relation answered
+// no relation answered and the second word was on every case, with the store guarded. 1 where one relation answered
 int khw_relation_queried(unsigned long long low, unsigned long long high, KhwAnswered *form)
 {
     form->low = low;
@@ -154,7 +154,7 @@ int khw_relation_queried(unsigned long long low, unsigned long long high, KhwAns
     khw_store_guarded(0);
     khw_code_put(s_code, s_probe_place, low, high);
     int answered = khw_relation_read(form);
-    if (!answered && khw_second_word_standing(&s_question))
+    if (!answered && khw_second_word_located(&s_question))
     {
         khw_store_guarded(1);
         khw_code_put(s_code, s_probe_place, low, high);
@@ -175,11 +175,11 @@ int khw_relation_queried(unsigned long long low, unsigned long long high, KhwAns
 // answered a relation, its probe place through `kernel_place`, past every place where none answered so
 int khw_first_round(KhwAnswered *kernel, unsigned int *kernel_place, unsigned long long *nanoseconds)
 {
-    static unsigned int s_word[RUN_CASES_MOST][2];
-    static unsigned int s_plain[RUN_CASES_MOST];
-    static unsigned int s_signed[RUN_CASES_MOST];
-    static unsigned long long s_answered[RUN_CASES_MOST];
-    unsigned int place_of[SCHEDULER_ROUND_MOST];
+    static unsigned int s_word[RUN_CASES_MAX][2];
+    static unsigned int s_plain[RUN_CASES_MAX];
+    static unsigned int s_signed[RUN_CASES_MAX];
+    static unsigned long long s_answered[RUN_CASES_MAX];
+    unsigned int place_of[SCHEDULER_ROUND_MAX];
     const unsigned int probed_case[1][2] = {{3u, 5u}};
     *nanoseconds = 0ull;
     *kernel_place = s_kernel_places;
@@ -199,7 +199,7 @@ int khw_first_round(KhwAnswered *kernel, unsigned int *kernel_place, unsigned lo
             continue;
         }
         const unsigned int at = khw_pooled(place, s_unreached_low, s_unreached_high, probed_case, 1u);
-        if (at < SCHEDULER_ROUND_MOST)
+        if (at < SCHEDULER_ROUND_MAX)
         {
             place_of[at] = place;
         }

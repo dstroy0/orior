@@ -47,10 +47,10 @@ test("Run, Show Bytecode reads a Python line's bytecode, and Memory, Watch Memor
       reference = found.memory ?? found.value.match(/0x[0-9a-f]+/i)?.[0];
     }
     await press("show-memory", reference);
-    const shown = await ui.waitFor(() => [...document.querySelectorAll("dialog[open] pre.debug-memory")].find((pre) => /44 33 22 11/.test(pre.textContent)), 10000, "count's bytes").catch((error) => {
+    const displayed = await ui.waitFor(() => [...document.querySelectorAll("dialog[open] pre.debug-memory")].find((pre) => /44 33 22 11/.test(pre.textContent)), 10000, "count's bytes").catch((error) => {
       throw new Error(`${error.message}; the reference ${reference}; the sheet shows ${[...document.querySelectorAll("dialog[open] pre")].map((pre) => pre.textContent.slice(0, 200)).join(" | ")}`);
     });
-    assert.ok(shown);
+    assert.ok(displayed);
     closeSheets();
     // A debugger stops where memory changes as the machine's own watchpoints let it: the window says
     // the watch set, or the debugger's refusal.

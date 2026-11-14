@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_crumbs.c: the crumbs of a file shown: its folders, the file and the declarations a line stands inside, outermost
+// test_crumbs.c: the crumbs of a file displayed: its folders, the file and the declarations a line is inside, outermost
 // first, for a nested outline; none of the declarations before the first; the declarations beside one, those at its
-// depth under the one it stands in and at the top those of the file, each running symbol-go with its line; the line a
-// word reads as; and the setting set off answering no crumbs, standing across the state's save and read
+// depth under the one it is in and at the top those of the file, each running symbol-go with its line; the line a
+// word reads as; and the setting set off answering no crumbs, located across the state's save and read
 #if !defined(_WIN32)
 // setenv is POSIX, outside strict C11
 #define _POSIX_C_SOURCE 200809L
@@ -64,7 +64,7 @@ static void menu_row_is(unsigned int at, const char *label, const char *command,
     TEST_ASSERT_EQUAL_STRING(word, rows[at].args);
 }
 
-void test_read_lists_folders_file_and_the_declarations_a_line_stands_inside(void)
+void test_read_lists_folders_file_and_the_declarations_a_line_is_inside(void)
 {
     EMBED_CALL(cli_crumbs.read, CliCrumbsCfg, .key = s_key, .path = s_path, .line = 4ULL);
     TEST_ASSERT_EQUAL_UINT(5u, EMBED_CALL(cli_crumbs.rows, CliCrumbsCfg, .at = 0u));
@@ -130,7 +130,7 @@ void test_go_answers_the_line_a_word_reads_as(void)
     TEST_ASSERT_FALSE(EMBED_CALL(cli_crumbs.go, CliCrumbsCfg, .text = "", .place_out = &place));
 }
 
-void test_the_setting_off_lists_none_and_stands_across_the_save_and_read(void)
+void test_the_setting_off_lists_none_and_is_across_the_save_and_read(void)
 {
     char home[CLI_PATH_MAX_LEN];
     cli_unity_folder("crumbs_home", home);
@@ -140,17 +140,17 @@ void test_the_setting_off_lists_none_and_stands_across_the_save_and_read(void)
     TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_HOME", home, 1));
 #endif
     EMBED_CALL(cli_crumbs.read, CliCrumbsCfg, .key = s_key, .path = s_path, .line = 4ULL);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_crumbs.shown, CliCrumbsCfg, .at = 0u));
-    EMBED_CALL(cli_crumbs.shown_set, CliCrumbsCfg, .on = 0);
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_crumbs.shown, CliCrumbsCfg, .at = 0u));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_crumbs.displayed, CliCrumbsCfg, .at = 0u));
+    EMBED_CALL(cli_crumbs.displayed_set, CliCrumbsCfg, .on = 0);
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_crumbs.displayed, CliCrumbsCfg, .at = 0u));
     TEST_ASSERT_EQUAL_UINT(0u, EMBED_CALL(cli_crumbs.rows, CliCrumbsCfg, .at = 0u));
     CliStateEntries entries = cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = home, .owner = g_checks_owner});
     TEST_ASSERT_NOT_NULL(entries.cell);
     EMBED_CALL(cli_crumbs.begin, CliCrumbsCfg, .entries = &entries);
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_crumbs.shown, CliCrumbsCfg, .at = 0u));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_crumbs.displayed, CliCrumbsCfg, .at = 0u));
     EMBED_CALL(cli_crumbs.read, CliCrumbsCfg, .key = s_key, .path = s_path, .line = 4ULL);
     TEST_ASSERT_EQUAL_UINT(0u, EMBED_CALL(cli_crumbs.rows, CliCrumbsCfg, .at = 0u));
     cli_state_entries_release(&entries);
-    EMBED_CALL(cli_crumbs.shown_set, CliCrumbsCfg, .on = 1);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_crumbs.shown, CliCrumbsCfg, .at = 0u));
+    EMBED_CALL(cli_crumbs.displayed_set, CliCrumbsCfg, .on = 1);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_crumbs.displayed, CliCrumbsCfg, .at = 0u));
 }

@@ -11,7 +11,7 @@
 
 #include "../text/text.h"
 
-// the most files whose diagnostics are stored, and the most bytes a report writes for each byte of it stored: an empty
+// the max files whose diagnostics are stored, and the max bytes a report writes for each byte of it stored: an empty
 // report and its comma are 3 bytes, and it writes every member of a diagnostic
 #define CLI_SERVERS_PUBLISHED_MAX (1u << 16u)
 #define CLI_SERVERS_EMIT_WIDER 64ULL
@@ -22,7 +22,7 @@ CliKeyed g_cli_servers_checked = {"checkers' findings", {NULL}, 0u, CLI_SERVERS_
 CliKeyed g_cli_servers_input = {"names build tools give", {NULL}, 0u, 4096u};
 CliKeyed g_cli_servers_supplied = {"names supplied", {NULL}, 0u, CLI_SERVERS_PUBLISHED_MAX};
 
-// the stores a file's report is read from, in the order its diagnostics stand: its server's, its inspections' and its
+// the stores a file's report is read from, in the order its diagnostics are: its server's, its inspections' and its
 // checkers'
 #define SERVERS_EMIT_STORES 3u
 
@@ -111,7 +111,7 @@ typedef struct
     VerbaLinea *out;
     CliServerDiagnostic *items;
     unsigned int capacity;
-    unsigned int *laid;
+    unsigned int *positioned;
 } ServersEmitCtx;
 // the message of a server's report, NULL where it has none
 EMBED_INLINE const char *emit_message_get(const ServersEmitCtx *args)
@@ -132,7 +132,7 @@ EMBED_INLINE const char *emit_message_get(const ServersEmitCtx *args)
 // the bytes of a text stored as an entry read at a time, as its lines are looked through
 #define SERVERS_EMIT_WINDOW 256u
 
-// the end of the line from `at` of the text stored as `entry`: where its break stands, or the text's end
+// the end of the line from `at` of the text stored as `entry`: where its break is, or the text's end
 EMBED_INLINE unsigned long long emit_line_end(const ServersEmitCtx *args)
 {
     unsigned long long at = args->at;
@@ -368,7 +368,7 @@ EMBED_INLINE unsigned int emit_array_count(const ServersEmitCtx *args)
 
 // each report of an array written as orior's diagnostic, after those written, those the filter refuses left out where
 // `filtered`
-EMBED_INLINE void emit_items_lay(const ServersEmitCtx *args)
+EMBED_INLINE void emit_items_position(const ServersEmitCtx *args)
 {
     const char *key = args->key;
     const CliJson *const json = args->json;
@@ -403,11 +403,11 @@ EMBED_INLINE void emit_items_lay(const ServersEmitCtx *args)
                 continue;
             }
         }
-        if (*args->laid < args->capacity)
+        if (*args->positioned < args->capacity)
         {
             EMBED_CALL(cli_servers_json_internal.diagnostic_get, CliServersJsonCtx, .json = json, .one = item,
-                       .diagnostic = args->items + *args->laid);
-            *args->laid += 1u;
+                       .diagnostic = args->items + *args->positioned);
+            *args->positioned += 1u;
         }
     }
 }
@@ -436,7 +436,7 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
     unsigned long long sizes[SERVERS_EMIT_STORES];
     unsigned int tokens[SERVERS_EMIT_STORES];
     unsigned int nodes = 0u;
-    unsigned int tokens_most = 0u;
+    unsigned int tokens_max = 0u;
     unsigned long long bytes = 0ULL;
     for (unsigned int store = 0u; store < SERVERS_EMIT_STORES; store += 1u)
     {
@@ -464,14 +464,14 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
                             : 0u;
         nodes += tokens[store];
         bytes += (tokens[store] != 0u) ? sizes[store] : 0ULL;
-        tokens_most = (tokens[store] > tokens_most) ? tokens[store] : tokens_most;
+        tokens_max = (tokens[store] > tokens_max) ? tokens[store] : tokens_max;
     }
     // the texts decoded once into one tree of the report's own, each read appending to it
     CliJson json;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     CfgJsonToken *const scanned =
-        (tokens_most != 0u) ? g_cli_guard->temporary_buf_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken),
+        (tokens_max != 0u) ? g_cli_guard->temporary_buf_alloc((unsigned long long)tokens_max * sizeof(CfgJsonToken),
                                                                g_cli_servers_owner)
                             : NULL;
     const int reserved =
@@ -504,8 +504,8 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
         }
         return;
     }
-    // the diagnostics the tree contains at the most: the server's, the inspections', and each checker's array
-    unsigned int most = EMBED_CALL(emit_array_count, ServersEmitCtx, .json = &json, .array = roots[0]) +
+    // the diagnostics the tree contains at max: the server's, the inspections', and each checker's array
+    unsigned int max = EMBED_CALL(emit_array_count, ServersEmitCtx, .json = &json, .array = roots[0]) +
                         EMBED_CALL(emit_array_count, ServersEmitCtx, .json = &json, .array = roots[1]);
     const unsigned int first_checker = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
                                                   .json_read = &json, .node = roots[2], .type = CFG_JSON_OBJECT)
@@ -513,43 +513,43 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
                                            : CLI_JSON_NONE;
     for (unsigned int id = first_checker; id != CLI_JSON_NONE; id = json.node[id].next)
     {
-        most += EMBED_CALL(emit_array_count, ServersEmitCtx, .json = &json, .array = id);
+        max += EMBED_CALL(emit_array_count, ServersEmitCtx, .json = &json, .array = id);
     }
-    // the diagnostics laid in a cell of this call, their messages in the tree's texts
+    // the diagnostics positioned in a cell of this call, their messages in the tree's texts
     CliServerDiagnostic *const items =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)most * sizeof(CliServerDiagnostic), g_cli_servers_owner);
-    unsigned int laid = 0u;
+        g_cli_guard->temporary_buf_alloc((unsigned long long)max * sizeof(CliServerDiagnostic), g_cli_servers_owner);
+    unsigned int positioned = 0u;
     if (items != NULL)
     {
-        EMBED_CALL(emit_items_lay, ServersEmitCtx, .json = &json, .array = roots[0], .filtered = 1, .key = args->key,
-                   .uri = uri, .items = items, .capacity = most, .laid = &laid);
-        EMBED_CALL(emit_items_lay, ServersEmitCtx, .json = &json, .array = roots[1], .filtered = 0, .key = args->key,
-                   .uri = uri, .items = items, .capacity = most, .laid = &laid);
+        EMBED_CALL(emit_items_position, ServersEmitCtx, .json = &json, .array = roots[0], .filtered = 1, .key = args->key,
+                   .uri = uri, .items = items, .capacity = max, .positioned = &positioned);
+        EMBED_CALL(emit_items_position, ServersEmitCtx, .json = &json, .array = roots[1], .filtered = 0, .key = args->key,
+                   .uri = uri, .items = items, .capacity = max, .positioned = &positioned);
         for (unsigned int id = first_checker; id != CLI_JSON_NONE; id = json.node[id].next)
         {
-            EMBED_CALL(emit_items_lay, ServersEmitCtx, .json = &json, .array = id, .filtered = 0, .key = args->key,
-                       .uri = uri, .items = items, .capacity = most, .laid = &laid);
+            EMBED_CALL(emit_items_position, ServersEmitCtx, .json = &json, .array = id, .filtered = 0, .key = args->key,
+                       .uri = uri, .items = items, .capacity = max, .positioned = &positioned);
         }
     }
     // the report's cell: its head, its diagnostics with their messages' places, its path, then the messages
     unsigned long long message_bytes = 0ULL;
-    for (unsigned int at = 0u; at < laid; at += 1u)
+    for (unsigned int at = 0u; at < positioned; at += 1u)
     {
         message_bytes += items[at].message_length + 1ULL;
     }
-    const unsigned long long path_at = CLI_SERVER_REPORT_ITEM_AT(laid);
+    const unsigned long long path_at = CLI_SERVER_REPORT_ITEM_AT(positioned);
     const unsigned long long messages_at = path_at + displayed_length + 1ULL;
     const CarcerMovableEntry *const report =
         (items != NULL) ? g_cli_guard->movable_buf_alloc(messages_at + message_bytes, g_cli_servers_owner) : NULL;
     if (report != NULL)
     {
-        const CliServerReportHead head = {laid, path_at};
+        const CliServerReportHead head = {positioned, path_at};
         (void)g_cli_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = report, .offset = 0ULL, .src = &head, .bytes = sizeof(head)});
         (void)g_cli_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = report, .offset = path_at, .src = displayed, .bytes = displayed_length + 1ULL});
         unsigned long long message_at = messages_at;
-        for (unsigned int at = 0u; at < laid; at += 1u)
+        for (unsigned int at = 0u; at < positioned; at += 1u)
         {
             const CliServerStoredDiagnostic stored = {items[at].from_line,     items[at].from_col, items[at].to_line,
                                                       items[at].to_col,        items[at].severity, message_at,
@@ -568,7 +568,7 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
     {
         int taken = 0;
         EMBED_CALL(args->sink->diagnostics, CliServerDiagnosticsCfg, .context = args->sink->context, .path = displayed,
-                   .item = items, .count = laid, .report = report, .taken = &taken);
+                   .item = items, .count = positioned, .report = report, .taken = &taken);
         if (!taken)
         {
             cli_servers_report_release(report);
@@ -609,7 +609,7 @@ static void emit_reporting(const CliEachKeyedEntryCfg *args)
     }
     if (found)
     {
-        // the key and the URI beside it, each a path's length at most, read out of the cell with their 0
+        // the key and the URI beside it, each a path's length at max, read out of the cell with their 0
         char key[CLI_PATH_MAX_LEN];
         char uri[CLI_PATH_MAX_LEN];
         const unsigned long long key_bytes =

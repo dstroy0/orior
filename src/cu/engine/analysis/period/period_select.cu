@@ -29,7 +29,7 @@ int period_lattice_fill(const PeriodRequest *request, PeriodLattice *lattice, un
     {
         const unsigned long long extent = request->extent[axis - 1u];
         const unsigned long long lags = extent / 2ull;
-        // every count here is at most the voxel count, which was bounded below 2^32. Each narrows exactly
+        // every count here is at max the voxel count, which was bounded below 2^32. Each narrows exactly
         lattice->extent[axis - 1u] = (unsigned int)extent;
         lattice->stride[axis - 1u] = (unsigned int)stride;
         lattice->usable[axis - 1u] = (unsigned int)(extent - lags);
@@ -73,7 +73,7 @@ static unsigned int period_grid_columns(const PeriodLattice *lattice, EngineErro
     }
     const unsigned long long needed = (widest + PERIOD_THREADS - 1ull) / PERIOD_THREADS;
     const unsigned long long columns = (needed < resident) ? needed : resident;
-    // columns is at most the resident block count, far below 2^32
+    // columns is at max the resident block count, far below 2^32
     return (unsigned int)((columns != 0ull) ? columns : 1ull);
 }
 

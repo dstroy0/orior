@@ -1,11 +1,11 @@
-"""Give a finished paper back the raised letters its text layer flattened: [kwʊtəm] to [kʷʊtəm].
+"""Give a finished paper back the raised characters its text layer flattened: [kwʊtəm] to [kʷʊtəm].
 
 usage: python raise_ops.py <stem> [--write]
 
-page_text.raise_letters writes a letter the page sets small and raised after another letter as its
+page_text.raise_characters writes a character the page sets small and raised after another character as its
 modifier. It changes one character for one character, and the paper's text before it and after it
-line up letter for letter. This reads the text residue.py checks the paper against, raises its
-letters, and finds each field of the paper's ops (and of its engine draft, where the ops keep draft
+line up character for character. This reads the text residue.py checks the paper against, raises its
+characters, and finds each field of the paper's ops (and of its engine draft, where the ops retain draft
 rows) in the old text: a field found only where the raised text reads the same everywhere takes
 that reading, and a field found where the raised text differs, kw both orthographic and [kʷ], is
 reported and left. Without --write it prints what it would change.
@@ -31,7 +31,7 @@ def raised_text(stem):
     with open(source, encoding="utf-8") as handle:
         old = handle.read().split("\n")
     document = pdfium.PdfDocument(os.path.join(CORPUS, "papers", stem + ".pdf"))
-    new, _ = page_text.raise_letters(document, old)
+    new, _ = page_text.raise_characters(document, old)
     return old, new, source
 
 
@@ -44,16 +44,16 @@ def mapping(fields, old_text, new_text):
         if not words or len(field) < 2:
             continue
         # A residue correction can close a space the text holds inside a row's word, k̀ w for k̀w:
-        # the field is found with any spaces between its letters, each letter read where it stands.
+        # the field is found with any spaces between its characters, each character read where it is.
         plain = " ".join(words)
-        pattern = "".join(r"\s+" if letter == " " else re.escape(letter) + r"[ \t]*" for letter in plain)
+        pattern = "".join(r"\s+" if character == " " else re.escape(character) + r"[ \t]*" for character in plain)
         readings = set()
         for found in re.finditer(pattern, old_text):
             at, out = found.start(), []
-            for letter in plain:
+            for character in plain:
                 while old_text[at] in " \t\n":
                     at += 1
-                if letter == " ":
+                if character == " ":
                     out.append(" ")
                     continue
                 out.append(new_text[at])
@@ -73,7 +73,7 @@ def main():
     old, new, source = raised_text(stem)
     old_text, new_text = "\n".join(old), "\n".join(new)
     ops_path = os.path.join(PRIVATE, "ops", stem + ".ops")
-    # An ops file keeps the line endings it was written with, CRLF in the hand-made ones.
+    # An ops file retains the line endings it was written with, CRLF in the hand-made ones.
     with open(ops_path, encoding="utf-8", newline="") as handle:
         ops = handle.read().split("\n")
     fields = {part.strip() for line in ops if line and not line.startswith("#")
@@ -82,9 +82,9 @@ def main():
     fields |= {part.split(" ", 1)[1].strip() for line in ops if line and not line.startswith("#")
                for part in line.split(" | ")[:1] if " " in part}
     draft_path = os.path.join(WORK, stem + ".draft.tsv")
-    keeps_draft = not any(line.startswith("removewhere .") for line in ops)
+    retains_draft = not any(line.startswith("removewhere .") for line in ops)
     draft = []
-    if keeps_draft and os.path.isfile(draft_path):
+    if retains_draft and os.path.isfile(draft_path):
         with open(draft_path, encoding="utf-8", newline="") as handle:
             draft = handle.read().split("\n")
         fields |= {part for line in draft[1:] for part in line.split("\t")}
@@ -93,8 +93,8 @@ def main():
         print("  %s  ->  %s" % (field[:90], raised[:90]))
     for field, readings in torn:
         print("  TORN %s: %s" % (field[:60], " / ".join(one[:40] for one in readings)))
-    print("%s: %d fields raised, %d read two ways and left; the text differs on %d lines; draft rows kept: %s"
-          % (stem, len(changed), len(torn), sum(1 for one, two in zip(old, new) if one != two), keeps_draft))
+    print("%s: %d fields raised, %d read two ways and left; the text differs on %d lines; draft rows retained: %s"
+          % (stem, len(changed), len(torn), sum(1 for one, two in zip(old, new) if one != two), retains_draft))
     if not write:
         return
 

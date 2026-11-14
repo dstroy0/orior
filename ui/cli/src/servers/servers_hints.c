@@ -3,7 +3,7 @@
 // servers_hints.c: what a server can do, as its capabilities name it; the spans Expand Selection steps through, the
 // tree's, read off the editor's text by the roles its grammar names (symbols_spans.c); and the hints a server writes in
 // the text and not into it, each its place, its text, its type, 1 a type, 2 a parameter's name and 0 any other, and
-// whether a space stands before it and after it. A file given its server as slices is asked of the tree alone: its
+// whether a space is before it and after it. A file given its server as slices is asked of the tree alone: its
 // hints are the names of the parameters its calls' arguments are given to (symbols_hints.c)
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"

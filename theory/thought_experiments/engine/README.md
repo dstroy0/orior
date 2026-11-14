@@ -1,6 +1,6 @@
 # The engine's ideas, stated so they can be decided
 
-This research paper collects the ideas behind the engine that have a form a proof or a measurement can decide. Each chapter states one idea precisely, sets it against the literature it belongs to, says what the idea does not give, and names the test that would settle it. What the engine builds and measures is recorded in the [engine workbook](#src:Quigg-engine-workbook). A chapter says so where a part is built and does not claim a part that is not. The engine's claims that have no such form yet are kept as wants in the same workbook.
+This research paper collects the ideas behind the engine that have a form a proof or a measurement can decide. Each chapter states one idea precisely, sets it against the literature it belongs to, says what the idea does not give, and names the test that would settle it. What the engine builds and measures is recorded in the [engine workbook](#src:Quigg-engine-workbook). A chapter says so where a part is built and does not claim a part that is not. The engine's claims that have no such form yet are retained as wants in the same workbook.
 
 | file | what it holds |
 | --- | --- |

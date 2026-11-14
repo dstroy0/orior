@@ -15,8 +15,8 @@ test("the loading pane is gone once the window has started", () => {
 
 test("a folder opened once the window has started shows no loading pane: the name shows once, on the first start in the system's session", async () => {
   const before = made("root_set").length;
-  let shown = false;
-  const watching = new MutationObserver(() => (shown = shown || !pane().hidden));
+  let displayed = false;
+  const watching = new MutationObserver(() => (displayed = displayed || !pane().hidden));
   watching.observe(pane(), { attributes: true, attributeFilter: ["hidden"] });
   try {
     await runCommand("open-folder", [TREE()]);
@@ -25,17 +25,17 @@ test("a folder opened once the window has started shows no loading pane: the nam
   } finally {
     watching.disconnect();
   }
-  assert.ok(!shown && pane().hidden, "the loading pane never shown");
+  assert.ok(!displayed && pane().hidden, "the loading pane never displayed");
 });
 
-test("the pane is glass over the window's lattice, the modes under it not drawn, the eye kept back, and stays at least its shortest time", async () => {
+test("the pane is glass over the window's lattice, the modes under it not drawn, the eye retained back, and stays at least its shortest time", async () => {
   showLoading();
   assert.equal(pane().hidden, false);
   assert.equal(pane().dataset.leaving, "false");
-  assert.ok(!document.querySelector("#loading canvas.eye"), "the eye kept back");
+  assert.ok(!document.querySelector("#loading canvas.eye"), "the eye retained back");
   assert.ok(!pane().querySelector("canvas"), "no lattice of its own");
   assert.equal(getComputedStyle(pane()).backgroundColor, "rgba(0, 0, 0, 0)", "its ground clear");
-  assert.ok(ui.shown("canvas.lattice-window"), "the window's lattice shows through it");
+  assert.ok(ui.displayed("canvas.lattice-window"), "the window's lattice shows through it");
   assert.equal(getComputedStyle(document.getElementById("mode-edit")).visibility, "hidden", "the mode under it not drawn");
   const started = performance.now();
   await hideLoading();
@@ -45,7 +45,7 @@ test("the pane is glass over the window's lattice, the modes under it not drawn,
   assert.equal(pane().dataset.leaving, "true");
 });
 
-test("a pane shown longer than its shortest time leaves after its fade alone", async () => {
+test("a pane displayed longer than its shortest time leaves after its fade alone", async () => {
   showLoading();
   await ui.rest(SHORTEST + 100);
   const started = performance.now();
@@ -68,14 +68,14 @@ test("a pane killed in its wait is gone at once, and the hide it was in ends", a
   assert.equal(pane().dataset.leaving, "true");
 });
 
-test("showing it again while it shows keeps the one pane, which leaves after one fade", async () => {
+test("showing it again while it shows retains the one pane, which leaves after one fade", async () => {
   showLoading();
   showLoading();
   await hideLoading();
   assert.equal(pane().hidden, true);
 });
 
-test("a pane shown again while a hide waits stays shown: the hide it was in ends and leaves it", async () => {
+test("a pane displayed again while a hide waits stays displayed: the hide it was in ends and leaves it", async () => {
   showLoading();
   const started = performance.now();
   const hiding = hideLoading();
@@ -85,7 +85,7 @@ test("a pane shown again while a hide waits stays shown: the hide it was in ends
   const took = performance.now() - started;
   try {
     assert.ok(took < SHORTEST, `the first hide ended in ${Math.round(took)} ms`);
-    assert.equal(pane().hidden, false, "the pane still shown");
+    assert.equal(pane().hidden, false, "the pane still displayed");
     assert.equal(pane().dataset.leaving, "false", "the pane not leaving");
   } finally {
     killLoading();

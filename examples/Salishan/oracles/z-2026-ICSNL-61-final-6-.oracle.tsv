@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 title	John Hamilton Davis	note	In Proceedings of ICSNL 61, Ella Hannon, Laura Griffin, Brent Hall, Bruce Oliver, Danica Reid, Julia Schillo, Lauren Schneider, Reed Steiner, and Bailey Trotter (eds.). Vancouver, BC: UBCWPL.	the foot of the first page, naming the volume and its editors, Proceedings of ICSNL 61 in italics
 title	John Hamilton Davis	title	Slit versus Groove Fricative in ʔayʔaǰuθəm Comox With a Note on Long Vowels at the Phonetic Level	the paper's title, set on two lines; the text layer splits Vowels as V owels
 title	John Hamilton Davis	language	ʔayʔaǰuθəm Comox	the language of the paper, as the title names it
@@ -19,8 +19,8 @@ keywords	John Hamilton Davis	note	groove fricative, slit fricative, articulation
 §1	John Hamilton Davis	citation	Edward Sapir (1915)	the transcriptions the “two and a half” syllables describe; §9 quotes them
 §1	John Hamilton Davis	name	Noel George Harry	Bill Galligos's father-in-law, born circa 1888 at Church House, bedridden, blind and toothless, living in a house facing the beach in Sliammon
 §1	John Hamilton Davis	place	Church House	where Noel George Harry was born
-§1	John Hamilton Davis	name	Mowheyalas	Noel George Harry's Indian name, as the paper spells it in English letters
-§1	ʔayʔaǰuθəm	cited form	[moçʷiyᴧlᴧs]	Mowheyalas in phonetic letters. The text layer holds the raised w on the line; the two turned v are U+1D27
+§1	John Hamilton Davis	name	Mowheyalas	Noel George Harry's Indian name, as the paper spells it in English characters
+§1	ʔayʔaǰuθəm	cited form	[moçʷiyᴧlᴧs]	Mowheyalas in phonetic characters. The text layer holds the raised w on the line; the two turned v are U+1D27
 §1	ʔayʔaǰuθəm	segment	[θ]	the slit fricative, which Noel George Harry articulated at his alveolar ridge and distinguished from [s]
 §1	ʔayʔaǰuθəm	segment	[s]	the groove fricative, which Noel George Harry articulated at the same place
 §1	English	segment	[θ]	the author's own English [θ], articulated at the alveolar ridge like [s]
@@ -35,7 +35,7 @@ keywords	John Hamilton Davis	note	groove fricative, slit fricative, articulation
 §1	ʔayʔaǰuθəm	cited form	/qʷəl’am/	‘the near side of something’. The text layer holds the raised w on the line
 §1	ʔayʔaǰuθəm	cited form	/θaham/	‘the far side of something’
 §1	ʔayʔaǰuθəm	cited form	/θahams/	‘the other side of it’
-§1	John Hamilton Davis	cited affix	-olhtwh	the last letters of Thalholhtwh, similar to the word for ‘enter a house’
+§1	John Hamilton Davis	cited affix	-olhtwh	the last characters of Thalholhtwh, similar to the word for ‘enter a house’
 §1	ʔayʔaǰuθəm	cited form	/ʔuɬtçʷ/	‘enter a house’. The text layer holds the raised w on the line
 §2	John Hamilton Davis	heading	2 Articulatory setting	the second section heading
 §2	John Hamilton Davis	citation	Honikman’s 1964 thirteen-page essay	Honikman (1964), which the author calls extremely relevant to Salish pronunciation and to language teaching
@@ -88,7 +88,7 @@ footnote 1	John Hamilton Davis	citation	Mellesmoen and Huijsmans (2019)	where ra
 §6	John Hamilton Davis	heading	6 The historical development of the first person slit fricative	the sixth section heading
 (3)	ʔayʔaǰuθəm	cited form	/tᶿ χaƛ̀/	‘I want (my desire is …)’, with a space after the raised theta as printed; the text layer holds the theta on the line
 (3)	Sechelt	cited form	/nə sχaƛ̀/	‘I want (my desire is …)’
-§6	John Hamilton Davis	note	The ejective /t̀ᶿ/ comes from historical /ʦ̀/ but the plain /tᶿ/ comes from historical /n/ + /s/ which is historical first person singular suffix /n/ plus /s/ historical /s/ nominalizer: /ns/→/dˢ/→/tᶿ/.	the sentence after (3). The text layer's first letter here is a Greek capital tau, U+03A4, and it holds the raised theta and the raised s on the line
+§6	John Hamilton Davis	note	The ejective /t̀ᶿ/ comes from historical /ʦ̀/ but the plain /tᶿ/ comes from historical /n/ + /s/ which is historical first person singular suffix /n/ plus /s/ historical /s/ nominalizer: /ns/→/dˢ/→/tᶿ/.	the sentence after (3). The text layer's first character here is a Greek capital tau, U+03A4, and it holds the raised theta and the raised s on the line
 §6	ʔayʔaǰuθəm	cited affix	/n/	the historical first person singular suffix
 §6	ʔayʔaǰuθəm	cited affix	/s/	the historical nominalizer
 §6	ʔayʔaǰuθəm	segment	/ns/→/dˢ/→/tᶿ/	the development of the plain /tᶿ/, with a raised s, U+02E2, after the d; the text layer holds the s and the theta on the line
@@ -105,7 +105,7 @@ footnote 1	John Hamilton Davis	citation	Mellesmoen and Huijsmans (2019)	where ra
 (4)	John Hamilton Davis	notation	C ₁V₁-	the reduplicative prefix of (4)-(6), a copy of the first consonant and vowel. The page sets the C small with a space before the subscript 1, and the text layer holds both digits on the line as C 1V1-
 (4)	ʔayʔaǰuθəm	cited form	/ǰəƛ̀/	‘run’
 (4)	ʔayʔaǰuθəm	cited form	[ǰɪƛ̀]	(short vowel) ‘run’
-(4)	ʔayʔaǰuθəm	cited form	/ǰəǰəƛ̀/	the first step after the prefix, starred on the page; the star stands before the slash
+(4)	ʔayʔaǰuθəm	cited form	/ǰəǰəƛ̀/	the first step after the prefix, starred on the page; the star is before the slash
 (4)	ʔayʔaǰuθəm	cited form	/ǰəǰƛ̀/	the second step, starred on the page
 (4)	ʔayʔaǰuθəm	cited form	/ǰəyƛ̀/	‘running’
 (4)	ʔayʔaǰuθəm	cited form	[ǰiɪƛ̀]	(long vowel) ‘running’
@@ -154,7 +154,7 @@ footnote 1	John Hamilton Davis	citation	Mellesmoen and Huijsmans (2019)	where ra
 (9)	ʔayʔaǰuθəm	cited form	[ƛεqʷaǰεs]	‘cheek’ “not meat”. The text layer holds the raised w on the line
 §9	John Hamilton Davis	heading	9 Stød	the ninth section heading
 §9	John Hamilton Davis	citation	Noun Reduplication in Comox	Sapir (1915), quoted below
-§9	Edward Sapir	note	(p. 7) Final m and n are etymologically distinct from final glottally affected m and n, which are written m’ and n’ (sometimes breath release is heard after glottal release, when they are written m’‘ and n’‘).	the passage quoted from Sapir (1915), page 7, the letters in italics
+§9	Edward Sapir	note	(p. 7) Final m and n are etymologically distinct from final glottally affected m and n, which are written m’ and n’ (sometimes breath release is heard after glottal release, when they are written m’‘ and n’‘).	the passage quoted from Sapir (1915), page 7, the characters in italics
 §9	Comox	cited form	m’	Sapir's final glottally affected m
 §9	Comox	cited form	n’	Sapir's final glottally affected n
 §9	Comox	cited form	m’‘	Sapir's glottally affected m with breath release after the glottal release
@@ -163,13 +163,13 @@ footnote 1	John Hamilton Davis	citation	Mellesmoen and Huijsmans (2019)	where ra
 §9	Comox	cited form	máᵃtc!in‘	louse, Sapir (1915) p. 13. The text layer holds the raised a on the line
 §9	Comox	cited form	xāᵃp!	baby basket, Sapir (1915) p. 14. The text layer holds the raised a on the line
 §9	Comox	cited form	qṓᵘ’mai‘	snow on ground, Sapir (1915) p. 16. The raised u is U+1D58; the text layer holds it on the line
-§9	Comox	cited form	gʸı̄́ⁱgʸīⁱ	panther, Sapir (1915) p. 19. Raised y, U+02B8, after each g and a raised i, U+2071, after each long i. The first long i is a dotless i, U+0131, under its macron and acute, as in the text layer; the text layer holds the raised letters on the line
+§9	Comox	cited form	gʸı̄́ⁱgʸīⁱ	panther, Sapir (1915) p. 19. Raised y, U+02B8, after each g and a raised i, U+2071, after each long i. The first long i is a dotless i, U+0131, under its macron and acute, as in the text layer; the text layer holds the raised characters on the line
 §9	John Hamilton Davis	note	In 1970 Jimi Wilson (born 1944) of the Homalco Band visited me in Victoria.	the author's report of the visit where Jimi Wilson gave the word for mussel
 §9	John Hamilton Davis	place	Victoria	where Jimi Wilson visited the author in 1970
 §9	John Hamilton Davis	name	Professor James Hoard	who asked Jimi Wilson the word for mussel and heard it as an example of stød
 (10)	ʔayʔaǰuθəm	cited form	/sa’ma/	‘mussel’, as Jimi Wilson gave it
 (10)	ʔayʔaǰuθəm	cited form	[sáᵃma]	‘mussel’, the phonetic form. The text layer holds the raised a on the line
-§9	Wikipedia	note	“a suprasegmental unit of Danish phonology (represented in nonstandard IPA as ⟨◌ˀ⟩), which in its most common form is a kind of creaky voice (laryngealization), but it may also be realized as a glottal stop, especially in emphatic pronunciation. … it is a form of laryngealization or creaky voice, that affects the phonation of a syllable by dividing it into two phases. The first phase has a relatively high intensity and a high pitch (measured as F0), whereas the second phase sees a drop in intensity and pitch.”	Wikipedia's definition of stød, set as a block quote
+§9	Wikipedia	note	“a suprasegmental unit of Danish phonology (represented in nonstandard IPA as ⟨◌ˀ⟩), which in its usual form is a type of creaky voice (laryngealization), but it may also be realized as a glottal stop, especially in emphatic pronunciation. … it is a form of laryngealization or creaky voice, that affects the phonation of a syllable by dividing it into two phases. The first phase has a relatively high intensity and a high pitch (measured as F0), whereas the second phase sees a drop in intensity and pitch.”	Wikipedia's definition of stød, set as a block quote
 §9	Wikipedia	symbol note	⟨◌ˀ⟩	the angle brackets are U+27E8 and U+27E9, the dotted circle U+25CC and the raised glottal stop U+02C0
 §9	John Hamilton Davis	language	Danish	whose phonology Wikipedia's stød belongs to
 §9	John Hamilton Davis	note	This describes stød in ʔayʔaǰuθəm as well.	the sentence after the definition
@@ -219,35 +219,35 @@ footnote 1	John Hamilton Davis	citation	Mellesmoen and Huijsmans (2019)	where ra
 §10	John Hamilton Davis	note	Document 711-a — Pentlatch vocabulary, each word on a separate file slip.	the second of the two Smithsonian documents
 §10	Pentlatch	segment	[çʷ]	the rounded ich-laut, which Boas seems to take for a variation of [χʷ]. The text layer holds the raised w on the line
 §10	Pentlatch	segment	[χʷ]	the rounded ach-laut. The text layer holds the raised w on the line
-§10	John Hamilton Davis	notation	a = [ᴧ]	the first of Boas's letters, each with the sounds the author reads it as, set in rows of three or four
-§10	John Hamilton Davis	notation	ā = [a]	one of Boas's letters with its reading
-§10	John Hamilton Davis	notation	āa = [aᵃ] (stød)	one of Boas's letters with its reading. The text layer holds the raised a on the line
-§10	John Hamilton Davis	notation	ĕ = [ə]	one of Boas's letters with its reading
-§10	John Hamilton Davis	notation	e = [ε]	one of Boas's letters with its reading
-§10	John Hamilton Davis	notation	ē = [e]	one of Boas's letters with its reading
-§10	John Hamilton Davis	notation	i = [ɪ]	one of Boas's letters with its reading
-§10	John Hamilton Davis	notation	ī = [i]	one of Boas's letters with its reading
-§10	John Hamilton Davis	notation	ō = [o] or [ʷ]	one of Boas's letters with its readings. The text layer holds the raised w on the line
-§10	John Hamilton Davis	notation	u = [ʊ]	one of Boas's letters with its reading
-§10	John Hamilton Davis	notation	g, q = [ç] or [χ] or [çʷ] or [χʷ]	two of Boas's letters with their readings. The text layer holds each raised w on the line
-§10	John Hamilton Davis	notation	ç = [θ]	one of Boas's letters with its reading
-§10	John Hamilton Davis	notation	c = [š]	one of Boas's letters with its reading
-§10	John Hamilton Davis	notation	q̲u = [çʷ] (rounded ich-laut)	one of Boas's letter pairs with its reading. The q is underlined on the page, U+0332 here, and the text layer has no underline and holds the raised w on the line
-§10	John Hamilton Davis	notation	l‘ = [ɬ] or [ƛ] or [ƛ̉]	one of Boas's letters with its readings, the ejective marked by a hook above, U+0309
-§10	John Hamilton Davis	notation	p = [p] or [p̉]	one of Boas's letters with its readings, the ejective marked by a hook above
-§10	John Hamilton Davis	notation	t = [t] or [t̉]	one of Boas's letters with its readings, the ejective marked by a hook above
-§10	John Hamilton Davis	notation	tc = [č] or [č̉]	one of Boas's letter pairs with its readings, the ejective marked by a hook above
-§10	John Hamilton Davis	notation	koā = [kʷa] or [qʷa]	one of Boas's letter groups with its readings. The text layer holds each raised w on the line
-§10	John Hamilton Davis	notation	k̲ = [kʷ] or [q] or [qʷ] or the ejective counterparts of these obstruents	one of Boas's letters with its readings. The k is underlined on the page, and the text layer has no underline and holds each raised w on the line
+§10	John Hamilton Davis	notation	a = [ᴧ]	the first of Boas's characters, each with the sounds the author reads it as, set in rows of three or four
+§10	John Hamilton Davis	notation	ā = [a]	one of Boas's characters with its reading
+§10	John Hamilton Davis	notation	āa = [aᵃ] (stød)	one of Boas's characters with its reading. The text layer holds the raised a on the line
+§10	John Hamilton Davis	notation	ĕ = [ə]	one of Boas's characters with its reading
+§10	John Hamilton Davis	notation	e = [ε]	one of Boas's characters with its reading
+§10	John Hamilton Davis	notation	ē = [e]	one of Boas's characters with its reading
+§10	John Hamilton Davis	notation	i = [ɪ]	one of Boas's characters with its reading
+§10	John Hamilton Davis	notation	ī = [i]	one of Boas's characters with its reading
+§10	John Hamilton Davis	notation	ō = [o] or [ʷ]	one of Boas's characters with its readings. The text layer holds the raised w on the line
+§10	John Hamilton Davis	notation	u = [ʊ]	one of Boas's characters with its reading
+§10	John Hamilton Davis	notation	g, q = [ç] or [χ] or [çʷ] or [χʷ]	two of Boas's characters with their readings. The text layer holds each raised w on the line
+§10	John Hamilton Davis	notation	ç = [θ]	one of Boas's characters with its reading
+§10	John Hamilton Davis	notation	c = [š]	one of Boas's characters with its reading
+§10	John Hamilton Davis	notation	q̲u = [çʷ] (rounded ich-laut)	one of Boas's character pairs with its reading. The q is underlined on the page, U+0332 here, and the text layer has no underline and holds the raised w on the line
+§10	John Hamilton Davis	notation	l‘ = [ɬ] or [ƛ] or [ƛ̉]	one of Boas's characters with its readings, the ejective marked by a hook above, U+0309
+§10	John Hamilton Davis	notation	p = [p] or [p̉]	one of Boas's characters with its readings, the ejective marked by a hook above
+§10	John Hamilton Davis	notation	t = [t] or [t̉]	one of Boas's characters with its readings, the ejective marked by a hook above
+§10	John Hamilton Davis	notation	tc = [č] or [č̉]	one of Boas's character pairs with its readings, the ejective marked by a hook above
+§10	John Hamilton Davis	notation	koā = [kʷa] or [qʷa]	one of Boas's character groups with its readings. The text layer holds each raised w on the line
+§10	John Hamilton Davis	notation	k̲ = [kʷ] or [q] or [qʷ] or the ejective counterparts of these obstruents	one of Boas's characters with its readings. The k is underlined on the page, and the text layer has no underline and holds each raised w on the line
 §10	John Hamilton Davis	note	Comox data from field notes obtained by John H Davis from 1969 to 1980.	where the word list's Comox data come from
 §10	John Hamilton Davis	note	Sechelt data from Ronald C Beaumont’s Sechelt Dictionary © 2011 Sechelt Indian Band	where the Sechelt data come from, printed with no closing period
 §10	John Hamilton Davis	note	This is probable evidence that the sounds in Pentlatch included not only θ but also t̉ᶿ.	after Boas could not decide between ç and ts in several words. The ejective mark is a hook above and the theta is raised; the text layer holds it on the line
-§10	Pentlatch	segment	ç	one of the two letters Boas could not decide between
+§10	Pentlatch	segment	ç	one of the two characters Boas could not decide between
 §10	Pentlatch	segment	t̉ᶿ	the ejective slit affricate the author finds probable in Pentlatch
-§10	John Hamilton Davis	note	My present use of the letter z’ to represent this sound can be considered to leave open the possibility that some of these instances were actually ʦ̉, although the evidence seems to argue against that hypothesis.	the word list's letter for t̉ᶿ
-§10	Pentlatch	segment	z’	the author's letter for the sound in the word list
+§10	John Hamilton Davis	note	My present use of the character z’ to represent this sound can be considered to leave open the possibility that some of these instances were actually ʦ̉, although the evidence seems to argue against that hypothesis.	the word list's character for t̉ᶿ
+§10	Pentlatch	segment	z’	the author's character for the sound in the word list
 §10	Pentlatch	segment	ʦ̉	the ejective groove affricate, the digraph with the hook above
-§10	John Hamilton Davis	note	In addition, there were some instances where Boas wrote k̲ for [χ] and ku for [çʷ] as shown by comparative evidence, showing that sometimes the native speaker may have enunciated these continuants so slowly that they seemed to be obstruents.	the word list's last sentence. The k is underlined on the page, and the text layer has no underline and holds the raised w on the line
+§10	John Hamilton Davis	note	In addition, there were some instances where Boas wrote k̲ for [χ] and ku for [çʷ] as displayed by comparative evidence, showing that sometimes the native speaker may have enunciated these continuants so slowly that they seemed to be obstruents.	the word list's last sentence. The k is underlined on the page, and the text layer has no underline and holds the raised w on the line
 references	John Hamilton Davis	heading	References	the heading of the reference list
 references	John Hamilton Davis	reference	Beaumont, Ronald C. 2011. Sechelt Dictionary. © Sechelt Indian Band, Sechelt, B.C.	the source of the Sechelt data
 references	John Hamilton Davis	reference	Boas, Franz. 1890?. Pentlatch texts, Document 740, Smithsonian Archives, Washington, D.C.	Document 740 of §10
@@ -262,12 +262,12 @@ references	John Hamilton Davis	reference	Mellesmoen, Gloria; Huijsmans, Marianne
 references	John Hamilton Davis	reference	Mellesmoen, Gloria; Urbanczyk, Suzanne. 2021. Some Remarks on the Distribution and Representation of Glottalized Resonants in Salish. Papers for the International Conference on Salish and Neighbouring Languages 56.	not cited in the text
 references	John Hamilton Davis	reference	Sapir, Edward. 1915. Noun Reduplication in Comox, a Salish Language of Vancouver Island. Canada Department of Mines Geological Survey, Memoir 63, No. 6, Anthropological Series.	the monograph §9 quotes
 references	John Hamilton Davis	reference	Wikipedia. Stød. https://en.wikipedia.org/wiki/Stød Last edited 5 May 2026, at 07:15 (UTC).	the definition §9 quotes
-all	John Hamilton Davis	notation	ʷ ᶿ ˢ ᵃ ᵋ ᵘ ⁱ ʸ	the page raises the w of labialized consonants, the theta of tᶿ, the s of dˢ, and the second vowel of stød and of Sapir's forms; the table writes each with its modifier letter, and the text layer holds every one on the line
+all	John Hamilton Davis	notation	ʷ ᶿ ˢ ᵃ ᵋ ᵘ ⁱ ʸ	the page raises the w of labialized consonants, the theta of tᶿ, the s of dˢ, and the second vowel of stød and of Sapir's forms; the table writes each with its modifier character, and the text layer holds every one on the line
 all	John Hamilton Davis	notation	⇒	the double arrow of (4)-(6) and (12), which the text layer holds as a capital thorn, Þ, U+00DE, twelve times
 all	John Hamilton Davis	notation	*	the star before the intermediate steps of (4)-(6) marks them unattested; the table puts it in the gloss column and leaves it out of the form
-all	John Hamilton Davis	notation	/ / [ ]	slashes enclose phonemic forms and square brackets phonetic forms; the table keeps both in the form
+all	John Hamilton Davis	notation	/ / [ ]	slashes enclose phonemic forms and square brackets phonetic forms; the table retains both in the form
 all	John Hamilton Davis	notation	Sechelt ʔayʔaǰuθəm	the tables of (1), (2), (8) and (9) set Sechelt in the left column and ʔayʔaǰuθəm in the right, and the text layer reads them row by row
-all	John Hamilton Davis	symbol note	ʌ ᴧ	the page prints one turned v; the text layer has U+028C where it carries an acute and U+1D27 where it does not, and the table keeps each code point
+all	John Hamilton Davis	symbol note	ʌ ᴧ	the page prints one turned v; the text layer has U+028C where it carries an acute and U+1D27 where it does not, and the table retains each code point
 all	John Hamilton Davis	symbol note	ε χ ʦ	the open e is Greek epsilon, U+03B5, the uvular fricative Greek chi, U+03C7, and ts the digraph U+02A6, as in the text layer
 all	John Hamilton Davis	symbol note	̀ ̉	an ejective is marked by a grave accent, U+0300, in the abstract and §1-§9 outside (8), and by a hook above, U+0309, in (8) and §10
 all	John Hamilton Davis	notation	seven pages, all read	every page was read off a 300 dpi render, each form checked against the text layer in NFC and each marked word of the text layer looked up in this table

@@ -48,7 +48,7 @@ typedef struct
 {
     unsigned long long frames;
     unsigned long long points;
-    unsigned long long maximum;
+    unsigned long long max;
     unsigned long long least;
     unsigned long long on_face;
     unsigned long long pairs;
@@ -171,7 +171,7 @@ static void scan_footing(const unsigned long long *counts, unsigned long long to
 {
     memset(footing, 0, sizeof(*footing));
     unsigned int least = SCAN_READINGS;
-    unsigned int maximum = 0u;
+    unsigned int max = 0u;
     unsigned int median = SCAN_READINGS;
     unsigned int low_seed = SCAN_READINGS;
     unsigned int high_seed = SCAN_READINGS;
@@ -180,7 +180,7 @@ static void scan_footing(const unsigned long long *counts, unsigned long long to
     {
         running += counts[value];
         least = ((least == SCAN_READINGS) && (counts[value] != 0ull)) ? value : least;
-        maximum = (counts[value] != 0ull) ? value : maximum;
+        max = (counts[value] != 0ull) ? value : max;
         median = ((median == SCAN_READINGS) && ((2ull * running) >= total)) ? value : median;
         low_seed = ((low_seed == SCAN_READINGS) && ((SCAN_SEED_SCALE * running) >= (SCAN_SEED_LOW * total))) ? value
                                                                                                              : low_seed;
@@ -195,15 +195,15 @@ static void scan_footing(const unsigned long long *counts, unsigned long long to
         above = (counts[value] != 0ull) ? value : above;
     }
     const int lower_half = (total != 0ull) && (median < SCAN_READINGS) && (least < median);
-    const int upper_half = lower_half && (above < maximum);
+    const int upper_half = lower_half && (above < max);
     unsigned int lo = 0u;
     unsigned int hi = 0u;
     const unsigned int lower_seed = (low_seed < median) ? low_seed : (median - 1u);
-    const unsigned int upper_seed = (high_seed < above) ? above : ((high_seed < maximum) ? high_seed : (maximum - 1u));
+    const unsigned int upper_seed = (high_seed < above) ? above : ((high_seed < max) ? high_seed : (max - 1u));
     const int lower_found =
         lower_half && (scan_two_means(counts, least, lower_seed, median, &lo, &footing->lo_steps) != 0);
     const int upper_found =
-        upper_half && (scan_two_means(counts, above, upper_seed, maximum, &hi, &footing->hi_steps) != 0);
+        upper_half && (scan_two_means(counts, above, upper_seed, max, &hi, &footing->hi_steps) != 0);
     footing->found = (lower_found && upper_found) ? 1ull : 0ull;
     footing->lo = lo;
     footing->hi = hi;
@@ -457,7 +457,7 @@ static int scan_frames(const ScanRequest *request, const char *sample, const Sca
         // a count past the capacity is not negative. It re-signs to unsigned long long exactly
         if ((found != PEAKS_ERROR) && ((unsigned long long)found > points->capacity))
         {
-            // the count is at most the frame's voxels, below 2^31. It narrows to unsigned int exactly
+            // the count is at max the frame's voxels, below 2^31. It narrows to unsigned int exactly
             ok = scan_points_reserve(points, (unsigned int)found, limbs);
             peaks.capacity = points->capacity;
             peaks.voxels = points->voxels;
@@ -465,7 +465,7 @@ static int scan_frames(const ScanRequest *request, const char *sample, const Sca
             found = ok ? peaks_find(&peaks) : PEAKS_ERROR;
         }
         results->peaks_microseconds += engine_clock_microseconds() - mark;
-        // a count within the capacity is not negative and at most the capacity. It narrows to unsigned int exactly
+        // a count within the capacity is not negative and at max the capacity. It narrows to unsigned int exactly
         const unsigned int count =
             ((found != PEAKS_ERROR) && ((unsigned long long)found <= points->capacity)) ? (unsigned int)found : 0u;
         ok = ok && (found != PEAKS_ERROR) && ((unsigned long long)found <= points->capacity) &&
@@ -534,7 +534,7 @@ static int scan_frames(const ScanRequest *request, const char *sample, const Sca
         results->drift_microseconds += engine_clock_microseconds() - mark;
         results->frames += ok ? 1ull : 0ull;
         results->points += ok ? count : 0ull;
-        results->maximum = (ok && (count > results->maximum)) ? count : results->maximum;
+        results->max = (ok && (count > results->max)) ? count : results->max;
         results->least = (ok && (count < results->least)) ? count : results->least;
         results->on_face += ok ? on_face : 0ull;
     }
@@ -638,7 +638,7 @@ extern "C" long scan_set(const ScanRequest *request)
            " limbs\n",
            contrast.readings, contrast.bits, contrast.input_limbs, contrast.residual_limbs);
     printf("  %-24s %6s %10s %s\n", "sample", "frames", "points",
-           "a frame least..most, on a face; pairs moved of"
+           "a frame least..max, on a face; pairs moved of"
            " pairs; residual us, peaks us, hessian us, drift us");
     ScanPoints points;
     memset(&points, 0, sizeof(points));
@@ -657,12 +657,12 @@ extern "C" long scan_set(const ScanRequest *request)
             continue;
         }
         printf("  %-24s %6llu %10llu %llu..%llu, %llu; %llu of %llu; %llu, %llu, %llu, %llu\n", sample, results.frames,
-               results.points, results.least, results.maximum, results.on_face, results.moved, results.pairs,
+               results.points, results.least, results.max, results.on_face, results.moved, results.pairs,
                results.residual_microseconds, results.peaks_microseconds, results.hessian_microseconds,
                results.drift_microseconds);
         totals.frames += results.frames;
         totals.points += results.points;
-        totals.maximum = (results.maximum > totals.maximum) ? results.maximum : totals.maximum;
+        totals.max = (results.max > totals.max) ? results.max : totals.max;
         totals.least = (results.least < totals.least) ? results.least : totals.least;
         totals.on_face += results.on_face;
         totals.pairs += results.pairs;
@@ -675,7 +675,7 @@ extern "C" long scan_set(const ScanRequest *request)
     printf("  scanned %u of %u samples: %llu frames, %llu points, %llu..%llu a frame, %llu on a face; %llu of %llu"
            " frame pairs moved; residual %llu us, peaks %llu us, hessian %llu us, drift %llu us\n",
            request->count - failed, request->count, totals.frames, totals.points,
-           (totals.frames != 0ull) ? totals.least : 0ull, totals.maximum, totals.on_face, totals.moved, totals.pairs,
+           (totals.frames != 0ull) ? totals.least : 0ull, totals.max, totals.on_face, totals.moved, totals.pairs,
            totals.residual_microseconds, totals.peaks_microseconds, totals.hessian_microseconds,
            totals.drift_microseconds);
     free(cumulative);

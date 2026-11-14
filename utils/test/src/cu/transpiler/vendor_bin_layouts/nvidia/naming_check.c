@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // naming_check.c: the vendor's writer's texts checked on forms written by hand (Open 6.4)
 //
-//   name     a form is named from the table by its relation, the count of its sources and its kind, none where no kind
+//   name     a form is named from the table by its relation, the count of its sources and its type, none where no type
 //            row reads the relation
 //   mark     a take form carries the vendor's mark on the operand at the relation's second word, in whatever bit
-//            order the operands stand
+//            order the operands are
 //   flag     a run of one bit with no place prints nothing, and is retained past the operand count; a wider run with no
 //            place prints as a register
 //   guard    a predicate run prints before the operation as the vendor writes a guard
@@ -28,13 +28,13 @@ static void check_that(int passed, const char *what)
     }
 }
 
-// one run of a hand form: its bits, its place and its kind
+// one run of a hand form: its bits, its place and its type
 typedef struct
 {
     unsigned int first;
     unsigned int last;
     unsigned int place;
-    unsigned int kind;
+    unsigned int type;
 } HandRun;
 
 // a form written by hand: `relation` over the encoding `low` and `high` with `count` runs
@@ -51,7 +51,7 @@ static void hand_form(KhwForm *form, const char *relation, unsigned long long lo
         form->first[at] = runs[at].first;
         form->last[at] = runs[at].last;
         form->place[at] = runs[at].place;
-        form->kind[at] = runs[at].kind;
+        form->type[at] = runs[at].type;
     }
 }
 
@@ -100,7 +100,7 @@ int main(int count, char **words)
                                      {72u, 72u, SASS_RUN_NO_PLACE, KHW_KIND_REGISTER}};
     KhwForm swapped;
     hand_form(&swapped, "ladder.take", add_low, add_high | (1ull << 8u), swapped_runs, 4u);
-    check_text(&swapped, "IADD3 R7, -R0, R7", "and on the second word where it stands first in the bits");
+    check_text(&swapped, "IADD3 R7, -R0, R7", "and on the second word where it is first in the bits");
 
     // the lane form with its special register, a run of eight bits with no place, printed as a register
     const HandRun lane_runs[2] = {{16u, 23u, 0u, KHW_KIND_REGISTER}, {72u, 79u, SASS_RUN_NO_PLACE, KHW_KIND_REGISTER}};
@@ -159,7 +159,7 @@ int main(int count, char **words)
     check_that((form_add->runs == 4u) && (form_add->run[3].operand == SASS_MACHINE_OPERANDS) &&
                    (form_add->run[0].operand == 0u) && (form_add->run[1].operand == 1u) &&
                    (form_add->run[2].operand == 2u),
-               "its three registers are the operands 0 to 2 and the flag stands past the operand count");
+               "its three registers are the operands 0 to 2 and the flag is past the operand count");
     khw_text_composed(&take, text, sizeof(text));
     check_that(khw_form_store(&s_test_machine, &take, text), "the take form is stored");
     const SassForm *const form_take = &s_test_machine.form[1];

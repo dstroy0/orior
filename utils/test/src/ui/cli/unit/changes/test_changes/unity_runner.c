@@ -18,7 +18,7 @@ extern void test_a_revert_of_a_line_put_in_leaves_the_last_commits_text(void);
 extern void test_a_revert_of_a_line_taken_out_leaves_the_last_commits_text(void);
 extern void test_a_revert_of_a_line_changed_leaves_the_last_commits_text(void);
 extern void test_a_revert_of_lines_at_the_end_leaves_the_last_commits_text(void);
-extern void test_the_changes_read_again_stand_until_the_text_moves(void);
+extern void test_the_changes_read_again_are_until_the_text_moves(void);
 extern void test_no_head_reads_no_change(void);
 
 
@@ -90,7 +90,7 @@ int main(void)
   run_test(test_a_revert_of_a_line_taken_out_leaves_the_last_commits_text, "test_a_revert_of_a_line_taken_out_leaves_the_last_commits_text", 172);
   run_test(test_a_revert_of_a_line_changed_leaves_the_last_commits_text, "test_a_revert_of_a_line_changed_leaves_the_last_commits_text", 179);
   run_test(test_a_revert_of_lines_at_the_end_leaves_the_last_commits_text, "test_a_revert_of_lines_at_the_end_leaves_the_last_commits_text", 186);
-  run_test(test_the_changes_read_again_stand_until_the_text_moves, "test_the_changes_read_again_stand_until_the_text_moves", 193);
+  run_test(test_the_changes_read_again_are_until_the_text_moves, "test_the_changes_read_again_are_until_the_text_moves", 193);
   run_test(test_no_head_reads_no_change, "test_no_head_reads_no_change", 204);
 
   return UNITY_END();

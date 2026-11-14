@@ -5,7 +5,7 @@
 #include "../text/text.h"
 #include "validate_internal.h"
 
-// the most bytes of the lines of a check's output that are no message, recorded as one error
+// the max bytes of the lines of a check's output that are no message, recorded as one error
 #define CLI_VALIDATE_LOOSE (1u << 20u)
 
 typedef struct
@@ -222,7 +222,7 @@ void cli_validate_messages_get(const CliValidateSizeCtx *args)
         const char *const type =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
-                                          .object = value, .name = "kind"),
+                                          .object = value, .name = "type"),
                        .length_pointer = &type_size);
         EMBED_CALL(messages_append, ValidateMessagesCtx, .messages = args->messages, .message = &message,
                    .text = (text != NULL) ? text : "", .text_size = text_size, .type = (type != NULL) ? type : "",

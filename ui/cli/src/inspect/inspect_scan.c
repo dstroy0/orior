@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// inspect_scan.c: a text read by its letters, its line and its column counted in UTF-16 units as the editor and the
+// inspect_scan.c: a text read by its characters, its line and its column counted in UTF-16 units as the editor and the
 // protocol count columns; the tokens and the comments a reader records; and a set of names
 #include "../text/json_tree.h"
 #include "../text/regexp.h"
@@ -37,8 +37,8 @@ typedef struct
     const char *at;
     unsigned int size;
 } InspectScanCtx;
-// the letter at `pos` of the scan's text, its bytes into `reserved`
-EMBED_INLINE unsigned int scan_letter(const InspectScanCtx *args)
+// the character at `pos` of the scan's text, its bytes into `reserved`
+EMBED_INLINE unsigned int scan_character(const InspectScanCtx *args)
 {
     unsigned long long *reserved = args->reserved;
     if (args->pos >= args->scan->size)
@@ -46,17 +46,17 @@ EMBED_INLINE unsigned int scan_letter(const InspectScanCtx *args)
         *reserved = 0ULL;
         return CLI_INSPECT_END;
     }
-    unsigned int letter = 0u;
-    *reserved = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+    unsigned int character = 0u;
+    *reserved = EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                            .text_bytes = (const unsigned char *)args->scan->src, .length = args->scan->size,
-                           .at = args->pos, .letter = &letter);
-    return letter;
+                           .at = args->pos, .character = &character);
+    return character;
 }
 
 unsigned int cli_inspect_peek(const CliInspectScanAheadCtx *args)
 {
     unsigned long long reserved = 0ULL;
-    return EMBED_CALL(scan_letter, InspectScanCtx, .scan = args->scan, .pos = args->scan->pos, .reserved = &reserved);
+    return EMBED_CALL(scan_character, InspectScanCtx, .scan = args->scan, .pos = args->scan->pos, .reserved = &reserved);
 }
 
 unsigned int cli_inspect_peek_at(const CliInspectScanAheadCtx *args)
@@ -65,36 +65,36 @@ unsigned int cli_inspect_peek_at(const CliInspectScanAheadCtx *args)
     unsigned long long reserved = 0ULL;
     for (unsigned int at = 0u; at < args->ahead; at += 1u)
     {
-        if (EMBED_CALL(scan_letter, InspectScanCtx, .scan = args->scan, .pos = pos, .reserved = &reserved) ==
+        if (EMBED_CALL(scan_character, InspectScanCtx, .scan = args->scan, .pos = pos, .reserved = &reserved) ==
             CLI_INSPECT_END)
         {
             return CLI_INSPECT_END;
         }
         pos += reserved;
     }
-    return EMBED_CALL(scan_letter, InspectScanCtx, .scan = args->scan, .pos = pos, .reserved = &reserved);
+    return EMBED_CALL(scan_character, InspectScanCtx, .scan = args->scan, .pos = pos, .reserved = &reserved);
 }
 
 unsigned int cli_inspect_bump(const CliInspectSizeScanCtx *args)
 {
     unsigned long long reserved = 0ULL;
-    const unsigned int letter = EMBED_CALL(scan_letter, InspectScanCtx, .scan = args->scan_out,
+    const unsigned int character = EMBED_CALL(scan_character, InspectScanCtx, .scan = args->scan_out,
                                            .pos = args->scan_out->pos, .reserved = &reserved);
-    if (letter == CLI_INSPECT_END)
+    if (character == CLI_INSPECT_END)
     {
-        return letter;
+        return character;
     }
     args->scan_out->pos += reserved;
-    if (letter == '\n')
+    if (character == '\n')
     {
         args->scan_out->line += 1u;
         args->scan_out->col = 0u;
     }
     else
     {
-        args->scan_out->col += (letter >= 0x10000u) ? 2u : 1u;
+        args->scan_out->col += (character >= 0x10000u) ? 2u : 1u;
     }
-    return letter;
+    return character;
 }
 
 CliInspectPosition cli_inspect_position(const CliInspectScanCtx *args)
@@ -106,12 +106,12 @@ void cli_inspect_skip_line(const CliInspectSizeScanCtx *args)
 {
     const CliInspectPosition from =
         EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = args->scan_out);
-    unsigned int letter =
+    unsigned int character =
         EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = args->scan_out);
-    while ((letter != CLI_INSPECT_END) && (letter != '\n') && (letter != '\r'))
+    while ((character != CLI_INSPECT_END) && (character != '\n') && (character != '\r'))
     {
         (void)cli_inspect_size_scan_internal.bump(args);
-        letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = args->scan_out);
+        character = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = args->scan_out);
     }
     EMBED_CALL(cli_inspect_from_to_internal.comment_append, CliInspectFromToCtx, .from = from,
                .to = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = args->scan_out));
@@ -124,7 +124,7 @@ void cli_inspect_tok_append(const CliInspectScanCtx *args)
         g_cli_inspect_over = 1;
         return;
     }
-    // a text read is at most 4 GiB, which a token's bytes count
+    // a text read is at max 4 GiB, which a token's bytes count
     g_cli_inspect_tok[g_cli_inspect_toks] = (CliInspectTok){
         args->type, (unsigned char)(args->field != 0),    (unsigned int)args->start, (unsigned int)args->scan->pos,
         args->from, cli_inspect_scan_internal.place(args)};
@@ -144,33 +144,33 @@ void cli_inspect_comment_append(const CliInspectFromToCtx *args)
 
 int cli_inspect_alphabetic(const CliInspectCtx *args)
 {
-    if (args->letter < 0x80u)
+    if (args->character < 0x80u)
     {
-        return ((args->letter >= 'a') && (args->letter <= 'z')) || ((args->letter >= 'A') && (args->letter <= 'Z'));
+        return ((args->character >= 'a') && (args->character <= 'z')) || ((args->character >= 'A') && (args->character <= 'Z'));
     }
-    return (args->letter != CLI_INSPECT_END) && EMBED_CALL(cli_regexp_letter.property, CliRegexpLetterCfg,
-                                                           .property = CLI_REGEXP_LETTER, .letter = args->letter);
+    return (args->character != CLI_INSPECT_END) && EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg,
+                                                           .property = CLI_REGEXP_CHARACTER, .character = args->character);
 }
 
 int cli_inspect_alphanumeric(const CliInspectCtx *args)
 {
-    if (args->letter < 0x80u)
+    if (args->character < 0x80u)
     {
-        return cli_inspect_internal.alphabetic(args) || ((args->letter >= '0') && (args->letter <= '9'));
+        return cli_inspect_internal.alphabetic(args) || ((args->character >= '0') && (args->character <= '9'));
     }
-    return (args->letter != CLI_INSPECT_END) && (EMBED_CALL(cli_regexp_letter.property, CliRegexpLetterCfg,
-                                                            .property = CLI_REGEXP_LETTER, .letter = args->letter) ||
-                                                 EMBED_CALL(cli_regexp_letter.property, CliRegexpLetterCfg,
-                                                            .property = CLI_REGEXP_NUMBER, .letter = args->letter));
+    return (args->character != CLI_INSPECT_END) && (EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg,
+                                                            .property = CLI_REGEXP_CHARACTER, .character = args->character) ||
+                                                 EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg,
+                                                            .property = CLI_REGEXP_NUMBER, .character = args->character));
 }
 
 int cli_inspect_white(const CliInspectCtx *args)
 {
-    return ((args->letter >= 0x09u) && (args->letter <= 0x0du)) || (args->letter == 0x20u) || (args->letter == 0x85u) ||
-           (args->letter == 0xa0u) || (args->letter == 0x1680u) ||
-           ((args->letter >= 0x2000u) && (args->letter <= 0x200au)) || (args->letter == 0x2028u) ||
-           (args->letter == 0x2029u) || (args->letter == 0x202fu) || (args->letter == 0x205fu) ||
-           (args->letter == 0x3000u);
+    return ((args->character >= 0x09u) && (args->character <= 0x0du)) || (args->character == 0x20u) || (args->character == 0x85u) ||
+           (args->character == 0xa0u) || (args->character == 0x1680u) ||
+           ((args->character >= 0x2000u) && (args->character <= 0x200au)) || (args->character == 0x2028u) ||
+           (args->character == 0x2029u) || (args->character == 0x202fu) || (args->character == 0x205fu) ||
+           (args->character == 0x3000u);
 }
 
 // the entry of a set a name hashes to, FNV-1a over its bytes

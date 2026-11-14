@@ -15,7 +15,7 @@
 // each window that shows is drawn in signal on a square of it. Under the top icons, a line apart, one
 // icon for each category of jobs the tree has, in the run view's order: a press shows the run view with
 // that category alone in its list, and the protocol's shows its one job, the course. The icon of the
-// category shown is drawn in signal, and Run's is not while one category shows alone. No icon of the
+// category displayed is drawn in signal, and Run's is not while one category shows alone. No icon of the
 // strip is drawn as another is, and each is as large as the eye on the bar.
 //
 // The top bar's tools: Preferences, Notifications, which lists what the status bar has said and is
@@ -26,13 +26,13 @@
 
 import { invoke } from "./bridge.js";
 import { dockIcon, iconRemoved } from "./docks.js";
-import { showGroup, shownGroup, morePanes, showPane } from "./explorer.js";
+import { showGroup, displayedGroup, morePanes, showPane } from "./explorer.js";
 import { icon } from "./icons.js";
 import { closeMenu, showMenu } from "./menu.js";
-import { ORDER, listedJobs, showCategory, shownCategory } from "./run.js";
+import { ORDER, listedJobs, showCategory, displayedCategory } from "./run.js";
 import { paneNodeShown, togglePane, togglePaneNode } from "./sides.js";
 import { clearNotices, noticesSaid, noticesSeen, noticesUnseen, onNotice, say } from "./statusbar.js";
-import { onView, shownView, showView } from "./views.js";
+import { onView, displayedView, showView } from "./views.js";
 
 const state = { hooks: null, buttons: new Map(), popover: null, errors: 0, runs: { live: 0, panicked: 0 } };
 
@@ -42,11 +42,11 @@ function element(tag, props = {}, ...children) {
   return made;
 }
 
-const explorerShown = (group) => shownView() === "edit" && shownGroup() === group && paneNodeShown(document.getElementById("explorer"));
+const explorerShown = (group) => displayedView() === "edit" && displayedGroup() === group && paneNodeShown(document.getElementById("explorer"));
 
 // Whether the run view shows every category of jobs, which is Run's; with one category alone it is that
 // category's icon that is lit, so one view lights one icon.
-const runShown = () => shownView() === "run" && !shownCategory();
+const runShown = () => displayedView() === "run" && !displayedCategory();
 
 // A window of the explorer: the edit view with the group's panes, or, where it shows, closed.
 function openGroup(group) {
@@ -84,7 +84,7 @@ const STRIP = {
 };
 
 // The strip's own command, by the name commands.json gives it: a pane of the explorer opened and
-// shown, as the strip's … menu opens it; a name that is no such pane is refused with the panes there are.
+// displayed, as the strip's … menu opens it; a name that is no such pane is refused with the panes there are.
 export const stripCommands = {
   "pane-open": ([name]) => {
     const panes = morePanes().map((one) => one.name);
@@ -128,15 +128,15 @@ function moreMenu(button, rested = false) {
   menu.addEventListener("pointerleave", away);
   menu.addEventListener("pointerenter", near);
   button.addEventListener("pointerenter", near);
-  // A press in the menu keeps it, as a menu opened by a press.
+  // A press in the menu retains it, as a menu opened by a press.
   menu.addEventListener("pointerdown", () => button.removeEventListener("pointerleave", away), { once: true });
 }
 
 // Marks the icon of each window that shows, and hides each the reader took off the strip.
 export function refreshStrip() {
-  for (const [name, { button, shown }] of state.buttons) {
+  for (const [name, { button, displayed }] of state.buttons) {
     button.hidden = iconRemoved(name);
-    const on = shown();
+    const on = displayed();
     button.classList.toggle("on", on);
     button.setAttribute("aria-pressed", String(on));
     if (name === "problems") {
@@ -152,7 +152,7 @@ export function refreshStrip() {
     }
   }
   for (const button of document.querySelectorAll("#strip-jobs .strip-job")) {
-    const on = shownView() === "run" && shownCategory() === button.dataset.category;
+    const on = displayedView() === "run" && displayedCategory() === button.dataset.category;
     button.classList.toggle("on", on);
     button.setAttribute("aria-pressed", String(on));
   }
@@ -168,30 +168,30 @@ export function refreshStrip() {
 // How long the pointer rests on an icon, in milliseconds, before its pane shows.
 const RESTS = 350;
 
-// A pane shown by the pointer resting on its icon is a preview: a press on the icon or in the pane
-// keeps it, and the pointer leaving the strip and the pane without one brings back the view, the
-// group and the panes that showed before the first rest. `kept` is what showed then, or null where
+// A pane displayed by the pointer resting on its icon is a preview: a press on the icon or in the pane
+// retains it, and the pointer leaving the strip and the pane without one brings back the view, the
+// group and the panes that showed before the first rest. `retained` is what showed then, or null where
 // no preview is open.
-const preview = { kept: null, showing: null };
+const preview = { retained: null, showing: null };
 
 const sidePanes = () => [document.getElementById("explorer"), document.getElementById("job-side")];
 
 function startPreview() {
-  if (preview.kept) {
+  if (preview.retained) {
     return;
   }
-  preview.kept = { view: shownView(), group: shownGroup(), shown: sidePanes().map((node) => paneNodeShown(node)) };
+  preview.retained = { view: displayedView(), group: displayedGroup(), displayed: sidePanes().map((node) => paneNodeShown(node)) };
   document.addEventListener("pointermove", leftPreview, true);
 }
 
 function endPreview() {
-  preview.kept = null;
+  preview.retained = null;
   document.removeEventListener("pointermove", leftPreview, true);
 }
 
-// Keeps what the preview shows.
-function keepPreview() {
-  if (preview.kept) {
+// Retains what the preview shows.
+function retainPreview() {
+  if (preview.retained) {
     endPreview();
   }
 }
@@ -199,15 +199,15 @@ function keepPreview() {
 // Brings back what showed before the preview, once the pointer is on neither the strip nor the side
 // pane of the view showing.
 function leftPreview(event) {
-  const pane = shownView() === "run" ? document.getElementById("job-side") : document.getElementById("explorer");
-  if (!preview.kept || event.target.closest?.("#strip") || pane.contains(event.target)) {
+  const pane = displayedView() === "run" ? document.getElementById("job-side") : document.getElementById("explorer");
+  if (!preview.retained || event.target.closest?.("#strip") || pane.contains(event.target)) {
     return;
   }
-  const { view, group, shown } = preview.kept;
+  const { view, group, displayed } = preview.retained;
   endPreview();
   showView(view);
   showGroup(group);
-  sidePanes().forEach((node, at) => togglePaneNode(node, shown[at], { pin: false }));
+  sidePanes().forEach((node, at) => togglePaneNode(node, displayed[at], { pin: false }));
   window.requestAnimationFrame(refreshStrip);
 }
 
@@ -226,7 +226,7 @@ const HOVERED = new Map([
   [
     "run",
     () => {
-      if (shownView() !== "run") {
+      if (displayedView() !== "run") {
         showView("run");
       }
       togglePane(true, { take: false, pin: false });
@@ -234,7 +234,7 @@ const HOVERED = new Map([
   ],
 ]);
 
-function stripButton(name, glyph, label, keys, run, shown) {
+function stripButton(name, glyph, label, keys, run, displayed) {
   const button = element("button", { className: `strip-button strip-${name}`, type: "button", title: keys ? `${label} (${keys})` : label }, icon(glyph));
   button.setAttribute("aria-label", label);
   button.addEventListener("click", () => {
@@ -242,12 +242,12 @@ function stripButton(name, glyph, label, keys, run, shown) {
     if (button.dataset.dragged) {
       return;
     }
-    // A press on the icon whose pane the preview shows keeps it, where a press would otherwise
+    // A press on the icon whose pane the preview shows retains it, where a press would otherwise
     // close it.
-    if (preview.kept && preview.showing === name) {
-      keepPreview();
+    if (preview.retained && preview.showing === name) {
+      retainPreview();
     } else {
-      keepPreview();
+      retainPreview();
       run(button);
     }
     window.requestAnimationFrame(refreshStrip);
@@ -279,19 +279,19 @@ function stripButton(name, glyph, label, keys, run, shown) {
   if (name !== "more") {
     dockIcon(name, button);
   }
-  state.buttons.set(name, { button, shown });
+  state.buttons.set(name, { button, displayed });
   return button;
 }
 
 // Closes the window of an icon taken off the strip.
 export function closeIcon(name) {
-  const shown = state.buttons.get(name)?.shown;
+  const displayed = state.buttons.get(name)?.displayed;
   if (name === "definitions") {
     const side = document.getElementById("defs-side");
     if (paneNodeShown(side)) {
       togglePaneNode(side, false);
     }
-  } else if (shown?.()) {
+  } else if (displayed?.()) {
     state.buttons.get(name).button.click();
   }
 }
@@ -319,7 +319,7 @@ function showNotices(bell) {
     list.append(element("div", { className: `notice${notice.failed ? " failed" : ""}` }, element("span", { className: "notice-text", textContent: notice.text }), element("span", { className: "notice-time", textContent: time(notice.at) })));
   }
   if (!said.length) {
-    list.append(element("p", { className: "notices-empty", textContent: "What tabvla says on the status bar is kept here." }));
+    list.append(element("p", { className: "notices-empty", textContent: "What tabvla says on the status bar is retained here." }));
   }
   const clear = element("button", { className: "notices-clear", type: "button", textContent: "Clear" });
   clear.disabled = !said.length;
@@ -347,7 +347,7 @@ function toolButton(id, glyph, label, run) {
 
 function toggleDefinitions() {
   const side = document.getElementById("defs-side");
-  if (shownView() !== "edit" || side.hidden) {
+  if (displayedView() !== "edit" || side.hidden) {
     say("The open file's type has no definitions to show.");
     return;
   }
@@ -373,7 +373,7 @@ const CATEGORY_ICONS = {
 };
 
 // The categories' icons, drawn again only where the categories change: an icon put in place of one under
-// the pointer would leave the pointer's tooltip standing over nothing.
+// the pointer would leave the pointer's tooltip located over nothing.
 function drawJobs() {
   const group = document.getElementById("strip-jobs");
   const jobs = listedJobs();
@@ -400,7 +400,7 @@ function drawJobs() {
 }
 
 // View, System Title Bar: the window drawn with the system's own title bar and its controls, in place
-// of the bar's, kept, and read by the window as it opens.
+// of the bar's, retained, and read by the window as it opens.
 const TITLE_BAR = "orior.titlebar";
 
 export const systemTitleBar = () => localStorage.getItem(TITLE_BAR) === "system";
@@ -451,7 +451,7 @@ export function startStrip(hooks) {
   const foot = element("div", { className: "strip-group strip-foot" }, ...STRIP.foot.map((one) => stripButton(...one)));
   strip.replaceChildren(top, jobs, foot);
   for (const node of sidePanes()) {
-    node.addEventListener("pointerdown", keepPreview, true);
+    node.addEventListener("pointerdown", retainPreview, true);
   }
   drawJobs();
   window.addEventListener("jobs-changed", drawJobs);

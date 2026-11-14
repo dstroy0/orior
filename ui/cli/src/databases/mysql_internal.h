@@ -21,7 +21,7 @@ typedef struct CliMysqlACtx CliMysqlACtx;
 typedef struct CliMysqlBigCtx CliMysqlBigCtx;
 typedef struct CliMysqlBigOutCtx CliMysqlBigOutCtx;
 
-// the most connections at once; the bytes read off the socket at a time; the most bytes of one packet; and the bytes a
+// the max connections at once; the bytes read off the socket at a time; the max bytes of one packet; and the bytes a
 // row's values written in hex take
 #define CLI_MYSQL_LINKS 8u
 #define CLI_MYSQL_READ (1u << 16u)

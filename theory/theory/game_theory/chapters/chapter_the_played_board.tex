@@ -21,11 +21,11 @@ A square is a point and the piece on it is its value. Reversi on sixty four squa
 Emptiness does not get a symbol. A board part way through a game is mostly empty, and a symbol for
 emptiness puts the game's clock into the histogram, where a measure reading counts will find it and
 report how far along the game was as though it were arrangement. Measurements that read values drop
-the empty squares; the one that reads the grid's shape keeps them, because a hole in a row is part
+the empty squares; the one that reads the grid's shape retains them, because a hole in a row is part
 of the shape.
 
 The null is this work's null permutation written for a grid: the same pieces on the same squares in
-a uniformly drawn order. It keeps how many of each color are on the board and which squares are
+a uniformly drawn order. It retains how many of each color are on the board and which squares are
 occupied, and destroys only which color sits where. Everything a rule imposed is in what it
 destroys.
 
@@ -62,9 +62,9 @@ The departure is the flip rule. A board being a board contributes nothing.
 
 \subsection{The 0.971 row, and the opening it reads}
 
-Kept with Reversi's four fixed center pieces, the control reads 0.971, three floors below the null
+Retained with Reversi's four fixed center pieces, the control reads 0.971, three floors below the null
 where the argument wants one. The gap is the opening itself. Those four
-squares are laid out black over white and white over black. All four neighboring pairs inside them
+squares are arranged black over white and white over black. All four neighboring pairs inside them
 therefore disagree by construction, where a draw would have half of them agree. Four guaranteed
 disagreements out of a hundred and twelve pairs is 0.018 of the reading and accounts for all of the
 gap. Starting from an empty board returns 0.998.
@@ -76,7 +76,7 @@ is never overstated.
 \section{The negative}
 
 The three arms are the textbook ones. Drawing uniformly from the legal moves knows the rules and
-has no strategy. Taking the move that turns over the most pieces is the standard weak heuristic and is
+has no strategy. Taking the move that turns over the max pieces is the standard weak heuristic and is
 weak here too. Taking a corner where one is offered, and otherwise turning over the fewest pieces, is
 the standard improvement: a corner can never be flipped back, and a small flip leaves the opponent
 fewer replies.
@@ -109,7 +109,7 @@ The departures do not order them at all. They run 1.184 to 1.255 with no relatio
 beside them, and the correlation over the nine pairings is 0.067.
 
 The explanation is the same one that makes the flip rule the source of the departure. Every legal
-move turns over a bracketed run, whoever chose it. A strong player and a weak one leave the same kind
+move turns over a bracketed run, whoever chose it. A strong player and a weak one leave the same type
 of trace and differ only in where on the board they put it. The measure reads what was done to
 the board. It does not read who chose it.
 

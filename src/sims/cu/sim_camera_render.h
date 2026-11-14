@@ -65,7 +65,7 @@ static inline __host__ __device__ long long sim_value(const SimCamera *camera, u
     long long collected = (long long)charge;
     if (camera->shot == SIM_SHOT_SYMMETRIC)
     {
-        // a head count of at most 4 S is far below 2^62
+        // a head count of at max 4 S is far below 2^62
         collected = (long long)sim_binomial_half(camera->key ^ SIM_SHOT_PURPOSE, counter, 4ull * charge) - collected;
     }
     else
@@ -92,19 +92,19 @@ static inline __host__ __device__ long long sim_value(const SimCamera *camera, u
         {
             count = 2ull * sim_binomial_half(camera->key ^ SIM_EXCESS_PURPOSE, counter, count);
         }
-        // a count of at most 4 S, doubled, is far below 2^62
+        // a count of at max 4 S, doubled, is far below 2^62
         collected = (long long)count;
     }
     long long read = 0ll;
     if (camera->read_square != 0ull)
     {
-        // a head count of at most 4 r^2 is far below 2^62
+        // a head count of at max 4 r^2 is far below 2^62
         read = (long long)sim_binomial_half(camera->key ^ SIM_READ_PURPOSE, counter, 4ull * camera->read_square) -
                (2ll * (long long)camera->read_square);
     }
     if (camera->reset_square != 0ull)
     {
-        // a head count of at most 4 kTC is far below 2^62
+        // a head count of at max 4 kTC is far below 2^62
         read += (long long)sim_binomial_half(camera->key ^ SIM_RESET_PURPOSE, counter, 4ull * camera->reset_square) -
                 (2ll * (long long)camera->reset_square);
     }

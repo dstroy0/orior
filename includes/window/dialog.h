@@ -20,7 +20,7 @@ typedef struct GuiDialogKeyCfg GuiDialogKeyCfg;
 typedef struct GuiDialogPointCfg GuiDialogPointCfg;
 typedef struct GuiDialogDrawCfg GuiDialogDrawCfg;
 
-// The most buttons, and the most bytes of the title, of the body and of a button's label, with the end byte
+// The max buttons, and the max bytes of the title, of the body and of a button's label, with the end byte
 #define GUI_DIALOG_BUTTONS_MAX 4u
 #define GUI_DIALOG_TITLE 128u
 #define GUI_DIALOG_BODY 1024u
@@ -80,17 +80,17 @@ typedef struct
     int error;
 } GuiDialog;
 
-// a dialog not shown
+// a dialog not displayed
 void gui_dialog_init(const GuiDialogCfg *args);
-// The dialog shown with `title`, the lines of `body` and the `count` labels of `labels`, `preferred` the button Enter
-// presses. Where `error` is set, the dialog tells of an error and its focus border stands in the error color. It
+// The dialog displayed with `title`, the lines of `body` and the `count` labels of `labels`, `preferred` the button Enter
+// presses. Where `error` is set, the dialog tells of an error and its focus border is in the error color. It
 // returns 1, or 0 where the count is 0 or more than GUI_DIALOG_BUTTONS_MAX, and then nothing changes
 int gui_dialog_ask(const GuiDialogAskCfg *args);
 // the client's size at `scale` that shows the title, every line and every button
 void gui_dialog_want(const GuiDialogWantCfg *args);
 // the client sized `width` by `height` at `scale`, each button's width measured with `glyphs`
 void gui_dialog_resize(const GuiDialogWidthCfg *args);
-// Where each part stands in the client: the head band, the close mark, the body and the button `at`
+// Where each part is in the client: the head band, the close mark, the body and the button `at`
 GuiRect gui_dialog_head_rect(const GuiDialogReadCfg *args);
 GuiRect gui_dialog_close_rect(const GuiDialogReadCfg *args);
 GuiRect gui_dialog_body_rect(const GuiDialogReadCfg *args);

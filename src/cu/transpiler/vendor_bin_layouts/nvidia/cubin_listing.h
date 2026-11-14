@@ -22,7 +22,7 @@ typedef struct
 // The listing `listing`, `length` bytes the vendor printed for a cubin, cut into the listings of the kernels `names`,
 // `count` of them, into `cut`, whose arrays have room for `count`. A kernel's listing is every instruction line of its
 // code section `.text.<name>` in order, each as the vendor printed it with every label it names, `` `(<label>) ``, put
-// as the offset the listing gives that label, `0x<offset>`, the offset of the instruction the label stands before and
+// as the offset the listing gives that label, `0x<offset>`, the offset of the instruction the label is before and
 // the end of the section for one past the last: a kernel's lines then read as the vendor prints its code read alone. A
 // label the section does not set is left as printed. 1, or 0 where the system gave no memory
 int cubin_listing_cut(const char *listing, size_t length, const char *const *names, unsigned int count,

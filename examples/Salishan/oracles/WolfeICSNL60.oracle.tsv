@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 title	Julie Wolfe	title	Lexical Suffixes and Connectives in Proto-Central Salish and Beyond	the paper's title
 title	Julie Wolfe	name	Julie Wolfe	the author
 title	Julie Wolfe	place	University of Victoria	the author's institution
@@ -101,8 +101,8 @@ fn3	Julie Wolfe	reference	Modrow (1971)	the source of the Qu data
 fn3	Julie Wolfe	reference	Kinkade (1991)	the source of the Ch data
 fn3	Julie Wolfe	reference	Kinkade (2004)	the source of the Cz data
 fn4	PCS	notation	l(ʸ)	the notation for insufficient data to differentiate *l and *lʸ
-fn4	PCS	cited affix	*l	one of the two resonants the notation stands between
-fn4	PCS	cited affix	*lʸ	the other of the two resonants the notation stands between
+fn4	PCS	cited affix	*l	one of the two resonants the notation is between
+fn4	PCS	cited affix	*lʸ	the other of the two resonants the notation is between
 §2	Julie Wolfe	heading	Suffixes for 'face' and 'eye'	section 2
 (1)	PS	cited affix	*=us	'face', from Kuipers
 (1)	PS	cited affix	ʔm*=us	'face, eye', from Kinkade
@@ -216,7 +216,7 @@ Table 4	PCS	notation	R(ʔ)	the Ld reflex, a resonant with optional glottalizatio
 Table 4	PCS	notation	/ V́_V	the environment of the first row of Table 4
 Table 4	PCS	notation	/ V́_C, #	the environment of the second row of Table 4
 Table 4	PCS	notation	/ V_#, _V́	the environment of the third row of Table 4
-Table 4	Julie Wolfe	notation	R	what stands for resonant in Table 4
+Table 4	Julie Wolfe	notation	R	what is for resonant in Table 4
 §2.3	Julie Wolfe	heading	Stress and vowel quality	section 2.3
 §2.3	Julie Wolfe	language	Halkomelem	the group whose vowel quality the stress inference rests on
 §2.3	Julie Wolfe	language	Northern Straits	the other group whose vowel quality the stress inference rests on
@@ -290,7 +290,7 @@ Table 9	Julie Wolfe	heading	PCS *á in rounded environments	the caption of Table
 Table 9	PCS	notation	*á	reflexes (á) á á έ έ έ á á á ú á á in Sl Se Sq Cw Ms Ck Sn Sm Sg Kl Ld Tw
 Table 9	Julie Wolfe	notation	(á)	the parenthesized Sl cell of Table 9
 Table 9	Julie Wolfe	notation	/ Clab, w_; _Cu, Qlab, w	the environment of Table 9
-Table 9	Julie Wolfe	notation	Q	what stands for post-velar consonant in Table 9
+Table 9	Julie Wolfe	notation	Q	what is for post-velar consonant in Table 9
 §2.3	Julie Wolfe	notation	ə́	the stressed schwa Cw, Ms, Ck and Sm have as an initial vowel
 §2.3	Julie Wolfe	notation	_w	the environment of the one cognate set showing PCS *á > Ms, Sg, Kl á
 §2.3	Julie Wolfe	notation	_Cu	the environment no cognate set includes
@@ -468,7 +468,7 @@ fn13	Julie Wolfe	name	Suzanne Urbanczyk	who suggested the phonemic reading, p.c.
 (11)	Songish	cited affix	=élə	'container'
 (11)	Songish	cited affix	=hélə	'container'
 (11)	Klallam	cited affix	=ayə	'container'
-(11)	Lushootseed	cited affix	=ali	'place where something is typically kept or located'
+(11)	Lushootseed	cited affix	=ali	'place where something is typically retained or located'
 (11)	Lushootseed	cited affix	=áliqid	in 'he wrapped a (ceremonial) band around his head'
 §3.3	Julie Wolfe	heading	Suffixes formed from ‘salmon, fish run’	section 3.3
 §3.3	PS	cited affix	*=anaxʷ	the suffix that underwent multiple semantic extensions
@@ -565,7 +565,7 @@ fn13	Julie Wolfe	name	Suzanne Urbanczyk	who suggested the phonemic reading, p.c.
 (15)	Lushootseed	cited affix	=aličup	'of the fire'
 (15)	Twana	cited affix	=čup	'fire(wood)'
 (15)	Twana	cited affix	-ay=qʷp	'wood'
-§3.4	Lushootseed	cited affix	=ali	'place where something is typically kept or located', the suffix the Ld form may compound with
+§3.4	Lushootseed	cited affix	=ali	'place where something is typically retained or located', the suffix the Ld form may compound with
 (16)	PS	cited affix	*=íc̓aʔ	'hide, blanket, clothes', from Kuipers
 (16)	PS	cited affix	ʔ*=ic̓aʔ	'hide, surface, blanket', from Kinkade
 (16)	PCS	cited affix	*=íc̓aʔ	'clothes, cloth, blanket', the author's reconstruction
@@ -593,7 +593,7 @@ fn13	Julie Wolfe	name	Suzanne Urbanczyk	who suggested the phonemic reading, p.c.
 (17)	PCS	cited affix	*=aqap	'smell, taste', the author's reconstruction
 (17)	PCS	cited affix	*-ál̓ʸ=aqap	'smell, taste', the author's reconstruction
 (17)	Sliammon	cited affix	=aqap	'smell'
-(17)	Sechelt	cited affix	=álaq=ap	'(have a kind of) smell'
+(17)	Sechelt	cited affix	=álaq=ap	'(have a type of) smell'
 (17)	Squamish	cited affix	=áy̓aqap	'smell; taste'
 (17)	Musqueam	cited affix	=éləqəp	'smell, taste, sound'
 (17)	Chilliwack	cited affix	=ɛ́ːləqəp	'fragrance, smell, odour'

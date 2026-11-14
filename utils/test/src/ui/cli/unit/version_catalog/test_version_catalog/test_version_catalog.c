@@ -77,7 +77,7 @@ void test_a_catalog_reads_its_sections_in_order_with_no_error(void)
     g_cli_versions_libraries.size = NULL;
     g_cli_versions_libraries.text = NULL;
     g_cli_versions_libraries.count = 0u;
-    g_cli_versions_libraries.most = 0u;
+    g_cli_versions_libraries.max = 0u;
     g_cli_versions_libraries.used = 0u;
     g_cli_versions_libraries.capacity = 0u;
     g_cli_guard->persistent_buf_release(g_cli_versions_known.text, g_cli_versions_owner);
@@ -86,7 +86,7 @@ void test_a_catalog_reads_its_sections_in_order_with_no_error(void)
     g_cli_versions_known.size = NULL;
     g_cli_versions_known.text = NULL;
     g_cli_versions_known.count = 0u;
-    g_cli_versions_known.most = 0u;
+    g_cli_versions_known.max = 0u;
     g_cli_versions_known.used = 0u;
     g_cli_versions_known.capacity = 0u;
     CliVersionsParsed *const parsed = &g_cli_versions;

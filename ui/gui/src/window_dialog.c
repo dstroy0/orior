@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// window_dialog.c: the dialog's system window on the view's thread. It holds the dialog's raster and lattice, hands
-// each input to the dialog part (parts/dialog.c), and sends the answer to the door's held command or keeps it for the
+// window_dialog.c: the dialog's system window on the view's thread. It holds the dialog's raster and lattice, passes
+// each input to the dialog part (parts/dialog.c), and sends the answer to the interface's held command or retains it for the
 // caller. The view opens the window modal over its owner while the dialog shows, and closes it after (thread.c)
 #include "../../cli/src/machine/reach.h"
 #include "window.h"
@@ -88,7 +88,7 @@ void gui_window_dialog_resize(const GuiWindowWidthCfg *args)
     EMBED_CALL(gui_dialog_width.resize, GuiDialogWidthCfg, .dialog = &window->dialog, .glyphs = &window->glyphs,
                .width = width, .height = height, .scale = args->system_scale);
     window->dialog_pending = 1;
-    // The raster's pixels stand for as long as the view does, as the system shows them again each time it paints.
+    // The raster's pixels are for as long as the view does, as the system shows them again each time it paints.
     // The window makes them once, with room for the largest monitor
     if (window->dialog_raster.pixels == NULL)
     {
@@ -122,7 +122,7 @@ void gui_window_dialog_hits(const GuiWindowHitsCfg *args)
     CliViewHits *const hits = args->hits;
     hits->width = dialog->width;
     hits->height = dialog->height;
-    // the dialog keeps the size it opened at, so it has no border to drag
+    // the dialog retains the size it opened at, so it has no border to drag
     hits->border = 0;
     hits->minimize = (GuiRect){0, 0, 0, 0};
     hits->maximize = (GuiRect){0, 0, 0, 0};
@@ -155,13 +155,13 @@ void gui_window_dialog_draw(const GuiWindowCfg *args)
     {
         return;
     }
-    // the lattice under the panes where the window laid it at the dialog's size, else the deep color
+    // the lattice under the panes where the window positioned it at the dialog's size, else the deep color
     const GuiRaster *const ground = &window->dialog_ground_raster;
-    const int laid = window->dialog_ground.laid && (ground->pixels != NULL) &&
+    const int positioned = window->dialog_ground.positioned && (ground->pixels != NULL) &&
                      (ground->width == window->dialog_raster.width) && (ground->height == window->dialog_raster.height);
     EMBED_CALL(gui_dialog_drawing.draw, GuiDialogDrawCfg, .dialog_read = &window->dialog,
                .raster = &window->dialog_raster, .glyphs = &window->glyphs, .palette = window->palette,
-               .ground = laid ? ground : NULL);
+               .ground = positioned ? ground : NULL);
 }
 
 void gui_window_dialog_close(const GuiWindowCfg *args)

@@ -7,7 +7,7 @@
 #include "../text/text.h"
 #include "recording_internal.h"
 
-// the most values of a frame's names reported at once
+// the max values of a frame's names reported at once
 #define CLI_REPLAY_VALUES 1024u
 
 static unsigned int s_existing[512][2];
@@ -70,7 +70,7 @@ EMBED_INLINE void answer_threads(const RecordingAnswerCtx *args)
     mmgr_line_put(args->body, "]}");
 }
 
-// the stack of a thread, standing at its own last step where the replay stands on another's
+// the stack of a thread, located at its own last step where the replay is on another's
 EMBED_INLINE void answer_stack(const RecordingAnswerCtx *args)
 {
     const CliJson *json = args->json;
@@ -124,7 +124,7 @@ EMBED_INLINE void answer_variables(const RecordingAnswerCtx *args)
     CliRecordedValue *values = NULL;
     const unsigned int count =
         EMBED_CALL(cli_recording_at_internal.values, CliRecordingAtCtx, .serial = (unsigned int)serial,
-                   .at = g_cli_replay->at, .reserved = &values, .most = CLI_REPLAY_VALUES, .owner = g_cli_debug_owner);
+                   .at = g_cli_replay->at, .reserved = &values, .max = CLI_REPLAY_VALUES, .owner = g_cli_debug_owner);
     mmgr_line_put(args->body, "{\"variables\":[");
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -142,7 +142,7 @@ EMBED_INLINE void answer_variables(const RecordingAnswerCtx *args)
     g_cli_guard->persistent_buf_release(values, g_cli_debug_owner);
 }
 
-// a name looked up in the frame, then in each module's frame standing, one whose caller is none
+// a name looked up in the frame, then in each module's frame located, one whose caller is none
 EMBED_INLINE int answer_evaluate(const RecordingAnswerCtx *args)
 {
     const CliJson *json = args->json;
@@ -165,16 +165,16 @@ EMBED_INLINE int answer_evaluate(const RecordingAnswerCtx *args)
     for (unsigned int frame = 0u; frame <= count; frame += 1u)
     {
         const unsigned int one = (frame == 0u) ? serial : s_existing[frame - 1u][0];
-        const CliRecordedFrame standing =
+        const CliRecordedFrame located =
             EMBED_CALL(cli_recording_index_internal.frame, CliRecordingIndexCtx, .index = one);
-        if ((frame > 0u) && !(standing.seen && (standing.parent == 0u)))
+        if ((frame > 0u) && !(located.seen && (located.parent == 0u)))
         {
             continue;
         }
         CliRecordedValue *values = NULL;
         const unsigned int value_count =
             EMBED_CALL(cli_recording_at_internal.values, CliRecordingAtCtx, .serial = one, .at = g_cli_replay->at,
-                       .reserved = &values, .most = CLI_REPLAY_VALUES, .owner = g_cli_debug_owner);
+                       .reserved = &values, .max = CLI_REPLAY_VALUES, .owner = g_cli_debug_owner);
         for (unsigned int at = 0u; at < value_count; at += 1u)
         {
             if ((cellul.len(&(CatenaFinitaCfg){.src = values[at].name, .cap = CLI_POOL_BYTES}) == length) &&

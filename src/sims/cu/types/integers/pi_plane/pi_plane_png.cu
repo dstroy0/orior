@@ -27,13 +27,13 @@ static void plane_put_word(std::vector<unsigned char> *out, unsigned int word)
 
 static void plane_chunk(std::vector<unsigned char> *out, const char *type, const std::vector<unsigned char> &data)
 {
-    // a chunk contains at most one picture, far below 2^31 bytes
+    // a chunk contains at max one picture, far below 2^31 bytes
     plane_put_word(out, (unsigned int)data.size());
     const size_t start = out->size();
-    for (unsigned int letter = 0u; letter < 4u; letter += 1u)
+    for (unsigned int character = 0u; character < 4u; character += 1u)
     {
-        // the chunk type is four ASCII letters
-        out->push_back((unsigned char)type[letter]);
+        // the chunk type is four ASCII characters
+        out->push_back((unsigned char)type[character]);
     }
     out->insert(out->end(), data.begin(), data.end());
     unsigned int crc = 0xFFFFFFFFu;
@@ -141,7 +141,7 @@ int plane_sparse_picture(const PlaneExtent &extent, const unsigned char *bits, c
         }
         for (unsigned long long walked = 0ull; walked < found.length; walked += 1ull)
         {
-            // the walk is at most the line's length, below 2^15
+            // the walk is at max the line's length, below 2^15
             const long long row = (index / width) + ((long long)walked * found.step.row);
             const long long column = (index % width) + ((long long)walked * found.step.column);
             if ((row >= 0ll) && (row < height) && (column >= 0ll) && (column < width))

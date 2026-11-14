@@ -104,9 +104,9 @@ def runs(forms, width):
 def radix(north, south, width):
     """The runs that sit either side of the border once the shared structure is flattened out.
 
-    Both varieties are the same language. Most of what a distribution over their runs measures is
+    Both varieties are the same language. The majority of what a distribution over their runs measures is
     what they have in common, and at this corpus size that shared mass swamps the difference. Raising
-    the pooled counts to maximum entropy is what takes it out: every run is weighed against where the
+    the pooled counts to max entropy is what takes it out: every run is weighed against where the
     pooled total alone would have put it, and a run carrying no border information contributes
     nothing however common it is, and what is left in a cell is the part one variety has and the
     other does not.
@@ -155,12 +155,12 @@ def shared_concepts(grouped, marks):
     Holding the concept fixed tells them apart. A concept here is a content word of the
     gloss, the word web's concept edge, and a run difference measured over forms that name
     the same concept in both varieties is a difference in how the variety says it. Returns the two
-    filtered form lists and how many concepts they stand on.
+    filtered form lists and how many concepts they are on.
     """
     by_side = {}
     for name in BORDER:
         held = collections.defaultdict(set)
-        for where, who, kind, form, gloss in grouped.get(name, ()):
+        for where, who, type, form, gloss in grouped.get(name, ()):
             pieces = [one for one in form.split() if is_language_token(one, marks[name])]
             if not pieces:
                 continue
@@ -287,9 +287,9 @@ def main():
             out.write("    %-16s %s\n" % (label, "no distance to resolve"))
             continue
         growth = (2.0 * floor / apart) ** 2.0
-        standing = len(" ".join(north + south).encode("utf-8"))
+        located = len(" ".join(north + south).encode("utf-8"))
         out.write("    %-16s %-10.1fx %-10d %d bytes\n"
-                  % (label, growth, standing, max(0, int(standing * (growth - 1.0)))))
+                  % (label, growth, located, max(0, int(located * (growth - 1.0)))))
 
     out.write("\n  the blind partition, scored against the published border\n")
     out.write("    %-16s %-12s %-12s %s\n" % ("measure", "recovered", "chance", "verdict"))
@@ -301,7 +301,7 @@ def main():
                   % (label, share, chance, "beats chance" if share > chance else "no better"))
 
     out.write("\n  the radix: single runs that sit either side of the border, pooled counts\n")
-    out.write("  flattened to maximum entropy first so what both varieties share drops out\n")
+    out.write("  flattened to max entropy first so what both varieties share drops out\n")
     out.write("    %-8s %-9s %-9s %-9s %s\n"
               % ("width", "runs", "found", "by chance", "verdict"))
     carried = []
@@ -322,9 +322,9 @@ def main():
                       % (width, run, deviate, seen_first, seen_second))
         out.write("\n    a run with a positive deviate is northern, a negative one southern\n")
 
-    held_north, held_south, standing = shared_concepts(grouped, marks)
-    out.write("\n  the same question with the concept kept fixed, over the %d concepts both\n"
-              % standing)
+    held_north, held_south, located = shared_concepts(grouped, marks)
+    out.write("\n  the same question with the concept retained fixed, over the %d concepts both\n"
+              % located)
     out.write("  varieties name, and a run difference is the variety and not a different word\n")
     out.write("    %-8s %-9s %-9s %-9s %-9s %s\n"
               % ("width", "north", "south", "runs", "found", "by chance"))
@@ -344,7 +344,7 @@ def main():
             out.write("    %-8d %-10s %-10.2f %-9d %d\n"
                       % (width, run, deviate, seen_first, seen_second))
     else:
-        out.write("\n    nothing clears the threshold once the concept is kept fixed. What the\n")
+        out.write("\n    nothing clears the threshold once the concept is retained fixed. What the\n")
         out.write("    uncontrolled radix above found is which words were cited and not how a\n")
         out.write("    variety says them\n")
 
@@ -408,7 +408,7 @@ def main():
                   % (width, real, sum(counts) / float(len(counts)), max(counts), beaten,
                      PERMUTATIONS))
 
-    out.write("\n  the labels were read from the who column and never shown to the partition\n")
+    out.write("\n  the labels were read from the who column and never displayed to the partition\n")
     out.flush()
     return 0
 

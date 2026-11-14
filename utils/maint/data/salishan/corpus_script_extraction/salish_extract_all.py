@@ -2,7 +2,7 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# Pull every line of Salish text out of every extracted paper stored here, keeping all of it.
+# Pull every line of Salish text out of every extracted paper stored here, retention all of it.
 #
 #   Usage:  python maint/data/salishan/corpus_script_extraction/salish_extract_all.py
 #
@@ -85,7 +85,7 @@ def main():
     rows = 0
 
     with open(target, "w", encoding="utf-8", newline="") as handle:
-        handle.write("paper\tpage\tline\tkind\ttext\n")
+        handle.write("paper\tpage\tline\ttype\ttext\n")
         for name in sorted(os.listdir(PAPERS)):
             if not name.endswith(".txt"):
                 continue
@@ -107,10 +107,10 @@ def main():
                     continue
                 if not any(symbol in trimmed for symbol in MARKED):
                     continue
-                kind = classify(trimmed)
+                type = classify(trimmed)
                 handle.write("%s\t%d\t%d\t%s\t%s\n"
-                             % (name[:-4], page, number, kind, trimmed))
-                counted[kind] = counted.get(kind, 0) + 1
+                             % (name[:-4], page, number, type, trimmed))
+                counted[type] = counted.get(type, 0) + 1
                 held += 1
                 rows += 1
             if held:
@@ -118,11 +118,11 @@ def main():
 
     out.write("  %d papers contained Salish characters, %d lines written to\n" % (papers, rows))
     out.write("  %s\n" % target)
-    out.write("\n  %-12s %s\n" % ("kind", "lines"))
-    for kind in sorted(counted, key=lambda key: -counted[key]):
-        out.write("  %-12s %d\n" % (kind, counted[kind]))
+    out.write("\n  %-12s %s\n" % ("type", "lines"))
+    for type in sorted(counted, key=lambda key: -counted[key]):
+        out.write("  %-12s %d\n" % (type, counted[type]))
     out.write("\n  nothing was dropped. A line that holds the marked characters is in the file\n")
-    out.write("  with the paper, page and line it came from, and the kind is a note on it\n")
+    out.write("  with the paper, page and line it came from, and the type is a note on it\n")
 
     out.flush()
     return 0

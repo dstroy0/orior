@@ -49,12 +49,12 @@ Without correspondences the warp is estimated directly from intensities. Lucas a
 alignment, reviewed in a unifying framework by Baker and Matthews~\cite{src:Baker-and-Matthews-2004}, treats translation, affine and
 homography warps alike: it linearizes the image around the current warp and updates the parameters
 by gradient descent. The inverse compositional form precomputes the expensive terms once, on the
-template, and is the efficient variant most extensions can use without losing that efficiency.
+template, and is the efficient variant max extensions can use without losing that efficiency.
 
 \section{Rigid registration from point constellations}
 
 Where views differ by a large rotation, intensity based alignment loses its capture range and point
-based registration keeps it. One published method~\cite{src:Preibisch-Saalfeld-Schindelin-and-Tomancak-2010}, built for multi-view volumetric microscopy,
+based registration retains it. One published method~\cite{src:Preibisch-Saalfeld-Schindelin-and-Tomancak-2010}, built for multi-view volumetric microscopy,
 embeds fiducial points and matches their constellations with a local geometric descriptor invariant
 to translation and rotation, reaching an average displacement of about one pixel. Because it depends
 only on repeatable point detections it is more robust than intensity based registration and orders of

@@ -18,7 +18,7 @@ extern void test_tomls_tables_are_read(void);
 extern void test_markdowns_headings_are_read_none_in_code(void);
 extern void test_texs_sections_are_read(void);
 extern void test_scores_rank_the_name_itself_first(void);
-extern void test_a_words_start_ranks_over_letters(void);
+extern void test_a_words_start_ranks_over_characters(void);
 extern void test_a_query_that_names_none_does_not_answer(void);
 
 
@@ -91,7 +91,7 @@ int main(void)
   run_test(test_markdowns_headings_are_read_none_in_code, "test_markdowns_headings_are_read_none_in_code", 134);
   run_test(test_texs_sections_are_read, "test_texs_sections_are_read", 139);
   run_test(test_scores_rank_the_name_itself_first, "test_scores_rank_the_name_itself_first", 144);
-  run_test(test_a_words_start_ranks_over_letters, "test_a_words_start_ranks_over_letters", 157);
+  run_test(test_a_words_start_ranks_over_characters, "test_a_words_start_ranks_over_characters", 157);
   run_test(test_a_query_that_names_none_does_not_answer, "test_a_query_that_names_none_does_not_answer", 162);
 
   return UNITY_END();

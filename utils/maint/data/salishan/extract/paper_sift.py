@@ -7,7 +7,7 @@ usage: python paper_sift.py <stem> <authors> <language>
 2. That English is the target. Its byte pairs become the English anchor and its words the English
    vocabulary, and every line is sorted again against it. What the paper's own English does not
    account for is the language, a gloss tier, or residue.
-3. The alphabet is every character that sits mostly outside the paper's English: letters of the
+3. The alphabet is every character that sits mostly outside the paper's English: characters of the
    language on one side and gloss-label small capitals on the other.
 4. The word web is built with word_web.web() over the language tokens, each carrying the English
    translation or quoted gloss beside it as its concept, the example it sits in as its context.
@@ -48,20 +48,20 @@ QUOTED = re.compile(r"‘([^’]+)’")
 EDGES = "‘’“”\"'()[]{},.;:!?*"
 WORD = re.compile(r"[A-Za-z]+")
 CAPS_LABEL = re.compile(r"[A-Z]{2,}|\b[123](?:SG|PL|DU|sg|pl)\b|(?:^|[-=.])[123]?[A-Z]{2,}")
-# The judgement mark can sit against the letter, b.*xʷúy̓ in Steiner and Matthewson's (7).
+# The judgement mark can sit against the character, b.*xʷúy̓ in Steiner and Matthewson's (7).
 SUB = re.compile(r"^([a-mA-D])\.(?:(?:\s+|(?=[*#?]))(.*))?$")
 # The cells of a comparative table row: ⟨definition⟩, {romanized shorthand}, [*reconstruction] or
 # [phonetic], /phonemic/, ‘gloss’, and a parenthetical. What sits between cells is a bare form, a
 # language label such as Th, or a dash for an empty column.
 # An infix inside a word, t̓<ʔ>ʕas in Lyon's tables, is part of the form: a cell in angle brackets
 # opens after a space.
-# A gloss runs to the quote that no letter follows: ‘herbalist’s song’ is one cell, and a gloss in
-# straight quotes, 'idem', stands between spaces. A parenthesis is a cell where it stands apart, and
+# A gloss runs to the quote that no character follows: ‘herbalist’s song’ is one cell, and a gloss in
+# straight quotes, 'idem', is between spaces. A parenthesis is a cell where it is apart, and
 # the (ə) of kw(ə)l is part of the form.
 CELL = re.compile(r"(?<!\S)<[^<>]*>|⟨[^⟩]*⟩|\{[^}]*\}|(?<![^\W\d_])\[[^\]]*\]|\[[^\]]*\](?![^\W\d_/])|/[^/‘’“”]+/"
                   r"|[‘“](?:[^’”]|[’”](?=[^\W\d_]))*[’”]|(?<!\S)'[^']+'(?!\S)"
                   r"|(?<!\S)\((?:[^()]|\([^()]*\))*\)(?![^\W\d_•])")
-# A cell stands between spaces. The brackets inside qʷincút-m[in]-[t]-Ø-[e]ne mark sounds of a
+# A cell is between spaces. The brackets inside qʷincút-m[in]-[t]-Ø-[e]ne mark sounds of a
 # segmentation, and a line of those is a tier.
 NOTATION_CELL = re.compile(r"(?<![^\s(])(?:<[^<>]*>|⟨[^⟩]*⟩|\{[^}]*\}|\[[^\]]*\]|/[^/‘’“”\s][^/‘’“”]*/)(?=[\s,;.\d)’]|$)")
 TABLE = re.compile(r"^(Table \d+):\s*(.*)$")
@@ -70,7 +70,7 @@ STAMP = re.compile(r"\s*\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*$")
 STAMP_ONLY = re.compile(r"^\s*\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*$")
 # What opens a display the authors analyze with and nobody said: a rule, a tree, a derivation.
 # A denotation, ⟦√ɬʕat̓⟧ = m = λdλxλs.[wet(x,s)] ≥ d, is a display of the author's, and so is a
-# lambda term standing alone, a. λsλe.[BECOME(e,s) ∧ P(x,s)]. A reading written with a lambda
+# lambda term located alone, a. λsλe.[BECOME(e,s) ∧ P(x,s)]. A reading written with a lambda
 # inside a sentence, Only Peter λx[x claimed x is the winner] in Davis, is no denotation.
 DENOTATION = re.compile(r"⟦|^(?:[a-j]\.\s*)?λ")
 # A denotation goes on over a line that closes its bracket, CS⟧ = inch = λg ∈ DmΔ ..., or carries
@@ -105,16 +105,16 @@ def ordinary_english():
     return _ORDINARY[0]
 
 
-def same_letters(one, other, ratio=0.8):
-    """True where two lines define nearly the same letters once marks, breaks and spaces are set aside.
+def same_characters(one, other, ratio=0.8):
+    """True where two lines define nearly the same characters once marks, breaks and spaces are set aside.
 
     A segmentation can write an allomorph its tier does not, tue squamish over tw=e=squamish, and
-    four letters in five alike is enough.
+    four characters in five alike is enough.
     """
-    def letters(text):
+    def characters(text):
         return "".join(symbol for symbol in unicodedata.normalize("NFD", text.lower())
                        if symbol.isalpha())
-    first, second = letters(one), letters(other)
+    first, second = characters(one), characters(other)
     return len(first) >= 2 and difflib.SequenceMatcher(None, first, second).ratio() >= ratio
 
 
@@ -137,7 +137,7 @@ def main():
         if found:
             page = int(found.group(1))
             continue
-        # The printed page number on a line of its own is the running foot instead of text. Kept, it
+        # The printed page number on a line of its own is the running foot instead of text. Retained, it
         # ended every example that crossed a page.
         if text and not re.match(r"^\d{1,4}$", text):
             lines.append((number, page, text))
@@ -150,7 +150,7 @@ def main():
 
     # 2. The paper's English is the target now. Alone it is too small an anchor: surprise() smooths
     # over all 2^16 cells, and a 30 kB reference charges an unseen pair little more than a seen one,
-    # which sorted the gloss tiers as English. It is laid over the general reference instead,
+    # which sorted the gloss tiers as English. It is positioned over the general reference instead,
     # weighted so the paper's own words and typography dominate.
     own, own_total = counts_of(paper_english)
     merged = dict(english[0])
@@ -173,16 +173,16 @@ def main():
                                          or unicodedata.category(symbol) in ("Lm", "Sk")
                                          or symbol == "∅"):
                 bucket[symbol] += 1
-    letters = []
+    characters = []
     labels = []
     for symbol in sorted(set(inside) | set(outside)):
         share = outside[symbol] / float(outside[symbol] + inside[symbol])
-        (labels if label_char(symbol) else letters).append((symbol, outside[symbol],
+        (labels if label_char(symbol) else characters).append((symbol, outside[symbol],
                                                             inside[symbol], share))
-    alphabet = "".join(one[0] for one in letters)
+    alphabet = "".join(one[0] for one in characters)
     label_set = set(one[0] for one in labels)
 
-    def token_kind(token):
+    def token_type(token):
         plain = token.strip(EDGES)
         if not plain or not any(one.isalpha() for one in plain):
             return "", plain
@@ -213,7 +213,7 @@ def main():
         """The language an example's heading names before its colon, or None.
 
         Davis and Nederveen head each example with the language it is from, (13) nɬeʔkempxcín:
-        t-marked COS verbs are unaccusative. The name carries a letter of the alphabet, which keeps
+        t-marked COS verbs are unaccusative. The name carries a character of the alphabet, which retains
         Intended: and Context: out.
         """
         named = re.match(r"^([^\W\d_][^\s:‘“]*):\s+[^‘“'\s]", text)
@@ -274,22 +274,22 @@ def main():
         body = re.sub(r"^cf\.\s*", "", body)
         if body.strip() == "or":
             return True
-        # A row can stand for two lines of the example, (c) & (f) √lheel hun'lheelt.
+        # A row can are for two lines of the example, (c) & (f) √lheel hun'lheelt.
         label = re.match(r"^\(([a-n]|[ivx]+)\)(?:\s*&\s*\([a-n]\))*\s*", body)
         if label:
             body = body[label.end():]
-            letter = label.group(1)
-            # (i) after (h) is a letter. Under a letter it numbers the morphemes of one form.
+            character = label.group(1)
+            # (i) after (h) is a character. Under a character it numbers the morphemes of one form.
             # A table can name one line twice, (a) √q'ay then (a) √q'ay, or come back to it after
-            # another, and its rows count on under that letter.
-            if len(letter) == 1 and (letter != "i" or example[6] == "h") and letter != example[6]:
+            # another, and its rows count on under that character.
+            if len(character) == 1 and (character != "i" or example[6] == "h") and character != example[6]:
                 if len(example) == 7:
                     example.append({})
                 if example[6]:
                     example[7][example[6]] = example[1]
-                example[0] = re.sub(r"[a-n]$", "", example[0]) + letter
-                example[1] = example[7].get(letter, 0)
-                example[6] = letter
+                example[0] = re.sub(r"[a-n]$", "", example[0]) + character
+                example[1] = example[7].get(character, 0)
+                example[6] = character
             # The label opens a row, and the row can go on from the next line, (a) over
             # √ts'ew ts'uwuthamu c̓əw-əθamə.
             example[3] = True
@@ -317,7 +317,7 @@ def main():
         # √kwun kwunnuhwut kʷən-nəxʷ-ət in Schneider-Gerdts, is not.
         # A plain word the paper's English does not hold is a gloss word too, sleep<DIM>.
         glossed = under and all(
-            token_kind(piece)[0] in ("english", "label") or not re.search(r"[^\W\d_]", piece) or
+            token_type(piece)[0] in ("english", "label") or not re.search(r"[^\W\d_]", piece) or
             re.fullmatch(r"[a-z]+", piece)
             for piece in re.split(r"[\s\-=.<>~{}+/]+", under.group(1)) if piece) and \
             "√" not in under.group(1)
@@ -335,7 +335,7 @@ def main():
                              "page %d, the source of the row above" % page))
             return True
         words = body.split()
-        kinds = [token_kind(one)[0] for one in words]
+        types = [token_type(one)[0] for one in words]
         # A dash for an empty cell, alone on its line.
         if example[3] and not any(one.isalpha() for one in body):
             return True
@@ -355,8 +355,8 @@ def main():
                 return True
             # The morpheme gloss under a row, LOC-look-house, or the end of a row wrapped onto a
             # line of its own, qw.
-            if example[3] and len(words) <= 8 and "label" in kinds and \
-                    kinds.count("label") >= kinds.count("english"):
+            if example[3] and len(words) <= 8 and "label" in types and \
+                    types.count("label") >= types.count("english"):
                 example[1] += 1
                 rows.append((cell_where(example), language, "gloss", body,
                              "page %d, engine %s" % (page, verdict)))
@@ -368,7 +368,7 @@ def main():
                 rows.append((cell_where(example), language, "gloss", body,
                              "page %d, engine %s" % (page, verdict)))
                 return True
-            if example[3] and len(words) <= 3 and "english" not in kinds:
+            if example[3] and len(words) <= 3 and "english" not in types:
                 rows.append((cell_where(example), language, "transcription", body,
                              "page %d, the end of the row above, set on its own line" % page))
                 return True
@@ -377,7 +377,7 @@ def main():
         outside = CELL.sub(" ", body)
         if body.rstrip().endswith(".") or sum(
                 1 for one in outside.split() if re.fullmatch(r"[A-Za-z’']{3,}[,.;:]?", one)
-                and token_kind(one)[0] == "english") > 3:
+                and token_type(one)[0] == "english") > 3:
             return False
         example[1] += 1
         example[3] = True
@@ -389,7 +389,7 @@ def main():
             for gap in re.finditer(r"(\s*)(\S+)", body[at:found.start()]):
                 items.append((gap.group(1), gap.group(2), None))
             # The space just before the cell, or the whole gap where it is only punctuation, and
-            # /xéʔ(e)/, /xʔe/ keeps its comma.
+            # /xéʔ(e)/, /xʔe/ retains its comma.
             gap = body[at:found.start()]
             separator = gap if not gap.strip(" ,;") else gap[len(gap.rstrip()):]
             after = re.match(r"(\d{1,2})(?=[\s,;]|$)", body[found.end():])
@@ -410,14 +410,14 @@ def main():
                 return example[4][column]
             return language
 
-        def place(kind, separator):
+        def place(type, separator):
             nonlocal column
             wide = bool(re.search(r"\s{2,}", separator))
             # A form after the English column opens the next column however close it is set:
             # ‘strap or band for packing’ tl’oolh12.
-            after_english = previous == "‘" and kind != "‘" and example[4] and \
+            after_english = previous == "‘" and type != "‘" and example[4] and \
                 column < len(example[4]) and example[4][column] is None
-            if previous is not None and (wide or after_english or (kind == "/" and previous == "/"
+            if previous is not None and (wide or after_english or (type == "/" and previous == "/"
                                                                    and "," not in separator)):
                 column += 1
 
@@ -425,7 +425,7 @@ def main():
             if not run:
                 return
             # A practical orthography and a phonemic column one space apart, q’aytum q̓ay-t-əm, are
-            # two cells: the run breaks where its words start carrying letters of the phonemic
+            # two cells: the run breaks where its words start carrying characters of the phonemic
             # alphabet. An accented vowel, í of tsedutní, is not one of those.
             def phonemic(token):
                 return any(one in alphabet and not unicodedata.normalize("NFD", one)[0].isascii()
@@ -452,12 +452,12 @@ def main():
             # one, perhaps ~. Anything else between the cells is a form: ren púp̓smen, -éc ~ -c,
             # ɣ : x, and ll or kw.
             english_words = [one for one in text.split() if re.fullmatch(r"[A-Za-z]{2,}", one)
-                             and token_kind(one)[0] == "english"]
+                             and token_type(one)[0] == "english"]
             # The run after a root in its row is the form built on it, √thuy thuytus.
             is_form = text.startswith("√") or (rows and rows[-1][2] == "root" and rows[-1][0] == where) \
                 or (len(english_words) < 2 and not any(len(one) >= 5 for one in english_words))
-            kind = "note" if not is_form else ("root" if text.startswith("√") else "transcription")
-            rows.append((where, who_now() if is_form else authors, kind, text,
+            type = "note" if not is_form else ("root" if text.startswith("√") else "transcription")
+            rows.append((where, who_now() if is_form else authors, type, text,
                          "page %d, %s" % (page, "the orthography" if is_form else "between the cells")))
 
         for separator, text, note in items:
@@ -498,13 +498,13 @@ def main():
             if text[0] == "(":
                 rows.append((where, authors, "note", text, "page %d%s" % (page, mark)))
                 continue
-            for opens, kind, described in CELL_KINDS:
+            for opens, type, described in CELL_KINDS:
                 if text.startswith(opens):
                     place(opens[0], separator)
                     previous = opens[0]
-                    rows.append((where, who_now(), kind, text,
+                    rows.append((where, who_now(), type, text,
                                  "page %d, %s%s" % (page, described, mark)))
-                    web_rows.append([where, who_now(), kind, text, ""])
+                    web_rows.append([where, who_now(), type, text, ""])
                     break
         close_run()
         return True
@@ -528,7 +528,7 @@ def main():
     def glossed_below(at_line, reach=6):
         """True where one of the next lines is shaped as a gloss tier or opens a translation.
 
-        A language written in plain letters, Gitksan's dim hadiks ’nii’y, reads as English line by
+        A language written in plain characters, Gitksan's dim hadiks ’nii’y, reads as English line by
         line, and an example of it is known by the author's format instead: a line of gloss labels,
         PROSP swim 1SG.PRON, a third of its pieces capital labels, or a line opening on a quote."""
         for one in lines[at_line + 1:at_line + 1 + reach]:
@@ -541,12 +541,12 @@ def main():
     def tiers_below(at_line):
         """True where the next three lines are a sentence, its segmentation and its glosses.
 
-        The sentence can carry its sub-letter, a. Hlaa yukw dim hlisxwi'y., and its segmentation
+        The sentence can carry its sub-character, a. Hlaa yukw dim hlisxwi'y., and its segmentation
         define the stems apart, yugwit over yukw-@t."""
         if at_line + 3 >= len(lines):
             return False
         sentence = lines[at_line + 1][2]
-        return not EXAMPLE.match(sentence) and same_letters(re.sub(r"^[a-j]\.\s+[*#?]*", "", sentence), lines[at_line + 2][2], 0.6) and \
+        return not EXAMPLE.match(sentence) and same_characters(re.sub(r"^[a-j]\.\s+[*#?]*", "", sentence), lines[at_line + 2][2], 0.6) and \
             gloss_shaped(lines[at_line + 3][2], 4) and not gloss_shaped(sentence)
 
     def gloss_shaped(text, share=3):
@@ -558,7 +558,7 @@ def main():
             any(len(piece) >= 2 and not piece.isdigit() for piece in capitals)
 
     def closing_ahead(at_line):
-        """True where one of the next three lines closes a translation, before a new letter."""
+        """True where one of the next three lines closes a translation, before a new character."""
         for one in lines[at_line + 1:at_line + 4]:
             if SUB.match(one[2]) or EXAMPLE.match(one[2]):
                 return False
@@ -573,49 +573,49 @@ def main():
             del paragraph[:]
 
     offered = set()
-    def offer(text, body, kinds, number, page, verdict):
+    def offer(text, body, types, number, page, verdict):
         """Offer the language forms of one line of prose or of a footnote as cited form candidates."""
-        for raw, (kind, plain) in zip(body.split(), kinds):
-            # A form of a practical orthography in plain letters, cited in the prose: a root,
+        for raw, (type, plain) in zip(body.split(), types):
+            # A form of a practical orthography in plain characters, cited in the prose: a root,
             # √qw’aqw, or a word carrying ’ for the glottal stop, qw’qwuy’al’stun. An English
-            # contraction, don’t or Hukari’s, is not one. Its ’ at either end is a letter,
+            # contraction, don’t or Hukari’s, is not one. Its ’ at either end is a character,
             # √nuw’ and ’i’mush, and a parenthesis in it is part of it, √t’il(um).
-            if kind != "language" and section != "references" and (
+            if type != "language" and section != "references" and (
                     re.match(r"^√\S", plain) or
                     re.search(r"(?:^|[^\W\d_])’(?!(?:s|t|re|ll|ve|d|m)$)[^\W\d_]", plain)):
-                kind = "language"
+                type = "language"
                 plain = raw.strip("“”\"[]{},.;:!?*‘")
                 if plain.count(")") > plain.count("("):
                     plain = plain.rstrip(")")
                 if plain.count("(") > plain.count(")"):
                     plain = plain.lstrip("(")
                 plain = plain.rstrip(",.;:!?")
-            # A form with no mark at all, glossed where it stands, snuhwulhshun ‘car tire’: a word
+            # A form with no mark at all, glossed where it is, snuhwulhshun ‘car tire’: a word
             # in lower case the paper's English barely uses, its gloss in quotes right after it.
             # English sets means ‘mat’ and hyphen ‘-’ the same way. A word ordinary English writes,
             # in the four megabytes of it the engine's English reference is built from, is English.
-            elif kind in ("unknown", "english") and section != "references" and \
+            elif type in ("unknown", "english") and section != "references" and \
                     plain.lower() not in ordinary_english() and \
                     re.fullmatch(r"[a-z][a-z.\-]{2,}", plain) and vocabulary[plain.lower()] <= 3 and \
                     re.search(r"(?<!\S)%s[,]?\s{1,2}‘" % re.escape(plain), text):
-                kind = "language"
-            # A form that opens on an optional segment keeps its parenthesis, (u)ʔéx or (ʔa)kɬ-.
-            if kind == "language" and plain.count(")") > plain.count("(") and \
+                type = "language"
+            # A form that opens on an optional segment retains its parenthesis, (u)ʔéx or (ʔa)kɬ-.
+            if type == "language" and plain.count(")") > plain.count("(") and \
                     raw.lstrip("‘“\"[*").startswith("(") and not plain.startswith("("):
                 plain = "(" + plain
-            # A form that closes on an optional segment keeps its parenthesis, u(ʔ) or ˬ…k(a). An
+            # A form that closes on an optional segment retains its parenthesis, u(ʔ) or ˬ…k(a). An
             # example number, √a̱x̱(44), and a formula, HDA(μ) or λxλs.P(x)(s), are no segment.
-            if kind == "language" and plain.count("(") > plain.count(")") and \
+            if type == "language" and plain.count("(") > plain.count(")") and \
                     raw.rstrip("“”\"’.,;:!?*").endswith(")") and not plain.endswith(")") and \
                     re.search(r"\((?:[-/]?[^\W\d_][̀-ͯ’ʷ]*){1,3}$", plain) and \
                     not re.search(r"[Ͱ-Ͽ∃∀Δ]", plain) and \
                     not re.match(r"^[A-Za-z]{2,}\(", plain):
                 plain = plain + ")"
-            # And one that opens on a deleted segment keeps its bracket, [e]=sk̓ʷák̓ʷest.
-            if kind == "language" and plain.count("]") > plain.count("[") and \
+            # And one that opens on a deleted segment retains its bracket, [e]=sk̓ʷák̓ʷest.
+            if type == "language" and plain.count("]") > plain.count("[") and \
                     raw.lstrip("‘“\"(*").startswith("[") and not plain.startswith("["):
                 plain = "[" + plain
-            if kind == "language" and (section, plain) not in offered:
+            if type == "language" and (section, plain) not in offered:
                 offered.add((section, plain))
                 following = ""
                 at = text.find(plain)
@@ -626,13 +626,13 @@ def main():
                              "candidate, page %d%s" % (page, (", ‘%s’" % following)
                                                        if following else "")))
                 web_rows.append([section, language, "cited form", plain, following])
-            if kind == "unknown" and verdict != "english":
+            if type == "unknown" and verdict != "english":
                 leftover.append((number, page, verdict, plain, text))
 
     # Every text layer defect this run repairs or finds, for defects.tsv.
     fixed = []
     last_example = None
-    last_letter = {}
+    last_character = {}
     footnote_page = None
     footnote_row = None
     footnote_last = 0
@@ -669,7 +669,7 @@ def main():
             last_example = example
         heading = HEADING.match(text)
         # A heading can be in the language, 3 nɬeʔkepmxcín. It is known by its number coming
-        # after the section before it, which keeps a footnote or an abbreviation row out.
+        # after the section before it, which retains a footnote or an abbreviation row out.
         if heading:
             order = tuple(int(one) for one in heading.group(1).split("."))
             current = tuple(int(one) for one in section[1:].split(".")) \
@@ -735,8 +735,8 @@ def main():
         row_opens = bool(opened) and bool(NOTATION_CELL.search(opened.group(2))) and \
             bool(re.search(r"[‘“][^’”]*[’”]", opened.group(2)))
         caption = bool(opened) and (verdict == "english" or sum(
-            1 for one in opened.group(2).split() if token_kind(one)[0] == "english") >= 3 or not any(
-            token_kind(one)[0] == "language" for one in opened.group(2).split()))
+            1 for one in opened.group(2).split() if token_type(one)[0] == "english") >= 3 or not any(
+            token_type(one)[0] == "language" for one in opened.group(2).split()))
         # A list of one language's words is no table, a. Secwepemctsín adjectives formed with -t
         # over ƛ̓əx-t ‘sweet’ in Davis and Nederveen's (2).
         listed_below = bool(opened) and at_line + 1 < len(lines) and \
@@ -756,14 +756,14 @@ def main():
         if opened and TABLE.match(text) and not table_below:
             opened = None
         # An enumeration in the prose, (ii) cakʷ is unnecessary..., opens a line the way an example
-        # does. The engine calls it English and it has no context, no letter and little language.
+        # does. The engine calls it English and it has no context, no character and little language.
         if opened and verdict == "english" and not DISPLAY.search(opened.group(2)) and \
                 not any(DENOTATION.search(one[2]) for one in lines[at_line:at_line + 3]) and \
                 not table_below and \
                 not re.match(r"^[√#?*%]*\s*(context|[a-j]\.)", opened.group(2).lower()) and \
                 not any(second[one[0]] != "english" for one in lines[at_line + 1:at_line + 4]) and \
                 not glossed_below(at_line):
-            share = [token_kind(one)[0] for one in opened.group(2).split()]
+            share = [token_type(one)[0] for one in opened.group(2).split()]
             if share.count("language") < 0.3 * max(1, len(share)):
                 opened = None
         # "in (14)." at the start of a line closes a sentence and opens nothing, and neither does
@@ -776,7 +776,7 @@ def main():
             opened = None
         # (1) tabulates these: in the middle of a sentence refers to the example; it is not one.
         # An example in a practical orthography opens in lower case too, (2) a. ’e.e.ey’ tthu, set
-        # with its letter or a wide gap after the number, and the line above can close on a
+        # with its character or a wide gap after the number, and the line above can close on a
         # footnote mark, bolded.3.
         # A heading in lower case over its tiers opens one after a tag, (30) dim > ii under (BS).
         if opened and at_line and opened.group(2)[:1].islower() and verdict == "english" and \
@@ -815,7 +815,7 @@ def main():
             body = opened.group(2)
             if table_below:
                 # [.., columns, the half of a row whose ⟨ or { closes on the next line, the last
-                # letter of a row labeled (a), (b)]
+                # character of a row labeled (a), (b)]
                 example = [opened.group(1), 0, "cells", None, [], "", None]
                 # A caption set in columns heads them, (4)   Nicola  English    Dakelh10.
                 if row_opens or (body and len(re.split(r"\s{2,}", body.strip())) >= 2):
@@ -851,8 +851,8 @@ def main():
                 if sub and sub.group(2):
                     base = re.sub(r"[a-mA-D]$", "", example[0])
                     example = [base + sub.group(1), 0, "display", None]
-                    last_letter.pop(base, None)
-                    last_letter[base] = sub.group(1)
+                    last_character.pop(base, None)
+                    last_character[base] = sub.group(1)
                     body = sub.group(2)
                 example[1] += 1
                 rows.append(("(%s) line %d" % (example[0], example[1]), authors, "rule", body,
@@ -860,14 +860,14 @@ def main():
                 continue
             example = None
         # A lettered sub-example opens its own cycle: (3) a., then b., under one number. The next
-        # letter after the last sub-example reopens it, where a page break or a comment closed it.
+        # character after the last sub-example reopens it, where a page break or a comment closed it.
         # Comments set as a paragraph between two sub-examples, Comments on versions of (6): in
-        # Hill and Matthewson, close the example; the next letter reopens it when its segmentation
+        # Hill and Matthewson, close the example; the next character reopens it when its segmentation
         # and its glosses are the two lines below it.
         if example is None and last_example is not None:
             sub = SUB.match(body)
-            if sub and chr(ord(sub.group(1)) - 1) in last_letter.values() and (
-                    not paragraph or (at_line + 2 < len(lines) and same_letters(
+            if sub and chr(ord(sub.group(1)) - 1) in last_character.values() and (
+                    not paragraph or (at_line + 2 < len(lines) and same_characters(
                         re.sub(r"^[*#?/\s]*", "", sub.group(2) or ""),
                         re.sub(r"^[*#?/\s]*", "", lines[at_line + 1][2]), 0.6) and
                         gloss_shaped(lines[at_line + 2][2], 4))):
@@ -878,34 +878,34 @@ def main():
             sub = SUB.match(body) if footnote_page != page else None
             # i. under a. in a table is a roman numeral, (6) a. strong suffix > strong root, i. ...
             if sub and example[2] == "cells" and sub.group(1) == "i" and \
-                    last_letter.get(re.sub(r"[a-mA-D]$", "", example[0])) != "h":
+                    last_character.get(re.sub(r"[a-mA-D]$", "", example[0])) != "h":
                 body = sub.group(2) or ""
                 sub = None
                 if not body:
                     continue
             if sub:
                 number_only = re.sub(r"[a-mA-D]$", "", example[0])
-                letter = sub.group(1)
-                # The example whose last letter comes just before this one. Lyon sets (ii) between
+                character = sub.group(1)
+                # The example whose last character comes just before this one. Lyon sets (ii) between
                 # (102d) and (102e), and e. belongs to (102).
-                if letter != "a" and last_letter.get(number_only) != chr(ord(letter) - 1):
-                    for base in reversed(list(last_letter)):
-                        if last_letter[base] == chr(ord(letter) - 1):
+                if character != "a" and last_character.get(number_only) != chr(ord(character) - 1):
+                    for base in reversed(list(last_character)):
+                        if last_character[base] == chr(ord(character) - 1):
                             number_only = base
                             break
-                last_letter.pop(number_only, None)
-                last_letter[number_only] = letter
+                last_character.pop(number_only, None)
+                last_character[number_only] = character
                 if example[2] == "cells":
-                    example = [number_only + letter, 0, "cells", None, example[4], "", letter]
+                    example = [number_only + character, 0, "cells", None, example[4], "", character]
                 else:
-                    example = [number_only + letter, 0, "context", None]
+                    example = [number_only + character, 0, "context", None]
                 body = sub.group(2) or ""
                 if not body:
                     continue
             spoken = SPEAKER.match(body) if example[2] != "cells" else None
             if spoken and spoken.group(1) in TRANSLATION_LABELS:
                 spoken = None
-            # Only a comment heading stands with nothing after its colon.
+            # Only a comment heading is with nothing after its colon.
             if spoken and spoken.group(2) is None and not spoken.group(1).startswith("Comment"):
                 spoken = None
             if spoken and example[2] in ("after", "tiers") and example[1] >= 2 \
@@ -915,8 +915,8 @@ def main():
                              re.sub(r" [Cc]omment$", "", spoken.group(1)),
                              "speaker comment", body, "page %d, engine %s" % (page, verdict)))
                 comment_number = number
-                for kind, plain in (token_kind(one) for one in (spoken.group(2) or "").split()):
-                    if kind == "language":
+                for type, plain in (token_type(one) for one in (spoken.group(2) or "").split()):
+                    if type == "language":
                         rows.append(("(%s)" % example[0], language, "cited form", plain,
                                      "in the speaker comment, page %d" % page))
                 # A speaker's comment closes the tiers the way a translation does: Steiner's
@@ -971,7 +971,7 @@ def main():
                 footnote_page = page
                 rows.append((section, authors, "note", body, "page %d, footnote" % page))
                 footnote_row = len(rows) - 1
-                offer(body, body, [token_kind(one) for one in body.split()], number, page, verdict)
+                offer(body, body, [token_type(one) for one in body.split()], number, page, verdict)
                 continue
             # Below one footnote, a line opening with a number is the next footnote.
             if mark and ((example is not None and example[2] != "after" and verdict == "english") or (paragraph and marked)
@@ -981,7 +981,7 @@ def main():
                 rows.append((section, authors, "note", body, "page %d, footnote" % page))
                 footnote_row = len(rows) - 1
                 # A footnote cites forms, names and languages as the prose does.
-                offer(body, body, [token_kind(one) for one in body.split()], number, page, verdict)
+                offer(body, body, [token_type(one) for one in body.split()], number, page, verdict)
                 if example is not None:
                     fixed.append((page, "footnote inside an example", body,
                                   "(%s) goes on below it" % example[0]))
@@ -992,7 +992,7 @@ def main():
                     not any(" line " in one[0] for one in rows[footnote_row + 1:]):
                 last = rows[footnote_row]
                 rows[footnote_row] = (last[0], last[1], last[2], last[3] + " " + body, last[4])
-                offer(body, body, [token_kind(one) for one in body.split()], number, page, verdict)
+                offer(body, body, [token_type(one) for one in body.split()], number, page, verdict)
                 continue
         closes = r"[’”]\W*(?:\([^()]*\)?\S*\s*)?$"
         # The translation still open at the foot of a page, with only the page's footnotes and a
@@ -1028,11 +1028,11 @@ def main():
             if emit_cells(example, body, page, verdict):
                 # A row head holds forms as the prose does: Feminine SG ɬə ɬ U+2014 in Kelly et al.
                 if rows and rows[-1][3] == body and rows[-1][4].endswith("heads the rows below"):
-                    offer(body, body, [token_kind(one) for one in body.split()], number, page, verdict)
+                    offer(body, body, [token_type(one) for one in body.split()], number, page, verdict)
                 continue
             example = None
-        kinds = [token_kind(one) for one in body.split()]
-        counted = collections.Counter(kind for kind, plain in kinds if kind)
+        types = [token_type(one) for one in body.split()]
+        counted = collections.Counter(type for type, plain in types if type)
         gloss_line = counted["label"] >= 1 and counted["label"] >= counted["language"]
         tier_like = (counted["language"] + counted["label"]) > 0 or verdict != "english"
         # A translation whose closing quote is on the next line: ... and what something seems / like.'
@@ -1120,14 +1120,14 @@ def main():
         if example is not None:
             label = "(%s)" % example[0]
             state = example[2]
-            kind = None
+            type = None
             previous = rows[-1][2] if rows and rows[-1][0].startswith(label + " line") else None
-            # A list of words by language, Davis and Nederveen's (1): a sub-letter names the
+            # A list of words by language, Davis and Nederveen's (1): a sub-character names the
             # language and its source, b. Secwepemctsín (Kuipers 1974:54-55), and each line under
             # it is a form, the root it is built on after <, and its gloss, páḷ<pəḷ>-t < √paḷ
             # ‘stubborn’. The forms are that language's.
             # The label can go on to say what the words are, a. Secwepemctsín adjectives formed
-            # with -t but without C1C2 reduplication in their (2); the name then carries a letter
+            # with -t but without C1C2 reduplication in their (2); the name then carries a character
             # of the alphabet.
             named = re.match(r"^([^\W\d_][^\s()]*?)\d{0,2}\s*(?:\([^()]*\d{4}[^()]*\))?\s*$", body)
             captioned = re.match(r"^([^\W\d_][^\s()]*)\s+[a-z][^‘“]*$", body)
@@ -1153,7 +1153,7 @@ def main():
                     footnote_last = int(numbered.group(1))
                     rows.append((section, authors, "note", body, "page %d, footnote" % page))
                     footnote_row = len(rows) - 1
-                    offer(body, body, [token_kind(one) for one in body.split()], number, page, verdict)
+                    offer(body, body, [token_type(one) for one in body.split()], number, page, verdict)
                     fixed.append((page, "footnote inside a list of words", body,
                                   "%s goes on below it" % label if list_resumes(at_line)
                                   else "%s ends above it" % label))
@@ -1163,7 +1163,7 @@ def main():
                 if footnote_row is not None and list_resumes(at_line):
                     last = rows[footnote_row]
                     rows[footnote_row] = (last[0], last[1], last[2], last[3] + " " + body, last[4])
-                    offer(body, body, [token_kind(one) for one in body.split()], number, page, verdict)
+                    offer(body, body, [token_type(one) for one in body.split()], number, page, verdict)
                     fixed.append((page, "footnote carried over inside a list of words", body,
                                   "%s goes on on the next page" % label))
                     continue
@@ -1182,8 +1182,8 @@ def main():
                     rows.append((where, word_lists[label], "root", root,
                                  "page %d, the root of %s" % (page, form)))
                 continue
-            # A line in a practical orthography of plain letters and apostrophes, suw’ thu.u.uytus
-            # ’imush, which the engine cannot tell from English: no letter of the phonemic
+            # A line in a practical orthography of plain characters and apostrophes, suw’ thu.u.uytus
+            # ’imush, which the engine cannot tell from English: no character of the phonemic
             # alphabet, and its words carry the glottal stop as ’ or are no English word. It is the
             # first line of an example, with a tier or a translation below it, or the next line
             # of an orthography line that wraps, ’u kwsus wulh kwunnuhwus. A first line can open
@@ -1196,40 +1196,40 @@ def main():
                                                     "that", "with", "by", "for", "as", "are",
                                                     "was", "which", "this", "it", "an", "be"))
             # A line of gloss labels, 𝟣ꜱɢ.ᴘᴏꜱꜱ=forget-ɴᴄᴛʀ, is no orthography.
-            plain_letters = counted["language"] == 0 and counted["label"] == 0 and \
+            plain_characters = counted["language"] == 0 and counted["label"] == 0 and \
                 not re.match(r"^[#?*%]*‘", body) and function_words < 2
             stops = len(re.findall(r"(?<![^\s“¶(])’\w|\w’(?!(?:s|t|re|ll|ve|d|m)\b)", body))
             # One is enough on the opening line of quoted speech, "lheel qwul'ilh lheel.
-            glottal = plain_letters and (stops >= 2 or (
+            glottal = plain_characters and (stops >= 2 or (
                 stops == 1 and body.startswith("“") and state == "after"))
-            orthographic = glottal or (plain_letters and counted["unknown"] * 2 >= max(1, len(kinds)))
-            # After a translation, more of the text under the same letter: the song of (32b),
+            orthographic = glottal or (plain_characters and counted["unknown"] * 2 >= max(1, len(types)))
+            # After a translation, more of the text under the same character: the song of (32b),
             # "lheel qwul'ilh lheel.
             if glottal and state == "after" and not re.search(r"[‘“][^’”]*$", rows[-1][3]):
                 orthographic = "after"
             orthographic = orthographic == "after" or (orthographic and state == "context" and example[1] == 0 and any(
                 second[one[0]] != "english" or re.match(r"^\s*[‘“]", one[2])
                 for one in lines[at_line + 1:at_line + 5])) or (
-                state == "tiers" and previous == "transcription" and plain_letters and
+                state == "tiers" and previous == "transcription" and plain_characters and
                 (orthographic or len(body.split()) <= 2))
-            # A tier and its segmentation define the same letters, e nicola lake over e=nicola lake,
+            # A tier and its segmentation define the same characters, e nicola lake over e=nicola lake,
             # whatever the words are: a name in a tier reads as English and is still a tier.
             following_line = lines[at_line + 1][2] if at_line + 1 < len(lines) else ""
             spells_next = state in ("context", "tiers") and "=" not in body and \
                 re.search(r"\S[=-]\S", following_line) and \
-                same_letters(body, following_line) and not re.match(r"^[#?*%]*[‘“]", body)
+                same_characters(body, following_line) and not re.match(r"^[#?*%]*[‘“]", body)
             # Over a line of glosses the stems can be defined apart, yukw-@t under yugwit.
             spells_previous = state == "tiers" and previous == "transcription" and \
-                re.search(r"\S[=-]\S", body) and (same_letters(body, rows[-1][3]) or (
-                    same_letters(body, rows[-1][3], 0.6) and at_line + 1 < len(lines) and
+                re.search(r"\S[=-]\S", body) and (same_characters(body, rows[-1][3]) or (
+                    same_characters(body, rows[-1][3], 0.6) and at_line + 1 < len(lines) and
                     gloss_shaped(lines[at_line + 1][2], 4)))
             # A segmentation of words with no boundary in them, bax ’nii’y under Bax ’nii’y., is
             # the sentence again without its capital and full stop, with the glosses below it.
             if state == "tiers" and previous == "transcription" and not spells_previous and \
-                    body != rows[-1][3] and same_letters(body, rows[-1][3]) and \
+                    body != rows[-1][3] and same_characters(body, rows[-1][3]) and \
                     at_line + 1 < len(lines):
                 below = collections.Counter(
-                    token_kind(one)[0] for one in lines[at_line + 1][2].split())
+                    token_type(one)[0] for one in lines[at_line + 1][2].split())
                 spells_previous = below["label"] >= 1 and below["label"] >= below["language"]
             # A context whose sentence the line end broke goes on, whatever it quotes: ask / zuzúʔt
             # kʷn̕ ‘Aren't you late?’ He responds: in Steiner and Matthewson's (33).
@@ -1237,14 +1237,14 @@ def main():
             # room. Ella says k̓ʷén̓ete xéʔe tk sqyéytn ‘Look at that salmon’, where the context above
             # does not end on the colon that introduces the example.
             # The author's format where the words read as English: the sentence, its segmentation
-            # definition the same letters, and a line of gloss labels, Luu amhl goodi’y dim wil wis. /
+            # definition the same characters, and a line of gloss labels, Luu amhl goodi’y dim wil wis. /
             # luu am =hl goot-’y [dim wil wis] / in good =CN heart-1SG.II PROSP COMP rain in Brown's (2).
             # The segmentation can define the stems apart, Guhl yugwit jebin? over gu =hl yukw-@t
             # [jep-@-n ], and the glosses be mostly English words, not.exist =CN fish.
             shaped = state == "context" and at_line + 2 < len(lines) and \
                 gloss_shaped(lines[at_line + 2][2], 4) and not gloss_shaped(body) and \
-                (same_letters(body, lines[at_line + 1][2]) or (
-                    same_letters(re.sub(r"^[a-j]\.\s+[*#?]*", "", body), lines[at_line + 1][2], 0.6) and
+                (same_characters(body, lines[at_line + 1][2]) or (
+                    same_characters(re.sub(r"^[a-j]\.\s+[*#?]*", "", body), lines[at_line + 1][2], 0.6) and
                     re.search(r"\S[=-]\S|\[", lines[at_line + 1][2]))) and \
                 not re.match(r"^[#?*%]*[‘“']", body)
             # A sentence with its tiers under it is no context going on, Nee diit jeps Cindyhl
@@ -1269,22 +1269,22 @@ def main():
             # A heading of two particles in their order, dim > ii, reads as no English.
             heads = state == "context" and example[1] == 0 and len(body) < 90 and \
                 (verdict == "english" or (tiers_under and ">" in body)) and \
-                not re.match(r"^[#?*%]*[‘“']", body) and not same_letters(body, lines[at_line + 1][2]) and \
+                not re.match(r"^[#?*%]*[‘“']", body) and not same_characters(body, lines[at_line + 1][2]) and \
                 ((body.rstrip().endswith(":") and glossed_below(at_line)) or tiers_under)
             named_head = language_head(body) if state == "context" and example[1] == 0 else None
             if named_head:
-                kind = "context"
+                type = "context"
                 example_languages[re.match(r"\d*", example[0]).group(0) or example[0]] = named_head
             elif shaped:
-                kind = "transcription"
+                type = "transcription"
             elif heads:
-                kind = "context"
+                type = "context"
             elif spells_next:
-                kind = "transcription"
+                type = "transcription"
             elif spells_previous:
-                kind = "segmentation"
+                type = "segmentation"
             elif orthographic:
-                kind = "transcription"
+                type = "transcription"
             # A translation, or a reading the speaker rejected, marked #‘ or ?‘ or *‘. Some pages set
             # it in straight quotes, 'This bag will rip if I fill it up.'
             # A quote holding clitic boundaries is speech in the language, the first tier of
@@ -1292,12 +1292,12 @@ def main():
             elif re.match(r"^[#?*%]*(?:[‘“]|'(?=[#*?]*[A-Z]))", body) and \
                     (state != "after" or body[0] in "#?*%") and \
                     not re.search(r"[^\W\d_]=[^\W\d_]", body):
-                kind = "translation"
-            # Straight quotes right under the tiers open a translation whatever its first letter,
+                type = "translation"
+            # Straight quotes right under the tiers open a translation whatever its first character,
             # 'they were all very friendly together' in wlwlmelst and Janzen's (3).
             elif state == "tiers" and previous in ("gloss", "word gloss") and \
                     re.match(r"^'[^\W\d_]", body):
-                kind = "translation"
+                type = "translation"
             # An English tier under the gloss, word for word, with another tier or the translation
             # on the line after it: the spouse of coyote and, under REM DET AUG married both OBL
             # coyote ADD in wlwlmelst and Janzen's (1).
@@ -1312,14 +1312,14 @@ def main():
                         # under it has its boundaries, he= y̓e tə= s- teʔ.
                         (at_line + 2 < len(lines) and re.search(
                             r"[^\W\d_][=-](?:\s|$)|(?:^|\s)[=-][^\W\d_]", lines[at_line + 2][2]))):
-                kind = "word gloss"
+                type = "word gloss"
             # A reading the sentence does not have, ≠ ‘You’ll get sick if you eat that.’
             elif re.match(r"^≠\s*[‘“']", body) and state in ("tiers", "after"):
-                kind = "translation"
+                type = "translation"
             # A label over its translation with no colon, Intended ‘The man is dead [now].’
             elif re.match(r"^(?:%s):?\s*[‘“']" % "|".join(TRANSLATION_LABELS), body) and \
                     state in ("tiers", "after"):
-                kind = "translation"
+                type = "translation"
             # The heading of a sub-example, a. Plain DP: or b. Demonstrative + oblique (k=
             # determiner):, names the construction and is no tier.
             # Brown sets what the sub-example shows after the colon, b. Dependent intransitive:
@@ -1327,33 +1327,33 @@ def main():
             elif state in ("context", "tiers") and example[1] == 0 and len(body) < 90 and \
                     (re.match(r"^[A-Z][^:‘“]*:$", body) or
                      re.match(r"^[A-Z][A-Za-z ()/,.-]*:\s[^‘“]*$", body)) and verdict == "english":
-                kind = "context"
+                type = "context"
             # A second reading right under the first, whole on its line: Steiner's (7) sets
             # ‘#You’ll get sick if you eat that.’ over ‘You’ll get sick if you eat it.’
             elif state == "after" and example[3] == len(rows) - 1 and \
                     re.match(r"^‘[^‘’]*(?:’\w[^‘’]*)*’\s*(?:\([^()]*\))?\s*$", body):
-                kind = "translation"
+                type = "translation"
             # One the page opens with the wrong quote, ’What is that bug right here on my hand?’
             # in Steiner's (82), under the last gloss.
             elif state == "tiers" and previous == "gloss" and re.match(r"^’[^’]+[.?!]’$", body):
-                kind = "translation"
+                type = "translation"
             # A label can be set in parentheses with the word meaning, (Intended meaning: ‘Tell him
             # where to go.’) in Davis's (26b).
             elif re.sub(r"^\(|\s+meaning$", "", body.split(":")[0]) in TRANSLATION_LABELS and \
                     ":" in body and state in ("tiers", "after"):
-                kind = "translation"
+                type = "translation"
             # A reading labeled under the tiers, (ii)# ‘Mary figured out that John already knew she
             # could drum.’
             elif state in ("tiers", "after") and re.match(r"^\([ivx]+\)\s*[#?*%]*\s*[‘“]", body):
-                kind = "translation"
+                type = "translation"
             # The literal reading under the free one, lit. ‘It is good that you will sit down.’
             elif state == "after" and example[3] == len(rows) - 1 and \
                     re.match(r"^(?:lit\.|literally)\s*[‘“]", body):
-                kind = "translation"
+                type = "translation"
             elif state == "context" and re.match(r"^[√#?*%]*\s*context", body.lower()):
-                kind = "context"
+                type = "context"
             elif state == "context" and verdict == "english" and example[1] \
-                    and counted["language"] < 0.3 * max(1, len(kinds)) \
+                    and counted["language"] < 0.3 * max(1, len(types)) \
                     and rows[-1][2] == "note" and rows[-1][0].startswith(label):
                 # The context wraps onto a second line.
                 last = rows.pop()
@@ -1373,53 +1373,53 @@ def main():
                 wrapped_pair = previous == "gloss" and len(rows) >= 2 and \
                     rows[-2][2] == "segmentation" and rows[-2][0].startswith(label) and \
                     all(one[3].count("[") > one[3].count("]") for one in rows[-2:])
-                kind = "gloss" if gloss_line else (
+                type = "gloss" if gloss_line else (
                     "segmentation" if (previous == "transcription" or wrapped_pair
                                        or re.search(r"[=~<>]|\S-\S", body)) else "transcription")
                 # A segmentation of labels and affixes, n- CVC- zuʔ -tn -s under nzuʔzuʔtəns in
                 # wlwlmelst and Janzen's (13), reads as a gloss line; its own gloss is the next line.
-                if kind == "gloss" and previous == "transcription" and \
+                if type == "gloss" and previous == "transcription" and \
                         re.search(r"(?:^|\s)\S+-(?:\s|$)|(?:^|\s)-\S", body) and \
                         at_line + 1 < len(lines):
                     below = collections.Counter(
-                        token_kind(one)[0] for one in lines[at_line + 1][2].split())
+                        token_type(one)[0] for one in lines[at_line + 1][2].split())
                     if below["label"] >= 1 and below["label"] >= below["language"]:
-                        kind = "segmentation"
+                        type = "segmentation"
             elif state == "tiers" and previous == "segmentation":
                 # The line under a segmentation is its gloss, labels or not: envious under
                 # ƛ̓əxʷigan=č.
-                kind = "gloss"
+                type = "gloss"
             elif state == "after" and len(body) < 70 and body.startswith(("[", "(")) and \
                     not EXAMPLE.match(body):
-                kind = "citation"
+                type = "citation"
             elif state == "after" and verdict != "english" and counted["language"] and \
                     at_line + 1 < len(lines) and re.search(r"\S[-=~]\S", lines[at_line + 1][2]):
                 # A second sentence under the same number, with its own tiers below it: (3) of
                 # Reisinger §4.1 sets two sentences from a text one after the other.
-                kind = "transcription"
+                type = "transcription"
             elif state == "tiers" and not tier_like and example[3] is not None and len(body) < 40:
-                kind = "citation"
+                type = "citation"
             elif state == "context" and example[1] == 0 and verdict == "english" and \
                     at_line + 1 < len(lines) and (second[lines[at_line + 1][0]] != "english" or any(
                         tiers_below(one) for one in range(at_line, min(at_line + 5, len(lines))))):
                 # An English line the example opens with, Repeated from (7), with the tiers below.
                 # A context with no Context: label runs over lines of its own first, Your daughter
                 # has a lovely voice. in Hannon's (28).
-                kind = "context"
-            if kind is not None:
+                type = "context"
+            if type is not None:
                 example[1] += 1
                 where = "%s line %d" % (label, example[1])
                 who = example_languages.get(re.match(r"\d*", example[0]).group(0) or example[0],
                                             language) \
-                    if kind in ("gloss", "segmentation", "transcription") else authors
-                rows.append((where, who, "note" if kind == "context" else kind, body,
+                    if type in ("gloss", "segmentation", "transcription") else authors
+                rows.append((where, who, "note" if type == "context" else type, body,
                              "page %d, engine %s" % (page, verdict)))
-                if kind in ("transcription", "segmentation"):
+                if type in ("transcription", "segmentation"):
                     example[2] = "tiers"
-                    web_rows.append([label, language, kind, body, ""])
-                elif kind == "gloss":
+                    web_rows.append([label, language, type, body, ""])
+                elif type == "gloss":
                     example[2] = "tiers"
-                elif kind == "translation":
+                elif type == "translation":
                     example[2] = "after"
                     example[3] = len(rows) - 1
                     concept = " ".join(QUOTED.findall(body))
@@ -1427,7 +1427,7 @@ def main():
                         if one[0] == label:
                             one[4] = concept
                 # The source cited on an example's lines is whose English its translation is.
-                # A work in preparation stands for its year, (Davis et al. in prep.).
+                # A work in preparation is for its year, (Davis et al. in prep.).
                 source = re.search(r"\(([A-Z][^()]*(?:\d{4}|in prep\.)[^()]*)\)", body)
                 if source and example[3] is not None:
                     at = example[3]
@@ -1437,13 +1437,13 @@ def main():
             example = None
         if not paragraph:
             paragraph_at = (section, page)
-        # A word the line end broke with a hyphen, subdi- / vided. The note keeps it as printed.
+        # A word the line end broke with a hyphen, subdi- / vided. The note retains it as printed.
         if paragraph and re.search(r"[^\W\d_]-$", paragraph[-1]) and text[:1].islower():
-            fixed.append((page, "word broken by a hyphen at a line end, kept",
+            fixed.append((page, "word broken by a hyphen at a line end, retained",
                           paragraph[-1].split()[-1] + " " + text.split()[0],
                           paragraph[-1].split()[-1][:-1] + text.split()[0]))
         paragraph.append(text)
-        offer(text, body, kinds, number, page, verdict)
+        offer(text, body, types, number, page, verdict)
         if text.endswith((".", "!", "?", ":")) and len(text) < 80:
             flush()
     flush()
@@ -1534,20 +1534,20 @@ def main():
 
     base = os.path.join(WORK, stem)
     with open(base + ".draft.tsv", "w", encoding="utf-8", newline="") as handle:
-        handle.write("where\twho\tkind\tform\tgloss\n")
+        handle.write("where\twho\ttype\tform\tgloss\n")
         for row in rows:
             handle.write("\t".join(" ".join(str(one).split()) for one in row) + "\n")
     with open(base + ".alphabet.txt", "w", encoding="utf-8", newline="") as handle:
         handle.write("char\tcodepoint\toutside_english\tinside_english\tshare\trole\tname\n")
-        for role, held in (("letter", letters), ("label", labels)):
+        for role, held in (("character", characters), ("label", labels)):
             for symbol, out_count, in_count, share in held:
                 handle.write("%s\tU+%04X\t%d\t%d\t%.2f\t%s\t%s\n"
                              % (symbol, ord(symbol), out_count, in_count, share, role,
                                 unicodedata.name(symbol, "?")))
     with open(base + ".web.tsv", "w", encoding="utf-8", newline="") as handle:
-        handle.write("first\tsecond\tkind\tseen\n")
-        for (first_form, second_form, kind), seen in sorted(edges.items()):
-            handle.write("%s\t%s\t%s\t%d\n" % (first_form, second_form, kind, seen))
+        handle.write("first\tsecond\ttype\tseen\n")
+        for (first_form, second_form, type), seen in sorted(edges.items()):
+            handle.write("%s\t%s\t%s\t%d\n" % (first_form, second_form, type, seen))
     with open(base + ".residue.tsv", "w", encoding="utf-8", newline="") as handle:
         handle.write("line\tpage\tengine\ttoken\ttext\n")
         for one in leftover:
@@ -1557,10 +1557,10 @@ def main():
     print("lines %d: first pass %s" % (len(lines), dict(collections.Counter(first.values()))))
     print("against the paper's own English (%d lines, %d words): %s"
           % (len(paper_english), len(vocabulary), dict(verdicts)))
-    print("alphabet %d letters: %s" % (len(letters), alphabet))
+    print("alphabet %d characters: %s" % (len(characters), alphabet))
     print("labels %d: %s" % (len(labels), "".join(sorted(label_set))))
-    edge_kinds = collections.Counter(kind for (_, _, kind) in edges.elements())
-    print("web %d forms, edges %s" % (len(forms), dict(edge_kinds)))
+    edge_types = collections.Counter(type for (_, _, type) in edges.elements())
+    print("web %d forms, edges %s" % (len(forms), dict(edge_types)))
     print("draft %d rows %s" % (len(rows), dict(collections.Counter(one[2] for one in rows))))
     print("residue %d tokens neither the paper's English nor the alphabet" % len(leftover))
 

@@ -85,7 +85,7 @@ def main():
           % (carried, len(truth.edges)))
     print("  on the other %d it links to no node on %d and to another node on %d; on %d a frame holds no node"
           % (len(truth.edges) - carried, unlinked, elsewhere, nodeless))
-    print("  the scorer on %s alone, every node kept:" % sample)
+    print("  the scorer on %s alone, every node retained:" % sample)
     score_submission.score({sample: frames}, keys, score_submission.policy_all, names=[sample])
     return 0
 

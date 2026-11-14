@@ -1,19 +1,19 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Search Structurally's sheet: its pattern, template and where, kept by language; the matches listed, each going to
+// Search Structurally's sheet: its pattern, template and where, retained by language; the matches listed, each going to
 // its place; and every match written again from the template.
 
 import { shapeSearch } from "../../gui/src-js/shapes.js";
 import { sheet } from "../../gui/src-js/menubar.js";
-import { keepingStorage } from "../helpers.js";
+import { retentionStorage } from "../helpers.js";
 
 const { test, assert, ui, calls } = window.__harness;
 
-const KEPT = "orior.shape-search";
+const RETAINED = "orior.shape-search";
 const FOUND = { found: [{ path: "a.py", from: { line: 2, col: 4 }, line: "    x = old(1)" }, { path: "b.py", from: { line: 0, col: 0 }, line: "old(2)" }], files: [{ path: "a.py" }, { path: "b.py" }] };
 
-// The sheet shown for a Python file, what it opened and applied, while `work` runs.
+// The sheet displayed for a Python file, what it opened and applied, while `work` runs.
 async function withSheet(work) {
   const opened = [];
   const applied = [];
@@ -34,9 +34,9 @@ async function withSheet(work) {
   }
 }
 
-test("the sheet asks for a pattern, a template and where, and keeps what was asked by language", async () => {
-  await keepingStorage([KEPT], async () => {
-    localStorage.setItem(KEPT, JSON.stringify({ python: { pattern: "old($x$)", template: "new($x$)", scope: "tree" } }));
+test("the sheet asks for a pattern, a template and where, and retains what was asked by language", async () => {
+  await retentionStorage([RETAINED], async () => {
+    localStorage.setItem(RETAINED, JSON.stringify({ python: { pattern: "old($x$)", template: "new($x$)", scope: "tree" } }));
     await withSheet(({ field }) => {
       assert.equal(field("Pattern").value, "old($x$)");
       assert.equal(field("Replace with").value, "new($x$)");
@@ -47,8 +47,8 @@ test("the sheet asks for a pattern, a template and where, and keeps what was ask
 });
 
 test("an empty pattern is asked for, and the matches found are listed, each going to its place", async () => {
-  await keepingStorage([KEPT], async () => {
-    localStorage.removeItem(KEPT);
+  await retentionStorage([RETAINED], async () => {
+    localStorage.removeItem(RETAINED);
     calls.answer("shape_search", () => FOUND);
     await withSheet(async ({ dialog, field, opened }) => {
       await ui.click(dialog.querySelector('button[type="submit"]'));
@@ -60,13 +60,13 @@ test("an empty pattern is asked for, and the matches found are listed, each goin
       assert.equal(calls.made.filter((one) => one.name === "shape_search").at(-1).args.path, "a.py", "searched in the file alone");
       await ui.click(dialog.querySelector(".shape-row"));
       assert.deepEqual(opened, [["a.py", 2, 4]]);
-      assert.deepEqual(JSON.parse(localStorage.getItem(KEPT)).python.pattern, "old($x$)", "the pattern kept for Python");
+      assert.deepEqual(JSON.parse(localStorage.getItem(RETAINED)).python.pattern, "old($x$)", "the pattern retained for Python");
     });
   });
 });
 
 test("Replace All writes every match again from the template, one step over every file", async () => {
-  await keepingStorage([KEPT], async () => {
+  await retentionStorage([RETAINED], async () => {
     calls.answer("shape_search", ({ template }) => ({ ...FOUND, template }));
     await withSheet(async ({ dialog, field, applied }) => {
       field("Pattern").value = "old($x$)";

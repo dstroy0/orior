@@ -7,7 +7,7 @@
 
 static const char s_klq[] = "klq L*\nkey word_copy\npair word_copy thread_idx_x\nopen 3\nqualifier_coherence\n"
                             "concept_coherence 00ff\nkey word_set\ntext_identity a = b\nclosed @x 1->0\n";
-static const char s_klm[] = "klm cu\nkey lane_body lane_core\nkind lane_body nop\nbreaks a b\n";
+static const char s_klm[] = "klm cu\nkey lane_body lane_core\ntype lane_body nop\nbreaks a b\n";
 
 static CliJson s_json;
 
@@ -124,7 +124,7 @@ void test_a_name_and_its_key_are_read_separately(void)
 void test_a_name_stores_its_type(void)
 {
     const unsigned int body = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = map_names(), .name = "lane_body");
-    TEST_ASSERT_EQUAL_STRING("nop", text_of(EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = body, .name = "kind"), "rest"));
+    TEST_ASSERT_EQUAL_STRING("nop", text_of(EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = body, .name = "type"), "rest"));
 }
 
 void test_a_name_stores_what_it_breaks(void)

@@ -11,7 +11,7 @@
 #include "../text/text.h"
 #include "memoria_anularis/memoria_anularis.h"
 
-// the most recent errors retained for a report that requests them, and the most bytes of each; the nodes and the bytes
+// the latest errors retained for a report that requests them, and the max bytes of each; the nodes and the bytes
 // of texts a tree of the settings reserves over for the answer, beyond its copy of the settings; and the bytes the
 // settings written and a text struck are taken with
 #define CLI_REPORT_ERROR (1u << 16u)
@@ -20,13 +20,13 @@
 #define CLI_REPORT_STRUCK_MORE 64ULL
 
 // the run's recent errors, movable cells each of its error's bytes with their end, the segments of MMgr's ring, under
-// the lock; the ring is laid over its part of the rings block at the first error, its segments a power of two over
-// the most retained
+// the lock; the ring is positioned over its part of the rings block at the first error, its segments a power of two over
+// the max retained
 EMBED_STATIC_ASSERT(MMGR_RING_POW2(CLI_REPORT_RETAIN_RING) && (CLI_REPORT_RETAIN_RING >= CLI_REPORT_RETAIN_MAX),
                     "the errors ring's segments are a power of two over the errors retained");
 static mmgr_ring s_errors_ring;
 static const CarcerMovableEntry **s_errors;
-static int s_errors_laid;
+static int s_errors_positioned;
 
 // settings.json read and written whole under its lock
 
@@ -49,7 +49,7 @@ typedef struct
     CliJson *json;
     int copied;
     int *on;
-    char letter;
+    char character;
     const char *text;
     const char *found;
     const char *put;
@@ -276,7 +276,7 @@ EMBED_INLINE void cli_on_replace(const ReportCtx *args)
     mmgr_line_finish(args->out);
 }
 
-// `found`, three letters or more, struck from the text `*struck` contains as `put`, as it is, with its slashes leaning
+// `found`, three characters or more, struck from the text `*struck` contains as `put`, as it is, with its slashes leaning
 // forward, and with them leaning back, each pass into a cell of its own sized to the text and the one before given
 // back; where a cell is refused the text is let go whole, and nothing it contained goes out unstruck
 EMBED_INLINE void cli_strike(const ReportCtx *args)
@@ -300,7 +300,7 @@ EMBED_INLINE void cli_strike(const ReportCtx *args)
                        .from = (form == 1u) ? '\\' : '/', .to = (form == 1u) ? '/' : '\\');
         }
         const char *const text = (*struck != NULL) ? *struck : "";
-        // every place the form stands puts `put` in its stead, a form of at least 3 bytes standing at most once in
+        // every place the form is puts `put` in its stead, a form of at least 3 bytes located at max once in
         // each 3 of the text
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES});
         const unsigned long long capacity =
@@ -399,7 +399,7 @@ void cli_report_save(const CliReportTextCfg *args)
     }
     VerbaLinea line = {line_cell, CLI_REPORT_ERROR, 0ULL};
     EMBED_CALL(cli_report_text.scrub, CliReportTextCfg, .text = args->text, .root = args->root, .out = &line);
-    // an error stored is its first CLI_REPORT_ERROR bytes at the most
+    // an error stored is its first CLI_REPORT_ERROR bytes at max
     line.at = (line.at < CLI_REPORT_ERROR) ? line.at : (CLI_REPORT_ERROR - 1u);
     line.out[(line.at < line.capacity) ? line.at : (line.capacity - 1u)] = '\0';
     const CarcerMovableEntry *const stored = g_cli_guard->movable_buf_alloc(line.at + 1ULL, g_cli_machine_owner);
@@ -413,17 +413,17 @@ void cli_report_save(const CliReportTextCfg *args)
     {
         return;
     }
-    if (!s_errors_laid)
+    if (!s_errors_positioned)
     {
         s_errors = (const CarcerMovableEntry **)(void *)EMBED_CALL(cli_rings.part, CliRingsPartCfg,
                                                                    .part = CLI_RINGS_REPORT_ERRORS);
-        s_errors_laid = anularis.init(&(AnularisCfg){.ring = &s_errors_ring,
+        s_errors_positioned = anularis.init(&(AnularisCfg){.ring = &s_errors_ring,
                                                      .buf = (embed_u8 *)(void *)s_errors,
                                                      .capacity = CLI_REPORT_ERRORS_RING_BYTES,
                                                      .segment_count = CLI_REPORT_RETAIN_RING,
                                                      .segment_bytes = sizeof(s_errors[0])});
     }
-    // the most retained standing, the oldest's cell let go and its segment released
+    // the max retained located, the oldest's cell let go and its segment released
     if (anularis.seg_inflight(&(AnularisCfg){.ring = &s_errors_ring}) == CLI_REPORT_RETAIN_MAX)
     {
         size_t front = 0u;
@@ -439,7 +439,7 @@ void cli_report_save(const CliReportTextCfg *args)
 
 void cli_report_recent(const CliReportRootOutCfg *args)
 {
-    if (!s_errors_laid)
+    if (!s_errors_positioned)
     {
         return;
     }

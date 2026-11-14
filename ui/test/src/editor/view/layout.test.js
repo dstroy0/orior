@@ -4,7 +4,7 @@
 // The editor's layout: a step of indent, the visual column of a col with tabs reaching their stops, the col nearest a
 // visual column, and the rows a long line takes where words wrap.
 
-import { keepingStorage } from "../../../helpers.js";
+import { retentionStorage } from "../../../helpers.js";
 import { given, putBackAsFound } from "../../../menus.js";
 
 const { test, assert } = window.__harness;
@@ -30,8 +30,8 @@ test("the col nearest a visual column, its left edge or the col the column falls
 
 test("with words wrapped, a line longer than the view takes more rows, and the view's own setting comes back", async () => {
   const view = await given(`${"word ".repeat(200)}\nshort`);
-  const kept = view.wrapped();
-  await keepingStorage(["orior.word-wrap"], () => {
+  const retained = view.wrapped();
+  await retentionStorage(["orior.word-wrap"], () => {
     try {
       view.setWrap(false);
       assert.equal(view.rows().size, 2);
@@ -40,7 +40,7 @@ test("with words wrapped, a line longer than the view takes more rows, and the v
       assert.ok(view.rows().size > 2, "the long line in rows");
       assert.equal(view.rows().lineOf(view.rows().size - 1), 1, "the short line its own last row");
     } finally {
-      view.setWrap(kept);
+      view.setWrap(retained);
     }
   });
 });

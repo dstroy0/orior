@@ -68,7 +68,7 @@ std::string marked(const Ruleset *sass, const std::string &form, std::vector<std
     return (ruleset_opcode(sass, form, markers, scratch, written) != 0) ? written : std::string();
 }
 
-// the links the form `text`, each parameter a marker, stands at in every carrier of `carriers`, the least vector
+// the links the form `text`, each parameter a marker, is at in every carrier of `carriers`, the least vector
 // first and those of one vector in an order drawn from `seed` and `drawn_for`, and in `group` each marker's group in
 // the pattern its lines are found by
 std::vector<FoundLink> links_of(Carriers &carriers, unsigned long seed, const std::string &text,
@@ -94,9 +94,9 @@ std::vector<FoundLink> links_of(Carriers &carriers, unsigned long seed, const st
             at += 2u;
             continue;
         }
-        const char letter = text[at];
-        const int special = (letter != '\0') && (strchr("\\^$.|?*+()[]{}", letter) != NULL);
-        pattern += special ? (std::string("\\") + letter) : std::string(1u, letter);
+        const char character = text[at];
+        const int special = (character != '\0') && (strchr("\\^$.|?*+()[]{}", character) != NULL);
+        pattern += special ? (std::string("\\") + character) : std::string(1u, character);
     }
     const std::regex lines(pattern);
     std::vector<FoundLink> found_links;
@@ -146,7 +146,7 @@ void cuts_queried(const std::vector<std::vector<unsigned char>> &codes, const st
                   const std::vector<unsigned int> &places, const RunQuestion *question, unsigned long long *queries,
                   unsigned int mark, std::vector<RunQuestion> *questions)
 {
-    const unsigned int most = 255u;
+    const unsigned int max = 255u;
     questions->assign(codes.size(), RunQuestion());
     std::vector<RunQuestion *> carried;
     std::vector<int> carried_dangerous;
@@ -159,7 +159,7 @@ void cuts_queried(const std::vector<std::vector<unsigned char>> &codes, const st
         RunQuestion *const cut = &(*questions)[at];
         cut->code = codes[at].data();
         cut->code_size = codes[at].size();
-        cut->registers = ((mark != 0u) && (mark < most)) ? mark : most;
+        cut->registers = ((mark != 0u) && (mark < max)) ? mark : max;
         cut->place = places[at];
         cut->cases = question->cases;
         memcpy(cut->word, question->word, (size_t)question->cases * sizeof(question->word[0]));
@@ -175,9 +175,9 @@ void cuts_queried(const std::vector<std::vector<unsigned char>> &codes, const st
     std::vector<int> again_dangerous;
     for (size_t at = 0u; at < carried.size(); at += 1u)
     {
-        if ((carried[at]->outcome != RUN_ANSWERED) && (carried[at]->registers != most))
+        if ((carried[at]->outcome != RUN_ANSWERED) && (carried[at]->registers != max))
         {
-            carried[at]->registers = most;
+            carried[at]->registers = max;
             again.push_back(carried[at]);
             again_dangerous.push_back(carried_dangerous[at]);
         }
@@ -298,7 +298,7 @@ thread_local int t_other_way = 0;
 // A pair the cross read, a row of the run's table of pairs (pairs.oracle.tsv): its two forms' texts, closed or open,
 // its count of cases alike where it is open, the text of the case that closed it where it is closed, the hash of what
 // its put reads where `read` is 1, and its verdict's text
-void pair_row_handed(const std::string &first, const std::string &second, int read, unsigned long long reads,
+void pair_row_passed(const std::string &first, const std::string &second, int read, unsigned long long reads,
                             const std::string &verdict)
 {
     QryShared *const run = qry_member_run();

@@ -335,7 +335,7 @@ size_t kqr_text_sliced(const KqrRecord *record, char *out, size_t cap, size_t at
                 text_character(' ');
                 text_decimal(s_sample.least);
                 text_character(' ');
-                text_decimal(s_sample.most);
+                text_decimal(s_sample.max);
             }
             if ((s_sample.answer != KQR_ANSWERS) && (s_sample.refusal[0] != '\0'))
             {
@@ -379,7 +379,7 @@ size_t kqr_text_sliced(const KqrRecord *record, char *out, size_t cap, size_t at
                 break;
             }
             {
-                char code[WHO_CODE_LETTERS + 1u];
+                char code[WHO_CODE_CHARACTERS + 1u];
                 who_code(who_of_words(entry->word), code, sizeof(code));
                 if (named && who_named(who_of_words(entry->word), who_name, sizeof(who_name)))
                 {

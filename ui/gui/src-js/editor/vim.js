@@ -7,7 +7,7 @@
 //
 // Normal mode takes a count before a command, and "x before it names register x; the register `"`
 // takes every yank and delete, and `0` the last yank. The motions: h j k l and the arrows, w b e and
-// W B E, 0 ^ $, gg and G, f F t T to a letter on the line and ; , to repeat it, % to the bracket that
+// W B E, 0 ^ $, gg and G, f F t T to a character on the line and ; , to repeat it, % to the bracket that
 // pairs with the next on the line, { } to the empty line before or after, n N to the next or the last
 // place searched for, and Ctrl+D Ctrl+U by half a screen. The operators d c y > < act on a motion, on
 // a text object (iw aw iW aW, and i or a before one of " ' ` ( ) b [ ] { } B < >), or, doubled, on
@@ -51,7 +51,7 @@ export class Vim {
     return [NAMES[this.mode], this.typed.join("")].filter(Boolean).join(" ");
   }
 
-  // Whether the caret is drawn as a block over its letter.
+  // Whether the caret is drawn as a block over its character.
   block() {
     return this.mode !== "insert";
   }
@@ -85,12 +85,12 @@ export class Vim {
     return col < 0 ? Math.max(0, text.length - 1) : col;
   }
 
-  // Puts the cursor at a place, on a letter outside insert mode.
-  put(p, keepGoal = false) {
+  // Puts the cursor at a place, on a character outside insert mode.
+  put(p, retainGoal = false) {
     const line = Math.max(0, Math.min(this.doc.count - 1, p.line));
     const col = Math.max(0, Math.min(p.col, this.mode === "insert" ? this.line(line).length : this.lastCol(line)));
     const at = pos(line, col);
-    if (!keepGoal) {
+    if (!retainGoal) {
       this.goal = null;
     }
     this.editor.select([{ anchor: at, head: at, goal: null }]);
@@ -198,7 +198,7 @@ export class Vim {
       if (!more()) {
         return WAIT;
       }
-      return { count: first, object: { kind: name, of: next() } };
+      return { count: first, object: { type: name, of: next() } };
     }
     if (OPERATORS.has(name)) {
       const inner = count();
@@ -214,7 +214,7 @@ export class Vim {
         if (!more()) {
           return WAIT;
         }
-        return { register, name, count: counted, object: { kind: target, of: next() } };
+        return { register, name, count: counted, object: { type: target, of: next() } };
       }
       const motion = this.parseMotion(target, more, next);
       return motion === WAIT || motion === null ? motion : { register, name, count: counted, motion };
@@ -223,7 +223,7 @@ export class Vim {
       if (!more()) {
         return WAIT;
       }
-      return { count: first, name, letter: next() };
+      return { count: first, name, character: next() };
     }
     const motion = this.parseMotion(name, more, next);
     if (motion === WAIT || motion) {
@@ -243,7 +243,7 @@ export class Vim {
       if (!more()) {
         return WAIT;
       }
-      return { name, letter: next() };
+      return { name, character: next() };
     }
     return MOTIONS.has(name) ? { name } : null;
   }
@@ -269,7 +269,7 @@ export class Vim {
   }
 }
 
-// Vim's motions and text objects, and its operators, commands and visual mode, kept in editor/vim/ and put on the
+// Vim's motions and text objects, and its operators, commands and visual mode, retained in editor/vim/ and put on the
 // class as its own methods are: not counted among an object's keys.
 for (const part of [motions, commands]) {
   for (const [name, method] of Object.entries(part)) {

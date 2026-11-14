@@ -141,18 +141,18 @@ class Window:
         return self.waited("xpath", "//*[@identifier=%s]//*[contains(@value, %s) or contains(@title, %s) or contains(@label, %s)]" % (quoted_xpath(identifier), said, said, said), wait)
 
     def gone(self, using, value, wait=LOOK_WAIT):
-        """Waits until no element `using` finds by `value` is shown."""
+        """Waits until no element `using` finds by `value` is displayed."""
         until = time.monotonic() + wait
         while self.found(using, value) is not None:
             if time.monotonic() >= until:
-                raise AssertionError("an element found by %s %s is still shown after %d s" % (using, value, wait))
+                raise AssertionError("an element found by %s %s is still displayed after %d s" % (using, value, wait))
             time.sleep(0.25)
 
     def click(self, element):
         self.execute("macos: click", {"elementId": element})
 
     def keys(self, keys):
-        """Each key of `keys` pressed in turn: a letter, one of the special keys, or {key, modifierFlags}."""
+        """Each key of `keys` pressed in turn: a character, one of the special keys, or {key, modifierFlags}."""
         self.execute("macos: keys", {"keys": keys})
 
     def chord(self, key, flags):

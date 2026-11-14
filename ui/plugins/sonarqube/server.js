@@ -42,7 +42,7 @@ async function started() {
       logged("SonarQube for IDE started");
     } catch (error) {
       logged(`SonarQube for IDE did not start: ${error.message}`);
-      await shown("ask", `<p class="fail">${escaped(error.message)}</p>`);
+      await displayed("ask", `<p class="fail">${escaped(error.message)}</p>`);
     } finally {
       sonar.starting = null;
     }
@@ -75,20 +75,20 @@ orior.server.on("window/logMessage", ({ type, message }) => logged(`${MESSAGE_TY
 orior.server.on("window/showMessage", async ({ type, message }) => {
   logged(`${MESSAGE_TYPES[type] ?? "Info"}: ${message}`);
   if (type === 1) {
-    await shown("ask", `<p class="fail">${escaped(message)}</p>`);
+    await displayed("ask", `<p class="fail">${escaped(message)}</p>`);
   }
 });
 
-// The answers waited for of questions shown, by the question's number.
+// The answers waited for of questions displayed, by the question's number.
 const waiting = new Map();
 let questions = 0;
 
-// A question shown with an answer for each of `actions`, answered with the action pressed.
+// A question displayed with an answer for each of `actions`, answered with the action pressed.
 function chosen(text, actions) {
   questions += 1;
   const number = questions;
   const answered = new Promise((resolve) => waiting.set(number, resolve));
-  void shown("ask", `<p>${escaped(text)}</p><div class="row">${actions.map((action, at) => button(action, "answer", `${number}:${at}`)).join("")}${button("Dismiss", "answer", `${number}:-1`)}</div>`);
+  void displayed("ask", `<p>${escaped(text)}</p><div class="row">${actions.map((action, at) => button(action, "answer", `${number}:${at}`)).join("")}${button("Dismiss", "answer", `${number}:-1`)}</div>`);
   return answered;
 }
 
@@ -123,7 +123,7 @@ orior.server.on("sonarlint/browseTo", (address) => orior.browse(String(address))
 orior.server.on("sonarlint/showSonarLintOutput", () => drawOutput());
 
 orior.server.on("sonarlint/openJavaHomeSettings", () =>
-  shown("ask", "<p>SonarQube for IDE runs on the Java its toolchain carries: File, Toolchains, SonarQube for IDE, names the folder it is found in.</p>"),
+  displayed("ask", "<p>SonarQube for IDE runs on the Java its toolchain carries: File, Toolchains, SonarQube for IDE, names the folder it is found in.</p>"),
 );
 
 orior.server.on("sonarlint/openPathToNodeSettings", () => drawSettings());
@@ -137,7 +137,7 @@ orior.server.on("sonarlint/doNotShowMissingRequirementsMessageAgain", () =>
 );
 
 orior.server.on("sonarlint/showNotificationForFirstSecretsIssue", () =>
-  shown("ask", "<p>SonarQube for IDE detected some secrets in one of the open files. We strongly advise you to review those secrets and ensure they are not committed into repositories.</p>"),
+  displayed("ask", "<p>SonarQube for IDE detected some secrets in one of the open files. We strongly advise you to review those secrets and ensure they are not committed into repositories.</p>"),
 );
 
 orior.server.on("sonarlint/showSoonUnsupportedVersionMessage", async ({ doNotShowAgainId, text }) => {
@@ -175,7 +175,7 @@ orior.server.on("sonarlint/didChangePluginStatuses", ({ pluginStatuses }) => {
 // The output: the server's log, its lines last first.
 async function drawOutput() {
   const lines = sonar.log.slice(-1000).reverse();
-  await shown("output", `<h1>SonarQube output</h1>${button("Refresh", "output-refresh")}${button("Clear", "output-clear")}<pre>${escaped(lines.join("\n"))}</pre>`);
+  await displayed("output", `<h1>SonarQube output</h1>${button("Refresh", "output-refresh")}${button("Clear", "output-clear")}<pre>${escaped(lines.join("\n"))}</pre>`);
 }
 
 onPressed("output-refresh", () => drawOutput());

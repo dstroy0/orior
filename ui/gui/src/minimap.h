@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // minimap.h: the minimap part: the text drawn small down the editor's right edge, each word a bar in its token's color
-// as the CLI's view hands the lines' bars, the part in view marked by a slider that drags; where every line fits the
+// as the CLI's view passes the lines' bars, the part in view marked by a slider that drags; where every line fits the
 // map shows them all, where they do not it scrolls with the text so the slider stays over the part in view; along its
 // right edge the overview side_menu marks the whole text, the caret's line and find's matches; a press goes to that
 // part of the text (minimap.c)
@@ -15,7 +15,7 @@ typedef struct GuiMinimapPositionCfg GuiMinimapPositionCfg;
 typedef struct GuiMinimapCfg GuiMinimapCfg;
 typedef struct GuiMinimapFirstCfg GuiMinimapFirstCfg;
 
-// the sizes in the page's pixels: a row's height, a cell's width, the margin before the bars, the most cells a line's
+// the sizes in the page's pixels: a row's height, a cell's width, the margin before the bars, the max cells a line's
 // bars reach, the overview side_menu's width, a mark's least height and the slider's least height
 #define GUI_MAP_ROW 2
 #define GUI_MAP_CHAR 1
@@ -25,7 +25,7 @@ typedef struct GuiMinimapFirstCfg GuiMinimapFirstCfg;
 #define GUI_MAP_MARK 2
 #define GUI_MAP_SLIDER_MIN 8
 
-// Where the map stands beside the view: the rows it has capacity for; the file's lines; the line at its first row; the
+// Where the map is beside the view: the rows it has capacity for; the file's lines; the line at its first row; the
 // view's rows as a line count, with its fraction; the lines the view scrolls over; and the slider's top and height in
 // pixels from the map's top
 typedef struct
@@ -40,8 +40,8 @@ typedef struct
 } GuiMapPosition;
 
 // The minimap: the lines as the window last took them of the view, NULL for none, read alone; the view's top the map
-// last stood beside and how many rows above the slider the map began, stored so the map stands still while the view
-// does; the place it last stood at; and the drag, whether one runs, where it began and the view's top then
+// last was beside and how many rows above the slider the map began, stored so the map is stationary while the view
+// does; the place it last was at; and the drag, whether one runs, where it began and the view's top then
 typedef struct
 {
     const CliDocumentMap *lines;
@@ -54,12 +54,12 @@ typedef struct
     unsigned long long drag_top;
 } GuiMinimap;
 
-// the view's top it stood beside forgotten and any drag ended, as a tab is shown
+// the view's top it was beside forgotten and any drag ended, as a tab is displayed
 void gui_minimap_clear(const GuiMinimapCfg *args);
 // the map placed in `place` at `scale` beside the view of `editor`, which shows `on_screen` lines: its rows, the line
 // at its first row and the slider
 void gui_minimap_on_position(const GuiMinimapPositionCfg *args);
-// the lines the map placed stands for, first and last: 1, or 0 where the text has none
+// the lines the map placed is for, first and last: 1, or 0 where the text has none
 int gui_minimap_span(const GuiMinimapFirstCfg *args);
 // the map drawn in `place` at `scale`, no pixel of it outside `clip`, where it shows as the claim slides it out past
 // the editor's edge: the editor's ground and the line along its left; then, while the text has lines, the selection's
@@ -67,8 +67,8 @@ int gui_minimap_span(const GuiMinimapFirstCfg *args);
 // right with the matches and the caret's line
 void gui_minimap_draw(const GuiMinimapPositionCfg *args);
 // a press at x, y within `clip`: on the side_menu, the view's top set to that part of the text; on the map outside the
-// slider, the top set to center the row's line, and the slider's drag begun; on the slider, the top as it stands and
-// the drag begun: 1, or 0 where the press is outside the map shown or the text has no lines; the pointer moved to `y`
+// slider, the top set to center the row's line, and the slider's drag begun; on the slider, the top as it is and
+// the drag begun: 1, or 0 where the press is outside the map displayed or the text has no lines; the pointer moved to `y`
 // while the drag runs, the top set by the slider's run: 1, or 0 where no drag runs; and the drag ended
 int gui_minimap_press(const GuiMinimapPositionScaleCfg *args);
 int gui_minimap_drag(const GuiMinimapPositionScaleCfg *args);

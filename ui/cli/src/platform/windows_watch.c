@@ -10,7 +10,7 @@
 #define NOMINMAX
 #include <windows.h>
 
-// the buffer the system writes changes into, in 32-bit words: 64 KB, the most a folder shared over a network takes;
+// the buffer the system writes changes into, in 32-bit words: 64 KB, the max a folder shared over a network takes;
 // where a record's name starts, after its offset to the next, its action and its name's length; and what is watched
 #define CLI_WATCH_BUFFER (16u * 1024u)
 #define CLI_WATCH_NAME_AT 12u

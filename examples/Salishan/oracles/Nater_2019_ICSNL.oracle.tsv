@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Hank Nater	title	Old Records of Three Contiguous Pacific Northwest Languages: Bella Coola (Nuxalk), Carrier (Dakelh), Shuswap (Secwepmc)	page 1
 front	Hank Nater	name	Hank Nater	author
 front	Hank Nater	note	Conklin, Alberta	page 1, under Hank Nater
@@ -116,7 +116,7 @@ footnote 7	Hank Nater	note	Similar shifts took place in other Athabascan, e.g. C
 §2.1	Bella Coola	cited form	*(ʔə)ʒaχ	page 2, in italics, ‘ear’
 §2.1	Bella Coola	cited form	*łiŋ	page 2, in italics
 §2.1	Hank Nater	name	Harmon	Daniel W. Harmon, A journal of voyages and travels (1820)
-Table 2	Hank Nater	note	Table 2: Sound shift progression from proto-Athabascan to Carrier	page 3, the table's caption; a dotted empty box in a stage stands where a series has shifted out
+Table 2	Hank Nater	note	Table 2: Sound shift progression from proto-Athabascan to Carrier	page 3, the table's caption; a dotted empty box in a stage is where a series has shifted out
 Table 2	Hank Nater	note	PA /q/ /k̭/ /čʷ/ /č₁/ /c₁/	page 3, a stage
 Table 2	Hank Nater	note	↘	page 3, a row of arrows, the shifts between the stages
 Table 2	Hank Nater	note	↓ /q/ /k̭/ /čʷ/ /č₁/ /c̭/	page 3, a stage
@@ -312,19 +312,19 @@ footnote 12	Hank Nater	language	Upper Chehalis	Tsamosan
 Table 5	Hank Nater	note	Table 5: /k̭/ series → /č/ series and /q/ series → /k/ series shifts	page 5, the table's caption
 Table 5	Hank Nater	note	Gloss Mackenzie (/q/ and /k̭/ series) Harmon (/k/ and /č/ series)	page 5, the table's header
 Table 5	Bella Coola	cited form	dekin	page 5, Table 5, Mackenzie's spelling of ‘tree, wood’
-Table 5	Bella Coola	cited form	*dək̭ən	page 5, Table 5, the form Mackenzie's “dekin” stands for
+Table 5	Bella Coola	cited form	*dək̭ən	page 5, Table 5, the form Mackenzie's “dekin” is for
 Table 5	Bella Coola	cited form	tuch-in	page 5, Table 5, Harmon's spelling of ‘tree, wood’
-Table 5	Bella Coola	cited form	dəčən	page 5, Table 5, the form Harmon's “tuch-in” stands for
+Table 5	Bella Coola	cited form	dəčən	page 5, Table 5, the form Harmon's “tuch-in” is for
 Table 5	Bella Coola	cited form	kin	page 5, Table 5, Mackenzie's spelling of ‘leg’
-Table 5	Bella Coola	cited form	*(ʔəqe)k̭ən	page 5, Table 5, the form Mackenzie's “kin” stands for
+Table 5	Bella Coola	cited form	*(ʔəqe)k̭ən	page 5, Table 5, the form Mackenzie's “kin” is for
 Table 5	Bella Coola	cited form	O-ca-chin	page 5, Table 5, Harmon's spelling of ‘leg’
-Table 5	Bella Coola	cited form	ʔəkečən	page 5, Table 5, the form Harmon's “O-ca-chin” stands for
+Table 5	Bella Coola	cited form	ʔəkečən	page 5, Table 5, the form Harmon's “O-ca-chin” is for
 Table 5	Hank Nater	note	‘nose’ “nenzeh” *(ʔə)nəncix̭ “pa-nin-chis” ʔənincis13	page 5, Table 5, the entry that carries footnote 13
 footnote 13	Hank Nater	note	“pa-” = Southern Carrier /bə-/ ‘his’, Central Carrier /bə-/ ‘their’. Here, */x̭/ → /š/ (fronting) was followed by /c…š/ → /c…s/ (progressive assimilation).	page 5, footnote 13
 Table 5	Bella Coola	cited form	nenzeh	page 5, Table 5, Mackenzie's spelling of ‘nose’
-Table 5	Bella Coola	cited form	*(ʔə)nəncix̭	page 5, Table 5, the form Mackenzie's “nenzeh” stands for
+Table 5	Bella Coola	cited form	*(ʔə)nəncix̭	page 5, Table 5, the form Mackenzie's “nenzeh” is for
 Table 5	Bella Coola	cited form	pa-nin-chis	page 5, Table 5, Harmon's spelling of ‘nose’
-Table 5	Bella Coola	cited form	ʔənincis	page 5, Table 5, the form Harmon's “pa-nin-chis” stands for
+Table 5	Bella Coola	cited form	ʔənincis	page 5, Table 5, the form Harmon's “pa-nin-chis” is for
 §3	Hank Nater	note	Note as well that Harmon’s “ch” is /č, č’, c, c’/, while his “ts” is /c̭, c̭’/. This suggests that Harmon must have had difficulty perceiving such “un-English” syllable-initial sequences as [tˢ…] and [tˢ’…]: “paninchis” ‘nose’ = bənincis ‘his nose’, “chaka” ‘woman’ = c’eke. Occasionally, he even writes “ch” for /c̭, c̭’/: “chakate” ‘muskrat’ = c̭ek’et, “tchâ” ‘hat’ = c̭’oh.14	page 5
 footnote 14	Hank Nater	note	In Southern Carrier, the /c̭/ and /c/ series have merged into one /c/ series (and here, ‘hat’ is c’ah). This merger, which may have begun in the early nineteenth century, may have been another factor in Harmon’s apparent confusion in re /č/ vs. /c/ vs. /c̭/.	page 5, footnote 14
 §3	Bella Coola	cited form	bənincis	page 5, in italics, ‘his nose’
@@ -392,8 +392,8 @@ footnote 16	Hank Nater	note	Shuswap data are from Kuipers (1974), Lillooet data 
 §3	Hank Nater	language	Chinookan	a source of loans
 Figure 1	Hank Nater	note	Salish / Oregon–Central Tsamosan Bella Coola Interior	page 6, the figure, a tree: Salish over its branches
 Figure 1	Hank Nater	note	Figure 1: The position of Bella Coola within Salish	page 6, the figure's caption
-§3	Hank Nater	note	In re Bella Coola-Athabascan interaction, note that the Na-Dene portion of the Bella Coola lexicon includes words of PA-Eyak, pre-PA, PA, and more recent Athabascan descent (Nater 1994). The archaic forms shown in Table 1, recentness of an Athabascan presence east of Bella Coola,17 and Nater (1994:181–182) suggest that Athabascan bands migrating through or near Bella Coola territory (around 1700 AD or so) spoke a form of PA that had retained some PA- Eyak and pre-PA vocabulary.	page 7
-footnote 17	Hank Nater	note	“The presence of trade goods in most of the structures indicates the Chilcotin components at Anahim probably do not date much earlier than 1750; trade goods were absent in one unit which dated A.D. 1670 (GSC-1371), which might represent late prehistoric Chilcotin” (Wilmeth 1970:43). It appears that the Chilcotin arrived in Anahim Lake prior to being replaced in that area by Ulkatcho Carrier (Wilmeth 1970:42) about one century later.	page 7, footnote 17
+§3	Hank Nater	note	In re Bella Coola-Athabascan interaction, note that the Na-Dene portion of the Bella Coola lexicon includes words of PA-Eyak, pre-PA, PA, and more recent Athabascan descent (Nater 1994). The archaic forms displayed in Table 1, recentness of an Athabascan presence east of Bella Coola,17 and Nater (1994:181–182) suggest that Athabascan bands migrating through or near Bella Coola territory (around 1700 AD or so) spoke a form of PA that had retained some PA- Eyak and pre-PA vocabulary.	page 7
+footnote 17	Hank Nater	note	“The presence of trade goods in the majority of the structures indicates the Chilcotin components at Anahim probably do not date much earlier than 1750; trade goods were absent in one unit which dated A.D. 1670 (GSC-1371), which might represent late prehistoric Chilcotin” (Wilmeth 1970:43). It appears that the Chilcotin arrived in Anahim Lake prior to being replaced in that area by Ulkatcho Carrier (Wilmeth 1970:42) about one century later.	page 7, footnote 17
 footnote 17	Hank Nater	name	Wilmeth	Roscoe Wilmeth, Chilcotin archaeology (1970)
 §3	Hank Nater	language	Eyak	PA-Eyak
 §3	Hank Nater	language	Na-Dene	Athabascan-Eyak-Tlingit

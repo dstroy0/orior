@@ -4,7 +4,7 @@
 // the Pythons impero finds, started with a connection file of orior's, and communicated with by Jupyter's messaging
 // protocol over ZMTP, each message signed with the kernel's key.
 //
-// A kernel's specs are read in Jupyter's order, the first of a name standing: the folders JUPYTER_PATH names, the
+// A kernel's specs are read in Jupyter's order, the first of a name located: the folders JUPYTER_PATH names, the
 // reader's own Jupyter folder, each Python's own, and the system's. A Python impero finds with ipykernel in it and
 // no spec of its own is a kernel too; one without ipykernel is listed with the line that installs it.
 //
@@ -27,7 +27,7 @@ typedef struct CliJupyterNameCfg CliJupyterNameCfg;
 typedef struct CliJupyterCfg CliJupyterCfg;
 typedef struct CliJupyterOutCfg CliJupyterOutCfg;
 
-// the most kernels that run at once, the most words and settings a spec gives, the bytes its texts take, the place
+// the max kernels that run at once, the max words and settings a spec gives, the bytes its texts take, the place
 // of a text a spec does not give, and the longest id a message is sent under
 #define CLI_KERNELS_MAX 4u
 #define CLI_KERNEL_WORDS 64u
@@ -36,7 +36,7 @@ typedef struct CliJupyterOutCfg CliJupyterOutCfg;
 #define CLI_KERNEL_NONE 0xffffffffu
 #define CLI_KERNEL_ID 96u
 
-// A kernel a notebook can run on: the places in `text` of its name, the name shown, its language, its words, how it
+// A kernel a notebook can run on: the places in `text` of its name, the name displayed, its language, its words, how it
 // is interrupted, its environment's names and values, the folder its spec is read from, which `{resource_dir}` in its
 // words names, and the line that installs what it lacks, CLI_KERNEL_NONE where it lacks nothing
 typedef struct
@@ -60,7 +60,7 @@ typedef struct
 // A running kernel and the sockets impero communicates with it on
 typedef struct CliKernel CliKernel;
 
-// what a kernel sent, as the page reads a message, `{"channel", "msg_type", "msg_id", "parent", "content"}`, handed to
+// what a kernel sent, as the page reads a message, `{"channel", "msg_type", "msg_id", "parent", "content"}`, passed to
 // whoever started it, on a thread of the kernel's own
 typedef void (*CliKernelRecvFn)(const CliKernelRecvCfg *args);
 
@@ -69,7 +69,7 @@ typedef void (*CliKernelRecvFn)(const CliKernelRecvCfg *args);
 void cli_jupyter_specs_write(const CliJupyterOutCfg *args);
 int cli_jupyter_spec_by_name(const CliJupyterNameCfg *args);
 
-// the kernel `spec` started in `folder`, each message it publishes and each reply to no request handed to `recv`,
+// the kernel `spec` started in `folder`, each message it publishes and each reply to no request passed to `recv`,
 // given once it has answered that it is ready and referenced once for its starter: the kernel, or NULL with why given;
 // the kernel referenced once more, for as long as a caller uses it; and a reference given back, the kernel let go with
 // the last, its threads waited for. The name it shows (jupyter.c)

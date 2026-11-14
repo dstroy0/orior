@@ -9,10 +9,10 @@
 #   Usage:  python examples/language/2_partition/minimum_alphabet.py
 #
 # Removing c, x and q from every language changed the closest pairing measured here by 0.0002. The
-# reading is not resting on any particular letter. That invites the opposite question: how much of a
+# reading is not resting on any particular character. That invites the opposite question: how much of a
 # writing system can be taken away before a relationship stops being visible at all.
 #
-# The alphabet is cut down by keeping the commonest few symbols of each text and folding everything else
+# The alphabet is cut down by retention the commonest few symbols of each text and folding everything else
 # into one, a coarsening that deletes nothing: the positions stay, the text stays its own length,
 # and only the number of distinctions falls. Swept from thirty two down to two, where two is whether a
 # character is the commonest one or not.
@@ -85,9 +85,9 @@ def main():
               % ("symbols", "zulu, xhosa", "zulu, somali", "spanish, french",
                  "spanish, finnish", "both still hold"))
 
-    for keep in LEVELS:
-        cut = {label: coarsen(text, keep) for label, text in held.items()}
-        ranks = min(keep, 64)
+    for retain in LEVELS:
+        cut = {label: coarsen(text, retain) for label, text in held.items()}
+        ranks = min(retain, 64)
         reading = {}
         for label, text in cut.items():
             values = web(text, ranks)
@@ -106,11 +106,11 @@ def main():
             continue
         upheld = (marks[0] < marks[2]) and (marks[1] < marks[3])
         out.write("  %-8d %-15.5f %-15.5f %-15.5f %-15.5f %s\n"
-                  % (keep, marks[0], marks[2], marks[1], marks[3],
+                  % (retain, marks[0], marks[2], marks[1], marks[3],
                      "yes" if upheld else "no"))
 
     out.write("\n  the lowest level where both still hold is the fewest symbols a relationship\n")
-    out.write("  of this kind survives on\n")
+    out.write("  of this type survives on\n")
     out.flush()
     return 0
 

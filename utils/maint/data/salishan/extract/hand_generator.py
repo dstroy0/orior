@@ -3,7 +3,7 @@
 usage: python hand_generator.py <stem>
 
 Each row of examples/Salishan/oracles/<stem>.oracle.tsv becomes a row of the generator, in order and
-with its fields as they stand, and with the line or lines of the page text its form stands on. The
+with its fields as they are, and with the line or lines of the page text its form is on. The
 generator writes the oracle through gen.Paper.write_oracle, holding each form to its lines through
 gen.Paper.on and stopping where the page text no longer holds it. A form the page text
 does not hold on a run of WINDOW lines or fewer, one the text layer set apart or ran together, is
@@ -61,11 +61,11 @@ def main():
     paper = gen.Paper(stem)
     held = spans(paper)
     out = ['"""The oracle of %s, its rows as a person read them off the page, each form bound to the page' % stem,
-           'line it stands on where the page text holds it."""',
+           'line it is on where the page text holds it."""',
            "import os", "import sys", "", 'sys.path.insert(0, os.environ["SALISHAN_TOOLS"])',
            'sys.stdout.reconfigure(encoding="utf-8")', "import gen  # noqa: E402", "",
            "paper = gen.Paper(%r)" % stem, "HEADER = %r" % (tuple(header),),
-           "# The row, and the line or lines its form stands on.", "ROWS = ("]
+           "# The row, and the line or lines its form is on.", "ROWS = ("]
     after, loose = 1, 0
     for row in rows:
         at = anchor(row[3], held, after) if len(row) > 3 else None
@@ -76,7 +76,7 @@ def main():
             lines = at[0] if at[0] == at[1] else at
             after = at[0]
         out.append("    (%r, %r)," % (tuple(row), lines))
-    out += [")", "for row, lines in ROWS:", "    paper.keep(row, lines)", "paper.write_oracle(HEADER)", ""]
+    out += [")", "for row, lines in ROWS:", "    paper.retain(row, lines)", "paper.write_oracle(HEADER)", ""]
     with open(target, "w", encoding="utf-8", newline="\n") as handle:
         handle.write("\n".join(out))
     print("%s: %d rows, %d bound to no line" % (target, len(rows), loose))

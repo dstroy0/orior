@@ -215,7 +215,7 @@ static unsigned int omega_head_redex(const std::vector<int> &term)
 
 // Proven growth without end. Since the checkpoint every step was a head step whose redex sat at spine position
 // `least` or deeper. The checkpoint's spine subterm S at any position a <= least was the only part reduced,
-// and it never became a lambda eating an argument outside it. If S now stands at a deeper spine position of the
+// and it never became a lambda eating an argument outside it. If S now is at a deeper spine position of the
 // term, S reduced by head steps to S B for some arguments B; the same steps then take S B to S B' B and on
 // without end (X ->h Y gives X Z ->h Y Z while X is no lambda). S has no head normal form. Neither has the
 // term, and normal order, which reduces the head first, never halts.

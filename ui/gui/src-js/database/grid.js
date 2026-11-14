@@ -47,7 +47,7 @@ let fetching = false;
 // The grid's motion: rows are read as far ahead the way it scrolls as its speed carries it over two
 // reads, and those behind the motion are let go first.
 const ahead = new Ahead(SPARE);
-// Draws the rows in view, asking the server for those not kept in the stretch the scroll heads
+// Draws the rows in view, asking the server for those not retained in the stretch the scroll heads
 // into, and for more as the end comes near.
 export async function drawGrid() {
   const result = state.result;
@@ -67,13 +67,13 @@ export async function drawGrid() {
   });
   const template = widths.map((wide) => `${wide}ch`).join(" ");
   parts.gridHead.style.gridTemplateColumns = template;
-  parts.gridHead.replaceChildren(...result.columns.map((column) => element("span", { className: column.numeric ? "num" : "", textContent: column.name, title: column.kind })));
+  parts.gridHead.replaceChildren(...result.columns.map((column) => element("span", { className: column.numeric ? "num" : "", textContent: column.name, title: column.type })));
   const total = result.read + (result.done ? 0 : 1);
   parts.spacer.style.height = `${total * ROW}px`;
-  const shown = Math.floor(parts.grid.scrollTop / ROW);
-  const first = Math.max(0, shown - 5);
+  const displayed = Math.floor(parts.grid.scrollTop / ROW);
+  const first = Math.max(0, displayed - 5);
   const count = Math.ceil(parts.grid.clientHeight / ROW) + 10;
-  ahead.moved(shown);
+  ahead.moved(displayed);
   const [from, to] = ahead.span(first, first + count);
   const missing = [];
   for (let index = from; index < Math.min(to, result.read); index += 1) {

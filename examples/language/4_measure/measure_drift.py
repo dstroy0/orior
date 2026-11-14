@@ -33,7 +33,7 @@ def load(path):
 
 def band(counts, low, high):
     """The set of words whose frequency rank falls in [low, high)."""
-    ordered = [word for word, _ in counts.most_common()]
+    ordered = [word for word, _ in counts.max_common()]
     return set(ordered[low:high])
 
 

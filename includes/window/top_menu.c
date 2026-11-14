@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// bar.c: the bar across the top, on the pane the frame's base lays: the tree's name in the interface face at its right
+// bar.c: the bar across the top, on the pane the frame's base positions: the tree's name in the interface face at its right
 // before the bar's tools, as the page's bar ends with it; the tools, Preferences, Notifications, Toolchains and
 // Definitions, each its icon in a button, before the controls; and the controls at its right end; the menu bar's
 // titles are drawn over it by the menu bar part
@@ -10,7 +10,7 @@
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "lights.h"
 
-// the gap in the page's pixels between the tree's name and the bar's tools, 0.7rem, and the name's most width, 16rem
+// the gap in the page's pixels between the tree's name and the bar's tools, 0.7rem, and the name's max width, 16rem
 #define GUI_TOP_MENU_GAP 11
 #define GUI_TOP_MENU_NAME_WIDTH 256
 
@@ -35,7 +35,7 @@ GuiRect gui_top_menu_tool_rect(const GuiTopMenuCfg *args)
     const int side = args->frame->top_menu_tools.height;
     const int gap = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TOP_MENU_TOOL_GAP,
                                .scale = args->frame->scale);
-    // the tools' row the button is laid in: the one handed in, else the frame's; a tool's place is one of four
+    // the tools' row the button is positioned in: the one passed in, else the frame's; a tool's place is one of four
     const GuiRect tools = (args->tools != NULL) ? *args->tools : args->frame->top_menu_tools;
     const int at = tools.x + ((int)args->which * (side + gap));
     const GuiRect button = {at, tools.y, side, side};
@@ -56,23 +56,23 @@ unsigned int gui_top_menu_tools_hit(const GuiTopMenuCfg *args)
     return GUI_TOP_MENU_TOOL_NONE;
 }
 
-// a tool's letter icon, the one character of its glyph's name, in the bold interface face centred in its button
-EMBED_INLINE void top_menu_letter_draw(const TopMenuCtx *args)
+// a tool's character icon, the one character of its glyph's name, in the bold interface face centred in its button
+EMBED_INLINE void top_menu_character_draw(const TopMenuCtx *args)
 {
     const GuiTopMenuRasterCfg *const drawn = args->drawn;
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                                       .pixels = (int)GUI_TOP_MENU_TOOL_LETTER, .scale = drawn->frame->scale);
-    const char *const letter = g_gui_top_menu_tools[args->which].glyph;
+                                                       .pixels = (int)GUI_TOP_MENU_TOOL_CHARACTER, .scale = drawn->frame->scale);
+    const char *const character = g_gui_top_menu_tools[args->which].glyph;
     const float measured =
         EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = drawn->glyphs,
-                   .face = GUI_FACE_HEAD_BOLD, .size = size, .text = letter, .length = 1ULL);
+                   .face = GUI_FACE_HEAD_BOLD, .size = size, .text = character, .length = 1ULL);
     const int baseline =
         EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = drawn->glyphs, .face = GUI_FACE_HEAD_BOLD,
                    .size = size, .top = args->button.y, .pixel_height = args->button.height);
     (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = drawn->raster,
                      .glyphs = drawn->glyphs, .face = GUI_FACE_HEAD_BOLD, .size = size,
                      .x_f32 = (float)args->button.x + (((float)args->button.width - measured) / 2.0f), .y = baseline,
-                     .text = letter, .length = 1ULL, .color = args->color, .clip = args->clip);
+                     .text = character, .length = 1ULL, .color = args->color, .clip = args->clip);
 }
 
 // a tool's icon by its glyph's name, centred in its button
@@ -94,9 +94,9 @@ EMBED_INLINE void top_menu_icon_draw(const TopMenuCtx *args)
                .y = args->button.y + ((args->button.height - (int)icon) / 2), .color = args->color, .clip = args->clip);
 }
 
-// The tools' beads laid out, one a tool at its rest place on the top menu's row, where the row stands with no claim,
+// The tools' beads arranged, one a tool at its rest place on the top menu's row, where the row is with no claim,
 // lit by the window's lights. A tool's frames bake the first time it is drawn
-EMBED_INLINE void top_menu_beads_laid(const TopMenuCtx *args)
+EMBED_INLINE void top_menu_beads_positioned(const TopMenuCtx *args)
 {
     const GuiTopMenuRasterCfg *const drawn = args->drawn;
     const GuiFrame *const frame = drawn->frame;
@@ -153,7 +153,7 @@ EMBED_INLINE void top_menu_tools_draw(const TopMenuCtx *args)
         const GuiColor color = pointed ? drawn->palette->top_menu_bright : drawn->palette->status_text;
         if (g_gui_top_menu_tools[which].glyph[1] == '\0')
         {
-            EMBED_CALL(top_menu_letter_draw, TopMenuCtx, .drawn = drawn, .which = which, .button = button, .clip = on,
+            EMBED_CALL(top_menu_character_draw, TopMenuCtx, .drawn = drawn, .which = which, .button = button, .clip = on,
                        .color = color);
         }
         else
@@ -177,7 +177,7 @@ void gui_top_menu_draw(const GuiTopMenuRasterCfg *args)
 {
     GuiRaster *raster = args->raster;
     GuiGlyphs *glyphs = args->glyphs;
-    // the bar's pane is the slat its edge shows, whole outside the claim, laid by the frame's base
+    // the bar's pane is the slat its edge shows, whole outside the claim, positioned by the frame's base
     const GuiRect pane = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->frame->top_menu_band,
                                     .other = args->frame->top_menu);
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
@@ -187,11 +187,11 @@ void gui_top_menu_draw(const GuiTopMenuRasterCfg *args)
                    .size = size, .top = args->frame->top_menu.y, .pixel_height = args->frame->top_menu.height);
     unsigned long long length = 0ULL;
     length = cellul.len(&(CatenaFinitaCfg){.src = args->title, .cap = GUI_LABEL_MAX});
-    const int most = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TOP_MENU_NAME_WIDTH,
+    const int max = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TOP_MENU_NAME_WIDTH,
                                 .scale = args->frame->scale);
     const float measured = EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
                                       .face = GUI_FACE_HEAD, .size = size, .text = args->title, .length = length);
-    const int pixel_width = (measured > (float)most) ? most : (int)arith_round_f32(measured);
+    const int pixel_width = (measured > (float)max) ? max : (int)arith_round_f32(measured);
     const int right = args->frame->top_menu_tools.x - EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                             .pixels = GUI_TOP_MENU_GAP, .scale = args->frame->scale);
     const GuiRect clip = {right - pixel_width, args->frame->top_menu.y, pixel_width, args->frame->top_menu.height};
@@ -199,6 +199,6 @@ void gui_top_menu_draw(const GuiTopMenuRasterCfg *args)
                      .face = GUI_FACE_HEAD, .size = size, .x_f32 = (float)(right - pixel_width), .y = baseline,
                      .text = args->title, .length = length, .color = args->palette->top_menu_text,
                      .clip = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = clip, .other = pane));
-    EMBED_CALL(top_menu_beads_laid, TopMenuCtx, .drawn = args);
+    EMBED_CALL(top_menu_beads_positioned, TopMenuCtx, .drawn = args);
     EMBED_CALL(top_menu_tools_draw, TopMenuCtx, .drawn = args, .clip = pane);
 }

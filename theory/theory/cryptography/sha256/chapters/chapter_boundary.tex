@@ -10,9 +10,9 @@ On the boundary the same split cuts eight spherical triangles, and each has \emp
 \[
   A = \alpha + \beta + \gamma - \pi = \tfrac{3\pi}{2} - \pi = \tfrac{\pi}{2},
 \]
-and eight of them come to \(4\pi\), the area of the sphere. The tiling is exact and the eight pieces are congruent. No letter of the alphabet below is larger than another by construction. The measured shares total \(1.000000000000000\).
+and eight of them come to \(4\pi\), the area of the sphere. The tiling is exact and the eight pieces are congruent. No character of the alphabet below is larger than another by construction. The measured shares total \(1.000000000000000\).
 
-That gives an eight-letter alphabet: the fraction of the lit set sitting in each octant, one word of eight numbers per state. It is the coarsest reading in this work, and \S\ref{sec:rank} is the reason it is presented with its limit attached.
+That gives an eight-character alphabet: the fraction of the lit set sitting in each octant, one word of eight numbers per state. It is the coarsest reading in this work, and \S\ref{sec:rank} is the reason it is presented with its limit attached.
 
 \section{An index shift is a screw}
 
@@ -22,7 +22,7 @@ Shift every index by \(n\). Longitude advances by \(n\gamma\) and height by \(-2
 \[
   \frac{\text{slide}}{\text{turn}} = \frac{-2n/N}{n\gamma} = \frac{-2}{N\gamma},
 \]
-\textbf{independent of \(n\)}. One axis and one pitch therefore describe every shift amount there is, and the amounts differ only in how far along the one helix they travel. The move is rigid in height and longitude and keeps area; it is not an isometry of the sphere, because the axial radius \(\sqrt{1 - y^2}\) changes under the slide.
+\textbf{independent of \(n\)}. One axis and one pitch therefore describe every shift amount there is, and the amounts differ only in how far along the one helix they travel. The move is rigid in height and longitude and retains area; it is not an isometry of the sphere, because the axial radius \(\sqrt{1 - y^2}\) changes under the slide.
 
 Measured at \(N = 256\) over six shift amounts:
 
@@ -37,9 +37,9 @@ spread of the pitch over six amounts & \(4.337 \times 10^{-19}\) \\
 \end{tabular}
 \end{center}
 
-Indices that run past \(N\) wrap and return at the other end, and they return \emph{as a rigid second arm of the same helix}. Wrapping leaves the screw intact and splits it into two arms of one screw. A rotated state therefore reads as a shifted spiral with a second arm laid beside it, never as a scramble.
+Indices that run past \(N\) wrap and return at the other end, and they return \emph{as a rigid second arm of the same helix}. Wrapping leaves the screw intact and splits it into two arms of one screw. A rotated state therefore reads as a shifted spiral with a second arm positioned beside it, never as a scramble.
 
-\textbf{This is the strongest structural statement in the chapter.} The rotation is the most-used operation in the compression function, and on this placement an index shift is one rigid move along one helix whose pitch does not depend on the amount. It is an identity instead of a measurement: the numbers above check the arithmetic, and the pitch spread of \(4 \times 10^{-19}\) is the rounding of the division.
+\textbf{This is the strongest structural statement in the chapter.} The rotation is the max-used operation in the compression function, and on this placement an index shift is one rigid move along one helix whose pitch does not depend on the amount. It is an identity instead of a measurement: the numbers above check the arithmetic, and the pitch spread of \(4 \times 10^{-19}\) is the rounding of the division.
 
 The caution is equally exact. The placement is chosen, and the identity belongs to the golden spiral. A different placement gives a different move. The identity says that SHA-256's rotations \emph{can} be read as one rigid move, never that the function contains one.
 
@@ -87,14 +87,14 @@ Two further points from the same paper bear on this reading. Their synthetic tes
 \section{What a boundary cannot say}
 \label{sec:rank}
 
-\textbf{A reading to degree \(L\) carries exactly \((L+1)^2\) real numbers about its source, whatever the source is.} That is how many coefficients there are. The lit set here has \(256\) degrees of freedom. Where \((L+1)^2 < 256\) the reading is a linear map of rank at most \((L+1)^2\) from a \(256\)-dimensional space. Its null space has dimension at least the shortfall, and every direction in that null space is a change to the object that moves no coefficient at all.
+\textbf{A reading to degree \(L\) carries exactly \((L+1)^2\) real numbers about its source, whatever the source is.} That is how many coefficients there are. The lit set here has \(256\) degrees of freedom. Where \((L+1)^2 < 256\) the reading is a linear map of rank at max \((L+1)^2\) from a \(256\)-dimensional space. Its null space has dimension at least the shortfall, and every direction in that null space is a change to the object that moves no coefficient at all.
 
-Both kernels sit below one and both are diagonal. Either can only shrink a singular value. Measured on the golden placement at full depth and no conduction, the most favorable case there is:
+Both kernels sit below one and both are diagonal. Either can only shrink a singular value. Measured on the golden placement at full depth and no conduction, the max favorable case there is:
 
 \begin{center}
 \begin{tabular}{rrrrr}
 \toprule
-degree & coefficients & rank & blind & least kept \\
+degree & coefficients & rank & blind & least retained \\
 \midrule
 4 & 25 & 25 & 231 & \(4.495\) \\
 8 & 81 & 81 & \textbf{175} & \(4.365\) \\
@@ -113,19 +113,19 @@ The map has as much rank as it has rows at every degree below the source count. 
 
 \textbf{Reaching the floor is not reaching a usable reading.} At degree fifteen the rank is complete and the least singular value collapses to \(3.5 \times 10^{-3}\), three decades under the values beside it; at sixteen it recovers to \(1.5 \times 10^{-1}\). A square map is invertible and an ill-conditioned one is not invertible in any useful sense, and the count alone hides that. One degree of headroom buys a factor of \(44\) in conditioning.
 
-\textbf{The eight-letter alphabet is rank \(8\), blind in \(248\) of \(256\) directions}, and at fixed weight its shares carry one constraint and leave seven free numbers. This frames the coherence result: sixty-four rounds write sixty-four distinct signatures, which reads as complete separation and comes nearly free, because seven numbers separate sixty-four arbitrary states whether the seven mean anything. Distinctness at that sample size is not evidence. Evidence would be a delta below the redraw level, or a signature that predicts the round it came from.
+\textbf{The eight-character alphabet is rank \(8\), blind in \(248\) of \(256\) directions}, and at fixed weight its shares carry one constraint and leave seven free numbers. This frames the coherence result: sixty-four rounds write sixty-four distinct signatures, which reads as complete separation and comes nearly free, because seven numbers separate sixty-four arbitrary states whether the seven mean anything. Distinctness at that sample size is not evidence. Evidence would be a delta below the redraw level, or a signature that predicts the round it came from.
 
 \subsection{The bound arriving as an implementation defect}
 
-\textbf{A recorded frame that is not carried through the query moves four fifths of the placement and a few percent of the reading.} An arm is stated in some frame, and the derivation uses that frame; dropping it between the record and the query is a plain implementation defect. Measured against the eight sign octants over the \(256\)-point golden placement, it sends \(199\) of \(256\) points to a different arm. The eight letters move by \(3.92\) percent in the units the delta is reported in, and the worst single letter moves \(1.96 \times 10^{-2}\), or three point crossings. Four fifths of the placement relocates and the reading reports a few percent, because the move lives almost entirely in the \(248\) directions the alphabet cannot see. Here the margin is fourteen decades above the reading's floor and the defect is caught, but the margin is a property of the floor and not of the defect: the letters understate the move by construction, and the count of reassigned points does not.
+\textbf{A recorded frame that is not carried through the query moves four fifths of the placement and a few percent of the reading.} An arm is stated in some frame, and the derivation uses that frame; dropping it between the record and the query is a plain implementation defect. Measured against the eight sign octants over the \(256\)-point golden placement, it sends \(199\) of \(256\) points to a different arm. The eight characters move by \(3.92\) percent in the units the delta is reported in, and the worst single character moves \(1.96 \times 10^{-2}\), or three point crossings. Four fifths of the placement relocates and the reading reports a few percent, because the move lives almost entirely in the \(248\) directions the alphabet cannot see. Here the margin is fourteen decades above the reading's floor and the defect is caught, but the margin is a property of the floor and not of the defect: the characters understate the move by construction, and the count of reassigned points does not.
 
-\textbf{A letter is a sum, and a sum hides a pair of moves that cancel inside it.} Two points exchanging arms leave both letters where they were while the arms are no longer the arms, and a comparison made only at the letters can then report an exact match while the topology moved. The redraw null therefore compares at three levels: each arm's weight at each placement point, the count of points that changed arm, and the letter a caller reads. The first two are what the claim is about; the third is a consequence.
+\textbf{A character is a sum, and a sum hides a pair of moves that cancel inside it.} Two points exchanging arms leave both characters where they were while the arms are no longer the arms, and a comparison made only at the characters can then report an exact match while the topology moved. The redraw null therefore compares at three levels: each arm's weight at each placement point, the count of points that changed arm, and the character a caller reads. The first two are what the claim is about; the third is a consequence.
 
 \subsection{The null space is more than truncation}
 
 Truncation is the bound above and the one that binds here. The deeper limit does not go away at unbounded degree: for the wave equation at a fixed frequency there exist sources whose exterior field vanishes identically, and surface measurements cannot uniquely determine a volume source~\cite{src:Bleistein-and-Cohen-1977}. Recent treatments give spherical-harmonic criteria for when a source fails to radiate, for Maxwell's equations (\texttt{arXiv:2402.10407}), on uniqueness, reciprocity and low-signature structures (\texttt{arXiv:2509.26304}), and for elastic sources (\texttt{arXiv:2508.05401}).
 
-The null space of the reading is not exactly that class, and two different things must be kept apart. A source whose exterior field vanishes identically has every exterior coefficient equal to zero, and no arithmetic reaches it. That is a genuine kernel. A source whose \emph{far} field falls below the reader's floor while its near field does not is a different case, and it is no kernel at all. The reading is taken at a finite radius, where a near field is present by definition. Such a source has coefficients that are small and nonzero. Calling them invisible is a statement about the instrument's floor, and the object still carries them.
+The null space of the reading is not exactly that class, and two different things must be retained apart. A source whose exterior field vanishes identically has every exterior coefficient equal to zero, and no arithmetic reaches it. That is a genuine kernel. A source whose \emph{far} field falls below the reader's floor while its near field does not is a different case, and it is no kernel at all. The reading is taken at a finite radius, where a near field is present by definition. Such a source has coefficients that are small and nonzero. Calling them invisible is a statement about the instrument's floor, and the object still carries them.
 
 \textbf{The depth kernel prices degrees in digits and does not zero them.} The gain at degree \(l\) is \((r/R)^l\), which is never zero for \(r < R\). A degree is unreadable exactly when its gain lands under the floor, and the last surviving degree is \(\text{digits} / \log_{10}(R/r)\). At \(r/R = 62/100\) the count comes back \(77\) degrees at sixteen digits, \(96\) at twenty, \(144\) at thirty and \(264\) at fifty-five, against predictions of \(77.1\), \(96.3\), \(144.5\) and \(264.9\): \(4.8168\) degrees per digit. The object is built once and never rebuilt, and every column that moves belongs to the format. Over the same sweep the identity floor falls \(1.0011\) decades per digit and the smallest detectable unmodeled source follows it at \(1.0256\), against the \(0.9861\) decades per digit recorded for a rotation null measured at eight precisions~\cite{src:Quigg-orior-workbook}.
 
@@ -143,13 +143,13 @@ The coefficients support a precise version of this. The reading is a section ove
 
 The measured effect is a large amplification of a small move. Over one full run the degree-zero swing reads \(0.12\) while the degrees above it swing \(0.27\) to \(0.88\). The low degrees sit nearly fixed and the high degrees cascade, and a small move at the bottom accompanies a large move everywhere else.
 
-\textbf{The attribution matters more than the measurement.} Both kernels are diagonal in degree. Depth and conduction reweight degrees and never mix them. A degree-zero plateau is therefore stable under both, and either kernel most strongly amplifies or kills high-degree structure. Conduction alone is a low-pass at degree about \(1/\sqrt{\tau}\). The amplification belongs to the kernels, and it must appear for any object read this way, which is also why the measurement is not evidence about SHA-256 by itself.
+\textbf{The attribution matters more than the measurement.} Both kernels are diagonal in degree. Depth and conduction reweight degrees and never mix them. A degree-zero plateau is therefore stable under both, and either kernel max strongly amplifies or kills high-degree structure. Conduction alone is a low-pass at degree about \(1/\sqrt{\tau}\). The amplification belongs to the kernels, and it must appear for any object read this way, which is also why the measurement is not evidence about SHA-256 by itself.
 
 Two limits belong with it. The even and odd lobe split and the exponential falloff visible in the power bars are artifacts of the ring placement and the depth control, never of the hash. And the degree-zero swing above is read off the viewer over one run: an instrument reading with no error bar.
 
 \section{The delta, and the object it is read on}
 
-The eight-letter word, round by round, on the working state of the compression function, against a floor measured the same way from two unrelated states of the same weight, redrawn:
+The eight-character word, round by round, on the working state of the compression function, against a floor measured the same way from two unrelated states of the same weight, redrawn:
 
 \begin{center}
 \begin{tabular}{lrr}
@@ -195,7 +195,7 @@ rotation about the read axis & \(a_{lm}\, e^{-im\alpha}\) & yes & \(P_l\), each 
 depth, outward carry & \((r/R)^{l}\, a_{lm}\) & yes & direction per degree \\
 conduction, smoothing & \(e^{-l(l+1)\tau}\, a_{lm}\) & yes & direction per degree \\
 pixel prefilter & \(e^{-l(l+1)\sigma^2/2}\, a_{lm}\) & yes & direction per degree \\
-band truncation & keep \(l \le L\) & yes & every kept coefficient \\
+band truncation & retain \(l \le L\) & yes & every retained coefficient \\
 point inversion & \((-1)^{l}\, a_{lm}\) & yes & \(P_l\) \\
 index screw & rotation \(n\gamma\), slide \(-2n/N\) & no & area \\
 synthesis & \(f(\hat n) = \sum a_{lm} Y_{lm}(\hat n)\) & no & none \\

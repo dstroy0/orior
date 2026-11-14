@@ -68,22 +68,22 @@ static __global__ void omega_kernel(OmegaBatch *batch, const unsigned long long 
         fate = (((fate == OMEGA_OPEN) && (steps_short != 0)) || ((fate == OMEGA_GREW) && (tokens_short != 0)))
                    ? OMEGA_HOST_RUNS
                    : fate;
-        hand[atomicAdd(&batch->handed, 1ull)] = (offset << 8u) | fate;
+        hand[atomicAdd(&batch->passed, 1ull)] = (offset << 8u) | fate;
     }
     atomicAdd(&batch->halts, halts);
     atomicMax(&batch->steps_key, steps_key);
     atomicMax(&batch->bits_key, bits_key);
 }
 
-// a launch's handed back terms settled on the host: the fate each carries, or the host's own run
+// a launch's passed back terms settled on the host: the fate each carries, or the host's own run
 static void omega_hand_worker(const OmegaCounts *counts, unsigned int length, unsigned long long from,
-                              const unsigned long long *hand, unsigned long long handed, unsigned int worker,
+                              const unsigned long long *hand, unsigned long long passed, unsigned int worker,
                               unsigned int workers, OmegaResults *results)
 {
     std::vector<int> term;
     std::vector<int> next;
     std::vector<int> stored;
-    for (unsigned long long at = worker; at < handed; at += workers)
+    for (unsigned long long at = worker; at < passed; at += workers)
     {
         const unsigned long long index = from + (hand[at] >> 8u);
         OmegaFate fate = (OmegaFate)(hand[at] & 0xFFull);
@@ -145,7 +145,7 @@ static void omega_ledger_read(const char *path, std::vector<OmegaLedgerJob> &job
         omega_results_open(&job.results);
         unsigned long long fate[6];
         unsigned long long contradictions = 0ull;
-        unsigned long long maximum[4];
+        unsigned long long max[4];
         const size_t written = strlen(line);
         if ((written == 0u) || (line[written - 1u] != '\n'))
         {
@@ -154,7 +154,7 @@ static void omega_ledger_read(const char *path, std::vector<OmegaLedgerJob> &job
         int read = 0;
         if (sscanf(line, "%u %u %u %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu%n", &job.steps,
                    &job.tokens, &job.length, &job.from, &job.count, &fate[0], &fate[1], &fate[2], &fate[3], &fate[4],
-                   &fate[5], &contradictions, &maximum[0], &maximum[1], &maximum[2], &maximum[3],
+                   &fate[5], &contradictions, &max[0], &max[1], &max[2], &max[3],
                    &read) != OMEGA_LEDGER_FIELDS)
         {
             continue;
@@ -170,10 +170,10 @@ static void omega_ledger_read(const char *path, std::vector<OmegaLedgerJob> &job
             job.results.fate[one][job.length] = fate[one];
         }
         job.results.contradictions = contradictions;
-        job.results.max_steps[job.length] = maximum[0];
-        job.results.steps_champion[job.length] = maximum[1];
-        job.results.max_bits[job.length] = maximum[2];
-        job.results.bits_champion[job.length] = maximum[3];
+        job.results.max_steps[job.length] = max[0];
+        job.results.steps_champion[job.length] = max[1];
+        job.results.max_bits[job.length] = max[2];
+        job.results.bits_champion[job.length] = max[3];
         jobs.push_back(job);
     }
     fclose(file);
@@ -211,7 +211,7 @@ static int omega_ledger_write(const char *path, const OmegaCounts *counts, unsig
     return (fclose(file) == 0) && written;
 }
 
-// every closed term through L bits run on the device as jobs, the host settling each launch's handed back terms
+// every closed term through L bits run on the device as jobs, the host settling each launch's passed back terms
 // while the device runs the next; launches are sized toward a quarter second of device time. `ledger` may be NULL.
 int omega_device(SimResults *results, const OmegaCounts *counts, unsigned int workers, const char *ledger,
                  unsigned int *threads_used, unsigned long long *host_runs, unsigned long long *jobs_run,
@@ -260,7 +260,7 @@ int omega_device(SimResults *results, const OmegaCounts *counts, unsigned int wo
     ok = ok && sim_status_check(results, cudaEventCreate(&launched), "device: event");
     ok = ok && sim_status_check(results, cudaEventCreate(&finished), "device: event");
     std::vector<OmegaResults> tallies(workers);
-    // the launch before this one, whose handed back terms the host settles while this one runs
+    // the launch before this one, whose passed back terms the host settles while this one runs
     std::vector<unsigned long long> stored_hand;
     unsigned int stored_length = 0u;
     unsigned long long stored_from = 0ull;
@@ -315,10 +315,10 @@ int omega_device(SimResults *results, const OmegaCounts *counts, unsigned int wo
                 {
                     break;
                 }
-                stored_hand.resize(result.handed);
-                ok = (result.handed == 0ull) ||
+                stored_hand.resize(result.passed);
+                ok = (result.passed == 0ull) ||
                      sim_status_check(results,
-                                      cudaMemcpy(stored_hand.data(), hand, result.handed * sizeof(unsigned long long),
+                                      cudaMemcpy(stored_hand.data(), hand, result.passed * sizeof(unsigned long long),
                                                  cudaMemcpyDeviceToHost),
                                       "device: hand read");
                 stored_length = length;
@@ -331,7 +331,7 @@ int omega_device(SimResults *results, const OmegaCounts *counts, unsigned int wo
                     omega_champion(&job.max_bits[length], &job.bits_champion[length], result.bits_key >> 32u,
                                    from + (0xFFFFFFFFull - (result.bits_key & 0xFFFFFFFFull)));
                 }
-                for (unsigned long long at = 0ull; at < result.handed; at += 1ull)
+                for (unsigned long long at = 0ull; at < result.passed; at += 1ull)
                 {
                     *host_runs += ((stored_hand[at] & 0xFFull) == OMEGA_HOST_RUNS) ? 1ull : 0ull;
                 }
@@ -345,7 +345,7 @@ int omega_device(SimResults *results, const OmegaCounts *counts, unsigned int wo
                     size /= 2ull;
                 }
             }
-            // the job is whole only once its last launch's handed back terms are settled
+            // the job is whole only once its last launch's passed back terms are settled
             omega_hand_settle(counts, stored_length, stored_from, stored_hand, workers, tallies, &job);
             stored_hand.clear();
             if (ok == 0)

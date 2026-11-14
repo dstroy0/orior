@@ -25,7 +25,7 @@ _Static_assert(UINT_MAX == 0xFFFFFFFFu, "qasm lens: a SHA-256 word is an unsigne
 _Static_assert(ULLONG_MAX == 0xFFFFFFFFFFFFFFFFull, "qasm lens: SplitMix's state is an unsigned long long of 64 bits");
 _Static_assert(QASM_LENS_BITS_MAX < 32u, "qasm lens: an aperture index is an unsigned int, drawn below 2^32");
 _Static_assert((QASM_LENS_ROUNDS_MAX >= QASM_LENS_MESSAGE_WORDS) && (QASM_LENS_ROUNDS_MAX <= 64u),
-               "qasm lens: a schedule contains the 16 message words and at most SHA-256's 64 rounds");
+               "qasm lens: a schedule contains the 16 message words and at max SHA-256's 64 rounds");
 _Static_assert(QASM_LENS_LIFT_BITS == (2u * QASM_LENS_RAW_BITS),
                "qasm lens: the lift is the raw 256 bits and 256 AND-monomials");
 _Static_assert(QASM_LENS_GENERATOR_BYTES >= (QASM_LENS_LIFT_BITS / 8u),

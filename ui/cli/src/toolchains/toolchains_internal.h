@@ -19,14 +19,14 @@ typedef struct CliToolchainsCtx CliToolchainsCtx;
 typedef struct CliToolchainsPatternCtx CliToolchainsPatternCtx;
 typedef struct CliToolchainsACtx CliToolchainsACtx;
 
-// whether `name` matches `pattern`, whose * matches any run of letters, case aside on Windows; and names ordered as
+// whether `name` matches `pattern`, whose * matches any run of characters, case aside on Windows; and names ordered as
 // their numbers read, so that Python314 comes after Python39: below 0 where `a` comes first (toolchains.c)
 int cli_toolchains_matches(const CliToolchainsPatternCtx *args);
 int cli_toolchains_natural(const CliToolchainsACtx *args);
 // the PATH `shell` sets as a login shell into `path`, which is sized for `size`: 1, or 0 where it sets none within the
 // patience (toolchains_path.c)
 int cli_toolchains_path_of_shell(const CliToolchainsShellCtx *args);
-// whether the login shell's PATH is read, or none is asked for: 1 where the folders a search reads stand still from
+// whether the login shell's PATH is read, or none is asked for: 1 where the folders a search reads are still from
 // here on (toolchains_path.c)
 int cli_toolchains_shell_path_read(void);
 
@@ -44,7 +44,7 @@ void cli_toolchains_found_let(void);
 // the file `name` in orior's own folder into `path`: 1, or 0, `path` empty, where impero has no folder of its own;
 // the file at `path` read into the tree in a cell sized to it, with `nodes_more` nodes and `text_more` bytes over for
 // what the caller puts in it, which persistent_buf_release releases, an empty object where it is not there or does not
-// read: its node; the node written to `path` as serde_json's pretty writer lays it out, its keys in order where
+// read: its node; the node written to `path` as serde_json's pretty writer positions it out, its keys in order where
 // `sorted`, its folder made: 1, or 0 with why given; and a text trimmed of ASCII's spaces at each end into `out`, sized
 // for `capacity`
 int cli_toolchains_file(const CliToolchainsCtx *args);

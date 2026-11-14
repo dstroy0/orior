@@ -10,7 +10,7 @@
 #include "ui/cli/src/toolchains/toolchains.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-// the most answers a server sends and the bytes of each request it receives
+// the max answers a server sends and the bytes of each request it receives
 #define REQUESTS_SERVED 4u
 #define REQUESTS_HEAD_MAX 4096u
 

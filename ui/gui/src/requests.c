@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// requests.c: the Requests view of the Comms pane: its head's choices and its rows as the CLI lays them, each drawn
-// from the CLI's texts and numbers, and its presses handed to the CLI
+// requests.c: the Requests view of the Comms pane: its head's choices and its rows as the CLI positions them, each drawn
+// from the CLI's texts and numbers, and its presses passed to the CLI
 #include "requests.h"
 
 #include "../../cli/src/command_line/cli_internal.h"
@@ -51,7 +51,7 @@ EMBED_INLINE GuiRect requests_choice_rect(const RequestsPartCtx *args)
                      (place + 1 == envs) ? rect.width - (place * part) : part, row_height};
 }
 
-// the head drawn: each choice the CLI answers, on the hover's ground where the pointer stands on it or it is lit
+// the head drawn: each choice the CLI answers, on the hover's ground where the pointer is on it or it is lit
 static void requests_head_draw(const GuiPaneCfg *args)
 {
     const unsigned int choices = EMBED_CALL(cli_requests_pane.choices, CliRequestsPaneCfg, .at = 0u);
@@ -69,7 +69,7 @@ static void requests_head_draw(const GuiPaneCfg *args)
     }
 }
 
-// the action at x, y: the head's choice it stands on, its place and one, 0 for none
+// the action at x, y: the head's choice it is on, its place and one, 0 for none
 static unsigned int requests_head_hit(const GuiPaneCfg *args)
 {
     const unsigned int choices = EMBED_CALL(cli_requests_pane.choices, CliRequestsPaneCfg, .at = 0u);
@@ -85,7 +85,7 @@ static unsigned int requests_head_hit(const GuiPaneCfg *args)
     return 0u;
 }
 
-// a choice taken: Send sends the request the shown view's cursor stands in, Copy as curl puts its curl line on the
+// a choice taken: Send sends the request the displayed view's cursor is in, Copy as curl puts its curl line on the
 // clipboard, and an environment is chosen
 static void requests_action(const GuiPaneCfg *args)
 {
@@ -176,7 +176,7 @@ static void requests_row_draw(const GuiPaneCfg *args)
     case CLI_REQUESTS_ROW_SIGN: {
         face = GUI_FACE_CODE;
         const char sign[1] = {row.sign};
-        // the x after the sign stands inside the row, far inside what an int represents
+        // the x after the sign is inside the row, far inside what an int represents
         x = (int)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .face = GUI_FACE_CODE_BOLD,
                             .size = GUI_REQUESTS_SIZE, .x_f32 = (float)x, .text = sign, .length = 1ULL,
                             .color = color) +
@@ -192,7 +192,7 @@ static void requests_row_draw(const GuiPaneCfg *args)
                    .inside = row.checked ? palette->signal : palette->editor_background);
         x = rect.x + EMBED_CALL(requests_box_end, RequestsPartCtx, .pane = args);
         face = GUI_FACE_CODE;
-        color = row.shown ? palette->text : palette->text_2;
+        color = row.displayed ? palette->text : palette->text_2;
         break;
     }
     case CLI_REQUESTS_ROW_COMPARE:
@@ -205,7 +205,7 @@ static void requests_row_draw(const GuiPaneCfg *args)
                      .x_f32 = (float)x, .text = row.text, .length = row.text_length, .color = color);
 }
 
-// the row pressed: a group opened or closed, an answer's box checked or the answer shown, and the two answers checked
+// the row pressed: a group opened or closed, an answer's box checked or the answer displayed, and the two answers checked
 // compared; nothing opens
 static int requests_press(const GuiPaneCfg *args)
 {

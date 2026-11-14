@@ -7,7 +7,7 @@
 // how many registers a thread of the kernel uses, read with the kernel
 unsigned int s_registers;
 
-// the kernel, the question's code written from it, how many places it contains, the place the probe stands at, and the
+// the kernel, the question's code written from it, how many places it contains, the place the probe is at, and the
 // encoding its unreached places contain
 unsigned char s_kernel_text[KHW_PLACES * KHW_INSTRUCTION];
 
@@ -20,7 +20,7 @@ unsigned long long s_unreached_low;
 unsigned long long s_unreached_high;
 
 // the path the file is written to, the part named in it, the container layout and the vendor's table the vendor's
-// writer is handed, and the vendor's writer itself
+// writer is passed, and the vendor's writer itself
 const char *s_path;
 
 const char *s_part;
@@ -40,13 +40,13 @@ RunQuestion s_question;
 unsigned long long s_query_count;
 unsigned int s_launches;
 
-// One round's questions, SCHEDULER_ROUND_MOST at most, each with the code it carries, how many it settles and its
+// One round's questions, SCHEDULER_ROUND_MAX at max, each with the code it carries, how many it settles and its
 // place in the round; how many the round contains
 RunQuestion *s_pool;
 
-static unsigned char s_pool_code[SCHEDULER_ROUND_MOST][KHW_PLACES * KHW_INSTRUCTION];
-static RunQuestion *s_pool_question[SCHEDULER_ROUND_MOST];
-static unsigned int s_pool_settles[SCHEDULER_ROUND_MOST];
+static unsigned char s_pool_code[SCHEDULER_ROUND_MAX][KHW_PLACES * KHW_INSTRUCTION];
+static RunQuestion *s_pool_question[SCHEDULER_ROUND_MAX];
+static unsigned int s_pool_settles[SCHEDULER_ROUND_MAX];
 unsigned int s_pooled;
 
 // one word of an instruction, and one written back
@@ -138,7 +138,7 @@ void khw_kernel_put(unsigned char *code)
 // The question's code, into `code`: the kernel with `low` and `high` at `place`. The probe place the question names is
 // sent to the carrier, which there makes the probe wait on all six barriers, stall the longest and use no barrier; a
 // form the part has not named then waits on everything, and a barrier nothing releases leaves the wait after it
-// standing (P9, cubin_safe.h)
+// located (P9, cubin_safe.h)
 void khw_code_put(unsigned char *code, unsigned int place, unsigned long long low, unsigned long long high)
 {
     khw_kernel_put(code);
@@ -184,13 +184,13 @@ int khw_question_put(const unsigned int word[][2], unsigned int count, unsigned 
 
 // A question added to the round being written: the kernel with `low` and `high` at `place`, or the kernel as it is
 // where `place` is past its places, over `count` cases from `word`, settling one entry. Its place in the round, or
-// SCHEDULER_ROUND_MOST where the round is full
+// SCHEDULER_ROUND_MAX where the round is full
 unsigned int khw_pooled(unsigned int place, unsigned long long low, unsigned long long high,
                         const unsigned int word[][2], unsigned int count)
 {
-    if (s_pooled == SCHEDULER_ROUND_MOST)
+    if (s_pooled == SCHEDULER_ROUND_MAX)
     {
-        return SCHEDULER_ROUND_MOST;
+        return SCHEDULER_ROUND_MAX;
     }
     const unsigned int at = s_pooled;
     if (place < s_kernel_places)
@@ -236,9 +236,9 @@ void khw_round_printed(unsigned int count, const unsigned long long before[4])
     fflush(stdout);
 }
 
-// The plan of a pass handed to the run as the pass starts, the blob `plan.txt`, one line `<pass> <questions>`: the
+// The plan of a pass passed to the run as the pass starts, the blob `plan.txt`, one line `<pass> <questions>`: the
 // count of questions the pass is to put, an upper bound a reader of the run's tap takes the pass's progress against
-void khw_plan_handed(const char *pass, unsigned long long questions)
+void khw_plan_passed(const char *pass, unsigned long long questions)
 {
     char line[128];
     const int length = snprintf(line, sizeof(line), "%s %llu\n", pass, questions);
@@ -281,7 +281,7 @@ unsigned int khw_anchor_cases(unsigned int anchor, int swapped, unsigned int wor
         const LadderQuestion *const anchor_case = &s_ladder_cases[at];
         unsigned int answered = 0u;
         if ((anchor_case->anchor != anchor) || (anchor_case->words < 2u) ||
-            !ladder_answer(anchor, anchor_case->word, anchor_case->words, &answered) || (found == RUN_CASES_MOST))
+            !ladder_answer(anchor, anchor_case->word, anchor_case->words, &answered) || (found == RUN_CASES_MAX))
         {
             continue;
         }

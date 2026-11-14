@@ -314,25 +314,25 @@ EMBED_INLINE const char *cli_version_line_pick(const ToolchainsFindCtx *args)
     return first;
 }
 
-// the bytes of the first 120 letters of the `length` bytes at `text`, a letter whole
+// the bytes of the first 120 characters of the `length` bytes at `text`, a character whole
 EMBED_INLINE unsigned long long cli_version_cut(const ToolchainsFindCtx *args)
 {
     unsigned long long cut = 0ULL;
-    unsigned int letters = 0u;
-    while ((cut < args->length) && (letters < 120u))
+    unsigned int characters = 0u;
+    while ((cut < args->length) && (characters < 120u))
     {
         cut += 1ULL;
         while ((cut < args->length) && ((((unsigned char)args->text[cut]) & 0xc0u) == 0x80u))
         {
             cut += 1ULL;
         }
-        letters += 1u;
+        characters += 1u;
     }
     return cut;
 }
 
 // What tool `tool` reports its version is into `out`: the first line it writes with a dotted number, else its first
-// line, at most 120 letters. 1, or 0 with why given
+// line, at max 120 characters. 1, or 0 with why given
 static int cli_version_get(const ToolchainsFindCtx *args)
 {
     const CliJson *json = args->json;

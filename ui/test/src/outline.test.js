@@ -12,7 +12,7 @@ const docOf = (text) => {
   const lines = text.split("\n");
   return { count: lines.length, line: (at) => lines[at] };
 };
-const brief = (symbols) => symbols.map(({ name, kind: type, depth }) => `${name}:${type}:${depth}`);
+const brief = (symbols) => symbols.map(({ name, type: type, depth }) => `${name}:${type}:${depth}`);
 
 test("Python's functions, classes and constants, each as deep as its indent", () => {
   const doc = docOf("LIMIT = 10\nclass Shape:\n    def area(self):\n        pass\nasync def main():\n    pass");

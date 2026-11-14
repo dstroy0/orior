@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// statusbar.c: the status bar's items stand from its right end, the lock first, then the editor's line, Focus and the
-// memory reading, each a gap apart, and the crumbs from its left as the crumbs part lays them, the notice a gap after
-// them with Silence beside it. One pass lays the bar out and draws it, or with no raster lays it out alone, so a press
+// statusbar.c: the status bar's items are from its right end, the lock first, then the editor's line, Focus and the
+// memory reading, each a gap apart, and the crumbs from its left as the crumbs part positions them, the notice a gap after
+// them with Silence beside it. One pass positions the bar out and draws it, or with no raster positions it out alone, so a press
 // finds what the drawing showed
 #include "statusbar.h"
 #include "../../cli/src/command_line/pool.h"
@@ -48,7 +48,7 @@ void gui_status_selection_text(const GuiStatusbarCfg *args)
     const unsigned long long lines = (args->status->anchor_line > args->status->line)
                                          ? args->status->anchor_line - args->status->line
                                          : args->status->line - args->status->anchor_line;
-    const unsigned long long letters = (args->status->anchor_col > args->status->col)
+    const unsigned long long characters = (args->status->anchor_col > args->status->col)
                                            ? args->status->anchor_col - args->status->col
                                            : args->status->col - args->status->anchor_col;
     if (lines != 0ULL)
@@ -56,9 +56,9 @@ void gui_status_selection_text(const GuiStatusbarCfg *args)
         mmgr_line_decimal(&line, lines + 1ULL, 1u);
         mmgr_line_put(&line, " lines selected");
     }
-    else if (letters != 0ULL)
+    else if (characters != 0ULL)
     {
-        mmgr_line_decimal(&line, letters, 1u);
+        mmgr_line_decimal(&line, characters, 1u);
         mmgr_line_put(&line, " selected");
     }
     (void)mmgr_line_finish(&line);
@@ -88,7 +88,7 @@ typedef struct
     unsigned int size;
     float right;
     float x;
-    float most;
+    float max;
     int baseline;
     const char *text;
     unsigned long long length;
@@ -125,14 +125,14 @@ EMBED_INLINE float statusbar_item_draw(const StatusbarCtx *args)
     return args->right - pixel_width;
 }
 
-// how many bytes of `text` show within `most` pixels, its code points whole: all of it where it fits, else as many as
+// how many bytes of `text` show within `max` pixels, its code points whole: all of it where it fits, else as many as
 // fit with the ellipsis after them, which `length_out` then counts and 1 returns; 0 where the whole fits
 EMBED_INLINE int statusbar_fitted(const StatusbarCtx *args)
 {
     const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     *args->length_out = whole;
     if (EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->glyphs, .face = GUI_FACE_HEAD,
-                   .size = args->size, .text = args->text, .length = whole) <= args->most)
+                   .size = args->size, .text = args->text, .length = whole) <= args->max)
     {
         return 0;
     }
@@ -164,7 +164,7 @@ EMBED_INLINE int statusbar_fitted(const StatusbarCtx *args)
         }
         const float width = EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->glyphs,
                                        .face = GUI_FACE_HEAD, .size = args->size, .text = args->text, .length = middle);
-        if (width + dots <= args->most)
+        if (width + dots <= args->max)
         {
             low = middle;
         }
@@ -187,7 +187,7 @@ void gui_statusbar_draw(const GuiStatusbarStatusCfg *args)
     memor.set(&(MemoriaCfg){.dst = &none, .val = 0, .bytes = sizeof(none)});
     GuiStatusPlaces *const places = (args->places != NULL) ? args->places : &none;
     *places = none;
-    // the bar's pane is the slat its edge shows, whole outside the claim, laid by the frame's base; the items stand
+    // the bar's pane is the slat its edge shows, whole outside the claim, positioned by the frame's base; the items are
     // in the slat
     const GuiRect bar = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->frame->status_band,
                                    .other = args->frame->status);
@@ -202,7 +202,7 @@ void gui_statusbar_draw(const GuiStatusbarStatusCfg *args)
     const int gap = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_STATUS_GAP, .scale = scale);
     char text[GUI_STATUS_TEXT];
     // the items from the right: the lock, the indentation, the encoding, the line ends, the selection and the cursor,
-    // while a file is shown, then the memory reading
+    // while a file is displayed, then the memory reading
     float right =
         (float)(bar.x + bar.width -
                 EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_STATUS_PAD, .scale = scale));
@@ -299,7 +299,7 @@ void gui_statusbar_draw(const GuiStatusbarStatusCfg *args)
     const float crumbs_x =
         (float)(args->frame->status.x + side_menu_capacity +
                 EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_STATUS_PAD, .scale = scale));
-    // the crumbs as the crumbs part lays them, the notice a gap after them where any stands
+    // the crumbs as the crumbs part positions them, the notice a gap after them where any is
     float x = EMBED_CALL(gui_crumbs.draw, GuiCrumbsCfg, .raster = raster, .glyphs = glyphs, .palette = args->palette,
                          .size = size, .x_f32 = crumbs_x, .baseline = baseline, .clip = capacity, .scale = scale);
     x += (EMBED_CALL(gui_crumbs.count, GuiCrumbsCfg, .index = 0u) != 0u) ? (float)gap : 0.0f;
@@ -316,18 +316,18 @@ void gui_statusbar_draw(const GuiStatusbarStatusCfg *args)
                    .size = size, .text = s_silence, .length = sizeof(s_silence) - 1u);
     const float share = ((float)args->frame->width * (float)GUI_STATUS_NOTICE_SHARE) / 100.0f;
     const float space = (float)capacity.x + (float)capacity.width - x - notice_gap - silence;
-    const float most = (share < space) ? share : space;
-    if (most <= 0.0f)
+    const float max = (share < space) ? share : space;
+    if (max <= 0.0f)
     {
         return;
     }
-    unsigned long long shown = 0ULL;
+    unsigned long long displayed = 0ULL;
     const int cut = EMBED_CALL(statusbar_fitted, StatusbarCtx, .glyphs = glyphs, .size = size,
-                               .text = args->status->notice, .most = most, .length_out = &shown);
+                               .text = args->status->notice, .max = max, .length_out = &displayed);
     const GuiColor notice_color = args->status->notice_failed ? args->palette->fail : args->palette->status_text;
     const float start = x;
     x = EMBED_CALL(statusbar_text, StatusbarCtx, .raster = raster, .glyphs = glyphs, .size = size, .x = x,
-                   .baseline = baseline, .text = args->status->notice, .length = shown, .color = notice_color,
+                   .baseline = baseline, .text = args->status->notice, .length = displayed, .color = notice_color,
                    .clip = capacity);
     if (cut)
     {

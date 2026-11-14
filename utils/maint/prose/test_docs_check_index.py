@@ -24,12 +24,12 @@ import docs_check
 def both(lines, **options):
     """(indexed hits, brute force hits) for one file's lines."""
     indexed = list(docs_check.banned_hits(lines, **options))
-    kept = docs_check.candidates
+    retained = docs_check.candidates
     docs_check.candidates = lambda text, needing=None: list(docs_check.BANNED)
     try:
         brute = list(docs_check.banned_hits(lines, **options))
     finally:
-        docs_check.candidates = kept
+        docs_check.candidates = retained
     return indexed, brute
 
 
@@ -60,7 +60,7 @@ class TheIndexNamesALiteral(unittest.TestCase):
 
 class TheIndexChangesNoFinding(unittest.TestCase):
     def test_folded_characters_still_reach_their_pattern(self):
-        # re lets each of these match an ASCII letter under IGNORECASE and str.lower() does not
+        # re lets each of these match an ASCII character under IGNORECASE and str.lower() does not
         # turn it into one. The Kelvin sign and the long s would each drop a hit from an index
         # built on str.lower(), and the dotted capital I would become two characters.
         for line in (

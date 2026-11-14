@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// plugins_text.c: a plugin laid out as its file lays out it, a sample in its language, and the plugin written to a
+// plugins_text.c: a plugin arranged as its file arranges it, a sample in its language, and the plugin written to a
 // folder of its own
 #include "plugins.h"
 
-// the widest line a plugin's file is laid out to
+// the widest line a plugin's file is arranged to
 #define CLI_WIDE 110ULL
 
 typedef struct

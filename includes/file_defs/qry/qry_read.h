@@ -14,7 +14,7 @@ extern "C"
     // The record at `*at` of the `size` bytes at `bytes`, checked whole and against its CRC: the record where it lies
     // in
     // `*record`, its name after its head and its blob after its name, and `*at` moved past it. 1, or 0 where no
-    // record stands at `*at` or its bytes do not match their CRC
+    // record is at `*at` or its bytes do not match their CRC
     int qry_record_read(const unsigned char *bytes, unsigned long long size, unsigned long long *at,
                         const QryRecord **record);
 

@@ -9,7 +9,7 @@
   claims <file> ...    every comment paired with the code under it. The prose can be checked
                        against what the code does instead of read as if it were true
 
-  --keep a,b,c         names to leave alone under blind
+  --retain a,b,c         names to leave alone under blind
   --lang py|c|r|m      read the file as this language instead of guessing from its extension
 
 WHY BLIND. A name is a claim, and it is the claim nobody checks. A function called `verify` is read
@@ -18,12 +18,12 @@ statements do is left, and anything that then looks wrong is wrong instead of be
 reader was primed not to see.
 
 WHY CLAIMS. A comment is a promise about the code under it, made when the code looked different.
-Pairing the two puts the promise beside what kept it or broke it. Everything else in this tree that
+Pairing the two puts the promise beside what retained it or broke it. Everything else in this tree that
 reads comments is checking how they are written; this one is for whether they are still true.
 
 THE LANGUAGES ARE THE ONES src/ HAS
 
-  .py            Python, and most of the tree is Python. The engine, the tools and the examples
+  .py            Python, and the majority of the tree is Python. The engine, the tools and the examples
                  are Python and everything else is a port of the measure.
   .c .h          C, the search kernel.
   .R .r          R, the measure port.
@@ -86,7 +86,7 @@ KEYWORDS = {
 
 WORD = re.compile(r"[A-Za-z_][A-Za-z_0-9]*")
 
-# What each language's definitions look like, for blind. One pattern per kind, and the kind names
+# What each language's definitions look like, for blind. One pattern per type, and the type names
 # the placeholder, which leaves a reader able to tell a function from a variable.
 DEFINED = {
     "py": (("fn", re.compile(r"^\s*(?:async\s+)?def\s+([A-Za-z_]\w*)", re.M)),
@@ -141,7 +141,7 @@ def split_python(text):
     """Every line as (code, comment), using tokenize, which never guesses at a quote.
 
     A docstring is an expression statement holding one string, and it is a comment for reading
-    purposes even though the language keeps it at runtime.
+    purposes even though the language retains it at runtime.
     """
     code = text.split("\n")
     comments = [[] for _ in code]
@@ -208,7 +208,7 @@ def split_scanned(text, profile):
     comments = []
     in_block = False
     for raw in text.split("\n"):
-        kept = []
+        retained = []
         said = []
         at = 0
         quote = None
@@ -225,9 +225,9 @@ def split_scanned(text, profile):
                 at += 1
                 continue
             if quote:
-                kept.append(raw[at])
+                retained.append(raw[at])
                 if escape and raw[at] == "\\" and at + 1 < len(raw):
-                    kept.append(raw[at + 1])
+                    retained.append(raw[at + 1])
                     at += 2
                     continue
                 if raw[at] == quote:
@@ -247,16 +247,16 @@ def split_scanned(text, profile):
                 # straight after a value is a transpose; anything else opens a string.
                 if raw[at] == "'" and previous and (previous.isalnum()
                                                     or previous in ")]}._'"):
-                    kept.append(raw[at])
+                    retained.append(raw[at])
                     previous = raw[at]
                     at += 1
                     continue
                 quote = raw[at]
-            kept.append(raw[at])
+            retained.append(raw[at])
             if not raw[at].isspace():
                 previous = raw[at]
             at += 1
-        code.append("".join(kept))
+        code.append("".join(retained))
         comments.append(["".join(said)] if said else [])
     return code, comments
 
@@ -267,19 +267,19 @@ def split(text, language):
     return split_scanned(text, LANGUAGES[language])
 
 
-def defined_names(text, language, keep):
+def defined_names(text, language, retain):
     """The names this file chose, as name against the placeholder it takes under blind."""
     counts = {}
     held = {}
-    for kind, pattern in DEFINED.get(language, ()):
+    for type, pattern in DEFINED.get(language, ()):
         for found in pattern.finditer(text):
             name = found.group(1)
-            if name in held or name in keep or name in KEYWORDS.get(language, set()):
+            if name in held or name in retain or name in KEYWORDS.get(language, set()):
                 continue
             if len(name) < 2:
                 continue
-            counts[kind] = counts.get(kind, 0) + 1
-            held[name] = "%s%d" % (kind, counts[kind])
+            counts[type] = counts.get(type, 0) + 1
+            held[name] = "%s%d" % (type, counts[type])
     return held
 
 
@@ -347,7 +347,7 @@ def blinded(code, names, language):
     return held
 
 
-def show(out, path, mode, keep, language):
+def show(out, path, mode, retain, language):
     with io.open(path, encoding="utf-8", errors="replace") as handle:
         text = handle.read()
     code, comments = split(text, language)
@@ -378,7 +378,7 @@ def show(out, path, mode, keep, language):
 
     body = code
     if mode == "blind":
-        names = defined_names(text, language, keep)
+        names = defined_names(text, language, retain)
         body = blinded(code, names, language)
         out.write("# %d name(s) blinded\n" % len(names))
 
@@ -398,7 +398,7 @@ def show(out, path, mode, keep, language):
 def main():
     args = sys.argv[1:]
     mode = args[0] if args and args[0] in ("code", "blind", "claims") else "code"
-    keep = set()
+    retain = set()
     language = None
     wanted = []
     at = 0
@@ -406,9 +406,9 @@ def main():
         one = args[at]
         if one in ("code", "blind", "claims"):
             pass
-        elif one == "--keep":
+        elif one == "--retain":
             at += 1
-            keep = {part.strip() for part in args[at].split(",") if part.strip()}
+            retain = {part.strip() for part in args[at].split(",") if part.strip()}
         elif one == "--lang":
             at += 1
             language = args[at]
@@ -434,14 +434,14 @@ def main():
                 dirs[:] = [d for d in dirs if d not in ("__pycache__", ".git", "build")]
                 for name in sorted(names):
                     if os.path.splitext(name)[1] in BY_SUFFIX:
-                        show(out, os.path.join(base, name), mode, keep,
+                        show(out, os.path.join(base, name), mode, retain,
                              language_of(name, language))
                         seen += 1
             continue
         if not os.path.isfile(one):
             out.write("\n  no file at %s\n" % one)
             continue
-        show(out, one, mode, keep, language_of(one, language))
+        show(out, one, mode, retain, language_of(one, language))
         seen += 1
     out.write("\n  %d file(s) read. Nothing was written.\n\n" % seen)
     out.flush()

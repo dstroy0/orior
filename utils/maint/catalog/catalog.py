@@ -2,7 +2,7 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# Give every example a catalog number, and keep it.
+# Give every example a catalog number, and retain it.
 #
 #   python utils/maint/catalog/catalog.py            what is registered and what is not
 #   python utils/maint/catalog/catalog.py --assign   number the new ones and write it into their headers
@@ -30,12 +30,12 @@
 # catalog.tsv is the registry and it is append only. Numbering alphabetically on every run would be
 # simpler and would be wrong: one example added at the head of a directory would renumber everything
 # after it and silently invalidate every citation already written down. A new file takes the next
-# free ordinal in its own domain and stage. A deleted file keeps its number, retired and never
+# free ordinal in its own domain and stage. A deleted file retains its number, retired and never
 # reissued. A citation to it then resolves to a retirement instead of to another file.
 #
-# A MOVE KEEPS THE NUMBER AND CHANGES THE PREFIX
+# A MOVE RETAINS THE NUMBER AND CHANGES THE PREFIX
 #
-# Those disagree, and the registry keeps the number it issued. An example that moves from one domain
+# Those disagree, and the registry retains the number it issued. An example that moves from one domain
 # to another is the same example. --assign updates the path against the existing number and
 # leaves the number alone, prefix included. The prefix says where it was first filed; the path in
 # the registry says where it is.
@@ -101,7 +101,7 @@ ROOT = _repository_root()
 EXAMPLES = os.path.join(ROOT, "examples")
 REGISTRY = os.path.join(HERE, "catalog.tsv")
 
-# Three letters per domain, which lets a number be read without the registry open.
+# Three characters per domain, which lets a number be read without the registry open.
 DOMAIN = {
     "00_blob_viz_tools": "VIZ",
     "0_experimental": "EXP",
@@ -129,7 +129,7 @@ DOMAIN = {
 # EXP is the VIZ case again and not a ninth subject. 0_experimental holds work that reads no
 # corpus yet. It names no domain in the sense the others do, and its files take stage x like
 # anything outside a numbered pipeline directory. They are numbered because a number survives a
-# move: an example that later earns a subject stage keeps the number it was issued here, and every
+# move: an example that later earns a subject stage retains the number it was issued here, and every
 # citation written against it still resolves.
 
 # VIZ is not a domain in the sense the other eight are. Those name what a corpus is of, and the
@@ -310,7 +310,7 @@ def main():
 
     # A file the registry has never seen can still carry a number, stamped by its author and
     # published with it. Issuing that file a different ordinal changes what a citation to the stamp
-    # resolves to, and the registry exists to stop that. The stamp is kept when its domain and stage
+    # resolves to, and the registry exists to stop that. The stamp is retained when its domain and stage
     # match where the file sits and no example already holds that number. Files are claimed in path
     # order, and a second file stamped with a number the first one claimed takes a fresh ordinal
     # below and shows up as adrift.
@@ -386,7 +386,7 @@ def main():
         for one in unplaceable:
             out.write("    %s\n" % one)
     if moved:
-        out.write("\n  MOVED, number kept (%d)\n" % len(moved))
+        out.write("\n  MOVED, number retained (%d)\n" % len(moved))
         for number, was, now in moved:
             out.write("    %s  %s\n            -> %s\n" % (number, was, now))
     if claimed:
@@ -404,7 +404,7 @@ def main():
         if len(issued) > 12:
             out.write("    and %d more\n" % (len(issued) - 12))
     if retired:
-        out.write("\n  RETIRED, number kept and never reissued (%d)\n" % len(retired))
+        out.write("\n  RETIRED, number retained and never reissued (%d)\n" % len(retired))
         for number, path in retired:
             out.write("    %s  %s\n" % (number, path))
     if adrift:

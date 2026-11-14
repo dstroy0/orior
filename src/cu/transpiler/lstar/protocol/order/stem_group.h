@@ -27,9 +27,9 @@
 //
 // Every value is an exact integer.
 
-// the most rows one member carries
+// the max rows one member carries
 #define STEM_GROUP_ROWS 64u
-// the most members one set contains
+// the max members one set contains
 #define STEM_GROUP_MEMBERS 256u
 // the group a member is given before the rule has placed it
 #define STEM_GROUP_NONE 0xffffffffu

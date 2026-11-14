@@ -22,7 +22,7 @@ static unsigned int bits_set(unsigned int word)
 
 int hadamard_order_fits(unsigned int links)
 {
-    return ((links >= 3u) && (links <= HADAMARD_ORDER_LINKS_MOST) && (((links + 1u) & links) == 0u)) ? 1 : 0;
+    return ((links >= 3u) && (links <= HADAMARD_ORDER_LINKS_MAX) && (((links + 1u) & links) == 0u)) ? 1 : 0;
 }
 
 int hadamard_order_covers(unsigned int links, unsigned int row, unsigned int link)
@@ -60,14 +60,14 @@ int hadamard_order_solve(unsigned int links, const unsigned long long *cost, lon
 
 unsigned int hadamard_sweep_covers(unsigned int links, unsigned int seed, unsigned int row, unsigned char *covered)
 {
-    if ((links == 0u) || (links > HADAMARD_ORDER_LINKS_MOST))
+    if ((links == 0u) || (links > HADAMARD_ORDER_LINKS_MAX))
     {
         return 0u;
     }
-    unsigned char order[HADAMARD_ORDER_LINKS_MOST];
+    unsigned char order[HADAMARD_ORDER_LINKS_MAX];
     for (unsigned int at = 0u; at < links; at += 1u)
     {
-        // a link index is under HADAMARD_ORDER_LINKS_MOST, which a byte represents
+        // a link index is under HADAMARD_ORDER_LINKS_MAX, which a byte represents
         order[at] = (unsigned char)at;
     }
     unsigned int state = seed ^ ((row + 1u) * 0x9e3779b9u);
@@ -96,7 +96,7 @@ unsigned int hadamard_sweep_covers(unsigned int links, unsigned int seed, unsign
 static void hadamard_exact(OriorExactInteger *value, long long given)
 {
     orior_exact_zero(value);
-    // the magnitude of the most negative word is one past the most positive, which the unsigned word represents
+    // the magnitude of the max negative word is one past the max positive, which the unsigned word represents
     const unsigned long long magnitude = (given < 0) ? (0ull - (unsigned long long)given) : (unsigned long long)given;
     value->limb[0] = (uint32_t)(magnitude & 0xffffffffull);
     value->limb[1] = (uint32_t)(magnitude >> 32);
@@ -164,7 +164,7 @@ HadamardLinks hadamard_links_read(unsigned int links, const long long *scaled, u
     int exact = 1;
     for (unsigned int row = 0u; row < sweeps; row += 1u)
     {
-        unsigned char covered[HADAMARD_ORDER_LINKS_MOST];
+        unsigned char covered[HADAMARD_ORDER_LINKS_MAX];
         const unsigned int count = hadamard_sweep_covers(links, seed, row, covered);
         long long predicted = 0;
         for (unsigned int link = 0u; link < links; link += 1u)

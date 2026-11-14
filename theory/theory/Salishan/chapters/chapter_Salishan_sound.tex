@@ -20,7 +20,7 @@ The workbook states it and leaves it open: pitch against the speaker's own media
 constant subtracted, the center of mass again. What remains in that field is the residual, and
 whether that residual identifies the speaker is the question.
 
-The representation keeps prosody apart from the segment code deliberately, because a field made
+The representation retains prosody apart from the segment code deliberately, because a field made
 shift invariant would put a stressed form and an unstressed one at one address. It holds four things
 per 10 ms frame: loudness, pitch against the speaker's own median, how that pitch is moving, and
 voicing. Each is thresholded at its own median over the recording. Each bit splits the frames in
@@ -112,7 +112,7 @@ condition, and a necessary condition that fails settles the question.
 \subsection{What the representation does}
 
 The representation rotates the segment measurement before thresholding it, onto the right singular
-vectors of the centered measurement, and the measurement it is handed is one recording. Segment bit 3
+vectors of the centered measurement, and the measurement it is passed is one recording. Segment bit 3
 of one recording and segment bit 3 of another are therefore different axes, and a distance between
 two recordings' segment profiles is partly a distance between two rotations.
 
@@ -173,7 +173,7 @@ gives is negative.
 \subsection{Why the representation cannot answer this}
 
 The representation reduces a recording to 28 bits every 10 ms and discards the rest. It takes an
-envelope, smooths the harmonic comb off it, keeps 24 coefficients, rotates them onto that
+envelope, smooths the harmonic comb off it, retains 24 coefficients, rotates them onto that
 recording's own singular vectors, and cuts every column at its median. Each of those is a bound, and
 a number taken through a bound describes the choice of bound as well as the data.
 
@@ -199,13 +199,13 @@ same defect four separate ways, with the correction.
 Two seatings are therefore reported. Linear over the range each recording uses, whose \(H_2\) curve
 is a fact about the amplitude distribution. And quantile, which puts an equal share of samples in
 every symbol, so that \(H_2\) comes out at \(w\) by construction. The second is the point: the
-marginal is flattened to maximum entropy and every state is reachable. What is left to read
+marginal is flattened to max entropy and every state is reachable. What is left to read
 afterward is arrangement and not loudness. It is the same subtraction the per-run test makes on two
 dialects.
 
 \subsection{Where the arrangement sits}
 
-The block shuffle keeps everything shorter than its span and destroys everything longer. Sweeping
+The block shuffle retains everything shorter than its span and destroys everything longer. Sweeping
 the span locates the structure instead of only detecting it. The workbook builds this null on text;
 it needs recordings of tens of minutes to apply to a waveform. These are 3.9, 13.9 and 22.5.
 
@@ -259,7 +259,7 @@ how the quantity changes with scale, and here that is an exponent measured to \(
 
 \textbf{Detecting that a recording is speech is available and is not the interesting half.} The
 departure from the null runs 363 to 684 at sample scale and is still 1.07 at six seconds. Nothing
-this large needs a careful instrument. Most of it is the amplitude envelope, which is to say the
+this large needs a careful instrument. The majority of it is the amplitude envelope, which is to say the
 silence between words, and a measure reading that is reading that a person paused.
 
 \textbf{Transcription is not available from this reading, and the reason is structural.} Writing down
@@ -269,7 +269,7 @@ whole of that construction rests on there being a scale where the regularity sit
 no such scale. A power law with no knee supplies no unit boundary at any span. There is nothing to
 segment on and nothing to write down.
 
-The same obstacle stands from the other side: the null for animal vocalization has to keep each call
+The same obstacle is from the other side: the null for animal vocalization has to retain each call
 intact while permuting the order of calls. That null requires fixing the unit, and the unit is the
 thing being asked for. The block shuffle is the closest available substitute and it returns no unit.
 
@@ -286,7 +286,7 @@ recordings carrying a border somebody else labeled, and the corpus holds none.
 
 The chapter \emph{From the page to a distribution over sounds} states the three stages and says
 which one is absent: the word web is built on written forms, and nothing takes a character out of the
-text space and hands back what it stands for. Two dialects writing one word two ways are still two
+text space and passes back what it is for. Two dialects writing one word two ways are still two
 nodes.
 
 The section above looks for the unit in the waveform alone and finds a power law with no knee. That
@@ -302,7 +302,7 @@ with a timestamp into the recording. The hand extraction carries those timestamp
 column.
 
 That is \textbf{126 sentences of Bev Phillips's own spíləx̣m, each carrying the interval of audio it
-was spoken in and the exact letters she said}, and no algorithm produced any of it. It sits in the
+was spoken in and the exact characters she said}, and no algorithm produced any of it. It sits in the
 gloss column of a table checked against its paper in both directions.
 
 It is checked before it is used: the timestamps run forward, the last is 1336 s against a 1350 s
@@ -320,8 +320,8 @@ segment that carries the Lushootseed border.
 A timestamp bounds a sentence and not a segment. The segments inside one are placed evenly, which is
 wrong in detail, since a vowel is longer than a stop and nothing here knows that.
 
-The comparison it is checked against allows it. The null permutes which letter is attached to which
-interval and leaves the rest unchanged. Every interval keeps its position, its length and its audio,
+The comparison it is checked against allows it. The null permutes which character is attached to which
+interval and leaves the rest unchanged. Every interval retains its position, its length and its audio,
 and the even spacing sits in both arms exactly. An error in the placement costs both arms the same
 and cannot manufacture a result. It also bounds the finding: what reads as holding together is
 holding together at the resolution even spacing allows.
@@ -341,35 +341,35 @@ and that is their sum. Thirty-four of the fifty types carry at least 24 instance
 a type's instances sit from their own mean & 0.2766 \\
 two types' means sit apart & 0.0591 \\
 between over within & 0.214 \\
-the same letters shuffled over the same intervals, median & 0.191 \\
-shuffles reaching the real letters & \textbf{9 of 200} \\
+the same characters shuffled over the same intervals, median & 0.191 \\
+shuffles reaching the real characters & \textbf{9 of 200} \\
 \bottomrule
 \end{longtable}
 \normalsize
 
 Two things have to be read off that together, and reading either alone gets it wrong.
 
-\textbf{The alignment is real.} Nine of two hundred shuffles reach what the letters a person wrote
-down give. The letters and the audio are not independent, and the only thing joining them is a
+\textbf{The alignment is real.} Nine of two hundred shuffles reach what the characters a person wrote
+down give. The characters and the audio are not independent, and the only thing joining them is a
 timestamp printed in a paper.
 
-\textbf{The letters do not separate.} Between over within is 0.214, which is to say a segment's own
+\textbf{The characters do not separate.} Between over within is 0.214, which is to say a segment's own
 instances scatter about five times further than one segment's mean sits from another's. A
-representation that recovered a letter from its sound would have that the other way up. This one does
+representation that recovered a character from its sound would have that the other way up. This one does
 not, at this resolution.
 
-The join exists and carries something, and it is nowhere near reading a letter off the sound. The
+The join exists and carries something, and it is nowhere near reading a character off the sound. The
 stage between written form and sound is measured, and the number on it is small.
 
 \subsection{What it needs next, which the measurement names}
 
-Even placement is the binding limit and it is fixable without giving up the supervision. The letters
+Even placement is the binding limit and it is fixable without giving up the supervision. The characters
 would still come from the hand extraction and only the boundaries would come from the audio, and the
 null would still permute labels over whatever boundaries were found. The control does not weaken. A
 sentence of ten seconds holding thirty-eight segments gives each one 0.26 s where a stop is nearer
-0.05. Most intervals straddle a boundary or land in silence. That is where the scatter is.
+0.05. Max intervals straddle a boundary or land in silence. That is where the scatter is.
 
-What must not be done is to let the audio choose the letters. The timestamps and the transcription are
-everything that makes this supervision and not an estimate, and an alignment tuned until the letters
+What must not be done is to let the audio choose the characters. The timestamps and the transcription are
+everything that makes this supervision and not an estimate, and an alignment tuned until the characters
 separate would be the algorithm scoring itself against a split it proposed, a test that passes
 whatever the data.

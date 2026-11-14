@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Katie Sardinha	note	Papers for the International Conference on Salish and Neighbouring Languages 59. D. K. E. Reisinger, Laura Griffin, Ella Hannon, Gloria Mellesmoen, Sander Nederveen, Bruce Oliver, Julia Schillo, Lauren Schneider, Bailey Trotter (eds.). Vancouver, BC: UBCWPL, 2024.	page 1
 front	Katie Sardinha	language	Kwak̕wala	Kwak̕wala
 front	Katie Sardinha	title	The Role of the Voice System within Kwak̕wala Grammar*	page 1
@@ -86,7 +86,7 @@ Table 1 line 3	Katie Sardinha	note	Inner -wayu, -wa̱m, -wana̱m, -wkw, -wł, -w
 §1	Kwak̕wala	cited affix	-wana̱m	page 2
 §1	Kwak̕wala	cited affix	-wł	page 2
 §1	Kwak̕wala	cited affix	-w’as	page 2
-§1	Katie Sardinha	note	The voice morphemes, together with the grammatical rules that give rise to the sentence types shown in (2) to (6), constitute the Kwak̕wala voice system.	page 2
+§1	Katie Sardinha	note	The voice morphemes, together with the grammatical rules that give rise to the sentence types displayed in (2) to (6), constitute the Kwak̕wala voice system.	page 2
 footnote 3	Katie Sardinha	note	3 The inner voice morphemes all trigger weakening consonant mutation (-w) in the stem to which they attach.	page 2, footnote
 §1	Katie Sardinha	language	Kwak’wala	Kwak̕wala, as printed
 §1	Katie Sardinha	note	Previous analyses focusing on the Kwak’wala voice system include Levine (1978, 1980, 1981, 1984), Anderson (1984), Sherer (2014), and Rosenblum (2013), with additional description and analysis of the system in Boas (1911, 1947), Littell (2016), and Sardinha (2017). Throughout this literature, two characteristics of the voice morphemes have been emphasized, namely their status as nominalizers and their resemblance to passives. I follow Sherer (2014) here in adopting the term voice morphemes to refer to them, finding that alternative labels turn out to be either too narrow in meaning to capture their various uses (“passives”, “focus markers”), or too wide in meaning to characterize them uniquely (“nominalizers”).	page 3
@@ -168,7 +168,7 @@ Table 2 line 5	Katie Sardinha	note	object	page 5, heads the rows below
 §3	Katie Sardinha	note	In this section, I provide a brief overview of the five voice constructions: passives (Section 3.1), relative clauses (Section 3.2), information questions (Section 3.3), answer clefts (Section 3.4), and antipassives (Section 3.5). The data in this section contain predicates with the outer voice morphemes: -ayu, -sa̱w̓/-su’, -’as, and =gił.	page 5
 footnote 6	Katie Sardinha	note	6 Note that the sentence in (12) is the mirror reversal of (7) above, in terms of which sentence element is expressed as the predicate versus the subject. Sentence pairs of this sort demonstrate the property of predicate- argument flexibility which Kwak̕wala (and all Wakashan languages) are well known for. In Kwak̕wala, basic predication does not necessitate the use of a copular verb ‘to be’, although equative and cleft constructions do (Littell 2016).	page 5, footnote
 §3	Katie Sardinha	language	Kwak̕wala	Kwak̕wala
-§3	Katie Sardinha	note	Each voice construction is described in three steps: (i) a dataset is provided, including sentences which differ minimally in content from sentences previously shown, but which illustrate a new voice construction; (ii) a set of generalizations is stated that characterize the new voice construction; and (iii) additional notes are provided about the voice construction that may go beyond what the dataset strictly shows. Each dataset is meant to be compared and contrasted directly with a preceding dataset, in the manner indicated below.	page 5
+§3	Katie Sardinha	note	Each voice construction is described in three steps: (i) a dataset is provided, including sentences which differ minimally in content from sentences previously displayed, but which illustrate a new voice construction; (ii) a set of generalizations is stated that characterize the new voice construction; and (iii) additional notes are provided about the voice construction that may go beyond what the dataset strictly shows. Each dataset is meant to be compared and contrasted directly with a preceding dataset, in the manner indicated below.	page 5
 §3.1	Katie Sardinha	heading	3.1 Passive	page 6
 §3.1	Katie Sardinha	note	The data in (13) to (16) illustrate four morphological variants of passive clauses. Compare and contrast these sentences with the corresponding active clauses in (8) to (11).	page 6
 (13) line 1	Kwak̕wala	transcription	g̱a̱ls’idayuwida t̕łax̱wstu g̱a̱lyayu.	page 6, pairs
@@ -366,7 +366,7 @@ footnote 7	Katie Sardinha	note	7 In (14) to (16), this is done by the third -per
 (30) line 4	Littell 2016:610	translation	‘Who is that man?’	page 10, pairs, cited Littell 2016:610
 (30) line 4	Katie Sardinha	citation	(Littell 2016:610)	the tag or source at the right of the translation
 §3.3	Katie Sardinha	note	Generalizations: Information questions are used to request information about the identity of a particular entity (or entities). A comparison of the sentences in (17) to (21) with the information questions in (25) to (30) reveals that in Kwak̕wala, interrogative words are predicates. In this dataset, we see examples of three interrogative predicates: m̓as ‘to be what’, w̓i ‘to be where’,8 and a̱ngwa ‘to be who’.	page 10
-§3.3	Katie Sardinha	note	The entity that is targeted for identification by an information question is expressed in Kwak̕wala as the subject of an interrogative predicate. Minimally, this entity is expressed as a simple noun phrase, as shown in (30). In order to target an entity who is a participant in an initiated event, a relative clause can be constructed, in which case we see the same set of correspondences appearing as seen in other relative clauses:	page 10
+§3.3	Katie Sardinha	note	The entity that is targeted for identification by an information question is expressed in Kwak̕wala as the subject of an interrogative predicate. Minimally, this entity is expressed as a simple noun phrase, as displayed in (30). In order to target an entity who is a participant in an initiated event, a relative clause can be constructed, in which case we see the same set of correspondences appearing as seen in other relative clauses:	page 10
 §3.3	Katie Sardinha	note	• If the relative clause predicate contains -ayu, the entity targeted by the question is a Co- initiator.	page 10
 §3.3	Kwak̕wala	cited affix	-sa̱w̓/-su	page 10
 §3.3	Katie Sardinha	note	• If the relative clause predicate contains -sa̱w̓/-su’, the entity targeted by the question is a Non-initiator.	page 10
@@ -434,7 +434,7 @@ footnote 8	Katie Sardinha	note	8 The interrogative predicate w̓i/w̓a̱y in fac
 §3.4	Katie Sardinha	note	Whereas the head constitutes an answer to the question that was asked, the remnant merely repeats information that was present in the question. The remnant is therefore redundant. As such, it is often omitted in spoken discourse. Note that the copular predicate itself does not take voice morphology; it is the remnant (whether pronounced or not) which signals the event role of the subject.	page 12
 §3.4	Kwak̕wala	cited form	nugwa	page 12
 §3.4	Katie Sardinha	note	Additional Notes: Other forms of the copula found in answer clefts include nugwa ‘to be (first- person)’, su ‘to be (second-person)’, ga ‘to be (third-person proximal)’, and yu ‘to be (third-person medial)’.	page 12
-§3.4	Katie Sardinha	note	While it is not explicitly shown in this dataset, the Initiator in answer clefts can be overt or covert (and interpreted as indefinite), as in other voice constructions.	page 12
+§3.4	Katie Sardinha	note	While it is not explicitly displayed in this dataset, the Initiator in answer clefts can be overt or covert (and interpreted as indefinite), as in other voice constructions.	page 12
 §3.5	Katie Sardinha	heading	3.5 Antipassives	page 12
 §3.5	Katie Sardinha	note	The data in (37) to (40) illustrate three morphological variants of antipassives, one of which is ungrammatical. Compare and contrast these sentences with the corresponding active clauses in (8) to (11).	page 12
 (37) line 1	Kwak̕wala	transcription	g̱a̱ls’idayunukwi.	page 12, pairs
@@ -472,7 +472,7 @@ footnote 8	Katie Sardinha	note	8 The interrogative predicate w̓i/w̓a̱y in fac
 §3.5	Katie Sardinha	note	• Predicates containing =gił followed by -nukw are ungrammatical.	page 13
 §3.5	Katie Sardinha	language	Kwak̕wala	Kwak̕wala
 §3.5	Kwak̕wala	cited form	tłuma	page 13
-§3.5	Katie Sardinha	note	Additional Notes: Kwak̕wala speakers find attempts to construct antipassives with =gił ungrammatical, or marginal at best (Sherer 2014, also my data). This is probably because =gił patterns as a second-position clitic, as shown by its appearance on the auxiliary tłuma ‘really, very, too much’ in (41). Clitics always follow suffixes within Kwak̕wala words, so this could explain why it cannot appear before -nukw in (40).9	page 13
+§3.5	Katie Sardinha	note	Additional Notes: Kwak̕wala speakers find attempts to construct antipassives with =gił ungrammatical, or marginal at best (Sherer 2014, also my data). This is probably because =gił patterns as a second-position clitic, as displayed by its appearance on the auxiliary tłuma ‘really, very, too much’ in (41). Clitics always follow suffixes within Kwak̕wala words, so this could explain why it cannot appear before -nukw in (40).9	page 13
 (41) line 1	Katie Sardinha	note	Context: Bill is a greedy person.	page 13, pairs
 (41) line 2	Kwak̕wala	transcription	m̓adzi tłumagiła’sux̱ a̱wa̱lḵ̓a̱sa?	page 13, pairs
 (41) line 3	Kwak̕wala	segmentation	m̓as =dzo=i tłum-a =gił=a’=s=ux̱ a̱wa̱lḵ̓a̱s-a	page 13
@@ -526,7 +526,7 @@ Table 4 line 4	Katie Sardinha	note	(√ḵ̓it ‘to fish with rod’)	page 14
 (43b) line 1	English	transcription	Jo found what she lost.	page 15, English, indefinite Non-initiator
 (43c) line 1	English	transcription	Jo knows where the bears live.	page 15, English, indefinite Location
 §5	Katie Sardinha	note	Significantly, the roots of these indefinite words are nominal. To express an indefinite argument in English, then, an indefinite noun is simply expressed in an argument position.10 When Kwak̕wala speakers are asked to translate English sentences containing one or more indefinite arguments, they are forced to confront the fact that there are no simple, one-word translational equivalents of the indefinite pronouns and relative pronouns in (42) to (43) above. Perhaps the closest approximation to an indefinite pronoun in Kwak̕wala is the nominalization a̱x̱e’, which is formed from the empty root √a̱x̱(44).	page 15
-(44) line 1	Katie Sardinha	note	Context: You wake up to a strange noise coming from the other side of your apartment. You run out and see that there is a horse standing in your kitchen!	page 15, pairs
+(44) line 1	Katie Sardinha	note	Context: You wake up to a strange noise coming from the other side of your apartment. You run out and see that there is a horse located in your kitchen!	page 15, pairs
 (44) line 2	Kwak̕wala	transcription	gudanox̱da a̱x̱e’x̱ lax̱a̱n’s	page 15, pairs
 (44) line 3	Kwak̕wala	segmentation	gudan =ox̱=da a̱x̱ =e’=(a̱)x̱la =x̱=a̱n’s	page 15
 (44) line 4	Kwak̕wala	gloss	horse =D2=OST EMPTY.ROOT =NMZ=V2 PREP =ACC=1.PL.INCL	page 15
@@ -537,7 +537,7 @@ Table 4 line 4	Katie Sardinha	note	(√ḵ̓it ‘to fish with rod’)	page 14
 (44) line 8	Katie Sardinha	citation	(20130111-RDC VF)	the tag or source at the right of the translation
 (44) line 9	Katie Sardinha	translation	Lit. ‘The doing-one in our kitchen is a horse!’	page 15, the literal translation
 footnote 10	Katie Sardinha	note	10 It may subsequently become displaced from its base-generated position in the sentence, through movement.	page 15, footnote
-§5	Katie Sardinha	note	Nevertheless, such uses of a̱x̱e’ are extremely restricted. They are only volunteered in subject position, and with predicates that refer to non-initiated events. In short, the restricted nature of a̱x̱e’ demonstrates that it is not a translational equivalent of ‘someone’ or ‘something’ in Kwak̕wala. In Kwak̕wala, rather, it is the voice system which is used to express indefinite arguments (within initiated events). Particular voice constructions enable the expression of particular kinds of indefinite arguments, namely:	page 15
+§5	Katie Sardinha	note	Nevertheless, such uses of a̱x̱e’ are extremely restricted. They are only volunteered in subject position, and with predicates that refer to non-initiated events. In short, the restricted nature of a̱x̱e’ demonstrates that it is not a translational equivalent of ‘someone’ or ‘something’ in Kwak̕wala. In Kwak̕wala, rather, it is the voice system which is used to express indefinite arguments (within initiated events). Particular voice constructions enable the expression of particular types of indefinite arguments, namely:	page 15
 §5	Katie Sardinha	note	• Passives enable the expression of indefinite Initiators; this is achieved by leaving the Initiator covert.	page 16
 §5	Katie Sardinha	note	• Relative clauses enable the expression of indefinite arguments which are identifiable in terms of their event role. Typically, these are specific indefinites (‘the one that…’, ‘the thing that…’, ‘the place that…’, etc.).	page 16
 §5	Katie Sardinha	note	• Antipassives are used to assert the existence of an indefinite Co-initiator, Non-initiator, or Location in an initiated event.	page 16

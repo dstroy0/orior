@@ -5,17 +5,17 @@
 // the values the form holds read back.
 
 import { field, remember, remembered, valuesFrom } from "../../../gui/src-js/run/form.js";
-import { keepingStorage } from "../../helpers.js";
+import { retentionStorage } from "../../helpers.js";
 
 const { test, assert } = window.__harness;
 
 const JOB = {
   id: "form/test",
   params: [
-    { key: "mode", kind: "choice", choices: ["fast", "slow"], required: false },
-    { key: "parts", kind: "many", choices: ["a", "b", "c"] },
-    { key: "input", kind: "file", default: "in.txt" },
-    { key: "name", kind: "text", required: true },
+    { key: "mode", type: "choice", choices: ["fast", "slow"], required: false },
+    { key: "parts", type: "many", choices: ["a", "b", "c"] },
+    { key: "input", type: "file", default: "in.txt" },
+    { key: "name", type: "text", required: true },
   ],
 };
 
@@ -33,7 +33,7 @@ async function withForm(values, work) {
   }
 }
 
-test("each value takes a field of its kind: a choice a list, many a box each, a file a field with Open", async () => {
+test("each value takes a field of its type: a choice a list, many a box each, a file a field with Open", async () => {
   await withForm({}, (host) => {
     const mode = host.querySelector("#param-mode");
     assert.equal(mode.tagName, "SELECT");
@@ -55,9 +55,9 @@ test("the values given fill the form, and the form's values are read back as giv
 });
 
 test("the values given last are remembered for the job", async () => {
-  await keepingStorage(["orior.values.form/test"], () => {
+  await retentionStorage(["orior.values.form/test"], () => {
     assert.deepEqual(remembered("form/test"), {});
-    remember("form/test", { name: ["kept"] });
-    assert.deepEqual(remembered("form/test"), { name: ["kept"] });
+    remember("form/test", { name: ["retained"] });
+    assert.deepEqual(remembered("form/test"), { name: ["retained"] });
   });
 });

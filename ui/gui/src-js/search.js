@@ -11,10 +11,10 @@ import { invoke, listen } from "./bridge.js";
 import { iconOf } from "./explorer.js";
 import { onPatterns, searchSets } from "./patterns.js";
 
-// How long typing rests before the tree is searched, in milliseconds, and the most hits the tree
+// How long typing rests before the tree is searched, in milliseconds, and the max hits the tree
 // gives at once.
 const REST = 300;
-const MOST = 2000;
+const MAX = 2000;
 
 const state = { query: null, options: null, said: null, hits: null, set: null, how: { case: false, word: false, regex: false }, closed: new Set(), asked: 0, open: null, wait: 0 };
 
@@ -57,7 +57,7 @@ function draw(hits, query) {
   }
   const files = groups.size;
   const count = hits.length;
-  state.said.textContent = count ? `${count >= MOST ? `${MOST}+` : count} result${count === 1 ? "" : "s"} in ${files} file${files === 1 ? "" : "s"}` : "No results found.";
+  state.said.textContent = count ? `${count >= MAX ? `${MAX}+` : count} result${count === 1 ? "" : "s"} in ${files} file${files === 1 ? "" : "s"}` : "No results found.";
   const rows = [];
   for (const [path, lines] of groups) {
     const cut = path.lastIndexOf("/");
@@ -142,7 +142,7 @@ export function focusSearch(text, how = {}) {
 }
 
 // The choice of the whole tree or a set of files to search in, there while Preferences names a set,
-// the one chosen kept for the next start.
+// the one chosen retained for the next start.
 const SET_KEY = "orior.search.set";
 
 function drawSets() {
@@ -174,7 +174,7 @@ export function startSearch(open) {
     run();
   });
   state.query.addEventListener("input", later);
-  // What stands found is found again as files git sees change, as a tool writes them, and not for a
+  // What is found is found again as files git sees change, as a tool writes them, and not for a
   // build's output git ignores.
   listen("tree-changed", ({ payload }) => {
     if (state.query.value.trim() && (payload?.git || payload?.lost)) {

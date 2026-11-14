@@ -282,7 +282,7 @@ static int tiff_xml_unsigned(TiffFile *file, const char *tag, const char *tag_en
 
 static void tiff_ome_candidates(TiffFile *file, const char *text)
 {
-    fprintf(stderr, "tiff: %s contains more than one OME image; each is shown as ID [SizeT SizeZ SizeC SizeY SizeX]:\n",
+    fprintf(stderr, "tiff: %s contains more than one OME image; each is displayed as ID [SizeT SizeZ SizeC SizeY SizeX]:\n",
             file->path);
     for (const char *pixels = tiff_xml_element(text, "Pixels"); pixels != NULL;
          pixels = tiff_xml_element(pixels + 1u, "Pixels"))
@@ -305,9 +305,9 @@ static void tiff_ome_candidates(TiffFile *file, const char *text)
                 sizes[axis] = 0ull;
             }
         }
-        const char *const shown = (id != NULL) ? id : "?";
-        const int shown_length = (int)((id != NULL) ? id_length : 1u);
-        fprintf(stderr, "tiff:   %.*s [%llu %llu %llu %llu %llu]\n", shown_length, shown, sizes[0u], sizes[1u],
+        const char *const displayed = (id != NULL) ? id : "?";
+        const int displayed_length = (int)((id != NULL) ? id_length : 1u);
+        fprintf(stderr, "tiff:   %.*s [%llu %llu %llu %llu %llu]\n", displayed_length, displayed, sizes[0u], sizes[1u],
                 sizes[2u], sizes[3u], sizes[4u]);
     }
 }

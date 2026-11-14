@@ -61,7 +61,7 @@ __global__ void track_query_kernel(const unsigned int *planes, const TrackQuery 
         unsigned int inside = 0u;
         for (unsigned int bit = 0u; bit < TRACK_WORD_BITS; bit += 1u)
         {
-            // a position on floor 2 is below 2^12, and a step is at most one cell each way
+            // a position on floor 2 is below 2^12, and a step is at max one cell each way
             const long long position = (long long)((word * TRACK_WORD_BITS) + bit);
             const long long x = (position % side) + step[2];
             const long long y = ((position / side) % side) + step[1];

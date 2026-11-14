@@ -29,8 +29,8 @@ TIME IS THE RADIUS
 
 The globe is not a fixed size. Its radius is the clock. The state starts small near the middle
 and inflates outward as the computation runs, reaching the shell at the last operation traced. The
-reader standing still therefore has the computation arrive at them and pass, and where they are
-standing decides which part of the run they are inside of. Depth in this room has meant distance
+reader stationary therefore has the computation arrive at them and pass, and where they are
+located decides which part of the run they are inside of. Depth in this room has meant distance
 from a boundary on every other page; here it is time, and it is the same axis the round-depth
 experiment puts the leak against.
 
@@ -153,7 +153,7 @@ def padded(message):
     """The one-block padding, refused and not truncated when the message will not fit.
 
     A block is 512 bits and the padding costs a one bit, the length as 64 bits, and the zeroes
-    between. 55 bytes is the most that fits in one block. Longer messages need the chaining of a
+    between. 55 bytes is the max that fits in one block. Longer messages need the chaining of a
     second block, which is a second compression and not the thing this page draws.
     """
     if len(message) > 55:
@@ -334,7 +334,7 @@ def main():
         sys.stderr.write("--rounds sits between 1 and 64\n")
         return 2
     # One source cannot give depth and twelve share the light budget twelve ways. Both ends are
-    # allowed and the reader is told what they cost instead of being kept from the choice.
+    # allowed and the reader is told what they cost instead of being retained from the choice.
     if points < 1 or points > 12:
         sys.stderr.write("--sources sits between 1 and 12\n")
         return 2
@@ -347,7 +347,7 @@ def main():
 
     block = padded(message.encode("utf-8"))
     if block is None:
-        sys.stderr.write("--message has to fit one block, which is 55 bytes at most\n")
+        sys.stderr.write("--message has to fit one block, which is 55 bytes at max\n")
         return 2
 
     frames, digest = trace(block, rounds)

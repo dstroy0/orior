@@ -20,13 +20,13 @@ function corners(group, height) {
   points.pop();
   // A corner at the same place as the one before it, or on the straight line between its two
   // neighbors, is no corner.
-  const kept = points.filter((point, at) => {
+  const retained = points.filter((point, at) => {
     const before = points[(at - 1 + points.length) % points.length];
     return point[0] !== before[0] || point[1] !== before[1];
   });
-  return kept.filter((point, at) => {
-    const before = kept[(at - 1 + kept.length) % kept.length];
-    const after = kept[(at + 1) % kept.length];
+  return retained.filter((point, at) => {
+    const before = retained[(at - 1 + retained.length) % retained.length];
+    const after = retained[(at + 1) % retained.length];
     return !((before[0] === point[0] && point[0] === after[0]) || (before[1] === point[1] && point[1] === after[1]));
   });
 }

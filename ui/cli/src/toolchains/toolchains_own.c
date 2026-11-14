@@ -86,7 +86,7 @@ EMBED_INLINE int profile_line_same(const ToolchainsOwnCtx *args)
 EMBED_INLINE int profile_line_each(const ToolchainsOwnCtx *args)
 {
     static char s_file[1u << 20u];
-    static char s_kept[1u << 20u];
+    static char s_retained[1u << 20u];
     char home[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "HOME", .value_out = home,
                     .capacity = sizeof(home)))
@@ -119,8 +119,8 @@ EMBED_INLINE int profile_line_each(const ToolchainsOwnCtx *args)
         unsigned long long size =
             qry_member_file_read(path, (unsigned char *)s_file, sizeof(s_file) - args->length - 4u);
         size = (size == QRY_MEMBER_UNREAD) ? 0ULL : size;
-        // every line of the file read, the one wanted found, and on removal every other line kept
-        VerbaLinea kept = {s_kept, sizeof(s_kept), 0ULL};
+        // every line of the file read, the one wanted found, and on removal every other line retained
+        VerbaLinea retained = {s_retained, sizeof(s_retained), 0ULL};
         int there = 0;
         const char *from = s_file;
         const char *place = s_file;
@@ -133,8 +133,8 @@ EMBED_INLINE int profile_line_each(const ToolchainsOwnCtx *args)
                 there = there || same;
                 if (!same && (place > from))
                 {
-                    mmgr_line_put_n(&kept, from, (unsigned long long)(place - from));
-                    mmgr_line_ch(&kept, '\n');
+                    mmgr_line_put_n(&retained, from, (unsigned long long)(place - from));
+                    mmgr_line_ch(&retained, '\n');
                 }
                 from = place + 1;
             }
@@ -144,8 +144,8 @@ EMBED_INLINE int profile_line_each(const ToolchainsOwnCtx *args)
         {
             continue;
         }
-        const char *text = s_kept;
-        unsigned long long written = mmgr_line_finish(&kept);
+        const char *text = s_retained;
+        unsigned long long written = mmgr_line_finish(&retained);
         if (!args->remove)
         {
             VerbaLinea whole = {s_file, sizeof(s_file), size};

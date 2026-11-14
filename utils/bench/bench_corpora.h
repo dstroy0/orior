@@ -13,9 +13,9 @@ typedef enum
     CORPUS_PERIODIC = 2
 } CorpusKind;
 
-void bench_build_bytes(uint8_t *bytes, size_t length, CorpusKind kind, uint64_t seed);
+void bench_build_bytes(uint8_t *bytes, size_t length, CorpusKind type, uint64_t seed);
 
-const char *bench_corpus_name(CorpusKind kind);
+const char *bench_corpus_name(CorpusKind type);
 
 double bench_collision_entropy(const uint8_t *corpus, size_t length, size_t *distinct);
 

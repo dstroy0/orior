@@ -59,7 +59,7 @@ it: the system of 2, psi' = psi (1 - 2 s) / (s (1 - s))^2, Kummer's equation for
 of a product of symbolic functions is a symbolic term of its own, with its derivative and the relation integration by parts
 gives.
 
-An expression is stored in one normal form (`jet_rule`): eta^2 is written as 1 - d, the powers of X, d and 2 are kept
+An expression is stored in one normal form (`jet_rule`): eta^2 is written as 1 - d, the powers of X, d and 2 are retained
 with exponents a + b h, and every derivative a relation reaches is written through it.
 
 Check (`matching_rule`): the exterior F_ext = (c / sqrt 2) (2d)^(-1-h) w(X / (2d)), with Kummer's equation for w,
@@ -92,13 +92,13 @@ times the radius the bound through f' alone does.
 
 A witness of one bound per order grows by one ratio from its first orders, and the proof reaches that ratio: each order
 loses Delta in eta, and a radius near 1/10 is what any ellipse of the cfg proves, where X_b near 2 is asked. The
-witness by weights keeps each order apart as its Chebyshev weights, f_k with F_k = f_k / L^(2k): a derivative scales
+witness by weights retains each order apart as its Chebyshev weights, f_k with F_k = f_k / L^(2k): a derivative scales
 mode m by m, a product is a sum over modes, and no ellipse is carried through the orders. One is read only where the
 order is bounded, sum |f_(k,m)| rho^m. The weights' magnitudes prove about three times the radius of the bounds. The
-exact weights keep every cancellation, and on E_2 they shrink by a ratio near 5 an order, the series' own X near 2.5
+exact weights retain every cancellation, and on E_2 they shrink by a ratio near 5 an order, the series' own X near 2.5
 on that ellipse.
 
-The proof on one ellipse: the rule fixes the length of each order's weights, at most g0 + (g0 + 4) k + 1 for the
+The proof on one ellipse: the rule fixes the length of each order's weights, at max g0 + (g0 + 4) k + 1 for the
 data's degree g0, and on E_rho a derivative costs that length times 2 rho / (rho^2 - 1), or (rho + 1/rho) / 2 at the
 feet. No ellipse is lost, and the proof reaches X < r / l^2 on E_rho itself. The Cauchy sums split at an order N0:
 a part with one index below N0 reads the exact weights, and only a part with both indices at N0 or past it reads the
@@ -272,13 +272,13 @@ system's at every order, exactly. At Y = 1, each part's share of the principal a
 | the parts together, less their sum | -0.24 | -0.09 | -0.02 |
 
 The plain terms fall as mu^(-1) or faster, and the pressure stays a few in a hundred. The slope falls slowest: it
-grows along Y, -0.15 at Y = 1/4 and -0.46 at Y = 1 for mu = 64, and at mu = 64 it is most of the rest, of the axial
+grows along Y, -0.15 at Y = 1/4 and -0.46 at Y = 1 for mu = 64, and at mu = 64 it is the majority of the rest, of the axial
 field and of the swirl. The phase varies along eta with s(Y, eta), and d/deta of e^(mu eta + sqrt(mu) Phi) brings
 mu + sqrt(mu) Phi_eta.
 
 The slope at larger mu (`core_tangent` with `slope`): the principal part and the slope switched on alone, at the same
 vertex to order 44, for mu = 128, 256 and 512 on Y = 1/8, 1/4 and 1/2, with the last order's term against the sum
-written for each, at most 10^-26 of it. The slope's share of the principal is
+written for each, at max 10^-26 of it. The slope's share of the principal is
 
 | Y | axial, mu = 128 | mu = 256 | mu = 512 | swirl, mu = 128 | mu = 256 | mu = 512 |
 |---|---|---|---|---|---|---|
@@ -353,7 +353,7 @@ order 1 / mu is large. Taken as C + b / sqrt(mu) + c / mu through mu = 128, 256 
 Y = 1/4 and -4.868 at Y = 1/2, and -2.362 at Y = 1/8, with c near -100 to -130; the axial taken the same way gives
 -2.381 and -3.250.
 
-What is left to prove it: lower bounds on the system in X with error bounds of Olver's kind, on the base fields'
+What is left to prove it: lower bounds on the system in X with error bounds of Olver's type, on the base fields'
 bounds, for the paths that skip a derivative; the amplitude's eta-derivatives, by Cauchy's estimates on disks of
 radius near mu^(-1/2); and the integral of G against the blend near X_b.
 

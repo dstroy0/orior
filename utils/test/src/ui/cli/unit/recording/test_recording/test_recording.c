@@ -14,7 +14,7 @@ static VerbaLinea s_seen_line = {s_seen, sizeof(s_seen), 0ull};
 static void assert_values(const char *required, unsigned int serial, unsigned int at)
 {
     CliRecordedValue *values = NULL;
-    const unsigned int count = EMBED_CALL(cli_recording_at_internal.values, CliRecordingAtCtx, .serial = serial, .at = at, .reserved = &values, .most = 8u, .owner = g_checks_owner);
+    const unsigned int count = EMBED_CALL(cli_recording_at_internal.values, CliRecordingAtCtx, .serial = serial, .at = at, .reserved = &values, .max = 8u, .owner = g_checks_owner);
     char text[256];
     VerbaLinea line = {text, sizeof(text), 0ull};
     for (unsigned int each = 0u; each < count; each += 1u)

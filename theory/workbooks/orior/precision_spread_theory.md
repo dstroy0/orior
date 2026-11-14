@@ -1,7 +1,7 @@
 # Precision spread: exact identities over a set of quantities
 
 **Purpose:** State when an exact identity carries precision from one quantity to another. That a few
-computed constants raise the precision kept over many, and mark the three regimes where that does and
+computed constants raise the precision retained over many, and mark the three regimes where that does and
 does not multiply accuracy. **Scope:** the set of exact quantities the engine and its domains carry,
 the identities among them, and `examples/0_experimental/exact_identities_spread_precision.py`, which
 runs the mathematical case.
@@ -17,7 +17,7 @@ different set from the symbol carrier.
 
 ## 1. The set and the relation
 
-Let `Q` be a set of exact quantities. A quantity is one of two kinds.
+Let `Q` be a set of exact quantities. A quantity is one of two types.
 
 - DEFINED: fixed by exact operations or a convergent exact series. Examples: the rationals, `sqrt(n)`,
   `pi`, `e`, `ln 2`, `zeta(2)`. A defined quantity can be computed to any number of places. Its
@@ -29,7 +29,7 @@ Let `Q` be a set of exact quantities. A quantity is one of two kinds.
   precision floor, and no arithmetic on this end lowers it.
 
 An exact identity is a relation `q = f(q_1, ..., q_k)` that holds with no rounding, where `f` is built
-from the exact operations. An identity is a hyperedge: it has `k` inputs and one output. Two kinds
+from the exact operations. An identity is a hyperedge: it has `k` inputs and one output. Two types
 appear. A unary identity has one input (`2 pi` from `pi`; `pi^{2k}` from `pi`). A multi-input identity
 needs several inputs together (`sqrt(6) = sqrt(2) * sqrt(3)` needs both roots).
 
@@ -71,7 +71,7 @@ holds `sqrt6`, while `gen({sqrt2})` and `gen({sqrt3})` separately do not.
 
 **Claim.** If every quantity in a seed `S` is computed to `N + g` places, and every identity floors its
 result with a loss under one unit in the last worked place, then every quantity in `gen(S)` reached in
-at most `d` derivation steps is known to at least `N + g - d` places. A guard `g` of `ceil(log10(d))`
+at max `d` derivation steps is known to at least `N + g - d` places. A guard `g` of `ceil(log10(d))`
 places holds the loss, and `gen(S)` is known to `N` places.
 
 **Argument.** Induction on derivation depth. A seed holds at `N + g` places. Each exact operation on
@@ -106,7 +106,7 @@ prime logs, checked against a direct series for `ln(6)`.
 The incremental spread is greedy: add the seed with the largest marginal gain. The high-reach seeds are
 the small primes (2 divides half the smooth integers), `pi` (every even zeta, and the physical-constant
 family that carries a `pi`), and the defined constants generally. Those are the candidates that pull the
-most others up.
+max others up.
 
 ## 5. Three regimes
 
@@ -206,7 +206,7 @@ with the error-correcting capability of a Reed-Solomon code: two redundant modul
 detect two, and `r` of them correct `floor(r/2)` and detect `r`. This is an existing code from coding
 theory, run here on exact integers.
 
-Two things follow that neither half gives alone, both shown in
+Two things follow that neither half gives alone, both displayed in
 `examples/0_experimental/exact_residue_code_detects_uncertainty.py`. First, the exact range is the
 product of the moduli, and it grows by more than a trillion for each modulus near `2^40` added, with no
 fixed width to stop it. The growth is exponential in the count of moduli: nine such moduli pass a googol
@@ -250,16 +250,16 @@ statement of the goal names both.
 - In the defined regime the multiplier is unbounded and passes one million at a finite reach, measured
   at 1,115,074 constants per seed in the two-seed root case. The accuracy the engine holds rises a
   millionfold by computing a few hubs and taking the set they generate.
-- In the measured regime the absolutes keep their floor. The gain there is the floor-free ratio, where
+- In the measured regime the absolutes retain their floor. The gain there is the floor-free ratio, where
   the measured constant cancels and the prediction is exact, plus accumulation: an exact count loses
   nothing however many are added, as the image transforms research paper states for the translation counts.
 - The method is the incremental spread: compute next the hub with the largest marginal gain, the small
-  primes and `pi` and `R_inf` and the defined constants, the ones that pull the most others up.
+  primes and `pi` and `R_inf` and the defined constants, the ones that pull the max others up.
 
 ## 10. The boundary function, for every domain
 
 Every exact representation has a boundary, the point past which it cannot go exactly, and the boundary
-is one of three kinds. Naming the kind is the boundary function.
+is one of three types. Naming the type is the boundary function.
 
 - FORMAT boundary, raisable. A chosen parameter caps the representation, and a larger choice moves it
   without limit. The number theoretic transform's length divides `p - 1`, capped at the 2-adic order of
@@ -279,7 +279,7 @@ is one of three kinds. Naming the kind is the boundary function.
 
 The three boundaries, per domain:
 
-| domain                 | boundary function                                                                        | kind                                       |
+| domain                 | boundary function                                                                        | type                                       |
 | ---------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------ |
 | image transforms / NTT | length `n` divides `p - 1`, cap `2^23` on this prime                                     | format, raised by prime or CRT             |
 | precision / constants  | C width 3456 bits; Python scale unbounded; residue range is the product of moduli        | format, raisable                           |

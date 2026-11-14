@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // callback_cfg.h: the Cfg of each callback signature whose members are the language's own types and the line writer's
 // line. A function pointer of the signature and every function named as one take the same args, so any of them can
-// stand for any other.
+// are for any other.
 #ifndef CALLBACK_CFG_H
 #define CALLBACK_CFG_H
 
@@ -151,7 +151,7 @@ typedef struct
 
 typedef struct
 {
-    unsigned int letter;
+    unsigned int character;
 } CliEachLetterCfg;
 
 typedef struct

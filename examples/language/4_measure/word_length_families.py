@@ -9,14 +9,14 @@
 #   Usage:  python examples/language/4_measure/word_length_families.py
 #
 # Coarsening the alphabet down to two symbols left the close pairs closer than the far pairs, and at two
-# symbols the only distinction is whether a character is the commonest one, which for most of these
+# symbols the only distinction is whether a character is the commonest one, which for the majority of these
 # languages is the space. So what survived the reduction was word length, and the lengths matched the
 # pairings: Zulu 5.70 against Xhosa 5.88, Spanish 4.41 against French 4.66, with Finnish at 6.41, which
 # separates it from Spanish.
 #
 # If the reading rests on that, then word length alone should do what the reading does, and the
 # four thousand numbers of a character square are carrying a signal that two numbers hold. Worth knowing
-# either way: if the square wins, it holds something the lengths do not, and if it does not, most of the
+# either way: if the square wins, it holds something the lengths do not, and if it does not, the majority of the
 # machinery in this section was unnecessary.
 #
 # Three descriptions of the same texts are compared on the same question. How long the words are, as a

@@ -9,7 +9,7 @@ EMBED_STATIC_ASSERT((sizeof(CliHitCell) + sizeof(CliSearchHit) + CLI_HIT_BYTES +
                         CLI_HIT_CELL_BYTES,
                     "CLI_HIT_CELL_BYTES must fit the longest line a search stores");
 EMBED_STATIC_ASSERT((sizeof(CliHitCell) % _Alignof(CliSearchHit)) == 0u,
-                    "the first line in a cell must stand on a line's alignment");
+                    "the first line in a cell must are on a line's alignment");
 
 typedef struct
 {
@@ -52,7 +52,7 @@ void cli_hits_put(const CliFilesSearchHitsCfg *args)
     {
         return;
     }
-    // a line's bytes are at most CLI_HIT_BYTES, which an unsigned int stores
+    // a line's bytes are at max CLI_HIT_BYTES, which an unsigned int stores
     const unsigned int copied_len = (unsigned int)((args->size < CLI_HIT_BYTES) ? args->size : CLI_HIT_BYTES);
     // the next line starts on the boundary a line is aligned to
     const unsigned long long aligned = (unsigned long long)_Alignof(CliSearchHit) - 1ULL;

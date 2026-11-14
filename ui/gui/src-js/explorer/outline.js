@@ -13,9 +13,9 @@ import { act, element, guides, paneOpen, state } from "../explorer.js";
 const TYPE_MARKS = { function: ["ƒ", 5], method: ["ƒ", 5], class: ["◇", 3], module: ["{}", 4], constant: ["▪", 4], field: ["▪", 6], heading: ["#", 4], label: ["›", 6], region: ["▤", 2] };
 
 // The Outline holds the rows in sight and OUTLINE_MARGIN more on either side, space above and below
-// standing for the rest, each row made as it first comes near: a file of many thousands of symbols
+// located for the rest, each row made as it first comes near: a file of many thousands of symbols
 // would otherwise hold a row of each, which the page tracks in every frame. A row already in place
-// stays where it is as the rows round it change, and keeps the keys where it has them.
+// stays where it is as the rows round it change, and retains the keys where it has them.
 const OUTLINE_ROW = 22;
 const OUTLINE_MARGIN = 40;
 
@@ -25,8 +25,8 @@ export function drawOutline(session) {
   if (pinned && !state.hooks?.sessionOf?.(pinned.path)) {
     state.outline.pinned = null;
   }
-  const shown = state.outline.pinned ? state.hooks.sessionOf(state.outline.pinned.path) : session;
-  state.outline.session = shown;
+  const displayed = state.outline.pinned ? state.hooks.sessionOf(state.outline.pinned.path) : session;
+  state.outline.session = displayed;
   const head = document.querySelector('[data-pane="outline"] .pane-head');
   if (head) {
     head.textContent = state.outline.pinned ? `Outline of ${state.outline.pinned.path.split("/").pop()}` : "Outline";
@@ -34,11 +34,11 @@ export function drawOutline(session) {
   if (!paneOpen("outline")) {
     return;
   }
-  const symbols = shown ? structureOf(shown.language?.id, shown.doc) : [];
+  const symbols = displayed ? structureOf(displayed.language?.id, displayed.doc) : [];
   const closed = state.outline.closed;
-  const hidden = (symbol) => symbols.some((region) => region.kind === "region" && closed.has(`${region.line}:${region.name}`) && region.line < symbol.line && symbol.line <= region.end);
+  const hidden = (symbol) => symbols.some((region) => region.type === "region" && closed.has(`${region.line}:${region.name}`) && region.line < symbol.line && symbol.line <= region.end);
   state.outline.symbols = symbols.filter((symbol) => !hidden(symbol));
-  state.outline.shownIn = shown;
+  state.outline.displayedIn = displayed;
   state.outline.rows = new Map();
   state.outline.lit = -1;
   if (!state.outline.above) {
@@ -58,12 +58,12 @@ function outlineRow(index) {
     return made;
   }
   const symbol = state.outline.symbols[index];
-  const shown = state.outline.shownIn;
+  const displayed = state.outline.displayedIn;
   const closed = state.outline.closed;
-  const [mark, color] = TYPE_MARKS[symbol.kind] ?? ["▪", 7];
+  const [mark, color] = TYPE_MARKS[symbol.type] ?? ["▪", 7];
   const key = `${symbol.line}:${symbol.name}`;
-  const region = symbol.kind === "region";
-  const row = element("button", { className: region ? "sym dir sym-region" : "sym", type: "button", title: `${symbol.name}, line ${shown.base + symbol.line + 1}` });
+  const region = symbol.type === "region";
+  const row = element("button", { className: region ? "sym dir sym-region" : "sym", type: "button", title: `${symbol.name}, line ${displayed.base + symbol.line + 1}` });
   row.dataset.key = key;
   row.dataset.index = String(index);
   row.dataset.depth = String(symbol.depth);
@@ -90,7 +90,7 @@ function outlineRow(index) {
       return;
     }
     if (state.outline.pinned) {
-      state.hooks.openAt(state.outline.pinned.path, shown.base + symbol.line, 0);
+      state.hooks.openAt(state.outline.pinned.path, displayed.base + symbol.line, 0);
     } else {
       state.hooks.goTo(symbol.line);
     }
@@ -129,7 +129,7 @@ function placeOutline() {
   below.style.height = `${(count - last) * OUTLINE_ROW}px`;
 }
 
-// Pins the Outline to the file `path` shows, or, given none, unpins it to follow the file shown.
+// Pins the Outline to the file `path` shows, or, given none, unpins it to follow the file displayed.
 export function pinOutline(path) {
   state.outline.pinned = path ? { path } : null;
   drawOutline(state.hooks.sessionOf?.(state.hooks.activePath?.()) ?? null);
@@ -139,12 +139,12 @@ export function outlinePinned() {
   return state.outline.pinned?.path ?? null;
 }
 
-// The Outline's menu: pinning it to the file shown, or unpinning it.
+// The Outline's menu: pinning it to the file displayed, or unpinning it.
 export function outlineItems() {
   const active = state.hooks.activePath?.();
   const pinned = state.outline.pinned;
   return [
-    pinned ? act("outline-pin", ["none"], { label: `Unpin ${pinned.path.split("/").pop()}` }) : act("outline-pin", [active ?? "none"], { label: active ? `Pin ${active.split("/").pop()}` : "Pin the File Shown", disabled: !active }),
+    pinned ? act("outline-pin", ["none"], { label: `Unpin ${pinned.path.split("/").pop()}` }) : act("outline-pin", [active ?? "none"], { label: active ? `Pin ${active.split("/").pop()}` : "Pin the File Displayed", disabled: !active }),
   ];
 }
 

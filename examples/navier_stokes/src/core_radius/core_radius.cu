@@ -133,16 +133,16 @@ static void core_radius_weights_witness(const CoreRadiusScale *scale, const Core
 }
 
 // B_x = max over k <= order of x_k r^k (k + 1)
-static SimRational core_radius_most_scaled(const CoreRadiusSequence &sequence, SimRational r, unsigned int order)
+static SimRational core_radius_max_scaled(const CoreRadiusSequence &sequence, SimRational r, unsigned int order)
 {
-    SimRational most = core_radius_number(0ll, 1ll);
+    SimRational max = core_radius_number(0ll, 1ll);
     SimRational power = core_radius_number(1ll, 1ll);
     for (unsigned int k = 0u; k <= order; k += 1u)
     {
-        most = core_radius_most(most, core_radius_times(core_radius_times(sequence[k], power), core_radius_number((long long)k + 1ll, 1ll)));
+        max = core_radius_max(max, core_radius_times(core_radius_times(sequence[k], power), core_radius_number((long long)k + 1ll, 1ll)));
         power = core_radius_times(power, r);
     }
-    return most;
+    return max;
 }
 
 // H_n = 1 + 1/2 + ... + 1/n
@@ -171,17 +171,17 @@ static int core_radius_proof(const CoreRadiusScale *scale, const CoreRadiusSeque
     const SimRational n1 = core_radius_number((long long)order + 1ll, 1ll);
     const SimRational n2 = core_radius_plus(n1, one);
     const SimRational harmonic = core_radius_harmonic(order + 1u);
-    const SimRational b_a = core_radius_most_scaled(a, r, order);
-    const SimRational b_u = core_radius_most_scaled(u, r, order);
+    const SimRational b_a = core_radius_max_scaled(a, r, order);
+    const SimRational b_u = core_radius_max_scaled(u, r, order);
     if (sim_rational_sign(b_u) <= 0)
     {
         return 0;
     }
     // w_k <= C_w u_k past N with A <= 1, and P_(k+1) past N needs B_p >= 2 r Delta B_a^2 H_(N+1) / (N + 1)
     const SimRational c_w = core_radius_times(scale->l, core_radius_plus(core_radius_times(two, rho_delta), scale->feet));
-    const SimRational b_w = core_radius_most(core_radius_most_scaled(w, r, order), core_radius_times(c_w, b_u));
+    const SimRational b_w = core_radius_max(core_radius_max_scaled(w, r, order), core_radius_times(c_w, b_u));
     const SimRational pressure_floor = core_radius_over(core_radius_times(core_radius_times(two, r), core_radius_times(scale->delta, core_radius_times(core_radius_times(b_a, b_a), harmonic))), n1);
-    const SimRational b_p = core_radius_most(core_radius_most_scaled(p, r, order), pressure_floor);
+    const SimRational b_p = core_radius_max(core_radius_max_scaled(p, r, order), pressure_floor);
     const SimRational d_rho_k3 = core_radius_times(scale->d, core_radius_times(scale->rho, scale->k3));
     const SimRational falling = sim_rational_reciprocal(n1);
     const SimRational harmonic_falling = core_radius_times(harmonic, falling);
@@ -205,12 +205,12 @@ static int core_radius_proof(const CoreRadiusScale *scale, const CoreRadiusSeque
     return (sim_rational_sign(sim_rational_difference(limit, angular)) >= 0) && (sim_rational_sign(sim_rational_difference(limit, along)) >= 0);
 }
 
-// The proof on one ellipse. Every term of the rule raises a numerator's degree by at most 3, and a product of two by
-// at most 4: f_k, u_k and p_k have degree at most G_k = g0 + (g0 + 4) k and w_k at most G_k + 3, g0 the data's
+// The proof on one ellipse. Every term of the rule raises a numerator's degree by at max 3, and a product of two by
+// at max 4: f_k, u_k and p_k have degree at max G_k = g0 + (g0 + 4) k and w_k at max G_k + 3, g0 the data's
 // degree: the length of each order's weights is fixed by the rule, and on E_rho a derivative costs that length,
 // ||g'|| <= gamma G ||g||, gamma = 2 rho / (rho^2 - 1), and ||d g'|| <= phi G ||g||, phi = (rho + 1/rho) / 2. With
 // lambda = (1 - h) + h rho^2, delta = (1 + rho^2) / 2 and beta = 2 rho lambda + lambda phi (g0 + 4) + 8 h rho delta,
-// the Z parts of order j are at most (alpha + beta j) times their field, alpha = c rho lambda + lambda phi g0. The
+// the Z parts of order j are at max (alpha + beta j) times their field, alpha = c rho lambda + lambda phi g0. The
 // Cauchy sums split at N0: a part with one index below N0 reads the witness exactly, and only a part with both indices
 // at N0 or past it reads the bound. With n_k <= B r^-k for every k >= N0, B = max over N0 <= k <= N of n_k r^k, two
 // inequalities at k = N carry the bound to every order past N, and ||F_k||_rho <= l^(2k) B_f r^-k reaches every
@@ -244,17 +244,17 @@ static SimRational core_radius_low(const CoreRadiusSequence &n, SimRational r, u
 // max over split <= k <= order of n_k r^k
 static SimRational core_radius_high(const CoreRadiusSequence &n, SimRational r, unsigned int split, unsigned int order)
 {
-    SimRational most = core_radius_number(0ll, 1ll);
+    SimRational max = core_radius_number(0ll, 1ll);
     SimRational power = core_radius_number(1ll, 1ll);
     for (unsigned int k = 0u; k <= order; k += 1u)
     {
         if (k >= split)
         {
-            most = core_radius_most(most, core_radius_times(n[k], power));
+            max = core_radius_max(max, core_radius_times(n[k], power));
         }
         power = core_radius_times(power, r);
     }
-    return most;
+    return max;
 }
 
 // the numbers the proof on one ellipse reads at r: the rule's constants, n_k r^k below the split, and the bounds past it
@@ -314,10 +314,10 @@ static int core_radius_fixed_proof(const CoreRadiusScale *scale, const CoreRadiu
     const SimRational f0 = core_radius_low(nf, r, split, one, zero);
     const SimRational u0 = core_radius_low(nu, r, split, one, zero);
     const SimRational w0 = core_radius_low(nw, r, split, one, zero);
-    const SimRational b_w = core_radius_most(core_radius_high(nw, r, split, order), core_radius_times(core_radius_most(fixed->alpha_along, fixed->beta), b_u));
+    const SimRational b_w = core_radius_max(core_radius_high(nw, r, split, order), core_radius_times(core_radius_max(fixed->alpha_along, fixed->beta), b_u));
     const SimRational lambda_square = core_radius_times(fixed->lambda, fixed->lambda);
     const SimRational pressure_floor = core_radius_times(core_radius_times(r, lambda_square), core_radius_plus(core_radius_over(core_radius_times(core_radius_times(two, f0), b_f), n1), core_radius_times(b_f, b_f)));
-    const SimRational b_p = core_radius_most(core_radius_high(np, r, split, order), pressure_floor);
+    const SimRational b_p = core_radius_max(core_radius_high(np, r, split, order), pressure_floor);
     const SimRational d_rho_lambda_gamma = core_radius_times(scale->d, core_radius_times(scale->rho, core_radius_times(fixed->lambda, fixed->gamma)));
     const SimRational eight_h_d_delta = core_radius_times(core_radius_times(core_radius_number(8ll, 1ll), scale->h), core_radius_times(scale->d, fixed->delta));
     const SimRational a1 = core_radius_plus(core_radius_plus(fixed->lambda, core_radius_times(d_rho_lambda_gamma, g1)), eight_h_d_delta);
@@ -584,7 +584,7 @@ static SimRational core_radius_least(SimRational left, SimRational right)
     return (sim_rational_sign(sim_rational_difference(left, right)) <= 0) ? left : right;
 }
 
-// the time left at which the speed at X reaches V, from V^2: 2 nu X F_low^2 / V^2, at most 1
+// the time left at which the speed at X reaches V, from V^2: 2 nu X F_low^2 / V^2, at max 1
 static SimRational core_radius_wall_speed(SimRational nu, SimRational x, SimRational least, SimRational speed_square)
 {
     const SimRational square = core_radius_times(core_radius_times(core_radius_times(core_radius_number(2ll, 1ll), nu), x), core_radius_times(least, least));
@@ -633,7 +633,7 @@ typedef struct
 {
     CoreRadiusSequence exact;
     CoreRadiusSequence magnitudes;
-    SimRational most;
+    SimRational max;
     SimRational rate;
 } CoreRadiusSeries;
 
@@ -646,7 +646,7 @@ enum
 
 // the tail past `last` of sum c_k y^k (value), sum k c_k y^(k-1) (slope) or sum (k + 1) c_k y^k ((Y F)'), with
 // |c_k| <= B r^-k, q = y / r < 1, K = last + 1
-static SimRational core_radius_far_tail(unsigned int kind, SimRational most, SimRational rate, SimRational y, unsigned int last)
+static SimRational core_radius_far_tail(unsigned int type, SimRational max, SimRational rate, SimRational y, unsigned int last)
 {
     const SimRational one = core_radius_number(1ll, 1ll);
     const SimRational q = core_radius_over(y, rate);
@@ -658,40 +658,40 @@ static SimRational core_radius_far_tail(unsigned int kind, SimRational most, Sim
         power = core_radius_times(power, q);
     }
     // power = q^K
-    if (kind == CORE_RADIUS_VALUE)
+    if (type == CORE_RADIUS_VALUE)
     {
-        return core_radius_over(core_radius_times(most, power), rest);
+        return core_radius_over(core_radius_times(max, power), rest);
     }
     const SimRational square_rest = core_radius_times(rest, rest);
-    if (kind == CORE_RADIUS_SLOPE)
+    if (type == CORE_RADIUS_SLOPE)
     {
         const SimRational before = core_radius_over(power, q);
-        return core_radius_times(core_radius_over(most, rate),
+        return core_radius_times(core_radius_over(max, rate),
                                  core_radius_plus(core_radius_over(core_radius_times(order_k, before), rest), core_radius_over(power, square_rest)));
     }
-    return core_radius_times(most, core_radius_plus(core_radius_over(core_radius_times(core_radius_plus(order_k, one), power), rest),
+    return core_radius_times(max, core_radius_plus(core_radius_over(core_radius_times(core_radius_plus(order_k, one), power), rest),
                                                     core_radius_over(core_radius_times(power, q), square_rest)));
 }
 
-// a bound on [low, high], 0 <= low < high, of the series of `kind`: the exact part at `low` moved by at most the width
-// times the bound of its slope, and the rest at most its magnitudes and the tail at `high`; lower at sign -1, upper at +1
-static SimRational core_radius_series_bound(const CoreRadiusSeries *series, unsigned int kind, SimRational low, SimRational high, int sign)
+// a bound on [low, high], 0 <= low < high, of the series of `type`: the exact part at `low` moved by at max the width
+// times the bound of its slope, and the rest at max its magnitudes and the tail at `high`; lower at sign -1, upper at +1
+static SimRational core_radius_series_bound(const CoreRadiusSeries *series, unsigned int type, SimRational low, SimRational high, int sign)
 {
     const SimRational zero = core_radius_number(0ll, 1ll);
     const SimRational one = core_radius_number(1ll, 1ll);
     SimRational at_low = zero;
-    SimRational slope_most = zero;
+    SimRational slope_max = zero;
     const unsigned int exact_last = (unsigned int)series->exact.size() - 1u;
     for (unsigned int k = 0u; k <= exact_last; k += 1u)
     {
         // the term a y^e: a = c_k, k c_k or (k + 1) c_k, and e = k, k - 1 or k
-        const SimRational multiplier = (kind == CORE_RADIUS_VALUE) ? one : core_radius_number((long long)k + ((kind == CORE_RADIUS_GROWN_SLOPE) ? 1ll : 0ll), 1ll);
+        const SimRational multiplier = (type == CORE_RADIUS_VALUE) ? one : core_radius_number((long long)k + ((type == CORE_RADIUS_GROWN_SLOPE) ? 1ll : 0ll), 1ll);
         const SimRational a = core_radius_times(multiplier, series->exact[k]);
-        if ((kind == CORE_RADIUS_SLOPE) && (k == 0u))
+        if ((type == CORE_RADIUS_SLOPE) && (k == 0u))
         {
             continue;
         }
-        const unsigned int e = (kind == CORE_RADIUS_SLOPE) ? k - 1u : k;
+        const unsigned int e = (type == CORE_RADIUS_SLOPE) ? k - 1u : k;
         SimRational low_power = one;
         SimRational high_power = one;
         for (unsigned int n = 0u; n < e; n += 1u)
@@ -705,15 +705,15 @@ static SimRational core_radius_series_bound(const CoreRadiusSeries *series, unsi
         at_low = core_radius_plus(at_low, core_radius_times(a, low_power));
         if (e >= 1u)
         {
-            slope_most = core_radius_plus(slope_most, core_radius_times(core_radius_times(sim_rational_absolute(a), core_radius_number((long long)e, 1ll)), high_power));
+            slope_max = core_radius_plus(slope_max, core_radius_times(core_radius_times(sim_rational_absolute(a), core_radius_number((long long)e, 1ll)), high_power));
         }
     }
     SimRational rest = zero;
     for (size_t index = 0u; index < series->magnitudes.size(); index += 1u)
     {
         const unsigned int k = exact_last + 1u + (unsigned int)index;
-        const SimRational multiplier = (kind == CORE_RADIUS_VALUE) ? one : core_radius_number((long long)k + ((kind == CORE_RADIUS_GROWN_SLOPE) ? 1ll : 0ll), 1ll);
-        const unsigned int e = (kind == CORE_RADIUS_SLOPE) ? k - 1u : k;
+        const SimRational multiplier = (type == CORE_RADIUS_VALUE) ? one : core_radius_number((long long)k + ((type == CORE_RADIUS_GROWN_SLOPE) ? 1ll : 0ll), 1ll);
+        const unsigned int e = (type == CORE_RADIUS_SLOPE) ? k - 1u : k;
         SimRational power = one;
         for (unsigned int n = 0u; n < e; n += 1u)
         {
@@ -722,8 +722,8 @@ static SimRational core_radius_series_bound(const CoreRadiusSeries *series, unsi
         rest = core_radius_plus(rest, core_radius_times(core_radius_times(multiplier, series->magnitudes[index]), power));
     }
     const unsigned int last = exact_last + (unsigned int)series->magnitudes.size();
-    rest = core_radius_plus(rest, core_radius_far_tail(kind, series->most, series->rate, high, last));
-    const SimRational moved = core_radius_plus(core_radius_times(sim_rational_difference(high, low), slope_most), rest);
+    rest = core_radius_plus(rest, core_radius_far_tail(type, series->max, series->rate, high, last));
+    const SimRational moved = core_radius_plus(core_radius_times(sim_rational_difference(high, low), slope_max), rest);
     return (sign < 0) ? sim_rational_difference(at_low, moved) : core_radius_plus(at_low, moved);
 }
 
@@ -753,8 +753,8 @@ static int core_radius_principal(const CoreRadiusScale *scale, const CoreRadiusO
         along.magnitudes.push_back(core_radius_norm(reached->g[k], scale->rho));
         spin.magnitudes.push_back(core_radius_norm(reached->f[k], scale->rho));
     }
-    along.most = proof->b_u;
-    spin.most = proof->b_f;
+    along.max = proof->b_u;
+    spin.max = proof->b_f;
     along.rate = proof->rate;
     spin.rate = proof->rate;
     *s_least = core_radius_number(0ll, 1ll);
@@ -774,7 +774,7 @@ static int core_radius_principal(const CoreRadiusScale *scale, const CoreRadiusO
         const SimRational grown_low = core_radius_series_bound(&spin, CORE_RADIUS_GROWN_SLOPE, low, high, -1);
         // s_eff = L (D eta + d U) - L d Y max(U', 0), its least on the piece
         const SimRational s_low = core_radius_times(l_point, core_radius_plus(core_radius_times(scale->d, *vertex), core_radius_times(d_point, u_low)));
-        const SimRational climb = core_radius_most(slope_high, core_radius_number(0ll, 1ll));
+        const SimRational climb = core_radius_max(slope_high, core_radius_number(0ll, 1ll));
         const SimRational s_eff = sim_rational_difference(s_low, core_radius_times(core_radius_times(l_point, d_point), core_radius_times(high, climb)));
         *s_least = (piece == 0ull) ? s_eff : (sim_rational_sign(sim_rational_difference(s_eff, *s_least)) < 0 ? s_eff : *s_least);
         *grown_least = (piece == 0ull) ? grown_low : (sim_rational_sign(sim_rational_difference(grown_low, *grown_least)) < 0 ? grown_low : *grown_least);
@@ -789,7 +789,7 @@ typedef struct
     SimRational tau;
 } CoreRadiusWall;
 
-// the walls of one medium, the first, the one with the most time left, first
+// the walls of one medium, the first, the one with the max time left, first
 static std::vector<CoreRadiusWall> core_radius_walls(SimRational nu, SimRational x, SimRational least, SimRational sound, SimRational spacing, SimRational relaxation,
                                                      SimRational mass, SimRational ionization, SimRational light, const std::vector<SimRational> &mach,
                                                      const std::vector<std::string> &mach_names)

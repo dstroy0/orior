@@ -11,16 +11,16 @@ import { invoke } from "./bridge.js";
 const SESSION = "orior.wordmark.session";
 
 // Whether `now`, the session the system names, is one no start has been in: one whose log in is another,
-// or whose computer's start stands more than a minute from the kept one's, the start being read a few
-// seconds either way from one start to the next. `now` is kept as the session started in either way.
+// or whose computer's start is more than a minute from the retained one's, the start being read a few
+// seconds either way from one start to the next. `now` is retained as the session started in either way.
 export function firstIn(now) {
-  let kept = null;
+  let retained = null;
   try {
-    kept = JSON.parse(localStorage.getItem(SESSION) ?? "null");
+    retained = JSON.parse(localStorage.getItem(SESSION) ?? "null");
   } catch {
-    kept = null;
+    retained = null;
   }
-  const same = Boolean(kept) && kept.logon === now.logon && Math.abs(kept.booted - now.booted) < 60;
+  const same = Boolean(retained) && retained.logon === now.logon && Math.abs(retained.booted - now.booted) < 60;
   localStorage.setItem(SESSION, JSON.stringify(now));
   return !same;
 }

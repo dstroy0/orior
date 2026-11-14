@@ -17,7 +17,7 @@ typedef struct
 } CliKernelEachCfg;
 // what is done with each spec listed: 1 to go on, 0 to stop
 typedef int (*CliKernelEach)(const CliKernelEachCfg *args);
-// the most kernels listed and entries of a kernels folder, the longest name of an entry, and the most nodes and
+// the max kernels listed and entries of a kernels folder, the longest name of an entry, and the max nodes and
 // bytes of a spec read
 #define CLI_KERNEL_LISTING 256u
 #define CLI_KERNEL_ENTRIES 1024u
@@ -218,7 +218,7 @@ EMBED_INLINE int jupyter_spec_read(const JupyterSpecsCtx *args)
     return !spec->full;
 }
 
-// the spec listed: its name and first word recorded, and handed on: 1 to go on, 0 to stop
+// the spec listed: its name and first word recorded, and passed on: 1 to go on, 0 to stop
 EMBED_INLINE int jupyter_list(const JupyterSpecsCtx *args)
 {
     if (s_listing.list_entries < CLI_KERNEL_LISTING)
@@ -238,7 +238,7 @@ EMBED_INLINE int jupyter_list(const JupyterSpecsCtx *args)
     return EMBED_CALL(args->each, CliKernelEachCfg, .context = args->context, .spec = &s_listing.spec);
 }
 
-// the specs of one folder of Jupyter's data, in the order of their folders' names, each handed on: 1 to go on, 0 to
+// the specs of one folder of Jupyter's data, in the order of their folders' names, each passed on: 1 to go on, 0 to
 // stop
 EMBED_INLINE int jupyter_folder_specs(const JupyterSpecsCtx *args)
 {
@@ -292,7 +292,7 @@ EMBED_INLINE int jupyter_folder_specs(const JupyterSpecsCtx *args)
     return 1;
 }
 
-// a kernel for each Python found that no spec listed runs, each handed on
+// a kernel for each Python found that no spec listed runs, each passed on
 EMBED_INLINE void jupyter_python_specs(const JupyterSpecsCtx *args)
 {
     for (unsigned int index = 0u; index < args->pythons; index += 1u)
@@ -362,7 +362,7 @@ EMBED_INLINE void jupyter_python_specs(const JupyterSpecsCtx *args)
     }
 }
 
-// every spec the machine has, each handed to `each` in Jupyter's order, under the listing's lock
+// every spec the machine has, each passed to `each` in Jupyter's order, under the listing's lock
 EMBED_INLINE void jupyter_specs_each(const JupyterSpecsCtx *args)
 {
     s_listing.list_entries = 0u;

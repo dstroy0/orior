@@ -8,15 +8,15 @@
 #   Usage:  python examples/language/4_measure/phoneme_lexer.py
 #
 # Four Dravidian languages came out further from each other than from Indo Aryan, and the pair that
-# separated most recently came out the widest apart of the seven. The cause is in their inventories: in
+# separated max recently came out the widest apart of the seven. The cause is in their inventories: in
 # the same length of text Tamil uses 149 distinct codepoints and Malayalam 524, because Malayalam took
 # Sanskrit phonology into its script and Tamil did not. The reading was measuring which distinctions each
 # script chose to write down.
 #
-# Those inventories can be put on one footing, and not by hand. Every Indic block lays its consonants out
+# Those inventories can be put on one footing, and not by hand. Every Indic block positions its consonants out
 # in the inherited order, in rows of five: unvoiced, unvoiced aspirated, voiced, voiced aspirated, nasal.
-# Collapsing each row of four stops onto the first of them keeps exactly the distinctions Tamil script
-# keeps, and applying it to all seven languages asks every one of them the same question.
+# Collapsing each row of four stops onto the first of them retains exactly the distinctions Tamil script
+# retains, and applying it to all seven languages asks every one of them the same question.
 #
 # The claim being tested is that the trouble was never the measure but the unit it was asked at. If the
 # family appears once the languages are read at one set of distinctions, that claim holds here. If it
@@ -78,14 +78,14 @@ def main():
             continue
         cut = text[:SAME_LENGTH]
 
-        kept = collapsed(cut, keep_aspiration=True)
-        folded = collapsed(cut, keep_aspiration=False)
-        for label, series in (("as written", cut), ("one alphabet", kept),
+        retained = collapsed(cut, retain_aspiration=True)
+        folded = collapsed(cut, retain_aspiration=False)
+        for label, series in (("as written", cut), ("one alphabet", retained),
                               ("one set of distinctions", folded)):
             values = web(series, RANKS)
             if values is not None:
                 readings[label][language] = values
-        inventory[language] = (len(set(cut)), len(set(kept)), len(set(folded)))
+        inventory[language] = (len(set(cut)), len(set(retained)), len(set(folded)))
 
     if len(readings["as written"]) < 5:
         out.write("  too few languages loaded\n")

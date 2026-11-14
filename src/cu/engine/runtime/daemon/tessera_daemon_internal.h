@@ -59,7 +59,7 @@ typedef struct TesseraPeer
     unsigned long long lost_identity;
     EngineSignum signum;
     unsigned long long declared;
-    unsigned long long standing;
+    unsigned long long located;
     unsigned long long grace_microseconds;
     unsigned long long sweep_microseconds;
     int has_decisive;
@@ -122,7 +122,7 @@ int daemon_ticket_write(unsigned long long identity, const TesseraPeer *peer, un
 
 int daemon_ticket_note(unsigned long long identity, const TesseraPeer *peer, const char *note);
 
-void daemon_frame_start(TesseraFrame *frame, unsigned int kind, unsigned long long identity);
+void daemon_frame_start(TesseraFrame *frame, unsigned int type, unsigned long long identity);
 
 void daemon_device_read(void);
 
@@ -140,7 +140,7 @@ int daemon_peer_start(TesseraPeer *peer, unsigned long long pid);
 
 int daemon_arguments(int count, char **arguments, unsigned long long *idle);
 
-int daemon_socket_handed(void);
+int daemon_socket_passed(void);
 
 int daemon_error(void);
 

@@ -170,8 +170,8 @@ export function insertLine(below) {
 export function undo(back = true) {
   const doc = this.doc;
   const step = back ? doc.steps.get(doc.id) : doc.steps.get(doc.next.get(doc.id));
-  if (!this.s?.readOnly && step?.kind?.startsWith?.("group:") && step.done === back) {
-    this.onGroup(step.kind, back, doc);
+  if (!this.s?.readOnly && step?.type?.startsWith?.("group:") && step.done === back) {
+    this.onGroup(step.type, back, doc);
   }
   this.travel(() => (back ? this.doc.undo() : this.doc.redo()));
 }

@@ -104,9 +104,9 @@ static int divide_valid(const OriorExactInteger *numerator, const OriorExactInte
     return orior_exact_equal(&rebuilt, numerator) && divide_magnitude_below(&remainder, divisor) && signed_right;
 }
 
-static unsigned int divide_width(unsigned int maximum)
+static unsigned int divide_width(unsigned int max)
 {
-    return 1u + (divide_draw() % maximum);
+    return 1u + (divide_draw() % max);
 }
 
 int main(void)

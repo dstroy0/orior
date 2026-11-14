@@ -32,16 +32,16 @@ is a morpheme breakdown in the North American Phonetic Alphabet, and it is the s
 The third line, the gloss tier, is a gloss row. The fourth line is the translation.
 Footnote 27 gives the ʔayʔaǰuθəm examples the same four lines, with the community orthography on
 the top line. The van Eijk line writes the glottal stop as 7, and a 7 inside a transcription is a
-letter. Footnote digits are left out only where the page sets them as footnote markers.
+character. Footnote digits are left out only where the page sets them as footnote markers.
 
 The page underlines the v and l of Qvl in (7) and (48) and of Qvláoka7lhkan in (91), marking the
-retracted letters. The text layer has no underline and the table cannot carry one. A notation row
+retracted characters. The text layer has no underline and the table cannot carry one. A notation row
 names the three sites. In (24b) the van Eijk line has the NAPA schwa where van Eijk writes e,
-and the table keeps it as printed, with a damage row. Four marks have symbol note rows: a dot below
-standing alone before x̌aƛ̓ in the abstract, an acute accent set over the c̓ of (7) and over the m of
+and the table retains it as printed, with a damage row. Four marks have symbol note rows: a dot below
+located alone before x̌aƛ̓ in the abstract, an acute accent set over the c̓ of (7) and over the m of
 (16), and two dots below the l of qə̣ḷ̣ in (91).
 
-The judgment marks *, #, ?? and */√ stand before the van Eijk line on the page. The table puts
+The judgment marks *, #, ?? and */√ are before the van Eijk line on the page. The table puts
 them in the gloss column and leaves them out of the form.
 
 THE PAGE AND THE TEXT LAYER
@@ -55,7 +55,7 @@ the hyphen of St’át’imcets-English in the references. It renders the long a
 of (43) and (79) as runs of hyphens ending in →. Where a segmentation runs to a second line, the
 text layer interleaves its lines with the gloss lines, and the table joins each tier. The page's
 bold and underlining are not in the text layer. The gloss of (28b) prints 2pl in lowercase among
-small capitals, 2PL.ERG in small capitals after it, and the table keeps both as printed. The
+small capitals, 2PL.ERG in small capitals after it, and the table retains both as printed. The
 residue check puts each of these back from its page render (residue.py CORRECTIONS).
 
 Every form was looked up in the text layer, both sides in NFC, and every word of the text layer
@@ -65,7 +65,7 @@ interleaved line, or at the space in (78b). Four are the ∀x lines of (54) and 
 dictionary entry of Davis et al., at the space after St’át’imcets-. Of 992 marked words in the
 text layer, nine distinct words are not in the form column. Four carry a footnote digit and one the asterisk of
 the title; kwu=waʔ and qʷám<qwm>-ət-s-Ø carry the kw and <qwm> above; and two are the runs of
-hyphens that stand for the arrows.
+hyphens that are for the arrows.
 
 where    the paper's locator: the title, the abstract, the keywords, a section, a footnote (footnote *
          is the acknowledgment), a numbered example, the references, or all for a note about the
@@ -75,7 +75,7 @@ who      the language for a form, St’át’imcets, ʔayʔaǰuθəm or nɬeʔke
          for theirs; Davis et al. in prep. and Lisa Matthewson for the translations of examples
          taken from their work; Idan Landau and Friederike Moltmann for the passages quoted from
          them; and Henry Davis for his prose, his English and the notes on the page
-kind     transcription  the top line of an example, or an English example sentence
+type     transcription  the top line of an example, or an English example sentence
          segmentation   the NAPA line of an example
          gloss          the gloss tier under a segmentation, whole
          translation    the English of an example, or its intended meaning where it is starred

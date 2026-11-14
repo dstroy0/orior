@@ -372,9 +372,9 @@ int dicom_gather(const EngineIngestTools *tools, const char *path, const ZipArch
     {
         ok = dicom_gather_slice((void *)&work, item);
     }
-    for (unsigned long long item = 0ull; (item < resident->count) && (error->kind == ENGINE_ERROR_NONE); item += 1ull)
+    for (unsigned long long item = 0ull; (item < resident->count) && (error->type == ENGINE_ERROR_NONE); item += 1ull)
     {
-        *error = (errors[item].kind != ENGINE_ERROR_NONE) ? errors[item] : *error;
+        *error = (errors[item].type != ENGINE_ERROR_NONE) ? errors[item] : *error;
     }
     zip_span_release(&span);
     free(entries);

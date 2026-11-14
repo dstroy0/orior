@@ -4,14 +4,14 @@
 // Color themes. The palette is every color the stylesheet gives the dark and the light scheme, read
 // from its own rules, and the ink the two share, with a color for every type of token a grammar
 // names. A theme of the reader's is a name, the scheme it is drawn over, the colors it sets in place
-// of that scheme's, an image it lays behind the editor, and the icons it gives files by patterns of
+// of that scheme's, an image it positions behind the editor, and the icons it gives files by patterns of
 // their names; each scheme shows the theme chosen for it, or its own colors where none is. The themes
-// and the choice are kept, and early.js sets the colors before the page's first frame from the same
+// and the choice are retained, and early.js sets the colors before the page's first frame from the same
 // keys.
 
 import { tokenKinds: tokenTypes } from "./editor/tokens.js";
 import { notifyScheme, scheme } from "./scheme.js";
-import { kindSetting: typeSetting } from "./settings.js";
+import { typeSetting: typeSetting } from "./settings.js";
 
 export const THEMES = "orior.themes";
 export const CHOSEN = "orior.theme.";
@@ -78,7 +78,7 @@ export function paletteOf(base) {
 
 // The rule that colors a type of token the stylesheet gives no color of its own, `--t-a-b`, through
 // the types it is part of to the text's own color where no theme sets one. Its class is named twice
-// to stand over the stylesheet's rule for the type it is part of, wherever the two stand in the page.
+// to be over the stylesheet's rule for the type it is part of, wherever the two are in the page.
 function tokenRule(name) {
   const parts = name.slice("--t-".length).split("-");
   let value = "currentColor";
@@ -92,7 +92,7 @@ function tokenRule(name) {
 // How much of a theme's image shows where the theme names no share.
 export const IMAGE_OPACITY = 0.15;
 
-// The image a theme lays behind the editor, as the custom properties that draw it: a picture kept in
+// The image a theme positions behind the editor, as the custom properties that draw it: a picture retained in
 // the theme as a data address, and the share of it that shows, from 0 to 1. None where the theme has
 // no image.
 export function imageProperties(theme) {
@@ -107,8 +107,8 @@ export function imageProperties(theme) {
   ];
 }
 
-// The icon the theme shown gives a file's name: the first of its icons whose pattern matches the
-// name, `*` standing for any letters and `?` for one, with its mark, a letter or a few, and its
+// The icon the theme displayed gives a file's name: the first of its icons whose pattern matches the
+// name, `*` located for any characters and `?` for one, with its mark, a character or a few, and its
 // color, one of the palette's by name or any color. Null where none matches.
 export function themeIcon(name) {
   const theme = themeNamed(chosen(scheme()) ?? "");
@@ -120,7 +120,7 @@ export function themeIcon(name) {
   return null;
 }
 
-// The icons of the theme shown, as text that changes as they do.
+// The icons of the theme displayed, as text that changes as they do.
 export function iconsKey() {
   return JSON.stringify(themeNamed(chosen(scheme()) ?? "")?.icons ?? []);
 }
@@ -130,7 +130,7 @@ const globs = new Map();
 function globOf(pattern) {
   let found = globs.get(pattern);
   if (!found) {
-    const source = [...pattern].map((letter) => (letter === "*" ? "[^/]*" : letter === "?" ? "[^/]" : letter.replace(/[\\^$.|+()[\]{}]/g, "\\$&"))).join("");
+    const source = [...pattern].map((character) => (character === "*" ? "[^/]*" : character === "?" ? "[^/]" : character.replace(/[\\^$.|+()[\]{}]/g, "\\$&"))).join("");
     found = new RegExp(`^${source}$`, "i");
     globs.set(pattern, found);
   }
@@ -186,7 +186,7 @@ const luminance = (rgb) =>
     .reduce((sum, channel, at) => sum + channel * [0.2126, 0.7152, 0.0722][at], 0);
 
 // The contrast of the color `fore` over `back`, from 1 to 21, as WCAG 2 measures it; a color with
-// alpha is laid over the color under it first, and `back` over `ground` where it has alpha.
+// alpha is positioned over the color under it first, and `back` over `ground` where it has alpha.
 export function contrastOf(fore, back, ground = "#ffffff") {
   const under = over(rgbaOf(back), rgbaOf(ground));
   const [one, two] = [luminance(over(rgbaOf(fore), under)), luminance(under)].sort((a, b) => b - a);
@@ -195,14 +195,14 @@ export function contrastOf(fore, back, ground = "#ffffff") {
 
 export function themes() {
   try {
-    const kept = JSON.parse(localStorage.getItem(THEMES) ?? "[]");
-    return Array.isArray(kept) ? kept.filter((theme) => theme && typeof theme.name === "string" && BASES.includes(theme.base)) : [];
+    const retained = JSON.parse(localStorage.getItem(THEMES) ?? "[]");
+    return Array.isArray(retained) ? retained.filter((theme) => theme && typeof theme.name === "string" && BASES.includes(theme.base)) : [];
   } catch {
     return [];
   }
 }
 
-function keep(list) {
+function retain(list) {
   localStorage.setItem(THEMES, JSON.stringify(list));
 }
 
@@ -229,7 +229,7 @@ export function themeRule(list, chosenOf) {
   }
   const own = builtIn();
   const types = new Set(list.flatMap((theme) => Object.keys(theme.colors ?? {})).filter((name) => /^--t-[\w-]+$/.test(name) && !own.dark.has(name) && !own.light.has(name)));
-  return text + [...kinds].map(tokenRule).join("");
+  return text + [...types].map(tokenRule).join("");
 }
 
 export function applyThemes() {
@@ -252,7 +252,7 @@ export function choose(base, name) {
 }
 
 // The colors the editor shows a file of the language `type` in, where a settings file gives that type
-// a theme for the scheme shown (settings.js): every color of the theme's own scheme with the theme's
+// a theme for the scheme displayed (settings.js): every color of the theme's own scheme with the theme's
 // over them, Dark and Light being the schemes' own. Null where none is given or the theme named is
 // not one of the reader's.
 export function typeColors(type) {
@@ -290,7 +290,7 @@ export function freeName(wanted) {
   return `${stem} ${number}`;
 }
 
-// Keeps a theme, in place of the one of the name `was` where it is given.
+// Retains a theme, in place of the one of the name `was` where it is given.
 export function saveTheme(theme, was = theme.name) {
   const list = themes();
   const at = list.findIndex((one) => one.name === was);
@@ -299,7 +299,7 @@ export function saveTheme(theme, was = theme.name) {
   } else {
     list.push(theme);
   }
-  keep(list);
+  retain(list);
   if (was !== theme.name && localStorage.getItem(CHOSEN + theme.base) === was) {
     localStorage.setItem(CHOSEN + theme.base, theme.name);
   }
@@ -308,7 +308,7 @@ export function saveTheme(theme, was = theme.name) {
 
 export function deleteTheme(name) {
   const theme = themeNamed(name);
-  keep(themes().filter((one) => one.name !== name));
+  retain(themes().filter((one) => one.name !== name));
   if (theme && localStorage.getItem(CHOSEN + theme.base) === name) {
     localStorage.removeItem(CHOSEN + theme.base);
   }

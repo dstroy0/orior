@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// diff.c: the lines of a text that differ from an older text of it, as the changes between the two, each handed to the
+// diff.c: the lines of a text that differ from an older text of it, as the changes between the two, each passed to the
 // caller as it is found. The lines the two share at their start and end are set aside first, compared a block of units
 // at a time, and Myers' shortest edit runs on what is left, each line read as its hash, its runs of the same lines
 // found a block of hashes at a time and each line of a run checked against the other's, so that two lines that hash
@@ -22,15 +22,15 @@ typedef struct
     long long m;
 } CliRuns;
 
-// the most rounds a shortest edit takes before the texts read as too far apart, and the most lines of each text
+// the max rounds a shortest edit takes before the texts read as too far apart, and the max lines of each text
 #define CLI_DIFF_MAX_EDITS 3000LL
 // the rounds the trace holds room for at first, doubled as a search runs past them
 #define CLI_DIFF_ROUNDS_FIRST 64LL
 #define CLI_DIFF_LINES (1u << 20u)
 
-// The edit's capacity, laid out in a cell sized to the two texts' lines, taken for the one edit and released as it
+// The edit's capacity, arranged in a cell sized to the two texts' lines, taken for the one edit and released as it
 // ends: the hashes of each side's lines, the furthest reach on each diagonal, and the steps found; and each round's
-// reaches, the trace, in a cell of its own at their most. Each edit has a capacity of its own, so edits on two
+// reaches, the trace, in a cell of its own at their max. Each edit has a capacity of its own, so edits on two
 // threads run beside each other
 typedef struct
 {
@@ -85,10 +85,10 @@ EMBED_INLINE void *diff_part(const DiffCtx *args)
 EMBED_INLINE int diff_reserve(const DiffCtx *args)
 {
     const unsigned long long both = args->then_lines + args->now_lines;
-    const unsigned long long most =
+    const unsigned long long max =
         (both < (unsigned long long)CLI_DIFF_MAX_EDITS) ? both : (unsigned long long)CLI_DIFF_MAX_EDITS;
     const unsigned long long bytes =
-        (8ULL * both) + (8ULL * ((2ULL * most) + 3ULL)) + both + (4ULL * both) + (8ULL * 8ULL);
+        (8ULL * both) + (8ULL * ((2ULL * max) + 3ULL)) + both + (4ULL * both) + (8ULL * 8ULL);
     memor.set(&(MemoriaCfg){.dst = args->diff, .val = 0, .bytes = sizeof(*args->diff)});
     args->diff->cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_text_owner);
     if (args->diff->cell == NULL)
@@ -101,7 +101,7 @@ EMBED_INLINE int diff_reserve(const DiffCtx *args)
     args->diff->hash_now =
         EMBED_CALL(diff_part, DiffCtx, .diff = args->diff, .at = &at, .bytes = 8ULL * args->now_lines);
     args->diff->v =
-        EMBED_CALL(diff_part, DiffCtx, .diff = args->diff, .at = &at, .bytes = 8ULL * ((2ULL * most) + 3ULL));
+        EMBED_CALL(diff_part, DiffCtx, .diff = args->diff, .at = &at, .bytes = 8ULL * ((2ULL * max) + 3ULL));
     args->diff->step_type = EMBED_CALL(diff_part, DiffCtx, .diff = args->diff, .at = &at, .bytes = both);
     args->diff->step_index = EMBED_CALL(diff_part, DiffCtx, .diff = args->diff, .at = &at, .bytes = 4ULL * both);
     return 1;
@@ -161,14 +161,14 @@ EMBED_INLINE long long cli_run(const DiffCtx *args)
     {
         at += 1ULL;
     }
-    // a run is at most the lines left, which a long long represents
+    // a run is at max the lines left, which a long long represents
     return (long long)at;
 }
 
 // a step put: the type and the line it concerns
 EMBED_INLINE void cli_step(const DiffCtx *args)
 {
-    // the steps are at most the lines of both, which the capacity contains, and an index is below 2^32
+    // the steps are at max the lines of both, which the capacity contains, and an index is below 2^32
     args->diff->step_type[args->diff->steps] = args->type;
     args->diff->step_index[args->diff->steps] = (unsigned int)args->index;
     args->diff->steps += 1u;
@@ -194,11 +194,11 @@ EMBED_INLINE int cli_shortest(const DiffCtx *args)
             EMBED_CALL(cli_hash_get, DiffCtx, .diff = args->diff,
                        .line = args->runs->b->unit + args->runs->b->start[line], .length = args->runs->b->length[line]);
     }
-    const long long most = ((n + m) < CLI_DIFF_MAX_EDITS) ? (n + m) : CLI_DIFF_MAX_EDITS;
-    const long long middle = most + 1;
+    const long long max = ((n + m) < CLI_DIFF_MAX_EDITS) ? (n + m) : CLI_DIFF_MAX_EDITS;
+    const long long middle = max + 1;
     // every round's frontier in one cell of the square of the rounds it holds room for: CLI_DIFF_ROUNDS_FIRST rounds
     // first, the room doubled as the rounds pass it, the frontiers moved into the larger cell
-    long long rounds = (most < CLI_DIFF_ROUNDS_FIRST) ? (most + 1) : CLI_DIFF_ROUNDS_FIRST;
+    long long rounds = (max < CLI_DIFF_ROUNDS_FIRST) ? (max + 1) : CLI_DIFF_ROUNDS_FIRST;
     args->diff->trace =
         g_cli_guard->temporary_buf_alloc((unsigned long long)(rounds * rounds) * sizeof(long long), g_cli_text_owner);
     if (args->diff->trace == NULL)
@@ -206,20 +206,20 @@ EMBED_INLINE int cli_shortest(const DiffCtx *args)
         return 0;
     }
     memor.set(&(MemoriaCfg){
-        .dst = args->diff->v, .val = 0, .bytes = (unsigned long long)((2 * most) + 3) * sizeof(long long)});
+        .dst = args->diff->v, .val = 0, .bytes = (unsigned long long)((2 * max) + 3) * sizeof(long long)});
     long long found = -1;
-    for (long long d = 0; (found < 0) && (d <= most); d += 1)
+    for (long long d = 0; (found < 0) && (d <= max); d += 1)
     {
         if (d >= rounds)
         {
-            const long long wider = ((rounds * 2) < (most + 1)) ? (rounds * 2) : (most + 1);
+            const long long wider = ((rounds * 2) < (max + 1)) ? (rounds * 2) : (max + 1);
             long long *const grown = g_cli_guard->temporary_buf_alloc(
                 (unsigned long long)(wider * wider) * sizeof(long long), g_cli_text_owner);
             if (grown == NULL)
             {
                 return 0;
             }
-            // the rounds before `d` stand in the first d * d entries
+            // the rounds before `d` are in the first d * d entries
             memor.cpy(&(MemoriaCfg){
                 .dst = grown, .src = args->diff->trace, .bytes = (unsigned long long)(d * d) * sizeof(long long)});
             g_cli_guard->persistent_buf_release(args->diff->trace, g_cli_text_owner);
@@ -331,7 +331,7 @@ int cli_diff_line_changes(const CliDocumentOutThenCfg *args)
                           (long long)(args->then->lines - start - end),
                           (long long)(args->now->lines - start - end)};
     const int found = EMBED_CALL(cli_shortest, DiffCtx, .diff = &diff, .runs = &runs);
-    // the lines put in and taken out since the last line retained, handed on as one change as the next is retained
+    // the lines put in and taken out since the last line retained, passed on as one change as the next is retained
     unsigned int line = start;
     unsigned int then_line = start;
     unsigned int puts = 0u;

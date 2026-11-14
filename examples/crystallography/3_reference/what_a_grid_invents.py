@@ -7,23 +7,23 @@
 #
 #   Usage:  python examples/crystallography/3_reference/what_a_grid_invents.py [how many entries]
 #
-# A reference is the most a corpus reaches once the thing being looked for is removed from it, built
+# A reference is the max a corpus reaches once the thing being looked for is removed from it, built
 # out of the corpus alone. Which property is deleted decides the question, and two are deleted here
 # separately.
 #
-# Scattering the points keeps every element and destroys every position. Shuffling the values keeps
+# Scattering the points retains every element and destroys every position. Shuffling the values retains
 # every position and destroys which element sits where. A crystal is ordered in both, and each null
 # says how much of the reading rests on the one it took away.
 #
 # The exact reading returns zero on both deletions. Scattered points never agree, because two
 # arbitrary positions on a continuum are never equal and no tolerance is extended to them. Shuffled
-# elements never agree either, because a coordinate carries the whole arrangement standing at it and
+# elements never agree either, because a coordinate carries the whole arrangement located at it and
 # a permutation breaks all of it at once. Against a live count of 6 planes, both backgrounds are 0.
 #
 # The grid returns neither. Measured on three entries it reads 0.79 live, 0.003 scattered, and 0.39
 # with the elements shuffled. The scattered figure is small and the shuffled one is not, and the
 # shuffled one is the floor that matters. A cell holds two or three elements, and a permutation of
-# them agrees at about one in k by counting alone. A share of voxels carrying the same code is most
+# them agrees at about one in k by counting alone. A share of voxels carrying the same code is max
 # of what the grid was reporting. Half its live reading is a number a shuffle also reaches.
 #
 # That floor was never subtracted from any grid result in this work. The exact reading needs no
@@ -49,13 +49,13 @@ from representation.structure import crystal  # noqa: E402
 
 CACHE = os.path.join(ROOT, "build", "cod")
 
-# Fixed, which keeps a rerun reporting the same background. The draw belongs to the universe and not
+# Fixed, which retains a rerun reporting the same background. The draw belongs to the universe and not
 # to the run.
 SEED = 0x51F7
 
 
 def best_exact(points, axis):
-    """The most any lag agrees with, along one axis, over the whole difference set.
+    """The max any lag agrees with, along one axis, over the whole difference set.
 
     Every difference between two occupied coordinates is a candidate. Nothing here bounds what
     the background is allowed to reach.
@@ -96,7 +96,7 @@ def grid_arm(cell, sites, draw):
         return None
 
     def peak(volume):
-        # Axis a only. The exact arm reads that axis too, which keeps the two columns answering one
+        # Axis a only. The exact arm reads that axis too, which retains the two columns answering one
         # question. A full volume comparison at every lag makes this the slow arm.
         reach = min(int((cell["a"] / crystal.VOXEL) * 2.0) + 6, volume.shape[0] - 1)
         found = 0.0
@@ -167,19 +167,19 @@ def main():
         cell, sites = crystal.parse_cif(text)
         arm = grid_arm(cell, sites, draw) if cell else None
         if arm is None:
-            shown = "cap errored on the cell"
+            displayed = "cap errored on the cell"
         else:
             grid_live, grid_scatter, grid_reassign, _ = arm
             grid_scatter_total += grid_scatter
             grid_entries += 1
-            shown = "%.3f      %.3f      %.3f" % (grid_live, grid_scatter, grid_reassign)
+            displayed = "%.3f      %.3f      %.3f" % (grid_live, grid_scatter, grid_reassign)
 
         out.write("  %-12s %-7d %-6d %-8d %-9d %s\n"
-                  % (name[:-4], planes, live, scatter, reassign, shown))
+                  % (name[:-4], planes, live, scatter, reassign, displayed))
         out.flush()
 
     out.write("\n  %d entries read\n" % read)
-    out.write("  exact, scattered points: the most any lag reached anywhere was %d\n"
+    out.write("  exact, scattered points: the max any lag reached anywhere was %d\n"
               % exact_scatter_peak)
     if grid_entries:
         out.write("  grid, scattered points: mean best agreement %.3f over %d entries\n"

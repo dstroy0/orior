@@ -128,7 +128,7 @@ void test_a_line_with_no_carriage_return_cuts_where_it_stops(void)
     TEST_ASSERT_EQUAL_UINT64(7ull, line.next);
 }
 
-void test_an_empty_line_has_no_letters(void)
+void test_an_empty_line_has_no_characters(void)
 {
     const CliTextLine line = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = "ab\r\ncd\n\ne\r", .at = 7ull, .size = 11ull);
     TEST_ASSERT_EQUAL_UINT64(7ull, line.stop);
@@ -158,7 +158,7 @@ void test_the_fallback_is_copied_where_the_text_is_null(void)
     TEST_ASSERT_EQUAL_STRING("c", copied);
 }
 
-void test_letters_are_raised_to_upper_case(void)
+void test_characters_are_raised_to_upper_case(void)
 {
     char upper[4] = "aZ9";
     EMBED_CALL(cli_text_size_from.raise, CliTextSizeFromCfg, .text_out = upper, .size = 3ull);
@@ -184,5 +184,5 @@ void test_a_pair_that_is_absent_reports_the_end(void)
 
 void test_a_scan_end_classes_stops_at_the_first_byte_of_neither(void)
 {
-    TEST_ASSERT_EQUAL_UINT64(3ull, EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = "ab1 ", .at = 0ull, .size = 4ull, .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, .set = ""));
+    TEST_ASSERT_EQUAL_UINT64(3ull, EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = "ab1 ", .at = 0ull, .size = 4ull, .classes = CLI_TEXT_CHARACTERS | CLI_TEXT_DIGITS, .set = ""));
 }

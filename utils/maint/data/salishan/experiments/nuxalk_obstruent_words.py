@@ -28,7 +28,7 @@
 #
 # Classes follow Mellesmoen's: a vowel is a, e, i, o, u or ə in any accent; a sonorant is m, n, l, y,
 # w, syllabic or not; everything else lettered is an obstruent, ʔ included. Stops are p, t, k, q with
-# their ejectives and rounding; c and ƛ are affricates, which Mellesmoen keeps apart from stops and
+# their ejectives and rounding; c and ƛ are affricates, which Mellesmoen retains apart from stops and
 # Nater counts with them.
 #
 # Robertson's claim is tested on the texts themselves. Nater writes a clitic group as one token,
@@ -55,15 +55,15 @@ AFFRICATES = set("cƛ")
 JOINERS = ("˽", "ˬ")
 
 
-def letters(token):
+def characters(token):
     base = "".join(char for char in unicodedata.normalize("NFD", token.casefold()) if not unicodedata.combining(char))
     base = base.replace("՚", "ʔ")
     return [char for char in base if char.isalpha() or char in "ʔʕ"]
 
 
-def kind(token):
+def type(token):
     """VOWEL, SONORANT (no vowel, has a sonorant), STOPS, STOPS+AFFRICATES or OBSTRUENT, or None."""
-    found = letters(token)
+    found = characters(token)
     if not found:
         return None
     if any(char in VOWELS for char in found):
@@ -100,14 +100,14 @@ def main():
             for row in nuxalk:
                 if row.stem not in TEXTS or (stem != "both" and row.stem != stem):
                     continue
-                if row.kind not in ("transcription", "running speech", "segmentation"):
+                if row.type not in ("transcription", "running speech", "segmentation"):
                     continue
                 text = row.form
                 if not spacing.startswith("as written"):
                     for joiner in JOINERS:
                         text = text.replace(joiner, " ")
                 for token in text.split():
-                    found = kind(re.sub(r"[-=:.]", "", token))
+                    found = type(re.sub(r"[-=:.]", "", token))
                     if found:
                         counts[found] += 1
             total = sum(counts.values())
@@ -118,11 +118,11 @@ def main():
     print("\nFree words by source, distinct forms (obstruent-only share by Mellesmoen's definition):")
     types = collections.defaultdict(dict)
     for row in nuxalk:
-        if row.kind != "cited form":
+        if row.type != "cited form":
             continue
         word = free_word(row.form)
-        if word and kind(word):
-            types[row.stem][word] = kind(word)
+        if word and type(word):
+            types[row.stem][word] = type(word)
     pooled = {}
     for stem, words in sorted(types.items(), key=lambda item: -len(item[1])):
         counts = collections.Counter(words.values())

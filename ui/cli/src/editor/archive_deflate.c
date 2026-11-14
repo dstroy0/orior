@@ -421,7 +421,7 @@ int cli_inflate(const CliArchiveSizeCfg *args)
         }
         if (type >= 3u)
         {
-            mmgr_line_put(args->err_msg, "a block of a kind deflate has none of");
+            mmgr_line_put(args->err_msg, "a block of a type deflate has none of");
             return 0;
         }
         if (!EMBED_CALL(s_blocks[type], ArchiveDeflateCtx, .bits = &bits, .data = args->data, .data_size = args->size,

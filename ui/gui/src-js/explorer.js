@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The explorer beside the editor: its panes, one over the next, each opened and closed by its head,
-// in groups the tool strip's icons choose between, one group shown at a time. Search, a group of its
+// in groups the tool strip's icons choose between, one group displayed at a time. Search, a group of its
 // own, finds text in the tree's files and shows from Find in Files. Explorer holds Usages, which lists where a
 // symbol is used and shows from Find Usages; Call Hierarchy, which shows what calls a function and
 // what it calls; Open Editors, which lists the tabs; and the tree's own
@@ -11,7 +11,7 @@
 // touched the open file, its Local History, the file as each save left it, and Review, the review
 // comments left on the tree's changes. Problems lists every file's diagnostics, and Git every
 // branch's commits as a graph. The explorer's … menu shows or hides each pane of the group, reads the
-// tree again, and closes every folder. Which group shows, and which panes show and are open, is kept
+// tree again, and closes every folder. Which group shows, and which panes show and are open, is retained
 // between visits.
 //
 // A pane's head is a row of the explorer's list one level above its rows, and the list's keys open
@@ -34,7 +34,7 @@ export { drawOutline, lightOutline, outlinePinned } from "./explorer/outline.js"
 export { drawProblems } from "./explorer/problems.js";
 export { drawReview } from "./explorer/review.js";
 
-const KEPT = "orior.panes";
+const RETAINED = "orior.panes";
 
 const PANES = [
   ["search", "Search"],
@@ -67,18 +67,18 @@ const GROUPS = {
   runs: ["runs"],
 };
 
-const GROUP_KEPT = "orior.panes.group";
+const GROUP_RETAINED = "orior.panes.group";
 
 const groupOf = (name) => Object.keys(GROUPS).find((group) => GROUPS[group].includes(name));
 
 export const state = {
   panes: {},
   hooks: null,
-  outline: { session: null, shownIn: null, symbols: [], rows: new Map(), lit: -1, above: null, below: null, closed: new Set(), pinned: null },
+  outline: { session: null, displayedIn: null, symbols: [], rows: new Map(), lit: -1, above: null, below: null, closed: new Set(), pinned: null },
   timeline: { path: null, commits: [] },
   local: { path: null, snapshots: [] },
   undo: { session: null, wait: 0 },
-  // The graph: what the field searches for, the commits shown, the ones whose files are open, the
+  // The graph: what the field searches for, the commits displayed, the ones whose files are open, the
   // files of each commit read so far, and what the graph was last drawn from.
   git: { query: "", commits: [], open: new Set(), files: new Map(), drawn: "", branch: null, chosen: null },
   // The files whose rows in Problems were opened or closed by a press.
@@ -93,8 +93,8 @@ export function element(tag, props = {}, ...children) {
 
 // The panes: which show, which are open.
 
-function keep() {
-  localStorage.setItem(KEPT, JSON.stringify(state.panes));
+function retain() {
+  localStorage.setItem(RETAINED, JSON.stringify(state.panes));
 }
 
 function paneOf(name) {
@@ -106,8 +106,8 @@ function drawPane(name) {
   if (!pane) {
     return;
   }
-  const { shown, open } = state.panes[name];
-  pane.hidden = !shown || groupOf(name) !== state.group;
+  const { displayed, open } = state.panes[name];
+  pane.hidden = !displayed || groupOf(name) !== state.group;
   pane.classList.toggle("expanded", open);
   pane.querySelector(".pane-head").setAttribute("aria-expanded", String(open));
 }
@@ -115,14 +115,14 @@ function drawPane(name) {
 function setPane(name, change) {
   Object.assign(state.panes[name], change);
   drawPane(name);
-  keep();
+  retain();
   if (["outline", "timeline", "local", "changes", "problems", "git", "todo"].includes(name)) {
     state.hooks?.panesChanged?.();
   }
 }
 
 // The group of panes the explorer shows.
-export function shownGroup() {
+export function displayedGroup() {
   return state.group;
 }
 
@@ -140,12 +140,12 @@ function drawGroupTitle() {
 // Shows the panes of `group` in the explorer in place of the ones it showed.
 export function showGroup(group) {
   state.group = GROUPS[group] ? group : "explorer";
-  localStorage.setItem(GROUP_KEPT, state.group);
+  localStorage.setItem(GROUP_RETAINED, state.group);
   drawGroupTitle();
-  // A group of one pane is that pane, shown and open.
+  // A group of one pane is that pane, displayed and open.
   if (GROUPS[state.group].length === 1) {
-    Object.assign(state.panes[GROUPS[state.group][0]], { shown: true, open: true });
-    keep();
+    Object.assign(state.panes[GROUPS[state.group][0]], { displayed: true, open: true });
+    retain();
   }
   PANES.forEach(([name]) => drawPane(name));
   state.hooks?.panesChanged?.();
@@ -157,7 +157,7 @@ export function showPane(name) {
   if (groupOf(name) !== state.group) {
     showGroup(groupOf(name));
   }
-  setPane(name, { shown: true, open: true });
+  setPane(name, { displayed: true, open: true });
 }
 
 // The panes that are not in a group of their own on the tool strip, for its … menu.
@@ -165,11 +165,11 @@ export function morePanes() {
   return GROUPS.explorer.concat("timeline").map((name) => ({ name, label: PANES.find(([one]) => one === name)[1] ?? "Files" }));
 }
 
-// Every pane's state, and each pane put back as `kept` holds it, for the tests that change them.
+// Every pane's state, and each pane put back as `retained` holds it, for the tests that change them.
 export const panesNow = () => JSON.parse(JSON.stringify(state.panes));
 
-export function putPanes(kept) {
-  for (const [name, pane] of Object.entries(kept)) {
+export function putPanes(retained) {
+  for (const [name, pane] of Object.entries(retained)) {
     if (state.panes[name]) {
       setPane(name, pane);
     }
@@ -177,7 +177,7 @@ export function putPanes(kept) {
 }
 
 export function paneOpen(name) {
-  return state.panes[name]?.shown && state.panes[name]?.open;
+  return state.panes[name]?.displayed && state.panes[name]?.open;
 }
 
 // The … menu, and each pane head's own menu: the panes to show, then reading the tree again and
@@ -209,7 +209,7 @@ async function withCommit(id, path, act) {
 const commentNamed = (id) => comments().find((one) => one.id === id) ?? null;
 
 export const explorerCommands = {
-  "pane-show": ([name, on]) => state.panes[name] && setPane(name, { shown: on === "on" ? true : on === "off" ? false : !state.panes[name].shown }),
+  "pane-show": ([name, on]) => state.panes[name] && setPane(name, { displayed: on === "on" ? true : on === "off" ? false : !state.panes[name].displayed }),
   "explorer-refresh": () => state.hooks.refresh(),
   "explorer-collapse": () => state.hooks.collapse(),
   // A file not open opens first: the Outline is pinned to an open file's symbols.
@@ -247,10 +247,10 @@ function paneItems() {
   const group = GROUPS[state.group];
   return [
     ...PANES.filter(([name]) => group.includes(name)).map(([name, label]) =>
-      act("pane-show", [name, state.panes[name].shown ? "off" : "on"], {
+      act("pane-show", [name, state.panes[name].displayed ? "off" : "on"], {
         label: label ?? document.querySelector('.pane[data-pane="folder"] .pane-head').textContent,
-        checked: state.panes[name].shown,
-        disabled: state.panes[name].shown && group.filter((one) => state.panes[one].shown).length === 1,
+        checked: state.panes[name].displayed,
+        disabled: state.panes[name].displayed && group.filter((one) => state.panes[one].displayed).length === 1,
       }),
     ),
     "-",
@@ -298,16 +298,16 @@ export function startExplorer(hooks) {
     state.git.drawn = "";
     drawGit(state.git.branch);
   });
-  let kept = {};
+  let retained = {};
   try {
-    kept = JSON.parse(localStorage.getItem(KEPT) ?? "{}") ?? {};
+    retained = JSON.parse(localStorage.getItem(RETAINED) ?? "{}") ?? {};
   } catch {
-    kept = {};
+    retained = {};
   }
-  state.group = GROUPS[localStorage.getItem(GROUP_KEPT)] ? localStorage.getItem(GROUP_KEPT) : "explorer";
+  state.group = GROUPS[localStorage.getItem(GROUP_RETAINED)] ? localStorage.getItem(GROUP_RETAINED) : "explorer";
   drawGroupTitle();
   for (const [name] of PANES) {
-    state.panes[name] = { shown: kept[name]?.shown ?? !["search", "usages", "calls", "todo"].includes(name), open: kept[name]?.open ?? name !== "timeline" };
+    state.panes[name] = { displayed: retained[name]?.displayed ?? !["search", "usages", "calls", "todo"].includes(name), open: retained[name]?.open ?? name !== "timeline" };
     drawPane(name);
     paneOf(name)
       .querySelector(".pane-head")

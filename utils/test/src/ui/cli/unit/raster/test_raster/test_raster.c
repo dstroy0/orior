@@ -4,7 +4,7 @@
 #include "ui/cli/src/print/print.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-// the most bytes of a page drawn here, and of a raster written
+// the max bytes of a page drawn here, and of a raster written
 #define RASTER_PAGE (1240ull * 1754ull * 3ull)
 #define RASTER_OUT (16ull << 20u)
 

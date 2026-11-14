@@ -129,10 +129,10 @@ def insufficient_material(state):
     """A draw by rule when no mate is possible: bare kings, or a lone king plus one minor."""
     minors = 0
     for piece in state[0]:
-        kind = abs(piece)
-        if kind in (chess.PAWN, chess.ROOK, chess.QUEEN):
+        type = abs(piece)
+        if type in (chess.PAWN, chess.ROOK, chess.QUEEN):
             return False
-        if kind in (chess.KNIGHT, chess.BISHOP):
+        if type in (chess.KNIGHT, chess.BISHOP):
             minors += 1
     return minors <= 1
 
@@ -218,7 +218,7 @@ def sampled_windicator(state, target, depth, trials, seed):
 def per_move_paths(state, target, depth):
     """For the side to move, count how many of `target`'s winning paths survive under each move.
 
-    A move is truthy if it keeps at least one winning path in its subtree and falsy if it prunes them
+    A move is truthy if it retains at least one winning path in its subtree and falsy if it prunes them
     all -- "the moves decide how many branches-to-win are pruned".
     """
     rows = []
@@ -260,7 +260,7 @@ def show_windicators(title, layout, depth, trials=0, seed=0):
               % (rdecimal(p1), rdecimal(sampled), rdecimal(rsub(p1, sampled)), trials, hex(seed)))
     rows = per_move_paths(state, rules.WIN, depth)
     truthy = [move for mass, move in rows if mass[0] > 0]
-    print("  P1 moves that keep a branch-to-win (truthy): %d of %d; the rest prune every one (falsy)"
+    print("  P1 moves that retain a branch-to-win (truthy): %d of %d; the rest prune every one (falsy)"
           % (len(truthy), len(rows)))
     forced = [chess.move_name(move) for mass, move in rows if mass == ONE]
     if forced:
@@ -302,7 +302,7 @@ def main():
     show_repetition()
     show_windicators("MATE IN ONE -- the mover forces a win, the other side has no winning path",
                      MATE_IN_ONE, 3, trials=40000, seed=0x5E7)
-    show_windicators("K+R vs K -- most moves prune every branch-to-win",
+    show_windicators("K+R vs K -- max moves prune every branch-to-win",
                      KRK, 4)
     print("")
     print("=" * 78)

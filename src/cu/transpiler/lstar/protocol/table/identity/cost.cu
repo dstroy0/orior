@@ -79,7 +79,7 @@ static int operator_link(const Ruleset *sass, Carriers &carriers, unsigned long 
     return 0;
 }
 
-// `placed` with each place `{n}` filled as the relation's tuple stands: `{0}` the first word, `{1}` the second and `{2}` the
+// `placed` with each place `{n}` filled as the relation's tuple is: `{0}` the first word, `{1}` the second and `{2}` the
 // answer, the register written `to`
 static std::string placed_filled(const std::string &placed, const std::string &to, const std::string &left,
                                  const std::string &right)
@@ -118,9 +118,9 @@ static std::string placed_filled(const std::string &placed, const std::string &t
 // relation's tuple as its place. A form with the three places of a two-word relation is written at the first link any
 // operator's arrangements are put at, COST_REPEATS times over its own result between the clock reads, and queried its
 // clock alone; no host computes it, since the protocol classified it. Its cost is the least difference any case read
-// less the link's clock read alone, and its spread the most difference less the least, both in the part's clock count
+// less the link's clock read alone, and its spread the max difference less the least, both in the part's clock count
 // over COST_REPEATS: written as the part's .ksc stores a cost, `run answers <least> cost <low> <high> <spread>`, every
-// cost row the file contained before let go, since one reading stands for every form
+// cost row the file contained before let go, since one reading is for every form
 int identity_cost(const char *engine, const char *answers, const char *ksc, const std::string &folder,
                          const char *kdm, const char *machine_path, const char *forms, const char *const *carrier)
 {
@@ -147,7 +147,7 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
         unsigned long long high;
         std::string placed;
         unsigned long long least;
-        unsigned long long most;
+        unsigned long long max;
         std::string verdict;
     };
     std::vector<CostForm> costed_forms;
@@ -278,13 +278,13 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
             {
                 continue;
             }
-            const std::string standing = arrangement_written(sass, row.nodes, operands, ones, to, base + 4u);
-            if (standing.empty() || ones_written.empty())
+            const std::string located = arrangement_written(sass, row.nodes, operands, ones, to, base + 4u);
+            if (located.empty() || ones_written.empty())
             {
                 row.verdict = "unwritable";
                 continue;
             }
-            std::vector<unsigned char> code = assembled(before + ones_written + standing + past);
+            std::vector<unsigned char> code = assembled(before + ones_written + located + past);
             if (code.empty())
             {
                 row.verdict = "unassembled";
@@ -362,7 +362,7 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
         round.push_back(each.code);
         mark = std::max(mark, each.mark);
     }
-    // the plan handed as the teacher hands one, for the panel: the questions of the one round
+    // the plan passed as the teacher passes one, for the panel: the questions of the one round
     char plan[64];
     const int plan_length = snprintf(plan, sizeof(plan), "cost %zu\n", round.size());
     if ((plan_length > 0) && (qry_member_run() != NULL))
@@ -391,7 +391,7 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
             {
                 const unsigned long long read = answer.answered[place] & 0xffffffffull;
                 form.least = std::min(form.least, read);
-                form.most = std::max(form.most, read);
+                form.max = std::max(form.max, read);
             }
             continue;
         }
@@ -467,7 +467,7 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
             continue;
         }
         const unsigned long long least = (form.least > clock_alone) ? (form.least - clock_alone) : 0ull;
-        const unsigned long long spread = form.most - form.least;
+        const unsigned long long spread = form.max - form.least;
         char row[192];
         snprintf(row, sizeof(row), "run answers %016llx cost %016llx %016llx %016llx", least, form.low, form.high,
                  spread);
@@ -530,12 +530,12 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
 // The pairs the arrangements of the .kdm at `kdm` contain and no chain of ours does, those of `excluded_pairs` left:
 // each arrangement whose nodes the ruleset writes is written at its operator's link as the cost puts it
 // (operator_link), and where a node's result is read by the very next node, the pair of their operations is probed
-// there. At most `most` arrangements are a pair's probes, and each is written with every stall the longest and queried
+// there. At max `max` arrangements are a pair's probes, and each is written with every stall the longest and queried
 // at every stall of its writer, each query into `queries` and its code into `codes`
 void arrangement_probes(const char *engine, const std::map<std::string, std::vector<std::string>> &host,
                         const std::string &kdm, const Ruleset *sass, const char *machine_path, const StallField &stall,
                         unsigned long long longest, const std::set<std::pair<std::string, std::string>> &excluded_pairs,
-                        size_t most, std::vector<StallQuery> *queries, std::vector<std::vector<unsigned char>> *codes)
+                        size_t max, std::vector<StallQuery> *queries, std::vector<std::vector<unsigned char>> *codes)
 {
     Carriers carriers;
     carriers_read(engine, host, &carriers);
@@ -565,11 +565,11 @@ void arrangement_probes(const char *engine, const std::map<std::string, std::vec
         for (const size_t at : each.second)
         {
             const CostRow &row = rows[at];
-            const std::string standing = row.verdict.empty() ? arrangement_written(sass, row.nodes, at_link.operands,
+            const std::string located = row.verdict.empty() ? arrangement_written(sass, row.nodes, at_link.operands,
                                                                                    ones, at_link.to, at_link.base + 4u)
                                                              : std::string();
             std::vector<std::string> node_lines;
-            for (const std::string &piece : carrier_pieces(standing, '\n'))
+            for (const std::string &piece : carrier_pieces(located, '\n'))
             {
                 if (!trimmed(piece).empty())
                 {
@@ -592,12 +592,12 @@ void arrangement_probes(const char *engine, const std::map<std::string, std::vec
                     continue;
                 }
                 const std::pair<std::string, std::string> pair(writer_word[1].str(), reader_word[1].str());
-                if ((excluded_pairs.count(pair) != 0u) || (probed[pair] >= most))
+                if ((excluded_pairs.count(pair) != 0u) || (probed[pair] >= max))
                 {
                     continue;
                 }
                 std::vector<unsigned char> written =
-                    vendor_assembled(machine_path, before + ones_written + standing + past);
+                    vendor_assembled(machine_path, before + ones_written + located + past);
                 const size_t count = written.size() / 16u;
                 if (count == 0u)
                 {

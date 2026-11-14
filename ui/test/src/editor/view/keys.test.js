@@ -17,19 +17,19 @@ const press = (view, key, code = key) => {
   return event;
 };
 
-// Runs `work` with the editor's key tables as they stood put back after it.
-async function keepingKeys(view, work) {
-  const kept = { keys: view.keys, first: view.first, native: view.native, bound: view.bound };
+// Runs `work` with the editor's key tables as they was put back after it.
+async function retentionKeys(view, work) {
+  const retained = { keys: view.keys, first: view.first, native: view.native, bound: view.bound };
   try {
     return await work();
   } finally {
-    Object.assign(view, kept);
+    Object.assign(view, retained);
   }
 }
 
 test("a key the reader binds runs with the editor it was pressed in, and the press goes no further", async () => {
   const view = await given("x|");
-  await keepingKeys(view, () => {
+  await retentionKeys(view, () => {
     let told = null;
     view.bindKeys([{ keys: "F9", run: (editor) => (told = editor) }]);
     const event = press(view, "F9");
@@ -40,7 +40,7 @@ test("a key the reader binds runs with the editor it was pressed in, and the pre
 
 test("a key offered first is the command's where it takes it, and the editor's own where it declines", async () => {
   const view = await given("ab|c");
-  await keepingKeys(view, () => {
+  await retentionKeys(view, () => {
     let takes = true;
     view.addKeys([{ keys: "Left", first: true, run: () => takes }]);
     press(view, "ArrowLeft");

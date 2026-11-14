@@ -12,9 +12,9 @@ WHOSE WORDS THESE ARE
 
 The story is q̓ami Phyllis Dominick's. Kaining Xu recorded it on May 27, 2018 in St. Paul's
 Hospital, Vancouver, and the paper prints it four times. §4.1 is Phyllis's own handwritten English
-version, typed to keep her spelling. §4.2 is the story as she told it in ʔayʔaǰuθəm, with English
+version, typed to retain her spelling. §4.2 is the story as she told it in ʔayʔaǰuθəm, with English
 passages of her own set in italics. §4.3 is the authors' English translation, with her English
-passages kept. §4.4 sets each ʔayʔaǰuθəm sentence as a numbered example, (1) to (35), with a
+passages retained. §4.4 sets each ʔayʔaǰuθəm sentence as a numbered example, (1) to (35), with a
 segmentation, a gloss and a translation, and her English passages as unnumbered lines.
 
 The who for each form is its language, ʔayʔaǰuθəm. The who for §4.1 and for each of Phyllis's
@@ -22,18 +22,18 @@ English passages in §4.2 to §4.4 is q̓ami Phyllis Dominick. The segmentations
 translations are the authors', and so are the prose, the footnotes and the reference list; those
 rows carry the seven other authors. The title and name rows carry all eight.
 
-THE LETTERS
+THE CHARACTERS
 
 The orthography writes the open e as ɛ, U+025B, the iota ɩ, U+0269, the upsilon ʊ, U+028A, and the
 uvular fricative as Greek chi, χ, U+03C7. The segmentation tiers write the uvular as x with a
 combining caron, x̌, and a null morpheme as Ø, U+00D8, twenty-two times. The glottalizing comma is
 U+0313 COMBINING COMMA ABOVE, on q̓, p̓, k̓ʷ, ƛ̓, č̓, t̓ᶿ, and the n̓ and m̓ of
 tan̓ and nam̓. The page raises the w of a labialized
-consonant and the theta of tᶿ, and the text layer holds them as the modifier letters ʷ, U+02B7, and
-ᶿ, U+1DBF. The table keeps each code point as the text layer has it.
+consonant and the theta of tᶿ, and the text layer holds them as the modifier characters ʷ, U+02B7, and
+ᶿ, U+1DBF. The table retains each code point as the text layer has it.
 
-On page 3 the comma of ƛ̓ in ƛ̓oχʷɛt and χaƛ̓namapɛč does not show above the letter, and marks of the
-same shape sit under letters of the line above. The text layer holds U+0313 on each ƛ, and the
+On page 3 the comma of ƛ̓ in ƛ̓oχʷɛt and χaƛ̓namapɛč does not show above the character, and marks of the
+same shape sit under characters of the line above. The text layer holds U+0313 on each ƛ, and the
 table follows it. A symbol note row gives the places.
 
 THE PAGE AND THE TEXT LAYER
@@ -66,7 +66,7 @@ where    the paper's locator: the title, the abstract, a section, a numbered exa
 who      ʔayʔaǰuθəm for a form of the language; q̓ami Phyllis Dominick for her handwritten story and
          her own English; the seven other authors for their prose, their translations and the notes
          on the page; all eight for the title and the names
-kind     transcription  a ʔayʔaǰuθəm sentence or passage as printed, or a passage of Phyllis's own
+type     transcription  a ʔayʔaǰuθəm sentence or passage as printed, or a passage of Phyllis's own
                         English, from §4.1 or from her code-switches
          segmentation   the phonemic segmentation of an example, with its gloss tier in the gloss
          translation    the authors' English for an example or a passage

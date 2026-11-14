@@ -11,16 +11,16 @@
 static const char *const s_skip_open[4] = {"<!--", "<![CDATA[", "<?", "<!"};
 static const char *const s_skip_close[4] = {"-->", "]]>", "?>", ">"};
 
-int cli_xml_name_letter(const CliMavenCtx *args)
+int cli_xml_name_character(const CliMavenCtx *args)
 {
-    return EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .letter = args->letter) || (args->letter == '_') ||
-           (args->letter == ':') || (args->letter == '.') || (args->letter == '-');
+    return EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .character = args->character) || (args->character == '_') ||
+           (args->character == ':') || (args->character == '.') || (args->character == '-');
 }
 
 typedef struct
 {
     unsigned long long tags;
-    unsigned int most;
+    unsigned int max;
     CliXml *xml;
     const char *text;
     unsigned long long size;
@@ -35,15 +35,15 @@ typedef struct
     unsigned long long lt;
     unsigned long long gt;
 } MavenXmlCtx;
-// the capacity of a list a text containing `tags` `<`s can fill, no more than `most`
+// the capacity of a list a text containing `tags` `<`s can fill, no more than `max`
 EMBED_INLINE unsigned int xml_capacity(const MavenXmlCtx *args)
 {
-    // a count no more than `most`, which an unsigned int stores
-    return (args->tags < args->most) ? (unsigned int)args->tags : args->most;
+    // a count no more than `max`, which an unsigned int stores
+    return (args->tags < args->max) ? (unsigned int)args->tags : args->max;
 }
 
 // `xml` made to read `size` bytes of `text`, its lists' capacities in one cell sized to the `<`s the text contains,
-// each no more than its most: 1, or 0 with nothing to be stored where the cell is refused
+// each no more than its max: 1, or 0 with nothing to be stored where the cell is refused
 EMBED_INLINE int xml_reserve(const MavenXmlCtx *args)
 {
     CliXml *xml = args->xml;
@@ -52,10 +52,10 @@ EMBED_INLINE int xml_reserve(const MavenXmlCtx *args)
     {
         tags += (args->text[at] == '<') ? 1ULL : 0ULL;
     }
-    const unsigned int elements = EMBED_CALL(xml_capacity, MavenXmlCtx, .tags = tags, .most = CLI_XML_ELEMENTS);
-    const unsigned int comments = EMBED_CALL(xml_capacity, MavenXmlCtx, .tags = tags, .most = CLI_XML_COMMENTS);
-    const unsigned int errors = EMBED_CALL(xml_capacity, MavenXmlCtx, .tags = tags + 1ULL, .most = CLI_XML_ERRORS);
-    // the lists laid one after another, the widest first, so that each starts where its type may stand
+    const unsigned int elements = EMBED_CALL(xml_capacity, MavenXmlCtx, .tags = tags, .max = CLI_XML_ELEMENTS);
+    const unsigned int comments = EMBED_CALL(xml_capacity, MavenXmlCtx, .tags = tags, .max = CLI_XML_COMMENTS);
+    const unsigned int errors = EMBED_CALL(xml_capacity, MavenXmlCtx, .tags = tags + 1ULL, .max = CLI_XML_ERRORS);
+    // the lists positioned one after another, the widest first, so that each starts where its type may are
     const unsigned long long element_bytes = (unsigned long long)elements * sizeof(CliXmlElement);
     const unsigned long long comment_bytes = (unsigned long long)comments * sizeof(unsigned long long);
     const unsigned long long error_bytes = (unsigned long long)errors * sizeof(CliXmlError);
@@ -67,7 +67,7 @@ EMBED_INLINE int xml_reserve(const MavenXmlCtx *args)
     {
         return 0;
     }
-    // each list's place in the cell is a multiple of its type's width from the cell's start, as laid out above
+    // each list's place in the cell is a multiple of its type's width from the cell's start, as arranged above
     xml->element = (CliXmlElement *)(void *)cell;
     xml->element_capacity = elements;
     xml->comment_from = (unsigned long long *)(void *)(cell + element_bytes);
@@ -262,8 +262,8 @@ void cli_xml_parse(const CliMavenXmlTextCtx *args)
         while (name_to < args->size)
         {
             unsigned long long length = 0ULL;
-            if (!EMBED_CALL(cli_maven_internal.xml_name_letter, CliMavenCtx,
-                            .letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->text,
+            if (!EMBED_CALL(cli_maven_internal.xml_name_character, CliMavenCtx,
+                            .character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = args->text,
                                                  .size = args->size, .at = name_to, .length = &length)))
             {
                 break;
@@ -384,7 +384,7 @@ int cli_xml_text(const CliMavenXmlOutCtx *args)
         size -= 12u;
     }
     static const char *const s_entities[5] = {"&lt;", "&gt;", "&quot;", "&apos;", "&amp;"};
-    static const char s_letters[5] = {'<', '>', '"', '\'', '&'};
+    static const char s_characters[5] = {'<', '>', '"', '\'', '&'};
     for (unsigned long long at = 0ULL; at < size;)
     {
         unsigned int entity = 5u;
@@ -399,7 +399,7 @@ int cli_xml_text(const CliMavenXmlOutCtx *args)
         }
         if (entity < 5u)
         {
-            mmgr_line_ch(args->out, s_letters[entity]);
+            mmgr_line_ch(args->out, s_characters[entity]);
             at += cellul.len(&(CatenaFinitaCfg){.src = s_entities[entity], .cap = CLI_POOL_BYTES});
             continue;
         }

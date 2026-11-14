@@ -50,7 +50,7 @@ static long noise_ladder_sample(const unsigned short *volume, const unsigned lon
                 member += 1ull;
             }
         }
-        // each voxel's frames over its whole blocks: at most 65536 lanes, below 2^32
+        // each voxel's frames over its whole blocks: at max 65536 lanes, below 2^32
         for (unsigned long long frame = 0ull; frame < (blocks * NOISE_MOMENT_BLOCK); frame += 1ull)
         {
             const unsigned short *const lanes = &volume[frame * voxels];
@@ -101,7 +101,7 @@ static long noise_ladder_sample(const unsigned short *volume, const unsigned lon
             const long long s2 = power[1];
             const long long s3 = power[2];
             const long long s4 = power[3];
-            // |S1| is at most n / 2, S2 at most n reach^2, |S3| at most n reach^3 and S4 at most n reach^4. Each
+            // |S1| is at max n / 2, S2 at max n reach^2, |S3| at max n reach^3 and S4 at max n reach^4. Each
             // term below is under 2^44 and each numerator under 2^46
             const long long readings[NOISE_LADDER_ORDERS] = {
                 (n * s2) - (s1 * s1), (2ll * s1 * s1 * s1) - (3ll * n * s1 * s2) + (n * n * s3),

@@ -1,8 +1,8 @@
-"""Print the box of every character of one kind on a page, with the font size and its neighbors.
+"""Print the box of every character of one type on a page, with the font size and its neighbors.
 
 usage: python glyph_boxes.py <stem> <page> <character> [limit]
 
-For a text layer that maps two glyphs to one character: the letter ƛ and the comma above that the
+For a text layer that maps two glyphs to one character: the character ƛ and the comma above that the
 font of wlwlmelst and Janzen's paper also calls ƛ. The two differ in width and in height.
 """
 import os
@@ -20,7 +20,7 @@ def main():
     document = pdfium.PdfDocument(os.path.join(CORPUS, "papers", stem + ".pdf"))
     textpage = document[number - 1].get_textpage()
     count = textpage.count_chars()
-    shown = 0
+    displayed = 0
     for index in range(count):
         if textpage.get_text_range(index, 1) != wanted:
             continue
@@ -30,8 +30,8 @@ def main():
         after = textpage.get_text_range(index + 1, min(3, count - index - 1))
         print("%4d  width %.2f em  bottom %.1f  top %.1f  size %.1f  %s[%s]%s"
               % (index, (right - left) / size, bottom, top, size, before, wanted, after))
-        shown += 1
-        if shown >= limit:
+        displayed += 1
+        if displayed >= limit:
             break
 
 

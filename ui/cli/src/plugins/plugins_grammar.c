@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // plugins_grammar.c: a language plugin's grammar stored for the colorer under `plugin:<id>`, read from the plugin.json
-// of the plugin of that id that stands, the reader's in place of one that comes with orior, made whole from the tree's
+// of the plugin of that id that is, the reader's in place of one that comes with orior, made whole from the tree's
 // tables, and stored again only where the whole grammar changed. A language `<id>:<name>` is the plugin `<id>`'s for
 // the folder `<name>`
 #include "../command_line/pool.h"
@@ -9,11 +9,11 @@
 #include "../text/text.h"
 #include "plugins.h"
 
-// the plugins whose grammars are stored at the most, and the bytes a whole grammar is written in
+// the plugins whose grammars are stored at max, and the bytes a whole grammar is written in
 #define CLI_PLUGIN_GRAMMARS_MAX 1024u
 #define CLI_PLUGIN_GRAMMAR_CAPACITY (4ULL << 20u)
 
-// A plugin whose grammar is stored: its id, and the stamp of the plugin.json it was read from. Each stands in a movable
+// A plugin whose grammar is stored: its id, and the stamp of the plugin.json it was read from. Each is in a movable
 // cell of its own: the stamp first, then the id with its 0
 typedef struct
 {
@@ -22,7 +22,7 @@ typedef struct
 } CliPluginGrammar;
 #define CLI_PLUGIN_GRAMMAR_ID_AT sizeof(unsigned long long)
 
-// the plugins whose grammars are stored, each cell's token, and how many stand
+// the plugins whose grammars are stored, each cell's token, and how many are
 static const CarcerMovableEntry *s_grammars[CLI_PLUGIN_GRAMMARS_MAX];
 static unsigned int s_grammar_count;
 
@@ -40,8 +40,8 @@ static CliPluginGrammar grammar_listed(unsigned int at)
     return listed;
 }
 
-// the plugin `id` listed after the others with `stamp`, in a cell sized to the two: 1, or 0 where the list stands at
-// its most or the cells cannot meet it; under the lock
+// the plugin `id` listed after the others with `stamp`, in a cell sized to the two: 1, or 0 where the list is at
+// its max or the cells cannot meet it; under the lock
 static int cli_grammar_listed_put(const char *id, unsigned long long stamp)
 {
     const unsigned long long id_bytes = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_NAME_MAX_LEN - 1u}) + 1ULL;
@@ -62,8 +62,8 @@ static int cli_grammar_listed_put(const char *id, unsigned long long stamp)
     return 1;
 }
 
-// The plugin sought: its id, and the folder its language stands for, empty for none; the tree its tables are read
-// from; whether one of that id was found and its grammar made whole, the last, the one that stands, written into
+// The plugin sought: its id, and the folder its language is for, empty for none; the tree its tables are read
+// from; whether one of that id was found and its grammar made whole, the last, the one that is, written into
 // `whole`; and why where it was not
 typedef struct
 {
@@ -95,7 +95,7 @@ EMBED_INLINE unsigned long long cli_grammar_stamp(const PluginsGrammarCtx *args)
     return stamp;
 }
 
-// a plugin of the id sought, its grammar made whole in the place of one made before: the last stands
+// a plugin of the id sought, its grammar made whole in the place of one made before: the last is
 static void cli_grammar_each(const CliEachPluginCfg *args)
 {
     CliGrammarNeedle *const needle = (CliGrammarNeedle *)args->context;
@@ -194,13 +194,13 @@ static int plugins_grammar_stored(const CliPluginsIdKeyCfg *args)
     VerbaLinea named = {args->key, CLI_NAME_MAX_LEN, 0ULL};
     mmgr_line_put(&named, "plugin:");
     mmgr_line_put(&named, args->id);
-    // the plugin's id, and the folder its language stands for after a colon
+    // the plugin's id, and the folder its language is for after a colon
     char plugin_id[CLI_NAME_MAX_LEN];
     VerbaLinea split = {plugin_id, sizeof(plugin_id), 0ULL};
     const char *name = args->id;
     name += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = name, .at = 0ULL,
                        .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .set = ":");
-    // the colon lies at or after the id's first letter
+    // the colon lies at or after the id's first character
     mmgr_line_put_n(&split, args->id, (unsigned long long)(name - args->id));
     name = (*name == ':') ? (name + 1) : name;
     if ((mmgr_line_finish(&named) == 0ULL) || (mmgr_line_finish(&split) == 0ULL))

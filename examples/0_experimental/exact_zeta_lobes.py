@@ -5,7 +5,7 @@
 #
 # The two device stages of exact_zeta_lobes.cu driven over one cell: the curves the Riemann-Siegel remainder R holds
 # at every point, and the logarithm the main sum's phase turns by. One lane a point, each stage checked against the
-# host word for word, each output checked against the exact value it stands for.
+# host word for word, each output checked against the exact value it is for.
 #
 #   Usage:  python examples/0_experimental/exact_zeta_lobes.py [binary]
 #
@@ -14,7 +14,7 @@
 #
 # THE CELL
 #
-# Lane l stands at x = nu + l / 2^b over a cell of 2^b + 1 points, with X = nu 2^b + l and z = 1 - 2 p = Zt / 2^b,
+# Lane l is at x = nu + l / 2^b over a cell of 2^b + 1 points, with X = nu 2^b + l and z = 1 - 2 p = Zt / 2^b,
 # Zt = 2^b - 2 l. The sign is s = (-1)^(nu - 1).
 #
 # THE CURVE STAGE

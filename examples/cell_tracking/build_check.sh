@@ -37,7 +37,7 @@ for tool in "${TOOLS[@]}"; do
     rm -f "$BINARY"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            # fopen and the like are the standard's, which the checkers keep over the _s forms
+            # fopen and the like are the standard's, which the checkers retain over the _s forms
             nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2 /W4 /D_CRT_SECURE_NO_WARNINGS" -o "$BINARY" \
                 "$CHECK/$tool.c" ;;
         *)

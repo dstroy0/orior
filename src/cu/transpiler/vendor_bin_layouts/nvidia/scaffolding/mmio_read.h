@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // mmio_read.h: the userspace reader of the GPU's BAR0 register aperture through the kernel driver (mmio.h,
 // bar0_driver.c). It opens the driver's device and reads 32-bit registers from the mapped aperture; it never writes,
-// the driver exposing no write. This is the host side of the run channel's most direct listen on the part.
+// the driver exposing no write. This is the host side of the run channel's max direct listen on the part.
 #ifndef MMIO_READ_H
 #define MMIO_READ_H
 

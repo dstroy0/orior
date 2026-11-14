@@ -7,13 +7,13 @@
 // The face is relational (src/lng/transpiler_gsm_parser.md): a case is the operands and then the answer the relation
 // is valid, 1,1->2. A form enters the part's machine file only where the part answered one relation on every case of it
 // (khw_write.c), and those cases are the ladder's (ladder.h), which the host computes. The vendor's writer (`machine
-// writer` above, run through the interface) reads the machine file and hands back each form that answered a relation
+// writer` above, run through the interface) reads the machine file and passes back each form that answered a relation
 // and whether the answers read a word signed; each relation so answered is written once, as every two-word case of it
 // the ladder is valid, the answer read signed where the part's was. <part>.gsm is written beside the machine file, a
 // case a line in the ladder's order, and each word in decimal.
 //
-// It runs in a query run, the .qry QRY names (qry_member.h): the forms the vendor's writer hands back are the blob
-// GSM_FORMS_NAME of the run, and what it prints is handed to the run as GSM_MACHINE_NAME.
+// It runs in a query run, the .qry QRY names (qry_member.h): the forms the vendor's writer passes back are the blob
+// GSM_FORMS_NAME of the run, and what it prints is passed to the run as GSM_MACHINE_NAME.
 #include "../../../src/cu/transpiler/lstar/protocol/counterexample/ladder.h"
 #include "../../parsers/line_read.h"
 #include "../qry/writer/qry_member.h"
@@ -24,10 +24,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the name a form's relation is handed back under, as khw_write writes it
+// the name a form's relation is passed back under, as khw_write writes it
 #define GSM_READS_LADDER "ladder."
 
-// the blobs of the run the vendor's writer hands: the forms it hands back, and what it printed
+// the blobs of the run the vendor's writer passes: the forms it passes back, and what it printed
 #define GSM_FORMS_NAME "gsm_forms.txt"
 #define GSM_MACHINE_NAME "machine.txt"
 
@@ -38,8 +38,8 @@ static const char *const s_anchor_text[] = {LADDER_ANCHORS(LADDER_TEXT)};
 // each relation the part answered, read unsigned and read signed
 static int s_answered[LADDER_ANCHOR_COUNT][2];
 
-// The vendor's writer run through the interface in its krs mode, handed the part, the machine file, the container
-// layout, the vendor's table and the name to give the forms as (vendor_writer_run.h), its output handed to the run as
+// The vendor's writer run through the interface in its krs mode, passed the part, the machine file, the container
+// layout, the vendor's table and the name to give the forms as (vendor_writer_run.h), its output passed to the run as
 // GSM_MACHINE_NAME. 1 where it ended clean
 static int gsm_vendor_run(char *const *word)
 {
@@ -48,7 +48,7 @@ static int gsm_vendor_run(char *const *word)
     return vendor_writer_run(command, GSM_MACHINE_NAME, "orior_gsm_write", NULL);
 }
 
-// the relations the forms the vendor's writer handed back, the `size` bytes at `bytes`, answered, into s_answered. A
+// the relations the forms the vendor's writer passed back, the `size` bytes at `bytes`, answered, into s_answered. A
 // line whose relation is none the ladder satisfies is left out. The count of forms read
 static unsigned int gsm_relations_read(const unsigned char *bytes, unsigned long long size)
 {
@@ -111,7 +111,7 @@ int main(int count, char **word)
         printf("  orior_gsm_write: no query writer runs: %s names no .qry a writer has open\n", QRY_ENVIRONMENT);
         return 1;
     }
-    // the forms the vendor's writer hands, distinguished from any handed before them by their sequence
+    // the forms the vendor's writer passes, distinguished from any passed before them by their sequence
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
     unsigned long long before = 0ull;
@@ -126,7 +126,7 @@ int main(int count, char **word)
     }
     if (!qry_member_blob(GSM_FORMS_NAME, &bytes, &size, &sequence) || (sequence <= before))
     {
-        printf("  orior_gsm_write: the vendor's writer handed the run's buffer no %s\n", GSM_FORMS_NAME);
+        printf("  orior_gsm_write: the vendor's writer passed the run's buffer no %s\n", GSM_FORMS_NAME);
         return 1;
     }
     const unsigned int forms = gsm_relations_read(bytes, size);

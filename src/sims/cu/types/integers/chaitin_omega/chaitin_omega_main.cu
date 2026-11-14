@@ -158,7 +158,7 @@ int main(int argc, char **argv)
         return sim_close(&results, "chaitin_omega");
     }
 
-    // every closed term of at most L bits, run on the device unless the host is requested for
+    // every closed term of at max L bits, run on the device unless the host is requested for
     const unsigned int workers = (std::thread::hardware_concurrency() == 0u) ? 1u : std::thread::hardware_concurrency();
     static OmegaResults fates;
     unsigned int device_threads = 0u;
@@ -434,7 +434,7 @@ int main(int argc, char **argv)
     // and larger
     mmgr_line_put(&results.line,
                    "\n  busy beavers of the halting terms (>= where a term of that length is still open)\n"
-                   "  length  most steps  step champion                             BB lambda  normal form "
+                   "  length  max steps  step champion                             BB lambda  normal form "
                    "champion\n");
     sim_flush(&results);
     for (unsigned int length = 2u; length <= counts.length; length += 1u)
@@ -467,8 +467,8 @@ int main(int argc, char **argv)
     }
     // BusyBeaverWiki's BB lambda (OEIS A333479) from 4 through 33 bits; 0 where no closed term exists. The entries
     // equal the terms of OEIS's b-file for A333479 at 4 to 33. A row with a term still open
-    // gives only a lower bound, and the published value is the true maximum. The two meeting means the run
-    // reached the maximum; past 33 the maxima outgrow any space here (327686 bits at 34)
+    // gives only a lower bound, and the published value is the true max. The two meeting means the run
+    // reached the max; past 33 the maxima outgrow any space here (327686 bits at 34)
     static const unsigned long long published_max[34] = {
         0ull,  0ull,  0ull,  0ull,  4ull,  0ull,   6ull,   7ull,   8ull,   9ull,   10ull, 11ull,
         12ull, 13ull, 14ull, 15ull, 16ull, 17ull,  18ull,  19ull,  20ull,  22ull,  24ull, 26ull,
@@ -482,13 +482,13 @@ int main(int argc, char **argv)
         bounded = bounded && (fates.max_bits[length] <= published_max[length]) &&
                   ((settled == 0) || (fates.max_bits[length] == published_max[length]));
     }
-    // under any budgets: never past the true maximum, and on it wherever every term of the length halted
+    // under any budgets: never past the true max, and on it wherever every term of the length halted
     sim_check(&results, bounded,
-              "BB lambda is at most BusyBeaverWiki's (OEIS A333479) through 33 bits, and equal to it "
+              "BB lambda is at max BusyBeaverWiki's (OEIS A333479) through 33 bits, and equal to it "
               "at every settled length");
     if ((counts.steps >= OMEGA_STEPS_DEFAULT) && (counts.tokens >= OMEGA_TOKENS_DEFAULT))
     {
-        // the default budgets reach every maximum through 33 bits, the 1812-bit normal form at 33 the largest
+        // the default budgets reach every max through 33 bits, the 1812-bit normal form at 33 the largest
         sim_check(&results, published,
                   "BB lambda equals BusyBeaverWiki's (OEIS A333479) at every length through 33 bits");
     }

@@ -8,23 +8,23 @@
 #
 # WHY THE MATHEMATICS HAS TO COME OUT
 #
-# A detector scores register. Handed a table of residuals or a line of TeX it returns 1.000 and the
+# A detector scores register. Passed a table of residuals or a line of TeX it returns 1.000 and the
 # number means nothing: a column of figures is not written in any register at all. The first sweep
 # through this tree proved it - seven of its top eight findings were tables, and the one real
 # sentence in the list was buried under them.
 #
-# So this strips every construct that is notation and keeps every construct that is language:
+# So this strips every construct that is notation and retains every construct that is language:
 #
 #     removed   fenced code, indented code, inline code spans
 #     removed   display and inline TeX, tabular bodies, TeX-only lines
 #     removed   markdown and TeX table rows, rules, banners
-#     removed   any line whose characters are mostly not letters
-#     kept      sentences, including sentences that mention a number
+#     removed   any line whose characters are mostly not characters
+#     retained      sentences, including sentences that mention a number
 #
 # THE LAST TWO ARE A DELIBERATE PAIR. "The transform ran in 680 ms" is prose about a measurement and
 # stays; "| 4096 | 2006 | 680 |" is the measurement itself and goes. The test is whether the line
 # reads as a sentence, not whether it contains a digit, because a rule that dropped every digit
-# would drop most of the real writing in this tree.
+# would drop the majority of the real writing in this tree.
 #
 # WHAT COMES OUT IS FOR PASTING SOMEWHERE
 #
@@ -32,7 +32,7 @@
 # left over. That is the form a detector's text box wants, and it is also the form a person reads
 # aloud to hear whether a sentence sounds like a person wrote it.
 #
-# ONE THING IT IS NOT: this makes no judgment. It does not score, flag, or rank. It hands over clean
+# ONE THING IT IS NOT: this makes no judgment. It does not score, flag, or rank. It passes over clean
 # text, and the reading happens somewhere else.
 
 import argparse
@@ -69,12 +69,12 @@ TABLE = re.compile(r"^\s*\|")
 TEX_TABLE = re.compile(r"&.*\\\\\s*$")
 
 
-def letters_fraction(line):
-    """What share of the line's non-space characters are letters.
+def characters_fraction(line):
+    """What share of the line's non-space characters are characters.
 
-    The single most reliable separator between a sentence and a row of data, and it needs no list
+    The single max reliable separator between a sentence and a row of data, and it needs no list
     of notation to maintain. A residual column scores near zero here; a sentence about a residual
-    scores high, because English is mostly letters even when it is discussing arithmetic.
+    scores high, because English is mostly characters even when it is discussing arithmetic.
     """
     solid = [c for c in line if not c.isspace()]
     if not solid:
@@ -90,7 +90,7 @@ def strip_markers(line):
     line = re.sub(r"^\s*%+\s?", "", line)
     line = re.sub(r"^\s*#\s?", "", line)
     line = line.replace("**", "").replace("__", "")
-    # A markdown link keeps its text and loses its target, which is a URL and not language.
+    # A markdown link retains its text and loses its target, which is a URL and not language.
     line = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", line)
     return line.strip()
 
@@ -128,7 +128,7 @@ def readable(text, min_words):
         #
         # Removing inline mathematics from a sentence built around it does not leave prose, it
         # leaves a sentence with holes: "the transform of a sequence of length over the integers
-        # modulo is" was a real line of this tree's output before this test existed. Handed to a
+        # modulo is" was a real line of this tree's output before this test existed. Passed to a
         # reader or a detector, a line like that is scored for damage this tool did instead of for
         # how it was written.
         #
@@ -148,19 +148,19 @@ def readable(text, min_words):
                 out.append(" ".join(current))
                 current = []
             continue
-        if letters_fraction(line) < 0.72:
+        if characters_fraction(line) < 0.72:
             continue
         current.append(line)
 
     if current:
         out.append(" ".join(current))
 
-    kept = []
+    retained = []
     for paragraph in out:
         paragraph = " ".join(paragraph.split())
         if len(paragraph.split()) >= min_words:
-            kept.append(paragraph)
-    return kept
+            retained.append(paragraph)
+    return retained
 
 
 def show_plain():

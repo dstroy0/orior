@@ -7,7 +7,7 @@
 #include "ui/cli/src/editor/document.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-// the units and lines each side's text is laid into, and the changes found, at their most
+// the units and lines each side's text is positioned into, and the changes found, at their max
 #define DIFF_UNITS (1u << 16u)
 #define DIFF_LINES (1u << 12u)
 #define DIFF_HUNKS 64u
@@ -42,8 +42,8 @@ void tearDown(void)
 {
 }
 
-// the side's lines laid from `text`
-static void side_laid(DiffSide *side, const char *text, unsigned long long size)
+// the side's lines positioned from `text`
+static void side_positioned(DiffSide *side, const char *text, unsigned long long size)
 {
     side->lines = (CliLines){side->unit, DIFF_UNITS, 0ULL, side->start, side->length, DIFF_LINES, 0u, 0};
     EMBED_CALL(cli_document_text_size.lines_get, CliDocumentTextSizeCfg, .text = text, .size = size,
@@ -71,8 +71,8 @@ static void hunk_each(const CliEachHunkCfg *args)
         s_inner_runs = 0;
         static const char s_inner_then_text[] = "alpha\nbeta\ngamma\ndelta\n";
         static const char s_inner_now_text[] = "alpha\nB\ngamma\nD\n";
-        side_laid(&s_inner_then, s_inner_then_text, sizeof(s_inner_then_text) - 1u);
-        side_laid(&s_inner_now, s_inner_now_text, sizeof(s_inner_now_text) - 1u);
+        side_positioned(&s_inner_then, s_inner_then_text, sizeof(s_inner_then_text) - 1u);
+        side_positioned(&s_inner_now, s_inner_now_text, sizeof(s_inner_now_text) - 1u);
         (void)EMBED_CALL(cli_document_out_then.line_changes, CliDocumentOutThenCfg, .then = &s_inner_then.lines,
                          .now = &s_inner_now.lines, .each = inner_hunk_each);
     }
@@ -81,8 +81,8 @@ static void hunk_each(const CliEachHunkCfg *args)
 // the changes between `then` and `now`, into the hunks found: what the diff answers
 static int changes(const char *then, unsigned long long then_size, const char *now, unsigned long long now_size)
 {
-    side_laid(&s_then, then, then_size);
-    side_laid(&s_now, now, now_size);
+    side_positioned(&s_then, then, then_size);
+    side_positioned(&s_now, now, now_size);
     s_hunks = 0u;
     return EMBED_CALL(cli_document_out_then.line_changes, CliDocumentOutThenCfg, .then = &s_then.lines,
                       .now = &s_now.lines, .each = hunk_each);

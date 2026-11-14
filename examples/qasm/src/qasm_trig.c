@@ -115,7 +115,7 @@ int qasm_cos_sin(QasmParser *parser, const QasmAngle *angle, OriorExactInteger *
     }
     error += 2ull * 3ull;
     const unsigned long long error_r = error;
-    // r^2 at G: with |r| < 0.8, r's error at most doubles, and one unit is lost
+    // r^2 at G: with |r| < 0.8, r's error at max doubles, and one unit is lost
     OriorExactInteger r2;
     if (!qasm_fixed_multiply(parser, &r, &r, &r2))
     {
@@ -123,7 +123,7 @@ int qasm_cos_sin(QasmParser *parser, const QasmAngle *angle, OriorExactInteger *
     }
     const unsigned long long error_r2 = (2ull * error_r) + 1ull;
     // The series, term by term: t_k = t_(k-1) r^2 / ((2k - 1) 2k) for cos, / (2k (2k + 1)) for sin. With |t| <= 1
-    // and |r^2| < 0.62, a term's error is at most the last term's plus r^2's, over a divisor of at least 2, plus two
+    // and |r^2| < 0.62, a term's error is at max the last term's plus r^2's, over a divisor of at least 2, plus two
     // units lost: e_k <= e_(k-1) + e_r2 + 2. The tail past QASM_SERIES_TERMS is below one unit.
     OriorExactInteger term = parser->one_fixed;
     OriorExactInteger cos_sum = parser->one_fixed;

@@ -7,10 +7,10 @@
 #include "../text/text.h"
 #include "inspect_tree_internal.h"
 
-// the most imports a base is followed through
+// the max imports a base is followed through
 #define CLI_TREE_BASE_DEPTH 6u
 
-// the most bytes a name or a module spec of a file is read into on the stack
+// the max bytes a name or a module spec of a file is read into on the stack
 #define CLI_TREE_BASE_BYTES 1024u
 
 typedef struct

@@ -20,9 +20,9 @@ extern "C"
 {
 #endif
 
-    int krep_head_write(FILE *file, const char *kind);
+    int krep_head_write(FILE *file, const char *type);
 
-    int krep_head_read(FILE *file, const char *kind);
+    int krep_head_read(FILE *file, const char *type);
 
     int krep_words_write(FILE *file, const unsigned long long *words, size_t count);
 

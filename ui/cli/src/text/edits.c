@@ -46,25 +46,25 @@ unsigned long long cli_text_byte_get(const CliEditsLineCfg *args)
             return at;
         }
         const unsigned char lead = (unsigned char)args->line[at];
-        unsigned long long letter;
+        unsigned long long character;
         if (lead < 0xc0u)
         {
-            letter = 1u;
+            character = 1u;
         }
         else if (lead < 0xe0u)
         {
-            letter = 2u;
+            character = 2u;
         }
         else if (lead < 0xf0u)
         {
-            letter = 3u;
+            character = 3u;
         }
         else
         {
-            letter = 4u;
+            character = 4u;
         }
-        units += (letter == 4u) ? 2u : 1u;
-        at += letter;
+        units += (character == 4u) ? 2u : 1u;
+        at += character;
     }
     return args->size;
 }

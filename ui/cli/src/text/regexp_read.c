@@ -7,7 +7,7 @@
 #include "regexp_match_internal.h"
 #include "regexp_read_internal.h"
 
-unsigned long long cli_regexp_letters(const CliRegexpTextCfg *args)
+unsigned long long cli_regexp_characters(const CliRegexpTextCfg *args)
 {
     unsigned long long count = 0ULL;
     unsigned long long at = 0ULL;
@@ -31,28 +31,28 @@ unsigned long long cli_regexp_letters(const CliRegexpTextCfg *args)
         {
             length = 4u;
         }
-        unsigned int letter;
+        unsigned int character;
         if (length == 1u)
         {
-            letter = byte;
+            character = byte;
         }
         else if (length == 2u)
         {
-            letter = byte & 0x1fu;
+            character = byte & 0x1fu;
         }
         else if (length == 3u)
         {
-            letter = byte & 0x0fu;
+            character = byte & 0x0fu;
         }
         else
         {
-            letter = byte & 0x07u;
+            character = byte & 0x07u;
         }
         for (unsigned int more = 1u; (more < length) && ((at + more) < args->size); more += 1u)
         {
-            letter = (letter << 6u) | ((unsigned char)args->text[at + more] & 0x3fu);
+            character = (character << 6u) | ((unsigned char)args->text[at + more] & 0x3fu);
         }
-        args->letters[count] = letter;
+        args->characters[count] = character;
         count += 1ULL;
         at += length;
     }
@@ -77,29 +77,29 @@ unsigned int cli_fail(const CliRegexpReadErrorCtx *args)
 
 int cli_peek(const CliRegexpReadLetterTypeCtx *args)
 {
-    unsigned int *letter = args->letter;
+    unsigned int *character = args->character;
     if (args->reader_read->at >= args->reader_read->length)
     {
         return 0;
     }
-    *letter = args->reader_read->letters[args->reader_read->at];
+    *character = args->reader_read->characters[args->reader_read->at];
     return 1;
 }
 
 int cli_next(const CliRegexpReadLetterCtx *args)
 {
-    const int there = EMBED_CALL(cli_regexp_read_letter_type_internal.peek, CliRegexpReadLetterTypeCtx,
-                                 .reader_read = args->reader, .letter = args->letter);
+    const int there = EMBED_CALL(cli_regexp_read_character_type_internal.peek, CliRegexpReadLetterTypeCtx,
+                                 .reader_read = args->reader, .character = args->character);
     args->reader->at += there ? 1u : 0u;
     return there;
 }
 
 int cli_eat(const CliRegexpReadCtx *args)
 {
-    unsigned int letter = 0u;
-    if (EMBED_CALL(cli_regexp_read_letter_type_internal.peek, CliRegexpReadLetterTypeCtx, .reader_read = args->reader,
-                   .letter = &letter) &&
-        (letter == args->required))
+    unsigned int character = 0u;
+    if (EMBED_CALL(cli_regexp_read_character_type_internal.peek, CliRegexpReadLetterTypeCtx, .reader_read = args->reader,
+                   .character = &character) &&
+        (character == args->required))
     {
         args->reader->at += 1u;
         return 1;
@@ -154,15 +154,15 @@ int cli_number(const CliRegexpReadValueCtx *args)
     unsigned int *value = args->value;
     const unsigned long long start = args->reader->at;
     unsigned long long read = 0ULL;
-    unsigned int letter = 0u;
-    while (EMBED_CALL(cli_regexp_read_letter_type_internal.peek, CliRegexpReadLetterTypeCtx,
-                      .reader_read = args->reader, .letter = &letter) &&
-           (letter >= '0') && (letter <= '9'))
+    unsigned int character = 0u;
+    while (EMBED_CALL(cli_regexp_read_character_type_internal.peek, CliRegexpReadLetterTypeCtx,
+                      .reader_read = args->reader, .character = &character) &&
+           (character >= '0') && (character <= '9'))
     {
-        read = (read * 10ULL) + (letter - '0');
+        read = (read * 10ULL) + (character - '0');
         args->reader->at += 1u;
     }
-    // a count past what an unsigned int represents is read as the most
+    // a count past what an unsigned int represents is read as the max
     *value = (read < CLI_REGEXP_UNBOUNDED) ? (unsigned int)read : (CLI_REGEXP_UNBOUNDED - 1u);
     return args->reader->at != start;
 }
@@ -178,20 +178,20 @@ typedef struct
     const char *flags;
     VerbaLinea *err_msg;
 } RegexpReadCtx;
-// the quantifier after `atom`, where one stands: `* + ? {n} {n,} {n,m}`, lazy after `?`; `{` that opens no quantifier
+// the quantifier after `atom`, where one is: `* + ? {n} {n,} {n,m}`, lazy after `?`; `{` that opens no quantifier
 // is the atom's alone
 EMBED_INLINE unsigned int cli_quantified(const RegexpReadCtx *args)
 {
     CliRegexpReader *reader = args->reader;
-    unsigned int letter = 0u;
+    unsigned int character = 0u;
     unsigned int min = 0u;
     unsigned int max = CLI_REGEXP_UNBOUNDED;
-    if (!EMBED_CALL(cli_regexp_read_letter_type_internal.peek, CliRegexpReadLetterTypeCtx, .reader_read = reader,
-                    .letter = &letter))
+    if (!EMBED_CALL(cli_regexp_read_character_type_internal.peek, CliRegexpReadLetterTypeCtx, .reader_read = reader,
+                    .character = &character))
     {
         return args->atom;
     }
-    switch (letter)
+    switch (character)
     {
     case '*': {
         min = 0u;
@@ -217,8 +217,8 @@ EMBED_INLINE unsigned int cli_quantified(const RegexpReadCtx *args)
         if (EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .required = ','))
         {
             unsigned int peeked = 0u;
-            const int closes = EMBED_CALL(cli_regexp_read_letter_type_internal.peek, CliRegexpReadLetterTypeCtx,
-                                          .reader_read = reader, .letter = &peeked) &&
+            const int closes = EMBED_CALL(cli_regexp_read_character_type_internal.peek, CliRegexpReadLetterTypeCtx,
+                                          .reader_read = reader, .character = &peeked) &&
                                (peeked == '}');
             max = (!closes && EMBED_CALL(cli_regexp_read_value_internal.number, CliRegexpReadValueCtx, .reader = reader,
                                          .value = &max))
@@ -265,10 +265,10 @@ EMBED_INLINE unsigned int cli_sequence(const RegexpReadCtx *args)
     CliRegexpReader *reader = args->reader;
     unsigned int parts[CLI_REGEXP_LEVEL_MAX];
     unsigned int count = 0u;
-    unsigned int letter = 0u;
-    while (EMBED_CALL(cli_regexp_read_letter_type_internal.peek, CliRegexpReadLetterTypeCtx, .reader_read = reader,
-                      .letter = &letter) &&
-           (letter != '|') && (letter != ')'))
+    unsigned int character = 0u;
+    while (EMBED_CALL(cli_regexp_read_character_type_internal.peek, CliRegexpReadLetterTypeCtx, .reader_read = reader,
+                      .character = &character) &&
+           (character != '|') && (character != ')'))
     {
         const unsigned int atom = EMBED_CALL(cli_regexp_read_internal.atom, CliRegexpReadCtx, .reader = reader);
         const unsigned int quantified = (atom == CLI_REGEXP_FAILED)
@@ -323,7 +323,7 @@ unsigned int cli_alternation(const CliRegexpReadCtx *args)
 
 // Each alternative of every alternation given its first characters, a place whose character none of them can start
 // with passed over; each repeat whether a pass takes the text one way or none
-// the ASCII letters each one-letter node takes, as bits, and the matcher tests a letter below 128 in one step
+// the ASCII characters each one-character node takes, as bits, and the matcher tests a character below 128 in one step
 EMBED_INLINE void cli_ascii_know(const RegexpReadCtx *args)
 {
     CliRegexp *regexp = args->regexp;
@@ -337,18 +337,18 @@ EMBED_INLINE void cli_ascii_know(const RegexpReadCtx *args)
         node->ascii[0] = 0ULL;
         node->ascii[1] = 0ULL;
         node->ascii_known = 0;
-        for (unsigned int letter = 0u; letter < 128u; letter += 1u)
+        for (unsigned int character = 0u; character < 128u; character += 1u)
         {
-            node->ascii[letter / 64u] |= (EMBED_CALL(cli_regexp_match_internal.regexp_one, CliRegexpMatchCtx,
-                                                     .regexp = regexp, .index = index, .letter = letter) == 1)
-                                             ? (1ULL << (letter % 64u))
+            node->ascii[character / 64u] |= (EMBED_CALL(cli_regexp_match_internal.regexp_one, CliRegexpMatchCtx,
+                                                     .regexp = regexp, .index = index, .character = character) == 1)
+                                             ? (1ULL << (character % 64u))
                                              : 0ULL;
         }
         node->ascii_known = 1;
     }
 }
 
-// whether a match of the node must start at the text's first letter: the node is ^, or a group or sequence that
+// whether a match of the node must start at the text's first character: the node is ^, or a group or sequence that
 // starts with one
 static int cli_anchor(const RegexpReadCtx *args)
 {
@@ -410,9 +410,9 @@ EMBED_INLINE int cli_regexp_read_by(const RegexpReadCtx *args)
     CliRegexp *regexp = args->regexp;
     const char *source = args->source;
     VerbaLinea *err_msg = args->err_msg;
-    reader->length = EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = source,
+    reader->length = EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = source,
                                 .size = cellul.len(&(CatenaFinitaCfg){.src = source, .cap = CLI_POOL_BYTES}),
-                                .letters = reader->letters, .capacity_u64 = CLI_REGEXP_LETTERS);
+                                .characters = reader->characters, .capacity_u64 = CLI_REGEXP_CHARACTERS);
     reader->unicode = cellul.chr(&(CatenaFinitaCfg){.src = args->flags, .cap = CLI_POOL_BYTES, .byte = 'u'}) != NULL;
     reader->regexp = regexp;
     reader->source = source;

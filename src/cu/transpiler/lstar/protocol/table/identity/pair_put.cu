@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// pair_put.cu: the put: one form stood in for by the other at each of its links in each carrier, until the
+// pair_put.cu: the put: one form was in for by the other at each of its links in each carrier, until the
 // part answers one apart
 #include "pair.h"
 
-// `from` stood in for by `to` at each of its links in each carrier, until the part answers one apart: 1 with its
+// `from` was in for by `to` at each of its links in each carrier, until the part answers one apart: 1 with its
 // verdict, closed at the first link apart or open with the cases alike at every link the part answered, 0 where the
 // part answered none
 int PairWork::put(const std::string &from, const std::string &to, std::string *verdict)
@@ -78,7 +78,7 @@ int PairWork::put(const std::string &from, const std::string &to, std::string *v
         }
         // a carrier is one that reads what the form writes: its first parameter, the register it writes, named
         // again after it, a pair's high word read where the pair is named. A link nothing reads answers alike
-        // whatever stands in for it
+        // whatever is in for it
         const std::string written = (group.count('A') != 0u) ? found[group['A']].str() : std::string();
         const std::string written_register = written.substr(0u, written.find('.'));
         const std::string after = chain.second.substr((size_t)(found.position(0) + found.length(0)));
@@ -126,23 +126,23 @@ int PairWork::put(const std::string &from, const std::string &to, std::string *v
         }
         // a stand-in the ruleset cannot write is a malformed question: the put exits, settled. Its scratch is
         // registers past the chain's own
-        std::string standing;
+        std::string located;
         unsigned int scratch_taken = 0u;
         if (ruleset_opcode(sass, to, arguments, scratch_past(sass, carriers.magnitudes[chain.first].first, &scratch_taken),
-                           standing) == 0)
+                           located) == 0)
         {
             chose("unwritable", link_address);
             return 0;
         }
-        // a link the stand-in writes as it stood is no query
-        if (standing == found.str(0))
+        // a link the stand-in writes as it was is no query
+        if (located == found.str(0))
         {
             chose("unchanged", link_address);
             continue;
         }
-        t_dangerous = form_dangerous(standing);
+        t_dangerous = form_dangerous(located);
         const std::string before = chain.second.substr(0u, (size_t)found.position(0));
-        const std::string changed = before + standing + chain.second.substr((size_t)(found.position(0) + found.length(0)));
+        const std::string changed = before + located + chain.second.substr((size_t)(found.position(0) + found.length(0)));
         std::vector<unsigned char> code = vendor_assembled(machine, changed);
         const unsigned int count = (unsigned int)(code.size() / 16u);
         if (count == 0u)
@@ -156,7 +156,7 @@ int PairWork::put(const std::string &from, const std::string &to, std::string *v
         const std::vector<std::string> &expected = host[chain.first];
         // a stand-in a lesson of the overseer blocks is answered as blocked at this link, and the part never sees it
         char overseen[160];
-        if (overseer_blocks(standing.c_str(), chain.first.c_str(), overseen, sizeof(overseen)))
+        if (overseer_blocks(located.c_str(), chain.first.c_str(), overseen, sizeof(overseen)))
         {
             chose("overseen", link_address);
             if (s_trace_log != NULL)
@@ -170,12 +170,12 @@ int PairWork::put(const std::string &from, const std::string &to, std::string *v
         // Past the first case apart a link adds to the product alone, and only where the form reads in a shape no
         // link read before it: a link of a shape read before contains the same rows, and is no branch of its own. The
         // cycle loops while the product is not whole and a branch is left, and ends at a whole product or with
-        // every branch put or steered off. Its verdict stands, and it requires nothing
+        // every branch put or steered off. Its verdict is, and it requires nothing
         const int past_closed = !closed.empty();
         // The steer: the links of one delta are one band, the nearest first. A band is truthy where a put in it
         // adds a row that came back one way, signal, and falsy where its puts add none or only rows that came back
         // both ways, noise. A truthy band steers on to the next; past the first case apart, a falsy band steers off
-        // every farther one, whose links stand farther from the cases and read them through more links
+        // every farther one, whose links are farther from the cases and read them through more links
         if (found_link.vector.first != band)
         {
             if (past_closed && (band != LONG_MIN) && !band_truthy)
@@ -223,11 +223,11 @@ int PairWork::put(const std::string &from, const std::string &to, std::string *v
         {
             guidance = conferred(
                 from, to, "the pair " + from + " " + to + ", " + to + " put in place of " + from + " at " + address,
-                standing, chain.first, scratch_taken, question, closed, link_address);
+                located, chain.first, scratch_taken, question, closed, link_address);
         }
-        const int stand_in_blocked = overseer_blocks(standing.c_str(), chain.first.c_str(), overseen, sizeof(overseen));
-        // the put beneath its query in the log: the link as it stood, the link standing in its place, each on one
-        // line of the log, and the operands only the form it stood as names
+        const int are_in_blocked = overseer_blocks(located.c_str(), chain.first.c_str(), overseen, sizeof(overseen));
+        // the put beneath its query in the log: the link as it was, the link located in its place, each on one
+        // line of the log, and the operands only the form it was as names
         if (s_query_log != NULL)
         {
             const PutLink link = {from,
@@ -248,10 +248,10 @@ int PairWork::put(const std::string &from, const std::string &to, std::string *v
                                   flow,
                                   link_at,
                                   link_address,
-                                  standing,
+                                  located,
                                   address,
                                   found_link.vector.first,
-                                  stand_in_blocked,
+                                  are_in_blocked,
                                   shape_new};
             band_truthy |= link.logged(*this);
         }

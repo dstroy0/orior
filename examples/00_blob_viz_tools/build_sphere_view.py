@@ -63,22 +63,22 @@ def draw(seed):
         yield ((state >> 11) & 0x1FFFFFFFFFFFFF) / float(1 << 53)
 
 
-def place(kind, values, data):
+def place(type, values, data):
     """A direction per symbol, by the named map. Returns (colatitude, longitude) per symbol.
 
     spread  no direction at all, handled later by averaging and not by a value here
     random  drawn from a generator that never sees the data, the null
     spiral  the golden angle walked in byte order, evenly spread and carrying byte adjacency
-    pair    colatitude from the symbol and longitude from the byte that most often precedes it
+    pair    colatitude from the symbol and longitude from the byte that usually precedes it
     """
     out = {}
-    if kind == "random" or kind == "spread":
+    if type == "random" or type == "spread":
         stream = draw(0x5EED)
         for value in values:
             out[value] = (math.acos(2.0 * next(stream) - 1.0), 2.0 * math.pi * next(stream))
         return out
 
-    if kind == "spiral":
+    if type == "spiral":
         for index, value in enumerate(values):
             height = 1.0 - 2.0 * (index + 0.5) / len(values)
             out[value] = (math.acos(max(-1.0, min(1.0, height))), (index * GOLDEN) % (2.0 * math.pi))

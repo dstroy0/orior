@@ -1,20 +1,20 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// prompt.c: the one ask. Its sentence, its statement and its buttons' labels stand in the ask's own bytes with their
-// ends, laid as the ask opens, the sentence and the statement each cut to CLI_PROMPT_STATEMENT_MAX bytes; its field
-// stands in a cell of its own sized to the letters typed, with the count of its letters following each change; and its
-// rows are types laid as the ask opens, a number a row. An answer hands the field's text to the continuation with the
+// prompt.c: the one ask. Its sentence, its statement and its buttons' labels are in the ask's own bytes with their
+// ends, positioned as the ask opens, the sentence and the statement each cut to CLI_PROMPT_STATEMENT_MAX bytes; its field
+// is in a cell of its own sized to the characters typed, with the count of its characters following each change; and its
+// rows are types positioned as the ask opens, a number a row. An answer passes the field's text to the continuation with the
 // ask already cleared, so that the continuation may open another
 #include "prompt.h"
 
-// the bytes the sentence, the statement and the labels take at the most, each with its end
+// the bytes the sentence, the statement and the labels take at max, each with its end
 #define PROMPT_TEXTS                                                                                                   \
     ((2ULL * (CLI_PROMPT_STATEMENT_MAX + 1ULL)) +                                                                      \
      ((unsigned long long)CLI_PROMPT_CHOICES * (CLI_PROMPT_LABEL_MAX + 1ULL)))
 
 // The ask: its texts, the sentence's and the statement's bytes and places in them, the buttons' labels in them with
-// their bytes and how many, its mode, its field and the letters the field carries, its continuation with its context,
-// whether it stands, and its rows' types and how many
+// their bytes and how many, its mode, its field and the characters the field carries, its continuation with its context,
+// whether it is, and its rows' types and how many
 typedef struct
 {
     char texts[PROMPT_TEXTS];
@@ -28,7 +28,7 @@ typedef struct
     unsigned int mode;
     CliTyped field;
     char text[CLI_PROMPT_FIELD_MAX];
-    unsigned long long letters;
+    unsigned long long characters;
     void (*then)(const CliPromptCfg *args);
     void *context;
     int asked;
@@ -44,17 +44,17 @@ typedef struct
     unsigned long long size;
 } PromptCtx;
 
-// the letters of `size` bytes of `text`, each a lead byte of UTF-8
-EMBED_INLINE unsigned long long letters_counted(const PromptCtx *args)
+// the characters of `size` bytes of `text`, each a lead byte of UTF-8
+EMBED_INLINE unsigned long long characters_counted(const PromptCtx *args)
 {
-    unsigned long long letters = 0ULL;
+    unsigned long long characters = 0ULL;
     for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
         // a byte read as its bits
         const unsigned char byte = (unsigned char)args->text[at];
-        letters += ((byte & 0xC0u) != 0x80u) ? 1ULL : 0ULL;
+        characters += ((byte & 0xC0u) != 0x80u) ? 1ULL : 0ULL;
     }
-    return letters;
+    return characters;
 }
 
 void cli_prompt_close(const CliPromptCfg *args)
@@ -65,13 +65,13 @@ void cli_prompt_close(const CliPromptCfg *args)
 }
 
 // the field's text copied out of the typed text's cell into the prompt's own buffer, which the rows read, and its
-// letters counted
+// characters counted
 EMBED_INLINE void field_refreshed(const PromptCtx *args)
 {
     (void)args;
     const unsigned long long length = EMBED_CALL(cli_typed.copy, CliTypedCfg, .typed = &s_prompt.field,
                                                  .dst = s_prompt.text, .capacity = sizeof(s_prompt.text));
-    s_prompt.letters = EMBED_CALL(letters_counted, PromptCtx, .text = s_prompt.text, .size = length);
+    s_prompt.characters = EMBED_CALL(characters_counted, PromptCtx, .text = s_prompt.text, .size = length);
 }
 
 int cli_prompt_open(const CliPromptCfg *args)
@@ -126,10 +126,10 @@ int cli_prompt_open(const CliPromptCfg *args)
     {
         EMBED_CALL(cli_typed.put, CliTypedCfg, .typed = &s_prompt.field, .text = args->preset,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->preset, .cap = CLI_PROMPT_FIELD_MAX}),
-                   .most = CLI_PROMPT_FIELD_MAX, .owner = g_cli_command_line_owner);
+                   .max = CLI_PROMPT_FIELD_MAX, .owner = g_cli_command_line_owner);
     }
     EMBED_CALL(field_refreshed, PromptCtx, .size = 0ULL);
-    // the rows as the mode lays them: the sentence, the statement where one is asked about, the field where the mode
+    // the rows as the mode positions them: the sentence, the statement where one is asked about, the field where the mode
     // takes one, and the buttons where there are any
     unsigned int rows = 0u;
     s_prompt.row_type[rows] = CLI_PROMPT_ROW_SENTENCE;
@@ -204,7 +204,7 @@ int cli_prompt_row_read(const CliPromptRowsCfg *args)
         return 1;
     case CLI_PROMPT_ROW_FIELD:
         row->secret = s_prompt.mode == CLI_PROMPT_PASSWORD;
-        row->letters = s_prompt.letters;
+        row->characters = s_prompt.characters;
         row->text = row->secret ? NULL : s_prompt.text;
         row->length = row->secret ? 0ULL : s_prompt.field.length;
         return 1;
@@ -226,7 +226,7 @@ void cli_prompt_type(const CliPromptInputCfg *args)
         return;
     }
     EMBED_CALL(cli_typed.put, CliTypedCfg, .typed = &s_prompt.field, .text = args->text, .size = args->size,
-               .most = CLI_PROMPT_FIELD_MAX, .owner = g_cli_command_line_owner);
+               .max = CLI_PROMPT_FIELD_MAX, .owner = g_cli_command_line_owner);
     EMBED_CALL(field_refreshed, PromptCtx, .size = 0ULL);
 }
 

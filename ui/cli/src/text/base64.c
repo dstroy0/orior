@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// base64.c: bytes as base64 and back. Three bytes make four letters, the last group padded with `=`; reading back,
+// base64.c: bytes as base64 and back. Three bytes make four characters, the last group padded with `=`; reading back,
 // a group stops at its first `=`
 #include "base64.h"
 
 void cli_base64(const CliBase64Cfg *args)
 {
-    static const char s_letters[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    static const char s_characters[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     for (unsigned long long at = 0ULL; at < args->size; at += 3ULL)
     {
         const unsigned long long length = ((args->size - at) < 3ULL) ? (args->size - at) : 3ULL;
@@ -15,36 +15,36 @@ void cli_base64(const CliBase64Cfg *args)
                                    ((length > 2ULL) ? (unsigned int)args->bytes[at + 2ULL] : 0u);
         for (unsigned int place = 0u; place < 4u; place += 1u)
         {
-            const char letter = s_letters[(group >> (18u - (6u * place))) & 63u];
-            mmgr_line_ch(args->out, (place <= length) ? letter : '=');
+            const char character = s_characters[(group >> (18u - (6u * place))) & 63u];
+            mmgr_line_ch(args->out, (place <= length) ? character : '=');
         }
     }
 }
 
 typedef struct
 {
-    char letter;
+    char character;
 } Base64Ctx;
-// the six bits a base64 letter stands for, or 64 where it is none
+// the six bits a base64 character is for, or 64 where it is none
 EMBED_INLINE unsigned int cli_sextet(const Base64Ctx *args)
 {
-    if ((args->letter >= 'A') && (args->letter <= 'Z'))
+    if ((args->character >= 'A') && (args->character <= 'Z'))
     {
-        return (unsigned int)(args->letter - 'A');
+        return (unsigned int)(args->character - 'A');
     }
-    if ((args->letter >= 'a') && (args->letter <= 'z'))
+    if ((args->character >= 'a') && (args->character <= 'z'))
     {
-        return (unsigned int)(args->letter - 'a') + 26u;
+        return (unsigned int)(args->character - 'a') + 26u;
     }
-    if ((args->letter >= '0') && (args->letter <= '9'))
+    if ((args->character >= '0') && (args->character <= '9'))
     {
-        return (unsigned int)(args->letter - '0') + 52u;
+        return (unsigned int)(args->character - '0') + 52u;
     }
-    if (args->letter == '+')
+    if (args->character == '+')
     {
         return 62u;
     }
-    if (args->letter == '/')
+    if (args->character == '/')
     {
         return 63u;
     }
@@ -62,18 +62,18 @@ int cli_unbase64(const CliBase64TextCfg *args)
     for (unsigned long long at = 0ULL; at <= args->length; at += 1ULL)
     {
         const int ended = at == args->length;
-        const char letter = ended ? '\0' : args->text[at];
+        const char character = ended ? '\0' : args->text[at];
         const int white =
-            (letter == ' ') || (letter == '\t') || (letter == '\n') || (letter == '\f') || (letter == '\r');
+            (character == ' ') || (character == '\t') || (character == '\n') || (character == '\f') || (character == '\r');
         if (!ended && white)
         {
             continue;
         }
         if (!ended)
         {
-            // a letter after `=` in its group is passed over, as is `=` itself
-            padded = padded || (letter == '=');
-            const unsigned int sextet = EMBED_CALL(cli_sextet, Base64Ctx, .letter = letter);
+            // a character after `=` in its group is passed over, as is `=` itself
+            padded = padded || (character == '=');
+            const unsigned int sextet = EMBED_CALL(cli_sextet, Base64Ctx, .character = character);
             if (!padded && (sextet == 64u))
             {
                 return 0;

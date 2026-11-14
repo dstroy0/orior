@@ -12,7 +12,7 @@ from .repository import REPOSITORY, git_say
 
 
 
-# The ratchet this repository keeps, for the readings that want it without being told where it is.
+# The ratchet this repository retains, for the readings that want it without being told where it is.
 # Beside the package rather than inside it: the ceilings are this repository's record and the
 # checker is a tool, and a tool does not carry one repository's numbers around in it.
 DEFAULT_RATCHET = os.path.join(
@@ -21,7 +21,7 @@ DEFAULT_RATCHET = os.path.join(
 
 
 RATCHET_HEADER = (
-    "# Prose findings per file, the most each file may carry. docs_check --ratchet reads it.\n"
+    "# Prose findings per file, the max each file may carry. docs_check --ratchet reads it.\n"
     "# A count may fall and never rise: a commit that raises one is stopped, and a commit that\n"
     "# lowers one writes the lower number here. Regenerate by hand with --ratchet-write only when a\n"
     "# file moves, since a moved file starts again at zero under its new name.\n"

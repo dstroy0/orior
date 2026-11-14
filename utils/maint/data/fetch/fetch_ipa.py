@@ -14,14 +14,14 @@
 #
 # Hungarian writes sz for one consonant and Polish writes sz for another. Two words said the same way are
 # counted far apart, and two written the same way are counted close when they are not. The effect showed
-# through that, which means the noise was working against it, but the reading is still of letters.
+# through that, which means the noise was working against it, but the reading is still of characters.
 #
-# The dictionary carries transcriptions beside the words. Fetching those replaces the letters with the
+# The dictionary carries transcriptions beside the words. Fetching those replaces the characters with the
 # sounds and removes the confound. Saying these words resemble each other is a different claim from
 # saying these definitions do.
 #
 # Pages are asked for fifty at a time, since asking one at a time would be twelve hundred requests, and
-# the pace is kept slow because this interface has errored on this work several times tonight for asking too
+# the pace is retained slow because this interface has errored on this work several times tonight for asking too
 # quickly.
 
 import io
@@ -127,7 +127,7 @@ def main():
             time.sleep(PAUSE)
             if payload is None:
                 out.write(
-                    "  %-12s errored partway, keeping %d\n" % (language, len(said))
+                    "  %-12s errored partway, retention %d\n" % (language, len(said))
                 )
                 break
             for page in payload.get("query", {}).get("pages", {}).values():

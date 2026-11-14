@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // system_x11.c: the window on X11. A window with its decorations taken off through the Motif hints, moved and resized
 // by the window manager through _NET_WM_MOVERESIZE as the pointer presses on the caption or a border; the raster it is
-// handed put into the window as a 32-bit image; the thread woken through a pipe the loop waits on beside the display's
+// passed put into the window as a 32-bit image; the thread woken through a pipe the loop waits on beside the display's
 // connection; the scale read from the screen's size in millimetres; the screen the one area. The records of the two
-// windows that stand at once, and the words their icon goes to the system in, are this file's own
+// windows that are at once, and the words their icon goes to the system in, are this file's own
 #include "../../cli/src/command_line/callback_cfg.h"
 #include "system.h"
 
@@ -55,7 +55,7 @@ struct GuiSystem
 #define GUI_MOVERESIZE_MOVE 8L
 // the milliseconds of one refresh of the screen, taken as 60 a second: the core protocol carries no rate
 #define GUI_FRAME_MS 17u
-// the windows that stand at once: the main one, Preferences' and the dialog's
+// the windows that are at once: the main one, Preferences' and the dialog's
 #define SYSTEM_WINDOWS 3u
 
 static GuiSystem s_systems[SYSTEM_WINDOWS];
@@ -81,7 +81,7 @@ typedef struct
     unsigned long *data;
     const GuiRaster *raster;
 } SystemX11Ctx;
-// the first record no window stands on, cleared and taken: NULL where both stand
+// the first record no window is on, cleared and taken: NULL where both are
 static GuiSystem *system_record_take(void)
 {
     for (unsigned int at = 0u; at < SYSTEM_WINDOWS; at += 1u)
@@ -111,7 +111,7 @@ EMBED_INLINE int system_scale_get(const SystemX11Ctx *args)
     return ((scale > 90) && (scale < 110)) ? 100 : scale;
 }
 
-// the raster shown put into the window, its `rows` rows from the row `from`
+// the raster displayed put into the window, its `rows` rows from the row `from`
 EMBED_INLINE void system_append(const SystemX11Ctx *args)
 {
     const GuiRaster *const raster = &args->system->displayed;
@@ -174,7 +174,7 @@ EMBED_INLINE unsigned int system_mods(const SystemX11Ctx *args)
 }
 
 // a key press passed to the window: a key with a name of the page's editor's, the modifier keys down written before
-// it, and a letter typed as text where the key maps to one and the control key is not down
+// it, and a character typed as text where the key maps to one and the control key is not down
 EMBED_INLINE void system_key_press(const SystemX11Ctx *args)
 {
     static const struct
@@ -210,7 +210,7 @@ EMBED_INLINE void system_key_press(const SystemX11Ctx *args)
     }
     if (!has_name && (((key >= XK_a) && (key <= XK_z)) || ((key >= XK_A) && (key <= XK_Z))))
     {
-        // a letter's key goes by its capital
+        // a character's key goes by its capital
         mmgr_line_ch(&named, (char)(((key >= XK_a) ? (key - XK_a) : (key - XK_A)) + 'A'));
         has_name = 1;
     }
@@ -240,20 +240,20 @@ EMBED_INLINE void system_key_press(const SystemX11Ctx *args)
     if ((wrote > 0) && !(mods & GUI_MOD_CONTROL) && ((unsigned char)text[0] >= 0x20u) &&
         ((unsigned char)text[0] != 0x7fu))
     {
-        // the text as Latin-1, each byte a letter, written as UTF-8
+        // the text as Latin-1, each byte a character, written as UTF-8
         char utf8[128];
         VerbaLinea line = {utf8, sizeof(utf8), 0ULL};
         for (int at = 0; at < wrote; at += 1)
         {
-            EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line,
-                       .letter = (unsigned char)text[at]);
+            EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line,
+                       .character = (unsigned char)text[at]);
         }
         EMBED_CALL(args->system->events->input, GuiEachInputCfg, .context = args->system->context,
                    .input = GUI_TEXT_INPUT(utf8, line.at));
     }
 }
 
-// the move or resize direction a hit stands for, or -1 for none
+// the move or resize direction a hit is for, or -1 for none
 EMBED_INLINE long system_direction(const SystemX11Ctx *args)
 {
     static const long s_directions[13] = {-1L, GUI_MOVERESIZE_MOVE, 7L, 3L, 1L, 5L, 0L, 2L, 6L, 4L, -1L, -1L, -1L};
@@ -519,7 +519,7 @@ void gui_system_display_max(const GuiSystemWidthCfg *args)
 unsigned int gui_system_areas(const GuiSystemAreasCfg *args)
 {
     Display *const display = XOpenDisplay(NULL);
-    if ((display == NULL) || (args->most == 0u))
+    if ((display == NULL) || (args->max == 0u))
     {
         return 0u;
     }
@@ -573,7 +573,7 @@ GuiSystem *gui_system_open(const GuiSystemPositionTitleCfg *args)
     GuiSystem *const system = system_record_take();
     if (system == NULL)
     {
-        mmgr_line_put(args->err_msg, "the program's three windows already stand");
+        mmgr_line_put(args->err_msg, "the program's three windows already are");
         return NULL;
     }
     system->events = events;
@@ -611,7 +611,7 @@ GuiSystem *gui_system_owner_open(const GuiSystemPositionTitleCfg *args)
     GuiSystem *const system = system_record_take();
     if (system == NULL)
     {
-        mmgr_line_put(args->err_msg, "the program's three windows already stand");
+        mmgr_line_put(args->err_msg, "the program's three windows already are");
         return NULL;
     }
     system->events = events;
@@ -736,7 +736,7 @@ void gui_system_wake(const GuiSystemCfg *args)
     (void)write(args->system->wake_pipe[1], &one, 1u);
 }
 
-// `raster`'s pixels put after `at` of `data` as the icon property lays them, the width, the height and then each
+// `raster`'s pixels put after `at` of `data` as the icon property positions them, the width, the height and then each
 // pixel as a word: the words put
 EMBED_INLINE unsigned long system_icon_append(const SystemX11Ctx *args)
 {
@@ -772,7 +772,7 @@ void gui_system_cursor_show(const GuiSystemCursorCfg *args)
 {
     if (args->cursor == GUI_CURSOR_SCROLL)
     {
-        // the window keeps its reference to the cursor once it is defined on it, so the handle is freed at once
+        // the window retains its reference to the cursor once it is defined on it, so the handle is freed at once
         const Cursor fleur = XCreateFontCursor(args->system->display, XC_fleur);
         XDefineCursor(args->system->display, args->system->window, fleur);
         XFreeCursor(args->system->display, fleur);

@@ -3,9 +3,9 @@
 **Purpose:** Know which steering scan arms have run against the portable reference and which have only been checked for the instructions they emit, and under what conditions each grade was taken. A claim about an arm then cites the measurement behind it.
 **Scope:** `src/engine/c/engine/scan_portable.c`, `scan_avx2.c`, `scan_avx512.c`, `scan_neon.c`, `scan_sve.c`, `scan_cuda.cu`; the drivers `src/engine/c/bench/bench_steer_arms.c`, `maint/engine/build_engine.ps1`, `maint/engine/build_gpu_scan.sh`, `maint/engine/verify_arm_asm.sh`.
 
-Every scan arm answers one question: fixed at one needle offset, how many still-standing alignments carry the wanted byte. The portable arm is the reference. An arm that returns a different count has a defect, whatever it measures. Correctness is graded first and timing second.
+Every scan arm answers one question: fixed at one needle offset, how many still-located alignments carry the wanted byte. The portable arm is the reference. An arm that returns a different count has a defect, whatever it measures. Correctness is graded first and timing second.
 
-## The three grades, kept apart
+## The three grades, retained apart
 
 A row here reads **agrees**, **emits**, or **builds**, and the three are not interchangeable.
 

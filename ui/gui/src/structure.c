@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// structure.c: the Outline pane's rows as the symbols' outline stands
+// structure.c: the Outline pane's rows as the symbols' outline is
 #include "structure.h"
 
 #include "../../cli/src/code/symbols.h"
@@ -72,7 +72,7 @@ EMBED_INLINE const StructureMark *structure_mark(const StructureCtx *args)
     return &s_structure_marks[count - 1u];
 }
 
-// a guide down each level the row stands under, then the type's mark centered in its box, then the name
+// a guide down each level the row is under, then the type's mark centered in its box, then the name
 static void structure_row_draw(const GuiPaneCfg *args)
 {
     GuiRaster *raster = args->raster;
@@ -118,29 +118,29 @@ static void structure_row_draw(const GuiPaneCfg *args)
         .color = GUI_FRAME_FADED(lit ? args->palette->text : args->palette->text_2, frame->side_share), .clip = on);
 }
 
-// the row's declaration: the file shown opened with the cursor on its line
+// the row's declaration: the file displayed opened with the cursor on its line
 static int structure_press(const GuiPaneCfg *args)
 {
     CliOutlineRow row;
-    const int shown = cli_view_shown();
-    if ((shown < 0) || !EMBED_CALL(cli_outline.row, CliOutlineCfg, .at = args->row, .row = &row))
+    const int displayed = cli_view_displayed();
+    if ((displayed < 0) || !EMBED_CALL(cli_outline.row, CliOutlineCfg, .at = args->row, .row = &row))
     {
         return 0;
     }
-    // the view shown is among the views; its path is copied into the pane's own buffer, which the open reads
-    static char s_shown_path[CLI_PATH_MAX_LEN];
-    if (!cli_view_path_at((unsigned int)shown, s_shown_path))
+    // the view displayed is among the views; its path is copied into the pane's own buffer, which the open reads
+    static char s_displayed_path[CLI_PATH_MAX_LEN];
+    if (!cli_view_path_at((unsigned int)displayed, s_displayed_path))
     {
         return 0;
     }
-    *args->open_out = (GuiPaneOpen){s_shown_path, {row.line, 0ULL}, 1};
+    *args->open_out = (GuiPaneOpen){s_displayed_path, {row.line, 0ULL}, 1};
     return 1;
 }
 
-// the outline read anew of the view shown as the pane shows and as the view is shown or edited
+// the outline read anew of the view displayed as the pane shows and as the view is displayed or edited
 static void structure_read(const GuiPaneCfg *args)
 {
-    if ((args->event == GUI_PANE_SHOWN) || (args->event == GUI_PANE_VIEW))
+    if ((args->event == GUI_PANE_DISPLAYED) || (args->event == GUI_PANE_VIEW))
     {
         EMBED_CALL(cli_outline.read, CliOutlineCfg, .key = args->key, .path = args->path);
     }

@@ -103,12 +103,12 @@ unsigned long long zstd_backward_read(ZstdBackwardStream *stream, unsigned int c
     return value;
 }
 
-int zstd_fse_describe(ZstdSpan *input, const ZstdTableKind *kind, long *counts, unsigned int *accuracy)
+int zstd_fse_describe(ZstdSpan *input, const ZstdTableKind *type, long *counts, unsigned int *accuracy)
 {
     ZstdForwardStream stream = {input->bytes, input->length, 0ull};
     const unsigned int found = (unsigned int)zstd_forward_peek(&stream, 4u) + 5u;
-    int ok = zstd_forward_skip(&stream, 4u) && (found <= kind->accuracy);
-    for (unsigned int symbol = 0u; symbol < kind->symbols; symbol += 1u)
+    int ok = zstd_forward_skip(&stream, 4u) && (found <= type->accuracy);
+    for (unsigned int symbol = 0u; symbol < type->symbols; symbol += 1u)
     {
         counts[symbol] = 0L;
     }
@@ -128,21 +128,21 @@ int zstd_fse_describe(ZstdSpan *input, const ZstdTableKind *kind, long *counts, 
             {
                 symbol += 3u;
                 flag = (unsigned int)zstd_forward_peek(&stream, 2u);
-                ok = zstd_forward_skip(&stream, 2u) && (symbol < kind->symbols);
+                ok = zstd_forward_skip(&stream, 2u) && (symbol < type->symbols);
             }
             symbol += flag;
-            ok = ok && (symbol < kind->symbols);
+            ok = ok && (symbol < type->symbols);
             if (!ok)
             {
                 break;
             }
         }
-        const long maximum = ((2L * threshold) - 1L) - remaining;
+        const long max = ((2L * threshold) - 1L) - remaining;
         const long peeked = (long)zstd_forward_peek(&stream, width);
         const long low = peeked & (threshold - 1L);
         const long full = peeked & ((2L * threshold) - 1L);
-        const int short_form = (low < maximum);
-        const long value = short_form ? low : ((full >= threshold) ? (full - maximum) : full);
+        const int short_form = (low < max);
+        const long value = short_form ? low : ((full >= threshold) ? (full - max) : full);
         ok = zstd_forward_skip(&stream, short_form ? (width - 1u) : width);
         const long count = value - 1L;
         remaining -= (count >= 0L) ? count : 1L;
@@ -154,7 +154,7 @@ int zstd_fse_describe(ZstdSpan *input, const ZstdTableKind *kind, long *counts, 
             width = zstd_high_bit((unsigned long long)remaining) + 1u;
             threshold = 1L << (width - 1u);
         }
-        measurement = ok && (remaining > 1L) && (symbol < kind->symbols);
+        measurement = ok && (remaining > 1L) && (symbol < type->symbols);
     }
     const unsigned long long consumed = (stream.position + 7ull) >> 3u;
     ok = ok && (remaining == 1L) && (consumed <= input->length);

@@ -133,7 +133,7 @@ static int check_projection_closes(void)
     // request that cannot be met changes no state. The undersize path used to zero `distinct` while
     // the null and zero-length paths left it alone. A caller could not distinguish an errored zero from a
     // measured zero. The realistic caller error is sizing the buffers by an expected class count
-    // and not by `length`, which hands over buffers correct for the field they had in mind.
+    // and not by `length`, which passes over buffers correct for the field they had in mind.
     {
         const size_t sentinel_count = 43981u;
         size_t planted = sentinel_count;
@@ -429,16 +429,16 @@ int main(void)
         free(corpus);
         return 1;
     }
-    for (CorpusKind kind = CORPUS_UNIFORM; kind <= CORPUS_PERIODIC; kind += 1)
+    for (CorpusKind type = CORPUS_UNIFORM; type <= CORPUS_PERIODIC; type += 1)
     {
-        bench_build_bytes(swept, STEER_CORPUS, kind, 0x5EEDu + (uint64_t)kind);
-        failed += grade_field(bench_corpus_name(kind), swept, STEER_CORPUS);
+        bench_build_bytes(swept, STEER_CORPUS, type, 0x5EEDu + (uint64_t)type);
+        failed += grade_field(bench_corpus_name(type), swept, STEER_CORPUS);
     }
     free(swept);
 
     /* A REAL NATURAL OBJECT AND NOT A GENERATOR. Everything above runs on bytes this file wrote,
      * which share whatever structure the generator happens to have. English prose is a field
-     * nobody here designed: its letter frequencies span three decades, it repeats at no fixed
+     * nobody here designed: its character frequencies span three decades, it repeats at no fixed
      * period, and its correlations between positions are real and not planted. The license
      * text is tracked in this repository. The grader needs no network and no dataset fetch and
      * runs from a fresh clone. */

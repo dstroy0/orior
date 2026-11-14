@@ -62,7 +62,7 @@
 }
 
 /* Colors no scheme sets apart, each a lever a theme, Preferences or the reader's stylesheet sets:
-   the ground of a page shown as its own author drew it and the light the page is shown in, its white
+   the ground of a page displayed as its own author drew it and the light the page is displayed in, its white
    turned down beside the window's dark grounds, the bar's highlight, the close button's ink under the
    pointer, the profile's ink on its bars, and Mermaid's diagrams as GitHub draws them, their slices,
    scores and lanes among them. */
@@ -353,7 +353,7 @@ select {
 
 /* The frame: the top bar, the tool strip down the left and the status bar along the foot, one ink
    around the work, and the work beside the strip: the views over the Debug and Terminal panels. A
-   margin of the frame stands between the work and the window's right edge. */
+   margin of the frame is between the work and the window's right edge. */
 .frame {
   position: relative;
   flex: 1;
@@ -371,7 +371,7 @@ select {
 }
 
 /* Each pane's corners, where its dividing lines meet another line: a small curve filled in the lines'
-   color, leaving one line and ending on the other. A pane lays them over itself and passes through the
+   color, leaving one line and ending on the other. A pane positions them over itself and passes through the
    pointer. A corner on a scrollbar, or on the window's own edge, stays square. */
 :root {
   --fillet-tl: radial-gradient(circle at 100% 100%, transparent 6.4px, var(--line) 7px);
@@ -425,7 +425,7 @@ select {
 .ed::after {
   --fillet-ed-tl: radial-gradient(circle at 100% 100%, var(--ed-bg) 6.4px, var(--line) 7px);
   --fillet-ed-bl: radial-gradient(circle at 100% 0, var(--ed-bg) 6.4px, var(--line) 7px);
-  /* the minimap's corners stand inside its line wherever its column has closed to, and past the
+  /* the minimap's corners are inside its line wherever its column has closed to, and past the
      editor's right edge once it has closed, at the editor's --map-corner */
   background-image: var(--fillet-ed-tl), var(--fillet-ed-bl), var(--fillet-ed-tl), var(--fillet-ed-bl);
   background-position: left top, left bottom, right var(--map-corner) top, right var(--map-corner) bottom;
@@ -449,12 +449,12 @@ select {
   background-position: left top, left bottom;
 }
 
-/* The work stands in four lines, drawn on the work itself so they move with it as it takes the
+/* The work is in four lines, drawn on the work itself so they move with it as it takes the
    window's edges and gives them back: the signal line along its top, a line as thin as the strip's
    down its left, a line in the link color mixed with 35% black, as thick as the signal line, down
    its right, and one in the same color, as thin as the left's, along its foot. Its four corners are
    curves of one radius, and the lines bend round each from one into the next. What the work holds
-   stands inside the lines, each side in by its line's width, so nothing it holds lies under a line. */
+   is inside the lines, each side in by its line's width, so nothing it holds lies under a line. */
 .statusbar {
   position: relative;
 }
@@ -479,9 +479,9 @@ select {
 /* The window's lattice runs on under the frame round the work, the bar, the strip and the status
    bar, and the frame is a pane of glass over it: a tint of the ink, as thick as the bar opacity in
    Preferences sets it, and a fine grain. Where the frame shows beside the work, in its margin at
-   the right and outside the curves of its corners, the frame lays the tint there alone, and the
+   the right and outside the curves of its corners, the frame positions the tint there alone, and the
    work, where it is empty, shows the lattice clear. The menu opacity in Preferences sets how much
-   of its own color every menu lays over what stands under it. */
+   of its own color every menu positions over what is under it. */
 :root {
   --bar-opacity: 30%;
   --strip-width: 44px;
@@ -491,7 +491,7 @@ select {
 }
 
 /* The panes, the tabs, the editor, the panels and the sheets are glass over the lattice as well: each
-   lays the colors it paints its ground in, the theme's, as thick as its own opacity in Preferences
+   positions the colors it paints its ground in, the theme's, as thick as its own opacity in Preferences
    sets it. Text drawn in a ground's color takes the theme's, whole. */
 :root {
   --pane-opacity: 100%;
@@ -603,7 +603,7 @@ select {
   scrollbar-width: none;
 }
 
-/* Under the system's own title bar, the bar's own controls of the window stand down. */
+/* Under the system's own title bar, the bar's own controls of the window are down. */
 body[data-system-title] .window-controls {
   display: none;
 }
@@ -677,7 +677,7 @@ body[data-strip-edge] .strip {
   transition: var(--claim-moves), transform 0.18s ease;
 }
 
-body[data-strip-edge] .strip.shown {
+body[data-strip-edge] .strip.displayed {
   transform: none;
 }
 
@@ -696,7 +696,7 @@ body[data-strip-edge] .strip-edge {
 }
 
 /* The claim: while the reader edits, the work takes the bar's row, the toolbar's, the strip's column
-   and the status bar's row, and the frame keeps its right gap on every side. Each part slides out of
+   and the status bar's row, and the frame retains its right gap on every side. Each part slides out of
    its edge and back on a rest in the gap there, which claim.js sets as the reveal. One number, the
    claim, runs from 0 to 1 and back on one curve, and every edge's place is a product of it: the
    frame's gap, the bar's and the toolbar's rise, the strip's and the status bar's leave, so no edge
@@ -729,7 +729,7 @@ body[data-strip-edge] .strip-edge {
   initial-value: 0;
 }
 
-/* How far down the controls stand from the bar's place while the bar is away, in bar heights: the
+/* How far down the controls are from the bar's place while the bar is away, in bar heights: the
    whole way in their tab, and part of it as their ghost. */
 @property --reveal-down {
   syntax: "<number>";
@@ -745,7 +745,7 @@ body[data-strip-edge] .strip-edge {
 }
 
 /* Inside the work, the tabs row and the editor's minimap each away while the claim holds and their
-   edge is not shown, 1 the whole way, on the same curve as the claim. */
+   edge is not displayed, 1 the whole way, on the same curve as the claim. */
 @property --tabs-away {
   syntax: "<number>";
   inherits: false;
@@ -759,7 +759,7 @@ body[data-strip-edge] .strip-edge {
 }
 
 /* An edge's room: 1 once the work has taken the room of the edge's part. A part comes in as a slat
-   (slat.js) over the work, the work standing where it stood and giving way round it, and only once the
+   (slat.js) over the work, the work located where it was and giving way round it, and only once the
    slat spans its edge, a slide later, does the work take its room and the text move over; going, the
    work takes the room back as the part goes. Until then the part's place in the page is given back by
    as much as it has come in less the room. */
@@ -808,7 +808,7 @@ body[data-claim][data-reveal="bottom"] .statusbar {
   transition: var(--claim-moves), --room-bottom var(--slide) ease var(--slide);
 }
 
-/* A part lying over the work stands above it. */
+/* A part lying over the work is above it. */
 body[data-claim][data-reveal="top"] .bar,
 body[data-claim][data-reveal="top"] .toolbar,
 body[data-claim][data-reveal="left"] .strip {
@@ -887,7 +887,7 @@ body[data-claim]:not([data-reveal="right"]) #mode-edit .editor.ed {
 }
 
 /* While the claim holds, each glass part comes in as a pane of its own, rounded as the work is and
-   standing in from the window's edges by the frame's gap. The corner at the top left, as wide as the
+   located in from the window's edges by the frame's gap. The corner at the top left, as wide as the
    strip and as tall as the bar, is the wordmark's: the bar comes in to its right, from the gap past it
    to the gap at the right, with the toolbar under it; the strip comes in under it, from the gap below
    it to the gap at the foot; and the status bar comes in along the foot, the gap on each side. */
@@ -908,7 +908,7 @@ body[data-claim]:not([data-reveal="right"]) #mode-edit .editor.ed {
   border-bottom-right-radius: 0;
 }
 
-/* The strip stands below the wordmark's corner however far the bar has come in. */
+/* The strip is below the wordmark's corner however far the bar has come in. */
 .strip {
   margin-top: calc(var(--claim) * (1 - var(--reveal-top)) * (var(--bar-height) + var(--frame-right)));
   margin-left: calc((-44px - var(--frame-right)) * var(--claim) * (1 - var(--reveal-left)));
@@ -923,13 +923,13 @@ body[data-claim]:not([data-reveal="right"]) #mode-edit .editor.ed {
   border-radius: calc(var(--claim) * 7px);
 }
 
-/* The wordmark lives at the top left, where the bar lays it out, and while the claim holds in the
+/* The wordmark lives at the top left, where the bar positions it out, and while the claim holds in the
    corner that is its own, the gap in from where it lives across and down. However the bar slides it
-   stays where it stands: it stands in the bar's row, its room there given up while the claim holds, so
+   stays where it is: it is in the bar's row, its room there given up while the claim holds, so
    nothing in the bar moves along it as the bar comes and goes, and is moved against the bar by as much
-   as the bar moves. It stands whole at the head of the bar or the strip while either is out, grown into
+   as the bar moves. It is whole at the head of the bar or the strip while either is out, grown into
    its corner as the work gives the corner up and shrunk from it as the work takes it back, so the two
-   never stand in one place; while both are away it is shrunk out toward the top left. */
+   never are in one place; while both are away it is shrunk out toward the top left. */
 .bar-mark {
   z-index: 61;
   transform-origin: 0 0;
@@ -949,10 +949,10 @@ body[data-claim][data-reveal="left"] .bar-mark {
 }
 
 /* While the claim holds, the controls stay in the bar's row, so nothing in the bar moves along it as
-   they come and go. With the bar away they stand where they stand in it while it is in, its height and
+   they come and go. With the bar away they are where they are in it while it is in, its height and
    the gap down from its place, as their tab, in a pane of glass of their own: part of the way and faint
    as their ghost while the pointer nears their corner, and the whole way on a rest there. The bar comes
-   back in under them where they stand, and as it goes they go with it. */
+   back in under them where they are, and as it goes they go with it. */
 body[data-claim] .window-controls {
   position: relative;
   z-index: 60;
@@ -998,7 +998,7 @@ body[data-claim][data-reveal="top"] .window-controls {
 /* A part that comes onto the work takes room the work gives up to it, as water takes room from oil:
    bend.js sets the work's outline round each part on it and draws the work's line along that outline,
    each stretch in the color and width of the edge it bends from. While it does, the line the work draws
-   on itself stands down. */
+   on itself is down. */
 .work[data-bent]::after {
   border-color: transparent;
 }
@@ -1155,7 +1155,7 @@ body[data-claim][data-reveal="top"] .window-controls {
   background: var(--ed-error);
 }
 
-/* The bell's dot stands a rung down from the signal, more than a third dimmer, since it waits in the
+/* The bell's dot is a rung down from the signal, more than a third dimmer, since it waits in the
    bar rather than calling from it. */
 .bar-tool.unread::after {
   background: color-mix(in srgb, var(--bar-signal) 55%, var(--ink));
@@ -1177,7 +1177,7 @@ body[data-claim][data-reveal="top"] .window-controls {
   stroke: none;
 }
 
-.icon-letter {
+.icon-character {
   font: italic 600 16px/1 var(--head);
 }
 
@@ -1437,7 +1437,7 @@ body[data-claim][data-reveal="top"] .window-controls {
 
 /* The machine a tree on another machine is on, quiet while its link is joined and marked while it is
    being joined or is not reached. */
-/* The memory readout keeps one width, four figures and the unit in tabular figures, so a change of
+/* The memory readout retains one width, four figures and the unit in tabular figures, so a change of
    figures moves nothing beside it. */
 #status-memory {
   display: inline-block;
@@ -1499,7 +1499,7 @@ body[data-claim][data-reveal="top"] .window-controls {
   display: none;
 }
 
-/* The notice and the press beside it that puts its kind away for good: one item of the bar, the
+/* The notice and the press beside it that puts its type away for good: one item of the bar, the
    press quiet until the pointer is on it. */
 .status-said-box {
   display: inline-flex;
@@ -1714,7 +1714,7 @@ body[data-view="run"] .statusbar .ed-status {
   position: relative;
 }
 
-/* The work and each view are grids that the tool windows dock in: the docks lay out their columns
+/* The work and each view are grids that the tool windows dock in: the docks arrange their columns
    and rows, the content in the middle and each docked window at its side. */
 .work {
   display: grid;
@@ -1735,7 +1735,7 @@ body[data-view="run"] .statusbar .ed-status {
 }
 
 /* A tool window docked at a side, with the sash on its inner edge that drags its width, or at the
-   foot its height. A panel of the work docked beside the views stands as tall as they do. */
+   foot its height. A panel of the work docked beside the views is as tall as they do. */
 [data-dock] {
   position: relative;
 }
@@ -2198,7 +2198,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   overflow: hidden;
 }
 
-/* The fuse along the foot of the output, burning while the run goes. The fuse and the ruler stand in
+/* The fuse along the foot of the output, burning while the run goes. The fuse and the ruler are in
    from the console's sides by the fuse's reach, and the fire's sparks and glow show whole at either
    end. */
 .console .fuse-box {
@@ -2348,10 +2348,10 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 .open-body h1 {
   margin: 0;
   font: 700 clamp(3rem, 7vw, 5.5rem) / 1 var(--head);
-  letter-spacing: -0.04em;
+  character-spacing: -0.04em;
 }
 
-/* The eye in the name stands in for the i. It keeps the drawing's proportions and its line weight,
+/* The eye in the name is in for the i. It retains the drawing's proportions and its line weight,
  * and its lids sit centered on the height of the o and the r. */
 .wordmark .eye-mark {
   width: 1.164em;
@@ -2373,9 +2373,9 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   fill: currentColor;
 }
 
-/* The name large on an empty view takes only its own width and stands as a column at the view's
-   middle: orior, the eye, tabula. The eye goes to the bar from where it stands; tabula fades in a
-   moment after the name stands, and the words show only while it stands. */
+/* The name large on an empty view takes only its own width and is as a column at the view's
+   middle: orior, the eye, tabula. The eye goes to the bar from where it is; tabula fades in a
+   moment after the name is, and the words show only while it is. */
 .empty-body .wordmark,
 .loading-body .wordmark,
 .open-body .wordmark {
@@ -2395,8 +2395,8 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   vertical-align: baseline;
 }
 
-/* tabula is cut into the ground the name stands on, as writing was cut into a tablet: its cuts lie
-   below the ground, the upper wall of each in shade and its lower lip catching the light. orior stands
+/* tabula is cut into the ground the name is on, as writing was cut into a tablet: its cuts lie
+   below the ground, the upper wall of each in shade and its lower lip catching the light. orior is
    on the ground in ink above it. */
 .wordmark-under {
   display: block;
@@ -2422,13 +2422,13 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   fill: currentColor;
 }
 
-.wordmark[data-standing] .wordmark-under {
+.wordmark[data-located] .wordmark-under {
   opacity: 1;
 }
 
-/* A large name is hidden until it stands, so no frame shows it before it does, and a heading the name is not
+/* A large name is hidden until it is, so no frame shows it before it does, and a heading the name is not
    set in yet, as the page loads, shows nothing. */
-.wordmark:not(.bar-mark):not([data-standing]),
+.wordmark:not(.bar-mark):not([data-located]),
 [data-wordmark]:not(.wordmark) {
   visibility: hidden;
 }
@@ -2443,11 +2443,11 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   pointer-events: none;
 }
 
-/* The name small at the left of the bar, shown once the large one has first reached it. */
+/* The name small at the left of the bar, displayed once the large one has first reached it. */
 .bar-mark {
   flex: none;
   font: 700 17px/1 var(--head);
-  letter-spacing: -0.03em;
+  character-spacing: -0.03em;
   color: var(--bar-mark);
   visibility: hidden;
 }
@@ -2466,7 +2466,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   border-radius: var(--radius);
 }
 
-/* The bar holds the eye alone, a quarter larger than it stands in the name. */
+/* The bar holds the eye alone, a quarter larger than it is in the name. */
 .bar-mark .eye-mark {
   width: calc(1.164em * 1.475);
   height: calc(1.15em * 1.475);
@@ -2474,8 +2474,8 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   vertical-align: middle;
 }
 
-/* The eye stands down and left of the place the bar's flow gives it, and the menu after it keeps
-   its own place; while the claim holds the eye stands in its corner, and its room in the bar, its
+/* The eye is down and left of the place the bar's flow gives it, and the menu after it retains
+   its own place; while the claim holds the eye is in its corner, and its room in the bar, its
    width and the gap after it, is given up. */
 .bar-mark {
   position: relative;
@@ -2752,7 +2752,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 }
 
 /* A file's changes side by side over the editor: the last commit's text on the left, the text as
-   it stands on the right, each change marked in the color the gutter marks it. */
+   it is on the right, each change marked in the color the gutter marks it. */
 .diff-view {
   position: absolute;
   inset: 0;
@@ -2924,7 +2924,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   background: color-mix(in srgb, var(--t5) 36%, transparent);
 }
 
-/* Review comments: a right line's number takes a press to leave one, and each stands under its line's
+/* Review comments: a right line's number takes a press to leave one, and each is under its line's
  * row beneath the right side, ruled in signal at its left edge, dimmed once resolved. */
 .diff-num.can-comment {
   cursor: pointer;
@@ -3121,7 +3121,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 
 /* The row of tabs above the editor holds each tab at its own height however many it holds. While it
    holds more than it shows, it grows down over the editor's top by its scrollbar's thickness, over the
-   slide, and the scrollbar stands in what it grew: the row keeps only the tabs' height in the desk, so
+   slide, and the scrollbar is in what it grew: the row retains only the tabs' height in the desk, so
    the editor never moves. Away in the claim, the row rises out of the desk's top whole, its band with
    it, fading as it goes, and the editor rises into its room. */
 .desk[data-tabs="row"] > .tabs {
@@ -3162,7 +3162,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   white-space: nowrap;
 }
 
-/* The current tab stands in the purple the fuse and the eye's plasma burn in: the plasma's dusk as its
+/* The current tab is in the purple the fuse and the eye's plasma burn in: the plasma's dusk as its
    ground, the fuse's fire as the line along its top and, two pixels wide so it reads, down its left. */
 .tab[aria-selected="true"] {
   background: var(--plasma-dusk);
@@ -3341,7 +3341,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   font-size: 1.1em;
 }
 
-/* An alert, its kind's color down its edge and on its title, as GitHub colors each kind. */
+/* An alert, its type's color down its edge and on its title, as GitHub colors each type. */
 .md-preview .markdown-alert {
   padding: 0.5rem 1rem;
   border-left: 0.25em solid var(--alert);
@@ -3532,7 +3532,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   font-size: 12px;
 }
 
-/* The place the cursor stands in the text, marked in the preview: a Markdown block, a diagram's
+/* The place the cursor is in the text, marked in the preview: a Markdown block, a diagram's
    nodes, a page's element outlined over its frame, and a LaTeX line's boxes on its pages. */
 .md-preview [data-line].here {
   outline: 1px solid color-mix(in srgb, var(--signal) 55%, transparent);
@@ -3547,8 +3547,8 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 
 /* A page of HTML, CSS or SVG fills the preview in a frame on the white a page is drawn on, that white
    turned down. */
-.md-preview:is([data-kind="html"], [data-kind="css"], [data-kind="svg"]),
-.desk[data-preview="alone"] > .md-preview:is([data-kind="html"], [data-kind="css"], [data-kind="svg"]) {
+.md-preview:is([data-type="html"], [data-type="css"], [data-type="svg"]),
+.desk[data-preview="alone"] > .md-preview:is([data-type="html"], [data-type="css"], [data-type="svg"]) {
   padding: 0;
   overflow: hidden;
 }
@@ -3575,8 +3575,8 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 }
 
 /* A LaTeX file's pages, white turned down on the deep ground, each as wide as the preview; the errors
-   of a make that failed stand over them as the pages scroll. */
-.md-preview[data-kind="latex"] {
+   of a make that failed are over them as the pages scroll. */
+.md-preview[data-type="latex"] {
   padding-top: 16px;
   background: var(--deep);
 }
@@ -3640,7 +3640,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 /* A file of requests' answers: the environment and Send over them as they scroll, the status in the
    theme's colors for one that went well, one that moved and one that failed, and the last answers
    under it. */
-.md-preview[data-kind="requests"] {
+.md-preview[data-type="requests"] {
   font-size: 13px;
 }
 
@@ -3768,7 +3768,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   background: var(--well);
 }
 
-.md-preview .rq-past.shown {
+.md-preview .rq-past.displayed {
   background: color-mix(in srgb, var(--signal) 12%, transparent);
   color: var(--fg);
 }
@@ -3785,7 +3785,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 }
 
 /* A list of which only the rows in sight and ahead are on the page, as rowlist.js draws it: each row
-   stands at its own place over the room every row would take, the first mount's gap counted in its
+   is at its own place over the room every row would take, the first mount's gap counted in its
    place. */
 .row-list {
   position: relative;
@@ -4056,7 +4056,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   text-decoration: underline;
 }
 
-.bridge-line.kind {
+.bridge-line.type {
   color: var(--fg-2);
 }
 
@@ -4121,7 +4121,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) calc(84px * (1 - var(--map-away)));
   transition: --map-away var(--slide) ease;
-  /* where the minimap's corners stand from the editor's right edge, an inherited property its ::after
+  /* where the minimap's corners are from the editor's right edge, an inherited property its ::after
      reads, as --map-away is registered not to inherit */
   --map-corner: calc(84px * (1 - var(--map-away)) - 8px);
   grid-template-rows: minmax(0, 1fr) auto;
@@ -4133,7 +4133,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   isolation: isolate;
 }
 
-/* The image a theme lays behind the editor, under its text, at the share the theme sets. */
+/* The image a theme positions behind the editor, under its text, at the share the theme sets. */
 .ed::before {
   content: "";
   position: absolute;
@@ -4214,11 +4214,11 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   bottom: -4px;
 }
 
-/* A bracket's pair colored by how deep it stands, each depth a color of its own: the first depth's hue
+/* A bracket's pair colored by how deep it is, each depth a color of its own: the first depth's hue
  * turned by the golden angle once for each depth, which never comes back to a hue it gave, at the
  * scheme's one lightness and chroma. A token whose pairs count depth is named by orior's side with the
- * depth it stands at last, and takes the classes t-depth and t-depth-<depth>, where the editor colors
- * bracket pairs. Each rule reads a class, never a class name's letters. */
+ * depth it is at last, and takes the classes t-depth and t-depth-<depth>, where the editor colors
+ * bracket pairs. Each rule reads a class, never a class name's characters. */
 .ed[data-brackets] .t-depth {
   color: oklch(var(--ed-bracket-lightness) var(--ed-bracket-chroma) calc(var(--ed-bracket-hue) + var(--depth) * 137.508));
 }
@@ -4381,7 +4381,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   white-space: pre;
 }
 
-/* The text's rows flow in blocks, each block placed where its first row stands (layer.js). */
+/* The text's rows flow in blocks, each block placed where its first row is (layer.js). */
 .ed-block {
   position: absolute;
   left: 0;
@@ -4422,7 +4422,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   background: var(--ed-guide);
 }
 
-/* Jump: over each place in sight that what was typed stands, the letter that puts the cursor there. */
+/* Jump: over each place in sight that what was typed is, the character that puts the cursor there. */
 .ed-jump-mark {
   position: fixed;
   z-index: 40;
@@ -4434,7 +4434,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   pointer-events: none;
 }
 
-/* The formatter's width: a line down the editor after the last column its lines keep to. */
+/* The formatter's width: a line down the editor after the last column its lines retain to. */
 .ed-margin {
   position: absolute;
   top: 0;
@@ -4554,7 +4554,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   animation: none;
 }
 
-/* Vim's keys: outside insert mode the caret is a block over its letter, the letter seen through it,
+/* Vim's keys: outside insert mode the caret is a block over its character, the character seen through it,
  * and / or ? asks what to look for along the editor's foot. */
 .ed[data-vim]:not([data-vim="insert"]) .ed-caret {
   opacity: 0.55;
@@ -4670,7 +4670,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   color: var(--ed-warning);
 }
 
-/* Tokens. Every class a grammar gives is t-<kind>, and t-<kind>-<part> beneath it. */
+/* Tokens. Every class a grammar gives is t-<type>, and t-<type>-<part> beneath it. */
 /* What is not drawn, drawn where the reader asks: a dot over each space, an arrow over each tab, a
  * mark after each line's end; and comments hidden, their text not drawn. */
 .ed-sp,
@@ -4711,12 +4711,12 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   color: var(--t-keyword);
 }
 
-/* A preprocessor directive is its own kind, not a keyword's purple: #include, #define, #ifdef and
+/* A preprocessor directive is its own type, not a keyword's purple: #include, #define, #ifdef and
    #endif read apart from if and return. */
 .t-keyword-directive {
   color: var(--t-directive);
 }
-/* The # is the category; the word after it is a kind of its own: the conditions, the definitions,
+/* The # is the category; the word after it is a type of its own: the conditions, the definitions,
    the includes. */
 .t-keyword-directive-condition {
   color: var(--t-keyword);
@@ -4757,11 +4757,11 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 .t-number-suffix {
   color: var(--t-type);
 }
-/* A bare name stands a step below the text's white, so the colored kinds read against it. */
+/* A bare name is a step below the text's white, so the colored types read against it. */
 .t-identifier {
   color: var(--t-identifier);
 }
-/* The names a grammar's roles tell apart take the colors of the kinds they are: a call and a function's declaration a
+/* The names a grammar's roles tell apart take the colors of the types they are: a call and a function's declaration a
    function's, a parameter a parameter's, a local a variable's, and a declared struct, enum or union a type's. */
 .t-identifier-call,
 .t-identifier-declaration-function {
@@ -4776,7 +4776,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 .t-identifier-declaration-class {
   color: var(--t-type);
 }
-/* The operators that reach memory, *, &, . and ->, every one an address at bottom, stand apart from
+/* The operators that reach memory, *, &, . and ->, every one an address at bottom, are apart from
    the arithmetic, logical and bitwise ones. */
 .t-operator-memory {
   color: var(--t-operator-memory);
@@ -5098,7 +5098,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   max-width: 12rem;
 }
 
-.ed-kind {
+.ed-type {
   flex: none;
   width: 0.55rem;
   height: 0.55rem;
@@ -5106,38 +5106,38 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   background: var(--t-keyword);
 }
 
-.ed-kind.k-type {
+.ed-type.k-type {
   background: var(--t-type);
 }
 
-.ed-kind.k-state {
+.ed-type.k-state {
   background: var(--t-type);
   border-radius: 50%;
 }
 
-.ed-kind.k-operator,
-.ed-kind.k-function {
+.ed-type.k-operator,
+.ed-type.k-function {
   background: var(--t-predefined);
 }
 
-.ed-kind.k-field {
+.ed-type.k-field {
   background: var(--t-attribute);
 }
 
-.ed-kind.k-variable {
+.ed-type.k-variable {
   background: var(--t-variable);
   border-radius: 50%;
 }
 
-.ed-kind.k-constant {
+.ed-type.k-constant {
   background: var(--t-number);
 }
 
-.ed-kind.k-snippet {
+.ed-type.k-snippet {
   background: var(--t-string);
 }
 
-.ed-kind.k-module {
+.ed-type.k-module {
   background: var(--t-tag);
 }
 
@@ -5491,7 +5491,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   border-left-color: var(--ed-warning);
 }
 
-.nb-merge-kind,
+.nb-merge-type,
 .nb-merge-label {
   font-size: 0.75rem;
   color: var(--fg-3);
@@ -5573,8 +5573,8 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 }
 
 /* A pane that takes the editor's room: the job list, the explorer, the definitions. Collapsed, its
- * inside slides up and toward the edge it stands at while the pane holds its room at --reserved, and the
- * room goes back to the editor in one step as the slide ends; shown again, it takes its room in one
+ * inside slides up and toward the edge it is at while the pane holds its room at --reserved, and the
+ * room goes back to the editor in one step as the slide ends; displayed again, it takes its room in one
  * step and its inside slides in. Only the pane's own area moves while it slides: a slide that moved
  * the editor too would draw all of it again on each frame. The pointer at that edge of the view
  * brings it back. */
@@ -5636,8 +5636,8 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   width: var(--reserved);
 }
 
-/* A pane slid away is not drawn: what is out of sight is neither laid out nor painted, and its
-   inside keeps what it holds for the slide back. */
+/* A pane slid away is not drawn: what is out of sight is neither arranged nor painted, and its
+   inside retains what it holds for the slide back. */
 .collapsible.collapsed:not(.sliding) > .side-inner {
   content-visibility: hidden;
 }
@@ -5661,7 +5661,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   height: var(--reserved);
 }
 
-/* A pane coming back stands where it collapsed to, its inside in place in it, while the editor gives
+/* A pane coming back is where it collapsed to, its inside in place in it, while the editor gives
    it its room. */
 .collapsible.arriving,
 .collapsible.arriving > .side-inner {
@@ -5850,7 +5850,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   max-height: calc(22px * 8 + 0.3rem);
 }
 
-/* A row out of sight is neither laid out nor painted, and keeps the height it had, 22 pixels until it
+/* A row out of sight is neither arranged nor painted, and retains the height it had, 22 pixels until it
    is first drawn; a row the scroll heads into is drawn ahead of it, as sight.js marks it. */
 .node,
 .open-row,
@@ -5922,7 +5922,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   color: var(--fg);
 }
 
-/* The folder files kept over the window from outside it would be copied into. */
+/* The folder files retained over the window from outside it would be copied into. */
 .node.drop-into {
   outline: 1px solid var(--signal);
   outline-offset: -1px;
@@ -5956,10 +5956,10 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   height: 100%;
 }
 
-/* A file's icon: its type's mark, or a page. Its capitals stand 98% as tall as the capitals of the name beside it:
+/* A file's icon: its type's mark, or a page. Its capitals are 98% as tall as the capitals of the name beside it:
    the size is taken off the row's cap height, and the code font is set so its own capitals are that tall. Where
    cap is unknown the mark is 98% of the row's 13px. Its box is two characters of its own font, as wide as the
-   widest mark, each mark centered in it, and a character's width stands between it and the name. */
+   widest mark, each mark centered in it, and a character's width is between it and the name. */
 .icon {
   flex: none;
   width: 2ch;
@@ -5968,7 +5968,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   font-size: 0.98cap;
   font-size-adjust: cap-height 1;
   text-align: center;
-  letter-spacing: -0.04em;
+  character-spacing: -0.04em;
 }
 
 /* A folder's icon, the folder's shape in its box, as tall as a mark's capitals and a little more. */
@@ -5983,7 +5983,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   height: 14px;
 }
 
-/* What git says of a row: the name and its letter in the state's color. */
+/* What git says of a row: the name and its character in the state's color. */
 .node .change {
   flex: none;
   margin-left: 0.5rem;
@@ -6361,7 +6361,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   display: none;
 }
 
-/* The Containers window, laid out as the Profile panel: its list at the left, each container or pod
+/* The Containers window, arranged as the Profile panel: its list at the left, each container or pod
    a row with its state's dot, and the logs or a command's output at the right. */
 .containers-body {
   flex: 1;
@@ -6489,13 +6489,13 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   pointer-events: none;
 }
 
-/* The Comms window, laid out as the Containers window: each part and each channel a row, a part's
+/* The Comms window, arranged as the Containers window: each part and each channel a row, a part's
    dot lit where none of what it said was refused, and a channel's last messages at the right. */
 .comms-part {
   cursor: default;
 }
 
-/* The Database window, laid out as the Containers window: the schema at the left, a level opened at a
+/* The Database window, arranged as the Containers window: the schema at the left, a level opened at a
    time, and at the right the head of what ran, the rows a statement gave in a grid that holds only
    the rows in view, each 22px high and set at its place in the spacer, and what the server said. */
 .database .profile-bar select {
@@ -6627,7 +6627,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   white-space: pre-wrap;
 }
 
-/* The status bar's connection of the file shown, marked while a transaction is open on it. */
+/* The status bar's connection of the file displayed, marked while a transaction is open on it. */
 .status-database {
   border: 0;
   padding: 0;
@@ -6855,7 +6855,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   color: var(--fail);
 }
 
-.debug-var-kind {
+.debug-var-type {
   margin-left: auto;
   padding-left: 0.6rem;
   color: var(--fg-3);
@@ -6885,15 +6885,15 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   user-select: text;
 }
 
-.debug-line[data-kind="stderr"] {
+.debug-line[data-type="stderr"] {
   color: var(--fail);
 }
 
-.debug-line[data-kind="console"] {
+.debug-line[data-type="console"] {
   color: var(--fg-3);
 }
 
-.debug-line[data-kind="input"] {
+.debug-line[data-type="input"] {
   color: var(--hover);
 }
 
@@ -7021,7 +7021,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   font: 12.5px var(--code);
 }
 
-.debug-kept-head {
+.debug-retained-head {
   margin-top: 0.4rem;
 }
 
@@ -7044,7 +7044,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   overflow-wrap: anywhere;
 }
 
-/* A value a name takes at or after the step stood at, in a recorded run's history, is dimmed; a row is
+/* A value a name takes at or after the step was at, in a recorded run's history, is dimmed; a row is
    pressed to go to it. */
 .debug-history tbody tr {
   cursor: pointer;
@@ -7112,7 +7112,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 }
 
 /* The terminal's strip: a tab for each shell, named by its folder, then New Terminal and Split; and
-   under it the shell shown, or two side by side, a line between them and the one the keys go to
+   under it the shell displayed, or two side by side, a line between them and the one the keys go to
    marked at its top. */
 .term-strip {
   flex: none;
@@ -7210,7 +7210,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 
 /* The explorer and the terminal share the editor's space: each says what it is in the negative space of
    the window's ink at half, its head and its sections' heads on it, and holds its text on the editor's
-   own ground, so text reads on one ground whichever of them it stands in, the backdrop between them the
+   own ground, so text reads on one ground whichever of them it is in, the backdrop between them the
    floor the eye expects. */
 .side.explorer,
 .term {
@@ -7312,9 +7312,9 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   outline: 0;
 }
 
-/* A popup menu: a panel lifted over the page, its keys set to the right in the code face. It stands
+/* A popup menu: a panel lifted over the page, its keys set to the right in the code face. It is
    absolute and not fixed: the page never scrolls and the two place it alike, and the web view draws
-   none of the editor's text under a fixed menu that crosses it. It stands above every panel that
+   none of the editor's text under a fixed menu that crosses it. It is above every panel that
    stays open, as the slow plugin's finder and a question of rights, and below a key's hint. */
 .menu {
   position: absolute;
@@ -7427,7 +7427,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 }
 
 /* Maven's settings: the POM's compiler's and Maven's own, each under its heading; one that is not set
-   here stands as text. */
+   here is as text. */
 .sheet-maven {
   max-height: 80vh;
   overflow: auto;
@@ -7807,7 +7807,7 @@ textarea.report-field {
 .sheet-about h2 {
   margin: 0;
   font: 700 1.6rem var(--head);
-  letter-spacing: -0.02em;
+  character-spacing: -0.02em;
 }
 
 .sheet-about p {
@@ -7897,7 +7897,7 @@ textarea.report-field {
 }
 
 /* The quick open: a field along the top of the window over its rows, what matched marked in signal,
- * a row's folder or kind after it, and its keys to the right. */
+ * a row's folder or type after it, and its keys to the right. */
 .quick {
   position: fixed;
   z-index: 60;
@@ -7961,7 +7961,7 @@ textarea.report-field {
   cursor: default;
 }
 
-/* A heading over one kind of row in Search Everywhere. */
+/* A heading over one type of row in Search Everywhere. */
 .quick-row.heading {
   min-height: 0;
   margin-top: 0.35rem;
@@ -7998,7 +7998,7 @@ textarea.report-field {
   font-weight: 600;
 }
 
-/* A list's typed search: the letters of each match in signal, as Go to File marks them, on the match
+/* A list's typed search: the characters of each match in signal, as Go to File marks them, on the match
    color, and what was typed over the list's top right, in the fail color where nothing matches. */
 ::highlight(list-typed) {
   color: var(--signal);
@@ -8505,7 +8505,7 @@ textarea.report-field {
   outline-offset: -1px;
 }
 
-/* Sticky scroll: the lines that open each region the top of the editor is inside, kept along its
+/* Sticky scroll: the lines that open each region the top of the editor is inside, retained along its
  * top, the deepest last, over a rule. */
 .ed-sticky {
   position: absolute;
@@ -8702,7 +8702,7 @@ textarea.report-field {
 }
 
 /* The theme's image behind the editor, a small picture of it beside its controls, and the theme's
-   icons of files, each a row of its mark, its pattern, its mark's letters, its color and its cross. */
+   icons of files, each a row of its mark, its pattern, its mark's characters, its color and its cross. */
 .prefs-image {
   align-items: center;
   margin-top: 0.6rem;
@@ -8748,7 +8748,7 @@ textarea.report-field {
   margin-bottom: 0.3rem;
 }
 
-.prefs-icon-shown {
+.prefs-icon-displayed {
   text-align: center;
   font: 600 12px var(--code);
 }
@@ -8941,7 +8941,7 @@ textarea.report-field {
   background: color-mix(in srgb, var(--ed-added) 14%, transparent);
 }
 
-/* A peek of code: its places in a list beside the lines of the one shown, in an editor of its own
+/* A peek of code: its places in a list beside the lines of the one displayed, in an editor of its own
    with no map, the line down its left the theme's signal where a change's peek has the change's. */
 .code-peek {
   height: 18rem;
@@ -9275,7 +9275,7 @@ textarea.report-field {
   font-weight: 400;
 }
 
-.cv-kind,
+.cv-type,
 .cv-path,
 .cv-calls {
   color: var(--fg-3);
@@ -9357,7 +9357,7 @@ textarea.report-field {
 }
 
 /* What plugins draw: a mark in the gutter and its word after the line's end in the color of its
-   kind, an overlay of text under a line, panels of their own down the window's right side, a badge
+   type, an overlay of text under a line, panels of their own down the window's right side, a badge
    on the top bar and a label on a tab. */
 .ed-plugin {
   display: inline-block;
@@ -9502,7 +9502,7 @@ textarea.report-field {
   display: none;
 }
 
-/* The tree's own code kept back until the reader trusts it, in the bar's signal. */
+/* The tree's own code retained back until the reader trusts it, in the bar's signal. */
 .status-trust {
   border: 0;
   padding: 0;
@@ -9577,7 +9577,7 @@ textarea.report-field {
 }
 
 /* Preferences, Settings on Every Machine: the file or folder and its buttons on one line, what a
-   taking would change a file at a time with settings.json a setting at a time, and the takings kept,
+   taking would change a file at a time with settings.json a setting at a time, and the takings retained,
    each with its Undo. */
 .carry-line .carry-place {
   flex: 1 1 auto;
@@ -9641,7 +9641,7 @@ textarea.report-field {
 }
 
 /* Preferences, Settings in force: each setting a row of its key, its value and the file it comes
-   from, the files it stands over after it, and what the files could not say under them. */
+   from, the files it is over after it, and what the files could not say under them. */
 .prefs-force-files {
   display: flex;
   gap: 0.5rem;
@@ -9775,7 +9775,7 @@ textarea.report-field {
   max-width: 6rem;
 }
 
-/* The patterns that keep the explorer, the search and the watching of files from files: a list for
+/* The patterns that retain the explorer, the search and the watching of files from files: a list for
  * each, side by side under the heading where the sheet is wide enough. */
 .prefs-patterns {
   display: grid;
@@ -10384,7 +10384,7 @@ textarea.report-field {
   color: var(--fg-2);
 }
 
-/* While the window's frame is kept, every animation of the page holds and no transition runs. */
+/* While the window's frame is retained, every animation of the page holds and no transition runs. */
 .still *,
 .still *::before,
 .still *::after {
@@ -10395,7 +10395,7 @@ textarea.report-field {
 /* A protocol run's line in place of the fuse box and the ruler: the pass's course as a rail of nodes
    the fuse runs through, a dot on the rail for each with its name and its count beneath. The fire
    walks the rail from node to node as the run reaches them. A node reached is filled and lit, the one
-   under way ringed in fire, one ahead a hollow ring of ash. The ends stand inside the box, their names
+   under way ringed in fire, one ahead a hollow ring of ash. The ends are inside the box, their names
    set in from the edge. Pressing a node shows what was placed there in place of the console. */
 .console .protocol-line {
   position: relative;
@@ -10435,7 +10435,7 @@ textarea.report-field {
   background: none;
   color: var(--fg-3);
   font: 500 11px/1.15 var(--head);
-  letter-spacing: 0.01em;
+  character-spacing: 0.01em;
 }
 
 .console .protocol-node.first {

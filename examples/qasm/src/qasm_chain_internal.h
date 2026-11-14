@@ -12,8 +12,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define QASM_CHECK(condition_, evacaddr_, error_, kind_)                                                               \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_QASM, (unsigned int)__LINE__, (const void *)(evacaddr_),   \
+#define QASM_CHECK(condition_, evacaddr_, error_, type_)                                                               \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_QASM, (unsigned int)__LINE__, (const void *)(evacaddr_),   \
                        (error_))
 
 #define QASM_MATRIX_EMPTY {NULL, 0u, 0u, NULL}

@@ -1,6 +1,6 @@
 """The known-answer test for the hashrate instrument: does it see 2021?
 
-An instrument that has never been shown to detect a real event cannot be believed when it reports
+An instrument that has never been displayed to detect a real event cannot be believed when it reports
 none. The recent corpus flagged zero hashrate excursions in 48 days, and that negative is worth
 nothing until the same code is pointed at an event everyone already knows the answer to.
 
@@ -20,8 +20,8 @@ place. Hashrate is difficulty over interval, and that is computed here.
 
 THE SECOND TEST, WHICH IS HARDER
 
-The migration moved hashrate from about 105 degrees east to about 100 west, most of the way around
-the planet. If the daily cycle measures where miners are, its phase has to move by most of twelve
+The migration moved hashrate from about 105 degrees east to about 100 west, the majority of the way around
+the planet. If the daily cycle measures where miners are, its phase has to move by the majority of twelve
 hours across 2021. A cycle that stays put while the miners demonstrably moved is not measuring
 miners, and that would retire the longitude reading instead of supporting it.
 
@@ -182,7 +182,7 @@ def main():
     print("=" * 76)
     print()
     print("  Hashrate moved from roughly 105 east to roughly 100 west: a cycle that measures")
-    print("  where miners are must shift its trough by most of twelve hours. A cycle that does not")
+    print("  where miners are must shift its trough by the majority of twelve hours. A cycle that does not")
     print("  move retires the longitude reading.")
     print()
     third = count // 3

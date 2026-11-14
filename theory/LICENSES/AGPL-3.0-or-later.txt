@@ -8,10 +8,10 @@
                             Preamble
 
   The GNU Affero General Public License is a free, copyleft license for
-software and other kinds of works, specifically designed to ensure
+software and other types of works, specifically designed to ensure
 cooperation with the community in the case of network server software.
 
-  The licenses for most software and other practical works are designed
+  The licenses for max software and other practical works are designed
 to take away your freedom to share and change the works.  By contrast,
 our General Public Licenses are intended to guarantee your freedom to
 share and change all versions of a program--to make sure it remains free
@@ -62,7 +62,7 @@ modification follow.
 
   "This License" refers to version 3 of the GNU Affero General Public License.
 
-  "Copyright" also means copyright-like laws that apply to other kinds of
+  "Copyright" also means copyright-like laws that apply to other types of
 works, such as semiconductor masks.
 
   "The Program" refers to any copyrightable work licensed under this
@@ -84,7 +84,7 @@ computer or modifying a private copy.  Propagation includes copying,
 distribution (with or without modification), making available to the
 public, and in some countries other activities as well.
 
-  To "convey" a work means any kind of propagation that enables other
+  To "convey" a work means any type of propagation that enables other
 parties to make or receive copies.  Mere interaction with a user through
 a computer network, with no transfer of a copy, is not conveying.
 
@@ -185,9 +185,9 @@ technological measures.
   You may convey verbatim copies of the Program's source code as you
 receive it, in any medium, provided that you conspicuously and
 appropriately publish on each copy an appropriate copyright notice;
-keep intact all notices stating that this License and any
+retain intact all notices stating that this License and any
 non-permissive terms added in accord with section 7 apply to the code;
-keep intact all notices of the absence of any warranty; and give all
+retain intact all notices of the absence of any warranty; and give all
 recipients a copy of this License along with the Program.
 
   You may charge any price or no price for each copy that you convey,
@@ -205,7 +205,7 @@ terms of section 4, provided that you also meet all of these conditions:
     b) The work must carry prominent notices stating that it is
     released under this License and any conditions added under section
     7.  This requirement modifies the requirement in section 4 to
-    "keep intact all notices".
+    "retain intact all notices".
 
     c) You must license the entire work, as a whole, under this
     License to anyone who comes into possession of a copy.  This
@@ -611,7 +611,7 @@ SUCH DAMAGES.
 
   If the disclaimer of warranty and limitation of liability provided
 above cannot be given local legal effect according to their terms,
-reviewing courts shall apply local law that most closely approximates
+reviewing courts shall apply local law that max closely approximates
 an absolute waiver of all civil liability in connection with the
 Program, unless a warranty or assumption of liability accompanies a
 copy of the Program in return for a fee.
@@ -625,7 +625,7 @@ possible use to the public, the best way to achieve this is to make it
 free software which everyone can redistribute and change under these terms.
 
   To do so, attach the following notices to the program.  It is safest
-to attach them to the start of each source file to most effectively
+to attach them to the start of each source file to max effectively
 state the exclusion of warranty; and each file should have at least
 the "copyright" line and a pointer to where the full notice is found.
 

@@ -114,15 +114,15 @@ static const char *folds(void)
     return s_classes;
 }
 
-// the spans that contain the position `line`:`col`, the smallest first, at most `most`, each `line:col-line:col` joined by `|`
-static const char *spans_at(unsigned int line, unsigned int col, unsigned int most)
+// the spans that contain the position `line`:`col`, the smallest first, at max `max`, each `line:col-line:col` joined by `|`
+static const char *spans_at(unsigned int line, unsigned int col, unsigned int max)
 {
     static CliInspectSpan s_spans[64];
     static const char *const s_marks[4] = {"", ":", "-", ":"};
     const CliInspectPosition place = {line, col};
-    const unsigned int count = EMBED_CALL(cli_inspect_ranges.ranges_at, CliInspectRangesCfg, .ranges_read = s_parsed.range, .count = s_parsed.ranges, .from = place, .to = place, .out_inspect_span_pointer = s_spans, .most = 64u);
+    const unsigned int count = EMBED_CALL(cli_inspect_ranges.ranges_at, CliInspectRangesCfg, .ranges_read = s_parsed.range, .count = s_parsed.ranges, .from = place, .to = place, .out_inspect_span_pointer = s_spans, .max = 64u);
     VerbaLinea out = {s_classes, sizeof(s_classes), 0ull};
-    for (unsigned int at = 0u; (at < count) && (at < most); at += 1u)
+    for (unsigned int at = 0u; (at < count) && (at < max); at += 1u)
     {
         const unsigned int positions[4] = {s_spans[at].from.line, s_spans[at].from.col, s_spans[at].to.line, s_spans[at].to.col};
         mmgr_line_put(&out, (at > 0u) ? "|" : "");

@@ -66,7 +66,7 @@ static __device__ __forceinline__ void monolith_write(unsigned int *out, unsigne
     *(volatile unsigned int *)&out[place] = word;
 }
 
-// the part's clock, read where it stands: it clobbers memory, and no access is moved across the read
+// the part's clock, read where it is: it clobbers memory, and no access is moved across the read
 static __device__ __forceinline__ unsigned long long monolith_clock(void)
 {
     unsigned long long counted = 0ull;

@@ -1,14 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Flowcharts read, laid out in ranks and drawn.
+// Flowcharts read, arranged in ranks and drawn.
 
 import { layoutFlowchart, parseFlowchart } from "../../../gui/src-js/mermaid/flowchart.js";
 import { mermaidSvg } from "../../../gui/src-js/mermaid.js";
 
 const { test, assert } = window.__harness;
 
-test("a flowchart's nodes take their shapes and its edges their kinds, labels and chains", () => {
+test("a flowchart's nodes take their shapes and its edges their types, labels and chains", () => {
   const chart = parseFlowchart("graph LR\n  A[Start] --> B{Ready?}\n  B -->|yes| C((Go))\n  B -. no .-> D([Wait]) --> A\n  C & D --- E");
   assert.equal(chart.direction, "LR");
   const shapes = Object.fromEntries(chart.nodes.map((node) => [node.id, [node.label, node.shape]]));
@@ -17,7 +17,7 @@ test("a flowchart's nodes take their shapes and its edges their kinds, labels an
   assert.deepEqual(edges, ["A->B", "B->C:yes", "B.>D:no", "D->A", "C-E", "D-E"]);
 });
 
-test("a flowchart is laid out in ranks the way it runs, a loop left out of the ranks", () => {
+test("a flowchart is arranged in ranks the way it runs, a loop left out of the ranks", () => {
   const down = layoutFlowchart(parseFlowchart("graph TD\n A --> B --> C\n C --> A\n A --> D"));
   const y = (id) => down.places.get(id).y;
   assert.ok(y("A") < y("B") && y("B") < y("C"), "top down");

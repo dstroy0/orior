@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // keys.h: what a key sends a shell, as an xterm sends it: the cursor keys, plain or in the application mode, with the
 // modifiers in their parameter; Enter, Backspace, Tab, Escape, Insert, Delete, the page keys and F1 to F12, Alt
-// putting an escape before them; Control with a letter or one of @ [ \ ] ^ _ its control letter; and Alt with a letter
-// or a sign its escape and the letter. A letter or a sign alone is text typed, which reaches the shell as typed
+// putting an escape before them; Control with a character or one of @ [ \ ] ^ _ its control character; and Alt with a character
+// or a sign its escape and the character. A character or a sign alone is text typed, which reaches the shell as typed
 // (keys.c)
 #ifndef CLI_TERMINAL_KEYS_H
 #define CLI_TERMINAL_KEYS_H

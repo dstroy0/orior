@@ -6,7 +6,7 @@
 #include "git_internal.h"
 
 // the folders a search for the tree's repositories does not go into, those a build or a package manager fills; how many
-// folders deep under the tree it goes; the most folders it queues to look in; and the folders and repositories its
+// folders deep under the tree it goes; the max folders it queues to look in; and the folders and repositories its
 // lists are taken with
 static const char *const s_not_searched[6] = {"node_modules", "target", "build", "dist", "__pycache__", "venv"};
 

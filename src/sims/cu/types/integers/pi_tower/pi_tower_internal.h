@@ -30,7 +30,7 @@
 // The precision follows the largest, P = 3 n + 64 bits rounded up to a word and at least PI_TOWER_BITS, and a build
 // whose exact width cannot represent 3 (P + PI_TOWER_GUARD) + 64 bits errors on it by name (SIM_EXACT_LIMBS sets the
 // width). The arc. Roll the boundary into a cylinder whose cross-section is our disk: the turn is the helix of radius 1
-// / (2 pi) rising 1 / pi a turn, and it pierces our disk at the marks {n pi}. Its bending plane stands at the angle phi
+// / (2 pi) rising 1 / pi a turn, and it pierces our disk at the marks {n pi}. Its bending plane is at the angle phi
 // = arctan(1 / pi) to our disk, and the ratio of its torsion to its curvature is tan phi (Lancret, 1806).
 // 7. In Q(pi), where pi is a free variable because it is transcendental (Lindemann, 1882), the helix's Frenet frame
 //    taken from its derivatives at the four quarter turns gives curvature 2 pi^3 / (pi^2 + 1), torsion
@@ -44,17 +44,17 @@
 //    pi = (2j + 1) / (2i + 1), and a corner would need pi (i + 1) whole: each tie is pi rational. Walked from the
 //    integer turn over 2^PI_TOWER_BILLIARD_BITS columns, every floor decided with the turn's certainty: no wall hit is
 //    a corner, no segment's L is zero, and the walk's record near-corners are exactly the q_j. Measured: how often the
-//    lead changes hands, the longest lead, each side's share, and the nearest tie.
+//    lead changes passes, the longest lead, each side's share, and the nearest tie.
 // 11. The residue: on every floor with q_j to 2^PI_TOWER_RESIDUE_BITS, pi's first q_j steps have the whole parts of the
-//    permutation n -> n p_j mod q_j, and at step q_j pi stands delta_j = q_j pi - (3 q_j + p_j) off the whole.
+//    permutation n -> n p_j mod q_j, and at step q_j pi is delta_j = q_j pi - (3 q_j + p_j) off the whole.
 // 12. The golden helix: the residues flip sign every floor, q_j >= F_(j+1), |delta_j| < 1 / q_(j+1), and the shrink
 //    |delta_j| / |delta_(j-1)| is above 1/2 exactly where a_(j+1) = 1. Measured: each shrink against the golden 1/phi,
 //    and the growth a floor q_J^(1/J) against phi.
 // The tower's deepest turns, on the engine. The turn at depth n is bit n of alpha, pi's fraction, and the BBP
-// formula (D. H. Bailey, P. B. Borwein and S. Plouffe, Math. Comp. 66, 1997) reads it where it stands, without the bits
+// formula (D. H. Bailey, P. B. Borwein and S. Plouffe, Math. Comp. 66, 1997) reads it where it is, without the bits
 // before it: {16^d pi} = {4 S_1 - 2 S_4 - S_5 - S_6}, S_j = sum over i of 16^(d - i) / (8 i + j). Each term is a lane
 // of the engine's record machine, its power shrunk mod 8 i + j at every square; keymath sizes every register, the
-// scheduler lays them out, and tessera admits the job.
+// scheduler positions them out, and tessera admits the job.
 // 13. On the engine, pi's first 64 bits after the point are 0x243F6A8885A308D3, and its hex digits at Bailey's
 //     published positions are his.
 // 14. The engine's cell at the deepest resolution requested, its low 64 bits, is the exact turn's.
@@ -97,7 +97,7 @@
 // the searched turn's records reach PI_TOWER_RECORD_MARGIN bits past the largest resolution
 #define PI_TOWER_RECORD_MARGIN 12u
 
-// the residue check walks every floor whose q_j is at most 2^PI_TOWER_RESIDUE_BITS
+// the residue check walks every floor whose q_j is at max 2^PI_TOWER_RESIDUE_BITS
 #define PI_TOWER_RESIDUE_BITS 21u
 
 #define PI_TOWER_WORDS (PI_TOWER_BITS / 64u)
@@ -120,7 +120,7 @@
 // past them are checked against the next window's first
 #define PI_TOWER_SEGMENT_STEP ((PI_TOWER_BBP_CERTIFIED / 4u) - 4u)
 
-// the hex digits a segment reads when the request names none, and the most it may name
+// the hex digits a segment reads when the request names none, and the max it may name
 #define PI_TOWER_SEGMENT_DIGITS 1000u
 
 #define PI_TOWER_SEGMENT_MAX 65536u
@@ -142,7 +142,7 @@ typedef struct
     PiWide low;
 } PiTowerLevel;
 
-// a step at which the turn sets a record, and where it stands then
+// a step at which the turn sets a record, and where it is then
 typedef struct
 {
     PiWide step;
@@ -233,7 +233,7 @@ void pi_tower_residues(SimResults *results, const PiWide &walk_alpha, const std:
 void pi_tower_golden(SimResults *results, const PiTowerTurn &turn, const std::vector<PiWide> &denominators,
                      const std::vector<PiWide> &floors);
 
-// one record program on the engine: the key keymath encodes, the layout the scheduler lays out, and the record cycle
+// one record program on the engine: the key keymath encodes, the layout the scheduler arranges, and the record cycle
 // loads
 typedef struct
 {

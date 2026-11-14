@@ -10,7 +10,7 @@
 # for the speaker, the language and the year, because the paper states all three. The other 143
 # state those things too, in prose nobody has read.
 #
-# So what comes out of here is a different kind of thing and is kept apart from the nine. It goes
+# So what comes out of here is a different type of thing and is retained apart from the nine. It goes
 # to build/corpora/sifted/, one file per paper, and it carries no speaker and no language name.
 # Guessing either from a filename would put a name on somebody's words on no evidence, and the
 # rest of this directory exists to avoid exactly that.
@@ -145,7 +145,7 @@ def main():
     )
 
     papers = 0
-    kept = 0
+    retained = 0
     residue = 0
     named = 0
     index = []
@@ -160,7 +160,7 @@ def main():
         if not held:
             continue
         papers += 1
-        kept += sum(1 for one in held if one[1] == "language")
+        retained += sum(1 for one in held if one[1] == "language")
         residue += sum(1 for one in held if one[1] == "residue")
         # The language the paper names in its own title and abstract. Read instead of assigned: a paper
         # that names one language and no other is attributed to it, and one that names several is
@@ -255,7 +255,7 @@ def main():
     out.write("\n  %d papers written to %s\n" % (papers, os.path.relpath(SIFTED, ROOT)))
     out.write(
         "  %d lines nearer the language, %d residue for a person to look at\n"
-        % (kept, residue)
+        % (retained, residue)
     )
     out.write(
         "  %d of the %d carry the language their own front matter names\n"
@@ -283,7 +283,7 @@ def main():
                 "# No speaker is named and no line was read against a layout. This is\n"
             )
             handle.write(
-                "# not the same tier as the nine hand-read corpora and is kept apart.\n"
+                "# not the same tier as the nine hand-read corpora and is retained apart.\n"
             )
             handle.write("# Each line carries the paper and page it came from.\n")
             for text, stem, page in held:

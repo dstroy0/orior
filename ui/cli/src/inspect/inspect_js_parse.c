@@ -5,7 +5,7 @@
 // declared and each class from its first word to its closing brace
 #include "inspect_js.h"
 
-// the most functions a parse records the parameters of, and the most parameters it records
+// the max functions a parse records the parameters of, and the max parameters it records
 #define CLI_JS_SCOPES (CLI_INSPECT_TOKENS / 8u)
 #define CLI_JS_PARAMS (CLI_INSPECT_TOKENS / 4u)
 

@@ -10,14 +10,14 @@
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_the_connections_read_with_none_chosen_stand_as_one_sentence(void);
+extern void test_the_connections_read_with_none_chosen_are_as_one_sentence(void);
 extern void test_the_chosen_connection_is_not_connected_until_connect_opens_its_schema(void);
 extern void test_a_node_pressed_reads_its_level_once_and_a_second_press_closes_it(void);
 extern void test_commit_and_roll_back_act_only_while_a_transaction_is_open(void);
 extern void test_a_delete_of_every_row_asks_first_and_runs_only_on_run_it(void);
-extern void test_a_refused_connection_stands_as_its_failure(void);
+extern void test_a_refused_connection_is_as_its_failure(void);
 extern void test_a_nodes_menu_and_the_panes_own_are_the_catalogs_commands(void);
-extern void test_show_its_first_rows_hands_the_tables_rows_to_the_grid(void);
+extern void test_show_its_first_rows_passes_the_tables_rows_to_the_grid(void);
 extern void test_the_form_adds_a_connection_and_removes_it(void);
 extern void test_disconnect_closes_the_connection_and_lets_its_result_go(void);
 
@@ -81,14 +81,14 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\db_pane\\test_db_pane\\test_db_pane.c");
-  run_test(test_the_connections_read_with_none_chosen_stand_as_one_sentence, "test_the_connections_read_with_none_chosen_stand_as_one_sentence", 133);
+  run_test(test_the_connections_read_with_none_chosen_are_as_one_sentence, "test_the_connections_read_with_none_chosen_are_as_one_sentence", 133);
   run_test(test_the_chosen_connection_is_not_connected_until_connect_opens_its_schema, "test_the_chosen_connection_is_not_connected_until_connect_opens_its_schema", 144);
   run_test(test_a_node_pressed_reads_its_level_once_and_a_second_press_closes_it, "test_a_node_pressed_reads_its_level_once_and_a_second_press_closes_it", 166);
   run_test(test_commit_and_roll_back_act_only_while_a_transaction_is_open, "test_commit_and_roll_back_act_only_while_a_transaction_is_open", 195);
   run_test(test_a_delete_of_every_row_asks_first_and_runs_only_on_run_it, "test_a_delete_of_every_row_asks_first_and_runs_only_on_run_it", 211);
-  run_test(test_a_refused_connection_stands_as_its_failure, "test_a_refused_connection_stands_as_its_failure", 237);
+  run_test(test_a_refused_connection_is_as_its_failure, "test_a_refused_connection_is_as_its_failure", 237);
   run_test(test_a_nodes_menu_and_the_panes_own_are_the_catalogs_commands, "test_a_nodes_menu_and_the_panes_own_are_the_catalogs_commands", 249);
-  run_test(test_show_its_first_rows_hands_the_tables_rows_to_the_grid, "test_show_its_first_rows_hands_the_tables_rows_to_the_grid", 276);
+  run_test(test_show_its_first_rows_passes_the_tables_rows_to_the_grid, "test_show_its_first_rows_passes_the_tables_rows_to_the_grid", 276);
   run_test(test_the_form_adds_a_connection_and_removes_it, "test_the_form_adds_a_connection_and_removes_it", 287);
   run_test(test_disconnect_closes_the_connection_and_lets_its_result_go, "test_disconnect_closes_the_connection_and_lets_its_result_go", 330);
 

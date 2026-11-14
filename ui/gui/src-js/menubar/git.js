@@ -97,10 +97,10 @@ export async function stashChanges(given) {
   }
 }
 
-// A stash brought back and kept, brought back and dropped, or thrown away.
+// A stash brought back and retained, brought back and dropped, or thrown away.
 export const stashDo = (act, name) => gitSays(`${act[0].toUpperCase()}${act.slice(1)} ${name}`, () => invoke("git_stash", { act, name, repo: editing().repo() }));
 
-// Git, Stashes: each stash, the newest first, to bring back and keep, bring back and drop, or throw
+// Git, Stashes: each stash, the newest first, to bring back and retain, bring back and drop, or throw
 // away.
 export async function showStashes() {
   const list = await invoke("git_stashes", { repo: editing().repo() }).catch(() => []);

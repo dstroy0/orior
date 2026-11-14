@@ -62,7 +62,7 @@ int kqr_identity_read(const char *text, KqrIdentity *identity)
     {
         return 0;
     }
-    // the five counts are each at most what an unsigned int represents, as read above
+    // the five counts are each at max what an unsigned int represents, as read above
     identity->code = value[0];
     identity->registers = (unsigned int)value[1];
     identity->threads = (unsigned int)value[2];
@@ -241,7 +241,7 @@ int kqr_sample_of(const KqrRecord *record, const KrepRecord *entry, KqrSample *s
         sample->nanoseconds = (entry->count > KQR_QUERY_WORDS) ? entry->word[KQR_QUERY_WORDS] : 0ull;
         sample->launched = (entry->count >= (KQR_QUERY_WORDS + 3u)) ? 1 : 0;
         sample->least = sample->launched ? entry->word[KQR_QUERY_WORDS + 1u] : 0ull;
-        sample->most = sample->launched ? entry->word[KQR_QUERY_WORDS + 2u] : 0ull;
+        sample->max = sample->launched ? entry->word[KQR_QUERY_WORDS + 2u] : 0ull;
     }
     else if (entry->count > KQR_QUERY_WORDS)
     {
@@ -262,7 +262,7 @@ unsigned int kqr_sample_words(KqrRecord *record, const KqrSample *sample, unsign
         if (sample->launched)
         {
             words[count] = sample->least;
-            words[count + 1u] = sample->most;
+            words[count + 1u] = sample->max;
             count += 2u;
         }
     }
@@ -274,7 +274,7 @@ unsigned int kqr_sample_words(KqrRecord *record, const KqrSample *sample, unsign
     return count;
 }
 
-// every bucket, sample and the pairs' start that stands at the record `from` or past it moved `by` records on
+// every bucket, sample and the pairs' start that is at the record `from` or past it moved `by` records on
 void kqr_shifted(KqrRecord *record, unsigned int from, unsigned int by)
 {
     for (unsigned int at = 0u; at < KQR_SLOTS; at += 1u)

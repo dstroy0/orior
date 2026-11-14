@@ -170,13 +170,13 @@ void psi_exhaustive(SimResults *results, const PsiCase *psi_case, const PsiScale
 {
     VerbaLinea *const line = &results->line;
     const unsigned long long base = psi_case->base;
-    unsigned long long maximum = 1ull;
+    unsigned long long max = 1ull;
     for (unsigned int level = 0u; level < PSI_EXHAUSTIVE; level += 1u)
     {
-        maximum *= base;
+        max *= base;
     }
-    OriorExactInteger *below = (OriorExactInteger *)malloc((size_t)(maximum + 1ull) * sizeof(OriorExactInteger));
-    OriorExactInteger *table = (OriorExactInteger *)malloc((size_t)(maximum + 1ull) * sizeof(OriorExactInteger));
+    OriorExactInteger *below = (OriorExactInteger *)malloc((size_t)(max + 1ull) * sizeof(OriorExactInteger));
+    OriorExactInteger *table = (OriorExactInteger *)malloc((size_t)(max + 1ull) * sizeof(OriorExactInteger));
     if ((below == NULL) || (table == NULL))
     {
         sim_check(results, 0, "the level tables were allocated");
@@ -266,7 +266,7 @@ void psi_pair_symbolic(const PsiCase *psi_case, const unsigned char *digit, unsi
 {
     static PsiValue copy;
     const unsigned long long base = psi_case->base;
-    // tilt / 2 is at most (gamma - 1) / 2, far inside a word
+    // tilt / 2 is at max (gamma - 1) / 2, far inside a word
     const SimRational carried = sim_rational((long long)tilt, 2ll);
     const SimRational half = sim_rational(1ll, 2ll);
     psi_value_zero(value);

@@ -3,17 +3,17 @@
 
 // Mermaid's diagrams as SVG, drawn here: flowcharts, sequence diagrams, pie charts, state diagrams,
 // class diagrams, entity-relationship diagrams, mind maps, Gantt charts, `journey` diagrams and git graphs. A
-// flowchart's nodes take their shapes and its edges their types and labels, laid out in ranks the way
+// flowchart's nodes take their shapes and its edges their types and labels, arranged in ranks the way
 // the chart runs, top down, bottom up, left to right or right to left, each rank ordered to cross as
-// few edges as a few sweeps find; states, classes, entities and a mind map's ideas are laid out the
+// few edges as a few sweeps find; states, classes, entities and a mind map's ideas are arranged the
 // same way, a class and an entity in a box of sections, each relation's type marked at its ends with
-// its counts beside them. A sequence diagram's participants stand in a row over their lifelines, its
+// its counts beside them. A sequence diagram's participants are in a row over their lifelines, its
 // messages and notes in order down them, its loops and alternatives framed. A pie's slices are drawn
 // with their shares beside them; a Gantt chart's tasks as bars over a scale of days, by section; a
 // `journey` diagram's tasks with each one's score; a git graph's commits along the lanes of their branches. A
-// diagram of another type is shown as its text, its type named.
+// diagram of another type is displayed as its text, its type named.
 //
-// The same text gives the same drawing, kept: a diagram is laid out again only when its text changes.
+// The same text gives the same drawing, retained: a diagram is arranged again only when its text changes.
 
 import { classSvg, erSvg, stateSvg } from "./mermaid/boxes.js";
 import { flowchartSvg } from "./mermaid/flowchart.js";
@@ -62,7 +62,7 @@ export function mermaidSvg(text) {
     } else if (type === "pie") {
       out = pieSvg(source);
     } else {
-      out = `<pre class="mermaid-text"><code>${escape(source)}</code></pre><p class="mermaid-said">A diagram of the kind ${escape(type)} is shown as its text.</p>`;
+      out = `<pre class="mermaid-text"><code>${escape(source)}</code></pre><p class="mermaid-said">A diagram of the type ${escape(type)} is displayed as its text.</p>`;
     }
   } catch (error) {
     out = `<pre class="mermaid-text"><code>${escape(source)}</code></pre><p class="mermaid-said">The diagram was not drawn: ${escape(error.message)}</p>`;

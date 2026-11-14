@@ -9,7 +9,7 @@
 WHY THIS AND NOT A FREQUENCY
 
 theory/workbooks/orior/aiming-the-engine.md puts support before frequency. A frequency needs a null, a bar and a
-correction, and most come back empty. A support is a hard fact: a position either moved under some
+correction, and max come back empty. A support is a hard fact: a position either moved under some
 excitation of the nonce or it never did, and one that never did is ELIDED, independent of the nonce
 at that depth, ruling out every trajectory that would need it to carry nonce information. No null, no
 bar, no p-value. This reads the interior the way the research says to, instead of reading the digest

@@ -51,19 +51,19 @@ void cli_required_alloc(const CliEnvsCtx *args)
     }
 }
 
-// a name put among those required: the letters, numbers, `-`, `_` and `.` it starts with, where they are some and no
+// a name put among those required: the characters, numbers, `-`, `_` and `.` it starts with, where they are some and no
 // name the same but for ASCII's case is there
 static void cli_add(const EnvsCtx *args)
 {
     unsigned long long length = 0ULL;
     while (length < args->name.length)
     {
-        unsigned int letter = 0u;
-        const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+        unsigned int character = 0u;
+        const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                                                    .text_bytes = (const unsigned char *)args->name.at,
-                                                   .length = args->name.length, .at = length, .letter = &letter);
-        if (!EMBED_CALL(cli_files_letter_internal.hit_wordy, CliFilesLetterCtx, .letter = letter) && (letter != '-') &&
-            (letter != '.'))
+                                                   .length = args->name.length, .at = length, .character = &character);
+        if (!EMBED_CALL(cli_files_character_internal.hit_wordy, CliFilesLetterCtx, .character = character) && (character != '-') &&
+            (character != '.'))
         {
             break;
         }
@@ -179,8 +179,8 @@ EMBED_INLINE void cli_setup_read(const EnvsCtx *args)
         {
             allocating = 1;
             CliSpan rest = {trimmed.at + 16, trimmed.length - 16ULL};
-            while ((rest.length > 0ULL) && EMBED_CALL(cli_files_letter_internal.fuzzy_white, CliFilesLetterCtx,
-                                                      .letter = (unsigned char)rest.at[0]))
+            while ((rest.length > 0ULL) && EMBED_CALL(cli_files_character_internal.fuzzy_white, CliFilesLetterCtx,
+                                                      .character = (unsigned char)rest.at[0]))
             {
                 rest = (CliSpan){rest.at + 1, rest.length - 1ULL};
             }

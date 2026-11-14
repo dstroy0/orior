@@ -3,8 +3,8 @@
 // debug.h: the Debug tool's pane table, a foot table, the Debug pane in the panel at the work's foot, every word and
 // count of it the debug module's (debug/debug_pane.h). Its head: the bar, a box each step the module shows, drawn
 // quieter where the step cannot act, its icon where the icons carry one and else its label, and the status line after
-// them, in the first mark's color where it reports a failure; the views' choices, the one shown lit; and the field of
-// the view shown, which takes the keys. Its rows are the view shown's: a frame with its function and its file and line
+// them, in the first mark's color where it reports a failure; the views' choices, the one displayed lit; and the field of
+// the view displayed, which takes the keys. Its rows are the view displayed's: a frame with its function and its file and line
 // at the right, the chosen frame marked; a scope or a variable at its depth with its arrow where it opens, its name,
 // its value and its type; a watch with its box, its expression and its value; and a console line in its type's color.
 // A press on a step runs it, on a choice shows its view, on a frame chooses it and opens its file, on an arrow opens

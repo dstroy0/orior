@@ -11,7 +11,7 @@ the untracked files of each root that is a git checkout, or the commit a pinned 
 file), and the toolkit's version. build_stamp.sh computes it once a build and exports it as COMPILE_CACHE_KEY. It
 also writes, beside the objects, the roots and the headers whose names two of the roots' headers share.
 
-`nvcc` stands in for nvcc. Each .cu, .c or .cpp among the arguments is compiled alone with `-c` and every other
+`nvcc` is in for nvcc. Each .cu, .c or .cpp among the arguments is compiled alone with `-c` and every other
 argument but the output, into COMPILE_CACHE_DIR under a name made from the key, those arguments and the source's path;
 the ones not there yet are compiled COMPILE_CACHE_JOBS at a time (4 by default; the harness sets the processors a suite reserves). The
 call is then made again with each source replaced by its object, which only links. nvcc compiles each source of a
@@ -127,7 +127,7 @@ def split(arguments):
 
 def named_flags(flags, folder, cache_key):
     """The flags an object's name is made from: an include folder inside the roots is left out where no shared-name
-    header lies under it. Without the roots file every flag is kept."""
+    header lies under it. Without the roots file every flag is retained."""
     try:
         with open(os.path.join(folder, cache_key + ".roots"), encoding="utf-8") as handle:
             lines = handle.read().splitlines()
@@ -142,20 +142,20 @@ def named_flags(flags, folder, cache_key):
         under = path.rstrip(os.sep) + os.sep
         return inside and not any(header.startswith(under) for header in shared)
 
-    kept = []
+    retained = []
     at = 0
     while at < len(flags):
         if flags[at] in FOLDERS and at + 1 < len(flags):
             if not plain(flags[at + 1]):
-                kept += flags[at:at + 2]
+                retained += flags[at:at + 2]
             at += 2
             continue
         if flags[at].startswith("-I") and len(flags[at]) > 2 and plain(flags[at][2:]):
             at += 1
             continue
-        kept.append(flags[at])
+        retained.append(flags[at])
         at += 1
-    return kept
+    return retained
 
 
 def main():

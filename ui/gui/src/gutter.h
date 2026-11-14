@@ -10,14 +10,14 @@
 #include "../../../includes/window/palette.h"
 #include "embed_dispatch_layout.h"
 typedef struct GuiGutterCfg GuiGutterCfg;
-// the sizes in the page's pixels: how far the bar's right stands before the text, its width, the reach of a press
+// the sizes in the page's pixels: how far the bar's right is before the text, its width, the reach of a press
 // about it, and the height of a mark of lines taken out
 #define GUI_GUTTER_MARK_RIGHT 4
 #define GUI_GUTTER_MARK_WIDTH 3
 #define GUI_GUTTER_MARK_REACH 4
 #define GUI_GUTTER_MARK_FOOT 4
 // the mark `mark` drawn on the row `rect`, the row's text starting at `text_x`, at `scale`, cut to `clip`: nothing
-// where the mark is none; and whether the pixel column `x` stands on the marks' column before `text_x`
+// where the mark is none; and whether the pixel column `x` is on the marks' column before `text_x`
 void gui_gutter_mark_draw(const GuiGutterCfg *args);
 int gui_gutter_mark_hit(const GuiGutterCfg *args);
 struct GuiGutterCfg

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // job_runs_form.c: the Run pane's filter and form (job_runs.h). The filter is typed into its cell, and a byte a job, 1
 // where its id, title or about contains the filter, is set anew as it changes, with each group's count of the jobs it
-// lets stand. The form of the job chosen is one cell taken at its most as the job is chosen: a start a param and one
+// lets are. The form of the job chosen is one cell taken at its max as the job is chosen: a start a param and one
 // past the last, then the values' bytes one after another, CLI_JOB_RUNS_FIELD_MAX a param, the values after a changed
 // one moved in place. A choice of many is a word among the value's words, a space between them
 #include "job_runs_internal.h"
@@ -114,7 +114,7 @@ void cli_job_runs_form_clear(const CliJobRunsCtx *args)
     {
         return;
     }
-    // the form's cell at its most for the job's params, the pane's own bound on them: the starts and a value's bytes a
+    // the form's cell at its max for the job's params, the pane's own bound on them: the starts and a value's bytes a
     // param
     const unsigned int listed = store->catalog->job[store->chosen].params;
     const unsigned int params = (listed <= CLI_JOB_RUNS_PARAMS_MAX) ? listed : CLI_JOB_RUNS_PARAMS_MAX;
@@ -183,10 +183,10 @@ void cli_job_runs_filter_apply(const CliJobRunsCtx *args)
                            .text = EMBED_CALL(form_text, FormCtx, .text_at = job->title), .word_text = filter) ||
                 EMBED_CALL(cli_command_line_internal.contains_word, CliCommandLineCtx,
                            .text = EMBED_CALL(form_text, FormCtx, .text_at = job->about), .word_text = filter);
-            // whether the job stands is 0 or 1, which a byte carries
-            const unsigned char stands = (unsigned char)passes;
+            // whether the job exists is 0 or 1, which a byte carries
+            const unsigned char is = (unsigned char)passes;
             (void)g_cli_guard->movable_buf_write(
-                &(CarcerMovableCfg){.cell = store->passes, .offset = place, .src = &stands, .bytes = sizeof(stands)});
+                &(CarcerMovableCfg){.cell = store->passes, .offset = place, .src = &is, .bytes = sizeof(is)});
             one.listed += passes ? 1u : 0u;
         }
         VerbaLinea digits = {one.listed_text, sizeof(one.listed_text), 0ULL};
@@ -259,7 +259,7 @@ void cli_job_runs_choice_take(const CliJobRunsCtx *args)
         EMBED_CALL(form_set, FormCtx, .param = args->param, .bytes = choice, .length = same ? 0ULL : choice_length);
         return;
     }
-    // the value's words written again without the choice where it stands among them, else with it after them
+    // the value's words written again without the choice where it is among them, else with it after them
     char turned[CLI_JOB_RUNS_FIELD_MAX];
     VerbaLinea line = {turned, sizeof(turned), 0ULL};
     int found = 0;
@@ -297,11 +297,11 @@ void cli_job_runs_type(const CliJobRunsFieldCfg *args)
     if ((store->focus == CLI_JOB_RUNS_FILTER) || (store->focus >= store->form_params))
     {
         EMBED_CALL(cli_typed.put, CliTypedCfg, .typed = &store->filter, .text = args->bytes, .size = args->length,
-                   .most = CLI_JOB_RUNS_FIELD_MAX, .owner = g_cli_job_runs_owner);
+                   .max = CLI_JOB_RUNS_FIELD_MAX, .owner = g_cli_job_runs_owner);
         EMBED_CALL(cli_job_runs_internal.filter_apply, CliJobRunsCtx, .values = NULL);
         return;
     }
-    // the bytes typed up to a control character put after the value, the value at most CLI_JOB_RUNS_FIELD_MAX bytes
+    // the bytes typed up to a control character put after the value, the value at max CLI_JOB_RUNS_FIELD_MAX bytes
     // with its end
     char joined[CLI_JOB_RUNS_FIELD_MAX];
     const unsigned long long length =
@@ -334,7 +334,7 @@ int cli_job_runs_key(const CliJobRunsFieldCfg *args)
         EMBED_CALL(cli_job_runs_internal.filter_apply, CliJobRunsCtx, .values = NULL);
         return 1;
     }
-    // the last letter erased: its continuation bytes, each read as the unsigned byte it is, and its lead
+    // the last character erased: its continuation bytes, each read as the unsigned byte it is, and its lead
     char value[CLI_JOB_RUNS_FIELD_MAX];
     const unsigned long long length =
         EMBED_CALL(cli_job_runs_internal.form_value, CliJobRunsCtx, .param = store->focus, .value_out = value);

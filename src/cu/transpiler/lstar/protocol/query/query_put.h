@@ -17,14 +17,14 @@
 //
 // A query is put twice. Unbound, it returns the cost and no verdict. Bound, it returns 1 where the qualifier is true
 // and the cost came in under the bound, and 0 otherwise; a qualifier that is not true and a cost past the bound both
-// read 0, and the kind shows which.
+// read 0, and the type shows which.
 //
 // An address that refuses a read ends whatever read it. A query put to an address nothing has declared is safe is put
 // from inside a cell, where an ending is the answer and the asker goes on.
 
 #include "host_entry.h"
 
-// the record a walk program hands the run each answered address's line in, as it is answered: a line is in the run's
+// the record a walk program passes the run each answered address's line in, as it is answered: a line is in the run's
 // shared memory before the next query can end the process
 #define QUERY_WALK_RECORD "walk"
 
@@ -61,23 +61,23 @@ typedef struct
     unsigned int qualifier;
     // the word QUERY_EQUALS compares against; unread by the other qualifiers
     unsigned int word;
-    // the most reads QUERY_ADVANCES puts after its first before the address reads as not advancing, 0 or 1 for one;
+    // the max reads QUERY_ADVANCES puts after its first before the address reads as not advancing, 0 or 1 for one;
     // unread by the other qualifiers
     unsigned long long turns;
     // the address of a counter found by QUERY_ADVANCES, or 0 for none: the cost is then unread
     unsigned long long clock;
-    // 0 puts the query unbound and returns its cost; any other value is the most the answer may cost
+    // 0 puts the query unbound and returns its cost; any other value is the max the answer may cost
     unsigned long long bound;
 
     // the bit: 1 where the qualifier was true inside the bound, 0 otherwise
     unsigned int bit;
     // what came of it, a QueryKind
-    unsigned int kind;
+    unsigned int type;
     // the clock's advance across the query, in the clock's own counts; 0 where no clock was given
     unsigned long long cost;
     // 1 where a clock was given and read
     unsigned int cost_read;
-    // the rule the ending named where the kind is QUERY_ENDED, a InterfaceFault; 0 otherwise
+    // the rule the ending named where the type is QUERY_ENDED, a InterfaceFault; 0 otherwise
     unsigned int fault;
 } Query;
 

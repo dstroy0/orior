@@ -21,7 +21,7 @@
 // a function of those words. The relations are written as cases and not as formulas, for one reason: a case is a
 // thing a target can be queried, and a formula is not.
 //
-// The last column separates the two kinds of question on the ladder. A relation's answer follows from the words it
+// The last column separates the two types of question on the ladder. A relation's answer follows from the words it
 // was put with, the same way on every system that has the relation at all. A chain of primitives can be found for
 // it and checked before any system is queried. A measure's answer follows from the system: how many places a word
 // contains is true of the part and of nothing else, no chain produces it, and the only way to it is to query. Handing a
@@ -47,7 +47,7 @@
        ones where it is true and of zeroes where it does not: 0,1 -> ones for less, and 0xffffffff,0 read as the part   \
        reads a word, unsigned or signed */                                                                             \
     anchor_(LESS, "less", 2u, 0)                                                                                       \
-    anchor_(AT_MOST, "at_most", 2u, 0)                                                                                 \
+    anchor_(AT_MAX, "at_max", 2u, 0)                                                                                 \
     anchor_(MORE, "more", 2u, 0)                                                                                       \
     anchor_(AT_LEAST, "at_least", 2u, 0)                                                                               \
     anchor_(APART, "apart", 2u, 0)
@@ -75,7 +75,7 @@ static const unsigned int s_ladder_words[] = {LADDER_ANCHORS(LADDER_WORDS_OF)};
 
 #undef LADDER_WORDS_OF
 
-// the most words a question carries
+// the max words a question carries
 #define LADDER_WORDS 4u
 
 // One question: the words it is put with and the word that must come back. `anchor` is the compiler's own label for
@@ -159,11 +159,11 @@ static const LadderQuestion s_ladder_cases[] = {
     {LADDER_LESS, {1u, 1u}, 2u, 0u, 0u, 0},
     {LADDER_LESS, {3u, 7u}, 2u, 0xffffffffu, 0u, 0},
     {LADDER_LESS, {0xffffffffu, 0u}, 2u, 0u, 0u, 0},
-    {LADDER_AT_MOST, {1u, 1u}, 2u, 0xffffffffu, 0u, 0},
-    {LADDER_AT_MOST, {0u, 1u}, 2u, 0xffffffffu, 0u, 0},
-    {LADDER_AT_MOST, {2u, 1u}, 2u, 0u, 0u, 0},
-    {LADDER_AT_MOST, {7u, 3u}, 2u, 0u, 0u, 0},
-    {LADDER_AT_MOST, {0xffffffffu, 0u}, 2u, 0u, 0u, 0},
+    {LADDER_AT_MAX, {1u, 1u}, 2u, 0xffffffffu, 0u, 0},
+    {LADDER_AT_MAX, {0u, 1u}, 2u, 0xffffffffu, 0u, 0},
+    {LADDER_AT_MAX, {2u, 1u}, 2u, 0u, 0u, 0},
+    {LADDER_AT_MAX, {7u, 3u}, 2u, 0u, 0u, 0},
+    {LADDER_AT_MAX, {0xffffffffu, 0u}, 2u, 0u, 0u, 0},
     {LADDER_MORE, {1u, 0u}, 2u, 0xffffffffu, 0u, 0},
     {LADDER_MORE, {0u, 1u}, 2u, 0u, 0u, 0},
     {LADDER_MORE, {1u, 1u}, 2u, 0u, 0u, 0},
@@ -226,7 +226,7 @@ static inline int ladder_answer(unsigned int anchor, const unsigned int *word, u
     case LADDER_LESS:
         *answered = (word[0] < word[1]) ? 0xffffffffu : 0u;
         return 1;
-    case LADDER_AT_MOST:
+    case LADDER_AT_MAX:
         *answered = (word[0] <= word[1]) ? 0xffffffffu : 0u;
         return 1;
     case LADDER_MORE:
@@ -248,7 +248,7 @@ static inline int ladder_answer(unsigned int anchor, const unsigned int *word, u
 static inline int ladder_predicate(unsigned int anchor)
 {
     return (anchor == (unsigned int)LADDER_SAME) || (anchor == (unsigned int)LADDER_LESS) ||
-           (anchor == (unsigned int)LADDER_AT_MOST) || (anchor == (unsigned int)LADDER_MORE) ||
+           (anchor == (unsigned int)LADDER_AT_MAX) || (anchor == (unsigned int)LADDER_MORE) ||
            (anchor == (unsigned int)LADDER_AT_LEAST) || (anchor == (unsigned int)LADDER_APART);
 }
 
@@ -265,7 +265,7 @@ static inline unsigned int ladder_signed_answer(unsigned int anchor, const unsig
     {
     case LADDER_LESS:
         return (left < right) ? 0xffffffffu : 0u;
-    case LADDER_AT_MOST:
+    case LADDER_AT_MAX:
         return (left <= right) ? 0xffffffffu : 0u;
     case LADDER_MORE:
         return (left > right) ? 0xffffffffu : 0u;

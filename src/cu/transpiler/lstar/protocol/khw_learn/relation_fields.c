@@ -7,7 +7,7 @@
 // for a predicate that contains P0 is the destination, the answer's place, a predicate, and one containing another
 // predicate an operand with no place; a run inside a register field containing the first word's register is the first
 // word's place and the second word's register the second's, the other way round where the form reads the words
-// swapped; every other run is an operand with no place, retained as seen. The phase classified where a run stands at
+// swapped; every other run is an operand with no place, retained as seen. The phase classified where a run is at
 // every place of the relation's tuple, void otherwise
 static void khw_predicate_runs_read(KhwAnswered *form)
 {
@@ -19,7 +19,7 @@ static void khw_predicate_runs_read(KhwAnswered *form)
         unsigned int first = 0u;
         unsigned int bits = 0u;
         form->place[run] = KHW_PLACE_NONE;
-        form->kind[run] = KHW_KIND_REGISTER;
+        form->type[run] = KHW_KIND_REGISTER;
         if (!khw_field_covering(form->first[run], form->last[run], field, sizeof(field), &first, &bits))
         {
             continue;
@@ -32,7 +32,7 @@ static void khw_predicate_runs_read(KhwAnswered *form)
         }
         if (predicate)
         {
-            form->kind[run] = KHW_KIND_PREDICATE;
+            form->type[run] = KHW_KIND_PREDICATE;
             form->place[run] = ((value == 0ull) && (strcmp(field, "guard") != 0)) ? words : KHW_PLACE_NONE;
         }
         else if (value == KHW_FIRST_REGISTER)
@@ -153,7 +153,7 @@ unsigned int khw_fields_registers(KhwAnswered *const *forms, unsigned int count)
             {
                 continue;
             }
-            if ((s_pooled + pooled) > SCHEDULER_ROUND_MOST)
+            if ((s_pooled + pooled) > SCHEDULER_ROUND_MAX)
             {
                 khw_round_carried();
                 classified += khw_staged_read(s_staged, first, staged, stage_number);

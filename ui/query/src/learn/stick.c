@@ -6,7 +6,7 @@
 // read form by form through `cu.krs` and written in `sass.krs`, checked against nvcc's listing on the host, its
 // encodings read back through nvdisasm. The read: nvcc's listing read kernel by kernel, and against `sass.krs`, into
 // `measuring_stick.md` (measuring_stick_read.c). Nothing goes to a device. The listing and each kernel's read are
-// handed to the run's writer under their paths, the files a run writes
+// passed to the run's writer under their paths, the files a run writes
 #include "../../../cli/src/command_line/callback_cfg.h"
 #include "../../../cli/src/text/text.h"
 #include "../query_loops.h"
@@ -14,7 +14,7 @@
 // the stick's folder, the vendor's reading of it: the generator's text and manifest, nvcc's container and listing
 #define QUERY_STICK "build/measuring_stick"
 
-// the most codes of one folder the vendor reads at once
+// the max codes of one folder the vendor reads at once
 #define QUERY_CODES_MAX 4096u
 
 typedef struct
@@ -83,7 +83,7 @@ EMBED_INLINE int query_program(const StickCtx *args)
                       .capacity = QUERY_PATH_MAX_LEN, .err_msg = args->err_msg);
 }
 
-// the latest blob of `name` handed to the run's writer as the file at `path`
+// the latest blob of `name` passed to the run's writer as the file at `path`
 EMBED_INLINE int query_blob_file(const StickCtx *args)
 {
     const char *name = args->name;
@@ -174,7 +174,7 @@ EMBED_INLINE int query_vendor_read(const StickCtx *args)
     if (EMBED_CALL(query_program, StickCtx, .context_read = context, .role = QUERY_ROLE_CL, .path = cl,
                    .err_msg = &ignored))
     {
-        // the folder cl stands in, nvcc's host compiler
+        // the folder cl is in, nvcc's host compiler
         char *const slash =
             EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = cl,
                        .length_value = cellul.len(&(CatenaFinitaCfg){.src = cl, .cap = CLI_POOL_BYTES}), .byte = '\\');
@@ -257,7 +257,7 @@ static void query_code_walk(const CliEachNameIsFolderCfg *args)
     walk->codes->count += 1u;
 }
 
-// the codes, a line each, handed to the run as `cubin_listing_codes.txt` from a cell of their size: 1, or 0 with why
+// the codes, a line each, passed to the run as `cubin_listing_codes.txt` from a cell of their size: 1, or 0 with why
 // given
 EMBED_INLINE int query_codes_dispatch(const StickCtx *args)
 {
@@ -328,11 +328,11 @@ EMBED_INLINE int query_codes_list(const StickCtx *args)
         char blob[QUERY_PATH_MAX_LEN];
         char dis[QUERY_PATH_MAX_LEN];
         VerbaLinea blob_line = {blob, sizeof(blob), 0ULL};
-        mmgr_line_put_most(&blob_line, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}) - 4u);
+        mmgr_line_put_max(&blob_line, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}) - 4u);
         mmgr_line_put(&blob_line, ".dis");
         mmgr_line_finish(&blob_line);
         VerbaLinea dis_line = {dis, sizeof(dis), 0ULL};
-        mmgr_line_put_most(&dis_line, inner_code,
+        mmgr_line_put_max(&dis_line, inner_code,
                            cellul.len(&(CatenaFinitaCfg){.src = inner_code, .cap = CLI_POOL_BYTES}) - 4u);
         mmgr_line_put(&dis_line, ".dis");
         mmgr_line_finish(&dis_line);
@@ -386,10 +386,10 @@ EMBED_INLINE int query_stick_vendor(const StickCtx *args)
     int whole = EMBED_CALL(query_vendor_read, StickCtx, .context = context, .run = &s_run, .err_msg = err_msg);
     if (whole)
     {
-        // the record is the read's to write through the run's writer; named here as a leaf, so that it is shown and
+        // the record is the read's to write through the run's writer; named here as a leaf, so that it is displayed and
         // requested
         const char *const left[1] = {record};
-        EMBED_CALL(query_count_err_msg_internal.run_leave, QueryCountErrMsgCtx, .run = &s_run, .paths_letters = left,
+        EMBED_CALL(query_count_err_msg_internal.run_leave, QueryCountErrMsgCtx, .run = &s_run, .paths_characters = left,
                    .count = 1u);
         const char *const words[6] = {s_reader, s_paths.sass, s_paths.tsv, krs, record, NULL};
         whole = EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
@@ -478,8 +478,8 @@ EMBED_INLINE int query_stick_engine(const StickCtx *args)
     const char *const read[7] = {cu_krs, sass_krs, sass_ksc, machine, s_paths.cu, s_paths.sass, s_paths.tsv};
     const char *const left[3] = {sass_krs, record, engine_tsv};
     int whole = EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run,
-                           .paths_letters = read, .count = 7u, .err_msg = err_msg);
-    EMBED_CALL(query_count_err_msg_internal.run_leave, QueryCountErrMsgCtx, .run = &s_run, .paths_letters = left,
+                           .paths_characters = read, .count = 7u, .err_msg = err_msg);
+    EMBED_CALL(query_count_err_msg_internal.run_leave, QueryCountErrMsgCtx, .run = &s_run, .paths_characters = left,
                .count = 3u);
     long long code = -1LL;
     if (whole)
@@ -491,7 +491,7 @@ EMBED_INLINE int query_stick_engine(const StickCtx *args)
     }
     if (whole && (code != 0LL))
     {
-        // the engine's refusal ends the loop: the leaves handed as the run contains them, exit 1
+        // the engine's refusal ends the loop: the leaves passed as the run contains them, exit 1
         EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context,
                    .text = "  the engine did not write the stick");
         return EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context,

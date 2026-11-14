@@ -1,14 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// db_form.c: the connection form as the Database pane's rows. Each field stands in a cell sized to its letters; the
-// rows are places laid again as the type changes, the server's fields standing for PostgreSQL and MySQL and the file
+// db_form.c: the connection form as the Database pane's rows. Each field is in a cell sized to its characters; the
+// rows are places positioned again as the type changes, the server's fields located for PostgreSQL and MySQL and the file
 // for SQLite, the guard's choice while the connection matters, and the refusal of the last save under the buttons. A
 // save writes the connection into databases.json, a rename through the name it had, and a remove takes it out; the
 // pane's text and keys go to the field that has the keys, or to the ask while the pane asks
 #include "db_pane_internal.h"
 
 // the types a connection is of, as databases.json stores them and as the choice reads them; the guards the same; the
-// fields' labels; and the most bytes of a field
+// fields' labels; and the max bytes of a field
 static const char *const s_types[CLI_DB_FORM_TYPES] = {"postgres", "mysql", "sqlite"};
 static const char *const s_type_words[CLI_DB_FORM_TYPES] = {"PostgreSQL", "MySQL or MariaDB", "SQLite"};
 static const char *const s_guards[CLI_DB_FORM_GUARDS] = {"confirm", "read-only"};
@@ -29,7 +29,7 @@ typedef struct
     const char *root;
 } DbFormCtx;
 
-void cli_db_pane_form_laid(const CliDbPaneCtx *args)
+void cli_db_pane_form_positioned(const CliDbPaneCtx *args)
 {
     (void)args;
     CliDbPaneForm *const form = &g_cli_db_pane_state.form;
@@ -79,7 +79,7 @@ EMBED_INLINE void field_set(const DbFormCtx *args)
     if (args->size != 0ULL)
     {
         EMBED_CALL(cli_typed.put, CliTypedCfg, .typed = &form->field[args->at], .text = args->text, .size = args->size,
-                   .most = FORM_FIELD_MAX, .owner = g_cli_db_pane_owner);
+                   .max = FORM_FIELD_MAX, .owner = g_cli_db_pane_owner);
     }
 }
 
@@ -139,7 +139,7 @@ void cli_db_pane_form_open(const CliDbPaneCtx *args)
         form->guard =
             cellul.eq(&(CatenaFinitaCfg){.src = connection->guard, .other = "read-only", .cap = 16ULL}) ? 1u : 0u;
     }
-    EMBED_CALL(cli_db_pane_internal.form_laid, CliDbPaneCtx, .at = 0u);
+    EMBED_CALL(cli_db_pane_internal.form_positioned, CliDbPaneCtx, .at = 0u);
 }
 
 int cli_db_pane_form_row(const CliDbPaneCtx *args)
@@ -169,7 +169,7 @@ int cli_db_pane_form_row(const CliDbPaneCtx *args)
     {
     case CLI_DB_FORM_TYPE:
         row->type = CLI_DB_PANE_ROW_CHOICE;
-        row->text = "Kind";
+        row->text = "Type";
         row->detail = s_type_words[form->type];
         break;
     case CLI_DB_FORM_MATTERS:
@@ -223,7 +223,7 @@ EMBED_INLINE void refusal_set(const DbFormCtx *args)
     }
     form->refusal[size] = '\0';
     form->refusal_length = form->refused ? size : 0ULL;
-    EMBED_CALL(cli_db_pane_internal.form_laid, CliDbPaneCtx, .at = 0u);
+    EMBED_CALL(cli_db_pane_internal.form_positioned, CliDbPaneCtx, .at = 0u);
 }
 
 // the field `at`'s text, with its end, copied into `dst` sized for `size` bytes
@@ -347,7 +347,7 @@ int cli_db_pane_form_press(const CliDbPaneCtx *args)
         return 0;
     }
     form->focused = (form->focused < CLI_DB_FORM_FIELDS) ? form->focused : CLI_DB_PANE_NONE;
-    EMBED_CALL(cli_db_pane_internal.form_laid, CliDbPaneCtx, .at = 0u);
+    EMBED_CALL(cli_db_pane_internal.form_positioned, CliDbPaneCtx, .at = 0u);
     return 0;
 }
 
@@ -365,7 +365,7 @@ void cli_db_pane_type(const CliDbPaneInputCfg *args)
         return;
     }
     EMBED_CALL(cli_typed.put, CliTypedCfg, .typed = &form->field[form->focused], .text = args->text, .size = args->size,
-               .most = FORM_FIELD_MAX, .owner = g_cli_db_pane_owner);
+               .max = FORM_FIELD_MAX, .owner = g_cli_db_pane_owner);
 }
 
 int cli_db_pane_key(const CliDbPaneInputCfg *args)
@@ -392,7 +392,7 @@ int cli_db_pane_key(const CliDbPaneInputCfg *args)
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "Tab", .cap = 16ULL}))
     {
-        // the keys handed to the next field among the rows, the first after the last
+        // the keys passed to the next field among the rows, the first after the last
         unsigned int at = 0u;
         while ((at < form->rows) && (form->row_place[at] != form->focused))
         {

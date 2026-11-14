@@ -18,7 +18,7 @@ typedef struct GuiGlyphsFaceCfg GuiGlyphsFaceCfg;
 typedef struct GuiGlyphsCfg GuiGlyphsCfg;
 
 // the faces: the code face regular, bold, italic and bold italic, the interface face, the reading face, the interface
-// face bold, the large name's, and the symbol face a letter is drawn from where its own face has none of it
+// face bold, the large name's, and the symbol face a character is drawn from where its own face has none of it
 #define GUI_FACE_CODE 0u
 #define GUI_FACE_CODE_BOLD 1u
 #define GUI_FACE_CODE_ITALIC 2u
@@ -30,8 +30,8 @@ typedef struct GuiGlyphsCfg GuiGlyphsCfg;
 #define GUI_FACES 8u
 // the glyphs saved drawn at once; past three quarters of them every one is let go and drawn again as it is asked for
 #define GUI_GLYPH_CACHE_ENTRIES 4096u
-// the stem darkening: how far a stroke's side is pushed out, most at the small sizes and least at the large, in pixels;
-// and the gamma the coverage is lifted through as a glyph is laid for the blend
+// the stem darkening: how far a stroke's side is pushed out, max at the small sizes and least at the large, in pixels;
+// and the gamma the coverage is lifted through as a glyph is positioned for the blend
 #define GUI_DARKEN_MAX 0.2f
 #define GUI_DARKEN_MIN 0.06f
 #define GUI_DARKEN_SMALL 12u
@@ -54,8 +54,8 @@ typedef struct
 // again as it is asked for
 #define GUI_CELL_CACHE_ENTRIES 4096u
 
-// A glyph cell: whether it is in use, its key (the face, the letter, the pixel size and the color), the glyph's
-// advance in pixels, its box, the size and where its top left stands from the pen on the baseline, and its lanes,
+// A glyph cell: whether it is in use, its key (the face, the character, the pixel size and the color), the glyph's
+// advance in pixels, its box, the size and where its top left is from the pen on the baseline, and its lanes,
 // for each pixel of the box the ink's red and blue lanes by the pixel's share of the color with half of 255 in,
 // its green lane the same, and the rest of 255 the ground saves, each a word, row after row, the three in one cell
 // of the cellblock, NULL where the glyph has no pixels
@@ -63,7 +63,7 @@ typedef struct
 {
     int used;
     unsigned int face;
-    unsigned int letter;
+    unsigned int character;
     unsigned int size;
     GuiColor color;
     float advance;
@@ -76,14 +76,14 @@ typedef struct
     unsigned int *rest;
 } GuiGlyphCell;
 
-// the printable ASCII letters a table holds, from the space on, and the tables saved at once, one a face, size and
+// the printable ASCII characters a table holds, from the space on, and the tables saved at once, one a face, size and
 // color
 #define GUI_ASCII_FIRST 32u
 #define GUI_ASCII_COUNT 95u
 #define GUI_ASCII_TABLES 32u
 
-// An ASCII table: whether it is in use, its key, and for each printable letter its glyph cell, NULL until the letter is
-// first asked for in the key, and its advance; a letter of the table is one index, its cell laid straight from there
+// An ASCII table: whether it is in use, its key, and for each printable character its glyph cell, NULL until the character is
+// first asked for in the key, and its advance; a character of the table is one index, its cell positioned straight from there
 typedef struct
 {
     int used;
@@ -135,16 +135,16 @@ void gui_glyphs_free(const GuiGlyphsCfg *args);
 // read, else the code face
 unsigned int gui_face_had(const GuiGlyphsFaceCfg *args);
 // the interface face's bold read for as long as it is drawn from, it being read at no other time: 1 where it was read
-// now, 0 where it already was or the system has none; and given back with its letters' masks
+// now, 0 where it already was or the system has none; and given back with its characters' masks
 int gui_glyphs_head_bold_read(const GuiGlyphsCfg *args);
 void gui_glyphs_head_bold_free(const GuiGlyphsCfg *args);
-// the glyph of `letter` in `face` at `size` pixels an em, drawn and saved, from the symbol face where `face` has none
-// of it and the symbol face has, that face read from the system's fonts the first time a letter needs it: its mask,
-// with no pixels where the letter draws none, or NULL where it could not be drawn; its advance in pixels into `advance`
+// the glyph of `character` in `face` at `size` pixels an em, drawn and saved, from the symbol face where `face` has none
+// of it and the symbol face has, that face read from the system's fonts the first time a character needs it: its mask,
+// with no pixels where the character draws none, or NULL where it could not be drawn; its advance in pixels into `advance`
 const GuiMask *gui_glyph(const GuiGlyphsFaceLetterCfg *args);
-// the cell of `letter` in `face` at `size` pixels an em in `color`, made from the glyph's mask and saved: its lanes
-// laid for the blend over any ground, with no pixels where the letter draws none, or NULL where the glyph could not
-// be drawn or the cell's lanes not taken; its advance in pixels into `advance`; and a cell laid on `raster` with the
+// the cell of `character` in `face` at `size` pixels an em in `color`, made from the glyph's mask and saved: its lanes
+// positioned for the blend over any ground, with no pixels where the character draws none, or NULL where the glyph could not
+// be drawn or the cell's lanes not taken; its advance in pixels into `advance`; and a cell positioned on `raster` with the
 // pen at x on the baseline y, no further than `clip`, each pixel of its box in one blend, straight along
 const GuiGlyphCell *gui_glyph_cell(const GuiGlyphsFaceLetterCfg *args);
 void gui_glyph_cell_layout(const GuiGlyphsRasterCfg *args);
@@ -178,7 +178,7 @@ struct GuiGlyphsFaceLetterCfg
 {
     GuiGlyphs *glyphs;
     unsigned int face;
-    unsigned int letter;
+    unsigned int character;
     unsigned int size;
     float *advance;
     GuiColor color;
@@ -246,7 +246,7 @@ typedef struct
     float (*cell)(const GuiGlyphsFaceLetterCfg *args);
 } GuiGlyphsFaceLetterNs;
 EMBED_TABLE_LAYOUT(GuiGlyphsFaceLetterNs, glyph, glyph_cell, cell);
-EMBED_TABLE_STORAGE GuiGlyphsFaceLetterNs gui_glyphs_face_letter EMBED_UNUSED = {
+EMBED_TABLE_STORAGE GuiGlyphsFaceLetterNs gui_glyphs_face_character EMBED_UNUSED = {
     .glyph = gui_glyph,
     .glyph_cell = gui_glyph_cell,
     .cell = gui_glyphs_cell,

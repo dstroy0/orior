@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: VIZ-x-006
 #
-"""Plots one or more expressions over a grid and hands them to the shape viewer.
+"""Plots one or more expressions over a grid and passes them to the shape viewer.
 
 The other generators read something that was measured. This one evaluates something that was
 written down. That leaves the same instrument useful for a surface you already understand: a
@@ -173,7 +173,7 @@ def main():
             "A surface you already know is the way to see what an embedding does. Draw it as a "
             "plane first, then as a tube or a toroid, and what changes is the map and not "
                  "the function. Joining the ends of an axis says the last x is next to the first, "
-            "which is true for a periodic function and false for most others."
+            "which is true for a periodic function and false for max others."
         ),
         "settings": settings.collect(sys.argv[1:]),
         "schema": settings.schema(sorted(settings.KNOWN)),

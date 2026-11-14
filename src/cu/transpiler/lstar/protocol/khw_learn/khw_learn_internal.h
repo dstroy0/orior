@@ -23,7 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the most places a kernel's code contains, and the bytes of one instruction
+// the max places a kernel's code contains, and the bytes of one instruction
 #define KHW_PLACES 256u
 
 #define KHW_INSTRUCTION 16u
@@ -60,7 +60,7 @@
 // `run answers <least> cost <low> <high> <spread>`, in hex as every run row writes them
 #define KHW_COST_ROW "run answers %016llx cost %016llx %016llx %016llx"
 
-// the most words after `--` the channel is opened on and their end: a carrier, the airlock's pop and its cross, each of
+// the max words after `--` the channel is opened on and their end: a carrier, the airlock's pop and its cross, each of
 // up to eight words, and the `--pop` and `--cross` between them (run_channel.h)
 #define KHW_CARRIER_WORDS 27u
 
@@ -123,7 +123,7 @@ void khw_union_written(void);
 int khw_relation_of(const RunQuestion *question, KhwAnswered *form, int guarded);
 // 1 where `question`, put plain, answered the second word on every case: the probe place left the register the kernel
 // stores alone, as a form that writes a predicate does
-int khw_second_word_standing(const RunQuestion *question);
+int khw_second_word_located(const RunQuestion *question);
 int khw_relation_queried(unsigned long long low, unsigned long long high, KhwAnswered *form);
 int khw_first_round(KhwAnswered *kernel, unsigned int *place, unsigned long long *nanoseconds);
 void khw_turns_queried(KhwAnswered *form, const unsigned int word[1][2]);
@@ -132,12 +132,12 @@ int khw_turning_words(unsigned int anchor, int swapped, unsigned int word[2], un
 int khw_predicate_words(unsigned int anchor, int swapped, int signed_read, unsigned int which, unsigned int word[2]);
 int khw_places_whole(const unsigned int *place, unsigned int runs, unsigned int words);
 int khw_answers_alike(const KhwAnswered *form, const KhwAnswered *other);
-int khw_form_stands_for(const KhwAnswered *older, const KhwAnswered *newer);
-int khw_form_stood_for(const KhwAnswered *forms, unsigned int count, const KhwAnswered *newer);
+int khw_form_is_for(const KhwAnswered *older, const KhwAnswered *newer);
+int khw_form_was_for(const KhwAnswered *forms, unsigned int count, const KhwAnswered *newer);
 unsigned int khw_forms_folded(KhwAnswered *forms, unsigned int count);
 unsigned int khw_forms_placed_twice(KhwAnswered **forms, unsigned int count);
 unsigned int khw_comparisons_void(KhwAnswered **forms, unsigned int count);
-void khw_plan_handed(const char *pass, unsigned long long questions);
+void khw_plan_passed(const char *pass, unsigned long long questions);
 unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count);
 // the turning cases `form` is turned over: one, or for a predicate form each of khw_predicate_words
 unsigned int khw_turning_cases(const KhwAnswered *form);
@@ -166,7 +166,7 @@ unsigned int khw_fields_listed(unsigned int *first, unsigned int *bits, unsigned
 // The runs of `form` gathered from `turned`, one entry a bit up to KHW_TURN_LAST, 1 where the bit's turn changed the
 // answer: the adjacent turned bits, cut where the fields the part names end, `fields` of them with their first bits
 // and widths. Two adjacent turned bits are one run where one field contains both, the narrowest where fields nest, or
-// none contains either. Each run contains no place and a register's kind. The count of runs
+// none contains either. Each run contains no place and a register's type. The count of runs
 unsigned int khw_runs_gathered(const int *turned, unsigned int fields, const unsigned int *field_first,
                                const unsigned int *field_bits, KhwAnswered *form);
 unsigned int khw_frame_pooled(unsigned long long low, unsigned long long high, const unsigned int word[][2],

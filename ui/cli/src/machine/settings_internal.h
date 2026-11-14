@@ -15,7 +15,7 @@ typedef struct CliSettingsTextLengthCtx CliSettingsTextLengthCtx;
 typedef struct CliSettingsLayersProblemCtx CliSettingsLayersProblemCtx;
 typedef struct CliSettingsCtx CliSettingsCtx;
 
-// the type a `[type]` key names, its letters from `*type`, `*length` of them: 1, or 0 where the key names none;
+// the type a `[type]` key names, its characters from `*type`, `*length` of them: 1, or 0 where the key names none;
 // whether a tree's file does not set `key`; the reader's home folder into `out`, sized for CLI_PATH_MAX_LEN, empty
 // where there is none; and `length` bytes of `text` with each `${name}` that `look` reads put in its place, one it does
 // not read staying as it is, after `out`
@@ -24,14 +24,14 @@ int cli_settings_tree_scope(const CliSettingsKeyCtx *args);
 void cli_settings_home(const CliSettingsCtx *args);
 void cli_settings_expand(const CliSettingsTextCtx *args);
 
-// the most parts of files read, the most settings they contain together, and the most bytes of a setting's text
+// the max parts of files read, the max settings they contain together, and the max bytes of a setting's text
 #define CLI_LAYER_PARTS 128u
 
 #define CLI_LAYER_RAW 8192u
 
 #define CLI_LAYER_VALUE (1u << 16u)
 
-// Where a part stands: under the reader's own settings.json, as settings.json itself, or over it
+// Where a part is: under the reader's own settings.json, as settings.json itself, or over it
 enum
 {
     CLI_RANK_UNDER,
@@ -40,7 +40,7 @@ enum
 };
 
 // A part of a file: the chain and the file it is of, the system it is for where it is one, the settings it sets,
-// `count` of the values from `first`, and where it stands
+// `count` of the values from `first`, and where it is
 typedef struct
 {
     const CliChain *chain;

@@ -7,9 +7,9 @@
 // an exit and an end change the frames, the console and the status line. Three views show one at a time: Frames, a
 // row each frame with its function and its file and line; Variables, a row each watch, then each scope and the
 // variables under it to CLI_DEBUG_DEPTH levels; and Console, a row each line of the program's output and of what was
-// evaluated, at most CLI_DEBUG_CONSOLE_LINES, the oldest going first. Rows stand in one cell a view as indices, their
+// evaluated, at max CLI_DEBUG_CONSOLE_LINES, the oldest going first. Rows are in one cell a view as indices, their
 // strings as offsets into one text cell beside it, each sized to the data and taken anew as it outgrows it, the counts
-// changing as the rows do. The bar's steps carry whether each can act and whether it is shown; the field under the
+// changing as the rows do. The bar's steps carry whether each can act and whether it is displayed; the field under the
 // views takes an expression, a watch in Variables and an evaluation in Console. The requests the pane sends a session
 // go through a table of the debug module's requests, cli_debug_pane_requests where the window begins the pane
 #ifndef DEBUG_PANE_H
@@ -22,7 +22,7 @@ typedef struct CliDebugPaneViewCfg CliDebugPaneViewCfg;
 typedef struct CliDebugPaneBarCfg CliDebugPaneBarCfg;
 typedef struct CliDebugPaneInputCfg CliDebugPaneInputCfg;
 
-// the views, one shown at a time, and how many
+// the views, one displayed at a time, and how many
 #define CLI_DEBUG_VIEW_FRAMES 0u
 #define CLI_DEBUG_VIEW_VARIABLES 1u
 #define CLI_DEBUG_VIEW_CONSOLE 2u
@@ -57,13 +57,13 @@ typedef struct CliDebugPaneInputCfg CliDebugPaneInputCfg;
 #define CLI_DEBUG_STEP_STOP 8u
 #define CLI_DEBUG_STEPS 9u
 
-// the most lines the console carries, the most bytes the field takes with its end, and the most levels of variables
+// the max lines the console carries, the max bytes the field takes with its end, and the max levels of variables
 // under a scope
 #define CLI_DEBUG_CONSOLE_LINES 5000u
 #define CLI_DEBUG_FIELD_MAX 4096u
 #define CLI_DEBUG_DEPTH 12u
 
-// the most bytes of a row's text with its end
+// the max bytes of a row's text with its end
 #define CLI_DEBUG_ROW_TEXT 4096u
 
 // A row of a view: its type; its depth under the scopes, 0 for a scope; whether it opens, a scope's or a variable's
@@ -110,7 +110,7 @@ typedef struct
 } CliDebugPaneStatus;
 
 // A step of the bar: its command as the catalog lists it, its label and bytes, the icon it is drawn with, its keys,
-// whether it can act now, and whether it is shown
+// whether it can act now, and whether it is displayed
 typedef struct
 {
     const char *command;
@@ -119,18 +119,18 @@ typedef struct
     const char *glyph;
     const char *keys;
     int enabled;
-    int shown;
+    int displayed;
 } CliDebugBarItem;
 
-// The field under the views: the text typed and its bytes, the placeholder shown while it is empty and its bytes, and
-// whether the view shown has a field
+// The field under the views: the text typed and its bytes, the placeholder displayed while it is empty and its bytes, and
+// whether the view displayed has a field
 typedef struct
 {
     const char *text;
     unsigned long long length;
     const char *placeholder;
     unsigned long long placeholder_length;
-    int shown;
+    int displayed;
 } CliDebugPaneField;
 
 // The requests the pane sends a session, the debug module's own in cli_debug_pane_requests: the sessions running, a
@@ -164,7 +164,7 @@ EMBED_TABLE_STORAGE CliDebugPaneRequestsNs cli_debug_pane_requests EMBED_UNUSED 
 
 // the pane begun for the tree at `root`: `woken` wakes the view's thread as an event is stored, `requests` the table
 // the pane's requests go through, every view empty, the status line the opening sentence; and the sink every session
-// started for the pane is handed, which stores each event under the lock from the adapter's thread
+// started for the pane is passed, which stores each event under the lock from the adapter's thread
 void cli_debug_pane_begin(const CliDebugPaneViewCfg *args);
 CliDebugSink cli_debug_pane_sink(const CliDebugPaneViewCfg *args);
 // the events stored since the last step read at `now_ms` for the tree at `root`, their requests sent then: 1 where a
@@ -179,9 +179,9 @@ unsigned int cli_debug_pane_rows(const CliDebugPaneViewCfg *args);
 int cli_debug_pane_row(const CliDebugPaneViewCfg *args);
 int cli_debug_pane_toggle(const CliDebugPaneViewCfg *args);
 int cli_debug_pane_press(const CliDebugPaneViewCfg *args);
-// the view shown, one of CLI_DEBUG_VIEW_FRAMES and the rest; `view` shown; and the label of `view`, its bytes into
+// the view displayed, one of CLI_DEBUG_VIEW_FRAMES and the rest; `view` displayed; and the label of `view`, its bytes into
 // `length_out`
-unsigned int cli_debug_pane_shown(const CliDebugPaneViewCfg *args);
+unsigned int cli_debug_pane_displayed(const CliDebugPaneViewCfg *args);
 void cli_debug_pane_view_set(const CliDebugPaneViewCfg *args);
 const char *cli_debug_pane_label(const CliDebugPaneViewCfg *args);
 struct CliDebugPaneViewCfg
@@ -221,7 +221,7 @@ EMBED_TABLE_STORAGE CliDebugPaneViewNs cli_debug_pane_view EMBED_UNUSED = {
     .row = cli_debug_pane_row,
     .toggle = cli_debug_pane_toggle,
     .press = cli_debug_pane_press,
-    .view = cli_debug_pane_shown,
+    .view = cli_debug_pane_displayed,
     .view_set = cli_debug_pane_view_set,
     .label = cli_debug_pane_label,
 };
@@ -252,9 +252,9 @@ EMBED_TABLE_STORAGE CliDebugPaneBarNs cli_debug_pane_bar EMBED_UNUSED = {
     .status = cli_debug_pane_status,
 };
 
-// the field of the view shown into `field_out`; `size` bytes of `text` typed at its end; and the key `name` pressed in
+// the field of the view displayed into `field_out`; `size` bytes of `text` typed at its end; and the key `name` pressed in
 // it for the tree at `root`: Enter adds the text as a watch in Variables and evaluates it in the chosen frame in
-// Console, the field emptied, and Backspace erases its last letter: 1 where the key was taken
+// Console, the field emptied, and Backspace erases its last character: 1 where the key was taken
 void cli_debug_pane_field(const CliDebugPaneInputCfg *args);
 void cli_debug_pane_type(const CliDebugPaneInputCfg *args);
 int cli_debug_pane_key(const CliDebugPaneInputCfg *args);

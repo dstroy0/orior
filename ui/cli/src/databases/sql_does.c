@@ -5,10 +5,10 @@
 #include "../text/text.h"
 #include "sql.h"
 
-// the most words of a statement read, and the most of its tokens past spaces and comments
+// the max words of a statement read, and the max of its tokens past spaces and comments
 #define CLI_SQL_WORDS 4096u
 
-// A word of a statement outside its strings, names and comments: where it stands, and the depth of brackets at it
+// A word of a statement outside its strings, names and comments: where it is, and the depth of brackets at it
 typedef struct
 {
     unsigned long long start;
@@ -59,7 +59,7 @@ EMBED_INLINE int cli_in(const SqlDoesCtx *args)
     return 0;
 }
 
-// The words of a statement outside its strings, names and comments, each with the depth of brackets it stands at:
+// The words of a statement outside its strings, names and comments, each with the depth of brackets it is at:
 // their count
 EMBED_INLINE unsigned int cli_words_get(const SqlDoesCtx *args)
 {
@@ -425,8 +425,8 @@ EMBED_INLINE void cli_lower_into(const SqlDoesCtx *args)
     for (unsigned long long at = (args->index < args->count) ? s_tokens[args->index].start : 0ULL;
          (args->index < args->count) && (at < s_tokens[args->index].end); at += 1ULL)
     {
-        const char letter = args->statement[at];
-        mmgr_line_ch(&line, ((letter >= 'A') && (letter <= 'Z')) ? (char)(letter + 32) : letter);
+        const char character = args->statement[at];
+        mmgr_line_ch(&line, ((character >= 'A') && (character <= 'Z')) ? (char)(character + 32) : character);
     }
     mmgr_line_finish(&line);
 }

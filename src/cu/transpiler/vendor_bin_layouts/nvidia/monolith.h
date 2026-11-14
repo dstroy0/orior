@@ -3,7 +3,7 @@
 #ifndef MONOLITH_H
 #define MONOLITH_H
 
-// What the monolith (monolith.cu) and its runner agree on: how a costed chain is laid out and where each section's
+// What the monolith (monolith.cu) and its runner agree on: how a costed chain is arranged and where each section's
 // count is written. C, read by both.
 #include "../../../engine/rmc/precepts.h"
 

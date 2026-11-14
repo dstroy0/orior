@@ -3,13 +3,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: LNG-4-037
 #
-# Ask whether the reading follows the language or the writing, with one kept fixed at a time, for
+# Ask whether the reading follows the language or the writing, with one retained fixed at a time, for
 # Section 4.13 of theory/workbooks/orior.
 #
 #   Usage:  python examples/language/4_measure/script_or_language.py
 #
-# Every earlier test moved both at once. Dravidian changed the script and kept the family, Uralic changed
-# the contact and kept the descent, and neither could say which of the two the reading was answering.
+# Every earlier test moved both at once. Dravidian changed the script and retained the family, Uralic changed
+# the contact and retained the descent, and neither could say which of the two the reading was answering.
 # Chinese holds one fixed at a time.
 #
 # Simplified and traditional are one language written in two character sets. The words are the same, the
@@ -117,7 +117,7 @@ def main():
         others = [apart("simplified", other) for other in
                   ("cantonese", "mandarin", "japanese", "korean") if other in held]
         out.write("\n    changing the characters costs %.4f\n" % script_change)
-        out.write("    keeping them costs             %.4f\n" % same_script)
+        out.write("    retention them costs             %.4f\n" % same_script)
         if others:
             out.write("    another language costs         %.4f on average\n"
                       % float(numpy.mean(others)))

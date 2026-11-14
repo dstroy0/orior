@@ -3,18 +3,18 @@
 
 // The findings: the server's issues, security hotspots, taint vulnerabilities and dependency risks,
 // listed by file under the filter chosen, the new code's first where the tree focuses on it; and the
-// locations of an issue or hotspot, its flows, laid on the files they fall in.
+// locations of an issue or hotspot, its flows, positioned on the files they fall in.
 
 // What each type of finding is called, by the type.
 const TYPES = { issue: "Issue", hotspot: "Security Hotspot", taint: "Taint Vulnerability", risk: "Dependency Risk" };
 
-// The filters findings are shown by, by the filter's id.
+// The filters findings are displayed by, by the filter's id.
 const FILTERS = { all: "All", fixable: "Fix Available", open: "Open Files", high: "High Severity", current: "Current File" };
 
 // The issues the server published, by file URI.
 const issues = new Map();
 
-// The filter findings are shown by.
+// The filter findings are displayed by.
 let filter = "all";
 
 // The impact severities the protocol numbers, by number.
@@ -45,14 +45,14 @@ function everyFinding() {
   for (const [type, map] of [["issue", issues], ["hotspot", sonar.hotspots], ["taint", sonar.taints], ["risk", sonar.risks]]) {
     for (const [uri, diagnostics] of map) {
       for (const finding of diagnostics) {
-        all.push({ kind: type, uri, finding });
+        all.push({ type: type, uri, finding });
       }
     }
   }
   return all;
 }
 
-// Whether a finding is shown under the filter.
+// Whether a finding is displayed under the filter.
 async function filtered({ uri, finding }, active) {
   const data = finding.data ?? {};
   if (filter === "fixable") {
@@ -71,7 +71,7 @@ async function filtered({ uri, finding }, active) {
 }
 
 // The row of a finding: what it says, its rule, its place, and what can be done with it.
-async function findingRow({ kind: type, uri, finding }, at) {
+async function findingRow({ type: type, uri, finding }, at) {
   const data = finding.data ?? {};
   const place = finding.range?.start ?? { line: 0, character: 0 };
   const path = (await treePathOf(uri)) ?? pathOfUri(uri);
@@ -117,9 +117,9 @@ async function drawFindings() {
     body = await section(`${all.length} findings`, all);
   }
   const filters = Object.entries(FILTERS)
-    .map(([id, label]) => button(id === filter ? `${label} (shown)` : label, "findings-filter", id))
+    .map(([id, label]) => button(id === filter ? `${label} (displayed)` : label, "findings-filter", id))
     .join("");
-  await shown("findings", `<h1>Findings</h1><div class="row">${filters}${button("Refresh", "findings-filter", filter)}</div>${body || '<p class="quiet">No findings.</p>'}`);
+  await displayed("findings", `<h1>Findings</h1><div class="row">${filters}${button("Refresh", "findings-filter", filter)}</div>${body || '<p class="quiet">No findings.</p>'}`);
 }
 
 onPressed("findings-filter", async (value) => {
@@ -142,7 +142,7 @@ onPressed("finding-show", async (value) => {
   if (!one) {
     return;
   }
-  const { kind: type, uri, finding } = one;
+  const { type: type, uri, finding } = one;
   const data = finding.data ?? {};
   const place = finding.range?.start ?? { line: 0, character: 0 };
   const path = await treePathOf(uri);
@@ -177,7 +177,7 @@ onPressed("finding-actions", async (value) => {
   if (path !== null) {
     const place = one.finding.range?.start ?? { line: 0, character: 0 };
     await orior.open(path, place.line, place.character);
-    await shown("ask", `<p>${escaped(path)} is open at the finding: Quick Fix there lists what SonarQube offers for it.</p>`);
+    await displayed("ask", `<p>${escaped(path)} is open at the finding: Quick Fix there lists what SonarQube offers for it.</p>`);
   }
 });
 
@@ -201,7 +201,7 @@ function connectionOfTree() {
 }
 
 // The places of an issue or hotspot: the file and line of each location, by flow, each a link to it,
-// and marks laid on the lines they fall on.
+// and marks positioned on the lines they fall on.
 async function drawLocations(issue) {
   sonar.located = issue;
   const flows = issue.flows ?? [];
@@ -231,7 +231,7 @@ async function drawLocations(issue) {
     await orior.marks.set(path, list);
   }
   sonar.markedPaths = [...marks.keys()];
-  await shown(
+  await displayed(
     "locations",
     `<h1>${escaped(issue.message)}</h1><p class="quiet">${escaped(issue.ruleKey)}${issue.creationDate ? ` | ${escaped(issue.creationDate)}` : ""}</p><ul>${main}</ul>${sections.join("")}${button("Clear", "locations-clear")}`,
   );
@@ -257,7 +257,7 @@ orior.server.on("sonarlint/showHotspot", async (hotspot) => {
     await orior.open(path, line, hotspot.textRange?.startLineOffset ?? 0);
   }
   const rule = hotspot.rule ?? {};
-  await shown(
+  await displayed(
     "rule",
     `<h1>${escaped(rule.name)} (${escaped(rule.key)})</h1><p>${escaped(hotspot.message)}</p><p class="quiet">${escaped(rule.securityCategory)} | ${escaped(["High", "Medium", "Low"][rule.vulnerabilityProbability] ?? rule.vulnerabilityProbability)} probability | ${escaped(hotspot.status)} | ${escaped(hotspot.author)}</p><h2>What's the risk?</h2>${rule.riskDescription ?? ""}<h2>Are you at risk?</h2>${rule.vulnerabilityDescription ?? ""}<h2>How can you fix it?</h2>${rule.fixRecommendations ?? ""}`,
   );
@@ -268,7 +268,7 @@ onPressed("location-open", async (value) => {
   await orior.open(path, Number(line), Number(col));
 });
 
-// The locations shown cleared, and their marks taken off.
+// The locations displayed cleared, and their marks taken off.
 async function locationsCleared() {
   for (const path of sonar.markedPaths ?? []) {
     await orior.marks.set(path, []);

@@ -9,7 +9,7 @@
 #include <string.h>
 
 // the word of the row `run answers <k> <question>` of the .ksc at `ksc_path` whose question begins with `question`, or
-// `none` where no such row stands or the file is not there
+// `none` where no such row is or the file is not there
 static unsigned int opening_row_read(const char *ksc_path, const char *question, unsigned int none)
 {
     static KscFile s_file;

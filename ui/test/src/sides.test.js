@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // A side pane collapsing slides away whole, its ground and its inside together, and gives its room back
-// once it is gone; shown again, it takes its room and slides in whole.
+// once it is gone; displayed again, it takes its room and slides in whole.
 
 import { showView } from "../../gui/src-js/views.js";
 import { EDGE_REST, togglePane } from "../../gui/src-js/sides.js";
@@ -25,7 +25,7 @@ test("the explorer collapsing slides away whole and gives its room back after, a
   togglePane(true, { take: false, pin: true });
   const pane = document.getElementById("explorer");
   const inside = pane.querySelector(":scope > .side-inner");
-  // the pane shown has arrived once its arrival's frames are drawn and its slide in has ended
+  // the pane displayed has arrived once its arrival's frames are drawn and its slide in has ended
   await ui.waitFor(() => pane.getBoundingClientRect().width > 100 && !pane.classList.contains("arriving") && !pane.getAnimations().length, 3000);
   const width = pane.getBoundingClientRect().width;
   try {
@@ -55,7 +55,7 @@ test("the pane shows once the pointer has rested on its edge, and not for a poin
   togglePane(false, { take: false, pin: true });
   await ui.waitFor(() => pane.classList.contains("collapsed") && pane.getBoundingClientRect().width <= 2, 3000);
   const edge = document.querySelector("#mode-edit .pane-edge-left");
-  assert.ok(edge && !edge.hidden, "the edge stands where the pane went");
+  assert.ok(edge && !edge.hidden, "the edge is where the pane went");
   const box = edge.getBoundingClientRect();
   try {
     await ui.hover({ x: box.left + 2, y: box.top + box.height / 2 });

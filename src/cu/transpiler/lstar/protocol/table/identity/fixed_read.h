@@ -21,12 +21,12 @@ extern "C"
         FIXED_CASE_WORD_1
     } FixedKind;
 
-    // The kind the values `values`, one a case and case t on thread t, are read as, against the host's thread number
+    // The type the values `values`, one a case and case t on thread t, are read as, against the host's thread number
     // and the case's words `first` and `second`. A store of 32 bits leaves the record's low word, and each value is
     // read at that width. The lane's number where every value is its case's number; a case word where every value is
     // it; the record where the values step 16 a case and the index where they step 32, each the low word of an address;
     // nothing where they are 0, one constant, or fewer than two
-    static inline FixedKind fixed_kind(const unsigned long long *values, const unsigned int *first,
+    static inline FixedKind fixed_type(const unsigned long long *values, const unsigned int *first,
                                        const unsigned int *second, unsigned int cases)
     {
         if (cases < 2u)
@@ -61,10 +61,10 @@ extern "C"
                         : FIXED_NOTHING;
     }
 
-    // the question a kind's row is written under, `run answers <n> <question>`, and empty where nothing is fixed
-    static inline const char *fixed_kind_question(FixedKind kind)
+    // the question a type's row is written under, `run answers <n> <question>`, and empty where nothing is fixed
+    static inline const char *fixed_type_question(FixedKind type)
     {
-        switch (kind)
+        switch (type)
         {
         case FIXED_LANE_NUMBER:
             return "fixed lane_number";

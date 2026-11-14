@@ -3,7 +3,7 @@
 // side_menu_test.c: the side_menu's check: a side_menu starts with no tool pointed and its beads at rest; the pointer on a tool's
 // button points it and off the side_menu points none; the pointer leaving the window points none; a press on a tool
 // flattens that tool's bead alone, a press on another lets the first go, and the release springs the pressed one
-// back; a press past the tools does nothing; and the side_menu drawn lays the atlas out for every tool at its place and
+// back; a press past the tools does nothing; and the side_menu drawn positions the atlas out for every tool at its place and
 // bakes every tool's frames
 #include "../../../../../includes/window/block.h"
 #include "../../../../../includes/window/side_menu.h"
@@ -69,12 +69,12 @@ int main(void)
                   (side_menu.buttons.press[search].curve == GUI_CURVE_BEAD),
               "the release springs the pressed bead back");
     cli_check(EMBED_CALL(gui_buttons.end_ms, GuiButtonsCfg, .buttons_read = &side_menu.buttons, .time_ms = 1100ULL) == 0ULL,
-              "the beads' end is 0 before the atlas is laid out, the side_menu not yet drawn");
+              "the beads' end is 0 before the atlas is arranged, the side_menu not yet drawn");
     EMBED_CALL(gui_side_menu_frame_x.press, GuiSideMenuFrameXCfg, .side_menu = &side_menu, .frame = &frame, .at = GUI_SIDE_MENU_NONE,
                .time_ms = 1200ULL);
     cli_check(side_menu.buttons.pressed == GUI_BEAD_TOOLS_MAX, "a press past the tools does nothing");
 
-    // the side_menu drawn lays the atlas out for every tool at its place and bakes every tool's frames
+    // the side_menu drawn positions the atlas out for every tool at its place and bakes every tool's frames
     const GuiPalette *const palette = EMBED_CALL(gui_palette_scheme.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     GuiIcons icons;
     EMBED_CALL(gui_icons.init, GuiIconsCfg, .icons = &icons);
@@ -89,7 +89,7 @@ int main(void)
     cli_check(side_menu.buttons.atlas.made && (side_menu.buttons.atlas.tools == g_gui_tools_count) &&
                   (side_menu.buttons.atlas.width == (unsigned int)GUI_SIDE_MENU_BUTTON) &&
                   (side_menu.buttons.atlas.origin[explorer].y == explorer_button.y - pad),
-              "the side_menu drawn lays the atlas out for every tool at its place");
+              "the side_menu drawn positions the atlas out for every tool at its place");
     cli_check(side_menu.buttons.atlas.baked == (1u << g_gui_tools_count) - 1u, "and bakes every tool's frames");
     EMBED_CALL(gui_side_menu_frame_x.press, GuiSideMenuFrameXCfg, .side_menu = &side_menu, .frame = &frame, .at = (int)search,
                .time_ms = 4000ULL);

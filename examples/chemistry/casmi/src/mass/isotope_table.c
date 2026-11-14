@@ -7,7 +7,7 @@
  * Usage: isotope_table NIST_TEXT OUTPUT_HEADER
  *
  * NIST_TEXT is the "all elements, all isotopes" plain-text output of NIST's Atomic Weights and
- * Isotopic Compositions (physics.nist.gov/cgi-bin/Compositions/stand_alone.pl, ascii2, isotype=all).
+ * Isotopic Compositions (physics.nist.gov/cgi-bin/Compositions/are_alone.pl, ascii2, isotype=all).
  * Every isotope NIST lists is written, with no element left out. A relative atomic mass enters as
  * an exact integer count of femtodaltons, 10^-15 Da. Its parenthesized uncertainty enters in the
  * same unit, and a '#' after it, NIST's mark for an estimated value, is retained as a flag. An isotopic
@@ -30,8 +30,8 @@
 /** Longest line of NIST's text this reads. */
 #define TABLE_LINE_BYTES 512u
 
-/** Most isotopes the table contains; NIST lists about 3,400. */
-#define TABLE_ISOTOPES_MOST 8192u
+/** Max isotopes the table contains; NIST lists about 3,400. */
+#define TABLE_ISOTOPES_MAX 8192u
 
 typedef struct
 {
@@ -47,7 +47,7 @@ typedef struct
     long long weight_high;
 } TableIsotope;
 
-static TableIsotope s_isotope[TABLE_ISOTOPES_MOST];
+static TableIsotope s_isotope[TABLE_ISOTOPES_MAX];
 
 /**
  * Reads a decimal "digits.digits(uncertainty)" or "digits.digits" as an exact integer at places.
@@ -271,7 +271,7 @@ int main(int argument_count, char **arguments)
         }
         else if ((value = table_field(line, "Standard Atomic Weight = ")) != NULL)
         {
-            if (count >= TABLE_ISOTOPES_MOST || current.symbol[0] == '\0' || current.mass == 0ll)
+            if (count >= TABLE_ISOTOPES_MAX || current.symbol[0] == '\0' || current.mass == 0ll)
             {
                 fprintf(stderr, "line %u: isotope incomplete or table full\n", line_number);
                 refused = 1;

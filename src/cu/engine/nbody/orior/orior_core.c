@@ -18,7 +18,7 @@ void orior_counters_reset(void)
 #define ORIOR_PROBED() (orior_probes += 1u)
 /* A fixed number of probe reads, for the engine that issues all of them whatever any one returns. */
 #define ORIOR_PROBED_N(count_) (orior_probes += (uint64_t)(count_))
-/* One exact compare, which reads at most needle_len bytes and usually far fewer, since a memcmp
+/* One exact compare, which reads at max needle_len bytes and usually far fewer, since a memcmp
  * stops at the first difference. The count is therefore a bound on the verification reads and not
  * a measurement of them, and the bench reports it as a bound. */
 #define ORIOR_VERIFIED() (orior_verifications += 1u)
@@ -91,14 +91,14 @@ size_t orior_naive(const uint8_t *corpus, size_t corpus_len, const uint8_t *need
  * @param[in] corpus_len How many.
  * @param[in] needle     Bytes to find [BORROWS].
  * @param[in] needle_len How many.
- * @param[in] anchors    How many anchors to place, at least one and at most ORIOR_ANCHORS.
+ * @param[in] anchors    How many anchors to place, at least one and at max ORIOR_ANCHORS.
  * @return               How many alignments match exactly.
  * @note Only this engine takes a count. The free order engine's advantage is that its comparisons
  *       are written out and fold into one value with one branch behind them, and a loop over a
  *       runtime count gives that back. A corpus whose count wants reducing is a coherent one, and
  *       a coherent corpus dispatches here anyway.
  * @note A needle of length zero occurs at every alignment, and the naive engine returns
- *       that count. That case is handed to it and not answered a second way here. An anchor
+ *       that count. That case is passed to it and not answered a second way here. An anchor
  *       cannot be placed in a needle with no bytes, and bounding the offsets is not enough on its
  *       own: at length zero the alignment loop runs one further than the corpus. The last
  *       alignment reads one past its end, and the anchor reads element zero of a needle that has
@@ -223,7 +223,7 @@ OriorEngine orior_choose(const OriorPlan *plan)
 size_t orior_anchors_for(const OriorPlan *plan)
 {
     // No plan is no known period, and an unknown period is the case the full anchor set is for.
-    // Returning the maximum reads more than a known period would need and can lose nothing.
+    // Returning the max reads more than a known period would need and can lose nothing.
     if (plan == NULL)
     {
         return ORIOR_ANCHORS;

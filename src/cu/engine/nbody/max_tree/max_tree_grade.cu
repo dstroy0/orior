@@ -168,20 +168,20 @@ extern "C" long max_tree_objects(const MaxTreeObjectsRequest *request)
             resident->counts, error);
         bytes = resident->scratch_bytes;
         ok = ok && MAX_TREE_STATUS_CHECK(
-                       cub::DeviceReduce::Max(resident->scratch, bytes, resident->counts, resident->maximum, (int)top),
-                       resident->maximum, error);
+                       cub::DeviceReduce::Max(resident->scratch, bytes, resident->counts, resident->max, (int)top),
+                       resident->max, error);
     }
     ok = ok && MAX_TREE_STATUS_CHECK(cudaMemset(resident->level, 0xFF, sizeof(unsigned int)), resident->level, error);
     if (ok != 0)
     {
         max_tree_level_pick_kernel<<<(top + MAX_TREE_BLOCK - 1u) / MAX_TREE_BLOCK, MAX_TREE_BLOCK>>>(
-            resident->counts, top, resident->maximum, resident->level);
+            resident->counts, top, resident->max, resident->level);
         ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), resident->level, error);
     }
     int expected = 0;
     unsigned int level_code = 0u;
-    ok = ok && MAX_TREE_STATUS_CHECK(cudaMemcpy(&expected, resident->maximum, sizeof(int), cudaMemcpyDeviceToHost),
-                                     resident->maximum, error);
+    ok = ok && MAX_TREE_STATUS_CHECK(cudaMemcpy(&expected, resident->max, sizeof(int), cudaMemcpyDeviceToHost),
+                                     resident->max, error);
     ok = ok &&
          MAX_TREE_STATUS_CHECK(cudaMemcpy(&level_code, resident->level, sizeof(unsigned int), cudaMemcpyDeviceToHost),
                                resident->level, error);

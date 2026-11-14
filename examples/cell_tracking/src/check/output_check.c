@@ -140,8 +140,8 @@
 
 #define OUTPUT_CHECK_CHUNK (1u << 20u)
 
-// the differing rows shown in full, each file's first
-#define OUTPUT_CHECK_SHOWN 5u
+// the differing rows displayed in full, each file's first
+#define OUTPUT_CHECK_DISPLAYED 5u
 
 static const char OUTPUT_CHECK_NODES_HEADER[] =
     "sample\ttime\tleaf\tz\ty\tx\tvoxels\tobject\tobject_members\tforward\tdeparture\tretained\tobject_link\tobject_"
@@ -307,7 +307,7 @@ static void output_check_row(OutputCheckText *text, const char *expected, size_t
     if (same == 0)
     {
         text->differing += 1ull;
-        if (text->differing <= OUTPUT_CHECK_SHOWN)
+        if (text->differing <= OUTPUT_CHECK_DISPLAYED)
         {
             printf("  %s line %llu reads:\n    %s\n  and was rebuilt as:\n    %s\n", text->name, text->lines,
                    text->line, expected);
@@ -823,7 +823,7 @@ static int output_check_faces(const char *set, const char *sample, OutputCheckGr
     return ok;
 }
 
-// the sample's .divide, when there is one: its head, then each division checked against the graph as it stands and
+// the sample's .divide, when there is one: its head, then each division checked against the graph as it is and
 // made. A .divide that does not open is none
 static int output_check_divide(const char *set, const char *sample, OutputCheckGraph *graph)
 {
@@ -945,7 +945,7 @@ static void output_check_rows(const char *sample, const OutputCheckGraph *graph,
             {
                 split_from = backward;
             }
-            // a start and an end are the graph's as it stands, after any .divide
+            // a start and an end are the graph's as it is, after any .divide
             const int start = (frame != 0u) && (backward < 0ll);
             const int end = ((frame + 1u) < graph->head[0]) && (forward < 0ll);
             const unsigned int faces = graph->faces[point];
@@ -1040,7 +1040,7 @@ int main(int count, char **arguments)
     unsigned long long moved = 0ull;
     unsigned long long faults = 0ull;
     unsigned int read = 0u;
-    // the samples with a .faces, and on the graphs as they stand their starts and ends and those crossing a face
+    // the samples with a .faces, and on the graphs as they are their starts and ends and those crossing a face
     unsigned int faced = 0u;
     unsigned long long totals[4] = {0ull, 0ull, 0ull, 0ull};
     printf("  %-16s %6s %10s %10s %s\n", "sample", "frames", "nodes", "edges",
@@ -1088,9 +1088,9 @@ int main(int count, char **arguments)
             printf("  %-16s its .faces: %llu of its %llu starts enter the view, %llu of its %llu ends leave it\n",
                    sample, crossed[1], crossed[0], crossed[3], crossed[2]);
             faced += 1u;
-            for (unsigned int kind = 0u; kind < 4u; kind += 1u)
+            for (unsigned int type = 0u; type < 4u; type += 1u)
             {
-                totals[kind] += crossed[kind];
+                totals[type] += crossed[type];
             }
         }
         read += 1u;

@@ -24,7 +24,7 @@ typedef struct
     int has_finding;
     unsigned long long files;
 } CliServersInspectFound;
-// the most files with names supplied and findings seen
+// the max files with names supplied and findings seen
 #define CLI_SERVERS_INSPECT_FILES (1u << 16u)
 
 // A read of a file into the tree: its root, its path in the root, where what is reported goes, the trees let go before
@@ -177,7 +177,7 @@ static int inspect_supplied_append(void)
             continue;
         }
         made += 1u;
-        // the key read out of the entry's cell, a path's length at most
+        // the key read out of the entry's cell, a path's length at max
         char key[CLI_PATH_MAX_LEN];
         const unsigned long long key_bytes = (one.key_size < sizeof(key)) ? one.key_size : (sizeof(key) - 1u);
         (void)g_cli_guard->movable_buf_read(
@@ -212,7 +212,7 @@ static int inspect_supplied_append(void)
         {
             continue;
         }
-        // the key read out of the entry's cell, a path's length at most, and the text stored under it out of the cell
+        // the key read out of the entry's cell, a path's length at max, and the text stored under it out of the cell
         char key[CLI_PATH_MAX_LEN];
         const unsigned long long key_bytes = (one.key_size < sizeof(key)) ? one.key_size : (sizeof(key) - 1u);
         (void)g_cli_guard->movable_buf_read(
@@ -242,7 +242,7 @@ EMBED_INLINE void inspect_passed_on(const ServersInspectCtx *args)
     unsigned long long size = args->size;
     const CliServersSink *sink = args->sink;
     EMBED_CALL(cli_keyed_name.clear, CliKeyedNameCfg, .keyed_out = &s_seen);
-    // a file found changes by its key and its URI, each at most a path's; one stored and no longer found by what it
+    // a file found changes by its key and its URI, each at max a path's; one stored and no longer found by what it
     // stored
     const unsigned long long capacity =
         (args->found_files * CLI_PATH_MAX_LEN * 2ULL) +
@@ -293,7 +293,7 @@ EMBED_INLINE void inspect_passed_on(const ServersInspectCtx *args)
         {
             continue;
         }
-        // the key and the URI beside it, each a path's length at most, read out of the entry's cell
+        // the key and the URI beside it, each a path's length at max, read out of the entry's cell
         char key[CLI_PATH_MAX_LEN];
         const unsigned long long key_bytes = (one.key_size < sizeof(key)) ? one.key_size : (sizeof(key) - 1u);
         (void)g_cli_guard->movable_buf_read(
@@ -324,7 +324,7 @@ EMBED_INLINE void inspect_passed_on(const ServersInspectCtx *args)
     g_cli_guard->persistent_buf_release(files, g_cli_servers_owner);
 }
 
-// the tree read from `root`, each Python and JavaScript file of it read where it lies, the tree's files laid flat for
+// the tree read from `root`, each Python and JavaScript file of it read where it lies, the tree's files positioned flat for
 // the read: 1, or 0 where a tree was let go meanwhile or the list could not be taken
 EMBED_INLINE int inspect_tree_read(const ServersInspectCtx *args)
 {
@@ -442,7 +442,7 @@ void cli_servers_inspect(const CliServersPathSizeRootSinkCtx *args)
         return;
     }
     // the read made in a cell of this call's own, the text after it where it is given, run at once where the tree
-    // stands, else copied into the cell the servers' thread takes it from
+    // is, else copied into the cell the servers' thread takes it from
     const int has_text = (args->text != NULL) && (size <= CLI_SERVERS_LARGEST);
     const unsigned long long text_size = has_text ? size : 0ULL;
     char *const job = g_cli_guard->temporary_buf_alloc(sizeof(CliServersInspectJob) + text_size, g_cli_servers_owner);

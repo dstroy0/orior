@@ -18,7 +18,7 @@ typedef struct
     const char *const *names;
     unsigned int count;
 } WriterRecordsCtx;
-// 1 where the `length` letters at `name` are the text `text`
+// 1 where the `length` characters at `name` are the text `text`
 EMBED_INLINE int query_name_is(const WriterRecordsCtx *args)
 {
     return (cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES}) == args->length) &&
@@ -214,7 +214,7 @@ int query_writer_records_import(const QueryCountNameCtx *args)
         mmgr_line_put(args->err_msg, " could not be read whole");
         return 0;
     }
-    // the records carried counted, then the latest record of each name carried, where it stands in the mapped .qry, in
+    // the records carried counted, then the latest record of each name carried, where it is in the mapped .qry, in
     // a cell of one place for each
     unsigned long long at = 0ULL;
     const QryRecord *record = NULL;

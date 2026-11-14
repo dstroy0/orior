@@ -91,7 +91,7 @@ typedef struct CliTreeCtx CliTreeCtx;
 // orior's version
 #define CLI_VERSION "1.10.0"
 
-// the most processes the system lists, the most mounts a window lists, and the longest name of one
+// the max processes the system lists, the max mounts a window lists, and the longest name of one
 #define CLI_PROCESSES_MAX 65536u
 
 #define CLI_MOUNTS_MAX 64u
@@ -116,12 +116,12 @@ unsigned int cli_processes_list(const CliCapacityProcessesCtx *args);
 void cli_container_members_end(void);
 unsigned int cli_process_own(void);
 int cli_program_own(const CliPathCapacityCtx *args);
-// the folder this process stands in, into `path`
+// the folder this process is in, into `path`
 int cli_folder_current(const CliPathCapacityCtx *args);
 // 1 where this process's errors go to a terminal, and where its output does (platform/windows.c, platform/posix.c)
 int cli_errors_terminal(void);
 int cli_output_terminal(void);
-// the words this program was given after its name, at most `capacity` of them, into `words`, each UTF-8: on Windows as
+// the words this program was given after its name, at max `capacity` of them, into `words`, each UTF-8: on Windows as
 // the system stores them, wide, and elsewhere the `count` words of `supplied`, or as the system saves them where
 // `supplied` is NULL: their count
 unsigned int cli_arguments(const CliCapacityCountCtx *args);
@@ -184,14 +184,14 @@ int cli_keychain_store(const CliErrMsgServiceCtx *args);
 int cli_keychain_read(const CliServiceCtx *args);
 int cli_keychain_forget(const CliErrMsgServiceCtx *args);
 unsigned long long cli_wall_milliseconds(void);
-// one letter written in UTF-8 (words.c)
+// one character written in UTF-8 (words.c)
 void cli_utf8_append(const CliLineLetterCtx *args);
 // the staged file `from` copied over `to` with the rights the system requires of the reader: on Windows orior's own
 // program run again as `imp write-raised`, raised; on Linux cp through pkexec; on macOS cp with the system's
 // authorization. 1, or 0 with why given
 int cli_raised_platform(const CliErrMsgFromCtx *args);
 
-// the most words of one command a program is run with, and the most bytes they take
+// the max words of one command a program is run with, and the max bytes they take
 #define CLI_WORDS_MAX 512u
 
 #define CLI_WORDS_TEXT (1u << 16u)
@@ -258,7 +258,7 @@ EMBED_INLINE void cli_gate_opened(CliGate *gate)
 // the epoch a ticket ring's stamp carries: the clock in steps of about a second, in the stamp's sixteen bits
 EMBED_INLINE embed_u16 cli_ticket_epoch(void)
 {
-    // Explicit cast keeps the low sixteen bits of the clock's steps
+    // Explicit cast retains the low sixteen bits of the clock's steps
     return (embed_u16)(embed_clock_ns() >> 30u);
 }
 
@@ -273,12 +273,12 @@ EMBED_INLINE int cli_ticket_pushed(const EmbedTicketRing *ring, embed_u32 next, 
 }
 
 // Whether the slot of the ticket `next` is ready for its grant: a zero word on the ring's first lap, else the
-// released word of the ticket one lap before. A producer that grants only then keeps every live ticket within one
+// released word of the ticket one lap before. A producer that grants only then retains every live ticket within one
 // lap of the ring, which the ring's proofs need and the consumer's pop in ticket order relies on
 EMBED_INLINE int cli_ticket_room(const EmbedTicketRing *ring, embed_u32 next)
 {
     const embed_u64 current = embed_atomic_u64_load(&embed_ticket_ring_slot(ring, (embed_u64)next)->stamp);
-    // Explicit cast narrows the slot count, at most 2^31, to the ticket's width
+    // Explicit cast narrows the slot count, at max 2^31, to the ticket's width
     const embed_u32 lap = (embed_u32)(ring->mask + 1u);
     return ((current == 0u) && (next < lap)) ||
            (((current & EMBED_TICKET_RELEASED) != 0u) && (embed_ticket_of_stamp(current) == next - lap));
@@ -294,7 +294,7 @@ typedef struct
 // The priority a thread or a program starts at, so that what must not wait does not, and what runs as the host's
 // guest gives the processor back the moment the host wants it. The window's own threads, which answer it, run at the
 // process's level and are not set here. Work is that level, and the default: language servers, git, formatters.
-// Run stands above it: a run's writer and the channels that hand to it. A guest stands below it: builds, tests,
+// Run is above it: a run's writer and the channels that hand to it. A guest is below it: builds, tests,
 // checkers, clones, installs and scans. Idle runs only in time nothing else wants: caches warmed ahead
 #define CLI_PRIORITY_WORK 0u
 #define CLI_PRIORITY_RUN 1u
@@ -383,7 +383,7 @@ typedef struct
 } CliFilePiece;
 
 // the file at `path` written as `count` pieces in turn, any file there replaced whole or not at all: 1, or 0 where it
-// could not be; and the file at `path` written with what `put` puts into the file writer's line, handed `context`, the
+// could not be; and the file at `path` written with what `put` puts into the file writer's line, passed `context`, the
 // same way: 1, or 0 where `put` returned 0 or the file could not be written (file_writing.c)
 int cli_file_pieces_write(const CliPathCountCtx *args);
 int cli_file_put_write(const CliPathPutCtx *args);
@@ -411,7 +411,7 @@ int cli_file_write_chunk(void *context, const char *bytes, size_t size);
 int cli_file_end(const CliFileCtx *args);
 
 // a line over `stage`, which is sized for CLI_STAGE_BYTES + 1, handing each whole stage to the file begun; and the
-// line's last bytes handed to it, the file put in place where every byte went and taken away where one did not: 1, or 0
+// line's last bytes passed to it, the file put in place where every byte went and taken away where one did not: 1, or 0
 // where it was not put in place (file_writing.c)
 VerbaLinea cli_file_line(const CliFileStageCtx *args);
 int cli_file_line_end(const CliLineCtx *args);
@@ -446,7 +446,7 @@ void cli_temporary_file_let_go(const CliFileTemporaryFileCtx *args);
 // the system's clipboard: its text written into `text` as UTF-8, nothing where it holds none: 1, or 0 where it could
 // not be read; `size` bytes of UTF-8 `text` put on it: 1, or 0 where it did not take them; the files `paths`, `count`
 // of them, put on it as the file manager puts them, to be moved where they are pasted where `cut` and copied otherwise:
-// 1, or 0 where it did not take them; each file it holds handed to `each`, 1 in `cut` where they were cut, 0 where they
+// 1, or 0 where it did not take them; each file it holds passed to `each`, 1 in `cut` where they were cut, 0 where they
 // were copied and -1 where the clipboard does not say: their count; and the clipboard emptied
 // (platform/windows_clipboard.c, platform/posix_clipboard.c)
 // what the system's picker picks: a file to open, a folder, or a file to save
@@ -454,7 +454,7 @@ void cli_temporary_file_let_go(const CliFileTemporaryFileCtx *args);
 #define CLI_PICK_FOLDER 1u
 #define CLI_PICK_SAVE 2u
 
-// the system's picker shown for the reader to pick `type`, waited on: the path chosen into `path`, sized for
+// the system's picker displayed for the reader to pick `type`, waited on: the path chosen into `path`, sized for
 // `capacity`, 1, or 0 where none was chosen (platform/windows_picker.c, platform/posix_picker.c)
 int cli_file_pick(const CliPathCapacityCtx *args);
 
@@ -470,9 +470,9 @@ unsigned long long cli_spawn_read(const CliCapacityPipeHandleCtx *args);
 // the bytes waiting to be read from `pipe_handle`, which a read of no more than that many takes without waiting; 0
 // where none wait or the pipe has ended
 unsigned long long cli_spawn_waiting(const CliCapacityPipeHandleCtx *args);
-// what `pipe_handle` writes read until it ends, line by line into `line`, sized for `capacity`, each line handed to
-// `each` with `context` and its bytes, its end left off, a line longer than the capacity handed in pieces of the
-// capacity's length, and what stands after the last end handed as it ends (spawn_lines.c)
+// what `pipe_handle` writes read until it ends, line by line into `line`, sized for `capacity`, each line passed to
+// `each` with `context` and its bytes, its end left off, a line longer than the capacity passed in pieces of the
+// capacity's length, and what is after the last end passed as it ends (spawn_lines.c)
 void cli_spawn_lines_read(const CliSpawnLinesCtx *args);
 long long cli_spawn_wait(const CliSpawnedCtx *args);
 // whether a started process has ended, without waiting: 1 with its exit code into `code`, -1 where a signal ended it,
@@ -533,7 +533,7 @@ int cli_wake_wait_seen_for(const CliWakeCtx *args);
 // what happened to it
 typedef void (*CliChangeFn)(const CliEachPathTypeCfg *args);
 
-// the folder `root` and all under it watched by the system, each change handed to `emit` on a thread of the watch's
+// the folder `root` and all under it watched by the system, each change passed to `emit` on a thread of the watch's
 // own as it is made: 1, or 0 where the system cannot watch it, as off Windows; and the watch stopped, its thread
 // waited for (platform/windows_watch.c, platform/posix_watch.c)
 int cli_watch_system_start(const CliRootContextCtx *args);
@@ -567,7 +567,7 @@ typedef struct
 int cli_socket_connect(const CliErrMsgCtx *args);
 int cli_socket_write(const CliBytesSizeCtx *args);
 int cli_socket_read(const CliSizeBytesCtx *args);
-// what came, at most `capacity` bytes, read into `bytes`: its count, CLI_SOCKET_CLOSED where the peer closed,
+// what came, at max `capacity` bytes, read into `bytes`: its count, CLI_SOCKET_CLOSED where the peer closed,
 // CLI_SOCKET_WAITED where the wait ran out, CLI_SOCKET_FAILED where the read failed
 long long cli_socket_some(const CliCapacityCtx *args);
 void cli_socket_wait(const CliSockCtx *args);
@@ -606,7 +606,7 @@ void cli_pages_free(const CliSizeBytesCtx *args);
 // platform/posix_system.c)
 int cli_private_folder_init(const CliWordsErrMsgCtx *args);
 int cli_private_file_write(const CliPathBytesCtx *args);
-// each process of the machine handed to `each`: its number, its program's name, and the line it was started with where
+// each process of the machine passed to `each`: its number, its program's name, and the line it was started with where
 // the system reports, else empty (platform/windows_processes.c, platform/posix_processes.c)
 void cli_processes_each(const CliContextCtx *args);
 // whether the process `pid` still runs, as the system reports: on Windows its exit code is still active, on Linux /proc
@@ -1115,7 +1115,7 @@ struct CliErrorCtx
 struct CliLineLetterCtx
 {
     VerbaLinea *line;
-    unsigned int letter;
+    unsigned int character;
 };
 
 struct CliWordsWordsCtx
@@ -1315,7 +1315,7 @@ typedef struct
     void (*utf8_append)(const CliLineLetterCtx *args);
 } CliLineLetterNs;
 EMBED_TABLE_LAYOUT(CliLineLetterNs, utf8_append);
-EMBED_TABLE_STORAGE CliLineLetterNs cli_line_letter_internal EMBED_UNUSED = {
+EMBED_TABLE_STORAGE CliLineLetterNs cli_line_character_internal EMBED_UNUSED = {
     .utf8_append = cli_utf8_append,
 };
 

@@ -30,7 +30,7 @@
 typedef struct CliValidatePathCfg CliValidatePathCfg;
 typedef struct CliValidateCfg CliValidateCfg;
 
-// the most checks one validation runs
+// the max checks one validation runs
 #define CLI_VALIDATE_CHECKS 16u
 
 // the id of the tool plugin that checks files of `language`, the first by id of those that come with orior and the

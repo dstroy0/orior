@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// krep_head.h: the head every k-file opens with: KREP_MAGIC's eight bytes, the file's four-byte kind, and the version
+// krep_head.h: the head every k-file opens with: KREP_MAGIC's eight bytes, the file's four-byte type, and the version
 // as one 32-bit limb
 #ifndef KREP_HEAD_H
 #define KREP_HEAD_H

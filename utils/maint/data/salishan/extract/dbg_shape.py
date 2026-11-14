@@ -5,7 +5,7 @@ import os
 
 from workdir import PRIVATE  # noqa: E402
 
-from paper_sift import same_letters
+from paper_sift import same_characters
 
 
 def gloss_shaped(text, share=3):
@@ -21,7 +21,7 @@ def main():
     at = int(sys.argv[2]) - 1
     body, seg, gloss = text[at], text[at + 1], text[at + 2]
     print(repr(body), repr(seg), repr(gloss))
-    print("same 0.8", same_letters(body, seg), "same 0.6", same_letters(body, seg, 0.6))
+    print("same 0.8", same_characters(body, seg), "same 0.6", same_characters(body, seg, 0.6))
     print("gloss 3", gloss_shaped(gloss), "gloss 4", gloss_shaped(gloss, 4), "body gloss", gloss_shaped(body))
 
 

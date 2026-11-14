@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// terminal.h: the terminal's panel at the work's foot under both views, as the terminal's tabs stand: its top line;
-// its side_menu of tabs, each its number and folder and a × that ends it, the tab shown on the ground with the signal
+// terminal.h: the terminal's panel at the work's foot under both views, as the terminal's tabs are: its top line;
+// its side_menu of tabs, each its number and folder and a × that ends it, the tab displayed on the ground with the signal
 // under it and an ended shell's quieter, then New Terminal and Split, Split in the signal while the panel is split; and
-// under the side_menu the panes shown, one or two side by side with a line between, the one the keys go to marked at
+// under the side_menu the panes displayed, one or two side by side with a line between, the one the keys go to marked at
 // its top while there are two, each its view's rows of its text with the selection under them and the xterm's rows
 // drawn over the text's from the line they start on, each cell in its colors and weight, the cursor solid where the
 // panel takes the keys and an outline where it does not (terminal.c)
@@ -21,7 +21,7 @@ typedef struct GuiTerminalCfg GuiTerminalCfg;
 
 // sizes in the page's pixels: the side_menu's padding at its top and its left, the gap between its items, a tab's
 // height, its padding at the left and the right, the gap before its × and the ×'s own padding, a tool's width and
-// height and its icon's side, a tab's corner and the line under the tab shown; the views' padding at the top, the sides
+// height and its icon's side, a tab's corner and the line under the tab displayed; the views' padding at the top, the sides
 // and the foot, the text's size and a row's height, 13px at 1.3; the tabs' text size; and the line marking the screen
 // the keys go to
 #define GUI_TERMINAL_STRIP_PAD_TOP 2
@@ -36,7 +36,7 @@ typedef struct GuiTerminalCfg GuiTerminalCfg;
 #define GUI_TERMINAL_TOOL_HEIGHT 22
 #define GUI_TERMINAL_ICON 14
 #define GUI_TERMINAL_RADIUS 6
-#define GUI_TERMINAL_SHOWN_LINE 2
+#define GUI_TERMINAL_DISPLAYED_LINE 2
 #define GUI_TERMINAL_PAD_TOP 3
 #define GUI_TERMINAL_PAD_SIDE 10
 #define GUI_TERMINAL_PAD_BOTTOM 6
@@ -45,7 +45,7 @@ typedef struct GuiTerminalCfg GuiTerminalCfg;
 #define GUI_TERMINAL_TAB_SIZE 12u
 #define GUI_TERMINAL_CHOSEN_LINE 2
 
-// The terminal as the window last read it of the terminal's tabs: the panel, its two panes, the one shown then the one
+// The terminal as the window last read it of the terminal's tabs: the panel, its two panes, the one displayed then the one
 // beside it, each pane's frame of its tab's text, NULL for none, and the table of its runs' tokens, which sets their
 // colors, NULL for none
 typedef struct
@@ -56,16 +56,16 @@ typedef struct
     const CliDocumentNames *names[2];
 } GuiTerminal;
 
-// the columns and rows the pane `view` shows, 0 the one shown and 1 the one beside it, into `columns` and `rows`, two
-// of each at the least: 1, or 0 where the panel is closed or the view not shown
+// the columns and rows the pane `view` shows, 0 the one displayed and 1 the one beside it, into `columns` and `rows`, two
+// of each at the least: 1, or 0 where the panel is closed or the view not displayed
 int gui_terminal_size(const GuiTerminalCfg *args);
-// what the pixel at x, y stands on in the panel: CLI_HIT_TERMINAL with the pane into `index` and the row and the
-// column the pixel stands nearest the left edge of into `row` and `column`, CLI_HIT_TERMINAL_TAB or
+// what the pixel at x, y is on in the panel: CLI_HIT_TERMINAL with the pane into `index` and the row and the
+// column the pixel is nearest the left edge of into `row` and `column`, CLI_HIT_TERMINAL_TAB or
 // CLI_HIT_TERMINAL_TAB_CLOSE with the tab, CLI_HIT_TERMINAL_NEW or CLI_HIT_TERMINAL_SPLIT, CLI_HIT_TERMINAL_PANEL on
 // none of these, and CLI_HIT_NONE outside the panel or with it closed
 unsigned int gui_terminal_hit(const GuiTerminalCfg *args);
-// the row and the column of the pane `view` the pixel at x, y stands nearest, into `row` and `column`, a pixel outside
-// the pane taking the nearest of its rows and columns: 1, or 0 where the pane is not shown
+// the row and the column of the pane `view` the pixel at x, y is nearest, into `row` and `column`, a pixel outside
+// the pane taking the nearest of its rows and columns: 1, or 0 where the pane is not displayed
 int gui_terminal_cell_at(const GuiTerminalCfg *args);
 // the panel drawn in the frame's terminal, nothing while it is closed
 void gui_terminal_draw(const GuiTerminalCfg *args);

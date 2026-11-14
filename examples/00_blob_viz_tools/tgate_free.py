@@ -189,7 +189,7 @@ def _wall(digits=40):
     print("  qubit. That is the wall, and it is the OPPOSITE of the hardware situation:")
     print("  there qubits are plentiful and distilled T gates are scarce, here T gates are free")
     print("  and qubits are what run out. Stabilizer-rank methods sit between the two, paying")
-    print("  about 2^(0.4t) for t T gates while keeping the qubit count large.")
+    print("  about 2^(0.4t) for t T gates while retention the qubit count large.")
     return 0
 
 

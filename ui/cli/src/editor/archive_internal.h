@@ -54,7 +54,7 @@ typedef struct
     unsigned long long capacity;
 } CliByteBuffer;
 
-// `capacity` given `need` bytes for `what`: as it stands where it fits them, else in a cell of that many taken in the
+// `capacity` given `need` bytes for `what`: as it is where it fits them, else in a cell of that many taken in the
 // old one's place, what the old one occupied let go; 1, or 0 with why given where the cells cannot meet it or `need` is
 // past CLI_ARCHIVE_MAX; and the bytes an archive written anew from `size` bytes may take, an eighth and a page over
 // (archive_path.c)
@@ -69,7 +69,7 @@ int cli_data_get(const CliArchiveBytesCtx *args);
 // the name a gzipped file's one member goes by, the file's own less its .gz, into `out`, sized for CLI_NAME_MAX_LEN
 void cli_gz_inner(const CliArchiveNameOutCtx *args);
 
-// the most archives deep a file is saved within
+// the max archives deep a file is saved within
 #define CLI_ARCHIVE_DEPTH 3u
 
 #define CLI_ARCHIVE_PARTS 64u

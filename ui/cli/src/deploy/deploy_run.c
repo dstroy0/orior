@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// deploy_run.c: a deployment previewed, sent or rolled back: what each place has shown, the files sent to every
+// deploy_run.c: a deployment previewed, sent or rolled back: what each place has displayed, the files sent to every
 // place at once, a machine's release going in beside the one it runs, and every machine turned to the new release
 // only once every place has it; a place that fails leaves each on the release it had
 #include "../code/git.h"

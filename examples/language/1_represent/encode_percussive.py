@@ -13,8 +13,8 @@
 #
 #   Usage:  python examples/language/1_represent/encode_percussive.py [source] [target]
 #
-# Morse is also the sharpest case for one of the two regularities. Its letter codes were assigned by
-# hand with the shortest given to the most frequent letters. The brevity law is built into the
+# Morse is also the sharpest case for one of the two regularities. Its character codes were assigned by
+# hand with the shortest given to the commonest characters. The brevity law is built into the
 # encoding and not merely expected of it.
 
 import os
@@ -37,24 +37,24 @@ CODE = {
     "5": ".....", "6": "-....", "7": "--...", "8": "---..", "9": "----.",
 }
 
-# One space between letters and a slash between words, following how Morse is written down. Both are
+# One space between characters and a slash between words, following how Morse is written down. Both are
 # silences in the transmitted form and both are single bytes here. The detector meets two candidate
 # boundaries and picks whichever is the more regular.
-LETTER_GAP = " "
+CHARACTER_GAP = " "
 WORD_GAP = "/"
 
 
 def shuffled_table():
-    """Reassign the same set of codes to different letters.
+    """Reassign the same set of codes to different characters.
 
-    Morse had regional variants that gave different codes to the same letters. A code table is
-    therefore a choice and never part of the message. Permuting it keeps every code length Morse has and
-    destroys which letter each one was given to, which separates the two regularities: how often a
-    word recurs cannot depend on how its letters are defined, and how long a code is was somebody's
+    Morse had regional variants that gave different codes to the same characters. A code table is
+    therefore a choice and never part of the message. Permuting it retains every code length Morse has and
+    destroys which character each one was given to, which separates the two regularities: how often a
+    word recurs cannot depend on how its characters are defined, and how long a code is was somebody's
     decision. The permutation is fixed, and a run reproduces.
     """
-    letters = sorted(CODE.keys())
-    codes = [CODE[letter] for letter in letters]
+    characters = sorted(CODE.keys())
+    codes = [CODE[character] for character in characters]
     order = list(range(len(codes)))
     state = 0x243F6A88
 
@@ -63,7 +63,7 @@ def shuffled_table():
         pick = state % (slot + 1)
         order[slot], order[pick] = order[pick], order[slot]
 
-    return {letters[index]: codes[order[index]] for index in range(len(letters))}
+    return {characters[index]: codes[order[index]] for index in range(len(characters))}
 
 
 def main():
@@ -86,7 +86,7 @@ def main():
         text = handle.read()
 
     out = []
-    letters = 0
+    characters = 0
     words = 0
     pending = []
 
@@ -94,10 +94,10 @@ def main():
         code = CODE.get(character)
         if code is not None:
             pending.append(code)
-            letters += 1
+            characters += 1
             continue
         if pending:
-            out.append(LETTER_GAP.join(pending))
+            out.append(CHARACTER_GAP.join(pending))
             pending = []
             words += 1
         # Every run of anything not encodable is one word gap. Punctuation and layout do not each
@@ -106,7 +106,7 @@ def main():
             out.append(WORD_GAP)
 
     if pending:
-        out.append(LETTER_GAP.join(pending))
+        out.append(CHARACTER_GAP.join(pending))
         words += 1
 
     body = "".join(out)
@@ -115,8 +115,8 @@ def main():
     with open(target, "w", encoding="utf-8", newline="") as handle:
         handle.write(body)
 
-    print("%s\n  %d letters and %d words became %d bytes over %d distinct marks"
-          % (os.path.basename(target), letters, words, len(body), len(set(body))))
+    print("%s\n  %d characters and %d words became %d bytes over %d distinct marks"
+          % (os.path.basename(target), characters, words, len(body), len(set(body))))
     return 0
 
 

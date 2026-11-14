@@ -4,8 +4,8 @@ usage: python residue.py <stem> [stem ...]
 
 Points the library's own check at the private corpus: the paper's text layer under papers/, the
 hand table under oracles/. The repair nearly every paper takes in paper_config is the space
-closed after a stacked mark and then NFC. The letters counted as the language are TEXT_SPACE plus
-every non-ASCII letter or mark the table's language rows use, the way paper_config reads a marks set
+closed after a stacked mark and then NFC. The characters counted as the language are TEXT_SPACE plus
+every non-ASCII character or mark the table's language rows use, the way paper_config reads a marks set
 off an oracle's own form column.
 """
 import io
@@ -53,9 +53,9 @@ SPACE_BEFORE_MARK = re.compile("(?<=[^\\W\\d_]|[̀-ͯ]) ([̀-ͯ])")
 
 
 def attached(line):
-    """A combining mark the text layer set after a space, k̓ə ̣pqns, put back on its letter.
+    """A combining mark the text layer set after a space, k̓ə ̣pqns, put back on its character.
 
-    A combining mark cannot open a word, and the space before one is the text layer's. The letter
+    A combining mark cannot open a word, and the space before one is the text layer's. The character
     can carry a mark already, √ʔə́ ̣sxe in Hall et al.
 
     A mora's µ subscript set after a stressed vowel's acute sits a space apart in the text layer,
@@ -72,19 +72,19 @@ def placed(line):
 
 
 SPACE_MORA = re.compile("(?<=[̀-ͯ]) (?=[µμ][^\\s\\[\\]]*\\])")
-# A vowel carrying two marks, the dot below and the acute of a stressed retracted schwa, stands
+# A vowel carrying two marks, the dot below and the acute of a stressed retracted schwa, is
 # wider than its box, and the text layer sets a space after it inside the word: petə̣́ leʔ, stə̣́ nwn
 # in Hall et al.
 SPACE_AFTER_STACK = re.compile("(?<=[̀-ͯ]{2}) (?=[^\\W\\d_])")
 
 
-SUB_LETTER_ON_MARK = re.compile(r"^(\s*[a-j]\.)(?=[*#?]\S)")
+SUB_CHARACTER_ON_MARK = re.compile(r"^(\s*[a-j]\.)(?=[*#?]\S)")
 
 
 def lettered(line):
-    """The space after a sub-example's letter put back where the page sets the judgement mark
-    against it, b.*xʷúy̓ for b. *xʷúy̓. The letter is no part of the form."""
-    return SUB_LETTER_ON_MARK.sub(r"\1 ", line)
+    """The space after a sub-example's character put back where the page sets the judgement mark
+    against it, b.*xʷúy̓ for b. *xʷúy̓. The character is no part of the form."""
+    return SUB_CHARACTER_ON_MARK.sub(r"\1 ", line)
 
 
 def paper_repair(stem):
@@ -104,16 +104,16 @@ def paper_repair(stem):
 
 def inserted_space(stem):
     """The inserted-space repair for a paper. A page text closed up from its glyph rows (page_text.py
-    leaves a .layer file of the lines it kept as the layer has them) takes it on those lines alone:
+    leaves a .layer file of the lines it retained as the layer has them) takes it on those lines alone:
     the spaces of every other line are the glyph row's, =ox̱ =da in Sardinha's (6)."""
     layer_file = os.path.join(PAGE_TEXT, stem + ".layer")
     if not os.path.isfile(layer_file):
         return INSERTED_SPACE
     with open(layer_file, encoding="utf-8") as handle:
-        kept = set(handle.read().split("\n")) - {""}
+        retained = set(handle.read().split("\n")) - {""}
 
     def repair(text):
-        return INSERTED_SPACE(text) if text.strip() in kept else text
+        return INSERTED_SPACE(text) if text.strip() in retained else text
     return repair
 
 
@@ -141,8 +141,8 @@ def marks_of(table):
     # write it holds 7 in page numbers, years and URLs, and counting it there asks for rows nobody
     # should write.
     held.discard("7")
-    for where, who, kind, form, gloss in oracle_check.oracle_rows(table):
-        if kind not in LANGUAGE_KINDS:
+    for where, who, type, form, gloss in oracle_check.oracle_rows(table):
+        if type not in LANGUAGE_KINDS:
             continue
         for symbol in unicodedata.normalize("NFC", form):
             if symbol == "7":
@@ -176,11 +176,11 @@ def quoted_sources(path, repair=None, pieces=2, line_joins=False):
     """source_forms, plus each token that ends a multi-word gloss offered without its closing quote.
 
     bare() takes ’ off a token only where the opening ‘ is on the same token, which is right for a
-    one-word gloss and leaves top’ whole at the end of ‘water standing up on top’. The row holds top.
+    one-word gloss and leaves top’ whole at the end of ‘water located up on top’. The row holds top.
     """
     held, printed, welds = read_sources(path, repair, pieces, line_joins)
     # A footnote mark after the closing quote, ‘I want’16: the last word of the gloss is the token.
-    # Where the ’ is a letter, the glottal stop of gwalg̱a’30 in Matthewson's (119a), a row holds the
+    # Where the ’ is a character, the glottal stop of gwalg̱a’30 in Matthewson's (119a), a row holds the
     # whole token, and the word without it is offered as a weld of that token.
     for token, number in list(held.items()):
         marked = re.match(r"^(.+)'\d{1,2}$", token)
@@ -204,7 +204,7 @@ def quoted_sources(path, repair=None, pieces=2, line_joins=False):
         marked = re.match(r"^(.+[^\W\d_]-)\d{1,2}$", token)
         if marked:
             held.setdefault(marked.group(1), number)
-    # The stem is offered as a weld, and the token stays printed: a row may keep the mark, as hiɬ-10
+    # The stem is offered as a weld, and the token stays printed: a row may retain the mark, as hiɬ-10
     # does in Louie's transcription.
     for token in list(printed):
         marked = re.match(r"^(.+[^\W\d_]-)\d{1,2}$", token)
@@ -212,7 +212,7 @@ def quoted_sources(path, repair=None, pieces=2, line_joins=False):
             welds.setdefault(token, set()).add(marked.group(1))
     # A form quoted inside an ellipsis, “...p̓áƛ̓aƛ̓...which, and a form after the sign of its
     # polarity, set in parentheses or not, (?)-čát-t̓iqi-m̓ɬ, (?)+kʷáɬ and +qʷáɬ[=]iš- in Robertson's
-    # puns; a + is no letter of any orthography here.
+    # puns; a + is no character of any orthography here.
     for token, number in list(held.items()):
         for piece in re.split(r"\.\.\.|…", token):
             if piece and piece != token:
@@ -280,7 +280,7 @@ def not_already_written(token, marks):
 
 def log_repairs(stem):
     """Write to defects.tsv each page line this repair changes past the library's own steps: a mark
-    or a mora set apart from its letter (attached) and a pair of CORRECTIONS read off the page.
+    or a mora set apart from its character (attached) and a pair of CORRECTIONS read off the page.
 
     The library's inserted-space repair logs nothing here; its work is the text layer's spaces in
     general, not a defect of this paper."""
@@ -304,7 +304,7 @@ def log_repairs(stem):
                 continue
             before, middle, after = plain(text), joined(text), full(text)
             if middle != before:
-                entries.append((page, "mark or mora set apart from its letter", before, middle))
+                entries.append((page, "mark or mora set apart from its character", before, middle))
             if after != middle:
                 entries.append((page, "page-read correction", middle, after))
     defects.write(stem, "residue.py", entries)
@@ -335,12 +335,12 @@ def main():
         # oracle_check wraps stdout's buffer and closes it when the wrapper goes. Each call gets
         # its own duplicate of the handle to close.
         sys.stdout.flush()
-        kept = sys.stdout
-        sys.stdout = io.TextIOWrapper(open(os.dup(kept.fileno()), "wb"), encoding="utf-8")
+        retained = sys.stdout
+        sys.stdout = io.TextIOWrapper(open(os.dup(retained.fileno()), "wb"), encoding="utf-8")
         try:
             failed |= oracle_check.main()
         finally:
-            sys.stdout = kept
+            sys.stdout = retained
     return failed
 
 

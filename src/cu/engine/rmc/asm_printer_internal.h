@@ -17,11 +17,11 @@
 #include <string>
 #include <vector>
 
-// the ruleset, the target and the header as the core's build reads them, in host memory: every text's letters end to
+// the ruleset, the target and the header as the core's build reads them, in host memory: every text's characters end to
 // end, the texts and the forms' placeholders, and the core's view of them, which points into the three
 struct AsmPrinterFlat
 {
-    std::vector<unsigned char> letters;
+    std::vector<unsigned char> characters;
     std::vector<AsmPrinterCoreText> texts;
     std::vector<unsigned int> placeholders;
     AsmPrinterCoreRules rules;
@@ -30,13 +30,13 @@ struct AsmPrinterFlat
 void asm_printer_flatten(const Ruleset *rules, const TargetInfo *target, const std::string &header,
                          AsmPrinterFlat *flat);
 
-// the memory a build lays out into, sized from the flattened ruleset by asm_printer_memory_size, its steps by
+// the memory a build arranges into, sized from the flattened ruleset by asm_printer_memory_size, its steps by
 // `step_capacity`
 struct AsmPrinterMemory
 {
     std::vector<unsigned int> word_start;
     std::vector<unsigned int> word_length;
-    std::vector<unsigned char> word_letters;
+    std::vector<unsigned char> word_characters;
     std::vector<unsigned int> part_pieces;
     std::vector<unsigned int> part_lanes;
     std::vector<unsigned int> form_parts;
@@ -54,7 +54,7 @@ void asm_printer_memory_size(AsmPrinterMemory *memory, AsmPrinterCoreBuild *buil
 // the steps the first build is given; a build left full runs again with twice as many
 #define ASM_PRINTER_STEP_CAPACITY 1024u
 
-// what a finished build laid out, its memory in host memory, stored in `text_rules`: the lists and the program's steps,
+// what a finished build arranged, its memory in host memory, stored in `text_rules`: the lists and the program's steps,
 // fields, tables and output
 void asm_printer_store(const AsmPrinterCoreBuild *build, AsmPrinterRuleset *text_rules);
 

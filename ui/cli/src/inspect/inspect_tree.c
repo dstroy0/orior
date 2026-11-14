@@ -194,7 +194,7 @@ EMBED_INLINE void tree_bucket_alloc(const InspectTreeCtx *args)
 }
 
 // `size` bytes of `bytes` written into the movable cell `cell` at `*at`, which moves past them, aligned to eight
-// bytes: where they stand in the cell
+// bytes: where they are in the cell
 EMBED_INLINE unsigned long long tree_write(const InspectTreeCtx *args)
 {
     unsigned long long *at = args->at_u64s;

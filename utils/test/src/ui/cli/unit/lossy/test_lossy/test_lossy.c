@@ -27,16 +27,16 @@ void tearDown(void)
 
 void test_ascii_passes_through(void)
 {
-    const char ascii[] = "plain text, every byte a letter";
+    const char ascii[] = "plain text, every byte a character";
     TEST_ASSERT_TRUE(decoded(ascii, sizeof(ascii) - 1u, sizeof(s_out)));
     TEST_ASSERT_EQUAL_STRING(ascii, s_out);
 }
 
 void test_two_three_and_four_byte_sequences_pass_through(void)
 {
-    const char letters[] = "a\xc3\xa9 \xe2\x82\xac \xf0\x9f\x98\x80 z";
-    TEST_ASSERT_TRUE(decoded(letters, sizeof(letters) - 1u, sizeof(s_out)));
-    TEST_ASSERT_EQUAL_STRING(letters, s_out);
+    const char characters[] = "a\xc3\xa9 \xe2\x82\xac \xf0\x9f\x98\x80 z";
+    TEST_ASSERT_TRUE(decoded(characters, sizeof(characters) - 1u, sizeof(s_out)));
+    TEST_ASSERT_EQUAL_STRING(characters, s_out);
 }
 
 void test_an_invalid_prefix_byte_and_a_truncated_sequence_become_replacement_characters(void)

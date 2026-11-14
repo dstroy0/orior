@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // python_paths_read_state.c: one script's reading stored in a cell taken for the script, each list of it sized to the
-// script's bytes within the most a reading contains, and given back once what it found is read
+// script's bytes within the max a reading contains, and given back once what it found is read
 #include "python_paths_internal.h"
 
 // the expressions and items a reading stores past its script's bytes, the bytes of texts it stores for each byte of its
@@ -28,19 +28,19 @@ EMBED_INLINE unsigned long long cli_py_align(const PythonPathsReadingCtx *args)
 int cli_py_read_state_alloc(const CliPythonPathsSizeCtx *args)
 {
     cli_py_read_state_free();
-    // a script is no more than CLI_PY_LETTERS bytes of letters, and a reading of one no more than the most of each
-    const unsigned long long bytes = (args->size < CLI_PY_LETTERS) ? args->size : CLI_PY_LETTERS;
+    // a script is no more than CLI_PY_CHARACTERS bytes of characters, and a reading of one no more than the max of each
+    const unsigned long long bytes = (args->size < CLI_PY_CHARACTERS) ? args->size : CLI_PY_CHARACTERS;
     const unsigned int exprs =
         (unsigned int)(((bytes + CLI_PY_SLACK) < CLI_PY_EXPRS) ? (bytes + CLI_PY_SLACK) : CLI_PY_EXPRS);
     const unsigned int items =
         (unsigned int)(((bytes + CLI_PY_SLACK) < CLI_PY_ITEMS) ? (bytes + CLI_PY_SLACK) : CLI_PY_ITEMS);
     const unsigned long long texts = (CLI_PY_TEXT_EACH * bytes) + CLI_PY_TEXT_ANY;
     const unsigned int text_max = (unsigned int)((texts < CLI_PY_TEXT) ? texts : CLI_PY_TEXT);
-    // a logical line is no longer than the script with a space joining each of its lines, and its letters no more
+    // a logical line is no longer than the script with a space joining each of its lines, and its characters no more
     const unsigned int line_text = (unsigned int)((2ULL * bytes) + 2ULL);
-    const unsigned int letters = line_text;
+    const unsigned int characters = line_text;
     const unsigned int lines = (unsigned int)(bytes + 1ULL);
-    // the lists laid one after another in the cell, each at a place its elements align to
+    // the lists positioned one after another in the cell, each at a place its elements align to
     unsigned long long at = 0ULL;
     const unsigned long long expr_at = at;
     at = EMBED_CALL(cli_py_align, PythonPathsReadingCtx, .at = at + ((unsigned long long)exprs * sizeof(CliExpr)));
@@ -50,9 +50,9 @@ int cli_py_read_state_alloc(const CliPythonPathsSizeCtx *args)
     at = EMBED_CALL(cli_py_align, PythonPathsReadingCtx, .at = at + ((unsigned long long)items * sizeof(unsigned int)));
     const unsigned long long range_at = at;
     at = EMBED_CALL(cli_py_align, PythonPathsReadingCtx, .at = at + ((unsigned long long)items * sizeof(CliValues)));
-    const unsigned long long letter_at = at;
+    const unsigned long long character_at = at;
     at = EMBED_CALL(cli_py_align, PythonPathsReadingCtx,
-                    .at = at + ((unsigned long long)letters * sizeof(unsigned int)));
+                    .at = at + ((unsigned long long)characters * sizeof(unsigned int)));
     const unsigned long long value_at = at;
     at = EMBED_CALL(cli_py_align, PythonPathsReadingCtx,
                     .at = at + ((unsigned long long)CLI_PY_VALUES * sizeof(unsigned int)));
@@ -79,8 +79,8 @@ int cli_py_read_state_alloc(const CliPythonPathsSizeCtx *args)
     g_cli_py.stack = (unsigned int *)(void *)(s_read_state + stack_at);
     g_cli_py.range = (CliValues *)(void *)(s_read_state + range_at);
     g_cli_py.items_max = items;
-    g_cli_py.letter = (unsigned int *)(void *)(s_read_state + letter_at);
-    g_cli_py.letters_max = letters;
+    g_cli_py.character = (unsigned int *)(void *)(s_read_state + character_at);
+    g_cli_py.characters_max = characters;
     g_cli_py.value = (unsigned int *)(void *)(s_read_state + value_at);
     g_cli_py.found = (unsigned int *)(void *)(s_read_state + found_at);
     g_cli_py.text = (char *)(s_read_state + text_at);

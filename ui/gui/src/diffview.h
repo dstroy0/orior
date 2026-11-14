@@ -29,13 +29,13 @@
 #define GUI_DIFFVIEW_SUMMARY_SIZE 12u
 #define GUI_DIFFVIEW_LINE_SIZE 12u
 #define GUI_DIFFVIEW_NUMBER_SIZE 11u
-// the most units of a line a half shows, with the bytes they may take as UTF-8 and the end; and the alpha a half's
-// tint is laid at
+// the max units of a line a half shows, with the bytes they may take as UTF-8 and the end; and the alpha a half's
+// tint is positioned at
 #define GUI_DIFFVIEW_LINE_UNITS 256ULL
 #define GUI_DIFFVIEW_LINE_BYTES 769u
 #define GUI_DIFFVIEW_TINT 0x38u
 
-// what a press stands on: the next change, the change before, close, the white space box, the structure box, and from
+// what a press is on: the next change, the change before, close, the white space box, the structure box, and from
 // GUI_DIFFVIEW_ROWS on, the row its index less GUI_DIFFVIEW_ROWS
 #define GUI_DIFFVIEW_NEXT 1u
 #define GUI_DIFFVIEW_PREVIOUS 2u

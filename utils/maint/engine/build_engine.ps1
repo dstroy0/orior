@@ -85,7 +85,7 @@ else {
 
 # A CACHE LEFT BY ANOTHER RUN OUTRANKS EVERY MESSAGE PRINTED ABOVE. ORIOR_SKIP_CUDA is an
 # option() and CMAKE_C_COMPILER is cached. A build tree configured once by build_engine.sh under
-# gcc with CUDA skipped keeps both settings through every later configure here. This script then
+# gcc with CUDA skipped retains both settings through every later configure here. This script then
 # announced "importing MSVC environment" and "the device arm will be compiled in" and produced a gcc
 # build with no CUDA in it. All three statements were false and nothing reported a conflict.
 #

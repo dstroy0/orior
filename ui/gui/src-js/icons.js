@@ -82,11 +82,11 @@ const FILLS = {
 
 const SVG = "http://www.w3.org/2000/svg";
 
-// The icon named `name` as an SVG element, or a letter in its place where `name` is one character,
+// The icon named `name` as an SVG element, or a character in its place where `name` is one character,
 // as the m that marks the definitions.
 export function icon(name) {
   if (name.length === 1) {
-    return Object.assign(document.createElement("span"), { className: "icon-letter", textContent: name, ariaHidden: "true" });
+    return Object.assign(document.createElement("span"), { className: "icon-character", textContent: name, ariaHidden: "true" });
   }
   const svg = document.createElementNS(SVG, "svg");
   svg.setAttribute("viewBox", "0 0 16 16");

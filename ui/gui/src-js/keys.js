@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // Keys. Each command's keys are those commands.json gives it, then those of the set of keys the reader
-// chose, orior's own or JetBrains', then the reader's own, set in Preferences, Keys: two at most for
+// chose, orior's own or JetBrains', then the reader's own, set in Preferences, Keys: two at max for
 // a command, each a press, two presses, a button of the mouse past its first three, or the wheel
-// turned with a key pressed. A letter or a digit is bound by the character it types or by its place on
+// turned with a key pressed. A character or a digit is bound by the character it types or by its place on
 // the board, as the reader sets. By the character, Undo is the key that types z on every layout that
 // types the Latin alphabet, and on a layout that types none of it, as a Greek or a Cyrillic one does,
-// a letter is bound by its place. The window's own keys work on every layout either way.
+// a character is bound by its place. The window's own keys work on every layout either way.
 
 const KEY = "orior.keys";
 
@@ -74,12 +74,12 @@ export const SETS = {
 
 const listeners = [];
 
-// The reader's settings of keys: the set chosen, whether a letter is bound by its "character" or its
+// The reader's settings of keys: the set chosen, whether a character is bound by its "character" or its
 // "place", and the reader's own keys by command.
 export function keySettings() {
   try {
-    const kept = JSON.parse(localStorage.getItem(KEY) ?? "{}") ?? {};
-    return { set: SETS[kept.set] ? kept.set : "orior", by: kept.by === "place" ? "place" : "character", own: kept.own && typeof kept.own === "object" ? kept.own : {} };
+    const retained = JSON.parse(localStorage.getItem(KEY) ?? "{}") ?? {};
+    return { set: SETS[retained.set] ? retained.set : "orior", by: retained.by === "place" ? "place" : "character", own: retained.own && typeof retained.own === "object" ? retained.own : {} };
   } catch {
     return { set: "orior", by: "character", own: {} };
   }
@@ -108,9 +108,9 @@ export function keysOf(command, base) {
   return keys.filter(Boolean).slice(0, 2);
 }
 
-// The name of the key `event` presses for a letter or a digit, as the reader binds keys: the character
-// it types where that is a letter of the Latin alphabet or a digit, else its place on the board.
-export function letterOf(event, by = keySettings().by) {
+// The name of the key `event` presses for a character or a digit, as the reader binds keys: the character
+// it types where that is a character of the Latin alphabet or a digit, else its place on the board.
+export function characterOf(event, by = keySettings().by) {
   const place = (event.code ?? "").match(/^Key([A-Z])$/) ?? (event.code ?? "").match(/^Digit(\d)$/);
   if (by === "character" && /^[a-z0-9]$/i.test(event.key ?? "")) {
     return event.key.toUpperCase();
@@ -127,7 +127,7 @@ export function pressName(event) {
   if (["Control", "Shift", "Alt", "Meta"].includes(event.key)) {
     return null;
   }
-  const key = letterOf(event) ?? NAMED[event.code] ?? (/^F\d{1,2}$/.test(event.key) ? event.key : event.key?.length === 1 ? event.key : event.key);
+  const key = characterOf(event) ?? NAMED[event.code] ?? (/^F\d{1,2}$/.test(event.key) ? event.key : event.key?.length === 1 ? event.key : event.key);
   return [...modifiers(event), key].join("+");
 }
 

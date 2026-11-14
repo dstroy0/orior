@@ -7,7 +7,7 @@
 #include "../text/text.h"
 #include "inspect_js.h"
 
-// the most parameters and thrown names a JSDoc comment names, and the most members a class sorted contains
+// the max parameters and thrown names a JSDoc comment names, and the max members a class sorted contains
 #define CLI_JS_NAMED 256u
 #define CLI_JS_MEMBERS (CLI_INSPECT_TOKENS / 4u)
 
@@ -68,7 +68,7 @@ EMBED_INLINE const char *write_word(const InspectJsWriteCtx *args)
     return args->src + g_cli_inspect_tok[args->at].start;
 }
 
-// the white letters a physical line starts with, its start and their end, into `start` and `end`
+// the white characters a physical line starts with, its start and their end, into `start` and `end`
 EMBED_INLINE void write_indent(const InspectJsWriteCtx *args)
 {
     unsigned long long size = args->size_u64;
@@ -82,11 +82,11 @@ EMBED_INLINE void write_indent(const InspectJsWriteCtx *args)
     *start = at;
     while (at < size)
     {
-        unsigned int letter = 0u;
+        unsigned int character = 0u;
         const unsigned long long reserved =
-            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                       .text_bytes = (const unsigned char *)args->src, .length = size, .at = at, .letter = &letter);
-        if ((letter == '\n') || !EMBED_CALL(cli_inspect_internal.white, CliInspectCtx, .letter = letter))
+            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                       .text_bytes = (const unsigned char *)args->src, .length = size, .at = at, .character = &character);
+        if ((character == '\n') || !EMBED_CALL(cli_inspect_internal.white, CliInspectCtx, .character = character))
         {
             break;
         }
@@ -269,17 +269,17 @@ EMBED_INLINE unsigned int write_throws_found(const InspectJsWriteCtx *args)
     return thrown;
 }
 
-// the UTF-16 units the letters from `from` to `to` of `src` take, a letter past U+FFFF taking two
+// the UTF-16 units the characters from `from` to `to` of `src` take, a character past U+FFFF taking two
 EMBED_INLINE unsigned int write_units(const InspectJsWriteCtx *args)
 {
     unsigned int units = 0u;
-    for (unsigned long long letter_at = args->from; letter_at < args->to;)
+    for (unsigned long long character_at = args->from; character_at < args->to;)
     {
-        unsigned int letter = 0u;
-        letter_at += EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                                .text_bytes = (const unsigned char *)args->src, .length = args->to, .at = letter_at,
-                                .letter = &letter);
-        units += (letter >= 0x10000u) ? 2u : 1u;
+        unsigned int character = 0u;
+        character_at += EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                                .text_bytes = (const unsigned char *)args->src, .length = args->to, .at = character_at,
+                                .character = &character);
+        units += (character >= 0x10000u) ? 2u : 1u;
     }
     return units;
 }
@@ -417,7 +417,7 @@ EMBED_INLINE unsigned int write_member_end(const InspectJsWriteCtx *args)
     return (end < args->close - 1u) ? end : (args->close - 1u);
 }
 
-// the first line of a member starting on `line`, the comments standing on the lines right above it taken in where one
+// the first line of a member starting on `line`, the comments located on the lines right above it taken in where one
 // starts on `floor` or after it
 EMBED_INLINE unsigned int write_member_first(const InspectJsWriteCtx *args)
 {
@@ -464,7 +464,7 @@ int cli_inspect_js_sort_methods(const CliInspectSizeSrcCtx *args)
     const unsigned int close = g_cli_js_pair[open];
     const unsigned int physical =
         EMBED_CALL(cli_inspect_size_src_starts_internal.physical, CliInspectSizeSrcStartsCtx, .src = args->src,
-                   .size = args->size, .starts = s_starts, .ends = s_ends, .most = CLI_INSPECT_LINES);
+                   .size = args->size, .starts = s_starts, .ends = s_ends, .max = CLI_INSPECT_LINES);
     unsigned int members = 0u;
     unsigned int at = open + 1u;
     unsigned int floor = g_cli_inspect_tok[open].to.line + 1u;
@@ -499,7 +499,7 @@ int cli_inspect_js_sort_methods(const CliInspectSizeSrcCtx *args)
                     .line_starts = s_starts, .line_ends = s_ends, .firsts = s_firsts, .lasts = s_lasts,
                     .names = s_member_names, .name_sizes = s_member_sizes, .members = members, .out = args->text))
     {
-        mmgr_line_put(args->err_msg, "The class's methods stand in the order of their names.");
+        mmgr_line_put(args->err_msg, "The class's methods are in the order of their names.");
         return 0;
     }
     const unsigned int end_col =

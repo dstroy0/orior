@@ -4,7 +4,7 @@
 // answers for calls, as the tree's leaves give it where the file's grammar names its functions and regions
 // (symbols_calls.c), and as the inspections' tree finds it elsewhere; and the functions that call a function, or that
 // it calls, each with the places of its calls, from where the hierarchy's top came from. A function is written with its
-// name and what the server reports of it, its file and the span of its name, the file its calls stand in and where
+// name and what the server reports of it, its file and the span of its name, the file its calls are in and where
 // each starts, and the server's or the tree's own name for it, which is given back to read the level below it
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
@@ -44,8 +44,8 @@ typedef struct
     char *file_out;
     VerbaLinea *err_msg;
 } ServersCallsCtx;
-// The tree's call hierarchy being written: the tree's top, the tree's file the calls stand in where they are the
-// function's asked about, NULL where each stands in its own, where it is written, and whether one is
+// The tree's call hierarchy being written: the tree's top, the tree's file the calls are in where they are the
+// function's asked about, NULL where each is in its own, where it is written, and whether one is
 typedef struct
 {
     const char *tree;

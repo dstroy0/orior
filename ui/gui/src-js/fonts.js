@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The fonts: the interface's, the reading text's and the code's, each a CSS font list, and the
-// code's size, from LEAST to MOST pixels. Each is the reader's to set over the stylesheet's own and
-// kept apart from the color themes; early.js sets them before the page's first frame from the same
+// code's size, from LEAST to MAX pixels. Each is the reader's to set over the stylesheet's own and
+// retained apart from the color themes; early.js sets them before the page's first frame from the same
 // key. The code's line height follows its size at LINE_PER_SIZE, rounded to a whole pixel.
 
 export const FONTS = "orior.fonts";
@@ -16,7 +16,7 @@ export const FONT_SETTINGS = [
 ];
 
 const LEAST = 9;
-const MOST = 32;
+const MAX = 32;
 const LINE_PER_SIZE = 20 / 13;
 
 const listeners = [];
@@ -28,8 +28,8 @@ export function onFonts(listener) {
 // The fonts the reader set, by variable.
 export function fonts() {
   try {
-    const kept = JSON.parse(localStorage.getItem(FONTS) ?? "{}");
-    return kept && typeof kept === "object" ? kept : {};
+    const retained = JSON.parse(localStorage.getItem(FONTS) ?? "{}");
+    return retained && typeof retained === "object" ? retained : {};
   } catch {
     return {};
   }
@@ -66,7 +66,7 @@ export function fontRule(set) {
     }
     if (size) {
       const px = Number.parseFloat(value);
-      if (!(px >= LEAST && px <= MOST)) {
+      if (!(px >= LEAST && px <= MAX)) {
         continue;
       }
       lines.push(`--code-size: ${px}px;`, `--code-line: ${Math.round(px * LINE_PER_SIZE)}px;`);

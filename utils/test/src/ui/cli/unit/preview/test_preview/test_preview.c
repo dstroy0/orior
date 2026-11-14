@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_preview.c: the preview's tables against fixed texts: a path's ending answers its type; the mode reads its word,
-// turns off where it stands, and is saved and read back; a Markdown text lays its headings, paragraphs, lists, tasks,
+// turns off where it is, and is saved and read back; a Markdown text positions its headings, paragraphs, lists, tasks,
 // quotes, code, tables, rules, links, emphasis and strike as items sorted by top, its cells the size of what they
 // carry; an address that runs script is no link; and over a view bound: the first item a top starts at, the line at a
 // top and the top of a line answering each other, the wheel leading the view and the follow leading nothing back, the
-// editor's scroll moving the top, the cursor's line marking its block, a press following a link, and a step laying the
+// editor's scroll moving the top, the cursor's line marking its block, a press following a link, and a step positioning the
 // text again only where it changed
 #include "ui/cli/src/editor/document.h"
 #include "ui/cli/src/editor/view.h"
@@ -13,7 +13,7 @@
 #include "ui/cli/src/preview/preview_markdown.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-// the key and the path of the view the preview is bound to, the rectangle it is laid in, and the clock the steps read
+// the key and the path of the view the preview is bound to, the rectangle it is positioned in, and the clock the steps read
 #define PREVIEW_KEY "window:notes/readme.md"
 #define PREVIEW_PATH "notes/readme.md"
 #define PREVIEW_WIDTH 600
@@ -56,7 +56,7 @@ static int text_reads(const CliPreviewItems *items, unsigned int at, unsigned in
                &(CarcerMovableCfg){.cell = items->text_cell, .offset = at, .src = text, .bytes = length}) == 0;
 }
 
-// the item of `items` that is a run of text reading `text` whole: a copy of its row, standing until the next is read,
+// the item of `items` that is a run of text reading `text` whole: a copy of its row, located until the next is read,
 // or NULL where none is
 static const CliPreviewItem *run_reading(const CliPreviewItems *items, const char *text)
 {
@@ -86,8 +86,8 @@ static unsigned int items_of(const CliPreviewItems *items, unsigned int type, un
     return count;
 }
 
-// `text` laid out into `items`, PREVIEW_WIDTH wide
-static void laid(const char *text, CliPreviewItems *items)
+// `text` arranged into `items`, PREVIEW_WIDTH wide
+static void positioned(const char *text, CliPreviewItems *items)
 {
     *items = (CliPreviewItems){0};
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_preview_markdown.layout, CliPreviewMarkdownCfg, .text = text,
@@ -116,7 +116,7 @@ static CliPreviewItem bound_item(unsigned int at)
     return *row;
 }
 
-// the view the preview is bound to showing `text`, the mode beside, and a step a look later laying it
+// the view the preview is bound to showing `text`, the mode beside, and a step a look later positioning it
 static int bound(const char *text)
 {
     CliShape shape;
@@ -224,7 +224,7 @@ void test_type_answers_each_ending_and_none_for_others(void)
     TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_NONE, EMBED_CALL(cli_preview.type, CliPreviewCfg, .path = NULL));
 }
 
-void test_mode_reads_its_word_turns_off_where_it_stands_and_is_saved(void)
+void test_mode_reads_its_word_turns_off_where_it_is_and_is_saved(void)
 {
     char home[CLI_PATH_MAX_LEN];
     cli_unity_folder("preview_home", home);
@@ -250,7 +250,7 @@ void test_mode_reads_its_word_turns_off_where_it_stands_and_is_saved(void)
     cli_state_entries_release(&entries);
 }
 
-void test_markdown_lays_every_block_as_items_sorted_by_top(void)
+void test_markdown_positions_every_block_as_items_sorted_by_top(void)
 {
     static const char s_text[] = "# Title\n"
                                  "\n"
@@ -279,7 +279,7 @@ void test_markdown_lays_every_block_as_items_sorted_by_top(void)
                                  "\n"
                                  "---\n";
     CliPreviewItems items;
-    laid(s_text, &items);
+    positioned(s_text, &items);
     const CliPreviewItem *const title = run_reading(&items, "Title");
     TEST_ASSERT_NOT_NULL(title);
     TEST_ASSERT_EQUAL_UINT(26u, title->size);
@@ -345,7 +345,7 @@ void test_markdown_cells_are_the_size_of_what_they_carry(void)
 {
     static const char s_text[] = "One [two](a.md) three\n\nfour [five](b.md)\n";
     CliPreviewItems items;
-    laid(s_text, &items);
+    positioned(s_text, &items);
     unsigned int bytes = 0u;
     unsigned int link = 0xffffffffu;
     for (unsigned int at = 0u; at < items.items; at += 1u)
@@ -378,14 +378,14 @@ void test_an_address_that_runs_script_is_no_link(void)
     static const char s_text[] = "[x](javascript:alert) [y]( JavaScript:alert) [z](vbscript:do) [w](data:text/html,a) "
                                  "[safe](https://orior.test)\n";
     CliPreviewItems items;
-    laid(s_text, &items);
+    positioned(s_text, &items);
     unsigned int links = 0u;
     for (unsigned int at = 0u; at < items.items; at += 1u)
     {
         links += (item_of(&items, at).link_length != 0u) ? 1u : 0u;
     }
     TEST_ASSERT_EQUAL_UINT(1u, links);
-    // the four labels whose addresses run script stand as one run of plain text
+    // the four labels whose addresses run script are as one run of plain text
     TEST_ASSERT_NOT_NULL(run_reading(&items, "x y z w"));
     TEST_ASSERT_EQUAL_UINT(0u, run_reading(&items, "x y z w")->link_length);
     TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_ROLE_LINK, run_reading(&items, "safe")->role);
@@ -502,7 +502,7 @@ void test_a_press_follows_its_link_and_elsewhere_nothing(void)
                            EMBED_CALL(cli_preview_mark.press, CliPreviewMarkCfg, .x = 1, .y = 1, .open_out = &open));
 }
 
-void test_a_step_lays_the_text_again_only_where_it_changed(void)
+void test_a_step_positions_the_text_again_only_where_it_changed(void)
 {
     TEST_ASSERT_EQUAL_INT(1, bound("First\n"));
     TEST_ASSERT_EQUAL_INT(0, stepped());

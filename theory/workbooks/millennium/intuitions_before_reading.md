@@ -23,8 +23,8 @@ read.
 
 **In the author's words:** "conceptually, it is the same as a seiche, energy aligned."
 
-**Already known when written.** The review reports that the experiments reaching the most tension
-in water used standing waves in resonators or tightly focused waves. This entry is therefore not a
+**Already known when written.** The review reports that the experiments reaching the max tension
+in water used located waves in resonators or tightly focused waves. This entry is therefore not a
 clean prediction for those experiments, and it is not scored against the review.
 
 **Test.** A source on seiches, read, and the primary papers of Galloway and of Greenspan and
@@ -46,7 +46,7 @@ The duration, "a short while", was not in any source read.
 **Test.** A source on the growth of a bubble after nucleation in water, read.
 
 **Criterion, written by the recorder.** Hit if the growth after the critical radius accelerates for
-a bounded time and then stops accelerating. Miss if it keeps accelerating until something outside
+a bounded time and then stops accelerating. Miss if it retains accelerating until something outside
 the bubble stops it.
 
 ### I3. Tension moves angular momentum between bulk and boundary, and only heat can carry it
@@ -67,7 +67,7 @@ it. The recorder does not supply one in the author's name.
 
 **In the author's words:** "microcavitation is analagous to quantum foam."
 
-**Test and criterion.** None. It is an analogy, kept here as an analogy.
+**Test and criterion.** None. It is an analogy, retained here as an analogy.
 
 ### I5. Spherical harmonics of the wave patterns recover the container
 
@@ -84,7 +84,7 @@ container, and the strongest form of this entry is a miss.
 the frequencies: amplitudes, phases, or the field itself.
 
 **Criterion, written by the recorder.** Hit if the container is recovered uniquely from the
-harmonics of the field when more than the frequencies is kept. Miss if two containers give the same
+harmonics of the field when more than the frequencies is retained. Miss if two containers give the same
 harmonics even then.
 
 ### I6. Density has a gradient, and stirring lowers the density of the bottom layer
@@ -134,14 +134,14 @@ $2.9\times 10^{-8}$ of itself. Stirring lowers the density of the bottom at its 
 author said, and raises it at the wall. The heat of stirring then decides the wall: at $20$ C the
 rise there is canceled by warming of $1.4\times 10^{-4}$ kelvin. All the energy of the turning,
 $63$ joules per cubic meter, dissipated as heat with $c_p = 4184$ J kg$^{-1}$ K$^{-1}$, warms the
-water by $1.5\times 10^{-5}$ kelvin, a tenth of that. Stirring kept up for more than about ten
-times the energy of the turning, with the heat kept in, lowers the density of the whole bottom
+water by $1.5\times 10^{-5}$ kelvin, a tenth of that. Stirring retained up for more than about ten
+times the energy of the turning, with the heat retained in, lowers the density of the whole bottom
 layer above $3.978$ C. Below $3.978$ C warming raises the density, and stirring cannot lower it at
 the wall. How fast the turning decays and how much heat leaves were not computed.
 
 ### I7. Stirring only the outside of a column does not make the middle denser
 
-**In the author's words:** "that totally depends on the kind of stirring, if we are talking about a
+**In the author's words:** "that totally depends on the type of stirring, if we are talking about a
 column if i drop an L shaped stirrer in that stirs the outside walls, will the middle become
 denser? no."
 
@@ -187,8 +187,8 @@ under the core by $17.2$ Pa, its density by $7.9\times 10^{-9}$ of itself, and r
 wall by $54.6$ Pa and $2.5\times 10^{-8}$. A wider ring, from $2$ to $4$ cm, lowers the core by
 $79.4$ Pa and $3.6\times 10^{-8}$.
 
-The kind of stirring sets where the bottom thins and by how much: turning the whole cup thins it
-most at the axis, and stirring the outside thins the whole core evenly. In both, the middle does
+The type of stirring sets where the bottom thins and by how much: turning the whole cup thins it
+max at the axis, and stirring the outside thins the whole core evenly. In both, the middle does
 not become denser.
 
 **Open.** Stirring also drives a slower circulation across the column, inward along the bottom and
@@ -197,7 +197,7 @@ center and stops, the fluid pushes on itself and the pressure rises locally by a
 $\tfrac12\rho u^2$, with $u$ the speed of the inflow. Whether that local rise can exceed the drop of
 the core was not computed, and the speed of the inflow is in no source read.
 
-### I8. In an infinite fluid kept at 20 C, stirring changes density only near the stirrer
+### I8. In an infinite fluid retained at 20 C, stirring changes density only near the stirrer
 
 **In the author's words:** "if we had infinite fluid that had infinite thermal reservoir and was
 for eternity 20 degrees C, would stirring it change its density at all? like if the column of water
@@ -209,7 +209,7 @@ compressibility, and turning pushes mass outward by $\rho|v|^2/r$.
 
 **What the recorder expects, stated before computing.** A rough estimate was made in thought while
 reading the statement, before this entry was written, and it is set down here so it is not taken
-for a blind prediction. With the temperature kept fixed, density changes only through pressure.
+for a blind prediction. With the temperature retained fixed, density changes only through pressure.
 Around a turning stirrer the speed falls off as the inverse square of distance in the far field,
 and the pressure that holds the turning as the inverse fourth power. The change is largest at
 the stirrer and falls fast. For a stirrer the size of a spoon the recorder expects it to fall below
@@ -287,7 +287,7 @@ that reviews the search for finite-time singularities in experiments on real flu
 
 **Criterion, written by the recorder.** First part: hit if every route to an unbounded value in
 equation (1) passes a scale or a level at which a member of $P_{\mathrm{all}}$ or $F_{\mathrm{all}}$
-that equation (1) drops is shown to act. Second part: hit if a source obtained reports that no
+that equation (1) drops is displayed to act. Second part: hit if a source obtained reports that no
 finite-time singularity has been observed in a real fluid; open until one is obtained.
 
 ---
@@ -297,18 +297,18 @@ taken before scoring, and the score rests only on sources already obtained when 
 
 **First part: hit, for the routes this work has examined.** A solution of equation (1) that breaks
 down has a length of flow with no positive lower bound, Proposition 11, and passes lengths where a
-cell holds $33.4$ molecules of water and the average equation (1) stands for scatters by $17$
+cell holds $33.4$ molecules of water and the average equation (1) is for scatters by $17$
 percent. The rate of shear heating has no bound there, Proposition 5, while equation (1) holds no
 temperature. Thermal noise acts at about the Kolmogorov length, and Eyink, Bandak, Goldenfeld and
 Mailybaev state that the deterministic equation is inadequate there and that extreme events can
 break even the fluctuating description. A fluid pulled into tension breaks by cavitation at a
 finite pressure, Caupin and Herbert, where equation (1) holds no level of pressure, Proposition 13.
 Along each route a dropped member acts before the value becomes unbounded. Whether these are all the
-routes is not shown.
+routes is not displayed.
 
 **Second part: open.** No source obtained reports on the search for singularities in experiments on
 real fluids. The extreme objects that are observed and read in this work, cavitation under tension
-and the standing and focused waves that produce it, all end at finite values.
+and the located and focused waves that produce it, all end at finite values.
 
 **What the two parts give together.** Even if equation (1) has solutions that become unbounded,
 a real fluid cannot follow one there: it leaves the description first. A theorem about equation
@@ -368,7 +368,7 @@ Proposition 13 the level of pressure does not enter equation (1). The high press
 changes nothing in equation (1) and changes the water: its density, its viscosity, and the level at which
 it could cavitate.
 
-**What the vessel does do.** It closes one exit. A high static pressure keeps the water far from
+**What the vessel does do.** It closes one exit. A high static pressure retains the water far from
 tension, and the route of I9 by which a stretched fluid leaves the description, cavitation, is
 shut. A vessel is therefore a setting where the fluid has fewer ways out than in open water, and
 its record is worth reading for that reason.
@@ -391,7 +391,7 @@ any cities on gem vessel pressure failure."
 **Already known when written.** Caupin and Herbert: a liquid leaves equilibrium by superheating or
 by stretching, and "temperature and pressure are equivalent parameters controlling the departure
 from equilibrium". Page 16 of *Finite time blowup for Navier--Stokes*, read for I9: the kinetic
-energy of the collapsing core scales as $\tau^{1/2-3h}$ and goes to zero, and Theorem 1.1 keeps the
+energy of the collapsing core scales as $\tau^{1/2-3h}$ and goes to zero, and Theorem 1.1 retains the
 total energy bounded.
 
 **What the recorder expects, stated before scoring.** The pressure cooker holds: opening it drops
@@ -420,7 +420,7 @@ turning as a solid body inside a free swirl, the pressure at the axis lies $\rho
 pressure far away, with $U$ the largest speed. Water at $20$ C and atmospheric pressure reaches the
 cavitation pressures Caupin and Herbert report at core speeds of
 $U = \sqrt{(p_\infty - p_{\mathrm{cav}})/\rho}$: $10.1$ m s$^{-1}$ to reach zero pressure, $142$
-m s$^{-1}$ for $-20$ MPa, the most tension a standing wave gave, and $375$ m s$^{-1}$ for $-140$ MPa
+m s$^{-1}$ for $-20$ MPa, the max tension a located wave gave, and $375$ m s$^{-1}$ for $-140$ MPa
 in inclusions. The core speed of the construction has no bound. A swirling core of water would
 reach each of these speeds at a finite time and cavitate. Equation (1), holding no level of pressure,
 lets the core go on, Proposition 13.
@@ -476,7 +476,7 @@ goes into "degrees of freedom, visible photons, which are not describable by the
 of fluid mechanics." The light is a member of $F_{\mathrm{all}}$ and $P_{\mathrm{all}}$ that
 equation (1) does not hold. The mechanism that emits it is stated as open.
 
-**Bearing on I1.** The bubble is trapped where the standing wave of a resonator puts its pressure
+**Bearing on I1.** The bubble is trapped where the located wave of a resonator puts its pressure
 swing, and the flash repeats once each cycle in step with the sound: energy aligned. This bears on
 I1 and does not score it, since its criterion asks whether the threshold of cavitation depends on
 the alignment, and section 1 does not say.
@@ -517,7 +517,7 @@ emission from argon states about 13 eV above the ground state and from O$_2^+$, 
 thermally populated at the measured Ar emission temperatures", and conclude that "these emitting
 species must originate from collisions with high-energy electrons, ions or particles from a hot
 plasma core." The review of I11, read in full since, names bremsstrahlung from "a dense ionized
-region" as its most complete candidate. Both meet the criterion.
+region" as its max complete candidate. Both meet the criterion.
 
 ### I13. Shear heating turns to steam sheets, and one sheet of water rides another on the steam
 
@@ -538,10 +538,10 @@ heating then thins the layer that is heating, the shear gathers into it, and it 
 runaway, and the end of the runaway is the phase change the author names. Two speeds from the
 water properties, evaluated with the IAPWS formulations at $20\,^\circ$C and $0.101325$ MPa:
 
-- the speed at which the dropped term matches the kept one, the scaling estimate of the first
+- the speed at which the dropped term matches the retained one, the scaling estimate of the first
   workbook chapter, $U^* = \sqrt{k/(2\mu|(\ln\mu)'|)} = 110$ m/s;
-- the velocity jump across a layer whose walls are kept at $20\,^\circ$C that heats its middle to
-  $100\,^\circ$C with the viscosity kept fixed, $U = \sqrt{8k\,\Delta T/\mu} = 618$ m/s.
+- the velocity jump across a layer whose walls are retained at $20\,^\circ$C that heats its middle to
+  $100\,^\circ$C with the viscosity retained fixed, $U = \sqrt{8k\,\Delta T/\mu} = 618$ m/s.
 
 The recorder expects the runaway to start near the first speed and to reach steam below the
 second, since the viscosity falls as it heats. Where the pressure is already near the vapor
@@ -567,7 +567,7 @@ its core cavitates.
 "especially if theres a layer difference, chemical, density, temperature or otherwise."
 
 **What the recorder expects, stated before reading.** Where two layers differ, the shear gathers at
-the boundary between them, since that is where the velocity jumps, and each kind of difference
+the boundary between them, since that is where the velocity jumps, and each type of difference
 lowers what the steam sheet needs there:
 
 - temperature: a layer already warmer starts nearer the boiling point and needs a smaller rise,
@@ -605,19 +605,19 @@ drop of ethanol on its own vapor over a pool of hot oil at one kelvin of superhe
 highly mobile: one liquid riding another on a cushion of its vapor.
 
 **First half: miss.** The runaway is real. Gruntfest and Becker show that a liquid whose viscosity
-falls with temperature has no steady shear flow between walls kept at a fixed temperature above
+falls with temperature has no steady shear flow between walls retained at a fixed temperature above
 $V_m = 4.27\,(k/(a\eta_0))^{1/2}$, and that above it the shear gathers in the middle. Braeck and
 others show the band narrowing as it runs away, in solids, toward melting. For water at
 $20\,^\circ$C $V_m$ is 666 m/s. Duraiswami puts the core of the forced construction in water at
 cavitation when the swirl reaches 10 to 17 m/s, with the viscous heating near 0.01 K. At 17 m/s the
 steady rise in Gruntfest's layer is 0.06 K. The runaway does not occur in water at the speeds the
 forced construction reaches before its core cavitates: the miss as written. The bound is
-for plane shear between walls kept at a fixed temperature; under a fixed stress with no heat loss
+for plane shear between walls retained at a fixed temperature; under a fixed stress with no heat loss
 the same law runs away at any stress, in a time that grows as the stress falls.
 
 **The stated expectation, against the sources.** The runaway was expected near $U^* = 110$ m/s; the
 bound is $6.04\,U^*$. Steam was expected below 618 m/s; at 618 m/s the steady middle of the layer
-stands 44 K above the walls, near $64\,^\circ$C, and steady flow ends at $68\,^\circ$C with the
+is 44 K above the walls, near $64\,^\circ$C, and steady flow ends at $68\,^\circ$C with the
 middle still liquid. The vapor that a source obtained does put in a shear layer of water comes from
 the pressure and not the heat: Zamansky and Ham, and Brandao and Mahesh, put inception in the shear
 layer, in the cores of its stretched vortices, and not where the mean pressure is least. The
@@ -660,7 +660,7 @@ speed the steady layer has one solution at every speed, $V^2 = 8\int_{T_0}^{T_c}
 independent of the gap, and 1.187 marks the peak of the wall stress. With the IAPWS $\mu(T)$ and
 $k(T)$ at atmospheric pressure the middle of the layer is at $20.06\,^\circ$C at 17 m/s and
 reaches $100\,^\circ$C near 956 m/s. "No steady shear flow above $V_m$", in the score above,
-holds for a fixed stress only. The miss stands on the speeds.
+holds for a fixed stress only. The miss is on the speeds.
 
 ### I14. Liquids unlike enough slide on and through each other
 
@@ -677,7 +677,7 @@ slip length of a vapor layer as $(\mu_L/\mu_V)\,\delta_V$.
 
 **What the recorder expects, stated before reading.** The forces between the molecules of two
 liquids are electromagnetic. Where molecules of one liquid attract those of the other less than
-they attract their own kind, the interface carries fewer bonds across it, the interfacial tension
+they attract their own type, the interface carries fewer bonds across it, the interfacial tension
 is higher, and the tangential stress the interface can carry at a given velocity jump is lower:
 the two liquids slip past each other with a slip length that grows as the attraction across the
 interface weakens. For small molecules the recorder expects that length to be of molecular size,
@@ -731,7 +731,7 @@ by the largest principal stress, after Joseph. Maquet and others, read in full, 
 ethanol ride on its vapor over hot silicone oil from one kelvin of superheat, and see none over
 oils more viscous than 150 mPa s. Pimenova and Goldobin, read in full, have the vapor layer between
 two liquids break away by buoyancy once it grows past a thickness of order $10^{-5}$ to $10^{-4}$ m.
-The recorder knows by name, and has not obtained or read, work on drops of a liquid kept from merging
+The recorder knows by name, and has not obtained or read, work on drops of a liquid retained from merging
 with a bath of the same liquid by a temperature difference, and on drops bouncing on a vibrated
 bath of the same liquid on a film of air.
 

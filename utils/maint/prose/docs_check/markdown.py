@@ -64,7 +64,7 @@ def empty_tables(lines):
 # set as literal asterisks, and seventeen titles wrapped in escaped underscores set as literal
 # underscores around Don Quixote, Faust and the Kalevala.
 #
-# Read against the stripped prose, and that keeps a filename out of the count: tex_prose
+# Read against the stripped prose, and that retains a filename out of the count: tex_prose
 # removes \texttt{} with its braces. The escaped underscores inside a path are gone before this sees
 # the line.
 MARKDOWN_RULE = re.compile(r"^\s*-{3,}\s*$")
@@ -118,7 +118,7 @@ def path_candidate(target):
     a parenthesized group following a bracketed one is the shape LINK looks for.
 
     No target skipped here names a path that is on disk. The type-keyword head and the
-    comma-separated list are kept for the parameter list that has neither star nor keyword, as in `(uint8_t slot, size_t len)`. The comma rule is the
+    comma-separated list are retained for the parameter list that has neither star nor keyword, as in `(uint8_t slot, size_t len)`. The comma rule is the
     loosest of the three and is bounded to items of two words each. `docs/a.md, docs/b.md` stays
     a pair of paths.
     """

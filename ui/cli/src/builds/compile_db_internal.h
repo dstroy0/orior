@@ -22,7 +22,7 @@ typedef struct CliCompileDbReplyCtx CliCompileDbReplyCtx;
 typedef struct CliCompileDbPathStampedCtx CliCompileDbPathStampedCtx;
 typedef struct CliCompileDbCtx CliCompileDbCtx;
 
-// how deep below build/cmake and build/meson a build is looked for; the most files a look reads; the most folders a
+// how deep below build/cmake and build/meson a build is looked for; the max files a look reads; the max folders a
 // search below a build finds; and the files and folders their capacities are taken with
 #define CLI_COMPILE_DEPTH 6u
 #define CLI_COMPILE_INPUTS 1024u
@@ -38,7 +38,7 @@ typedef struct
 } CliStamped;
 
 // What a look reads: the tree's own database, where it has one, or each build impero configured, in a cell at their
-// most, released through persistent_buf_release
+// max, released through persistent_buf_release
 typedef struct
 {
     int own;
@@ -47,7 +47,7 @@ typedef struct
     unsigned int capacity;
 } CliInputs;
 
-// Folders a search below a build finds, in a cell at their most, released through persistent_buf_release
+// Folders a search below a build finds, in a cell at their max, released through persistent_buf_release
 typedef struct
 {
     char (*path)[CLI_PATH_MAX_LEN];
@@ -56,11 +56,11 @@ typedef struct
 } CliFoundFolders;
 
 // the cells of what a look read, and of the folders a search found, given back, each left empty; and the folders' cell
-// taken at their most, the list with no capacity where it is refused (compile_db.c)
+// taken at their max, the list with no capacity where it is refused (compile_db.c)
 void cli_compile_found_alloc(const CliCompileDbFoundTopCtx *args);
 
 // the file at `path` with when it last changed into `stamped`: 1, or 0 where it is not there; each folder below `top`,
-// at most CLI_COMPILE_DEPTH down, that ends in the folders `tail`, `count` of them, into `found`; each file named
+// at max CLI_COMPILE_DEPTH down, that ends in the folders `tail`, `count` of them, into `found`; each file named
 // `name` below `top`, the same; and the newest file of a CMake reply folder whose name starts `index-` into `index`:
 // 1, or 0 where it contains none (compile_db.c)
 int cli_compile_stamp(const CliCompileDbPathStampedCtx *args);
@@ -68,9 +68,9 @@ void cli_compile_folders_by_name(const CliCompileDbFoundCtx *args);
 void cli_compile_files_by_name(const CliCompileDbFoundTopCtx *args);
 int cli_compile_newest_index(const CliCompileDbReplyCtx *args);
 
-// whether a letter is whitespace as a command line is read; the words of a command line, a word in double quotes
+// whether a character is whitespace as a command line is read; the words of a command line, a word in double quotes
 // retained whole, the first into `first`, sized for CLI_PATH_MAX_LEN: 1, or 0 where it has none; and each of them
-// handed to `each` (compile_db.c)
+// passed to `each` (compile_db.c)
 int cli_compile_white(const CliCompileDbCtx *args);
 int cli_compile_first_word(const CliCompileDbTextLengthCtx *args);
 void cli_compile_words_each(const CliCompileDbTextCtx *args);
@@ -81,7 +81,7 @@ unsigned int cli_compile_json_read(const CliCompileDbPathCtx *args);
 // what a look at the tree at `root` reads into `inputs` (compile_db_look.c)
 void cli_compile_inputs(const CliCompileDbInputsCtx *args);
 
-// the nodes and bytes the entries gathered are taken with, the most projects, languages and flags of one compile group,
+// the nodes and bytes the entries gathered are taken with, the max projects, languages and flags of one compile group,
 // and the bytes the database and a compile group's flags are written in
 #define CLI_GATHER_NODES_CAPACITY (1u << 18u)
 #define CLI_GATHER_TEXT_CAPACITY (16ull << 20u)
@@ -199,7 +199,7 @@ struct CliCompileDbPathStampedCtx
 
 struct CliCompileDbCtx
 {
-    char letter;
+    char character;
 };
 
 typedef struct

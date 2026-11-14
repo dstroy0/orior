@@ -6,7 +6,7 @@
 
 #include "precepts.h"
 
-// A tree over the alphabet is a number, and needs no table. Most of the code is unfurling and binary
+// A tree over the alphabet is a number, and needs no table. The majority of the code is unfurling and binary
 // trees in the compiler, and that is easily represented with math.
 //
 // The alphabet gives every symbol a fixed arity, and a tree written in prefix order with fixed arities needs no
@@ -19,9 +19,9 @@
 // which sits inside an unsigned long long. Every tree in either web is one 8-byte number.
 //
 // This buys no bytes. web_check measures both and the node lists win at this size - 21 trees contain 32 nodes
-// between them, three bytes each, against eight bytes a tree for the numbers - because most words are a single node
+// between them, three bytes each, against eight bytes a tree for the numbers - because max words are a single node
 // and a tree has to reach five before a number pays for itself. It buys one form per tree. A node list
-// carries an ordering the tree does not have: the same tree written by two hands numbers its nodes differently, and
+// carries an ordering the tree does not have: the same tree written by two passes numbers its nodes differently, and
 // the two lists differ where the trees do not. As a number, one tree is one value. Two subtrees are the same
 // subtree where their numbers are equal, a compare in place of a walk, and a .kdm keyed on subtrees rests on that,
 // as does the compiler reading its own trees.

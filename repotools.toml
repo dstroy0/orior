@@ -11,8 +11,8 @@ copyright = "Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>"
 prefix = "ORIOR"
 
 [layout]
-# This repository keeps its tools under utils/maint/ and not tools/, the only line that
-# differs from the template. Every tool asks for the kind and never for the directory.
+# This repository retains its tools under utils/maint/ and not tools/, the only line that
+# differs from the template. Every tool asks for the type and never for the directory.
 source = ["src"]
 docs = ["docs", "theory"]
 examples = ["examples"]
@@ -28,7 +28,7 @@ skip_files = []
 
 [prose]
 # theory/ is where the research lives and it is the longest continuous prose here. docs/ is four
-# pointer pages. utils/maint/ carries file headers that make the same kind of claim a page does, and
+# pointer pages. utils/maint/ carries file headers that make the same type of claim a page does, and
 # docs_check reads .tex as well. The research papers are in scope.
 roots = ["README.md", "CONTRIBUTING.md", "docs", "theory", "src", "examples", "utils/maint"]
 # Empty, and it stays empty: nothing outside this tree is read.

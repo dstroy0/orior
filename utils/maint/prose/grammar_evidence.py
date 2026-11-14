@@ -9,7 +9,7 @@
 # The papers column, for ISMS, is GRAMMAR_RATE in docs_check/grammar.py, printed as it is written.
 # Each TEXT named gets a column of its own: the machine's prose from session_prose.py, or the plain
 # text of a tree from docs_check --plain. A pattern earns a place in ISMS when its rate in the
-# machine's prose stands well above its rate in the papers.
+# machine's prose is well above its rate in the papers.
 #
 # Every text is read the way the checker reads a file: lines joined into runs at blank lines, each
 # pattern compiled with IGNORECASE. A rate counted another way is a rate for a different pattern.

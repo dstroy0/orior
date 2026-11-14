@@ -1,4 +1,4 @@
-"""Lexes SHA-256's morphing boundary into a language: eight octant letters, round by round.
+"""Lexes SHA-256's morphing boundary into a language: eight octant characters, round by round.
 
     python examples/00_blob_viz_tools/octant_lex.py --check
     python examples/00_blob_viz_tools/octant_lex.py --message "abc"
@@ -10,7 +10,7 @@ WHAT THIS READS
 
 Space splits into eight octants sharing one trilateral right-angle corner at the origin, and on the
 boundary that split cuts eight congruent spherical triangles of area pi/2 each. A state of the
-object writes one letter in each octant, the letter being what share of the lit set sits there, and
+object writes one character in each octant, the character being what share of the lit set sits there, and
 a round rewrites all eight at once. The eight numbers tracked across the rounds are the word the
 computation defines, and this prints it.
 
@@ -65,7 +65,7 @@ def rounds_of(message, read="state"):
 
     The working state is the eight words as the round leaves them, with nothing added back, and the
     register shift is visible only in that. Every earlier reading here used the digest. The
-    working state is the default now and the digest is kept as something to compare against.
+    working state is the default now and the digest is retained as something to compare against.
     """
     block = sha.padded(message)
     if block is None:
@@ -104,7 +104,7 @@ def shift_structure(frames):
 
 
 def lexicon(frames, points):
-    """The eight-letter signature of every round, and the delta from the round before it."""
+    """The eight-character signature of every round, and the delta from the round before it."""
     rows = []
     last = None
     for at, frame in enumerate(frames):
@@ -118,7 +118,7 @@ def lexicon(frames, points):
 def redraw_level(points, lit_count, seed=9, tries=200):
     """The delta two independent random states of the same weight give, as a baseline.
 
-    Without this the delta is a number with no scale. Eight letters over 256 bits is a coarse
+    Without this the delta is a number with no scale. Eight characters over 256 bits is a coarse
     alphabet, and two unrelated states of the same weight already differ by a few percent in it just
     from the counting noise, and a measured delta only means something measured against that. A reading
     sitting at this level is saturated: it is reporting noise at full volume and has no room left to
@@ -147,7 +147,7 @@ def coherence(rows):
     """What share of the rounds wrote a signature no other round wrote, and the collisions.
 
     Rounded before it is compared, because two signatures that agree to a part in a million are the
-    same letter for any purpose a reader has, and comparing raw floats would call them distinct on
+    same character for any purpose a reader has, and comparing raw floats would call them distinct on
     the last bit of the mantissa.
     """
     seen = {}
@@ -182,7 +182,7 @@ def main():
 
     frames, digest = rounds_of(message.encode("utf-8"), read)
     if frames is None:
-        sys.stderr.write("--message has to fit one block, which is 55 bytes at most\n")
+        sys.stderr.write("--message has to fit one block, which is 55 bytes at max\n")
         return 2
 
     points = boundary_read.golden_place(BITS)
@@ -206,7 +206,7 @@ def main():
         out.append("    none of them, so something has been mixed in after the round finished")
     out.append("")
 
-    # The screw a rotate comes to on this placement, and the reason the letters are predictable.
+    # The screw a rotate comes to on this placement, and the reason the characters are predictable.
     turn, slide, pitch = boundary_read.screw_of(BITS, 1)
     out.append("  one index of shift on this placement is a rigid screw")
     out.append("    turn %.6f rad, axial slide %.6f, pitch %.9f" % (turn, slide, pitch))
@@ -215,9 +215,9 @@ def main():
 
     out.append("  the word, round by round")
     out.append("    round " + " ".join("oct%d " % q for q in range(8)) + "  delta")
-    for at, letters, delta in rows:
+    for at, characters, delta in rows:
         if at <= 4 or at in (8, 16, 24, 32, 48, 64):
-            out.append("     %3d  " % at + " ".join("%.3f" % one for one in letters)
+            out.append("     %3d  " % at + " ".join("%.3f" % one for one in characters)
                        + "   %5.1f%%" % delta)
     out.append("")
 
@@ -235,7 +235,7 @@ def main():
 
     # Three outcomes and they mean different things. The number is not left to speak for itself.
     #
-    # WHAT IS MEASURED HERE AND WHAT IS NOT, because this output is the thing a reader trusts most
+    # WHAT IS MEASURED HERE AND WHAT IS NOT, because this output is the thing a reader trusts max
     # and it was overstating its case.
     #
     # Measured: where the delta sits against a floor built the same way, and whether it crosses that
@@ -260,7 +260,7 @@ def main():
         out.append("    so the register shift is a candidate cause and no more than a candidate")
     elif early_ratio > 0.85:
         out.append("    early rounds sit at the floor, so the reading is saturated and carries")
-        out.append("    nothing but the counting noise of eight letters over 256 bits")
+        out.append("    nothing but the counting noise of eight characters over 256 bits")
     else:
         out.append("    early rounds move it less than independence, so the octants can see")
         out.append("    something the round conserves")
@@ -281,15 +281,15 @@ def main():
     # The rank first, and the distinctness second, because in the other order the distinctness
     # reads as the result and it is the cheaper number by a wide margin.
     #
-    # The eight shares are a linear map from the lit set to eight counts. It has rank 8 at most.
+    # The eight shares are a linear map from the lit set to eight counts. It has rank 8 at max.
     # At fixed weight they carry one constraint, leaving seven free numbers, and every direction of
-    # the source space beyond those seven moves no letter at all. That is a bound on the reading and
+    # the source space beyond those seven moves no character at all. That is a bound on the reading and
     # no sample size, precision or probe count moves it.
     free = len(boundary_read.OCTANTS) - 1
     blind = len(angles) - len(boundary_read.OCTANTS)
     out.append("    the alphabet is a rank-%d map on %d sources: %d free numbers at fixed weight,"
                % (len(boundary_read.OCTANTS), len(angles), free))
-    out.append("    and %d directions of the source that move no letter at all" % blind)
+    out.append("    and %d directions of the source that move no character at all" % blind)
     out.append("    %d rounds wrote %d distinct signatures, coherence %.1f%%"
                % (len(rows), int(round(share * len(rows))), 100.0 * share))
     if nulls:
@@ -315,7 +315,7 @@ def main():
             sys.stdout.write("  FAIL the empty message did not give the published digest\n")
             failed += 1
         if abs(sum(rows[0][1]) - 1.0) > 1e-12:
-            sys.stdout.write("  FAIL the eight letters do not add to one\n")
+            sys.stdout.write("  FAIL the eight characters do not add to one\n")
             failed += 1
         # Which object is being read, checked by counting and not asserted. The six carried words
         # are copied by the round. On the working state every one of them matches and on the
@@ -325,7 +325,7 @@ def main():
             sys.stdout.write("  FAIL the working state lost a word the round only copies\n")
             failed += 1
         if read == "digest" and hits != 0:
-            sys.stdout.write("  FAIL the digest kept a copied word. The feed-forward is absent\n")
+            sys.stdout.write("  FAIL the digest retained a copied word. The feed-forward is absent\n")
             failed += 1
 
         # On the working state the delta starts above independence and ends below it. Two earlier

@@ -18,7 +18,7 @@
 #define TESSERA_SELF_CORES 64u
 #define TESSERA_SELF_RESERVED_CORES 2ull
 
-// dxcore's kernel-mode thunks, laid out as d3dkmthk.h lays them out
+// dxcore's kernel-mode thunks, arranged as d3dkmthk.h positions them out
 typedef struct
 {
     unsigned int low;

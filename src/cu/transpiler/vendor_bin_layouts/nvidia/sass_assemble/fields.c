@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// fields.c: the fields: bits written, a register's, a constant's, an address's and an operand's value, the fields of a kind and the field at a place, the places of an instruction found, the high word written, and the control word made safe
+// fields.c: the fields: bits written, a register's, a constant's, an address's and an operand's value, the fields of a type and the field at a place, the places of an instruction found, the high word written, and the control word made safe
 #include "sass_assemble_internal.h"
 
-// the fields a kind of operand may sit in, in the order an instruction fills them
+// the fields a type of operand may sit in, in the order an instruction fills them
 static const SassField s_register_fields[] = {
     {16u, 8u, 1u, 0u}, {24u, 8u, 1u, 0u}, {32u, 8u, 1u, 0u}, {64u, 8u, 1u, 0u}};
 
@@ -95,7 +95,7 @@ int sass_operand_value(const SassInstructionParts *parts, unsigned int place, un
 {
     const char *const text = parts->operand[place];
     *offset = 0ull;
-    switch (parts->kind[place])
+    switch (parts->type[place])
     {
     case SASS_OPERAND_REGISTER:
     case SASS_OPERAND_PREDICATE:
@@ -128,10 +128,10 @@ int sass_operand_value(const SassInstructionParts *parts, unsigned int place, un
     }
 }
 
-// the fields of `kind`, and how many there are
-static const SassField *sass_fields_of(unsigned int kind, unsigned int *count)
+// the fields of `type`, and how many there are
+static const SassField *sass_fields_of(unsigned int type, unsigned int *count)
 {
-    switch (kind)
+    switch (type)
     {
     case SASS_OPERAND_REGISTER:
     case SASS_OPERAND_UNIFORM:
@@ -154,27 +154,27 @@ static const SassField *sass_fields_of(unsigned int kind, unsigned int *count)
     }
 }
 
-// the field of `kind` that begins inside `run`, or NULL where the kind takes none there. A run is the bits the probe
+// the field of `type` that begins inside `run`, or NULL where the type takes none there. A run is the bits the probe
 // saw change one operand, being the field and whatever lies beside it that changes the same operand. A bit that
-// specifies what kind the operand is, or the low bits of an offset the operation counts in wider units. A constant's
+// specifies what type the operand is, or the low bits of an offset the operation counts in wider units. A constant's
 // run may lie anywhere inside its field: a frame form's run is the bits its place moved, as a parameter's is 42 to 44
-static const SassField *sass_field_at(unsigned int kind, const SassRun *run)
+static const SassField *sass_field_at(unsigned int type, const SassRun *run)
 {
     unsigned int count = 0u;
-    const SassField *const fields = sass_fields_of(kind, &count);
+    const SassField *const fields = sass_fields_of(type, &count);
     const SassField *found = NULL;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const unsigned int last = (fields[at].first + fields[at].bits) - 1u;
         const int begins = (fields[at].first >= run->first) && (fields[at].first <= run->last);
-        const int inside = (kind == SASS_OPERAND_CONSTANT) && (run->first <= last) && (run->last >= fields[at].first);
+        const int inside = (type == SASS_OPERAND_CONSTANT) && (run->first <= last) && (run->last >= fields[at].first);
         found = (begins || inside) ? &fields[at] : found;
     }
     return found;
 }
 
 // the form's operands placed in the fields the probe's runs name: each operand takes the run that begins where a
-// field of its kind begins, and an address takes the offset field beside its base register. 1 where every operand was
+// field of its type begins, and an address takes the offset field beside its base register. 1 where every operand was
 // placed, else 0 and the operand that could not be
 int sass_places_find(const SassForm *form, SassPlace *places, unsigned int *unplaced)
 {
@@ -183,19 +183,19 @@ int sass_places_find(const SassForm *form, SassPlace *places, unsigned int *unpl
     for (unsigned int place = 0u; place < form->operands; place += 1u)
     {
         memset(&places[place], 0, sizeof(places[place]));
-        const unsigned int kind = form->kind[place];
+        const unsigned int type = form->type[place];
         // a label that names a symbol and not a label of the text is a relocation: the field contains nothing and
         // the loader fills it. The instruction is then checked against the one the form was seen with
         const char *const open = strchr(base.operand[place], '(');
-        const int relocated = (kind == SASS_OPERAND_LABEL) && ((open == NULL) || (open[1] != '.'));
-        if ((kind == SASS_OPERAND_UNKNOWN) || (kind == SASS_OPERAND_SYSTEM) || relocated)
+        const int relocated = (type == SASS_OPERAND_LABEL) && ((open == NULL) || (open[1] != '.'));
+        if ((type == SASS_OPERAND_UNKNOWN) || (type == SASS_OPERAND_SYSTEM) || relocated)
         {
             // a system register and anything else the assembler cannot count is checked against the base's own text
             places[place].by_text = 1;
             continue;
         }
         // a branch's target is its own field, which crosses into the high word and shares its bits with no other
-        if (kind == SASS_OPERAND_LABEL)
+        if (type == SASS_OPERAND_LABEL)
         {
             places[place].value.first = SASS_BRANCH_FIRST;
             places[place].value.bits = SASS_BRANCH_BITS;
@@ -206,7 +206,7 @@ int sass_places_find(const SassForm *form, SassPlace *places, unsigned int *unpl
         // reaching into the high word. A run that begins there and ends inside the low word is a field of its own, as
         // BPT.TRAP's code is, three bits from bit 34
         int distance = 0;
-        for (unsigned int number = 0u; (kind == SASS_OPERAND_IMMEDIATE) && (number < form->runs); number += 1u)
+        for (unsigned int number = 0u; (type == SASS_OPERAND_IMMEDIATE) && (number < form->runs); number += 1u)
         {
             distance = distance || ((form->run[number].operand == place) &&
                                     (form->run[number].first == SASS_BRANCH_FIRST) && (form->run[number].last >= 63u));
@@ -226,7 +226,7 @@ int sass_places_find(const SassForm *form, SassPlace *places, unsigned int *unpl
             {
                 continue;
             }
-            const SassField *const field = sass_field_at(kind, run);
+            const SassField *const field = sass_field_at(type, run);
             if (field != NULL)
             {
                 places[place].value = *field;
@@ -234,10 +234,10 @@ int sass_places_find(const SassForm *form, SassPlace *places, unsigned int *unpl
                 // written whole, its base and its place summed, in the whole of its field
                 const unsigned int room = (run->last - field->first) + 1u;
                 places[place].value.bits =
-                    ((kind == SASS_OPERAND_CONSTANT) || (room >= field->bits)) ? field->bits : room;
+                    ((type == SASS_OPERAND_CONSTANT) || (room >= field->bits)) ? field->bits : room;
                 found = 1;
             }
-            if ((kind == SASS_OPERAND_ADDRESS) && (run->first == s_offset_fields[0].first))
+            if ((type == SASS_OPERAND_ADDRESS) && (run->first == s_offset_fields[0].first))
             {
                 places[place].offset = s_offset_fields[0];
                 places[place].has_offset = 1;
@@ -245,13 +245,13 @@ int sass_places_find(const SassForm *form, SassPlace *places, unsigned int *unpl
         }
         // a memory operand with a run of its own at the bit that shows the descriptor reads one, and its uniform
         // register takes the first descriptor field no run of the form uses
-        int shown = 0;
-        for (unsigned int number = 0u; (kind == SASS_OPERAND_ADDRESS) && (number < form->runs); number += 1u)
+        int displayed = 0;
+        for (unsigned int number = 0u; (type == SASS_OPERAND_ADDRESS) && (number < form->runs); number += 1u)
         {
-            shown = shown || ((form->run[number].operand == place) && (form->run[number].first == SASS_DESCRIPTOR_SHOWN) &&
-                              (form->run[number].last == SASS_DESCRIPTOR_SHOWN));
+            displayed = displayed || ((form->run[number].operand == place) && (form->run[number].first == SASS_DESCRIPTOR_DISPLAYED) &&
+                              (form->run[number].last == SASS_DESCRIPTOR_DISPLAYED));
         }
-        for (unsigned int at = 0u; shown && (places[place].has_descriptor == 0) && (at < SASS_DESCRIPTOR_FIELDS); at += 1u)
+        for (unsigned int at = 0u; displayed && (places[place].has_descriptor == 0) && (at < SASS_DESCRIPTOR_FIELDS); at += 1u)
         {
             const SassField *const field = &s_descriptor_fields[at];
             int place_found = 0;
@@ -266,11 +266,11 @@ int sass_places_find(const SassForm *form, SassPlace *places, unsigned int *unpl
                 places[place].has_descriptor = 1;
             }
         }
-        // Where no field of the operand's kind begins inside a run of its own, the widest run the probe saw change the
+        // Where no field of the operand's type begins inside a run of its own, the widest run the probe saw change the
         // operand is its field, from the run's first bit and as long as the run: BPT.TRAP's code begins at bit 34,
         // where no immediate field of the list above begins. An operand a field above places is placed there as it was
-        const int counted = (kind == SASS_OPERAND_IMMEDIATE) || (kind == SASS_OPERAND_REGISTER) ||
-                            (kind == SASS_OPERAND_PREDICATE) || (kind == SASS_OPERAND_UNIFORM);
+        const int counted = (type == SASS_OPERAND_IMMEDIATE) || (type == SASS_OPERAND_REGISTER) ||
+                            (type == SASS_OPERAND_PREDICATE) || (type == SASS_OPERAND_UNIFORM);
         const SassRun *widest = NULL;
         for (unsigned int number = 0u; (found == 0) && counted && (number < form->runs); number += 1u)
         {

@@ -19,7 +19,7 @@ from .repository import git_say
 # Three lines, and each one prevented a real confusion.
 #
 # PRINT THE REVISION MEASURED. One repository read 58 British sites on one branch and 15 on another,
-# and the difference looked like a defect in this tool to two separate readers for most of a day. A
+# and the difference looked like a defect in this tool to two separate readers for the majority of a day. A
 # count without its revision is a count about an unspecified tree. And a revision is only authority
 # while it is REACHABLE FROM SOMEWHERE DURABLE: a local-only commit is a tree of one, and a fixture
 # that lived only inside a linked worktree dies with the session that made it. So the revision is
@@ -30,7 +30,7 @@ from .repository import git_say
 # tool once ran taught the reason, and it generalizes: "scanned none" and "there are none" must
 # never be the same output, for any root and not only a closed one.
 #
-# PRINT THE ROOTS IT WAS CONFIGURED WITH, and this is the line that matters most. One repository
+# PRINT THE ROOTS IT WAS CONFIGURED WITH, and this is the line that matters max. One repository
 # declares roots = ["README.md", "test"] for both its prose gate and its commit hook. Its sixty
 # translation units and its CMakeLists.txt are outside that declared scope, and they stay outside it
 # after every repair this tool has had. A run reporting "0 findings" over two configured roots reads

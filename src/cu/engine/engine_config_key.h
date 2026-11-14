@@ -159,7 +159,7 @@ extern "C"
     } EngineRecordStep;
 
     // One lookup table: the low `index_bits` of the source register select one of `1 << index_bits`
-    // entries, each `out_bits` wide, laid out as (1 << index_bits) rows of ((out_bits + 31) / 32) limbs.
+    // entries, each `out_bits` wide, arranged as (1 << index_bits) rows of ((out_bits + 31) / 32) limbs.
     // This is the engine's nonlinear edge (kolmogorov_arnold.md): a general one-variable function over a
     // lane's alphabet, built once and composed with another table by reading one through the other.
     typedef struct

@@ -50,8 +50,8 @@ static int krf_word_read(const char *text, size_t *at, char *word, size_t room)
 int krf_row_read(const char *line, KrfRow *row)
 {
     size_t at = 0u;
-    char kind[KRF_TYPE];
-    if (!krf_word_read(line, &at, kind, sizeof(kind)) || (strcmp(kind, "removed") != 0) ||
+    char type[KRF_TYPE];
+    if (!krf_word_read(line, &at, type, sizeof(type)) || (strcmp(type, "removed") != 0) ||
         !krf_word_read(line, &at, row->type, sizeof(row->type)) ||
         !krf_word_read(line, &at, row->query, sizeof(row->query)) ||
         !krf_word_read(line, &at, row->reason, sizeof(row->reason)))
@@ -72,11 +72,11 @@ static const char *krf_base_of(const char *path)
     return (separator == NULL) ? path : (separator + 1);
 }
 
-// how many letters of `base` stand before its last extension, every one where it has none
+// how many characters of `base` are before its last extension, every one where it has none
 static size_t krf_stem_length(const char *base)
 {
     const char *const dot = strrchr(base, '.');
-    // a name is shorter than a size_t counts, and the dot stands at or past the name's start
+    // a name is shorter than a size_t counts, and the dot is at or past the name's start
     return (dot == NULL) ? strlen(base) : (size_t)(dot - base);
 }
 

@@ -31,7 +31,7 @@ The part that needs no distribution survives: Spearman gives ρ = +0.049 at p = 
 
 **A language does carry constants, and the rare half is not one of them.** The mean distance between word boundaries separates languages at F = 13.21, and collision entropy at F = 9.02, with the between language spread exceeding the within language spread in both. The rare half against a null permutation gives F = 0.66 at p = 0.68, and its between language spread of 0.0342 is smaller than its within language spread of 0.0731.
 
-That failure is the result. A universal has to look exactly like that: carrying no information about which language it is reading. Chinese settles it, standing 66.0 within-language deviations away on collision entropy and 22.1 on the mean gap, and 0.5 away on the rare half.
+That failure is the result. A universal has to look exactly like that: carrying no information about which language it is reading. Chinese settles it, located 66.0 within-language deviations away on collision entropy and 22.1 on the mean gap, and 0.5 away on the rare half.
 
 ## The port
 

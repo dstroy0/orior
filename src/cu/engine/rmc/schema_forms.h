@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // schema_forms.h: every form the code generator writes, as C sees it: its name here, its name in a .krs file, how
-// many parameters it takes, and its kind. Included by machine_ir_types.h, and by the writers of a part's ruleset,
+// many parameters it takes, and its type. Included by machine_ir_types.h, and by the writers of a part's ruleset,
 // which are C (orior_krs_write)
 #ifndef SCHEMA_FORMS_H
 #define SCHEMA_FORMS_H
 
-// The kind of a form. The lane's structure is what the word web names as the kernel a lane is written into: the
+// The type of a form. The lane's structure is what the word web names as the kernel a lane is written into: the
 // declarations, the notes, the lane's and the kernel's opening and close, the launch's and the shared memory's, the
 // states and the loads, and the unit. Each names no operation and has no tree, and a part's ruleset writes it `nop`:
 // the kernel the system accepted is the lane's frame there (Open 6.3). An operation is a form

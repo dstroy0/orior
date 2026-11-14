@@ -164,7 +164,7 @@ static void long_file_opened(const char *key)
     (void)shape_indexed(key);
 }
 
-// a view that wraps its lines at 100 letters reported through its movements, each step's result recorded, once for the process
+// a view that wraps its lines at 100 characters reported through its movements, each step's result recorded, once for the process
 static void wrapped_run_result(void)
 {
     CliPagesView view = {100ull, 20ull, 0ull, 90ull, 130ull, 0ull, 0ull, 0ull, 100ull};
@@ -269,7 +269,7 @@ static void wide_run_result(void)
     const CliDocNeedle needle = {"the last", 0, 1, 0};
     out.at = 0ull;
     err_msg.at = 0ull;
-    (void)EMBED_CALL(cli_pages_out_err_msg_needle.find, CliPagesOutErrMsgNeedleCfg, .key = "wide", .needle = &needle, .most = 10ull, .out = &out, .err_msg = &err_msg);
+    (void)EMBED_CALL(cli_pages_out_err_msg_needle.find, CliPagesOutErrMsgNeedleCfg, .key = "wide", .needle = &needle, .max = 10ull, .out = &out, .err_msg = &err_msg);
     text_stored(s_wide_found, sizeof(s_wide_found), s_out, out.at);
     out.at = 0ull;
     err_msg.at = 0ull;
@@ -300,13 +300,13 @@ void test_a_file_ending_in_a_newline_has_an_empty_line_last(void)
     TEST_ASSERT_EQUAL_UINT64(5001ull, lines);
 }
 
-void test_find_reaches_the_first_line_of_a_block_of_letters_of_one_byte_each(void)
+void test_find_reaches_the_first_line_of_a_block_of_characters_of_one_byte_each(void)
 {
     const CliDocNeedle needle = {"line 0", 0, 1, 0};
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     lines_file_opened("read");
-    (void)EMBED_CALL(cli_pages_out_err_msg_needle.find, CliPagesOutErrMsgNeedleCfg, .key = "read", .needle = &needle, .most = 10ull, .out = &out, .err_msg = &err_msg);
+    (void)EMBED_CALL(cli_pages_out_err_msg_needle.find, CliPagesOutErrMsgNeedleCfg, .key = "read", .needle = &needle, .max = 10ull, .out = &out, .err_msg = &err_msg);
     EMBED_CALL(cli_pages.release, CliPagesCfg, .key = "read");
     CLI_TEST_ASSERT_TEXT("[[0,0,6]]", s_out, out.at);
 }

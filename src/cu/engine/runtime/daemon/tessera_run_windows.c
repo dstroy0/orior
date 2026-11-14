@@ -105,7 +105,7 @@ int run_names_wsl(const char *program)
     return (_stricmp(base, "wsl.exe") == 0) || (_stricmp(base, "wsl") == 0);
 }
 
-// a path on a drive as WSL mounts it, X:\a\b as /mnt/x/a/b; 0 for a path on no drive letter
+// a path on a drive as WSL mounts it, X:\a\b as /mnt/x/a/b; 0 for a path on no drive character
 int run_mounted_path(const char *path, char *mounted, size_t capacity)
 {
     const int upper = (path[0] >= 'A') && (path[0] <= 'Z');
@@ -114,7 +114,7 @@ int run_mounted_path(const char *path, char *mounted, size_t capacity)
     {
         return 0;
     }
-    // a capital letter's lower case is the same letter 32 above it, still a char
+    // a capital character's lower case is the same character 32 above it, still a char
     const char drive = upper ? (char)(path[0] + ('a' - 'A')) : path[0];
     const int written = snprintf(mounted, capacity, "/mnt/%c/%s", drive, path + 3);
     // a non-negative length is compared whole against the capacity
@@ -237,7 +237,7 @@ int run_finish(RunChild *child)
     {
         CloseHandle(child->job);
     }
-    // an exit code is handed on whole, and a shell reads its low byte
+    // an exit code is passed on whole, and a shell reads its low byte
     return (int)code;
 }
 

@@ -15,7 +15,7 @@ typedef struct
     int full;
 } CliWriter;
 
-// the bytes a run looks back over, and the most earlier places of a key it tries
+// the bytes a run looks back over, and the max earlier places of a key it tries
 #define CLI_WINDOW 32768ULL
 #define CLI_CHAIN 64u
 
@@ -102,8 +102,8 @@ EMBED_INLINE unsigned long long cli_key(const ArchivePackCtx *args)
            ((1ULL << 15u) - 1ULL);
 }
 
-// the longest run at `at` of the `size` bytes of `data` that stands within the window before it, of the CLI_CHAIN
-// latest places its key was seen, at most 258 bytes, and how far back it stands into `back_out`: 0 where none is
+// the longest run at `at` of the `size` bytes of `data` that is within the window before it, of the CLI_CHAIN
+// latest places its key was seen, at max 258 bytes, and how far back it is into `back_out`: 0 where none is
 EMBED_INLINE unsigned long long cli_longest_run(const ArchivePackCtx *args)
 {
     const unsigned char *const data = args->data;
@@ -114,13 +114,13 @@ EMBED_INLINE unsigned long long cli_longest_run(const ArchivePackCtx *args)
     {
         return 0ULL;
     }
-    const unsigned long long most = ((args->size - at) < 258ULL) ? (args->size - at) : 258ULL;
+    const unsigned long long max = ((args->size - at) < 258ULL) ? (args->size - at) : 258ULL;
     unsigned long long candidate = s_head[EMBED_CALL(cli_key, ArchivePackCtx, .data = data, .at = at)];
     unsigned int tries = 0u;
-    while ((candidate != CLI_PACK_NONE) && ((at - candidate) <= CLI_WINDOW) && (tries < CLI_CHAIN) && (best < most))
+    while ((candidate != CLI_PACK_NONE) && ((at - candidate) <= CLI_WINDOW) && (tries < CLI_CHAIN) && (best < max))
     {
         unsigned long long length = 0ULL;
-        while ((length < most) && (data[candidate + length] == data[at + length]))
+        while ((length < max) && (data[candidate + length] == data[at + length]))
         {
             length += 1ULL;
         }

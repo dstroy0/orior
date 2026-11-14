@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// decode.c: a run's tables and blobs read from the command line through the decoder (kdecode.c): `decode` hands its
-// words to the decoder as they stand, `--table <table> <run.qry>`, `--blob <name> <run.qry>` and the rest, the decoder
-// a member of a run of its own, and reports what the decoder handed that run as `orior_kdecode`
+// decode.c: a run's tables and blobs read from the command line through the decoder (kdecode.c): `decode` passes its
+// words to the decoder as they are, `--table <table> <run.qry>`, `--blob <name> <run.qry>` and the rest, the decoder
+// a member of a run of its own, and reports what the decoder passed that run as `orior_kdecode`
 #include "../query_loops.h"
 
-// the record the decoder hands its text in (KDECODE_SHOWN, kdecode_internal.h)
+// the record the decoder passes its text in (KDECODE_DISPLAYED, kdecode_internal.h)
 #define QUERY_DECODE_DISPLAYED "orior_kdecode"
 
 int query_decode_run(const QueryLoopCfg *args)
@@ -52,7 +52,7 @@ int query_decode_run(const QueryLoopCfg *args)
                    .name = QUERY_DECODE_DISPLAYED, .size_pointer = &displayed_size);
     if (displayed != NULL)
     {
-        // each line printed as it stands
+        // each line printed as it is
         unsigned long long at = 0ULL;
         while (at < displayed_size)
         {
@@ -62,7 +62,7 @@ int query_decode_run(const QueryLoopCfg *args)
             const unsigned long long length = (end != NULL) ? (unsigned long long)(end - line) : (displayed_size - at);
             char text[QUERY_LINE_MAX_LEN];
             VerbaLinea text_line = {text, sizeof(text), 0ULL};
-            mmgr_line_put_most(&text_line, line,
+            mmgr_line_put_max(&text_line, line,
                                length - (((length != 0ULL) && (line[length - 1u] == '\r')) ? 1u : 0u));
             if (mmgr_line_finish(&text_line) != 0ULL)
             {

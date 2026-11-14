@@ -41,13 +41,13 @@ NAMED = {}
 MODIFIERS = {}
 DRIVEN = {}
 for _row in _rows():
-    if _row["kind"] == "mark":
+    if _row["type"] == "mark":
         MARKS[_row["name"]] = (_row["code"], int(_row["key_code"]), _row["shifted"])
-    elif _row["kind"] == "named":
+    elif _row["type"] == "named":
         NAMED[_row["name"].lower()] = {"key": _row["key"], "code": _row["code"], "key_code": int(_row["key_code"]), "text": _unescaped(_row["text"]) or None}
-    elif _row["kind"] == "modifier":
+    elif _row["type"] == "modifier":
         MODIFIERS[_row["name"].lower()] = (int(_row["shifted"]), _row["key"], _row["code"], int(_row["key_code"]))
-    elif _row["kind"] == "driven":
+    elif _row["type"] == "driven":
         DRIVEN[_row["name"]] = _unescaped(_row["key"])
 # each modifier's bit once, in the order the keys are pressed down: Control, Shift, Alt, Meta
 MODIFIER_ORDER = []
@@ -63,11 +63,11 @@ def typed(one, shift):
     key types it."""
     if one.isascii() and one.isalpha():
         upper = one.upper()
-        shown = upper if shift or one.isupper() else one.lower()
-        return {"key": shown, "code": "Key" + upper, "key_code": ord(upper), "text": shown}
+        displayed = upper if shift or one.isupper() else one.lower()
+        return {"key": displayed, "code": "Key" + upper, "key_code": ord(upper), "text": displayed}
     if one.isdigit() and one.isascii():
-        shown = SHIFTED_DIGITS[int(one)] if shift else one
-        return {"key": shown, "code": "Digit" + one, "key_code": ord(one), "text": shown}
+        displayed = SHIFTED_DIGITS[int(one)] if shift else one
+        return {"key": displayed, "code": "Digit" + one, "key_code": ord(one), "text": displayed}
     if one in SHIFTED_DIGITS:
         digit = str(SHIFTED_DIGITS.index(one))
         return {"key": one, "code": "Digit" + digit, "key_code": ord(digit), "text": one}
@@ -75,13 +75,13 @@ def typed(one, shift):
         return key("Space", shift)
     for plain, (code, key_code, shifted) in MARKS.items():
         if one in (plain, shifted):
-            shown = shifted if shift or one == shifted else plain
-            return {"key": shown, "code": code, "key_code": key_code, "text": shown}
+            displayed = shifted if shift or one == shifted else plain
+            return {"key": displayed, "code": code, "key_code": key_code, "text": displayed}
     return None
 
 
 def key(name, shift):
-    """The key `name` names, with Shift down where `shift`: a letter, a digit, a mark, F1 to F24, a named key or a
+    """The key `name` names, with Shift down where `shift`: a character, a digit, a mark, F1 to F24, a named key or a
     modifier; None where none."""
     if len(name) == 1:
         return typed(name, shift)
@@ -124,10 +124,10 @@ def chord(text):
 # ---- through the debugging port ----
 
 
-def send_key(conn, kind, pressed, bits, repeating=False):
-    params = {"type": kind, "modifiers": bits, "key": pressed["key"], "code": pressed["code"], "windowsVirtualKeyCode": pressed["key_code"], "nativeVirtualKeyCode": pressed["key_code"]}
+def send_key(conn, type, pressed, bits, repeating=False):
+    params = {"type": type, "modifiers": bits, "key": pressed["key"], "code": pressed["code"], "windowsVirtualKeyCode": pressed["key_code"], "nativeVirtualKeyCode": pressed["key_code"]}
     # Ctrl, Alt or Meta down, the key types nothing, as on the keyboard
-    if kind == "keyDown" and not bits & (CTRL | ALT | META) and pressed.get("text"):
+    if type == "keyDown" and not bits & (CTRL | ALT | META) and pressed.get("text"):
         params["text"] = params["unmodifiedText"] = pressed["text"]
     if pressed["code"].endswith("Left") and pressed["key_code"] != 37:
         params["location"] = 1
@@ -167,8 +167,8 @@ def press(conn, keys):
 
 
 def repeat(conn, keys, count, every):
-    """The chord `keys` kept down for `count` presses, one every `every` milliseconds from its first, as the system's repeat
-    sends a key kept down; each press at its own time from the first, however long the page takes with the one before."""
+    """The chord `keys` retained down for `count` presses, one every `every` milliseconds from its first, as the system's repeat
+    sends a key retained down; each press at its own time from the first, however long the page takes with the one before."""
     bits, pressed = chord(keys)
     hold(conn, bits)
     down = "keyDown" if pressed.get("text") and not bits & (CTRL | ALT | META) else "rawKeyDown"
@@ -208,8 +208,8 @@ def type_text(conn, text):
 BUTTON_BITS = {"left": 1, "right": 2, "middle": 4, "back": 8, "forward": 16}
 
 
-def mouse(conn, kind, x, y, button, buttons, count, bits):
-    conn.call("Input.dispatchMouseEvent", timeout=WAIT, type=kind, x=x, y=y, button=button, buttons=buttons, clickCount=count, modifiers=bits)
+def mouse(conn, type, x, y, button, buttons, count, bits):
+    conn.call("Input.dispatchMouseEvent", timeout=WAIT, type=type, x=x, y=y, button=button, buttons=buttons, clickCount=count, modifiers=bits)
 
 
 def number(step, name):
@@ -440,7 +440,7 @@ def perform_driven(session, step):
     elif op == "release":
         session.actions([keys_source(driven_modifiers(modifier_bits(step.get("keys") or ""), True))])
     elif op == "repeat":
-        # WebDriver sends no repeat of a key kept down: the key pressed and let go `count` times, one every `every` ms
+        # WebDriver sends no repeat of a key retained down: the key pressed and let go `count` times, one every `every` ms
         value = step.get("keys") or ""
         ticks = []
         for at in range(max(int(step.get("count") or 1), 1)):

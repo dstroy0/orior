@@ -25,7 +25,7 @@ import re
 # separator with no rows under them republishes an empty table on every regeneration. That is a
 # generator defect, a person has to fix it in the generator, and the finding is how they find out.
 #
-# A FINDING INSIDE A MARKED REGION THEREFORE KEEPS ITS PLACE IN THE COUNT and carries the
+# A FINDING INSIDE A MARKED REGION THEREFORE RETAINS ITS PLACE IN THE COUNT and carries the
 # generator's name with it. The marker already holds the generator. The attribution is read from the
 # document and cannot go stale. What the region buys is an error: a rewrite never goes inside one,
 # because writing there is writing to a file CI overwrites.

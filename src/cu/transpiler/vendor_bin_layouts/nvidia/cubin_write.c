@@ -92,7 +92,7 @@ unsigned long long cubin_pattern_read(const char *path, unsigned char *pattern, 
     {
         char name[256];
         const char *read = line;
-        if (line_letters(&read, "container ") && line_letters(&read, "kernel ") && line_word(&read, name, sizeof(name)))
+        if (line_characters(&read, "container ") && line_characters(&read, "kernel ") && line_word(&read, name, sizeof(name)))
         {
             snprintf(kernel, kernel_room, "%s", name);
             continue;

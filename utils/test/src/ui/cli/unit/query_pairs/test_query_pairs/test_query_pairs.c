@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_query_pairs.c: the pairs' modes: the part's name for the vendor's reader, the modes and their targets, the dry carrier's flags
-// first as the carrier reads them, the kernel handed before the frame and the pairs, and the words read
+// first as the carrier reads them, the kernel passed before the frame and the pairs, and the words read
 #include "ui/cli/src/text/text.h"
 #include "ui/query/src/learn/pairs_internal.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
@@ -55,7 +55,7 @@ static int mode_read(const char *const *words, unsigned int count)
 {
     char why[512];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    return EMBED_CALL(query_pairs_err_msg_internal.read, QueryPairsErrMsgCtx, .words_letters = words, .count = count, .mode_out = &s_mode, .err_msg = &err_msg);
+    return EMBED_CALL(query_pairs_err_msg_internal.read, QueryPairsErrMsgCtx, .words_characters = words, .count = count, .mode_out = &s_mode, .err_msg = &err_msg);
 }
 
 void setUp(void)
@@ -74,7 +74,7 @@ void test_a_parts_name_for_the_vendors_reader(void)
     TEST_ASSERT_EQUAL_STRING("SM86", name);
 }
 
-void test_a_parts_name_with_a_letter_after_it(void)
+void test_a_parts_name_with_a_character_after_it(void)
 {
     char name[64];
     EMBED_CALL(query_pairs_part_name_internal.part_read, QueryPairsPartNameCtx, .part = "sm_120a", .name = name, .capacity = sizeof(name));

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The keys of a list beside a view: Up and Down from row to row and out to the search field, Home and End, Right and
-// Left opening and closing a group or stepping out to the row that holds one, letters typed finding a row, and the
-// focus kept on its row as the list is drawn again.
+// Left opening and closing a group or stepping out to the row that holds one, characters typed finding a row, and the
+// focus retained on its row as the list is drawn again.
 
-import { focusedKey, keepListKeys, refocus } from "../../gui/src-js/lists.js";
+import { focusedKey, retainListKeys, refocus } from "../../gui/src-js/lists.js";
 
 const { test, assert } = window.__harness;
 
@@ -29,7 +29,7 @@ async function withList(work) {
   const host = document.createElement("div");
   host.append(search, list);
   document.body.append(host);
-  keepListKeys(list, search);
+  retainListKeys(list, search);
   try {
     return await work({ list, search, group, at: (key) => list.querySelector(`[data-key="${key}"]`) });
   } finally {
@@ -66,7 +66,7 @@ test("Up and Down step from row to row past a closed group's rows, Home and End 
   });
 });
 
-test("letters typed find the row whose name matches from the row on, and Escape ends the search", async () => {
+test("characters typed find the row whose name matches from the row on, and Escape ends the search", async () => {
   await withList(({ list, at }) => {
     at("a").focus();
     press("g");

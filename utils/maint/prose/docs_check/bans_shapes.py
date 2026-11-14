@@ -19,7 +19,7 @@ SHAPES = (
     # Bounded to the same noun list its sibling three lines up already carries. The bare `the`
     # arm was drift between two patterns written for one shape, and it fired on
     # code-documentation:133, "and that is the defect: each occupies the place a fact
-    # goes", where the clause carries the fact instead of standing in for one.
+    # goes", where the clause carries the fact instead of located in for one.
     r"\band that is (what|why|the (difference|point|whole|answer|test|reason|rule|shape|cost))\b",
     # Defining a thing by what it is not.
     r"\b(checking|reading|running|measuring|saying) [a-z]+ is not [a-z]+ing\b",
@@ -101,7 +101,7 @@ SHAPES = (
     # themselves whether that was a good idea.
     #
     # Closers. A sentence added after the fact was already stated, to land it.
-    r"\bis the kind nobody\b",
+    r"\bis the type nobody\b",
     r"\bnobody (looks at twice|reads twice|rechecks|checks twice)\b",
     r"\band they could not have\b",
     r"\bwhich is the whole\b",
@@ -110,9 +110,9 @@ SHAPES = (
     # as in "a shuffle holds nothing beyond one symbol" and "a domain that holds nothing". What
     # makes the preachy version preachy is the verb repeating against itself across a clause, and
     # no pattern separates that from the plain use. Run any candidate over the tree and read what
-    # it reaches before keeping it.
+    # it reaches before retention it.
     r"\bwould (prove|buy) nothing\b",
-    # A bare abstraction standing in for the subject, usually in a closing clause.
+    # A bare abstraction located in for the subject, usually in a closing clause.
     r"\bthe (reproducible|checkable|measurable|honest|valuable) thing\b",
     # Arguing the design instead of describing it.
     r"\bagainst how (somebody|someone|anybody|people)\b",

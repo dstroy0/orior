@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // requests_http.c: one request sent over HTTP/1.1 from this process, through the system's TLS for https, and its
 // answer read whole: each answer of 1xx but 101 passed over, a chunked body, one of a length and one read to the
-// connection's end, the most of it CLI_REQUESTS_BODY and the rest cut; gzip and deflate undone; and how long each
+// connection's end, the max of it CLI_REQUESTS_BODY and the rest cut; gzip and deflate undone; and how long each
 // part took
 #include "../command_line/pool.h"
 #include "../comms/tls.h"
@@ -22,7 +22,7 @@ typedef struct
 #define CLI_REQUESTS_CONNECTING 15000u
 #define CLI_REQUESTS_ANSWERING 60000u
 
-// the longest line of a head, and the most read from the connection at once
+// the longest line of a head, and the max read from the connection at once
 #define CLI_REQUESTS_LINE (64u << 10u)
 #define CLI_REQUESTS_CHUNK (16u << 10u)
 

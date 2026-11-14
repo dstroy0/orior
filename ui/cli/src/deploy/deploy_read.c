@@ -19,7 +19,7 @@ typedef struct
     const char ***texts;
     unsigned int *count;
     CliDeployment *deployment;
-    unsigned int letter;
+    unsigned int character;
 } DeployReadCtx;
 
 void *cli_deploy_on_position(const CliDeployPoolCtx *args)
@@ -328,14 +328,14 @@ int cli_deploy_read(const CliDeployRootCtx *args)
     return 1;
 }
 
-// whether a letter is white as Rust's char::is_whitespace has it
+// whether a character is white as Rust's char::is_whitespace has it
 EMBED_INLINE int read_white(const DeployReadCtx *args)
 {
-    return ((args->letter >= 0x09u) && (args->letter <= 0x0du)) || (args->letter == 0x20u) || (args->letter == 0x85u) ||
-           (args->letter == 0xa0u) || (args->letter == 0x1680u) ||
-           ((args->letter >= 0x2000u) && (args->letter <= 0x200au)) || (args->letter == 0x2028u) ||
-           (args->letter == 0x2029u) || (args->letter == 0x202fu) || (args->letter == 0x205fu) ||
-           (args->letter == 0x3000u);
+    return ((args->character >= 0x09u) && (args->character <= 0x0du)) || (args->character == 0x20u) || (args->character == 0x85u) ||
+           (args->character == 0xa0u) || (args->character == 0x1680u) ||
+           ((args->character >= 0x2000u) && (args->character <= 0x200au)) || (args->character == 0x2028u) ||
+           (args->character == 0x2029u) || (args->character == 0x202fu) || (args->character == 0x205fu) ||
+           (args->character == 0x3000u);
 }
 
 int cli_deploy_position(const CliDeployTextCtx *args)
@@ -343,24 +343,24 @@ int cli_deploy_position(const CliDeployTextCtx *args)
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     unsigned long long start = 0ULL;
     unsigned long long end = 0ULL;
-    unsigned int letter = 0u;
+    unsigned int character = 0u;
     for (unsigned long long at = 0ULL; at < length;)
     {
         const unsigned long long reserved =
-            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                       .text_bytes = (const unsigned char *)args->text, .length = length, .at = at, .letter = &letter);
-        start = ((start == at) && EMBED_CALL(read_white, DeployReadCtx, .letter = letter)) ? (at + reserved) : start;
+            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                       .text_bytes = (const unsigned char *)args->text, .length = length, .at = at, .character = &character);
+        start = ((start == at) && EMBED_CALL(read_white, DeployReadCtx, .character = character)) ? (at + reserved) : start;
         at += reserved;
-        end = EMBED_CALL(read_white, DeployReadCtx, .letter = letter) ? end : at;
+        end = EMBED_CALL(read_white, DeployReadCtx, .character = character) ? end : at;
     }
     end = (end < start) ? start : end;
     char trimmed[CLI_PATH_MAX_LEN];
     const unsigned long long size = (end - start < sizeof(trimmed)) ? (end - start) : (sizeof(trimmed) - 1u);
     memor.cpy(&(MemoriaCfg){.dst = trimmed, .src = args->text + start, .bytes = (embed_word)size});
     trimmed[size] = '\0';
-    const int letter_drive =
+    const int character_drive =
         ((trimmed[0] >= 'a') && (trimmed[0] <= 'z')) || ((trimmed[0] >= 'A') && (trimmed[0] <= 'Z'));
-    const int drive = (size >= 2u) && letter_drive && (trimmed[1] == ':') &&
+    const int drive = (size >= 2u) && character_drive && (trimmed[1] == ':') &&
                       ((size == 2u) || (trimmed[2] == '/') || (trimmed[2] == '\\'));
     if (!drive && (trimmed[0] != '/') && (trimmed[0] != '.') && (trimmed[0] != '\\'))
     {
@@ -371,7 +371,7 @@ int cli_deploy_position(const CliDeployTextCtx *args)
     args->position_out->here = 1;
     VerbaLinea path = {args->position_out->path, sizeof(args->position_out->path), 0ULL};
 #if defined(_WIN32)
-    // a path with a drive stands on its own, as Rust's join takes one, as does a share's
+    // a path with a drive is on its own, as Rust's join takes one, as does a share's
     const int whole =
         drive || (((trimmed[0] == '/') || (trimmed[0] == '\\')) && ((trimmed[1] == '/') || (trimmed[1] == '\\')));
     const int rooted = !whole && !drive && ((trimmed[0] == '/') || (trimmed[0] == '\\'));

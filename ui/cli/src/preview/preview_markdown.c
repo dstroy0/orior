@@ -5,14 +5,14 @@
 // container of their own with their marks taken off. The layout runs twice: once counting the items, the blocks and the
 // text's bytes, then again writing them into this call's cells taken at those counts, written once into movable cells
 // the size of what they carry.
-// A block's inline text flows a word at a time: a word's letters wait with their marks until a space or the line's end,
-// the word moves to the next line where it passes the width, and a run of letters of one mark on one line is one item
+// A block's inline text flows a word at a time: a word's characters wait with their marks until a space or the line's end,
+// the word moves to the next line where it passes the width, and a run of characters of one mark on one line is one item
 #include "preview_markdown.h"
 
 // the sizes in the page's pixels: the body's text and its line, the code's text and its line, the code block's
 // padding and its corners, the gap after a block and inside a list, the gap above a heading, a list item's indent,
 // the quote's bar and its indent, a table cell's padding and its least width, a rule's thickness and the gap about it,
-// a task's box, a bullet's disc, and the most columns of a table
+// a task's box, a bullet's disc, and the max columns of a table
 #define MARKDOWN_BODY 14u
 #define MARKDOWN_BODY_LINE 22
 #define MARKDOWN_CODE 13u
@@ -32,7 +32,7 @@
 #define MARKDOWN_TASK 13
 #define MARKDOWN_DISC 6
 #define MARKDOWN_COLUMNS 64u
-// the most bytes of a word laid at once, the most containers one inside another, a tab's stop in cells, the code
+// the max bytes of a word positioned at once, the max containers one inside another, a tab's stop in cells, the code
 // face's advance in thousandths of an em, the mark a run of code carries among its flags, and no place
 #define MARKDOWN_WORD 512u
 #define MARKDOWN_DEPTH 16u
@@ -44,7 +44,7 @@
 // the headings' text sizes, h1 to h6
 static const unsigned int s_heading_size[6] = {26u, 21u, 18u, 16u, 14u, 13u};
 
-// the interface face's advance of each printable ASCII letter from the space on, in thousandths of an em
+// the interface face's advance of each printable ASCII character from the space on, in thousandths of an em
 static const unsigned short s_advance[95] = {
     274u, 270u, 380u, 600u, 560u, 840u, 820u, 220u, 300u, 300u, 440u, 680u, 220u, 400u, 260u, 400u, 560u, 560u, 560u,
     560u, 560u, 560u, 560u, 560u, 560u, 560u, 260u, 260u, 680u, 680u, 680u, 450u, 960u, 660u, 590u, 640u, 740u, 520u,
@@ -61,7 +61,7 @@ typedef struct
     unsigned int line;
 } MarkdownLine;
 
-// A letter's marks: its flags, CLI_PREVIEW_* and the code mark, and the address of the link it stands in, none where
+// A character's marks: its flags, CLI_PREVIEW_* and the code mark, and the address of the link it is in, none where
 // `link_length` is 0
 typedef struct
 {
@@ -71,10 +71,10 @@ typedef struct
 } MarkdownStyle;
 
 // The flow of one block's inline text: the left and the width it flows in, the pen in thousandths of a pixel, the top
-// of the line it stands on, the line's height, the text's size, its color role, the flags every run of it carries and
-// the source line; the marks the letters now take; the run laid, whether one is open, where it starts, its text and its
-// marks; the word waiting, its letters each with its marks; whether a space waits before the next word; and how many
-// lines the flow has laid
+// of the line it is on, the line's height, the text's size, its color role, the flags every run of it carries and
+// the source line; the marks the characters now take; the run positioned, whether one is open, where it starts, its text and its
+// marks; the word waiting, its characters each with its marks; whether a space waits before the next word; and how many
+// lines the flow has positioned
 typedef struct
 {
     int x0;
@@ -120,7 +120,7 @@ typedef struct
     unsigned long long number;
 } MarkdownItem;
 
-// The items as a pass lays them, in this call's cells: the items and how many, the blocks and how many, the text and
+// The items as a pass positions them, in this call's cells: the items and how many, the blocks and how many, the text and
 // its bytes, and the height every item fills; the count pass carries the counts alone, its pointers NULL
 typedef struct
 {
@@ -156,7 +156,7 @@ typedef struct
     int line_height;
     unsigned int flags;
     unsigned int line;
-    unsigned char letter;
+    unsigned char character;
     unsigned int length;
     const CliPreviewItem *item;
     const MarkdownStyle *style;
@@ -180,7 +180,7 @@ EMBED_INLINE void cell_released(const MarkdownCtx *args)
     }
 }
 
-// the item `item` put after the items laid, the height every item fills grown to its foot: its row
+// the item `item` put after the items positioned, the height every item fills grown to its foot: its row
 EMBED_INLINE unsigned int item_put(const MarkdownCtx *args)
 {
     MarkdownLaid *const items = args->items;
@@ -207,7 +207,7 @@ EMBED_INLINE void item_height_put(const MarkdownCtx *args)
     }
 }
 
-// `length` bytes of `bytes` put after the text laid: where they start in the text cell
+// `length` bytes of `bytes` put after the text positioned: where they start in the text cell
 EMBED_INLINE unsigned int text_put(const MarkdownCtx *args)
 {
     MarkdownLaid *const items = args->items;
@@ -221,8 +221,8 @@ EMBED_INLINE unsigned int text_put(const MarkdownCtx *args)
 }
 
 // a block starting on the source line `line` at the top `*y`, `depth` deep, a heading where `heading`, `width` wide
-// from `x`: the block put after the blocks laid and its rectangle's item after the items, its height put once the
-// block is laid: the item's row
+// from `x`: the block put after the blocks positioned and its rectangle's item after the items, its height put once the
+// block is positioned: the item's row
 EMBED_INLINE unsigned int block_put(const MarkdownCtx *args)
 {
     MarkdownLaid *const items = args->items;
@@ -241,16 +241,16 @@ EMBED_INLINE unsigned int block_put(const MarkdownCtx *args)
                                                 .line = args->line});
 }
 
-// the advance of the byte `letter` with the flags `flags`, in thousandths of an em: a code letter the code face's, a
-// UTF-8 letter's first byte a wide letter's and its other bytes none, a bold letter wider and an italic one narrower
+// the advance of the byte `character` with the flags `flags`, in thousandths of an em: a code character the code face's, a
+// UTF-8 character's first byte a wide character's and its other bytes none, a bold character wider and an italic one narrower
 EMBED_INLINE unsigned int advance_of(const MarkdownCtx *args)
 {
-    const unsigned char letter = args->letter;
-    if (letter >= 0x80u)
+    const unsigned char character = args->character;
+    if (character >= 0x80u)
     {
-        return (letter >= 0xC0u) ? MARKDOWN_CODE_ADVANCE : 0u;
+        return (character >= 0xC0u) ? MARKDOWN_CODE_ADVANCE : 0u;
     }
-    if (letter < 32u)
+    if (character < 32u)
     {
         return 0u;
     }
@@ -258,7 +258,7 @@ EMBED_INLINE unsigned int advance_of(const MarkdownCtx *args)
     {
         return MARKDOWN_CODE_ADVANCE;
     }
-    const unsigned int plain = s_advance[letter - 32u];
+    const unsigned int plain = s_advance[character - 32u];
     if ((args->flags & CLI_PREVIEW_BOLD) != 0u)
     {
         return (plain * 106u) / 100u;
@@ -324,9 +324,9 @@ EMBED_INLINE void run_commit(const MarkdownCtx *args)
                                                .link_length = flow->run_style.link_length});
 }
 
-// the letter `letter` with the marks `style` put at the end of the flow's run, a run opened at the pen where none is
+// the character `character` with the marks `style` put at the end of the flow's run, a run opened at the pen where none is
 // open or the open one's marks differ, the pen moved past it
-EMBED_INLINE void run_letter(const MarkdownCtx *args)
+EMBED_INLINE void run_character(const MarkdownCtx *args)
 {
     MarkdownFlow *const flow = args->flow;
     if (flow->run_open && !EMBED_CALL(style_same, MarkdownCtx, .style = &flow->run_style, .other_style = args->style))
@@ -341,17 +341,17 @@ EMBED_INLINE void run_letter(const MarkdownCtx *args)
         flow->run_length = 0u;
         flow->run_style = *args->style;
     }
-    // a byte of the text read as a letter is the same byte put back
-    const char byte = (char)args->letter;
+    // a byte of the text read as a character is the same byte put back
+    const char byte = (char)args->character;
     (void)EMBED_CALL(text_put, MarkdownCtx, .items = args->items, .writing = args->writing, .bytes = &byte,
                      .length = 1u);
     flow->run_length += 1u;
-    flow->pen += (long long)EMBED_CALL(advance_of, MarkdownCtx, .letter = args->letter, .flags = args->style->flags) *
+    flow->pen += (long long)EMBED_CALL(advance_of, MarkdownCtx, .character = args->character, .flags = args->style->flags) *
                  (long long)flow->size;
 }
 
-// the word waiting laid: on the next line where it would pass the width and the line has a word already, after the
-// space waiting where the line has a word, each letter in the run of its marks
+// the word waiting positioned: on the next line where it would pass the width and the line has a word already, after the
+// space waiting where the line has a word, each character in the run of its marks
 EMBED_INLINE void word_flush(const MarkdownCtx *args)
 {
     MarkdownFlow *const flow = args->flow;
@@ -362,7 +362,7 @@ EMBED_INLINE void word_flush(const MarkdownCtx *args)
     long long width = 0LL;
     for (unsigned int at = 0u; at < flow->word_length; at += 1u)
     {
-        width += (long long)EMBED_CALL(advance_of, MarkdownCtx, .letter = flow->word[at],
+        width += (long long)EMBED_CALL(advance_of, MarkdownCtx, .character = flow->word[at],
                                        .flags = flow->word_style[at].flags) *
                  (long long)flow->size;
     }
@@ -371,7 +371,7 @@ EMBED_INLINE void word_flush(const MarkdownCtx *args)
     long long space = 0LL;
     if (flow->space && (flow->pen > left))
     {
-        space = (long long)EMBED_CALL(advance_of, MarkdownCtx, .letter = (unsigned char)' ',
+        space = (long long)EMBED_CALL(advance_of, MarkdownCtx, .character = (unsigned char)' ',
                                       .flags = flow->word_style[0].flags) *
                 (long long)flow->size;
     }
@@ -389,8 +389,8 @@ EMBED_INLINE void word_flush(const MarkdownCtx *args)
         if (flow->run_open &&
             EMBED_CALL(style_same, MarkdownCtx, .style = &flow->run_style, .other_style = &flow->word_style[0]))
         {
-            EMBED_CALL(run_letter, MarkdownCtx, .items = args->items, .writing = args->writing, .flow = flow,
-                       .letter = (unsigned char)' ', .style = &flow->word_style[0]);
+            EMBED_CALL(run_character, MarkdownCtx, .items = args->items, .writing = args->writing, .flow = flow,
+                       .character = (unsigned char)' ', .style = &flow->word_style[0]);
         }
         else
         {
@@ -400,19 +400,19 @@ EMBED_INLINE void word_flush(const MarkdownCtx *args)
     }
     for (unsigned int at = 0u; at < flow->word_length; at += 1u)
     {
-        EMBED_CALL(run_letter, MarkdownCtx, .items = args->items, .writing = args->writing, .flow = flow,
-                   .letter = flow->word[at], .style = &flow->word_style[at]);
+        EMBED_CALL(run_character, MarkdownCtx, .items = args->items, .writing = args->writing, .flow = flow,
+                   .character = flow->word[at], .style = &flow->word_style[at]);
     }
     flow->word_length = 0u;
     flow->space = 0;
 }
 
-// the letter `letter` fed to the flow with the marks it now takes: a space lays the word waiting and leaves a space
-// waiting, any other letter waits in the word, a word at its most laid first
-EMBED_INLINE void flow_letter(const MarkdownCtx *args)
+// the character `character` fed to the flow with the marks it now takes: a space positions the word waiting and leaves a space
+// waiting, any other character waits in the word, a word at its max positioned first
+EMBED_INLINE void flow_character(const MarkdownCtx *args)
 {
     MarkdownFlow *const flow = args->flow;
-    if ((args->letter == ' ') || (args->letter == '\t') || (args->letter == '\n'))
+    if ((args->character == ' ') || (args->character == '\t') || (args->character == '\n'))
     {
         EMBED_CALL(word_flush, MarkdownCtx, .items = args->items, .writing = args->writing, .flow = flow);
         flow->space = 1;
@@ -422,7 +422,7 @@ EMBED_INLINE void flow_letter(const MarkdownCtx *args)
     {
         EMBED_CALL(word_flush, MarkdownCtx, .items = args->items, .writing = args->writing, .flow = flow);
     }
-    flow->word[flow->word_length] = args->letter;
+    flow->word[flow->word_length] = args->character;
     flow->word_style[flow->word_length] = flow->style;
     flow->word_length += 1u;
 }
@@ -461,7 +461,7 @@ EMBED_INLINE void flow_break(const MarkdownCtx *args)
     flow->space = 0;
 }
 
-// the flow ended, its word and its run laid: the height its lines fill
+// the flow ended, its word and its run positioned: the height its lines fill
 EMBED_INLINE int flow_end(const MarkdownCtx *args)
 {
     MarkdownFlow *const flow = args->flow;
@@ -470,22 +470,22 @@ EMBED_INLINE int flow_end(const MarkdownCtx *args)
     return flow->lines * flow->line_height;
 }
 
-// whether `letter` is ASCII punctuation a backslash takes literally
-EMBED_INLINE int letter_escaped(const MarkdownCtx *args)
+// whether `character` is ASCII punctuation a backslash takes literally
+EMBED_INLINE int character_escaped(const MarkdownCtx *args)
 {
-    const unsigned char letter = args->letter;
-    return (letter == '\\') || (letter == '`') || (letter == '*') || (letter == '_') || (letter == '{') ||
-           (letter == '}') || (letter == '[') || (letter == ']') || (letter == '(') || (letter == ')') ||
-           (letter == '#') || (letter == '+') || (letter == '-') || (letter == '.') || (letter == '!') ||
-           (letter == '|') || (letter == '~') || (letter == '<') || (letter == '>') || (letter == '$');
+    const unsigned char character = args->character;
+    return (character == '\\') || (character == '`') || (character == '*') || (character == '_') || (character == '{') ||
+           (character == '}') || (character == '[') || (character == ']') || (character == '(') || (character == ')') ||
+           (character == '#') || (character == '+') || (character == '-') || (character == '.') || (character == '!') ||
+           (character == '|') || (character == '~') || (character == '<') || (character == '>') || (character == '$');
 }
 
-// whether `letter` is a letter or a digit
-EMBED_INLINE int letter_word(const MarkdownCtx *args)
+// whether `character` is a character or a digit
+EMBED_INLINE int character_word(const MarkdownCtx *args)
 {
-    const unsigned char letter = args->letter;
-    return ((letter >= 'a') && (letter <= 'z')) || ((letter >= 'A') && (letter <= 'Z')) ||
-           ((letter >= '0') && (letter <= '9')) || (letter >= 0x80u);
+    const unsigned char character = args->character;
+    return ((character >= 'a') && (character <= 'z')) || ((character >= 'A') && (character <= 'Z')) ||
+           ((character >= '0') && (character <= '9')) || (character >= 0x80u);
 }
 
 // whether the bytes from `from` to before `to` start with the `length` bytes of `bytes`, in any case
@@ -531,8 +531,8 @@ EMBED_INLINE int address_safe(const MarkdownCtx *args)
                        .length = 14u);
 }
 
-// the link whose `[` stands at `from`, before `to`, read into `link_out`: its label to the matching `]`, then `(`, its
-// address up to a blank or the `)`, `<` and `>` about it taken off, and any title after: 1, or 0 where none stands
+// the link whose `[` is at `from`, before `to`, read into `link_out`: its label to the matching `]`, then `(`, its
+// address up to a blank or the `)`, `<` and `>` about it taken off, and any title after: 1, or 0 where none is
 // there
 EMBED_INLINE int link_read(const MarkdownCtx *args)
 {
@@ -582,7 +582,7 @@ EMBED_INLINE int link_read(const MarkdownCtx *args)
     return 1;
 }
 
-// whether a closing run of `length` of the letter `letter`, after a letter that is no blank, stands after `from`,
+// whether a closing run of `length` of the character `character`, after a character that is no blank, is after `from`,
 // before `to`
 EMBED_INLINE int closer_after(const MarkdownCtx *args)
 {
@@ -592,7 +592,7 @@ EMBED_INLINE int closer_after(const MarkdownCtx *args)
         int run = 1;
         for (unsigned int each = 0u; each < args->length; each += 1u)
         {
-            run = run && ((unsigned char)text[at + each] == args->letter);
+            run = run && ((unsigned char)text[at + each] == args->character);
         }
         if (run && (text[at - 1u] != ' ') && (text[at - 1u] != '\t'))
         {
@@ -631,23 +631,23 @@ EMBED_INLINE unsigned int bare_end(const MarkdownCtx *args)
     return (end > args->from + 4u) ? end : MARKDOWN_NONE_AT;
 }
 
-// the bytes from `from` to before `to` fed to the flow as they stand, with the marks `flags` added to the marks the
-// letters take, a blank a space
-EMBED_INLINE void letters_fed(const MarkdownCtx *args)
+// the bytes from `from` to before `to` fed to the flow as they are, with the marks `flags` added to the marks the
+// characters take, a blank a space
+EMBED_INLINE void characters_fed(const MarkdownCtx *args)
 {
     MarkdownFlow *const flow = args->flow;
     const unsigned int was = flow->style.flags;
     flow->style.flags |= args->flags;
     for (unsigned int at = args->from; at < args->to; at += 1u)
     {
-        EMBED_CALL(flow_letter, MarkdownCtx, .items = args->items, .writing = args->writing, .flow = flow,
-                   .letter = (unsigned char)args->text[at]);
+        EMBED_CALL(flow_character, MarkdownCtx, .items = args->items, .writing = args->writing, .flow = flow,
+                   .character = (unsigned char)args->text[at]);
     }
     flow->style.flags = was;
 }
 
-// a link's address, from `from` to before `to`, put into the text cell after the word waiting and the run are laid,
-// `www.` taking `http://` before it, and the letters marked as its link from here on
+// a link's address, from `from` to before `to`, put into the text cell after the word waiting and the run are positioned,
+// `www.` taking `http://` before it, and the characters marked as its link from here on
 EMBED_INLINE void link_opened(const MarkdownCtx *args)
 {
     MarkdownFlow *const flow = args->flow;
@@ -664,40 +664,40 @@ EMBED_INLINE void link_opened(const MarkdownCtx *args)
     flow->style.link_length = (args->to - args->from) + (www ? 7u : 0u);
 }
 
-// the emphasis the `length` letters `letter` at `from` open or close, before `to`: bold for two, italic for one,
-// struck through for two tildes, an opener before a letter that is no blank with its closer after it and a closer
-// after a letter that is no blank, an underscore's only at a word's edge: 1 where they did
+// the emphasis the `length` characters `character` at `from` open or close, before `to`: bold for two, italic for one,
+// struck through for two tildes, an opener before a character that is no blank with its closer after it and a closer
+// after a character that is no blank, an underscore's only at a word's edge: 1 where they did
 EMBED_INLINE int emphasis_turned(const MarkdownCtx *args)
 {
     MarkdownFlow *const flow = args->flow;
     const char *const text = args->text;
-    const unsigned int mark = (args->letter == '~')  ? CLI_PREVIEW_STRIKE
+    const unsigned int mark = (args->character == '~')  ? CLI_PREVIEW_STRIKE
                               : (args->length == 2u) ? CLI_PREVIEW_BOLD
                                                      : CLI_PREVIEW_ITALIC;
     const unsigned char before = (args->from > args->at) ? (unsigned char)text[args->from - 1u] : (unsigned char)' ';
     const unsigned char after =
         (args->from + args->length < args->to) ? (unsigned char)text[args->from + args->length] : (unsigned char)' ';
-    const int under = args->letter == '_';
+    const int under = args->character == '_';
     if ((flow->style.flags & mark) != 0u)
     {
         const int closes =
-            (before != ' ') && (before != '\t') && (!under || !EMBED_CALL(letter_word, MarkdownCtx, .letter = after));
+            (before != ' ') && (before != '\t') && (!under || !EMBED_CALL(character_word, MarkdownCtx, .character = after));
         flow->style.flags &= closes ? ~mark : ~0u;
         return closes;
     }
     const int opens = (after != ' ') && (after != '\t') &&
-                      (!under || !EMBED_CALL(letter_word, MarkdownCtx, .letter = before)) &&
+                      (!under || !EMBED_CALL(character_word, MarkdownCtx, .character = before)) &&
                       EMBED_CALL(closer_after, MarkdownCtx, .text = text, .from = args->from + args->length - 1u,
-                                 .to = args->to, .letter = args->letter, .length = args->length);
+                                 .to = args->to, .character = args->character, .length = args->length);
     flow->style.flags |= opens ? mark : 0u;
     return opens;
 }
 
-// the inline text from `from` to before `to` fed to the flow: a backslash's punctuation as it stands, code between
+// the inline text from `from` to before `to` fed to the flow: a backslash's punctuation as it is, code between
 // backticks in the code face, an image's text, a link's label marked with its address, an address between `<` and `>`
-// or written bare as a link, emphasis and strike turned on and off by their marks, and every other letter as it is;
+// or written bare as a link, emphasis and strike turned on and off by their marks, and every other character as it is;
 // a link's label is read in the same pass, its end ending the link and the pass going on after it
-EMBED_INLINE void inline_laid(const MarkdownCtx *args)
+EMBED_INLINE void inline_positioned(const MarkdownCtx *args)
 {
     MarkdownFlow *const flow = args->flow;
     const char *const text = args->text;
@@ -717,17 +717,17 @@ EMBED_INLINE void inline_laid(const MarkdownCtx *args)
             label_to = MARKDOWN_NONE_AT;
             continue;
         }
-        const unsigned char letter = (unsigned char)text[at];
+        const unsigned char character = (unsigned char)text[at];
         const unsigned char next = (at + 1u < to) ? (unsigned char)text[at + 1u] : 0u;
         const int inside = label_to != MARKDOWN_NONE_AT;
-        if ((letter == '\\') && EMBED_CALL(letter_escaped, MarkdownCtx, .letter = next))
+        if ((character == '\\') && EMBED_CALL(character_escaped, MarkdownCtx, .character = next))
         {
-            EMBED_CALL(flow_letter, MarkdownCtx, .items = args->items, .writing = args->writing, .flow = flow,
-                       .letter = next);
+            EMBED_CALL(flow_character, MarkdownCtx, .items = args->items, .writing = args->writing, .flow = flow,
+                       .character = next);
             at += 2u;
             continue;
         }
-        if (letter == '`')
+        if (character == '`')
         {
             unsigned int ticks = 0u;
             while ((at + ticks < to) && (text[at + ticks] == '`'))
@@ -748,25 +748,25 @@ EMBED_INLINE void inline_laid(const MarkdownCtx *args)
             }
             if (found == MARKDOWN_NONE_AT)
             {
-                EMBED_CALL(letters_fed, MarkdownCtx, .items = args->items, .writing = args->writing, .flow = flow,
+                EMBED_CALL(characters_fed, MarkdownCtx, .items = args->items, .writing = args->writing, .flow = flow,
                            .text = text, .from = at, .to = at + ticks);
                 at += ticks;
                 continue;
             }
             const unsigned int inner = at + ticks;
             const int trimmed = (found > inner + 1u) && (text[inner] == ' ') && (text[found - 1u] == ' ');
-            EMBED_CALL(letters_fed, MarkdownCtx, .items = args->items, .writing = args->writing, .flow = flow,
+            EMBED_CALL(characters_fed, MarkdownCtx, .items = args->items, .writing = args->writing, .flow = flow,
                        .text = text, .from = inner + (trimmed ? 1u : 0u), .to = found - (trimmed ? 1u : 0u),
                        .flags = MARKDOWN_CODE_FLAG);
             at = found + ticks;
             continue;
         }
         MarkdownLink link;
-        if (!inside && (((letter == '!') && (next == '[')) || (letter == '[')) &&
-            EMBED_CALL(link_read, MarkdownCtx, .text = text, .from = (letter == '!') ? at + 1u : at, .to = to,
+        if (!inside && (((character == '!') && (next == '[')) || (character == '[')) &&
+            EMBED_CALL(link_read, MarkdownCtx, .text = text, .from = (character == '!') ? at + 1u : at, .to = to,
                        .link_out = &link))
         {
-            const int image = letter == '!';
+            const int image = character == '!';
             if (!image &&
                 EMBED_CALL(address_safe, MarkdownCtx, .text = text, .from = link.address_from, .to = link.address_to))
             {
@@ -780,7 +780,7 @@ EMBED_INLINE void inline_laid(const MarkdownCtx *args)
             at = link.label_from;
             continue;
         }
-        if (!inside && (letter == '<'))
+        if (!inside && (character == '<'))
         {
             unsigned int close = at + 1u;
             while ((close < to) && (text[close] != '>') && (text[close] != ' '))
@@ -818,16 +818,16 @@ EMBED_INLINE void inline_laid(const MarkdownCtx *args)
             resume = bare;
             continue;
         }
-        const int doubled = (at + 1u < to) && (next == letter);
-        if (((letter == '*') || (letter == '_') || ((letter == '~') && doubled)) &&
+        const int doubled = (at + 1u < to) && (next == character);
+        if (((character == '*') || (character == '_') || ((character == '~') && doubled)) &&
             EMBED_CALL(emphasis_turned, MarkdownCtx, .flow = flow, .text = text, .at = args->from, .from = at, .to = to,
-                       .letter = letter, .length = (doubled || (letter == '~')) ? 2u : 1u))
+                       .character = character, .length = (doubled || (character == '~')) ? 2u : 1u))
         {
-            at += (doubled || (letter == '~')) ? 2u : 1u;
+            at += (doubled || (character == '~')) ? 2u : 1u;
             continue;
         }
-        EMBED_CALL(flow_letter, MarkdownCtx, .items = args->items, .writing = args->writing, .flow = flow,
-                   .letter = letter);
+        EMBED_CALL(flow_character, MarkdownCtx, .items = args->items, .writing = args->writing, .flow = flow,
+                   .character = character);
         at += 1u;
     }
     if (label_to != MARKDOWN_NONE_AT)
@@ -838,7 +838,7 @@ EMBED_INLINE void inline_laid(const MarkdownCtx *args)
     }
 }
 
-// the columns the line `slice` is indented by, a tab to its stop, and where its first byte that is no blank stands
+// the columns the line `slice` is indented by, a tab to its stop, and where its first byte that is no blank is
 // into `at`: how many columns
 EMBED_INLINE unsigned int slice_indent(const MarkdownCtx *args)
 {
@@ -869,7 +869,7 @@ EMBED_INLINE int slice_blank(const MarkdownCtx *args)
     return 1;
 }
 
-// the run of `letter` the line `slice` opens with after no more than three spaces, and what follows it into `at` of
+// the run of `character` the line `slice` opens with after no more than three spaces, and what follows it into `at` of
 // `range_out`: how long the run is
 EMBED_INLINE unsigned int slice_run(const MarkdownCtx *args)
 {
@@ -881,7 +881,7 @@ EMBED_INLINE unsigned int slice_run(const MarkdownCtx *args)
         return 0u;
     }
     unsigned int at = first[0][0];
-    while ((at < args->slice->to) && ((unsigned char)args->text[at] == args->letter))
+    while ((at < args->slice->to) && ((unsigned char)args->text[at] == args->character))
     {
         at += 1u;
     }
@@ -897,13 +897,13 @@ EMBED_INLINE unsigned int slice_run(const MarkdownCtx *args)
 EMBED_INLINE unsigned int slice_fence(const MarkdownCtx *args)
 {
     const unsigned int ticks =
-        EMBED_CALL(slice_run, MarkdownCtx, .text = args->text, .slice = args->slice, .letter = (unsigned char)'`');
+        EMBED_CALL(slice_run, MarkdownCtx, .text = args->text, .slice = args->slice, .character = (unsigned char)'`');
     if (ticks >= 3u)
     {
         return ticks;
     }
     const unsigned int tildes =
-        EMBED_CALL(slice_run, MarkdownCtx, .text = args->text, .slice = args->slice, .letter = (unsigned char)'~');
+        EMBED_CALL(slice_run, MarkdownCtx, .text = args->text, .slice = args->slice, .character = (unsigned char)'~');
     return (tildes >= 3u) ? tildes : 0u;
 }
 
@@ -913,7 +913,7 @@ EMBED_INLINE unsigned int slice_heading(const MarkdownCtx *args)
 {
     unsigned int after[1][2] = {{0u, 0u}};
     const unsigned int level = EMBED_CALL(slice_run, MarkdownCtx, .text = args->text, .slice = args->slice,
-                                          .letter = (unsigned char)'#', .range_out = after);
+                                          .character = (unsigned char)'#', .range_out = after);
     const unsigned int at = after[0][0];
     if ((level == 0u) || (level > 6u) ||
         ((at < args->slice->to) && (args->text[at] != ' ') && (args->text[at] != '\t')))
@@ -978,7 +978,7 @@ EMBED_INLINE int slice_rule(const MarkdownCtx *args)
 // whether the line `slice` opens a quote, `>` after no more than three spaces
 EMBED_INLINE int slice_quote(const MarkdownCtx *args)
 {
-    return EMBED_CALL(slice_run, MarkdownCtx, .text = args->text, .slice = args->slice, .letter = (unsigned char)'>') !=
+    return EMBED_CALL(slice_run, MarkdownCtx, .text = args->text, .slice = args->slice, .character = (unsigned char)'>') !=
            0u;
 }
 
@@ -1075,7 +1075,7 @@ EMBED_INLINE int slice_aligns(const MarkdownCtx *args)
 }
 
 // the cells of the table row `slice` into `range_out`, each from and to with its blanks left off, the pipes at the
-// row's ends left off and an escaped pipe standing in its cell: how many, MARKDOWN_COLUMNS at the most
+// row's ends left off and an escaped pipe located in its cell: how many, MARKDOWN_COLUMNS at max
 EMBED_INLINE unsigned int slice_cells(const MarkdownCtx *args)
 {
     const char *const text = args->text;
@@ -1124,7 +1124,7 @@ EMBED_INLINE int bytes_width(const MarkdownCtx *args)
     long long width = 0LL;
     for (unsigned int at = args->from; at < args->to; at += 1u)
     {
-        width += (long long)EMBED_CALL(advance_of, MarkdownCtx, .letter = (unsigned char)args->text[at],
+        width += (long long)EMBED_CALL(advance_of, MarkdownCtx, .character = (unsigned char)args->text[at],
                                        .flags = args->flags) *
                  (long long)args->size;
     }
@@ -1132,7 +1132,7 @@ EMBED_INLINE int bytes_width(const MarkdownCtx *args)
     return (int)((width + 999LL) / 1000LL);
 }
 
-// a line of code, the bytes of `slice` from `from`, laid at `x`, `*y` in the code face, a tab to its stop and cut
+// a line of code, the bytes of `slice` from `from`, positioned at `x`, `*y` in the code face, a tab to its stop and cut
 // before the width `width`
 EMBED_INLINE void code_line_put(const MarkdownCtx *args)
 {
@@ -1199,9 +1199,9 @@ EMBED_INLINE unsigned int slice_after(const MarkdownCtx *args)
     return at;
 }
 
-// the code block of `count` lines from `lines`, each from the columns `at` of its indent, laid at `x`, `*y`, `width`
+// the code block of `count` lines from `lines`, each from the columns `at` of its indent, positioned at `x`, `*y`, `width`
 // wide on the code's ground, `*y` moved past it
-EMBED_INLINE void code_laid(const MarkdownCtx *args)
+EMBED_INLINE void code_positioned(const MarkdownCtx *args)
 {
     int *const y = args->y;
     const unsigned int ground = EMBED_CALL(item_put, MarkdownCtx, .items = args->items, .writing = args->writing,
@@ -1231,10 +1231,10 @@ EMBED_INLINE void code_laid(const MarkdownCtx *args)
 }
 
 // the inline text from `from` to before `to` of the line `slice` and the lines after it in `lines`, `count` in all,
-// laid as one flow at `x`, `*y`, `width` wide, at `size` on lines `line_height` apart in the role `role` with the flags
+// positioned as one flow at `x`, `*y`, `width` wide, at `size` on lines `line_height` apart in the role `role` with the flags
 // `flags`: each line's leading blanks left off, a line ending in two spaces or a backslash breaking the flow and any
 // other joining the next with a space; `*y` moved past it
-EMBED_INLINE void flow_laid(const MarkdownCtx *args)
+EMBED_INLINE void flow_positioned(const MarkdownCtx *args)
 {
     MarkdownFlow *const flow = args->flow;
     EMBED_CALL(flow_begin, MarkdownCtx, .flow = flow, .x = args->x, .y = args->y, .width = args->width,
@@ -1256,7 +1256,7 @@ EMBED_INLINE void flow_laid(const MarkdownCtx *args)
         {
             to -= 1u;
         }
-        EMBED_CALL(inline_laid, MarkdownCtx, .text = args->text, .items = args->items, .writing = args->writing,
+        EMBED_CALL(inline_positioned, MarkdownCtx, .text = args->text, .items = args->items, .writing = args->writing,
                    .flow = flow, .from = from, .to = to);
         if (at + 1u == args->count)
         {
@@ -1268,15 +1268,15 @@ EMBED_INLINE void flow_laid(const MarkdownCtx *args)
         }
         else
         {
-            EMBED_CALL(flow_letter, MarkdownCtx, .items = args->items, .writing = args->writing, .flow = flow,
-                       .letter = (unsigned char)' ');
+            EMBED_CALL(flow_character, MarkdownCtx, .items = args->items, .writing = args->writing, .flow = flow,
+                       .character = (unsigned char)' ');
         }
     }
     *args->y += EMBED_CALL(flow_end, MarkdownCtx, .items = args->items, .writing = args->writing, .flow = flow);
 }
 
-// a rule laid `width` wide at `x`, `*y`, `*y` moved past it
-EMBED_INLINE void rule_laid(const MarkdownCtx *args)
+// a rule positioned `width` wide at `x`, `*y`, `*y` moved past it
+EMBED_INLINE void rule_positioned(const MarkdownCtx *args)
 {
     (void)EMBED_CALL(item_put, MarkdownCtx, .items = args->items, .writing = args->writing,
                      .item = &(CliPreviewItem){.type = CLI_PREVIEW_ITEM_RULE,
@@ -1290,10 +1290,10 @@ EMBED_INLINE void rule_laid(const MarkdownCtx *args)
     *args->y += (2 * args->height) + MARKDOWN_RULE;
 }
 
-// the table row of the cells `range_out`, `count` of them, laid in the `at` columns of the widths `widths` at `x`,
+// the table row of the cells `range_out`, `count` of them, positioned in the `at` columns of the widths `widths` at `x`,
 // `*y`: each cell on a border in the hairline, a heading row's on the code's ground and bold where `heading`, its text
 // flowing inside its padding, the row as tall as its tallest cell; `*y` moved past it
-EMBED_INLINE void row_laid(const MarkdownCtx *args)
+EMBED_INLINE void row_positioned(const MarkdownCtx *args)
 {
     int *const y = args->y;
     const int top = *y;
@@ -1337,7 +1337,7 @@ EMBED_INLINE void row_laid(const MarkdownCtx *args)
         {
             int cell_y = top + MARKDOWN_CELL_PAD;
             const MarkdownLine cell = {args->range_out[column][0], args->range_out[column][1], args->line};
-            EMBED_CALL(flow_laid, MarkdownCtx, .text = args->text, .items = args->items, .writing = args->writing,
+            EMBED_CALL(flow_positioned, MarkdownCtx, .text = args->text, .items = args->items, .writing = args->writing,
                        .flow = args->flow, .lines = &cell, .count = 1u, .from = cell.from, .to = cell.to,
                        .x = cell_x + MARKDOWN_CELL_PAD, .y = &cell_y, .width = cell_width - (2 * MARKDOWN_CELL_PAD),
                        .size = MARKDOWN_BODY, .line_height = MARKDOWN_BODY_LINE, .role = args->role,
@@ -1361,10 +1361,10 @@ EMBED_INLINE void row_laid(const MarkdownCtx *args)
     *y = top + row_height;
 }
 
-// the table of `count` lines from `lines`, its head, its alignment row and its body, laid at `x`, `*y`, no wider than
+// the table of `count` lines from `lines`, its head, its alignment row and its body, positioned at `x`, `*y`, no wider than
 // `width`: each column as wide as its widest cell's text and padding and no narrower than the least, every column
 // narrowed by one share where the table passes the width; `*y` moved past it
-EMBED_INLINE void table_laid(const MarkdownCtx *args)
+EMBED_INLINE void table_positioned(const MarkdownCtx *args)
 {
     unsigned int cells[MARKDOWN_COLUMNS][2];
     int widths[MARKDOWN_COLUMNS];
@@ -1397,7 +1397,7 @@ EMBED_INLINE void table_laid(const MarkdownCtx *args)
         // a width is not negative
         total += (unsigned long long)widths[column];
     }
-    // the width the table stands in is not negative
+    // the width the table is in is not negative
     const unsigned long long fit_width = (args->width > 0) ? (unsigned long long)args->width : 1ULL;
     for (unsigned int column = 0u; (total > fit_width) && (column < columns); column += 1u)
     {
@@ -1412,19 +1412,19 @@ EMBED_INLINE void table_laid(const MarkdownCtx *args)
         }
         const unsigned int count =
             EMBED_CALL(slice_cells, MarkdownCtx, .text = args->text, .slice = &args->lines[row], .range_out = cells);
-        EMBED_CALL(row_laid, MarkdownCtx, .text = args->text, .items = args->items, .writing = args->writing,
+        EMBED_CALL(row_positioned, MarkdownCtx, .text = args->text, .items = args->items, .writing = args->writing,
                    .flow = args->flow, .widths = widths, .at = columns, .range_out = cells, .count = count,
                    .x = args->x, .y = args->y, .role = args->role, .heading = row == 0u, .line = args->lines[row].line);
     }
 }
 
-static void blocks_laid(const MarkdownCtx *args);
+static void blocks_positioned(const MarkdownCtx *args);
 
-// the lines of `lines` from `at`, `count` in all, a container's, laid as blocks at `x`, `*y`, `width` wide, `depth`
+// the lines of `lines` from `at`, `count` in all, a container's, positioned as blocks at `x`, `*y`, `width` wide, `depth`
 // deep, `tight` where they are a list item's, their marks taken off: a quote's first `>` and the space after it where
 // `quoted`, else `from` columns of indent, the first line starting at `to`; a cell for the lines alone carries them as
 // the container reads them
-static void container_laid(const MarkdownCtx *args)
+static void container_positioned(const MarkdownCtx *args)
 {
     if (args->count == 0u)
     {
@@ -1460,17 +1460,17 @@ static void container_laid(const MarkdownCtx *args)
     {
         inner[0].from = args->to;
     }
-    EMBED_CALL(blocks_laid, MarkdownCtx, .text = args->text, .items = args->items, .writing = args->writing,
+    EMBED_CALL(blocks_positioned, MarkdownCtx, .text = args->text, .items = args->items, .writing = args->writing,
                .flow = args->flow, .lines = inner, .count = args->count, .x = args->x, .y = args->y,
                .width = args->width, .depth = args->depth, .tight = args->tight, .role = args->role);
     g_cli_guard->persistent_buf_release(inner, g_cli_preview_owner);
 }
 
-// the list whose first item stands at `at` of `lines`, `count` in all, laid at `x`, `*y`, `width` wide, `depth` deep:
+// the list whose first item is at `at` of `lines`, `count` in all, positioned at `x`, `*y`, `width` wide, `depth` deep:
 // each item a block, its mark at the left, a disc, its number or a task's box with the tick where it is checked, and
 // its lines as a container of their own past the indent; the list ends at a line that opens no item of its type and
 // belongs to none: the line after it
-static unsigned int list_laid(const MarkdownCtx *args)
+static unsigned int list_positioned(const MarkdownCtx *args)
 {
     const char *const text = args->text;
     int *const y = args->y;
@@ -1613,7 +1613,7 @@ static unsigned int list_laid(const MarkdownCtx *args)
                                                        .radius = (unsigned int)(MARKDOWN_DISC / 2),
                                                        .line = line});
         }
-        EMBED_CALL(container_laid, MarkdownCtx, .text = text, .items = args->items, .writing = args->writing,
+        EMBED_CALL(container_positioned, MarkdownCtx, .text = text, .items = args->items, .writing = args->writing,
                    .flow = args->flow, .lines = args->lines, .at = at, .count = end - at, .from = indent, .to = content,
                    .x = args->x + MARKDOWN_INDENT, .y = y, .width = args->width - MARKDOWN_INDENT,
                    .depth = args->depth + 2u, .tight = 1, .role = args->role, .quoted = 0);
@@ -1626,10 +1626,10 @@ static unsigned int list_laid(const MarkdownCtx *args)
     return at;
 }
 
-// the quote whose first line stands at `at` of `lines`, `count` in all, laid at `x`, `*y`, `width` wide, `depth`
+// the quote whose first line is at `at` of `lines`, `count` in all, positioned at `x`, `*y`, `width` wide, `depth`
 // deep: a bar in the hairline down its left and its lines, `>` taken off, as a container of their own in the quieter
 // role, a line that opens no quote going with it while it goes on a paragraph: the line after it
-static unsigned int quote_laid(const MarkdownCtx *args)
+static unsigned int quote_positioned(const MarkdownCtx *args)
 {
     const char *const text = args->text;
     int *const y = args->y;
@@ -1657,7 +1657,7 @@ static unsigned int quote_laid(const MarkdownCtx *args)
                                                                   .role = CLI_PREVIEW_ROLE_LINE,
                                                                   .stroke = CLI_PREVIEW_ROLE_NONE,
                                                                   .line = args->lines[args->at].line});
-    EMBED_CALL(container_laid, MarkdownCtx, .text = text, .items = args->items, .writing = args->writing,
+    EMBED_CALL(container_positioned, MarkdownCtx, .text = text, .items = args->items, .writing = args->writing,
                .flow = args->flow, .lines = args->lines, .at = args->at, .count = end - args->at,
                .x = args->x + MARKDOWN_QUOTE_IN, .y = y, .width = args->width - MARKDOWN_QUOTE_IN,
                .depth = args->depth + 1u, .tight = 0, .role = CLI_PREVIEW_ROLE_QUIET, .quoted = 1);
@@ -1667,13 +1667,13 @@ static unsigned int quote_laid(const MarkdownCtx *args)
     return end;
 }
 
-// the lines of `lines`, `count` in all, laid as blocks at `x`, `*y`, `width` wide, `depth` deep, in the role `role`,
+// the lines of `lines`, `count` in all, positioned as blocks at `x`, `*y`, `width` wide, `depth` deep, in the role `role`,
 // a gap before every block but the first, a list item's narrower where `tight`: each block put with its rectangle and
 // read in markdown.js's order, a fence, a heading, a rule, indented code, a quote, a list, a table, and a paragraph
 // that runs to a blank line or a line that opens another block, a line of `=` or `-` under it making it a heading.
-// Containers lay their own lines through blocks_laid again, so the walk is a function that calls itself and is not
+// Containers position their own lines through blocks_positioned again, so the walk is a function that calls itself and is not
 // inlined
-static void blocks_laid(const MarkdownCtx *args)
+static void blocks_positioned(const MarkdownCtx *args)
 {
     const char *const text = args->text;
     int *const y = args->y;
@@ -1709,11 +1709,11 @@ static void blocks_laid(const MarkdownCtx *args)
             const char mark = text[EMBED_CALL(slice_after, MarkdownCtx, .text = text, .slice = slice, .at = 3u)];
             unsigned int end = at + 1u;
             while ((end < args->count) && (EMBED_CALL(slice_run, MarkdownCtx, .text = text, .slice = &args->lines[end],
-                                                      .letter = (unsigned char)mark) < fence))
+                                                      .character = (unsigned char)mark) < fence))
             {
                 end += 1u;
             }
-            EMBED_CALL(code_laid, MarkdownCtx, .text = text, .items = args->items, .writing = args->writing,
+            EMBED_CALL(code_positioned, MarkdownCtx, .text = text, .items = args->items, .writing = args->writing,
                        .lines = args->lines + at + 1u, .count = end - (at + 1u), .at = 0u, .x = args->x, .y = y,
                        .width = args->width, .line = slice->line);
             at = (end < args->count) ? end + 1u : end;
@@ -1722,21 +1722,21 @@ static void blocks_laid(const MarkdownCtx *args)
         {
             const unsigned int size = s_heading_size[level - 1u];
             // a heading's line is its size and a share more, a few dozen pixels
-            EMBED_CALL(flow_laid, MarkdownCtx, .text = text, .items = args->items, .writing = args->writing,
+            EMBED_CALL(flow_positioned, MarkdownCtx, .text = text, .items = args->items, .writing = args->writing,
                        .flow = args->flow, .lines = slice, .count = 1u, .from = range[0][0], .to = range[0][1],
                        .x = args->x, .y = y, .width = args->width, .size = size,
                        .line_height = (int)((size * 13u) / 10u) + 4, .role = args->role, .flags = CLI_PREVIEW_BOLD,
                        .line = slice->line);
             if (level <= 2u)
             {
-                EMBED_CALL(rule_laid, MarkdownCtx, .items = args->items, .writing = args->writing, .x = args->x, .y = y,
+                EMBED_CALL(rule_positioned, MarkdownCtx, .items = args->items, .writing = args->writing, .x = args->x, .y = y,
                            .width = args->width, .height = 2, .line = slice->line);
             }
             at += 1u;
         }
         else if (EMBED_CALL(slice_rule, MarkdownCtx, .text = text, .slice = slice))
         {
-            EMBED_CALL(rule_laid, MarkdownCtx, .items = args->items, .writing = args->writing, .x = args->x, .y = y,
+            EMBED_CALL(rule_positioned, MarkdownCtx, .items = args->items, .writing = args->writing, .x = args->x, .y = y,
                        .width = args->width, .height = MARKDOWN_RULE_GAP, .line = slice->line);
             at += 1u;
         }
@@ -1751,20 +1751,20 @@ static void blocks_laid(const MarkdownCtx *args)
                 last = EMBED_CALL(slice_blank, MarkdownCtx, .text = text, .slice = &args->lines[end]) ? last : end;
                 end += 1u;
             }
-            EMBED_CALL(code_laid, MarkdownCtx, .text = text, .items = args->items, .writing = args->writing,
+            EMBED_CALL(code_positioned, MarkdownCtx, .text = text, .items = args->items, .writing = args->writing,
                        .lines = slice, .count = (last - at) + 1u, .at = MARKDOWN_TAB, .x = args->x, .y = y,
                        .width = args->width, .line = slice->line);
             at = last + 1u;
         }
         else if (nests && EMBED_CALL(slice_quote, MarkdownCtx, .text = text, .slice = slice))
         {
-            at = EMBED_CALL(quote_laid, MarkdownCtx, .text = text, .items = args->items, .writing = args->writing,
+            at = EMBED_CALL(quote_positioned, MarkdownCtx, .text = text, .items = args->items, .writing = args->writing,
                             .flow = args->flow, .lines = args->lines, .count = args->count, .at = at, .x = args->x,
                             .y = y, .width = args->width, .depth = args->depth);
         }
         else if (nests && EMBED_CALL(slice_item, MarkdownCtx, .text = text, .slice = slice, .item_out = &item))
         {
-            at = EMBED_CALL(list_laid, MarkdownCtx, .text = text, .items = args->items, .writing = args->writing,
+            at = EMBED_CALL(list_positioned, MarkdownCtx, .text = text, .items = args->items, .writing = args->writing,
                             .flow = args->flow, .lines = args->lines, .count = args->count, .at = at, .x = args->x,
                             .y = y, .width = args->width, .depth = args->depth, .role = args->role);
         }
@@ -1778,7 +1778,7 @@ static void blocks_laid(const MarkdownCtx *args)
             {
                 end += 1u;
             }
-            EMBED_CALL(table_laid, MarkdownCtx, .text = text, .items = args->items, .writing = args->writing,
+            EMBED_CALL(table_positioned, MarkdownCtx, .text = text, .items = args->items, .writing = args->writing,
                        .flow = args->flow, .lines = slice, .count = end - at, .x = args->x, .y = y,
                        .width = args->width, .role = args->role);
             at = end;
@@ -1792,12 +1792,12 @@ static void blocks_laid(const MarkdownCtx *args)
             {
                 const MarkdownLine *const next = &args->lines[end];
                 const unsigned int equals =
-                    EMBED_CALL(slice_run, MarkdownCtx, .text = text, .slice = next, .letter = (unsigned char)'=');
+                    EMBED_CALL(slice_run, MarkdownCtx, .text = text, .slice = next, .character = (unsigned char)'=');
                 const unsigned int dashes =
-                    EMBED_CALL(slice_run, MarkdownCtx, .text = text, .slice = next, .letter = (unsigned char)'-');
+                    EMBED_CALL(slice_run, MarkdownCtx, .text = text, .slice = next, .character = (unsigned char)'-');
                 unsigned int after[1][2] = {{0u, 0u}};
                 (void)EMBED_CALL(slice_run, MarkdownCtx, .text = text, .slice = next,
-                                 .letter = (unsigned char)((equals != 0u) ? '=' : '-'), .range_out = after);
+                                 .character = (unsigned char)((equals != 0u) ? '=' : '-'), .range_out = after);
                 const MarkdownLine rest = {after[0][0], next->to, next->line};
                 if (((equals != 0u) || (dashes != 0u)) &&
                     EMBED_CALL(slice_blank, MarkdownCtx, .text = text, .slice = &rest))
@@ -1817,14 +1817,14 @@ static void blocks_laid(const MarkdownCtx *args)
                 args->items->block[args->items->blocks - 1u].heading = 1;
             }
             // a heading's line is its size and a share more, a few dozen pixels
-            EMBED_CALL(flow_laid, MarkdownCtx, .text = text, .items = args->items, .writing = args->writing,
+            EMBED_CALL(flow_positioned, MarkdownCtx, .text = text, .items = args->items, .writing = args->writing,
                        .flow = args->flow, .lines = slice, .count = end - at, .from = slice->from, .to = slice->to,
                        .x = args->x, .y = y, .width = args->width, .size = size,
                        .line_height = (setext != 0u) ? (int)((size * 13u) / 10u) + 4 : MARKDOWN_BODY_LINE,
                        .role = args->role, .flags = (setext != 0u) ? CLI_PREVIEW_BOLD : 0u, .line = slice->line);
             if (setext != 0u)
             {
-                EMBED_CALL(rule_laid, MarkdownCtx, .items = args->items, .writing = args->writing, .x = args->x, .y = y,
+                EMBED_CALL(rule_positioned, MarkdownCtx, .items = args->items, .writing = args->writing, .x = args->x, .y = y,
                            .width = args->width, .height = 2, .line = slice->line);
             }
             at = (setext != 0u) ? end + 1u : end;
@@ -1838,7 +1838,7 @@ int cli_preview_markdown_layout(const CliPreviewMarkdownCfg *args)
 {
     const char *const text = args->text;
     CliPreviewItems *const items = args->items;
-    // a text the preview lays is far shorter than four gigabytes, so its places are words
+    // a text the preview positions is far shorter than four gigabytes, so its places are words
     const unsigned int length = (args->length < 0xffffffffULL) ? (unsigned int)args->length : 0xfffffffeu;
     unsigned int count = 1u;
     for (unsigned int at = 0u; at < length; at += 1u)
@@ -1869,53 +1869,53 @@ int cli_preview_markdown_layout(const CliPreviewMarkdownCfg *args)
     // the count pass over the counts the items have, writing nothing
     MarkdownLaid counted = {NULL, items->items, NULL, items->blocks, NULL, items->text_bytes, items->height};
     int y = first_top;
-    EMBED_CALL(blocks_laid, MarkdownCtx, .text = text, .items = &counted, .writing = 0, .flow = &flow, .lines = lines,
+    EMBED_CALL(blocks_positioned, MarkdownCtx, .text = text, .items = &counted, .writing = 0, .flow = &flow, .lines = lines,
                .count = count, .x = CLI_PREVIEW_PAD, .y = &y, .width = width, .depth = 0u,
                .role = CLI_PREVIEW_ROLE_TEXT);
-    // the write pass lays into this call's cells, the items carried before copied out of their cells first
+    // the write pass positions into this call's cells, the items carried before copied out of their cells first
     const unsigned long long item_bytes = CLI_PREVIEW_ITEM_AT(counted.items);
     const unsigned long long cell_bytes = item_bytes + ((unsigned long long)counted.blocks * sizeof(CliPreviewBlock));
-    unsigned char *const laying =
+    unsigned char *const positioning =
         (cell_bytes != 0ULL) ? g_cli_guard->temporary_buf_alloc(cell_bytes, g_cli_preview_owner) : NULL;
-    char *const laying_text =
+    char *const positioning_text =
         (counted.text_bytes != 0u) ? g_cli_guard->temporary_buf_alloc(counted.text_bytes, g_cli_preview_owner) : NULL;
-    if (((cell_bytes != 0ULL) && (laying == NULL)) || ((counted.text_bytes != 0u) && (laying_text == NULL)))
+    if (((cell_bytes != 0ULL) && (positioning == NULL)) || ((counted.text_bytes != 0u) && (positioning_text == NULL)))
     {
-        g_cli_guard->persistent_buf_release(laying, g_cli_preview_owner);
-        g_cli_guard->persistent_buf_release(laying_text, g_cli_preview_owner);
+        g_cli_guard->persistent_buf_release(positioning, g_cli_preview_owner);
+        g_cli_guard->persistent_buf_release(positioning_text, g_cli_preview_owner);
         g_cli_guard->persistent_buf_release(lines, g_cli_preview_owner);
         return 0;
     }
-    MarkdownLaid laid = {(CliPreviewItem *)(void *)laying,
+    MarkdownLaid positioned = {(CliPreviewItem *)(void *)positioning,
                          items->items,
-                         (laying != NULL) ? (CliPreviewBlock *)(void *)(laying + item_bytes) : NULL,
+                         (positioning != NULL) ? (CliPreviewBlock *)(void *)(positioning + item_bytes) : NULL,
                          items->blocks,
-                         laying_text,
+                         positioning_text,
                          items->text_bytes,
                          items->height};
     if (items->items != 0u)
     {
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = items->cell, .offset = 0u, .dst = laid.item, .bytes = CLI_PREVIEW_ITEM_AT(items->items)});
+            .cell = items->cell, .offset = 0u, .dst = positioned.item, .bytes = CLI_PREVIEW_ITEM_AT(items->items)});
     }
     if (items->blocks != 0u)
     {
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = items->cell,
                                                                 .offset = items->block_at,
-                                                                .dst = laid.block,
+                                                                .dst = positioned.block,
                                                                 .bytes = items->blocks * sizeof(CliPreviewBlock)});
     }
     if (items->text_bytes != 0u)
     {
         (void)g_cli_guard->movable_buf_read(
-            &(CarcerMovableCfg){.cell = items->text_cell, .offset = 0u, .dst = laid.text, .bytes = items->text_bytes});
+            &(CarcerMovableCfg){.cell = items->text_cell, .offset = 0u, .dst = positioned.text, .bytes = items->text_bytes});
     }
     y = first_top;
-    EMBED_CALL(blocks_laid, MarkdownCtx, .text = text, .items = &laid, .writing = 1, .flow = &flow, .lines = lines,
+    EMBED_CALL(blocks_positioned, MarkdownCtx, .text = text, .items = &positioned, .writing = 1, .flow = &flow, .lines = lines,
                .count = count, .x = CLI_PREVIEW_PAD, .y = &y, .width = width, .depth = 0u,
                .role = CLI_PREVIEW_ROLE_TEXT);
-    laid.height = ((y + CLI_PREVIEW_PAD_FOOT) > laid.height) ? y + CLI_PREVIEW_PAD_FOOT : laid.height;
-    // the cells the items stand in, written once, the cells they stood in before released
+    positioned.height = ((y + CLI_PREVIEW_PAD_FOOT) > positioned.height) ? y + CLI_PREVIEW_PAD_FOOT : positioned.height;
+    // the cells the items are in, written once, the cells they was in before released
     const CarcerMovableEntry *const cell =
         (cell_bytes != 0ULL) ? g_cli_guard->movable_buf_alloc(cell_bytes, g_cli_preview_owner) : NULL;
     const CarcerMovableEntry *const text_cell =
@@ -1926,24 +1926,24 @@ int cli_preview_markdown_layout(const CliPreviewMarkdownCfg *args)
         if (cell != NULL)
         {
             (void)g_cli_guard->movable_buf_write(
-                &(CarcerMovableCfg){.cell = cell, .offset = 0u, .src = laying, .bytes = cell_bytes});
+                &(CarcerMovableCfg){.cell = cell, .offset = 0u, .src = positioning, .bytes = cell_bytes});
         }
         if (text_cell != NULL)
         {
             (void)g_cli_guard->movable_buf_write(
-                &(CarcerMovableCfg){.cell = text_cell, .offset = 0u, .src = laying_text, .bytes = counted.text_bytes});
+                &(CarcerMovableCfg){.cell = text_cell, .offset = 0u, .src = positioning_text, .bytes = counted.text_bytes});
         }
         EMBED_CALL(cell_released, MarkdownCtx, .cell = items->cell);
         EMBED_CALL(cell_released, MarkdownCtx, .cell = items->text_cell);
-        *items = (CliPreviewItems){cell, laid.items, item_bytes, laid.blocks, text_cell, laid.text_bytes, laid.height};
+        *items = (CliPreviewItems){cell, positioned.items, item_bytes, positioned.blocks, text_cell, positioned.text_bytes, positioned.height};
     }
     else
     {
         EMBED_CALL(cell_released, MarkdownCtx, .cell = cell);
         EMBED_CALL(cell_released, MarkdownCtx, .cell = text_cell);
     }
-    g_cli_guard->persistent_buf_release(laying, g_cli_preview_owner);
-    g_cli_guard->persistent_buf_release(laying_text, g_cli_preview_owner);
+    g_cli_guard->persistent_buf_release(positioning, g_cli_preview_owner);
+    g_cli_guard->persistent_buf_release(positioning_text, g_cli_preview_owner);
     g_cli_guard->persistent_buf_release(lines, g_cli_preview_owner);
     return stored;
 }

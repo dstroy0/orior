@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// cli_bench_rules.c: the C grammar's root rules, each read as a pattern of its own and tried at every letter of every
-// loaded file as the colorer tries it, the letters moved past a match; a row a rule, named by the pattern's start
+// cli_bench_rules.c: the C grammar's root rules, each read as a pattern of its own and tried at every character of every
+// loaded file as the colorer tries it, the characters moved past a match; a row a rule, named by the pattern's start
 #include "../../../../../../ui/cli/src/editor/highlight.h"
 #include "../../../../../../ui/cli/src/text/json_tree.h"
 #include "../../../../../../ui/cli/src/text/regexp.h"
@@ -13,9 +13,9 @@
 
 static CliRegexpWorkState s_work_state;
 
-// the pattern tried over `count` loaded files, the letters decoded into `letters` each time: the measure
+// the pattern tried over `count` loaded files, the characters decoded into `characters` each time: the measure
 static BenchMeasure rules_tried(const CliRegexp *regexp, const BenchFile *files, unsigned int count,
-                                unsigned int repeat, unsigned int *letters, unsigned long long *matched)
+                                unsigned int repeat, unsigned int *characters, unsigned long long *matched)
 {
     BenchMeasure measure = {0ull, ~0ull};
     CliRegexpSpan groups[CLI_REGEXP_GROUPS + 1u];
@@ -31,10 +31,10 @@ static BenchMeasure rules_tried(const CliRegexp *regexp, const BenchFile *files,
                 continue;
             }
             const unsigned long long length =
-                EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = (const char *)files[file].bytes, .size = files[file].size, .letters = letters, .capacity_u64 = files[file].size);
+                EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = (const char *)files[file].bytes, .size = files[file].size, .characters = characters, .capacity_u64 = files[file].size);
             for (unsigned long long at = 0ull; at < length;)
             {
-                const int found = EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = regexp, .text_u32s = letters, .length = length, .at = at, .groups = groups);
+                const int found = EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = regexp, .text_u32s = characters, .length = length, .at = at, .groups = groups);
                 const unsigned long long span = (found && groups[0].set) ? (groups[0].to - groups[0].from) : 0ull;
                 hits += found ? 1ull : 0ull;
                 at += (span > 0ull) ? span : 1ull;
@@ -135,7 +135,7 @@ void bench_rules(const char *root, const BenchFile *files, unsigned int count, u
     const unsigned int grammar = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = top, .name = "grammar");
     const unsigned int rules = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = grammar, .name = "tokenizer"), .name = "root");
     const int fold = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = grammar, .name = "ignoreCase"), .type = CFG_JSON_TRUE);
-    unsigned int *const letters =
+    unsigned int *const characters =
         g_cli_guard->persistent_buf_alloc((largest + 1ull) * sizeof(unsigned int), g_checks_owner);
     for (unsigned int index = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &json, .array = rules, .index = index) != CLI_JSON_NONE; index += 1u)
     {
@@ -162,17 +162,17 @@ void bench_rules(const char *root, const BenchFile *files, unsigned int count, u
             continue;
         }
         unsigned long long matched = 0ull;
-        const BenchMeasure measure = rules_tried(&regexp, files, count, repeat, letters, &matched);
+        const BenchMeasure measure = rules_tried(&regexp, files, count, repeat, characters, &matched);
         char name[BENCH_RULE_NAME + 24u];
         VerbaLinea name_line = {name, sizeof(name), 0ull};
         mmgr_line_put(&name_line, "rule:");
-        mmgr_line_put_most(&name_line, pattern, BENCH_RULE_NAME);
+        mmgr_line_put_max(&name_line, pattern, BENCH_RULE_NAME);
         mmgr_line_put(&name_line, " hits=");
         mmgr_line_decimal(&name_line, matched, 1u);
         (void)mmgr_line_finish(&name_line);
         bench_row(name, measure);
     }
-    g_cli_guard->persistent_buf_release(letters, g_checks_owner);
+    g_cli_guard->persistent_buf_release(characters, g_checks_owner);
     rules_cut_down(&json, grammar, files, count, repeat, largest);
     g_cli_guard->persistent_buf_release(json.node,
                                         mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));

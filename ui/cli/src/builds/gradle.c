@@ -185,7 +185,7 @@ typedef struct
     const char *name_text;
     unsigned long long size;
 } GradleCtx;
-// whether a byte read as a letter of its own is whitespace
+// whether a byte read as a character of its own is whitespace
 EMBED_INLINE int gradle_white_byte(const GradleCtx *args)
 {
     return (args->byte == ' ') || ((args->byte >= '\t') && (args->byte <= '\r')) || (args->byte == 0x85u) ||
@@ -235,7 +235,7 @@ EMBED_INLINE unsigned long long gradle_name_before(const GradleCtx *args)
         end = EMBED_CALL(gradle_back, GradleCtx, .end = end);
     }
     *name = EMBED_CALL(cli_builds_text_at.build_run_before, CliBuildsTextAtCfg, .text = text, .at = end,
-                       .of = cli_build_word_letter);
+                       .of = cli_build_word_character);
     return end - *name;
 }
 
@@ -378,8 +378,8 @@ void cli_gradle_statements(const CliGradleLinesCtx *args)
         while (word_text < line_end)
         {
             unsigned long long length = 0ULL;
-            if (!EMBED_CALL(cli_each_letter.build_word_letter, CliEachLetterCfg,
-                            .letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = line_end,
+            if (!EMBED_CALL(cli_each_character.build_word_character, CliEachLetterCfg,
+                            .character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = text, .size = line_end,
                                                  .at = word_text, .length = &length)))
             {
                 break;
@@ -440,8 +440,8 @@ void cli_gradle_declare(const CliGradleLinesCtx *args)
             if (!EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = text + at, .size = size - at,
                             .prefix = s_calls[call]) ||
                 (g_cli_gradle.class_of[at] != CLI_GRADLE_CODE) ||
-                ((at > 0u) && EMBED_CALL(cli_each_letter.build_word_letter, CliEachLetterCfg,
-                                         .letter = EMBED_CALL(cli_text_length.letter_before, CliTextLengthCfg,
+                ((at > 0u) && EMBED_CALL(cli_each_character.build_word_character, CliEachLetterCfg,
+                                         .character = EMBED_CALL(cli_text_length.character_before, CliTextLengthCfg,
                                                               .text = text, .end_value = at, .length = &before))))
             {
                 continue;

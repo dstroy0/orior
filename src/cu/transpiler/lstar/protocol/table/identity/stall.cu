@@ -6,7 +6,7 @@
 // The soonest each operation's result is read, queried of the part. Every chain of ours the host also computes is put
 // with every stall the longest, all in one round, and a chain the part answers alike with the host there is a probe
 // wherever an instruction that writes a register is read by the very next. Every stall of each pair's writer below the
-// longest is then put on each of its probes, at most three, all in one round, since none waits on another's answer. A
+// longest is then put on each of its probes, at max three, all in one round, since none waits on another's answer. A
 // stall is truthy where every probe of its pair answers alike, and the soonest is the least stall from which every
 // longer one is truthy: a shorter stall is not answered as no worse than a longer one, and at 0 a pair answers alike
 // where it is refused at 1. An instruction that sets a write barrier is read behind the barrier and not behind its
@@ -17,7 +17,7 @@
 // of the word's last link, the one the load reads after, every other stall the longest, in the same round. Each pair
 // that no chain of ours contains and an arrangement of the .kdm beside the machine file does is probed in that
 // arrangement, written at its operator's link as the cost puts it (arrangement_probes). A round is
-// carried STALL_CARRIED_MOST questions to a process. Each pair's soonest is written to the .ksc as the part's answer on
+// carried STALL_CARRIED_MAX questions to a process. Each pair's soonest is written to the .ksc as the part's answer on
 // the run channel, `run answers <stall> stall <writer> <reader>`, in place of those it contained, and the run's blob
 // stall.txt contains every pair with its probes and what came back at every stall: `=` alike on every probe, `x` apart
 // on one, `!` refused on one
@@ -46,15 +46,15 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
     unsigned long long queries = 0ull;
-    // the questions put together, STALL_CARRIED_MOST to a process, none waiting on another's answer: each one's mark,
+    // the questions put together, STALL_CARRIED_MAX to a process, none waiting on another's answer: each one's mark,
     // `=` alike with the host's answers to the chain `numbers` names at its place on every case, `x` apart on one, `!`
     // refused
     const auto marks_put = [&](const std::vector<std::vector<unsigned char>> &codes,
                                const std::vector<std::string> &numbers) -> std::string {
         std::string marks;
-        for (size_t first = 0u; first < codes.size(); first += STALL_CARRIED_MOST)
+        for (size_t first = 0u; first < codes.size(); first += STALL_CARRIED_MAX)
         {
-            const size_t count = std::min((size_t)STALL_CARRIED_MOST, codes.size() - first);
+            const size_t count = std::min((size_t)STALL_CARRIED_MAX, codes.size() - first);
             const std::vector<std::vector<unsigned char>> carried(codes.begin() + (long)first,
                                                                   codes.begin() + (long)(first + count));
             std::vector<RunQuestion> questions;
@@ -132,8 +132,8 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
     }
     printf("orior_klq_identity stall: %zu chains, %u not alike at the longest stalls, %zu pairs, carried by %s\n",
            chain_codes.size(), unanswered, pairs.size(), run_channel_carrier());
-    // the probes a pair is walked over at most, each from a chain of its own
-    const size_t most = 3u;
+    // the probes a pair is walked over at max, each from a chain of its own
+    const size_t max = 3u;
     std::vector<std::string> rows;
     RunWritten table = {(folder + "/stall.txt"), 0, std::string()};
     // every stall below the longest of each pair's writer, on each of its probes; the longest each probe answered alike
@@ -144,7 +144,7 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
         std::set<std::string> numbers;
         for (const StallProbe &probe : pair.second)
         {
-            if ((numbers.size() >= most) || !numbers.insert(probe.number).second)
+            if ((numbers.size() >= max) || !numbers.insert(probe.number).second)
             {
                 continue;
             }
@@ -173,7 +173,7 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
         std::set<std::string> numbers;
         for (const StallProbe &probe : pair.second)
         {
-            if ((numbers.size() >= most) || !numbers.insert(probe.number).second)
+            if ((numbers.size() >= max) || !numbers.insert(probe.number).second)
             {
                 continue;
             }
@@ -270,7 +270,7 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
         const std::string stem = ((typed != std::string::npos) && (typed + 4u == machine_file.size()))
                                      ? machine_file.substr(0u, typed)
                                      : machine_file;
-        arrangement_probes(engine, host, stem + ".kdm", sass, machine_path, stall, longest, gated_pairs, most,
+        arrangement_probes(engine, host, stem + ".kdm", sass, machine_path, stall, longest, gated_pairs, max,
                            &stall_queries, &stall_codes);
     }
     // the one round, and what came back at every stall of each pair
@@ -329,11 +329,11 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
                 continue;
             }
             std::stringstream words(s_row.question);
-            std::string kind;
+            std::string type;
             std::string writer;
             std::string reader;
-            words >> kind >> writer >> reader;
-            if ((kind == "stall") && !reader.empty() && (came_back.count(std::make_pair(writer, reader)) == 0u))
+            words >> type >> writer >> reader;
+            if ((type == "stall") && !reader.empty() && (came_back.count(std::make_pair(writer, reader)) == 0u))
             {
                 rows.push_back(entry.line[at]);
             }

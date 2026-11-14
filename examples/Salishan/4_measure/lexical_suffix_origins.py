@@ -15,7 +15,7 @@
 # The input is text, tab separated. The head lines are "permutations", "seed", "least_suffixes" and
 # "least_nouns". Each language is then a line "language <name> <suffixes> <nouns>", that many lines
 # "suffix <segments> <meanings>" and that many lines "noun <segments> <meaning>", segments parted by a
-# space and meanings by a comma. A segment is letters and their marks, and a meaning is a word of
+# space and meanings by a comma. A segment is characters and their marks, and a meaning is a word of
 # lexical_suffix_origins.NOMINAL. Neither holds a space, a comma, a tab or a line break.
 
 import io
@@ -37,7 +37,7 @@ import lexical_suffix_origins  # noqa: E402
 
 TARGET = os.path.join(ROOT, "build", "salishan_gold", "lexical_suffix_origins.in")
 
-# lexical_suffix_origins.py's own settings: P1 was read at 5000 shuffles, and a language is kept with
+# lexical_suffix_origins.py's own settings: P1 was read at 5000 shuffles, and a language is retained with
 # 3 or more suffixes and 10 or more nouns. It seeds its shuffles with SEED.
 PERMUTATIONS = 5000
 SEED = 1998

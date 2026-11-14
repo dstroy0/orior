@@ -19,14 +19,14 @@
 # compare against the standard valence of its element: it closes or it does not, with no tolerance,
 # because a bond order and a valence are both integers. The molecule is the conjunction.
 #
-# Two routes are read and they are shown able to disagree. The per-atom octet is the strong one. The
+# Two routes are read and they are displayed able to disagree. The per-atom octet is the strong one. The
 # handshake sum, that the valences add to twice the bond count, is a weaker necessary condition: it
 # can pass on an arrangement the per-atom check errors, the mis-wired peroxide below. A
 # route that could never disagree with the other would be the same route twice.
 #
-# The null is drawn instead of assumed. Keep the bond graph and the multiset of elements, and permute which
+# The null is drawn instead of assumed. Retain the bond graph and the multiset of elements, and permute which
 # element sits at which atom with reference.shuffles.permuted. That deletes one property, the match
-# between an element and the degree its place carries, and keeps the counts exactly. Most such
+# between an element and the degree its place carries, and retains the counts exactly. Max such
 # permutations put an element where its valence does not fit the degree. The octet errors on them.
 # The real assignment, the one the elements were dealt, sits above the band the shuffles occupy.
 # No distance here is a value; every one is a departure from that band.
@@ -121,7 +121,7 @@ def handshake_ok(atoms, bonds):
 def null_pass_rate(atoms, bonds, draws):
     """Fraction of element-label permutations, drawn by the engine's shuffle, that still close.
 
-    The bond graph is kept and the multiset of elements is kept; the deleted part is which element
+    The bond graph is retained and the multiset of elements is retained; the deleted part is which element
     sits at which atom. permuted preserves every count exactly. Each draw is a genuine
     rearrangement of the same atoms and never invents or loses one.
     """
@@ -202,7 +202,7 @@ def main():
     name, atoms, bonds = MISWIRED
     strong = octet_ok(atoms, bonds)
     weak = handshake_ok(atoms, bonds)
-    out.write("  two routes, shown able to disagree:\n")
+    out.write("  two routes, displayed able to disagree:\n")
     out.write(
         "    %-28s octet %s, handshake %s\n"
         % (name, "closes" if strong else "errored", "holds" if weak else "breaks")

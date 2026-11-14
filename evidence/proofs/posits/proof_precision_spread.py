@@ -5,7 +5,7 @@
 #
 # Proof of the precision-spread posit, stated in theory/workbooks/orior/precision_spread_theory.md: an exact
 # identity carries full precision from a DEFINED input to its output, and a seed of defined constants
-# then generates unboundedly many at the same precision; a MEASURED input keeps its upstream floor and no
+# then generates unboundedly many at the same precision; a MEASURED input retains its upstream floor and no
 # identity raises it, except that a RATIO in which the measured value cancels is exact.
 #
 #   Usage:  python evidence/proofs/posits/proof_precision_spread.py
@@ -181,7 +181,7 @@ def main():
 
     if cases and multiplier:
         out.write("  the four cases each land on their forced outcome and the multiplier has no\n")
-        out.write("  ceiling: the posit holds. a measured absolute keeps its floor, its canceling\n")
+        out.write("  ceiling: the posit holds. a measured absolute retains its floor, its canceling\n")
         out.write("  ratio is exact, and a false identity is refused.\n")
     else:
         out.write("  a case missed its forced outcome: the posit is refuted as stated.\n")

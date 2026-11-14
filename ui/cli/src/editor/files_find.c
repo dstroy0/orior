@@ -10,7 +10,7 @@
 #include "../text/text.h"
 #include "files_internal.h"
 
-// the most paths a find returns
+// the max paths a find returns
 #define CLI_FOUND_MAX 500u
 
 void cli_hit_write(const CliFilesPathCtx *args)
@@ -100,7 +100,7 @@ EMBED_INLINE void cli_prefix(const FilesFindCtx *args)
     EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
 }
 
-// the lines git found, each `path:line:column:text`, written as hits, at most CLI_HITS_MAX of them, less those whose
+// the lines git found, each `path:line:column:text`, written as hits, at max CLI_HITS_MAX of them, less those whose
 // files the patterns hide
 EMBED_INLINE void cli_git_hits(const FilesFindCtx *args)
 {
@@ -247,17 +247,17 @@ int cli_search_by_git(const CliFilesRootCtx *args)
     return received;
 }
 
-// A find: the words of the query in lower case, each where it starts and its count of letters, the patterns that hide,
-// the path being matched, its letters in lower case, and the paths found
+// A find: the words of the query in lower case, each where it starts and its count of characters, the patterns that hide,
+// the path being matched, its characters in lower case, and the paths found
 typedef struct
 {
-    unsigned int word_text[CLI_FUZZY_LETTERS];
-    unsigned int start[CLI_FUZZY_LETTERS];
-    unsigned int length[CLI_FUZZY_LETTERS];
+    unsigned int word_text[CLI_FUZZY_CHARACTERS];
+    unsigned int start[CLI_FUZZY_CHARACTERS];
+    unsigned int length[CLI_FUZZY_CHARACTERS];
     unsigned int words;
     CliPatterns patterns;
-    unsigned int displayed[CLI_FUZZY_LETTERS];
-    unsigned int lower[CLI_FUZZY_LETTERS];
+    unsigned int displayed[CLI_FUZZY_CHARACTERS];
+    unsigned int lower[CLI_FUZZY_CHARACTERS];
     char (*found)[CLI_PATH_MAX_LEN];
     unsigned int found_count;
 } CliFinding;

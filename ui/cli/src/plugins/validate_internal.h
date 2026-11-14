@@ -25,7 +25,7 @@ typedef struct CliValidateCtx CliValidateCtx;
 typedef struct CliValidateAtCtx CliValidateAtCtx;
 typedef struct CliValidateIdCtx CliValidateIdCtx;
 
-// the most nodes and bytes of a tool's plugin.json, barriers and flags a tool has, bytes of a file validated and of its
+// the max nodes and bytes of a tool's plugin.json, barriers and flags a tool has, bytes of a file validated and of its
 // copy, words of its code, theorems and the bytes their names take, messages of a check and the bytes they take,
 // findings and the bytes they take, and nodes and bytes of one line of the prover's read
 #define CLI_VALIDATE_NODES 65536u
@@ -44,7 +44,7 @@ typedef struct CliValidateIdCtx CliValidateIdCtx;
 #define CLI_VALIDATE_LINE_NODES 4096u
 #define CLI_VALIDATE_LINE_TEXT (1u << 20u)
 
-// the most bytes the file's own settings changed and the checks run are written in
+// the max bytes the file's own settings changed and the checks run are written in
 #define CLI_VALIDATE_OWN (1u << 16u)
 #define CLI_VALIDATE_CHECKS_TEXT (1u << 16u)
 
@@ -102,14 +102,14 @@ typedef struct
     unsigned int repeats;
 } GuiTool;
 
-// A word of the code: where it starts and its bytes, its line and column, from 0, and its letters
+// A word of the code: where it starts and its bytes, its line and column, from 0, and its characters
 typedef struct
 {
     unsigned long long start;
     unsigned int size;
     unsigned int line;
     unsigned int col;
-    unsigned int letters;
+    unsigned int characters;
 } CliCodeWord;
 
 // A message of the prover's, as `lean --json` writes one a line: its severity, lines from 0 and columns, and where its
@@ -137,7 +137,7 @@ typedef struct
 } CliProverMessages;
 
 // One thing the check found: its place, severity and type, the barrier that stopped the check there, -1 for none, and
-// where its message and what lifting it came to are in the findings' texts, CLI_VALIDATE_NONE for none
+// where its message and what lifting it came to be in the findings' texts, CLI_VALIDATE_NONE for none
 typedef struct
 {
     unsigned int line;
@@ -154,7 +154,7 @@ typedef struct
 // The work state one validation reads into: the tool's plugin.json and the tool; the code and its words; the theorems'
 // names; the copy checked; the first check's messages and the last's; one line of the prover's read; the findings;
 // the toolchains, the PATH's folders, the toolchain found and the PATH a check runs with; a check's output; each
-// limit grown by its barrier's name, the first barrier of that name standing for it, whether it stops the check at
+// limit grown by its barrier's name, the first barrier of that name located for it, whether it stops the check at
 // its ceiling and whether it went through once lifted; the file's own settings changed and the checks run, reported;
 // and whether a check ran, whether the last ran out of time, and the lines of the file
 typedef struct
@@ -212,7 +212,7 @@ int cli_validate_contains(const CliValidateTextLengthCtx *args);
 // the tool plugin `id` read into the work state's tool: 1, or 0 where no tool plugin is of that id
 int cli_validate_tool_read(const CliValidateIdCtx *args);
 
-// `size` bytes of text with their comments and strings blanked, every letter preserved in its place as one, so that
+// `size` bytes of text with their comments and strings blanked, every character preserved in its place as one, so that
 // each word found in it is a word of the code, into the work state's code: 1, or 0 where it is larger than the work
 // state fits; each word of the code with its line and column into the work state's words; the full name of each theorem
 // the code declares, with the namespaces open where it is declared, into the work state's theorems; and each use of a
@@ -242,7 +242,7 @@ unsigned int cli_validate_grown_keys(const CliValidateCtx *args);
 
 // the words that run the program on `file` into `words`, the limits' settings just before the file, where the prover
 // reads its own options, the first of them at `from` and `settings` of them, and the folder they run from into `dir`,
-// sized for CLI_PATH_MAX_LEN; and one check run, taking at most the tool's patience: its output, the error stream
+// sized for CLI_PATH_MAX_LEN; and one check run, taking at max the tool's patience: its output, the error stream
 // after it where it prints anything, into the work state's output, the seconds it took into `seconds`, and whether it
 // ran out of time into the work state. Each 1, or 0 with why given (validate_run.c)
 int cli_validate_command_for(const CliValidateProgramCtx *args);
@@ -250,12 +250,12 @@ int cli_validate_check(const CliValidateErrMsgCtx *args);
 
 // the last check's messages: each axiom answer recorded, each barrier's error passed over, and the rest the
 // mathematics, each a finding: the count of axiom answers; and each axiom a theorem rests on past those trusted
-// reported, as a finding where the proof does not stand on a gap the prover put there, the theorem's name into
+// reported, as a finding where the proof does not are on a gap the prover put there, the theorem's name into
 // `untrusted` (validate_axioms.c)
 unsigned int cli_validate_mathematics(void);
 void cli_validate_axioms_report(const CliValidateAnswersCtx *args);
 
-// the first barrier of the name barrier `at` has, which stands for that name's limit (validate.c)
+// the first barrier of the name barrier `at` has, which is for that name's limit (validate.c)
 unsigned int cli_validate_key_get(const CliValidateAtCtx *args);
 
 // a finding put with its message, `lifted` NULL for none; and what the checks run found, from the first check's

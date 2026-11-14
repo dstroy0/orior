@@ -6,7 +6,7 @@
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/command_line/commands.h"
 #include "ui/cli/src/comms/comms.h"
-#include "ui/cli/src/comms/door.h"
+#include "ui/cli/src/comms/interface.h"
 #include "ui/cli/src/runs/runner.h"
 #include "ui/cli/src/tests/test_runs.h"
 #include "ui/cli/src/text/text.h"
@@ -15,7 +15,7 @@
 extern void setUp(void);
 extern void tearDown(void);
 extern void test_a_long_usage_wraps_onto_more_than_one_line(void);
-extern void test_every_wrapped_line_is_40_letters_at_max(void);
+extern void test_every_wrapped_line_is_40_characters_at_max(void);
 extern void test_every_line_after_the_first_is_indented_two_spaces(void);
 extern void test_the_lines_trimmed_and_joined_restore_the_text(void);
 extern void test_a_short_text_is_one_line(void);
@@ -93,7 +93,7 @@ int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\command_line\\test_command_line\\test_command_line.c");
   run_test(test_a_long_usage_wraps_onto_more_than_one_line, "test_a_long_usage_wraps_onto_more_than_one_line", 156);
-  run_test(test_every_wrapped_line_is_40_letters_at_max, "test_every_wrapped_line_is_40_letters_at_max", 162);
+  run_test(test_every_wrapped_line_is_40_characters_at_max, "test_every_wrapped_line_is_40_characters_at_max", 162);
   run_test(test_every_line_after_the_first_is_indented_two_spaces, "test_every_line_after_the_first_is_indented_two_spaces", 171);
   run_test(test_the_lines_trimmed_and_joined_restore_the_text, "test_the_lines_trimmed_and_joined_restore_the_text", 181);
   run_test(test_a_short_text_is_one_line, "test_a_short_text_is_one_line", 197);

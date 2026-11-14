@@ -11,8 +11,8 @@ function element(tag, props = {}, ...children) {
   return made;
 }
 
-// The keys: the set chosen, how a letter's key is bound, each key more than one command holds with
-// those commands, and each command's keys, two at most, each set by pressing it, a button of the
+// The keys: the set chosen, how a character's key is bound, each key more than one command holds with
+// those commands, and each command's keys, two at max, each set by pressing it, a button of the
 // mouse past its first three or the wheel turned with a key pressed, and each taken off by its cross.
 export function keysSection(at) {
   const { menus, state, draw } = at;
@@ -25,7 +25,7 @@ export function keysSection(at) {
   });
   const by = element(
     "select",
-    { className: "report-field", ariaLabel: "A letter's key" },
+    { className: "report-field", ariaLabel: "A character's key" },
     element("option", { value: "character", textContent: "the key that types it", selected: settings.by === "character" }),
     element("option", { value: "place", textContent: "the key in its place on the board", selected: settings.by === "place" }),
   );
@@ -115,7 +115,7 @@ export function keysSection(at) {
     { className: "prefs-keys" },
     element("h3", { textContent: "Keys" }),
     element("label", { className: "report-row" }, element("span", { textContent: "Keys from" }), set),
-    element("label", { className: "report-row" }, element("span", { textContent: "A letter's key is" }), by),
+    element("label", { className: "report-row" }, element("span", { textContent: "A character's key is" }), by),
     shared.length ? element("div", { className: "prefs-shared" }, element("p", { textContent: "Keys more than one command holds, each acting where its command can:" }), element("ul", {}, ...shared)) : null,
     filter,
     rows,

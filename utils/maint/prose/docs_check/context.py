@@ -23,7 +23,7 @@ import re
 # defines its own name that way and thirteen extraction headers cite it. Pointing this at the same
 # shape is why it is two tuples of compiled patterns and not a new stage.
 #
-# BOUNDED TO THE ALPHABET TIER AND TO THE RUN, and that keeps it from being a bypass. A
+# BOUNDED TO THE ALPHABET TIER AND TO THE RUN, and that retains it from being a bypass. A
 # paragraph mentioning Canada does not get to write `is what makes`. Only a convention finding goes
 # quiet, and only inside the run carrying the subject.
 #
@@ -51,7 +51,7 @@ BRITISH_SUBJECT = (
 # Rewriting a field name makes a comment cite something that is not in the document it names.
 #
 # THIS IS A REWRITE ERROR AND NOT A SCAN EXEMPTION. Written as a scan exemption it silences the
-# register gate in any tree that cites a standard in most of its comments, which is the kind of
+# register gate in any tree that cites a standard in the majority of its comments, which is the type of
 # tree it exists for. Bounded to the alphabet tier it silences ordinary prose that happens to sit
 # in a paragraph citing a standard, and reaches no field name at all. A published field name is
 # rarely a locale form in the first place, so there is nothing for the exemption to buy.

@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// install.c: orior installed from the folder its programs stand in, and taken out again: the license shown and
+// install.c: orior installed from the folder its programs are in, and taken out again: the license displayed and
 // accepted, the programs and the license texts copied, imp and tab put on the PATH where neither name is taken, the
-// defaults written, and the record kept that the uninstall reads
+// defaults written, and the record retained that the uninstall reads
 #if !defined(_WIN32)
 // symlink is POSIX, outside strict C11
 #define _POSIX_C_SOURCE 200809L
@@ -20,12 +20,12 @@
 
 const char *const g_cli_install_names[CLI_INSTALL_PROGRAMS] = {"imp", "tab"};
 
-// the most bytes of a license text shown, of the record read, and of a text the install builds to say
+// the max bytes of a license text displayed, of the record read, and of a text the install builds to say
 #define INSTALL_LICENSE_BYTES (1u << 18u)
 #define INSTALL_RECORD_BYTES (1u << 16u)
 #define INSTALL_LINE_BYTES (CLI_PATH_MAX_LEN * 3u)
 
-// the license the programs come under, said where no LICENSE stands beside them
+// the license the programs come under, said where no LICENSE is beside them
 #define INSTALL_LICENSE_LINE "AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational"
 
 // the state file the window reads its settings from, whose absence says the install is the first
@@ -51,7 +51,7 @@ static char s_license[INSTALL_LICENSE_BYTES];
 static char s_record[INSTALL_RECORD_BYTES];
 static char s_said[INSTALL_LINE_BYTES];
 
-// a line of the account handed to the caller, made of up to three texts
+// a line of the account passed to the caller, made of up to three texts
 EMBED_INLINE void install_said(const InstallCtx *args)
 {
     VerbaLinea line = {s_said, sizeof(s_said), 0ULL};
@@ -132,9 +132,9 @@ int cli_install_options(const CliInstallCfg *args)
         {
             const char *const value = (at + 1u < args->count) ? args->words[at + 1u] : NULL;
             int digits = (value != NULL) && (value[0] != '\0');
-            for (const char *letter = (value != NULL) ? value : ""; digits && (letter[0] != '\0'); letter += 1)
+            for (const char *character = (value != NULL) ? value : ""; digits && (character[0] != '\0'); character += 1)
             {
-                digits = (letter[0] >= '0') && (letter[0] <= '9');
+                digits = (character[0] >= '0') && (character[0] <= '9');
             }
             const int off =
                 (value != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = value, .other = "off", .cap = CLI_POOL_BYTES});
@@ -227,7 +227,7 @@ unsigned int cli_install_collision(const CliInstallCfg *args)
     return 0u;
 }
 
-// the folder the running program stands in, into `folder_out`
+// the folder the running program is in, into `folder_out`
 EMBED_INLINE int install_own_folder(const InstallCtx *args)
 {
     int on_path = 0;
@@ -235,7 +235,7 @@ EMBED_INLINE int install_own_folder(const InstallCtx *args)
                       .folder = args->cfg->folder_out, .on_path = &on_path, .err_msg = args->cfg->err_msg);
 }
 
-// the license shown from LICENSE beside the program, else its one line, and the reader's acceptance taken unless
+// the license displayed from LICENSE beside the program, else its one line, and the reader's acceptance taken unless
 // the words accepted it: 1, or 0 where it was not accepted
 EMBED_INLINE int install_license(const InstallCtx *args)
 {
@@ -251,7 +251,7 @@ EMBED_INLINE int install_license(const InstallCtx *args)
     else
     {
         EMBED_CALL(install_said, InstallCtx, .cfg = args->cfg, .text = "orior comes under ",
-                   .other = INSTALL_LICENSE_LINE, .path = "; the texts stand in LICENSES beside the sources");
+                   .other = INSTALL_LICENSE_LINE, .path = "; the texts are in LICENSES beside the sources");
     }
     if (args->cfg->options->accepted)
     {
@@ -310,7 +310,7 @@ EMBED_INLINE int install_copied(InstallCtx *args)
             if (at == 0u)
             {
                 mmgr_line_put(args->cfg->err_msg, from);
-                mmgr_line_put(args->cfg->err_msg, " is not there: the install runs from the folder impero stands in");
+                mmgr_line_put(args->cfg->err_msg, " is not there: the install runs from the folder impero is in");
                 return 0;
             }
             EMBED_CALL(install_said, InstallCtx, .cfg = args->cfg,
@@ -361,7 +361,7 @@ EMBED_INLINE int install_copied(InstallCtx *args)
     return 1;
 }
 
-// a line of the record: its kind, a tab and its value
+// a line of the record: its type, a tab and its value
 EMBED_INLINE void install_recorded(const InstallCtx *args)
 {
     mmgr_line_put(args->record, args->text);
@@ -559,7 +559,7 @@ EMBED_INLINE int install_defaults(const InstallCtx *args)
     {
         return 0;
     }
-    EMBED_CALL(install_said, InstallCtx, .cfg = args->cfg, .text = "your files stand in ", .other = home,
+    EMBED_CALL(install_said, InstallCtx, .cfg = args->cfg, .text = "your files are in ", .other = home,
                .path = (port != NULL) ? "; the debugging port is set" : "; the debugging port is off");
     return 1;
 }
@@ -617,7 +617,7 @@ int cli_install_run(const CliInstallCfg *args)
     VerbaLinea record = {s_record, sizeof(s_record), 0ULL};
     EMBED_CALL(install_recorded, InstallCtx, .record = &record, .text = "into", .other = into);
     ctx.record = &record;
-    // the links stand under the reader's home; the shims under the install folder, which `into` names
+    // the links are under the reader's home; the shims under the install folder, which `into` names
     InstallCtx placed = ctx;
     placed.folder = (home[0] != '\0') ? home : own;
     if (!install_placed(&placed))

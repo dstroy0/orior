@@ -61,22 +61,22 @@ static unsigned long long tessera_get_long(const unsigned char *bytes, unsigned 
     return value;
 }
 
-static int tessera_kind_known(unsigned int kind)
+static int tessera_type_known(unsigned int type)
 {
-    return ((kind >= TESSERA_REQUEST_SUBMIT) && (kind <= TESSERA_REQUEST_MEASURED)) ||
-           ((kind >= TESSERA_NOTICE_ADMITTED) && (kind <= TESSERA_NOTICE_ERROR));
+    return ((type >= TESSERA_REQUEST_SUBMIT) && (type <= TESSERA_REQUEST_MEASURED)) ||
+           ((type >= TESSERA_NOTICE_ADMITTED) && (type <= TESSERA_NOTICE_ERROR));
 }
 
 int tessera_frame_pack(const TesseraFrame *frame, unsigned char bytes[TESSERA_FRAME_BYTES])
 {
-    if ((frame->magic != TESSERA_MAGIC) || (frame->version != TESSERA_VERSION) || !tessera_kind_known(frame->kind) ||
+    if ((frame->magic != TESSERA_MAGIC) || (frame->version != TESSERA_VERSION) || !tessera_type_known(frame->type) ||
         (frame->override_budget > 1u))
     {
         return 0;
     }
     tessera_put_word(bytes, TESSERA_AT_MAGIC, frame->magic);
     tessera_put_word(bytes, TESSERA_AT_VERSION, frame->version);
-    tessera_put_word(bytes, TESSERA_AT_KIND, frame->kind);
+    tessera_put_word(bytes, TESSERA_AT_KIND, frame->type);
     tessera_put_word(bytes, TESSERA_AT_OVERRIDE, frame->override_budget);
     memcpy(bytes + TESSERA_AT_DEVICE, frame->device, TESSERA_DEVICE_BYTES);
     memcpy(bytes + TESSERA_AT_SIGNUM, frame->signum.bytes, ENGINE_SIGNUM_BYTES);
@@ -96,7 +96,7 @@ int tessera_frame_unpack(const unsigned char bytes[TESSERA_FRAME_BYTES], Tessera
     TesseraFrame read;
     read.magic = tessera_get_word(bytes, TESSERA_AT_MAGIC);
     read.version = tessera_get_word(bytes, TESSERA_AT_VERSION);
-    read.kind = tessera_get_word(bytes, TESSERA_AT_KIND);
+    read.type = tessera_get_word(bytes, TESSERA_AT_KIND);
     read.override_budget = tessera_get_word(bytes, TESSERA_AT_OVERRIDE);
     memcpy(read.device, bytes + TESSERA_AT_DEVICE, TESSERA_DEVICE_BYTES);
     memcpy(read.signum.bytes, bytes + TESSERA_AT_SIGNUM, ENGINE_SIGNUM_BYTES);
@@ -108,7 +108,7 @@ int tessera_frame_unpack(const unsigned char bytes[TESSERA_FRAME_BYTES], Tessera
     read.measured = tessera_get_long(bytes, TESSERA_AT_MEASURED);
     read.identity = tessera_get_long(bytes, TESSERA_AT_IDENTITY);
     read.luid = tessera_get_long(bytes, TESSERA_AT_LUID);
-    if ((read.magic != TESSERA_MAGIC) || (read.version != TESSERA_VERSION) || !tessera_kind_known(read.kind) ||
+    if ((read.magic != TESSERA_MAGIC) || (read.version != TESSERA_VERSION) || !tessera_type_known(read.type) ||
         (read.override_budget > 1u))
     {
         return 0;

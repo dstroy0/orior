@@ -278,10 +278,10 @@ __global__ void max_tree_reverse_kernel(const int *change, unsigned int top, int
     reversed[place] = change[top - place];
 }
 
-__global__ void max_tree_level_pick_kernel(const int *counts, unsigned int top, const int *maximum, unsigned int *level)
+__global__ void max_tree_level_pick_kernel(const int *counts, unsigned int top, const int *max, unsigned int *level)
 {
     const unsigned int place = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if ((place < top) && (counts[place] == maximum[0]))
+    if ((place < top) && (counts[place] == max[0]))
     {
         atomicMin(level, top - place);
     }

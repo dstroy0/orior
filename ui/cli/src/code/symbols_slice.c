@@ -3,7 +3,7 @@
 // symbols_slice.c: the slice of the tree clangd is given for lines of a branch: a walk of the branch to its first line,
 // the bytes and leaves of each branch it reaches in the walk's cells until the slice is written, then the names the
 // lines hold followed to what the walk met that defines them, and the names those hold, each written as the lines it
-// stands on with the branch and line it came from. A name, a bracket, a region's bracket and a statement's end are
+// is on with the branch and line it came from. A name, a bracket, a region's bracket and a statement's end are
 // known by the roles its grammar's tokens name, and a bracket left open is closed by the text of the one that closes it
 // in its branch
 #include "../command_line/callback_cfg.h"
@@ -18,7 +18,7 @@ typedef struct
     const char *text;
     unsigned long long length;
 } CliSliceName;
-// One run of a branch's leaves written as the lines they stand on: the branch, a place among those the walk read
+// One run of a branch's leaves written as the lines they are on: the branch, a place among those the walk read
 // whole, and its first leaf and the leaf after its last
 typedef struct
 {
@@ -26,7 +26,7 @@ typedef struct
     unsigned int first;
     unsigned int end;
 } CliSlicePart;
-// A slice being cut: the walk, the branch its lines stand in among those the walk read whole, the names followed and
+// A slice being cut: the walk, the branch its lines are in among those the walk read whole, the names followed and
 // the lines' own parts, in one cell, and for each thing the walk met whether the slice writes it, in a cell of its own
 typedef struct
 {
@@ -40,17 +40,17 @@ typedef struct
     unsigned int part_capacity;
     unsigned char *written;
 } CliSlice;
-// the most lines an opener's head runs across to the bracket that opens its region, the most openers read, and the
-// most brackets the slice closes after its lines
+// the max lines an opener's head runs across to the bracket that opens its region, the max openers read, and the
+// max brackets the slice closes after its lines
 #define CLI_SLICE_HEAD_LINES 64u
 #define CLI_SLICE_OPENERS 64u
 #define CLI_SLICE_OPEN 256u
-// the most walks one slice is cut in, and the bytes of the names a walk carries to the next
+// the max walks one slice is cut in, and the bytes of the names a walk carries to the next
 #define CLI_SLICE_ROUNDS 4u
 #define CLI_SLICE_CARRIED_BYTES (256ULL << 10u)
 
-// The names each sifted walk of one slice sifts for: their texts and lengths, how many and the most; the texts of those
-// carried from a walk before, and how many bytes are used of the most; the walks left after this one, and whether
+// The names each sifted walk of one slice sifts for: their texts and lengths, how many and the max; the texts of those
+// carried from a walk before, and how many bytes are used of the max; the walks left after this one, and whether
 // this walk carried a name it did not sift for, so another walks again
 typedef struct
 {
@@ -280,7 +280,7 @@ EMBED_INLINE int cli_slice_ends(const SymbolsSliceCtx *args)
            EMBED_CALL(cli_slice_directive_line, SymbolsSliceCtx, .read = read, .line = read->leaf[leaf].line);
 }
 
-// the lines `*first` to `*last` widened to whole statements, CLI_SLICE_HEAD_LINES lines at most each way: the first
+// the lines `*first` to `*last` widened to whole statements, CLI_SLICE_HEAD_LINES lines at max each way: the first
 // back to the line after one that ends a statement, the last on to one that ends one
 EMBED_INLINE void cli_slice_widened(const SymbolsSliceCtx *args)
 {
@@ -479,7 +479,7 @@ EMBED_INLINE void cli_slice_locals(const SymbolsSliceCtx *args)
     }
 }
 
-// the lines the leaves from `first` to before `end` of the branch at `branch` stand on handed to `each`, each with the
+// the lines the leaves from `first` to before `end` of the branch at `branch` are on passed to `each`, each with the
 // branch and line it came from, the blanks and comments at its end left off
 EMBED_INLINE void cli_slice_lines_dispatch(const SymbolsSliceCtx *args)
 {
@@ -538,7 +538,7 @@ EMBED_INLINE unsigned int cli_slice_closer(const SymbolsSliceCtx *args)
     return args->read->count;
 }
 
-// the slice handed to `each` a line at a time: each include of no file of the tree and each thing it writes the walk
+// the slice passed to `each` a line at a time: each include of no file of the tree and each thing it writes the walk
 // met, in the order the walk met them, then the lines' own parts, then a line closing each bracket they leave open,
 // innermost first, from no branch, each the text of the bracket that closes it in its branch
 EMBED_INLINE void cli_slice_dispatch(const SymbolsSliceCtx *args)
@@ -622,7 +622,7 @@ EMBED_INLINE unsigned int cli_slice_head_first(const SymbolsSliceCtx *args)
 }
 
 // the slice of the lines `first` to `last` of the branch at `path` cut from the walk `effect` as far as it has gone,
-// the lines opening the regions `first` stands in `opener`, `openers` of them, handed to `each` a line at a time: 1, or
+// the lines opening the regions `first` is in `opener`, `openers` of them, passed to `each` a line at a time: 1, or
 // 0 with the walk refused where the cells cannot meet it
 static int cli_slice_cut(const SymbolsSliceCtx *args)
 {
@@ -642,7 +642,7 @@ static int cli_slice_cut(const SymbolsSliceCtx *args)
     {
         effect->refused = 1;
     }
-    // the branch the lines stand in, the last read whole of its path
+    // the branch the lines are in, the last read whole of its path
     for (unsigned int at = 0u; at < effect->branches_read; at += 1u)
     {
         slice.start = cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx,
@@ -752,7 +752,7 @@ int cli_symbols_slice_each(const CliSymbolsPathCfg *args)
                            CLI_SLICE_CARRIED_BYTES,
                            CLI_SLICE_ROUNDS - 1u,
                            0};
-    // the view's lines the walk lexes: from the outermost region the first stands in, or its widening, to the
+    // the view's lines the walk lexes: from the outermost region the first is in, or its widening, to the
     // widening past the last
     const unsigned int outer = (args->openers != 0u) ? args->opener[0] : args->first;
     const unsigned int from = (outer < args->first) ? outer : args->first;
@@ -798,8 +798,8 @@ int cli_symbols_slice_each(const CliSymbolsPathCfg *args)
 }
 
 // The slices of a branch cut in one walk of it: the walk and the branch's path; where each slice's lines and each
-// window go; the lines a window holds and the first of the next; and the lines opening the regions the walk stands in,
-// outermost first, and how many, and those open past the most read
+// window go; the lines a window holds and the first of the next; and the lines opening the regions the walk is in,
+// outermost first, and how many, and those open past the max read
 typedef struct
 {
     CliEffect *effect;
@@ -815,7 +815,7 @@ typedef struct
 } CliSlices;
 
 // the line the head of the region the bracket at `leaf` opens starts on: back from it to the leaf after the last that
-// ends a statement or a region's head, CLI_SLICE_HEAD_LINES lines at most
+// ends a statement or a region's head, CLI_SLICE_HEAD_LINES lines at max
 EMBED_INLINE unsigned int cli_slice_head_line(const SymbolsSliceCtx *args)
 {
     unsigned int first = args->leaf;

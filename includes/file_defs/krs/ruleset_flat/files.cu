@@ -21,7 +21,7 @@ int ruleset_bytes_read(const std::string &path, std::string *text)
         return 0;
     }
     const unsigned long long room = (text->size() < RULESET_FILE_MAX) ? (RULESET_FILE_MAX - text->size()) : 0ull;
-    // a ruleset the reader accepts is below RULESET_FILE_MAX letters, which a size_t counts; one past it is cut there
+    // a ruleset the reader accepts is below RULESET_FILE_MAX characters, which a size_t counts; one past it is cut there
     // and refused by the caller
     text->append((const char *)bytes, (size_t)((size < room) ? size : room));
     return 1;
@@ -35,7 +35,7 @@ int ruleset_append(const std::string &path, std::string *text)
 
 // the lines of a part's .kdm or of a .ksc a ruleset reads: the text of each of its blocks of the ruleset's language,
 // `__krs__(` to `)__krs__` (klang.h), each ended by a newline. The arrangements, the pipes, the questions and the
-// comments are the file's own and stand outside every such block
+// comments are the file's own and are outside every such block
 static std::string ruleset_lines_read(const std::string &kdm)
 {
     std::string lines;
@@ -138,7 +138,7 @@ int ruleset_text(const RulesetSchema *schema, const std::string &path, std::stri
     return 1;
 }
 
-const char *ruleset_relation_text(unsigned int kind)
+const char *ruleset_relation_text(unsigned int type)
 {
     static const char *const s_text[RULESET_CORE_RELATION_KINDS] = {
         "is given again after",
@@ -150,7 +150,7 @@ const char *ruleset_relation_text(unsigned int kind)
         "gives another count of arguments than",
         "reaches itself through its line",
         "never writes its parameter",
-        "writes a place its head does not take, at letter",
+        "writes a place its head does not take, at character",
         "has nothing after its equals",
         "uses the numeric name of the register of",
         "is not named by the schema",
@@ -160,16 +160,16 @@ const char *ruleset_relation_text(unsigned int kind)
         "counts other than the questions written, which are",
         "answers with a class its file does not name",
     };
-    return (kind < RULESET_CORE_RELATION_KINDS) ? s_text[kind] : "";
+    return (type < RULESET_CORE_RELATION_KINDS) ? s_text[type] : "";
 }
 
-const char *ruleset_map_text(unsigned int kind)
+const char *ruleset_map_text(unsigned int type)
 {
     static const char *const s_text[RULESET_CORE_MAP_KINDS] = {
         "is one text in the first set and two in the second with",
         "is two texts in the first set and one in the second with",
-        "is given as another kind in the second set:",
+        "is given as another type in the second set:",
         "is given by no file of the second set",
     };
-    return (kind < RULESET_CORE_MAP_KINDS) ? s_text[kind] : "";
+    return (type < RULESET_CORE_MAP_KINDS) ? s_text[type] : "";
 }

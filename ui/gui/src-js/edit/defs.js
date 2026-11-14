@@ -37,11 +37,11 @@ export function drawBinary(tab) {
         return fallback;
       }
       const row = type.table.rows.map((r) => rowOf(type.table, r)).find((r) => r.where === `head ${index}`);
-      return row ? row.kind : fallback;
+      return row ? row.type : fallback;
     };
     const grid = element("div", { className: "head" });
     grid.append(element("span", { textContent: named(0, "magic") }), element("span", { textContent: ascii(0, 8) }));
-    grid.append(element("span", { textContent: named(1, "kind") }), element("span", { textContent: ascii(8, 12) }));
+    grid.append(element("span", { textContent: named(1, "type") }), element("span", { textContent: ascii(8, 12) }));
     grid.append(
       element("span", { textContent: named(2, "version") }),
       element("span", { textContent: String(version), className: version === head.version ? "" : "bad" })
@@ -56,8 +56,8 @@ export function drawBinary(tab) {
       const text = index < bytes.length ? bytes[index].toString(16).padStart(2, "0") : "  ";
       line.append(isKrep && index < head.bytes ? element("b", { textContent: text }) : text, index === at + 7 ? "  " : " ");
     }
-    const shown = [...bytes.slice(at, at + 16)].map((b) => (b >= 32 && b < 127 ? String.fromCharCode(b) : ".")).join("");
-    line.append(" ", shown);
+    const displayed = [...bytes.slice(at, at + 16)].map((b) => (b >= 32 && b < 127 ? String.fromCharCode(b) : ".")).join("");
+    line.append(" ", displayed);
     rows.push(line);
   }
   parts.push(element("pre", {}, ...rows));
@@ -80,12 +80,12 @@ export function drawDefs() {
   }
   const parts = [];
   if (bridged) {
-    state.shownKey = bridgeKey();
+    state.displayedKey = bridgeKey();
     const choose = (key) => {
       state.picked = key;
       drawDefs();
     };
-    parts.push(element("section", { className: "bridge" }, ...drawBridge(state.shownKey, openAt, choose)));
+    parts.push(element("section", { className: "bridge" }, ...drawBridge(state.displayedKey, openAt, choose)));
   }
   if (type) {
     const source = element("a", { className: "source", textContent: type.table.path, tabIndex: 0 });
@@ -101,11 +101,11 @@ export function drawDefs() {
         where = place;
         parts.push(element("div", { className: "where", textContent: place }));
       }
-      const item = element("div", { className: "row", title: row.kind });
+      const item = element("div", { className: "row", title: row.type });
       item.dataset.key = opening(row.form);
-      item.dataset.kind = row.kind;
+      item.dataset.type = row.type;
       item.append(element("code", { textContent: row.form }), element("span", { textContent: row.gloss }));
-      item.append(element("small", { textContent: row.who && row.who !== "-" ? `${row.kind}, ${row.who}` : row.kind }));
+      item.append(element("small", { textContent: row.who && row.who !== "-" ? `${row.type}, ${row.who}` : row.type }));
       parts.push(item);
     }
   }
@@ -138,7 +138,7 @@ function languageTable(table) {
           item.dataset.key = at(row, key);
           const said = asm
             ? `${at(row, "table")}: ${at(row, "past")} ${at(row, "arrow") || "-"} ${at(row, "present")}`
-            : [at(row, "kind"), at(row, "names")].filter(Boolean).join(": ");
+            : [at(row, "type"), at(row, "names")].filter(Boolean).join(": ");
           item.append(element("code", { textContent: at(row, key) }), element("span", { textContent: said }));
           return item;
         })
@@ -153,7 +153,7 @@ function languageTable(table) {
 // Marks the rows that define what the cursor is on: the line's first word for a line language, the
 // word itself for .g and .gsm.
 export function light() {
-  if (inBridge(state.active) && bridgeKey() !== state.shownKey) {
+  if (inBridge(state.active) && bridgeKey() !== state.displayedKey) {
     drawDefs();
     return;
   }

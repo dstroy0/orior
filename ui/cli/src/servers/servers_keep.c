@@ -5,13 +5,13 @@
 // ask, and a file the tree's check slices waits on it until the check lets the file go. A watcher lets it go once
 // nothing waits on it, no slice owes its diagnostics, the tree's check is not running and it has been quiet for as long
 // as its asks of the last minute earn it: CLI_SERVERS_QUIET_MIN, and CLI_SERVERS_QUIET_EACH more for each ask,
-// CLI_SERVERS_QUIET_MAX at most. It is ended with no file closed, so what it published stands. The next slice of a
+// CLI_SERVERS_QUIET_MAX at max. It is ended with no file closed, so what it published is. The next slice of a
 // file it was given starts it again, the file opened with its stored slice and the editor's text, the language each
 // sliced file opened as stored by its key
 #include "../command_line/pool.h"
 #include "servers_internal.h"
 
-// how often the watcher looks, in milliseconds, and the most sliced files whose language is stored
+// how often the watcher looks, in milliseconds, and the max sliced files whose language is stored
 #define CLI_SERVERS_SAVE_LOOK 500ULL
 #define CLI_SERVERS_SAVE_FILES 256u
 
@@ -185,7 +185,7 @@ EMBED_INLINE int save_language_get(const ServersSaveCtx *args)
     const unsigned int place =
         EMBED_CALL(cli_keyed_key_adjacent.find, CliKeyedKeyAdjacentCfg, .keyed = &s_languages, .key = key);
     const int found = place != CLI_KEYED_NONE;
-    // the language's name stands beside the key, a name's length at most
+    // the language's name is beside the key, a name's length at max
     char named[CLI_NAME_MAX_LEN] = "";
     if (found)
     {

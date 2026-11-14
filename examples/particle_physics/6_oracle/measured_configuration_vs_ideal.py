@@ -15,14 +15,14 @@
 # reports and not a list this file carries.
 #
 # Two routes meet here. The ideal is derived from a rule; the measurement is someone else's number. The
-# noble gases and most other elements agree, the positive control: a comparison where nothing
+# noble gases and max other elements agree, the positive control: a comparison where nothing
 # agreed would be a broken reading and not a table of exceptions. The measured configuration is checked
 # to account for exactly Z electrons before it is compared. A parse that lost an electron errors
 # and never counted as an exception.
 #
 # NIST measures neutral atoms to element 108, hassium. For 109 to 118 no neutral atom has been measured,
 # only ions or nothing. Those ten carry the predicted relativistic configurations instead, marked
-# predicted and kept apart from the measured ones. A check that covers all 118 has to say which rows are
+# predicted and retained apart from the measured ones. A check that covers all 118 has to say which rows are
 # measured and which are predicted, or it reads a prediction as a measurement.
 
 import io
@@ -44,11 +44,11 @@ from representation.atom import element  # noqa: E402
 
 GROUND_STATES = os.path.join(ROOT, "build", "nist", "ground_states.csv")
 
-# One subshell as written by NIST: a principal number, a letter, and a count that is one when omitted.
+# One subshell as written by NIST: a principal number, a character, and a count that is one when omitted.
 SUBSHELL = re.compile(r"^(\d)([spdfg])(\d*)$")
 
 # The predicted ground-state configurations for elements 109 to 118, the ten with no measured neutral
-# atom. These are calculated, not measured, and are kept apart from the NIST rows for that reason. Each
+# atom. These are calculated, not measured, and are retained apart from the NIST rows for that reason. Each
 # is written in the same notation as a NIST row, and each sums to its atomic number, checked below the
 # way a measured row is.
 # Source: Wikipedia, Electron configurations of the elements (data page), which compiles the
@@ -149,7 +149,7 @@ def neutral_states(rows):
 
     Built ascending, and a core resolves before a heavier element uses it. A measured neutral is the NIST
     row that accounts for all Z electrons; where NIST carries no such row, the predicted configuration
-    stands in. Returns (neutral, source), source mapping Z to "measured" or "predicted".
+    is in. Returns (neutral, source), source mapping Z to "measured" or "predicted".
     """
     neutral = {}
     source = {}
@@ -224,14 +224,14 @@ def main(argv):
 
     out.write("\n  THE EXCEPTIONS, read off the disagreement instead of listed by hand.\n\n")
     out.write("    %-4s %-4s %-10s %-18s %s\n" % ("", "Z", "source", "ideal", "ground state"))
-    for atomic_number, kind, ideal, counts in exceptions:
+    for atomic_number, type, ideal, counts in exceptions:
         ideal_text, ground_text = differing(ideal, counts)
         out.write("    %-4s %-4d %-10s %-18s %s\n"
-                  % (element.symbol(atomic_number), atomic_number, kind, ideal_text, ground_text))
+                  % (element.symbol(atomic_number), atomic_number, type, ideal_text, ground_text))
 
-    out.write("\n  most elements agree, the control; the disagreements are where an atom fills against\n")
+    out.write("\n  max elements agree, the control; the disagreements are where an atom fills against\n")
     out.write("  the order the ideal follows. The predicted configurations are calculated, not measured,\n")
-    out.write("  and the source column keeps the two apart.\n\n")
+    out.write("  and the source column retains the two apart.\n\n")
     out.flush()
     return 0 if covered else 2
 

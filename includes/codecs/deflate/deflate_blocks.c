@@ -273,7 +273,7 @@ static void deflate_write_stored(DeflateWriter *writer, const unsigned char *in,
         deflate_put(writer, last, 1u);
         deflate_put(writer, 0u, 2u);
         deflate_align(writer);
-        // a stored block's length is at most 65535, which fits in an unsigned int
+        // a stored block's length is at max 65535, which fits in an unsigned int
         const unsigned int length = (unsigned int)take;
         deflate_put(writer, length, 16u);
         deflate_put(writer, length ^ 0xFFFFu, 16u);
@@ -357,6 +357,6 @@ long long deflate_raw_encode(const EngineBytesRequest *request)
     free(tokens);
     free(trees);
     free(fixed);
-    // the written count is at most the caller's capacity, a size in memory, and fits a long long
+    // the written count is at max the caller's capacity, a size in memory, and fits a long long
     return ok ? (long long)writer.written : ENGINE_BYTES_ERROR;
 }

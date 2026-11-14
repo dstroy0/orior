@@ -155,7 +155,7 @@ EMBED_INLINE int watch_set(const DebugWatchCtx *args)
         // the breakpoint's text with its end written into its place of the data cell, cut to the place
         char placed[CLI_NAME_MAX_LEN];
         VerbaLinea line = {placed, sizeof(placed), 0ULL};
-        mmgr_line_put_most(&line, args->data, CLI_NAME_MAX_LEN - 1u);
+        mmgr_line_put_max(&line, args->data, CLI_NAME_MAX_LEN - 1u);
         (void)mmgr_line_finish(&line);
         (void)g_cli_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = session->data_cell,

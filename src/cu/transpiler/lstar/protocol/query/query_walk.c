@@ -5,13 +5,13 @@
 //     query_walk <qualifier> <from> <count> <stride> <turns> <word>
 //
 // Every number is read as hexadecimal. The program puts one query at each address from `from`, `stride` bytes apart,
-// `count` of them, and hands the run of the process that started it one line an address as it is answered, the record
+// `count` of them, and passes the run of the process that started it one line an address as it is answered, the record
 // QUERY_WALK_RECORD:
 //
-//     <address> <bit> <kind>
+//     <address> <bit> <type>
 //
-// A line is handed before the next address is queried. An address that ends the process ends it with every answer
-// before it already handed, and the cell reads where the walk stopped from the last line. `turns` is how
+// A line is passed before the next address is queried. An address that ends the process ends it with every answer
+// before it already passed, and the cell reads where the walk stopped from the last line. `turns` is how
 // many reads ADVANCES puts at an address after its first before the address reads as not advancing: a counter that
 // steps once a clock interrupt reads as still between two reads far more often than not.
 #include "verba_scribo/verba_linea.h"
@@ -50,7 +50,7 @@ int main(int count_of_words, char **words)
         mmgr_line_ch(&line, ' ');
         mmgr_line_decimal(&line, query.bit, 0u);
         mmgr_line_ch(&line, ' ');
-        mmgr_line_decimal(&line, query.kind, 0u);
+        mmgr_line_decimal(&line, query.type, 0u);
         mmgr_line_ch(&line, '\n');
         if (qry_member_append(QUERY_WALK_RECORD, text, line.at, QRY_ORDINARY) == 0ull)
         {

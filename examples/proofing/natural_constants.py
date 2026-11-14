@@ -16,7 +16,7 @@ square root of two, the square root of five, the golden angle and the harmonic n
 all decidable to as many digits as anyone asks for. So the accuracy floor of the whole engine is a
 choice about how many digits to carry and never a limit of what is known.
 
-That is worth stating next to the other kind of constant. The 2022 CODATA listing carries a value
+That is worth stating next to the other type of constant. The 2022 CODATA listing carries a value
 and an uncertainty for each of its entries, and about half of them read "(exact)" because the 2019
 redefinition of the SI fixed the speed of light, the Planck constant, the elementary charge, the
 Boltzmann constant and the Avogadro constant by definition. The rest -- the fine structure
@@ -51,7 +51,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 
 # Digits carried past the requested length and then discarded. Each term of an arctangent series is
-# truncated by at most one unit in the last place, and the series runs to a few thousand terms. A
+# truncated by at max one unit in the last place, and the series runs to a few thousand terms. A
 # margin of a dozen digits covers the accumulation with room to spare.
 GUARD = 16
 
@@ -129,7 +129,7 @@ def fraction_bits(number, power, bits):
     """The first `bits` bits of the fractional part of the `power`-th root of `number`.
 
     The definition SHA-256's constant tables are built from. Scaling by two to the power times the
-    bit count and taking the remainder against two to the bit count drops the whole part and keeps
+    bit count and taking the remainder against two to the bit count drops the whole part and retains
     exactly the leading fractional bits, with no floating point anywhere near it.
     """
     return integer_root(number << (power * bits), power) % (1 << bits)
@@ -140,7 +140,7 @@ def arctangent(over, scale):
 
     The Gregory series. Each term is its predecessor divided by the square of `over`. The term
     count falls as the reciprocal grows and a large `over` converges quickly. Truncating integer
-    division loses at most one unit per term, and the guard digits cover that.
+    division loses at max one unit per term, and the guard digits cover that.
     """
     total = 0
     term = scale // over
@@ -173,7 +173,7 @@ def pi_euler(digits):
     return value // 10 ** GUARD
 
 
-def shown(value, digits, whole=1):
+def displayed(value, digits, whole=1):
     """An integer holding `digits` decimal places, written out with its point in place."""
     text = str(value).rjust(digits + whole, "0")
     return text[:-digits] + "." + text[-digits:]
@@ -253,11 +253,11 @@ def _report(digits):
     lines = []
     lines.append("  computed constants, %d places" % digits)
     lines.append("")
-    lines.append("    pi              %s" % shown(pi_machin(digits), digits))
-    lines.append("    root two        %s" % shown(scaled_root(2, 2, digits), digits))
-    lines.append("    root five       %s" % shown(scaled_root(5, 2, digits), digits))
-    lines.append("    golden angle    %s   radians per index step" % shown(golden_angle(digits), digits))
-    lines.append("    harmonic unit   %s   the degree zero harmonic" % shown(harmonic_unit(digits), digits, whole=1))
+    lines.append("    pi              %s" % displayed(pi_machin(digits), digits))
+    lines.append("    root two        %s" % displayed(scaled_root(2, 2, digits), digits))
+    lines.append("    root five       %s" % displayed(scaled_root(5, 2, digits), digits))
+    lines.append("    golden angle    %s   radians per index step" % displayed(golden_angle(digits), digits))
+    lines.append("    harmonic unit   %s   the degree zero harmonic" % displayed(harmonic_unit(digits), digits, whole=1))
     lines.append("")
     lines.append("    a double carries about 16 of these places and a shader float about 7, so")
     lines.append("    every digit past the sixteenth is for grading the shader and not for feeding it")
@@ -297,7 +297,7 @@ def _check():
     # Pi against a prefix taken on authority. The one imported number in this file.
         # Fifty places is far past anything a shader consumes and far short of what the code can do.
     # That makes it a check on correctness and not on reach.
-    text = shown(pi_machin(digits), digits)
+    text = displayed(pi_machin(digits), digits)
     want = PI_PREFIX
     lines.append("  pi against a %d digit prefix: %s" % (len(want) - 2, "agrees" if text.startswith(want) else "DIFFERS"))
     if not text.startswith(want):
@@ -366,7 +366,7 @@ def _check():
     # The golden angle against the double the placement actually runs on. They must agree to the
     # precision a double has, or one of the two is wrong about the angle every source sits at.
     angle = golden_angle(digits)
-    as_double = float(shown(angle, digits))
+    as_double = float(displayed(angle, digits))
     theirs = math.pi * (3.0 - math.sqrt(5.0))
     gap = abs(as_double - theirs)
     lines.append("  the golden angle against the placement's own double: %.3e apart" % gap)
@@ -375,7 +375,7 @@ def _check():
         failed += 1
 
     # The harmonic unit against the value the synthesis uses, for the same reason.
-    unit = float(shown(harmonic_unit(digits), digits))
+    unit = float(displayed(harmonic_unit(digits), digits))
     gap = abs(unit - math.sqrt(1.0 / (4.0 * math.pi)))
     lines.append("  the degree zero harmonic against the synthesis: %.3e apart" % gap)
     if gap > 1e-15:

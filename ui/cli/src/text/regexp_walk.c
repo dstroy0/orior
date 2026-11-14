@@ -22,17 +22,17 @@ typedef struct
     const CliRegexpThen *then;
 } RegexpWalkCtx;
 
-// the ASCII characters a node's one letter takes, as two words of bits
+// the ASCII characters a node's one character takes, as two words of bits
 EMBED_INLINE void cli_ascii_get(const RegexpWalkCtx *args)
 {
     const CliRegexp *regexp = args->regexp;
     args->ascii[0] = 0ULL;
     args->ascii[1] = 0ULL;
-    for (unsigned int letter = 0u; letter < 128u; letter += 1u)
+    for (unsigned int character = 0u; character < 128u; character += 1u)
     {
-        args->ascii[letter / 64u] |= (EMBED_CALL(cli_regexp_match_internal.regexp_one, CliRegexpMatchCtx,
-                                                 .regexp = regexp, .index = args->node, .letter = letter) == 1)
-                                         ? (1ULL << (letter % 64u))
+        args->ascii[character / 64u] |= (EMBED_CALL(cli_regexp_match_internal.regexp_one, CliRegexpMatchCtx,
+                                                 .regexp = regexp, .index = args->node, .character = character) == 1)
+                                         ? (1ULL << (character % 64u))
                                          : 0ULL;
     }
 }
@@ -110,9 +110,9 @@ static int cli_starts(const RegexpWalkCtx *args)
     {
     case CLI_REGEXP_CHAR:
         EMBED_CALL(cli_ascii_get, RegexpWalkCtx, .regexp = args->regexp, .node = args->index, .ascii = args->own);
-        *end = (node->letter >= 128u) ||
-               (args->regexp->fold && (EMBED_CALL(cli_regexp_letter.property, CliRegexpLetterCfg,
-                                                  .property = CLI_REGEXP_LETTER, .letter = node->letter) != 0));
+        *end = (node->character >= 128u) ||
+               (args->regexp->fold && (EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg,
+                                                  .property = CLI_REGEXP_CHARACTER, .character = node->character) != 0));
         return 1;
     case CLI_REGEXP_ANY:
         EMBED_CALL(cli_ascii_get, RegexpWalkCtx, .regexp = args->regexp, .node = args->index, .ascii = args->own);
@@ -229,7 +229,7 @@ unsigned long long cli_regexp_pass(const CliRegexpMatchIndexAtCtx *args)
     case CLI_REGEXP_CLASS:
         return ((args->at < args->run_read->length) &&
                 (EMBED_CALL(cli_regexp_match_internal.regexp_one, CliRegexpMatchCtx, .regexp = args->regexp,
-                            .index = args->index, .letter = args->run_read->text[args->at]) == 1))
+                            .index = args->index, .character = args->run_read->text[args->at]) == 1))
                    ? (args->at + 1ULL)
                    : CLI_REGEXP_NO_PASS;
     case CLI_REGEXP_GROUP:
@@ -263,8 +263,8 @@ unsigned long long cli_regexp_pass(const CliRegexpMatchIndexAtCtx *args)
     }
 }
 
-// a lookahead at `at`: the rest handed on where the inner matches, or where it does not for `(?!`, every group it set
-// let go where it does not stand
+// a lookahead at `at`: the rest passed on where the inner matches, or where it does not for `(?!`, every group it set
+// let go where it does not are
 EMBED_INLINE int cli_on_look(const RegexpWalkCtx *args)
 {
     const CliRegexp *regexp = args->regexp;
@@ -311,7 +311,7 @@ int cli_regexp_walk(const CliRegexpMatchIndexCtx *args)
     case CLI_REGEXP_CLASS:
         return (args->at < args->run->length) &&
                (EMBED_CALL(cli_regexp_match_internal.regexp_one, CliRegexpMatchCtx, .regexp = args->regexp,
-                           .index = args->index, .letter = args->run->text[args->at]) == 1) &&
+                           .index = args->index, .character = args->run->text[args->at]) == 1) &&
                EMBED_CALL(cli_regexp_match_index_internal.regexp_then, CliRegexpMatchIndexCtx, .regexp = args->regexp,
                           .then = args->then, .at = args->at + 1ULL, .run = args->run);
     case CLI_REGEXP_START:
@@ -320,10 +320,10 @@ int cli_regexp_walk(const CliRegexpMatchIndexCtx *args)
         return (args->at == args->run->length) && cli_regexp_match_index_internal.regexp_then(args);
     case CLI_REGEXP_BOUNDARY: {
         const int before = (args->at > 0ULL) && EMBED_CALL(cli_regexp_match_internal.regexp_word, CliRegexpMatchCtx,
-                                                           .letter = args->run->text[args->at - 1u]);
+                                                           .character = args->run->text[args->at - 1u]);
         const int after =
             (args->at < args->run->length) &&
-            EMBED_CALL(cli_regexp_match_internal.regexp_word, CliRegexpMatchCtx, .letter = args->run->text[args->at]);
+            EMBED_CALL(cli_regexp_match_internal.regexp_word, CliRegexpMatchCtx, .character = args->run->text[args->at]);
         return ((before != after) != node->negated) && cli_regexp_match_index_internal.regexp_then(args);
     }
     case CLI_REGEXP_GROUP: {
@@ -349,7 +349,7 @@ int cli_regexp_walk(const CliRegexpMatchIndexCtx *args)
             const CliRegexpFirst *const first = &args->regexp->part_first[node->first + option];
             const int may = first->empty || ((args->at < args->run->length) &&
                                              EMBED_CALL(cli_regexp.allows, CliRegexpCfg, .first = first,
-                                                        .letter = args->run->text[args->at]));
+                                                        .character = args->run->text[args->at]));
             if (may && EMBED_CALL(cli_regexp_match_index_internal.regexp_walk, CliRegexpMatchIndexCtx,
                                   .regexp = args->regexp, .index = args->regexp->part[node->first + option],
                                   .at = args->at, .run = args->run, .then = args->then))
@@ -408,7 +408,7 @@ int cli_regexp_match_into(const CliRegexpTextU32sCfg *args)
     }
     if (!args->regexp->first.empty &&
         !((args->at < args->length) && EMBED_CALL(cli_regexp.allows, CliRegexpCfg, .first = &args->regexp->first,
-                                                  .letter = args->text_u32s[args->at])))
+                                                  .character = args->text_u32s[args->at])))
     {
         return 0;
     }

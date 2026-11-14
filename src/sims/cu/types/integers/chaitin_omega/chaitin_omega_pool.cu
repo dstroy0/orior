@@ -192,7 +192,7 @@ static __device__ void omega_pool_plan(const OmegaRoundWidths *widths, unsigned 
     index[(2ull * out) + 1ull] = (unsigned int)(out % OMEGA_ENGINE_SWEEP);
 }
 
-// a thread a stepping term lays out its reduct's plans at the term's out base
+// a thread a stepping term arranges its reduct's plans at the term's out base
 __global__ void omega_pool_place(const OmegaTerm *terms, unsigned long long live, const OmegaToken *tokens,
                                  const unsigned long long *out_bases, unsigned char *frames,
                                  unsigned char *inner_frames, OmegaRoundWidths widths, unsigned int *plans,

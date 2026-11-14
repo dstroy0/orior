@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// tabs.h: the tabs row above the editor: a tab for each view open, read where the views stand (editor/view.h), its
+// tabs.h: the tabs row above the editor: a tab for each view open, read where the views are (editor/view.h), its
 // file's name in the code face with a close mark after it, ● before the name in the hover's color while its text has
-// changes not saved and ×? for the mark while its close waits on a second, the one shown on its own ground with a line
+// changes not saved and ×? for the mark while its close waits on a second, the one displayed on its own ground with a line
 // along its top and down its left, and each tab under a bead of water in the tab's own shape, which a press sinks; a
 // press on a tab's name shows its file and one on its close mark closes it (tabs.c)
 #ifndef GUI_WINDOW_TABS_H
@@ -20,8 +20,8 @@ typedef struct GuiTabsGlyphsCfg GuiTabsGlyphsCfg;
 typedef struct GuiTabsCfg GuiTabsCfg;
 
 // The sizes in the page's pixels: a tab's text size, its padding at its left and its right, and the gap between its
-// name and its close mark. Then its top corners' radius, the line along the shown tab's top and left, and the close
-// mark's padding each side. Last, the room the row keeps clear of the work's lines above the tabs and before the first
+// name and its close mark. Then its top corners' radius, the line along the displayed tab's top and left, and the close
+// mark's padding each side. Last, the room the row retains clear of the work's lines above the tabs and before the first
 #define GUI_TAB_SIZE 12u
 #define GUI_TAB_PAD_LEFT 14
 #define GUI_TAB_PAD_RIGHT 6
@@ -34,7 +34,7 @@ typedef struct GuiTabsCfg GuiTabsCfg;
 #define GUI_TAB_SPACE 2
 // the pixels the tabs row moves for an arrow of its scrollbar and for one step of the wheel
 #define GUI_TABS_STEP 40
-// the most tabs that stand under beads, the first of the row's: a bead a tab is baked from the row's head
+// the max tabs that are under beads, the first of the row's: a bead a tab is baked from the row's head
 #define GUI_TABS_BEADS 16u
 
 // the name the tab `at` shows, the last part of its file's path, its length into `length`
@@ -45,13 +45,13 @@ GuiRect gui_tab_close_rect(const GuiTabsGlyphsCfg *args);
 // the width of the side_menu of all tabs, from the row's left edge with the side_menu at its start, in pixels; `at` is
 // not read
 int gui_tabs_whole(const GuiTabsGlyphsCfg *args);
-// the tab at x, y: 1 with its place into `at` and whether the pixel stands on its close mark into `closing`, else 0
+// the tab at x, y: 1 with its place into `at` and whether the pixel is on its close mark into `closing`, else 0
 int gui_tabs_hit(const GuiTabsGlyphsFrameCountCfg *args);
-// the row drawn in the frame's tabs rectangle: its ground, the line along its foot, and each tab, the one shown on its
-// own ground with its lines, and the beads over the first GUI_TABS_BEADS tabs as their presses stand at `time_ms`,
-// none where `buttons` is NULL. The beads' atlas is laid out for the widest tab at the tabs' places in the row's whole
+// the row drawn in the frame's tabs rectangle: its ground, the line along its foot, and each tab, the one displayed on its
+// own ground with its lines, and the beads over the first GUI_TABS_BEADS tabs as their presses are at `time_ms`,
+// none where `buttons` is NULL. The beads' atlas is arranged for the widest tab at the tabs' places in the row's whole
 // side_menu, so the row's scroll moves the beads without baking them again; one tab's frames bake a draw, and the
-// draw says how many tabs still wait to bake, 0 when every bead stands baked
+// draw says how many tabs still wait to bake, 0 when every bead is baked
 unsigned int gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args);
 struct GuiTabsGlyphsFrameCountCfg
 {

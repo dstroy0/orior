@@ -20,7 +20,7 @@ maxims of §3.1 it is Christopher Manning, to whom the paper attributes them. Ev
 carries Ian Gilmour, including paragraphs that quote a few words from another work, whose source
 the gloss names.
 
-THE LETTERS
+THE CHARACTERS
 
 The page draws the lateral of *aɬča, kʷaɬtèzetkʷ and Nɬeʔkepmxcín as the belted ɬ, U+026C. At
 400 dpi it reads as ł, U+0142. At 3200 dpi the loop on the left of the stem shows, and the text
@@ -58,7 +58,7 @@ where    the paper's locator: the title, the footer, the abstract, a section, fo
          the references, or all for a note about the whole paper
 who      the language for a form, the person quoted for a block quotation or the maxims of §3.1,
          and Ian Gilmour for the paper's prose, the table, the references and the notes on the page
-kind     cited form     a word of a language named in the prose
+type     cited form     a word of a language named in the prose
          cited affix    a suffix named on its own
          place          a place name
          language       a language name
@@ -76,4 +76,4 @@ form     as printed, joined where the text layer breaks a paragraph across a pag
 gloss    what the paper says the form is, then what the reader needs to know about the row
 
 Only cited form and cited affix are the language. The stars of *iča and *aɬča are printed and
-kept.
+retained.

@@ -207,8 +207,8 @@ obsignatio_sim.obj
     45 floors shrink below the golden 1/phi and 20 above; 28 shrink between 1/2 and 1, the floors of 1
     growth a floor, q_65^(1/65) = 3.210576, against the golden phi = 1.618033
   the billiard from the corner at slope pi, 2^24 columns: 69484394 segments between 16777216 side-wall and 52707178 floor-wall hits, 0 corners
-    the lead in L about the centre changed hands 35929962 times, the longest lead 2 segments, one side ahead on 34742196 of 69484394
-    the nearest tie: |L| = 1.910e-8 (p = (1, pi)) in cell (862516, 2709675), where pi stands nearest 5419351/1725033
+    the lead in L about the centre changed passes 35929962 times, the longest lead 2 segments, one side ahead on 34742196 of 69484394
+    the nearest tie: |L| = 1.910e-8 (p = (1, pi)) in cell (862516, 2709675), where pi is nearest 5419351/1725033
     the record near-corners at the side walls: 1, 7, 106, 113, 33102, 33215, 66317, 99532, 265381, 364913, 1360120, 1725033
   2^k cells: the step that fills the boundary, its ratio to the cells, the last cell filled as a place on the circle, and the floor it fills on
     2^100  step 1.593e30 = 1593334768903120834487234062301  x1.2569  last cell at 0.858407346410  floor 56 (a 1)  cell 0 again at step 2642187207126247277921155667021, 1048852438223126443433921604720 after the fill; the last cell again at step 3186669537806241668974468124603, 544482330679994391053312457582 after cell 0: 1048852438223126443433921604719 shorter

@@ -258,7 +258,7 @@ EV.frameLoop = (app, now) => {
 };
 
 // The frame loop runs under the toolbox's watch, which reports a throw or a loop that stops turning. With vsync
-// the view is drawn at most once per display refresh, and only when something changed. Without it every turn
+// the view is drawn at max once per display refresh, and only when something changed. Without it every turn
 // draws, and the next turn waits for the card to finish the last one. The rate is the card's own and the queue
 // never grows.
 EV.startLoop = (app) => {

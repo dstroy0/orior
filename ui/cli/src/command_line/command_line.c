@@ -58,17 +58,17 @@ void cli_cut(const CliCommandLineTextSizeCtx *args)
 {
     const char *text = args->text;
     unsigned long long size = args->size;
-    if (EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = text, .size = size) <= args->most)
+    if (EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = text, .size = size) <= args->max)
     {
         mmgr_line_put_n(args->out, text, size);
         return;
     }
-    const unsigned long long displayed = (args->most > 3ULL) ? args->most - 3ULL : 0ULL;
+    const unsigned long long displayed = (args->max > 3ULL) ? args->max - 3ULL : 0ULL;
     unsigned long long at = 0ULL;
-    for (unsigned long long letter = 0ULL; letter < displayed; letter += 1ULL)
+    for (unsigned long long character = 0ULL; character < displayed; character += 1ULL)
     {
         unsigned long long length = 0ULL;
-        (void)EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = size, .at = at, .length = &length);
+        (void)EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = text, .size = size, .at = at, .length = &length);
         at += (length > 0ULL) ? length : 1ULL;
     }
     mmgr_line_put_n(args->out, text,
@@ -92,7 +92,7 @@ void cli_wrap(const CliCommandLineTextCtx *args)
                       .at_pointer = &at, .word_text = &word_text, .length = &length))
     {
         const int started = (line.at > comment_prefix_size);
-        if (started && (line.at + 1ULL + length > args->most))
+        if (started && (line.at + 1ULL + length > args->max))
         {
             EMBED_CALL(args->each, CliEachLineSizeCfg, .context = args->context, .line = s_line, .size = line.at);
             line.at = comment_prefix_size;
@@ -158,7 +158,7 @@ void cli_command_line_catalog_alloc(void)
 CliCatalog *cli_command_line_catalog(const CliCommandLineWordCtx *args)
 {
     const char *root = args->root;
-    // the catalog's cell stands for the process: each read empties it and reads the tree's jobs into it again
+    // the catalog's cell is for the process: each read empties it and reads the tree's jobs into it again
     if (s_catalog.job == NULL)
     {
         cli_command_line_catalog_alloc();

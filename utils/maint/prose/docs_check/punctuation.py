@@ -25,7 +25,7 @@
 #
 # AND THE SAME RULE REACHES THE CURLY QUOTE, which is the whole reason MARK_SUBJECT exists.
 #
-# U+2019 is a stylistic substitution for an apostrophe in English prose and it is a LETTER in
+# U+2019 is a stylistic substitution for an apostrophe in English prose and it is a CHARACTER in
 # several of the orthographies this tree transcribes: the glottalization mark in Nuxalk and in
 # Lyon's Okanagan. U+2018 and U+2019 are also the delimiters linguistics puts around a gloss, as in
 # yidád 'fish trap'. ASCII-ising either destroys information exactly the way ASCII-ising an en dash
@@ -60,9 +60,9 @@ SUSPECT = (
 # halves in it are that convention's and not a word processor's.
 PAIRED = "‘"
 
-# A closing single quote standing where English puts an apostrophe: before the tail of a contraction
+# A closing single quote located where English puts an apostrophe: before the tail of a contraction
 # or a possessive (doesn't, Lyon's, they're), or after the s of a plural possessive (the papers'). A
-# run with no such site holds the mark only as a letter, at the head of a form or beside a consonant
+# run with no such site holds the mark only as a character, at the head of a form or beside a consonant
 # (’qsápi, c’tQap@nwíxw, /k’/), and ASCII-ising those rewrites the transcription.
 APOSTROPHE = re.compile(r"(?<=[A-Za-z])’(?=(?:s|t|re|ve|ll|d|m)\b)|(?<=[A-Za-z]s)’(?![A-Za-z])")
 
@@ -77,7 +77,7 @@ MARK_SUBJECT = re.compile(
 )
 
 MARK_REASON = (
-    "the subject of the passage is the mark, which is a letter in these orthographies and the "
+    "the subject of the passage is the mark, which is a character in these orthographies and the "
     "delimiter of a gloss, and ASCII-ising either destroys information"
 )
 
@@ -104,7 +104,7 @@ def smart_quotes(lines, path=None, ledger=None):
             if ledger is not None and path is not None:
                 at = offsets[min(text.index(one[0]) for one in held)]
                 ledger.note(
-                    "mark as a letter",
+                    "mark as a character",
                     MARK_REASON,
                     "%s:%d" % (path.replace("\\", "/"), at),
                 )

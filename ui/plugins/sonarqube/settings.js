@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The settings of SonarQube for IDE, kept as this plugin's own and given to the server as the
-// `sonarlint` section it asks for; a connection's token kept in the system's keychain.
+// The settings of SonarQube for IDE, retained as this plugin's own and given to the server as the
+// `sonarlint` section it asks for; a connection's token retained in the system's keychain.
 
 // Every setting and what it is where none is set.
 const DEFAULTS = {
@@ -34,8 +34,8 @@ function filled(value, fallback) {
 
 // The settings read, the defaults filled in.
 async function settingsRead() {
-  const kept = await orior.settings.read().catch(() => null);
-  sonar.settings = filled(kept ?? {}, DEFAULTS);
+  const retained = await orior.settings.read().catch(() => null);
+  sonar.settings = filled(retained ?? {}, DEFAULTS);
   return sonar.settings;
 }
 
@@ -82,7 +82,7 @@ orior.server.on("workspace/configuration", async ({ items }) => {
   });
 });
 
-// The key a connection's token is kept by: a server's address, or an organization, its region before
+// The key a connection's token is retained by: a server's address, or an organization, its region before
 // it where one is named.
 function tokenKey(connection) {
   if (connection.serverUrl !== undefined) {
@@ -107,7 +107,7 @@ async function drawSettings() {
   const text = (name, label, value, about) =>
     `<label>${escaped(label)}<br><input name="${name}" value="${escaped(value ?? "")}" size="60"><br><span class="quiet">${escaped(about)}</span></label>`;
   const check = (name, label, value) => `<label><input type="checkbox" name="${name}"${value ? " checked" : ""}> ${escaped(label)}</label>`;
-  await shown(
+  await displayed(
     "settings",
     `<h1>SonarQube settings</h1><form>
 ${check("automaticAnalysis", "Analyze files as they open and change", settings.automaticAnalysis)}
@@ -118,7 +118,7 @@ ${text("testFilePattern", "Test files", settings.testFilePattern, "A glob of the
 ${text("pathToCompileCommands", "Compilation database", settings.pathToCompileCommands, "The path to compile_commands.json for C and C++ analysis.")}
 ${text("pathToNodeExecutable", "Node.js", settings.pathToNodeExecutable, "The Node.js program JavaScript and TypeScript are analysed with; the one on the path where none is named.")}
 ${text("vmargs", "Java arguments", settings.ls.vmargs, "Arguments the language server's Java starts with, as -Xmx1024m; taken as the server starts again.")}
-<label>Analyzer properties<br><textarea name="analyzerProperties">${escaped(settings.analyzerProperties ? JSON.stringify(settings.analyzerProperties, null, 2) : "")}</textarea><br><span class="quiet">A JSON object of properties handed to the analyzers.</span></label>
+<label>Analyzer properties<br><textarea name="analyzerProperties">${escaped(settings.analyzerProperties ? JSON.stringify(settings.analyzerProperties, null, 2) : "")}</textarea><br><span class="quiet">A JSON object of properties passed to the analyzers.</span></label>
 <label>Rules<br><textarea name="rules">${escaped(JSON.stringify(settings.rules, null, 2))}</textarea><br><span class="quiet">Each rule's key and its <code>level</code>, on or off, and its <code>parameters</code>.</span></label>
 ${button("Save", "settings-save")}${button("Start the Server Again", "settings-restart")}</form>`,
   );

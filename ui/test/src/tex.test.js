@@ -9,7 +9,7 @@ const { test, assert } = window.__harness;
 
 const inner = (tex, display = false) => texToMathml(tex, display).replace(/<annotation[\s\S]*<\/annotation>/, "");
 
-test("letters, numbers, operators and scripts", () => {
+test("characters, numbers, operators and scripts", () => {
   assert.equal(inner("x^2 + y_1"), "<math><semantics><mrow><msup><mi>x</mi><mn>2</mn></msup><mo>+</mo><msub><mi>y</mi><mn>1</mn></msub></mrow></semantics></math>");
   assert.match(inner("a_i^{2}"), /<msubsup><mi>a<\/mi><mi>i<\/mi><mrow><mn>2<\/mn><\/mrow><\/msubsup>/);
   assert.match(inner("f'"), /<msup><mi>f<\/mi><mo>′<\/mo><\/msup>/);
@@ -24,10 +24,10 @@ test("fractions, roots and binomials", () => {
 test("a big operator's limits go over and under it in display, and beside it in the line", () => {
   assert.match(inner("\\sum_{i=1}^n i", true), /<munderover><mo largeop="true" movablelimits="false">∑<\/mo>/);
   assert.match(inner("\\sum_{i=1}^n i"), /<msubsup><mo largeop="true" movablelimits="true">∑<\/mo>/);
-  assert.match(inner("\\int_0^1 x", true), /<msubsup><mo[^>]*>∫<\/mo>/, "an integral's limits stand beside it");
+  assert.match(inner("\\int_0^1 x", true), /<msubsup><mo[^>]*>∫<\/mo>/, "an integral's limits are beside it");
 });
 
-test("Greek letters, symbols, functions and type faces", () => {
+test("Greek characters, symbols, functions and type faces", () => {
   assert.match(inner("\\alpha \\Omega \\infty \\le \\to"), /<mi>α<\/mi><mi mathvariant="normal">Ω<\/mi><mi>∞<\/mi><mo>≤<\/mo><mo>→<\/mo>/);
   assert.match(inner("\\sin x"), /<mi>sin<\/mi><mi>x<\/mi>/);
   assert.match(inner("\\mathbb{R}"), /<mi mathvariant="double-struck">R<\/mi>/);
@@ -43,7 +43,7 @@ test("delimiters sized to what they hold, matrices and cases", () => {
   assert.match(inner("\\begin{cases} 1 & x \\\\ 0 & y \\end{cases}", true), /<mo fence="true" stretchy="true">{<\/mo><mtable columnalign="left left">/);
 });
 
-test("a command it does not know is shown as written and marked", () => {
+test("a command it does not know is displayed as written and marked", () => {
   assert.match(inner("\\nosuch x"), /<merror><mtext>\\nosuch<\/mtext><\/merror><mi>x<\/mi>/);
   assert.match(texToMathml("<x>", false), /<mo>&lt;<\/mo>/, "the page's own marks are escaped");
 });

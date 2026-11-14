@@ -90,7 +90,7 @@ def main():
 
     core_bit = 1 << CORE
     shell_bit = 1 << SHELL
-    shell_survives = bool(survived & shell_bit)                 # fault two excluded: real invariant kept
+    shell_survives = bool(survived & shell_bit)                 # fault two excluded: real invariant retained
     core_excluded = not (survived & core_bit)                   # fault one excluded: coincidence dropped
     core_in_union = bool(union & core_bit)                      # the coincidence is what the null absorbed
     only_the_shell = (survived == shell_bit)

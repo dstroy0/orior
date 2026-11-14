@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// door_requests.c: what a joined process requests of the door, a frame at a time: to listen on a channel, or to send a
-// body on one, the body in the frame or, where it is long, in the region handed over with it
-#include "door_serve.h"
+// interface_requests.c: what a joined process requests of the interface, a frame at a time: to listen on a channel, or to send a
+// body on one, the body in the frame or, where it is long, in the region passed over with it
+#include "interface_serve.h"
 
 typedef struct
 {
@@ -13,11 +13,11 @@ typedef struct
     unsigned long long *delivered;
     unsigned long long *moved;
     VerbaLinea *err_msg;
-} DoorRequestsCtx;
+} InterfaceRequestsCtx;
 
 // `size` bytes of `rest` read, a byte saying where the body is and then the body or its transfer: the body sent, how
 // many received into `delivered` and the bytes a region moved into `moved`: 1, or 0 with why given
-EMBED_INLINE int request_send(const DoorRequestsCtx *args)
+EMBED_INLINE int request_send(const InterfaceRequestsCtx *args)
 {
     VerbaLinea *err_msg = args->err_msg;
     *args->moved = 0ULL;
@@ -91,7 +91,7 @@ void cli_ipc_requests_serve(const CliIpcServeCfg *args)
         {
             unsigned long long delivered = 0ULL;
             unsigned long long moved = 0ULL;
-            done = EMBED_CALL(request_send, DoorRequestsCtx, .joined = args->joined, .channel = frame + 1,
+            done = EMBED_CALL(request_send, InterfaceRequestsCtx, .joined = args->joined, .channel = frame + 1,
                               .rest = frame + channel_end, .size = size - channel_end, .delivered = &delivered,
                               .moved = &moved, .err_msg = &err_msg);
             if (done && (moved > 0ULL))

@@ -6,15 +6,15 @@
 #include "../../../parsers/who.h"
 #include "krep_records_internal.h"
 
-void krep_open(KrepFile *file, const char *kind)
+void krep_open(KrepFile *file, const char *type)
 {
     krep_free(file);
-    memcpy(file->kind, kind, 4u);
+    memcpy(file->type, type, 4u);
 }
 
-int krep_read(KrepFile *file, const char *path, const char *kind, char *error, size_t room)
+int krep_read(KrepFile *file, const char *path, const char *type, char *error, size_t room)
 {
-    krep_open(file, kind);
+    krep_open(file, type);
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
     if (!qry_member_file_blob(path, &bytes, &size))
@@ -26,9 +26,9 @@ int krep_read(KrepFile *file, const char *path, const char *kind, char *error, s
         return 2;
     }
     const char *stopped = NULL;
-    if (memcmp(bytes + 8u, kind, 4u) != 0)
+    if (memcmp(bytes + 8u, type, 4u) != 0)
     {
-        stopped = "is not of the kind read";
+        stopped = "is not of the type read";
     }
     else if (krep_half_of(bytes + 12u) != KREP_VERSION)
     {
@@ -61,7 +61,7 @@ int krep_read(KrepFile *file, const char *path, const char *kind, char *error, s
             at += count;
             continue;
         }
-        // a record's count is at most its numbers, each at least one of the file's bytes
+        // a record's count is at max its numbers, each at least one of the file's bytes
         if (count > (size - at))
         {
             stopped = "contains a record that runs past its end";
@@ -81,7 +81,7 @@ int krep_read(KrepFile *file, const char *path, const char *kind, char *error, s
             stopped =
                 krep_number_read(bytes, size, &at, &words[word]) ? NULL : "contains a record that runs past its end";
         }
-        // a code and a count read past those above are at most what an unsigned int represents
+        // a code and a count read past those above are at max what an unsigned int represents
         if ((stopped == NULL) && !krep_record_add(file, (unsigned int)code, words, (unsigned int)count))
         {
             stopped = "has a record there was no memory for";
@@ -91,13 +91,13 @@ int krep_read(KrepFile *file, const char *path, const char *kind, char *error, s
     if (stopped != NULL)
     {
         snprintf(error, room, "%s %s", path, stopped);
-        krep_open(file, kind);
+        krep_open(file, type);
         return 0;
     }
     return 1;
 }
 
-// `file` put together in memory and handed whole to the run's writer as the file at `path`, written by `who`, which
+// `file` put together in memory and passed whole to the run's writer as the file at `path`, written by `who`, which
 // writes it in the file's place: the sequence of its bytes' blob, or 0 where it could not be written
 static unsigned long long krep_filed(const KrepFile *file, const char *path, Who who)
 {
@@ -105,7 +105,7 @@ static unsigned long long krep_filed(const KrepFile *file, const char *path, Who
     const size_t room = sizeof(s_text_bytes);
     unsigned char head[KREP_HEAD_BYTES];
     memcpy(head, KREP_MAGIC, 8u);
-    memcpy(head + 8u, file->kind, 4u);
+    memcpy(head + 8u, file->type, 4u);
     krep_half_put(head + 12u, KREP_VERSION);
     size_t text = verba_textus.put_n(&(VerbaTextusCfg){
         .out = s_text_bytes, .cap = room, .at = 0u, .text = (const char *)head, .text_len = sizeof(head)});
@@ -237,7 +237,7 @@ void krep_record_drop(KrepFile *file, unsigned int at)
         unsigned long long who[2];
         krep_who_words_at(file, at, who);
         const unsigned long long numbers[1] = {at};
-        krep_row_handed(file, file->key, who, KREP_ROW_DROP, numbers, 1u, NULL, 0ull, QRY_ORDINARY);
+        krep_row_passed(file, file->key, who, KREP_ROW_DROP, numbers, 1u, NULL, 0ull, QRY_ORDINARY);
     }
     free(file->record[at].word);
     memmove(&file->record[at], &file->record[at + 1u], (size_t)(file->records - at - 1u) * sizeof(KrepRecord));
@@ -267,7 +267,7 @@ int krep_record_set(KrepFile *file, unsigned int at, const unsigned long long *w
         unsigned long long who[2];
         krep_who_words_at(file, at, who);
         const unsigned long long numbers[2] = {at, count};
-        krep_row_handed(file, file->key, who, KREP_ROW_SET, numbers, 2u, copy,
+        krep_row_passed(file, file->key, who, KREP_ROW_SET, numbers, 2u, copy,
                         (unsigned long long)count * sizeof(unsigned long long), QRY_ORDINARY);
     }
     return 1;
@@ -286,8 +286,8 @@ int krep_tabled_by(KrepFile *file, QryShared *buffer, const char *table, const c
     unsigned long long words[2];
     who_words(who, words);
     const unsigned long long length = strlen(name);
-    const unsigned long long head[3] = {krep_half_of((const unsigned char *)file->kind), KREP_VERSION, length};
-    file->key = krep_row_handed(file, 0ull, words, KREP_ROW_HEAD, head, 3u, name, length, QRY_CRITICAL);
+    const unsigned long long head[3] = {krep_half_of((const unsigned char *)file->type), KREP_VERSION, length};
+    file->key = krep_row_passed(file, 0ull, words, KREP_ROW_HEAD, head, 3u, name, length, QRY_CRITICAL);
     for (unsigned int number = 1u; (file->key != 0ull) && (number <= file->texts); number += 1u)
     {
         krep_text_row(file, number);

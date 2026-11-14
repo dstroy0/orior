@@ -63,7 +63,7 @@ EMBED_INLINE int signature_param_at(const SignatureCtx *args)
     return -1;
 }
 
-// the label laid from x, y `pixel_width` pixels wide, wrapped by letters, each parameter's span in its color with its
+// the label positioned from x, y `pixel_width` pixels wide, wrapped by characters, each parameter's span in its color with its
 // line, drawn where `raster` is given: the height taken
 static int signature_label_layout(const SignatureCtx *args)
 {
@@ -95,13 +95,13 @@ static int signature_label_layout(const SignatureCtx *args)
             param_end = (param >= 0) ? args->panel->parameter[param].to : 0ULL;
         }
         unsigned long long consumed = 0ULL;
-        (void)EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->panel->label, .size = args->panel->length,
+        (void)EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = args->panel->label, .size = args->panel->length,
                          .at = at, .length = &consumed);
         consumed = (consumed != 0ULL) ? consumed : 1ULL;
-        const float letter_width =
+        const float character_width =
             EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs, .face = GUI_FACE_CODE,
                        .size = size, .text = args->panel->label + at, .length = consumed);
-        if ((pen + letter_width > (float)(x + args->pixel_width)) && (pen > (float)x))
+        if ((pen + character_width > (float)(x + args->pixel_width)) && (pen > (float)x))
         {
             top += line_height;
             pen = (float)x;
@@ -132,7 +132,7 @@ static int signature_label_layout(const SignatureCtx *args)
         }
         else
         {
-            pen += letter_width;
+            pen += character_width;
         }
         at += consumed;
     }
@@ -171,9 +171,9 @@ void gui_signature_draw(const GuiSignatureRasterCfg *args)
                                .pixel_width = inner, .scale = scale, .clip = bounds)
             : 0;
     int pixel_height = label_height + doc_height + (2 * pad_y);
-    const int most =
+    const int max =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SIGNATURE_HEIGHT, .scale = scale);
-    pixel_height = (pixel_height > most) ? most : pixel_height;
+    pixel_height = (pixel_height > max) ? max : pixel_height;
     args->signature->rect =
         EMBED_CALL(gui_panel_width.place, GuiPanelWidthCfg, .anchor = anchor, .pixel_width = pixel_width,
                    .pixel_height = pixel_height, .back = 0, .bounds = bounds, .above = 1, .scale = scale);
@@ -183,7 +183,7 @@ void gui_signature_draw(const GuiSignatureRasterCfg *args)
                                     .one = (GuiRect){args->signature->rect.x + pad_x, args->signature->rect.y + pad_y,
                                                      inner, pixel_height - (2 * pad_y)},
                                     .other = bounds);
-    const int laid =
+    const int positioned =
         EMBED_CALL(signature_label_layout, SignatureCtx, .panel = panel, .raster = raster, .glyphs = glyphs,
                    .palette = palette, .x = args->signature->rect.x + pad_x, .y = args->signature->rect.y + pad_y,
                    .pixel_width = inner, .scale = scale, .clip = clip);
@@ -191,7 +191,7 @@ void gui_signature_draw(const GuiSignatureRasterCfg *args)
     {
         (void)EMBED_CALL(gui_panel_raster.markdown, GuiPanelRasterCfg, .raster = raster, .glyphs = glyphs,
                          .palette = palette, .text = panel->doc, .length = panel->doc_length,
-                         .x = args->signature->rect.x + pad_x, .y = args->signature->rect.y + pad_y + laid + gap,
+                         .x = args->signature->rect.x + pad_x, .y = args->signature->rect.y + pad_y + positioned + gap,
                          .pixel_width = inner, .scale = scale, .clip = clip);
     }
 }

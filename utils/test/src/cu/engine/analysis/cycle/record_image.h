@@ -4,8 +4,8 @@
 #define RECORD_IMAGE_H
 
 // The tests that run a language's lane off the device and check it against the host oracle (record_vhdl_test.cpp,
-// record_c_test.cpp): the programs drawn as record_test draws them, in its order, each handed to the test's own
-// run; the memory image a lane runs over, laid out as the device lays out its launch; and the files a lane's bench
+// record_c_test.cpp): the programs drawn as record_test draws them, in its order, each passed to the test's own
+// run; the memory image a lane runs over, arranged as the device arranges its launch; and the files a lane's bench
 // reads the image from and writes its records to. It compiles as C++
 
 #include "record_programs.h"
@@ -37,7 +37,7 @@ struct RecordImage
     unsigned long long error;
 };
 
-// `count` words laid out at the end of the image; their byte address
+// `count` words arranged at the end of the image; their byte address
 static unsigned long long record_image_layout(std::vector<unsigned int> &memory, const unsigned int *words,
                                               unsigned long long count)
 {
@@ -53,7 +53,7 @@ static void record_image_wide(std::vector<unsigned int> &memory, size_t offset, 
     memory[(offset / 4u) + 1u] = (unsigned int)(value >> 32u);
 }
 
-// the image of a program's HOST_TEST_LANES lanes: the launch at 0, laid out as CycleCompiledLaunch, then the members'
+// the image of a program's HOST_TEST_LANES lanes: the launch at 0, arranged as CycleCompiledLaunch, then the members'
 // atoms, the index, the tables, the records, the errors, the hot words and the program's block
 static RecordImage record_image(const EngineRecordLayout *layout, unsigned int *const *atoms,
                                 const unsigned long long *bodies, const unsigned int *index)
@@ -83,7 +83,7 @@ static RecordImage record_image(const EngineRecordLayout *layout, unsigned int *
     image.error = 4ull * memory.size();
     memory.push_back(0u);
     // the hot words and the program's block, each at an address of whole 64-bit words: the next lane 0, and the block
-    // owned by the launch's number and instructed to run, as the host lays them out before the first launch
+    // owned by the launch's number and instructed to run, as the host positions them out before the first launch
     memory.resize(memory.size() + (memory.size() % 2u), 0u);
     const unsigned long long hot = 4ull * memory.size();
     memory.resize(memory.size() + (sizeof(CycleHot) / 4u), 0u);
@@ -144,7 +144,7 @@ static int record_image_read(const std::string &path, const RecordImage *image, 
 typedef void (*RecordImageRun)(void *context, const HostProgram *program, int reuse, unsigned int *const *atoms,
                                const unsigned long long *bodies, const unsigned int *index, int errors);
 
-// every program record_test runs, drawn as it draws them, in its order, each handed to `run`
+// every program record_test runs, drawn as it draws them, in its order, each passed to `run`
 static void record_image_programs(void *context, RecordImageRun run)
 {
     HostProgram program;

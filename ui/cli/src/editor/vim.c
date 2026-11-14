@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// vim.c: Vim's state and its entries. The views with Vim's keys stand as records of one movable cell in the order of
+// vim.c: Vim's state and its entries. The views with Vim's keys are as records of one movable cell in the order of
 // their keys, found by halving; every text, the registers' and each view's, is a part, its bytes a movable cell of
 // its own sized to them, taken as the part is written and given back as it is written again or emptied. The views'
-// and the parts' cells are each taken once at their most as Vim begins. A key or a letter typed becomes a token, a code
-// point, the keys no letter carries their chords' control bytes; the tokens typed of a command stand as a part and are
+// and the parts' cells are each taken once at their max as Vim begins. A key or a character typed becomes a token, a code
+// point, the keys no character carries their chords' control bytes; the tokens typed of a command are as a part and are
 // read as a command each time one comes, and a whole command runs, its keys taken for `.` where it changes the text
 #include "vim_internal.h"
 
@@ -20,7 +20,7 @@ static const char s_setting_on[] = "true";
 // the commands that change the text, which `.` does again, `y` among the operators aside
 static const char s_changes[] = "dc><xXDCsSJ~rpPiaIAoO";
 
-// the two cells taken once at their mosts where they do not stand, the registers' parts each empty: 1, or 0 where
+// the two cells taken once at their mosts where they do not are, the registers' parts each empty: 1, or 0 where
 // the cells cannot meet them, those taken given back
 EMBED_INLINE int vim_begun(const CliVimCtx *args)
 {
@@ -150,8 +150,8 @@ void cli_vim_label_settled(const CliVimCtx *args)
                             .offset = (unsigned long long)(args->at) * sizeof(CliVimView),
                             .dst = &view,
                             .bytes = sizeof(CliVimView)});
-    // the keys typed copied out, at most CLI_VIM_TYPED_MOST bytes, and the label laid in the call's own bytes
-    char typed[CLI_VIM_TYPED_MOST + 8ULL];
+    // the keys typed copied out, at max CLI_VIM_TYPED_MAX bytes, and the label positioned in the call's own bytes
+    char typed[CLI_VIM_TYPED_MAX + 8ULL];
     const unsigned long long typed_length =
         EMBED_CALL(cli_vim_internal.part_copy, CliVimCtx,
                    .part = EMBED_CALL(cli_vim_internal.part_of, CliVimCtx, .at = args->at, .part = CLI_VIM_PART_TYPED),
@@ -219,7 +219,7 @@ EMBED_INLINE int vim_key_compared(const CliVimCtx *args)
 }
 
 // the view under `key` among the views, halving them in the order of their keys: 1 with its place into
-// `length_out`, or 0 with the place it would stand at
+// `length_out`, or 0 with the place it would are at
 EMBED_INLINE int vim_view_found(const CliVimCtx *args)
 {
     unsigned int low = 0u;
@@ -241,8 +241,8 @@ EMBED_INLINE int vim_view_found(const CliVimCtx *args)
 }
 
 // a view under `key` put among the views at `at`, the views after it moved down a record, its parts empty and put
-// among the parts the same way, its key written, Vim's keys `on`, normal mode: 1, or 0 where the views stand at their
-// most, the views as they were
+// among the parts the same way, its key written, Vim's keys `on`, normal mode: 1, or 0 where the views are at their
+// max, the views as they were
 EMBED_INLINE int vim_view_added(const CliVimCtx *args)
 {
     CliVimState *const state = &g_cli_vim_state;
@@ -444,7 +444,7 @@ EMBED_INLINE int vim_changes(const CliVimCtx *args)
 {
     for (unsigned int at = 0u; at < sizeof(s_changes) - 1u; at += 1u)
     {
-        // a byte of the commands' text is a letter of the basic Latin
+        // a byte of the commands' text is a character of the basic Latin
         if ((unsigned int)(unsigned char)s_changes[at] == args->name)
         {
             return 1;
@@ -460,7 +460,7 @@ EMBED_INLINE int vim_operator(const CliVimCtx *args)
            (args->name == '<');
 }
 
-// the command parsed run on the view `at`, its keys standing as the keys typed: taken for `.` where it changes the
+// the command parsed run on the view `at`, its keys located as the keys typed: taken for `.` where it changes the
 // text and `.` is not replaying, the change ending where the command leaves a mode other than insert
 EMBED_INLINE void vim_run(const CliVimCtx *args)
 {
@@ -495,7 +495,7 @@ EMBED_INLINE void vim_run(const CliVimCtx *args)
     else if ((command->motion != 0u) && (command->name == 0u))
     {
         EMBED_CALL(cli_vim_motions_internal.move_by, CliVimCtx, .at = args->at, .key = args->key,
-                   .name = command->motion, .letter = command->letter, .count = command->count,
+                   .name = command->motion, .character = command->character, .count = command->count,
                    .counted = command->counted);
     }
     else if (EMBED_CALL(vim_operator, CliVimCtx, .name = command->name))
@@ -611,37 +611,37 @@ EMBED_INLINE void vim_repeated(const CliVimCtx *args)
     g_cli_guard->persistent_buf_release(copied, g_cli_vim_owner);
 }
 
-unsigned long long cli_vim_letter_written(const CliVimCtx *args)
+unsigned long long cli_vim_character_written(const CliVimCtx *args)
 {
     char *const bytes = args->bytes_out;
-    const unsigned int letter = args->letter;
+    const unsigned int character = args->character;
     // each byte written is a code point's bits under its marks, which a byte carries
-    if (letter < 0x80u)
+    if (character < 0x80u)
     {
-        bytes[0] = (char)letter;
+        bytes[0] = (char)character;
         return 1ULL;
     }
-    if (letter < 0x800u)
+    if (character < 0x800u)
     {
-        bytes[0] = (char)(0xc0u | (letter >> 6u));
-        bytes[1] = (char)(0x80u | (letter & 0x3fu));
+        bytes[0] = (char)(0xc0u | (character >> 6u));
+        bytes[1] = (char)(0x80u | (character & 0x3fu));
         return 2ULL;
     }
-    if (letter < 0x10000u)
+    if (character < 0x10000u)
     {
-        bytes[0] = (char)(0xe0u | (letter >> 12u));
-        bytes[1] = (char)(0x80u | ((letter >> 6u) & 0x3fu));
-        bytes[2] = (char)(0x80u | (letter & 0x3fu));
+        bytes[0] = (char)(0xe0u | (character >> 12u));
+        bytes[1] = (char)(0x80u | ((character >> 6u) & 0x3fu));
+        bytes[2] = (char)(0x80u | (character & 0x3fu));
         return 3ULL;
     }
-    bytes[0] = (char)(0xf0u | (letter >> 18u));
-    bytes[1] = (char)(0x80u | ((letter >> 12u) & 0x3fu));
-    bytes[2] = (char)(0x80u | ((letter >> 6u) & 0x3fu));
-    bytes[3] = (char)(0x80u | (letter & 0x3fu));
+    bytes[0] = (char)(0xf0u | (character >> 18u));
+    bytes[1] = (char)(0x80u | ((character >> 12u) & 0x3fu));
+    bytes[2] = (char)(0x80u | ((character >> 6u) & 0x3fu));
+    bytes[3] = (char)(0x80u | (character & 0x3fu));
     return 4ULL;
 }
 
-// the token `letter` taken by the view `at`: Escape lets the keys typed go and ends visual mode; another is put after
+// the token `character` taken by the view `at`: Escape lets the keys typed go and ends visual mode; another is put after
 // the keys typed, which run as a command once they are whole and go where they are none
 EMBED_INLINE void vim_taken(const CliVimCtx *args)
 {
@@ -653,7 +653,7 @@ EMBED_INLINE void vim_taken(const CliVimCtx *args)
                             .bytes = sizeof(CliVimView)});
     const unsigned int typed_part =
         EMBED_CALL(cli_vim_internal.part_of, CliVimCtx, .at = args->at, .part = CLI_VIM_PART_TYPED);
-    if (args->letter == CLI_VIM_ESCAPE)
+    if (args->character == CLI_VIM_ESCAPE)
     {
         (void)EMBED_CALL(cli_vim_internal.part_put, CliVimCtx, .part = typed_part, .text = "", .length = 0ULL);
         if ((view.mode == CLI_VIM_VISUAL) || (view.mode == CLI_VIM_LINE))
@@ -664,16 +664,16 @@ EMBED_INLINE void vim_taken(const CliVimCtx *args)
         EMBED_CALL(cli_vim_internal.label_settled, CliVimCtx, .at = args->at);
         return;
     }
-    if (EMBED_CALL(cli_vim_internal.part_length, CliVimCtx, .part = typed_part) + 4ULL > CLI_VIM_TYPED_MOST)
+    if (EMBED_CALL(cli_vim_internal.part_length, CliVimCtx, .part = typed_part) + 4ULL > CLI_VIM_TYPED_MAX)
     {
         (void)EMBED_CALL(cli_vim_internal.part_put, CliVimCtx, .part = typed_part, .text = "", .length = 0ULL);
     }
     char bytes[4];
     const unsigned long long length =
-        EMBED_CALL(cli_vim_internal.letter_written, CliVimCtx, .letter = args->letter, .bytes_out = bytes);
+        EMBED_CALL(cli_vim_internal.character_written, CliVimCtx, .character = args->character, .bytes_out = bytes);
     (void)EMBED_CALL(vim_part_added, CliVimCtx, .part = typed_part, .text = bytes, .length = length);
     CliVimCommand command;
-    char typed[CLI_VIM_TYPED_MOST + 8ULL];
+    char typed[CLI_VIM_TYPED_MAX + 8ULL];
     const unsigned long long typed_length = EMBED_CALL(cli_vim_internal.part_copy, CliVimCtx, .part = typed_part,
                                                        .bytes_out = typed, .length = sizeof(typed));
     EMBED_CALL(cli_vim_internal.parse, CliVimCtx, .at = args->at, .text = typed, .length = typed_length,
@@ -740,12 +740,12 @@ EMBED_INLINE unsigned int vim_token(const CliVimCtx *args)
             return s_keys[at].token;
         }
     }
-    // a key of one letter types it, the text carrying it
+    // a key of one character types it, the text carrying it
     return (cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_NAME_MAX_LEN}) == 1ULL) ? 0u : CLI_VIM_LINE_END;
 }
 
 // a key while the prompt is open on the view `at`: Escape closes it, Enter closes it and searches for its text,
-// Backspace takes its last letter out, and every other key does nothing
+// Backspace takes its last character out, and every other key does nothing
 EMBED_INLINE void vim_prompt_key(const CliVimCtx *args)
 {
     CliVimView view;
@@ -928,7 +928,7 @@ int cli_vim_key(const CliVimCfg *args)
     }
     if (token != 0u)
     {
-        EMBED_CALL(vim_taken, CliVimCtx, .at = at, .key = args->key, .letter = token, .err_msg = args->err_msg);
+        EMBED_CALL(vim_taken, CliVimCtx, .at = at, .key = args->key, .character = token, .err_msg = args->err_msg);
     }
     return 1;
 }
@@ -960,7 +960,7 @@ int cli_vim_text(const CliVimCfg *args)
     }
     const unsigned int prompt_part =
         EMBED_CALL(cli_vim_internal.part_of, CliVimCtx, .at = at, .part = CLI_VIM_PART_PROMPT);
-    // each letter a token; what follows a letter that opens insert mode or the prompt goes into the view or the prompt,
+    // each character a token; what follows a character that opens insert mode or the prompt goes into the view or the prompt,
     // the view read again after each token
     for (unsigned long long read = 0ULL; read < args->length;)
     {
@@ -982,10 +982,10 @@ int cli_vim_text(const CliVimCfg *args)
             break;
         }
         unsigned long long bytes = 0ULL;
-        const unsigned int letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->text,
+        const unsigned int character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = args->text,
                                                .size = args->length, .at = read, .length = &bytes);
         read += (bytes != 0ULL) ? bytes : 1ULL;
-        EMBED_CALL(vim_taken, CliVimCtx, .at = at, .key = args->key, .letter = letter, .err_msg = args->err_msg);
+        EMBED_CALL(vim_taken, CliVimCtx, .at = at, .key = args->key, .character = character, .err_msg = args->err_msg);
     }
     return 1;
 }

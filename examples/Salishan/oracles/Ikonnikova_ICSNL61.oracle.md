@@ -22,9 +22,9 @@ Colville-Okanagan English it is Olga Ikonnikova, because the paper names no sour
 labels and the notes on the page carry Olga Ikonnikova. The paragraphs quote Superanskaya 1973,
 Matveev 1987 and Berezovich 1998 and 1991 in English, and the gloss of each row names the quotation.
 
-THE LETTERS
+THE CHARACTERS
 
-The text layer holds two glottal stops. (1a) has ɂ, U+0242 LATIN SMALL LETTER GLOTTAL STOP, and the
+The text layer holds two glottal stops. (1a) has ɂ, U+0242 LATIN SMALL CHARACTER GLOTTAL STOP, and the
 page draws it at x-height. Every other example has ʔ, U+0294, which the page draws taller. It also
 holds two schwas: ǝ, U+01DD, in (4a), (5a) and (6a), and ə, U+0259, in (11a). The page draws the two
 schwas the same, and the table follows the text layer for both. The raised w of the
@@ -64,7 +64,7 @@ where    the paper's locator: the title, the footer, the abstract, a section, an
 who      the language for a place name, word or affix; the work §1 names for that language for the
          English of an example; Olga Ikonnikova for the prose, the labels, the notes on the page
          and the Colville-Okanagan English
-kind     place          a place name: the name that heads an example, a Halkomelem name inside the
+type     place          a place name: the name that heads an example, a Halkomelem name inside the
                         English, or an English place in the English of an example
          translation    the English of an example, written without its quote marks
          cited form     a word an etymology cites, with its English in the gloss column

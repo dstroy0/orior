@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // run_test.c: the Run pane's check through its table's hooks, against a catalog of the check's own: the Run tool has
-// the table and it stands in the panel at the work's foot; with no tree it lists no rows and draws its head under its
-// title; a group's row pressed opens it and a job's chooses it, its file and params standing under it; a param pressed
+// the table and it is in the panel at the work's foot; with no tree it lists no rows and draws its head under its
+// title; a group's row pressed opens it and a job's chooses it, its file and params located under it; a param pressed
 // takes the keys and the text typed reaches its value, Escape lets them go; the head's field takes the keys for the
 // filter, which the CLI applies; Start with a required value missing draws the refusal and no run; Stop with no run
 // going does nothing; a run's lines are drawn in their spans' colors with the escape bytes gone, its end last; the pane
@@ -23,7 +23,7 @@ static char s_text[4096];
 static CliCatalog s_catalog;
 
 // the check's catalog: a build job with a required word, and a sim job
-static void catalog_laid(void)
+static void catalog_positioned(void)
 {
     EMBED_CALL(cli_catalog_jobs_max.begin, CliCatalogJobsMaxCfg, .catalog = &s_catalog, .jobs = s_jobs, .jobs_max = 8u,
                .params = s_params, .params_max = 8u, .steps = s_steps, .steps_max = 8u, .request = s_args,
@@ -74,7 +74,7 @@ static int rect_touched(const GuiRaster *raster, GuiRect rect, GuiColor ground)
     {
         for (int x = rect.x; x < rect.x + rect.width; x += 1)
         {
-            // the rectangle stands inside the raster
+            // the rectangle is inside the raster
             if (raster->pixels[((unsigned int)y * raster->width) + (unsigned int)x] != ground)
             {
                 return 1;
@@ -91,7 +91,7 @@ static int rect_reddened(const GuiRaster *raster, GuiRect rect)
     {
         for (int x = rect.x; x < rect.x + rect.width; x += 1)
         {
-            // the rectangle stands inside the raster
+            // the rectangle is inside the raster
             const GuiColor pixel = raster->pixels[((unsigned int)y * raster->width) + (unsigned int)x];
             const unsigned int red = (pixel >> 16u) & 0xffu;
             const unsigned int green = (pixel >> 8u) & 0xffu;
@@ -137,13 +137,13 @@ int main(void)
     cli_check(EMBED_CALL(gui_pane.table_of, GuiPaneCfg, .tool = "run") == table, "the Run tool has the table");
     const GuiRect region = EMBED_CALL(gui_pane.region, GuiPaneCfg, .table = table, .frame = &frame);
     cli_check(table->foot && (region.y == frame.terminal.y) && (region.height == frame.terminal.height),
-              "the Run pane stands in the panel at the work's foot");
+              "the Run pane is in the panel at the work's foot");
 
     // no tree: no rows, the head drawn under the title
-    EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = table, .event = GUI_PANE_SHOWN, .root = NULL);
+    EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = table, .event = GUI_PANE_DISPLAYED, .root = NULL);
     GuiPane pane;
     EMBED_CALL(gui_pane.init, GuiPaneCfg, .pane = &pane);
-    cli_check(EMBED_CALL(cli_job_runs_row.rows, CliJobRunsRowCfg, .row_at = 0u) == 0u, "with no tree no row stands");
+    cli_check(EMBED_CALL(cli_job_runs_row.rows, CliJobRunsRowCfg, .row_at = 0u) == 0u, "with no tree no row is");
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 1440, 920},
                .color = ground);
     EMBED_CALL(gui_pane.draw, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame, .raster = &raster,
@@ -154,7 +154,7 @@ int main(void)
     cli_check(!rect_touched(&raster, frame.editor, ground), "nothing is drawn in the editor");
 
     // the check's catalog: a group's row pressed opens it, a job's chooses it
-    catalog_laid();
+    catalog_positioned();
     EMBED_CALL(cli_job_runs_root.read, CliJobRunsRootCfg, .root = NULL, .catalog = &s_catalog);
     EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = table, .event = GUI_PANE_VIEW, .root = NULL);
     cli_check(EMBED_CALL(cli_job_runs_row.rows, CliJobRunsRowCfg, .row_at = 0u) == 2u,
@@ -182,7 +182,7 @@ int main(void)
     cli_check(EMBED_CALL(gui_pane.key, GuiPaneCfg, .table = table, .pane = &pane, .name = "Backspace") &&
                   EMBED_CALL(cli_job_runs_row.row, CliJobRunsRowCfg, .row_at = 3u, .row_out = &param) &&
                   (param.second_length == 1ULL),
-              "Backspace erases the value's last letter");
+              "Backspace erases the value's last character");
     (void)EMBED_CALL(gui_pane.key, GuiPaneCfg, .table = table, .pane = &pane, .name = "Backspace");
     cli_check(EMBED_CALL(gui_pane.key, GuiPaneCfg, .table = table, .pane = &pane, .name = "Escape") && !pane.keys,
               "Escape lets the keys go");
@@ -224,7 +224,7 @@ int main(void)
     (void)EMBED_CALL(cli_job_runs_run.refusal, CliJobRunsRunCfg, .length_out = &refused);
     (void)EMBED_CALL(cli_job_runs_woken.step, CliJobRunsWokenCfg, .woken = NULL);
     cli_check((refused != 0ULL) && (row_of(CLI_JOB_RUN_RUN) == rows_before),
-              "Start with the required value missing is refused and no run stands");
+              "Start with the required value missing is refused and no run is");
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 1440, 920},
                .color = ground);
     EMBED_CALL(gui_pane.draw, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame, .raster = &raster,
@@ -249,7 +249,7 @@ int main(void)
                   EMBED_CALL(cli_job_runs_row.row, CliJobRunsRowCfg, .row_at = line_row, .row_out = &line) &&
                   (line.text_length == 9ULL) &&
                   (memor.chr(&(MemoriaCfg){.src = line.text, .bytes = line.text_length, .val = 0x1bu}) == NULL),
-              "the line stands under its run without its escape bytes");
+              "the line is under its run without its escape bytes");
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 1440, 920},
                .color = ground);
     EMBED_CALL(gui_pane.draw, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame, .raster = &raster,
@@ -259,7 +259,7 @@ int main(void)
     cli_check(rect_reddened(&raster, line_rect), "the line's span is drawn in the red of the sixteen");
     reported(CLI_JOB_RUNS_ENDED, 77ULL, NULL, CLI_JOB_RUN_STDOUT, NULL);
     (void)EMBED_CALL(cli_job_runs_woken.step, CliJobRunsWokenCfg, .woken = NULL);
-    cli_check(row_of(CLI_JOB_RUN_END) == line_row + 1u, "the end stands after the run's last line");
+    cli_check(row_of(CLI_JOB_RUN_END) == line_row + 1u, "the end is after the run's last line");
 
     // the pane at its last row follows the lines as they arrive; the wheel stops at the last row
     reported(CLI_JOB_RUNS_STARTED, 78ULL, "build/alpha", CLI_JOB_RUN_STDOUT, NULL);
@@ -267,8 +267,8 @@ int main(void)
     const int row_height = EMBED_CALL(gui_pane.row_height, GuiPaneCfg, .table = table, .frame = &frame);
     // the panel's rows are a few, a positive count
     const unsigned int displayed = (unsigned int)((region.y + region.height - rows_top) / row_height);
-    const unsigned int standing = EMBED_CALL(cli_job_runs_row.rows, CliJobRunsRowCfg, .row_at = 0u);
-    pane.scroll = (standing > displayed) ? standing - displayed : 0u;
+    const unsigned int located = EMBED_CALL(cli_job_runs_row.rows, CliJobRunsRowCfg, .row_at = 0u);
+    pane.scroll = (located > displayed) ? located - displayed : 0u;
     for (unsigned int at = 0u; at < 40u; at += 1u)
     {
         reported(CLI_JOB_RUNS_LINE, 78ULL, NULL, CLI_JOB_RUN_STDOUT, "a line");
@@ -285,7 +285,7 @@ int main(void)
     reported(CLI_JOB_RUNS_LINE, 78ULL, NULL, CLI_JOB_RUN_STDOUT, "one more");
     (void)EMBED_CALL(cli_job_runs_woken.step, CliJobRunsWokenCfg, .woken = NULL);
     EMBED_CALL(gui_run_pane.follow, GuiPaneCfg, .table = table, .pane = &pane, .frame = &frame);
-    cli_check(pane.scroll == 0u, "a pane scrolled above its last row stands where it is as a line arrives");
+    cli_check(pane.scroll == 0u, "a pane scrolled above its last row is where it is as a line arrives");
 
     EMBED_CALL(cli_job_runs_woken.end, CliJobRunsWokenCfg, .woken = NULL);
     cli_check(mmgr_owner_in_use(g_cli_job_runs_owner) == 0u, "the store lets every cell go as it ends");

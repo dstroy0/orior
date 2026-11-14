@@ -32,7 +32,7 @@
 WHAT IS MEASURED
 
 Draw a random 512 bit block, flip one input bit, and run both through the compression function,
-keeping the output (H0 plus state) after EVERY round instead of only the last. For each round and
+retention the output (H0 plus state) after EVERY round instead of only the last. For each round and
 each of the 256 output bits, the flip rate's signed departure from one half is how much that bit
 still follows the flipped input at that depth. An untouched bit departs by -0.5; a fair bit by
 zero.
@@ -47,7 +47,7 @@ Going from round r to round r + 1 by crossfading the coefficients passes through
 two patterns at an angle Omega in the degree's own coefficient space, the average has norm
 cos(Omega / 2) of the ends, which is 0.707 for orthogonal patterns: the shape collapses toward a
 plain sphere and reinflates. That collapse is the snap. Rotating each degree's pattern along the
-great circle joining the two (slerp), with its norm interpolated geometrically, keeps the power
+great circle joining the two (slerp), with its norm interpolated geometrically, retains the power
 through the whole transition. One shape turns into the next the way metal bends.
 
 WHAT THE BEND ANSWERS
@@ -153,7 +153,7 @@ def add_to_counter(planes, mask):
     """Add one 32 bit mask to a bit-sliced counter, one count per bit position.
 
     `planes[k]` holds bit k of all thirty two counts at once, adding a mask is a ripple carry
-    across the planes and touches each plane once at most. Counting the thirty two bits one at a
+    across the planes and touches each plane once at max. Counting the thirty two bits one at a
     time would cost thirty two operations per word per round per sample.
     """
     carry = mask
@@ -192,7 +192,7 @@ def departures(seed, samples, word=None):
     SIGNED AND NOT ABSOLUTE. The sphere view takes |rate - 1/2|, which folds sampling noise onto one
     side and gives every bit a positive floor. A field built from that is no longer mean zero above
     degree zero, and the random band would no longer be the right null for it. The signed departure
-    keeps the noise centered, a round with nothing in it has nothing above degree zero.
+    retains the noise centered, a round with nothing in it has nothing above degree zero.
     """
     stream = build_sha_sphere_view.draw(seed)
     counters = [[[] for _ in range(8)] for _ in range(ROUNDS)]
@@ -251,7 +251,7 @@ def chain_directory():
 
 
 def header_bytes(block, nonce=None):
-    """The exact eighty byte header, laid out the way examples/00_blob_viz_tools/chain_kat.py lays it out.
+    """The exact eighty byte header, arranged the way examples/00_blob_viz_tools/chain_kat.py positions it out.
 
     Rebuilt here and not imported, because chain_kat.py imports numpy at load and this tree bans it.
     The two hashes are display hex and carried reversed; everything else is a little endian integer.
@@ -472,7 +472,7 @@ def drawn_band(basis, samples, draws, seed):
 
     WHY THROUGH THE BASIS AND NOT BETWEEN RANDOM VECTORS. The real noise is not isotropic in the
     coefficient dimension, 168 at degree 12: the kernel weights degree l by DEPTH to the l. The low
-    degrees carry most of it and the effective dimension is far below 168. A band drawn from
+    degrees carry the majority of it and the effective dimension is far below 168. A band drawn from
     isotropic Gaussian vectors in the nominal dimension comes out too narrow, and past the break
     both tails of every curve overflow it: the null reporting its own shape as a finding.
 
@@ -657,14 +657,14 @@ def _sweep(samples, top, draws, word=None, chain=None):
     print("  %6s %12s %12s %12s %12s %12s"
           % ("round", "same seed", "cross seed", "repeat", "energy A", "energy B"))
 
-    def shown(value):
+    def displayed(value):
         return "%12s" % ("-" if value is None else "%.2f" % value)
 
     for index in range(ROUNDS):
         same = result["same"][index] if index < len(result["same"]) else None
         cross = result["cross"][index] if index < len(result["cross"]) else None
         print("  %6d %s %s %s %12.5f %12.5f"
-              % (index + 1, shown(same), shown(cross), shown(result["repeat"][index]),
+              % (index + 1, displayed(same), displayed(cross), displayed(result["repeat"][index]),
                  result["energy_first"][index], result["energy_second"][index]))
     print("")
     print("  %-50s %-10s %s" % ("", "carries", "after the break: under / over the band, chance each"))
@@ -775,11 +775,11 @@ def _invariant(samples, top, draws, word=None, chain=None):
     for index in range(start, ROUNDS):
         correlation, power_first, power_second = rows[index]
         if correlation is None:
-            verdict, shown = "no spread", "-"
+            verdict, displayed = "no spread", "-"
         else:
-            shown = "%.3f" % correlation
+            displayed = "%.3f" % correlation
             verdict = "over" if correlation > band[2] else ("under" if correlation < band[0] else "in")
-        print("  %6d %14s %10s %14.3f %14.3f" % (index + 1, shown, verdict, power_first, power_second))
+        print("  %6d %14s %10s %14.3f %14.3f" % (index + 1, displayed, verdict, power_first, power_second))
 
     after = (depth + 1) if depth is not None else start
     tail = [row[0] for row in rows[after:] if row[0] is not None]
@@ -918,7 +918,7 @@ def _residue(samples, top, draws, word=None, chain=None):
     the break fails to clear would be a departure pattern both sets carry, and it would show as a
     positive correlation between their 256 raw departures at rounds where the shape has gone.
 
-    WHY RAW BITS AND NOT THE SPHERE. The field keeps degrees 1 to 12, 168 numbers from 256, and
+    WHY RAW BITS AND NOT THE SPHERE. The field retains degrees 1 to 12, 168 numbers from 256, and
     weights them by the kernel. A residue sitting in the part the projection drops is invisible to
     the angle. The correlation of the raw departures reads all 256.
 
@@ -1217,7 +1217,7 @@ def _check():
     # THE HEADER ROUTE, against a block whose id is fixed and public: the genesis block. The corpus
     # check in `load_chain` compares each header to its own id, but a check that has only ever seen
     # the corpus cannot say whether the corpus or the layout is at fault, and one that has never
-    # refused anything has not been shown to refuse. The same header with the nonce moved by one
+    # refused anything has not been displayed to refuse. The same header with the nonce moved by one
     # must NOT reproduce the id.
     genesis = {"version": 1, "previousblockhash": "00" * 32,
                "merkle_root": "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b",
@@ -1294,7 +1294,7 @@ def _check():
         failed += 1
 
     # And the measurement must be able to tell a structured round from an empty one. Round 1 leaves
-    # most output bits untouched. Its departures are far from zero; a fair bit sits at zero.
+    # max output bits untouched. Its departures are far from zero; a fair bit sits at zero.
     rows = departures(SEED_FIRST, 200)
     untouched = sum(1 for value in rows[0] if value == -0.5)
     say("  round 1: %d of 256 output bits never flip, as round 1 must show" % untouched)

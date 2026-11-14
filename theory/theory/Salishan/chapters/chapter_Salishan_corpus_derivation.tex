@@ -22,7 +22,7 @@ A paper contributes trials only where its extracted text is what the page prints
 
 \textbf{Why the right panel is here.} The extraction has a lifetime. What carries it? Manual transcription reads a paper at a fixed accuracy however large the corpus gets. That arm is flat. The algorithm's accuracy is a function of corpus size. That arm climbs. Whether and where they cross decides whether the corpus is worth growing for its own sake, and the panel is what answers it.
 
-\textbf{What to read off it.} The algorithm arm is the fraction of dialects whose distance from the other corpora pooled into one reference corpus clears twice their resolution. The arm starts at zero, because a small corpus resolves nothing, and it crosses the manual arm at 1.73e+04 byte pairs, which is smaller than the corpus already stored. Both arms are drawn: byte pairs alone, and byte pairs with the dialect's own alphabet applied first. Setting an algorithm given nothing beside a person given a page is not a fair comparison, and the alphabet is the first part of what the extraction already knows that it can be handed.
+\textbf{What to read off it.} The algorithm arm is the fraction of dialects whose distance from the other corpora pooled into one reference corpus clears twice their resolution. The arm starts at zero, because a small corpus resolves nothing, and it crosses the manual arm at 1.73e+04 byte pairs, which is smaller than the corpus already stored. Both arms are drawn: byte pairs alone, and byte pairs with the dialect's own alphabet applied first. Setting an algorithm given nothing beside a person given a page is not a fair comparison, and the alphabet is the first part of what the extraction already knows that it can be passed.
 
 \tiny
 \setlength{\tabcolsep}{2pt}
@@ -145,12 +145,12 @@ What a number that small would actually need is more channels that fail independ
 The independence is the weak part and it is weak in three named places.
 
 \begin{itemize}
-\item \textbf{One person read every table.} The three channels catch different kinds of mistake but they do not catch a systematic misreading of one orthography, because the same reading produced the row and the expectation. This is the largest unmodeled term and no amount of trials touches it.
+\item \textbf{One person read every table.} The three channels catch different types of mistake but they do not catch a systematic misreading of one orthography, because the same reading produced the row and the expectation. This is the largest unmodeled term and no amount of trials touches it.
 \item \textbf{Direction one and direction two share a source.} Both ask questions of the same extracted text. A paper whose text is wrong in a way nobody has noticed fails both at once, and for that reason the papers with a known-damaged source are excluded from the count instead of given a worse bound.
 \item \textbf{Every channel runs through one implementation.} Two shared routines decide what counts as a language token, and all three channels ask them. A defect in either is common to all three at once. The references chapter documents two such defects.
 \end{itemize}
 
-What would move the number honestly is a second person reading a table that has already been read. That is the addition that fails for a reason none of the three share, and until it exists the first bullet stands above every number in this chapter.
+What would move the number honestly is a second person reading a table that has already been read. That is the addition that fails for a reason none of the three share, and until it exists the first bullet is above every number in this chapter.
 
 \subsection{5. Automatic extractors against their tables}
 
@@ -188,7 +188,7 @@ An extractor that does not reproduce a row is not by itself an impurity. The row
 
 \subsection{6. The word web}
 
-The word web joins every form in the hand extractions to the forms it is related to, and groups them. The web has three kinds of edge, each measured off the extraction and none of them listed by hand.
+The word web joins every form in the hand extractions to the forms it is related to, and groups them. The web has three types of edge, each measured off the extraction and none of them listed by hand.
 
 \begin{itemize}
 \item \textbf{concept}, two forms whose glosses share a content word. This is the edge that crosses an orthography, because the gloss is the only part of a form that two papers wrote the same way.
@@ -206,9 +206,9 @@ That makes it something a test of this algorithm almost never has: an answer tha
 
 Comparing whole distributions does not work at this size. The method resolves at 6707 bytes and the two varieties hold 1469 and 2768. Neither the byte pair distribution nor the word web separates them, and a blind partition scores no better than the majority class. The check prints what that route would need: about 2.9 times the labeled Lushootseed now stored.
 
-Asking for one term at a time does work, and it is the same move the sound work uses. Because both varieties are one language, nearly all of what a distribution over their runs measures is what they have in common, and at this size that shared mass swamps the difference. Flattening the pooled counts to maximum entropy takes it out: a run is weighed against where the pooled total alone would put it. A run carrying no border information then contributes nothing however common it is. Each run is its own test, and what a run needs is enough of itself instead of enough of the language.
+Asking for one term at a time does work, and it is the same move the sound work uses. Because both varieties are one language, nearly all of what a distribution over their runs measures is what they have in common, and at this size that shared mass swamps the difference. Flattening the pooled counts to max entropy takes it out: a run is weighed against where the pooled total alone would put it. A run carrying no border information then contributes nothing however common it is. Each run is its own test, and what a run needs is enough of itself instead of enough of the language.
 
-The concept is kept fixed while this is asked, over the 58 concepts both varieties name, using the word web's gloss edge. Without that control a run can separate the two sets because the varieties differ or because different words were cited, and those are not the same finding.
+The concept is retained fixed while this is asked, over the 58 concepts both varieties name, using the word web's gloss edge. Without that control a run can separate the two sets because the varieties differ or because different words were cited, and those are not the same finding.
 
 \tiny
 \setlength{\tabcolsep}{2pt}
@@ -237,5 +237,5 @@ Term & Deviate & Northern & Southern \\
 
 The last column of the first table is the test that is allowed to fail. The border is put back on the same forms at random 200 times and the per-run test run again on each, and at width 2 only 1 of those random borders found as much as the published one. Swapping the two sides also negates every deviate exactly, but this estimator does that on any two sets whatever and it is evidence of nothing.
 
-The term carrying the border is the stressed schwa, and it is southern: 45 of them to 6 in the north over the same concepts. The paper those labels came from is Mellesmoen and Kye's comparative analysis of stress in northern and southern Lushootseed. The algorithm was shown the forms and never the labels, and what it returned is what the paper is about.
+The term carrying the border is the stressed schwa, and it is southern: 45 of them to 6 in the north over the same concepts. The paper those labels came from is Mellesmoen and Kye's comparative analysis of stress in northern and southern Lushootseed. The algorithm was displayed the forms and never the labels, and what it returned is what the paper is about.
 

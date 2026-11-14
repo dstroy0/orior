@@ -14,7 +14,7 @@ test("Git, Commit, Review Structure, Push and Pull", async () => {
   assert.ok(paneOpen("changes"));
   await press("review-structure");
   await ui.waitFor(() => made("review_structure").length, 5000, "the change's structure read");
-  await ui.waitFor(() => changeShown(), 5000, "the change's structure shown");
+  await ui.waitFor(() => changeShown(), 5000, "the change's structure displayed");
   closeChange();
   calls.answer("git_push", () => "pushed by the test");
   calls.answer("git_pull", () => "pulled by the test");

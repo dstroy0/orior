@@ -38,7 +38,7 @@ extern void test_a_file_in_a_repository_belongs_to_it(void);
 extern void test_the_deepest_repository_owner_a_path(void);
 extern void test_a_folder_sharing_a_prefix_is_not_the_repository(void);
 extern void test_a_path_no_repository_contains_has_no_owner(void);
-extern void test_each_status_has_one_letter(void);
+extern void test_each_status_has_one_character(void);
 extern void test_each_lists_texts_are_released(void);
 
 
@@ -132,7 +132,7 @@ int main(void)
   run_test(test_the_deepest_repository_owner_a_path, "test_the_deepest_repository_owner_a_path", 391);
   run_test(test_a_folder_sharing_a_prefix_is_not_the_repository, "test_a_folder_sharing_a_prefix_is_not_the_repository", 396);
   run_test(test_a_path_no_repository_contains_has_no_owner, "test_a_path_no_repository_contains_has_no_owner", 401);
-  run_test(test_each_status_has_one_letter, "test_each_status_has_one_letter", 406);
+  run_test(test_each_status_has_one_character, "test_each_status_has_one_character", 406);
   run_test(test_each_lists_texts_are_released, "test_each_lists_texts_are_released", 418);
 
   return UNITY_END();

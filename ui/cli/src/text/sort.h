@@ -10,7 +10,7 @@
 #include "embed_compiler_directives.h"
 #include "embed_types.h"
 
-// the records a run has at most for insertion to finish it
+// the records a run has at max for insertion to finish it
 #define CLI_SORT_SHORT 16ULL
 
 typedef struct

@@ -47,7 +47,7 @@ TIME IS THE INTERIOR MOVING WHILE THE BOUNDARY HOLDS STILL
 The boundary never moves here. The bodies do, and the surface changes because of it. So the clock
 is not supplied from outside: it is read off a fixed surface, and a run where the observer also
 moves can be told apart from a run where it does not by holding the observer still and watching
-whether anything keeps changing.
+whether anything retains changing.
 
 WHAT IS DERIVED
 
@@ -162,7 +162,7 @@ def watch_shadow(bodies, frames, span, patch):
 
     A body blocks when its angular size covers the line from the center to the patch. This is the
     transit curve, and it carries a body only where that body's orbit happens to pass across this
-    particular patch. Most pairings of body and patch never line up at all. Most of these curves
+    particular patch. Max pairings of body and patch never line up at all. The majority of these curves
     are flat, and reading one flat curve as an empty system is the mistake the glow curve below and
     the several patches above exist to prevent.
     """
@@ -230,7 +230,7 @@ def recover(curve, span, frames, bodies):
     padded = dsp.next_power(len(centered)) * 8
     magnitudes = dsp.spectrum(centered, dsp.window("hann", len(centered)), padded)
 
-    # A peak has to stand above the noise before it is called a period, since a curve with one deep
+    # A peak has to be above the noise before it is called a period, since a curve with one deep
     # dip has power at every harmonic of that dip and reading them all back gives a tidy row of
     # bodies that are not there.
     #
@@ -297,21 +297,21 @@ def recover(curve, span, frames, bodies):
     # replaces it instead, since the body has the longer period and the harmonic is an artifact of
     # the shape of the swing.
     found.sort(key=lambda one: -one["strength"])
-    kept = []
+    retained = []
     for entry in found:
         if any(
-            abs(entry["period"] - one["period"]) < 0.04 * one["period"] for one in kept
+            abs(entry["period"] - one["period"]) < 0.04 * one["period"] for one in retained
         ):
             continue
-        kept.append(entry)
+        retained.append(entry)
         # A fixed ceiling, never the number of bodies. Capping at the count the scene was built
-        # with hands the recovery the answer to the question it is being asked, and a recovery that
+        # with passes the recovery the answer to the question it is being asked, and a recovery that
         # is told how many to find cannot report finding too many.
-        if len(kept) >= 10:
+        if len(retained) >= 10:
             break
 
     out = []
-    for entry in sorted(kept, key=lambda one: one["period"]):
+    for entry in sorted(retained, key=lambda one: one["period"]):
         radius = math.pow(entry["period"], 2.0 / 3.0)
         near = min(bodies, key=lambda body: abs(body["radius"] - radius))
         out.append(
@@ -445,7 +445,7 @@ def main():
 
     # What a ballistic reading has to survive. Scattering buries the straight-through part as the
     # exponential of the path in scattering lengths. The brightness a shadow needs is that
-    # exponential. Printing it keeps the shadow mode honest about being a clear-medium answer.
+    # exponential. Printing it retains the shadow mode honest about being a clear-medium answer.
     depths = [1.0, 4.0, 12.0, 30.0]
     attenuation = [
         {"lengths": one, "survives": "%.2e" % math.exp(-one)} for one in depths
@@ -491,7 +491,7 @@ def main():
         names = ", ".join("%.3f" % one["radius"] for one in entry["found"]) or "nothing"
         print("    patch %s found %d: %s" % (entry["name"], len(entry["found"]), names))
     if not found:
-        print("  together:        none stood above the noise")
+        print("  together:        none was above the noise")
         return 0
 
     truth = [body["radius"] for body in bodies]
@@ -499,11 +499,11 @@ def main():
         band = [one for one in found if one["agree"] == level]
         if not band:
             continue
-        shown = []
+        displayed = []
         for one in band:
             near = min(abs(one["radius"] - was) for was in truth)
-            shown.append("%.3f%s" % (one["radius"], "" if near < 0.04 else "?"))
-        print("  seen on %d of 3 axes: %s" % (level, ", ".join(shown)))
+            displayed.append("%.3f%s" % (one["radius"], "" if near < 0.04 else "?"))
+        print("  seen on %d of 3 axes: %s" % (level, ", ".join(displayed)))
 
     sure = [one for one in found if one["agree"] == 3]
     caught = 0

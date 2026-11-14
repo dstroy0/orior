@@ -47,16 +47,16 @@ function value = orior_departure(seats, seed, min_occurrences)
     [dead_symbols, dead_spread] = local_dispersion(shuffled, min_occurrences);
 
     [shared, live_at, dead_at] = intersect(live_symbols, dead_symbols);
-    keep = live_spread(live_at) > 0;
-    shared = shared(keep);
-    ratios = dead_spread(dead_at(keep)) ./ live_spread(live_at(keep));
+    retain = live_spread(live_at) > 0;
+    shared = shared(retain);
+    ratios = dead_spread(dead_at(retain)) ./ live_spread(live_at(retain));
 
     if numel(shared) < 4
         value = NaN;
         return;
     end
 
-    % Sorted by how often each symbol occurs, most frequent first, then the back half taken. That
+    % Sorted by how often each symbol occurs, commonest first, then the back half taken. That
     % back half is the rare half and it is the only part quoted anywhere in this work. The frequent
     % half tracks corpus length and is not comparable between corpora of different sizes. Ties on
     % count fall by ratio, descending, because the reference sorts (count, ratio) pairs. A tie
@@ -73,7 +73,7 @@ function [symbols, spread, counts] = local_dispersion(seats, min_occurrences)
     symbols = unique(seats);
     spread = zeros(numel(symbols), 1);
     counts = zeros(numel(symbols), 1);
-    keep = false(numel(symbols), 1);
+    retain = false(numel(symbols), 1);
 
     for at = 1:numel(symbols)
         where = find(seats == symbols(at));
@@ -87,11 +87,11 @@ function [symbols, spread, counts] = local_dispersion(seats, min_occurrences)
             % Population standard deviation, matching Python's statistics.pstdev. MATLAB's std
             % divides by n-1 by default, and the second argument switches it to n.
             spread(at) = std(gaps, 1) / middle;
-            keep(at) = true;
+            retain(at) = true;
         end
     end
 
-    symbols = symbols(keep);
-    spread = spread(keep);
-    counts = counts(keep);
+    symbols = symbols(retain);
+    spread = spread(retain);
+    counts = counts(retain);
 end

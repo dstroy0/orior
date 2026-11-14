@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // debug_test.c: the Debug pane's check through its table's hooks, against a session of the check's own whose requests
-// answer fixed data: the Debug tool has a foot table standing in the panel at the work's foot; with no session the
+// answer fixed data: the Debug tool has a foot table located in the panel at the work's foot; with no session the
 // rows are the notice and the pane draws in the panel and nowhere in the side; the steps hit where the module shows
-// them, a step not shown taking no box; a choice shows its view and the rows follow it; after a stop a frame in the
+// them, a step not displayed taking no box; a choice shows its view and the rows follow it; after a stop a frame in the
 // tree opens at its line and one outside does not; an arrow opens a variable and a press beside it does not; the field
 // takes the keys, text typed and Enter add a watch, and Escape lets the keys go; a step pressed reaches its request;
 // and the console's lines scroll under the wheel
@@ -50,19 +50,19 @@ static int variables_written(const CliDebugOutCfg *args)
 {
     if (args->reference == 10LL)
     {
-        mmgr_line_put(args->out, "[{\"name\":\"items\",\"value\":\"[1, 2]\",\"kind\":\"list\",\"reference\":30,"
+        mmgr_line_put(args->out, "[{\"name\":\"items\",\"value\":\"[1, 2]\",\"type\":\"list\",\"reference\":30,"
                                  "\"memory\":null}]");
         return 1;
     }
-    mmgr_line_put(args->out, "[{\"name\":\"0\",\"value\":\"1\",\"kind\":\"int\",\"reference\":0,\"memory\":null},"
-                             "{\"name\":\"1\",\"value\":\"2\",\"kind\":\"int\",\"reference\":0,\"memory\":null}]");
+    mmgr_line_put(args->out, "[{\"name\":\"0\",\"value\":\"1\",\"type\":\"int\",\"reference\":0,\"memory\":null},"
+                             "{\"name\":\"1\",\"value\":\"2\",\"type\":\"int\",\"reference\":0,\"memory\":null}]");
     return 1;
 }
 
 static int evaluated(const CliDebugOutErrMsgCfg *args)
 {
     (void)args->expression;
-    mmgr_line_put(args->out, "{\"name\":\"count\",\"value\":\"3\",\"kind\":\"int\",\"reference\":0,\"memory\":null}");
+    mmgr_line_put(args->out, "{\"name\":\"count\",\"value\":\"3\",\"type\":\"int\",\"reference\":0,\"memory\":null}");
     return 1;
 }
 
@@ -97,7 +97,7 @@ static const CliDebugPaneRequestsNs s_requests = {
     .stop = stopped,
 };
 
-// the event `event` with `body` of the check's session handed to the pane's sink and read
+// the event `event` with `body` of the check's session passed to the pane's sink and read
 static void event_read(const char *event, const char *body)
 {
     const CliDebugSink sink = EMBED_CALL(cli_debug_pane_view.sink, CliDebugPaneViewCfg, .root = CHECK_ROOT);
@@ -113,7 +113,7 @@ static int rect_touched(const GuiRaster *raster, GuiRect rect, GuiColor ground)
     {
         for (int x = rect.x; x < rect.x + rect.width; x += 1)
         {
-            // the rectangle stands inside the raster
+            // the rectangle is inside the raster
             if (raster->pixels[((unsigned int)y * raster->width) + (unsigned int)x] != ground)
             {
                 return 1;
@@ -154,7 +154,7 @@ int main(void)
     cli_check(table->foot, "the Debug table is a foot table");
     const GuiRect region = EMBED_CALL(gui_pane.region, GuiPaneCfg, .table = table, .frame = &frame);
     cli_check((region.y == frame.terminal.y) && (region.height == frame.terminal.height) && (region.height > 0),
-              "the Debug pane stands in the panel at the work's foot");
+              "the Debug pane is in the panel at the work's foot");
     cli_check(table->rows(&(GuiPaneCfg){.table = table}) == 1u, "with no session Frames has its notice alone");
 
     GuiPane pane;
@@ -180,7 +180,7 @@ int main(void)
     cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
                          .glyphs = &glyphs, .x = step_x + (5 * pitch), .y = top_menu_y) ==
                   GUI_DEBUG_STEP_FIRST + CLI_DEBUG_STEP_RESTART,
-              "the steps backward not shown take no box, Restart standing sixth");
+              "the steps backward not displayed take no box, Restart located sixth");
     cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
                          .glyphs = &glyphs, .x = frame.terminal.x + GUI_DEBUG_VIEW + (GUI_DEBUG_VIEW / 2),
                          .y = views_y) == GUI_DEBUG_VIEW_FIRST + CLI_DEBUG_VIEW_VARIABLES,
@@ -230,7 +230,7 @@ int main(void)
                   EMBED_CALL(gui_pane.key, GuiPaneCfg, .table = table, .pane = &pane, .name = "Enter",
                              .root = CHECK_ROOT),
               "text typed and Enter go to the field");
-    cli_check(table->rows(&(GuiPaneCfg){.table = table}) == 5u, "the watch entered stands over the scopes");
+    cli_check(table->rows(&(GuiPaneCfg){.table = table}) == 5u, "the watch entered is over the scopes");
     EMBED_CALL(gui_pane.draw, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame, .raster = &raster,
                .glyphs = &glyphs, .palette = palette, .title = "Debug", .tree = "");
     cli_check(EMBED_CALL(gui_pane.key, GuiPaneCfg, .table = table, .pane = &pane, .name = "Escape") && !pane.keys,

@@ -14,7 +14,7 @@
 // is a probability. Its first n bits settle the halting of every program of n bits or fewer, and
 // no machine therefore computes them all: Omega is approached from below and never reached.
 //
-// Every closed term of at most L bits is run by normal order reduction, which reaches a normal form
+// Every closed term of at max L bits is run by normal order reduction, which reaches a normal form
 // whenever one exists. Reaching one proves the halt. A watcher storing a copy of the term at each
 // power of two steps (Brent) sees every bit of it, and a term that comes back to a state it had
 // is proven never to halt. Confined to a bounded space, a term can only halt or repeat, since the space contains
@@ -93,7 +93,7 @@ typedef struct
     unsigned long long count[OMEGA_LENGTH_MAX + 1u][OMEGA_LENGTH_MAX + 2u];
 } OmegaCounts;
 
-// per length, the busy beavers among the halting terms: the most normal order steps to a normal form, and the
+// per length, the busy beavers among the halting terms: the max normal order steps to a normal form, and the
 // largest normal form in bits (Tromp's BB lambda), each with the first term in rank order to reach it
 typedef struct
 {
@@ -147,7 +147,7 @@ typedef struct
 
 void omega_results_open(OmegaResults *results);
 
-void omega_champion(unsigned long long *maximum, unsigned long long *champion, unsigned long long value,
+void omega_champion(unsigned long long *max, unsigned long long *champion, unsigned long long value,
                     unsigned long long index);
 
 void omega_settle(const OmegaCounts *counts, unsigned int length, unsigned long long index, OmegaFate fate,
@@ -155,14 +155,14 @@ void omega_settle(const OmegaCounts *counts, unsigned int length, unsigned long 
 
 void omega_merge(OmegaResults *into, const OmegaResults *one);
 
-void omega_host(const OmegaCounts *counts, unsigned int maximum, unsigned int workers, OmegaResults *fates);
+void omega_host(const OmegaCounts *counts, unsigned int max, unsigned int workers, OmegaResults *fates);
 
 // The same run on the device, one term to a thread, steered: the device takes the bulk under small budgets and
 // the host the few that need its large ones. Each thread unranks its term from the counts and reduces it in its
 // own buffers, taking every decision the host's omega_run takes, in the same order; the recursive walks become
 // scans with an explicit stack. A run is deterministic and its budgets only stop it. A halt, a loop or a
 // growth proof reached inside the small budgets is reached at the same step inside the large ones. A halt is
-// tallied on the device. Every other term is handed back by rank: a loop or growth proof with its fate, for the
+// tallied on the device. Every other term is passed back by rank: a loop or growth proof with its fate, for the
 // type certificate, and a run that hit a small budget or outgrew the device's room for the host to run itself
 // under the full budgets. No fate rests on the device's limits.
 #define OMEGA_BLOCK 128u
@@ -177,7 +177,7 @@ void omega_host(const OmegaCounts *counts, unsigned int maximum, unsigned int wo
 
 #define OMEGA_DEVICE_TOKENS 256u
 
-// a handed back term's code for a run the host must make itself
+// a passed back term's code for a run the host must make itself
 #define OMEGA_HOST_RUNS 7u
 
 // a stack frame of the scans: the children still to start in the low two bits, and whether it is a lambda
@@ -189,7 +189,7 @@ void omega_host(const OmegaCounts *counts, unsigned int maximum, unsigned int wo
 
 #define OMEGA_STEP_OVERFLOW 2u
 
-// the most terms one launch takes. An offset fits the 32 bits of a busy beaver key and 56 of a handed code
+// the max terms one launch takes. An offset fits the 32 bits of a busy beaver key and 56 of a passed code
 #define OMEGA_BATCH_MAX (1ull << 24u)
 
 // the device's fates are checked against the host's through this length
@@ -199,8 +199,8 @@ typedef struct
 {
     unsigned long long next;
     unsigned long long halts;
-    unsigned long long handed;
-    // most steps and largest normal form, each the value over (2^32 - 1 - offset). The largest key is the
+    unsigned long long passed;
+    // max steps and largest normal form, each the value over (2^32 - 1 - offset). The largest key is the
     // largest value at the lowest rank, and 0 is none
     unsigned long long steps_key;
     unsigned long long bits_key;
@@ -235,7 +235,7 @@ int omega_device(SimResults *results, const OmegaCounts *counts, unsigned int wo
 // The run by the engine: every normal order step of every live term is one sweep of the engine's record machine,
 // and nothing bounds it but the machine. A term is as many records as it has tokens. It grows by adding records
 // and no register or field contains a whole term. The live terms stay on the device from admission to their fate. Each
-// round, a thread a term finds its leftmost redex and lays out where every token of the reduct comes from: the
+// round, a thread a term finds its leftmost redex and arranges where every token of the reduct comes from: the
 // prefix and the suffix copied, the body's tokens with the depth they sit at, and a copy of the argument for each
 // variable the redex's lambda binds, with the depth it is put under and the lambdas above each of its tokens. The
 // record machine gathers each source token through its index list and computes the reduct's token: a body variable
@@ -247,13 +247,13 @@ int omega_device(SimResults *results, const OmegaCounts *counts, unsigned int wo
 // settles it. A term the device's memory cannot fit for its next round is parked as outgrown, the only
 // exit left open, and a stop leaves every live term open. The run is one tessera job.
 
-// a job: one length's terms from `from`, at most this many, admitted to the live pool as the pool drains
+// a job: one length's terms from `from`, at max this many, admitted to the live pool as the pool drains
 #define OMEGA_ENGINE_JOB (1ull << 22u)
 
 // the pool takes the next job once fewer terms than this are live
 #define OMEGA_ENGINE_REFILL (1ull << 21u)
 
-// a sweep of the record machine is at most this many lanes; the lane's plan index restarts at each sweep
+// a sweep of the record machine is at max this many lanes; the lane's plan index restarts at each sweep
 #define OMEGA_ENGINE_SWEEP (1ull << 26u)
 
 #endif

@@ -13,8 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define DICOM_CHECK(condition_, evacaddr_, error_, kind_)                                                              \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_DICOM, (unsigned int)__LINE__, (const void *)(evacaddr_),  \
+#define DICOM_CHECK(condition_, evacaddr_, error_, type_)                                                              \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_DICOM, (unsigned int)__LINE__, (const void *)(evacaddr_),  \
                        (error_))
 
 #define DICOM_PREAMBLE 128ull

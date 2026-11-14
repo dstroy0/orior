@@ -63,12 +63,12 @@ const char *cli_picked_at(const CliFilesPickedIndexCtx *args);
 unsigned int cli_picked_index(const CliFilesPickedIndexCtx *args);
 void cli_picked_let(const CliFilesPickedCtx *args);
 
-// the most lines a search returns, the most letters of a found line retained, and the most bytes they take
+// the max lines a search returns, the max characters of a found line retained, and the max bytes they take
 #define CLI_HITS_MAX 2000u
 #define CLI_HIT_TEXT 240u
 #define CLI_HIT_BYTES (CLI_HIT_TEXT * 4u)
 
-// What a search looks for: the query and its bytes, whether it is all ASCII, its letters in lower case, and how it is
+// What a search looks for: the query and its bytes, whether it is all ASCII, its characters in lower case, and how it is
 // read
 typedef struct
 {
@@ -80,12 +80,12 @@ typedef struct
     CliSearching how;
 } CliNeedle;
 
-// a line a search found handed on: its line and column counted from 1, and the bytes of its text a hit retains
+// a line a search found passed on: its line and column counted from 1, and the bytes of its text a hit retains
 typedef void (*CliHitAppend)(const CliHitAppendCfg *args);
 
-// of `size` bytes of a line, the bytes a hit retains: those before its trailing whitespace, at most CLI_HIT_TEXT
-// letters of them; whether a letter joins a word, for a search of whole words; and each line of a file's `size` bytes
-// that contains the query, the first place on it the query stands, at most CLI_HITS_MAX of them, handed to `put`. Text
+// of `size` bytes of a line, the bytes a hit retains: those before its trailing whitespace, at max CLI_HIT_TEXT
+// characters of them; whether a character joins a word, for a search of whole words; and each line of a file's `size` bytes
+// that contains the query, the first place on it the query is, at max CLI_HITS_MAX of them, passed to `put`. Text
 // in ASCII without case, and any text with case, is found by the sift over the bytes; text outside ASCII without case
 // is found line by line in its lower case (files_hits.c)
 unsigned long long cli_hit_cut(const CliFilesPathCtx *args);
@@ -99,20 +99,20 @@ void cli_files_hits_in(const CliFilesContextCtx *args);
 #define CLI_GIT_SEARCH_FAILED 2
 
 // a found line written as the window reads it, `{"path", "line", "col", "text"}`, a comma before it where it is not the
-// first, or handed to `each` with `context` where `each` is not NULL, its text cut as a hit retains it; and a regular
-// expression searched by git over the files `specs` name, less those `patterns` or `set` hide, at most CLI_HITS_MAX
-// lines written as a JSON array, or each handed to `each` (files_find.c)
+// first, or passed to `each` with `context` where `each` is not NULL, its text cut as a hit retains it; and a regular
+// expression searched by git over the files `specs` name, less those `patterns` or `set` hide, at max CLI_HITS_MAX
+// lines written as a JSON array, or each passed to `each` (files_find.c)
 void cli_hit_write(const CliFilesPathCtx *args);
 int cli_search_by_git(const CliFilesRootCtx *args);
 
-// a file or folder of a paste's walk handed on: where it is, where it goes, and whether it is a folder: 1, or 0 with
+// a file or folder of a paste's walk passed on: where it is, where it goes, and whether it is a folder: 1, or 0 with
 // why given
 typedef int (*CliPasteEach)(const CliPasteEachCfg *args);
 
 // the last part of `path`, its trailing slashes left off, into `name`, sized for CLI_PATH_MAX_LEN: 1, or 0 where it
 // has none; whether `path` is `folder` or inside it, a slash either way; the path for `name` in `folder`, numbered
 // where the folder contains that name already, `notes (2).txt` and on, into `path`, sized for CLI_PATH_MAX_LEN;
-// `source` and all it contains walked, each handed to `each` with where it goes under `target`, a folder before what it
+// `source` and all it contains walked, each passed to `each` with where it goes under `target`, a folder before what it
 // contains and its entries in the order the system lists them: 1, or 0 with why given where `each` gave 0 or a folder
 // could not be read; and a pair pasted written as `{"from", "to"}`, `from` null where it is not given (files_paste.c)
 int cli_paste_name(const CliFilesPathNameCtx *args);
@@ -125,19 +125,19 @@ int cli_paste_by_name(const CliFilesErrMsgCtx *args);
 void cli_paste_free(const CliFilesFolderCtx *args);
 int cli_paste_walk(const CliFilesContextErrMsgCtx *args);
 
-// whether a letter is whitespace, as Unicode reads it; whether a word starts at `at` of `text`: the text's start, after
-// a space, a slash, a separator in a name, a dot, a colon or an at, or an upper case letter after one that is not, a
+// whether a character is whitespace, as Unicode reads it; whether a word starts at `at` of `text`: the text's start, after
+// a space, a slash, a separator in a name, a dot, a colon or an at, or an upper case character after one that is not, a
 // text with `bytes` 1 being the bytes of a path all ASCII, whose only spaces are a space and a tab; and the match of
-// `required`, lower case, in `displayed` and its lower case `lower`, `count` letters, letter for letter, a letter past
-// `from` scoring more, `latest` sized for CLI_FUZZY_LETTERS for its own use: 1 with its score and its places, or 0
+// `required`, lower case, in `displayed` and its lower case `lower`, `count` characters, character for character, a character past
+// `from` scoring more, `latest` sized for CLI_FUZZY_CHARACTERS for its own use: 1 with its score and its places, or 0
 // where it does not match (files_fuzzy.c)
 int cli_fuzzy_white(const CliFilesLetterCtx *args);
-// the place `at` with `score` put in the bounded list `top` of `count` places, at most `most`, after every place
+// the place `at` with `score` put in the bounded list `top` of `count` places, at max `max`, after every place
 // scoring as much or more, its place found by a binary search, the last let go where the list is full: the list's
 // count (files_fuzzy.c)
 unsigned int cli_top_put(const CliFilesTopCtx *args);
 int cli_fuzzy_starts_word(const CliFilesTextU32sCtx *args);
-int cli_fuzzy_letters(const CliFilesBytesRequestedCtx *args);
+int cli_fuzzy_characters(const CliFilesBytesRequestedCtx *args);
 
 struct CliFilesBytesRequestedCtx
 {
@@ -286,14 +286,14 @@ struct CliFilesCtx
 
 struct CliFilesLetterCtx
 {
-    unsigned int letter;
+    unsigned int character;
 };
 
 struct CliFilesTopCtx
 {
     CliTopPlace *top;
     unsigned int count;
-    unsigned int most;
+    unsigned int max;
     unsigned int at;
     double score;
 };
@@ -361,7 +361,7 @@ typedef struct
     int (*fuzzy_white)(const CliFilesLetterCtx *args);
 } CliFilesLetterNs;
 EMBED_TABLE_LAYOUT(CliFilesLetterNs, hit_wordy, fuzzy_white);
-EMBED_TABLE_STORAGE CliFilesLetterNs cli_files_letter_internal EMBED_UNUSED = {
+EMBED_TABLE_STORAGE CliFilesLetterNs cli_files_character_internal EMBED_UNUSED = {
     .hit_wordy = cli_hit_wordy,
     .fuzzy_white = cli_fuzzy_white,
 };
@@ -458,11 +458,11 @@ EMBED_TABLE_STORAGE CliFilesTextU32sNs cli_files_text_u_32s_internal EMBED_UNUSE
 
 typedef struct
 {
-    int (*fuzzy_letters)(const CliFilesBytesRequestedCtx *args);
+    int (*fuzzy_characters)(const CliFilesBytesRequestedCtx *args);
 } CliFilesBytesRequestedNs;
-EMBED_TABLE_LAYOUT(CliFilesBytesRequestedNs, fuzzy_letters);
+EMBED_TABLE_LAYOUT(CliFilesBytesRequestedNs, fuzzy_characters);
 EMBED_TABLE_STORAGE CliFilesBytesRequestedNs cli_files_bytes_requested_internal EMBED_UNUSED = {
-    .fuzzy_letters = cli_fuzzy_letters,
+    .fuzzy_characters = cli_fuzzy_characters,
 };
 
 #endif

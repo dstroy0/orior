@@ -203,11 +203,11 @@ static int points_check_rebuild(const char *root, PointsCheckSet *set, unsigned 
     }
     unsigned long long found_count = 0ull;
     unsigned long long least[POINTS_CHECK_FOOTING_WORDS];
-    unsigned long long maximum[POINTS_CHECK_FOOTING_WORDS];
+    unsigned long long max[POINTS_CHECK_FOOTING_WORDS];
     for (unsigned int word = 0u; word < POINTS_CHECK_FOOTING_WORDS; word += 1u)
     {
         least[word] = ~0ull;
-        maximum[word] = 0ull;
+        max[word] = 0ull;
     }
     int complete = 1;
     for (unsigned int at = 0u; at < set->count; at += 1u)
@@ -244,7 +244,7 @@ static int points_check_rebuild(const char *root, PointsCheckSet *set, unsigned 
         for (unsigned int word = 1u; (footing[0] == 1ull) && (word < POINTS_CHECK_FOOTING_WORDS); word += 1u)
         {
             least[word] = (footing[word] < least[word]) ? footing[word] : least[word];
-            maximum[word] = (footing[word] > maximum[word]) ? footing[word] : maximum[word];
+            max[word] = (footing[word] > max[word]) ? footing[word] : max[word];
         }
     }
     free(one);
@@ -272,8 +272,8 @@ static int points_check_rebuild(const char *root, PointsCheckSet *set, unsigned 
     printf(
         "  the footings as stored: found on %llu of %u; lo %llu to %llu, hi %llu to %llu, lo's steps %llu to %llu, hi's"
         " steps %llu to %llu\n",
-        found_count, set->count, least[1], maximum[1], least[2], maximum[2], least[3], maximum[3], least[4],
-        maximum[4]);
+        found_count, set->count, least[1], max[1], least[2], max[2], least[3], max[3], least[4],
+        max[4]);
     return complete;
 }
 
@@ -355,7 +355,7 @@ static int points_check_sample(const char *root, const char *sample, const Point
     const unsigned int limbs = head[4];
     unsigned long long points = 0ull;
     unsigned int least = 0xFFFFFFFFu;
-    unsigned int maximum = 0u;
+    unsigned int max = 0u;
     unsigned int frame = 0u;
     for (frame = 0u; ok && (frame < head[0]); frame += 1u)
     {
@@ -393,7 +393,7 @@ static int points_check_sample(const char *root, const char *sample, const Point
         }
         points += count;
         least = (count < least) ? count : least;
-        maximum = (count > maximum) ? count : maximum;
+        max = (count > max) ? count : max;
     }
     const int ended = ok && points_check_ended(file);
     mine[POINTS_CHECK_PAST_LAST_FRAME] += (ok && (ended == 0)) ? 1ull : 0ull;
@@ -413,7 +413,7 @@ static int points_check_sample(const char *root, const char *sample, const Point
     *points_seen += points;
     printf("  %-16s %4u of %4u frames of %u x %u x %u, %9llu points, %u to %u a frame; limbs %u, bits %u; not positive"
            " %llu, out of order %llu, outside %llu; C %s; readings %llu %s frames x view; %llu faults\n",
-           sample, frame, head[0], head[1], head[2], head[3], points, (points != 0ull) ? least : 0u, maximum, limbs,
+           sample, frame, head[0], head[1], head[2], head[3], points, (points != 0ull) ? least : 0u, max, limbs,
            head[5], mine[POINTS_CHECK_NOT_POSITIVE], mine[POINTS_CHECK_OUT_OF_ORDER], mine[POINTS_CHECK_OUTSIDE],
            (contrast_differs == POINTS_CHECK_READINGS) ? "is the rebuilt" : "differs from the rebuilt", total,
            counted ? "=" : "!=", fault_count);

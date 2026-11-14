@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Clarissa Forbes	title	Gitxsan adjectives: evidence from nominal modification	page 1
 front	Clarissa Forbes	name	Clarissa Forbes	author
 front	Clarissa Forbes	note	University of British Columbia	page 1, under Clarissa Forbes
@@ -37,7 +37,7 @@ footnote 3	Gitxsan	cited form	=hl	page 2, in italics
 (3) line 2	Gitxsan	segmentation	χsta:=ɬ hanaqʼ limx-ət ki	page 2
 (3) line 3	Gitxsan	gloss	win=CN woman sing-SX DIST	page 2
 (3) line 4	Clarissa Forbes	translation	'The singing woman won.'	page 2
-§1	Clarissa Forbes	note	However, these positions are differentiated with respect to the syntactic category heading them. It will be shown that adjective-type predicates tend to relativize in the prenominal position, while verb-type predicates relativize in the postnominal position. This will be attributed to a difference in structure; postnominal relative clauses are CP modifiers of NPs, i.e. true relative clauses, while prenominal relative clauses are differently structured; they are non- clausal, and cannot use a WH-word as a relative pronoun, unlike true relatives (Davis & Brown 2011, Davis 2011).	page 2
+§1	Clarissa Forbes	note	However, these positions are differentiated with respect to the syntactic category heading them. It will be displayed that adjective-type predicates tend to relativize in the prenominal position, while verb-type predicates relativize in the postnominal position. This will be attributed to a difference in structure; postnominal relative clauses are CP modifiers of NPs, i.e. true relative clauses, while prenominal relative clauses are differently structured; they are non- clausal, and cannot use a WH-word as a relative pronoun, unlike true relatives (Davis & Brown 2011, Davis 2011).	page 2
 §1.1	Clarissa Forbes	heading	1.1 Distinguishing Gitxsan noun and verb	page 2
 §1.1	Clarissa Forbes	note	In many languages of the Pacific Northwest, items taking the major syntactic roles of predicate and argument are unrestricted by word class. Many, if not all, lexical word classes are capable of taking either a predicate or argument role, depending on their placement in the sentence and interaction with functional elements. This is the case in Tsimshianic as well, where nouns, verbs, adjectives, and numbers are all predicative categories (Tarpent 1987: 297, for Nisgha). The ability of items of different word classes in Salish and Wakashan to take the same syntactic positions and the same morphology without significant visible alteration was marked enough for prior analyses to posit no word class distinction amongst predicates at all (see Swadesh 1939, Kinkade 1983, Jelinek & Demers 1994, Renker 1987; though also see Van Eijk & Hess 1986, Matthewson & Demirdache 1995, and Wojdak 2000 for counterarguments that have been widely accepted in the literature on Pacific Northwestern languages).	page 2
 §1.1	Clarissa Forbes	name	Tarpent	Marie-Lucie Tarpent, a grammar of the Nisgha language (1987)
@@ -65,8 +65,8 @@ footnote 3	Gitxsan	cited form	=hl	page 2, in italics
 (5a) line 3	Gitxsan	gloss	wake.up-1SG.II=CN sleep-SX	page 3
 (5a) line 4	Clarissa Forbes	translation	'I woke up the sleeping one.'	page 3
 (5b) line 1	Gitxsan	transcription	*Gyuksin'yhl wok̲	page 3
-§1.1	Clarissa Forbes	note	A distinction between classes of nouns and non-nominal predicates is therefore quite clear in Gitxsan; each were described extensively as separate classes by Rigsby (1986). In addition, nouns carry a value for the feature [+/- determinate]4, and have the potential to possess or be possessed (Tarpent 1987: 297). Non-nominal predicates do not have these properties, but instead can appear with marking for transitivity or aspect (Rigsby 1986: 320, 325). In addition, most pre-predicative locative modifiers have category-specific distributions, often appearing either only with nouns or only with verbs (Stebbins 2003: 397).	page 3
-footnote 4	Clarissa Forbes	note	Determinacy refers essentially to the proper/common noun distinction. In Gitxsan, most nouns are non-determinate (common), while proper names, demonstratives, and independent pronouns are determinate.	page 3, footnote 4
+§1.1	Clarissa Forbes	note	A distinction between classes of nouns and non-nominal predicates is therefore quite clear in Gitxsan; each were described extensively as separate classes by Rigsby (1986). In addition, nouns carry a value for the feature [+/- determinate]4, and have the potential to possess or be possessed (Tarpent 1987: 297). Non-nominal predicates do not have these properties, but instead can appear with marking for transitivity or aspect (Rigsby 1986: 320, 325). In addition, max pre-predicative locative modifiers have category-specific distributions, often appearing either only with nouns or only with verbs (Stebbins 2003: 397).	page 3
+footnote 4	Clarissa Forbes	note	Determinacy refers essentially to the proper/common noun distinction. In Gitxsan, max nouns are non-determinate (common), while proper names, demonstratives, and independent pronouns are determinate.	page 3, footnote 4
 §1.1	Clarissa Forbes	name	Stebbins	Tonya Stebbins, adjectives in Coast Tsimshian (1996, 2003)
 (6a) line 1	Gitxsan	transcription	Gilbilhl ts'uuts' luu wanit ts'im gan	page 4
 (6a) line 2	Gitxsan	segmentation	kilpil=ɬ cʼu:cʼ lu: wan-ət cʼim qan	page 4
@@ -98,7 +98,7 @@ footnote 4	Clarissa Forbes	note	Determinacy refers essentially to the proper/com
 (9) line 3	Gitxsan	gloss	do new chief PROS name-3SG.II DIST	page 5
 (9) line 4	Clarissa Forbes	translation	'He has a new chief name…'	page 5
 §1.2	Clarissa Forbes	note	However, are these non-predicative adjectival/adverbial particles the sole A-type word class for the Tsimshianic languages? This paper explores the possibility of an additional predicative adjective class, composed of items that in previous work have been classified as stative verbs.	page 5
-§1.2	Clarissa Forbes	note	In the previous literature on Interior Tsimshianic, two proposals have been made regarding the possibility of a distinct predicative adjective class. Rigsby (1986: 91) states for Gitxsan that there are no adjectives, only stative intransitive verbs. His use of the term 'adjective' throughout his grammar is semantic in nature only, to refer more easily to those lexical items that English speakers most often consider adjectival. Tarpent (1987: 305), on the other hand, describes adjectives as a distinct word class in Nisgha, similar in nature to but ultimately separate from both eventive and stative verbs.	page 5
+§1.2	Clarissa Forbes	note	In the previous literature on Interior Tsimshianic, two proposals have been made regarding the possibility of a distinct predicative adjective class. Rigsby (1986: 91) states for Gitxsan that there are no adjectives, only stative intransitive verbs. His use of the term 'adjective' throughout his grammar is semantic in nature only, to refer more easily to those lexical items that English speakers usually consider adjectival. Tarpent (1987: 305), on the other hand, describes adjectives as a distinct word class in Nisgha, similar in nature to but ultimately separate from both eventive and stative verbs.	page 5
 §1.2	Clarissa Forbes	language	Interior Tsimshianic	Gitxsan and Nisgha
 §1.2	Clarissa Forbes	language	English	adjectives as English speakers take them
 §1.2	Clarissa Forbes	note	She describes adjectives as having the following qualities:	page 5
@@ -107,12 +107,12 @@ footnote 4	Clarissa Forbes	note	Determinacy refers essentially to the proper/com
 §1.2	Clarissa Forbes	note	3) the possibility of appearing in comparative structures,	page 5
 §1.2	Clarissa Forbes	note	4) the ability to appear as a bare complement to an evaluative verb.	page 5
 §1.2	Clarissa Forbes	note	The latter two properties are constructions not explored in Rigsby's (1986) manuscript, and though Hunt (1993) briefly discusses comparatives her discussion is not targeted toward the types of predicates that appear in them. The first two properties, however, have been explored for non-nominal predicates. With only those two properties in mind, Rigsby concluded that verbs and adjectives were syntactically indistinguishable from one another; verbs and adjectives are both directly predicative, and capable of both attributive and relativized modification (Rigsby 1986). The following sections will investigate this second property in more detail, however.	page 5
-§1.2	Clarissa Forbes	note	In section 2, I examine attributive marking, determining that it is not capable of distinguishing verbs from adjectives. It will be shown that the attributive marker displays behavior largely unaffected by word class. In section 3, I will show that though attributive marking is not a category-specific process and cannot serve to distinguish V from A, the behavior of relativized modifiers can. Specifically, the prenominal or postnominal placement of a relativized intransitive predicate in relation to the noun it modifies serves as a diagnostic for a second distinct class of non-nominal predicate. This class, I suggest, is that of adjectives. Section 4 will analyze the structure of these adjectival relative clauses as opposed to that of verbal relative clauses, as analyzed by Davis and Brown (2011); I show that these two types of relative clause cannot be equivalent since adjectival relative clauses do not overtly express the WH- operator which serves as the relative clause gap, while verbal relative clauses can. The difference between prenominal and postnominal position cannot therefore be attributed to movement, but must be the result of two different types of relative clause construction.	page 5
+§1.2	Clarissa Forbes	note	In section 2, I examine attributive marking, determining that it is not capable of distinguishing verbs from adjectives. It will be displayed that the attributive marker displays behavior largely unaffected by word class. In section 3, I will show that though attributive marking is not a category-specific process and cannot serve to distinguish V from A, the behavior of relativized modifiers can. Specifically, the prenominal or postnominal placement of a relativized intransitive predicate in relation to the noun it modifies serves as a diagnostic for a second distinct class of non-nominal predicate. This class, I suggest, is that of adjectives. Section 4 will analyze the structure of these adjectival relative clauses as opposed to that of verbal relative clauses, as analyzed by Davis and Brown (2011); I show that these two types of relative clause cannot be equivalent since adjectival relative clauses do not overtly express the WH- operator which serves as the relative clause gap, while verbal relative clauses can. The difference between prenominal and postnominal position cannot therefore be attributed to movement, but must be the result of two different types of relative clause construction.	page 5
 §2	Clarissa Forbes	heading	2 Properties of attributives	page 6
-§2	Clarissa Forbes	note	Attributive modifiers in Gitxsan are marked by the suffixes -m and -a (Rigsby 1986: 58). Tarpent (1987: 632) suggests that -a is actually a different suffix, and non-productive; from work with my consultants it is clear that -m is by far the most productive of the two, though one eastern dialect consultant (BS) regularly uses -a with color terms, some numbers, and a few other predicates. It is unclear whether these suffixes are allomorphs, but since they share the same behavior and distribution, and never appear together, I treat them as such for the purpose of this investigation.	page 6
+§2	Clarissa Forbes	note	Attributive modifiers in Gitxsan are marked by the suffixes -m and -a (Rigsby 1986: 58). Tarpent (1987: 632) suggests that -a is actually a different suffix, and non-productive; from work with my consultants it is clear that -m is by far the max productive of the two, though one eastern dialect consultant (BS) regularly uses -a with color terms, some numbers, and a few other predicates. It is unclear whether these suffixes are allomorphs, but since they share the same behavior and distribution, and never appear together, I treat them as such for the purpose of this investigation.	page 6
 §2	Gitxsan	cited form	-a	page 6, in italics
 §2.1	Clarissa Forbes	heading	2.1 Category neutrality	page 6
-§2.1	Clarissa Forbes	note	The major thing to be noted about the attributive suffixes is that they cannot serve as a word class diagnostic of any kind. The attributive suffix is capable of attaching to any predicative item, regardless of category. It can attach to intransitive eventive and stative predicates, numbers, and nouns. The only predicates it cannot regularly attach to are transitives5.	page 6
+§2.1	Clarissa Forbes	note	The major thing to be noted about the attributive suffixes is that they cannot serve as a word class diagnostic of any type. The attributive suffix is capable of attaching to any predicative item, regardless of category. It can attach to intransitive eventive and stative predicates, numbers, and nouns. The only predicates it cannot regularly attach to be transitives5.	page 6
 footnote 5	Clarissa Forbes	note	Though for one of my consultants (VG), I do have an example of a transitive predicate appearing in attributive position as well:	page 6, footnote 5
 footnote 5 (i) line 1	Gitxsan	transcription	Maaxwsxwhl [giigwm anaa'y]	page 6
 footnote 5 (i) line 2	Gitxsan	segmentation	ma:xʷsxʷ=ɬ ki:kʷ-m ana:x-y̔	page 6
@@ -136,7 +136,7 @@ footnote 6	Clarissa Forbes	note	Numbers function syntactically like other intran
 (13) line 2	Gitxsan	segmentation	səmʔo:kit-m hanaqʼ=t A	page 7
 (13) line 3	Gitxsan	gloss	chief-ATTR woman=DM A	page 7
 (13) line 4	Clarissa Forbes	translation	'Alice is a female chief.'	page 7
-§2.1	Clarissa Forbes	note	As shown in example (13), the syntactic role of the modified item as sentence predicate or sentence argument is irrelevant. Complex nouns modified by attributives are still capable of taking predicate position.	page 7
+§2.1	Clarissa Forbes	note	As displayed in example (13), the syntactic role of the modified item as sentence predicate or sentence argument is irrelevant. Complex nouns modified by attributives are still capable of taking predicate position.	page 7
 §2.1	Clarissa Forbes	note	Attributive modifiers are, in addition, able to modify more than just nouns (Tarpent 1987: 631). They may modify other predicate-class items, both when serving a predicate function or while relativized and serving as an argument.	page 7
 (14) line 1	Gitxsan	transcription	[Ts'uusxm mihlatxw]hl ganaa'w.	page 7
 (14) line 2	Gitxsan	segmentation	cʼu:sx-m miɬatxʷ=hl qana:w̔	page 7
@@ -146,7 +146,7 @@ footnote 6	Clarissa Forbes	note	Numbers function syntactically like other intran
 (15) line 2	Gitxsan	segmentation	kaʔ-y̔=ɬ al̔aχ-m sowi: paχ-ət	page 7
 (15) line 3	Gitxsan	gloss	see=CN angry-ATTR away run-SX	page 7
 (15) line 4	Clarissa Forbes	translation	'I saw the angry running one.'	page 7
-§2.1	Clarissa Forbes	note	The constituent suffixed with the attributive modifier is strictly an adjunct, however, and cannot stand alone to serve as the head of a phrase. It requires that a predicate-class item follow it as the object of modification (16b). Attributive modifiers are also strictly prenominal (16c).	page 7
+§2.1	Clarissa Forbes	note	The constituent suffixed with the attributive modifier is strictly an adjunct, however, and cannot are alone to serve as the head of a phrase. It requires that a predicate-class item follow it as the object of modification (16b). Attributive modifiers are also strictly prenominal (16c).	page 7
 (16a) line 1	Gitxsan	transcription	Giigw'yhl [maaxwsxwa isxdaam anaax]	page 7
 (16a) line 2	Gitxsan	segmentation	ki:kʷ-y̔=ɬ ma:xʷsxʷ-a ixsta:-m ana:x	page 7
 (16a) line 3	Gitxsan	gloss	buy-1SG.II=CN white-ATTR sweet-ATTR bread	page 7
@@ -165,7 +165,7 @@ footnote 6	Clarissa Forbes	note	Numbers function syntactically like other intran
 (17b) line 2	Gitxsan	segmentation	hanaqʼ-m səmʔo:kit=t A	page 8
 (17b) line 3	Gitxsan	gloss	woman-ATTR chief-DM A	page 8
 (17b) line 4	Clarissa Forbes	translation	'Alice is a female chief.'	page 8
-§2.2	Clarissa Forbes	note	This is even the case when attributive modification involves two different word classes. Most attribution does occur with nouns as the phrasal head and object of modification, but it is not necessary that a noun appear as the phrasal head when there is a choice between two different word classes.	page 8
+§2.2	Clarissa Forbes	note	This is even the case when attributive modification involves two different word classes. Max attribution does occur with nouns as the phrasal head and object of modification, but it is not necessary that a noun appear as the phrasal head when there is a choice between two different word classes.	page 8
 (18a) line 1	Gitxsan	transcription	Gya'a'yhl [gi'paygwm ts'uuts']	page 8
 (18a) line 2	Gitxsan	segmentation	kaʔ-y̔=ɬ kipʼaykʷ-m cʼu:cʼ	page 8
 (18a) line 3	Gitxsan	gloss	see-1SG.II=CN fly-ATTR bird	page 8
@@ -192,7 +192,7 @@ footnote 6	Clarissa Forbes	note	Numbers function syntactically like other intran
 (20b) line 2	Gitxsan	segmentation	kat-m qan	page 9
 (20b) line 3	Gitxsan	gloss	man-ATTR tree	page 9
 (20b) line 4	Clarissa Forbes	translation	'a wooden person, person of wood'	page 9
-(20b) line 5	Clarissa Forbes	speaker comment	VG: No, it can't be a kind of tree.	page 9, under the example, VG, Vincent Gogag
+(20b) line 5	Clarissa Forbes	speaker comment	VG: No, it can't be a type of tree.	page 9, under the example, VG, Vincent Gogag
 (20b) line 6	Clarissa Forbes	note	(referring to both a. and b.)	page 9, at the right of the comment
 (21a) line 1	Gitxsan	transcription	maa'ym ii'esxw	page 9
 (21a) line 2	Gitxsan	segmentation	ma:y̔-m i:ʔsxʷ	page 9
@@ -222,7 +222,7 @@ footnote 7 (ii) line 1	Gitxsan	transcription	Ligit naahl gay sim'oogidit dim luu
 footnote 7 (ii) line 2	Gitxsan	segmentation	liki=t na:=ɬ qay səmʔo:kit-ət təm lu: yuxʷ-ət ayo:qxʷ	page 10
 footnote 7 (ii) line 3	Gitxsan	gloss	INDEF=DM who=CN CNTR chief-SX PROS in follow-SX law	page 10
 footnote 7 (ii) line 4	Clarissa Forbes	translation	'Anyone who is a chief should follow the laws.'	page 10
-§3	Clarissa Forbes	note	Relative clauses are formed through the extraction of a nominal head or some kind of operator from the argument position of a clause, and the subsequent use of that clause as a modifier of either the extracted nominal head, or a noun sharing identity with the extracted operator. Davis's (2011) and Davis and Brown's (2011) analyses of Gitxsan relative clauses indicate that relative- clause movement must be indirect—that the extracted operator is a WH- pronoun, expressed overtly in headless relative clauses and optionally expressed in headed ones, and that the nominal head is identified with the WH-operator through matching (Sauerland 2003) rather than raising (Kayne 1994). I assume the same analysis.	page 10
+§3	Clarissa Forbes	note	Relative clauses are formed through the extraction of a nominal head or some type of operator from the argument position of a clause, and the subsequent use of that clause as a modifier of either the extracted nominal head, or a noun sharing identity with the extracted operator. Davis's (2011) and Davis and Brown's (2011) analyses of Gitxsan relative clauses indicate that relative- clause movement must be indirect—that the extracted operator is a WH- pronoun, expressed overtly in headless relative clauses and optionally expressed in headed ones, and that the nominal head is identified with the WH-operator through matching (Sauerland 2003) rather than raising (Kayne 1994). I assume the same analysis.	page 10
 §3	Clarissa Forbes	name	Sauerland	Uli Sauerland, unpronounced heads in relative clauses (2003)
 §3	Clarissa Forbes	name	Kayne	Richard Kayne, The Antisymmetry of Syntax (1994)
 §3	Clarissa Forbes	note	Relativization of intransitive predicates is indicated via the presence of the subject extraction suffix /-ət/8 on the relativized predicate. The relativized predicate is then positioned either prenominally or postnominally (Rigsby 1986: 405).	page 10
@@ -246,7 +246,7 @@ footnote 8	Gitxsan	cited form	-at	page 10, in italics
 (25a) line 3	Gitxsan	gloss	clever=CN small green-ATTR frog swim-SX	page 11
 (25a) line 4	Clarissa Forbes	translation	'The small swimming green frog is clever.'	page 11
 (25b) line 1	Gitxsan	transcription	*Ts'axwhl [hlgu mihlatxwm hajiksit ganaa'w]	page 11
-§3.1	Clarissa Forbes	note	Most stative intransitive predicates, on the other hand, are obligatorily positioned prenominally.	page 11
+§3.1	Clarissa Forbes	note	Max stative intransitive predicates, on the other hand, are obligatorily positioned prenominally.	page 11
 (26a) line 1	Gitxsan	transcription	Wok̲hl ['wii t'uuts'xwit smax]	page 11
 (26a) line 2	Gitxsan	segmentation	woq=ɬ w̔i: tʼu:cʼxʷ-ət smax	page 11
 (26a) line 3	Gitxsan	gloss	sleep=CN big black-SX bear	page 11
@@ -280,7 +280,7 @@ footnote 8	Gitxsan	cited form	-at	page 10, in italics
 §3.1	Clarissa Forbes	note	Postnominal ✓ ✓ X	page 12, a row of the table, ✓ under Transitive Predicates, ✓ under Intransitive Eventive, X under Intransitive Stative
 §3.1	Clarissa Forbes	note	This table clearly shows the difference between these two sets of predicates.	page 12
 §3.2	Clarissa Forbes	heading	3.2 Not simply individual/stage-level properties	page 12
-§3.2	Clarissa Forbes	note	The division in the behavior of intransitive non-nominal predicates shown above is not simply a stage-level versus individual-level distinction. Prenominally positioned predicates come in both individual- and stage-level types.	page 12
+§3.2	Clarissa Forbes	note	The division in the behavior of intransitive non-nominal predicates displayed above is not simply a stage-level versus individual-level distinction. Prenominally positioned predicates come in both individual- and stage-level types.	page 12
 §3.2	Clarissa Forbes	note	Individual-level:	page 13
 (31a) line 1	Gitxsan	transcription	Giigw'yhl [masxwit kaa]	page 13
 (31a) line 2	Gitxsan	segmentation	ki:kʷ-y̔=ɬ masxʷ-ət kha:	page 13

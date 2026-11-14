@@ -11,7 +11,7 @@ under which any of them helps at all.
 
 **The bitpack.** An integer and a run of 32-bit limbs are the same bytes named twice. `to_bytes` and
 `from_bytes` are not conversions; they are two vocabularies for one object. This identity lets a
-number be handed to a device that only knows arrays, without anything being computed.
+number be passed to a device that only knows arrays, without anything being computed.
 
 **Fixed point.** A real to whatever depth is paid for, stored as an integer scaled by a power of two.
 The reals are the human coordinate and the integer is the machine's, and the translation is exact in
@@ -48,7 +48,7 @@ was unanswerable. It can only make an answerable question cheap.**
 
 The NTT makes the engine faster and leaves its capability where it was. The harmonic expansion makes
 the boundary reading legible and adds no information to it. Nothing in this tree computes anything a slower
-arrangement could not compute, and stating that plainly keeps the rest of the claims
+arrangement could not compute, and stating that plainly retains the rest of the claims
 defensible.
 
 ## The single condition: rank deficiency
@@ -58,7 +58,7 @@ mechanism, in every case.
 
 Multipoint evaluation is fast because a degree-n polynomial has n coefficients however many places
 it is evaluated, and the work at one point overlaps the work at the next. Harmonic sorting is useful
-because a smooth field has most of its power in low degrees, and the high ones can be dropped. The
+because a smooth field has the majority of its power in low degrees, and the high ones can be dropped. The
 arms pool because independent observations share a mean, and k of them carry one number's worth of
 uncertainty instead of k.
 
@@ -72,7 +72,7 @@ helps.** Not "the transform is slow" - there is nothing for it to share. It expl
 this tree could shortcut a hash and why every one of them speeds up arithmetic: polynomials are
 rank-deficient by construction and a hash is built specifically not to be.
 
-## Where a translation earned its keep, and where it did not
+## Where a translation earned its retain, and where it did not
 
 **Earned it.** The permutation-as-rotation reading explained why independent observations discriminate
 so sharply, and did it better than the counting argument it replaced: in k dimensions random vectors

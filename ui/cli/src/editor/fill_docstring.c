@@ -119,7 +119,7 @@ EMBED_INLINE void docstring_close(const FillDocstringCtx *args)
     const char *const last = EMBED_CALL(cli_fill_filled_size_internal.filled_last, CliFillFilledSizeCtx,
                                         .filled_read = filled, .size_pointer = &size);
     unsigned long long space = 0ULL;
-    if ((EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = last, .size = size) + 3u <= args->width) ||
+    if ((EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = last, .size = size) + 3u <= args->width) ||
         (args->start_of_words > size) ||
         !EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = last + args->start_of_words,
                     .length_value = size - args->start_of_words, .required = " ", .size = 1u, .at_pointer = &space) ||

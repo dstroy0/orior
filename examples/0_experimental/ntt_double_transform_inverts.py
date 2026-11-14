@@ -9,7 +9,7 @@
 #
 #   Usage:  python examples/0_experimental/ntt_double_transform_inverts.py
 #
-# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working instead of a stage
+# This reads no corpus. It sits in 0_experimental: an arithmetic result displayed working instead of a stage
 # reading. The transform is a sum over roots of unity, which are waves on the circle: X[k] = sum_j x[j]
 # w^{jk} with w an n-th root of unity. Apply it a second time and every term collects into a delta,
 # because sum_k w^{k(j+m)} is n when j+m is 0 modulo n and 0 otherwise. The second transform returns
@@ -27,7 +27,7 @@
 #
 # Prior art. The transform being its own inverse up to a reversal is the discrete Fourier transform's
 # order-four structure: the DFT is an operator of order 4 with eigenvalues in {+1, -1, +i, -i}, and its
-# square is the reflection or parity operator P with (P x)[m] = x[-m], the wave inversion shown here.
+# square is the reflection or parity operator P with (P x)[m] = x[-m], the wave inversion displayed here.
 # See McClellan and Parks, "Eigenvalue and eigenvector decomposition of the discrete Fourier
 # transform", IEEE Trans. Audio Electroacoust. 1972, and arXiv:0808.3214. The number theoretic transform
 # is the discrete Fourier transform over a finite field, with the length condition n divides p-1 that
@@ -36,7 +36,7 @@
 # does not rest on them; the citation records that the property is known, not that it is assumed here.
 #
 # Positive control: NTT(NTT(x)) equals n times the reversed x, to the digit. Two routes: the double
-# transform against a direct reversal, shown able to disagree. Drawn null: the claim without the
+# transform against a direct reversal, displayed able to disagree. Drawn null: the claim without the
 # reversal, NTT(NTT(x)) = n x, errors on a sequence that is not a palindrome. No bounding: the
 # length, the prime and the root are declared, and every value is an exact residue.
 

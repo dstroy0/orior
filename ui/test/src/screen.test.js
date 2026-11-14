@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The terminal's screen read the way an xterm reads its output: characters printed at the cursor, the cursor moved
-// by the control characters, a full line wrapping to the next, a line scrolled off the top kept, and the folder the
-// shell stands in heard.
+// by the control characters, a full line wrapping to the next, a line scrolled off the top retained, and the folder the
+// shell is in heard.
 
 import { Screen } from "../../gui/src-js/screen.js";
 
@@ -45,7 +45,7 @@ test("a full line wraps to the next, a tab goes to the next stop of eight, and a
   });
 });
 
-test("a line scrolled off the top of the main screen is kept above it with its text", async () => {
+test("a line scrolled off the top of the main screen is retained above it with its text", async () => {
   await withScreen(10, 2, (screen) => {
     screen.write("one\r\ntwo\r\nthree");
     assert.deepEqual([textOf(screen, 0), textOf(screen, 1)], ["two", "three"]);
@@ -54,7 +54,7 @@ test("a line scrolled off the top of the main screen is kept above it with its t
   });
 });
 
-test("the folder the shell stands in, as OSC 7 says it, is heard, and every other command is read past", async () => {
+test("the folder the shell is in, as OSC 7 says it, is heard, and every other command is read past", async () => {
   await withScreen(20, 2, (screen) => {
     const places = [];
     screen.onPlace = (place) => places.push(place);

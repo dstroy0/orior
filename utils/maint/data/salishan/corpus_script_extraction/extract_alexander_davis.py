@@ -121,7 +121,7 @@ QUOTED = re.compile(r"^['‘“]")
 INSERTED = re.compile(r"\[([^\]]*)\]")
 
 # A segmentation line writes each morpheme on its own and joins them with a hyphen or an equals
-# sign. Testing for that keeps a wrapped transcription line, a timestamp, a page number or a
+# sign. Testing for that retains a wrapped transcription line, a timestamp, a page number or a
 # line of footnote prose from entering the record under the name segmentation because nothing
 # else matched it.
 SEGMENTED = re.compile(r"[-=]")
@@ -142,7 +142,7 @@ LAYER = {
     "gloss": DERIVED,
     "orthography chart": DERIVED,
     "glossing term": DERIVED,
-    # Kept and marked, excluded from the ingestion stream until someone has classified it.
+    # Retained and marked, excluded from the ingestion stream until someone has classified it.
     UNCLASSIFIED: DERIVED,
 }
 
@@ -305,7 +305,7 @@ def main():
         )
         handle.write("#\n")
         handle.write(
-            "# Mark is language.layer.kind. T is St'át'imcets, N is anything else.\n"
+            "# Mark is language.layer.type. T is St'át'imcets, N is anything else.\n"
         )
         handle.write("# The glottal stop is written 7 in this orthography.\n")
         handle.write(
@@ -315,34 +315,34 @@ def main():
             "# brackets hold false starts and repetitions, which are Qwa7yán'ak speaking\n"
         )
         handle.write(
-            "# and are kept. Curly brackets mark what a phonological rule removed.\n"
+            "# and are retained. Curly brackets mark what a phonological rule removed.\n"
         )
         handle.write(
             "# Gloss categories are the paper's own, from its appendix II, unchanged.\n"
         )
-        handle.write("line\tsection\tkind\tswitches\tcontent\n")
-        for mark, number, section, kind, text in rows:
-            layer = LAYER[kind]
+        handle.write("line\tsection\ttype\tswitches\tcontent\n")
+        for mark, number, section, type, text in rows:
+            layer = LAYER[type]
             if mark == "T":
-                content = rendered(text, layer, kind, MARKS)
+                content = rendered(text, layer, type, MARKS)
                 crossings = switches(text)
             else:
-                content = "N.%s.%s:{%s}" % (layer, kind, text)
+                content = "N.%s.%s:{%s}" % (layer, type, text)
                 crossings = 0
             handle.write(
                 "line#${%d}\t%s\t%s\t%d\t%s\n"
-                % (number, section, kind, crossings, content)
+                % (number, section, type, crossings, content)
             )
 
     # The ingestion stream. Material Davis supplied inside square brackets is taken back out,
     # since he wrote it and Qwa7yán'ak did not say it.
     pure = TARGET[:-4] + ".pure.txt"
-    kept = 0
+    retained = 0
     repeated = 0
     already = set()
     with open(pure, "w", encoding="utf-8", newline="") as handle:
-        for mark, number, section, kind, text in rows:
-            if (mark != "T") or (LAYER[kind] != SPOKEN):
+        for mark, number, section, type, text in rows:
+            if (mark != "T") or (LAYER[type] != SPOKEN):
                 continue
             said = INSERTED.sub(" ", text)
             for span, run in tagged_spans(said, MARKS):
@@ -354,15 +354,15 @@ def main():
                     continue
                 already.add(key)
                 handle.write("%s\n" % key)
-                kept += 1
+                retained += 1
 
     # A file of its own for what the tool could not sort: a section 4 line none of the tests typed,
     # and a line no section reached, which here is the front matter and section 1.
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
         (0, "%s block %d" % (section, number), UNKNOWN_KIND, "", text)
-        for mark, number, section, kind, text in rows
-        if (kind == UNCLASSIFIED) and not section.startswith("not reached")
+        for mark, number, section, type, text in rows
+        if (type == UNCLASSIFIED) and not section.startswith("not reached")
     ]
     flagged.extend(missed)
     stuck_count = write_unsorted(
@@ -371,7 +371,7 @@ def main():
 
     out.write("  %d lines written to\n  %s\n" % (len(rows), os.path.basename(TARGET)))
     out.write(
-        "  %d target-language spans written to\n  %s\n" % (kept, os.path.basename(pure))
+        "  %d target-language spans written to\n  %s\n" % (retained, os.path.basename(pure))
     )
     out.write("  %d spans skipped as already written\n" % repeated)
     out.write(
@@ -379,15 +379,15 @@ def main():
         % (stuck_count, os.path.basename(stuck))
     )
 
-    out.write("\n  %-12s %-20s %s\n" % ("section", "kind", "lines"))
+    out.write("\n  %-12s %-20s %s\n" % ("section", "type", "lines"))
     counted = {}
-    for mark, number, section, kind, text in rows:
-        counted[(section, kind)] = counted.get((section, kind), 0) + 1
+    for mark, number, section, type, text in rows:
+        counted[(section, type)] = counted.get((section, type), 0) + 1
     for key in sorted(counted):
         out.write("  %-12s %-20s %d\n" % (key[0], key[1], counted[key]))
 
     marks = {}
-    for mark, number, section, kind, text in rows:
+    for mark, number, section, type, text in rows:
         marks[mark] = marks.get(mark, 0) + 1
     out.write("\n  T lines %d, N lines %d\n" % (marks.get("T", 0), marks.get("N", 0)))
     out.write("  sections found: %s\n" % ", ".join(sorted(held)))

@@ -69,7 +69,7 @@ int main(void)
     const int pixel_width = EMBED_CALL(gui_panel_raster.markdown, GuiPanelRasterCfg, .raster = NULL, .glyphs = &glyphs, .palette = palette, .text = s_long, .length = sizeof(s_long) - 1u, .x = 0, .y = 0, .pixel_width = 2000, .scale = 100, .clip = all);
     cli_check(pixel_width == GUI_PANEL_TEXT_LINE, "the same paragraph is one line in a wide width");
     const int broken = EMBED_CALL(gui_panel_raster.markdown, GuiPanelRasterCfg, .raster = NULL, .glyphs = &glyphs, .palette = palette, .text = "abcdefghijklmnopqrstuvwxyz", .length = 26ull, .x = 0, .y = 0, .pixel_width = 40, .scale = 100, .clip = all);
-    cli_check(broken >= 2 * GUI_PANEL_TEXT_LINE, "a word wider than the width is broken by letters");
+    cli_check(broken >= 2 * GUI_PANEL_TEXT_LINE, "a word wider than the width is broken by characters");
 
     // drawn
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = all, .color = palette->surface);
@@ -86,15 +86,15 @@ int main(void)
     // placed
     const GuiRect bounds = {0, 0, 400, 300};
     const GuiRect below = EMBED_CALL(gui_panel_width.place, GuiPanelWidthCfg, .anchor = (GuiRect){100, 50, 8, 20}, .pixel_width = 200, .pixel_height = 60, .back = 0, .bounds = bounds, .above = 0, .scale = 100);
-    cli_check((below.x == 100) && (below.y == 50 + 20 + GUI_PANEL_OFF), "a box with capacity below stands under its cell");
+    cli_check((below.x == 100) && (below.y == 50 + 20 + GUI_PANEL_OFF), "a box with capacity below is under its cell");
     const GuiRect above = EMBED_CALL(gui_panel_width.place, GuiPanelWidthCfg, .anchor = (GuiRect){100, 270, 8, 20}, .pixel_width = 200, .pixel_height = 60, .back = 0, .bounds = bounds, .above = 0, .scale = 100);
-    cli_check(above.y == 270 - GUI_PANEL_OFF - 60, "a box with no capacity below stands over its cell");
+    cli_check(above.y == 270 - GUI_PANEL_OFF - 60, "a box with no capacity below is over its cell");
     const GuiRect preferred = EMBED_CALL(gui_panel_width.place, GuiPanelWidthCfg, .anchor = (GuiRect){100, 150, 8, 20}, .pixel_width = 200, .pixel_height = 60, .back = 0, .bounds = bounds, .above = 1, .scale = 100);
-    cli_check(preferred.y == 150 - GUI_PANEL_OFF - 60, "a box that prefers above stands over its cell where the capacity allows");
+    cli_check(preferred.y == 150 - GUI_PANEL_OFF - 60, "a box that prefers above is over its cell where the capacity allows");
     const GuiRect clamped = EMBED_CALL(gui_panel_width.place, GuiPanelWidthCfg, .anchor = (GuiRect){350, 50, 8, 20}, .pixel_width = 200, .pixel_height = 60, .back = 30, .bounds = bounds, .above = 0, .scale = 100);
-    cli_check(clamped.x == 200, "a box is kept inside its bounds at the right");
+    cli_check(clamped.x == 200, "a box is retained inside its bounds at the right");
     const GuiRect left = EMBED_CALL(gui_panel_width.place, GuiPanelWidthCfg, .anchor = (GuiRect){10, 50, 8, 20}, .pixel_width = 200, .pixel_height = 60, .back = 30, .bounds = bounds, .above = 0, .scale = 100);
-    cli_check(left.x == 0, "a box is kept inside its bounds at the left");
+    cli_check(left.x == 0, "a box is retained inside its bounds at the left");
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;

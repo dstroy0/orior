@@ -14,8 +14,8 @@ _Static_assert(PARQUET_MAGIC_BYTES == (sizeof(PARQUET_MAGIC) - 1u),
 typedef struct
 {
     unsigned long long children_left;
-    unsigned int definition_most;
-    unsigned int repetition_most;
+    unsigned int definition_max;
+    unsigned int repetition_max;
     unsigned long long path_bytes;
 } ParquetSchemaFrame;
 
@@ -31,32 +31,32 @@ static int parquet_schema_element_read(ParquetCursor *cursor, ParquetFooter *foo
     unsigned long long children = 0ull;
     const unsigned char *name = NULL;
     unsigned long long name_bytes = 0ull;
-    for (unsigned int kind = parquet_field_read(cursor, &field_id); kind != PARQUET_THRIFT_STOP;
-         kind = parquet_field_read(cursor, &field_id))
+    for (unsigned int type = parquet_field_read(cursor, &field_id); type != PARQUET_THRIFT_STOP;
+         type = parquet_field_read(cursor, &field_id))
     {
-        if ((field_id == 1ll) && (kind == PARQUET_THRIFT_I32))
+        if ((field_id == 1ll) && (type == PARQUET_THRIFT_I32))
         {
             physical = parquet_nonnegative_read(cursor);
         }
-        else if ((field_id == 2ll) && (kind == PARQUET_THRIFT_I32))
+        else if ((field_id == 2ll) && (type == PARQUET_THRIFT_I32))
         {
             fixed_bytes = parquet_nonnegative_read(cursor);
         }
-        else if ((field_id == 3ll) && (kind == PARQUET_THRIFT_I32))
+        else if ((field_id == 3ll) && (type == PARQUET_THRIFT_I32))
         {
             repetition_type = parquet_nonnegative_read(cursor);
         }
-        else if ((field_id == 4ll) && (kind == PARQUET_THRIFT_BINARY))
+        else if ((field_id == 4ll) && (type == PARQUET_THRIFT_BINARY))
         {
             name = parquet_binary_read(cursor, &name_bytes);
         }
-        else if ((field_id == 5ll) && (kind == PARQUET_THRIFT_I32))
+        else if ((field_id == 5ll) && (type == PARQUET_THRIFT_I32))
         {
             children = parquet_nonnegative_read(cursor);
         }
         else
         {
-            parquet_value_skip(cursor, kind);
+            parquet_value_skip(cursor, type);
         }
         if (cursor->broken != 0u)
         {
@@ -67,8 +67,8 @@ static int parquet_schema_element_read(ParquetCursor *cursor, ParquetFooter *foo
     if (*depth == 0u)
     {
         stack[0].children_left = children;
-        stack[0].definition_most = 0u;
-        stack[0].repetition_most = 0u;
+        stack[0].definition_max = 0u;
+        stack[0].repetition_max = 0u;
         stack[0].path_bytes = 0ull;
         *depth = 1u;
         return children != 0ull;
@@ -79,8 +79,8 @@ static int parquet_schema_element_read(ParquetCursor *cursor, ParquetFooter *foo
         return 0;
     }
     parent->children_left -= 1ull;
-    const unsigned int definition = parent->definition_most + ((repetition_type != PARQUET_REQUIRED) ? 1u : 0u);
-    const unsigned int repetition = parent->repetition_most + ((repetition_type == PARQUET_REPEATED) ? 1u : 0u);
+    const unsigned int definition = parent->definition_max + ((repetition_type != PARQUET_REQUIRED) ? 1u : 0u);
+    const unsigned int repetition = parent->repetition_max + ((repetition_type == PARQUET_REPEATED) ? 1u : 0u);
     const unsigned long long separator = (parent->path_bytes == 0ull) ? 0ull : 1ull;
     const unsigned long long path_bytes = parent->path_bytes + separator + name_bytes;
     if ((name == NULL) || (path_bytes >= PARQUET_PATH_BYTES))
@@ -97,7 +97,7 @@ static int parquet_schema_element_read(ParquetCursor *cursor, ParquetFooter *foo
     {
         // a physical type is 0 through 7 and a fixed width a few bytes, both stored as i32, and an unknown type is
         // refused where its column is read; a width past an unsigned int is refused here
-        if ((footer->leaf_count >= PARQUET_LEAVES_MOST) || (fixed_bytes > UINT_MAX) || (physical > UINT_MAX))
+        if ((footer->leaf_count >= PARQUET_LEAVES_MAX) || (fixed_bytes > UINT_MAX) || (physical > UINT_MAX))
         {
             return 0;
         }
@@ -105,19 +105,19 @@ static int parquet_schema_element_read(ParquetCursor *cursor, ParquetFooter *foo
         memcpy(leaf->path, path, (size_t)path_bytes + 1u);
         leaf->physical = (ParquetPhysical)physical;
         leaf->fixed_bytes = (unsigned int)fixed_bytes;
-        leaf->definition_most = definition;
-        leaf->repetition_most = repetition;
+        leaf->definition_max = definition;
+        leaf->repetition_max = repetition;
         footer->leaf_count += 1u;
     }
     else
     {
-        if (*depth >= PARQUET_SCHEMA_DEPTH_MOST)
+        if (*depth >= PARQUET_SCHEMA_DEPTH_MAX)
         {
             return 0;
         }
         stack[*depth].children_left = children;
-        stack[*depth].definition_most = definition;
-        stack[*depth].repetition_most = repetition;
+        stack[*depth].definition_max = definition;
+        stack[*depth].repetition_max = repetition;
         stack[*depth].path_bytes = path_bytes;
         *depth += 1u;
     }
@@ -131,13 +131,13 @@ static int parquet_schema_element_read(ParquetCursor *cursor, ParquetFooter *foo
 // the schema list into the footer's leaves, each with its dotted path and level ceilings
 static int parquet_schema_read(ParquetCursor *cursor, ParquetFooter *footer)
 {
-    unsigned int element_kind = 0u;
-    const unsigned long long count = parquet_list_header_read(cursor, &element_kind);
-    if (element_kind != PARQUET_THRIFT_STRUCT)
+    unsigned int element_type = 0u;
+    const unsigned long long count = parquet_list_header_read(cursor, &element_type);
+    if (element_type != PARQUET_THRIFT_STRUCT)
     {
         return 0;
     }
-    ParquetSchemaFrame stack[PARQUET_SCHEMA_DEPTH_MOST];
+    ParquetSchemaFrame stack[PARQUET_SCHEMA_DEPTH_MAX];
     char path[PARQUET_PATH_BYTES];
     unsigned int depth = 0u;
     for (unsigned long long element = 0ull; element < count; element += 1ull)
@@ -153,9 +153,9 @@ static int parquet_schema_read(ParquetCursor *cursor, ParquetFooter *footer)
 // whether a chunk's path_in_schema list names the same dotted path as leaf_path
 static int parquet_path_match(ParquetCursor *cursor, const char *leaf_path)
 {
-    unsigned int element_kind = 0u;
-    const unsigned long long parts = parquet_list_header_read(cursor, &element_kind);
-    if (element_kind != PARQUET_THRIFT_BINARY)
+    unsigned int element_type = 0u;
+    const unsigned long long parts = parquet_list_header_read(cursor, &element_type);
+    if (element_type != PARQUET_THRIFT_BINARY)
     {
         return 0;
     }
@@ -184,10 +184,10 @@ static int parquet_column_metadata_read(ParquetCursor *cursor, const ParquetLeaf
     unsigned long long data_page_offset = 0ull;
     unsigned long long dictionary_page_offset = 0ull;
     int path_seen = 0;
-    for (unsigned int kind = parquet_field_read(cursor, &field_id); kind != PARQUET_THRIFT_STOP;
-         kind = parquet_field_read(cursor, &field_id))
+    for (unsigned int type = parquet_field_read(cursor, &field_id); type != PARQUET_THRIFT_STOP;
+         type = parquet_field_read(cursor, &field_id))
     {
-        if ((field_id == 3ll) && (kind == PARQUET_THRIFT_LIST))
+        if ((field_id == 3ll) && (type == PARQUET_THRIFT_LIST))
         {
             if (!parquet_path_match(cursor, leaf->path))
             {
@@ -195,36 +195,36 @@ static int parquet_column_metadata_read(ParquetCursor *cursor, const ParquetLeaf
             }
             path_seen = 1;
         }
-        else if ((field_id == 4ll) && (kind == PARQUET_THRIFT_I32))
+        else if ((field_id == 4ll) && (type == PARQUET_THRIFT_I32))
         {
             const unsigned long long codec = parquet_nonnegative_read(cursor);
             // a codec is 0 through 7, stored as i32; one past it is stored as the last unknown one, and an unknown
             // codec is refused where a page is decoded
             chunk->codec = (ParquetCodec)((codec <= (unsigned long long)PARQUET_LZ4_RAW) ? codec : 0xFFull);
         }
-        else if ((field_id == 5ll) && (kind == PARQUET_THRIFT_I64))
+        else if ((field_id == 5ll) && (type == PARQUET_THRIFT_I64))
         {
             chunk->level_count = parquet_nonnegative_read(cursor);
         }
-        else if ((field_id == 6ll) && (kind == PARQUET_THRIFT_I64))
+        else if ((field_id == 6ll) && (type == PARQUET_THRIFT_I64))
         {
             chunk->uncompressed_bytes = parquet_nonnegative_read(cursor);
         }
-        else if ((field_id == 7ll) && (kind == PARQUET_THRIFT_I64))
+        else if ((field_id == 7ll) && (type == PARQUET_THRIFT_I64))
         {
             chunk->compressed_bytes = parquet_nonnegative_read(cursor);
         }
-        else if ((field_id == 9ll) && (kind == PARQUET_THRIFT_I64))
+        else if ((field_id == 9ll) && (type == PARQUET_THRIFT_I64))
         {
             data_page_offset = parquet_nonnegative_read(cursor);
         }
-        else if ((field_id == 11ll) && (kind == PARQUET_THRIFT_I64))
+        else if ((field_id == 11ll) && (type == PARQUET_THRIFT_I64))
         {
             dictionary_page_offset = parquet_nonnegative_read(cursor);
         }
         else
         {
-            parquet_value_skip(cursor, kind);
+            parquet_value_skip(cursor, type);
         }
         if (cursor->broken != 0u)
         {
@@ -243,10 +243,10 @@ static int parquet_column_chunk_read(ParquetCursor *cursor, const ParquetLeaf *l
 {
     long long field_id = 0ll;
     int metadata_seen = 0;
-    for (unsigned int kind = parquet_field_read(cursor, &field_id); kind != PARQUET_THRIFT_STOP;
-         kind = parquet_field_read(cursor, &field_id))
+    for (unsigned int type = parquet_field_read(cursor, &field_id); type != PARQUET_THRIFT_STOP;
+         type = parquet_field_read(cursor, &field_id))
     {
-        if ((field_id == 3ll) && (kind == PARQUET_THRIFT_STRUCT))
+        if ((field_id == 3ll) && (type == PARQUET_THRIFT_STRUCT))
         {
             if (!parquet_column_metadata_read(cursor, leaf, chunk))
             {
@@ -256,7 +256,7 @@ static int parquet_column_chunk_read(ParquetCursor *cursor, const ParquetLeaf *l
         }
         else
         {
-            parquet_value_skip(cursor, kind);
+            parquet_value_skip(cursor, type);
         }
         if (cursor->broken != 0u)
         {
@@ -271,14 +271,14 @@ static int parquet_row_group_read(ParquetCursor *cursor, const ParquetFooter *fo
 {
     long long field_id = 0ll;
     int columns_seen = 0;
-    for (unsigned int kind = parquet_field_read(cursor, &field_id); kind != PARQUET_THRIFT_STOP;
-         kind = parquet_field_read(cursor, &field_id))
+    for (unsigned int type = parquet_field_read(cursor, &field_id); type != PARQUET_THRIFT_STOP;
+         type = parquet_field_read(cursor, &field_id))
     {
-        if ((field_id == 1ll) && (kind == PARQUET_THRIFT_LIST))
+        if ((field_id == 1ll) && (type == PARQUET_THRIFT_LIST))
         {
-            unsigned int element_kind = 0u;
-            const unsigned long long count = parquet_list_header_read(cursor, &element_kind);
-            if ((element_kind != PARQUET_THRIFT_STRUCT) || (count != footer->leaf_count))
+            unsigned int element_type = 0u;
+            const unsigned long long count = parquet_list_header_read(cursor, &element_type);
+            if ((element_type != PARQUET_THRIFT_STRUCT) || (count != footer->leaf_count))
             {
                 return 0;
             }
@@ -291,13 +291,13 @@ static int parquet_row_group_read(ParquetCursor *cursor, const ParquetFooter *fo
             }
             columns_seen = 1;
         }
-        else if ((field_id == 3ll) && (kind == PARQUET_THRIFT_I64))
+        else if ((field_id == 3ll) && (type == PARQUET_THRIFT_I64))
         {
             row_group->rows = parquet_nonnegative_read(cursor);
         }
         else
         {
-            parquet_value_skip(cursor, kind);
+            parquet_value_skip(cursor, type);
         }
         if (cursor->broken != 0u)
         {
@@ -312,10 +312,10 @@ static int parquet_file_metadata_read(ParquetCursor *cursor, ParquetFooter *foot
 {
     long long field_id = 0ll;
     int schema_seen = 0;
-    for (unsigned int kind = parquet_field_read(cursor, &field_id); kind != PARQUET_THRIFT_STOP;
-         kind = parquet_field_read(cursor, &field_id))
+    for (unsigned int type = parquet_field_read(cursor, &field_id); type != PARQUET_THRIFT_STOP;
+         type = parquet_field_read(cursor, &field_id))
     {
-        if ((field_id == 2ll) && (kind == PARQUET_THRIFT_LIST))
+        if ((field_id == 2ll) && (type == PARQUET_THRIFT_LIST))
         {
             if (!parquet_schema_read(cursor, footer))
             {
@@ -323,15 +323,15 @@ static int parquet_file_metadata_read(ParquetCursor *cursor, ParquetFooter *foot
             }
             schema_seen = 1;
         }
-        else if ((field_id == 3ll) && (kind == PARQUET_THRIFT_I64))
+        else if ((field_id == 3ll) && (type == PARQUET_THRIFT_I64))
         {
             footer->rows = parquet_nonnegative_read(cursor);
         }
-        else if ((field_id == 4ll) && (kind == PARQUET_THRIFT_LIST) && schema_seen)
+        else if ((field_id == 4ll) && (type == PARQUET_THRIFT_LIST) && schema_seen)
         {
-            unsigned int element_kind = 0u;
-            const unsigned long long count = parquet_list_header_read(cursor, &element_kind);
-            if ((element_kind != PARQUET_THRIFT_STRUCT) || (count > PARQUET_ROW_GROUPS_MOST))
+            unsigned int element_type = 0u;
+            const unsigned long long count = parquet_list_header_read(cursor, &element_type);
+            if ((element_type != PARQUET_THRIFT_STRUCT) || (count > PARQUET_ROW_GROUPS_MAX))
             {
                 return 0;
             }
@@ -342,12 +342,12 @@ static int parquet_file_metadata_read(ParquetCursor *cursor, ParquetFooter *foot
                     return 0;
                 }
             }
-            // the count was limited to PARQUET_ROW_GROUPS_MOST above and fits an unsigned int
+            // the count was limited to PARQUET_ROW_GROUPS_MAX above and fits an unsigned int
             footer->row_group_count = (unsigned int)count;
         }
         else
         {
-            parquet_value_skip(cursor, kind);
+            parquet_value_skip(cursor, type);
         }
         if (cursor->broken != 0u)
         {
@@ -387,7 +387,7 @@ int parquet_footer_read(const EngineIngestTools *tools, const char *path, Parque
         return 0;
     }
     const unsigned long long footer_bytes = parquet_little(trailer, 4u);
-    if (!PARQUET_CHECK((footer_bytes <= PARQUET_FOOTER_BYTES_MOST) &&
+    if (!PARQUET_CHECK((footer_bytes <= PARQUET_FOOTER_BYTES_MAX) &&
                            (footer_bytes <= (file_size - PARQUET_MAGIC_BYTES - PARQUET_TRAILER_BYTES)),
                        trailer, error, ENGINE_ERROR_REQUEST))
     {

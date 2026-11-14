@@ -11,7 +11,7 @@
 # widens that reading along the two axes a reader asks about next: does the format the pixels are
 # stored in change the answer, and does the KIND of noise change it. Nothing here is a new instrument.
 # The detector is measure.periodic_energy and the reject is reference.periodic, the same two files
-# ART-4-005 used; this script only feeds them pixels from more places and noise of more kinds and
+# ART-4-005 used; this script only feeds them pixels from more places and noise of more types and
 # reports what comes back. Every number is exact rational; the only floats are the %.3f in the prints.
 #
 # THE FORMAT AXIS. The detector reads points carrying values and cannot see a file format. The only way
@@ -23,12 +23,12 @@
 # longer reach the bit. The lossy row is not a failure of the instrument; it is the format injecting
 # incoherent noise the instrument then correctly cannot scrub to zero.
 #
-# THE NOISE AXIS. The removal is exact for exactly one kind of noise: a coherent additive offset that
+# THE NOISE AXIS. The removal is exact for exactly one type of noise: a coherent additive offset that
 # repeats at the frame period, over a target that sums to zero at each pixel across the frames. This
 # script shows the boundary of that case from both sides. Raising the pattern's amplitude does not
 # change the 100% -- the arithmetic is exact at any amplitude -- but it does move the detector's margin
 # above the drawn null, and a weak pattern fails to be SEEN, and is still removed. Incoherent noise of
-# every kind -- independent per-frame Gaussian, impulses, Poisson shot --
+# every type -- independent per-frame Gaussian, impulses, Poisson shot --
 # is declined: it carries no phase at the frame period, sits inside the null band, and is left intact.
 # A mix of a fixed pattern and Gaussian is the realistic case and reports the coherent fraction, which
 # is a measured number between the two, not 100%.
@@ -36,17 +36,17 @@
 # THE CTC AXIS. Real 16-bit fluorescence frames from the Cell Tracking Challenge, read straight from the
 # local zip in repos/external/datasets, cropped to a small tile so the exact-rational scan stays cheap.
 # Two readings. The real tile as it is: the detector is asked whether a coherent fixed pattern is
-# present, and on this footage it declines -- a real-world negative control, the 100% is not handed out
+# present, and on this footage it declines -- a real-world negative control, the 100% is not passed out
 # for free. The real tile with a known fixed pattern added: the detector fires and removes it, but real
 # content does NOT sum to zero per pixel. The per-pixel mean carries the scene's static background
 # with the pattern and the residual is not the scene. The NRR is below 100% and the shortfall is the
-# floor ART-4-005 named, shown here on real data instead of a constructed static feature.
+# floor ART-4-005 named, displayed here on real data instead of a constructed static feature.
 #
 # NOTHING IS BOUNDED HERE. Every declared input is a constant below, printed with the reading. Every
 # decision to remove or decline is made against a null band drawn from the data by shuffling, never a
 # threshold chosen here. The two mean routes, batch and incremental, are checked bit-exact against each
 # other in every additive arm, and a deliberately broken third is run beside them so their agreement is
-# shown to be a property the wrong route lacks. A native-C route is the natural hardening and is not
+# displayed to be a property the wrong route lacks. A native-C route is the natural hardening and is not
 # claimed here.
 
 import io
@@ -92,7 +92,7 @@ WIDTH = 8
 FRAMES = 48
 SWING = 20            # the moving scene's amplitude at a pixel
 PATTERN = 40         # the fixed pattern's amplitude, zero-mean across the frame
-DRAWS = 8            # shuffles drawn to set the null band a real frame period must stand above
+DRAWS = 8            # shuffles drawn to set the null band a real frame period must are above
 SEED = 0xF17A
 
 # The Cell Tracking Challenge arm. The zip is already local; nothing is fetched here.
@@ -150,7 +150,7 @@ def per_frame_gaussian(scene, sigma, seed):
 
 
 def with_impulses(stack, count, swing, seed):
-    """`count` positions replaced by a value from nowhere: replacement noise, the wrong kind entirely.
+    """`count` positions replaced by a value from nowhere: replacement noise, the wrong type entirely.
 
     Impulses are incoherent. The frame-period detector should decline them and leave them in place.
     """
@@ -365,8 +365,8 @@ def main():
                  to_float(jarm["boundary"]) if jarm["boundary"] is not None else float("nan")))
     out.write("\n")
 
-    # ---- B. NOISE QUALITIES. amplitude of the coherent pattern, then the incoherent kinds. ----
-    out.write("  B. NOISE QUALITIES on 8-bit gray. exact removal is one kind of noise only.\n")
+    # ---- B. NOISE QUALITIES. amplitude of the coherent pattern, then the incoherent types. ----
+    out.write("  B. NOISE QUALITIES on 8-bit gray. exact removal is one type of noise only.\n")
     out.write("  %-26s %-14s %-8s %s\n" % ("quality", "live / band", "seen?", "outcome"))
 
     for amplitude in (4, 8, 16, 32, 64):
@@ -436,7 +436,7 @@ def _format_row(out, fmt, depth, recovered, stack, scene, frame):
 
 
 def _quality_row(out, label, arm_stack, scene, frame):
-    """One NOISE-QUALITIES row for an incoherent kind: it should be declined and left intact."""
+    """One NOISE-QUALITIES row for an incoherent type: it should be declined and left intact."""
     got = assess_additive(arm_stack, scene, frame)
     seen = got["present"]
     outcome = ("seen -> NRR %.2f%%" % (to_float(got["removed"]) * 100.0)) if seen \

@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the letters Python's split takes as space
+// the characters Python's split takes as space
 static const char s_space[] = " \t\n\r\v\f\x1c\x1d\x1e\x1f";
 
 // the start of each kernel's name
@@ -68,7 +68,7 @@ size_t stick_guard(const char *text);
 size_t stick_form_guard(const char *text);
 int stick_operation_of(const char *line, unsigned int *operation);
 void stick_nvcc_read(const char *path);
-unsigned int stick_cells(const char *line, char **cell, unsigned int most);
+unsigned int stick_cells(const char *line, char **cell, unsigned int max);
 void stick_engine_read(const char *table, const char *directory);
 void stick_ruleset_operations(const char *path, unsigned char **buffer, unsigned int *room);
 const StickEngine *stick_engine_of(const char *name);

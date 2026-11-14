@@ -4,7 +4,7 @@
 // each time its file changes. Each entry's `-D` and `/D` words are defines, the entry's file a node of the tree: a
 // define every entry under a folder gives with the same value is given to that folder, the highest such, and an
 // entry's file saves those its folder does not give it; a branch inherits the top's defines, then each folder's down to
-// its own, each handed on in that order so a lower one stands in for one it inherits. Each entry's `-iquote`, `-I`,
+// its own, each passed on in that order so a lower one is in for one it inherits. Each entry's `-iquote`, `-I`,
 // `/I`, `-isystem` and `-idirafter` words are its include folders, a folder named from the entry's own folder made
 // whole, and its `-include` and `/FI` words the files the compiler includes before its first line; a file no entry
 // names takes those of the entry nearest it in the tree
@@ -40,7 +40,7 @@ typedef struct
     unsigned int awaited_type;
     int refused;
 } CliFlagsReadState;
-// the most files, distinct defines, folders, defines of the files and folders together, defines given, and include
+// the max files, distinct defines, folders, defines of the files and folders together, defines given, and include
 // folders and files read; and the bytes the texts, and the nodes and bytes the database's tree, are taken with
 #define CLI_FLAGS_FILES 65536u
 #define CLI_FLAGS_DISTINCT 65536u
@@ -53,12 +53,12 @@ typedef struct
 #define CLI_FLAGS_ENTRY_BYTES 32ULL
 #define CLI_FLAGS_ENTRIES_MORE 256ULL
 
-// the entries a list of the database read takes at the most, by the database's bytes
+// the entries a list of the database read takes at max, by the database's bytes
 static unsigned long long s_flags_entries;
 
 typedef struct
 {
-    unsigned int most;
+    unsigned int max;
     unsigned int at;
     const char *text;
     unsigned long long length;
@@ -89,8 +89,8 @@ typedef struct
 } CompileDbFlagsCtx;
 EMBED_INLINE unsigned int flags_max(const CompileDbFlagsCtx *args)
 {
-    // below `most`, which an unsigned int stores
-    return (s_flags_entries < args->most) ? (unsigned int)s_flags_entries : args->most;
+    // below `max`, which an unsigned int stores
+    return (s_flags_entries < args->max) ? (unsigned int)s_flags_entries : args->max;
 }
 
 // what a word awaits the word after it to be: nothing, a define, or an include folder or file of a type
@@ -121,7 +121,7 @@ typedef struct
 
 // What a read saves, under the lock: the tree and the database file it read with that file's time, the texts, the
 // distinct defines, those given, the files read with their include runs, and the include folders and files. While a
-// read lays them, each list is a part of a cell of that call, which the pointers name; once laid they stand in the
+// read positions them, each list is a part of a cell of that call, which the pointers name; once positioned they are in the
 // movable cell `cell` at the places `*_at`, the pointers NULL, and a reader reads them out of it
 typedef struct
 {
@@ -151,7 +151,7 @@ typedef struct
 
 static CliFlagsSaved s_saved;
 
-// the most bytes of one saved text a reader reads onto the stack
+// the max bytes of one saved text a reader reads onto the stack
 #define CLI_FLAGS_TEXT_BYTES 4096u
 
 // the saved text at `at` read out of the saved cell into `out`, CLI_FLAGS_TEXT_BYTES long, a 0 after it: its length
@@ -217,7 +217,7 @@ EMBED_INLINE unsigned int cli_flags_word(const CompileDbFlagsCtx *args)
     return s_saved.words - 1u;
 }
 
-// the define `id` put after the ids of the run that begins at `first`, standing in for a define of the same name the
+// the define `id` put after the ids of the run that begins at `first`, located in for a define of the same name the
 // run holds
 EMBED_INLINE void cli_flags_id_append(const CompileDbFlagsCtx *args)
 {
@@ -744,18 +744,18 @@ static void cli_flags_read(const CompileDbFlagsCtx *args)
     {
         return;
     }
-    // the flags' texts stand among the database's own bytes
+    // the flags' texts are among the database's own bytes
     s_flags_entries = (database_size / CLI_FLAGS_ENTRY_BYTES) + CLI_FLAGS_ENTRIES_MORE;
     const unsigned long long text_capacity = database_size + CLI_FLAGS_TEXT_MORE;
-    const unsigned int word_capacity = EMBED_CALL(flags_max, CompileDbFlagsCtx, .most = CLI_FLAGS_DISTINCT);
-    const unsigned int input_capacity = EMBED_CALL(flags_max, CompileDbFlagsCtx, .most = CLI_FLAGS_INPUT);
-    const unsigned int file_capacity = EMBED_CALL(flags_max, CompileDbFlagsCtx, .most = CLI_FLAGS_FILES);
-    const unsigned int include_capacity = EMBED_CALL(flags_max, CompileDbFlagsCtx, .most = CLI_FLAGS_INCLUDES);
+    const unsigned int word_capacity = EMBED_CALL(flags_max, CompileDbFlagsCtx, .max = CLI_FLAGS_DISTINCT);
+    const unsigned int input_capacity = EMBED_CALL(flags_max, CompileDbFlagsCtx, .max = CLI_FLAGS_INPUT);
+    const unsigned int file_capacity = EMBED_CALL(flags_max, CompileDbFlagsCtx, .max = CLI_FLAGS_FILES);
+    const unsigned int include_capacity = EMBED_CALL(flags_max, CompileDbFlagsCtx, .max = CLI_FLAGS_INCLUDES);
     const unsigned long long word_bytes = (unsigned long long)word_capacity * sizeof(CliDefineWord);
     const unsigned long long input_bytes = (unsigned long long)input_capacity * sizeof(CliDefineNodeInput);
     const unsigned long long file_bytes = (unsigned long long)file_capacity * sizeof(CliDefineNode);
     const unsigned long long include_bytes = (unsigned long long)include_capacity * sizeof(CliIncludeWord);
-    // the lists and the texts are laid in a cell of this call, then written into a movable cell that stands until the
+    // the lists and the texts are positioned in a cell of this call, then written into a movable cell that is until the
     // tree or its database changes
     char *const saved = g_cli_guard->temporary_buf_alloc(
         word_bytes + input_bytes + file_bytes + include_bytes + text_capacity, g_cli_compile_owner);
@@ -778,8 +778,8 @@ static void cli_flags_read(const CompileDbFlagsCtx *args)
     const unsigned int entries =
         EMBED_CALL(cli_json_tree_err_msg.json_file_alloc, CliJsonTreeErrMsgCfg, .json = &json, .path = stamped.path,
                    .nodes_more = 0u, .text_more = 0ULL, .err_msg = &unread, .owner = g_cli_compile_owner);
-    const unsigned int folder_capacity = EMBED_CALL(flags_max, CompileDbFlagsCtx, .most = CLI_FLAGS_FOLDERS);
-    const unsigned int id_capacity = EMBED_CALL(flags_max, CompileDbFlagsCtx, .most = CLI_FLAGS_IDS);
+    const unsigned int folder_capacity = EMBED_CALL(flags_max, CompileDbFlagsCtx, .max = CLI_FLAGS_FOLDERS);
+    const unsigned int id_capacity = EMBED_CALL(flags_max, CompileDbFlagsCtx, .max = CLI_FLAGS_IDS);
     const unsigned long long folder_bytes = (unsigned long long)folder_capacity * sizeof(CliDefineNode);
     char *const work = g_cli_guard->temporary_buf_alloc(
         folder_bytes + ((unsigned long long)id_capacity * sizeof(unsigned int)), g_cli_compile_owner);
@@ -801,7 +801,7 @@ static void cli_flags_read(const CompileDbFlagsCtx *args)
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     g_cli_guard->persistent_buf_release(work, g_cli_compile_owner);
-    // the lists as laid written into the saved cell, each list's place kept, the pointers into the call's cell dropped
+    // the lists as positioned written into the saved cell, each list's place retained, the pointers into the call's cell dropped
     s_saved.word_at = 0ULL;
     s_saved.input_at = word_bytes;
     s_saved.file_at = word_bytes + input_bytes;
@@ -878,7 +878,7 @@ static CliIncludeWord flags_stored_include(unsigned int at)
     return include;
 }
 
-// the define of the `-D` word's `name`, `NAME` or `NAME(PARAMS)`, and `value`, given to `node`, handed to `each`: a
+// the define of the `-D` word's `name`, `NAME` or `NAME(PARAMS)`, and `value`, given to `node`, passed to `each`: a
 // name with brackets one called with arguments, its parameters the names between commas within them, white space
 // about each left off, and a `...` among them taking the arguments past them
 EMBED_INLINE void cli_flags_define_dispatch(const CompileDbFlagsCtx *args)
@@ -996,9 +996,9 @@ void cli_compile_db_includes_get(const CliCompileDbRootPathCfg *args)
     static const unsigned int s_order[5] = {CLI_INCLUDE_QUOTE, CLI_INCLUDE_FOLDER, CLI_INCLUDE_SYSTEM,
                                             CLI_INCLUDE_AFTER, CLI_INCLUDE_FORCED};
     EMBED_CALL(cli_flags_read, CompileDbFlagsCtx, .root = args->root);
-    // the file's own entry, else the entry sharing the most of its folders, the first of those that share as many
+    // the file's own entry, else the entry sharing the max of its folders, the first of those that share as many
     unsigned int nearest = CLI_JSON_NONE;
-    unsigned long long most = 0ULL;
+    unsigned long long max = 0ULL;
     for (unsigned int at = 0u; (s_saved.cell != NULL) && (at < s_saved.files); at += 1u)
     {
         const CliDefineNode one = flags_stored_file(at);
@@ -1011,10 +1011,10 @@ void cli_compile_db_includes_get(const CliCompileDbRootPathCfg *args)
         }
         const unsigned long long shared =
             EMBED_CALL(cli_flags_share, CompileDbFlagsCtx, .one = file, .other = args->path);
-        if ((nearest == CLI_JSON_NONE) || (shared > most))
+        if ((nearest == CLI_JSON_NONE) || (shared > max))
         {
             nearest = at;
-            most = shared;
+            max = shared;
         }
     }
     for (unsigned int type = 0u; (nearest != CLI_JSON_NONE) && (type < 5u); type += 1u)

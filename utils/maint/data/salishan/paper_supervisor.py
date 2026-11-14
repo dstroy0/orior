@@ -125,7 +125,7 @@ def index_rows():
                 header = parts
                 continue
             row = dict(zip(header, parts))
-            if row.get("kind") != "pdf" or not row.get("url"):
+            if row.get("type") != "pdf" or not row.get("url"):
                 continue
             stem = os.path.splitext(os.path.basename(row["url"]))[0]
             held.setdefault(stem, row["url"])
@@ -254,7 +254,7 @@ def run_adopt(out, rows, where):
     out.write("\n  %d adopted, %d errored\n" % (taken, error))
     if unknown:
         out.write(
-            "  %d not in the archive index by that name, kept anyway:\n" % len(unknown)
+            "  %d not in the archive index by that name, retained anyway:\n" % len(unknown)
         )
         for stem in unknown[:12]:
             out.write("    %s\n" % stem)
@@ -289,8 +289,8 @@ def run_fetch(out, rows, pause):
             out.write("    %-46s %s\n" % (stem[:46], str(trouble)[:60]))
             time.sleep(pause)
             continue
-        kind = answer.headers.get("content-type", "")
-        if "pdf" not in kind.lower():
+        type = answer.headers.get("content-type", "")
+        if "pdf" not in type.lower():
             body = answer.content[:4096].lower()
             if any(one.encode("ascii") in body for one in VERIFICATION):
                 rows[stem]["state"] = "errored"
@@ -309,8 +309,8 @@ def run_fetch(out, rows, pause):
                 out.write("  %d fetched before it stopped.\n" % got)
                 return 2
             rows[stem]["state"] = "errored"
-            rows[stem]["said"] = "answered with %s" % (kind or "nothing")
-            out.write("    %-46s answered with %s\n" % (stem[:46], kind or "nothing"))
+            rows[stem]["said"] = "answered with %s" % (type or "nothing")
+            out.write("    %-46s answered with %s\n" % (stem[:46], type or "nothing"))
             time.sleep(pause)
             continue
         target = os.path.join(PAPERS, "%s.pdf" % stem)

@@ -6,8 +6,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define DECIMAL_DOUBLE_CHECK(condition_, evacaddr_, error_, kind_)                                                     \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_DECIMAL_DOUBLE, (unsigned int)__LINE__,                    \
+#define DECIMAL_DOUBLE_CHECK(condition_, evacaddr_, error_, type_)                                                     \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_DECIMAL_DOUBLE, (unsigned int)__LINE__,                    \
                        (const void *)(evacaddr_), (error_))
 
 #define DECIMAL_DOUBLE_LIMB_BITS 32ull
@@ -19,7 +19,7 @@
 #define DECIMAL_DOUBLE_SLACK_LIMBS 3ull
 
 _Static_assert(sizeof(uint32_t) * 8u == DECIMAL_DOUBLE_LIMB_BITS, "a work limb is the 32 bits an exact limb contains");
-_Static_assert(10ull <= (1ull << DECIMAL_DOUBLE_DIGIT_BITS), "a decimal digit multiplies a value by at most 2^4");
+_Static_assert(10ull <= (1ull << DECIMAL_DOUBLE_DIGIT_BITS), "a decimal digit multiplies a value by at max 2^4");
 _Static_assert(5ull < (1ull << DECIMAL_DOUBLE_FIVE_BITS), "a five multiplies a value by less than 2^3");
 
 typedef struct
@@ -150,7 +150,7 @@ static inline unsigned long long decimal_double_trailing_zeros(const DecimalDoub
 
 static inline void decimal_double_shift_right(DecimalDoubleWork *work, unsigned long long bits)
 {
-    // the shift is at most the bits the work contains, whose limb count is a size_t. The quotient narrows exactly
+    // the shift is at max the bits the work contains, whose limb count is a size_t. The quotient narrows exactly
     const size_t limbs = (size_t)(bits / DECIMAL_DOUBLE_LIMB_BITS);
     // the remainder is below 32. It narrows to unsigned int exactly
     const unsigned int part = (unsigned int)(bits % DECIMAL_DOUBLE_LIMB_BITS);
@@ -231,15 +231,15 @@ static inline void decimal_double_divide_five(DecimalDoubleWork *work, const Dec
 }
 
 static inline unsigned long long decimal_double_strip_five(DecimalDoubleWork *work, const DecimalDoubleFive *five,
-                                                           unsigned long long maximum)
+                                                           unsigned long long max)
 {
     unsigned long long stripped = 0ull;
-    while (((maximum - stripped) >= five->power) && (decimal_double_remainder(work, five->factor) == 0u))
+    while (((max - stripped) >= five->power) && (decimal_double_remainder(work, five->factor) == 0u))
     {
         decimal_double_divide(work, five->factor);
         stripped += five->power;
     }
-    while ((stripped < maximum) && (decimal_double_remainder(work, 5u) == 0u))
+    while ((stripped < max) && (decimal_double_remainder(work, 5u) == 0u))
     {
         decimal_double_divide(work, 5u);
         stripped += 1ull;

@@ -7,7 +7,7 @@
 # command that acts in the window acts in that one, on the display the sweep is given, where it is seen
 # as each command lands. Each command is run bare, with each of its words filled and each option given,
 # and with each choice its words offer on its own; a word to fill is given a value of the sweep's tree.
-# The help's own forms, the completions for each shell, and the job lists and a job shown on the top's
+# The help's own forms, the completions for each shell, and the job lists and a job displayed on the top's
 # own tree, which only read, are run besides.
 #
 # Each form that acts in the window is given its settle and the window's frame is pictured into the
@@ -15,14 +15,14 @@
 # recorded as crashed by it and started again on its home and tree, and the sweep goes on.
 #
 # A form that would reach another machine, a container or the bug tracker is not run, and the report
-# names it, as is one that opens another window. Each form's record keeps its words, its exit code,
+# names it, as is one that opens another window. Each form's record retains its words, its exit code,
 # how long it took, the ends of what it said and its picture; the report flags those that crashed
 # first, then those that did not end in their time, then those that ended with an error, each with
 # what it said.
 #
 #   Usage:  python -I ui/test/cli_sweep.py [--display \\.\DISPLAY1] [--wait 60] [--settle 1] [--only <text>]
 #
-# Each run is kept in the top's build/ui_test/cli_sweep/<time>/: cli_sweep.md, cli_sweep.json, window.log,
+# Each run is retained in the top's build/ui_test/cli_sweep/<time>/: cli_sweep.md, cli_sweep.json, window.log,
 # shots/, and the window's home and tree.
 
 import argparse
@@ -56,11 +56,11 @@ FILLED = {
     "run.qry": "none.qry", "pattern": "*.py", "part": "sm_86", "pane": "explorer", "macro": "sweep", "item": "branch",
     "function": "greet", "from": "query", "to": "learn", "title": "sweep", "taking": "1", "step": "1", "slot": "0", "shell": "bash",
     "set": "sweep", "schema": "main", "ruleset": "none.krs", "plugin": "python", "open": "/*", "close": "*/", "mode": "sweep",
-    "listing.sass": "none.sass", "language": "python", "kind": "error", "id": "sweep", "icon": "file", "exception": "ValueError",
+    "listing.sass": "none.sass", "language": "python", "type": "error", "id": "sweep", "icon": "file", "exception": "ValueError",
     "arch": "sm_86", "cu": "none.cu", "command": "save", "connection": "sweep", "message": "sweep", "condition": "True",
     "color": "#336699", "font": "monospace", "address": "0", "bytes": "16", "frame": "0", "host:port": "127.0.0.1:9",
     "megabytes": "1", "encoding": "utf-8", "other commit": "HEAD", "other": "HEAD", "mark": "S", "subject": "sweep",
-    "template": "sweep", "kept": "count", "hits": "1", "word": "sweep",
+    "template": "sweep", "retained": "count", "hits": "1", "word": "sweep",
 }
 VALUE = "sweep"
 
@@ -113,7 +113,7 @@ def usages():
 
 
 def tokens(spec):
-    """The spec's words at its top, a bracket's words kept together."""
+    """The spec's words at its top, a bracket's words retained together."""
     out, depth, word = [], 0, ""
     for character in spec:
         depth += character in "[<"
@@ -139,7 +139,7 @@ def filled(token, choice=0):
     if token.startswith("[") and token.endswith("]"):
         inner = token[1:-1]
         parts = split_top(inner, "|")
-        # a bracket whose choices are of its last word alone, as [--leave all|none], keeps its words before it
+        # a bracket whose choices are of its last word alone, as [--leave all|none], retains its words before it
         if len(parts) > 1 and len(tokens(parts[0])) > 1 and all(len(tokens(part)) == 1 for part in parts[1:]):
             lead = tokens(parts[0])
             last = [lead[-1]] + parts[1:]
@@ -205,7 +205,7 @@ class CliSweeper:
         self.window = isolated.Window(self.out, options.display)
         self.records = []
 
-    def tree_kept(self, words):
+    def tree_retained(self, words):
         """The window put back on the sweep's tree after a form that opens another, as the forms after it reach the
         window by its tree: the form's opener, or None where it opened none."""
         opener = next((word for word in OPENERS if word in words), None)
@@ -256,7 +256,7 @@ class CliSweeper:
                 record = self.ran(words)
                 if acts and not record.get("blocked"):
                     self.pictured(index, record)
-                record["tree"] = self.tree_kept(words)
+                record["tree"] = self.tree_retained(words)
                 if not self.window.alive():
                     # the window ended under the form: recorded as its crash, and started again for the forms after it
                     record["window_ended"] = self.window.restarted()
@@ -292,7 +292,7 @@ class CliSweeper:
 
 
 def main():
-    # each line said as it is printed, a run's output read as it goes where it is kept in a file
+    # each line said as it is printed, a run's output read as it goes where it is retained in a file
     sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
     parser = argparse.ArgumentParser(description="Sweep every command and option of impero on a window of the sweep's own.")
     parser.add_argument("--display", default="\\\\.\\DISPLAY1", help="the display the window is put on")

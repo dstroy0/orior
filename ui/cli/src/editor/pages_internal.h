@@ -19,9 +19,9 @@ typedef struct CliPagesPieceCtx CliPagesPieceCtx;
 typedef struct CliPagesCtx CliPagesCtx;
 typedef struct CliPagesOneCtx CliPagesOneCtx;
 
-// how many lines apart the index records the byte a line starts at, and how many bytes apart at the most, so a reading
-// of a file of long lines starts near the lines it reads; the most starts it records; how many lines find and a save
-// read at a time; the most pieces of a text; the most lines and bytes one reading gives; and the most bytes of text
+// how many lines apart the index records the byte a line starts at, and how many bytes apart at max, so a reading
+// of a file of long lines starts near the lines it reads; the max starts it records; how many lines find and a save
+// read at a time; the max pieces of a text; the max lines and bytes one reading gives; and the max bytes of text
 // find searches at a time, its units and its search each taking cells of several times that
 #define CLI_PAGE_STEP 1024ull
 #define CLI_PAGE_SPAN (64ull * 1024ull)
@@ -38,7 +38,7 @@ typedef struct CliPagesOneCtx CliPagesOneCtx;
 // A view's placing (cli_pages_on_view): the lines about a moving view's rows it is answered, and one more for each
 // SPREAD lines of the step it moved, as far as its next step can differ from the last, no more than the lines a step
 // reads; the lines about a resting view's rows and the minimap's it saves; the bytes of whole lines a step toward those
-// reads, 16 lines at the least; the most lines it saves; and the milliseconds within which a report follows the last
+// reads, 16 lines at the least; the max lines it saves; and the milliseconds within which a report follows the last
 // for the view to be moving at the step between them
 #define CLI_PAGE_EDGE 8ull
 #define CLI_PAGE_SPREAD 4ull
@@ -84,8 +84,8 @@ typedef struct
 // it are put after, the shadow's bytes, the file's size and the end of line its first line ends with, its index, its
 // pieces in a movable cell sized to them, no more than CLI_PAGE_PIECES, and the view the page reported last: whether
 // it has reported one, the line at its top and the millisecond it was reported
-// the most paged texts open at once
-#define CLI_PAGED_MOST 64u
+// the max paged texts open at once
+#define CLI_PAGED_MAX 64u
 
 typedef struct CliPaged
 {

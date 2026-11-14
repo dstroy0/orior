@@ -7,13 +7,13 @@
 
 typedef struct
 {
-    char letter;
+    char character;
 } DevcontainerCtx;
 
 // whether a byte is one of ASCII's spaces
 EMBED_INLINE int cli_is_space(const DevcontainerCtx *args)
 {
-    return (args->letter == ' ') || ((args->letter >= '\t') && (args->letter <= '\r'));
+    return (args->character == ' ') || ((args->character >= '\t') && (args->character <= '\r'));
 }
 
 void cli_plain_json(const CliDevcontainerTextCfg *args)
@@ -22,31 +22,31 @@ void cli_plain_json(const CliDevcontainerTextCfg *args)
     int in_string = 0;
     while (at < args->size)
     {
-        const char letter = args->text[at];
+        const char character = args->text[at];
         if (in_string)
         {
-            mmgr_line_ch(args->plain, letter);
-            if ((letter == '\\') && ((at + 1ULL) < args->size))
+            mmgr_line_ch(args->plain, character);
+            if ((character == '\\') && ((at + 1ULL) < args->size))
             {
                 mmgr_line_ch(args->plain, args->text[at + 1u]);
                 at += 2ULL;
                 continue;
             }
-            in_string = letter != '"';
+            in_string = character != '"';
             at += 1ULL;
         }
-        else if (letter == '"')
+        else if (character == '"')
         {
             in_string = 1;
-            mmgr_line_ch(args->plain, letter);
+            mmgr_line_ch(args->plain, character);
             at += 1ULL;
         }
-        else if ((letter == '/') && ((at + 1ULL) < args->size) && (args->text[at + 1u] == '/'))
+        else if ((character == '/') && ((at + 1ULL) < args->size) && (args->text[at + 1u] == '/'))
         {
             at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->text, .at = at,
                             .size = args->size, .set = "\n");
         }
-        else if ((letter == '/') && ((at + 1ULL) < args->size) && (args->text[at + 1u] == '*'))
+        else if ((character == '/') && ((at + 1ULL) < args->size) && (args->text[at + 1u] == '*'))
         {
             at += 2ULL;
             const unsigned long long closed =
@@ -62,22 +62,22 @@ void cli_plain_json(const CliDevcontainerTextCfg *args)
             }
             at += 2ULL;
         }
-        else if (letter == ',')
+        else if (character == ',')
         {
             unsigned long long next = at + 1ULL;
-            while ((next < args->size) && EMBED_CALL(cli_is_space, DevcontainerCtx, .letter = args->text[next]))
+            while ((next < args->size) && EMBED_CALL(cli_is_space, DevcontainerCtx, .character = args->text[next]))
             {
                 next += 1ULL;
             }
             if ((next >= args->size) || ((args->text[next] != ']') && (args->text[next] != '}')))
             {
-                mmgr_line_ch(args->plain, letter);
+                mmgr_line_ch(args->plain, character);
             }
             at += 1ULL;
         }
         else
         {
-            mmgr_line_ch(args->plain, letter);
+            mmgr_line_ch(args->plain, character);
             at += 1ULL;
         }
     }
@@ -161,7 +161,7 @@ void cli_devcontainer_name(const CliDevcontainerRootNameCfg *args)
     base = args->root + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->root,
                                    .at = (unsigned long long)(base - args->root), .set = "/\\");
     base += ((base < end) && (base[0] != '\0') && (end - base == 2) && (base[1] == ':')) ? 2 : 0;
-    // each letter in lower case, retained where docker takes it in a name and a '-' where not, one for each letter past
+    // each character in lower case, retained where docker takes it in a name and a '-' where not, one for each character past
     // ASCII; the '-' at each end left off
     char docker_name[CLI_PATH_MAX_LEN];
     unsigned long long length = 0ULL;

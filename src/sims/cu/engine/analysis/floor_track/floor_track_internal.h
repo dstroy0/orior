@@ -5,7 +5,7 @@
 #define FLOOR_TRACK_INTERNAL_H
 
 // Floor 2 matched across frames. Every frame's floor 2 is the
-// engine's, the crystal's 16^3 corner lowered as its own tower, checked against the host's two-level lifting, and laid
+// engine's, the crystal's 16^3 corner lowered as its own tower, checked against the host's two-level lifting, and positioned
 // out once as 16 bit planes. A body's signature is its patch of floor-2 values in frame t: its own cell alone, or the
 // 27 cells around it. The later frame is searched whole with no value read: each patch cell's range [v - d, v + d] is
 // taken on the planes by ands and ors alone, shifted to the patch center, and the patch's masks anded, a word stopping
@@ -75,7 +75,7 @@
 
 #define TRACK_BODIES_MAX TRACK_CAMERA_BODIES
 
-// the sparse scene: three of the camera law's bodies, set 22 apart along z, where the most a footprint and a body
+// the sparse scene: three of the camera law's bodies, set 22 apart along z, where the max a footprint and a body
 // reach toward each other is 13 + 3
 #define TRACK_SPARSE_BODIES 3u
 

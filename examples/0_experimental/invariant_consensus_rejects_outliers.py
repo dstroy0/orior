@@ -8,7 +8,7 @@
 #
 #   Usage:  python examples/0_experimental/invariant_consensus_rejects_outliers.py
 #
-# This reads no corpus. It sits in 0_experimental: an algorithm shown working, a robust-estimation
+# This reads no corpus. It sits in 0_experimental: an algorithm displayed working, a robust-estimation
 # filter beside the signal ones. The medium is new -- a graph whose vertices are MEASUREMENTS and whose
 # edges are pairwise compatibility; the technique is new to this tree, but the theorem is the same
 # one the anchor cascade already proves.
@@ -27,7 +27,7 @@
 # and never a lost true one -- the same shape as the anchor cascade losing no true occurrence and the
 # Bloom filter never reporting a member absent.
 #
-# Two routes bracket the answer: the maximum clique is tight and the k-core is the cheap relaxation that
+# Two routes bracket the answer: the max clique is tight and the k-core is the cheap relaxation that
 # contains it. Both retain every inlier and the k-core admits more outliers, the
 # soundness-versus-cost split again. A broken compatibility that links everything is run beside them to
 # show the rule moves cost and leaves correctness alone. The null is drawn by shuffling the correspondences, which
@@ -125,21 +125,21 @@ def main():
         % (len(inliers), n - len(inliers))
     )
     out.write(
-        "    max clique: kept %d, all inliers retained: %s, outliers surviving: %d\n"
+        "    max clique: retained %d, all inliers retained: %s, outliers surviving: %d\n"
         % (len(clique), inliers <= clique, len(clique - inliers))
     )
     out.write(
-        "    k-core(%d): kept %d, all inliers retained: %s, contains the clique: %s\n"
+        "    k-core(%d): retained %d, all inliers retained: %s, contains the clique: %s\n"
         % (len(inliers) - 1, len(core), inliers <= core, clique <= core)
     )
 
-    # divergence probe: a compatibility that links everything keeps the inliers but admits every outlier
+    # divergence probe: a compatibility that links everything retains the inliers but admits every outlier
     def broken(i, j):
         return True
 
     broken_clique = max_clique(compatibility_graph(n, broken))
     out.write(
-        "    broken 'always compatible' route: kept %d (splits from the invariant clique: %s)\n\n"
+        "    broken 'always compatible' route: retained %d (splits from the invariant clique: %s)\n\n"
         % (len(broken_clique), broken_clique != clique)
     )
 
@@ -184,7 +184,7 @@ def main():
         "\n  the inliers are a clique because a rigid motion preserves every distance. The\n"
     )
     out.write(
-        "  necessary condition never splits them out; an outlier is kept only by an accidental\n"
+        "  necessary condition never splits them out; an outlier is retained only by an accidental\n"
     )
     out.write("  distance match, a false survivor and not a lost inlier. the floor is a large accident:\n")
     out.write("  the only thing a necessary condition cannot error is a conspiracy bigger than the truth.\n")

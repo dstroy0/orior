@@ -17,7 +17,7 @@ extern "C"
 #define WHO_TABLE "utils/maint/who/who.tsv"
 
 // the hex digits of a who's code
-#define WHO_CODE_LETTERS 32u
+#define WHO_CODE_CHARACTERS 32u
 
     typedef struct
     {
@@ -31,7 +31,7 @@ extern "C"
     // now on the run's one clock; a number the table gives none is 0
     Who who_here(const char *file, unsigned int line);
 
-// the who of the code this stands in
+// the who of the code this is in
 #define WHO_HERE who_here(__FILE__, (unsigned int)__LINE__)
 
     // `who` as its two words, into `words`
@@ -40,11 +40,11 @@ extern "C"
     // the who the two words `words` carry
     Who who_of_words(const unsigned long long *words);
 
-    // `who`'s code into `code`, which has room for `room`, WHO_CODE_LETTERS hex digits and its end; empty where it does
+    // `who`'s code into `code`, which has room for `room`, WHO_CODE_CHARACTERS hex digits and its end; empty where it does
     // not fit
     void who_code(Who who, char *code, size_t room);
 
-    // the code `code` read back into `who`: 1, or 0 where it is not WHO_CODE_LETTERS hex digits
+    // the code `code` read back into `who`: 1, or 0 where it is not WHO_CODE_CHARACTERS hex digits
     int who_read(const char *code, Who *who);
 
     // `who` named into `text`, which has room for `room`: the source's path from the top of the tree and the line, the

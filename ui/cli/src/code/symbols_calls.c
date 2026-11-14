@@ -3,7 +3,7 @@
 // symbols_calls.c: the call hierarchy read off the tree's leaves, by the roles their grammar names. A function is a
 // region a bracket its grammar names a region's opening opens at no depth, whose head, the statement before it, holds
 // the leaf that declares a function; a call is a leaf its grammar names a call. A function's callers are found from its
-// name's usages (symbols_usages.c), each call grouped under the function of its file it stands in; its callees from the
+// name's usages (symbols_usages.c), each call grouped under the function of its file it is in; its callees from the
 // calls in its body, each grouped under its definition in effect
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
@@ -40,11 +40,11 @@ typedef struct
     CliGrownLine paths;
     unsigned int count;
 } CliCallsFound;
-// the most bytes the regions, the calls and the usages each grow to
+// the max bytes the regions, the calls and the usages each grow to
 #define CLI_CALLS_CAPACITY (4ULL << 20u)
 
-// One call found: the file and line of its definition in effect, or of the function it stands in, a place among the
-// paths, its name's span and where the call stands
+// One call found: the file and line of its definition in effect, or of the function it is in, a place among the
+// paths, its name's span and where the call is
 typedef struct
 {
     unsigned long long path;
@@ -211,7 +211,7 @@ static int calls_file_read(const SymbolsCallsCtx *args)
     return mmgr_line_ok(&file->functions.line) ? 1 : -1;
 }
 
-// the place among the file's functions of the one whose name stands on `line`, else where `body` is 1 whose head or
+// the place among the file's functions of the one whose name is on `line`, else where `body` is 1 whose head or
 // body does: CLI_JSON_NONE where none does
 EMBED_INLINE unsigned int calls_function_on(const SymbolsCallsCtx *args)
 {
@@ -235,7 +235,7 @@ EMBED_INLINE unsigned int calls_function_on(const SymbolsCallsCtx *args)
     return CLI_JSON_NONE;
 }
 
-// the function `one` of the file at `path` handed to `each` with the calls `sites`, `count` of them
+// the function `one` of the file at `path` passed to `each` with the calls `sites`, `count` of them
 EMBED_INLINE void calls_dispatch(const SymbolsCallsCtx *args)
 {
     unsigned long long length = 0ULL;
@@ -311,7 +311,7 @@ EMBED_INLINE CliCallFound calls_found_at(const SymbolsCallsCtx *args)
     return one;
 }
 
-// a call put after those found: the file and span its group is keyed by, and where it stands
+// a call put after those found: the file and span its group is keyed by, and where it is
 EMBED_INLINE void calls_found_append(const SymbolsCallsCtx *args)
 {
     const CliCallFound one = {cli_grown_size(&args->calls->paths), args->line, args->from, args->to, args->site};
@@ -357,7 +357,7 @@ EMBED_INLINE unsigned int calls_leaf_at(const SymbolsCallsCtx *args)
 }
 
 // the usages of one file among those found from `first` to before `end`, each a call grouped under the function it
-// stands in, each function handed to `each` with its calls' places
+// is in, each function passed to `each` with its calls' places
 EMBED_INLINE int calls_callers_get(const SymbolsCallsCtx *args)
 {
     const char *const path =
@@ -430,7 +430,7 @@ int cli_symbols_callers(const CliSymbolsPathContextLineCfg *args)
                             .context = &usages, .err_msg = args->err_msg) < 0)
                     ? -1
                     : 1;
-        // the usages of each file stand together, in the order of their lines
+        // the usages of each file are together, in the order of their lines
         unsigned int first = 0u;
         for (unsigned int next = 1u; (found == 1) && mmgr_line_ok(&usages.found.line) && (next <= usages.count);
              next += 1u)
@@ -464,7 +464,7 @@ int cli_symbols_callers(const CliSymbolsPathContextLineCfg *args)
     return found;
 }
 
-// The definition of a call found as Go to Definition finds it: the calls found, and where the call stands
+// The definition of a call found as Go to Definition finds it: the calls found, and where the call is
 typedef struct
 {
     CliCallsFound *calls;
@@ -483,7 +483,7 @@ static void calls_defined_append(const CliUsageCfg *args)
                .to = to, .site = defined->site);
 }
 
-// the calls found handed to `each` grouped by their definitions, each definition once with its calls' places, in the
+// the calls found passed to `each` grouped by their definitions, each definition once with its calls' places, in the
 // order each was first called
 EMBED_INLINE void calls_callees_dispatch(const SymbolsCallsCtx *args)
 {

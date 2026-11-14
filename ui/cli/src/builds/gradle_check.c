@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // gradle_check.c: a Gradle script checked: each brace that closes no block and each block left open; each statement of
-// a `dependencies` block by the configuration it names, one Gradle 7 dropped with the one that stands in its place and
+// a `dependencies` block by the configuration it names, one Gradle 7 dropped with the one that is in its place and
 // one neither Gradle nor the script declares with the configurations near its name; the dependency a configuration
 // gives as a string, in its notation, a snapshot noted with the line that refreshes the build's dependencies; and each
 // name a catalog's accessor leads, against the catalog's aliases (gradle_references.c). A catalog larger than
@@ -21,10 +21,10 @@ typedef struct
     char folder[CLI_PATH_MAX_LEN];
     char program[CLI_PATH_MAX_LEN];
 } CliGradleCheck;
-// the most bytes of a catalog read
+// the max bytes of a catalog read
 #define CLI_GRADLE_CATALOG_TEXT (1u << 22u)
 
-// the configurations Gradle 7 has no more, and the one that stands in for each
+// the configurations Gradle 7 has no more, and the one that is in for each
 static const char *const s_removed[5][2] = {{"compile", "implementation"},
                                             {"testCompile", "testImplementation"},
                                             {"runtime", "runtimeOnly"},
@@ -68,7 +68,7 @@ EMBED_INLINE void check_snapshot(const GradleCheckCtx *args)
                .line_text = line, .line_size = command.at);
 }
 
-// the parts of `size` bytes of `text` split at `:`, at most `most` counted: their count, 0 where one is blank, and the
+// the parts of `size` bytes of `text` split at `:`, at max `max` counted: their count, 0 where one is blank, and the
 // third's bounds into `third`
 EMBED_INLINE unsigned int check_parts(const GradleCheckCtx *args)
 {
@@ -203,7 +203,7 @@ static void check_dependency(const CliGradleStatementCfg *args)
         mmgr_line_put_n(&msg, name, args->word_size);
         mmgr_line_put(&msg, "`: `");
         mmgr_line_put(&msg, s_removed[removed][1]);
-        mmgr_line_put(&msg, "` stands in its place");
+        mmgr_line_put(&msg, "` is in its place");
         const unsigned int finding =
             EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = check->found, .message = &msg,
                        .lines = check->lines, .from = word_text, .to = word_text + args->word_size,

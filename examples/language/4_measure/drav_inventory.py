@@ -13,10 +13,10 @@
 # explanations were proposed for it and all three failed. Aligning the scripts moved nothing, which it
 # could not have, since the reading ranks by frequency and never sees a codepoint. Reading whole clusters
 # made it worse. Folding the aspirate and voiced stops onto their plain forms, the distinction set
-# Tamil script keeps, removed 67 symbols of 524 and left the rest standing.
+# Tamil script retains, removed 67 symbols of 524 and left the rest located.
 #
 # That last number is the point. If the surplus were Sanskrit consonants, folding them would have taken
-# most of it. It took an eighth. So the surplus is something else and it has not been looked at. Looking
+# the majority of it. It took an eighth. So the surplus is something else and it has not been looked at. Looking
 # at it should have come first and did not.
 #
 # This counts what is there by script and by category, and prints the commonest symbols that Tamil does
@@ -81,7 +81,7 @@ def main():
         for symbol in held["malayalam"]:
             counts[symbol] = counts.get(symbol, 0) + 1
         ordered = sorted(counts, key=lambda symbol: -counts[symbol])
-        shown = 0
+        displayed = 0
         for symbol in ordered:
             if symbol.isspace():
                 continue
@@ -91,16 +91,16 @@ def main():
                 name = "unnamed"
             out.write("      %-8s %-9d %-6s %s\n"
                       % (hex(ord(symbol)), counts[symbol], unicodedata.category(symbol), name[:58]))
-            shown += 1
-            if shown >= 22:
+            displayed += 1
+            if displayed >= 22:
                 break
 
         out.write("\n  how many of malayalam's distinct symbols are of each category\n")
-        by_kind = {}
+        by_type = {}
         for symbol in set(held["malayalam"]):
-            by_kind[unicodedata.category(symbol)] = by_kind.get(unicodedata.category(symbol), 0) + 1
-        for kind, count in sorted(by_kind.items(), key=lambda pair: -pair[1]):
-            out.write("      %-6s %d\n" % (kind, count))
+            by_type[unicodedata.category(symbol)] = by_type.get(unicodedata.category(symbol), 0) + 1
+        for type, count in sorted(by_type.items(), key=lambda pair: -pair[1]):
+            out.write("      %-6s %d\n" % (type, count))
 
     out.flush()
     return 0

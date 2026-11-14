@@ -6,13 +6,13 @@ establish.
 \section{A flattened grid does not carry one period}
 
 Reversi returns 8 because nothing repeats along a Reversi row. That is a property of the corpus and
-not a property of the reader, and a reader handed a grid with structure on both axes has no way to
+not a property of the reader, and a reader passed a grid with structure on both axes has no way to
 know which of them it answered with.
 
 The demonstration is a two-heap subtraction game. The value of a sum of independent games is the
 exclusive or of their values. That is Sprague and Grundy's theorem~\cite{src:Sprague-1935,src:Grundy-1939} and is not measured here. A square
 grid of two heaps under one move set is therefore generated for nothing. Such a grid repeats down the column at the
-width it was laid out at, and along the row at the game's own Grundy period. Three hundred and
+width it was arranged at, and along the row at the game's own Grundy period. Three hundred and
 fifteen of them, at five widths:
 
 \begin{center}
@@ -48,11 +48,11 @@ assumption about the corpus dressed as a measurement.
 belongs to the construction and cost belongs to the domain's distribution. A result obtained inside
 one distribution stays there. A subtraction game's Grundy sequence is exactly periodic after a short
 preperiod, over a small alphabet, with no noise. It is the easiest case a period detector can be
-shown, and three hundred and eighty three rows of it establish that the
+displayed, and three hundred and eighty three rows of it establish that the
 detector is right where an answer exists and is checkable. They establish nothing about a corpus
 that is noisy, or only approximately periodic, or long.
 
-\textbf{The window test is shown against one family of counterexample.} Every aperiodic word tested
+\textbf{The window test is displayed against one family of counterexample.} Every aperiodic word tested
 is Sturmian. A sequence aperiodic in some other way might hold its answer across widening windows and
 defeat the test entirely, and nothing here rules that out. Nine slopes is nine.
 
@@ -77,7 +77,7 @@ nothing larger is claimed for it here.
 
 \section{What the research paper is for, if one thing}
 
-Not the three hundred and eighty three. They are cheap by design, and a domain that hands out its
+Not the three hundred and eighty three. They are cheap by design, and a domain that passes out its
 own answers is not hard to agree with.
 
 The chapter worth carrying forward is the chapter where the instrument is confident, clears every

@@ -2,7 +2,7 @@
   "id": "r",
   "name": "R",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "extensions": ["r"],
   "comments": {"line":"#"},
   "pairs": ["()","[]","{}"],
@@ -26,7 +26,7 @@
     "types": ["numeric", "character", "logical", "integer", "complex", "double", "raw", "list", "data.frame", "matrix", "factor", "environment"],
     "constants": [
       "TRUE", "FALSE", "NULL", "NA", "NaN", "Inf", "NA_integer_", "NA_real_", "NA_character_", "NA_complex_", "T",
-      "F", "pi", "LETTERS", "letters", "month.name", "month.abb"
+      "F", "pi", "CHARACTERS", "characters", "month.name", "month.abb"
     ],
     "functions": [
       "c", "vector", "print", "cat", "paste", "paste0", "length", "seq", "seq_len", "seq_along", "rep", "sum",

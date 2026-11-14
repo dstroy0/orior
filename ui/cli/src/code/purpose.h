@@ -3,10 +3,10 @@
 // purpose.h: what a file is for, before it is opened: what its first comment states, and which files of the tree use
 // it.
 //
-// The first comment is the first that stands before the file's code, read with the comment marks of the file's
+// The first comment is the first that is before the file's code, read with the comment marks of the file's
 // language as its plugin names them, past a first line of `#!`, and past a comment that states a copyright or a
 // license; a Python module's docstring counts as a comment, and a Markdown file's first paragraph under its headings
-// stands for one. Its lines are joined into sentences, and the first few of them are given.
+// is for one. Its lines are joined into sentences, and the first few of them are given.
 //
 // A file uses another where it names the other's file name, as an import of a script, an include of a header, a link
 // or a stylesheet does, or where a line that imports, uses, includes or inputs names the other's name without its
@@ -22,8 +22,8 @@ typedef struct CliPurposeCfg CliPurposeCfg;
 typedef struct CliPurposePathTextCfg CliPurposePathTextCfg;
 typedef struct CliPurposeTextCfg CliPurposeTextCfg;
 
-// the most bytes of a file read for its comment, and of each file read for its uses; the most letters of a comment
-// given, and the most users named
+// the max bytes of a file read for its comment, and of each file read for its uses; the max characters of a comment
+// given, and the max users named
 #define CLI_PURPOSE_HEAD (64u * 1024u)
 #define CLI_PURPOSE_READ (512u * 1024u)
 #define CLI_PURPOSE_TEXT_MAX_LEN 600u

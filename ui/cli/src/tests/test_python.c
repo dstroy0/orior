@@ -159,7 +159,7 @@ EMBED_INLINE int test_file_ahead(const TestPythonCtx *args)
             ((named_after > 0) || ((named_after == 0) && (before_length > length))));
 }
 
-// the `files` of `run`'s tests put into s_by_size, those with the most tests first and those with as many by name
+// the `files` of `run`'s tests put into s_by_size, those with the max tests first and those with as many by name
 EMBED_INLINE void test_files_sorted(const TestPythonCtx *args)
 {
     for (unsigned int file = 0u; file < args->files; file += 1u)
@@ -175,9 +175,9 @@ EMBED_INLINE void test_files_sorted(const TestPythonCtx *args)
     }
 }
 
-// the tests of each of the `files` that `share_of` gives the share `share`, file after file in s_by_size's order, laid
+// the tests of each of the `files` that `share_of` gives the share `share`, file after file in s_by_size's order, positioned
 // in `run_out`'s order from `positioned`: the place after the last
-EMBED_INLINE unsigned int test_share_laid(const TestPythonCtx *args)
+EMBED_INLINE unsigned int test_share_positioned(const TestPythonCtx *args)
 {
     unsigned int positioned = args->positioned;
     for (unsigned int at = 0u; at < args->files; at += 1u)
@@ -195,9 +195,9 @@ EMBED_INLINE unsigned int test_share_laid(const TestPythonCtx *args)
     return positioned;
 }
 
-// the `count` tests of `run_out` laid in its order share by share: each of the `shares` that `sizes` gives a test, its
+// the `count` tests of `run_out` positioned in its order share by share: each of the `shares` that `sizes` gives a test, its
 // first place and size, its tests those of the `files` that `share_of` gives it, file after file in s_by_size's order
-EMBED_INLINE void test_shares_laid(const TestPythonCtx *args)
+EMBED_INLINE void test_shares_positioned(const TestPythonCtx *args)
 {
     CliTestRun *const run = args->run_out;
     run->shares = 0u;
@@ -210,7 +210,7 @@ EMBED_INLINE void test_shares_laid(const TestPythonCtx *args)
         }
         run->share_from[run->shares] = positioned;
         positioned =
-            EMBED_CALL(test_share_laid, TestPythonCtx, .run_out = run, .files = args->files, .share_of = args->share_of,
+            EMBED_CALL(test_share_positioned, TestPythonCtx, .run_out = run, .files = args->files, .share_of = args->share_of,
                        .share = share, .count = args->count, .positioned = positioned);
         run->share_size[run->shares] = positioned - run->share_from[run->shares];
         run->shares += 1u;
@@ -221,9 +221,9 @@ void cli_test_shares(const CliTestRunsRunCountCtx *args)
 {
     const unsigned int files = EMBED_CALL(test_files_grouped, TestPythonCtx, .run = args->run, .count = args->count);
     EMBED_CALL(test_files_sorted, TestPythonCtx, .run = args->run, .files = files);
-    const unsigned int most_shares = (files > 1u) ? files : 1u;
-    unsigned int shares = (args->most < 1u) ? 1u : args->most;
-    shares = (shares > most_shares) ? most_shares : shares;
+    const unsigned int max_shares = (files > 1u) ? files : 1u;
+    unsigned int shares = (args->max < 1u) ? 1u : args->max;
+    shares = (shares > max_shares) ? max_shares : shares;
     shares = (shares > CLI_TEST_WORKERS) ? CLI_TEST_WORKERS : shares;
     unsigned int share_of[CLI_TEST_NAMED];
     unsigned int sizes[CLI_TEST_WORKERS];
@@ -239,7 +239,7 @@ void cli_test_shares(const CliTestRunsRunCountCtx *args)
         share_of[file] = min;
         sizes[min] += s_file_size[file];
     }
-    EMBED_CALL(test_shares_laid, TestPythonCtx, .run_out = args->run, .count = args->count, .files = files,
+    EMBED_CALL(test_shares_positioned, TestPythonCtx, .run_out = args->run, .count = args->count, .files = files,
                .shares = shares, .share_of = share_of, .sizes = sizes);
 }
 
@@ -300,13 +300,13 @@ EMBED_INLINE void python_tail_message(const TestPythonCtx *args)
             const unsigned long long end = bounds.cut;
             const unsigned long long start = at;
             at = bounds.next;
-            unsigned long long letter = start;
-            while ((letter < end) && (cellul.chr(&(CatenaFinitaCfg){
-                                          .src = " \t\r\n\f\v", .cap = CLI_POOL_BYTES, .byte = text[letter]}) != NULL))
+            unsigned long long character = start;
+            while ((character < end) && (cellul.chr(&(CatenaFinitaCfg){
+                                          .src = " \t\r\n\f\v", .cap = CLI_POOL_BYTES, .byte = text[character]}) != NULL))
             {
-                letter += 1ULL;
+                character += 1ULL;
             }
-            if (letter < end)
+            if (character < end)
             {
                 starts[line_count % 3u] = text + start;
                 sizes[line_count % 3u] = end - start;

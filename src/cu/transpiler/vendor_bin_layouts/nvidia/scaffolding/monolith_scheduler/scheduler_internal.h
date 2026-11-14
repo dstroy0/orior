@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the most bytes a cubin takes, the most instructions a section contains, the most operations tracked apart, the most
+// the max bytes a cubin takes, the max instructions a section contains, the max operations tracked apart, the max
 // registers an instruction reads, and the farthest a reader is looked for past the instruction it reads from
 #define SCHEDULER_CUBIN_BYTES 4194304u
 

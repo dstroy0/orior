@@ -35,8 +35,8 @@ export function hideCard() {
   Object.assign(state, { row: null, card: null, asked: state.asked + 1 });
 }
 
-// The card shown, for the tests.
-export const shownCard = () => state.card;
+// The card displayed, for the tests.
+export const displayedCard = () => state.card;
 
 function place(card, row) {
   const box = row.getBoundingClientRect();
@@ -46,7 +46,7 @@ function place(card, row) {
   card.style.top = `${Math.max(8, Math.min(box.top, window.innerHeight - card.offsetHeight - 8))}px`;
 }
 
-// Shows the card of the file the row `row` stands for.
+// Shows the card of the file the row `row` is for.
 export async function showCard(row) {
   const path = row.dataset.key;
   hideCard();

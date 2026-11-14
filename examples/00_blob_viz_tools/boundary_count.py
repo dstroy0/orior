@@ -17,8 +17,8 @@ this directory survives it.
 
 WHY TWO ROUTES
 
-The count is arrived at by packing: points are dropped on the surface and kept where they sit
-further than one resolution from everything already kept, which is a direct measure of how many
+The count is arrived at by packing: points are dropped on the surface and retained where they sit
+further than one resolution from everything already retained, which is a direct measure of how many
 distinguishable places the surface has. The measure is arrived at separately, in closed form from
 the shape's own geometry. Neither computation reads the other.
 
@@ -113,17 +113,17 @@ def on_octahedron(half, draw):
 
 
 def pack(points, apart):
-    """How many of these can be kept with none closer than `apart` to another kept one.
+    """How many of these can be retained with none closer than `apart` to another retained one.
 
     Greedy, in the order they arrive. Greedy packing is not the densest packing and does not need
     to be: it is the same procedure on every shape. Whatever it loses it loses equally, and what
     is being compared is one shape against another and never against a theoretical best.
     """
-    kept = []
+    retained = []
     limit = apart * apart
     for point in points:
         clear = True
-        for other in kept:
+        for other in retained:
             total = 0.0
             for at in range(len(point)):
                 gap = point[at] - other[at]
@@ -134,8 +134,8 @@ def pack(points, apart):
                 clear = False
                 break
         if clear:
-            kept.append(point)
-    return len(kept)
+            retained.append(point)
+    return len(retained)
 
 
 def run(name, dims, measure, maker, tries, seed, target=52):
@@ -195,7 +195,7 @@ def typical(maker, seed, pairs=900):
 
 
 def harmonics_upto(dims, top):
-    """Exactly how many harmonics of degree at most `top` live on the sphere in this dimension.
+    """Exactly how many harmonics of degree at max `top` live on the sphere in this dimension.
 
     Whole numbers throughout. Degree l on the sphere in n dimensions carries
     C(l+n-1, n-1) - C(l+n-3, n-1) harmonics, and summing that to L telescopes to the two terms
@@ -238,7 +238,7 @@ def _check():
     print("  Shapes against each other, one dimension at a time. The constant has to hold still.")
     print("")
     print("  %-12s %5s %7s %9s %12s %10s" %
-          ("shape", "dims", "kept", "gap", "measure", "constant"))
+          ("shape", "dims", "retained", "gap", "measure", "constant"))
 
     for dims in (3, 4, 5):
         rows = [
@@ -262,7 +262,7 @@ def _check():
     print("  One shape, climbing dimensions, with every row asked whether it means anything.")
     print("")
     print("  %-12s %5s %7s %9s %12s %10s  %s" %
-          ("shape", "dims", "kept", "gap", "measure", "constant", "resolved"))
+          ("shape", "dims", "retained", "gap", "measure", "constant", "resolved"))
 
     # A packing count is only about the surface while there are candidates to spare. Past that the
     # count stops being what the geometry allows and becomes what the pool contained, and in high
@@ -314,10 +314,10 @@ def _check():
         want = weyl_upto(dims, top)
         ratio = got / want
         off.append(abs(ratio - 1.0))
-        shown = str(got)
-        if len(shown) > 26:
-            shown = shown[:9] + "..." + shown[-9:] + " (%d digits)" % len(shown)
-        print("  %5d %9d %26s %14.6g %10.6f" % (dims, top, shown, want, ratio))
+        displayed = str(got)
+        if len(displayed) > 26:
+            displayed = displayed[:9] + "..." + displayed[-9:] + " (%d digits)" % len(displayed)
+        print("  %5d %9d %26s %14.6g %10.6f" % (dims, top, displayed, want, ratio))
 
     print("")
     print("  worst departure from the law: %.4f%%" % (100 * max(off)))

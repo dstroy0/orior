@@ -133,13 +133,13 @@ def banned_hits(lines, quotations=False, comments=False, path=None, ledger=None)
 # And "human words" describes a general English sample, which 154 linguistics papers are not: the
 # sentence read as a claim about English and was a claim about these papers.
 #
-# THE UNMEASURED BRANCH IS THE OVERWHELMING MAJORITY OF WHAT THIS TOOL PRINTS, because most banned
+# THE UNMEASURED BRANCH IS THE OVERWHELMING MAJORITY OF WHAT THIS TOOL PRINTS, because max banned
 # patterns have no measured rate. A misdescription there is not an edge case in the report, it is
 # almost the whole of it, so the wording on that branch matters more than the wording anywhere else.
 #
 # Absence from these papers is weak evidence and the wording now says which papers. A reader can
 # weigh it. A phrase can be missing because the domain is. Re-cut this against an English corpus, or
-# keep naming the corpus. Never print a rate or an absence without the corpus behind it.
+# retain naming the corpus. Never print a rate or an absence without the corpus behind it.
 CORPUS = "the 759,815-word reference papers"
 
 
@@ -157,13 +157,13 @@ def measured(pattern):
 def banned_tokens(
     lines, quotations=False, comments=False, path=None, ledger=None, regions=None
 ):
-    """Findings a reader sees, one per hit, carrying the tier and what stands behind it.
+    """Findings a reader sees, one per hit, carrying the tier and what is behind it.
 
     A TIER A line names the section that bans the construction. A reader can go and read the
     sentence. A TIER B line carries a frequency where one was
     measured and says which corpus it was measured in where one was not. Neither fails a build.
 
-    A finding inside a generated region keeps its place in the count and names the generator. Read
+    A finding inside a generated region retains its place in the count and names the generator. Read
     the note above generated_regions for why it is attributed and not suppressed: in the one tree
     measured, suppressing it would have deleted the only genuine structural finding there was.
     """

@@ -1,4 +1,4 @@
-"""The numerics, written once, with the multiply handed in.
+"""The numerics, written once, with the multiply passed in.
 
 An ENGINE here is one function: `product(left, right)`, and the interface stops there. Everything in
 this module - reciprocals, roots, division, modular exponentiation, Chudnovsky's series - is built
@@ -88,7 +88,7 @@ def reciprocal(product, value, bits):
 def divide(product, top, bottom, places):
     """floor(top * 10^places / bottom), by reciprocal. No division happens at size.
 
-    The scale is applied to the numerator before the reciprocal is folded in, which keeps every
+    The scale is applied to the numerator before the reciprocal is folded in, which retains every
     intermediate an exact integer and leaves one shift at the end.
     """
     if bottom <= 0:
@@ -112,7 +112,7 @@ def divide(product, top, bottom, places):
 def divide_binary(product, top, bottom, bits):
     """floor(top * 2^bits / bottom). The same routine in the base the fixed point is stored in.
 
-    Kept beside the decimal one instead of folded into it because the two are used in different
+    Retained beside the decimal one instead of folded into it because the two are used in different
     places and a single function taking a base would put a branch in front of every call for no
     gain. Each name carries its base. Neither call site has to be read twice.
     """
@@ -208,7 +208,7 @@ def reduce_by(product, value, modulus, folded=None):
     # THE RECIPROCAL HAS TO COVER THE VALUE AS WELL AS THE MODULUS. If `bits` is only wide enough for
     # the modulus then the truncation in `folded` scales with `value` and the quotient comes out low
     # by an amount that grows with it, leaving the correction loop to subtract the modulus that many
-    # times. Sizing `bits` to the value keeps the quotient within one of the truth.
+    # times. Sizing `bits` to the value retains the quotient within one of the truth.
     bits = value.bit_length() + modulus.bit_length() + 8
     if folded is None or folded[1] < bits:
         folded = (reciprocal(product, modulus, bits), bits)
@@ -231,7 +231,7 @@ def power_mod(product, base, power, modulus):
     if modulus <= 1:
         return 0
     # Every reduction inside the climb is of a product of two values below the modulus. The
-    # widest value handed to `reduce_by` is just under the modulus squared. Sizing the reciprocal to
+    # widest value passed to `reduce_by` is just under the modulus squared. Sizing the reciprocal to
     # that once means no reduction below has to rebuild it.
     bits = 2 * modulus.bit_length() + 8
     folded = (reciprocal(product, modulus, bits), bits)

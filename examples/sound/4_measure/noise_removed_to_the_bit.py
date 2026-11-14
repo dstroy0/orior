@@ -4,7 +4,7 @@
 # Catalog: SND-4-003
 #
 # One filter, four noises: reject the component the target's invariant does not share, with the
-# evidence for every 100% kept beside it.
+# evidence for every 100% retained beside it.
 #
 #   Usage:  python examples/sound/4_measure/noise_removed_to_the_bit.py
 #
@@ -19,9 +19,9 @@
 #
 # The first section is the sweep: one row per noise type. The WRONG-REFERENCE column is there so the
 # matched 100% cannot be read alone -- the same signal through another noise's reference reads near zero
-# or below. The method rejected the noise that was present and not the noise it was handed.
+# or below. The method rejected the noise that was present and not the noise it was passed.
 #
-# The second section keeps the evidence in this file and not in a test, because a floor and a
+# The second section retains the evidence in this file and not in a test, because a floor and a
 # divergence probe are not tests of the code, they are the justification for the number beside them; a
 # number separated from its basis gets requoted without it. Per method it carries the two independent
 # routes and a broken third that must split from them, the drawn null with its spread and not one

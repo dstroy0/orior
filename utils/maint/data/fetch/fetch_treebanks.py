@@ -15,7 +15,7 @@
 #
 # That is countable if the grammar of each word is written down, and these treebanks write it down: every
 # token carries its surface form, the lemma it belongs to, and the case, number, gender and person it
-# stands in. So the count of distinct readings sharing one surface form is the syncretism, measured and
+# is in. So the count of distinct readings sharing one surface form is the syncretism, measured and
 # not estimated.
 #
 # It also bears on why walking through a text makes the possibilities grow instead of shrink. If the
@@ -101,9 +101,9 @@ def fetch_train(repository, filename):
 
     stem = filename[:-len(".conllu")]
     pieces = []
-    for letter in "abcdefghij":
+    for character in "abcdefghij":
         try:
-            blob = fetch("%s%s-%s.conllu" % (base, stem, letter))
+            blob = fetch("%s%s-%s.conllu" % (base, stem, character))
             time.sleep(PAUSE)
         except urllib.error.HTTPError:
             break

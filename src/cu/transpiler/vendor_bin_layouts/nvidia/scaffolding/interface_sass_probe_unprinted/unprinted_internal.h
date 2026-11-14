@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the most bytes a cubin, its code, a text and a run's output take
+// the max bytes a cubin, its code, a text and a run's output take
 #define UNPRINTED_CUBIN_BYTES 262144u
 
 #define UNPRINTED_CODE_BYTES 65536u
@@ -31,8 +31,8 @@
 // is ended here and read as not run
 #define UNPRINTED_LIMIT 10000000ull
 
-// the widest field turned through every value, and the most bits a question fixes beside it
-#define UNPRINTED_FIELD_MOST 6u
+// the widest field turned through every value, and the max bits a question fixes beside it
+#define UNPRINTED_FIELD_MAX 6u
 
 #define UNPRINTED_FIXED 2u
 
@@ -40,7 +40,7 @@
 // over those three
 #define UNPRINTED_COPIES 4u
 
-// the registers a thread of every cubin written declares, the most a cubin declares. A kernel refuses a register
+// the registers a thread of every cubin written declares, the max a cubin declares. A kernel refuses a register
 // number past the count it declares as an illegal instruction, and the pattern declares 10: a register field is probed
 // under a count that covers every number
 #define UNPRINTED_REGISTERS 255u

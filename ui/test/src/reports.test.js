@@ -14,14 +14,14 @@ test("Help, Report a Problem shows its form", async () => {
   await sheetShown(".sheet-report");
 });
 
-test("Help, Auto Report keeps whether errors file on their own, from the command line and from the menu", async () => {
+test("Help, Auto Report retains whether errors file on their own, from the command line and from the menu", async () => {
   const settings = `${window.__harness.servers.ORIOR_TEST_HOME}/settings.json`;
-  const kept = async () => JSON.parse(await invoke("file_read_any", { path: settings }).catch(() => "{}")).auto_report;
+  const retained = async () => JSON.parse(await invoke("file_read_any", { path: settings }).catch(() => "{}")).auto_report;
   await press("auto-report", "on");
-  assert.equal(await kept(), true, "the command line keeps it on");
+  assert.equal(await retained(), true, "the command line retains it on");
   await press("auto-report", "off");
-  assert.equal(await kept(), false, "and off");
-  // The menu's press keeps it through a call the harness holds; the test answers it.
+  assert.equal(await retained(), false, "and off");
+  // The menu's press retains it through a call the harness holds; the test answers it.
   const asked = [];
   calls.answer("report_auto_set", ({ on }) => asked.push(on));
   await runCommand("auto-report", ["on"]);

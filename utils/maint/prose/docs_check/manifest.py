@@ -13,7 +13,7 @@ import os
 # SIGNED MANIFESTS
 # --------------------------------------------------------------------
 #
-# The most dangerous exclusion in this file, and the only one whose cost is not a question of taste.
+# The max dangerous exclusion in this file, and the only one whose cost is not a question of taste.
 #
 # A tree may carry a MANIFEST.tsv recording the SHA-256, the byte count and the row count of its
 # files, with a detached signature beside it. Changing one byte of a listed file makes its hash
@@ -119,7 +119,7 @@ def reconcile_command(manifest):
     """The manifest's own instruction for reconciling a tree against it.
 
     Lifted from the manifest header instead of written out here. The tool that writes the manifest
-    maintains both the file and the sentence. Quoting the sentence keeps this from drifting away from the tool
+    maintains both the file and the sentence. Quoting the sentence retains this from drifting away from the tool
     that would have to be run.
     """
     try:

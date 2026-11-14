@@ -8,7 +8,7 @@
 
 #include "../text/text.h"
 
-// the most targets of a package and entries of a folder Cargo finds targets in, and those each list is taken with
+// the max targets of a package and entries of a folder Cargo finds targets in, and those each list is taken with
 #define CLI_CARGO_TARGETS 1024u
 #define CLI_CARGO_ENTRIES 1024u
 
@@ -180,7 +180,7 @@ void cli_cargo_join(const CliCargoTestsACtx *args)
 }
 
 // The targets of one package and what Cargo finds on its own in a folder of it, each list a cell of its capacity at
-// their most
+// their max
 typedef struct
 {
     CliCargoFirst *firsts;
@@ -388,7 +388,7 @@ EMBED_INLINE void found_setting_put(const CargoTargetsCtx *args)
     }
 }
 
-// the manifest, the `length` bytes at `text`, read: the [[bin]] and [[test]] tables it lists into `tables`, at most
+// the manifest, the `length` bytes at `text`, read: the [[bin]] and [[test]] tables it lists into `tables`, at max
 // `capacity` of them, the package's autobins and autotests into `autobins_out` and `autotests_out` and the lib's path
 // into `path_out`; the count of tables listed
 EMBED_INLINE unsigned int found_manifest_read(const CargoTargetsCtx *args)

@@ -10,7 +10,7 @@
 // - a hook git runs as it reads the tree's state, `core.fsmonitor` naming a program in the tree's `.git/config`.
 //
 // The reader's answer is stored in trust.json in orior's home, by folder, and a folder's answer applies to every tree
-// under it, the nearest folder's answer standing. A tree that contains code of its own and is not trusted has that code
+// under it, the nearest folder's answer located. A tree that contains code of its own and is not trusted has that code
 // disabled: rust-analyzer starts with its build scripts, its procedural macros and its checks off, the checkers the
 // reader names do not run, Prettier does not format where the tree's configuration is JavaScript, and git is instructed
 // to run no fsmonitor hook. A tree with no code of its own is never prompted about.

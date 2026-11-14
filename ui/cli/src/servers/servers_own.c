@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // servers_own.c: the files impero reads itself, its build files and JSON by its schema, checked by its own reading:
-// a file as its text stands, on a thread of the servers', a later check of the same file standing in for an earlier one
+// a file as its text is, on a thread of the servers', a later check of the same file located in for an earlier one
 // still going, the file receiving its findings, changed or the same, as a file the editor opens does; and each such
 // file of the tree as the disk stores it, a file with no findings passed on only where it had some before, for those to
 // clear. The names a build tool gives a file are recorded as its text is checked, for its server's reports of them as
-// undefined to be passed over. Each job is made in a cell of its size and handed over whole, and what it finds is
+// undefined to be passed over. Each job is made in a cell of its size and passed over whole, and what it finds is
 // written through pieces into a cell of the size it writes to
 #include "../builds/builds.h"
 #include "../code/schema.h"
@@ -77,7 +77,7 @@ static void own_name_append(const CliEachNameSizeCfg *args)
     mmgr_line_ch(names, '\n');
 }
 
-// one file checked as its text stands, its findings stored and passed on where its run is still the last
+// one file checked as its text is, its findings stored and passed on where its run is still the last
 static void own_job(const CliServersJobCfg *args)
 {
     unsigned long long size = args->size;

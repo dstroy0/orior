@@ -62,7 +62,7 @@ EMBED_INLINE void cli_same(const CompileDbProgramCtx *args)
 #endif
 }
 
-// whether a path stands alone, not under a folder
+// whether a path is alone, not under a folder
 EMBED_INLINE int cli_absolute(const CompileDbProgramCtx *args)
 {
     return (args->path[0] == '/') || (args->path[0] == '\\') || ((args->path[0] != '\0') && (args->path[1] == ':'));

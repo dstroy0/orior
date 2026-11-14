@@ -28,8 +28,8 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
     {
         const char *const operand = parts.operand[place];
         const char *const open = strrchr(operand, '[');
-        const char *const named = (parts.kind[place] == SASS_OPERAND_ADDRESS) ? ((open != NULL) ? (open + 1) : NULL)
-                                  : (parts.kind[place] == SASS_OPERAND_REGISTER) ? operand
+        const char *const named = (parts.type[place] == SASS_OPERAND_ADDRESS) ? ((open != NULL) ? (open + 1) : NULL)
+                                  : (parts.type[place] == SASS_OPERAND_REGISTER) ? operand
                                                                                  : NULL;
         if ((named == NULL) || (named[0] != 'R') || (strncmp(named, "RZ", 2u) == 0))
         {
@@ -97,7 +97,7 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
             sass_bits_write(low, high, places[place].offset.first, places[place].offset.bits, offset);
         }
         // A memory operand that names its descriptor writes the uniform register into the descriptor field and
-        // specifies whether it is shown: desc[URn] sets bit 101 and term[URn] clears it. One that names none retains
+        // specifies whether it is displayed: desc[URn] sets bit 101 and term[URn] clears it. One that names none retains
         // both as its form carries them
         const int named = (strncmp(parts.operand[place], "desc[", 5u) == 0) ||
                           (strncmp(parts.operand[place], "term[", 5u) == 0);
@@ -107,11 +107,11 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
             const unsigned long long descriptor = (strncmp(uniform, "URZ", 3u) == 0) ? SASS_DESCRIPTOR_ZERO
                                                                                     : sass_register_value(uniform);
             sass_bits_write(low, high, places[place].descriptor.first, places[place].descriptor.bits, descriptor);
-            sass_bits_write(low, high, SASS_DESCRIPTOR_SHOWN, 1u, (parts.operand[place][0] == 'd') ? 1ull : 0ull);
+            sass_bits_write(low, high, SASS_DESCRIPTOR_DISPLAYED, 1u, (parts.operand[place][0] == 'd') ? 1ull : 0ull);
         }
         // a constant's bank must be the one the form carries, since the bank's own bits were not found by probing; and
         // its offset a whole word the field holds, refused and not cut where it is part of a word or past the bank
-        if (parts.kind[place] == SASS_OPERAND_CONSTANT)
+        if (parts.type[place] == SASS_OPERAND_CONSTANT)
         {
             unsigned long long bank = 0ull;
             unsigned long long base_bank = 0ull;
@@ -211,11 +211,11 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
     {
         if (sass_line_is_label(line))
         {
-            // a label past the most one text names, or longer than a name is stored, is refused and not dropped
+            // a label past the max one text names, or longer than a name is stored, is refused and not dropped
             if ((s_labels.count == SASS_LABELS) || (strlen(line) > SASS_LABEL_TOKEN))
             {
                 printf(
-                    "  sass_assemble: %s is past the %u labels a text names or the %u letters a name is limited to\n",
+                    "  sass_assemble: %s is past the %u labels a text names or the %u characters a name is limited to\n",
                     line, SASS_LABELS, SASS_LABEL_TOKEN - 1u);
                 return 0u;
             }
@@ -246,9 +246,9 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
         for (unsigned int place = 0u; place < parts.operands; place += 1u)
         {
             const char *const open = strchr(parts.operand[place], '(');
-            // a label of the text names where it stands; a symbol is a relocation the loader fills, and the text
+            // a label of the text names where it is; a symbol is a relocation the loader fills, and the text
             // specifies nothing about where it will be
-            if ((parts.kind[place] == SASS_OPERAND_LABEL) && (open != NULL) && (open[1] == '.'))
+            if ((parts.type[place] == SASS_OPERAND_LABEL) && (open != NULL) && (open[1] == '.'))
             {
                 target = sass_label_address(&s_labels, parts.operand[place], &known);
             }

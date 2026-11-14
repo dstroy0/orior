@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // fill.c: Fill Paragraph: the text's lines walked from the cursor's, the paragraph's words gathered by the texts they
-// stand in, and filled into lines no wider than the margin. A paragraph of a comment a line takes the lines that start
+// are in, and filled into lines no wider than the margin. A paragraph of a comment a line takes the lines that start
 // with the cursor line's indent and mark and contain text after it, a line of a longer mark not among them; a
 // docstring's the lines of its quotes that are not blank; plain text's the lines that are not blank. One fill runs at a
 // time
@@ -140,8 +140,8 @@ void cli_fill_words(const CliFillFilledCtx *args)
 {
     EMBED_CALL(cli_fill_size_internal.filled_line, CliFillSizeCtx, .filled = args->filled, .bytes = args->first,
                .size = args->first_size);
-    unsigned long long letters =
-        EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = args->first, .size = args->first_size);
+    unsigned long long characters =
+        EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = args->first, .size = args->first_size);
     int empty = 1;
     for (unsigned int at = args->slice; at < args->slice + args->count; at += 1u)
     {
@@ -153,25 +153,25 @@ void cli_fill_words(const CliFillFilledCtx *args)
         while (EMBED_CALL(cli_text_size_length.word_text, CliTextSizeLengthCfg, .text = text, .size = size,
                           .at_pointer = &walk, .word_text = &word_text, .length = &length))
         {
-            const unsigned long long word_letters =
-                EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = text + word_text, .size = length);
-            const unsigned long long lead = empty ? letters : letters + 1u;
-            if (!empty && (lead + word_letters > args->width))
+            const unsigned long long word_characters =
+                EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = text + word_text, .size = length);
+            const unsigned long long lead = empty ? characters : characters + 1u;
+            if (!empty && (lead + word_characters > args->width))
             {
                 EMBED_CALL(fill_end, FillCtx, .filled = args->filled);
                 EMBED_CALL(cli_fill_size_internal.filled_line, CliFillSizeCtx, .filled = args->filled,
                            .bytes = args->rest, .size = args->remainder_size);
-                letters = EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = args->rest,
+                characters = EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = args->rest,
                                      .size = args->remainder_size);
                 empty = 1;
             }
             if (!empty)
             {
                 mmgr_line_ch(args->filled->out, ' ');
-                letters += 1u;
+                characters += 1u;
             }
             mmgr_line_put_n(args->filled->out, text + word_text, length);
-            letters += word_letters;
+            characters += word_characters;
             empty = 0;
         }
     }

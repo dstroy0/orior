@@ -22,7 +22,7 @@ uint64_t orior_exact_hash(const OriorExactInteger *value)
  *
  * @param[in] equal     Whether two integers have the same value [BORROWS].
  * @param[in] positions Positions carrying values, in any order [BORROWS].
- * @param[in] values    The value standing at each position [BORROWS].
+ * @param[in] values    The value located at each position [BORROWS].
  * @param[in] count     How many positions.
  * @param[in] lag       The offset to test [BORROWS].
  * @return              The count orior_exact_agreement_using returns with a table.

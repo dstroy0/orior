@@ -69,7 +69,7 @@ AlignEscapedNewlines: Right
 AlignOperands:   Align
 AlignTrailingComments:
   AlignPPAndNotPP: true
-  Kind:            Always
+  Type:            Always
   OverEmptyLines:  0
 AllowAllArgumentsOnNextLine: true
 AllowAllParametersOfDeclarationOnNextLine: true
@@ -203,11 +203,11 @@ IntegerLiteralSeparator:
   HexMinDigits:    0
 JavaScriptQuotes: Leave
 JavaScriptWrapImports: true
-KeepEmptyLines:
+RetainEmptyLines:
   AtEndOfFile:     false
   AtStartOfBlock:  true
   AtStartOfFile:   true
-KeepFormFeed:    false
+RetainFormFeed:    false
 LambdaBodyIndentation: Signature
 LineEnding:      DeriveLF
 MacroBlockBegin: ''
@@ -291,7 +291,7 @@ SpacesInAngles:  Never
 SpacesInContainerLiterals: true
 SpacesInLineCommentPrefix:
   Minimum:         1
-  Maximum:         -1
+  Max:         -1
 SpacesInParens:  Never
 SpacesInParensOptions:
   ExceptDoubleParentheses: false

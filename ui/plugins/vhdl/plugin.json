@@ -2,7 +2,7 @@
   "id": "vhdl",
   "name": "VHDL",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "extensions": ["vhd","vhdl"],
   "comments": {"line":"--","block":["/*","*/"]},
   "pairs": ["()","[]"],
@@ -38,7 +38,7 @@
     "types": [
       "bit", "bit_vector", "boolean", "boolean_vector", "character", "integer", "integer_vector", "natural",
       "positive", "real", "real_vector", "string", "time", "time_vector", "delay_length", "severity_level",
-      "file_open_kind", "file_open_status", "line", "text", "std_logic", "std_logic_vector",
+      "file_open_type", "file_open_status", "line", "text", "std_logic", "std_logic_vector",
       "std_ulogic", "std_ulogic_vector", "signed", "unsigned", "sfixed", "ufixed", "float", "float32", "float64",
       "unresolved_signed", "unresolved_unsigned", "u_signed", "u_unsigned"
     ],
@@ -51,7 +51,7 @@
       "rising_edge", "falling_edge", "to_integer", "to_unsigned", "to_signed", "to_stdlogicvector",
       "to_stdulogicvector", "to_bitvector", "to_x01", "to_01", "is_x", "resize", "shift_left", "shift_right",
       "rotate_left", "rotate_right", "std_match", "now", "readline", "writeline", "read", "write", "hread",
-      "hwrite", "to_string", "to_hstring", "to_ostring", "minimum", "maximum", "finish", "stop", "deallocate",
+      "hwrite", "to_string", "to_hstring", "to_ostring", "minimum", "max", "finish", "stop", "deallocate",
       "endfile", "file_open", "file_close", "conv_integer", "conv_std_logic_vector"
     ],
     "tokenizer": {

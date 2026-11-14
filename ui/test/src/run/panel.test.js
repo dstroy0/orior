@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// A protocol run's panel, shown from the window and the command line.
+// A protocol run's panel, displayed from the window and the command line.
 
 import { runCommand } from "../../../gui/src-js/menubar.js";
 import { showView } from "../../../gui/src-js/views.js";

@@ -28,12 +28,12 @@ typedef struct CliShapeCtx CliShapeCtx;
 #define CLI_SHAPE_STATEMENT 0x04u
 #define CLI_SHAPE_REGION 0x08u
 
-// what a placeholder stands for: one name, an expression, or statements
+// what a placeholder is for: one name, an expression, or statements
 #define CLI_SHAPE_HOLE_NAME 0u
 #define CLI_SHAPE_HOLE_EXPR 1u
 #define CLI_SHAPE_HOLE_STMT 2u
 
-// the most tokens of the code, of a pattern, and placeholders of a pattern
+// the max tokens of the code, of a pattern, and placeholders of a pattern
 #define CLI_SHAPE_TOKENS (1u << 22u)
 #define CLI_SHAPE_PATTERN 4096u
 #define CLI_SHAPE_HOLES 256u
@@ -47,11 +47,11 @@ typedef struct
     unsigned int *start;
     unsigned int *end;
     unsigned int count;
-    unsigned int most;
+    unsigned int max;
     int full;
 } CliShapeTokens;
 
-// A placeholder of a pattern: the token it stands as, its name, and what it stands for
+// A placeholder of a pattern: the token it is as, its name, and what it is for
 typedef struct
 {
     unsigned int token;

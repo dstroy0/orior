@@ -90,7 +90,7 @@ extern "C"
         QUERY_ANSWER_NONE
     } QueryAnswer;
 
-    // whoever answers for a file: whether the file at `path` is left as the run leaves it, its difference shown
+    // whoever answers for a file: whether the file at `path` is left as the run leaves it, its difference displayed
     typedef struct
     {
         QueryAnswer (*prompt)(const CliEachPathCfg *args);

@@ -2,7 +2,7 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# Find out which extracted papers kept the writing and which quietly lost it, for Section 4.13 of
+# Find out which extracted papers retained the writing and which quietly lost it, for Section 4.13 of
 # theory/workbooks/orior.
 #
 #   Usage:  python maint/data/salishan/corpus_script_extraction/salish_purity.py
@@ -19,7 +19,7 @@
 #
 # Two things are counted. The presence of the inventory, since a page of Salish with no glottal stop and
 # no schwa in it did not extract. And the gaps themselves, since a dropped glyph leaves its space behind
-# and a damaged line reads as letters separated by runs of blanks.
+# and a damaged line reads as characters separated by runs of blanks.
 #
 # Nothing here decides that a paper is usable. It sorts the papers so that the ones worth copying by hand
 # are known before the copying starts, and so that a paper that has to be read off the page visually is
@@ -98,14 +98,14 @@ INVENTORY = {
 # A glottalization or wedge written as its own combining character
 COMBINING = re.compile(r"[̀-ͯ]")
 
-# What a dropped glyph leaves behind: letters with a run of blanks wedged between them
+# What a dropped glyph leaves behind: characters with a run of blanks wedged between them
 GAP = re.compile(r"[A-Za-zɐ-ʯͰ-Ͽ]\s{2,}[A-Za-zɐ-ʯͰ-Ͽ]")
 
 
 def measure(text):
     """What of the writing is present, and how much of it looks to have fallen out."""
-    letters = sum(1 for symbol in text if symbol.isalpha())
-    if letters < 200:
+    characters = sum(1 for symbol in text if symbol.isalpha())
+    if characters < 200:
         return None
 
     held = {}
@@ -116,7 +116,7 @@ def measure(text):
 
     # How many of the named sets turned up at all
     present = sum(1 for name in held if held[name] > 0)
-    return held, combining, gaps, letters, present
+    return held, combining, gaps, characters, present
 
 
 def main():
@@ -136,16 +136,16 @@ def main():
         taken = measure(text)
         if taken is None:
             continue
-        held, combining, gaps, letters, present = taken
+        held, combining, gaps, characters, present = taken
         rows.append(
             (
                 name[:-4],
-                letters,
+                characters,
                 present,
                 combining,
                 gaps,
-                1000.0 * combining / letters,
-                1000.0 * gaps / letters,
+                1000.0 * combining / characters,
+                1000.0 * gaps / characters,
                 held,
             )
         )
@@ -155,12 +155,12 @@ def main():
 
     out.write(
         "  %-42s %-9s %-6s %-8s %-8s %s\n"
-        % ("paper", "letters", "sets", "marks", "gaps", "gaps per 1000 letters")
+        % ("paper", "characters", "sets", "marks", "gaps", "gaps per 1000 characters")
     )
-    for stem, letters, present, combining, gaps, mark_rate, gap_rate, held in rows:
+    for stem, characters, present, combining, gaps, mark_rate, gap_rate, held in rows:
         out.write(
             "  %-42s %-9d %-6d %-8d %-8d %.2f\n"
-            % (stem[:42], letters, present, combining, gaps, gap_rate)
+            % (stem[:42], characters, present, combining, gaps, gap_rate)
         )
 
     out.write(
@@ -169,11 +169,11 @@ def main():
     )
     out.write("  marks is combining glottalization and wedges, which drop first\n")
     out.write(
-        "  gaps is letters with blanks wedged between them, the shape a lost glyph leaves\n"
+        "  gaps is characters with blanks wedged between them, the shape a lost glyph leaves\n"
     )
 
     out.write("\n  which of the inventory each paper is missing\n")
-    for stem, letters, present, combining, gaps, mark_rate, gap_rate, held in rows:
+    for stem, characters, present, combining, gaps, mark_rate, gap_rate, held in rows:
         absent = [name for name in sorted(held) if held[name] == 0]
         if not absent:
             continue
@@ -184,7 +184,7 @@ def main():
         "\n  %d of %d papers hold at least five of the sets with few gaps\n"
         % (len(clean), len(rows))
     )
-    for stem, letters, present, combining, gaps, mark_rate, gap_rate, held in clean:
+    for stem, characters, present, combining, gaps, mark_rate, gap_rate, held in clean:
         out.write("  %s\n" % stem)
 
     out.write(

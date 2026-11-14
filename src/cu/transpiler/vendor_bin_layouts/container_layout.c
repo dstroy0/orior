@@ -43,8 +43,8 @@ int container_layout_read(ContainerLayout *layout, const char *path)
         {
             continue;
         }
-        char kind[LAYOUT_NAME_MAX_LEN];
-        unsigned int at = layout_word(line, 0u, kind, sizeof(kind));
+        char type[LAYOUT_NAME_MAX_LEN];
+        unsigned int at = layout_word(line, 0u, type, sizeof(type));
         if (at == 0u)
         {
             continue;
@@ -62,25 +62,25 @@ int container_layout_read(ContainerLayout *layout, const char *path)
         }
         char value[LAYOUT_TEXT_MAX_LEN];
         at = layout_word(line, at, value, sizeof(value));
-        if (strcmp(kind, "field") == 0)
+        if (strcmp(type, "field") == 0)
         {
             char width[LAYOUT_TEXT_MAX_LEN];
-            row->kind = LAYOUT_FIELD;
+            row->type = LAYOUT_FIELD;
             row->offset = strtoull(value, NULL, 10);
             layout_word(line, at, width, sizeof(width));
             row->width = (unsigned int)strtoul(width, NULL, 10);
         }
-        else if ((strcmp(kind, "size") == 0) || (strcmp(kind, "tag") == 0))
+        else if ((strcmp(type, "size") == 0) || (strcmp(type, "tag") == 0))
         {
-            row->kind = (strcmp(kind, "size") == 0) ? (unsigned int)LAYOUT_SIZE : (unsigned int)LAYOUT_TAG;
+            row->type = (strcmp(type, "size") == 0) ? (unsigned int)LAYOUT_SIZE : (unsigned int)LAYOUT_TAG;
             row->offset = strtoull(value, NULL, 10);
         }
-        else if (strcmp(kind, "name") == 0)
+        else if (strcmp(type, "name") == 0)
         {
-            row->kind = LAYOUT_NAME;
+            row->type = LAYOUT_NAME;
             snprintf(row->text, sizeof(row->text), "%s", value);
         }
-        else if (strcmp(kind, "container") == 0)
+        else if (strcmp(type, "container") == 0)
         {
             // the container the system accepted, which the pattern's reader takes (cubin_pattern_read)
             continue;
@@ -100,11 +100,11 @@ int container_layout_read(ContainerLayout *layout, const char *path)
     return (layout->rows != 0u);
 }
 
-static const LayoutRow *layout_row(const ContainerLayout *layout, const char *name, unsigned int kind)
+static const LayoutRow *layout_row(const ContainerLayout *layout, const char *name, unsigned int type)
 {
     for (unsigned int at = 0u; at < layout->rows; at += 1u)
     {
-        if ((layout->row[at].kind == kind) && (strcmp(layout->row[at].name, name) == 0))
+        if ((layout->row[at].type == type) && (strcmp(layout->row[at].name, name) == 0))
         {
             return &layout->row[at];
         }
@@ -140,14 +140,14 @@ int layout_text(const ContainerLayout *layout, const char *name, const char *par
         printf("  container_layout: %s specifies nothing about %s\n", layout->from, name);
         return 0;
     }
-    // {part} is all a name stands in for. What a part is called belongs to the program and not to the format
-    const char *const stands = strstr(row->text, "{part}");
-    if (stands == NULL)
+    // {part} is all a name is in for. What a part is called belongs to the program and not to the format
+    const char *const is = strstr(row->text, "{part}");
+    if (is == NULL)
     {
         snprintf(written, room, "%s", row->text);
         return 1;
     }
-    snprintf(written, room, "%.*s%s%s", (int)(stands - row->text), row->text, (part != NULL) ? part : "",
-             stands + 6);
+    snprintf(written, room, "%.*s%s%s", (int)(is - row->text), row->text, (part != NULL) ? part : "",
+             is + 6);
     return 1;
 }

@@ -21,7 +21,7 @@ typedef struct GuiPaletteSizeColorCfg GuiPaletteSizeColorCfg;
 typedef struct GuiPaletteCfg GuiPaletteCfg;
 
 // the schemes: the dark one; and the colors a file's mark in the explorer is drawn in, --t1 to --t8
-// the most bytes a name or a title the window reads holds
+// the max bytes a name or a title the window reads holds
 #define GUI_LABEL_MAX 4096u
 #define GUI_SCHEME_DARK 0u
 #define GUI_SCHEMES 1u
@@ -41,16 +41,16 @@ typedef struct
 // tinted with and the tint itself, the ink at its opacity; the bar's text, its titles' text, the ground of a title
 // pointed or open and its text then, a path's text on the bars, and the status bar's text; the editor's ground at
 // the editor's opacity, its text, line numbers, current
-// line, selection, the selection's ground where the keys are elsewhere, caret, indent guide, the ground of a mark
+// line, selection, the selection's ground where the keys are elsewhere, caret, indent guide, a table's grid lines, the ground of a mark
 // among the text, a fold's, the line of a widget over the text and the grounds of find's matches, the current one's
-// stronger; the minimap's selection, its match, its slider and the slider dragged; the shown tab's ground and the
+// stronger; the minimap's selection, its match, its slider and the slider dragged; the displayed tab's ground and the
 // line along it; the ground of the side_menu's tool whose window shows, the signal at a share; the side pane's ground,
 // the ink at half; a diagnostic's error, warning and note colors; the large name's color and the eye's in the bar; the
 // shade under a raised thing and the color of TABVLA's cuts; a fuse's ash, burn, fire and the white of its hottest
 // core; the work's line down its right and along its foot, the thin line down its left, the status bar's quiet text
-// and the grain laid over the glass, its alpha the grain's strength; the lattice's three colors, a point in place the
+// and the grain positioned over the glass, its alpha the grain's strength; the lattice's three colors, a point in place the
 // first and a moved one passing through the second to the third;
-// the eight colors a file's mark takes; the terminal's sixteen, --t0 to --t15; and the tokens of the shown file's
+// the eight colors a file's mark takes; the terminal's sixteen, --t0 to --t15; and the tokens of the displayed file's
 // language, `token_count` of them, the colors its grammar plugin's palette gives its token names, none in the scheme
 typedef struct
 {
@@ -82,6 +82,7 @@ typedef struct
     GuiColor selection_idle;
     GuiColor caret;
     GuiColor guide;
+    GuiColor table_line;
     GuiColor same;
     GuiColor widget_line;
     GuiColor match;
@@ -122,8 +123,8 @@ typedef struct
     unsigned int token_count;
 } GuiPalette;
 
-// A palette the window can change: the colors, and the tokens of the language shown, the most a plugin's palette
-// holds and the most bytes a token's name takes, each name kept beside its color
+// A palette the window can change: the colors, and the tokens of the language displayed, the max a plugin's palette
+// holds and the max bytes a token's name takes, each name retained beside its color
 #define GUI_PALETTE_TOKENS 96u
 #define GUI_PALETTE_TOKEN_NAME 48u
 typedef struct
@@ -135,10 +136,10 @@ typedef struct
 
 // the palette of `scheme`, the dark one for any scheme not known
 const GuiPalette *gui_palette(const GuiPaletteCfg *args);
-// `own` made the palette of `scheme`, with no tokens; and the ink's tint and the editor's ground laid at the bar's and
+// `own` made the palette of `scheme`, with no tokens; and the ink's tint and the editor's ground positioned at the bar's and
 // the editor's opacity
 void gui_palette_own_init(const GuiPaletteCfg *args);
-// the tokens of `own` cleared, for the next language's; and the token `name` added with `color`, a name at the most
+// the tokens of `own` cleared, for the next language's; and the token `name` added with `color`, a name at max
 // or longer than a token's name holds left out
 void gui_palette_tokens_clear(const GuiPaletteOwnCfg *args);
 void gui_palette_token_add(const GuiPaletteOwnNameCfg *args);
@@ -157,7 +158,7 @@ int gui_palette_value_read(const GuiPaletteTextCfg *args);
 // ratio
 #define GUI_PALETTE_CONTRAST_MIN 45u
 // the contrast of `foreground_color` over `back`, in tenths of a ratio from 10 to 210 as WCAG 2 measures it, rounded
-// down; `back` laid over `background_fill` and `foreground_color` over that where they are translucent
+// down; `back` positioned over `background_fill` and `foreground_color` over that where they are translucent
 unsigned int gui_palette_contrast(const GuiPaletteForegroundCfg *args);
 // whether the named color `at` is text under the least contrast with a color it is drawn on: 1, with its contrast into
 // `tenths` and that color's name into `under`, `size` bytes; 0 for one over the least and for a color that is no text
@@ -165,7 +166,7 @@ int gui_palette_color_low(const GuiPaletteAtSizeCfg *args);
 // a contrast in tenths as its ratio, `2.8:1`, into `size` bytes
 void gui_palette_contrast_text(const GuiPaletteSizeCfg *args);
 // the color of the token of `length` bytes at `name` among the palette's tokens: a dotted token the color of its
-// longest head the tokens hold, keyword.foreground.1 a keyword's where neither it nor keyword.foreground stands among
+// longest head the tokens hold, keyword.foreground.1 a keyword's where neither it nor keyword.foreground is among
 // them; the editor's text color where no head does
 GuiColor gui_palette_token(const GuiPaletteLengthCfg *args);
 struct GuiPaletteAtSizeCfg

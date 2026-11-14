@@ -20,7 +20,7 @@ are structural instead of decorative:
             and shifts the rest along unchanged. This tag makes the shift register visible as
             motion instead of as a fact in a document
     word    one hue per state word, for following a single word through the rounds
-    dwell   how many rounds a bit has kept its value, which separates the frozen from the churning
+    dwell   how many rounds a bit has retained its value, which separates the frozen from the churning
 
 THE WAVEFORM IS NAMED BEFORE THE DATA IS OPENED
 
@@ -115,7 +115,7 @@ def standardized_spectrum():
     by_depth = {}
     with io.open(SHADOWS, newline="", encoding="utf-8") as handle:
         for row in csv.DictReader(handle):
-            if row["kind"] != "residue":
+            if row["type"] != "residue":
                 continue
             by_depth.setdefault(int(row["round"]), {})[int(row["a"])] = float(row["value"])
 

@@ -40,7 +40,7 @@ EMBED_INLINE unsigned int cli_zmtp_head(const ZmtpCtx *args)
         return 9u;
     }
     args->head[0] = (unsigned char)args->flags;
-    // a size at most 255 fits a byte
+    // a size at max 255 fits a byte
     args->head[1] = (unsigned char)args->size;
     return 2u;
 }
@@ -167,7 +167,7 @@ EMBED_INLINE int cli_zmtp_greet(const ZmtpCtx *args)
     at += 11u;
     for (unsigned int byte = 0u; byte < 4u; byte += 1u)
     {
-        // a socket's type is a few letters, which a 32-bit length stores
+        // a socket's type is a few characters, which a 32-bit length stores
         ready[at++] = (unsigned char)((type_length >> (24u - (8u * byte))) & 0xffu);
     }
     memor.cpy(&(MemoriaCfg){.dst = &ready[at], .src = args->type, .bytes = type_length});
@@ -270,7 +270,7 @@ unsigned int cli_zmtp_receive(const CliZmtpSocketCfg *args)
             continue;
         }
         whole = whole && (read == CLI_ZMTP_FRAME_READ);
-        if (whole && (count < args->most))
+        if (whole && (count < args->max))
         {
             args->frames_out[count].bytes = args->capacity + used;
             args->frames_out[count].size = size;

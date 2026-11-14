@@ -15,7 +15,7 @@ test("text is made safe for SVG, each of & < > and \" written as its entity", ()
 
 test("a label's lines start at each <br> and each \\n, and its width is its widest line's", () => {
   assert.deepEqual(linesOf("one<br>two<br/>three<BR />four\\nfive"), ["one", "two", "three", "four", "five"]);
-  assert.ok(width("WWWW") > width("ii"), "a wide letter takes more room than a narrow one");
+  assert.ok(width("WWWW") > width("ii"), "a wide character takes more room than a narrow one");
   assert.equal(widest("short<br>a much longer line"), width("a much longer line"));
 });
 
@@ -32,7 +32,7 @@ test("a line of a diagram's text has its %% comment cut and its ends trimmed", (
   assert.equal(lineOf("%% only a comment"), "");
 });
 
-test("a drawing is kept in an SVG of its kind, its size rounded up, with the markers every edge can end in", () => {
+test("a drawing is retained in an SVG of its type, its size rounded up, with the markers every edge can end in", () => {
   const drawing = new DOMParser().parseFromString(svg(10.2, 20.7, "<g/>", "pie"), "image/svg+xml").documentElement;
   assert.equal(drawing.getAttribute("class"), "mermaid-diagram pie");
   assert.deepEqual([drawing.getAttribute("width"), drawing.getAttribute("height"), drawing.getAttribute("viewBox")], ["11", "21", "0 0 11 21"]);

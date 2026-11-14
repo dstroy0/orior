@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // run.c: the Run pane's rows as the CLI's job runs answer them, each drawn by its type from the row's texts and
 // flags, a line in its pieces as its spans cut it; its head, the filter's field, Start and Stop with the refusal under
-// them; and every press, key and text handed to the CLI, which decides what each does
+// them; and every press, key and text passed to the CLI, which decides what each does
 #include "run.h"
 
 #include "../../cli/src/runs/job_runs.h"
@@ -77,7 +77,7 @@ EMBED_INLINE GuiRect run_refusal_rect(const RunCtx *args)
 }
 
 // the head drawn: the filter's field with the filter typed, the caret while it takes the keys; Start; Stop, quieter
-// while no run shown goes; and the refusal of the last start under them where it stands
+// while no run displayed goes; and the refusal of the last start under them where it is
 static void run_head_draw(const GuiPaneCfg *args)
 {
     const GuiPalette *const palette = args->palette;
@@ -100,7 +100,7 @@ static void run_head_draw(const GuiPaneCfg *args)
     }
     else
     {
-        // the box a choice stands in, its text in the quietest color
+        // the box a choice is in, its text in the quietest color
         const int pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_PANE_PAD_LEFT);
         const int one = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = 1);
         const GuiRect box = {stop.x + pad, stop.y + one, stop.width - (2 * pad), stop.height - (2 * one)};
@@ -124,7 +124,7 @@ static void run_head_draw(const GuiPaneCfg *args)
     }
 }
 
-// the action at x, y: the field, Start or Stop where the pixel stands in it
+// the action at x, y: the field, Start or Stop where the pixel is in it
 static unsigned int run_head_hit(const GuiPaneCfg *args)
 {
     if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
@@ -146,7 +146,7 @@ static unsigned int run_head_hit(const GuiPaneCfg *args)
 }
 
 // an action taken: the field takes the keys for the filter; Start starts the job chosen, every view saved first; Stop
-// stops the run shown
+// stops the run displayed
 static void run_action(const GuiPaneCfg *args)
 {
     switch (args->which)
@@ -192,7 +192,7 @@ EMBED_INLINE GuiColor run_state_color(const RunCtx *args)
                                                   : palette->text_2;
 }
 
-// a line of the run shown drawn from `x_f32` in the code face: each piece its spans cut in the span's color of the
+// a line of the run displayed drawn from `x_f32` in the code face: each piece its spans cut in the span's color of the
 // sixteen and bold where the span is, the rest in the stream's color, the errors' in the error color and the commands'
 // quieter
 EMBED_INLINE void run_line_draw(const RunCtx *args)
@@ -244,7 +244,7 @@ EMBED_INLINE void run_box_draw(const RunCtx *args)
                .inside = lit ? palette->signal : palette->editor_background);
 }
 
-// the row drawn as its type, from its texts and flags: the chosen job and the run shown on the idle selection's ground
+// the row drawn as its type, from its texts and flags: the chosen job and the run displayed on the idle selection's ground
 static void run_row_draw(const GuiPaneCfg *args)
 {
     CliJobRunRow row;
@@ -255,7 +255,7 @@ static void run_row_draw(const GuiPaneCfg *args)
     const GuiPalette *const palette = args->palette;
     const int share = EMBED_CALL(gui_pane_part.share, GuiPanePartCfg, .pane = args);
     // the rows are fewer than an int counts
-    if (((row.flags & (CLI_JOB_RUN_CHOSEN | CLI_JOB_RUN_SHOWN)) != 0u) && (row.type != CLI_JOB_RUN_CHOICE) &&
+    if (((row.flags & (CLI_JOB_RUN_CHOSEN | CLI_JOB_RUN_DISPLAYED)) != 0u) && (row.type != CLI_JOB_RUN_CHOICE) &&
         (args->pane_read->pointed != (int)args->row))
     {
         EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster, .rect = args->clip,
@@ -339,7 +339,7 @@ static void run_row_draw(const GuiPaneCfg *args)
     }
 }
 
-// the row pressed handed to the CLI, the pane taking the keys where the row does; a press opens no file
+// the row pressed passed to the CLI, the pane taking the keys where the row does; a press opens no file
 static int run_press(const GuiPaneCfg *args)
 {
     const int keys = EMBED_CALL(cli_job_runs_row.press, CliJobRunsRowCfg, .row_at = args->row);
@@ -371,7 +371,7 @@ static int run_key(const GuiPaneCfg *args)
 // the jobs read anew of the tree as the pane shows
 static void run_read(const GuiPaneCfg *args)
 {
-    if (args->event == GUI_PANE_SHOWN)
+    if (args->event == GUI_PANE_DISPLAYED)
     {
         EMBED_CALL(cli_job_runs_root.read, CliJobRunsRootCfg, .root = args->root, .catalog = NULL);
     }

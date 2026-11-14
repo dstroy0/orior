@@ -41,7 +41,7 @@
 
 #define BITWISE_TEST_WIDE_LANES 512u
 
-// the most the test puts on the device at once: the narrow sweep's atoms and records, under 64 words a lane
+// the max the test puts on the device at once: the narrow sweep's atoms and records, under 64 words a lane
 #define BITWISE_TEST_DECLARED ((unsigned long long)BITWISE_TEST_NARROW_LANES * 64ull * sizeof(unsigned int))
 
 // how far past each output's written width the oracle's sign must already extend

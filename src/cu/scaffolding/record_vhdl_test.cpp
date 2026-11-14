@@ -3,9 +3,9 @@
 //
 // The record machine's lane as VHDL checked against the host oracle word for word (engine_table.md item 11(f), VHDL a
 // language of the register lane). record_test's programs, drawn from the same stream in the same order, are
-// encoded, laid out and run by cycle_record_run_host; each is written as VHDL by VhdlTarget
-// (codegen/rulesets/vhdl.krs), analyzed and run by GHDL under record_vhdl_bench.vhd over a memory image laid out as the
-// device lays out its launch (record_image.h), its lanes run by the emitted cycle_program_unit as the device's resident
+// encoded, arranged and run by cycle_record_run_host; each is written as VHDL by VhdlTarget
+// (codegen/rulesets/vhdl.krs), analyzed and run by GHDL under record_vhdl_bench.vhd over a memory image arranged as the
+// device arranges its launch (record_image.h), its lanes run by the emitted cycle_program_unit as the device's resident
 // kernel runs them, and its records compared with the host's word for word; synthesis takes the program unit whole. Its
 // lines give the same input digests as the host test's. A program whose lane the code generator does not write is
 // counted as not supported instead of passed or failed. Where a construction set is given, each program's lane is
@@ -232,7 +232,7 @@ struct VhdlRun
     const VhdlPlace *place;
 };
 
-// the program laid out, run on the host, written as VHDL and run by GHDL over the same atoms; its line printed and its
+// the program arranged, run on the host, written as VHDL and run by GHDL over the same atoms; its line printed and its
 // check made. `errors` is 1 for a program the host must error: the lane as VHDL must then error on a lane
 static void vhdl_run(void *context, const HostProgram *program, int reuse, unsigned int *const *atoms,
                      const unsigned long long *bodies, const unsigned int *index, int errors)
@@ -243,7 +243,7 @@ static void vhdl_run(void *context, const HostProgram *program, int reuse, unsig
     HostLoaded loaded;
     if (host_load(program, reuse, &loaded) == 0)
     {
-        vhdl_check(results, 0, name + " is laid out");
+        vhdl_check(results, 0, name + " is arranged");
         return;
     }
     const EngineRecordLayout *const layout = &loaded.layout;
@@ -340,9 +340,9 @@ static void vhdl_run(void *context, const HostProgram *program, int reuse, unsig
         const std::string what = name + ", round " + std::to_string(rounds) + " at budget " + std::to_string(budget);
         VhdlTrial trial;
         vhdl_try(place, scheduled_text, &image, &trial);
-        printf("  %s: %u states (the most cost one chains %u, %u forms alone past the budget), records %016llx as "
+        printf("  %s: %u states (the max cost one chains %u, %u forms alone past the budget), records %016llx as "
                "VHDL\n",
-               what.c_str(), report.states, report.maximum, report.over,
+               what.c_str(), report.states, report.max, report.over,
                trial.read ? host_digest(trial.records.data(), record_words) : 0ull);
         const int reported = vhdl_report(results, place, what, &trial, errors, host_ran, host_records);
         if (reported && ((best_budget == 0u) || (trial.cost < best_cost)))

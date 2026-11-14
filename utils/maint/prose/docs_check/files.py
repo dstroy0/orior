@@ -23,7 +23,7 @@ from .verbatim import verbatim_root
 # AN EXTENSION AND A PATTERN HIDE A SITE TWICE, and that is the trap to watch for. A form the
 # locale stage already names is hidden once, by the extension list. A form no pattern reaches is
 # hidden twice, by the extension list AND by the pattern being too narrow. Adding the extension
-# alone makes the first kind fire, which reads as coverage, and leaves the second kind invisible
+# alone makes the first type fire, which reads as coverage, and leaves the second type invisible
 # further down the same file. Both halves are needed to see either, which is why they are one pass.
 BUILD_SUFFIXES = (".sh", ".ps1", ".cmake", ".yml", ".yaml")
 
@@ -32,7 +32,7 @@ BUILD_SUFFIXES = (".sh", ".ps1", ".cmake", ".yml", ".yaml")
 BUILD_NAMES = ("CMakeLists.txt", "Makefile", "GNUmakefile", "Dockerfile")
 
 # A git hook has no extension at all, and no extension list can ever select it. A sweep by
-# extension drops a hook and takes the gate with it. orior keeps its own hooks in .githooks/ and
+# extension drops a hook and takes the gate with it. orior retains its own hooks in .githooks/ and
 # every one of them is a shell script full of comments.
 HOOK_NAMES = (
     "pre-commit",
@@ -93,7 +93,7 @@ SKIP_DIRS = (
 )
 
 
-def kept_dirs(here, dirs):
+def retained_dirs(here, dirs):
     """The directories under `here` a walk goes into: none in SKIP_DIRS and none that is another checkout."""
     return [
         one for one in dirs if one not in SKIP_DIRS and not os.path.exists(os.path.join(here, one, ".git"))
@@ -173,7 +173,7 @@ def walk_markdown(roots, ledger=None):
                 found.append(root)
             continue
         for here, dirs, names in os.walk(root):
-            dirs[:] = kept_dirs(here, dirs)
+            dirs[:] = retained_dirs(here, dirs)
             found.extend(
                 os.path.join(here, name)
                 for name in names
@@ -185,7 +185,7 @@ def walk_markdown(roots, ledger=None):
     # directory is skipped instead.
     mine = os.path.dirname(os.path.abspath(__file__))
     my_dir = os.path.dirname(mine)
-    kept = []
+    retained = []
     for one in found:
         if os.path.dirname(os.path.abspath(one)) == mine:
             continue
@@ -225,5 +225,5 @@ def walk_markdown(roots, ledger=None):
                     one.replace("\\", "/"),
                 )
             continue
-        kept.append(one)
-    return kept
+        retained.append(one)
+    return retained

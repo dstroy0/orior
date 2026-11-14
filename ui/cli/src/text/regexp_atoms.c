@@ -7,7 +7,7 @@
 // what an escape read is: a class item, one character, or a failure reported
 #define CLI_ESCAPE_ITEM 0
 
-#define CLI_ESCAPE_LETTER 1
+#define CLI_ESCAPE_CHARACTER 1
 
 #define CLI_ESCAPE_FAILED 2
 
@@ -15,7 +15,7 @@ typedef struct
 {
     CliRegexpReader *reader;
     unsigned int count;
-    unsigned int *letter;
+    unsigned int *character;
     int in_class;
     CliRegexpItem *item;
     CliRegexpItem *items;
@@ -26,18 +26,18 @@ typedef struct
     int negated;
     unsigned int group;
 } RegexpAtomsCtx;
-// `count` hex digits where reading stands, read into `letter`: 1, or 0 with reading where it stood
+// `count` hex digits where reading is, read into `character`: 1, or 0 with reading where it was
 EMBED_INLINE int cli_hex(const RegexpAtomsCtx *args)
 {
     CliRegexpReader *reader = args->reader;
-    unsigned int *letter = args->letter;
+    unsigned int *character = args->character;
     const unsigned long long start = reader->at;
     unsigned int value = 0u;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         unsigned int digit = 0u;
-        const int there = EMBED_CALL(cli_regexp_read_letter_type_internal.peek, CliRegexpReadLetterTypeCtx,
-                                     .reader_read = reader, .letter = &digit);
+        const int there = EMBED_CALL(cli_regexp_read_character_type_internal.peek, CliRegexpReadLetterTypeCtx,
+                                     .reader_read = reader, .character = &digit);
         const int decimal = there && (digit >= '0') && (digit <= '9');
         const int lower = there && (digit >= 'a') && (digit <= 'f');
         const int upper = there && (digit >= 'A') && (digit <= 'F');
@@ -46,31 +46,31 @@ EMBED_INLINE int cli_hex(const RegexpAtomsCtx *args)
             reader->at = start;
             return 0;
         }
-        const unsigned int letter_value = lower ? (digit - 'a' + 10u) : (digit - 'A' + 10u);
-        value = (value << 4u) | (decimal ? (digit - '0') : letter_value);
+        const unsigned int character_value = lower ? (digit - 'a' + 10u) : (digit - 'A' + 10u);
+        value = (value << 4u) | (decimal ? (digit - '0') : character_value);
         reader->at += 1u;
     }
-    *letter = value;
+    *character = value;
     return 1;
 }
 
-// a `\u` escape after its `u`, four hex digits or a code in braces, into `letter`: CLI_ESCAPE_LETTER, `u` where it
+// a `\u` escape after its `u`, four hex digits or a code in braces, into `character`: CLI_ESCAPE_CHARACTER, `u` where it
 // names no character, or CLI_ESCAPE_FAILED with why given
 EMBED_INLINE int cli_escape_code(const RegexpAtomsCtx *args)
 {
     CliRegexpReader *reader = args->reader;
-    unsigned int *letter = args->letter;
+    unsigned int *character = args->character;
     if (!EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .required = '{'))
     {
-        const int read = EMBED_CALL(cli_hex, RegexpAtomsCtx, .reader = reader, .count = 4u, .letter = letter);
-        *letter = (read && !((*letter >= 0xd800u) && (*letter <= 0xdfffu))) ? *letter : 'u';
-        return CLI_ESCAPE_LETTER;
+        const int read = EMBED_CALL(cli_hex, RegexpAtomsCtx, .reader = reader, .count = 4u, .character = character);
+        *character = (read && !((*character >= 0xd800u) && (*character <= 0xdfffu))) ? *character : 'u';
+        return CLI_ESCAPE_CHARACTER;
     }
     unsigned long long code = 0ULL;
     unsigned long long digits = 0ULL;
     unsigned int digit = 0u;
-    while (EMBED_CALL(cli_regexp_read_letter_type_internal.peek, CliRegexpReadLetterTypeCtx, .reader_read = reader,
-                      .letter = &digit) &&
+    while (EMBED_CALL(cli_regexp_read_character_type_internal.peek, CliRegexpReadLetterTypeCtx, .reader_read = reader,
+                      .character = &digit) &&
            (((digit >= '0') && (digit <= '9')) || ((digit >= 'a') && (digit <= 'f')) ||
             ((digit >= 'A') && (digit <= 'F'))))
     {
@@ -87,26 +87,26 @@ EMBED_INLINE int cli_escape_code(const RegexpAtomsCtx *args)
     // a code past what a character represents, or none, reads as `u`
     const int valid =
         (digits != 0ULL) && (digits <= 6ULL) && (code <= 0x10ffffULL) && !((code >= 0xd800ULL) && (code <= 0xdfffULL));
-    *letter = valid ? (unsigned int)code : 'u';
-    return CLI_ESCAPE_LETTER;
+    *character = valid ? (unsigned int)code : 'u';
+    return CLI_ESCAPE_CHARACTER;
 }
 
-// the property the `count` letters from `letter` name, by its short name or its long one: its place, 8 where none is
+// the property the `count` characters from `character` name, by its short name or its long one: its place, 8 where none is
 // read here
 EMBED_INLINE unsigned int cli_property_named(const RegexpAtomsCtx *args)
 {
-    static const char *const s_properties[8] = {"L",  "Letter",           "N",  "Number",
-                                                "Lu", "Uppercase_Letter", "Ll", "Lowercase_Letter"};
-    const unsigned int *const letters = args->letter;
+    static const char *const s_properties[8] = {"L",  "Character",           "N",  "Number",
+                                                "Lu", "Uppercase_Character", "Ll", "Lowercase_Character"};
+    const unsigned int *const characters = args->character;
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         const embed_word name_length = cellul.len(&(CatenaFinitaCfg){.src = s_properties[at], .cap = CLI_POOL_BYTES});
         int same = name_length == args->count;
-        embed_word letter_at = 0u;
-        while (same && (letter_at < name_length))
+        embed_word character_at = 0u;
+        while (same && (character_at < name_length))
         {
-            same = letters[letter_at] == (unsigned char)s_properties[at][letter_at];
-            letter_at += 1u;
+            same = characters[character_at] == (unsigned char)s_properties[at][character_at];
+            character_at += 1u;
         }
         if (same)
         {
@@ -116,7 +116,7 @@ EMBED_INLINE unsigned int cli_property_named(const RegexpAtomsCtx *args)
     return 8u;
 }
 
-// a `\p{..}` or `\P{..}` escape after its letter, the property named and whether it is negated into `item`:
+// a `\p{..}` or `\P{..}` escape after its character, the property named and whether it is negated into `item`:
 // CLI_ESCAPE_ITEM, or CLI_ESCAPE_FAILED with why given
 EMBED_INLINE int cli_escape_property(const RegexpAtomsCtx *args)
 {
@@ -129,13 +129,13 @@ EMBED_INLINE int cli_escape_property(const RegexpAtomsCtx *args)
     }
     const unsigned long long start = reader->at;
     unsigned int named = 0u;
-    while (EMBED_CALL(cli_regexp_read_letter_type_internal.peek, CliRegexpReadLetterTypeCtx, .reader_read = reader,
-                      .letter = &named) &&
+    while (EMBED_CALL(cli_regexp_read_character_type_internal.peek, CliRegexpReadLetterTypeCtx, .reader_read = reader,
+                      .character = &named) &&
            (named != '}'))
     {
         reader->at += 1u;
     }
-    // a property's name is a few letters
+    // a property's name is a few characters
     const unsigned int length = (unsigned int)(reader->at - start);
     if (!EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .required = '}'))
     {
@@ -144,7 +144,7 @@ EMBED_INLINE int cli_escape_property(const RegexpAtomsCtx *args)
         return CLI_ESCAPE_FAILED;
     }
     const unsigned int property =
-        EMBED_CALL(cli_property_named, RegexpAtomsCtx, .letter = &reader->letters[start], .count = length);
+        EMBED_CALL(cli_property_named, RegexpAtomsCtx, .character = &reader->characters[start], .count = length);
     if (property == 8u)
     {
         EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = reader,
@@ -155,32 +155,32 @@ EMBED_INLINE int cli_escape_property(const RegexpAtomsCtx *args)
     return CLI_ESCAPE_ITEM;
 }
 
-// a `\c` escape after its `c`, a letter whose place in the alphabet is the control character, into `letter`:
-// CLI_ESCAPE_LETTER, or CLI_ESCAPE_FAILED with why given
+// a `\c` escape after its `c`, a character whose place in the alphabet is the control character, into `character`:
+// CLI_ESCAPE_CHARACTER, or CLI_ESCAPE_FAILED with why given
 EMBED_INLINE int cli_escape_control(const RegexpAtomsCtx *args)
 {
     unsigned int control = 0u;
-    if (!EMBED_CALL(cli_regexp_read_letter_internal.next, CliRegexpReadLetterCtx, .reader = args->reader,
-                    .letter = &control) ||
+    if (!EMBED_CALL(cli_regexp_read_character_internal.next, CliRegexpReadLetterCtx, .reader = args->reader,
+                    .character = &control) ||
         !(((control | 0x20u) >= 'a') && ((control | 0x20u) <= 'z')))
     {
         EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = args->reader,
                    .why = "a control escape");
         return CLI_ESCAPE_FAILED;
     }
-    *args->letter = control % 32u;
-    return CLI_ESCAPE_LETTER;
+    *args->character = control % 32u;
+    return CLI_ESCAPE_CHARACTER;
 }
 
-// An escape after its backslash, into `item` or `letter`: CLI_ESCAPE_ITEM, CLI_ESCAPE_LETTER, or CLI_ESCAPE_FAILED with
+// An escape after its backslash, into `item` or `character`: CLI_ESCAPE_ITEM, CLI_ESCAPE_CHARACTER, or CLI_ESCAPE_FAILED with
 // why given
 static int cli_escape(const RegexpAtomsCtx *args)
 {
     CliRegexpReader *reader = args->reader;
     CliRegexpItem *item = args->item;
-    unsigned int *letter = args->letter;
+    unsigned int *character = args->character;
     unsigned int escaped = 0u;
-    if (!EMBED_CALL(cli_regexp_read_letter_internal.next, CliRegexpReadLetterCtx, .reader = reader, .letter = &escaped))
+    if (!EMBED_CALL(cli_regexp_read_character_internal.next, CliRegexpReadLetterCtx, .reader = reader, .character = &escaped))
     {
         EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = reader,
                    .why = "a backslash at the end");
@@ -198,31 +198,31 @@ static int cli_escape(const RegexpAtomsCtx *args)
         }
     }
     static const char s_named[6] = {'t', 'n', 'r', 'f', 'v', '0'};
-    static const unsigned int s_letters[6] = {'\t', '\n', '\r', 0x0cu, 0x0bu, 0u};
+    static const unsigned int s_characters[6] = {'\t', '\n', '\r', 0x0cu, 0x0bu, 0u};
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
         if (escaped == (unsigned char)s_named[at])
         {
-            *letter = s_letters[at];
-            return CLI_ESCAPE_LETTER;
+            *character = s_characters[at];
+            return CLI_ESCAPE_CHARACTER;
         }
     }
-    *letter = escaped;
+    *character = escaped;
     if ((escaped == 'b') && args->in_class)
     {
-        *letter = 8u;
+        *character = 8u;
     }
     else if (escaped == 'x')
     {
-        *letter = EMBED_CALL(cli_hex, RegexpAtomsCtx, .reader = reader, .count = 2u, .letter = letter) ? *letter : 'x';
+        *character = EMBED_CALL(cli_hex, RegexpAtomsCtx, .reader = reader, .count = 2u, .character = character) ? *character : 'x';
     }
     else if (escaped == 'u')
     {
-        return EMBED_CALL(cli_escape_code, RegexpAtomsCtx, .reader = reader, .letter = letter);
+        return EMBED_CALL(cli_escape_code, RegexpAtomsCtx, .reader = reader, .character = character);
     }
     else if (escaped == 'c')
     {
-        return EMBED_CALL(cli_escape_control, RegexpAtomsCtx, .reader = reader, .letter = letter);
+        return EMBED_CALL(cli_escape_control, RegexpAtomsCtx, .reader = reader, .character = character);
     }
     else if (((escaped == 'p') || (escaped == 'P')) && reader->unicode)
     {
@@ -235,7 +235,7 @@ static int cli_escape(const RegexpAtomsCtx *args)
                    .why = "an escape not read here");
         return CLI_ESCAPE_FAILED;
     }
-    return CLI_ESCAPE_LETTER;
+    return CLI_ESCAPE_CHARACTER;
 }
 
 // `item` added to the class's items: 1, or 0 with why given where a class contains as many as it can
@@ -262,10 +262,10 @@ EMBED_INLINE int cli_class_range(const RegexpAtomsCtx *args)
     const unsigned int low = args->count;
     unsigned int high = 0u;
     CliRegexpItem item;
-    EMBED_CALL(cli_regexp_read_letter_internal.next, CliRegexpReadLetterCtx, .reader = reader, .letter = &high);
+    EMBED_CALL(cli_regexp_read_character_internal.next, CliRegexpReadLetterCtx, .reader = reader, .character = &high);
     const int escape = (high == '\\') ? EMBED_CALL(cli_escape, RegexpAtomsCtx, .reader = reader, .in_class = 1,
-                                                   .item = &item, .letter = &high)
-                                      : CLI_ESCAPE_LETTER;
+                                                   .item = &item, .character = &high)
+                                      : CLI_ESCAPE_CHARACTER;
     if (escape == CLI_ESCAPE_FAILED)
     {
         return 0;
@@ -292,7 +292,7 @@ EMBED_INLINE int cli_class_range(const RegexpAtomsCtx *args)
                       .item_value = (CliRegexpItem){CLI_REGEXP_RANGE, low, high, 0});
 }
 
-// a member of a class from its first letter `count`: a letter, a range, or an escape's item, put among `items`; 1, or
+// a member of a class from its first character `count`: a character, a range, or an escape's item, put among `items`; 1, or
 // 0 with why given
 EMBED_INLINE int cli_class_member(const RegexpAtomsCtx *args)
 {
@@ -302,8 +302,8 @@ EMBED_INLINE int cli_class_member(const RegexpAtomsCtx *args)
     {
         CliRegexpItem item;
         const int escape =
-            EMBED_CALL(cli_escape, RegexpAtomsCtx, .reader = reader, .in_class = 1, .item = &item, .letter = &low);
-        if (escape != CLI_ESCAPE_LETTER)
+            EMBED_CALL(cli_escape, RegexpAtomsCtx, .reader = reader, .in_class = 1, .item = &item, .character = &low);
+        if (escape != CLI_ESCAPE_CHARACTER)
         {
             return (escape == CLI_ESCAPE_ITEM) &&
                    EMBED_CALL(cli_item_add, RegexpAtomsCtx, .reader = reader, .items = args->items,
@@ -311,10 +311,10 @@ EMBED_INLINE int cli_class_member(const RegexpAtomsCtx *args)
         }
     }
     unsigned int peeked = 0u;
-    const int ranged = EMBED_CALL(cli_regexp_read_letter_type_internal.peek, CliRegexpReadLetterTypeCtx,
-                                  .reader_read = reader, .letter = &peeked) &&
+    const int ranged = EMBED_CALL(cli_regexp_read_character_type_internal.peek, CliRegexpReadLetterTypeCtx,
+                                  .reader_read = reader, .character = &peeked) &&
                        (peeked == '-') && ((reader->at + 1u) < reader->length) &&
-                       (reader->letters[reader->at + 1u] != ']');
+                       (reader->characters[reader->at + 1u] != ']');
     if (!ranged)
     {
         return EMBED_CALL(cli_item_add, RegexpAtomsCtx, .reader = reader, .items = args->items,
@@ -335,18 +335,18 @@ EMBED_INLINE unsigned int cli_class(const RegexpAtomsCtx *args)
     unsigned int count = 0u;
     for (;;)
     {
-        unsigned int letter = 0u;
-        if (!EMBED_CALL(cli_regexp_read_letter_internal.next, CliRegexpReadLetterCtx, .reader = reader,
-                        .letter = &letter))
+        unsigned int character = 0u;
+        if (!EMBED_CALL(cli_regexp_read_character_internal.next, CliRegexpReadLetterCtx, .reader = reader,
+                        .character = &character))
         {
             return EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = reader,
                               .why = "an unclosed class");
         }
-        if (letter == ']')
+        if (character == ']')
         {
             break;
         }
-        if (!EMBED_CALL(cli_class_member, RegexpAtomsCtx, .reader = reader, .count = letter, .items = items,
+        if (!EMBED_CALL(cli_class_member, RegexpAtomsCtx, .reader = reader, .count = character, .items = items,
                         .count_pointer = &count))
         {
             return CLI_REGEXP_NONE;
@@ -401,8 +401,8 @@ EMBED_INLINE unsigned int cli_group(const RegexpAtomsCtx *args)
     if (EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .required = '?'))
     {
         unsigned int way = 0u;
-        if (!EMBED_CALL(cli_regexp_read_letter_internal.next, CliRegexpReadLetterCtx, .reader = reader,
-                        .letter = &way) ||
+        if (!EMBED_CALL(cli_regexp_read_character_internal.next, CliRegexpReadLetterCtx, .reader = reader,
+                        .character = &way) ||
             ((way != ':') && (way != '=') && (way != '!')))
         {
             return EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = reader,
@@ -439,13 +439,13 @@ EMBED_INLINE unsigned int cli_group(const RegexpAtomsCtx *args)
 }
 
 // a node of the one character `count`
-EMBED_INLINE unsigned int cli_atom_letter(const RegexpAtomsCtx *args)
+EMBED_INLINE unsigned int cli_atom_character(const RegexpAtomsCtx *args)
 {
     const unsigned int made = EMBED_CALL(cli_regexp_read_type_internal.node, CliRegexpReadTypeCtx,
                                          .reader = args->reader, .type = CLI_REGEXP_CHAR);
     if (made != CLI_REGEXP_NONE)
     {
-        args->reader->regexp->node[made].letter = args->count;
+        args->reader->regexp->node[made].character = args->count;
     }
     return made;
 }
@@ -476,8 +476,8 @@ EMBED_INLINE unsigned int cli_atom_escape(const RegexpAtomsCtx *args)
 {
     CliRegexpReader *reader = args->reader;
     unsigned int peeked = 0u;
-    const int there = EMBED_CALL(cli_regexp_read_letter_type_internal.peek, CliRegexpReadLetterTypeCtx,
-                                 .reader_read = reader, .letter = &peeked);
+    const int there = EMBED_CALL(cli_regexp_read_character_type_internal.peek, CliRegexpReadLetterTypeCtx,
+                                 .reader_read = reader, .character = &peeked);
     if (there && ((peeked == 'b') || (peeked == 'B')))
     {
         reader->at += 1u;
@@ -501,10 +501,10 @@ EMBED_INLINE unsigned int cli_atom_escape(const RegexpAtomsCtx *args)
         }
         return made;
     }
-    unsigned int letter = 0u;
+    unsigned int character = 0u;
     CliRegexpItem item;
     const int escape =
-        EMBED_CALL(cli_escape, RegexpAtomsCtx, .reader = reader, .in_class = 0, .item = &item, .letter = &letter);
+        EMBED_CALL(cli_escape, RegexpAtomsCtx, .reader = reader, .in_class = 0, .item = &item, .character = &character);
     if (escape == CLI_ESCAPE_FAILED)
     {
         return CLI_REGEXP_NONE;
@@ -513,40 +513,40 @@ EMBED_INLINE unsigned int cli_atom_escape(const RegexpAtomsCtx *args)
     {
         return EMBED_CALL(cli_atom_item, RegexpAtomsCtx, .reader = reader, .item_value = item);
     }
-    return EMBED_CALL(cli_atom_letter, RegexpAtomsCtx, .reader = reader, .count = letter);
+    return EMBED_CALL(cli_atom_character, RegexpAtomsCtx, .reader = reader, .count = character);
 }
 
 unsigned int cli_atom(const CliRegexpReadCtx *args)
 {
-    unsigned int letter = 0u;
-    if (!EMBED_CALL(cli_regexp_read_letter_internal.next, CliRegexpReadLetterCtx, .reader = args->reader,
-                    .letter = &letter))
+    unsigned int character = 0u;
+    if (!EMBED_CALL(cli_regexp_read_character_internal.next, CliRegexpReadLetterCtx, .reader = args->reader,
+                    .character = &character))
     {
         return EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = args->reader,
                           .why = "nothing to read");
     }
-    if ((letter == '.') || (letter == '^') || (letter == '$'))
+    if ((character == '.') || (character == '^') || (character == '$'))
     {
-        const unsigned int anchor_type = (letter == '^') ? CLI_REGEXP_START : CLI_REGEXP_END;
+        const unsigned int anchor_type = (character == '^') ? CLI_REGEXP_START : CLI_REGEXP_END;
         return EMBED_CALL(cli_regexp_read_type_internal.node, CliRegexpReadTypeCtx, .reader = args->reader,
-                          .type = (letter == '.') ? CLI_REGEXP_ANY : anchor_type);
+                          .type = (character == '.') ? CLI_REGEXP_ANY : anchor_type);
     }
-    if (letter == '[')
+    if (character == '[')
     {
         return EMBED_CALL(cli_class, RegexpAtomsCtx, .reader = args->reader);
     }
-    if (letter == '(')
+    if (character == '(')
     {
         return EMBED_CALL(cli_group, RegexpAtomsCtx, .reader = args->reader);
     }
-    if ((letter == '*') || (letter == '+') || (letter == '?'))
+    if ((character == '*') || (character == '+') || (character == '?'))
     {
         return EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = args->reader,
                           .why = "a quantifier with nothing before it");
     }
-    if (letter == '\\')
+    if (character == '\\')
     {
         return EMBED_CALL(cli_atom_escape, RegexpAtomsCtx, .reader = args->reader);
     }
-    return EMBED_CALL(cli_atom_letter, RegexpAtomsCtx, .reader = args->reader, .count = letter);
+    return EMBED_CALL(cli_atom_character, RegexpAtomsCtx, .reader = args->reader, .count = character);
 }

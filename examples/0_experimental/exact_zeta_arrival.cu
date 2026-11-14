@@ -7,7 +7,7 @@
 //
 //   Usage:  exact_zeta_arrival <input> <output>
 //
-// At t = 2pi n^2 wave m stands at u = e^(-2pi i n^2 ln m). Its phase has the constant second difference 4pi ln m in n:
+// At t = 2pi n^2 wave m is at u = e^(-2pi i n^2 ln m). Its phase has the constant second difference 4pi ln m in n:
 // from one boundary to the next a lane steps by its relation alone, u <- u r and r <- r q, with
 // r = e^(-2pi i (2n + 1) ln m) and q = e^(-4pi i ln m), each product divided by the scale S = 2^62 and wrapped to 64
 // bits. Each boundary's reading is m^(-1/2) u where m < n and 0 otherwise, and the sum across lanes,
@@ -114,7 +114,7 @@ static void arrival_build(ArrivalProgram *program, unsigned int floors, std::vec
     outputs->push_back(r_im);
 }
 
-// `bits` of a two's complement value laid into a record at `offset`
+// `bits` of a two's complement value positioned into a record at `offset`
 static void arrival_put(unsigned int *record, unsigned int offset, unsigned int bits, long long value)
 {
     for (unsigned int bit = 0u; bit < bits; bit += 1u)
@@ -132,12 +132,12 @@ typedef struct
     EngineRecordLayout layout;
 } ArrivalLaid;
 
-// the program imprinted and laid out with the state fields at the given offsets and widths, member 0 `in_limbs` wide
-static int arrival_lay(ArrivalProgram *program, std::vector<unsigned int> *outputs, const unsigned int state_bits[4],
-                       const unsigned int state_offset[4], unsigned int state_limbs, ArrivalLaid *laid,
+// the program imprinted and arranged with the state fields at the given offsets and widths, member 0 `in_limbs` wide
+static int arrival_position(ArrivalProgram *program, std::vector<unsigned int> *outputs, const unsigned int state_bits[4],
+                       const unsigned int state_offset[4], unsigned int state_limbs, ArrivalLaid *positioned,
                        EngineError *error)
 {
-    memset(laid, 0, sizeof(*laid));
+    memset(positioned, 0, sizeof(*positioned));
     unsigned int field_bits[9];
     unsigned int field_offset[9];
     for (unsigned int at = 0u; at < 4u; at += 1u)
@@ -154,25 +154,25 @@ static int arrival_lay(ArrivalProgram *program, std::vector<unsigned int> *outpu
     field_offset[8] = 0u;
     const KeymathRecordRequest encode = {program->steps.data(), (unsigned int)program->steps.size(), field_bits, 9u, 3u,
                                          outputs->data(),       (unsigned int)outputs->size(),      NULL,       0u,
-                                         &laid->key,            error};
+                                         &positioned->key,            error};
     if (keymath_record_encode(&encode) == KEYMATH_ERROR)
     {
         return 0;
     }
     unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {state_limbs, ARRIVAL_CONSTANT_LIMBS, ARRIVAL_SHARED_LIMBS};
-    const KeyScheduleRecordRequest lay = {&laid->key, field_offset, 9u, in_limbs, 1, &laid->layout, error};
-    if (key_schedule_record_layout(&lay) == KEY_SCHEDULE_ERROR)
+    const KeyScheduleRecordRequest position = {&positioned->key, field_offset, 9u, in_limbs, 1, &positioned->layout, error};
+    if (key_schedule_record_layout(&position) == KEY_SCHEDULE_ERROR)
     {
-        keymath_record_release(&laid->key);
+        keymath_record_release(&positioned->key);
         return 0;
     }
     return 1;
 }
 
-static void arrival_unlay(ArrivalLaid *laid)
+static void arrival_unlay(ArrivalLaid *positioned)
 {
-    key_schedule_record_release(&laid->layout);
-    keymath_record_release(&laid->key);
+    key_schedule_record_release(&positioned->layout);
+    keymath_record_release(&positioned->key);
 }
 
 int main(int count, char **arguments)
@@ -208,7 +208,7 @@ int main(int count, char **arguments)
         return 2;
     }
 
-    // laid out twice: once to learn where the state lands in the output, then with the state read from there
+    // arranged twice: once to learn where the state lands in the output, then with the state read from there
     ArrivalProgram program;
     std::vector<unsigned int> outputs;
     arrival_build(&program, floors, &outputs);
@@ -217,10 +217,10 @@ int main(int count, char **arguments)
     const unsigned int guess_bits[4] = {65u, 65u, 65u, 65u};
     const unsigned int guess_offset[4] = {0u, 65u, 130u, 195u};
     ArrivalLaid probe;
-    ArrivalLaid laid;
-    memset(&laid, 0, sizeof(laid));
-    int ok = arrival_lay(&program, &outputs, guess_bits, guess_offset, 9u, &probe, &error);
-    sim_check(&job, ok, "keymath imprints the arrival program and the scheduler lays it out");
+    ArrivalLaid positioned;
+    memset(&positioned, 0, sizeof(positioned));
+    int ok = arrival_position(&program, &outputs, guess_bits, guess_offset, 9u, &probe, &error);
+    sim_check(&job, ok, "keymath imprints the arrival program and the scheduler positions it out");
     unsigned int state_bits[4] = {0u, 0u, 0u, 0u};
     unsigned int state_offset[4] = {0u, 0u, 0u, 0u};
     unsigned int out_limbs = 0u;
@@ -235,12 +235,12 @@ int main(int count, char **arguments)
         out_limbs = probe.layout.out_limbs;
         arrival_unlay(&probe);
     }
-    ok = ok && arrival_lay(&program, &outputs, state_bits, state_offset, out_limbs, &laid, &error);
+    ok = ok && arrival_position(&program, &outputs, state_bits, state_offset, out_limbs, &positioned, &error);
     for (unsigned int at = 0u; ok && (at < 4u); at += 1u)
     {
-        const DeviceRecordStep *const step = &laid.layout.step_table[outputs[2u * floors + at]];
+        const DeviceRecordStep *const step = &positioned.layout.step_table[outputs[2u * floors + at]];
         ok = (step->out_bits == state_bits[at]) && (step->out_offset == state_offset[at]) &&
-             (laid.layout.out_limbs == out_limbs);
+             (positioned.layout.out_limbs == out_limbs);
     }
     sim_check(&job, ok, "the state lands where the next sweep reads it");
 
@@ -248,7 +248,7 @@ int main(int count, char **arguments)
                                         (64ull << 20u);
     ok = ok && sim_job_submit(&job, "exact_zeta_arrival", count, arguments, declared);
     CycleRecord *record = NULL;
-    ok = ok && (cycle_record_load(&laid.layout, &record, &error) != CYCLE_ERROR);
+    ok = ok && (cycle_record_load(&positioned.layout, &record, &error) != CYCLE_ERROR);
     sim_check(&job, ok, "the arrival program loads onto the device");
 
     // the first sweep's state in the output's own layout, and every lane's constants
@@ -306,7 +306,7 @@ int main(int count, char **arguments)
             // the port check: the same program on the host, from the exact integer library, over the first K lanes
             std::vector<unsigned int> host_out((size_t)(checked * out_limbs));
             std::vector<unsigned int> device_out((size_t)(checked * out_limbs));
-            const CycleRecordHostRequest host = {&laid.layout,  {state.data(), constants.data(), shared},
+            const CycleRecordHostRequest host = {&positioned.layout,  {state.data(), constants.data(), shared},
                                                  {checked, checked, 1ull}, NULL, checked, host_out.data(), &error};
             same = (cycle_record_run_host(&host) == (long)checked) &&
                    (cudaMemcpy(device_out.data(), to, device_out.size() * sizeof(unsigned int),
@@ -319,7 +319,7 @@ int main(int count, char **arguments)
             std::vector<unsigned int> parts((size_t)(2u * sums.size()), 0u);
             for (unsigned int part = 0u; ok && (part < 2u); part += 1u)
             {
-                const DeviceRecordStep *const step = &laid.layout.step_table[outputs[2u * j + part]];
+                const DeviceRecordStep *const step = &positioned.layout.step_table[outputs[2u * j + part]];
                 const CycleRecordSumRequest sum = {to,         lanes,     group, out_limbs, step->out_offset,
                                                    step->out_bits, ARRIVAL_SUM_LIMBS, sums.data(), &error};
                 ok = cycle_record_sum(&sum) != CYCLE_ERROR;
@@ -342,7 +342,7 @@ int main(int count, char **arguments)
     sim_check(&job, same, "the host's records of the first sweep equal the device's word for word");
     if (out != NULL)
     {
-        fprintf(out, "host %d\nsteps %u out_limbs %u compiled %d\n", same, laid.layout.steps, out_limbs,
+        fprintf(out, "host %d\nsteps %u out_limbs %u compiled %d\n", same, positioned.layout.steps, out_limbs,
                 (record != NULL) ? cycle_record_compiled(record) : 0);
         fclose(out);
     }
@@ -354,6 +354,6 @@ int main(int count, char **arguments)
     {
         cycle_record_release(record);
     }
-    arrival_unlay(&laid);
+    arrival_unlay(&positioned);
     return sim_close(&job, "exact_zeta_arrival");
 }

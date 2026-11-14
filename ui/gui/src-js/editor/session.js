@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // One open file as the editor holds it: its text, its language and colors, its selections, what is
-// folded, where it is scrolled to, and a snippet being filled in. A tab keeps its session, and
+// folded, where it is scrolled to, and a snippet being filled in. A tab retains its session, and
 // coming back to a tab finds everything as it was left.
 //
 // A large file is stored as a window of its lines that grows outward, above and below, as the rest
@@ -15,7 +15,7 @@ import { indentOf } from "./folding.js";
 import { Highlight } from "./tokens.js";
 
 // Tabs where more indented lines open with a tab than with spaces, and otherwise the width that
-// most often steps one line's indent to the next.
+// usually steps one line's indent to the next.
 function detectIndent(doc) {
   let tabs = 0;
   let spaces = 0;
@@ -39,11 +39,11 @@ function detectIndent(doc) {
     last = width;
   }
   let size = 4;
-  let most = 0;
+  let max = 0;
   for (const [step, count] of steps) {
-    if (count > most && [2, 4, 8].includes(step)) {
+    if (count > max && [2, 4, 8].includes(step)) {
       size = step;
-      most = count;
+      max = count;
     }
   }
   return { tabs: tabs > spaces, size: tabs > spaces ? 4 : size };
@@ -107,11 +107,11 @@ export class Session {
     this.left = 0;
     this.base = base;
     this.window = window;
-    // A folded region keeps the end it had when folded, carried through every edit, and nothing
+    // A folded region retains the end it had when folded, carried through every edit, and nothing
     // reads its lines again while it stays folded.
     this.folded = new Map();
     this.foldings = 0;
-    // The indentation read from the lines, under any a mode line of the file sets, which is kept
+    // The indentation read from the lines, under any a mode line of the file sets, which is retained
     // apart for what an .editorconfig sets not to go over it.
     this.indentSet = modeIndent(this.doc);
     this.indent = { ...detectIndent(this.doc), ...this.indentSet };
@@ -132,15 +132,15 @@ export class Session {
         this.view?.schedule();
       }
       // A twin's colors and folds are the session's it was made from, and they take each change once; orior's side's
-      // folds stay with their lines until it hands them on again.
+      // folds stay with their lines until it passes them on again.
       if (!this.of) {
         this.highlight.changed(edits);
         const carried = new Map();
-        for (const [start, [end, shown]] of this.highlight.folds) {
+        for (const [start, [end, displayed]] of this.highlight.folds) {
           const from = mapThrough(pos(start, 0), edits, true).line;
           const to = mapThrough(pos(end, FAR), edits, true).line;
           if (to > from) {
-            carried.set(from, [to, shown]);
+            carried.set(from, [to, displayed]);
           }
         }
         this.highlight.folds = carried;
@@ -268,18 +268,18 @@ export class Session {
     return Boolean(given?.[1]) && this.folded.get(line) === given[0];
   }
 
-  // The lines the regions `line` stands inside open on, the outermost first and the `most` innermost at most.
-  openersOf(line, most) {
+  // The lines the regions `line` is inside open on, the outermost first and the `max` innermost at max.
+  openersOf(line, max) {
     const found = [];
     for (const [start, end] of this.regions()) {
       if (start < line && line <= end) {
         found.push(start);
       }
     }
-    return found.sort((one, other) => one - other).slice(-most);
+    return found.sort((one, other) => one - other).slice(-max);
   }
 
-  // The folds of the headings and blocks the language marks, where it marks any, kept until the text
+  // The folds of the headings and blocks the language marks, where it marks any, retained until the text
   // changes.
   sectionFolds() {
     if (!this.language?.folds) {
@@ -298,7 +298,7 @@ export class Session {
     return this.endOf(line) > line;
   }
 
-  // The last line the fold of the region a line opens hides, or -1: the kept end where the region is folded, else
+  // The last line the fold of the region a line opens hides, or -1: the retained end where the region is folded, else
   // orior's side's, the language's or the parse's, the first that gives one.
   endOf(line) {
     const folded = this.folded.get(line);
@@ -317,7 +317,7 @@ export class Session {
   }
 
   // Lines read from the file above the window or below it. Neither is an edit: the history and the
-  // dirty mark stay as they are, and every place kept moves down by the lines written above it.
+  // dirty mark stay as they are, and every place retained moves down by the lines written above it.
   grow(text, above) {
     const doc = this.doc;
     const parts = text.split(/\r?\n/);
@@ -374,7 +374,7 @@ export class Session {
   }
 
   // Lets go of `count` lines of a paged file's window, above it or below it. Neither is an edit; the
-  // history goes with them where any step of it reaches one, and every place kept in the window
+  // history goes with them where any step of it reaches one, and every place retained in the window
   // moves up by the lines let go above it.
   shrink(count, above) {
     const doc = this.doc;
@@ -383,11 +383,11 @@ export class Session {
       return;
     }
     this.view?.holdLine(this);
-    const kept = above ? [count, doc.count - 1] : [0, doc.count - 1 - count];
-    if (doc.reaches((line) => line < kept[0] || line > kept[1])) {
+    const retained = above ? [count, doc.count - 1] : [0, doc.count - 1 - count];
+    if (doc.reaches((line) => line < retained[0] || line > retained[1])) {
       doc.forgetSteps();
     }
-    const clamp = (p) => doc.clamp(pos(Math.max(kept[0], Math.min(kept[1], p.line)) - kept[0], p.col));
+    const clamp = (p) => doc.clamp(pos(Math.max(retained[0], Math.min(retained[1], p.line)) - retained[0], p.col));
     if (!above) {
       doc.lines.length -= count;
       this.selections = this.selections.map((sel) => ({ anchor: clamp(sel.anchor), head: clamp(sel.head), goal: null }));
@@ -411,9 +411,9 @@ export class Session {
   }
 
   // Puts the window of a paged file at `base`, holding `lines`, its line `top` at the top of the
-  // view, in place of the one it kept: the history, the folds and the colors worked out go with the
+  // view, in place of the one it retained: the history, the folds and the colors worked out go with the
   // lines let go, and `colors`, those read with the lines, are put before they are drawn. Where `top`
-  // is null the view stays on the line it stands on, as a window put where the view went.
+  // is null the view stays on the line it is on, as a window put where the view went.
   replaceWindow(lines, base, top = 0, colors = null) {
     if (top === null) {
       this.view?.holdLine(this);

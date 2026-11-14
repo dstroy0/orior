@@ -54,23 +54,23 @@ static void text_hex(unsigned long long value)
         &(VerbaNumerusCfg){.out = s_text_out, .cap = s_text_cap, .at = s_text_at, .val = value, .min = 16u});
 }
 
-// the text handed to the run as the record `name`. 1, or 0 with the reason printed
-static int khw_text_handed(const char *name)
+// the text passed to the run as the record `name`. 1, or 0 with the reason printed
+static int khw_text_passed(const char *name)
 {
-    const int handed = verba_finis.ok(&(VerbaFinisCfg){.cap = s_text_cap, .at = s_text_at}) &&
+    const int passed = verba_finis.ok(&(VerbaFinisCfg){.cap = s_text_cap, .at = s_text_at}) &&
                        (qry_member_append(name, s_text_out, s_text_at, QRY_ORDINARY) != 0);
-    if (!handed)
+    if (!passed)
     {
-        printf("  khw_write: %s was not handed to the run's buffer\n", name);
+        printf("  khw_write: %s was not passed to the run's buffer\n", name);
     }
-    return handed;
+    return passed;
 }
 
-// run `run` of `form` written after what the text contains as its first bit, its last and its place with its kind's
-// letter after it, KHW_PLACE_NONE_TEXT where it has none
+// run `run` of `form` written after what the text contains as its first bit, its last and its place with its type's
+// character after it, KHW_PLACE_NONE_TEXT where it has none
 static void khw_run_printed(const KhwAnswered *answered, unsigned int run)
 {
-    const unsigned int kind = (answered->kind[run] <= KHW_KIND_CONSTANT) ? answered->kind[run] : KHW_KIND_REGISTER;
+    const unsigned int type = (answered->type[run] <= KHW_KIND_CONSTANT) ? answered->type[run] : KHW_KIND_REGISTER;
     text_character(' ');
     text_decimal(answered->first[run]);
     text_character(' ');
@@ -78,16 +78,16 @@ static void khw_run_printed(const KhwAnswered *answered, unsigned int run)
     text_character(' ');
     if (answered->place[run] == KHW_PLACE_NONE)
     {
-        // a run with no place carries its kind's letter after the none mark where it is not a register's
+        // a run with no place carries its type's character after the none mark where it is not a register's
         text_put(KHW_PLACE_NONE_TEXT);
-        if (kind != KHW_KIND_REGISTER)
+        if (type != KHW_KIND_REGISTER)
         {
-            text_character(KHW_KIND_LETTERS[kind]);
+            text_character(KHW_KIND_CHARACTERS[type]);
         }
         return;
     }
     text_decimal(answered->place[run]);
-    text_character(KHW_KIND_LETTERS[kind]);
+    text_character(KHW_KIND_CHARACTERS[type]);
 }
 
 // the encoding `low`, `high` written after what the text contains as two words of sixteen hex digits, each after a
@@ -101,7 +101,7 @@ static void khw_encoding_printed(unsigned long long low, unsigned long long high
 }
 
 // the runs of `form` read from `text`, `form->runs` of them: three words a run, its first bit, its last and its place
-// with its kind's letter after it, a register where none; or two, its first bit and its last, where the line contains
+// with its type's character after it, a register where none; or two, its first bit and its last, where the line contains
 // no place, every run then containing none. 1, or 0 where the words are neither
 int khw_runs_read(KhwAnswered *answered, const char *text)
 {
@@ -137,14 +137,14 @@ int khw_runs_read(KhwAnswered *answered, const char *text)
             {
                 return 0;
             }
-            // the none mark, with its kind's letter after it where the run is no register's, or the place with its
-            // letter after it; the letter's place among the four is its kind, and no letter is a register's
+            // the none mark, with its type's character after it where the run is no register's, or the place with its
+            // character after it; the character's place among the four is its type, and no character is a register's
             char *end = NULL;
             const int none = (strncmp(place, KHW_PLACE_NONE_TEXT, strlen(KHW_PLACE_NONE_TEXT)) == 0);
             answered->place[run] = none ? KHW_PLACE_NONE : (unsigned int)strtoul(place, &end, 10);
             end = none ? (place + strlen(KHW_PLACE_NONE_TEXT)) : end;
-            const char *const letter = ((end != NULL) && (*end != '\0')) ? strchr(KHW_KIND_LETTERS, *end) : NULL;
-            answered->kind[run] = (letter != NULL) ? (unsigned int)(letter - KHW_KIND_LETTERS) : KHW_KIND_REGISTER;
+            const char *const character = ((end != NULL) && (*end != '\0')) ? strchr(KHW_KIND_CHARACTERS, *end) : NULL;
+            answered->type[run] = (character != NULL) ? (unsigned int)(character - KHW_KIND_CHARACTERS) : KHW_KIND_REGISTER;
         }
     }
     return 1;
@@ -169,10 +169,10 @@ const char *khw_relation_named(const KhwAnswered *answered, int with_reading, ch
     return written;
 }
 
-// the forms the part answered for handed to the run as KHW_FORMS_NAME, one a line, for the vendor's writer to
-// name and lay out: the relation the gate read, whether the answers read a word signed and whether the part was
+// the forms the part answered for passed to the run as KHW_FORMS_NAME, one a line, for the vendor's writer to
+// name and arrange: the relation the gate read, whether the answers read a word signed and whether the part was
 // queried, the encoding, and each run's first and last bit and its place in the relation's tuple. A form not yet
-// classified, or one with no operand run, names nothing; the vendor lays out none of them. 1, or 0 with the reason
+// classified, or one with no operand run, names nothing; the vendor arranges none of them. 1, or 0 with the reason
 // printed
 int khw_answers_written(void)
 {
@@ -200,14 +200,14 @@ int khw_answers_written(void)
         }
         text_character('\n');
     }
-    return khw_text_handed(KHW_FORMS_NAME);
+    return khw_text_passed(KHW_FORMS_NAME);
 }
 
-// The working set handed to the run as KHW_WORK_NAME, every form of it a line read back by khw_forms_read the
+// The working set passed to the run as KHW_WORK_NAME, every form of it a line read back by khw_forms_read the
 // next pass: its phase and the order its words were read, the relation, the signedness, the encoding, and its runs
 // with their places. A discovered form carries no run, a turned form the candidates its register-runs will sort, each
 // with no place, a classified form the operands retained. It is the state the passes of the split hand each other,
-// retained apart from what the vendor lays out. 1, or 0 with the reason printed
+// retained apart from what the vendor arranges. 1, or 0 with the reason printed
 int khw_forms_work_written(void)
 {
     static char s_work_bytes[QRY_WRITER_RING_BYTES / 2ull];
@@ -234,5 +234,5 @@ int khw_forms_work_written(void)
         }
         text_character('\n');
     }
-    return khw_text_handed(KHW_WORK_NAME);
+    return khw_text_passed(KHW_WORK_NAME);
 }

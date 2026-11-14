@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The claim: while the reader edits, the work takes the bar's row, the toolbar's, the strip's column
-// and the status bar's row, and keeps the frame's right gap on every side, so the editor moves inside
+// and the status bar's row, and retains the frame's right gap on every side, so the editor moves inside
 // a frame of that gap; inside the work the editor's text takes the tabs row's room and the minimap's.
 // A pointer resting within NEAR gaps of an edge for RESTS brings that edge's part back: the status bar
 // at the foot, the bar, the toolbar and the tabs row at the head, the strip at the left, the minimap at
@@ -10,8 +10,8 @@
 // as soon as the pointer slows in the corner and staying while it stays there.
 // A part goes back LINGER after the pointer leaves it, and one edge's part comes only once another's
 // has gone, so no two slides run at once. The claim is made as the editor takes the keys and let go as
-// they leave it. An edge kept, as the foot is while a stuck plugin's Stop stands on the status bar,
-// shows its part for as long as it is kept, the pointer's leaving not taking it away.
+// they leave it. An edge retained, as the foot is while a stuck plugin's Stop is on the status bar,
+// shows its part for as long as it is retained, the pointer's leaving not taking it away.
 
 import { showsOnWork, startBend } from "./bend.js";
 import { slatFrom, startSlats } from "./slat.js";
@@ -39,7 +39,7 @@ let unclaiming = 0;
 let nearing = 0;
 // The pointer's path over the last SPAN milliseconds, oldest first.
 const trail = [];
-// The edges kept shown.
+// The edges retained displayed.
 const pinned = new Set();
 
 export const claimed = () => document.body.hasAttribute("data-claim");
@@ -47,7 +47,7 @@ export const revealed = () => document.body.dataset.reveal ?? "";
 
 const controlsWidth = () => document.getElementById("window-controls").offsetWidth || 120;
 
-// The edge whose band the point stands in: the controls' corner, the head, the foot, the left, the right, or none.
+// The edge whose band the point is in: the controls' corner, the head, the foot, the left, the right, or none.
 export function zoneAt(x, y) {
   const width = window.innerWidth;
   const height = window.innerHeight;
@@ -90,10 +90,10 @@ function partsOf(zone) {
   return [];
 }
 
-// Where the pointer stands, as its last move left it: the point an edge's slat is pulled from.
+// Where the pointer is, as its last move left it: the point an edge's slat is pulled from.
 const pointer = { x: 0, y: 0 };
 
-// The reveal waiting for the part shown to go, or 0.
+// The reveal waiting for the part displayed to go, or 0.
 let switching = 0;
 
 function show(zone) {
@@ -105,16 +105,16 @@ function show(zone) {
   }
 }
 
-// The controls stand in the head, so the one comes as the other goes without waiting for it.
+// The controls are in the head, so the one comes as the other goes without waiting for it.
 const together = (one, other) => [one, other].every((zone) => zone === "top" || zone === "controls");
 
-// Shows `zone`'s part, or none, where none is an edge kept's part while the claim stands; another
-// edge's part shown goes first, over its slide, and `zone`'s comes once it has gone.
+// Shows `zone`'s part, or none, where none is an edge retained's part while the claim is; another
+// edge's part displayed goes first, over its slide, and `zone`'s comes once it has gone.
 function setReveal(given) {
   const zone = given || (claimed() ? [...pinned][0] ?? "" : "");
   window.clearTimeout(switching);
-  const shown = revealed();
-  if (zone && shown && zone !== shown && !together(zone, shown)) {
+  const displayed = revealed();
+  if (zone && displayed && zone !== displayed && !together(zone, displayed)) {
     show("");
     switching = window.setTimeout(() => show(zone), SLIDE);
     return;
@@ -154,7 +154,7 @@ function moved(event) {
   pointer.x = event.clientX;
   pointer.y = event.clientY;
   const passing = paceOf(event) > CRITERION;
-  // the controls' ghost: shown as the pointer slows in their corner, kept while it stays there, as a hand holding it
+  // the controls' ghost: displayed as the pointer slows in their corner, retained while it stays there, as a hand holding it
   // still moves it a little, and gone as it leaves the corner or as the controls come
   const near = !revealed() && zone === "controls";
   window.clearTimeout(nearing);
@@ -206,7 +206,7 @@ export function setClaim(on) {
   }
 }
 
-// Holds `zone`'s part shown while the claim stands, or with `on` false lets it go as any part goes.
+// Holds `zone`'s part displayed while the claim is, or with `on` false lets it go as any part goes.
 export function holdShown(zone, on) {
   if (on === pinned.has(zone)) {
     return;
@@ -234,7 +234,7 @@ export function startClaim() {
   });
   document.addEventListener("focusout", () => {
     window.clearTimeout(unclaiming);
-    // the keys may be passing to a part a reveal shows, which keeps the claim; else the claim goes
+    // the keys may be passing to a part a reveal shows, which retains the claim; else the claim goes
     // once they have settled elsewhere
     unclaiming = window.setTimeout(() => {
       const active = document.activeElement;

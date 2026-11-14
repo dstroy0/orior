@@ -7,7 +7,7 @@
 #
 #   Usage:  python examples/language/4_measure/language_identity.py
 #
-# The spread between languages is 1.36 times the spread inside one, which says a language keeps a value of
+# The spread between languages is 1.36 times the spread inside one, which says a language retains a value of
 # its own and says nothing about whether that value picks it out from every other language. Those are
 # different claims and the second is the stronger one.
 #
@@ -94,10 +94,10 @@ def leave_one_out(rows, columns):
     for index, (language, _, values) in enumerate(rows):
         middles = {}
         for other in languages:
-            kept = [row[2][columns] for position, row in enumerate(rows)
+            retained = [row[2][columns] for position, row in enumerate(rows)
                     if row[0] == other and position != index]
-            if kept:
-                middles[other] = numpy.mean(numpy.stack(kept), axis=0)
+            if retained:
+                middles[other] = numpy.mean(numpy.stack(retained), axis=0)
         if not middles:
             continue
         # Scaled by each column's spread across all texts, which stops a wide column deciding alone
@@ -150,7 +150,7 @@ def main():
 
     correct, total, confused = leave_one_out(rows, numpy.asarray([0]))
     if confused:
-        out.write("\n  where the coefficient alone sends a text, most often\n")
+        out.write("\n  where the coefficient alone sends a text, usually\n")
         for (was, went), count in sorted(confused.items(), key=lambda pair: -pair[1])[:8]:
             out.write("    %-14s taken for %-14s %d\n" % (was, went, count))
 

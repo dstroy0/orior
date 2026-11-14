@@ -56,7 +56,7 @@ TABLE_4 = {
 
 
 def segments(form):
-    """(letter, glottalized) for each consonant and vowel, stress and length removed."""
+    """(character, glottalized) for each consonant and vowel, stress and length removed."""
     out = []
     for char in unicodedata.normalize("NFD", form.casefold()):
         if char in STRESS_AND_LENGTH:
@@ -97,14 +97,14 @@ def word_key(word):
     return re.sub(r"[-=~]", "", word)
 
 
-def comparisons(everything, keep_survey):
+def comparisons(everything, retain_survey):
     """Per language, each doubled root once, as (pair, verdicts, paper), in the order the rows give them."""
     found = collections.defaultdict(list)
     seen = collections.defaultdict(set)
     for row in everything:
-        if row.kind not in corpus_rows.FORM_KINDS or row.branch not in ("CS", "NIS", "SIS", "NUX", "TS", "TI"):
+        if row.type not in corpus_rows.FORM_KINDS or row.branch not in ("CS", "NIS", "SIS", "NUX", "TS", "TI"):
             continue
-        if row.stem in SURVEY and not keep_survey:
+        if row.stem in SURVEY and not retain_survey:
             continue
         for word in row.form.split():
             key = word_key(word)
@@ -120,10 +120,10 @@ def comparisons(everything, keep_survey):
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     given = next((one for one in sys.argv[1:] if one not in ("with-survey",)), None)
-    keep_survey = "with-survey" in sys.argv[1:]
+    retain_survey = "with-survey" in sys.argv[1:]
     counts = collections.defaultdict(collections.Counter)
     papers = collections.defaultdict(set)
-    for language, found in comparisons(corpus_rows.rows(given), keep_survey).items():
+    for language, found in comparisons(corpus_rows.rows(given), retain_survey).items():
         for pair, verdicts, stem in found:
             papers[language].add(stem)
             for verdict in verdicts:

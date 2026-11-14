@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // maven_model.c: what a POM gives its children: its parents read first, by their relative path, `../pom.xml` where it
-// gives none, and in the local repository where the path contains no POM of it, eight above it at most; then its own
+// gives none, and in the local repository where the path contains no POM of it, eight above it at max; then its own
 // coordinates, its properties and its profiles', and the dependencies their management gives a version. The local
 // repository the user's settings name, and the program that runs a build. One model is read at a time, under its lock;
 // a POM larger than CLI_MAVEN_POM_TEXT is not read as a parent, and properties past what the model contains are left
@@ -18,7 +18,7 @@ typedef struct
     const unsigned char *bytes;
     unsigned long long size;
 } CliMavenMapped;
-// the most parents above a POM read, and the most bytes of each
+// the max parents above a POM read, and the max bytes of each
 #define CLI_MAVEN_DEPTH 8u
 #define CLI_MAVEN_POM_TEXT (1ULL << 20u)
 

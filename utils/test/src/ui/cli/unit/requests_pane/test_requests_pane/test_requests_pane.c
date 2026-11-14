@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_requests_pane.c: the Requests view as the CLI lays it, over a file of requests of the suite's own with two
-// answers stored for its first request: a request with no answer lays the one row that reads so; the line the cursor
-// stands on reads the answers of its request, the last first, the status in the tone of its class with its time and
+// test_requests_pane.c: the Requests view as the CLI positions it, over a file of requests of the suite's own with two
+// answers stored for its first request: a request with no answer positions the one row that reads so; the line the cursor
+// is on reads the answers of its request, the last first, the status in the tone of its class with its time and
 // size, the groups closed but the last answers, the answers each a row and Compare inert; the same request is not read
-// again unless forced; a group opened lays its headers; an answer shown lays its JSON body laid out; two answers
-// checked light Compare and a comparison lays its lines with their signs; the environments are the head's choices
+// again unless forced; a group opened positions its headers; an answer displayed positions its JSON body arranged; two answers
+// checked light Compare and a comparison positions its lines with their signs; the environments are the head's choices
 // with the one chosen lit; the curl line of the request; and a send runs on its worker, Send reading Sending until the
 // step takes its answers in
 #include "ui/cli/src/editor/files.h"
@@ -89,7 +89,7 @@ void tearDown(void)
 {
 }
 
-// the row `at`, in a row of the suite's own whose text stands until the next is read; the test failed where there is
+// the row `at`, in a row of the suite's own whose text is until the next is read; the test failed where there is
 // none
 static const CliRequestsRow *row_at(unsigned int at)
 {
@@ -117,13 +117,13 @@ static int followed(unsigned long long line, int force)
                       .key = PANE_KEY, .line = line, .force = force);
 }
 
-void test_a_request_with_no_answer_lays_the_row_that_reads_so(void)
+void test_a_request_with_no_answer_positions_the_row_that_reads_so(void)
 {
     TEST_ASSERT_TRUE(followed(4ULL, 0));
     TEST_ASSERT_EQUAL_UINT(1u, EMBED_CALL(cli_requests_pane.rows, CliRequestsPaneCfg, .at = 0u));
     const CliRequestsRow *const none = row_at(0u);
     TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_NOTE, none->type);
-    CLI_TEST_ASSERT_TEXT("No answer yet. Ctrl+Enter sends the request the cursor stands in.", none->text,
+    CLI_TEST_ASSERT_TEXT("No answer yet. Ctrl+Enter sends the request the cursor is in.", none->text,
                          none->text_length);
     CliRequestsRow past;
     TEST_ASSERT_FALSE(EMBED_CALL(cli_requests_pane.row, CliRequestsPaneCfg, .at = 1u, .row = &past));
@@ -153,10 +153,10 @@ void test_the_line_reads_its_requests_answers_the_last_first(void)
     // the two answers' rows read one after the other, each read into the suite's one row
     const CliRequestsRow *const newer = row_at(6u);
     TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_ANSWER, newer->type);
-    TEST_ASSERT_TRUE(newer->shown);
+    TEST_ASSERT_TRUE(newer->displayed);
     CLI_TEST_ASSERT_TEXT("00:00:02  404  0.0 ms  7 B", newer->text, newer->text_length);
     const CliRequestsRow *const older = row_at(7u);
-    TEST_ASSERT_FALSE(older->shown);
+    TEST_ASSERT_FALSE(older->displayed);
     CLI_TEST_ASSERT_TEXT("00:00:01  200  0.0 ms  7 B", older->text, older->text_length);
     const CliRequestsRow *const compare = row_at(8u);
     TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_COMPARE, compare->type);
@@ -170,7 +170,7 @@ void test_the_same_request_is_not_read_again_unless_forced(void)
     TEST_ASSERT_TRUE(followed(1ULL, 1));
 }
 
-void test_a_group_opened_lays_its_headers_and_closes(void)
+void test_a_group_opened_positions_its_headers_and_closes(void)
 {
     EMBED_CALL(cli_requests_pane.toggle, CliRequestsPaneCfg, .at = 2u);
     TEST_ASSERT_EQUAL_UINT(10u, EMBED_CALL(cli_requests_pane.rows, CliRequestsPaneCfg, .at = 0u));
@@ -183,7 +183,7 @@ void test_a_group_opened_lays_its_headers_and_closes(void)
     TEST_ASSERT_EQUAL_UINT(9u, EMBED_CALL(cli_requests_pane.rows, CliRequestsPaneCfg, .at = 0u));
 }
 
-void test_an_answer_shown_lays_its_json_body_laid_out(void)
+void test_an_answer_displayed_positions_its_json_body_positioned_out(void)
 {
     EMBED_CALL(cli_requests_pane.show, CliRequestsPaneCfg, .at = 7u);
     const CliRequestsRow *const status = row_at(0u);
@@ -193,10 +193,10 @@ void test_an_answer_shown_lays_its_json_body_laid_out(void)
     CLI_TEST_ASSERT_TEXT("{", row_at(body)->text, row_at(body)->text_length);
     CLI_TEST_ASSERT_TEXT("  \"a\": 1", row_at(body + 1u)->text, row_at(body + 1u)->text_length);
     CLI_TEST_ASSERT_TEXT("}", row_at(body + 2u)->text, row_at(body + 2u)->text_length);
-    TEST_ASSERT_TRUE(row_at(row_of(CLI_REQUESTS_ROW_ANSWER, 0u) + 1u)->shown);
+    TEST_ASSERT_TRUE(row_at(row_of(CLI_REQUESTS_ROW_ANSWER, 0u) + 1u)->displayed);
 }
 
-void test_two_answers_checked_light_compare_and_lay_the_comparison(void)
+void test_two_answers_checked_light_compare_and_position_the_comparison(void)
 {
     const unsigned int first = row_of(CLI_REQUESTS_ROW_ANSWER, 0u);
     EMBED_CALL(cli_requests_pane.check, CliRequestsPaneCfg, .at = first);
@@ -269,7 +269,7 @@ void test_the_curl_line_of_the_request(void)
     CLI_TEST_ASSERT_CONTAINS("'http://h/a'", text);
 }
 
-void test_no_view_shown_leaves_nothing_to_copy(void)
+void test_no_view_displayed_leaves_nothing_to_copy(void)
 {
     TEST_ASSERT_FALSE(EMBED_CALL(cli_requests_pane.copy, CliRequestsPaneCfg, .root = s_root));
     char text[64];
@@ -294,7 +294,7 @@ void test_a_send_runs_on_its_worker_send_reading_sending_until_its_answers_come(
     int taken = 0;
     while (!taken && (cli_clock_milliseconds() < until))
     {
-        taken = EMBED_CALL(cli_requests_pane.step, CliRequestsPaneCfg, .root = s_root, .shown = 0);
+        taken = EMBED_CALL(cli_requests_pane.step, CliRequestsPaneCfg, .root = s_root, .displayed = 0);
         cli_thread_yield();
     }
     TEST_ASSERT_TRUE(taken);
@@ -309,5 +309,5 @@ void test_a_send_runs_on_its_worker_send_reading_sending_until_its_answers_come(
     CLI_TEST_ASSERT_TEXT("Send", choice.text, choice.text_length);
     TEST_ASSERT_FALSE(choice.inert);
     CLI_TEST_ASSERT_TEXT("404 Not Found  0.0 ms, 7 B", row_at(0u)->text, row_at(0u)->text_length);
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_requests_pane.step, CliRequestsPaneCfg, .root = s_root, .shown = 0));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_requests_pane.step, CliRequestsPaneCfg, .root = s_root, .displayed = 0));
 }

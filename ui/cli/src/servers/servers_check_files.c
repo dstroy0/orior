@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// servers_check_files.c: a batch of the tree's files handed to the tree's check: each file of a language with a server
-// queued for it, its server started where it is not running, at most CLI_SERVERS_LARGEST bytes of a file; a server
+// servers_check_files.c: a batch of the tree's files passed to the tree's check: each file of a language with a server
+// queued for it, its server started where it is not running, at max CLI_SERVERS_LARGEST bytes of a file; a server
 // that checks its projects as a whole instructed once to check them, unless the tree's own code is disabled, as a check
 // of the projects as a whole builds them and runs the tree's own code
 #include "../command_line/pool.h"
@@ -9,7 +9,7 @@
 #include "../plugins/plugins.h"
 #include "servers_internal.h"
 
-// the most files of one batch queued, and the most languages it is of
+// the max files of one batch queued, and the max languages it is of
 #define CLI_SERVERS_BATCH (1u << 16u)
 #define CLI_SERVERS_BATCH_LANGUAGES 64u
 
@@ -80,7 +80,7 @@ EMBED_INLINE unsigned int check_files_language(const ServersCheckFilesCtx *args)
 unsigned int cli_servers_check_files(const CliServersFilesCtx *args)
 {
     // a file's full path is the tree's, a slash, and its own: the paths' text is no longer than those
-    const unsigned int most = (args->count < CLI_SERVERS_BATCH) ? args->count : CLI_SERVERS_BATCH;
+    const unsigned int max = (args->count < CLI_SERVERS_BATCH) ? args->count : CLI_SERVERS_BATCH;
     const unsigned long long root_length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
     unsigned long long text_bytes = 1ULL;
     for (unsigned int file = 0u; file < args->count; file += 1u)
@@ -91,9 +91,9 @@ unsigned int cli_servers_check_files(const CliServersFilesCtx *args)
     s_batch = g_cli_guard->temporary_buf_alloc(sizeof(*s_batch), g_cli_servers_check_owner);
     char *const text = g_cli_guard->temporary_buf_alloc(text_bytes, g_cli_servers_check_owner);
     const char **const paths =
-        g_cli_guard->temporary_buf_alloc(((unsigned long long)most + 1ULL) * sizeof(*paths), g_cli_servers_check_owner);
+        g_cli_guard->temporary_buf_alloc(((unsigned long long)max + 1ULL) * sizeof(*paths), g_cli_servers_check_owner);
     CliServersWaiting *const waiting_on = g_cli_guard->temporary_buf_alloc(
-        ((unsigned long long)most + 1ULL) * sizeof(*waiting_on), g_cli_servers_check_owner);
+        ((unsigned long long)max + 1ULL) * sizeof(*waiting_on), g_cli_servers_check_owner);
     if ((s_batch == NULL) || (text == NULL) || (paths == NULL) || (waiting_on == NULL))
     {
         g_cli_guard->persistent_buf_release(waiting_on, g_cli_servers_check_owner);
@@ -108,7 +108,7 @@ unsigned int cli_servers_check_files(const CliServersFilesCtx *args)
     const int blocked = EMBED_CALL(cli_trust_tree_words.block, CliTrustTreeWordsCfg, .tree = args->root);
     unsigned int waiting = 0u;
     unsigned long long used = 0ULL;
-    for (unsigned int file = 0u; (file < args->count) && (waiting < most); file += 1u)
+    for (unsigned int file = 0u; (file < args->count) && (waiting < max); file += 1u)
     {
         char id[CLI_NAME_MAX_LEN];
         if (!EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,

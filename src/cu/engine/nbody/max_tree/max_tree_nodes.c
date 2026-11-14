@@ -59,11 +59,11 @@ static void max_tree_key_exact(const unsigned int *key, OriorExactInteger *value
     value->sign = (any != 0u) ? 1 : 0;
 }
 
-static int max_tree_stronger(const unsigned int *keys, unsigned int face, unsigned int standing)
+static int max_tree_stronger(const unsigned int *keys, unsigned int face, unsigned int located)
 {
     max_tree_compare_ready();
     max_tree_key_exact(&keys[(size_t)face * MAX_TREE_KEY_LIMBS], &g_compare_left);
-    max_tree_key_exact(&keys[(size_t)standing * MAX_TREE_KEY_LIMBS], &g_compare_right);
+    max_tree_key_exact(&keys[(size_t)located * MAX_TREE_KEY_LIMBS], &g_compare_right);
     return (orior_exact_compare(&g_compare_left, &g_compare_right) > 0) ? 1 : 0;
 }
 
@@ -143,13 +143,13 @@ int max_tree_poc(const unsigned int *residual, unsigned int depth, unsigned int 
             {
                 continue;
             }
-            const unsigned int standing_one = strongest[one];
-            const unsigned int standing_other = strongest[other];
-            if ((standing_one == MAX_TREE_ABSENT) || (max_tree_stronger(keys, face, standing_one) != 0))
+            const unsigned int located_one = strongest[one];
+            const unsigned int located_other = strongest[other];
+            if ((located_one == MAX_TREE_ABSENT) || (max_tree_stronger(keys, face, located_one) != 0))
             {
                 strongest[one] = face;
             }
-            if ((standing_other == MAX_TREE_ABSENT) || (max_tree_stronger(keys, face, standing_other) != 0))
+            if ((located_other == MAX_TREE_ABSENT) || (max_tree_stronger(keys, face, located_other) != 0))
             {
                 strongest[other] = face;
             }

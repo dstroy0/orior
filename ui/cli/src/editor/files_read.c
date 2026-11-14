@@ -10,7 +10,7 @@
 #include "files.h"
 #include "pages.h"
 
-// the size past which a text file opens as a window, the most bytes of a file that is not text shown, and the bytes
+// the size past which a text file opens as a window, the max bytes of a file that is not text displayed, and the bytes
 // looked through for a 0 that marks a file as no text
 #define CLI_WINDOW_FROM (1024ULL * 1024ULL)
 #define CLI_DISPLAYED_BYTES (64ULL * 1024ULL)
@@ -45,7 +45,7 @@ typedef struct
     unsigned long long line;
     unsigned long long lines;
 } FilesReadCtx;
-// whether a letter the end of `size` bytes cuts short starts at them: a lead byte and as many of the bytes after it as
+// whether a character the end of `size` bytes cuts short starts at them: a lead byte and as many of the bytes after it as
 // there are, each as UTF-8 takes it, too few
 EMBED_INLINE int cli_cut_short(const FilesReadCtx *args)
 {
@@ -83,16 +83,16 @@ EMBED_INLINE int cli_cut_short(const FilesReadCtx *args)
            !((lead == 0xf0u) && (second < 0x90u)) && !((lead == 0xf4u) && (second >= 0x90u));
 }
 
-// whether `size` bytes are UTF-8 whole, or where `cut` is 1, UTF-8 but for a letter their end cuts short
+// whether `size` bytes are UTF-8 whole, or where `cut` is 1, UTF-8 but for a character their end cuts short
 EMBED_INLINE int cli_utf8(const FilesReadCtx *args)
 {
     unsigned long long at = 0ULL;
     while (at < args->size)
     {
-        unsigned int letter = 0u;
+        unsigned int character = 0u;
         const unsigned long long step =
-            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg, .text_bytes = args->bytes,
-                       .length = args->size, .at = at, .letter = &letter);
+            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg, .text_bytes = args->bytes,
+                       .length = args->size, .at = at, .character = &character);
         if ((step == 1ULL) && (args->bytes[at] >= 0x80u))
         {
             return args->cut &&

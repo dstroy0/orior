@@ -33,7 +33,7 @@ test("Preferences' settings, from the command line: zoom, language, cores, opaci
     assert.equal(localStorage.getItem("orior.language"), "en");
     await press("prefs-cores", "1");
     assert.equal(coresKept(), 1);
-    assert.equal(prefsField("Cores kept for you").value, "1");
+    assert.equal(prefsField("Cores retained for you").value, "1");
     await press("prefs-opacity", "menu", menuWas === 70 ? "80" : "70");
     assert.equal(opacity(menu), menuWas === 70 ? 80 : 70);
     assert.equal(document.documentElement.style.getPropertyValue("--menu-opacity"), `${opacity(menu)}%`);
@@ -113,15 +113,15 @@ test("Preferences' color theme, from the command line: a theme made, named, colo
   }
 });
 
-test("Preferences' keys, from the command line: the set, a letter's key, and a command's keys set, taken off and reset", async () => {
+test("Preferences' keys, from the command line: the set, a character's key, and a command's keys set, taken off and reset", async () => {
   const was = keySettings();
   try {
     await press("keys-from", "jetbrains");
     assert.equal(keySettings().set, "jetbrains");
     await press("keys-from", "orior");
-    await press("keys-letter", "place");
+    await press("keys-character", "place");
     assert.equal(keySettings().by, "place");
-    await press("keys-letter", "character");
+    await press("keys-character", "character");
     await press("key-set", "save-all", "Ctrl+Alt+8");
     assert.equal(keySettings().own["save-all"][0], "Ctrl+Alt+8");
     await press("key-off", "save-all", "Ctrl+Alt+8");
@@ -137,9 +137,9 @@ test("Preferences' notices, settings files and settings on every machine, from t
   asFound();
   putAway("put away by the test");
   await press("notice-show-again", "put", "away", "by", "the", "test");
-  assert.ok(!noticesAway().includes("put away by the test"), "shown again");
+  assert.ok(!noticesAway().includes("put away by the test"), "displayed again");
   await press("settings-own");
-  assert.ok(made("home_reveal").some((one) => one.args.what === "settings"), "your settings.json shown");
+  assert.ok(made("home_reveal").some((one) => one.args.what === "settings"), "your settings.json displayed");
   await press("settings-tree");
   await ui.waitFor(() => editing().active === ".orior/settings.json", 5000, "the tree's settings open");
   const wasPlace = carryPlace();
@@ -148,7 +148,7 @@ test("Preferences' notices, settings files and settings on every machine, from t
   calls.answer("carry_read", () => ({ differences: [{ place: "keys.json", how: "changed", settings: [] }, { place: "settings.json", how: "changed", settings: [{ key: "zoom", here: "1", there: "1.25" }] }], there: { "keys.json": "{}" } }));
   calls.answer("carry_take", ({ from, places }) => ({ id: "taken", from, files: places, at: 0 }));
   calls.answer("carry_undo", ({ id }) => ({ id, from: folder, files: [], at: 0 }));
-  calls.answer("kept_now", () => ({ set: {}, gone: [] }));
+  calls.answer("retained_now", () => ({ set: {}, gone: [] }));
   try {
     await press("carry-place", folder);
     assert.equal(carryPlace(), folder);

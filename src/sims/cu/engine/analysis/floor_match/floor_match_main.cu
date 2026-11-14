@@ -83,7 +83,7 @@ int main(int count, char **arguments)
     sim_check(&results, ok && (equal == MATCH_FLOOR_VALUES),
               "the engine's floor 2 equals the host's two-level lifting of the frame at every coefficient");
 
-    // the planes, laid out once on the device from floor 2's values
+    // the planes, arranged once on the device from floor 2's values
     ok = ok &&
          sim_status_check(&results,
                           cudaMalloc((void **)&device_floor, (size_t)MATCH_FLOOR_VALUES * sizeof(unsigned short)),
@@ -218,7 +218,7 @@ int main(int count, char **arguments)
         side->found += found;
         side->found_max = (found > side->found_max) ? found : side->found_max;
         side->total += taken;
-        side->maximum = (taken > side->maximum) ? taken : side->maximum;
+        side->max = (taken > side->max) ? taken : side->max;
     }
 
     const unsigned long long half = MATCH_SAMPLES / 2ull;
@@ -238,7 +238,7 @@ int main(int count, char **arguments)
     mmgr_line_decimal(line, MATCH_BITS, 1u);
     mmgr_line_put(line, " planes of ");
     mmgr_line_decimal(line, MATCH_WORDS, 1u);
-    mmgr_line_put(line, " words\n  a query reads no value: the and over the planes takes at most ");
+    mmgr_line_put(line, " words\n  a query reads no value: the and over the planes takes at max ");
     mmgr_line_decimal(line, full, 1u);
     mmgr_line_put(line, " plane words, and half of a is ");
     mmgr_line_decimal(line, half, 1u);
@@ -272,7 +272,7 @@ int main(int count, char **arguments)
               "every value not on floor 2 is found nowhere");
     // the query kernel stops at the 16th plane. The reads are valid by construction; the check records that the bound,
     // 16 m / 32 plane words, sits below n / 2
-    sim_check(&results, ok && (sides[0].maximum <= full) && (sides[1].maximum <= full) && (full < half),
+    sim_check(&results, ok && (sides[0].max <= full) && (sides[1].max <= full) && (full < half),
               "no query reads more than 16 m / 32 plane words, below half of a");
 
     cudaFree(device_reads);

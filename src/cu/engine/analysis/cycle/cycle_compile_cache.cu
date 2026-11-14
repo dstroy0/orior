@@ -136,11 +136,11 @@ std::vector<char> cycle_program_link(const CycleTarget *lane_target, const std::
     {
         return cubin;
     }
-    const nvJitLinkInputType kind = (lto != 0) ? NVJITLINK_INPUT_LTOIR : NVJITLINK_INPUT_CUBIN;
-    const nvJitLinkInputType program_kind = (ptx != 0) ? NVJITLINK_INPUT_PTX : kind;
+    const nvJitLinkInputType type = (lto != 0) ? NVJITLINK_INPUT_LTOIR : NVJITLINK_INPUT_CUBIN;
+    const nvJitLinkInputType program_type = (ptx != 0) ? NVJITLINK_INPUT_PTX : type;
     size_t size = 0u;
     const int linked =
-        (linker->add(handle, program_kind, object.data(), object.size(), "cycle_program") == NVJITLINK_SUCCESS) &&
+        (linker->add(handle, program_type, object.data(), object.size(), "cycle_program") == NVJITLINK_SUCCESS) &&
         (linker->complete(handle) == NVJITLINK_SUCCESS) && (linker->cubin_size(handle, &size) == NVJITLINK_SUCCESS) &&
         (size != 0u);
     if (linked)
@@ -164,7 +164,7 @@ std::vector<char> cycle_program_link(const CycleTarget *lane_target, const std::
     return cubin;
 }
 
-// the target for the device and the kind of link, named once a process; it builds nothing and is always ready
+// the target for the device and the type of link, named once a process; it builds nothing and is always ready
 const CycleTarget *cycle_target(int major, int minor, int lto, int report)
 {
     CycleTarget *const lane_target = &s_cycle_lane_targets[(lto != 0) ? 1 : 0];

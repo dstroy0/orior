@@ -71,7 +71,7 @@ def plain_rows():
     return held
 
 
-# What may not stand before a phrase of the plain table for the reading in the guide to hold.
+# What may not are before a phrase of the plain table for the reading in the guide to hold.
 # A determiner before prior makes it the noun ("no prior to estimate"), and and or but before a
 # negated phrase makes not the second half of a contrast ("on entropy and not on time"), where 2.6.3
 # is about a negated verb.
@@ -119,7 +119,7 @@ HIDDEN_VERB = (
 )
 FALSE_IT = (
     r"\bit (?:is|was) (?:clear|evident|apparent|obvious|important|necessary|possible|likely"
-    r"|shown|known|hoped|believed|expected|true) that\b"
+    r"|displayed|known|hoped|believed|expected|true) that\b"
 )
 # The word before the relative pronoun is the noun it modifies. A preposition there makes `that` a
 # demonstrative, and the sentence has a real subject already.
@@ -211,7 +211,7 @@ def hides_verb(noun):
     return False
 
 
-# A pattern here whose regex is only the first half of its test. scan.banned_hits keeps a match
+# A pattern here whose regex is only the first half of its test. scan.banned_hits retains a match
 # where the second half holds.
 # docs-check: quoting
 # A causative make carries its object on to a complement ("makes the question answerable", "make

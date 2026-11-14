@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// kcr.h: the crystal's kind and its head, the words after the k-file head in their order
+// kcr.h: the crystal's type and its head, the words after the k-file head in their order
 #ifndef KCR_H
 #define KCR_H
 

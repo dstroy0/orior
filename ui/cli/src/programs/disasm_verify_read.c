@@ -12,7 +12,7 @@ typedef struct
     const char *text;
     unsigned long long size;
     unsigned long long at_value;
-    char letter;
+    char character;
     char *into;
     unsigned long long capacity;
     unsigned long long length;
@@ -47,13 +47,13 @@ EMBED_INLINE unsigned long long read_line_end(const DisasmVerifyReadCtx *args)
     return end;
 }
 
-// whether `letter` is one of a symbol's name as IR and the linker spell one
+// whether `character` is one of a symbol's name as IR and the linker spell one
 EMBED_INLINE int read_by_name(const DisasmVerifyReadCtx *args)
 {
-    const int lower = (args->letter >= 'a') && (args->letter <= 'z');
-    const int upper = (args->letter >= 'A') && (args->letter <= 'Z');
-    const int digit = (args->letter >= '0') && (args->letter <= '9');
-    return lower || upper || digit || (args->letter == '_') || (args->letter == '.') || (args->letter == '$');
+    const int lower = (args->character >= 'a') && (args->character <= 'z');
+    const int upper = (args->character >= 'A') && (args->character <= 'Z');
+    const int digit = (args->character >= '0') && (args->character <= '9');
+    return lower || upper || digit || (args->character == '_') || (args->character == '.') || (args->character == '$');
 }
 
 // `length` bytes of `text` copied into `into`, sized for `capacity`: 1, or 0 where they do not fit
@@ -90,7 +90,7 @@ unsigned int cli_disasm_functions_define(const CliDisasmVerifyIrSizeCfg *args)
         {
             name += 1ULL;
             unsigned long long name_end = name;
-            while ((name_end < end) && EMBED_CALL(read_by_name, DisasmVerifyReadCtx, .letter = args->ir[name_end]))
+            while ((name_end < end) && EMBED_CALL(read_by_name, DisasmVerifyReadCtx, .character = args->ir[name_end]))
             {
                 name_end += 1ULL;
             }
@@ -114,7 +114,7 @@ int cli_disasm_symbol_get(const CliDisasmVerifySizeTextCfg *args)
     {
         const unsigned long long end =
             EMBED_CALL(read_line_end, DisasmVerifyReadCtx, .text = args->text, .size = args->size, .at_value = at);
-        // the line's last word is the symbol: an address, a type letter and the name, each apart by one space
+        // the line's last word is the symbol: an address, a type character and the name, each apart by one space
         unsigned long long word_text = end;
         word_text = (at + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
                                      .text = args->text + at, .at = word_text - at, .set = " "));
@@ -142,7 +142,7 @@ int cli_disasm_symbol_get(const CliDisasmVerifySizeTextCfg *args)
     return promoted;
 }
 
-// the hex digits at `text` from `at` read as a number into `value`, `at` moved past them: 1, or 0 where none stand
+// the hex digits at `text` from `at` read as a number into `value`, `at` moved past them: 1, or 0 where none are
 EMBED_INLINE int read_hex(const DisasmVerifyReadCtx *args)
 {
     unsigned long long *at = args->at;
@@ -151,15 +151,15 @@ EMBED_INLINE int read_hex(const DisasmVerifyReadCtx *args)
     unsigned long long digits = 0ULL;
     while (*at < args->end)
     {
-        const char letter = args->text[*at];
+        const char character = args->text[*at];
         unsigned long long digit = 16ULL;
-        if ((letter >= '0') && (letter <= '9'))
+        if ((character >= '0') && (character <= '9'))
         {
-            digit = (unsigned long long)(letter - '0');
+            digit = (unsigned long long)(character - '0');
         }
-        else if ((letter >= 'a') && (letter <= 'f'))
+        else if ((character >= 'a') && (character <= 'f'))
         {
-            digit = 10ULL + (unsigned long long)(letter - 'a');
+            digit = 10ULL + (unsigned long long)(character - 'a');
         }
         if (digit == 16ULL)
         {
@@ -173,7 +173,7 @@ EMBED_INLINE int read_hex(const DisasmVerifyReadCtx *args)
     return digits > 0ULL;
 }
 
-// the decimal digits at `text` from `at` read as a number into `value`, `at` moved past them: 1, or 0 where none stand
+// the decimal digits at `text` from `at` read as a number into `value`, `at` moved past them: 1, or 0 where none are
 EMBED_INLINE int read_decimal(const DisasmVerifyReadCtx *args)
 {
     const char *text = args->text;
@@ -250,7 +250,7 @@ EMBED_INLINE CliDisasmInstruction *read_append(const DisasmVerifyReadCtx *args)
 }
 
 // two hex digits at `text` from `at` read as one byte put at the unit's end: 1 with `at` moved past them, or 0 where
-// two digits do not stand there or the unit contains CLI_DISASM_BYTES already
+// two digits do not are there or the unit contains CLI_DISASM_BYTES already
 EMBED_INLINE int read_pair(const DisasmVerifyReadCtx *args)
 {
     unsigned long long *at = args->at;
@@ -271,7 +271,7 @@ EMBED_INLINE int read_pair(const DisasmVerifyReadCtx *args)
 }
 
 // an instruction's bytes from `*at`, hex pairs a space apart, put in `unit`: a pair is a byte only where a blank or the
-// end follows it, so a two-letter mnemonic is not read as one
+// end follows it, so a two-character mnemonic is not read as one
 EMBED_INLINE void read_objdump_bytes(const DisasmVerifyReadCtx *args)
 {
     const char *const text = args->text;
@@ -449,7 +449,7 @@ int cli_disasm_ghidra_read(const CliDisasmVerifySizeCfg *args)
     return found;
 }
 
-// One instruction's two spellings: LLVM's and Ghidra's, where they differ in letters alone
+// One instruction's two spellings: LLVM's and Ghidra's, where they differ in characters alone
 typedef struct
 {
     const char *llvm;

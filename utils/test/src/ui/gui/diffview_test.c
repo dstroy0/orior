@@ -14,7 +14,7 @@
 #include "../../../../../ui/gui/src/diffview.h"
 #include "../cli/cli_check.h"
 
-// the lines of the check's file, and the bytes they take with their ends at most
+// the lines of the check's file, and the bytes they take with their ends at max
 #define DIFFVIEW_LINES 40u
 #define DIFFVIEW_TEXT 512u
 
@@ -87,11 +87,11 @@ static int where_is(const char *text)
 // the pixel at x, y of the raster
 static GuiColor pixel(const GuiRaster *raster, int x, int y)
 {
-    // the pixel stands inside the raster
+    // the pixel is inside the raster
     return raster->pixels[((unsigned int)y * raster->width) + (unsigned int)x];
 }
 
-// the raster laid with `ground` and the view drawn over it
+// the raster positioned with `ground` and the view drawn over it
 static void drawn(GuiRaster *raster, const GuiWork *work, const GuiFrame *frame, GuiGlyphs *glyphs, GuiIcons *icons,
                   const GuiPalette *palette, GuiColor ground)
 {
@@ -132,7 +132,7 @@ int main(void)
     char out_text[1024];
     VerbaLinea out = {out_text, sizeof(out_text), 0ULL};
     cli_check(EMBED_CALL(cli_git_out.init, CliGitOutCfg, .folder_read = s_root, .out = &out, .err_msg = &why),
-              "a repository stands in the check's folder");
+              "a repository is in the check's folder");
     const char *const name_set[3] = {"config", "user.name", "Check"};
     const char *const email_set[3] = {"config", "user.email", "check@orior.test"};
     const char *const added[3] = {"add", "-A", "."};
@@ -166,7 +166,7 @@ int main(void)
     const char *const sides =
         EMBED_CALL(cli_diff_view_at_row_length.bar, CliDiffViewAtRowLengthCfg, .part = CLI_DIFF_VIEW_BAR_SIDES,
                    .length_out = &length);
-    cli_check(sentence_is(sides, length, "last commit, then as it stands"), "the sides sentence is the CLI's");
+    cli_check(sentence_is(sides, length, "last commit, then as it is"), "the sides sentence is the CLI's");
 
     // the rows as they are drawn: the bar over the body, a row each 20 pixels at the frame's scale
     drawn(&raster, &work, &frame, &glyphs, &icons, palette, ground);
@@ -179,20 +179,20 @@ int main(void)
               "a changed row is tinted on both halves");
     cli_check((pixel(&raster, left_end, same_y) == ground) && (pixel(&raster, right_end, same_y) == ground),
               "a row both share is tinted on neither");
-    // the bar has no fill of its own: its label stands in its middle and a line runs along its foot, over the body
+    // the bar has no fill of its own: its label is in its middle and a line runs along its foot, over the body
     cli_check((pixel(&raster, frame.editor.x + 9, body_y - 15) != ground) &&
                   (pixel(&raster, frame.editor.x + (frame.editor.width / 2), body_y - 1) != ground),
               "the bar is drawn over the body");
 
     // the wheel: no further than the last row fills the body
-    const int shown = (frame.editor.y + frame.editor.height - body_y) / GUI_DIFFVIEW_ROW;
-    const unsigned int most = rows - (unsigned int)shown;
+    const int displayed = (frame.editor.y + frame.editor.height - body_y) / GUI_DIFFVIEW_ROW;
+    const unsigned int max = rows - (unsigned int)displayed;
     cli_check(EMBED_CALL(gui_work.wheel, GuiWorkCfg, .work = &work, .frame = &frame, .glyphs = &glyphs,
                          .x = frame.editor.x + 40, .y = body_y + 40, .rows = 1000) &&
-                  (work.scroll == most),
+                  (work.scroll == max),
               "the wheel scrolls no further than the CLI's last row fills the body");
     drawn(&raster, &work, &frame, &glyphs, &icons, palette, ground);
-    const int added_y = body_y + (int)((rows - 2u - most) * GUI_DIFFVIEW_ROW) + (GUI_DIFFVIEW_ROW / 2);
+    const int added_y = body_y + (int)((rows - 2u - max) * GUI_DIFFVIEW_ROW) + (GUI_DIFFVIEW_ROW / 2);
     cli_check((pixel(&raster, left_end, added_y) != ground) && (pixel(&raster, right_end, added_y) != ground) &&
                   (pixel(&raster, left_end, added_y) != pixel(&raster, right_end, added_y)),
               "a line put in has a gap on the left and a tinted right half, drawn in the rows scrolled to");
@@ -208,12 +208,12 @@ int main(void)
     const unsigned int close = EMBED_CALL(gui_work.hit, GuiWorkCfg, .work_read = &work, .frame = &frame,
                                           .x = right - GUI_DIFFVIEW_TOOL + 4, .y = tools_y);
     cli_check((next == GUI_DIFFVIEW_NEXT) && (previous == GUI_DIFFVIEW_PREVIOUS) && (close == GUI_DIFFVIEW_CLOSE),
-              "the tools stand at the bar's right");
+              "the tools are at the bar's right");
     (void)EMBED_CALL(gui_work.press, GuiWorkCfg, .work = &work, .frame = &frame, .glyphs = &glyphs, .index = next);
     cli_check(where_is("change 1 of 2") && (work.scroll == 0u), "the next tool wraps to the first change");
     (void)EMBED_CALL(gui_work.press, GuiWorkCfg, .work = &work, .frame = &frame, .glyphs = &glyphs,
                      .index = previous);
-    cli_check(where_is("change 2 of 2") && (work.scroll == most), "the previous tool wraps to the last change");
+    cli_check(where_is("change 2 of 2") && (work.scroll == max), "the previous tool wraps to the last change");
     (void)EMBED_CALL(gui_work.key, GuiWorkCfg, .work = &work, .frame = &frame, .glyphs = &glyphs, .name = "F7");
     cli_check(where_is("change 1 of 2"), "F7 steps to the next change");
     (void)EMBED_CALL(gui_work.key, GuiWorkCfg, .work = &work, .frame = &frame, .glyphs = &glyphs, .name = "Shift+F7");
@@ -232,7 +232,7 @@ int main(void)
                                               .x = right - (3 * GUI_DIFFVIEW_TOOL) - GUI_DIFFVIEW_PAD -
                                                    GUI_DIFFVIEW_BOX_WIDTH + 4,
                                               .y = tools_y);
-    cli_check((space == GUI_DIFFVIEW_SPACE) && (structure == GUI_DIFFVIEW_STRUCTURE), "the boxes stand before the tools");
+    cli_check((space == GUI_DIFFVIEW_SPACE) && (structure == GUI_DIFFVIEW_STRUCTURE), "the boxes are before the tools");
     (void)EMBED_CALL(gui_work.press, GuiWorkCfg, .work = &work, .frame = &frame, .glyphs = &glyphs, .index = space);
     int on = 0;
     int enabled = 0;

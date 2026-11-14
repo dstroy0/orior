@@ -17,7 +17,7 @@ unsigned int cli_py_text_append(const CliPythonPathsTextCtx *args)
     const unsigned int at = g_cli_py.used;
     memor.cpy(&(MemoriaCfg){.dst = g_cli_py.text + at, .src = args->text, .bytes = args->length});
     g_cli_py.text[at + args->length] = '\0';
-    // the texts are below their most, CLI_PY_TEXT bytes at the most, which an unsigned int stores
+    // the texts are below their max, CLI_PY_TEXT bytes at max, which an unsigned int stores
     g_cli_py.used += (unsigned int)args->length + 1u;
     return at;
 }
@@ -46,7 +46,7 @@ typedef struct
     unsigned int first_value;
     unsigned int count_value;
     unsigned int at;
-    unsigned int letter;
+    unsigned int character;
     unsigned int *start;
     unsigned int mark;
     unsigned int *first;
@@ -69,14 +69,14 @@ EMBED_INLINE unsigned int cli_text_line_append(const PythonPathsParseCtx *args)
     return at;
 }
 
-// the letters from `from` to `to` put as a text: its place, or CLI_PY_NONE
-EMBED_INLINE unsigned int cli_letters_append(const PythonPathsParseCtx *args)
+// the characters from `from` to `to` put as a text: its place, or CLI_PY_NONE
+EMBED_INLINE unsigned int cli_characters_append(const PythonPathsParseCtx *args)
 {
     VerbaLinea line = cli_text_line();
     for (unsigned int at = args->from; at < args->to; at += 1u)
     {
-        EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line,
-                   .letter = g_cli_py.letter[at]);
+        EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line,
+                   .character = g_cli_py.character[at]);
     }
     return EMBED_CALL(cli_text_line_append, PythonPathsParseCtx, .line = &line);
 }
@@ -94,28 +94,28 @@ EMBED_INLINE unsigned int cli_expr_init(const PythonPathsParseCtx *args)
     return g_cli_py.exprs - 1u;
 }
 
-// whether the letter at `at` is `letter`
-EMBED_INLINE int cli_letter_is(const PythonPathsParseCtx *args)
+// whether the character at `at` is `character`
+EMBED_INLINE int cli_character_is(const PythonPathsParseCtx *args)
 {
-    return (args->at < g_cli_py.letters) && (g_cli_py.letter[args->at] == args->letter);
+    return (args->at < g_cli_py.characters) && (g_cli_py.character[args->at] == args->character);
 }
 
 // whitespace and line joins passed over
 static void cli_blank(void)
 {
-    while ((g_cli_py.at < g_cli_py.letters) && (EMBED_CALL(cli_files_letter_internal.fuzzy_white, CliFilesLetterCtx,
-                                                           .letter = g_cli_py.letter[g_cli_py.at]) ||
-                                                (g_cli_py.letter[g_cli_py.at] == '\\')))
+    while ((g_cli_py.at < g_cli_py.characters) && (EMBED_CALL(cli_files_character_internal.fuzzy_white, CliFilesLetterCtx,
+                                                           .character = g_cli_py.character[g_cli_py.at]) ||
+                                                (g_cli_py.character[g_cli_py.at] == '\\')))
     {
         g_cli_py.at += 1u;
     }
 }
 
-// whether `letter` comes next, past whitespace, taken where it does
+// whether `character` comes next, past whitespace, taken where it does
 EMBED_INLINE int cli_eat(const PythonPathsParseCtx *args)
 {
     cli_blank();
-    if (EMBED_CALL(cli_letter_is, PythonPathsParseCtx, .at = g_cli_py.at, .letter = args->letter))
+    if (EMBED_CALL(cli_character_is, PythonPathsParseCtx, .at = g_cli_py.at, .character = args->character))
     {
         g_cli_py.at += 1u;
         return 1;
@@ -123,13 +123,13 @@ EMBED_INLINE int cli_eat(const PythonPathsParseCtx *args)
     return 0;
 }
 
-// a word of letters, numbers and `_` taken: 1 with where it starts into `start`, or 0 where none starts here
+// a word of characters, numbers and `_` taken: 1 with where it starts into `start`, or 0 where none starts here
 EMBED_INLINE int cli_word(const PythonPathsParseCtx *args)
 {
     unsigned int *start = args->start;
     *start = g_cli_py.at;
-    while ((g_cli_py.at < g_cli_py.letters) &&
-           EMBED_CALL(cli_files_letter_internal.hit_wordy, CliFilesLetterCtx, .letter = g_cli_py.letter[g_cli_py.at]))
+    while ((g_cli_py.at < g_cli_py.characters) &&
+           EMBED_CALL(cli_files_character_internal.hit_wordy, CliFilesLetterCtx, .character = g_cli_py.character[g_cli_py.at]))
     {
         g_cli_py.at += 1u;
     }
@@ -165,7 +165,7 @@ EMBED_INLINE int cli_list(const PythonPathsParseCtx *args)
     const unsigned int mark = g_cli_py.stacked;
     for (;;)
     {
-        if (EMBED_CALL(cli_eat, PythonPathsParseCtx, .letter = args->close))
+        if (EMBED_CALL(cli_eat, PythonPathsParseCtx, .character = args->close))
         {
             return EMBED_CALL(cli_list_end, PythonPathsParseCtx, .mark = mark, .first = args->first,
                               .count = args->count);
@@ -175,8 +175,8 @@ EMBED_INLINE int cli_list(const PythonPathsParseCtx *args)
         if (EMBED_CALL(cli_word, PythonPathsParseCtx, .start = &word_text))
         {
             cli_blank();
-            const int keyword = EMBED_CALL(cli_letter_is, PythonPathsParseCtx, .at = g_cli_py.at, .letter = '=') &&
-                                !EMBED_CALL(cli_letter_is, PythonPathsParseCtx, .at = g_cli_py.at + 1u, .letter = '=');
+            const int keyword = EMBED_CALL(cli_character_is, PythonPathsParseCtx, .at = g_cli_py.at, .character = '=') &&
+                                !EMBED_CALL(cli_character_is, PythonPathsParseCtx, .at = g_cli_py.at + 1u, .character = '=');
             g_cli_py.at = keyword ? (g_cli_py.at + 1u) : start;
         }
         const unsigned int item = cli_expr();
@@ -187,9 +187,9 @@ EMBED_INLINE int cli_list(const PythonPathsParseCtx *args)
         }
         g_cli_py.stack[g_cli_py.stacked] = item;
         g_cli_py.stacked += 1u;
-        if (!EMBED_CALL(cli_eat, PythonPathsParseCtx, .letter = ','))
+        if (!EMBED_CALL(cli_eat, PythonPathsParseCtx, .character = ','))
         {
-            if (EMBED_CALL(cli_eat, PythonPathsParseCtx, .letter = args->close))
+            if (EMBED_CALL(cli_eat, PythonPathsParseCtx, .character = args->close))
             {
                 return EMBED_CALL(cli_list_end, PythonPathsParseCtx, .mark = mark, .first = args->first,
                                   .count = args->count);
@@ -205,11 +205,11 @@ EMBED_INLINE int cli_list(const PythonPathsParseCtx *args)
 EMBED_INLINE unsigned int cli_string(const PythonPathsParseCtx *args)
 {
     VerbaLinea line = cli_text_line();
-    const unsigned int mark = g_cli_py.letter[args->quote];
+    const unsigned int mark = g_cli_py.character[args->quote];
     g_cli_py.at = args->quote + 1u;
-    while (g_cli_py.at < g_cli_py.letters)
+    while (g_cli_py.at < g_cli_py.characters)
     {
-        const unsigned int next = g_cli_py.letter[g_cli_py.at];
+        const unsigned int next = g_cli_py.character[g_cli_py.at];
         g_cli_py.at += 1u;
         if (next == mark)
         {
@@ -219,17 +219,17 @@ EMBED_INLINE unsigned int cli_string(const PythonPathsParseCtx *args)
         }
         if ((next == '\\') && !args->raw)
         {
-            if (g_cli_py.at < g_cli_py.letters)
+            if (g_cli_py.at < g_cli_py.characters)
             {
-                const unsigned int escaped = g_cli_py.letter[g_cli_py.at];
+                const unsigned int escaped = g_cli_py.character[g_cli_py.at];
                 g_cli_py.at += 1u;
                 const int unescaped = (escaped == 't') ? '\t' : escaped;
-                EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line,
-                           .letter = (escaped == 'n') ? '\n' : unescaped);
+                EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line,
+                           .character = (escaped == 'n') ? '\n' : unescaped);
             }
             continue;
         }
-        EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line, .letter = next);
+        EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line, .character = next);
     }
     return CLI_PY_NONE;
 }
@@ -238,34 +238,34 @@ EMBED_INLINE unsigned int cli_string(const PythonPathsParseCtx *args)
 static unsigned int cli_primary(void)
 {
     cli_blank();
-    if (g_cli_py.at >= g_cli_py.letters)
+    if (g_cli_py.at >= g_cli_py.characters)
     {
         return CLI_PY_NONE;
     }
-    const unsigned int letter = g_cli_py.letter[g_cli_py.at];
+    const unsigned int character = g_cli_py.character[g_cli_py.at];
     unsigned int first = 0u;
     unsigned int count = 0u;
-    if ((letter == '(') || (letter == '['))
+    if ((character == '(') || (character == '['))
     {
         g_cli_py.at += 1u;
-        if (!EMBED_CALL(cli_list, PythonPathsParseCtx, .close = (letter == '(') ? ')' : ']', .first = &first,
+        if (!EMBED_CALL(cli_list, PythonPathsParseCtx, .close = (character == '(') ? ')' : ']', .first = &first,
                         .count = &count))
         {
             return CLI_PY_NONE;
         }
-        return ((letter == '(') && (count == 1u))
+        return ((character == '(') && (count == 1u))
                    ? g_cli_py.item[first]
                    : EMBED_CALL(cli_expr_init, PythonPathsParseCtx, .type = CLI_EXPR_MANY, .text = 0u, .number = 0LL,
                                 .left = 0u, .right = 0u, .first_value = first, .count_value = count);
     }
     unsigned int start = 0u;
-    if ((letter >= '0') && (letter <= '9'))
+    if ((character >= '0') && (character <= '9'))
     {
         EMBED_CALL(cli_word, PythonPathsParseCtx, .start = &start);
         long long number = 0LL;
         for (unsigned int at = start; at < g_cli_py.at; at += 1u)
         {
-            const unsigned int digit = g_cli_py.letter[at] - '0';
+            const unsigned int digit = g_cli_py.character[at] - '0';
             if ((digit > 9u) || (number > ((0x7fffffffffffffffLL - (long long)digit) / 10LL)))
             {
                 return CLI_PY_NONE;
@@ -279,15 +279,15 @@ static unsigned int cli_primary(void)
     unsigned int quote = mark;
     int raw = 0;
     int formatted = 0;
-    while ((quote < g_cli_py.letters) &&
-           (((g_cli_py.letter[quote] | 0x20u) >= 'a') && ((g_cli_py.letter[quote] | 0x20u) <= 'z')))
+    while ((quote < g_cli_py.characters) &&
+           (((g_cli_py.character[quote] | 0x20u) >= 'a') && ((g_cli_py.character[quote] | 0x20u) <= 'z')))
     {
-        raw = raw || ((g_cli_py.letter[quote] | 0x20u) == 'r');
-        formatted = formatted || ((g_cli_py.letter[quote] | 0x20u) == 'f');
+        raw = raw || ((g_cli_py.character[quote] | 0x20u) == 'r');
+        formatted = formatted || ((g_cli_py.character[quote] | 0x20u) == 'f');
         quote += 1u;
     }
-    if (((quote - mark) <= 2u) && (EMBED_CALL(cli_letter_is, PythonPathsParseCtx, .at = quote, .letter = '"') ||
-                                   EMBED_CALL(cli_letter_is, PythonPathsParseCtx, .at = quote, .letter = '\'')))
+    if (((quote - mark) <= 2u) && (EMBED_CALL(cli_character_is, PythonPathsParseCtx, .at = quote, .character = '"') ||
+                                   EMBED_CALL(cli_character_is, PythonPathsParseCtx, .at = quote, .character = '\'')))
     {
         return formatted ? CLI_PY_NONE : EMBED_CALL(cli_string, PythonPathsParseCtx, .quote = quote, .raw = raw);
     }
@@ -297,7 +297,7 @@ static unsigned int cli_primary(void)
         return CLI_PY_NONE;
     }
     return EMBED_CALL(cli_expr_init, PythonPathsParseCtx, .type = CLI_EXPR_NAME,
-                      .text = EMBED_CALL(cli_letters_append, PythonPathsParseCtx, .from = start, .to = g_cli_py.at),
+                      .text = EMBED_CALL(cli_characters_append, PythonPathsParseCtx, .from = start, .to = g_cli_py.at),
                       .number = 0LL, .left = 0u, .right = 0u, .first_value = 0u, .count_value = 0u);
 }
 
@@ -306,11 +306,11 @@ static unsigned int cli_primary(void)
 static unsigned int cli_subscript(void)
 {
     cli_blank();
-    if (!EMBED_CALL(cli_letter_is, PythonPathsParseCtx, .at = g_cli_py.at, .letter = ':'))
+    if (!EMBED_CALL(cli_character_is, PythonPathsParseCtx, .at = g_cli_py.at, .character = ':'))
     {
         return cli_expr();
     }
-    while ((g_cli_py.at < g_cli_py.letters) && (g_cli_py.letter[g_cli_py.at] != ']'))
+    while ((g_cli_py.at < g_cli_py.characters) && (g_cli_py.character[g_cli_py.at] != ']'))
     {
         g_cli_py.at += 1u;
     }
@@ -326,7 +326,7 @@ static unsigned int cli_postfix(void)
     {
         unsigned int first = 0u;
         unsigned int count = 0u;
-        if (EMBED_CALL(cli_eat, PythonPathsParseCtx, .letter = '.'))
+        if (EMBED_CALL(cli_eat, PythonPathsParseCtx, .character = '.'))
         {
             cli_blank();
             unsigned int start = 0u;
@@ -336,10 +336,10 @@ static unsigned int cli_postfix(void)
             }
             value = EMBED_CALL(
                 cli_expr_init, PythonPathsParseCtx, .type = CLI_EXPR_ATTR,
-                .text = EMBED_CALL(cli_letters_append, PythonPathsParseCtx, .from = start, .to = g_cli_py.at),
+                .text = EMBED_CALL(cli_characters_append, PythonPathsParseCtx, .from = start, .to = g_cli_py.at),
                 .number = 0LL, .left = value, .right = 0u, .first_value = 0u, .count_value = 0u);
         }
-        else if (EMBED_CALL(cli_eat, PythonPathsParseCtx, .letter = '('))
+        else if (EMBED_CALL(cli_eat, PythonPathsParseCtx, .character = '('))
         {
             if (!EMBED_CALL(cli_list, PythonPathsParseCtx, .close = ')', .first = &first, .count = &count))
             {
@@ -348,10 +348,10 @@ static unsigned int cli_postfix(void)
             value = EMBED_CALL(cli_expr_init, PythonPathsParseCtx, .type = CLI_EXPR_CALL, .text = 0u, .number = 0LL,
                                .left = value, .right = 0u, .first_value = first, .count_value = count);
         }
-        else if (EMBED_CALL(cli_eat, PythonPathsParseCtx, .letter = '['))
+        else if (EMBED_CALL(cli_eat, PythonPathsParseCtx, .character = '['))
         {
             const unsigned int index = cli_subscript();
-            if ((index == CLI_PY_NONE) || !EMBED_CALL(cli_eat, PythonPathsParseCtx, .letter = ']'))
+            if ((index == CLI_PY_NONE) || !EMBED_CALL(cli_eat, PythonPathsParseCtx, .character = ']'))
             {
                 return CLI_PY_NONE;
             }
@@ -372,8 +372,8 @@ static unsigned int cli_expr(void)
     unsigned int left = cli_postfix();
     while (left != CLI_PY_NONE)
     {
-        const int join = EMBED_CALL(cli_eat, PythonPathsParseCtx, .letter = '/');
-        if (!join && !EMBED_CALL(cli_eat, PythonPathsParseCtx, .letter = '+'))
+        const int join = EMBED_CALL(cli_eat, PythonPathsParseCtx, .character = '/');
+        if (!join && !EMBED_CALL(cli_eat, PythonPathsParseCtx, .character = '+'))
         {
             return left;
         }
@@ -390,13 +390,13 @@ static unsigned int cli_expr(void)
 
 unsigned int cli_py_parse(const CliPythonPathsTextCtx *args)
 {
-    // a letter count is below the reading's most, which an unsigned int stores
-    g_cli_py.letters =
-        (unsigned int)EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->text, .size = args->length,
-                                 .letters = g_cli_py.letter, .capacity_u64 = g_cli_py.letters_max);
+    // a character count is below the reading's max, which an unsigned int stores
+    g_cli_py.characters =
+        (unsigned int)EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = args->text, .size = args->length,
+                                 .characters = g_cli_py.character, .capacity_u64 = g_cli_py.characters_max);
     g_cli_py.at = 0u;
     g_cli_py.stacked = 0u;
     const unsigned int expr = cli_expr();
     cli_blank();
-    return (g_cli_py.at >= g_cli_py.letters) ? expr : CLI_PY_NONE;
+    return (g_cli_py.at >= g_cli_py.characters) ? expr : CLI_PY_NONE;
 }

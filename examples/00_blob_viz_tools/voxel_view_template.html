@@ -101,7 +101,7 @@
     border-bottom: 1px solid var(--rule);
     font-family: "IBM Plex Mono", monospace;
     font-size: 9px;
-    letter-spacing: 0.14em;
+    character-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--muted);
   }
@@ -193,7 +193,7 @@
   .pick label {
     font-family: "IBM Plex Mono", monospace;
     font-size: 9px;
-    letter-spacing: 0.08em;
+    character-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--muted);
     min-width: 5.4em;
@@ -249,7 +249,7 @@
     cursor: pointer;
     font-family: "IBM Plex Mono", monospace;
     font-size: 9px;
-    letter-spacing: 0.14em;
+    character-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--muted);
     padding: 3px 0;
@@ -356,7 +356,7 @@
   legend {
     font-family: "IBM Plex Mono", monospace;
     font-size: 9.5px;
-    letter-spacing: 0.15em;
+    character-spacing: 0.15em;
     text-transform: uppercase;
     color: var(--muted);
     padding: 0 6px;
@@ -411,7 +411,7 @@
   .row label {
     font-family: "IBM Plex Mono", monospace;
     font-size: 9.5px;
-    letter-spacing: 0.1em;
+    character-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--muted);
     min-width: 5.5em;
@@ -492,10 +492,10 @@
     font-size: 10px;
     color: var(--muted);
     pointer-events: none;
-    letter-spacing: 0.04em;
+    character-spacing: 0.04em;
     opacity: 0.5;
   }
-  /* The readouts move too. They are the thing most likely to sit exactly where the object needs to
+  /* The readouts move too. They are the thing likely to sit exactly where the object needs to
      be, and unlike the panels they have no frame to grab. The whole box is the handle. */
   .axes {
     position: absolute;
@@ -591,7 +591,7 @@
 
   /* A question mark in the corner, and a tile only when asked for. The description of what is being
      looked at is worth having and is not worth a paragraph competing with the object. It stays
-     folded away and the picture keeps the attention. */
+     folded away and the picture retains the attention. */
   /* The question mark and its tile are one hover target. Moving the pointer from the button onto
      the tile does not close it on the way. The tile is fully opaque and sits above everything: the
      previous version inherited the button's dimming and read as invisible. */
@@ -650,7 +650,7 @@
     font-family: "IBM Plex Mono", monospace;
     font-size: 9px;
     font-weight: 600;
-    letter-spacing: 0.12em;
+    character-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--ink);
     margin: 0 0 6px;
@@ -896,7 +896,7 @@
     }
 
     // The grid this shape is currently carrying. The space-filling layouts can recover a cell's
-    // integer index from the (u, v) they are handed.
+    // integer index from the (u, v) they are passed.
     var GRID = { span: 1, depth: 1 };
 
     /** Gielis's superformula: one equation whose parameters give circles, polygons, stars and
@@ -949,7 +949,7 @@
       return [x, y];
     }
 
-    /** Morton's order, the cheap alternative: interleave the bits. Kept beside Hilbert because the
+    /** Morton's order, the cheap alternative: interleave the bits. Retained beside Hilbert because the
       difference between them on the same data is the value of locality. */
     function mortonAt(index) {
       var x = 0,
@@ -1347,7 +1347,7 @@
       {
         key: "shell",
         label: "Seashell",
-        note: "a tube on a logarithmic spiral: growth that keeps its shape",
+        note: "a tube on a logarithmic spiral: growth that retains its shape",
         at: surface(function (u, v) {
           var th = u * TAU * 2.2;
           var grow = Math.pow(1.19, th);
@@ -1455,7 +1455,7 @@
       {
         key: "spherize",
         label: "Spherize",
-        note: "every point pushed to one radius: shape gone, sampling kept",
+        note: "every point pushed to one radius: shape gone, sampling retained",
         go: function (p, n) {
           var u = unit(p);
           return { p: [u[0] * 66, u[1] * 66, u[2] * 66], n: u };
@@ -1544,7 +1544,7 @@
     scene.add(fillLight);
     // Both of those are above the field. Now that the camera turns all the way under, the underside
     // needs its own light or it reads as one flat ambient tone and the relief disappears exactly
-    // where the light cone's cliff is most legible. Weaker than the key. Up and down stay
+    // where the light cone's cliff is max legible. Weaker than the key. Up and down stay
     // distinguishable and not the object looking lit from nowhere.
     var under = new THREE.DirectionalLight(0xffffff, 0.34);
     under.position.set(60, -180, -40);
@@ -1588,7 +1588,7 @@
     var brush = null;
     var contrastAt = 0.6;
     var picked = null;
-    // Each step keeps its own selection: a range that means something in one field means nothing in
+    // Each step retains its own selection: a range that means something in one field means nothing in
     // the next. Switching steps restores what was selected there instead of carrying it across.
     var selections = {};
 
@@ -1608,7 +1608,7 @@
         var b = baseColor[i * 3 + 2];
 
         // The selection dragged on the histogram sits above every mark: it is what the eye is being
-        // pointed at right now, and a standing mark should not hide it.
+        // pointed at right now, and a located mark should not hide it.
         var mark = null;
         var raw = rawOf[i];
         for (var m = marks.length - 1; m >= 0; m -= 1) {
@@ -1704,12 +1704,12 @@
       }
 
       ceilingNow = ceiling;
-      var kept = [];
+      var retained = [];
       for (r = 0; r < span; r += 1) {
         for (c = 0; c < depth; c += 1) {
           var t = shaped(rows[r][c], ceiling);
           if (Math.abs(t) * 100 >= floorAt) {
-            kept.push([r, c, t]);
+            retained.push([r, c, t]);
           }
         }
       }
@@ -1721,26 +1721,26 @@
 
       var geometry = new THREE.BoxGeometry(footAcross, 1, footAlong);
       var material = new THREE.MeshLambertMaterial();
-      mesh = new THREE.InstancedMesh(geometry, material, Math.max(1, kept.length));
-      mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, kept.length) * 3), 3);
+      mesh = new THREE.InstancedMesh(geometry, material, Math.max(1, retained.length));
+      mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, retained.length) * 3), 3);
 
-      baseColor = new Float32Array(Math.max(1, kept.length) * 3);
-      rawOf = new Float32Array(Math.max(1, kept.length));
+      baseColor = new Float32Array(Math.max(1, retained.length) * 3);
+      rawOf = new Float32Array(Math.max(1, retained.length));
 
       var spot = new THREE.Object3D();
       var up = new THREE.Vector3(0, 1, 0);
       var normal = new THREE.Vector3();
       var seat = new THREE.Vector3();
 
-      for (var i = 0; i < kept.length; i += 1) {
-        var row = kept[i][0];
-        var col = kept[i][1];
-        var t = kept[i][2];
+      for (var i = 0; i < retained.length; i += 1) {
+        var row = retained[i][0];
+        var col = retained[i][1];
+        var t = retained[i][2];
 
         var u = depth > 1 ? col / (depth - 1) : 0;
         var v = span > 1 ? row / (span - 1) : 0;
-        // Wrap lays the cut around the shape more than once. A period that divides the wrap count
-        // lines up and stands still; anything else precesses, and the precession is the beat.
+        // Wrap positions the cut around the shape more than once. A period that divides the wrap count
+        // lines up and is stationary; anything else precesses, and the precession is the beat.
         if (wrapAt > 1) {
           v = (v * wrapAt) % 1;
         }
@@ -1783,13 +1783,13 @@
         baseColor[i * 3 + 1] = palette.zero[1] + (end[1] - palette.zero[1]) * eased;
         baseColor[i * 3 + 2] = palette.zero[2] + (end[2] - palette.zero[2]) * eased;
 
-        // The raw value is kept per instance and not the mark it matched. Which mark claims a
+        // The raw value is retained per instance and not the mark it matched. Which mark claims a
         // cell then costs nothing to change: adding a mark, editing its range, or dragging a
         // selection across the histogram repaints colors from these numbers instead of rebuilding
-        // the geometry. That keeps a drag over 32,000 cells up with the pointer.
+        // the geometry. That retains a drag over 32,000 cells up with the pointer.
         rawOf[i] = tint ? tint[row][col] : rows[row][col];
       }
-      drawn = kept.length;
+      drawn = retained.length;
       countBins();
       drawHist();
       sayBrush();
@@ -1811,7 +1811,7 @@
     // is no orientation at which this version disagrees with the screen, because the axes it turns
     // about are read off the camera at the moment of the move.
     //
-    // Right is recomputed on every pointermove and not kept for the gesture. Letting go and
+    // Right is recomputed on every pointermove and not retained for the gesture. Letting go and
     // starting again therefore cannot desync it: there is no stored frame to go stale.
     //
     // The sense is grab and drag. Pull right and the object goes right, which means the camera orbits
@@ -1872,7 +1872,7 @@
         target.addScaledVector(upVec, dy * reach);
       } else {
         // Horizontal about the camera's own up, vertical about the camera's own right. Rotating the
-        // up vector along with the offset on the vertical turn keeps the two perpendicular
+        // up vector along with the offset on the vertical turn retains the two perpendicular
         // and the roll free of any accumulated tilt.
         offset.applyAxisAngle(upVec, -dx * 0.006);
         offset.applyAxisAngle(side, -dy * 0.006);
@@ -1952,9 +1952,9 @@
         selections[view.key] = { brush: brush, picked: picked };
       }
       view = VIEWS[at];
-      var kept = selections[view.key] || {};
-      brush = kept.brush || null;
-      picked = kept.picked === undefined ? null : kept.picked;
+      var retained = selections[view.key] || {};
+      brush = retained.brush || null;
+      picked = retained.picked === undefined ? null : retained.picked;
       stepPick.value = String(at);
       paintAxes();
       redraw();
@@ -2236,7 +2236,7 @@
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
       ctx.clearRect(0, 0, wide, high);
 
-      // Counts are drawn on a log scale. A field whose values pile into one bin - which is most of
+      // Counts are drawn on a log scale. A field whose values pile into one bin - the majority of
       // them, the plateau being what it is - draws every other bin as nothing at all on a linear
       // one, and the tail is the part worth seeing.
       var top = Math.log10(1 + binMost);
@@ -2372,7 +2372,7 @@
       repaint();
     });
 
-    // Double click clears, and a selection can be promoted to a standing mark so it survives being
+    // Double click clears, and a selection can be promoted to a located mark so it survives being
     // replaced by the next drag.
     histCanvas.addEventListener("dblclick", function () {
       brush = null;
@@ -2601,7 +2601,7 @@
           return;
         }
         var room = box.parentElement.getBoundingClientRect();
-        // Kept inside the stage, and never so far down that the handle itself is out of reach.
+        // Retained inside the stage, and never so far down that the handle itself is out of reach.
         var x = Math.max(0, Math.min(room.width - box.offsetWidth, event.clientX - grabX));
         var y = Math.max(0, Math.min(room.height - 24, event.clientY - grabY));
         box.style.left = x + "px";
@@ -2784,8 +2784,8 @@
     // A caller that wants a particular view asks for it here instead of publishing a page and
     // telling the reader which controls to move. The shared control bar's model reads these: every
     // value in DATA.settings is checked against the one schema the build injected, a value of the
-    // wrong kind or out of range is named and refused and never clamped, and a key the build leaves
-    // out keeps the control's own default. The report line below names what was refused. Each
+    // wrong type or out of range is named and refused and never clamped, and a key the build leaves
+    // out retains the control's own default. The report line below names what was refused. Each
     // bespoke control stays and is seeded from the model.
 
     var SCHEMA = DATA.schema || {};
@@ -2929,7 +2929,7 @@
       redraw();
     }
 
-    // Motion. Turns per minute about the observer's own up or right, which keeps turning about the
+    // Motion. Turns per minute about the observer's own up or right, which retains turning about the
     // axis the reader sees and not a world axis that drifts as the object is dragged.
     if (given("spin")) {
       var perFrame = (wanted.spin * TAU) / (60 * 60);
@@ -2948,7 +2948,7 @@
 
     // The report line. A refusal is named; otherwise the keys the build set are listed, and an empty
     // settings object opens at the page defaults and says that. A control whose value was refused
-    // keeps its own default and stays visible.
+    // retains its own default and stays visible.
     var reportEl = document.getElementById("open-report");
     if (reportEl) {
       reportEl.classList.remove("refused");
@@ -2965,8 +2965,8 @@
     window.addEventListener("resize", resize);
 
     // Dragging the stage's corner changes its height but fires no window resize. The renderer
-    // would keep drawing at the old size and the picture would stretch. Watching the element itself
-    // catches the drag, and writing the height back out as a custom property keeps the
+    // would retain drawing at the old size and the picture would stretch. Watching the element itself
+    // catches the drag, and writing the height back out as a custom property retains the
     // sidecar's cap tied to whatever the view window has become.
     if (window.ResizeObserver) {
       var stage = document.querySelector(".stage");

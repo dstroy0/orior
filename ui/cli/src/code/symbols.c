@@ -11,11 +11,11 @@
 #include "symbols_internal.h"
 #include "symbols_tree.h"
 
-// the most types of declaration of one file whose texts are read once and shared by its declarations
+// the max types of declaration of one file whose texts are read once and shared by its declarations
 #define CLI_SYMBOLS_TYPES 16u
 // The storage a walk goes through: one file's declarations as read, before they are stored, their names and types and
-// the declarations each in a cell at their most, how many and their bytes, and the place of each type read among those
-// texts; the one cell each file is read into, of the most a file read holds and the slack; the languages it reads its
+// the declarations each in a cell at their max, how many and their bytes, and the place of each type read among those
+// texts; the one cell each file is read into, of the max a file read holds and the slack; the languages it reads its
 // files in, a cell of their own; and the folders and files mounted beside the tree as it started, each its name and its
 // whole path, how many
 typedef struct
@@ -151,7 +151,7 @@ static void cli_leaf_declare(const CliDeclaredCfg *args)
 }
 
 // the declarations read put as the branch at `path`, stamped `written`, in a cell of its own, which takes the place of
-// the one it stood in: 1, or 0 where the table fits no more branches or the cells cannot meet it. Called under the lock
+// the one it was in: 1, or 0 where the table fits no more branches or the cells cannot meet it. Called under the lock
 EMBED_INLINE int cli_branch_join(const SymbolsCtx *args)
 {
     const char *path = args->path;
@@ -240,7 +240,7 @@ static int cli_branch_walk(const SymbolsCtx *args)
     {
         return 1;
     }
-    // the file read into the walk's one cell, used from file to file, which fits the most a file read holds
+    // the file read into the walk's one cell, used from file to file, which fits the max a file read holds
     unsigned long long mapped_size = 0ULL;
     const int mapped = (args->walk->file_bytes != NULL) &&
                        EMBED_CALL(cli_path_from_internal.file_read_at, CliPathFromCtx, .path = full, .from = 0ULL,
@@ -428,7 +428,7 @@ typedef struct
     void *context;
 } CliTreeListing;
 
-// one path listed: seen where its branch stands, joined and told where none does
+// one path listed: seen where its branch is, joined and told where none does
 static void cli_tree_path_list(const CliEachPathLengthCfg *args)
 {
     const char *path = args->path;
@@ -765,9 +765,9 @@ static unsigned long long cli_tree_mounts_word(void)
     unsigned long long word_text = 0ULL;
     for (unsigned int at = 0u; at < mounts; at += 1u)
     {
-        for (const char *letter = paths[at]; letter[0] != '\0'; letter += 1)
+        for (const char *character = paths[at]; character[0] != '\0'; character += 1)
         {
-            word_text = (word_text ^ (unsigned char)letter[0]) * 0x100000001b3ULL;
+            word_text = (word_text ^ (unsigned char)character[0]) * 0x100000001b3ULL;
         }
     }
     return word_text;
@@ -879,7 +879,7 @@ void cli_tree_branches_walk(const CliSymbolsRootCfg *args)
         g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
         return;
     }
-    // a temporary cell is handed out as the last cell there left it, and every member the walk does not set reads 0:
+    // a temporary cell is passed out as the last cell there left it, and every member the walk does not set reads 0:
     // no mounts, and nothing of theirs for the walk's free to release
     *walk = (CliTreeWalk){.languages = languages};
     walk->file_bytes = g_cli_guard->temporary_buf_alloc(CLI_SYMBOLS_LARGEST + CLI_FILE_SLACK, g_cli_code_owner);

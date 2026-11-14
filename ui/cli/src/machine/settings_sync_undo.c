@@ -61,7 +61,7 @@ static CliAllocations s_allocations;
 // the lock taken and the work state begun empty under it
 static int undo_lock(void)
 {
-    // the imports' names and the import read stand in one cell for as long as the work runs
+    // the imports' names and the import read are in one cell for as long as the work runs
     s_allocations.name =
         g_cli_guard->temporary_buf_alloc((CLI_ALLOCATIONS * 64ULL) + CLI_ALLOCATING_BYTES, g_cli_machine_owner);
     if (s_allocations.name == NULL)
@@ -136,12 +136,12 @@ static int cli_allocating_read(const SettingsSyncUndoCtx *args)
     const CliJsonNode *const number = &json->node[at];
     for (unsigned long long digit = 0ULL; digit < number->length; digit += 1ULL)
     {
-        const char letter = json->text[number->text + digit];
-        if ((letter < '0') || (letter > '9'))
+        const char character = json->text[number->text + digit];
+        if ((character < '0') || (character > '9'))
         {
             return 0;
         }
-        args->allocating->at = (args->allocating->at * 10ULL) + (unsigned long long)(letter - '0');
+        args->allocating->at = (args->allocating->at * 10ULL) + (unsigned long long)(character - '0');
     }
     args->allocating->files = 0u;
     for (unsigned int one = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,

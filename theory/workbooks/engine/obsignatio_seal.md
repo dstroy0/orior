@@ -7,7 +7,7 @@
 
 A CRC-64 is linear over GF(2): crc(a ⊕ b) = crc(a) ⊕ crc(b) ⊕ crc(0). So anyone can craft an edit that leaves it unchanged, it says nothing about where a fault sits, and two CRCs do not compose into a commitment on both. It still misses a random corruption only 2^−64 of the time, and it catches every burst of 64 bits or fewer; its failure is structure instead of size.
 
-A k-bit check of any kind misses a random corruption with probability 2^−k, whatever the function. A check smaller than 64 bits is therefore never stronger than CRC-64 against random flips, and no finite check is infinite. The seal takes k = 256 at every node:
+A k-bit check of any type misses a random corruption with probability 2^−k, whatever the function. A check smaller than 64 bits is therefore never stronger than CRC-64 against random flips, and no finite check is infinite. The seal takes k = 256 at every node:
 - a random corruption passes one node with probability 2^−256;
 - a deliberate collision costs about 2^128 work.
 
@@ -57,11 +57,11 @@ Every node is stored in the `.kcr` ("every floor of the tower"): the six roots, 
 
 ## The witness
 
-"we ingest seal and then witness pixel:pixel 1:1 once. then we have our hash and we know our input is verified and witnessed." Ingest seals the source as read, writes the crystal, reads it back and proves every node. Then it witnesses the crystal against the source twice (keep both):
+"we ingest seal and then witness pixel:pixel 1:1 once. then we have our hash and we know our input is verified and witnessed." Ingest seals the source as read, writes the crystal, reads it back and proves every node. Then it witnesses the crystal against the source twice (retain both):
 - the decoded voxels against the source lanes still on the device;
 - a second, independent read of the source against the rebuilt volume, pixel for pixel.
 
-The second read is the only step that catches a flip in the first read, which would otherwise be sealed as the truth. After the witness the root stands for the input: every later check is hash against hash, and no source is needed again.
+The second read is the only step that catches a flip in the first read, which would otherwise be sealed as the truth. After the witness the root is for the input: every later check is hash against hash, and no source is needed again.
 
 ## What it proves
 
@@ -116,8 +116,8 @@ Doug's nine posits on the wire and the witness are in [wants.md](wants.md), numb
   - "All crystals fail" (point 1), read against Locality: a change fails its own path of nodes up to the set root Θ. Every other sample's root Ω still proves.
 - **(b) Every crystal is legal, and T carries no redundancy** ("Redundancy" in [two_crystals.md](two_crystals.md)). Rebuilding needs the source or the whole crystal, and it fails closed: every tampered case in the table above was stopped and named.
 - **(c) A CRC with the seal as a locator.**
-  - Erasure: a CRC of degree r with g(0) = 1 recovers any burst of at most r bits whose positions are known. The burst e at offset i leaves the syndrome x^i·e(x) mod g. g(0) = 1 makes x a unit mod g, and no nonzero e of degree below r is a multiple of g: the syndrome names e. At r = 64, a burst of up to 64 bits.
-  - The seal locates to a row or a chunk instead of to bits. Inside the segment the burst's place is unknown, and that is burst correction: a linear code that corrects every burst of length b needs r ≥ 2b check bits ([Reiger 1960](#src:Reiger-1960); [Peterson and Weldon 1972](#src:Peterson-and-Weldon-1972)). A CRC-64 corrects bursts of at most 32 bits, and only with a generator chosen for it.
+  - Erasure: a CRC of degree r with g(0) = 1 recovers any burst of at max r bits whose positions are known. The burst e at offset i leaves the syndrome x^i·e(x) mod g. g(0) = 1 makes x a unit mod g, and no nonzero e of degree below r is a multiple of g: the syndrome names e. At r = 64, a burst of up to 64 bits.
+  - The seal locates to a row or a chunk instead of to bits. Inside the segment the burst's place is unknown, and that is burst correction: a linear code that corrects every burst of length b needs r ≥ 2b check bits ([Reiger 1960](#src:Reiger-1960); [Peterson and Weldon 1972](#src:Peterson-and-Weldon-1972)). A CRC-64 corrects bursts of at max 32 bits, and only with a generator chosen for it.
   - "We have the crc" (point 2) holds outside the `.kcr`: the `.bapx` body table carries a CRC-64, and the entropy history carries `payload_crc` and `cloud_crc`. The `.kcr`'s CRC words were replaced by the seal ("What it costs"). Adding one back is a format change, Doug's call.
 - **(d) The set root is a joint function of every crystal's root.** It changes on any change, except with probability 2^−256 per node. This is classical binding, and it involves no quantum entanglement (points 3 and 4). Θ over a set is built. The universal root is ruled and still unbuilt (below).
 - **(e) The floor as amplitude and the knf as phase** (points 6 and 7).

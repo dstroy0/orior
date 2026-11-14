@@ -12,7 +12,7 @@
 // the gate admits it later, since the part never saw it. A timed query is put every time and stored as a sample of its
 // own.
 //
-// Every record the file contained stands as it contained it, a pair after every other record. What a run adds comes
+// Every record the file contained is as it contained it, a pair after every other record. What a run adds comes
 // after the records it contained and before the pairs, each run of them after a who record, the who of the code that
 // put them (Who); and a cycle, a seed and a round are each written before the first new query or sample that follows
 // them and nowhere where none follows, so that a cycle the record answers whole adds no record to it. A record of the
@@ -21,7 +21,7 @@
 #define KQR_H
 
 #include "../../parsers/who.h"
-// the .kqr's kind, the four bytes after the k-file head
+// the .kqr's type, the four bytes after the k-file head
 #define KQR_KIND "KQR\0"
 
 // the name of the run's table whose rows a record a run stores is a view of
@@ -45,7 +45,7 @@
 #define KQR_CENSORED 4u
 #define KQR_ANSWER_COUNT 5u
 
-// the most letters of a refusal, of a member's name, of a mode, of a pair's form and of its verdict, and the most
+// the max characters of a refusal, of a member's name, of a mode, of a pair's form and of its verdict, and the max
 // words of an answer
 #define KQR_REFUSAL 128u
 #define KQR_MEMBER 64u
@@ -54,7 +54,7 @@
 #define KQR_VERDICT 512u
 #define KQR_WORDS 4096u
 
-// the most marks a cycle retains pending before its first new query or sample
+// the max marks a cycle retains pending before its first new query or sample
 #define KQR_PENDING 8u
 
 // a query's identity: the hash of its code, the registers, threads, blocks and launches it is put with, its count of
@@ -83,7 +83,7 @@ typedef struct
 
 // one timed query, a sample of its own: its identity as a query's, what came back, and the nanoseconds its launches
 // took together where it answered, or the refusal where it did not; and where the sample gives them, the least and
-// the most one launch took, its block latency (P6), `launched` 1
+// the max one launch took, its block latency (P6), `launched` 1
 typedef struct
 {
     KqrIdentity identity;
@@ -91,7 +91,7 @@ typedef struct
     unsigned long long nanoseconds;
     int launched;
     unsigned long long least;
-    unsigned long long most;
+    unsigned long long max;
     char refusal[KQR_REFUSAL];
 } KqrSample;
 

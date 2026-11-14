@@ -7,7 +7,7 @@
 #include "../text/text.h"
 #include "version_catalog_internal.h"
 
-// A reader of a catalog: its text and the byte it stands at
+// A reader of a catalog: its text and the byte it is at
 typedef struct
 {
     const char *text;
@@ -16,7 +16,7 @@ typedef struct
 } CliVersionsReader;
 CliVersionsParsed g_cli_versions;
 
-// no letter, past the text's end
+// no character, past the text's end
 #define CLI_VERSIONS_END 0xffffffffu
 
 typedef struct
@@ -34,14 +34,14 @@ typedef struct
     VerbaLinea *out;
     unsigned long long *from_pointer;
     unsigned long long *to_pointer;
-    unsigned int letter;
+    unsigned int character;
     unsigned int *first;
     unsigned int *last;
     unsigned int *count;
     unsigned int field_u32;
     CliVersionsField *field;
 } VersionCatalogReadCtx;
-// the letter the reader stands at and the bytes it takes, CLI_VERSIONS_END past the text's end
+// the character the reader is at and the bytes it takes, CLI_VERSIONS_END past the text's end
 EMBED_INLINE unsigned int read_peek(const VersionCatalogReadCtx *args)
 {
     unsigned long long *length = args->length;
@@ -50,7 +50,7 @@ EMBED_INLINE unsigned int read_peek(const VersionCatalogReadCtx *args)
         *length = 0ULL;
         return CLI_VERSIONS_END;
     }
-    return EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->read_read->text, .size = args->read_read->size,
+    return EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = args->read_read->text, .size = args->read_read->size,
                       .at = args->read_read->at, .length = length);
 }
 
@@ -112,15 +112,15 @@ EMBED_INLINE void read_blank(const VersionCatalogReadCtx *args)
     for (;;)
     {
         unsigned long long length = 0ULL;
-        const unsigned int letter =
+        const unsigned int character =
             EMBED_CALL(read_peek, VersionCatalogReadCtx, .read_read = args->read, .length = &length);
-        if (letter == '#')
+        if (character == '#')
         {
             const unsigned long long end =
                 EMBED_CALL(read_find, VersionCatalogReadCtx, .read_read = args->read, .stops = "\n");
             args->read->at = (end < args->read->size) ? end + 1u : end;
         }
-        else if ((letter != CLI_VERSIONS_END) && EMBED_CALL(cli_text_table.white, CliTextCfg, .letter = letter))
+        else if ((character != CLI_VERSIONS_END) && EMBED_CALL(cli_text_table.white, CliTextCfg, .character = character))
         {
             args->read->at += length;
         }
@@ -174,19 +174,19 @@ EMBED_INLINE int read_string(const VersionCatalogReadCtx *args)
     for (;;)
     {
         unsigned long long length = 0ULL;
-        const unsigned int letter =
+        const unsigned int character =
             EMBED_CALL(read_peek, VersionCatalogReadCtx, .read_read = args->read, .length = &length);
-        if ((letter == CLI_VERSIONS_END) || (letter == '\n'))
+        if ((character == CLI_VERSIONS_END) || (character == '\n'))
         {
             break;
         }
-        if (letter == (unsigned char)args->quote)
+        if (character == (unsigned char)args->quote)
         {
             *to = args->read->at;
             args->read->at += 1u;
             return 1;
         }
-        if ((letter == '\\') && (args->quote == '"'))
+        if ((character == '\\') && (args->quote == '"'))
         {
             args->read->at += 1u;
             if (EMBED_CALL(read_peek, VersionCatalogReadCtx, .read_read = args->read, .length = &length) !=
@@ -205,12 +205,12 @@ EMBED_INLINE int read_string(const VersionCatalogReadCtx *args)
     return 0;
 }
 
-// whether a letter goes in a bare key
-EMBED_INLINE int read_bare_letter(const VersionCatalogReadCtx *args)
+// whether a character goes in a bare key
+EMBED_INLINE int read_bare_character(const VersionCatalogReadCtx *args)
 {
-    unsigned int letter = args->letter;
-    return (letter != CLI_VERSIONS_END) && (EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .letter = letter) ||
-                                            (letter == '_') || (letter == '-'));
+    unsigned int character = args->character;
+    return (character != CLI_VERSIONS_END) && (EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .character = character) ||
+                                            (character == '_') || (character == '-'));
 }
 
 // a key, bare or quoted, its parts joined by dots, into `out`: 1, or 0 where none is there
@@ -219,24 +219,24 @@ EMBED_INLINE int read_key(const VersionCatalogReadCtx *args)
     for (;;)
     {
         unsigned long long length = 0ULL;
-        const unsigned int letter =
+        const unsigned int character =
             EMBED_CALL(read_peek, VersionCatalogReadCtx, .read_read = args->read, .length = &length);
-        if ((letter == '"') || (letter == '\''))
+        if ((character == '"') || (character == '\''))
         {
             unsigned long long from = 0ULL;
             unsigned long long to = 0ULL;
-            if (!EMBED_CALL(read_string, VersionCatalogReadCtx, .read = args->read, .quote = (char)letter,
+            if (!EMBED_CALL(read_string, VersionCatalogReadCtx, .read = args->read, .quote = (char)character,
                             .out = args->out, .from_pointer = &from, .to_pointer = &to))
             {
                 return 0;
             }
         }
-        else if (EMBED_CALL(read_bare_letter, VersionCatalogReadCtx, .letter = letter))
+        else if (EMBED_CALL(read_bare_character, VersionCatalogReadCtx, .character = character))
         {
             const unsigned long long start = args->read->at;
             while (EMBED_CALL(
-                read_bare_letter, VersionCatalogReadCtx,
-                .letter = EMBED_CALL(read_peek, VersionCatalogReadCtx, .read_read = args->read, .length = &length)))
+                read_bare_character, VersionCatalogReadCtx,
+                .character = EMBED_CALL(read_peek, VersionCatalogReadCtx, .read_read = args->read, .length = &length)))
             {
                 args->read->at += length;
             }
@@ -508,7 +508,7 @@ void cli_versions_free(void)
     g_cli_versions_libraries.size = NULL;
     g_cli_versions_libraries.text = NULL;
     g_cli_versions_libraries.count = 0u;
-    g_cli_versions_libraries.most = 0u;
+    g_cli_versions_libraries.max = 0u;
     g_cli_versions_libraries.used = 0u;
     g_cli_versions_libraries.capacity = 0u;
     g_cli_guard->persistent_buf_release(g_cli_versions_known.text, g_cli_versions_owner);
@@ -517,7 +517,7 @@ void cli_versions_free(void)
     g_cli_versions_known.size = NULL;
     g_cli_versions_known.text = NULL;
     g_cli_versions_known.count = 0u;
-    g_cli_versions_known.most = 0u;
+    g_cli_versions_known.max = 0u;
     g_cli_versions_known.used = 0u;
     g_cli_versions_known.capacity = 0u;
     CliVersionsParsed *const parsed = &g_cli_versions;
@@ -585,7 +585,7 @@ int cli_versions_parse(const CliVersionCatalogTextCtx *args)
         {
             EMBED_CALL(read_error_text, VersionCatalogReadCtx, .from = start, .to = read.at,
                        .message =
-                           "An entry stands under a section: `[versions]`, `[libraries]`, `[bundles]` or `[plugins]`");
+                           "An entry is under a section: `[versions]`, `[libraries]`, `[bundles]` or `[plugins]`");
         }
         else
         {

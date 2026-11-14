@@ -66,7 +66,7 @@ The two axes agree to three digits, and that agreement is the reflection symmetr
 
 A designed function should leave a residual with no length scale at all. A field that is
 \emph{smooth}, correlated between neighboring cells, would be structure that survived the
-mixing, and it is the kind of thing an eye reports on noise readily enough that it has to be
+mixing, and it is the type of thing an eye reports on noise readily enough that it has to be
 measured and not looked at.
 
 \begin{center}
@@ -100,7 +100,7 @@ own measurement has to say so.
 
 \section{What is moving, seen or not}
 
-Every reading so far looks at one round at a time and asks whether anything in it stands above
+Every reading so far looks at one round at a time and asks whether anything in it is above
 the noise. A structure too faint to clear that floor in any single round is invisible to all of
 them however many rounds are looked at, because the rounds are compared one at a time and then
 discarded.
@@ -108,7 +108,7 @@ discarded.
 But the rounds are not independent samples of an unknown thing. They are a deterministic sequence,
 and the structure at round \(r\) is related to the structure at \(r+1\) by the round function, and
 that relation is carried in the \emph{phase} of the residue spectrum, which a magnitude discards. A
-structure standing still holds its phase. One drifting at \(v\) residues per round advances it by
+structure stationary holds its phase. One drifting at \(v\) residues per round advances it by
 \(2\pi f v / 32\) each round. Noise does neither.
 
 Summing the complex spectrum across rounds against a velocity hypothesis therefore adds a real
@@ -116,7 +116,7 @@ structure as \(R\) and noise as \(\sqrt{R}\): a gain of \(\sqrt{42} = 6.48\), av
 whatever is actually moving at the velocity being tried.
 
 \textbf{Each round takes its own seed.} The structure is deterministic and stays coherent whatever
-the seed; the sampling noise is made independent and decoheres. One shared seed would keep the
+the seed; the sampling noise is made independent and decoheres. One shared seed would retain the
 noise coherent too and the gain would be nothing.
 
 \subsection{The coordinate the readout lives in}
@@ -142,28 +142,28 @@ frequency at once.
 magnitude & 4.02 & \(\mathbf{131.24}\) & 3.98 & 4.66 \\
 phase only & 4.04 & 9.15 & 4.15 & 4.66 \\
 best window & 4.07 & 94.58 & 4.37 & 4.66 \\
-standing still & 2.19 & 3.50 & 2.25 & \textemdash{} \\
+stationary & 2.19 & 3.50 & 2.25 & \textemdash{} \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-\textbf{The positive control is the result worth keeping.} The wave is injected at frequency three
-walking one residue per round, at an amplitude the ladder shows sits below the standing floor. Its
-standing-still reading is \(3.50\), \emph{under} the null peak: it cannot be found by any
+\textbf{The positive control is the result worth retention.} The wave is injected at frequency three
+walking one residue per round, at an amplitude the ladder shows sits below the located floor. Its
+located-still reading is \(3.50\), \emph{under} the null peak: it cannot be found by any
 single-round instrument at any sample size those instruments could reach. The scan returns it at
 \(131.24\), at exactly frequency three and velocity \(-1.000\). That is a factor of thirty-seven
-over the standing reading, and all of it comes from the motion.
+over the located reading, and all of it comes from the motion.
 
 Against an instrument validated that way, nothing in SHA-256's dependency matrix past round
-twenty-three is moving, at roughly six and a half times the sensitivity of any standing reading:
+twenty-three is moving, at roughly six and a half times the sensitivity of any located reading:
 an effective floor near \(4.7 \times 10^{-6}\).
 
 \subsection{Two pitfalls in reading the scan}
 
 Both are the error class this work meets throughout.
 
-\textbf{Four maxima are not one maximum.} The scan reports four channels and each is itself a
-maximum over a grid. Comparing any one of them to the peak of a single channel is the max-of-\(N\)
+\textbf{Four maxima are not one max.} The scan reports four channels and each is itself a
+max over a grid. Comparing any one of them to the peak of a single channel is the max-of-\(N\)
 error one level up. The window scan alone searches \(42{,}570\) cells because sliding the start and
 the width multiplies the grid and does not add to it; the union is \(52{,}299\), and the peak
 that has to be cleared is \(\sqrt{2 \ln 52299} = 4.66\), not the \(4.12\) of a single channel.

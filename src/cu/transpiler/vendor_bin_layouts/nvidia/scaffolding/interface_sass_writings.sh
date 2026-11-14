@@ -14,7 +14,7 @@
 #     src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_writings.sh [<earlier run folder>]
 #
 # The earlier run, for its pattern cubin and kernel, defaults to the newest under build/ and the harness's build. With
-# WRITINGS_SEARCHED set, the search and the chains already in build/writings are kept and only the descent's cases are
+# WRITINGS_SEARCHED set, the search and the chains already in build/writings are retained and only the descent's cases are
 # put.
 set -u
 
@@ -33,9 +33,9 @@ case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) PYTHON=python ;;
     *) PYTHON=python3 ;;
 esac
-# the cubins a runner pass runs at most, and the seconds a pass is given before it is cut off: a pass short enough
+# the cubins a runner pass runs at max, and the seconds a pass is given before it is cut off: a pass short enough
 # that only a cubin that never ends reaches the cap
-MOST=100
+MAX=100
 CAP=60
 mkdir -p "$OUT"
 
@@ -49,7 +49,7 @@ fi
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$CUB" -I "$INT" -I "$KRS" -I "$BOOT")
 cc -std=c11 -O1 -Wall "${INCLUDES[@]}" -o "$OUT/interface_sass_writings" "$HERE/interface_sass_writings.c" "$HERE"/interface_sass_writings/*.c \
     "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS[@]}" || exit 1
-# the runner holds every cubin to cubin_safe on the host before the driver is handed it
+# the runner holds every cubin to cubin_safe on the host before the driver is passed it
 cc -std=c11 -O1 -Wall -I "$CUDA/include" -o "$OUT/interface_sass_run" "$HERE/interface_sass_run.c" \
     "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS[@]}" \
     -L "$CUDA/lib/x64" -lcuda 2>/dev/null || { echo "  the runner did not link against the CUDA driver"; exit 1; }
@@ -70,14 +70,14 @@ KERNEL_TEXT="$(cygpath -m "$RUN")/sass/form_0.text"
 run_list() {
     local list="$1" answers="$2" cases="${3:-$WIN_OUT/cases.txt}"
     local held="${answers%.txt}.gated.txt" first=0 guard=0 status last hung crossed
-    # the airlock: the vendor reads every cubin of the list before any reaches the part, and the runner is handed that
+    # the airlock: the vendor reads every cubin of the list before any reaches the part, and the runner is passed that
     # verdict always; without it the runner holds every cubin off the part
     "$PYTHON" "$HERE/interface_sass_withheld.py" "$list" "$CUDA/bin/nvdisasm" SM86 "$WIN_OUT/cross" "$held"
     crossed=$?
     [ "$crossed" = 2 ] && { echo "  cross: the vendor's reader was not reached; nothing goes to the part"; return 1; }
     while :; do
         timeout "$CAP" "$OUT/interface_sass_run" --gated "$held" "$(cygpath -m "$MACHINE")" "$list" "$first" "$answers" \
-            "$cases" "$MOST"
+            "$cases" "$MAX"
         status=$?
         last="$(tail -1 "$answers" 2>/dev/null | cut -d' ' -f1)"
         case "$status" in

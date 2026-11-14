@@ -18,7 +18,7 @@ typedef struct
     CliTextPosition one;
     CliTextPosition other;
 } ServersOffersCtx;
-// what a server reports of a signature or a parameter, from either of the shapes the protocol allows, its letters as
+// what a server reports of a signature or a parameter, from either of the shapes the protocol allows, its characters as
 // they are
 EMBED_INLINE void offers_documentation_get(const ServersOffersCtx *args)
 {
@@ -126,23 +126,23 @@ int cli_servers_signature_get(const CliServersJsonOutHelpCtx *args)
     // the store's count
     CliSignatureStore *const store = args->store;
     CliSignaturePanel *const panel = &store->panel;
-    const unsigned long long label_kept = (size < CLI_SIGNATURE_LABEL) ? size : CLI_SIGNATURE_LABEL - 1ULL;
-    const unsigned long long doc_kept = (doc_size < CLI_SIGNATURE_DOC) ? doc_size : CLI_SIGNATURE_DOC - 1ULL;
+    const unsigned long long label_retained = (size < CLI_SIGNATURE_LABEL) ? size : CLI_SIGNATURE_LABEL - 1ULL;
+    const unsigned long long doc_retained = (doc_size < CLI_SIGNATURE_DOC) ? doc_size : CLI_SIGNATURE_DOC - 1ULL;
     memor.set(&(MemoriaCfg){.dst = panel, .val = 0, .bytes = sizeof(*panel)});
-    if (label_kept != 0ULL)
+    if (label_retained != 0ULL)
     {
-        memor.cpy(&(MemoriaCfg){.dst = store->label, .src = label, .bytes = label_kept});
+        memor.cpy(&(MemoriaCfg){.dst = store->label, .src = label, .bytes = label_retained});
     }
-    store->label[label_kept] = '\0';
-    if (doc_kept != 0ULL)
+    store->label[label_retained] = '\0';
+    if (doc_retained != 0ULL)
     {
-        memor.cpy(&(MemoriaCfg){.dst = store->doc, .src = doc_text, .bytes = doc_kept});
+        memor.cpy(&(MemoriaCfg){.dst = store->doc, .src = doc_text, .bytes = doc_retained});
     }
-    store->doc[doc_kept] = '\0';
+    store->doc[doc_retained] = '\0';
     panel->label = store->label;
-    panel->length = label_kept;
+    panel->length = label_retained;
     panel->doc = store->doc;
-    panel->doc_length = doc_kept;
+    panel->doc_length = doc_retained;
     panel->parameter = store->parameter;
     panel->differs = store->differs;
     for (unsigned int param = first; (param != CLI_JSON_NONE) && (panel->parameters < CLI_SIGNATURE_PARAMETERS);
@@ -152,7 +152,7 @@ int cli_servers_signature_get(const CliServersJsonOutHelpCtx *args)
         unsigned long long to = 0ULL;
         if (EMBED_CALL(offers_param_span, ServersOffersCtx, .json = args->json, .param = param, .label = label,
                        .size = size, .from = &from, .to = &to) &&
-            (to <= label_kept))
+            (to <= label_retained))
         {
             // a span within a label is far inside what an unsigned int represents
             store->parameter[panel->parameters] = (CliSignatureParameter){(unsigned int)from, (unsigned int)to};
@@ -178,7 +178,7 @@ int cli_servers_signature_get(const CliServersJsonOutHelpCtx *args)
     return 1;
 }
 
-// whether the place `one` stands before `other`
+// whether the place `one` is before `other`
 EMBED_INLINE int offers_before(const ServersOffersCtx *args)
 {
     return (args->one.line < args->other.line) ||

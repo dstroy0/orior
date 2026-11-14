@@ -12,7 +12,7 @@ const { test, assert, ui } = window.__harness;
 
 const BUILD = "build/src/build_traced.sh";
 
-// The console's text once the run shown has ended.
+// The console's text once the run displayed has ended.
 async function ended() {
   await ui.waitFor(() => document.querySelector("#job-stage .console-head .run[aria-current='true']")?.className.match(/\b(ok|failed)\b/), 15000);
   return document.getElementById("lines")?.textContent ?? "";

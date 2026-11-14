@@ -34,15 +34,15 @@ A job reserves room it may not have allocated yet. It therefore blocks max(r_j, 
 
 **Growth.** If u_j(τ) > r_j, then r_j becomes u_j(τ) and the client is warned: declared d_j, now r_j. Growth never stops a job already running, and a job can push H below zero. While H < 0, nothing new is admitted.
 
-**Invariant.** Admission keeps H ≥ 0. Only growth or an outside process can drive H negative, and both are measured. The sum the scheduler believes it has granted plus what it measured outside equals C − H(τ) at every sweep: the accounting is never perturbed, only corrected, and every correction is reported.
+**Invariant.** Admission retains H ≥ 0. Only growth or an outside process can drive H negative, and both are measured. The sum the scheduler believes it has granted plus what it measured outside equals C − H(τ) at every sweep: the accounting is never perturbed, only corrected, and every correction is reported.
 
 **Release.** When job j ends, r_j and u_j leave the sums. Its measured peak
 
   p_j = max over its sweeps of u_j(τ)
 
-is kept under its signum σ_j, the BLAKE3 root of its request. The engine is deterministic in its request and its result. The same request needs about the same bytes again. The kept peak is a measurement at the sweep's resolution, though, not a byte-exact constant: identical requests have read peaks 4,194,304 bytes apart (below).
+is retained under its signum σ_j, the BLAKE3 root of its request. The engine is deterministic in its request and its result. The same request needs about the same bytes again. The retained peak is a measurement at the sweep's resolution, though, not a byte-exact constant: identical requests have read peaks 4,194,304 bytes apart (below).
 
-**Over budget.** At submission, a job whose signum has a kept peak p and whose declaration exceeds it (d_k > p) is asked. It waits in holding with its precalc intact. With the override set it is admitted on d_k. If no answer comes within its holding time, it is moved to lost and found. A signum never seen is admitted on its declaration and measured.
+**Over budget.** At submission, a job whose signum has a retained peak p and whose declaration exceeds it (d_k > p) is asked. It waits in holding with its precalc intact. With the override set it is admitted on d_k. If no answer comes within its holding time, it is moved to lost and found. A signum never seen is admitted on its declaration and measured.
 
 **Dead sweep.** A client that dies closes its socket, and the daemon sees the close at once. The periodic sweep is the backstop. Each ticket carries the pid and the process's start time. A pid reused by a new process is then not mistaken for the old one. A ticket whose process is gone releases its reservation and moves to lost and found with its last measure.
 
@@ -57,35 +57,35 @@ is kept under its signum σ_j, the BLAKE3 root of its request. The engine is det
 - **The ledger** (`tessera_ledger.{c,h}`) is pure: the accounting, backfill and the deadline heap, with no socket, clock or device. Every rule above is a function of its inputs, and the suite proves it without a GPU.
   - Proved: 143,808 cases, 0 failed. The headroom identity holds on 2,000 random states. The deadlines fire in time order. Budget, hold, override and lost pass their 18 checks. Idle teardown passes its 4. Backfill never moved the head's shadow later, over 121,586 admissions in 20,000 random scenarios, every one of which ran to completion.
   - Found by the suite: a run released before its first measure had recorded a peak of 0, and every later run of that signum was withheld as over budget. A peak now enters the history only if the run was measured at least once.
-- **The frame** (`tessera.h`) is 128 bytes, little-endian, the same on every platform: magic, version, kind, the override, the device's UUID (16 bytes) and LUID, the request's signum, its declared bytes, its three times, and the bytes, measure and identity of a reply.
+- **The frame** (`tessera.h`) is 128 bytes, little-endian, the same on every platform: magic, version, type, the override, the device's UUID (16 bytes) and LUID, the request's signum, its declared bytes, its three times, and the bytes, measure and identity of a reply.
   - Asks: submit, override, release, precalc saved.
   - Tells: admitted, asked, grew, lost, released, refused.
 - **The client** blocks in its submit until the daemon admits the job, asks about it, or loses it. A grew frame can arrive while the job runs; the client drains those at release and reports the largest in its ticket, for the caller to warn.
 - **The daemon** is one program per device, named by the device's UUID: the pipe `\\.\pipe\tessera-<uuid>` on Windows, the socket `tessera-<uuid>.sock` in the runtime directory on Linux. Each client has its own thread, all behind one lock; one timer thread waits on the deadline heap's root.
   - On each sweep it reads the device's memory and the job's pid, and warns if the job grew.
   - After every change it runs admission and tells each admitted client.
-  - It keeps each process's identity: a handle on Windows, a pidfd on Linux. A reused pid can never pass for the old process.
-- **Its files** live in a state directory per device. The lock is `tessera.lock`. The rest sit under `hst/`: the history `hst/head.log` (signum, peak, duration), sealed with the host BLAKE3; `hst/tail.log`, the copy each save writes before it renames it over `hst/head.log`; and `hst/lnf.log`, one append-only file of sealed blocks, each a lost job's ticket or the note a client sends when it keeps that job's precalc.
+  - It retains each process's identity: a handle on Windows, a pidfd on Linux. A reused pid can never pass for the old process.
+- **Its files** live in a state directory per device. The lock is `tessera.lock`. The rest sit under `hst/`: the history `hst/head.log` (signum, peak, duration), sealed with the host BLAKE3; `hst/tail.log`, the copy each save writes before it renames it over `hst/head.log`; and `hst/lnf.log`, one append-only file of sealed blocks, each a lost job's ticket or the note a client sends when it retains that job's precalc.
 
 ## One daemon per host
 
 - **Windows:** the daemon creates its pipe with `FILE_FLAG_FIRST_PIPE_INSTANCE`, and a second daemon fails at birth. A client that finds no pipe starts the daemon detached and retries.
 - **Linux:** `bind()` on the socket path refuses a second daemon. Under systemd the socket unit holds the listening socket and starts the daemon on the first connection (socket activation: the socket arrives as fd 3). The daemon can then exit when idle and wake again. Without systemd, a client starts it as on Windows.
-- **Docker:** the host's socket is bind-mounted into the container. The pid namespace translation above keeps the measure exact.
+- **Docker:** the host's socket is bind-mounted into the container. The pid namespace translation above retains the measure exact.
 - **SAN:** device memory is local to a host. Each host runs its own daemon, and nothing is shared across the SAN but the data.
 
 ## Order, time and loss (23 September)
 
-- **Order among waiting jobs: backfill with the head kept.** A job behind the head may go first only if it cannot delay the head's admission. The head never starves, and the room the head cannot use yet is not wasted.
+- **Order among waiting jobs: backfill with the head retained.** A job behind the head may go first only if it cannot delay the head's admission. The head never starves, and the room the head cannot use yet is not wasted.
 
-  "Cannot delay" is a statement about time, and it needs durations. The engine is deterministic in its request and its result. A signum's run time therefore repeats about as its peak does (each a measurement, not a constant), and the history keeps both: (p_σ, t_σ), the peak bytes and the wall time of the last run. With the head h not fitting (d_h > H):
+  "Cannot delay" is a statement about time, and it needs durations. The engine is deterministic in its request and its result. A signum's run time therefore repeats about as its peak does (each a measurement, not a constant), and the history retains both: (p_σ, t_σ), the peak bytes and the wall time of the last run. With the head h not fitting (d_h > H):
   - The head's shadow time S is the earliest moment at which the running jobs' releases, taken in order of their expected ends e_j = start_j + t_σj, free enough room: the least S with H + Σ_{e_j ≤ S} max(r_j, u_j) ≥ d_h.
   - The spare at S is X = H + Σ_{e_j ≤ S} max(r_j, u_j) − d_h: room the head will not need even when it starts.
   - A waiting job k behind the head is admitted now if d_k ≤ H and either it ends before the shadow (now + t_σk ≤ S) or it fits in the spare (d_k ≤ X, and then X falls by d_k).
   - A job whose signum has no history has no duration: it can never be proved not to delay the head, and it is not backfilled. It waits its turn, and its first run records (p_σ, t_σ).
   - If a job overruns its expected end, the head's shadow moves later. That is measured and reported like a growth, never hidden.
-- **Time: the soonest change is the root.** "what I want is the shortest time to change of anything to be the root because that is most likely event, in order". Every deadline goes into one min-heap keyed by the time until it changes something: each live job's next sweep, each withheld job's holding expiry, the idle teardown. The daemon waits on its socket for at most the root's remaining time, handles the root, pushes that item's next deadline and takes the new root. Events are handled strictly in time order, and nothing is polled on a fixed tick. The shortest sweep among live jobs falls out of the heap without being chosen.
-- **Lost and found keeps the work.** When a withheld job stalls past its grace time, the daemon appends its ticket (identity, signum, pid, declared, peak, measured, times, reason) to `hst/lnf.log` as a sealed block and tells the client, with the log's path. The client keeps its precalc and says so; the daemon then appends a sealed note for that identity. The job can be resumed and not recomputed.
+- **Time: the soonest change is the root.** "what I want is the shortest time to change of anything to be the root because that is likely event, in order". Every deadline goes into one min-heap keyed by the time until it changes something: each live job's next sweep, each withheld job's holding expiry, the idle teardown. The daemon waits on its socket for at max the root's remaining time, handles the root, pushes that item's next deadline and takes the new root. Events are handled strictly in time order, and nothing is polled on a fixed tick. The shortest sweep among live jobs falls out of the heap without being chosen.
+- **Lost and found retains the work.** When a withheld job stalls past its grace time, the daemon appends its ticket (identity, signum, pid, declared, peak, measured, times, reason) to `hst/lnf.log` as a sealed block and tells the client, with the log's path. The client retains its precalc and says so; the daemon then appends a sealed note for that identity. The job can be resumed and not recomputed.
 
 **The seal.** The seal is `obsignatio_seal`, BLAKE3 keyed at the file level (`OBSIGNATIO_LEVEL_FILE`), and it runs on the host. The daemon still makes no CUDA call and holds no device context.
 
@@ -119,9 +119,9 @@ The history then contained two records and the seal (128 bytes), and the daemon 
 
 Two findings, both measured:
 
-- **The kept peak is not a constant.** Identical requests measured peaks 4,194,304 bytes (2^22) apart. The peak is the largest of samples taken every 20 ms: a measurement at that resolution. The rule above is qualified to say so. Whether the sampling moves it has not been tested.
-- **A job reserves its declaration instead of its kept peak.** The second prove declared less than its kept peak and was admitted on its declaration. Until its sweeps grew it, its reservation stood 3,119,706,112 bytes below what it went on to use. That is Doug's rule: reserve what the job asks for, grow and warn when it takes more.
-  - The same day, the working tree's code was changed, uncommitted and not yet ruled on, to reserve the larger of the declaration and the kept peak (`tessera_ledger_wants`). With it, two proves each reserved 3,962,761,216 bytes.
+- **The retained peak is not a constant.** Identical requests measured peaks 4,194,304 bytes (2^22) apart. The peak is the largest of samples taken every 20 ms: a measurement at that resolution. The rule above is qualified to say so. Whether the sampling moves it has not been tested.
+- **A job reserves its declaration instead of its retained peak.** The second prove declared less than its retained peak and was admitted on its declaration. Until its sweeps grew it, its reservation was 3,119,706,112 bytes below what it went on to use. That is Doug's rule: reserve what the job asks for, grow and warn when it takes more.
+  - The same day, the working tree's code was changed, uncommitted and not yet ruled on, to reserve the larger of the declaration and the retained peak (`tessera_ledger_wants`). With it, two proves each reserved 3,962,761,216 bytes.
 
 ## The sims submit (24 September)
 
@@ -147,7 +147,7 @@ Measured in a scratch state directory:
 
 - **The history** was then seven records and the seal (368 bytes).
 - **The host-only sims:** `ask_state` and `ka_psi` run on the host and submit no job.
-- **Every peak is above its declaration.** The smallest peaks sit near 146 MB whatever was declared. The peak is the process's whole dedicated memory, its CUDA context included, and the context is likely most of that; not measured apart.
+- **Every peak is above its declaration.** The smallest peaks sit near 146 MB whatever was declared. The peak is the process's whole dedicated memory, its CUDA context included, and the context is likely the majority of that; not measured apart.
 - **Two peaks differ from the earlier runs by 2,097,152 bytes (2^21):** `nbody_lattice` and `fixed_pattern`. That is the same finding as the driver's.
 - **The engine DLL:** no program in the repo loads it, and no other caller is left to submit.
 
@@ -159,5 +159,5 @@ Measured in a scratch state directory:
 - **Docker:** a static client with no CUDA (`engine/daemon/test/tessera_socket_probe.c`) ran in a container under Docker Engine 29.1.3 inside the WSL distro. The host's socket was bind-mounted and named by `TESSERA_RUNTIME`. The client's submit reached the host's socket-activated daemon, which the WSL refusal then ended, and the submit was refused.
 - **Not run** (this machine has no native NVIDIA Linux driver):
   - a native Linux host, where NVML measures a pid;
-  - a daemon kept running on the activated socket;
+  - a daemon retained running on the activated socket;
   - a job admitted through the docker mount.

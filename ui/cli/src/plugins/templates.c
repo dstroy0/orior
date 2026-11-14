@@ -21,13 +21,13 @@ int cli_templates_folder(const CliTemplatesCfg *args)
 }
 
 // The names listed as a folder is read: counted with their bytes where `name` is NULL, and else put in the cell a
-// count took, `most` names and `text_max` bytes of them at the most
+// count took, `max` names and `text_max` bytes of them at max
 typedef struct
 {
     const char **name;
     char *text;
     unsigned int count;
-    unsigned int most;
+    unsigned int max;
     unsigned long long used;
     unsigned long long text_max;
 } CliTemplateNames;
@@ -52,14 +52,14 @@ EMBED_INLINE int cli_plain(const TemplatesCtx *args)
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     while (at < length)
     {
-        unsigned int letter = 0u;
+        unsigned int character = 0u;
         at +=
-            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                       .text_bytes = (const unsigned char *)args->name, .length = length, .at = at, .letter = &letter);
+            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                       .text_bytes = (const unsigned char *)args->name, .length = length, .at = at, .character = &character);
         blank = blank &&
-                ((letter == ' ') || ((letter >= '\t') && (letter <= '\r')) || (letter == 0x85u) || (letter == 0xa0u) ||
-                 (letter == 0x1680u) || ((letter >= 0x2000u) && (letter <= 0x200au)) || (letter == 0x2028u) ||
-                 (letter == 0x2029u) || (letter == 0x202fu) || (letter == 0x205fu) || (letter == 0x3000u));
+                ((character == ' ') || ((character >= '\t') && (character <= '\r')) || (character == 0x85u) || (character == 0xa0u) ||
+                 (character == 0x1680u) || ((character >= 0x2000u) && (character <= 0x200au)) || (character == 0x2028u) ||
+                 (character == 0x2029u) || (character == 0x202fu) || (character == 0x205fu) || (character == 0x3000u));
     }
     return !blank &&
            (args->name[EMBED_CALL(cli_text_set_table.upto, CliTextSetCfg, .text = args->name, .set = "/\\:*?\"<>|")] ==
@@ -114,9 +114,9 @@ EMBED_INLINE int cli_file_copy(const TemplatesCtx *args)
     int text = 1;
     for (unsigned long long at = 0ULL; text && (at < size);)
     {
-        unsigned int letter = 0u;
-        const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                                                   .text_bytes = bytes, .length = size, .at = at, .letter = &letter);
+        unsigned int character = 0u;
+        const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                                                   .text_bytes = bytes, .length = size, .at = at, .character = &character);
         text = !((step == 1ULL) && (bytes[at] >= 0x80u));
         at += step;
     }

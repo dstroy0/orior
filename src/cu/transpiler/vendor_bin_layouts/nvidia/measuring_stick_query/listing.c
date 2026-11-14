@@ -51,9 +51,9 @@ int msq_added(unsigned char **memory, size_t *size_used, size_t *room, const voi
     return 1;
 }
 
-// `count` runs at `runs` read by the vendor as one raw run: handed to the run's writer as the reader's stream of the
+// `count` runs at `runs` read by the vendor as one raw run: passed to the run's writer as the reader's stream of the
 // .qry (qry_streamed), the disassembler pointed at that stream and run over it, and everything it printed stored in the
-// reader's output and handed to the run as the cross's trace. Nothing but the run's writer writes a file. 0 where the
+// reader's output and passed to the run as the cross's trace. Nothing but the run's writer writes a file. 0 where the
 // disassembler ended clean, 1 where it did not, and -1 where it could not be run
 int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
 {
@@ -62,7 +62,7 @@ int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
     int joined = 1;
     for (size_t at = 0u; joined && (at < count); at += 1u)
     {
-        // a run is at most a container's code, which a size_t counts
+        // a run is at max a container's code, which a size_t counts
         joined = (runs[at].size == 0ull) ||
                  msq_added(&reader->raw, &reader->raw_size, &reader->raw_room, runs[at].bytes, (size_t)runs[at].size);
     }
@@ -126,7 +126,7 @@ int msq_space(char c)
     return (c == ' ') || (c == '\t') || (c == '\n') || (c == '\r') || (c == '\v') || (c == '\f');
 }
 
-// 1 where `c` is a letter, a digit or `_`
+// 1 where `c` is a character, a digit or `_`
 int msq_word(char c)
 {
     return ((c >= 'a') && (c <= 'z')) || ((c >= 'A') && (c <= 'Z')) || ((c >= '0') && (c <= '9')) || (c == '_');
@@ -272,7 +272,7 @@ MsqReading msq_listing_at(const MsqListing *listing, unsigned long long offset)
         {
             continue;
         }
-        reading.kind = MSQ_READ;
+        reading.type = MSQ_READ;
         size_t length = 0u;
         while ((line->body[length] != '\0') && !msq_space(line->body[length]) && (line->body[length] != '.') &&
                (length < (sizeof(reading.operation) - 1u)))

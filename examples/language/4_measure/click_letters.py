@@ -6,23 +6,23 @@
 # Test whether the one clean success rests on a shared definition habit, for Section 4.13 of
 # theory/workbooks/orior.
 #
-#   Usage:  python examples/language/4_measure/click_letters.py
+#   Usage:  python examples/language/4_measure/click_characters.py
 #
 # Zulu and Xhosa read 0.0756 apart, the closest pair measured anywhere here, and that was recorded as the
 # one test with no confound left in it: a close pair, one script, one text, one set of translators.
 #
 # There is a confound and it is in the script after all. Nguni languages write their click consonants with
-# c, x and q, which is a use of those letters no other language here makes, and clicks are common in
+# c, x and q, which is a use of those characters no other language here makes, and clicks are common in
 # ordinary Nguni words. So the two languages share a definition convention that nothing else in the corpus
-# shares, and three letters carrying wholly unlike frequencies from every other Latin alphabet is
-# the kind of surface this reading has followed everywhere else.
+# shares, and three characters carrying wholly unlike frequencies from every other Latin alphabet is
+# the type of surface this reading has followed everywhere else.
 #
-# Two things are measured. How often those letters are used, against every other language written in the
+# Two things are measured. How often those characters are used, against every other language written in the
 # Latin alphabet here, which says whether the convention is as distinctive as it should be. Then the same
-# pair read with those three letters removed from every language equally, which says whether the pairing
+# pair read with those three characters removed from every language equally, which says whether the pairing
 # survives losing them.
 #
-# If it survives, the pairing was about the languages and the earlier claim stands. If it does not, the
+# If it survives, the pairing was about the languages and the earlier claim is. If it does not, the
 # closest pair measured in this work is two definition systems agreeing, and there was never a test here
 # without a confound in it.
 
@@ -51,7 +51,7 @@ RANKS = 64
 CLICKS = "cxq"
 
 AFRICAN = ("zulu", "xhosa", "shona", "somali", "wolof", "afrikaans")
-# Latin written languages loaded on the same translated text, for what those letters usually do
+# Latin written languages loaded on the same translated text, for what those characters usually do
 BESIDE = (
     "para_english",
     "para_spanish",
@@ -89,7 +89,7 @@ def main():
         out.flush()
         return 0
 
-    out.write("  how often c, x and q are used, per thousand letters\n")
+    out.write("  how often c, x and q are used, per thousand characters\n")
     out.write(
         "  %-14s %-9s %-9s %-9s %s\n"
         % ("language", "c", "x", "q", "the three together")
@@ -97,10 +97,10 @@ def main():
     shares = {}
     for name in sorted(held):
         text = held[name].lower()
-        letters = sum(1 for symbol in text if symbol.isalpha())
-        if letters < 1000:
+        characters = sum(1 for symbol in text if symbol.isalpha())
+        if characters < 1000:
             continue
-        row = [1000.0 * text.count(letter) / letters for letter in CLICKS]
+        row = [1000.0 * text.count(character) / characters for character in CLICKS]
         shares[name] = sum(row)
         out.write(
             "  %-14s %-9.2f %-9.2f %-9.2f %.2f\n" % ((name,) + tuple(row) + (sum(row),))
@@ -118,7 +118,7 @@ def main():
         )
 
     out.write(
-        "\n  the pairing, with those letters kept and with them gone from every language\n"
+        "\n  the pairing, with those characters retained and with them gone from every language\n"
     )
     out.write("  %-26s %-11s %s\n" % ("", "as written", "c, x, q removed"))
 

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The servers a tab is handed to: a change told once the frame that draws it is drawn, with no wait of
+// The servers a tab is passed to: a change told once the frame that draws it is drawn, with no wait of
 // the window's own, and the keys typed while a change is on its way told together after it; a C file's
 // server given the tree's slice for the view the page rests on, its answers on the file's lines; a C
 // name's usages and renames read from the tree across its files; the tree's check giving a C file no
@@ -60,7 +60,7 @@ test("a change is told to the tab's server with no wait of the window's own, and
 
 // A header and a file far longer than a view, the view at its end: the definition of a name the
 // header declares, a problem on the line after it and the server's colors, each on the lines they
-// stand on.
+// are on.
 const SHAPE = "#ifndef SHAPE_H\n#define SHAPE_H\nstruct box {\n    int w;\n    int h;\n};\nint area(const struct box *b);\n#endif\n";
 const PADS = 120;
 const USE = [
@@ -77,7 +77,7 @@ const USE = [
 const CALL = PADS + 4;
 const PROBLEM = CALL + 1;
 
-test("a C file's server is given the tree's slice for the view the page rests on: its problems and a definition in a header stand on the file's own lines, and its colors are the highlighter's", async () => {
+test("a C file's server is given the tree's slice for the view the page rests on: its problems and a definition in a header are on the file's own lines, and its colors are the highlighter's", async () => {
   await invoke("file_write", { path: "src/sliced_shape.h", text: SHAPE });
   await invoke("file_write", { path: "src/sliced_use.c", text: USE });
   // the tree reads the header first, so the slice holds what it declares
@@ -100,7 +100,7 @@ test("a C file's server is given the tree's slice for the view the page rests on
     view.goTo(CALL, 14);
     await ui.waitFor(() => told.some((one) => one.first <= PROBLEM && one.last >= PROBLEM), 10000, "the view told once it rests");
     const session = () => editing().sessionOf("src/sliced_use.c");
-    await ui.waitFor(() => (session().diagnostics ?? []).some((one) => one.from.line === PROBLEM && /missing/.test(one.message)), 30000, "clangd's problem on the line it stands on").catch((error) => {
+    await ui.waitFor(() => (session().diagnostics ?? []).some((one) => one.from.line === PROBLEM && /missing/.test(one.message)), 30000, "clangd's problem on the line it is on").catch((error) => {
       throw new Error(`${error.message}: ${JSON.stringify(session().diagnostics)}`);
     });
     assert.ok((session().diagnostics ?? []).every((one) => one.from.line === PROBLEM), `no problem on another line: ${JSON.stringify(session().diagnostics)}`);
@@ -180,86 +180,86 @@ test("the tree's check gives a C file no tab holds to clangd a window of slices 
 }, { timeout: 180000 });
 
 // A header, and a file whose one problem is a name nothing declares, on its line 3.
-const KEPT_SHAPE = "int kept_area(int w);\n";
-const KEPT_USE = '#include "kept_shape.h"\nint kept_total(int n)\n{\n    return kept_area(n) + kept_missing;\n}\n';
+const RETAINED_SHAPE = "int retained_area(int w);\n";
+const RETAINED_USE = '#include "retained_shape.h"\nint retained_total(int n)\n{\n    return retained_area(n) + retained_missing;\n}\n';
 
-const keptRuns = async () => ((await invoke("memory_usage"))?.parts ?? []).some((one) => one.server === "llvm");
-const keptSession = () => editing().sessionOf("src/kept_use.c");
-const keptShown = () => (keptSession().diagnostics ?? []).map((one) => [one.from.line, one.from.col, one.message]);
+const retainedRuns = async () => ((await invoke("memory_usage"))?.parts ?? []).some((one) => one.server === "llvm");
+const retainedSession = () => editing().sessionOf("src/retained_use.c");
+const retainedShown = () => (retainedSession().diagnostics ?? []).map((one) => [one.from.line, one.from.col, one.message]);
 
-// The header and the file written and read by the tree, the file open with clangd's problem on line 3 shown, and
-// clangd let go once nothing asks it: the problems shown then, as JSON.
-async function keptLetGo() {
-  await invoke("file_write", { path: "src/kept_shape.h", text: KEPT_SHAPE });
-  await invoke("file_write", { path: "src/kept_use.c", text: KEPT_USE });
+// The header and the file written and read by the tree, the file open with clangd's problem on line 3 displayed, and
+// clangd let go once nothing asks it: the problems displayed then, as JSON.
+async function retainedLetGo() {
+  await invoke("file_write", { path: "src/retained_shape.h", text: RETAINED_SHAPE });
+  await invoke("file_write", { path: "src/retained_use.c", text: RETAINED_USE });
   await ui.waitFor(async () => {
-    const found = await invoke("symbols_find", { query: "kept_area" }).catch(() => null);
-    return (found?.symbols ?? []).some((one) => one.name === "kept_area" && one.path.endsWith("src/kept_shape.h"));
-  }, 30000, "the tree to read src/kept_shape.h");
+    const found = await invoke("symbols_find", { query: "retained_area" }).catch(() => null);
+    return (found?.symbols ?? []).some((one) => one.name === "retained_area" && one.path.endsWith("src/retained_shape.h"));
+  }, 30000, "the tree to read src/retained_shape.h");
   showView("edit");
-  await openFile("src/kept_use.c");
-  await ui.waitFor(() => editing().active === "src/kept_use.c" && editing().editor?.s, 5000, "src/kept_use.c open");
-  await ui.waitFor(() => keptShown().length === 1 && keptShown()[0][0] === 3 && /kept_missing/.test(keptShown()[0][2]), 30000, "clangd's one problem, on line 3").catch((error) => {
-    throw new Error(`${error.message}: ${JSON.stringify(keptShown())}`);
+  await openFile("src/retained_use.c");
+  await ui.waitFor(() => editing().active === "src/retained_use.c" && editing().editor?.s, 5000, "src/retained_use.c open");
+  await ui.waitFor(() => retainedShown().length === 1 && retainedShown()[0][0] === 3 && /retained_missing/.test(retainedShown()[0][2]), 30000, "clangd's one problem, on line 3").catch((error) => {
+    throw new Error(`${error.message}: ${JSON.stringify(retainedShown())}`);
   });
-  const before = JSON.stringify(keptShown());
-  await ui.waitFor(async () => !(await keptRuns()), 75000, "clangd let go once nothing asked it for a while");
-  assert.equal(JSON.stringify(keptShown()), before, "the problems shown stand as clangd is let go");
+  const before = JSON.stringify(retainedShown());
+  await ui.waitFor(async () => !(await retainedRuns()), 75000, "clangd let go once nothing asked it for a while");
+  assert.equal(JSON.stringify(retainedShown()), before, "the problems displayed are as clangd is let go");
   return before;
 }
 
-test("clangd runs only while it is asked: let go once nothing asks it for a while, started again by an edit it checks, the problems shown standing throughout", async () => {
-  const before = await keptLetGo();
+test("clangd runs only while it is asked: let go once nothing asks it for a while, started again by an edit it checks, the problems displayed located throughout", async () => {
+  const before = await retainedLetGo();
   const view = editing().editor;
   const text = view.doc.text();
   try {
-    view.goTo(3, KEPT_USE.split("\n")[3].length);
+    view.goTo(3, RETAINED_USE.split("\n")[3].length);
     view.focus();
-    await ui.type(" kept_other;");
-    await ui.waitFor(() => keptShown().some((one) => one[0] === 3 && /kept_other/.test(one[2])), 30000, "clangd's problem of the edit on line 3").catch((error) => {
-      throw new Error(`${error.message}: ${JSON.stringify(keptShown())}`);
+    await ui.type(" retained_other;");
+    await ui.waitFor(() => retainedShown().some((one) => one[0] === 3 && /retained_other/.test(one[2])), 30000, "clangd's problem of the edit on line 3").catch((error) => {
+      throw new Error(`${error.message}: ${JSON.stringify(retainedShown())}`);
     });
-    assert.ok(await keptRuns(), "clangd runs again to check the edit");
+    assert.ok(await retainedRuns(), "clangd runs again to check the edit");
     for (const one of JSON.parse(before)) {
-      assert.ok(keptShown().some((now) => JSON.stringify(now) === JSON.stringify(one)), `the problem shown before stands: ${JSON.stringify(one)}`);
+      assert.ok(retainedShown().some((now) => JSON.stringify(now) === JSON.stringify(one)), `the problem displayed before is: ${JSON.stringify(one)}`);
     }
   } finally {
     for (let undo = 0; undo < 16 && view.doc.text() !== text; undo += 1) {
       await ui.key("Ctrl+Z");
     }
-    if (editing().active === "src/kept_use.c") {
+    if (editing().active === "src/retained_use.c") {
       await press("close-editor");
     }
   }
 }, { timeout: 180000 });
 
 test("everything orior answers about a C file but its problems comes from the tree: hover, definition, usages, rename, signature, completion, hints, calls and selection answered while clangd is let go, and none of them starts it", async () => {
-  await keptLetGo();
+  await retainedLetGo();
   try {
-    const at = { path: "src/kept_use.c", line: 3, col: 13 };
+    const at = { path: "src/retained_use.c", line: 3, col: 13 };
     const view = editing().editor;
     view.goTo(at.line, at.col);
-    const hover = await keptSession().language.hover(view.doc, { line: at.line, col: at.col });
-    assert.match(JSON.stringify(hover?.parts ?? null), /int kept_area\(int w\);/, `the hover is the tree's declaration: ${JSON.stringify(hover?.parts ?? null)}`);
+    const hover = await retainedSession().language.hover(view.doc, { line: at.line, col: at.col });
+    assert.match(JSON.stringify(hover?.parts ?? null), /int retained_area\(int w\);/, `the hover is the tree's declaration: ${JSON.stringify(hover?.parts ?? null)}`);
     assert.equal(await (hover?.more ?? Promise.resolve(null)), null, "and no server's hover follows it");
-    assert.deepEqual(await invoke("lsp_definition", at), [{ path: "src/kept_shape.h", line: 0, col: 4 }], "the definition is the header's declaration");
+    assert.deepEqual(await invoke("lsp_definition", at), [{ path: "src/retained_shape.h", line: 0, col: 4 }], "the definition is the header's declaration");
     const usages = (await invoke("lsp_references", at)).map((one) => `${one.path}:${one.from.line}:${one.from.col}`).sort();
-    assert.deepEqual(usages, ["src/kept_shape.h:0:4", "src/kept_use.c:3:11"], "the usages are the tree's");
-    assert.deepEqual(await invoke("lsp_renamable", at), { from: { line: 3, col: 11 }, to: { line: 3, col: 20 }, name: "kept_area" }, "and so is what a rename takes");
-    const signature = await invoke("symbols_signature", { path: at.path, text: KEPT_USE, state: "root", line: 3, col: 21 }).catch(() => null);
-    assert.match(JSON.stringify(signature), /kept_area/, `the signature is the tree's: ${JSON.stringify(signature)}`);
-    const completed = (await invoke("lsp_complete", { path: at.path, line: 3, col: 15 })).map((one) => `${one.label} ${one.kind}`);
-    assert.deepEqual(completed, ["kept_area function", "kept_total function"], "what completes `kept` is what the tree has in effect there");
-    const hints = (await invoke("lsp_hints", { path: at.path, from: 3, to: 3 })).map((one) => [one.line, one.col, one.label, one.kind]);
+    assert.deepEqual(usages, ["src/retained_shape.h:0:4", "src/retained_use.c:3:11"], "the usages are the tree's");
+    assert.deepEqual(await invoke("lsp_renamable", at), { from: { line: 3, col: 11 }, to: { line: 3, col: 20 }, name: "retained_area" }, "and so is what a rename takes");
+    const signature = await invoke("symbols_signature", { path: at.path, text: RETAINED_USE, state: "root", line: 3, col: 21 }).catch(() => null);
+    assert.match(JSON.stringify(signature), /retained_area/, `the signature is the tree's: ${JSON.stringify(signature)}`);
+    const completed = (await invoke("lsp_complete", { path: at.path, line: 3, col: 15 })).map((one) => `${one.label} ${one.type}`);
+    assert.deepEqual(completed, ["retained_area function", "retained_total function"], "what completes `retained` is what the tree has in effect there");
+    const hints = (await invoke("lsp_hints", { path: at.path, from: 3, to: 3 })).map((one) => [one.line, one.col, one.label, one.type]);
     assert.deepEqual(hints, [[3, 21, "w:", 2]], "the hint before the call's argument is the tree's parameter name");
     const root = await invoke("calls_root", at);
-    assert.match(JSON.stringify(root), /kept_total/, `the call hierarchy's top is the tree's function: ${JSON.stringify(root)}`);
+    assert.match(JSON.stringify(root), /retained_total/, `the call hierarchy's top is the tree's function: ${JSON.stringify(root)}`);
     const spans = (await invoke("parse_spans", { path: at.path, from: { line: 3, col: 13 }, to: { line: 3, col: 13 } })).map(([from, to]) => `${from.line}:${from.col}-${to.line}:${to.col}`);
     assert.deepEqual(spans, ["3:11-3:20", "3:4-3:39", "2:1-4:0", "2:0-4:1", "1:0-4:1", "0:0-5:0"], "Expand Selection's spans are the tree's: the name, its statement, the body inside and whole, the function and the file");
     assert.equal(await invoke("lsp_hover", at), null, "the server's hover answers none");
-    assert.ok(!(await keptRuns()), "and clangd is not started by any of them");
+    assert.ok(!(await retainedRuns()), "and clangd is not started by any of them");
   } finally {
-    if (editing().active === "src/kept_use.c") {
+    if (editing().active === "src/retained_use.c") {
       await press("close-editor");
     }
   }

@@ -156,7 +156,7 @@ EMBED_INLINE void requests_variable(const DebugRequestsCtx *args)
                     .length_pointer = NULL) != NULL);
     EMBED_CALL(requests_text, DebugRequestsCtx, .json = json, .node = args->one, .name = has_value ? "value" : "result",
                .fallback = "", .out = out);
-    mmgr_line_put(out, ",\"kind\":");
+    mmgr_line_put(out, ",\"type\":");
     EMBED_CALL(requests_text, DebugRequestsCtx, .json = json, .node = args->one, .name = "type", .fallback = "",
                .out = out);
     mmgr_line_put(out, ",\"reference\":");
@@ -590,12 +590,12 @@ int cli_debug_memory(const CliDebugOutErrMsgIdReferenceOffsetCfg *args)
     EMBED_CALL(requests_text, DebugRequestsCtx, .json = reply, .node = answer->root, .name = "address",
                .fallback = args->reference_text, .out = args->out);
     mmgr_line_put(args->out, ",\"bytes\":[");
-    // the bytes read from memory, in a cell of the most the base64 text decodes to
-    const unsigned long long most = ((length / 4ULL) + 1ULL) * 3ULL;
-    unsigned char *const decoded = (data != NULL) ? g_cli_guard->temporary_buf_alloc(most, g_cli_debug_owner) : NULL;
+    // the bytes read from memory, in a cell of the max the base64 text decodes to
+    const unsigned long long max = ((length / 4ULL) + 1ULL) * 3ULL;
+    unsigned char *const decoded = (data != NULL) ? g_cli_guard->temporary_buf_alloc(max, g_cli_debug_owner) : NULL;
     const unsigned long long bytes = (decoded != NULL)
                                          ? EMBED_CALL(cli_debug_text_internal.base64, CliDebugTextCtx, .text = data,
-                                                      .size = length, .out_bytes = decoded, .capacity = most)
+                                                      .size = length, .out_bytes = decoded, .capacity = max)
                                          : 0ULL;
     for (unsigned long long at = 0ULL; at < bytes; at += 1ULL)
     {

@@ -3,7 +3,7 @@
 // record_boundary_test_run.cu: loading, running and reading, precision and bands
 #include "record_boundary_test_internal.h"
 
-// each field its own 32-bit word, `fields` words a lane, laid out with register reuse
+// each field its own 32-bit word, `fields` words a lane, arranged with register reuse
 int boundary_load(const BoundaryProgram *program, unsigned int fields, BoundaryLoaded *loaded)
 {
     memset(loaded, 0, sizeof(*loaded));

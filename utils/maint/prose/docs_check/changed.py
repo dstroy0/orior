@@ -6,7 +6,7 @@
 #
 # A file carrying a hundred older findings buries the three a change just wrote, and the three are
 # the only ones whose author is still at the keyboard. --changed reads the files the diff touches
-# and keeps the findings whose line the diff added. A file new to the tree counts every line.
+# and retains the findings whose line the diff added. A file new to the tree counts every line.
 #
 # THIS NARROWS THE REPORT AND NEVER THE READ. Every finding in every touched file is still computed
 # and the ratchet still sees all of them, because a count that depended on which lines a diff
@@ -66,7 +66,7 @@ def untracked_lines(added):
     """Every line of every file git neither tracks nor ignores, folded into `added`.
 
     A new file carries no diff and would otherwise report nothing, which is the wrong answer for
-    the file most likely to be the one just written.
+    the file likely to be the one just written.
     """
     said = git_lines(["ls-files", "--others", "--exclude-standard"])
     for name in said or ():

@@ -43,7 +43,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # asking it. The rule this tree already records about docs_check applies without modification: a
 # check that read nothing has not passed.
 #
-# Importing the function keeps the two from drifting. A copy would carry the same bug, waiting for
+# Importing the function retains the two from drifting. A copy would carry the same bug, waiting for
 # the next rename.
 import build_manifest  # noqa: E402
 
@@ -183,7 +183,7 @@ def main(argv):
 
         ok, output = run(["ots", "verify", proof])
         if ok is None:
-            print("      ots is not installed: it could not be checked here. The proof stands;")
+            print("      ots is not installed: it could not be checked here. The proof is;")
             print("      it verifies against any full node and does not depend on this machine.")
         elif ok:
             print("      VERIFIED against the chain")

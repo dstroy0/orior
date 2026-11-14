@@ -24,11 +24,11 @@ static const char *const s_serif[6][4] = {
     {"Times New Roman.ttf", "", "", ""},
     {"times.ttf", "timesbd.ttf", "timesi.ttf", "timesbi.ttf"}};
 // the families the symbol face is looked for among, in the order they are preferred: the one the system's own text
-// falls back to for a letter its face has none of
+// falls back to for a character its face has none of
 static const char *const s_symbol[3][4] = {
     {"seguisym.ttf", "", "", ""}, {"DejaVuSans.ttf", "", "", ""}, {"NotoSansSymbols2-Regular.ttf", "", "", ""}};
 
-// each face's path, looked for once; a face the system has none of keeps an empty path
+// each face's path, looked for once; a face the system has none of retains an empty path
 static char s_path[GUI_FACES][CLI_PATH_MAX_LEN];
 static int s_looked[GUI_FACES];
 

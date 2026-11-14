@@ -11,7 +11,7 @@
 #include "archive.h"
 #include "files_internal.h"
 
-// the most entries a folder lists
+// the max entries a folder lists
 #define CLI_LIST_MAX 65536u
 
 // An entry of a folder: its name and path, places in the texts, whether it is a folder, whether the tree's ignore
@@ -28,7 +28,7 @@ typedef struct
     int has_raw;
 } CliEntry;
 
-// The entries of the folder being listed and their texts, in one cell at their most, and the folders a file the
+// The entries of the folder being listed and their texts, in one cell at their max, and the folders a file the
 // patterns leave sits in, a list made of the files cellblock, under the lock
 typedef struct
 {
@@ -389,7 +389,7 @@ static FilesExplorerFolder *explorer_folder(const char *dir)
     return NULL;
 }
 
-// the folder `dir` listed for the explorer, its path standing as long as its parent's listing does: the listing, or
+// the folder `dir` listed for the explorer, its path located as long as its parent's listing does: the listing, or
 // NULL where it could not be read or the explorer lists no more folders
 static FilesExplorerFolder *explorer_list(const char *dir)
 {
@@ -435,7 +435,7 @@ void cli_files_explorer_end(void)
 }
 
 // the row `*left` rows on in the folder `folder` and the open folders under it, `depth` deep, read into `row`: 1 where
-// it stood among them, else 0 with `*left` less the rows they show
+// it was among them, else 0 with `*left` less the rows they show
 static int explorer_walk(const FilesExplorerFolder *folder, unsigned int depth, unsigned int *left, CliExplorerRow *row)
 {
     for (unsigned int at = 0u; at < folder->entries->count; at += 1u)
@@ -565,7 +565,7 @@ int cli_files_explorer_menu(unsigned int at)
         // off the rows the pane's own, the list's Explorer popup
         return cli_menus_popup("Explorer", "");
     }
-    // the rows the list's Files popup gives, each run with the row's path, which stands in the listing while the menu
+    // the rows the list's Files popup gives, each run with the row's path, which is in the listing while the menu
     // is open; an open folder's first row closes it
     if (!cli_menus_popup("Files", row.path))
     {

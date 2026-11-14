@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // The root noise of an object's box. Each term the noise vector table names as shared is planted in turn at three
-// strengths over a scene containing one standing body; the noise detector prices the body's box and every term's yank
-// through the tower and compression's coder and names the root, the term whose yank saves the most bits. The null
+// strengths over a scene containing one located body; the noise detector prices the body's box and every term's yank
+// through the tower and compression's coder and names the root, the term whose yank saves the max bits. The null
 // names none; a planted term is the root or there is none, never another term; at the strongest each is the root; and
 // every yank returns the box exactly.
 #include "sim_camera.h"
@@ -39,7 +39,7 @@
 
 static const unsigned long long ROOT_SQUARES[ROOT_STRENGTHS] = {64ull, 256ull, 1024ull};
 
-// the object: one body standing at the view's middle, 300 electrons over the radii 3, 7 and 7
+// the object: one body located at the view's middle, 300 electrons over the radii 3, 7 and 7
 #define ROOT_BRIGHTNESS 300ull
 
 // the null, then each term planted alone at each strength
@@ -230,7 +230,7 @@ int main(void)
 
     mmgr_line_put(line,
                    "  the root noise of an object's box: 16 frames x z 2 to 13 x y 16 to 47 x x 16 to 47 around one"
-                   " standing body of 300 e, over 100 e at offset 300, read variance 4, a Poisson shot\n");
+                   " located body of 300 e, over 100 e at offset 300, read variance 4, a Poisson shot\n");
     mmgr_line_put(line,
                    "  each term planted alone at variances 64, 256 and 1024, against a background voxel's independent"
                    " 104 and a body voxel's 404; a term's saving is the box's coded bits less its residual's and"

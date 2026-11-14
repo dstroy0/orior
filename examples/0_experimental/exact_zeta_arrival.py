@@ -14,9 +14,9 @@
 # THE BOUNDARY
 #
 # The main sum of Riemann-Siegel is a sum of waves m^(-1/2) e^(i(theta - t ln m)). In the frame e^(i theta) turns, wave
-# m spins at ln(x / m), x = sqrt(t / 2pi): it stands still at x = m and joins the sum there, at t = 2pi n^2 for n = m.
+# m spins at ln(x / m), x = sqrt(t / 2pi): it is stationary at x = m and joins the sum there, at t = 2pi n^2 for n = m.
 # There its phase is theta - t ln n = -pi n^2 - pi / 8 to theta's first terms, -pi / 8 for even n and pi - pi / 8 for
-# odd. The waves already there, m < n, stand at 2pi n^2 ln m modulo a turn. The reading at a boundary is the angle
+# odd. The waves already there, m < n, are at 2pi n^2 ln m modulo a turn. The reading at a boundary is the angle
 # between the arriving wave and their sum: V_n = sum over m < n of m^(-1/2) e^(-2pi i n^2 ln m) turned by the arriving
 # wave's own phase, P_n = V_n e^(2pi i n^2 ln n). theta turns both alike and drops out.
 #
@@ -33,7 +33,7 @@
 #
 # Each boundary's reading is the unit pair P_n / |P_n| at the scale S = 2^62. The tally is their exact sum and the run
 # their count, and the mean at every boundary is tally / run, an exact rational: nothing is merged, rounded or dropped,
-# and every boundary's mean is kept. The spread is read as |tally|^2 / (run S^2), an exact rational: run where every
+# and every boundary's mean is retained. The spread is read as |tally|^2 / (run S^2), an exact rational: run where every
 # reading points one way, and near 1 where they spread like independent angles.
 #
 # With stretch, windows run end to end from n0, each seeded at its own first boundary, and every reading goes into one
@@ -71,7 +71,7 @@ BUILD = os.path.join(ROOT, "examples", "0_experimental", "exact_zeta_arrival.sh"
 
 
 def digits_for(n0):
-    """Decimal places for the phases: n0^2 ln m must keep 30 places past its whole turns."""
+    """Decimal places for the phases: n0^2 ln m must retain 30 places past its whole turns."""
     return 30 + 2 * len(str(max(n0, 1)))
 
 
@@ -288,7 +288,7 @@ def main_stretch(n0, count):
                       % (n, gap, BAR_BITS, gap < (1 << (SCALE_BITS - BAR_BITS))))
     mean = sum(spreads) / count
     deviation = math.sqrt(sum((v - mean) ** 2 for v in spreads) / count)
-    out.write("  each window's spread at its last boundary: mean %.4f, deviation %.4f, least %.4f, most %.4f, %d of %d"
+    out.write("  each window's spread at its last boundary: mean %.4f, deviation %.4f, least %.4f, max %.4f, %d of %d"
               " below 1; independent angles give 1 and 1\n" % (mean, deviation, min(spreads), max(spreads),
                                                                 sum(1 for v in spreads if v < 1), count))
     first = max(n0, 2)

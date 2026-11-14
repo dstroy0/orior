@@ -30,14 +30,14 @@ typedef struct
     int stopped;
 } JobRunsReport;
 
-// A group as it stood before the catalog was read again: its name and whether it was open
+// A group as it was before the catalog was read again: its name and whether it was open
 typedef struct
 {
     char name[CLI_NAME_MAX_LEN];
     int open;
 } JobRunsGroupWas;
 
-// The reports' ticket ring, its slots the reports' part of the rings block, laid as the pane begins; its turnstiles,
+// The reports' ticket ring, its slots the reports' part of the rings block, positioned as the pane begins; its turnstiles,
 // zeros at rest; the next ticket a run's thread takes and the next the view's thread pops, which that thread alone
 // touches; the wake a run's thread sleeps on while every slot is in flight; and the wake of the view's thread
 static EmbedTicketRing s_reports = {.mask = (1u << CLI_JOB_RUNS_REPORTS_SHIFT) - 1u};
@@ -138,7 +138,7 @@ EMBED_INLINE unsigned int run_place(const JobRunsCtx *args)
 }
 
 // the copy's state written anew from what the run reports: `#n running`, `#n stopped`, `#n exit N` or `#n ended`,
-// the place of the word after the number standing beside it
+// the place of the word after the number located beside it
 EMBED_INLINE void state_written(const JobRunsCtx *args)
 {
     CliJobRunsRun *const run = args->copy;
@@ -182,13 +182,13 @@ EMBED_INLINE void run_cells_released(const JobRunsCtx *args)
 }
 
 // the run `at` released: its cells let go, its own with them, the runs after it moved up a place each, and the run
-// shown let go where it was this one
+// displayed let go where it was this one
 EMBED_INLINE void run_released(const JobRunsCtx *args)
 {
     CliJobRunsStore *const store = &g_cli_job_runs_store;
     CliJobRunsRun run;
     EMBED_CALL(cli_job_runs_cells.run_read, CliJobRunsCellCfg, .at = args->at, .run = &run);
-    store->shown = (store->shown == run.run) ? 0ULL : store->shown;
+    store->displayed = (store->displayed == run.run) ? 0ULL : store->displayed;
     EMBED_CALL(run_cells_released, JobRunsCtx, .copy = &run);
     (void)g_cli_guard->movable_buf_release(store->run[args->at], g_cli_job_runs_owner);
     for (unsigned int from = args->at + 1u; from < store->runs; from += 1u)
@@ -199,9 +199,9 @@ EMBED_INLINE void run_released(const JobRunsCtx *args)
     store->runs -= 1u;
 }
 
-// a run's start read: where the runs stand at their most, the oldest ended one released, the start dropped where
+// a run's start read: where the runs are at their max, the oldest ended one released, the start dropped where
 // none has ended; the record put after the runs in a cell of its own, its job's id with its bytes in a cell of its own,
-// its job found in the catalog listed, and the run shown where its job is the one chosen
+// its job found in the catalog listed, and the run displayed where its job is the one chosen
 EMBED_INLINE void start_read(const JobRunsCtx *args)
 {
     CliJobRunsStore *const store = &g_cli_job_runs_store;
@@ -284,7 +284,7 @@ EMBED_INLINE void start_read(const JobRunsCtx *args)
     EMBED_CALL(state_written, JobRunsCtx, .copy = &run);
     (void)EMBED_CALL(cli_job_runs_cells.run_write, CliJobRunsCellCfg, .at = store->runs, .run = &run);
     store->runs += 1u;
-    store->shown = ((run.job != CLI_CATALOG_NONE) && (run.job == store->chosen)) ? run.run : store->shown;
+    store->displayed = ((run.job != CLI_CATALOG_NONE) && (run.job == store->chosen)) ? run.run : store->displayed;
 }
 
 // the rings' oldest line released: its bytes consumed from the text ring, its spans' segments and its record's
@@ -297,7 +297,7 @@ EMBED_INLINE void oldest_released(const JobRunsCtx *args)
     {
         return;
     }
-    // a segment of the line ring is one line record, laid at the record's alignment
+    // a segment of the line ring is one line record, positioned at the record's alignment
     const CliJobRunsLine *const line =
         (const CliJobRunsLine *)(const void *)anularis.seg_at(&(AnularisCfg){.ring = &rings->line, .index = front});
     anularis.consume(&(AnularisCfg){.ring = &rings->text, .bytes = line->length});
@@ -336,7 +336,7 @@ EMBED_INLINE void line_read(const JobRunsCtx *args)
     const unsigned int start = rings->text_put;
     (void)anularis.put(
         &(AnularisCfg){.ring = &rings->text, .src = (const embed_u8 *)(const void *)plain, .bytes = plain_size});
-    // the plain bytes are at most the line bound, inside an unsigned int
+    // the plain bytes are at max the line bound, inside an unsigned int
     rings->text_put += (unsigned int)plain_size;
     size_t span_first = 0u;
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -361,7 +361,7 @@ EMBED_INLINE void line_read(const JobRunsCtx *args)
 }
 
 // the ended runs of the job of the run `at` past CLI_JOB_RUNS_RETAINED released, the oldest first; a run that goes
-// is never released, and the run that ended stands
+// is never released, and the run that ended is
 EMBED_INLINE void runs_retained(const JobRunsCtx *args)
 {
     CliJobRunsStore *const store = &g_cli_job_runs_store;
@@ -425,10 +425,10 @@ EMBED_INLINE void end_read(const JobRunsCtx *args)
 void cli_job_runs_begin(const CliJobRunsWokenCfg *args)
 {
     s_woken = args->woken;
-    // the reports ring laid over its slots, the reports' part of the rings block, before any run's thread reports
+    // the reports ring positioned over its slots, the reports' part of the rings block, before any run's thread reports
     s_reports.slots =
         (EmbedTicketRingSlot *)(void *)EMBED_CALL(cli_rings.part, CliRingsPartCfg, .part = CLI_RINGS_JOB_RUNS_REPORTS);
-    // the store's own catalog cell taken as the window starts and kept until it ends, the tree's jobs read into it
+    // the store's own catalog cell taken as the window starts and retained until it ends, the tree's jobs read into it
     // again on each refresh
     if (g_cli_job_runs_store.own.job == NULL)
     {
@@ -678,15 +678,15 @@ void cli_job_runs_read(const CliJobRunsRootCfg *args)
         store->groups += 1u;
     }
     g_cli_guard->persistent_buf_release(was, g_cli_job_runs_owner);
-    // the job chosen followed by its id, its form standing where it is still listed, and each run's job found again
+    // the job chosen followed by its id, its form located where it is still listed, and each run's job found again
     const unsigned int chosen =
         ((store->chosen_id[0] != '\0') && (catalog != NULL))
             ? EMBED_CALL(cli_catalog_id.find, CliCatalogIdCfg, .catalog_read = catalog, .id = store->chosen_id)
             : CLI_CATALOG_NONE;
     store->chosen_id[0] = (chosen == CLI_CATALOG_NONE) ? '\0' : store->chosen_id[0];
-    const int form_stands = (chosen != CLI_CATALOG_NONE) && (catalog->job[chosen].params == store->form_params);
+    const int form_is = (chosen != CLI_CATALOG_NONE) && (catalog->job[chosen].params == store->form_params);
     store->chosen = chosen;
-    if (!form_stands)
+    if (!form_is)
     {
         EMBED_CALL(cli_job_runs_internal.form_clear, CliJobRunsCtx, .values = NULL);
     }
@@ -730,7 +730,7 @@ int cli_job_runs_start(const CliJobRunsRunCfg *args)
     g_cli_guard->persistent_buf_release(values, g_cli_job_runs_owner);
     if (started)
     {
-        store->shown = run;
+        store->displayed = run;
         return 1;
     }
     // the refusal with its end: the runner's, or why nothing could start
@@ -752,8 +752,8 @@ int cli_job_runs_live(const CliJobRunsRunCfg *args)
 {
     (void)args;
     const CliJobRunsStore *const store = &g_cli_job_runs_store;
-    const unsigned int place = EMBED_CALL(run_place, JobRunsCtx, .run = store->shown);
-    if ((store->shown == 0ULL) || (place >= store->runs))
+    const unsigned int place = EMBED_CALL(run_place, JobRunsCtx, .run = store->displayed);
+    if ((store->displayed == 0ULL) || (place >= store->runs))
     {
         return 0;
     }
@@ -772,7 +772,7 @@ int cli_job_runs_stop(const CliJobRunsRunCfg *args)
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     return EMBED_CALL(cli_runner_err_msg_run_number.runs_stop, CliRunnerErrMsgRunNumberCfg, .err_msg = &err_msg,
-                      .run_number = g_cli_job_runs_store.shown);
+                      .run_number = g_cli_job_runs_store.displayed);
 }
 
 const char *cli_job_runs_refusal(const CliJobRunsRunCfg *args)

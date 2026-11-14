@@ -8,24 +8,24 @@
 static void blob_printed(const char *name, unsigned int name_length, unsigned long long sequence,
                          const unsigned char *bytes, unsigned long long size)
 {
-    mmgr_line_decimal(&s_shown, sequence, 0u);
-    mmgr_line_ch(&s_shown, ' ');
-    mmgr_line_put_n(&s_shown, name, name_length);
-    kdecode_decimal_shown(size);
-    mmgr_line_ch(&s_shown, '\n');
+    mmgr_line_decimal(&s_displayed, sequence, 0u);
+    mmgr_line_ch(&s_displayed, ' ');
+    mmgr_line_put_n(&s_displayed, name, name_length);
+    kdecode_decimal_displayed(size);
+    mmgr_line_ch(&s_displayed, '\n');
     for (unsigned long long at = 0ull; at < size; at += 1ull)
     {
-        // the text is handed every 64 KiB at most, far inside the half of its room it may still take
+        // the text is passed every 64 KiB at max, far inside the half of its room it may still take
         if ((at & 0xffffull) == 0ull)
         {
-            kdecode_shown_handed(0);
+            kdecode_displayed_passed(0);
         }
-        mmgr_line_ch(&s_shown, (bytes[at] == 0u) ? ' ' : (char)bytes[at]);
+        mmgr_line_ch(&s_displayed, (bytes[at] == 0u) ? ' ' : (char)bytes[at]);
     }
     kdecode_line_ended();
 }
 
-// every record of the `size` bytes at `bytes`, a .qry mapped, handed to `each` with `context`, in the order the writer
+// every record of the `size` bytes at `bytes`, a .qry mapped, passed to `each` with `context`, in the order the writer
 // wrote them, its time in place of its place: 1, or 0 where the bytes are not records whole
 int kdecode_records_each(const unsigned char *bytes, unsigned long long size,
                          void (*each)(void *context, const char *name, unsigned int name_length,
@@ -59,7 +59,7 @@ int kdecode_run_whole(const unsigned char *bytes, unsigned long long size)
 }
 
 // what the blob walk of kdecode_blobs retains: the name wanted, whether the latest alone is written, and that one where
-// it stands in the mapped run
+// it is in the mapped run
 typedef struct
 {
     const char *name;
@@ -95,9 +95,9 @@ int kdecode_blobs(const char *path, const char *name, int latest)
     const int read = kdecode_records_each(bytes, size, blobs_each, &walk);
     if (!read)
     {
-        kdecode_shown_handed(1);
-        mmgr_line_put(&s_shown, "orior_kdecode: the run could not be read whole\n");
-        kdecode_failure_handed();
+        kdecode_displayed_passed(1);
+        mmgr_line_put(&s_displayed, "orior_kdecode: the run could not be read whole\n");
+        kdecode_failure_passed();
     }
     if (read && latest && (walk.bytes != NULL))
     {

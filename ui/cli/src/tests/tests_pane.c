@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tests_pane.c: the tests pane's rows. The files, tests, covered files and their texts are read on the window's thread
-// and stand in one movable cell taken as the first read comes, read and written a record or a text at a time; a run's
+// and are in one movable cell taken as the first read comes, read and written a record or a text at a time; a run's
 // reports come on the run's thread and write each test's record, then its outcome through an atomic word in a fixed
 // cell, the message's text and the file's message count before it, so the window reads a whole result or none. The
 // coverage is published through its count the same way. A read is refused while a run goes, so the run's thread never
@@ -16,8 +16,8 @@
 #include "embed_atomic.h"
 #include "test_runs.h"
 
-// the most files, tests and covered files, the bytes their texts take, the bytes the failures' messages take, the
-// bytes of a runner's name and of a run's end message, and the most tests or files handed to a run
+// the max files, tests and covered files, the bytes their texts take, the bytes the failures' messages take, the
+// bytes of a runner's name and of a run's end message, and the max tests or files passed to a run
 #define TESTS_FILES 1024u
 #define TESTS_TESTS 16384u
 #define TESTS_COVERS 1024u
@@ -38,8 +38,8 @@ typedef struct
     int closed;
 } TestsFile;
 
-// A test: its name's and its label's places in the text and the label's bytes, the line its name stands on, whether it
-// was handed to the run going, its time, its message's place in the messages and its bytes, and where it failed, the
+// A test: its name's and its label's places in the text and the label's bytes, the line its name is on, whether it
+// was passed to the run going, its time, its message's place in the messages and its bytes, and where it failed, the
 // line where it is placed
 typedef struct
 {
@@ -65,7 +65,7 @@ typedef struct
 } TestsCover;
 
 // the places in the movable cell: the files' records, the tests' records, the covered files' records, the text and the
-// messages, each at its most
+// messages, each at its max
 #define TESTS_FILE_AT(at_) ((unsigned long long)(at_) * sizeof(TestsFile))
 #define TESTS_TEST_AT(at_) (TESTS_FILE_AT(TESTS_FILES) + ((unsigned long long)(at_) * sizeof(TestsTest)))
 #define TESTS_COVER_AT(at_) (TESTS_TEST_AT(TESTS_TESTS) + ((unsigned long long)(at_) * sizeof(TestsCover)))
@@ -73,7 +73,7 @@ typedef struct
 #define TESTS_MESSAGE_AT(at_) (TESTS_TEXT_AT(TESTS_TEXT) + (unsigned long long)(at_))
 #define TESTS_CELL_BYTES TESTS_MESSAGE_AT(TESTS_MESSAGES)
 
-// The pane's data: the movable cell the records and texts stand in; the fixed cell of the words the run's thread
+// The pane's data: the movable cell the records and texts are in; the fixed cell of the words the run's thread
 // publishes through, each test's outcome and each file's count of tests failed with a message; the files and tests and
 // how many, the covered files and how many, how much of the text and of the messages is used, the run going's runner
 // and its processes, and the last run's end: its counts, its seconds in tenths and its message
@@ -233,7 +233,7 @@ void cli_tests_pane_read(const CliTestsPaneCfg *args)
     }
     if (s_tests.cell == NULL)
     {
-        // the outcome and message words are read and written by the runs' threads as atomics, so they stand fixed
+        // the outcome and message words are read and written by the runs' threads as atomics, so they are fixed
         // outside the pool, where they punch no hole in the persistent tier
         static embed_atomic_u32 s_words[TESTS_TESTS + TESTS_FILES];
         s_tests.cell = g_cli_guard->movable_buf_alloc(TESTS_CELL_BYTES, g_cli_tests_pane_owner);
@@ -306,8 +306,8 @@ EMBED_INLINE void tests_file_row(const TestsPaneCtx *args)
     row->outcome = (worst <= CLI_TESTS_SKIPPED) ? worst : CLI_TESTS_NONE;
 }
 
-// the file whose rows the row `at` stands in, into `file_out`, and the row's place under the file's own row into `at`:
-// 1, or 0 where the row stands past the files
+// the file whose rows the row `at` is in, into `file_out`, and the row's place under the file's own row into `at`:
+// 1, or 0 where the row is past the files
 EMBED_INLINE int tests_file_of(const TestsPaneCtx *args)
 {
     unsigned int at = args->at;
@@ -481,7 +481,7 @@ int cli_tests_pane_run(const CliTestsPaneCfg *args)
     {
         return 0;
     }
-    // the names handed to the run stand in a copy of the text that lasts the start
+    // the names passed to the run are in a copy of the text that lasts the start
     char *const text =
         g_cli_guard->temporary_buf_alloc((unsigned long long)s_tests.used + 1ULL, g_cli_tests_pane_owner);
     if (text == NULL)
@@ -667,7 +667,7 @@ EMBED_INLINE unsigned int tests_by_id(const TestsPaneCtx *args)
     return TESTS_TESTS;
 }
 
-// the file the test `at` stands in: its place, 0 where none holds it
+// the file the test `at` is in: its place, 0 where none holds it
 EMBED_INLINE unsigned int tests_file_holding(const TestsPaneCtx *args)
 {
     for (unsigned int file_index = 0u; file_index < s_tests.files; file_index += 1u)
@@ -683,7 +683,7 @@ EMBED_INLINE unsigned int tests_file_holding(const TestsPaneCtx *args)
     return 0u;
 }
 
-// a run started: the tests handed to it running
+// a run started: the tests passed to it running
 EMBED_INLINE void tests_started(const TestsPaneCtx *args)
 {
     unsigned long long length = 0ULL;
@@ -745,7 +745,7 @@ EMBED_INLINE void tests_result(const TestsPaneCtx *args)
     test.fail_placed = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
                                   .node = line_node, .type = CFG_JSON_NUMBER);
     test.fail_line = EMBED_CALL(tests_integer, TestsPaneCtx, .json = json, .node = outcome, .name = "line");
-    // a failure's message keeps what the result's said where the details come after it with none
+    // a failure's message retains what the result's said where the details come after it with none
     unsigned long long message_length = 0ULL;
     const char *const message = EMBED_CALL(tests_string, TestsPaneCtx, .json = json, .node = outcome, .name = "message",
                                            .file_out = (unsigned int *)&message_length);
@@ -874,7 +874,7 @@ void cli_tests_pane_event(const CliEachJsonSizeCfg *args)
                                          .json = json, .text = args->json, .size = args->size, .nodes_more = 0u,
                                          .text_more = 0ULL, .err_msg = &ignored, .owner = g_cli_tests_pane_owner);
     unsigned long long length = 0ULL;
-    const char *const type = EMBED_CALL(tests_string, TestsPaneCtx, .json = json, .node = root, .name = "kind",
+    const char *const type = EMBED_CALL(tests_string, TestsPaneCtx, .json = json, .node = root, .name = "type",
                                         .file_out = (unsigned int *)&length);
     if (cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "started", .cap = 16ULL}))
     {

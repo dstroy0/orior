@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: LNG-4-029
 #
-# Test whether two unrelated languages that farmed the same basin keep similar words for sounds, for
+# Test whether two unrelated languages that farmed the same basin retain similar words for sounds, for
 # Section 4.13 of theory/workbooks/orior.
 #
 #   Usage:  python examples/language/4_measure/onomatopoeia_overlap.py
@@ -21,7 +21,7 @@
 # relationship is worth on this measure.
 #
 # Two things are controlled because both would otherwise decide the answer. definition is stripped to bare
-# letters, since Hungarian and Polish decorate their vowels differently and that alone would separate
+# characters, since Hungarian and Polish decorate their vowels differently and that alone would separate
 # them. And every comparison uses the same number of words from each side, since a longer list gives any
 # word a closer nearest match by chance and the lists run from 19 words to 468.
 
@@ -45,20 +45,20 @@ SEED = 0x51F7
 
 
 def bare(word):
-    """The word in plain letters, with the decoration each language adds taken off."""
+    """The word in plain characters, with the decoration each language adds taken off."""
     opened = unicodedata.normalize("NFD", word.lower())
-    kept = "".join(
+    retained = "".join(
         symbol for symbol in opened if ("a" <= symbol <= "z") or symbol.isspace()
     )
     # Polish files many of these as a call with a leading particle, which is not the sound word
-    parts = kept.split()
+    parts = retained.split()
     if len(parts) > 1 and parts[0] in ("a", "o", "e"):
         parts = parts[1:]
     return "".join(parts)
 
 
 def distance(one, two):
-    """How many single letter changes turn one word into the other, over the longer length."""
+    """How many single character changes turn one word into the other, over the longer length."""
     if not one or not two:
         return 1.0
     previous = list(range(len(two) + 1))

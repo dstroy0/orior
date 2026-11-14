@@ -8,11 +8,11 @@
 const SCANNER_PROPERTIES = "sonar-project.properties";
 const AUTOSCAN_PROPERTIES = ".sonarcloud.properties";
 
-// The most files a scan for hotspots takes without asking, and the largest file it reads.
-const SCAN_FILES_MOST = 1000;
+// The max files a scan for hotspots takes without asking, and the largest file it reads.
+const SCAN_FILES_MAX = 1000;
 const SCAN_FILE_BYTES = 500000;
 
-// A glob of the settings as a pattern: `**` any folders, `*` any letters but `/`, `?` any letter.
+// A glob of the settings as a pattern: `**` any folders, `*` any characters but `/`, `?` any character.
 function globPattern(glob) {
   if (/^\*\*\/\*\.[a-z0-9]{1,6}$/.test(glob)) {
     return `\\.${glob.slice(5)}$`;
@@ -20,10 +20,10 @@ function globPattern(glob) {
   const special = new Set([".", "+", "/", "|", "$", "^", "(", ")", "=", "!", ","]);
   let pattern = "";
   for (let at = 0; at < glob.length; at += 1) {
-    const letter = glob[at];
-    if (special.has(letter)) {
-      pattern += `\\${letter}`;
-    } else if (letter === "*") {
+    const character = glob[at];
+    if (special.has(character)) {
+      pattern += `\\${character}`;
+    } else if (character === "*") {
       const before = glob[at - 1];
       let stars = 1;
       while (glob[at + 1] === "*") {
@@ -37,10 +37,10 @@ function globPattern(glob) {
       } else {
         pattern += "([^/]*)";
       }
-    } else if (letter === "?") {
+    } else if (character === "?") {
       pattern += ".";
     } else {
-      pattern += letter;
+      pattern += character;
     }
   }
   return `^${pattern}$`;
@@ -48,12 +48,12 @@ function globPattern(glob) {
 
 // Whether a URI's path is matched by any of the globs, case aside; none matches where there are none.
 function globbed(uri, globs) {
-  const kept = globs.map((one) => one.trim()).filter(Boolean);
-  if (!kept.length) {
+  const retained = globs.map((one) => one.trim()).filter(Boolean);
+  if (!retained.length) {
     return false;
   }
   const path = decodeURIComponent(String(uri).replace(/^file:\/\//, ""));
-  return new RegExp(kept.map(globPattern).join("|"), "i").test(path);
+  return new RegExp(retained.map(globPattern).join("|"), "i").test(path);
 }
 
 // The globs the settings exclude from analysis while a folder is bound to no project.
@@ -125,7 +125,7 @@ orior.server.on("sonarlint/listFilesInFolder", async ({ folderUri }) => {
   return { foundFiles: found };
 });
 
-// The files of the tree a scan for hotspots analyses, as the server is handed them: those the server
+// The files of the tree a scan for hotspots analyses, as the server is passed them: those the server
 // reads by the patterns it gives, git does not ignore and the settings do not exclude.
 async function scannedFiles(patterns) {
   const files = await orior.tree.files().catch(() => []);
@@ -139,7 +139,7 @@ async function scannedFiles(patterns) {
   return matching;
 }
 
-// The documents a scan for hotspots hands the server: each file's text as the editor holds it or the
+// The documents a scan for hotspots passes the server: each file's text as the editor holds it or the
 // disk does, a file past the largest size left out.
 async function scannedDocuments(paths) {
   const documents = [];

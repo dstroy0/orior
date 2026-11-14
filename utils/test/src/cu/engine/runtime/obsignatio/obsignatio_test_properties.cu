@@ -134,7 +134,7 @@ static int test_error_signum(const ObsignatioSignumRequest *request, const unsig
     const int untouched = (out == NULL) || (memcmp(out, out_before, OBSIGNATIO_SIGNUM_BYTES) == 0);
     const int raised =
         (request == NULL) || (request->error == NULL) ||
-        ((request->error->kind == ENGINE_ERROR_REQUEST) && (request->error->module == ENGINE_MODULE_OBSIGNATIO));
+        ((request->error->type == ENGINE_ERROR_REQUEST) && (request->error->module == ENGINE_MODULE_OBSIGNATIO));
     return (status == OBSIGNATIO_ERROR) && untouched && raised;
 }
 
@@ -146,7 +146,7 @@ static int test_error_many(const ObsignatioManyRequest *request, const unsigned 
     const int read = cudaMemcpy(after, device_signa, OBSIGNATIO_SIGNUM_BYTES, cudaMemcpyDeviceToHost) == cudaSuccess;
     const int raised =
         (request == NULL) || (request->error == NULL) ||
-        ((request->error->kind == ENGINE_ERROR_REQUEST) && (request->error->module == ENGINE_MODULE_OBSIGNATIO));
+        ((request->error->type == ENGINE_ERROR_REQUEST) && (request->error->module == ENGINE_MODULE_OBSIGNATIO));
     return (status == OBSIGNATIO_ERROR) && read && (memcmp(after, signa_before, OBSIGNATIO_SIGNUM_BYTES) == 0) &&
            raised;
 }
@@ -185,7 +185,7 @@ void test_fail_closed(const TestVectors *vectors, const unsigned char *pattern, 
     const ObsignatioSignumRequest empty = {NULL,  0ull, NULL, OBSIGNATIO_MODE_HASH, out, OBSIGNATIO_SIGNUM_BYTES,
                                            &error};
     test_count(results, (obsignatio_signum(&empty) == 0L) && (memcmp(out, vectors->cases[0].hash, sizeof(out)) == 0) &&
-                            (vectors->cases[0].length == 0ull) && (error.kind == ENGINE_ERROR_NONE));
+                            (vectors->cases[0].length == 0ull) && (error.type == ENGINE_ERROR_NONE));
     const int placed = cudaMemcpy(device_signum, before, sizeof(before), cudaMemcpyHostToDevice) == cudaSuccess;
     const ObsignatioManyRequest many_cases[] = {
         {NULL, 1ull, 1ull, 1ull, NULL, OBSIGNATIO_MODE_HASH, device_signum, &error},
@@ -203,11 +203,11 @@ void test_fail_closed(const TestVectors *vectors, const unsigned char *pattern, 
     memset(&error, 0, sizeof(error));
     const ObsignatioManyRequest unsigned_out = {device_pattern,       1ull, 1ull,  1ull, NULL,
                                                 OBSIGNATIO_MODE_HASH, NULL, &error};
-    test_count(results, (obsignatio_many(&unsigned_out) == OBSIGNATIO_ERROR) && (error.kind == ENGINE_ERROR_REQUEST));
+    test_count(results, (obsignatio_many(&unsigned_out) == OBSIGNATIO_ERROR) && (error.type == ENGINE_ERROR_REQUEST));
     test_count(results, obsignatio_many(NULL) == OBSIGNATIO_ERROR);
     memset(&error, 0, sizeof(error));
     const ObsignatioManyRequest nothing = {NULL, 0ull, 1ull, 1ull, NULL, OBSIGNATIO_MODE_HASH, NULL, &error};
-    test_count(results, (obsignatio_many(&nothing) == 0L) && (error.kind == ENGINE_ERROR_NONE));
+    test_count(results, (obsignatio_many(&nothing) == 0L) && (error.type == ENGINE_ERROR_NONE));
 }
 #endif
 
@@ -250,10 +250,10 @@ void test_level_keys(TestResults *results)
     unsigned char key[OBSIGNATIO_KEY_BYTES];
     test_count(results, (obsignatio_level_context(OBSIGNATIO_LEVELS) == NULL) &&
                             (obsignatio_level_key(OBSIGNATIO_LEVELS, key, &error) == OBSIGNATIO_ERROR) &&
-                            (error.kind == ENGINE_ERROR_REQUEST) && (error.module == ENGINE_MODULE_OBSIGNATIO));
+                            (error.type == ENGINE_ERROR_REQUEST) && (error.module == ENGINE_MODULE_OBSIGNATIO));
     memset(&error, 0, sizeof(error));
     test_count(results, (obsignatio_level_key(OBSIGNATIO_LEVEL_ROW, NULL, &error) == OBSIGNATIO_ERROR) &&
-                            (error.kind == ENGINE_ERROR_REQUEST));
+                            (error.type == ENGINE_ERROR_REQUEST));
     test_count(results, obsignatio_level_key(OBSIGNATIO_LEVEL_ROW, key, NULL) == OBSIGNATIO_ERROR);
 }
 
@@ -301,11 +301,11 @@ void test_seal(const unsigned char *pattern, TestResults *results)
     test_count(results, sealed_clean && (obsignatio_seal_verify(&clean) == 1L));
     memset(&error, 0, sizeof(error));
     const ObsignatioSealRequest no_signum = {message, sizeof(message), NULL, &error};
-    test_count(results, (obsignatio_seal(&no_signum) == OBSIGNATIO_ERROR) && (error.kind == ENGINE_ERROR_REQUEST) &&
+    test_count(results, (obsignatio_seal(&no_signum) == OBSIGNATIO_ERROR) && (error.type == ENGINE_ERROR_REQUEST) &&
                             (error.module == ENGINE_MODULE_OBSIGNATIO));
     memset(&error, 0, sizeof(error));
     test_count(results,
-               (obsignatio_seal_verify(&no_signum) == OBSIGNATIO_ERROR) && (error.kind == ENGINE_ERROR_REQUEST));
+               (obsignatio_seal_verify(&no_signum) == OBSIGNATIO_ERROR) && (error.type == ENGINE_ERROR_REQUEST));
     const ObsignatioSealRequest no_error = {message, sizeof(message), sealed, NULL};
     test_count(results, (obsignatio_seal(&no_error) == OBSIGNATIO_ERROR) &&
                             (obsignatio_seal_verify(&no_error) == OBSIGNATIO_ERROR));

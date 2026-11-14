@@ -164,7 +164,7 @@ int writings_chains_write(const char *pattern, const char *kernel_text, const ch
     unsigned int unwritten = 0u;
     unsigned int written = 0u;
     static KdmRow s_row;
-    for (unsigned int row = 0u; (written < WRITINGS_CHAINS_MOST) && (row < s_rows.lines); row += 1u)
+    for (unsigned int row = 0u; (written < WRITINGS_CHAINS_MAX) && (row < s_rows.lines); row += 1u)
     {
         if (!kdm_row_read(s_rows.line[row], &s_row) || (s_row.nodes == 0u))
         {
@@ -206,7 +206,7 @@ int writings_chains_write(const char *pattern, const char *kernel_text, const ch
         }
         fprintf(list, "%s %s\n", cubin, s_kernel);
         fprintf(chains, "%u\t%s\t%s\t%s\n", written, operator_name, chain,
-                (verdict == 1u) ? "standing" : ((verdict == 0u) ? "out" : "-"));
+                (verdict == 1u) ? "located" : ((verdict == 0u) ? "out" : "-"));
         written += 1u;
     }
     kdm_free(&s_rows);
@@ -222,10 +222,10 @@ int writings_chains_write(const char *pattern, const char *kernel_text, const ch
 int writings_chains_read(const char *folder, const char *record)
 {
     writings_cases();
-    static char s_chain[WRITINGS_CHAINS_MOST][512];
-    static unsigned int s_chain_anchor[WRITINGS_CHAINS_MOST];
-    static unsigned int s_chain_answered[WRITINGS_CHAINS_MOST][WRITINGS_CASES];
-    static unsigned char s_chain_ran[WRITINGS_CHAINS_MOST];
+    static char s_chain[WRITINGS_CHAINS_MAX][512];
+    static unsigned int s_chain_anchor[WRITINGS_CHAINS_MAX];
+    static unsigned int s_chain_answered[WRITINGS_CHAINS_MAX][WRITINGS_CASES];
+    static unsigned char s_chain_ran[WRITINGS_CHAINS_MAX];
     char path[1024];
     char line[WRITINGS_LINE];
     snprintf(path, sizeof(path), "%s/chains/chains.txt", folder);
@@ -239,7 +239,7 @@ int writings_chains_read(const char *folder, const char *record)
         return 2;
     }
     unsigned int count = 0u;
-    while ((count < WRITINGS_CHAINS_MOST) && (fgets(line, sizeof(line), chains) != NULL))
+    while ((count < WRITINGS_CHAINS_MAX) && (fgets(line, sizeof(line), chains) != NULL))
     {
         unsigned int number = 0u;
         char operator_name[32];

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// watch.c: the changes the system reports, or a reading of the tree finds, gathered in batches and handed to whoever
+// watch.c: the changes the system reports, or a reading of the tree finds, gathered in batches and passed to whoever
 // takes them, less those the watching's patterns hide
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
@@ -17,7 +17,7 @@ typedef struct
     unsigned int type;
 } CliChange;
 // A list of changes: `count` of them in a cell of `change_bytes`, and their paths, `used` bytes in a cell of `bytes`;
-// each cell at their most
+// each cell at their max
 typedef struct
 {
     CliChange *change;
@@ -39,7 +39,7 @@ typedef struct
     CliFiles written;
 } CliBatch;
 // how long a bundle waits for another change before it goes, the longest it gathers changes for, in milliseconds; the
-// most changes waiting and gathered in one bundle; and the bytes of their paths a list of them is taken with
+// max changes waiting and gathered in one bundle; and the bytes of their paths a list of them is taken with
 #define CLI_WATCH_QUIET 150ULL
 #define CLI_WATCH_BATCH_MAX 1000ULL
 #define CLI_WATCH_QUEUE 4096u
@@ -71,12 +71,12 @@ typedef struct
     CliChanges *changes;
     const char *path;
     unsigned int type;
-    unsigned int most;
+    unsigned int max;
     const CliChanges *changes_read;
     unsigned int index;
     CliBatch *batch;
 } WatchCtx;
-// The lists of changes stand fixed outside the pool, where they punch no hole in the persistent tier: the changes
+// The lists of changes are fixed outside the pool, where they punch no hole in the persistent tier: the changes
 // waiting and their paths, and the batcher's bundle with its changes and their paths
 static CliChange s_waiting_change[CLI_WATCH_QUEUE];
 static char s_waiting_text[CLI_WATCH_TEXT_CAPACITY];
@@ -84,10 +84,10 @@ static CliBatch s_batch;
 static CliChange s_batch_change[CLI_WATCH_GATHERED];
 static char s_batch_text[CLI_WATCH_TEXT_CAPACITY];
 
-// the change of `type` at `path` put after the list's: 1, or 0 where it contains `most` or its cells cannot hold it
+// the change of `type` at `path` put after the list's: 1, or 0 where it contains `max` or its cells cannot hold it
 EMBED_INLINE int cli_change_append(const WatchCtx *args)
 {
-    if (args->changes->count >= args->most)
+    if (args->changes->count >= args->max)
     {
         return 0;
     }
@@ -110,7 +110,7 @@ EMBED_INLINE const char *cli_change_path(const WatchCtx *args)
     return args->changes_read->text + args->changes_read->change[args->index].at;
 }
 
-// a list emptied, its cells standing for the next round
+// a list emptied, its cells located for the next round
 EMBED_INLINE void cli_changes_clear(const WatchCtx *args)
 {
     args->changes->count = 0u;
@@ -130,7 +130,7 @@ void cli_watch_change(const CliEachPathTypeCfg *args)
     if (!s_watching.stop)
     {
         if (!EMBED_CALL(cli_change_append, WatchCtx, .changes = &s_watching.waiting, .path = path, .type = type,
-                        .most = CLI_WATCH_QUEUE))
+                        .max = CLI_WATCH_QUEUE))
         {
             s_watching.overflowed = 1;
         }
@@ -145,7 +145,7 @@ EMBED_INLINE void cli_waiting_alloc(const WatchCtx *args)
     {
         if (!EMBED_CALL(cli_change_append, WatchCtx, .changes = &args->batch->changes,
                         .path = EMBED_CALL(cli_change_path, WatchCtx, .changes_read = &s_watching.waiting, .index = at),
-                        .type = s_watching.waiting.change[at].type, .most = CLI_WATCH_GATHERED))
+                        .type = s_watching.waiting.change[at].type, .max = CLI_WATCH_GATHERED))
         {
             args->batch->lost = 1;
         }
@@ -161,7 +161,7 @@ static int cli_gather(const WatchCtx *args)
     const char *const root = s_watching.root;
     EMBED_CALL(cli_patterns_part.get, CliPatternsPartCfg, .part = CLI_PART_WATCHING,
                .patterns_out = &args->batch->patterns);
-    // each change puts at most its own path in one of the lists, and the bundle's paths and their bytes are their size
+    // each change puts at max its own path in one of the lists, and the bundle's paths and their bytes are their size
     const unsigned int count = args->batch->changes.count;
     const unsigned long long bytes = args->batch->changes.used;
     const int made = EMBED_CALL(cli_files_bytes_internal.work_init, CliFilesBytesCtx, .files = &args->batch->folders,
@@ -271,7 +271,7 @@ static int cli_gather(const WatchCtx *args)
     return (args->batch->folders.count != 0u) || (args->batch->written.count != 0u) || git || args->batch->lost;
 }
 
-// the changes gathered into bundles and each handed over, until the watch stops
+// the changes gathered into bundles and each passed over, until the watch stops
 static void cli_batch(void *context)
 {
     (void)context;
@@ -293,7 +293,7 @@ static void cli_batch(void *context)
         }
         batch->lost = 0;
         EMBED_CALL(cli_waiting_alloc, WatchCtx, .batch = batch);
-        // more changes taken while they come within CLI_WATCH_QUIET of one another, for at most CLI_WATCH_BATCH_MAX
+        // more changes taken while they come within CLI_WATCH_QUIET of one another, for at max CLI_WATCH_BATCH_MAX
         const unsigned long long began = cli_clock_milliseconds();
         int gathering = 1;
         while (gathering)
@@ -421,7 +421,7 @@ int cli_watch_gathered_get(const CliWatchPathsCtx *args)
     {
         batch->lost =
             batch->lost || !EMBED_CALL(cli_change_append, WatchCtx, .changes = &batch->changes, .path = args->paths[at],
-                                       .type = args->types[at], .most = CLI_WATCH_GATHERED);
+                                       .type = args->types[at], .max = CLI_WATCH_GATHERED);
     }
     const int any = EMBED_CALL(cli_gather, WatchCtx, .batch = batch);
     if (any)

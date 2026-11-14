@@ -7,14 +7,14 @@
 // account. Where it is not, the issue page opens in the browser with every field filled in, for the reporter to
 // submit. A report whose error is already an open issue files nothing and answers with that issue.
 //
-// A report's category is the part of orior it is about: the library the command line and the window stand on, the
+// A report's category is the part of orior it is about: the library the command line and the window are on, the
 // command line, the window, or unknown.
 //
 // Before anything leaves the machine the reporter's home folder, the tree's path and the reporter's name in a path are
 // struck from it. Errors file on their own once the reporter confirms they may, a setting stored in orior's own folder
 // and shared by the window and the command line, and nothing files before the reporter answers. The reporter is
 // prompted once, yes the answer given by default: by the Windows installer, and otherwise on the first run, in the
-// window or at the terminal. One error files once a run, and a run files at most five on its own.
+// window or at the terminal. One error files once a run, and a run files at max five on its own.
 #ifndef REPORT_H
 #define REPORT_H
 #include "../command_line/cli_internal.h"
@@ -41,7 +41,7 @@ typedef struct CliReportCfg CliReportCfg;
 #define CLI_REPORT_ADDRESS 7000u
 
 #define CLI_REPORT_URL 8192u
-// the errors of the run retained at the most, the segments of their ring, a power of two over them, and the bytes the
+// the errors of the run retained at max, the segments of their ring, a power of two over them, and the bytes the
 // ring's tokens take, the errors' part of the rings block
 #define CLI_REPORT_RETAIN_MAX 20u
 #define CLI_REPORT_RETAIN_RING 32u

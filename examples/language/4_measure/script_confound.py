@@ -12,13 +12,13 @@
 # Cyrillic. That is the script reaching the measure, and it sits inside a result reported as recovering
 # language families. It has to be measured and not noted.
 #
-# Writing the same text in Latin letters is the test. A transliteration keeps every sound and every word
+# Writing the same text in Latin characters is the test. A transliteration retains every sound and every word
 # and changes only the symbols carrying them. Anything that moves was being carried by the script.
 # Greek should leave Hebrew and go toward the languages it is related to. Russian and Serbian are
 # transliterated too, since Cyrillic is a second script with several languages in it and they should stay
 # together whichever alphabet they are written in.
 #
-# The mapping is the ordinary romanization, one letter to one or two, and it is approximate. It is
+# The mapping is the ordinary romanization, one character to one or two, and it is approximate. It is
 # the same text under different symbols, and no mapping error can move a language into
 # its own family by accident.
 
@@ -70,8 +70,8 @@ HEBREW = {
 
 
 def recast(text):
-    """The same text written in Latin letters, sounds and words untouched."""
-    # Accents stripped first, which lets a Greek letter carrying one still find its entry
+    """The same text written in Latin characters, sounds and words untouched."""
+    # Accents stripped first, which lets a Greek character carrying one still find its entry
     flattened = "".join(mark for mark in unicodedata.normalize("NFD", text)
                         if unicodedata.category(mark) != "Mn")
     out = []

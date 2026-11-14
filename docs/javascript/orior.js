@@ -7,8 +7,8 @@
 // over the run and the filter comes off at the end, which leaves the name exactly as the page draws
 // it.
 //
-// The line beside the name waits as a pile of its own letters. While the name is still settling, a
-// beam leaves the name and runs through the line, and each letter leaves the pile for its place as
+// The line beside the name waits as a pile of its own characters. While the name is still settling, a
+// beam leaves the name and runs through the line, and each character leaves the pile for its place as
 // the beam reaches that place. At the end the line is set back to plain text.
 //
 // The two runs overlap: the beam starts before the pour ends, by an amount drawn at random on each
@@ -65,14 +65,14 @@ function oriorPour(name, done) {
   name.style.opacity = "0";
   const overlap = ORIOR_OVERLAP_MIN_MS + Math.random() * (ORIOR_OVERLAP_MAX_MS - ORIOR_OVERLAP_MIN_MS);
   const handoff = ORIOR_FLUID_MS - overlap;
-  let handed = false;
+  let passed = false;
   let start = null;
   const frame = (now) => {
     if (start === null) {
       start = now;
     }
-    if (!handed && now - start >= handoff) {
-      handed = true;
+    if (!passed && now - start >= handoff) {
+      passed = true;
       done();
     }
     const t = Math.min((now - start) / ORIOR_FLUID_MS, 1);
@@ -94,15 +94,15 @@ function oriorPour(name, done) {
   requestAnimationFrame(frame);
 }
 
-// Split the line into one box per letter and pile the letters in rows that narrow toward the top,
-// each turned at random. The letters of a word sit together in one unbreaking run, so the line
-// wraps where the plain text wraps, between words. The place of a letter in the line is where its
-// box sits, and the pile is an offset from it: taking the offset away puts the letter home.
+// Split the line into one box per character and pile the characters in rows that narrow toward the top,
+// each turned at random. The characters of a word sit together in one unbreaking run, so the line
+// wraps where the plain text wraps, between words. The place of a character in the line is where its
+// box sits, and the pile is an offset from it: taking the offset away puts the character home.
 function oriorPile(line) {
   const text = line.textContent;
   line.setAttribute("aria-label", text);
   line.textContent = "";
-  const letters = [];
+  const characters = [];
   let word = null;
   for (const ch of text) {
     if (ch === " ") {
@@ -120,14 +120,14 @@ function oriorPile(line) {
     box.className = "orior-part";
     box.textContent = ch;
     word.appendChild(box);
-    letters.push(box);
+    characters.push(box);
   }
   const em = parseFloat(getComputedStyle(line).fontSize);
   const lineBox = line.getBoundingClientRect();
   const heapX = lineBox.left + lineBox.width * 0.5;
-  const order = letters.map((box, i) => [Math.random(), i]).sort((a, b) => a[0] - b[0]).map(([, i]) => i);
+  const order = characters.map((box, i) => [Math.random(), i]).sort((a, b) => a[0] - b[0]).map(([, i]) => i);
   let row = 0;
-  let width = Math.max(4, Math.ceil(letters.length * 0.4));
+  let width = Math.max(4, Math.ceil(characters.length * 0.4));
   let seat = 0;
   for (const i of order) {
     if (seat === width) {
@@ -135,7 +135,7 @@ function oriorPile(line) {
       seat = 0;
       width = Math.max(1, width - 3);
     }
-    const box = letters[i];
+    const box = characters[i];
     const home = box.getBoundingClientRect();
     box.oriorHomeX = home.left + home.width / 2;
     const x = heapX + (seat - (width - 1) / 2) * em * 0.42 + (Math.random() - 0.5) * em * 0.2;
@@ -148,14 +148,14 @@ function oriorPile(line) {
     box.style.opacity = "0.55";
     seat += 1;
   }
-  return { line, text, letters };
+  return { line, text, characters };
 }
 
 // The beam starts at the right edge of the name, or at the start of the line where the line has
-// wrapped under the name, and runs at a constant speed to the end of the line. A letter leaves the
+// wrapped under the name, and runs at a constant speed to the end of the line. A character leaves the
 // pile at the moment the head of the beam crosses the middle of its place.
 function oriorAssemble(name, pile) {
-  const { line, text, letters } = pile;
+  const { line, text, characters } = pile;
   const title = line.parentElement;
   const titleBox = title.getBoundingClientRect();
   const nameBox = name.getBoundingClientRect();
@@ -179,7 +179,7 @@ function oriorAssemble(name, pile) {
   );
   const ink = getComputedStyle(line).color;
   let last = 0;
-  for (const box of letters) {
+  for (const box of characters) {
     const across = (box.oriorHomeX - from) / (to - from);
     const delay = Math.max(0, Math.min(1, across)) * ORIOR_BEAM_MS;
     last = Math.max(last, delay);
@@ -259,19 +259,19 @@ function oriorLattice(hero) {
       const reach = draw();
       const px = x + Math.cos(turn) * shift * reach;
       const py = y + Math.sin(turn) * shift * reach;
-      const kept = 1 - loose;
+      const retained = 1 - loose;
       const [red, green, blue] = oriorShade(loose);
-      const alpha = 0.36 + 0.16 * kept;
+      const alpha = 0.36 + 0.16 * retained;
       pen.fillStyle = `rgba(${red}, ${green}, ${blue}, ${alpha.toFixed(3)})`;
       pen.beginPath();
-      pen.arc(px, py, 1.3 + 0.4 * kept, 0, Math.PI * 2);
+      pen.arc(px, py, 1.3 + 0.4 * retained, 0, Math.PI * 2);
       pen.fill();
     }
   }
 }
 
-// The pile is measured from where each letter sits, so it waits for the face the line is set in,
-// for at most ORIOR_FONT_WAIT_MS. A face that comes later than that moves the letters, and the line
+// The pile is measured from where each character sits, so it waits for the face the line is set in,
+// for at max ORIOR_FONT_WAIT_MS. A face that comes later than that moves the characters, and the line
 // is set right again when it is set back to plain text.
 const ORIOR_FONT_WAIT_MS = 700;
 

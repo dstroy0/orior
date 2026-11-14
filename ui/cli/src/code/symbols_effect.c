@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // symbols_effect.c: the definition of a name in effect at a line of a branch of the tree: a walk from the branch's
-// first line to that line, each include of a file of the tree, its own or a mount's, walked where it stands, and each
+// first line to that line, each include of a file of the tree, its own or a mount's, walked where it is, and each
 // branch once, each condition read off its leaves, and
 // every define, undefine and declaration of the name met in an active region put in the walk's cells. The directives,
 // a define's parameters and the file an include names are known by the roles their grammar's tokens name; nothing here
@@ -34,7 +34,7 @@ typedef struct
 } CliEffectDeclared;
 // A branch being walked: its leaves, its conditions open and how many, the lines of the declarations of the name sought
 // in it and how many; and for a slice's walk, every declaration its leaves name, read as they are, in a cell at their
-// most, how many and the capacity, and its place among the branches read whole
+// max, how many and the capacity, and its place among the branches read whole
 typedef struct
 {
     CliLeafRead read;
@@ -372,7 +372,7 @@ typedef struct
     unsigned long long continued_length;
 } CliEffectSiftHit;
 
-// The declarations of a sifted read handed on: where they go and its context, the line of the branch each lexed line
+// The declarations of a sifted read passed on: where they go and its context, the line of the branch each lexed line
 // is, how many, the walk, and the branch whose lines that declare a name the walk sifts for are marked
 typedef struct
 {
@@ -403,7 +403,7 @@ typedef struct
     unsigned long long size;
 } EffectSiftCtx;
 
-// the line of the branch the byte `at` stands on
+// the line of the branch the byte `at` is on
 EMBED_INLINE unsigned int effect_sift_line(const EffectSiftCtx *args)
 {
     const CliEffectSifted *const sifted = args->sifted;
@@ -477,7 +477,7 @@ static void effect_sift_hit(const CliEachAtCfg *args)
     }
 }
 
-// one declaration a sifted read's lexed lines name, handed on at the branch's line it stands on, and that line marked
+// one declaration a sifted read's lexed lines name, passed on at the branch's line it is on, and that line marked
 // where it declares a name the walk sifts for
 static void effect_sift_declaring(const CliDeclaredCfg *args)
 {
@@ -497,7 +497,7 @@ static void effect_sift_declaring(const CliDeclaredCfg *args)
 }
 
 // the lines of the branch `mask` marks lexed alone, joined in one copy, into `read`: each leaf's bytes and line those
-// of the branch it stands in, each declaration handed to `each` at its line, and with `sifted->declares` set, each
+// of the branch it is in, each declaration passed to `each` at its line, and with `sifted->declares` set, each
 // line that declares a name the walk sifts for marked: 1, or 0 where the cells or the grammar refused them
 EMBED_INLINE int effect_sift_lex(const EffectSiftCtx *args)
 {
@@ -571,7 +571,7 @@ EMBED_INLINE int effect_sift_lex(const EffectSiftCtx *args)
 
 // the last line of the statement whose name the line `line` declares: the line it ends on at the depth it starts at,
 // a body after its head read to the bracket that closes it, lexed a window of lines at a time that doubles while the
-// statement runs past it, CLI_EFFECT_STATEMENT_LINES lines at the most
+// statement runs past it, CLI_EFFECT_STATEMENT_LINES lines at max
 EMBED_INLINE unsigned int effect_sift_statement_end(const EffectSiftCtx *args)
 {
     CliEffectSifted *const sifted = args->sifted;
@@ -632,7 +632,7 @@ EMBED_INLINE unsigned int effect_sift_statement_end(const EffectSiftCtx *args)
 }
 
 // the branch at `path`, `size` bytes of `text`, read as a sifted walk reads it into `read`: the sift finds each `#`
-// that opens a directive and each place a name the walk sifts for stands whole, and only those lines are lexed, with
+// that opens a directive and each place a name the walk sifts for is whole, and only those lines are lexed, with
 // the view's lines where the branch is the one the walk starts from, a name's hits there taken only above `upto`.
 // Each line that declares a name the walk sifts for is read on to the statement's end. Every declaration the lines
 // name goes to `each` at its line: 1, or 0 where the cells or the grammar refused it
@@ -654,7 +654,7 @@ EMBED_INLINE int effect_sift_index(const EffectSiftCtx *args)
             break;
         }
         lines += 1u;
-        // the newline stands at or past `at`, inside the text
+        // the newline is at or past `at`, inside the text
         at = (unsigned long long)(newline - text);
     }
     *sifted = (CliEffectSifted){text, size, NULL, lines, NULL, NULL, NULL};
@@ -1063,7 +1063,7 @@ EMBED_INLINE void cli_effect_define(const SymbolsEffectCtx *args)
 }
 
 // the condition the directive whose role is the leaf `role` opens put last among those of the branch, whether the name
-// it asks about, `named` of `length` bytes, stands defined or its leaves to before `end` give a value that is not 0
+// it asks about, `named` of `length` bytes, is defined or its leaves to before `end` give a value that is not 0
 EMBED_INLINE void cli_effect_condition_open(const SymbolsEffectCtx *args)
 {
     CliEffect *effect = args->effect;
@@ -1219,7 +1219,7 @@ EMBED_INLINE unsigned int cli_effect_branch_read_append(const SymbolsEffectCtx *
 }
 
 // each leaf from `first` to before `end` of the branch the walk starts from that names the name sought, neither a
-// comment's nor a string's, handed on with the definition of the name in effect there as a usage knows it: the define
+// comment's nor a string's, passed on with the definition of the name in effect there as a usage knows it: the define
 // in effect, else the first declaration of it the walk met, else none
 EMBED_INLINE void cli_effect_noted_line(const SymbolsEffectCtx *args)
 {
@@ -1262,7 +1262,7 @@ EMBED_INLINE void cli_effect_noted_line(const SymbolsEffectCtx *args)
 }
 
 // the line of the branch's leaf `from` a needle of the walk names, from its first leaf to its last, put among the
-// walk's texts with where it stands, the first such the walk found read as the name's first declaration. The branch's
+// walk's texts with where it is, the first such the walk found read as the name's first declaration. The branch's
 // bytes are `bytes`
 EMBED_INLINE void cli_effect_line_found(const SymbolsEffectCtx *args)
 {
@@ -1319,7 +1319,7 @@ EMBED_INLINE void cli_effect_line_met(const SymbolsEffectCtx *args)
 }
 
 // the leaves of the branch read in order to before line `upto`, a directive's line taken as one and every other line
-// read, each handed where its lines go first and the walk ended there where it is refused
+// read, each passed where its lines go first and the walk ended there where it is refused
 EMBED_INLINE void cli_effect_leaves_walk(const SymbolsEffectCtx *args)
 {
     CliEffect *effect = args->effect;
@@ -1377,7 +1377,7 @@ EMBED_INLINE void cli_effect_leaves_walk(const SymbolsEffectCtx *args)
 // the branch at `path` walked from its first line to before line `upto`, CLI_EFFECT_INPUT for all of it, once in
 // a walk, its includes `depth` deep; for a slice's walk, its bytes and leaves stay in the walk's cell until the walk is
 // given back, and each declaration its leaves name on a line of an active region is met; for a noting walk, each leaf
-// of the name in the branch it starts from handed on as the walk passes its line; and each line of that branch handed
+// of the name in the branch it starts from passed on as the walk passes its line; and each line of that branch passed
 // where its lines go before the walk reads it, the walk ended there where it is refused
 static void cli_effect_walk(const SymbolsEffectCtx *args)
 {
@@ -1463,7 +1463,7 @@ CliEffect *cli_effect_init(const CliSymbolsPathNameCtx *args)
     // the effect lives for the one walk that takes it: a cell of the temporary tier
     CliEffect *const effect = g_cli_guard->temporary_buf_alloc(sizeof(CliEffect), g_cli_code_owner);
     CliSymbolsLanguages *const languages = (effect != NULL) ? cli_symbols_languages_read() : NULL;
-    // the walk's lists and texts in one cell, each at its most
+    // the walk's lists and texts in one cell, each at its max
     const unsigned long long branch_bytes = CLI_EFFECT_LIST_MAX * sizeof(CliEffectBranchRead);
     const unsigned long long macro_bytes = CLI_EFFECT_LIST_MAX * sizeof(CliEffectMacro);
     const unsigned long long seen_bytes = CLI_EFFECT_LIST_MAX * sizeof(CliEffectSeen);

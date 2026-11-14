@@ -1,16 +1,16 @@
 r"""Context written as one-line ops, the form oracle.py takes on stdin.
 
-A paper's ops live in ops/<stem>.ops, one to a line, and load_context in finish.py lays them over
+A paper's ops live in ops/<stem>.ops, one to a line, and load_context in finish.py positions them over
 the closed corpus's finish/<stem>.py when there is one, or over a blank context when there is none. Fields part at a | with space on both sides.
 A field holding a | of its own writes it \|, as a tag (sf \| EP.2021/07/10) does.
 A who of @a is the authors and @l the paper's language.
 
-  meta authors|lang|title|byline|volume|whose|letters|notes TEXT
-  form FORM | kind | who | gloss        a cited form candidate's kind, who and gloss
+  meta authors|lang|title|byline|volume|whose|characters|notes TEXT
+  form FORM | type | who | gloss        a cited form candidate's type, who and gloss
   drop FORM                             a candidate that is no form
   set WHERE | FORM | field=value; ...   fields of the row at WHERE holding FORM; a WHERE of * is any
   split WHERE | MARKER | head | tail    head and tail are field=value; ... pairs, - drops that half
-  add AWHERE | AFORM | where | who | kind | form | gloss
+  add AWHERE | AFORM | where | who | type | form | gloss
                                         a row after the row AWHERE, AFORM (AFORM ending ... is its
                                         opening words, and an empty AFORM names the where alone)
   join WHERE | FORM | WHERE2 | FORM2 [| BETWEEN]  the second row's form run on after the first's,
@@ -51,7 +51,7 @@ A who of @a is the authors and @l the paper's language.
                                         column names, named by its caption, Table A1; rows Table A1 line N;
                                         wordlist CAPTION | plain for a table whose glosses have no quotes,
                                         /č̓əχ/ cook, the word the line's first and the gloss the rest
-  tabletag TAG | GLOSS               what a source tag of a table row, [YP], stands for
+  tabletag TAG | GLOSS               what a source tag of a table row, [YP], is for
   display KIND | N N:K ...              examples set apart on a line or two, a ranking or a constraint
                                         of KIND, or a picture (KIND picture), the prose the engine
                                         read as their lines given back to its paragraph; N:K is the
@@ -71,8 +71,8 @@ A who of @a is the authors and @l the paper's language.
   replace OLD | NEW                     text replaced in every form
   who OLD | NEW                         a who the engine gave, written out
   whorule WHERE_RE | KIND | FORM_RE | who | gloss
-  kindrule WHERE_RE | KIND_RE | FORM_RE | kind | who | gloss
-  tier SCRIPT                           the letters only the phonemic line of an example writes
+  kindrule WHERE_RE | KIND_RE | FORM_RE | type | who | gloss
+  tier SCRIPT                           the characters only the phonemic line of an example writes
   # anything                            a comment
 """
 import os
@@ -81,9 +81,9 @@ import types
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 from workdir import PRIVATE  # noqa: E402
-FIELDS = ("where", "who", "kind", "form", "gloss")
+FIELDS = ("where", "who", "type", "form", "gloss")
 META = {"authors": "AUTHORS", "lang": "LANG", "title": "TITLE", "byline": "BYLINE",
-        "volume": "VOLUME", "whose": "WHOSE", "letters": "LETTERS", "notes": "PAGE_NOTES"}
+        "volume": "VOLUME", "whose": "WHOSE", "characters": "CHARACTERS", "notes": "PAGE_NOTES"}
 
 
 def path_of(stem):
@@ -94,7 +94,7 @@ def blank(stem):
     module = types.ModuleType("context_" + re.sub(r"\W", "_", stem))
     module.STEM = stem
     module.AUTHORS = module.LANG = module.TITLE = module.BYLINE = module.VOLUME = ""
-    module.WHOSE = module.LETTERS = module.PAGE_NOTES = ""
+    module.WHOSE = module.CHARACTERS = module.PAGE_NOTES = ""
     module.FORMS = {}
     module.DROP = ()
     return module
@@ -170,13 +170,13 @@ def apply(module, stem):
             elif op == "stacks":
                 module.STACKS = tuple(getattr(module, "STACKS", ())) + tuple(rest.split())
             elif op == "columns":
-                kinds = tuple(one.strip() for one in parts[0].split(","))
+                types = tuple(one.strip() for one in parts[0].split(","))
                 module.COLUMNS = tuple(getattr(module, "COLUMNS", ())) + \
-                    tuple((kinds, number) for number in parts[1].split())
+                    tuple((types, number) for number in parts[1].split())
             elif op == "table":
-                kinds = tuple(one.strip() for one in parts[0].split(","))
+                types = tuple(one.strip() for one in parts[0].split(","))
                 module.TABLE = tuple(getattr(module, "TABLE", ())) + \
-                    tuple((kinds, number) for number in parts[1].split())
+                    tuple((types, number) for number in parts[1].split())
             elif op == "tableau":
                 module.TABLEAU = tuple(getattr(module, "TABLEAU", ())) + tuple(rest.split())
             elif op == "roots":

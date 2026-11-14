@@ -23,7 +23,7 @@ typedef struct CoverageCfg CoverageCfg;
 // `origin_x` and `origin_y` are the outline's point at the top left corner of the cover: the cover's pixel (c, r) spans
 // x from origin_x + c to origin_x + c + 1 and y from origin_y - r - 1 to origin_y - r. `cover` takes `width` by
 // `height` shares, row after row, each from 0 to 1. The shares follow the nonzero rule on the area each edge leaves.
-// Every point lies within 16384 pixels of the origin, which the 16.16 numbers hold. The edges are laid in `scratch`,
+// Every point lies within 16384 pixels of the origin, which the 16.16 numbers hold. The edges are positioned in `scratch`,
 // which has `scratch_bytes`, COVERAGE_EDGE_BYTES a point, as `coverage_draw_bytes` counts them; a scratch too small
 // draws the cover clear
 void coverage_draw(const CoverageCfg *args);
@@ -70,10 +70,10 @@ typedef struct
 
 // The scene: what the frame draws, in the order it draws it, as commands for the fine pass. Each fill's path becomes
 // strips of 4 by 4 tiles at the moment it is filled: `share` holds 16 coverage bytes for each tile in a strip, in
-// Morton order. Each command lays a run of whole tiles of one wide tile's row in one color: a strip by its tiles'
+// Morton order. Each command positions a run of whole tiles of one wide tile's row in one color: a strip by its tiles'
 // shares from `command_share`, or a gap between strips by a share for each of its 4 pixel rows packed in
 // `command_rows`. The edges and tiles hold one path at a time; `key` holds the commands' sort keys. Each cell lies in
-// the caller's block, handed to init and sized by the capacity: `capacity` tiles a path, `capacity` commands and 16
+// the caller's block, passed to init and sized by the capacity: `capacity` tiles a path, `capacity` commands and 16
 // shares a tile. A fill past a capacity is dropped whole and counted in `dropped`
 typedef struct
 {

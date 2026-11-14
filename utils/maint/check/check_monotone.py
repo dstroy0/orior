@@ -34,7 +34,7 @@ def main():
     power = {}
     with open(SOURCE, newline="") as handle:
         for row in csv.DictReader(handle):
-            if row["kind"] == "residue":
+            if row["type"] == "residue":
                 at = int(row["round"])
                 power[at] = power.get(at, 0.0) + abs(float(row["value"]))
 

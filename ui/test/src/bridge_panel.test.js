@@ -18,8 +18,8 @@ const INDEX = {
       mov: { line: 9, pairs: [] },
     },
   },
-  maps: [{ path: "maps/sass.klm", language: "sass", names: { IADD: { key: "add_rr", line: 5, kind: { line: 6, rest: "kind arithmetic" }, breaks: [] } } }],
-  rulesets: [{ path: "rules/sm_86.krs", entries: { add_rr: [{ line: 7, kind: "form" }] } }],
+  maps: [{ path: "maps/sass.klm", language: "sass", names: { IADD: { key: "add_rr", line: 5, type: { line: 6, rest: "type arithmetic" }, breaks: [] } } }],
+  rulesets: [{ path: "rules/sm_86.krs", entries: { add_rr: [{ line: 7, type: "form" }] } }],
 };
 
 const docOf = (...lines) => ({ line: (at) => lines[at] });
@@ -43,7 +43,7 @@ test("the key a line names: Lstar.klq's key above it or its pair's, a map's, a r
     assert.equal(keyAt("t/Lstar.klq", klq, 2, null), "add_rr", "the key above the line");
     assert.equal(keyAt("t/Lstar.klq", klq, 3, null), null, "a pair of no key");
     assert.equal(keyAt("maps/sass.klm", docOf("key IADD add_rr"), 0, null), "add_rr");
-    assert.equal(keyAt("maps/sass.klm", docOf("kind IADD arithmetic"), 0, null), "add_rr", "a kind line by the map's name");
+    assert.equal(keyAt("maps/sass.klm", docOf("type IADD arithmetic"), 0, null), "add_rr", "a type line by the map's name");
     assert.equal(keyAt("rules/sm_86.krs", docOf("form add_rr = x"), 0, null), "add_rr");
     assert.equal(keyAt("a.py", docOf("mov"), 0, "mov"), "mov");
     assert.equal(keyAt("a.py", docOf("other"), 0, "other"), null);

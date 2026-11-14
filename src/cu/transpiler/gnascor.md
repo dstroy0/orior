@@ -46,11 +46,11 @@ The eight k-file types and the two compiler faces. Doug names these; do not add 
 
 A floor is conceptual and not a fixed quantity, which leaves its definition open to `L*` and lets each member carry the floor its own set needs. Two members' floors are therefore not comparable by default, which is correct for fingerprinting one member and is the thing to check before a number is quoted across two.
 
-**`.kdm` grows to whatever specificity a part needs.** It holds as many answers as it has: a general answer block, and under it a map specific enough to be optimal on one device and nowhere else. A driver written by hand is general worst case because a person writes it once and cannot write one per device. Nobody writes these. A specific map therefore costs nothing to keep, and the general block stays as the fallback for a part with no map yet.
+**`.kdm` grows to whatever specificity a part needs.** It holds as many answers as it has: a general answer block, and under it a map specific enough to be optimal on one device and nowhere else. A driver written by hand is general worst case because a person writes it once and cannot write one per device. Nobody writes these. A specific map therefore costs nothing to retain, and the general block stays as the fallback for a part with no map yet.
 
-**`.kqr` is the query record.** It holds the asks put to a member and the paths read off them: every probe and what came back, with costs, refusals and censored samples each marked, then the winning path per problem over those same asks. It takes the stem the rest of the set takes. That face, `.kdm` and `.knf` under one stem are a member's coherence map and fingerprint it exactly. It carries the general and specific split `.kdm` carries, a generic block good for any member of a class and a specific block holding the best combination available for one section of one member. Keeping the asks beside the paths leaves the fingerprint independent of `.kdm` in place of a cache of it: a refused or censored probe appears nowhere in a table of chain costs, and it separates two parts that cost the same.
+**`.kqr` is the query record.** It holds the asks put to a member and the paths read off them: every probe and what came back, with costs, refusals and censored samples each marked, then the winning path per problem over those same asks. It takes the stem the rest of the set takes. That face, `.kdm` and `.knf` under one stem are a member's coherence map and fingerprint it exactly. It carries the general and specific split `.kdm` carries, a generic block good for any member of a class and a specific block holding the best combination available for one section of one member. Retention the asks beside the paths leaves the fingerprint independent of `.kdm` in place of a cache of it: a refused or censored probe appears nowhere in a table of chain costs, and it separates two parts that cost the same.
 
-The high order face writes `a equals something; b equals something; evaluate a is identical to b`, and the shortcut face writes `a=0;b=1; x = a==b`. Both are a true or false answer, and both compile to 2 reads, 1 target and 1 store whatever the language underneath. The two are the same assembly. The reason for keeping them apart is enforcement: a block declares which face it is written in and no statement mixes them mid-sentence without an explicit flag, `__gsm__(//code)__gsm__`. A semantic conditional is legal, a gsm semantic conditional is legal, and the switch exists because it gets turned.
+The high order face writes `a equals something; b equals something; evaluate a is identical to b`, and the shortcut face writes `a=0;b=1; x = a==b`. Both are a true or false answer, and both compile to 2 reads, 1 target and 1 store whatever the language underneath. The two are the same assembly. The reason for retention them apart is enforcement: a block declares which face it is written in and no statement mixes them mid-sentence without an explicit flag, `__gsm__(//code)__gsm__`. A semantic conditional is legal, a gsm semantic conditional is legal, and the switch exists because it gets turned.
 
 ## Information is coherence
 
@@ -60,13 +60,13 @@ A description at or near its Kolmogorov complexity has no redundancy left in it:
 
 So compression and coherence are one measurement read from two directions, and the language measures the one it can actually put a number on. Friction is observable in every system that exists, in time, compute and latency. A shortest description is not. Measuring alignment and efficiency is measuring information content by the only instrument a foreign host will hold still for.
 
-The `.kcr`, `.knf` and `.kcs` triple holds the three sides of it. A crystal is information at its complexity, a noise floor is the part that carries nothing, and the construction set reconstructs information. A crystal is one kind of information and not the only kind: anything that has to be rebuilt from its primitives takes a `.kcs`, and only the part already at its complexity takes a `.kcr`.
+The `.kcr`, `.knf` and `.kcs` triple holds the three sides of it. A crystal is information at its complexity, a noise floor is the part that carries nothing, and the construction set reconstructs information. A crystal is one type of information and not the only type: anything that has to be rebuilt from its primitives takes a `.kcs`, and only the part already at its complexity takes a `.kcr`.
 
 ## The coherence state
 
 Computation is a coherence state and not a set of mechanical operations. Host agnosticism follows from that one decision. The host's internal architecture does not matter: an LLM, a REST API, a database and a piece of bare-metal hardware are the same thing to it. Each is reduced to a simple oracle that answers binary questions. The language measures the resonance or the dissonance between those answers and maps the resulting pattern to a stable semantic landscape.
 
-Nothing in the language depends on anything outside its own coherence, and so it scales without bound through a fractal mnemonic structure. Two branches collapse into a mnemonic, those mnemonics pair up to form higher-order states, and complex logic stays human-readable at every layer. A distributed system processing thousands of variables reports its health, its intent or its blocks in a short string of four-letter words.
+Nothing in the language depends on anything outside its own coherence, and so it scales without bound through a fractal mnemonic structure. Two branches collapse into a mnemonic, those mnemonics pair up to form higher-order states, and complex logic stays human-readable at every layer. A distributed system processing thousands of variables reports its health, its intent or its blocks in a short string of four-character words.
 
 ### The branch pair
 
@@ -75,11 +75,11 @@ Nothing in the language depends on anything outside its own coherence, and so it
 | lead (1) | void (0) | 1, 0 | core | The primary intent persists; the secondary path dissolved. |
 | rite (0) | lead (1) | 0, 1 | shift | Focus has migrated from the left domain to the right. |
 | dual (2) | void (0) | 2, 0 | echo | An amplified state is sustained without new external input. |
-| dual (2) | dual (2) | 2, 2 | nexus | Maximum systemic coherence; both major systems are aligned. |
+| dual (2) | dual (2) | 2, 2 | nexus | Max systemic coherence; both major systems are aligned. |
 
 ## The query protocol
 
-The most basic part of any system is an address of some kind. Ask a question at the address to qualify it, and the operations that are legal assign coherence through a cost. Rooting the protocol in addresses, qualifications and operational costs makes a physics engine for semantics: every system in existence recognizes an address space, and every system experiences friction in time, compute and latency. Using that friction as the metric for coherence evaluates truth by systemic alignment and efficiency in place of rigid rules.
+The basic part of any system is an address of some type. Ask a question at the address to qualify it, and the operations that are legal assign coherence through a cost. Rooting the protocol in addresses, qualifications and operational costs makes a physics engine for semantics: every system in existence recognizes an address space, and every system experiences friction in time, compute and latency. Using that friction as the metric for coherence evaluates truth by systemic alignment and efficiency in place of rigid rules.
 
     [ address ] -> ( qualifier ) -> [ measured cost ] -> binary result (1 or 0)
 
@@ -87,7 +87,7 @@ The most basic part of any system is an address of some kind. Ask a question at 
 
 - **The address (`@`).** The destination system, node or property. It is agnostic: a memory address, a URI, an API endpoint, an LLM context key, or a key of `Lstar.klq` read through a language's `.klm`.
 - **The qualifier (`?`).** The binary question asked at that address, phrased to demand a state validation and never a data payload.
-- **The cost bound (`$`).** The maximum metric the host may spend to fetch the answer, in cycle times, latency, tokens or energy. An answer inside the threshold proves structural coherence. An answer past it drops into incoherence. The bound is derived and never authored; see below.
+- **The cost bound (`$`).** The max metric the host may spend to fetch the answer, in cycle times, latency, tokens or energy. An answer inside the threshold proves structural coherence. An answer past it drops into incoherence. The bound is derived and never authored; see below.
 
 ### The unbound pass
 
@@ -105,7 +105,7 @@ Cross-branch comparison follows from slicing. Every arrangement that produces an
 
 ### The gate
 
-Before any cost is read, the gate decides which arrangements hold the relation at all. It is orior's own descent: each candidate arrangement is an alignment, the relation's cases are the needle, and the descent places the case that prunes the most, stops where the best case prunes nothing, and leaves the survivors as its answer. It is planned on the host against arithmetic every system that computes agrees about, and the target is asked only the cases it placed. A plan that steers badly costs speed and never a wrong survivor, because survival is a conjunction.
+Before any cost is read, the gate decides which arrangements hold the relation at all. It is orior's own descent: each candidate arrangement is an alignment, the relation's cases are the needle, and the descent places the case that prunes the max, stops where the best case prunes nothing, and leaves the survivors as its answer. It is planned on the host against arithmetic every system that computes agrees about, and the target is asked only the cases it placed. A plan that steers badly costs speed and never a wrong survivor, because survival is a conjunction.
 
 ### The bridge
 
@@ -115,7 +115,7 @@ Every step above, its status and the run behind it is in the query protocol's ow
 
 The method does not get more complicated than this at any layer. Ask, and remember the answer. The baseline is remembered asks, the profile is remembered asks at every cut, and the winning path is the comparison of two sets of remembered asks. Nothing is modeled and nothing is predicted.
 
-Two readings it has to keep straight.
+Two readings it has to retain straight.
 
 - **A watchdog stop is not a cost.** An unbound ask still needs a wall or the loop hangs, but hitting the wall is a censored sample and not a measurement. A baseline built without marking them reads low.
 - **A baseline goes stale.** The host under load now is not the host idle later. The reference ask is put alongside the real one and measured in the same conditions, in place of a figure taken once and carried forward.
@@ -149,7 +149,7 @@ output -> evaluate(branch_result)
 
 | scenario | left address | right address | cost matrix | pair | mnemonic | meaning |
 |---|---|---|---|---|---|---|
-| Optimal path | Valid (1) | Valid (1) | both under budget | 1, 1 | dual | Total alignment; proceed at maximum priority. |
+| Optimal path | Valid (1) | Valid (1) | both under budget | 1, 1 | dual | Total alignment; proceed at max priority. |
 | Degraded path | Valid (1) | Valid (1) | right branch took too long | 1, 0 | lead | Left system is stable and right system is dragging; fall back to left context. |
 | System failure | Timeout (0) | Error (0) | out of bounds | 0, 0 | void | The operation collapsed into noise; halt and reset state. |
 
@@ -166,11 +166,11 @@ A shift occurs when a system transitions from an asymmetrical state, 1,0 or 0,1,
 
 ### High-order shift mnemonics
 
-Pairing a past state with a present state compresses the transition into a four-letter movement mnemonic.
+Pairing a past state with a present state compresses the transition into a four-character movement mnemonic.
 
 | past (cycle N-1) | present (cycle N) | transition | mnemonic | meaning |
 |---|---|---|---|---|
-| lead (1,0) | rite (0,1) | 1,0 -> 0,1 | pass (shift right) | The left system handed its execution to the right system. |
+| lead (1,0) | rite (0,1) | 1,0 -> 0,1 | pass (shift right) | The left system passed its execution to the right system. |
 | rite (0,1) | lead (1,0) | 0,1 -> 1,0 | back (shift left) | The right system yielded control or returned its state to the primary left system. |
 
 ```
@@ -183,7 +183,7 @@ Pairing a past state with a present state compresses the transition into a four-
 Shifting also occurs vertically in the tree, where a state broadens into a shared agreement or collapses back into one side.
 
 - **Right-leaning expansion, rite to dual.** A single right-side presence convinces the left side to join it, escalating into a compound state. Mnemonic: join.
-- **Left-leaning collapse, dual to lead.** A coherent compound state loses its right side to cost or to failure, leaving only the left side standing. Mnemonic: drop.
+- **Left-leaning collapse, dual to lead.** A coherent compound state loses its right side to cost or to failure, leaving only the left side located. Mnemonic: drop.
 
 ### A data handoff, in protocol
 
@@ -199,7 +199,7 @@ Where states are evaluated by address validation and resource cost, busy and err
 
 - **busy, friction or high mass.** Both systems respond and both sit on the edge of the allowed cost threshold. The states are valid and heavy, and they are dragging the cycle time down.
 - **wait, potential or latency.** One system is responsive and the other lags just enough to stall the branch evaluation without failing. It is stored potential waiting on synchronization.
-- **blok, resistance or wall.** An address is valid and returning a hard structural refusal or maximum friction, which stops any semantic evaluation crossing the branch.
+- **blok, resistance or wall.** An address is valid and returning a hard structural refusal or max friction, which stops any semantic evaluation crossing the branch.
 - **gray, every state at once.** A side has not been asked, and the pair holds no reading. It is any of the states above until an ask is put, and it is not void: void is an answer of no, and gray is no answer. Leaving gray is a first observation, fizz. Entering it is the loss of the ability to ask, fuzz.
 
 ```
@@ -220,7 +220,7 @@ Tracking how an environmental state changes from cycle N-1 to cycle N gives a de
 
 ## The coherence clock
 
-The total state of a system reads as a clean four-letter diagnostic stream. A live system running the language prints a terminal output that acts as a literal EKG for the architecture.
+The total state of a system reads as a clean four-character diagnostic stream. A live system running the language prints a terminal output that acts as a literal EKG for the architecture.
 
 ```
 [sprk] -> [dual] -> [busy] -> [pass] -> [rite] -> [jamm] -> [halt]
@@ -229,7 +229,7 @@ The total state of a system reads as a clean four-letter diagnostic stream. A li
 
 ## The state-transition matrix
 
-The physics of coherence from cycle N-1 to cycle N. Plotting the base binary pairs alongside the environmental friction metrics shows how errors, shifts and steady states resolve into uniform four-letter mnemonics.
+The physics of coherence from cycle N-1 to cycle N. Plotting the base binary pairs alongside the environmental friction metrics shows how errors, shifts and steady states resolve into uniform four-character mnemonics.
 
 | past (N-1) | dual (1,1) | lead (1,0) | rite (0,1) | void (0,0) | busy (heavy) | wait (delayed) | blok (refusal) | gray (unasked) |
 |---|---|---|---|---|---|---|---|---|
@@ -258,7 +258,7 @@ fuzz+in -> sync -> fizz+out
 
 ## The high-energy transition matrix
 
-dual at maximum potential is not a stable state. It is energetic and it wants to collapse, discharge or shift, and the language is dynamic because it treats dual as unstable. A system going from busy friction directly to dual alignment is shedding its friction: the pipes have cleared and the system is breaking through a bottleneck into full alignment. The generic sync placeholder is stripped away here and the exact transitioning states are mapped.
+dual at max potential is not a stable state. It is energetic and it wants to collapse, discharge or shift, and the language is dynamic because it treats dual as unstable. A system going from busy friction directly to dual alignment is shedding its friction: the pipes have cleared and the system is breaking through a bottleneck into full alignment. The generic sync placeholder is stripped away here and the exact transitioning states are mapped.
 
 | past (N-1) | dual (1,1) | lead (1,0) | rite (0,1) | void (0,0) |
 |---|---|---|---|---|
@@ -272,7 +272,7 @@ dual at maximum potential is not a stable state. It is energetic and it wants to
 - **busy to lead or rite is vent.** The system was bottlenecked and relieved pressure by dropping one side of the branch, venting its load down a single operational channel.
 - **wait to dual is snap.** One side was lagging and creating systemic tension. The moment it catches up, the two sides snap into alignment like a closed circuit.
 - **dual to lead or rite is tilt.** Because dual is unstable, the system decays to one side as soon as one address takes even a fraction of a cycle longer.
-- **dual to void is fuse, a blown fuse.** Maximum potential collapses instantly to absolute zero with no gradual decay. The system tripped a breaker.
+- **dual to void is fuse, a blown fuse.** Max potential collapses instantly to absolute zero with no gradual decay. The system tripped a breaker.
 
 A heavy data operation then reads as a lifecycle:
 
@@ -283,13 +283,13 @@ A heavy data operation then reads as a lifecycle:
 
 ## The transpiler mnemonics
 
-The language has three sets of mnemonics: the high order language's words (`.g`), the four-letter mnemonics a branch pair resolves to, and the transpiler's, below. Each is a relational matrix, and the three are mapped onto each other directly. A branch then resolves through all three at once, inside one branch or between two.
+The language has three sets of mnemonics: the high order language's words (`.g`), the four-character mnemonics a branch pair resolves to, and the transpiler's, below. Each is a relational matrix, and the three are mapped onto each other directly. A branch then resolves through all three at once, inside one branch or between two.
 
-The transpiler's mnemonics are its word map. A thing is named after what it is, by the word the industry already uses for it, and the base words every reader knows, `offset`, `move`, `copy`, `read`, `write`, `only`, `to`, `from`, join them. A core op takes the name Rust gives it: `add`, `sub`, `mul`, `div`, `neg`, `bitand`, `bitor`, `bitxor`, `shl`, `shr`, and the comparisons `lt`, `le`, `gt`, `ge`, `eq` and `ne`. A name is never apart from the thing it names: its meaning is the thing. Every word is a row of a language table in `src/lng`, `transpiler_lng.tsv`, `gnascor_hol_lng.tsv` or `gnascor_asm_lng.tsv`, and `src/lng/lng_check.c` holds each name against what its form does and each table against the others. Each word is a morpheme, as a Chinese morpheme is: it carries what the thing is, what it does where a word can say it, and whatever else the thing holds, its width, its sign, its space, the condition it is done under. A name is those morphemes compounded, and compounded they carry the author's whole intent: a reader who has the morphemes reads the name back into everything the author meant by it. Every form the code generator writes (`src/cu/engine/rmc/machine_ir_types.h`) is named by words of three kinds, and a name is read off the matrices below as a mnemonic is read off a pair. A thing word names what a form acts on: a register's class, a space of memory, a part of a word, or a piece of the text around a lane. A doing word names what the form does to it: a verb, or a comparison where the form sets a flag. A gluing word joins a name to another thing or to a condition. A cell holds the name its row and its column give, `-` where the code generator writes no such form, *needed* where the measuring stick (`src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick.md`) writes one that no form gives, and `?` where a word is not yet settled.
+The transpiler's mnemonics are its word map. A thing is named after what it is, by the word the industry already uses for it, and the base words every reader knows, `offset`, `move`, `copy`, `read`, `write`, `only`, `to`, `from`, join them. A core op takes the name Rust gives it: `add`, `sub`, `mul`, `div`, `neg`, `bitand`, `bitor`, `bitxor`, `shl`, `shr`, and the comparisons `lt`, `le`, `gt`, `ge`, `eq` and `ne`. A name is never apart from the thing it names: its meaning is the thing. Every word is a row of a language table in `src/lng`, `transpiler_lng.tsv`, `gnascor_hol_lng.tsv` or `gnascor_asm_lng.tsv`, and `src/lng/lng_check.c` holds each name against what its form does and each table against the others. Each word is a morpheme, as a Chinese morpheme is: it carries what the thing is, what it does where a word can say it, and whatever else the thing holds, its width, its sign, its space, the condition it is done under. A name is those morphemes compounded, and compounded they carry the author's whole intent: a reader who has the morphemes reads the name back into everything the author meant by it. Every form the code generator writes (`src/cu/engine/rmc/machine_ir_types.h`) is named by words of three types, and a name is read off the matrices below as a mnemonic is read off a pair. A thing word names what a form acts on: a register's class, a space of memory, a part of a word, or a piece of the text around a lane. A doing word names what the form does to it: a verb, or a comparison where the form sets a flag. A gluing word joins a name to another thing or to a condition. A cell holds the name its row and its column give, `-` where the code generator writes no such form, *needed* where the measuring stick (`src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick.md`) writes one that no form gives, and `?` where a word is not yet settled.
 
 **Thing words.**
 
-| kind | words |
+| type | words |
 |---|---|
 | a register's class | `sign` (a signed byte of -1, 0 or 1), `byte` (8 bits), `signed_byte`, `halfword` (16 bits), `signed_halfword`, `word` (32 bits), `signed_word`, `wide` (64 bits), `signed_wide`, `predicate` |
 | a space of memory | `global`, `parameter`, `launch`, `record`, `shared` |
@@ -384,14 +384,14 @@ A declaration takes the bank it declares: `declare_file`, `declare_signs`, `decl
 | block dim | `block_dim_x` | `block_dim_y` | `block_dim_z` |
 | grid dim | `grid_dim_x` | `grid_dim_y` | `grid_dim_z` |
 
-`warp_size` stands alone, as CUDA names it.
+`warp_size` is alone, as CUDA names it.
 
 ### How the words resolve
 
 - **A thing word comes first.** A form is named by the thing it writes and then what it does to it, `word_add`. The space comes first for memory, `global_load_word`, and the thing marked first for the text around a lane, `lane_open`.
 - **Control comes first.** `exit` and `return` lead a name, `exit_if`, and so does a cast, `cast_global`, and a declaration, `declare_file`.
 - **A test comes first where it sets a flag.** `test` is the doing word, then the thing it reads and the comparison the flag holds, `test_signed_word_lt`.
-- **Gluing words come last or between.** `from` stands between the thing written and the thing it is made from. `if` and `unless` end a name done under a flag, and `and` and `or` end a test folded into another.
+- **Gluing words come last or between.** `from` is between the thing written and the thing it is made from. `if` and `unless` end a name done under a flag, and `and` and `or` end a test folded into another.
 - **Sign goes before the width it signs.** `signed_word` and `signed_wide` are things of their own, and `word` and `wide` with no sign before them are unsigned. A doing word whose writing is the same for either sign takes no sign, `wide_add`.
 - **A part follows what it is a part of.** `word_add_first`, `word_mul_low`, `thread_idx_x`.
 
@@ -405,7 +405,7 @@ A declaration takes the bank it declares: `declare_file`, `declare_signs`, `decl
 
 4. **The matrices are hand-assigned, sync is a catch-all, and a label is decided in its situation.** Every 0,1 pair in both tables above was assigned by reading instead of generated. `utils/maint/engine/order_check.py` reads both tables out of this file and counts them: of 49 transitions in the first, 12 resolve to a name nothing else uses and sync covers 22. drop covers 6, halt 5, join and wake 2 each. The second table is 8 of 12 unique, with vent and tilt covering 2 each.
 
-   A name covering many transitions is a choice. It is a defect where the name is all a branch gets, because the transitions under it are then gone and no later reading brings them back. The cost bound follows the opposite rule: a missing address, a false qualifier and a timeout all read 0, and what separates them survives in the baseline instead of in the bit. Each name above covering more than one transition owes an answer to where its distinctions are kept, and sync at 22 owes the most.
+   A name covering many transitions is a choice. It is a defect where the name is all a branch gets, because the transitions under it are then gone and no later reading brings them back. The cost bound follows the opposite rule: a missing address, a false qualifier and a timeout all read 0, and what separates them survives in the baseline instead of in the bit. Each name above covering more than one transition owes an answer to where its distinctions are retained, and sync at 22 owes the max.
 
    The answer is the pair. A transition is the state it left and the state it reached, and a name is a label read off that pair. Carried as its pair, a transition under sync is still every one of the 22, and a label lost or shared costs nothing a branch can read. Check 13 in `order_check.py` proves what a label can still get wrong, from the two tables alone. Where both tables name a transition, 3 agree, 7 the second names where the first says sync, and 2 are named apart: dual to lead is drop in the first and tilt in the second, and dual to void is drop in the first and fuse in the second. Read from the other side of the branch, lead and rite trading places, three transitions read otherwise in the first table: dual to lead is drop where dual to rite is sync, lead to lead is core where rite to rite is surv, and lead to rite is pass where rite to lead is back. The last is the directional handoff the first table describes.
 
@@ -413,20 +413,20 @@ A declaration takes the bank it declares: `declare_file`, `declare_signs`, `decl
 
    core and surv stay apart only where the side a branch is read from leaves a mark, and the part is asked. `utils/test/src/cu/transpiler/lstar/protocol/branch_side_check.c` puts two branches doing the same work through the known order, the one asked first changing every trial. Every pass of each branch is solved on its own in exact integers, the two compared at each link by cross-multiplying their exact costs, and a trial counts once, by which branch is dearer in more of its comparisons. On the host the branch asked first reads dearer in 12 of 29 trials that are not even, no lean past twice the spread, and with one branch 512 reads dearer at every link the cheaper reads cheaper in 46 to 58 of 64 comparisons at every link, from both sides alike. On the host a steady lead and a steady rite are one state seen from two sides. That holds for the host, and a part whose side leaves a mark reads core and surv apart.
 
-5. **The state machine is read off a trace, and no syntax is defined for how an operator writes a query loop.** `utils/maint/engine/gnascor_read.py` reads both tables out of this file, takes a trace of asks a cycle at a time, the kind and cost of each side's ask and the bound, and prints the coherence clock: a state each cycle and one label each transition, decided in its situation. A side reads 1 where its ask satisfied inside the bound. blok is a side that ended its asker, wait a satisfied side beside one past its bound, and busy two satisfied sides each dearer than any satisfied ask of the trace's baseline cycles. The edge busy reads against, and the fraction of a cycle tilt reads against, are the baseline's largest satisfied cost and never a figure written in. `--check` holds every rule on traces whose answers are known, and every one of the 49 pairs the tables name is given a label from its own candidates in all 256 situations two sides can be in.
+5. **The state machine is read off a trace, and no syntax is defined for how an operator writes a query loop.** `utils/maint/engine/gnascor_read.py` reads both tables out of this file, takes a trace of asks a cycle at a time, the type and cost of each side's ask and the bound, and prints the coherence clock: a state each cycle and one label each transition, decided in its situation. A side reads 1 where its ask satisfied inside the bound. blok is a side that ended its asker, wait a satisfied side beside one past its bound, and busy two satisfied sides each dearer than any satisfied ask of the trace's baseline cycles. The edge busy reads against, and the fraction of a cycle tilt reads against, are the baseline's largest satisfied cost and never a figure written in. `--check` holds every rule on traces whose answers are known, and every one of the 49 pairs the tables name is given a label from its own candidates in all 256 situations two sides can be in.
 
    Reading the tables against real asks says six things about them:
 
    - tilt and wait name one event. tilt is dual decaying as soon as one address takes a fraction of a cycle longer, and wait is one system lagging just enough to stall without failing. Read off asks, a satisfied side beside one a fraction late is wait. A dual whose side lags goes dual to wait, labeled sync, and dual to lead by tilt never arrives.
-   - A name stands for a state and for a transition. The second table labels wait to lead as lead and wait to rite as rite. core is the pair 1,0 in the branch pair table and lead to lead in the transition table, and dual is the value 2 in the branch pair table and the pair 1,1 everywhere else.
-   - void does not separate two sides that both came in past the bound from two that both did not hold. The kind each ask carries does, and the trace keeps it where the state drops it.
+   - A name is for a state and for a transition. The second table labels wait to lead as lead and wait to rite as rite. core is the pair 1,0 in the branch pair table and lead to lead in the transition table, and dual is the value 2 in the branch pair table and the pair 1,1 everywhere else.
+   - void does not separate two sides that both came in past the bound from two that both did not hold. The type each ask carries does, and the trace retains it where the state drops it.
    - Two prose rules carry exceptions the tables hold. Any state to blok is halt, and busy to blok is jamm and blok to blok is dead. Any stable state to void is drop, and dual to void is fuse where both sides go at once. The reader follows the tables, and the prose rules read as the defaults they are.
-   - dual at maximum is not a stable state, and dual to dual, nexus, is listed among the static steady states.
-   - shift, in the branch pair table, has five letters where every other mnemonic has four.
+   - dual at max is not a stable state, and dual to dual, nexus, is listed among the static steady states.
+   - shift, in the branch pair table, has five characters where every other mnemonic has four.
 
    Which of these are meant and which are not is Doug's.
 
-   gray is every state at once: a side not asked, and a pair with no reading. It keeps the mnemonic layer from collapsing a possibility nobody has observed, and only an ask collapses it. The reader reads a side written as - as unasked and the pair as gray, whatever the other side read, and a refusal still reads blok, since a refusal is an answer. Into gray from any other state is fuzz, and out of gray to any other state is fizz. A fizz never lands on gray and gray never FUZZes: gray to gray is neither and carries no label: the pair is still unasked. Those two exclusions make a trip through gray atomic. A fuzz opens it, one fizz closes it, and no fuzz opens inside another. The reader checks that over 500 drawn traces of 40 cycles, every side drawn from satisfied, heavy, not satisfied, late, ended and unasked. Whether a slice whose per-link difference sits inside the floor reads dual, as Slicing a chain has it, or gray, since it says neither branch is cheaper, is open beside them.
+   gray is every state at once: a side not asked, and a pair with no reading. It retains the mnemonic layer from collapsing a possibility nobody has observed, and only an ask collapses it. The reader reads a side written as - as unasked and the pair as gray, whatever the other side read, and a refusal still reads blok, since a refusal is an answer. Into gray from any other state is fuzz, and out of gray to any other state is fizz. A fizz never lands on gray and gray never FUZZes: gray to gray is neither and carries no label: the pair is still unasked. Those two exclusions make a trip through gray atomic. A fuzz opens it, one fizz closes it, and no fuzz opens inside another. The reader checks that over 500 drawn traces of 40 cycles, every side drawn from satisfied, heavy, not satisfied, late, ended and unasked. Whether a slice whose per-link difference sits inside the floor reads dual, as Slicing a chain has it, or gray, since it says neither branch is cheaper, is open beside them.
 
    sync passes the same way: fuzz+in into the sync superstate and fizz+out of it, the pair locked into the two labels. The reader prints every sync transition as that passage, and `--check` reads back the exact pair of all 3,035 sync passages in its 500 drawn traces from the labels alone.
 
@@ -434,4 +434,4 @@ A declaration takes the bank it declares: `declare_file`, `declare_signs`, `decl
 
    The syntax for writing a query loop is not started.
 
-6. **The high order language's mnemonics are not a matrix yet.** The three sets map onto each other only once the high order language's words stand in a matrix of their own. The *needed* cells are the forms the measuring stick asks for next.
+6. **The high order language's mnemonics are not a matrix yet.** The three sets map onto each other only once the high order language's words are in a matrix of their own. The *needed* cells are the forms the measuring stick asks for next.

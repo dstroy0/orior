@@ -5,10 +5,10 @@ University of Washington, ICSNL 60.
 
 Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
-pure corpus, then against this paper's own English laid over that reference. What the paper's
+pure corpus, then against this paper's own English positioned over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
 from the characters that sit outside that English, and word_web.web() built 280 edges over the
-language forms. A person then matched the context: who, kind and gloss for each row, the names,
+language forms. A person then matched the context: who, type and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
 someone reads the paper again and says otherwise.
@@ -23,20 +23,20 @@ The who of a cited Lushootseed word is Lushootseed. Snyder's 1957 transcriptions
 Snyder's, and writer, rider and wife in footnote 2 and Section 5 are English. The table rows, the
 prose, the headings and the notes carry Ted Kye.
 
-THE LETTERS
+THE CHARACTERS
 
-Outside the paper's English the engine found these letters and marks: á ó č š ƛ ə ɬ ʌ ʔ ʷ ́ ̌ ̓ ̕.
+Outside the paper's English the engine found these characters and marks: á ó č š ƛ ə ɬ ʌ ʔ ʷ ́ ̌ ̓ ̕.
 The forms are in the Americanist orthography of Bates, Hess and Hilbert 1994: y for the palatal
 glide, y̓ for its glottalized form, ə for schwa, x̌ for the uvular fricative, ƛ̕ for the glottalized
-lateral affricate, ʷ for labialization. Phonemes stand between slashes and pronunciations between
+lateral affricate, ʷ for labialization. Phonemes are between slashes and pronunciations between
 square brackets, with IPA [ɐ] for a range of mid central vowels.
 
 THE PAGE AND THE TEXT LAYER
 
 The forms are in NFC, and the check puts the text layer through the same repair: the space the PDF
 sets after a stacked mark is closed, except before an opening quote, then NFC. The text layer sets a
-space after a letter with a mark, k̓ ʷaɬ in Table 1, closed from the glyph positions. Table 2 prints
-‘grandmother without its closing quote, and Steller Jay and Steller jay in two rows; both kept as
+space after a character with a mark, k̓ ʷaɬ in Table 1, closed from the glyph positions. Table 2 prints
+‘grandmother without its closing quote, and Steller Jay and Steller jay in two rows; both retained as
 printed. The prose cites Hess (1977) and Chambers 2006, which the references do not list; the list
 holds Hess 1967 and Chambers 1973. The figures, a map, spectrograms and plots, have no text layer
 beyond their captions.
@@ -51,7 +51,7 @@ where    the paper's locator: the title, the front matter, a section, a footnote
 who      the language for an example tier and a cited form; the work cited on an example's
          line, or the speaker for a volunteered translation, for its English; the authors for
          the prose, the tables and the notes
-kind     cited form     a word of the language named in the prose, a note or a table
+type     cited form     a word of the language named in the prose, a note or a table
          cited affix    an affix named on its own
          place          a place name
          language       a language name

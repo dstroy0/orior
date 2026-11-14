@@ -10,7 +10,7 @@
 // target must produce if it supports that word at all. The target is then queried and the two are compared. Where they
 // agree the target has a word for that tree, and where they differ it does not. No person states the answer.
 //
-// This is the half of the derivation that needs no target. A form carries an operation's name and the kind of each
+// This is the half of the derivation that needs no target. A form carries an operation's name and the type of each
 // operand and states nothing about what the operation means. A name therefore cannot be matched to a word. Running
 // can: where an operand of a form is a truth table of eight bits, sweep its 256 values and retain whichever answers
 // as the tree does, and the target's word for that tree is found with nobody naming the value.
@@ -20,7 +20,7 @@
 // the widths a case is run at. A word is 32 bits here, as every ruleset's word bank is
 #define PRECEPT_WORD_BITS 32u
 #define PRECEPT_WORD_MASK 0xffffffffu
-// the most operands a case carries
+// the max operands a case carries
 #define PRECEPT_OPERANDS 8u
 
 // one case: the operands a tree is applied to, by their place
@@ -30,7 +30,7 @@ typedef struct
     unsigned int operands;
 } PreceptCase;
 
-// the word `leaf` stands for: an operand by its place, a word of zeroes, or a word of ones
+// the word `leaf` is for: an operand by its place, a word of zeroes, or a word of ones
 static unsigned int precept_leaf(unsigned char leaf, const PreceptCase *given)
 {
     if (leaf == PRECEPT_ZERO)

@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// button_test.c: the buttons' check: they start at rest with nothing baked; their beads' atlas lays out over the
-// block's bead part in the palette's colors; a press flattens the button's own bead over the press's time and stands
+// button_test.c: the buttons' check: they start at rest with nothing baked; their beads' atlas arranges over the
+// block's bead part in the palette's colors; a press flattens the button's own bead over the press's time and is
 // at the last frame; the release springs it back on the bead's curve, wobbles past rest and settles there; a release
-// with no button held and a press past the buttons do nothing; and a button drawn lays its bead at its cell
+// with no button held and a press past the buttons do nothing; and a button drawn positions its bead at its cell
 #include "../../../../../includes/window/block.h"
 #include "../../../../../includes/window/button.h"
 #include "../../../../../includes/window/frame.h"
@@ -16,7 +16,7 @@
 #define BUTTON_TEST_WIDTH 1440u
 #define BUTTON_TEST_HEIGHT 920u
 
-// the frame the button `tool`'s press stands at, at `time_ms`, as the draw reads it
+// the frame the button `tool`'s press is at, at `time_ms`, as the draw reads it
 static unsigned int frame_at(const GuiButtons *buttons, unsigned int tool, unsigned long long time_ms, unsigned long long lasts_ms)
 {
     const int press = EMBED_CALL(gui_autohide_slide.slide_at, GuiAutohideSlideCfg, .slide = &buttons->press[tool],
@@ -48,11 +48,11 @@ int main(void)
                    .pad = BUTTON_TEST_PAD, .reach = BUTTON_TEST_REACH, .tools = 2u);
     GuiColor *const pixels_span = (GuiColor *)(void *)EMBED_CALL(gui_block_part.span, GuiBlockPartCfg,
                                                                   .part = GUI_BLOCK_BEAD, .segment = 0u, .bytes = bytes);
-    cli_check((bytes > 0ULL) && (pixels_span != NULL), "the sizes take bytes, which the block's bead part hands over");
+    cli_check((bytes > 0ULL) && (pixels_span != NULL), "the sizes take bytes, which the block's bead part passes over");
     cli_check(EMBED_CALL(gui_buttons_bake_table.bake, GuiButtonsBakeCfg, .buttons = &buttons, .palette = palette,
                          .width = BUTTON_TEST_SIDE, .height = BUTTON_TEST_SIDE, .pad = BUTTON_TEST_PAD, .reach = BUTTON_TEST_REACH, .cells = cells,
                          .tools = 2u, .lights = lights, .light_count = light_count, .pixels = pixels_span),
-              "the atlas lays out over the pixels handed in");
+              "the atlas arranges over the pixels passed in");
     cli_check(buttons.atlas.made && (buttons.atlas.tools == 2u) && (buttons.atlas.color[GUI_BEAD_COLOR_GLINT] == palette->bead_glint) &&
                   (buttons.atlas.color[GUI_BEAD_COLOR_SHADOW] == palette->bead_shadow),
               "in the palette's bead colors");
@@ -65,7 +65,7 @@ int main(void)
                    4000ULL + GUI_BUTTONS_PRESS_MS),
               "a press flattens the button's own bead over the press's time");
     cli_check(frame_at(&buttons, 1u, 4000ULL + GUI_BUTTONS_PRESS_MS, GUI_BUTTONS_PRESS_MS) == GUI_BEAD_FRAMES - 1u,
-              "pressed, it stands at the last frame");
+              "pressed, it is at the last frame");
     EMBED_CALL(gui_buttons_move.release, GuiButtonsMoveCfg, .buttons = &buttons, .time_ms = 4200ULL);
     cli_check((buttons.pressed == GUI_BEAD_TOOLS_MAX) && (buttons.press[1].to == GUI_FIXED_ONE) &&
                   (buttons.press[1].from == 2 * GUI_FIXED_ONE) && (buttons.press[1].curve == GUI_CURVE_BEAD),
@@ -84,7 +84,7 @@ int main(void)
     EMBED_CALL(gui_buttons_move.press, GuiButtonsMoveCfg, .buttons = &buttons, .tool = GUI_BEAD_TOOLS_MAX, .time_ms = 5000ULL);
     cli_check(buttons.pressed == GUI_BEAD_TOOLS_MAX, "a press past the buttons does nothing");
 
-    // a button drawn with its press standing is blitted at the pressed frame, the cell's top right corner off its frost
+    // a button drawn with its press located is blitted at the pressed frame, the cell's top right corner off its frost
     GuiRaster raster;
     cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 120u, .height = 120u,
                          .part = GUI_BLOCK_ICON_WORK),
@@ -100,10 +100,10 @@ int main(void)
     const unsigned int glint_x = (unsigned int)at_x + BUTTON_TEST_PAD + 6u;
     cli_check((raster.pixels[(glint_row * 120u) + glint_x] != ground) &&
                   (raster.pixels[((unsigned int)at_y * 120u) + (unsigned int)at_x + buttons.atlas.cell_width - 1u] == ground),
-              "a button drawn lays its bead at its cell");
+              "a button drawn positions its bead at its cell");
     EMBED_CALL(gui_buttons_draw_table.draw, GuiButtonsDrawCfg, .buttons = &buttons, .raster = &raster, .tool = 0u, .x = at_x,
                .y = at_y, .fade = 255u, .time_ms = 6000ULL + GUI_BUTTONS_PRESS_MS);
-    cli_check(raster.pixels[(glint_row * 120u) + glint_x] != ground, "a button faded whole lays nothing more");
+    cli_check(raster.pixels[(glint_row * 120u) + glint_x] != ground, "a button faded whole positions nothing more");
     EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

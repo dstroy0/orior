@@ -68,7 +68,7 @@ int main(int count, char **arguments)
     {
         ok = ok && (cycle_record_load(&inverse[floors].layout, &inverse[floors].record, &error) != CYCLE_ERROR);
     }
-    sim_check(&results, ok, "the Gaussian floors and the inverse floors encode, lay out and load");
+    sim_check(&results, ok, "the Gaussian floors and the inverse floors encode, arrange and load");
 
     // the pair's norm doubles a floor. Its registers widen a bit every second floor: floor k is 24 + ceil(k / 2)
     int widths = ok;
@@ -172,7 +172,7 @@ int main(int count, char **arguments)
     sim_check(&results, parity,
               "every floor's two registers share their parity on every lane: one bit dropped a floor");
     sim_check(&results, in_range && (reached != 0),
-              "floor 8's values lie in [-2^27, 2^27), 28 bits signed, and the most negative field reaches -2^27");
+              "floor 8's values lie in [-2^27, 2^27), 28 bits signed, and the max negative field reaches -2^27");
     int every_filled = host_ran;
     for (unsigned int level = 1u; level <= GAUSSIAN_TEST_FLOORS; level += 1u)
     {

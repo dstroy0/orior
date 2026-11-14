@@ -8,7 +8,7 @@
 import { pick } from "../bridge.js";
 import { scheme } from "../scheme.js";
 import { BASES, contrastOf, contrastPairs, CONTRAST_LEAST, deleteTheme, iconColor, IMAGE_OPACITY, paletteOf, themes } from "../themes.js";
-import { BASE_NAMES, chooseImage, chooseTheme, exportTheme, groupOf, IMAGE_SHARES, importTheme, keepIcons, newTheme, removeImage, renameTheme, setColor, shareImage, shownTheme, swatchOf, withAlpha } from "./theme.js";
+import { BASE_NAMES, chooseImage, chooseTheme, exportTheme, groupOf, IMAGE_SHARES, importTheme, retainIcons, newTheme, removeImage, renameTheme, setColor, shareImage, displayedTheme, swatchOf, withAlpha } from "./theme.js";
 
 function element(tag, props = {}, ...children) {
   const made = Object.assign(document.createElement(tag), props);
@@ -16,11 +16,11 @@ function element(tag, props = {}, ...children) {
   return made;
 }
 
-// The image the theme lays behind the editor: chosen from a file, the share of it that shows, and
+// The image the theme positions behind the editor: chosen from a file, the share of it that shows, and
 // taken off.
 function imageRow(at) {
   const { said, draw } = at;
-  const image = shownTheme()?.image ?? null;
+  const image = displayedTheme()?.image ?? null;
   const button = (text, run, disabled = false) => {
     const made = element("button", { type: "button", className: "prefs-button", textContent: text, disabled });
     made.addEventListener("click", run);
@@ -70,26 +70,26 @@ function imageRow(at) {
 // its cross, and one more added by Add.
 function iconsSection(at) {
   const { body, draw } = at;
-  const icons = shownTheme()?.icons ?? [];
-  const keep = keepIcons;
+  const icons = displayedTheme()?.icons ?? [];
+  const retain = retainIcons;
   const rows = icons.map((icon, at) => {
-    const mark = element("span", { className: "icon prefs-icon-shown", ariaHidden: "true" });
+    const mark = element("span", { className: "icon prefs-icon-displayed", ariaHidden: "true" });
     const drawMark = () => {
-      const now = shownTheme()?.icons?.[at];
+      const now = displayedTheme()?.icons?.[at];
       mark.textContent = now?.mark ?? "";
       mark.style.color = iconColor(now?.color) || "";
     };
     const field = (key, label) => {
       const input = element("input", { className: `report-field prefs-icon-${key}`, type: "text", value: icon[key] ?? "", placeholder: label, ariaLabel: label, spellcheck: false });
       input.addEventListener("change", () => {
-        keep((shownTheme()?.icons ?? []).map((one, index) => (index === at ? { ...one, [key]: input.value.trim() } : one)));
+        retain((displayedTheme()?.icons ?? []).map((one, index) => (index === at ? { ...one, [key]: input.value.trim() } : one)));
         drawMark();
       });
       return input;
     };
     const off = element("button", { type: "button", className: "prefs-key-off", textContent: "×", title: "Take this icon off" });
     off.addEventListener("click", () => {
-      keep((shownTheme()?.icons ?? []).filter((_, index) => index !== at));
+      retain((displayedTheme()?.icons ?? []).filter((_, index) => index !== at));
       draw();
     });
     drawMark();
@@ -97,7 +97,7 @@ function iconsSection(at) {
   });
   const add = element("button", { type: "button", className: "prefs-button", textContent: "Add" });
   add.addEventListener("click", () => {
-    keep([...(shownTheme()?.icons ?? []), { pattern: "", mark: "", color: "" }]);
+    retain([...(displayedTheme()?.icons ?? []), { pattern: "", mark: "", color: "" }]);
     draw();
     [...body.querySelectorAll(".prefs-icon-pattern")].at(-1)?.focus();
   });
@@ -105,7 +105,7 @@ function iconsSection(at) {
     "div",
     { className: "prefs-icons" },
     element("h4", { textContent: "File icons" }),
-    element("p", { className: "prefs-icons-said", textContent: "A file takes the first icon whose pattern its name matches, * standing for any letters and ? for one; a color is one of the palette's, as --t2, or any color." }),
+    element("p", { className: "prefs-icons-said", textContent: "A file takes the first icon whose pattern its name matches, * located for any characters and ? for one; a color is one of the palette's, as --t2, or any color." }),
     ...rows,
     add,
   );
@@ -120,7 +120,7 @@ export function themeRow(at) {
   for (const theme of themes()) {
     select.append(element("option", { value: `theme:${theme.name}`, textContent: `${theme.name} (${BASE_NAMES[theme.base]})` }));
   }
-  const theme = shownTheme();
+  const theme = displayedTheme();
   select.value = theme ? `theme:${theme.name}` : `base:${scheme()}`;
   select.addEventListener("change", () => {
     chooseTheme(select.value.slice(select.value.indexOf(":") + 1));
@@ -128,7 +128,7 @@ export function themeRow(at) {
   });
   const name = element("input", { className: "report-field prefs-name", type: "text", value: theme?.name ?? "", hidden: !theme, ariaLabel: "Name", spellcheck: false });
   name.addEventListener("change", () => {
-    const was = shownTheme();
+    const was = displayedTheme();
     const wanted = name.value.trim();
     if (!was || !wanted || wanted === was.name) {
       name.value = was?.name ?? "";
@@ -152,7 +152,7 @@ export function themeRow(at) {
     button(
       "Delete",
       () => {
-        deleteTheme(shownTheme().name);
+        deleteTheme(displayedTheme().name);
         draw();
       },
       !theme
@@ -217,7 +217,7 @@ function colorRow(at, name, base, theme) {
 export function colorsSection(at) {
   const { state } = at;
   const base = paletteOf(scheme());
-  const theme = shownTheme();
+  const theme = displayedTheme();
   const contrasts = element("p", { className: "prefs-contrasts", hidden: true });
   const filter = element("input", { className: "filter", type: "search", placeholder: "Search", value: state.filter, spellcheck: false, ariaLabel: "Search colors" });
   const grid = element("div", { className: "prefs-colors" });
@@ -241,7 +241,7 @@ export function colorsSection(at) {
   // row with the ratio and the color under it, and listed over the palette.
   at.drawContrast = () => {
     const colors = new Map(base);
-    for (const [name, value] of Object.entries(shownTheme()?.colors ?? {})) {
+    for (const [name, value] of Object.entries(displayedTheme()?.colors ?? {})) {
       colors.set(name, value);
     }
     const low = new Map();

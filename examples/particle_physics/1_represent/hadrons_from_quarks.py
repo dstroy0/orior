@@ -61,7 +61,7 @@ MESON_NAMES = {
 
 def light_quarks():
     """The u, d and s quarks pulled from the ledger, in the LIGHT order."""
-    found = {one.symbol: one for one in standard_model.PARTICLES if one.kind == "quark"}
+    found = {one.symbol: one for one in standard_model.PARTICLES if one.type == "quark"}
     return [found[symbol] for symbol in LIGHT]
 
 

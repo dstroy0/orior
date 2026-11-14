@@ -19,7 +19,7 @@ number theory workbook beside this file already follows:
 - Cite nothing unread. A fact that arrived by report says so in the sentence carrying it.
 - Gaps go in the sentence making the claim and never in a footnote.
 - Withdrawn entries stay on the page with whatever killed them. Four are recorded below.
-- Draw the bar, never derive it. The boundary kind below is read off each object by a probe, never
+- Draw the bar, never derive it. The boundary type below is read off each object by a probe, never
   assigned by judgment.
 
 We know nothing here that the field does not. Every object in these two files belongs to someone else
@@ -122,7 +122,7 @@ when `c_{-k}` is the conjugate of `c_k`; `R_div` its divergence-free vector fiel
   (D)'s data and none of (A) and (C)'s, and the table below says `not run` for the whole-space sets.
 - `R_div` is closed under the constructors of the recurrence (products, derivatives, Leray's projection
   with the denominator widened). Every Taylor coefficient of a solution with datum in `R_div` is in
-  `R_div`; shown to order 4 and true by construction at every order.
+  `R_div`; displayed to order 4 and true by construction at every order.
 - The solution itself, `u(t)` for `t > 0`, is not in `R`: for the ABC datum it is `e^{-4 nu pi^2 t} u_0`,
   whose amplitude is not a Laurent polynomial in `pi` with integer coefficients, and for a generic datum
   the horizon table shows the mode set has no finite bound. `R` names the datum and the coefficients at
@@ -135,7 +135,7 @@ when `c_{-k}` is the conjugate of `c_k`; `R_div` its divergence-free vector fiel
 
 ## What they knew, what they wanted, what we know
 
-Three lists, kept apart. The first two are Fefferman's statement, read; the third is the two files, run.
+Three lists, retained apart. The first two are Fefferman's statement, read; the third is the two files, run.
 
 **What they knew**, as the statement records it, in his order and his attributions:
 
@@ -191,13 +191,13 @@ not on the Clay list.
   `f`. Two instances, no theorem.
 - `R_div` is countable and `D_8` is not. The exactly nameable data are a measure-zero island in the
   data class; everything the ring does is on that island.
-- The boundary kind of each object above, read by probe: none on the ABC coefficients and on the exact
+- The boundary type of each object above, read by probe: none on the ABC coefficients and on the exact
   ring, completeness on a generic datum's horizon, format on any decimal report of a coefficient with
   `pi` in it, measurement on a deposited amplitude and none on the ratio that cancels it. Through the
-  chain `datum -> u_3`: the ring carries no format kind; measurement is carried to every order, exactly
+  chain `datum -> u_3`: the ring carries no format type; measurement is carried to every order, exactly
   on the ABC family; completeness is carried and grows.
 - The disjoint-translate constructor splits the bilinear term exactly when supports are disjoint and not
-  when they overlap, in one variable on a lattice of eighths. That result belongs to its own algebra and stands apart from their corollary.
+  when they overlap, in one variable on a lattice of eighths. That result belongs to its own algebra and is apart from their corollary.
 - We do not know whether (A), (B), (C) or (D) holds. We have not read the 2026 proof. We have computed
   neither a blowup, a weak solution, a singular set nor a solution on `R^3`. The two files reach one
   countable island inside `D_8` and read it exactly; they reach nothing past it.
@@ -230,9 +230,9 @@ with (2) enforced by Leray's projection. Nothing is rounded.
   three dimensions; flipping the pressure sign leaves a nonzero residual.
 - The energy identity at `t = 0`, `d/dt int |u|^2 = -2 nu int |grad u|^2`, holds exactly on both data:
   on the ABC datum both sides are `-56/5 pi^2` with `int |u_0|^2 = 14`. On the generic datum the two
-  pieces that vanish are shown to vanish, `int u.(u.grad)u = 0` and `int u.grad p = 0`, and the null is
+  pieces that vanish are displayed to vanish, `int u.(u.grad)u = 0` and `int u.grad p = 0`, and the null is
   a field with divergence, `u_0 + grad cos 2 pi x`, which moves energy through a pressure. This is the
-  mechanism behind (7) for `f = 0`, shown at one instant on one instance; it is not (7).
+  mechanism behind (7) for `f = 0`, displayed at one instant on one instance; it is not (7).
 - The horizon, on a generic divergence-free datum `g_0 = (sin 2 pi y + sin 2 pi z, sin 2 pi z, sin 2 pi x)`,
   not Beltrami, with a surviving Leray part and a nonzero pressure from order 1:
 
@@ -240,7 +240,7 @@ with (2) enforced by Leray's projection. Nothing is rounded.
   | ------------------------ | --- | --- | --- | --- | --- |
   | largest `\|k\|_1`        | 1   | 2   | 3   | 4   | 5   |
   | largest `\|k\|_inf`      | 1   | 1   | 2   | 3   | 4   |
-  | modes kept               | 6   | 18  | 42  | 88  | 170 |
+  | modes retained               | 6   | 18  | 42  | 88  | 170 |
   | outside `\|k\|_inf <= 1` | 0   | 0   | 16  | 62  | 144 |
   | outside `\|k\|_inf <= 2` | 0   | 0   | 0   | 16  | 66  |
 
@@ -250,7 +250,7 @@ with (2) enforced by Leray's projection. Nothing is rounded.
 
 - Symmetries, exact on the coefficients. Time scaling `v(x,t) = mu u(x, mu t)` solves (1)-(3) at viscosity
   `mu nu` with `v_m = mu^(m+1) u_m`, checked at `mu = 3`; the wrong exponent `mu^m` is refused. Space
-  scaling `v(x,t) = lam u(lam x, lam^2 t)` at the same `nu` keeps the period and gives
+  scaling `v(x,t) = lam u(lam x, lam^2 t)` at the same `nu` retains the period and gives
   `v_m = lam^(1+2m) u_m(lam x)`, checked at `lam = 2`. The viscosity is a parameter a scaling moves.
 - The two removals, on instances. At `nu = 0` the ABC field is stationary and solves Euler exactly; in
   (1) at `nu = 1/10` its residual is `4 nu pi^2 u_0`, nonzero; the decaying viscous field's residual in
@@ -258,7 +258,7 @@ with (2) enforced by Leray's projection. Nothing is rounded.
   `f` equal to its own residual, real and periodic, nonzero at orders 0 to 2, and in the unforced equation
   its residual is that `f`. Neither solution set inherits the other's membership on these instances.
   This is the millennium chapter's argument from the shapes of the statements, that removing the force
-  and removing the viscosity are different removals, shown exactly on one field each. It says nothing
+  and removing the viscosity are different removals, displayed exactly on one field each. It says nothing
   about blowup and nothing about the 2026 paper's construction, which is not represented here.
 - The island. `F_b = sum_n 2 b_n n^-n cos(2 pi n x) e_y`, for a bit sequence `b`, is divergence-free
   and real-valued at every truncation, distinct sequences give distinct fields, and the bits read back
@@ -269,7 +269,7 @@ with (2) enforced by Leray's projection. Nothing is rounded.
 ## Entry 2, 2026-09-17: the boundary function asked to define itself
 
 `evidence/proofs/posits/proof_boundary_inheritance.py`, run and exit 0. `proof_domain_boundaries.py`
-named three kinds of boundary from a survey. A survey assigns the kind by judgment. Here the kind is not
+named three types of boundary from a survey. A survey assigns the type by judgment. Here the type is not
 assigned: two probes are applied to the object, raise our scale by one and raise our horizon by one, and
 the object answers. The scale probe moves FORMAT and the horizon probe moves COMPLETENESS;
 MEASUREMENT is a gap to the target that neither probe moves, and NONE is no gap. `measurement` means exactly
@@ -277,13 +277,13 @@ MEASUREMENT is a gap to the target that neither probe moves, and NONE is no gap.
 good as the probes: the drawn null cuts the horizon probe from a completeness object and the classifier
 reports measurement, the limit stated and not hidden.
 
-Positive controls, kind fixed by construction: the NTT length on `119 * 2^23 + 1` at horizon `2^25`
+Positive controls, type fixed by construction: the NTT length on `119 * 2^23 + 1` at horizon `2^25`
 reads `format`; the 3-ary tree count at horizon 7 of 12 reads `completeness`; a deposit of six places
 against its true value reads `measurement`; `22/7` against itself reads `none`.
 
 Their sets, read by the probes, on `u_2` of the generic datum (its modes reach `|k|_inf = 2`):
 
-| object                                                 | gap | scale probe | horizon probe | kind                    |
+| object                                                 | gap | scale probe | horizon probe | type                    |
 | ------------------------------------------------------ | --- | ----------- | ------------- | ----------------------- |
 | `u_2` in decimals, 30 places, modes `\|k\|_inf <= 1`   | yes | moves       | moves         | format and completeness |
 | `u_2` in decimals, 30 places, modes `\|k\|_inf <= 2`   | yes | moves       | silent        | format                  |
@@ -292,9 +292,9 @@ Their sets, read by the probes, on `u_2` of the generic datum (its modes reach `
 | `u_2` from `A` deposited to 6 places, against true `A` | yes | silent      | silent        | measurement             |
 | `u_1 / u_0 = -4 nu pi^2`, deposit against true `A`     | no  | silent      | silent        | none                    |
 
-The format kind is a property of the report instead of the object: the same coefficient reads `format` in
+The format type is a property of the report instead of the object: the same coefficient reads `format` in
 decimals, because a coefficient carrying `pi` has no last digit, and reads `none` in the ring, which has
-no scale. The measurement kind is the deposit's, and it is canceled only by the ratio in which the
+no scale. The measurement type is the deposit's, and it is canceled only by the ratio in which the
 amplitude cancels, the floor-free ratio of the precision document's Regime C.
 
 ## Entry 3, 2026-09-17: the cascade and the coefficient growth, made visible
@@ -308,13 +308,13 @@ proof that reaches the same knot, and this is that: it shows the knot and does n
   generic datum. The front advances by exactly one shell per order, `1, 2, 3, 4, 5, 6` at orders 0 to 5,
   because a product of two modes adds their index vectors. The counts per shell are
   `6; 6, 12; 6, 12, 24; 6, 14, 24, 44; 6, 14, 34, 44, 72; 6, 16, 34, 62, 72, 108`. This is energy
-  reaching a finer scale each order, read with no `pi` in it. Null: the ABC datum, an eigenfunction, keeps
+  reaching a finer scale each order, read with no `pi` in it. Null: the ABC datum, an eigenfunction, retains
   its whole front on `|k|_1 = 1` at every order. It does not cascade.
 - The energy shells, exact. Whether a shell `|k|^2 = r` carries energy is the exact test that a ring
   quantity is zero, and it needs no numeric `pi`. The generic datum lights up more shells each order,
   `[1]`, `[1,2]`, `[1,2,3,5]`, up to eighteen shells at order 5. Two routes agree to the integer: the
   per-order energy from the velocity coefficients and from the vorticity coefficients recovered by
-  Biot-Savart. The shell energies sum to the total at every order, Parseval, exact. Null: ABC keeps all
+  Biot-Savart. The shell energies sum to the total at every order, Parseval, exact. Null: ABC retains all
   its energy in `|k|^2 = 1` at every order, and a route with one mode dropped is caught.
 - The coefficient growth, the knot. For ABC the energy obeys the exact law
   `E(u_{m+1}) = (16 nu^2 pi^4) E(u_m) = (4 pi^4 / 25) E(u_m)`, a single ring quantity, constant in the
@@ -335,7 +335,7 @@ only the exact per-order quantities.
 
 ## Their sets against the boundary function
 
-| Fefferman's set                                       | what the ring does with it                                                                                                    | kind, by probe                                                        |
+| Fefferman's set                                       | what the ring does with it                                                                                                    | type, by probe                                                        |
 | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | (1) momentum, the equation behind `S_67` and `S_1011` | residual exact on any element of `R_div`; solution as Taylor coefficients                                                     | none on the ABC family; completeness on a generic datum (the horizon) |
 | (2) divergence, the condition on every `D` and `S`    | exact identity, carried by every coefficient                                                                                  | none                                                                  |
@@ -358,11 +358,11 @@ per field, the mode convolution (a linear convolution on `Z^3`, unaliased, the n
 `proof_precision_theorems.py`), the derivative multiplier `2 pi i k_j`, Leray's projection, and the
 Taylor recurrence. A coefficient built
 only from proven constructors inherits their proof, as the analytic number theory workbook states for the
-zeta values. What each boundary kind does through the chain `datum -> u_1 -> u_2 -> u_3`, measured:
+zeta values. What each boundary type does through the chain `datum -> u_1 -> u_2 -> u_3`, measured:
 
-| kind                 | at the datum                                  | through the chain                                    | inherited?                                          |
+| type                 | at the datum                                  | through the chain                                    | inherited?                                          |
 | -------------------- | --------------------------------------------- | ---------------------------------------------------- | --------------------------------------------------- |
-| format, in the ring  | absent                                        | scale probe silent at every order                    | no format kind exists to inherit                    |
+| format, in the ring  | absent                                        | scale probe silent at every order                    | no format type exists to inherit                    |
 | format, in decimals  | absent: the datum's coefficients are rational | moves from order 1 on: the derivative brings `pi` in | introduced by the constructors, then carried        |
 | measurement, ABC     | the deposit's gap                             | `gap_m = (-4 nu pi^2)^m gap_0`, exactly              | carried exactly, unamplified; canceled by the ratio |
 | measurement, generic | the deposit's gap                             | nonzero at every order                               | carried; no order lowers it                         |
@@ -411,20 +411,20 @@ plainly. The test is what would answer it, and the status says what has been run
 
 | where it is bound | as the statement assigns it | wanted | what would test it | status |
 | --- | --- | --- | --- | --- |
-| `nu`, in (1) | one positive constant; `nu Laplacian u` is linear in `u` | viscous friction is nonlinear everywhere, and every unknown quantity is carried as a vector magnitude | `nu` replaced by a function of the local magnitude `\|grad u\|` and carried through the recurrence: whether the residual stays exact and `d/dt E` stays at most zero. Ladyzhenskaya's modified equations make that replacement; cited from memory of the literature, unread here | wanted and not built. The ring holds `nu` as a parameter the time scaling moves exactly (entry 1) |
+| `nu`, in (1) | one positive constant; `nu Laplacian u` is linear in `u` | viscous friction is nonlinear everywhere, and every unknown quantity is carried as a vector magnitude | `nu` replaced by a function of the local magnitude `\|grad u\|` and carried through the recurrence: whether the residual stays exact and `d/dt E` stays at max zero. Ladyzhenskaya's modified equations make that replacement; cited from memory of the literature, unread here | wanted and not built. The ring holds `nu` as a parameter the time scaling moves exactly (entry 1) |
 | (2), `div u = 0` | the density one constant | density varies with temperature, sometimes greatly, from place to place, and a change of density is a change in the local mean spacing of atoms | the density carried as a second field under `d rho/dt + div(rho u) = 0`, with `d/dt int rho = 0` checked exactly at every order | wanted and not built. With (2) as written, Leray's projection holds the divergence at zero on every coefficient (entry 1) |
 | one fluid | one `nu`, one density, one phase | all fluids belong to one set, and by transitivity the behavior holds for every one of them, transitional phases included | the two rows above run together across a change of phase | wanted and not built. The ring carries neither field |
-| `f`, in `F_5` or `F_89` | given, smooth, rapid decay; identically zero in (A) and (B) | what is left as the forcing goes to zero, the question the millennium chapter records as put to this work | (A) and (B) themselves: `nu > 0` kept and `f = 0` | open. On one datum each, the forced and unforced solution sets do not contain each other's member (entry 1); two instances, no theorem |
+| `f`, in `F_5` or `F_89` | given, smooth, rapid decay; identically zero in (A) and (B) | what is left as the forcing goes to zero, the question the millennium chapter records as put to this work | (A) and (B) themselves: `nu > 0` retained and `f = 0` | open. On one datum each, the forced and unforced solution sets do not contain each other's member (entry 1); two instances, no theorem |
 | `u°`, in `D_4` or `D_8` | given, smooth, divergence-free | the fluid defined by what has already been measured of it, by asking what it is | a datum read from a measurement, carried as a deposit and read by the two probes | the probes read a deposited amplitude as measurement (entry 2); no measured datum is run |
 | decay (4), (5), (9), or periodicity (8), (10) | the edge of the domain. The statement has no wall: the domain is `R^3` with decay at infinity, or the torus | every boundary of the fluid can be read off at any threshold chosen | a level set of `\|u\|` at a stated threshold, read from the coefficients | wanted and not built. Shell membership by `\|k\|^2` is read exactly with no numeric `pi` (entry 3) |
 | smoothness (6), (11) | `p, u` in `C^inf`, continuous at every scale | the field is infinitely divisible, and the claim is that the field was not assumed continuous | nothing for the assumption: (6) already makes it, and (A) to (D) ask whether it survives in time. The radius of the time-Taylor series is where it would end | bound by the statement. No finite order reaches the radius (entry 3) |
 | energy (7) | one constant `C` bounding `int \|u\|^2` for every `t` | the sounding board names none | `d/dt E = -2 nu int \|grad u\|^2` at every instant | holds at `t = 0` on both data (entry 1); (7) is every instant |
 | the field over `R^3` | (1) to (11) are on a field, not on points | the fluid as an infinite point cloud, with as many vectors through it as wanted | a ring field sampled on `(2K+1)^3` points of the torus, and its coefficients recovered exactly. A grid that size determines every field whose modes have `\|k\|_inf <= K`; the horizon table counts what a fixed cloud misses at each order | wanted, not built |
 | turbulence | not named in the statement | turbulence becomes tractable when the fluid is an infinite point cloud | the mode front and the energy shells, order by order | run on one datum to order 5 (entry 3) |
-| magnitudes on 0 to 1 | not in the statement; `u` takes values in `R^3` | nonlinear equations in vector magnitudes normalized to [0, 1], with no need to write out millions of digits | a magnitude divided by the field's largest, and its kind read by the probes. A ratio in which `pi` cancels reads `none`; a coefficient that keeps `pi` reads `format` in decimals (entry 2) | wanted, not built |
+| magnitudes on 0 to 1 | not in the statement; `u` takes values in `R^3` | nonlinear equations in vector magnitudes normalized to [0, 1], with no need to write out millions of digits | a magnitude divided by the field's largest, and its type read by the probes. A ratio in which `pi` cancels reads `none`; a coefficient that retains `pi` reads `format` in decimals (entry 2) | wanted, not built |
 | the relational table | not in the statement | the table 1,1 → 2, 0,1 → 1, 1,0 → 1, 0,0 → 0, in which every branch has an answer | the table is the sum of two bits | holds: it is addition on `{0, 1}`. The ring's arithmetic is integers (entry 1) |
 | the delta | not in the statement | it preserves the delta, and the delta is where the infinite part lives | the count a truncation drops, measured and not bounded | measured on one datum to order 4: `0, 0, 16, 62, 144` modes outside `\|k\|_inf <= 1` (entry 1) |
-| departure from entropy | not in the statement | identity by null permutation and shift agreement are all that is needed to measure departure from entropy exactly | Identity:Null Permutation on the coefficients: the maximum entropy reference a partition of the modes allows, and the departure from it, order by order. The shift agreement detector is the delta_null research paper's | wanted, not built on a fluid |
+| departure from entropy | not in the statement | identity by null permutation and shift agreement are all that is needed to measure departure from entropy exactly | Identity:Null Permutation on the coefficients: the max entropy reference a partition of the modes allows, and the departure from it, order by order. The shift agreement detector is the delta_null research paper's | wanted, not built on a fluid |
 | the observer | not in the statement | an observer outside the box, in a further dimension, sees every constituent without sorting them and leaves the system's entropy unchanged | a probe that reads the field and leaves it unchanged in every digit | a thought experiment. The SHA-256 deformation workbook moved its probe and the surface did not change in any digit; that is SHA-256, not a fluid, and Landauer's principle is not addressed here |
 | exact in place of bound | not in the statement | the mathematics, restructured algebraically, is exact | the solution as exact Taylor coefficients in the ring | run on `R_div` to order 4 (entry 1). Whether the series converges, and for how long, is not known here |
 | the compiler | not in the statement | coherence assigned by each part's own preference, expressed in clock cycles; any language learned through its ruleset by L*; the same core mathematics throughout | engine_table's M23, the refinement loop, over M10's record programs | M10 and M23 are in engine_table, and L* has no row there. M23 is not built |
@@ -460,9 +460,9 @@ plainly. The test is what would answer it, and the status says what has been run
   first products of unit modes land on modes like `(0, 1, 1)`, whose sup-norm is still 1. Replaced by
   the measured statement: `|k|_1` climbs by exactly one per order, and `|k|_inf` never falls and ends
   higher. The first wording was derived from the shape of a convolution and not drawn from the output.
-- **Withdrawn.** That the format kind, in a decimal report, is present at every order of the chain. **What
+- **Withdrawn.** That the format type, in a decimal report, is present at every order of the chain. **What
   killed it:** the run. At the datum the coefficients are `+-i/2`, terminating rationals, and the scale
-  probe is silent there. The kind appears at order 1, when the derivative multiplies by `2 pi i k`.
+  probe is silent there. The type appears at order 1, when the derivative multiplies by `2 pi i k`.
   Replaced by the measured statement that the constructors introduce it. The better finding was in the
   refusal.
 - **Withdrawn**, for the duration of one run. That two bit patterns produced two distinct fields whose

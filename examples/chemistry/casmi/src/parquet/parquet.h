@@ -53,8 +53,8 @@ typedef struct
     char path[CASMI_PARQUET_PATH_BYTES];
     CasmiParquetPhysical physical;
     unsigned int fixed_bytes;
-    unsigned int definition_most;
-    unsigned int repetition_most;
+    unsigned int definition_max;
+    unsigned int repetition_max;
 } CasmiParquetLeaf;
 
 /** One column chunk's place in the file and the sizes the footer states for it. */
@@ -71,7 +71,7 @@ typedef struct
 typedef struct
 {
     unsigned long long rows;
-    CasmiParquetChunk chunk[CASMI_PARQUET_LEAVES_MOST];
+    CasmiParquetChunk chunk[CASMI_PARQUET_LEAVES_MAX];
 } CasmiParquetRowGroup;
 
 /** The whole footer as this reader stores it. Large: store it static or on the heap. */
@@ -80,8 +80,8 @@ typedef struct
     unsigned long long rows;
     unsigned int leaf_count;
     unsigned int row_group_count;
-    CasmiParquetLeaf leaf[CASMI_PARQUET_LEAVES_MOST];
-    CasmiParquetRowGroup row_group[CASMI_PARQUET_ROW_GROUPS_MOST];
+    CasmiParquetLeaf leaf[CASMI_PARQUET_LEAVES_MAX];
+    CasmiParquetRowGroup row_group[CASMI_PARQUET_ROW_GROUPS_MAX];
 } CasmiParquetFooter;
 
 /** What casmi_parquet_footer_read needs: the file and where the footer goes. */

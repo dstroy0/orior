@@ -3,7 +3,7 @@
 """harness.py package: the install bundle of a target, impero and tabvla with the license texts in one archive.
     harness.py package                    the host's target built and bundled
     harness.py package --target T         the target T, as ui/cli/build.sh names one
-    harness.py package --no-build         the programs as they stand in build/cli/<target>, nothing built
+    harness.py package --no-build         the programs as they are in build/cli/<target>, nothing built
 The bundle is build/package/orior-<version>-<target>/ with imp, tab, LICENSE, LICENSES/ and INSTALL.txt, and beside it
 the archive of that folder: a .zip for a Windows target, a .tar.gz for every other. Unpacked anywhere, `imp file
 install` in the folder installs it; `imp file uninstall` takes it out again.
@@ -113,8 +113,8 @@ def install_checked(bundle, cli_name, gui_name, suffix, windows):
     if not os.path.isfile(state):
         print("the install wrote no %s" % state, flush=True)
         return 1
-    with open(state, encoding="utf-8") as kept:
-        if "debug-port" not in kept.read():
+    with open(state, encoding="utf-8") as retained:
+        if "debug-port" not in retained.read():
             print("the install wrote no debugging port default", flush=True)
             return 1
     removed = subprocess.run([os.path.join(into, cli_name + suffix), "file", "uninstall", "--yes"], cwd=ROOT, env=env, capture_output=True, text=True)
@@ -189,6 +189,6 @@ def register(sub):
     """The package command added to harness.py's subparsers."""
     p = sub.add_parser("package", help="the install bundle of a target: imp, tab and the license texts archived under build/package")
     p.add_argument("--target", default=None, help="the target built and bundled, the host's where none")
-    p.add_argument("--no-build", action="store_true", help="the programs as they stand in build/cli/<target>, nothing built")
+    p.add_argument("--no-build", action="store_true", help="the programs as they are in build/cli/<target>, nothing built")
     p.add_argument("--check", action="store_true", help="the bundle installed into build/package/check_install, read, and taken out again")
     p.set_defaults(fn=cmd_package)

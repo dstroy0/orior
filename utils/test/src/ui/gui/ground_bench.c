@@ -17,7 +17,7 @@
 #define BENCH_HEIGHT 920u
 #define BENCH_STEP_MS 250ull
 #define BENCH_LOOP_MS 200000ull
-// the most pixels a row of the reference raster holds, past any pitch of the bench's width
+// the max pixels a row of the reference raster holds, past any pitch of the bench's width
 #define BENCH_PITCH_MAX 2048u
 
 static GuiColor s_reference[BENCH_PITCH_MAX * BENCH_HEIGHT];
@@ -41,8 +41,8 @@ static unsigned long long raster_hashed(const GuiRaster *raster, unsigned int wi
 // One channel of the float dot: the color's share and the threshold over the ground's rest
 static unsigned int reference_channel(float color, unsigned int background, float share, float threshold, float rest)
 {
-    const float laid = (color * share) + threshold;
-    const float within = (laid < 0.0f) ? 0.0f : ((laid > 255.0f) ? 255.0f : laid);
+    const float positioned = (color * share) + threshold;
+    const float within = (positioned < 0.0f) ? 0.0f : ((positioned > 255.0f) ? 255.0f : positioned);
     const float out = within + ((float)background * rest);
     return (out >= 255.0f) ? 255u : (unsigned int)(out + 0.5f);
 }
@@ -82,29 +82,29 @@ static void reference_dot(GuiColor *pixels, unsigned int pitch, float x, float y
     }
 }
 
-// The pixels of the drawn raster against the reference: the count that differ, and the most levels by which a
-// channel differs, folded into `differ` and `most`
-static void rasters_compared(const GuiRaster *raster, unsigned long long *differ, unsigned int *most)
+// The pixels of the drawn raster against the reference: the count that differ, and the max levels by which a
+// channel differs, folded into `differ` and `max`
+static void rasters_compared(const GuiRaster *raster, unsigned long long *differ, unsigned int *max)
 {
     for (unsigned int row = 0u; row < BENCH_HEIGHT; row += 1u)
     {
         for (unsigned int column = 0u; column < BENCH_WIDTH; column += 1u)
         {
             const GuiColor drawn = raster->pixels[(row * raster->width) + column];
-            const GuiColor kept = s_reference[(row * raster->width) + column];
-            if (drawn == kept)
+            const GuiColor retained = s_reference[(row * raster->width) + column];
+            if (drawn == retained)
             {
                 continue;
             }
             *differ += 1ull;
             unsigned int widest = 0u;
-            const int gaps[3] = {(int)GUI_RED_OF(drawn) - (int)GUI_RED_OF(kept),
-                                 (int)GUI_GREEN_OF(drawn) - (int)GUI_GREEN_OF(kept),
-                                 (int)GUI_BLUE_OF(drawn) - (int)GUI_BLUE_OF(kept)};
+            const int gaps[3] = {(int)GUI_RED_OF(drawn) - (int)GUI_RED_OF(retained),
+                                 (int)GUI_GREEN_OF(drawn) - (int)GUI_GREEN_OF(retained),
+                                 (int)GUI_BLUE_OF(drawn) - (int)GUI_BLUE_OF(retained)};
             for (unsigned int channel = 0u; channel < 3u; channel += 1u)
             {
                 const unsigned int gap = (unsigned int)((gaps[channel] < 0) ? -gaps[channel] : gaps[channel]);
-                *most = (gap > *most) ? gap : *most;
+                *max = (gap > *max) ? gap : *max;
                 widest = (gap > widest) ? gap : widest;
             }
             s_gaps[widest] += 1ull;
@@ -127,7 +127,7 @@ int main(void)
                     .raster = &raster, .width = BENCH_WIDTH, .height = BENCH_HEIGHT, .scale = GUI_SCALE_ONE,
                     .palette = palette))
     {
-        (void)printf("the ground did not lay out\n");
+        (void)printf("the ground did not arrange\n");
         return 1;
     }
     const unsigned int pitch = background_fill.raster.width;
@@ -171,10 +171,10 @@ int main(void)
             rasters_compared(&background_fill.raster, &differ, &max_levels);
         }
     }
-    (void)printf("ground %ux%u dots %u draws %u total %llu us mean %llu us most %llu us hash %016llx\n", BENCH_WIDTH,
+    (void)printf("ground %ux%u dots %u draws %u total %llu us mean %llu us max %llu us hash %016llx\n", BENCH_WIDTH,
                  BENCH_HEIGHT, lattice_slot(background_fill.lattice_index)->count, draws, total_us,
                  total_us / draws, max_us, hash);
-    (void)printf("against the float dot: %llu pixels differ over %u draws, the most by %u levels of 255\n", differ,
+    (void)printf("against the float dot: %llu pixels differ over %u draws, the max by %u levels of 255\n", differ,
                  draws, max_levels);
     for (unsigned int gap = 1u; gap <= max_levels; gap += 1u)
     {

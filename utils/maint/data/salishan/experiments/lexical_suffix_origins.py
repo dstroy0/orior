@@ -23,10 +23,10 @@
 #
 # The Kinkade relation holds for a same-meaning pair when the noun's segments end with the suffix's
 # segments and the noun is one or two segments longer. Identity, the noun equal to the suffix, is
-# counted apart. Segments are a base letter with its combining marks, glottalization written as an
+# counted apart. Segments are a base character with its combining marks, glottalization written as an
 # apostrophe folded to one mark, 7 read as ʔ, and stress accents removed.
 #
-# The null keeps every language's nouns and suffixes and shuffles which meaning each noun carries.
+# The null retains every language's nouns and suffixes and shuffles which meaning each noun carries.
 # Under Mithun's reading the count of Kinkade pairs among same-meaning pairs should sit inside the
 # shuffled distribution; under Kinkade's it should sit above it.
 
@@ -45,7 +45,7 @@ ATTACH = {"ʷ", "ː", "·"}
 
 
 def segments(form):
-    """A form as a tuple of segments: base letters with their marks, stress removed."""
+    """A form as a tuple of segments: base characters with their marks, stress removed."""
     out = []
     for char in unicodedata.normalize("NFD", form.casefold()):
         if char in STRESS:
@@ -68,7 +68,7 @@ def segments(form):
 # Lexical suffixes carry generic nominal meanings (Kinkade 1998, section 2: 'back', 'foot', 'house',
 # 'water'; his Table 1 and the Moses-Columbian list in his (1)). A gloss column also carries notes
 # about provenance ("wordlist", "orthography"), and a = in an Interior paper's segmentation marks a
-# clitic as often as a suffix. Both suffixes and nouns are therefore kept only when a sense is one of
+# clitic as often as a suffix. Both suffixes and nouns are therefore retained only when a sense is one of
 # these meanings, folded to one word each. The list is fixed before any pair is counted.
 NOMINAL = {
     "hand": "hand", "finger": "hand", "foot": "foot", "leg": "foot", "head": "head", "top": "head",
@@ -115,11 +115,11 @@ def collect(everything):
         if row.branch not in SALISH:
             continue
         form = row.form.strip()
-        if row.kind == "cited affix" and re.match(r"^[-=]", form) and not form.endswith(("-", "=")):
+        if row.type == "cited affix" and re.match(r"^[-=]", form) and not form.endswith(("-", "=")):
             key = segments(form)
             if len(key) >= 2 and senses(row.gloss):
                 suffixes[row.language].setdefault(key, set()).update(senses(row.gloss))
-        elif row.kind in ("cited form", "root", "transcription", "phonemic") and " " not in form:
+        elif row.type in ("cited form", "root", "transcription", "phonemic") and " " not in form:
             bare = re.sub(r"^s-", "", form)
             if re.search(r"[-=~√*<>]", bare):
                 continue

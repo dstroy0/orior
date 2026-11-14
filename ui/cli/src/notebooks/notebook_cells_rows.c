@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // notebook_cells_rows.c: an open notebook's rows: the row each cell starts at settled as the cells change, a row found
-// by a binary search over those starts and over its cell's outputs' starts, the rows from the top laid into a frame
+// by a binary search over those starts and over its cell's outputs' starts, the rows from the top positioned into a frame
 // with their texts, runs and sentences, the top moved by a wheel or to a place, and the sentences the rows show, each
 // written into a cell sized to it
 #include "../command_line/cli_internal.h"
 #include "notebook_cells_internal.h"
 
-// the most bytes a row's sentence takes, a count or a cut line, and the bytes the out of date sentence takes past a
+// the max bytes a row's sentence takes, a count or a cut line, and the bytes the out of date sentence takes past a
 // cell's name each
 #define ROWS_SENTENCE 64u
 #define ROWS_STALE_HEAD 160ULL
@@ -99,14 +99,14 @@ void cli_notebook_model_rows_settled(const CliNotebookModelCtx *args)
                                                                  .bytes = sizeof(row)});
     }
     const unsigned long long rows = row;
-    const unsigned long long shown = (model->shown != 0u) ? model->shown : 1ULL;
-    const unsigned long long most = (rows > shown) ? (rows - shown) : 0ULL;
-    model->top = (model->top < most) ? model->top : most;
+    const unsigned long long displayed = (model->displayed != 0u) ? model->displayed : 1ULL;
+    const unsigned long long max = (rows > displayed) ? (rows - displayed) : 0ULL;
+    model->top = (model->top < max) ? model->top : max;
 }
 
 // whether the cell `other`, a cell of the model or a cell gone, run first at `first_run` and last at `last_run` and
 // edited at `edited`, changed, ran again or was deleted since the cell `cell` last ran, after it had run before it
-EMBED_INLINE int stands_on(const NotebookRowsCtx *args)
+EMBED_INLINE int is_on(const NotebookRowsCtx *args)
 {
     const unsigned int ran =
         EMBED_CALL(cell_of, NotebookRowsCtx, .model_read = args->model_read, .cell = args->cell).last_run;
@@ -129,7 +129,7 @@ void cli_notebook_model_stale_settled(const CliNotebookModelCtx *args)
         {
             const CliNotebookCell one = EMBED_CALL(cell_of, NotebookRowsCtx, .model_read = model, .cell = other);
             stale = (other != at) &&
-                    EMBED_CALL(stands_on, NotebookRowsCtx, .model_read = model, .cell = at, .first_run = one.first_run,
+                    EMBED_CALL(is_on, NotebookRowsCtx, .model_read = model, .cell = at, .first_run = one.first_run,
                                .last_run = one.last_run, .edited = one.edited, .gone = 0);
         }
         for (unsigned int gone = 0u;
@@ -139,7 +139,7 @@ void cli_notebook_model_stale_settled(const CliNotebookModelCtx *args)
             CliNotebookGone one;
             EMBED_CALL(cli_notebook_model_internal.gone_read, CliNotebookModelCtx, .model = model, .at = gone,
                        .gone_out = &one);
-            stale = EMBED_CALL(stands_on, NotebookRowsCtx, .model_read = model, .cell = at, .first_run = one.first_run,
+            stale = EMBED_CALL(is_on, NotebookRowsCtx, .model_read = model, .cell = at, .first_run = one.first_run,
                                .last_run = one.last_run, .edited = 0u, .gone = 1);
         }
         cell.stale = stale;
@@ -148,7 +148,7 @@ void cli_notebook_model_stale_settled(const CliNotebookModelCtx *args)
     }
 }
 
-// the last of the `count` cells' first rows that is at most `at`: the place a row stands under
+// the last of the `count` cells' first rows that is at max `at`: the place a row is under
 EMBED_INLINE unsigned int place_under(const NotebookRowsCtx *args)
 {
     unsigned int low = 0u;
@@ -168,7 +168,7 @@ EMBED_INLINE unsigned int place_under(const NotebookRowsCtx *args)
     return low;
 }
 
-// the output of the cell `cell` whose rows the row `at` among its outputs' rows stands in: a binary search over the
+// the output of the cell `cell` whose rows the row `at` among its outputs' rows is in: a binary search over the
 // rows before each
 EMBED_INLINE unsigned int output_under(const NotebookRowsCtx *args)
 {
@@ -218,8 +218,8 @@ EMBED_INLINE int row_read(const NotebookRowsCtx *args)
                  ((cell.type == CLI_NOTEBOOK_MARKDOWN) ? CLI_NOTEBOOK_FLAG_MARKDOWN : 0u);
     if (inner < sources)
     {
-        const int laid_whole = (cell.type == CLI_NOTEBOOK_MARKDOWN) && (model->focused != place);
-        row->type = laid_whole ? CLI_NOTEBOOK_ROW_MARKDOWN : CLI_NOTEBOOK_ROW_SOURCE;
+        const int positioned_whole = (cell.type == CLI_NOTEBOOK_MARKDOWN) && (model->focused != place);
+        row->type = positioned_whole ? CLI_NOTEBOOK_ROW_MARKDOWN : CLI_NOTEBOOK_ROW_SOURCE;
         row->line = inner;
         return 1;
     }
@@ -335,13 +335,13 @@ EMBED_INLINE void sentence_written(const NotebookRowsCtx *args)
         {
             break;
         }
-        mmgr_line_put(out, "Out of date: it stands on ");
+        mmgr_line_put(out, "Out of date: it is on ");
         int listed = 0;
         for (unsigned int other = 0u; other < model->cells; other += 1u)
         {
             const CliNotebookCell one = EMBED_CALL(cell_of, NotebookRowsCtx, .model_read = model, .cell = other);
             if ((other == args->cell) ||
-                !EMBED_CALL(stands_on, NotebookRowsCtx, .model_read = model, .cell = args->cell,
+                !EMBED_CALL(is_on, NotebookRowsCtx, .model_read = model, .cell = args->cell,
                             .first_run = one.first_run, .last_run = one.last_run, .edited = one.edited, .gone = 0))
             {
                 continue;
@@ -355,7 +355,7 @@ EMBED_INLINE void sentence_written(const NotebookRowsCtx *args)
             CliNotebookGone one;
             EMBED_CALL(cli_notebook_model_internal.gone_read, CliNotebookModelCtx,
                        .model = (CliNotebookModel *)(embed_word)model, .at = gone, .gone_out = &one);
-            if (EMBED_CALL(stands_on, NotebookRowsCtx, .model_read = model, .cell = args->cell,
+            if (EMBED_CALL(is_on, NotebookRowsCtx, .model_read = model, .cell = args->cell,
                            .first_run = one.first_run, .last_run = one.last_run, .edited = 0u, .gone = 1))
             {
                 mmgr_line_put(out, listed ? ", a cell since deleted" : "a cell since deleted");
@@ -421,7 +421,7 @@ void cli_notebook_model_scroll(const CliNotebookCellsScrollCfg *args)
         return;
     }
     const long long moved = (long long)model->top + (long long)args->rows;
-    // a top moved above the first row stands at it, and every row count stands far below the signed 64-bit range
+    // a top moved above the first row is at it, and every row count is far below the signed 64-bit range
     model->top = (moved > 0LL) ? (unsigned long long)moved : 0ULL;
     EMBED_CALL(cli_notebook_model_internal.rows_settled, CliNotebookModelCtx, .model = model, .cell = model->cells);
 }
@@ -437,7 +437,7 @@ void cli_notebook_model_to(const CliNotebookCellsScrollCfg *args)
         EMBED_CALL(first_row_of, NotebookRowsCtx, .model_read = model, .cell = model->cells);
     const unsigned long long permille = (args->permille < 1000u) ? args->permille : 1000ULL;
     const unsigned long long center = (rows * permille) / 1000ULL;
-    const unsigned long long half = model->shown / 2ULL;
+    const unsigned long long half = model->displayed / 2ULL;
     model->top = (center > half) ? (center - half) : 0ULL;
     EMBED_CALL(cli_notebook_model_internal.rows_settled, CliNotebookModelCtx, .model = model, .cell = model->cells);
 }
@@ -487,12 +487,12 @@ int cli_notebook_model_frame_alloc(const CliNotebookCellsFrameCfg *args)
     {
         return 0;
     }
-    model->shown = args->count;
+    model->displayed = args->count;
     EMBED_CALL(cli_notebook_model_internal.rows_settled, CliNotebookModelCtx, .model = model, .cell = model->cells);
     const unsigned int total =
         (model->cells != 0u) ? EMBED_CALL(first_row_of, NotebookRowsCtx, .model_read = model, .cell = model->cells)
                              : 0u;
-    // the top stands below the rows, which an unsigned int counts
+    // the top is below the rows, which an unsigned int counts
     const unsigned int top = (unsigned int)model->top;
     const unsigned int count = ((total - top) < args->count) ? (total - top) : args->count;
     // the rows, the parts they gather into and the part of each, for this take alone
@@ -546,7 +546,7 @@ int cli_notebook_model_frame_alloc(const CliNotebookCellsFrameCfg *args)
             (char *)(cell + head),
             NULL};
     }
-    VerbaLinea laid = {(frame != NULL) ? frame->bytes : NULL, bytes + 1ULL, 0ULL};
+    VerbaLinea positioned = {(frame != NULL) ? frame->bytes : NULL, bytes + 1ULL, 0ULL};
     for (unsigned int at = 0u; (frame != NULL) && (at < parts); at += 1u)
     {
         char key[CLI_PATH_MAX_LEN + CLI_NOTEBOOK_KEY_MORE];
@@ -571,7 +571,7 @@ int cli_notebook_model_frame_alloc(const CliNotebookCellsFrameCfg *args)
     for (unsigned int at = 0u; (frame != NULL) && (at < count); at += 1u)
     {
         CliNotebookFrameRow *const framed = &frame->row[at];
-        *framed = (CliNotebookFrameRow){row[at], laid.at, 0ULL, 0ULL, 0ULL, row_part[at], 0u};
+        *framed = (CliNotebookFrameRow){row[at], positioned.at, 0ULL, 0ULL, 0ULL, row_part[at], 0u};
         RowsPart *const one = (row_part[at] != CLI_NOTEBOOK_NONE) ? &part[row_part[at]] : NULL;
         if ((one != NULL) && (one->lines != NULL))
         {
@@ -581,20 +581,20 @@ int cli_notebook_model_frame_alloc(const CliNotebookCellsFrameCfg *args)
                                         ? NULL
                                         : memor.chr(&(MemoriaCfg){.src = from, .val = '\n', .bytes = left});
             const unsigned long long length = (end != NULL) ? (unsigned long long)(end - from) : left;
-            mmgr_line_put_n(&laid, from, length);
+            mmgr_line_put_n(&positioned, from, length);
             framed->length = length;
             framed->part_line = at - one->row;
             one->taken += length + ((end != NULL) ? 1ULL : 0ULL);
         }
-        framed->label = laid.at;
+        framed->label = positioned.at;
         const unsigned int which =
             (row[at].type == CLI_NOTEBOOK_ROW_CUT)                                      ? CLI_NOTEBOOK_TEXT_CUT
             : ((row[at].type == CLI_NOTEBOOK_ROW_SOURCE) && (row[at].line == 0ULL))     ? CLI_NOTEBOOK_TEXT_COUNT
             : ((row[at].type == CLI_NOTEBOOK_ROW_MARKDOWN) && (framed->length == 0ULL)) ? CLI_NOTEBOOK_TEXT_PLACEHOLDER
                                                                                         : CLI_NOTEBOOK_NONE;
         EMBED_CALL(sentence_written, NotebookRowsCtx, .model_read = model, .which = which, .cell = row[at].cell,
-                   .output = row[at].output, .out = &laid);
-        framed->label_length = laid.at - framed->label;
+                   .output = row[at].output, .out = &positioned);
+        framed->label_length = positioned.at - framed->label;
     }
     for (unsigned int at = 0u; at < parts; at += 1u)
     {

@@ -20,7 +20,7 @@ static int tower_reserve(size_t lanes, EngineError *error)
     const DevicePoolPlan plan = tower_plan(lanes, error, takes);
     const DevicePoolReserveRequest reserve = {&plan, &resident->pool, error};
     int ok = device_pool_reserve(&reserve) == 0L;
-    // the slices are taken in the plan's order. Each lands where the plan laid it out and none errors
+    // the slices are taken in the plan's order. Each lands where the plan positioned it out and none errors
     for (unsigned int at = 0u; (ok != 0) && (at < TOWER_SLICES); at += 1u)
     {
         ok = device_pool_take(&takes[at]) == 0L;
@@ -224,7 +224,7 @@ extern "C" long tower_lift(const TowerLiftRequest *request)
                                                                    resident->coefficients);
         ok = TOWER_STATUS_CHECK(cudaGetLastError(), resident->coefficients, error);
     }
-    // floor 0 stands before the first lifting level
+    // floor 0 is before the first lifting level
     ok = ok && tower_edge_run(request->edges, request->edge_count, floors, request->extent, 0u, 0, error);
     for (size_t level = 0u; (ok != 0) && (level < floors.size()); level += 1u)
     {
@@ -242,7 +242,7 @@ extern "C" long tower_lift(const TowerLiftRequest *request)
                                                                            step);
             ok = TOWER_STATUS_CHECK(cudaGetLastError(), resident->coefficients, error);
         }
-        // the edge for the next floor is laid out on the approximation this level just produced
+        // the edge for the next floor is arranged on the approximation this level just produced
         ok = ok && tower_edge_run(request->edges, request->edge_count, floors, request->extent,
                                   (unsigned int)(level + 1u), 0, error);
     }
@@ -322,7 +322,7 @@ extern "C" long tower_lower(const TowerLowerRequest *request)
                                                                            step);
             ok = TOWER_STATUS_CHECK(cudaGetLastError(), resident->coefficients, error);
         }
-        // undo the edge that stood before this level's lifting on the lift pass
+        // undo the edge that was before this level's lifting on the lift pass
         ok = ok && tower_edge_run(request->edges, request->edge_count, floors, request->extent,
                                   (unsigned int)(level - 1u), 1, error);
     }

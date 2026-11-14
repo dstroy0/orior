@@ -37,7 +37,7 @@
         { "label": "Open Folder in New Window…", "command": "open-folder-window", "args": "[folder]" },
         { "label": "Open in Dev Container", "command": "dev-container", "console": true },
         { "label": "Clone Repository…", "command": "clone", "args": "[url] [folder]", "console": true },
-        { "label": "Keep Tree as Template…", "command": "keep-template", "args": "[name]" },
+        { "label": "Retain Tree as Template…", "command": "retain-template", "args": "[name]" },
         { "label": "Trust This Tree…", "command": "trust-tree" },
         "-",
         { "label": "Save", "command": "save", "keys": "Ctrl+S", "needs": "changed-active" },
@@ -85,7 +85,7 @@
           "items": [
             { "label": "Record Macro", "command": "macro-record", "needs": "editor", "checks": "macro-recording" },
             { "label": "Play Back Last Macro", "command": "macro-play", "args": "[times] [name]", "needs": "macro" },
-            { "label": "Keep Last Macro…", "command": "macro-keep", "args": "[name]", "needs": "macro" },
+            { "label": "Retain Last Macro…", "command": "macro-retain", "args": "[name]", "needs": "macro" },
             { "fill": "macros" }
           ]
         },
@@ -430,7 +430,7 @@
         { "label": "Refresh Explorer", "command": "explorer-refresh" },
         { "label": "Collapse Folders in Explorer", "command": "explorer-collapse" },
         "-",
-        { "label": "Pin the File Shown", "command": "outline-pin", "args": "[file|none]" },
+        { "label": "Pin the File Displayed", "command": "outline-pin", "args": "[file|none]" },
         { "label": "Show or Hide a Pane", "command": "pane-show", "args": "<pane> [on|off]" }
       ]
     },
@@ -483,7 +483,7 @@
       "title": "Services",
       "popup": true,
       "items": [
-        { "label": "Docker or Kubernetes", "command": "containers-kind", "args": "<docker|pods>" },
+        { "label": "Docker or Kubernetes", "command": "containers-type", "args": "<docker|pods>" },
         { "label": "Read Again", "command": "containers-read" },
         { "label": "Logs", "command": "container-logs", "args": "<container|namespace/pod> [container]" },
         { "label": "Run a Command…", "command": "container-run", "args": "<container> [command]" },
@@ -494,7 +494,7 @@
         { "label": "Restart", "command": "container-restart", "args": "<container>" },
         { "label": "Show Its First Rows", "command": "db-first-rows", "args": "<schema> <table> [connection]" },
         { "label": "Copy Name", "command": "db-copy-name", "args": "<name>" },
-        { "label": "Read Again", "command": "db-read-again", "args": "[schema [kind]]" },
+        { "label": "Read Again", "command": "db-read-again", "args": "[schema [type]]" },
         { "label": "Choose the Connection", "command": "db-choose", "args": "<connection>" },
         { "label": "Join Again", "command": "remote-rejoin" },
         { "label": "Copy Address", "command": "remote-copy-address" }
@@ -509,8 +509,8 @@
         { "label": "Remove Breakpoint", "command": "breakpoint-remove", "args": "<file> <line>" },
         { "label": "Stop on an Exception", "command": "debug-exception", "args": "<exception> [on|off]" },
         { "label": "Show Bytecode or Instructions", "command": "frame-code", "args": "[frame]" },
-        { "label": "Keep Value", "command": "variable-keep", "args": "<variable>" },
-        { "label": "Compare with Kept", "command": "variable-compare", "args": "<variable> [kept]" },
+        { "label": "Retain Value", "command": "variable-retain", "args": "<variable>" },
+        { "label": "Compare with Retained", "command": "variable-compare", "args": "<variable> [retained]" },
         { "label": "Stop When It Changes", "command": "variable-watch", "args": "<variable>" },
         { "label": "Show Memory", "command": "variable-memory", "args": "<variable>" },
         { "label": "Values Through the Run", "command": "variable-history", "args": "<variable>" }
@@ -612,7 +612,7 @@
         { "label": "File icons", "command": "theme-icon", "args": "<pattern> [mark] [color]" },
         { "label": "Take this icon off", "command": "theme-icon-remove", "args": "<pattern>" },
         { "label": "Keyboard Shortcuts", "command": "keys", "args": "<command> [keys]", "setting": true, "each": true },
-        { "label": "Show Again", "command": "notice-show-again", "args": "<kind>" },
+        { "label": "Show Again", "command": "notice-show-again", "args": "<type>" },
         { "label": "Your settings.json", "command": "settings-own" },
         { "label": "The tree's settings.json", "command": "settings-tree" },
         { "label": "Settings on Every Machine", "command": "sync", "items": [
@@ -678,6 +678,7 @@
       "items": [
         { "label": "Keyboard Shortcuts", "command": "keys", "console": true },
         { "label": "Ask…", "command": "ask", "args": "[--error] <title> <body> <button> [<button>...]", "hidden": true },
+        { "label": "Pointer…", "command": "pointer", "args": "<x> <y> | off", "hidden": true },
         "-",
         { "label": "Report a Bug…", "command": "report", "args": "[library|cli|ui|unknown] [title]", "console": true },
         { "label": "Automatic Error Reports", "command": "auto-report", "args": "[on|off]", "console": true, "checks": "auto-report" },

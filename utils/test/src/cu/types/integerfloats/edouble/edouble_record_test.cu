@@ -6,11 +6,11 @@
 // - a b and a + b equal to the exact product and sum;
 // - [a > b] equal to the exact order;
 // - the cut of a b to 8 bits: its ends below and above a b, one unit apart or equal where a b is whole there, each at
-//   most 2^8;
+//   max 2^8;
 // - a / b to 10 bits past b: its ends below and above a / b, one unit apart or equal where the quotient is whole.
 // A second program takes intervals a = [m_a, m_a + d_a] 2^e_a and b likewise, b containing no 0:
-// - the interval sum's ends the exact sums, and the interval product's the least and the most corner;
-// - the interval cut the lower end's floor and the upper end's ceiling, each at most 2^8;
+// - the interval sum's ends the exact sums, and the interval product's the least and the max corner;
+// - the interval cut the lower end's floor and the upper end's ceiling, each at max 2^8;
 // - every corner quotient inside the interval quotient, each end within one unit of one;
 // - interval above, a's lower end over b's upper.
 // A third program takes its exponents as constants the program knows: the interval sum in six steps, and reads at a
@@ -37,7 +37,7 @@
 
 #define EDOUBLE_TEST_LANES 4096u
 
-// the most outputs a program here gives
+// the max outputs a program here gives
 #define EDOUBLE_TEST_OUTPUTS 15u
 
 // every exponent here, the quotient's included, lies above -64: a value times 2^64 is an integer
@@ -382,19 +382,19 @@ static void edouble_interval_case(EdoubleResults *results)
             }
             sums += (unsigned int)sum_ok;
         }
-        // the product's ends: the least and the most corner, exact
+        // the product's ends: the least and the max corner, exact
         long long corner_least = 0;
-        long long corner_most = 0;
+        long long corner_max = 0;
         for (unsigned int corner = 0u; corner < 4u; corner += 1u)
         {
             const long long value = ((corner / 2u) ? top[0] : m[0]) * ((corner % 2u) ? top[1] : m[1]);
             corner_least = (corner == 0u) ? value : ((value < corner_least) ? value : corner_least);
-            corner_most = (corner == 0u) ? value : ((value > corner_most) ? value : corner_most);
+            corner_max = (corner == 0u) ? value : ((value > corner_max) ? value : corner_max);
         }
         const long long product_at = edouble_word(&read[5]);
         products += (unsigned int)(ok && (product_at == (e[0] + e[1])) && (edouble_word(&read[3]) == corner_least) &&
-                                   (edouble_word(&read[4]) == corner_most));
-        // the cut: the floor of the product's lower end and the ceiling of its upper at 2^k, each at most 2^8
+                                   (edouble_word(&read[4]) == corner_max));
+        // the cut: the floor of the product's lower end and the ceiling of its upper at 2^k, each at max 2^8
         {
             const long long k = edouble_word(&read[8]) - product_at;
             const long long down = edouble_word(&read[6]);
@@ -402,7 +402,7 @@ static void edouble_interval_case(EdoubleResults *results)
             const long long unit = (k >= 0 && k < 62) ? (1ll << k) : 0;
             int cut_ok = ok && (unit != 0);
             cut_ok = cut_ok && (down * unit <= corner_least) && (corner_least < (down + 1) * unit);
-            cut_ok = cut_ok && ((up - 1) * unit < corner_most) && (corner_most <= up * unit);
+            cut_ok = cut_ok && ((up - 1) * unit < corner_max) && (corner_max <= up * unit);
             cut_ok = cut_ok && (down >= -256) && (up <= 256);
             cuts += (unsigned int)cut_ok;
         }
@@ -450,9 +450,9 @@ static void edouble_interval_case(EdoubleResults *results)
     }
     edouble_check(results, (same != 0) && (sums == EDOUBLE_TEST_LANES), "interval: the sum's ends are the exact sums");
     edouble_check(results, (same != 0) && (products == EDOUBLE_TEST_LANES),
-                  "interval: the product's ends are the least and the most corner, exact");
+                  "interval: the product's ends are the least and the max corner, exact");
     edouble_check(results, (same != 0) && (cuts == EDOUBLE_TEST_LANES),
-                  "interval: the cut gives the lower end's floor and the upper end's ceiling, each at most 2^8");
+                  "interval: the cut gives the lower end's floor and the upper end's ceiling, each at max 2^8");
     edouble_check(results, (same != 0) && (quotients == EDOUBLE_TEST_LANES),
                   "interval: every corner quotient lies inside, and each end is within one unit of one");
     edouble_check(results, (same != 0) && (ordered == EDOUBLE_TEST_LANES),
@@ -534,19 +534,19 @@ static void edouble_known_case(EdoubleResults *results)
         sums += (unsigned int)((edouble_word(&read[0]) == sum_down) && (edouble_word(&read[1]) == sum_up) &&
                                (edouble_word(&read[2]) == -5));
         long long least = 0;
-        long long most = 0;
+        long long max = 0;
         for (unsigned int corner = 0u; corner < 4u; corner += 1u)
         {
             const long long value = ((corner / 2u) ? top[0] : m[0]) * ((corner % 2u) ? top[1] : m[1]);
             least = (corner == 0u) ? value : ((value < least) ? value : least);
-            most = (corner == 0u) ? value : ((value > most) ? value : most);
+            max = (corner == 0u) ? value : ((value > max) ? value : max);
         }
-        products += (unsigned int)((edouble_word(&read[3]) == least) && (edouble_word(&read[4]) == most) &&
+        products += (unsigned int)((edouble_word(&read[3]) == least) && (edouble_word(&read[4]) == max) &&
                                    (edouble_word(&read[5]) == -2));
         lifts += (unsigned int)((edouble_word(&read[6]) == 4 * sum_down) && (edouble_word(&read[7]) == 4 * sum_up) &&
                                 (edouble_word(&read[8]) == -7));
         cuts += (unsigned int)((edouble_word(&read[9]) == edouble_floor_by(least, 4u)) &&
-                               (edouble_word(&read[10]) == edouble_ceiling_by(most, 4u)) && (edouble_word(&read[11]) == 2));
+                               (edouble_word(&read[10]) == edouble_ceiling_by(max, 4u)) && (edouble_word(&read[11]) == 2));
         const long long spread = e + 2;
         const long long lane_down = (spread >= 0) ? (m[0] << spread) : edouble_floor_by(m[0], (unsigned int)-spread);
         const long long lane_up = (spread >= 0) ? (top[0] << spread) : edouble_ceiling_by(top[0], (unsigned int)-spread);
@@ -556,7 +556,7 @@ static void edouble_known_case(EdoubleResults *results)
     edouble_check(results, (same != 0) && (sums == EDOUBLE_TEST_LANES),
                   "known exponents: the interval sum's ends are the exact sums at 2^-5");
     edouble_check(results, (same != 0) && (products == EDOUBLE_TEST_LANES),
-                  "known exponents: the interval product's ends are the least and the most corner at 2^-2");
+                  "known exponents: the interval product's ends are the least and the max corner at 2^-2");
     edouble_check(results, (same != 0) && (lifts == EDOUBLE_TEST_LANES), "the sum read at 2^-7 is the sum, exact");
     edouble_check(results, (same != 0) && (cuts == EDOUBLE_TEST_LANES),
                   "the product read at 2^2 is the lower end's floor and the upper end's ceiling");
@@ -614,7 +614,7 @@ static OriorExactInteger edouble_size(OriorExactInteger a)
     return a;
 }
 
-// balls at exponents the program knows, their fields laid end to end: a = C_a 2^2 within R_a 2^-1 and b = C_b 2^-3
+// balls at exponents the program knows, their fields positioned end to end: a = C_a 2^2 within R_a 2^-1 and b = C_b 2^-3
 // within R_b 2^-4, C signed 10 bits
 // and R 4 and 3 bits; their sum and product exact, the product read at 2^1 within 2^-2, the quotient at 2^-6 within
 // 2^-8, and the order, each checked against the exact integers of value 2^64
@@ -689,8 +689,8 @@ static void edouble_ball_case(EdoubleResults *results)
             const OriorExactInteger center = edouble_value(edouble_word(&read[8]), 1);
             const OriorExactInteger radius = edouble_value(edouble_word(&read[9]), -2);
             const OriorExactInteger reach = edouble_plus(edouble_size(edouble_minus(center, product_center)), product_radius);
-            const OriorExactInteger most = edouble_plus(edouble_plus(product_radius, edouble_value(1, 1)), edouble_value(1, -2));
-            reads += (unsigned int)((orior_exact_compare(&reach, &radius) <= 0) && (orior_exact_compare(&radius, &most) <= 0) &&
+            const OriorExactInteger max = edouble_plus(edouble_plus(product_radius, edouble_value(1, 1)), edouble_value(1, -2));
+            reads += (unsigned int)((orior_exact_compare(&reach, &radius) <= 0) && (orior_exact_compare(&radius, &max) <= 0) &&
                                     (edouble_word(&read[10]) == 1));
         }
         // the quotient: where b's ball contains no 0, every corner x / y lies within r' of q, |x - q y| <= r' |y| at

@@ -202,7 +202,7 @@ CliDbLite *cli_db_lite_open(const CliDbFailureFileCtx *args)
     {
         entry_at += 1u;
     }
-    // a database's record holds its child process, so the records stand fixed outside the pool, one for each database
+    // a database's record holds its child process, so the records are fixed outside the pool, one for each database
     // open at once, where they punch no hole in the persistent tier
     static CliDbLite s_places[CLI_DB_LITES];
     if (entry_at < CLI_DB_LITES)
@@ -341,7 +341,7 @@ EMBED_INLINE unsigned long long lite_value_end(const DbLiteCtx *args)
     return args->size;
 }
 
-// the items of the JSON array of `length` bytes at `text`, each handed to `each` by its start and length
+// the items of the JSON array of `length` bytes at `text`, each passed to `each` by its start and length
 EMBED_INLINE void lite_items(const DbLiteCtx *args)
 {
     const char *text = args->text;
@@ -393,7 +393,7 @@ int cli_db_lite_start(const CliDbFailureStatementCtx *args)
             return 0;
         }
     }
-    // the request a cell of the statement's quoted size, six bytes at most for each of its bytes, and no more than a
+    // the request a cell of the statement's quoted size, six bytes at max for each of its bytes, and no more than a
     // line SQLite's process reads
     const unsigned long long quoted = (6ULL * args->size) + 16ULL;
     const unsigned long long capacity = (quoted < CLI_DB_LITE_LINE) ? quoted : CLI_DB_LITE_LINE;
@@ -483,7 +483,7 @@ static void lite_value(const CliEachItemSizeCfg *args)
     read->used += length + 1ULL;
 }
 
-// a row of the line read and handed on
+// a row of the line read and passed on
 static void lite_row(const CliEachItemSizeCfg *args)
 {
     void *context = args->context;

@@ -1,15 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// raster.c: the pages laid out as pixels, for a printer that takes no PDF: each drawn on white at a printer's
+// raster.c: the pages arranged as pixels, for a printer that takes no PDF: each drawn on white at a printer's
 // resolution with the system's monospace font, its own bold and italic where it has them and made from the regular
-// face where it does not. A page laid on its side is turned onto the paper as it feeds
+// face where it does not. A page positioned on its side is turned onto the paper as it feeds
 #include "../../../../includes/arith/arith.h"
 #include "../../../includes/font/font.h"
 #include "../command_line/pool.h"
 #include "../text/regexp.h"
 #include "font_families.h"
 
-// the most bytes of a page's pixels, the most glyphs cached drawn, and the most coverage they cover
+// the max bytes of a page's pixels, the max glyphs cached drawn, and the max coverage they cover
 #define CLI_PAGE_BYTES (1u << 26u)
 
 #define CLI_GLYPH_CACHE 8192u
@@ -49,14 +49,14 @@ typedef struct
 } CliTypefaces;
 
 // The work state one rendering takes, a cell taken as it starts and given back as it ends: the page's pixels, a cell of
-// their own sized to the page, a glyph's outline, the scratch a glyph is made bolder in, and the letters of a text
+// their own sized to the page, a glyph's outline, the scratch a glyph is made bolder in, and the characters of a text
 // drawn
 typedef struct
 {
     unsigned char *page;
     FontContours contours;
     float scratch[1u << 20u];
-    unsigned int letters[CLI_PATH_MAX_LEN * 4u];
+    unsigned int characters[CLI_PATH_MAX_LEN * 4u];
 } CliRenderWorkState;
 
 static CliTypefaces *s_typefaces;
@@ -94,7 +94,7 @@ int cli_print_faces(const CliPrintJsonCfg *args)
     EMBED_CALL(cli_font_families.monospace, CliFontFamiliesCfg, .paths = paths);
     for (unsigned int face = 0u; face < 4u; face += 1u)
     {
-        // a face's file read whole and kept as long as the print draws from it, in a temporary cell of its size and the
+        // a face's file read whole and retained as long as the print draws from it, in a temporary cell of its size and the
         // slack, a file past FONT_BYTES let go unread
         unsigned long long size = 0ULL;
         unsigned char *data =
@@ -327,16 +327,16 @@ EMBED_INLINE void cli_draw(const RasterCtx *args)
     const float cell = CLI_PRINT_ADVANCE * scale;
     const float font_scale = em / font->units;
     const unsigned long long count =
-        EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text, .size = args->length,
-                   .letters = s_work_state->letters, .capacity_u64 = CLI_PATH_MAX_LEN * 4u);
+        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = text, .size = args->length,
+                   .characters = s_work_state->characters, .capacity_u64 = CLI_PATH_MAX_LEN * 4u);
     for (unsigned long long offset = 0ULL; offset < count; offset += 1ULL)
     {
-        if (s_work_state->letters[offset] == ' ')
+        if (s_work_state->characters[offset] == ' ')
         {
             continue;
         }
         const unsigned int glyph =
-            EMBED_CALL(font_letter.glyph, FontCfg, .font = font, .letter = s_work_state->letters[offset]);
+            EMBED_CALL(font_character.glyph, FontCfg, .font = font, .character = s_work_state->characters[offset]);
         const FontMask *const mask_bits = EMBED_CALL(cli_mask_get, RasterCtx, .key_face = face, .font = font,
                                                      .glyph = glyph, .bold = make_bold, .slant = slant, .em = em);
         if (mask_bits == NULL)
@@ -364,7 +364,7 @@ void cli_print_render(const CliPrintLayoutListingCfg *args)
     {
         return;
     }
-    const CliPrintLaid *const laid = EMBED_CALL(cli_print_layout_listing_out.lay_out, CliPrintLayoutListingOutCfg,
+    const CliPrintLaid *const positioned = EMBED_CALL(cli_print_layout_listing_out.position_out, CliPrintLayoutListingOutCfg,
                                                 .listing = listing, .layout = layout);
     const float scale = args->dpi_f32 / 72.0f;
     float width = 0.0f;
@@ -384,7 +384,7 @@ void cli_print_render(const CliPrintLayoutListingCfg *args)
         return;
     }
     unsigned int count = 0u;
-    for (unsigned int at = 0u; at < laid->pages; at += 1u)
+    for (unsigned int at = 0u; at < positioned->pages; at += 1u)
     {
         count += EMBED_CALL(cli_print_table.prints, CliPrintCfg, .layout = layout, .page_u64 = at + 1ULL) ? 1u : 0u;
     }
@@ -399,7 +399,7 @@ void cli_print_render(const CliPrintLayoutListingCfg *args)
         memor.cpy(&(MemoriaCfg){.dst = number_tint, .src = s_number_color, .bytes = 3u});
     }
     unsigned int index = 0u;
-    for (unsigned int at = 0u; at < laid->pages; at += 1u)
+    for (unsigned int at = 0u; at < positioned->pages; at += 1u)
     {
         if (!EMBED_CALL(cli_print_table.prints, CliPrintCfg, .layout = layout, .page_u64 = at + 1ULL))
         {
@@ -407,12 +407,12 @@ void cli_print_render(const CliPrintLayoutListingCfg *args)
         }
         memor.set(
             &(MemoriaCfg){.dst = s_work_state->page, .val = 255, .bytes = page.width * page.height * page.channels});
-        const unsigned int first = at * laid->rows_per_page;
+        const unsigned int first = at * positioned->rows_per_page;
         const unsigned int last =
-            ((first + laid->rows_per_page) < laid->rows) ? (first + laid->rows_per_page) : laid->rows;
+            ((first + positioned->rows_per_page) < positioned->rows) ? (first + positioned->rows_per_page) : positioned->rows;
         for (unsigned int row_at = first; row_at < last; row_at += 1u)
         {
-            const CliPrintRow *const row = &laid->row[row_at];
+            const CliPrintRow *const row = &positioned->row[row_at];
             const float baseline =
                 (CLI_PRINT_MARGIN + ((float)(row_at - first) * CLI_PRINT_LEADING) + (CLI_PRINT_LEADING * 0.75f)) *
                 scale;
@@ -420,7 +420,7 @@ void cli_print_render(const CliPrintLayoutListingCfg *args)
             {
                 char number[32];
                 VerbaLinea line = {number, sizeof(number), 0ULL};
-                const unsigned long long numbers = (laid->number_columns > 2ULL) ? (laid->number_columns - 2ULL) : 0ULL;
+                const unsigned long long numbers = (positioned->number_columns > 2ULL) ? (positioned->number_columns - 2ULL) : 0ULL;
                 mmgr_line_decimal_columns(&line, row->number, (unsigned int)numbers);
                 const unsigned long long length = mmgr_line_finish(&line);
                 EMBED_CALL(cli_draw, RasterCtx, .page = &page, .text = number, .length = length, .column = 0ULL,
@@ -428,9 +428,9 @@ void cli_print_render(const CliPrintLayoutListingCfg *args)
             }
             for (unsigned int piece_at = 0u; piece_at < row->pieces; piece_at += 1u)
             {
-                const CliPrintPiece *const piece = &laid->piece[row->first + piece_at];
-                EMBED_CALL(cli_draw, RasterCtx, .page = &page, .text = laid->text + piece->text,
-                           .length = piece->length, .column = laid->number_columns + piece->column,
+                const CliPrintPiece *const piece = &positioned->piece[row->first + piece_at];
+                EMBED_CALL(cli_draw, RasterCtx, .page = &page, .text = positioned->text + piece->text,
+                           .length = piece->length, .column = positioned->number_columns + piece->column,
                            .color = piece->color, .bold = piece->bold, .italic = piece->italic, .scale = scale,
                            .baseline = baseline);
             }

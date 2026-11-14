@@ -17,27 +17,27 @@
 //   orior_klq_identity pair <ours folder> <host answers> <ksc> <folder> <Lstar.klq> <machine> -- <carrier>...
 //
 // Two of the stick's questions whose nvcc listings are the same but for one link a side are a slice, and the two
-// links are the slice's identity: each an instruction with its registers read as their kind and its literals as
+// links are the slice's identity: each an instruction with its registers read as their type and its literals as
 // written. The rest of the two listings is the same register for register, and the two links name the same registers:
 // nothing but the two links sets the questions apart. An identity is carried by every slice whose links are its own,
 // and each of them is information about it. Members the same are the same identity, and the carriers of one identity
 // are distinguished by address, the position of each member in the chain: question by question, then link by link
-// within a question. Where two carriers contend, the one whose most basal member sits first comes first, and an
+// within a question. Where two carriers contend, the one whose max basal member sits first comes first, and an
 // identity's address is its first carrier's.
 //
 // A chain reads in its grammar and carries its whole intent, and a member's place in that grammar is its context: for
 // each register its link names, the nearest link before it and the nearest after it in its own chain that name the same
 // register, with the placeholder each names it in. No link's meaning is read, only the names links share. The carriers
 // of one identity are gathered by context, each context the same members in one place of the grammar, addressed by its
-// most basal carrier and given a verdict of its own.
+// max basal carrier and given a verdict of its own.
 //
 // A question's chain as a whole is an identity too, and so is each window of it: each recorded at the first address it
-// occurs at, each primitive a link that first occurs where it stands, and each chain a signature of the identities it
+// occurs at, each primitive a link that first occurs where it is, and each chain a signature of the identities it
 // is read as, its primitives and its operands, with a number its contents in their order give it.
 //
 // Every file a mode writes goes through the run's writer (qry_member.h): a current file of the tree, Lstar.klq, the
 // .ksc, the .kqr or the .kdm, written by it in the file's place (qry_member_filed), and a table of the run's own a blob
-// of the run named by the table's own name. slice hands the run slices.txt, each slice a line, chains.txt, the
+// of the run named by the table's own name. slice passes the run slices.txt, each slice a line, chains.txt, the
 // primitives and the chains, and host_questions.cpp, every question whose operands and result are integers that a slice
 // represents, that is a task of register pressure, or that <ours folder> contains the engine's chain for, compiled for
 // the host as C++ with the arity every kernel shares. The host computes each over every case, and its answers are the

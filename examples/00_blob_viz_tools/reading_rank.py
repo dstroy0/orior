@@ -14,7 +14,7 @@ is not evidence and the report should never have implied it was.
 What settles it is not a harder sample. It is a rank. The map from lit points to boundary
 coefficients is linear -- that linearity is the whole reason a field of many sources sums instead of
 needing a solve -- and it therefore has a rank, a null space, and a dimension count that no amount
-of sampling and no amount of precision moves. A reading to degree L carries at most (L+1)^2 real
+of sampling and no amount of precision moves. A reading to degree L carries at max (L+1)^2 real
 numbers about its source, and every direction of the source space beyond that is invisible by
 arithmetic.
 
@@ -25,7 +25,7 @@ WHAT IS MEASURED
     rank             singular values of the reading matrix, at several reading degrees.
     nullity          the dimension of what the reading cannot see. This bounds every claim of the
                      form "the beams map the whole object".
-    the octant map   the same measurement for the eight-letter alphabet, the coarsest reading in
+    the octant map   the same measurement for the eight-character alphabet, the coarsest reading in
                      the tree and the one whose limit is easiest to overstate.
 
 WHAT IT DOES NOT MEASURE
@@ -77,7 +77,7 @@ def flat_harmonics(top, colatitude, longitude):
 def reading_matrix(top, places):
     """The map from a weight per lit point to boundary coefficients, at full depth and no smoothing.
 
-    Full depth and no smoothing is the most favorable case there is: the depth kernel (r/R)^l and
+    Full depth and no smoothing is the max favorable case there is: the depth kernel (r/R)^l and
     the conduction kernel exp(-l(l+1)tau) are both diagonal in degree and both below one. Either
     of them can only shrink a singular value. A rank measured here is therefore an upper bound on
     the rank at any depth or any conduction time, and the nullity is a lower bound.
@@ -90,7 +90,7 @@ def reading_matrix(top, places):
 
 
 def octant_matrix(places):
-    """The eight-letter alphabet as a linear map: row j counts the weight sitting in octant j."""
+    """The eight-character alphabet as a linear map: row j counts the weight sitting in octant j."""
     out = numpy.zeros((8, len(places)))
     for at, point in enumerate(places):
         signs = tuple(1 if value >= 0.0 else -1 for value in point)
@@ -142,7 +142,7 @@ def depth_rank(matrix, floor):
 
 
 def depth_kernel(top, radius_fraction, tau=0.0):
-    """The per-coefficient gain of depth and conduction, laid out to match a flattened reading.
+    """The per-coefficient gain of depth and conduction, arranged to match a flattened reading.
 
     Both kernels are diagonal in the degree. This is a scaling of the rows of the reading matrix
     and never a change to its structure. Everything depth does to a reading is here.
@@ -194,9 +194,9 @@ def rank_of(matrix):
     """
     values = numpy.linalg.svd(matrix, compute_uv=False)
     big = float(values[0])
-    kept = int((values > big * RANK_FLOOR).sum())
-    least = float(values[kept - 1]) if kept else 0.0
-    return kept, matrix.shape[1] - kept, big, least
+    retained = int((values > big * RANK_FLOOR).sum())
+    least = float(values[retained - 1]) if retained else 0.0
+    return retained, matrix.shape[1] - retained, big, least
 
 
 def _check():
@@ -221,13 +221,13 @@ def _check():
     say("")
 
     say("  the reading map, degree by degree")
-    say("    degree  coefficients  rank  blind  largest    least kept")
+    say("    degree  coefficients  rank  blind  largest    least retained")
     for top in DEGREES:
-        kept, blind, big, least = rank_of(reading_matrix(top, places))
-        say("    %6d  %12d  %4d  %5d  %9.4f  %.3e" % (top, width(top), kept, blind, big, least))
+        retained, blind, big, least = rank_of(reading_matrix(top, places))
+        say("    %6d  %12d  %4d  %5d  %9.4f  %.3e" % (top, width(top), retained, blind, big, least))
         # Below the source count the map has as much rank as it has rows, leaving the shortfall in
         # coefficients as the entire cause of the blindness.
-        if width(top) < COUNT and (kept != width(top) or blind != COUNT - width(top)):
+        if width(top) < COUNT and (retained != width(top) or blind != COUNT - width(top)):
             say("    FAIL degree %d did not reach the rank its coefficient count allows" % top)
             failed += 1
     say("")
@@ -241,20 +241,20 @@ def _check():
         failed += 1
     say("")
 
-    say("  the eight-letter alphabet, as the same kind of map")
-    kept, blind, big, least = rank_of(octant_matrix(places))
-    say("    rank %d of %d sources, blind in %d directions" % (kept, COUNT, blind))
-    if kept != 8:
+    say("  the eight-character alphabet, as the same type of map")
+    retained, blind, big, least = rank_of(octant_matrix(places))
+    say("    rank %d of %d sources, blind in %d directions" % (retained, COUNT, blind))
+    if retained != 8:
         say("    FAIL the eight octants did not give eight independent counts")
         failed += 1
-    say("    at fixed weight the eight shares carry one constraint, %d free numbers" % (kept - 1))
-    say("    %d of %d directions of the source space do not move any letter" % (blind, COUNT))
+    say("    at fixed weight the eight shares carry one constraint, %d free numbers" % (retained - 1))
+    say("    %d of %d directions of the source space do not move any character" % (blind, COUNT))
     say("    64 distinct signatures out of 64 rounds is therefore not evidence: distinctness")
     say("    is cheap in 7 dimensions and says nothing about the %d that are invisible" % blind)
     say("")
 
     say("  what this bounds")
-    say("    a reading to degree 8 recovers at most %d of %d numbers about its source. No" %
+    say("    a reading to degree 8 recovers at max %d of %d numbers about its source. No" %
         (width(8), COUNT))
     say("    sampling, precision or beam count completes it. Raising the degree does, and the")
     say("    cost is coefficients and not accuracy: the basis above is clean at degree 15.")

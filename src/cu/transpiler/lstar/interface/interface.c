@@ -14,7 +14,7 @@ void interface_output_appended(InterfaceAnswer *answer, unsigned long long *tota
     const unsigned long long copied = (room_left < read) ? room_left : read;
     if ((answer->output != NULL) && (copied != 0ull))
     {
-        // a copy is at most one piece, which a size_t represents
+        // a copy is at max one piece, which a size_t represents
         memcpy(answer->output + *total, piece, (size_t)copied);
     }
     *total += read;

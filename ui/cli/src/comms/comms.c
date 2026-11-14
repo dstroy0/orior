@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // comms.c: the parts registered and their grants, the listeners on each channel, and each message sent: refused where
-// its sender may not send there, else counted, stored among its channel's last, and handed to every listener the
+// its sender may not send there, else counted, stored among its channel's last, and passed to every listener the
 // channel's name is granted to. The tables, each part's grants and each stored message live in movable cells, read by
 // value and written back
 #include "../command_line/callback_cfg.h"
@@ -25,7 +25,7 @@ static void comms_tables_init(void)
     {
         return;
     }
-    // the stored rings borrow their bytes, so they stand fixed, outside the pool, where they punch no hole in the
+    // the stored rings borrow their bytes, so they are fixed, outside the pool, where they punch no hole in the
     // persistent tier; emptied here for each begin
     static CliCommsStored s_stored[CLI_COMMS_CHANNELS];
     // every place empty: the whole cell written as zeroes in one write from a temporary cell
@@ -163,7 +163,7 @@ int cli_comms_register(const CliCommsNameCfg *args)
     }
     if ((listens > CLI_COMMS_GRANTS) || (send_grants > CLI_COMMS_GRANTS))
     {
-        mmgr_line_put(args->err_msg, "a part has at most 16 grants to listen and 16 to send");
+        mmgr_line_put(args->err_msg, "a part has at max 16 grants to listen and 16 to send");
         return 0;
     }
     VerbaLinea written = {args->key_out, CLI_COMMS_KEY, 0ULL};
@@ -573,7 +573,7 @@ EMBED_INLINE void comms_traffic_counted(const CommsCtx *args)
                             .bytes = sizeof(traffic)});
 }
 
-// a message stored among the traffic at `traffic_at`'s last, past the most stored over the oldest: in the oldest's
+// a message stored among the traffic at `traffic_at`'s last, past the max stored over the oldest: in the oldest's
 // cell where it fits, else in a larger cell with the oldest's given back; stored not at all where the cell is refused
 EMBED_INLINE void comms_store(const CommsCtx *args)
 {

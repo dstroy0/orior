@@ -32,11 +32,11 @@ static void latex_slash(const LatexReadCtx *args)
     const char *text = args->text;
     unsigned long long start = 0ULL;
     unsigned long long end = args->length;
-    while ((start < end) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = text[start]))
+    while ((start < end) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .character = text[start]))
     {
         start += 1ULL;
     }
-    while ((end > start) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = text[end - 1ULL]))
+    while ((end > start) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .character = text[end - 1ULL]))
     {
         end -= 1ULL;
     }
@@ -124,7 +124,7 @@ int cli_tex_names_get(const CliLatexLengthCtx *args)
     char start[CLI_PATH_MAX_LEN];
     EMBED_CALL(latex_slash, LatexReadCtx, .text = args->name, .length = args->length, .plain = 0,
                .out_capacity = start);
-    // the rest is none where the root's length falls past the name or inside one of its letters
+    // the rest is none where the root's length falls past the name or inside one of its characters
     if ((cellul.len(&(CatenaFinitaCfg){.src = start, .cap = CLI_POOL_BYTES}) < root) ||
         (((unsigned char)start[root] & 0xC0u) == 0x80u))
     {

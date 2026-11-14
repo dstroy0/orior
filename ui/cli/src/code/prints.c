@@ -17,7 +17,7 @@ typedef struct
     unsigned long long size;
     unsigned int line;
 } CliPrint;
-// the most prints found and the bytes of their paths and texts
+// the max prints found and the bytes of their paths and texts
 #define CLI_PRINTS_MAX 65536u
 #define CLI_PRINTS_TEXT (1u << 24u)
 
@@ -97,11 +97,11 @@ int cli_prints_line(const CliPrintsPathCfg *args)
     unsigned long long from = 0ULL;
     while (from < args->length)
     {
-        unsigned int letter = 0u;
-        const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+        unsigned int character = 0u;
+        const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                                                    .text_bytes = (const unsigned char *)args->text,
-                                                   .length = args->length, .at = from, .letter = &letter);
-        if (!EMBED_CALL(cli_files_letter_internal.fuzzy_white, CliFilesLetterCtx, .letter = letter))
+                                                   .length = args->length, .at = from, .character = &character);
+        if (!EMBED_CALL(cli_files_character_internal.fuzzy_white, CliFilesLetterCtx, .character = character))
         {
             break;
         }

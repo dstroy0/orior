@@ -1,4 +1,4 @@
-word	kind	names	selected_by_process	selected_by_step	selected_by_branch	selected_by_fulltrace	bits	signed	c_type	complement	+	-	*	/	%	&	|	^	<<	>>	<	<=	>	>=	==	!=	==0	!=0	<0	&&	||	-x	~x	!x	?:	=	(T)	*p	*p=	f()	.	if	return	goto	label:	switch	{}	T x	//	const	atomic()	+=	-=	*=	/=	%=	&=	|=	^=	<<=	>>=
+word	type	names	selected_by_process	selected_by_step	selected_by_branch	selected_by_fulltrace	bits	signed	c_type	complement	+	-	*	/	%	&	|	^	<<	>>	<	<=	>	>=	==	!=	==0	!=0	<0	&&	||	-x	~x	!x	?:	=	(T)	*p	*p=	f()	.	if	return	goto	label:	switch	{}	T x	//	const	atomic()	+=	-=	*=	/=	%=	&=	|=	^=	<<=	>>=
 sign	thing	a register's class, a signed byte of -1, 0 or 1					8	1	signed char																																																				
 byte	thing	a register's class, 8 bits					8	0	unsigned char																																																				
 signed_byte	thing	a register's class, 8 bits					8	1	signed char																																																				
@@ -113,7 +113,7 @@ pipe	ksc	an operation written on the FMA pipe in place of the integer pipe	orior
 equal	ksc	two writings the system answers alike																																																											
 nonnegative	selection	a value never negative, ordered and widened unsigned	orior_measuring_stick_engine	combined	both operands of an ordering are never negative	stick_kernel > typed > combined																																																							
 low	selection	the text of a value's low bits	orior_measuring_stick_engine	converted	a narrowing reads only its operand's low bits	stick_kernel > typed > converted																																																							
-stand	selection	a name read as an expression not yet written	orior_measuring_stick_engine	stick_kernel	a byte or a halfword loaded	stick_kernel > operand > stand																																																							
+are	selection	a name read as an expression not yet written	orior_measuring_stick_engine	stick_kernel	a byte or a halfword loaded	stick_kernel > operand > are																																																							
 narrowed	selection	a wide every later read converts to a word	orior_measuring_stick_engine	stick_kernel	every later read casts to a word's width	stick_kernel > operand > stick_narrowed																																																							
 fold_loads	selection	a load and its one extension written as the extending load	orior_measuring_stick_engine	fold_loads	the loaded word is read only by its extension	stick_kernel > assign > fold_loads																																																							
 balance	selection	the pipe each pipe choice is written on	orior_measuring_stick_engine	balance	sass.ksc holds a pipe for the operation	stick_kernel > assign > fold_loads > balance																																																							

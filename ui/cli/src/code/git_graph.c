@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// git_graph.c: every branch's commits laid out as a graph, or those a search finds over the whole history
+// git_graph.c: every branch's commits arranged as a graph, or those a search finds over the whole history
 #include "../text/regexp.h"
 #include "../text/text.h"
 #include "git_internal.h"
@@ -12,7 +12,7 @@ typedef struct
     unsigned int id;
     unsigned int color;
 } CliLane;
-// the most columns the graph has, the most words a search has, and the most bytes of a commit's text searched
+// the max columns the graph has, the max words a search has, and the max bytes of a commit's text searched
 #define CLI_GIT_LANES 512u
 
 #define CLI_GIT_QUERY_WORDS 64u
@@ -50,14 +50,14 @@ EMBED_INLINE void cli_on_lower(const GitGraphCtx *args)
 {
     VerbaLinea *line = args->line;
     const char *text = args->text;
-    static unsigned int s_letters[CLI_GIT_GRAPH_TEXT_MAX];
+    static unsigned int s_characters[CLI_GIT_GRAPH_TEXT_MAX];
     const unsigned long long count =
-        EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text, .size = args->length, .letters = s_letters,
+        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = text, .size = args->length, .characters = s_characters,
                    .capacity_u64 = CLI_GIT_GRAPH_TEXT_MAX);
     for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
-        EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = line,
-                   .letter = EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = s_letters[at]));
+        EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = line,
+                   .character = EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = s_characters[at]));
     }
 }
 

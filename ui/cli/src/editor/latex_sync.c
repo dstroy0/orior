@@ -30,7 +30,7 @@ typedef struct
     unsigned long long *size;
     unsigned long long length;
     unsigned long long at;
-    char letter;
+    char character;
     unsigned long long start_value;
     long long *value;
     CliTexRecord *record;

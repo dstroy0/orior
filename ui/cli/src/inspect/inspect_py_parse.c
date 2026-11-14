@@ -6,7 +6,7 @@
 #include "../text/text.h"
 #include "inspect_py.h"
 
-// the most open brackets a line contains, and the most functions open around a line
+// the max open brackets a line contains, and the max functions open around a line
 #define CLI_PY_STACK 4096u
 
 // the brackets, the stops and the separators, which a parse colors as delimiters, every other operator as an operator

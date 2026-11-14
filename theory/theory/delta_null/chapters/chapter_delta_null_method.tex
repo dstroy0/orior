@@ -42,7 +42,7 @@ On 20 corpora cut to 6707 bytes each, \(D_{\text{self}}\) ran from \(0.1118\) to
 
 \(\mathrm{supp}(P) = \bigl|\{\,k : P(k) > 0\,\}\bigr|, \qquad H(P) = -\sum_{k} P(k)\log_2 P(k)\)
 
-Across the same 20 corpora, the number of pairs ran from \(193\) to \(970\) and rose and fell with \(D_{\text{self}}\) almost in step. A corpus in an encoding that uses few pairs looks consistent with itself for arithmetic reasons alone. Ranking writing systems by \(D_{\text{self}}\) ranks them by how many pairs they use, until shown otherwise.
+Across the same 20 corpora, the number of pairs ran from \(193\) to \(970\) and rose and fell with \(D_{\text{self}}\) almost in step. A corpus in an encoding that uses few pairs looks consistent with itself for arithmetic reasons alone. Ranking writing systems by \(D_{\text{self}}\) ranks them by how many pairs they use, until displayed otherwise.
 
 \subsection{5. Text damaged by extraction}
 
@@ -50,17 +50,17 @@ Take the sets of characters \(S = \{s_1 \dots s_q\}\) that only a given writing 
 
 \(\mathrm{sets}(T) = \sum_{s \in S} \mathbf{1}\bigl[\,\exists\, c \in T,\ c \in s\,\bigr], \qquad \mu(T) = \frac{10^3}{|T_\alpha|}\bigl|\{\,c \in T : \mathrm{comb}(c)\,\}\bigr|\)
 
-Here \(T_\alpha\) is the text's letters and \(\mathrm{comb}\) marks combining characters, such as accents written as separate code points. A damaged PDF extraction loses the combining marks first. A file with \(\mu \to 0\) and \(\mathrm{sets} \ll q\) has been damaged even though the text left in it still reads normally.
+Here \(T_\alpha\) is the text's characters and \(\mathrm{comb}\) marks combining characters, such as accents written as separate code points. A damaged PDF extraction loses the combining marks first. A file with \(\mu \to 0\) and \(\mathrm{sets} \ll q\) has been damaged even though the text left in it still reads normally.
 
 On 60 extracted papers with \(q=7\), one file scored \(\mathrm{sets} \ge 5\) with \(\mu > 0\). Every other file had lost the marks completely.
 
 \subsection{6. Permutation test}
 
-To tell a real split of the data from what splitting any set of keys produces by chance, shuffle the labels within each group the split started from, keeping the size of every cell the same \cite{src:Good-2005}:
+To tell a real split of the data from what splitting any set of keys produces by chance, shuffle the labels within each group the split started from, retention the size of every cell the same \cite{src:Good-2005}:
 
 \(\pi^{\ast} \sim \mathrm{Unif}\bigl(\mathcal{S}(\text{labels within group})\bigr), \qquad \Delta = \mathrm{E}\bigl[\,r(\pi^{\ast})\,\bigr] - r(\pi_{\text{obs}})\)
 
-\(\Delta \le 0\) means the observed split gained nothing that a random split of the same shape would not. Over 19 corpora limited to 60000 tokens each, \(\Delta\) ran from \(+0.0056\) to \(+0.0901\), and the spread of the shuffled splits was at most \(0.0133\) over 5 draws.
+\(\Delta \le 0\) means the observed split gained nothing that a random split of the same shape would not. Over 19 corpora limited to 60000 tokens each, \(\Delta\) ran from \(+0.0056\) to \(+0.0901\), and the spread of the shuffled splits was at max \(0.0133\) over 5 draws.
 
 \subsection{7. Checking the tree against the distances}
 

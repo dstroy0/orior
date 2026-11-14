@@ -85,7 +85,7 @@ async function drawRule(rule) {
     ? '<p class="banner">A security hotspot highlights security-sensitive code that requires review: whether it is safe or must be fixed is for the reviewer to decide.</p>'
     : "";
   const level = ruleLevel(rule.key);
-  await shown(
+  await displayed(
     "rule",
     `${RULE_STYLE}<h1>${escaped(rule.name)} (${escaped(rule.key)})</h1>${taxonomy(rule)}${taint}${hotspot}<div class="row">${button(level === "off" ? "Activate" : "Deactivate", level === "off" ? "rule-on" : "rule-off", rule.key)}</div>${described(rule)}${parameters(rule)}`,
   );
@@ -98,7 +98,7 @@ function ruleLevel(key) {
   return sonar.settings?.rules?.[key]?.level ?? null;
 }
 
-// A rule turned on or off: kept against its default where its default is known, and set outright where
+// A rule turned on or off: retained against its default where its default is known, and set outright where
 // only its key is.
 async function ruleToggled(key, level, activeByDefault) {
   await settingsChanged((settings) => {
@@ -135,7 +135,7 @@ async function ruleDeactivated(key) {
 }
 
 // The rules listed in their panel by language: all, or those on or off as `filter` names, the rule
-// `key` among them shown first where one is named.
+// `key` among them displayed first where one is named.
 async function drawRules(filter, key) {
   if (!(await started())) {
     return;
@@ -157,7 +157,7 @@ async function drawRules(filter, key) {
     })
     .join("");
   const filters = [button("All", "rules-filter", ""), button("Active", "rules-filter", "on"), button("Inactive", "rules-filter", "off")].join("");
-  await shown(
+  await displayed(
     "rules",
     `<h1>Rules</h1><form class="row">${filters}<input name="key" placeholder="Rule key, as python:S1481" value="${escaped(key ?? "")}">${button("Find", "rules-find")}</form>${sections || '<p class="quiet">No rule matches.</p>'}`,
   );

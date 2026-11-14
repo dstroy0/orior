@@ -14,7 +14,7 @@
 # The files are named by the catalog's own numbers. The catalog can be asked directly. It gives
 # the author's dates, which is not a publication date either, but an author's lifetime bounds when a
 # book could have been written and does not depend on what number happens to appear first in a preface.
-# The distinction is kept in the output: this is when the author lived, and it is used as a date only
+# The distinction is retained in the output: this is when the author lived, and it is used as a date only
 # because it is the honest one available.
 
 import io

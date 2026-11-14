@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // A list of rows of one height, as many as a tree of any size holds, of which only the rows in sight
-// and those the scroll heads into are on the page. Each row is built from what it stands for as it
-// comes into sight and taken off once the scroll has gone past it; the list keeps the height every
-// row would take, and its scroll stands where it would. The rows ahead are as many as the scroll's
+// and those the scroll heads into are on the page. Each row is built from what it is for as it
+// comes into sight and taken off once the scroll has gone past it; the list retains the height every
+// row would take, and its scroll is where it would. The rows ahead are as many as the scroll's
 // speed carries it over two frames' drawing, never fewer than LEAST and never more than two screens,
 // marked `ahead`. A row that holds
 // the keys stays on the page wherever the scroll goes. A row's place is its number times its height,
-// and a list can set one gap above a row of its own, which every row past it stands below.
+// and a list can set one gap above a row of its own, which every row past it is below.
 //
 // lists.js steps the keys through every row by the list's model: how many rows there are, each one's
 // key, depth, name and whether it is open, and a row's element, put on the page and scrolled to.
@@ -19,7 +19,7 @@ import { frameMs } from "./motion.js";
 const LEAST = 8;
 
 export class RowList {
-  // `build(row)` makes a row's element from what it stands for; `height` is each row's, and `gap`
+  // `build(row)` makes a row's element from what it is for; `height` is each row's, and `gap`
   // the room above the row a list's rows name with `gapAt`.
   constructor(list, { height, gap = 0, build }) {
     this.list = list;
@@ -29,7 +29,7 @@ export class RowList {
     this.rows = [];
     this.at = new Map();
     this.gapAt = -1;
-    this.shown = new Map();
+    this.displayed = new Map();
     this.ahead = new Ahead(LEAST);
     this.frame = 0;
     // Told each time rows come onto the page, as a search typed in the list marks its matches.
@@ -43,18 +43,18 @@ export class RowList {
     new ResizeObserver(() => this.later()).observe(list);
   }
 
-  // The rows, each { key, depth, name, open } and whatever `build` reads, and the row the gap stands
+  // The rows, each { key, depth, name, open } and whatever `build` reads, and the row the gap is
   // above, or -1. The rows on the page are built again: what each shows may have changed. The row that
-  // holds the keys hands them to its new element before its old one goes: an element taken off while it
+  // holds the keys passes them to its new element before its old one goes: an element taken off while it
   // holds the keys has the page let them go, and that costs a frame.
   set(rows, gapAt = -1) {
     const holding = this.list.contains(document.activeElement) ? document.activeElement : null;
     const focused = holding?.dataset.key ?? null;
-    const old = [...this.shown.values()];
+    const old = [...this.displayed.values()];
     this.rows = rows;
     this.gapAt = gapAt;
     this.at = new Map(rows.map((row, at) => [row.key, at]));
-    this.shown.clear();
+    this.displayed.clear();
     old.forEach((element) => element !== holding && element.remove());
     this.size.style.height = `${this.topOf(rows.length)}px`;
     this.draw();
@@ -95,8 +95,8 @@ export class RowList {
   }
 
   // The element of row `at` where it is on the page, and null where not.
-  shownAt(at) {
-    return this.shown.get(this.rows[at]?.key) ?? null;
+  displayedAt(at) {
+    return this.displayed.get(this.rows[at]?.key) ?? null;
   }
 
   // The element of row `at`, put on the page; scrolled into sight where `reveal`.
@@ -114,7 +114,7 @@ export class RowList {
       }
       this.draw();
     }
-    return this.shown.get(row.key) ?? this.place(at);
+    return this.displayed.get(row.key) ?? this.place(at);
   }
 
   // The element of the row of `key`, put on the page and scrolled into sight, or null where no row has
@@ -131,13 +131,13 @@ export class RowList {
     element.style.top = `${this.topOf(at)}px`;
     // In the order of the rows, as the list's keys step through the page's.
     let before = null;
-    for (const [key, one] of this.shown) {
+    for (const [key, one] of this.displayed) {
       const there = this.at.get(key);
       if (there > at && (!before || there < this.at.get(before.dataset.key))) {
         before = one;
       }
     }
-    this.shown.set(row.key, element);
+    this.displayed.set(row.key, element);
     this.list.insertBefore(element, before);
     return element;
   }
@@ -158,20 +158,20 @@ export class RowList {
     const last = Math.ceil((top + this.list.clientHeight) / this.height);
     this.ahead.moved(first);
     // A jump reads as a great speed: ahead is never more than two screens of rows past the edge.
-    const most = 2 * (last - first);
+    const max = 2 * (last - first);
     const [reached, to] = this.ahead.span(first, last);
-    const from = Math.max(0, reached, first - most);
-    const end = Math.min(this.rows.length, to, last + most);
+    const from = Math.max(0, reached, first - max);
+    const end = Math.min(this.rows.length, to, last + max);
     const focused = this.list.contains(document.activeElement) ? document.activeElement : null;
-    for (const [key, element] of this.shown) {
+    for (const [key, element] of this.displayed) {
       const at = this.at.get(key);
       if ((at === undefined || at < from || at >= end) && element !== focused) {
         element.remove();
-        this.shown.delete(key);
+        this.displayed.delete(key);
       }
     }
     for (let at = from; at < end; at += 1) {
-      const element = this.shown.get(this.rows[at].key) ?? this.place(at);
+      const element = this.displayed.get(this.rows[at].key) ?? this.place(at);
       element.classList.toggle("ahead", this.ahead.heading >= 0 ? at >= last : at < first);
     }
     this.ahead.read(Math.max(frameMs(), performance.now() - began));

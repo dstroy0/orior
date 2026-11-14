@@ -209,13 +209,13 @@ int font_read(const FontDataCfg *args)
 
 unsigned int font_glyph(const FontCfg *args)
 {
-    // the first range whose last character is not before the letter, found by halves
+    // the first range whose last character is not before the character, found by halves
     unsigned int low = 0u;
     unsigned int high = args->font->ranges;
     while (low < high)
     {
         const unsigned int middle = low + ((high - low) / 2u);
-        if (args->font->range[middle][1] < args->letter)
+        if (args->font->range[middle][1] < args->character)
         {
             low = middle + 1u;
         }
@@ -224,9 +224,9 @@ unsigned int font_glyph(const FontCfg *args)
             high = middle;
         }
     }
-    if ((low < args->font->ranges) && (args->font->range[low][0] <= args->letter))
+    if ((low < args->font->ranges) && (args->font->range[low][0] <= args->character))
     {
-        return (args->font->range[low][2] + (args->letter - args->font->range[low][0])) & 0xffffu;
+        return (args->font->range[low][2] + (args->character - args->font->range[low][0])) & 0xffffu;
     }
     return 0u;
 }

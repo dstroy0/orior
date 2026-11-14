@@ -15,7 +15,7 @@ const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwA
 
 test("a #@param line is a field: text, a number, a box, a list of choices, or a slider with its bounds", () => {
   const fields = formsOf(['name = "x"  #@param {type:"string"}', "count = 3  #@param", "on = True #@param", 'pick = "b" #@param ["a", "b", 3]', "level = 5 #@param {type:\"slider\", min:0, max:10, step:1}", "plain = 1"].join("\n"));
-  assert.deepEqual(fields.map((one) => [one.line, one.name, one.kind]), [[0, "name", "string"], [1, "count", "number"], [2, "on", "boolean"], [3, "pick", "choice"], [4, "level", "slider"]]);
+  assert.deepEqual(fields.map((one) => [one.line, one.name, one.type]), [[0, "name", "string"], [1, "count", "number"], [2, "on", "boolean"], [3, "pick", "choice"], [4, "level", "slider"]]);
   assert.deepEqual(fields[3].choices, ["a", "b", "3"]);
   assert.deepEqual(fields[4].bounds, { min: "0", max: "10", step: "1" });
 });
@@ -33,7 +33,7 @@ test("a cell's fields are drawn under it, and a choice made is written into its 
   assert.match(cell.session.doc.line(0), /^mode = "slow"\s+#@param/);
 });
 
-test("each kind of output is drawn: a stream, an error's traceback, an image, HTML in a frame, Markdown, and a long text cut", async () => {
+test("each type of output is drawn: a stream, an error's traceback, an image, HTML in a frame, Markdown, and a long text cut", async () => {
   const book = await openedNotebook("outputs", [code("x"), markdown("y")]);
   const cell = book.cells[0];
   const long = Array.from({ length: LONG + 10 }, (_, at) => `line ${at}`).join("\n");
@@ -59,10 +59,10 @@ test("each kind of output is drawn: a stream, an error's traceback, an image, HT
   assert.ok(!host.querySelector(".nb-more") && host.textContent.includes(`line ${LONG}`), "the whole a press away");
   cell.outputs = [];
   drawOutputs(book, cell);
-  assert.ok(host.hidden, "no outputs, none shown");
+  assert.ok(host.hidden, "no outputs, none displayed");
 });
 
-test("a cell's count shows its run, a running cell [*], and one out of date its mark naming the cells it stands on", async () => {
+test("a cell's count shows its run, a running cell [*], and one out of date its mark naming the cells it is on", async () => {
   const book = await openedNotebook("marks", [code("a = 1"), code("b = a")]);
   const [first, second] = book.cells;
   try {
@@ -76,7 +76,7 @@ test("a cell's count shows its run, a running cell [*], and one out of date its 
     assert.equal(second.node.querySelector(".nb-count").textContent, "[4]");
     const mark = second.node.querySelector(".nb-stale");
     assert.ok(!mark.hidden && second.node.classList.contains("stale"));
-    assert.match(mark.title, /^Out of date: it stands on cell 1, changed, run again or deleted since this cell ran$/);
+    assert.match(mark.title, /^Out of date: it is on cell 1, changed, run again or deleted since this cell ran$/);
     assert.equal(document.querySelectorAll("#notebook .nb-map .nb-map-cell").length, 2, "a block of the map for each cell");
     assert.ok(document.querySelector("#notebook .nb-map .nb-map-cell.stale"));
   } finally {

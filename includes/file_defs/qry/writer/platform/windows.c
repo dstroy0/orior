@@ -11,10 +11,10 @@
 #include <stddef.h>
 #include <string.h>
 
-// the most wide letters of a path, the longest a run's file is named under the top with a stream's name after it
+// the max wide characters of a path, the longest a run's file is named under the top with a stream's name after it
 #define QRY_WIDE_MAX_LEN (QRY_WRITER_TOP_MAX_LEN + QRY_NAME_MAX_LEN + 2u)
 
-// a path of UTF-8 as Windows' wide letters into `wide`, which has room for QRY_WIDE_MAX_LEN: 1, or 0 where it is no
+// a path of UTF-8 as Windows' wide characters into `wide`, which has room for QRY_WIDE_MAX_LEN: 1, or 0 where it is no
 // UTF-8 or does not fit
 static int qry_wide(const char *path, wchar_t *wide)
 {
@@ -30,7 +30,7 @@ static void qry_shared_named(const char *path, char *name)
     for (const char *at = path; *at != '\0'; at += 1)
     {
         // Windows reads a path the same either way its separators are written and whatever its
-        // letters' case; every written form of one path therefore names one mapping
+        // characters' case; every written form of one path therefore names one mapping
         const unsigned char folded = (*at == '\\')                    ? (unsigned char)'/'
                                      : ((*at >= 'A') && (*at <= 'Z')) ? (unsigned char)(*at + ('a' - 'A'))
                                                                       : (unsigned char)*at;
@@ -80,7 +80,7 @@ int qry_writer_file_put(long long file, const unsigned char *bytes, unsigned lon
     unsigned long long done = 0ull;
     while (done < size)
     {
-        // a write is at most QRY_WRITER_PIECE_BYTES, at most a gibibyte, which a DWORD counts
+        // a write is at max QRY_WRITER_PIECE_BYTES, at max a gibibyte, which a DWORD counts
         const DWORD piece = (DWORD)(((size - done) < QRY_WRITER_PIECE_BYTES) ? (size - done) : QRY_WRITER_PIECE_BYTES);
         DWORD wrote = 0u;
         if (!WriteFile((HANDLE)(intptr_t)file, bytes + done, piece, &wrote, NULL) || (wrote == 0u))
@@ -111,7 +111,7 @@ int qry_writer_file_removed(const char *path)
 
 // A replace fails with a sharing violation while another process holds the file in its place open without delete
 // sharing. Such a hold is short: a reader opens the file, reads it and closes it. The replace tries again every
-// QRY_PLACED_PAUSE_MS for QRY_PLACED_TRIES tries at the most, and fails after them
+// QRY_PLACED_PAUSE_MS for QRY_PLACED_TRIES tries at max, and fails after them
 #define QRY_PLACED_TRIES 50u
 #define QRY_PLACED_PAUSE_MS 10u
 
@@ -165,7 +165,7 @@ int qry_writer_stream_put(const char *qry, const char *name, unsigned int name_l
     int whole = 1;
     while (whole && (done < size))
     {
-        // a write is at most QRY_WRITER_PIECE_BYTES, at most a gibibyte, which a DWORD counts
+        // a write is at max QRY_WRITER_PIECE_BYTES, at max a gibibyte, which a DWORD counts
         const DWORD piece = (DWORD)(((size - done) < QRY_WRITER_PIECE_BYTES) ? (size - done) : QRY_WRITER_PIECE_BYTES);
         DWORD put = 0u;
         whole = WriteFile(file, bytes + done, piece, &put, NULL) && (put == piece);
@@ -182,7 +182,7 @@ unsigned long long qry_writer_input_read(unsigned char *bytes, unsigned long lon
     unsigned long long size = 0ull;
     for (;;)
     {
-        // a read is at most a gibibyte, which a DWORD counts
+        // a read is at max a gibibyte, which a DWORD counts
         const unsigned long long left = room - size;
         const DWORD piece = (DWORD)((left < (1ull << 30u)) ? left : (1ull << 30u));
         DWORD got = 0u;
@@ -248,7 +248,7 @@ unsigned long long qry_member_file_read(const char *path, unsigned char *bytes, 
     unsigned long long done = 0ull;
     while (done < size)
     {
-        // a read is at most a gibibyte, which a DWORD counts
+        // a read is at max a gibibyte, which a DWORD counts
         const DWORD piece = (DWORD)(((size - done) < (1ull << 30u)) ? (size - done) : (1ull << 30u));
         DWORD got = 0u;
         if (!ReadFile(file, bytes + done, piece, &got, NULL) || (got == 0u))

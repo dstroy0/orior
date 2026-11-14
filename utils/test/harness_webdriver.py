@@ -127,31 +127,31 @@ def written_if_changed(path, data):
 
 def stage():
     """The page staged: the window's files with catch.js first in the page's head, and the suite's files under
-    __harness/, each import made the path the page serves it at; what the stage kept that the page no longer has
+    __harness/, each import made the path the page serves it at; what the stage retained that the page no longer has
     taken away."""
     import harness_page
 
-    kept = set()
+    retained = set()
     for file in files_under(WINDOW_FILES, ""):
         with open(os.path.join(WINDOW_FILES, file), "rb") as source:
             data = source.read()
         if file == "index.html":
             data = with_catch(data.decode("utf-8")).encode("utf-8")
         written_if_changed(os.path.join(STAGING, file), data)
-        kept.add(file)
+        retained.add(file)
     with open(os.path.join(SUITE, "catch.js"), "rb") as source:
         written_if_changed(os.path.join(STAGING, "__harness", "catch.js"), source.read())
-    kept.add("__harness/catch.js")
+    retained.add("__harness/catch.js")
     top_files = [name for name in os.listdir(SUITE) if name.endswith(".js") and os.path.isfile(os.path.join(SUITE, name))]
     for file in sorted(top_files) + ["src/" + name for name in files_under(os.path.join(SUITE, "src"), ".js")]:
         path = os.path.join(SUITE, file)
         with open(path, encoding="utf-8") as source:
             text = source.read()
-        shown = "__harness/test/" + file
-        written_if_changed(os.path.join(STAGING, shown), harness_page.rewrite_imports(text, path).encode("utf-8"))
-        kept.add(shown)
+        displayed = "__harness/test/" + file
+        written_if_changed(os.path.join(STAGING, displayed), harness_page.rewrite_imports(text, path).encode("utf-8"))
+        retained.add(displayed)
     for file in files_under(STAGING, ""):
-        if file not in kept:
+        if file not in retained:
             os.remove(os.path.join(STAGING, file))
 
 

@@ -9,7 +9,7 @@
 //
 // Add Toolchain adds one of the reader's own to a group, a new one or one there already, by its name,
 // what it is for, the programs that name it, the words that make it say its version and its install
-// page; Add Group adds a group that stands empty until a toolchain goes in it. What the reader added
+// page; Add Group adds a group that is empty until a toolchain goes in it. What the reader added
 // is taken out from its row, and an empty group from its heading.
 //
 // orior's own runs and terminals read the PATH anew, and a change here reaches them at once; a
@@ -110,10 +110,10 @@ export async function showToolchains(sheet) {
 
   function draw() {
     const word = filter.value.trim().toLowerCase();
-    const shown = read.tools.filter((tool) => !word || [tool.id, tool.name, tool.for, tool.group, ...tool.programs].some((text) => text.toLowerCase().includes(word)));
+    const displayed = read.tools.filter((tool) => !word || [tool.id, tool.name, tool.for, tool.group, ...tool.programs].some((text) => text.toLowerCase().includes(word)));
     const rows = [];
     for (const group of read.groups ?? []) {
-      const tools = shown.filter((tool) => tool.group === group);
+      const tools = displayed.filter((tool) => tool.group === group);
       const empty = !read.tools.some((tool) => tool.group === group);
       if (!tools.length && !(empty && (!word || group.toLowerCase().includes(word)))) {
         continue;
@@ -170,7 +170,7 @@ export async function showToolchains(sheet) {
     askVersions();
   }
 
-  // The form that adds a toolchain or a group, shown in place of nothing under the sheet's buttons.
+  // The form that adds a toolchain or a group, displayed in place of nothing under the sheet's buttons.
   const adding = element("form", { className: "tools-add", hidden: true });
   const field = (label, input) => element("label", { className: "report-row" }, element("span", { textContent: label }), input);
   const input = (props) => element("input", { className: "report-field", type: "text", spellcheck: false, ...props });

@@ -15,7 +15,7 @@
 typedef struct CliLspCtx CliLspCtx;
 typedef struct CliLspTypeCtx CliLspTypeCtx;
 
-// A request waiting on its answer: its id, where its answer is handed over, whether it came, and the error it came
+// A request waiting on its answer: its id, where its answer is passed over, whether it came, and the error it came
 // with, empty where none did
 typedef struct
 {
@@ -58,7 +58,7 @@ struct CliLsp
 // the lock a server's number and references are counted under; each server is a cell of its own, taken as it starts and
 // given back once its readers end (lsp.c)
 
-// the server's readers started: what it writes read on a thread of its own, each answer handed to the request waiting
+// the server's readers started: what it writes read on a thread of its own, each answer passed to the request waiting
 // on it and what it sends unprompted to its receiver; and what it writes to its errors retained, its last
 // CLI_LSP_COMPLAINT bytes (lsp.c)
 void cli_lsp_readers_start(const CliLspCtx *args);

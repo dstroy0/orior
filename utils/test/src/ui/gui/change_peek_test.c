@@ -4,7 +4,7 @@
 // row with its minus in the first mark's color and an added row with its plus in the second's; a press lands on the box
 // and on each control; the revert puts the last commit's text back and one undo brings the change again; with two
 // changes the next wraps from the second to the first and the previous from the first to the last; Escape closes the
-// peek, after which no box is drawn or pressed; and a change just shown has not settled against a scroll
+// peek, after which no box is drawn or pressed; and a change just displayed has not settled against a scroll
 #include "../../../../../includes/window/block.h"
 #include "../../../../../ui/cli/src/editor/document_changes.h"
 #include "../../../../../ui/cli/src/editor/view_edits.h"
@@ -15,7 +15,7 @@
 static const char s_key[] = "change_peek_check";
 static const char s_head[] = "one\ntwo\nthree\nfour\nfive\n";
 
-// how far two colors stand apart, the channels' differences summed
+// how far two colors are apart, the channels' differences summed
 static int apart(GuiColor one, GuiColor other)
 {
     const int red = (int)GUI_RED_OF(one) - (int)GUI_RED_OF(other);
@@ -24,7 +24,7 @@ static int apart(GuiColor one, GuiColor other)
     return ((red < 0) ? -red : red) + ((green < 0) ? -green : green) + ((blue < 0) ? -blue : blue);
 }
 
-// whether some pixel of `rect` stands near `color`, nearer it than `other`: the text drawn in it, its edges blended
+// whether some pixel of `rect` is near `color`, nearer it than `other`: the text drawn in it, its edges blended
 static int colored(const GuiRaster *raster, GuiRect rect, GuiColor color, GuiColor other)
 {
     for (int y = rect.y; y < rect.y + rect.height; y += 1)
@@ -112,7 +112,7 @@ int main(void)
     const GuiRect place = {0, 0, 800, 400};
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                        .pixels = GUI_CODE_SIZE, .scale = 100);
-    const float cell = EMBED_CALL(gui_glyphs_face_letter.cell, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs, .size = size);
+    const float cell = EMBED_CALL(gui_glyphs_face_character.cell, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs, .size = size);
     GuiEditor editor;
     EMBED_CALL(gui_editor_table.init, GuiEditorCfg, .editor = &editor);
 
@@ -120,13 +120,13 @@ int main(void)
     opened("one\nTWO\nthree\nfour\nfive\n", &editor);
     cli_check(changes_count() == 1u, "the text has one change");
     cli_check(EMBED_CALL(gui_change_peek.show, GuiChangePeekCfg, .key = s_key, .line = 1ULL),
-              "the changed line's change is shown");
+              "the changed line's change is displayed");
     cli_check(!EMBED_CALL(gui_change_peek.settled, GuiChangePeekCfg, .key = s_key),
-              "a change just shown has not settled");
+              "a change just displayed has not settled");
     EMBED_CALL(gui_change_peek.draw, GuiChangePeekCfg, .raster = &raster, .glyphs = &glyphs, .palette = palette,
                .editor_read = &editor, .place = place, .bounds = place, .cell = cell, .scale = 100);
     const GuiRect box = EMBED_CALL(gui_change_peek.box, GuiChangePeekCfg, .scale = 100);
-    cli_check((box.width > 0) && (box.y == 2 * GUI_CODE_LINE), "the box stands under the changed line");
+    cli_check((box.width > 0) && (box.y == 2 * GUI_CODE_LINE), "the box is under the changed line");
     cli_check(box.height == GUI_CHANGE_PEEK_HEAD + (2 * GUI_CHANGE_PEEK_ROW), "the box holds the head and two rows");
     const GuiRect removed_row = {box.x, box.y + GUI_CHANGE_PEEK_HEAD, box.width, GUI_CHANGE_PEEK_ROW};
     const GuiRect added_row = {box.x, removed_row.y + GUI_CHANGE_PEEK_ROW, box.width, GUI_CHANGE_PEEK_ROW};
@@ -177,7 +177,7 @@ int main(void)
     unsigned long long line = 99ULL;
     cli_check(changes_count() == 2u, "the text has two changes");
     cli_check(EMBED_CALL(gui_change_peek.show, GuiChangePeekCfg, .key = s_key, .line = 4ULL),
-              "the second change is shown");
+              "the second change is displayed");
     cli_check(EMBED_CALL(gui_change_peek.step, GuiChangePeekCfg, .key = s_key, .by = 1, .line_out = &line) &&
                   (line == 0ULL),
               "the next from the last wraps to the first");
@@ -187,18 +187,18 @@ int main(void)
 
     // Escape closes the peek: no box drawn and none pressed
     cli_check(EMBED_CALL(gui_change_peek.key, GuiChangePeekCfg, .name = "Escape"),
-              "Escape is taken while the peek stands");
+              "Escape is taken while the peek is");
     cli_check(!EMBED_CALL(gui_change_peek.key, GuiChangePeekCfg, .name = "Escape"),
               "Escape is not taken once it is closed");
     cli_check(!EMBED_CALL(gui_change_peek.hit, GuiChangePeekCfg, .x = box.x + 4, .y = added_row.y + 4,
                           .action_out = &action),
-              "a closed peek takes no press where its box stood");
+              "a closed peek takes no press where its box was");
     EMBED_CALL(gui_change_peek.draw, GuiChangePeekCfg, .raster = &raster, .glyphs = &glyphs, .palette = palette,
                .editor_read = &editor, .place = place, .bounds = place, .cell = cell, .scale = 100);
     const GuiRect closed = EMBED_CALL(gui_change_peek.box, GuiChangePeekCfg, .scale = 100);
     cli_check(closed.width == 0, "a closed peek draws no box");
     cli_check(EMBED_CALL(gui_change_peek.settled, GuiChangePeekCfg, .key = s_key),
-              "with no change shown a scroll moves the view");
+              "with no change displayed a scroll moves the view");
 
     cli_view_frame_release((CliViewFrame *)editor.frame);
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key);

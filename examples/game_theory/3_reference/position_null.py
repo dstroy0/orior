@@ -7,14 +7,14 @@
 #
 #   Usage:  python examples/game_theory/3_reference/position_null.py [games]
 #
-# The null permutation of this work, written for a grid, keeps how many of each color are on the
-# board and which squares are occupied, and draws which color sits where. It is the maximum
+# The null permutation of this work, written for a grid, retains how many of each color are on the
+# board and which squares are occupied, and draws which color sits where. It is the max
 # entropy arrangement under the constraints the position supplies. It cannot be wrong, and a
 # departure from it is arrangement and cannot be counts.
 #
 # What a departure does not say on its own is which part of the game put it there. A board game has
 # two ingredients and the measure sees their sum: the rules, which are fixed and public, and the
-# play, which is a choice. A control that removes one of them and keeps the other is the only way to
+# play, which is a choice. A control that removes one of them and retains the other is the only way to
 # tell, and a board supplies one for free.
 #
 # The control is a game played on the same board, with the same number of squares filled and the
@@ -40,7 +40,7 @@ import manifest  # noqa: E402,F401
 from measure.shift_agreement import lattice_agreement
 from representation.game.board import ARMS, BLACK, EMPTY, SIDE, WHITE, opening, play, scattered
 
-# Drawn arrangements averaged per position. The null is cheap and averaging it keeps one unlucky
+# Drawn arrangements averaged per position. The null is cheap and averaging it retains one unlucky
 # draw out of a row.
 DRAWS = 4
 
@@ -69,9 +69,9 @@ def place_only(seed, filled=SIDE * SIDE, from_opening=True):
 
     Same board, same colors, same count of squares filled, no flip rule.
 
-    `from_opening` keeps Reversi's four fixed center pieces. They are worth a control of their own,
+    `from_opening` retains Reversi's four fixed center pieces. They are worth a control of their own,
     because the first run of this script left them in and read 0.971 where the argument wanted 1.00,
-    and the miss is the opening itself: those four squares are laid out BW over WB. All four of
+    and the miss is the opening itself: those four squares are arranged BW over WB. All four of
     the neighboring pairs inside them disagree by construction where a draw would have half of them
     agree. Four guaranteed disagreements out of 112 pairs is 0.018 of the reading. The gap comes from nothing
     else. Starting from an empty board removes them and the control returns 0.997.
@@ -100,9 +100,9 @@ def main():
     out.write("Reversi, %d games, both sides drawing uniformly from the legal moves\n" % games)
     out.write("  live %.4f  null %.4f  ratio %.3f\n" % (live, null, live / null))
 
-    for keep, label in ((True, "keeping Reversi's four center pieces"),
+    for retain, label in ((True, "retention Reversi's four center pieces"),
                         (False, "from an empty board")):
-        placed = [place_only(seed, from_opening=keep) for seed in range(games * 2)]
+        placed = [place_only(seed, from_opening=retain) for seed in range(games * 2)]
         live, null = against_the_null(placed)
         out.write("\nplace-only control, %d boards, no flip rule, %s\n" % (len(placed), label))
         out.write("  live %.4f  null %.4f  ratio %.3f\n" % (live, null, live / null))

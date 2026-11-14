@@ -101,7 +101,7 @@ def grip(seats, shuffled, lag, additive):
     return live - dead
 
 
-def built_control(kind, length=2_000_000, period=8):
+def built_control(type, length=2_000_000, period=8):
     """A sequence one language reads exactly and the other cannot.
 
     The repeating-key corpus was used for this first and it is not a GF(2)-only control. A
@@ -122,7 +122,7 @@ def built_control(kind, length=2_000_000, period=8):
 
     while len(out) < length:
         out.extend(block)
-        if kind == "xor":
+        if type == "xor":
             block = bytearray(value ^ offset for value in block)
         else:
             block = bytearray((value + offset) & 0xFF for value in block)

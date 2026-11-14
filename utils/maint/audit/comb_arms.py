@@ -125,7 +125,7 @@ def main():
     # exactly the same weight as a deep one and the binomial does not care.
     #
     # The power is not depth-independent, and that is the part worth saying. A shallow arm is less
-    # likely to show a REAL bias's sign. Mixing depths keeps the false-positive rate exact while
+    # likely to show a REAL bias's sign. Mixing depths retains the false-positive rate exact while
     # diluting sensitivity. Short arms are free to add and never mislead; they simply carry less.
     expected_unanimous = (256 * 2) / float(1 << width)
     print()
@@ -178,7 +178,7 @@ def main():
     print("  4. WHAT ANOTHER ARM BUYS")
     print("=" * 78)
     print()
-    print("  An arm costs nothing to keep. The counters are 256 numbers and 33 bins whatever the")
+    print("  An arm costs nothing to retain. The counters are 256 numbers and 33 bins whatever the")
     print("  depth, and the device buffers are allocated once: memory is flat in the arm count.")
     print("  What the arms buy is not flat, and the two things they buy do not scale alike:")
     print()
@@ -192,11 +192,11 @@ def main():
         by = k ** 0.5
         expect = (256 * 2) / float(1 << k) if k < 200 else 0.0
         if expect >= 0.01:
-            shown = "%.2f positions" % expect
+            displayed = "%.2f positions" % expect
         else:
-            shown = "%.2e positions" % expect
+            displayed = "%.2e positions" % expect
         mark = "  <- you are here" if k == width else ""
-        print("    %4d   %14.2fx      %s%s" % (k, by, shown, mark))
+        print("    %4d   %14.2fx      %s%s" % (k, by, displayed, mark))
     print()
     print("  So depth answers how large a bias is, and arms answer whether it is a bias at all.")
     print("  Past about thirty two arms any unanimous position is a finding, not a")

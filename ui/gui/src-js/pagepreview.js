@@ -8,7 +8,7 @@
 // swapped in place; one no tab holds is read from the tree. SVG is drawn on a page of its own, and a
 // CSS file over a page made from its selectors: for each selector, the elements it applies to, the
 // last holding the selector's text. Each element is tied to the line its tag starts on, and the one
-// the cursor stands in is outlined over the frame.
+// the cursor is in is outlined over the frame.
 
 export const LINE = "data-orior-line";
 
@@ -215,7 +215,7 @@ function build(doc, compound) {
 
 // The elements the selector `selector` of the rule at line `line` applies to, built in `doc`: each
 // compound an element, a descendant or a child inside the one before it, a sibling after it, the
-// page's own html and body standing for themselves; the last is tied to the rule's line and holds
+// page's own html and body located for themselves; the last is tied to the rule's line and holds
 // the selector's text. None for a selector of an element that is not seen.
 export function selectorElements(doc, selector, line) {
   const parts = steps(selector);
@@ -334,11 +334,11 @@ function attributesOf(live, fresh) {
   return changed;
 }
 
-// Patches the element `live` to stand as `fresh` does, keeping each node of the same type in the
-// same place and changing only what differs; counts how many nodes it kept, changed, added and took
+// Patches the element `live` to be as `fresh` does, retention each node of the same type in the
+// same place and changing only what differs; counts how many nodes it retained, changed, added and took
 // out into `counts`.
-export function morph(live, fresh, counts = { kept: 0, changed: 0, added: 0, removed: 0 }) {
-  counts[attributesOf(live, fresh) ? "changed" : "kept"] += 1;
+export function morph(live, fresh, counts = { retained: 0, changed: 0, added: 0, removed: 0 }) {
+  counts[attributesOf(live, fresh) ? "changed" : "retained"] += 1;
   const was = [...live.childNodes];
   const now = [...fresh.childNodes];
   const doc = live.ownerDocument;
@@ -361,7 +361,7 @@ export function morph(live, fresh, counts = { kept: 0, changed: 0, added: 0, rem
       one.nodeValue = next.nodeValue;
       counts.changed += 1;
     } else {
-      counts.kept += 1;
+      counts.retained += 1;
     }
   }
   return counts;
@@ -384,7 +384,7 @@ export function elementAt(doc, line) {
   return best;
 }
 
-// The frame a page is drawn in, in `holder`, with the outline over the element the cursor stands
+// The frame a page is drawn in, in `holder`, with the outline over the element the cursor is
 // in. `follow(href)` is told of each link pressed in the page.
 export class PageFrame {
   constructor(holder, { follow }) {

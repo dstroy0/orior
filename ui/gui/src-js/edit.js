@@ -16,13 +16,13 @@
 // the change before and after it a press away, and the commit's lines put back with Revert.
 //
 // The tree marks what git says of each file: its name in the color of how it differs from the last
-// commit, the state's letter after it, and a folder holding a changed file in that file's color with
+// commit, the state's character after it, and a folder holding a changed file in that file's color with
 // a dot. What the ignore files leave out is dimmed.
 //
-// Each tree keeps its own tabs, the one shown, the files opened last, and the text of every file with
+// Each tree retains its own tabs, the one displayed, the files opened last, and the text of every file with
 // changes not yet saved: the app closed with changes open comes back with them still unsaved. Back and
 // Forward walk the places the cursor jumped from and to, and Last Editor steps through the tabs by
-// when each was last shown, while Ctrl is pressed.
+// when each was last displayed, while Ctrl is pressed.
 
 import { invoke } from "./bridge.js";
 import { findWith } from "./editor/find.js";
@@ -49,7 +49,7 @@ import { along, forgetHeads, markChanges, sendChanges, setLineHistory } from "./
 import { closeSplitTab, moveToNextSplit, openInSplit, splitEditor, unsplit } from "./edit/open.js";
 import { bindPage, startPanes } from "./edit/panes.js";
 import { closePeek, stepChange } from "./edit/peek.js";
-import { forgetBackup, jumpTo, keepBackups, keepRecent, lastEditor, markPlace, step } from "./edit/places.js";
+import { forgetBackup, jumpTo, retainBackups, retainRecent, lastEditor, markPlace, step } from "./edit/places.js";
 import { changeSignatureHere, docstringForm, fillParagraph, holdMemory, moveHere, setDocstringForm, shapeSearchHere, sortMethods, writeDocstring } from "./edit/refactor.js";
 import { formatTab, runTab, saveActive, saving, validateTab, verifyDisassemblyTab } from "./edit/save.js";
 import { hookEditor, startEditor } from "./edit/start.js";
@@ -84,7 +84,7 @@ export const state = {
   moving: false,
   // Whether the tabs the tree had open are being opened again as it starts.
   restoring: false,
-  // The tabs by when each was last shown, and the walk Last Editor is on while Ctrl is pressed.
+  // The tabs by when each was last displayed, and the walk Last Editor is on while Ctrl is pressed.
   used: [],
   cycle: null,
   // How many times the last commit's files were forgotten, for a branch on the window's side to know
@@ -113,10 +113,10 @@ export const state = {
 };
 
 // How many places Back holds, how many files the quick open lists as opened last, and the largest
-// text kept for a file with changes not saved.
+// text retained for a file with changes not saved.
 export const PLACES = 50;
 export const RECENT = 30;
-export const BACKUP_MOST = 2 * 1024 * 1024;
+export const BACKUP_MAX = 2 * 1024 * 1024;
 
 // Which git state a folder takes from the files in it: the first of these that any of them is.
 export const ROLL_ORDER = ["C", "M", "D", "A", "R", "U"];
@@ -161,13 +161,13 @@ export function show(path) {
     drawRepoBranch();
     drawGit(state.branch);
   }
-  // A tab whose server was stopped to hold memory to its budget is handed to one again as it shows.
+  // A tab whose server was stopped to hold memory to its budget is passed to one again as it shows.
   if (tab?.session && tab.served === undefined && !tab.serving && tab.unserved) {
     tab.unserved = false;
     serve(tab).then(() => tab.served && state.editor?.s === tab.session && state.editor.schedule());
   }
   if (tab && !tab.commit) {
-    keepRecent(tab.file);
+    retainRecent(tab.file);
   }
   const editorNode = document.getElementById("editor");
   const binaryNode = document.getElementById("binary");
@@ -186,8 +186,8 @@ export function show(path) {
     editorNode.hidden = false;
     binaryNode.hidden = true;
     state.editor.show(tab.session);
-    // A tab shown as the session comes back takes the keys only where nothing else has them: what the
-    // reader began to type into at the start keeps them.
+    // A tab displayed as the session comes back takes the keys only where nothing else has them: what the
+    // reader began to type into at the start retains them.
     if (!state.restoring || !document.activeElement || document.activeElement === document.body) {
       state.editor.focus();
     }
@@ -208,11 +208,11 @@ export function show(path) {
   drawUndo(tab?.session ?? null);
   drawTimeline(tab ? tab.file : null);
   drawLocalHistory(tab?.commit ? null : (tab?.file ?? null));
-  shownListeners.forEach((listener) => listener(tab?.file ?? null));
+  displayedListeners.forEach((listener) => listener(tab?.file ?? null));
 }
 
-// What is told each time the file shown changes, with the file's path, or null where none shows.
-const shownListeners = [];
+// What is told each time the file displayed changes, with the file's path, or null where none shows.
+const displayedListeners = [];
 
 // What is told of each change to an open file's text as it is made, with the file's session, and of
 // each move of the cursor once the keys rest.
@@ -236,14 +236,14 @@ export function onPasteAs(listener) {
 }
 
 export function onShown(listener) {
-  shownListeners.push(listener);
+  displayedListeners.push(listener);
 }
 
 // With no file open the desk shows the name over the lattice, as the run view does with no job
 // chosen, and the tab bar goes until a tab is in it.
-export function drawEmpty(shown) {
-  document.getElementById("tabs").hidden = shown;
-  document.getElementById("edit-empty").hidden = !shown;
+export function drawEmpty(displayed) {
+  document.getElementById("tabs").hidden = displayed;
+  document.getElementById("edit-empty").hidden = !displayed;
 }
 
 export async function startEdit(defs) {
@@ -252,26 +252,26 @@ export async function startEdit(defs) {
   // Find runs on the window's side: over the branch a text is stored as, once the changes before it have gone there, and
   // over the pages a paged file is stored as, the window brought to a match outside it.
   findWith({
-    search: (s, sought, most) => {
+    search: (s, sought, max) => {
       if (s.window?.paged) {
-        return findPaged(s, sought, most).catch(() => null);
+        return findPaged(s, sought, max).catch(() => null);
       }
       const mirrored = s.doc.mirrored;
       if (!mirrored?.ready) {
         return null;
       }
       sendChanges(s.doc);
-      return along(mirrored, () => invoke("document_find", { key: mirrored.key, sought, most })).catch(() => null);
+      return along(mirrored, () => invoke("document_find", { key: mirrored.key, sought, max })).catch(() => null);
     },
     reach: (s, line) => (s.window?.paged && !inWindow(s, line) ? jumpPaged(s, line) : Promise.resolve()),
   });
   onOverBudget(holdMemory);
-  // The changes not saved are kept at once as the window closes, is hidden or loses the keys, and not
+  // The changes not saved are retained at once as the window closes, is hidden or loses the keys, and not
   // only a moment after typing rests: no window's changes are lost, whichever closes first.
-  window.addEventListener("pagehide", keepBackups);
-  window.addEventListener("beforeunload", keepBackups);
-  window.addEventListener("blur", keepBackups);
-  document.addEventListener("visibilitychange", () => document.hidden && keepBackups());
+  window.addEventListener("pagehide", retainBackups);
+  window.addEventListener("beforeunload", retainBackups);
+  window.addEventListener("blur", retainBackups);
+  document.addEventListener("visibilitychange", () => document.hidden && retainBackups());
   await loadPlugins();
   state.known = registerLanguages(defs);
   // A plugin read again, turned on or turned off colors every open file anew.
@@ -338,7 +338,7 @@ export function editing() {
     validate: () => validateTab(tabOf(actingPath())),
     verifyDisassembly: () => verifyDisassemblyTab(tabOf(actingPath())),
     saveAll: async ({ auto = false } = {}) => {
-      const shown = state.active;
+      const displayed = state.active;
       for (const tab of state.tabs.filter(dirty)) {
         if (!auto && saving("format")) {
           await formatTab(tab, { saving: true });
@@ -359,7 +359,7 @@ export function editing() {
           loadBridge().then(drawDefs);
         }
       }
-      state.active = shown;
+      state.active = displayed;
       drawTabs();
       drawLocalHistory(fileOf(state.active), true);
       await loadChanges();
@@ -424,7 +424,7 @@ export function editing() {
     lineCount: () => (state.editor?.s ? state.editor.s.base + state.editor.s.doc.count : null),
     symbols: () => {
       const s = state.editor?.s;
-      return s ? symbolsOf(s.language?.id, s.doc).map((symbol) => ({ ...symbol, line: s.base + symbol.line, shownLine: s.base + symbol.line + 1 })) : null;
+      return s ? symbolsOf(s.language?.id, s.doc).map((symbol) => ({ ...symbol, line: s.base + symbol.line, displayedLine: s.base + symbol.line + 1 })) : null;
     },
     goLine: (line, col) => {
       const s = state.editor?.s;
@@ -442,16 +442,16 @@ export function editing() {
 }
 
 // Forgets the folders read so far and the tabs, for a tree opened in place of this one. What the tabs
-// kept stays kept with the tree they were open in.
+// retained stays retained with the tree they were open in.
 // Sends each file opened in this window to `elsewhere`, a function of its path, line and column, or
-// with null keeps them here.
+// with null retains them here.
 export function openElsewhere(elsewhere) {
   state.elsewhere = elsewhere;
 }
 
 export function forgetTree() {
   stopDebug();
-  keepBackups();
+  retainBackups();
   state.tabs.forEach(stopServing);
   forgetProblems();
   checkShown();

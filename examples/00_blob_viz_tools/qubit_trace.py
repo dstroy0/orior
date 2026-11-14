@@ -94,7 +94,7 @@ def diffuser(state):
     """Reflect about the mean amplitude, which is Grover's second reflection.
 
     2|psi><psi| - I on the even superposition is exactly "twice the mean, minus yourself". This
-    is written as that and not as a matrix, which keeps it exact up to one mean.
+    is written as that and not as a matrix, which retains it exact up to one mean.
     """
     mean = state.mean()
     return 2.0 * mean - state
@@ -134,7 +134,7 @@ def reading_of(state, angles, top=DEGREE):
 
     Source k sits at direction k of the placement and carries amplitude state[k]. The reading is
     the sum over sources of amplitude times the harmonic at that direction. Real harmonics with
-    complex weights, which keeps the phase in the coefficient where torsion can read it.
+    complex weights, which retains the phase in the coefficient where torsion can read it.
     """
     out = {}
     for at, (colatitude, longitude) in enumerate(angles):
@@ -325,7 +325,7 @@ def _nested():
     print("  The non-vacuous test of unitarity is whether the state can be carried back exactly,")
     print("  and --invert already does it properly: full-reach inversion returns the LOCAL purity")
     print("  to 1.000000000000 from 0.890625, which no normalization guarantees. That result")
-    print("  stands. This one is rebuilt around the same standard.")
+    print("  is. This one is rebuilt around the same standard.")
     print("")
     print("  Nesting: branching b to depth d. B^d modes, coupled parent to child through every")
     print("  level. Local purity of half the modes is the readout, and it must FALL or no")
@@ -361,8 +361,8 @@ def _nested():
                 if (at >> one) & 1 and (at >> two) & 1:
                     state[at] = -state[at]
 
-        keep = max(1, modes // 2)
-        local = purity_of(reduced_state(state, keep, modes))
+        retain = max(1, modes // 2)
+        local = purity_of(reduced_state(state, retain, modes))
 
         # Invert every pair, in reverse, which is exactly U dagger for a sequence of sign flips.
         back = state.copy()
@@ -370,7 +370,7 @@ def _nested():
             for at in range(width):
                 if (at >> one) & 1 and (at >> two) & 1:
                     back[at] = -back[at]
-        returned = purity_of(reduced_state(back, keep, modes))
+        returned = purity_of(reduced_state(back, retain, modes))
 
         print("  %8d %7d %9d %18.12f %20.12f %12d"
               % (branch, depth, modes, local, returned, modes))
@@ -405,9 +405,9 @@ def _invert():
     HAS TO REACH, and the answer is a theorem with a number attached.
     """
     steps = 8
-    print("  A correlation is built by phases coupling one kept qubit to `reach` traced qubits.")
+    print("  A correlation is built by phases coupling one retained qubit to `reach` traced qubits.")
     print("  Then the surface wave is inverted, and the inversion is allowed to touch only `touch`")
-    print("  of those traced qubits. Local purity of the four kept qubits is the readout.")
+    print("  of those traced qubits. Local purity of the four retained qubits is the readout.")
     print("")
     print("  %7s %7s %18s %18s %16s"
           % ("reach", "touch", "purity after wave", "purity after inv", "recovered"))
@@ -445,13 +445,13 @@ def _invert():
     print("  same wall as the kernel table and the same wall as 'undisturbed'.")
     print("")
     print("  WHAT THIS DOES SETTLE, AND IT IS WORTH HAVING. Recovery is all or nothing in the")
-    print("  reach of the inversion. There is no regime where touching most of the environment")
-    print("  gets most of the coherence back. A strategy of inverting the reachable part")
+    print("  reach of the inversion. There is no regime where touching the majority of the environment")
+    print("  gets the majority of the coherence back. A strategy of inverting the reachable part")
     print("  returns zero at best and a loss at worst. That closes off a direction instead of")
-    print("  opening one, the more useful kind of measurement.")
+    print("  opening one, the more useful type of measurement.")
     print("")
-    print("  THE NAMED CYCLE IS THE RIGHT SHAPE AND THE TABLE IS ITS PRICE. Maximum")
-    print("  entropy, down through the constituents to low entropy, and back to maximum: that is")
+    print("  THE NAMED CYCLE IS THE RIGHT SHAPE AND THE TABLE IS ITS PRICE. Max")
+    print("  entropy, down through the constituents to low entropy, and back to max: that is")
     print("  the recurrence visible in --elsewhere, where the local purity went 0.5732 to 0.9810")
     print("  and back to 0.6543 under nothing but forward evolution. The return is real and it is")
     print("  free when the correlation spans a handful of modes. The rows above say what the")
@@ -459,15 +459,15 @@ def _invert():
     return 0
 
 
-def reduced_state(state, keep, qubits=QUBITS):
-    """The density matrix of the first `keep` qubits, with the rest traced out.
+def reduced_state(state, retain, qubits=QUBITS):
+    """The density matrix of the first `retain` qubits, with the rest traced out.
 
-    Reshaping the amplitude vector into a matrix indexed by (kept, traced) and multiplying by its
+    Reshaping the amplitude vector into a matrix indexed by (retained, traced) and multiplying by its
     own conjugate transpose IS the partial trace, and it is exact: no approximation and no sampling.
     """
-    kept = 1 << keep
-    rest = 1 << (qubits - keep)
-    block = state.reshape(kept, rest)
+    retained = 1 << retain
+    rest = 1 << (qubits - retain)
+    block = state.reshape(retained, rest)
     return block.dot(block.conj().T)
 
 
@@ -479,7 +479,7 @@ def purity_of(rho):
 def entangling_sweep(steps, qubits=QUBITS):
     """States that start unentangled and become progressively correlated across the split.
 
-    A controlled phase between a kept qubit and a traced one builds correlation without moving any
+    A controlled phase between a retained qubit and a traced one builds correlation without moving any
     probability, the cleanest form of the thing being tested: the local state degrades
     while nothing about the global state is lost.
     """
@@ -489,7 +489,7 @@ def entangling_sweep(steps, qubits=QUBITS):
     for step in range(steps):
         angle = math.pi * (step + 1) / float(steps)
         turned = state.copy()
-        # Phase applied where a kept qubit and a traced qubit are both set, which correlates them.
+        # Phase applied where a retained qubit and a traced qubit are both set, which correlates them.
         for at in range(width):
             if (at & 1) and (at & (1 << (qubits - 1))):
                 turned[at] = turned[at] * complex(math.cos(angle), math.sin(angle))
@@ -501,7 +501,7 @@ def entangling_sweep(steps, qubits=QUBITS):
 def _elsewhere():
     """Is the coherence destroyed, or is it somewhere this instrument is not looking?
 
-    The claim: incoherent information need not be kept stable here, because it is coherent
+    The claim: incoherent information need not be retained stable here, because it is coherent
     elsewhere, and for that reason qubits resist being expressed.
 
     The physics half of that is right and is testable in one table. Decoherence is not destruction,
@@ -516,7 +516,7 @@ def _elsewhere():
     """
     states = entangling_sweep(8)
 
-    print("  Eight qubits. Four kept, four traced out, the narrow instrument. The wide")
+    print("  Eight qubits. Four retained, four traced out, the narrow instrument. The wide")
     print("  instrument is the whole state, which nothing is hidden from.")
     print("")
     print("  %6s %18s %18s %18s"
@@ -582,9 +582,9 @@ def _elsewhere():
     print("  BUT 'IF WE ASK NOTHING' DOES NOT BUY THE ISOLATION, AND THIS RUN IS THE PROOF.")
     print("")
     print("    THERE IS NO MEASUREMENT ANYWHERE IN THIS FILE. No projection, no collapse, no")
-    print("    sampling, no observation operator of any kind. The local purity fell to %.3f"
+    print("    sampling, no observation operator of any type. The local purity fell to %.3f"
           % ends)
-    print("    regardless, purely from a phase that correlated a kept qubit with a traced one.")
+    print("    regardless, purely from a phase that correlated a retained qubit with a traced one.")
     print("")
     print("    So decoherence is not caused by OUR asking. It is caused by coupling, and the")
     print("    environment couples whether anyone is looking or not. Zurek's einselection is the")
@@ -743,7 +743,7 @@ def _compare():
         print("  the first rounds after onset move by an order of magnitude.")
         print("")
         print("  A PROCESS THAT ROTATES IS ONE WHOSE STATE CAN BE FOLLOWED. A process that")
-        print("  reorganizes is one that cannot, and the avalanche is built to be the second kind.")
+        print("  reorganizes is one that cannot, and the avalanche is built to be the second type.")
         print("  That is the distinction worth having, and it comes off the magnitude and not")
         print("  the direction.")
     else:

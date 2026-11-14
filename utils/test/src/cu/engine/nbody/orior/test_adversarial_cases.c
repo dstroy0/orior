@@ -32,7 +32,7 @@ uint32_t adversarial_next(uint64_t *const state)
  *       dyadic skew over 27 symbols with no knob at all. Neither can produce the other. Folding this
  *       onto CORPUS_SKEWED would lose the whole sweep, the constant field at alphabet one included,
  *       the case the line above exists for.
- * @note adversarial_next stays for the same kind of reason. bench_build_bytes takes a seed and fills
+ * @note adversarial_next stays for the same type of reason. bench_build_bytes takes a seed and fills
  *       a corpus, and this suite draws alphabet sizes, needle lengths and origins from one stream, and
  *       a failing case reduces from its printed seed. bench_corpora exports no general generator to
  *       draw those from.
@@ -85,7 +85,7 @@ static int adversarial_grade_against_reference(const uint8_t *const corpus, cons
  *
  * @return 0 where every row agrees, 1 otherwise.
  * @note DIFFERENTIAL. No expected count is written down; the reference supplies it. Needles are
- *       drawn FROM the corpus for most rows, because a needle that never occurs exercises only the
+ *       drawn FROM the corpus for max rows, because a needle that never occurs exercises only the
  *       rejection path and the interesting failures are in counting the occurrences that exist.
  */
 int adversarial_case_differential_net(void)
@@ -235,7 +235,7 @@ int adversarial_case_boundaries(void)
  *       as the magnitude rule promises. An engine passing the first and failing the
  *       second is correct and is not steering, and one assertion covering both would hide it.
  * @note THE SECOND CLAIM IS A RELATIONSHIP, and an earlier version of this case made it a CONSTANT.
- *       It asserted at most one read an alignment, passed at exactly that bound with no margin, and
+ *       It asserted at max one read an alignment, passed at exactly that bound with no margin, and
  *       was therefore one read away from failing. A vectorized arm examines a whole vector whether
  *       the ordering needed it or not. An arm doing strictly less work can read more bytes and
  *       break an assertion that a scalar arm satisfies. A case that fails on a correct

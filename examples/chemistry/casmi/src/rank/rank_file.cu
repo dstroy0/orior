@@ -38,7 +38,7 @@ void rank_error_line(SimResults *results, const char *what, const EngineError *e
     mmgr_line_put(&results->line, what);
     rank_line_decimal(results, ": module ", (unsigned long long)error->module);
     rank_line_decimal(results, ", site ", (unsigned long long)error->site);
-    rank_line_decimal(results, ", kind ", (unsigned long long)error->kind);
+    rank_line_decimal(results, ", type ", (unsigned long long)error->type);
     rank_line_end(results);
 }
 
@@ -47,7 +47,7 @@ void rank_error_line(SimResults *results, const char *what, const EngineError *e
 static int rank_leaf_read(const char *path, unsigned int group, long long leaf, CasmiParquetColumn *column)
 {
     memset(column, 0, sizeof(*column));
-    // the leaf is below CASMI_PARQUET_LEAVES_MOST
+    // the leaf is below CASMI_PARQUET_LEAVES_MAX
     const CasmiParquetColumnRead read = {path, &s_footer, group, (unsigned int)leaf, column};
     int ok = casmi_parquet_column_bound(&read) >= 0ll;
     column->row_start = ok ? (unsigned long long *)malloc((size_t)(column->row_start_room * 8ull) + 8u) : NULL;

@@ -80,7 +80,7 @@ typedef struct CliServersKeyCheckerCtx CliServersKeyCheckerCtx;
 typedef struct CliServersCtx CliServersCtx;
 typedef struct CliServersRootTypeCtx CliServersRootTypeCtx;
 
-// the most servers running, toolchains that failed and that ended, words a server starts with, languages and
+// the max servers running, toolchains that failed and that ended, words a server starts with, languages and
 // extensions' names of one, and checkers named
 #define CLI_SERVERS_MAX 16u
 #define CLI_SERVERS_FAILED 64u
@@ -90,7 +90,7 @@ typedef struct CliServersRootTypeCtx CliServersRootTypeCtx;
 
 // how long a request is waited on, and a search of the whole tree, in milliseconds; how many files the check has open
 // at once; how long it waits for a file's diagnostics and for any after them; how often an ended server is started
-// again, at most that many times within that many milliseconds; and the most bytes of a file the inspections and the
+// again, at max that many times within that many milliseconds; and the max bytes of a file the inspections and the
 // check read
 #define CLI_SERVERS_REQUEST_TIMEOUT_MS 5000ull
 #define CLI_SERVERS_SEARCHING 60000ull
@@ -104,13 +104,13 @@ typedef struct CliServersRootTypeCtx CliServersRootTypeCtx;
 // the name the findings of the files impero reads itself are stored by, beside the checkers'
 #define CLI_SERVERS_OWN "orior"
 
-// the most bytes of a text written from one server's answer or one file's findings, and of what a check of the whole
-// tree finds; and the most nodes a tree contains
+// the max bytes of a text written from one server's answer or one file's findings, and of what a check of the whole
+// tree finds; and the max nodes a tree contains
 #define CLI_SERVERS_ANSWER (8ull << 20u)
 #define CLI_SERVERS_FINDINGS (32ull << 20u)
 #define CLI_SERVERS_NODES (1u << 18u)
 
-// the most bytes of a request's params about a file: its path as a URI, a place and a new name
+// the max bytes of a request's params about a file: its path as a URI, a place and a new name
 #define CLI_SERVERS_PARAMS (CLI_PATH_MAX_LEN * 4u)
 
 // A server's answer read: its lock, and the tree it reads to, taken to the text it reads, given back as the next is
@@ -149,7 +149,7 @@ typedef struct
 } CliServerSpec;
 
 // the asks a server given the tree's slices remembers the times of; and the quiet it is let go after, in
-// milliseconds: the least, what each ask of the last minute adds, the most, and the minute
+// milliseconds: the least, what each ask of the last minute adds, the max, and the minute
 #define CLI_SERVERS_REQUESTS 128u
 #define CLI_SERVERS_QUIET_MIN 2000ull
 #define CLI_SERVERS_QUIET_EACH 500ull
@@ -211,9 +211,9 @@ typedef struct
 } CliServersQueued;
 #define CLI_SERVERS_NO_FILE 0xffffffffu
 
-// the tree's files the check lists at the most; and the slots of its two ticket rings, as two's powers: the files
+// the tree's files the check lists at max; and the slots of its two ticket rings, as two's powers: the files
 // waiting, and the files a change puts first
-#define CLI_SERVERS_FILES_MOST (1u << 16u)
+#define CLI_SERVERS_FILES_MAX (1u << 16u)
 #define CLI_SERVERS_CHECK_RING_SHIFT 16u
 #define CLI_SERVERS_CHECK_FIRST_SHIFT 6u
 // the bytes the two rings' slots take, the waiting ring's first, the check's part of the rings block
@@ -224,7 +224,7 @@ typedef struct
 #define CLI_PROBLEMS_RING_SHIFT 5u
 #define CLI_PROBLEMS_RING_SLOTS (1u << CLI_PROBLEMS_RING_SHIFT)
 #define CLI_PROBLEMS_RING_BYTES ((unsigned long long)CLI_PROBLEMS_RING_SLOTS * sizeof(EmbedTicketRingSlot))
-// the jobs ring's slots as a two's power, the jobs in flight at the most, and the bytes they take, the jobs' part of
+// the jobs ring's slots as a two's power, the jobs in flight at max, and the bytes they take, the jobs' part of
 // the rings block
 #define CLI_SERVERS_JOBS_RING_SHIFT 8u
 #define CLI_SERVERS_JOBS_RING_BYTES ((1ULL << CLI_SERVERS_JOBS_RING_SHIFT) * sizeof(EmbedTicketRingSlot))
@@ -240,11 +240,11 @@ typedef struct
 } CliServersCheckRing;
 
 // The tree's check: whether it is on, its tree, where what it reports goes; the tree's files in one movable cell sized
-// from them, laid as `file_at_max` starts of eight bytes, then a byte a file, 1 while it waits, then the paths' texts
+// from them, positioned as `file_at_max` starts of eight bytes, then a byte a file, 1 while it waits, then the paths' texts
 // each with its 0, `files_max` bytes of them and `files_used` written; the two rings of files waiting, the tree's
 // files and the files a change puts first, their slots the check's part of the rings block; the generation, moved on as
 // the check is let go so that a checker drops the files queued before; how many it was given and how many are done,
-// whether its threads started and whether its rings are laid
+// whether its threads started and whether its rings are positioned
 typedef struct
 {
     int on;
@@ -262,7 +262,7 @@ typedef struct
     embed_atomic_u64 total;
     embed_atomic_u64 done;
     int started;
-    int laid;
+    int positioned;
 } CliServersQueue;
 
 // the places in the check's files cell of the start of the file `at_`, of the waiting byte of the file `at_`, and of
@@ -272,7 +272,7 @@ typedef struct
 #define CLI_SERVERS_FILES_TEXT_AT(queue_, offset_) (CLI_SERVERS_QUEUED_AT((queue_), (queue_)->file_at_max) + (offset_))
 
 // the check's cell for the tree's files given back where it is too small and taken sized from the tree's files, the
-// rings laid once: 1, or 0 where the cells cannot meet it; every file's waiting byte written 0; a file pushed on the
+// rings positioned once: 1, or 0 where the cells cannot meet it; every file's waiting byte written 0; a file pushed on the
 // ring its `front` names, under a ticket of its own: 1, or 0 where the ring is full or its cell is refused; the files
 // waiting, pushed and not yet taken; and the tree's files recorded, those of `files` and those recorded before. Each
 // with the queue's lock acquired (servers_check_room.c)
@@ -298,14 +298,14 @@ extern CliKeyed g_cli_servers_checked;
 extern CliKeyed g_cli_servers_input;
 extern CliKeyed g_cli_servers_supplied;
 
-// the most bytes of a job of the servers: a file's text and what is reported of it
+// the max bytes of a job of the servers: a file's text and what is reported of it
 #define CLI_SERVERS_JOB_CAPACITY (CLI_SERVERS_LARGEST + (64ull << 10u))
 
-// A job of the servers done on one of their threads, from `size` bytes of it, its own copy of what it was handed
+// A job of the servers done on one of their threads, from `size` bytes of it, its own copy of what it was passed
 typedef void (*CliServersJob)(const CliServersJobCfg *args);
 // `size` bytes of a job copied into a persistent cell of their size and pushed on the jobs' ticket ring under a ticket
 // of the caller's, waiting where the ring holds a lap of jobs in flight: 1, or 0 where the cell could not be taken;
-// and a job's cell, laid by the caller, pushed under a ticket, popped by the thread that runs it and given back by it:
+// and a job's cell, positioned by the caller, pushed under a ticket, popped by the thread that runs it and given back by it:
 // 1, or 0 where `cell` is NULL (servers_jobs.c)
 int cli_servers_later(const CliServersRunCtx *args);
 int cli_servers_later_dispatch(const CliServersRunSizeCtx *args);
@@ -354,24 +354,24 @@ void cli_servers_stop_later(const CliServersPathLspCtx *args);
 // `{"line", "character"}` (servers_shapes.c)
 unsigned int cli_servers_read(const CliServersReadStateCtx *args);
 unsigned int cli_servers_answer_read(const CliServersReadStateAnswerCtx *args);
-// `method` sent to `server` with the params the line `params` holds, its answer handed over in `answer`: 1, or 0 with
+// `method` sent to `server` with the params the line `params` holds, its answer passed over in `answer`: 1, or 0 with
 // why given, a line that did not fit its params refused with no server reached; and the same with the params of a
 // request about the place `line`, `col` of `path`, `added` after the place where it is given
 int cli_servers_request(const CliServersErrMsgCtx *args);
 int cli_servers_request_at(const CliServersPathCtx *args);
 unsigned long long cli_servers_json_integer(const CliServersJsonNodeOtherwiseCtx *args);
 CliTextPosition cli_servers_position(const CliServersJsonNodeOtherwiseCtx *args);
-// a path written as a JSON string as it stands in `tree` (servers_shapes.c)
+// a path written as a JSON string as it is in `tree` (servers_shapes.c)
 void cli_servers_path_write(const CliServersPathErrMsgCtx *args);
 // a workspace edit, in either of the shapes the protocol allows, as each file's edits, `[{"path", "edits"}]`, each
 // file's first in the file first, a file made, moved or removed not among them; and the cells one occupies while it is
 // written (servers_edits.c)
 void cli_servers_workspace_edit_get(const CliServersJsonTreeOutCtx *args);
-// every file named `name` in the tree at `root`, outside the folders a build writes and at most six folders down,
+// every file named `name` in the tree at `root`, outside the folders a build writes and at max six folders down,
 // sorted, written as a JSON array into `out`; and the cells a server's start occupies while it starts
 // (servers_launch.c)
 void cli_servers_projects_in(const CliServersRootOutCtx *args);
-// a hover's contents as Markdown, from any of the shapes the protocol allows, its letters as they are
+// a hover's contents as Markdown, from any of the shapes the protocol allows, its characters as they are
 void cli_servers_markdown_get(const CliServersJsonOutCtx *args);
 // a completion item of the server's put among `items`
 void cli_servers_item_get(const CliServersJsonOneCtx *args);
@@ -401,7 +401,7 @@ int cli_servers_selection(const CliServersPathErrMsgOutCtx *args);
 unsigned long long cli_servers_hash_get(const CliServersReadStateCtx *args);
 
 // a file the editor has open, `size` bytes of `text`, given `server` as the tree's slice for its view, the lines 0 to
-// 63 until the page hands one, as the file opened as `id` where `id` is not NULL, else as its next version, the slice's
+// 63 until the page passes one, as the file opened as `id` where `id` is not NULL, else as its next version, the slice's
 // map stored by its key, in the tree at `root`, or the tree it was first given in where `root` is NULL: 1, or 0 with
 // why given; whether the file at `path` is given its server as a slice; whether any slice given a server owes its
 // diagnostics, its version above the last its server published of it; and its slice let go as it closes
@@ -423,9 +423,9 @@ int cli_servers_slice_out(const CliServersPathLineFromCtx *args);
 // `mapped_size`, or NULL where they are of a version given before the slice stored was or the cells cannot meet them
 int cli_servers_slice_ranged_in(const CliServersPathJsonCtx *args);
 char *cli_servers_slice_diagnostics(const CliServersPathSizeCtx *args);
-// A window's slice of a file the check gives its server in slices; what each window is handed to with its slice and
+// A window's slice of a file the check gives its server in slices; what each window is passed to with its slice and
 // its first and last lines, 1 to cut the next, 0 to stop; the file at `path` in the tree at `root`, `size` bytes of
-// `text`, cut in one walk into the slices of its windows, a view's height each, each handed to `window` as the walk
+// `text`, cut in one walk into the slices of its windows, a view's height each, each passed to `window` as the walk
 // reaches it: 1, or 0 with why given where the cells cannot meet them; and a window's slice `cut` stored by the file's
 // key with its map and given `server` as the file opened as `id` where `id` is not NULL, else as its next version: 1,
 // or 0 with why given (servers_slice.c)
@@ -452,7 +452,7 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args);
 // every file it names passed on where `always`, changed or the same, as a file the editor opens receives its findings
 // (servers_findings.c)
 void cli_servers_findings_store(const CliServersSizeCtx *args);
-// a path as it stands in `tree`, its slashes forward, or whole where it stands outside it or `tree` is NULL
+// a path as it is in `tree`, its slashes forward, or whole where it is outside it or `tree` is NULL
 void cli_servers_tree_path(const CliServersPathErrMsgCtx *args);
 
 // a file's text read into the inspections' tree, or the file taken out of it where `text` is NULL, each file's
@@ -468,7 +468,7 @@ int cli_servers_tree_read(const CliServersRootTypeCtx *args);
 // class's family sets moved (servers_emit.c)
 void cli_servers_emit_reporting_attributes(const CliServersSinkKeyCtx *args);
 
-// a file the editor opens of `language` handed to each plugin server that serves the language: 1 where one took it;
+// a file the editor opens of `language` passed to each plugin server that serves the language: 1 where one took it;
 // its new text to each that has it open, and its closing sent to each that has it open (servers_plugins.c)
 int cli_servers_plugins_open(const CliServersPathSizeLanguageCtx *args);
 void cli_servers_plugins_change(const CliServersPathSizeLanguageCtx *args);
@@ -488,7 +488,7 @@ int cli_servers_plugin_program(const CliServersErrMsgJsonCtx *args);
 void cli_servers_plugin_folder_append(const CliServersTextCtx *args);
 void cli_servers_plugin_args(const CliServersJsonServerCtx *args);
 // one file checked with each checker named for its language, on a thread of its own; a file impero reads itself
-// checked as its text stands; and every file of the tree impero reads itself checked as the disk stores it
+// checked as its text is; and every file of the tree impero reads itself checked as the disk stores it
 // (servers_checkers.c)
 void cli_servers_run_checkers(const CliServersPathSizeRootSinkCtx *args);
 void cli_servers_check_own(const CliServersPathSizeRootSinkCtx *args);
@@ -497,7 +497,7 @@ void cli_servers_check_tree_with_checkers(const CliServersFilesCtx *args);
 // whether impero reads the file at `path` itself, as a build file or as JSON by its schema (servers_own.c)
 int cli_servers_own_reads(const CliServersPathSizeRootSinkCtx *args);
 // a run of the checker `id` over the file of `key` counted: its number, which a later run of the same checker over
-// the same file stands in for; and whether the run `run` is still the last (servers_checkers.c)
+// the same file is in for; and whether the run `run` is still the last (servers_checkers.c)
 unsigned long long cli_servers_run_count(const CliServersKeyCtx *args);
 int cli_servers_run_last(const CliServersKeyCtx *args);
 // whether the tree's check is on (servers_check.c)
@@ -532,7 +532,7 @@ void cli_servers_check_let_go(void);
 // the files of `files`, `count` of them, queued for the tree's check, or their servers have them check their projects:
 // how many wait
 unsigned int cli_servers_check_files(const CliServersFilesCtx *args);
-// the file at `path` handed by the checker thread `checker` to its server as the disk stores it, or a window of its
+// the file at `path` passed by the checker thread `checker` to its server as the disk stores it, or a window of its
 // slices at a time where the server is given the tree's slices, the server queried for its diagnostics or, where it
 // refuses to be queried, waited on to give them, and let go where the check still takes it; a file the editor has open
 // is left to the editor (servers_check_one.c)

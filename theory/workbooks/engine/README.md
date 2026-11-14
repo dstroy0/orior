@@ -1,9 +1,9 @@
 # The workbook is the ledger
 
-**Purpose:** One place where every idea the engine rests on is written down beside what stands behind it. A reader can see at a glance which claims are proved, which are measured, which are built but unmeasured, and which are still only theory.
+**Purpose:** One place where every idea the engine rests on is written down beside what is behind it. A reader can see at a glance which claims are proved, which are measured, which are built but unmeasured, and which are still only theory.
 **Scope:** `workbooks/engine/`. The thought experiments the engine's theory was carried from are in `thought_experiments/engine/`. The compression floor is its own workbook, `workbooks/compression/`, the query protocol is `workbooks/Lstar_protocol/`, and the cell program is `workbooks/cell_tracking/`.
 
-## How an entry is kept
+## How an entry is retained
 
 Every claim carries one status, and the status says what backs it:
 
@@ -13,8 +13,8 @@ Every claim carries one status, and the status says what backs it:
 | **measured** | a number was taken on named samples; the number is given, and whether it survived |
 | **built** | the code exists and runs; no measurement yet says whether it helps |
 | **theory** | stated, not built |
-| **refuted** | measured, and the measurement went against it; kept with the number, and never tried again blind |
-| **not so** | fails on its own arithmetic or in any machine, before anything is measured; kept, with the reason |
+| **refuted** | measured, and the measurement went against it; retained with the number, and never tried again blind |
+| **not so** | fails on its own arithmetic or in any machine, before anything is measured; retained, with the reason |
 | **want** | wanted and not had: stated as a goal, with no run, build or derivation behind it; stated in the terms of its field, with its open question, in [wants.md](wants.md) |
 
 A claim changes status only when a run changes it, and the run is named. Nothing is deleted from the ledger. An idea that failed stays, with the number that failed it.
@@ -31,14 +31,14 @@ A claim changes status only when a run changes it, and the run is named. Nothing
 | [noise_vector_integration_table.md](noise_vector_integration_table.md) | every noise term the detector is to read, one row each: how it moves, the exact sums that read it, its form in the camera law, what the 44b6 set measured, its status, and the experiment that moves it |
 | [engine_table.md](engine_table.md) | the machine part by part, bound to no scale: its exact algebra, what each part does and wants, every hypothesis tried with its result, and the audit of every number that still fixes a scale |
 | [vertical_time_compression.md](vertical_time_compression.md) | the record machine's stacked floors: what a stack is, what it compresses and leaves as it is, what bounds its file and its record, the heap and the ring across the floors of the two towers, the crystal as a code length and the lens, and what is proved, measured and derived about each |
-| [two_crystals.md](two_crystals.md) | the record machine over the 2-adic integers: the wrap as a projection, the five operations that commute with every projection and the test that proves it, the exact quotient by an odd divisor as a 2-adic product, the bits the lifting reads, the two limits of the finite windows and the solenoid between them, what passes to a limit, the crystal as a boundary measured on itself, the top projection and its limit ℝ, the odd crystals and the places of ℚ, the count each crystal keeps, and what the math derives about Doug's posits (the posits themselves are in [wants.md](wants.md)) |
+| [two_crystals.md](two_crystals.md) | the record machine over the 2-adic integers: the wrap as a projection, the five operations that commute with every projection and the test that proves it, the exact quotient by an odd divisor as a 2-adic product, the bits the lifting reads, the two limits of the finite windows and the solenoid between them, what passes to a limit, the crystal as a boundary measured on itself, the top projection and its limit ℝ, the odd crystals and the places of ℚ, the count each crystal retains, and what the math derives about Doug's posits (the posits themselves are in [wants.md](wants.md)) |
 | [kolmogorov_arnold.md](kolmogorov_arnold.md) | the Kolmogorov–Arnold representation theorem applied exactly: where the engine already has its shape (the tower's lifting, the residual, the binomial ladder as integer B-splines, the cycle's sums), why that is not a KAN (a KAN fits float splines and rounds; the engine fits nothing and rounds nothing), and what finishes it |
 | [tessera_scheduler.md](tessera_scheduler.md) | the scheduler: how jobs from separate processes share one device by memory, the accounting and its invariant, measuring by pid on Linux and Windows, one daemon per host |
 | [obsignatio_seal.md](obsignatio_seal.md) | the seal: the dimensional Merkle DAG of keyed BLAKE3 nodes over every crystal and set, what it proves, what it costs, and where it stops |
 | [build_plan.md](build_plan.md) | the order the engine's wants are built in, and every ruling on them, dated |
 | [ledger.md](ledger.md) | every measurement of the engine, its tests and its sims, dated, in the order it was taken, with its samples and its result |
 | [engine_boundary.md](engine_boundary.md) | two rulings on what the engine may hold, with their dates and what prompted them |
-| [scriptura_blocks.md](scriptura_blocks.md) | the one rule on what scriptura's SWAR memory scans may be handed, and why it settles the over-read question |
+| [scriptura_blocks.md](scriptura_blocks.md) | the one rule on what scriptura's SWAR memory scans may be passed, and why it settles the over-read question |
 | [dependent_projects.md](dependent_projects.md) | how the projects built on the engine take it: a git dependency pinned at a commit |
 | [build_time.md](build_time.md) | what the time a build takes is spent on |
 

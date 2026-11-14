@@ -14,7 +14,7 @@ const classes = new Map();
 const types = new Set();
 
 export function tokenTypes() {
-  return [...kinds].sort();
+  return [...types].sort();
 }
 
 // Notes each type of token a rule's action names: a token, a list of them, cases, or a rule's own.
@@ -36,7 +36,7 @@ function noteTypes(action) {
 // The class names of a token: "number.cost" is t-number and t-number-cost. A color given to
 // number reaches every type of number. A token whose name counts the depth of a pair, a segment
 // `depth` and the depth last, takes t-depth and t-depth-<depth> as well, the classes the stylesheet
-// colors a pair's depth by, so no rule of it reads a class name's letters.
+// colors a pair's depth by, so no rule of it reads a class name's characters.
 export function classOf(token) {
   if (!token) {
     return "";

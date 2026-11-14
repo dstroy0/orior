@@ -70,7 +70,7 @@ The check moves a lit set along its rings by seven different amounts and reads b
 The split is exact in both directions, and the choice is therefore not a matter of taste. A caller whose
 operations are rotations reads the twist. A caller who wants a quantity that holds still while the
 object turns reads the push. A caller who does not yet know which of those they have should read
-both and keep whichever one carries a signal.
+both and retain whichever one carries a signal.
 
 `turn_between(before, after, order=1)` performs the recovery, returning radians in the direction the
 longitudes run. Order one is asked by default because it pins the angle down without a wrap of its
@@ -85,7 +85,7 @@ region has a trilateral right-angle corner at the origin, all eight corners meet
 and on the boundary the same split cuts eight congruent spherical triangles of area `pi/2` each, by
 Girard, totaling `4 pi`. The measured shares sum to 1.000000000000000.
 
-The eight sign frames are not all the same kind of move. Their determinants split four at `+1` and
+The eight sign frames are not all the same type of move. Their determinants split four at `+1` and
 four at `-1`: half are rotations of the first octant and half carry a mirror. A caller reading
 handedness off this split should know it is there before relying on it.
 
@@ -123,7 +123,7 @@ Legendre column per point, and the work grows as the lit count times `top` squar
 a few hundred lit points is immediate. A caller wanting a much higher degree should form the table
 once and hand it to both readings, the shape the module is already written in.
 
-`legendre_column` climbs the diagonal and then recurs in degree, keeping every intermediate at unit
+`legendre_column` climbs the diagonal and then recurs in degree, retention every intermediate at unit
 scale. Computing the same values from factorials overflows above degree about 150 and loses digits
 well before that, and it fails quietly: the low degrees stay right while the fine structure goes
 wrong. The recurrence is there to prevent a picture that looks plausible and is not.
@@ -170,7 +170,7 @@ reports the residual. A threshold is then measured and never picked.
 
 The last row is a null over the reader instead of over the object. An arm is identified by its
 topology together with its weight, and a shape is one realization of that. Drawing the arms
-differently while holding the weight cannot move a letter. `examples/00_blob_viz_tools/arm_draw.py` draws one set
+differently while holding the weight cannot move a character. `examples/00_blob_viz_tools/arm_draw.py` draws one set
 four ways, including as a line with a dwell particle on it, and no placement point changed arm under
 any of them. `docs/arm-records.md` reports it in full.
 
@@ -196,7 +196,7 @@ python examples/00_blob_viz_tools/arm_draw.py --check
 The first holds the placement to the screw it should be, holds the angular power spectrum and torsion to their
 opposite behavior under a rotation, and holds the eight octant shares to a sum of one.
 
-The second measures the floors above, and before it reports any of them it hands itself a move that
+The second measures the floors above, and before it reports any of them it passes itself a move that
 is not a null while declaring that it is, and a genuine null of the same shape. It has to catch the
 first and stay quiet on the second, and it withholds every floor and fails if either misbehaves. A
 checker that has never caught its own defect is a checker nobody has tested.

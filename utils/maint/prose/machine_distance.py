@@ -17,7 +17,7 @@
 # utils/maint/prose/fixtures/machine_reference.md is the other pole. It is a page written deliberately
 # in the machine register, at full strength, by the machine, about the work being done in this
 # repository. Matching the subject makes it usable, because it is not a distance to a 1667 epic or
-# to a linguistics paper. Genre, locale and era are all kept fixed and the only thing left free
+# to a linguistics paper. Genre, locale and era are all retained fixed and the only thing left free
 # to vary is the register.
 #
 # THE SPLIT boundary_check ALREADY USES
@@ -148,11 +148,11 @@ def top_words(profiles, ranks=RANKS):
 
 def restricted(profile_of, vocabulary):
     """One profile cut to a fixed vocabulary and renormalized over it."""
-    kept = {one: profile_of.get(one, 0.0) for one in vocabulary}
-    total = sum(kept.values())
+    retained = {one: profile_of.get(one, 0.0) for one in vocabulary}
+    total = sum(retained.values())
     if total <= 0.0:
         return {}
-    return {one: value / total for one, value in kept.items()}
+    return {one: value / total for one, value in retained.items()}
 
 
 def profile(words):
@@ -219,7 +219,7 @@ def web_profile(words, run=2):
 
 
 def shuffled(words, seed):
-    """The same words in another order. The maximum entropy arrangement of one multiset."""
+    """The same words in another order. The max entropy arrangement of one multiset."""
     held = list(words)
     random.Random(seed).shuffle(held)
     return held
@@ -401,7 +401,7 @@ def main():
         worst = int(sys.argv[sys.argv.index("--worst") + 1])
 
     # The tree under measurement, which is not always this one. A path accepted and then ignored
-    # hands a caller measuring another repository this one's number with no indication of
+    # passes a caller measuring another repository this one's number with no indication of
     # it. The path is echoed for the same reason the file count is: a number with no subject named
     # beside it is a number somebody will attach to the wrong thing.
     where, roots = prose_distance.named_roots(sys.argv)
@@ -618,7 +618,7 @@ def main():
         # Shares are a fraction of the margin, and a file sitting near zero has almost no margin to
         # take a fraction of. hourly-supposition.md came to +0.0040 and printed a cumulative 1563
         # percent. That is arithmetic and not a reading. Below a tenth of the smallest human
-        # band row the shares come out and the contributions stand on their own.
+        # band row the shares come out and the contributions are on their own.
         readable = abs(total) >= 0.01
 
         out.write("\n  %s, %d words\n" % (wanted, count))

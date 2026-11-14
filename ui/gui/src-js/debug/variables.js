@@ -5,9 +5,9 @@ import { invoke } from "../bridge.js";
 import { showMenu } from "../menu.js";
 import { say } from "../statusbar.js";
 import { chosen, element, parts, pausedOf, state, WATCHES } from "../debug.js";
-import { editBreakpoint, keepExceptions, setBreakpoint, setMessageBreakpoint, steppingOf, tellBreaks, toggleBreakpoint } from "./breakpoints.js";
+import { editBreakpoint, retainExceptions, setBreakpoint, setMessageBreakpoint, steppingOf, tellBreaks, toggleBreakpoint } from "./breakpoints.js";
 import { attachNative, sayState, showHistory, write } from "./session.js";
-import { compareValues, keepValue, readWhole, showBytecode, showInstructions, showMemory, watchData } from "./values.js";
+import { compareValues, retainValue, readWhole, showBytecode, showInstructions, showMemory, watchData } from "./values.js";
 
 // A stop.
 
@@ -42,7 +42,7 @@ export async function stopped(id, body) {
   state.chosen = id;
   const top = frames[0];
   const where = top ? `${top.path ? `${top.path.split(/[\\/]/).pop()}:${top.line + 1}` : top.name}` : "";
-  // A recorded run says which of its steps it stands at.
+  // A recorded run says which of its steps it is at.
   const why = session.info.recorded && body.description ? `at ${body.description}` : { breakpoint: "at a breakpoint", step: "after a step", pause: "paused", exception: "on an exception", entry: "at the start", "data breakpoint": "where its data changed" }[session.paused.reason] ?? session.paused.reason;
   session.said = `Stopped ${why}${where ? `, ${where}` : ""}`;
   sayState(session.said);
@@ -96,9 +96,9 @@ export async function chooseFrame(at) {
 export function drawFrames() {
   const paused = pausedOf();
   const frames = paused?.frames ?? [];
-  const shown = frames.map((frame, at) => [frame, at]).filter(([frame]) => !hidden(frame));
+  const displayed = frames.map((frame, at) => [frame, at]).filter(([frame]) => !hidden(frame));
   parts.frames.replaceChildren(
-    ...shown.map(([frame, at]) => {
+    ...displayed.map(([frame, at]) => {
       const row = element(
         "button",
         { className: "debug-frame", type: "button", title: frame.path ? `${frame.path}:${frame.line + 1}` : frame.name },
@@ -115,8 +115,8 @@ export function drawFrames() {
       return row;
     }),
   );
-  if (frames.length > shown.length) {
-    parts.frames.append(element("p", { className: "debug-empty", textContent: `${frames.length - shown.length} frame${frames.length - shown.length === 1 ? "" : "s"} hidden by the tree's patterns: Run, Stepping sets them.` }));
+  if (frames.length > displayed.length) {
+    parts.frames.append(element("p", { className: "debug-empty", textContent: `${frames.length - displayed.length} frame${frames.length - displayed.length === 1 ? "" : "s"} hidden by the tree's patterns: Run, Stepping sets them.` }));
   }
   if (!frames.length) {
     parts.frames.append(element("p", { className: "debug-empty", textContent: chosen() ? "Running." : "Frames show here when the program stops." }));
@@ -143,9 +143,9 @@ export function variableRow(variable, depth, open, toggle, menu = null) {
   const twisty = element("button", { className: "debug-twisty", type: "button", textContent: variable.reference ? (open ? "▾" : "▸") : "" });
   twisty.disabled = !variable.reference;
   twisty.setAttribute("aria-label", open ? `Close ${variable.name}` : `Open ${variable.name}`);
-  row.append(twisty, element("span", { className: "debug-var-name", textContent: variable.name }), element("span", { className: "debug-var-value", textContent: variable.value, title: variable.kind ? `${variable.kind}: ${variable.value}` : variable.value }));
-  if (variable.kind) {
-    row.append(element("span", { className: "debug-var-kind", textContent: variable.kind }));
+  row.append(twisty, element("span", { className: "debug-var-name", textContent: variable.name }), element("span", { className: "debug-var-value", textContent: variable.value, title: variable.type ? `${variable.type}: ${variable.value}` : variable.value }));
+  if (variable.type) {
+    row.append(element("span", { className: "debug-var-type", textContent: variable.type }));
   }
   if (menu) {
     row.addEventListener("contextmenu", (event) => {
@@ -172,14 +172,14 @@ function flip(set, key) {
   }
 }
 
-// The menu of a variable: keep its value, compare it with one kept, stop where it changes, or read
-// the memory it stands in.
+// The menu of a variable: retain its value, compare it with one retained, stop where it changes, or read
+// the memory it is in.
 function variableMenu(variable, container, x, y) {
   const session = chosen();
   const name = variable.name;
   showMenu(x, y, [
-    { label: "Keep Value", command: "variable-keep", args: [name], run: () => keepValue(variable) },
-    { label: "Compare with Kept", disabled: !state.kept.length, items: state.kept.map((kept) => ({ label: kept.label, command: "variable-compare", args: [name, kept.label], run: async () => compareValues(kept, await readWhole(variable)) })) },
+    { label: "Retain Value", command: "variable-retain", args: [name], run: () => retainValue(variable) },
+    { label: "Compare with Retained", disabled: !state.retained.length, items: state.retained.map((retained) => ({ label: retained.label, command: "variable-compare", args: [name, retained.label], run: async () => compareValues(retained, await readWhole(variable)) })) },
     "-",
     { label: "Stop When It Changes", command: "variable-watch", args: [name], disabled: !session?.info.data, run: () => watchData(variable.name, container) },
     { label: "Show Memory", command: "variable-memory", args: [name], disabled: !(session?.info.memory && variable.memory), run: () => showMemory(variable.memory, variable.name) },
@@ -225,9 +225,9 @@ export const debugCommands = {
       return;
     }
     filter.on = on === "on" ? true : on === "off" ? false : !filter.on;
-    const kept = session.info.filters.filter((one) => one.on).map((one) => one.filter);
-    keepExceptions(session.info.language, kept);
-    await invoke("debug_exceptions", { session: session.info.id, on: kept }).catch((error) => say(String(error), { failed: true }));
+    const retained = session.info.filters.filter((one) => one.on).map((one) => one.filter);
+    retainExceptions(session.info.language, retained);
+    await invoke("debug_exceptions", { session: session.info.id, on: retained }).catch((error) => say(String(error), { failed: true }));
   },
   "frame-code": ([at]) => {
     const paused = pausedOf();
@@ -238,14 +238,14 @@ export const debugCommands = {
     }
     return chosen()?.info.language === "python" ? showBytecode(frame) : showInstructions(frame);
   },
-  "variable-keep": async ([name]) => {
+  "variable-retain": async ([name]) => {
     const found = await variableNamed(name);
-    return found && keepValue(found.variable);
+    return found && retainValue(found.variable);
   },
   "variable-compare": async ([name, label]) => {
     const found = await variableNamed(name);
-    const kept = state.kept.find((one) => one.label === label || one.label.startsWith(`${label ?? name}`)) ?? state.kept[0];
-    return found && kept && compareValues(kept, await readWhole(found.variable));
+    const retained = state.retained.find((one) => one.label === label || one.label.startsWith(`${label ?? name}`)) ?? state.retained[0];
+    return found && retained && compareValues(retained, await readWhole(found.variable));
   },
   "variable-watch": async ([name]) => {
     const found = await variableNamed(name);
@@ -300,7 +300,7 @@ export async function drawVariables() {
       invoke("debug_evaluate", { session: session.info.id, expression, frame: frame.id, context: "watch" })
         .then((found) => {
           value.textContent = found.value;
-          value.title = found.kind ? `${found.kind}: ${found.value}` : found.value;
+          value.title = found.type ? `${found.type}: ${found.value}` : found.value;
         })
         .catch((error) => {
           value.textContent = String(error);
@@ -320,26 +320,26 @@ export async function drawVariables() {
       const first = at === 0 && !scope.expensive;
       const open = first ? !state.closedScopes.has(scope.name) : state.opened.has(key);
       const toggle = () => (first ? flip(state.closedScopes, scope.name) : flip(state.opened, key));
-      const holder = variableRow({ name: scope.name, value: "", kind: "", reference: scope.reference }, 0, open, toggle);
+      const holder = variableRow({ name: scope.name, value: "", type: "", reference: scope.reference }, 0, open, toggle);
       holder.firstElementChild.classList.add("debug-scope");
       box.append(holder);
       if (open) {
         await variablesUnder(scope.reference, 1, key, holder, asked);
       }
     }
-  } else if (!state.watches.length && !state.kept.length) {
+  } else if (!state.watches.length && !state.retained.length) {
     box.append(element("p", { className: "debug-empty", textContent: "Variables show here when the program stops." }));
   }
-  if (state.kept.length) {
-    box.append(element("div", { className: "debug-var debug-scope debug-kept-head", textContent: "Kept" }));
-    for (const [at, kept] of state.kept.entries()) {
-      const row = element("div", { className: "debug-var debug-kept" });
+  if (state.retained.length) {
+    box.append(element("div", { className: "debug-var debug-scope debug-retained-head", textContent: "Retained" }));
+    for (const [at, retained] of state.retained.entries()) {
+      const row = element("div", { className: "debug-var debug-retained" });
       const remove = element("button", { className: "debug-twisty", type: "button", textContent: "×", title: "Let the value go" });
       remove.addEventListener("click", () => {
-        state.kept.splice(at, 1);
+        state.retained.splice(at, 1);
         drawVariables();
       });
-      row.append(remove, element("span", { className: "debug-var-name", textContent: kept.label }), element("span", { className: "debug-var-value", textContent: kept.tree.value }));
+      row.append(remove, element("span", { className: "debug-var-name", textContent: retained.label }), element("span", { className: "debug-var-value", textContent: retained.tree.value }));
       box.append(row);
     }
   }

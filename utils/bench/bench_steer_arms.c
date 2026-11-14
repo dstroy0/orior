@@ -37,9 +37,9 @@ typedef enum
     MASK_SPARSE = 3
 } MaskKind;
 
-static const char *mask_name(MaskKind kind)
+static const char *mask_name(MaskKind type)
 {
-    switch (kind)
+    switch (type)
     {
         case MASK_ALL_ALIVE:   { return "all alive"; }
         case MASK_NONE_ALIVE:  { return "none alive"; }
@@ -49,11 +49,11 @@ static const char *mask_name(MaskKind kind)
     }
 }
 
-static void build_mask(uint8_t *alive, size_t alignments, MaskKind kind)
+static void build_mask(uint8_t *alive, size_t alignments, MaskKind type)
 {
     for (size_t at = 0u; at < alignments; at += 1u)
     {
-        switch (kind)
+        switch (type)
         {
             case MASK_NONE_ALIVE:  { alive[at] = 0u; break; }
             case MASK_ALTERNATING: { alive[at] = (uint8_t)(at % 2u); break; }

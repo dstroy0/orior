@@ -43,7 +43,7 @@ export function loadBridge() {
 }
 
 // Reads the index again once a protocol run ends.
-export function keepBridge(onRead) {
+export function retainBridge(onRead) {
   watch((known) => {
     const now = new Set([...known.runs].filter(([, run]) => run.job.startsWith("protocol/")).map(([id]) => id));
     const ended = [...state.lastRuns].some((id) => !now.has(id));
@@ -82,7 +82,7 @@ export function keyAt(path, doc, line, word) {
     if (first === "key") {
       return third ?? second;
     }
-    if (first === "kind" || first === "breaks") {
+    if (first === "type" || first === "breaks") {
       const map = index?.maps.find((one) => one.path === path);
       return map?.names[second]?.key || second;
     }
@@ -136,11 +136,11 @@ function keyDetail(key, openAt) {
       }
       const row = element("div", { className: "bridge-map" }, element("span", { className: "lang", textContent: map.language || nameOf(map.path) }));
       row.append(jump(openAt, map.path, entry.line, entry.key && entry.key !== name ? `${name} → ${entry.key}` : name));
-      if (entry.kind) {
-        row.append(jump(openAt, map.path, entry.kind.line, entry.kind.rest, "kind"));
+      if (entry.type) {
+        row.append(jump(openAt, map.path, entry.type.line, entry.type.rest, "type"));
       }
       for (const broken of entry.breaks) {
-        row.append(jump(openAt, map.path, broken.line, `breaks ${broken.rest}`, "kind"));
+        row.append(jump(openAt, map.path, broken.line, `breaks ${broken.rest}`, "type"));
       }
       mapped.push(row);
     }
@@ -151,7 +151,7 @@ function keyDetail(key, openAt) {
   const ruled = [];
   for (const ruleset of index.rulesets) {
     for (const entry of ruleset.entries[key] ?? []) {
-      ruled.push(element("div", { className: "bridge-map" }, element("span", { className: "lang", textContent: nameOf(ruleset.path) }), jump(openAt, ruleset.path, entry.line, entry.kind)));
+      ruled.push(element("div", { className: "bridge-map" }, element("span", { className: "lang", textContent: nameOf(ruleset.path) }), jump(openAt, ruleset.path, entry.line, entry.type)));
     }
   }
   if (ruled.length) {

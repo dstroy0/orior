@@ -22,7 +22,7 @@ EMBED_INLINE void read_batch_write(const TestReadCtx *args)
     args->worker->batch_size = 0ULL;
 }
 
-// a line ended: handed on, and stored, with "\n" after it, in the output; a "\r" before its end taken off
+// a line ended: passed on, and stored, with "\n" after it, in the output; a "\r" before its end taken off
 EMBED_INLINE void read_line_on_end(const TestReadCtx *args)
 {
     int *fresh = args->fresh_pointer;
@@ -65,7 +65,7 @@ void cli_test_lines_read(const CliTestRunsWorkerLineCtx *args)
         unsigned long long at = 0ULL;
         while ((at < count) && !stopped)
         {
-            // a line longer than the capacity is handed on in pieces of the capacity's length
+            // a line longer than the capacity is passed on in pieces of the capacity's length
             const int ends = (piece[at] == '\n') || (worker->line_size == sizeof(worker->line));
             stopped = ends ? cli_test_stop() : stopped;
             if (ends && !stopped)

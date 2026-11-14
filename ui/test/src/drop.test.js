@@ -27,9 +27,9 @@ const under = ({ x, y }) => {
 test("a drop goes into the folder it is dropped on, the folder of a file it is dropped on, or the tree's top", async () => {
   showView("edit");
   togglePane(true, { take: false, pin: true });
-  // The pane has slid in where each row is what stands at its own middle.
-  const standing = (path) => rowOf(path)?.contains(document.elementFromPoint(middle(rowOf(path)).x, middle(rowOf(path)).y));
-  await ui.waitFor(() => standing("src") && standing("hello.py"), 10000);
+  // The pane has slid in where each row is what is at its own middle.
+  const located = (path) => rowOf(path)?.contains(document.elementFromPoint(middle(rowOf(path)).x, middle(rowOf(path)).y));
+  await ui.waitFor(() => located("src") && located("hello.py"), 10000);
   const folder = middle(rowOf("src"));
   assert.equal(folderAt(folder.x, folder.y), "src", `on the folder: ${under(folder)} there`);
   const file = middle(rowOf("hello.py"));
@@ -44,7 +44,7 @@ test("a file dropped on a folder is copied into it behind the window, its bar on
   await invoke("file_write_any", { path: source, text: "a line of the dropped file\n".repeat(400000) });
   const active = editing().active;
   const folder = middle(rowOf("src"));
-  // Each step of the copy as the window hears it, and whether its bar stood on the status bar as the step came or once
+  // Each step of the copy as the window hears it, and whether its bar was on the status bar as the step came or once
   // the window's own listener had taken it: this listener may run before that one, so the bar is read a task later
   // too, and the steps may come in one batch, the last taking the bar away before that task runs.
   const heard = [];
@@ -53,14 +53,14 @@ test("a file dropped on a folder is copied into it behind the window, its bar on
     if (!hearing) {
       return;
     }
-    const standing = status.reads.has(payload.path);
-    setTimeout(() => heard.push({ ...payload, shown: standing || status.reads.has(payload.path) }), 0);
+    const located = status.reads.has(payload.path);
+    setTimeout(() => heard.push({ ...payload, displayed: located || status.reads.has(payload.path) }), 0);
   });
   await invoke("plugin:event|emit", { event: "tauri://drag-drop", payload: { paths: [source], position: { x: folder.x * devicePixelRatio, y: folder.y * devicePixelRatio } } });
   await ui.waitFor(() => document.getElementById("status-said").textContent.includes("Copied src/large.txt into the tree"), 10000);
   hearing = false;
   const going = heard.filter((one) => one.path === "src/large.txt" && one.done < one.size);
-  assert.ok(going.length && going.every((one) => one.shown), `its bar stood while it was copied: ${JSON.stringify(heard)}`);
+  assert.ok(going.length && going.every((one) => one.displayed), `its bar was while it was copied: ${JSON.stringify(heard)}`);
   assert.ok(!status.reads.has("src/large.txt"), "and went once it was whole");
   const copied = await invoke("file_read", { path: "src/large.txt" });
   assert.equal(copied.size, "a line of the dropped file\n".length * 400000, "copied whole");

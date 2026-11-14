@@ -1,34 +1,34 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The languages Extract Function has a form for, each with the names it keeps as its own, how its lines are read
+// The languages Extract Function has a form for, each with the names it retains as its own, how its lines are read
 // and how a function is written in it.
 
-const PYTHON_KEEPS = new Set(
+const PYTHON_RETAINS = new Set(
   (
     "False None True and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield " +
     "abs all any bool bytes callable chr dict dir divmod enumerate filter float format frozenset getattr hasattr hash hex id input int isinstance issubclass iter len list map max min next object oct open ord pow print range repr reversed round set setattr slice sorted str sum super tuple type vars zip " +
     "Exception ValueError TypeError KeyError IndexError RuntimeError StopIteration OSError NotImplementedError self cls"
   ).split(" "),
 );
-PYTHON_KEEPS.delete("self");
-PYTHON_KEEPS.delete("cls");
+PYTHON_RETAINS.delete("self");
+PYTHON_RETAINS.delete("cls");
 
-const SCRIPT_KEEPS = new Set(
+const SCRIPT_RETAINS = new Set(
   (
     "await break case catch class const continue debugger default delete do else export extends false finally for function if import in instanceof let new null of return static super switch this throw true try typeof undefined var void while with yield async " +
     "Array Boolean Date Error JSON Map Math Number Object Promise RegExp Set String Symbol WeakMap console document globalThis window Infinity NaN isNaN parseFloat parseInt"
   ).split(" "),
 );
 
-const RUST_KEEPS = new Set(
+const RUST_RETAINS = new Set(
   (
     "as async await break const continue crate dyn else enum extern false fn for if impl in let loop match mod move mut pub ref return self Self static struct super trait true type unsafe use where while " +
     "bool char str i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize f32 f64 String Vec Box Option Result Some None Ok Err"
   ).split(" "),
 );
 
-const C_KEEPS = new Set(
+const C_RETAINS = new Set(
   (
     "auto break case char const continue default do double else enum extern float for goto if inline int long register restrict return short signed sizeof static struct switch typedef union unsigned void volatile while " +
     "bool true false nullptr NULL this new delete class public private protected template typename namespace using operator virtual override final constexpr noexcept throw try catch " +
@@ -47,7 +47,7 @@ export const nameOfPart = {
 
 export const LANGUAGES = {
   python: {
-    keeps: PYTHON_KEEPS,
+    retains: PYTHON_RETAINS,
     heads: [/^(\s*)(?:async\s+)?def\s+\w+\s*\((.*)\)\s*(?:->[^:]*)?:\s*$/],
     tops: /^(?:async\s+def|def|class)\b/,
     // What a line sets: the names before its `=`, those a for loop takes, and the name after `as`.
@@ -75,7 +75,7 @@ export const LANGUAGES = {
     gap: "\n\n",
   },
   javascript: {
-    keeps: SCRIPT_KEEPS,
+    retains: SCRIPT_RETAINS,
     heads: [
       /^(\s*)(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s*\*?\s*[\w$]*\s*\(([^)]*)\)\s*\{\s*$/,
       /^(\s*)(?:static\s+)?(?:async\s+)?(?!(?:if|for|while|switch|catch|function)\b)[\w$]+\s*\(([^)]*)\)\s*\{\s*$/,
@@ -108,7 +108,7 @@ export const LANGUAGES = {
   },
   rust: {
     typed: true,
-    keeps: RUST_KEEPS,
+    retains: RUST_RETAINS,
     part: nameOfPart.rust,
     heads: [/^(\s*)(?:pub(?:\([^)]*\))?\s+)?(?:const\s+)?(?:async\s+)?(?:unsafe\s+)?(?:extern\s+"[^"]*"\s+)?fn\s+[A-Za-z_]\w*\s*(?:<[^>]*>)?\s*\((.*)\)\s*(?:->[^{]*?)?\s*(?:where\b[^{]*)?\{?\s*$/],
     // What a line sets: the names a `let` binds, one or a tuple of them, the name before an `=`, and
@@ -150,7 +150,7 @@ export const LANGUAGES = {
   },
   c: {
     typed: true,
-    keeps: C_KEEPS,
+    retains: C_RETAINS,
     part: nameOfPart.c,
     heads: [/^(\s*)(?!(?:if|for|while|switch|return|else|do|case|sizeof)\b)(?:[A-Za-z_][\w:<>,]*[\s*&]+)+[A-Za-z_~][\w:~]*\s*\(([^;]*)\)\s*(?:const\s*)?(?:noexcept\s*)?(?:override\s*)?\{?\s*$/],
     // What a line sets: the name a declaration declares, the name before an `=`, and one stepped by

@@ -35,7 +35,7 @@ static long long track_lifted(const long long *from, unsigned long long line, un
 }
 
 // the host's floor 2 of one frame: two levels of the 5/3 lifting, each along z, then y, then x over the active
-// corner, every axis pass reading the coefficients as they stood before it, as the engine's kernels do
+// corner, every axis pass reading the coefficients as they was before it, as the engine's kernels do
 void track_floor_host(const unsigned short *lanes, long long *work, long long *before, long long *floor_values)
 {
     const unsigned long long stride[SIM_AXES] = {TRACK_SIDE * TRACK_SIDE, TRACK_SIDE, 1ull};
@@ -98,7 +98,7 @@ int track_floor_engine(const unsigned short *device_lanes, int *crystal, int *co
     lift.floors = &floors;
     lift.error = &error;
     int ok =
-        (tower_lift(&lift) == 0L) && (error.kind == ENGINE_ERROR_NONE) &&
+        (tower_lift(&lift) == 0L) && (error.type == ENGINE_ERROR_NONE) &&
         (cudaMemcpy(crystal, coefficients, (size_t)TRACK_SAMPLES * sizeof(int), cudaMemcpyDeviceToHost) == cudaSuccess);
     for (unsigned long long z = 0ull; ok && (z < TRACK_FLOOR_SIDE); z += 1ull)
     {
@@ -125,7 +125,7 @@ int track_floor_engine(const unsigned short *device_lanes, int *crystal, int *co
     lower.device_rebuilt = &device_rebuilt;
     lower.rebuilt = floor_values;
     lower.error = &error;
-    return ok && (tower_lower(&lower) == 0L) && (error.kind == ENGINE_ERROR_NONE);
+    return ok && (tower_lower(&lower) == 0L) && (error.type == ENGINE_ERROR_NONE);
 }
 
 // the planes: bit j of floor 2's value at position i is bit i % 32 of plane j's word i / 32, one warp a word

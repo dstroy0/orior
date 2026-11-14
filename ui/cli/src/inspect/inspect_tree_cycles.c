@@ -151,7 +151,7 @@ EMBED_INLINE void cycles_by_name(const InspectTreeCyclesCtx *args)
 #define CLI_CYCLES_OPENING "This import leads back round to the file that makes it, by way of:\n\n"
 
 // the finding that the import at `import` of the file at `file` leads back round by the way of `count` files, in a
-// message sized to their paths, handed to `each`
+// message sized to their paths, passed to `each`
 EMBED_INLINE void cycles_report(const InspectTreeCyclesCtx *args)
 {
     // each name of the way its path, its number, a newline, a dot, a space and two quotes
@@ -190,7 +190,7 @@ EMBED_INLINE void cycles_report(const InspectTreeCyclesCtx *args)
     g_cli_guard->persistent_buf_release(text, g_cli_inspect_owner);
 }
 
-// the imports of the file at `file` that lead back round to it, each handed to `each`
+// the imports of the file at `file` that lead back round to it, each passed to `each`
 EMBED_INLINE void cycles_get(const InspectTreeCyclesCtx *args)
 {
     s_walk.visit_round += 1u;
@@ -216,7 +216,7 @@ EMBED_INLINE void cycles_get(const InspectTreeCyclesCtx *args)
 
 void cli_tree_cycles(const CliInspectTreeCtx *args)
 {
-    // the edges counted, and the most imports one file has
+    // the edges counted, and the max imports one file has
     memor.set(&(MemoriaCfg){.dst = &s_walk, .val = 0, .bytes = sizeof(s_walk)});
     cycles_gather();
     const unsigned long long edges = s_walk.edges_used;

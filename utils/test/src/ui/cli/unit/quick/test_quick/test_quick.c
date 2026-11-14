@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_quick.c: the quick open: a leading > lists the commands, the ones run last first with nothing after it and the
-// best match first with a query, at most CLI_QUICK_MOST; a leading : answers the line sentence clamped to the shown
-// view's lines, and a sentence with no view; @ lists the shown view's declarations with type and line, and # the
-// tree's with path and line; Search Everywhere answers at most CLI_QUICK_EACH of each type under headings, a type with
-// no rows standing with no heading; a step passes over a heading; the keys edit the typed text and move its caret;
+// best match first with a query, at max CLI_QUICK_MAX; a leading : answers the line sentence clamped to the displayed
+// view's lines, and a sentence with no view; @ lists the displayed view's declarations with type and line, and # the
+// tree's with path and line; Search Everywhere answers at max CLI_QUICK_EACH of each type under headings, a type with
+// no rows located with no heading; a step passes over a heading; the keys edit the typed text and move its caret;
 // `path:line:column` opens the path at the place counted from 0; the keys of a command open the box as the command
-// does; the double Shift opens Search Everywhere; and the rows asked again while the tree is read keep the chosen row
-// chosen where it stands still
+// does; the double Shift opens Search Everywhere; and the rows asked again while the tree is read retain the chosen row
+// chosen where it is stationary
 #include "ui/cli/src/code/symbols.h"
 #include "ui/cli/src/command_line/commands.h"
 #include "ui/cli/src/editor/quick.h"
@@ -15,7 +15,7 @@
 #include "ui/cli/src/machine/recent.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-// the suite's own folder for orior's state, its tree, the shown view's key and the text it shows
+// the suite's own folder for orior's state, its tree, the displayed view's key and the text it shows
 static char s_home[CLI_PATH_MAX_LEN];
 static char s_tree[CLI_PATH_MAX_LEN];
 static int s_begun;
@@ -103,11 +103,11 @@ static int text_holds(const char *text, unsigned long long length, const char *p
                .src = text, .cap = length, .other = part, .other_cap = CLI_UNITY_LENGTH(part)}) != NULL;
 }
 
-// the box opened by `command` for the tree, the view shown where `shown_view`, with `text` typed after
-static void opened(const char *command, int shown_view, const char *text)
+// the box opened by `command` for the tree, the view displayed where `displayed_view`, with `text` typed after
+static void opened(const char *command, int displayed_view, const char *text)
 {
     TEST_ASSERT_TRUE(EMBED_CALL(cli_quick.open, CliQuickCfg, .command = command, .root = s_tree,
-                                .key = shown_view ? VIEW_KEY : NULL, .shown = 8u, .now_ms = 1000ULL));
+                                .key = displayed_view ? VIEW_KEY : NULL, .displayed = 8u, .now_ms = 1000ULL));
     if (text != NULL)
     {
         EMBED_CALL(cli_quick.type, CliQuickCfg, .text = text, .length = CLI_UNITY_LENGTH(text), .now_ms = 1000ULL);
@@ -137,10 +137,10 @@ void test_a_leading_greater_lists_the_commands_the_ones_run_last_first(void)
     TEST_ASSERT_TRUE(text_is(first.detail, first.detail_length, "recently used"));
     TEST_ASSERT_TRUE(text_is(first.keys, first.keys_length, "Ctrl+S"));
     TEST_ASSERT_TRUE(text_is(second.label, second.label_length, "File: Save All"));
-    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_MOST, view.rows);
+    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_MAX, view.rows);
 }
 
-void test_a_query_after_the_greater_marks_the_letters_it_matched(void)
+void test_a_query_after_the_greater_marks_the_characters_it_matched(void)
 {
     opened("palette", 0, "go to line");
     const CliQuickRow first = row_at(0u);
@@ -148,7 +148,7 @@ void test_a_query_after_the_greater_marks_the_letters_it_matched(void)
     TEST_ASSERT_EQUAL_UINT(0u, first.detail_length);
     TEST_ASSERT_TRUE(text_is(first.keys, first.keys_length, "Ctrl+G"));
     TEST_ASSERT_TRUE(first.label_mark_count >= 1u);
-    // the last mark ends at the last letter of the label's own `Line`
+    // the last mark ends at the last character of the label's own `Line`
     const unsigned int last = first.label_mark_count - 1u;
     TEST_ASSERT_EQUAL_UINT(14u, first.label_marks[2u * last] + first.label_marks[(2u * last) + 1u]);
     opened("palette", 0, "zzqqxx");
@@ -259,7 +259,7 @@ void test_a_path_with_line_and_column_opens_the_place_counted_from_0(void)
     TEST_ASSERT_TRUE(choice.placed);
     TEST_ASSERT_EQUAL_UINT64(11ULL, choice.place.line);
     TEST_ASSERT_EQUAL_UINT64(4ULL, choice.place.col);
-    // the file chosen stands first among the files opened last, which nothing typed lists
+    // the file chosen is first among the files opened last, which nothing typed lists
     opened("file", 0, NULL);
     const CliQuickRow opened_last = row_at(0u);
     TEST_ASSERT_TRUE(text_is(opened_last.label, opened_last.label_length, "view.rs"));
@@ -384,13 +384,13 @@ void test_a_command_chosen_answers_its_word_and_runs_first_after(void)
     TEST_ASSERT_EQUAL_STRING("close-all", choice.command);
     const char *recent[2];
     char *recent_cell = NULL;
-    TEST_ASSERT_EQUAL_UINT(1u, EMBED_CALL(cli_recent.list, CliRecentCfg, .list = CLI_RECENT_COMMANDS, .most = 1u,
+    TEST_ASSERT_EQUAL_UINT(1u, EMBED_CALL(cli_recent.list, CliRecentCfg, .list = CLI_RECENT_COMMANDS, .max = 1u,
                                           .rows_out = recent, .cell_out = &recent_cell, .owner = g_cli_machine_owner));
     TEST_ASSERT_EQUAL_STRING("close-all", recent[0]);
     g_cli_guard->persistent_buf_release(recent_cell, g_cli_machine_owner);
 }
 
-void test_the_rows_asked_again_while_the_tree_is_read_keep_the_chosen_row(void)
+void test_the_rows_asked_again_while_the_tree_is_read_retain_the_chosen_row(void)
 {
     static char s_unread[CLI_PATH_MAX_LEN];
     cli_unity_folder("build/harness/quick_unread", s_unread);
@@ -402,7 +402,7 @@ void test_the_rows_asked_again_while_the_tree_is_read_keep_the_chosen_row(void)
     EMBED_CALL(cli_recent.push, CliRecentCfg, .list = CLI_RECENT_FILES, .entry = "one.c");
     EMBED_CALL(cli_symbols_context.tree_list, CliSymbolsContextCfg, .root = s_tree);
     TEST_ASSERT_TRUE(
-        EMBED_CALL(cli_quick.open, CliQuickCfg, .command = "file", .root = s_unread, .shown = 8u, .now_ms = 5000ULL));
+        EMBED_CALL(cli_quick.open, CliQuickCfg, .command = "file", .root = s_unread, .displayed = 8u, .now_ms = 5000ULL));
     EMBED_CALL(cli_quick.type, CliQuickCfg, .text = "one", .length = 3ULL, .now_ms = 5000ULL);
     const CliQuickView view = viewed();
     TEST_ASSERT_EQUAL_UINT(3u, view.rows);

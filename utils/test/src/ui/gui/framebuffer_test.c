@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // framebuffer_test.c: the framebuffer's check: the rasters are made clear on their boundaries with capacity for the largest
-// monitor and no more, resized where they stand, refused past their capacity, flipped between the two while the ground
+// monitor and no more, resized where they are, refused past their capacity, flipped between the two while the ground
 // stays, and counted to their owner until they are given back
 #include "../../../../../includes/window/block.h"
 #include "../cli/cli_check.h"
@@ -59,7 +59,7 @@ int main(void)
     for (unsigned int round = 0u; round < 8u; round += 1u)
     {
         GuiRaster *const next = EMBED_CALL(gui_framebuffer_rings.flip, GuiFramebufferRingsCfg, .framebuffer = &framebuffer);
-        cli_check(next != drawn, "each flip draws the framebuffer that is not being shown");
+        cli_check(next != drawn, "each flip draws the framebuffer that is not being displayed");
         cli_check((next == first) || (next == second), "and it is one of the two, never the ground");
         drawn = next;
     }
@@ -67,9 +67,9 @@ int main(void)
     GuiColor *const pixels = framebuffer.raster[0].pixels;
     cli_check(EMBED_CALL(gui_block_framebuffer.fit, GuiBlockFramebufferCfg, .framebuffer = &framebuffer, .width = 1280u, .height = 720u), "a smaller window fits");
     cli_check((framebuffer.raster[0].pixels == pixels) && (framebuffer.raster[0].height == 720u),
-              "and is sized where the raster stands");
+              "and is sized where the raster is");
     cli_check(EMBED_CALL(gui_block_framebuffer.fit, GuiBlockFramebufferCfg, .framebuffer = &framebuffer, .width = MONITOR_WIDTH, .height = MONITOR_HEIGHT), "a window the monitor's size fits");
-    cli_check(framebuffer.raster[0].pixels == pixels, "where the raster stands");
+    cli_check(framebuffer.raster[0].pixels == pixels, "where the raster is");
     cli_check(!EMBED_CALL(gui_framebuffer.fits, GuiFramebufferCfg, .framebuffer_read = &framebuffer, .width = MONITOR_WIDTH, .height = MONITOR_HEIGHT + ROWS_PAST),
               "a window past the capacity does not");
     cli_check(!EMBED_CALL(gui_block_framebuffer.fit, GuiBlockFramebufferCfg, .framebuffer = &framebuffer, .width = MONITOR_WIDTH, .height = MONITOR_HEIGHT + ROWS_PAST), "and is refused");
@@ -91,7 +91,7 @@ int main(void)
 
     GuiFramebuffer none;
     cli_check(!EMBED_CALL(gui_block_framebuffer.init, GuiBlockFramebufferCfg, .framebuffer = &none, .width = 0u, .height = 0u), "no size at all makes nothing");
-    cli_check((none.pages == NULL) && (owner_bytes() == 0ull), "and nothing is kept or counted");
+    cli_check((none.pages == NULL) && (owner_bytes() == 0ull), "and nothing is retained or counted");
     EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

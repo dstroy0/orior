@@ -10,7 +10,7 @@
 // `class` prints one line an encoding, `<low> <high> <class> [bank <n> offset 0x<bytes> reads <bytes> <verdict>]`,
 // the verdict `gated` where rule 13 blocks the read against the bank of `--bank` bytes, `passes` where it does not,
 // and `unknown` where no size is given, the bank alone then checked against (cubin_safe/constant.c). `spans` prints
-// each distinct pair of a bank field's span and an offset field's span with the count of classes laying their constant
+// each distinct pair of a bank field's span and an offset field's span with the count of classes positioning their constant
 // operand so, `bank <first>..<last> offset <first>..<last> <count>`. Exit 0, 2 where the words are not as above, and 1
 // where the instruction set could not be read
 #include "../cubin_safe.h"

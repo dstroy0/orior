@@ -16,7 +16,7 @@ extern "C"
      * @brief An exact integer, magnitude in limbs and sign stored apart from it.
      *
      * @note Least significant limb first. A carry then walks upward through increasing indices and a
-     *       vectorized arm reads the array in the order memory hands it over.
+     *       vectorized arm reads the array in the order memory passes it over.
      * @note Sign is stored separately instead of as two's complement across the whole array, because a
      *       comparison is the hot operation and comparing magnitudes is a scan from the top limb down.
      *       Zero always carries sign 0, which prevents two zeros from comparing unequal.
@@ -139,7 +139,7 @@ extern "C"
      *                       ORIOR_EXACT_WILL_NOT_FIT where a working copy past the stack cannot be
      *                       allocated.
      * @note numerator = quotient * divisor + remainder, with |remainder| below |divisor|. That is C's
-     *       own division. A caller moving between the two meets no sign rule of a third kind.
+     *       own division. A caller moving between the two meets no sign rule of a third type.
      * @note Knuth's Algorithm D, and Newton's reciprocal once the divisor and the quotient both reach
      *       ORIOR_EXACT_NEWTON_LIMBS.
      * @note On an error `quotient` and `remainder` are left unchanged.
@@ -223,7 +223,7 @@ extern "C"
      *                    decimal places than `digits` contains, or the value needs more limbs than the width
      *                    contains.
      * @note The accepted text is, in order: any spaces, tabs, carriage returns or line feeds; an
-     *       optional + or -; one or more ASCII digits with at most one decimal point among them, where
+     *       optional + or -; one or more ASCII digits with at max one decimal point among them, where
      *       either side of the point may be empty but not both; an optional uncertainty of one or more
      *       ASCII digits between ( and ); any spaces, tabs, carriage returns or line feeds; the end of
      *       the text. Anything else is ORIOR_EXACT_NOT_DECIMAL, and that is decided before any
@@ -291,7 +291,7 @@ extern "C"
      * @brief Counts positions whose value equals the value one lag away.
      *
      * @param[in] positions Positions, in any order, each carrying an index into `values` [BORROWS].
-     * @param[in] values    The value standing at each position [BORROWS].
+     * @param[in] values    The value located at each position [BORROWS].
      * @param[in] count     How many positions.
      * @param[in] lag       The offset to test, as an exact integer [BORROWS].
      * @return              How many distinct positions have a position exactly `lag` above them
@@ -311,7 +311,7 @@ extern "C"
      *
      * @param[in] equal     Whether two integers have the same value [BORROWS].
      * @param[in] positions Positions carrying values, in any order [BORROWS].
-     * @param[in] values    The value standing at each position [BORROWS].
+     * @param[in] values    The value located at each position [BORROWS].
      * @param[in] count     How many positions.
      * @param[in] lag       The offset to test [BORROWS].
      * @return              How many distinct positions agree with the place one lag above them.

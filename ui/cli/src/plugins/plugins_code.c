@@ -8,7 +8,7 @@
 #include "../text/text.h"
 #include "plugins.h"
 
-// the most files a plugin's `main` names
+// the max files a plugin's `main` names
 #define CLI_PLUGINS_MAINS 32u
 // The files a plugin's `main` names
 typedef struct

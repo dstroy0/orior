@@ -1,19 +1,19 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Focus that follows the pointer: kept on or off, and where it is on, the editor takes the keys once the pointer has
-// rested on it, and keeps them from no field being typed in.
+// Focus that follows the pointer: retained on or off, and where it is on, the editor takes the keys once the pointer has
+// rested on it, and retains them from no field being typed in.
 
 import { focusFollows, setFocusFollows } from "../../gui/src-js/focusfollow.js";
-import { keepingStorage } from "../helpers.js";
+import { retentionStorage } from "../helpers.js";
 import { given, putBackAsFound } from "../menus.js";
 
 const { test, assert, ui } = window.__harness;
 
 const KEY = "orior.focus-follows";
 
-test("focus follows the pointer is off until it is set, and kept", async () => {
-  await keepingStorage([KEY], () => {
+test("focus follows the pointer is off until it is set, and retained", async () => {
+  await retentionStorage([KEY], () => {
     localStorage.removeItem(KEY);
     assert.equal(focusFollows(), false);
     setFocusFollows();
@@ -28,7 +28,7 @@ test("with it on, the editor takes the keys once the pointer rests on it; with i
   const away = Object.assign(document.createElement("button"), { textContent: "away" });
   away.style.cssText = "position:fixed;right:40px;bottom:40px;z-index:9999";
   document.body.append(away);
-  await keepingStorage([KEY], async () => {
+  await retentionStorage([KEY], async () => {
     setFocusFollows(true);
     away.focus();
     await ui.hover(away);

@@ -14,7 +14,7 @@ extern void test_a_part_refused_is_marked_and_one_with_none_is_not(void);
 extern void test_the_layer_is_listed_again_only_as_its_stamp_moves(void);
 extern void test_a_channel_opened_lists_its_messages_the_oldest_first_and_closes(void);
 extern void test_the_deadline_is_a_second_on_while_in_sight_and_none_while_not(void);
-extern void test_a_view_chosen_is_the_view_shown_and_channels_returns(void);
+extern void test_a_view_chosen_is_the_view_displayed_and_channels_returns(void);
 extern void test_the_heads_labels_are_the_views_and_read_again(void);
 extern void test_the_eight_comms_commands_run_by_name_and_no_other(void);
 
@@ -84,7 +84,7 @@ int main(void)
   run_test(test_the_layer_is_listed_again_only_as_its_stamp_moves, "test_the_layer_is_listed_again_only_as_its_stamp_moves", 145);
   run_test(test_a_channel_opened_lists_its_messages_the_oldest_first_and_closes, "test_a_channel_opened_lists_its_messages_the_oldest_first_and_closes", 154);
   run_test(test_the_deadline_is_a_second_on_while_in_sight_and_none_while_not, "test_the_deadline_is_a_second_on_while_in_sight_and_none_while_not", 185);
-  run_test(test_a_view_chosen_is_the_view_shown_and_channels_returns, "test_a_view_chosen_is_the_view_shown_and_channels_returns", 192);
+  run_test(test_a_view_chosen_is_the_view_displayed_and_channels_returns, "test_a_view_chosen_is_the_view_displayed_and_channels_returns", 192);
   run_test(test_the_heads_labels_are_the_views_and_read_again, "test_the_heads_labels_are_the_views_and_read_again", 204);
   run_test(test_the_eight_comms_commands_run_by_name_and_no_other, "test_the_eight_comms_commands_run_by_name_and_no_other", 217);
 

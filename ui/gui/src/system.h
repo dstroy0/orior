@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// system.h: the face of the system the window stands on, the only part of the program written twice, once a system: the
-// monitors' areas; a window opened undecorated at a place, its events handed on as they come, its pixels presented from
-// a raster it is handed, its thread woken from another, its place read, its state changed and its closing; and the
+// system.h: the face of the system the window is on, the only part of the program written twice, once a system: the
+// monitors' areas; a window opened undecorated at a place, its events passed on as they come, its pixels presented from
+// a raster it is passed, its thread woken from another, its place read, its state changed and its closing; and the
 // scale the system draws it at. Nothing here takes memory: each window's record is the body's own (system_windows.c,
 // system_x11.c)
 #ifndef GUI_SYSTEM_H
@@ -30,9 +30,9 @@ typedef struct
     const GuiInput *input;
 } GuiEachInputCfg;
 
-// Where the system hands its events, each with the context given at the opening: the client sized, with the scale the
+// Where the system passes its events, each with the context given at the opening: the client sized, with the scale the
 // system draws at and the milliseconds of one refresh of its monitor; an input; the thread woken by another; the system
-// asking to close; where the pointer on the input stands, as thread.h names the places, for the system's own drag and
+// asking to close; where the pointer on the input is, as thread.h names the places, for the system's own drag and
 // resize; the window gone off the screen, minimized or unmapped, `displayed` 0, or back on it, 1; and the system's wish
 // for less motion changed
 typedef struct
@@ -46,34 +46,34 @@ typedef struct
     void (*motion)(void *context);
 } GuiSystemEvents;
 
-// the monitors' areas into `areas`, sized for `most`, the system's main one first: their count
+// the monitors' areas into `areas`, sized for `max`, the system's main one first: their count
 unsigned int gui_system_areas(const GuiSystemAreasCfg *args);
-// the whole size of the monitor with the most pixels, the part a taskbar covers with the rest, where a window filling
-// it stands: 0 by 0 where there is no display
+// the whole size of the monitor with the max pixels, the part a taskbar covers with the rest, where a window filling
+// it is: 0 by 0 where there is no display
 void gui_system_display_max(const GuiSystemWidthCfg *args);
-// a window opened undecorated at `place`, titled `title`, its events handed as `events` says with `context`: the
+// a window opened undecorated at `place`, titled `title`, its events passed as `events` says with `context`: the
 // window, or NULL with why given; the loop run until the window closes; the window closed, which the loop may do from
-// inside an event it hands on, the system's record saved for the loop to read; and the record given back once the
+// inside an event it passes on, the system's record saved for the loop to read; and the record given back once the
 // loop has returned
 GuiSystem *gui_system_open(const GuiSystemPositionTitleCfg *args);
 void gui_system_run(const GuiSystemCfg *args);
 void gui_system_close(const GuiSystemCfg *args);
 void gui_system_free(const GuiSystemCfg *args);
-// a second window opened undecorated at `place`, which goes anywhere on any monitor and stands in front of `owner`: its
-// events handed as `events` says with `context`, on the owner's loop and the owner's thread, its pixels written through
+// a second window opened undecorated at `place`, which goes anywhere on any monitor and is in front of `owner`: its
+// events passed as `events` says with `context`, on the owner's loop and the owner's thread, its pixels written through
 // the system's drawing calls; the window, or NULL with why given. It is closed and given as any other, before its owner
 // is, and closing it leaves the owner and its loop running
 GuiSystem *gui_system_owner_open(const GuiSystemPositionTitleCfg *args);
-// every event waiting taken and handed on, the loop not run, for a check that posts events to the window; and the
+// every event waiting taken and passed on, the loop not run, for a check that posts events to the window; and the
 // system's own handle of the window, for a check to post them to
 void gui_system_pumped(const GuiSystemCfg *args);
 void *gui_system_native(const GuiSystemPositionCfg *args);
-// `raster` shown in the client, its description copied, and shown again as the system asks for the client to be
+// `raster` displayed in the client, its description copied, and displayed again as the system asks for the client to be
 // painted: where its pixels
 // lie in pages the system gave and the system can read them where they lie, copied from there into its own surface by
 // its graphics device and flipped onto the screen, else written through the system's drawing calls
 void gui_system_present(const GuiSystemRasterCfg *args);
-// the rows of `raster` that `part` spans shown again in the client, the rest standing as last shown
+// the rows of `raster` that `part` spans displayed again in the client, the rest located as last displayed
 void gui_system_present_part(const GuiSystemRasterCfg *args);
 // the window's thread woken, from any thread
 void gui_system_wake(const GuiSystemCfg *args);
@@ -84,9 +84,9 @@ void gui_system_act(const GuiSystemCfg *args);
 // X11
 void gui_system_icon(const GuiSystemTitleIconCfg *args);
 // the pointer's shape over the window's client set to `cursor`, GUI_CURSOR_ARROW or GUI_CURSOR_SCROLL as thread.h names
-// them, and kept until the next call
+// them, and retained until the next call
 void gui_system_cursor_show(const GuiSystemCursorCfg *args);
-// where the window stands, in the system's own pixels, and whether it fills its monitor; and the scale the system
+// where the window is, in the system's own pixels, and whether it fills its monitor; and the scale the system
 // draws it at, 1 at 96 dots an inch
 void gui_system_on_position(const GuiSystemPositionCfg *args);
 int gui_system_scale(const GuiSystemPositionCfg *args);
@@ -100,7 +100,7 @@ struct GuiSystemPositionTitleCfg
     void *context;
     VerbaLinea *err_msg;
     GuiSystem *owner;
-    // 1 where the window is modal: its owner takes no input while it stands
+    // 1 where the window is modal: its owner takes no input while it is
     int modal;
 };
 
@@ -132,7 +132,7 @@ struct GuiSystemCfg
 struct GuiSystemAreasCfg
 {
     CliWindowArea *areas;
-    unsigned int most;
+    unsigned int max;
     unsigned int *count_out;
 };
 

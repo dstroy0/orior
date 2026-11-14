@@ -6,10 +6,10 @@ University, ICSNL 60.
 
 Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
-pure corpus, then against this paper's own English laid over that reference. What the paper's
+pure corpus, then against this paper's own English positioned over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
 from the characters that sit outside that English, and word_web.web() built 1733 edges over the
-language forms. A person then matched the context: who, kind and gloss for each row, the names,
+language forms. A person then matched the context: who, type and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
 someone reads the paper again and says otherwise.
@@ -29,14 +29,14 @@ candidates are forms the analysis builds and carry the authors. Each candidate's
 violation marks under the constraint heading each column, read off the glyph positions of the page.
 The prose, the headings and the notes carry the four authors.
 
-THE LETTERS
+THE CHARACTERS
 
-Outside the paper's English the engine found these letters and marks: µ á è é í ó ú ń ƛ ə ɬ ʔ ʕ ʷ ́
+Outside the paper's English the engine found these characters and marks: µ á è é í ó ú ń ƛ ə ɬ ʔ ʕ ʷ ́
 ̓ ̣ ͜ μ ṣ. The forms are in the orthography of Thompson and Thompson (1992; 1996), with the
 underlying representation between slashes and the surface form between square brackets, a period
 between syllables. An acute marks accent in the input and primary stress in the output; a subscript
 number ties an underlying segment to its surface correspondent, as n1 and e1; a subscript N marks a
-nucleus, as nN; a tie bar under two letters marks a diphthong, as í͜yN; µ marks a mora in the
+nucleus, as nN; a tie bar under two characters marks a diphthong, as í͜yN; µ marks a mora in the
 tableaux; a dot below marks a retracted vowel or consonant.
 
 THE PAGE AND THE TEXT LAYER
@@ -44,16 +44,16 @@ THE PAGE AND THE TEXT LAYER
 The forms are in NFC, and the check puts the text layer through the same repair: the space the PDF
 sets after a stacked mark is closed, except before an opening quote, then NFC, then 14 page-read
 corrections. The subscripts, N and the correspondence numbers, come through the text layer as
-full-size letters and digits and are kept that way. The violation marks of tableaux (69), (72) and
+full-size characters and digits and are retained that way. The violation marks of tableaux (69), (72) and
 (73) are partly in the Symbol font, U+F02A and U+F021 in the text layer, read as * and ! at 200 dpi;
-the column each mark stands in is read off the glyph positions. The bold of the stressed syllables
+the column each mark is in is read off the glyph positions. The bold of the stressed syllables
 in the tableau candidates does not come through the text layer. The layer doubles the acute of tí͜y,
 sets every printed hyphen of the phonological notation as a soft hyphen, and puts spaces inside
 words after a vowel with two marks (petə̣́leʔ) and before a mora (kə́µɬµpµ); all are repaired. The
 italic face of footnote 25 and page 33 prints no dot below the stressed schwa of petə̣́leʔ,
-stə̣́nwn, sxʷə̣́seʔ and sxʷsə̣́l̓ec, where the text layer has it, and the dot is kept as typed. The
+stə̣́nwn, sxʷə̣́seʔ and sxʷsə̣́l̓ec, where the text layer has it, and the dot is retained as typed. The
 page prints its broken cross-references to candidates, (69)(69), and numbers two figures B10; both
-are kept.
+are retained.
 
 orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 1059
@@ -65,7 +65,7 @@ where    the paper's locator: the title, the front matter, a section, a footnote
 who      the language for an example tier and a cited form; the work cited on an example's
          line, or the speaker for a volunteered translation, for its English; the authors for
          the prose, the tables and the notes
-kind     transcription  an example tier in the orthography
+type     transcription  an example tier in the orthography
          phonemic       an example tier in a phonemic alphabet
          gloss          the morpheme gloss tier of an example
          translation    the English of an example

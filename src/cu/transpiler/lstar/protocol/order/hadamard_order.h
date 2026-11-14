@@ -20,10 +20,10 @@
 // No floating point value is stored. The solve is integer adds and the contention read is exact integers, and a cost
 // is a count of the part's own clock.
 
-// the most links one known order covers
-#define HADAMARD_ORDER_LINKS_MOST 63u
+// the max links one known order covers
+#define HADAMARD_ORDER_LINKS_MAX 63u
 
-// 1 where a known order covers `links`: one short of a power of two, from 3 to HADAMARD_ORDER_LINKS_MOST
+// 1 where a known order covers `links`: one short of a power of two, from 3 to HADAMARD_ORDER_LINKS_MAX
 int hadamard_order_fits(unsigned int links);
 
 // 1 where query `row` of the known order over `links` links covers link `link`. The order contains `links` queries

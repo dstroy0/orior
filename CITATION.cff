@@ -6,7 +6,7 @@ abstract: >-
   any part. Orior finds the pattern in anything, from a crystal to a language to a
   file. It compares the thing with a shuffled copy of itself, and the pattern is what
   the copy lost. Every number is exact, with nothing rounded, guessed or trained.
-  Most of the parts are old, and they are named as old. The shuffle is a permutation
+  The majority of the parts are old, and they are named as old. The shuffle is a permutation
   null. Exact integers of any width are what every big number library holds. The new
   parts are an engine that never leaves exact integers, from the first read to the
   last bit written, and what came back when it was pointed at a crystal, a language,
@@ -23,7 +23,7 @@ license: AGPL-3.0-or-later
 version: 1.10.0
 date-released: "2026-11-13"
 keywords:
-  - maximum-entropy
+  - max-entropy
   - permutation-null
   - relative-entropy
   - filtering

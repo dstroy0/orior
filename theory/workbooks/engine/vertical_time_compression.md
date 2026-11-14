@@ -2,7 +2,7 @@
 
 **Purpose:** the algebra of the record machine's stacked floors: what a stack is, what it compresses, what it leaves as it is, what bounds its file and its record, how its values and widths fill the floors of the two towers, and what is proved, measured and derived about it.
 
-**Scope:** the record machine (M10 and A13 in [engine_table.md](engine_table.md)): `keymath` imprints a program, `key_schedule` lays it out, `cycle` sweeps it. The shape is Doug's: a floor, the operations in order above it, the next floor, and so on up, with the top conjunction performing the whole transform.
+**Scope:** the record machine (M10 and A13 in [engine_table.md](engine_table.md)): `keymath` imprints a program, `key_schedule` positions it out, `cycle` sweeps it. The shape is Doug's: a floor, the operations in order above it, the next floor, and so on up, with the top conjunction performing the whole transform.
 
 **Labels.**
 
@@ -22,16 +22,16 @@
 
 ## The algebra
 
-1. **Composition regroups and keeps its order.**
+1. **Composition regroups and retains its order.**
    - (h ∘ g) ∘ f = h ∘ (g ∘ f), but g ∘ f ≠ f ∘ g in general.
    - A stack can be cut into programs at any floor and the programs chained, and every result stays the same.
    - **Proved** for tables (M10): a table read through a table equals the ops, and the reversed order differs on some lane.
    - **Proved** for floors (below): 700 floors run as one program equal the same floors run as 700 chained programs, record for record, at four lane counts.
 2. **The file holds live registers only.**
-   - A register is live from the step that writes it to its last reader. With reuse on, the file needs the most limbs live at any one step, plus any gap first fit leaves between registers of different limb counts.
+   - A register is live from the step that writes it to its last reader. With reuse on, the file needs the max limbs live at any one step, plus any gap first fit leaves between registers of different limb counts.
    - The atom is not in the file. A field step copies its field from the record, in device memory, into a register. That register counts against the file only until its last reader. A program that reads many fields, each read late and used at once, runs in a small file: one lifting level over a 4-D cone reads 625 fields in 15 limbs (derived, below).
    - The file's size follows the order of the steps. At a floor it holds that floor's registers. Inside a round it holds the registers of the floor below still to be read, and the round's own registers not yet read for the last time.
-   - The step count has no bound of its own. Each sign sits beside its register. The file (`ENGINE_RECORD_LIMBS_MOST`, 256 limbs) is the only bound on the program.
+   - The step count has no bound of its own. Each sign sits beside its register. The file (`ENGINE_RECORD_LIMBS_MAX`, 256 limbs) is the only bound on the program.
    - The record's own length is a separate bound (below).
    - **Measured:** 4,204 steps in an 8-limb file (the stack test), and in a 12-limb file with its words carried as 33-bit fields (the chained measure).
 3. **Widths are derived, never declared.**
@@ -40,7 +40,7 @@
      - a field read unsigned, a constant, an absolute value, a gcd, a table entry;
      - a sum, product, quotient or xor of two such registers;
      - an and with one such register.
-   - With that fact, an and is no wider than its never-negative operand, and an xor of two never-negative registers is no wider than the wider one. A stack of rounds on fixed-width words then keeps its words at their width through every floor, instead of growing a bit per round.
+   - With that fact, an and is no wider than its never-negative operand, and an xor of two never-negative registers is no wider than the wider one. A stack of rounds on fixed-width words then retains its words at their width through every floor, instead of growing a bit per round.
    - Every width is checked against the values: the bitwise oracle rebuilds each output bit from the raw fields and requires the sign to hold 64 bits past the written width.
 4. **Time: what the stack compresses.**
    - **Chained**, each of the n floors pays a launch, a synchronization, and a round trip of its state through device memory, on top of its steps.
@@ -50,7 +50,7 @@
 5. **Time: what the stack leaves as it is.**
    - Each lane still evaluates every step in order. Once the device is full, a sweep's time grows linearly with the number of steps.
    - The only ways to shorten that are fewer steps:
-     - a table (a sub-function of up to 32 input bits becomes one lookup, and composition keeps its order);
+     - a table (a sub-function of up to 32 input bits becomes one lookup, and composition retains its order);
      - narrower registers (fewer limbs a step);
      - folded, dropped and shared steps (below: steps and their reduction).
 6. **Exactness.**
@@ -90,7 +90,7 @@
   - A step no output reads is not dropped.
   - Two equal steps are not merged.
   - Every reduction of the step count is the program writer's.
-- **The reductions.** Each keeps every record the same.
+- **The reductions.** Each retains every record the same.
   - Fold: a step over constants only becomes one constant.
   - Drop: a step no output depends on is removed.
   - Share: a value computed twice is computed once and read twice. The shared register lives from its first reader to its last, and the file pays for that span.
@@ -106,10 +106,10 @@ Derived from `key_schedule.cu` and `cycle.cu`:
 - A member's record length, `in_limbs`, is an unsigned int with no cap of its own. Laying the key checks only that each field lies inside it: field_offset + bits ≤ 32 · in_limbs.
 - A field's offset is a 32-bit bit offset, and the kernel computes the bit it reads in 32-bit arithmetic.
   - A lane can address the first 2^32 bits of each record: 2^27 limbs, 512 MiB.
-  - The lay check runs in 64-bit arithmetic. It does not refuse a field that ends past bit 2^32 of a record that long, and the kernel's bit arithmetic would wrap for that field.
-- A lane reads at most 3 members (`ENGINE_RECORD_MEMBERS_MAX`), one record from each, chosen by the index. Each member is its own device array. Nothing in the kernel stops the three from being the same array.
+  - The position check runs in 64-bit arithmetic. It does not refuse a field that ends past bit 2^32 of a record that long, and the kernel's bit arithmetic would wrap for that field.
+- A lane reads at max 3 members (`ENGINE_RECORD_MEMBERS_MAX`), one record from each, chosen by the index. Each member is its own device array. Nothing in the kernel stops the three from being the same array.
 - The records sit in device memory: bodies × in_limbs × 4 bytes for each member. A record's address is computed in 64-bit arithmetic. Past the 2^32-bit offset, the device's memory is the practical bound on a record's length.
-- A lane's output record holds each output at its width plus one sign bit. The lay checks their sum stays below 2^31 bits.
+- A lane's output record holds each output at its width plus one sign bit. The position checks their sum stays below 2^31 bits.
 - The two bounds are separate. The record bounds what a lane can read, and the file bounds what it can hold at once.
 
 ## The two towers
@@ -166,7 +166,7 @@ Doug's: a second tower stacked over the first one's boundary, inverted, and the 
   - **The constant-divisor narrowing**. keymath gives a quotient or exact quotient whose divisor is a constant c the dividend's width less ⌊log2 c⌋ bits, never under 1. The engine's quotient rounds toward zero and the exact quotient does not round: |q| ≤ |v|/c < 2^{w − ⌊log2 c⌋} for a w-bit dividend. The floor toward −∞ belongs to the lifting's composite of an and, a difference and an exact quotient, never to one operation. The exact quotient now works at its numerator's width and checks q · c against the whole numerator. **Proved** (`test/engine/record_divide_test`, 19 checks, 0 failed): 40-bit factors times 3, 12 and 2^32 + 7 divide back exactly, a 64-bit value over 2^32 + 7 equals the library's quotient, and the widths are exactly the rule's.
   - With it, keymath gives a high-pass coefficient of 16-bit samples 18 bits and a low-pass coefficient 20. Each level adds 4 bits to a low-pass coefficient: 16, 20, 24, 28, and 40 at level 6, two limbs. Before it, 7 bits a level: 23, 30, and 58 at level 6. The proved program's file is 12 limbs under either rule.
   - The values grow far less. The low-pass coefficient's linear part is (−1, 2, 6, 2, −1)/8 over x_{2i−2} to x_{2i+2}, with Σ|c| = 1.5. Its floors add less than 3/4.
-  - Over samples |x| ≤ B: |s| ≤ 1.5B + 1 and |d| ≤ 2B. The edge cases (a line of 2 or 3, either end) repeat a neighbor and keep Σ|c| ≤ 1.5 for a low-pass coefficient and 2 for a high-pass coefficient.
+  - Over samples |x| ≤ B: |s| ≤ 1.5B + 1 and |d| ≤ 2B. The edge cases (a line of 2 or 3, either end) repeat a neighbor and retain Σ|c| ≤ 1.5 for a low-pass coefficient and 2 for a high-pass coefficient.
   - The low-pass coefficient's bound grows log2 1.5 ≈ 0.585 bits a level and the high-pass coefficient's 1 bit, against keymath's 4.
   - A wrap to w = bit_length(bound) + 1 bits after each level holds every value in range exactly: [−2^{w−1}, 2^{w−1}) contains [−bound, bound].
   - A wrap is silent: the machine does not check that its value is in range. A wrong wrap gives a wrong record on the device and the same wrong record on the host, and device = host still holds. Only an oracle outside the machine, such as tower.cu's formulas, catches it.
@@ -181,8 +181,8 @@ Doug's: a second tower stacked over the first one's boundary, inverted, and the 
 
 ## The neighbor gather
 
-- **The limit.** In one sweep a lane reads at most 3 records. A coefficient's cone must lie in those records.
-- **One axis: tiles, nothing duplicated.** Derived. Lay the line as records of t samples each. A lane reads its left, own and right tiles as its three members through the index. Its L-level coefficients reach 2^{L+1} − 2 samples to each side, which lie in the three tiles when 2^{L+1} − 2 ≤ t.
+- **The limit.** In one sweep a lane reads at max 3 records. A coefficient's cone must lie in those records.
+- **One axis: tiles, nothing duplicated.** Derived. Position the line as records of t samples each. A lane reads its left, own and right tiles as its three members through the index. Its L-level coefficients reach 2^{L+1} − 2 samples to each side, which lie in the three tiles when 2^{L+1} − 2 ≤ t.
 - **D axes.** Derived. A tile's one-level cone touches 3^D − 1 neighbor tiles: 8, 26 and 80 in 2, 3 and 4 axes. Three members reach the neighbors along one axis only. Two ways remain.
   - **The halo in the record.** Each record carries its tile and the halo its cone reads. One level on a tile of (2m)^D samples reads (2m + 3)^D, duplicating ((2m + 3)/(2m))^D. A lane then lifts its tile alone and recomputes what its neighbors also compute.
   - **One axis per sweep.** Each sweep lifts along one axis, with the three members as the left, own and right tiles along it. A D-axis crystal of L levels takes D · L sweeps, with no duplication and no recomputation. Each boundary between sweeps pays the chained cost.
@@ -214,8 +214,8 @@ Doug's: a second tower stacked over the first one's boundary, inverted, and the 
 Doug's: the bottom boundary of the inverted tower and the bottom boundary of the upright tower are the same boundary, right next to one another, never touching.
 
 - **The floors.**
-  - T stands up from its floor 0, the samples. T⁻¹ hangs down and ends on its floor 0, the rebuilt samples.
-  - An operation program F stands up from its own floor 0, the atom. In F ∘ T⁻¹, T⁻¹'s bottom is F's bottom.
+  - T is up from its floor 0, the samples. T⁻¹ hangs down and ends on its floor 0, the rebuilt samples.
+  - An operation program F is up from its own floor 0, the atom. In F ∘ T⁻¹, T⁻¹'s bottom is F's bottom.
   - A floor is a cut between steps. Its registers are the ones live at that cut.
 - **Never touching, literally.**
   - T's floor 0 is the atom: fields in the record, in device memory, which field steps read.
@@ -275,7 +275,7 @@ Doug's framing (paraphrased): domain and range are complete and defined across t
   - The heap pinches at the crystal by 12× for the ramp, 3.2× at ±8 and 1.3× at ±1,024, and not at all for noise.
   - The live bits peak at the last cut (5,079), not at the crystal (1,656).
   - 128 samples at 7 levels are refused: 93-bit registers overflow the 256-limb file.
-- **The ring is the domain's bound.** Derived. The imprint's width W_r bounds register r's magnitude for every input in the fields' domain: |v_r| < 2^{W_r}. The magnitude part of the heap is at most the ring on every floor of every lane. The sign bits can add one bit a nonzero register: heap ≤ ring + the floor's nonzero registers. A 16-bit field holding −32,768 fills its 16 bits and takes a sign bit besides.
+- **The ring is the domain's bound.** Derived. The imprint's width W_r bounds register r's magnitude for every input in the fields' domain: |v_r| < 2^{W_r}. The magnitude part of the heap is at max the ring on every floor of every lane. The sign bits can add one bit a nonzero register: heap ≤ ring + the floor's nonzero registers. A 16-bit field holding −32,768 fills its 16 bits and takes a sign bit besides.
 - **The crystal is the mirror's plane.** Derived. T⁻¹ undoes the levels in reverse: after T_L⁻¹ to T_{k+1}⁻¹, the line holds T_k ∘ … ∘ T_1 of the samples. The inverse floor k holds the forward floor k's values, register for register, and the heap is an exact mirror across the crystal on every lane. The replica checks this on 300 lines.
 - **The ring is not a mirror.** Derived. A width follows the path of steps that made the register, never its value, and nothing narrows it back. keymath cannot see T⁻¹ ∘ T = id. The inverse side's widths grow from the crystal's: at T⁻¹ 0, registers of 82 bits before the narrowing, and 58 after it, hold 16-bit values.
 - **Two fixes.**
@@ -326,9 +326,9 @@ Doug's posit, the crystal as a lens between the physical data and its informatio
 - **What the measure supports.** Measured in the scratch run above: the crystal concentrates a lane's structure. The ramp's 857 bits go to 70, 12×, and the pinch ranks the four classes by their complexity. A cleaner crystal, a sparser heap, is a sharper focus, and the pinch is a per-lane reading of how much structure the lens sees.
 - **What bounds it.** Derived.
   - T is a bijection: the crystal holds the lane exactly and adds or loses nothing. No prefix code of the crystal is shorter than K(x | the program) − c. The lens reaches toward K and never below it.
-  - By counting, fewer than 2^{n−j} codewords are shorter than n − j bits. Of the 2^n lanes of n bits, fewer than a 2^{−j} fraction can be coded j or more bits short, by any lossless coder, the crystal included. No lossless map shortens most inputs.
+  - By counting, fewer than 2^{n−j} codewords are shorter than n − j bits. Of the 2^n lanes of n bits, fewer than a 2^{−j} fraction can be coded j or more bits short, by any lossless coder, the crystal included. No lossless map shortens max inputs.
   - Noise gets no focus: measured, 960 bits to 956.
-  - The lens's gain on a lane is at most n − K(x | the program) + c, the lane's own compressibility. The 5/3 lens sees only the smoothness its lifting predicts, and its gain is usually far less.
+  - The lens's gain on a lane is at max n − K(x | the program) + c, the lane's own compressibility. The 5/3 lens sees only the smoothness its lifting predicts, and its gain is usually far less.
 - **The tetration.** Derived. A gain of tetrated size needs a lane whose description is tetrated-small against its length. Such lanes exist, printed by tiny programs, but by counting they are a vanishing fraction, and the 5/3 lens need not find them. Any such gain comes from the input's description, never from the lens.
 - **Open.**
   - Whether a ladder of lenses (more levels, other liftings, tables at the crystal) comes closer to K on a named class of lanes.
@@ -342,7 +342,7 @@ Derived.
 - Its distance from the linear inverse W⁻¹ (the same two lines without floors), for the same coefficients c, along one line:
   - An even sample's floor, ⌊(d_{i−1} + d_i + 2)/4⌋ against (d_{i−1} + d_i)/4, moves the even by −1/2, −1/4, 0 or 1/4.
   - An odd sample's floor, ⌊(a + b)/2⌋ against (a + b)/2, moves the odd by 0 or −1/2.
-  - The high-pass coefficients are read exact from c. An inverse level that receives its low-pass coefficients with error at most ε returns evens with error at most ε + 1/2 and odds with error at most ε + 1.
+  - The high-pass coefficients are read exact from c. An inverse level that receives its low-pass coefficients with error at max ε returns evens with error at max ε + 1/2 and odds with error at max ε + 1.
   - Over L levels, ‖T⁻¹c − W⁻¹c‖∞ ≤ L.
   - For a linear F with ‖F‖∞ its largest row sum of |entries|: |F(T⁻¹c) − F(W⁻¹c)| ≤ L · ‖F‖∞ along one line.
 - In D axes the high-pass coefficients of one axis carry the error of the axes inverted before them. The bound there is open.
@@ -357,7 +357,7 @@ Derived.
 
 Derived.
 
-- A chain of steps that each read one register, starting from a register of b ≤ 32 bits, is one function of that register. One table step of 2^b rows replaces the chain, and composition keeps its order (M10, proved).
+- A chain of steps that each read one register, starting from a register of b ≤ 32 bits, is one function of that register. One table step of 2^b rows replaces the chain, and composition retains its order (M10, proved).
 - The table reads the low b bits of the register's magnitude: the file holds a magnitude and a sign.
   - A register that can be negative indexes by |v|, and v and −v read the same row.
   - A signed register goes into a table after it is made never negative, for example by adding 2^{b−1} to a b-bit signed field.

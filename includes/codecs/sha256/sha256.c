@@ -95,7 +95,7 @@ void sha256_bits(const void *data, unsigned long long bits, unsigned char digest
     const unsigned char *const message = (const unsigned char *)data;
     unsigned int state[SHA256_STATE_WORDS];
     memcpy(state, s_initial_state, sizeof(state));
-    // every whole block of the message, then the bytes past the last one, the padding laid after them (section 5.1.1)
+    // every whole block of the message, then the bytes past the last one, the padding positioned after them (section 5.1.1)
     const unsigned long long whole_bytes = bits / 8ull;
     const unsigned int spare_bits = (unsigned int)(bits % 8ull);
     const unsigned long long blocks = whole_bytes / SHA256_BLOCK_BYTES;

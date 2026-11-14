@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // python_paths_search.c: the tree's Python scripts that touch `sys.path` read, and the folders they name in the tree
-// counted, the most used first, the reading cached for thirty seconds
+// counted, the max used first, the reading cached for thirty seconds
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
 #include "../editor/files_internal.h"
@@ -9,8 +9,8 @@
 #include "../text/text.h"
 #include "python_paths_internal.h"
 
-// a file larger than this is not read; how long a tree's reading stands, in milliseconds; the most folders counted,
-// and the most one script names
+// a file larger than this is not read; how long a tree's reading is, in milliseconds; the max folders counted,
+// and the max one script names
 #define CLI_PY_LARGEST (1ULL << 20u)
 #define CLI_PY_FRESH_FOR 30000ULL
 #define CLI_PY_COUNTS_MAX 1024u
@@ -91,10 +91,10 @@ EMBED_INLINE int cli_touches_path(const PythonPathsSearchCtx *args)
     unsigned long long at = 0ULL;
     while (at < args->size)
     {
-        unsigned int letter = 0u;
+        unsigned int character = 0u;
         const unsigned long long step =
-            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg, .text_bytes = bytes,
-                       .length = args->size, .at = at, .letter = &letter);
+            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg, .text_bytes = bytes,
+                       .length = args->size, .at = at, .character = &character);
         if ((step == 1ULL) && (bytes[at] >= 0x80u))
         {
             return 0;
@@ -232,7 +232,7 @@ unsigned int cli_python_paths(const CliPythonPathsCfg *args)
             }
         }
         EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
-        // the most used first, then by path
+        // the max used first, then by path
         for (unsigned int at = 1u; at < s_search.counts; at += 1u)
         {
             const CliPyCount pivot = s_search.counted[at];
@@ -254,7 +254,7 @@ unsigned int cli_python_paths(const CliPythonPathsCfg *args)
         s_search.at = cli_clock_milliseconds();
         s_search.has_counts = 1;
     }
-    const unsigned int count = (s_search.counts < args->most) ? s_search.counts : args->most;
+    const unsigned int count = (s_search.counts < args->max) ? s_search.counts : args->max;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         EMBED_CALL(args->each, CliEachPathCfg, .context = args->context, .path = s_search.counted[at].path);

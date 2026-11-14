@@ -40,7 +40,7 @@ typedef struct
 // `entries`, sorted by name, in a cell the size of the folder's count of them, the cell `entries` occupied given back
 // first
 void cli_catalog_entries(const CliCatalogFolderCtx *args);
-// a list's cell taken at the most a list holds as it is first made capacity in: 1 where `most` fit, or 0 where they do
+// a list's cell taken at max a list holds as it is first made capacity in: 1 where `max` fit, or 0 where they do
 // not or the cell is refused
 int cli_catalog_names_capacity(const CliCatalogNamesCtx *args);
 int cli_catalog_paths_capacity(const CliCatalogMaxCtx *args);
@@ -53,11 +53,11 @@ char *cli_catalog_markdown_alloc(const CliCatalogPathOutCtx *args);
 // `name` joined onto `folder` into `path`, sized for CLI_PATH_MAX_LEN
 void cli_catalog_join(const CliCatalogFolderNameCtx *args);
 // the names a `case` in a script accepts on the line after `case "$<variable>" in`, each into `names`, sized for
-// `capacity`: their count; or, where `names` is NULL, the count of names it gives, the most it would put
+// `capacity`: their count; or, where `names` is NULL, the count of names it gives, the max it would put
 unsigned int cli_catalog_case_names(const CliCatalogTextVariableCtx *args);
 // the parts the track driver runs, read from its usage text: the list after "in the order given:" across however many
 // string literals the source splits it into, each into `parts`, sized for `capacity`: their count; or, where `parts` is
-// NULL, the count of parts it gives, the most it would put
+// NULL, the count of parts it gives, the max it would put
 unsigned int cli_catalog_driver_parts(const CliCatalogCapacityCtx *args);
 // a path's name without its extension into `out`, sized for CLI_NAME_MAX_LEN
 void cli_catalog_stem(const CliCatalogPathOutCtx *args);
@@ -135,12 +135,12 @@ struct CliCatalogFolderNameCtx
 struct CliCatalogNamesCtx
 {
     CliEntries *names;
-    unsigned int most;
+    unsigned int max;
 };
 
 struct CliCatalogMaxCtx
 {
-    unsigned int most;
+    unsigned int max;
     CliPaths *paths;
 };
 

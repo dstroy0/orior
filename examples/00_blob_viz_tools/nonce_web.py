@@ -25,7 +25,7 @@ share sub-patterns beyond chance; matching the null is the boundary that says th
 WHY RARE
 
 A sub-pattern in almost every word is the leading zeros, which link everybody and carry no
-information. A sub-pattern in a handful is a feature those few share, and it is the only kind that can
+information. A sub-pattern in a handful is a feature those few share, and it is the only type that can
 carry a web with structure. The rarity ceiling is swept instead of chosen. The reading is a curve over
 how rare a shared pattern has to be to count.
 
@@ -85,7 +85,7 @@ def components(values, width, length, rarity):
     """The component structure of the word web at one window length and rarity ceiling.
 
     Returns (non-singleton component count, largest component size). Two words are joined where they
-    share a window carried by at least two and at most `rarity` words: rare enough to be a feature and
+    share a window carried by at least two and at max `rarity` words: rare enough to be a feature and
     not the leading zeros everybody has.
     """
     holders = {}

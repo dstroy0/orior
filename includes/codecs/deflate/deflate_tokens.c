@@ -87,9 +87,9 @@ static unsigned long long deflate_find(const DeflateMatcher *matcher, unsigned l
 static void deflate_token(DeflateToken *tokens, unsigned long long *count, unsigned long long length,
                           unsigned long long value)
 {
-    // a match length is at most 258 and a distance at most 32768, each fits in an unsigned short
+    // a match length is at max 258 and a distance at max 32768, each fits in an unsigned short
     tokens[*count].length = (unsigned short)length;
-    // a literal byte or a distance of at most 32768 fits in an unsigned short
+    // a literal byte or a distance of at max 32768 fits in an unsigned short
     tokens[*count].value = (unsigned short)value;
     *count += 1ull;
 }

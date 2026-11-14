@@ -145,7 +145,7 @@ int povm_frame_open(SimResults *results, PovmFrame *frame, PovmNumber *length_sq
         positive = positive && (povm_number_sign(povm_number_difference(povm_fraction(1ll, 1ll), square)) >= 0);
         *length_square = square;
     }
-    sim_check(results, positive, "every operator of the POVM is positive (|v|^2 at most 1)");
+    sim_check(results, positive, "every operator of the POVM is positive (|v|^2 at max 1)");
     int identity = 1;
     PovmNumber diagonal = povm_fraction(0ll, 1ll);
     for (unsigned int row = 0u; row < POVM_AXES; row += 1u)

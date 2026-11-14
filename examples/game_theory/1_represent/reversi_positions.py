@@ -11,7 +11,7 @@
 # through a game is mostly empty, and giving emptiness a symbol of its own puts the game's clock
 # into the histogram, where any measure reading counts will find it and report how far along the
 # game was. Every measurement in this subject that reads values drops the empty squares. The one
-# that reads the grid's shape keeps them, because a hole in a row is part of the shape.
+# that reads the grid's shape retains them, because a hole in a row is part of the shape.
 #
 # The second decision is the flattening. A board is two dimensional and a sequence is not.
 # Reading one row major spends the second axis. The partition stage is where that is paid for.

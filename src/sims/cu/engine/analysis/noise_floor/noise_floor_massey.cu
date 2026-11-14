@@ -214,23 +214,23 @@ void floor_random(SimResults *results, FloorStream *streams, unsigned int *lengt
         return;
     }
     unsigned int least = FLOOR_STREAM_BITS;
-    unsigned int maximum = 0u;
+    unsigned int max = 0u;
     for (unsigned int index = 0u; index < FLOOR_STREAMS; index += 1u)
     {
         least = (lengths[index] < least) ? lengths[index] : least;
-        maximum = (lengths[index] > maximum) ? lengths[index] : maximum;
+        max = (lengths[index] > max) ? lengths[index] : max;
     }
     VerbaLinea *const line = &results->line;
     mmgr_line_put(line, "  keyed draws, the same count: complexity from ");
     mmgr_line_decimal(line, least, 1u);
     mmgr_line_put(line, " to ");
-    mmgr_line_decimal(line, maximum, 1u);
+    mmgr_line_decimal(line, max, 1u);
     mmgr_line_put(line, " against n/2 = ");
     mmgr_line_decimal(line, FLOOR_STREAM_BITS / 2u, 1u);
     mmgr_line_ch(line, '\n');
     sim_check(results,
               ((least + FLOOR_RANDOM_RANGE) >= (FLOOR_STREAM_BITS / 2u)) &&
-                  (maximum <= ((FLOOR_STREAM_BITS / 2u) + FLOOR_RANDOM_RANGE)),
+                  (max <= ((FLOOR_STREAM_BITS / 2u) + FLOOR_RANDOM_RANGE)),
               "every keyed stream's complexity lies within 16 of n/2");
 }
 

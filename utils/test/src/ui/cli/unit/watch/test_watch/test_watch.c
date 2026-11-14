@@ -113,7 +113,7 @@ static int hidden_gathered(const char *hidden, const char *const *paths, const u
     return any;
 }
 
-void test_a_hidden_folder_removed_marks_the_folder_it_stood_in_changed(void)
+void test_a_hidden_folder_removed_marks_the_folder_it_was_in_changed(void)
 {
     static const char *const s_gone[1] = {"deps"};
     static const unsigned int s_gone_types[1] = {CLI_CHANGE_REMOVED};

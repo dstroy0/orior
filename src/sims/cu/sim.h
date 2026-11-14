@@ -266,7 +266,7 @@ static inline unsigned long long sim_ratio_floor(const OriorExactInteger *numera
 
 #define SIM_DECIMAL_GROUP_DIGITS 9u
 
-// 10^9 exceeds 2^29. A magnitude of ORIOR_EXACT_BITS bits has at most ORIOR_EXACT_BITS / 29 + 1 groups
+// 10^9 exceeds 2^29. A magnitude of ORIOR_EXACT_BITS bits has at max ORIOR_EXACT_BITS / 29 + 1 groups
 #define SIM_DECIMAL_GROUPS ((((unsigned long long)(ORIOR_EXACT_BITS)) / 29ull) + 1ull)
 
 // the count of limbs up to and including the top non-zero one; 0 for zero

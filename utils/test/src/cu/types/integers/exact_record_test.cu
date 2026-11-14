@@ -33,7 +33,7 @@
 
 #define RECORD_TEST_OUTPUTS 8u
 
-// the most the test puts on the device at once: a sweep's atoms and its records, each well under a kilobyte a lane
+// the max the test puts on the device at once: a sweep's atoms and its records, each well under a kilobyte a lane
 #define RECORD_TEST_DECLARED ((unsigned long long)RECORD_TEST_LANES * 1024ull)
 
 typedef struct
@@ -155,7 +155,7 @@ typedef struct
     CycleRecord *record;
 } RecordLoaded;
 
-// lays the program out and loads it, its fields read from one-word atoms; 1 where it loaded
+// positions the program out and loads it, its fields read from one-word atoms; 1 where it loaded
 static int record_load(ExactRecordProgram *program, const unsigned int *outputs, unsigned int output_count,
                        RecordLoaded *loaded, EngineError *error)
 {

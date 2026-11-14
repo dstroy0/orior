@@ -78,7 +78,7 @@ and `3892314113` (above `2^31`).
 
 ### Decision: the image_transforms translation prime
 
-The translation NTT keeps `p = 998244353 = 119·2^23+1`, primitive root 3, diverging deliberately from
+The translation NTT retains `p = 998244353 = 119·2^23+1`, primitive root 3, diverging deliberately from
 the device `2^27` primes:
 
 1. `p` is below `2^31`. The `uint32` add and subtract-borrow wrap the paper documents cannot occur.
@@ -89,7 +89,7 @@ the device `2^27` primes:
    views (0/1). Every coefficient `C(l)` is an agreement count.
 
 Point 3 is sharper than that. For 0/1 views each coefficient counts agreeing positions. It is at
-most the transform length; the transform length divides `p-1` and is therefore below `p` for any valid
+max the transform length; the transform length divides `p-1` and is therefore below `p` for any valid
 prime. A binary view is exact with no separate precondition. Weighting the views can breach
 `p`: the bound becomes the sum of the weight products, and past `p` a single prime counts modulo
 itself, silently. The remedy is a prime above the largest coefficient, or CRT over several, the
@@ -143,14 +143,14 @@ two routes, a drawn null, and a stated floor:
   ratio and is exact, a false identity is refused.
 
 The three regimes, from the survey: defined quantities spread precision without bound; counting and
-conservation quantities are exact but flat; measured quantities keep an upstream floor no identity
+conservation quantities are exact but flat; measured quantities retain an upstream floor no identity
 crosses, reached only through a floor-free ratio. The absolute floor is never arithmetic: the
 representation imposes no quantum and has infinite variability, finer than any physical scale. The floor
 is measurement and completeness, both external.
 
 ## 2026-09-17 entry four: Navier-Stokes sets against the boundary function, inheritance checked
 
-Douglas set the work: keep running their sets against our boundary function and check for inheritance,
+Douglas set the work: retain running their sets against our boundary function and check for inheritance,
 claim nothing, show the rigor, ask the boundary function to define itself, cite what is borrowed with
 respect. Built and run, each exit 0, each with a positive control, two routes, a drawn null, and a stated
 floor:
@@ -160,15 +160,15 @@ floor:
   per field, decimal inputs read by `representation.exact`; no fraction or math library, after Douglas
   refused a first build that used both. The ABC solution reproduced by the velocity recurrence and by
   the vorticity recurrence to the integer at orders 0 to 4; a generic datum's Taylor coefficients measured to
-  outrun any fixed mode horizon (`|k|_1` climbs by one per order, 6, 18, 42, 88, 170 modes kept); the
+  outrun any fixed mode horizon (`|k|_1` climbs by one per order, 6, 18, 42, 88, 170 modes retained); the
   energy identity exact at `t = 0`; the time and space scalings exact; the viscosity and force removals
-  shown on instances; the countable island of nameable fields inside the data class (8).
-- `evidence/proofs/posits/proof_boundary_inheritance.py`: the boundary kind read off each object by two
+  displayed on instances; the countable island of nameable fields inside the data class (8).
+- `evidence/proofs/posits/proof_boundary_inheritance.py`: the boundary type read off each object by two
   probes (raise the scale, raise the horizon) in place of assigned by survey, with four positive controls
-  of known kind and a null that shows the classifier's limit; their sets run through it; the inheritance
-  of each kind through the chain `datum -> u_1 -> u_2 -> u_3` measured (format absent in the ring and
+  of known type and a null that shows the classifier's limit; their sets run through it; the inheritance
+  of each type through the chain `datum -> u_1 -> u_2 -> u_3` measured (format absent in the ring and
   introduced by the derivative in decimals, measurement carried exactly and canceled only by a ratio,
-  completeness carried and growing); the disjoint-translate constructor's algebra shown by two routes
+  completeness carried and growing); the disjoint-translate constructor's algebra displayed by two routes
   with the overlapping null. It imports the ring from the example by path so one representation carries
   both.
 - `examples/0_experimental/exact_navier_stokes_cascade.py`: the solution map made visible, on Douglas's
@@ -220,7 +220,7 @@ run, each exit 0:
 Douglas set two follow-ons: push the descent through correctly, then attempt reaching the first part of
 Sha. Both done, integer-only, validated before landing. The mechanism is local solvability as a refute-only necessary-condition probe, the engine's sound one-directional
 filter, with the Hensel level DERIVED from the form (2 v_p(J) + 1) and not a picked cap, the point that
-keeps it clean under the tree's no-bounding rule. An earlier bounded mod-p^k search was dropped: it
+retains it clean under the tree's no-bounding rule. An earlier bounded mod-p^k search was dropped: it
 picked a cap and, worse, a too-small cap under-counted the rank, the unsafe direction. No permutation
 null is drawn here. There is nothing to permute in a rank bound, and the one-directional filter is the
 only engine principle that applies.

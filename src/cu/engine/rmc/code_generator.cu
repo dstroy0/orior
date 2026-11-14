@@ -22,14 +22,14 @@ static const RulesetName s_physreg_names[PHYSREG_COUNT] = {PHYSREGS(PHYSREG_WRIT
 
 // The record program as a register lane, in any language whose ruleset writes the lane's forms: each step
 // unrolled at its widths into straight-line text over registers the lane uses itself. The
-// file is a bank by place and its signs another, as key_schedule laid them out; the record's words are a bank, laid out
-// by each put and each stored once the last put that lays it out has run; the atoms' words are a bank, each loaded
+// file is a bank by place and its signs another, as key_schedule positioned them out; the record's words are a bank, arranged
+// by each put and each stored once the last put that positions it out has run; the atoms' words are a bank, each loaded
 // at its first reader. What a compiler would loop over a register's limbs is written out here limb by limb from
 // the program's own widths. The code generator writes no text of its own: every line is a form of the language's
 // ruleset, and every register a written form of its banks and fixed registers. The code generator decides what a step
 // does and the ruleset how the language writes it. What each step does, and the lane's opening, close and split into
 // states, is decided in codegen_core.h, which the device compiles as well; here the forms it decides are written in the
-// ruleset and laid out into the text in its order. The steps that loop on their values are loops of the same forms,
+// ruleset and arranged into the text in its order. The steps that loop on their values are loops of the same forms,
 // each body over registers of fixed widths so no limb is named by a value the lane computes: the gcd, the golden
 // ladder, a division by more than one limb, and a product too wide to unroll. A loop is a label and a branch back to it
 // on a predicate, which a language that clocks the lane splits into states that go back. The lane calls nothing and
@@ -41,7 +41,7 @@ static const RulesetName s_physreg_names[PHYSREG_COUNT] = {PHYSREGS(PHYSREG_WRIT
 // Where each bank begins in the register file, and how many registers one of its own takes. A language whose
 // registers are virtual gives every bank a namespace of its own and leaves this zero; a language with one register
 // file has every bank in that file, and a bank numbered from 0 like every other collides with them. The banks are
-// laid end to end from the counts the lane declares, and a bank whose registers are 64 bits takes two of the file's for
+// positioned end to end from the counts the lane declares, and a bank whose registers are 64 bits takes two of the file's for
 // each of its own.
 struct RegisterFile
 {
@@ -49,7 +49,7 @@ struct RegisterFile
     unsigned int takes[REGCLASS_COUNT];
 };
 
-// register `at` of a bank, as the ruleset writes it, laid into the file by `file` where the language has one
+// register `at` of a bank, as the ruleset writes it, positioned into the file by `file` where the language has one
 static std::string code_generator_register(const Ruleset *rules, const RegisterFile *file, unsigned int bank,
                                            unsigned int at)
 {
@@ -69,16 +69,16 @@ static std::string code_generator_register(const Ruleset *rules, const RegisterF
 static std::string code_generator_argument(const Ruleset *rules, const RegisterFile *file,
                                            const MachineOperand &argument)
 {
-    if (argument.kind == OPERAND_REGISTER)
+    if (argument.type == OPERAND_REGISTER)
     {
         return code_generator_register(rules, file, argument.which, argument.number);
     }
-    if (argument.kind == OPERAND_PHYSREG)
+    if (argument.type == OPERAND_PHYSREG)
     {
         return rules->fixed[argument.which];
     }
     // a signed number is stored as its two's complement word
-    return ((argument.kind == OPERAND_SIGNED) && (argument.number >= 0x80000000u))
+    return ((argument.type == OPERAND_SIGNED) && (argument.number >= 0x80000000u))
                ? ("-" + std::to_string(0u - argument.number))
                : std::to_string(argument.number);
 }
@@ -91,10 +91,10 @@ static unsigned int code_generator_takes(unsigned int bank)
     return ((bank == REGCLASS_WIDE) || (bank == REGCLASS_MEMBER)) ? 2u : 1u;
 }
 
-// The banks laid into one register file, from the counts the lane declared: each bank begins where the one before it
+// The banks positioned into one register file, from the counts the lane declared: each bank begins where the one before it
 // ended, in the order the declarations come. A language whose banks are namespaces of their own leaves every bank at
 // 0, which writes each register by its own number. The predicates are a file of their own on every
-// language that has them, and are not laid with the rest. 0 where the banks run past what the file contains, the lane
+// language that has them, and are not positioned with the rest. 0 where the banks run past what the file contains, the lane
 // then written by nobody: every register from there on would be one the language has already pinned
 static int code_generator_file(const CodeGenerator *generator, const std::vector<MachineInstr> &items,
                                RegisterFile *file)
@@ -204,7 +204,7 @@ static std::vector<MachineInstr> code_generator_decided(MachineFunction *lane, c
 // two more
 #define CODEGEN_RESERVED_WORDS 20u
 
-// the most 32-bit words the lane uses live at once, reckoned from the lifetimes its text gives ptxas: each value's
+// the max 32-bit words the lane uses live at once, reckoned from the lifetimes its text gives ptxas: each value's
 // limbs and sign from its step to its last reader, each record word from its first put to its last, each atom word from
 // its first reader to its last, each step's own temporaries at that step (`step_words`), and the words every lane uses
 // throughout
@@ -256,19 +256,19 @@ static unsigned int code_generator_live_max(const IrProgram *program, const std:
         }
     }
     long long live = 0ll;
-    long long maximum = 0ll;
+    long long max = 0ll;
     for (unsigned int at = 0u; at < steps; at += 1u)
     {
         live += change[at];
-        maximum = (live > maximum) ? live : maximum;
+        max = (live > max) ? live : max;
     }
-    // at most the file's limbs and signs, the record's words, the atoms' words and one step's temporaries, far under
+    // at max the file's limbs and signs, the record's words, the atoms' words and one step's temporaries, far under
     // 2^32
-    return (unsigned int)maximum + CODEGEN_RESERVED_WORDS + (2u * program->members);
+    return (unsigned int)max + CODEGEN_RESERVED_WORDS + (2u * program->members);
 }
 
 // each ruleset's schema, retained for the process: the lane's forms, banks and fixed registers, and the file. The
-// toolchain and the header are the file's own. A deque retains each where it was laid out as more are laid out
+// toolchain and the header are the file's own. A deque retains each where it was arranged as more are arranged
 static std::deque<RulesetSchema> s_ruleset_schemas;
 
 static std::mutex s_ruleset_schemas_mutex;
@@ -319,8 +319,8 @@ static unsigned int code_generator_write_ports(const Ruleset *rules)
 
 // A program's lane and its resident as the core decides them, into `items` in the text's order: the note, the header's
 // place, occupied by an item of the form ASM_PRINTER_ALL_ONES, the lane's opening and declarations, the body's opening,
-// the body and the end; the places a thread uses in shared memory (the file's where the language lays it out there,
-// else 0), and the most words it uses live at once. The core decides the steps first, then the lane's own forms in the
+// the body and the end; the places a thread uses in shared memory (the file's where the language positions it out there,
+// else 0), and the max words it uses live at once. The core decides the steps first, then the lane's own forms in the
 // order the lane writes them. 0 where the ruleset is not read, a step is one the lane does not support, or a form
 // breaks the lane. With a schedule model, the body is split into states and `report` informed how
 int CodeGenerator::decide(const EngineRecordLayout *layout, const ScheduleModel *model, ScheduleReport *report,
@@ -436,7 +436,7 @@ int CodeGenerator::decide(const EngineRecordLayout *layout, const ScheduleModel 
     }
     else
     {
-        // each form's cost; an error's label for the opening and one for each step at most, and each loop the steps
+        // each form's cost; an error's label for the opening and one for each step at max, and each loop the steps
         // wrote
         const ScheduleCosts costs = schedule_costs(*model);
         std::vector<MachineOperand> dispatch_error((size_t)steps + 1u);
@@ -469,7 +469,7 @@ int CodeGenerator::decide(const EngineRecordLayout *layout, const ScheduleModel 
         body_open = code_generator_decided(
             &lane, [states](MachineFunction *deciding) { codegen_body_open(deciding, 1, states); });
         report->states = schedule.state;
-        report->maximum = schedule.maximum;
+        report->max = schedule.max;
         report->over = schedule.over;
     }
     const std::vector<MachineInstr> ending =

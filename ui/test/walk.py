@@ -5,31 +5,31 @@
 # Walks every command of orior's menus in the running window, as a press of its item does, on a
 # scratch tree of dummy files of its own, and says what each did: how long it worked, each call it
 # made and how long that took, each frame and the long ones, each element that moved and how far it
-# went from frame to frame, each layout shift, each error, and what it left open. The screen is kept
+# went from frame to frame, each layout shift, each error, and what it left open. The screen is retained
 # as the command left it; what moved by jumps, shifted, failed or stayed open is flagged in
 # report.md, the worst first, beside its pictures.
 #
 # A command is measured with nothing else at work in the window. One that moved is pressed again
-# with the screen kept frame by frame, which takes the window's time, and its frames are kept from
+# with the screen retained frame by frame, which takes the window's time, and its frames are retained from
 # that second press. With --memory, or from memory.py, each command is pressed once more, or only,
 # under V8's sampling heap profiler: the bytes the page still holds after it, once it is closed and
 # put back and the heap collected, by module and by function, the heap's growth, each process's, and
-# the bytes each call of the tree's side took and kept, which the window counts as its allocator
+# the bytes each call of the tree's side took and retained, which the window counts as its allocator
 # gives them. That pass writes memory.md.
 #
 # The window is reached through its debugging port, which the dev app opens with
 # WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222. monitor.js goes into the page
-# and keeps every command inside the window: a call that would quit, open a window, a picker, the
+# and retains every command inside the window: a call that would quit, open a window, a picker, the
 # browser or the network, file a report or install a tool is answered there and never made. A
 # setting that turns on and off is pressed again to turn it back, and what opens a panel is followed
-# by what closes it. The reader's settings, the page's kept entries, the clipboard and the tree open
+# by what closes it. The reader's settings, the page's retained entries, the clipboard and the tree open
 # are put back at the end, the walk stopped or not.
 #
 #   Usage:  python -I ui/test/walk.py [--only <command,...>] [--menus <title,...>] [--skip <command,...>]
 #                                          [--port 9222] [--wait 8] [--frames all|moved|none]
 #                                          [--memory] [--sampling 64]
 #
-# Each run is kept in the top's build/ui_test/runs/<time>/: report.md, report.json, shots/ and frames/, and
+# Each run is retained in the top's build/ui_test/runs/<time>/: report.md, report.json, shots/ and frames/, and
 # memory.md and memory.json from the memory pass.
 
 import argparse
@@ -62,7 +62,7 @@ ANSWERS = {
     "create-folder": "walk_folder",
     "new-branch": "walk-branch",
     "stash": "walk stash",
-    "macro-keep": "walk macro",
+    "macro-retain": "walk macro",
 }
 
 # What puts the window back after a command: its own press again for a setting that turns on and
@@ -145,7 +145,7 @@ def make_tree(folder):
         handle.write("\n\ndef added():\n    return 1\n")
 
 
-def kept_by(profile):
+def retained_by(profile):
     """The bytes a sampling heap profile holds, by module, the file a script came from, and by
     function in it. monitor.js names itself walk-monitor.js, and what it holds is the walker's own;
     a frame with no file is the engine's, its built-ins and its own work."""
@@ -174,21 +174,21 @@ def orior_home():
     return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "orior"
 
 
-def keep_home(home):
+def retain_home(home):
     """The files at the top of orior's own folder, by name, to put back."""
-    kept = {}
+    retained = {}
     if home.is_dir():
         for path in home.iterdir():
             if path.is_file() and path.stat().st_size < 8 << 20:
-                kept[path.name] = path.read_bytes()
-    return kept
+                retained[path.name] = path.read_bytes()
+    return retained
 
 
-def put_home_back(home, kept):
+def put_home_back(home, retained):
     for path in home.iterdir() if home.is_dir() else []:
-        if path.is_file() and path.name not in kept:
+        if path.is_file() and path.name not in retained:
             path.unlink()
-    for name, data in kept.items():
+    for name, data in retained.items():
         path = home / name
         if not path.exists() or path.read_bytes() != data:
             path.write_bytes(data)
@@ -243,7 +243,7 @@ class Walker:
             raise SystemExit("the page's calls are not blocked by the walker's watch: no command is pressed")
 
     def framed(self, params):
-        """Keeps a frame of the screen, on the connection's reading thread, and asks for the next."""
+        """Retains a frame of the screen, on the connection's reading thread, and asks for the next."""
         self.frames.append((params["metadata"].get("timestamp", time.time()), params["data"]))
         if len(self.frames) > 400:
             del self.frames[:200]
@@ -289,7 +289,7 @@ class Walker:
         report["settled"] = settled
         return ran, report, began_wall
 
-    def keep_frames(self, index, command, began_wall):
+    def retain_frames(self, index, command, began_wall):
         frames = [(stamp, data) for stamp, data in self.frames if stamp >= began_wall - 0.05]
         if not frames:
             return None
@@ -312,14 +312,14 @@ class Walker:
         return left
 
     def film(self, index, item):
-        """Presses a command again with the screen kept frame by frame, and turns the window back."""
+        """Presses a command again with the screen retained frame by frame, and turns the window back."""
         self.frames.clear()
         self.conn.call("Page.startScreencast", format="jpeg", quality=55, maxWidth=1280, maxHeight=800, everyNthFrame=1)
         try:
             self.baseline()
             self.settle(2)
             ran, _, began_wall = self.press(item["command"], self.options.wait)
-            folder = self.keep_frames(index, item["command"], began_wall)
+            folder = self.retain_frames(index, item["command"], began_wall)
             self.put_back(item, ran)
             return folder
         finally:
@@ -353,13 +353,13 @@ class Walker:
             profile = self.conn.call("HeapProfiler.stopSampling")["profile"]
         after = self.conn.call("Runtime.getHeapUsage")["usedSize"]
         grown = self.processes()
-        modules, functions = kept_by(profile)
+        modules, functions = retained_by(profile)
         return ran, report, left, {
             "heapBefore": before,
             "heapAfter": after,
-            "kept": after - before,
-            "modules": dict(modules.most_common(20)),
-            "functions": dict(functions.most_common(30)),
+            "retained": after - before,
+            "modules": dict(modules.max_common(20)),
+            "functions": dict(functions.max_common(30)),
             "processes": {name: grown.get(name, 0) - processes.get(name, 0) for name in sorted(set(processes) | set(grown))},
         }
 
@@ -367,9 +367,9 @@ class Walker:
         """What a command's memory says needs a look: the page's bytes it left retained, and a process that
         grew."""
         flags = []
-        if memory["kept"] > 1 << 20:
+        if memory["retained"] > 1 << 20:
             top = ", ".join(f"{name} {size / 1024:.0f} KiB" for name, size in list(memory["functions"].items())[:3])
-            flags.append((48, "kept memory", f"the page holds {memory['kept'] / 1024:.0f} KiB more once it is closed: {top}"))
+            flags.append((48, "retained memory", f"the page holds {memory['retained'] / 1024:.0f} KiB more once it is closed: {top}"))
         for name, grown in memory["processes"].items():
             if grown > 32 << 20:
                 flags.append((44, "process grew", f"{name} committed {grown / (1 << 20):.0f} MiB more"))
@@ -383,14 +383,14 @@ class Walker:
         if ran.get("threw") and "blocked by the walker" not in ran["threw"]:
             flags.append((90, "threw", ran["threw"].splitlines()[0][:300]))
         for error in report["errors"]:
-            flags.append((85, error["kind"], error["text"].splitlines()[0][:300]))
+            flags.append((85, error["type"], error["text"].splitlines()[0][:300]))
         for call in report["calls"]:
             if not call["ok"]:
                 flags.append((60, "call failed", f"{call['name']}: {call.get('error', '')[:200]}"))
         if not ran.get("ended", True):
             flags.append((55, "never ended", f"its work was still going after {self.options.wait} s"))
         elif not report.get("settled"):
-            flags.append((50, "never still", f"the window kept moving for {self.options.wait} s"))
+            flags.append((50, "never still", f"the window retained moving for {self.options.wait} s"))
         if left:
             flags.append((45, "left open", "still open once Escape was pressed and every sheet, menu and diff closed: " + "; ".join(left)[:300]))
         if not self.motion:
@@ -445,7 +445,7 @@ class Walker:
             commands = [one for one in commands if one["command"] in wanted]
         skipped = set(self.options.skip.split(",")) if self.options.skip else set()
         home = orior_home()
-        kept_home = keep_home(home)
+        retained_home = retain_home(home)
         original = self.js("document.getElementById('tree-path')?.textContent ?? ''")
         storage = self.js("JSON.stringify(Object.entries(localStorage))")
         watched = False
@@ -499,23 +499,23 @@ class Walker:
                             record["leftAfterClearing"] = left
                             flags += self.judge(ran, report or {}, left)
                         flags += self.judge_memory(memory)
-                    record["flags"] = [{"weight": weight, "kind": type, "text": text} for weight, type, text in sorted(flags, reverse=True)]
+                    record["flags"] = [{"weight": weight, "type": type, "text": text} for weight, type, text in sorted(flags, reverse=True)]
                 except Hung as error:
-                    record["flags"] = [{"weight": 99, "kind": "hung the page", "text": str(error)[:300]}]
+                    record["flags"] = [{"weight": 99, "type": "hung the page", "text": str(error)[:300]}]
                     self.records.append(record)
                     print(f"{command} blocked the page: the walk stops")
                     break
                 except (RuntimeError, TimeoutError) as error:
-                    record["flags"] = [{"weight": 95, "kind": "walker", "text": str(error)[:300]}]
+                    record["flags"] = [{"weight": 95, "type": "walker", "text": str(error)[:300]}]
                     if self.conn.closed:
                         self.records.append(record)
                         print(f"the window closed during {command}")
                         break
                     self.watch()
                 self.records.append(record)
-                worst = record.get("flags", [{}])[0].get("kind", "") if record.get("flags") else ""
-                kept = f"{record['memory']['kept'] / 1024:+8.0f} KiB" if record.get("memory") else ""
-                print(f"{index:3d}/{len(commands)} {command:24s} {record.get('report', {}).get('active', '')!s:>6} ms {kept}  {worst}")
+                worst = record.get("flags", [{}])[0].get("type", "") if record.get("flags") else ""
+                retained = f"{record['memory']['retained'] / 1024:+8.0f} KiB" if record.get("memory") else ""
+                print(f"{index:3d}/{len(commands)} {command:24s} {record.get('report', {}).get('active', '')!s:>6} ms {retained}  {worst}")
         finally:
             # The report goes first, and each step that puts the window back is tried on its own:
             # one that fails leaves the others to be done.
@@ -523,7 +523,7 @@ class Walker:
             steps = [(f"stop {closing}", f"window.__walk ? window.__walk.run({json.dumps(closing)}, [], 3000) : null") for closing in ("stop-debug", "stop-profile", "stop-tests", "zoom-reset")]
             if clip is not None:
                 steps.append(("the clipboard", f"import('/bridge.js').then((bridge) => bridge.invoke('clip_write', {{ text: {json.dumps(clip)} }})).catch(() => null)"))
-            steps.append(("the page's kept entries", f"(() => {{ localStorage.clear(); for (const [key, value] of JSON.parse({json.dumps(storage)})) localStorage.setItem(key, value); return 1; }})()"))
+            steps.append(("the page's retained entries", f"(() => {{ localStorage.clear(); for (const [key, value] of JSON.parse({json.dumps(storage)})) localStorage.setItem(key, value); return 1; }})()"))
             if original:
                 steps.append(("the tree open", f"(async () => {{ document.querySelectorAll('dialog[open]').forEach((one) => one.close()); await (await import('/menubar.js')).runCommand('open-folder', [{json.dumps(original)}]); return 1; }})()"))
             if watched:
@@ -537,7 +537,7 @@ class Walker:
                 except (RuntimeError, TimeoutError, Hung) as error:
                     print(f"not put back: {label}: {error}")
             time.sleep(1.5)
-            put_home_back(home, kept_home)
+            put_home_back(home, retained_home)
             self.conn.close()
             shutil.rmtree(self.scratch, ignore_errors=True)
 
@@ -562,21 +562,21 @@ class Walker:
             "",
             "## What each command left retained",
             "",
-            "| # | command | menu | page KiB kept | heap after KiB | retained the most | processes that grew |",
+            "| # | command | menu | page KiB retained | heap after KiB | retained the max | processes that grew |",
             "| ---: | --- | --- | ---: | ---: | --- | --- |",
         ]
-        for record in sorted(weighed, key=lambda one: -one["memory"]["kept"]):
+        for record in sorted(weighed, key=lambda one: -one["memory"]["retained"]):
             memory = record["memory"]
             top = next(iter(memory["functions"].items()), None)
             grew = ", ".join(f"{name} {delta / (1 << 20):+.1f} MiB" for name, delta in memory["processes"].items() if abs(delta) >= 1 << 20)
             lines.append(
-                f"| {record['index']} | `{record['command']}` | {record['path']} | {kib(memory['kept'])} | {kib(memory['heapAfter'])} | "
+                f"| {record['index']} | `{record['command']}` | {record['path']} | {kib(memory['retained'])} | {kib(memory['heapAfter'])} | "
                 f"{(top[0] + ' ' + kib(top[1])) if top else ''} | {grew} |"
             )
         lines += ["", "## Retained by module, over the walk", "", "| module | KiB |", "| --- | ---: |"]
-        lines += [f"| {name} | {kib(size)} |" for name, size in modules.most_common(40)]
+        lines += [f"| {name} | {kib(size)} |" for name, size in modules.max_common(40)]
         lines += ["", "## Retained by function, over the walk", "", "| function | KiB |", "| --- | ---: |"]
-        lines += [f"| `{name}` | {kib(size)} |" for name, size in functions.most_common(80)]
+        lines += [f"| `{name}` | {kib(size)} |" for name, size in functions.max_common(80)]
         (self.out / "memory.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
         print(f"memory: {self.out / 'memory.md'}")
 
@@ -586,7 +586,7 @@ class Walker:
         (self.out / "report.json").write_text(json.dumps({"interval": self.interval, "tree": str(self.tree), "commands": self.records}, indent=1), encoding="utf-8")
         flagged = sorted(((flag["weight"], record, flag) for record in self.records for flag in record.get("flags", [])), key=lambda one: -one[0])
         lines = [f"# The walk of {self.stamp}", "", f"{len(self.records)} commands; a frame every {self.interval:.1f} ms with nothing moving; {len(flagged)} flags.", ""]
-        lines += ["## Flags, the worst first", "", "| weight | command | menu | kind | what | shot | frames |", "| ---: | --- | --- | --- | --- | --- | --- |"]
+        lines += ["## Flags, the worst first", "", "| weight | command | menu | type | what | shot | frames |", "| ---: | --- | --- | --- | --- | --- | --- |"]
         for weight, record, flag in flagged:
             text = flag["text"].replace("|", "\\|").replace("\n", " ")
             shot = f"[shot]({record['shot']})" if record.get("shot") else ""
@@ -617,7 +617,7 @@ def options(description, memory_only=False):
     parser.add_argument("--skip", help="commands not to press, comma-separated")
     parser.add_argument("--port", type=int, default=9222, help="the window's debugging port")
     parser.add_argument("--wait", type=float, default=8.0, help="seconds a command is given to finish and come to rest")
-    parser.add_argument("--frames", choices=["all", "moved", "none"], default="moved", help="which commands keep every frame of the screen")
+    parser.add_argument("--frames", choices=["all", "moved", "none"], default="moved", help="which commands retain every frame of the screen")
     parser.add_argument("--sampling", type=int, default=64, help="the bytes between the heap profiler's samples")
     if not memory_only:
         parser.add_argument("--memory", action="store_true", help="press each command once more under the heap profiler and write memory.md")

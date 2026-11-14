@@ -460,7 +460,7 @@ static int score_overlap_pair(const TreeFrame *earlier, const TreeFrame *later, 
         const ScoreOverlapGrade picked = score_overlap_grade(
             &probes[chosen * probes_a_step], &links_present[(size_t)chosen * link_count], key_divisions, key_cells);
         printf(
-            "    most mutual t=%u->%u: origin %u level %u, codes %u/%u, %u/%u components, %u mutual, %u of %u key cells"
+            "    max mutual t=%u->%u: origin %u level %u, codes %u/%u, %u/%u components, %u mutual, %u of %u key cells"
             " present and %u alone, %u of %u key divisions parted and %u caught\n",
             earlier->time, later->time, pick->origin, pick->level, pick->earlier_code, pick->later_code,
             pick->earlier_components, pick->later_components, pick->earlier_mutual, picked.key_cells_present, key_cells,
@@ -567,9 +567,9 @@ if ((ok != 0) && (rules->overlap != 0))
         overlap.caught_at_threshold, overlap.best_present, overlap.best_apart, overlap.best_parted,
         overlap.best_caught);
     printf(
-        "  %s: at each pair's most-mutual threshold (the first sampled threshold with the most mutual): %llu earlier "
+        "  %s: at each pair's max-mutual threshold (the first sampled threshold with the max mutual): %llu earlier "
         "and %llu"
-        " later components, %llu mutual; %llu of %llu key cells present, %llu alone (at the most-components threshold:"
+        " later components, %llu mutual; %llu of %llu key cells present, %llu alone (at max-components threshold:"
         " %llu present, %llu alone); %llu of %llu key divisions parted, %llu caught\n",
         sample, overlap.chosen_components, overlap.chosen_later_components, overlap.chosen_mutual,
         overlap.chosen_cells_present, overlap.key_cells, overlap.chosen_cells_alone, overlap.threshold_cells_present,

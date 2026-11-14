@@ -64,7 +64,7 @@ typedef struct
 } CliTreeBytes;
 
 // the folders a walk does not go into: version control's own, and those the tree's git ignores as a rule, cargo's
-// target, the build folder and node_modules; the walk runs before the pool stands, and it cannot query git itself
+// target, the build folder and node_modules; the walk runs before the pool is, and it cannot query git itself
 static const char *const s_tree_skipped[4] = {".git", "target", "build", "node_modules"};
 
 static void tree_bytes_each(const CliEachNameIsFolderCfg *args)

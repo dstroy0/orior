@@ -13,7 +13,7 @@ static std::vector<CycleCompiledProgram> s_cycle_programs;
 static int cycle_program_load(const EngineRecordLayout *layout, CycleRecord *record, const CycleTarget *lane_target,
                               const std::string &text, int ptx, int lto, unsigned long long written, int report)
 {
-    const char *const kind = (ptx != 0) ? "PTX" : ((lto != 0) ? "LTO-IR" : "relocatable cubin");
+    const char *const type = (ptx != 0) ? "PTX" : ((lto != 0) ? "LTO-IR" : "relocatable cubin");
     for (size_t at = 0u; at < s_cycle_programs.size(); at += 1u)
     {
         if (s_cycle_programs[at].source == text)
@@ -23,7 +23,7 @@ static int cycle_program_load(const EngineRecordLayout *layout, CycleRecord *rec
             record->compiled = 1u;
             if (report != 0)
             {
-                fprintf(stderr, "  cycle: a program of %u steps found in this process, as %s\n", layout->steps, kind);
+                fprintf(stderr, "  cycle: a program of %u steps found in this process, as %s\n", layout->steps, type);
             }
             return 1;
         }
@@ -71,7 +71,7 @@ static int cycle_program_load(const EngineRecordLayout *layout, CycleRecord *rec
         }
         if (report != 0)
         {
-            fprintf(stderr, "  cycle: a program of %u steps as %s did not build (%s)\n", layout->steps, kind,
+            fprintf(stderr, "  cycle: a program of %u steps as %s did not build (%s)\n", layout->steps, type,
                     cubin.empty() ? ((ptx != 0) ? "nvJitLink errored on it" : "NVRTC or nvJitLink errored on it")
                                   : "its cubin did not load");
         }
@@ -84,7 +84,7 @@ static int cycle_program_load(const EngineRecordLayout *layout, CycleRecord *rec
     if ((report != 0) && found)
     {
         fprintf(stderr, "  cycle: a program of %u steps read from the cache, %zu bytes of cubin, as %s\n",
-                layout->steps, cubin.size(), kind);
+                layout->steps, cubin.size(), type);
     }
     else if ((report != 0) && (ptx != 0))
     {
@@ -99,7 +99,7 @@ static int cycle_program_load(const EngineRecordLayout *layout, CycleRecord *rec
         fprintf(stderr,
                 "  cycle: a program of %u steps for sm_%d%d as %s: written in %llu ns, compiled in %llu ns to "
                 "%zu bytes, linked in %llu ns to %zu bytes of cubin\n",
-                layout->steps, lane_target->major, lane_target->minor, kind, written, compile_nanoseconds,
+                layout->steps, lane_target->major, lane_target->minor, type, written, compile_nanoseconds,
                 object_bytes, link_nanoseconds, cubin.size());
     }
     return 1;
@@ -198,7 +198,7 @@ static void cycle_record_route(const EngineRecordLayout *layout, CycleRecord *re
     }
 }
 
-// How deep the device's writing of lanes stands in this thread. 0 where none is under way. 1 while the device writes a
+// How deep the device's writing of lanes is in this thread. 0 where none is under way. 1 while the device writes a
 // lane: the assembly printer's own program is compiled then, and the device writes its lane too. 2 while the device
 // writes the assembly printer's own lane: the assembly printer then runs on the interpreter, the one program not
 // compiled, and the bootstrap closes there
@@ -211,8 +211,8 @@ static thread_local int s_cycle_codegen_depth = 0;
 static std::vector<std::string> s_cycle_codegen_written;
 
 // The lane as the device writes it from the step table (codegen_device.h), the path every lane takes: the ruleset's
-// file read on the device and its written forms laid out once for the target and the header, the forms decided on the
-// device a thread a step, laid out as the assembly printer's records there, written by the record machine a lane a byte
+// file read on the device and its written forms arranged once for the target and the header, the forms decided on the
+// device a thread a step, arranged as the assembly printer's records there, written by the record machine a lane a byte
 // and gathered. The host code generator's text is the check: the device's ruleset, its written forms and its text are
 // checked against the host's word for word and byte for byte. Returns 1 where the device's text is built, and 0, with
 // the step that differed on stderr, where the device did not write it or any of the three is apart from the host's.
@@ -394,7 +394,7 @@ int cycle_record_compile(const EngineRecordLayout *layout, CycleRecord *record, 
         }
         if ((report != 0) && !ptx.empty())
         {
-            fprintf(stderr, "  cycle: a program of %u steps as PTX uses at most %u words live a lane\n", layout->steps,
+            fprintf(stderr, "  cycle: a program of %u steps as PTX uses at max %u words live a lane\n", layout->steps,
                     live);
         }
         if (!ptx.empty() && cycle_program_load(layout, record, lane_target, ptx, 1, lto, written, report))

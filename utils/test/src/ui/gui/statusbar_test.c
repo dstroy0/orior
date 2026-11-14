@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // statusbar_test.c: the status bar's check: the memory reading written in megabytes, the cursor as line and column
-// from one, the selection as lines or letters, the indentation as tabs or spaces; the bar drawn with the file's
+// from one, the selection as lines or characters, the indentation as tabs or spaces; the bar drawn with the file's
 // crumbs at its left and the editor's line at its right, the lock at the end, bare where no file is open; and the
 // notice after the crumbs with Silence beside it, a failure's in the fail color, one too long cut short within half the
 // window, Focus in the signal on the right, and a press on each of them found where it is drawn
@@ -28,7 +28,7 @@ static int painted(const GuiRaster *raster, GuiRect rect, GuiColor background_fi
     return 0;
 }
 
-// whether every pixel of `rect` is the pane alone, as `base`, the frame's base drawn by itself, laid it
+// whether every pixel of `rect` is the pane alone, as `base`, the frame's base drawn by itself, positioned it
 static int bare(const GuiRaster *raster, GuiRect rect, const GuiRaster *base)
 {
     for (int y = rect.y; y < rect.y + rect.height; y += 1)
@@ -110,7 +110,7 @@ int main(void)
     status.anchor_col = 7ull;
     EMBED_CALL(gui_statusbar.status_selection_text, GuiStatusbarCfg, .status = &status, .text = text,
                .size = sizeof(text));
-    cli_check(same(text, "5 selected"), "a selection within a line is written as its letters");
+    cli_check(same(text, "5 selected"), "a selection within a line is written as its characters");
     status.anchor_line = 9ull;
     EMBED_CALL(gui_statusbar.status_selection_text, GuiStatusbarCfg, .status = &status, .text = text,
                .size = sizeof(text));
@@ -162,7 +162,7 @@ int main(void)
     cli_check(bare(&raster, (GuiRect){400, frame.status.y + 3, 100, GUI_STATUS_HEIGHT - 6}, &bare_base),
               "the bar's middle is bare");
 
-    // the claim holding with the bar come back, the crumbs stand at the bar's left with no side_menu's capacity before them
+    // the claim holding with the bar come back, the crumbs are at the bar's left with no side_menu's capacity before them
     GuiAutohideNumbers numbers = frame.claim;
     numbers.claim = GUI_FIXED_ONE;
     numbers.reveal_bottom = GUI_FIXED_ONE;
@@ -178,7 +178,7 @@ int main(void)
     EMBED_CALL(gui_statusbar_status.draw, GuiStatusbarStatusCfg, .raster = &raster, .glyphs = &glyphs, .icons = &icons,
                .palette = palette, .frame = &autohidden, .status = &status);
     cli_check(!bare(&raster, (GuiRect){autohidden.status.x + 8, autohidden.status.y + 6, 160, 16}, &bare_base),
-              "the crumbs stand at the bar's left while the claim holds");
+              "the crumbs are at the bar's left while the claim holds");
     (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette,
                      .controls_steady = 0);
     EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &bare_base,
@@ -208,10 +208,10 @@ int main(void)
     EMBED_CALL(gui_statusbar_status.draw, GuiStatusbarStatusCfg, .raster = &raster, .glyphs = &glyphs, .icons = &icons,
                .palette = palette, .frame = &frame, .status = &status, .places = &places);
     cli_check((places.notice.width > 0) && (places.notice.x > frame.side_menu.width + 16 + 120),
-              "the notice stands after the crumbs");
+              "the notice is after the crumbs");
     cli_check(painted(&raster, places.notice, tint), "the notice is drawn");
     cli_check((places.silence.width > 0) && (places.silence.x > places.notice.x + places.notice.width),
-              "Silence stands after the notice");
+              "Silence is after the notice");
     cli_check(painted(&raster, places.silence, tint), "Silence is drawn");
     cli_check(!colored(&raster, places.notice, palette->fail),
               "a notice that is no failure's is not in the fail color");
@@ -242,7 +242,7 @@ int main(void)
                .palette = palette, .frame = &frame, .status = &status, .places = &places);
     cli_check((places.notice.width > 100) && (places.notice.width <= 450),
               "a notice past half the window is cut short within it");
-    cli_check(places.silence.x + places.silence.width <= 900, "Silence still stands inside the bar");
+    cli_check(places.silence.x + places.silence.width <= 900, "Silence still is inside the bar");
     status.notice = "";
     // Focus with how many wait, in the signal, on the right
     status.focus = 1;
@@ -251,12 +251,12 @@ int main(void)
                .color = palette->background_fill);
     EMBED_CALL(gui_statusbar_status.draw, GuiStatusbarStatusCfg, .raster = &raster, .glyphs = &glyphs, .icons = &icons,
                .palette = palette, .frame = &frame, .status = &status, .places = &places);
-    cli_check((places.focus.width > 0) && (places.focus.x > 450), "Focus stands on the right");
+    cli_check((places.focus.width > 0) && (places.focus.x > 450), "Focus is on the right");
     cli_check(colored(&raster, places.focus, palette->signal), "Focus is in the signal");
     cli_check(EMBED_CALL(gui_statusbar_x.hit, GuiStatusbarXCfg, .status = &status, .glyphs = &glyphs, .icons = &icons,
                          .frame = &frame, .x = places.focus.x + 4, .y = middle_y) == CLI_HIT_STATUS_FOCUS,
               "a press on Focus is Focus's");
-    cli_check(places.notice.width == 0, "with no notice none stands");
+    cli_check(places.notice.width == 0, "with no notice none is");
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
@@ -268,7 +268,7 @@ int main(void)
     base.tile_remainder = NULL;
     base.width = 0u;
     base.height = 0u;
-    base.laid = 0;
+    base.positioned = 0;
     for (unsigned int at = 0u; at < GUI_ICON_CACHE_ENTRIES; at += 1u)
     {
         if (icons.entry[at].used)

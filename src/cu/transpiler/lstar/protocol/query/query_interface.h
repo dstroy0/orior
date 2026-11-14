@@ -15,14 +15,14 @@
 #include "../../interface/interface.h"
 #include "query_put.h"
 
-// the most addresses one probe is given, which bounds the lines it writes back
-#define QUERY_INTERFACE_MOST 1024ull
+// the max addresses one probe is given, which bounds the lines it writes back
+#define QUERY_INTERFACE_MAX 1024ull
 
 // one walk: the program it runs as, the qualifier put at every address, the addresses, and how long a probe is given
 // before the interface ends it
 typedef struct
 {
-    // the built query_walk, which hands its lines to the run this process is a member of (QUERY_WALK_RECORD)
+    // the built query_walk, which passes its lines to the run this process is a member of (QUERY_WALK_RECORD)
     const char *program;
     // a QueryQualifier, put at every address
     unsigned int qualifier;
@@ -34,7 +34,7 @@ typedef struct
     unsigned long long turns;
     // the word QUERY_EQUALS compares against
     unsigned int word;
-    // the most time one probe is given, 0 for no limit
+    // the max time one probe is given, 0 for no limit
     unsigned long long limit_microseconds;
 } QueryWalk;
 
@@ -58,7 +58,7 @@ int query_interface_run(const QueryWalk *walk, const QueryInterfaceDriver *drive
                         EngineError *error);
 
 // `walk` put through the interface, one answer an address into `answers`, which has room for `walk->count` of them.
-// Every answer carries its address, its bit and its kind; an address that ended its probe reads QUERY_ENDED with the
+// Every answer carries its address, its bit and its type; an address that ended its probe reads QUERY_ENDED with the
 // fault the interface named, and one whose probe ran out of time or exited on its own reads QUERY_ENDED with no fault.
 // The count of probes the walk ran, or 0 with the error raised where the interface itself failed or a probe wrote
 // something other than its lines

@@ -9,7 +9,7 @@
 #   Usage:  python examples/language/4_measure/chicago_bibliography.py
 #
 # Whether a writer leaves a mark of their own needs several works by each of several writers with the
-# language kept fixed, and nothing stored here has two works by one person. Searching a book catalog by
+# language retained fixed, and nothing stored here has two works by one person. Searching a book catalog by
 # name was the first attempt and it is a poor basis, since the search matches a name anywhere it appears
 # and how many works a writer has in it follows their popularity.
 #

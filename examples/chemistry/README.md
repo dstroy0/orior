@@ -29,7 +29,7 @@ before the element ledger lands and transcribes no element identity.
 Stage three grades the null. A departure is only as good as the background it is read against.
 `two_nulls_two_questions.py` draws two, each deleting a different property. Permuting which element
 sits on which site deletes the element-to-site match, and the octet departs from it: the real molecule
-closes and most permutations do not. A degree-preserving rewire deletes the connectivity while holding
+closes and max permutations do not. A degree-preserving rewire deletes the connectivity while holding
 each atom's degree at its valence, and the octet does not depart from it at all, closing on every
 rewire including the self-bonded graphs that are not molecules. So the octet carries which element sits
 where and carries nothing about which atoms are joined, and telling one isomer from another is a
@@ -47,7 +47,7 @@ The second stage-four reading is a different measure with a different limit.
 `measure.periodicity` finds one period by scoring a candidate against its own multiples, and
 `reference.periodic` builds the phase background at that period; both fix a single period. A periodic
 property along Z is not one period, because the shell lengths 2, 8, 8, 18, 18, 32 grow. The
-single-period reader goes flat on the growing recurrence while a reader handed the boundaries departs.
+single-period reader goes flat on the growing recurrence while a reader passed the boundaries departs.
 Those boundaries are a supervised partition, ground truth from outside the sample. They come from
 the element ledger and not from the sequence. The sawtooth here is synthetic and writes no element
 data; the real sequence and its boundaries are the ledger's to supply.
@@ -63,7 +63,7 @@ handshake sum, that the valences add to twice the bond count, is weaker and pass
 peroxide the octet errors. It carries a positive control, eight real molecules that close every
 atom, and a negative control, arrangements the octet must error, because a pass proves only that the
 check is wired to say yes until something it should decline is declined. The null is drawn by
-permuting which element sits at which atom over the same bond graph: most permutations put an element
+permuting which element sits at which atom over the same bond graph: max permutations put an element
 where its valence does not fit the degree. The real assignment sits above the band the shuffles
 occupy. No number here is a value; each is a departure from that band.
 

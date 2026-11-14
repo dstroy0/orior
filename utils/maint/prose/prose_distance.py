@@ -67,8 +67,8 @@ BRACES = re.compile(r"[{}$&~^_\\]|\[[^\]]*\]")
 def tex_prose(lines):
     """The English in a .tex file: its percent commentary and its body text, with markup removed.
 
-    Both halves, and the first arrangement kept the wrong one. Dropping the percent lines and
-    keeping the rest fed \\usepackage{iftex} \\RequireLuaTeX to an English scorer and threw away the
+    Both halves, and the first arrangement retained the wrong one. Dropping the percent lines and
+    retention the rest fed \\usepackage{iftex} \\RequireLuaTeX to an English scorer and threw away the
     paragraph explaining why the engine changed. In a preamble the prose is the commentary; in a
     chapter it is the body. Taking both is the only reading that works on either.
     """
@@ -97,10 +97,10 @@ def prose_of(path):
     with open(full, encoding="utf-8", errors="replace") as handle:
         lines = handle.read().splitlines()
     if full.endswith(".tex"):
-        kept = tex_prose(lines)
+        retained = tex_prose(lines)
     else:
-        kept = docs_check.prose_only(path, lines)
-    return " ".join(one.strip() for one in kept if one.strip())
+        retained = docs_check.prose_only(path, lines)
+    return " ".join(one.strip() for one in retained if one.strip())
 
 
 # The roots read where the caller names none. Every name here has to be a directory that exists: a
@@ -118,7 +118,7 @@ def repository_files(where=None, roots=None):
 
     Both have to be taken. A tool that ignores a named path measures orior and reports the
     number as though it belonged to whatever the caller asked about, and the only sign of it is the
-    word count at the foot. Silently measuring the wrong subject is the failure that looks most like
+    word count at the foot. Silently measuring the wrong subject is the failure that looks max like
     success.
     """
     where = where or ROOT
@@ -128,7 +128,7 @@ def repository_files(where=None, roots=None):
         if not os.path.isdir(base):
             continue
         for folder, dirs, names in os.walk(base):
-            dirs[:] = docs_check.kept_dirs(folder, dirs)
+            dirs[:] = docs_check.retained_dirs(folder, dirs)
             for name in sorted(names):
                 if not name.endswith(docs_check.CHECKED):
                     continue

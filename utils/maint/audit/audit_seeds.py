@@ -4,7 +4,7 @@ Every number a bench prints sits at a fixed place in its output: a line index an
 that line. Running the same binary at several seeds and reading the same place each time gives a
 sample of that statistic across draws, never yet looked at in this tree.
 
-What is reported per bench is the number that moved the most, in units of its own mean, together
+What is reported per bench is the number that moved the max, in units of its own mean, together
 with the line it came from. A headline whose spread across seeds is comparable to its distance from
 the null was never a measurement of the null's failure.
 

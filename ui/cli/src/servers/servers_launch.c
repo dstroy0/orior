@@ -253,8 +253,8 @@ CliLsp *cli_servers_launch(const CliServersRootCtx *args)
         vs = launching->database.msvc ? cli_compile_db_vs_environment() : NULL;
     }
     // the settings of the server's environment, the PATH and Visual Studio's where one is cl, in a cell of their count
-    const unsigned int most = 1u + ((vs != NULL) ? vs->count : 0u);
-    CliSetting *const setting = g_cli_guard->temporary_buf_alloc(most * sizeof(*setting), g_cli_servers_launch_owner);
+    const unsigned int max = 1u + ((vs != NULL) ? vs->count : 0u);
+    CliSetting *const setting = g_cli_guard->temporary_buf_alloc(max * sizeof(*setting), g_cli_servers_launch_owner);
     char *vs_path = NULL;
     unsigned int settings = (setting != NULL) ? 1u : 0u;
     const unsigned int vs_settings = ((setting != NULL) && (vs != NULL)) ? vs->count : 0u;

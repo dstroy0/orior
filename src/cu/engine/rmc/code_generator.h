@@ -31,12 +31,12 @@ struct ScheduleModel
     unsigned int writes;
 };
 
-// a lane as it was split: its states, the most cost one state chains, and the forms that alone cost more than a state
+// a lane as it was split: its states, the max cost one state chains, and the forms that alone cost more than a state
 // is true
 struct ScheduleReport
 {
     unsigned int states;
-    unsigned int maximum;
+    unsigned int max;
     unsigned int over;
 };
 
@@ -81,13 +81,13 @@ class CodeGenerator : public Target
     virtual const ScheduleModel *program_schedule_model(void) const;
 
     // how many registers the language's one register file contains for the lane, where every bank is in that file and
-    // the banks are laid end to end from the counts the lane declares, in place of each being numbered from 0. A
+    // the banks are positioned end to end from the counts the lane declares, in place of each being numbered from 0. A
     // language whose registers are virtual gives each bank a namespace of its own and answers 0. A lane whose banks
     // run past what the file contains is written by nobody: program() refuses it, in place of writing a register the
     // language has pinned to something else
     virtual unsigned int register_file_size(void) const;
 
-    // Whether the language writes the program resident itself. Most do: the resident is a form of the ruleset like
+    // Whether the language writes the program resident itself. Max do: the resident is a form of the ruleset like
     // any other, and program() puts it after the lane. A language whose resident reaches it already built answers
     // 0, and program() leaves the form out in place of querying the ruleset for it
     virtual int program_unit_written(void) const;
@@ -112,7 +112,7 @@ class CodeGenerator : public Target
 };
 
 // the code generator a process retains for the ruleset `file`, its ruleset read at its first call to ruleset(). A
-// ruleset that gives shared 1 lays out the file and its signs in shared memory, a thread's places a word each across
+// ruleset that gives shared 1 arranges the file and its signs in shared memory, a thread's places a word each across
 // the thread block's threads and the signs a byte each after them, as the record machine sizes them: the lane then uses
 // the file's places there and opens by finding its signs
 CodeGenerator &code_generator(const char *file);

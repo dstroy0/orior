@@ -3,7 +3,7 @@
 // version_catalog_internal.h: Gradle's version catalogs, `gradle/libs.versions.toml` and the rest, as their reader
 // reads them: their sections, each entry a key and its value, a string and the span inside its quotes, a table of
 // fields, a list of strings or a bare word; what prevented them from reading; and the aliases they give a script, each
-// with what it stands for (version_catalog_read.c, version_catalog_aliases.c, version_catalog_check.c,
+// with what it is for (version_catalog_read.c, version_catalog_aliases.c, version_catalog_check.c,
 // version_catalog_entries.c, version_catalog_complete.c)
 #ifndef VERSION_CATALOG_INTERNAL_H
 #define VERSION_CATALOG_INTERNAL_H
@@ -34,8 +34,8 @@ typedef struct CliVersionCatalogCtx CliVersionCatalogCtx;
 #define CLI_VERSIONS_LIST 3u
 #define CLI_VERSIONS_BARE 4u
 
-// the most sections of a catalog, fields, strings of lists and things that prevented it from reading, the bytes their
-// texts take, and none; and the most bytes a message of the reader's own takes past the key it names
+// the max sections of a catalog, fields, strings of lists and things that prevented it from reading, the bytes their
+// texts take, and none; and the max bytes a message of the reader's own takes past the key it names
 #define CLI_VERSIONS_SECTIONS 4096u
 #define CLI_VERSIONS_FIELDS 65536u
 #define CLI_VERSIONS_ITEMS 65536u
@@ -122,7 +122,7 @@ typedef struct
 extern CliVersionsParsed g_cli_versions;
 
 // `size` bytes of a catalog's text counted, each part of the catalog read taken as a cell of as many as the text can
-// make, up to its most: 1, or 0 where the cellblock could not meet one and none is allocated; the catalog read's cells
+// make, up to its max: 1, or 0 where the cellblock could not meet one and none is allocated; the catalog read's cells
 // and the accessors' given back, called under the catalog reader's lock before it is given (version_catalog_cells.c)
 int cli_versions_alloc(const CliVersionCatalogTextCtx *args);
 void cli_versions_release(void);
@@ -141,7 +141,7 @@ void cli_versions_describe(const CliVersionCatalogFieldOutCtx *args);
 // the accessor a script names an alias by, `-` and `_` a `.`, into `out`
 void cli_versions_accessor(const CliVersionCatalogSizeOutAliasCtx *args);
 
-// the most aliases of a catalog, and the bytes their texts take
+// the max aliases of a catalog, and the bytes their texts take
 #define CLI_VERSIONS_ALIASES 16384u
 #define CLI_VERSIONS_ALIASES_TEXT (1u << 21u)
 
@@ -151,7 +151,7 @@ void cli_versions_accessor(const CliVersionCatalogSizeOutAliasCtx *args);
 #define CLI_VERSIONS_PLUGINS 2u
 #define CLI_VERSIONS_BUNDLES 3u
 
-// An alias of a catalog: its section, the alias, and what it stands for, each a text of its aliases'
+// An alias of a catalog: its section, the alias, and what it is for, each a text of its aliases'
 typedef struct
 {
     unsigned int section;
@@ -179,18 +179,18 @@ int cli_versions_aliases(const CliVersionCatalogTextSizeAliasesCtx *args);
 // aliases, each it does not name a finding into `found` over `lines` (gradle_references.c)
 void cli_gradle_references(const CliVersionCatalogLinesCtx *args);
 
-// the most accessors of one section stored, and the bytes they take
+// the max accessors of one section stored, and the bytes they take
 #define CLI_VERSIONS_NAMES 16384u
 #define CLI_VERSIONS_NAMES_TEXT (1u << 20u)
 
 // The accessors of a section: each where it starts in the text and its size, one cell of the cellblock with capacity
-// for `most` of each, the sizes after the starts; and the text, a cell with capacity for `capacity` bytes
+// for `max` of each, the sizes after the starts; and the text, a cell with capacity for `capacity` bytes
 typedef struct
 {
     unsigned int *at;
     unsigned int *size;
     unsigned int count;
-    unsigned int most;
+    unsigned int max;
     char *text;
     unsigned int used;
     unsigned int capacity;

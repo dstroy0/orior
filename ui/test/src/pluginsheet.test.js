@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // File, Plugins and its catalog: a plugin found by name in a catalog the reader names and installed,
-// told what it reads before it runs and kept to that, an update installed only when the reader says
+// told what it reads before it runs and retained to that, an update installed only when the reader says
 // so, and one that asks for more waiting to be let run again.
 
 import { invoke } from "../../gui/src-js/bridge.js";
@@ -31,7 +31,7 @@ const CODE = `orior.on("open", async ({ path }) => {
 
 // Writes a catalog of one plugin at `version`, its package beside it, asking for `asks`.
 async function publish(root, version, asks) {
-  const plugin = { id: "catalog-reader", name: "Catalog Reader", version, kind: "script", api: 3, ...asks };
+  const plugin = { id: "catalog-reader", name: "Catalog Reader", version, type: "script", api: 3, ...asks };
   const files = { "plugin.json": JSON.stringify(plugin), "plugin.js": CODE };
   await invoke("folder_create", { path: "plugin_catalog" }).catch(() => {});
   await invoke("file_write", { path: `plugin_catalog/reader-${version}.json`, text: JSON.stringify({ orior: "plugin", files }) });
@@ -43,11 +43,11 @@ async function publish(root, version, asks) {
 const button = (scope, text) => [...document.querySelectorAll(`${scope} button`)].find((one) => one.textContent === text);
 const tabNamed = (name) => [...document.querySelectorAll("#tabs .tab")].find((one) => one.textContent.includes(name));
 
-test("a plugin found by name in a catalog is installed as it asks, kept to what it asked, and updated only when the reader says so", async () => {
+test("a plugin found by name in a catalog is installed as it asks, retained to what it asked, and updated only when the reader says so", async () => {
   const root = document.getElementById("tree-path").textContent.replace(/[\\/]+$/, "");
   const address = await publish(root, "1.0.0", { reads: ["catalog_*.txt"] });
   await invoke("file_write", { path: "catalog_a.txt", text: "first words\n" });
-  await invoke("file_write", { path: "catalog_secret.md", text: "kept\n" });
+  await invoke("file_write", { path: "catalog_secret.md", text: "retained\n" });
   runCommand("plugins");
   await ui.waitFor(() => document.querySelector(".plugins-catalog-address"), 5000);
   const field = document.querySelector(".plugins-catalog-address");

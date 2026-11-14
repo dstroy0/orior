@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // File, Preferences: the color theme of each scheme and every color of its palette, the zoom, the
-// cores kept for the reader, the opacity of each part of the window, each item of the menus that is
+// cores retained for the reader, the opacity of each part of the window, each item of the menus that is
 // set on or off, the settings no menu lists, each setting a settings file sets with its value and
-// the file it comes from, the settings carried to and from another machine, the patterns that keep
+// the file it comes from, the settings carried to and from another machine, the patterns that retain
 // the explorer, the search and the watching of files from files, the sets of files Find in Files
-// searches in, and the keys: the set of keys, how a letter's key is bound, each key more than one
+// searches in, and the keys: the set of keys, how a character's key is bound, each key more than one
 // command holds, and each command's keys, set by pressing them. A color changed in the scheme's own
 // theme starts a theme of the reader's from it, and every change shows at once; the palette holds a
 // color for every type of token a grammar names, and each color whose contrast with the color under
-// it is too low for text is marked. A theme lays an image behind the editor and gives files icons
+// it is too low for text is marked. A theme positions an image behind the editor and gives files icons
 // by patterns of their names. A theme copies out as text and reads back in from the clipboard.
 
-import { shown } from "./preferences/commands.js";
+import { displayed } from "./preferences/commands.js";
 import { keysSection } from "./preferences/keys.js";
 import { colorsSection, themeRow } from "./preferences/look.js";
 import { carrySection, fontsSection, inForceSection, noticesSection, patternsSection, settingsSection } from "./preferences/sections.js";
@@ -21,7 +21,7 @@ import { readSettings, settingsInForce } from "./settings.js";
 
 export { prefsCommands } from "./preferences/commands.js";
 
-export const drawPreferences = () => shown.draw();
+export const drawPreferences = () => displayed.draw();
 
 function element(tag, props = {}, ...children) {
   const made = Object.assign(document.createElement(tag), props);
@@ -42,7 +42,7 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
   function draw() {
     const focused = document.activeElement;
     const focusName = body.contains(focused) ? focused.closest(".prefs-color")?.dataset.name : null;
-    // A field the reader was in, as a list stepped through with the keys, keeps the keys once the
+    // A field the reader was in, as a list stepped through with the keys, retains the keys once the
     // sheet is drawn again: found again by its label.
     const focusLabel = body.contains(focused) && !focusName ? focused.getAttribute("aria-label") : null;
     const scroll = body.querySelector(".prefs-colors")?.scrollTop ?? 0;
@@ -63,8 +63,8 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
 
   draw();
   sheet(body);
-  shown.draw = () => body.isConnected && draw();
-  // The files are read again as Preferences opens, so that each setting kept since shows with its
+  displayed.draw = () => body.isConnected && draw();
+  // The files are read again as Preferences opens, so that each setting retained since shows with its
   // file; the settings in force are drawn again where the reading changed them.
   const before = JSON.stringify(settingsInForce());
   readSettings().then((read) => {

@@ -301,7 +301,7 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
     {
         fprintf(stderr, "  %s:%zu:%zu: %s\n", path, parse.line, parse.column, parse.reason);
     }
-    ok = ok && ((tokens[0].kind == CFG_JSON_OBJECT) || cfg_error(path, text, 0u, "a .cfg is one object"));
+    ok = ok && ((tokens[0].type == CFG_JSON_OBJECT) || cfg_error(path, text, 0u, "a .cfg is one object"));
     unsigned int key = 1u;
     unsigned long long number = 0ULL;
     char word[1024];
@@ -319,23 +319,23 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
             ok = (cfg_json_unsigned(text, token, &number) && (number == CFG_VERSION)) ||
                  cfg_error(path, text, token->start, "this tracker reads .cfg version 1");
         }
-        else if (cfg_json_names(text, &tokens[key], "floor") && (token->kind == CFG_JSON_OBJECT))
+        else if (cfg_json_names(text, &tokens[key], "floor") && (token->type == CFG_JSON_OBJECT))
         {
             unsigned int setting = value + 1u;
             for (unsigned int inner = 0u; ok && (inner < token->count); inner += 1u)
             {
                 const CfgJsonToken *const value_token = &tokens[setting + 1u];
-                const bool boolean = (value_token->kind == CFG_JSON_TRUE) || (value_token->kind == CFG_JSON_FALSE);
+                const bool boolean = (value_token->type == CFG_JSON_TRUE) || (value_token->type == CFG_JSON_FALSE);
                 ok = (cfg_json_names(text, &tokens[setting], "entropy") ||
                       cfg_error(path, text, tokens[setting].start, "floor takes entropy")) &&
                      (boolean || cfg_error(path, text, value_token->start,
                                             "entropy is true or false; the noise keys lie "
                                             "beside each sample in the set"));
-                inputs->floor_entropy = ok ? (value_token->kind == CFG_JSON_TRUE) : inputs->floor_entropy;
+                inputs->floor_entropy = ok ? (value_token->type == CFG_JSON_TRUE) : inputs->floor_entropy;
                 setting = tokens[setting + 1u].next;
             }
         }
-        else if (cfg_json_names(text, &tokens[key], "track") && (token->kind == CFG_JSON_OBJECT))
+        else if (cfg_json_names(text, &tokens[key], "track") && (token->type == CFG_JSON_OBJECT))
         {
             unsigned int rule = value + 1u;
             for (unsigned int inner = 0u; ok && (inner < token->count); inner += 1u)
@@ -345,11 +345,11 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
                 for (unsigned int at = 0u; at < CFG_SWITCH_COUNT; at += 1u)
                 {
                     const bool named = cfg_json_names(text, &tokens[rule], CFG_SWITCHES[at].name);
-                    const bool boolean = (setting->kind == CFG_JSON_TRUE) || (setting->kind == CFG_JSON_FALSE);
+                    const bool boolean = (setting->type == CFG_JSON_TRUE) || (setting->type == CFG_JSON_FALSE);
                     ok = ok &&
                          (!named || boolean || cfg_error(path, text, setting->start, "a rule takes true or false"));
                     rules->*CFG_SWITCHES[at].rule =
-                        (named && boolean) ? (setting->kind == CFG_JSON_TRUE) : rules->*CFG_SWITCHES[at].rule;
+                        (named && boolean) ? (setting->type == CFG_JSON_TRUE) : rules->*CFG_SWITCHES[at].rule;
                     known = known || named;
                 }
                 if (cfg_json_names(text, &tokens[rule], "climb"))
@@ -382,7 +382,7 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
                 rule = tokens[rule + 1u].next;
             }
         }
-        else if (cfg_json_names(text, &tokens[key], "input") && (token->kind == CFG_JSON_OBJECT))
+        else if (cfg_json_names(text, &tokens[key], "input") && (token->type == CFG_JSON_OBJECT))
         {
             const unsigned int source = cfg_json_member(text, tokens, value, "source");
             const unsigned int set = cfg_json_member(text, tokens, value, "set");
@@ -418,7 +418,7 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
                 {
                     continue;
                 }
-                const bool none = (tokens[paths[at]].kind == CFG_JSON_NULL);
+                const bool none = (tokens[paths[at]].type == CFG_JSON_NULL);
                 ok = none || cfg_json_string(text, &tokens[paths[at]], word, sizeof(word)) ||
                      cfg_error(path, text, tokens[paths[at]].start, errors[at]);
                 free(*fields[at]);
@@ -433,7 +433,7 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
             }
             if (ok && voxel)
             {
-                ok = ((tokens[voxel].kind == CFG_JSON_ARRAY) && (tokens[voxel].count == 3u)) ||
+                ok = ((tokens[voxel].type == CFG_JSON_ARRAY) && (tokens[voxel].count == 3u)) ||
                      cfg_error(path, text, tokens[voxel].start, "voxel_pm is three integers, z y x, in picometers");
                 for (unsigned int axis = 0u; ok && (axis < 3u); axis += 1u)
                 {
@@ -449,7 +449,7 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
             }
             if (ok && samples)
             {
-                ok = (tokens[samples].kind == CFG_JSON_ARRAY) ||
+                ok = (tokens[samples].type == CFG_JSON_ARRAY) ||
                      cfg_error(path, text, tokens[samples].start, "samples is a list");
                 for (unsigned int at = 0u; at < inputs->count; at += 1u)
                 {
@@ -474,7 +474,7 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
                 inputs->first = (unsigned int)number;
             }
         }
-        else if (cfg_json_names(text, &tokens[key], "output") && (token->kind == CFG_JSON_OBJECT))
+        else if (cfg_json_names(text, &tokens[key], "output") && (token->type == CFG_JSON_OBJECT))
         {
             unsigned int output = value + 1u;
             for (unsigned int inner = 0u; ok && (inner < token->count); inner += 1u)
@@ -485,7 +485,7 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
                 {
                     at = cfg_json_names(text, &tokens[output], OUTPUT_NAMES[name]) ? name : at;
                 }
-                const bool none = (setting->kind == CFG_JSON_NULL);
+                const bool none = (setting->type == CFG_JSON_NULL);
                 ok = ((at >= 0) || cfg_error(path, text, tokens[output].start, "output has no such output")) &&
                      (none || cfg_json_string(text, setting, word, sizeof(word)) ||
                       cfg_error(path, text, setting->start, "an output is a path or null")) &&
@@ -493,7 +493,7 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
                 output = tokens[output + 1u].next;
             }
         }
-        else if (cfg_json_names(text, &tokens[key], "view") && (token->kind == CFG_JSON_OBJECT))
+        else if (cfg_json_names(text, &tokens[key], "view") && (token->type == CFG_JSON_OBJECT))
         {
             free(inputs->view);
             inputs->view = (char *)malloc(token->end - token->start + 1u);

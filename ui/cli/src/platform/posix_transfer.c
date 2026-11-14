@@ -111,7 +111,7 @@ int cli_region_with(const CliTransferRegionBytesCfg *args)
     if (args->size > CLI_TRANSFER_MAX)
     {
         mmgr_line_decimal(args->err_msg, args->size, 1u);
-        mmgr_line_put(args->err_msg, " bytes is past the most a region supports");
+        mmgr_line_put(args->err_msg, " bytes is past the max a region supports");
         return 0;
     }
     const unsigned long long capacity = (args->size > 0ULL) ? args->size : 1ULL;
@@ -170,7 +170,7 @@ int cli_region_receive(const CliTransferRegionCfg *args)
     if (length > CLI_TRANSFER_MAX)
     {
         mmgr_line_decimal(args->err_msg, length, 1u);
-        mmgr_line_put(args->err_msg, " bytes is past the most a region supports");
+        mmgr_line_put(args->err_msg, " bytes is past the max a region supports");
         return EMBED_CALL(transfer_reject, PosixTransferCtx, .fd = fd);
     }
     if ((size < 0) || ((unsigned long long)size < length))

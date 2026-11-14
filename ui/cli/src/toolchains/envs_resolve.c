@@ -315,7 +315,7 @@ int cli_envs_resolve(const CliEnvsRootCfg *args)
     else
     {
         mmgr_line_put(args->err_msg, args->type);
-        mmgr_line_put(args->err_msg, " is no kind of environment");
+        mmgr_line_put(args->err_msg, " is no type of environment");
     }
     if (made)
     {

@@ -53,7 +53,7 @@ static int lsp_input_write(const CliSinkBytesSizeCfg *args)
 }
 
 // a server's place taken, referenced once, numbered apart from every other started, and made empty: the server, or
-// NULL where every place is taken. A server's record holds the wake its readers wait on, so the records stand fixed
+// NULL where every place is taken. A server's record holds the wake its readers wait on, so the records are fixed
 // outside the pool, one for each server run at once, where they punch no hole in the persistent tier
 static CliLsp *lsp_position_alloc(void)
 {
@@ -161,7 +161,7 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
         return NULL;
     }
     EMBED_CALL(cli_lsp_internal.readers_start, CliLspCtx, .lsp = lsp);
-    // the params in a cell of the most they hold: the tree's URI twice, its folder's name escaped, what orior can do,
+    // the params in a cell of the max they hold: the tree's URI twice, its folder's name escaped, what orior can do,
     // the server's options and the members around them
     const unsigned long long params_capacity =
         (CLI_PATH_MAX_LEN * 12ULL) + sizeof(s_capabilities) + args->length + 256ULL;

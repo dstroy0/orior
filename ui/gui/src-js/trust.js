@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // Trust: whether the tree's own code runs as orior's tools read the tree (trust.rs). A tree that
-// holds code of its own, with no answer kept for it or for a folder above it, is asked about once as
+// holds code of its own, with no answer retained for it or for a folder above it, is asked about once as
 // it opens; the answer holds for the tree, or for every tree in the folder above where the reader
 // says so. A tree with no code of its own is never asked about. Until a tree is trusted its code is
-// kept back, and the status bar says so; a press there, or File, Trust This Tree, asks again. The
+// retained back, and the status bar says so; a press there, or File, Trust This Tree, asks again. The
 // question takes no keys from the editor until it is pressed.
 
 import { invoke } from "./bridge.js";
@@ -30,7 +30,7 @@ function close() {
   node.replaceChildren();
 }
 
-// Keeps `trusted` for `folder` and every tree under it, and reads the tree's answer again.
+// Retains `trusted` for `folder` and every tree under it, and reads the tree's answer again.
 async function answer(folder, trusted) {
   close();
   try {
@@ -68,8 +68,8 @@ export function askTrust(told = state.told) {
   node.hidden = false;
 }
 
-// Reads what is kept for the tree open, shows on the status bar whether its build scripts are kept
-// back, and asks where it has scripts of its own and no answer is kept.
+// Reads what is retained for the tree open, shows on the status bar whether its build scripts are retained
+// back, and asks where it has scripts of its own and no answer is retained.
 export async function readTrust() {
   const told = await invoke("trust_read").catch(() => null);
   state.told = told;

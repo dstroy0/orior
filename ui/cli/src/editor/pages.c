@@ -280,11 +280,11 @@ int cli_page_open_read_state(const CliPagesErrMsgCtx *args)
     {
         EMBED_CALL(pages_let_go, PagesCtx, .one = one);
     }
-    // a paged text's record carries the index its reader thread writes, so the records stand fixed outside the pool,
+    // a paged text's record carries the index its reader thread writes, so the records are fixed outside the pool,
     // one place for each paged text open at once, where they punch no hole in the persistent tier
-    static CliPaged s_places[CLI_PAGED_MOST];
+    static CliPaged s_places[CLI_PAGED_MAX];
     one = NULL;
-    for (unsigned int at = 0u; (one == NULL) && (at < CLI_PAGED_MOST); at += 1u)
+    for (unsigned int at = 0u; (one == NULL) && (at < CLI_PAGED_MAX); at += 1u)
     {
         one = (s_places[at].reserved == 0) ? &s_places[at] : NULL;
     }
@@ -403,7 +403,7 @@ EMBED_INLINE int cli_index_adjacent(const PagesCtx *args)
 }
 
 // the byte the lines before `to` end by, in a file of `whole` bytes: the start of the first line the index records at
-// or past `to`; past the last it records, the most bytes it lets pass between two while it is read, and the file's end
+// or past `to`; past the last it records, the max bytes it lets pass between two while it is read, and the file's end
 // once it has read the file or has no more places
 EMBED_INLINE unsigned long long cli_index_end(const PagesCtx *args)
 {
@@ -498,7 +498,7 @@ EMBED_INLINE int cli_file_lines(const PagesCtx *args)
         unsigned long long length = end - at;
         length -= ((newline != NULL) && (length > 0ULL) && (bytes[end - 1ULL] == '\r')) ? 1ULL : 0ULL;
         const unsigned long long read = (newline != NULL) ? (end - at + 1ULL) : (size - at);
-        // the line read as UTF-8 straight after the lines read, a byte that starts no whole letter written as U+FFFD,
+        // the line read as UTF-8 straight after the lines read, a byte that starts no whole character written as U+FFFD,
         // three bytes
         if ((line >= from) && !lines->full &&
             EMBED_CALL(cli_pages_lines_lines_more_internal.page_lines_capacity, CliPagesLinesLinesMoreCtx,
@@ -641,7 +641,7 @@ EMBED_INLINE int pages_pieces_read(const PagesCtx *args)
     return 1;
 }
 
-// `lines` laid over one cell of `count` lines and `bytes` of text, the one before given back: 1, or 0 with why given
+// `lines` positioned over one cell of `count` lines and `bytes` of text, the one before given back: 1, or 0 with why given
 EMBED_INLINE int pages_lines_resize(const PagesCtx *args)
 {
     CliPageLines *lines = args->lines;
@@ -653,7 +653,7 @@ EMBED_INLINE int pages_lines_resize(const PagesCtx *args)
 
 int cli_page_lines_get(const CliPagesLinesErrMsgCtx *args)
 {
-    // a byte read is written as at most 3 bytes of UTF-8
+    // a byte read is written as at max 3 bytes of UTF-8
     const unsigned long long count = (args->to_value > args->from) ? (args->to_value - args->from) : 1ULL;
     const unsigned long long bytes =
         (3ULL * EMBED_CALL(pages_reach, PagesCtx, .one = args->one, .from = args->from, .to = args->to_value)) + 1ULL;
@@ -667,22 +667,22 @@ int cli_page_lines_get(const CliPagesLinesErrMsgCtx *args)
                       .lines = args->lines, .err_msg = args->err_msg);
 }
 
-// the bytes of the first `cut` letters of the `size` bytes of UTF-8 at `text`, all of them where `cut` is 0 or they
+// the bytes of the first `cut` characters of the `size` bytes of UTF-8 at `text`, all of them where `cut` is 0 or they
 // hold no more; and the length of all of them in UTF-16's units into `units`
 EMBED_INLINE unsigned long long pages_cut_bytes(const PagesCtx *args)
 {
     unsigned long long *units = args->units;
-    unsigned long long letters = 0ULL;
+    unsigned long long characters = 0ULL;
     unsigned long long bytes = args->size;
     unsigned long long counted = 0ULL;
     for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
         const unsigned char byte = (unsigned char)args->text[at];
-        // a byte that continues a letter starts none, and a letter of four bytes is two of UTF-16's units
+        // a byte that continues a character starts none, and a character of four bytes is two of UTF-16's units
         if ((byte & 0xc0u) != 0x80u)
         {
-            bytes = ((args->cut != 0ULL) && (letters == args->cut) && (bytes == args->size)) ? at : bytes;
-            letters += 1ULL;
+            bytes = ((args->cut != 0ULL) && (characters == args->cut) && (bytes == args->size)) ? at : bytes;
+            characters += 1ULL;
             counted += (byte >= 0xf0u) ? 2ULL : 1ULL;
         }
     }
@@ -748,7 +748,7 @@ EMBED_INLINE unsigned long long pages_max(const PagesCtx *args)
 }
 
 // the lines a step of `one`, a text of `total` lines, reads: as many as REST_BYTES reach at the text's bytes a line,
-// its size over its lines, a line cut after `cut` letters counting no more than those, from REST_LEAST to half of SAVED
+// its size over its lines, a line cut after `cut` characters counting no more than those, from REST_LEAST to half of SAVED
 EMBED_INLINE unsigned long long pages_step(const PagesCtx *args)
 {
     const unsigned long long whole = (args->total != 0ULL) ? ((args->one_read->size / args->total) + 1ULL) : 1ULL;
@@ -759,7 +759,7 @@ EMBED_INLINE unsigned long long pages_step(const PagesCtx *args)
                       .other = CLI_PAGE_SAVED / 2ULL);
 }
 
-// the rows the line `at` of `lines` takes in a view that wraps at `width` letters: as many as its UTF-16 units fill,
+// the rows the line `at` of `lines` takes in a view that wraps at `width` characters: as many as its UTF-16 units fill,
 // one at the least
 EMBED_INLINE unsigned long long pages_rows_get(const PagesCtx *args)
 {
@@ -787,8 +787,8 @@ EMBED_INLINE int pages_positioned_read(const PagesCtx *args)
 }
 
 // the lines of `one` from `*from` to before `*to`, placed about the line `pivot` for a view that wraps at `width`
-// letters, trimmed to those its rows take: as many on either side of `pivot` as fill the rows placed on that side, a
-// line as many rows as its letters fill. As placed where the view does not wrap, or the lines cannot be read whole;
+// characters, trimmed to those its rows take: as many on either side of `pivot` as fill the rows placed on that side, a
+// line as many rows as its characters fill. As placed where the view does not wrap, or the lines cannot be read whole;
 // under the pages' lock
 EMBED_INLINE void pages_rows_trim(const PagesCtx *args)
 {
@@ -821,8 +821,8 @@ EMBED_INLINE void pages_rows_trim(const PagesCtx *args)
 
 // the lines of `one` from `*from` to before `*to`, a step toward the ends of the page's lines below them where `below`
 // is 1 and above where 0, trimmed to those from the page's side that CLI_PAGE_REMAINDER_BYTES of their bytes reach, a
-// line cut after `cut` letters counting no more than those, and where the view moves and wraps at `width` letters, that
-// fill the rows placed, a line as many rows as its letters fill; one line at the least. As placed where the lines
+// line cut after `cut` characters counting no more than those, and where the view moves and wraps at `width` characters, that
+// fill the rows placed, a line as many rows as its characters fill; one line at the least. As placed where the lines
 // cannot be read whole; under the pages' lock
 EMBED_INLINE void pages_step_trim(const PagesCtx *args)
 {
@@ -856,11 +856,11 @@ EMBED_INLINE void pages_step_trim(const PagesCtx *args)
 }
 
 // a moving view of `one`, reported at `last` before, placed in a text of `total` lines, cut at its reach. Where the
-// page's lines meet the rows it needs, its rows where it stands and where it will stand a report later as far on the
+// page's lines meet the rows it needs, its rows where it is and where it will are a report later as far on the
 // way it went as it went since `last` where the report follows it, EDGE and a SPREADth of that step about them, no more
 // than the lines a step reads on either side: a step of lines past the page's on the side it goes once those rows come
 // within ADJACENT lines of their end, or past their end; else nothing. Where they do not meet, as a view that jumped
-// away, those rows alone, only those of where it will stand where it went farther than its rows. It saves half of SAVED
+// away, those rows alone, only those of where it will are where it went farther than its rows. It saves half of SAVED
 // lines on either side of its rows and every line it is answered. A view that wraps is answered the lines its rows take
 // of those about them, and a step as many lines as fill its rows and CLI_PAGE_REMAINDER_BYTES of their bytes reach
 EMBED_INLINE CliPagesPositioned pages_move_position(const PagesCtx *args)

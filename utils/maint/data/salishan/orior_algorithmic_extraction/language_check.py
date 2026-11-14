@@ -154,8 +154,8 @@ def english_texts():
             for line in handle:
                 if line.startswith("#"):
                     continue
-                for mark, kind, run in MARKED_SPAN.findall(line.rstrip("\n")):
-                    if (mark == "N") and ("translation" in kind) and run.strip():
+                for mark, type, run in MARKED_SPAN.findall(line.rstrip("\n")):
+                    if (mark == "N") and ("translation" in type) and run.strip():
                         held.append(run.strip())
     return held
 

@@ -157,7 +157,7 @@ EdoubleRecordInterval edouble_record_interval_difference(ExactRecordProgram *pro
     return edouble_record_interval_sum(program, a, edouble_record_interval_negate(program, b), spread_bits);
 }
 
-// the least and the most of the four corner products, whatever the signs
+// the least and the max of the four corner products, whatever the signs
 EdoubleRecordInterval edouble_record_interval_product(ExactRecordProgram *program, EdoubleRecordInterval a,
                                                       EdoubleRecordInterval b)
 {
@@ -195,7 +195,7 @@ EdoubleRecordInterval edouble_record_interval_cut(ExactRecordProgram *program, E
     return interval;
 }
 
-// over a divisor that contains no 0 the quotient is monotone in each operand, and its least and most lie at the corners
+// over a divisor that contains no 0 the quotient is monotone in each operand, and its least and max lie at the corners
 EdoubleRecordInterval edouble_record_interval_quotient(ExactRecordProgram *program, EdoubleRecordInterval a,
                                                        EdoubleRecordInterval b, unsigned int width,
                                                        unsigned int divisor_bits)

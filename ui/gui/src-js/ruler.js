@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The time ruler under the fuse: the run laid out by when each thing happened, read off the
+// The time ruler under the fuse: the run arranged by when each thing happened, read off the
 // milliseconds the runner stamps on every line and on the end.
 //
 // At rest the ruler fits the whole run, and while the run goes it grows to hold it, the latest
@@ -10,7 +10,7 @@
 // whole width, and zooming out past the whole run fits it again. With the ruler holding the keys, +
 // and - zoom, 0 fits, Left and Right move it a tenth of what it shows, and Home and End go to the
 // start and to the latest. A drag moves it, and a double click fits it. A ruler zoomed in on the
-// latest part of a run that is still going keeps up with it; moved back, it stays where it was put.
+// latest part of a run that is still going retains up with it; moved back, it stays where it was put.
 //
 // Along the top, each step's start in signal, and a bar for each pixel's worth of output, as tall as
 // the log of its lines and in the fail color where any of them went to stderr. Under the line, the
@@ -24,13 +24,13 @@ const LEAST = 5;
 const ZOOM = 1.5;
 const HEAD = 0.92;
 const MARK_GAP = 84;
-// The output bars stand in the top BARS pixels, the line of the scale sits at BASE, and the labels
-// stand on LABEL.
+// The output bars are in the top BARS pixels, the line of the scale sits at BASE, and the labels
+// are on LABEL.
 const BARS = 9;
 const BASE = 11;
 const LABEL = 24;
 
-// The spans a labeled mark stands for, in milliseconds: 1, 2 and 5 of each power of ten below a
+// The spans a labeled mark is for, in milliseconds: 1, 2 and 5 of each power of ten below a
 // second, then whole seconds, minutes and hours.
 const NICE = [
   1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 15000, 30000, 60000, 120000, 300000, 600000, 900000, 1800000, 3600000,
@@ -115,7 +115,7 @@ export function makeRuler(fuse) {
   };
 
   // What the ruler shows: where it starts and how many milliseconds across.
-  const shown = () => {
+  const displayed = () => {
     if (view.span === null) {
       return [0, whole()];
     }
@@ -130,7 +130,7 @@ export function makeRuler(fuse) {
 
   // Zooms by `by` about the point `at` of the way across.
   const zoom = (by, at) => {
-    const [from, span] = shown();
+    const [from, span] = displayed();
     const next = Math.max(LEAST, span * by);
     if (next >= whole()) {
       fit();
@@ -165,7 +165,7 @@ export function makeRuler(fuse) {
       const per = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? width() : 1;
       const across = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.shiftKey ? event.deltaY : 0;
       if (across) {
-        move(((across * per) / width()) * shown()[1]);
+        move(((across * per) / width()) * displayed()[1]);
         return;
       }
       const box = canvas.getBoundingClientRect();
@@ -178,7 +178,7 @@ export function makeRuler(fuse) {
       return;
     }
     const at = view.pinned && !view.run.done ? 1 : 0.5;
-    const span = shown()[1];
+    const span = displayed()[1];
     const acts = {
       "+": () => zoom(1 / ZOOM, at),
       "=": () => zoom(1 / ZOOM, at),
@@ -251,7 +251,7 @@ export function makeRuler(fuse) {
     }
     const css = getComputedStyle(document.documentElement);
     const color = (name) => css.getPropertyValue(name).trim();
-    const [from, span] = shown();
+    const [from, span] = displayed();
     const per = box.width / span;
     const xOf = (ms) => (ms - from) * per;
 
@@ -360,7 +360,7 @@ export function makeRuler(fuse) {
       if (!view.run) {
         return null;
       }
-      const [from, span] = shown();
+      const [from, span] = displayed();
       return (latest() - from) / span;
     },
   };

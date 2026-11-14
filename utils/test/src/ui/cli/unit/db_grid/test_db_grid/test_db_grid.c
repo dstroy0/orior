@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_db_grid.c: the grid over a SQLite table of 500 rows: an answer adopted stores its columns, its first page and
 // its end, the rows read and one more while the server has more; each column's width is the longest of its label and
-// its first rows cut to the most, with the gap, laid at the adopt; the step reads the stretch a view moved past the read
+// its first rows cut to the max, with the gap, positioned at the adopt; the step reads the stretch a view moved past the read
 // rows heads into and lets go the rows far behind; the reach stores two numbers and takes no cell; a null cell has its
 // flag and a numbers column its own; the pan stays inside the columns; a failure is its lines; and a statement with no
 // rows is what it did. The cases need the tree's Python, which runs SQLite, and are ignored on a machine with none
@@ -62,13 +62,13 @@ static void lite_ready(void)
             (void)statement_run("CREATE TABLE t (n INTEGER PRIMARY KEY, word TEXT, note TEXT)");
             (void)statement_run("INSERT INTO t (n, word, note) WITH RECURSIVE k(i) AS (SELECT 1 UNION ALL SELECT i + 1 "
                                 "FROM k WHERE i < 500) SELECT i, 'w' || i, CASE WHEN i = 2 THEN NULL ELSE "
-                                "'this note runs well past the forty letters a column is laid at' END FROM k");
+                                "'this note runs well past the forty characters a column is positioned at' END FROM k");
         }
     }
     TEST_ASSERT_NOT_NULL(s_lite);
 }
 
-// the column `at`, in a column of the suite's own whose texts stand until the next is read
+// the column `at`, in a column of the suite's own whose texts are until the next is read
 static const CliDbGridColumn *column_at(unsigned int at)
 {
     static CliDbGridColumn s_column;
@@ -111,17 +111,17 @@ void test_an_answer_adopted_stores_its_columns_its_first_page_and_its_end(void)
     CLI_TEST_ASSERT_CONTAINS("lite: 3 rows", EMBED_CALL(cli_db_grid.head_text, CliDbGridCfg, .length_out = &length));
 }
 
-void test_each_width_is_the_longest_of_its_label_and_first_rows_cut_to_the_most(void)
+void test_each_width_is_the_longest_of_its_label_and_first_rows_cut_to_the_max(void)
 {
     lite_ready();
     adopted("SELECT n, word, note FROM t ORDER BY n");
     // n's longest of its first fifty rows is "50", shorter than nothing but its two digits, with the gap after
     TEST_ASSERT_EQUAL_UINT(2u + CLI_DB_GRID_WIDTH_GAP, column_at(0u)->width);
     TEST_ASSERT_EQUAL_UINT(4u + CLI_DB_GRID_WIDTH_GAP, column_at(1u)->width);
-    TEST_ASSERT_EQUAL_UINT(CLI_DB_GRID_WIDTH_MOST + CLI_DB_GRID_WIDTH_GAP, column_at(2u)->width);
+    TEST_ASSERT_EQUAL_UINT(CLI_DB_GRID_WIDTH_MAX + CLI_DB_GRID_WIDTH_GAP, column_at(2u)->width);
     TEST_ASSERT_EQUAL_INT64(0LL, column_at(0u)->start);
     TEST_ASSERT_EQUAL_INT64((long long)(column_at(0u)->width + column_at(1u)->width), column_at(2u)->start);
-    // a step reads rows and lays no width again
+    // a step reads rows and positions no width again
     (void)stepped(300ULL, 320ULL, 1000ULL);
     TEST_ASSERT_EQUAL_UINT(2u + CLI_DB_GRID_WIDTH_GAP, column_at(0u)->width);
 }
@@ -146,7 +146,7 @@ void test_the_step_reads_what_the_view_heads_into_and_lets_go_the_rows_behind(vo
     CliDbGridRow row;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_db_grid.row, CliDbGridCfg, .at = 0ULL, .row = &row));
     TEST_ASSERT_EQUAL_UINT(CLI_DB_GRID_ROW_WAIT, row.type);
-    // a view standing inside the stretch reads nothing
+    // a view located inside the stretch reads nothing
     TEST_ASSERT_FALSE(stepped(305ULL, 325ULL, 1200ULL));
 }
 

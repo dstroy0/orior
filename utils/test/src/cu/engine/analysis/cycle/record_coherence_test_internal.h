@@ -44,7 +44,7 @@
 
 #define COHERENCE_TEST_OPERATIONS 10u
 
-// a program retains at most this many products. The exact widths stay well inside the file
+// a program retains at max this many products. The exact widths stay well inside the file
 #define COHERENCE_TEST_PRODUCTS_MAX 2u
 
 #define COHERENCE_TEST_PROGRAMS 16u
@@ -53,7 +53,7 @@
 
 #define COHERENCE_TEST_LANES 4096u
 
-// the most the test puts on the device at once: a program's atoms and records, under 32 words a lane
+// the max the test puts on the device at once: a program's atoms and records, under 32 words a lane
 #define COHERENCE_TEST_DECLARED ((unsigned long long)COHERENCE_TEST_LANES * 32ull * sizeof(unsigned int))
 
 static const unsigned int s_coherence_widths[COHERENCE_TEST_WIDTHS] = {5u, 8u, 13u, 16u, 31u, 32u};

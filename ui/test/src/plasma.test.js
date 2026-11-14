@@ -28,7 +28,7 @@ test("a piece of four sides is two triangles, an arc a piece along each of its l
   assert.equal(corners.count, 48);
 });
 
-test("the list grows when it fills, keeping what it kept", () => {
+test("the list grows when it fills, retention what it retained", () => {
   const corners = cornersOf();
   for (let at = 0; at < 5000; at += 1) {
     corners.add([at, 0, 0, 0, [0, 0, 0], 1]);

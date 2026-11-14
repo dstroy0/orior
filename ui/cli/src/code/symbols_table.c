@@ -8,7 +8,7 @@
 #include "../text/text.h"
 #include "symbols_tree.h"
 
-// every file a table can name, and the one taken while the cell it replaces still stands
+// every file a table can name, and the one taken while the cell it replaces still is
 _Static_assert(CLI_BRANCHES_MAX < CLI_POOL_MOVABLE, "the movable cells cannot name every symbol file");
 
 // the places of one chunk as a two's power, the chunks, the words of a chunk's bitmap of places in use, and the bucket
@@ -29,7 +29,7 @@ static unsigned int s_chunk_used[CLI_BRANCH_CHUNKS];
 static unsigned long long s_chunk_bits[CLI_BRANCH_CHUNKS][CLI_BRANCH_CHUNK_WORDS];
 // each bucket's first branch, as its place from 1, 0 for none; the branches of a bucket chain through their records
 static unsigned int s_head[CLI_BRANCH_HEADS];
-// the files standing and their paths' bytes
+// the files located and their paths' bytes
 static unsigned int s_files;
 static unsigned long long s_file_bytes;
 
@@ -54,7 +54,7 @@ EMBED_INLINE unsigned long long cli_hash(const SymbolsTableCtx *args)
 // the bucket of `path`, below the heads
 EMBED_INLINE unsigned int cli_bucket_of(const SymbolsTableCtx *args)
 {
-    // Explicit cast keeps the hash's low bits, which the mask bounds below the heads
+    // Explicit cast retains the hash's low bits, which the mask bounds below the heads
     return (unsigned int)(cli_hash(args) & (CLI_BRANCH_HEADS - 1u));
 }
 
@@ -157,7 +157,7 @@ EMBED_INLINE void cli_cell_zeroed(const CarcerMovableEntry *cell, unsigned long 
 }
 
 // a free place taken: the first unused place of the first chunk with room, the chunk's cell taken and zeroed where
-// none stands, the place's bit set: the place, or CLI_BRANCHES_MAX where every place is used or the cells cannot meet
+// none is, the place's bit set: the place, or CLI_BRANCHES_MAX where every place is used or the cells cannot meet
 // the chunk
 EMBED_INLINE unsigned int cli_place_taken(const SymbolsTableCtx *args)
 {

@@ -6,7 +6,7 @@ import { callsTo } from "../helpers.js";
 
 const { test, assert, calls } = window.__harness;
 
-// A message as another window's tell leaves it, which the browser hands this one as a storage event.
+// A message as another window's tell leaves it, which the browser passes this one as a storage event.
 const arrive = (value) => window.dispatchEvent(new StorageEvent("storage", { key: "orior.tell", newValue: value }));
 
 test("this window has a name of its own", () => {
@@ -14,21 +14,21 @@ test("this window has a name of its own", () => {
   assert.ok(windowId.length >= 8);
 });
 
-test("a message for this window runs what its kind does, with its body", () => {
+test("a message for this window runs what its type does, with its body", () => {
   const heard = [];
-  onTold("harness-kind", (body) => heard.push(body));
-  arrive(JSON.stringify({ to: windowId, kind: "harness-kind", body: { path: "a.txt" } }));
+  onTold("harness-type", (body) => heard.push(body));
+  arrive(JSON.stringify({ to: windowId, type: "harness-type", body: { path: "a.txt" } }));
   assert.deepEqual(heard, [{ path: "a.txt" }]);
 });
 
-test("a message for another window, of a kind nothing does, or unreadable, does nothing", () => {
+test("a message for another window, of a type nothing does, or unreadable, does nothing", () => {
   const heard = [];
-  onTold("harness-kind", (body) => heard.push(body));
-  arrive(JSON.stringify({ to: "another window", kind: "harness-kind", body: 1 }));
-  arrive(JSON.stringify({ to: windowId, kind: "no such kind", body: 2 }));
+  onTold("harness-type", (body) => heard.push(body));
+  arrive(JSON.stringify({ to: "another window", type: "harness-type", body: 1 }));
+  arrive(JSON.stringify({ to: windowId, type: "no such type", body: 2 }));
   arrive("{ not json");
   arrive(null);
-  window.dispatchEvent(new StorageEvent("storage", { key: "another key", newValue: JSON.stringify({ to: windowId, kind: "harness-kind", body: 3 }) }));
+  window.dispatchEvent(new StorageEvent("storage", { key: "another key", newValue: JSON.stringify({ to: windowId, type: "harness-type", body: 3 }) }));
   assert.deepEqual(heard, []);
 });
 

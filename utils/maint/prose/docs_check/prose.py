@@ -39,7 +39,7 @@ def near_marker(lines, at, step):
 
     Blank lines and bare comment markers are stepped over. A pair set off by an empty comment line
     above and below is the shape that reads best, and stopping on one would report every block that
-    was laid out with any care.
+    was arranged with any care.
     """
     walk = at + step
     while 0 <= walk < len(lines):
@@ -85,7 +85,7 @@ def tex_prose(lines):
     Nothing here parses TeX. It removes the constructs that produce false findings and leaves the
     rest, the same trade prose_only already makes about string literals in source.
     """
-    kept = []
+    retained = []
     for line in lines:
         held = line
 
@@ -123,7 +123,7 @@ def tex_prose(lines):
             r"\\(begin|end)\s*\{[^{}]*\}(\[[^\]]*\])?(\{[^{}]*\})*", " ", held
         )
 
-        # Every remaining command keeps its braces, since \textbf{a sentence} is a sentence. The
+        # Every remaining command retains its braces, since \textbf{a sentence} is a sentence. The
         # command name itself goes, and so do the braces around it.
         held = re.sub(r"\\[A-Za-z@]+\s*(\[[^\]]*\])?", " ", held)
         held = held.replace("{", " ").replace("}", " ")
@@ -131,8 +131,8 @@ def tex_prose(lines):
         # Alignment and cell separators in a table, which glue unrelated words into a phrase.
         held = held.replace("&", " ").replace("\\\\", " ")
 
-        kept.append(held)
-    return quieted(kept)
+        retained.append(held)
+    return quieted(retained)
 
 
 # A quoted or apostrophized span, blanked before a `#` is looked for. A hash inside a string is
@@ -173,23 +173,23 @@ def comment_prose(lines):
     would report every quoted path in every add_custom_command. Named here because it is a known
     gap and not an oversight.
     """
-    kept = []
+    retained = []
     in_block = False
     for at, line in enumerate(lines):
         if at == 0 and line.startswith("#!"):
-            kept.append("")
+            retained.append("")
             continue
         if in_block:
-            kept.append(line)
+            retained.append(line)
             if "#>" in line:
                 in_block = False
             continue
         if "<#" in line:
             in_block = "#>" not in line
-            kept.append(line)
+            retained.append(line)
             continue
-        kept.append(hash_tail(line))
-    return kept
+        retained.append(hash_tail(line))
+    return retained
 
 
 def prose_only(path, lines, ledger=None):
@@ -199,7 +199,7 @@ def prose_only(path, lines, ledger=None):
     finding still points at the line a reader has to open. Deliberately crude about string literals:
     a banned word inside one is worth looking at anyway, since it is usually output text.
 
-    THE LEGAL BLANKING HAPPENS HERE AND NOWHERE ELSE, on every branch, and that keeps the four
+    THE LEGAL BLANKING HAPPENS HERE AND NOWHERE ELSE, on every branch, and that retains the four
     stages from each carrying a skip of their own. em_dashes, markdown_leftovers and banned_tokens
     all read what this returns. An em dash inside a copyright grant and a British form inside
     one go quiet together and by one rule. empty_tables and dead_links read the raw lines instead,
@@ -213,7 +213,7 @@ def prose_only(path, lines, ledger=None):
     if build_file(path):
         return legal_blank(quieted(comment_prose(lines)), path, ledger)
 
-    kept = []
+    retained = []
     in_block = False
     for line in lines:
         stripped = line.strip()
@@ -226,12 +226,12 @@ def prose_only(path, lines, ledger=None):
             # `for row in summary` reported itself as the filler phrase.
             marks = stripped.count('"""') + stripped.count("'''")
             if marks:
-                kept.append(line)
+                retained.append(line)
                 # An odd count opens or closes. An even count is a docstring written on one line.
                 if marks % 2:
                     in_block = not in_block
                 continue
-            kept.append(line if (in_block or stripped.startswith("#")) else "")
+            retained.append(line if (in_block or stripped.startswith("#")) else "")
             continue
 
         # C and its headers.
@@ -241,17 +241,17 @@ def prose_only(path, lines, ledger=None):
         if "*/" in line:
             in_block = False
         if was or stripped.startswith("//"):
-            kept.append(line)
+            retained.append(line)
         elif "//" in line:
             # A trailing // or ///< comment on a code line. Reading only a line-leading // leaves
             # every banned phrase in a trailing comment unflagged, and a header full of ///< briefs
-            # goes unread. Keep from the first // to the end and blank the code before it, which
+            # goes unread. Retain from the first // to the end and blank the code before it, which
             # preserves the line number a finding points at. A trailing /*
             # */ block is already caught by in_block above; this is the slash form it missed. Crude
             # about a // inside a string literal, the same trade this function makes for the leading
             # case.
             cut = line.index("//")
-            kept.append(line[cut:])
+            retained.append(line[cut:])
         else:
-            kept.append("")
-    return legal_blank(quieted(kept), path, ledger)
+            retained.append("")
+    return legal_blank(quieted(retained), path, ledger)

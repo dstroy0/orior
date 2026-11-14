@@ -42,8 +42,8 @@ DIGITS = 2000
 
 
 def positive_control(out):
-    """Each constant to DIGITS places by its two routes, shown agreeing. The routes are called directly."""
-    out.write("  positive control: each constant to %d places, two routes, shown agreeing\n" % DIGITS)
+    """Each constant to DIGITS places by its two routes, displayed agreeing. The routes are called directly."""
+    out.write("  positive control: each constant to %d places, two routes, displayed agreeing\n" % DIGITS)
     scale = 10 ** (DIGITS + naturals.GUARD)
     drop = 10 ** naturals.GUARD
     pairs = (

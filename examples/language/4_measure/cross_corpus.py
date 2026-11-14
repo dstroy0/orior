@@ -8,7 +8,7 @@
 #
 #   Usage:  python examples/language/4_measure/cross_corpus.py
 #
-# Every identification measured so far compares texts to other texts of the same kind: four books of a
+# Every identification measured so far compares texts to other texts of the same type: four books of a
 # language against each other, or four pieces cut from one translation. Pieces of one translation resemble
 # each other for reasons that have nothing to do with the language, and the 83.1 percent measured
 # that way was reported as inflated and not comparable.
@@ -17,7 +17,7 @@
 # one work is matched against every language's reading from the other, and the two share neither sentence,
 # topic nor translator. Nothing is left to carry a match except the language.
 #
-# This is the strictest test available here and the one the earlier numbers were standing in for. A
+# This is the strictest test available here and the one the earlier numbers were located in for. A
 # reading that belongs to a language survives it. A reading that belongs to a book cannot.
 
 import io

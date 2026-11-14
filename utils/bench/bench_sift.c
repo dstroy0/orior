@@ -18,7 +18,7 @@ static const char s_english[] =
     "the quality of the quotation was quite equal to the requirements of the inquiry. she thought "
     "about the matter for some time and then decided that the answer was probably yes, although "
     "there were several other considerations that might reasonably be taken into account before "
-    "any final judgement could be reached on a question of that particular kind. the morning was "
+    "any final judgement could be reached on a question of that particular type. the morning was "
     "bright and the air was cold, and the road ahead of them ran straight for a long distance "
     "before turning sharply to the left and disappearing behind a low hill covered in heather. "
     "they walked without speaking for perhaps half an hour, each of them thinking about something "
@@ -32,11 +32,11 @@ static const char s_english[] =
     "was gray and the far side of it invisible. they sheltered under an overhanging rock and "
     "watched the water gather in the hollows and run away downhill in a hundred small channels, "
     "each one finding its own way among the stones without any apparent difficulty. it occurred to "
-    "him that this was how most problems eventually resolved themselves, given enough time and a "
+    "him that this was how max problems eventually resolved themselves, given enough time and a "
     "sufficient quantity of water, and he said as much aloud. she laughed and said that was the "
     "sort of remark that sounded wiser than it was, and he had to agree that she was probably "
     "right about that as well. by the time the rain stopped the light was almost gone and they "
-    "made camp where they stood. the fire took a long "
+    "made camp where they was. the fire took a long "
     "while to catch because everything was wet, and when it did catch it smoked badly and gave "
     "very little heat, but it was something to sit beside and they were both glad of it. in the "
     "morning the sky had cleared completely and the grass was heavy with water that soaked their "
@@ -136,9 +136,9 @@ static size_t fill_periodic(uint8_t *into, size_t length)
         at[2] = (uint8_t)hex[(counter >> 4) & 0xFu];
         at[3] = (uint8_t)hex[counter & 0xFu];
         at[4] = (uint8_t)',';
-        for (unsigned letter = 0u; letter < 6u; letter++)
+        for (unsigned character = 0u; character < 6u; character++)
         {
-            at[5u + letter] = (uint8_t)('a' + (int)((counter >> (letter * 3u)) % 26u));
+            at[5u + character] = (uint8_t)('a' + (int)((counter >> (character * 3u)) % 26u));
         }
         at[11] = (uint8_t)',';
         at[12] = (uint8_t)('0' + (int)((counter / 100u) % 10u));
@@ -246,7 +246,7 @@ static unsigned anchor_cost(uint8_t byte, AnchorPolicy policy)
     case ANCHOR_BY_MAGNITUDE:
     default:
     {
-        // the byte's own count in the corpus, at most CORPUS_BYTES, so narrowing to unsigned loses nothing
+        // the byte's own count in the corpus, at max CORPUS_BYTES, so narrowing to unsigned loses nothing
         return (unsigned)(s_census.total - orior_steer_magnitude(&s_census, byte));
     }
     }

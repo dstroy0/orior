@@ -8,13 +8,13 @@
 #include "review_internal.h"
 
 // A text's lines, each where it starts and its bytes, less a carriage return before its newline, in a cell with
-// capacity for `most` of them
+// capacity for `max` of them
 typedef struct
 {
     unsigned int *start;
     unsigned int *length;
     unsigned int lines;
-    unsigned int most;
+    unsigned int max;
 } CliTextLines;
 
 typedef struct
@@ -26,12 +26,12 @@ typedef struct
 // the lines `size` bytes of `text` can contain, its newlines and one, up to CLI_REVIEW_LINES
 EMBED_INLINE unsigned int text_lines_max(const ReviewTextCtx *args)
 {
-    unsigned int most = 1u;
-    for (unsigned long long at = 0ULL; (at < args->size) && (most < CLI_REVIEW_LINES); at += 1ULL)
+    unsigned int max = 1u;
+    for (unsigned long long at = 0ULL; (at < args->size) && (max < CLI_REVIEW_LINES); at += 1ULL)
     {
-        most += (args->text[at] == '\n') ? 1u : 0u;
+        max += (args->text[at] == '\n') ? 1u : 0u;
     }
-    return most;
+    return max;
 }
 
 // a text's lines read, `size` bytes of it, up to the lines it has capacity for
@@ -41,7 +41,7 @@ EMBED_INLINE void cli_lines_get(const ReviewTextCtx *args)
     unsigned long long size = args->size;
     CliTextLines *lines = args->lines;
     lines->lines = 0u;
-    for (unsigned long long at = 0ULL; (at < size) && (lines->lines < lines->most);)
+    for (unsigned long long at = 0ULL; (at < size) && (lines->lines < lines->max);)
     {
         const CliTextLine bounds = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = text, .at = at, .size = size);
         const unsigned long long end = bounds.stop;
@@ -63,11 +63,11 @@ void cli_review_trim(const CliReviewTextLengthTypeCtx *args)
     unsigned long long end = 0ULL;
     for (unsigned long long at = 0ULL; at < *length;)
     {
-        unsigned int letter = 0u;
+        unsigned int character = 0u;
         const unsigned long long step =
-            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                       .text_bytes = (const unsigned char *)*text, .length = *length, .at = at, .letter = &letter);
-        if (!EMBED_CALL(cli_files_letter_internal.fuzzy_white, CliFilesLetterCtx, .letter = letter))
+            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                       .text_bytes = (const unsigned char *)*text, .length = *length, .at = at, .character = &character);
+        if (!EMBED_CALL(cli_files_character_internal.fuzzy_white, CliFilesLetterCtx, .character = character))
         {
             start = (start == *length) ? at : start;
             end = at + step;
@@ -146,30 +146,30 @@ int cli_review_calls(const CliReviewCtx *args)
          at != NULL; at = cellul.find(&(CatenaFinitaCfg){
                          .src = at + 1, .cap = CLI_POOL_BYTES, .other = args->name, .other_cap = CLI_POOL_BYTES}))
     {
-        // the letter before the name, read back to where it starts
+        // the character before the name, read back to where it starts
         const char *before = at;
         while ((before > args->text) && ((((unsigned char)before[-1]) & 0xc0u) == 0x80u))
         {
             before -= 1;
         }
-        unsigned int letter = 0u;
+        unsigned int character = 0u;
         int joined = 0;
         if (before > args->text)
         {
             before -= 1;
-            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                        .text_bytes = (const unsigned char *)before, .length = (unsigned long long)(at - before),
-                       .at = 0ULL, .letter = &letter);
-            joined = EMBED_CALL(cli_files_letter_internal.hit_wordy, CliFilesLetterCtx, .letter = letter);
+                       .at = 0ULL, .character = &character);
+            joined = EMBED_CALL(cli_files_character_internal.hit_wordy, CliFilesLetterCtx, .character = character);
         }
         const char *after = at + length;
         unsigned long long rest = cellul.len(&(CatenaFinitaCfg){.src = after, .cap = CLI_POOL_BYTES});
         while (rest > 0ULL)
         {
             const unsigned long long step =
-                EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                           .text_bytes = (const unsigned char *)after, .length = rest, .at = 0ULL, .letter = &letter);
-            if (!EMBED_CALL(cli_files_letter_internal.fuzzy_white, CliFilesLetterCtx, .letter = letter))
+                EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                           .text_bytes = (const unsigned char *)after, .length = rest, .at = 0ULL, .character = &character);
+            if (!EMBED_CALL(cli_files_character_internal.fuzzy_white, CliFilesLetterCtx, .character = character))
             {
                 break;
             }

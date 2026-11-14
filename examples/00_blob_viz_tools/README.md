@@ -1,6 +1,6 @@
 # Viewers
 
-Each is a Python builder plus an HTML template. The builder computes its numbers and hands them to
+Each is a Python builder plus an HTML template. The builder computes its numbers and passes them to
 `generate_template.py`, which writes them into the template's one data placeholder as a JSON literal, inlines
 the shared tools the template names, and emits a single self-contained file: no server, no install,
 no fetch at run time. Standard library only.
@@ -66,7 +66,7 @@ distribution.
 ```
 python build_chart_view.py TABLE.csv
 python build_chart_view.py TABLE.csv --x time --y temperature pressure
-python build_chart_view.py long.csv --split sensor --y value --kind scatter
+python build_chart_view.py long.csv --split sensor --y value --type scatter
 ```
 
 Line, scatter, step, bar, area. Hover reads the nearest point, drag zooms x, double click resets,
@@ -78,7 +78,7 @@ series toggle off, y switches to log. It prints which columns it chose, making a
 python build_step_view.py --bit 96
 ```
 
-Two SHA-256 traces, a message and the same message with one bit flipped, every intermediate kept.
+Two SHA-256 traces, a message and the same message with one bit flipped, every intermediate retained.
 
 ## One generator, one toolbox
 
@@ -104,7 +104,7 @@ byte. The generator and the toolbox import nothing else from this tree.
 | `shapes/`        | run boxes, lines, the 2D map, smooth blobs, every parametric surface and transform, the Hilbert and Morton curves, a harmonic field, a float mesh |
 | `copyright.html` | the line every built page carries, stamped by `generate_template.stamp`                |
 
-Every template here builds this way, and every page that draws frame by frame hands its loop to `core/watch`.
+Every template here builds this way, and every page that draws frame by frame passes its loop to `core/watch`.
 The engine view, the shapes gallery and the blind directions take their look and their controls from the toolbox
 as well:
 
@@ -121,12 +121,12 @@ finishes and reports the frames it drew per second. The blind page sets the sour
 direction beside the boundary field they produce, on equal-area maps with one scale across every direction.
 
 The tissue room, `view/track_room.html`, is built from `track_room_template.html` with no data and served by
-`view/serve_room.py`, which hands it its samples and slices.
+`view/serve_room.py`, which passes it its samples and slices.
 
 The engine view draws what the tracker writes. The sample is open: a mouse intestinal organoid imaged by light-sheet
 over time, from "Reference OME-Zarr for 3D time-lapse light-sheet microscopy with nuclei tracking",
 doi:10.5281/zenodo.22078388, under CC BY 4.0. `fetch_open_sample.py` fetches it, checks it against the record's MD5
-and lays its raw OME-Zarr out as `build/data/source/organoid_001.ome.zarr`, with the record's nucleus tracks beside it
+and positions its raw OME-Zarr out as `build/data/source/organoid_001.ome.zarr`, with the record's nucleus tracks beside it
 in voxels as the answer key, `organoid_001.geff`. Ingest turns the image into a crystal,
 `build/data/set/organoid_001/organoid_001.kcr`, reading the nuclei on channel 1 (`input.channel` in the `.cfg`).
 A tracker run with an object output, `--object <directory>` or `"object"` in the `.cfg`, writes the sample's `.vbo`
@@ -148,7 +148,7 @@ Then open `http://127.0.0.1:8733/engine_view.html`.
 ## On representations
 
 A representation decides where a cell sits. Joining the ends of an axis says the last value is next
-to the first, which is a period the picture adds. The plane joins nothing. Keep the reading that
+to the first, which is a period the picture adds. The plane joins nothing. Retain the reading that
 holds up when it is drawn several ways.
 
 ## Boundaries
@@ -274,11 +274,11 @@ the convention assigns every point to exactly one octant.
 
 **A reading to degree `L` carries exactly `(L+1)^2` real numbers about its source, whatever the
 source is.** The lit set here has 256 degrees of freedom. Where `(L+1)^2 < 256` the reading is a
-linear map of rank at most `(L+1)^2` from a 256-dimensional space and its null space has dimension
+linear map of rank at max `(L+1)^2` from a 256-dimensional space and its null space has dimension
 at least the shortfall. Every direction in that null space is a change to the object that moves no
 coefficient at all.
 
-| degree | coefficients | rank | blind   | least kept |
+| degree | coefficients | rank | blind   | least retained |
 | ------ | ------------ | ---- | ------- | ---------- |
 | 8      | 81           | 81   | **175** | 4.365      |
 | 12     | 169          | 169  | 87      | 3.818      |
@@ -286,7 +286,7 @@ coefficient at all.
 | 16     | 289          | 256  | 0       | 1.524e-1   |
 
 **Completeness of count and health of conditioning are separate properties.** Degree 15 is where
-`(L+1)^2` first reaches 256, and its least kept singular value collapses three decades below the
+`(L+1)^2` first reaches 256, and its least retained singular value collapses three decades below the
 values beside it; one degree of headroom buys a factor of 44 in conditioning.
 
 `depth_rank` therefore reports **absent** and **present but badly conditioned** as different
@@ -300,7 +300,7 @@ The claim: a boundary holds a number of separable readings set by its own measur
 finest detail reaching it, raised to the dimension of the boundary, and **shape does not enter**.
 
 The test is real because the two routes share no step. One counts by packing, dropping points on the
-surface and keeping those further than one resolution from everything already kept, a direct measure
+surface and retention those further than one resolution from everything already retained, a direct measure
 of how many distinguishable places the surface has. The other takes the measure in closed form from
 the shape's own geometry. Neither reads the other. A packing count that tracked the volume, or a
 shape whose corners contained more readings than its faces, would show up as a constant that moves.
@@ -337,7 +337,7 @@ periodic and nothing was hidden. A boundary reading can therefore report the dim
 never had access to, by counting how many of its periods refuse to be multiples of one another. A
 square lattice cut at the golden slope gives the Fibonacci chain, checked against exact values.
 
-### octant_lex.py -- the eight-letter alphabet
+### octant_lex.py -- the eight-character alphabet
 
 Split space by the sign of each coordinate. The eight regions tile with no gap and no overlap, and on
 the boundary they cut eight spherical triangles with **three** right angles each. By Girard's
@@ -347,7 +347,7 @@ theorem the area of a spherical triangle is its angle excess,
 A = 3 pi / 2 - pi = pi / 2,      8 x pi/2 = 4 pi
 ```
 
-the area of the sphere. The tiling is exact and the pieces congruent. No letter is larger than
+the area of the sphere. The tiling is exact and the pieces congruent. No character is larger than
 another by construction; the measured shares total `1.000000000000000`.
 
 The alphabet is the fraction of the lit set in each octant, one word of eight numbers per state. It
@@ -378,12 +378,12 @@ space is spent. Verified over 20,000 draws: `0.03132` unconstrained against a pr
 One arm drawn several ways, read against the same lit set. A reading that changes when only the
 drawing changes is reporting the drawing.
 
-**Compared at three levels, and the aggregate alone is one level too few.** A letter is a sum, and a
-sum hides a pair of moves that cancel inside it: two points swapping arms leaves both letters exactly
+**Compared at three levels, and the aggregate alone is one level too few.** A character is a sum, and a
+sum hides a pair of moves that cancel inside it: two points swapping arms leaves both characters exactly
 where they were while the arms are no longer the arms. So the per-point weight, the count of points
-reassigned, and the letter are all reported.
+reassigned, and the character are all reported.
 
-| redraw                         | weight    | points reassigned | letter    |
+| redraw                         | weight    | points reassigned | character    |
 | ------------------------------ | --------- | ----------------- | --------- |
 | point cloud, record round trip | 0         | 0 of 256          | 0         |
 | dwell on a line                | 0         | 0 of 256          | 0         |
@@ -392,16 +392,16 @@ reassigned, and the letter are all reported.
 
 **A clearance pre-check decides the rotated case before it is run.** Min over placement points of the
 distance to the nearest arm face is `0.000e+00` at index 0, structurally, at every size from 64 to 4096. A crossing is therefore available and a clean result is not established by clearance; under the
-carried rotation index 0 kept its arm by a dot product of `+3.123e-17`, three parts in `1e17` from
+carried rotation index 0 retained its arm by a dot product of `+3.123e-17`, three parts in `1e17` from
 going the other way. The claim the module makes is therefore the narrow one: independent of its
 drawing for 255 points by measurement and for one by convention, printed as that split.
 
-**The frame fault is smaller in the letters than it has any right to be.** Stating the arms in a
+**The frame fault is smaller in the characters than it has any right to be.** Stating the arms in a
 rotated frame while reading the object in the original one sends **199 of 256** points to a different
-arm, and the eight letters move **3.92 percent**. Four fifths of the points relocate and the reading
+arm, and the eight characters move **3.92 percent**. Four fifths of the points relocate and the reading
 barely registers it, because the move lives mostly in the 248 directions the alphabet is blind in.
 That is the rank bound arriving as a hazard somebody could ship, and it is why the point count is
-reported beside the letter.
+reported beside the character.
 
 ### dsp.py and exact.py -- two transforms, and why there are two
 
@@ -429,7 +429,7 @@ belongs to float64 and not to the reading.
 | tool                    | what it refuses                                                                                                                                                |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `null_harness.py`       | A threshold picked by judgment. Runs a move that changes nothing and reads the residual, after proving itself against a deliberately broken null. Six floors. |
-| `grid_error.py`         | The drawn picture standing in for the field. Measures the mesh against exact evaluation.                                                                       |
+| `grid_error.py`         | The drawn picture located in for the field. Measures the mesh against exact evaluation.                                                                       |
 | `script_check.py`       | A page whose script does not parse, and a page with a frame loop and no watch on it.                                                                           |
 | `parity_check.py`       | The bar and the scheme judging one setting two ways, and a frame watch that does not report a throw or a loop that stops.                                      |
 | `generate_template.py`  | A built page whose toolbox pieces differ from the toolbox, and a template with two data placeholders or a script left open.                                           |

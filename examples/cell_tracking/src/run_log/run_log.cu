@@ -81,7 +81,7 @@ FILE *log_open(void)
     const int sought = (log != NULL) ? fseek(log, 0L, SEEK_END) : -1;
     if ((sought == 0) && (ftell(log) <= 0L))
     {
-        fprintf(log, "when\tkind\trules\tsample\tframes\tobjects\tleaves\tlargest\trejoined"
+        fprintf(log, "when\ttype\trules\tsample\tframes\tobjects\tleaves\tlargest\trejoined"
                      "\tedges\tcorrect\tbranched\twrong\tno_link\tmissed"
                      "\tread_ms\tbodies_ms\tstore_ms\tties_ms\tmotion_ms\tlanding_ms\toverlap_ms\tclimb_ms"
                      "\tengines_ms\ttree_ms\tweb_queried\tweb_moved\tweb_capped\tweb_members"

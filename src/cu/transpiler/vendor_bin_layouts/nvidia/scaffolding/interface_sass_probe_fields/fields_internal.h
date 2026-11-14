@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the most bytes a cubin, its code and a text take, and the most exits a code contains
+// the max bytes a cubin, its code and a text take, and the max exits a code contains
 #define FIELDS_CUBIN_BYTES 262144u
 
 #define FIELDS_CODE_BYTES 65536u
@@ -28,7 +28,7 @@
 // the operation bits of an instruction, 0 to 104, and the scheduler's at 105 and above, which this never turns
 #define FIELDS_OPERATION_BITS 105u
 
-// the registers a thread of every cubin declares, the most a cubin declares: a register field reaches every number
+// the registers a thread of every cubin declares, the max a cubin declares: a register field reaches every number
 // the part gives a kernel's code
 #define FIELDS_REGISTERS 255u
 

@@ -7,7 +7,7 @@
 #include "../text/text.h"
 #include "db_internal.h"
 
-// The writing of one connection: where it goes, whether it is laid out a member to a line, the indent of its braces,
+// The writing of one connection: where it goes, whether it is arranged a member to a line, the indent of its braces,
 // and whether a member is written yet
 typedef struct
 {
@@ -16,7 +16,7 @@ typedef struct
     const char *indent;
     int written;
 } CliDbConfigWriting;
-// the most connections a tree names that are read, and the bytes databases.json is written in
+// the max connections a tree names that are read, and the bytes databases.json is written in
 #define CLI_DB_CONNECTIONS 256u
 #define CLI_DB_CONFIG_CAPACITY (1ULL << 20u)
 
@@ -96,10 +96,10 @@ int cli_db_connection_get(const CliDbConnectionErrMsgCfg *args)
                     .length_pointer = NULL) == NULL) ||
         (EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
                     .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
-                                       .object = args->node, .name = "kind"),
+                                       .object = args->node, .name = "type"),
                     .length_pointer = NULL) == NULL))
     {
-        mmgr_line_put(args->err_msg, "a connection names no name or no kind");
+        mmgr_line_put(args->err_msg, "a connection names no name or no type");
         return 0;
     }
     const unsigned int port = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
@@ -120,7 +120,7 @@ int cli_db_connection_get(const CliDbConnectionErrMsgCfg *args)
     const int texts =
         EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "name",
                    .out = args->connection_out->name, .capacity = sizeof(args->connection_out->name)) &&
-        EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "kind",
+        EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "type",
                    .out = args->connection_out->type, .capacity = sizeof(args->connection_out->type)) &&
         EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "host",
                    .out = args->connection_out->host, .capacity = sizeof(args->connection_out->host)) &&
@@ -141,7 +141,7 @@ int cli_db_connection_get(const CliDbConnectionErrMsgCfg *args)
          !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json, .node = matters,
                      .type = CFG_JSON_FALSE)))
     {
-        mmgr_line_put(args->err_msg, "a connection names a setting of the wrong kind");
+        mmgr_line_put(args->err_msg, "a connection names a setting of the wrong type");
         return 0;
     }
     args->connection_out->port = (unsigned int)value;
@@ -265,7 +265,7 @@ EMBED_INLINE void config_on_write(const DbConfigCtx *args)
     mmgr_line_ch(args->out_verba_linea_pointer, '{');
     EMBED_CALL(config_text_write, DbConfigCtx, .writing = &writing, .name = "name", .text = args->connection->name,
                .always = 1);
-    EMBED_CALL(config_text_write, DbConfigCtx, .writing = &writing, .name = "kind", .text = args->connection->type,
+    EMBED_CALL(config_text_write, DbConfigCtx, .writing = &writing, .name = "type", .text = args->connection->type,
                .always = 1);
     EMBED_CALL(config_text_write, DbConfigCtx, .writing = &writing, .name = "host", .text = args->connection->host,
                .always = 0);
@@ -294,7 +294,7 @@ EMBED_INLINE void config_on_write(const DbConfigCtx *args)
     mmgr_line_ch(args->out_verba_linea_pointer, '}');
 }
 
-// the connections, `count` of them, written to databases.json as serde_json's pretty writer lays them out, under the
+// the connections, `count` of them, written to databases.json as serde_json's pretty writer positions them out, under the
 // lock: 1, or 0 with why given
 EMBED_INLINE int config_write(const DbConfigCtx *args)
 {
@@ -368,7 +368,7 @@ int cli_db_save(const CliDbConnectionCfg *args)
         (!cellul.eq(&(CatenaFinitaCfg){.src = args->connection->type, .other = "sqlite", .cap = CLI_POOL_BYTES})))
     {
         mmgr_line_put(args->err_msg, args->connection->type);
-        mmgr_line_put(args->err_msg, " is no kind of database impero supports: postgres, mysql or sqlite");
+        mmgr_line_put(args->err_msg, " is no type of database impero supports: postgres, mysql or sqlite");
         return 0;
     }
     const int count = EMBED_CALL(config_read, DbConfigCtx, .root = args->root, .err_msg = args->err_msg);

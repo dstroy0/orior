@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // The engine view's shaders. Every position is integer arithmetic in doubled voxel units until the clip boundary,
-// where one conversion to f32 hands it to the rasterizer. Every pick is a select; nothing is discarded. A primitive
+// where one conversion to f32 passes it to the rasterizer. Every pick is a select; nothing is discarded. A primitive
 // that should not be drawn is moved outside the clip volume in the vertex stage.
 
 EV.LAYOUT_WORDS = 88;
@@ -39,7 +39,7 @@ const HIDDEN: vec4<f32> = vec4<f32>(4.0, 4.0, 4.0, 1.0);
 // Each run's leaf: the largest leaf whose first run is at or before the run, by 24 halvings.
 EV.RESOLVE = EV.PRELUDE + `
 @group(0) @binding(0) var<storage, read> obj: array<u32>;
-@group(0) @binding(1) var<uniform> lay: Layout;
+@group(0) @binding(1) var<uniform> position: Layout;
 @group(0) @binding(2) var<storage, read_write> run_leaf: array<u32>;
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
@@ -47,10 +47,10 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   var leaf = 0u;
   for (var step = 0u; step < 24u; step++) {
     let probe = leaf + ((1u << 23u) >> step);
-    let first = obj[lay.leaves_at + 4u * min(probe, lay.leaf_total - 1u) + 2u];
-    leaf = select(leaf, probe, (probe < lay.leaf_total) && (first <= run));
+    let first = obj[position.leaves_at + 4u * min(probe, position.leaf_total - 1u) + 2u];
+    leaf = select(leaf, probe, (probe < position.leaf_total) && (first <= run));
   }
-  run_leaf[select(lay.run_total, run, run < lay.run_total)] = leaf;
+  run_leaf[select(position.run_total, run, run < position.run_total)] = leaf;
 }`;
 
 EV.CHOSEN = `
@@ -58,28 +58,28 @@ fn chosen_bit(cell: u32) -> u32 {
   return (chosen[cell >> 5u] >> (cell & 31u)) & 1u;
 }`;
 
-// Each leaf in range: its runs where it is kept, else zero; past the range, zero.
-EV.KEEP = EV.PRELUDE + `
+// Each leaf in range: its runs where it is retained, else zero; past the range, zero.
+EV.RETAIN = EV.PRELUDE + `
 @group(0) @binding(0) var<storage, read> obj: array<u32>;
-@group(0) @binding(1) var<uniform> lay: Layout;
+@group(0) @binding(1) var<uniform> position: Layout;
 @group(0) @binding(2) var<storage, read> chosen: array<u32>;
 @group(0) @binding(3) var<storage, read_write> prefix: array<u32>;
 ${EV.CHOSEN}
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   let slot = id.x + id.y * STRIDE;
-  let at = lay.leaves_at + 4u * (lay.leaf_first + slot);
+  let at = position.leaves_at + 4u * (position.leaf_first + slot);
   let cell = obj[at];
-  let big = u32(obj[lay.cells_at + 4u * cell] >= lay.min_voxels);
-  let kept = select(1u, chosen_bit(cell), lay.only_chosen == 1u) * big * u32(slot < lay.leaf_span);
-  prefix[select(lay.pow2, slot, slot < lay.pow2)] = obj[at + 3u] * kept;
+  let big = u32(obj[position.cells_at + 4u * cell] >= position.min_voxels);
+  let retained = select(1u, chosen_bit(cell), position.only_chosen == 1u) * big * u32(slot < position.leaf_span);
+  prefix[select(position.pow2, slot, slot < position.pow2)] = obj[at + 3u] * retained;
 }`;
 
 // One Sklansky level: every slot with the level's bit set adds the last slot of the half block below it.
 EV.LEVEL = EV.PRELUDE + `
 struct Level { bit: u32, spare0: u32, spare1: u32, spare2: u32 }
 @group(0) @binding(0) var<uniform> level: Level;
-@group(0) @binding(1) var<uniform> lay: Layout;
+@group(0) @binding(1) var<uniform> position: Layout;
 @group(0) @binding(2) var<storage, read_write> prefix: array<u32>;
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
@@ -88,13 +88,13 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   let block = (walk >> level.bit) << (level.bit + 1u);
   let slot = block | (1u << level.bit) | (walk & low);
   let source = block | low;
-  prefix[select(lay.pow2, slot, slot < lay.pow2)] += prefix[min(source, lay.pow2)];
+  prefix[select(position.pow2, slot, slot < position.pow2)] += prefix[min(source, position.pow2)];
 }`;
 
-// Each run in range lands at its leaf's kept runs before it plus its place in its leaf; a run not kept lands in slot 0.
+// Each run in range lands at its leaf's retained runs before it plus its place in its leaf; a run not retained lands in slot 0.
 EV.SCATTER = EV.PRELUDE + `
 @group(0) @binding(0) var<storage, read> obj: array<u32>;
-@group(0) @binding(1) var<uniform> lay: Layout;
+@group(0) @binding(1) var<uniform> position: Layout;
 @group(0) @binding(2) var<storage, read> chosen: array<u32>;
 @group(0) @binding(3) var<storage, read> prefix: array<u32>;
 @group(0) @binding(4) var<storage, read> run_leaf: array<u32>;
@@ -102,29 +102,29 @@ EV.SCATTER = EV.PRELUDE + `
 ${EV.CHOSEN}
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
-  let run = lay.run_first + id.x + id.y * STRIDE;
-  let leaf = run_leaf[min(run, lay.run_total)];
-  let at = lay.leaves_at + 4u * leaf;
+  let run = position.run_first + id.x + id.y * STRIDE;
+  let leaf = run_leaf[min(run, position.run_total)];
+  let at = position.leaves_at + 4u * leaf;
   let cell = obj[at];
-  let big = u32(obj[lay.cells_at + 4u * cell] >= lay.min_voxels);
-  let kept = select(1u, chosen_bit(cell), lay.only_chosen == 1u) * big * u32(run < lay.run_past);
-  let before = prefix[min(leaf - lay.leaf_first, lay.pow2)] - obj[at + 3u] * kept;
-  compact[kept * (before + (run - obj[at + 2u]) + 1u)] = run;
+  let big = u32(obj[position.cells_at + 4u * cell] >= position.min_voxels);
+  let retained = select(1u, chosen_bit(cell), position.only_chosen == 1u) * big * u32(run < position.run_past);
+  let before = prefix[min(leaf - position.leaf_first, position.pow2)] - obj[at + 3u] * retained;
+  compact[retained * (before + (run - obj[at + 2u]) + 1u)] = run;
 }`;
 
 EV.COUNT = EV.PRELUDE + `
-@group(0) @binding(0) var<uniform> lay: Layout;
+@group(0) @binding(0) var<uniform> position: Layout;
 @group(0) @binding(1) var<storage, read> prefix: array<u32>;
 @group(0) @binding(2) var<storage, read_write> drawn: array<u32, 8>;
 @compute @workgroup_size(1)
 fn main() {
-  // Two sets of drawIndirect arguments over the same kept runs: 18 vertices for a box's three faces, 6 for a capsule.
+  // Two sets of drawIndirect arguments over the same retained runs: 18 vertices for a box's three faces, 6 for a capsule.
   drawn[0] = 18u;
-  drawn[1] = prefix[lay.pow2 - 1u];
+  drawn[1] = prefix[position.pow2 - 1u];
   drawn[2] = 0u;
   drawn[3] = 0u;
   drawn[4] = 6u;
-  drawn[5] = prefix[lay.pow2 - 1u];
+  drawn[5] = prefix[position.pow2 - 1u];
   drawn[6] = 0u;
   drawn[7] = 0u;
 }`;

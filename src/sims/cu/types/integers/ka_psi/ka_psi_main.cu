@@ -27,7 +27,7 @@ static void psi_series_upper(PsiValue *value, const PsiCase *psi_case, unsigned 
 }
 
 // The corrected chain at every scale. (3.11) gives |mu_k| >= gamma^-n beta(k) with the alphas cut at r <= k; the cut
-// tails move mu by at most sum_(p>=2) eps_(k,p), psi lying in [0, 1]. The images T_k have width (gamma - 2) b_k and
+// tails move mu by at max sum_(p>=2) eps_(k,p), psi lying in [0, 1]. The images T_k have width (gamma - 2) b_k and
 // the ramps take rho = gamma^-(beta(k+1)+2) on each side. The supports U_k are disjoint when
 // gamma^-n beta(k) - sum_(p>=2) eps_(k,p) - (gamma - 2) eps_(k,2) sum_p alpha_p - 2 rho > 0, every sum an upper bound
 static void psi_separate_all_scales(SimResults *results, const PsiCase *psi_case)
@@ -89,7 +89,7 @@ static void psi_separate_all_scales(SimResults *results, const PsiCase *psi_case
 static unsigned long long psi_gaps_shared(unsigned long long base, unsigned long long shifts)
 {
     const long long period = 2ll * ((long long)base - 1ll);
-    unsigned long long maximum = 0ull;
+    unsigned long long max = 0ull;
     for (long long place = 0ll; place < period; place += 1ll)
     {
         unsigned long long inside = 0ull;
@@ -99,9 +99,9 @@ static unsigned long long psi_gaps_shared(unsigned long long base, unsigned long
             const long long offset = (((place - start) % period) + period) % period;
             inside += ((offset > 0ll) && (offset < 2ll)) ? 1ull : 0ull;
         }
-        maximum = (inside > maximum) ? inside : maximum;
+        max = (inside > max) ? inside : max;
     }
-    return maximum;
+    return max;
 }
 
 static void psi_cover(SimResults *results, const PsiCase *psi_case)
@@ -114,7 +114,7 @@ static void psi_cover(SimResults *results, const PsiCase *psi_case)
     sim_check(results, crowded == 2ull, "with m = gamma - 1 two shifts share a gap: gamma >= m + 2 is needed");
     mmgr_line_put(line, "     the shifts: with m + 1 = ");
     mmgr_line_decimal(line, shifts, 1u);
-    mmgr_line_put(line, " a point sits in at most ");
+    mmgr_line_put(line, " a point sits in at max ");
     mmgr_line_decimal(line, allowed, 1u);
     mmgr_line_put(line, " gap per coordinate, so at least m - n + 1 = ");
     mmgr_line_decimal(line, shifts - psi_case->dimension, 1u);

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// kip.h: the key imprint's kind
+// kip.h: the key imprint's type
 #ifndef KIP_H
 #define KIP_H
 

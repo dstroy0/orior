@@ -53,7 +53,7 @@ run_started() {
     QRY_WRITER_PROCESS=$!
     trap 'run_stopped' EXIT
     local waited=0
-    # the writer makes the run's shared memory and then its .qry, and the .qry standing says the run is made
+    # the writer makes the run's shared memory and then its .qry, and the .qry located says the run is made
     until [ -f "$QRY" ]; do
         sleep 0.01
         waited=$((waited + 1))

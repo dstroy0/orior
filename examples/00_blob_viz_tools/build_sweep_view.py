@@ -8,7 +8,7 @@
 A spectrogram is a picture of a signal and a picture of the window that made it, and nothing in the
 picture says which is which. This runs the same signal through a whole range of settings, puts each
 setting on its own row of one solid, and adds a field that is each setting minus the consensus of
-all of them. A feature that stands in the same place at every setting is in the signal. A feature
+all of them. A feature that is in the same place at every setting is in the signal. A feature
 that moves, or appears at one setting and not the next, is the analysis talking about itself.
 
     python examples/00_blob_viz_tools/build_sweep_view.py take.wav
@@ -70,9 +70,9 @@ def sample_grid(mags, hz_per_bin, grid_hz):
     return out
 
 
-def average_spectrum(values, size, pad_to, kind, count):
+def average_spectrum(values, size, pad_to, type, count):
     """Mean magnitude over several frames, which steadies the floor without moving a peak."""
-    win = dsp.window(kind, size)
+    win = dsp.window(type, size)
     hop = max(1, size // 2)
     starts = list(range(0, max(1, len(values) - size + 1), hop))[:count]
     if not starts:
@@ -114,7 +114,7 @@ def main():
 
     fft_size = dsp.next_power(number("--fft", 1024))
     pad = max(1, number("--pad", 4))
-    kind = text("--window", "hann")
+    type = text("--window", "hann")
     grid_n = number("--grid", 512)
     top_hz = number("--top", 8000)
     average = number("--average", 16)
@@ -152,7 +152,7 @@ def main():
     for one in swept:
         size = one if which == "fft" else fft_size
         factor = one if which == "pad" else pad
-        shape = one if which == "window" else kind
+        shape = one if which == "window" else type
         pad_to = dsp.next_power(size * factor)
         mags = average_spectrum(values, size, pad_to, shape, average)
         rows.append(sample_grid(mags, rate / float(pad_to), grid_hz))
@@ -262,7 +262,7 @@ def main():
         ),
         "noteTitle": "What moves with the setting is the setting",
         "note": (
-            "A feature standing in the same place at every setting is in the signal. One that "
+            "A feature located in the same place at every setting is in the signal. One that "
             "moves, or appears at one setting and not the next, is the analysis describing "
             "itself. The third field is each setting minus the median of all of them. It is "
             "zero where they agree and shows only the disagreement." + exact_note

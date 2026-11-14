@@ -41,8 +41,8 @@
 
 #define ODD_TEST_KINDS 4ull
 
-// the most the test puts on the device at once: the volume, the key's lanes, the sweep's lanes, the sweep's narrow and
-// wide planes and the key's scratch, each at most ENGINE_RESIDUAL_LIMBS a voxel
+// the max the test puts on the device at once: the volume, the key's lanes, the sweep's lanes, the sweep's narrow and
+// wide planes and the key's scratch, each at max ENGINE_RESIDUAL_LIMBS a voxel
 #define ODD_TEST_DECLARED                                                                                              \
     ((unsigned long long)ODD_TEST_VOXELS_MAX * ((6ull * ENGINE_RESIDUAL_LIMBS) + 1ull) * sizeof(unsigned int))
 
@@ -125,7 +125,7 @@ static unsigned int odd_test_reflect(long long position, long long length)
     long long folded = position % period;
     folded += (folded < 0ll) ? period : 0ll;
     folded = (folded >= length) ? (period - 1ll - folded) : folded;
-    // folded lies in [0, length), and length is an extent of at most 11
+    // folded lies in [0, length), and length is an extent of at max 11
     return (unsigned int)folded;
 }
 
@@ -139,7 +139,7 @@ static unsigned long long odd_test_binomial(unsigned int order, unsigned int tap
     return value;
 }
 
-// one axis's row: the binomial of the order times n ones for a comb of n, times each spaced pair, T taps, T at most
+// one axis's row: the binomial of the order times n ones for a comb of n, times each spaced pair, T taps, T at max
 // ODD_TEST_TAPS_MAX
 static unsigned int odd_test_row(unsigned int order, unsigned int comb, const unsigned int spaced[ODD_TEST_SPACINGS],
                                  unsigned long long row[ODD_TEST_TAPS_MAX])
@@ -239,7 +239,7 @@ static void odd_test_expect(const unsigned int *extent, const OddTestOrders *ord
     for (unsigned int voxel = 0u; voxel < voxels; voxel += 1u)
     {
         // the narrow term is below 2^(16 + 15 + 10), a comb of n adding bit_length(n - 1) and a spaced pair 2, and the
-        // gain at most 18: the shifted term is below 2^59
+        // gain at max 18: the shifted term is below 2^59
         host->expected[voxel] = (long long)(host->along[voxel] << gain);
     }
     odd_test_term(extent, wide, orders->comb, wide_spaced, host);
@@ -289,7 +289,7 @@ static void odd_test_spaced(const unsigned int (*from)[ODD_TEST_SPACINGS],
     }
 }
 
-// the key's residual: the program residual_program writes, encoded, laid out and run on the one atom
+// the key's residual: the program residual_program writes, encoded, arranged and run on the one atom
 static int odd_test_key(const unsigned int *extent, const OddTestOrders *orders, const OddTestDevice *device,
                         OddTestHost *host)
 {
@@ -359,12 +359,12 @@ static void odd_test_case(SimResults *results, const unsigned int *extent, unsig
     for (unsigned int voxel = 0u; voxel < voxels; voxel += 1u)
     {
         const unsigned long long draw = sim_draw(key, voxel);
-        // a remainder below the kinds' count fits unsigned int
-        const unsigned int kind = (unsigned int)(draw % ODD_TEST_KINDS);
-        // the draw's bits past the kind, masked to 16, fit unsigned int
+        // a remainder below the types' count fits unsigned int
+        const unsigned int type = (unsigned int)(draw % ODD_TEST_KINDS);
+        // the draw's bits past the type, masked to 16, fit unsigned int
         const unsigned int value =
-            (kind == 0u) ? 0u : ((kind == 1u) ? 0xFFFFu : (unsigned int)((draw >> 8u) & 0xFFFFull));
-        // a value of at most 16 bits narrows to unsigned short exactly
+            (type == 0u) ? 0u : ((type == 1u) ? 0xFFFFu : (unsigned int)((draw >> 8u) & 0xFFFFull));
+        // a value of at max 16 bits narrows to unsigned short exactly
         host->volume[voxel] = (unsigned short)value;
     }
     odd_test_expect(extent, &set, host);
@@ -470,7 +470,7 @@ static void odd_test_period(SimResults *results, const OddTestDevice *device, Od
     {
         for (unsigned int voxel = 0u; voxel < extent[2]; voxel += 1u)
         {
-            // a value of at most 16 bits narrows to unsigned short exactly
+            // a value of at max 16 bits narrows to unsigned short exactly
             host->volume[voxel] = (unsigned short)PERIOD_TEST_VALUES[voxel % period];
         }
         const int placed = (cudaMemcpy(device->volume, host->volume, (size_t)extent[2] * sizeof(unsigned short),
@@ -519,7 +519,7 @@ static void odd_test_errors(SimResults *results, const OddTestDevice *device)
     residual.error = &error;
     EngineStep program[RESIDUAL_STEPS];
     sim_check(results,
-              (residual_program(&residual, program) == RESIDUAL_ERROR) && (error.kind == ENGINE_ERROR_REQUEST) &&
+              (residual_program(&residual, program) == RESIDUAL_ERROR) && (error.type == ENGINE_ERROR_REQUEST) &&
                   (error.module == ENGINE_MODULE_RESIDUAL),
               "an odd background order errors on the residual's program, a request error from residual");
     memset(program, 0, sizeof(program));
@@ -538,7 +538,7 @@ static void odd_test_errors(SimResults *results, const OddTestDevice *device)
     // the five steps written here: the comb, the smooth, the retention, the background's smooth and the subtraction
     const KeymathEncodeRequest encode_request = {program, 5u, &math, &error};
     sim_check(results,
-              (keymath_encode(&encode_request) == KEYMATH_ERROR) && (error.kind == ENGINE_ERROR_REQUEST) &&
+              (keymath_encode(&encode_request) == KEYMATH_ERROR) && (error.type == ENGINE_ERROR_REQUEST) &&
                   (error.module == ENGINE_MODULE_KEYMATH),
               "a subtraction of terms half a voxel apart errors on the encoding, a request error from keymath");
     memset(&error, 0, sizeof(error));
@@ -555,7 +555,7 @@ static void odd_test_errors(SimResults *results, const OddTestDevice *device)
     request.device_out = device->sweep_out;
     request.error = &error;
     sim_check(results,
-              (unit_sweep_residual(&request) == UNIT_SWEEP_ERROR) && (error.kind == ENGINE_ERROR_REQUEST) &&
+              (unit_sweep_residual(&request) == UNIT_SWEEP_ERROR) && (error.type == ENGINE_ERROR_REQUEST) &&
                   (error.module == ENGINE_MODULE_UNIT_SWEEP),
               "an odd background order errors on the unit sweeps, a request error from unit_sweep");
 }

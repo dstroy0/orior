@@ -6,7 +6,7 @@
 //
 // A scenario contains one line a cycle, a spec for each side: satisfied, not, late or unasked. Each side is a run of
 // queries put through query_put (src/cu/transpiler/lstar/protocol/query/query_put.h) between two reads of the clock,
-// and the trace line written for it is the kind its queries came back as and the clock's advance across the run:
+// and the trace line written for it is the type its queries came back as and the clock's advance across the run:
 //
 //     satisfied  QUERY_EQUALS at a word the program owns, carrying the word it contains
 //     not        QUERY_EQUALS at that word, carrying a word it does not contain
@@ -56,14 +56,14 @@ static unsigned long long s_late_past = 0ull;
 // the record the bound is read from: the largest and least satisfied run, how many runs, the clock's step and the bound
 typedef struct
 {
-    unsigned long long most;
+    unsigned long long max;
     unsigned long long least;
     unsigned long long runs;
     unsigned long long step;
     unsigned long long bound;
 } TraceRecord;
 
-// one side's run: the kind its queries came back as, and the clock's advance across it
+// one side's run: the type its queries came back as, and the clock's advance across it
 static unsigned int trace_run(const char *spec, unsigned long long clock, unsigned long long *cost)
 {
     Query query = {0};
@@ -95,14 +95,14 @@ static unsigned int trace_run(const char *spec, unsigned long long clock, unsign
     }
     const unsigned int end = host_read(clock);
     *cost = (unsigned long long)(end - start);
-    return query.kind;
+    return query.type;
 }
 
 // a satisfied run put and added to the record; 1 where it lands under the bound the record had before it
 static unsigned int trace_satisfied(TraceRecord *record, unsigned long long clock, unsigned long long *cost)
 {
     trace_run("satisfied", clock, cost);
-    record->most = (*cost > record->most) ? *cost : record->most;
+    record->max = (*cost > record->max) ? *cost : record->max;
     record->least = (*cost < record->least) ? *cost : record->least;
     record->runs += 1ull;
     return (*cost <= record->bound) ? 1u : 0u;
@@ -125,7 +125,7 @@ static unsigned long long trace_walk(TraceRecord *record, unsigned long long clo
             all_satisfied = (trace_satisfied(record, clock, &cost) != 0u) ? all_satisfied : 0u;
         }
         const unsigned long long before = record->bound;
-        record->bound = record->most + (record->most - record->least) + record->step;
+        record->bound = record->max + (record->max - record->least) + record->step;
         printf("  a step of %llu satisfied runs: the bound swings %llu, to %llu counts\n", length,
                record->bound - before, record->bound);
     }
@@ -133,9 +133,9 @@ static unsigned long long trace_walk(TraceRecord *record, unsigned long long clo
     return record->bound - from;
 }
 
-static const char *trace_kind(unsigned int kind, unsigned long long cost, unsigned long long bound)
+static const char *trace_type(unsigned int type, unsigned long long cost, unsigned long long bound)
 {
-    if (kind != QUERY_SATISFIED)
+    if (type != QUERY_SATISFIED)
     {
         return "UNSATISFIED";
     }
@@ -150,8 +150,8 @@ static void trace_side(FILE *out, const char *spec, unsigned long long clock, un
         return;
     }
     unsigned long long cost = 0ull;
-    const unsigned int kind = trace_run(spec, clock, &cost);
-    fprintf(out, "%s %llu ", trace_kind(kind, cost, bound), cost);
+    const unsigned int type = trace_run(spec, clock, &cost);
+    fprintf(out, "%s %llu ", trace_type(type, cost, bound), cost);
 }
 #endif
 
@@ -216,12 +216,12 @@ int main(int count_of_words, char **words)
     {
         trace_satisfied(&record, clock, &baseline[run]);
     }
-    record.bound = record.most + (record.most - record.least) + record.step;
+    record.bound = record.max + (record.max - record.least) + record.step;
     const unsigned long long first_bound = record.bound;
     trace_walk(&record, clock, ahead);
 
     fprintf(out, "# clock 0x%llx, step %llu, bound %llu from %llu unbound satisfied runs (%llu to %llu)\n", clock,
-            record.step, record.bound, record.runs, record.least, record.most);
+            record.step, record.bound, record.runs, record.least, record.max);
     for (unsigned int run = 0u; run < 4u; run += 1u)
     {
         fprintf(out, "SATISFIED %llu SATISFIED %llu %llu\n", baseline[2u * run], baseline[(2u * run) + 1u],

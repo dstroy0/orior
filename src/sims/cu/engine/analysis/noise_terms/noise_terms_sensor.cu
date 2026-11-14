@@ -14,11 +14,11 @@ static int terms_static_columns(const unsigned short *lanes, unsigned long long 
     unsigned long long *const totals = (unsigned long long *)calloc((size_t)voxels, sizeof(unsigned long long));
     unsigned long long *const squares = (unsigned long long *)calloc((size_t)voxels, sizeof(unsigned long long));
     unsigned short *const least = (unsigned short *)malloc((size_t)voxels * sizeof(unsigned short));
-    unsigned short *const maximum = (unsigned short *)calloc((size_t)voxels, sizeof(unsigned short));
+    unsigned short *const max = (unsigned short *)calloc((size_t)voxels, sizeof(unsigned short));
     unsigned char *const mask = (unsigned char *)malloc((size_t)voxels);
     unsigned long long *const counted =
         (unsigned long long *)calloc((size_t)TERMS_LANE_VALUES, sizeof(unsigned long long));
-    const int ok = (totals != NULL) && (squares != NULL) && (least != NULL) && (maximum != NULL) && (mask != NULL) &&
+    const int ok = (totals != NULL) && (squares != NULL) && (least != NULL) && (max != NULL) && (mask != NULL) &&
                    (counted != NULL);
     memset(columns, 0, (size_t)TERMS_WIDTH * sizeof(unsigned long long));
     *ceiling = 0ull;
@@ -32,7 +32,7 @@ static int terms_static_columns(const unsigned short *lanes, unsigned long long 
             {
                 totals[voxel] += lane[voxel];
                 least[voxel] = (lane[voxel] < least[voxel]) ? lane[voxel] : least[voxel];
-                maximum[voxel] = (lane[voxel] > maximum[voxel]) ? lane[voxel] : maximum[voxel];
+                max[voxel] = (lane[voxel] > max[voxel]) ? lane[voxel] : max[voxel];
                 if (frame != 0ull)
                 {
                     const unsigned short before = lanes[((frame - 1ull) * voxels) + voxel];
@@ -47,8 +47,8 @@ static int terms_static_columns(const unsigned short *lanes, unsigned long long 
         {
             const unsigned long long bound = (TERMS_QUIET_SLOPE * totals[voxel]) + (TERMS_QUIET_FLOOR * TERMS_FRAMES);
             const int still = (squares[voxel] * TERMS_FRAMES) <= ((TERMS_FRAMES - 1ull) * bound);
-            mask[voxel] = ((least[voxel] != 0u) && (maximum[voxel] != TERMS_LANE_TOP) &&
-                           (least[voxel] != maximum[voxel]) && still)
+            mask[voxel] = ((least[voxel] != 0u) && (max[voxel] != TERMS_LANE_TOP) &&
+                           (least[voxel] != max[voxel]) && still)
                               ? 1u
                               : 0u;
             if (mask[voxel] != 0u)
@@ -76,7 +76,7 @@ static int terms_static_columns(const unsigned short *lanes, unsigned long long 
     free(totals);
     free(squares);
     free(least);
-    free(maximum);
+    free(max);
     free(mask);
     free(counted);
     return ok;
@@ -86,7 +86,7 @@ static int terms_static_columns(const unsigned short *lanes, unsigned long long 
 // variance r^2, no fixed pattern: at a level L = O + g S the cumulants are k2 = g (L - O) + r^2, k3 = g^2 (L - O) and
 // k4 = g^3 (L - O) - r^2 / 2. The ladder's slopes are g, g^2 and g^3, the k3 line crosses 0 at O, and the k2 line
 // reads r^2 there. A Poisson count satisfies both checks with equality. The sim prints them and checks neither. The
-// reaches are each the smallest fraction of the kind the check uses, fiftieths for s2, quarters for s3, tenths for
+// reaches are each the smallest fraction of the type the check uses, fiftieths for s2, quarters for s3, tenths for
 // R^2 and whole units for s4 and O, at or above 5 standard errors of the measurement over the static blocks here, the
 // quiet static quarter of the view, 19 blocks of 5 frames a voxel, worked over levels 22 to 84; the mask retains 22 to
 // 82. The standard errors, Derived, first order. A frame's shot cumulants 2 to 8 are g^2 S, g^3 S, g^4 S, 0,

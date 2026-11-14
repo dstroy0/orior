@@ -12,14 +12,14 @@
 # recorded as a fact about languages and it is a fact about the reading.
 #
 # The reading holds which of the commonest 64 characters follows which, and that is 4096 numbers
-# standing in for a whole language. Everything else is discarded: every dependency longer than one
+# located in for a whole language. Everything else is discarded: every dependency longer than one
 # character, the entire tail of the alphabet past rank 64, where a character sits inside a word, and all
 # word and morpheme structure. A margin of seven percent is what is left after that. It is not what
 # a language is worth.
 #
 # So the reading is extended in the one direction that recovers dependencies instead of resolution. Pairs
 # see one character back, triples see two, quadruples see three, and a language's habits live at those
-# lengths: the letters that may follow each other, the endings it inflects with, the clusters it forbids.
+# lengths: the characters that may follow each other, the endings it inflects with, the clusters it forbids.
 # The alphabet is narrowed as the order grows so the count of numbers stays manageable, which trades
 # breadth for depth deliberately, and it is stated here because it is a choice.
 #
@@ -50,7 +50,7 @@ CAP = 200000
 LEAST = 70000
 RANKS = 64
 
-# Order of the reading and how many ranks it keeps. The alphabet narrows as the order grows because the
+# Order of the reading and how many ranks it retains. The alphabet narrows as the order grows because the
 # count of cells is the ranks raised to the order, and 64 characters at order four is sixteen million.
 ORDERS = ((1, 96), (2, 48), (3, 20), (4, 11), (5, 8), (6, 6), (7, 5))
 

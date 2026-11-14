@@ -239,7 +239,7 @@ static inline __host__ __device__ unsigned long long sim_signal(const SimScene *
 static inline __host__ __device__ long long sim_centerd(unsigned long long key, unsigned long long counter,
                                                         unsigned long long square)
 {
-    // a head count of at most 4 square is far below 2^62
+    // a head count of at max 4 square is far below 2^62
     return (long long)sim_binomial_half(key, counter, 4ull * square) - (2ll * (long long)square);
 }
 

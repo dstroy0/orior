@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// A LaTeX file's pages in the live preview: made as it is typed, the last pages kept while the next
+// A LaTeX file's pages in the live preview: made as it is typed, the last pages retained while the next
 // are made, the errors of a make that failed listed over them, and the text tied to the pages both
 // ways by SyncTeX.
 
@@ -49,7 +49,7 @@ test("a LaTeX file shows as its pages beside its text, the cursor's line marked 
   await ui.waitFor(() => pages().length === 2, 60000).catch((error) => {
     throw new Error(`${error.message}: ${JSON.stringify(lastMade()?.errors ?? null)}`);
   });
-  assert.equal(pane().dataset.kind, "latex");
+  assert.equal(pane().dataset.type, "latex");
   const { editor } = editing();
   editor.goTo(4, 3);
   await ui.waitFor(() => pane().querySelector('.tex-page[data-page="2"] .tex-here'), 3000);
@@ -57,7 +57,7 @@ test("a LaTeX file shows as its pages beside its text, the cursor's line marked 
   // the test's own time covers the minute its wait for the pages allows the make
 }, { timeout: 90000 });
 
-test("a key typed is made again, the last pages kept while it is", async () => {
+test("a key typed is made again, the last pages retained while it is", async () => {
   const before = pane().querySelector(".tex-pages");
   const { editor } = editing();
   editor.goTo(4, 3);
@@ -82,17 +82,17 @@ test("a press on a page takes the editor to the line set there", async () => {
   const [across] = box.lines.find(([, line]) => line === 5);
   await ui.click({ x: rect.left + ((across + 2) / view.width) * rect.width, y: rect.top + ((box.y + box.h / 2) / view.height) * rect.height });
   await ui.waitFor(() => editing().editor.head().line === 4, 2000).catch((error) => {
-    throw new Error(`${error.message}: the editor stands at line ${editing().editor.head().line}`);
+    throw new Error(`${error.message}: the editor is at line ${editing().editor.head().line}`);
   });
 });
 
-test("a make that fails keeps the last pages and lists its errors over them, each taking the editor to its line", async () => {
+test("a make that fails retains the last pages and lists its errors over them, each taking the editor to its line", async () => {
   const { editor } = editing();
   editor.goTo(2, 0);
   editor.focus();
   await ui.type("\\nosuchcommand ");
   await ui.waitFor(() => pane().querySelector(".tex-error"), 60000);
-  assert.equal(pages().length, 2, "the last pages kept");
+  assert.equal(pages().length, 2, "the last pages retained");
   assert.match(pane().querySelector(".tex-error").textContent, /^3: Undefined control sequence/);
   editor.goTo(0, 0);
   await ui.click(pane().querySelector(".tex-error"));

@@ -40,6 +40,6 @@ test("a screen line is drawn a run a style, the cursor's cell a run of its own",
   line.cells[1] = ["b", PLAIN];
   assert.equal(lineHtml(line, 1), 'a<span class="t-cursor">b</span> ');
   assert.equal(lineHtml(line, -1), "ab ");
-  assert.deepEqual(blank(restyled(PLAIN, [41]))[1].bg, 1, "a blank cell keeps the background it was erased in");
+  assert.deepEqual(blank(restyled(PLAIN, [41]))[1].bg, 1, "a blank cell retains the background it was erased in");
   assert.equal(blank(restyled(PLAIN, [1]))[1], PLAIN, "and nothing else");
 });

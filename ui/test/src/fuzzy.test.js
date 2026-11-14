@@ -9,13 +9,13 @@ test("an empty query matches with no places", () => {
   assert.deepEqual(fuzzy("", "main.js"), { score: 0, hits: [] });
 });
 
-test("the query's letters in order match, case aside", () => {
+test("the query's characters in order match, case aside", () => {
   const found = fuzzy("MJ", "main.js");
   assert.ok(found, "MJ matches main.js");
   assert.deepEqual(found.hits, [0, 5]);
 });
 
-test("letters out of order do not match", () => {
+test("characters out of order do not match", () => {
   assert.equal(fuzzy("jm", "main.js"), null);
 });
 
@@ -23,13 +23,13 @@ test("spaces in the query are left out", () => {
   assert.deepEqual(fuzzy("ma in", "main.js")?.hits, [0, 1, 2, 3]);
 });
 
-test("a letter starting a word is taken over an earlier one inside a word", () => {
+test("a character starting a word is taken over an earlier one inside a word", () => {
   assert.deepEqual(fuzzy("v", "move/view.js", 5).hits, [5]);
 });
 
-test("a query torn into more pieces than half its letters or three does not match", () => {
+test("a query torn into more pieces than half its characters or three does not match", () => {
   assert.equal(fuzzy("abcd", "a_x_b_x_c_x_d"), null);
-  assert.ok(fuzzy("abc", "a_x_b_x_c"), "three pieces of three letters match");
+  assert.ok(fuzzy("abc", "a_x_b_x_c"), "three pieces of three characters match");
 });
 
 test("a match in the name outranks one spread over the folders", () => {
@@ -39,15 +39,15 @@ test("a match in the name outranks one spread over the folders", () => {
   assert.ok(inName.score > spread.score, `${inName.score} over ${spread.score}`);
 });
 
-test("a run of letters scores more than the same letters apart inside a word", () => {
+test("a run of characters scores more than the same characters apart inside a word", () => {
   assert.ok(fuzzy("abc", "xabcx").score > fuzzy("abc", "xaxbxcx").score);
 });
 
-test("letters that start words score more than a run inside one", () => {
+test("characters that start words score more than a run inside one", () => {
   assert.ok(fuzzy("abc", "a_b_c").score > fuzzy("abc", "xabcx").score);
 });
 
-test("marked text marks the places matched and keeps the rest as text", () => {
+test("marked text marks the places matched and retains the rest as text", () => {
   const nodes = marked("main.js", [0, 1, 5]);
   assert.deepEqual(
     nodes.map((node) => [node.nodeName, node.textContent]),

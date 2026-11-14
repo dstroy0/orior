@@ -4,7 +4,7 @@
 #include "notebook_internal.h"
 
 // A merge's work state, one cell sized to the cells of its three books: the cells of each side, where each base cell
-// stands on each side, CLI_JSON_NONE where it stands on none, and the table of the longest runs of the same cells, a
+// is on each side, CLI_JSON_NONE where it is on none, and the table of the longest runs of the same cells, a
 // row for each base cell and one more, each as wide as the longer side and one more
 typedef struct
 {
@@ -15,7 +15,7 @@ typedef struct
     unsigned int *theirs_at;
     unsigned int *table;
 } CliMergeWorkState;
-// the most lines of one cell's source two cells are compared by
+// the max lines of one cell's source two cells are compared by
 #define CLI_NOTEBOOK_LINES 4096u
 
 typedef struct
@@ -179,7 +179,7 @@ int cli_notebook_for_diff(const CliNotebookTextCfg *args)
     }
     return 1;
 }
-// the lines of a text, CLI_NOTEBOOK_LINES at the most, each its start and its end, into `lines` where it is given:
+// the lines of a text, CLI_NOTEBOOK_LINES at max, each its start and its end, into `lines` where it is given:
 // their count
 EMBED_INLINE unsigned int cli_lines_split(const NotebookMergeCtx *args)
 {
@@ -288,7 +288,7 @@ EMBED_INLINE int cli_same_cell(const NotebookMergeCtx *args)
            EMBED_CALL(cli_alike, NotebookMergeCtx, .json = json, .one = one, .other = other);
 }
 
-// For each cell of `base`, where the same cell stands in `other`, by the longest run of matches in order, as a diff
+// For each cell of `base`, where the same cell is in `other`, by the longest run of matches in order, as a diff
 // aligns lines, the table of runs stored in `runs`, a row of `m` and one more for each of `n` and one more
 static void cli_align(const NotebookMergeCtx *args)
 {
@@ -348,7 +348,7 @@ static void cli_align(const NotebookMergeCtx *args)
 #undef CLI_RUN
 }
 
-// the cells of a book's `cells`, at most CLI_NOTEBOOK_CELLS, into `cells` where it is given: their count
+// the cells of a book's `cells`, at max CLI_NOTEBOOK_CELLS, into `cells` where it is given: their count
 EMBED_INLINE unsigned int cli_cells(const NotebookMergeCtx *args)
 {
     const CliJson *json = args->json;
@@ -370,7 +370,7 @@ EMBED_INLINE unsigned int cli_cells(const NotebookMergeCtx *args)
     return count;
 }
 
-// the base cell a cell one side added follows there: the nearest cell before it that stands for a base cell, by that
+// the base cell a cell one side added follows there: the nearest cell before it that is for a base cell, by that
 // base cell's place, or CLI_JSON_NONE for the head
 EMBED_INLINE unsigned int cli_follows(const NotebookMergeCtx *args)
 {
@@ -387,7 +387,7 @@ EMBED_INLINE unsigned int cli_follows(const NotebookMergeCtx *args)
     return CLI_JSON_NONE;
 }
 
-// whether a side's cell `index` stands for a base cell
+// whether a side's cell `index` is for a base cell
 EMBED_INLINE int cli_on_alloc(const NotebookMergeCtx *args)
 {
     for (unsigned int base = 0u; base < args->bases; base += 1u)

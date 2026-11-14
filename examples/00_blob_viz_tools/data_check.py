@@ -22,7 +22,7 @@ blocks, four ternaries carrying defaults, one short circuit, and the assignment 
 `null` instead of `undefined`, `panelReady` returns false, and the panels are correctly absent
 instead of dead. The page was the wrong page to serve and it was not a broken one.
 
-A mechanism was asserted from a truncated regex. That is the failure this tree keeps recording under
+A mechanism was asserted from a truncated regex. That is the failure this tree retains recording under
 new names: the quantity reported was not the quantity intended. It is written here because this file
 was being built to catch that class and introduced an instance of it on the way.
 
@@ -168,7 +168,7 @@ def guarded_at(text, start, end):
     syntactic. Four shapes count, and each is a way of writing "if this is absent, carry on":
 
         if (DATA.x)          the test of a conditional
-        !DATA.x              negated, or handed to typeof
+        !DATA.x              negated, or passed to typeof
         DATA.x || 2          given a default, or leading a short circuit or a ternary
         cond ? DATA.x : 2    reached only when something already asked
     """

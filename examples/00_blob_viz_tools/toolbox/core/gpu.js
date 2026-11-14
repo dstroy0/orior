@@ -70,7 +70,7 @@ EV.readHead = async (reader, count) => {
   return pending;
 };
 
-// The rest of a stream, its head already read, laid into the landing from a byte place; nothing lands past the limit.
+// The rest of a stream, its head already read, positioned into the landing from a byte place; nothing lands past the limit.
 // Returns the stream's whole length.
 EV.streamInto = async (reader, landing, at, limit, head) => {
   let written = 0;

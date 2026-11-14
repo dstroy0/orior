@@ -100,23 +100,23 @@ void test_writing_again_replaces_the_bytes_and_the_root(void)
 
 void test_sealed_types_are_g_gsm_and_the_k_files(void)
 {
-    TEST_ASSERT_TRUE(ksg_kind_sealed("a/b.g"));
-    TEST_ASSERT_TRUE(ksg_kind_sealed("sm_86.krs"));
-    TEST_ASSERT_TRUE(ksg_kind_sealed("x.kqr"));
+    TEST_ASSERT_TRUE(ksg_type_sealed("a/b.g"));
+    TEST_ASSERT_TRUE(ksg_type_sealed("sm_86.krs"));
+    TEST_ASSERT_TRUE(ksg_type_sealed("x.kqr"));
 }
 
 void test_a_seal_and_key_files_are_not_sealed(void)
 {
-    TEST_ASSERT_FALSE(ksg_kind_sealed("x.ksg"));
-    TEST_ASSERT_FALSE(ksg_kind_sealed("x.ksa"));
-    TEST_ASSERT_FALSE(ksg_kind_sealed("x.ksk"));
-    TEST_ASSERT_FALSE(ksg_kind_sealed("x.kpk"));
+    TEST_ASSERT_FALSE(ksg_type_sealed("x.ksg"));
+    TEST_ASSERT_FALSE(ksg_type_sealed("x.ksa"));
+    TEST_ASSERT_FALSE(ksg_type_sealed("x.ksk"));
+    TEST_ASSERT_FALSE(ksg_type_sealed("x.kpk"));
 }
 
 void test_other_names_are_not_sealed(void)
 {
-    TEST_ASSERT_FALSE(ksg_kind_sealed("x.c"));
-    TEST_ASSERT_FALSE(ksg_kind_sealed("a.krs/b"));
-    TEST_ASSERT_FALSE(ksg_kind_sealed("x.k"));
-    TEST_ASSERT_FALSE(ksg_kind_sealed("x.KRS"));
+    TEST_ASSERT_FALSE(ksg_type_sealed("x.c"));
+    TEST_ASSERT_FALSE(ksg_type_sealed("a.krs/b"));
+    TEST_ASSERT_FALSE(ksg_type_sealed("x.k"));
+    TEST_ASSERT_FALSE(ksg_type_sealed("x.KRS"));
 }

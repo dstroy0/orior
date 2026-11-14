@@ -96,7 +96,7 @@ void lane_search_build(LaneProgram *program, int write_all, LaneSearch *search)
     search->hit = lane_output(program, hit);
 }
 
-// the program encoded, laid out with reuse and loaded over one member of three limbs: base, then T; on the interpreter
+// the program encoded, arranged with reuse and loaded over one member of three limbs: base, then T; on the interpreter
 // where `interpret`, else compiled where NVRTC and nvJitLink are found
 int lane_load(const LaneProgram *program, int interpret, LaneLoaded *loaded)
 {
@@ -137,7 +137,7 @@ void lane_free(LaneLoaded *loaded)
     keymath_record_release(&loaded->key);
 }
 
-// `bits` of value laid out into a record at `offset`
+// `bits` of value arranged into a record at `offset`
 void lane_put(unsigned int *record, unsigned int offset, unsigned int bits, unsigned long long value)
 {
     for (unsigned int bit = 0u; bit < bits; bit += 1u)

@@ -11,7 +11,7 @@
 #
 #   Usage:  python examples/0_experimental/exact_descent_rank.py
 #
-# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working instead of a stage
+# This reads no corpus. It sits in 0_experimental: an arithmetic result displayed working instead of a stage
 # reading. The arithmetic is the engine's own: Python integers as the bignum and exact residues mod
 # p^k, no float, no fraction library, no math library. The elliptic-curve group law used for the lower
 # bound is imported from exact_congruent_number.py so one representation carries both files.
@@ -30,7 +30,7 @@
 # Selmer group, and is dropped only when a probe holds a certificate that its torsor has no point over R
 # or some Q_p. The probe is one-directional, the engine's own discipline: it can only refute, on a
 # genuine obstruction, never falsely admit, and dropping a class only ever moves the count in the safe
-# direction (a class wrongly kept inflates the bound, which keeps it an upper bound). The real place is
+# direction (a class wrongly retained inflates the bound, which retains it an upper bound). The real place is
 # an exact sign condition: w^2 = d u^4 + f z^4 has a real point iff d > 0 or f > 0. The p-adic decision
 # is Hensel, with the level DERIVED from the form and not picked: a solution modulo p^k with the
 # Jacobian of the form having p-adic valuation j at that point lifts to a genuine Q_p point once
@@ -199,7 +199,7 @@ def solvable_qp(d, f, prime):
             return False  # every branch died: a certificate of insolubility
         survivors = list(set(following))
         level += 1
-    return True  # the derived level was reached with survivors: keep the class, the safe direction
+    return True  # the derived level was reached with survivors: retain the class, the safe direction
 
 
 def real_solvable(d, f):
@@ -328,7 +328,7 @@ def report_pinning(out):
 
 
 def report_probe_controls(out):
-    """Controls on the refute-only probe: soluble torsors kept, insoluble ones certified out."""
+    """Controls on the refute-only probe: soluble torsors retained, insoluble ones certified out."""
     out.write("  controls on the local-solvability probe (refute-only, in place of a permutation null)\n")
     # soluble everywhere: d = 1 has the point (u,z,w) = (1,0,1), w^2 = 1 = 1*1 + f*0
     soluble_real = real_solvable(1, -25)
@@ -338,13 +338,13 @@ def report_probe_controls(out):
     # p-adic-insoluble by branch death: w^2 = 3 u^4 + 3 z^4 over Q_3. Off the primes 3, the valuation of
     # 3(u^4 + z^4) is odd for a primitive point, hence not a square, and every branch dies.
     p_adic_insoluble = not solvable_qp(3, 3, 3)
-    # the paired positive: w^2 = u^4 + 3 z^4 over Q_3 has (1,0,1), which the probe keeps
+    # the paired positive: w^2 = u^4 + 3 z^4 over Q_3 has (1,0,1), which the probe retains
     p_adic_soluble = solvable_qp(1, 3, 3)
-    out.write("    d=1 torsor soluble over R and over Q_2, Q_5: %s (kept)\n" % (soluble_real and soluble_p))
+    out.write("    d=1 torsor soluble over R and over Q_2, Q_5: %s (retained)\n" % (soluble_real and soluble_p))
     out.write("    d=-1, f=-1 torsor has no real point: %s (refuted over R)\n" % real_obstruction)
     out.write("    w^2 = 3u^4 + 3z^4 has no Q_3 point, certified by branch death: %s (refuted)\n"
               % p_adic_insoluble)
-    out.write("    w^2 = u^4 + 3z^4 has a Q_3 point: %s (kept); the probe fires only on a real obstruction\n\n"
+    out.write("    w^2 = u^4 + 3z^4 has a Q_3 point: %s (retained); the probe fires only on a real obstruction\n\n"
               % p_adic_soluble)
     return (soluble_real and soluble_p) and real_obstruction and p_adic_insoluble and p_adic_soluble
 
@@ -383,7 +383,7 @@ def report_sha(out):
     out.write("    each is locally soluble at every place yet comes from no rational point: %s\n"
               % (each_locally_soluble and rank_zero))
     out.write("    these are exhibited nontrivial elements of the Tate-Shafarevich group, exact and\n")
-    out.write("    unconditional; they are the obstruction that keeps the first descent from being tight.\n\n")
+    out.write("    unconditional; they are the obstruction that retains the first descent from being tight.\n\n")
     return all(controls) and rank_zero and sha_phi == 0 and sha_phihat == 2 and each_locally_soluble
 
 

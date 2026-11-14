@@ -3,7 +3,7 @@
 // raster.c: the pixels the window draws and all that is drawn into them. Every blend is of bytes in the colors' own
 // space, a share from 0 to 255 of the color over what is there, as the page blends its colors, two channels at a
 // time in one word; a pixel drawn is left opaque. A dot is put down as the page's shader puts the lattice's down: each
-// pixel's share of it read in one step from how far the pixel's middle stands from the dot's edge, and the result
+// pixel's share of it read in one step from how far the pixel's middle is from the dot's edge, and the result
 // dithered by a 4 by 4 ordered threshold below one level of 255, so a share between two levels is put down as both
 #include "raster.h"
 
@@ -37,7 +37,7 @@ GuiRect gui_rect_intersect(const GuiRasterOneCfg *args)
 
 // A notch read: the hole it cuts in the work, the radius its turns are rounded by, no more than half its shorter
 // side, and each of its four corners, top left, top right, bottom left and bottom right: its point, whether it
-// stands on the work's left or right edge and on its top or bottom edge, and the way into the hole from it
+// is on the work's left or right edge and on its top or bottom edge, and the way into the hole from it
 typedef struct
 {
     GuiRect hole;
@@ -203,7 +203,7 @@ void gui_raster_fill(const GuiRasterRectColorCfg *args)
         }
         return;
     }
-    // the color's lanes by its share, with half of 255 in each, read once for the whole fill, as raster_blend lays
+    // the color's lanes by its share, with half of 255 in each, read once for the whole fill, as raster_blend positions
     // them; each pixel adds the ground's lanes by the rest
     const unsigned int rest = 255u - alpha;
     const unsigned int color_red_blue = ((args->color & 0x00ff00ffu) * alpha) + 0x00800080u;
@@ -321,7 +321,7 @@ EMBED_INLINE unsigned int raster_corner_cover(const GuiRasterCtx *args)
 }
 
 // The line a rounded fill with a stroke draws: each edge that meets a rounded corner filled the stroke wide, and each
-// rounded corner's square laid with the share of a pixel inside the outer arc less the share inside the inner arc. The
+// rounded corner's square positioned with the share of a pixel inside the outer arc less the share inside the inner arc. The
 // inner arc is the stroke in from the outer, on the rectangle the stroke in from each edge that the line runs along
 static void raster_ring(const GuiRasterRectColorCfg *args)
 {
@@ -435,8 +435,8 @@ void gui_raster_round(const GuiRasterRectColorCfg *args)
             const unsigned int corner = top ? (left ? GUI_RASTER_CORNER_TOP_LEFT : GUI_RASTER_CORNER_TOP_RIGHT)
                                             : (left ? GUI_RASTER_CORNER_BOTTOM_LEFT : GUI_RASTER_CORNER_BOTTOM_RIGHT);
             const int square = left || right;
-            const int square_kept = square && (args->corners != 0u) && ((args->corners & corner) == 0u);
-            const unsigned int cover = square_kept ? 255u
+            const int square_retained = square && (args->corners != 0u) && ((args->corners & corner) == 0u);
+            const unsigned int cover = square_retained ? 255u
                                                    : EMBED_CALL(raster_corner_cover, GuiRasterCtx, .rect = args->rect,
                                                                 .radius = args->radius, .x = x, .y = y);
             if (cover != 0u)
@@ -480,11 +480,11 @@ EMBED_INLINE unsigned int raster_grain_at(const GuiRasterCtx *args)
     {
         return 0u;
     }
-    const unsigned int laid =
+    const unsigned int positioned =
         args->background_fill
             .grain[(((unsigned int)args->y % args->background_fill.tile) * args->background_fill.tile) +
                    ((unsigned int)args->x % args->background_fill.tile)];
-    return ((laid * GUI_ALPHA_OF(args->background_fill.grain_color)) + 127u) / 255u;
+    return ((positioned * GUI_ALPHA_OF(args->background_fill.grain_color)) + 127u) / 255u;
 }
 
 // the ground's color at x, y, a pixel on the raster: the ground's own pixel with the color over it, and the grain's
@@ -553,7 +553,7 @@ void gui_raster_pane(const GuiRasterRectRadiusBackgroundCfg *args)
     }
 }
 
-// the square `work` at a corner of `rect`, rounded by `radius`: the ground laid over what was drawn outside the arc
+// the square `work` at a corner of `rect`, rounded by `radius`: the ground positioned over what was drawn outside the arc
 EMBED_INLINE void raster_corner_cut(const GuiRasterCtx *args)
 {
     const GuiRect square = args->work;
@@ -608,9 +608,9 @@ EMBED_INLINE int raster_notch_read(const GuiRasterCtx *args)
         return 0;
     }
     // the radius is no more than half the hole's sides, where the turns would meet
-    const unsigned int most = (unsigned int)(((hole.width < hole.height) ? hole.width : hole.height) / 2);
+    const unsigned int max = (unsigned int)(((hole.width < hole.height) ? hole.width : hole.height) / 2);
     args->read->hole = hole;
-    args->read->reach = (args->radius > most) ? most : args->radius;
+    args->read->reach = (args->radius > max) ? max : args->radius;
     const int left_edge = hole.x <= args->work.x;
     const int right_edge = hole.x + hole.width >= args->work.x + args->work.width;
     const int top_edge = hole.y <= args->work.y;
@@ -695,7 +695,7 @@ unsigned int gui_raster_notch_fillets(const GuiRasterRadiusCfg *args)
     return count;
 }
 
-// the share of the ground the hole takes at `column`, `row`: all of it, or inside the arc alone where a pixel stands in
+// the share of the ground the hole takes at `column`, `row`: all of it, or inside the arc alone where a pixel is in
 // one of the `count` fillet squares `holes`, each arc of `reach` about its centre in `centre_x` and `centre_y`
 EMBED_INLINE unsigned int raster_hole_share(const GuiRasterCtx *args)
 {
@@ -713,7 +713,7 @@ EMBED_INLINE unsigned int raster_hole_share(const GuiRasterCtx *args)
     return share;
 }
 
-// the turn out at the notch's `corner`: the ground outside its arc laid over what was drawn
+// the turn out at the notch's `corner`: the ground outside its arc positioned over what was drawn
 EMBED_INLINE void raster_turn_cut(const GuiRasterCtx *args)
 {
     int turn_x = 0;
@@ -749,7 +749,7 @@ void gui_raster_notch(const GuiRasterRadiusBackgroundCfg *args)
         return;
     }
     // the fillets: at a corner inside the work the outline turns in round the hole, and the square of the radius
-    // inside the hole at the corner takes the ground inside the arc alone, what was drawn standing outside it
+    // inside the hole at the corner takes the ground inside the arc alone, what was drawn located outside it
     GuiRect fillet[4];
     int centre_x[4];
     int centre_y[4];
@@ -830,9 +830,9 @@ EMBED_INLINE GuiColor raster_notch_line(const GuiRasterCtx *args)
     return args->lines->right;
 }
 
-// the work's own corner `corner`, top left, top right, bottom left or bottom right, laid: the square of the radius
+// the work's own corner `corner`, top left, top right, bottom left or bottom right, positioned: the square of the radius
 // at it, each pixel cut to the `clear` ground outside the arc of `inside` rounded by a pixel less than the radius,
-// the line of the nearer edge laid between that arc and the work's, and cut to the `table` outside the work's arc
+// the line of the nearer edge positioned between that arc and the work's, and cut to the `table` outside the work's arc
 EMBED_INLINE void raster_corner_outline(const GuiRasterCtx *args)
 {
     // the square's side is the radius, which an int holds
@@ -861,7 +861,7 @@ EMBED_INLINE void raster_corner_outline(const GuiRasterCtx *args)
                 raster_append, GuiRasterCtx, .raster = args->raster, .x = x, .y = y,
                 .color = EMBED_CALL(raster_background_at, GuiRasterCtx, .background_fill = args->clear, .x = x, .y = y),
                 .share = 255u - inner);
-            // the nearer edge's line: how far the pixel's middle stands in from the edge across and the edge down, in
+            // the nearer edge's line: how far the pixel's middle is in from the edge across and the edge down, in
             // half pixels
             const int from_across =
                 at_bottom ? (2 * (args->work.y + args->work.height - y)) - 1 : (2 * (y - args->work.y)) + 1;
@@ -891,7 +891,7 @@ EMBED_INLINE int raster_hole_reaches(const GuiRasterCtx *args)
     return (args->at == work.x) ? (hole.x <= work.x) : ((hole.x + hole.width) >= (work.x + work.width));
 }
 
-// the line of an edge laid along it between the work's corners, `from` to `to` along the edge, less the span of each
+// the line of an edge positioned along it between the work's corners, `from` to `to` along the edge, less the span of each
 // of the `count` holes reaching the edge grown by the radius on either side, where the line turns out round them
 static void raster_edge_line(const GuiRasterCtx *args)
 {
@@ -915,7 +915,7 @@ static void raster_edge_line(const GuiRasterCtx *args)
                       side;
         spans += 1u;
     }
-    // the line laid piece by piece: from each point along the edge to the next hole's span, then from that span's end
+    // the line positioned piece by piece: from each point along the edge to the next hole's span, then from that span's end
     int begin = args->from;
     while (begin < args->to)
     {
@@ -942,7 +942,7 @@ static void raster_edge_line(const GuiRasterCtx *args)
     }
 }
 
-// the fillet at the notch's `corner` laid: the `table` inside its arc, and the line of `color`, `width_value` pixels
+// the fillet at the notch's `corner` positioned: the `table` inside its arc, and the line of `color`, `width_value` pixels
 // wide, outside it, the square grown by the line's width on its sides at the corner
 EMBED_INLINE void raster_fillet_outline(const GuiRasterCtx *args)
 {
@@ -984,7 +984,7 @@ EMBED_INLINE void raster_fillet_outline(const GuiRasterCtx *args)
     }
 }
 
-// the turn out at the notch's `corner` laid: the `table` outside its arc, and the line of `color` inside it, within
+// the turn out at the notch's `corner` positioned: the `table` outside its arc, and the line of `color` inside it, within
 // its width, `width_value` pixels, of it
 EMBED_INLINE void raster_turn_outline(const GuiRasterCtx *args)
 {
@@ -1018,7 +1018,7 @@ EMBED_INLINE void raster_turn_outline(const GuiRasterCtx *args)
     }
 }
 
-// the lines the hole of `notch` bends round laid: the table inside each fillet's arc and outside each turn's, and the
+// the lines the hole of `notch` bends round positioned: the table inside each fillet's arc and outside each turn's, and the
 // line of the edge the hole reaches along the hole's sides inside the work, round the fillets and the turns
 EMBED_INLINE void raster_notch_outline(const GuiRasterCtx *args)
 {
@@ -1184,11 +1184,11 @@ void gui_raster_line(const GuiRasterColorX0Cfg *args)
 void gui_raster_mask(const GuiRasterXYColorCfg *args)
 {
     // a mask's sides are far inside what an int represents
-    const GuiRect laid = {args->x, args->y, (int)args->mask_bits->width, (int)args->mask_bits->height};
+    const GuiRect positioned = {args->x, args->y, (int)args->mask_bits->width, (int)args->mask_bits->height};
     GuiRect on;
     if (!EMBED_CALL(raster_drawn, GuiRasterCtx, .raster_read = args->raster,
                     .rect =
-                        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = laid, .other = args->clip),
+                        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = positioned, .other = args->clip),
                     .color = args->color, .on_out = &on))
     {
         return;
@@ -1215,10 +1215,10 @@ void gui_raster_mask(const GuiRasterXYColorCfg *args)
 void gui_raster_lanes_layout(const GuiRasterWidthXCfg *args)
 {
     // a picture's sides are far inside what an int represents
-    const GuiRect laid = {args->x, args->y, (int)args->width, (int)args->height};
+    const GuiRect positioned = {args->x, args->y, (int)args->width, (int)args->height};
     const GuiRect on =
         EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                   .one = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = laid, .other = args->clip),
+                   .one = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = positioned, .other = args->clip),
                    .other = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = args->raster));
     if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = on))
     {
@@ -1226,7 +1226,7 @@ void gui_raster_lanes_layout(const GuiRasterWidthXCfg *args)
     }
     for (int row = on.y; row < on.y + on.height; row += 1)
     {
-        // the row and column inside the picture are not negative, the rectangle laid lying inside it; the pixel lies
+        // the row and column inside the picture are not negative, the rectangle positioned lying inside it; the pixel lies
         // on the raster: its coordinates are not negative
         const unsigned int from = ((unsigned int)(row - args->y) * args->width) + (unsigned int)(on.x - args->x);
         const unsigned int *const text_color_red_blue = args->red_blue + from;
@@ -1248,10 +1248,10 @@ void gui_raster_lanes_layout(const GuiRasterWidthXCfg *args)
 void gui_raster_stencil(const GuiRasterXYColorCfg *args)
 {
     const unsigned long long pixels = (unsigned long long)args->mask_bits->width * args->mask_bits->height;
-    const unsigned int most = (args->raster->width * args->raster->height < pixels)
+    const unsigned int max = (args->raster->width * args->raster->height < pixels)
                                   ? args->raster->width * args->raster->height
                                   : (unsigned int)pixels;
-    for (unsigned int at = 0u; at < most; at += 1u)
+    for (unsigned int at = 0u; at < max; at += 1u)
     {
         args->raster->pixels[at] = ((GuiColor)args->mask_bits->cover[at] << 24u) | (args->color & 0x00ffffffu);
     }
@@ -1350,19 +1350,19 @@ void gui_raster_stenciled_over(const GuiRasterXYCfg *args)
             args->mask_bits->cover + ((unsigned int)(row - args->y) * args->mask_bits->width);
         for (int column = on.x; column < on.x + on.width; column += 1)
         {
-            const unsigned int laid = ((cover[(unsigned int)(column - args->x)] * alpha) + 127u) / 255u;
-            if (laid != 0u)
+            const unsigned int positioned = ((cover[(unsigned int)(column - args->x)] * alpha) + 127u) / 255u;
+            if (positioned != 0u)
             {
                 GuiColor *const at =
                     &args->picture->pixels[((unsigned int)row * args->picture->width) + (unsigned int)column];
                 const GuiColor had = *at;
-                const unsigned int saved = ((GUI_ALPHA_OF(had) * (255u - laid)) + 127u) / 255u;
-                const unsigned int total = laid + saved;
+                const unsigned int saved = ((GUI_ALPHA_OF(had) * (255u - positioned)) + 127u) / 255u;
+                const unsigned int total = positioned + saved;
                 // the two shares of a channel over their sum, rounded, are a byte
                 *at = GUI_RGBA(
-                    ((GUI_RED_OF(args->color) * laid) + (GUI_RED_OF(had) * saved) + (total / 2u)) / total,
-                    ((GUI_GREEN_OF(args->color) * laid) + (GUI_GREEN_OF(had) * saved) + (total / 2u)) / total,
-                    ((GUI_BLUE_OF(args->color) * laid) + (GUI_BLUE_OF(had) * saved) + (total / 2u)) / total, total);
+                    ((GUI_RED_OF(args->color) * positioned) + (GUI_RED_OF(had) * saved) + (total / 2u)) / total,
+                    ((GUI_GREEN_OF(args->color) * positioned) + (GUI_GREEN_OF(had) * saved) + (total / 2u)) / total,
+                    ((GUI_BLUE_OF(args->color) * positioned) + (GUI_BLUE_OF(had) * saved) + (total / 2u)) / total, total);
             }
         }
     }
@@ -1381,7 +1381,7 @@ void gui_raster_picture_layout(const GuiRasterXCfg *args)
     }
     for (int row = on.y; row < on.y + on.height; row += 1)
     {
-        // the row and column inside the picture are not negative, the rectangle laid lying inside it
+        // the row and column inside the picture are not negative, the rectangle positioned lying inside it
         const GuiColor *const from =
             args->picture_read->pixels + ((unsigned int)(row - args->y) * args->picture_read->width);
         for (int column = on.x; column < on.x + on.width; column += 1)
@@ -1422,7 +1422,7 @@ typedef struct
 } GuiRasterDotCtx;
 
 // One channel of a dot's pixel, from 0 to 255: the float dot's arithmetic held whole over RASTER_DOT_DENOMINATOR.
-// `inside` is radius + 0.5 less the distance, in 16.16, and above 0. The cover is `inside` to at most one pixel. The
+// `inside` is radius + 0.5 less the distance, in 16.16, and above 0. The cover is `inside` to at max one pixel. The
 // share is the cover by the ink over 255. The threshold is the order less 7.5, over 16. The level is the color by
 // the share plus the threshold, in 0 to 255, plus the ground by what the share leaves of it. The level rounds once
 EMBED_INLINE unsigned int raster_dot_level(const GuiRasterDotCtx *args)
@@ -1434,11 +1434,11 @@ EMBED_INLINE unsigned int raster_dot_level(const GuiRasterDotCtx *args)
     // the share's alpha, 255 * share + threshold, and the color's part, color * share + threshold, both over the
     // denominator
     const embed_i64 alpha = (share * 32) + (threshold * 65536);
-    const embed_i64 laid = ((embed_i64)args->color * share * 32) + (threshold * 255 * 65536);
+    const embed_i64 positioned = ((embed_i64)args->color * share * 32) + (threshold * 255 * 65536);
     const embed_i64 alpha_within =
         (alpha < 0) ? 0 : ((alpha > RASTER_DOT_DENOMINATOR) ? RASTER_DOT_DENOMINATOR : alpha);
     const embed_i64 within =
-        (laid < 0) ? 0 : ((laid > 255 * RASTER_DOT_DENOMINATOR) ? 255 * RASTER_DOT_DENOMINATOR : laid);
+        (positioned < 0) ? 0 : ((positioned > 255 * RASTER_DOT_DENOMINATOR) ? 255 * RASTER_DOT_DENOMINATOR : positioned);
     const embed_i64 level = within + ((embed_i64)args->background * (RASTER_DOT_DENOMINATOR - alpha_within));
     if (level >= 255 * RASTER_DOT_DENOMINATOR)
     {
@@ -1459,7 +1459,7 @@ void gui_raster_grain(const GuiRasterRectRadiusCfg *args)
     }
     const GuiColor grain_color = args->color;
     // the corners' squares are radius by radius, which an int holds; a row through them reads each pixel's share
-    // inside the arcs, every other row lays the grain whole
+    // inside the arcs, every other row positions the grain whole
     const int side = (int)args->radius;
     for (int y = on.y; y < on.y + on.height; y += 1)
     {
@@ -1513,7 +1513,7 @@ void gui_raster_dot(const GuiRasterColorCfg *args)
     {
         return;
     }
-    // The center and the edge are in 16.16 fixed point. A float position below 2^11 holds at most 13 fraction bits,
+    // The center and the edge are in 16.16 fixed point. A float position below 2^11 holds at max 13 fraction bits,
     // so the scale by 2^16 is exact. The edge is radius + 0.5, as the float dot adds it
     const embed_i64 center_x = (embed_i64)(args->x_f32 * 65536.0f);
     const embed_i64 center_y = (embed_i64)(args->y_f32 * 65536.0f);

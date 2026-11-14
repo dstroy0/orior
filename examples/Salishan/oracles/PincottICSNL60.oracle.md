@@ -5,10 +5,10 @@ Pincott, ICSNL 60.
 
 Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
-pure corpus, then against this paper's own English laid over that reference. What the paper's
+pure corpus, then against this paper's own English positioned over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
 from the characters that sit outside that English, and word_web.web() built 518 edges over the
-language forms. A person then matched the context: who, kind and gloss for each row, the names,
+language forms. A person then matched the context: who, type and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
 someone reads the paper again and says otherwise.
@@ -23,10 +23,10 @@ each matched to the form of the example it writes. The acknowledgement opening f
 author's own Secwepemctsín. The prose, the translations, the captions and the sound changes carry
 Ethan Pincott.
 
-THE LETTERS
+THE CHARACTERS
 
-Outside the paper's English the engine found these letters and marks: á é í ó ú ƛ ǝ ə ɣ ɬ ʔ ʕ ʷ ́ ̌
-̓ ̣ ị. The examples are in Americanist letters: ʷ for rounding, ̓ U+0313 comma above for
+Outside the paper's English the engine found these characters and marks: á é í ó ú ƛ ǝ ə ɣ ɬ ʔ ʕ ʷ ́ ̌
+̓ ̣ ị. The examples are in Americanist characters: ʷ for rounding, ̓ U+0313 comma above for
 glottalization, ʔ for the glottal stop, ʕ for the pharyngeal, ɬ, ƛ̓, x̌ with U+030C caron for the
 uvular, and ə with an acute for stressed schwa. / / hold underlying and phonemic forms and [ ]
 surface ones; √ marks a root and * a reconstruction or a pre-Secwepemctsín form. The community
@@ -41,7 +41,7 @@ layer drops; the table writes it as a 400 dpi render shows. The text layer space
 slashes on pages 5 and 11, / k̓lám/, and runs the first two cells of Table 6's ‘transverse’ row
 together; the glyph positions set them as the table writes them. The paper numbers two tables 8, on
 pages 10 and 12, and the table names each by its page. Figure 1 is a chart the text layer does not
-carry, and only its caption is kept.
+carry, and only its caption is retained.
 
 orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 612
@@ -53,7 +53,7 @@ where    the paper's locator: the title, the front matter, a section, a footnote
 who      the language for an example tier and a cited form; the work cited on an example's
          line, or the speaker for a volunteered translation, for its English; the authors for
          the prose, the tables and the notes
-kind     transcription  an example tier in the orthography
+type     transcription  an example tier in the orthography
          phonemic       an example tier in a phonemic alphabet
          translation    the English of an example
          cited form     a word of the language named in the prose, a note or a table

@@ -6,13 +6,13 @@
     python utils/maint/engine/gnascor_read.py <trace>
     python utils/maint/engine/gnascor_read.py --check
 
-A trace holds one line a cycle: the kind and cost of the left side's ask, the kind and cost of the
-right side's, and the bound both were put under, the kinds as QueryKind in
+A trace holds one line a cycle: the type and cost of the left side's ask, the type and cost of the
+right side's, and the bound both were put under, the types as QueryKind in
 src/cu/transpiler/lstar/protocol/query/query_put.h names them.
 
     SATISFIED 412 UNSATISFIED 380 900
 
-A side that was not asked is written as - for its kind and - for its cost.
+A side that was not asked is written as - for its type and - for its cost.
 
 The tables are read out of src/cu/transpiler/gnascor.md each run and are never copied here.
 
@@ -52,7 +52,7 @@ sys.path.insert(0, HERE)
 from order_check import MATRIX_DOC, read_matrices, table_cells  # noqa: E402
 
 KINDS = ("SATISFIED", "UNSATISFIED", "PAST_BOUND", "ENDED")
-# the kind a side carries where it was not asked
+# the type a side carries where it was not asked
 UNASKED = "-"
 
 # how many leading cycles of a trace are its baseline
@@ -71,14 +71,14 @@ def candidates_of(path=MATRIX_DOC):
 
 
 def read_cycle(line):
-    """One trace line as ((left kind, left cost), (right kind, right cost), bound)."""
+    """One trace line as ((left type, left cost), (right type, right cost), bound)."""
     words = line.split()
     known = KINDS + (UNASKED,)
     if len(words) != 5 or words[0] not in known or words[2] not in known:
-        raise ValueError("a trace line is: <kind> <cost> <kind> <cost> <bound>, read: %r" % line)
+        raise ValueError("a trace line is: <type> <cost> <type> <cost> <bound>, read: %r" % line)
 
-    def side(kind, cost):
-        return (kind, 0) if kind == UNASKED else (kind, int(cost))
+    def side(type, cost):
+        return (type, 0) if type == UNASKED else (type, int(cost))
 
     return side(words[0], words[1]), side(words[2], words[3]), int(words[4])
 
@@ -86,26 +86,26 @@ def read_cycle(line):
 def baseline_of(cycles):
     """The largest cost of any satisfied ask in the baseline cycles, and 0 where none was satisfied."""
     costs = [cost for left, right, _bound in cycles[:BASELINE_CYCLES]
-             for kind, cost in (left, right) if kind == "SATISFIED"]
+             for type, cost in (left, right) if type == "SATISFIED"]
     return max(costs) if costs else 0
 
 
 def state_of(left, right, edge):
     """A cycle's state from its two sides."""
-    kinds = (left[0], right[0])
-    if "ENDED" in kinds:
+    types = (left[0], right[0])
+    if "ENDED" in types:
         return "blok"
-    if UNASKED in kinds:
+    if UNASKED in types:
         return "gray"
-    if "SATISFIED" in kinds and "PAST_BOUND" in kinds:
+    if "SATISFIED" in types and "PAST_BOUND" in types:
         return "wait"
-    if kinds == ("SATISFIED", "SATISFIED"):
+    if types == ("SATISFIED", "SATISFIED"):
         if left[1] > edge and right[1] > edge:
             return "busy"
         return "dual"
-    if kinds[0] == "SATISFIED":
+    if types[0] == "SATISFIED":
         return "lead"
-    if kinds[1] == "SATISFIED":
+    if types[1] == "SATISFIED":
         return "rite"
     return "void"
 
@@ -279,7 +279,7 @@ def check():
             rows.append((left, right, 1000))
         states, labels = run(rows)
         broken += 0 if atomic(labels) else 1
-        # every sync passage gives back, from its labels alone, the exact pair it stood for
+        # every sync passage gives back, from its labels alone, the exact pair it was for
         sync_pairs = [(past, now) for past, now, label in zip(states, states[1:], labels) if label == "sync"]
         sync_total += len(sync_pairs)
         sync_lost += 0 if pairs_from_labels(steps(states, labels)) == sync_pairs else 1
@@ -293,7 +293,7 @@ def check():
           % sync_total)
 
     # every pair the tables name is decided in every situation a side can be in
-    situations = [(kind, cost) for kind in KINDS for cost in (0, 100, 1050, 5000)]
+    situations = [(type, cost) for type in KINDS for cost in (0, 100, 1050, 5000)]
     undecided = 0
     for pair, names in held.items():
         for left in situations:

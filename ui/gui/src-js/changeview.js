@@ -4,8 +4,8 @@
 // A change reviewed by its structure (review.rs). Review Changes by Structure shows the tree's change
 // against its last commit, or a commit's against its first parent, as the declarations it touches and
 // not file by file: each piece its declaration's lines, those taken out and those put in marked, one
-// added or taken out whole said to be, and one moved named with where it stood. The pieces that call
-// one another stand together in a row, each caller before what it calls, and the names a piece calls
+// added or taken out whole said to be, and one moved named with where it was. The pieces that call
+// one another are together in a row, each caller before what it calls, and the names a piece calls
 // under its name go to those pieces. A piece's name opens its file at its line. A commit is named with
 // who made it, and no line is named with who wrote it.
 
@@ -86,7 +86,7 @@ function card(piece, at, pieces) {
   return element(
     "article",
     { className: `cv-piece ${piece.how}` },
-    element("header", {}, name, element("span", { className: "cv-kind", textContent: piece.kind }), element("span", { className: "cv-how", textContent: how }), element("span", { className: "cv-path", textContent: `${piece.path}:${piece.line + 1}` })),
+    element("header", {}, name, element("span", { className: "cv-type", textContent: piece.type }), element("span", { className: "cv-how", textContent: how }), element("span", { className: "cv-path", textContent: `${piece.path}:${piece.line + 1}` })),
     calls,
     lines,
   );
@@ -117,7 +117,7 @@ function draw(read, commit) {
   state.view.replaceChildren(bar, body);
 }
 
-// Review Changes by Structure: the tree's change, or commit `commit`'s, shown over the editor as the
+// Review Changes by Structure: the tree's change, or commit `commit`'s, displayed over the editor as the
 // declarations it touches.
 export async function reviewChange(commit = null) {
   let read;

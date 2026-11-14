@@ -1,4 +1,4 @@
-id	name	kind	source	built_to	for
+id	name	type	source	built_to	for
 cli	imp	program	ui/cli	build/cli/<target>/imp	the command line, impero, and the library the window links, libimp.a
 gui	tab	program	ui/gui/src	build/cli/<target>/tab	the window, tabvla
 plugins_bundle	orior_plugins_bundle	program	ui/cli/src/bundle	build/cli/<host>/bundle/orior_plugins_bundle	writes plugins_bundled.c as the command line is built

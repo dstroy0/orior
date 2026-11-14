@@ -43,8 +43,8 @@ static unsigned int sass_operand_dropped(const SassInstructionParts *base, const
     const int named = (strcmp(parts->operation, base->operation) == 0);
     for (unsigned int dropped = 0u; dropped < base->operands; dropped += 1u)
     {
-        const int kind = (base->kind[dropped] == SASS_OPERAND_IMMEDIATE) || (base->kind[dropped] == SASS_OPERAND_PREDICATE);
-        int rest = (kind && named) ? 1 : 0;
+        const int type = (base->type[dropped] == SASS_OPERAND_IMMEDIATE) || (base->type[dropped] == SASS_OPERAND_PREDICATE);
+        int rest = (type && named) ? 1 : 0;
         for (unsigned int place = 0u; rest && (place < parts->operands); place += 1u)
         {
             const unsigned int was = (place < dropped) ? place : (place + 1u);
@@ -61,7 +61,7 @@ static unsigned int sass_operand_dropped(const SassInstructionParts *base, const
 // The operand `text` changed against `base`, or the operand count where it changed none of them, more than one of
 // them, the guard, or the operation past its name's first part. The disassembler hides a field two ways, and both are
 // read as the operand's: a value that renames the operation, as IMAD's multiplier prints IMAD.MOV at 0, IMAD.IADD at 1
-// and IMAD past them, where the name up to its first dot, the count of operands and each one's kind stay and one
+// and IMAD past them, where the name up to its first dot, the count of operands and each one's type stay and one
 // operand's value moves; and a value that leaves an immediate or a predicate out of the text, as BPT.TRAP's code does
 // at 0 and a load's predicate at PT, where every other operand stays as it was
 unsigned int sass_operand_changed(const SassInstructionParts *base, const char *text)
@@ -94,11 +94,11 @@ unsigned int sass_operand_changed(const SassInstructionParts *base, const char *
             count += 1u;
             twins = twins && (strcmp(base->operand[place], base->operand[changed]) == 0) &&
                     (strcmp(parts.operand[place], parts.operand[changed]) == 0) &&
-                    (base->kind[place] == base->kind[changed]);
+                    (base->type[place] == base->type[changed]);
         }
     }
-    // a renamed operation carries the field only where the operand that moved is still the kind it was
-    if ((count != 0u) && renamed && (parts.kind[changed] != base->kind[changed]))
+    // a renamed operation carries the field only where the operand that moved is still the type it was
+    if ((count != 0u) && renamed && (parts.type[changed] != base->type[changed]))
     {
         return base->operands;
     }
@@ -124,7 +124,7 @@ unsigned int sass_operand_twin(const SassInstructionParts *base, const char *tex
     return base->operands;
 }
 
-// a form's encoding and the 128 that are one bit from it, laid into s_low and s_high
+// a form's encoding and the 128 that are one bit from it, positioned into s_low and s_high
 void sass_form_turned(const SassForm *form)
 {
     s_low[0] = form->low;

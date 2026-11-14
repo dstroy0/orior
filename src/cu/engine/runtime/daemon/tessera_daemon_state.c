@@ -374,8 +374,8 @@ int daemon_ticket_note(unsigned long long identity, const TesseraPeer *peer, con
         {
             const char glyph = pair[digit];
             const int decimal = (glyph >= '0') && (glyph <= '9');
-            const int letter = (glyph >= 'a') && (glyph <= 'f');
-            if (!decimal && !letter)
+            const int character = (glyph >= 'a') && (glyph <= 'f');
+            if (!decimal && !character)
             {
                 return 0;
             }

@@ -2,7 +2,7 @@
 references, and the ops file the rows become.
 
 A paper's own generator imports this module and states only what is the paper's: which lines are
-headings, how its examples are laid out, which names and languages it holds.
+headings, how its examples are arranged, which names and languages it holds.
 
     import gen
     paper = gen.Paper("ICSNL56_Zenk_final")
@@ -20,7 +20,7 @@ import pypdfium2 as pdfium
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # residue puts a public tree's corpus_script_extraction ahead on the path, and its page_text.py is
-# another module of the same name. This directory's own is imported first and kept.
+# another module of the same name. This directory's own is imported first and retained.
 sys.path.insert(0, HERE)
 from workdir import PRIVATE  # noqa: E402
 import page_text  # noqa: E402,F401
@@ -30,12 +30,12 @@ from workdir import CORPUS, ORACLES  # noqa: E402,F401
 A, L = "@a", "@l"
 # A numbered example's first line, (12) and the words after it; a footnote numbers its own (i), (ii).
 EXAMPLE = re.compile(r"^\((\d{1,3}|[ivx]{1,4})\)(?:\s+(.*))?$")
-# A sub-example's letter, a. and the words after it. A judgment can stand against the letter,
+# A sub-example's character, a. and the words after it. A judgment can are against the character,
 # a.? t̕sux̱w'idi Simon in Sardinha's second paper.
 SUB = re.compile(r"^([a-z])\.(?:\s+|(?=[?*#]))(.*)$")
-# The raised letters of the orthographies, by the plain letter an italic run can read one as.
+# The raised characters of the orthographies, by the plain character an italic run can read one as.
 RAISED = {"w": "ʷ", "h": "ʰ", "y": "ʸ", "j": "ʲ"}
-# What stands right of a translation: a parenthesis or bracket, one level of nesting inside it,
+# What is right of a translation: a parenthesis or bracket, one level of nesting inside it,
 # with a language tag before it or not, G (VG), CT (Forbes 2018), (Independent), [JS 74].
 TAG = r"[A-Z]{1,3}(?:\+[A-Z]{1,3})?"
 PIECE = r"(?:%s\s+)?(?:\((?:[^()]|\([^()]*\))*\)|\[[^\[\]]*\])\.?" % TAG
@@ -47,7 +47,7 @@ TAGGED = re.compile(r"^(.*\S)\s+(%s\s+\([^()]*\))$" % TAG)
 
 
 def pieces_of(rest):
-    """The pieces of what stands right of a translation, each a source or a note."""
+    """The pieces of what is right of a translation, each a source or a note."""
     rest = rest.strip()
     if not rest:
         return []
@@ -76,9 +76,9 @@ def is_source(piece):
 
 def split_translation(line):
     """(translation, pieces right of it) for a line opening on a quote. The translation closes at
-    the last closing quote after which only pieces stand; a translation printed without its
+    the last closing quote after which only pieces are; a translation printed without its
     closing quote ends where the pieces begin. Returns None where the line ends mid-translation."""
-    # A translation of quoted speech opens and closes on double quotes, "Just keep going!".
+    # A translation of quoted speech opens and closes on double quotes, "Just retain going!".
     closing = [index for index, symbol in enumerate(line) if symbol == ("”" if line.startswith("“") else "’")]
     for at in reversed(closing):
         # A footnote mark on the closing quote stays with the translation, ‘I cannot figure it out.’1
@@ -91,7 +91,7 @@ def split_translation(line):
         bare = re.sub(r"(?<=\))\d{1,2}$", "", rest)
         if not rest or PIECES.match(rest) or re.fullmatch(TAG, rest) or bare != rest and PIECES.match(bare):
             return line[:at + 1], pieces_of(rest)
-    # A source that is more than pieces, CT Boas (1911:385), cited in Mulder (1989), stands whole.
+    # A source that is more than pieces, CT Boas (1911:385), cited in Mulder (1989), is whole.
     if closing and re.match(r"^\s*(?:%s\s|[(\[])" % TAG, line[closing[-1] + 1:]):
         return line[:closing[-1] + 1], [line[closing[-1] + 1:].strip()]
     trailing = re.match(r"^(.*?\S)\s*((?:%s\s*)+)$" % PIECE, line)
@@ -129,15 +129,15 @@ def is_gloss(line):
 
 
 def sentences(body):
-    """A text in the language cut into its sentences, after each full stop that stands outside a
+    """A text in the language cut into its sentences, after each full stop that is outside a
     quotation or closes one: a quotation stays whole with the words that say who spoke it,
     "χəpǰišθ ga!" natəm k̓ʷa tə titol ǰɛnxʷ."""
     out, current, depth = [], "", 0
-    for at, letter in enumerate(body):
-        current += letter
-        depth += {"“": 1, "”": -1}.get(letter, 0)
-        ended = depth == 0 and (letter == "." or letter == "”" and body[at - 1:at] == ".")
-        if ended and body[at + 1:at + 2] in (" ", "") and not (letter == "." and body[at + 1:at + 2] == "”"):
+    for at, character in enumerate(body):
+        current += character
+        depth += {"“": 1, "”": -1}.get(character, 0)
+        ended = depth == 0 and (character == "." or character == "”" and body[at - 1:at] == ".")
+        if ended and body[at + 1:at + 2] in (" ", "") and not (character == "." and body[at + 1:at + 2] == "”"):
             out.append(current.strip())
             current = ""
     return out + ([current.strip()] if current.strip() else [])
@@ -162,29 +162,29 @@ def successor(label, previous):
 
 
 def orthographic(run):
-    """Whether an italic run is a cited form of the language: a letter outside plain English, or
-    an affix's hyphen or a root's √ at its edge. A run of four words or more, most of them plain
-    English letters, is an italicized sentence that names a language instead of a form of it."""
+    """Whether an italic run is a cited form of the language: a character outside plain English, or
+    an affix's hyphen or a root's √ at its edge. A run of four words or more, the majority of them plain
+    English characters, is an italicized sentence that names a language instead of a form of it."""
     words = run.split()
     if len(words) >= 4 and sum(bool(re.fullmatch(r"[A-Za-z()\-,.;:]+", one)) for one in words) > 0.6 * len(words):
         return False
     if any(ord(symbol) > 127 and symbol not in "‘’“”–—…" for symbol in run):
         return True
-    # Two shapes of one word across a tilde, Shuswap qm~qem-t in Nater's old records, in plain letters.
+    # Two shapes of one word across a tilde, Shuswap qm~qem-t in Nater's old records, in plain characters.
     if re.fullmatch(r"[\w()-]+~[\w()-]+", run):
         return True
     return run.startswith(("-", "√")) or run.endswith("-")
 
 
-def letters(text):
+def characters(text):
     """text with its spaces taken out, the key a page-text line and a glyph row share."""
     return "".join(text.split())
 
 
 def indented_rows(stem, step=10.0, reach=40.0):
-    """The glyph rows of each page whose first glyph stands step to reach points right of the
-    page's common left edge, as {page: [letters of the row]}: the first lines of paragraphs, which
-    a text layer keeps no indent for. The common edge is the first quartile of the rows' left edges,
+    """The glyph rows of each page whose first glyph is step to reach points right of the
+    page's common left edge, as {page: [characters of the row]}: the first lines of paragraphs, which
+    a text layer retains no indent for. The common edge is the first quartile of the rows' left edges,
     as indents.py reads it."""
     document = page_text.paper_document(stem)[0]
     found = {}
@@ -207,8 +207,8 @@ def indented_rows(stem, step=10.0, reach=40.0):
 
 
 def row_sizes(stem):
-    """{page: (body size, [(letters of the row, font size)])}: each glyph row's median font size
-    over its letters, top to bottom, and the paper's body size, the size most of its letters have.
+    """{page: (body size, [(characters of the row, font size)])}: each glyph row's median font size
+    over its characters, top to bottom, and the paper's body size, the size the majority of its characters have.
     The body size is the paper's and not the page's: a first page can hold more abstract and
     footnote than body."""
     import statistics
@@ -246,9 +246,9 @@ def row_sizes(stem):
 # number, 9yɩm- /yəm-/; a table row has a space there. It may open on a phonemic or morphological
 # form, 3 /ʔəm/ → [ʔam], 5 {C1V1-C1ə-}. A note may be a bracketed address alone, 6
 # <http://academic.uprm.edu/~sbischoff/COLRC/texts/> in Bischoff et al. It may open on an accented
-# capital, 1Áístainskiaakii in Aistainskiaakii et al., or on a letter of Latin Extended-B,
+# capital, 1Áístainskiaakii in Aistainskiaakii et al., or on a character of Latin Extended-B,
 # 58ƛ̓əxʷənt in Lyon's 2011 paper, whose notes run past 99, 100There is no true scope interaction.
-# A mark stands a space before a digit: a line of a note that opens on a year, 1987: 329) in Davis
+# A mark is a space before a digit: a line of a note that opens on a year, 1987: 329) in Davis
 # and Brown's note 18, opens on no mark.
 MARK = re.compile(r"^(\d{1,3}|[*∗†‡§])(?:\s*(?=[A-ZÀ-ÖØ-Þ‘’“(\[ʔ/{<])|\s+(?=\d)|(?=[a-zƀ-ʯ]))")
 # The marks of a note on the title.
@@ -259,7 +259,7 @@ def title_mark(text):
     """The note mark closing a title, or None."""
     found = re.search("[%s]+$" % re.escape(TITLE_MARKS), text)
     return found.group(0) if found else None
-# The kinds of row that hold forms of the language, where a footnote mark is looked for only at the
+# The types of row that hold forms of the language, where a footnote mark is looked for only at the
 # row's end.
 FORM_KINDS = ("transcription", "phonetic", "phonemic", "underlying")
 # The key page_footnotes gives the small lines at the foot of the title's page that carry no mark.
@@ -275,7 +275,7 @@ class Paper(object):
         repair = residue.paper_repair(stem)
         # lines[n] is (text, page, is_page_marker) for line n of the page text, 1-based.
         self.lines = [("", 0, True)]
-        # spaced[n] is line n as the page text sets it, its runs of spaces kept for the columns.
+        # spaced[n] is line n as the page text sets it, its runs of spaces retained for the columns.
         self.spaced = [""]
         page = 0
         for raw in open(residue.source_path(stem), encoding="utf-8").read().split("\n"):
@@ -291,7 +291,7 @@ class Paper(object):
         self.used = set()
         self._starts = None
         self._italics = None
-        # The kind of an example's first line: a transcription over its segmentation and gloss, or
+        # The type of an example's first line: a transcription over its segmentation and gloss, or
         # the segmentation itself where the paper sets two tiers.
         self.opening = "transcription"
         self.cited_done = set()
@@ -307,11 +307,11 @@ class Paper(object):
 
     def joined(self, numbers):
         """The lines' text run together with a space, or with none after a line that ends on a
-        hyphen where the paper sets hyphen_ends_join and the next line opens on a letter, a digit or
+        hyphen where the paper sets hyphen_ends_join and the next line opens on a character, a digit or
         a closing bracket: the paper breaks a line only at a hyphen it prints, taboo- / driven for
         taboo-driven and (morpho- / )syntax. An affix's hyphen before its gloss, *-mi- / '2SG.OBJ',
-        keeps the space. Where the paper sets address_ends_join, a line ending inside a web address
-        joins with none to a line opening on a lower-case letter or &, muckleshoot08m. / html."""
+        retains the space. Where the paper sets address_ends_join, a line ending inside a web address
+        joins with none to a line opening on a lower-case character or &, muckleshoot08m. / html."""
         out = ""
         for one in numbers:
             text = self.text(one)
@@ -325,7 +325,7 @@ class Paper(object):
         return out
 
     def on(self, lines, form):
-        """form, bound to the page: lines is the line number it stands on, or the first and last of
+        """form, bound to the page: lines is the line number it is on, or the first and last of
         the lines it runs over, and the page text there holds it with its line ends run together by
         a space or by none. A form the page text no longer holds there stops the generator."""
         first, last = (lines, lines) if isinstance(lines, int) else lines
@@ -355,11 +355,11 @@ class Paper(object):
             self._starts = set()
             for number in range(1, self.last + 1):
                 text = self.text(number)
-                key = letters(text)[:24]
+                key = characters(text)[:24]
                 if len(key) < 6:
                     continue
-                if any(letters(row).startswith(key) or key.startswith(letters(row)[:24])
-                       for row in rows.get(self.page(number), ()) if len(letters(row)) >= 6):
+                if any(characters(row).startswith(key) or key.startswith(characters(row)[:24])
+                       for row in rows.get(self.page(number), ()) if len(characters(row)) >= 6):
                     self._starts.add(number)
         return self._starts
 
@@ -404,13 +404,13 @@ class Paper(object):
             # The lines matched to a glyph row at all; a line no row matches has no size.
             self._sized = set()
             for number in range(1, self.last + 1):
-                key = letters(self.text(number))
+                key = characters(self.text(number))
                 if len(key) < 3 or self.lines[number][2]:
                     continue
                 body, rows = sizes.get(self.page(number), (0, []))
 
                 def matches(key, row_key):
-                    # A short line, -an. closing a footnote, matches only a row of the same letters;
+                    # A short line, -an. closing a footnote, matches only a row of the same characters;
                     # a longer one a row of about its length, never the short affiliation Salish
                     # School of Spokane its note opens with.
                     return (row_key == key) if len(key) < 8 else (
@@ -422,17 +422,17 @@ class Paper(object):
                                 min(len(key), len(row_key)))
 
                 # The rows can leave out a note's raised mark, 3 opening Martin's note on Hindle and
-                # Rigsby (1973), and the mark in a body line, (2)2: the line's letters are matched
+                # Rigsby (1973), and the mark in a body line, (2)2: the line's characters are matched
                 # without its opening mark, then without its digits, and of the rows that match, the
                 # one sharing the longest opening with the line wins, never a body line naming the
                 # same authors.
                 mark = re.match(r"^(?:\d{1,2}|[∗*†‡§¶])\s+(?=\S)", self.text(number))
-                bare = letters(self.text(number)[mark.end():]) if mark else key
+                bare = characters(self.text(number)[mark.end():]) if mark else key
                 best = None
                 for trial in (lambda text: text, lambda text: re.sub(r"\d", "", text)):
                     line_key = trial(bare)
                     for row, size in rows:
-                        row_key = trial(letters(row))
+                        row_key = trial(characters(row))
                         if len(row_key) < 3 or not matches(line_key, row_key):
                             continue
                         if best is None or shared(line_key, row_key) > best[0]:
@@ -447,7 +447,7 @@ class Paper(object):
 
     def volume_header(self):
         """The line numbers of the volume's header, Papers for the International Conference ...
-        through the line that closes on the year or UBCWPL, three lines at most. Volume 53 opens
+        through the line that closes on the year or UBCWPL, three lines at max. Volume 53 opens
         its header on In Papers for."""
         first = self.find(r"^(?:In )?Papers (?:for|of) the International Conference", 1, min(self.last, 200))
         if not first:
@@ -461,7 +461,7 @@ class Paper(object):
         """{mark: (line numbers, page)} for the footnotes read from the type size: on each page,
         the run of small lines that ends the page (before its number), from its first line opening
         on a mark, a new note at each line opening on the next number in sequence or on a symbol.
-        A symbol mark counts only on the pages of symbols_on, where a note on the title stands.
+        A symbol mark counts only on the pages of symbols_on, where a note on the title is.
         The volume's header, set small wherever the page puts it, is left out, and so are the
         lines of skip. The numbers run from the paper's first_footnote, 1 where it sets none: 2 in
         Mellesmoen and Andreotti, whose title carries a mark 1 with no note. A paper's unnoted_marks
@@ -482,7 +482,7 @@ class Paper(object):
             by_page.setdefault(self.page(number), []).append(number)
         for page in sorted(by_page):
             numbers = by_page[page]
-            # The run ends at a line set at the body size; a line no glyph row matches is kept.
+            # The run ends at a line set at the body size; a line no glyph row matches is retained.
             tail = []
             for number in reversed(numbers):
                 if number not in small and number in self._sized:
@@ -623,7 +623,7 @@ class Paper(object):
     def headings(self, first, last, skip=()):
         """{line: label} for the numbered section headings from line first to last: a line that
         opens on a section number and a title with no closing stop, taken only where its number
-        follows the heading before it (2 after 1.3, 2.1 after 2), which keeps out numbered footnotes
+        follows the heading before it (2 after 1.3, 2.1 after 2), which retains out numbered footnotes
         and table rows."""
         found, previous = {}, None
         for number in range(first, last + 1):
@@ -648,12 +648,12 @@ class Paper(object):
             # text is composed; a run is matched in the text as the text defines it. A run that sets
             # forms side by side is each of them: an alternation, c̓uwá ~ suwá, the languages of a
             # table's row, naʔ / cəná ~ səná, and the stages of a change, *kúkum > *kúkʷum. A glyph
-            # the paper's font keeps in the private use area reads as the page text reads it, the
+            # the paper's font retains in the private use area reads as the page text reads it, the
             # k̓ of k̓ʷək̓ʷʔitas in Mellesmoen and Huijsmans's footnote 24.
             private = page_text.PRIVATE_USE.get(self.stem, {})
-            # A paper whose font declares its letters at codes of its own names them in
-            # italic_letters, the GenSal ¯ of Thompson and Sloat's q̇ʷélo.
-            private = dict(private, **getattr(self, "italic_letters", {}))
+            # A paper whose font declares its characters at codes of its own names them in
+            # italic_characters, the GenSal ¯ of Thompson and Sloat's q̇ʷélo.
+            private = dict(private, **getattr(self, "italic_characters", {}))
             for number, run in italic_runs.italic_runs(self.stem):
                 run = "".join(private.get(one, one) for one in run)
                 run = unicodedata.normalize("NFC", " ".join(run.split()))
@@ -675,11 +675,11 @@ class Paper(object):
         text gives right after it, where it gives one."""
         marks = r"[̀-ͯʰ-˿ᴬ-ᶿ]"
         for number in pages:
-            # The italic reader keeps the spaces the layer sets at a combining mark, sč ̓an̓us and
+            # The italic reader retains the spaces the layer sets at a combining mark, sč ̓an̓us and
             # x̩ aƛ ̓ in Griffin's 2019 appendix and *t ̓sa̱x'id in Sardinha's first paper, where the
             # page text closes the word from the glyph positions; each run is defined as the body
             # defines it, without the dash of a phrase set after it, U+2014 kn̓ čk̓ʕam̓ in Johnson's thanks.
-            # A raised letter the reader takes for a plain one standing apart, ɫp̓úlex w tn for
+            # A raised character the reader takes for a plain one located apart, ɫp̓úlex w tn for
             # ɫp̓úlexʷtn in McKay's footnote 8, is looked for as either.
             spelled = {}
             for run in self.italics().get(number, ()):
@@ -694,13 +694,13 @@ class Paper(object):
                             if one.group(1) in self.footnote_marks()), None)
                     if match:
                         spelled[run] = match.group(0)
-                # The italic reader holds no underline, which page_text sets on a paper's letters
+                # The italic reader holds no underline, which page_text sets on a paper's characters
                 # as the macron below: gat for g̱at in Matthewson's Gitksan modals. In a paper that
                 # sets italics_underlined, the run is the word the body writes with it, where the
                 # body writes one so and not as read.
                 elif getattr(self, "italics_underlined", False) and \
                         not re.search(r"(?<![\w’])%s(?![\w’]|%s)" % (re.escape(run), marks), body):
-                    # A letter can take the mark composed, ḵ, or after it, g̱.
+                    # A character can take the mark composed, ḵ, or after it, g̱.
                     loose = "".join(
                         "(?:%s|%s̱?)" % (unicodedata.normalize("NFC", one + "̱"), re.escape(one))
                         if one.isalpha() and len(unicodedata.normalize("NFC", one + "̱")) == 1
@@ -722,17 +722,17 @@ class Paper(object):
                     runs.append(run)
             for run in runs:
                 # A paper can name the language of its italic runs, where its forms are defined in
-                # plain letters, Arapaho's To'uu3eebexookee, or its English examples are cited too.
+                # plain characters, Arapaho's To'uu3eebexookee, or its English examples are cited too.
                 language = self.form_language(run) if getattr(self, "form_language", None) else \
                     L if orthographic(run) else None
                 if run in self.cited_done or run in skip or not language or \
                         run in getattr(self, "language_names", ()):
                     continue
-                # A run that stops before a combining mark is the front of a longer letter, the
+                # A run that stops before a combining mark is the front of a longer character, the
                 # t'əx of *t'əx̌ on Denzer-King's page 7, whose caron the stream carries at the line's
                 # end.
                 matches = list(re.finditer(r"(?<![\w’])%s(?![\w’]|%s)" % (re.escape(run), marks), body))
-                # A glottal apostrophe set upright after the italic letters ends the run short,
+                # A glottal apostrophe set upright after the italic characters ends the run short,
                 # -ɢəm’ and łic’ in Nater's Bella Coola; the form in the text takes it.
                 if not matches and not run.endswith("’") and "‘" not in run:
                     matches = list(re.finditer(r"(?<![\w’])%s(?![\w’])" % re.escape(run + "’"), body))
@@ -757,7 +757,7 @@ class Paper(object):
                             continue
                 if not matches:
                     continue
-                # A form that stands inside a longer run of the page is that run's, k̓ʷzús-əm in
+                # A form that is inside a longer run of the page is that run's, k̓ʷzús-əm in
                 # s.k̓ʷzús-əm ‘job’ and -us in n-..-us ‘-fold’ in van Eijk; the form's own place is
                 # outside it, where there is one.
                 covered = [(one.start(), one.end()) for longer in italics
@@ -766,7 +766,7 @@ class Paper(object):
                 matches = [one for one in matches
                            if not any(start <= one.start() and one.end() <= end for start, end in covered)] or matches
                 # A form cited on its own after a compound that holds it, ts’íl-xíl-em ... xíl-em
-                # ‘do (like)’, is the free standing one.
+                # ‘do (like)’, is the free located one.
                 found = next((one for one in matches if body[one.start() - 1:one.start()] != "-"), matches[0])
                 # Or on its own after a compound it opens, sl-aq’-nk ... (sl ‘to cut, slice’ in Nater's
                 # Tsimshianic vestiges.
@@ -794,7 +794,7 @@ class Paper(object):
                     start -= 1
                 # An affix's hyphen the italics leave upright, -ət with ət in italics, and an en dash
                 # the italic reader loses, –ayqʷp in Pincott, with a mutation mark after it, -°x̱tłe
-                # in Sardinha's first paper. A dash after a letter or a digit is a range or a
+                # in Sardinha's first paper. A dash after a character or a digit is a range or a
                 # compound, 1993–x. A dash after a sign set in parentheses is a polarity sign, the
                 # (?)-čát-t̓iqi-m̓ɬ ‘policeman’ of Robertson's puns, and no hyphen.
                 # The non-breaking hyphen of Sardinha's ‑°tłe’ is a hyphen too, and a clitic's sign
@@ -812,9 +812,9 @@ class Paper(object):
                     run = "√" + run
                     start -= 1
                 # And the star of an unattested form, set upright against it, *s.qáy:qəyxʷ in van Eijk,
-                # both of the salmon paper's **ŋ, and the raised letter that can stand before the star,
+                # both of the salmon paper's **ŋ, and the raised character that can are before the star,
                 # ᵖ*kʷ naʔ nhampátkʷ in Lyon and Czaykowska-Higgins' footnote 43.
-                # An ellipsis between the star and the form stands for the part left out, *…k̭ən in
+                # An ellipsis between the star and the form is for the part left out, *…k̭ən in
                 # Nater's old records.
                 if body[start - 2:start] == "*…" and not run.startswith("…"):
                     run = "…" + run
@@ -836,7 +836,7 @@ class Paper(object):
                     run += "∅"
                     end += 1
                 # An apostrophe inside the gloss, ‘bereft of one’s tail’ in Nater's old records, has a
-                # letter after it; the closing quote does not.
+                # character after it; the closing quote does not.
                 gloss = re.match(r"\s*(‘(?:[^’]|’(?=[^\W\d_]))+’)", body[end:])
                 # A parenthesis the italics open and the upright type closes, scəlacəɬdat(il).
                 if run.count("(") > run.count(")") and body[found.end():found.end() + 1] == ")":
@@ -852,20 +852,20 @@ class Paper(object):
                     continue
                 self.add(where, language, "cited form", run, why)
 
-    def mentions(self, where, body, pairs, kind, who=A):
-        """A row of kind for each (name, why) of pairs that body holds, once in the paper."""
+    def mentions(self, where, body, pairs, type, who=A):
+        """A row of type for each (name, why) of pairs that body holds, once in the paper."""
         for name, why in pairs:
-            if (kind, name) not in self.mentioned and name in body:
-                self.mentioned.add((kind, name))
-                self.add(where, who, kind, name, why)
+            if (type, name) not in self.mentioned and name in body:
+                self.mentioned.add((type, name))
+                self.add(where, who, type, name, why)
 
     # Examples.
 
     def example(self, start, last=None, skip=(), resume=None, prefix=""):
         """Read the numbered interlinear example opening on line start and return the line after
-        it. An example is one sentence or lettered sub-examples, a. b. c., each laid out the same:
+        it. An example is one sentence or lettered sub-examples, a. b. c., each arranged the same:
         its first line the transcription, the lines under it a segmentation and its gloss in turn
-        until a translation in single quotes, which may run over two lines. What stands right of
+        until a translation in single quotes, which may run over two lines. What is right of
         the translation, or on the line under it, is a citation where it names a source (a
         language tag, a year, a page, a speaker's initials) and a note where it does not
         ((Independent), (Lit: ...)). A line over the sub-examples that closes on a colon, and a
@@ -878,9 +878,9 @@ class Paper(object):
         running = self.running_numbers_set()
         state = {"label": number_label, "count": 0, "mode": "start", "tiers": 0}
 
-        def row(who, kind, form, number, gloss=None):
+        def row(who, type, form, number, gloss=None):
             state["count"] += 1
-            self.add("%s(%s) line %d" % (prefix, state["label"], state["count"]), who, kind, form,
+            self.add("%s(%s) line %d" % (prefix, state["label"], state["count"]), who, type, form,
                      "page %d%s" % (self.page(number), ", " + gloss if gloss else ""))
 
         def next_line(number):
@@ -920,7 +920,7 @@ class Paper(object):
 
         def close_paren(text, number):
             """Run the open note on with text to its closing parenthesis and the mark after it,
-            Spintlum')12, and write what stands after as its citations or notes."""
+            Spintlum')12, and write what is after as its citations or notes."""
             index = state.pop("paren")
             depth = self.rows[index][3].count("(") - self.rows[index][3].count(")")
             for at, symbol in enumerate(text):
@@ -939,7 +939,7 @@ class Paper(object):
                 extend(index, rest)
 
         def continues_context(number):
-            """Whether line number runs on the context over it: more lines stand between it and
+            """Whether line number runs on the context over it: more lines are between it and
             the gloss than the tiers over a gloss, a transcription and a segmentation (one, a
             segmentation, where the paper opens on it)."""
             over = 1 if self.opening == "segmentation" else 2
@@ -987,13 +987,13 @@ class Paper(object):
             sub = SUB.match(text)
             roman = ROMAN_PART.match(text)
             # A part of a lettered part, a. Stative / i. Context: ..., its label (21ai); i. after
-            # h. is a letter.
-            if roman and state.get("letter") and not (roman.group(1) == "i" and state["letter"] == "h"):
-                state.update(label=number_label + state["letter"] + roman.group(1), count=0, mode="start",
+            # h. is a character.
+            if roman and state.get("character") and not (roman.group(1) == "i" and state["character"] == "h"):
+                state.update(label=number_label + state["character"] + roman.group(1), count=0, mode="start",
                              tiers=0, context=None, comment=None)
                 text = roman.group(2)
             elif sub:
-                state.update(label=number_label + sub.group(1), letter=sub.group(1), count=0, mode="start",
+                state.update(label=number_label + sub.group(1), character=sub.group(1), count=0, mode="start",
                              tiers=0, context=None, comment=None)
                 text = sub.group(2)
                 roman = ROMAN_PART.match(text)
@@ -1046,8 +1046,8 @@ class Paper(object):
                         state["mode"] = "tiers"
                         state["tiers"] = 1 if opening == "segmentation" else 0
                         state["words"] = len(text.split())
-                        state["kind"] = state["opened"] = opening
-                        # A paper that sets its glosses in capitals, DET=dog, lets each tier's kind
+                        state["type"] = state["opened"] = opening
+                        # A paper that sets its glosses in capitals, DET=dog, lets each tier's type
                         # be read off the gloss under it.
                         after = next_line(next_line(number))
                         state["caps"] = is_gloss(following) or after <= last and is_gloss(self.text(after))
@@ -1081,22 +1081,22 @@ class Paper(object):
                 else:
                     return number
             elif state["tiers"] >= 2 and state["tiers"] % 2 == 0 and SOURCE.match(text):
-                # A line in parentheses where a translation would stand, (same) under (43b): the
+                # A line in parentheses where a translation would are, (same) under (43b): the
                 # translation of the part before holds.
                 for piece in pieces_of(text):
-                    row(A, "citation" if is_source(piece) else "note", piece, number, "where the translation stands")
+                    row(A, "citation" if is_source(piece) else "note", piece, number, "where the translation is")
                 state["mode"] = "after"
             elif state["tiers"] >= 2 and state["tiers"] % 2 == 0 and COMMENT.match(text):
-                # A starred sentence takes no translation; its consultant's comment stands where
+                # A starred sentence takes no translation; its consultant's comment is where
                 # one would, under (56a) in H. Davis's proper names.
-                row(A, "speaker comment", text, number, "where the translation stands, the consultant not named")
+                row(A, "speaker comment", text, number, "where the translation is, the consultant not named")
                 state["comment"], state["mode"] = len(self.rows) - 1, "after"
             else:
-                kind = "segmentation" if state["tiers"] % 2 == 0 else "gloss"
+                type = "segmentation" if state["tiers"] % 2 == 0 else "gloss"
                 if state.get("caps"):
                     # The gloss holds capitals; the line over a gloss is its segmentation, and the
                     # line over that the transcription where the example wraps all three tiers.
-                    # Otherwise a tier is the kind the one before it is not: a gloss the page sets
+                    # Otherwise a tier is the type the one before it is not: a gloss the page sets
                     # over its own segmentation, (51c) in H. Davis's infinitives, is read as printed.
                     one = next_line(number)
                     two = next_line(one)
@@ -1108,22 +1108,22 @@ class Paper(object):
                         return at <= last and is_gloss(line) and not line.startswith(("‘", "“")) \
                             and not JUDGED_QUOTE.match(line)
                     if is_gloss(text):
-                        kind = "gloss"
+                        type = "gloss"
                     elif glossed(one):
-                        kind = "segmentation"
-                    elif glossed(two) and state["kind"] == "gloss":
-                        kind = "transcription"
-                    elif state["kind"] == "gloss" and state.get("opened") == "transcription" and \
+                        type = "segmentation"
+                    elif glossed(two) and state["type"] == "gloss":
+                        type = "transcription"
+                    elif state["type"] == "gloss" and state.get("opened") == "transcription" and \
                             lines_to_translation(number) == 3:
                         # The last wrap of the three tiers, skʷiǰoɬ. / skʷiǰuɬ / morning in (6),
                         # whose gloss holds no capitals: three lines over the translation.
-                        kind = "transcription"
-                    elif state["kind"] == "transcription":
-                        kind = "segmentation"
+                        type = "transcription"
+                    elif state["type"] == "transcription":
+                        type = "segmentation"
                     else:
-                        kind = "segmentation" if state["kind"] == "gloss" else "gloss"
-                row(L, kind, text, number)
-                state["kind"] = kind
+                        type = "segmentation" if state["type"] == "gloss" else "gloss"
+                row(L, type, text, number)
+                state["type"] = type
                 state["tiers"] += 1
             number = next_line(number)
             if number > last:
@@ -1133,7 +1133,7 @@ class Paper(object):
                 return done(number)
             if state["mode"] == "after" and not (SUB.match(text) or SOURCE.match(text) or COMMENT.match(text)
                                                  or DIALOGUE.match(text) or CONTEXT.match(text)
-                                                 or ROMAN_PART.match(text) and state.get("letter")
+                                                 or ROMAN_PART.match(text) and state.get("character")
                                                  or text.startswith("‘") or JUDGED_QUOTE.match(text)
                                                  or LABELED_QUOTE.match(text) or open_comment() is not None
                                                  or state.get("paren") is not None):
@@ -1146,23 +1146,23 @@ class Paper(object):
                     not COMMENT.match(text) and len([one for one in text.split() if one[0] not in "=-"]) > 2 * state.get("words", 0) + 2:
                 return number
 
-    def place_footnotes(self, marks, write, placed=(), spaced=None, glued=None, kinds=(), only=None):
+    def place_footnotes(self, marks, write, placed=(), spaced=None, glued=None, types=(), only=None):
         """Put each footnote's rows after the first note, heading, translation or citation that
         carries its mark, the marks taken in order and each looked for only after the one before
-        it: a mark stands on the end of a word or a stop, orders.2 There, and not after a space, a
-        digit or a parenthesis. Two marks set together, permitted.8,9, stand on the same row, the
+        it: a mark is on the end of a word or a stop, orders.2 There, and not after a space, a
+        digit or a parenthesis. Two marks set together, permitted.8,9, are on the same row, the
         second after the first and a comma. spaced maps a mark the page sets a space after its
         word to the text before that space, and glued a mark set on a form whose orthography holds
         digits of its own, lhel=ki=qú7=a5 in Davis's count-mass paper, to that form. write(mark)
-        adds the footnote's rows. kinds names row kinds that can carry a mark besides these, a
-        reference, and only, where given, the kinds alone that are looked in. Returns the marks no
+        adds the footnote's rows. types names row types that can carry a mark besides these, a
+        reference, and only, where given, the types alone that are looked in. Returns the marks no
         row carries."""
         spaced = spaced or {}
         glued = glued or {}
         out, done = [], set(placed)
         waiting = [one for one in marks if one not in done]
         previous = None
-        # An orthography with no digit among its letters, no sk7am or 7a, holds none after a word
+        # An orthography with no digit among its characters, no sk7am or 7a, holds none after a word
         # either, and a mark glued to a form there is a mark: snatolh6, {hiL-a7 səm.
         lettered = not any(re.search(r"[^\W\d_]\d[^\W\d_]|(?:^|\s)\d[^\W\d_]", row[3]) for row in self.rows
                            if row[2] == "transcription")
@@ -1170,7 +1170,7 @@ class Paper(object):
             out.append(row)
             while waiting and not row[0].startswith("footnote") and (only is None or row[2] in only) and row[2] in (
                     "note", "heading", "translation", "citation", "speaker comment", "gloss",
-                    "segmentation") + FORM_KINDS + tuple(kinds) or (row[2] == "cited form" and waiting and waiting[0] in glued):
+                    "segmentation") + FORM_KINDS + tuple(types) or (row[2] == "cited form" and waiting and waiting[0] in glued):
                 mark = re.escape(waiting[0])
                 # A cited form carries only a glued mark, smelhmúlhats8 in Davis's list (17).
                 if row[2] == "cited form":
@@ -1178,13 +1178,13 @@ class Paper(object):
                 elif row[2] in FORM_KINDS + ("segmentation",):
                     # A language row holds digits of its own, wa7 with 7 the glottal stop; a mark
                     # there ends the row after a stop, a comma or a closing bracket, tə ʔatnopɛl.12,
-                    # xigap,8 in Davis's future certainty, [šyεʔtams]8, or stands apart after the form, tlemlhayem 1. A segmentation is
+                    # xigap,8 in Davis's future certainty, [šyεʔtams]8, or is apart after the form, tlemlhayem 1. A segmentation is
                     # read the same way, -wa̱ł/-uł2 in Table 1 of Sardinha's second paper. Where no
-                    # letter is a digit the mark can follow a letter or its mark below, Shelliya̱x̱9.
+                    # character is a digit the mark can follow a character or its mark below, Shelliya̱x̱9.
                     alone = re.search(r"(?:(?<=[.!?,\]}/])|(?<=\s))%s$" % mark, row[3]) or \
                         (lettered and re.search(r"(?<=[^\W\d_]|[̀-ͯ])%s(?=\s|$)" % mark, row[3]))
                 else:
-                    # A digit after a capital standing alone is a name's, L2 teachers in Sardinha's
+                    # A digit after a capital located alone is a name's, L2 teachers in Sardinha's
                     # first paper, and no mark; so is a section's number, begin in §2 by and
                     # analysis (§3) in Martin.
                     alone = re.search(r"(?<=.)(?<![\s\d(=\-§])(?<!\d[.,:])(?<!\b[A-Z])%s(?:\s|$|[,.;:)])" % mark,
@@ -1207,14 +1207,14 @@ class Paper(object):
                     # And a translation a space after its closing quote, (one on the boat).' 12.
                     if row[2] == "translation" and not alone:
                         alone = re.search(r"(?<=[’”]\s)%s$" % mark, row[3])
-                    # A source kept whole in its parentheses, a notebook's page (EP4.44.7), carries
+                    # A source retained whole in its parentheses, a notebook's page (EP4.44.7), carries
                     # its digits and no mark inside them.
                     if row[2] == "citation" and re.fullmatch(r"\(\S+\)", row[3]):
                         alone = None
-                # The second form, a mark on a number that closes a sentence, shown in Figure 8.6 As
+                # The second form, a mark on a number that closes a sentence, displayed in Figure 8.6 As
                 # with, or on a year, published in 1917.1 The last in Bischoff et al.; a section
                 # number opens its heading's row and is never read so. The second of
-                # two marks can stand a space after the comma, position.10, 11.
+                # two marks can are a space after the comma, position.10, 11.
                 paired = previous and row[2] not in FORM_KINDS and \
                     re.search(r"(?:(?<=\D%s,)|(?<=\D%s, ))%s(?:\s|$|[,.;:)])" %
                               (re.escape(previous), re.escape(previous), mark), row[3])
@@ -1223,7 +1223,7 @@ class Paper(object):
                 if not (alone or paired) and waiting[0] in spaced:
                     alone = spaced[waiting[0]] + " " + waiting[0] in row[3]
                 if not (alone or paired) and waiting[0] in glued:
-                    # The mark can stand before a stop or a comma, the 5-82, of Denzer-King's §2, or
+                    # The mark can are before a stop or a comma, the 5-82, of Denzer-King's §2, or
                     # before a clitic's sign, the lala12=oχ of Sardinha's 2011 (25).
                     alone = re.search(r"(?:^|\s)%s%s(?=[\s,.;:)=]|$)" % (re.escape(glued[waiting[0]]), mark), row[3])
                 if not (alone or paired):
@@ -1237,10 +1237,10 @@ class Paper(object):
         self.rows = out
         return waiting
 
-    def display(self, start, count, who=A, kind="note", gloss="set as an example", per_line=False):
+    def display(self, start, count, who=A, type="note", gloss="set as an example", per_line=False):
         """Write the count printed lines of a display from line start, a template, a list or a
         generalization set as an example: a row to each lettered item with its wrapped lines run
-        on, or one row where it has no letters. With per_line, a tree, each printed line is a row
+        on, or one row where it has no characters. With per_line, a tree, each printed line is a row
         of its own. Returns the line after it."""
         label = EXAMPLE.match(self.text(start)).group(1)
         number, done, items = start, 0, []
@@ -1259,10 +1259,10 @@ class Paper(object):
                     items[-1][0] += " " + text
             number += 1
         for index, (text, at) in enumerate(items):
-            letter = None if per_line else SUB.match(text)
+            character = None if per_line else SUB.match(text)
             where = "(%s) line %d" % (label, index + 1) if per_line else \
-                "(%s%s) line 1" % (label, letter.group(1) if letter else "")
-            self.add(where, who, kind, letter.group(2) if letter else text, "page %d, %s" % (self.page(at), gloss))
+                "(%s%s) line 1" % (label, character.group(1) if character else "")
+            self.add(where, who, type, character.group(2) if character else text, "page %d, %s" % (self.page(at), gloss))
         return number
 
     def footnote(self, mark, parts, page, names=(), languages=(), where=None, gloss=None):
@@ -1308,7 +1308,7 @@ class Paper(object):
         flush(first)
 
     def glossed(self, start, skip=()):
-        """Whether a gloss stands in the two lines of text under line start, before another
+        """Whether a gloss is in the two lines of text under line start, before another
         example opens."""
         running = self.running_numbers_set()
         seen, number = 0, start + 1
@@ -1349,8 +1349,8 @@ class Paper(object):
 
     def word_positions(self, number):
         """[(left edge, word)] for the words of line number, each word's edge that of its first
-        glyph on the page: the line is aligned to the printed row that holds most of its letters,
-        marks and superscripts aside, and a column's words can be told by where they stand."""
+        glyph on the page: the line is aligned to the printed row that holds the majority of its characters,
+        marks and superscripts aside, and a column's words can be told by where they are."""
         import difflib
         import unicodedata
 
@@ -1381,7 +1381,7 @@ class Paper(object):
             edges = [at[one] for one in range(index, index + count) if one in at]
             found.append((edges[0] if edges else None, word))
             index += count
-        # A word none of whose letters was matched stands just right of the word before it.
+        # A word none of whose characters was matched is just right of the word before it.
         for place, (left, word) in enumerate(found):
             if left is None:
                 found[place] = ((found[place - 1][0] + 0.1) if place else 0.0, word)
@@ -1390,12 +1390,12 @@ class Paper(object):
     def columns(self, start, where=None, skip=(), language=L, label=None):
         """Read an example set in columns from line start and return the line after it: a header
         line of lettered forms, (13) a. sasaxosem b. sasaxost c. saxwat, or of numbered ones,
-        (5) hasem (6) kwetem, then the tiers under them, each word given to the column it stands
-        under on the page (word_positions). A column's text on a line is a row of the kind its
+        (5) hasem (6) kwetem, then the tiers under them, each word given to the column it is
+        under on the page (word_positions). A column's text on a line is a row of the type its
         shape gives: [..] phonetic, /../ phonemic, {..} underlying, ‘..’ a translation, (..) a
         note, a label in capitals or a form broken by hyphens a gloss, the header's forms the
         transcription. Lettered parts set in a later header line, c. t’oz’.’em Joe, open new
-        columns. The example ends at a line standing left of its first column, prose at the margin
+        columns. The example ends at a line located left of its first column, prose at the margin
         or on a paragraph's indent, or at a new example. label names an example the paper numbers
         twice, 35:2 for the second (35)."""
         number = label or EXAMPLE.match(self.text(start)).group(1)
@@ -1412,14 +1412,14 @@ class Paper(object):
                     found.append([None, numbered or number + marker.group(2), []])
                 elif found:
                     found[-1][2].append(word)
-                    # A column stands where its first form does.
+                    # A column is where its first form does.
                     found[-1][0] = found[-1][0] if found[-1][0] is not None else left
                 else:
                     found.append([left, number, [word]])
             # The example's number over lettered columns is no column of its own.
             return [one for one in found if one[2]]
 
-        def kind(text, first):
+        def type(text, first):
             if first:
                 return language, "transcription"
             if text.startswith("["):
@@ -1448,15 +1448,15 @@ class Paper(object):
                 before[3] += " " + text
                 return
             counts[label] = counts.get(label, 0) + 1
-            who, what = kind(text, first)
+            who, what = type(text, first)
             self.add("(%s) line %d" % (label, counts[label]), who, what, text, "page %d, in columns" % self.page(line))
             last[label] = self.rows[-1]
 
         columns = header(start)
         for left, label, words in columns:
             add(label, " ".join(words), start, True)
-        # Prose stands at the edge the example's number does, or a paragraph's indent in from it;
-        # the tiers stand under the first column.
+        # Prose is at the edge the example's number does, or a paragraph's indent in from it;
+        # the tiers are under the first column.
         margin = min(one[0] for one in columns) - 10
         line = start + 1
         while line <= self.last:
@@ -1487,7 +1487,7 @@ class Paper(object):
 
     def indented_runs(self, start, end, skip=()):
         """[[line, ...]] for each block quotation from line start to end: a run of two lines or
-        more, every one of them set 10 points or more in from the edge most of the body's lines
+        more, every one of them set 10 points or more in from the edge the majority of the body's lines
         start at. A paragraph sets in its first line alone. A quotation runs on over a page break,
         its running number and the page's blank lines."""
         running = self.running_numbers_set() | set(self.volume_header())
@@ -1698,8 +1698,8 @@ class Paper(object):
             # The lines in columns end where the abstract opens under them, unlabeled, as in Gerdts
             # and Peter's.
             if len(names) > 1 and plain:
-                kept = next((at for at, one in enumerate(pieces) if len(one) != len(names)), len(pieces))
-                under, pieces = under[:kept], pieces[:kept]
+                retained = next((at for at, one in enumerate(pieces) if len(one) != len(names)), len(pieces))
+                under, pieces = under[:retained], pieces[:retained]
             if len(names) > 1 and under and all(len(one) == len(names) for one in pieces):
                 names.sort(key=text.index)
                 for column, name in enumerate(names):
@@ -1793,11 +1793,11 @@ class Paper(object):
             self.add("references", A, "heading", self.text(end), "page %d" % self.page(end))
             for entry, at in self.references(end + 1, tail - 1, skip=skip):
                 self.add("references", A, "reference", entry, "page %d" % at)
-            # A mark no row of the body carries can stand on a reference, Toronto.18 after
+            # A mark no row of the body carries can are on a reference, Toronto.18 after
             # Mackenzie's Voyages in Nater's old records; its footnote follows that reference.
             if missing:
                 missing = self.place_footnotes(missing, write, placed=[one for one in found if one not in missing],
-                                               spaced=spaced, glued=glued, kinds=("reference",), only=("reference",))
+                                               spaced=spaced, glued=glued, types=("reference",), only=("reference",))
         if missing:
             print("# footnotes not placed:", missing, file=sys.stderr)
         return found
@@ -1807,12 +1807,12 @@ class Paper(object):
         translation, or from a consultant's initials there: {tag: language}, {initials: language}.
         Every lettered part takes the language of the example. Returns the examples left untagged."""
         found = {}
-        # An example's own label, with the footnote it stands in: footnote 17 (ii), (12).
+        # An example's own label, with the footnote it is in: footnote 17 (ii), (12).
         label = re.compile(r"^((?:footnote \S+ )?\((?:\d+|[ivx]+))[a-z]?\) line")
-        for where, who, kind, form, gloss in self.rows:
+        for where, who, type, form, gloss in self.rows:
             example = label.match(where)
             # A bare language name at the right, (Lillooet), is a note and names the language too.
-            if example and kind in ("citation", "note"):
+            if example and type in ("citation", "note"):
                 # A tag's end is no word's inside, (Nsyilxcn) with its parenthesis as Lillooet.
                 tag = re.match(r"^(%s)(?!\w)" % "|".join(re.escape(one) for one in sorted(tags, key=len, reverse=True)), form)
                 initials = [one for one in re.findall(r"\b[A-Z]{2,3}\b", form) if speakers and one in speakers]
@@ -1833,9 +1833,9 @@ class Paper(object):
         left uncaptioned."""
         label = re.compile(r"^((?:footnote \S+ )?(?:§\S+ )?\((?:\d+|[ivx]+))[a-z]*\) line")
         found = {}
-        for where, who, kind, form, gloss in self.rows:
+        for where, who, type, form, gloss in self.rows:
             example = label.match(where)
-            if example and kind == "note" and form.endswith(":") and form[:-1] in names:
+            if example and type == "note" and form.endswith(":") and form[:-1] in names:
                 found.setdefault(example.group(1), names[form[:-1]])
         for row in self.rows:
             example = label.match(row[0])
@@ -1846,21 +1846,21 @@ class Paper(object):
 
     # Rows.
 
-    def add(self, where, who, kind, form, gloss):
+    def add(self, where, who, type, form, gloss):
         form = " ".join(form.split())
         if form:
-            self.rows.append([where, who, kind, form, gloss])
+            self.rows.append([where, who, type, form, gloss])
 
-    def keep(self, row, lines=None):
-        """A row a person read off the page, its fields as they stand, a row of four having no gloss,
+    def retain(self, row, lines=None):
+        """A row a person read off the page, its fields as they are, a row of four having no gloss,
         and its form bound to lines where lines is given."""
         if lines is not None:
             self.on(lines, row[3])
         self.rows.append(list(row))
 
     def write_oracle(self, header):
-        """Write the oracle of the rows keep() took, under header, with no ops file: the oracle is the
-        rows as they stand, and check_papers.sh runs no finish over it."""
+        """Write the oracle of the rows retain() took, under header, with no ops file: the oracle is the
+        rows as they are, and check_papers.sh runs no finish over it."""
         target = os.path.join(ORACLES, self.stem + ".oracle.tsv")
         with open(target, "w", encoding="utf-8", newline="\n") as handle:
             handle.write("\t".join(header) + "\n")
@@ -1874,21 +1874,21 @@ class Paper(object):
             out.append("meta authors %s" % self.authors)
         if self.language:
             out.append("meta lang %s" % self.language)
-        # The rest of the context make_md.py writes from: title, byline, volume, whose and letters.
+        # The rest of the context make_md.py writes from: title, byline, volume, whose and characters.
         for key, value in getattr(self, "meta", {}).items():
             out.append("meta %s %s" % (key, " ".join(value.split())))
         out.append("removewhere .")
         chain = ("", "")
-        for where, who, kind, form, gloss in self.rows:
+        for where, who, type, form, gloss in self.rows:
             form = form.replace("|", "\\|")
             out.append("add %s | %s | %s | %s | %s | %s | %s" % (
-                chain[0], chain[1], where, who, kind, form, gloss.replace("|", "\\|")))
+                chain[0], chain[1], where, who, type, form, gloss.replace("|", "\\|")))
             chain = (where, form)
         return out
 
     def write(self):
         """Write ops/<stem>.ops and say how many rows it adds. An ops file whose ops are unchanged is left
-        as it stands, its stamp line included, and the closed corpus's inventory does not move."""
+        as it is, its stamp line included, and the closed corpus's inventory does not move."""
         target = os.path.join(PRIVATE, "ops", self.stem + ".ops")
         body = "\n".join(self.ops()) + "\n"
         held = None

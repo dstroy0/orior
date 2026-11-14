@@ -12,7 +12,7 @@
 // stop
 #define CLI_CONTAINER_IDLE_SCRIPT "trap 'exit 0' TERM; while sleep 1 & wait $!; do :; done"
 
-// the most bytes of what docker writes that are stored, and the longest word joined from two
+// the max bytes of what docker writes that are stored, and the longest word joined from two
 #define CLI_DOCKER_OUTPUT (1u << 16u)
 
 #define CLI_STRING_JOINED 16384u

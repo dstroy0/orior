@@ -8,8 +8,8 @@
 
 #include <vector>
 
-#define KEY_SCHEDULE_CHECK(condition_, evacaddr_, error_, kind_)                                                       \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_KEY_SCHEDULE, (unsigned int)__LINE__,                      \
+#define KEY_SCHEDULE_CHECK(condition_, evacaddr_, error_, type_)                                                       \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_KEY_SCHEDULE, (unsigned int)__LINE__,                      \
                        (const void *)(evacaddr_), (error_))
 
 static const unsigned int KEY_SCHEDULE_SWEEP_AXES[ENGINE_AXES] = {0u, 2u, 1u};
@@ -128,7 +128,7 @@ extern "C" void key_schedule_release(EngineKeyLayout *layout)
     memset(layout, 0, sizeof(*layout));
 }
 
-// The record layout: each step laid out for the device and placed, and each output placed in the record, by
+// The record layout: each step arranged for the device and placed, and each output placed in the record, by
 // key_schedule_core_record_layout (key_schedule_core.h), which the device runs as well; the layout built from them and
 // the key's tables
 extern "C" long key_schedule_record_layout(const KeyScheduleRecordRequest *request)
@@ -210,7 +210,7 @@ extern "C" long key_schedule_record_layout(const KeyScheduleRecordRequest *reque
     }
     layout->steps = key->steps;
     layout->members = key->members;
-    // the file is at most ENGINE_RECORD_LIMBS_MAX limbs and the record's bits a 31-bit count, as the layout stores them
+    // the file is at max ENGINE_RECORD_LIMBS_MAX limbs and the record's bits a 31-bit count, as the layout stores them
     layout->file_limbs = (unsigned int)core_layout.file_limbs;
     for (unsigned int member = 0u; member < key->members; member += 1u)
     {

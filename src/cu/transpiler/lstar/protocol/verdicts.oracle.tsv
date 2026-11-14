@@ -1,4 +1,4 @@
-where	who	kind	code	form	numbers	gloss
+where	who	type	code	form	numbers	gloss
 row	orior_cubin_run	verdict	-	verdict <ask> <rule> <held> <at> <reason> <carried>	<who> <ask> <rule> <held> <at> <reason text> <carried>	a question the gate read on the host before the driver, put past every rule or held off the part, a row of the table verdicts
 column 0	orior_cubin_run	ask	-	<key>	<key>	the ask the gate read: the sequence of its code's blob in the run
 column 1	orior_cubin_run	rule	-	<rule>	<code>	the first rule an instruction broke, by the codes below, 0 where the code is safe (cubin_safe.h)
@@ -21,4 +21,4 @@ rule	cubin_safe	register	0xb	register	-	a register the kernel did not allot
 rule	cubin_safe	held	0xc	held	-	an encoding the vendor held off the part
 rule	cubin_safe	constant	0xd	constant	-	a read of the constant bank past the bank, or of a bank the container has none of
 rule	cubin_safe	illegal	0xe	illegal	-	an encoding the vendor's instruction set names illegal by its class's conditions, a register out of range or misaligned
-any	-	number	-	-	-	every row opens with the who of the code that handed it, its two words (Who, who.h), then its columns, each a 64-bit word, the low byte first; a row is a blob of the table's name, verdicts, and its key the blob's sequence in the run
+any	-	number	-	-	-	every row opens with the who of the code that passed it, its two words (Who, who.h), then its columns, each a 64-bit word, the low byte first; a row is a blob of the table's name, verdicts, and its key the blob's sequence in the run

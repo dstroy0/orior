@@ -18,7 +18,7 @@ static const char *const s_eslint[5] = {".eslintrc.js", ".eslintrc.cjs", "eslint
 // how long a tree's code found is cached before the tree is looked through again, in milliseconds
 #define CLI_TRUST_FOUND_FOR 10000ULL
 
-// the most trees whose code found is cached, and the bytes the paths of a tree's code are written in
+// the max trees whose code found is cached, and the bytes the paths of a tree's code are written in
 #define CLI_TRUST_TREES 8u
 #define CLI_TRUST_PATHS_CAPACITY (1ULL << 20u)
 
@@ -221,7 +221,7 @@ EMBED_INLINE int cli_proc_macro(const TrustCodeCtx *args)
     const char *at = text;
     while (at[0] != '\0')
     {
-        // the line's letters but its spaces, and its `\r` before the `\n` left off
+        // the line's characters but its spaces, and its `\r` before the `\n` left off
         char name_buf[32];
         unsigned int count = 0u;
         int longer = 0;

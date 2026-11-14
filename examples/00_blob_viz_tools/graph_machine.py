@@ -182,14 +182,14 @@ class GraphMachine(object):
                 self.connect(one, two)
                 placed += 1
 
-    def entropy_across(self, keep):
+    def entropy_across(self, retain):
         """Entanglement entropy in bits across the split, from the adjacency alone.
 
         For a graph state the entropy across a bipartition is the rank over GF(2) of the off
         diagonal block of the adjacency matrix. So this is read off the bits and never from a state
         vector. The representation exists for that.
         """
-        block = self.edges[:keep, keep:].copy() % 2
+        block = self.edges[:retain, retain:].copy() % 2
         return int(gf2_rank(block))
 
     def amplitudes(self):
@@ -239,11 +239,11 @@ def gf2_rank(block):
     return rank
 
 
-def entropy_from_state(state, keep, qubits):
+def entropy_from_state(state, retain, qubits):
     """Entanglement entropy from the amplitude array, for grading the bit-level answer."""
-    kept = 1 << keep
-    rest = 1 << (qubits - keep)
-    block = state.reshape(kept, rest)
+    retained = 1 << retain
+    rest = 1 << (qubits - retain)
+    block = state.reshape(retained, rest)
     values = numpy.linalg.svd(block, compute_uv=False)
     power = values ** 2
     power = power[power > 1e-14]
@@ -313,8 +313,8 @@ def _report():
 
 def _shapes():
     """Entanglement of different graph shapes, the field-shape question made concrete."""
-    print("  Which field shape is the most efficient config? For a graph state the shape IS the")
-    print("  adjacency. The question is then exact and not vague: which shapes buy the most")
+    print("  Which field shape is the max efficient config? For a graph state the shape IS the")
+    print("  adjacency. The question is then exact and not vague: which shapes buy the max")
     print("  entanglement per bit spent.")
     print("")
     qubits = 64

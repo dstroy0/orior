@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// utf8.c: a text of UTF-8 read letter by letter and walked by a set of bytes
+// utf8.c: a text of UTF-8 read character by character and walked by a set of bytes
 #include "utf8.h"
 
 #include "cellularum_laboro/cellularum_laboro.h"
@@ -15,7 +15,7 @@ typedef struct
     int in;
 } Utf8Ctx;
 
-unsigned int utf8_letter(const Utf8AtCfg *args)
+unsigned int utf8_character(const Utf8AtCfg *args)
 {
     unsigned long long *length = args->length;
     const unsigned char lead = (unsigned char)args->text[args->at];
@@ -42,7 +42,7 @@ unsigned int utf8_letter(const Utf8AtCfg *args)
         return lead;
     }
     const unsigned int long_lead_bits = (want == 3u) ? 0x0fu : 0x07u;
-    unsigned int letter = lead & ((want == 2u) ? 0x1fu : long_lead_bits);
+    unsigned int character = lead & ((want == 2u) ? 0x1fu : long_lead_bits);
     for (unsigned long long next = 1ULL; next < want; next += 1u)
     {
         const unsigned char more = (unsigned char)args->text[args->at + next];
@@ -51,13 +51,13 @@ unsigned int utf8_letter(const Utf8AtCfg *args)
             *length = 1u;
             return lead;
         }
-        letter = (letter << 6u) | (more & 0x3fu);
+        character = (character << 6u) | (more & 0x3fu);
     }
     *length = want;
-    return letter;
+    return character;
 }
 
-unsigned int utf8_letter_before(const Utf8EndCfg *args)
+unsigned int utf8_character_before(const Utf8EndCfg *args)
 {
     unsigned long long *length = args->length;
     unsigned long long start = args->end - 1u;
@@ -66,21 +66,21 @@ unsigned int utf8_letter_before(const Utf8EndCfg *args)
         start -= 1u;
     }
     unsigned long long read = 0ULL;
-    const unsigned int letter =
-        EMBED_CALL(utf8_at.letter, Utf8AtCfg, .text = args->text, .size = args->end, .at = start, .length = &read);
+    const unsigned int character =
+        EMBED_CALL(utf8_at.character, Utf8AtCfg, .text = args->text, .size = args->end, .at = start, .length = &read);
     if (start + read != args->end)
     {
         *length = 1u;
         return (unsigned char)args->text[args->end - 1u];
     }
     *length = read;
-    return letter;
+    return character;
 }
 
 void utf8_set_fill(const Utf8SetFillCfg *args)
 {
     const embed_word count = cellul.len(&(CatenaFinitaCfg){.src = args->set, .cap = UTF8_SET_MAX});
-    // a set is at most UTF8_SET_MAX bytes, which an unsigned int stores
+    // a set is at max UTF8_SET_MAX bytes, which an unsigned int stores
     args->filled_out->count = (unsigned int)count;
     for (unsigned int at = 0u; at < args->filled_out->count; at += 1u)
     {

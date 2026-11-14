@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The editor's place on the page: the word before the cursor that completion replaces, and the rectangle a place
-// stands in, a line's height below the line above it.
+// is in, a line's height below the line above it.
 
 import { given, putBackAsFound } from "../../../menus.js";
 
@@ -17,7 +17,7 @@ test("the prefix is the word before the primary cursor, and empty after a sign",
   assert.equal(view.prefix().text, "");
 });
 
-test("a place on the next line stands a line's height lower, at the same left for the same col", async () => {
+test("a place on the next line is a line's height lower, at the same left for the same col", async () => {
   const view = await given("abc\nabc");
   const upper = view.rectOf({ line: 0, col: 2 });
   const lower = view.rectOf({ line: 1, col: 2 });

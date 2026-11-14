@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	John Hamilton Davis	title	Reflexes of Proto-Salish *ʔas- Stative and *ʔis- Durative in Today’s Comox	page 1
 front	John Hamilton Davis	name	John Hamilton Davis	author
 front	John Hamilton Davis	note	Bellingham, Washington	page 1, under John Hamilton Davis
@@ -7,7 +7,7 @@ front	John Hamilton Davis	note	Keywords: Mainland Comox, historical phonology, s
 front	John Hamilton Davis	note	Papers for the International Conference on Salish and Neighbouring Languages 54. D. K. E. Reisinger and Gloria Mellesmoen (eds.). Vancouver, BC: UBCWPL, 2019.	page 1, the volume's header
 front	John Hamilton Davis	language	Mainland Comox	ʔayʔaǰuθəm, the language of the Homalco, Klahoose and Sliammon
 §1	John Hamilton Davis	heading	1 Introduction	page 1
-§1	John Hamilton Davis	note	Stanley Newman (1976:231) distinguishes between Proto-Salish */ʔas/ stative and Proto-Salish */ʔis/ continuative or durative. This paper presents the homophonous phonetic residues as they appear in Mainland Comox and distinguishes them from the proclitic /s/ nominalizer. Section 2 presents the nominalizing proclitic with its requirement that the subject of the nominalized phrase be indicated by a pronominal marker from the possessive paradigm. Section 3 presents the imperfective, which overlaps semantically with the durative. Sections 4 and 5 present the most frequent formation of the durative and stative. Sections 6 and 7 present additional data. Section 8 presents the */s-/ prefix of the durative and stative. Section 9 presents time expressions with the Proto-Salish */s-/ prefix. The examples in sections 8 and 9 do not require a pronominal marker. Section 10 is a note on how the Proto-Salish /s/ nominalizer has been absorbed into the first person singular possessive pronoun and Section 11 is a history of the names for this language.	page 1
+§1	John Hamilton Davis	note	Stanley Newman (1976:231) distinguishes between Proto-Salish */ʔas/ stative and Proto-Salish */ʔis/ continuative or durative. This paper presents the homophonous phonetic residues as they appear in Mainland Comox and distinguishes them from the proclitic /s/ nominalizer. Section 2 presents the nominalizing proclitic with its requirement that the subject of the nominalized phrase be indicated by a pronominal marker from the possessive paradigm. Section 3 presents the imperfective, which overlaps semantically with the durative. Sections 4 and 5 present the commonest formation of the durative and stative. Sections 6 and 7 present additional data. Section 8 presents the */s-/ prefix of the durative and stative. Section 9 presents time expressions with the Proto-Salish */s-/ prefix. The examples in sections 8 and 9 do not require a pronominal marker. Section 10 is a note on how the Proto-Salish /s/ nominalizer has been absorbed into the first person singular possessive pronoun and Section 11 is a history of the names for this language.	page 1
 §1	John Hamilton Davis	name	Stanley Newman	reconstructs the Proto-Salish prefixes, Salish and Bella Coola prefixes (1976)
 §1	John Hamilton Davis	name	Newman	Stanley Newman, Salish and Bella Coola prefixes (1976)
 §1	John Hamilton Davis	language	Proto-Salish	the prefixes *ʔas- stative and *ʔis- durative
@@ -186,7 +186,7 @@ footnote 4	John Hamilton Davis	name	Hagège	Claude Hagège, le comox lhaamen (19
 (50) line 2	Mainland Comox	phonetic	[ƛ̉ᴧmεs kw qayiʊmiçʷ]	page 4, in columns
 (49) line 3	John Hamilton Davis	translation	‘house’	page 4, in columns
 (50) line 3	John Hamilton Davis	translation	“the people had houses”	page 4, in columns, carries footnote 5
-footnote 5	John Hamilton Davis	note	This is a direct quote from Noel George Harry in the introductory lines of the story “Killing the Wind”; these are his words, not the linguist’s, as shown by the double quotation marks.	page 4, footnote 5
+footnote 5	John Hamilton Davis	note	This is a direct quote from Noel George Harry in the introductory lines of the story “Killing the Wind”; these are his words, not the linguist’s, as displayed by the double quotation marks.	page 4, footnote 5
 §6	John Hamilton Davis	heading	6 Another morphological process	page 5
 §6	John Hamilton Davis	note	Here is an additional way to derive attributions, insertion of [h] in V2 as in the following. This method of derivation yields the same meaning as in Section 5, but is morphologically different.	page 5
 (51) line 1	Mainland Comox	transcription	gaqath	page 5, in columns
@@ -233,7 +233,7 @@ footnote 5	John Hamilton Davis	note	This is a direct quote from Noel George Harr
 footnote 6	John Hamilton Davis	note	Bill Galligos said that ‘dog’ has “two and a half” syllables. This observation exemplifies that the Coast Salish languages are not syllable-timed, like European languages, but are mora-timed; see also Davis (2005) and Davis (2015). Hoard (1978) describes the situation without using the word “mora”.	page 5, footnote 6
 footnote 6	John Hamilton Davis	name	Hoard	James E. Hoard, syllabication in Northwest Indian languages (1978)
 (63) line 3	John Hamilton Davis	translation	“That’s my dog.” = ‘That dog is mine.’	page 5, in columns, carries footnote 7
-footnote 7	John Hamilton Davis	note	This is a direct quote from Bill Galligos; these are his words, not the linguist’s, as shown by the double quotation marks.	page 5, footnote 7
+footnote 7	John Hamilton Davis	note	This is a direct quote from Bill Galligos; these are his words, not the linguist’s, as displayed by the double quotation marks.	page 5, footnote 7
 (64) line 1	Mainland Comox	transcription	th na’ ~ ’eth na’	page 5, in columns
 (65) line 1	Mainland Comox	transcription	na’ap	page 5, in columns
 (64) line 2	Mainland Comox	phonetic	[ʔəθ naʔ]	page 5, in columns
@@ -272,7 +272,7 @@ footnote 9	John Hamilton Davis	note	Compare Sechelt k’wichil ‘be a bother’
 (73) line 1	Mainland Comox	transcription	’astl’q	page 6, in columns
 (72) line 2	Mainland Comox	phonetic	[ƛ̉ᴧq]	page 6, in columns
 (73) line 2	Mainland Comox	phonetic	[ʔasƛ̉q]	page 6, in columns, carries footnote 10
-footnote 10	John Hamilton Davis	note	Mary George (born 1924) kept the [ƛ̉] in her pronunciation of three morae, illustrated by the transcription [ʔas.ƛ̉.q] using the notation in Hoard (1978). Compare Sechelt ’astl’q ‘be outside’ where the [ƛ̉] is also preserved.	page 6, footnote 10
+footnote 10	John Hamilton Davis	note	Mary George (born 1924) retained the [ƛ̉] in her pronunciation of three morae, illustrated by the transcription [ʔas.ƛ̉.q] using the notation in Hoard (1978). Compare Sechelt ’astl’q ‘be outside’ where the [ƛ̉] is also preserved.	page 6, footnote 10
 footnote 10	John Hamilton Davis	name	Mary George	Sliammon speaker, born 1924
 (72) line 3	John Hamilton Davis	translation	‘go outside’	page 6, in columns
 (73) line 3	John Hamilton Davis	translation	‘be outside’	page 6, in columns
@@ -280,7 +280,7 @@ footnote 10	John Hamilton Davis	name	Mary George	Sliammon speaker, born 1924
 (74) line 2	Mainland Comox	phonetic	[sqʷaǰιm]	page 6, in columns
 (74) line 3	John Hamilton Davis	translation	‘poor (an ongoing condition)’	page 6, in columns
 §9	John Hamilton Davis	heading	9 Time expressions	page 7
-§9	John Hamilton Davis	note	Expressions of time do not have the third person /-s/ suffix; the /s-/ is not a nominalizer. They are the most common expression of the Proto-Salish */s-/ stative prefix.	page 7
+§9	John Hamilton Davis	note	Expressions of time do not have the third person /-s/ suffix; the /s-/ is not a nominalizer. They are the usual expression of the Proto-Salish */s-/ stative prefix.	page 7
 (75) line 1	Mainland Comox	transcription	sjiasolh (overt past tense -olh)	page 7, in columns
 (75) line 2	Mainland Comox	phonetic	[sǰʸεsoɬ]	page 7, in columns
 (75) line 3	John Hamilton Davis	translation	‘yesterday’	page 7, in columns
@@ -341,7 +341,7 @@ footnote 11	John Hamilton Davis	name	Tommy Paul	storyteller, the explanation abo
 §11	John Hamilton Davis	name	George Gibbs	the earliest word list, 1857, published 1877
 §11	John Hamilton Davis	name	Gibbs	George Gibbs, vocabulary of the Ko-mookhs (1877)
 §11	John Hamilton Davis	language	Island Comox	Thalholhtwh, the island dialect
-§11	John Hamilton Davis	note	In 1886, Franz Boas recorded the name of Island Comox as Çal‘oltq, where the q stood for several fricatives including the rounded ich-laut [çʷ]. In 1915 Sapir used the name Comox. Thalholhtwh [θaɬoɬtçʷ] was the name that Noel George Harry (born circa 1890) volunteered in 1969 for the island dialect. The last speaker of Island Comox substituted [s] for [θ] (Harris 1977), but one last speaker is not more authoritative than the hundreds of speakers who came before.	page 8
+§11	John Hamilton Davis	note	In 1886, Franz Boas recorded the name of Island Comox as Çal‘oltq, where the q was for several fricatives including the rounded ich-laut [çʷ]. In 1915 Sapir used the name Comox. Thalholhtwh [θaɬoɬtçʷ] was the name that Noel George Harry (born circa 1890) volunteered in 1969 for the island dialect. The last speaker of Island Comox substituted [s] for [θ] (Harris 1977), but one last speaker is not more authoritative than the hundreds of speakers who came before.	page 8
 §11	John Hamilton Davis	name	Franz Boas	recorded Çal‘oltq in 1886
 §11	John Hamilton Davis	name	Boas	Franz Boas
 §11	John Hamilton Davis	name	Sapir	Edward Sapir, noun reduplication in Comox (1915)

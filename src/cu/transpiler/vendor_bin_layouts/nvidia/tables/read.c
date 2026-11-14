@@ -56,7 +56,7 @@ static int tables_class_head(const char *line, char *name, size_t room)
     return 1;
 }
 
-// the opcode of an OPCODES line, `<name> = 0b<bits>;`, the bits read as they stand
+// the opcode of an OPCODES line, `<name> = 0b<bits>;`, the bits read as they are
 static int tables_opcode_read(const char *line, unsigned long long *opcode)
 {
     const char *const at = strstr(line, "0b");
@@ -257,7 +257,7 @@ static unsigned int tables_immediate_bits(const char *open, const char *end)
 }
 
 // a FORMAT line containing a size operand, `/SZ_U8_S8_U16_S16_32_64("32"):sz`: the choices between `SZ_` and the
-// parenthesis, each a width in bits after any letters, in the order the field counts them, and the operand's name
+// parenthesis, each a width in bits after any characters, in the order the field counts them, and the operand's name
 // after the colon
 static void tables_size_read(const char *line, TablesClass *class_)
 {
@@ -389,9 +389,9 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
         ENCODING,
         CONDITIONS
     } part = ELSEWHERE;
-    // within CONDITIONS, whether the conditions read are under a kind on the registers, OOR_REG_ERROR or
+    // within CONDITIONS, whether the conditions read are under a type on the registers, OOR_REG_ERROR or
     // MISALIGNED_REG_ERROR
-    int register_kind = 0;
+    int register_type = 0;
     while (line_read(text, size, &at, line, sizeof(line)))
     {
         char name[TABLES_NAME + 16u];
@@ -430,16 +430,16 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
         else if (strcmp(line, "CONDITIONS") == 0)
         {
             part = CONDITIONS;
-            register_kind = 0;
+            register_type = 0;
             continue;
         }
         else if ((line[0] >= 'A') && (line[0] <= 'Z') && (strspn(line, "ABCDEFGHIJKLMNOPQRSTUVWXYZ_") == length))
         {
-            // within CONDITIONS, a kind of error the conditions after it are under; elsewhere another part's head,
+            // within CONDITIONS, a type of error the conditions after it are under; elsewhere another part's head,
             // PROPERTIES, PREDICATES: capitals and underscores alone
             if ((part == CONDITIONS) && (length > 6u) && (strcmp(line + length - 6u, "_ERROR") == 0))
             {
-                register_kind = (strstr(line, "REG_ERROR") != NULL);
+                register_type = (strstr(line, "REG_ERROR") != NULL);
                 continue;
             }
             part = ELSEWHERE;
@@ -447,7 +447,7 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
         }
         if (part == CONDITIONS)
         {
-            // a condition is a line ending in a colon, under a kind on the registers; the line after it, in quotes, is
+            // a condition is a line ending in a colon, under a type on the registers; the line after it, in quotes, is
             // its message, and a condition longer than its room is not stored
             const char *const text_at = tables_past_spaces(line);
             size_t copied = strlen(text_at);
@@ -455,7 +455,7 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
             {
                 copied -= 1u;
             }
-            if (register_kind && (copied != 0u) && (text_at[strlen(text_at) - 1u] == ':') &&
+            if (register_type && (copied != 0u) && (text_at[strlen(text_at) - 1u] == ':') &&
                 (copied + 1u < TABLES_CONDITION_TEXT) && (class_->conditions < TABLES_CONDITIONS))
             {
                 memcpy(class_->condition[class_->conditions], text_at, copied);
@@ -779,7 +779,7 @@ static long long tables_condition_primary(TablesCondition *condition)
         condition->unjudged = 1;
         return 0ll;
     }
-    // a field stores at most 64 bits, read as the number it stores
+    // a field stores at max 64 bits, read as the number it stores
     return (long long)tables_field_read(field, condition->low, condition->high);
 }
 

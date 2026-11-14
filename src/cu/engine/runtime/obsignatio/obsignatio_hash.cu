@@ -35,7 +35,7 @@ __global__ void obsignatio_chunk_kernel(const unsigned char *bytes, unsigned lon
         const unsigned long long chunk = index % chunks;
         const unsigned long long start = chunk << OBSIGNATIO_CHUNK_SHIFT;
         const unsigned long long remain = length - start;
-        // the take is at most one chunk's 1024 bytes. It fits an unsigned int
+        // the take is at max one chunk's 1024 bytes. It fits an unsigned int
         const unsigned int take = (remain < OBSIGNATIO_CHUNK_BYTES) ? (unsigned int)remain : OBSIGNATIO_CHUNK_BYTES;
         const ObsignatioSource source = {&bytes[message * stride], NULL, 0ull, 0ull, length};
         ObsignatioNode node;

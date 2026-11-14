@@ -3,22 +3,22 @@
 
 // The lines of a text that differ from an older text of it: added, changed, and where lines were
 // taken out. The lines the two share at their start and end are set aside first, and Myers' shortest
-// edit runs on what is left. It holds one band of its frontier for each edit: what it keeps grows
-// with the edits and not with the text. Past MOST_EDITS the texts read as too far apart to mark.
+// edit runs on what is left. It holds one band of its frontier for each edit: what it retains grows
+// with the edits and not with the text. Past MAX_EDITS the texts read as too far apart to mark.
 
-const MOST_EDITS = 3000;
+const MAX_EDITS = 3000;
 
-// The shortest edit from `a` to `b`, arrays of numbers, as [type, index] in order: type 0 keeps a[i],
-// 1 takes a[i] out, 2 puts b[i] in. Null past MOST_EDITS.
+// The shortest edit from `a` to `b`, arrays of numbers, as [type, index] in order: type 0 retains a[i],
+// 1 takes a[i] out, 2 puts b[i] in. Null past MAX_EDITS.
 function shortest(a, b) {
   const n = a.length;
   const m = b.length;
-  const most = Math.min(n + m, MOST_EDITS);
-  const middle = most + 1;
-  const v = new Int32Array(2 * most + 3);
+  const max = Math.min(n + m, MAX_EDITS);
+  const middle = max + 1;
+  const v = new Int32Array(2 * max + 3);
   const trace = [];
   let found = -1;
-  for (let d = 0; d <= most && found < 0; d += 1) {
+  for (let d = 0; d <= max && found < 0; d += 1) {
     trace.push(v.slice(middle - d, middle + d + 1));
     for (let k = -d; k <= d; k += 2) {
       let x = k === -d || (k !== d && v[middle + k - 1] < v[middle + k + 1]) ? v[middle + k + 1] : v[middle + k - 1] + 1;
@@ -98,7 +98,7 @@ export function lineChanges(then, now) {
   if (!steps) {
     return null;
   }
-  // Each run of steps between two kept lines is one change: lines put in where none came out are
+  // Each run of steps between two retained lines is one change: lines put in where none came out are
   // added, lines put in where some came out are changed, and lines only taken out mark where.
   let line = start;
   let thenLine = start;

@@ -13,15 +13,15 @@ import { asFound, made, press, putBackAsFound, rowOf } from "../../menus.js";
 
 const { test, assert, ui } = window.__harness;
 
-test("the explorer's menu, from the command line: a pane shown and hidden, the tree read again, its folders closed, and the Outline pinned", async () => {
+test("the explorer's menu, from the command line: a pane displayed and hidden, the tree read again, its folders closed, and the Outline pinned", async () => {
   asFound();
   showView("edit");
   togglePane(true, { take: false, pin: true });
   showPane("folder");
   await press("pane-show", "todo", "on");
-  assert.ok(panesNow().todo.shown, "TODO shown");
+  assert.ok(panesNow().todo.displayed, "TODO displayed");
   await press("pane-show", "todo", "off");
-  assert.ok(!panesNow().todo.shown, "and hidden");
+  assert.ok(!panesNow().todo.displayed, "and hidden");
   const read = made("tree_list").length;
   await press("explorer-refresh");
   await ui.waitFor(() => made("tree_list").length > read, 5000, "the tree read again");
@@ -38,7 +38,7 @@ test("the explorer's menu, from the command line: a pane shown and hidden, the t
   asFound();
 });
 
-test("Local History's menu, from the command line: a save's difference shown, and the file taken back to it", async () => {
+test("Local History's menu, from the command line: a save's difference displayed, and the file taken back to it", async () => {
   asFound();
   showView("edit");
   await invoke("file_write", { path: "history_file.txt", text: "first\n" });
@@ -51,7 +51,7 @@ test("Local History's menu, from the command line: a save's difference shown, an
   const saves = await ui.waitFor(async () => {
     const found = await invoke("history_list", { path: "history_file.txt" });
     return found.length >= 2 && found;
-  }, 5000, "the saves kept");
+  }, 5000, "the saves retained");
   const second = saves.find((one) => one.size === "second\n".length) ?? saves.at(-1);
   await press("history-difference", "history_file.txt", String(second.at));
   await ui.waitFor(() => document.querySelector("#mode-edit .desk .diff-button"), 5000, "the save beside the file");

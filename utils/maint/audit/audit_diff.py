@@ -31,12 +31,12 @@ TIMING = re.compile(
 def substantive(path):
     if not path.exists() or path.stat().st_size == 0:
         return None
-    kept = []
+    retained = []
     for line in path.read_text(errors="replace").splitlines():
         if TIMING.search(line):
             continue
-        kept.append(line.rstrip())
-    return kept
+        retained.append(line.rstrip())
+    return retained
 
 
 def main():

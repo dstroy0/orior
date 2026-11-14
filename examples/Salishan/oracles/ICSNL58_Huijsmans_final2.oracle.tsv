@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Marianne Huijsmans	language	ʔayʔaǰuθəm	ʔayʔaǰuθəm, Comox-Sliammon, Central Salish
 front	Marianne Huijsmans	language	St’át’imcets	St’át’imcets, Lillooet
 front	Marianne Huijsmans	language	Nsyílxcən	Nsyílxcən, Okanagan
@@ -61,14 +61,14 @@ footnote 1	Marianne Huijsmans	note	1 www.firstvoices.com	page 2, footnote
 (1d) line 6	ʔayʔaǰuθəm	gloss	det=1sg.poss=house	page 3, pairs
 (1d) line 7	Watanabe 2003:66–68	translation	‘My house is white.’	page 3, pairs, cited Watanabe 2003:66–68
 (1d) line 7	Marianne Huijsmans	citation	[adjective] (Watanabe 2003:66–68)	the tag or source at the right of the translation
-footnote 2	Marianne Huijsmans	note	2 The abbreviations used in this paper are: 1 = first person, 2 = second person, 3 = third person, act.intr = active intransitive, caus = causative, char = characteristic reduplication, cld = clausal demonstra- tive, clf.prt = clefting particle, comp = complementizer, conj = conjunction, cop = copula, cos = change-of- state reduplication, ctr = control transitive, dem = demonstrative, det = determiner, dim = diminutive, dprt = discourse particle, epen = epenthetic, erg = ergative, excl = exclusive, exclam = exclamative, f = feminine, fut = future, indef = indefinite, infer = inferential, ins = instrumental, int = intensifier, md = middle, nctr = non-control transitive, neg = negative, nmlz = nominalizer, obj = object, obl = oblique, pass = passive, pl = plural, poss = possessive, prf = perfect, prog = progressive, pst = past, q = question particle, rpt = reportative, sbj = subject, sbjv = subjunctive, sg = singular, stat = stative, tr = transitive. The top line of each ʔayʔaǰuθəm example (following the context, if present) is an orthographic representation, while the second line is a roughly phonemic transcription using NAPA. ‘vf’ stands for ‘volunteered form’, a form offered by the speaker, while ‘sf’ stands for ‘suggested form’, a form supplied by the author for the speaker to judge for grammaticality and/or felicity in a given context.	page 3, footnote
+footnote 2	Marianne Huijsmans	note	2 The abbreviations used in this paper are: 1 = first person, 2 = second person, 3 = third person, act.intr = active intransitive, caus = causative, char = characteristic reduplication, cld = clausal demonstra- tive, clf.prt = clefting particle, comp = complementizer, conj = conjunction, cop = copula, cos = change-of- state reduplication, ctr = control transitive, dem = demonstrative, det = determiner, dim = diminutive, dprt = discourse particle, epen = epenthetic, erg = ergative, excl = exclusive, exclam = exclamative, f = feminine, fut = future, indef = indefinite, infer = inferential, ins = instrumental, int = intensifier, md = middle, nctr = non-control transitive, neg = negative, nmlz = nominalizer, obj = object, obl = oblique, pass = passive, pl = plural, poss = possessive, prf = perfect, prog = progressive, pst = past, q = question particle, rpt = reportative, sbj = subject, sbjv = subjunctive, sg = singular, stat = stative, tr = transitive. The top line of each ʔayʔaǰuθəm example (following the context, if present) is an orthographic representation, while the second line is a roughly phonemic transcription using NAPA. ‘vf’ is for ‘volunteered form’, a form offered by the speaker, while ‘sf’ is for ‘suggested form’, a form supplied by the author for the speaker to judge for grammaticality and/or felicity in a given context.	page 3, footnote
 §3	Marianne Huijsmans	note	Below, I provided additional examples with the same word serving both as the main predicate and as an argument.	page 3
 §3	ʔayʔaǰuθəm	cited form	wuwuwʊm	page 4, ‘singing’
 §3	ʔayʔaǰuθəm	cited form	nɛʔ	page 4
 §3	ʔayʔaǰuθəm	cited form	ʔə	page 4
 §3	ʔayʔaǰuθəm	cited form	taʔa	page 4, ‘be over there’
 §3	ʔayʔaǰuθəm	cited form	tə	page 4
-§3	Marianne Huijsmans	note	The predicate-argument flexibility of verbs is shown in (2). Here, the verb wuwuwʊm ‘singing’ is first preceded by a determiner as the subject of the sentence in (2a) and then occurs as the main predicate in (2b), while the complex locative predicate nɛʔ ʔə taʔa ‘be over there’ occurs as the main predicate in (2a) and then as the subject argument following the determiner tə in (2b).3	page 4
+§3	Marianne Huijsmans	note	The predicate-argument flexibility of verbs is displayed in (2). Here, the verb wuwuwʊm ‘singing’ is first preceded by a determiner as the subject of the sentence in (2a) and then occurs as the main predicate in (2b), while the complex locative predicate nɛʔ ʔə taʔa ‘be over there’ occurs as the main predicate in (2a) and then as the subject argument following the determiner tə in (2b).3	page 4
 (2a) line 1	ʔayʔaǰuθəm	transcription	[nɛʔ	page 4, pairs
 (2a) line 2	ʔayʔaǰuθəm	segmentation	[niʔ	page 4, pairs
 (2a) line 3	ʔayʔaǰuθəm	gloss	be.there	page 4, pairs
@@ -165,7 +165,7 @@ footnote 2	Marianne Huijsmans	note	2 The abbreviations used in this paper are: 1
 footnote 3	Marianne Huijsmans	note	3 The oblique marker ʔə is often elided, especially in this construction with nɛʔ ‘be there’.	page 4, footnote
 §3	ʔayʔaǰuθəm	cited form	χaχaɬ	page 5, ‘tall’
 §3	Marianne Huijsmans	note	Similarly, the property χaχaɬ ‘tall’ appears as a prenominal modifier in the direct object in (5a) and as the main predicate in (5b).	page 5
-(5a) line 1	Marianne Huijsmans	note	Context: I need help moving something that’ s on a high shelf. There’ s a tall guy stand- ing nearby with a few others.	page 5, pairs
+(5a) line 1	Marianne Huijsmans	note	Context: I need help moving something that’ s on a high shelf. There’ s a tall guy are- ing nearby with a few others.	page 5, pairs
 (5a) line 2	ʔayʔaǰuθəm	transcription	[gayɛt]tᶿəm	page 5, pairs
 (5a) line 3	ʔayʔaǰuθəm	segmentation	[gay-at]=tᶿ=əm	page 5, pairs
 (5a) line 4	ʔayʔaǰuθəm	gloss	ask-ctr=1sg.sbj=fut	page 5, pairs
@@ -200,7 +200,7 @@ footnote 3	Marianne Huijsmans	note	3 The oblique marker ʔə is often elided, es
 §3	ʔayʔaǰuθəm	cited form	hɛɬ	page 5
 §3	ʔayʔaǰuθəm	cited form	ʔətᶿ	page 5
 §3	ʔayʔaǰuθəm	cited form	qɛχ	page 5
-footnote 4	Marianne Huijsmans	note	4 Lyon (2013), the most extensive work on copular constructions for a Salish language, examines copular constructions in Nsyílxcən. Interestingly, there is no overt copula in Nsyílxcən, and Lyon finds evidence for a null copula, but only in equative constructions. There is no null predicational copula, meaning that nouns and adjectives are used directly as predicates, even though null copula exists in the language.	page 5, footnote
+footnote 4	Marianne Huijsmans	note	4 Lyon (2013), the max extensive work on copular constructions for a Salish language, examines copular constructions in Nsyílxcən. Interestingly, there is no overt copula in Nsyílxcən, and Lyon finds evidence for a null copula, but only in equative constructions. There is no null predicational copula, meaning that nouns and adjectives are used directly as predicates, even though null copula exists in the language.	page 5, footnote
 §3	Marianne Huijsmans	language	Nsyílxcən	Nsyílxcən, Okanagan
 §3	Marianne Huijsmans	note	In (6a–b), a determiner phrase appears initially and the sentences are ungrammatical. Instead, a cleft structure must be used where the initial determiner phrase is introduced by the overt copula hɛɬ (6c), which is used in clefts and equatives. Alternately, ʔətᶿ qɛχ may appear directly as an NP predicate without a preceding determiner (7), in which case the copula hɛɬ is not used.4	page 5
 (6a) line 1	Marianne Huijsmans	note	Context: I’m pointing out my younger brother in a crowd.	page 6, pairs
@@ -256,7 +256,7 @@ footnote 4	Marianne Huijsmans	note	4 Lyon (2013), the most extensive work on cop
 (7) line 7	ʔayʔaǰuθəm	gloss	f.dem	page 6, pairs
 (7) line 8	Marianne Huijsmans	translation	‘This is my younger sister.’	page 6, pairs
 (7) line 8	Marianne Huijsmans	citation	(vf | EP.2021/01/08)	the tag or source at the right of the translation
-§3	Marianne Huijsmans	note	Similarly, a prepositional phrase cannot occur initially as the main predicate, as shown in (8a). It must be accompanied by an overt verbal locative element, such as nɛʔ ‘be there’.	page 6
+§3	Marianne Huijsmans	note	Similarly, a prepositional phrase cannot occur initially as the main predicate, as displayed in (8a). It must be accompanied by an overt verbal locative element, such as nɛʔ ‘be there’.	page 6
 (8a) line 1	Marianne Huijsmans	note	Context: I notice Felipe’ s glasses in the living room and figure he might go looking for them later, so I tell him:	page 6, pairs
 (8a) line 2	ʔayʔaǰuθəm	transcription	* [ʔə tə kʷanačɩmawtxʷ]	page 6, pairs
 (8a) line 3	ʔayʔaǰuθəm	segmentation	[ʔə=tə=kʷanač-əm-awtxʷ]	page 6, pairs
@@ -504,7 +504,7 @@ footnote 8	Marianne Huijsmans	note	8 In examples (14) to (17), the argument of t
 (17) line 11	Marianne Huijsmans	citation	(sf | EP.2023/02/04)	the tag or source at the right of the translation
 §5.1	Marianne Huijsmans	language	St’át’imcets	St’át’imcets, Lillooet
 §5.1	Marianne Huijsmans	note	While in St’át’imcets only individual-level adjectives are permissible as modifiers (Davis and Matthew- son 1999), in ʔayʔaǰuθəm the modifier can be a stage-level adjective, as in (18) to (19), or an individual-level adjective, as in (13) to (15) above.	page 10
-(18) line 1	Marianne Huijsmans	note	Context: I’m at a bakery choosing what to buy. There are some loaves of bread that just came out of the oven and are still warm. I really want one of the loaves that’ s fresh from the oven but I haven’t settled on which kind, so I say to the lady:	page 10, pairs
+(18) line 1	Marianne Huijsmans	note	Context: I’m at a bakery choosing what to buy. There are some loaves of bread that just came out of the oven and are still warm. I really want one of the loaves that’ s fresh from the oven but I haven’t settled on which type, so I say to the lady:	page 10, pairs
 (18) line 2	ʔayʔaǰuθəm	transcription	[k̓ʷas	page 10, pairs
 (18) line 3	ʔayʔaǰuθəm	segmentation	[k̓ʷas	page 10, pairs
 (18) line 4	ʔayʔaǰuθəm	gloss	hot	page 10, pairs
@@ -751,7 +751,7 @@ footnote 8	Marianne Huijsmans	note	8 In examples (14) to (17), the argument of t
 (28) line 11	Marianne Huijsmans	translation	‘No, it’s not a eagle.’	page 12, pairs
 §5.1	Marianne Huijsmans	note	This then appears to be a syntactic restriction. Though the test is only applicable to stage-level predicates, it also points to a difference between the lexical categories of noun and verb.	page 12
 §5.2	Marianne Huijsmans	heading	5.2 Additional morphological evidence for nouns	page 13
-§5.2	Marianne Huijsmans	note	The other means for distinguishing nouns is morphological and is pointed out in Watanabe (2003). Nouns, but not verbs, can take the possessive -hV- affix (where V stands for a copy vowel). This affix derives a stative verb.9	page 13
+§5.2	Marianne Huijsmans	note	The other means for distinguishing nouns is morphological and is pointed out in Watanabe (2003). Nouns, but not verbs, can take the possessive -hV- affix (where V is for a copy vowel). This affix derives a stative verb.9	page 13
 (25a) line 1	ʔayʔaǰuθəm	transcription	ʔayɛhaʔ	page 13, the orthography
 (25a) line 1	ʔayʔaǰuθəm	phonemic	/ʔaya<ha>ʔ/	page 13, phonemic, in / /
 (25a) line 1	Watanabe 2003:73	translation	‘have a house’	page 13, cited Watanabe 2003:73
@@ -801,7 +801,7 @@ footnote 9	Marianne Huijsmans	note	9 If lexical categories did not exist in Sali
 (30) line 9	Marianne Huijsmans	citation	[verb] (sf | EP.2023/02/11)	the tag or source at the right of the translation
 §5.3	Marianne Huijsmans	heading	5.3 Relative clauses as a non-test	page 14
 §5.3	Marianne Huijsmans	language	St’át’imcets	St’át’imcets, Lillooet
-§5.3	Marianne Huijsmans	note	In St’át’imcets, evidence for a distinction between nouns and words of other lexical categories is also found in relative clauses (e.g., Davis and Matthewson 1999; Demirdache and Matthewson 1995). Relative clauses are embedded sentences that add additional descriptive content modifying a noun. In the sentence I recognize [the man [who is standing over there]], there is a relative clause who is standing there embedded in the determiner phrase. This relative clause modifies the noun man, providing additional information to help identify the individual being referred to. The modified noun man is the head of the relative clause.	page 14
+§5.3	Marianne Huijsmans	note	In St’át’imcets, evidence for a distinction between nouns and words of other lexical categories is also found in relative clauses (e.g., Davis and Matthewson 1999; Demirdache and Matthewson 1995). Relative clauses are embedded sentences that add additional descriptive content modifying a noun. In the sentence I recognize [the man [who is located over there]], there is a relative clause who is located there embedded in the determiner phrase. This relative clause modifies the noun man, providing additional information to help identify the individual being referred to. The modified noun man is the head of the relative clause.	page 14
 §5.3	Marianne Huijsmans	note	In St’át’imcets, relative clauses can be headed or headless (e.g., Davis 2010, 2011). If headed, the head must be a noun (e.g., Davis 2010, 2011; Demirdache and Matthewson 1995). This rules out examples like the following, where the relative clause is headed by a non-noun, namely a verb or adjective.	page 14
 (31a) line 1	St’át’imcets	segmentation	áts'x-en=lhkan	page 14, engine language
 (31a) line 2	St’át’imcets	gloss	see-tr=1sg.sbj	page 14, engine english
@@ -954,7 +954,7 @@ footnote 10	Marianne Huijsmans	note	10 The third person ergative suffix -as, whi
 (36b) line 8	ʔayʔaǰuθəm	segmentation	č̓ag-aθ-uɬ	page 16, pairs
 (36b) line 9	ʔayʔaǰuθəm	gloss	help-ctr;1sg.obj-pst	page 16, pairs
 (36b) line 10	Marianne Huijsmans	translation	‘I wonder who the tall one who helped me is.’	page 16, pairs
-(37) line 1	Marianne Huijsmans	note	Context: I’m at a bakery choosing a cookie. There are chocolate chip cookies and oatmeal raisin cookies. A batch of each kind just came out of the oven, and they are still hot and some have already been out for a while and cooled. I really want one that’ s fresh from the oven, so I say to the lady:	page 16, pairs
+(37) line 1	Marianne Huijsmans	note	Context: I’m at a bakery choosing a cookie. There are chocolate chip cookies and oatmeal raisin cookies. A batch of each type just came out of the oven, and they are still hot and some have already been out for a while and cooled. I really want one that’ s fresh from the oven, so I say to the lady:	page 16, pairs
 (37) line 2	ʔayʔaǰuθəm	transcription	hɛhɛw	page 16, pairs
 (37) line 3	ʔayʔaǰuθəm	segmentation	hihiw	page 16, pairs
 (37) line 4	ʔayʔaǰuθəm	gloss	really	page 16, pairs
@@ -1101,7 +1101,7 @@ footnote 13	Marianne Huijsmans	note	13 Except when marking subjects of nominaliz
 (42a) line 32	Marianne Huijsmans	translation	‘I’ll ask the man who is sitting there.’	page 19, pairs
 (42a) line 32	Marianne Huijsmans	citation	(vf | EP.2022/09/16)	the tag or source at the right of the translation
 §6.1	Marianne Huijsmans	note	In contrast to relative clause modifiers, adjectives must precede the noun they modify, as illustrated in (43) to (45).	page 19
-(43a) line 1	Marianne Huijsmans	note	Context: I need help moving something that’ s on a high shelf. There’ s a tall guy stand- ing nearby with a few others.	page 19, pairs
+(43a) line 1	Marianne Huijsmans	note	Context: I need help moving something that’ s on a high shelf. There’ s a tall guy are- ing nearby with a few others.	page 19, pairs
 (43a) line 2	ʔayʔaǰuθəm	transcription	gayɛttᶿəm	page 19, pairs
 (43a) line 3	ʔayʔaǰuθəm	segmentation	gay-at=tᶿ=əm	page 19, pairs
 (43a) line 4	ʔayʔaǰuθəm	gloss	ask-ctr=1sg.sbj=fut	page 19, pairs
@@ -1254,7 +1254,7 @@ footnote 13	Marianne Huijsmans	note	13 Except when marking subjects of nominaliz
 (47b) line 12	ʔayʔaǰuθəm	gloss	sleep<stat>	page 20, pairs
 (47b) line 13	Marianne Huijsmans	translation	‘Who is that man that’s sleeping?’	page 20, pairs
 (47b) line 13	Marianne Huijsmans	citation	(vf/sf | EP.2022/11/05)	the tag or source at the right of the translation
-§6.1	Marianne Huijsmans	note	In contrast, bisyllabic adjectives cannot follow the noun they modify, as shown in (43) to (46) above, and even phrasal adjectives are barred from appearing post-nominally, as in (48) and (49).	page 21
+§6.1	Marianne Huijsmans	note	In contrast, bisyllabic adjectives cannot follow the noun they modify, as displayed in (43) to (46) above, and even phrasal adjectives are barred from appearing post-nominally, as in (48) and (49).	page 21
 (48a) line 1	Marianne Huijsmans	note	Context: The last few times I made soup, my pot wasn’t big enough, and I ended up dividing it into several pots. I tell Felipe:	page 21, pairs
 (48a) line 2	ʔayʔaǰuθəm	transcription	hotᶿəm	page 21, pairs
 (48a) line 3	ʔayʔaǰuθəm	segmentation	hu=tᶿ=əm	page 21, pairs
@@ -1342,7 +1342,7 @@ footnote 13	Marianne Huijsmans	note	13 Except when marking subjects of nominaliz
 (50) line 10	ʔayʔaǰuθəm	gloss	det=1sg.poss=cousin	page 21, pairs
 (50) line 11	Marianne Huijsmans	translation	Intended: ‘My cousin is one of the men singing.’	page 21, pairs
 (50) line 11	Marianne Huijsmans	citation	(sf | EP.2023/02/04)	the tag or source at the right of the translation
-(51) line 1	Marianne Huijsmans	note	Context: Remarking on someone’ s dog, which keeps barking nearby:	page 21, pairs
+(51) line 1	Marianne Huijsmans	note	Context: Remarking on someone’ s dog, which retains barking nearby:	page 21, pairs
 (51) line 2	ʔayʔaǰuθəm	transcription	* [payɛʔ	page 21, pairs
 (51) line 3	ʔayʔaǰuθəm	segmentation	[payaʔ	page 21, pairs
 (51) line 4	ʔayʔaǰuθəm	gloss	always	page 21, pairs
@@ -1551,7 +1551,7 @@ footnote 13	Marianne Huijsmans	note	13 Except when marking subjects of nominaliz
 (61b) line 9	ʔayʔaǰuθəm	gloss	bury-stat	page 24, pairs
 (61b) line 10	Marianne Huijsmans	translation	Intended: ‘We’re searching for buried treasure.’	page 24, pairs
 (61b) line 10	Marianne Huijsmans	citation	(sf | EP.2023/05/19)	the tag or source at the right of the translation
-§7	Marianne Huijsmans	note	Preliminary evidence also suggests that stative predicates built from change-of-state verbs can serve as modifiers in complex nominal predicates, as expected if they are adjectives. This is shown in (62F).14	page 24
+§7	Marianne Huijsmans	note	Preliminary evidence also suggests that stative predicates built from change-of-state verbs can serve as modifiers in complex nominal predicates, as expected if they are adjectives. This is displayed in (62F).14	page 24
 (62) line 1	Marianne Huijsmans	note	Context: Felipe and I are walking on the beach, and I see something odd-looking up ahead.	page 25, pairs
 (62) line 2	ʔayʔaǰuθəm	transcription	Me: tam č̓ɛ	page 25, pairs
 (62) line 3	ʔayʔaǰuθəm	segmentation	tam=č̓a	page 25, pairs
@@ -1591,7 +1591,7 @@ footnote 13	Marianne Huijsmans	note	13 Except when marking subjects of nominaliz
 (63b) line 9	ʔayʔaǰuθəm	gloss	man	page 25, pairs
 (63b) line 10	Marianne Huijsmans	translation	‘Who is the man with a cigarette hanging out of his mouth?’	page 25, pairs
 (63b) line 10	Marianne Huijsmans	citation	(sf | EP.2023/01/14)	the tag or source at the right of the translation
-§7	Marianne Huijsmans	note	In addition, preliminary evidence indicates that statives built on atelic eventive predicates cannot be modifiers in complex nominal predicates, as shown in (64) (repeated from (52) above).	page 25
+§7	Marianne Huijsmans	note	In addition, preliminary evidence indicates that statives built on atelic eventive predicates cannot be modifiers in complex nominal predicates, as displayed in (64) (repeated from (52) above).	page 25
 (64) line 1	Marianne Huijsmans	note	Context: I’m showing an old picture to Daniel and Gloria. There are a few men smoking in it, and I remember Freddie told me that one of them is a former chief (but I don’t remember which one).	page 25, pairs
 (64) line 2	ʔayʔaǰuθəm	transcription	* [q̓ač̓eyɩnʔɛm	page 25, pairs
 (64) line 3	ʔayʔaǰuθəm	segmentation	[q̓əč̓-ayin-ʔ<i>m	page 25, pairs
@@ -1646,7 +1646,7 @@ footnote 14	Marianne Huijsmans	note	14 My consultant said that t̓anɛ́ t wasn�
 §7	ʔayʔaǰuθəm	cited form	č̓ɛwtən	page 26, ‘helper’
 §7	ʔayʔaǰuθəm	cited form	tičɛ	page 26, ‘teacher’
 §7	ʔayʔaǰuθəm	cited form	čɩgat	page 26
-§7	Marianne Huijsmans	note	Words with the indefinite object suffix -anaq are also often translated as if they were nouns: e.g., titiwšɛmstanaq as ‘one who teaches’ and č̓ɛč̓ɛganaq as ‘one who is always helping’, but pattern with eventive predicates in taking progressive reduplication. The tests developed here show them to be verbs. Neither titiwšɛmstanaq nor č̓ɛč̓ɛganaq can appear as the head of a complex nominal predicate, as shown in (66a) and (67a). The root č̓ag- ‘to help’ instead appears in a derived noun č̓ɛwtən ‘helper’ in order to appear in the complex nominal predicate in (66b) and the borrowed noun tičɛ ‘teacher’ is used in (67b). Alternately, titiwšɛmstanaq can be modified instead by čɩgat ‘skilled’ (67c), which appears to be restricted to modifying eventive predicates.	page 26
+§7	Marianne Huijsmans	note	Words with the indefinite object suffix -anaq are also often translated as if they were nouns: e.g., titiwšɛmstanaq as ‘one who teaches’ and č̓ɛč̓ɛganaq as ‘one who is always helping’, but pattern with eventive predicates in taking progressive reduplication. The tests developed here show them to be verbs. Neither titiwšɛmstanaq nor č̓ɛč̓ɛganaq can appear as the head of a complex nominal predicate, as displayed in (66a) and (67a). The root č̓ag- ‘to help’ instead appears in a derived noun č̓ɛwtən ‘helper’ in order to appear in the complex nominal predicate in (66b) and the borrowed noun tičɛ ‘teacher’ is used in (67b). Alternately, titiwšɛmstanaq can be modified instead by čɩgat ‘skilled’ (67c), which appears to be restricted to modifying eventive predicates.	page 26
 (66a) line 1	ʔayʔaǰuθəm	transcription	* [hɛhɛw	page 26, pairs
 (66a) line 2	ʔayʔaǰuθəm	segmentation	[hihiw	page 26, pairs
 (66a) line 3	ʔayʔaǰuθəm	gloss	really	page 26, pairs
@@ -1724,7 +1724,7 @@ footnote 14	Marianne Huijsmans	note	14 My consultant said that t̓anɛ́ t wasn�
 §8	Marianne Huijsmans	note	Including lexical category information in the dictionary will help learners anticipate where the words may appear in a sentence. When providing these categories, however, it is important that learners do not assume that nouns, adjectives, and verbs pattern in ʔayʔaǰuθəm as they do in En- glish. In particular, it is important that predicate-argument flexibility is highlighted, perhaps in the introduction to the dictionary, so learners recognize that words of any lexical category may function as the main predicate or combine with a determiner to function as an argument (forming a relative clause in the case of a verb). Example sentences in the dictionary could also include cases where nouns and adjectives are used predicatively and where verbs appear in relative clauses to help illus- trate the range of uses that are possible for words of each category.	page 27
 §8	Marianne Huijsmans	language	Hul’q’umi’num’	Hul’q’umi’num’
 §8	Marianne Huijsmans	language	Nsyílxcən	Nsyílxcən, Okanagan
-§8	Marianne Huijsmans	note	More broadly, the findings of this investigation contribute to establishing that distinct lexical categories exist across the Salish language family. Evidence for lexical categories has now been amassed for St’át’imcets (e.g., Van Eijk and Hess 1986; Demirdache and Matthewson 1995; Davis and Matthewson 1999; Davis 2011), Lushootseed (Van Eijk and Hess 1986), Hul’q’umi’num’ (e.g, Gerdts and Schneider 2023), Klallam and Northern Straits (Montler 2003), and Nsyílxcən (Lyon 2013), as well as ʔayʔaǰuθəm, all of which exhibit the predicate-argument flexibility and non- selective morphology that originally prompted the claims that these categories do not exist in Salish languages. However, I have also shown that there is variation in the restrictions placed on words of these categories, which means that the same tests cannot always be applied. Hopefully, further cross-Salish investigation will establish which tests provide consistent results across languages, as well as uncovering a wider range of possible tests.	page 27
+§8	Marianne Huijsmans	note	More broadly, the findings of this investigation contribute to establishing that distinct lexical categories exist across the Salish language family. Evidence for lexical categories has now been amassed for St’át’imcets (e.g., Van Eijk and Hess 1986; Demirdache and Matthewson 1995; Davis and Matthewson 1999; Davis 2011), Lushootseed (Van Eijk and Hess 1986), Hul’q’umi’num’ (e.g, Gerdts and Schneider 2023), Klallam and Northern Straits (Montler 2003), and Nsyílxcən (Lyon 2013), as well as ʔayʔaǰuθəm, all of which exhibit the predicate-argument flexibility and non- selective morphology that originally prompted the claims that these categories do not exist in Salish languages. However, I have also displayed that there is variation in the restrictions placed on words of these categories, which means that the same tests cannot always be applied. Hopefully, further cross-Salish investigation will establish which tests provide consistent results across languages, as well as uncovering a wider range of possible tests.	page 27
 references	Marianne Huijsmans	heading	References	page 28
 references	Marianne Huijsmans	reference	Burton, Strang. 1997. Past tense on nouns as death, destruction and loss. In Proceedings of NELS 27, ed. K Kusumoto, 65–77. University of Massachusetts, Amherst: GLSA.	
 references	Marianne Huijsmans	reference	Chomsky, Noam. 1965. Aspects of the theory of syntax. Cambridge: MIT Press.	

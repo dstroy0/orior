@@ -141,7 +141,7 @@ void test_a_tidy_with_nothing_to_change_leaves_the_text_and_its_steps(void)
     text_is(s_text);
 }
 
-void test_trim_alone_keeps_a_last_line_without_a_line_end(void)
+void test_trim_alone_retains_a_last_line_without_a_line_end(void)
 {
     static const char s_untidy[] = "alpha \nbeta";
     reopened(s_untidy, sizeof(s_untidy) - 1u);

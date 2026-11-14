@@ -16,11 +16,11 @@ bad = [(number + 2, len(row.split("\t"))) for number, row in enumerate(body) if 
 print("rows", len(body), "columns", header, "bad rows", bad)
 layer = flat(open(text_path, encoding="utf-8").read())
 forms = [row.split("\t")[3] for row in body]
-kinds = {}
+types = {}
 for row in body:
-    kind = row.split("\t")[2]
-    kinds[kind] = kinds.get(kind, 0) + 1
-print("kinds", kinds)
+    type = row.split("\t")[2]
+    types[type] = types.get(type, 0) + 1
+print("types", types)
 missing = [(row.split("\t")[0], row.split("\t")[2], row.split("\t")[3][:70]) for row in body
            if flat(row.split("\t")[3]) not in layer]
 print("forms not found verbatim:", len(missing), "of", len(forms))

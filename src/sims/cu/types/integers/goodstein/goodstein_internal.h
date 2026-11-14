@@ -16,7 +16,7 @@
 //    written in base b + 1 is the tree of n in base b.
 // 2. 2^^k in hereditary base 2 is omega^^k for k = 1 to 4, and the towers climb.
 // 3. The starts 1, 2 and 3 reach 0 in 1, 3 and 5 steps, every value the numeric sequence's.
-// 4. The starts 4, 16 and 65536 run GOODSTEIN_STEPS steps: every ordinal stands strictly below the one before, and
+// 4. The starts 4, 16 and 65536 run GOODSTEIN_STEPS steps: every ordinal is strictly below the one before, and
 //    every value equals the numeric sequence's wherever that fits 64 bits.
 
 #include "sim.h"
@@ -34,10 +34,10 @@
 
 #define GOODSTEIN_SMALL_STEPS_MAX 64ull
 
-// the most term comparisons one ordinal comparison may make before it is reported unfinished
+// the max term comparisons one ordinal comparison may make before it is reported unfinished
 #define GOODSTEIN_COMPARE_TERMS 1000000ull
 
-// the most characters an ordinal is printed with
+// the max characters an ordinal is printed with
 #define GOODSTEIN_PRINT_CAPACITY 360u
 
 struct GoodsteinBlock;

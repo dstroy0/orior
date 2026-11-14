@@ -29,8 +29,8 @@ def main():
         return re.search(r"(?<![^\W\d_])%s(?![^\W\d_])" % re.escape(form), text) is not None
 
     seen = set()
-    for where, who, kind, form, gloss in rows:
-        if kind not in CANDIDATES or not where.startswith("§") or (where, form) in seen:
+    for where, who, type, form, gloss in rows:
+        if type not in CANDIDATES or not where.startswith("§") or (where, form) in seen:
             continue
         page = page_of(gloss)
         in_section = any(one[0] == where and one[2] not in CANDIDATES and holds(one[3], form) for one in rows)

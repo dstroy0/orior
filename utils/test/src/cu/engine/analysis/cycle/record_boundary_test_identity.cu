@@ -36,7 +36,7 @@ void boundary_written(BoundaryResults *results)
     }
     BoundaryLoaded loaded;
     const int loads = boundary_load(program, BOUNDARY_TEST_SAMPLES, &loaded);
-    boundary_check(results, loads, "T^-1 then T over a written crystal encodes, lays out with reuse and loads");
+    boundary_check(results, loads, "T^-1 then T over a written crystal encodes, arranges with reuse and loads");
     if (loads != 0)
     {
         int range = 0;
@@ -77,7 +77,7 @@ void boundary_read_off(BoundaryResults *results)
     }
     BoundaryLoaded loaded;
     const int loads = boundary_load(program, BOUNDARY_TEST_SAMPLES, &loaded);
-    boundary_check(results, loads, "T over 64 samples encodes, lays out with reuse and loads");
+    boundary_check(results, loads, "T over 64 samples encodes, arranges with reuse and loads");
     if (loads != 0)
     {
         int range = 0;
@@ -92,7 +92,7 @@ void boundary_read_off(BoundaryResults *results)
     free(tower);
 }
 
-// what passes through T, one kind per quarter of the pairs: a constant c added to every sample must move only the
+// what passes through T, one type per quarter of the pairs: a constant c added to every sample must move only the
 // crystal's lows, each by c; a vector 2^(3L) z must move the crystal by M z exactly; negation and doubling are
 // counted where they pass
 static void boundary_through(BoundaryResults *results, BoundaryLoaded *loaded, const BoundaryProgram *program)
@@ -108,7 +108,7 @@ static void boundary_through(BoundaryResults *results, BoundaryLoaded *loaded, c
     const int buffers = (atoms != NULL) && (host_out != NULL) && (device_out != NULL) && (added != NULL);
     for (unsigned int pair = 0u; (buffers != 0) && (pair < BOUNDARY_TEST_PAIRS); pair += 1u)
     {
-        const unsigned int kind = pair % 4u;
+        const unsigned int type = pair % 4u;
         // a constant below 2^19 in magnitude, shared by every sample
         const long long constant = (long long)(boundary_random() & 0xFFFFFu) - (1ll << 19u);
         for (unsigned int at = 0u; at < n; at += 1u)
@@ -116,18 +116,18 @@ static void boundary_through(BoundaryResults *results, BoundaryLoaded *loaded, c
             // a base sample below 2^21 in magnitude. Every moved sample stays inside the field
             const long long base = (long long)(boundary_random() & 0x3FFFFFu) - (1ll << 21u);
             long long moved = base;
-            if (kind == 0u)
+            if (type == 0u)
             {
                 added[((size_t)pair * n) + at] = constant;
                 moved = base + constant;
             }
-            else if (kind == 1u)
+            else if (type == 1u)
             {
                 const long long lattice = (long long)(boundary_random() & 0xFFu) - 128ll;
                 added[((size_t)pair * n) + at] = lattice;
                 moved = base + (lattice * (1ll << BOUNDARY_TEST_RANGE));
             }
-            else if (kind == 2u)
+            else if (type == 2u)
             {
                 moved = -base;
             }
@@ -143,7 +143,7 @@ static void boundary_through(BoundaryResults *results, BoundaryLoaded *loaded, c
     unsigned int passed[4] = {0u, 0u, 0u, 0u};
     for (unsigned int pair = 0u; (ran != 0) && (pair < BOUNDARY_TEST_PAIRS); pair += 1u)
     {
-        const unsigned int kind = pair % 4u;
+        const unsigned int type = pair % 4u;
         const unsigned int *const base = &device_out[(size_t)(2u * pair) * out_limbs];
         const unsigned int *const moved = &device_out[(size_t)((2u * pair) + 1u) * out_limbs];
         int passes = 1;
@@ -153,11 +153,11 @@ static void boundary_through(BoundaryResults *results, BoundaryLoaded *loaded, c
             const long long before = boundary_read(base, step);
             const long long after = boundary_read(moved, step);
             long long expected = 0ll;
-            if (kind == 0u)
+            if (type == 0u)
             {
                 expected = before + ((at < lows) ? added[(size_t)pair * n] : 0ll);
             }
-            else if (kind == 1u)
+            else if (type == 1u)
             {
                 expected = before;
                 for (unsigned int input = 0u; input < n; input += 1u)
@@ -165,7 +165,7 @@ static void boundary_through(BoundaryResults *results, BoundaryLoaded *loaded, c
                     expected += g_boundary_forward_matrix[at][input] * added[((size_t)pair * n) + input];
                 }
             }
-            else if (kind == 2u)
+            else if (type == 2u)
             {
                 expected = -before;
             }
@@ -175,7 +175,7 @@ static void boundary_through(BoundaryResults *results, BoundaryLoaded *loaded, c
             }
             passes = passes && (after == expected);
         }
-        passed[kind] += (passes != 0) ? 1u : 0u;
+        passed[type] += (passes != 0) ? 1u : 0u;
     }
     const unsigned int each = BOUNDARY_TEST_PAIRS / 4u;
     mmgr_line_put(&results->line, "  through T, of ");
@@ -200,22 +200,22 @@ static void boundary_through(BoundaryResults *results, BoundaryLoaded *loaded, c
 }
 
 // one lane's samples in a complexity class: 0 a ramp, 1 a ramp +-8, 2 a ramp +-1024, 3 noise over the field
-void boundary_class_fill(unsigned int *atom, unsigned int kind)
+void boundary_class_fill(unsigned int *atom, unsigned int type)
 {
     const long long start = (long long)(boundary_random() & 0xFFFFFu) - (1ll << 19u);
     const long long slope = (long long)(boundary_random() & 0xFFFu) - 2048ll;
     for (unsigned int at = 0u; at < BOUNDARY_TEST_SAMPLES; at += 1u)
     {
         long long value = start + (slope * (long long)at);
-        if (kind == 1u)
+        if (type == 1u)
         {
             value += (long long)(boundary_random() % 17u) - 8ll;
         }
-        else if (kind == 2u)
+        else if (type == 2u)
         {
             value += (long long)(boundary_random() % 2049u) - 1024ll;
         }
-        atom[at] = (kind == 3u) ? (boundary_random() & ((1u << BOUNDARY_TEST_FIELD_BITS) - 1u)) : boundary_word(value);
+        atom[at] = (type == 3u) ? (boundary_random() & ((1u << BOUNDARY_TEST_FIELD_BITS) - 1u)) : boundary_word(value);
     }
 }
 
@@ -237,8 +237,8 @@ unsigned int boundary_heap(long long value)
 // BOUNDARY_TEST_IDENTITY_DRAWS keyed shuffles
 // of its own samples. A shuffle preserves every value. The samples' heap is the same on every draw, and T preserves the
 // count exactly (det M = 1, Haar measure). Whatever the crystal's heap distinguishes is the arrangement alone. A
-// lane is identified when its crystal's heap stands below every draw's. With no arrangement to find, the lane and its
-// draws are exchangeable and a lane is identified with probability at most 1/(draws + 1), as the period reading's
+// lane is identified when its crystal's heap is below every draw's. With no arrangement to find, the lane and its
+// draws are exchangeable and a lane is identified with probability at max 1/(draws + 1), as the period reading's
 // null (A12).
 static void boundary_identity(BoundaryResults *results, BoundaryLoaded *loaded, const BoundaryProgram *program)
 {
@@ -279,7 +279,7 @@ static void boundary_identity(BoundaryResults *results, BoundaryLoaded *loaded, 
     unsigned int draws_one_to_one = 0u;
     for (unsigned int first = 0u; (ran != 0) && (first < lanes); first += group)
     {
-        const unsigned int kind = first / (BOUNDARY_TEST_IDENTITY_BASES * group);
+        const unsigned int type = first / (BOUNDARY_TEST_IDENTITY_BASES * group);
         unsigned long long crystal[1u + BOUNDARY_TEST_IDENTITY_DRAWS];
         unsigned long long samples[1u + BOUNDARY_TEST_IDENTITY_DRAWS];
         for (unsigned int member = 0u; member < group; member += 1u)
@@ -299,7 +299,7 @@ static void boundary_identity(BoundaryResults *results, BoundaryLoaded *loaded, 
         for (unsigned int draw = 1u; draw < group; draw += 1u)
         {
             below = below && (crystal[0] < crystal[draw]);
-            null_heap[kind] += crystal[draw];
+            null_heap[type] += crystal[draw];
             const int same_samples = memcmp(&atoms[(size_t)first * n], &atoms[(size_t)(first + draw) * n],
                                             (size_t)n * sizeof(unsigned int)) == 0;
             int same_crystal = 1;
@@ -312,8 +312,8 @@ static void boundary_identity(BoundaryResults *results, BoundaryLoaded *loaded, 
             draws_fixed += (same_samples != 0) ? 1u : 0u;
             draws_one_to_one += (same_samples == same_crystal) ? 1u : 0u;
         }
-        own_heap[kind] += crystal[0];
-        identified[kind] += (below != 0) ? 1u : 0u;
+        own_heap[type] += crystal[0];
+        identified[type] += (below != 0) ? 1u : 0u;
     }
     const char *const names[BOUNDARY_TEST_CLASSES] = {"ramp", "ramp +-8", "ramp +-1024", "noise"};
     mmgr_line_put(&results->line, "  identity by null permutation, ");
@@ -321,14 +321,14 @@ static void boundary_identity(BoundaryResults *results, BoundaryLoaded *loaded, 
     mmgr_line_put(&results->line, " draws a lane, lanes identified of ");
     mmgr_line_decimal(&results->line, BOUNDARY_TEST_IDENTITY_BASES, 1u);
     mmgr_line_put(&results->line, " (crystal heap against the draws' mean):");
-    for (unsigned int kind = 0u; kind < BOUNDARY_TEST_CLASSES; kind += 1u)
+    for (unsigned int type = 0u; type < BOUNDARY_TEST_CLASSES; type += 1u)
     {
-        mmgr_line_put(&results->line, (kind == 0u) ? " " : "; ");
-        mmgr_line_put(&results->line, names[kind]);
+        mmgr_line_put(&results->line, (type == 0u) ? " " : "; ");
+        mmgr_line_put(&results->line, names[type]);
         mmgr_line_ch(&results->line, ' ');
-        mmgr_line_decimal(&results->line, identified[kind], 1u);
+        mmgr_line_decimal(&results->line, identified[type], 1u);
         mmgr_line_put(&results->line, " (");
-        boundary_hundredths(&results->line, own_heap[kind] * BOUNDARY_TEST_IDENTITY_DRAWS, null_heap[kind]);
+        boundary_hundredths(&results->line, own_heap[type] * BOUNDARY_TEST_IDENTITY_DRAWS, null_heap[type]);
         mmgr_line_ch(&results->line, ')');
     }
     const unsigned int draws_total =
@@ -351,7 +351,7 @@ static void boundary_identity(BoundaryResults *results, BoundaryLoaded *loaded, 
                    "the crystal is a one-to-one identity: T(pi x) = T(x) exactly when pi x = x");
     // a structured lane is not promised to be identified: a shallow ramp under +-1024 is mostly noise, and its
     // shuffles have little arrangement to destroy. The null bounds the rate; each structured class must
-    // stand far past it
+    // are far past it
     boundary_check(results,
                    ((double)identified[0] > ceiling) && ((double)identified[1] > ceiling) &&
                        ((double)identified[2] > ceiling),

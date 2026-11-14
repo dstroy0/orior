@@ -11,7 +11,7 @@ carrying the least non-negative integer absent from the values it reaches.
 
 The answer is computed twice by two routines that share nothing. The exact one slides the tail of
 the sequence against itself and returns the shortest shift under which it repeats to the end. The
-measured one is the period detector, the same one the crystallography research paper~\cite{src:Quigg-crystallography} asks for a cell edge, which is handed only a list of small
+measured one is the period detector, the same one the crystallography research paper~\cite{src:Quigg-crystallography} asks for a cell edge, which is passed only a list of small
 integers.
 
 The sweep is every move set of one to four moves drawn from 1 to 10, which is three hundred and
@@ -51,7 +51,7 @@ have periods of 45 and 33.
 
 A count of agreements is not evidence on its own, because a detector that always answered 2 would
 agree with every period-2 row. Each sequence is therefore scored against twelve shuffles of itself.
-A shuffle keeps every Grundy value and destroys which position carries it. Whatever margin it
+A shuffle retains every Grundy value and destroys which position carries it. Whatever margin it
 reaches, the detector reads off the histogram alone. The figure quoted is the tallest of the
 twelve instead of their average.
 
@@ -60,7 +60,7 @@ At a window of 64, over three hundred and eighty three rows:
 \begin{center}
 \begin{tabular}{@{}lrrr@{}}
 \toprule
- & minimum & median & maximum \\
+ & minimum & median & max \\
 \midrule
 live margin & 1.016 & 1.091 & 2.000 \\
 shuffle floor & 0.030 & 0.044 & 0.066 \\
@@ -83,5 +83,5 @@ It does not license a statement about any other domain, and it does not upgrade 
 table. The workbook's own deduction~\cite{src:Quigg-orior-workbook} says why: soundness belongs to the construction and cost belongs
 to the domain's distribution. A result obtained inside one distribution stays inside it. A
 subtraction game's Grundy sequence is exactly periodic after a short preperiod, with two to a few
-dozen distinct values and no noise at all. That is the easiest case a period detector can be shown. The series establishes that the detector is right where an answer exists and is checkable,
+dozen distinct values and no noise at all. That is the easiest case a period detector can be displayed. The series establishes that the detector is right where an answer exists and is checkable,
 at a count nobody has to take on faith, and the next chapter is the half that matters more.

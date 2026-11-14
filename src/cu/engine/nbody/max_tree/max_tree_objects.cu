@@ -219,7 +219,7 @@ void max_tree_release_resident(MaxTreeResident *resident)
     cudaFree(resident->label);
     cudaFree(resident->change);
     cudaFree(resident->counts);
-    cudaFree(resident->maximum);
+    cudaFree(resident->max);
     cudaFree(resident->level);
     cudaFree(resident->moved);
     cudaFreeHost(resident->pinned_moved);
@@ -298,7 +298,7 @@ int max_tree_reserve(size_t voxels, EngineError *error)
                                error) &&
          MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->counts, (voxels + 2u) * sizeof(int)), &resident->counts,
                                error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->maximum, sizeof(int)), &resident->maximum, error) &&
+         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->max, sizeof(int)), &resident->max, error) &&
          MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->level, sizeof(unsigned int)), &resident->level, error) &&
          MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->moved, 3u * sizeof(unsigned int)), &resident->moved,
                                error) &&

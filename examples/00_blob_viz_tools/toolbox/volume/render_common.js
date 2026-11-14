@@ -9,7 +9,7 @@
 
 EV.RENDER_BINDINGS = `
 @group(0) @binding(0) var<storage, read> obj: array<u32>;
-@group(0) @binding(1) var<uniform> lay: Layout;
+@group(0) @binding(1) var<uniform> position: Layout;
 @group(0) @binding(2) var<storage, read> chosen: array<u32>;
 @group(0) @binding(3) var<storage, read> motion: array<i32>;
 `;
@@ -46,11 +46,11 @@ fn hue(key: u32) -> vec3<u32> {
 // 0 by cell, 1 by lineage, 2 by volume, 3 lineage in the Okabe-Ito colors that stay apart under color blindness.
 fn paint(cell: u32) -> vec3<u32> {
   let root = u32(motion[cell * 8u + 6u]);
-  let size = max(obj[lay.cells_at + 4u * cell], 1u);
+  let size = max(obj[position.cells_at + 4u * cell], 1u);
   let level = min(((31u - countLeadingZeros(size)) * 8u) / 23u, 7u);
   let okabe = unpack(OKABE[(root * 2654435761u) >> 29u]);
-  return select(select(select(hue(cell), hue(root), lay.palette == 1u), unpack(RAMP[level]), lay.palette == 2u),
-                okabe, lay.palette == 3u);
+  return select(select(select(hue(cell), hue(root), position.palette == 1u), unpack(RAMP[level]), position.palette == 2u),
+                okabe, position.palette == 3u);
 }
 
 fn ease(progress: u32) -> i32 {
@@ -60,42 +60,42 @@ fn ease(progress: u32) -> i32 {
 
 // The turn: yaw about z, then pitch about the turned x, both as integers scaled by 2^14.
 fn project(x: i32, y: i32, z: i32, frame: u32) -> vec4<f32> {
-  let x1 = (lay.yaw_cos * x - lay.yaw_sin * y) >> 14u;
-  let y1 = (lay.yaw_sin * x + lay.yaw_cos * y) >> 14u;
-  let y2 = (lay.pitch_cos * y1 - lay.pitch_sin * z) >> 14u;
-  let z2 = (lay.pitch_sin * y1 + lay.pitch_cos * z) >> 14u;
-  let shift = ((i32(frame) - i32(lay.frame_now)) * lay.spread) - ((ease(lay.progress) * lay.spread) >> 12u);
-  return vec4<f32>(f32((x1 + shift) * lay.zoom + lay.pan_x) / f32(lay.half_w * 256),
-                   f32(z2 * lay.zoom + lay.pan_y) / f32(lay.half_h * 256),
+  let x1 = (position.yaw_cos * x - position.yaw_sin * y) >> 14u;
+  let y1 = (position.yaw_sin * x + position.yaw_cos * y) >> 14u;
+  let y2 = (position.pitch_cos * y1 - position.pitch_sin * z) >> 14u;
+  let z2 = (position.pitch_sin * y1 + position.pitch_cos * z) >> 14u;
+  let shift = ((i32(frame) - i32(position.frame_now)) * position.spread) - ((ease(position.progress) * position.spread) >> 12u);
+  return vec4<f32>(f32((x1 + shift) * position.zoom + position.pan_x) / f32(position.half_w * 256),
+                   f32(z2 * position.zoom + position.pan_y) / f32(position.half_h * 256),
                    f32(8192 + y2) / 16384.0, 1.0);
 }
 
 // A cell's step across the transition: toward its children for frame t, in from its parents for frame t + 1.
 fn step_of(cell: u32, frame: u32) -> vec3<i32> {
   let at = cell * 8u;
-  let eased = ease(lay.progress);
-  let toward = vec3<i32>(motion[at], motion[at + 1u], (motion[at + 2u] * lay.z_scale) / 2);
-  let inward = vec3<i32>(motion[at + 3u], motion[at + 4u], (motion[at + 5u] * lay.z_scale) / 2);
-  let now = frame == lay.frame_now;
-  let next = frame == lay.frame_now + 1u;
+  let eased = ease(position.progress);
+  let toward = vec3<i32>(motion[at], motion[at + 1u], (motion[at + 2u] * position.z_scale) / 2);
+  let inward = vec3<i32>(motion[at + 3u], motion[at + 4u], (motion[at + 5u] * position.z_scale) / 2);
+  let now = frame == position.frame_now;
+  let next = frame == position.frame_now + 1u;
   return select(vec3<i32>(0), (toward * eased) / 4096, now) - select(vec3<i32>(0), (inward * (4096 - eased)) / 4096, next);
 }
 
 fn centroid(cell: u32) -> vec3<i32> {
-  let at = lay.cells_at + 4u * cell;
+  let at = position.cells_at + 4u * cell;
   let size = max(obj[at], 1u);
   let doubled_z = i32((2u * obj[at + 1u] + size) / size);
-  return vec3<i32>(i32((2u * obj[at + 3u] + size) / size) - i32(lay.width),
-                   i32((2u * obj[at + 2u] + size) / size) - i32(lay.height),
-                   (lay.z_scale * (doubled_z - i32(lay.depth))) / 2);
+  return vec3<i32>(i32((2u * obj[at + 3u] + size) / size) - i32(position.width),
+                   i32((2u * obj[at + 2u] + size) / size) - i32(position.height),
+                   (position.z_scale * (doubled_z - i32(position.depth))) / 2);
 }
 
 fn frame_of_cell(cell: u32) -> u32 {
   var frame = 0u;
   for (var step = 0u; step < 8u; step++) {
     let probe = frame + (128u >> step);
-    let first = obj[lay.frames_at + 10u * min(probe, lay.frame_total - 1u) + 5u];
-    frame = select(frame, probe, (probe < lay.frame_total) && (first <= cell));
+    let first = obj[position.frames_at + 10u * min(probe, position.frame_total - 1u) + 5u];
+    frame = select(frame, probe, (probe < position.frame_total) && (first <= cell));
   }
   return frame;
 }
@@ -103,15 +103,15 @@ fn frame_of_cell(cell: u32) -> u32 {
 // Shaded, faded by age, grayed where cells are chosen and this one is not, lifted where it is hovered or glows.
 fn lit(cell: u32, frame: u32, shade: u32) -> vec4<f32> {
   let base = (paint(cell) * shade) / 256u;
-  let age = select(0u, lay.frame_now - frame, frame < lay.frame_now);
-  let bright = 256u - min(age * lay.ghost_fade, 224u);
+  let age = select(0u, position.frame_now - frame, frame < position.frame_now);
+  let bright = 256u - min(age * position.ghost_fade, 224u);
   let faded = (base * bright) / 256u;
   let picked = chosen_bit(cell);
-  let dim = (lay.chosen_weight * (1u - picked)) / 1u;
+  let dim = (position.chosen_weight * (1u - picked)) / 1u;
   let gray = vec3<u32>((faded.x + faded.y + faded.z) / 10u);
-  let shown = (faded * (256u - dim) + gray * dim) / 256u;
-  let lift = 48u * u32(lay.hover_cell == cell + 1u) + 64u * lay.glow * picked;
-  let raised = min(shown + vec3<u32>(lift), vec3<u32>(255u));
+  let displayed = (faded * (256u - dim) + gray * dim) / 256u;
+  let lift = 48u * u32(position.hover_cell == cell + 1u) + 64u * position.glow * picked;
+  let raised = min(displayed + vec3<u32>(lift), vec3<u32>(255u));
   return vec4<f32>(vec3<f32>(raised) / 255.0, 1.0);
 }
 `;

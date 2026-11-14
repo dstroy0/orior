@@ -3,7 +3,7 @@
 // zstd_literals.c: Huffman streams, literals, tables and copies
 #include "zstd_internal.h"
 
-static const ZstdTableKind zstd_weight_kind = {NULL, 0u, 0u, ZSTD_WEIGHT_SYMBOLS, ZSTD_WEIGHT_ACCURACY_MAXIMUM};
+static const ZstdTableKind zstd_weight_type = {NULL, 0u, 0u, ZSTD_WEIGHT_SYMBOLS, ZSTD_WEIGHT_ACCURACY_MAXIMUM};
 
 static int zstd_huffman_describe(ZstdDecoder *decoder, ZstdSpan *input)
 {
@@ -40,7 +40,7 @@ static int zstd_huffman_describe(ZstdDecoder *decoder, ZstdSpan *input)
         long counts[ZSTD_WEIGHT_SYMBOLS];
         unsigned int accuracy = 0u;
         ZstdFseTable table;
-        if (!zstd_fse_describe(&payload, &zstd_weight_kind, counts, &accuracy) ||
+        if (!zstd_fse_describe(&payload, &zstd_weight_type, counts, &accuracy) ||
             !zstd_fse_build(&table, counts, ZSTD_WEIGHT_SYMBOLS, accuracy) ||
             !zstd_weights_decode(&table, &payload, weights, &described))
         {
@@ -137,10 +137,10 @@ int zstd_literals(ZstdDecoder *decoder, ZstdSpan *input)
         return 0;
     }
     const unsigned int first = input->bytes[0u];
-    const unsigned int kind = first & 3u;
+    const unsigned int type = first & 3u;
     const unsigned int format = (first >> 2u) & 3u;
     decoder->literals_used = 0ull;
-    if (kind < 2u)
+    if (type < 2u)
     {
         const unsigned int header = ((format & 1u) == 0u) ? 1u : ((format == 1u) ? 2u : 3u);
         if (input->length < header)
@@ -149,17 +149,17 @@ int zstd_literals(ZstdDecoder *decoder, ZstdSpan *input)
         }
         const unsigned long long value = zstd_little_endian(input->bytes, header);
         const unsigned long long regenerated = (header == 1u) ? (value >> 3u) : (value >> 4u);
-        if (regenerated > decoder->block_maximum)
+        if (regenerated > decoder->block_max)
         {
             return 0;
         }
         zstd_advance(input, header);
-        const unsigned long long needed = (kind == 0u) ? regenerated : 1ull;
+        const unsigned long long needed = (type == 0u) ? regenerated : 1ull;
         if (input->length < needed)
         {
             return 0;
         }
-        if (kind == 0u)
+        if (type == 0u)
         {
             decoder->literals = input->bytes;
         }
@@ -183,13 +183,13 @@ int zstd_literals(ZstdDecoder *decoder, ZstdSpan *input)
     const unsigned long long regenerated = (value >> 4u) & mask;
     const unsigned long long compressed = (value >> (4u + width)) & mask;
     zstd_advance(input, header);
-    if ((regenerated > decoder->block_maximum) || (compressed > input->length))
+    if ((regenerated > decoder->block_max) || (compressed > input->length))
     {
         return 0;
     }
     ZstdSpan payload = {input->bytes, compressed};
     zstd_advance(input, compressed);
-    if (kind == 2u)
+    if (type == 2u)
     {
         if (!zstd_huffman_describe(decoder, &payload))
         {
@@ -236,15 +236,15 @@ int zstd_literals(ZstdDecoder *decoder, ZstdSpan *input)
     return 1;
 }
 
-int zstd_table_prepare(ZstdSpan *input, unsigned int mode, const ZstdTableKind *kind, ZstdFseTable *table)
+int zstd_table_prepare(ZstdSpan *input, unsigned int mode, const ZstdTableKind *type, ZstdFseTable *table)
 {
     if (mode == 0u)
     {
-        return zstd_fse_build(table, kind->predefined, kind->predefined_symbols, kind->predefined_accuracy);
+        return zstd_fse_build(table, type->predefined, type->predefined_symbols, type->predefined_accuracy);
     }
     if (mode == 1u)
     {
-        if ((input->length == 0ull) || (input->bytes[0u] >= kind->symbols))
+        if ((input->length == 0ull) || (input->bytes[0u] >= type->symbols))
         {
             table->ready = 0;
             return 0;
@@ -262,8 +262,8 @@ int zstd_table_prepare(ZstdSpan *input, unsigned int mode, const ZstdTableKind *
         long counts[ZSTD_FSE_SYMBOLS];
         unsigned int accuracy = 0u;
         table->ready = 0;
-        return zstd_fse_describe(input, kind, counts, &accuracy) &&
-               zstd_fse_build(table, counts, kind->symbols, accuracy);
+        return zstd_fse_describe(input, type, counts, &accuracy) &&
+               zstd_fse_build(table, counts, type->symbols, accuracy);
     }
     return table->ready;
 }
@@ -272,7 +272,7 @@ int zstd_output_fits(const ZstdDecoder *decoder, unsigned long long length)
 {
     const unsigned long long block_written = decoder->written - decoder->block_start;
     return (length <= (decoder->out_capacity - decoder->written)) &&
-           (length <= (decoder->block_maximum - block_written));
+           (length <= (decoder->block_max - block_written));
 }
 
 int zstd_literal_copy(ZstdDecoder *decoder, unsigned long long length)

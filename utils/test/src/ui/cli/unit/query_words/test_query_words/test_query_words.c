@@ -123,7 +123,7 @@ static int query_words_read(const char *const *words, unsigned int count)
     unsigned int named = 0u;
     int dry = 0;
     VerbaLinea out_line = {s_out, sizeof(s_out), 0ull};
-    const int read = EMBED_CALL(query_loops_err_msg_context_words.query_words, QueryLoopsErrMsgContextWordsCfg, .context_read = &context, .words = words, .count = count, .names_letters = names, .named_u32s = &named, .dry_pointer = &dry, .err_msg = &out_line);
+    const int read = EMBED_CALL(query_loops_err_msg_context_words.query_words, QueryLoopsErrMsgContextWordsCfg, .context_read = &context, .words = words, .count = count, .names_characters = names, .named_u32s = &named, .dry_pointer = &dry, .err_msg = &out_line);
     if (read)
     {
         out_line.at = 0ull;

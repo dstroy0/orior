@@ -7,13 +7,13 @@
  * @brief The sweep itself, which the public entry names.
  *
  * @param[out] probes           Chosen probes, in evaluation order [BORROWS].
- * @param[in]  wanted           How many to place. At most ORIOR_STEER_ANCHORS.
+ * @param[in]  wanted           How many to place. At max ORIOR_STEER_ANCHORS.
  * @param[in]  corpus           Bytes the search will run over [BORROWS].
  * @param[in]  corpus_len       How many.
  * @param[in]  needle           Bytes to find [BORROWS].
  * @param[in]  needle_len       How many.
  * @param[in]  max_length       Longest eye to consider.
- * @param[out] survivors        Which alignments the probes left standing, one byte each [BORROWS].
+ * @param[out] survivors        Which alignments the probes left located, one byte each [BORROWS].
  * @param[in]  survivors_length How many. Must reach the alignment count.
  * @param[in]  sample_stride    Plan on every Nth alignment. 0 is treated as 1.
  * @return                      Probes actually placed.
@@ -52,7 +52,7 @@ static size_t steer_sweep_probes(OriorProbe *probes, size_t wanted, const uint8_
     while (placed < wanted)
     {
         OriorProbe best = {0u, 1u, 1u};
-        size_t best_standing = 0u;
+        size_t best_located = 0u;
         int found = 0;
 
         for (size_t origin = 0u; origin < needle_len; origin += 1u)
@@ -68,11 +68,11 @@ static size_t steer_sweep_probes(OriorProbe *probes, size_t wanted, const uint8_
                         continue;
                     }
 
-                    const size_t standing =
+                    const size_t located =
                         steer_truthy_after_probe(corpus, corpus_len, needle, needle_len, survivors, &candidate, stride);
-                    if ((found == 0) || (standing < best_standing))
+                    if ((found == 0) || (located < best_located))
                     {
-                        best_standing = standing;
+                        best_located = located;
                         best = candidate;
                         found = 1;
                     }
@@ -84,7 +84,7 @@ static size_t steer_sweep_probes(OriorProbe *probes, size_t wanted, const uint8_
         {
             break;
         }
-        if (best_standing >= steer_truthy_total(survivors, alignments, stride))
+        if (best_located >= steer_truthy_total(survivors, alignments, stride))
         {
             // Destroyed for the same reason a coarm is. It prunes nothing and would only read.
             break;
@@ -104,7 +104,7 @@ size_t orior_steer_sweep_probes(const OriorSteerSweep *args)
         return 0u;
     }
 
-    // The entry tests only what the backend cannot: whether it was handed arguments at all.
+    // The entry tests only what the backend cannot: whether it was passed arguments at all.
     // Everything else the contract states is checked in steer_sweep_probes, against the values it
     // is going to use. No check exists in two places to drift apart.
     return steer_sweep_probes(args->probes, args->count, args->corpus, args->corpus_len, args->needle, args->needle_len,
@@ -254,7 +254,7 @@ void orior_steer_scan_counters_reset(void)
 const OriorSteerEngine *orior_steer_best_engine(void)
 {
     // Widest first, and each arm queries the processor before it is taken. The x86 arms and the ARM arms
-    // are gated by mutually exclusive build macros. At most one architecture's ladder is compiled
+    // are gated by mutually exclusive build macros. At max one architecture's ladder is compiled
     // in and the rest fold away. A present arm returning NULL means the build carried it but the
     // running part does not, and the next arm down is tried.
 #if defined(ORIOR_STEER_HAVE_AVX512) && ORIOR_STEER_HAVE_AVX512

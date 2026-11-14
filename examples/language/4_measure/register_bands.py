@@ -8,7 +8,7 @@
 #
 #   Usage:  python examples/language/4_measure/register_bands.py
 #
-# Four kinds of writing are stored here and they differ in one thing that can be stated plainly: how much of
+# Four types of writing are stored here and they differ in one thing that can be stated plainly: how much of
 # a procedure they are, and how formally it is written.
 #
 #   source code            a procedure written to be carried out exactly, by a machine that cannot ask
@@ -20,7 +20,7 @@
 # between the code and the narrative. If the only thing that separates writing is how formal it is, they
 # sit with the narrative they are written in, since both are ordinary prose of their period.
 #
-# The comparison is kept inside one language wherever it can be. The French cookery is reported apart for
+# The comparison is retained inside one language wherever it can be. The French cookery is reported apart for
 # that reason and not mixed in, since a difference between it and the English books would be a difference
 # of language before it was anything else.
 #

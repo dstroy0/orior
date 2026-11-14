@@ -66,7 +66,7 @@ def main():
         if len(data) < 20000:
             continue
 
-        marks = strongest_lags(data, keep=6)
+        marks = strongest_lags(data, retain=6)
         if not marks:
             continue
         live, dead = against_a_shuffle(data)

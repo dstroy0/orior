@@ -14,16 +14,16 @@
 // form, and starts only from there or from Run, Start.
 //
 // A press of the menu bar opens its menu, and while one is open the pointer moving
-// to another title opens that one instead. Alt pressed marks each title's letter, Alt and the letter
+// to another title opens that one instead. Alt pressed marks each title's character, Alt and the character
 // opens the menu, and Alt alone gives the bar the keys: Left and Right step along it, Down, Enter or
-// Space opens, and Escape hands the keys back. In an open menu Left and Right step to the menus on
+// Space opens, and Escape passes the keys back. In an open menu Left and Right step to the menus on
 // either side. Past a number of titles set by the window's width, and past what fits, the titles go
 // into the last, a menu of menus.
 
 import { invoke, listen } from "./bridge.js";
 import { step } from "./debug.js";
 import { editing, openAt as openFileAt, openFile, recentFiles } from "./edit.js";
-import { keptMacros, onMacros } from "./macros.js";
+import { retainedMacros, onMacros } from "./macros.js";
 import { startPalette } from "./palette.js";
 import { closeMenu, menuOpen, showMenu } from "./menu.js";
 import { listedJobs, showJob, startJobWords, subject } from "./run.js";
@@ -37,14 +37,14 @@ import { bindMacros, CHECKS, FILLS, NEEDS, playBack } from "./menubar/checks.js"
 import { showBranches } from "./menubar/git.js";
 import { showMemory } from "./menubar/settings.js";
 import { sheet } from "./menubar/sheets.js";
-import { freshenToolbar, loadReaderMenus, shownMenus } from "./menubar/reader.js";
+import { freshenToolbar, loadReaderMenus, displayedMenus } from "./menubar/reader.js";
 import { applyKeys, onShortcut, runPressed } from "./menubar/keys.js";
 export { isChecked } from "./menubar/checks.js";
 export { allCommands, firstKeys } from "./menubar/keys.js";
 export { restoreEnvironment } from "./menubar/settings.js";
 export { askFor, sheet } from "./menubar/sheets.js";
 
-// The most titles the bar shows at a window width: [narrowest width in pixels, titles]. The rest go
+// The max titles the bar shows at a window width: [narrowest width in pixels, titles]. The rest go
 // into the last title's menu, and so do more where even these do not fit.
 const TITLES_AT = [
   [1600, Infinity],
@@ -59,13 +59,13 @@ export const state = { bar: null, menus: [], open: -1, titles: [], altPressed: f
 // The words on and off as true and false, and anything else as undefined, for the setting to flip.
 export const onOff = (args) => (args[0] === "on" ? true : args[0] === "off" ? false : undefined);
 
-// Whether Go to File matches the letters typed in order anywhere in a path, or only the text as typed.
+// Whether Go to File matches the characters typed in order anywhere in a path, or only the text as typed.
 const FUZZY_KEY = "orior.fuzzy-files";
 export const fuzzyFiles = () => localStorage.getItem(FUZZY_KEY) !== "false";
 export const setFuzzyFiles = (on) => localStorage.setItem(FUZZY_KEY, String(on));
 
 // Runs a command of a menu, as its item does, with the words the command line gave it.
-// A protocol job's command: the job shown, and started with the words where a command line gave any.
+// A protocol job's command: the job displayed, and started with the words where a command line gave any.
 export function protocolJob(id) {
   return (args = []) => {
     showView("run");
@@ -94,7 +94,7 @@ function paletteCommands() {
     }
   }
   if (editing().editor) {
-    for (const one of keptMacros()) {
+    for (const one of retainedMacros()) {
       found.push({ key: `Macros/${one.name}`, menu: "Macros", label: one.name, keys: one.keys || undefined, run: () => playBack(1, one.name) });
     }
   }
@@ -117,7 +117,7 @@ export const jobsIn = (groups) => listedJobs().filter((job) => groups.includes(j
 // A menu's items: its commands, then the jobs of its groups, split by what each works on where the
 // menu says so.
 function itemsOf(menu) {
-  const shown = (item) =>
+  const displayed = (item) =>
     item === "-"
       ? "-"
       : item.items
@@ -130,7 +130,7 @@ function itemsOf(menu) {
             run: () => runCommand(item.command),
           };
   // An entry to be filled in gives its items as the menu opens.
-  const filled = (item) => (item.fill ? (FILLS[item.fill]?.() ?? []) : [shown(item)]);
+  const filled = (item) => (item.fill ? (FILLS[item.fill]?.() ?? []) : [displayed(item)]);
   const items = (menu.items ?? []).filter((item) => item === "-" || !item.hidden).flatMap(filled);
   const groups = menu.groups ?? [];
   let jobs;
@@ -148,11 +148,11 @@ function itemsOf(menu) {
 
 // The menus of jobs the tool strip holds in place of the bar, each its title, its icon and its
 // items, where its groups have a job in the tree.
-// Gives each title the first of its letters no title before it has.
-function lettersFor(menus) {
+// Gives each title the first of its characters no title before it has.
+function charactersFor(menus) {
   const taken = new Set();
   return menus.map((menu) => {
-    const at = [...menu.title.toLowerCase()].findIndex((letter) => /[a-z]/.test(letter) && !taken.has(letter));
+    const at = [...menu.title.toLowerCase()].findIndex((character) => /[a-z]/.test(character) && !taken.has(character));
     if (at >= 0) {
       taken.add(menu.title[at].toLowerCase());
     }
@@ -160,14 +160,14 @@ function lettersFor(menus) {
   });
 }
 
-function titleOf(menu, letter) {
+function titleOf(menu, character) {
   const button = Object.assign(document.createElement("button"), { type: "button", className: "bar-title" });
   button.setAttribute("role", "menuitem");
   button.setAttribute("aria-haspopup", "menu");
-  if (letter >= 0) {
-    button.append(menu.title.slice(0, letter), Object.assign(document.createElement("u"), { textContent: menu.title[letter] }), menu.title.slice(letter + 1));
-    button.dataset.letter = menu.title[letter].toLowerCase();
-    button.setAttribute("aria-keyshortcuts", `Alt+${menu.title[letter].toUpperCase()}`);
+  if (character >= 0) {
+    button.append(menu.title.slice(0, character), Object.assign(document.createElement("u"), { textContent: menu.title[character] }), menu.title.slice(character + 1));
+    button.dataset.character = menu.title[character].toLowerCase();
+    button.setAttribute("aria-keyshortcuts", `Alt+${menu.title[character].toUpperCase()}`);
   } else {
     button.textContent = menu.title;
   }
@@ -182,18 +182,18 @@ export function drawMenubar() {
   }
   closeMenu(false);
   state.open = -1;
-  const menus = shownMenus();
-  const letters = lettersFor(menus);
-  bar.replaceChildren(...menus.map((menu, at) => titleOf(menu, letters[at])));
+  const menus = displayedMenus();
+  const characters = charactersFor(menus);
+  bar.replaceChildren(...menus.map((menu, at) => titleOf(menu, characters[at])));
   state.titles = menus.map((menu, at) => ({ items: () => itemsOf(menu), menu, button: bar.children[at] }));
   const more = { title: "…" };
   const moreButton = titleOf(more, -1);
   moreButton.ariaLabel = "More";
   bar.append(moreButton);
-  const most = TITLES_AT.find(([width]) => window.innerWidth >= width)[1];
-  if (state.titles.length > most || bar.scrollWidth > bar.clientWidth) {
+  const max = TITLES_AT.find(([width]) => window.innerWidth >= width)[1];
+  if (state.titles.length > max || bar.scrollWidth > bar.clientWidth) {
     const folded = [];
-    while ((state.titles.length > most || bar.scrollWidth > bar.clientWidth) && state.titles.length > 1) {
+    while ((state.titles.length > max || bar.scrollWidth > bar.clientWidth) && state.titles.length > 1) {
       const last = state.titles.pop();
       last.button.remove();
       folded.unshift(last.menu);
@@ -233,7 +233,7 @@ function openAt(at, keyed) {
   const items = itemsFor();
   showMenu(box.left, box.bottom + 2, items.length ? items : [{ label: menu.title, disabled: true, run: () => {} }], {
     side: (by) => openAt(index + by, true),
-    keep: state.bar,
+    retain: state.bar,
     onClose: () => {
       button.removeAttribute("aria-expanded");
       state.open = -1;
@@ -244,7 +244,7 @@ function openAt(at, keyed) {
   leaveBar(false);
 }
 
-// The bar holding the keys after Alt alone, its letters marked.
+// The bar holding the keys after Alt alone, its characters marked.
 function holdBar() {
   state.before = document.activeElement;
   state.bar.classList.add("pressed");
@@ -313,7 +313,7 @@ export async function startMenubar({ openFolder, commands = invoke("commands_rea
   });
   startPalette({
     commands: paletteCommands,
-    findFiles: (query, recent, most) => invoke("files_find", { query, recent, most, fuzzy: fuzzyFiles() }),
+    findFiles: (query, recent, max) => invoke("files_find", { query, recent, max, fuzzy: fuzzyFiles() }),
     recent: recentFiles,
     symbols: () => editing().symbols(),
     treeSymbols: (query) => invoke("symbols_find", { query }),
@@ -358,8 +358,8 @@ export async function startMenubar({ openFolder, commands = invoke("commands_rea
     }
     state.altPressed = false;
     if (event.altKey && !event.ctrlKey && !event.metaKey && /^Key[A-Z]$/.test(event.code)) {
-      const letter = event.code.slice(3).toLowerCase();
-      const at = state.titles.findIndex(({ button }) => button.dataset.letter === letter);
+      const character = event.code.slice(3).toLowerCase();
+      const at = state.titles.findIndex(({ button }) => button.dataset.character === character);
       if (at >= 0) {
         event.preventDefault();
         document.body.classList.remove("alt-pressed");

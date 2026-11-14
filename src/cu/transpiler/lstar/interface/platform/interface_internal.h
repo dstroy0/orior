@@ -34,11 +34,11 @@
 #define INTERFACE_POLL_MICROSECONDS 1000ull
 // a probe's output is read back in pieces this long
 #define INTERFACE_READ_BYTES 4096u
-// the most a pipe's reader is waited on once the probe and every process it started have ended
+// the max a pipe's reader is waited on once the probe and every process it started have ended
 #define INTERFACE_DRAIN_MILLISECONDS 5000ull
 
-#define INTERFACE_CHECK(condition_, evacaddr_, error_, kind_)                                                               \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_INTERFACE, (unsigned int)__LINE__, (const void *)(evacaddr_),   \
+#define INTERFACE_CHECK(condition_, evacaddr_, error_, type_)                                                               \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_INTERFACE, (unsigned int)__LINE__, (const void *)(evacaddr_),   \
                        (error_))
 
 // the probe's output stored in the answer piece by piece and ended whole, and the host's clock in microseconds

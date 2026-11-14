@@ -9,7 +9,7 @@ import { invoke } from "../../../gui/src-js/bridge.js";
 import { editing, openFile } from "../../../gui/src-js/edit.js";
 import { closeDiff } from "../../../gui/src-js/diffview.js";
 import { paneOpen } from "../../../gui/src-js/explorer.js";
-import { forgetMacro, keptMacros, lastMacro, recording } from "../../../gui/src-js/macros.js";
+import { forgetMacro, retainedMacros, lastMacro, recording } from "../../../gui/src-js/macros.js";
 import { calls, given, made, marked, press, putBackAsFound, ran, sheetShown, TREE } from "../../menus.js";
 
 const { test, assert, ui } = window.__harness;
@@ -64,7 +64,7 @@ test("Edit, Cut, Copy and Paste take the selection and put the clipboard's text"
   closeDiff();
 });
 
-test("Edit, Macros records keys, plays them back and keeps them by name", async () => {
+test("Edit, Macros records keys, plays them back and retains them by name", async () => {
   const view = await given("|");
   await press("macro-record");
   assert.ok(recording(), "recording");
@@ -74,9 +74,9 @@ test("Edit, Macros records keys, plays them back and keeps them by name", async 
   assert.ok(!recording() && lastMacro()?.length, "a macro recorded");
   await press("macro-play", "2");
   assert.equal(view.doc.text(), "zzz", "played twice more");
-  await press("macro-keep", "made macro");
+  await press("macro-retain", "made macro");
   try {
-    assert.ok(keptMacros().some((one) => one.name === "made macro"));
+    assert.ok(retainedMacros().some((one) => one.name === "made macro"));
   } finally {
     forgetMacro("made macro");
   }

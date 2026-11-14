@@ -6,7 +6,7 @@
 #
 #   Usage:  python utils/maint/texbuild/check_partition.py [repository_root]
 #
-# The partition is a rule about which measurements reach the general public. Kept as a rule someone
+# The partition is a rule about which measurements reach the general public. Retained as a rule someone
 # remembers, it survives exactly as long as nobody builds a research paper without thinking about it. The name
 # guard in hooks/pre-commit makes this argument about a product name and the argument is the same
 # here, with a larger blast radius: a name in a banner is embarrassing, and a withheld chapter bound into
@@ -43,7 +43,7 @@ MANIFEST = os.path.join("theory", "PARTITION.tsv")
 #
 # It ranks with PUBLIC and not below it. PUBLIC means already published in orior and therefore
 # settled; EXTERNAL means cleared for publication and not yet out. Neither constrains a research paper, and they
-# carry the same strictness. Keeping them distinct leaves "cleared but unpublished" to be
+# carry the same strictness. Retention them distinct leaves "cleared but unpublished" to be
 # counted in place of assumed.
 #
 # An unknown class is NOT silently ranked. `strictest` used to reach into this table directly, and a
@@ -98,15 +98,15 @@ def read_manifest(root):
                       % (fields[1], fields[0]))
                 continue
 
-            # A SECOND ROW FOR ONE PATH IS REPORTED. This dict silently keeps the last row for a
+            # A SECOND ROW FOR ONE PATH IS REPORTED. This dict silently retains the last row for a
             # path, and two rows disagreeing about a file resolve to whichever sits lower with no
             # sign that the other existed. That happened: docs/twiddle-proof.md was appended as
-            # EXTERNAL while an older WITHHELD row for it stood twelve lines up, and the file's class
+            # EXTERNAL while an older WITHHELD row for it was twelve lines up, and the file's class
             # then depended on line order alone.
             #
             # Silent last-write-wins is the wrong failure whichever way it lands. If the later row is
             # right the manifest still carries a contradiction; if the earlier one is right a file is
-            # published on a row nobody meant to keep.
+            # published on a row nobody meant to retain.
             key = normalize(fields[0])
             if key in entries:
                 print("  MANIFEST: %s listed twice, as %s and %s; the later row wins"

@@ -10,10 +10,10 @@
 #include "../text/text.h"
 #include "inspect_tree_internal.h"
 
-// the most files one import runs that are recorded
+// the max files one import runs that are recorded
 #define CLI_TREE_TARGETS 256u
 
-// the most bytes an import's spec or a name is read into on the stack
+// the max bytes an import's spec or a name is read into on the stack
 #define CLI_TREE_SPEC_BYTES 1024u
 
 typedef struct

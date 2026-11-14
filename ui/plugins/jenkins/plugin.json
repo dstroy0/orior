@@ -2,7 +2,7 @@
   "id": "jenkins",
   "name": "Jenkins Pipeline",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "extensions": ["jenkinsfile","jenkins"],
   "names": ["Jenkinsfile"],
   "comments": {"line":"//","block":["/*","*/"]},

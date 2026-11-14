@@ -15,7 +15,7 @@
 #
 # Project Gutenberg wraps each text in an English license header and footer. Left in place they would
 # put English words into every corpus and the non-English rows would be measuring this file's own
-# boilerplate. The marked region is cut out and only the body is kept.
+# boilerplate. The marked region is cut out and only the body is retained.
 
 import os
 import sys
@@ -53,31 +53,31 @@ WANTED = [
     (26, "english_1667_milton_epic.txt", "English epic verse, single work, 1667"),
     (6130, "english_1720_pope_iliad_epic.txt", "English epic verse, single work, 1720"),
     # Section 4.13.08 cannot separate a drift rate from a change of genre. These three translate one
-    # book. The subject is kept fixed instead of merely matched. The first two are two years apart
+    # book. The subject is retained fixed instead of merely matched. The first two are two years apart
     # by rival translators, which measures what translator choice alone costs, and the third is 389
     # years after the second.
     (8300, "english_1609_douay_bible.txt", "English, same subject, 1609"),
     (8294, "english_2000_web_bible.txt", "English, same subject, circa 2000"),
-    # Six kinds of writing with little in common beyond having been written by people. If a property
+    # Six types of writing with little in common beyond having been written by people. If a property
     # holds across these it does not belong to a genre, and if it fails on one of them the earlier
-    # corpora were too alike to have shown it.
+    # corpora were too alike to have displayed it.
     # Logographic. A character is a morpheme, and the symbols at character width are meanings and not
-    # letters. Every other corpus here uses an alphabet, where a symbol sits three levels below meaning.
+    # characters. Every other corpus here uses an alphabet, where a symbol sits three levels below meaning.
     # In UTF-8 a Chinese character occupies three bytes, which also tests the divisor rule on a width the
     # earlier scripts do not reach.
     (24264, "chinese_1791_hongloumeng.txt", "Chinese, logographic, novel, 1791"),
     (23962, "chinese_1592_xiyouji.txt", "Chinese, logographic, novel, 1592"),
     (23950, "chinese_1522_sanguo.txt", "Chinese, logographic, novel, 1522"),
-    (2009, "kind_science_darwin.txt", "English, scientific argument, 1859"),
-    (10136, "kind_procedure_beeton.txt", "English, recipes and instructions, 1861"),
-    (18, "kind_legal_federalist.txt", "English, political and legal argument, 1788"),
-    (2591, "kind_folktale_grimm.txt", "English, folk narrative, 1812"),
+    (2009, "type_science_darwin.txt", "English, scientific argument, 1859"),
+    (10136, "type_procedure_beeton.txt", "English, recipes and instructions, 1861"),
+    (18, "type_legal_federalist.txt", "English, political and legal argument, 1788"),
+    (2591, "type_folktale_grimm.txt", "English, folk narrative, 1812"),
     (
         6763,
-        "kind_philosophy_aristotle.txt",
+        "type_philosophy_aristotle.txt",
         "English, philosophical criticism, translated",
     ),
-    (3300, "kind_economics_smith.txt", "English, economic treatise, 1776"),
+    (3300, "type_economics_smith.txt", "English, economic treatise, 1776"),
 ]
 
 STARTS = ("*** START OF THE PROJECT GUTENBERG", "*** START OF THIS PROJECT GUTENBERG")
@@ -85,7 +85,7 @@ ENDS = ("*** END OF THE PROJECT GUTENBERG", "*** END OF THIS PROJECT GUTENBERG")
 
 
 def strip_boilerplate(text):
-    """Keep only the body between Gutenberg's own markers."""
+    """Retain only the body between Gutenberg's own markers."""
     opened = -1
     for mark in STARTS:
         found = text.find(mark)
@@ -139,7 +139,7 @@ def main():
 
         body = strip_boilerplate(raw)
         if body is None:
-            print("  MISS   %-32s no boilerplate markers, not kept" % name)
+            print("  MISS   %-32s no boilerplate markers, not retained" % name)
             continue
 
         with open(target, "w", encoding="utf-8", newline="") as handle:

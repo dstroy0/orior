@@ -209,7 +209,7 @@ int knf_project(SimResults *results, const unsigned short *lanes, KnfRecord *rec
     unsigned long long broken = 1ull;
     const long status = entropy_history_project(&request, &broken);
     const int ok =
-        (status == 0L) && (error.kind == ENGINE_ERROR_NONE) && (broken == 0ull) && (history.windows == KNF_WINDOWS);
+        (status == 0L) && (error.type == ENGINE_ERROR_NONE) && (broken == 0ull) && (history.windows == KNF_WINDOWS);
     if (ok == 0)
     {
         mmgr_line_put(&results->line, "    the entropy history errored: module ");

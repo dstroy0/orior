@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// A change reviewed by its structure: the tree's change and a commit's shown as the declarations they
+// A change reviewed by its structure: the tree's change and a commit's displayed as the declarations they
 // touch, the pieces that call one another in a row, each caller before what it calls, a move as one
 // piece, and a commit named with who made it.
 

@@ -1,8 +1,8 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 """The motions a recording of the window holds, read: each track a part's channel, as `bar.top` or
-`strip.--reveal-left`, its value on every frame motion.js kept; each motion a stretch of a track that moves, a few
-frames kept still inside it kept as part of it; each motion checked on its own, and each pair of motions that should
+`strip.--reveal-left`, its value on every frame motion.js retained; each motion a stretch of a track that moves, a few
+frames retained still inside it retained as part of it; each motion checked on its own, and each pair of motions that should
 match paired with each other.
 
 A motion's progress runs from 0 where it left its rest to 1 where it came to rest again. A smooth one leaves its rest
@@ -10,7 +10,7 @@ without a jump, runs up to one top speed and down from it, and comes to rest wit
 when the recording's frames come. What it is checked against on its own:
 
     late frame      a frame inside the motion FRAME_LATE of the recording's frames long or more
-    stall           frames inside it where it stands still
+    stall           frames inside it where it is stationary
     hitch           one frame where it runs at under DIP of the speed on either side
     two phases      a stretch of frames where it slows to under DIP of the speed before and after, then speeds up again
     start snap      its first frame taking START_SNAP of the way or more
@@ -24,7 +24,7 @@ And in pairs:
     repeat differs      the same step's motion of a track each time the step is taken: by REPEAT_LENGTH or REPEAT_CURVE
     starts mid-way      two parts' motions, neither starting with the other, within TOGETHER frames, nor after it ends
 
-Each finding's measure is how far past its limit it stands, 1 at the limit; the findings come most first."""
+Each finding's measure is how far past its limit it is, 1 at the limit; the findings come max first."""
 
 import statistics
 from dataclasses import dataclass, field
@@ -49,7 +49,7 @@ SHAPE_POINTS = 32
 STEP = {"px": 0.02, "number": 1e-5, "area": 1.0}
 LEAST = {"px": 1.0, "number": 0.01, "area": 100.0}
 # The least speed a person sees, in each unit a millisecond: half a pixel a frame at sixty frames a second, and its
-# like for a number and an area. A frame kept still, a hitch or two phases count only where the motion about them
+# like for a number and an area. A frame retained still, a hitch or two phases count only where the motion about them
 # runs at this or faster; slower, the layout's sixty-fourths of a pixel hold a slow tail still between its steps.
 VISIBLE = {"px": 0.03, "number": 0.0003, "area": 3.0}
 # How far a motion has gone when it is done to the eye: a part that starts after it, within TOGETHER frames of this,
@@ -149,7 +149,7 @@ class Motion:
 
 @dataclass
 class Finding:
-    kind: str
+    type: str
     part: str
     step: str
     start: float
@@ -205,8 +205,8 @@ def motions_of(key, times, values, marks):
     return found
 
 
-def finding(kind, motion, measure, said, frames=()):
-    return Finding(kind, motion.part, motion.step, motion.start, motion.end, measure, said, [motion.key], [motion], list(frames))
+def finding(type, motion, measure, said, frames=()):
+    return Finding(type, motion.part, motion.step, motion.start, motion.end, measure, said, [motion.key], [motion], list(frames))
 
 
 def late_in(motion, frame_ms):
@@ -236,7 +236,7 @@ def checked(motion, frame_ms):
 
     stalled = [index for index in range(1, len(steps) - 1) if not moved[index] and seen_about(index)]
     if stalled:
-        out.append(finding("stall", motion, len(stalled), "stands still %d frame%s inside its motion" % (len(stalled), "" if len(stalled) == 1 else "s"), [motion.times[index + 1] for index in stalled]))
+        out.append(finding("stall", motion, len(stalled), "is stationary %d frame%s inside its motion" % (len(stalled), "" if len(stalled) == 1 else "s"), [motion.times[index + 1] for index in stalled]))
     if steps and steps[0][0] >= START_SNAP and 0 not in late:
         out.append(finding("start snap", motion, steps[0][0] / START_SNAP, "its first frame takes %.0f%% of the way" % (100 * steps[0][0]), [motion.times[1]]))
     if len(steps) > 1 and steps[-1][0] >= END_SNAP and steps[-1][0] >= 3 * abs(steps[-2][0]) and len(steps) - 1 not in late:
@@ -255,16 +255,16 @@ def checked(motion, frame_ms):
 
 def speed_checked(motion, steps, moved, peak):
     """A hitch or two phases in the motion's speed, read over its steps from the second to the one before its last,
-    up to its farthest point and up to its first step back, which the reversal says, a step kept still or the step
+    up to its farthest point and up to its first step back, which the reversal says, a step retained still or the step
     after it left out, as the stall says them."""
     back = next((index for index, (part, _) in enumerate(steps) if part < 0), len(steps))
-    kept = []
+    retained = []
     for index in range(1, min(len(steps) - 1, max(peak, 1), back)):
         if moved[index] and moved[index - 1]:
-            kept.append((index, steps[index][0] / steps[index][1]))
-    if len(kept) < 3:
+            retained.append((index, steps[index][0] / steps[index][1]))
+    if len(retained) < 3:
         return []
-    speeds = [speed for _, speed in kept]
+    speeds = [speed for _, speed in retained]
     low = [at for at in range(1, len(speeds) - 1) if speeds[at] < DIP * min(max(speeds[:at]), max(speeds[at + 1 :]))]
     out = []
     runs = []
@@ -279,7 +279,7 @@ def speed_checked(motion, steps, moved, peak):
         deepest = min(speeds[at] for at in run)
         if around < seen:
             continue
-        frames = [motion.times[kept[at][0] + 1] for at in run]
+        frames = [motion.times[retained[at][0] + 1] for at in run]
         if len(run) == 1:
             out.append(finding("hitch", motion, around * DIP / max(deepest, 1e-9), "one frame runs at %.0f%% of the speed either side of it" % (100 * deepest / around), frames))
         else:
@@ -288,7 +288,7 @@ def speed_checked(motion, steps, moved, peak):
 
 
 def curve_apart(one, other):
-    """How far apart two motions' curves stand: the root mean square of their progress at even times."""
+    """How far apart two motions' curves are: the root mean square of their progress at even times."""
     first, second = one.shape(), other.shape()
     return (sum((a - b) ** 2 for a, b in zip(first, second)) / len(first)) ** 0.5
 
@@ -365,24 +365,24 @@ def overlapped(motions, frame_ms):
 
 
 def collapsed(findings):
-    """One finding for each kind, part and step, the worst, with every track it was found on; late frames once for
+    """One finding for each type, part and step, the worst, with every track it was found on; late frames once for
     each step, as they are the frames' and not a part's."""
-    kept = {}
+    retained = {}
     for one in findings:
-        if one.kind == "late frame":
+        if one.type == "late frame":
             one.part = "frames"
-        key = (one.kind, one.part, one.step)
-        if key not in kept:
-            kept[key] = one
+        key = (one.type, one.part, one.step)
+        if key not in retained:
+            retained[key] = one
             continue
-        existing = kept[key]
+        existing = retained[key]
         keys = existing.keys + [name for name in one.keys if name not in existing.keys]
         if one.measure > existing.measure:
             one.keys = keys
-            kept[key] = one
+            retained[key] = one
         else:
             existing.keys = keys
-    return sorted(kept.values(), key=lambda one: -one.measure)
+    return sorted(retained.values(), key=lambda one: -one.measure)
 
 
 def read(recording):
@@ -404,9 +404,9 @@ def read(recording):
                 stretches[-1].append((frame["t"], value))
             elif stretches[-1]:
                 stretches.append([])
-        for kept in stretches:
-            if len(kept) > 1:
-                motions += motions_of(key, [at for at, _ in kept], [value for _, value in kept], marks)
+        for retained in stretches:
+            if len(retained) > 1:
+                motions += motions_of(key, [at for at, _ in retained], [value for _, value in retained], marks)
     motions.sort(key=lambda one: (one.start, one.key))
     findings = []
     for motion in motions:

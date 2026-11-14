@@ -29,7 +29,7 @@ typedef struct
     const QueryRuns *course;
     QueryTransferredRun **carried;
 } RunCtx;
-// the folder `path` stands in written into `folder`, the top of the tree where it names none
+// the folder `path` is in written into `folder`, the top of the tree where it names none
 EMBED_INLINE void query_parent_get(const RunCtx *args)
 {
     const char *slash = NULL;
@@ -49,7 +49,7 @@ EMBED_INLINE void query_parent_get(const RunCtx *args)
     mmgr_line_finish(&line);
 }
 
-// the cells of the files a run reads and may leave taken at their most
+// the cells of the files a run reads and may leave taken at their max
 EMBED_INLINE void query_run_paths_alloc(const RunCtx *args)
 {
     (void)EMBED_CALL(query_paths_internal.paths_alloc, QueryPathsCtx, .paths = &args->run->read,
@@ -335,7 +335,7 @@ int query_run_read(const QueryCountErrMsgCtx *args)
     unsigned int count = args->count;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->paths_letters[at]))
+        if (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->paths_characters[at]))
         {
             continue;
         }
@@ -343,16 +343,16 @@ int query_run_read(const QueryCountErrMsgCtx *args)
         // its own: the disk's copy is older than the run's until the run ends and writes it
         char name[QUERY_PATH_MAX_LEN];
         EMBED_CALL(query_capacity_path_name_internal.by_name, QueryCapacityPathNameCtx, .top = args->run->writer.top,
-                   .path = args->paths_letters[at], .name_out = name, .capacity = sizeof(name));
+                   .path = args->paths_characters[at], .name_out = name, .capacity = sizeof(name));
         const unsigned char *bytes = NULL;
         unsigned long long size = 0ULL;
         if (!EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &args->run->writer,
                         .name = name, .bytes_u8s = &bytes, .size_pointer = &size))
         {
-            const unsigned char *const mapped = qry_member_file_mapped(args->paths_letters[at], &size);
+            const unsigned char *const mapped = qry_member_file_mapped(args->paths_characters[at], &size);
             if (mapped == NULL)
             {
-                mmgr_line_put(args->err_msg, args->paths_letters[at]);
+                mmgr_line_put(args->err_msg, args->paths_characters[at]);
                 mmgr_line_put(args->err_msg, ": it could not be read");
                 return 0;
             }
@@ -369,8 +369,8 @@ int query_run_read(const QueryCountErrMsgCtx *args)
         {
             memor.cpy(&(MemoriaCfg){
                 .dst = args->run->read.path[args->run->read.count],
-                .src = args->paths_letters[at],
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->paths_letters[at], .cap = CLI_POOL_BYTES}) + 1u});
+                .src = args->paths_characters[at],
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->paths_characters[at], .cap = CLI_POOL_BYTES}) + 1u});
             args->run->read.count += 1u;
         }
     }
@@ -384,8 +384,8 @@ void query_run_leave(const QueryCountErrMsgCtx *args)
     {
         memor.cpy(&(MemoriaCfg){
             .dst = args->run->left.path[args->run->left.count],
-            .src = args->paths_letters[at],
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->paths_letters[at], .cap = CLI_POOL_BYTES}) + 1u});
+            .src = args->paths_characters[at],
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->paths_characters[at], .cap = CLI_POOL_BYTES}) + 1u});
         args->run->left.count += 1u;
     }
 }
@@ -410,7 +410,7 @@ int query_run_stop(const QueryContextErrMsgRunCtx *args)
     QueryProcess waited = {process, 0ULL};
     EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &waited);
     EMBED_CALL(query_folder_max_internal.runs_prune, QueryFolderMaxCtx, .folder = args->run->folder,
-               .most = query_retain_max());
+               .max = query_retain_max());
     return stopped;
 }
 

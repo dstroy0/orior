@@ -54,15 +54,15 @@ typedef struct
 /** Femtodaltons in one dalton. */
 #define CASMI_FEMTODALTONS 1000000000000000ll
 
-/** Most distinct elements one formula names. */
-#define CASMI_FORMULA_ELEMENTS_MOST 32u
+/** Max distinct elements one formula names. */
+#define CASMI_FORMULA_ELEMENTS_MAX 32u
 
 /** A formula as element counts, in the order the text named them. */
 typedef struct
 {
     unsigned int element_count;
-    unsigned int isotope[CASMI_FORMULA_ELEMENTS_MOST]; /**< index into the isotope table, the monoisotope */
-    long long count[CASMI_FORMULA_ELEMENTS_MOST];      /**< signed: an adduct term subtracts */
+    unsigned int isotope[CASMI_FORMULA_ELEMENTS_MAX]; /**< index into the isotope table, the monoisotope */
+    long long count[CASMI_FORMULA_ELEMENTS_MAX];      /**< signed: an adduct term subtracts */
 } CasmiFormula;
 
 /** An adduct: how many molecules, the mass it adds, and the charge. */

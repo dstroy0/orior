@@ -32,7 +32,7 @@ static void file_written(const char *root, const char *relative, const char *tex
               relative);
 }
 
-// a run's report `json` handed to the pane as the run's thread hands it
+// a run's report `json` passed to the pane as the run's thread passes it
 static void reported(const char *json)
 {
     cli_tests_pane_event(&(CliEachJsonSizeCfg){
@@ -76,21 +76,21 @@ int main(void)
     cli_check(EMBED_CALL(gui_pane.table_of, GuiPaneCfg, .tool = "tests") == table, "the Tests tool has the table");
     EMBED_CALL(cli_tests_pane.begin, CliTestsPaneCfg, .woken = NULL, .entries = NULL);
     cli_check(!EMBED_CALL(cli_tests_pane.loaded, CliTestsPaneCfg, .at = 0u), "the tests begin not read");
-    EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = table, .event = GUI_PANE_SHOWN, .root = s_root);
-    cli_check(EMBED_CALL(cli_tests_pane.loaded, CliTestsPaneCfg, .at = 0u), "the pane shown reads the tree's tests");
+    EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = table, .event = GUI_PANE_DISPLAYED, .root = s_root);
+    cli_check(EMBED_CALL(cli_tests_pane.loaded, CliTestsPaneCfg, .at = 0u), "the pane displayed reads the tree's tests");
     cli_check(EMBED_CALL(cli_tests_pane.rows, CliTestsPaneCfg, .at = 0u) == 5u,
               "two files and three tests are five rows");
     CliTestsRow row;
     cli_check(row_is(0u, CLI_TESTS_ROW_FILE, "c_test.py", &row) && (row.folder_length == 3ULL) && row.open &&
                   (row.outcome == CLI_TESTS_NONE),
-              "the first file's row carries its folder, stands open and has no outcome");
+              "the first file's row carries its folder, is open and has no outcome");
     cli_check(row_is(1u, CLI_TESTS_ROW_TEST, "TestThing.test_c", &row) && (row.line == 1ULL),
               "a method's label joins its class with a dot and opens at its line");
     cli_check(row_is(2u, CLI_TESTS_ROW_FILE, "test_a.py", &row), "the second file follows the first's tests");
     cli_check(row_is(3u, CLI_TESTS_ROW_TEST, "test_a", &row) && row_is(4u, CLI_TESTS_ROW_TEST, "test_b", &row) &&
                   (row.line == 4ULL),
               "the second file's tests follow in the order of their lines");
-    cli_check(!EMBED_CALL(cli_tests_pane.row, CliTestsPaneCfg, .at = 5u, .row = &row), "no row stands past the last");
+    cli_check(!EMBED_CALL(cli_tests_pane.row, CliTestsPaneCfg, .at = 5u, .row = &row), "no row is past the last");
     EMBED_CALL(cli_tests_pane.toggle, CliTestsPaneCfg, .at = 0u);
     cli_check((EMBED_CALL(cli_tests_pane.rows, CliTestsPaneCfg, .at = 0u) == 4u) &&
                   row_is(1u, CLI_TESTS_ROW_FILE, "test_a.py", &row),
@@ -100,9 +100,9 @@ int main(void)
     cli_check(!EMBED_CALL(cli_tests_pane.running, CliTestsPaneCfg, .at = 0u) &&
                   !EMBED_CALL(cli_tests_pane.any_failed, CliTestsPaneCfg, .at = 0u) &&
                   !EMBED_CALL(cli_tests_pane.said, CliTestsPaneCfg, .at = 0u),
-              "before a run nothing runs, nothing failed and no summary stands");
+              "before a run nothing runs, nothing failed and no summary is");
 
-    reported("{\"kind\":\"result\",\"run\":1,\"outcome\":{\"id\":\"tests/test_a.py::test_a\",\"outcome\":\"failed\","
+    reported("{\"type\":\"result\",\"run\":1,\"outcome\":{\"id\":\"tests/test_a.py::test_a\",\"outcome\":\"failed\","
              "\"message\":\"assert 1 == 2\\nmore\",\"file\":\"tests/test_a.py\",\"line\":1,\"seconds\":0.4123}}");
     cli_check(EMBED_CALL(cli_tests_pane.changed, CliTestsPaneCfg, .at = 0u) &&
                   !EMBED_CALL(cli_tests_pane.changed, CliTestsPaneCfg, .at = 0u),
@@ -116,15 +116,15 @@ int main(void)
                   (row.failed == 1u) && (row.passed == 0u),
               "the file's row takes the worst outcome and counts the failure");
     cli_check(EMBED_CALL(cli_tests_pane.any_failed, CliTestsPaneCfg, .at = 0u), "a test failed");
-    reported("{\"kind\":\"result\",\"run\":1,\"outcome\":{\"id\":\"tests/test_a.py::test_b\",\"outcome\":\"passed\","
+    reported("{\"type\":\"result\",\"run\":1,\"outcome\":{\"id\":\"tests/test_a.py::test_b\",\"outcome\":\"passed\","
              "\"message\":\"\",\"file\":null,\"line\":null,\"seconds\":1.25}}");
     cli_check(row_is(5u, CLI_TESTS_ROW_TEST, "test_b", &row) && (row.outcome == CLI_TESTS_PASSED) &&
                   (row.milliseconds == 1250u) && (row.line == 4ULL),
               "the passed test carries its outcome and time and opens where it is written");
-    reported("{\"kind\":\"result\",\"run\":1,\"outcome\":{\"id\":\"tests/test_a.py::test_none\",\"outcome\":\"passed\","
+    reported("{\"type\":\"result\",\"run\":1,\"outcome\":{\"id\":\"tests/test_a.py::test_none\",\"outcome\":\"passed\","
              "\"message\":\"\",\"file\":null,\"line\":null,\"seconds\":0.1}}");
     cli_check(EMBED_CALL(cli_tests_pane.rows, CliTestsPaneCfg, .at = 0u) == 6u, "a test not found adds no row");
-    reported("{\"kind\":\"done\",\"run\":1,\"passed\":1,\"failed\":1,\"skipped\":0,\"seconds\":1.66,\"message\":\"\"}");
+    reported("{\"type\":\"done\",\"run\":1,\"passed\":1,\"failed\":1,\"skipped\":0,\"seconds\":1.66,\"message\":\"\"}");
     char summary[CLI_TESTS_SUMMARY];
     int failed = 0;
     cli_check(EMBED_CALL(cli_tests_pane.said, CliTestsPaneCfg, .at = 0u) &&
@@ -135,7 +135,7 @@ int main(void)
                                                .other_cap = 28u}) &&
                   failed,
               "the run's end is summed up with its seconds to a tenth");
-    reported("{\"kind\":\"coverage\",\"run\":1,\"files\":[{\"file\":\"pkg/c.py\",\"ran\":[1,2,3],\"missed\":[9,5]}]}");
+    reported("{\"type\":\"coverage\",\"run\":1,\"files\":[{\"file\":\"pkg/c.py\",\"ran\":[1,2,3],\"missed\":[9,5]}]}");
     cli_check(EMBED_CALL(cli_tests_pane.rows, CliTestsPaneCfg, .at = 0u) == 8u, "the coverage takes a head and a row");
     cli_check(EMBED_CALL(cli_tests_pane.row, CliTestsPaneCfg, .at = 6u, .row = &row) &&
                   (row.type == CLI_TESTS_ROW_COVER_HEAD) && (row.passed == 3u) && (row.failed == 2u),
@@ -153,7 +153,7 @@ int main(void)
     const int rows_top = EMBED_CALL(gui_pane.rows_top, GuiPaneCfg, .table = table, .frame = &frame);
     cli_check(rows_top == frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + GUI_TESTS_BAR +
                               GUI_TESTS_SAID,
-              "the rows stand under the pane's head, the bar and the summary");
+              "the rows are under the pane's head, the bar and the summary");
     const int top_menu_y = frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + (GUI_TESTS_BAR / 2);
     cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
                          .glyphs = &glyphs, .x = frame.side.x + GUI_TESTS_ACTION_PAD + 4, .y = top_menu_y) == CLI_TESTS_RUN,
@@ -177,7 +177,7 @@ int main(void)
                .glyphs = &glyphs, .palette = palette, .title = "Tests", .tree = "");
     const GuiRect message =
         EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .table = table, .frame = &frame, .pane_read = &pane, .row = 4u);
-    cli_check(message.y == first.y + (4 * GUI_PANE_ROW), "the message's row stands four rows under the first");
+    cli_check(message.y == first.y + (4 * GUI_PANE_ROW), "the message's row is four rows under the first");
     GuiPaneOpen open = {NULL, {0ULL, 0ULL}, 0};
     cli_check(EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 3u, .open_out = &open) &&
                   cellul.eq(&(CatenaFinitaCfg){
@@ -197,7 +197,7 @@ int main(void)
 
     EMBED_CALL(cli_tests_pane.read, CliTestsPaneCfg, .root = NULL);
     cli_check(EMBED_CALL(cli_tests_pane.rows, CliTestsPaneCfg, .at = 0u) == 2u,
-              "no tree leaves no files, the coverage standing");
+              "no tree leaves no files, the coverage located");
 
     raster.pixels = NULL;
     raster.width = 0u;

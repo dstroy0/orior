@@ -19,7 +19,7 @@ static unsigned long long noise_root_voxels(const unsigned long long box[4])
     return voxels;
 }
 
-// the next place in the box, x fastest, as the voxels are laid out
+// the next place in the box, x fastest, as the voxels are arranged
 static void noise_root_next(unsigned long long place[4], const unsigned long long box[4])
 {
     for (unsigned int axis = 4u; axis > 0u; axis -= 1u)
@@ -150,7 +150,7 @@ extern "C" long noise_root_box(const NoiseRootRequest *request)
         noise_root_take(request, box, values);
     }
     ok = ok && noise_root_price(request, values, box, &measurement->box_bits);
-    long long maximum = 0ll;
+    long long max = 0ll;
     for (unsigned int term = 0u; ok && (term < NOISE_ROOT_TERMS); term += 1u)
     {
         unsigned long long extent[4];
@@ -159,12 +159,12 @@ extern "C" long noise_root_box(const NoiseRootRequest *request)
         noise_root_spread(values, box, voxels, term, pattern, -1, residual);
         ok = noise_root_price(request, residual, box, &measurement->residual_bits[term]) &&
              noise_root_price(request, pattern, extent, &measurement->pattern_bits[term]);
-        // each price is at most 2^61. Each converts to long long exactly and the difference cannot wrap
+        // each price is at max 2^61. Each converts to long long exactly and the difference cannot wrap
         measurement->saved[term] = (long long)measurement->box_bits - (long long)measurement->residual_bits[term] -
                                    (long long)measurement->pattern_bits[term];
-        if (ok && (measurement->saved[term] > maximum))
+        if (ok && (measurement->saved[term] > max))
         {
-            maximum = measurement->saved[term];
+            max = measurement->saved[term];
             measurement->root = term;
         }
     }

@@ -49,7 +49,7 @@ typedef struct CliBuildsSizeVersionCfg CliBuildsSizeVersionCfg;
 #define CLI_BUILD_WARNING 2u
 #define CLI_BUILD_NOTE 3u
 
-// the most findings of one file, the most fixes of them, the most bytes their texts take, and no finding; the findings
+// the max findings of one file, the max fixes of them, the max bytes their texts take, and no finding; the findings
 // and fixes their capacities are taken with; and the bytes the texts have free past the last stored, the capacity a
 // message or a title is written in before it is stored
 #define CLI_BUILD_FINDINGS 4096u
@@ -69,11 +69,11 @@ void cli_build_check(const CliBuildsPathCfg *args);
 // each label once
 void cli_build_complete(const CliBuildsPathCfg *args);
 // the names SCons gives the SConstruct or SConscript at `path` without its importing them: its globals and the names
-// its `Import` calls take, each handed to `each`; none for any other file
+// its `Import` calls take, each passed to `each`; none for any other file
 void cli_build_input_names(const CliBuildsPathTextCfg *args);
 // the folder, in the tree, and the command line that update every snapshot dependency of the build `path`, NULL for
-// none, belongs to: Maven's where it is a POM or a POM stands beside it, Gradle's where it is a Gradle file or one
-// stands beside it, and either one at the tree's top where `path` is neither; each into what is sized for
+// none, belongs to: Maven's where it is a POM or a POM is beside it, Gradle's where it is a Gradle file or one
+// is beside it, and either one at the tree's top where `path` is neither; each into what is sized for
 // CLI_PATH_MAX_LEN: 1, or 0 with why given
 int cli_build_snapshots_line(const CliBuildsPathRootCfg *args);
 
@@ -87,7 +87,7 @@ typedef struct
     unsigned int count;
 } CliBuildLines;
 
-// the lines of `size` bytes of `text`, their starts stored in `starts`, sized for `most`; the line and the column, in
+// the lines of `size` bytes of `text`, their starts stored in `starts`, sized for `max`; the line and the column, in
 // UTF-16 units, of byte `at`; and the byte line `line` starts at, the text's end past its last (builds_help.c)
 void cli_build_lines_get(const CliBuildsTextSizeCfg *args);
 // the lines of `size` bytes of `text` indexed whole, their starts in a cell counted to g_cli_build_owner sized to
@@ -128,7 +128,7 @@ typedef struct
     unsigned int folder_size;
 } CliBuildFix;
 
-// A file's findings and their fixes, and the texts they take, each in a cell at their most, with 1 in `full` where one
+// A file's findings and their fixes, and the texts they take, each in a cell at their max, with 1 in `full` where one
 // did not fit
 typedef struct
 {
@@ -161,19 +161,19 @@ void cli_build_edit_fix_twice(const CliBuildsTextCfg *args);
 // "value"}, "source": "orior", "code", "data": {"orior": fixes}}`
 void cli_build_findings_write(const CliBuildsCfg *args);
 
-// the byte of `size` bytes of `text` at `line`, `col`, the column in UTF-16 units; whether a letter is of a word, as
-// the editor reads one; and the start of the run of letters `of` takes that ends at byte `at`, on its line
+// the byte of `size` bytes of `text` at `line`, `col`, the column in UTF-16 units; whether a character is of a word, as
+// the editor reads one; and the start of the run of characters `of` takes that ends at byte `at`, on its line
 unsigned long long cli_build_byte_at(const CliBuildsPathCfg *args);
-int cli_build_word_letter(const CliEachLetterCfg *args);
+int cli_build_word_character(const CliEachLetterCfg *args);
 unsigned long long cli_build_run_before(const CliBuildsTextAtCfg *args);
 
-// the item of a value put where it stands after what was typed before the word the cursor is in: of
+// the item of a value put where it is after what was typed before the word the cursor is in: of
 // `maven.compiler.so` typed, `source` for `maven.compiler.source`; a value that does not start with what was typed is
 // left out; and plain items for `words`, `count` of them, each of `type` with `detail`, `()` left off what each shows
 void cli_build_relative(const CliBuildsItemsCfg *args);
 void cli_build_items(const CliBuildsItemsTypeCfg *args);
 
-// The names nearest one that is not known, near enough to be what was meant, the nearest first, at most three, each a
+// The names nearest one that is not known, near enough to be what was meant, the nearest first, at max three, each a
 // text of the caller's
 typedef struct
 {
@@ -185,7 +185,7 @@ typedef struct
     unsigned int count;
 } CliBuildAdjacent;
 
-// the fewest edits of one letter that turn `a` into `b`; the nearest names begun for `name`; and a known name offered
+// the fewest edits of one character that turn `a` into `b`; the nearest names begun for `name`; and a known name offered
 // to them
 unsigned long long cli_build_distance(const CliBuildsACfg *args);
 void cli_build_adjacent_begin(const CliBuildsSizeCfg *args);
@@ -279,7 +279,7 @@ struct CliBuildsTextSizeCfg
     const char *text;
     unsigned long long size;
     unsigned int *starts;
-    unsigned int most;
+    unsigned int max;
     CliBuildLines *lines_out;
 };
 
@@ -458,11 +458,11 @@ EMBED_TABLE_STORAGE CliBuildsNsTable cli_builds_table EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*build_word_letter)(const CliEachLetterCfg *args);
+    int (*build_word_character)(const CliEachLetterCfg *args);
 } CliEachLetterNs;
-EMBED_TABLE_LAYOUT(CliEachLetterNs, build_word_letter);
-EMBED_TABLE_STORAGE CliEachLetterNs cli_each_letter EMBED_UNUSED = {
-    .build_word_letter = cli_build_word_letter,
+EMBED_TABLE_LAYOUT(CliEachLetterNs, build_word_character);
+EMBED_TABLE_STORAGE CliEachLetterNs cli_each_character EMBED_UNUSED = {
+    .build_word_character = cli_build_word_character,
 };
 
 typedef struct

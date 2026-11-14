@@ -4,7 +4,7 @@
 // findings and its text by the file's key and its URI. Each entry is stored whole in one movable cell the store owns,
 // its key, its second text and its text one after another, each ended by a 0, an entry put again giving its old cell
 // back; a put the cellblock or the entries cannot fit is refused and reported, with the store's name. A reader is
-// handed the entry: its cell, the token the movable reads, writes and compares take, and where its three texts start
+// passed the entry: its cell, the token the movable reads, writes and compares take, and where its three texts start
 // in it. Nothing of a store's own is locked here: each store owns its own lock (keyed.c)
 #ifndef KEYED_H
 #define KEYED_H
@@ -32,21 +32,21 @@ typedef struct
     unsigned long long text_size;
 } CliKeyedEntry;
 
-// what each entry of a store is handed to `each` as: the caller's context and the entry
+// what each entry of a store is passed to `each` as: the caller's context and the entry
 typedef struct
 {
     void *context;
     CliKeyedEntry entry;
 } CliEachKeyedEntryCfg;
 
-// the entries a page of a store's contains, the most pages a store takes, and no place
+// the entries a page of a store's contains, the max pages a store takes, and no place
 #define CLI_KEYED_PAGE 256u
 #define CLI_KEYED_PAGES 256u
 #define CLI_KEYED_NONE 0xffffffffu
 
 // Texts stored by a key: the store's name, reported where a put is refused; the entries in pages of CLI_KEYED_PAGE,
 // each page a movable cell taken as its first place is and given back as the store empties, how many places were ever
-// taken, and the most there are, at most CLI_KEYED_PAGE pages of them
+// taken, and the max there are, at max CLI_KEYED_PAGE pages of them
 typedef struct
 {
     const char *name;
@@ -60,10 +60,10 @@ typedef struct
 CliKeyedEntry cli_keyed_entry(const CliKeyedCfg *args);
 unsigned long long cli_keyed_listing_size(const CliKeyedCfg *args);
 void cli_keyed_remove_at(const CliKeyedCfg *args);
-// the texts made empty, at most `entries_max` of them; `size` bytes of `text`, or of `text_cell` from `text_at` where
+// the texts made empty, at max `entries_max` of them; `size` bytes of `text`, or of `text_cell` from `text_at` where
 // that is given, stored under `key` with `adjacent`, in place of what it contained: 1, or 0, reported, where they do
 // not fit; the place of the entry stored under `key`, CLI_KEYED_NONE where none is; the text under `key` taken out;
-// every text taken out; and each entry that contains one handed to `each`
+// every text taken out; and each entry that contains one passed to `each`
 void cli_keyed_begin(const CliKeyedNameCfg *args);
 int cli_keyed_append(const CliKeyedKeyAdjacentCfg *args);
 unsigned int cli_keyed_find(const CliKeyedKeyAdjacentCfg *args);

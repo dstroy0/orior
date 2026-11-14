@@ -28,24 +28,24 @@ void cli_link_quote(const CliLinkTextSizeCfg *args)
 
 typedef struct
 {
-    unsigned int letter;
+    unsigned int character;
     const char *text;
     unsigned long long *start;
     unsigned long long *size;
     char *field;
     unsigned long long size_value;
 } LinkAddressCtx;
-// whether a letter is white as Rust's char::is_whitespace has it
+// whether a character is white as Rust's char::is_whitespace has it
 EMBED_INLINE int address_white(const LinkAddressCtx *args)
 {
-    return ((args->letter >= 0x09u) && (args->letter <= 0x0du)) || (args->letter == 0x20u) || (args->letter == 0x85u) ||
-           (args->letter == 0xa0u) || (args->letter == 0x1680u) ||
-           ((args->letter >= 0x2000u) && (args->letter <= 0x200au)) || (args->letter == 0x2028u) ||
-           (args->letter == 0x2029u) || (args->letter == 0x202fu) || (args->letter == 0x205fu) ||
-           (args->letter == 0x3000u);
+    return ((args->character >= 0x09u) && (args->character <= 0x0du)) || (args->character == 0x20u) || (args->character == 0x85u) ||
+           (args->character == 0xa0u) || (args->character == 0x1680u) ||
+           ((args->character >= 0x2000u) && (args->character <= 0x200au)) || (args->character == 0x2028u) ||
+           (args->character == 0x2029u) || (args->character == 0x202fu) || (args->character == 0x205fu) ||
+           (args->character == 0x3000u);
 }
 
-// `text` trimmed of white letters at its two ends, as Rust's str::trim trims it: its start and length
+// `text` trimmed of white characters at its two ends, as Rust's str::trim trims it: its start and length
 EMBED_INLINE void address_trim(const LinkAddressCtx *args)
 {
     const char *text = args->text;
@@ -53,13 +53,13 @@ EMBED_INLINE void address_trim(const LinkAddressCtx *args)
     unsigned long long *size = args->size;
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES});
     unsigned long long begin = 0ULL;
-    unsigned int letter = 0u;
+    unsigned int character = 0u;
     while (begin < length)
     {
         const unsigned long long reserved =
-            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                       .text_bytes = (const unsigned char *)text, .length = length, .at = begin, .letter = &letter);
-        if (!EMBED_CALL(address_white, LinkAddressCtx, .letter = letter))
+            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                       .text_bytes = (const unsigned char *)text, .length = length, .at = begin, .character = &character);
+        if (!EMBED_CALL(address_white, LinkAddressCtx, .character = character))
         {
             break;
         }
@@ -70,10 +70,10 @@ EMBED_INLINE void address_trim(const LinkAddressCtx *args)
     while (at < length)
     {
         const unsigned long long reserved =
-            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                       .text_bytes = (const unsigned char *)text, .length = length, .at = at, .letter = &letter);
+            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                       .text_bytes = (const unsigned char *)text, .length = length, .at = at, .character = &character);
         at += reserved;
-        end = EMBED_CALL(address_white, LinkAddressCtx, .letter = letter) ? end : at;
+        end = EMBED_CALL(address_white, LinkAddressCtx, .character = character) ? end : at;
     }
     *start = begin;
     *size = end - begin;

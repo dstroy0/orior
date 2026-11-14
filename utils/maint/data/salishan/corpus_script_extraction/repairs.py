@@ -2,23 +2,23 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# The kinds of damage a PDF extraction does, one mechanism for each kind, and the way to compose them.
+# The types of damage a PDF extraction does, one mechanism for each type, and the way to compose them.
 #
 #   Usage:  from repairs import one_mark, composed, sequence
 #
-# refs.md names five kinds of mutation these extractions make: substitution, one symbol for one;
-# collapse, two symbols onto one; transposition, a mark moved off its letter; insertion, a space that
+# refs.md names five types of mutation these extractions make: substitution, one symbol for one;
+# collapse, two symbols onto one; transposition, a mark moved off its character; insertion, a space that
 # was never in the text; and deletion, a space dropped so two words weld. That list came out of a
 # measurement of two papers against their own rendered pages, and this file is the same list written
 # as code.
 #
-# A paper carries some of these kinds and not others, and it declares which in paper_config.py. The
+# A paper carries some of these types and not others, and it declares which in paper_config.py. The
 # mechanism is written once here; the count behind each declaration stays with the paper, because it
 # is a fact about that paper and not about the mechanism.
 #
 # WHAT IS HERE AND WHAT IS NOT
 #
-# Insertion lives in whitespace.py, which covers that kind entirely and is large enough to be its own
+# Insertion lives in whitespace.py, which covers that type entirely and is large enough to be its own
 # module.
 #
 # Collapse is nowhere and cannot be anywhere. It destroys a distinction instead of disguising it:
@@ -39,8 +39,8 @@ import unicodedata
 def one_mark(was, becomes):
     """Substitution: two codepoints for one mark, written the way the paper's body writes it.
 
-    Correct only where the paper itself writes one letter both ways, and that makes the two the
-    same mark. Where each letter takes only one of them the difference is the orthography, and
+    Correct only where the paper itself writes one character both ways, and that makes the two the
+    same mark. Where each character takes only one of them the difference is the orthography, and
     normalizing it is a guess about the language dressed up as a repair.
     """
     def written(line):

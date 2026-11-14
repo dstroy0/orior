@@ -3,13 +3,13 @@
 // pi_plane_rings.cu: rings, turns and spirals
 #include "pi_plane_internal.h"
 
-// ring k contains floor(pi 2^k) bits, floor(pi 2^(k + 1)) = 2 floor(pi 2^k) + pi's bit k + 1; the rings that fit most
-std::vector<unsigned long long> plane_ring_sizes(const std::vector<unsigned char> &bits, unsigned long long maximum)
+// ring k contains floor(pi 2^k) bits, floor(pi 2^(k + 1)) = 2 floor(pi 2^k) + pi's bit k + 1; the rings that fit max
+std::vector<unsigned long long> plane_ring_sizes(const std::vector<unsigned char> &bits, unsigned long long max)
 {
     std::vector<unsigned long long> sizes;
     unsigned long long size = 3ull;
     unsigned long long total = 0ull;
-    for (size_t level = 0u; (level < bits.size()) && (total + size <= maximum); level += 1u)
+    for (size_t level = 0u; (level < bits.size()) && (total + size <= max); level += 1u)
     {
         sizes.push_back(size);
         total += size;
@@ -86,7 +86,7 @@ int plane_ring_unrolled(const std::vector<unsigned long long> &sizes, const unsi
         {
             for (unsigned long long column = 0ull; column < width; column += 1ull)
             {
-                // the share of ones, scaled to 255, is at most 255
+                // the share of ones, scaled to 255, is at max 255
                 pixels[(size_t)((((ring * PLANE_RING_ROW) + row) * width) + column)] =
                     (unsigned char)((255ull * ones[(size_t)column]) / counted[(size_t)column]);
             }
@@ -178,7 +178,7 @@ static void plane_turn_point(const PlaneTurn &turn, unsigned long long place, un
         x = next_x;
         angle += up ? -turn.arctangent[shift] : turn.arctangent[shift];
     }
-    // the radius is at most 2^12 and each part at most 2^41. The products stay below 2^53
+    // the radius is at max 2^12 and each part at max 2^41. The products stay below 2^53
     *column = plane_round(radius * x, turn.gain);
     *row = -plane_round(radius * y, turn.gain);
 }
@@ -215,7 +215,7 @@ int plane_ring_circle(const std::vector<unsigned long long> &sizes, const unsign
     {
         if (counted[index] != 0ull)
         {
-            // the share of ones, scaled to 255, is at most 255
+            // the share of ones, scaled to 255, is at max 255
             pixels[index] = (unsigned char)((255ull * ones[index]) / counted[index]);
         }
     }

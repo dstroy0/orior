@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tabs.c: the tabs row. Each tab is as wide as its padding, the mark of changes not saved where it has them, its name
-// and its close mark. The tabs stand in one side_menu, and the row shows the part of the side_menu from the frame's
+// and its close mark. The tabs are in one side_menu, and the row shows the part of the side_menu from the frame's
 // `tabs_left`. The row's edges cut the tabs that cross them
 #include "tabs.h"
 #include "../../../includes/arith/arith.h"
@@ -93,10 +93,10 @@ GuiRect gui_tab_rect(const GuiTabsGlyphsCfg *args)
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                        .pixels = (int)GUI_TAB_SIZE, .scale = args->frame->scale);
     const unsigned int count = cli_view_count();
-    // the tabs stand clear of the work's lines: room above them, and room before the first
+    // the tabs are clear of the work's lines: room above them, and room before the first
     const int clear =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_CLEAR, .scale = args->frame->scale);
-    // the side_menu of tabs stands slid left by the pixels the row holds left of its view
+    // the side_menu of tabs is slid left by the pixels the row holds left of its view
     int x = args->frame->tabs.x + clear - args->frame->tabs_left;
     for (unsigned int each = 0u; (each < args->at) && (each < count); each += 1u)
     {
@@ -106,7 +106,7 @@ GuiRect gui_tab_rect(const GuiTabsGlyphsCfg *args)
     const int pixel_width = (args->at < count) ? EMBED_CALL(tabs_width, TabsCtx, .glyphs = args->glyphs,
                                                             .tab = args->at, .size = size, .scale = args->frame->scale)
                                                : 0;
-    // a tab stands whole in the row, which the claim lifts out of the work's head
+    // a tab is whole in the row, which the claim lifts out of the work's head
     return (GuiRect){
         x, args->frame->tabs_row.y + clear, pixel_width,
         args->frame->tabs_row.height - clear -
@@ -170,7 +170,7 @@ int gui_tabs_hit(const GuiTabsGlyphsFrameCountCfg *args)
     return 0;
 }
 
-// The beads over the first GUI_TABS_BEADS tabs of `count`, drawn as their presses stand at `time_ms`: the atlas laid
+// The beads over the first GUI_TABS_BEADS tabs of `count`, drawn as their presses are at `time_ms`: the atlas positioned
 // out for the widest tab in the tab's shape, each tab's cell at its place in the row's whole side_menu, lit by the
 // window's lights, over the second segment of the block's tab beads part; one unbaked tab baked a draw, the rest
 // left for the draws after: how many still wait
@@ -242,10 +242,10 @@ unsigned int gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
     GuiGlyphs *glyphs = args->glyphs;
     const int scale = args->frame->scale;
     const int one = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale);
-    // the row's colors at the share of it shown, the claim fading the row as it lifts it away
+    // the row's colors at the share of it displayed, the claim fading the row as it lifts it away
     const int share = args->frame->tabs_share;
     const GuiColor line_color = GUI_FRAME_FADED(args->palette->line, share);
-    const GuiColor shown_line = GUI_FRAME_FADED(args->palette->tab_line, share);
+    const GuiColor displayed_line = GUI_FRAME_FADED(args->palette->tab_line, share);
     const GuiColor box_line = GUI_FRAME_FADED(args->palette->widget_line, share);
     const GuiColor ground = GUI_FRAME_FADED(args->palette->tab_background, share);
     const GuiColor mark = GUI_FRAME_FADED(args->palette->hover, share);
@@ -259,7 +259,7 @@ unsigned int gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                        .pixels = (int)GUI_TAB_SIZE, .scale = scale);
     const unsigned int count = cli_view_count();
-    const int shown = cli_view_shown();
+    const int displayed = cli_view_displayed();
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const GuiRect rect =
@@ -276,9 +276,9 @@ unsigned int gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
             continue;
         }
         // the tabs are fewer than an int counts
-        const int displayed = (int)at == shown;
+        const int displayed = (int)at == displayed;
         // Each tab a box, its top corners rounded and its foot open on the row's line, a line one pixel wide up its
-        // sides and over its top, and a gap before the next. The shown tab stands on the tab's ground in the tab's
+        // sides and over its top, and a gap before the next. The displayed tab is on the tab's ground in the tab's
         // line; the others have no ground of their own, the lattice through each under its bead, in the widget's line
         const unsigned int radius = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                              .pixels = GUI_TAB_RADIUS, .scale = scale);
@@ -293,7 +293,7 @@ unsigned int gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
                        .radius = radius, .color = ground, .corners = top);
         }
         EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = box, .radius = radius,
-                   .color = displayed ? shown_line : box_line, .corners = top, .stroke = one);
+                   .color = displayed ? displayed_line : box_line, .corners = top, .stroke = one);
         const int baseline =
             EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs, .face = GUI_FACE_CODE,
                        .size = size, .top = rect.y, .pixel_height = rect.height);

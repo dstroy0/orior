@@ -15,12 +15,12 @@ typedef struct QueryToolsRootCtx QueryToolsRootCtx;
 typedef struct QueryToolsRootToolCtx QueryToolsRootToolCtx;
 typedef struct QueryToolsCtx QueryToolsCtx;
 
-// the most groups of patterns a tool's C or C++ sources are given in, and the most sources one tool compiles
+// the max groups of patterns a tool's C or C++ sources are given in, and the max sources one tool compiles
 #define QUERY_TOOL_GROUPS 4u
 
 #define QUERY_SOURCES_MAX 2048u
 
-// the launch queue's two numbers as the interface stores them (interface.h): the compilers run at most this many at
+// the launch queue's two numbers as the interface stores them (interface.h): the compilers run at max this many at
 // once, and this much passes between one start and the next
 #define QUERY_LAUNCHES_AT_ONCE 4u
 

@@ -13,12 +13,12 @@ import { press } from "../../menus.js";
 
 const { test, assert, ui } = window.__harness;
 
-// The most matches a search gives, its lines each searched whole until they are found.
-const MOST = 20000;
+// The max matches a search gives, its lines each searched whole until they are found.
+const MAX = 20000;
 
 // The matches the lines `lines` hold for `query` as the find bar's flags read it, each [line, from col, to col]: a
-// pattern or the query as it is, with case or without, whole words or not, a match of no letters passed over, the
-// lines read whole until MOST are found.
+// pattern or the query as it is, with case or without, whole words or not, a match of no characters passed over, the
+// lines read whole until MAX are found.
 function expectedOf(lines, query, options) {
   let source = options.regex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   if (options.word) {
@@ -26,7 +26,7 @@ function expectedOf(lines, query, options) {
   }
   const pattern = new RegExp(source, `g${options.case ? "" : "i"}u`);
   const found = [];
-  for (let line = 0; line < lines.length && found.length < MOST; line += 1) {
+  for (let line = 0; line < lines.length && found.length < MAX; line += 1) {
     for (const match of lines[line].matchAll(pattern)) {
       if (match[0].length) {
         found.push([line, match.index, match.index + match[0].length]);
@@ -36,7 +36,7 @@ function expectedOf(lines, query, options) {
   return found;
 }
 
-const shown = (find) => find.matches.map(({ from, to }) => [from.line, from.col, to.col]);
+const displayed = (find) => find.matches.map(({ from, to }) => [from.line, from.col, to.col]);
 
 // Sets the find bar and searches, answering whether the search was asked of the window's side.
 async function searched(find, query, options) {
@@ -51,7 +51,7 @@ async function searched(find, query, options) {
 // The window's side's own answer for `query` with the find bar's flags `options`, or null where it refuses.
 function sideAnswer(key, query, options) {
   const sought = { query, regex: false, case: false, word: false, ...options };
-  return invoke("document_find", { key, sought, most: MOST }).catch(() => null);
+  return invoke("document_find", { key, sought, max: MAX }).catch(() => null);
 }
 
 test("a search of a large branch runs on the window's side and finds what the lines hold, a pattern among them", async () => {
@@ -83,12 +83,12 @@ test("a search of a large branch runs on the window's side and finds what the li
       const expected = expectedOf(lines, query, options);
       assert.ok(expected.length > 0, `${said}: the lines hold it`);
       assert.deepEqual(await sideAnswer(key, query, options), expected, `${said}: the window's side finds what the lines hold`);
-      assert.deepEqual(shown(find), expected, `${said}: and the bar shows it`);
+      assert.deepEqual(displayed(find), expected, `${said}: and the bar shows it`);
       assert.equal(find.bar.dataset.bad, "false", `${said}: the bar not marked`);
     }
     await searched(find, "(", { regex: true });
     assert.equal(find.bar.dataset.bad, "true", "a pattern that does not read marks the bar");
-    assert.deepEqual(shown(find), [], "and finds nothing");
+    assert.deepEqual(displayed(find), [], "and finds nothing");
   } finally {
     find.close();
   }
@@ -121,11 +121,11 @@ test("a paged file is searched whole on the window's side, and a match outside i
     await ui.waitFor(() => editing().active === path && editing().editor?.s?.window?.paged, 20000, "the file opened paged");
     const view = editing().editor;
     const find = view.find;
-    assert.ok(view.s.base + view.s.doc.count <= far, "the window stands before the match");
+    assert.ok(view.s.base + view.s.doc.count <= far, "the window is before the match");
     find.open(false);
     try {
       assert.ok(await searched(find, "far_\\w+", { regex: true }), "asked of the window's side");
-      assert.deepEqual(shown(find), [[far, 0, 8]], "the match in the file's lines, past the window");
+      assert.deepEqual(displayed(find), [[far, 0, 8]], "the match in the file's lines, past the window");
       find.step(1);
       await ui.waitFor(() => view.s.base <= far && far < view.s.base + view.s.doc.count, 10000, "the window brought to the match");
       await ui.waitFor(() => view.primary().head.line + view.s.base === far, 5000, "the match selected");

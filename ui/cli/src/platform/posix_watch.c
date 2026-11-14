@@ -19,7 +19,7 @@
 #include <sys/inotify.h>
 #include <unistd.h>
 
-// the most watches one inotify gives out before it is opened anew, as its numbers only rise; the bytes of their names;
+// the max watches one inotify gives out before it is opened anew, as its numbers only rise; the bytes of their names;
 // the bytes of the system's answer; and what is watched
 #define CLI_INOTIFY_FOLDERS (1u << 16u)
 #define CLI_INOTIFY_NAMES (1u << 20u)
@@ -358,7 +358,7 @@ static void inotify_read(void *context)
             (going && ((waits[0].revents & POLLIN) != 0)) ? read(s_watch.inotify, s_answer, sizeof(s_answer)) : 0;
         for (long at = 0; at < written;)
         {
-            // the system lays each record on its own alignment, which the answer's capacity starts on
+            // the system positions each record on its own alignment, which the answer's capacity starts on
             const struct inotify_event *const record = (const struct inotify_event *)(const void *)(s_answer + at);
             EMBED_CALL(inotify_record_emit, PosixWatchCtx, .record = record);
             at += (long)(sizeof(*record) + record->len);
@@ -393,7 +393,7 @@ int cli_watch_system_start(const CliRootContextCtx *args)
         return 0;
     }
     EMBED_CALL(cli_symbols_context.tree_list, CliSymbolsContextCfg, .root = root);
-    // the folders and their names are the reader thread's tables, so they stand fixed outside the pool, where they
+    // the folders and their names are the reader thread's tables, so they are fixed outside the pool, where they
     // punch no hole in the persistent tier
     static CliInotifyFolder s_folders[CLI_INOTIFY_FOLDERS];
     static char s_names[CLI_INOTIFY_NAMES];

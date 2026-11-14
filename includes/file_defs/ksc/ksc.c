@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the most answers a channel's counts are taken again over
+// the max answers a channel's counts are taken again over
 #define KSC_ANSWERS 32u
 
 int ksc_read(KscFile *file, const char *path)
@@ -111,7 +111,7 @@ int ksc_rows_replaced_traced_by(KscFile *file, const char *channel, const char *
             return 0;
         }
     }
-    // the rows go where the first row of the question stood, so that a row put again retains its place; where the file
+    // the rows go where the first row of the question was, so that a row put again retains its place; where the file
     // contains none of the question, after the last row of the channel it retains, or after its last line where it
     // retains none of the channel
     unsigned int place = file->lines;
@@ -193,11 +193,11 @@ int ksc_rows_replaced_traced_by(KscFile *file, const char *channel, const char *
 
 int ksc_field_read(const char *line, char *name, size_t room, unsigned int *from, unsigned int *width)
 {
-    char kind[8];
+    char type[8];
     unsigned long long first = 0ull;
     unsigned long long bits = 0ull;
     const char *at = line;
-    if (!line_word(&at, kind, sizeof(kind)) || (strcmp(kind, "field") != 0) || !line_word(&at, name, room) ||
+    if (!line_word(&at, type, sizeof(type)) || (strcmp(type, "field") != 0) || !line_word(&at, name, room) ||
         !line_number(&at, 0, &first) || !line_number(&at, 0, &bits) || (first > 0xffffffffull) ||
         (bits > 0xffffffffull))
     {

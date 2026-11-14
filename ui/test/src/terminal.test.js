@@ -17,17 +17,17 @@ test("the Terminal menu opens, splits, clears and kills shells", async () => {
   await press("split");
   assert.ok(isChecked("terminal-split"), "a shell beside");
   await press("split");
-  assert.ok(!isChecked("terminal-split"), "one shell shown again");
+  assert.ok(!isChecked("terminal-split"), "one shell displayed again");
   const screen = () => document.querySelector("#term-views .term-view:not([hidden])")?.textContent ?? "";
   await press("clear");
   await ui.waitFor(() => !screen().trim() || screen().trim().split("\n").length <= 2, 5000, "the screen cleared");
   await press("kill");
   await ui.waitFor(() => tabs() === opened - 1 || panel.hidden, 5000, "the shell ended");
-  const shown = !panel.hidden;
+  const displayed = !panel.hidden;
   await press("toggle");
-  assert.equal(!panel.hidden, !shown);
+  assert.equal(!panel.hidden, !displayed);
   await press("toggle");
-  assert.equal(!panel.hidden, shown);
+  assert.equal(!panel.hidden, displayed);
   await runCommand("toggle");
   if (!panel.hidden) {
     await runCommand("toggle");

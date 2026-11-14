@@ -296,7 +296,7 @@ static void mariadb_run_result(void)
 {
     static const char *const s_user[2] = {"DROP USER IF EXISTS 'orior_native'@'%'", "CREATE USER 'orior_native'@'%' IDENTIFIED BY 'native secret'"};
     static const char *const s_drop[1] = {"DROP USER 'orior_native'@'%'"};
-    // MariaDB recurses 1000 times at most unless max_recursive_iterations specifies otherwise
+    // MariaDB recurses 1000 times at max unless max_recursive_iterations specifies otherwise
     static const char s_select[] = "WITH RECURSIVE k(seq) AS (SELECT 1 UNION ALL SELECT seq + 1 FROM k WHERE seq < 900) "
                                    "SELECT seq, CONCAT('n', seq) AS t FROM k";
     char password[256];

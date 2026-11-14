@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // What the claim's tests share: the editor taking the keys, a rest at a point and the reveal it brings, and where
-// the wordmark and the panes stand.
+// the wordmark and the panes are.
 
 import { claimed, revealed } from "../gui/src-js/claim.js";
 import { editing, openFile } from "../gui/src-js/edit.js";
@@ -32,8 +32,8 @@ export async function restedAt(x, y, zone) {
 
 export const middle = () => ({ x: Math.round(window.innerWidth / 2), y: Math.round(window.innerHeight / 2) });
 
-// The wordmark as it stands, and whether it stands whole, or shrunk to nothing, at the place it lives:
-// where the bar lays it out with the bar shown, `inset` across and down from it while the claim holds.
+// The wordmark as it is, and whether it is whole, or shrunk to nothing, at the place it lives:
+// where the bar positions it out with the bar displayed, `inset` across and down from it while the claim holds.
 export const mark = () => document.getElementById("bar-mark");
 export const markAt = (whole, inset = 0) => {
   const box = mark().getBoundingClientRect();
@@ -41,7 +41,7 @@ export const markAt = (whole, inset = 0) => {
   return home && (whole ? Math.abs(box.width - mark().offsetWidth) < 1 : box.width < 1);
 };
 
-// Whether a part's pane stands at `left`, `top`, `right` and `bottom`, each null where it is not asked,
+// Whether a part's pane is at `left`, `top`, `right` and `bottom`, each null where it is not asked,
 // rounded as the work is.
 export const paneAt = (part, { left = null, top = null, right = null, bottom = null }) => {
   const box = part.getBoundingClientRect();

@@ -172,7 +172,7 @@ OBSIGNATIO_SHARED static inline unsigned int obsignatio_source_byte(const Obsign
     }
     const unsigned long long first = (at - OBSIGNATIO_LENGTH_BYTES) * 8ull;
     const unsigned long long remain = source->bits - first;
-    // the take is at most one byte's 8 bits. It fits an unsigned int
+    // the take is at max one byte's 8 bits. It fits an unsigned int
     const unsigned int take = (remain < 8ull) ? (unsigned int)remain : 8u;
     const unsigned long long place = source->first_bit + first;
     // a place taken modulo 32 fits an unsigned int
@@ -182,7 +182,7 @@ OBSIGNATIO_SHARED static inline unsigned int obsignatio_source_byte(const Obsign
     {
         pair |= (unsigned long long)source->limbs[(place / 32ull) + 1ull] << 32u;
     }
-    // the value is masked to at most 8 bits. It fits an unsigned int
+    // the value is masked to at max 8 bits. It fits an unsigned int
     return (unsigned int)((pair >> shift) & ((1ull << take) - 1ull));
 }
 
@@ -264,7 +264,7 @@ OBSIGNATIO_SHARED static inline void obsignatio_root(const ObsignatioNode *node,
         obsignatio_compress(node->chaining, node->block, start / OBSIGNATIO_BLOCK_BYTES, node->block_bytes,
                             node->flags | OBSIGNATIO_ROOT, words);
         const unsigned long long remain = out_bytes - start;
-        // the take is at most one block's 64 bytes. It fits an unsigned int
+        // the take is at max one block's 64 bytes. It fits an unsigned int
         const unsigned int take = (remain < OBSIGNATIO_BLOCK_BYTES) ? (unsigned int)remain : OBSIGNATIO_BLOCK_BYTES;
         for (unsigned int byte = 0u; byte < take; byte += 1u)
         {
@@ -287,7 +287,7 @@ OBSIGNATIO_SHARED static inline void obsignatio_digest(const unsigned int *key, 
     {
         const unsigned long long start = chunk << OBSIGNATIO_CHUNK_SHIFT;
         const unsigned long long remain = source->count - start;
-        // the take is at most one chunk's 1024 bytes. It fits an unsigned int
+        // the take is at max one chunk's 1024 bytes. It fits an unsigned int
         const unsigned int take = (remain < OBSIGNATIO_CHUNK_BYTES) ? (unsigned int)remain : OBSIGNATIO_CHUNK_BYTES;
         obsignatio_chunk(key, mode, source, start, take, chunk, &node);
         if ((chunk + 1ull) == chunks)

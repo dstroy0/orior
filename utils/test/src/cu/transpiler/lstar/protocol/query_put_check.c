@@ -3,12 +3,12 @@
 // query_put_check.c: the query protocol's put, checked against what it specifies on addresses whose answers are known
 //
 // Each check puts a query to an address whose state the test set itself, or to one a reader can name as a counter,
-// and compares the bit, the kind and the cost against what that address has to answer:
+// and compares the bit, the type and the cost against what that address has to answer:
 //
 //   retains    memory the test owns gives back both words it is put, and is left as it was found
 //   equals     a word the test wrote reads as that word, and as no other
 //   advances   a word nothing writes does not advance
-//   bound      a bound with no clock reads 0 past the bound, and an unbound query carries its kind
+//   bound      a bound with no clock reads 0 past the bound, and an unbound query carries its type
 //   clock      a counter named by the platform advances under the ADVANCES qualifier, and a query clocked on it
 //              returns a cost that a bound below it fails and a bound above it passes
 //
@@ -48,7 +48,7 @@ int main(void)
     query.address = check_address(&s_owned[0]);
     query.qualifier = QUERY_RETAINS;
     check_that(query_put(&query) == 1u, "owned memory retains what it is given");
-    check_that(query.kind == QUERY_SATISFIED, "retaining reads as satisfied");
+    check_that(query.type == QUERY_SATISFIED, "retaining reads as satisfied");
     check_that(s_owned[0] == 0x1234u, "a retaining query leaves the word as it found it");
     check_that(query.cost_read == 0u, "a query given no clock reports its cost unread");
 
@@ -59,7 +59,7 @@ int main(void)
     check_that(query_put(&equals) == 1u, "a written word equals itself");
     equals.word = 0x5679u;
     check_that(query_put(&equals) == 0u, "a written word equals no other word");
-    check_that(equals.kind == QUERY_UNSATISFIED, "a qualifier that is not satisfied reads as unsatisfied");
+    check_that(equals.type == QUERY_UNSATISFIED, "a qualifier that is not satisfied reads as unsatisfied");
 
     Query still = {0};
     still.address = check_address(&s_owned[2]);
@@ -72,7 +72,7 @@ int main(void)
     unclocked.word = 0x5678u;
     unclocked.bound = 1000ull;
     check_that(query_put(&unclocked) == 0u, "a bound with no clock to read it against reads 0");
-    check_that(unclocked.kind == QUERY_PAST_BOUND, "and reads as past its bound, not as unsatisfied");
+    check_that(unclocked.type == QUERY_PAST_BOUND, "and reads as past its bound, not as unsatisfied");
 
 #if defined(_WIN32)
     const unsigned long long clock = 0x7ffe0008ull;
@@ -109,7 +109,7 @@ int main(void)
     const unsigned long long step = timed.cost;
     check_that(timed.cost_read == 1u, "a query given a clock reads its cost");
     check_that(step > 0ull, "a query put until the counter moves under it reads a cost above nothing");
-    check_that(timed.kind == QUERY_SATISFIED,
+    check_that(timed.type == QUERY_SATISFIED,
                "an unbound query that was satisfied reads as satisfied, whatever it cost");
 
     // the bound judged against the cost the query itself read: a bound past one step of the counter passes wherever the
@@ -121,7 +121,7 @@ int main(void)
     unsigned int failed_tight = 0u;
     for (unsigned int turn = 0u; (turn < turns) && (failed_tight == 0u); turn += 1u)
     {
-        failed_tight = ((query_put(&tight) == 0u) && (tight.kind == QUERY_PAST_BOUND)) ? 1u : 0u;
+        failed_tight = ((query_put(&tight) == 0u) && (tight.type == QUERY_PAST_BOUND)) ? 1u : 0u;
     }
     check_that(failed_tight == 1u, "a bound of one count fails on the query a step of the counter lands inside");
     printf("  the clock at 0x%llx: one step is %llu counts, read after %u queries\n", clock, step, put);

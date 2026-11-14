@@ -17,13 +17,13 @@ The proofs behind the numbers are in [`evidence/proofs/`](https://github.com/dst
 
 The shift with the best match is the edge of the cell. Across 453 axes from the Crystallography Open Database, every edge found equals the published edge as a whole number. No tolerance is allowed, and there is no error to average away. [Crystallography](https://github.com/dstroy0/orior/tree/main/theory/theory/crystallography)
 
-**A dialect border.** The tool found a border it was never shown. Mellesmoen and Kye label every word form they cite as northern or southern Lushootseed. The tool was given the forms but never the labels. The feature it found to carry the border is the stressed schwa, which is southern: 45 against 6 over the same concepts. Only 1 of 200 random borders did as well. [Salishan](https://github.com/dstroy0/orior/tree/main/theory/theory/Salishan)
+**A dialect border.** The tool found a border it was never displayed. Mellesmoen and Kye label every word form they cite as northern or southern Lushootseed. The tool was given the forms but never the labels. The feature it found to carry the border is the stressed schwa, which is southern: 45 against 6 over the same concepts. Only 1 of 200 random borders did as well. [Salishan](https://github.com/dstroy0/orior/tree/main/theory/theory/Salishan)
 
 **A game.** On subtraction games, the detector finds the Grundy period in 383 of the 383 rows it can score. Each answer is checked against periods worked out by a separate exact routine, and the closest call still clears by 16 floors. On a sequence with no period at all, the same detector still gives a confident number. What it is reading there is the continued fraction of the sequence's slope. [Game Theory](https://github.com/dstroy0/orior/tree/main/theory/theory/game_theory)
 
 **The periodic table.** The exclusion principle shows up here as a count. The same tool, which knows nothing about the subject, finds two elements on one crystal site and finds two electrons in one state. Across all 118 elements it finds no two electrons in one state. The row lengths, 8, 8, 18, 18, 32, 32, come out as the gaps between the closed shells. [Particle Physics](https://github.com/dstroy0/orior/tree/main/theory/theory/particle_physics)
 
-**A hash.** Fold the dependency matrix onto (input bit − output bit) mod 32, and 4096 cells sit behind each number. Take out what every class shares, and the band left standing is residues 0, 6, 11, 25 and 31. Each one is a named operation: the diagonal, the three rotation amounts of Σ1, and −1 mod 32 for the carry. The shared part is what fades, by one thirty-second each round. After round twenty-three the fold reads 2.09, 2.07 and 2.04, against a baseline peak of 2.63. It finds nothing there. [SHA-256](https://github.com/dstroy0/orior/tree/main/theory/theory/cryptography/sha256)
+**A hash.** Fold the dependency matrix onto (input bit − output bit) mod 32, and 4096 cells sit behind each number. Take out what every class shares, and the band left located is residues 0, 6, 11, 25 and 31. Each one is a named operation: the diagonal, the three rotation amounts of Σ1, and −1 mod 32 for the carry. The shared part is what fades, by one thirty-second each round. After round twenty-three the fold reads 2.09, 2.07 and 2.04, against a baseline peak of 2.63. It finds nothing there. [SHA-256](https://github.com/dstroy0/orior/tree/main/theory/theory/cryptography/sha256)
 
 **A quantum state.** Every amplitude is an exact number, never a float. The state where 100 quantum bits are all 0 or all 1 together is stored in 792 numbers, and the squares of its amplitudes sum to exactly 1. [Exact quantum states](https://github.com/dstroy0/orior/tree/main/theory/theory/exact_simulation)
 
@@ -53,9 +53,9 @@ The hand extractions are word forms copied by hand out of published papers. Thos
 
 ## A note on how this is written
 
-1. The workbook always keeps its own corrections.
+1. The workbook always retains its own corrections.
     - A claim that was withdrawn stays on the page, next to the measurement that disproved it.
-    - A record that keeps only what survived is not evidence.
+    - A record that retains only what survived is not evidence.
 2. Several results turned out to repeat published work. Where that is known, the earlier work is named.
     - Citation is still in progress. Corrections are welcome, and giving credit matters.
 

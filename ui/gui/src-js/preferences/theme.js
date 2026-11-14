@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The themes Preferences shows and changes: the one shown, a new one, one chosen, renamed, copied out and read
+// The themes Preferences shows and changes: the one displayed, a new one, one chosen, renamed, copied out and read
 // back in, a color of its palette, the image behind the editor and the files' icons.
 
 import { invoke } from "../bridge.js";
@@ -53,15 +53,15 @@ export function groupOf(name) {
   return "--*";
 }
 
-// The theme shown: the scheme's chosen theme of the reader's, or null for the scheme's own.
-export function shownTheme() {
+// The theme displayed: the scheme's chosen theme of the reader's, or null for the scheme's own.
+export function displayedTheme() {
   const name = chosen(scheme());
   return name ? themeNamed(name) : null;
 }
 
-// A theme of the reader's to change: the one shown, or a new one from the scheme's own colors.
+// A theme of the reader's to change: the one displayed, or a new one from the scheme's own colors.
 function ownTheme() {
-  const theme = shownTheme();
+  const theme = displayedTheme();
   if (theme) {
     return theme;
   }
@@ -71,9 +71,9 @@ function ownTheme() {
   return made;
 }
 
-// A theme of the reader's from the one shown, or from the scheme's own colors, chosen.
+// A theme of the reader's from the one displayed, or from the scheme's own colors, chosen.
 export function newTheme() {
-  const from = shownTheme();
+  const from = displayedTheme();
   const made = { name: freeName(`${from?.name ?? BASE_NAMES[scheme()]} 2`), base: scheme(), colors: { ...(from?.colors ?? {}) } };
   saveTheme(made);
   choose(made.base, made.name);
@@ -95,16 +95,16 @@ export function chooseTheme(value) {
   return true;
 }
 
-// The theme shown, renamed `wanted` where that is free.
+// The theme displayed, renamed `wanted` where that is free.
 export function renameTheme(wanted) {
-  const was = shownTheme();
+  const was = displayedTheme();
   if (was && wanted && wanted !== was.name) {
     saveTheme({ ...was, name: freeName(wanted) }, was.name);
   }
 }
 
 export function exportTheme() {
-  copyText(themeText(shownTheme() ?? { name: BASE_NAMES[scheme()], base: scheme(), colors: {} }));
+  copyText(themeText(displayedTheme() ?? { name: BASE_NAMES[scheme()], base: scheme(), colors: {} }));
   return "Copied to the clipboard.";
 }
 
@@ -153,4 +153,4 @@ export function removeImage() {
   saveTheme(own);
 }
 
-export const keepIcons = (next) => saveTheme({ ...ownTheme(), icons: next });
+export const retainIcons = (next) => saveTheme({ ...ownTheme(), icons: next });

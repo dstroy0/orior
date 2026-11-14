@@ -28,7 +28,7 @@
 # Every factor of a term's growth, u ((n + 1/2)^2 + r^2) / (n + 1)^2 for route one and z ((n + 1/2)^2 + r^2) / (n + 1)^2,
 # z = u / (1 + u), for route two, rises with u and with r: the grid's far corner bounds every lane. Past the last term
 # the factor is below rho = u (1 + r^2 / (n + 1)^2) and the tail below the last term over 1 - rho. The device's error
-# on a term grows by that factor a step and gains at most a few units of 2^-62 at each, as `bounds` counts them.
+# on a term grows by that factor a step and gains at max a few units of 2^-62 at each, as `bounds` counts them.
 
 import array
 import math
@@ -190,9 +190,9 @@ def main():
     imaginary = max(abs(row[2]) for row in values)
     together = math.ceil(first_error + second_error)
     origin = all(values[ri * u_count][0] == 1 << SCALE_BITS for ri in range(r_count))
-    print("  the routes differ by %.3e at most, within %.3e: %s" %
+    print("  the routes differ by %.3e at max, within %.3e: %s" %
           (apart / 2 ** SCALE_BITS, together / 2 ** SCALE_BITS, apart <= together))
-    print("  route two's imaginary part is %.3e at most, within %.3e: %s" %
+    print("  route two's imaginary part is %.3e at max, within %.3e: %s" %
           (imaginary / 2 ** SCALE_BITS, float(second_error / UNIT), imaginary <= second_error))
     print("  phi_r = 1 at u = 0 for every r: %s" % origin)
     control = True

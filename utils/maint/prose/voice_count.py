@@ -11,21 +11,21 @@
 # word, the word and how many times it occurs. Neither carries a sentence or an order of words, only
 # the counts.
 #
-# A word is a run of letters, with an apostrophe allowed inside it (don't, Newton's). The text is
+# A word is a run of characters, with an apostrophe allowed inside it (don't, Newton's). The text is
 # folded to NFKC first, which turns the ligature ﬁ into fi, and the typographic apostrophe is read
 # as the plain one. A word broken across a line with a hyphen is joined back, since the break is the
 # typesetter's. Case is folded: a word opening a sentence is the same word.
 #
 # The tally is sifted with the tests english_words() in english_gate.py applies, and nothing is
-# dropped. A word that passes goes to voice.tsv, most frequent first. A word that fails goes to
+# dropped. A word that passes goes to voice.tsv, commonest first. A word that fails goes to
 # voice_review.tsv for a person to read, with the test it failed, ordered by english_sift.surprise
 # with the least English first. A single word has few byte pairs. Its score orders the list and
 # decides nothing.
 #
 # The tests are applied to the word, over every place it occurs. A capitalized heading does not
 # pull the word out of the prose: a word is a gloss label only when every occurrence is in capitals.
-# A single letter is exempt from that test, because the pronoun I is always a capital. One test is
-# added to english_gate's: a single letter other than a and i is pulled. The letters without a vowel
+# A single character is exempt from that test, because the pronoun I is always a capital. One test is
+# added to english_gate's: a single character other than a and i is pulled. The characters without a vowel
 # already fail, and e, o, u and y alone are the variables of the equations.
 
 import collections
@@ -65,11 +65,11 @@ def words_of(text):
 
 def why_pulled(word, lowered_somewhere):
     if not word.isascii():
-        return "non-ASCII letters"
+        return "non-ASCII characters"
     if not VOWEL.search(word):
         return "no vowel"
     if (len(word) == 1) and (word not in ("a", "i")):
-        return "single letter"
+        return "single character"
     if (2 <= len(word) <= 6) and not lowered_somewhere:
         return "gloss label"
     return None
@@ -89,15 +89,15 @@ def main():
         counts.update(written.lower() for written in found)
         print("  %9d words  %s" % (len(found), os.path.basename(path)))
 
-    kept = []
+    retained = []
     pulled = []
     for word, count in counts.items():
         lowered_somewhere = any(not written.isupper() for written in forms[word])
         why = why_pulled(word, lowered_somewhere)
         if why is None:
-            kept.append((word, count))
+            retained.append((word, count))
         else:
-            pulled.append((forms[word].most_common(1)[0][0], count, why))
+            pulled.append((forms[word].max_common(1)[0][0], count, why))
 
     reference, total, _ = english_sift.english_reference()
     scored = [(english_sift.surprise(written, reference, total), written, count, why)
@@ -105,7 +105,7 @@ def main():
 
     with io.open(OUT, "w", encoding="utf-8", newline="\n") as handle:
         handle.write("word\tcount\n")
-        for word, count in sorted(kept, key=lambda item: (-item[1], item[0])):
+        for word, count in sorted(retained, key=lambda item: (-item[1], item[0])):
             handle.write("%s\t%d\n" % (word, count))
     with io.open(REVIEW, "w", encoding="utf-8", newline="\n") as handle:
         handle.write("word\tcount\twhy\n")
@@ -114,8 +114,8 @@ def main():
 
     print("  %d words, %d distinct, from %d texts"
           % (sum(counts.values()), len(counts), len(sources)))
-    print("  kept %d distinct (%d words) in %s"
-          % (len(kept), sum(count for _, count in kept), os.path.relpath(OUT, ROOT)))
+    print("  retained %d distinct (%d words) in %s"
+          % (len(retained), sum(count for _, count in retained), os.path.relpath(OUT, ROOT)))
     for reason, tally in sorted(collections.Counter(why for _, _, why in pulled).items()):
         print("  pulled %d distinct for %s" % (tally, reason))
     print("  pulled %d distinct (%d words) to %s"

@@ -57,7 +57,7 @@ def carries_orthography(token):
     """Whether a token holds a character of the orthography.
 
     The five-line reader asks this of the fourth line of a word, which is an English word for the
-    word above it and which the paper does not always give. An Okanagan word standing in that position
+    word above it and which the paper does not always give. An Okanagan word located in that position
     means the count has slipped. font_repair's version asks after a capital P or Q inside the token,
     which the page text never has. It answered no for tətwít as readily as for priest.
     """

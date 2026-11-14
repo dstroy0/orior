@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// ksg.c: files sealed, their seals approved, and both checked, as ksg.h and ksa.h lay them out.
+// ksg.c: files sealed, their seals approved, and both checked, as ksg.h and ksa.h position them out.
 //
 //     ksg seal <file>...                     each file's seal written beside it as <file>.ksg, through
 //                                            <file>.ksg.part made durable and put in its place whole
@@ -25,9 +25,9 @@
 #include <stdio.h>
 #include <string.h>
 
-// the bytes of a file read at once, and the most lines that differ named for one file
+// the bytes of a file read at once, and the max lines that differ named for one file
 #define KSG_READ_BYTES (256u << 10u)
-#define KSG_NAMED_MOST 64u
+#define KSG_NAMED_MAX 64u
 
 // A check under way: the seal's file, the leaves it read so far, and the lines that differ so far
 typedef struct
@@ -39,7 +39,7 @@ typedef struct
 
 static unsigned char s_read[KSG_READ_BYTES];
 static KsgSeal s_seal;
-static KsaApproval s_required[KSG_APPROVERS_MOST];
+static KsaApproval s_required[KSG_APPROVERS_MAX];
 
 // the program's report and the bytes it contains so far
 static char s_output[1u << 16u];
@@ -219,7 +219,7 @@ static int ksg_leaf_check(void *context, const unsigned char *leaf, unsigned lon
         return 1;
     }
     checking->differ += 1ull;
-    if (checking->differ <= KSG_NAMED_MOST)
+    if (checking->differ <= KSG_NAMED_MAX)
     {
         ksg_print("  line ");
         ksg_print_number(line + 1ull);
@@ -240,7 +240,7 @@ static int ksg_checked(const char *path, const KsaApproval *required, unsigned i
     ksg_print(path);
     if (seal == NULL)
     {
-        ksg_print(": no seal of ksg's kind beside it\n");
+        ksg_print(": no seal of ksg's type beside it\n");
         return 0;
     }
     ksg_print(":\n");
@@ -252,13 +252,13 @@ static int ksg_checked(const char *path, const KsaApproval *required, unsigned i
     (void)fclose(seal);
     const int size_matches = ksg_word_read(trailer) == ksg_word_read(stored_trailer);
     const int count_matches = (ksg_word_read(trailer + 16u) == ksg_word_read(stored_trailer + 16u)) &&
-                              (ksg_word_read(stored_trailer + 8u) == KSG_LINE_MOST);
+                              (ksg_word_read(stored_trailer + 8u) == KSG_LINE_MAX);
     const int root_matches = memcmp(trailer + 24u, stored_trailer + 24u, KSG_SIGNUM_BYTES) == 0;
     const int seal_matches = sealed && (checking.differ == 0ull) && size_matches && count_matches && root_matches;
-    if (checking.differ > KSG_NAMED_MOST)
+    if (checking.differ > KSG_NAMED_MAX)
     {
         ksg_print("  and ");
-        ksg_print_number(checking.differ - KSG_NAMED_MOST);
+        ksg_print_number(checking.differ - KSG_NAMED_MAX);
         ksg_print(" lines more differ\n");
     }
     ksg_print(sealed ? "" : "  it could not be read\n");
@@ -325,7 +325,7 @@ int main(int count, char **words)
     int whole = 1;
     while (checking && ((first + 1) < count) && (strcmp(words[first], "--approver") == 0))
     {
-        if ((required == KSG_APPROVERS_MOST) || !ksg_public_read(words[first + 1], &s_required[required]))
+        if ((required == KSG_APPROVERS_MAX) || !ksg_public_read(words[first + 1], &s_required[required]))
         {
             ksg_print_flush();
             return 1;

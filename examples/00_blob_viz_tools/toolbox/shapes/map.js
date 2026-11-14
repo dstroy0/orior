@@ -32,34 +32,34 @@ fn id_at(texel: vec2<i32>) -> u32 {
 
 @fragment
 fn slice_paint(@builtin(position) at: vec4<f32>) -> Drawn {
-  let right = i32(at.x) - lay.slice_x0;
-  let down = i32(at.y) - lay.slice_y0;
-  let inside = (right >= 0) && (down >= 0) && (right < lay.slice_w) && (down < lay.slice_h);
-  // The image: the volume itself laid flat on the plane. The square's pixel is a place on that plane, in the same
+  let right = i32(at.x) - position.slice_x0;
+  let down = i32(at.y) - position.slice_y0;
+  let inside = (right >= 0) && (down >= 0) && (right < position.slice_w) && (down < position.slice_h);
+  // The image: the volume itself positioned flat on the plane. The square's pixel is a place on that plane, in the same
   // doubled and centered units the cells are turned in, and the ray behind it is walked back through the volume by
   // the camera's own turn read the other way round: what the cells' turn scatters out, this gathers in. The
-  // brightest voxel along the ray stands. So the whole volume is on the plane, and none of it is a box held still.
+  // brightest voxel along the ray is. So the whole volume is on the plane, and none of it is a box held still.
   // The plane is overhead and holds still. The pixel is the column straight under it, the image centered in
   // the square with row zero at the top. Nothing here turns; only what falls on the plane does.
-  let column = vec2<i32>(i32(lay.width) / 2 + ((right - lay.slice_w / 2) * 256) / max(lay.slice_scale, 1),
-                         i32(lay.height) / 2 + ((down - lay.slice_h / 2) * 256) / max(lay.slice_scale, 1));
-  let on_image = (column.x >= 0) && (column.y >= 0) && (column.x < i32(lay.width)) && (column.y < i32(lay.height));
-  // The whole volume is given up onto that one place: the brightest voxel of the column standing for all of it,
+  let column = vec2<i32>(i32(position.width) / 2 + ((right - position.slice_w / 2) * 256) / max(position.slice_scale, 1),
+                         i32(position.height) / 2 + ((down - position.slice_h / 2) * 256) / max(position.slice_scale, 1));
+  let on_image = (column.x >= 0) && (column.y >= 0) && (column.x < i32(position.width)) && (column.y < i32(position.height));
+  // The whole volume is given up onto that one place: the brightest voxel of the column located for all of it,
   // or one layer where the map is asked for a layer.
-  let layers = select(1u, lay.depth, lay.map_projection == 1u);
-  let first_layer = select(lay.slice_z, 0u, lay.map_projection == 1u);
-  let at_column = clamp(column, vec2<i32>(0), vec2<i32>(i32(lay.width) - 1, i32(lay.height) - 1)) * i32(lay.raw_on);
+  let layers = select(1u, position.depth, position.map_projection == 1u);
+  let first_layer = select(position.slice_z, 0u, position.map_projection == 1u);
+  let at_column = clamp(column, vec2<i32>(0), vec2<i32>(i32(position.width) - 1, i32(position.height) - 1)) * i32(position.raw_on);
   var raw_value = 0u;
   for (var layer = 0u; layer < max(layers, 1u); layer++) {
-    let at_layer = i32(min(first_layer + layer, lay.depth - 1u)) * i32(lay.raw_on);
+    let at_layer = i32(min(first_layer + layer, position.depth - 1u)) * i32(position.raw_on);
     raw_value = max(raw_value, textureLoad(raw, vec3<i32>(at_column, at_layer), 0).r);
   }
-  raw_value = raw_value * u32(on_image) * lay.raw_on;
-  let span = max(lay.window_high, lay.window_low + 1u) - lay.window_low;
-  let gray = (min(max(raw_value, lay.window_low) - lay.window_low, span) * 255u) / span * lay.raw_on * u32(on_image);
+  raw_value = raw_value * u32(on_image) * position.raw_on;
+  let span = max(position.window_high, position.window_low + 1u) - position.window_low;
+  let gray = (min(max(raw_value, position.window_low) - position.window_low, span) * 255u) / span * position.raw_on * u32(on_image);
   // The cells: the square's pixel read as a texel of the turned, projected cell numbers.
   let size = i32(textureDimensions(ids).x);
-  let texel = vec2<i32>((right * size) / max(lay.slice_w, 1), (down * size) / max(lay.slice_h, 1));
+  let texel = vec2<i32>((right * size) / max(position.slice_w, 1), (down * size) / max(position.slice_h, 1));
   let id = id_at(texel);
   let outline = (id != id_at(texel + vec2<i32>(1, 0))) || (id != id_at(texel - vec2<i32>(1, 0)))
              || (id != id_at(texel + vec2<i32>(0, 1))) || (id != id_at(texel - vec2<i32>(0, 1)));
@@ -76,8 +76,8 @@ fn slice_paint(@builtin(position) at: vec4<f32>) -> Drawn {
   let alpha = select((covered * 88u) / 255u, 255u, outline && filled);
   let tone = select(flattened, vec3<u32>(255u), outline && filled && (picked == 1u));
   let mixed = (vec3<u32>(gray) * (256u - alpha) + tone * alpha) / 256u;
-  let hovered = u32(filled && (lay.hover_cell == id)) * 40u;
-  let shown = min(mixed + vec3<u32>(hovered), vec3<u32>(255u));
-  return Drawn(select(vec4<f32>(0.03, 0.035, 0.045, 1.0), vec4<f32>(vec3<f32>(shown) / 255.0, 1.0), inside),
+  let hovered = u32(filled && (position.hover_cell == id)) * 40u;
+  let displayed = min(mixed + vec3<u32>(hovered), vec3<u32>(255u));
+  return Drawn(select(vec4<f32>(0.03, 0.035, 0.045, 1.0), vec4<f32>(vec3<f32>(displayed) / 255.0, 1.0), inside),
                select(0u, id, inside));
 }`;

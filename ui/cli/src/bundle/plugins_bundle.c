@@ -12,7 +12,7 @@
 #include "../text/json_tree.h"
 #include "../text/text.h"
 
-// the most plugins bundled, the most bytes of one, and the most bytes of the file written
+// the max plugins bundled, the max bytes of one, and the max bytes of the file written
 #define CLI_BUNDLE_MAX 512u
 
 #define CLI_BUNDLE_BYTES (1u << 22u)
@@ -79,7 +79,7 @@ EMBED_INLINE int cli_script(const PluginsBundleCtx *args)
         (root != CLI_JSON_NONE)
             ? EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
                          .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
-                                            .object = root, .name = "kind"),
+                                            .object = root, .name = "type"),
                          .length_pointer = NULL)
             : NULL;
     const int script =

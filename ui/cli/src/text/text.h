@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// text.h: a text of UTF-8 read letter by letter: its whitespace as Unicode reads it, a text trimmed of it, a text
-// split at it into words, and a text's letters and UTF-16 units counted (text.c)
+// text.h: a text of UTF-8 read character by character: its whitespace as Unicode reads it, a text trimmed of it, a text
+// split at it into words, and a text's characters and UTF-16 units counted (text.c)
 #ifndef TEXT_H
 #define TEXT_H
 #include "../command_line/cli_internal.h"
@@ -44,12 +44,12 @@ typedef struct
 
 // the line of `size` bytes of `text` that starts at `at`
 CliTextLine cli_text_line_at(const CliTextAtCfg *args);
-// the letter at `at` of `size` bytes of `text` and the bytes it takes into `length`; and the letter that ends before
+// the character at `at` of `size` bytes of `text` and the bytes it takes into `length`; and the character that ends before
 // `end` and the bytes it takes
-unsigned int cli_text_letter(const CliTextAtCfg *args);
-unsigned int cli_text_letter_before(const CliTextLengthCfg *args);
+unsigned int cli_text_character(const CliTextAtCfg *args);
+unsigned int cli_text_character_before(const CliTextLengthCfg *args);
 
-// whether a letter is whitespace, as Unicode reads it; and whether it is alphabetic, and alphanumeric, as Rust's char
+// whether a character is whitespace, as Unicode reads it; and whether it is alphabetic, and alphanumeric, as Rust's char
 // defines, by the Unicode properties the regular expressions read
 int cli_text_white(const CliTextCfg *args);
 int cli_text_alphabetic(const CliTextCfg *args);
@@ -59,7 +59,7 @@ int cli_text_alphanumeric(const CliTextCfg *args);
 // `byte`; and whether every one is below 0x80. Each a word at a time
 void cli_text_swap(const CliTextSizeFromCfg *args);
 void cli_text_lower(const CliTextSizeFromCfg *args);
-// the small letters of `size` bytes made capitals; and `text` copied into `out`, sized for `capacity`, in lower case:
+// the small characters of `size` bytes made capitals; and `text` copied into `out`, sized for `capacity`, in lower case:
 // its length, the copy ended with a NUL
 void cli_text_raise(const CliTextSizeFromCfg *args);
 unsigned long long cli_text_lowered_into(const CliTextOutCapacityCfg *args);
@@ -86,17 +86,17 @@ void cli_text_append_unescaped(const CliTextSizeSetCfg *args);
 
 // the ASCII whitespace, a set of bytes for the walks below
 #define CLI_TEXT_WHITE " \t\n\v\f\r"
-// the types of byte a class walk passes over: ASCII letters, decimal digits, the bytes past ASCII, the capitals and the
-// small letters
-#define CLI_TEXT_LETTERS 1u
+// the types of byte a class walk passes over: ASCII characters, decimal digits, the bytes past ASCII, the capitals and the
+// small characters
+#define CLI_TEXT_CHARACTERS 1u
 #define CLI_TEXT_DIGITS 2u
 #define CLI_TEXT_END_ASCII 4u
 #define CLI_TEXT_UPPER 8u
 #define CLI_TEXT_LOWER 16u
 
 // the first place from `at` below `size` whose byte the set `set` holds, and whose byte it does not: `size` where none
-// is, `at` where it stands at or past `size`; and the place past the last byte before `at` the set holds, and it does
-// not: 0 where none is. A set is at most 16 bytes. Each walks the widest lane the build has, then a word at a time, and
+// is, `at` where it is at or past `size`; and the place past the last byte before `at` the set holds, and it does
+// not: 0 where none is. A set is at max 16 bytes. Each walks the widest lane the build has, then a word at a time, and
 // reads no byte past the bounds it is given
 unsigned long long cli_text_to_any(const CliTextAtSizeClassesCfg *args);
 unsigned long long cli_text_end_any(const CliTextAtSizeClassesCfg *args);
@@ -123,15 +123,15 @@ unsigned long long cli_text_trimmed_end(const CliTextSizeByteCfg *args);
 // the bounds of `size` bytes of `text` with the whitespace at both ends taken off
 void cli_text_trim(const CliTextSizeFromU64sCfg *args);
 
-// the next word of `size` bytes of `text` from `*at`, a run of letters between whitespace, its start and its size
+// the next word of `size` bytes of `text` from `*at`, a run of characters between whitespace, its start and its size
 // into `word` and `length` and `*at` past it: 1, or 0 where there is none
 int cli_text_word(const CliTextSizeLengthCfg *args);
 
-// the letters `size` bytes of `text` contain, and the UTF-16 units
-unsigned long long cli_text_letters(const CliTextSizeByteCfg *args);
+// the characters `size` bytes of `text` contain, and the UTF-16 units
+unsigned long long cli_text_characters(const CliTextSizeByteCfg *args);
 unsigned long long cli_text_units(const CliTextSizeByteCfg *args);
-// whether `size` bytes are UTF-8 whole, every byte starting or inside a letter: a word of ASCII bytes passes in one
-// test, a word containing a high bit is read letter by letter (text.c)
+// whether `size` bytes are UTF-8 whole, every byte starting or inside a character: a word of ASCII bytes passes in one
+// test, a word containing a high bit is read character by character (text.c)
 int cli_text_utf8_valid(const CliTextSizeTypeCfg *args);
 
 // whether `size` bytes of `text` start with `prefix`, and end with `suffix`
@@ -361,27 +361,27 @@ struct CliTextSizeTypeCfg
 
 struct CliTextCfg
 {
-    unsigned int letter;
+    unsigned int character;
 };
 
 typedef struct
 {
     CliTextLine (*line_at)(const CliTextAtCfg *args);
-    unsigned int (*letter)(const CliTextAtCfg *args);
+    unsigned int (*character)(const CliTextAtCfg *args);
 } CliTextAtNs;
-EMBED_TABLE_LAYOUT(CliTextAtNs, line_at, letter);
+EMBED_TABLE_LAYOUT(CliTextAtNs, line_at, character);
 EMBED_TABLE_STORAGE CliTextAtNs cli_text_at EMBED_UNUSED = {
     .line_at = cli_text_line_at,
-    .letter = cli_text_letter,
+    .character = cli_text_character,
 };
 
 typedef struct
 {
-    unsigned int (*letter_before)(const CliTextLengthCfg *args);
+    unsigned int (*character_before)(const CliTextLengthCfg *args);
 } CliTextLengthNs;
-EMBED_TABLE_LAYOUT(CliTextLengthNs, letter_before);
+EMBED_TABLE_LAYOUT(CliTextLengthNs, character_before);
 EMBED_TABLE_STORAGE CliTextLengthNs cli_text_length EMBED_UNUSED = {
-    .letter_before = cli_text_letter_before,
+    .character_before = cli_text_character_before,
 };
 
 typedef struct
@@ -442,15 +442,15 @@ typedef struct
     unsigned long long (*count)(const CliTextSizeByteCfg *args);
     int (*ascii)(const CliTextSizeByteCfg *args);
     unsigned long long (*trimmed_end)(const CliTextSizeByteCfg *args);
-    unsigned long long (*letters)(const CliTextSizeByteCfg *args);
+    unsigned long long (*characters)(const CliTextSizeByteCfg *args);
     unsigned long long (*units)(const CliTextSizeByteCfg *args);
 } CliTextSizeByteNs;
-EMBED_TABLE_LAYOUT(CliTextSizeByteNs, count, ascii, trimmed_end, letters, units);
+EMBED_TABLE_LAYOUT(CliTextSizeByteNs, count, ascii, trimmed_end, characters, units);
 EMBED_TABLE_STORAGE CliTextSizeByteNs cli_text_size_byte EMBED_UNUSED = {
     .count = cli_text_count,
     .ascii = cli_text_ascii,
     .trimmed_end = cli_text_trimmed_end,
-    .letters = cli_text_letters,
+    .characters = cli_text_characters,
     .units = cli_text_units,
 };
 

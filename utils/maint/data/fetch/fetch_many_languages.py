@@ -74,8 +74,8 @@ def listing(code):
         return []
     found = []
     for entry in payload.get("results", []):
-        for kind, link in entry.get("formats", {}).items():
-            if kind.startswith("text/plain") and not link.endswith(".zip"):
+        for type, link in entry.get("formats", {}).items():
+            if type.startswith("text/plain") and not link.endswith(".zip"):
                 found.append((entry.get("id"), link))
                 break
     return found
@@ -94,14 +94,14 @@ def strip_wrapper(text):
 
 def gather(code, name):
     """Store up to the wanted count for one language, skipping anything too short to measure."""
-    kept = 0
+    retained = 0
     notes = []
     for number, link in listing(code):
-        if kept >= WANTED_PER_LANGUAGE:
+        if retained >= WANTED_PER_LANGUAGE:
             break
         target = os.path.join(CORPORA, "lang_%s_%s.txt" % (name, number))
         if os.path.isfile(target):
-            kept += 1
+            retained += 1
             continue
         try:
             text = strip_wrapper(get(link).decode("utf-8", errors="replace"))
@@ -112,8 +112,8 @@ def gather(code, name):
             continue
         with open(target, "w", encoding="utf-8", newline="") as handle:
             handle.write(text)
-        kept += 1
-    return name, kept, notes
+        retained += 1
+    return name, retained, notes
 
 
 def main():
@@ -125,12 +125,12 @@ def main():
         running = [pool.submit(gather, code, name) for code, name in LANGUAGES]
         for done in concurrent.futures.as_completed(running):
             try:
-                name, kept, notes = done.result()
+                name, retained, notes = done.result()
             except Exception as trouble:
                 out.write("  a language failed outright: %s\n" % trouble)
                 continue
-            landed[name] = kept
-            out.write("  %-14s %d\n" % (name, kept))
+            landed[name] = retained
+            out.write("  %-14s %d\n" % (name, retained))
             out.flush()
 
     have = sum(1 for count in landed.values() if count >= 2)

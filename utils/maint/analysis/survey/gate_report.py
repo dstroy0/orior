@@ -2,7 +2,7 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# Put every corpus in the tree through the gate and see what has been standing in the readings, for
+# Put every corpus in the tree through the gate and see what has been located in the readings, for
 # Section 4.13 of theory/workbooks/orior.
 #
 #   Usage:  python utils/maint/analysis/survey/gate_report.py
@@ -48,15 +48,15 @@ def main():
             continue
         with open(os.path.join(CORPORA, name), encoding="utf-8", errors="replace") as handle:
             text = handle.read(CAP)
-        share, letters = share_of_own(text, wanted)
-        if letters >= 500:
-            checked.append((share, name, language, letters))
+        share, characters = share_of_own(text, wanted)
+        if characters >= 500:
+            checked.append((share, name, language, characters))
 
     checked.sort()
     out.write("  %d corpora have a known writing and were checked, %d have none\n\n"
               % (len(checked), unchecked))
     out.write("  %-34s %-12s %-9s %s\n" % ("corpus", "should be", "is", "verdict"))
-    for share, name, language, letters in checked:
+    for share, name, language, characters in checked:
         if share < FLOOR:
             verdict = "below the floor, would error"
         elif share < 0.90:

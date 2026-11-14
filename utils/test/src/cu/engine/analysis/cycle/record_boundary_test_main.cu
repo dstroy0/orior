@@ -127,7 +127,7 @@ static void boundary_redundant(BoundaryResults *results)
         (encoder_loads != 0) && (boundary_load(decoder, BOUNDARY_TEST_CODE_MODULI, &decoder_loaded) != 0);
     const int loads = (decoder_loads != 0) && (boundary_load(inverse, n, &inverse_loaded) != 0);
     boundary_check(results, loads,
-                   "the code's encoder (T then the residues), decoder and T^-1 encode, lay out and load");
+                   "the code's encoder (T then the residues), decoder and T^-1 encode, arrange and load");
     if (loads == 0)
     {
         if (decoder_loads != 0)
@@ -202,24 +202,24 @@ static void boundary_redundant(BoundaryResults *results)
                     record,
                     &encoder_loaded.layout.step_table[encoder->outputs[(at * BOUNDARY_TEST_CODE_MODULI) + modulus]]);
                 right = right && (read == ((value + shift) % (long long)s_boundary_moduli[modulus]));
-                // the kinds share the clean residues, which a corruption then changes; a residue is below 2^12
-                for (unsigned int kind = 0u; kind < BOUNDARY_TEST_CODE_KINDS; kind += 1u)
+                // the types share the clean residues, which a corruption then changes; a residue is below 2^12
+                for (unsigned int type = 0u; type < BOUNDARY_TEST_CODE_KINDS; type += 1u)
                 {
-                    const size_t place = ((size_t)kind * coefficients) + ((size_t)lane * n) + at;
+                    const size_t place = ((size_t)type * coefficients) + ((size_t)lane * n) + at;
                     words[(place * BOUNDARY_TEST_CODE_MODULI) + modulus] = (unsigned int)read;
                 }
             }
             residues_right += (right != 0) ? 1u : 0u;
         }
     }
-    // corrupt half the coefficients: one residue in the second kind, two distinct residues in the third, each moved to
+    // corrupt half the coefficients: one residue in the second type, two distinct residues in the third, each moved to
     // another value below its modulus
     unsigned int corrupted[BOUNDARY_TEST_CODE_KINDS] = {0u, 0u, 0u};
-    for (unsigned int kind = 1u; (encoded != 0) && (kind < BOUNDARY_TEST_CODE_KINDS); kind += 1u)
+    for (unsigned int type = 1u; (encoded != 0) && (type < BOUNDARY_TEST_CODE_KINDS); type += 1u)
     {
         for (unsigned int at = 0u; at < coefficients; at += 1u)
         {
-            const size_t place = ((size_t)kind * coefficients) + at;
+            const size_t place = ((size_t)type * coefficients) + at;
             if ((boundary_random() & 1u) == 0u)
             {
                 continue;
@@ -228,14 +228,14 @@ static void boundary_redundant(BoundaryResults *results)
             const unsigned int second =
                 (first + 1u + (boundary_random() % (BOUNDARY_TEST_CODE_MODULI - 1u))) % BOUNDARY_TEST_CODE_MODULI;
             const unsigned int moved[2] = {first, second};
-            for (unsigned int which = 0u; which < kind; which += 1u)
+            for (unsigned int which = 0u; which < type; which += 1u)
             {
                 const unsigned int modulus = s_boundary_moduli[moved[which]];
                 unsigned int *const word = &words[(place * BOUNDARY_TEST_CODE_MODULI) + moved[which]];
                 *word = (*word + 1u + (boundary_random() % (modulus - 1u))) % modulus;
                 hit[place] |= (unsigned char)(1u << moved[which]);
             }
-            corrupted[kind] += 1u;
+            corrupted[type] += 1u;
         }
     }
     const int decoded = (encoded != 0) &&
@@ -250,7 +250,7 @@ static void boundary_redundant(BoundaryResults *results)
     unsigned int plain_moved = 0u;
     for (unsigned int lane = 0u; (decoded != 0) && (lane < decoder_lanes); lane += 1u)
     {
-        const unsigned int kind = lane / coefficients;
+        const unsigned int type = lane / coefficients;
         const long long value = crystal[lane % coefficients];
         const unsigned int *const record = &decoder_device[(size_t)lane * decoder_loaded.layout.out_limbs];
         const DeviceRecordStep *const steps = decoder_loaded.layout.step_table;
@@ -259,13 +259,13 @@ static void boundary_redundant(BoundaryResults *results)
         const long long inside = boundary_read(record, &steps[decoder->outputs[2]]);
         const long long corrected_value = boundary_read(record, &steps[decoder->outputs[3]]);
         const int struck = hit[lane] != 0u;
-        flagged_right[kind] += ((syndrome == 1ll) == (struck != 0)) ? 1u : 0u;
-        if (kind == 0u)
+        flagged_right[type] += ((syndrome == 1ll) == (struck != 0)) ? 1u : 0u;
+        if (type == 0u)
         {
             clean_right += ((plain_value == value) && (corrected_value == value) && (inside == 4ll)) ? 1u : 0u;
             false_alarms += (syndrome != 0ll) ? 1u : 0u;
         }
-        else if (kind == 1u)
+        else if (type == 1u)
         {
             corrected_right += ((corrected_value == value) && (inside == (struck ? 1ll : 4ll))) ? 1u : 0u;
             plain_moved += (plain_value != value) ? 1u : 0u;

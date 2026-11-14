@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// tls_macos.c: TLS through Secure Transport, which reads and writes the socket through the two calls handed it
+// tls_macos.c: TLS through Secure Transport, which reads and writes the socket through the two calls passed it
 #include "../comms/tls.h"
 
 #if defined(__APPLE__)

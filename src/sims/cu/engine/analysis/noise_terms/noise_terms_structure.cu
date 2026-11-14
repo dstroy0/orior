@@ -50,17 +50,17 @@ void terms_structure(SimResults *results, const unsigned short *lanes, const Sim
     long long path[TERMS_FRAMES];
     long long path_total = 0ll;
     long long least = 0ll;
-    long long maximum = 0ll;
+    long long max = 0ll;
     for (unsigned long long frame = 0ull; frame < TERMS_FRAMES; frame += 1ull)
     {
         path[frame] = (camera->scale_bits != 0u) ? sim_scale(camera, frame) : 0ll;
         path_total += path[frame];
         least = ((frame == 0ull) || (path[frame] < least)) ? path[frame] : least;
-        maximum = ((frame == 0ull) || (path[frame] > maximum)) ? path[frame] : maximum;
+        max = ((frame == 0ull) || (path[frame] > max)) ? path[frame] : max;
     }
     const long long unit = (camera->scale_bits != 0u) ? (1ll << camera->scale_bits) : 1ll;
     // each light's rounding in units of 1 / unit: the rounded light times the unit less the light before the scale
-    // times the scale applied, as sim_light applies it, an integer of at most unit / 2 in size and 0 without a scale
+    // times the scale applied, as sim_light applies it, an integer of at max unit / 2 in size and 0 without a scale
     SimCamera unscaled = *camera;
     unscaled.scale_bits = 0u;
     for (unsigned long long x = 0ull; x < TERMS_WIDTH; x += 1ull)
@@ -79,7 +79,7 @@ void terms_structure(SimResults *results, const unsigned short *lanes, const Sim
     mmgr_line_put(&results->line, "    e_t from ");
     mmgr_line_decimal_signed(&results->line, least);
     mmgr_line_put(&results->line, " to ");
-    mmgr_line_decimal_signed(&results->line, maximum);
+    mmgr_line_decimal_signed(&results->line, max);
     mmgr_line_put(&results->line, ", summing to ");
     mmgr_line_decimal_signed(&results->line, path_total);
     mmgr_line_put(&results->line, " over the frames\n");
@@ -124,7 +124,7 @@ void terms_structure(SimResults *results, const unsigned short *lanes, const Sim
             {
                 own += (gain * gain * (here[frame] + here[frame + apart] + beside[frame] + beside[frame + apart])) +
                        (4ull * camera->read_square);
-                // four roundings of at most unit / 2 each: the step is at most 2 unit, its square far below 2^63
+                // four roundings of at max unit / 2 each: the step is at max 2 unit, its square far below 2^63
                 const long long step = here_rounding[frame + apart] - here_rounding[frame] -
                                        beside_rounding[frame + apart] + beside_rounding[frame];
                 rounded += gain * gain * (unsigned long long)(step * step);
@@ -192,7 +192,7 @@ int terms_halves(SimResults *results, const unsigned short *lanes, const SimCame
     long long fixed_square = 0ll;
     for (unsigned long long pixel = 0ull; pixel < pixels; pixel += 1ull)
     {
-        // o is at most 12 and p at most 32 in magnitude. F is below 2^15 and its square below 2^30
+        // o is at max 12 and p at max 32 in magnitude. F is below 2^15 and its square below 2^30
         const long long own = ((long long)sim_offset_pattern(camera, pixel) * (long long)unit) +
                               (sim_gain_spread(camera, pixel) * gained);
         fixed += own;
@@ -225,7 +225,7 @@ void terms_halves_line(SimResults *results, const SimCamera *camera, const Noise
     long long spread_square = 0ll;
     for (unsigned long long pixel = 0ull; pixel < pixels; pixel += 1ull)
     {
-        // o is at most 12 and p at most 32 in magnitude. Each re-signs and squares exactly
+        // o is at max 12 and p at max 32 in magnitude. Each re-signs and squares exactly
         const long long own_offset = (long long)sim_offset_pattern(camera, pixel);
         const long long own_spread = sim_gain_spread(camera, pixel);
         offset += own_offset;

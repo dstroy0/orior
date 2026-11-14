@@ -41,8 +41,8 @@ void codegen_device_launched(DeviceArena *memory)
     memory->ok = (memory->ok != 0) && (cudaGetLastError() == cudaSuccess);
 }
 
-// the assembly printer laid out by the device from what a build retained of it, into `text_layout`, which the caller
-// gives back by key_schedule_record_release: 1 where it is laid out, else 0 and why
+// the assembly printer arranged by the device from what a build retained of it, into `text_layout`, which the caller
+// gives back by key_schedule_record_release: 1 where it is arranged, else 0 and why
 int asm_printer_program_device(const AsmPrinterProgram *program, EngineRecordLayout *text_layout, std::string *error)
 {
     const AsmPrinterProgram &host_program = *program;
@@ -64,14 +64,14 @@ int asm_printer_program_device(const AsmPrinterProgram *program, EngineRecordLay
     std::string why;
     if (layout_device(&request, text_layout, &why) == 0)
     {
-        *error = "the device did not lay out the assembly printer (" + why + ")";
+        *error = "the device did not arrange the assembly printer (" + why + ")";
         return 0;
     }
     return 1;
 }
 
-// the assembly printer laid out by the device from what asm_printer_ruleset_build retained of it, into `text_layout`,
-// which the caller gives back by key_schedule_record_release: 1 where it is laid out and is the host's word for word,
+// the assembly printer arranged by the device from what asm_printer_ruleset_build retained of it, into `text_layout`,
+// which the caller gives back by key_schedule_record_release: 1 where it is arranged and is the host's word for word,
 // else 0 and why
 int asm_printer_program_placed(const AsmPrinterRuleset *text_rules, EngineRecordLayout *text_layout,
                                std::string *error)
@@ -83,7 +83,7 @@ int asm_printer_program_placed(const AsmPrinterRuleset *text_rules, EngineRecord
     if (layout_same(text_layout, &text_rules->program.layout) == 0)
     {
         key_schedule_record_release(text_layout);
-        *error = "the device laid out the assembly printer apart from the host's";
+        *error = "the device arranged the assembly printer apart from the host's";
         return 0;
     }
     return 1;
@@ -202,7 +202,7 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
         codegen_device_left<<<1u, 1u>>>(device_summary, loop_count, lane_out);
         codegen_device_launched(&memory);
     }
-    // phase one: the lane's own forms through its close counted, then laid out with the header's item and the steps'
+    // phase one: the lane's own forms through its close counted, then arranged with the header's item and the steps'
     // forms in the order they are decided, the note, the header, the lane's first form, the declarations, then the body
     // as it runs, its opening, the steps and its close
     if (memory.ok != 0)
@@ -247,7 +247,7 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
     const unsigned long long body_count =
         parts.count[CODEGEN_OPENED] + parts.count[CODEGEN_STEPPED] + parts.count[CODEGEN_CLOSED];
     // phase two: the body split into states, counted, then written; an error's label for the opening and one for each
-    // step at most, and each loop the steps wrote
+    // step at max, and each loop the steps wrote
     MachineInstr *scheduled_instrs = NULL;
     unsigned long long scheduled_count = 0ull;
     unsigned int states = 0u;
@@ -288,7 +288,7 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
         codegen_device_read(&memory, &schedule_end, device_schedule_end, 1ull);
         states = schedule_end.states;
         report->states = schedule_end.states;
-        report->maximum = schedule_end.maximum;
+        report->max = schedule_end.max;
         report->over = schedule_end.over;
     }
     // phase three: the body's opening and the lane's end, counted, then written

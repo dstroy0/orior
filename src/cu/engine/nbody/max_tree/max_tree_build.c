@@ -250,17 +250,17 @@ int max_tree_valid(const unsigned int *residual, const MaxTree *tree, unsigned i
     }
     const size_t voxels = tree->voxels;
     const size_t plane = (size_t)tree->height * tree->width;
-    unsigned int *const standing = (unsigned int *)malloc(voxels * sizeof(unsigned int));
+    unsigned int *const located = (unsigned int *)malloc(voxels * sizeof(unsigned int));
     unsigned int *const flooded = (unsigned int *)malloc(voxels * sizeof(unsigned int));
     unsigned int *const waiting = (unsigned int *)malloc(voxels * sizeof(unsigned int));
-    int ok = (standing != NULL) && (flooded != NULL) && (waiting != NULL);
+    int ok = (located != NULL) && (flooded != NULL) && (waiting != NULL);
     for (unsigned int taken = 0u; (ok != 0) && (taken < levels); taken += 1u)
     {
         const unsigned int level = tree->order[(size_t)(taken + 1u) * tree->admitted / (levels + 1u)];
 
         for (size_t voxel = 0u; voxel < voxels; voxel += 1u)
         {
-            standing[voxel] = MAX_TREE_ABSENT;
+            located[voxel] = MAX_TREE_ABSENT;
         }
         for (unsigned int at = 0u; at < tree->admitted; at += 1u)
         {
@@ -275,7 +275,7 @@ int max_tree_valid(const unsigned int *residual, const MaxTree *tree, unsigned i
             {
                 walk = tree->parent[walk];
             }
-            standing[voxel] = walk;
+            located[voxel] = walk;
         }
 
         for (size_t voxel = 0u; voxel < voxels; voxel += 1u)
@@ -331,16 +331,16 @@ int max_tree_valid(const unsigned int *residual, const MaxTree *tree, unsigned i
 
         for (size_t voxel = 0u; (ok != 0) && (voxel < voxels); voxel += 1u)
         {
-            if (standing[voxel] == MAX_TREE_ABSENT)
+            if (located[voxel] == MAX_TREE_ABSENT)
             {
                 ok = (flooded[voxel] == MAX_TREE_ABSENT) ? ok : 0;
                 continue;
             }
             ok = (flooded[voxel] != MAX_TREE_ABSENT) ? ok : 0;
-            ok = ((ok != 0) && (flooded[voxel] == flooded[standing[voxel]])) ? ok : 0;
+            ok = ((ok != 0) && (flooded[voxel] == flooded[located[voxel]])) ? ok : 0;
         }
     }
-    free(standing);
+    free(located);
     free(flooded);
     free(waiting);
     return ok;

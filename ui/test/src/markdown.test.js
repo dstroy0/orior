@@ -20,7 +20,7 @@ test("task lists, tables and strikethrough", () => {
   assert.match(html, /<del>gone<\/del>/);
 });
 
-test("an alert is a quote that opens with its kind, as GitHub writes it", () => {
+test("an alert is a quote that opens with its type, as GitHub writes it", () => {
   const html = markdownHtml("> [!WARNING]\n> Mind the step.\n\n> a plain quote");
   assert.match(html, /<div data-line="0" class="markdown-alert markdown-alert-warning"><p class="markdown-alert-title">Warning<\/p><p data-line="1">Mind the step.<\/p><\/div>/);
   assert.match(html, /<blockquote data-line="3">/);
@@ -42,7 +42,7 @@ test("math between dollars and in math fences is MathML, and a mermaid fence is 
   assert.match(html, /<div data-line="\d+" class="mermaid"><svg class="mermaid-diagram flowchart"/);
 });
 
-test("HTML in the text keeps only the tags and attributes allowed", () => {
+test("HTML in the text retains only the tags and attributes allowed", () => {
   const html = markdownHtml('<div onclick="x()">hi</div>\n\n<script>alert(1)</script>\n\n[x](javascript:alert(1))');
   assert.ok(!/onclick|<script/.test(html), html);
   assert.match(html, /<a href="#">x<\/a>/);

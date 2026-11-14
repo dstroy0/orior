@@ -19,8 +19,8 @@ static const char *const s_fixed_names[] = {"zero", "lane_number", "record", "in
 
 #define KRS_FIXED_NAMES ((unsigned int)(sizeof(s_fixed_names) / sizeof(s_fixed_names[0])))
 
-// the most fixed lines a ruleset gives, and the longest
-#define KRS_FIXED_GIVEN_MOST 64u
+// the max fixed lines a ruleset gives, and the longest
+#define KRS_FIXED_GIVEN_MAX 64u
 
 #define KRS_FIXED_LINE 256u
 
@@ -31,7 +31,7 @@ typedef struct
     char line[KRS_FIXED_LINE];
 } KrsFixedGiven;
 
-// every `fixed <name> = ...` line the ruleset at `krs_path` gave, into `given`, at most KRS_FIXED_GIVEN_MOST; the
+// every `fixed <name> = ...` line the ruleset at `krs_path` gave, into `given`, at max KRS_FIXED_GIVEN_MAX; the
 // count, 0 where there is no path or no file
 static unsigned int fixed_given_read(const char *krs_path, KrsFixedGiven *given)
 {
@@ -44,12 +44,12 @@ static unsigned int fixed_given_read(const char *krs_path, KrsFixedGiven *given)
         return 0u;
     }
     char line[KRS_FIXED_LINE];
-    while (line_read(file_bytes, file_size, &file_at, line, sizeof(line)) && (count < KRS_FIXED_GIVEN_MOST))
+    while (line_read(file_bytes, file_size, &file_at, line, sizeof(line)) && (count < KRS_FIXED_GIVEN_MAX))
     {
-        char kind[64];
+        char type[64];
         char name[64];
         const char *at = line;
-        if (!line_word(&at, kind, sizeof(kind)) || !line_word(&at, name, sizeof(name)) || (strcmp(kind, "fixed") != 0))
+        if (!line_word(&at, type, sizeof(type)) || !line_word(&at, name, sizeof(name)) || (strcmp(type, "fixed") != 0))
         {
             continue;
         }
@@ -92,7 +92,7 @@ unsigned int krs_fixed_written(char *out, size_t cap, size_t *at, const char *ks
 {
     static KscFile s_file;
     static KscRow s_row;
-    static KrsFixedGiven s_given[KRS_FIXED_GIVEN_MOST];
+    static KrsFixedGiven s_given[KRS_FIXED_GIVEN_MAX];
     int answered[KRS_FIXED_NAMES] = {0};
     unsigned long long number[KRS_FIXED_NAMES] = {0ull};
     unsigned long long top = 0ull;
@@ -102,7 +102,7 @@ unsigned int krs_fixed_written(char *out, size_t cap, size_t *at, const char *ks
         unsigned long long first = 0ull;
         unsigned long long bits = 0ull;
         const char *read = s_file.line[line];
-        if (line_letters(&read, "field") && line_letters(&read, "rd ") && line_number(&read, 0, &first) &&
+        if (line_characters(&read, "field") && line_characters(&read, "rd ") && line_number(&read, 0, &first) &&
             line_number(&read, 0, &bits))
         {
             top = (bits >= 64u) ? 0xffffffffffffffffull : ((1ull << bits) - 1ull);

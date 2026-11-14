@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_git.c: a clone is named as git names it, a partly staged file commits that part alone, a branch is made, switched to, renamed, merged and
 // deleted, a merged branch has its own column and joins where it began, a repository owns the deepest folder that contains a path, and each
-// status has one letter
+// status has one character
 #include "ui/cli/src/code/git_internal.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
@@ -128,8 +128,8 @@ static void commit_added(const char *id, const char *first, const char *second)
     s_graph.count += 1u;
 }
 
-// a graph of a merged branch of two commits laid out
-static void graph_laid_out(void)
+// a graph of a merged branch of two commits arranged
+static void graph_positioned_out(void)
 {
     g_cli_guard->persistent_buf_release(s_graph.text.bytes, g_cli_git_owner);
     s_graph.text.bytes = NULL;
@@ -335,7 +335,7 @@ void test_a_name_git_refuses_is_refused(void)
 void test_a_merged_branch_has_its_own_column(void)
 {
     static const unsigned int s_lanes[6] = {0u, 0u, 1u, 1u, 0u, 0u};
-    graph_laid_out();
+    graph_positioned_out();
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
         TEST_ASSERT_EQUAL_UINT(s_lanes[at], s_graph.item[at].lane_at);
@@ -344,37 +344,37 @@ void test_a_merged_branch_has_its_own_column(void)
 
 void test_the_merge_opens_the_column(void)
 {
-    graph_laid_out();
+    graph_positioned_out();
     TEST_ASSERT_EQUAL_STRING("0 0 1 0|0 1 1 1", strokes_of(0u));
 }
 
 void test_each_column_continues_end_anothers_commit(void)
 {
-    graph_laid_out();
+    graph_positioned_out();
     TEST_ASSERT_EQUAL_STRING("0 0 0 0|1 1 0 1|0 0 1 0|1 1 1 1", strokes_of(1u));
 }
 
 void test_a_column_joins_where_it_began(void)
 {
-    graph_laid_out();
+    graph_positioned_out();
     CLI_TEST_ASSERT_CONTAINS("1 0 1 0", strokes_of(3u));
 }
 
 void test_one_column_remains_after_the_join(void)
 {
-    graph_laid_out();
+    graph_positioned_out();
     TEST_ASSERT_EQUAL_STRING("0 0 0 0|0 0 1 0", strokes_of(4u));
 }
 
 void test_the_first_commit_ends_the_column(void)
 {
-    graph_laid_out();
+    graph_positioned_out();
     TEST_ASSERT_EQUAL_STRING("0 0 0 0", strokes_of(5u));
 }
 
 void test_a_branchs_line_has_its_own_color(void)
 {
-    graph_laid_out();
+    graph_positioned_out();
     TEST_ASSERT_EQUAL_UINT(1u, s_graph.item[2].color);
 }
 
@@ -403,7 +403,7 @@ void test_a_path_no_repository_contains_has_no_owner(void)
     TEST_ASSERT_NULL(EMBED_CALL(cli_git_count_internal.owner, CliGitCountCtx, .repos = s_repos + 1, .count = 2u, .path = "a.txt", .length = 5ull));
 }
 
-void test_each_status_has_one_letter(void)
+void test_each_status_has_one_character(void)
 {
     TEST_ASSERT_EQUAL_CHAR('U', EMBED_CALL(cli_git_index_internal.state_get, CliGitIndexCtx, .index_value = '?', .tree = '?'));
     TEST_ASSERT_EQUAL_CHAR('M', EMBED_CALL(cli_git_index_internal.state_get, CliGitIndexCtx, .index_value = ' ', .tree = 'M'));
@@ -417,7 +417,7 @@ void test_each_status_has_one_letter(void)
 
 void test_each_lists_texts_are_released(void)
 {
-    graph_laid_out();
+    graph_positioned_out();
     g_cli_guard->persistent_buf_release(s_graph.text.bytes, g_cli_git_owner);
     s_graph.text.bytes = NULL;
     s_graph.text.used = 0ULL;

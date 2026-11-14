@@ -11,7 +11,7 @@
 # copyright has to look. The public part is everything published before 1923 and is out of copyright,
 # and it is served by a search system that answers in a machine readable form.
 #
-# What is needed for the question is several works by each of several writers, with the language kept
+# What is needed for the question is several works by each of several writers, with the language retained
 # fixed so only the writer changes. So the first thing to ask is what the collection holds and how it is
 # indexed, and whether a work can be had whole or only searched inside. Nothing is downloaded here.
 

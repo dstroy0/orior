@@ -25,7 +25,7 @@ import truth_io
 #
 #   the graph    a dataset's rows as csv_to_geffs builds them: a node for each node row and an edge for each edge row,
 #                each in the order the rows come. An edge's id is its place among the dataset's edge rows. source_id
-#                and target_id name node_ids. A node_id named twice is its later row, as csv_to_geffs's dict keeps it,
+#                and target_id name node_ids. A node_id named twice is its later row, as csv_to_geffs's dict retains it,
 #                and an edge that names no node errors on the CSV, as csv_to_geffs raises
 #   the key      its nodes and edges through truth_io, in the geff's array order. n_total is the geff's
 #                estimated_number_of_nodes through score_submission.estimated_nodes, NaN where it is absent
@@ -38,19 +38,19 @@ import truth_io
 #                (maximize) is run on it. When that raises, the empty rows and columns are filled with -1 and it is
 #                run again; when that raises too, linear_sum_assignment (maximize) is run on the dense matrix, -1
 #                where nothing is. A pair reading -1 in the sparse weights is dropped. A pair the dense run takes where
-#                the sparse weights hold nothing reads 0 there, not -1, and is kept, as the published code keeps it
+#                the sparse weights hold nothing reads 0 there, not -1, and is retained, as the published code retains it
 #   edges        as _evaluate_matched_graph. A CSV edge is matched when its ends are matched to the ends of a key edge.
 #                The copies of one source and target are one edge; the copies agree on matched, and the lowest id is
-#                kept, where polars' unique after an unstable sort names none. Only edges one frame forward are kept.
-#                Of the edges with both ends matched, the lowest id for each matched pair is kept; under a one-to-one
-#                matching no two share one. Each source keeps its two lowest ids. An edge is counted when its source is
+#                retained, where polars' unique after an unstable sort names none. Only edges one frame forward are retained.
+#                Of the edges with both ends matched, the lowest id for each matched pair is retained; under a one-to-one
+#                matching no two share one. Each source retains its two lowest ids. An edge is counted when its source is
 #                matched to a key node with an edge out or its target to one with an edge in. TP is the matched edges,
 #                FP the counted less TP, FN the key's edges less TP. A CSV graph with no edges or no nodes is TP 0,
 #                FP 0 and FN the key's edges
 #   divisions    as division_metrics. A key division is a node with exactly two edges out, copies counted, as
 #                rustworkx counts them. Its window is its parents, itself, its children and theirs, in that order, and
 #                for each window the whole CSV graph is matched as above against the window's nodes alone. CSV forks
-#                are the nodes with two or more edges out over every CSV edge, not only those the edge counts keep.
+#                are the nodes with two or more edges out over every CSV edge, not only those the edge counts retain.
 #                Successors and predecessors are a node's distinct neighbors, as rustworkx's successor_indices gives
 #                them. The candidates, the one-to-one pairing and the false forks (the considered, the evaluable, the
 #                malformed and the cross-component, less the paired) follow score_divisions and
@@ -69,13 +69,13 @@ MAX_DISTANCE = 7.0
 ADJUSTMENT_ALPHA = 0.1
 SCORE_DIVISION_WEIGHT = 0.1
 FILL_VALUE = -1.0
-# the reach the tree is asked for past MAX_DISTANCE, so that no pair the exact distance keeps is missed
+# the reach the tree is asked for past MAX_DISTANCE, so that no pair the exact distance retains is missed
 REACH_SLACK = 1e-6
 COLUMNS = ("dataset", "row_type", "node_id", "t", "z", "y", "x", "source_id", "target_id")
 
 
 class Graph(object):
-    # a graph as tracksdata holds it: its nodes numbered in the order they come, the order the matching lays a frame
+    # a graph as tracksdata holds it: its nodes numbered in the order they come, the order the matching positions a frame
     # out in, and its edges numbered in the order they come, which is their id
 
     def __init__(self):
@@ -173,8 +173,8 @@ def read_submission(handle):
     edges = collections.defaultdict(list)
     for parts in reader:
         dataset = parts[at["dataset"]]
-        kind = parts[at["row_type"]]
-        if kind == "node":
+        type = parts[at["row_type"]]
+        if type == "node":
             graph = graphs.get(dataset)
             if graph is None:
                 graph = graphs[dataset] = Graph()
@@ -182,7 +182,7 @@ def read_submission(handle):
             node = graph.add_node(time_of(parts[at["t"]]), float(parts[at["z"]]), float(parts[at["y"]]),
                                   float(parts[at["x"]]))
             named[dataset][identity_of(parts[at["node_id"]])] = node
-        elif kind == "edge":
+        elif type == "edge":
             edges[dataset].append((identity_of(parts[at["source_id"]]), identity_of(parts[at["target_id"]])))
     for dataset, held in edges.items():
         if dataset not in graphs:
@@ -252,10 +252,10 @@ def match_frame(reference, compared, finite, tree, max_distance):
             continue
         near = finite[np.asarray(near, dtype=np.int64)]
         apart = cdist(compared[near], reference[row:row + 1])[:, 0]
-        kept = apart <= max_distance
-        columns.extend(near[kept].tolist())
-        rows.extend([row] * int(kept.sum()))
-        distances.extend(apart[kept].tolist())
+        retained = apart <= max_distance
+        columns.extend(near[retained].tolist())
+        rows.extend([row] * int(retained.sum()))
+        distances.extend(apart[retained].tolist())
     if not rows:
         return []
     order = np.lexsort((np.asarray(rows), np.asarray(columns)))
@@ -307,7 +307,7 @@ def match(graph, key, key_nodes=None, scale=None, max_distance=MAX_DISTANCE):
 
 
 def edge_counts(graph, key, matched, record=None):
-    # _evaluate_matched_graph and the counts evaluate takes from it; record, when given, takes each kept edge's source,
+    # _evaluate_matched_graph and the counts evaluate takes from it; record, when given, takes each retained edge's source,
     # target, whether it is matched and whether it is counted
     to_graph = {truth: node for node, truth in matched.items()}
     wanted = set()

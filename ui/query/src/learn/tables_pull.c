@@ -14,7 +14,7 @@ typedef struct
     VerbaLinea *err_msg;
 } TablesPullCtx;
 
-// The tables of every architecture wanted that lacks them pulled: 0 where each now stands, 1 where the funnel found
+// The tables of every architecture wanted that lacks them pulled: 0 where each now is, 1 where the funnel found
 // no tables in some capture, -1 with why given. Each program runs through the writer's tee, the capture as
 // `tables_capture.console` and the funnel as `orior_tables_funnel.console`
 EMBED_INLINE int query_pull(const TablesPullCtx *args)
@@ -52,7 +52,7 @@ EMBED_INLINE int query_pull(const TablesPullCtx *args)
             line.at = 0ULL;
             mmgr_line_put(&line, "  ");
             mmgr_line_put(&line, s_requested[at]);
-            mmgr_line_put(&line, ": its tables stand");
+            mmgr_line_put(&line, ": its tables are");
             mmgr_line_finish(&line);
             EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line_text);
             continue;
@@ -65,7 +65,7 @@ EMBED_INLINE int query_pull(const TablesPullCtx *args)
         line.at = 0ULL;
         mmgr_line_put(&line, "tables: every one of ");
         mmgr_line_decimal(&line, required, 0u);
-        mmgr_line_put(&line, " architectures stands under ");
+        mmgr_line_put(&line, " architectures is under ");
         mmgr_line_put(&line, tables);
         mmgr_line_finish(&line);
         EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line_text);
@@ -358,7 +358,7 @@ int query_tables_run(const QueryLoopCfg *args)
     }
     if (code < 0)
     {
-        mmgr_line_put_most(err_msg, why, failed.at);
+        mmgr_line_put_max(err_msg, why, failed.at);
     }
     return code;
 }

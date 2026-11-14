@@ -34,7 +34,7 @@ def main():
     by_word = {}
     with open(SOURCE, newline="") as handle:
         for row in csv.DictReader(handle):
-            if row["kind"] != "inbit":
+            if row["type"] != "inbit":
                 continue
             word = int(row["a"]) // 32
             at = int(row["round"])
@@ -80,7 +80,7 @@ def main():
 
     if spans:
         print("\n  span is how many rounds a word takes to fall from plateau to floor.")
-        print("  mean %.2f, spread %.2f, minimum %d, maximum %d"
+        print("  mean %.2f, spread %.2f, minimum %d, max %d"
               % (sum(spans) / len(spans),
                  (sum((s - (sum(spans) / len(spans))) ** 2 for s in spans) / max(1, len(spans) - 1))
                  ** 0.5, min(spans), max(spans)))

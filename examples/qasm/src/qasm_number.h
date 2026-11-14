@@ -40,7 +40,7 @@ extern "C"
         QasmRealNumber imaginary;
     } QasmNumber;
 
-// 0/1, 1/1 and the number one as initializers, for data the build lays out
+// 0/1, 1/1 and the number one as initializers, for data the build arranges
 #define QASM_RATIONAL_ZERO_INITIALIZER {{{0u}, 0}, {{1u}, 1}}
 #define QASM_RATIONAL_ONE_INITIALIZER {{{1u}, 1}, {{1u}, 1}}
 #define QASM_NUMBER_ONE_INITIALIZER                                                                                    \
@@ -132,7 +132,7 @@ extern "C"
     long qasm_number_short_text(const QasmNumber *value, char *text, size_t capacity, EngineError *error);
 
     // A field the chain runs over, unchanged: Q(sqrt2)[i] or its rational functions. An element's storage is either
-    // filled with zero bytes or contains a live element. Copy and each operation write storage of either kind,
+    // filled with zero bytes or contains a live element. Copy and each operation write storage of either type,
     // releasing what it contained, and release frees what the storage contains and leaves it zero bytes. A result may
     // alias an operand.
     typedef struct

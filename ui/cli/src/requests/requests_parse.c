@@ -3,12 +3,12 @@
 // requests_parse.c: a file of requests read as JetBrains' HTTP Client writes one: each request from its line of `###`
 // or the top of the file, its name, its request line and the address that runs on under it, its headers, and its body
 // or the file it is read from; and the variables the file sets. Its lines are split as Rust's str::lines splits them
-// and trimmed of white letters as Rust's str::trim trims them
+// and trimmed of white characters as Rust's str::trim trims them
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "requests_internal.h"
 
-// the most lines of a file read, and the bytes its pool reserves past twice the file's, every text stored being of the
+// the max lines of a file read, and the bytes its pool reserves past twice the file's, every text stored being of the
 // file and its address the only one stored twice
 #define CLI_REQUESTS_LINES (1u << 18u)
 #define CLI_REQUESTS_POOL_MORE 64ULL
@@ -70,7 +70,7 @@ EMBED_INLINE int parse_is_method(const RequestsParseCtx *args)
     return args->size > 0u;
 }
 
-// `size` bytes of `text` stored in the parse's pool: where they stand, and the parse full where they do not fit
+// `size` bytes of `text` stored in the parse's pool: where they are, and the parse full where they do not fit
 EMBED_INLINE CliRequestsText parse_store(const RequestsParseCtx *args)
 {
     unsigned long long size = args->size;
@@ -171,7 +171,7 @@ EMBED_INLINE int parse_head_line(const RequestsParseCtx *args)
     return 1;
 }
 
-// the end of the word at `at` of a line, the start of the next past the white letters after it
+// the end of the word at `at` of a line, the start of the next past the white characters after it
 EMBED_INLINE unsigned long long parse_word_end(const RequestsParseCtx *args)
 {
     const char *text = args->text;
@@ -425,7 +425,7 @@ EMBED_INLINE int parse_request(const RequestsParseCtx *args)
     return 1;
 }
 
-// the lines of `size` bytes of `text`, a newline ending each but the last, CLI_REQUESTS_LINES at the most
+// the lines of `size` bytes of `text`, a newline ending each but the last, CLI_REQUESTS_LINES at max
 EMBED_INLINE unsigned long long parse_lines_count(const RequestsParseCtx *args)
 {
     const char *text = args->text;
@@ -462,7 +462,7 @@ EMBED_INLINE int parse_read(const RequestsParseCtx *args)
         args->parsed->full = 1;
         return 0;
     }
-    // a request is one part of the file, from its top or a line of `###`, so the parts counted are the most of them
+    // a request is one part of the file, from its top or a line of `###`, so the parts counted are the max of them
     unsigned long long parts = (lines > 0ULL) ? 1ULL : 0ULL;
     for (unsigned long long line = 1ULL; line < lines; line += 1ULL)
     {

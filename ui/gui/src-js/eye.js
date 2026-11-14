@@ -17,7 +17,7 @@
 // An iris is a plasma torus, a ring of plasma flowing round the pupil. Its pupil is dark and moves as
 // a lava lamp does: one round body, and smaller ones that draw out of it, part from it as pupils of
 // their own, and run back in, and it leans toward the mouse. A reader who asks the system for less
-// motion gets the eye kept still and open, with one iris.
+// motion gets the eye retained still and open, with one iris.
 
 import { DIVIDE_EVERY, DIVIDE_FROM, HALF, SMALLEST, divide, float, frontOf, grow, irisAt } from "./eye/float.js";
 import { DIM, GLINT, LEAN, LOOK, drawIris, irisPicture, lavaOf } from "./eye/iris.js";
@@ -44,7 +44,7 @@ function layer(size, draw) {
 
 // The lids do not move once the eye is open, and nothing under or over the irises changes after.
 // While it opens the parts under and over them are drawn each frame; once it is open they are drawn
-// once into two layers, which each frame lays down as they are. The blurs in them, the dearest work
+// once into two layers, which each frame positions down as they are. The blurs in them, the dearest work
 // in a frame, do not run again.
 function drawEye(pen, width, height, state) {
   pen.clearRect(0, 0, width, height);
@@ -67,10 +67,10 @@ function drawEye(pen, width, height, state) {
   openingPath(pen, lid, cx, cy, a, b);
   pen.clip();
   const sphere = sphereOf(cx, cy, a, b);
-  const shown = state.irises.filter((iris) => iris.p[2] > 0.05).sort((one, two) => one.p[2] - two.p[2]);
+  const displayed = state.irises.filter((iris) => iris.p[2] > 0.05).sort((one, two) => one.p[2] - two.p[2]);
   state.picture.paint(2 * r * (window.devicePixelRatio || 1), state.lava, state.seconds, state.shine);
   const ease = 1 - Math.exp(-state.dt * LEAN);
-  for (const iris of shown) {
+  for (const iris of displayed) {
     const [x, y, z] = iris.p;
     const sx = sphere.x + x * sphere.radius;
     const sy = sphere.y + y * sphere.radius;
@@ -97,7 +97,7 @@ function drawEye(pen, width, height, state) {
 }
 
 // Once open, the eye follows the pointer for FOLLOWS seconds: its gaze turns to where the pointer
-// stands over the eye, as far as the eye turns, closing FOLLOW of the gap a second, and to the
+// is over the eye, as far as the eye turns, closing FOLLOW of the gap a second, and to the
 // middle while the pointer is off the window. Then it rolls and stares by turns. A roll carries the
 // gaze round a loop at ROLL radians a second, one way or the other, for ROLLS seconds; a stare snaps
 // it to the middle, straight at the reader, for STARES seconds. Each is a span from the first number
@@ -109,7 +109,7 @@ const ROLLS = [1.6, 2.8];
 const STARES = [0.8, 1.6];
 
 // The gaze that looks at the pointer at (x, y) in a canvas of this size: across and down from the
-// eye's middle in parts of its half width and half height, each kept within -1 and 1.
+// eye's middle in parts of its half width and half height, each retained within -1 and 1.
 function gazeAt(x, y, width, height) {
   const { cx, cy, a, b } = placeOf(width, height);
   const clamped = (part) => Math.max(-1, Math.min(1, part));
@@ -177,7 +177,7 @@ export function startEye(canvas) {
   window.addEventListener("pointermove", moved);
   document.documentElement.addEventListener("pointerleave", left);
 
-  // The eye keeps its time on the animation's clock. While motion is stopped it draws the frame it
+  // The eye retains its time on the animation's clock. While motion is stopped it draws the frame it
   // is at and holds there, and takes up from there when motion comes back.
   const tick = (moment) => {
     const now = clock(moment);

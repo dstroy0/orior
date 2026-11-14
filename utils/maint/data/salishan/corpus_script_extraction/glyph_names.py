@@ -17,7 +17,7 @@
 #
 #   /uni0294oo  /uni026C  /xé/uni0294  -/uni026C-  /kwú[·kw]pi/uni0294
 #
-# A uniXXXX name carries the code point it stands for. That half of the recovery is arithmetic
+# A uniXXXX name carries the code point it is for. That half of the recovery is arithmetic
 # and exact. The named marks are a short table, below, and it is short because 8 uniXXXX names and
 # 2 mark names cover all 75 unresolved glyphs in the paper.
 #
@@ -29,17 +29,17 @@
 #
 # A slash the table does not claim is the paper's own. Robertson writes phonemic forms between
 # slashes throughout. /xéʔ opens with one and /k’/ and /q’/ are a pair of them. Only the names
-# below and the uniXXXX pattern are consumed, and every other slash is left where it stands.
+# below and the uniXXXX pattern are consumed, and every other slash is left where it is.
 
 import re
 import unicodedata
 
 # A glyph name the extractor printed because it could not resolve the glyph. uniXXXX is matched on
-# exactly four hex digits, which keeps /uni0294w from being read as a name ending in w: the
-# w is the next letter of the word and belongs to the text.
+# exactly four hex digits, which retains /uni0294w from being read as a name ending in w: the
+# w is the next character of the word and belongs to the text.
 UNICODE_NAME = re.compile(r"/uni([0-9A-Fa-f]{4})")
 
-# The named glyphs that are not written uniXXXX. Both are combining marks and both follow the letter
+# The named glyphs that are not written uniXXXX. Both are combining marks and both follow the character
 # they sit on, the order Unicode wants and the order the extraction already has: page 30's
 # x̣əƛ’ arrives as /x/combiningdotbelow/uni0259/uni019B’.
 #
@@ -55,7 +55,7 @@ def decoded(line):
     """One line of the extraction with every printed glyph name turned back into its character.
 
     NFC at the end, for the reason coverage_check.py gives: two strings are the same string only
-    after it, and a letter written as a base plus a combining mark has to compose before anything
+    after it, and a character written as a base plus a combining mark has to compose before anything
     compares it against a table typed at a keyboard.
     """
     for name, symbol in NAMED:

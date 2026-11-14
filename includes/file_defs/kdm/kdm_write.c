@@ -11,7 +11,7 @@
 // Where the path already contains a .kdm, its costs come forward onto the arrangements found this time, matched by the
 // arrangement and never by where it sat in the file. A cost is therefore retained across a rewrite, and a rewrite that
 // finds an arrangement nobody has timed leaves it untimed. The .kdm's section is what this writes (kdm.h); its tail,
-// the part's registers, widths, loads and stores in their block of the ruleset's language and its pipes, stands as the
+// the part's registers, widths, loads and stores in their block of the ruleset's language and its pipes, is as the
 // file stored it, since none of it is found from the relations.
 #include "../../../src/cu/transpiler/lstar/protocol/gate/chain_build.h"
 
@@ -24,7 +24,7 @@
 #include <string.h>
 
 #define KDM_TEXT_MAX_LEN 160u
-#define KDM_ROWS (LADDER_ANCHOR_COUNT * CHAIN_MOST)
+#define KDM_ROWS (LADDER_ANCHOR_COUNT * CHAIN_MAX)
 
 #define LADDER_TEXT(name_, text_, words_, measured_) text_,
 static const char *const s_anchor_text[] = {LADDER_ANCHORS(LADDER_TEXT)};
@@ -33,7 +33,7 @@ static const char *const s_anchor_text[] = {LADDER_ANCHORS(LADDER_TEXT)};
 // the longest cost a row carries: an exact rational, numerator/denominator, each a run of decimal digits
 #define KDM_COST_MAX_LEN 128u
 
-// One row as it stood in the file the last time: the arrangement, what it has cost, and over how many runs. A cost
+// One row as it was in the file the last time: the arrangement, what it has cost, and over how many runs. A cost
 // is an exact rational and is carried as the text it was written as. Nothing here computes with one, and a cost read
 // into a number to be written back out would be rounded on the way
 typedef struct
@@ -46,9 +46,9 @@ typedef struct
 static KdmCostRow s_cost_rows[KDM_ROWS];
 
 // the texts of the rows one operator has written, each once
-static char s_written[CHAIN_MOST][KDM_TEXT_MAX_LEN];
+static char s_written[CHAIN_MAX][KDM_TEXT_MAX_LEN];
 
-// Whether `text` is an exact rational written in decimal: digits, an optional leading minus, and at most one /
+// Whether `text` is an exact rational written in decimal: digits, an optional leading minus, and at max one /
 // with digits after it
 static int kdm_exact_text(const char *text)
 {
@@ -108,7 +108,7 @@ static void kdm_costs_read(const char *path)
     }
 }
 
-// the row `text` stood in the last time, or NULL where nothing has timed it
+// the row `text` was in the last time, or NULL where nothing has timed it
 static const KdmCostRow *kdm_cost(const char *text)
 {
     for (unsigned int at = 0u; at < s_cost_row_count; at += 1u)

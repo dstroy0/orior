@@ -8,16 +8,16 @@
 typedef struct
 {
 #if (defined(_WIN32))
-    char letter;
+    char character;
     const char *name;
 #endif
 } CompileDbVsCtx;
 
 #if defined(_WIN32)
-// whether a letter is whitespace as a line is read
+// whether a character is whitespace as a line is read
 EMBED_INLINE int cli_white(const CompileDbVsCtx *args)
 {
-    return (args->letter == ' ') || ((args->letter >= '\t') && (args->letter <= '\r'));
+    return (args->character == ' ') || ((args->character >= '\t') && (args->character <= '\r'));
 }
 
 // whether a variable's name is INCLUDE, ASCII's case aside
@@ -26,9 +26,9 @@ EMBED_INLINE int cli_name_include(const CompileDbVsCtx *args)
     static const char s_include[8] = "include";
     for (unsigned int at = 0u; at < 7u; at += 1u)
     {
-        const char letter =
+        const char character =
             ((args->name[at] >= 'A') && (args->name[at] <= 'Z')) ? (char)(args->name[at] + 32) : args->name[at];
-        if (letter != s_include[at])
+        if (character != s_include[at])
         {
             return 0;
         }
@@ -70,11 +70,11 @@ static int cli_vs_read(void)
     }
     unsigned long long from = 0ull;
     unsigned long long to = run_result->out_size;
-    while ((from < to) && EMBED_CALL(cli_white, CompileDbVsCtx, .letter = run_result->out[from]))
+    while ((from < to) && EMBED_CALL(cli_white, CompileDbVsCtx, .character = run_result->out[from]))
     {
         from += 1ull;
     }
-    while ((to > from) && EMBED_CALL(cli_white, CompileDbVsCtx, .letter = run_result->out[to - 1ull]))
+    while ((to > from) && EMBED_CALL(cli_white, CompileDbVsCtx, .character = run_result->out[to - 1ull]))
     {
         to -= 1ull;
     }

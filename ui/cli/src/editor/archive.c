@@ -5,7 +5,7 @@
 #include "../text/text.h"
 #include "archive_internal.h"
 
-// the most names of a .qry's blobs read
+// the max names of a .qry's blobs read
 #define CLI_QRY_NAMES 4096u
 
 unsigned int cli_archive_type_get(const CliArchiveCfg *args)

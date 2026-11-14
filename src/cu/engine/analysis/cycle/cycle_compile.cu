@@ -406,14 +406,14 @@ static unsigned int cycle_host_threads(unsigned long long lanes)
     const unsigned long long threads =
         ((requested != 0ull) && (end != NULL) && (*end == '\0')) ? requested : ((hardware != 0ull) ? hardware : 1ull);
     const unsigned long long used = (threads < lanes) ? threads : lanes;
-    // at most the lanes and at most what the environment or the hardware names; a run of more than 2^32 - 1 threads
+    // at max the lanes and at max what the environment or the hardware names; a run of more than 2^32 - 1 threads
     // is limited to that
     return (unsigned int)((used == 0ull) ? 1ull : ((used > 0xFFFFFFFFull) ? 0xFFFFFFFFull : used));
 }
 
-// The host program run resident, as the device's is (cycle_record_resident): its block laid out for this run, then
+// The host program run resident, as the device's is (cycle_record_resident): its block arranged for this run, then
 // the program started on the host's threads, each a thread block of one thread (cycle_host_threads), again from
-// where its block records it stands until every lane is done. The threads take lanes from the one counter, and the last
+// where its block records it is until every lane is done. The threads take lanes from the one counter, and the last
 // one out writes the host's copy of the block. The lanes' members, index and tables are read from the device first,
 // and the records and the error count are written back to it last. The host has no clock the program reads: its
 // launch time is taken around each start

@@ -37,7 +37,7 @@
 
 #define DIVIDE_TEST_WIDE_LANES 512u
 
-// the most the test puts on the device at once: the wide sweep's 96-limb atoms and records of up to 256 limbs
+// the max the test puts on the device at once: the wide sweep's 96-limb atoms and records of up to 256 limbs
 #define DIVIDE_TEST_DECLARED ((unsigned long long)DIVIDE_TEST_WIDE_LANES * (96ull + 256ull) * sizeof(unsigned int))
 
 typedef struct

@@ -15,7 +15,7 @@ typedef struct
     CliInspectPosition from;
     CliInspectPosition to;
 } PySet;
-// the most offsets of a statement's tokens that set a name, which are no reads
+// the max offsets of a statement's tokens that set a name, which are no reads
 #define CLI_PY_SKIPS 4096u
 
 // how a set name's fix takes it out: it has none; `as name` taken out; `name =` taken out and its value retained; the
@@ -99,11 +99,11 @@ void cli_py_full_line_span(const CliInspectPySrcCfg *args)
     unsigned int units = 0u;
     for (unsigned long long at = last_start; at < last_end;)
     {
-        unsigned int letter = 0u;
+        unsigned int character = 0u;
         at +=
-            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                       .text_bytes = (const unsigned char *)args->src, .length = last_end, .at = at, .letter = &letter);
-        units += (letter >= 0x10000u) ? 2u : 1u;
+            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                       .text_bytes = (const unsigned char *)args->src, .length = last_end, .at = at, .character = &character);
+        units += (character >= 0x10000u) ? 2u : 1u;
     }
     *end = (CliInspectPosition){args->to, units};
 }
@@ -264,7 +264,7 @@ EMBED_INLINE int unread_depth_change(const InspectPyUnreadCtx *args)
     return 0;
 }
 
-// the offsets of the `=` of a statement of `count` tokens that stand outside every bracket into s_equals, as many as it
+// the offsets of the `=` of a statement of `count` tokens that are outside every bracket into s_equals, as many as it
 // holds: their count
 EMBED_INLINE unsigned int unread_equals_found(const InspectPyUnreadCtx *args)
 {
@@ -287,8 +287,8 @@ EMBED_INLINE unsigned int unread_equals_found(const InspectPyUnreadCtx *args)
 }
 
 // the name a lone target at `start` sets, or an `annotated` first one, noted as one that may go unread and its token
-// recorded as no read; where the statement of `count` tokens stands alone on its line and holds one `=`, `equals` 1 and
-// `last` its offset, its fix keeps the value where it calls and else takes the line out
+// recorded as no read; where the statement of `count` tokens is alone on its line and holds one `=`, `equals` 1 and
+// `last` its offset, its fix retains the value where it calls and else takes the line out
 EMBED_INLINE void unread_target_set(const InspectPyUnreadCtx *args)
 {
     const CliInspectTok *const toks = args->toks;

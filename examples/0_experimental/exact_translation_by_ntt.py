@@ -9,7 +9,7 @@
 #
 #   Usage:  python examples/0_experimental/exact_translation_by_ntt.py
 #
-# This reads no corpus. It sits in 0_experimental: a transform shown working on two synthetic views
+# This reads no corpus. It sits in 0_experimental: a transform displayed working on two synthetic views
 # instead of a stage reading. It is the translation transform proposed in the image_transforms exact-arithmetic
 # chapter, built here atop the same exact-integer discipline as src/engine/c/no_rounding/ but not part
 # of that kernel. The kernel counts exact-value agreements at a lag; this counts overlap of two views
@@ -21,7 +21,7 @@
 # p carries a root of unity of the transform length. The prime is p = 998244353 = 119 * 2^23 + 1,
 # primitive root 3, certified in ntt_twiddle_certificate.py and in theory/theory/cryptography/twiddle_constants/main.tex.
 #
-# Four things are shown. Positive control: the NTT correlation equals the direct O(N^2) correlation at
+# Four things are displayed. Positive control: the NTT correlation equals the direct O(N^2) correlation at
 # EVERY lag, exactly, on binary views, and its peak is the true shift. Two routes able to disagree:
 # with weighted views and a deliberately too-small prime the NTT route wraps and parts from the direct
 # route. Their agreement above is an earned result. Drawn null: the true-shift peak is set
@@ -83,7 +83,7 @@ def weighted_view(positions, length, seed):
 
 
 def translate(view, shift):
-    """`view` slid right by `shift`, zero-filled: the second view a registration is handed."""
+    """`view` slid right by `shift`, zero-filled: the second view a registration is passed."""
     length = len(view)
     moved = [0] * length
     for index in range(length):
@@ -235,7 +235,7 @@ def report_drawn_null(out):
     out.write("  null pair (a view and an independent one): peak %d at lag %d\n" % (null_height, null_lag))
     out.write("  separation = %d. the null is the correlation of two unrelated views, drawn here, not a\n"
               % (signal_height - null_height))
-    out.write("  threshold set by hand. a shift is real when its peak stands above this background.\n\n")
+    out.write("  threshold set by hand. a shift is real when its peak is above this background.\n\n")
     return signal_height > null_height
 
 
@@ -262,7 +262,7 @@ def report_floor(out):
               % (SMALL_PRIME, max_coefficient, small_disagreements, len(direct), small_exact))
     out.write("\n  the small prime is a valid NTT prime and still wrong: two residues reduce past it and\n")
     out.write("  it counts modulo itself, silently. exactness needs max coefficient < p. for 0/1 views\n")
-    out.write("  the coefficient is at most the transform length, which divides p-1 and so is below p\n")
+    out.write("  the coefficient is at max the transform length, which divides p-1 and so is below p\n")
     out.write("  for any valid prime: binary views are exact with no separate precondition. weighting\n")
     out.write("  is what can breach p, and the remedy is a larger prime or CRT over several, the three\n")
     out.write("  device primes of the twiddle paper reassembling a 94-bit product.\n")

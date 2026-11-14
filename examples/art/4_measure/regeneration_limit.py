@@ -17,9 +17,9 @@
 # picture rebuilt from its own positions and flat amounts stays recognizable, and one rebuilt from its own
 # amounts and scrambled positions does not.
 #
-# So four reconstructions are compared against the original. One keeps only the exponent, the summary
-# this work has been refining, and is the cheapest at a single number. One keeps every amount and
-# discards the positions. One keeps every position and discards the amounts. One keeps both, the whole
+# So four reconstructions are compared against the original. One retains only the exponent, the summary
+# this work has been refining, and is the cheapest at a single number. One retains every amount and
+# discards the positions. One retains every position and discards the amounts. One retains both, the whole
 # set, and costs everything.
 #
 # The comparison is a correlation against the original, and beside it the count of numbers each rebuild
@@ -63,7 +63,7 @@ def agreement(left, right):
 def main():
     out = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", newline="")
     out.write("  %-16s %-9s %-12s %-12s %-12s %s\n"
-              % ("picture", "exponent", "one number", "amounts only", "positions only", "numbers kept"))
+              % ("picture", "exponent", "one number", "amounts only", "positions only", "numbers retained"))
 
     rng = numpy.random.default_rng(SEED)
     gathered = []
@@ -95,7 +95,7 @@ def main():
         seeded = numpy.fft.fft2(rng.standard_normal(grid.shape))
         alone = numpy.real(numpy.fft.ifft2(seeded * (radius ** (-slope / 2.0))))
 
-        # Every amount kept and every position thrown away, then the reverse
+        # Every amount retained and every position thrown away, then the reverse
         scrambled = numpy.real(numpy.fft.ifft2(
             amounts * numpy.exp(1j * rng.uniform(-numpy.pi, numpy.pi, grid.shape))))
         flattened = numpy.real(numpy.fft.ifft2(positions * amounts.mean()))
@@ -111,7 +111,7 @@ def main():
     # An angle is knowable, and the claim that positions cost as much as the whole set assumes
     # every angle at full precision. Rounding each to a few steps around the circle is the cheaper claim
     # and it is measurable: the cost is bits for each coefficient, not one number for the set.
-    out.write("  positions rounded to a few steps around the circle, amounts kept flat\n")
+    out.write("  positions rounded to a few steps around the circle, amounts retained flat\n")
     out.write("  %-16s %s\n" % ("picture", "  ".join("%9s" % ("%d bit" % bits) for bits in BITS)))
     for label, grid, spectrum, amounts in gathered:
         angles = numpy.angle(spectrum)
@@ -123,7 +123,7 @@ def main():
             row.append(agreement(grid, rebuilt))
         out.write("  %-16s %s\n" % (label, "  ".join("%9.3f" % value for value in row)))
 
-    out.write("\n  positions rounded the same way, with every amount kept\n")
+    out.write("\n  positions rounded the same way, with every amount retained\n")
     out.write("  %-16s %s\n" % ("picture", "  ".join("%9s" % ("%d bit" % bits) for bits in BITS)))
     for label, grid, spectrum, amounts in gathered:
         angles = numpy.angle(spectrum)

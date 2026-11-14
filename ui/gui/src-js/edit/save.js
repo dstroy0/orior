@@ -104,7 +104,7 @@ export async function openAt(path, line, col = 0, { preview = false } = {}) {
 
 // Saving: on its own a moment after typing rests where Auto Save is on, and each file saved with
 // the spaces and tabs at its lines' ends taken off and a line end after its last line where those
-// are on. A Markdown file keeps its lines' ends, where two spaces break a line. Where Format on Save
+// are on. A Markdown file retains its lines' ends, where two spaces break a line. Where Format on Save
 // is on, a file is formatted first, on every save but Auto Save's, which comes while the reader is
 // still at work in it.
 
@@ -118,8 +118,8 @@ const SAVING = {
 
 export function saving(name) {
   const [key, fallback] = SAVING[name];
-  const kept = localStorage.getItem(key);
-  return kept === null ? fallback : kept === "true";
+  const retained = localStorage.getItem(key);
+  return retained === null ? fallback : retained === "true";
 }
 
 export function setSaving(name, on = !saving(name)) {
@@ -209,8 +209,8 @@ export function treeChanged({ payload: changed }) {
     if (changed.lost) {
       state.children.clear();
     }
-    // Only a folder the tree has read is shown, and only one shown draws the tree again.
-    const shown = changed.folders.filter((folder) => state.children.delete(folder));
+    // Only a folder the tree has read is displayed, and only one displayed draws the tree again.
+    const displayed = changed.folders.filter((folder) => state.children.delete(folder));
     const files = changed.lost ? state.tabs.map((tab) => tab.path) : changed.files;
     for (const tab of files.map(tabOf).filter((tab) => tab && !tab.commit)) {
       await reloadTab(tab);
@@ -221,7 +221,7 @@ export function treeChanged({ payload: changed }) {
       markChanges(tabOf(state.active));
       await loadChanges();
     }
-    if (shown.length || changed.git || changed.lost) {
+    if (displayed.length || changed.git || changed.lost) {
       await drawTree();
     }
   });
@@ -229,7 +229,7 @@ export function treeChanged({ payload: changed }) {
 
 // A tab's file as the disk holds it now, taken in where the tab has no changes of its own: the lines
 // that differ replaced as one change, which undo takes back, and the tab marked saved at it. A tab
-// with changes of its own keeps them, and the status bar says the file changed; a file read as a
+// with changes of its own retains them, and the status bar says the file changed; a file read as a
 // window, or not read as text, is left as it is.
 export async function reloadTab(tab) {
   const s = tab.session;
@@ -250,7 +250,7 @@ export async function reloadTab(tab) {
     return;
   }
   if (dirty(tab)) {
-    say(`${tab.file} changed on the disk, and its tab keeps the changes made here.`);
+    say(`${tab.file} changed on the disk, and its tab retains the changes made here.`);
     return;
   }
   replaceLines(s, lines, "reload");
@@ -308,7 +308,7 @@ export async function validateTab(tab) {
       message: finding.lifted ? `${finding.message}
 
 ${finding.lifted}` : finding.message,
-      source: finding.kind,
+      source: finding.type,
     }));
     tab.validated = true;
     problemsChanged();
@@ -322,7 +322,7 @@ ${finding.lifted}` : finding.message,
 // Run, Verify Disassembly: the tab's C module saved where it has changes, then the command line's
 // loop over it run in the terminal, by the line the tree's side gives: the tree built with link-time
 // optimization, the module's functions read by the disassembler and by Ghidra, and the two readings
-// kept the same. A file that is no C module is said to be none.
+// retained the same. A file that is no C module is said to be none.
 export async function verifyDisassemblyTab(tab) {
   const s = tab?.session;
   if (!s || s.window) {

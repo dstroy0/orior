@@ -8,7 +8,7 @@
 #include "../text/text.h"
 #include "lsp.h"
 
-// the most bytes of a text escaped at once as it is written, and the capacity they take escaped
+// the max bytes of a text escaped at once as it is written, and the capacity they take escaped
 #define CLI_LSP_PIECE 2048u
 #define CLI_LSP_ESCAPED 16384u
 
@@ -33,9 +33,9 @@ typedef struct
     unsigned long long *length;
     const char *body;
     unsigned long long length_value;
-    char letter;
+    char character;
 } LspWireCtx;
-// the end of the next piece of a text to escape from `at`, a letter never cut
+// the end of the next piece of a text to escape from `at`, a character never cut
 EMBED_INLINE unsigned long long wire_piece_end(const LspWireCtx *args)
 {
     unsigned long long end = (args->size - args->at > CLI_LSP_PIECE) ? args->at + CLI_LSP_PIECE : args->size;
@@ -53,7 +53,7 @@ EMBED_INLINE unsigned long long wire_part(const LspWireCtx *args)
     int *failed = args->failed;
     if (args->part->cell != NULL)
     {
-        // a part in a movable cell goes on the wire a window at a time, read out of the cell as it goes, a letter
+        // a part in a movable cell goes on the wire a window at a time, read out of the cell as it goes, a character
         // never cut between windows
         char window[CLI_LSP_PIECE + 4u];
         unsigned long long count = 0ULL;
@@ -235,7 +235,7 @@ static int wire_head_read(const LspWireCtx *args)
     }
 }
 
-// whether `length` bytes of a body are a JSON body whole, its letters UTF-8 whole
+// whether `length` bytes of a body are a JSON body whole, its characters UTF-8 whole
 EMBED_INLINE int wire_body_valid(const LspWireCtx *args)
 {
     char tiny[1];
@@ -309,26 +309,26 @@ static unsigned long long wire_value_end(const LspWireCtx *args)
     int in_string = 0;
     while (at < args->size)
     {
-        const char letter = args->text[at];
+        const char character = args->text[at];
         if (in_string)
         {
-            at += (letter == '\\') ? 2ULL : 1ULL;
-            in_string = (letter != '"') || (letter == '\\');
-            if ((letter == '"') && (depth == 0ULL))
+            at += (character == '\\') ? 2ULL : 1ULL;
+            in_string = (character != '"') || (character == '\\');
+            if ((character == '"') && (depth == 0ULL))
             {
                 return at;
             }
             continue;
         }
-        if (letter == '"')
+        if (character == '"')
         {
             in_string = 1;
         }
-        else if ((letter == '{') || (letter == '['))
+        else if ((character == '{') || (character == '['))
         {
             depth += 1ULL;
         }
-        else if ((letter == '}') || (letter == ']'))
+        else if ((character == '}') || (character == ']'))
         {
             if (depth == 0ULL)
             {
@@ -341,7 +341,7 @@ static unsigned long long wire_value_end(const LspWireCtx *args)
             }
         }
         else if ((depth == 0ULL) &&
-                 (cellul.chr(&(CatenaFinitaCfg){.src = ", \t\r\n", .cap = CLI_POOL_BYTES, .byte = letter}) != NULL))
+                 (cellul.chr(&(CatenaFinitaCfg){.src = ", \t\r\n", .cap = CLI_POOL_BYTES, .byte = character}) != NULL))
         {
             return at;
         }
@@ -407,7 +407,7 @@ void cli_lsp_uri_get(const CliLspCapacityPathCfg *args)
     {
         const unsigned long long stop =
             EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->path, .at = at,
-                       .size = integer, .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, .set = "-._~/:\\");
+                       .size = integer, .classes = CLI_TEXT_CHARACTERS | CLI_TEXT_DIGITS, .set = "-._~/:\\");
         const embed_word from = out.at;
         const embed_word reserved = mmgr_line_put_n(&out, args->path + at, (embed_word)(stop - at));
         EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = out.out + from, .size = reserved,
@@ -427,17 +427,17 @@ void cli_lsp_uri_get(const CliLspCapacityPathCfg *args)
 // a hex digit's value, or 16 where it is none
 EMBED_INLINE unsigned int wire_hex(const LspWireCtx *args)
 {
-    if ((args->letter >= '0') && (args->letter <= '9'))
+    if ((args->character >= '0') && (args->character <= '9'))
     {
-        return (unsigned int)(args->letter - '0');
+        return (unsigned int)(args->character - '0');
     }
-    if ((args->letter >= 'a') && (args->letter <= 'f'))
+    if ((args->character >= 'a') && (args->character <= 'f'))
     {
-        return (unsigned int)(args->letter - 'a' + 10);
+        return (unsigned int)(args->character - 'a' + 10);
     }
-    if ((args->letter >= 'A') && (args->letter <= 'F'))
+    if ((args->character >= 'A') && (args->character <= 'F'))
     {
-        return (unsigned int)(args->letter - 'A' + 10);
+        return (unsigned int)(args->character - 'A' + 10);
     }
     return 16u;
 }
@@ -456,8 +456,8 @@ int cli_lsp_path_get(const CliLspLengthUriCfg *args)
         {
             // two hex digits, or a + and one, as Rust's u8 reading in base 16 takes them
             const unsigned int high =
-                (args->uri[at + 1ULL] == '+') ? 0u : EMBED_CALL(wire_hex, LspWireCtx, .letter = args->uri[at + 1ULL]);
-            const unsigned int low = EMBED_CALL(wire_hex, LspWireCtx, .letter = args->uri[at + 2ULL]);
+                (args->uri[at + 1ULL] == '+') ? 0u : EMBED_CALL(wire_hex, LspWireCtx, .character = args->uri[at + 1ULL]);
+            const unsigned int low = EMBED_CALL(wire_hex, LspWireCtx, .character = args->uri[at + 2ULL]);
             if ((high < 16u) && (low < 16u))
             {
                 mmgr_line_ch(&out, (char)((high << 4u) | low));
@@ -512,13 +512,13 @@ int cli_lsp_string(const CliLspCapacityCfg *args)
         EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = &json,
                    .text = args->text, .size = args->length, .tokens = token, .tokens_max = 1u, .err_msg = &unread);
     unsigned long long size = 0ULL;
-    const char *const letters = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+    const char *const characters = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                            .json_read = &json, .node = root, .length_pointer = &size);
-    if ((letters == NULL) || (size >= args->capacity))
+    if ((characters == NULL) || (size >= args->capacity))
     {
         return 0;
     }
-    memor.move_down(&(MemoriaCfg){.dst = args->out_capacity, .src = letters, .bytes = size});
+    memor.move_down(&(MemoriaCfg){.dst = args->out_capacity, .src = characters, .bytes = size});
     args->out_capacity[size] = '\0';
     return 1;
 }

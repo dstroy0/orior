@@ -10,7 +10,7 @@
 #include "maven.h"
 #include "maven_internal.h"
 
-// the most bytes of a settings file read
+// the max bytes of a settings file read
 #define CLI_MAVEN_SETTINGS_TEXT (1ULL << 20u)
 
 const char *const g_cli_maven_compiler[4][4] = {

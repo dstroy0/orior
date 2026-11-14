@@ -50,7 +50,7 @@ def load():
     by_round = {}
     with open(SOURCE, newline="") as handle:
         for row in csv.DictReader(handle):
-            if row["kind"] != "residue":
+            if row["type"] != "residue":
                 continue
             by_round.setdefault(int(row["round"]), {})[int(row["a"])] = float(row["value"])
     return by_round
@@ -135,7 +135,7 @@ def main():
     # with the sign the mechanism predicts: all positive, because a transport channel makes a cell
     # more dependent and never less. Projecting the per-round CFAR vector onto it and integrating is the
     # optimal detector for that waveform in white noise, and it is pre-registered. There is no
-    # maximum-of-N correction to pay.
+    # max-of-N correction to pay.
     waveform = [DIAGONAL, CARRY] + list(SIGMA1)
     print("\nMatched filter on the pre-registered waveform %s:" % (waveform,))
 

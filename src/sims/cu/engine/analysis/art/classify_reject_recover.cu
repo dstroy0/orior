@@ -56,7 +56,7 @@ static __global__ void classify_consensus_kernel(const long long *values, unsign
         member[count] = values[at];
         count += 1ull;
     }
-    unsigned long long maximum = 0ull;
+    unsigned long long max = 0ull;
     long long chosen = 0ll;
     for (unsigned long long one = 0ull; one < count; one += 1ull)
     {
@@ -65,9 +65,9 @@ static __global__ void classify_consensus_kernel(const long long *values, unsign
         {
             same += (member[other] == member[one]) ? 1ull : 0ull;
         }
-        if ((same > maximum) || ((same == maximum) && (member[one] < chosen)))
+        if ((same > max) || ((same == max) && (member[one] < chosen)))
         {
-            maximum = same;
+            max = same;
             chosen = member[one];
         }
     }
@@ -171,12 +171,12 @@ static void classify_pattern(long long *pattern, unsigned long long key)
 
 static long long classify_noise(unsigned long long key, unsigned long long at, unsigned long long variance)
 {
-    // a head count of at most 4 v is far below 2^62
+    // a head count of at max 4 v is far below 2^62
     return (long long)sim_binomial_half(key, at, 4ull * variance) - (2ll * (long long)variance);
 }
 
 // present where the live reading clears the top of 8 shuffles' band; each case is one keyed draw, and a null reading
-// clears the top of 8 with chance 1/9 at most
+// clears the top of 8 with chance 1/9 at max
 static void classify_detect(SimResults *results, ClassifyWork *work, const char *name, int *present, int *ok)
 {
     EnergyMeasurement live;
@@ -314,7 +314,7 @@ int main(void)
     classify_pattern(work->pattern, CLASSIFY_KEY);
     for (unsigned long long pixel = 0ull; pixel < CLASSIFY_FRAME; pixel += 1ull)
     {
-        // the draw is at most 200, a small non-negative integer
+        // the draw is at max 200, a small non-negative integer
         work->subject[pixel] =
             (long long)sim_draw_below(CLASSIFY_KEY ^ 0x53554Aull, pixel, CLASSIFY_SUBJECT_MAX + 1ull);
     }
@@ -343,7 +343,7 @@ int main(void)
     for (unsigned long long impulse = 0ull; impulse < (CLASSIFY_LENGTH / 10ull); impulse += 1ull)
     {
         const unsigned long long at = sim_draw_below(CLASSIFY_KEY ^ 0x494D50ull, 2ull * impulse, CLASSIFY_LENGTH);
-        // the draw is at most 255, a small non-negative integer
+        // the draw is at max 255, a small non-negative integer
         work->stack[at] =
             (long long)sim_draw_below(CLASSIFY_KEY ^ 0x494D50ull, (2ull * impulse) + 1ull, CLASSIFY_IMPULSE_MAX + 1ull);
     }

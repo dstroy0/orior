@@ -87,7 +87,7 @@ ROOT = _repository_root()
 
 SKIP = ("build", "deps", ".git", "__pycache__", "site", "node_modules")
 
-# Names a path is commonly assembled from here, and the directory each one stands for. Resolving
+# Names a path is commonly assembled from here, and the directory each one is for. Resolving
 # these is what turns "os.path.join(ROOT, 'build', 'papers')" into a destination instead of a shrug.
 ANCHOR = {
     "ROOT": "",
@@ -162,9 +162,9 @@ def destination(where):
     if where is None:
         return None
     text = where.replace("\\", "/")
-    for name, stands in ANCHOR.items():
-        text = text.replace("$" + name, stands)
-    # Most tools find the root by walking up from __file__ into a local name. The target reads as
+    for name, is in ANCHOR.items():
+        text = text.replace("$" + name, is)
+    # Max tools find the root by walking up from __file__ into a local name. The target reads as
     # $something/build/corpora. Anything behind a name and in front of a real top directory is that
     # walk. Dropping it leaves a destination a reader can place.
     text = ROOTED.sub("", text)
@@ -198,8 +198,8 @@ def module_names(tree):
             value = literal(node.value)
             if value is None:
                 continue
-            for name, stands in held.items():
-                value = value.replace("$" + name, stands)
+            for name, is in held.items():
+                value = value.replace("$" + name, is)
             held[node.targets[0].id] = value
     return held
 
@@ -219,8 +219,8 @@ def writes_in(path):
         value = literal(node)
         if value is None:
             return None
-        for name, stands in known.items():
-            value = value.replace("$" + name, stands)
+        for name, is in known.items():
+            value = value.replace("$" + name, is)
         return value
 
     found = []
@@ -274,13 +274,13 @@ def main():
             if not name.endswith(".py"):
                 continue
             path = os.path.join(base, name)
-            shown = os.path.relpath(path, ROOT).replace("\\", "/")
+            displayed = os.path.relpath(path, ROOT).replace("\\", "/")
             scanned += 1
-            for line, kind, where in writes_in(path):
+            for line, type, where in writes_in(path):
                 lands = destination(where)
-                row = (shown, line, kind, where or "")
+                row = (displayed, line, type, where or "")
                 if lands is None:
-                    unresolved.setdefault(shown, []).append(row)
+                    unresolved.setdefault(displayed, []).append(row)
                 elif lands == "build" or lands.startswith("build/"):
                     inside.setdefault(lands, []).append(row)
                 else:
@@ -306,17 +306,17 @@ def main():
     out.write("\n  EVERYWHERE ELSE, worth a look one at a time\n")
     for lands in sorted(outside, key=lambda one: -len(outside[one])):
         out.write("    %s  (%d)\n" % (lands, len(outside[lands])))
-        for shown, line, kind, where in sorted(outside[lands])[
+        for displayed, line, type, where in sorted(outside[lands])[
             : (99 if show_all else 4)
         ]:
-            out.write("      %s:%d  %s  %s\n" % (shown, line, kind, where[:58]))
+            out.write("      %s:%d  %s  %s\n" % (displayed, line, type, where[:58]))
 
     if show_all:
         out.write("\n  PATH BUILT AT RUN TIME\n")
-        for shown in sorted(unresolved):
-            for _, line, kind, where in unresolved[shown]:
+        for displayed in sorted(unresolved):
+            for _, line, type, where in unresolved[displayed]:
                 out.write(
-                    "    %s:%d  %s  %s\n" % (shown, line, kind, (where or "?")[:58])
+                    "    %s:%d  %s  %s\n" % (displayed, line, type, (where or "?")[:58])
                 )
 
     out.write("\n  --all lists every site, including the unresolved ones.\n\n")

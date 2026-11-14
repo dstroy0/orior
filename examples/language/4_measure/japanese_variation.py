@@ -50,21 +50,21 @@ RANKS = 64
 
 def script_mix(text):
     """How the three writings are shared out, which is a choice a Japanese writer makes."""
-    kinds = {"CJK": 0, "HIRAGANA": 0, "KATAKANA": 0}
+    types = {"CJK": 0, "HIRAGANA": 0, "KATAKANA": 0}
     total = 0
     for symbol in text:
         try:
             name = unicodedata.name(symbol)
         except ValueError:
             continue
-        for kind in kinds:
-            if name.startswith(kind):
-                kinds[kind] += 1
+        for type in types:
+            if name.startswith(type):
+                types[type] += 1
                 total += 1
                 break
     if total < 100:
         return None
-    return numpy.asarray([kinds[kind] / float(total) for kind in ("CJK", "HIRAGANA", "KATAKANA")],
+    return numpy.asarray([types[type] / float(total) for type in ("CJK", "HIRAGANA", "KATAKANA")],
                          dtype=numpy.float64)
 
 

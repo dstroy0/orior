@@ -19,18 +19,18 @@
 //
 // One claim is asserted. Two branches that do not do the same work, the second reading 512 more times at every link,
 // read the first as cheaper at every link, whichever side it is queried from: the sign follows the cost and not the
-// side. Its trials are a descent: a link stands while its count leans past twice its spread neither way, and the
-// trials end the first trial nothing stands, or at CHECK_TRIALS_MOST. Whether the side leaves a mark is printed and
+// side. Its trials are a descent: a link is while its count leans past twice its spread neither way, and the
+// trials end the first trial nothing is, or at CHECK_TRIALS_MAX. Whether the side leaves a mark is printed and
 // not asserted, since that is the part's to determine. Its trials are not cut short where the count first leans: two
 // branches doing the same work give a count that leans by chance at some trial more often than the spread predicts. It
-// is read on the whole record, at CHECK_TRIALS_MOST. The run size is steered by the part, as query_descent.h states.
+// is read on the whole record, at CHECK_TRIALS_MAX. The run size is steered by the part, as query_descent.h states.
 #include "query_descent.h"
 
 #include <stdio.h>
 
 #define CHECK_LINKS QUERY_DESCENT_LINKS
-// the most trials either reading puts: the bound it is checked against, fixed before it starts
-#define CHECK_TRIALS_MOST 64u
+// the max trials either reading puts: the bound it is checked against, fixed before it starts
+#define CHECK_TRIALS_MAX 64u
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
@@ -70,7 +70,7 @@ static void check_branch(Query *link, unsigned int side, unsigned long long extr
     }
 }
 
-// the reads the clock is found inside, and the most one wait for its turn takes
+// the reads the clock is found inside, and the max one wait for its turn takes
 #define CHECK_CLOCK_TURNS (1ull << 26)
 
 // `link` put through the known order on `clock`, one pass of `repeat` puts, solved exactly
@@ -133,21 +133,21 @@ int main(void)
     check_branch(s_right, 1u, 512ull);
     unsigned int cheaper[CHECK_LINKS] = {0u};
     unsigned int trials = 0u;
-    unsigned int standing = CHECK_LINKS;
-    while ((standing > 0u) && (trials < CHECK_TRIALS_MOST))
+    unsigned int located = CHECK_LINKS;
+    while ((located > 0u) && (trials < CHECK_TRIALS_MAX))
     {
         const unsigned int cheap_first = ((trials % 2u) == 0u) ? 1u : 0u;
         check_solve((cheap_first != 0u) ? s_left : s_right, clock, repeat, &s_first);
         check_solve((cheap_first != 0u) ? s_right : s_left, clock, repeat, &s_second);
         trials += 1u;
-        standing = 0u;
+        located = 0u;
         for (unsigned int number = 0u; number < CHECK_LINKS; number += 1u)
         {
             const int first_less = check_against(&s_first, &s_second, number) < 0;
             cheaper[number] += ((first_less != 0) == (cheap_first != 0u)) ? 1u : 0u;
             const int decided = (query_descent_leans(cheaper[number], trials) != 0) ||
                                 (query_descent_leans(trials - cheaper[number], trials) != 0);
-            standing += (decided != 0) ? 0u : 1u;
+            located += (decided != 0) ? 0u : 1u;
         }
     }
     unsigned int followed = 0u;
@@ -164,7 +164,7 @@ int main(void)
     check_branch(s_right, 1u, 0ull);
     unsigned int first_dearer = 0u;
     unsigned int link_first_dearer[CHECK_LINKS] = {0u};
-    for (unsigned int trial = 0u; trial < CHECK_TRIALS_MOST; trial += 1u)
+    for (unsigned int trial = 0u; trial < CHECK_TRIALS_MAX; trial += 1u)
     {
         const unsigned int left_first = ((trial % 2u) == 0u) ? 1u : 0u;
         check_solve((left_first != 0u) ? s_left : s_right, clock, repeat, &s_first);
@@ -179,18 +179,18 @@ int main(void)
         // seven links never split evenly
         first_dearer += ((2u * dearer) > CHECK_LINKS) ? 1u : 0u;
     }
-    const int marked = (query_descent_leans(first_dearer, CHECK_TRIALS_MOST) != 0) ||
-                       (query_descent_leans(CHECK_TRIALS_MOST - first_dearer, CHECK_TRIALS_MOST) != 0);
+    const int marked = (query_descent_leans(first_dearer, CHECK_TRIALS_MAX) != 0) ||
+                       (query_descent_leans(CHECK_TRIALS_MAX - first_dearer, CHECK_TRIALS_MAX) != 0);
     printf("  branches doing the same work, %u trials, the side queried first changing every trial:\n",
-           CHECK_TRIALS_MOST);
+           CHECK_TRIALS_MAX);
     printf("    the branch queried first reads dearer in %u, the other in %u\n", first_dearer,
-           CHECK_TRIALS_MOST - first_dearer);
+           CHECK_TRIALS_MAX - first_dearer);
     printf("    the branch queried first reads dearer, link by link:");
     for (unsigned int number = 0u; number < CHECK_LINKS; number += 1u)
     {
         printf(" %u", link_first_dearer[number]);
     }
-    printf(" of %u\n", CHECK_TRIALS_MOST);
+    printf(" of %u\n", CHECK_TRIALS_MAX);
     const char *const verdict = (marked != 0) ? "leaves a mark" : "leaves no mark";
     printf("    the side queried from %s past twice the spread\n", verdict);
 #else

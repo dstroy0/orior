@@ -6,7 +6,7 @@
 """Renders the residue shadow as a character map for the theory research paper.
 
 The published viewers are interactive and the research paper is not. The same field is drawn here in
-characters. Density stands for magnitude and the sign is carried by the character set, because a
+characters. Density is for magnitude and the sign is carried by the character set, because a
 research paper printed in one color cannot use hue for it.
 
     python examples/00_blob_viz_tools/make_shadow_figure.py
@@ -35,7 +35,7 @@ def main():
 
     field = {}
     for row in csv.DictReader(open(SOURCE, newline="")):
-        if row["kind"] == "residue":
+        if row["type"] == "residue":
             field.setdefault(int(row["a"]), {})[int(row["round"])] = float(row["value"])
 
     rounds = sorted(field[0].keys())[:40]

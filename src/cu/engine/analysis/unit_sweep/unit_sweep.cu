@@ -23,8 +23,8 @@ static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success"
     engine_status_check((int)(call_), ENGINE_MODULE_UNIT_SWEEP, (unsigned int)__LINE__, (const void *)(evacaddr_),     \
                         (error_))
 
-#define UNIT_SWEEP_CHECK(condition_, evacaddr_, error_, kind_)                                                         \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_UNIT_SWEEP, (unsigned int)__LINE__,                        \
+#define UNIT_SWEEP_CHECK(condition_, evacaddr_, error_, type_)                                                         \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_UNIT_SWEEP, (unsigned int)__LINE__,                        \
                        (const void *)(evacaddr_), (error_))
 
 struct UnitSweepExtent
@@ -96,9 +96,9 @@ __global__ static void unit_sweep_widen_kernel(const unsigned int *narrow_planes
     }
 }
 
-// `steps` unit pairs [1, 2, 1] along the axis, each reading the voxel's neighbors with the edge voxel standing in past
+// `steps` unit pairs [1, 2, 1] along the axis, each reading the voxel's neighbors with the edge voxel located in past
 // either end, then with `half` set the one unit step [1, 1] an odd order leaves, reading the voxel and the one before
-// it with the first voxel standing in before the start. That is the key's window reflected at the edges: a pair
+// it with the first voxel located in before the start. That is the key's window reflected at the edges: a pair
 // preserves the line's reflection about the half voxel before its start, and the step after all pairs starts where the
 // key's window of the whole order starts, floor((order + 1) / 2) before the voxel.
 __global__ static void unit_sweep_axis_kernel(unsigned int *planes, UnitSweepExtent extent, unsigned int axis,

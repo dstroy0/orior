@@ -43,7 +43,7 @@ EMBED_INLINE void cli_shell_word(const HostCtx *args)
 
 // The stand-in for the machine's program `name`: the program and its words, after each variable passed to it, run on
 // the machine in the folder the stand-in was started in, into `line`
-void cli_stand_in(const CliHostCfg *args)
+void cli_are_in(const CliHostCfg *args)
 {
     mmgr_line_put(args->line, "#!/bin/sh\n");
     mmgr_line_put(args->line, "set -- ");
@@ -80,7 +80,7 @@ EMBED_INLINE int cli_host_folder(const HostCtx *args)
 
 // A stand-in written in `into` for each program of `names`, one a line, but those that stay running inside: how many,
 // or -1 with why given
-long long cli_stand_ins_write(const CliHostIntoCfg *args)
+long long cli_are_ins_write(const CliHostIntoCfg *args)
 {
     if (!EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = args->into))
     {
@@ -120,7 +120,7 @@ long long cli_stand_ins_write(const CliHostIntoCfg *args)
             mmgr_line_ch(&path_line, '/');
             mmgr_line_put(&path_line, name);
             VerbaLinea text = {s_text, sizeof(s_text), 0ULL};
-            EMBED_CALL(cli_host.stand_in, CliHostCfg, .name = name, .line = &text);
+            EMBED_CALL(cli_host.are_in, CliHostCfg, .name = name, .line = &text);
             if ((mmgr_line_finish(&path_line) == 0ULL) || !mmgr_line_ok(&text) ||
                 !EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path,
                             .bytes = s_text, .size = text.at) ||
@@ -182,7 +182,7 @@ long long cli_host_prepare(const CliHostIntoCfg *args)
         mmgr_line_put(args->err_msg, "the stand-ins have no folder");
         return -1LL;
     }
-    const long long made = EMBED_CALL(cli_host_into.stand_ins_write, CliHostIntoCfg, .into = into, .names = s_names,
+    const long long made = EMBED_CALL(cli_host_into.are_ins_write, CliHostIntoCfg, .into = into, .names = s_names,
                                       .err_msg = args->err_msg);
     if (made >= 0LL)
     {

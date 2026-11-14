@@ -1,7 +1,7 @@
 """The rules instead of the frequencies: which transitions are possible and which are forbidden.
 
 Every earlier reading of the influence web here was a distribution - how often an input at one
-position reached an output at another. That counts pieces. A language is not its letter frequencies;
+position reached an output at another. That counts pieces. A language is not its character frequencies;
 it is what may follow what, and the interesting entries are the ones that never occur at all.
 
 So this reads the SUPPORT. For a single-bit input difference, which output positions are ever moved
@@ -13,7 +13,7 @@ WHY FORBIDDEN IS WORTH MORE THAN RARE
 
 A rare transition needs a probability and a null and an argument. A forbidden one needs none of
 those: it either happened or it did not, and if a transition cannot occur then any trajectory
-requiring it is ruled out completely. That makes impossible differentials a different kind
+requiring it is ruled out completely. That makes impossible differentials a different type
 of tool from the statistical ones, and it is the reading a frequency table cannot give.
 
 THE WINDOW CLOSES FAST
@@ -122,7 +122,7 @@ def main():
     print()
     print("    Before it closes the forbidden set is a HARD constraint and needs no null: a")
     print("    transition either occurred or it did not. That is a rule, and it is a")
-    print("    different kind of statement from any frequency in this tree.")
+    print("    different type of statement from any frequency in this tree.")
     print()
     print("    How FAST it closes is the number. A round function whose grammar")
     print("    survived deep would be one whose trajectories could be pruned; one that closes")

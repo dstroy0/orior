@@ -100,7 +100,7 @@ static int qasm_argument(QasmParser *parser, const QasmRegister *registers, unsi
     argument->reg = qasm_register(registers, count, name);
     if (argument->reg == NULL)
     {
-        qasm_error(parser, token, "'%s' is not a register of this kind", name);
+        qasm_error(parser, token, "'%s' is not a register of this type", name);
         return 0;
     }
     argument->index = -1;
@@ -146,7 +146,7 @@ int qasm_application(QasmParser *parser, const QasmScope *scope)
             {
                 if (angle_count == QASM_GATE_PARAMS_MAX)
                 {
-                    qasm_error(parser, qasm_peek(parser), "a gate takes at most %u parameters", QASM_GATE_PARAMS_MAX);
+                    qasm_error(parser, qasm_peek(parser), "a gate takes at max %u parameters", QASM_GATE_PARAMS_MAX);
                     ok = 0;
                     break;
                 }
@@ -202,7 +202,7 @@ int qasm_application(QasmParser *parser, const QasmScope *scope)
         {
             if (argument_count == QASM_GATE_ARGS_MAX)
             {
-                qasm_error(parser, qasm_peek(parser), "a gate takes at most %u qubits", QASM_GATE_ARGS_MAX);
+                qasm_error(parser, qasm_peek(parser), "a gate takes at max %u qubits", QASM_GATE_ARGS_MAX);
                 ok = 0;
                 break;
             }

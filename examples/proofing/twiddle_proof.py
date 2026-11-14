@@ -67,7 +67,7 @@ this file.
 import argparse
 import sys
 
-# The constants in wide use, with the transform length each is chosen to support. Kept as known
+# The constants in wide use, with the transform length each is chosen to support. Retained as known
 # answers instead of as a source: nothing here reads them to compute with, and every one of them is
 # put through the same proof as anything this file produces.
 TABLED = (
@@ -217,10 +217,10 @@ def examined(value, length):
 def search(bits, order, want=3):
     """Moduli of at least `bits` bits admitting a transform of length 2^`order`, each proved prime.
 
-    Walks k upward at fixed n, the only shape a modulus of this kind can have, and keeps
+    Walks k upward at fixed n, the only shape a modulus of this type can have, and retains
     the ones Proth proves. Nothing here is tabled and nothing is looked up: the size is an argument
     because the arithmetic is unbounded, and the difference lies between choosing a modulus and
-    being handed one.
+    being passed one.
     """
     found = []
     power = order

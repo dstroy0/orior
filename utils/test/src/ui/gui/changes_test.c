@@ -134,7 +134,7 @@ int main(void)
     char out_text[1024];
     VerbaLinea out = {out_text, sizeof(out_text), 0ull};
     cli_check(EMBED_CALL(cli_git_out.init, CliGitOutCfg, .folder_read = s_root, .out = &out, .err_msg = &why),
-              "a repository stands in the check's folder");
+              "a repository is in the check's folder");
     file_written(s_root, "fresh.txt", "one\n");
     char sub[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "sub", .joined = sub);
@@ -145,18 +145,18 @@ int main(void)
     cli_check(EMBED_CALL(gui_pane.table_of, GuiPaneCfg, .tool = "commit") == table, "the Commit tool has the table");
     EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = table, .event = GUI_PANE_VIEW, .root = s_root);
     cli_check(EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 0u, "the view's change reads no changes");
-    EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = table, .event = GUI_PANE_SHOWN, .root = s_root);
+    EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = table, .event = GUI_PANE_DISPLAYED, .root = s_root);
     cli_check(EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 2u,
-              "the pane shown reads the two files not yet tracked as rows");
+              "the pane displayed reads the two files not yet tracked as rows");
     CliChangedRow fresh;
     CliChangedRow deep;
     cli_check(row_with_name("fresh.txt", &fresh) && (fresh.state == 'U') && (fresh.folder_length == 0ULL),
-              "the file at the top is not yet tracked and stands in no folder");
+              "the file at the top is not yet tracked and is in no folder");
     cli_check(row_with_name("deep.txt", &deep) && (deep.state == 'U') && (deep.folder_length == 3ULL) &&
                   cellul.starts(&(CatenaFinitaCfg){
                       .src = deep.path, .cap = CLI_PATH_MAX_LEN, .other = "sub", .other_cap = 4u}),
               "the deeper file carries its folder");
-    cli_check(!EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = 2u, .row = &fresh), "no row stands past the last");
+    cli_check(!EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = 2u, .row = &fresh), "no row is past the last");
 
     GuiPane pane;
     EMBED_CALL(gui_pane.init, GuiPaneCfg, .pane = &pane);
@@ -210,7 +210,7 @@ int main(void)
                       .src = rows[2].command, .cap = CLI_POOL_BYTES, .other = "file-copy-path", .other_cap = 15u}),
               "a changed file's menu opens it and copies its path");
     cli_check(!EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = table, .row = 2u, .root = s_root),
-              "no menu stands past the last row");
+              "no menu is past the last row");
 
     // the next commit: refused without a message, the message typed, the deeper file left out through its box, and
     // the commit taking the other file
@@ -256,14 +256,14 @@ int main(void)
     cli_check(committed, committed ? "Commit commits the file taken" : refusal);
     cli_check((EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 1u) && row_with_name("deep.txt", &deep) &&
                   !deep.taken,
-              "the file left out stands alone in the list, left out still");
+              "the file left out is alone in the list, left out still");
     cli_check(EMBED_CALL(cli_changes.message, CliGitChangesCfg, .text_out = message) == 0ULL,
               "the commit clears the message");
     cli_check(EMBED_CALL(cli_changes.refusal, CliGitChangesCfg, .text_out = refusal) == 0ULL,
               "a commit taken leaves no refusal");
 
-    // the bar: the branch follows no remote until one is set and pushed to; a commit without a push stands ahead and
-    // Push sends it; Commit and Push leaves nothing ahead; a commit pushed from elsewhere stands behind and Pull brings
+    // the bar: the branch follows no remote until one is set and pushed to; a commit without a push is ahead and
+    // Push sends it; Commit and Push leaves nothing ahead; a commit pushed from elsewhere is behind and Pull brings
     // it; the files taken roll back on a second press inside the window and arm again past it; and the all box leaves
     // every file out or takes every file
     unsigned int ahead = 9u;
@@ -288,7 +288,7 @@ int main(void)
     EMBED_CALL(cli_changes.type, CliGitChangesCfg, .text = "second", .size = 6ULL);
     cli_check(EMBED_CALL(cli_changes.commit, CliGitChangesCfg, .root = s_root) &&
                   EMBED_CALL(cli_changes.sync, CliGitChangesCfg, .ahead = &ahead, .behind = &behind) && (ahead == 1u),
-              "a commit without a push stands one ahead of the remote");
+              "a commit without a push is one ahead of the remote");
     cli_check(EMBED_CALL(cli_changes.push, CliGitChangesCfg, .root = s_root) &&
                   EMBED_CALL(cli_changes.sync, CliGitChangesCfg, .ahead = &ahead, .behind = &behind) && (ahead == 0u),
               "Push sends the commit, the branch level again");
@@ -324,7 +324,7 @@ int main(void)
     (void)git_ran(s_root, fetched, 2u, "the tree fetches the remote");
     EMBED_CALL(cli_changes.read, CliGitChangesCfg, .root = s_root);
     cli_check(EMBED_CALL(cli_changes.sync, CliGitChangesCfg, .ahead = &ahead, .behind = &behind) && (behind == 1u),
-              "the commit from elsewhere stands one behind");
+              "the commit from elsewhere is one behind");
     cli_check(EMBED_CALL(cli_changes.pull, CliGitChangesCfg, .root = s_root) &&
                   EMBED_CALL(cli_changes.sync, CliGitChangesCfg, .ahead = &ahead, .behind = &behind) && (behind == 0u),
               "Pull brings the commit from elsewhere");
@@ -336,14 +336,14 @@ int main(void)
     EMBED_CALL(cli_changes.read, CliGitChangesCfg, .root = s_root);
     cli_check((EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 2u) &&
                   (EMBED_CALL(cli_changes.taken, CliGitChangesCfg, .at = 0u) == 1u),
-              "the changed file is taken, the file left out before standing left out");
+              "the changed file is taken, the file left out before located left out");
     cli_check(!EMBED_CALL(cli_changes.rollback, CliGitChangesCfg, .root = s_root, .now_ms = 1000ULL),
               "the first press arms the roll back");
     cli_check(EMBED_CALL(cli_changes.rollback, CliGitChangesCfg, .root = s_root, .now_ms = 2000ULL),
               "the second press inside the window rolls back");
     EMBED_CALL(cli_changes.read, CliGitChangesCfg, .root = s_root);
     cli_check((EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 1u) && row_with_name("deep.txt", &deep),
-              "the file rolled back stands as the last commit left it, the file left out standing");
+              "the file rolled back is as the last commit left it, the file left out located");
     file_written(s_root, "fresh.txt", "rolled again\n");
     EMBED_CALL(cli_changes.read, CliGitChangesCfg, .root = s_root);
     cli_check(!EMBED_CALL(cli_changes.rollback, CliGitChangesCfg, .root = s_root, .now_ms = 10000ULL) &&
@@ -365,7 +365,7 @@ int main(void)
               "the file the last commit does not contain is refused with why");
 
     // a file's changes opened under its row: a line changed and a line put in are one change of three lines; the line
-    // put in left out commits the file in part, the other file whole; the change left stands alone after; the arrow
+    // put in left out commits the file in part, the other file whole; the change left is alone after; the arrow
     // pressed closes the changes; and a change's row pressed opens the file at its first line
     file_written(s_root, "fresh.txt", "changed\nput in\n");
     EMBED_CALL(cli_changes.read, CliGitChangesCfg, .root = s_root);
@@ -385,7 +385,7 @@ int main(void)
               "the change covers the newer text's first two lines, taken whole");
     cli_check(line_row_is(fresh_row + 2u, 1, "from elsewhere") && line_row_is(fresh_row + 3u, 0, "changed") &&
                   line_row_is(fresh_row + 4u, 0, "put in"),
-              "the lines stand in order: the line taken out, then the two put in");
+              "the lines are in order: the line taken out, then the two put in");
     EMBED_CALL(cli_changes.toggle, CliGitChangesCfg, .at = fresh_row + 4u);
     CliChangedRow line;
     cli_check(EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = fresh_row + 4u, .row = &line) && !line.taken &&
@@ -409,7 +409,7 @@ int main(void)
     cli_check((EMBED_CALL(cli_changes.files, CliGitChangesCfg, .at = 0u) == 1u) &&
                   (EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 1u) && row_with_name("fresh.txt", &fresh) &&
                   !fresh.open && (fresh.state == 'M'),
-              "the file with the line left out stands alone after, its changes closed");
+              "the file with the line left out is alone after, its changes closed");
     cli_check(EMBED_CALL(cli_changes.open, CliGitChangesCfg, .root = s_root, .at = 0u) &&
                   (EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 3u) &&
                   EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = 1u, .row = &hunk) && (hunk.from == 1u) &&
@@ -437,7 +437,7 @@ int main(void)
     EMBED_CALL(cli_changes.read, CliGitChangesCfg, .root = s_root);
     cli_check(EMBED_CALL(cli_changes.commit, CliGitChangesCfg, .root = s_root) &&
                   (EMBED_CALL(cli_changes.files, CliGitChangesCfg, .at = 0u) == 1u) && row_with_name("fresh.txt", &fresh),
-              "the file left out stands after the other's commit");
+              "the file left out is after the other's commit");
     EMBED_CALL(cli_changes.toggle, CliGitChangesCfg, .at = 0u);
 
     const int top_menu_y = frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + (GUI_PANE_CHOICE / 2);

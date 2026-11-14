@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// Two orders that lay a line of cells into a square, each cell's index to its (x, y): Hilbert's, which keeps
+// Two orders that position a line of cells into a square, each cell's index to its (x, y): Hilbert's, which retains
 // neighbors in the line neighbors in the square, and Morton's, which interleaves the index's bits.
 
 /** Hilbert's curve, index to point. Its locality is the reason binary files are read this way:
@@ -32,7 +32,7 @@ EV.hilbertAt = (side, index) => {
   return [x, y];
 };
 
-/** Morton's order, the cheap alternative: interleave the bits. Kept beside Hilbert because the
+/** Morton's order, the cheap alternative: interleave the bits. Retained beside Hilbert because the
   difference between them on the same data is the value of locality. */
 EV.mortonAt = (index) => {
   let x = 0,

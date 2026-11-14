@@ -1,6 +1,6 @@
 # orior
 
-Measure how far something sits from the most disordered arrangement of its own parts.
+Measure how far something sits from the max disordered arrangement of its own parts.
 
 That is the construction. Every domain is that one sentence with a different answer to what counts as a part: atoms in a cell, symbols in a corpus, bytes in a file, coordinates in a board layout. The reference is built from the object's own parts. There is no prior to estimate, no training set to collect and no model of the domain to write.
 
@@ -31,8 +31,8 @@ The engine carries many readers, one per file under `archive/src/python/engine/a
 |                          | reads                                                                 | external ground truth                                                                   |
 | ------------------------ | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | shift agreement detector | a period or an offset, by how often a shift agrees with itself        | three of three exact, from published crystal cell edges (Crystallography Open Database) |
-| permutation null measure | a departure from the maximum entropy arrangement of the same multiset | none                                                                                    |
+| permutation null measure | a departure from the max entropy arrangement of the same multiset | none                                                                                    |
 
-The permutation null measure carries most of the findings and has only been shown not to invent structure on memoryless input. Most of the confusion this work has had to correct came from reporting one of these as the other.
+The permutation null measure carries the majority of the findings and has only been displayed not to invent structure on memoryless input. The majority of the confusion this work has had to correct came from reporting one of these as the other.
 
-**Read the ledger before quoting any figure.** It keeps its own corrections: claims that were withdrawn stay on the page beside the measurement that killed them, and several results here are rediscoveries of published work with the precedent named.
+**Read the ledger before quoting any figure.** It retains its own corrections: claims that were withdrawn stay on the page beside the measurement that killed them, and several results here are rediscoveries of published work with the precedent named.

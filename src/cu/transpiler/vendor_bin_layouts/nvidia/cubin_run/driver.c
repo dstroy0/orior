@@ -33,7 +33,7 @@ typedef struct
 // is reached: the event's ID its Xid, and its text what the part did, as `Graphics SM Warp Exception on (GPC 1, TPC 0,
 // SM 0): Out Of Range Register`. The log is subscribed to once as the carrier opens, and each launch pulls off the
 // subscription what the driver wrote since: a pull with nothing written costs nothing, where a query of the log would
-// cost most of a launch's time
+// cost the majority of a launch's time
 typedef struct
 {
     void *(WINAPI *subscribe)(void *, void *, const wchar_t *, const wchar_t *, void *, void *, void *, unsigned long);
@@ -99,15 +99,15 @@ int s_events_ready = 0;
 // against the launch to come
 static void *s_events_subscription = NULL;
 
-unsigned long long s_xid_data[CUBIN_RUN_XID_MOST];
-char s_xid_text[CUBIN_RUN_XID_MOST][CUBIN_RUN_XID_TEXT];
+unsigned long long s_xid_data[CUBIN_RUN_XID_MAX];
+char s_xid_text[CUBIN_RUN_XID_MAX][CUBIN_RUN_XID_TEXT];
 unsigned int s_xid_count = 0u;
 
 // an Xid and the text the driver wrote of it recorded against the last launch, a `;` of the text written `,`, since the
 // listener's account ends in clauses after one
 static void cubin_run_xid_stored(unsigned long long xid, const char *text)
 {
-    if (s_xid_count < CUBIN_RUN_XID_MOST)
+    if (s_xid_count < CUBIN_RUN_XID_MAX)
     {
         s_xid_data[s_xid_count] = xid;
         snprintf(s_xid_text[s_xid_count], sizeof(s_xid_text[s_xid_count]), "%s", text);

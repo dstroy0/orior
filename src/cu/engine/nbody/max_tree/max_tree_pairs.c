@@ -176,7 +176,7 @@ long max_tree_overlap_sums(const MaxTreeOverlapSumsRequest *request)
     }
     for (unsigned int entry = 0u; entry < pairs->count; entry += 1u)
     {
-        // the sweep reads the table in the order max_tree_pairs lays it out, sorted by the earlier node
+        // the sweep reads the table in the order max_tree_pairs positions it out, sorted by the earlier node
         if (!MAX_TREE_HOST_CHECK((pairs->earlier[entry] < earlier->count) && (pairs->later[entry] < later->count) &&
                                      ((entry == 0u) || (pairs->earlier[entry - 1u] <= pairs->earlier[entry])),
                                  &pairs->earlier[entry], error, ENGINE_ERROR_REQUEST))

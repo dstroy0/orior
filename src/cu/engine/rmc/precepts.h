@@ -4,7 +4,7 @@
 #ifndef PRECEPTS_H
 #define PRECEPTS_H
 
-// The alphabet. Storing ops as a binary tree of primitives is the most lightweight you can make a language. The floor
+// The alphabet. Storing ops as a binary tree of primitives is the max lightweight you can make a language. The floor
 // of universal operations, and what every math function is built out of, are quoted whole in
 // src/engine_plan.md under The precepts; this file is that floor written down.
 //
@@ -66,7 +66,7 @@ typedef struct
     unsigned char right;
 } PreceptNode;
 
-// the most nodes a tree contains, the Word's own count (word_web.h)
+// the max nodes a tree contains, the Word's own count (word_web.h)
 #define PRECEPT_NODES 12u
 
 // One precept written as a tree over the others: what a target that lacks it is given instead. These rewrites are
@@ -85,7 +85,7 @@ typedef struct
 
 // What this does not yet contain is the edge of the design instead of an omission: ADD, SUB and MUL over gates. An
 // adder is a rank of gates per bit, a multiply an adder a bit again, and their size is the register's width where a
-// rewrite below has a fixed count of nodes. A width-counted rewrite is a second kind of node and is not decided. Every
+// rewrite below has a fixed count of nodes. A width-counted rewrite is a second type of node and is not decided. Every
 // rewrite below is fixed arity and reads without a width
 static const PreceptRewrite s_precept_web[] = {
     // NOT a = a NAND a

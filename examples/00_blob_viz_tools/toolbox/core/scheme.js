@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// Every setting has a kind and a range, held in EV.VIEW_SCHEME by name. Applying a view is partial: names
-// it does not carry keep their values. A name the scheme does not have, a fraction, a value of the wrong kind
+// Every setting has a type and a range, held in EV.VIEW_SCHEME by name. Applying a view is partial: names
+// it does not carry retain their values. A name the scheme does not have, a fraction, a value of the wrong type
 // or one outside its range is reported by name and not applied.
 
 EV.defaultView = () => {
@@ -16,19 +16,19 @@ EV.defaultView = () => {
 // Checks one value against its rule; returns the reason it errors, or null.
 EV.errorValue = (rule, value) => {
   const integer = (one) => Number.isInteger(one) && one >= rule.low && one <= rule.high;
-  if (rule.kind === "integer") {
+  if (rule.type === "integer") {
     return integer(value) ? null : `an integer from ${rule.low} to ${rule.high}`;
   }
-  if (rule.kind === "switch") {
+  if (rule.type === "switch") {
     return typeof value === "boolean" ? null : "true or false";
   }
-  if (rule.kind === "word") {
+  if (rule.type === "word") {
     return rule.words.includes(value) ? null : `one of ${rule.words.join(", ")}`;
   }
-  if (rule.kind === "words") {
+  if (rule.type === "words") {
     return Array.isArray(value) && value.every((one) => rule.words.includes(one)) ? null : `a list of ${rule.words.join(", ")}`;
   }
-  if (rule.kind === "lights") {
+  if (rule.type === "lights") {
     const light = (one) => one && typeof one === "object" && Object.keys(one).every((key) => ["turn", "tilt", "strength"].includes(key))
       && Number.isInteger(one.turn) && one.turn >= 0 && one.turn <= 359
       && Number.isInteger(one.tilt) && one.tilt >= -89 && one.tilt <= 89

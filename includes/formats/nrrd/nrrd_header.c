@@ -58,10 +58,10 @@ static const NrrdSpace nrrd_spaces[] = {{"right-anterior-superior", 0u},
                                         {"LPST", 1u},
                                         {"scanner-xyz", 0u},
                                         {"scanner-xyz-time", 1u},
-                                        {"3D-right-handed", 0u},
-                                        {"3D-left-handed", 0u},
-                                        {"3D-right-handed-time", 1u},
-                                        {"3D-left-handed-time", 1u}};
+                                        {"3D-right-passed", 0u},
+                                        {"3D-left-passed", 0u},
+                                        {"3D-right-passed-time", 1u},
+                                        {"3D-left-passed-time", 1u}};
 
 static const char *const nrrd_error[] = {"bzip2", "bz2", "ascii", "text", "txt", "hex"};
 
@@ -203,7 +203,7 @@ unsigned int nrrd_type(NrrdSpan value, NrrdFields *fields)
         if (nrrd_equals(value, nrrd_types[entry].name))
         {
             fields->element_bytes = nrrd_types[entry].element_bytes;
-            fields->element_kind = nrrd_types[entry].element_kind;
+            fields->element_type = nrrd_types[entry].element_type;
             fields->typed = 1u;
             return 1u;
         }
@@ -262,7 +262,7 @@ unsigned int nrrd_sizes(NrrdSpan value, NrrdFields *fields)
     return (count > 0u) ? 1u : 0u;
 }
 
-unsigned int nrrd_kinds(NrrdSpan value, NrrdFields *fields)
+unsigned int nrrd_types(NrrdSpan value, NrrdFields *fields)
 {
     NrrdSpan rest = value;
     NrrdSpan token = {NULL, 0ull};
@@ -273,12 +273,12 @@ unsigned int nrrd_kinds(NrrdSpan value, NrrdFields *fields)
         {
             return 0u;
         }
-        fields->kinds[count] = nrrd_equals(token, "space")  ? NRRD_KIND_SPACE
+        fields->types[count] = nrrd_equals(token, "space")  ? NRRD_KIND_SPACE
                                : nrrd_equals(token, "time") ? NRRD_KIND_TIME
                                                             : NRRD_KIND_OTHER;
         count += 1u;
     }
-    fields->kinds_count = count;
+    fields->types_count = count;
     return (count > 0u) ? 1u : 0u;
 }
 

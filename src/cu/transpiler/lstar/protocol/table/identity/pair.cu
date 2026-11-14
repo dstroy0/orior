@@ -31,24 +31,24 @@ void PairWork::chose(const char *name, const std::string &link) const
 }
 
 // The conference a refused put calls, convened on the pair's thread once the teacher has called it (overseer.h). The
-// learner hands its statement: what it put, the carrier, what the stand-in does and the stand-in as written. The
+// learner passes its statement: what it put, the carrier, what the stand-in does and the stand-in as written. The
 // coherence sets hand what the pair was being queried as: the sets the bridge reads it into and what its texts show
-// of it. The counterexample hands the first case apart the pair contains, this run's or the bridge's. The ruling is
+// of it. The counterexample passes the first case apart the pair contains, this run's or the bridge's. The ruling is
 // written to the trace and its choice to the log, and its guidance given back: OVERSEER_HANDS_OFF where no party
 // called a conference of `statement`
 unsigned int PairWork::conferred(const std::string &from, const std::string &to, const std::string &statement,
-                                 const std::string &standing, const std::string &carrier_name, unsigned int scratch,
+                                 const std::string &located, const std::string &carrier_name, unsigned int scratch,
                                  const RunQuestion &question, const std::string &closed_here,
                                  const std::string &link_address)
 {
     QryShared *const run = qry_member_run();
     const std::string identity = question_identity(&question);
     char joined[OVERSEER_STANDING_MAX_LEN];
-    overseer_standing_joined(standing.c_str(), joined);
+    overseer_located_joined(located.c_str(), joined);
     const std::string statement_line = statement + "; carrier " + carrier_name +
-                                       (form_addresses(standing) ? "; stand-in addresses" : "") +
-                                       (form_controls(standing) ? "; stand-in controls" : "") +
-                                       ((scratch != 0u) ? "; stand-in scratch" : "") + "; standing " + joined;
+                                       (form_addresses(located) ? "; stand-in addresses" : "") +
+                                       (form_controls(located) ? "; stand-in controls" : "") +
+                                       ((scratch != 0u) ? "; stand-in scratch" : "") + "; located " + joined;
     overseer_account(run, identity.c_str(), "learner", statement_line.c_str());
     std::string sets;
     std::string counterexample = closed_here;
@@ -95,8 +95,8 @@ unsigned int PairWork::conferred(const std::string &from, const std::string &to,
 // every case the host computes the carrier on. The pair is open with its count of cases where the part answers the
 // changed chain as the host answers the carrier on every one, and closed at the carrier's address, the question and the
 // position of the link, and the first case it answers apart. Each form is tried in the other's place, the first in the
-// second's first; a pair neither form can stand in for in any carrier, the second naming a parameter the first does
-// not or neither's text standing in a chain, and a pair the part refuses in every carrier, is open with 0. Each
+// second's first; a pair neither form can are in for in any carrier, the second naming a parameter the first does
+// not or neither's text located in a chain, and a pair the part refuses in every carrier, is open with 0. Each
 // verdict is written beneath its pair in the bridge in place of the one it recorded. Where the log is retained, each
 // put is followed by the values the form reads there on every case, the carrier cut at the form, for orior_klq_decoder
 // to read its product off
@@ -213,7 +213,7 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
         if (entry.rfind("pair ", 0u) == 0u)
         {
             std::stringstream words(entry);
-            std::string kind;
+            std::string type;
             PairPut pair{std::string(),
                          std::string(),
                          "open 0",
@@ -221,7 +221,7 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
                          std::unique_ptr<RunQuestion>(new RunQuestion()),
                          std::vector<unsigned int>(),
                          std::string()};
-            words >> kind >> pair.first >> pair.second;
+            words >> type >> pair.first >> pair.second;
             std::vector<std::string> names;
             const std::string first_text = marked(work.sass, pair.first, &names);
             const std::string second_text = marked(work.sass, pair.second, &names);
@@ -244,7 +244,7 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     }
     // Each pair put in a thread of its own, run only in its turn: its facts, its put, and the stand-in the other way
     // round where the form's own way answered nothing. Its trace and its log are logs of its own, stored in memory and
-    // handed whole to the query's writer once it is put, after what the thread that carries the queries wrote before it
+    // passed whole to the query's writer once it is put, after what the thread that carries the queries wrote before it
     s_round_queries.assign(pairs.size(), std::vector<CarriedQuery>());
     std::vector<std::thread> threads;
     for (size_t at = 0u; at < pairs.size(); at += 1u)
@@ -298,10 +298,10 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
                 s_query_log = NULL;
                 // the thread that carries the queries waits out this pair's turn: what it wrote before the pair goes
                 // first
-                query_log_handed(&s_trace_whole);
-                query_log_handed(&s_log_whole);
-                query_log_handed(&pair_trace);
-                query_log_handed(&pair_log);
+                query_log_passed(&s_trace_whole);
+                query_log_passed(&s_log_whole);
+                query_log_passed(&pair_trace);
+                query_log_passed(&pair_log);
             }
             std::unique_lock<std::mutex> lock(s_turn_lock);
             pair.put_whole = 1;
@@ -310,14 +310,14 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
         });
     }
     // The rounds: each pair not yet put runs in its turn until it queries or is put, and the queries the round was
-    // handed are answered together. The rounds loop while a pair is left to put, and end once every pair is put
+    // passed are answered together. The rounds loop while a pair is left to put, and end once every pair is put
     unsigned int round = 0u;
     size_t left = pairs.size() - settled;
     printf("orior_klq_identity pair: %zu pairs settled on the record, %zu gray in the queue\n", settled, left);
     while (left != 0u)
     {
         const std::chrono::steady_clock::time_point round_began = std::chrono::steady_clock::now();
-        const unsigned long long handed_before = s_round_handed;
+        const unsigned long long passed_before = s_round_passed;
         const unsigned long long recalled_before = s_round_recalled;
         const unsigned long long processes_before = s_round_processes;
         round += 1u;
@@ -341,10 +341,10 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
         queries_answered(carried);
         left = (size_t)std::count_if(pairs.begin(), pairs.end(), [](const PairPut &pair) { return !pair.put_whole; });
         const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - round_began).count();
-        printf("orior_klq_identity round %u: %u pairs queried, %llu queries handed, %llu answered from what was "
+        printf("orior_klq_identity round %u: %u pairs queried, %llu queries passed, %llu answered from what was "
                "recorded, %llu "
                "processes, %zu of %zu pairs put, %.1f seconds\n",
-               round, in_flight, s_round_handed - handed_before, s_round_recalled - recalled_before,
+               round, in_flight, s_round_passed - passed_before, s_round_recalled - recalled_before,
                s_round_processes - processes_before, pairs.size() - left, pairs.size(), seconds);
         fflush(stdout);
     }
@@ -388,8 +388,8 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     }
     printf("orior_klq_identity pair: %llu queries, %u open, %u closed, %u not queried, written to %s\n",
            work.queries, open, closed, unqueried, klq);
-    // the lessons stored, those carried in and those taught, handed to the run for the next run to carry
-    overseer_lessons_handed(qry_member_run());
+    // the lessons stored, those carried in and those taught, passed to the run for the next run to carry
+    overseer_lessons_passed(qry_member_run());
     printf("orior_klq_identity pair: %u conferences called by refusals, %u lessons taught, %u carried in\n", work.conferences,
            work.lessons_taught, lessons_carried);
     // the path this cycle read off the queries, each pair and its verdict, an open pair the question a further pass
@@ -405,7 +405,7 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
         s_path.reads = strtoull(pair.reads.c_str(), NULL, 16);
         snprintf(s_path.verdict, sizeof(s_path.verdict), "%s", pair.verdict.c_str());
         kqr_path_add(&s_query_record, &s_path);
-        pair_row_handed(pair.first, pair.second, s_path.read, s_path.reads, pair.verdict);
+        pair_row_passed(pair.first, pair.second, s_path.read, s_path.reads, pair.verdict);
     }
     printf("orior_klq_identity pair: %u queries stored in the query record, %u of them put this cycle\n",
            s_query_record.query_count, s_query_record.query_count - recorded_before);

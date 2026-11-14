@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// schema_complete.c: what completes the word before the cursor in a JSON file: where the cursor stands, the steps to
+// schema_complete.c: what completes the word before the cursor in a JSON file: where the cursor is, the steps to
 // the value it is in, whether it is at a key and inside a string; the schemas that apply there, `$ref`s followed and
 // `allOf`, `anyOf`, `oneOf` and `if`'s branches taken together; and from them the keys the object does not contain yet,
 // each written with what its type opens, or the values the schema allows. A text nested deeper than CLI_SCHEMA_FRAMES
@@ -12,7 +12,7 @@
 // the deepest frames read
 #define CLI_SCHEMA_FRAMES 512u
 
-// What stands open: an object, its key, whether its colon was passed and its first key read, or an array and its index
+// What is open: an object, its key, whether its colon was passed and its first key read, or an array and its index
 typedef struct
 {
     int object;
@@ -59,7 +59,7 @@ EMBED_INLINE void complete_step(const SchemaCompleteCtx *args)
 }
 
 // a string passed from `at`, its raw text a key where the object's colon was not passed: past it, or 0 where it is not
-// closed and the cursor stands in it
+// closed and the cursor is in it
 EMBED_INLINE int complete_string(const SchemaCompleteCtx *args)
 {
     unsigned long long *at = args->at;
@@ -127,7 +127,7 @@ EMBED_INLINE void complete_key_closed(const SchemaCompleteCtx *args)
 }
 
 // the step into a frame opened inside the frame `frame`, NULL at the top, put on the spot's steps: the key whose value
-// it is, or the index it stands at
+// it is, or the index it is at
 EMBED_INLINE void complete_opened(const SchemaCompleteCtx *args)
 {
     const CliSchemaFrame *const last = args->frame;

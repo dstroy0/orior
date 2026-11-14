@@ -15,7 +15,7 @@ PROBE = (
     # declarative technical prose as machine written because that prose is low perplexity, which
     # is a property of the register and not of the author. What makes this tier worth adding is
     # that two unrelated instruments picked the same file: the eight patterns below were counted
-    # across 53 documents before any was kept, and chapter_whose_result.tex is 26 lines long and
+    # across 53 documents before any was retained, and chapter_whose_result.tex is 26 lines long and
     # trips five of them, at lines 10, 16, 18, 20 and 24. No other file in the tree is that
     # dense.
     #
@@ -48,8 +48,8 @@ PROBE = (
     #
     # THE PROCEDURE FOR ADDING ONE, and it is the whole warrant for anything in this group. Write
     # prose in the register being hunted and score it per sentence, twice, with different wording
-    # carrying the same shapes. Keep a sentence only if it scores high AND trips nothing already in
-    # this tuple, and keep a shape only if it recurs across both batches, since one high score is
+    # carrying the same shapes. Retain a sentence only if it scores high AND trips nothing already in
+    # this tuple, and retain a shape only if it recurs across both batches, since one high score is
     # detector noise. Send no document from either tree anywhere: the register is the thing being
     # characterised, and prose about nothing characterises it as well as prose about the work, with
     # nothing at stake in it.
@@ -80,7 +80,7 @@ PROBE = (
     r"\bpush(?:ing|es|ed)? the boundaries\b",
     # Certainty about the future, in a sentence whose claim carries none.
     r"\bwill inevitably\b",
-    # The paradox opener, promising depth before any has been shown.
+    # The paradox opener, promising depth before any has been displayed.
     r"\bdeceptively simple\b",
     r"\bstay(?:ing)? ahead of the curve\b",
     r"\bhas never been more important\b",

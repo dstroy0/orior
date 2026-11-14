@@ -2,7 +2,7 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# Tests for the register stages of docs_check: the two tiers, what stands behind each one, and
+# Tests for the register stages of docs_check: the two tiers, what is behind each one, and
 # the reporting text.
 #
 #   Usage:  python utils/maint/prose/test_docs_check_tiers.py
@@ -307,8 +307,8 @@ class EveryRuleAgainstTheSentenceThatStatesIt(unittest.TestCase):
             "code-documentation:131",
         ),
         (
-            "The alignment is what matters most.",
-            "that matters most",
+            "The alignment is what matters max.",
+            "that matters max",
             "code-documentation:131",
         ),
         ("What matters is the alignment.", "what matters is", "code-documentation:131"),
@@ -379,7 +379,7 @@ class EveryRuleAgainstTheSentenceThatStatesIt(unittest.TestCase):
 
     def test_the_third_token_is_banned_in_every_form_on_every_page(self):
         # code-comments:200 bans it outright, and the ban holds on a page as it does in a comment.
-        # The define family stands in for it and is never reported.
+        # The define family is in for it and is never reported.
         pattern = r"\b(?:mis)?spell(?:s|ed|ing|ings)?\b"
         for said in (
             "The spelling of the identifier is what the linker sees.",
@@ -462,7 +462,7 @@ class TierBIsBoundedToConstructions(unittest.TestCase):
             )
             self.assertEqual({docs_check.tier_of(one[1]) for one in hits}, {"A"})
 
-    def test_the_plain_technical_verb_is_left_standing(self):
+    def test_the_plain_technical_verb_is_left_located(self):
         for sentence in (
             "The header carries the checksum.",
             "The buffer holds the segment.",
@@ -595,7 +595,7 @@ class ProseNeverFailsABuild(unittest.TestCase):
     """Verbatim in both standards, in the same sentence that names this tool.
 
     "A hit is a prose finding. It never fails a build, because a person has to decide each site: a
-    proper name, a quoted title, or a term of art is left standing and reported as a false
+    proper name, a quoted title, or a term of art is left located and reported as a false
     positive."  code-documentation:145, and code-comments:208 says it again.
 
     Asserted by running the tool, not by reading main(), because the contract is about the exit
@@ -679,7 +679,7 @@ class OneAuthor(unittest.TestCase):
             for pattern in hits:
                 self.assertEqual(docs_check.tier_of(pattern), "A", "%r is not tier A" % pattern)
 
-    def test_a_session_that_credits_nobody_stands(self):
+    def test_a_session_that_credits_nobody_is(self):
         # Transcripts, a PowerShell session, a recording session and this repository's own runs.
         for sentence in (
             "Take the machine's own prose out of a session transcript.",

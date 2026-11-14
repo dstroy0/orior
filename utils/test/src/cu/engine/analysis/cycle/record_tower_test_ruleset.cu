@@ -90,7 +90,7 @@ static void tower_test_ruleset(SimResults *results, const unsigned long long ext
     std::vector<unsigned int> out;
     ok = ok && tower_test_run(&lift, atoms, volumes, out);
     sim_check(results, ok,
-              "T is emitted as sized, encodes, lays out and loads, and the device's records equal the host's");
+              "T is emitted as sized, encodes, arranges and loads, and the device's records equal the host's");
     const unsigned int lift_equal = (ok != 0) ? tower_test_matches(&lift, out, coefficients, crystal, volumes) : 0u;
     sim_check(results, lift_equal == volumes,
               (ruleset->kernels != 0) ? "T's record floors equal tower_lift's crystal at every coefficient"
@@ -121,7 +121,7 @@ static void tower_test_ruleset(SimResults *results, const unsigned long long ext
     }
     ok = ok && tower_test_run(&lower, atoms, volumes, out);
     sim_check(results, ok,
-              "T^-1 is emitted as sized, encodes, lays out and loads, and the device's records equal the host's");
+              "T^-1 is emitted as sized, encodes, arranges and loads, and the device's records equal the host's");
     const unsigned int lower_equal =
         (ok != 0) ? tower_test_matches(&lower, out, rebuilt_registers, sample_values, volumes) : 0u;
     sim_check(results, lower_equal == volumes, "T^-1's record floors return the source at every sample");
@@ -146,7 +146,7 @@ static void tower_test_ruleset(SimResults *results, const unsigned long long ext
     }
     ok = ok && tower_test_run(&round, atoms, volumes, out);
     sim_check(results, ok,
-              "T . T^-1 encodes, lays out and loads as one program, and the device's records equal the host's");
+              "T . T^-1 encodes, arranges and loads as one program, and the device's records equal the host's");
     const unsigned int round_equal = (ok != 0) ? tower_test_matches(&round, out, returned, drawn, volumes) : 0u;
     sim_check(results, round_equal == volumes, "T . T^-1 returns every drawn crystal exactly, as one stack");
     const unsigned int round_limbs = round.layout.file_limbs;
@@ -243,7 +243,7 @@ static void tower_test_operation_stack(SimResults *results, const unsigned long 
     std::vector<unsigned int> out;
     ok = ok && tower_test_run(&operation, atoms, volumes, out);
     sim_check(results, ok,
-              "F . T^-1 encodes, lays out and loads as one program, and the device's records equal the host's");
+              "F . T^-1 encodes, arranges and loads as one program, and the device's records equal the host's");
     unsigned int matched = 0u;
     for (unsigned int volume = 0u; (ok != 0) && (volume < volumes); volume += 1u)
     {
@@ -275,7 +275,7 @@ static void tower_test_operation_stack(SimResults *results, const unsigned long 
 static void tower_test_block(SimResults *results, const unsigned long long extent[4], unsigned short *device_volume)
 {
     VerbaLinea *const line = &results->line;
-    // every block here contains at most 105 samples
+    // every block here contains at max 105 samples
     const unsigned int lanes = (unsigned int)(extent[0] * extent[1] * extent[2] * extent[3]);
     const unsigned int volumes = TOWER_TEST_VOLUMES;
     mmgr_line_put(line, "  t x z x y x x = ");
@@ -386,7 +386,7 @@ static void tower_test_errors(SimResults *results)
     request.error = &error;
     // register 1 is not earlier than the count of 1
     const int later =
-        (tower_record_lift(&request) == TOWER_ERROR) && (count == 1u) && (error.kind == ENGINE_ERROR_REQUEST);
+        (tower_record_lift(&request) == TOWER_ERROR) && (count == 1u) && (error.type == ENGINE_ERROR_REQUEST);
     sim_check(results, later, "a register that is not an earlier step errors, and the count is left as it was");
     memset(&error, 0, sizeof(error));
     count = 2u;
@@ -394,7 +394,7 @@ static void tower_test_errors(SimResults *results)
     request.step_capacity = 3u;
     int unchanged = 1;
     const int small =
-        (tower_record_lower(&request) == TOWER_ERROR) && (count == 2u) && (error.kind == ENGINE_ERROR_REQUEST);
+        (tower_record_lower(&request) == TOWER_ERROR) && (count == 2u) && (error.type == ENGINE_ERROR_REQUEST);
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         unchanged = unchanged && (steps_out[at].operation == ENGINE_RECORD_CONSTANT) && (steps_out[at].left == 7u);
@@ -404,7 +404,7 @@ static void tower_test_errors(SimResults *results)
     memcpy(request.extent, empty, sizeof(request.extent));
     request.steps = NULL;
     const int nothing =
-        (tower_record_lift(&request) == TOWER_ERROR) && (count == 2u) && (error.kind == ENGINE_ERROR_REQUEST);
+        (tower_record_lift(&request) == TOWER_ERROR) && (count == 2u) && (error.type == ENGINE_ERROR_REQUEST);
     sim_check(results, nothing, "an extent with no samples errors");
     // a step with a zero weight, then one with no taps, then one whose sign is neither 1 nor -1
     TowerLiftingStep malformed[3] = {{TOWER_BAND_HIGH, -1, 1u, {0}, {0}, 0u, 0u},
@@ -418,7 +418,7 @@ static void tower_test_errors(SimResults *results)
         request.rules = &malformed[at];
         request.rule_count = 1u;
         errored = errored && (tower_record_lift(&request) == TOWER_ERROR) && (count == 2u) &&
-                  (error.kind == ENGINE_ERROR_REQUEST);
+                  (error.type == ENGINE_ERROR_REQUEST);
     }
     sim_check(results, errored, "a step with a zero weight, no taps, or a sign other than 1 or -1 errors");
 }
@@ -432,15 +432,15 @@ int main(int count, char **arguments)
                    "  the two towers as record floors focused from a ruleset, read against tower_lift and"
                    " tower_lower's kernels and a host oracle\n");
     int ok = sim_job_submit(&results, "record_tower_test", count, arguments, TOWER_TEST_DECLARED);
-    unsigned long long maximum = 1ull;
+    unsigned long long max = 1ull;
     for (unsigned int block = 0u; block < TOWER_TEST_BLOCKS; block += 1u)
     {
         const unsigned long long *const extent = s_tower_test_extent[block];
         const unsigned long long lanes = extent[0] * extent[1] * extent[2] * extent[3];
-        maximum = (lanes > maximum) ? lanes : maximum;
+        max = (lanes > max) ? lanes : max;
     }
     unsigned short *device_volume = NULL;
-    ok = ok && sim_status_check(&results, cudaMalloc((void **)&device_volume, (size_t)maximum * sizeof(unsigned short)),
+    ok = ok && sim_status_check(&results, cudaMalloc((void **)&device_volume, (size_t)max * sizeof(unsigned short)),
                                 "the kernels' volume");
     // a sweep whose frame passes the stack limit grows it, and the local memory that reserves is reserved until the
     // limit is set back; cycle sets it back once each sweep ends. The limit after every block is the limit before them

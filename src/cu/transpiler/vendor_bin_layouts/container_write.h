@@ -5,9 +5,9 @@
 
 // One emitter, every container. It reads a layout file and writes what that layout describes.
 //
-// There is no emitter for one format and another for the next. The work is the same wherever code has to be handed
+// There is no emitter for one format and another for the next. The work is the same wherever code has to be passed
 // to a system: take a container that system already accepts, put the code in, put in the few attributes the code
-// decides, and lay the parts out again. Which byte stores the count of sections, what an attribute's tag is, what
+// decides, and position the parts out again. Which byte stores the count of sections, what an attribute's tag is, what
 // the code's part is called - all of that is rows in a file (container_layout.h), one folder beside this file for
 // each format.
 //
@@ -55,7 +55,7 @@ typedef struct
 } ContainerPart;
 
 // what a container of many parts is written from: the layout, the pattern, and the parts, each a part the pattern
-// already contains, every one of them put in at one laying out of the container
+// already contains, every one of them put in at one arranging of the container
 typedef struct
 {
     const ContainerLayout *layout;

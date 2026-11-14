@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // command_line_tools.c: `imp file plugins`, every plugin with its id, where it comes from, its name and the
-// extensions it opens, one of the reader's that stands in for one that comes with impero marked so; `imp file
+// extensions it opens, one of the reader's that is in for one that comes with impero marked so; `imp file
 // new-plugin`, a language plugin written to the reader's plugins folder; and the toolchain `imp file toolchains
 // add` describes, its name, then each flag and its value, added
 #include "../plugins/plugins.h"
@@ -9,7 +9,7 @@
 #include "../toolchains/toolchains.h"
 #include "command_line_internal.h"
 
-// the most plugins listed, and the rows their capacity is taken with
+// the max plugins listed, and the rows their capacity is taken with
 #define CLI_PLUGINS_LISTING 1024u
 
 // the nodes and the bytes of texts a tree made of a command's words contains past those its words make
@@ -132,15 +132,15 @@ static void tools_plugin_row(const CliEachPluginCfg *args)
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
-// `text` written and padded with spaces to `width` letters
+// `text` written and padded with spaces to `width` characters
 EMBED_INLINE void tools_pad(const CommandLineToolsCtx *args)
 {
     const char *text = args->text;
     mmgr_line_put(args->line, text);
-    for (unsigned long long letters =
-             EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = text,
+    for (unsigned long long characters =
+             EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = text,
                         .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}));
-         letters < args->width; letters += 1ULL)
+         characters < args->width; characters += 1ULL)
     {
         mmgr_line_ch(args->line, ' ');
     }
@@ -205,7 +205,7 @@ int cli_plugins_list(void)
 }
 
 // a tree allocated empty in a cell sized to what `count` words make, every comma of them a node and the texts twice
-// their bytes at the most: 1, or 0 where the cell is refused
+// their bytes at max: 1, or 0 where the cell is refused
 EMBED_INLINE int tools_tree_reserve(const CommandLineToolsCtx *args)
 {
     unsigned long long bytes = 0ULL;

@@ -6,7 +6,7 @@
 static int qasm_primary(QasmParser *parser, const QasmScope *scope, QasmAngle *value)
 {
     const QasmToken *const token = qasm_peek(parser);
-    if (token->kind == QASM_TOKEN_NUMBER)
+    if (token->type == QASM_TOKEN_NUMBER)
     {
         parser->at += 1u;
         return qasm_number(parser, token, value);
@@ -15,7 +15,7 @@ static int qasm_primary(QasmParser *parser, const QasmScope *scope, QasmAngle *v
     {
         return qasm_expression(parser, scope, value) && qasm_expect(parser, ")");
     }
-    if (token->kind == QASM_TOKEN_IDENT)
+    if (token->type == QASM_TOKEN_IDENT)
     {
         if (qasm_token_is(parser, token, "pi"))
         {
@@ -75,7 +75,7 @@ static int qasm_unary(QasmParser *parser, const QasmScope *scope, QasmAngle *val
     {
         return 0;
     }
-    if (qasm_token_is(parser, qasm_peek(parser), "^") && (qasm_peek(parser)->kind == QASM_TOKEN_SYMBOL))
+    if (qasm_token_is(parser, qasm_peek(parser), "^") && (qasm_peek(parser)->type == QASM_TOKEN_SYMBOL))
     {
         qasm_error(parser, qasm_peek(parser),
                     "'^' in a parameter is not read: a parameter is + - * / over numbers and pi");
@@ -197,7 +197,7 @@ static int qasm_exact_to_wide(const OriorExactInteger *value, unsigned int wide[
 // T bounds the truncations' 2-norm, sqrt(2 N_on) <= 2^ceil((m + 1) / 2) with N_on = 2^m lanes dividing.
 static int qasm_bound_gate(QasmParser *parser, const QasmGate *gate)
 {
-    const unsigned int divides = (gate->kind == QASM_GATE_PAIR) || (gate->kind == QASM_GATE_DIAGONAL);
+    const unsigned int divides = (gate->type == QASM_GATE_PAIR) || (gate->type == QASM_GATE_DIAGONAL);
     if (divides == 0u)
     {
         parser->circuit->exact_gates += 1u;
@@ -206,7 +206,7 @@ static int qasm_bound_gate(QasmParser *parser, const QasmGate *gate)
     parser->circuit->rounded_gates += 1u;
     // a 2x2 whose components are each within one unit: ||.||_2 <= ||.||_F <= sqrt(8) < 3; a diagonal: sqrt(2) < 2
     const unsigned long long delta =
-        (gate->exact_entries != 0u) ? 0ull : ((gate->kind == QASM_GATE_PAIR) ? 3ull : 2ull);
+        (gate->exact_entries != 0u) ? 0ull : ((gate->type == QASM_GATE_PAIR) ? 3ull : 2ull);
     const unsigned int m = parser->circuit->qubits - gate->control_count;
     const unsigned int t_bits = (m + 2u) / 2u;
     OriorExactInteger bound;

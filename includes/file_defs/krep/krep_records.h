@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // krep_records.h: a k-file of records (krep_records.oracle.tsv), every record numbers: the k-file head (krep_head.h),
-// its four-byte kind, then its records, each a code, a count and that many numbers, every number written in as few
+// its four-byte type, then its records, each a code, a count and that many numbers, every number written in as few
 // bytes as it takes, seven bits a byte, the low bits first and the top bit set on every byte but its last. In memory
 // each number is a 64-bit word, compared as one. A format's own records take the codes its oracle gives from
 // KREP_RECORD_FORMAT up; below them are the stream's own:
@@ -12,7 +12,7 @@
 //                     no words states no who is known of the records after it
 //
 // Every text the file contains comes before its first record. A file is read whole, as the run stores it
-// (qry_member_file), and handed back whole to the run's writer, which writes it in the file's place (qry_member_filed).
+// (qry_member_file), and passed back whole to the run's writer, which writes it in the file's place (qry_member_filed).
 // Records compare and are found as numbers: no text is read to find one, and a text is only what no number gives, read
 // by a person through the format's decoder.
 //
@@ -22,7 +22,7 @@
 // record, its two words, of no who in a text's row; the change, one of KREP_ROW_HEAD to KREP_ROW_DROP; and the
 // change's own numbers, a text's or a name's bytes after them filled out to a whole word with zeros:
 //
-//   KREP_ROW_HEAD  the file's kind as a number, its four bytes the low first, the version, and the length and bytes of
+//   KREP_ROW_HEAD  the file's type as a number, its four bytes the low first, the version, and the length and bytes of
 //                  the file's name in the run (qry_member_file_name)
 //   KREP_ROW_TEXT  the text's number, its length and its bytes
 //   KREP_ROW_PUT   the place a record is put at, every record from it on one later, its code, its count and its words
@@ -63,13 +63,13 @@ extern "C"
         unsigned long long *word;
     } KrepRecord;
 
-    // A k-file of records stored in memory: its kind, its records in order, and its texts, each by its number less one
+    // A k-file of records stored in memory: its type, its records in order, and its texts, each by its number less one
     // with its length, and a table finding a text by its bytes, a power of two buckets, each a text's number or 0; and
     // where it is a view of a table of a run, the run, the table's name and the file's key, 0 where it is none's. A
     // file starts as zeros
     typedef struct
     {
-        char kind[4];
+        char type[4];
         KrepRecord *record;
         unsigned int records;
         unsigned int room;
@@ -84,17 +84,17 @@ extern "C"
         unsigned long long key;
     } KrepFile;
 
-    // `file` emptied and given the kind `kind`, four bytes, whatever it contained let go
-    void krep_open(KrepFile *file, const char *kind);
+    // `file` emptied and given the type `type`, four bytes, whatever it contained let go
+    void krep_open(KrepFile *file, const char *type);
 
     // The k-file at `path` read into `file` as the run stores it, its latest blob or the file where the run stores none
-    // (qry_member_file), whatever it contained before let go: 1, and an empty file of `kind` where there is neither; 2
+    // (qry_member_file), whatever it contained before let go: 1, and an empty file of `type` where there is neither; 2
     // where the file is there and does not open with the k-file head, its bytes left for the format to read as it reads
-    // its text form; 0 and why in `error`, which has room for `room`, where its kind is not `kind`, its version is not
+    // its text form; 0 and why in `error`, which has room for `room`, where its type is not `type`, its version is not
     // KREP_VERSION or a record runs past its end
-    int krep_read(KrepFile *file, const char *path, const char *kind, char *error, size_t room);
+    int krep_read(KrepFile *file, const char *path, const char *type, char *error, size_t room);
 
-    // `file` handed to the run's writer as the file at `path` (qry_member_filed), written by `who`, the file its rows
+    // `file` passed to the run's writer as the file at `path` (qry_member_filed), written by `who`, the file its rows
     // put together where it is a view of a table of the run (krep_viewed), its bytes' blob then linked to the file's
     // key in the run's table of links (TABLE_LINK_WRITTEN_FROM): 1, or 0 where it could not be written
     int krep_write_by(const KrepFile *file, const char *path, Who who);
@@ -102,25 +102,25 @@ extern "C"
 // krep_write_by, the who the code that calls it
 #define krep_write(file_, path_) krep_write_by((file_), (path_), WHO_HERE)
 
-    // `file` made a view of the table `table` of the run `buffer`, as the file at `path`, by `who`: its head handed as
+    // `file` made a view of the table `table` of the run `buffer`, as the file at `path`, by `who`: its head passed as
     // a critical row of the table, its sequence the file's key, then a row of each text and each record the file
     // contains in their order, and from then on a row of every text it takes and every record put, given other words or
-    // let go. 1, or 0 where no run is given, the path stands outside the top of the tree or a row could not be handed,
-    // and the file is no table's. A row that could not be handed after leaves the file no table's, written as it is
-    // stored. `table` stands as long as the file does
+    // let go. 1, or 0 where no run is given, the path is outside the top of the tree or a row could not be passed,
+    // and the file is no table's. A row that could not be passed after leaves the file no table's, written as it is
+    // stored. `table` is as long as the file does
     int krep_tabled_by(KrepFile *file, QryShared *buffer, const char *table, const char *path, Who who);
 
 // krep_tabled_by, the who the code that calls it
 #define krep_tabled(file_, buffer_, table_, path_) krep_tabled_by((file_), (buffer_), (table_), (path_), WHO_HERE)
 
     // the file the rows of `file`'s key put together, in the order the run stores them, into `view`, an empty file of
-    // its kind first: 1, or 0 where `file` is no table's, its rows could not be read or one of them does not fit the
+    // its type first: 1, or 0 where `file` is no table's, its rows could not be read or one of them does not fit the
     // file it puts together
     int krep_viewed(const KrepFile *file, KrepFile *view);
 
     // the file named `name` in the run, its path from the top of the tree (qry_member_file_name), put together from the
     // rows of the table `table` of the finished .qry at `path`, in the order of their sequences, into `view`, an empty
-    // file of its kind first; the first file the table contains where `name` is NULL. 1, or 0 and why in `error`, which
+    // file of its type first; the first file the table contains where `name` is NULL. 1, or 0 and why in `error`, which
     // has room for `room`, where the .qry could not be read, the table contains no head of the file, or a row does not
     // fit the file it puts together
     int krep_viewed_at(const char *path, const char *table, const char *name, KrepFile *view, char *error, size_t room);

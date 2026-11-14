@@ -5,11 +5,11 @@
 
 ## What a contribution is
 
-This is a research body with code attached. Three kinds of change are useful:
+This is a research body with code attached. Three types of change are useful:
 
 **A measurement.** A number with its conditions attached: what corpus, what length, what it was measured against, and what the floor was. A ratio with no denominator is not a result. Every figure in `theory/workbooks/orior` names the tool that produced it, and a new one does the same.
 
-**A correction.** The ledger keeps its own corrections and it is the most valuable thing in the repository. A claim that turns out to be wrong stays on the page beside the measurement that killed it. If you find a figure that does not reproduce, the contribution is the run that shows it, added beside the figure instead of an edit that removes it.
+**A correction.** The ledger retains its own corrections and it is the max valuable thing in the repository. A claim that turns out to be wrong stays on the page beside the measurement that killed it. If you find a figure that does not reproduce, the contribution is the run that shows it, added beside the figure instead of an edit that removes it.
 
 **A precedent.** Several results here are rediscoveries of published work. This repository has been wrong about priority before, at Montemurro and Zanette, and the entry says so. If you know the prior art for something claimed here, that is worth more than a patch.
 
@@ -66,7 +66,7 @@ Every arm has to agree with `orior_naive` on every row. A row printing `DIFFER` 
 
 Prose here is plain. One fact per sentence, subject and verb and object, no em dashes, American definitions. `theory/workbooks/orior` says which words are the field's and which this work minted, and the field's word wins wherever one exists.
 
-`theory/theory/Salishan` is generated from `paper_config.py` by `pure_corpus_index.py`, which keeps a speaker's name typed in exactly one place. Do not edit it by hand.
+`theory/theory/Salishan` is generated from `paper_config.py` by `pure_corpus_index.py`, which retains a speaker's name typed in exactly one place. Do not edit it by hand.
 
 ## Licensing
 

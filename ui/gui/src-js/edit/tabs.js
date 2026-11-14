@@ -15,7 +15,7 @@ import { element, show, state } from "../edit.js";
 import { letMirrorGo } from "./mirror.js";
 import { act } from "./menus.js";
 import { drawSplitTabs, leaveSplit, openFile } from "./open.js";
-import { forgetBackup, keepBackups, keepSession, readKept, treeKey } from "./places.js";
+import { forgetBackup, retainBackups, retainSession, readKept, treeKey } from "./places.js";
 
 // The tabs.
 
@@ -30,7 +30,7 @@ export function tabOfSession(s) {
 
 // The lines a tab's file holds as saved: the document's own where its text is the file's, each
 // costing a reference and not a copy, or `text` split as the document splits it.
-function keepSaved(tab, text) {
+function retainSaved(tab, text) {
   const doc = tab.session.doc;
   tab.savedLines = text === undefined ? doc.lines.slice() : text.split(/\r?\n/);
   tab.savedEol = doc.eol;
@@ -38,19 +38,19 @@ function keepSaved(tab, text) {
 }
 
 // Marks a tab saved at its document's state now, `text` being what the file holds where the
-// document does not hold it. A file still being read as a window keeps no lines until it is whole.
+// document does not hold it. A file still being read as a window retains no lines until it is whole.
 export function markSaved(tab, text) {
   tab.saved = tab.session.doc.id;
   if (tab.session.window) {
     tab.savedLines = null;
   } else {
-    keepSaved(tab, text);
+    retainSaved(tab, text);
   }
 }
 
 // A tab has changes not saved while its text differs from what was saved. The document's state
-// says so at once where it is the saved one; where it is not, as after a letter typed and taken
-// out again, its lines are kept against the saved ones, once for each state, a line not edited
+// says so at once where it is the saved one; where it is not, as after a character typed and taken
+// out again, its lines are retained against the saved ones, once for each state, a line not edited
 // since the save matching on its reference alone. A file still being read has no saved lines, and
 // any edit to it is a change.
 export function dirty(tab) {
@@ -92,7 +92,7 @@ export const mainTabs = () => state.tabs.filter((tab) => tab.inMain !== false);
 export const actingPath = () => (state.split?.focused ? state.split.active : state.active);
 
 export function drawTabs() {
-  keepSession();
+  retainSession();
   drawSplitTabs();
   const bar = document.getElementById("tabs");
   drawOpenEditors(
@@ -133,7 +133,7 @@ export function drawTabs() {
     return button;
   };
   const drawn = [];
-  // Down the side, the marked files stand first, each by its key.
+  // Down the side, the marked files are first, each by its key.
   if (sideTabs() && marks.length) {
     drawn.push(element("div", { className: "tab-section", textContent: "Marked" }));
     marks.forEach((path, at) => {
@@ -144,7 +144,7 @@ export function drawTabs() {
     });
     drawn.push(element("div", { className: "tab-section", textContent: "Open" }));
   }
-  // Each group under its header, which folds it; a folded group still shows its tab that is shown.
+  // Each group under its header, which folds it; a folded group still shows its tab that is displayed.
   for (const group of state.groups) {
     const members = group.paths.map(tabOf).filter((tab) => tab && tab.inMain !== false);
     if (!members.length) {
@@ -172,7 +172,7 @@ export function drawTabs() {
   drawn.push(...mainTabs().filter((tab) => !groupOf(tab.path)).map(tabButton));
   bar.replaceChildren(...drawn);
   rowOverflowing(bar);
-  // the tab shown stands in sight in a strip of more tabs than it holds
+  // the tab displayed is in sight in a strip of more tabs than it holds
   bar.querySelector('.tab[aria-selected="true"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 
@@ -182,7 +182,7 @@ export function rowOverflowing(bar = document.getElementById("tabs")) {
 }
 
 // Tabs down the side: the first side's tabs in a column beside its editor in place of a row above
-// it, set in View and kept.
+// it, set in View and retained.
 const SIDE_TABS = "orior.tabs.side";
 
 export const sideTabs = () => localStorage.getItem(SIDE_TABS) === "true";
@@ -231,29 +231,29 @@ function groupMenu(group) {
   ];
 }
 
-// Marked files: a short list of the tree's files, nine at most, each opened by Ctrl and its number,
-// kept for the tree.
+// Marked files: a short list of the tree's files, nine at max, each opened by Ctrl and its number,
+// retained for the tree.
 
 const marksKey = () => `orior.marks.${treeKey()}`;
 
 export function markedFiles() {
-  const kept = readKept(marksKey(), []);
-  return Array.isArray(kept) ? kept.filter((path) => typeof path === "string").slice(0, 9) : [];
+  const retained = readKept(marksKey(), []);
+  return Array.isArray(retained) ? retained.filter((path) => typeof path === "string").slice(0, 9) : [];
 }
 
-export function keepMarks(list) {
+export function retainMarks(list) {
   localStorage.setItem(marksKey(), JSON.stringify(list.slice(0, 9)));
   drawTabs();
 }
 
-// Go, Marked Files, Mark File: the file shown marked for the next key free, or unmarked where it was.
+// Go, Marked Files, Mark File: the file displayed marked for the next key free, or unmarked where it was.
 export function toggleMark(path = actingPath() ? fileOf(actingPath()) : null) {
   if (!path || tabOf(path)?.commit) {
     return;
   }
   const list = markedFiles();
   if (list.includes(path)) {
-    keepMarks(list.filter((one) => one !== path));
+    retainMarks(list.filter((one) => one !== path));
     say(`${path} is no longer marked.`);
     return;
   }
@@ -261,7 +261,7 @@ export function toggleMark(path = actingPath() ? fileOf(actingPath()) : null) {
     say("Nine files are marked: Marked Files lets one go first.", { failed: true });
     return;
   }
-  keepMarks([...list, path]);
+  retainMarks([...list, path]);
   say(`${path} is marked: Ctrl+${list.length + 1} opens it.`);
 }
 
@@ -279,7 +279,7 @@ export async function goMark(n) {
 export function markItems() {
   const list = markedFiles();
   if (!list.length) {
-    return [{ label: "No file is marked: Mark File marks the one shown", disabled: true }];
+    return [{ label: "No file is marked: Mark File marks the one displayed", disabled: true }];
   }
   return list.map((path, at) => ({
     label: `${at + 1}  ${path}`,
@@ -326,14 +326,14 @@ function dragOut(button, tab) {
 
 // Opens a tab's file in a new window, with its changes not saved, and takes the tab out of this one.
 export async function tabToNewWindow(tab) {
-  keepBackups();
+  retainBackups();
   try {
     await openWindow(["file", "open-file", tab.file]);
   } catch (error) {
     say(String(error), { failed: true });
     return;
   }
-  // The text kept for its changes stays for the new window to read.
+  // The text retained for its changes stays for the new window to read.
   tab.leaving = true;
   tab.closing = true;
   closeTab(tab);
@@ -362,7 +362,7 @@ export function closeTab(tab) {
   leaveSplit(tab.path);
   stopServing(tab);
   tell("close", { path: tab.file });
-  // The tab's branch let go, through the session's mirror of it or, as a text shown in its colors has none, by the tab's
+  // The tab's branch let go, through the session's mirror of it or, as a text displayed in its colors has none, by the tab's
   // key alone.
   const mirrored = Boolean(tab.session?.doc?.mirrored);
   letMirrorGo(tab.session);

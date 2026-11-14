@@ -7,7 +7,7 @@
 // one piece of a name as the vendor's table gives it
 typedef struct
 {
-    char kind[KHW_PIECE];
+    char type[KHW_PIECE];
     char piece[KHW_PIECE];
     char reads[KHW_READS];
 } KhwPiece;
@@ -82,7 +82,7 @@ int khw_pieces_read(const char *path)
         {
             *gloss = '\0';
         }
-        snprintf(s_piece[s_pieces].kind, sizeof(s_piece[s_pieces].kind), "%.*s", (int)(KHW_PIECE - 1u), line);
+        snprintf(s_piece[s_pieces].type, sizeof(s_piece[s_pieces].type), "%.*s", (int)(KHW_PIECE - 1u), line);
         snprintf(s_piece[s_pieces].piece, sizeof(s_piece[s_pieces].piece), "%.*s", (int)(KHW_PIECE - 1u), piece + 1);
         snprintf(s_piece[s_pieces].reads, sizeof(s_piece[s_pieces].reads), "%.*s", (int)(KHW_READS - 1u), reads + 1);
         s_pieces += 1u;
@@ -114,12 +114,12 @@ static int khw_reads_contain(const KhwPiece *piece, const char *word)
     return 0;
 }
 
-// the piece of kind `kind` whose reads contain `word`, or NULL where the table gives none
-const char *khw_piece_reading(const char *kind, const char *word)
+// the piece of type `type` whose reads contain `word`, or NULL where the table gives none
+const char *khw_piece_reading(const char *type, const char *word)
 {
     for (unsigned int at = 0u; at < s_pieces; at += 1u)
     {
-        if ((strcmp(s_piece[at].kind, kind) == 0) && khw_reads_contain(&s_piece[at], word))
+        if ((strcmp(s_piece[at].type, type) == 0) && khw_reads_contain(&s_piece[at], word))
         {
             return s_piece[at].piece;
         }
@@ -127,12 +127,12 @@ const char *khw_piece_reading(const char *kind, const char *word)
     return NULL;
 }
 
-// the piece of kind `kind` whose own text is `text`, or NULL where the table gives none
-static const char *khw_piece_named(const char *kind, const char *text)
+// the piece of type `type` whose own text is `text`, or NULL where the table gives none
+static const char *khw_piece_named(const char *type, const char *text)
 {
     for (unsigned int at = 0u; at < s_pieces; at += 1u)
     {
-        if ((strcmp(s_piece[at].kind, kind) == 0) && (strcmp(s_piece[at].piece, text) == 0))
+        if ((strcmp(s_piece[at].type, type) == 0) && (strcmp(s_piece[at].piece, text) == 0))
         {
             return s_piece[at].piece;
         }
@@ -140,13 +140,13 @@ static const char *khw_piece_named(const char *kind, const char *text)
     return NULL;
 }
 
-// The name of a form the part answered `form` of, composed from the pieces of the vendor's table: the kind of value
-// the cases contain, the piece whose reads contain the relation, none where no kind row reads it; the relation
+// The name of a form the part answered `form` of, composed from the pieces of the vendor's table: the type of value
+// the cases contain, the piece whose reads contain the relation, none where no type row reads it; the relation
 // answered; how many sources the fields found; and the qualifier the answers read a word into where a case of the
 // relation reads two ways. Into `written`, which has room for `room`
 static void khw_name_composed(const KhwForm *form, char *written, size_t room)
 {
-    const char *const kind = khw_piece_reading("kind", form->relation);
+    const char *const type = khw_piece_reading("type", form->relation);
     const char *const operation = khw_piece_reading("operation", form->relation);
     written[0] = '\0';
     if (operation == NULL)
@@ -154,13 +154,13 @@ static void khw_name_composed(const KhwForm *form, char *written, size_t room)
         return;
     }
     size_t at = 0u;
-    at += (size_t)snprintf(&written[at], room - at, "%s%s", (kind != NULL) ? kind : "", operation);
+    at += (size_t)snprintf(&written[at], room - at, "%s%s", (type != NULL) ? type : "", operation);
     // the count of sources the part answered fields for, written where the table contains that count for this relation
     char sources[KHW_PIECE];
     snprintf(sources, sizeof(sources), "%u", (form->runs > 0u) ? (form->runs - 1u) : 0u);
     for (unsigned int piece = 0u; piece < s_pieces; piece += 1u)
     {
-        if ((strcmp(s_piece[piece].kind, "count") == 0) && (strcmp(s_piece[piece].piece, sources) == 0) &&
+        if ((strcmp(s_piece[piece].type, "count") == 0) && (strcmp(s_piece[piece].piece, sources) == 0) &&
             khw_reads_contain(&s_piece[piece], form->relation))
         {
             at += (size_t)snprintf(&written[at], room - at, "%s", sources);
@@ -197,9 +197,9 @@ static int khw_flag(const KhwForm *form, unsigned int run)
     return (form->place[run] == SASS_RUN_NO_PLACE) && (form->first[run] == form->last[run]);
 }
 
-// 1 where `run` of `form` prints no operand of its own: a flag; or a run before it stands at the same place of the
+// 1 where `run` of `form` prints no operand of its own: a flag; or a run before it is at the same place of the
 // relation's tuple, two runs of one place being one operand printed once, by the first. A wider run with no place
-// prints as its kind reads its bits, a register where the table names nothing for it, so that two forms apart in such
+// prints as its type reads its bits, a register where the table names nothing for it, so that two forms apart in such
 // a run read apart
 static int khw_place_printed(const KhwForm *form, unsigned int run)
 {
@@ -221,13 +221,13 @@ static int khw_place_printed(const KhwForm *form, unsigned int run)
 // by the first constant run, the offset, with the bank read from the second where the form has one
 static int khw_constant_later(const KhwForm *form, unsigned int run)
 {
-    if (form->kind[run] != KHW_KIND_CONSTANT)
+    if (form->type[run] != KHW_KIND_CONSTANT)
     {
         return 0;
     }
     for (unsigned int before = 0u; before < run; before += 1u)
     {
-        if (form->kind[before] == KHW_KIND_CONSTANT)
+        if (form->type[before] == KHW_KIND_CONSTANT)
         {
             return 1;
         }
@@ -241,7 +241,7 @@ static unsigned long long khw_constant_bank(const KhwForm *form, unsigned int fi
 {
     for (unsigned int run = first_run + 1u; run < form->runs; run += 1u)
     {
-        if (form->kind[run] == KHW_KIND_CONSTANT)
+        if (form->type[run] == KHW_KIND_CONSTANT)
         {
             return khw_run_read(form->low, form->high, form->first[run], form->last[run]);
         }
@@ -264,15 +264,15 @@ void khw_guard_field_set(unsigned int first, unsigned int bits)
 // predicate run
 static int khw_guard(const KhwForm *form, unsigned int run)
 {
-    return (form->kind[run] == KHW_KIND_PREDICATE) &&
+    return (form->type[run] == KHW_KIND_PREDICATE) &&
            ((s_guard_bits == 0u) ||
             ((form->first[run] >= s_guard_first) && (form->first[run] < (s_guard_first + s_guard_bits))));
 }
 
 // The runs of `form` that print an operand, in the order they are printed, into `order`, which has room for
 // SASS_MACHINE_RUNS: the guard, a flag, a run of a place printed by an earlier run and a constant's bank run print
-// none; the rest stand in the order their first bits rise, or, where the table gives the relation an `order` piece,
-// a letter an operand, P a predicate and R any other, in that order, each letter taking the next run of its kind by
+// none; the rest are in the order their first bits rise, or, where the table gives the relation an `order` piece,
+// a character an operand, P a predicate and R any other, in that order, each character taking the next run of its type by
 // its first bit. The count
 static unsigned int khw_printed_runs(const KhwForm *form, unsigned int *order)
 {
@@ -298,12 +298,12 @@ static unsigned int khw_printed_runs(const KhwForm *form, unsigned int *order)
         unsigned int found = count;
         for (unsigned int at = 0u; (at < count) && (found == count); at += 1u)
         {
-            const int kind_matches = (form->kind[order[at]] == KHW_KIND_PREDICATE) == predicate;
-            found = (!taken[at] && kind_matches) ? at : found;
+            const int type_matches = (form->type[order[at]] == KHW_KIND_PREDICATE) == predicate;
+            found = (!taken[at] && type_matches) ? at : found;
         }
         if (found == count)
         {
-            // the pattern requests a kind the form has no more runs of: the bit order stands
+            // the pattern requests a type the form has no more runs of: the bit order is
             return count;
         }
         taken[found] = 1u;
@@ -317,7 +317,7 @@ static unsigned int khw_printed_runs(const KhwForm *form, unsigned int *order)
 // guard, `@P<n>` before the operation, `@!P<n>` where the bit past the predicate's three is set, and nothing where it
 // is every predicate; its name; then each other run in the order its first bit rises, the order they are printed in,
 // the runs of one place one operand printed by the first, each read from the encoding through its own run by its
-// kind: a register `R<n>`, or the name the tree writes a register the part answers nothing at under; a predicate
+// type: a register `R<n>`, or the name the tree writes a register the part answers nothing at under; a predicate
 // `P<n>`, `PT` where it is every predicate; an address `[R<n>.64]`; a number `0x<n>`; the constant bank's operand
 // `c[0x<bank>][0x<offset>]`, printed once by its offset run
 void khw_text_composed(const KhwForm *form, char *written, size_t room)
@@ -357,22 +357,22 @@ void khw_text_composed(const KhwForm *form, char *written, size_t room)
         const char *const mark = ((marked != NULL) && (form->place[run] == 1u)) ? marked : "";
         char between[8];
         snprintf(between, sizeof(between), "%s%s", (printed == 0u) ? " " : ", ", mark);
-        if (form->kind[run] == KHW_KIND_PREDICATE)
+        if (form->type[run] == KHW_KIND_PREDICATE)
         {
             ((number & 7ull) == 7ull)
                 ? (at += (size_t)snprintf(&written[at], room - at, "%sPT", between))
                 : (at += (size_t)snprintf(&written[at], room - at, "%sP%llu", between, number & 7ull));
         }
-        else if (form->kind[run] == KHW_KIND_CONSTANT)
+        else if (form->type[run] == KHW_KIND_CONSTANT)
         {
             at += (size_t)snprintf(&written[at], room - at, "%sc[0x%llx][0x%llx]", between,
                                    khw_constant_bank(form, run), number);
         }
-        else if (form->kind[run] == KHW_KIND_IMMEDIATE)
+        else if (form->type[run] == KHW_KIND_IMMEDIATE)
         {
             at += (size_t)snprintf(&written[at], room - at, "%s0x%llx", between, number);
         }
-        else if (form->kind[run] == KHW_KIND_ADDRESS)
+        else if (form->type[run] == KHW_KIND_ADDRESS)
         {
             at += (size_t)snprintf(&written[at], room - at, "%s[R%llu.64]", between, number);
         }

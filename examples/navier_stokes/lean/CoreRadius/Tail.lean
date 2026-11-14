@@ -137,7 +137,7 @@ lemma sum_rest : ∀ k : ℕ, ∑ i ∈ range (k + 1), ((k - i : ℕ) : K) = (k 
     push_cast
     ring
 
-/-- For `k ≥ N ≥ 2`, `(a + b k) / ((k+1)(k+2))` is at most its value at N. -/
+/-- For `k ≥ N ≥ 2`, `(a + b k) / ((k+1)(k+2))` is at max its value at N. -/
 lemma falling_two {a b : K} (ha : 0 ≤ a) (hb : 0 ≤ b) {k N : ℕ} (hN : 2 ≤ N) (hk : N ≤ k) :
     (a + b * k) * (((N : K) + 1) * ((N : K) + 2)) ≤ (a + b * N) * (((k : K) + 1) * ((k : K) + 2)) := by
   have hNk : (N : K) ≤ k := by exact_mod_cast hk
@@ -146,7 +146,7 @@ lemma falling_two {a b : K} (ha : 0 ≤ a) (hb : 0 ≤ b) {k N : ℕ} (hN : 2 �
   nlinarith [mul_nonneg hb (sub_nonneg.mpr hNk), mul_nonneg (mul_nonneg hb (sub_nonneg.mpr hNk)) (sub_nonneg.mpr h_product),
     mul_nonneg ha (sub_nonneg.mpr hNk)]
 
-/-- For `k ≥ N ≥ 1`, `(a + b k) / (k+1)^2` is at most its value at N. -/
+/-- For `k ≥ N ≥ 1`, `(a + b k) / (k+1)^2` is at max its value at N. -/
 lemma falling_square {a b : K} (ha : 0 ≤ a) (hb : 0 ≤ b) {k N : ℕ} (hN : 1 ≤ N) (hk : N ≤ k) :
     (a + b * k) * ((N : K) + 1) ^ 2 ≤ (a + b * N) * ((k : K) + 1) ^ 2 := by
   have hNk : (N : K) ≤ k := by exact_mod_cast hk

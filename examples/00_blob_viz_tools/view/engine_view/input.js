@@ -26,16 +26,16 @@ EV.PALETTE_WORDS = { 0: "cell", 1: "lineage", 2: "volume", 3: "okabe_ito" };
 // Writes the view into every control and the page's own styles.
 EV.showView = (app) => {
   const view = app.view;
-  for (const [id, name, kind] of EV.CONTROLS) {
+  for (const [id, name, type] of EV.CONTROLS) {
     const element = EV.$(id);
     const value = view[name];
-    if (kind === "switch") {
+    if (type === "switch") {
       element.checked = !!value;
-    } else if (kind === "body") {
+    } else if (type === "body") {
       element.value = String(EV.BODY_WORDS.indexOf(value));
-    } else if (kind === "palette") {
+    } else if (type === "palette") {
       element.value = Object.keys(EV.PALETTE_WORDS).find((key) => EV.PALETTE_WORDS[key] === value);
-    } else if (kind === "power") {
+    } else if (type === "power") {
       element.value = String(value ? 32 - Math.clz32(value) : 0);
     } else if (id === "sliceZ" && value < 0 && app.object) {
       element.value = String(app.object.header.depth >> 1);
@@ -44,7 +44,7 @@ EV.showView = (app) => {
     }
     const out = EV.$(`${id}Out`);
     if (out) {
-      out.textContent = kind === "power" ? EV.grouped(value) : kind === "switch" ? "" : String(element.value);
+      out.textContent = type === "power" ? EV.grouped(value) : type === "switch" ? "" : String(element.value);
     }
   }
   const root = document.documentElement;
@@ -69,13 +69,13 @@ EV.showView = (app) => {
   EV.remember(app);
 };
 
-EV.readControl = (app, id, name, kind) => {
+EV.readControl = (app, id, name, type) => {
   const element = EV.$(id);
-  const value = kind === "switch" ? element.checked
-    : kind === "body" ? EV.BODY_WORDS[Number(element.value)]
-      : kind === "palette" ? EV.PALETTE_WORDS[element.value]
-        : kind === "power" ? (Number(element.value) ? 2 ** (Number(element.value) - 1) : 0)
-          : kind === "word" ? element.value : Math.trunc(Number(element.value));
+  const value = type === "switch" ? element.checked
+    : type === "body" ? EV.BODY_WORDS[Number(element.value)]
+      : type === "palette" ? EV.PALETTE_WORDS[element.value]
+        : type === "power" ? (Number(element.value) ? 2 ** (Number(element.value) - 1) : 0)
+          : type === "word" ? element.value : Math.trunc(Number(element.value));
   const error = EV.errorValue(EV.VIEW_SCHEME[name], value);
   if (!error) {
     app.view[name] = value;
@@ -237,9 +237,9 @@ EV.remember = (app) => {
 
 EV.recall = (app) => {
   try {
-    const kept = JSON.parse(localStorage.getItem("engine_view") || "{}");
-    EV.applyView(app.view, { face: kept.face, theme: kept.theme, text_size: kept.text_size, sheer: kept.sheer });
-    EV.controlBar.setOpen(!!kept.pinned);
+    const retained = JSON.parse(localStorage.getItem("engine_view") || "{}");
+    EV.applyView(app.view, { face: retained.face, theme: retained.theme, text_size: retained.text_size, sheer: retained.sheer });
+    EV.controlBar.setOpen(!!retained.pinned);
   } catch (error) {
     // Nothing remembered.
   }
@@ -274,13 +274,13 @@ EV.openSource = async (app, sources, sample, fromFile) => {
   app.compacted = "";
   app.rawKey = "";
   // The object opens in the view its .cfg carries; the page's remembered face, theme and text size stay the reader's.
-  const kept = { face: app.view.face, theme: app.view.theme, text_size: app.view.text_size, sheer: app.view.sheer };
+  const retained = { face: app.view.face, theme: app.view.theme, text_size: app.view.text_size, sheer: app.view.sheer };
   app.view = EV.defaultView();
   const parsed = EV.parseCfg(object.cfgText);
   if (parsed.view) {
     EV.applyView(app.view, parsed.view);
   }
-  EV.applyView(app.view, kept);
+  EV.applyView(app.view, retained);
   // What the object's .cfg says about the specimen: the voxel's size and the membrane's thickness, both in picometers,
   // give the wall's inset as the membrane in voxels times 65536.
   const specimen = EV.specimen(object.cfgText);
@@ -343,9 +343,9 @@ EV.csv = (app) => {
 };
 
 EV.bindControls = (app) => {
-  for (const [id, name, kind] of EV.CONTROLS) {
+  for (const [id, name, type] of EV.CONTROLS) {
     const element = EV.$(id);
-    element.addEventListener(element.type === "range" ? "input" : "change", () => EV.readControl(app, id, name, kind));
+    element.addEventListener(element.type === "range" ? "input" : "change", () => EV.readControl(app, id, name, type));
   }
   EV.$("sample").addEventListener("change", async (event) => {
     await EV.openSource(app, await EV.fetchSample(event.target.value), event.target.value, false);
@@ -482,7 +482,7 @@ EV.bindPointer = (app) => {
       app.dirty = true;
       return;
     }
-    // Hovering: the cell under the pointer, read back at most every 80 ms.
+    // Hovering: the cell under the pointer, read back at max every 80 ms.
     const now = performance.now();
     if (!app.object || app.picking || now - (app.hoverAt || 0) < 80) {
       return;
@@ -570,7 +570,7 @@ EV.bindKeys = (app) => {
       "+": () => { view.zoom = Math.min(8192, (view.zoom || app.live.zoom) + Math.max(1, (view.zoom || app.live.zoom) >> 3)); },
       "-": () => { view.zoom = Math.max(1, (view.zoom || app.live.zoom) - Math.max(1, (view.zoom || app.live.zoom) >> 3)); },
       l: () => EV.choose(app, EV.lineage(app.object, [...app.chosen]), "set"),
-      w: () => EV.choose(app, app.object.review.filter((item) => item.kind === "wrong" || item.kind === "no link").flatMap((item) => item.cells), "set"),
+      w: () => EV.choose(app, app.object.review.filter((item) => item.type === "wrong" || item.type === "no link").flatMap((item) => item.cells), "set"),
       f: () => { view.only_chosen = !view.only_chosen; },
       k: () => { view.links = !view.links; },
       e: () => { view.edges = !view.edges; },

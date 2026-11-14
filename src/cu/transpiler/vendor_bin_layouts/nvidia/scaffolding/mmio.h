@@ -20,8 +20,8 @@
 #define MMIO_IOCTL_EXTENT CTL_CODE(FILE_DEVICE_UNKNOWN, 0x800, METHOD_BUFFERED, FILE_READ_ACCESS)
 #define MMIO_IOCTL_READ CTL_CODE(FILE_DEVICE_UNKNOWN, 0x801, METHOD_BUFFERED, FILE_READ_ACCESS)
 
-// the most 32-bit registers one read returns, a request naming a reply the driver's buffer contains
-#define MMIO_READ_WORDS_MOST 1024u
+// the max 32-bit registers one read returns, a request naming a reply the driver's buffer contains
+#define MMIO_READ_WORDS_MAX 1024u
 
 // A read of `words` 32-bit registers at byte `offset` into BAR0, the offset a whole count of 32-bit words. The reply is
 // that many 32-bit words, in the order read

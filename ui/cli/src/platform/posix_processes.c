@@ -33,7 +33,7 @@ typedef struct
 #endif
 } PosixProcessesCtx;
 
-// the most bytes of a process's name and line read
+// the max bytes of a process's name and line read
 #define CLI_PROCESS_TEXT (1u << 16u)
 
 static char s_name[CLI_PROCESS_TEXT];

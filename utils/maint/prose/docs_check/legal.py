@@ -20,7 +20,7 @@ from .scan import MARKER
 # own. Rewriting a word inside one edits the artifact.
 #
 # BLANKED PER BLOCK AND NEVER PER LINE. A GPL grant runs fifteen lines and two of them hold anything
-# a regex can find. Blanking the two that matched would leave thirteen lines of legal text standing
+# a regex can find. Blanking the two that matched would leave thirteen lines of legal text located
 # in front of the register scan.
 #
 # WHERE A BLOCK ENDS IS THE WHOLE RULE, and getting it wrong in either direction is expensive.
@@ -129,9 +129,9 @@ def legal_blank(said, path=None, ledger=None):
     Line numbers are preserved, the way every other view in this file preserves them. A finding
     still names a line a reader can open.
     """
-    kept = list(said)
+    retained = list(said)
     for start, stop in comment_blocks(said):
-        if not any(LEGAL.search(one) for one in kept[start:stop]):
+        if not any(LEGAL.search(one) for one in retained[start:stop]):
             continue
         if ledger is not None and path is not None:
             ledger.note(
@@ -141,5 +141,5 @@ def legal_blank(said, path=None, ledger=None):
                 "%s:%d-%d" % (path.replace("\\", "/"), start + 1, stop),
             )
         for at in range(start, stop):
-            kept[at] = ""
-    return kept
+            retained[at] = ""
+    return retained

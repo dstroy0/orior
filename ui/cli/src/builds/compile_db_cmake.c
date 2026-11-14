@@ -60,7 +60,7 @@ EMBED_INLINE void cli_flag_append(const CompileDbCmakeCtx *args)
     }
     mmgr_line_put_n(&text->line, args->flag, args->size);
     mmgr_line_ch(&text->line, '\0');
-    // a flag past the most the line grows to is left out, the flags before it retained
+    // a flag past the max the line grows to is left out, the flags before it retained
     if (!mmgr_line_ok(&text->line))
     {
         return;

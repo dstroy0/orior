@@ -1,6 +1,6 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 head 0	krep_head_write	magic	8 bytes	KREP and four zero bytes
-head 1	krep_head_write	kind	4 bytes	the file's kind
+head 1	krep_head_write	type	4 bytes	the file's type
 head 2	krep_head_write	version	1 limb	KREP_VERSION; a file of another version errors on read
 head 3	flatten_write_iapx	format	1 limb	FLATTEN_FORMAT; a file of any other format errors on read
 head 4	flatten_write_iapx	fields	1 limb	MAX_TREE_FIELDS

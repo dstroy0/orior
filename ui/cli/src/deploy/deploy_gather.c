@@ -23,14 +23,14 @@ typedef struct
     unsigned long long folder_size;
     const char *path;
 } DeployGatherCtx;
-// the bytes of the letter at `at` of `size` bytes, one at the fewest
-EMBED_INLINE unsigned long long gather_letter(const DeployGatherCtx *args)
+// the bytes of the character at `at` of `size` bytes, one at the fewest
+EMBED_INLINE unsigned long long gather_character(const DeployGatherCtx *args)
 {
     const char *text = args->text;
     unsigned long long at = args->at;
-    unsigned int letter = 0u;
-    return EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                      .text_bytes = (const unsigned char *)text, .length = args->size, .at = at, .letter = &letter);
+    unsigned int character = 0u;
+    return EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                      .text_bytes = (const unsigned char *)text, .length = args->size, .at = at, .character = &character);
 }
 
 int cli_deploy_fits(const CliDeploySizePatternCtx *args)
@@ -43,19 +43,19 @@ int cli_deploy_fits(const CliDeploySizePatternCtx *args)
     int starred = 0;
     while (n < args->size)
     {
-        const unsigned long long name_letter =
-            EMBED_CALL(gather_letter, DeployGatherCtx, .text = args->name, .size = args->size, .at = n);
-        const unsigned long long pattern_letter =
-            (p < length) ? EMBED_CALL(gather_letter, DeployGatherCtx, .text = args->pattern, .size = length, .at = p)
+        const unsigned long long name_character =
+            EMBED_CALL(gather_character, DeployGatherCtx, .text = args->name, .size = args->size, .at = n);
+        const unsigned long long pattern_character =
+            (p < length) ? EMBED_CALL(gather_character, DeployGatherCtx, .text = args->pattern, .size = length, .at = p)
                          : 0ULL;
         const int same =
-            (p < length) && (pattern_letter == name_letter) &&
+            (p < length) && (pattern_character == name_character) &&
             (memor.cmp(&(MemoriaCfg){
-                 .src = args->pattern + p, .other = args->name + n, .bytes = (embed_word)name_letter}) == 0);
+                 .src = args->pattern + p, .other = args->name + n, .bytes = (embed_word)name_character}) == 0);
         if ((p < length) && ((args->pattern[p] == '?') || same))
         {
-            p += (args->pattern[p] == '?') ? 1u : pattern_letter;
-            n += name_letter;
+            p += (args->pattern[p] == '?') ? 1u : pattern_character;
+            n += name_character;
         }
         else if ((p < length) && (args->pattern[p] == '*'))
         {
@@ -67,7 +67,7 @@ int cli_deploy_fits(const CliDeploySizePatternCtx *args)
         else if (starred)
         {
             p = star + 1u;
-            mark += EMBED_CALL(gather_letter, DeployGatherCtx, .text = args->name, .size = args->size, .at = mark);
+            mark += EMBED_CALL(gather_character, DeployGatherCtx, .text = args->name, .size = args->size, .at = mark);
             n = mark;
         }
         else

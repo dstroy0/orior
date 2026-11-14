@@ -73,7 +73,7 @@ EMBED_INLINE int cli_tree_above(const RootCtx *args)
             EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = folder,
                        .at = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES}), .set = "/\\");
         slash = (slash_end != 0ULL) ? (folder + (slash_end - 1ULL)) : slash;
-        // a root, `C:\` or `/`, stands where no separator is left past its first
+        // a root, `C:\` or `/`, is where no separator is left past its first
         if ((slash == NULL) || (slash == folder) || ((slash == (folder + 2)) && (folder[1] == ':')))
         {
             if ((slash != NULL) && (slash[1] != '\0'))
@@ -320,7 +320,7 @@ void cli_full(const CliRootCtx *args)
     }
 }
 
-// 1 where `path` is `base` or stands under it
+// 1 where `path` is `base` or is under it
 EMBED_INLINE int cli_starts_with(const RootCtx *args)
 {
     const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_POOL_BYTES});

@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // compile_db_look.c: a look for the tree's compilation database: the files it reads, the look cached for two seconds
-// and cached while the files it read stand, and the words clangd starts with for the database found
+// and cached while the files it read are, and the words clangd starts with for the database found
 #include "../command_line/pool.h"
 #include "../text/text.h"
 #include "compile_db_internal.h"
 
-// how long one look for the database stands before the builds are looked at again, in milliseconds
+// how long one look for the database is before the builds are looked at again, in milliseconds
 #define CLI_COMPILE_LOOKED_FOR 2000ULL
 
 typedef struct
@@ -35,7 +35,7 @@ EMBED_INLINE int cli_clangd_names(const CompileDbLookCtx *args)
         const char *from = (const char *)bytes + at;
         const char *to = (const char *)bytes + end;
         at = end + 1ULL;
-        while ((from < to) && EMBED_CALL(cli_compile_db_internal.compile_white, CliCompileDbCtx, .letter = from[0]))
+        while ((from < to) && EMBED_CALL(cli_compile_db_internal.compile_white, CliCompileDbCtx, .character = from[0]))
         {
             from += 1;
         }

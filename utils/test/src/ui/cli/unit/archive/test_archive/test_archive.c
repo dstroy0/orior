@@ -237,7 +237,7 @@ static void text_of_words(void)
     static const char s_words[] = "impero reads archives ";
     for (unsigned int at = 0u; at < sizeof(s_text); at += 1u)
     {
-        // a letter of the words, its low bit turned at every 251st
+        // a character of the words, its low bit turned at every 251st
         s_text[at] = (unsigned char)(s_words[(at * 7u) % 21u] ^ (((at % 251u) == 0u) ? 1 : 0));
     }
 }
@@ -305,14 +305,14 @@ static int python_run_result(const char *code, char *out, unsigned long long cap
     VerbaLinea line = {out, capacity, 0ull};
     for (unsigned long long at = 0ull; whole && (at < run_result->out_size); at += 1ull)
     {
-        const char letter = run_result->out[at];
-        if ((letter == '\n') && (at + 1ull < run_result->out_size))
+        const char character = run_result->out[at];
+        if ((character == '\n') && (at + 1ull < run_result->out_size))
         {
             mmgr_line_ch(&line, '|');
         }
-        else if ((letter != '\n') && (letter != '\r'))
+        else if ((character != '\n') && (character != '\r'))
         {
-            mmgr_line_ch(&line, letter);
+            mmgr_line_ch(&line, character);
         }
     }
     (void)mmgr_line_finish(&line);

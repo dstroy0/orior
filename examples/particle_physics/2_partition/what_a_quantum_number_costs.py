@@ -8,7 +8,7 @@
 #   Usage:  python examples/particle_physics/2_partition/what_a_quantum_number_costs.py [Z | symbol ...]
 #
 # A partition is the unit and the scale the points are read at, and a reading is undetermined until it
-# is fixed. For an atom the partition is which of the four quantum numbers the reading keeps. Keep all
+# is fixed. For an atom the partition is which of the four quantum numbers the reading retains. Retain all
 # four and every electron is its own state, the finest the atom is written at, and no two electrons
 # agglomerate. Drop the spin and the two electrons of an orbital fall to one bucket. Drop the magnetic
 # number and a subshell's electrons fall together. Drop the principal number and the whole atom is one
@@ -19,7 +19,7 @@
 # The max bucket at a partition is the fullest that level's cell ever gets, and it lands on the Pauli
 # capacity because the ideal filling packs each cell before opening the next.
 #
-# Only the full partition keeps every element's electrons distinct. Every coarser partition
+# Only the full partition retains every element's electrons distinct. Every coarser partition
 # agglomerates, and the count of what it folds is what the coarse reading costs. Exact arithmetic is
 # the full partition: infinite discrimination is the reading that never merges two states that differ,
 # and it is why an accumulation of fermions stays an accumulation here instead of collapsing.
@@ -41,7 +41,7 @@ import manifest  # noqa: E402,F401
 
 from representation.atom import element  # noqa: E402
 
-# The partition levels, finest first. Each keeps a prefix of the state (principal, azimuthal, magnetic,
+# The partition levels, finest first. Each retains a prefix of the state (principal, azimuthal, magnetic,
 # doubled_spin): four numbers is every electron, then spin drops, then the magnetic number, then the
 # subshell, until nothing but the atom is left.
 LEVELS = (
@@ -57,16 +57,16 @@ LEVELS = (
 DETAIL = ("H", "C", "Fe", "Nd", "U", "Og")
 
 
-def partition_counts(electrons, keep):
-    """The accumulated electrons read at a partition keeping `keep` of the four numbers.
+def partition_counts(electrons, retain):
+    """The accumulated electrons read at a partition retention `retain` of the four numbers.
 
     Returns (distinct, fullest), distinct the number of cells the electrons fall into and fullest the
-    most electrons any one cell holds. At keep of four every electron is its own cell. Distinct is
-    Z and fullest is one. At keep of zero the atom is one cell. Distinct is one and fullest is Z.
+    max electrons any one cell holds. At retain of four every electron is its own cell. Distinct is
+    Z and fullest is one. At retain of zero the atom is one cell. Distinct is one and fullest is Z.
     """
     cells = {}
     for state, _ in electrons:
-        key = state[:keep]
+        key = state[:retain]
         cells[key] = cells.get(key, 0) + 1
     return len(cells), max(cells.values())
 
@@ -75,8 +75,8 @@ def one_element(atomic_number, out):
     """Detail one element: how many cells it falls into at each partition, and the fullest cell."""
     electrons = element.electrons(atomic_number)
     out.write("\n  %-3s Z=%d\n" % (element.symbol(atomic_number), atomic_number))
-    for keep, name, _ in LEVELS:
-        distinct, fullest = partition_counts(electrons, keep)
+    for retain, name, _ in LEVELS:
+        distinct, fullest = partition_counts(electrons, retain)
         out.write("    %-12s %3d cell(s), fullest holds %2d, folded %3d\n"
                   % (name, distinct, fullest, len(electrons) - distinct))
 
@@ -87,24 +87,24 @@ def summarize(out):
     out.write("    %-12s %-22s %9s %9s %8s\n"
               % ("partition", "tells apart", "distinct", "capacity", "exact"))
     total_electrons = sum(number for number in range(1, element.ELEMENT_COUNT + 1))
-    for keep, name, tells in LEVELS:
+    for retain, name, tells in LEVELS:
         distinct_total = 0
         capacity = 0
-        kept_whole = 0
+        retained_whole = 0
         for atomic_number in range(1, element.ELEMENT_COUNT + 1):
             electrons = element.electrons(atomic_number)
-            distinct, fullest = partition_counts(electrons, keep)
+            distinct, fullest = partition_counts(electrons, retain)
             distinct_total += distinct
             capacity = max(capacity, fullest)
             if distinct == len(electrons):
-                kept_whole += 1
+                retained_whole += 1
         out.write("    %-12s %-22s %9d %9d %5d/%d\n"
-                  % (name, tells, distinct_total, capacity, kept_whole, element.ELEMENT_COUNT))
-    out.write("\n  distinct is the states kept summed over the table; the accumulation is %d electrons.\n"
+                  % (name, tells, distinct_total, capacity, retained_whole, element.ELEMENT_COUNT))
+    out.write("\n  distinct is the states retained summed over the table; the accumulation is %d electrons.\n"
               % total_electrons)
     out.write("  capacity is the fullest one cell ever gets, and it is the Pauli number at that level:\n")
     out.write("  one per spin-orbital, two per orbital, 14 at the f subshell, 32 at the n=4 shell.\n")
-    out.write("  exact is how many of the %d elements keep every electron distinct, and only the full\n"
+    out.write("  exact is how many of the %d elements retain every electron distinct, and only the full\n"
               % element.ELEMENT_COUNT)
     out.write("  partition does. Every coarser one folds an accumulation of fermions into fewer states.\n")
 
@@ -129,19 +129,19 @@ def wanted_numbers(argv):
 
 def main(argv):
     out = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", newline="")
-    out.write("\n  The partition of an atom is which quantum numbers the reading keeps. Keep all four\n")
-    out.write("  and every electron stands apart. Drop them one at a time and the accumulation folds.\n")
+    out.write("\n  The partition of an atom is which quantum numbers the reading retains. Retain all four\n")
+    out.write("  and every electron is apart. Drop them one at a time and the accumulation folds.\n")
 
     detail = wanted_numbers(argv)
     if not detail:
         detail = [element.atomic_number(symbol) for symbol in DETAIL]
 
-    shown = 0
+    displayed = 0
     for atomic_number in detail:
         one_element(atomic_number, out)
-        shown += 1
+        displayed += 1
 
-    if shown == 0:
+    if displayed == 0:
         out.write("\n  nothing to read. Name a Z from 1 to %d or a symbol.\n\n" % element.ELEMENT_COUNT)
         out.flush()
         return 2

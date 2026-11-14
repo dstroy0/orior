@@ -15,7 +15,7 @@ const { test, assert, ui } = window.__harness;
 // The shape of the branch under `key` on the window's side, `{ lines, units }`, or null where there is none.
 const shapeOf = (key) => invoke("document_edit", { key, changes: [] }).catch(() => null);
 
-test("each cell of a notebook opened is a branch colored in its kind's language, its session the mirror of it", async () => {
+test("each cell of a notebook opened is a branch colored in its type's language, its session the mirror of it", async () => {
   const book = await openedNotebook("mirror", [code("# a comment\nx = 1"), markdown("# A heading")]);
   const [first, words] = book.cells;
   await ui.waitFor(() => first.session.highlight.key && words.session.highlight.key, 10000, "both cells mirrored");

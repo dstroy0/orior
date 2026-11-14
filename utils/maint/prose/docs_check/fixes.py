@@ -122,13 +122,13 @@ def fix_plan(path, lines, said, regions, errors, allowed):
     """
     quotations = path.endswith(".md")
     comments = not path.endswith((".md", ".tex"))
-    shown = path.replace("\\", "/")
+    displayed = path.replace("\\", "/")
     for at, pattern, token in banned_hits(said, quotations, comments, path):
         tier = tier_of(pattern)
         line = lines[at - 1] if 0 < at <= len(lines) else ""
         why = fix_error(path, tier, at, regions, line)
         said_token = " ".join(token.split())
         if why:
-            errors.append("%s:%d %r: %s" % (shown, at, said_token, why))
+            errors.append("%s:%d %r: %s" % (displayed, at, said_token, why))
         else:
-            allowed.append("%s:%d %r, token for token" % (shown, at, said_token))
+            allowed.append("%s:%d %r, token for token" % (displayed, at, said_token))

@@ -35,7 +35,7 @@ int ksg_writing_begun(KsgWriting *writing, const char *path, const char *beside)
     writing->file = -1;
     writing->seal = -1;
     writing->whole = 0;
-    const int sealed = ksg_kind_sealed(path);
+    const int sealed = ksg_type_sealed(path);
     if (!ksg_named(path, "", writing->path) || !ksg_named(path, beside, writing->part) ||
         (sealed && (!ksg_named(path, KSG_SUFFIX, writing->seal_path) ||
                     !ksg_named(writing->seal_path, beside, writing->seal_part))))

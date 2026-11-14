@@ -1,13 +1,13 @@
 # A container's layout, read by the emitter. Nothing here is compiled in.
 #
-# The emitter knows the shape of the work: read a pattern's tables, put the code and the attributes in, lay the
+# The emitter knows the shape of the work: read a pattern's tables, put the code and the attributes in, position the
 # sections out again. It knows no offset, no width, no tag and no name. Those are here, and a container of another
 # shape is another file of these rows.
 #
 # field	<name>	<offset>	<width>     a place in a header, in bytes
 # size	<name>	<bytes>                 how long a thing is
 # tag	<name>	<value>                 a number the format gives a meaning
-# name	<name>	<text>                  a name the format defines, with {part} standing for the part's own
+# name	<name>	<text>                  a name the format defines, with {part} located for the part's own
 # container kernel <name>               the kernel the container the system accepted enters at
 # container pattern <hex>               that container's bytes, sixty-four a row
 #
@@ -31,7 +31,7 @@ field	section.size	32	8
 field	section.info	44	4
 field	section.align	48	8
 #
-# a section of this type takes no bytes in the file: it is laid out at no length and keeps the size its header gives
+# a section of this type takes no bytes in the file: it is arranged at no length and retains the size its header gives
 tag	section.type_nobits	8
 #
 # one program header
@@ -45,7 +45,7 @@ field	symbol.size	16	8
 size	symbol	24
 #
 # The count of registers a thread holds sits in the top byte of the code section's info, and the symbol it names in
-# the rest. A format that keeps it elsewhere moves these two rows and nothing else
+# the rest. A format that retains it elsewhere moves these two rows and nothing else
 tag	registers.shift	24
 tag	registers.symbol_mask	16777215
 #
@@ -68,7 +68,7 @@ size	table.align	8
 size	table.entry	8
 #
 # how many sections a container of this shape may hold, and the room one attribute section takes
-size	sections.most	64
+size	sections.max	64
 size	attributes.room	4096
 
 # the container the system accepted, which every question is put in: the kernel it enters at, then its bytes

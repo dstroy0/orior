@@ -24,8 +24,8 @@ test("a command still waiting for keys answers WAIT, a whole one says what it is
   assert.equal(parse(["2"]), WAIT);
   assert.deepEqual(parse(["2", "d", "3", "w"]), { register: null, name: "d", count: 6, motion: { name: "w" } });
   assert.deepEqual(parse(["d", "d"]), { register: null, name: "d", count: null, lines: true });
-  assert.deepEqual(parse(['"', "a", "y", "i", "w"]), { register: "a", name: "y", count: null, object: { kind: "i", of: "w" } });
-  assert.deepEqual(parse(["f", "x"]), { count: null, motion: { name: "f", letter: "x" } });
+  assert.deepEqual(parse(['"', "a", "y", "i", "w"]), { register: "a", name: "y", count: null, object: { type: "i", of: "w" } });
+  assert.deepEqual(parse(["f", "x"]), { count: null, motion: { name: "f", character: "x" } });
   assert.equal(parse(["q"]), null);
   assert.deepEqual(parse(["d"], "visual"), { register: null, count: null, name: "d", chosen: true });
 });

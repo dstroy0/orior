@@ -13,7 +13,7 @@
 # impression survives until something counts it.
 #
 # Hierarchical agglomerative clustering counts it. The two closest languages join, then the two closest
-# groups, until one group is left, and the distance at every join is kept. The order of the joins is the
+# groups, until one group is left, and the distance at every join is retained. The order of the joins is the
 # tree and the distances are its heights.
 #
 # Two matrices are built because there are two questions. Clustering the profiles as measured asks which

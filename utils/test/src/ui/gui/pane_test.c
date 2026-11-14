@@ -71,7 +71,7 @@ int main(void)
     file_written(s_root, "notes.txt", "one\n");
     const GuiPaneTable *const explorer = EMBED_CALL(gui_pane.table_of, GuiPaneCfg, .tool = "explorer");
     cli_check(explorer == &gui_explorer_table, "the explorer tool has its table");
-    EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = explorer, .event = GUI_PANE_SHOWN, .root = s_root);
+    EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = explorer, .event = GUI_PANE_DISPLAYED, .root = s_root);
     cli_check(EMBED_CALL(explorer->rows, GuiPaneCfg, .table = explorer) == 2u, "the tree's folder and file are rows");
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(explorer->title, GuiPaneCfg, .tree = "pane_tree"),
                                            .cap = CLI_POOL_BYTES,
@@ -133,7 +133,7 @@ int main(void)
               "the pane's own menu lists again and collapses");
     cli_files_explorer_refresh();
     cli_check(EMBED_CALL(explorer->rows, GuiPaneCfg, .table = explorer) == 3u,
-              "the explorer listed again stands with its folder open");
+              "the explorer listed again is with its folder open");
     cli_files_explorer_collapse();
     cli_check(EMBED_CALL(explorer->rows, GuiPaneCfg, .table = explorer) == 2u, "the folders collapsed close");
     cli_check(cli_files_explorer_open("src") && (EMBED_CALL(explorer->rows, GuiPaneCfg, .table = explorer) == 3u) &&
@@ -146,7 +146,7 @@ int main(void)
     EMBED_CALL(gui_pane.init, GuiPaneCfg, .pane = &problems_pane);
     cli_check(EMBED_CALL(gui_pane.rows_top, GuiPaneCfg, .table = problems, .frame = &frame) ==
                   frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PROBLEMS_HEAD,
-              "the problems' rows stand under the side's head, the line and the problems' head");
+              "the problems' rows are under the side's head, the line and the problems' head");
     cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = problems, .pane_read = &problems_pane, .frame = &frame,
                          .glyphs = &glyphs, .x = frame.side.x + 20,
                          .y = frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + (GUI_PROBLEMS_HEAD / 2)) ==
@@ -161,7 +161,7 @@ int main(void)
     unsigned int hit_row = 0u;
     cli_check(!EMBED_CALL(gui_pane.hit, GuiPaneCfg, .table = problems, .pane_read = &problems_pane, .frame = &frame,
                           .x = frame.side.x + 20, .y = frame.side.y + frame.side.height - 10, .row_pointer = &hit_row),
-              "no problem stands, so no row is pressed");
+              "no problem is, so no row is pressed");
 
     raster.pixels = NULL;
     raster.width = 0u;

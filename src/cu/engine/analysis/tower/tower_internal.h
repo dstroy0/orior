@@ -22,8 +22,8 @@ static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success"
 #define TOWER_STATUS_CHECK(call_, evacaddr_, error_)                                                                   \
     engine_status_check((int)(call_), ENGINE_MODULE_TOWER, (unsigned int)__LINE__, (const void *)(evacaddr_), (error_))
 
-#define TOWER_CHECK(condition_, evacaddr_, error_, kind_)                                                              \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_TOWER, (unsigned int)__LINE__, (const void *)(evacaddr_),  \
+#define TOWER_CHECK(condition_, evacaddr_, error_, type_)                                                              \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_TOWER, (unsigned int)__LINE__, (const void *)(evacaddr_),  \
                        (error_))
 
 #define TOWER_THREADS 256u
@@ -60,8 +60,8 @@ unsigned int tower_blocks(unsigned long long count);
 
 std::vector<TowerStep> tower_floors(const unsigned long long *extent);
 
-// the coefficients, the scratch, the flag and the mismatch count are slices of one pool, sized for the most lanes
-// requested so far; the edge table grows apart, only when an edge is laid out
+// the coefficients, the scratch, the flag and the mismatch count are slices of one pool, sized for the max lanes
+// requested so far; the edge table grows apart, only when an edge is arranged
 struct TowerResident
 {
     DevicePool pool;
@@ -85,7 +85,7 @@ DevicePoolPlan tower_plan(size_t lanes, EngineError *error, DevicePoolTakeReques
 unsigned long long tower_lanes(const unsigned long long *extent);
 
 // the record floors' writer: every step is counted, and written only where the caller's program is allocated. Each
-// constant is laid out once, where it is first read, and its register stored beside its value.
+// constant is arranged once, where it is first read, and its register stored beside its value.
 struct TowerRecordBuilder
 {
     EngineRecordStep *steps;

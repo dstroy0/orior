@@ -85,7 +85,7 @@ struct VolumesResident
 };
 
 static_assert(SHIFT_AGREEMENT_VOLUMES == 4u,
-              "shift_agreement: the pool lays out one slice for each of the four volumes");
+              "shift_agreement: the pool arranges one slice for each of the four volumes");
 
 struct NegationResident
 {

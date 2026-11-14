@@ -31,11 +31,11 @@ extern "C"
 {
 #endif
 
-// the words of a case, the words of its answer, and the most cases one question is run over, past every case the
+// the words of a case, the words of its answer, and the max cases one question is run over, past every case the
 // host computes a question on: the carrier gives each case a thread
 #define RUN_IN_WORDS 8u
 #define RUN_OUT_WORDS 2u
-#define RUN_CASES_MOST 4096u
+#define RUN_CASES_MAX 4096u
 
 // a question's probe place where its code contains none: the carrier makes no place conservative past the wait on all
 // six
@@ -47,7 +47,7 @@ extern "C"
 #define RUN_UNWRITTEN_WORD 0xffffffffu
 #define RUN_THREADS_A_BLOCK 256u
 
-// the place among the launch's parameters the count stands at, in bytes, the carrier's own (cubin_run_internal.h):
+// the place among the launch's parameters the count is at, in bytes, the carrier's own (cubin_run_internal.h):
 // the frame's queries read the count as a parameter's word, the threads the launch gives a case each
 #define RUN_COUNT_PLACE 16u
 
@@ -57,8 +57,8 @@ extern "C"
 #define RUN_GATE_KEY_RULE "skipped 5 "
 
 // the gate's block on an encoding the vendor's own reader called illegal, as the carrier answers it (cubin_safe.h,
-// CUBIN_SAFE_GATED). A query blocked so stays blocked in R: the verdict is the vendor's and stands. A query the gate
-// blocked under any other rule is open in R: the part never saw it, and the gate reads it again as its rules stand
+// CUBIN_SAFE_GATED). A query blocked so stays blocked in R: the verdict is the vendor's and is. A query the gate
+// blocked under any other rule is open in R: the part never saw it, and the gate reads it again as its rules are
 #define RUN_GATE_VENDOR_RULE "skipped 12 "
 
 // what a run came to
@@ -68,7 +68,7 @@ typedef enum
     RUN_ANSWERED,
     // the part took the container and the words are what it left
     RUN_NOTHING,
-    // the part would not take the container as it stands
+    // the part would not take the container as it is
     RUN_ILLEGAL,
     // nothing carried the bytes: no part, or no mapping to it
     RUN_NO_CHANNEL,
@@ -88,7 +88,7 @@ typedef struct
     // place and every instruction only waits on all six barriers
     unsigned int place;
     // the cases it is run over, a thread a case, and how many
-    unsigned int word[RUN_CASES_MOST][RUN_IN_WORDS];
+    unsigned int word[RUN_CASES_MAX][RUN_IN_WORDS];
     unsigned int cases;
     // how many times it is launched again once it answers, those launches timed together on the driver's event
     // clock, the driver's word on a launch and not the clock the query reads (query_put.h); 0 leaves it untimed
@@ -98,14 +98,14 @@ typedef struct
     unsigned int threads;
     unsigned int blocks;
     // each case's answer, its two words as one value
-    unsigned long long answered[RUN_CASES_MOST];
+    unsigned long long answered[RUN_CASES_MAX];
     // the time the launches took together, in nanoseconds off the driver's event timer, which ticks about every half
     // microsecond; 0 where it is untimed
     unsigned long long nanoseconds;
-    // the least and the most one launch of them took, a launch whole and not the question's own cost: a form costs a
+    // the least and the max one launch of them took, a launch whole and not the question's own cost: a form costs a
     // few cycles under a launch's overhead, and P6 ranks nothing off these; 0 where it is untimed
     unsigned long long least;
-    unsigned long long most;
+    unsigned long long max;
     // the address of the timer register the launches were timed on, read through the BAR0 driver (bus_clock.c); 0
     // where they were timed on the driver's event timer
     unsigned int clock_address;
@@ -115,33 +115,33 @@ typedef struct
 } RunQuestion;
 
 // The channel opened on the carrier `carrier`, the words that start it ended by NULL, and each question given
-// `limit_microseconds` before its process is ended. Every file of the channel is a blob of the run's .qry, handed to
-// the run (qry_member.h), and the carrier is handed the blobs' names: no file of the channel is written to
-// disk but by the run's writer. The round a carrier is about to carry, questions.txt, is handed critical and is on disk
+// `limit_microseconds` before its process is ended. Every file of the channel is a blob of the run's .qry, passed to
+// the run (qry_member.h), and the carrier is passed the blobs' names: no file of the channel is written to
+// disk but by the run's writer. The round a carrier is about to carry, questions.txt, is passed critical and is on disk
 // before the carrier starts; a round that cannot be put there is not carried. 1, or 0 with the reason printed where
 // no writer runs for the run. A channel is opened once and every question after goes through it.
 //
 // A carrier whose first word is `dry` is a dry run: nothing carries a question and nothing answers it. A round is
 // written as a live round is, each question as question<n>.bin and cases<n>.txt and the round as questions.txt in the
 // form a carrier's list takes, `<code> <registers> <cases> <answers> <probe> <launches>`, and passes the airlock the
-// words after `dry` open as a live round does; then each question reads RUN_GATED, and the last round's list is handed
+// words after `dry` open as a live round does; then each question reads RUN_GATED, and the last round's list is passed
 // whole once the channel closes. What the protocol put is then checked by handing that list to a carrier that stops
 // before the part. A question queried alone on a dry channel is written and gated without an airlock. A carrier whose
 // own words include --dry stops before the driver too, and every round reaches it through the airlock as a live round
 // does: nothing is launched, and R is read and nothing it answers is stored in R.
 //
 // Every round a live channel carries passes the airlock first, and nothing the vendor's reader has not read goes to the
-// part. The words after the carrier's may open one: `--pop <words>`, the carrier with the part taken out, which hands
+// part. The words after the carrier's may open one: `--pop <words>`, the carrier with the part taken out, which passes
 // each question's container (`--list <list>` put after its words), and `--cross <words>`, the vendor's reader over the
-// containers (the list put after its first word), which hands the gated list the carrier reads by its `--gated <name>`.
-// Before each round is carried, its list is handed as airlock.txt, each question's answers named airlock_ before its
-// own name, the pop and the cross are run over it, and the round is carried only where the cross read it and handed
+// containers (the list put after its first word), which passes the gated list the carrier reads by its `--gated <name>`.
+// Before each round is carried, its list is passed as airlock.txt, each question's answers named airlock_ before its
+// own name, the pop and the cross are run over it, and the round is carried only where the cross read it and passed
 // the gated list after it; the carrier then blocks every code the vendor called out (cubin_safe.h). A channel with no
-// airlock carries a round only where its carrier is handed a gated list of a cross that read the whole pass before it.
+// airlock carries a round only where its carrier is passed a gated list of a cross that read the whole pass before it.
 // A round the airlock does not pass is carried by nothing and reads RUN_NO_CHANNEL, the airlock's reason its refusal.
 //
-// The round is checked, fixed and checked again before the part. The cross is handed one word more, the name of the
-// refusals it hands the teacher, a line a refusal with the count of registers that clears it (measuring_stick_query.c):
+// The round is checked, fixed and checked again before the part. The cross is passed one word more, the name of the
+// refusals it passes the teacher, a line a refusal with the count of registers that clears it (measuring_stick_query.c):
 // a question of no shape of its own refused only for registers past the count its kernel allots is given the count that
 // clears every refusal of it, and the round is listed again and read again, until no question is given one. A count
 // changes how a question is put and never what it requires. Every refusal, every question still refused and every count

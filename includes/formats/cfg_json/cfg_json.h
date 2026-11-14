@@ -25,7 +25,7 @@ extern "C"
 
     typedef struct
     {
-        CfgJsonKind kind;
+        CfgJsonKind type;
         size_t start;
         size_t end;
         unsigned int count;

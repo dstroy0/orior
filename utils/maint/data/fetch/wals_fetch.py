@@ -45,7 +45,7 @@ PAUSE = 0.3
 
 
 def fetch(url, target):
-    """One table, kept on disk, skipped where it is already present."""
+    """One table, retained on disk, skipped where it is already present."""
     if os.path.isfile(target) and (os.path.getsize(target) > 2000):
         return os.path.getsize(target), "already held"
     request = urllib.request.Request(url, headers=AGENT)
@@ -77,7 +77,7 @@ def main():
         out.write("  %-18s %-12d %-14s %s\n" % (name, size, how, header[:64]))
         out.flush()
 
-    # The features this claim is about, found by name, which keeps a renumbering from breaking it
+    # The features this claim is about, found by name, which retains a renumbering from breaking it
     wanted = ("evidential", "aspect", "tense", "modality", "epistemic")
     parameters = os.path.join(WALS, "parameters.csv")
     if os.path.isfile(parameters):

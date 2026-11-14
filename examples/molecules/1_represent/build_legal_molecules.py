@@ -9,9 +9,9 @@
 #
 # The assembly stage reads the bond count off an atom's shell. This walks the other way: it enumerates
 # the compositions of carbon, hydrogen, nitrogen and oxygen within a bound, turns each into the degree
-# list its atoms carry, and keeps the ones a molecule graph can hold. Each atom's degree is its capacity
+# list its atoms carry, and retains the ones a molecule graph can hold. Each atom's degree is its capacity
 # from assembly_from_atomic_properties, read from element.electrons, and the build takes its valences
-# from the ledger and puts none in by hand. The keep decision is connected_multigraph in measure, the
+# from the ledger and puts none in by hand. The retain decision is connected_multigraph in measure, the
 # same gate the wide-set detector runs, and what is built legal and what is detected legal are one test.
 #
 # The gate is a necessary condition and is not sufficient: a built formula is one that could be a molecule,
@@ -39,7 +39,7 @@ from measure.graph_realizable import connected_multigraph  # noqa: E402
 from representation.atom import element  # noqa: E402
 
 # assembly_from_atomic_properties sits in this directory; its valence reading is the ledger source, and
-# building on it keeps one derivation of the bond count instead of two.
+# building on it retains one derivation of the bond count instead of two.
 import assembly_from_atomic_properties as assembly  # noqa: E402
 
 # The elements the space is built over, and the count each ranges up to. Carbon, hydrogen, nitrogen and
@@ -48,7 +48,7 @@ BUILD_ELEMENTS = ("C", "H", "N", "O")
 BOUND = {"C": 20, "H": 44, "N": 6, "O": 8}
 
 # How many built formulae to print as a sample.
-SHOWN = 12
+DISPLAYED = 12
 
 # The existing molecules to verify the built space against, the same wide set the detector reads.
 WIDE_SET = os.path.join(ROOT, "build", "pubchem", "formulae.csv")
@@ -168,7 +168,7 @@ def main(argv):
     out.write("  %d compositions carry a legal valence structure, built from the ledger.\n"
               % len(legal))
     out.write("\n  a sample of them:\n")
-    for counts in legal[:SHOWN]:
+    for counts in legal[:DISPLAYED]:
         out.write("    %s\n" % formula_text(counts))
 
     built_keys = set(formula_text(counts) for counts in legal)

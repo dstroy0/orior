@@ -36,8 +36,8 @@ TYPES = [
     ("float", "floating"),
     ("double", "floating"),
 ]
-INTEGERS = [name for name, kind in TYPES if kind == "integer"]
-FLOATING = [name for name, kind in TYPES if kind == "floating"]
+INTEGERS = [name for name, type in TYPES if type == "integer"]
+FLOATING = [name for name, type in TYPES if type == "floating"]
 NUMBERS = INTEGERS + FLOATING
 
 # C++'s binary operators, each with the types it applies to

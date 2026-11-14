@@ -4,12 +4,12 @@
 // Search Structurally: code found by its shape, in the file open or in every file of the tree in its
 // language, as shape.rs in the command line's crate finds it, each match listed under the sheet's
 // fields to go to; and, with a template, every match written again from it, every file's changes
-// one step undo takes back. The last pattern and template are kept, by language.
+// one step undo takes back. The last pattern and template are retained, by language.
 
 import { invoke } from "./bridge.js";
 import { say } from "./statusbar.js";
 
-const KEPT = "orior.shape-search";
+const RETAINED = "orior.shape-search";
 
 function element(tag, props = {}, ...children) {
   const made = Object.assign(document.createElement(tag), props);
@@ -17,9 +17,9 @@ function element(tag, props = {}, ...children) {
   return made;
 }
 
-function kept() {
+function retained() {
   try {
-    return JSON.parse(localStorage.getItem(KEPT) ?? "{}");
+    return JSON.parse(localStorage.getItem(RETAINED) ?? "{}");
   } catch {
     return {};
   }
@@ -28,11 +28,11 @@ function kept() {
 // Shows the sheet for the file `path` in `language`, named `languageName`. `sheet` shows a sheet,
 // `open` goes to a place of a file of the tree, and `apply` writes every file's edits as one step.
 export function shapeSearch({ sheet, language, languageName, path, open, apply }) {
-  const last = kept()[language] ?? {};
+  const last = retained()[language] ?? {};
   const body = element("form", { className: "sheet-ask shape-sheet" });
   const pattern = element("textarea", { className: "report-field shape-field", rows: 3, spellcheck: false, value: last.pattern ?? "", placeholder: "Code with placeholders: $x$ an expression, $x:name$ one name, $x:stmt$ statements" });
   pattern.setAttribute("aria-label", "Pattern");
-  const template = element("textarea", { className: "report-field shape-field", rows: 2, spellcheck: false, value: last.template ?? "", placeholder: "Replace with, the same placeholders standing for what each took" });
+  const template = element("textarea", { className: "report-field shape-field", rows: 2, spellcheck: false, value: last.template ?? "", placeholder: "Replace with, the same placeholders located for what each took" });
   template.setAttribute("aria-label", "Replace with");
   const scope = element("select", { className: "report-field" }, element("option", { value: "file", textContent: `In ${path}` }), element("option", { value: "tree", textContent: `In every ${languageName} file of the tree` }));
   scope.setAttribute("aria-label", "Where");
@@ -45,9 +45,9 @@ export function shapeSearch({ sheet, language, languageName, path, open, apply }
   const dialog = sheet(body);
 
   const ask = async (withTemplate) => {
-    const all = kept();
+    const all = retained();
     all[language] = { pattern: pattern.value, template: template.value, scope: scope.value };
-    localStorage.setItem(KEPT, JSON.stringify(all));
+    localStorage.setItem(RETAINED, JSON.stringify(all));
     if (!pattern.value.trim()) {
       said.textContent = "Write the code to find, with placeholders where it may differ.";
       return null;

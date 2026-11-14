@@ -32,8 +32,8 @@ const CURSOR_KEYS = { ArrowUp: "A", ArrowDown: "B", ArrowRight: "C", ArrowLeft: 
 export function keyText(event, appCursor) {
   const modifiers = (event.shiftKey ? 1 : 0) + (event.altKey ? 2 : 0) + (event.ctrlKey ? 4 : 0);
   if (CURSOR_KEYS[event.key]) {
-    const letter = CURSOR_KEYS[event.key];
-    return modifiers ? `\x1b[1;${modifiers + 1}${letter}` : `${appCursor ? "\x1bO" : "\x1b["}${letter}`;
+    const character = CURSOR_KEYS[event.key];
+    return modifiers ? `\x1b[1;${modifiers + 1}${character}` : `${appCursor ? "\x1bO" : "\x1b["}${character}`;
   }
   if (event.key === "Tab" && event.shiftKey) {
     return "\x1b[Z";

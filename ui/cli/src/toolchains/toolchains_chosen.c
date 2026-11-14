@@ -8,7 +8,7 @@
 #include "toolchains_internal.h"
 
 // A tool's search cached: its id, how it was found, as CliFound's `state` records, and its program, empty where it is
-// missing. Each stands in a movable cell of its own sized to its texts: the state's place, the id's bytes and the
+// missing. Each is in a movable cell of its own sized to its texts: the state's place, the id's bytes and the
 // program's bytes, then the id with its 0 and the program with its 0
 typedef struct
 {
@@ -23,7 +23,7 @@ typedef struct
     unsigned int program_bytes;
 } ToolFoundHead;
 
-// the tools cached at the most
+// the tools cached at max
 #define CLI_FOUND_MAX 1024u
 
 // The searches cached: what the search read as they were made, the PATH's folders, the manifest as built and the
@@ -352,8 +352,8 @@ EMBED_INLINE unsigned int found_position(const ToolchainsChosenCtx *args)
 }
 
 // tool `id` cached as found `state`, with `program`, in its place or after the others, in a cell sized to its texts,
-// the cell it replaces given back: 1, or 0 where the id is too long, the state is none of the four, the cache stands
-// at its most or the cells cannot meet it. Under the cache's lock
+// the cell it replaces given back: 1, or 0 where the id is too long, the state is none of the four, the cache is
+// at its max or the cells cannot meet it. Under the cache's lock
 EMBED_INLINE int found_append(const ToolchainsChosenCtx *args)
 {
     const unsigned long long id_length = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_NAME_MAX_LEN});

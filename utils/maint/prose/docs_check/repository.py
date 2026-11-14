@@ -10,7 +10,7 @@ import subprocess
 
 
 
-# Every place this project keeps prose. A README beside the code makes the same claims a page under
+# Every place this project retains prose. A README beside the code makes the same claims a page under
 # docs makes, and is read by the same people.
 #
 # Held against the repository and not against the working directory. These were plain relative names
@@ -27,7 +27,7 @@ while (REPOSITORY != os.path.dirname(REPOSITORY)) and not os.path.isfile(
 
 # Every directory holding writing of this project's own.
 #
-# A ROOT THAT MOVES IS THE FAILURE THIS LIST KEEPS HAVING, and it is silent: a stale name reads
+# A ROOT THAT MOVES IS THE FAILURE THIS LIST RETAINS HAVING, and it is silent: a stale name reads
 # fewer files and still exits 0. The guard below turns a root that no longer exists into an error.
 #
 # IT CANNOT CATCH A ROOT THAT EMPTIED. A directory that still exists because one file stayed in it
@@ -46,7 +46,7 @@ for one in DEFAULT_ROOTS:
         )
 
 
-# The environment a git query runs under, with the caller's own repository handed off.
+# The environment a git query runs under, with the caller's own repository passed off.
 #
 # Git EXPORTS GIT_DIR and GIT_WORK_TREE to a hook. A rev-parse that inherits them answers about that
 # repository instead of about the directory it was asked from. --show-toplevel returns the hook's
@@ -68,10 +68,10 @@ GIT_HANDOFF = (
 
 def git_env():
     """A copy of the environment with every variable naming somebody else's repository removed."""
-    kept = dict(os.environ)
+    retained = dict(os.environ)
     for one in GIT_HANDOFF:
-        kept.pop(one, None)
-    return kept
+        retained.pop(one, None)
+    return retained
 
 
 def git_say(where, args):

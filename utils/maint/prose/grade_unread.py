@@ -1,14 +1,14 @@
-"""Runs the prose gate over source kinds it does not read, by staging them as ones it does.
+"""Runs the prose gate over source types it does not read, by staging them as ones it does.
 
 The gate reads a fixed list of extensions. Everything else in a tree is invisible to it, and
 invisible reads exactly like clean: pointed at src/ it reports twelve files and exits zero while
-never opening the thirty-eight .cpp and ten .cu files beside them, which are most of the tree.
+never opening the thirty-eight .cpp and ten .cu files beside them, which are the majority of the tree.
 
 CUDA and C++ carry C comment syntax. Nothing has to be transformed. A file is copied under a
 checked extension, the gate is run on the copy, and the findings are relabeled with the real path.
 Line numbers are already right because nothing is rewritten.
 
-    python utils/maint/prose/grade_unread.py                 # every unread kind under src/
+    python utils/maint/prose/grade_unread.py                 # every unread type under src/
     python utils/maint/prose/grade_unread.py path ...        # named files or directories
     python utils/maint/prose/grade_unread.py --strict        # every note becomes breaking
 
@@ -16,7 +16,7 @@ WHAT THIS IS NOT
 
 It is not a second gate and it holds no opinion about prose. Whatever the gate says about a staged
 file is what it would say about the original, and the only thing added here is the staging. When the
-gate's own extension list grows to cover a kind, that kind should be dropped from UNREAD below
+gate's own extension list grows to cover a type, that type should be dropped from UNREAD below
 instead of graded twice.
 """
 
@@ -30,7 +30,7 @@ import tempfile
 HERE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 CHECK = os.path.join(HERE, "utils", "maint", "prose", "docs_check")
 
-# Kinds the gate does not read, and the checked kind each is staged as. C++ and CUDA are staged as
+# Types the gate does not read, and the checked type each is staged as. C++ and CUDA are staged as
 # .c because their comment syntax is identical; nothing about the code is being compiled here.
 UNREAD = {".cu": ".c", ".cuh": ".h", ".cpp": ".c", ".cc": ".c", ".hpp": ".h", ".ps1": ".py"}
 
@@ -49,7 +49,7 @@ def reads():
 
 
 def gather(targets, known):
-    """Every file under the targets whose kind the gate will not read."""
+    """Every file under the targets whose type the gate will not read."""
     out = []
     for one in targets:
         if os.path.isfile(one):
@@ -59,8 +59,8 @@ def gather(targets, known):
         for here, dirs, names in os.walk(one):
             dirs[:] = [d for d in dirs if d not in (".git", "__pycache__", "build", "vendor")]
             for name in sorted(names):
-                kind = os.path.splitext(name)[1]
-                if kind in UNREAD and kind not in known:
+                type = os.path.splitext(name)[1]
+                if type in UNREAD and type not in known:
                     out.append(os.path.join(here, name))
     return out
 
@@ -73,7 +73,7 @@ def main():
     targets = argv or [os.path.join(HERE, "src")]
     files = gather(targets, known)
     if not files:
-        print("nothing to stage: every kind under %s is already read by the gate"
+        print("nothing to stage: every type under %s is already read by the gate"
               % ", ".join(targets))
         return 0
 
@@ -84,28 +84,28 @@ def main():
     room = tempfile.mkdtemp(prefix="grade_unread_")
     made = {}
     for path in files:
-        base, kind = os.path.splitext(os.path.basename(path))
-        # The staged name keeps the original kind in it. Two files that differ only by extension
+        base, type = os.path.splitext(os.path.basename(path))
+        # The staged name retains the original type in it. Two files that differ only by extension
         # do not collide and the mapping back is unambiguous.
-        stand_in = os.path.join(room, "%s__%s%s" % (base, kind.lstrip("."), UNREAD[kind]))
-        shutil.copyfile(path, stand_in)
-        made[os.path.normcase(stand_in)] = path
+        are_in = os.path.join(room, "%s__%s%s" % (base, type.lstrip("."), UNREAD[type]))
+        shutil.copyfile(path, are_in)
+        made[os.path.normcase(are_in)] = path
 
     order = sorted(made)
     call = [sys.executable, CHECK] + order + (["--strict"] if strict else [])
     done = subprocess.run(call, capture_output=True, text=True)
 
     for line in (done.stdout + done.stderr).split("\n"):
-        for stand_in, real in made.items():
-            if stand_in in os.path.normcase(line):
-                at = os.path.normcase(line).index(stand_in)
-                line = line[:at] + os.path.relpath(real, HERE) + line[at + len(stand_in):]
+        for are_in, real in made.items():
+            if are_in in os.path.normcase(line):
+                at = os.path.normcase(line).index(are_in)
+                line = line[:at] + os.path.relpath(real, HERE) + line[at + len(are_in):]
                 break
         if line.strip():
             print(line)
 
     print("")
-    print("%d file(s) staged from kinds the gate does not read" % len(files))
+    print("%d file(s) staged from types the gate does not read" % len(files))
     print("  the gate reads %s" % ", ".join(known) if known else "  gate list unknown")
     return done.returncode
 

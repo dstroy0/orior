@@ -13,7 +13,7 @@ static char s_missing[CLI_PATH_MAX_LEN];
 static char s_broken[CLI_PATH_MAX_LEN];
 static unsigned long long s_size;
 
-// `count` bytes from `bytes`, at most the slack, are zero
+// `count` bytes from `bytes`, at max the slack, are zero
 static void assert_zero(const unsigned char *bytes, unsigned long long count)
 {
     static const unsigned char s_zeros[CLI_FILE_SLACK];
@@ -166,7 +166,7 @@ void test_bytes_that_are_not_utf8_are_refused(void)
 
 void test_bytes_that_are_utf8_are_read(void)
 {
-    unsigned char *const letters = EMBED_CALL(cli_path_internal.file_alloc_utf8, CliPathCtx, .path = s_path, .size_pointer = &s_size, .owner = g_checks_owner);
-    TEST_ASSERT_NOT_NULL(letters);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)letters, (g_checks_owner));
+    unsigned char *const characters = EMBED_CALL(cli_path_internal.file_alloc_utf8, CliPathCtx, .path = s_path, .size_pointer = &s_size, .owner = g_checks_owner);
+    TEST_ASSERT_NOT_NULL(characters);
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)characters, (g_checks_owner));
 }

@@ -13,7 +13,7 @@
 # result. It put every site on a grid of 0.25 angstroms on the way in, and the recovered cell edge
 # then carried that grid instead of the deposit.
 #
-# What is shown here is one entry read both ways. The exact reading carries the deposited text as
+# What is displayed here is one entry read both ways. The exact reading carries the deposited text as
 # integers, a numerator and a count of decimal places, leaving a coordinate that is the number
 # published. The voxel reading divides by 0.25 and truncates, and the difference between the two is
 # printed per site, in angstroms.
@@ -39,7 +39,7 @@ from representation.structure import crystal  # noqa: E402
 CACHE = os.path.join(ROOT, "build", "cod")
 
 # Sites listed one by one before the run is summarized.
-SHOWN = 12
+DISPLAYED = 12
 
 
 def angstroms(value, places=8):
@@ -55,7 +55,7 @@ def angstroms(value, places=8):
 
 
 def one_entry(path, out):
-    """Read one deposit both ways and print what each keeps."""
+    """Read one deposit both ways and print what each retains."""
     with io.open(path, encoding="utf-8", errors="replace") as handle:
         text = handle.read()
 
@@ -85,11 +85,11 @@ def one_entry(path, out):
         held = exact.scaled("%.10f" % gridded)
         gap = abs(place[0] - held)
         worst = max(worst, gap)
-        if at < SHOWN:
+        if at < DISPLAYED:
             out.write("    %-4s %-16s %-16s %-12s\n"
                       % (element, angstroms(place[0]), angstroms(held), angstroms(gap)))
-    if len(points) > SHOWN:
-        out.write("    and %d more\n" % (len(points) - SHOWN))
+    if len(points) > DISPLAYED:
+        out.write("    and %d more\n" % (len(points) - DISPLAYED))
     out.write("\n    worst the grid moved a site along a: %s angstroms\n" % angstroms(worst))
     return True
 
@@ -105,8 +105,8 @@ def main():
         wanted = [os.path.join(CACHE, one)
                   for one in sorted(os.listdir(CACHE))[:3] if one.endswith(".cif")]
 
-    out.write("\n  One cell read twice. The exact reading keeps the deposited digits. The grid\n")
-    out.write("  reading keeps 0.25 angstroms, which nobody who measured the crystal chose.\n")
+    out.write("\n  One cell read twice. The exact reading retains the deposited digits. The grid\n")
+    out.write("  reading retains 0.25 angstroms, which nobody who measured the crystal chose.\n")
 
     read = 0
     for path in wanted:

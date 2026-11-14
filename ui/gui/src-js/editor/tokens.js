@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The tokens of a text's lines as orior's side colors them, kept as they come: each line's runs one flat list, a column
+// The tokens of a text's lines as orior's side colors them, retained as they come: each line's runs one flat list, a column
 // then a name for each run, read into classes as the line is drawn. A branch stored there comes with the runs of the
 // lines in view; the page mirrors the runs of the lines near its view alone, those come as orior's side walks the text
 // out from the view, and more are asked for as the view moves; the lines a change wrote come once it colors them again.
@@ -15,19 +15,19 @@ export { classOf, compile, tokenKinds: tokenTypes } from "./grammar.js";
 
 const PLAIN = [[0, ""]];
 
-// The most lines one splice puts in as its arguments.
+// The max lines one splice puts in as its arguments.
 const SPREAD = 1024;
 
 // How many views' height of lines on each side of the view the page mirrors the runs of.
 const REACH = 2;
 
-// Each branch on orior's side the page mirrors, by its key, and the colors it hands on heard once; and the folds it
-// handed on for a branch before the page came to mirror it, the last by its key, taken as the mirror begins.
+// Each branch on orior's side the page mirrors, by its key, and the colors it passes on heard once; and the folds it
+// passed on for a branch before the page came to mirror it, the last by its key, taken as the mirror begins.
 const mirrored = new Map();
 const early = new Map();
 let hearing = null;
 
-// The branches' colors and folds heard from here on, before a branch is asked for, so none it hands on is missed.
+// The branches' colors and folds heard from here on, before a branch is asked for, so none it passes on is missed.
 export function hearBranches() {
   return heard();
 }
@@ -49,8 +49,8 @@ function heard() {
 // The lines `text` writes.
 const linesOf = (text) => text.split("\n").length;
 
-// A line's runs with a parse's spans laid over them, each span's class from its first col to its
-// last. A parse that colors every col stands in for the runs whole.
+// A line's runs with a parse's spans positioned over them, each span's class from its first col to its
+// last. A parse that colors every col is in for the runs whole.
 function overlay(runs, spans, names, whole) {
   if (whole) {
     return spans.length ? spans.map(([from, , cls]) => [from, names[cls] ?? ""]) : [[0, ""]];
@@ -105,7 +105,7 @@ export function classed(flat, classes) {
   return runs;
 }
 
-// The text of a line cut at its runs, `[class, text]` for each run that takes a letter of it.
+// The text of a line cut at its runs, `[class, text]` for each run that takes a character of it.
 export function partsOf(text, runs) {
   const parts = [];
   runs.forEach(([start, name], index) => {
@@ -128,7 +128,7 @@ export class Highlight {
     this.parse = null;
     this.runs = [];
     this.classes = [""];
-    // Each line's runs read in the names' classes, kept by the runs as they came, so that runs read twice in the same
+    // Each line's runs read in the names' classes, retained by the runs as they came, so that runs read twice in the same
     // classes are the same runs and what is drawn from them is drawn once.
     this.classedOf = new WeakMap();
     this.colored = colored;
@@ -140,7 +140,7 @@ export class Highlight {
     this.seq = 0;
     this.changes = [];
     this.viewTold = null;
-    // The lines mirrored as orior's side was last told them, the letters of each line it colors as it was last told
+    // The lines mirrored as orior's side was last told them, the characters of each line it colors as it was last told
     // them, 0 for every one, and how many times runs have come, for what draws from them to know it has more to draw.
     this.mirrorTold = null;
     this.columnsTold = 0;
@@ -157,7 +157,7 @@ export class Highlight {
   }
 
   // The text the mirror of the branch on orior's side under `key`: the names its grammar's tokens take, the colors
-  // that came with it, and the letters of each line those colors reach, 0 for every one.
+  // that came with it, and the characters of each line those colors reach, 0 for every one.
   mirrors(key, names, colors, columns = 0) {
     this.key = key;
     this.columnsTold = columns;
@@ -178,14 +178,14 @@ export class Highlight {
     this.key = null;
   }
 
-  // The names the grammar's tokens take; the runs kept show as they were until those of the grammar come.
+  // The names the grammar's tokens take; the runs retained show as they were until those of the grammar come.
   named(names) {
     this.classes = (names ?? [""]).map(classOf);
   }
 
-  // Colors orior's side worked out as the text stood after its change `seq`, `[{ from, runs }]`, each line's runs kept
-  // as they came where its line stands now, moved through the changes made since, a line one of them wrote or one
-  // outside the lines mirrored left out, and runs the same as those a line keeps leaving those it keeps, so what is
+  // Colors orior's side worked out as the text was after its change `seq`, `[{ from, runs }]`, each line's runs retained
+  // as they came where its line is now, moved through the changes made since, a line one of them wrote or one
+  // outside the lines mirrored left out, and runs the same as those a line retains leaving those it retains, so what is
   // drawn from them stays drawn; the first colors after the text's grammar changed come with its names.
   put(seq, colors, names = null) {
     if (names) {
@@ -206,26 +206,26 @@ export class Highlight {
     this.colored?.();
   }
 
-  // Folds orior's side read off the text as it stood after its change `seq`, `[[first, last, shown]]`, each placed where
-  // its lines stand now: a fold one of the changes since wrote a line of left out.
+  // Folds orior's side read off the text as it was after its change `seq`, `[[first, last, displayed]]`, each placed where
+  // its lines are now: a fold one of the changes since wrote a line of left out.
   folded(seq, folds) {
     this.changes = this.changes.filter((change) => change.seq > seq);
     const base = this.base();
-    const kept = new Map();
-    for (const [first, last, shown] of folds) {
+    const retained = new Map();
+    for (const [first, last, displayed] of folds) {
       const start = this.placed(first);
       const end = this.placed(last);
       if (start !== null && end !== null && start - base >= 0 && end - base < this.doc.count) {
-        kept.set(start - base, [end - base, shown === 1]);
+        retained.set(start - base, [end - base, displayed === 1]);
       }
     }
-    this.folds = kept;
+    this.folds = retained;
     this.foldsCame += 1;
     this.colored?.();
   }
 
-  // The colors of lines read with their text, `[{ from, runs }]`, put where those lines stand, runs the same as those a
-  // line keeps leaving those it keeps: they are the colors of the text as it is, read after every change before them,
+  // The colors of lines read with their text, `[{ from, runs }]`, put where those lines are, runs the same as those a
+  // line retains leaving those it retains: they are the colors of the text as it is, read after every change before them,
   // and come before the lines are drawn.
   given(colors) {
     if (!colors?.length) {
@@ -243,8 +243,8 @@ export class Highlight {
     this.came += 1;
   }
 
-  // Where the line `line` of the text, as it stood before the changes kept, stands now: null where one of them wrote
-  // it. The edits of one change are each placed against the text as it stood before that change.
+  // Where the line `line` of the text, as it was before the changes retained, is now: null where one of them wrote
+  // it. The edits of one change are each placed against the text as it was before that change.
   placed(line) {
     for (const { edits } of this.changes) {
       let moved = line;
@@ -287,14 +287,14 @@ export class Highlight {
     }
   }
 
-  // The lines from `from` to `to` shown: where a line in them or within half the mirror's reach of them has no runs
+  // The lines from `from` to `to` displayed: where a line in them or within half the mirror's reach of them has no runs
   // yet, orior's side is told the view, which it colors first, and the lines mirrored, the view and REACH views' height
-  // on each side, whose runs it hands on; the runs of the lines outside them are let go, and asked for again as the view
+  // on each side, whose runs it passes on; the runs of the lines outside them are let go, and asked for again as the view
   // comes near them. A text read a window at a time mirrors its whole window, the lines near the view alone, each read
   // with its colors, and orior's side is told the window again each time it moves. `drawn` is how far across the view
-  // draws each line, Infinity for every letter: a view drawing farther than the colors reach has orior's side color the
+  // draws each line, Infinity for every character: a view drawing farther than the colors reach has orior's side color the
   // lines it mirrors as far again.
-  shown(from, to, drawn = Infinity) {
+  displayed(from, to, drawn = Infinity) {
     if (!this.key) {
       return;
     }
@@ -319,7 +319,7 @@ export class Highlight {
     if (this.viewTold !== view) {
       this.viewTold = view;
       this.mirrorTold = mirror;
-      this.kept(mirrorFrom, mirrorTo);
+      this.retained(mirrorFrom, mirrorTo);
       const told = { key: this.key, first: from + base, last: to + base, from: mirrorFrom + base, to: mirrorTo + base };
       if (farther) {
         this.columnsTold = columns;
@@ -340,8 +340,8 @@ export class Highlight {
     return lines;
   }
 
-  // The runs of the lines from `from` to before `to` kept and every other line's let go.
-  kept(from, to) {
+  // The runs of the lines from `from` to before `to` retained and every other line's let go.
+  retained(from, to) {
     if (this.runs.length > to) {
       this.runs.length = to;
     }
@@ -362,12 +362,12 @@ export class Highlight {
   // with their lines and those of the lines let go let go with them.
   shift(added) {
     this.runs = new Array(added).concat(this.runs);
-    this.folds = new Map([...this.folds].map(([start, [end, shown]]) => [start + added, [end + added, shown]]));
+    this.folds = new Map([...this.folds].map(([start, [end, displayed]]) => [start + added, [end + added, displayed]]));
   }
 
   unshift(removed) {
     this.runs = this.runs.slice(removed);
-    this.folds = new Map([...this.folds].filter(([start]) => start >= removed).map(([start, [end, shown]]) => [start - removed, [end - removed, shown]]));
+    this.folds = new Map([...this.folds].filter(([start]) => start >= removed).map(([start, [end, displayed]]) => [start - removed, [end - removed, displayed]]));
   }
 
   // Every line from this one on forgotten, as a text read a window at a time reads more.
@@ -377,17 +377,17 @@ export class Highlight {
     }
   }
 
-  // A line's runs with its parse laid over them, where the parse holds the line.
-  laid(line, runs) {
+  // A line's runs with its parse positioned over them, where the parse holds the line.
+  positioned(line, runs) {
     const spans = this.parse?.byLine.get(line);
     return spans ? overlay(runs ?? PLAIN, spans, this.parse.names, this.parse.whole) : runs;
   }
 
   // The runs `flat`, as they came, read in the names' classes: the same runs each time they are read in the same classes.
   classedRuns(flat) {
-    const kept = this.classedOf.get(flat);
-    if (kept && kept.classes === this.classes) {
-      return kept.runs;
+    const retained = this.classedOf.get(flat);
+    if (retained && retained.classes === this.classes) {
+      return retained.runs;
     }
     const runs = classed(flat, this.classes);
     this.classedOf.set(flat, { classes: this.classes, runs });
@@ -397,16 +397,16 @@ export class Highlight {
   // A line's tokens where they have come, or null.
   cached(line) {
     if (this.parse?.whole && this.parse.byLine.has(line)) {
-      return this.laid(line, PLAIN);
+      return this.positioned(line, PLAIN);
     }
     const flat = this.runs[line];
-    return flat ? this.laid(line, this.classedRuns(flat)) : (this.laid(line, undefined) ?? null);
+    return flat ? this.positioned(line, this.classedRuns(flat)) : (this.positioned(line, undefined) ?? null);
   }
 
   // A line's tokens: those that came, or none.
   runsOf(line) {
     const flat = this.runs[line];
-    return this.laid(line, flat ? this.classedRuns(flat) : PLAIN);
+    return this.positioned(line, flat ? this.classedRuns(flat) : PLAIN);
   }
 
   // The class of the token at a place.

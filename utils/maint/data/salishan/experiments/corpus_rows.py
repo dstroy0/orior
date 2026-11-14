@@ -12,7 +12,7 @@
 # The oracles are closed. This file reads them where they sit, at a directory passed to it or at
 # examples/Salishan/oracles, and nothing it returns is written back into this tree. The experiments print counts and rates.
 #
-# An oracle row is where, who, kind, form, gloss. For a form row, who names the language, but the
+# An oracle row is where, who, type, form, gloss. For a form row, who names the language, but the
 # papers define one language several ways (nɬeʔkepmxcín, Nɬeʔkepmxcín, Nłeʔkepmxcín), a few give an
 # older name (Bella Coola for Nuxalk, Thompson), and some give a speaker or a historical source in
 # place of a language. DEFINITIONS folds the definitions to one name and BRANCHES gives its branch in the
@@ -224,13 +224,13 @@ def paper_language(stem, extract):
 
 
 # The 25 papers extracted before ops files existed carry their language in paper_config.PAPERS,
-# kept by hand beside the reader that is checked against them.
+# retained by hand beside the reader that is checked against them.
 sys.path.insert(0, os.path.join(os.path.dirname(HERE), "corpus_script_extraction"))
 from paper_config import PAPERS  # noqa: E402
 
 CONFIGURED = {paper.stem: language_of(paper.language) for paper in PAPERS if language_of(paper.language)}
 
-Row = collections.namedtuple("Row", "stem where who kind form gloss language branch placed")
+Row = collections.namedtuple("Row", "stem where who type form gloss language branch placed")
 
 
 def rows(given=None):
@@ -255,13 +255,13 @@ def rows(given=None):
             shares = collections.Counter(language_of(one[1]) for one in read
                                          if one[2] in FORM_KINDS and language_of(one[1]))
             total = sum(shares.values())
-            if total and shares.most_common(1)[0][1] >= 0.7 * total:
-                stated = shares.most_common(1)[0][0]
-        for where, who, kind, form, gloss in read:
+            if total and shares.max_common(1)[0][1] >= 0.7 * total:
+                stated = shares.max_common(1)[0][0]
+        for where, who, type, form, gloss in read:
             language, placed = language_of(who), "who"
-            if language is None and kind in FORM_KINDS:
+            if language is None and type in FORM_KINDS:
                 language, placed = stated, "paper"
-            out.append(Row(stem, where, who, kind, form, gloss, language, BRANCHES.get(language), placed))
+            out.append(Row(stem, where, who, type, form, gloss, language, BRANCHES.get(language), placed))
     return out
 
 
@@ -274,12 +274,12 @@ def glossed_pairs(all_rows):
     """Each segmentation row with the gloss row that follows it in the same example."""
     pairs = []
     for index, row in enumerate(all_rows[:-1]):
-        if row.kind != "segmentation":
+        if row.type != "segmentation":
             continue
         for after in all_rows[index + 1:index + 4]:
             if after.stem != row.stem or example_label(after.where) != example_label(row.where):
                 break
-            if after.kind == "gloss":
+            if after.type == "gloss":
                 pairs.append((row, after))
                 break
     return pairs
@@ -291,7 +291,7 @@ if __name__ == "__main__":
     counted = collections.Counter()
     unplaced = collections.Counter()
     for row in everything:
-        if row.kind not in FORM_KINDS:
+        if row.type not in FORM_KINDS:
             continue
         if row.language is None:
             unplaced[row.who] += 1
@@ -301,5 +301,5 @@ if __name__ == "__main__":
         print("%-6s %-24s %-6s %6d" % (branch, language, placed, number))
     print("pairs of a segmentation and its gloss:", len(glossed_pairs(everything)))
     print("unplaced who values, form rows:", sum(unplaced.values()))
-    for who, number in unplaced.most_common(40):
+    for who, number in unplaced.max_common(40):
         print("   %5d %s" % (number, who))

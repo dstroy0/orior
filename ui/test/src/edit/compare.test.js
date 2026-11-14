@@ -3,7 +3,7 @@
 
 // Compare: two files of the tree side by side, a file's text as its tab holds it, a revision beside another or the
 // file, a commit's change to a file, a tab given its file's text again from the tree, and Local History's snapshot
-// shown and taken back to.
+// displayed and taken back to.
 
 import { invoke } from "../../../gui/src-js/bridge.js";
 import { compareCommit, compareFiles, openTouched, reloadFromDisk, revertSnapshot, showSnapshot, textNow } from "../../../gui/src-js/edit/compare.js";
@@ -69,16 +69,16 @@ test("a tab is given its file's text again from the tree, and its changes are no
   assert.ok(!editing().activeChanged);
 });
 
-test("Local History's snapshot is shown beside the file, and the file taken back to it as one step", async () => {
-  const [path] = await written({ snapshot: "as it stands\n" });
+test("Local History's snapshot is displayed beside the file, and the file taken back to it as one step", async () => {
+  const [path] = await written({ snapshot: "as it is\n" });
   calls.answer("history_read", () => "as it was saved\n");
   await showSnapshot(path, Date.UTC(2026, 0, 2, 3, 4, 5));
-  await ui.waitFor(() => /^saved .+, then as it stands$/.test(sides() ?? ""), 3000);
+  await ui.waitFor(() => /^saved .+, then as it is$/.test(sides() ?? ""), 3000);
   await revertSnapshot(path, Date.UTC(2026, 0, 2, 3, 4, 5));
   assert.equal(view(), null, "the view closed");
   assert.equal(editing().editor.s.doc.text(), "as it was saved\n");
   editing().editor.s.doc.undo();
-  assert.equal(editing().editor.s.doc.text(), "as it stands\n", "one step undo takes back");
+  assert.equal(editing().editor.s.doc.text(), "as it is\n", "one step undo takes back");
 });
 
 test("the window is put back as the file found it", putBackAsFound);

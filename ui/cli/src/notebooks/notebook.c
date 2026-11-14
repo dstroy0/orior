@@ -8,7 +8,7 @@ typedef struct
 {
     const char *path;
     char *out;
-    char letter;
+    char character;
     const char *from;
     const char *to;
     const char *mark;
@@ -75,7 +75,7 @@ const char *cli_notebook_comment(const CliNotebookCtx *args)
 
 EMBED_INLINE int cli_is_space(const NotebookCtx *args)
 {
-    return (args->letter == ' ') || ((args->letter >= '\t') && (args->letter <= '\r'));
+    return (args->character == ' ') || ((args->character >= '\t') && (args->character <= '\r'));
 }
 
 // the line of `text` that starts at `at` before `end`: where it ends, its `\r` before `\n` left off, into `stop`;
@@ -94,7 +94,7 @@ const char *cli_notebook_line(const CliNotebookAtCtx *args)
 EMBED_INLINE const char *cli_on_mark(const NotebookCtx *args)
 {
     const char *from = args->from;
-    while ((from < args->to) && EMBED_CALL(cli_is_space, NotebookCtx, .letter = from[0]))
+    while ((from < args->to) && EMBED_CALL(cli_is_space, NotebookCtx, .character = from[0]))
     {
         from += 1;
     }
@@ -341,11 +341,11 @@ EMBED_INLINE void cli_mark_read(const NotebookCtx *args)
     const char *end = args->end;
     unsigned int *type = args->type_pointer;
     unsigned int *title = args->title_pointer;
-    while ((rest < end) && EMBED_CALL(cli_is_space, NotebookCtx, .letter = rest[0]))
+    while ((rest < end) && EMBED_CALL(cli_is_space, NotebookCtx, .character = rest[0]))
     {
         rest += 1;
     }
-    while ((end > rest) && EMBED_CALL(cli_is_space, NotebookCtx, .letter = end[-1]))
+    while ((end > rest) && EMBED_CALL(cli_is_space, NotebookCtx, .character = end[-1]))
     {
         end -= 1;
     }
@@ -393,11 +393,11 @@ EMBED_INLINE void cli_mark_read(const NotebookCtx *args)
     // the title trimmed where it is made, before anything else is put after it
     unsigned long long from = start;
     unsigned long long to = json->used;
-    while ((from < to) && EMBED_CALL(cli_is_space, NotebookCtx, .letter = json->text[from]))
+    while ((from < to) && EMBED_CALL(cli_is_space, NotebookCtx, .character = json->text[from]))
     {
         from += 1ULL;
     }
-    while ((to > from) && EMBED_CALL(cli_is_space, NotebookCtx, .letter = json->text[to - 1u]))
+    while ((to > from) && EMBED_CALL(cli_is_space, NotebookCtx, .character = json->text[to - 1u]))
     {
         to -= 1ULL;
     }
@@ -450,7 +450,7 @@ EMBED_INLINE unsigned int cli_script_read(const NotebookCtx *args)
         else if (type != CLI_JSON_NONE)
         {
             const char *from = at;
-            while ((from < stop) && EMBED_CALL(cli_is_space, NotebookCtx, .letter = from[0]))
+            while ((from < stop) && EMBED_CALL(cli_is_space, NotebookCtx, .character = from[0]))
             {
                 from += 1;
             }

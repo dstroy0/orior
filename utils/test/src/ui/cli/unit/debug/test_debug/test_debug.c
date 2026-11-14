@@ -108,7 +108,7 @@ static void processes_run_result(void)
     s_list_consumed = cli_clock_milliseconds() - began;
     s_in_use_after = mmgr_owner_in_use(g_cli_debug_processes_owner);
     s_high_water = mmgr_owner_hw(g_cli_debug_processes_owner);
-    // on Linux a process stands under its parent's line until it has started its program, and has its own an instant after: the list is read again until
+    // on Linux a process is under its parent's line until it has started its program, and has its own an instant after: the list is read again until
     // the child's own line shows
     for (unsigned int tries = 0u; (!s_child_listing || (cellul.find(&(CatenaFinitaCfg){.src = s_child_line, .cap = CLI_POOL_BYTES, .other = s_expected, .other_cap = CLI_POOL_BYTES}) == NULL)) && (tries < 40u); tries += 1u)
     {
@@ -123,7 +123,7 @@ static void processes_run_result(void)
 // a session's place with 100 breakpoints and a start planned on it
 static CliDebugSession *position_planned(void)
 {
-    static const char s_start[] = "{\"kind\":\"record\",\"path\":\"x.py\"}";
+    static const char s_start[] = "{\"type\":\"record\",\"path\":\"x.py\"}";
     static CliDebugPlan s_plan;
     CliDebugSession *const place = cli_debug_position();
     TEST_ASSERT_NOT_NULL(place);

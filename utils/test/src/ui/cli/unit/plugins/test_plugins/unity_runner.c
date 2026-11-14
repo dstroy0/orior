@@ -21,7 +21,7 @@ extern void test_the_languages_keys_are_in_a_capacity_at_their_max(void);
 extern void test_the_plugins_are_read_in_cells_each_released(void);
 extern void test_a_name_becomes_an_id(void);
 extern void test_each_run_of_other_characters_is_one_dash(void);
-extern void test_a_name_of_no_letters_has_no_id(void);
+extern void test_a_name_of_no_characters_has_no_id(void);
 extern void test_a_drafted_plugins_id_is_its_names(void);
 extern void test_a_drafted_plugins_extensions_have_no_dots(void);
 extern void test_a_drafted_plugin_has_its_comments(void);
@@ -114,7 +114,7 @@ int main(void)
   run_test(test_the_plugins_are_read_in_cells_each_released, "test_the_plugins_are_read_in_cells_each_released", 316);
   run_test(test_a_name_becomes_an_id, "test_a_name_becomes_an_id", 325);
   run_test(test_each_run_of_other_characters_is_one_dash, "test_each_run_of_other_characters_is_one_dash", 330);
-  run_test(test_a_name_of_no_letters_has_no_id, "test_a_name_of_no_letters_has_no_id", 335);
+  run_test(test_a_name_of_no_characters_has_no_id, "test_a_name_of_no_characters_has_no_id", 335);
   run_test(test_a_drafted_plugins_id_is_its_names, "test_a_drafted_plugins_id_is_its_names", 340);
   run_test(test_a_drafted_plugins_extensions_have_no_dots, "test_a_drafted_plugins_extensions_have_no_dots", 345);
   run_test(test_a_drafted_plugin_has_its_comments, "test_a_drafted_plugin_has_its_comments", 350);

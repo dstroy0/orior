@@ -21,7 +21,7 @@
  * WHY THIS AGREES WITH THE HOST BYTE FOR BYTE. Three properties bind it together. The value a thread
  * computes is integer arithmetic on the same inputs. No rounding can differ. The cell a thread
  * targets comes from integer division and a permutation, neither of which depends on which thread
- * runs. And the reduction is a minimum or a maximum, both associative and commutative. The
+ * runs. And the reduction is a minimum or a max, both associative and commutative. The
  * scheduler may interleave the atomics in any order and reach the same result. A reduction selecting
  * by arrival would have made the device answer depend on scheduling and could not have been graded
  * against the host at all.
@@ -49,7 +49,7 @@ extern "C"
 /** @brief Brightest value a death level may reach. Matches ORIOR_RASTER_CEILING. */
 #define RASTER_CEILING 250u
 
-/** @brief Probe as the kernel reads it, laid out to match OriorRasterProbe exactly. */
+/** @brief Probe as the kernel reads it, arranged to match OriorRasterProbe exactly. */
 struct DeviceProbe
 {
     unsigned long long origin;

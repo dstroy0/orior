@@ -19,7 +19,7 @@ static void lane_enumerate(LaneResults *results)
     LaneLoaded compiled;
     const int interpreted_loads = lane_load(&program, 1, &interpreted);
     const int compiled_loads = interpreted_loads && lane_load(&program, 0, &compiled);
-    lane_check(results, interpreted_loads && compiled_loads, "the search program encodes, lays out and loads twice");
+    lane_check(results, interpreted_loads && compiled_loads, "the search program encodes, arranges and loads twice");
     if (compiled_loads == 0)
     {
         if (interpreted_loads != 0)
@@ -153,7 +153,7 @@ static void lane_scale(LaneResults *results)
     LaneLoaded loaded;
     if (lane_load(&program, 0, &loaded) == 0)
     {
-        lane_check(results, 0, "the scale program encodes, lays out and loads");
+        lane_check(results, 0, "the scale program encodes, arranges and loads");
         return;
     }
     const DeviceRecordStep *const hit_step = &loaded.layout.step_table[program.outputs[search.hit]];
@@ -191,7 +191,7 @@ static void lane_scale(LaneResults *results)
     lane_free(&loaded);
 }
 
-// the latch's edges over records laid out by hand: bits outside the field set in every record, and the field set at the
+// the latch's edges over records arranged by hand: bits outside the field set in every record, and the field set at the
 // lanes the case names; the device and the host must both return the case's lane
 static void lane_edges(LaneResults *results)
 {
@@ -288,12 +288,12 @@ static void lane_edges(LaneResults *results)
         lane_print(results, device_first);
         mmgr_line_put(&results->line, ", host ");
         lane_print(results, host_first);
-        mmgr_line_put(&results->line, ", laid out ");
+        mmgr_line_put(&results->line, ", arranged ");
         lane_print(results, expected);
         mmgr_line_ch(&results->line, '\n');
     }
     lane_check(results, passed && (matched == 6u),
-               "the latch returns the laid-out lane on the device and the host at every edge, and none where only bits "
+               "the latch returns the positioned-out lane on the device and the host at every edge, and none where only bits "
                "outside the field are set");
     // a field past the record, and no lanes, error
     unsigned long long error_first = 0ull;
@@ -322,7 +322,7 @@ static void lane_indexed(LaneResults *results)
     LaneLoaded loaded;
     if (lane_load(&program, 0, &loaded) == 0)
     {
-        lane_check(results, 0, "the indexed program encodes, lays out and loads");
+        lane_check(results, 0, "the indexed program encodes, arranges and loads");
         return;
     }
     const DeviceRecordStep *const steps = loaded.layout.step_table;

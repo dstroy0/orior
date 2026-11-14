@@ -35,7 +35,7 @@ typedef struct
 {
     unsigned long long code;
     unsigned int element_bytes;
-    EngineElementKind element_kind;
+    EngineElementKind element_type;
 } NiftiType;
 
 static const NiftiType nifti_types[] = {{2ull, 1u, ENGINE_ELEMENT_UNSIGNED},   {4ull, 2u, ENGINE_ELEMENT_SIGNED},
@@ -242,7 +242,7 @@ static unsigned int nifti_header(const unsigned char *bytes, unsigned long long 
         if (nifti_types[entry].code == datatype)
         {
             built.extent.element_bytes = nifti_types[entry].element_bytes;
-            built.extent.element_kind = nifti_types[entry].element_kind;
+            built.extent.element_type = nifti_types[entry].element_type;
             typed = 1u;
         }
     }
@@ -286,7 +286,7 @@ static unsigned int nifti_header(const unsigned char *bytes, unsigned long long 
     return 1u;
 }
 
-static unsigned int nifti_letter_is(char defined, char lower)
+static unsigned int nifti_character_is(char defined, char lower)
 {
     return ((defined == lower) || (defined == (char)(lower - 'a' + 'A'))) ? 1u : 0u;
 }
@@ -294,11 +294,11 @@ static unsigned int nifti_letter_is(char defined, char lower)
 static char *nifti_sibling(const char *path, const char *from, const char *to, unsigned int toggle_gzip)
 {
     const size_t length = strlen(path);
-    const int gzipped = (length >= 3u) && (path[length - 3u] == '.') && nifti_letter_is(path[length - 2u], 'g') &&
-                        nifti_letter_is(path[length - 1u], 'z');
+    const int gzipped = (length >= 3u) && (path[length - 3u] == '.') && nifti_character_is(path[length - 2u], 'g') &&
+                        nifti_character_is(path[length - 1u], 'z');
     const size_t stem_end = gzipped ? (length - 3u) : length;
-    if ((stem_end < 4u) || (path[stem_end - 4u] != '.') || !nifti_letter_is(path[stem_end - 3u], from[0u]) ||
-        !nifti_letter_is(path[stem_end - 2u], from[1u]) || !nifti_letter_is(path[stem_end - 1u], from[2u]))
+    if ((stem_end < 4u) || (path[stem_end - 4u] != '.') || !nifti_character_is(path[stem_end - 3u], from[0u]) ||
+        !nifti_character_is(path[stem_end - 2u], from[1u]) || !nifti_character_is(path[stem_end - 1u], from[2u]))
     {
         return NULL;
     }
@@ -309,11 +309,11 @@ static char *nifti_sibling(const char *path, const char *from, const char *to, u
         return NULL;
     }
     memcpy(sibling, path, stem_end);
-    for (size_t letter = 0u; letter < 3u; letter += 1u)
+    for (size_t character = 0u; character < 3u; character += 1u)
     {
-        const char original = path[stem_end - 3u + letter];
+        const char original = path[stem_end - 3u + character];
         const int upper = (original >= 'A') && (original <= 'Z');
-        sibling[stem_end - 3u + letter] = upper ? (char)(to[letter] - 'a' + 'A') : to[letter];
+        sibling[stem_end - 3u + character] = upper ? (char)(to[character] - 'a' + 'A') : to[character];
     }
     memcpy(sibling + stem_end, ends_gzipped ? ".gz" : "", ends_gzipped ? 4u : 1u);
     return sibling;
@@ -397,7 +397,7 @@ static unsigned int nifti_prepare(const char *path, const char *member, const En
 static unsigned int nifti_same_extent(const EngineArrayExtent *found, const EngineArrayExtent *given)
 {
     int same = (found->rank == given->rank) && (found->element_bytes == given->element_bytes) &&
-               (found->element_kind == given->element_kind);
+               (found->element_type == given->element_type);
     for (unsigned int axis = 0u; same && (axis < found->rank); axis += 1u)
     {
         same = (found->sizes[axis] == given->sizes[axis]) && (found->axes[axis] == given->axes[axis]);

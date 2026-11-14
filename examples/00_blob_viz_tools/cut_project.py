@@ -46,23 +46,23 @@ GOLDEN = (1.0 + math.sqrt(5.0)) / 2.0
 def chain(count):
     """The Fibonacci chain, by cutting a square lattice at the golden slope.
 
-    A lattice point is kept where its perpendicular coordinate lands inside a window one unit cell
-    wide, and the part kept is projected onto the line. Nothing here is a rule about long and short
+    A lattice point is retained where its perpendicular coordinate lands inside a window one unit cell
+    wide, and the part retained is projected onto the line. Nothing here is a rule about long and short
     intervals; those come out of the geometry, and doing it this way is the point.
     """
     scale = math.sqrt(1.0 + GOLDEN * GOLDEN)
     window = (1.0 + GOLDEN) / scale
 
-    kept = []
+    retained = []
     reach = count
     for across in range(-reach, reach + 1):
         for up in range(-reach, reach + 1):
             along = (GOLDEN * across + up) / scale
             perp = (-across + GOLDEN * up) / scale
             if 0.0 <= perp < window:
-                kept.append(along)
-    kept.sort()
-    return kept
+                retained.append(along)
+    retained.sort()
+    return retained
 
 
 def gaps_of(points):

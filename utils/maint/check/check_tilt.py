@@ -34,7 +34,7 @@ def main():
     field = {}
     with open(SOURCE, newline="") as handle:
         for row in csv.DictReader(handle):
-            if row["kind"] == "inbit":
+            if row["type"] == "inbit":
                 field.setdefault(int(row["a"]), {})[int(row["round"])] = float(row["value"])
 
     bits = sorted(field.keys())
@@ -67,10 +67,10 @@ def main():
 
     worst = abs(profile[ranked[0]] - mean) / spread
     if worst < peak:
-        print("\n  Nothing stands above the null peak. There are no deep spikes in this profile,")
+        print("\n  Nothing is above the null peak. There are no deep spikes in this profile,")
         print("  so the periodicity question below is being asked of noise. Reported anyway.")
     else:
-        print("\n  Something stands above the null peak; the periodicity below is worth reading.")
+        print("\n  Something is above the null peak; the periodicity below is worth reading.")
 
     # -- periodicity ------------------------------------------------------------------------------
     print("\nAutocorrelation of the profile in the bit index. A period of 32 is the word")

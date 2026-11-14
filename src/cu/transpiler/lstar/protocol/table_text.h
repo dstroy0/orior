@@ -22,7 +22,7 @@ extern "C"
 // file's records
 #define TABLE_LINK_WRITTEN_FROM 0x1u
 
-// the most columns a row contains
+// the max columns a row contains
 #define TABLE_ROW_COLUMNS 32u
 
 // the folder of the oracles of the run's own tables, from the top of the tree
@@ -31,7 +31,7 @@ extern "C"
 // the oracle of the rows of a k-file's table, from the top of the tree
 #define TABLE_KFILE_ROWS "includes/file_defs/krep/krep_records.oracle.tsv"
 
-// the folder of the k-files' oracles, each `<kind>/<kind>.oracle.tsv` in it, from the top of the tree
+// the folder of the k-files' oracles, each `<type>/<type>.oracle.tsv` in it, from the top of the tree
 #define TABLE_KFILE_ORACLES "includes/file_defs"
 
     // the number of the `length` bytes at `bytes` in the table of texts: their 64-bit FNV-1a hash, 1 for a hash of

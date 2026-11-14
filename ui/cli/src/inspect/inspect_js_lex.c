@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // inspect_js_lex.c: JavaScript's tokens: strings, templates with the code of their `${}` read as tokens before them,
 // regular expressions where a value is expected, names, numbers and punctuation, the longest that matches; and the
-// reading of them: the bracket each bracket matches, what each brace opens, and the brace each token stands directly
+// reading of them: the bracket each bracket matches, what each brace opens, and the brace each token is directly
 // inside
 #include "inspect_js.h"
 
@@ -47,7 +47,7 @@ static const char *const s_before_value[14] = {"return", "typeof", "instanceof",
 
 typedef struct
 {
-    unsigned int letter;
+    unsigned int character;
     const char *src;
     CliInspectScan *scan;
     int inside;
@@ -55,16 +55,16 @@ typedef struct
 } InspectJsLexCtx;
 EMBED_INLINE int lex_name_start(const InspectJsLexCtx *args)
 {
-    unsigned int letter = args->letter;
-    return (letter == '_') || (letter == '$') ||
-           EMBED_CALL(cli_inspect_internal.alphabetic, CliInspectCtx, .letter = letter);
+    unsigned int character = args->character;
+    return (character == '_') || (character == '$') ||
+           EMBED_CALL(cli_inspect_internal.alphabetic, CliInspectCtx, .character = character);
 }
 
 EMBED_INLINE int lex_name(const InspectJsLexCtx *args)
 {
-    unsigned int letter = args->letter;
-    return (letter == '_') || (letter == '$') ||
-           EMBED_CALL(cli_inspect_internal.alphanumeric, CliInspectCtx, .letter = letter);
+    unsigned int character = args->character;
+    return (character == '_') || (character == '$') ||
+           EMBED_CALL(cli_inspect_internal.alphanumeric, CliInspectCtx, .character = character);
 }
 
 int cli_js_is(const CliInspectJsAtWordCfg *args)
@@ -116,18 +116,18 @@ EMBED_INLINE int lex_value_expected(const InspectJsLexCtx *args)
                                                .words = s_before_value, .count = 14u);
 }
 
-// a block comment from where the scan stands
+// a block comment from where the scan is
 EMBED_INLINE void lex_block_comment(const InspectJsLexCtx *args)
 {
     CliInspectScan *scan = args->scan;
     const CliInspectPosition from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
     (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
     (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
-    for (unsigned int letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
-         letter != CLI_INSPECT_END;
-         letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan))
+    for (unsigned int character = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
+         character != CLI_INSPECT_END;
+         character = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan))
     {
-        if ((letter == '*') && (EMBED_CALL(cli_inspect_scan_ahead_internal.peek_at, CliInspectScanAheadCtx,
+        if ((character == '*') && (EMBED_CALL(cli_inspect_scan_ahead_internal.peek_at, CliInspectScanAheadCtx,
                                            .scan = scan, .ahead = 1u) == '/'))
         {
             (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
@@ -148,30 +148,30 @@ EMBED_INLINE void lex_regex(const InspectJsLexCtx *args)
     const CliInspectPosition from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
     (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
     int in_class = 0;
-    for (unsigned int letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
-         letter != CLI_INSPECT_END;
-         letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan))
+    for (unsigned int character = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
+         character != CLI_INSPECT_END;
+         character = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan))
     {
         (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
-        if (letter == '\\')
+        if (character == '\\')
         {
             (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
         }
-        else if (letter == '[')
+        else if (character == '[')
         {
             in_class = 1;
         }
-        else if (letter == ']')
+        else if (character == ']')
         {
             in_class = 0;
         }
-        else if (((letter == '/') && !in_class) || (letter == '\n'))
+        else if (((character == '/') && !in_class) || (character == '\n'))
         {
             break;
         }
     }
     while (EMBED_CALL(lex_name, InspectJsLexCtx,
-                      .letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan)))
+                      .character = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan)))
     {
         (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
     }
@@ -179,7 +179,7 @@ EMBED_INLINE void lex_regex(const InspectJsLexCtx *args)
                .start = start, .from = from, .field = 0);
 }
 
-// punctuation, the longest that matches, else the one letter
+// punctuation, the longest that matches, else the one character
 EMBED_INLINE void lex_punct(const InspectJsLexCtx *args)
 {
     CliInspectScan *scan = args->scan;
@@ -207,7 +207,7 @@ EMBED_INLINE void lex_punct(const InspectJsLexCtx *args)
 // tokens read until the text ends or, `inside` a template's `${`, until its `}`
 static void lex(const InspectJsLexCtx *args);
 
-// the scan moved past a string that its quote `letter` opens, a backslash taking the letter after it, to its closing
+// the scan moved past a string that its quote `character` opens, a backslash taking the character after it, to its closing
 // quote or the line's end
 EMBED_INLINE void lex_string(const InspectJsLexCtx *args)
 {
@@ -222,14 +222,14 @@ EMBED_INLINE void lex_string(const InspectJsLexCtx *args)
         {
             (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
         }
-        else if ((one == args->letter) || (one == '\n'))
+        else if ((one == args->character) || (one == '\n'))
         {
             return;
         }
     }
 }
 
-// the scan moved past a template that its backquote opens, a backslash taking the letter after it, and each `${`
+// the scan moved past a template that its backquote opens, a backslash taking the character after it, and each `${`
 // lexed as code to the brace that closes it
 EMBED_INLINE void lex_template(const InspectJsLexCtx *args)
 {
@@ -257,100 +257,100 @@ EMBED_INLINE void lex_template(const InspectJsLexCtx *args)
     }
 }
 
-// the scan moved past a name's letters after its first
+// the scan moved past a name's characters after its first
 EMBED_INLINE void lex_word(const InspectJsLexCtx *args)
 {
     CliInspectScan *scan = args->scan;
     (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
     while (EMBED_CALL(lex_name, InspectJsLexCtx,
-                      .letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan)))
+                      .character = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan)))
     {
         (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
     }
 }
 
-// the scan moved past a number's letters, digits, letters, `_` and `.`
+// the scan moved past a number's characters, digits, characters, `_` and `.`
 EMBED_INLINE void lex_number(const InspectJsLexCtx *args)
 {
     CliInspectScan *scan = args->scan;
     for (unsigned int one = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
          (one != CLI_INSPECT_END) &&
-         (EMBED_CALL(cli_inspect_internal.alphanumeric, CliInspectCtx, .letter = one) || (one == '_') || (one == '.'));
+         (EMBED_CALL(cli_inspect_internal.alphanumeric, CliInspectCtx, .character = one) || (one == '_') || (one == '.'));
          one = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan))
     {
         (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
     }
 }
 
-// whether a letter is a bracket, round, square or curly, opening or closing
+// whether a character is a bracket, round, square or curly, opening or closing
 EMBED_INLINE int lex_bracket(const InspectJsLexCtx *args)
 {
-    const unsigned int letter = args->letter;
-    return (letter == '(') || (letter == '[') || (letter == '{') || (letter == ')') || (letter == ']') ||
-           (letter == '}');
+    const unsigned int character = args->character;
+    return (character == '(') || (character == '[') || (character == '{') || (character == ')') || (character == ']') ||
+           (character == '}');
 }
 
 static void lex(const InspectJsLexCtx *args)
 {
     CliInspectScan *scan = args->scan;
     int depth = 0;
-    for (unsigned int letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
-         letter != CLI_INSPECT_END;
-         letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan))
+    for (unsigned int character = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
+         character != CLI_INSPECT_END;
+         character = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan))
     {
         const unsigned long long start = scan->pos;
         const CliInspectPosition from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
         const unsigned int next =
             EMBED_CALL(cli_inspect_scan_ahead_internal.peek_at, CliInspectScanAheadCtx, .scan = scan, .ahead = 1u);
-        if ((letter == ' ') || (letter == '\t') || (letter == '\r') || (letter == '\n') || (letter == 0xfeffu) ||
-            (letter == 0xa0u))
+        if ((character == ' ') || (character == '\t') || (character == '\r') || (character == '\n') || (character == 0xfeffu) ||
+            (character == 0xa0u))
         {
             (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
         }
-        else if ((letter == '/') && (next == '/'))
+        else if ((character == '/') && (next == '/'))
         {
             EMBED_CALL(cli_inspect_size_scan_internal.skip_line, CliInspectSizeScanCtx, .scan_out = scan);
         }
-        else if ((letter == '/') && (next == '*'))
+        else if ((character == '/') && (next == '*'))
         {
             EMBED_CALL(lex_block_comment, InspectJsLexCtx, .scan = scan);
         }
-        else if ((letter == '\'') || (letter == '"'))
+        else if ((character == '\'') || (character == '"'))
         {
-            EMBED_CALL(lex_string, InspectJsLexCtx, .scan = scan, .letter = letter);
+            EMBED_CALL(lex_string, InspectJsLexCtx, .scan = scan, .character = character);
             EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .type = CLI_JS_STR,
                        .start = start, .from = from, .field = 0);
         }
-        else if (letter == '`')
+        else if (character == '`')
         {
             EMBED_CALL(lex_template, InspectJsLexCtx, .scan = scan);
             EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .type = CLI_JS_STR,
                        .start = start, .from = from, .field = 0);
         }
-        else if ((letter == '/') && EMBED_CALL(lex_value_expected, InspectJsLexCtx, .src = scan->src))
+        else if ((character == '/') && EMBED_CALL(lex_value_expected, InspectJsLexCtx, .src = scan->src))
         {
             EMBED_CALL(lex_regex, InspectJsLexCtx, .scan = scan);
         }
-        else if (EMBED_CALL(lex_name_start, InspectJsLexCtx, .letter = letter) || (letter == '#'))
+        else if (EMBED_CALL(lex_name_start, InspectJsLexCtx, .character = character) || (character == '#'))
         {
             EMBED_CALL(lex_word, InspectJsLexCtx, .scan = scan);
             EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .type = CLI_JS_NAME,
                        .start = start, .from = from, .field = 0);
         }
-        else if (((letter >= '0') && (letter <= '9')) || ((letter == '.') && (next >= '0') && (next <= '9')))
+        else if (((character >= '0') && (character <= '9')) || ((character == '.') && (next >= '0') && (next <= '9')))
         {
             EMBED_CALL(lex_number, InspectJsLexCtx, .scan = scan);
             EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .type = CLI_JS_NUMBER,
                        .start = start, .from = from, .field = 0);
         }
-        else if (EMBED_CALL(lex_bracket, InspectJsLexCtx, .letter = letter))
+        else if (EMBED_CALL(lex_bracket, InspectJsLexCtx, .character = character))
         {
-            if (args->inside && (letter == '}') && (depth == 0))
+            if (args->inside && (character == '}') && (depth == 0))
             {
                 (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
                 return;
             }
-            depth += ((letter == '(') || (letter == '[') || (letter == '{')) ? 1 : -1;
+            depth += ((character == '(') || (character == '[') || (character == '{')) ? 1 : -1;
             (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
             EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .type = CLI_JS_PUNCT,
                        .start = start, .from = from, .field = 0);

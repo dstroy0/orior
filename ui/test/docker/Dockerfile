@@ -32,7 +32,7 @@ RUN found="$(ls /usr/bin/lldb-dap* /usr/lib/llvm-*/bin/lldb-dap /usr/bin/lldb-vs
 RUN curl -sSf --retry 3 --connect-timeout 30 https://sh.rustup.rs | sh -s -- -y --profile minimal
 # The name git gives the commits a test makes in the run's tree.
 RUN git config --global user.name "orior harness" && git config --global user.email harness@localhost
-# SonarQube for IDE, as the SonarQube plugin's toolchain finds it: the extension unpacked where VS Code keeps its
+# SonarQube for IDE, as the SonarQube plugin's toolchain finds it: the extension unpacked where VS Code retains its
 # extensions, with the Java and the analyzers it carries. On arm64 no extension carries a Java: the one for every
 # platform is unpacked, and the system's Java 17 is linked in where the carried one would be.
 ARG SONARLINT=6.1.1
@@ -63,7 +63,7 @@ ENV PATH=/root/.cargo/bin:$PATH \
 RUN apt-get update \
  && apt-get install -y --no-install-recommends texlive-latex-base poppler-utils \
  && rm -rf /var/lib/apt/lists/*
-# The display shown to a browser on this machine as the harness runs.
+# The display displayed to a browser on this machine as the harness runs.
 COPY watch.sh /usr/local/bin/orior-watch
 RUN chmod +x /usr/local/bin/orior-watch
 WORKDIR /ui

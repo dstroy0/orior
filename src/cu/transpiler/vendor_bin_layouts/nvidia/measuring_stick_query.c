@@ -17,11 +17,11 @@
 // Every name but the disassembler's is a blob of the run, the .qry QRY names (qry_member.h): the list, a line
 // a question, `<code> <registers> <cases> <answers> <probe> [<launches>]` (run_channel.h), each question's code, and
 // the container the carrier popped for it as <answers stem>.cubin. Every container is the kernel the system accepted
-// with the question's code in it; the code of each, as the part would be handed it, is read out of the container's code
+// with the question's code in it; the code of each, as the part would be passed it, is read out of the container's code
 // section.
 //
 // The vendor reads a raw run of encodings (nvdisasm --binary <architecture>) only from a file's path: each run is
-// handed to the run's writer as a stream of the .qry (qry_streamed), and the vendor is pointed at that stream. The
+// passed to the run's writer as a stream of the .qry (qry_streamed), and the vendor is pointed at that stream. The
 // writer is the only thing that writes a file, and everything the vendor prints of a run is a blob of the run.
 //
 // The probe instructions are read each distinct encoding once, in as many runs as the host has processors, each run
@@ -41,12 +41,12 @@
 // is blocked. The gate blocks a whole code where any instruction of it is blocked (cubin_safe.c). A frame the vendor
 // stops in at no instruction it names blocks its questions by no encoding.
 //
-// The report, handed as <report>, lists every question blocked; <gated> is the feedback the carrier reads (--gated): a
+// The report, passed as <report>, lists every question blocked; <gated> is the feedback the carrier reads (--gated): a
 // line
 // `<low> <high>` an encoding blocked, for the carrier to block every code that contains it from the part. <refusals>,
 // where it is given, is the feedback the teacher reads before the round is carried (run_channel.h): a line a refusal,
 // `<answers stem> <registers> <why>`, the count of registers that clears it where it is a register past the count its
-// kernel allots and that count is at most MSQ_ALLOTTED_MOST, 0 where no count clears it. The vendor names no
+// kernel allots and that count is at max MSQ_ALLOTTED_MAX, 0 where no count clears it. The vendor names no
 // operation and nothing it reports enters a form: the gated list is only the exact words not to query, and a count that
 // clears a refusal changes how a question is put and not what it requires. Exit 1 where any
 // question is blocked, 2 where a blob, a tool or the run was not reached, or a frame was read at no stop it
@@ -205,7 +205,7 @@ int main(int count, char **words)
         const MsqBytes *const tail = &tails.items[first->tail_index];
         size_t joined_size = 0u;
         size_t joined_room = 0u;
-        // a code is at most a container's, which a size_t counts
+        // a code is at max a container's, which a size_t counts
         whole = msq_added(&piece_bytes[piece], &joined_size, &joined_room, prefix->bytes, (size_t)prefix->size) &&
                 msq_added(&piece_bytes[piece], &joined_size, &joined_room, s_nop, sizeof(s_nop)) &&
                 msq_added(&piece_bytes[piece], &joined_size, &joined_room, tail->bytes, (size_t)tail->size);
@@ -314,7 +314,7 @@ int main(int count, char **words)
                 s_nvdisasm, (pool.why != NULL) ? pool.why : "the work could not be queued");
         return 2;
     }
-    // the questions blocked, each with why, the gated list and the report handed to the run. A question is blocked
+    // the questions blocked, each with why, the gated list and the report passed to the run. A question is blocked
     // by its probe where the vendor reads it as below, and by its frame where the vendor calls an instruction of it
     // illegal or reads one naming a register at or past the count its kernel allots: each such instruction's encoding
     // is blocked, and the gate blocks every code that contains it. A frame the vendor stopped in at no instruction it
@@ -376,8 +376,8 @@ int main(int count, char **words)
             continue;
         }
         const MsqReading *const reading = &readings[question->word_index];
-        const MsqKind kind = reading->kind;
-        const char *const body = ((kind == MSQ_READ) && (reading->body != NULL)) ? reading->body : "";
+        const MsqKind type = reading->type;
+        const char *const body = ((type == MSQ_READ) && (reading->body != NULL)) ? reading->body : "";
         char why[256] = "";
         unsigned int clearing = 0u;
         unsigned long long reached = 0ull;
@@ -396,11 +396,11 @@ int main(int count, char **words)
             }
         }
         int control = 0;
-        for (size_t at = 0u; (kind == MSQ_READ) && (at < (sizeof(s_control) / sizeof(s_control[0]))); at += 1u)
+        for (size_t at = 0u; (type == MSQ_READ) && (at < (sizeof(s_control) / sizeof(s_control[0]))); at += 1u)
         {
             control |= (strcmp(reading->operation, s_control[at]) == 0);
         }
-        if (kind == MSQ_ILLEGAL)
+        if (type == MSQ_ILLEGAL)
         {
             snprintf(why, sizeof(why), "%s", s_illegal_why);
         }
@@ -427,7 +427,7 @@ int main(int count, char **words)
                 why, sizeof(why),
                 "the vendor reads a memory access at the probe, through registers the question sets no address in");
         }
-        if ((why[0] == '\0') && (kind == MSQ_READ))
+        if ((why[0] == '\0') && (type == MSQ_READ))
         {
             // the probe read clear: a legal instruction that is no control transfer, names no register past the count,
             // overwrites no register the code addresses memory through and reaches no memory; reported to the teacher
@@ -461,12 +461,12 @@ int main(int count, char **words)
     }
     qry_member_append(gated_name, verdicts.gated, verdicts.gated_size, QRY_ORDINARY);
     qry_member_append(report_name, whole_report, whole_report_size, QRY_ORDINARY);
-    // the refusals the teacher reads, handed even where there are none, so that it knows this round was read
+    // the refusals the teacher reads, passed even where there are none, so that it knows this round was read
     if (gated_list_name != NULL)
     {
         qry_member_append(gated_list_name, verdicts.listed, verdicts.listed_size, QRY_ORDINARY);
     }
-    // the probes read clear, handed even where there are none, so that the teacher knows the round was read
+    // the probes read clear, passed even where there are none, so that the teacher knows the round was read
     if (read_name != NULL)
     {
         qry_member_append(read_name, verdicts.read, verdicts.read_size, QRY_ORDINARY);

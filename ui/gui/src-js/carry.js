@@ -4,8 +4,8 @@
 // Settings on every machine, as carry.rs in the command line's crate carries them: the reader's
 // settings, keys, themes, plugins with each one's own settings, menus and stylesheet, sent to a file
 // or a folder of the reader's, a repository among them, and taken in from one. Preferences, Settings
-// on Every Machine, names the file or the folder, kept on this machine alone. What a taking would
-// change is shown first, a file at a time and settings.json a setting at a time, each chosen or not,
+// on Every Machine, names the file or the folder, retained on this machine alone. What a taking would
+// change is displayed first, a file at a time and settings.json a setting at a time, each chosen or not,
 // and nothing is written until the reader takes what is chosen. Each taking is listed, and undone
 // from the list.
 
@@ -22,11 +22,11 @@ function element(tag, props = {}, ...children) {
 
 const HOW = { there: "only there", here: "only here, and stays", changed: "changed" };
 
-// Takes into the page what orior's folder keeps after a taking or its undoing: each setting and the
-// themes as the files hold them now, each setting no file keeps taken out, each part of the window
-// that read them shown again, and the plugins, the stylesheet and the menus read again.
+// Takes into the page what orior's folder retains after a taking or its undoing: each setting and the
+// themes as the files hold them now, each setting no file retains taken out, each part of the window
+// that read them displayed again, and the plugins, the stylesheet and the menus read again.
 export async function takeKept(reloadOwn) {
-  const now = await invoke("kept_now", { keys: Object.keys(localStorage) });
+  const now = await invoke("retained_now", { keys: Object.keys(localStorage) });
   const changed = new Set();
   const fromFolder = window.oriorKeptTaken ?? ((put) => put());
   fromFolder(() => {
@@ -46,7 +46,7 @@ export async function takeKept(reloadOwn) {
   return changed;
 }
 
-// The file or folder the settings are carried through, kept on this machine alone.
+// The file or folder the settings are carried through, retained on this machine alone.
 export const carryPlace = () => ownItem(PLACE) ?? "";
 
 export const setCarryPlace = (path) => localStorage.setItem(PLACE, path.trim());
@@ -81,13 +81,13 @@ export async function carryUndo(id, reloadOwn) {
 }
 
 // Draws Settings on Every Machine into `section`: the file or folder, the buttons that choose one,
-// send there and take from there, what a taking would change, and the takings kept.
+// send there and take from there, what a taking would change, and the takings retained.
 export function carryInto(section, { reloadOwn = null, pick }) {
   const said = element("p", { className: "prefs-said carry-said", ariaLive: "polite" });
   const place = element("input", { className: "report-field carry-place", type: "text", value: ownItem(PLACE) ?? "", placeholder: "A file, or a folder of yours such as a repository", ariaLabel: "File or folder", spellcheck: false });
   place.addEventListener("change", () => localStorage.setItem(PLACE, place.value.trim()));
-  const shown = element("div", { className: "carry-differences" });
-  const kept = element("div", { className: "carry-takings" });
+  const displayed = element("div", { className: "carry-differences" });
+  const retained = element("div", { className: "carry-takings" });
   const button = (text, run) => {
     const made = element("button", { type: "button", className: "prefs-button", textContent: text });
     made.addEventListener("click", async () => {
@@ -120,7 +120,7 @@ export function carryInto(section, { reloadOwn = null, pick }) {
 
   const drawTakings = async () => {
     const takings = await invoke("carry_takings").catch(() => []);
-    kept.replaceChildren(
+    retained.replaceChildren(
       ...(takings.length ? [element("h4", { textContent: "Takings" })] : []),
       ...takings.map((taking) => {
         const undo = button("Undo", async () => {
@@ -139,7 +139,7 @@ export function carryInto(section, { reloadOwn = null, pick }) {
   const drawDifferences = async (from) => {
     const read = await invoke("carry_read", { from });
     if (!read.differences.length) {
-      shown.replaceChildren();
+      displayed.replaceChildren();
       said.textContent = `${from} holds the settings this machine has.`;
       return;
     }
@@ -183,15 +183,15 @@ export function carryInto(section, { reloadOwn = null, pick }) {
       }
       const taking = await invoke("carry_take", { from, there: read.there, places, keys });
       await takeKept(reloadOwn);
-      shown.replaceChildren();
+      displayed.replaceChildren();
       said.textContent = `Took ${taking.files.length} file${taking.files.length === 1 ? "" : "s"} from ${from}; Undo under Takings writes them back.`;
       await drawTakings();
     });
     const leave = button("Leave Them", () => {
-      shown.replaceChildren();
+      displayed.replaceChildren();
       said.textContent = "";
     });
-    shown.replaceChildren(element("p", { className: "carry-heading", textContent: `What ${from} would change here:` }), ...rows, element("div", { className: "prefs-actions" }, take, leave));
+    displayed.replaceChildren(element("p", { className: "carry-heading", textContent: `What ${from} would change here:` }), ...rows, element("div", { className: "prefs-actions" }, take, leave));
   };
 
   section.replaceChildren(
@@ -207,8 +207,8 @@ export function carryInto(section, { reloadOwn = null, pick }) {
       button("Take…", () => drawDifferences(where())),
     ),
     said,
-    shown,
-    kept,
+    displayed,
+    retained,
   );
   drawTakings();
 }

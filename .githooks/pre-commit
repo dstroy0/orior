@@ -13,7 +13,7 @@
 # Breaking findings stop the commit: an empty table, an em dash, a link to a file that is not there,
 # and markdown left in a .tex. Those render as a broken page and a reader sees them.
 #
-# Prose findings are a ratchet. utils/maint/prose/prose_ratchet.tsv holds the most prose findings each file
+# Prose findings are a ratchet. utils/maint/prose/prose_ratchet.tsv holds the max prose findings each file
 # may carry. A commit that raises a staged file above its number is stopped. A commit that lowers one
 # writes the lower number into the ratchet and stages it with the commit. The backlog only shrinks.
 # Only staged files are checked against it: the rest of the working tree is somebody else's work in
@@ -66,7 +66,7 @@ if [ -z "$REPO" ]; then
     exit 1
 fi
 
-# The tools directory is named once, in repotools.toml, and asked for by kind and not by
+# The tools directory is named once, in repotools.toml, and asked for by type and not by
 # directory. Hardcoding utils/maint/ here makes a tools move a hook edit instead of a config line, and a
 # hook that is edited by hand during a move is a hook that gets it wrong. A missing key stops the
 # commit instead of falling back to a guess. A guessed path can name a directory that no longer
@@ -123,7 +123,7 @@ fi
 # The claim check holds every number a reader meets first against the theory, and stops pages that
 # repeat a result the theory took back. It runs when a path in the index is README.md, a page under
 # docs/, a file under theory/ or the check itself, since no other path can change an answer. It
-# reads the working tree and not the index. The full report is shown only when it fails.
+# reads the working tree and not the index. The full report is displayed only when it fails.
 CLAIMS="$REPO/$TOOLS/claims/claim_check.py"
 claims=0
 if git -C "$REPO" diff --cached --name-only | grep -qE "^(README\.md|docs/|theory/|$TOOLS/claims/)"; then
@@ -141,7 +141,7 @@ if git -C "$REPO" diff --cached --name-only | grep -qE "^(README\.md|docs/|theor
 fi
 
 # Every research paper a path in the index belongs to is built, and its PDF, named after its
-# directory and kept beside its main.tex, goes into the same index. A paper is the nearest
+# directory and retained beside its main.tex, goes into the same index. A paper is the nearest
 # directory above the path that holds a main.tex. The PDF of the paper itself does not count as a
 # change to the paper, and a figure that is a PDF does. Only the papers in the index are built, since a full
 # build of every paper takes minutes. A paper that fails or drops a glyph stops the commit.
@@ -179,7 +179,7 @@ if [ "$status" -eq 0 ] && [ "$ste" -ne 0 ]; then
 elif [ "$status" -eq 0 ] && [ "$claims" -eq 0 ]; then
     echo "  commit stopped: a research paper did not build clean, see the lines above."
 elif [ "$status" -eq 0 ]; then
-    echo "  commit stopped: a page repeats a claim the theory took back. Read the places shown;"
+    echo "  commit stopped: a page repeats a claim the theory took back. Read the places displayed;"
     echo "  a finding read and found sound goes in $TOOLS/claims/claims_read.tsv with why."
 elif [ "$status" -eq 2 ]; then
     # The checker returns this when it read no files at all. That is never a pass.

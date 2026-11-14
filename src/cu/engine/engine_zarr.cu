@@ -6,7 +6,7 @@
 static int entry_zarr_v3_chain(const EntryJson *json, unsigned int codecs, ZarrLayout *layout, int inner)
 {
     ZarrChain *const chain = (inner != 0) ? &layout->inner_chain : &layout->chain;
-    if ((codecs == 0u) || (json->tokens[codecs].kind != CFG_JSON_ARRAY))
+    if ((codecs == 0u) || (json->tokens[codecs].type != CFG_JSON_ARRAY))
     {
         return 0;
     }
@@ -186,14 +186,14 @@ static int entry_zarr_v2(const EntryJson *json, ZarrLayout *layout)
     }
     layout->extent.rank = rank;
     const unsigned int filters = entry_json_at(json, 0u, "filters");
-    if ((filters != 0u) && (json->tokens[filters].kind != CFG_JSON_NULL) &&
-        !((json->tokens[filters].kind == CFG_JSON_ARRAY) && (json->tokens[filters].count == 0u)))
+    if ((filters != 0u) && (json->tokens[filters].type != CFG_JSON_NULL) &&
+        !((json->tokens[filters].type == CFG_JSON_ARRAY) && (json->tokens[filters].count == 0u)))
     {
         fprintf(stderr, "  zarr: v2 filters are not supported\n");
         return 0;
     }
     const unsigned int compressor = entry_json_at(json, 0u, "compressor");
-    if ((compressor != 0u) && (json->tokens[compressor].kind == CFG_JSON_OBJECT))
+    if ((compressor != 0u) && (json->tokens[compressor].type == CFG_JSON_OBJECT))
     {
         char name[32];
         EngineCodec codec = ENGINE_CODEC_RAW;
@@ -246,30 +246,30 @@ static int entry_n5(const EntryJson *json, ZarrLayout *layout)
         layout->order[axis] = axis;
     }
     const unsigned int compression = entry_json_at(json, 0u, "compression");
-    char kind[32] = "raw";
+    char type[32] = "raw";
     if (compression != 0u)
     {
-        entry_json_text(json, entry_json_at(json, compression, "type"), kind, sizeof(kind));
+        entry_json_text(json, entry_json_at(json, compression, "type"), type, sizeof(type));
     }
     else
     {
-        entry_json_text(json, entry_json_at(json, 0u, "compressionType"), kind, sizeof(kind));
+        entry_json_text(json, entry_json_at(json, 0u, "compressionType"), type, sizeof(type));
     }
     const unsigned int zlib = entry_json_at(json, compression, "useZlib");
-    if (strcmp(kind, "gzip") == 0)
+    if (strcmp(type, "gzip") == 0)
     {
         layout->chain.codec[0] =
-            ((zlib != 0u) && (json->tokens[zlib].kind == CFG_JSON_TRUE)) ? ENGINE_CODEC_ZLIB : ENGINE_CODEC_GZIP;
+            ((zlib != 0u) && (json->tokens[zlib].type == CFG_JSON_TRUE)) ? ENGINE_CODEC_ZLIB : ENGINE_CODEC_GZIP;
         layout->chain.count = 1u;
     }
-    else if ((strcmp(kind, "blosc") == 0) || (strcmp(kind, "zstd") == 0))
+    else if ((strcmp(type, "blosc") == 0) || (strcmp(type, "zstd") == 0))
     {
-        layout->chain.codec[0] = (kind[0] == 'b') ? ENGINE_CODEC_BLOSC : ENGINE_CODEC_ZSTD;
+        layout->chain.codec[0] = (type[0] == 'b') ? ENGINE_CODEC_BLOSC : ENGINE_CODEC_ZSTD;
         layout->chain.count = 1u;
     }
-    else if (strcmp(kind, "raw") != 0)
+    else if (strcmp(type, "raw") != 0)
     {
-        fprintf(stderr, "  n5: the compression %s is not supported\n", kind);
+        fprintf(stderr, "  n5: the compression %s is not supported\n", type);
         return 0;
     }
     layout->big_endian = 1u;

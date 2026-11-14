@@ -32,12 +32,12 @@ test("a Cargo package's tests are found where they are written, run with cargo t
   const told = [];
   await listen("tests-run", ({ payload }) => told.push(payload));
   await runTests([FILE]);
-  await ui.waitFor(() => told.some((one) => one.kind === "done"), 180000, "the run's end");
+  await ui.waitFor(() => told.some((one) => one.type === "done"), 180000, "the run's end");
   const marks = testsOf(FILE);
   assert.deepEqual([marks.get(3), marks.get(6), marks.get(12)], ["passed", "failed", "skipped"], JSON.stringify(told.slice(-4)));
-  const failure = told.filter((one) => one.kind === "result" && one.outcome.id === `${FILE}::tests::fails`).at(-1).outcome;
+  const failure = told.filter((one) => one.type === "result" && one.outcome.id === `${FILE}::tests::fails`).at(-1).outcome;
   assert.equal(failure.file, FILE);
   assert.equal(failure.line, 7, "the line of the assert that panicked");
   assert.match(failure.message, /left: 1/);
-  assert.equal(told.find((one) => one.kind === "started").runner, "cargo test");
+  assert.equal(told.find((one) => one.type === "started").runner, "cargo test");
 }, { timeout: 200000 });

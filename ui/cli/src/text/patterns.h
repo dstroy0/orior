@@ -3,8 +3,8 @@
 // patterns.h: the patterns that scope the explorer, the search and the watching of files each from files of the tree,
 // a list for each, one pattern to a line (patterns.c).
 //
-// A pattern names files and folders as a `.gitignore` line does: `*` stands for any letters of a name, `**` for any
-// folders, `?` for one letter, and a trailing `/` names folders only. A pattern with no `/` but a trailing one names a
+// A pattern names files and folders as a `.gitignore` line does: `*` is for any characters of a name, `**` for any
+// folders, `?` for one character, and a trailing `/` names folders only. A pattern with no `/` but a trailing one names a
 // file or folder by its name wherever it is; one with a `/` names a path from the tree's top. A folder named takes
 // everything in it. A line starting with `#` and an empty line name nothing.
 //
@@ -23,12 +23,12 @@ typedef struct CliPatternsCfg CliPatternsCfg;
 typedef struct CliPatternsPartCfg CliPatternsPartCfg;
 typedef struct CliPatternsTextCfg CliPatternsTextCfg;
 
-// the most patterns of each type a set contains, and the most letters all of them take
+// the max patterns of each type a set contains, and the max characters all of them take
 #define CLI_PATTERNS_MAX 256u
 
-#define CLI_PATTERN_LETTERS 16384u
+#define CLI_PATTERN_CHARACTERS 16384u
 
-// One pattern: as a path from the tree's top, `**/` before it where it names a name anywhere, its letters `length` of
+// One pattern: as a path from the tree's top, `**/` before it where it names a name anywhere, its characters `length` of
 // the set's from `first`; and whether it names folders only
 typedef struct
 {
@@ -37,7 +37,7 @@ typedef struct
     int folders;
 } CliPattern;
 
-// The patterns of one part: those that hide what they name, and those that include only what they name; the letters
+// The patterns of one part: those that hide what they name, and those that include only what they name; the characters
 // they take, each as a pattern compares it
 typedef struct
 {
@@ -45,7 +45,7 @@ typedef struct
     unsigned int hides;
     CliPattern include[CLI_PATTERNS_MAX];
     unsigned int includes;
-    unsigned int letters[CLI_PATTERN_LETTERS];
+    unsigned int characters[CLI_PATTERN_CHARACTERS];
     unsigned int used;
 } CliPatterns;
 
@@ -61,7 +61,7 @@ enum
 // the patterns of `count` lines into `patterns`
 void cli_patterns_read(const CliPatternsLinesCfg *args);
 // the patterns of a set of files, one to a line: each matches files in the set, and one starting with `!` takes the
-// files it matches out; and the same read from `size` bytes of `text`, its lines split at line breaks where they stand
+// files it matches out; and the same read from `size` bytes of `text`, its lines split at line breaks where they are
 void cli_patterns_read_set(const CliPatternsLinesCfg *args);
 void cli_patterns_read_set_text(const CliPatternsTextCfg *args);
 // whether there are none; whether any pattern includes only what it names

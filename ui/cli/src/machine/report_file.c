@@ -6,7 +6,7 @@
 #include "net.h"
 #include "report_internal.h"
 
-// the most reports a run files on its own, and the bytes a struck field of a report is written in
+// the max reports a run files on its own, and the bytes a struck field of a report is written in
 #define CLI_REPORT_AUTO 5u
 
 #define CLI_REPORT_FIELD_CAPACITY (4ULL << 20u)
@@ -277,7 +277,7 @@ int cli_report_error(const CliReportCategoryCfg *args)
     {
         return 0;
     }
-    // the message's first line, trimmed, and the title its category and that line, a hundred letters at most
+    // the message's first line, trimmed, and the title its category and that line, a hundred characters at max
     const char *first = args->message;
     const char *end = args->message;
     end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
@@ -301,16 +301,16 @@ int cli_report_error(const CliReportCategoryCfg *args)
     }
     mmgr_line_finish(&titled);
     char title[CLI_NAME_MAX_LEN * 2u];
-    unsigned long long letters = 0ULL;
+    unsigned long long characters = 0ULL;
     unsigned long long at = 0ULL;
     for (; full[at] != '\0'; at += 1ULL)
     {
         const int starts = ((unsigned char)full[at] & 0xc0u) != 0x80u;
-        if (starts && (letters == 100ULL))
+        if (starts && (characters == 100ULL))
         {
             break;
         }
-        letters += starts ? 1ULL : 0ULL;
+        characters += starts ? 1ULL : 0ULL;
     }
     VerbaLinea cut = {title, sizeof(title), 0ULL};
     mmgr_line_put_n(&cut, full, at);

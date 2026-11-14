@@ -22,7 +22,7 @@
 # establishing priority over it are not in conflict, and waiting for publication to anchor is the
 # expensive mistake, because every day unanchored is a day a competing claim can predate.
 #
-# Keep manifest.tsv itself private while the work is withheld. Publishing it later is what converts the
+# Retain manifest.tsv itself private while the work is withheld. Publishing it later is what converts the
 # anchor from "these bytes existed" into "these bytes, and here they are".
 #
 # WHAT IS KEYLESS AND WHAT IS NOT
@@ -45,7 +45,7 @@ SKIP = {"build", "__pycache__", "node_modules", "logs", "obj", "bin"}
 # A directory whose name opens with a dot holds a tool's own state: version control, an editor's
 # settings, a linter's cache. Each is skipped except these, which hold authored files, and every
 # one skipped is printed so that a wrong skip is never silent.
-KEPT_DOT = {".github", ".githooks", ".cargo"}
+RETAINED_DOT = {".github", ".githooks", ".cargo"}
 
 # Artifacts that are regenerated, never authored. A digest over one of these dates a build and
 # not the work, and it changes on every run, which would make the manifest churn for no gain.
@@ -56,7 +56,7 @@ SKIP_SUFFIX = (
 
 
 def digest_of(path):
-    """SHA-256 of one file, read in chunks to keep a large artifact from having to fit in memory."""
+    """SHA-256 of one file, read in chunks to retain a large artifact from having to fit in memory."""
     accumulator = hashlib.sha256()
     with open(path, "rb") as handle:
         while True:
@@ -72,23 +72,23 @@ def walk(root, label, exclude=(), passed_over=None):
 
     `exclude` holds absolute paths left out. The manifest and its signature belong there: a manifest
     cannot contain its own digest. Listing itself makes it report CHANGED on every run forever, the
-    kind of defect that trains a reader to ignore the one line the check exists to print.
+    type of defect that trains a reader to ignore the one line the check exists to print.
 
     `passed_over`, where given, takes the path of each dot-directory skipped.
     """
     rows = []
     excluded = {os.path.normcase(os.path.abspath(p)) for p in exclude}
     for dirpath, dirnames, filenames in os.walk(root):
-        kept = []
+        retained = []
         for one in dirnames:
             if one in SKIP:
                 continue
-            if one.startswith(".") and one not in KEPT_DOT:
+            if one.startswith(".") and one not in RETAINED_DOT:
                 if passed_over is not None:
                     passed_over.append(os.path.relpath(os.path.join(dirpath, one), root).replace("\\", "/"))
                 continue
-            kept.append(one)
-        dirnames[:] = kept
+            retained.append(one)
+        dirnames[:] = retained
         for name in sorted(filenames):
             if name.endswith(SKIP_SUFFIX):
                 continue
@@ -161,7 +161,7 @@ def main(argv):
         handle.write("# Then anchor the signature: `ots stamp manifest.tsv.asc`. The signature says\n")
         handle.write("# who and the anchor says when, and neither answers the other's question.\n")
         handle.write("#\n")
-        handle.write("# KEEP THIS FILE PRIVATE WHILE THE WORK IS WITHHELD. The anchor is over a digest and\n")
+        handle.write("# RETAIN THIS FILE PRIVATE WHILE THE WORK IS WITHHELD. The anchor is over a digest and\n")
         handle.write("# discloses nothing; this file names paths and therefore does.\n")
         handle.write("#\n")
         handle.write("# tree\tpath\tbytes\tsha256\n")

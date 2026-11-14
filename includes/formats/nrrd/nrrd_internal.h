@@ -39,7 +39,7 @@ typedef struct
 {
     const char *name;
     unsigned int element_bytes;
-    EngineElementKind element_kind;
+    EngineElementKind element_type;
 } NrrdType;
 
 typedef struct
@@ -59,13 +59,13 @@ typedef struct
     unsigned int dimension;
     unsigned int typed;
     unsigned int element_bytes;
-    EngineElementKind element_kind;
+    EngineElementKind element_type;
     NrrdEndian endian;
     NrrdEncoding encoding;
     unsigned int sizes_count;
     unsigned long long sizes[ENGINE_ARRAY_RANK];
-    unsigned int kinds_count;
-    NrrdKind kinds[ENGINE_ARRAY_RANK];
+    unsigned int types_count;
+    NrrdKind types[ENGINE_ARRAY_RANK];
     unsigned int directions_count;
     unsigned int directions[ENGINE_ARRAY_RANK];
     unsigned int spaced;
@@ -117,7 +117,7 @@ unsigned int nrrd_space(NrrdSpan value, NrrdFields *fields);
 
 unsigned int nrrd_sizes(NrrdSpan value, NrrdFields *fields);
 
-unsigned int nrrd_kinds(NrrdSpan value, NrrdFields *fields);
+unsigned int nrrd_types(NrrdSpan value, NrrdFields *fields);
 
 unsigned int nrrd_directions(NrrdSpan value, NrrdFields *fields);
 

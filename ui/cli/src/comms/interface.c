@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// door.c: the frames that go through the door, each its bytes' count in four bytes, least first, then its bytes; and
-// the regions a frame hands over: what its transfer describes of one, and one taken from what a transfer describes
-#include "door_internal.h"
+// interface.c: the frames that go through the interface, each its bytes' count in four bytes, least first, then its bytes; and
+// the regions a frame passes over: what its transfer describes of one, and one taken from what a transfer describes
+#include "interface_internal.h"
 
-// A transfer as it stands in a frame: the region's length, and on Windows the handle made for it
+// A transfer as it is in a frame: the region's length, and on Windows the handle made for it
 typedef struct
 {
     unsigned long long length;
@@ -18,7 +18,7 @@ int cli_ipc_frame_read(const CliIpcErrMsgEndCtx *args)
     if (!EMBED_CALL(cli_ipc_end_bytes_internal.read, CliIpcEndBytesCtx, .end = args->end, .bytes = head,
                     .size = sizeof(head)))
     {
-        mmgr_line_put(args->err_msg, "the door's end closed");
+        mmgr_line_put(args->err_msg, "the interface's end closed");
         return CLI_IPC_FRAME_BROKEN;
     }
     const unsigned long long length = (unsigned long long)head[0] | ((unsigned long long)head[1] << 8u) |
@@ -28,7 +28,7 @@ int cli_ipc_frame_read(const CliIpcErrMsgEndCtx *args)
     {
         mmgr_line_put(args->err_msg, "a frame of ");
         mmgr_line_decimal(args->err_msg, length, 1u);
-        mmgr_line_put(args->err_msg, " bytes is past the most a frame takes");
+        mmgr_line_put(args->err_msg, " bytes is past the max a frame takes");
         return CLI_IPC_FRAME_BROKEN;
     }
     if (length <= args->capacity)
@@ -51,7 +51,7 @@ int cli_ipc_frame_read(const CliIpcErrMsgEndCtx *args)
     }
     mmgr_line_put(args->err_msg, "a frame of ");
     mmgr_line_decimal(args->err_msg, length, 1u);
-    mmgr_line_put(args->err_msg, " bytes is past the capacity of the buffer the door reads it in");
+    mmgr_line_put(args->err_msg, " bytes is past the capacity of the buffer the interface reads it in");
     return CLI_IPC_FRAME_PASSED;
 }
 

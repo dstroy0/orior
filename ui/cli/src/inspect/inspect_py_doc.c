@@ -35,17 +35,17 @@ typedef struct
     DocPart summary;
     const CliPyLine *line_py_line_pointer;
 } InspectPyDocCtx;
-// a part trimmed of white letters at its two ends, as Rust's str::trim trims it
+// a part trimmed of white characters at its two ends, as Rust's str::trim trims it
 EMBED_INLINE DocPart doc_trim(const InspectPyDocCtx *args)
 {
     DocPart part = args->part;
     while (part.start < part.end)
     {
-        unsigned int letter = 0u;
-        const unsigned long long reserved = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+        unsigned int character = 0u;
+        const unsigned long long reserved = EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                                                        .text_bytes = (const unsigned char *)args->src,
-                                                       .length = part.end, .at = part.start, .letter = &letter);
-        if (!EMBED_CALL(cli_inspect_internal.white, CliInspectCtx, .letter = letter))
+                                                       .length = part.end, .at = part.start, .character = &character);
+        if (!EMBED_CALL(cli_inspect_internal.white, CliInspectCtx, .character = character))
         {
             break;
         }
@@ -54,11 +54,11 @@ EMBED_INLINE DocPart doc_trim(const InspectPyDocCtx *args)
     unsigned long long end = part.start;
     for (unsigned long long at = part.start; at < part.end;)
     {
-        unsigned int letter = 0u;
+        unsigned int character = 0u;
         at +=
-            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                       .text_bytes = (const unsigned char *)args->src, .length = part.end, .at = at, .letter = &letter);
-        end = EMBED_CALL(cli_inspect_internal.white, CliInspectCtx, .letter = letter) ? end : at;
+            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                       .text_bytes = (const unsigned char *)args->src, .length = part.end, .at = at, .character = &character);
+        end = EMBED_CALL(cli_inspect_internal.white, CliInspectCtx, .character = character) ? end : at;
     }
     part.end = end;
     return part;
@@ -177,10 +177,10 @@ EMBED_INLINE unsigned int doc_units(const InspectPyDocCtx *args)
     unsigned int units = 0u;
     for (unsigned long long at = 0ULL; at < args->size;)
     {
-        unsigned int letter = 0u;
-        at += EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                         .text_bytes = (const unsigned char *)text, .length = args->size, .at = at, .letter = &letter);
-        units += (letter >= 0x10000u) ? 2u : 1u;
+        unsigned int character = 0u;
+        at += EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                         .text_bytes = (const unsigned char *)text, .length = args->size, .at = at, .character = &character);
+        units += (character >= 0x10000u) ? 2u : 1u;
     }
     return units;
 }
@@ -367,18 +367,18 @@ static void doc_check(const InspectPyDocCtx *args)
         unsigned long long indent = line.start;
         while (indent < line.end)
         {
-            unsigned int letter = 0u;
-            const unsigned long long reserved = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+            unsigned int character = 0u;
+            const unsigned long long reserved = EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                                                            .text_bytes = (const unsigned char *)src, .length = line.end,
-                                                           .at = indent, .letter = &letter);
-            if (!EMBED_CALL(cli_inspect_internal.white, CliInspectCtx, .letter = letter))
+                                                           .at = indent, .character = &character);
+            if (!EMBED_CALL(cli_inspect_internal.white, CliInspectCtx, .character = character))
             {
                 break;
             }
             indent += reserved;
         }
         EMBED_CALL(doc_note, InspectPyDocCtx, .facts = facts, .tok = args->tok,
-                   .message = "the closing quotes of a docstring of more than one line stand on a line of their own.",
+                   .message = "the closing quotes of a docstring of more than one line are on a line of their own.",
                    .code = "docstring-close");
         const CliInspectPosition close = {args->tok->to.line, args->tok->to.col - (unsigned int)quote};
         fixed.at = 0ULL;

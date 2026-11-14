@@ -49,13 +49,13 @@
 #
 # WHAT THE READER WOULD DO TO THIS, AND WHAT IT ACTUALLY DOES TODAY
 #
-# representation.exact.placed keeps the last value at a repeated position. A shared site would
+# representation.exact.placed retains the last value at a repeated position. A shared site would
 # arrive downstream as one element, chosen by the order the deposit happened to list its rows in.
 # Measured on entry 1010929, which puts Cu and Fe on one position: read forward the site is Fe2+,
 # read with its rows reversed the same site is Cu2+.
 #
 # That is a latent hazard and not a live defect, and the distinction is worth stating precisely
-# instead of letting the stronger version stand. Two things keep it from biting today. `placed`
+# instead of letting the stronger version are. Two things retain it from biting today. `placed`
 # has no callers anywhere in this tree. And `along`, which every period measure here goes through,
 # does not overwrite at all: it gathers every value sitting at a coordinate into a sorted tuple. It
 # returns the same arrangement whatever order the rows arrive in. That was checked and not
@@ -64,7 +64,7 @@
 # So no published result in this subject is affected. The first reading to
 # reach for `placed` on a structure carrying shared positions inherits a silent dependence on file
 # order, and nothing in its signature would say so. `contested` is the primitive that declines to
-# make that choice during ingestion and hands the question back to the domain, where it belongs.
+# make that choice during ingestion and passes the question back to the domain, where it belongs.
 
 import io
 import os
@@ -85,7 +85,7 @@ from representation.structure import crystal  # noqa: E402
 CACHE = os.path.join(ROOT, "build", "cod")
 
 # Entries listed one by one before the run is summarized.
-SHOWN = 20
+DISPLAYED = 20
 
 
 def symbol(written):
@@ -94,15 +94,15 @@ def symbol(written):
     Used only for the folded summary at the end. Nothing in the detection passes through here: two
     sites share a position or they do not, and that is decided on the strings as written.
     """
-    letters = "".join(one for one in written if one.isalpha())
-    return letters.capitalize() if letters else written
+    characters = "".join(one for one in written if one.isalpha())
+    return characters.capitalize() if characters else written
 
 
 def doped_sites(text):
     """Positions in one cell carrying more than one element, as {position: (element, ...)}.
 
     The deposit's own fractional coordinates, carried exactly as integers, with no cell and no
-    tiling. Returns None where nothing parsed, which keeps an entry that cannot be read distinct
+    tiling. Returns None where nothing parsed, which retains an entry that cannot be read distinct
     from one that is clean.
 
     WHERE THAT None COMES FROM, AND WHY IT MOVES A REPORTED NUMBER
@@ -182,7 +182,7 @@ def main():
             continue
         doped += 1
         shared_total += len(found)
-        kinds = set()
+        types = set()
         for elements in found.values():
             pairs[elements] = pairs.get(elements, 0) + 1
             # How many elements share the one position. Two is the common case and the tail is
@@ -190,22 +190,22 @@ def main():
             order[len(elements)] = order.get(len(elements), 0) + 1
             if len(elements) >= 4:
                 widest.append((name[:-4], len(elements), "/".join(elements)))
-            kinds.add(elements)
+            types.add(elements)
         # Distinct substitution types in one deposit. Two at once is a coupled substitution.
         # That is how a lattice stays charge balanced while swapping ions of different charge: the
         # plagioclase series runs Al/Si against Ca/Na, and neither half works alone.
-        coupled[len(kinds)] = coupled.get(len(kinds), 0) + 1
-        if listed < SHOWN:
+        coupled[len(types)] = coupled.get(len(types), 0) + 1
+        if listed < DISPLAYED:
             listed += 1
             sites = len(crystal.site_table(text))
-            shown = sorted({elements for elements in found.values()})
+            displayed = sorted({elements for elements in found.values()})
             out.write(
                 "  %-12s %-7d %-9d %s\n"
                 % (
                     name[:-4],
                     sites,
                     len(found),
-                    "  ".join("/".join(one) for one in shown[:4]),
+                    "  ".join("/".join(one) for one in displayed[:4]),
                 )
             )
             out.flush()
@@ -228,7 +228,7 @@ def main():
         )
 
     out.write(
-        "\n  the substitutions found, as the deposits wrote them, most common first\n"
+        "\n  the substitutions found, as the deposits wrote them, usual first\n"
     )
     for elements, count in sorted(pairs.items(), key=lambda pair: -pair[1])[:15]:
         out.write("     %-28s %d\n" % ("/".join(elements), count))
@@ -239,7 +239,7 @@ def main():
     # across four rows and understates every one of them.
     #
     # The grouping below strips the charge and the case to put those back together. It is a reading
-    # convenience and not a result, and it is kept separate for that reason: deciding that Fe2+ and
+    # convenience and not a result, and it is retained separate for that reason: deciding that Fe2+ and
     # Fe+2 are the same element is chemistry this measure is not otherwise doing, and folding it
     # into the measurement would hide a judgement inside a count.
     folded = {}
@@ -263,7 +263,7 @@ def main():
     out.write(
         "     whichever lanthanides were available when the crystal grew, and a spinel\n"
     )
-    out.write("     will hold most of the first transition row at once.\n")
+    out.write("     will hold the majority of the first transition row at once.\n")
 
     if widest:
         out.write("\n  the widest sites found\n")

@@ -38,7 +38,7 @@ EMBED_INLINE void array_finding_append(const SchemaArrayCtx *args)
                      .code = code);
 }
 
-// each item that stands in the array above it, where the schema requires each once
+// each item that is in the array above it, where the schema requires each once
 EMBED_INLINE void array_unique(const SchemaArrayCtx *args)
 {
     const CliSchemaRead *const read = args->check->read;

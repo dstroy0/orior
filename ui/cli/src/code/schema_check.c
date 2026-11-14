@@ -4,12 +4,12 @@
 // references are read from; `$ref` is followed; `deprecated` is noted on the key; `type`, `enum` and `const` are
 // checked to; the value's own bounds by its type; `allOf` each, `anyOf` one and `oneOf` exactly one, the nearest
 // choice's findings given where none fits; `not`; and `if` with `then` or `else`. A trial's findings are those that are
-// no note. Values are checked CLI_SCHEMA_DEEPEST deep at most; the bases a check reads from are stored on one stack of
+// no note. Values are checked CLI_SCHEMA_DEEPEST deep at max; the bases a check reads from are stored on one stack of
 // CLI_SCHEMA_BASES bytes, a base past it read as the one before
 #include "../text/text.h"
 #include "schema_internal.h"
 
-// the most bytes of the bases a check reads from at once
+// the max bytes of the bases a check reads from at once
 #define CLI_SCHEMA_BASES (1u << 18u)
 
 static char s_bases[CLI_SCHEMA_BASES];
@@ -34,7 +34,7 @@ typedef struct
     const CliJson *json;
     unsigned int finding;
 } SchemaCheckCtx;
-// the span a finding about a value stands on: its key's where it has one, its own where it has none
+// the span a finding about a value is on: its key's where it has one, its own where it has none
 EMBED_INLINE void check_span(const SchemaCheckCtx *args)
 {
     unsigned long long *from = args->from;
@@ -203,7 +203,7 @@ EMBED_INLINE int check_type(const SchemaCheckCtx *args)
     mmgr_line_put(&msg, "A value of type ");
     EMBED_CALL(cli_schema_size_out_internal.type_write, CliSchemaSizeOutCtx, .type = type,
                .size = cellul.len(&(CatenaFinitaCfg){.src = type, .cap = CLI_POOL_BYTES}), .out = &msg);
-    mmgr_line_put(&msg, " stands here, where the schema requires ");
+    mmgr_line_put(&msg, " is here, where the schema requires ");
     int first_listing = 1;
     for (unsigned int one = first; one != CLI_JSON_NONE;
          one = (single != CLI_JSON_NONE) ? CLI_JSON_NONE : json->node[one].next)

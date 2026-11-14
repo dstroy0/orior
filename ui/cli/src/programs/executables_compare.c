@@ -9,7 +9,7 @@
 #include "../toolchains/toolchains.h"
 #include "executables_internal.h"
 
-// the most ranges of difference reported, and the most bytes of a tree's .env read
+// the max ranges of difference reported, and the max bytes of a tree's .env read
 #define CLI_COMPARE_RANGES 3u
 // The places two builds of a program differ, as ranges of bytes, the first CLI_COMPARE_RANGES of them, and the count
 // of bytes that differ; files of two lengths differ from the shorter one's end as well
@@ -99,14 +99,14 @@ void cli_executables_compare_build(const CliExecutablesCfg *args)
     {
         return;
     }
-    // the job's id with every letter but a letter, a digit, `.` and `-` made `_`
+    // the job's id with every character but a character, a digit, `.` and `-` made `_`
     char slug[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = slug,
                             .src = args->id,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_POOL_BYTES}) + 1u});
     EMBED_CALL(cli_text_size.save, CliTextSizeCfg, .text_out = slug,
                .size = cellul.len(&(CatenaFinitaCfg){.src = slug, .cap = CLI_POOL_BYTES}),
-               .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS | CLI_TEXT_END_ASCII, .set = ".-", .other = '_');
+               .classes = CLI_TEXT_CHARACTERS | CLI_TEXT_DIGITS | CLI_TEXT_END_ASCII, .set = ".-", .other = '_');
     char folder[CLI_PATH_MAX_LEN];
     char folder_buf[CLI_PATH_MAX_LEN];
     char allowed[CLI_PATH_MAX_LEN];
@@ -235,7 +235,7 @@ void cli_executables_compare_build(const CliExecutablesCfg *args)
     g_cli_guard->persistent_buf_release((void *)(embed_word)now, (g_cli_executables_owner));
 }
 
-// each `NAME=value` line of a tree's .env handed to `each`, in order: a leading `export` taken off, a value in quotes
+// each `NAME=value` line of a tree's .env passed to `each`, in order: a leading `export` taken off, a value in quotes
 // taken without them, and comments and blank lines passed over
 EMBED_INLINE void cli_dot_env(const ExecutablesCompareCtx *args)
 {
@@ -320,7 +320,7 @@ EMBED_INLINE void cli_dot_env(const ExecutablesCompareCtx *args)
     }
 }
 
-// A command being made with the tree's .env: the command, and the line shown for it
+// A command being made with the tree's .env: the command, and the line displayed for it
 typedef struct
 {
     CliCommand *command;
@@ -336,7 +336,7 @@ static void cli_env_each(const CliEachNameValueCfg *args)
                .value = value);
     mmgr_line_put(made->displayed, (made->displayed->at != 0ULL) ? " " : "");
     mmgr_line_put(made->displayed, name);
-    // the value not shown, an ellipsis in its place
+    // the value not displayed, an ellipsis in its place
     mmgr_line_put(made->displayed, "=\xe2\x80\xa6");
 }
 

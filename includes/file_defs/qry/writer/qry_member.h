@@ -9,15 +9,15 @@
 
 #include <stddef.h>
 
-// the bytes of a member's ring, a power of two: a record takes at most half of it; and the members a run allocates a
-// ring for at the most, its region laid with fewer where its request is smaller
+// the bytes of a member's ring, a power of two: a record takes at max half of it; and the members a run allocates a
+// ring for at max, its region positioned with fewer where its request is smaller
 #define QRY_WRITER_RING_BYTES (64ull << 20u)
-#define QRY_WRITER_MEMBERS QRY_WRITER_MEMBERS_MOST
+#define QRY_WRITER_MEMBERS QRY_WRITER_MEMBERS_MAX
 
 // the longest path of the top of the tree, and of a run's .qry
 #define QRY_WRITER_TOP_MAX_LEN 1024u
 
-// the run's shared memory and a member's ring in it, laid out where the writer and the member are
+// the run's shared memory and a member's ring in it, arranged where the writer and the member are
 // (qry_writer_internal.h): a module of the run sees neither's fields
 typedef struct QryShared QryShared;
 typedef struct QryRing QryRing;
@@ -79,10 +79,10 @@ extern "C"
     // schedule then contains
     unsigned long long qry_member_rings_settled(void);
 
-    // The record at place `*at` of the writer's schedule, where it stands in the run, and `*at` moved past it: a
+    // The record at place `*at` of the writer's schedule, where it is in the run, and `*at` moved past it: a
     // reader starts at 0 and tracks `*at`, each read going on from where the last stopped. 1, or 0 where the schedule
     // contains nothing past `*at`. The record's name follows its head, and its blob its name. A read from 0, and every
-    // latest found, waits first until the writer has taken what this thread handed (qry_member_settled)
+    // latest found, waits first until the writer has taken what this thread passed (qry_member_settled)
     int qry_member_read(unsigned long long *at, const QryRecord **record);
 
     // The record at place `*at` of the schedule of the run `run` maps, which this process views without being a
@@ -103,27 +103,27 @@ extern "C"
     // not NULL: 1, or 0 where the run contains none
     int qry_member_latest(const char *name, const QryRecord **record, unsigned long long *place);
 
-    // the blob of the latest record of `name` where it stands, its bytes, and its place where `place` is not NULL: 1,
+    // the blob of the latest record of `name` where it is, its bytes, and its place where `place` is not NULL: 1,
     // or 0 where the run contains none
     int qry_member_blob(const char *name, const unsigned char **blob, unsigned long long *size,
                         unsigned long long *place);
 
     // The file at `path` as the run stores it: the latest record of its name, its path from the top of the tree. A
     // file the run stores no record of is read from the disk and taken into the run, and that record found. 1, or 0
-    // where the path stands outside the top or the file is neither the run's nor the disk's
+    // where the path is outside the top or the file is neither the run's nor the disk's
     int qry_member_file(const char *path, const QryRecord **record);
 
-    // the name the file at `path` goes by in the run, its path from the top of the tree, where it stands in `path`:
-    // NULL where there is no run or the path stands outside the top
+    // the name the file at `path` goes by in the run, its path from the top of the tree, where it is in `path`:
+    // NULL where there is no run or the path is outside the top
     const char *qry_member_file_name(const char *path);
 
-    // the blob of the file at `path` as the run stores it (qry_member_file), where it stands, and its bytes; with no
+    // the blob of the file at `path` as the run stores it (qry_member_file), where it is, and its bytes; with no
     // run, the disk's file mapped where it lies: 1, or 0 where the file is neither the run's nor the disk's
     int qry_member_file_blob(const char *path, const unsigned char **blob, unsigned long long *size);
 
     // the `size` bytes at `bytes` appended as the file at `path`, its record named by its path from the top of the
     // tree, which the writer writes in the file's place as the run ends: the record's time, or 0 where the path
-    // stands outside the top or the record did not go in
+    // is outside the top or the record did not go in
     unsigned long long qry_member_filed(const char *path, const void *bytes, unsigned long long size);
 
     // The `size` bytes at `bytes` appended critical as `:<name>`, which the writer writes into the run's .qry's named

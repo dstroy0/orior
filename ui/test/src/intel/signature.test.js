@@ -3,8 +3,8 @@
 
 // Parameter Info from the tree: the window's side answers the call the cursor is in off the leaves of the text it holds,
 // asked by the text's key and the cursor's place, its arguments' types and every declaration of its name in order of
-// fit; the page shows the first with the argument the cursor stands in marked and each argument that differs marked,
-// lists the others, and says where there is none. A server's answer is laid below the tree's where its parameters
+// fit; the page shows the first with the argument the cursor is in marked and each argument that differs marked,
+// lists the others, and says where there is none. A server's answer is positioned below the tree's where its parameters
 // differ.
 
 import { closeSignature, parameterInfo, SIGNATURE_REST, signatureOpen, typed } from "../../../gui/src-js/intel/signature.js";
@@ -16,32 +16,32 @@ const { test, assert, ui, calls } = window.__harness;
 // Runs `work` with the intel's hooks giving the editor and a tab of its session, which no server serves unless
 // `served` is given.
 async function inTab(view, work, served = false) {
-  const kept = state.hooks;
-  state.hooks = { ...kept, editor: () => view, tab: () => ({ session: view.s, file: "given.py", served }) };
+  const retained = state.hooks;
+  state.hooks = { ...retained, editor: () => view, tab: () => ({ session: view.s, file: "given.py", served }) };
   try {
     return await work();
   } finally {
     closeSignature();
-    state.hooks = kept;
+    state.hooks = retained;
   }
 }
 
-// A declaration of total(first, second) as the window's side answers it, standing at `path` and `line`, the arguments
+// A declaration of total(first, second) as the window's side answers it, located at `path` and `line`, the arguments
 // at `differs` differing from their parameters.
 const declared = (path, line, differs = []) => ({ path, line, label: "def total(first, second)", params: [[10, 15], [17, 23]], types: ["", ""], count: true, variadic: false, differs });
 
 // The window's side's answer for a call of total with the cursor in its argument `active`.
 const answered = (active, declarations, args = [{ text: "1", type: "number" }]) => ({ name: "total", active, arguments: args, declarations, reading: false });
 
-test("the declaration the tree gives first is shown with the argument the cursor stands in marked, the others listed, and closed again", async () => {
+test("the declaration the tree gives first is displayed with the argument the cursor is in marked, the others listed, and closed again", async () => {
   calls.answer("branch_signature", () => answered(2, [declared("lib.py", 4), declared("other.py", 0)]));
   const view = await given("x = total(1, f(2, 3), |");
   await inTab(view, async () => {
     await parameterInfo();
     assert.ok(signatureOpen());
-    const shown = state.signature.innerHTML;
-    assert.ok(shown.includes("def total(first, <b>second</b>)</code>"), "past the last parameter, the last marked");
-    assert.ok(shown.includes("lib.py:5") && shown.includes("other.py:1"), "where each declaration stands");
+    const displayed = state.signature.innerHTML;
+    assert.ok(displayed.includes("def total(first, <b>second</b>)</code>"), "past the last parameter, the last marked");
+    assert.ok(displayed.includes("lib.py:5") && displayed.includes("other.py:1"), "where each declaration is");
     closeSignature();
     assert.ok(!signatureOpen());
   });
@@ -90,7 +90,7 @@ test("the window's side reads the call off the leaves, a bracket in a string cou
   });
 });
 
-test("the server's answer is laid below the tree's where its parameters differ, and adds nothing where they agree", async () => {
+test("the server's answer is positioned below the tree's where its parameters differ, and adds nothing where they agree", async () => {
   calls.answer("branch_signature", () => answered(1, [declared("lib.py", 4)]));
   calls.answer("lsp_signature", () => ({ label: "total(first: int, second: int)", params: [[6, 16], [18, 29]], active: 1, doc: "", count: 1 }));
   const view = await given("x = total(1, |");
@@ -103,7 +103,7 @@ test("the server's answer is laid below the tree's where its parameters differ, 
       assert.ok(state.signature.innerHTML.includes("def total(first, <b>second</b>)</code>"), "the tree's first");
       calls.answer("lsp_signature", () => ({ label: "total(first, second)", params: [[6, 11], [13, 19]], active: 1, doc: "", count: 1 }));
       await parameterInfo();
-      assert.ok(!state.signature.querySelector(".ed-signature-check"), "nothing laid below where they agree");
+      assert.ok(!state.signature.querySelector(".ed-signature-check"), "nothing positioned below where they agree");
     },
     true,
   );

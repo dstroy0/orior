@@ -5,8 +5,8 @@
 // thumb's length is the share of the whole in view and its place the share before the view. A part whose whole is in
 // view has no scrollbar, and the scrollbar draws nothing and answers no press there.
 //
-// A scrollbar is laid out once for its place, its direction and its scale. The layout makes its two arrows and the
-// thumb's two round ends as masks of coverage, as a glyph is made once. A frame lays the masks and fills the thumb's
+// A scrollbar is arranged once for its place, its direction and its scale. The layout makes its two arrows and the
+// thumb's two round ends as masks of coverage, as a glyph is made once. A frame positions the masks and fills the thumb's
 // straight middle between its ends; the thumb's place is all a frame works out (scrollbar.c)
 #ifndef GUI_WINDOW_SCROLLBAR_H
 #define GUI_WINDOW_SCROLLBAR_H
@@ -16,10 +16,10 @@
 
 typedef struct GuiScrollbarCfg GuiScrollbarCfg;
 
-// the scrollbar's thickness, an arrow's length and the thumb's least length, in unscaled pixels; and the most pixels a
+// the scrollbar's thickness, an arrow's length and the thumb's least length, in unscaled pixels; and the max pixels a
 // thickness takes at any scale, which bounds the masks' cells
 #define GUI_SCROLLBAR_WIDTH 10
-// the pixels the editor's scrollbar stands in from the work's line, past the editor's own padding
+// the pixels the editor's scrollbar is in from the work's line, past the editor's own padding
 #define GUI_SCROLLBAR_STANDOFF 2
 #define GUI_SCROLLBAR_ARROW 10
 #define GUI_SCROLLBAR_THUMB_MIN 16
@@ -33,8 +33,8 @@ typedef struct GuiScrollbarCfg GuiScrollbarCfg;
 #define GUI_SCROLLBAR_ABOVE 4u
 #define GUI_SCROLLBAR_BELOW 5u
 
-// A scrollbar laid out: whether it runs across, under what scrolls sideways, rather than down beside it; the scale it
-// was laid at; where it stands; its track between the arrows; the thumb's thickness, its inset from the scrollbar's
+// A scrollbar arranged: whether it runs across, under what scrolls sideways, rather than down beside it; the scale it
+// was positioned at; where it is; its track between the arrows; the thumb's thickness, its inset from the scrollbar's
 // sides and its least length; the arrows before and after and the thumb's ends before and after as masks; and the
 // cells the masks' coverage lies in
 typedef struct
@@ -54,8 +54,8 @@ typedef struct
     unsigned char end_cover[2][GUI_SCROLLBAR_SIDE_MAX * GUI_SCROLLBAR_SIDE_MAX];
 } GuiScrollbar;
 
-// A scrollbar, laid out at `rect`, running `across` or down, at `scale`, a percent; the whole's lines `total`, the
-// lines in view `shown` and the first line in view `first`; whether the pointer stands on the thumb; a press at x, y;
+// A scrollbar, arranged at `rect`, running `across` or down, at `scale`, a percent; the whole's lines `total`, the
+// lines in view `displayed` and the first line in view `first`; whether the pointer is on the thumb; a press at x, y;
 // and where the first line a dragged thumb puts in view goes
 struct GuiScrollbarCfg
 {
@@ -67,7 +67,7 @@ struct GuiScrollbarCfg
     GuiRaster *raster;
     const GuiPalette *palette;
     unsigned long long total;
-    unsigned long long shown;
+    unsigned long long displayed;
     unsigned long long first;
     int pointed;
     int x;
@@ -75,14 +75,14 @@ struct GuiScrollbarCfg
     unsigned long long *first_out;
 };
 
-// the scrollbar laid out at `rect`, `across` or down, at `scale`: its masks made where its thickness or direction
-// changed, else kept
+// the scrollbar arranged at `rect`, `across` or down, at `scale`: its masks made where its thickness or direction
+// changed, else retained
 void gui_scrollbar_layout(const GuiScrollbarCfg *args);
-// whether the whole is more than its view, so that a scrollbar stands
+// whether the whole is more than its view, so that a scrollbar is
 int gui_scrollbar_needed(const GuiScrollbarCfg *args);
-// the scrollbar drawn, nothing where none stands
+// the scrollbar drawn, nothing where none is
 void gui_scrollbar_draw(const GuiScrollbarCfg *args);
-// where the thumb stands, empty where no scrollbar stands
+// where the thumb is, empty where no scrollbar is
 GuiRect gui_scrollbar_thumb(const GuiScrollbarCfg *args);
 // what a press at x, y lands on
 unsigned int gui_scrollbar_hit(const GuiScrollbarCfg *args);

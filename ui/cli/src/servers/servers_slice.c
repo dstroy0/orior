@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // servers_slice.c: the files the editor has open whose server is given the tree's slice for the lines in view in place
-// of the file's text (symbols_slice.c). Each is stored by its key: the view the page last handed, its first and last
-// lines and the lines opening the regions its first stands inside, and the slice's map, the file and line each line of
+// of the file's text (symbols_slice.c). Each is stored by its key: the view the page last passed, its first and last
+// lines and the lines opening the regions its first is inside, and the slice's map, the file and line each line of
 // the slice came from. A place in the file goes to the server as the slice's line that came from it, and a place the
 // server answers about the slice comes back as the file and line its line came from, none for a bracket the slice
-// closes. The slice is cut again and given as the file's next version as its text changes and as the page hands its
+// closes. The slice is cut again and given as the file's next version as its text changes and as the page passes its
 // view, and the check gives a file it slices a window at a time the same way. Each slice is given under the sending
 // lock, its map stored with the version it is given as before it is given; the slices' lock is taken only to store and
 // read them and never while a server is written to, as the thread that reads a server takes it to move the
@@ -43,8 +43,8 @@ typedef struct
     unsigned int last_position;
     unsigned int lines;
 } CliServersSlicing;
-// the last line in view of a file the page has not handed its view of, and the lines of each window the check slices a
-// file into, a view's height; the most lines a view's openers name, the most files sliced at once, and the most bytes a
+// the last line in view of a file the page has not passed its view of, and the lines of each window the check slices a
+// file into, a view's height; the max lines a view's openers name, the max files sliced at once, and the max bytes a
 // slice's text, map and paths each grow to
 #define CLI_SERVERS_SLICE_LAST 63u
 #define CLI_SERVERS_SLICE_HEIGHT (CLI_SERVERS_SLICE_LAST + 1u)
@@ -196,7 +196,7 @@ static int slice_save(const ServersSliceCtx *args)
         unsigned long long at = 0ULL;
         memor.cpy(&(MemoriaCfg){.dst = stored, .src = args->head, .bytes = sizeof(*args->head)});
         at += sizeof(*args->head);
-        // the openers are at most CLI_SERVERS_SLICE_OPENERS, and each part below was written into a cell of its size
+        // the openers are at max CLI_SERVERS_SLICE_OPENERS, and each part below was written into a cell of its size
         memor.cpy(&(MemoriaCfg){.dst = stored + at, .src = args->opener, .bytes = (embed_word)openers_size});
         at += openers_size;
         memor.cpy(&(MemoriaCfg){.dst = stored + at, .src = args->slicing_read->map.cell, .bytes = map_size});
@@ -258,12 +258,12 @@ static char *slice_cut(const ServersSliceCtx *args)
         cli_grown_end(&slicing.text);
         return NULL;
     }
-    // the text's cell is handed to the caller, who gives it back
+    // the text's cell is passed to the caller, who gives it back
     *slice_size = cli_grown_size(&slicing.text);
     return slicing.text.cell;
 }
 
-// the slice stored by `key`, under the slices' lock: its entry, the cell its bytes stand in, its head read into
+// the slice stored by `key`, under the slices' lock: its entry, the cell its bytes are in, its head read into
 // `head`; an entry that contains none where no slice is stored
 EMBED_INLINE CliKeyedEntry slice_store(const ServersSliceCtx *args)
 {
@@ -382,7 +382,7 @@ int cli_servers_slice_send(const CliServersPathSizeRootCtx *args)
     const int known = stored.used;
     if (known)
     {
-        // the stored view's openers are at most CLI_SERVERS_SLICE_OPENERS
+        // the stored view's openers are at max CLI_SERVERS_SLICE_OPENERS
         for (unsigned int at = 0u; at < head.openers; at += 1u)
         {
             opener[at] = EMBED_CALL(slice_opener_at, ServersSliceCtx, .entry = stored, .head_read = &head, .at = at);
@@ -448,13 +448,13 @@ static void slices_line_append(const CliSliceLineCfg *args)
                .path = args->path, .line = args->line, .text = args->text, .length = args->length);
 }
 
-// a window's slice handed on with its view, and its lines begun again for the next, the file's own path the first of
+// a window's slice passed on with its view, and its lines begun again for the next, the file's own path the first of
 // its paths
 static int slices_window(const CliSliceWindowCfg *args)
 {
     CliServersCut *const cut = (CliServersCut *)args->context;
     const unsigned int named = (args->openers < CLI_SERVERS_SLICE_OPENERS) ? args->openers : CLI_SERVERS_SLICE_OPENERS;
-    // the openers named are at most CLI_SERVERS_SLICE_OPENERS
+    // the openers named are at max CLI_SERVERS_SLICE_OPENERS
     memor.cpy(
         &(MemoriaCfg){.dst = cut->opener, .src = args->opener, .bytes = (embed_word)named * sizeof(unsigned int)});
     cut->head = (CliServersSliceHead){args->first, args->last, named, 0u, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL};
@@ -478,7 +478,7 @@ int cli_servers_slices_cut(const CliServersPathSizeRootErrMsgCtx *args)
     const char *path = args->path;
     CliServersWindow window = args->window;
     void *context = args->context;
-    // a window's slice is cut and handed on where the walk reaches it, the walk's cells saved while it is
+    // a window's slice is cut and passed on where the walk reaches it, the walk's cells saved while it is
     CliServersCut *const cut = g_cli_guard->temporary_buf_alloc(sizeof(CliServersCut), g_cli_servers_owner);
     if (cut == NULL)
     {
@@ -546,7 +546,7 @@ int cli_servers_cut_send(const CliServersErrMsgServerCtx *args)
     }
     if (!saved)
     {
-        mmgr_line_put(err_msg, "the slice could not be kept: the cells cannot meet it");
+        mmgr_line_put(err_msg, "the slice could not be retained: the cells cannot meet it");
     }
     return sent;
 }
@@ -584,7 +584,7 @@ static void slice_owing(const CliEachKeyedEntryCfg *args)
     }
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = args->entry.cell, .offset = (embed_word)args->entry.text_at, .dst = &head, .bytes = sizeof(head)});
-    // the slice's key read out of its cell, a path's length at most
+    // the slice's key read out of its cell, a path's length at max
     char key[CLI_PATH_MAX_LEN];
     const unsigned long long key_bytes =
         (args->entry.key_size < sizeof(key)) ? args->entry.key_size : (sizeof(key) - 1ULL);
@@ -631,7 +631,7 @@ static char *slice_view_cut(const ServersSliceCtx *args)
     {
         (void)EMBED_CALL(slice_path_position, ServersSliceCtx, .slicing = &slicing, .path = own);
     }
-    // each line of the text read once, the openers' lines and the view's lines handed on as they are reached
+    // each line of the text read once, the openers' lines and the view's lines passed on as they are reached
     unsigned int opener_at = 0u;
     unsigned int line = 0u;
     unsigned long long at = 0ULL;
@@ -676,7 +676,7 @@ static char *slice_view_cut(const ServersSliceCtx *args)
         cli_grown_end(&slicing.text);
         return NULL;
     }
-    // the text's cell is handed to the caller, who gives it back
+    // the text's cell is passed to the caller, who gives it back
     *args->slice_size = cli_grown_size(&slicing.text);
     return slicing.text.cell;
 }
@@ -819,7 +819,7 @@ int cli_servers_view(const CliServersPathOutErrMsgCfg *args)
                 .src = root,
                 .bytes = (embed_word)cellul.len(&(CatenaFinitaCfg){.src = root, .cap = sizeof(gather.root) - 1u})});
             gather.head = head;
-            // the openers named are at most CLI_SERVERS_SLICE_OPENERS
+            // the openers named are at max CLI_SERVERS_SLICE_OPENERS
             memor.cpy(&(MemoriaCfg){
                 .dst = gather.opener, .src = args->opener, .bytes = (embed_word)named * sizeof(unsigned int)});
             (void)EMBED_CALL(cli_servers_run_internal.later, CliServersRunCtx, .run = slice_gather_job, .job = &gather,
@@ -1018,7 +1018,7 @@ char *cli_servers_slice_diagnostics(const CliServersPathSizeCtx *args)
                             .text = args->all, .size = size, .nodes_more = 0u, .text_more = 0ULL, .err_msg = &ignored,
                             .owner = g_cli_servers_owner)
                : CLI_JSON_NONE;
-    // a diagnostic's numbers written again are at most as long again as those it came with
+    // a diagnostic's numbers written again are at max as long again as those it came with
     const unsigned long long mapped_capacity = (2ULL * size) + CLI_SERVERS_SLICE_MAPPED_MORE;
     char *const mapped_cell = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
                                          .node = array, .type = CFG_JSON_ARRAY)

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// standing.c: one form standing for the encodings that answer as it does: the working set contains one form for each
+// located.c: one form located for the encodings that answer as it does: the working set contains one form for each
 // answer, and a turn of a form's bits outside its operands is that form
 #include "khw_learn_internal.h"
 
@@ -14,7 +14,7 @@ int khw_answers_alike(const KhwAnswered *form, const KhwAnswered *other)
            ((form->frame == (unsigned int)FRAME_RELATION_COUNT) || (form->reading == other->reading));
 }
 
-// 1 where the two forms contain the same runs: as many, each at the same bits, the same place and the same kind
+// 1 where the two forms contain the same runs: as many, each at the same bits, the same place and the same type
 static int khw_runs_alike(const KhwAnswered *form, const KhwAnswered *other)
 {
     if (form->runs != other->runs)
@@ -24,7 +24,7 @@ static int khw_runs_alike(const KhwAnswered *form, const KhwAnswered *other)
     for (unsigned int run = 0u; run < form->runs; run += 1u)
     {
         if ((form->first[run] != other->first[run]) || (form->last[run] != other->last[run]) ||
-            (form->place[run] != other->place[run]) || (form->kind[run] != other->kind[run]))
+            (form->place[run] != other->place[run]) || (form->type[run] != other->type[run]))
         {
             return 0;
         }
@@ -61,11 +61,11 @@ static int khw_differs_outside_operands(const KhwAnswered *form, const KhwAnswer
     return 1;
 }
 
-// 1 where `older` stands for `newer`, the two one form of the protocol: they answer alike, and either both contain
+// 1 where `older` is for `newer`, the two one form of the protocol: they answer alike, and either both contain
 // their runs and contain the same, or `newer` contains none yet and differs from `older` only in bits of the turned
 // range outside the runs of `older` that take a place, a turn the widening made of `older` whose answer `older`'s runs
-// do not read. A form containing no runs stands for nothing: which of its bits are its operands' is not yet known
-int khw_form_stands_for(const KhwAnswered *older, const KhwAnswered *newer)
+// do not read. A form containing no runs is for nothing: which of its bits are its operands' is not yet known
+int khw_form_is_for(const KhwAnswered *older, const KhwAnswered *newer)
 {
     if ((older->runs == 0u) || !khw_answers_alike(older, newer))
     {
@@ -78,12 +78,12 @@ int khw_form_stands_for(const KhwAnswered *older, const KhwAnswered *newer)
     return khw_differs_outside_operands(older, newer);
 }
 
-// 1 where one of `forms`, `count` of them, stands for `newer`: the working set contains its form already
-int khw_form_stood_for(const KhwAnswered *forms, unsigned int count, const KhwAnswered *newer)
+// 1 where one of `forms`, `count` of them, is for `newer`: the working set contains its form already
+int khw_form_was_for(const KhwAnswered *forms, unsigned int count, const KhwAnswered *newer)
 {
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (khw_form_stands_for(&forms[at], newer))
+        if (khw_form_is_for(&forms[at], newer))
         {
             return 1;
         }
@@ -91,15 +91,15 @@ int khw_form_stood_for(const KhwAnswered *forms, unsigned int count, const KhwAn
     return 0;
 }
 
-// `forms`, `count` of them in the order they entered the working set, with every form an older one stands for let go,
-// the rest retained in their order: the count retained. The oldest of the forms that are one stands, the encoding the
+// `forms`, `count` of them in the order they entered the working set, with every form an older one is for let go,
+// the rest retained in their order: the count retained. The oldest of the forms that are one is, the encoding the
 // set gained first, which the machine file and the part's .ksc name
 unsigned int khw_forms_folded(KhwAnswered *forms, unsigned int count)
 {
     unsigned int retained = 0u;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (khw_form_stood_for(forms, retained, &forms[at]))
+        if (khw_form_was_for(forms, retained, &forms[at]))
         {
             continue;
         }

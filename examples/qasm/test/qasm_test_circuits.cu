@@ -239,32 +239,32 @@ static void device_against_host(void)
         random_angle(one, sizeof(one));
         random_angle(two, sizeof(two));
         random_angle(three, sizeof(three));
-        const unsigned int kind = next_random(8u);
-        if (kind == 0u)
+        const unsigned int type = next_random(8u);
+        if (type == 0u)
         {
             text_add(&built, "%s q[%u];\n", ONE[next_random(10u)], a);
         }
-        else if (kind == 1u)
+        else if (type == 1u)
         {
             text_add(&built, "%s(%s) q[%u];\n", ONE_ANGLE[next_random(5u)], one, a);
         }
-        else if (kind == 2u)
+        else if (type == 2u)
         {
             text_add(&built, "u3(%s,%s,%s) q[%u];\n", one, two, three, a);
         }
-        else if (kind == 3u)
+        else if (type == 3u)
         {
             text_add(&built, "u2(%s,%s) q[%u];\n", one, two, a);
         }
-        else if (kind == 4u)
+        else if (type == 4u)
         {
             text_add(&built, "%s q[%u],q[%u];\n", TWO[next_random(6u)], a, b);
         }
-        else if (kind == 5u)
+        else if (type == 5u)
         {
             text_add(&built, "%s(%s) q[%u],q[%u];\n", TWO_ANGLE[next_random(8u)], one, a, b);
         }
-        else if (kind == 6u)
+        else if (type == 6u)
         {
             text_add(&built, "cu3(%s,%s,%s) q[%u],q[%u];\n", one, two, three, a, b);
         }
@@ -316,8 +316,8 @@ int main(int count, char **arguments)
     static const unsigned char named[] = "qasm_test";
     if (qasm_job_submit(named, sizeof(named) - 1u, qasm_device_bytes(&widest), &job, &error) == QASM_ERROR)
     {
-        printf("  FAIL the device's tessera daemon did not admit the test (error kind %d, module %d, site %u)\n",
-               (int)error.kind, (int)error.module, error.site);
+        printf("  FAIL the device's tessera daemon did not admit the test (error type %d, module %d, site %u)\n",
+               (int)error.type, (int)error.module, error.site);
         return 1;
     }
     errors();

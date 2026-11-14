@@ -96,11 +96,11 @@ static const char *findings_written(int codes)
             mmgr_line_put(&line, one->code);
             mmgr_line_ch(&line, ' ');
         }
-        for (const char *letter = message; (letter[0] != '\0') && (letter[0] != ' '); letter += 1)
+        for (const char *character = message; (character[0] != '\0') && (character[0] != ' '); character += 1)
         {
-            if (letter[0] != '`')
+            if (character[0] != '`')
             {
-                mmgr_line_ch(&line, letter[0]);
+                mmgr_line_ch(&line, character[0]);
             }
         }
     }

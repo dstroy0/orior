@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Donna B. Gerdts	title	Agreement in Halkomelem complex auxiliaries	page 1, carries footnote 1
 front	Donna B. Gerdts	name	Donna B. Gerdts	author
 front	Donna B. Gerdts	note	Simon Fraser University	page 1, under Donna B. Gerdts
@@ -95,7 +95,7 @@ footnote 2	Donna B. Gerdts	note	The following abbreviations are used in glossing
 (14) line 4	Donna B. Gerdts	gloss	UNEXP enough-CS.LC.REFL(IMPF) OB DT food	page 4
 (14) line 5	Donna B. Gerdts	translation	‘The old man didn’t eat, but he’s saying he had enough.’	page 4
 (14) line 6	Donna B. Gerdts	citation	(RP 31May04)	page 4, the source at the right of the translation
-§2.1	Donna B. Gerdts	note	Auxiliaries appear before second position clitics, such as the evidential p̓eʔ ‘certain’, and before tense and aspect clitics, such as the perfect wəł, as shown in the following examples:	page 4
+§2.1	Donna B. Gerdts	note	Auxiliaries appear before second position clitics, such as the evidential p̓eʔ ‘certain’, and before tense and aspect clitics, such as the perfect wəł, as displayed in the following examples:	page 4
 §2.1	Halkomelem	cited form	p̓eʔ	page 4, in italics, ‘certain’
 §2.1	Halkomelem	cited form	wəł	page 4, in italics
 (15) line 1	Halkomelem	transcription	niʔ p̓eʔ wəł ƛ̓iʔ-namət tᶿə sce:łtən.	page 4
@@ -192,7 +192,7 @@ footnote 2	Donna B. Gerdts	note	The following abbreviations are used in glossing
 (30) line 4	Donna B. Gerdts	gloss	OB DT hollow log	page 7
 (30) line 5	Donna B. Gerdts	translation	‘The dog (out of sight) has gone through the hollow log.’	page 7
 (30) line 6	Donna B. Gerdts	citation	(RP 7May97)	page 7, the source at the right of the translation
-§2.2	Donna B. Gerdts	note	Another important difference is that ʔi and niʔ can be used in clauses with all kinds of subjects, including first- and second-person subjects, but the use of ʔeʔət and naʔət is limited to clauses with third-person subjects:	page 7
+§2.2	Donna B. Gerdts	note	Another important difference is that ʔi and niʔ can be used in clauses with all types of subjects, including first- and second-person subjects, but the use of ʔeʔət and naʔət is limited to clauses with third-person subjects:	page 7
 (31) line 1	Halkomelem	transcription	niʔ cən t̓iləm.	page 7
 (31) line 2	Donna B. Gerdts	gloss	AUX 1SG.SUB sing	page 7
 (31) line 3	Donna B. Gerdts	translation	‘I sang.’	page 7
@@ -377,9 +377,9 @@ footnote 3	Donna B. Gerdts	note	This seems especially true if the verb is contra
 §3.2	Donna B. Gerdts	name	Perlmutter	David Perlmutter, Personal vs. impersonal constructions (1983)
 §3.2	Donna B. Gerdts	name	Jespersen	Otto Jespersen, A Modern English Grammar on Historical Principles (1936)
 §3.2	Donna B. Gerdts	name	Fries	Charles C. Fries, American English Grammar (1940)
-§3.2	Donna B. Gerdts	note	Moreover, Gerdts (2009) has shown that some inanimate NPs can take either masculine or feminine determiners, e.g. the words for ‘canoe’, ‘house’, and ‘money’. So gender marking in Halkomelem exhibits a great deal of fluidity. Thus, it is not unexpected to find optionality of gender agreement on positional words.	page 13
+§3.2	Donna B. Gerdts	note	Moreover, Gerdts (2009) has displayed that some inanimate NPs can take either masculine or feminine determiners, e.g. the words for ‘canoe’, ‘house’, and ‘money’. So gender marking in Halkomelem exhibits a great deal of fluidity. Thus, it is not unexpected to find optionality of gender agreement on positional words.	page 13
 §4	Donna B. Gerdts	heading	4 Conclusion	page 13
-§4	Donna B. Gerdts	note	I have shown that the positional words ʔeʔət ‘here’ and naʔət ‘there’ also function as auxiliaries in the Island dialect of Halkomelem. They are used to point out the location of an event or thing in the current perceptual field of the speaker and hearer. They are used only declarative, non-future clauses with third-person subjects. They thus contrast with the simple auxiliaries ʔi and niʔ, which can be used in a broader range of clauses including interrogatives, futures, and clauses with first- and second-person subjects.	page 13
+§4	Donna B. Gerdts	note	I have displayed that the positional words ʔeʔət ‘here’ and naʔət ‘there’ also function as auxiliaries in the Island dialect of Halkomelem. They are used to point out the location of an event or thing in the current perceptual field of the speaker and hearer. They are used only declarative, non-future clauses with third-person subjects. They thus contrast with the simple auxiliaries ʔi and niʔ, which can be used in a broader range of clauses including interrogatives, futures, and clauses with first- and second-person subjects.	page 13
 §4	Donna B. Gerdts	note	The positional words can agree in gender with the subject: ʔeʔəθ and naʔəθ can be used when the subject is feminine singular and ʔeʔət and naʔət are used elsewhere. Gender agreement is optional: the masculine (default) form can appear with feminine singulars as well. Optionally of agreement is an interesting phenomenon because it results in mismatches between the determiner element in the auxiliary and the determiner in the NP.	page 13
 §4	Donna B. Gerdts	note	Conceptually, these positional words are made up of two parts, a deictic element and a determiner element. The deictic element encodes ‘here’ as opposed to ‘there’. We can speculate about the origin of these words and their use as complex auxiliaries. As mentioned above, the usual word order in Halkomelem is VSO. A common type of main clause in Halkomelem consists of a complex predicate—an auxiliary followed by a verb phrase—as in the following schema:	page 13
 §4	Donna B. Gerdts	note	AUXILIARY (SUBJECT PRONOUNS) VERB NOUN PHRASE	page 13, the schema of a main clause

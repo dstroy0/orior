@@ -145,7 +145,7 @@ static void aside_run(void *context)
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_aside_wake);
 }
 
-// the first line of a coloring recorded, and the aside's work started on a thread of its own and waited for, five seconds at the most, before the coloring
+// the first line of a coloring recorded, and the aside's work started on a thread of its own and waited for, five seconds at max, before the coloring
 // goes on; each line after recorded alone
 static void leaves_waiting(const CliLeavesEachCfg *args)
 {
@@ -475,7 +475,7 @@ void test_a_javascript_local_is_named(void)
                        "delimiter.statement");
 }
 
-void test_an_sgr_sequence_is_a_keyword_each_number_its_dotted_token_and_the_letters_after_it_plain(void)
+void test_an_sgr_sequence_is_a_keyword_each_number_its_dotted_token_and_the_characters_after_it_plain(void)
 {
     assert_plugin_line("xterm", "\x1b[31mred\x1b[0m plain",
                        "0 keyword|2 keyword.foreground.1|4 keyword|5 |8 keyword|10 keyword.reset|11 keyword|12 ");
@@ -510,18 +510,18 @@ void test_the_c_grammar_names_a_local_at_its_declaration_and_an_identifier_at_it
         "{",
         "    const GuiPaneTable *const tables[2] = {EMBED_CALL(window_pane_table, GuiWindowCtx, .window_read = args->window),",
         "                                           EMBED_CALL(window_foot_table, GuiWindowCtx, .window_read = args->window)};",
-        "    const int shown = cli_view_shown();",
+        "    const int displayed = cli_view_displayed();",
         "    for (unsigned int at = 0u; at < 2u; at += 1u)",
         "    {",
         "        if (tables[at] == NULL)",
     };
-    static char s_state_kept[256] = "root";
+    static char s_state_retained[256] = "root";
     static char s_line_runs[8][1u << 12u];
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
-        const char *const runs = line_colored(key, s_body[at], s_state_kept);
+        const char *const runs = line_colored(key, s_body[at], s_state_retained);
         memor.cpy(&(MemoriaCfg){.dst = s_line_runs[at], .src = runs, .bytes = CLI_UNITY_LENGTH(runs) + 1u});
-        memor.cpy(&(MemoriaCfg){.dst = s_state_kept, .src = s_state, .bytes = CLI_UNITY_LENGTH(s_state) + 1u});
+        memor.cpy(&(MemoriaCfg){.dst = s_state_retained, .src = s_state, .bytes = CLI_UNITY_LENGTH(s_state) + 1u});
     }
     CLI_TEST_ASSERT_CONTAINS("identifier.declaration.function", s_line_runs[0]);
     CLI_TEST_ASSERT_CONTAINS("identifier.parameter", s_line_runs[0]);

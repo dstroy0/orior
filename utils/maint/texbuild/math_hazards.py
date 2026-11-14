@@ -17,7 +17,7 @@
 # A raw < is read as the start of a tag and swallows what follows it.
 #
 # A command the renderer does not carry throws instead of degrading. \operatorname is absent from some
-# builds, \mathbb takes only uppercase letters so \mathbb{1} fails, and \mathfrak needs a font that is
+# builds, \mathbb takes only uppercase characters so \mathbb{1} fails, and \mathfrak needs a font that is
 # often not shipped.
 #
 # So the rule this checks is that a character with a meaning in markdown has to be written as a command:
@@ -40,16 +40,16 @@ INLINE = re.compile(r"(?<!\$)\$(?!\$)(.+?)(?<!\$)\$(?!\$)")
 CHECKS = (
     (re.compile(r"\\operatorname"),
      "\\operatorname is missing from some builds, use \\mathrm"),
-    # Only a single uppercase letter is supported. \mathbb{1} and \mathbb{ab} throw.
+    # Only a single uppercase character is supported. \mathbb{1} and \mathbb{ab} throw.
     (re.compile(r"\\mathbb\{(?![A-Z]\})[^}]*\}"),
-     "\\mathbb takes one uppercase letter, this argument is something else"),
+     "\\mathbb takes one uppercase character, this argument is something else"),
     (re.compile(r"\\mathfrak"),
      "\\mathfrak needs a font that is often not shipped, use \\mathcal"),
     (re.compile(r"(?<!\\)\*"),
      "a literal asterisk is read as emphasis, use \\ast"),
-    # A tag opener is < followed by a letter or a slash. A < with space around it is arithmetic.
+    # A tag opener is < followed by a character or a slash. A < with space around it is arithmetic.
     (re.compile(r"(?<!\\)<[A-Za-z/]"),
-     "< followed by a letter is read as a tag opener, use \\lt"),
+     "< followed by a character is read as a tag opener, use \\lt"),
     # A > only takes on a meaning at the start of a line, where it opens a blockquote
     (re.compile(r"^\s*>", re.MULTILINE),
      "> at the start of a line opens a blockquote, use \\gt or move it"),
@@ -105,13 +105,13 @@ def main():
             whole = handle.read()
 
         found = []
-        for pattern, kind in ((DISPLAY, "display"), (INLINE, "inline")):
+        for pattern, type in ((DISPLAY, "display"), (INLINE, "inline")):
             for span in pattern.finditer(whole):
                 body = span.group(1)
                 where = line_of(whole, span.start())
                 opens, closes = unescaped_braces(body)
                 if opens != closes:
-                    found.append((where, kind, "braces %d open %d close" % (opens, closes),
+                    found.append((where, type, "braces %d open %d close" % (opens, closes),
                                   body.strip()[:70]))
                 for check, complaint in CHECKS:
                     hit = check.search(body)
@@ -120,7 +120,7 @@ def main():
                     # An asterisk is only eaten when a second one closes the emphasis
                     if complaint.endswith("use \\ast") and body.count("*") < 2:
                         continue
-                    found.append((where, kind, complaint, body.strip()[:70]))
+                    found.append((where, type, complaint, body.strip()[:70]))
 
         for where, line in enumerate(whole.splitlines(), 1):
             for check, complaint in LINE_CHECKS:
@@ -131,8 +131,8 @@ def main():
         if not found:
             out.write("    no hazards\n")
             continue
-        for where, kind, complaint, snippet in sorted(found):
-            out.write("    line %-5d %-8s %s\n" % (where, kind, complaint))
+        for where, type, complaint, snippet in sorted(found):
+            out.write("    line %-5d %-8s %s\n" % (where, type, complaint))
             out.write("      %s\n" % snippet)
             total += 1
 

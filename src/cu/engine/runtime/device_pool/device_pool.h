@@ -20,7 +20,7 @@ extern "C"
 // allocation, rounded to the page once
 #define DEVICE_POOL_PAGE_BYTES (2ull << 20u)
 
-    // A job's device buffers as one allocation. A plan lays out each buffer as a slice whose offset is the running
+    // A job's device buffers as one allocation. A plan arranges each buffer as a slice whose offset is the running
     // total rounded up to DEVICE_POOL_SLICE_ALIGN. The pool's size is known before any device work: the slices' sum,
     // rounded up to the page once, the size the job declares. A plan whose sum would pass 2^62 bytes is spoiled,
     // and no pool is reserved from it.
@@ -40,7 +40,7 @@ extern "C"
         unsigned long long used;
     } DevicePool;
 
-    // lays out a slice of `bytes` in the plan and returns its offset
+    // arranges a slice of `bytes` in the plan and returns its offset
     unsigned long long device_pool_plan_slice(DevicePoolPlan *plan, unsigned long long bytes);
 
     // the bytes a pool reserved from the plan takes: the slices' sum rounded up to the page; 0 for a spoiled plan

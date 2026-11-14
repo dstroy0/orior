@@ -23,10 +23,10 @@ test("a rest at a point of the left edge brings the strip in as a slat growing f
   const whole = strip.getBoundingClientRect();
   assert.ok(slat && slat.top < at && slat.bottom > at, `the slat about the pointer at ${at}: ${slat?.top} to ${slat?.bottom}`);
   assert.ok(slat.bottom - slat.top < whole.height - 40, `the slat shorter than the strip: ${slat.bottom - slat.top} of ${whole.height}`);
-  assert.ok(Math.abs(work.getBoundingClientRect().left - before) < 0.5, `the work where it stood while the slat grows: ${work.getBoundingClientRect().left}`);
+  assert.ok(Math.abs(work.getBoundingClientRect().left - before) < 0.5, `the work where it was while the slat grows: ${work.getBoundingClientRect().left}`);
   const inWork = (x, y) => work.contains(document.elementFromPoint(x, y));
   assert.ok(!inWork(slat.right + GAP / 2, at), "beside the slat the work has given way");
-  assert.ok(inWork(before + 4, whole.top + 8), "away from the slat the work stands at its edge");
+  assert.ok(inWork(before + 4, whole.top + 8), "away from the slat the work is at its edge");
   await ui.rest(SLIDE);
   assert.ok(Math.abs(work.getBoundingClientRect().left - (44 + 2 * GAP)) < 1, `the work's left past the strip once it spans: ${work.getBoundingClientRect().left}`);
   assert.equal(strip.style.clipPath, "", "the strip whole");
@@ -48,7 +48,7 @@ test("a rest at a point of the head brings the bar in as a slat growing from tha
   const whole = bar.getBoundingClientRect();
   assert.ok(slat && slat.left < at && slat.right > at, `the slat about the pointer at ${at}: ${slat?.left} to ${slat?.right}`);
   assert.ok(slat.right - slat.left < whole.width - 40, `the slat shorter than the bar: ${slat.right - slat.left} of ${whole.width}`);
-  assert.ok(Math.abs(work.getBoundingClientRect().top - top) < 0.5, "the work where it stood while the slat grows");
+  assert.ok(Math.abs(work.getBoundingClientRect().top - top) < 0.5, "the work where it was while the slat grows");
   assert.ok(mark().getBoundingClientRect().width < 4, `the wordmark not grown in its corner before the work gives it room: ${markSaid()}`);
   await ui.rest(SLIDE);
   assert.equal(bar.style.clipPath, "", "the bar whole once it spans");

@@ -101,7 +101,7 @@ EMBED_INLINE void serve_lines(const RecordingServeCtx *args)
     }
 }
 
-// a reader's end: the last waits on the run, lets its process go, and hands the adapter the recording with the code
+// a reader's end: the last waits on the run, lets its process go, and passes the adapter the recording with the code
 // the run ended with, none where it was ended or a signal ended it
 static void serve_read(void *context)
 {
@@ -133,7 +133,7 @@ static void serve_read(void *context)
         mmgr_line_put(&out, "null");
     }
     mmgr_line_ch(&out, '}');
-    // the run is let go before the adapter is handed its recording, so that a record that waits on this end, on the
+    // the run is let go before the adapter is passed its recording, so that a record that waits on this end, on the
     // adapter's own thread, does not wait on the adapter taking the message
     CliDap *const dap = s_dap;
     s_going = 0;

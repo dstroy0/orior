@@ -12,7 +12,7 @@ extern "C"
 
 #define TOWER_ERROR (-1L)
 
-// A reversible lookup edge stands between two tower floors. It permutes the low `index_bits` of every
+// A reversible lookup edge is between two tower floors. It permutes the low `index_bits` of every
 // approximation coefficient at floor `floor` through `forward`, a permutation of [0, 1 << index_bits);
 // the high bits pass through. The map is a bijection on the coefficient word and tower_lower replays
 // its inverse in reverse order. This is the engine's nonlinear edge (kolmogorov_arnold.md) folded into
@@ -50,7 +50,7 @@ extern "C"
 
     // the device bytes the tower allocates for a lattice of `lanes` values: its one pool, the coefficients and the
     // scratch as ints beside the flag and the mismatch count, rounded to the page; 0 for no lanes or a count no pool
-    // could use. The pool is retained at the most lanes requested. A job that lifts or lowers several lattices retains
+    // could use. The pool is retained at max lanes requested. A job that lifts or lowers several lattices retains
     // it for the largest.
     unsigned long long tower_reserve_bytes(unsigned long long lanes);
 
@@ -106,7 +106,7 @@ extern "C"
     // crystal where tower_lift leaves its coefficients, each level's lows first along every axis and its highs after
     // them; tower_record_lower leaves the samples. A weight other than 1 is a product by a constant, and a floor v /
     // 2^k is EXACT_QUOTIENT(v - AND(v, 2^k - 1), 2^k), toward minus infinity as the kernels' shift; each constant is
-    // one step, laid out where it is first read. No edge is laid out. The steps go in at `*count`, which is left past
+    // one step, arranged where it is first read. No edge is arranged. The steps go in at `*count`, which is left past
     // them. With `steps` NULL nothing is written but the count and the out registers, which sizes a program before it
     // is stored; with `steps` set, a program past `step_capacity` errors and the count left where it was.
     typedef struct

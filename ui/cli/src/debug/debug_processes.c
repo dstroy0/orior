@@ -25,7 +25,7 @@ typedef struct
     unsigned int own;
     CliDebugProcess *sorted;
 } CliDebugListing;
-// the most processes listed, and the most bytes their names and lines take
+// the max processes listed, and the max bytes their names and lines take
 #define CLI_DEBUG_PROCESSES 16384u
 #define CLI_DEBUG_PROCESS_TEXT (1ULL << 23u)
 

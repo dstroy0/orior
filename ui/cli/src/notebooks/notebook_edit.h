@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // notebook_edit.h: an open notebook's cells edited: one cell at a time has an editor's view on its document, opened
-// as it takes the keys and closed as it lets them go, every input handed to that view and the cell's rows following
+// as it takes the keys and closed as it lets them go, every input passed to that view and the cell's rows following
 // its lines; the notebook's own keys taken before the view sees them; cells added, changed in type, moved, cleared and
 // deleted; and the menu of a cell built as the menus' own rows, with the commands its rows run (notebook_edit.c)
 #ifndef NOTEBOOK_EDIT_H
@@ -15,12 +15,12 @@ typedef struct CliNotebookEditKeyCfg CliNotebookEditKeyCfg;
 typedef struct CliNotebookEditCellCfg CliNotebookEditCellCfg;
 typedef struct CliNotebookEditMenuCfg CliNotebookEditMenuCfg;
 
-// the columns the view of the cell being edited lays its rows out to
+// the columns the view of the cell being edited positions its rows out to
 #define CLI_NOTEBOOK_EDIT_COLUMNS 1024u
 
-// the keys handed to the cell `cell` of the notebook under `key`, the cell that had them let go first: a view opened on
+// the keys passed to the cell `cell` of the notebook under `key`, the cell that had them let go first: a view opened on
 // its document, sized to its lines and one more, its cursor at `line` and `column`: 1, or 0 with why written; the
-// cell that has the keys let go, its view closed and its rows following its lines; and `input` handed to that cell's
+// cell that has the keys let go, its view closed and its rows following its lines; and `input` passed to that cell's
 // view, the cell's rows and the rows after it following a change in its lines, the cell marked edited and the
 // notebook changed where its text changed: 1, or 0 where no cell has the keys
 int cli_notebook_cell_focus(const CliNotebookEditFocusCfg *args);
@@ -30,10 +30,10 @@ int cli_notebook_cell_input(const CliNotebookEditFocusCfg *args);
 // the keys to the next, letting them go at the last; Ctrl+Enter and Meta+Enter run it, the keys staying on it; Escape
 // lets them go: 1 where the key was the notebook's, before the view sees it
 int cli_notebook_cell_key(const CliNotebookEditKeyCfg *args);
-// a cell of `type` added after the cell `cell`, at the end where `cell` is CLI_NOTEBOOK_NONE, the keys handed to it;
+// a cell of `type` added after the cell `cell`, at the end where `cell` is CLI_NOTEBOOK_NONE, the keys passed to it;
 // the cell `cell` changed from code to markdown or back, its outputs cleared; moved by `by`, one up or one down; its
-// outputs cleared; and deleted, a cell that ran standing among the cells gone for the cells that stand on it. Each 1,
-// or 0 where no such cell stands or the cells cannot meet it, the notebook marked changed where it changed
+// outputs cleared; and deleted, a cell that ran located among the cells gone for the cells that are on it. Each 1,
+// or 0 where no such cell is or the cells cannot meet it, the notebook marked changed where it changed
 int cli_notebook_cell_add(const CliNotebookEditCellCfg *args);
 int cli_notebook_cell_retype(const CliNotebookEditCellCfg *args);
 int cli_notebook_cell_move(const CliNotebookEditCellCfg *args);
@@ -41,7 +41,7 @@ int cli_notebook_cell_outputs_clear(const CliNotebookEditCellCfg *args);
 int cli_notebook_cell_remove(const CliNotebookEditCellCfg *args);
 // the menu of the cell `cell` built as the menus' own rows: Run, Debug, which waits on the debugger, Change to
 // Markdown or Change to Code, Move Up and Move Down, each refused at its end, Clear Outputs and Delete: 1, or 0 where
-// no such cell stands; and the command `word` of a row run on the cell `cell`, the cell the menu was built for where
+// no such cell is; and the command `word` of a row run on the cell `cell`, the cell the menu was built for where
 // `cell` is CLI_NOTEBOOK_NONE, notebook-show-all showing the output `output` whole: 1 where the word was the
 // notebook's
 int cli_notebook_cell_menu(const CliNotebookEditMenuCfg *args);

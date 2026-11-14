@@ -53,7 +53,7 @@ test("a fast scroll through a long file holds the display's own rate, as files s
 });
 
 test("smooth scrolling starts off where the system asks for reduced motion, and the reader's own choice wins either way", async () => {
-  const kept = localStorage.getItem("orior.smooth-scroll");
+  const retained = localStorage.getItem("orior.smooth-scroll");
   try {
     localStorage.removeItem("orior.smooth-scroll");
     await ui.media("prefers-reduced-motion", "reduce");
@@ -67,10 +67,10 @@ test("smooth scrolling starts off where the system asks for reduced motion, and 
     assert.equal(smoothScrolling(), false, "turned off here, it is off");
   } finally {
     await ui.media("prefers-reduced-motion");
-    if (kept === null) {
+    if (retained === null) {
       localStorage.removeItem("orior.smooth-scroll");
     } else {
-      localStorage.setItem("orior.smooth-scroll", kept);
+      localStorage.setItem("orior.smooth-scroll", retained);
     }
   }
 });
@@ -137,11 +137,11 @@ test("under a steady wheel every frame moves the text an even step", async () =>
   assert.ok(steps.length > 100, `frames counted: ${steps.length}`);
   const missed = steps.map(([gap], index) => [index, Math.round(gap)]).filter(([, gap]) => gap > 1.5 * interval);
   assert.ok(late <= steps.length * (0.03 + missedAtRest), `frames the page missed: ${late} of ${steps.length}, ${(missedAtRest * 100).toFixed(1)}% at rest, each [frame, ms]: ${JSON.stringify(missed)}; the slowest frames the trace holds: ${slowest}; the browser's busiest work: ${browser}`);
-  assert.ok(still <= 2, `frames the text stood still: ${still} of ${steps.length}`);
+  assert.ok(still <= 2, `frames the text was still: ${still} of ${steps.length}`);
   assert.ok(spread < 0.3, `the steps spread by ${spread.toFixed(2)} of their middle, ${middle} px`);
 });
 
-// Fingers kept on a trackpad: small steps in pixels, one each frame or so, which the view follows
+// Fingers retained on a trackpad: small steps in pixels, one each frame or so, which the view follows
 // as they come. The frames drawn at the display's own rate, and the text moved as far as the steps.
 async function trackpadOver(view, ms) {
   const box = view.scroller.getBoundingClientRect();
@@ -160,7 +160,7 @@ async function trackpadOver(view, ms) {
   return { rate: gaps.length / ((times.at(-1) - times[0]) / 1000), longest: Math.max(...gaps), moved: view.scrollY() - before, sent };
 }
 
-test("fingers kept on a trackpad move the text at the display's own rate", async () => {
+test("fingers retained on a trackpad move the text at the display's own rate", async () => {
   await openFile("rate.py");
   await ui.waitFor(() => editing().active === "rate.py" && editing().editor?.s, 5000);
   const view = editing().editor;
@@ -205,7 +205,7 @@ async function widthSettled(view) {
 
 test("word wrap shows a long line as rows that end after a space, each moved through and pressed on as a row", async () => {
   const view = await wrappedFile("wrapped.txt", 40);
-  const kept = view.wrapped();
+  const retained = view.wrapped();
   try {
     view.setWrap(true);
     // The caret put in the line first, so the editor has taken the keys and its width has settled before the rows
@@ -220,12 +220,12 @@ test("word wrap shows a long line as rows that end after a space, each moved thr
     const second = rows.rowOf(0) + 1;
     const start = rows.startOf(second);
     assert.ok(start > 0 && start <= columns && text[start - 1] === " ", `the first row ends after a space, at ${start} of ${columns} columns`);
-    // The caret on the second row stands at the left, a row down.
+    // The caret on the second row is at the left, a row down.
     view.goTo(0, start + 2);
     await new Promise((rest) => requestAnimationFrame(() => requestAnimationFrame(rest)));
     const at = view.rectOf({ line: 0, col: start + 2 });
     const first = view.rectOf({ line: 0, col: 2 });
-    assert.equal(Math.round(at.left), Math.round(first.left), "a col two into the row stands where col two of the line does");
+    assert.equal(Math.round(at.left), Math.round(first.left), "a col two into the row is where col two of the line does");
     assert.equal(Math.round(at.top - first.top), view.lineHeight, "a row down");
     // Down goes to the next row of the same line, Up back.
     view.goTo(0, 2);
@@ -243,13 +243,13 @@ test("word wrap shows a long line as rows that end after a space, each moved thr
     view.setWrap(false);
     assert.equal(view.rows().size, view.doc.count, "unwrapped, a row a line");
   } finally {
-    view.setWrap(kept);
+    view.setWrap(retained);
   }
 });
 
-test("fingers kept on a trackpad move wrapped text at the display's own rate", async () => {
+test("fingers retained on a trackpad move wrapped text at the display's own rate", async () => {
   const view = await wrappedFile("wrapped_long.txt", 20000);
-  const kept = view.wrapped();
+  const retained = view.wrapped();
   try {
     view.setWrap(true);
     view.goTo(0, 0);
@@ -260,6 +260,6 @@ test("fingers kept on a trackpad move wrapped text at the display's own rate", a
     assert.ok(run.rate >= display * 0.8, `${run.rate.toFixed(1)} frames a second of the display's ${display.toFixed(1)}`);
     assert.ok(run.longest < 100, `the longest wait between two frames, ${run.longest.toFixed(1)} ms`);
   } finally {
-    view.setWrap(kept);
+    view.setWrap(retained);
   }
 });

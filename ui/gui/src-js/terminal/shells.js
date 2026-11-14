@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The terminal's shells, each a tab: each started, written to and heard, its screen fitted to its view, and the
-// terminal's place kept.
+// terminal's place retained.
 
 import { invoke } from "../bridge.js";
 import { Screen } from "../screen.js";
@@ -15,10 +15,10 @@ const PLACE_REST = 800;
 const SETTLE = 300;
 
 // The shells, each a tab: its number in the app, its shell's number once started, its screen and
-// the view that shows it, the text typed while it started, the folder it last said it stands in,
-// and the lines kept from before the window started. `shown` is the tab shown, `beside` the one
+// the view that shows it, the text typed while it started, the folder it last said it is in,
+// and the lines retained from before the window started. `displayed` is the tab displayed, `beside` the one
 // beside it where the panel is split, and `focused` the one the keys go to.
-export const state = { terms: [], next: 1, shown: null, beside: null, focused: null, before: null, keeping: 0 };
+export const state = { terms: [], next: 1, displayed: null, beside: null, focused: null, before: null, retention: 0 };
 
 // What a shell wrote before its tab knew its number, by that number. The system's terminal asks where
 // the cursor is before anything else and waits for the answer, which the tab gives once it hears
@@ -33,8 +33,8 @@ export function element(tag, props = {}, ...children) {
 }
 
 const termOf = (key) => state.terms.find((term) => term.key === key) ?? null;
-export const focusedTerm = () => termOf(state.focused) ?? termOf(state.shown) ?? state.terms[0] ?? null;
-export const showing = (term) => term.key === state.shown || term.key === state.beside;
+export const focusedTerm = () => termOf(state.focused) ?? termOf(state.displayed) ?? state.terms[0] ?? null;
+export const showing = (term) => term.key === state.displayed || term.key === state.beside;
 
 // Sends text to a shell, the one the keys go to where none is named. Text typed while the shell
 // starts waits until the shell has written and then been quiet for SETTLE: the system's terminal
@@ -88,7 +88,7 @@ function fit(term) {
     term.screen.onPlace = (url) => {
       term.at = url;
       drawStrip();
-      keepSoon();
+      retainSoon();
     };
     if (term.restore?.length) {
       term.screen.write(`${term.restore.join("\r\n")}\r\n`);
@@ -116,7 +116,7 @@ const fresh = invoke("scrollback_reset").catch(() => {});
 function scrollback() {
   const opened = fresh.then(() => invoke("scrollback_open"));
   return {
-    keep: async (lines) => invoke("scrollback_keep", { id: await opened, lines }),
+    retain: async (lines) => invoke("scrollback_retain", { id: await opened, lines }),
     read: async (from, count) => invoke("scrollback_read", { id: await opened, from, count }),
   };
 }
@@ -161,9 +161,9 @@ export function heard(term, text) {
 }
 
 // A new tab, its shell not yet started, and the place it was left where one is given.
-export function addTerm(kept = {}) {
+export function addTerm(retained = {}) {
   const view = element("div", { className: "term-view", hidden: true });
-  const term = { key: state.next++, id: null, opening: null, screen: null, waiting: "", at: typeof kept.at === "string" ? kept.at : null, restore: Array.isArray(kept.lines) ? kept.lines.map(String) : null, view, exited: false };
+  const term = { key: state.next++, id: null, opening: null, screen: null, waiting: "", at: typeof retained.at === "string" ? retained.at : null, restore: Array.isArray(retained.lines) ? retained.lines.map(String) : null, view, exited: false };
   if (!parts.views.querySelector("#term-view")) {
     view.id = "term-view";
   }
@@ -177,10 +177,10 @@ export function addTerm(kept = {}) {
   return term;
 }
 
-// Keeps the terminal's place now: whether the panel is open, and each shell's folder and last lines,
-// with the tab shown and the one beside it.
-export function keepPlace() {
-  window.clearTimeout(state.keeping);
+// Retains the terminal's place now: whether the panel is open, and each shell's folder and last lines,
+// with the tab displayed and the one beside it.
+export function retainPlace() {
+  window.clearTimeout(state.retention);
   const terms = state.terms.map((term) => ({
     at: term.at,
     lines: term.screen ? term.view.innerText.replace(/\s+$/, "").split("\n").slice(-PLACE_LINES) : (term.restore ?? []),
@@ -189,10 +189,10 @@ export function keepPlace() {
     const at = state.terms.findIndex((term) => term.key === key);
     return at < 0 ? null : at;
   };
-  localStorage.setItem(PLACE, JSON.stringify({ open: !parts.panel.hidden, terms, shown: index(state.shown), beside: index(state.beside) }));
+  localStorage.setItem(PLACE, JSON.stringify({ open: !parts.panel.hidden, terms, displayed: index(state.displayed), beside: index(state.beside) }));
 }
 
-export function keepSoon() {
-  window.clearTimeout(state.keeping);
-  state.keeping = window.setTimeout(keepPlace, PLACE_REST);
+export function retainSoon() {
+  window.clearTimeout(state.retention);
+  state.retention = window.setTimeout(retainPlace, PLACE_REST);
 }

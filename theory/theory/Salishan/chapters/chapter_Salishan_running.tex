@@ -18,7 +18,7 @@ sits under and a two-column table interleaves. The papers are read in the order 
 page, and the automatic extractors are written against that order.
 
 A converted paper whose fonts renumber their glyph codes and declare no map back to Unicode is
-marked as not representing the page, with the fonts named. Its text is kept and nothing downstream
+marked as not representing the page, with the fonts named. Its text is retained and nothing downstream
 reads it as the paper. Six of the 146 PDFs stored are in that class, and the references chapter
 names them.
 
@@ -47,7 +47,7 @@ already been applied to destroys the text.
         somebody skipped. A person transcribing a thirty-seven page paper into a table produces
         both. For the two drafted papers, the first direction measures the draft and not the table.
   \item Check each automatic extractor against the hand extraction: whether it found each form,
-        whether it assigns the same kind, and whether it assigns the same dialect. Kind decides the
+        whether it assigns the same type, and whether it assigns the same dialect. Type decides the
         corpus. A rejected tableau candidate filed as a citation form puts a form the paper's own
         analysis rejects into the gold standard corpus.
   \item Check coverage: every language token in each paper against the corpus built from it, both

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_pool.c: the memory pool: a pool emptied for a request stands idle, a cell is counted to the owner named and
+// test_pool.c: the memory pool: a pool emptied for a request is idle, a cell is counted to the owner named and
 // listed in the audit, a take past the pool is refused, the owner table holds the owners declared, a file of whole
 // pages in a cell is measured and searched past its end, and a movable cell moves at a quiet time with its bytes. The
 // cases run in source order: the mover's is last, the pool not being made anew once the option is assigned
@@ -62,7 +62,7 @@ void setUp(void)
     cli_unity_folder("pool", s_folder);
     for (unsigned long long at = 0ull; at < sizeof(s_bytes); at += 1ull)
     {
-        // a letter of the alphabet
+        // a character of the alphabet
         s_bytes[at] = (char)('a' + (at % 26ull));
     }
 }
@@ -72,7 +72,7 @@ void tearDown(void)
     cli_unity_parsed_released();
 }
 
-void test_a_pool_emptied_for_a_request_stands_idle_with_no_cell_allocated(void)
+void test_a_pool_emptied_for_a_request_is_idle_with_no_cell_allocated(void)
 {
     TEST_ASSERT_TRUE(cli_pool_made(64ull << 20u));
     TEST_ASSERT_TRUE(mmgr_series_cellularum_idle(cli_pool_series_cellularum()));
@@ -303,7 +303,7 @@ void test_a_grown_line_holds_a_long_text_whole(void)
     static char s_piece[PIECE];
     for (unsigned int at = 0u; at < PIECE; at += 1u)
     {
-        // a byte of the pattern, a letter of the alphabet
+        // a byte of the pattern, a character of the alphabet
         s_piece[at] = (char)('a' + (at % 26u));
     }
     CliGrownLine grown;
@@ -323,7 +323,7 @@ void test_a_grown_line_holds_a_long_text_whole(void)
     TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_checks_owner));
 }
 
-void test_a_grown_line_fills_at_the_most_it_is_given(void)
+void test_a_grown_line_fills_at_the_max_it_is_given(void)
 {
     enum
     {

@@ -77,7 +77,7 @@ static void period_program_release(PeriodProgram *program)
     memset(program, 0, sizeof(*program));
 }
 
-// imprints, lays out and loads a built program
+// imprints, arranges and loads a built program
 static int period_program_load(const ExactRecordProgram *built, unsigned int members, const unsigned int *outputs,
                                unsigned int output_count, const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX],
                                PeriodProgram *program, EngineError *error)
@@ -94,7 +94,7 @@ static int period_program_load(const ExactRecordProgram *built, unsigned int mem
            (cycle_record_load(&program->layout, &program->record, error) != CYCLE_ERROR);
 }
 
-// [the voxel equals the voxel a lag on, and the pair stands where the axis's usable length contains it]: the lane's
+// [the voxel equals the voxel a lag on, and the pair is where the axis's usable length contains it]: the lane's
 // place along the axis is its quotient by the stride, modulo the extent
 static int period_make_agree(PeriodRecordResident *resident, EngineError *error)
 {
@@ -140,7 +140,7 @@ static unsigned int period_record_round(ExactRecordProgram *built, unsigned int 
                              exact_record_quotient(built, mixed, exact_record_power_two(built, 13u)), 0u);
 }
 
-// lane l of a line-major sweep stands at step j = l mod n of line q = l / n; its voxel is
+// lane l of a line-major sweep is at step j = l mod n of line q = l / n; its voxel is
 // ((q / stride) n + j) stride + q mod stride, and its key is period_line_random of (q, j) under the four keys
 static int period_make_key(PeriodRecordResident *resident, EngineError *error)
 {
@@ -224,7 +224,7 @@ static int period_record_make(EngineError *error)
     return 1;
 }
 
-// the pool's slices for `voxels`, in the order they are laid out and taken
+// the pool's slices for `voxels`, in the order they are arranged and taken
 static DevicePoolPlan period_record_plan(unsigned long long voxels, EngineError *error,
                                          DevicePoolTakeRequest takes[PERIOD_RECORD_SLICES])
 {
@@ -291,7 +291,7 @@ extern "C" void period_record_release(void)
     memset(resident, 0, sizeof(*resident));
 }
 
-// the agreement of one axis at every lag, of `data` laid with `stride` along the axis: lag L sweeps the lanes that have
+// the agreement of one axis at every lag, of `data` positioned with `stride` along the axis: lag L sweeps the lanes that have
 // a voxel L strides on, the program writes 1 where the pair agrees and the place along the axis is usable, and the sum
 // of those is the count
 static int period_record_agreement(const unsigned int *data, unsigned long long voxels, unsigned int stride,
@@ -381,7 +381,7 @@ static int period_record_null(const PeriodRequest *request, const PeriodLattice 
     return ok;
 }
 
-// the request's lattice, the programs and the pool, and the lanes widened into one limb each: the copy lays each
+// the request's lattice, the programs and the pool, and the lanes widened into one limb each: the copy positions each
 // 16-bit lane at the low half of its limb, the high halves cleared before
 static int period_record_open(const PeriodRequest *request, PeriodLattice *lattice, unsigned long long *voxels,
                               EngineError *error)

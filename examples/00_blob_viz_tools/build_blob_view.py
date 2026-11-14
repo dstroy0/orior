@@ -16,7 +16,7 @@ it shears. That shearing is itself the reading, and width is therefore the first
 
   --width     bytes per row, taken as the depth axis. Default 64.
   --offset    first byte to read. Default 0.
-  --rows      how many rows to keep. Default 1024. Use 0 for the whole file.
+  --rows      how many rows to retain. Default 1024. Use 0 for the whole file.
   --window    span of the entropy and repeat windows, in bytes. Default 32.
   --title     heading for the page. Default: the file's name.
   --out       where to write. Default: <name>_view.html beside the blob.
@@ -59,7 +59,7 @@ def window_readings(data, window):
     """
     span = len(data)
     bits = [0.0] * span
-    kinds = [0.0] * span
+    types = [0.0] * span
     counts = [0] * 256
     present = 0
     live = 0
@@ -81,15 +81,15 @@ def window_readings(data, window):
         total = float(live)
         entropy = 0.0
         start = at - live + 1
-        # At most `window` values are present. This walks the window once and not all 256.
+        # At max `window` values are present. This walks the window once and not all 256.
         for each in set(data[start:at + 1]):
             share = counts[each] / total
             entropy -= share * math.log(share, 2)
 
         bits[at] = entropy
-        kinds[at] = float(present)
+        types[at] = float(present)
 
-    return bits, kinds
+    return bits, types
 
 
 def run_lengths(data):
@@ -149,11 +149,11 @@ def main():
     rows = (len(data) + width - 1) // width
     padded = data + b"\x00" * (rows * width - len(data))
 
-    bits, kinds = window_readings(padded, window)
+    bits, types = window_readings(padded, window)
     runs = run_lengths(padded)
 
     byte_rows, ones_rows, delta_rows = [], [], []
-    ent_rows, kind_rows, run_rows = [], [], []
+    ent_rows, type_rows, run_rows = [], [], []
     high_rows, low_rows = [], []
 
     for r in range(rows):
@@ -164,7 +164,7 @@ def main():
         delta_rows.append([float(chunk[c] - padded[base + c - 1]) if base + c > 0 else 0.0
                            for c in range(width)])
         ent_rows.append([round(one, 3) for one in bits[base:base + width]])
-        kind_rows.append(list(kinds[base:base + width]))
+        type_rows.append(list(types[base:base + width]))
         run_rows.append(list(runs[base:base + width]))
         high_rows.append([float(one >> 4) for one in chunk])
         low_rows.append([float(one & 15) for one in chunk])
@@ -179,13 +179,13 @@ def main():
         "blurb": ("%s read as a grid %d bytes wide, %d rows from offset %d of %d bytes. Depth runs "
                   "left to right as position within the row; the other horizontal axis is the row, "
                   ", the file in order. Repeating structure whose period divides the width "
-                  "stands up as columns; anything else shears diagonally, and the shear angle is "
+                  "is up as columns; anything else shears diagonally, and the shear angle is "
                   "the real period."
                   % (os.path.basename(source), width, rows, offset, size)),
         "noteTitle": "Width is the only assumption",
         "note": ("Nothing in a blob says how wide it is. Structure that appears at one width and "
                  "vanishes at another belongs to the choice of width and not to the file. "
-                 "Change it and keep what survives."),
+                 "Change it and retain what survives."),
         "settings": settings.collect(sys.argv[1:]),
         "schema": settings.schema(sorted(settings.KNOWN)),
         "fields": [
@@ -193,7 +193,7 @@ def main():
             {"key": "ones", "label": "Bits set", "axis": "row", "rows": ones_rows},
             {"key": "delta", "label": "Delta", "axis": "row", "rows": delta_rows},
             {"key": "entropy", "label": "Entropy", "axis": "row", "rows": ent_rows},
-            {"key": "distinct", "label": "Distinct", "axis": "row", "rows": kind_rows},
+            {"key": "distinct", "label": "Distinct", "axis": "row", "rows": type_rows},
             {"key": "run", "label": "Run length", "axis": "row", "rows": run_rows},
             {"key": "high", "label": "High nibble", "axis": "row", "rows": high_rows},
             {"key": "low", "label": "Low nibble", "axis": "row", "rows": low_rows},

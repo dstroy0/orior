@@ -24,8 +24,8 @@
 // lanes apply exactly the gates the port applies. No step divides and nothing rounds.
 
 // __LINE__ is a positive int, which the unsigned site represents unchanged
-#define QASM_CHECK(condition_, evacaddr_, error_, kind_)                                                               \
-    engine_error_check((condition_) ? 1 : 0, (kind_), ENGINE_MODULE_QASM, (unsigned int)__LINE__,                      \
+#define QASM_CHECK(condition_, evacaddr_, error_, type_)                                                               \
+    engine_error_check((condition_) ? 1 : 0, (type_), ENGINE_MODULE_QASM, (unsigned int)__LINE__,                      \
                        (const void *)(evacaddr_), (error_))
 
 // a CUDA status is a small enumerator, which an int represents unchanged
@@ -42,7 +42,7 @@
 // the distinct constants one floor retains for reuse; a floor needing more builds the rest again
 #define QASM_SELF_CONSTANTS_MAX 64u
 
-// the most lanes one run takes: every count of numbers and limbs over them then stays within an unsigned long long
+// the max lanes one run takes: every count of numbers and limbs over them then stays within an unsigned long long
 #define QASM_SELF_LANES_MAX (1ull << 32u)
 
 static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success");
@@ -50,7 +50,7 @@ static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success"
 static_assert((QASM_SELF_PARTS << QASM_SELF_QUBITS_MAX) <= ENGINE_RECORD_LIMBS_MAX,
               "qasm: the self run's widest state must fit the record machine's register file");
 
-// an input field is at most one bit past the exact integer's width. The widest record's bits fit an unsigned int
+// an input field is at max one bit past the exact integer's width. The widest record's bits fit an unsigned int
 static_assert(((((unsigned long long)QASM_SELF_PARTS << QASM_SELF_QUBITS_MAX) *
                 ((unsigned long long)ORIOR_EXACT_BITS + 1ull)) +
                31ull) <= 0xFFFFFFFFull,
@@ -108,7 +108,7 @@ unsigned int qasm_self_bits(const OriorExactInteger *value);
 
 void qasm_self_put(unsigned int *record, unsigned int offset, unsigned int bits, const OriorExactInteger *value);
 
-// the program laid out on the host: its encoding and its layout, with each output's step
+// the program arranged on the host: its encoding and its layout, with each output's step
 typedef struct
 {
     EngineRecordKey key;

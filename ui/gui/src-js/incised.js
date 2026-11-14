@@ -7,7 +7,7 @@
 
 const SVG = "http://www.w3.org/2000/svg";
 
-// A cut's half width where the stylus went in and at its tail, and the space between two letters, on a
+// A cut's half width where the stylus went in and at its tail, and the space between two characters, on a
 // cap height of 10.
 const HEAD = 1.0;
 const TAIL = 0.36;
@@ -71,8 +71,8 @@ function cut(points) {
   return `M${outline.map(([x, y]) => `${x.toFixed(2)} ${y.toFixed(2)}`).join("L")}Z`;
 }
 
-// `word`, its letters among CAPITALS, incised: an svg the height of its capitals and as wide as they
-// stand, read as nothing of its own.
+// `word`, its characters among CAPITALS, incised: an svg the height of its capitals and as wide as they
+// are, read as nothing of its own.
 export function incised(word) {
   const svg = document.createElementNS(SVG, "svg");
   svg.setAttribute("class", "incised");
@@ -81,10 +81,10 @@ export function incised(word) {
   const cuts = document.createElementNS(SVG, "g");
   cuts.setAttribute("class", "cuts");
   let x = 0;
-  for (const letter of word) {
-    const { wide, strokes } = CAPITALS[letter];
+  for (const character of word) {
+    const { wide, strokes } = CAPITALS[character];
     const group = document.createElementNS(SVG, "g");
-    group.setAttribute("class", "letter");
+    group.setAttribute("class", "character");
     group.setAttribute("transform", `translate(${x} 0)`);
     for (const stroke of strokes) {
       const path = document.createElementNS(SVG, "path");

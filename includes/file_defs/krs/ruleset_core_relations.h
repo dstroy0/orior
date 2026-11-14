@@ -50,7 +50,7 @@ CODEGEN_CORE int ruleset_core_relation_one_word(const unsigned char *text, Rules
     return 0;
 }
 
-// 1 where the fixed entry `fixed`'s register is a numeric name of a bank's register: the bank's letters before and
+// 1 where the fixed entry `fixed`'s register is a numeric name of a bank's register: the bank's characters before and
 // after its {n}, and digits between
 CODEGEN_CORE int ruleset_core_relation_banked(const RulesetCoreRelations *relations, const RulesetCoreEntry *fixed)
 {
@@ -58,11 +58,11 @@ CODEGEN_CORE int ruleset_core_relation_banked(const RulesetCoreRelations *relati
     for (unsigned int at = 0u; at < relations->entry_count; at += 1u)
     {
         const RulesetCoreEntry *const bank = &relations->entries[at];
-        const unsigned int open = (bank->kind == RULESET_CORE_ENTRY_BANK)
+        const unsigned int open = (bank->type == RULESET_CORE_ENTRY_BANK)
                                       ? ruleset_core_relation_find(text, bank->text, (unsigned char)'{', 0u)
                                       : 0u;
         // a bank whose text is its number alone, an immediate, names no register
-        if ((bank->kind != RULESET_CORE_ENTRY_BANK) || (open == bank->text.length) || (bank->text.length <= 3u) ||
+        if ((bank->type != RULESET_CORE_ENTRY_BANK) || (open == bank->text.length) || (bank->text.length <= 3u) ||
             (fixed->text.length < (bank->text.length - 2u)))
         {
             continue;
@@ -75,8 +75,8 @@ CODEGEN_CORE int ruleset_core_relation_banked(const RulesetCoreRelations *relati
         numeric = numeric && (digits != 0u);
         for (unsigned int digit = 0u; digit < digits; digit += 1u)
         {
-            const unsigned char letter = text[fixed->text.first + open + digit];
-            numeric = numeric && (letter >= '0') && (letter <= '9');
+            const unsigned char character = text[fixed->text.first + open + digit];
+            numeric = numeric && (character >= '0') && (character <= '9');
         }
         if (numeric != 0)
         {
@@ -95,7 +95,7 @@ CODEGEN_CORE int ruleset_core_relation_operand(const RulesetCoreRelations *relat
     const unsigned int length = fixed->text.length;
     for (unsigned int at = 0u; (length != 0u) && ((at + length) <= entry->text.length); at += 1u)
     {
-        // a tab or a line's end written as an escape ends the word before it, though its second letter is a letter
+        // a tab or a line's end written as an escape ends the word before it, though its second character is a character
         const int escaped = (at >= 2u) && (text[entry->text.first + at - 2u] == '\\');
         const unsigned char before = ((at == 0u) || escaped) ? (unsigned char)' ' : text[entry->text.first + at - 1u];
         const unsigned char past =
@@ -129,10 +129,10 @@ CODEGEN_CORE void ruleset_core_relation_form(RulesetCoreRelations *relations, un
         const RulesetCoreSpan parameter = ruleset_core_relation_part(text, entry->head, (unsigned char)' ', place);
         // a parameter whose name opens with an underscore is one the form takes and does not write
         int written = (parameter.length != 0u) && (text[parameter.first] == '_');
-        for (unsigned int letter = 0u; (written == 0) && (letter < entry->text.length); letter += 1u)
+        for (unsigned int character = 0u; (written == 0) && (character < entry->text.length); character += 1u)
         {
-            const RulesetCoreSpan named = (text[entry->text.first + letter] == '{')
-                                              ? ruleset_core_relation_braced(relations, entry, letter)
+            const RulesetCoreSpan named = (text[entry->text.first + character] == '{')
+                                              ? ruleset_core_relation_braced(relations, entry, character)
                                               : ruleset_core_relation_after(entry->text, entry->text.length);
             written = (named.length != 0u) && ruleset_core_relation_same(text, named, parameter);
         }
@@ -142,30 +142,30 @@ CODEGEN_CORE void ruleset_core_relation_form(RulesetCoreRelations *relations, un
             break;
         }
     }
-    for (unsigned int letter = 0u; letter < entry->text.length; letter += 1u)
+    for (unsigned int character = 0u; character < entry->text.length; character += 1u)
     {
-        const RulesetCoreSpan named = (text[entry->text.first + letter] == '{')
-                                          ? ruleset_core_relation_braced(relations, entry, letter)
+        const RulesetCoreSpan named = (text[entry->text.first + character] == '{')
+                                          ? ruleset_core_relation_braced(relations, entry, character)
                                           : ruleset_core_relation_after(entry->text, entry->text.length);
         // a place naming a fixed register of the set is that register, and a place the head need not take
         int fixed_named = 0;
         for (unsigned int fixed = 0u; (named.length != 0u) && (fixed_named == 0) && (fixed < relations->entry_count);
              fixed += 1u)
         {
-            fixed_named = (relations->entries[fixed].kind == RULESET_CORE_ENTRY_FIXED) &&
+            fixed_named = (relations->entries[fixed].type == RULESET_CORE_ENTRY_FIXED) &&
                           ruleset_core_relation_same(text, named, relations->entries[fixed].name);
         }
         if ((named.length != 0u) && (fixed_named == 0) &&
             (ruleset_core_relation_place(relations, entry, named) == count))
         {
-            ruleset_core_relation_add(relations, RULESET_CORE_RELATION_PLACE_UNKNOWN, at, letter);
+            ruleset_core_relation_add(relations, RULESET_CORE_RELATION_PLACE_UNKNOWN, at, character);
             break;
         }
     }
     for (unsigned int fixed = 0u; fixed < relations->entry_count; fixed += 1u)
     {
         const RulesetCoreEntry *const register_entry = &relations->entries[fixed];
-        if ((register_entry->kind == RULESET_CORE_ENTRY_FIXED) &&
+        if ((register_entry->type == RULESET_CORE_ENTRY_FIXED) &&
             ruleset_core_relation_banked(relations, register_entry) &&
             ruleset_core_relation_operand(relations, entry, register_entry))
         {
@@ -175,28 +175,28 @@ CODEGEN_CORE void ruleset_core_relation_form(RulesetCoreRelations *relations, un
     }
 }
 
-// what each form is to every other form: the first earlier entry of its name and kind, the first earlier form of its
+// what each form is to every other form: the first earlier entry of its name and type, the first earlier form of its
 // text, the first earlier form one word and its modifiers apart, and the first form it opens
 CODEGEN_CORE void ruleset_core_relation_pairs(RulesetCoreRelations *relations, unsigned int at)
 {
     const unsigned char *const text = relations->text;
     const RulesetCoreEntry *const entry = &relations->entries[at];
-    const int gives = ruleset_core_relation_gives(entry->kind);
+    const int gives = ruleset_core_relation_gives(entry->type);
     unsigned int found[4] = {RULESET_CORE_NONE, RULESET_CORE_NONE, RULESET_CORE_NONE, RULESET_CORE_NONE};
     for (unsigned int earlier = 0u; earlier < relations->entry_count; earlier += 1u)
     {
         const RulesetCoreEntry *const other = &relations->entries[earlier];
-        const int same_kind = gives ? ruleset_core_relation_gives(other->kind)
-                                    : ((other->kind == entry->kind) && ((entry->kind == RULESET_CORE_ENTRY_BANK) ||
-                                                                        (entry->kind == RULESET_CORE_ENTRY_FIXED) ||
-                                                                        (entry->kind == RULESET_CORE_ENTRY_ROW)));
-        if ((earlier < at) && (found[0] == RULESET_CORE_NONE) && same_kind &&
+        const int same_type = gives ? ruleset_core_relation_gives(other->type)
+                                    : ((other->type == entry->type) && ((entry->type == RULESET_CORE_ENTRY_BANK) ||
+                                                                        (entry->type == RULESET_CORE_ENTRY_FIXED) ||
+                                                                        (entry->type == RULESET_CORE_ENTRY_ROW)));
+        if ((earlier < at) && (found[0] == RULESET_CORE_NONE) && same_type &&
             ruleset_core_relation_same(text, entry->name, other->name) &&
-            ((entry->kind != RULESET_CORE_ENTRY_ROW) || ruleset_core_relation_same(text, entry->head, other->head)))
+            ((entry->type != RULESET_CORE_ENTRY_ROW) || ruleset_core_relation_same(text, entry->head, other->head)))
         {
             found[0] = earlier;
         }
-        const int both_forms = (entry->kind == RULESET_CORE_ENTRY_FORM) && (other->kind == RULESET_CORE_ENTRY_FORM) &&
+        const int both_forms = (entry->type == RULESET_CORE_ENTRY_FORM) && (other->type == RULESET_CORE_ENTRY_FORM) &&
                                (entry->text.length != 0u) && (other->text.length != 0u) && (earlier != at);
         const int same_text = both_forms && ruleset_core_relation_walk(relations, entry, other, 0, 0);
         if ((earlier < at) && (found[1] == RULESET_CORE_NONE) && same_text)
@@ -218,14 +218,14 @@ CODEGEN_CORE void ruleset_core_relation_pairs(RulesetCoreRelations *relations, u
             found[3] = earlier;
         }
     }
-    const unsigned int kinds[4] = {
-        (entry->kind == RULESET_CORE_ENTRY_ROW) ? RULESET_CORE_RELATION_ROW_TWICE : RULESET_CORE_RELATION_GIVEN_TWICE,
+    const unsigned int types[4] = {
+        (entry->type == RULESET_CORE_ENTRY_ROW) ? RULESET_CORE_RELATION_ROW_TWICE : RULESET_CORE_RELATION_GIVEN_TWICE,
         RULESET_CORE_RELATION_SAME_TEXT, RULESET_CORE_RELATION_MODIFIERS, RULESET_CORE_RELATION_OPENED};
-    for (unsigned int kind = 0u; kind < 4u; kind += 1u)
+    for (unsigned int type = 0u; type < 4u; type += 1u)
     {
-        if (found[kind] != RULESET_CORE_NONE)
+        if (found[type] != RULESET_CORE_NONE)
         {
-            ruleset_core_relation_add(relations, kinds[kind], at, found[kind]);
+            ruleset_core_relation_add(relations, types[type], at, found[type]);
         }
     }
 }
@@ -241,7 +241,7 @@ CODEGEN_CORE void ruleset_core_relation_construct(RulesetCoreRelations *relation
     for (unsigned int line = 0u; line < relations->entry_count; line += 1u)
     {
         const RulesetCoreEntry *const written = &relations->entries[line];
-        if ((written->kind != RULESET_CORE_ENTRY_LINE) || (written->owner != at))
+        if ((written->type != RULESET_CORE_ENTRY_LINE) || (written->owner != at))
         {
             continue;
         }
@@ -288,7 +288,7 @@ CODEGEN_CORE void ruleset_core_relation_construct(RulesetCoreRelations *relation
         for (unsigned int line = 0u; line < relations->entry_count; line += 1u)
         {
             const RulesetCoreEntry *const written = &relations->entries[line];
-            if ((written->kind != RULESET_CORE_ENTRY_LINE) || (written->owner != from))
+            if ((written->type != RULESET_CORE_ENTRY_LINE) || (written->owner != from))
             {
                 continue;
             }
@@ -298,7 +298,7 @@ CODEGEN_CORE void ruleset_core_relation_construct(RulesetCoreRelations *relation
                 ruleset_core_relation_add(relations, RULESET_CORE_RELATION_LOOP, at, line);
                 return;
             }
-            if ((giver != RULESET_CORE_NONE) && (relations->entries[giver].kind == RULESET_CORE_ENTRY_CONSTRUCT) &&
+            if ((giver != RULESET_CORE_NONE) && (relations->entries[giver].type == RULESET_CORE_ENTRY_CONSTRUCT) &&
                 (relations->marks[giver] != walk))
             {
                 relations->marks[giver] = walk;

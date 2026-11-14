@@ -21,7 +21,7 @@ static void qasm_put_word(unsigned int *limbs, long long value)
 void qasm_gate_records(const QasmGate *gate, unsigned int *records)
 {
     const long long one = 1ll << QASM_FRACTION_BITS;
-    if (gate->kind == QASM_GATE_PAIR)
+    if (gate->type == QASM_GATE_PAIR)
     {
         // row r is (u, v) = (m_r0, m_r1); rows 2 and 3 are the identity's
         // each row is u re, u im, v re, v im
@@ -39,7 +39,7 @@ void qasm_gate_records(const QasmGate *gate, unsigned int *records)
         }
         return;
     }
-    if (gate->kind == QASM_GATE_DIAGONAL)
+    if (gate->type == QASM_GATE_DIAGONAL)
     {
         const long long entries[QASM_DIAGONAL_ENTRIES][2] = {
             {gate->entries[0], gate->entries[1]}, {gate->entries[2], gate->entries[3]}, {one, 0}};
@@ -57,8 +57,8 @@ void qasm_gate_records(const QasmGate *gate, unsigned int *records)
 
 unsigned long long qasm_gate_bodies(const QasmGate *gate)
 {
-    return (gate->kind == QASM_GATE_PAIR) ? QASM_PAIR_ROWS
-                                          : ((gate->kind == QASM_GATE_DIAGONAL) ? QASM_DIAGONAL_ENTRIES : QASM_PHASES);
+    return (gate->type == QASM_GATE_PAIR) ? QASM_PAIR_ROWS
+                                          : ((gate->type == QASM_GATE_DIAGONAL) ? QASM_DIAGONAL_ENTRIES : QASM_PHASES);
 }
 
 static void qasm_wide_add(QasmWide *sum, const QasmWide *value)
@@ -312,7 +312,7 @@ int qasm_space_reserve(QasmSpace *space, const QasmCircuit *circuit, int on_host
     unsigned int phases[QASM_PHASES * QASM_PHASE_LIMBS];
     QasmGate permute;
     memset(&permute, 0, sizeof(permute));
-    permute.kind = QASM_GATE_PERMUTE;
+    permute.type = QASM_GATE_PERMUTE;
     qasm_gate_records(&permute, phases);
     if (on_host != 0)
     {

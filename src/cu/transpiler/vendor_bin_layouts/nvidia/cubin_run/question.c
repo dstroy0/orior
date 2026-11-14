@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// question.c: the question: the safety word laid on the code, a refusal's cause received and reported, the fault
+// question.c: the question: the safety word positioned on the code, a refusal's cause received and reported, the fault
 // recorded, the account given, one question carried, and the verdict loaded
 #include "cubin_run_internal.h"
 #include "verba_scribo/verba_linea.h"
@@ -52,7 +52,7 @@ static void cubin_run_bits_set(unsigned long long *low, unsigned long long *high
 
 // The safety word applied to `code` before the part sees it (P9): every instruction made to wait on all six barriers,
 // and the probe at `kernel_place`, where the code contains one, made to stall the longest and use no barrier; a form
-// the part has not named then waits on everything, and a barrier nothing releases leaves the wait after it standing.
+// the part has not named then waits on everything, and a barrier nothing releases leaves the wait after it located.
 // The protocol sends the code as the part accepted it and names the probe; the scheduler's own word is the carrier's to
 // set
 static void cubin_run_safe_word(unsigned char *code, unsigned long long code_size, unsigned int probe_place)
@@ -116,7 +116,7 @@ static const char *cubin_run_listener_cause(void)
     static const char *const s_driver_causes[] = {"register", "instruction", "address", "address"};
     for (size_t message = 0u; message < (sizeof(s_driver_messages) / sizeof(s_driver_messages[0])); message += 1u)
     {
-        for (unsigned int place = 0u; (place < s_xid_count) && (place < CUBIN_RUN_XID_MOST); place += 1u)
+        for (unsigned int place = 0u; (place < s_xid_count) && (place < CUBIN_RUN_XID_MAX); place += 1u)
         {
             if (strstr(s_xid_text[place], s_driver_messages[message]) != NULL)
             {
@@ -128,7 +128,7 @@ static const char *cubin_run_listener_cause(void)
     static const char *const s_listener_causes[] = {"address", "time", "time", "exception", "exception"};
     for (size_t event = 0u; event < (sizeof(s_listener_events) / sizeof(s_listener_events[0])); event += 1u)
     {
-        for (unsigned int place = 0u; (place < s_xid_count) && (place < CUBIN_RUN_XID_MOST); place += 1u)
+        for (unsigned int place = 0u; (place < s_xid_count) && (place < CUBIN_RUN_XID_MAX); place += 1u)
         {
             if (s_xid_data[place] == s_listener_events[event])
             {
@@ -140,7 +140,7 @@ static const char *cubin_run_listener_cause(void)
 }
 
 // The probe instruction `low` `high` of a launch that faulted the part added to the run's CUBIN_RUN_FAULTS with the
-// cause the BAR0 driver received, handed critical so that it is on disk before the carrier goes on, and blocked from
+// cause the BAR0 driver received, passed critical so that it is on disk before the carrier goes on, and blocked from
 // the part in this process at once
 static void cubin_run_faulted_stored(unsigned long long low, unsigned long long high, const char *cause)
 {
@@ -167,7 +167,7 @@ static void cubin_run_faulted_stored(unsigned long long low, unsigned long long 
     cubin_safe_verdict_added(line, strlen(line));
 }
 
-// The account `call` contains written in the answer `answers` too, and handed as a panic of the call where `panicked`
+// The account `call` contains written in the answer `answers` too, and passed as a panic of the call where `panicked`
 // and the run's writer runs; let go either way
 static void cubin_run_account_given(VerbaLinea *answers, VerbaLinea *call, int panicked)
 {
@@ -185,7 +185,7 @@ static void cubin_run_account_given(VerbaLinea *answers, VerbaLinea *call, int p
 // the part's fault telemetry's, of the Xid critical errors the part stamped against it; and the gate's, of the code it
 // passed, its verdict, the gated list and the probe instruction against it. The proctor and the BAR0 driver each end in
 // the cause it reads, where it reads one. Where the carrier lost its mind, a launch that faulted the part or hung past
-// its bound, each account is also handed as a panic of the call (QRY_PANIC_CALL) to the run, opening the line every
+// its bound, each account is also passed as a panic of the call (QRY_PANIC_CALL) to the run, opening the line every
 // party of the run sees. Nothing waits on the disk: the carrier goes straight on off the part
 void cubin_run_refusal_written(VerbaLinea *answers, int panicked, const char *code_path, unsigned long long code_size,
                                unsigned int registers, unsigned int probe_place, unsigned int launches,
@@ -236,7 +236,7 @@ void cubin_run_refusal_written(VerbaLinea *answers, int panicked, const char *co
         mmgr_line_put(call, "listener: the part stamped ");
         mmgr_line_decimal(call, (unsigned long long)(s_xid_count), 0u);
         mmgr_line_put(call, " Xid critical errors against the launch, Xid");
-        for (unsigned int place = 0u; (place < s_xid_count) && (place < CUBIN_RUN_XID_MOST); place += 1u)
+        for (unsigned int place = 0u; (place < s_xid_count) && (place < CUBIN_RUN_XID_MAX); place += 1u)
         {
             mmgr_line_put(call, " ");
             mmgr_line_decimal(call, (unsigned long long)(s_xid_data[place]), 0u);
@@ -247,13 +247,13 @@ void cubin_run_refusal_written(VerbaLinea *answers, int panicked, const char *co
                 mmgr_line_put(call, ")");
             }
         }
-        mmgr_line_put(call, (s_xid_count > CUBIN_RUN_XID_MOST) ? " ..." : "");
+        mmgr_line_put(call, (s_xid_count > CUBIN_RUN_XID_MAX) ? " ..." : "");
         mmgr_line_put(call, (listener_cause != NULL) ? "; cause " : "");
         mmgr_line_put(call, (listener_cause != NULL) ? listener_cause : "");
         mmgr_line_put(call, "\n");
     }
     cubin_run_account_given(answers, call, panicked);
-    // the probe instruction as the gate read it, the safety word laid on, where the code contains a probe
+    // the probe instruction as the gate read it, the safety word positioned on, where the code contains a probe
     const int placed = (((unsigned long long)probe_place * 16ull) + 16ull) <= code_size;
     const unsigned long long low = placed ? cubin_run_word(s_code, probe_place * 16u) : 0ull;
     const unsigned long long high = placed ? cubin_run_word(s_code, (probe_place * 16u) + 8u) : 0ull;
@@ -312,7 +312,7 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
     // launch gives every case a thread, and gives a case each to no more threads than it sizes them for
     shape.blocks = shaped ? shape.blocks : ((s_case_count + CUBIN_RUN_THREADS - 1u) / CUBIN_RUN_THREADS);
     const unsigned long long threads = (unsigned long long)shape.threads * shape.blocks;
-    if ((threads < s_case_count) || (threads > CUBIN_RUN_THREADS_MOST))
+    if ((threads < s_case_count) || (threads > CUBIN_RUN_THREADS_MAX))
     {
         mmgr_line_put(answers, "skipped a launch of ");
         mmgr_line_decimal(answers, (unsigned long long)(shape.threads), 0u);
@@ -350,7 +350,7 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
     const unsigned long long row_began = cubin_run_host_now();
     s_clocks.gate += row_began - gate_began;
     cubin_run_verdict_row(query_key, verdict, at, s_dry);
-    s_clocks.handed += cubin_run_host_now() - row_began;
+    s_clocks.passed += cubin_run_host_now() - row_began;
     if (s_dry)
     {
         if (s_facets & CUBIN_FACET_VENDOR)
@@ -415,7 +415,7 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
                                                         : CUBIN_RUN_REFUSED;
         cubin_run_launch_row(query_key, outcome, launches, 0ull, 0ull, 0ull, refused);
         // the carrier losing its mind, a launch that faulted the part or hung past its bound, is a panic: the call
-        // opened with every party's account and the answer handed with them, nothing waiting on the disk. A refusal
+        // opened with every party's account and the answer passed with them, nothing waiting on the disk. A refusal
         // that left the part whole is an answer like any other. Either way the accounts are written in the answer, for
         // the conference the refusal calls
         const int panicked = s_launch_faulted || s_launch_timed_out;
@@ -450,7 +450,7 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
         mmgr_line_put(answers, " ");
         mmgr_line_decimal(answers, (unsigned long long)(s_timed_least), 0u);
         mmgr_line_put(answers, " ");
-        mmgr_line_decimal(answers, (unsigned long long)(s_timed_most), 0u);
+        mmgr_line_decimal(answers, (unsigned long long)(s_timed_max), 0u);
         mmgr_line_put(answers, "\n");
         if (cubin_run_clock_offset() != 0u)
         {
@@ -459,11 +459,11 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
             mmgr_line_put(answers, "\n");
         }
     }
-    const unsigned long long handed_began = cubin_run_host_now();
+    const unsigned long long passed_began = cubin_run_host_now();
     cubin_run_launch_row(query_key, CUBIN_RUN_ANSWERED, launches, (launches != 0u) ? nanoseconds : 0ull,
-                         (launches != 0u) ? s_timed_least : 0ull, (launches != 0u) ? s_timed_most : 0ull, "");
+                         (launches != 0u) ? s_timed_least : 0ull, (launches != 0u) ? s_timed_max : 0ull, "");
     const int filed = cubin_run_member_written(answers, answers_path, QRY_ORDINARY, 0);
-    s_clocks.handed += cubin_run_host_now() - handed_began;
+    s_clocks.passed += cubin_run_host_now() - passed_began;
     return filed;
 }
 

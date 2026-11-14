@@ -93,10 +93,10 @@ export function onDown(event, fromGutter = false) {
       const added = { anchor: anchorFrom, head: anchorTo, goal: null };
       this.setSelections([...sels, added], added);
     } else if (event.shiftKey) {
-      const kept = this.primary();
-      anchorFrom = kept.anchor;
-      anchorTo = kept.anchor;
-      this.setSelections([{ anchor: kept.anchor, head: p, goal: null }]);
+      const retained = this.primary();
+      anchorFrom = retained.anchor;
+      anchorTo = retained.anchor;
+      this.setSelections([{ anchor: retained.anchor, head: p, goal: null }]);
     } else {
       [anchorFrom, anchorTo] = this.unitRange(unit, p);
       // A press past a line's end puts the cursor there where cursors may go past line ends.
@@ -195,18 +195,18 @@ export function onPointerMove(event) {
   // What the pointer rests on stays while the pointer is on its name, a step off it, or on its way
   // to it, and no other name is asked about; once the pointer has left all of them, it goes a moment
   // after, or what the pointer rests on next takes its place.
-  if (this.hover.keeps(clientX, clientY)) {
+  if (this.hover.retains(clientX, clientY)) {
     this.hover.stay();
     return;
   }
-  if (this.hover.shown) {
+  if (this.hover.displayed) {
     this.hover.hideSoon();
   }
   this.hoverWait = window.setTimeout(() => this.hoverAt(clientX, clientY), 380);
 }
 
 // A language's hover may answer at once or later, as a language server does; an answer that
-// comes after the pointer has gone elsewhere is dropped. Where nothing is there, what is shown goes
+// comes after the pointer has gone elsewhere is dropped. Where nothing is there, what is displayed goes
 // as the pointer's leaving it asked.
 export async function hoverAt(clientX, clientY) {
   if (!this.s?.language?.hover && !this.s?.diagnostics?.length && !this.valueAt) {
@@ -244,14 +244,14 @@ export async function hoverAt(clientX, clientY) {
   this.hover.show({ from, to, parts });
   // What a server adds comes later; it joins the hover where the pointer still rests on it.
   const more = found?.more ? await found.more : null;
-  if (more?.length && asked === this.hoverAsked && this.s === session && this.hover.shown) {
+  if (more?.length && asked === this.hoverAsked && this.s === session && this.hover.displayed) {
     this.hover.show({ from, to, parts: [...parts, ...more] });
   }
 }
 
 // What the diagnostics under a place say, each in its severity's color: a language server's, or a
 // tool plugin's, with its code, a link to the page that tells of it where the server names one. A
-// message the server writes in Markdown stands under its heading as written.
+// message the server writes in Markdown is under its heading as written.
 export function diagnosticsAt(p) {
   const line = p.line + this.s.base;
   const names = ["", "error", "warning", "note", "hint"];

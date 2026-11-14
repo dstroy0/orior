@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 import { Rows, joinSpans, wrapBreaks } from "../folding.js";
-import { COMMENT_LINES, escapeHtml, HINT_KEYS, LINE, PAD, SHOWN, WRAP_KEY, WRAP_LEAST, WRAPS_KEPT } from "../view.js";
+import { COMMENT_LINES, escapeHtml, HINT_KEYS, LINE, PAD, DISPLAYED, WRAP_KEY, WRAP_LEAST, WRAPS_RETAINED } from "../view.js";
 
 export function unit() {
   return this.s.indent.tabs ? "\t" : " ".repeat(this.s.indent.size);
@@ -28,18 +28,18 @@ export function hintsOn(line) {
   if (!all) {
     return null;
   }
-  const shown = all.filter((hint) => (hint.kind === 2 ? this.hintKinds.parameter : this.hintKinds.type));
-  return shown.length ? shown : null;
+  const displayed = all.filter((hint) => (hint.type === 2 ? this.hintKinds.parameter : this.hintKinds.type));
+  return displayed.length ? displayed : null;
 }
 
-// How many columns the hints before a col of a line take. A hint at the col itself stands before
+// How many columns the hints before a col of a line take. A hint at the col itself is before
 // it where it belongs to the text after it, as a parameter's name does, and after the text before
 // it, as a type does.
 export function hintShift(line, col) {
   const hints = this.hintsOn(line);
   let width = 0;
   for (const hint of hints ?? []) {
-    if (hint.col < col || (hint.col === col && hint.kind === 2)) {
+    if (hint.col < col || (hint.col === col && hint.type === 2)) {
       width += hint.width;
     }
   }
@@ -53,7 +53,7 @@ export function setHints(type, on) {
 }
 
 export function hintHtml(hint) {
-  return `<span class="ed-hint${hint.kind === 2 ? " parameter" : ""}" style="width:${hint.width * this.cw}px">${escapeHtml(hint.label)}</span>`;
+  return `<span class="ed-hint${hint.type === 2 ? " parameter" : ""}" style="width:${hint.width * this.cw}px">${escapeHtml(hint.label)}</span>`;
 }
 
 export function vcol(p) {
@@ -61,7 +61,7 @@ export function vcol(p) {
 }
 
 // The col whose left edge is nearest a visual column, or with `round` off the col it falls in;
-// given the line, a column a hint covers falls to the col the hint stands at.
+// given the line, a column a hint covers falls to the col the hint is at.
 export function colAtV(text, v, round = true, line = -1) {
   const size = this.s.indent.size;
   const hints = line < 0 ? null : this.hintsOn(line);
@@ -96,18 +96,18 @@ export function rows() {
   return this.rowsCache;
 }
 
-// Word wrap: each line longer than the view is wide is shown as rows, each ending after the last
-// space that fits in it. The columns a row holds: as many as stand between the gutter and the
+// Word wrap: each line longer than the view is wide is displayed as rows, each ending after the last
+// space that fits in it. The columns a row holds: as many as are between the gutter and the
 // view's right edge, less two, and never fewer than WRAP_LEAST.
 export function wrapColumns() {
   return Math.max(WRAP_LEAST, Math.floor((this.viewSize().width - PAD) / this.cw) - 2);
 }
 
-// The cols a line's rows after its first start at, kept by the line's text while the columns and the
+// The cols a line's rows after its first start at, retained by the line's text while the columns and the
 // tab's width stay as they are.
 export function breaksOf(line, columns) {
   const size = this.s.indent.size;
-  if (this.wraps?.columns !== columns || this.wraps.size !== size || this.wraps.byText.size > WRAPS_KEPT) {
+  if (this.wraps?.columns !== columns || this.wraps.size !== size || this.wraps.byText.size > WRAPS_RETAINED) {
     this.wraps = { columns, size, byText: new Map() };
   }
   const text = this.s.doc.line(line);
@@ -122,7 +122,7 @@ export function breaksOf(line, columns) {
   return breaks;
 }
 
-// Turns word wrap on or off, and keeps the choice.
+// Turns word wrap on or off, and retains the choice.
 export function setWrap(on) {
   this.wrapOn = on;
   localStorage.setItem(WRAP_KEY, String(on));
@@ -190,7 +190,7 @@ export function commentSpans() {
       }
     }
   }
-  // A text of comments alone keeps its last line in sight.
+  // A text of comments alone retains its last line in sight.
   const last = spans.at(-1);
   if (last && spans[0][0] === 0 && spans.length === 1 && last[1] === s.doc.count - 1) {
     last[1] -= 1;
@@ -202,7 +202,7 @@ export function widthOf(lines) {
   let widest = 0;
   for (const text of lines) {
     if (text.length > widest || (text.includes("\t") && text.length * this.s.indent.size > widest)) {
-      widest = Math.max(widest, this.vcolOf(text, Math.min(text.length, SHOWN)));
+      widest = Math.max(widest, this.vcolOf(text, Math.min(text.length, DISPLAYED)));
     }
   }
   return widest;
@@ -223,7 +223,7 @@ export function widest() {
     this.widestWait = window.setTimeout(() => {
       this.later("widest", () => {
         if (this.s?.doc === doc) {
-          // a file stored as pages keeps the widest any of its windows kept, so the space never narrows under the view
+          // a file stored as pages retains the widest any of its windows retained, so the space never narrows under the view
           const width = this.widthOf(doc.lines);
           this.widestCache = this.s.window?.paged ? Math.max(this.widestCache, width) : width;
           this.schedule();
@@ -251,15 +251,15 @@ export function grown(session, added, lines) {
     this.underLayer.shift(added);
     this.gutterLayer.shift(added);
   }
-  this.keepLine();
-  if (this.find.shown) {
+  this.retainLine();
+  if (this.find.displayed) {
     window.clearTimeout(this.findWait);
     this.findWait = window.setTimeout(() => this.find.refresh(), 400);
   }
   this.schedule();
 }
 
-// Lines of a paged file's window let go above it or below it: the rows on screen keep their
+// Lines of a paged file's window let go above it or below it: the rows on screen retain their
 // places, as when lines are read in.
 export function shrunk(session, count, above) {
   if (session !== this.s) {
@@ -273,36 +273,36 @@ export function shrunk(session, count, above) {
     this.underLayer.shift(-count);
     this.gutterLayer.shift(-count);
   }
-  this.keepLine();
+  this.retainLine();
   this.schedule();
 }
 
 // A paged file's window put elsewhere in the file: the view shows it afresh. Where `holdLine` read the line the view
-// stands on, as a window put where a moving view went, the view stays on that line and the rows drawn stay as they
+// is on, as a window put where a moving view went, the view stays on that line and the rows drawn stay as they
 // are, each drawn again from the window's lines as the next frame reaches it, and none cleared before then: a view gone
-// on past the window keeps its last frame until the window comes to it.
+// on past the window retains its last frame until the window comes to it.
 export function replaced(session) {
   if (session !== this.s) {
     return;
   }
-  // the markup and the breaks kept for the lines the window kept go with them
+  // the markup and the breaks retained for the lines the window retained go with them
   this.rowsKept = null;
   this.wraps = null;
-  const kept = this.anchorLine;
+  const retained = this.anchorLine;
   this.anchorLine = undefined;
-  // the space across as wide as the widest line any window of the file has kept, so it neither widens nor narrows
+  // the space across as wide as the widest line any window of the file has retained, so it neither widens nor narrows
   // as the window moves, a window of cut lines measured by their whole lengths
   const lengths = session.window?.lengths;
-  const width = lengths ? Math.min(SHOWN, lengths.reduce((most, length) => Math.max(most, length), 0)) : this.widthOf(session.doc.lines);
+  const width = lengths ? Math.min(DISPLAYED, lengths.reduce((max, length) => Math.max(max, length), 0)) : this.widthOf(session.doc.lines);
   this.widestCache = Math.max(this.widestCache ?? 0, width);
-  if (kept !== undefined) {
-    session.top = kept - session.base;
+  if (retained !== undefined) {
+    session.top = retained - session.base;
     this.rowsKey = "";
     this.widestOf = session.doc;
     this.widestAt = session.doc.id;
     this.drawn = null;
     this.size();
-    // the scroll stands where the view stood unless the padding above the window changed by other than the lines read
+    // the scroll is where the view was unless the padding above the window changed by other than the lines read
     const want = this.pad + session.top * LINE;
     if (Math.abs(want - this.scroller.scrollTop) >= 1) {
       this.place(session.top * LINE);
@@ -327,7 +327,7 @@ export function holdLine(session) {
 
 // Puts the line `holdLine` read back at the top of the view once the window has moved, a glide
 // under way carried with it, and the scroll that does it not counted as speed.
-export function keepLine() {
+export function retainLine() {
   if (this.anchorLine === undefined || !this.s) {
     return;
   }

@@ -93,8 +93,8 @@ int kdm_section_written_by(KdmFile *file, const char *part, const char *const *l
     if (ok && (tail < file->lines) && !tail_own &&
         (!there_has_who || (there.source != who.source) || (there.line != who.line) || (there.program != who.program)))
     {
-        char code[WHO_CODE_LETTERS + 1u];
-        char whose[WHO_CODE_LETTERS + 8u];
+        char code[WHO_CODE_CHARACTERS + 1u];
+        char whose[WHO_CODE_CHARACTERS + 8u];
         who_code(there, code, sizeof(code));
         snprintf(whose, sizeof(whose), "who %s", there_has_who ? code : "-");
         ok = kfile_lines_line_add(&written, whose);

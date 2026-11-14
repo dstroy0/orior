@@ -10,9 +10,9 @@
 // about whether the assembler can turn that text into the sixteen bytes the part runs. A form this refuses is a form
 // the lane cannot be emitted through, whatever the ruleset specifies.
 //
-// A parameter's kind is not guessed from its name, because one name is two things in two forms: `left` is a register
+// A parameter's type is not guessed from its name, because one name is two things in two forms: `left` is a register
 // in word_bitand and a predicate in predicate_bitxor, `value` a register in test_word_nonzero and a number in word_set.
-// Each form is written instead with every assignment of kinds to its parameters, register first, and passes where any
+// Each form is written instead with every assignment of types to its parameters, register first, and passes where any
 // one of them assembles. A form that assembles under no assignment is the gap, and the assignment that worked is what
 // the form's parameters are.
 //
@@ -36,7 +36,7 @@ extern "C"
 #include <string>
 #include <vector>
 
-// the most parameters a form is written every way of: past this it is written with registers alone, since three to
+// the max parameters a form is written every way of: past this it is written with registers alone, since three to
 // the power of the parameters is the assignments tried and the resident's form takes twenty-four
 #define KRS_PARAMETERS_SEARCHED 6u
 
@@ -73,15 +73,15 @@ static std::string krs_scratch(const std::string &bank)
     return std::string();
 }
 
-// the argument at `place`, of the kind `kind`. A 64-bit form takes registers of an even number, since sass.krs
+// the argument at `place`, of the type `type`. A 64-bit form takes registers of an even number, since sass.krs
 // writes the pair's second as .hi and a pair begins on an even register
-static std::string krs_argument(unsigned int kind, unsigned int place, int wide)
+static std::string krs_argument(unsigned int type, unsigned int place, int wide)
 {
-    if (kind == KRS_PREDICATE)
+    if (type == KRS_PREDICATE)
     {
         return "P" + std::to_string(place % 3u);
     }
-    if (kind == KRS_NUMBER)
+    if (type == KRS_NUMBER)
     {
         return std::to_string(1u + place);
     }
@@ -109,9 +109,9 @@ static std::vector<KrsForm> krs_forms(const Ruleset *rules, const char *path)
     while (std::getline(file, line))
     {
         std::istringstream words(line);
-        std::string kind;
-        words >> kind;
-        if ((kind != "form") && (kind != "construct"))
+        std::string type;
+        words >> type;
+        if ((type != "form") && (type != "construct"))
         {
             continue;
         }
@@ -160,7 +160,7 @@ static int krs_has_instruction(const std::string &text)
 // Every label the ruleset's forms define, as one preamble. A branch names a label another form writes
 // (error_open_unless branches to the one label_error_open writes), and the assembler resolves a label from the lines
 // of the text it is given: a form written alone has none. Each form that carries no instruction is written with
-// every number a branch here is given: whatever a branch names stands in front of it
+// every number a branch here is given: whatever a branch names is in front of it
 static std::string krs_labels(const Ruleset *rules, const std::vector<KrsForm> &forms)
 {
     std::string preamble;
@@ -190,9 +190,9 @@ enum KrsOutcome
 };
 
 // form `form` written every way its parameters can be given and assembled, `wrote` the text of the assignment that
-// passed or of the last one tried, and `kinds` that assignment
+// passed or of the last one tried, and `types` that assignment
 static unsigned int krs_form_assembles(const Ruleset *rules, const SassMachine *machine, const KrsForm &form,
-                                       const std::string &labels, std::string *wrote, std::string *kinds)
+                                       const std::string &labels, std::string *wrote, std::string *types)
 {
     const int wide = (form.name.find("wide") != std::string::npos) ||
                      (form.name.find("member") != std::string::npos);
@@ -210,9 +210,9 @@ static unsigned int krs_form_assembles(const Ruleset *rules, const SassMachine *
         unsigned int walk = assignment;
         for (unsigned int place = 0u; place < parameters; place += 1u)
         {
-            const unsigned int kind = (place < KRS_PARAMETERS_SEARCHED) ? (walk % KRS_KINDS) : KRS_REGISTER;
+            const unsigned int type = (place < KRS_PARAMETERS_SEARCHED) ? (walk % KRS_KINDS) : KRS_REGISTER;
             walk = (place < KRS_PARAMETERS_SEARCHED) ? (walk / KRS_KINDS) : walk;
-            given.push_back(krs_argument(kind, place, wide));
+            given.push_back(krs_argument(type, place, wide));
             named += form.parameters[place] + "=" + given.back() + " ";
         }
         std::string text;
@@ -221,14 +221,14 @@ static unsigned int krs_form_assembles(const Ruleset *rules, const SassMachine *
             return KRS_NOT_WRITTEN;
         }
         *wrote = text;
-        *kinds = named;
+        *types = named;
         if (!krs_has_instruction(text))
         {
             return KRS_NO_INSTRUCTION;
         }
         outcome = KRS_REFUSED;
         static unsigned char code[4096];
-        // the labels stand in front, each at the address the instructions begin at: a branch to one resolves
+        // the labels are in front, each at the address the instructions begin at: a branch to one resolves
         const std::string whole = labels + text;
         if (sass_assemble_lines(machine, whole.c_str(), SASS_CONTROL_SAFE, code, sizeof(code)) != 0u)
         {
@@ -270,8 +270,8 @@ int main(int count, char **arguments)
             continue;
         }
         std::string wrote;
-        std::string kinds;
-        const unsigned int outcome = krs_form_assembles(rules, &machine, form, labels, &wrote, &kinds);
+        std::string types;
+        const unsigned int outcome = krs_form_assembles(rules, &machine, form, labels, &wrote, &types);
         if (outcome == KRS_ASSEMBLED)
         {
             assembled += 1u;

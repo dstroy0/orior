@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	John Hamilton Davis	note	Papers for the International Conference on Salish and Neighboring Languages 57. D. K. E. Reisinger, Laura Griffin, Gloria Mellesmoen, Sander Nederveen, Bruce Oliver, and Bailey Trotter (eds.). Vancouver, BC: UBCWPL, 2022.	page 1
 front	John Hamilton Davis	title	Counting in Mainland Comox	page 1
 front	John Hamilton Davis	byline	John Hamilton Davis, Bellingham, Washington	page 1
@@ -8,7 +8,7 @@ front	John Hamilton Davis	name	John Hamilton Davis	author, Bellingham, Washingto
 front	John Hamilton Davis	language	Mainland Comox	the language of the paper, ʔayʔajuthem [ʔaɪʔaǰuθəm] in its own name, Comox-Sliammon, a Central Salish language
 front	John Hamilton Davis	language	Sechelt	Sechelt, the Central Salish language the paper sets beside Mainland Comox
 §1	John Hamilton Davis	heading	1 Introduction	page 1
-§1	John Hamilton Davis	note	My first consultant was Bill Galligos (Sliammon, born 1908). In summer 1969, he introduced me to his father-in-law, Noel George Harry (Homalco, born circa 1890). Noel George Harry (whose ancestral name was Mowheyalas [moçʷiyεlᴧs]) is to be distinguished from Noel Harry of Church House (who was known as Nuwa [nuwᴧ]). During the summer of 1969, Noel George Harry received a letter from the provincial government, a letter meant for Noel Harry; he asked me to clear up the confusion and explain the difference to the government employee(s) who had sent the letter.	page 1
+§1	John Hamilton Davis	note	My first consultant was Bill Galligos (Sliammon, born 1908). In summer 1969, he introduced me to his father-in-law, Noel George Harry (Homalco, born circa 1890). Noel George Harry (whose ancestral name was Mowheyalas [moçʷiyεlᴧs]) is to be distinguished from Noel Harry of Church House (who was known as Nuwa [nuwᴧ]). During the summer of 1969, Noel George Harry received a character from the provincial government, a character meant for Noel Harry; he asked me to clear up the confusion and explain the difference to the government employee(s) who had sent the character.	page 1
 §1	John Hamilton Davis	name	Bill Galligos	page 1, the author's first consultant, Sliammon, born 1908
 §1	John Hamilton Davis	place	Sliammon	page 1, Bill Galligos's community
 §1	John Hamilton Davis	name	Noel George Harry	page 1, Bill Galligos's father-in-law, Homalco, born circa 1890
@@ -27,7 +27,7 @@ front	John Hamilton Davis	language	Sechelt	Sechelt, the Central Salish language 
 §1	ʔayʔaǰuθəm	cited affix	χaƛ̀-	page 1, ‘difficult’, set in braces
 §1	ʔayʔaǰuθəm	cited affix	-uθ-	page 1, ‘mouth, lips’, set in braces
 §1	ʔayʔaǰuθəm	cited affix	-qin	page 1, ‘inside of the mouth’, set in braces
-§1	John Hamilton Davis	note	Noel George Harry said that his elders said that even before he was born the language had changed. He was able to explain many of the changes, but the changes in the number system became most evident in the way that he used numbers.	page 1
+§1	John Hamilton Davis	note	Noel George Harry said that his elders said that even before he was born the language had changed. He was able to explain many of the changes, but the changes in the number system became max evident in the way that he used numbers.	page 1
 §2	John Hamilton Davis	heading	2 Count Numbers in Mainland Comox Compared with Sechelt	page 1
 §2 table line 1	John Hamilton Davis	note	Mainland Comox Sechelt	page 1, heads the two columns below
 §2 table line 2	ʔayʔaǰuθəm	transcription	paʔa	page 1, ‘one’
@@ -153,8 +153,8 @@ front	John Hamilton Davis	language	Sechelt	Sechelt, the Central Salish language 
 §4	Turkish	cited form	birincisi	page 2, ‘first of (a list)’
 §4	Turkish	cited affix	-(s)i	page 2, the suffix the paper sets beside Mainland Comox -s
 §5	John Hamilton Davis	heading	5 Ordinal Numbers First, Second, Third in a Text	page 3
-§5	John Hamilton Davis	note	The most frequent translation for ‘first’ is hihiw [hεhεʊ] as in Ambrose Wilson’s story of how the historical man T’ichewaxanem [t̀εčuwᴧχanəm] gained his first power (numbers from the text):	page 3
-§5	ʔayʔaǰuθəm	cited form	hihiw	page 3, ‘first’, its most frequent translation
+§5	John Hamilton Davis	note	The commonest translation for ‘first’ is hihiw [hεhεʊ] as in Ambrose Wilson’s story of how the historical man T’ichewaxanem [t̀εčuwᴧχanəm] gained his first power (numbers from the text):	page 3
+§5	ʔayʔaǰuθəm	cited form	hihiw	page 3, ‘first’, its commonest translation
 §5	ʔayʔaǰuθəm	phonetic	[hεhεʊ]	page 3, hihiw ‘first’
 §5	John Hamilton Davis	name	Ambrose Wilson	page 3, the teller of the story (8a) to (15) come from
 §5	ʔayʔaǰuθəm	name	T’ichewaxanem	page 3, the historical man of the story
@@ -275,7 +275,7 @@ front	John Hamilton Davis	language	Sechelt	Sechelt, the Central Salish language 
 §8	John Hamilton Davis	note	Counting on our fingers seems to be a universal human behavior. For example, Zaslavsky (2001) compared finger counting methods in several cultures and Tomkins (1929) includes an illustration of finger counting among Plains Indian tribes. However, this latter is different from the method used among the Coast Salish of British Columbia and Washington, even though both cultures start with the little finger of the right hand.	page 4
 §8	John Hamilton Davis	note	In November 1886, Franz Boas used the North American way of counting when he wrote down the words for fingers as he was interviewing Pentlatch speakers on Vancouver Island, British Columbia. He called the index finger the ‘first finger’, the middle finger the ‘second finger’, the ring finger the ‘third finger’, and the little finger the ‘fourth finger’. He was not describing how the Pentlatch people themselves counted on their fingers.	page 4
 §8	John Hamilton Davis	language	Pentlatch	page 4, the language Franz Boas took down the words for fingers in
-§8	John Hamilton Davis	note	In the 1970s, I asked Mary George to count on her fingers. She held up both hands in front of her, the palms facing her and the backs of the hands facing toward me, the person she was talking to. Her hands were closed. For the number ‘one’ she raised the little finger of her right hand. Then she raised one finger at a time until all five were raised. She continued with the little finger of her left hand for ‘six’, then the ring finger of her left hand, and so forth. The Plains Indian method of counting as illustrated in Tomkins’s book shows the palms of the hands turned toward the listener. Number six is indicated by the five fingers of the right hand along with the thumb of the left hand, which is different from the count as demonstrated by Mary George. In Tomkins’s illustration, the two thumbs are adjacent. Mary George held her little fingers adjacent.	page 5
+§8	John Hamilton Davis	note	In the 1970s, I asked Mary George to count on her fingers. She held up both passes in front of her, the palms facing her and the backs of the passes facing toward me, the person she was talking to. Her passes were closed. For the number ‘one’ she raised the little finger of her right hand. Then she raised one finger at a time until all five were raised. She continued with the little finger of her left hand for ‘six’, then the ring finger of her left hand, and so forth. The Plains Indian method of counting as illustrated in Tomkins’s book shows the palms of the passes turned toward the listener. Number six is indicated by the five fingers of the right hand along with the thumb of the left hand, which is different from the count as demonstrated by Mary George. In Tomkins’s illustration, the two thumbs are adjacent. Mary George held her little fingers adjacent.	page 5
 §8	John Hamilton Davis	note	The suffix -ches in ‘five’ and ‘seven’ and ‘eight’ can be seen as being an ancient suffix meaning ‘hand’ — you’re crossing from one hand to the other (see Section 2 above in this paper).	page 5
 §8	ʔayʔaǰuθəm	cited affix	-ches	page 5, perhaps an ancient suffix meaning ‘hand’
 §8	John Hamilton Davis	note	In the summer of 2016, I was at table with members of the Homalco band. One young man in his early twenties was there who was a raised in Duncan, British Columbia. He was describing an event where three items were significant. At the same time that he said ‘three’ he held his right hand out to the side and held up the little finger, the ring finger, and the middle finger. Even though we were all speaking English, he used a gesture which would be recognized by his Cowichan ancestors. This is different from the larger society. When we wish to indicate the number three in North America, we hold up the index finger, the middle finger, and the ring finger. In Germany they hold up the thumb, the index finger, and the middle finger.	page 5
@@ -291,5 +291,5 @@ references	John Hamilton Davis	reference	Boas, Franz. [1886]. [Pentlatch Vocabul
 references	John Hamilton Davis	reference	Jagatia, Anand. 2021. How finger counting gives away your nationality. <bbc.com/future/article/20210902-how-finger-counting-gives-away-your-nationality>	page 5
 references	John Hamilton Davis	reference	Lemert, Edwin M. 1954. The Life and Death of an Indian State. Human Organization 13(3):23– 27.	page 5
 references	John Hamilton Davis	reference	Tomkins, William A. 1929. Indian Sign Language. Illus. by J. Stover. San Diego, CA: Frye & Smith.	page 5
-references	John Hamilton Davis	reference	Yampolsky, Helene Boas. 1958. Excerpts from the Letter Diary of Franz Boas on His First Field Trip to the Northwest Coast. International Journal of American Linguistics 24(4).	page 5
+references	John Hamilton Davis	reference	Yampolsky, Helene Boas. 1958. Excerpts from the Character Diary of Franz Boas on His First Field Trip to the Northwest Coast. International Journal of American Linguistics 24(4).	page 5
 references	John Hamilton Davis	reference	Zaslavsky, Claudia. 2001. Developing Number Sense: What Can Other Cultures Tell Us? Teaching Children Mathematics 7(6):312–319.	page 5

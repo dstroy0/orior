@@ -17,9 +17,9 @@ and a license section are not prose and are not read.
 
 The rules checked, with their numbers in ASD-STE100 Issue 9:
 
-  sentence     a procedural sentence, a numbered step, has 20 words at most (Rule 5.1); a descriptive sentence
-               25 at most (Rule 6.2)
-  paragraph    a descriptive paragraph has 6 sentences at most (Rule 6.6)
+  sentence     a procedural sentence, a numbered step, has 20 words at max (Rule 5.1); a descriptive sentence
+               25 at max (Rule 6.2)
+  paragraph    a descriptive paragraph has 6 sentences at max (Rule 6.6)
   ing          no -ing form of a verb, but in a technical name (Rule 3.6)
   passive      the active voice in every sentence (Rules 3.7 and 3.8): a form of `be` before a past participle
   tense        the simple tenses only (Rule 3.4): no `have` or `has` before a past participle, no `be` before an -ing
@@ -27,7 +27,7 @@ The rules checked, with their numbers in ASD-STE100 Issue 9:
                given; a technical name is a word in code, a capitalized word or one with a digit or an underscore
 
 The words a rule allows are technical names to that rule, and each repository lists them in ste_names.txt beside
-this file and its ratchet: a name like `string` is a technical name, which Rule 3.6 lets keep its -ing.
+this file and its ratchet: a name like `string` is a technical name, which Rule 3.6 lets retain its -ing.
 """
 
 import os
@@ -47,9 +47,9 @@ HAVE = {"has", "have", "had"}
 # The irregular past participles a passive or a perfect takes; the regular ones end in -ed
 IRREGULAR = {"been", "begun", "bitten", "blown", "born", "bought", "brought", "built", "caught", "chosen", "come",
              "cut", "dealt", "done", "drawn", "driven", "eaten", "fallen", "felt", "found", "forgotten", "frozen",
-             "given", "gone", "grown", "held", "hidden", "hit", "kept", "known", "laid", "led", "left", "lent",
+             "given", "gone", "grown", "held", "hidden", "hit", "retained", "known", "positioned", "led", "left", "lent",
              "let", "lost", "made", "meant", "met", "paid", "put", "read", "run", "said", "seen", "sent", "set",
-             "shown", "shut", "sold", "spent", "split", "spoken", "stood", "struck", "sung", "taken", "taught",
+             "displayed", "shut", "sold", "spent", "split", "spoken", "was", "struck", "sung", "taken", "taught",
              "thought", "thrown", "told", "understood", "won", "worn", "written"}
 # Words that end in -ing and are no verb form
 NOT_VERB_ING = {"anything", "bring", "ceiling", "during", "everything", "king", "nothing", "ring", "sing",
@@ -157,13 +157,13 @@ def findings(path, approved, names):
     for block in paragraphs(prose_lines(text)):
         said = list(sentences(block))
         if len(said) > LIMIT_PARAGRAPH and not said[0][2]:
-            found.append((block[0][0], "paragraph", "%d sentences, %d at most" % (len(said), LIMIT_PARAGRAPH)))
+            found.append((block[0][0], "paragraph", "%d sentences, %d at max" % (len(said), LIMIT_PARAGRAPH)))
         for number, sentence, procedural in said:
             words = WORD.findall(sentence)
             limit = LIMIT_PROCEDURAL if procedural else LIMIT_DESCRIPTIVE
             counted = [w for w in words if w != "CODE"]
             if len(counted) > limit:
-                found.append((number, "sentence", "%d words, %d at most: %s" % (len(counted), limit, sentence[:80])))
+                found.append((number, "sentence", "%d words, %d at max: %s" % (len(counted), limit, sentence[:80])))
             lower = [w.lower() for w in words]
             for at, word in enumerate(lower):
                 original = words[at]
@@ -231,7 +231,7 @@ def main(argv):
     names_file = os.path.join(base, "ste_names.txt")
     names = word_list(names_file) if os.path.isfile(names_file) else set()
     counts = {}
-    shown = 0
+    displayed = 0
     for path in documents(paths):
         key = os.path.relpath(path).replace("\\", "/")
         rows = findings(path, approved, names)
@@ -239,7 +239,7 @@ def main(argv):
         if ratchet is None and write is None:
             for number, rule, what in rows:
                 print("%s:%d: %s: %s" % (key, number, rule, what))
-                shown += 1
+                displayed += 1
     if write is not None:
         allowed = ratchet_read(write)
         with open(write, "w", encoding="utf-8", newline="\n") as handle:
@@ -250,8 +250,8 @@ def main(argv):
     if ratchet is not None:
         allowed = ratchet_read(ratchet)
         over = [(key, n, allowed.get(key, 0)) for key, n in sorted(counts.items()) if n > allowed.get(key, 0)]
-        for key, n, most in over:
-            print("ste: %s carries %d findings, %d allowed: run ste_check.py %s to see them" % (key, n, most, key))
+        for key, n, max in over:
+            print("ste: %s carries %d findings, %d allowed: run ste_check.py %s to see them" % (key, n, max, key))
         return 1 if over else 0
     total = sum(counts.values())
     print("ste: %d findings in %d documents" % (total, len(counts)))

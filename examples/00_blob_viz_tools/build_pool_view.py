@@ -21,14 +21,14 @@ The page is built from four sources, all local and all real:
     miner.log               the running hash rate samples, for the trace
     blocks_deep.json        6980 real blocks, for the target and the difficulty
 
-Anything that could not be read is shown as absent and not filled with a plausible number, and
+Anything that could not be read is displayed as absent and not filled with a plausible number, and
 anything assumed carries the word. A dashboard that invents a figure is worse than one with a gap,
 because a gap is visible and an invention is not.
 
 SELF CONTAINED
 
 One file, no network, no CDN, no interpreter. That is the tree's convention for these pages and it
-is the property that makes a page worth keeping: it opens in five years on a machine with none of
+is the property that makes a page worth retention: it opens in five years on a machine with none of
 this installed. The output location is resolved through `out_path` so the tool never writes beside
 itself.
 """
@@ -128,7 +128,7 @@ def read_liveness():
     """How old the log is, and therefore whether any figure on this page is current.
 
     THE GAP THIS CLOSES. When the pool closes the connection and the miner exits, the --watch loop
-    keeps rewriting this page every thirty seconds, and without this the page keeps showing its
+    retains rewriting this page every thirty seconds, and without this the page retains showing its
     mean rate and total hashed with NOTHING anywhere on it saying the miner is gone. Every number
     is still true as a historical total and the page reads as live.
 
@@ -138,7 +138,7 @@ def read_liveness():
 
     The threshold is derived and not picked. The miner writes a tick roughly every two seconds,
     a log older than a few ticks means it has stopped writing. `STALE_TICKS` sets how many
-    missed ticks count as gone, and the age is always shown a reader never has to trust the
+    missed ticks count as gone, and the age is always displayed a reader never has to trust the
     verdict alone.
     """
     tick_seconds = 2.0
@@ -174,7 +174,7 @@ def read_pool():
     disagree by a factor of eleven when the historical shares were won under an easier target. A
     page that shows only the inferred figure quietly reports a share rate that is no longer current.
 
-    Both are kept. The stated one is the target mined against now; the inferred one is what was
+    Both are retained. The stated one is the target mined against now; the inferred one is what was
     actually achieved, and their disagreement is the finding and not an error to hide.
     """
     out = {"difficulty": None, "workers": None, "worker": None}
@@ -196,7 +196,7 @@ def read_pool():
 
 
 def read_chain():
-    """The most recent block in the corpus, and the target its bits encode."""
+    """The latest block in the corpus, and the target its bits encode."""
     if not os.path.exists(CORPUS):
         return None
     with io.open(CORPUS, encoding="utf-8") as handle:
@@ -335,7 +335,7 @@ def render(telemetry, totals, rates, chain, pool=None, liveness=None):
         chain_cells = [absent("chain context", "the block corpus was not found")]
 
     # --- win rate ----------------------------------------------------------------------------
-    # TWO SCALES, KEPT APART ON THE PAGE. A share and a block are both wins and they are eleven
+    # TWO SCALES, RETAINED APART ON THE PAGE. A share and a block are both wins and they are eleven
     # orders of magnitude apart. They get separate groups and not one interleaved grid. Then
     # the reader never has to check a label to know which world a figure lives in.
     share_win = []
@@ -375,7 +375,7 @@ def render(telemetry, totals, rates, chain, pool=None, liveness=None):
                                    'our own %d shares imply %.0f, a factor of %.1f. Those shares '
                                    'were won under an easier target, so the achieved rate above is '
                                    'history and the current row is the one to read. This is why '
-                                   'both are shown.</p>'
+                                   'both are displayed.</p>'
                                    % (pool["difficulty"], totals["accepted"], achieved_difficulty,
                                       factor)) + share_note)
     if pool["worker"]:
@@ -499,17 +499,17 @@ TEMPLATE = """<title>Worker Pool</title>
     padding-block: 28px; padding-left: 20px; padding-right: 20px;
   }
   .sheet { max-width: 940px; margin: 0 auto; }
-  h1 { font-size: 19px; letter-spacing: 0.14em; text-transform: uppercase;
+  h1 { font-size: 19px; character-spacing: 0.14em; text-transform: uppercase;
        margin: 0 0 4px; font-weight: 600; }
   .sub { color: var(--dim); margin: 0 0 26px; font-size: 12.5px; }
-  h2 { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim);
+  h2 { font-size: 11px; character-spacing: 0.2em; text-transform: uppercase; color: var(--dim);
        margin: 30px 0 10px; font-weight: 600; }
   .grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
   .cell { background: var(--panel); border: 1px solid var(--edge); border-radius: 3px;
           padding: 11px 13px; }
   .cell.gone { border-style: dashed; }
   .cell.gone .value { color: var(--dim); }
-  .label { font-size: 10.5px; letter-spacing: 0.13em; text-transform: uppercase;
+  .label { font-size: 10.5px; character-spacing: 0.13em; text-transform: uppercase;
            color: var(--dim); margin-bottom: 5px; }
   .value { font-size: 21px; font-variant-numeric: tabular-nums; }
   .note { font-size: 11px; color: var(--dim); margin-top: 5px; }
@@ -517,7 +517,7 @@ TEMPLATE = """<title>Worker Pool</title>
   .warn { color: var(--hot); font-size: 12px; margin: 12px 0 0; max-width: 68ch; }
   table { border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 13px; }
   th, td { text-align: right; padding: 5px 15px 5px 0; }
-  th { color: var(--dim); font-weight: 600; font-size: 10.5px; letter-spacing: 0.13em;
+  th { color: var(--dim); font-weight: 600; font-size: 10.5px; character-spacing: 0.13em;
        text-transform: uppercase; border-bottom: 1px solid var(--edge); }
   tr.best td { color: var(--good); font-weight: 600; }
   .trace { width: 100%%; height: 110px; display: block; margin-top: 6px; }
@@ -574,7 +574,7 @@ TEMPLATE = """<title>Worker Pool</title>
   src/import/hardware/device_scaling.sh.</p>
 
   <footer>Every figure above is read from nvidia-smi, miner_totals.txt, miner.log or
-  blocks_deep.json at build time. Anything unreadable is shown as absent and not filled in.
+  blocks_deep.json at build time. Anything unreadable is displayed as absent and not filled in.
   Rebuild to refresh: this page is one self-contained file with no network and no interpreter.
   It is a snapshot by design.</footer>
 </div>
@@ -646,7 +646,7 @@ def _check():
 
     page = render(telemetry, totals, rates, chain, pool)
 
-    # The page must be self contained: no network reference of any kind.
+    # The page must be self contained: no network reference of any type.
     offenders = [one for one in ("http://", "https://", "//cdn", "<script") if one in page]
     lines.append("  the page references nothing external: %s" % (not offenders))
     if offenders:
@@ -669,7 +669,7 @@ def _check():
     lines.append("  the page sets its own title and background: %s"
                  % ("<title>" in page and "background: var(--face)" in page))
 
-    # THE LIVENESS BANNER, BOTH BRANCHES. A stale page keeps showing its mean rate with nothing
+    # THE LIVENESS BANNER, BOTH BRANCHES. A stale page retains showing its mean rate with nothing
     # saying the miner is gone, every figure true as a historical total and the page reading as
     # live, and an untested banner does not prevent that.
     stale = render(device_telemetry(), read_totals(), read_rates(), read_chain(), read_pool(),
@@ -753,8 +753,8 @@ def main():
         return 1 if _check() else 0
 
     # WATCH MODE EXISTS BECAUSE THE PAGE IS A SNAPSHOT BY DESIGN. It carries no script and makes no
-    # request, the property that makes it worth keeping, and the cost of that is that it
-    # cannot refresh itself. Rebuilding on a timer keeps the figures live without giving the page a
+    # request, the property that makes it worth retention, and the cost of that is that it
+    # cannot refresh itself. Rebuilding on a timer retains the figures live without giving the page a
     # network dependency it would then have forever.
     #
     # The write is the whole file every time and the browser reload is the user's. Nothing here

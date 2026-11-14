@@ -21,14 +21,14 @@ say about it. Not a faint reading. Nothing.
 WHY A PROJECTION INSTEAD OF A BALL
 
 A sphere drawn as a ball hides half of itself and makes a reader turn it to be sure they have seen
-everything. A blind direction has to be shown entire, or the picture invites the suspicion that the
+everything. A blind direction has to be displayed entire, or the picture invites the suspicion that the
 missing signal was simply round the back. Mollweide is equal-area, and a patch's size on the page is
 its solid angle, and no part of the sphere is hidden or magnified.
 
 WHAT IS EXACT AND WHAT IS NOT
 
 The matrix, its decomposition, and the residual norms are computed at full depth with no smoothing, the
-most favorable case there is: both kernels are diagonal in degree and below one. Either can
+max favorable case there is: both kernels are diagonal in degree and below one. Either can
 only shrink a singular value. The field maps are drawn on a finite grid and are a picture; the
 numbers printed beside them are the measurement.
 """
@@ -53,7 +53,7 @@ import generate_template
 TEMPLATE = os.path.join(HERE, "blind_view_template.html")
 FIELD_LON = 64          # field grid columns, in longitude
 FIELD_LAT = 32          # field grid rows, in colatitude
-SHOWN = 12              # singular directions carried into the page
+DISPLAYED = 12              # singular directions carried into the page
 
 
 def mollweide(colatitude, longitude):
@@ -94,7 +94,7 @@ def field_grid(coefficients, top, rows=FIELD_LAT, columns=FIELD_LON):
     return sphere_field.synthesize(total, top, rows, columns)
 
 
-def pick(values, rank, total, shown=SHOWN):
+def pick(values, rank, total, displayed=DISPLAYED):
     """Which singular directions to carry: the loud end, the quiet end, and the first blind ones.
 
     A page showing only null directions invites the reply that the whole map is flat because the
@@ -110,9 +110,9 @@ def pick(values, rank, total, shown=SHOWN):
     for one in (live[:3] + live[-3:] if len(live) > 6 else live):
         if one not in take:
             take.append(one)
-    for one in null[:shown - len(take)]:
+    for one in null[:displayed - len(take)]:
         take.append(one)
-    return take[:shown]
+    return take[:displayed]
 
 
 def build(top=8, count=256, into=None):

@@ -13,7 +13,7 @@
  * THE SAME QUESTION AVX2 ANSWERS, TWICE THE WIDTH. Fixed at one needle offset, does
  * `corpus[at + offset]` equal `needle[offset]` for consecutive `at`. The needle byte broadcasts
  * once, the corpus side is a sliding window at unit stride, and the survivor mask enters as the
- * alignments still standing. AVX-512 answers sixty-four of those in one compare.
+ * alignments still located. AVX-512 answers sixty-four of those in one compare.
  *
  * WHAT THIS ARM IS NOT ALLOWED TO DO. It returns the portable arm's count or it has a defect. The
  * value is an integer count of alignments and the two arms agree exactly or one is wrong. That is
@@ -24,7 +24,7 @@
  *       confirms zmm registers and vpcmpeqb against a mask. That rules out a silent fallback to
  *       scalar code. It states nothing about behavior, and the name reads avx512-unrun for that reason.
  * @note AVX-512 comparison writes a mask register, one bit per lane. The count is a population
- *       count over the AND of two masks: where the corpus agrees, and where the alignment stands.
+ *       count over the AND of two masks: where the corpus agrees, and where the alignment is.
  *       That is a different instruction shape from the AVX2 movemask and not a widening of it.
  * @note Detection requests for AVX-512F and AVX-512BW together. The byte compare and the byte test are
  *       BW instructions, and a part with F alone would fault on them.
@@ -72,7 +72,7 @@ static size_t steer_popcount64(uint64_t bits)
  *
  * @return 1 where AVX-512F and AVX-512BW are both present, 0 otherwise.
  * @note Leaf 7 subleaf 0, EBX: bit 16 is AVX-512F and bit 30 is AVX-512BW. The leaf exists only
- *       where leaf 0 reports a maximum of at least 7, which is checked before it is read.
+ *       where leaf 0 reports a max of at least 7, which is checked before it is read.
  */
 static int steer_avx512_present(void)
 {
@@ -110,7 +110,7 @@ size_t orior_steer_truthy_after_avx512(const uint8_t *corpus, size_t alignments,
     }
 
     const __m512i broadcast = _mm512_set1_epi8((char)wanted);
-    size_t standing = 0u;
+    size_t located = 0u;
     size_t at = 0u;
 
     for (; (at + ORIOR_STEER_LANES) <= alignments; at += ORIOR_STEER_LANES)
@@ -118,17 +118,17 @@ size_t orior_steer_truthy_after_avx512(const uint8_t *corpus, size_t alignments,
         /* Unaligned loads. The corpus window starts at an arbitrary offset and forcing
          * alignment would mean copying, which costs more than the load does. */
         const __m512i window = _mm512_loadu_si512((const void *)(corpus + at + offset));
-        const __m512i standing_bytes = _mm512_loadu_si512((const void *)(alive + at));
+        const __m512i located_bytes = _mm512_loadu_si512((const void *)(alive + at));
 
         const __mmask64 agrees = _mm512_cmpeq_epi8_mask(window, broadcast);
 
-        /* An alive flag is zero or non-zero. The mask of alignments still standing is the lanes
+        /* An alive flag is zero or non-zero. The mask of alignments still located is the lanes
          * whose byte ANDs with itself to a non-zero, which is every lane that is not zero. Testing
          * this way and not against one retains it correct if a caller stores a flag other than
          * one. */
-        const __mmask64 alive_mask = _mm512_test_epi8_mask(standing_bytes, standing_bytes);
+        const __mmask64 alive_mask = _mm512_test_epi8_mask(located_bytes, located_bytes);
 
-        standing += steer_popcount64((uint64_t)(agrees & alive_mask));
+        located += steer_popcount64((uint64_t)(agrees & alive_mask));
     }
 
     for (; at < alignments; at += 1u)
@@ -139,10 +139,10 @@ size_t orior_steer_truthy_after_avx512(const uint8_t *corpus, size_t alignments,
         }
         if (corpus[at + offset] == wanted)
         {
-            standing += 1u;
+            located += 1u;
         }
     }
-    return standing;
+    return located;
 }
 
 const OriorSteerEngine *orior_steer_avx512_engine(void)

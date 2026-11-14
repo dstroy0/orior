@@ -13,7 +13,7 @@ shift
 ERRS=" $* "
 
 # each blank form's line rewritten in place: the head without its equals, under the keyword its name earns. IFS is
-# cleared to keep the leading tabs a form's text is written with
+# cleared to retain the leading tabs a form's text is written with
 while IFS= read -r line; do
     case "$line" in
         form\ *)

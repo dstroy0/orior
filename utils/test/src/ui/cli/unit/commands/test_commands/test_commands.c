@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_commands.c: the command catalog: menu words and commands are unique, a command is one word, a job menu's commands are not
 // job paths, and an item requires each <argument> outside brackets; and the menus open: a menu's serial, new as it opens and
-// the same while it stands open
+// the same while it is open
 #include "ui/cli/src/command_line/commands.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
@@ -120,7 +120,7 @@ static unsigned int title_at(const char *name)
     return at;
 }
 
-void test_a_menu_opened_anew_takes_a_new_serial_and_keeps_it_while_it_stands_open(void)
+void test_a_menu_opened_anew_takes_a_new_serial_and_retains_it_while_it_is_open(void)
 {
     cli_menus_bar(cli_menu_titles(), 0);
     cli_menus_title_press(title_at("View"));

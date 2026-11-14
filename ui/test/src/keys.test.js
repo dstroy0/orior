@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Keys: a letter bound by the character it types or by its place, the sets of keys, each key more than
-// one command holds shown, and a button of the mouse bound as keys are.
+// Keys: a character bound by the character it types or by its place, the sets of keys, each key more than
+// one command holds displayed, and a button of the mouse bound as keys are.
 
-import { letterOf, pressName, setKeySettings, sharedKeys } from "../../gui/src-js/keys.js";
+import { characterOf, pressName, setKeySettings, sharedKeys } from "../../gui/src-js/keys.js";
 import { invoke } from "../../gui/src-js/bridge.js";
 import { editing, openFile } from "../../gui/src-js/edit.js";
 import { allCommands } from "../../gui/src-js/menubar.js";
@@ -15,12 +15,12 @@ const fresh = () => setKeySettings({ set: "orior", by: "character", own: {} });
 
 const commandOf = (name) => allCommands().find((one) => one.command === name).item;
 
-test("a letter is bound by the character it types, or by its place where it types none of the Latin alphabet", () => {
+test("a character is bound by the character it types, or by its place where it types none of the Latin alphabet", () => {
   const azertyZ = new KeyboardEvent("keydown", { key: "z", code: "KeyW", ctrlKey: true });
-  assert.equal(letterOf(azertyZ, "character"), "Z", "the key that types z on AZERTY");
-  assert.equal(letterOf(azertyZ, "place"), "W", "the key in z's place on QWERTY");
-  assert.equal(letterOf(new KeyboardEvent("keydown", { key: "я", code: "KeyZ" }), "character"), "Z", "a Cyrillic layout's letter by its place");
-  assert.equal(letterOf(new KeyboardEvent("keydown", { key: "Enter", code: "Enter" })), null);
+  assert.equal(characterOf(azertyZ, "character"), "Z", "the key that types z on AZERTY");
+  assert.equal(characterOf(azertyZ, "place"), "W", "the key in z's place on QWERTY");
+  assert.equal(characterOf(new KeyboardEvent("keydown", { key: "я", code: "KeyZ" }), "character"), "Z", "a Cyrillic layout's character by its place");
+  assert.equal(characterOf(new KeyboardEvent("keydown", { key: "Enter", code: "Enter" })), null);
   assert.equal(pressName(new KeyboardEvent("keydown", { key: "K", code: "KeyK", ctrlKey: true, shiftKey: true })), "Ctrl+Shift+K");
   assert.equal(pressName(new KeyboardEvent("keydown", { key: "~", code: "Backquote", ctrlKey: true, shiftKey: true })), "Ctrl+Shift+`");
   assert.equal(pressName(new KeyboardEvent("keydown", { key: "Control", code: "ControlLeft", ctrlKey: true })), null, "a modifier alone is no key");

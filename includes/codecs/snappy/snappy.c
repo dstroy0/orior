@@ -77,8 +77,8 @@ static int snappy_literal(SnappyWalk *walk, unsigned int tag)
 
 static int snappy_copy(SnappyWalk *walk, unsigned int tag)
 {
-    const unsigned int kind = tag & 3u;
-    const unsigned int offset_bytes = (kind == SNAPPY_COPY_ONE) ? 1u : ((kind == SNAPPY_COPY_TWO) ? 2u : 4u);
+    const unsigned int type = tag & 3u;
+    const unsigned int offset_bytes = (type == SNAPPY_COPY_ONE) ? 1u : ((type == SNAPPY_COPY_TWO) ? 2u : 4u);
     if ((walk->in_bytes - walk->at) < offset_bytes)
     {
         return 0;
@@ -86,8 +86,8 @@ static int snappy_copy(SnappyWalk *walk, unsigned int tag)
     const unsigned long long stored = snappy_little_endian(walk->in + walk->at, offset_bytes);
     walk->at += offset_bytes;
     const unsigned long long offset =
-        (kind == SNAPPY_COPY_ONE) ? (((unsigned long long)(tag >> 5u) << 8u) | stored) : stored;
-    const unsigned long long length = (kind == SNAPPY_COPY_ONE) ? (4ull + ((tag >> 2u) & 7u)) : ((tag >> 2u) + 1ull);
+        (type == SNAPPY_COPY_ONE) ? (((unsigned long long)(tag >> 5u) << 8u) | stored) : stored;
+    const unsigned long long length = (type == SNAPPY_COPY_ONE) ? (4ull + ((tag >> 2u) & 7u)) : ((tag >> 2u) + 1ull);
     if ((offset == 0ull) || (offset > walk->written) || (length > (walk->expected - walk->written)))
     {
         return 0;

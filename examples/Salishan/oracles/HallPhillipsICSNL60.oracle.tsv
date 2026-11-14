@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 title	Bev Phillips	title	ɬ cutés us ɬ qəɬmín ɬ tmíxʷ	When Old One Created the Earth
 abstract	Brent Hall	cited form	spíləx̣m	story
 abstract	Brent Hall	language	nɬeʔkepmxcín	Thompson River Salish
@@ -152,7 +152,7 @@ abstract	Brent Hall	language	nɬeʔkepmxcín	Thompson River Salish
 4 3	Brent Hall	segmentation	e=címeɬ=us wʔéx cníɬ te==téʔe k=s=x̣ək-s-t--ém ʔe=tu=hén̓=us k=ƛ̓ʔék=us
 4 3	Bev Phillips	translation	‘When he first existed, we didn’t know where he came from.’
 4 4	Brent Hall	segmentation	ƛ̓uʔ ʔéx= ʔes-téɬ-[i]yx n=e=s=wʔéx=s ptínus-m=
-4 4	Bev Phillips	translation	‘But he stood where he was, thinking.’
+4 4	Bev Phillips	translation	‘But he was where he was, thinking.’
 4 5	Brent Hall	segmentation	qəs-[n]-t--és= e=q̓ʷúmqn-s ʔeɬ e=s-ɬíqʷ-s ʔe= [e]=s=pl-ə́p=s tu=xéʔe tu=e=cníɬ e=s-ɬíqʷ-s ʔe= [e]=s=ʔes-mól=s néʔe
 4 5	Bev Phillips	translation	‘He scratched his head and his skin, and from him, his skin flew off, and it piled up there.’
 4 6	Brent Hall	segmentation	e=kɬ-ə́p=us e=s-ɬíqʷ-s néʔe ʔé= [e]=s=k̓<ʔ>éx=s ʔé= [e]=s=təp~tep-wíy̓x=s
@@ -200,7 +200,7 @@ abstract	Brent Hall	language	nɬeʔkepmxcín	Thompson River Salish
 4 27	Brent Hall	segmentation	t=e=s=naʕʔíp=s néʔe xʷesít ném= e=s=x̣zum-wíy̓x=s e=s-péym
 4 27	Bev Phillips	translation	‘Since he always walked there, the flatland got bigger.’
 4 28	Brent Hall	segmentation	xʷʔit-wíy̓x= e=s-xén̓x ʔeɬ t=e=s=naʕʔíp=s mól-n-[t]--[e]s ɬ=qəɬmín ʔé= [e]=s=wis-t-wíy̓x=s xéʔe
-4 28	Bev Phillips	translation	‘A lot of rocks were formed, and because Old One kept piling them up, the piles got taller.’
+4 28	Bev Phillips	translation	‘A lot of rocks were formed, and because Old One retained piling them up, the piles got taller.’
 4 29	Brent Hall	segmentation	cw~ə́w= néʔe e=címeɬ t=e=s-qʷə́m
 4 29	Bev Phillips	translation	‘And the first mountain was formed.’
 4 30	Brent Hall	segmentation	naʕʔíp= néʔe xʷesít ƛ̓uʔ ʔé= [e]=s=ʔes-q̓məx̣ʷ-wíy̓x=s néʔe n=e=[w]ʔéx=us

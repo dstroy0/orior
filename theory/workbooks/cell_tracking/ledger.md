@@ -28,7 +28,7 @@
 
 ### The 6bba samples
 
-The training set is 71 samples of 44b6 and 128 of 6bba; the test set holds both. Every earlier row is on 44b6. 6bba's ground truth is far denser (345 to 1,183 edges a sample, against about 50 to 270 for 44b6), and under micro averaging 6bba carries most of the score.
+The training set is 71 samples of 44b6 and 128 of 6bba; the test set holds both. Every earlier row is on 44b6. 6bba's ground truth is far denser (345 to 1,183 edges a sample, against about 50 to 270 for 44b6), and under micro averaging 6bba carries the majority of the score.
 
 | what | samples | result | settles |
 |---|---|---|---|

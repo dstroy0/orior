@@ -8,7 +8,7 @@
 # Then anchor the signature: `ots stamp manifest.tsv.asc`. The signature says
 # who and the anchor says when, and neither answers the other's question.
 #
-# KEEP THIS FILE PRIVATE WHILE THE WORK IS WITHHELD. The anchor is over a digest and
+# RETAIN THIS FILE PRIVATE WHILE THE WORK IS WITHHELD. The anchor is over a digest and
 # discloses nothing; this file names paths and therefore does.
 #
 # tree	path	bytes	sha256
@@ -1364,7 +1364,7 @@ orior	examples/language/4_measure/case_or_splitting.py	8679	61e178f9abb786a36821
 orior	examples/language/4_measure/category_or_inflection.py	7877	c0dd0331918937b2e2ffebf93b86cc8f9937e2b8c3223cbb34b5978b38057ca7
 orior	examples/language/4_measure/chicago_bibliography.py	5296	cf9c9ca7a895531b9aa2fd4aa83015f93237b98bc4aca782b57413e67ebff340
 orior	examples/language/4_measure/clean_dravidian.py	5718	6cfdab3df5b7d632a555a7732adba79cb9ebed40bcb33a24ce422cf65732a400
-orior	examples/language/4_measure/click_letters.py	5914	da7494c354997a192a01ed668e680b0b678523b06ddb6f4c5b7e28bbe041895f
+orior	examples/language/4_measure/click_characters.py	5914	da7494c354997a192a01ed668e680b0b678523b06ddb6f4c5b7e28bbe041895f
 orior	examples/language/4_measure/cluster_branch.py	5684	60346b66b0db1a4110673f9aab6c9341fd53a54c4af5c5aaa31de7675352ee8e
 orior	examples/language/4_measure/cluster_profiles.py	5745	ae873e486784fd14b041fcf449f000b8f29ed2807251f586bfd52b6ebdfff6ec
 orior	examples/language/4_measure/cross_corpus.py	5383	6181598a7ea23a2da9df60d9a3d97f93551238a88903ebc4525b32e3613492d7
@@ -2830,7 +2830,7 @@ orior	src/cu/transpiler/lstar/protocol/khw_learn/relation.c	10885	e182ebeed5e7d6
 orior	src/cu/transpiler/lstar/protocol/khw_learn/relation_fields.c	8440	633484dee7b45f57c3e5489adf0a48ba369d4ad9b74b0bc6ee4d065a1c70d0c5
 orior	src/cu/transpiler/lstar/protocol/khw_learn/relation_registers.c	18326	2b50c4ced176e0bbbd6d656cee1daa31b53ff753c18c394bf7aa8eb1263bf3a1
 orior	src/cu/transpiler/lstar/protocol/khw_learn/relation_turns.c	13200	7c7d8091da1231922b2f81efcbd5cf3a565d61512eba8f0cbf6af0c36b19f99f
-orior	src/cu/transpiler/lstar/protocol/khw_learn/standing.c	4713	43a09f6b4687615603353a8201ec99fc6e356c30378dbd562a7904c4e20beeda
+orior	src/cu/transpiler/lstar/protocol/khw_learn/located.c	4713	43a09f6b4687615603353a8201ec99fc6e356c30378dbd562a7904c4e20beeda
 orior	src/cu/transpiler/lstar/protocol/khw_learn/turning.c	7874	e91e55ca00f3d456874999c92d0bd970a40f7dd85452900e0746fa6959de765f
 orior	src/cu/transpiler/lstar/protocol/launches.oracle.tsv	1881	1f62fe1cbd936202b9a769eda7f53a0967035312536044d589a92b530149a510
 orior	src/cu/transpiler/lstar/protocol/lessons.oracle.tsv	997	b302f303db4304609edaa475e7b22ec485f054222a8cabfa94d5d1d4690dd4a4
@@ -3547,7 +3547,7 @@ orior	theory/workbooks/engine/runs/pi_tower_golden_run.txt	38347	659043e2a23751e
 orior	theory/workbooks/engine/runs/pi_tower_home_run.txt	23613	846c50ccd5adadb676edd2cfde9760bc964609a19ad21abb64f4a71441595f3b
 orior	theory/workbooks/engine/runs/pi_tower_refuse_run.txt	1324	1e72729423b770b1a963c9a1647e1e0872aa41a12525b5b25dcb76bc3d5f67b3
 orior	theory/workbooks/engine/runs/pi_tower_run.txt	15729	82aded232896bdc3feccc151bdd80c23047e23fd35920fc956006009a7e3ce5f
-orior	theory/workbooks/engine/runs/pi_tower_run_kept.txt	15729	82aded232896bdc3feccc151bdd80c23047e23fd35920fc956006009a7e3ce5f
+orior	theory/workbooks/engine/runs/pi_tower_run_retained.txt	15729	82aded232896bdc3feccc151bdd80c23047e23fd35920fc956006009a7e3ce5f
 orior	theory/workbooks/engine/runs/pi_tower_thousand_run.txt	12724	b2bc97ac0f8c436248c737bfdeb17b49b50d1c2da1b4668011561a14e9a051a6
 orior	theory/workbooks/engine/runs/pr8_boundary_run.txt	3065	adc03bd291fef7d016eabb0268b621c7090acaeb28e85567dcfdbeacae93d0e0
 orior	theory/workbooks/engine/runs/pr8_knf_run.txt	5493	aadc02ccc868c2c935fe3d161f296001ef588770b2a9da8ce01e59311e615e36
@@ -3787,13 +3787,13 @@ orior	ui/cli/src/comms/comms_internal.h	3341	0756a743f1ac12444e0d4080490a2094f45
 orior	ui/cli/src/comms/comms_view.c	6466	26f6550ce26236b90baa248f6a14e7be90889b3bdf9621a4020a83e0623b13ad
 orior	ui/cli/src/comms/container.c	4927	9416104121b1c52d1becfe86de7fbc805f3a34e3b7b0d486a52336b6946be5de
 orior	ui/cli/src/comms/container.h	2347	ff940df6f487a4fc22ee6e3f61d9910183f77e9baa56df130e5b925f5b58fabf
-orior	ui/cli/src/comms/door.c	5148	49d213424877f4647967c9e0e72cf4d3674c009eed159f05093e8e38f8848622
-orior	ui/cli/src/comms/door.h	3620	17d3336eb0e3991afe352faa142cad29c913ca671e2d9944974a6273b702808c
-orior	ui/cli/src/comms/door_client.c	14493	80201c24a2a5907cab13e727d41120bd3501f3bda7ceb466006a100937c56c4a
-orior	ui/cli/src/comms/door_internal.h	4969	7341eb1c41dcd963d409386009b3ba792510d35860745f9aaba23959bb6fcc35
-orior	ui/cli/src/comms/door_requests.c	5496	b98432abd2c4a54de7c4a49d2112d2e839d1cd16d1377c96f43f055ab7f788fa
-orior	ui/cli/src/comms/door_serve.c	14654	8361b6638b2bb41f7ee77fc41b07b983e2e0d53689187405fd584a4ee1b871c7
-orior	ui/cli/src/comms/door_serve.h	2779	30e9b477fb26839a9d5159a2860918cdf83519ceb0fc84b84ff4ec863640dfc1
+orior	ui/cli/src/comms/interface.c	5148	49d213424877f4647967c9e0e72cf4d3674c009eed159f05093e8e38f8848622
+orior	ui/cli/src/comms/interface.h	3620	17d3336eb0e3991afe352faa142cad29c913ca671e2d9944974a6273b702808c
+orior	ui/cli/src/comms/interface_client.c	14493	80201c24a2a5907cab13e727d41120bd3501f3bda7ceb466006a100937c56c4a
+orior	ui/cli/src/comms/interface_internal.h	4969	7341eb1c41dcd963d409386009b3ba792510d35860745f9aaba23959bb6fcc35
+orior	ui/cli/src/comms/interface_requests.c	5496	b98432abd2c4a54de7c4a49d2112d2e839d1cd16d1377c96f43f055ab7f788fa
+orior	ui/cli/src/comms/interface_serve.c	14654	8361b6638b2bb41f7ee77fc41b07b983e2e0d53689187405fd584a4ee1b871c7
+orior	ui/cli/src/comms/interface_serve.h	2779	30e9b477fb26839a9d5159a2860918cdf83519ceb0fc84b84ff4ec863640dfc1
 orior	ui/cli/src/comms/link.c	9814	cd5221bcf0fd78eb17fac56abf84beed2040f7977ee413a1c28c7d5789bce8c2
 orior	ui/cli/src/comms/link.h	5532	ac6605ecda9cf984251357fbff9744f2815b5ddb4390bac6c3a1c4d4f8214e61
 orior	ui/cli/src/comms/link_address.c	8594	8ee21e86113b3143a3292469596297ac5dbb619811984309fbf955bc1f15b6e5
@@ -3878,7 +3878,7 @@ orior	ui/cli/src/deploy/deploy_jobs.c	4012	ba73539572f485caf4d922eef6973f674ea44
 orior	ui/cli/src/deploy/deploy_read.c	15365	fa11f5931792d52860ddfd5ae2212b20523589da9a5da86926137e2af955d912
 orior	ui/cli/src/deploy/deploy_run.c	16145	fa79e0d8127f687911d6d1babf5a470fc213fe7e0ddbdf8669230e8721233f56
 orior	ui/cli/src/deploy/deploy_send.c	20423	4754326dab2a7f664863be93c5da914b8f699b311d51b13716f3eb98019e6b7f
-orior	ui/cli/src/deploy/deploy_standing.c	15321	7c8764116f2e793ec8f9318d56de9c6639f861bc713ff403ba50fa759084fe41
+orior	ui/cli/src/deploy/deploy_located.c	15321	7c8764116f2e793ec8f9318d56de9c6639f861bc713ff403ba50fa759084fe41
 orior	ui/cli/src/deploy/deploy_tar.c	7098	cc3c2cb7aaeee2fe47f8681874ceabc57dc07d2eaf6a8b0e9db48aed09e059b5
 orior	ui/cli/src/deploy/deploy_there.c	11491	d2d9ebb282fef92594e8ea98277c9c3bb8e873c2dc8c4a9077507babe638d3c5
 orior	ui/cli/src/deploy/deploy_walk.c	9942	899070c43658eace5801b9065cde1b5046d6199563b22076f04e507a1d70c3d5
@@ -4046,7 +4046,7 @@ orior	ui/cli/src/platform/posix.c	17058	44b464e0a2d8226404d2ac012e10303150dcaf28
 orior	ui/cli/src/platform/posix_clipboard.c	49242	5f1b5d9e1ed77055c50d917eaa5fc7d21e93162e07795e6c87450e02632c376a
 orior	ui/cli/src/platform/posix_connect.c	5689	d35d1a210b115f86fbd895605ce800293a0e545dacb9552adf26641bc130142d
 orior	ui/cli/src/platform/posix_descriptors.c	3369	dfbf0c74a8f962e3d67ca519e7033cb8dd5a3d226e540e3b988efda6990e0480
-orior	ui/cli/src/platform/posix_door.c	7812	1155b1e26219a0eeaa30457729e69ced1b47e045635500e080e911466a83f0e7
+orior	ui/cli/src/platform/posix_interface.c	7812	1155b1e26219a0eeaa30457729e69ced1b47e045635500e080e911466a83f0e7
 orior	ui/cli/src/platform/posix_files.c	7267	f97397a8d6fd0d9a31ef6e981410143c98c948e47de1670e468d69447fa32676
 orior	ui/cli/src/platform/posix_keychain.c	4682	7e9127cbb57fc1eeb62302de5cd99a56d1c2cec11748135a20fa22d6d33fa19f
 orior	ui/cli/src/platform/posix_picker.c	26123	55ff91ffaf1557fc70d834b549eae349992e4ea8d25e4d8f477cd23ba6c3d728
@@ -4063,7 +4063,7 @@ orior	ui/cli/src/platform/tls_windows.c	14923	662c831f550ed46a9a3a51e0924dab1c29
 orior	ui/cli/src/platform/windows.c	14576	c9b04d5408bc96e820fbbf9670da3029d9056a7f0bc706c55e37f48ca0bf6cea
 orior	ui/cli/src/platform/windows_clipboard.c	8580	4e8374511e7e63bf7b088e316224dc526740164668f51609531a1857bdcdab48
 orior	ui/cli/src/platform/windows_connect.c	6613	bf78f6878351887a526a14a1d02b47a76596a7081966bd6db9758d983239bd0a
-orior	ui/cli/src/platform/windows_door.c	9373	8893baf59af4254228b18a40d724c47c75d240143cce561d4eddfc3c8a057cd6
+orior	ui/cli/src/platform/windows_interface.c	9373	8893baf59af4254228b18a40d724c47c75d240143cce561d4eddfc3c8a057cd6
 orior	ui/cli/src/platform/windows_files.c	10292	6447217356b737a099e7ad0c24834c332827a0b87ba19c425b1104b773c9f401
 orior	ui/cli/src/platform/windows_keychain.c	2856	7b4bd4e60bb7ab821cf662ffed8f5326798b920a33d62bceaaccc765e7b234cb
 orior	ui/cli/src/platform/windows_picker.c	3035	f043a1eea909d3f071c5000555663d7eda5847d5e88b4c54d0a7750b19a6c44f
@@ -4194,7 +4194,7 @@ orior	ui/cli/src/servers/servers_hints.c	12574	e2f14c7b09271cdcf33f759ce70b2350c
 orior	ui/cli/src/servers/servers_inspect.c	18288	601414b6999ddbaae571f62d81ab16d0f97b25d017295a371afc4d8ab5804d62
 orior	ui/cli/src/servers/servers_internal.h	34512	25d3772c63b588cafd1c38e8cfc210dbea3a41410978f4c47a9699485ed192f9
 orior	ui/cli/src/servers/servers_jobs.c	4007	92c2c185251255268d6961154b6e6b1024a7220b4ccb14d3b36f38fd8489153a
-orior	ui/cli/src/servers/servers_keep.c	9270	3ffb3994c5763c21499dd9f17dca0a46ed7faed43b648e6c0907234dfdb3964a
+orior	ui/cli/src/servers/servers_retain.c	9270	3ffb3994c5763c21499dd9f17dca0a46ed7faed43b648e6c0907234dfdb3964a
 orior	ui/cli/src/servers/servers_launch.c	13051	30cbd5660e729e50530aef180b39c500d3c24e1e365cfefbccbb314713a3bf19
 orior	ui/cli/src/servers/servers_named.c	9015	fb339f4393c4371066efca85f41889167ce9b1d274636342a14226df24e89491
 orior	ui/cli/src/servers/servers_offers.c	7331	1b9a1523f93a9ce072860e20bbb800c7122f3f4a7d3822a13fc0b2b02f02d367
@@ -4252,7 +4252,7 @@ orior	ui/cli/src/text/patterns.c	13412	71edabdb2d447386fe88274cf71201f86c4274c51
 orior	ui/cli/src/text/patterns.h	3934	3b947d655d3cc5feb3dfd1655c770c5cb997498835e10244c893b49c9947070d
 orior	ui/cli/src/text/regexp.h	7509	b764da5d0bef18911f2437921706e68da86da4cc009c746e927e0f21e1dc7595
 orior	ui/cli/src/text/regexp_atoms.c	14188	b5ee4c8aef526c8bf864b097e2cd049cb249f4aa5e84d1722804d1e685c7d6cd
-orior	ui/cli/src/text/regexp_letters.c	6014	6dfa0443cb26ea080cef92fc939b2d2773a1cf70b2369356a6b920707d696c9c
+orior	ui/cli/src/text/regexp_characters.c	6014	6dfa0443cb26ea080cef92fc939b2d2773a1cf70b2369356a6b920707d696c9c
 orior	ui/cli/src/text/regexp_match.c	10710	d58fd40c39847038e41ed580dbcae700cddd1877e471e9302f1d4a4c554965ec
 orior	ui/cli/src/text/regexp_match_internal.h	4139	488d4b98f52e8e863e3687f1e8c5b3049cf69b985bd0773cded98f5494c3f881
 orior	ui/cli/src/text/regexp_read.c	12813	adb34ee2ff9a919bbcaf993089e2b75ac6974a200cee465b2a032adac8f89090
@@ -5239,7 +5239,7 @@ orior	utils/maint/data/salishan/extract/show_repaired.py	696	efb866aa5ab59b06ba1
 orior	utils/maint/data/salishan/extract/show_rows.py	544	8e636b3e6863bfa1be7e6438c14b4fa31415d0e9e1cea1ccc64ddf03428f660a
 orior	utils/maint/data/salishan/extract/sift_paper.py	2125	67b7f0dbdb68906a57b2e0dcdf1b25fac38efa5a9434892ce16c86766aaded24
 orior	utils/maint/data/salishan/extract/space_census.py	1683	6148f86ca918b97b4dc98eaaedd2f53c0bac8a8a86f16635d31ad4bb7c05b633
-orior	utils/maint/data/salishan/extract/space_kind.py	1003	b3605761b95af83653e52264d436b7c8f7956e7f3d603750fbacfbc7f9611d23
+orior	utils/maint/data/salishan/extract/space_type.py	1003	b3605761b95af83653e52264d436b7c8f7956e7f3d603750fbacfbc7f9611d23
 orior	utils/maint/data/salishan/extract/split_words.py	1324	098167d22a1f0cfe5621da0b571e48dbe18ff0acbfe909ba6b60d5c4ae5ab2ba
 orior	utils/maint/data/salishan/extract/splits.py	1620	7faf8303fdb00c7add61d3f13f5d6ea36b041e26189d1815201d122bd36d7c57
 orior	utils/maint/data/salishan/extract/stack.py	406	737425d50a84efd2e99218490a8903ea157c118e42d4a03093d0c3b076bea4c7
@@ -5575,7 +5575,7 @@ orior	utils/test/src/cu/transpiler/lstar/interface/interface_test.c	15096	63d620
 orior	utils/test/src/cu/transpiler/lstar/interface/interface_test.sh	2791	8ab4d2437844358e6d30e870d65ff29cf91198caee40c572ded9c05071039662
 orior	utils/test/src/cu/transpiler/lstar/interface/launch_queue_check.c	5031	e7b228a965ed231f58f4b3b3cfd48a7f8a88f0d71b813542fa149e0122b37d3d
 orior	utils/test/src/cu/transpiler/lstar/parser/frame_relation_check.c	6410	540d31dcd2846d1bbec6b789db20cc34aa408c2ec07f5c95374c5e59d7f98fb3
-orior	utils/test/src/cu/transpiler/lstar/parser/standing_check.c	7041	be0092205f0742b6d72329d8090337abdd5fd6e57fc10f29667fec19857fadd4
+orior	utils/test/src/cu/transpiler/lstar/parser/located_check.c	7041	be0092205f0742b6d72329d8090337abdd5fd6e57fc10f29667fec19857fadd4
 orior	utils/test/src/cu/transpiler/lstar/parser/turning_check.c	9180	747ac810fe20cae4846029fd19db8689f72b9e95e4f3408732a7166a8ac91941
 orior	utils/test/src/cu/transpiler/lstar/protocol/answer_read_check.c	4856	36ea3f693e45d736a28fc0ff2ec53c3e45320d384d789657092d99c1c6cc1d11
 orior	utils/test/src/cu/transpiler/lstar/protocol/branch_side_check.c	9687	5077a51e0c5fa5212faaa4ea253c8a32fd278a53a27d30323d9d36dfc86e955c
@@ -5662,7 +5662,7 @@ orior	utils/test/src/ui/cli/diff_test.c	5932	eeae658b97e2a6abd39dfac42b75fd3fca8
 orior	utils/test/src/ui/cli/digest_test.c	4865	4bea151b0923a3379ba527e4ce3ab811c117ef3f42deffd13c91d936b1542404
 orior	utils/test/src/ui/cli/disasm_verify_test.c	10349	b894da5771c4868a081a8778f8d1ef30ad30463523eaa6defffd6a7f38a5f83d
 orior	utils/test/src/ui/cli/document_test.c	53978	070bcedaa49ce247190c90062f9ba095a90c3197355bdb6b963e7468ae55c617
-orior	utils/test/src/ui/cli/door_test.c	20398	e0cdebb38cc972ec071255e7ad7e2f26ea4beca1e727215e35b0fae4e1c9a241
+orior	utils/test/src/ui/cli/interface_test.c	20398	e0cdebb38cc972ec071255e7ad7e2f26ea4beca1e727215e35b0fae4e1c9a241
 orior	utils/test/src/ui/cli/editorconfig_test.c	2733	172533c9613490a70dc0a42ee5d56285675a681a9ca710a2c389eb37cd3d77e5
 orior	utils/test/src/ui/cli/envs_test.c	3219	40fc4a459042a9d75d2e4f9f746cdb83a7782eb65eae77f9a0c54a60dfe1e5e9
 orior	utils/test/src/ui/cli/executables_test.c	20269	b0e607437f2b0fd9ddc598ff022976579ecedf7096db2f50942b6aca810a9130

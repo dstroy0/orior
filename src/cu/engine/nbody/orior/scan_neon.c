@@ -13,7 +13,7 @@
  * THE SAME QUESTION AVX2 ANSWERS, ONE ARM OVER. Fixed at one needle offset, does
  * `corpus[at + offset]` equal `needle[offset]` for consecutive `at`. The needle byte broadcasts
  * once, the corpus side is a sliding window at unit stride, and the survivor mask enters as the
- * alignments still standing. A NEON register is 128 bits and answers sixteen of those in one compare.
+ * alignments still located. A NEON register is 128 bits and answers sixteen of those in one compare.
  *
  * WHAT THIS ARM IS NOT ALLOWED TO DO. It returns the portable arm's count or it has a defect. The
  * value is an integer count of alignments and the two arms agree exactly or one is wrong. That is
@@ -51,26 +51,26 @@ size_t orior_steer_truthy_after_neon(const uint8_t *corpus, size_t alignments, c
 
     const uint8x16_t broadcast = vdupq_n_u8(wanted);
     const uint8x16_t zero = vdupq_n_u8(0u);
-    size_t standing = 0u;
+    size_t located = 0u;
     size_t at = 0u;
 
     for (; (at + ORIOR_STEER_LANES) <= alignments; at += ORIOR_STEER_LANES)
     {
         const uint8x16_t window = vld1q_u8(corpus + at + offset);
-        const uint8x16_t standing_bytes = vld1q_u8(alive + at);
+        const uint8x16_t located_bytes = vld1q_u8(alive + at);
 
         const uint8x16_t agrees = vceqq_u8(window, broadcast);
 
         /* An alive flag is zero or non-zero. vceqq against zero marks the refuted lanes, and the
-         * complement marks the standing ones. Complementing instead of comparing against one retains
+         * complement marks the located ones. Complementing instead of comparing against one retains
          * this correct if a caller ever stores a flag other than one. */
-        const uint8x16_t alive_mask = vmvnq_u8(vceqq_u8(standing_bytes, zero));
+        const uint8x16_t alive_mask = vmvnq_u8(vceqq_u8(located_bytes, zero));
 
         /* A surviving lane is all ones. Shifting it down to one and adding the sixteen lanes gives
          * the block's count, which cannot exceed sixteen and so does not overflow the byte the
          * across-vector add returns. */
         const uint8x16_t hits = vshrq_n_u8(vandq_u8(agrees, alive_mask), 7);
-        standing += (size_t)vaddvq_u8(hits);
+        located += (size_t)vaddvq_u8(hits);
     }
 
     for (; at < alignments; at += 1u)
@@ -81,10 +81,10 @@ size_t orior_steer_truthy_after_neon(const uint8_t *corpus, size_t alignments, c
         }
         if (corpus[at + offset] == wanted)
         {
-            standing += 1u;
+            located += 1u;
         }
     }
-    return standing;
+    return located;
 }
 
 const OriorSteerEngine *orior_steer_neon_engine(void)

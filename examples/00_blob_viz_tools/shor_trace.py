@@ -73,7 +73,7 @@ def controlled_modmul(state, control, multiplier, modulus=MODULUS, work=WORK_BIT
     """|y> -> |multiplier * y mod modulus| on the work register, where the control bit is set.
 
     A PERMUTATION, WITH NO ARITHMETIC. Values at or above the modulus are left alone, the
-    standard convention, which keeps the map a bijection on the whole register and not a partial
+    standard convention, which retains the map a bijection on the whole register and not a partial
     one. No arithmetic touches an amplitude. This contributes nothing to any error.
     """
     control_bit = 1 << control

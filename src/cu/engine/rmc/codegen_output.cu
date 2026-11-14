@@ -7,8 +7,8 @@
 
 // The lane written on the device, in `device_arena`, which the caller frees, from the step table at `device_steps`, in
 // device memory, and the rest of `layout`'s sizes: its forms decided (codegen_device_decide), split by `costs` where it
-// is given, laid out as the assembly printer's records, written a lane a byte and gathered. The records and the lanes
-// come back to the host after they are laid out, and the text's length after its bytes are gathered
+// is given, arranged as the assembly printer's records, written a lane a byte and gathered. The records and the lanes
+// come back to the host after they are arranged, and the text's length after its bytes are gathered
 static int codegen_device_written(DeviceArena *device_arena, const EngineRecordLayout *layout,
                                   const DeviceRecordStep *device_steps, const AsmPrinterRuleset *text_rules,
                                   unsigned int places, const ScheduleCosts *costs, std::string *text,
@@ -84,7 +84,7 @@ static int codegen_device_written(DeviceArena *device_arena, const EngineRecordL
         *error_message = "the device errored on a call";
         return 0;
     }
-    // the assembly printer laid out by the device and checked against the host's word for word, then run by the record
+    // the assembly printer arranged by the device and checked against the host's word for word, then run by the record
     // machine, a lane a byte; its output's offset read before the layout, which the record stores its own of, is given
     // back
     EngineRecordLayout text_layout{};
@@ -161,10 +161,10 @@ static std::string layout_error(int keymath, const LayoutEnd *ended)
                                                     : "the program's outputs are more bits than a record counts";
 }
 
-// The program of `request` laid out on the device, in `memory`, which the caller frees: keymath's encoding in one
+// The program of `request` arranged on the device, in `memory`, which the caller frees: keymath's encoding in one
 // thread, run again with an arena twice the size while it fills the one it has, then key_schedule's layout in one
 // thread. The step table is left in device memory at `*device_steps`, the tables' values, one after another as keymath
-// lays out the key's, at `*device_values`, `*value_count` words, and the rest of the program's sizes laid out in
+// arranges the key's, at `*device_values`, `*value_count` words, and the rest of the program's sizes arranged in
 // `layout`, whose step table and tables' values are not. The host checks the request as keymath_record_encode and
 // key_schedule_record_layout do before their cores run, and reads back only how each core ended, the file's limbs and
 // the record's bits
@@ -192,7 +192,7 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
     }
     const unsigned int count = request->count;
     // each table's values in device memory, one after another, and its descriptor pointing at them there; a table
-    // indexed by more bits than a table supports, or with no values, errors on whole, as keymath could not lay out the
+    // indexed by more bits than a table supports, or with no values, errors on whole, as keymath could not arrange the
     // key's values
     std::vector<EngineRecordTable> tables(request->table_count);
     std::vector<unsigned long long> table_first(request->table_count);
@@ -208,7 +208,7 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
             return 0;
         }
         table_first[table] = words;
-        // index_bits is at most 32, and the entry count at most 2^32
+        // index_bits is at max 32, and the entry count at max 2^32
         const unsigned long long entries = 1ull << tables[table].index_bits;
         table_words[table] = entries * (unsigned long long)((tables[table].out_bits + 31u) / 32u);
         words += table_words[table];
@@ -273,7 +273,7 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
         *error = layout_error(1, &ended);
         return 0;
     }
-    // key_schedule's layout: each step laid out for the device and placed, and each output placed in the record
+    // key_schedule's layout: each step arranged for the device and placed, and each output placed in the record
     DeviceRecordStep *const record_steps = codegen_device_take<DeviceRecordStep>(memory, count);
     KeyScheduleCoreLayout core_layout{};
     core_layout.terms = terms;
@@ -310,7 +310,7 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
         *error = layout_error(0, &ended);
         return 0;
     }
-    // the sizes as key_schedule_record_layout lays it out; the layout limited the file to ENGINE_RECORD_LIMBS_MAX limbs
+    // the sizes as key_schedule_record_layout positions it out; the layout limited the file to ENGINE_RECORD_LIMBS_MAX limbs
     // and the record's bits to a 31-bit count
     memset(layout, 0, sizeof(*layout));
     layout->steps = count;
@@ -346,7 +346,7 @@ int layout_device(const LayoutRequest *request, EngineRecordLayout *layout, std:
     unsigned long long value_count = 0ull;
     EngineRecordLayout device_layout{};
     int ok = layout_steps(&memory, request, &device_layout, &device_steps, &device_values, &value_count, error);
-    // the step table and the tables' values read back, laid out as key_schedule_record_layout lays them out
+    // the step table and the tables' values read back, arranged as key_schedule_record_layout positions them out
     if (ok != 0)
     {
         device_layout.step_table = (DeviceRecordStep *)malloc((size_t)device_layout.steps * sizeof(DeviceRecordStep));

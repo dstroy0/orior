@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// dap.c: a debug adapter connected to: what it writes read on a thread of its own, each response handed to the request
+// dap.c: a debug adapter connected to: what it writes read on a thread of its own, each response passed to the request
 // waiting on it, each event received and each request of its refused; requests sent and waited on; and the adapter
 // ended
 #include "../command_line/pool.h"
@@ -72,7 +72,7 @@ EMBED_INLINE int dap_member_string(const DapCtx *args)
                       .out_capacity = out, .capacity = capacity);
 }
 
-// a response handed to the request of `seq` that waits on it: `message` with its body in it, or its error: 1 where the
+// a response passed to the request of `seq` that waits on it: `message` with its body in it, or its error: 1 where the
 // message went to the request, which gives it back
 EMBED_INLINE int dap_answer(const DapCtx *args)
 {
@@ -113,13 +113,13 @@ EMBED_INLINE int dap_response(const DapCtx *args)
     int whole = EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = args->message, .size_value = size,
                            .name = "request_seq", .start = &at, .length_pointer = &length) &&
                 (length > 0ULL);
-    unsigned long long letter = at;
-    while (whole && (letter < at + length))
+    unsigned long long character = at;
+    while (whole && (character < at + length))
     {
-        const unsigned long long digit = (unsigned long long)(args->message[letter] - '0');
-        whole = (args->message[letter] >= '0') && (args->message[letter] <= '9') && (seq <= (~0ULL - digit) / 10ULL);
+        const unsigned long long digit = (unsigned long long)(args->message[character] - '0');
+        whole = (args->message[character] >= '0') && (args->message[character] <= '9') && (seq <= (~0ULL - digit) / 10ULL);
         seq = whole ? (seq * 10ULL) + digit : seq;
-        letter += 1ULL;
+        character += 1ULL;
     }
     if (!whole)
     {
@@ -137,7 +137,7 @@ EMBED_INLINE int dap_response(const DapCtx *args)
     {
         if (has_body)
         {
-            // the body ended by a 0 where it stands: the byte after it is the message's own, read no more
+            // the body ended by a 0 where it is: the byte after it is the message's own, read no more
             args->message[body + body_size] = '\0';
         }
         return EMBED_CALL(dap_answer, DapCtx, .dap = args->dap, .seq = seq, .message = args->message,
@@ -196,7 +196,7 @@ EMBED_INLINE void dap_reject(const DapCtx *args)
                      .count = 7u, .err_msg = &unsent);
 }
 
-// what the adapter writes read until it ends: each event received, each response handed to its request, each request of
+// what the adapter writes read until it ends: each event received, each response passed to its request, each request of
 // its refused; then every request still waiting notified the adapter stopped, and its stop received
 static void dap_read(void *context)
 {
@@ -261,7 +261,7 @@ static void dap_read(void *context)
 }
 
 // a line the program adapter wrote to its errors stored, trimmed with "\n" after it, the stored text cut to its last
-// CLI_DAP_COMPLAINT bytes at a letter's start
+// CLI_DAP_COMPLAINT bytes at a character's start
 EMBED_INLINE void dap_complaint_store(const DapCtx *args)
 {
     unsigned long long start = 0ULL;

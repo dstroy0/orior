@@ -39,7 +39,7 @@ int rank_machine_load(SimResults *results, const char *name, ExactRecordProgram 
         keymath_record_release(&machine->key);
         mmgr_line_put(&results->line, "  program ");
         mmgr_line_put(&results->line, name);
-        rank_error_line(results, "did not lay out", &error);
+        rank_error_line(results, "did not arrange", &error);
         return 0;
     }
     if (cycle_record_load(&machine->layout, &machine->record, &error) == CYCLE_ERROR)
@@ -107,7 +107,7 @@ int rank_sweep(SimResults *results, const char *name, const RankMachine *machine
         return 1;
     }
     // a piece of lanes at a time, as many as fit in RANK_SWEEP_BYTES on the device and at least one. Of each member,
-    // the records from the least a piece's lanes read to the most go to the device, once for every member that names
+    // the records from the least a piece's lanes read to the max go to the device, once for every member that names
     // the same records, and the piece's index counts from that least. With no index lane i reads record i: a piece is
     // the lanes one lane's bytes fill; through an index every record goes at once where every lane fits beside them,
     // and otherwise each lane's records are read to find where a piece ends
@@ -155,7 +155,7 @@ int rank_sweep(SimResults *results, const char *name, const RankMachine *machine
     while (ok && (start < lanes))
     {
         unsigned long long least[ENGINE_RECORD_MEMBERS_MAX] = {~0ull, ~0ull, ~0ull};
-        unsigned long long most[ENGINE_RECORD_MEMBERS_MAX] = {0ull, 0ull, 0ull};
+        unsigned long long max[ENGINE_RECORD_MEMBERS_MAX] = {0ull, 0ull, 0ull};
         unsigned long long piece = 0ull;
         if ((index == NULL) || whole)
         {
@@ -165,13 +165,13 @@ int rank_sweep(SimResults *results, const char *name, const RankMachine *machine
             {
                 const int own = (index == NULL) && (bodies[member] != 1ull);
                 least[member] = own ? start : 0ull;
-                most[member] = own ? (start + piece - 1ull) : (bodies[member] - 1ull);
+                max[member] = own ? (start + piece - 1ull) : (bodies[member] - 1ull);
             }
         }
         while ((index != NULL) && !whole && ((start + piece) < lanes))
         {
             unsigned long long low[ENGINE_RECORD_MEMBERS_MAX] = {least[0], least[1], least[2]};
-            unsigned long long high[ENGINE_RECORD_MEMBERS_MAX] = {most[0], most[1], most[2]};
+            unsigned long long high[ENGINE_RECORD_MEMBERS_MAX] = {max[0], max[1], max[2]};
             for (unsigned int member = 0u; member < count; member += 1u)
             {
                 const unsigned long long record = index[((start + piece) * count) + member];
@@ -191,7 +191,7 @@ int rank_sweep(SimResults *results, const char *name, const RankMachine *machine
                 break;
             }
             memcpy(least, low, sizeof(least));
-            memcpy(most, high, sizeof(most));
+            memcpy(max, high, sizeof(max));
             piece += 1ull;
         }
         const unsigned int *run_in[ENGINE_RECORD_MEMBERS_MAX] = {NULL, NULL, NULL};
@@ -199,7 +199,7 @@ int rank_sweep(SimResults *results, const char *name, const RankMachine *machine
         for (unsigned int member = 0u; ok && (member < count); member += 1u)
         {
             const unsigned int same_member = same[member];
-            piece_bodies[member] = most[same_member] - least[same_member] + 1ull;
+            piece_bodies[member] = max[same_member] - least[same_member] + 1ull;
             if (same_member == member)
             {
                 const size_t bytes = (size_t)(piece_bodies[member] * machine->limbs[member]) * sizeof(unsigned int);

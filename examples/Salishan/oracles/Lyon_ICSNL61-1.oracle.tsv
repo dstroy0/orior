@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	nsyilxcn	cited form	cəm̓/cmay	page 1
 front	nsyilxcn	cited form	cakʷ	page 1
 front	John Lyon	language	nɬeʔkepmxcín	Thompson River Salish, cited from Hannon 2025
@@ -82,7 +82,7 @@ footnote 4	John Lyon	note	4 Lyon (2024) assumes a zero non-future and a separate
 (4b) line 5	John Lyon	translation	‘I will/can give you a ride if you want.’ (Delphine Derickson-Armstrong | VF)	page 4, engine english
 footnote 5	John Lyon	note	5 Discourse particle way̓ in (5a) can take on one of several different meanings . Here it takes on the meaning of its lexical root to finish, so is glossed as already. Since particle way̓ occurs in prospective sentences as well, and is not required for a non -prospective interpretation, I do not think it is correct to analyze way̓ as itself being non-prospective, although there may be more than one way̓. More work is needed here.	page 4, footnote
 §2.1	nsyilxcn	cited form	way̓	page 4
-§2.1	John Lyon	note	Examples like (4a) provide good evidence for the claim that there is a zero prospective aspect in nsyilxcn. It is important to keep in mind that zero future tense must be semantically distinguished from the zero prospective aspect, since future temporal reference is compatible with both the zero non-prospective aspect (5a, similarly to a future perfect)5 as well as prospective aspect (5b).	page 4
+§2.1	John Lyon	note	Examples like (4a) provide good evidence for the claim that there is a zero prospective aspect in nsyilxcn. It is important to retain in mind that zero future tense must be semantically distinguished from the zero prospective aspect, since future temporal reference is compatible with both the zero non-prospective aspect (5a, similarly to a future perfect)5 as well as prospective aspect (5b).	page 4
 (5a) line 1	John Lyon	note	Context: My brother ate my apple today, so I’m going to get him back tomorrow. I tell him:	page 5, engine english
 (5a) line 2	nsyilxcn	segmentation	kʷ ɬə c-xʷuy x̌lap iʔ l siɬkʷkʷʕást t sc̓iɬn,	page 5, engine language
 (5a) line 3	nsyilxcn	gloss	2SG.SBJ when CISL-go tomorrow DET at early.morning OBL food	page 5, engine english
@@ -169,7 +169,7 @@ footnote 8	John Lyon	note	8 A. Mattina (1993) proposes three non -analyzable pro
 (13) line 1	nsyilxcn	segmentation	kʷ i-∅-s-∅-knxít-m.	page 8, engine residue
 (13) line 2	nsyilxcn	gloss	2SG.OBJ 1SG.POSS-N.PROS-EXT-PFV-help-(DIR)-EXT	page 8, engine english
 (13) line 3	John Lyon	translation	‘I (had) helped you.’ (Delphine Derickson-Armstrong | CF)	page 8, engine english
-(13) line 4	Delphine Derickson-Armstrong	speaker comment	DD: Kind of past tense. You can also say if it looks like they need help [12a].	page 8, engine english
+(13) line 4	Delphine Derickson-Armstrong	speaker comment	DD: Type of past tense. You can also say if it looks like they need help [12a].	page 8, engine english
 §2.2	John Lyon	note	In reviewing nsyilxcn sentential aspect in this section, we have seen two separate environments which support the idea of a zero prospective: base transitives (4a) and extended -now perfectives (12). The next section illustrates other environments which seem to involve a zero prospective.	page 8
 §3	John Lyon	heading	3 Prospective Aspect: Overt and Zero	page 8
 §3	John Lyon	note	This section introduces the two overt prospective marking strategies (mi and k-) while comparing and contrasting these with the zero prospective. While some speakers more strongly prefer overt prospective marking (DM) than other speakers (DD,SM), all accept and sometimes volunteer zero prospectives. In what follows I show that prospective marking may be omitted in contexts for which the futurity of the event is mutually understood.	page 8
@@ -261,7 +261,7 @@ footnote 12 (i) line 3	John Lyon	translation	‘Tomorrow I’ll go to Head-of-th
 (19c) line 1	nsyilxcn	segmentation	k̓ik̓əm k-s-q̓ilt-s.	page 11, engine language
 (19c) line 2	nsyilxcn	gloss	almost PROS-NMLZ-sick-3POSS	page 11, engine english
 (19c) line 3	John Lyon	translation	‘He almost got sick.’ (Sarah McLeod | VF)	page 11, engine english
-§3	John Lyon	note	That mi and k- are both prospective aspect markers, rather than future tense markers, is shown by the fact that these can be used under a past temporal reference, similarly to other extended and non- extended sentential aspects.	page 11
+§3	John Lyon	note	That mi and k- are both prospective aspect markers, rather than future tense markers, is displayed by the fact that these can be used under a past temporal reference, similarly to other extended and non- extended sentential aspects.	page 11
 (20a) line 1	John Lyon	note	Context: I’m telling my friend that yesterday, I had thought about going to church.	page 11, engine english
 (20a) line 2	nsyilxcn	segmentation	kn k-s-∅-xʷúy-aʔx k̓l sənk̓ʕámən t spiʔsc̓íɬt	page 11, engine language
 (20a) line 3	nsyilxcn	gloss	1SG.SUBJ PROS-EXT-PFV-go-EXT/PROS to church OBL yesterday	page 11, engine english
@@ -343,7 +343,7 @@ footnote 13	John Lyon	note	13 Cases like (19c) differ from (19a,b) in not allowi
 (24b) line 1	nsyilxcn	segmentation	uc kʷ i-k-s-∅-knxít-m.	page 13, engine language
 (24b) line 2	nsyilxcn	gloss	Q 2SG.OBJ 1SG.POSS-PROS-EXT-PFV-help-(DIR)-EXT/PROS	page 13, engine english
 (24b) line 3	John Lyon	translation	‘Can I help you?’ (Delphine Derickson-Armstrong | VF)	page 13, engine english
-§3	John Lyon	note	k- is independent of extended-now aspect, as shown by the non-extended imperfective examples in (25a,b). Non-extended prospective imperfective k-c- forms are usually interpreted as prospective habituals (25a), though progressive readings are also possible ( 25b).14 These are not commonly volunteered, but do occur in texts and are judged grammatical in elicitation contexts. The absence of s- here I take to be good evidence for the layered approach to aspect.	page 13
+§3	John Lyon	note	k- is independent of extended-now aspect, as displayed by the non-extended imperfective examples in (25a,b). Non-extended prospective imperfective k-c- forms are usually interpreted as prospective habituals (25a), though progressive readings are also possible ( 25b).14 These are not commonly volunteered, but do occur in texts and are judged grammatical in elicitation contexts. The absence of s- here I take to be good evidence for the layered approach to aspect.	page 13
 (25a) line 1	John Lyon	note	Context: You were running down a steep hill and slipped and fell. You tell your friend later about your accident.	page 13, engine english
 (25a) line 2	nsyilxcn	segmentation	kn ɬə k-c-wcklíp-aʔx,	page 13, engine language
 (25a) line 3	nsyilxcn	gloss	1SG.SUBJ if/when PROS-IPFV-run.downhill-PROS	page 13, engine english
@@ -360,8 +360,8 @@ footnote 14	John Lyon	note	14 There is no k-c- form parallel to (19c), further e
 (25b) line 6	John Lyon	citation	(Delphine Derickson-Armstrong | Dave Michele | CF)	page 14, engine english
 (25c) line 1	John Lyon	note	Context: We’re making a resolution about how we want to be when we are old.	page 14, engine english
 (25c) line 2	nsyilxcn	segmentation	kʷu ɬə k̓íwəlx, nyʕip kʷu k-c-nx̌síls-aʔx.	page 14, engine language
-(25c) line 3	nsyilxcn	gloss	1PL.SUBJ when old always 1PL.SUBJ PROS-IPFV-kind-PROS	page 14, engine english
-(25c) line 4	John Lyon	translation	‘When we’re old, we’ll always be kind.’	page 14, engine english
+(25c) line 3	nsyilxcn	gloss	1PL.SUBJ when old always 1PL.SUBJ PROS-IPFV-type-PROS	page 14, engine english
+(25c) line 4	John Lyon	translation	‘When we’re old, we’ll always be type.’	page 14, engine english
 (25c) line 5	John Lyon	citation	(Delphine Derickson-Armstrong, Dave Michele | CF)	page 14, engine english
 §3	John Lyon	note	Examples similar to (25) do not require overt prospective marking. As (26a,b) shows, an apparently identical interpretation results even when prospective marking is absent.15	page 14
 (26) line 1	John Lyon	note	Context: You’re reassuring your friend that you’ll be there for them in the future.	page 14, engine english
@@ -436,7 +436,7 @@ footnote 16	John Lyon	note	16 This is consistent with an analysis of s- as intro
 (30c)	nsyilxcn	cited form	iʔ	in the speaker comment, page 16
 (30c)	nsyilxcn	cited form	sʕác̓əc̓s	in the speaker comment, page 16
 (30c)	nsyilxcn	cited form	ksq̓ítaʔx	in the speaker comment, page 16
-(30d) line 1	John Lyon	note	Context: You’re car shopping, and you saw a car that you like but know it will take most of your money. You tell your friend:	page 16, engine english
+(30d) line 1	John Lyon	note	Context: You’re car shopping, and you saw a car that you like but know it will take the majority of your money. You tell your friend:	page 16, engine english
 (30d) line 2	nsyilxcn	segmentation	∅-∅-nʔiys-n náx̌əmɬ lut t̓ ∅-∅-nʔiys-n,	page 16, engine language
 (30d) line 3	nsyilxcn	gloss	PROS-PFV-buy-(DIR)-1SG.ERG but NEG NEG.FAC N.PROS-PFV-buy-(DIR)-1SG.ERG	page 16, engine english
 (30d) line 4	nsyilxcn	segmentation	maɬ ∅-nslxʷʔaqsm.	page 16, engine language
@@ -658,10 +658,10 @@ footnote 21	John Lyon	note	21 Speakers often prefer cəm̓/cmay to overt prospec
 §4.1.1	John Lyon	note	Prospectives in the absence of cəm̓/cmay are not interpreted as involving an epistemic claim. This shows two things: First, that the prospective itself does not encode epistemic possibility, and second, that there is no zero epistemic possibility modal. While omitting cəm̓/cmay is sometimes acceptable in future-oriented contexts for which the agent has no control over the event (45), as it is in English, if the agent is in control of the event, and is not committed to actualizing the event, it is important to include cəm̓/cmay (46).	page 23
 (45) line 1	John Lyon	note	Context: It’s winter. You want to go for a walk, but the ground looks icy. You think: (context from Hannon 2025:202)	page 23, engine english
 (45a) line 1	nsyilxcn	segmentation	cəm̓ i-k-s-t̓k̓ʷ•ák̓ʷ kn ɬaʔ xʷaʔxʷíst.	page 23, engine language
-(45a) line 2	nsyilxcn	gloss	EPIS 1SG.POSS-NM.IRR-NMLZ-get.laid.down•C2.CS 1SG.SUBJ when walk	page 23, engine english
+(45a) line 2	nsyilxcn	gloss	EPIS 1SG.POSS-NM.IRR-NMLZ-get.positioned.down•C2.CS 1SG.SUBJ when walk	page 23, engine english
 (45a) line 3	John Lyon	translation	‘I might slip if I go for a walk.’ (Delphine Derickson-Armstrong | VF)	page 23, engine english
 (45b) line 1	nsyilxcn	segmentation	i-k-s-t̓k̓ʷ•ák̓ʷ kn ɬaʔ xʷaʔxʷíst.	page 23, engine language
-(45b) line 2	nsyilxcn	gloss	1SG.POSS-NM.IRR-NMLZ-get.laid.down•C2.CS 1SG.SUBJ when walk	page 23, engine english
+(45b) line 2	nsyilxcn	gloss	1SG.POSS-NM.IRR-NMLZ-get.positioned.down•C2.CS 1SG.SUBJ when walk	page 23, engine english
 (45b) line 3	John Lyon	translation	Target: ‘I might slip if I go for a walk.’ (Delphine Derickson-Armstrong | CF)	page 23, engine english
 (45b) line 4	John Lyon	translation	Literally: ‘I will slip if I go for a walk.’	page 23, engine english
 (45b) line 5	Delphine Derickson-Armstrong	speaker comment	Comment: I guess you could shorten it, people would understand.	page 23, engine english
@@ -719,7 +719,7 @@ footnote 21	John Lyon	note	21 Speakers often prefer cəm̓/cmay to overt prospec
 (49) line 6	Delphine Derickson-Armstrong	speaker comment	DD Comment: You could say that.	page 25, engine english
 (49) line 7	Dave Michele	speaker comment	DM Comment: cəm̓ sounds a bit odd.	page 25, engine english
 (49)	nsyilxcn	cited form	cəm̓	in the speaker comment, page 25
-§4.1.1	John Lyon	note	In sum, this section has shown that the future TO of the modal cəm̓/cmay obtains with both overt and zero prospectives , and that in the absence of cəm̓/cmay or other paraphrastic means of indicating speaker uncertainty, a prospective does not have a weak epistemic reading. The general picture I suggest is that context is generally sufficient to disambiguate the zero prospective vs. zero non-prospective, and that the modal receives its temporal orientation from ordering aspect.	page 25
+§4.1.1	John Lyon	note	In sum, this section has displayed that the future TO of the modal cəm̓/cmay obtains with both overt and zero prospectives , and that in the absence of cəm̓/cmay or other paraphrastic means of indicating speaker uncertainty, a prospective does not have a weak epistemic reading. The general picture I suggest is that context is generally sufficient to disambiguate the zero prospective vs. zero non-prospective, and that the modal receives its temporal orientation from ordering aspect.	page 25
 §4.1.2	John Lyon	heading	4.1.2 Present Temporal Orientation	page 25
 §4.1.2	nsyilxcn	cited form	cəm̓/cmay	page 25
 §4.1.2	John Lyon	note	cəm̓/cmay may have a present TO in sentences containing predicates with a variety of aspect ual inflections. For example, in (50) the predicates are unmarked nominal predicates,22 whereas in (51- 52) the predicates are unmarked states. In (53-54), non-extended and extended imperfectives are used to signal an event in progress.23	page 25
@@ -846,7 +846,7 @@ footnote 26	John Lyon	note	26 It is unclear whether predicates prefixed with (ʔ
 (64) line 5	John Lyon	translation	Actual: ‘I heard a chickadee’. (Delphine Derickson-Armstrong | CF)	page 29, engine english
 §4.1.4	John Lyon	heading	4.1.4 Section Summary	page 29
 §4.1.4	nsyilxcn	cited form	cəm̓/cmay	page 29
-§4.1.4	John Lyon	note	This section has shown that the temporal orientation of epistemic cəm̓/cmay depends on the aspectual properties of the inflected predicate. This means that in order for the modal to have a future TO in the absence of overt prospective marking, a zero prospective must be providing th at temporal orientation. Additionally, it was shown that for prospective sentences without cəm̓/cmay, an epistemic interpretation is not available . This suggests overall that nsyilxcn prospectives are non-modal prospectives, and that there is no zero epistemic modal in the absence of cəm̓/cmay.	page 29
+§4.1.4	John Lyon	note	This section has displayed that the temporal orientation of epistemic cəm̓/cmay depends on the aspectual properties of the inflected predicate. This means that in order for the modal to have a future TO in the absence of overt prospective marking, a zero prospective must be providing th at temporal orientation. Additionally, it was displayed that for prospective sentences without cəm̓/cmay, an epistemic interpretation is not available . This suggests overall that nsyilxcn prospectives are non-modal prospectives, and that there is no zero epistemic modal in the absence of cəm̓/cmay.	page 29
 §4.2	John Lyon	heading	4.2 (Zero) Circumstantial Modality	page 29
 §4.2	nsyilxcn	cited form	cakʷ	page 29
 §4.2	nsyilxcn	cited form	cəm̓/cmay	page 30
@@ -854,7 +854,7 @@ footnote 26	John Lyon	note	26 It is unclear whether predicates prefixed with (ʔ
 §4.2	John Lyon	note	This section examines the interaction between circumstantial modality and temporal pers pective and orientation in nsyilxcn, but also attempts to reframe previous understandings of circumstantial modality (Menzies 2013). In §4.2.1, I show that a subset of circumstantial contexts occur with a bouletic particle cakʷ, which Menzies (2013) treats as modal. cakʷ appears to have a future temporal orientation in these cases. In §4.2.2., I show that cakʷ may also be used with non-prospective aspects. Circumstantial modals, by hypothesis always have a future temporal orientation (Rullmann & Matthewson 2018 ). This means that cakʷ cannot be receiving it’s temporal orientation from sentential aspect, in contrast to cəm̓/cmay discussed in §4.1. In §4.2.3, I show that c ircumstantial readings are possible in the absence of any modal particle . Additionally, cakʷ may co-occur with epistemic cəm̓/cmay and is used in contexts for which subjunctive marking applies in other Salish languages (St’át’imcets , Matthewson 2010) . For th ese reasons, I suggest that there is a zero circumstantial modal in nsyilxcn (Matthewson et. al, 2022; Hannon 2025), and that cakʷ is in fact a bouletic mood marker which is consistent with either an epistemic or circumstantial modal base. §4.2.4 provides a brief summary.	page 29
 §4.2.1	John Lyon	heading	4.2.1 Introducing Bouletic Particle cakʷ: Future Temporal Orientations	page 30
 §4.2.1	nsyilxcn	cited form	cakʷ	page 30
-§4.2.1	John Lyon	note	Circumstantial modal contexts in nsyilxcn often involve a particle cakʷ. Menzies (2013) analyzes cakʷ as a bouletic modal, which “concerns what is possible or necessary, given a person’s desires” (von Fintel 2006:2). Typical bouletic cases are shown in (65).	page 30
+§4.2.1	John Lyon	note	Circumstantial modal contexts in nsyilxcn often involve a particle cakʷ. Menzies (2013) analyzes cakʷ as a bouletic modal, which “concerns what is possible or necessary, given a person’s desires” (von Fintel 2006:2). Typical bouletic cases are displayed in (65).	page 30
 (65a) line 1	nsyilxcn	segmentation	cakʷ way̓ ∅-x̌ast n̓ín̓aʔxʷ t t̓axt	page 30, engine language
 (65a) line 2	nsyilxcn	gloss	BOUL AFF PROS-good a.little OBL sweet	page 30, engine english
 (65a) line 3	nsyilxcn	segmentation	a-k-s-∅-wt-nt-ím.	page 30, engine language
@@ -875,7 +875,7 @@ footnote 26	John Lyon	note	26 It is unclear whether predicates prefixed with (ʔ
 (65d) line 5	John Lyon	translation	‘All people should honor their elders.’ (Lottie Lindley | VF)	page 30, engine english
 §4.2.1	John Lyon	language	nɬeʔkepmxcín	Thompson River Salish, cited from Hannon 2025
 §4.2.1	nsyilxcn	cited form	cəm̓/cmay	page 30
-§4.2.1	John Lyon	note	cakʷ can co-occur with any aspectually inflected predicate under either a past or present temporal perspective. Most commonly it occurs with a future-oriented predicate. In these cases, prospective k- is not typically volunteered but is readily accepted with no apparent change in meaning (Hannon 2025:197-198 notes a similar pattern in nɬeʔkepmxcín). cakʷ is similar to cəm̓/cmay in this respect.	page 30
+§4.2.1	John Lyon	note	cakʷ can co-occur with any aspectually inflected predicate under either a past or present temporal perspective. Max commonly it occurs with a future-oriented predicate. In these cases, prospective k- is not typically volunteered but is readily accepted with no apparent change in meaning (Hannon 2025:197-198 notes a similar pattern in nɬeʔkepmxcín). cakʷ is similar to cəm̓/cmay in this respect.	page 30
 (66) line 1	John Lyon	note	Context: We are watching the weight lifting category during the Olympics. We see an athlete holding a very heavy weight above his head. He is shaking very hard. If he doesn’t drop it soon his arms are going to give out. I say to you: (context from Menzies 2013:30)	page 31, engine english
 (66a) line 1	nsyilxcn	segmentation	cakʷ ∅-∅-yxʷ-mi-s.	page 31, engine language
 (66a) line 2	nsyilxcn	gloss	BOUL PROS-PFV-lower-APPL-(DIR)-3ERG	page 31, engine english
@@ -918,17 +918,17 @@ footnote 26	John Lyon	note	26 It is unclear whether predicates prefixed with (ʔ
 (71) line 1	John Lyon	note	Context: You come inside after working outside in the field all day. Your wife says to you:	page 32, engine english
 (71a) line 1	nsyilxcn	segmentation	cakʷ kʷ ∅-∅-c̓aw̓-íkst-m.	page 32, engine language
 (71a) line 2	nsyilxcn	gloss	BOUL 2SG.SUBJ PROS-PFV-wash-hand-INTR	page 32, engine english
-(71a) line 3	John Lyon	translation	‘You should wash your hands.’ (Delphine Derickson-Armstrong | Dave Michele | VF)	page 32, engine english
+(71a) line 3	John Lyon	translation	‘You should wash your passes.’ (Delphine Derickson-Armstrong | Dave Michele | VF)	page 32, engine english
 (71b) line 1	nsyilxcn	segmentation	cakʷ kʷ k-s-∅-c̓aw̓-íw̓-kst-aʔx.	page 32, engine language
 (71b) line 2	nsyilxcn	gloss	BOUL 2SG.SUBJ PROS-EXT-PFV-wash-middle[?]-hand-EXT/PROS	page 32, engine english
-(71b) line 3	John Lyon	translation	‘You should wash your hands.’ (Delphine Derickson-Armstrong | Dave Michele | CF)	page 32, engine english
+(71b) line 3	John Lyon	translation	‘You should wash your passes.’ (Delphine Derickson-Armstrong | Dave Michele | CF)	page 32, engine english
 (72) line 1	John Lyon	note	Context: You come straight to the dinner table after working outside in the field all day. Your wife says to you:	page 32, engine english
 (72a) line 1	nsyilxcn	segmentation	cakʷ kʷ ∅-∅-c̓aw̓-íkst-m mi sic kʷu ∅-ʔaɬ-ʔíɬn.	page 32, engine language
 (72a) line 2	nsyilxcn	gloss	BOUL 2SG.SUBJ PROS-PFV-wash-hand-MID PROS.C new 1PL.SUBJ PFV-C1C2-eat	page 32, engine english
-(72a) line 3	John Lyon	translation	‘You should have washed your hands before we eat.’ (Dave Michele | VF)	page 32, engine english
+(72a) line 3	John Lyon	translation	‘You should have washed your passes before we eat.’ (Dave Michele | VF)	page 32, engine english
 (72b) line 1	nsyilxcn	segmentation	cakʷ kʷ k-s-∅-c̓aw̓-íw̓-kst-aʔx. cxʔit.	page 32, engine language
 (72b) line 2	nsyilxcn	gloss	BOUL 2SG.SUBJ PROS-EXT-PFV-wash-middle[?]-hand-EXT/PROS first	page 32, engine english
-(72b) line 3	John Lyon	translation	‘You should have washed your hands first.’ (Delphine Derickson-Armstrong | VF)	page 32, engine english
+(72b) line 3	John Lyon	translation	‘You should have washed your passes first.’ (Delphine Derickson-Armstrong | VF)	page 32, engine english
 (73) line 1	John Lyon	note	Context: You’re in a café where the seating time is limited to one hour. You’ve been there for an hour already, so a worker comes over to you and says: (context from Hannon	page 32, engine english
 (73) line 2	nsyilxcn	transcription	2025:203)	page 32, engine residue
 (73) line 3	nsyilxcn	segmentation	∅-maɬ-q̓ʷíc̓t iʔ snʔiɬntn, way̓ cakʷ t̓i kʷ ∅-∅-xʷuy ʕapnáʔ.	page 32, engine language
@@ -1001,7 +1001,7 @@ footnote 26	John Lyon	note	26 It is unclear whether predicates prefixed with (ʔ
 (79b) line 2	nsyilxcn	gloss	BOUL PROS-EXT-lower-APPL-(DIR)-EXT/PROS-3POSS	page 35, engine english
 (79b) line 3	John Lyon	translation	‘He should drop it.’ (Dave Michele | VF)	page 35, engine english
 §4.2.2	nsyilxcn	cited form	wiʔ	page 35, ‘to finish’
-§4.2.2	John Lyon	note	A similar case is shown below. In (80a), a non-prospective interpretation of the extended predicate is enforced by compounding root wiʔ ‘to finish’. cakʷ occurs in a similar sentence in (80b).	page 35
+§4.2.2	John Lyon	note	A similar case is displayed below. In (80a), a non-prospective interpretation of the extended predicate is enforced by compounding root wiʔ ‘to finish’. cakʷ occurs in a similar sentence in (80b).	page 35
 (80) line 1	John Lyon	note	Context: You’re talking about how you should have finished your hunting trip earlier today before your wife called you, but the weather was bad which delayed you wrapping things up.	page 35, engine english
 (80a) line 1	nsyilxcn	segmentation	way̓ kn ∅-s-∅-wiʔs-píx̌-x uɬ in-tkɬmílxʷ	page 35, engine language
 (80a) line 2	nsyilxcn	gloss	already 1SG.SUBJ N.PROS-EXT-PFV-finish-hunt-EXT and 1SG.POSS-woman	page 35, engine english
@@ -1090,7 +1090,7 @@ footnote 26	John Lyon	note	26 It is unclear whether predicates prefixed with (ʔ
 (87) line 2	nsyilxcn	segmentation	lut in-x̌mínk i-k-s-xʷaʔxʷíst ɬaʔ c-súl-laʔxʷ,	page 38, engine language
 (87) line 3	nsyilxcn	gloss	NEG 1SG.POSS-want 1SG.POSS-PROS-NMLZ-walk when STAT-frozen-ground	page 38, engine english
 (87) line 4	nsyilxcn	segmentation	áɬiʔ cəm̓/#cakʷ kn ∅-∅-t̓k̓ʷ•ak̓ʷ.	page 38, engine language
-(87) line 5	nsyilxcn	gloss	because EPIS/#BOUL 1SG.SUBJ PROS-PFV-get.laid.down•C2.COS	page 38, engine english
+(87) line 5	nsyilxcn	gloss	because EPIS/#BOUL 1SG.SUBJ PROS-PFV-get.positioned.down•C2.COS	page 38, engine english
 (87) line 6	John Lyon	translation	‘I don’t like to walk when it is icy out because I might/#want to fall.’	page 38, engine english
 (87) line 7	John Lyon	citation	(Delphine Derickson-Armstrong | VF)	page 38, engine english
 (87) line 8	Dave Michele	speaker comment	DM Comment: No cakʷ, that says you want to fall.	page 38, engine english
@@ -1109,7 +1109,7 @@ footnote 26	John Lyon	note	26 It is unclear whether predicates prefixed with (ʔ
 (88b) line 3	John Lyon	translation	‘I hope John will come.’ (Sarah McLeod | VF)	page 38, engine english
 (88c) line 1	John Lyon	note	Context: It’s winter. You want to go for a walk, but the ground looks icy. You think: (context from Hannon 2025:202)	page 39, engine english
 (88c) line 2	nsyilxcn	segmentation	kn ɬaʔ ʔácqaʔ cakʷ cmay kn ∅-∅-t̓k̓ʷ•ak̓ʷ	page 39, engine language
-(88c) line 3	nsyilxcn	gloss	1SG.SUBJ if go.outside BOUL EPIS 1SG.SUBJ PROS-PFV-get.laid.down•C2.COS	page 39, engine english
+(88c) line 3	nsyilxcn	gloss	1SG.SUBJ if go.outside BOUL EPIS 1SG.SUBJ PROS-PFV-get.positioned.down•C2.COS	page 39, engine english
 (88c) line 4	nsyilxcn	transcription	áɬiʔ nirnrt.	page 39, engine language
 (88c) line 5	nsyilxcn	transcription	because slippery	page 39, engine english
 (88c) line 6	John Lyon	translation	‘If I go outside, maybe I’ll fall down, because it is slippery.’	page 39, engine english
@@ -1141,7 +1141,7 @@ footnote 26	John Lyon	note	26 It is unclear whether predicates prefixed with (ʔ
 (89d) line 5	John Lyon	speaker comment	Comment: No, that’s like a command, you’re not asking.	page 39, engine english
 §4.2.3	nsyilxcn	cited form	ɬ	page 40
 §4.2.3	nsyilxcn	cited form	anx̌mínk	page 40, ‘if you want’
-§4.2.3	John Lyon	note	cakʷ is the most common way of making a statement polite, though question mark er ha (90a) (sometimes used in combination with cakʷ, 90b) or another paraphrastic means of conveying deference to the hearer like ɬ anx̌mínk ‘if you want’ (91-93) also makes the utterance felicitous. Note that overt prospective marking may or may not be present.	page 40
+§4.2.3	John Lyon	note	cakʷ is the usual way of making a statement polite, though question mark er ha (90a) (sometimes used in combination with cakʷ, 90b) or another paraphrastic means of conveying deference to the hearer like ɬ anx̌mínk ‘if you want’ (91-93) also makes the utterance felicitous. Note that overt prospective marking may or may not be present.	page 40
 (90) line 1	John Lyon	note	Context: Your friend is looking for a ride to a meeting you both have today. You say: (context from Hannon 2025:189/203)	page 40, engine english
 (90a) line 1	nsyilxcn	segmentation	ha kʷ i-k-s-∅-xʷúy-st-m iʔ k̓l snqʷaʔqʷʔaltán?	page 40, engine language
 (90a) line 2	nsyilxcn	gloss	Q 2SG.OBJ 1SG.POSS-PROS-EXT-PFV-go-CAUS-EXT/PROS DET to meeting	page 40, engine english
@@ -1201,7 +1201,7 @@ footnote 26	John Lyon	note	26 It is unclear whether predicates prefixed with (ʔ
 (95) line 3	nsyilxcn	gloss	reluctant Henry OBL PROS-NMLZ-cook-3POSS and AFF PROS-EXT-PFV-cook-EXT/PROS	page 41, engine english
 (95) line 4	John Lyon	translation	‘Henry’s not really sure he wants to cook, but he could cook.’ (Dave Michele | VF)	page 41, engine english
 (95) line 5	Dave Michele	speaker comment	DM Comment: If you asked him he would.	page 41, engine english
-§4.2.3	John Lyon	note	There are many cases of offers , however (even involving 2nd person participants ) where cakʷ and/or speaker deference is contextually recoverable (96)-(98). There is some amount of speaker variation indicated below , where Delphine Derickson -Armstrong more easily allows this contextual recoverability than Dave Michele. (98b), with a zero prospective , was rejected during one session, and then accepted in the very same context during the next session. The comments for (98b) are illuminating, and suggest that not only is the zero prospective often dependent on a shared understanding between discourse participants ( as shown abo ve in §2), but also that the modal semantics of offering are contextually recoverable as well.27	page 41
+§4.2.3	John Lyon	note	There are many cases of offers , however (even involving 2nd person participants ) where cakʷ and/or speaker deference is contextually recoverable (96)-(98). There is some amount of speaker variation indicated below , where Delphine Derickson -Armstrong more easily allows this contextual recoverability than Dave Michele. (98b), with a zero prospective , was rejected during one session, and then accepted in the very same context during the next session. The comments for (98b) are illuminating, and suggest that not only is the zero prospective often dependent on a shared understanding between discourse participants ( as displayed abo ve in §2), but also that the modal semantics of offering are contextually recoverable as well.27	page 41
 (96) line 1	John Lyon	note	Context: A friend is organizing a charity drive whereby we will collect donations from people in exchange for hiking up a mountain. She asks me if I would like to participate in the climb. (Context from Glougie 2007:3)	page 42, engine english
 (96a) line 1	nsyilxcn	segmentation	n̓us ∅-∅-kxn-nt-s-in ɬaʔ x̌lap	page 42, engine residue
 (96a) line 2	nsyilxcn	gloss	later PROS-PFV-accompany-DIR-2SG.OBJ-1SG.ERG when tomorrow	page 42, engine english
@@ -1232,7 +1232,7 @@ footnote 26	John Lyon	note	26 It is unclear whether predicates prefixed with (ʔ
 (98c) line 4	Dave Michele	speaker comment	DM Comment: It’s good, you can also use cakʷ if you want.	page 42, engine english
 (98c)	nsyilxcn	cited form	cakʷ	in the speaker comment, page 42
 footnote 27	John Lyon	note	27 Allan Lindley (p.c.) raises the question of whether or not intonation may play a role in whether or not the zero circumstantial modal is contextually recoverable. This is an interesting question, though the answer remains unclear at present.	page 42, footnote
-§4.2.3	John Lyon	note	Overall, given that (a) offers involve circumstantial modality (Copley 200 9), and (b) that the nsyilxcn prospective (zero/overt) is non-modal (see epistemic data in §4.1), examples like ( 91)- (98) may be taken as evidence that there is a zero circumstantial modal in nsyilxcn. Evidence for a zero circumstantial modal also comes from contexts which do not involve offers. This confirms Menzies’ (2013:36-37) statement that bare predicates can be used with circumstantial meaning.28 Though it was shown above in §4.2.1 that cakʷ is usable in teleological, deontic, and abilitative contexts, it is by no means necessary. First, consider that an overt or zero prospective predicate is sufficient for a teleological reading (99)-(101).	page 43
+§4.2.3	John Lyon	note	Overall, given that (a) offers involve circumstantial modality (Copley 200 9), and (b) that the nsyilxcn prospective (zero/overt) is non-modal (see epistemic data in §4.1), examples like ( 91)- (98) may be taken as evidence that there is a zero circumstantial modal in nsyilxcn. Evidence for a zero circumstantial modal also comes from contexts which do not involve offers. This confirms Menzies’ (2013:36-37) statement that bare predicates can be used with circumstantial meaning.28 Though it was displayed above in §4.2.1 that cakʷ is usable in teleological, deontic, and abilitative contexts, it is by no means necessary. First, consider that an overt or zero prospective predicate is sufficient for a teleological reading (99)-(101).	page 43
 (99) line 1	John Lyon	note	Context: There’s only one way to get from town to the mountains: the road that passes the lake. A tourist asks you how to get to the mountains from the town. You say: ‘You have to take the road that passes the lake.’ (context from Hannon 2025:204)	page 43, engine english
 (99a) line 1	nsyilxcn	segmentation	∅-∅-xʷúy-st-xʷ iʔ xwiɬ mi ∅-txʷ-iwl-nt-xʷ	page 43, engine language
 (99a) line 2	nsyilxcn	gloss	PROS-PFV-go-CAUS-2SG.ERG DET road PROS.C PFV-gather[?]-vehicle-DIR-2SG.ERG	page 43, engine english
@@ -1260,7 +1260,7 @@ footnote 27	John Lyon	note	27 Allan Lindley (p.c.) raises the question of whethe
 (101) line 7	nsyilxcn	gloss	2SG.POSS-NM.IRR-conveyance	page 43, engine english
 (101) line 8	John Lyon	translation	‘Wherever you wanted to go a long time ago, you (had to) ride a horse to get there.’	page 43, engine english
 (101) line 9	John Lyon	citation	(Delphine Derickson-Armstrong | VF)	page 43, engine english
-footnote 28	John Lyon	note	28 Menzies (2013, §2.3.2) states that prospective k-s- can mark teleological, abilitative , deontic, and ‘pure’ circumstantial modality. I hope to have shown that it is not k-s- itself which marks this modality, but rather a zero circumstantial modal.	page 43, footnote
+footnote 28	John Lyon	note	28 Menzies (2013, §2.3.2) states that prospective k-s- can mark teleological, abilitative , deontic, and ‘pure’ circumstantial modality. I hope to have displayed that it is not k-s- itself which marks this modality, but rather a zero circumstantial modal.	page 43, footnote
 §4.2.3	John Lyon	note	Deontic examples follow a similar pattern: No modal is necessary for a deontic reading (102).29	page 44
 (102a) line 1	nsyilxcn	segmentation	John k-s-∅-k̓ʷƛ̓-nt-is iʔ q̓aʔ•q̓aʔ-xán-s.	page 44, engine language
 (102a) line 2	nsyilxcn	gloss	John PROS-EXT-PFV-take.off-DIR-3ERG DET C1C2•stuck-foot-3POSS	page 44, engine english
@@ -1370,19 +1370,19 @@ footnote 29 (ii)	nsyilxcn	cited form	t̓i	in the speaker comment, page 44
 (105) line 8	John Lyon	translation	‘Pretend to be a owl, fly around and hoot.’	page 47, engine english
 §4.2.3	John Lyon	note	DM, DD: You could put the cakʷ in there.	page 47
 §4.2.3	John Lyon	note	(Delphine Derickson-Armstrong | VF w/o cakʷ | Dave Michele | CF)	page 47
-(106) line 1	John Lyon	note	Context: An elder is carrying your water bottle for you because your hands were full, they ask where you want to put it down, so you say:	page 47, engine english
+(106) line 1	John Lyon	note	Context: An elder is carrying your water bottle for you because your passes were full, they ask where you want to put it down, so you say:	page 47, engine english
 (106) line 2	nsyilxcn	segmentation	cakʷ ∅-∅-cq-ant ik̓líʔ	page 47, engine language
 (106) line 3	nsyilxcn	gloss	BOUL PROS-PFV-place.down-DIR to.there	page 47, engine english
 (106) line 4	John Lyon	translation	‘Can you set it over there.’ (Delphine Derickson-Armstrong, Dave Michele | CF)	page 47, engine english
-(107) line 1	John Lyon	note	Context: You mailed a letter to your sister 3 weeks ago and think...	page 47, engine english
+(107) line 1	John Lyon	note	Context: You mailed a character to your sister 3 weeks ago and think...	page 47, engine english
 (107) line 2	nsyilxcn	segmentation	cakʷ (mat) ha ∅-∅-kʷn-nu-s i-s-c-q̓áy̓.	page 47, engine residue
 (107) line 3	nsyilxcn	gloss	BOUL EVID Q N.PROS-PFV-take-N.CTR-(DIR)-3ERG 1SG.POSS-NMLZ-STAT-write	page 47, engine english
-(107) line 4	John Lyon	translation	‘I wonder if she got my letter?’ (Dave Michele | VF w/ mat)	page 47, engine english
+(107) line 4	John Lyon	translation	‘I wonder if she got my character?’ (Dave Michele | VF w/ mat)	page 47, engine english
 (108) line 1	John Lyon	note	Context: Your friend is visiting from where they live a couple of hours away, and you think it’s too late for them to drive all the way back home tonight.	page 47, engine english
 (108) line 2	nsyilxcn	segmentation	cakʷ xʷum̓ t̓i aláʔ mi kʷ ∅-pulx ʕapnáʔ t sk̓laxʷ.	page 47, engine language
-(108) line 3	nsyilxcn	gloss	BOUL kind.of.like here PROS.C 2SG.SUBJ PFV-camp now OBL evening	page 47, engine english
+(108) line 3	nsyilxcn	gloss	BOUL type.of.like here PROS.C 2SG.SUBJ PFV-camp now OBL evening	page 47, engine english
 (108) line 4	John Lyon	translation	‘You may as well stay here for the night.’ (Delphine Derickson-Armstrong | VF)	page 47, engine english
-(109a) line 1	John Lyon	note	Context: A captikʷɬ story, where a boy lays his head on a skull and receives direction about what to do.	page 47, engine english
+(109a) line 1	John Lyon	note	Context: A captikʷɬ story, where a boy positions his head on a skull and receives direction about what to do.	page 47, engine english
 (109a) line 2	nsyilxcn	segmentation	uɬ cakʷ lut ɬaʔ qíʔs iʔ t c̓ásy̓qn-s...	page 47, engine language
 (109a) line 3	nsyilxcn	gloss	and BOUL NEG if dream DET OBL head-3POSS	page 47, engine english
 (109a) line 4	John Lyon	translation	‘And if it wasn’t for his dream from the skull...’ (Lottie Lindley | VF)	page 47, engine english
@@ -1405,9 +1405,9 @@ footnote 29 (ii)	nsyilxcn	cited form	t̓i	in the speaker comment, page 44
 §4.2.4	John Lyon	heading	4.2.4 Section Summary	page 48
 §4.2.4	nsyilxcn	cited form	cakʷ	page 48
 §4.2.4	John Lyon	language	nɬeʔkepmxcín	Thompson River Salish, cited from Hannon 2025
-§4.2.4	John Lyon	note	This section has shown that the zero/overt prospective marker can co-occur with bouletic particle cakʷ in a range of circumstantial modal contexts (§4.2.1). cakʷ can also occur with non-prospective aspects. This is unexpected if cakʷ is a circumstantial modal, given that circumstantial modals always have a future orientation, and that modal orientation is determined by viewpoint aspect (Rullmann & Matthewson 2018) (§4.2.2). cakʷ however can co-occur with epistemic modals, is not required for a circumstantial reading, and has a distribution similar to subjunctive marking in other Salish languages (§4.2.3). Overall, this points towards there being a zero circumstantial modal in Nsyilcxn. This has already been argued for other Indigenous languages (Matthewson 2013 for Gitksan, Hannon 2025 for nɬeʔkepmxcín). This also points towards an analysis of cakʷ as a mood marker, rather than a modal proper.	page 48
+§4.2.4	John Lyon	note	This section has displayed that the zero/overt prospective marker can co-occur with bouletic particle cakʷ in a range of circumstantial modal contexts (§4.2.1). cakʷ can also occur with non-prospective aspects. This is unexpected if cakʷ is a circumstantial modal, given that circumstantial modals always have a future orientation, and that modal orientation is determined by viewpoint aspect (Rullmann & Matthewson 2018) (§4.2.2). cakʷ however can co-occur with epistemic modals, is not required for a circumstantial reading, and has a distribution similar to subjunctive marking in other Salish languages (§4.2.3). Overall, this points towards there being a zero circumstantial modal in Nsyilcxn. This has already been argued for other Indigenous languages (Matthewson 2013 for Gitksan, Hannon 2025 for nɬeʔkepmxcín). This also points towards an analysis of cakʷ as a mood marker, rather than a modal proper.	page 48
 §5	John Lyon	heading	5 Summary and Conclusion	page 48
-§5	John Lyon	note	This paper has shown several things.	page 48
+§5	John Lyon	note	This paper has displayed several things.	page 48
 §5	nsyilxcn	cited form	cəm̓/cmay	page 48
 §5	John Lyon	language	nɬeʔkepmxcín	Thompson River Salish, cited from Hannon 2025
 §5	John Lyon	note	First, nsyilxcn epistemic modals do not have an inherent temporal orientation, but rather rely on overt and zero sentential aspect to provide that orientation (Rullmann & Matthewson 2018). The temporal orientation of epistemic cəm̓/cmay depends on the aspectual properties of the inflected predicate, in other words . This means that in the abscence of overt prospective marking, a zero prospective is necessary to provide a future TO to cəm̓/cmay (see Kratzer 2011 for English, Louie 2015 for Blackfoot). nsyilxcn and nɬeʔkepmxcín (Hannon 2025) both have constructions whereby a modal has a future orientation even in the absence of prospective marking. The nsyilxcn pattern suggests that the nɬeʔkepmxcín pattern could plausibly be due to a zero prospective. Additionally, for prospective sentences without cəm̓/cmay, an epistemic interpretation is not available. This suggests that the nsyilxcn prospective (overt and null) is non -modal, and that there is no zero epistemic modal.	page 48
@@ -1422,7 +1422,7 @@ footnote 29 (ii)	nsyilxcn	cited form	t̓i	in the speaker comment, page 44
 §5	John Lyon	note	nsyilxcn prospective markers mi, k- and the zero prospective may all be used in offer contexts, and regardless of whether an event has already been planned at utterance time or not. While this is consistent with the idea that these elements are more similar to St’át’imcets kelh, and should be analyzed as non-future modals (see also Matthewson 2013 for Gitksan) albeit ones which do not require that a plan for the eventuality overlaps with reference time (Copley 2014) , these might equally well be analyzed as non -modal prospectives which co -occur with a zero or overt modal (Matthewson 2013, Hannon 2025) . Recall that nsyilxcn shows evidence that modal sentences without overt modal particles cannot be interpreted epistemically, only circumstantially, regardless of aspect. This suggests not only a zero circumstantial modal, but assuming that this zero modal is always present in offer contexts as well as other circumstantial contexts but not in non - circumstantial contexts (which are simple prospectives), then there is no need to treat mi, k-, and the zero prospective as modal prospectives. In fact, a modal treatment of prospectivity in nsyilxcn, would require the modal base to be underspecified, and later disambiguated by a zero circumstantial or epistemic cəm̓/cmay. Thus, it seems that nsyilxcn prospective morphemes more closely resemble nɬeʔkepmxcín xʷuy̓ in the sense that they are non-modal (Hannon 2025), yet may co-occur with epistemic and (zero) circumstantial modals.	page 49
 §5	John Lyon	language	St’at’imcets	cited from Rullmann & Matthewson 2018, printed here without its acute
 §5	John Lyon	note	Regarding temporal orientation, Rullmann & Matthewson (2018) note that i n St’at’imcets, epistemic sentences require prospective marking for a future TO, which is argued to be evidence that the prospective marker supplies the modal with its future TO, while circumstantials disallow prospective marking , which is taken to be evidence that circumstantial modals are inherently prospective (due to a diversity condition, Condoravdi 2002). While epistemic modals in nsyilxcn clearly receive their TO from overt or zero sentential aspect (like St’át’imcets and n ɬeʔkepmxcín epistemic modals), this is less clear for the zero circumstantial modal. Given that there is a zero circumstantial modal in nsyilxcn and that circumstantial modals are are always future-oriented, we need to ask whether there must necessarily be a zero circumstantial modal in non -prospective sentences with a circumstantial modal flavour.	page 49
-§5	John Lyon	note	I suspect the answer is ‘no’. Examples (96)-(103) above lack any overt modal particle, but are plausibly all future -oriented, and so by hypothesis require the zero or overt prospective. On the other hand, the examples in §4.2.2 involve non-prospective aspect, but also all involve cakʷ. The generalization seems to be that while zero-marked predicates can be interpreted as both prospective and modal given a circumstantial context, they will not be interpreted as non-prospective and modal in the absence of cakʷ or cəm̓/cmay, only as non-modal non-prospectives. To put it in simpler terms, the zero circumstantial modal is only recoverable with prospectives. Given that cakʷ is largely optional in most circumstantial contexts for which I posit a zero circumstantial modal, it would be unexpected if the zero circumstantial modal required cakʷ only in non -prospective contexts. It seems more straightforward to assume that the zero circumstantial modal is only recoverable with prospectives because it does not occur with non -prospectives. This places the zero circumstantial modal in nsyilxcn in line with other Salish circumstantial modals.	page 49
+§5	John Lyon	note	I suspect the answer is ‘no’. Examples (96)-(103) above lack any overt modal particle, but are plausibly all future -oriented, and so by hypothesis require the zero or overt prospective. On the other hand, the examples in §4.2.2 involve non-prospective aspect, but also all involve cakʷ. The generalization seems to be that while zero-marked predicates can be interpreted as both prospective and modal given a circumstantial context, they will not be interpreted as non-prospective and modal in the absence of cakʷ or cəm̓/cmay, only as non-modal non-prospectives. To put it in simpler terms, the zero circumstantial modal is only recoverable with prospectives. Given that cakʷ is largely optional in max circumstantial contexts for which I posit a zero circumstantial modal, it would be unexpected if the zero circumstantial modal required cakʷ only in non -prospective contexts. It seems more straightforward to assume that the zero circumstantial modal is only recoverable with prospectives because it does not occur with non -prospectives. This places the zero circumstantial modal in nsyilxcn in line with other Salish circumstantial modals.	page 49
 §5	John Lyon	note	This approach raises another question howe ver: Assuming that cakʷ is a mood marker, it may be understood as placing a presupposition on the modal accessibility relation R , such that R is bouletic (Portner 1997 , Matthewson 2010 ). This makes s ense given that similar to St’át’imcets subjunctive marking, cakʷ allows deontic, bouletic, and epistemic uses, and so is not restricted to a particular type of conversational background. But t his also means that cakʷ requires that its argument, or the proposition it modifies, be modalized. In prospective cases, for which there is a zero circumstantial modal, this presupposition is satisfied. How then can cakʷ be used in non - prospective cases, for which there is by hypothesis no zero circumstantial modal? Presupposition accommodation, or an analysis of cakʷ as embedding a zero subjunctive, are two possibilities that come to mind, though at present their potential remains unclear. In any case, the way forward must be able to address the non-bouletic uses of cakʷ (including counterfactual uses), and include a better understanding of how the equivalent of subjunctives in other Salish lan guages are realized in nsyilxcn.	page 50
 references	John Lyon	heading	References	page 50
 references	John Lyon	reference	Abusch, Dorit. 1985. “On Verbs and Times.” Dissertation, University of Massachusetts, Amherst.	
@@ -1474,8 +1474,8 @@ footnote *	John Lyon	name	En’owkin Centre	in Penticton, BC, a supporter of the
 §1	John Lyon	language	nsyilxcn	the language of the paper, a.k.a. Okanagan, Southern Interior Salish. The paper writes it without a schwa
 §1	John Lyon	language	Okanagan	another name for nsyilxcn
 abstract	John Lyon	language	Gitksan	cited from Matthewson 2013 for a zero circumstantial modal
-all	John Lyon	notation	gloss labels	the page draws the gloss labels as small capitals, and the text layer holds them as ASCII capitals, N.PROS-PFV. The table keeps the text layer
-all	John Lyon	notation	bold	the page sets the words most important to the discussion in bold, as footnote 2 says, and the table does not mark it
+all	John Lyon	notation	gloss labels	the page draws the gloss labels as small capitals, and the text layer holds them as ASCII capitals, N.PROS-PFV. The table retains the text layer
+all	John Lyon	notation	bold	the page sets the words primary to the discussion in bold, as footnote 2 says, and the table does not mark it
 all	John Lyon	notation	(3a)	the comment is signed Dave Michel, and the tag on the same example and footnote * write Dave Michele
 all	John Lyon	notation	(ii)	the example is numbered (ii) and set between (102d) and (102e) on page 44
 all	John Lyon	symbol note	∅	the null morpheme is U+2205 EMPTY SET in the text layer, drawn as a slashed zero on the page

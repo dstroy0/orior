@@ -16,12 +16,12 @@ test("a state diagram's states, its start and end, and its transitions", () => {
   assert.match(mermaidSvg("stateDiagram\n [*] --> A"), /^<svg class="mermaid-diagram state"/);
 });
 
-test("a class diagram's members and its relations, each kind marked at its ends with its counts", () => {
-  const read = parseClasses('classDiagram\n class Animal {\n +String name\n +eat() void\n }\n Animal <|-- Duck\n Duck "1" *-- "many" Egg : lays\n Duck : +swim()');
+test("a class diagram's members and its relations, each type marked at its ends with its counts", () => {
+  const read = parseClasses('classDiagram\n class Animal {\n +String name\n +eat() void\n }\n Animal <|-- Duck\n Duck "1" *-- "many" Egg : positions\n Duck : +swim()');
   const animal = read.classes.find((one) => one.id === "Animal");
   assert.deepEqual([animal.fields, animal.methods], [["+String name"], ["+eat() void"]]);
   assert.deepEqual(read.classes.find((one) => one.id === "Duck").methods, ["+swim()"]);
-  assert.deepEqual(read.edges.map((edge) => [edge.from, edge.to, edge.start, edge.end, edge.fromLabel, edge.toLabel, edge.label]), [["Animal", "Duck", "triangle", "", "", "", ""], ["Duck", "Egg", "diamond", "", "1", "many", "lays"]]);
+  assert.deepEqual(read.edges.map((edge) => [edge.from, edge.to, edge.start, edge.end, edge.fromLabel, edge.toLabel, edge.label]), [["Animal", "Duck", "triangle", "", "", "", ""], ["Duck", "Egg", "diamond", "", "1", "many", "positions"]]);
   assert.match(mermaidSvg("classDiagram\n A <|-- B"), /marker-start="url\(#mm-triangle\)"/);
 });
 

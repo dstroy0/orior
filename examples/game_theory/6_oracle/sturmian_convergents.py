@@ -3,14 +3,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: GAM-6-006
 #
-# What the period detector returns when it is handed a sequence that has no period, and why the
+# What the period detector returns when it is passed a sequence that has no period, and why the
 # number it returns is not arbitrary.
 #
 #   Usage:  python examples/game_theory/6_oracle/sturmian_convergents.py
 #
 # Wythoff's losing positions sit on a line of slope phi. The gaps between successive ones form a
 # Sturmian word, which is aperiodic: that is not a measurement, it follows from phi being irrational.
-# Handed that word, sequence_period returns 8, then 13, then 21, then 34, then 55, as the window
+# Passed that word, sequence_period returns 8, then 13, then 21, then 34, then 55, as the window
 # widens. Those are Fibonacci numbers, and the Fibonacci numbers are the denominators of the
 # continued fraction convergents of phi.
 #

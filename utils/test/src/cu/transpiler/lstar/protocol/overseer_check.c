@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// overseer_check.c: the overseer checked against overseer.h on accounts handed to a run, and the teacher's conference
+// overseer_check.c: the overseer checked against overseer.h on accounts passed to a run, and the teacher's conference
 // checked on a carrier that reaches no part (overseer_carrier.c)
 //
 //   consensus   two experts that read one cause agree: the ruling names it, the side that brought it on, the
-//               guidance and the lesson, and is handed to the conference as the overseer's account
+//               guidance and the lesson, and is passed to the conference as the overseer's account
 //   dissent     two experts that read two causes rule nothing, and the learner goes on as it would
 //   exception   an exception agrees with the cause another expert reads
 //   context     a cause the stand-in does not do is the link's context's, and the stand-in goes on to its next link
@@ -13,12 +13,12 @@
 //   silent      a conference where no expert reads a cause rules nothing, and a question no party called a
 //               conference of is received by no one
 //   lessons     a lesson blocks its stand-in as written at its carrier, or at every carrier where its encoding is the
-//               cause, and blocks nothing else; the lessons handed to the run are read back whole
+//               cause, and blocks nothing else; the lessons passed to the run are read back whole
 //   teacher     a question the carrier refuses calls a conference containing the teacher's account and the carrier's;
 //               one whose carrier outlasts its time calls one containing the teacher's
-//   airlock     a round reaches the carrier only once the cross has read it and handed a gated list after it: a round
+//   airlock     a round reaches the carrier only once the cross has read it and passed a gated list after it: a round
 //               the cross did not read, or one with no gated list after it, is carried by nothing, as is every round of
-//               a channel with no airlock whose carrier is handed no gated list. Given the real carrier and cross, a
+//               a channel with no airlock whose carrier is passed no gated list. Given the real carrier and cross, a
 //               code the vendor reads clean passes with nothing gated, and an instruction it calls illegal is gated by
 //               its encoding, every reading through the run's streams (run_channel.h, measuring_stick_query.c)
 //   tables      a conference convened is a row of the run's conferences, each account it received a row of its
@@ -33,7 +33,7 @@
 //
 //     overseer_check <overseer_carrier> [<orior_cubin_run> <machine file> <layout> <cross> <nvdisasm>]
 //
-// The check runs in a run whose writer runs, QRY naming it (qry_run.sh): the teacher hands each round critical, and a
+// The check runs in a run whose writer runs, QRY naming it (qry_run.sh): the teacher passes each round critical, and a
 // critical hand returns once the writer has it on disk
 #if !defined(_WIN32)
 // setenv and unsetenv are POSIX, outside strict C11
@@ -61,7 +61,7 @@ static void check_that(int passed, const char *what)
     }
 }
 
-// the accounts of one conference, each `expert` and `text` in turn, ended by NULL, handed to `run`
+// the accounts of one conference, each `expert` and `text` in turn, ended by NULL, passed to `run`
 static void check_accounts(QryShared *run, const char *identity, const char *const *accounts)
 {
     for (unsigned int at = 0u; accounts[at] != NULL; at += 2u)
@@ -253,7 +253,7 @@ int main(int count, char **words)
         "gate",
         "the code read safe, its register fields bound by 16; the gated list loaded; the code contains no probe",
         "learner",
-        "the pair a b, b put in place of a at 12:0040; carrier 12; stand-in addresses; standing LDG.E R0, [R2.64]",
+        "the pair a b, b put in place of a at 12:0040; carrier 12; stand-in addresses; located LDG.E R0, [R2.64]",
         "coherence",
         "the pair a b; learning equality_coherence unknown_coherence",
         "counterexample",
@@ -269,7 +269,7 @@ int main(int count, char **words)
     check_that(strstr(ruling.text, "equality_coherence") != NULL,
                "consensus: the ruling states what the learner was after");
     check_that(check_conference_contains(run, "check-consensus", "overseer: 7 accounts received"),
-               "consensus: the ruling is handed to the conference as the overseer's account");
+               "consensus: the ruling is passed to the conference as the overseer's account");
 
     // tables: the conference a row of the run's conferences, each account it received a row of its accounts and its
     // lesson a row of its lessons, each naming the conference by the number of the question's identity
@@ -292,7 +292,7 @@ int main(int count, char **words)
     // dissent: two causes, no ruling
     static const char *const s_dissent[] = {
         "proctor", "CUDA_ERROR_ILLEGAL_INSTRUCTION (715); cause instruction", "listener", "Xid 31; cause address",
-        "learner", "the pair a c; carrier 12; standing IADD3 R0, R1, R2, RZ", NULL};
+        "learner", "the pair a c; carrier 12; located IADD3 R0, R1, R2, RZ", NULL};
     check_accounts(run, "check-dissent", s_dissent);
     check_that(overseer_convened(run, "check-dissent", 0, &ruling) == 1, "dissent: the conference is convened");
     check_that(!ruling.agreed && (ruling.guidance == OVERSEER_HANDS_OFF) && !ruling.taught,
@@ -304,7 +304,7 @@ int main(int count, char **words)
     // exception: an exception agrees with an instruction, and an encoding is blocked at every carrier
     static const char *const s_exception[] = {
         "proctor", "CUDA_ERROR_LAUNCH_FAILED (719); cause exception",         "listener", "Xid 13; cause instruction",
-        "learner", "the pair d e; carrier 7; standing IMAD.X R1, R2, R3, R4", NULL};
+        "learner", "the pair d e; carrier 7; located IMAD.X R1, R2, R3, R4", NULL};
     check_accounts(run, "check-exception", s_exception);
     check_that(overseer_convened(run, "check-exception", 0, &ruling) == 1, "exception: the conference is convened");
     check_that(ruling.agreed && (ruling.cause == OVERSEER_CAUSE_INSTRUCTION) && (ruling.side == OVERSEER_SIDE_STAND_IN),
@@ -313,7 +313,7 @@ int main(int count, char **words)
     // context: an address the stand-in does not reach is the link's context's
     static const char *const s_context[] = {
         "proctor", "CUDA_ERROR_ILLEGAL_ADDRESS (700); cause address",        "listener", "Xid 31; cause address",
-        "learner", "the pair f g; carrier 5; standing IADD3 R0, R1, R2, RZ", NULL};
+        "learner", "the pair f g; carrier 5; located IADD3 R0, R1, R2, RZ", NULL};
     check_accounts(run, "check-context", s_context);
     check_that(overseer_convened(run, "check-context", 0, &ruling) == 1, "context: the conference is convened");
     check_that((ruling.side == OVERSEER_SIDE_CONTEXT) && (ruling.guidance == OVERSEER_ANOTHER_LINK),
@@ -322,7 +322,7 @@ int main(int count, char **words)
     // roster and waits: an expert named nowhere joins, and a stand-in that controls, put both ways, waits
     static const char *const s_roster[] = {"survivors", "the gate's survivors contained none of it; cause time",
                                            "proctor",   "CUDA_ERROR_LAUNCH_TIMEOUT (702); cause time",
-                                           "learner",   "the pair h i; carrier 3; stand-in controls; standing BRA 0x40",
+                                           "learner",   "the pair h i; carrier 3; stand-in controls; located BRA 0x40",
                                            NULL};
     check_accounts(run, "check-roster", s_roster);
     check_that(overseer_convened(run, "check-roster", 1, &ruling) == 1, "roster: the conference is convened");
@@ -355,7 +355,7 @@ int main(int count, char **words)
                "lessons: a context is blocked at its carrier, and a dissent teaches nothing");
     check_that(!overseer_blocks("IADD3 R0, R1, R2, R3", "5", why, sizeof(why)),
                "lessons: another writing of the form is not blocked");
-    check_that(overseer_lessons_handed(run) == 1, "lessons: handed to the run");
+    check_that(overseer_lessons_passed(run) == 1, "lessons: passed to the run");
     overseer_lessons_cleared();
     check_that(!overseer_blocks("BRA 0x40", "3", why, sizeof(why)), "lessons: let go, none blocks");
     check_that(overseer_lessons_read(run) == 4u, "lessons: the four taught read back from the run");
@@ -388,19 +388,19 @@ int main(int count, char **words)
                "teacher: and the carrier's accounts, as the carrier reported them");
     overseer_account(
         run, identity, "learner",
-        "the pair j k, k put in place of j at 9:0010; carrier 9; stand-in addresses; standing ST.E [R4.64], R0");
+        "the pair j k, k put in place of j at 9:0010; carrier 9; stand-in addresses; located ST.E [R4.64], R0");
     check_that(overseer_convened(run, identity, 0, &ruling) == 1 && ruling.agreed &&
                    (ruling.cause == OVERSEER_CAUSE_ADDRESS) && (ruling.guidance == OVERSEER_OTHER_WAY),
                "teacher: the conference rules on the carrier's and the learner's accounts");
     check_that(check_latest_contains(run, "airlock.txt", " airlock_answers.txt "),
-               "airlock: the round's list is handed with its answers renamed for the pop");
+               "airlock: the round's list is passed with its answers renamed for the pop");
     char line[256];
     snprintf(line, sizeof(line), "teacher: %s carried: illegal, refused CUDA_ERROR_ILLEGAL_ADDRESS", identity);
     check_that(check_latest_contains(run, "trace", line),
                "trace: the teacher's line for the refused question is in the run");
     run_channel_close();
 
-    // airlock: a round the cross does not read, or reads and hands no gated list after, is carried by nothing
+    // airlock: a round the cross does not read, or reads and passes no gated list after, is carried by nothing
     static const char *const s_crossings[] = {"unread", "silent"};
     for (unsigned int crossing = 0u; crossing < 2u; crossing += 1u)
     {
@@ -413,11 +413,11 @@ int main(int count, char **words)
         check_that((s_question.outcome == RUN_NO_CHANNEL) && (strstr(s_question.refused, "the airlock") != NULL) &&
                        !check_conference_contains(run, identity, "proctor:"),
                    (crossing == 0u) ? "airlock: a round the cross did not read never reaches the carrier"
-                                    : "airlock: a round with no gated list handed after it never reaches the carrier");
+                                    : "airlock: a round with no gated list passed after it never reaches the carrier");
         run_channel_close();
     }
 
-    // airlock: a live channel with none, and a carrier handed no gated list, carries nothing; an airlock whose carrier
+    // airlock: a live channel with none, and a carrier passed no gated list, carries nothing; an airlock whose carrier
     // reads no gated list does not open
     const char *const open_air[] = {words[1], "refuse", NULL};
     check_that(run_channel_open(open_air, 10000000ull) == 1, "airlock: a channel with none opens");

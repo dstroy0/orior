@@ -51,17 +51,17 @@ export function formsOf(text) {
         }
       }
     }
-    fields.push({ line: index, indent, name, value, kind: type, choices, bounds, rest });
+    fields.push({ line: index, indent, name, value, type: type, choices, bounds, rest });
   });
   return fields;
 }
 
 // A field's value as the line writes it: a string in quotes, True or False, and else as given.
 function written(field, given) {
-  if (field.kind === "boolean") {
+  if (field.type === "boolean") {
     return given ? "True" : "False";
   }
-  if (field.kind === "string" || field.kind === "date" || (field.kind === "choice" && /^["']/.test(field.value))) {
+  if (field.type === "string" || field.type === "date" || (field.type === "choice" && /^["']/.test(field.value))) {
     return JSON.stringify(String(given));
   }
   return String(given);
@@ -91,29 +91,29 @@ function setField(book, cell, field, given) {
 
 export function drawForms(book, cell, host) {
   host.replaceChildren();
-  if (cell.kind !== "code") {
+  if (cell.type !== "code") {
     return;
   }
   for (const field of formsOf(cell.session.doc.text())) {
     let input;
-    if (field.kind === "choice") {
+    if (field.type === "choice") {
       input = element("select");
       for (const choice of field.choices) {
         input.append(element("option", { value: choice, textContent: choice, selected: choice === unquoted(field.value) }));
       }
       input.addEventListener("change", () => setField(book, cell, field, input.value));
-    } else if (field.kind === "boolean") {
+    } else if (field.type === "boolean") {
       input = element("input", { type: "checkbox", checked: field.value === "True" });
       input.addEventListener("change", () => setField(book, cell, field, input.checked));
-    } else if (field.kind === "slider") {
+    } else if (field.type === "slider") {
       input = element("input", { type: "range", value: field.value, min: field.bounds.min ?? 0, max: field.bounds.max ?? 100, step: field.bounds.step ?? 1 });
-      const shown = element("output", { textContent: field.value });
-      input.addEventListener("input", () => (shown.textContent = input.value));
+      const displayed = element("output", { textContent: field.value });
+      input.addEventListener("input", () => (displayed.textContent = input.value));
       input.addEventListener("change", () => setField(book, cell, field, input.value));
-      host.append(element("label", { className: "nb-field" }, element("span", { textContent: field.name }), input, shown));
+      host.append(element("label", { className: "nb-field" }, element("span", { textContent: field.name }), input, displayed));
       continue;
     } else {
-      input = element("input", { type: field.kind === "number" || field.kind === "integer" ? "number" : field.kind === "date" ? "date" : "text", value: unquoted(field.value) });
+      input = element("input", { type: field.type === "number" || field.type === "integer" ? "number" : field.type === "date" ? "date" : "text", value: unquoted(field.value) });
       input.addEventListener("change", () => setField(book, cell, field, input.value));
     }
     host.append(element("label", { className: "nb-field" }, element("span", { textContent: field.name }), input));
@@ -121,7 +121,7 @@ export function drawForms(book, cell, host) {
 }
 
 // The richest form of a display's data the window shows: an image, HTML, Markdown, then text.
-function shownData(data, cell, index) {
+function displayedData(data, cell, index) {
   if (data["image/png"] || data["image/jpeg"] || data["image/gif"]) {
     const type = data["image/png"] ? "image/png" : data["image/jpeg"] ? "image/jpeg" : "image/gif";
     return element("img", { className: "nb-image", src: `data:${type};base64,${String(data[type]).replace(/\s+/g, "")}` });
@@ -197,7 +197,7 @@ export function drawOutputs(book, cell) {
     } else if (output.output_type === "error") {
       host.append(textBlock((output.traceback ?? [`${output.ename}: ${output.evalue}`]).join("\n"), cell, `${index}`, "nb-error"));
     } else if (output.data) {
-      host.append(shownData(output.data, cell, index));
+      host.append(displayedData(output.data, cell, index));
     }
   });
   host.hidden = !cell.outputs.length;
@@ -210,7 +210,7 @@ export function drawSource(book, cell) {
   if (!source || state.editor?.s === cell.session) {
     return;
   }
-  if (cell.kind === "markdown") {
+  if (cell.type === "markdown") {
     const text = cell.session.doc.text();
     source.className = "nb-source nb-markdown";
     source.innerHTML = text.trim() ? markdownHtml(text) : '<p class="nb-empty">Markdown</p>';
@@ -230,14 +230,14 @@ export function drawMarks(book) {
       continue;
     }
     const count = cell.node.querySelector(".nb-count");
-    count.textContent = cell.kind === "code" ? (cell.running ? "[*]" : `[${cell.count ?? " "}]`) : "";
-    const by = cell.kind === "code" ? staleBy(book, cell) : [];
+    count.textContent = cell.type === "code" ? (cell.running ? "[*]" : `[${cell.count ?? " "}]`) : "";
+    const by = cell.type === "code" ? staleBy(book, cell) : [];
     cell.node.classList.toggle("stale", by.length > 0);
     cell.node.classList.toggle("running", cell.running);
     cell.node.classList.toggle("failed", cell.outputs.some((output) => output.output_type === "error"));
     const mark = cell.node.querySelector(".nb-stale");
     mark.hidden = !by.length;
-    mark.title = by.length ? `Out of date: it stands on ${by.map((one) => cellName(book, one)).join(", ")}, changed, run again or deleted since this cell ran` : "";
+    mark.title = by.length ? `Out of date: it is on ${by.map((one) => cellName(book, one)).join(", ")}, changed, run again or deleted since this cell ran` : "";
   }
   drawMap(book);
 }
@@ -254,7 +254,7 @@ export function drawMap(book) {
   const scale = map.clientHeight / total;
   const blocks = book.cells.map((cell) => {
     const node = cell.node;
-    const block = element("div", { className: `nb-map-cell ${cell.kind}` });
+    const block = element("div", { className: `nb-map-cell ${cell.type}` });
     if (node) {
       block.style.top = `${node.offsetTop * scale}px`;
       block.style.height = `${Math.max(2, node.offsetHeight * scale - 1)}px`;

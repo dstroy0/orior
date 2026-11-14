@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 title	Henry Davis	note	In Proceedings of ICSNL 61, Ella Hannon, Laura Griffin, Brent Hall, Bruce Oliver, Danica Reid, Julia Schillo, Lauren Schneider, Reed Steiner, and Bailey Trotter (eds.). Vancouver, BC: UBCWPL.	the running head on the first page, naming the volume and its editors
 title	Henry Davis	title	Evaluative Infinitives in St’át’imcets	the paper's title, with a footnote asterisk the form leaves out
 title	Henry Davis	name	Henry Davis	the author
@@ -11,7 +11,7 @@ abstract	St’át’imcets	cited form	x̌aƛ̓	‘hard’, an evaluative adjecti
 abstract	St’át’imcets	cited form	qʷámqʷmət	‘fun’, an evaluative adjective
 abstract	St’át’imcets	cited form	k̓ínk̓ənt	dangerous’, an evaluative adjective; the gloss has no opening quote
 abstract	Henry Davis	damage	k̓ínk̓ənt dangerous’	the gloss is printed without its opening quote
-abstract	Henry Davis	symbol note	̣x̌aƛ̓	a combining dot below, U+0323, stands alone before x̌aƛ̓ with no letter under it
+abstract	Henry Davis	symbol note	̣x̌aƛ̓	a combining dot below, U+0323, is alone before x̌aƛ̓ with no character under it
 keywords	Henry Davis	note	St’át’imcets, Salish, syntax, infinitives, evaluative adjectives, control, raising	the keywords
 §1	Henry Davis	heading	1 Introduction
 §1	Henry Davis	language	nɬeʔkepmxcín	a.k.a. Thompson (River) Salish: ISO 639-3 thp
@@ -193,8 +193,8 @@ footnote 9	St’át’imcets	cited form	qə̣ḷ-s	the form qə̣ḷ-mín altern
 (16)	Henry Davis	symbol note	k̓ḿanis	the acute accent is set over the m
 (17)	St’át’imcets	transcription	Cw7it sptínusem kwa maysentáli ku cuz’ kitslum’cwálts.
 (17)	St’át’imcets	segmentation	[xʷʔit=Ø sptínusəm] [kʷa mays-ən-Ø-táli kʷu=xʷúz̓ kic-lum̓xʷ-álc]
-(17)	St’át’imcets	gloss	[much=3SUBJ thought] [D/C+IPFV fix-DIR-3OBJ-NTS DET=PROS lay-ground-house]
-(17)	Davis et al. in prep.	translation	‘It takes a lot of planning to lay the bottom log of a wall in a loghouse.’	(Davis et al. in prep.), printed at the top of the next page
+(17)	St’át’imcets	gloss	[much=3SUBJ thought] [D/C+IPFV fix-DIR-3OBJ-NTS DET=PROS position-ground-house]
+(17)	Davis et al. in prep.	translation	‘It takes a lot of planning to position the bottom log of a wall in a loghouse.’	(Davis et al. in prep.), printed at the top of the next page
 §2	St’át’imcets	cited form	sʔalkst	‘work’, the head of the complex nominal predicates in (15)-(16)
 §2	St’át’imcets	cited form	sptínusəm	‘thought’, the head of the complex nominal predicate in (17)
 §2	St’át’imcets	cited form	lil̕q	‘easy’
@@ -307,7 +307,7 @@ footnote 14	Henry Davis	damage	as in in	in is printed twice
 (28b)	Henry Davis	translation	‘Do you guys have fun watching hockey?’
 (28b)	St’át’imcets	transcription	Iy, wa7 qwámqwmet!	CA's comment on (28b), quoted
 (28b)	Carl Alexander (Qwa7yán’ak)	translation	‘Yes, it’s fun!’	the translation of CA's comment
-(28b)	Henry Davis	damage	‘[‘Yes, it’s fun!’]	a stray opening quote stands before the square bracket
+(28b)	Henry Davis	damage	‘[‘Yes, it’s fun!’]	a stray opening quote is before the square bracket
 (29a)	St’át’imcets	transcription	Xat’ ha kwa k’ul’ún’acw i lhk’wál’usa?	marked */√, rejected the first time and accepted the second
 (29a)	St’át’imcets	segmentation	x̌áƛ̓=Ø=ha [kʷa k̓ʷul̕-ún̓-Ø-axʷ ʔi=ɬk̓ʷál̕us=a]
 (29a)	St’át’imcets	gloss	hard=3SUBJ=Q [D/C+IPFV make-DIR-3OBJ-2SG.ERG PL.DET=basket=EXIS
@@ -426,8 +426,8 @@ footnote 14	Henry Davis	damage	as in in	in is printed twice
 (42b)	Henry Davis	translation	‘Hunters have a hard time catching mountain goats.’ [‘Hunters find it hard for mountain goats to get caught.’]
 §3.4	Henry Davis	heading	3.4 Summary: agreement in infinitival complements to evaluative predicates
 (43)	Henry Davis	note	Subject marking in infinitival complements to evaluative predicates	the title of the scale
-(43)	Henry Davis	note	Passive > (3obj+3erg) > (1/2obj+3erg) > (3obj+1/2erg) > (1/2obj+1/2erg) > no agreement	the scale, from most acceptable to least acceptable; -tali is set under Passive
-(43)	St’át’imcets	cited affix	-tali	set under Passive at the most acceptable end of the scale
+(43)	Henry Davis	note	Passive > (3obj+3erg) > (1/2obj+3erg) > (3obj+1/2erg) > (1/2obj+1/2erg) > no agreement	the scale, from max acceptable to least acceptable; -tali is set under Passive
+(43)	St’át’imcets	cited affix	-tali	set under Passive at max acceptable end of the scale
 §3.4	St’át’imcets	cited affix	ʔi=	‘when.PST’, the complementizer that takes a subjunctive complement clause
 (44a)	St’át’imcets	transcription	Cw7aoz ha kw sqan’imenstúmcacw?
 (44a)	St’át’imcets	segmentation	xʷʔạ́z=Ø=ha kʷ=s=qan̓im-əns-túmx-axʷ
@@ -622,7 +622,7 @@ footnote 19	St’át’imcets	cited affix	kʷ(u)=	the D/C element ʔátiʔ prece
 (73b)	St’át’imcets	segmentation	x̌aƛ̓=Ø ʔi=sƛ̓ənwín=a [kʷa ʔac̓x̌-ən-Ø-táli ɬ=as sitst]
 (73b)	St’át’imcets	gloss	hard=3SUBJ PL.DET=bat=EXIS [D/C+IPFV see-DIR-3OBJ-NTS COMP=IPFV+3SBJV night]
 (73b)	Henry Davis	translation	‘Bats are hard to see at night.’
-(73b)	Carl Alexander (Qwa7yán’ak)	note	“Yeah, that’s okay: it’s kind of hard to see the bats at night.”	CA's comment
+(73b)	Carl Alexander (Qwa7yán’ak)	note	“Yeah, that’s okay: it’s type of hard to see the bats at night.”	CA's comment
 (74a)	St’át’imcets	transcription	Qwamqwmet ha kwa spáqwstwitas i wa7 k’écwa7 i snek’wnúk’wa7swa?
 (74a)	St’át’imcets	segmentation	qʷám<qʷm>ət=Ø=ha [kʷu=waʔ s-páqʷ-s-Ø-twitas ʔi=waʔ k̓ə́xʷaʔ ʔi=s<nək̓ʷ>núk̓ʷaʔ-sw=a]
 (74a)	St’át’imcets	gloss	fun<PDEN>-CHA=3SUBJ=Q [D/C=IPFV STAT-watch-CAUS-3OBJ-3PL.ERG PL.DET=IPFV+EXIS play.hockey PL.DET=friend<PLU>-2SG.POSS=EXIS]
@@ -669,7 +669,7 @@ footnote 21	St’át’imcets	cited form	ʔi snək̓ʷnúk̓waʔswa	‘your frie
 (78b)	St’át’imcets	gloss	hard-CAUS-3OBJ-3PL.ERG PL.DET=IPFV+EXIS hunt [D/C+IPFV caught<COS>-CAUS-3OBJ+PASS PL.DET=mountain.goat=EXIS]
 (78b)	Carl Alexander (Qwa7yán’ak)	translation	‘Hunters find it hard to catch mountain goats.’	(volunteered)
 §5.1	Henry Davis	heading	5.1 Analysis
-(79)	Henry Davis	note	Unaccusative patient Passive patient > Transitive patient > Agent	the scale, from most acceptable to least acceptable; Unaccusative patient is set above Passive patient
+(79)	Henry Davis	note	Unaccusative patient Passive patient > Transitive patient > Agent	the scale, from max acceptable to least acceptable; Unaccusative patient is set above Passive patient
 §5.1	Henry Davis	damage	see 5.3 below	the paper has no section 5.3
 (80)	St’át’imcets	transcription	Áma i száq’a kwa nik’.	(65) repeated
 (80)	St’át’imcets	segmentation	ʔáma ʔi=száq̓=a [kʷa nik̓]
@@ -832,13 +832,13 @@ all	Henry Davis	notation	kʷ	in every NAPA segmentation line the page prints kʷ
 (20a)	Henry Davis	notation	<qʷm>	the page prints qʷám<qʷm>; the text layer has <qwm>
 (54)	Henry Davis	notation	∀x	the page prints the universal quantifier; the text layer has a straight double quote before x, here and in (55)
 (55)	Henry Davis	notation	(55)	the text layer has a space inside the number, (55 )
-(43)	Henry Davis	notation	→	the page draws a long arrow from most acceptable on its left to least acceptable on its right, over the scales of (43) and (79); the text layer renders each as a run of hyphens ending in →
+(43)	Henry Davis	notation	→	the page draws a long arrow from max acceptable on its left to least acceptable on its right, over the scales of (43) and (79); the text layer renders each as a run of hyphens ending in →
 References	Henry Davis	notation	St’át’imcets-English	the page breaks the line after the hyphen, and the text layer holds a space there; the table joins it
 (78b)	Henry Davis	notation	x̌aƛ̓-s-Ø-twítas	the text layer has a space before -twítas that the page does not have
-all	Henry Davis	notation	Qvl	the van Eijk v and l of Qvl in (7) and (48) and of Qvláoka7lhkan in (91) are underlined on the page, marking the retracted letters; the text layer has no underline
+all	Henry Davis	notation	Qvl	the van Eijk v and l of Qvl in (7) and (48) and of Qvláoka7lhkan in (91) are underlined on the page, marking the retracted characters; the text layer has no underline
 all	Henry Davis	notation	bold	the page sets some forms in bold, among them the infinitival clauses of (90)-(92), and the text layer carries no bold
 all	Henry Davis	notation	< PDEN >	the gloss tiers of (9) and (14) have < PDEN >, and those of (36) and (69b) have <PDEN >, spaces as printed
 all	Henry Davis	notation	ət	the segmentation of (18), (28), (32), (34), (74), (77) and others writes <qʷm>ət with no hyphen where the gloss tier has -CHA
-all	Henry Davis	notation	* # ?? */√	judgment marks stand before the van Eijk line on the page; the table puts them in the gloss column and leaves them out of the form
+all	Henry Davis	notation	* # ?? */√	judgment marks are before the van Eijk line on the page; the table puts them in the gloss column and leaves them out of the form
 all	Henry Davis	notation	segmentation	where a segmentation runs to a second line the text layer interleaves its lines with the gloss lines; the table joins each tier
 all	Henry Davis	notation	(Davis et al in prep.)	(90)-(92) and the introduction to (5)-(9) print et al without its period

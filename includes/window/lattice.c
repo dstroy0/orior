@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// lattice.c: the lattice's computing for the window: each lattice's points laid out in a slot of its own, seeded and
+// lattice.c: the lattice's computing for the window: each lattice's points arranged in a slot of its own, seeded and
 // the same every time; the loop of order the lattice moves through and its stage at a moment; each point moved by the
-// disorder where it stands, then shaded by it as a dot drawn where it stands; whether the loop moved enough between two
+// disorder where it is, then shaded by it as a dot drawn where it is; whether the loop moved enough between two
 // moments to be seen, and the soonest moment it next will. Its arithmetic is the C library's and its memory the
 // cellblock's
 #include "lattice.h"
@@ -29,7 +29,7 @@ static double lattice_remainder(double value, double by)
 // the probes across and down at which the loop's change is read, and the least move of a point that shows
 #define LATTICE_PROBES 24u
 #define LATTICE_PROBE_COUNT ((LATTICE_PROBES + 1u) * (LATTICE_PROBES + 1u))
-#define LATTICE_STEP_SHOWN 0.25
+#define LATTICE_STEP_DISPLAYED 0.25
 
 // how far apart the loop is looked at for its next change, a display's frame at 60 a second, and how close the
 // moment found is to the first that shows, in seconds
@@ -65,7 +65,7 @@ static float s_lattice_probe_u[LATTICE_PROBE_COUNT];
 static float s_lattice_probe_v[LATTICE_PROBE_COUNT];
 static float s_lattice_loose_then[LATTICE_PROBE_COUNT];
 static float s_lattice_loose_now[LATTICE_PROBE_COUNT];
-static embed_u32 s_lattice_probes_laid;
+static embed_u32 s_lattice_probes_positioned;
 
 LatticeSlot *lattice_slot(embed_u32 slot)
 {
@@ -122,35 +122,35 @@ static double lattice_at_least_one(double value)
     return value > 1.0 ? value : 1.0;
 }
 
-// the spacing of the points, which lays eight times the points of the docs site's lattice in the same capacity
+// the spacing of the points, which positions eight times the points of the docs site's lattice in the same capacity
 static double lattice_step(void)
 {
     return 22.0 / __builtin_sqrt(3.0) / __builtin_sqrt(8.0);
 }
 
-// a share from -1 to 1 of a circle's radius as the signed byte that keeps it
+// a share from -1 to 1 of a circle's radius as the signed byte that retains it
 static embed_i8 lattice_offset(double share)
 {
     // a share from -1 to 1 rounds to a whole count within a signed byte's 127 either side of 0
     return (embed_i8)arith_floor(share * LATTICE_OFFSET_MAX + 0.5);
 }
 
-// the seed of the point at `row` and `column`, the same wherever the box it is laid out over ends
+// the seed of the point at `row` and `column`, the same wherever the box it is arranged over ends
 static embed_u32 lattice_seed_at(embed_u32 row, embed_u32 column)
 {
-    // the row and the column mixed into the lattice's seed, each by an odd constant, which keeps two points near
+    // the row and the column mixed into the lattice's seed, each by an odd constant, which retains two points near
     // each other from starting their draws alike
     return LATTICE_SEED ^ (row * 0x9e3779b1u) ^ (column * 0x85ebca77u);
 }
 
-embed_u32 lattice_lay(embed_u32 slot, double width, double height)
+embed_u32 lattice_position(embed_u32 slot, double width, double height)
 {
     if (slot >= LATTICE_SLOTS)
     {
         return 0u;
     }
     const double step = lattice_step();
-    // the points that stand inside the box each way are a whole count, at least one
+    // the points that are inside the box each way are a whole count, at least one
     const embed_u32 columns = (embed_u32)lattice_at_least_one(arith_floor((width - step / 2.0) / step) + 1.0);
     const embed_u32 rows = (embed_u32)lattice_at_least_one(arith_floor((height - step / 2.0) / step) + 1.0);
     const embed_u32 count = rows * columns;
@@ -275,7 +275,7 @@ void lattice_shaded(const LatticePens *pens, LatticeShades *shades)
 }
 
 // The disorder over the lattice with the loop at one moment: a plane over the place across and down, each from 0 to 1,
-// its slope across and down and its value at the top left, kept between `least` and 1
+// its slope across and down and its value at the top left, retained between `least` and 1
 typedef struct
 {
     double across;
@@ -321,7 +321,7 @@ static double lattice_loose(const LatticePlane *plane, double u, double v)
 }
 
 // the disorder at x, y of the plane read in the floats the points move in: its slopes `across` and `down`, its value
-// `start` at the top left, kept between `least` and 1
+// `start` at the top left, retained between `least` and 1
 static float lattice_loose_at(float across, float down, float start, float least, float x, float y)
 {
     const float plain = across * x + down * y + start;
@@ -398,7 +398,7 @@ embed_u32 lattice_dots_moved(LatticeSlot *lattice, double width, double height, 
 // the disorder at every probe at `seconds` into `out`, read as each dot's is
 static void lattice_probe(double seconds, float *out)
 {
-    if (s_lattice_probes_laid == 0u)
+    if (s_lattice_probes_positioned == 0u)
     {
         embed_u32 at = 0u;
         for (embed_u32 across = 0u; across <= LATTICE_PROBES; across += 1u)
@@ -410,7 +410,7 @@ static void lattice_probe(double seconds, float *out)
                 at += 1u;
             }
         }
-        s_lattice_probes_laid = 1u;
+        s_lattice_probes_positioned = 1u;
     }
     const LatticePlane plane = lattice_plane(lattice_stage(seconds));
     for (embed_u32 probe = 0u; probe < LATTICE_PROBE_COUNT; probe += 1u)
@@ -429,7 +429,7 @@ static embed_u32 lattice_probes_moved(double now)
     {
         const double was = s_lattice_loose_then[probe];
         const double is = s_lattice_loose_now[probe];
-        if (lattice_absolute(is * is - was * was) * LATTICE_REACH >= LATTICE_STEP_SHOWN)
+        if (lattice_absolute(is * is - was * was) * LATTICE_REACH >= LATTICE_STEP_DISPLAYED)
         {
             return 1u;
         }
@@ -444,10 +444,10 @@ embed_u32 lattice_shows(double then, double now)
 }
 
 // looked for LATTICE_LOOK apart and then halved to within LATTICE_LOOK_CLOSE of the first that shows
-double lattice_shown_after(double then, double from)
+double lattice_displayed_after(double then, double from)
 {
     lattice_probe(then, s_lattice_loose_then);
-    // the looks are whole steps through one loop, the most a change is ever looked for
+    // the looks are whole steps through one loop, the max a change is ever looked for
     const embed_u32 looks = (embed_u32)(LATTICE_LOOP / LATTICE_LOOK);
     double before = from;
     for (embed_u32 look = 0u; look <= looks; look += 1u)

@@ -32,7 +32,7 @@
   .wrap { max-width: 1180px; margin: 0 auto; padding-inline: 18px;
           padding-block: 26px 40px; display: flex; flex-direction: column; gap: 14px; }
   h1 { font-family: var(--sans-c); font-weight: 700; font-size: clamp(26px, 4.2vw, 40px);
-       letter-spacing: -0.015em; line-height: 1.05; margin: 0; color: var(--ink-strong);
+       character-spacing: -0.015em; line-height: 1.05; margin: 0; color: var(--ink-strong);
        text-wrap: balance; }
   .sub { max-width: 68ch; margin: 0; color: var(--dim); }
   .sub b { color: var(--ink); font-weight: 500; }
@@ -48,7 +48,7 @@
               padding: 8px 12px; border-bottom: 1px solid var(--edge); background: var(--panel-2);
               flex-wrap: wrap; }
   .box-title { font-family: var(--sans-c); font-weight: 600; font-size: 11.5px;
-               letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-strong); }
+               character-spacing: 0.1em; text-transform: uppercase; color: var(--ink-strong); }
   .box-note { font-family: var(--mono); font-size: 10.5px; color: var(--dim); }
 
   .bytes { display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 2px;
@@ -83,14 +83,14 @@
   .scroller { overflow-x: auto; }
   th, td { text-align: left; padding: 7px 11px; border-bottom: 1px solid var(--edge);
            vertical-align: top; }
-  th { font-family: var(--sans-c); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  th { font-family: var(--sans-c); font-size: 10px; character-spacing: 0.1em; text-transform: uppercase;
        color: var(--dim); font-weight: 600; white-space: nowrap; }
   td.what { min-width: 240px; }
   td.val { font-family: var(--mono); font-size: 12.5px; color: var(--ink-strong);
            white-space: nowrap; font-variant-numeric: tabular-nums; }
   td.nul { font-family: var(--mono); font-size: 11.5px; color: var(--dim); }
   td.src { font-family: var(--mono); font-size: 10.5px; color: var(--dim); white-space: nowrap; }
-  .pill { font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  .pill { font-family: var(--mono); font-size: 10px; character-spacing: 0.06em; text-transform: uppercase;
           padding: 2px 7px; border: 1px solid currentColor; white-space: nowrap; }
   .pill.tilted { color: var(--tilted); } .pill.level { color: var(--level); }
   .pill.marginal { color: var(--marginal); }
@@ -104,7 +104,7 @@
   <header style="display:flex;flex-direction:column;gap:11px">
     <h1>Eighty Bytes, Annotated</h1>
     <p class="sub">Every constant measured in this work is a statement about a particular run of
-      bytes in the block header, so they are laid on the header itself. Click a field to see what
+      bytes in the block header, so they are positioned on the header itself. Click a field to see what
       was found there — and <b>each reading carries the floor chance gives on the same statistic</b>,
       because a number without its null is not a result.</p>
     <div class="tallies" id="tallies"></div>

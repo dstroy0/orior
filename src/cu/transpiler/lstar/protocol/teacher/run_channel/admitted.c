@@ -1,14 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // admitted.c: the admission: a gated question's conference of cross, gate and record, the round checked, the carrier's
-// output handed, one question traced and queried
+// output passed, one question traced and queried
 #include "run_channel_internal.h"
 #include "../../../../../../../includes/parsers/line_read.h"
 
 // The conferences the gate calls for the round the airlock last read: each question of `questions` from `first` to
 // `count` whose answer the pop gave is a block under the key rule (RUN_GATE_KEY_RULE), read against what the cross
 // read clear (RUN_AIRLOCK_READ) by its answers' stem, its probe place or every instruction of a question read whole.
-// Where the cross read any of it clear, the accounts are handed, the cross's, the gate's and the record's, and the
+// Where the cross read any of it clear, the accounts are passed, the cross's, the gate's and the record's, and the
 // conference convened for each encoding (overseer_admission): each admitted is a lesson the carrier loads (--lessons),
 // and the question is put as the round is carried; every other stays blocked. Each is traced. The count of lessons
 // taught that the run did not block
@@ -34,7 +34,7 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
         run_channel_named(at, alone, code_name, cases_name, answers_name);
         VerbaLinea stem_line = {stem, sizeof(stem), 0ull};
         mmgr_line_put(&stem_line, RUN_AIRLOCK_ANSWERS);
-        mmgr_line_put_most(&stem_line, answers_name, strcspn(answers_name, "."));
+        mmgr_line_put_max(&stem_line, answers_name, strcspn(answers_name, "."));
         mmgr_line_finish(&stem_line);
         VerbaLinea popped_line = {popped, sizeof(popped), 0ull};
         mmgr_line_put(&popped_line, RUN_AIRLOCK_ANSWERS);
@@ -51,7 +51,7 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
         }
         char verdict[160];
         VerbaLinea verdict_line = {verdict, sizeof(verdict), 0ull};
-        mmgr_line_put_most(&verdict_line, (const char *)answer, (answer_size < 159ull) ? answer_size : 159ull);
+        mmgr_line_put_max(&verdict_line, (const char *)answer, (answer_size < 159ull) ? answer_size : 159ull);
         mmgr_line_finish(&verdict_line);
         verdict[strcspn(verdict, "\r\n")] = '\0';
         if (!run_channel_key_gated(verdict))
@@ -143,7 +143,7 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
             unsigned long long high = 0ull;
             char text[400];
             VerbaLinea text_line = {text, sizeof(text), 0ull};
-            mmgr_line_put_most(&text_line, line + stem_length + 1u, length - stem_length - 1u);
+            mmgr_line_put_max(&text_line, line + stem_length + 1u, length - stem_length - 1u);
             mmgr_line_finish(&text_line);
             const char *at = text;
             if (!line_word(&at, operation, sizeof(operation)) || !line_number(&at, 1, &low) || !line_number(&at, 1, &high))
@@ -186,7 +186,7 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
 // fixed where a count of registers fixes it: through the airlock, then each question its cross refuses only for
 // registers past the count its kernel allots given the count that clears it, the round listed again and read again,
 // until no question is given one; every refusal and every count given traced (run_channel_raised). The reading again
-// ends: a count only rises, and to at most what a kernel allots a thread. 1 where the round may be carried, 0 with why
+// ends: a count only rises, and to at max what a kernel allots a thread. 1 where the round may be carried, 0 with why
 // in `refused`, which has room for `room`
 int run_channel_checked(RunQuestion *const *questions, unsigned int first, unsigned int count, int alone, char *refused,
                         size_t room)
@@ -217,9 +217,9 @@ int run_channel_checked(RunQuestion *const *questions, unsigned int first, unsig
     }
 }
 
-// How the carrier ended and what it wrote, handed as carrier.txt: a line that names its ending, then its output. A
+// How the carrier ended and what it wrote, passed as carrier.txt: a line that names its ending, then its output. A
 // panic where the carrier did not end clean, the carrier losing its mind: its ending is the record of it
-void run_channel_output_handed(const InterfaceAnswer *answer)
+void run_channel_output_passed(const InterfaceAnswer *answer)
 {
     const int clean = (answer->ending == INTERFACE_ENDING_EXITED) && (answer->code == 0ull);
     const unsigned long long copied = (answer->output_bytes < (sizeof(s_carrier_output) - 1u))
@@ -242,7 +242,7 @@ void run_channel_output_handed(const InterfaceAnswer *answer)
 }
 
 // The teacher's trace, the path `teacher` (qry_member.h): a line for each question of `questions`, `count` of
-// them, handed to the run's trace: its identity, `how` it was answered, and what came of it, with why where it was not
+// them, passed to the run's trace: its identity, `how` it was answered, and what came of it, with why where it was not
 // answered. Where a panic is on the line, the lines are a panic's, and always reach the run
 void run_channel_traced(RunQuestion *const *questions, unsigned int count, const char *how)
 {
@@ -252,14 +252,14 @@ void run_channel_traced(RunQuestion *const *questions, unsigned int count, const
     {
         return;
     }
-    // a line is at most its identity, `how`, an outcome and a refusal; the trace is handed whenever the room left
+    // a line is at max its identity, `how`, an outcome and a refusal; the trace is passed whenever the room left
     // could not take one more
-    const unsigned long long line_most = 96ull + 64ull + sizeof(questions[0]->refused) + 256ull;
+    const unsigned long long line_max = 96ull + 64ull + sizeof(questions[0]->refused) + 256ull;
     static char s_trace_bytes[RUN_TRACE_ROOM];
     VerbaLinea text = {s_trace_bytes, sizeof(s_trace_bytes), 0ull};
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if ((text.capacity - text.at) <= line_most)
+        if ((text.capacity - text.at) <= line_max)
         {
             qry_member_append("trace", text.out, text.at, priority);
             text.at = 0ull;
@@ -272,13 +272,13 @@ void run_channel_traced(RunQuestion *const *questions, unsigned int count, const
         mmgr_line_put(&text, "teacher: ");
         mmgr_line_put(&text, identity);
         mmgr_line_ch(&text, ' ');
-        mmgr_line_put_most(&text, how, 64ull);
+        mmgr_line_put_max(&text, how, 64ull);
         mmgr_line_put(&text, ": ");
         mmgr_line_put(&text, (outcome < (sizeof(s_outcomes) / sizeof(s_outcomes[0]))) ? s_outcomes[outcome] : "?");
         if (questions[at]->refused[0] != '\0')
         {
             mmgr_line_put(&text, ", ");
-            mmgr_line_put_most(&text, questions[at]->refused, sizeof(questions[at]->refused));
+            mmgr_line_put_max(&text, questions[at]->refused, sizeof(questions[at]->refused));
         }
         mmgr_line_ch(&text, '\n');
     }

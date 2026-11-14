@@ -17,7 +17,7 @@ calls cheap is diagonal in degree because it commutes with the Laplacian:
     conduction   exp(-l(l+1) tau)       one number per degree, the heat semigroup
     rotation     an isometry            acts WITHIN a degree, never across
     parity       (-1)^l                 one sign per degree
-    truncation   a projection           keeps whole degrees or drops them
+    truncation   a projection           retains whole degrees or drops them
 
 So the layers do not mix, and that is not a happy accident: it is the reason the whole chain
 collapses to L+1 gains and costs nothing. ONLY TRANSLATION MIXES DEGREES, and this tree avoids
@@ -174,7 +174,7 @@ def _report():
         print("")
 
     print("  THE LAYERS HOLD FOR EVERY CHEAP OPERATOR AND BREAK FOR THE ONE THAT IS NOT CHEAP.")
-    print("  Identity, rotation and parity keep every degree's power inside its own degree, to the")
+    print("  Identity, rotation and parity retain every degree's power inside its own degree, to the")
     print("  arithmetic floor. Translation spreads it, and translation is the row this")
     print("  tree avoids. So 'unlike frequencies resist mixing' is not an analogy here, it is the")
     print("  reason the operator chain collapses to one number per degree and costs nothing.")

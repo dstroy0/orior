@@ -1,11 +1,11 @@
 # The orior app: roadmap
 
-What the window does not do yet, by area. Each item says what it gives the reader. Within an area, the items stand in the order they are to be built. Under an item, each note names a complaint people make of the tools that do the same work, and what orior does so the reader never makes it. What is done moves to [the completed roadmap](COMPLETED_ROADMAP.md).
+What the window does not do yet, by area. Each item says what it gives the reader. Within an area, the items are in the order they are to be built. Under an item, each note names a complaint people make of the tools that do the same work, and what orior does so the reader never makes it. What is done moves to [the completed roadmap](COMPLETED_ROADMAP.md).
 
 ## Responsiveness
 
-1. **A key in the next frame, whatever is open beside it.** A preview, a Vim mode or a slow laptop does not delay the letter typed.
-   - A preview beside the editor delays each letter, the two sharing a process, and a Vim mode adds a tenth of a second to every key ([typst-preview #245][45], [VSCodeVim #2021][46]). orior draws previews and plugins off the editor's thread, and its Vim keys are its own.
+1. **A key in the next frame, whatever is open beside it.** A preview, a Vim mode or a slow laptop does not delay the character typed.
+   - A preview beside the editor delays each character, the two sharing a process, and a Vim mode adds a tenth of a second to every key ([typst-preview #245][45], [VSCodeVim #2021][46]). orior draws previews and plugins off the editor's thread, and its Vim keys are its own.
    - The editor is slow to type, scroll and find on a low-powered laptop with extensions off ([Lightrun][47]).
    - Completion and analysis can come late or get in the way of editing. Typing and the caret's moves answer at once whether analysis has finished or not, and the test of it types and moves through a file while analysis is still running.
 
@@ -14,32 +14,32 @@ What the window does not do yet, by area. Each item says what it gives the reade
 1. **No one part can freeze the window.** A plugin's stored history or a list's source read on each key never holds up a frame.
    - The window freezes and a core is pinned by one extension's oversized history, and a list waits 1 to 2 s on each key ([Helge Klein][65]).
 2. **What is told sits at the edge of sight.** State shows quietly on the status bar and the gutter, and comes to the middle of the screen only when the reader must act.
-   - Calm design keeps most of what is told at the edge of attention, asks the least attention it can, and works even when it fails ([calm technology][66], [calmtech.com][67], [Fuzzy Math][68]).
+   - Calm design retains the majority of what is told at the edge of attention, asks the least attention it can, and works even when it fails ([calm technology][66], [calmtech.com][67], [Fuzzy Math][68]).
 3. **A light theme as well as a dark.** orior's look comes in a light ground for bright rooms and small text, beside its dark one, and can follow the light of the system.
    - Light text grounds read better for small text in good light, readers do not notice they do better, and a dark ground is easier in dim light ([NN/G][69], [TIDS 2025][70], [Gadget Hacks][71]).
-4. **The window says what made it slow.** A key, a frame or a command that runs past its budget is named on the status bar with the part that kept it, a plugin, a language server or the page's own work, and the memory and processor each part takes are one press away.
+4. **The window says what made it slow.** A key, a frame or a command that runs past its budget is named on the status bar with the part that retained it, a plugin, a language server or the page's own work, and the memory and processor each part takes are one press away.
    - A slow start, indexing, completion that drags, costly language servers and plugins that eat memory, with no way to see what takes the time; a feature that saves ten seconds later still angers where it adds a delay to every key. orior holds each key to its frame and names whatever runs past its budget.
    - Readers struggle to find which part causes a lag. Time and processor are put to each language server, plugin, index and piece of work behind, and the test of it slows each in turn and checks that the window names it.
    - "Why is indexing so slow" and "why is completion so slow" show the cost of the work and nothing of its cause.
 5. **Everything working behind, in sight.** The status bar lists each piece of work running behind the editor, what it is doing, what it costs and how far it has come, and any of it can be stopped; what the compiler decided and what an optimization cost are read beside the code they concern.
-   - Readers want transparency: background work, the compiler's decisions and the cost of an optimization kept hidden make them hate an IDE.
+   - Readers want transparency: background work, the compiler's decisions and the cost of an optimization retained hidden make them hate an IDE.
    - An IDE is to be deeply observable: the program's state, its data flow, the build's decisions, what each thing costs and what each change did, each open to the reader.
-   - "Why does it keep reloading" shows behavior that breaks what the reader expects. Each thing orior does again on its own says why, where it does it.
-   - IntelliJ's Maven auto-import, a question of some 47,000 views, shows three things at once: a behavior made automatic, its cost to the machine, and a way back not plain enough to keep the question from being asked ([JetBrains][484]); the switch was then taken away ([JetBrains][485]), and readers report it on after every box was cleared ([JetBrains][486]). Work orior does on its own, as reading a build file again, shows its cost where it runs and is turned off from there.
+   - "Why does it retain reloading" shows behavior that breaks what the reader expects. Each thing orior does again on its own says why, where it does it.
+   - IntelliJ's Maven auto-import, a question of some 47,000 views, shows three things at once: a behavior made automatic, its cost to the machine, and a way back not plain enough to retain the question from being asked ([JetBrains][484]); the switch was then taken away ([JetBrains][485]), and readers report it on after every box was cleared ([JetBrains][486]). Work orior does on its own, as reading a build file again, shows its cost where it runs and is turned off from there.
 
 ## Notices and messages
 
-1. **A notice never takes the keys.** A notice stands beside the work and waits; the field the reader types in keeps every letter.
-   - A notice takes the keys from the field one is typing in and the letters are lost ([Devolutions][72]).
-   - Notices pop up in the corner, pile over the work and take clicks, and a notice of weight is missed among many ([IntelliJ][73], [Asana forum][74], [libadwaita #242][75], [Genesys][76]). orior shows one notice at a time, keeps the rest in a list on the status bar, and never covers the line the caret is on.
+1. **A notice never takes the keys.** A notice is beside the work and waits; the field the reader types in retains every character.
+   - A notice takes the keys from the field one is typing in and the characters are lost ([Devolutions][72]).
+   - Notices pop up in the corner, pile over the work and take clicks, and a notice of weight is missed among many ([IntelliJ][73], [Asana forum][74], [libadwaita #242][75], [Genesys][76]). orior shows one notice at a time, retains the rest in a list on the status bar, and never covers the line the caret is on.
    - A setting for where notices show does nothing ([Cursor forum][77]). Each setting of orior's is tested to do what it says.
-2. **A plain No.** Every question orior asks can be answered No, and No is kept.
+2. **A plain No.** Every question orior asks can be answered No, and No is retained.
    - Prompts come with no plain No, asking to install tools the reader did not ask for ([Joel Dare][78]).
 3. **Errors in the reader's words, with the way out.** Each error orior shows says what happened and what to do next, in plain words, and neither praises nor blames.
-   - Anxiety peaks before error messages; messages are written in the programmer's words; an interface should neither praise nor condemn, and be plain, predictable and in the reader's hands ([Ewha thesis][79], [DTUI ch. 12][80], [UX Collective][81]).
+   - Anxiety peaks before error messages; messages are written in the programmer's words; an interface should neither praise nor condemn, and be plain, predictable and in the reader's passes ([Ewha thesis][79], [DTUI ch. 12][80], [UX Collective][81]).
    - Frustration costs a third to a half of the time spent at a computer ([Lazar et al.][82]).
-4. **A quiet mode, and each kind of help set apart.** One key quiets every hint, suggestion and notice for work without a break; each kind of help has its own switch and its own threshold, and the keys do the same whatever suggestions stand.
-   - Readers want suggestions on demand, a switch for each feature where one switch turns all of them, thresholds of their own for hints and warnings, and keys that act the same whichever suggestions are shown.
+4. **A quiet mode, and each type of help set apart.** One key quiets every hint, suggestion and notice for work without a break; each type of help has its own switch and its own threshold, and the keys do the same whatever suggestions are.
+   - Readers want suggestions on demand, a switch for each feature where one switch turns all of them, thresholds of their own for hints and warnings, and keys that act the same whichever suggestions are displayed.
    - Readers want flow: small interruptions, again and again, break concentration.
    - Help should take work away and not ask for attention.
    - Some readers want suggestions only when they ask. Suggestions that come on their own, those that follow from the context, and those asked for each have a setting of their own, and the test of it turns each on and off apart from the others.
@@ -48,11 +48,11 @@ What the window does not do yet, by area. Each item says what it gives the reade
 ## Tools
 
 1. **Databases at the speed of their own tools.** A query runs as fast as in the vendor's tool, its time is the server's, and the result shows whole.
-   - Queries quick in the vendor's tool are slow in the editor's, the task view says 300 s where the history says 0.8 s, columns of one name keep a result from showing, the schema is stale until refreshed by hand, and one does not know whether a query has run ([Oracle forum][83], [vscode-database-client][84], [DataGrip][85]). orior names columns of one name apart, reads the schema again when it changes, and marks each query's state.
+   - Queries quick in the vendor's tool are slow in the editor's, the task view says 300 s where the history says 0.8 s, columns of one name retain a result from showing, the schema is stale until refreshed by hand, and one does not know whether a query has run ([Oracle forum][83], [vscode-database-client][84], [DataGrip][85]). orior names columns of one name apart, reads the schema again when it changes, and marks each query's state.
    - A server of 600 databases makes the tool very slow ([DataGrip][86]). orior reads a database's tables only when it is opened.
-2. **A Markdown preview that scrolls with its text.** The preview keeps the same line in view as the text, past images and headings, at any speed, and shows local images from anywhere.
-   - The preview and text scroll apart where heights change, the preview jumps back when scrolled fast, and local images outside the folder are not shown ([vscode #64685][87], [Cursor forum][88], [DEV][89]).
-3. **Diagrams drawn as typed.** A Mermaid diagram half typed keeps its last good drawing, a node named with a kept word is drawn, and no browser starts.
+2. **A Markdown preview that scrolls with its text.** The preview retains the same line in view as the text, past images and headings, at any speed, and shows local images from anywhere.
+   - The preview and text scroll apart where heights change, the preview jumps back when scrolled fast, and local images outside the folder are not displayed ([vscode #64685][87], [Cursor forum][88], [DEV][89]).
+3. **Diagrams drawn as typed.** A Mermaid diagram half typed retains its last good drawing, a node named with a retained word is drawn, and no browser starts.
    - A node named end or subgraph fails, a diagram typed half way stalls the preview, and each render starts a browser ([asciidoctor-intellij][90]).
 4. **A live page that reloads as typed.** The live preview reloads as the text changes, for a file opened alone and a page with no head or body.
    - The page reloads only on save, not for a file opened alone or a page without a head or body, and the browser does not open ([Live Server][91], [kitemetric][92]).
@@ -68,17 +68,17 @@ What the window does not do yet, by area. Each item says what it gives the reade
 3. **Tracepoints as cheap as a print.** A tracepoint hit often does not slow the program, and counts calls and times a method.
    - A tracepoint hit often slows the program, and counting calls or timing a method is easy with a print and not with a tracepoint ([DZone][100], [Microsoft Learn][101]).
 4. **Suggestions only when the reader is between thoughts.** Unasked suggestions wait for a pause, and come less often as they are passed over.
-   - Unasked suggestions are felt as interruptions and load the mind; timing them by what the reader is doing and how often they are taken keeps the flow ([arXiv 2504.06808][102], [arXiv 2511.18842][103], [arXiv 2511.18849][104]).
+   - Unasked suggestions are felt as interruptions and load the mind; timing them by what the reader is doing and how often they are taken retains the flow ([arXiv 2504.06808][102], [arXiv 2511.18842][103], [arXiv 2511.18849][104]).
    - Interruptions not tied to the task break attention, and switching tasks loads the mind ([arXiv 1805.05504][105]).
 5. **A task taken up where it was left.** After a break, the window shows the last edit, the place the caret was, and the files the task touched, and nothing about it has moved.
    - The context as it was left aids the return and changing it slows it, and a cue to the last act or the next one cuts the lag after long breaks ([Hodgetts and Jones][106], [Trafton][107], [Hodgetts][108], [PMC][109]).
    - Gathering the methods a task touched from what the reader did lets the reader take the task up again ([Parnin and Görg][110]).
-6. **A trail of where the reader has been.** Each jump through the code is kept as a trail the reader can see and walk back along.
+6. **A trail of where the reader has been.** Each jump through the code is retained as a trail the reader can see and walk back along.
    - Readers lose their way through missing context of how they got somewhere, thrashing between views and side tasks ([de Alwis and Murphy][111], [Relo][112], [Code Bubbles][113]).
-   - Code laid out in space costs a different time in navigation than tabs ([arXiv 2304.09301][114]).
+   - Code arranged in space costs a different time in navigation than tabs ([arXiv 2304.09301][114]).
 7. **What the reader needs, inside the window.** A library's documentation, the build's errors and a tool's output are read in the window, beside the code they concern.
    - The mind is eased when the IDE holds what the reader needs and no switch is made; long output not of the tree adds load ([arXiv 2605.23135][115], [arXiv 2507.03156][116], [Code Compass][117]).
-   - Building a mental model of the code and settling into a new project are what frustrate developers most ([arXiv 1601.05330][118], [arXiv 1703.04993][119], [arXiv 1701.02952][120]). orior's file cards, outline and gathered lines are its way into a tree new to the reader.
+   - Building a mental model of the code and settling into a new project are what frustrate developers max ([arXiv 1601.05330][118], [arXiv 1703.04993][119], [arXiv 1701.02952][120]). orior's file cards, outline and gathered lines are its way into a tree new to the reader.
 8. **A change tried without fear.** Any edit, refactoring or command can be undone the same way everywhere, and a refactoring shows its result before it is made.
    - Knowing an error can be undone lets the reader explore, but undo that differs from place to place is not trusted ([Shneiderman][121], [Dix][122], [Dix][123], [Glimpse][124], [CHI 2023][125]).
    - Readers copy code and leave the original alone for fear of breaking the system ([ICSE 2012][126]).
@@ -86,7 +86,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Liveness changes how developers move through code, and running code as it is written checks it ([Kubelka et al.][127], [arXiv 1807.08578][128], [arXiv 2306.09541][129], [SEEDE][130]).
 10. **A review without bias.** A change under review shows its parts by what they change, with the writer's name out of sight.
     - Code review aids can take bias out of review ([arXiv 2407.01407][131]).
-11. **A function understood in one place.** The callers, the callees and the types a function reaches stand beside it in a view of their own, which opens no tab and leaves none behind.
+11. **A function understood in one place.** The callers, the callees and the types a function reaches are beside it in a view of their own, which opens no tab and leaves none behind.
     - Tabs that pile up, names whose origin is not plain, and twenty files opened to understand one function. orior's view of a function follows its calls in place and closes clean.
 12. **Data traced from input to output.** A value is followed from where it enters the program to every place it reaches, and an edit shows what it changes elsewhere: the calls, the tests and the files it reaches.
     - Readers want the IDE to trace data from input to output, explain chains of calls, and show an edit's consequences elsewhere.
@@ -94,9 +94,9 @@ What the window does not do yet, by area. Each item says what it gives the reade
     - Automated changes widen a small edit into a large rewrite, and nothing says what rule made them or whether behavior changed.
     - Readers want trust: a refactoring or a quick fix that silently breaks something loses it.
     - Readers want confidence: an IDE that calls a change safe without showing the evidence earns none. orior shows the checks a change passed beside it.
-    - Correctness comes before cleverness: an automated change keeps the behavior intended, and checking that it does is made easy.
+    - Correctness comes before cleverness: an automated change retains the behavior intended, and checking that it does is made easy.
     - "How do I undo an automatic refactoring" shows a change made unasked or hard to take back.
-14. **A key says what it does here.** Where one key does different things in different places, the key's hint says what it will do where the caret stands, before it is pressed.
+14. **A key says what it does here.** Where one key does different things in different places, the key's hint says what it will do where the caret is, before it is pressed.
     - Readers want predictability: the same key doing different things in different contexts makes them hate an IDE.
 
 ## Plugins
@@ -110,30 +110,30 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - The elevated save asks for the password then fails, asks again and saves nothing, or the dialog never opens ([Arch forum][134], [Arch bugs][135], [NixOS][136]).
 2. **Keys on every layout.** Keys follow the layout in use now, the system's remaps, layouts such as Neo, and any key of a national layout.
    - Shortcuts follow the layout the editor started with, remaps are not followed, Neo does not work, a national key cannot be bound, and another program takes a key ([vscode #17521][137], [vscode wiki][138], [GitLab][139]). orior says which program holds a key it cannot have.
-3. **Settings carried, the machine's own kept.** What is carried merges with what is this machine's, and a setting holding a local path stays on its machine.
+3. **Settings carried, the machine's own retained.** What is carried merges with what is this machine's, and a setting holding a local path stays on its machine.
    - Replacing local settings with those carried wipes the machine's own, a local path breaks the others, and merges fail with errors ([VS Code][140], [SonarLint][141], [code-settings-sync #396][142]).
 4. **No plugin's network unasked.** A plugin reaches the network only when the reader allows it, and every request is listed.
    - The editor asks for its experiments with experiments off, extensions send their own data whatever the setting, and a request is made as the editor opens ([vscode PR #104293][143], [code-server #5821][144]).
-5. **A catalog to trust.** A plugin is checked before it is listed, its rights are shown, it updates only when the reader says, and one reported bad is gone at once.
+5. **A catalog to trust.** A plugin is checked before it is listed, its rights are displayed, it updates only when the reader says, and one reported bad is gone at once.
    - A publisher is verified by owning a cheap domain, a typosquat was verified and sent the machine's details away, few publishers are verified, a malicious extension stays listed for weeks, and a taken-over extension updates everyone ([BleepingComputer][145], [Cybersecurity News][146], [Koi][147]).
 6. **Text in any direction.** Right-to-left text shows its words in order with the caret where it is, and punctuation on its own side.
    - Right-to-left text shows words in the wrong order and the caret in the wrong place, and a stylesheet that forces left to right breaks Hebrew and Arabic ([Geany][148], [GIMP #416][149]).
 7. **One color for one meaning, in every language.** A theme colors a variable the same in every language, by its meaning.
-   - The same variable takes five colors in five languages, and extensions lay their own colors over the theme's ([VS Code][150], [OCaml][151], [Eva Theme][152]).
+   - The same variable takes five colors in five languages, and extensions position their own colors over the theme's ([VS Code][150], [OCaml][151], [Eva Theme][152]).
 8. **A tree's settings that add to the reader's.** A tree's setting changes only what it names, and the window says which settings come from the tree.
    - A tree's setting replaces the reader's whole, and a setting committed with a tree silently changes each developer's editor ([Sourcegraph][153], [nomad-FAIR][154]).
    - Settings that touch the whole window are ignored in a window of several trees, and which layer wins is not plain ([VS Code][155], [openclaw][156]).
    - "How do I configure formatting for one project" can show controls that are not plain, or a setting rightly the reader's own. A tree's setting is set where the tree is open, and the window says which settings are the tree's.
 9. **Packages for Linux that reach the system.** Every package of orior's reaches the system's shell, toolchains and container socket, with its terminal and debugger at work.
    - The sandboxed package cannot reach the shell, SDKs or Docker, and its terminal, containers and debugger fail ([Flathub #370][157], [DEV][158], [vscode-cpptools #1550][159]).
-10. **An update that changes nothing of the reader's.** An update keeps every key, pane, setting and plugin as the reader left them, and nothing changes without one.
+10. **An update that changes nothing of the reader's.** An update retains every key, pane, setting and plugin as the reader left them, and nothing changes without one.
     - Updates change keys, the layout and the sidebar without asking, the window changes from the server with no update, and an update wipes plugins, settings, keys and history ([Cursor forum][160], [Cursor forum][161], [Cursor forum][162], [Antigravity][163]).
     - An update took away the reader's toolbars and settings ([IntelliJ][164]).
     - Each major release brings regressions, and small annoyances pile on ([IntelliJ][165]). Every interaction of orior's is walked by the harness before a release.
     - Readers want control: an IDE that changes its behavior without their leave is one they come to hate.
     - "How do I get back the old layout" shows a way of working lost to a change. Every change to the window's layout can be put back, from where it was made.
-11. **orior's files, read and carried as files.** orior keeps every setting and state in plain files in one folder, the same on every system, that any backup reads.
-    - Settings, state and plugins sit in different folders on each system, state is kept in a database backups cannot carry, and importing fails on a missing database ([VS Code][166], [Cursor forum][167], [Cursor forum][168], [codegenes][169]).
+11. **orior's files, read and carried as files.** orior retains every setting and state in plain files in one folder, the same on every system, that any backup reads.
+    - Settings, state and plugins sit in different folders on each system, state is retained in a database backups cannot carry, and importing fails on a missing database ([VS Code][166], [Cursor forum][167], [Cursor forum][168], [codegenes][169]).
 
 ## Getting set up to work
 
@@ -153,26 +153,26 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Code intelligence
 
-1. **The tree's own symbols first.** Symbols of the tree stand above those of its dependencies, one slow server does not hold up the list, and the list fills before a file is opened.
+1. **The tree's own symbols first.** Symbols of the tree are above those of its dependencies, one slow server does not hold up the list, and the list fills before a file is opened.
    - One slow server holds up the list, dependencies flood one's own symbols, and the list is empty until a file is opened ([vscode #105870][191], [Go #37236][192], [Go #66523][193]).
 2. **Refactorings that do not fail.** Rename, Extract Function and Change Signature work where a server cannot, and say why where they cannot.
    - Rename says it cannot rename, fails in a file with asserts, and Extract Method takes the wrong lines ([python-language-server #1393][194], [#2057][195], [Unity][196]).
    - Extract Function refuses a fragment with more than one output, misses parameters so the result does not compile, does not find calls repeated with other values, and shows nothing at the top level ([IntelliJ][197], [ReSharper][198], [Industrial Logic][199], [PyCharm][200]). orior gives back several outputs together and finds the same lines elsewhere.
-   - Change Signature fails where a function carries a contract, and an overload kept for old calls can make calls ambiguous ([IntelliJ][201]). orior checks every call still names one function before it changes them.
-3. **Problems of the whole tree, kept true.** Problems show for every file of the tree, and those of a file closed or mended go at once.
+   - Change Signature fails where a function carries a contract, and an overload retained for old calls can make calls ambiguous ([IntelliJ][201]). orior checks every call still names one function before it changes them.
+3. **Problems of the whole tree, retained true.** Problems show for every file of the tree, and those of a file closed or mended go at once.
    - Problems show only for open files, the whole tree's are paid in one extension, and a closed file's problems stay ([DEVSENSE][202], [ruff][203]).
-4. **No false red.** What orior marks as an error is one the build gives, and no cache to clear stands between them.
+4. **No false red.** What orior marks as an error is one the build gives, and no cache to clear is between them.
    - False errors stay for weeks until a restart, unused checks flag what is used, the build server finds errors the IDE does not, syntax errors cannot be asked for alone, and suppressions add their own noise ([IntelliJ][204], [IntelliJ][205], [IntelliJ][206], [GitLab][207]).
    - Red marks over code that builds, mended by clearing caches only for a while and at a quarter of an hour each time ([IntelliJ][208], [IntelliJ][209], [Rider][210]).
 5. **Every caller found.** The call hierarchy holds every call a text search finds, through function pointers too.
    - The list of callers is empty where a text search finds many, and calls through pointers are missing ([NXP][211], [Polyspace][212]).
    - Finding references is unreliable ([r/Unity3D][213]). orior adds the text's own matches to the server's, marked apart.
-6. **Types that read as hints.** Types written in the text are plainly not code, keep line heights even, and go at once when turned off.
+6. **Types that read as hints.** Types written in the text are plainly not code, retain line heights even, and go at once when turned off.
    - Hints are hard to tell from code, make heights uneven, distract, do not clear when turned off, and the toggle was taken away ([users.rust-lang.org][214], [users.rust-lang.org][215], [users.rust-lang.org][216], [rust-analyzer #3924][217]).
 7. **One mark for one mistake.** A mistake shows once, plainly, and many warnings do not clutter the lines.
    - The squiggle is easy to miss, inline messages clutter a file of many warnings, one mistake gives several marks, and marks for every hint are too much ([Error Lens #206][218], [yzhums][219]).
-   - Debugging for those new to it valued finding where an error is most ([arXiv 2509.21067][220]).
-8. **Colors that hold while typing.** A line half typed keeps the colors of the file around it.
+   - Debugging for those new to it valued finding where an error is max ([arXiv 2509.21067][220]).
+8. **Colors that hold while typing.** A line half typed retains the colors of the file around it.
    - A parser's error nodes paint half the file red as one types, and a grammar's bug miscolors a whole language ([Nord #269][221], [emacs-devel][222], [jez.io][223]).
 9. **Structural search for every language.** A pattern can say read or write, starts from the code selected, and works in every language orior colors.
    - A pattern cannot say read or write, templates are hard to start from, and few languages are searched ([IntelliJ][224], [IntelliJ][225]).
@@ -184,32 +184,32 @@ What the window does not do yet, by area. Each item says what it gives the reade
     - Generated docstrings are left unformatted, types beyond the simple ones are written wrong, and types in the docstring break a renderer that adds them ([SiLA2 #6][232], [mkdocstrings #57][233], [sphinx-autodoc-typehints #281][234]).
 13. **Mistakes told as they are typed.** What the compiler would say shows as the line is typed, before a build.
     - Mistakes are told only when the compiler runs ([cplusplus.com][235], [SD Times][236]).
-14. **The tree understood once, and read again only where it changed.** What orior knows of the whole tree is kept between starts, and a change is read again in the files it touches alone: navigation and problems stay true while no file is analyzed twice for nothing.
-15. **SonarQube's analysis of every language the tree is written in.** The SonarQube plugin analyses each language orior's own tree holds, in the order orior uses them: C, C++ and CUDA through the CFamily analyzer, fetched as the extension fetches it; Rust through the community Rust plugin on the server; shell through the community ShellCheck plugin on the server; and R, Octave and PowerShell, for which SonarQube has no analyzer, through their own checkers, lintr, the Octave parser and PSScriptAnalyzer, their findings shown beside SonarQube's in the findings panel.
+14. **The tree understood once, and read again only where it changed.** What orior knows of the whole tree is retained between starts, and a change is read again in the files it touches alone: navigation and problems stay true while no file is analyzed twice for nothing.
+15. **SonarQube's analysis of every language the tree is written in.** The SonarQube plugin analyses each language orior's own tree holds, in the order orior uses them: C, C++ and CUDA through the CFamily analyzer, fetched as the extension fetches it; Rust through the community Rust plugin on the server; shell through the community ShellCheck plugin on the server; and R, Octave and PowerShell, for which SonarQube has no analyzer, through their own checkers, lintr, the Octave parser and PSScriptAnalyzer, their findings displayed beside SonarQube's in the findings panel.
    - The language server runs JavaScript, TypeScript, Python, Java, C#, Go, PHP, HTML, XML, secrets and infrastructure files today. C and C++ wait on the CFamily analyzer, which SonarQube for IDE downloads on the first C or C++ file and verifies against the signature it ships; Rust and shell have analyzers only for the server, so their findings come from a scan of the tree, as the duplications do; R, Octave and PowerShell have none.
-    - Knowing the whole tree is of great use, and it can take much of the machine. The test of it checks that a definition and a problem are found as before while the work done after a change is measured and kept to the files the change reaches.
+    - Knowing the whole tree is of great use, and it can take much of the machine. The test of it checks that a definition and a problem are found as before while the work done after a change is measured and retained to the files the change reaches.
 
 ## Languages and formatting
 
-1. **One formatter, the one the tree uses.** Format on save runs the tree's formatter and no other, formats only the lines changed when asked, and keeps the tree's line endings.
+1. **One formatter, the one the tree uses.** Format on save runs the tree's formatter and no other, formats only the lines changed when asked, and retains the tree's line endings.
    - Format on save runs a formatter other than the one expected, formatting only lines changed breaks, and line-ending conversion makes every save a change ([vscode #146910][237], [prettier-vscode #638][238], [israynotarray][239]).
    - A linter and a formatter rewrite what the other wrote, a loop on every save ([typescript-eslint][240], [Josh Goldberg][241], [Lightrun][242], [devplaybook][243]). orior runs them in one order once, and names a rule that undoes another.
-   - Black keeps a collection one item a line by a trailing comma, and equal code then formats differently, and another formatter collapses what Black keeps open ([black #2135][244], [black #1941][245], [ruff #1200][246]).
+   - Black retains a collection one item a line by a trailing comma, and equal code then formats differently, and another formatter collapses what Black retains open ([black #2135][244], [black #1941][245], [ruff #1200][246]).
    - "Disable ALL Auto Formatting on Save" gathered 26 answers: readers tried settings, met formatting a formatter does of its own, and in the end bound Save to Save Without Formatting ([CodeGenes][482]). orior's one switch for formatting on save stops every formatter's, its own and each plugin's.
-   - A reader wants formatting for most files and none for Markdown, a question of more than 11,000 views ([Classmethod][483]). orior takes a language out of formatting in one place, beside the switch for all.
+   - A reader wants formatting for max files and none for Markdown, a question of more than 11,000 views ([Classmethod][483]). orior takes a language out of formatting in one place, beside the switch for all.
    - "How do I stop reformatting my code" shows an interruption that comes back on each save.
    - IntelliJ's question of how to turn formatting off has some 55,000 views over more than ten years, its answers giving several ways to turn it off or narrow it ([JetBrains][487], [JetBrains][488]).
 2. **Every environment of the tree found.** A new environment, one in a subfolder, and conda's are found as they appear.
    - A new environment is not found until refreshed, one outside the paths searched is missed, conda's are missing off the PATH, and a conda environment in the tree errors ([VS Code][247], [vscode-python #24640][248], [#12164][249]).
-   - Too many tools do one job, and the active environment must be kept in mind ([Chris Warrick][250], [Pinecone][251], [KDnuggets][252]). orior shows the environment in use on the status bar.
-3. **Checkers that keep up.** A linter's mark goes the moment the error is mended, and a type checker runs on what changed and leaves the rest.
+   - Too many tools do one job, and the active environment must be retained in mind ([Chris Warrick][250], [Pinecone][251], [KDnuggets][252]). orior shows the environment in use on the status bar.
+3. **Checkers that retain up.** A linter's mark goes the moment the error is mended, and a type checker runs on what changed and leaves the rest.
    - Messages update seconds after the save, and mypy on every save takes much of the machine ([Lightrun][253], [vscode-mypy][254]).
 4. **JSON and YAML by the right schema.** A file is checked by the schema it names, and YAML too, as the schema's own tool checks it.
    - A schema is matched to the wrong file, a valid file fails, a $schema is refused, and YAML is not checked without an extension ([vscode-yaml #397][255], [F5][256]).
 5. **Build files read whole.** Every source gets the settings of its target, a compiler the build tool does not know is read too, and the commands are read again when the environment changes.
    - An unknown compiler makes the tool ignore every setting, a source outside a target gets none, commands go stale, and a file whose includes cannot be found is not checked ([vscode-cmake-tools #1096][257], [fvdb][258], [VS Code][259]).
    - CMake's generated files call back into cmake, there is no help with outside dependencies, and a release changes behavior ([annoying build systems][260], [cmake-developers][261], [curl][262]). orior names the CMake version a tree needs.
-6. **Python kept in little memory.** Code help for a large package stays under a set memory, typing in a long file does not pin a core, and definitions answer at once.
+6. **Python retained in little memory.** Code help for a large package stays under a set memory, typing in a long file does not pin a core, and definitions answer at once.
    - The server passes 2 GB and must be restarted, a file over 1,000 lines pins a core, and a definition takes 60 s ([Genesys][263], [vscode-python #25357][264], [NVIDIA][265], [Cursor forum][266]).
 7. **Compiler errors cut to the line that matters.** A long error is folded to its cause, with the rest a press away.
    - Compiler errors confuse, and a template error is eighty lines to search; readers take a message that says how to mend it ([NSF study][270], [gcc-help][271], [D #7768][272], [GameDev.net][273]).
@@ -224,8 +224,8 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Ctrl moves where it should copy on Linux, a dragged file arrives as a link, and drops into a remote tree fail ([CachyOS][280], [XYplorer][281]).
 3. **One switch says what is left out.** One list says what the explorer and search leave out and why, and a result left out names the rule that left it.
    - Files git ignores are left out with that turned off, switches overlap, and nested ignore files are not followed ([vscode #188273][282], [vscode wiki][283], [Cursor forum][284]).
-   - Which list hides a result is the most common reason one is missing, patterns set for the tree stop working, and too many patterns pass the command-line length ([vscode wiki][285], [Cursor forum][286], [bobbyhadz][287]).
-4. **Breadcrumbs that keep the editor still.** The bar holds its line between tabs, and a deep path scrolls.
+   - Which list hides a result is the usual reason one is missing, patterns set for the tree stop working, and too many patterns pass the command-line length ([vscode wiki][285], [Cursor forum][286], [bobbyhadz][287]).
+4. **Breadcrumbs that retain the editor still.** The bar holds its line between tabs, and a deep path scrolls.
    - The bar moves the editor between tabs, and a deep path cannot be scrolled ([DEV][288], [IntelliJ][289], [Cursor forum][290]).
 5. **A file in an archive saved back.** A file changed inside an archive is written back into it.
    - A file changed inside an archive cannot be saved back ([Zip Editor][291], [IntelliJ][292]).
@@ -234,7 +234,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 1. **Macros that record everything.** A macro records a find with its key and every press on a button, menu, popup or dialog.
    - A macro does not record a find with its key nor presses on buttons, menus or dialogs ([Sublime forum][293], [IntelliJ][294]).
-2. **Undo of a block, kept with the file.** Undo can be of the lines selected, edits that change nothing do not fill it, and it is kept when the window closes.
+2. **Undo of a block, retained with the file.** Undo can be of the lines selected, edits that change nothing do not fill it, and it is retained when the window closes.
    - A redo past an undo loses states, edits that do nothing fill the history, undo is of the whole file, and the history goes with the session ([undo-tree][295], [gitlab-vscode-extension #1824][296], [DEV][297]).
 3. **Vim's keys as fast as Vim.** Every Vim key answers in the frame, none lost or doubled while completion shows, and none in conflict with orior's own.
    - Every key is slower, keys are lost or doubled while completion shows, motions are unusable, and Vim's keys conflict with the editor's ([VSCodeVim #8603][298], [Cursor forum][299]).
@@ -247,11 +247,11 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - A press past the end inserts spaces, virtual space comes on unasked, and padding lines is clumsy ([FastReport][307], [Notepad++][308], [Sublime forum][309]).
 7. **Indentation as set, and told.** The status bar says where a file's indentation comes from, and a setting the reader makes wins over a guess.
    - The guess overrides the settings, an extension changes tab size, a tree's settings override the reader's, and tab size does not behave as set ([vscode #41542][310], [#172171][311], [IntelliJ][312]).
-8. **Jump labels where the reader looks.** Labels stand on any character sought, on empty lines, on tabs and on the tree, drawn over the text and never written into it.
-   - Labels land on first letters only and in the wrong places, empty lines get none, labels written into the text break it, and tabs and the tree cannot be reached ([vscode-neovim][313], [VSCodeVim #2388][314], [jumpy2][315]).
-9. **Characters not drawn, marked with care.** Zero-width characters are shown, and the parts of an emoji are not marked.
+8. **Jump labels where the reader looks.** Labels are on any character sought, on empty lines, on tabs and on the tree, drawn over the text and never written into it.
+   - Labels land on first characters only and in the wrong places, empty lines get none, labels written into the text break it, and tabs and the tree cannot be reached ([vscode-neovim][313], [VSCodeVim #2388][314], [jumpy2][315]).
+9. **Characters not drawn, marked with care.** Zero-width characters are displayed, and the parts of an emoji are not marked.
    - Zero-width characters break code unseen, and marking all outside ASCII marks the parts of an emoji flag ([israynotarray][316], [zed #19846][317], [vscode-gremlins][318]).
-10. **Closing brackets that read the line.** A closing bracket or quote is added only where one is missing, typed over where it stands, and one switch turns it off for every language.
+10. **Closing brackets that read the line.** A closing bracket or quote is added only where one is missing, typed over where it is, and one switch turns it off for every language.
     - Brackets and quotes are inserted blind to the line, quotes double in markup, the setting does not stop it for every language, and the completion list takes the Enter meant for a new line ([KDE #308614][319], [NetBeans #262685][320], [NetBeans #205881][321], [IntelliJ][322], [Eclipse][323], [SmartBear][324]). orior's list takes Tab, and Enter only when the reader has moved in the list.
 11. **Completion that never takes the edit.** A suggestion is plainly a suggestion until it is taken; Enter and Tab do what they always do unless the reader has moved into the list; one Escape puts it away; it puts in the word asked for and not a block; and how eagerly it comes is the reader's to set.
     - Suggestions come too eagerly, take the keys, change what Enter or Tab does, or put in a large block where one word was wanted, and the reader loses hold of the edit.
@@ -260,8 +260,8 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Version control
 
-1. **Branches that keep their changes.** Switching branches keeps each branch's changes not committed with it, with no stash by hand.
-   - A switch is refused until the tree is clean, and changes are not kept with their branch ([bobbyhadz][325], [IntelliJ][326]).
+1. **Branches that retain their changes.** Switching branches retains each branch's changes not committed with it, with no stash by hand.
+   - A switch is refused until the tree is clean, and changes are not retained with their branch ([bobbyhadz][325], [IntelliJ][326]).
 2. **A three-way merge with its base.** A conflict shows the base beside both sides, and each action shows the result before it is taken.
    - The merge editor has no base pane, Accept Both may not build, and the actions give no sign of the result ([VS Code][327], [DEV][328], [Kaleidoscope][329], [IntelliJ][330]).
 3. **Any lines into a commit.** Any lines of a hunk staged in part can be staged further, in the diff and the editor.
@@ -270,14 +270,14 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Ignoring whitespace leaves a mixed hunk noisy, and one mode is all there is ([pierre #734][333], [IntelliJ][334]).
 5. **A commit graph of any size.** The graph of a repository of hundreds of thousands of commits scrolls at the display's rate from the first frame.
    - The graph loads slowly and takes the processor, readers turn off parts to bear it, and it freezes on 40k commits ([neo-git-graph][335], [Cursor forum][336], [GitKraken][337]).
-6. **Blame that is quiet and quick.** A line's blame shows after the caret rests, from one read kept, never a git spawned on save.
+6. **Blame that is quiet and quick.** A line's blame shows after the caret rests, from one read retained, never a git spawned on save.
    - Blame distracts when at once and is slow when it waits, spawned a git on every save, and the tool is heavy and in part paid ([HN][338], [GitLens v17][339], [gitconnected][340]).
 7. **Every stash, and cherry-pick in the graph.** Every stash git holds is listed, and a commit is cherry-picked from the graph.
-   - A stash another tool made is not shown, cherry-pick has no place, and the graph lacks what the old list had ([vscode #257960][341], [vscode #226648][342], [Fishtank][343]).
+   - A stash another tool made is not displayed, cherry-pick has no place, and the graph lacks what the old list had ([vscode #257960][341], [vscode #226648][342], [Fishtank][343]).
 8. **Every repository in a folder.** A folder of several repositories shows them all, each with its staged changes, and every tool works in each.
    - Not all repositories show, staged changes vanish, and tools work only for the first root ([Cursor forum][344], [Cursor forum][345], [vscode #396][346], [azdo #111][347]).
 9. **Review comments on the lines written on.** A comment stays on the lines it was written on, and says when a push has moved them.
-   - A comment shows on the new lines of its number, and how it goes stale is not shown ([vscode-pull-request-github #8374][348]).
+   - A comment shows on the new lines of its number, and how it goes stale is not displayed ([vscode-pull-request-github #8374][348]).
 10. **Compare by structure at any size.** The structural compare holds a file of many changes in little memory, and says where it falls back to lines.
     - The structural diff scales poorly and takes memory, large files fall back to text, and the side-by-side view can confuse ([difftastic][349], [difftastic][350], [difftastic][351]).
     - Changes at the end of a long line are hard to see side by side ([difftastic][352]).
@@ -288,9 +288,9 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Discovery stalls, a file shows none of its tests, the reason is only in an output channel, and the view is hidden until a plugin finds tests ([vscode-python #24650][353], [#24646][354], [#9216][355], [Cursor forum][356]).
 2. **A run mark on every test, or a word why.** Every test gets its mark in the gutter, and a framework orior cannot run is named.
    - Marks are missing with no reason, and some tests get them and others not ([IntelliJ][357], [IntelliJ][358], [flutter-intellij][359]).
-3. **Coverage true to the line.** Comments and blank lines take no mark, coverage shows in the editor, and the reader chooses gutter or whole line, in colors that stand out.
-   - Comments are marked missed and blank lines covered, coverage shows only in the tree, marks do not stand out, and every line comes gray ([IntelliJ][360], [IntelliJ][361], [IntelliJ][362], [Cursor forum][363]).
-4. **Each test's output its own.** Tests run at once each keep their output apart, and the reader marks tests that must run alone.
+3. **Coverage true to the line.** Comments and blank lines take no mark, coverage shows in the editor, and the reader chooses gutter or whole line, in colors that are out.
+   - Comments are marked missed and blank lines covered, coverage shows only in the tree, marks do not are out, and every line comes gray ([IntelliJ][360], [IntelliJ][361], [IntelliJ][362], [Cursor forum][363]).
+4. **Each test's output its own.** Tests run at once each retain their output apart, and the reader marks tests that must run alone.
    - Output of tests run at once is mixed, logs interleave, and some tests must stay in a row ([openstack-dev][364], [Gradle forum][365], [IntelliJ][366], [MATLAB][367]).
 5. **The tests a change touches.** orior finds the tests an edit reaches and runs them on one key, their results beside the edit.
    - Readers want the IDE to name the tests a change affects.
@@ -304,19 +304,19 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Breaking on every exception stops in libraries over and over, nothing can be muted, and breaking in outside code slows the debugger ([MS blog][374], [WebKit #66632][375], [GJS MR 655][376], [Rider][377]).
 3. **The value under the pointer, always.** The hover shows what the variables pane shows, for the frame the line is in, with names read whole.
    - The hover shows undefined, a frame not chosen shows nothing, and a name with a dash is split ([vscode #221503][378], [cbl-gdb #19][379], [seer #153][380]).
-4. **Watches kept with the tree.** Watches stay with the tree when the debug window closes and orior restarts.
+4. **Watches retained with the tree.** Watches stay with the tree when the debug window closes and orior restarts.
    - Watches are cleared when the window closes, and an expression added does not show ([IntelliJ][381], [IntelliJ poll][382], [GameDev.tv][383]).
-5. **A process picker that lists at once.** The list of processes stands at once, filtered as typed, and the one chosen is attached.
+5. **A process picker that lists at once.** The list of processes is at once, filtered as typed, and the one chosen is attached.
    - The picker spins with no list, an error shows in its place, and a process chosen errors ([vscode-python-debugger #899][384], [objectscript #1411][385], [powershell #1322][386]).
 6. **Programs started in order, stopped together.** Programs run together start in the order given, and one key stops them all.
-   - The order is not kept, and stop takes one program at a time from a menu ([Rider][387], [IntelliJ][388]).
+   - The order is not retained, and stop takes one program at a time from a menu ([Rider][387], [IntelliJ][388]).
 7. **Library code skipped, and entered when asked.** Stepping skips library code by default, in every launch and attach, and a key steps into it.
    - Just-my-code off is ignored when attaching, the standard library cannot be stepped into, and library code cannot be skipped by default and entered when wanted ([vscode-python-debugger #139][389], [#617][390], [ptvsd #2103][391], [Rider][392]).
 8. **Machine code beside its source.** Machine code shows each instruction with its source line, the pointer moves as it steps, and memory reads in every width.
    - Opcodes are missing and the pointer does not move, wider formats show dashes, the views cannot be found, and source cannot be read beside the machine code ([noir #4904][393], [memview #48][394], [ST community][395], [PlatformIO][396], [IISc][397]).
 9. **Python and C++ stepped together, on every system.** One session steps from Python into C++ and back, on Linux, Windows and the Mac.
    - Debugging both is a patchwork of pdb, prints and gdb, and the one tool that joins them is on one system ([TVM forum][398], [Visual Studio][399], [TotalView][400]).
-10. **Back in time on every machine.** A record key and reverse steps work where a recorder runs, and where none does orior keeps a buffer of what ran last.
+10. **Back in time on every machine.** A record key and reverse steps work where a recorder runs, and where none does orior retains a buffer of what ran last.
     - Recording is not in the IDE, and runs on Linux only and not on ARM ([Qt Creator][401], [rr][402], [arXiv 1705.05937][403]).
     - Stepping back from an exception by a buffer of what ran last, and following data past the edge of one system ([SD Times][236], [Strange Loop][404]).
 11. **Edit and continue.** A change made while stopped takes effect without a restart, where the language allows.
@@ -330,7 +330,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - A tab holds one file and cannot hold a set ([vscode #143024][409]).
 2. **Tool windows that come back where they were.** A floating window docks back on its own key, and every window opens on its monitor at its size.
    - A floating window docks back only by resetting the layout, a saved layout does not put it back, windows reopen tiny, and they forget their monitor ([IntelliJ][410], [IntelliJ][411], [IntelliJ][412]).
-3. **Windows kept as windows.** A second window closes with its tabs, opens again after a restart, and is not hidden with the first.
+3. **Windows retained as windows.** A second window closes with its tabs, opens again after a restart, and is not hidden with the first.
    - Closing a floating window moves its tabs back, a restart does not bring it back, a terminal moved back breaks, and floating windows vanish when the main one is minimized ([DevClass][413], [vscode #10121][414], [VS blog][415]).
 4. **Every terminal in sight.** Terminals split in a grid, none pushed out of sight, and two tabs show at once in one pane.
    - Deep splits push terminals out of sight, and two tabs cannot be seen at once ([beyondjapan][416], [IntelliJ][417]).
@@ -344,22 +344,22 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - The explorer shows every tree at the top whatever its place ([kitemetric][428]).
 9. **Focus only where the reader puts it.** The pointer passing over orior never raises it, its caret shows only when it has the keys, and no dialog takes focus from a popup.
    - The IDE takes focus as the pointer passes, shows a caret while keys go elsewhere, a dialog takes focus from a popup, and a hidden pointer moves focus ([Code::Blocks][429], [KDE #348034][430], [IntelliJ][431], [IntelliJ][432], [Launchpad #1238410][433]).
-10. **The system's title bar with orior's menu.** The system's title bar keeps orior's menu bar once, its controls, and a tiling manager's edges.
+10. **The system's title bar with orior's menu.** The system's title bar retains orior's menu bar once, its controls, and a tiling manager's edges.
     - With the system's bar the menu is gone, the setting is not honored on Linux, the menu shows twice, and resize cursors show under a tiling manager ([Cursor forum][434], [Cursor forum][435], [Cursor forum][436], [Cursor forum][437]).
-11. **A clean window that shows more as asked.** The window opens with the editor and the tree alone; every panel, toolbar and badge comes when asked; each feature says what it is where it stands, in one pattern across orior and its plugins; and keys and commands stay as they are.
-    - Too many panels, toolbars, pop-ups, badges and nested menus, and more time spent keeping the window than writing code.
+11. **A clean window that shows more as asked.** The window opens with the editor and the tree alone; every panel, toolbar and badge comes when asked; each feature says what it is where it is, in one pattern across orior and its plugins; and keys and commands stay as they are.
+    - Too many panels, toolbars, pop-ups, badges and nested menus, and more time spent retention the window than writing code.
 
 ## Running and measuring
 
-1. **Another machine that stays reached.** orior's part on another machine installs or updates with orior itself, keeps the link alive when idle, and signs in once.
+1. **Another machine that stays reached.** orior's part on another machine installs or updates with orior itself, retains the link alive when idle, and signs in once.
    - The server install fails or hangs, versions part after an update, readers delete the server by hand, the link drops when idle, and sign-in is asked again and again ([Cursor forum][438], [Cursor forum][439], [MS Q&A][440], [MS Q&A][441], [USC HPC][442], [techoverflow][443]).
 2. **A profile that reads at a glance.** The profiler samples at little cost, shows a tree of calls as a tree, names the hottest code first, and needs no kernel setting changed by hand.
    - Tracing changes the program measured, a long trace is too dense, a tree printed as text is hard to follow, a flame graph takes practice, and Linux needs kernel settings first ([Brendan Gregg][444], [moderndescartes][445], [DEV][446], [IntelliJ][447]).
 3. **Containers at the speed of the disk.** A tree on the Windows drive runs in a container as fast as one in the container's own disk.
    - A shared folder makes builds, tests and git slow, readers move the tree to bear it, and stale builds need a rebuild with no cache ([Microsoft Learn][448], [endjin][449], [mcuoneclipse][450], [PyRIT][451]).
-4. **Uploads that finish or say why.** Upload on save covers every file, the server holds across restarts, and a stalled upload says why and never keeps orior from closing.
-   - Upload on save misses files edited on the host, the default server breaks after a restart, sign-in fails three saves in four, an upload hangs and keeps the IDE open, and uploads stall ([IntelliJ][452], [IntelliJ][453], [IntelliJ][454], [IntelliJ][455], [IntelliJ][456]).
-5. **A build window that shows the error first.** The build's errors and warnings stand apart from its trace, each filtered by a press, long lines with plain bounds, and the whole log kept when the build ends.
+4. **Uploads that finish or say why.** Upload on save covers every file, the server holds across restarts, and a stalled upload says why and never retains orior from closing.
+   - Upload on save misses files edited on the host, the default server breaks after a restart, sign-in fails three saves in four, an upload hangs and retains the IDE open, and uploads stall ([IntelliJ][452], [IntelliJ][453], [IntelliJ][454], [IntelliJ][455], [IntelliJ][456]).
+5. **A build window that shows the error first.** The build's errors and warnings are apart from its trace, each filtered by a press, long lines with plain bounds, and the whole log retained when the build ends.
    - Errors are buried with no filter, long lines wrap with no bounds in one color, the default hides the command, the log is replaced by a summary, and only there-were-errors is said ([KDevelop][457], [GNOME Builder #1044][458], [Qt][459], [Rider][460], [U++][461]).
 6. **A quick edit, build and run.** A change runs again with one key, building only what it touched.
    - IDEs lack a quick edit-compile-run loop ([SD Times][236]).
@@ -367,7 +367,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
 ## Notebooks
 
 1. **A notebook that shows the state it runs on.** Cells run out of order are marked, the state shows beside them, notebooks scroll and draw outputs at the display's rate, compare cell by cell, and are never called changed by a clone.
-   - The kernel keeps state the cells no longer show, scrolling lags, outputs take the processor, git calls a notebook changed after a clone, there is no diff, and work is lost to a failed cache ([vscode #147253][462], [refonte][463], [sympy][464], [PyCharm][465]).
+   - The kernel retains state the cells no longer show, scrolling lags, outputs take the processor, git calls a notebook changed after a clone, there is no diff, and work is lost to a failed cache ([vscode #147253][462], [refonte][463], [sympy][464], [PyCharm][465]).
 
 ## What readers wish for
 
@@ -378,13 +378,13 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Cost, and a tool hard to learn and unkind to beginners ([G2][474]). orior is free, and every key and feature is found from the command palette.
 2. **A compiler's view open to the tools.** The facts orior reads of the code are open to its plugins and its command line.
    - A compiler usable as a library is the ground of good IDE and build tools ([D forum][475]).
-3. **An assistant that works the reader's way.** An assistant in orior runs locally where it can, keeps the tree's history and the reader's choices, shows the context it uses and lets it be edited, marks what it wrote, shows each prompt's cost, and asks before it acts.
-   - Developers want the context set and seen by hand, nothing lost, no logging in again, code kept home, AI code marked, and behavior chosen per task ([JetBrains Research][476]).
-   - Developers want agents that work unattended and return changes for review, shown and paused, guided by requirements kept in files, with permissions, checkpoints and skills kept under version control ([RedMonk][477]).
+3. **An assistant that works the reader's way.** An assistant in orior runs locally where it can, retains the tree's history and the reader's choices, shows the context it uses and lets it be edited, marks what it wrote, shows each prompt's cost, and asks before it acts.
+   - Developers want the context set and seen by hand, nothing lost, no logging in again, code retained home, AI code marked, and behavior chosen per task ([JetBrains Research][476]).
+   - Developers want agents that work unattended and return changes for review, displayed and paused, guided by requirements retained in files, with permissions, checkpoints and skills retained under version control ([RedMonk][477]).
    - Users of editors built around AI report limits of context and memory, intrusive suggestions, high cost, poor generated code and a poor interface: intelligence added does not by itself make the work better, and it has to be useful, well timed and trusted.
 4. **Measures of the reader's own work.** orior shows the reader what they did in a day, for them alone.
    - Two thirds of developers doubt the measures of their work reflect what they give ([JetBrains][478]).
-5. **An assistant's change reviewed as a diff.** Every change an assistant makes is shown as an exact diff in the tree's own conventions, with its tests' results beside it, and is refused or taken back in one step.
+5. **An assistant's change reviewed as a diff.** Every change an assistant makes is displayed as an exact diff in the tree's own conventions, with its tests' results beside it, and is refused or taken back in one step.
    - In Stack Overflow's 2025 survey, 66% of those using AI tools named outputs that are almost right as a frustration, and 45% the debugging of code AI wrote ([Stack Overflow 2025][479]).
 6. **No way of working forced.** Every feature of orior can be left unused, and orior works beside the reader's own tools: their git, their terminal, their build and the keys of the editor they came from.
    - Readers want freedom: an IDE that forces a way of working or a set of tools on them is one they come to hate.
@@ -394,11 +394,11 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - A question can show a feature that is there and cannot be found, a default readers do not want, a thing the tool cannot do, a thing done in too many steps, or behavior and words that are hard to understand. Each wants its own answer: where thousands ask how to turn a feature off, the answer may be a better default where a better guide is no answer at all.
    - The four questions about turning something off show the editor acting where the reader does not want it to, controls that are hard to understand, behavior spread across settings, plugins and languages, and a way round to be found where the reader would say what they want.
    - Views, answers and questions asked twice measure how many ask, with limits: views pile up over time, many answers can show confusion more than numbers, and a question closed as asked before does not count everyone who met it.
-   - What the questions show is not that readers turn features off: it is that they need help again and again to take back control of what the tool does for them. These are kinds of question to look into, and not every one shows a bad design.
+   - What the questions show is not that readers turn features off: it is that they need help again and again to take back control of what the tool does for them. These are types of question to look into, and not every one shows a bad design.
    - An answer of the form "install this plugin, change these four settings and restart" shows more than a want of documentation. What takes a plugin, settings and a restart elsewhere is one setting in orior, in force at once.
    - The richest openings may lie between what an IDE can do and what a reader can easily make it do.
 8. **The questions asked of IDEs, gathered and weighed.** For VS Code, IntelliJ IDEA, Visual Studio, PyCharm and Eclipse, the searches, the Stack Overflow questions with their views, answers, questions marked as asked before and dates, the GitHub issues, the pages that say how to turn a thing off or get round it, and the release notes that later changed it are gathered; the questions that mean one need are put together, as "disable the IntelliSense popup", "stop autocomplete while typing" and "only show suggestions on demand"; and each need is weighed apart by how many ask, whether it is still asked years on, how many settings, plugins and steps the way round takes, and whether what exists meets it. orior's roadmap takes the needs in that order.
-   - The pages found so far are each checked on their own; which problems are most common wants the whole set of searches, across search engines, before it is claimed.
+   - The pages found so far are each checked on their own; which problems are usual wants the whole set of searches, across search engines, before it is claimed.
 
 <!-- docs-check: quoting -->
 [1]: https://gist.github.com/hyperupcall/99e355405611be6c4e0a38b6e3e8aad0
@@ -560,7 +560,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
 [157]: https://github.com/flathub/com.visualstudio.code/issues/370
 [158]: https://dev.to/antek5421/dev-containers-not-working-check-if-youre-using-flatpak-vs-code-21c5
 [159]: https://github.com/microsoft/vscode-cpptools/issues/1550
-[160]: https://forum.cursor.com/t/every-update-keeps-breaking-key-bindings-and-latest-one-broke-sidebar-location/148301
+[160]: https://forum.cursor.com/t/every-update-retains-breaking-key-bindings-and-latest-one-broke-sidebar-location/148301
 [161]: https://forum.cursor.com/t/just-updated-my-ui-layout-was-completely-changed-without-consent/151610
 [162]: https://forum.cursor.com/t/unwanted-forced-updates-applied-without-consent-or-warning/167558
 [163]: https://discuss.ai.google.dev/t/antigravity-2-0-breaks-core-developer-tools/146988
@@ -713,7 +713,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
 [310]: https://github.com/Microsoft/vscode/issues/41542
 [311]: https://github.com/microsoft/vscode/issues/172171
 [312]: https://intellij-support.jetbrains.com/hc/en-us/community/posts/360010735720/comments/360003129800
-[313]: https://lightrun.com/answers/vscode-neovim-vscode-neovim-easymotion-display-wrong-letters
+[313]: https://lightrun.com/answers/vscode-neovim-vscode-neovim-easymotion-display-wrong-characters
 [314]: https://www.goodfirstissue.org/VSCodeVim/Vim/issues/2388
 [315]: https://github.com/DavidLGoldberg/jumpy2/blob/main/README.md
 [316]: https://israynotarray.com/en/misc/2024/07/15/zero-width-space-zwsp-invisible-characters-that-break-code/

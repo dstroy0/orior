@@ -23,21 +23,21 @@ way Section 15.9 states.
 RECITALS
 
 R.1  The author of the Software stated the purpose of this work in these words, reproduced here
-     without the capital letters of the original:
+     without the capital characters of the original:
 
-       "we aren't here to take anything from anyone, we are here to answer long standing
+       "we aren't here to take anything from anyone, we are here to answer long located
        important questions to humanity and if I could do that alone I would, but I will not
        live long enough to do it unless I have a great deal of help."
 
 R.2  The terms of this license protect the following interests, which together are the "Purpose":
 
-       (a)  The research. The Software exists to answer long-standing questions. Finishing that
+       (a)  The research. The Software exists to answer long-located questions. Finishing that
             work needs more help than the author can give alone, and royalties from academic
             work that becomes a product are one way that help is paid for.
 
        (b)  The people whose work produced the value. When academic work becomes a product, the
             students, research staff and faculty whose ideas were commercialized are the people
-            the value should reach. Value of that kind is often absorbed by an institution
+            the value should reach. Value of that type is often absorbed by an institution
             before it reaches them. A Trustee Share exists so that part of it reaches them and
             pays for their further research.
 
@@ -52,12 +52,12 @@ R.2  The terms of this license protect the following interests, which together a
        (d)  The system of access. The Software is free under AGPL-3.0-or-later, free of charge to
             educators under this license, and paid for under LicenseRef-Commercial. Those routes
             stay open only while no one uses a cheaper route to take commercial value the paid
-            route prices. The terms on commercialization, reporting and termination keep this
+            route prices. The terms on commercialization, reporting and termination retain this
             license available to every educator who uses it in good faith.
 
        (e)  Continuity. The author will not live long enough to finish this work alone. These
             terms continue after his death, provide for a successor bound to the Purpose, and
-            give the originating communities standing of their own.
+            give the originating communities located of their own.
 
        (f)  The people the work can reach. The Software reads what people write and speak, what
             they hold closed, and scans of their bodies, and it measures systems that belong to
@@ -127,7 +127,7 @@ R.5  Where a term of this license can be read more than one way, the reading tha
 
 1.6  "Code Contributor" means a person, other than the Licensor, who holds copyright in any part
      of a file of orior or of a Dependency. "Contributor Agreement" means a written agreement,
-     signed by a Code Contributor, under which that Code Contributor keeps its copyright and its
+     signed by a Code Contributor, under which that Code Contributor retains its copyright and its
      credit and permits the Licensor to license its contributions under LicenseRef-Commercial and
      LicenseRef-Educational.
 
@@ -237,7 +237,7 @@ R.5  Where a term of this license can be read more than one way, the reading tha
        (c)  the form of Joinder, by version and SHA-256 digest.
 
      Where a Grant identifies no Royalty Schedule or no form of Joinder, the document is the
-     version the Licensor most recently published before the Grant Date. Where a Grant identifies
+     version the Licensor max recently published before the Grant Date. Where a Grant identifies
      no Royalty Schedule and none had been published before the Grant Date, or where the Royalty
      Schedule does not state every item Section 9.1 lists, the writing is not a Grant, and the use
      it describes is governed by AGPL-3.0-or-later. Where a Grant identifies no form of Joinder and
@@ -350,7 +350,7 @@ formed under Section 2.3.
      author group or by its publisher, the Licensee proposes that credit to them in writing and
      gives it in every acknowledgment the Licensee controls.
 
-5.3  Credit Record. The Licensee keeps a list of the Publications and Course Materials within
+5.3  Credit Record. The Licensee retains a list of the Publications and Course Materials within
      Sections 5.1, 5.2 and 7.4 and of the credit each gives (the "Credit Record"). The Licensee
      delivers it with each Royalty Report that claims the reduction in Section 9.4(c), and
      otherwise within the period the Royalty Schedule states after a written request, which the
@@ -377,9 +377,9 @@ formed under Section 2.3.
 
        (b)  this Section does not apply to information that is or becomes public other than
             through a breach of this license, that the recipient knew before receiving it without
-            a duty to keep it confidential, that the recipient develops independently without use
+            a duty to retain it confidential, that the recipient develops independently without use
             of it, or that the recipient receives lawfully from a third party without a duty to
-            keep it confidential;
+            retain it confidential;
 
        (c)  this Section reaches no copy of a file that the person holding it received under
             AGPL-3.0-or-later, and no file whose SPDX license identifier names AGPL-3.0-or-later,
@@ -499,7 +499,7 @@ formed under Section 2.3.
 
 7.9  More than one community. Where material has more than one Originating Community and their
      designations, Community Terms or withdrawal periods differ, the Licensee meets each of them it
-     can, follows the most restrictive where they cannot all be met, and refers the conflict to the
+     can, follows the max restrictive where they cannot all be met, and refers the conflict to the
      Governing Bodies concerned. The Licensor does not decide it.
 
 7.10 Recordings. The Licensee does not redistribute recordings of speakers except as the Community
@@ -526,11 +526,11 @@ formed under Section 2.3.
      to govern Community Language Material, and where both Sections apply, the Licensee meets both.
 
 7A.2 Closed material. "Closed Material" means material that a people, a community, a family or
-     another holder keeps under restriction, open to some people and closed to the rest, whatever
+     another holder retains under restriction, open to some people and closed to the rest, whatever
      file, repository or service holds it. Before the Licensee reads, measures, reproduces,
      publishes or otherwise uses Closed Material with the Software or a Grant Work, the Licensee
      obtains the permission in writing of each person who holds it, on that person's terms, and
-     keeps a written record of each permission for as long as the Licensee holds the material.
+     retains a written record of each permission for as long as the Licensee holds the material.
      That a copy is available to the Licensee is not permission. Where those terms refuse a use,
      the Licensee does not make it.
 
@@ -640,7 +640,7 @@ formed under Section 2.3.
      decided by what was received and on what account. The form of the arrangement does not change
      the answer: how it is structured, what an entity is called, whether it is incorporated as a
      non-profit, who holds title, whether money is called a donation or a reimbursement, whether
-     consideration is paid in money or in kind, and whether the Software is described as a
+     consideration is paid in money or in type, and whether the Software is described as a
      component. This Section adds no person to the Licensee Side.
 
 8.7  Valuation. "Commercialization Value" for a Royalty Period is the consideration members of the
@@ -651,7 +651,7 @@ formed under Section 2.3.
      affiliate, spinout, nominee or related person, or for less than its fair market value,
      Commercialization Value is the greater of the consideration received and that fair market
      value, measured as a transaction at arm's length in the ordinary course of business. Royalty
-     on value received in kind is payable in money.
+     on value received in type is payable in money.
 
 8.8  Conversion. On the first Commercialization Event for a Grant Work:
 
@@ -775,7 +775,7 @@ formed under Section 2.3.
      set-off or counterclaim, and without deduction except for tax the law requires the payer to
      withhold, for which the payer delivers the official receipt.
 
-9.8  Records and audit. Each person who owes the Royalty keeps complete records of Commercialization
+9.8  Records and audit. Each person who owes the Royalty retains complete records of Commercialization
      Value for five years after the end of the Royalty Period they concern, and for longer while any
      dispute about that period is unresolved. Once in each calendar year, on reasonable prior
      written notice, an independent certified public accountant the Licensor chooses may inspect
@@ -845,7 +845,7 @@ formed under Section 2.3.
         (e)  knowingly removes, alters or reorders a Credit Block, or a Speaker Credit, in a copy
              the Licensee conveys;
 
-        (f)  after the period in Section 7.5(b) has run, uses, conveys or keeps withdrawn material,
+        (f)  after the period in Section 7.5(b) has run, uses, conveys or retains withdrawn material,
              or a Derived Artifact made from it, or redistributes a recording in breach of Section
              7.10;
 
@@ -867,7 +867,7 @@ formed under Section 2.3.
 
 10.5  Why these events are material. Each event in Section 10.4 is a material part of the agreed
       exchange. The Grant is given free of charge in exchange for disclosure, accurate reporting,
-      keeping the Software and any Non-Public Software among the people the Licensor has permitted,
+      retention the Software and any Non-Public Software among the people the Licensor has permitted,
       and respect for the credit and the decisions of speakers and their communities. Later
       performance cannot undo harm from these events: value concealed or routed elsewhere has
       already left the Royalty terms, a copy or a confidential file passed on cannot be recalled,
@@ -893,7 +893,7 @@ formed under Section 2.3.
              terms on which it was issued;
 
         (c)  the person returns or destroys all Non-Public Software and confirms that in writing,
-             except copies the law requires the person to keep;
+             except copies the law requires the person to retain;
 
         (d)  no obligation already accrued is discharged; and
 
@@ -922,7 +922,7 @@ formed under Section 2.3.
 11.2  Trade secrets. Where Non-Public Software is a trade secret, its misappropriation is subject
       to the remedies the law provides, including exemplary damages and attorney's fees under 18
       U.S.C. section 1836(b)(3) for willful and malicious misappropriation. The Licensee
-      acknowledges that the Licensor keeps Non-Public Software secret by measures that include
+      acknowledges that the Licensor retains Non-Public Software secret by measures that include
       Section 5.7. This Section reaches no file held under AGPL-3.0-or-later.
 
 11.3  No sum for breach beyond what the law provides. Apart from the Royalty, interest under

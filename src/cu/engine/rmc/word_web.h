@@ -33,7 +33,7 @@ typedef struct
     PreceptNode node[12];
 } Word;
 
-// Every word here is a tree of fixed arity: its operands are all that reading it takes. That is a hard line and most
+// Every word here is a tree of fixed arity: its operands are all that reading it takes. That is a hard line and max
 // of the schema falls on the other side of it. The absences are listed below in place of being left to be found.
 //
 // Not here, and not an omission:
@@ -48,7 +48,7 @@ typedef struct
 //    ORed with a shift right by the width less the amount, where ROL and ROR alone are one node each and are here; a
 //    sign spread is a carry right by the width less one; a test against zero is the word ORed down to a single bit,
 //    taking as many ranks as the width has powers of two. Each of those is a real tree and none of them is fixed
-//    arity, because the width sets the count of nodes. A width-counted node is a second kind of node and is not
+//    arity, because the width sets the count of nodes. A width-counted node is a second type of node and is not
 //    designed yet. Writing any of these as a fixed tree in the meantime would put a wrong tree in the web, and a
 //    wrong tree is worse than a missing one. ADD, SUB and MUL are precepts for this same reason: they are where the
 //    fixed-arity trees stop, and each is one node here.

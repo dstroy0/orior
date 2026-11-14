@@ -250,7 +250,7 @@ CliPg *cli_pg_connect(const CliPgHostCfg *args)
     {
         at += 1u;
     }
-    // a link's record holds its socket, so the records stand fixed outside the pool, one for each link open at once,
+    // a link's record holds its socket, so the records are fixed outside the pool, one for each link open at once,
     // where they punch no hole in the persistent tier
     static CliPg s_places[CLI_PG_LINKS];
     pg = (at < CLI_PG_LINKS) ? &s_places[at] : NULL;
@@ -274,7 +274,7 @@ CliPg *cli_pg_connect(const CliPgHostCfg *args)
     pg->notice_count = 0u;
     pg->read_state = 0;
     pg->has_failed = 0;
-    // the wait is at most what a socket's wait counts, in milliseconds
+    // the wait is at max what a socket's wait counts, in milliseconds
     const unsigned int within = (args->wait > 0xffffffffULL) ? 0xffffffffu : (unsigned int)args->wait;
     if (!EMBED_CALL(cli_err_msg_internal.socket_connected_within, CliErrMsgCtx, .sock_out = &pg->socket,
                     .host = args->host, .port = args->port, .milliseconds = within, .err_msg = &err_msg))

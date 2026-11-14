@@ -5,9 +5,9 @@
 // whose pattern names the file over those before it. Only indentation is read: `indent_style`, `indent_size`, which
 // `tab` makes the tab's width, and `tab_width`.
 //
-// A section's pattern names a file by its name wherever it stands, or by its path from the folder of its
-// `.editorconfig` where it has a `/`. `*` is any letters of a name, `**` any letters and folders, `?` one letter,
-// `[abc]` and `[!abc]` one letter of or not of those, `{a,b}` either text, and `{1..3}` any whole number between
+// A section's pattern names a file by its name wherever it is, or by its path from the folder of its
+// `.editorconfig` where it has a `/`. `*` is any characters of a name, `**` any characters and folders, `?` one character,
+// `[abc]` and `[!abc]` one character of or not of those, `{a,b}` either text, and `{1..3}` any whole number between
 #ifndef EDITORCONFIG_H
 #define EDITORCONFIG_H
 #include "../command_line/cli_internal.h"

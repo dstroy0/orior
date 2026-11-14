@@ -52,13 +52,13 @@ int cli_go_package(const CliExecutablesTextOutCtx *args)
         const char *word_text = from + 8;
         const char *const end = from + length;
         while ((word_text < end) &&
-               EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .letter = word_text[0]))
+               EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .character = word_text[0]))
         {
             word_text += 1;
         }
         const char *word_past = word_text;
         while ((word_past < end) &&
-               !EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .letter = word_past[0]))
+               !EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .character = word_past[0]))
         {
             word_past += 1;
         }
@@ -124,9 +124,9 @@ EMBED_INLINE int cli_same(const ExecutablesScanMoreCtx *args)
     }
     for (unsigned long long at = 0ULL; at < args->length_value; at += 1ULL)
     {
-        const char letter = ((args->text[at] >= 'A') && (args->text[at] <= 'Z')) ? (char)(args->text[at] + ('a' - 'A'))
+        const char character = ((args->text[at] >= 'A') && (args->text[at] <= 'Z')) ? (char)(args->text[at] + ('a' - 'A'))
                                                                                  : args->text[at];
-        if (letter != args->word_text[at])
+        if (character != args->word_text[at])
         {
             return 0;
         }
@@ -208,7 +208,7 @@ int cli_keyword(const CliExecutablesLengthCtx *args)
         }
         unsigned long long rest = from;
         while ((rest < args->length) &&
-               EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .letter = args->call[rest]))
+               EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .character = args->call[rest]))
         {
             rest += 1ULL;
         }
@@ -218,7 +218,7 @@ int cli_keyword(const CliExecutablesLengthCtx *args)
         }
         rest += 1ULL;
         while ((rest < args->length) &&
-               EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .letter = args->call[rest]))
+               EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .character = args->call[rest]))
         {
             rest += 1ULL;
         }
@@ -278,7 +278,7 @@ void cli_zig_exes(const CliExecutablesNamesCtx *args)
     {
         const char *call = calls[at].text;
         unsigned long long length = calls[at].length;
-        while ((length > 0ULL) && EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .letter = call[0]))
+        while ((length > 0ULL) && EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .character = call[0]))
         {
             call += 1;
             length -= 1ULL;

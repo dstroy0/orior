@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Eve Suharwardy	title	Degreeful Comparison in Secwepemctsín	page 1, carries footnote ∗
 front	Eve Suharwardy	name	Eve Suharwardy	author, University of British Columbia
 front	Eve Suharwardy	note	University of British Columbia	page 1, the author's affiliation
@@ -21,7 +21,7 @@ footnote ∗	Eve Suharwardy	name	Natália Oliveira Ferreira	thanked
 footnote ∗	Eve Suharwardy	name	Henry Davis	thanked; PI of the Jacobs grant
 footnote ∗	Eve Suharwardy	note	Contact info: eve.suharwardy@ubc.ca	page 1, the author's contact, under the footnote
 §1	Eve Suharwardy	heading	1 Introduction	page 1
-§1	Eve Suharwardy	note	There has been substantial research on the syntax and semantics of comparison in Indo-European languages. However, this phenomenon has received relatively little attention in Salish. Speciﬁcally, there are two accounts of comparison in the family. Lo and Reisinger (2018; henceforth L&R) undertake an investigation of comparatives in the Central Salish language ʔayʔaǰuθəm (Comox- Sliammon), motivated primarily by research by Beck et al. (2009). In their inﬂuential paper, Beck et al. (2009) propose three binary parameters to account for the crosslinguistic variation found in their investigation of comparison constructions in 14 languages. The most signiﬁcant of which is the Degree Semantics Parameter, which is related to the semantic type of gradable predicates in a language. L&R (2018) argue that ʔayʔaǰuθəm has a negative setting of the DSP and consequently does not have gradable predicates of type ⟨d,⟨e,t⟩⟩.	page 1
+§1	Eve Suharwardy	note	There has been substantial research on the syntax and semantics of comparison in Indo-European languages. However, this phenomenon has received relatively little attention in Salish. Speciﬁcally, there are two accounts of comparison in the family. Lo and Reisinger (2018; henceforth L&R) undertake an investigation of comparatives in the Central Salish language ʔayʔaǰuθəm (Comox- Sliammon), motivated primarily by research by Beck et al. (2009). In their inﬂuential paper, Beck et al. (2009) propose three binary parameters to account for the crosslinguistic variation found in their investigation of comparison constructions in 14 languages. The max signiﬁcant of which is the Degree Semantics Parameter, which is related to the semantic type of gradable predicates in a language. L&R (2018) argue that ʔayʔaǰuθəm has a negative setting of the DSP and consequently does not have gradable predicates of type ⟨d,⟨e,t⟩⟩.	page 1
 §1	Eve Suharwardy	note	Davis and Mellesmoen (2019; henceforth D&M) provide the second account of comparison in Salish. They carry out a systematic comparison of degree-related constructions in St’át’imcets and ʔayʔaǰuθəm. With new data, they reanalyse the conclusion reached by L&R (2018) with respect to the status of ʔayʔaǰuθəm, ultimately concluding that both languages have a positive setting of the DSP. In this paper, I provide novel data from Secwepemctsín (a.k.a. Shuswap; Northern Interior Salish; ISO 639-3: shs), a language spoken in Central and Southern British Columbia that has ap- proximately 190 ﬂuent speakers (Dunlop et al. 2018). I argue, like D&M (2019) for St’átimcets and ʔayʔaǰuθəm, that the language is degreeful.	page 1
 §1	Eve Suharwardy	note	In Section 2, I provide a brief overview of relevant literature related to degree semantics. In Section 3, I illustrate how basic notions of comparison are expressed in Secwepemctsín (i.e. com- paratives, equatives, and superlatives). I then present the degree-related data. In Section 5, I present possible ways to extend the analysis proposed by D&M (2019) for St’át’imcets and ʔayʔaǰuθəm to the data. Finally, I provide some concluding remarks in Section 6.	page 2
 §2	Eve Suharwardy	heading	2 Degrees and comparison	page 2
@@ -55,12 +55,12 @@ footnote 1	Eve Suharwardy	note	1 The data comes from original ﬁeldwork via Zoo
 (4b) line 4	Eve Suharwardy	citation	DC/LC	page 3, the consultants who gave it
 §3.1	Secwepemctsín	cited form	P’7e7cw	page 4, ‘more’, the comparative word
 §3.1	Secwepemctsín	cited form	cwi7t	page 4, ‘much, many’
-§3.1	Eve Suharwardy	note	P’7e7cw is not restricted to the adjectival comparatives shown in (4). It can also be used in nominal comparatives, e.g. with amounts, times, distances, often using cwi7t ‘much, many’, as shown in (5) with an amount, as well as in verbal comparatives, see (6).2	page 4
+§3.1	Eve Suharwardy	note	P’7e7cw is not restricted to the adjectival comparatives displayed in (4). It can also be used in nominal comparatives, e.g. with amounts, times, distances, often using cwi7t ‘much, many’, as displayed in (5) with an amount, as well as in verbal comparatives, see (6).2	page 4
 footnote 2	Secwepemctsín	cited form	p’7e7cw	page 4, ‘more’, the comparative word
 footnote 2	Secwepemctsín	cited form	re Bruce p’7e7cw st’exts te Eve	page 4
 footnote 2	Secwepemctsín	cited form	te	page 4, the oblique determiner that introduces the standard
 footnote 2	Secwepemctsín	cited form	te Eve	page 4
-footnote 2	Eve Suharwardy	note	2 Canonical word order for comparatives is shown in (4). It is also fairly common to ﬁnd comparatives with the argument fronted in a focus position, e.g. re Bruce p’7e7cw st’exts te Eve for (4a).	page 4, footnote
+footnote 2	Eve Suharwardy	note	2 Canonical word order for comparatives is displayed in (4). It is also fairly common to ﬁnd comparatives with the argument fronted in a focus position, e.g. re Bruce p’7e7cw st’exts te Eve for (4a).	page 4, footnote
 (5) line 1	Secwepemctsín	segmentation	P’7e7cw re s-cwi7t-s te syelt te sten ne letép te cllúqwen’.	page 4, each word over its gloss
 (5) line 2	Eve Suharwardy	gloss	more DET NMLZ-many-3POSS DET.OBL plate DET.OBL be.there on table DET.OBL cup	page 4
 (5) line 3	Eve Suharwardy	translation	‘There are more plates on the table than cups.’	page 4
@@ -137,8 +137,8 @@ footnote 3 (ib) line 4	Eve Suharwardy	citation	(RI)	page 5, the consultants who 
 §3.3	Secwepemctsín	cited affix	sen-	page 6, the superlative prefix
 §3.3	Secwepemctsín	cited form	úy	page 6, the general purpose intensifier
 §3.3	Secwepemctsín	cited form	7uw’i	page 6, another spelling of úy
-§3.3	Eve Suharwardy	note	Kuipers (1974) reports that a bound morpheme, speciﬁcally the preﬁxsen-, is the most common way to induce a superlative reading. My consultants have never volunteered a superlative form with sen- and I have not yet asked them to judge sentences with this morpheme. There are other strategies that I have encountered during elicitation sessions. The ﬁrst is the use of the general purpose intensiﬁer úy (also spelled as 7uw’i), see (12). 4 However, in my experience, the preferred way to express superlative meaning is using p’7e7cw. Superﬁcially, superlatives with p’7e7cw look very similar to comparatives, since they contain the same comparative predicate and involve comparison of the argument to the standard.5 Crucially, they differ in the way that the standard is restricted. Notice in (13), the standard is restricted to ‘than everyone’ and ‘than all the children’, which essentially gives the same meaning as a bound morpheme (e.g. -est in English).6	page 6
-footnote 4	Eve Suharwardy	note	4 This is the most common strategy to express superlative meaning in St’át’imcets, see D&M (2019).	page 6, footnote
+§3.3	Eve Suharwardy	note	Kuipers (1974) reports that a bound morpheme, speciﬁcally the preﬁxsen-, is the usual way to induce a superlative reading. My consultants have never volunteered a superlative form with sen- and I have not yet asked them to judge sentences with this morpheme. There are other strategies that I have encountered during elicitation sessions. The ﬁrst is the use of the general purpose intensiﬁer úy (also spelled as 7uw’i), see (12). 4 However, in my experience, the preferred way to express superlative meaning is using p’7e7cw. Superﬁcially, superlatives with p’7e7cw look very similar to comparatives, since they contain the same comparative predicate and involve comparison of the argument to the standard.5 Crucially, they differ in the way that the standard is restricted. Notice in (13), the standard is restricted to ‘than everyone’ and ‘than all the children’, which essentially gives the same meaning as a bound morpheme (e.g. -est in English).6	page 6
+footnote 4	Eve Suharwardy	note	4 This is the usual strategy to express superlative meaning in St’át’imcets, see D&M (2019).	page 6, footnote
 footnote 5	Secwepemctsín	cited form	ell te	page 6
 footnote 5	Eve Suharwardy	note	5 As in comparatives, the standard can be introduced by te alone or ell te, with no difference in meaning.	page 6, footnote
 footnote 6	Eve Suharwardy	note	6 This is a relatively common crosslinguistic strategy to form the superlative, see Bobaljik (2012).	page 6, footnote
@@ -150,12 +150,12 @@ footnote 6	Eve Suharwardy	note	6 This is a relatively common crosslinguistic str
 (13a) line 1	Secwepemctsín	segmentation	Re Bruce p’7e7cw s-lexléx-s ell te xwexwéyt-es.	page 6, each word over its gloss
 (13a) line 2	Eve Suharwardy	gloss	DEM Bruce more NMLZ-intelligent-3POSS and DEM.OBL all-3SUBJ	page 6
 (13a) line 3	Eve Suharwardy	translation	‘Bruce is more intelligent than everyone.’	page 6, marked Literally:
-(13a) line 4	Eve Suharwardy	translation	‘Bruce is the most intelligent.’	page 6
+(13a) line 4	Eve Suharwardy	translation	‘Bruce is the max intelligent.’	page 6
 (13a) line 5	Eve Suharwardy	citation	(DC/LC)	page 6, the consultants who gave it
 (13b) line 1	Secwepemctsín	segmentation	Re Bruce p’7e7cw s-lexléx-s ell te xwexwéyt te stsmémelt.	page 6, each word over its gloss
 (13b) line 2	Eve Suharwardy	gloss	DEM Bruce more NMLZ-intelligent-3POSS and DEM.OBL all DET.OBL children	page 6
 (13b) line 3	Eve Suharwardy	translation	‘Bruce is more intelligent than all the children.’	page 6, marked Literally:
-(13b) line 4	Eve Suharwardy	translation	‘Bruce is the most intelligent child.’	page 6
+(13b) line 4	Eve Suharwardy	translation	‘Bruce is the max intelligent child.’	page 6
 (13b) line 5	Eve Suharwardy	citation	(DC/LC)	page 6, the consultants who gave it
 §3.3	Secwepemctsín	cited form	te xwexwéytes	page 7
 §3.3	Secwepemctsín	cited form	te xwexwéyt	page 7
@@ -197,7 +197,7 @@ footnote 7	Eve Suharwardy	note	7 I assume this also related to why we ﬁnd subj
 §4.1	Secwepemctsín	cited form	nek’wlltyénecwem p’7e7cw s.tsk’ewelcs	page 8, ‘one year older’
 §4.1	Eve Suharwardy	note	The examples above also show that in differential comparatives in Secwepemctsín, p’7e7cw can be dropped and we still get a comparative reading. 7 It is worth noting that elicitation of measure terms and degree constructions is challenging in Salish; Secwepemctsín is no different. Many com- mon measure terms (e.g. miles for distance or degrees for temperature) do not have direct transla- tions and in my experience, Secwepemctsín consultants are resistant to use these English loan words in degree constructions. However, this varies across speakers and languages. D&M (2019) report that whilst their ʔayʔaǰuθəm consultants typically resisted using English loan words, St’át’imcets consultants tended to be less conservative. In Secwepemctsín, some speakers are happy to use direct translations of English measure terms (e.g. sk’epqen ‘head’ as in (17)), but others are not entirely comfortably with this either. This does not mean that we should conclude that the language is de- greeless. It is possible to ﬁnd differentials that speakers prefer (e.g. nek’wlltyénecwem p’7e7cw s.tsk’ewelcs ‘one year older’) and as mentioned above, differential comparatives with demonstra- tives are also valid constructions to demonstrate the existence of degrees. These are signiﬁcantly easier to elicit.	page 8
 §4.2	Eve Suharwardy	heading	4.2 Comparison with degree	page 8
-§4.2	Eve Suharwardy	note	A comparison with degree is a construction where the standard of comparison is speciﬁed as a de- gree, as opposed to an entity. An example in English would be Eve is taller than 5ft. In terms of the semantics, the standard denotes either a degree, d, a set of degrees, ⟨d,t⟩, or potentially even inter- vals (von Stechow 1984; Heim 2000; Schwarzschild 2002, 2005). An example of a Secwepemctsín comparison with degree is shown below:	page 8
+§4.2	Eve Suharwardy	note	A comparison with degree is a construction where the standard of comparison is speciﬁed as a de- gree, as opposed to an entity. An example in English would be Eve is taller than 5ft. In terms of the semantics, the standard denotes either a degree, d, a set of degrees, ⟨d,t⟩, or potentially even inter- vals (von Stechow 1984; Heim 2000; Schwarzschild 2002, 2005). An example of a Secwepemctsín comparison with degree is displayed below:	page 8
 (19) line 1	Secwepemctsín	segmentation	Ri7éne letép p’7e7cw s-yect-s ell te nek’ú7 te sq’wext.	page 8, each word over its gloss
 (19) line 2	Eve Suharwardy	gloss	DEM table more NMLZ-long-3POSS ell DET.OBL one DET.OBL foot	page 8
 (19) line 3	Eve Suharwardy	translation	‘This table is longer than one foot.’	page 8
@@ -228,7 +228,7 @@ footnote 7	Eve Suharwardy	note	7 I assume this also related to why we ﬁnd subj
 (21b) line 4	Eve Suharwardy	note	(accompanied by gesture)	page 9, after the translation
 (21b) line 5	Eve Suharwardy	citation	(DC/LC)	page 9, the consultants who gave it
 §4.4	Eve Suharwardy	heading	4.4 Subcomparatives	page 9
-§4.4	Eve Suharwardy	note	Subcomparatives are constructions that involve a comparison of two sets of degrees across two distinct dimensions, e.g. in the table is longer than the door is wide , we are comparing the de- gree to which the table is long with the degree to which the door is wide. Such comparatives are only available in languages that allow clausal standards, which Secwepemctsín does. We ﬁnd that subcomparatives are available in the language, as shown in (22):	page 9
+§4.4	Eve Suharwardy	note	Subcomparatives are constructions that involve a comparison of two sets of degrees across two distinct dimensions, e.g. in the table is longer than the door is wide , we are comparing the de- gree to which the table is long with the degree to which the door is wide. Such comparatives are only available in languages that allow clausal standards, which Secwepemctsín does. We ﬁnd that subcomparatives are available in the language, as displayed in (22):	page 9
 (22) line 1	Secwepemctsín	segmentation	P’7e7cw s-yect-s yi7éne te tsrep te s-xyum-s re tswec.	page 10, each word over its gloss
 (22) line 2	Eve Suharwardy	gloss	more NMLZ-long-3POSS DEM DEM.OBL tree DEM.OBL NMLZ-big-3POSS DEM creek	page 10
 (22) line 3	Eve Suharwardy	translation	‘The tree is longer than the creek is large.’	page 10
@@ -236,8 +236,8 @@ footnote 7	Eve Suharwardy	note	7 I assume this also related to why we ﬁnd subj
 §4.4	Eve Suharwardy	note	In (22), we are comparing the degree to which the tree is long and the degree to which the creek is large, or wide. I will return to an analysis of this construction in Section 5.1.	page 10
 §4.4	Eve Suharwardy	note	It is also relevant at this point to discuss ‘amount’ subcomparatives; an example of this con- struction in English would be Eve has written more essays than she has written poems. Intuitively, we are comparing the amount of essays and poems that Eve has written, i.e. she has written d- many essays vs. d-many poems. However, these constructions are not true subcomparatives as they contain the gradable predicate ‘many’ within the standard phrase. It is just obligatorily deleted in English. If it could be left overt, this would be a mark of a true subcomparative, but this would result in ungrammaticality (Kennedy & Alrenga 2014). Nevertheless, (23) and (24) show how ‘amount’ subcomparatives are expressed in Secwepemctsín.	page 10
 (23) line 1	Secwepemctsín	segmentation	P’7e7cw s-q’iyem-s re Julie te stsq’ey’ ell te Ann re s-q’iyem-s te setsínten.	page 10, each word over its gloss
-(23) line 2	Eve Suharwardy	gloss	more NMLZ-write-3POSS DET Julie DET.OBL letter and DET.OBL Ann DET NMLZ-write-3POSS DET.OBL song	page 10
-(23) line 3	Eve Suharwardy	translation	‘Julie writes more songs than Ann writes letters.’	page 10
+(23) line 2	Eve Suharwardy	gloss	more NMLZ-write-3POSS DET Julie DET.OBL character and DET.OBL Ann DET NMLZ-write-3POSS DET.OBL song	page 10
+(23) line 3	Eve Suharwardy	translation	‘Julie writes more songs than Ann writes characters.’	page 10
 (23) line 4	Eve Suharwardy	citation	(RI)	page 10, the consultants who gave it
 (24) line 1	Secwepemctsín	segmentation	Re Eve p’7e7cw s-kwen-wéllen’-s te swewll ell te Natália s-q’wléwem-s te speqpéq.	page 10, each word over its gloss
 (24) line 2	Eve Suharwardy	gloss	DET Eve more NMLZ-catch-NCTRL.MID-3POSS DET.OBL ﬁsh and DET.OBL Natália NMLZ-pick.berries-3POSS DET.OBL berry	page 10
@@ -274,10 +274,10 @@ footnote 9	Eve Suharwardy	note	9 There is signiﬁcant debate surrounding the an
 §5.1	Secwepemctsín	cited form	sxyums re tswec	page 12
 §5.1	Secwepemctsín	cited form	syects yi7éne te tsrep	page 12
 §5.1	Secwepemctsín	cited form	te	page 12, the oblique determiner that introduces the standard
-§5.1	Eve Suharwardy	note	Under this proposal, the comparative word p’7e7cw is of type ⟨d,⟨⟨d,t⟩,t⟩⟩. It takes the clausal standard of comparison sxyums re tswec, type d, as its ﬁrst argument and the nominalized clause containing the gradable predicate syects yi7éne te tsrep, type ⟨d,t⟩, as its second. The lexical entry is shown below:	page 12
+§5.1	Eve Suharwardy	note	Under this proposal, the comparative word p’7e7cw is of type ⟨d,⟨⟨d,t⟩,t⟩⟩. It takes the clausal standard of comparison sxyums re tswec, type d, as its ﬁrst argument and the nominalized clause containing the gradable predicate syects yi7éne te tsrep, type ⟨d,t⟩, as its second. The lexical entry is displayed below:	page 12
 (29) line 1	Eve Suharwardy	formula	⟦p′7e7cw⟧ = λdd.λD⟨d,t⟩.[MAX(D) > d]	page 12, the denotation
 §5.1	Secwepemctsín	cited form	te	page 13, the oblique determiner that introduces the standard
-§5.1	Eve Suharwardy	note	We assume that the standard marker te is semantically vacuous, as is commonly proposed for the standard marker than in English. I additionally assume the presence of a covert determiner of type ⟨⟨d,t⟩,d⟩. This is in accordance with the analysis of Salish determiners by Matthewson (2008) and the proposal that such determiners can range over predicates of degrees, as well as individuals (D&M 2019). The relevant LF is shown in (30):	page 12
+§5.1	Eve Suharwardy	note	We assume that the standard marker te is semantically vacuous, as is commonly proposed for the standard marker than in English. I additionally assume the presence of a covert determiner of type ⟨⟨d,t⟩,d⟩. This is in accordance with the analysis of Salish determiners by Matthewson (2008) and the proposal that such determiners can range over predicates of degrees, as well as individuals (D&M 2019). The relevant LF is displayed in (30):	page 12
 (30) line 1	Eve Suharwardy	diagram	t	page 12, a printed line of the tree, top down
 (30) line 2	Eve Suharwardy	diagram	⟨⟨d,t⟩,t⟩	page 12, a printed line of the tree, top down
 (30) line 3	Eve Suharwardy	diagram	p’7e7cw d	page 12, a printed line of the tree, top down
@@ -294,7 +294,7 @@ footnote 9	Eve Suharwardy	note	9 There is signiﬁcant debate surrounding the an
 (30) line 14	Eve Suharwardy	diagram	yi7éne te tsrep	page 12, a printed line of the tree, top down
 §5.1	Eve Suharwardy	heading	Option 2: Heim (2000) operator / standard marker has determiner semantics	page 12, a run-in heading in bold
 §5.1	Secwepemctsín	cited form	p’7e7cw	page 13, ‘more’, the comparative word
-§5.1	Eve Suharwardy	note	Under this proposal, the semantics of p’7e7cw are the same as (29). The difference is that here we do not assume that the standard marker te is semantically vacuous, instead we assume that it carries out its role as a standard determiner. Therefore, its semantics are identical to the covert determiner proposed in option 1.10 The LF is shown below:	page 12
+§5.1	Eve Suharwardy	note	Under this proposal, the semantics of p’7e7cw are the same as (29). The difference is that here we do not assume that the standard marker te is semantically vacuous, instead we assume that it carries out its role as a standard determiner. Therefore, its semantics are identical to the covert determiner proposed in option 1.10 The LF is displayed below:	page 12
 footnote 10	Eve Suharwardy	note	10 Although it is typical to assume that the standard marker is vacuous, some proposals claim that it is in fact crucial to the composition of the comparative, e.g. Alrenga and Kennedy (2014).	page 12, footnote
 (31) line 1	Eve Suharwardy	diagram	t	page 13, a printed line of the tree, top down
 (31) line 2	Eve Suharwardy	diagram	⟨⟨d,t⟩,t⟩	page 13, a printed line of the tree, top down
@@ -312,7 +312,7 @@ footnote 10	Eve Suharwardy	note	10 Although it is typical to assume that the sta
 §5.1	Eve Suharwardy	heading	Option 3: Beck (2011) operator / vacuous standard marker	page 13, a run-in heading in bold
 §5.1	Eve Suharwardy	note	The third option uses an alternative operator, based on Beck (2011). Here p’7e7cw would have the semantics as stated in (32). This operator simply takes two sets of degrees.	page 13
 (32) line 1	Eve Suharwardy	formula	⟦p′7e7cw⟧ = λD1⟨d,t⟩.λD2⟨d,t⟩. max(D2) > max(D1)	page 13, the denotation
-§5.1	Eve Suharwardy	note	Under this analysis, we do not need to assume a covert determiner, nor do we have stray from the typical assumption that the standard marker is vacuous.11 The LF is shown below:	page 13
+§5.1	Eve Suharwardy	note	Under this analysis, we do not need to assume a covert determiner, nor do we have stray from the typical assumption that the standard marker is vacuous.11 The LF is displayed below:	page 13
 footnote 11	Eve Suharwardy	note	11 Though this will not be a deciding factor for the analysis of Secwepemctsín, there is evidence against this approach for St’át’imcets, namely the fact that there is an overt determiner following the standard marker.	page 13, footnote
 (33) line 1	Eve Suharwardy	diagram	t	page 13, a printed line of the tree, top down
 (33) line 2	Eve Suharwardy	diagram	⟨⟨d,t⟩,t⟩	page 13, a printed line of the tree, top down

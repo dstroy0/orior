@@ -50,17 +50,17 @@ EMBED_INLINE void cli_key(const TrustCtx *args)
 {
     VerbaLinea line = {args->key, CLI_PATH_MAX_LEN, 0ULL};
 #if defined(_WIN32)
-    static unsigned int s_letters[CLI_PATH_MAX_LEN];
+    static unsigned int s_characters[CLI_PATH_MAX_LEN];
     const unsigned long long count =
-        EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->folder,
+        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = args->folder,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_POOL_BYTES}),
-                   .letters = s_letters, .capacity_u64 = CLI_PATH_MAX_LEN);
+                   .characters = s_characters, .capacity_u64 = CLI_PATH_MAX_LEN);
     for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
-        EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line,
-                   .letter = (s_letters[at] == '\\')
+        EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line,
+                   .character = (s_characters[at] == '\\')
                                  ? '/'
-                                 : EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = s_letters[at]));
+                                 : EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = s_characters[at]));
     }
 #else
     (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &line, .text = args->folder, .from = '\\',
@@ -211,8 +211,8 @@ int cli_trust_answer_set(const CliTrustFolderCfg *args)
     unsigned int yes = CLI_JSON_NONE;
     unsigned int no = CLI_JSON_NONE;
     EMBED_CALL(cli_state_read, TrustCtx, .json = &json, .path_read = path, .trusted = &yes, .refused = &no);
-    // the answers written anew: each list's folders as they stand, less this folder, and this folder in the list its
-    // answer names; each folder's bytes escape to six at the most
+    // the answers written anew: each list's folders as they are, less this folder, and this folder in the list its
+    // answer names; each folder's bytes escape to six at max
     const unsigned long long capacity = (json.used * 6ULL) + (CLI_PATH_MAX_LEN * 6ULL) + 64ULL;
     char *const cell = g_cli_guard->temporary_buf_alloc(capacity, g_cli_machine_owner);
     if (cell == NULL)

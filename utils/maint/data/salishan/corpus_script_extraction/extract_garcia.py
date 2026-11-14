@@ -14,7 +14,7 @@
 #
 # Kʷəɬtəzétkʷu moves between her languages inside her own telling, in the introduction and again inside
 # stories 2 and 3, and the paper glosses those English words as part of the sentence. A line she mixed is
-# kept whole and its spans are marked in place, because splitting it means deciding for each word which
+# retained whole and its spans are marked in place, because splitting it means deciding for each word which
 # language it belongs to, and us, te and kn are words in both.
 #
 # The gloss categories are the paper's own, taken from its footnote 1 and used unchanged. Renaming them
@@ -171,7 +171,7 @@ LAYER = {
     "speaker comment": SPOKEN,
     "segmentation": DERIVED,
     "gloss": DERIVED,
-    # Kept and marked, excluded from the ingestion stream until someone has classified it.
+    # Retained and marked, excluded from the ingestion stream until someone has classified it.
     UNCLASSIFIED: DERIVED,
 }
 
@@ -262,7 +262,7 @@ def main():
         out.flush()
         return 1
 
-    # This PDF leaves a space after 856 of its glottalization marks, the most of any paper here.
+    # This PDF leaves a space after 856 of its glottalization marks, the max of any paper here.
     # C̓ʔáq̓ʷ ‘wet’ arrives as three tokens and k̓ʷén̓s ‘she looked at it’ as two. Closed on the way
     # in. The stress accents are left alone, for the reason inserted_space.py gives.
     with open(SOURCE, encoding="utf-8", errors="replace") as handle:
@@ -316,14 +316,14 @@ def main():
             mark = "T" if holds == "target" else "N"
             found = inline_sentences(under)
             if found:
-                kind = "transcription" if holds == "target" else "translation"
+                type = "transcription" if holds == "target" else "translation"
                 for count, text in found:
-                    rows.append((mark, count, story, number, kind, text))
+                    rows.append((mark, count, story, number, type, text))
             else:
-                kind = "running speech" if holds == "target" else "free translation"
+                type = "running speech" if holds == "target" else "free translation"
                 whole = " ".join(" ".join(one.split()) for one in under if one.strip())
                 if whole:
-                    rows.append((mark, 0, story, number, kind, whole))
+                    rows.append((mark, 0, story, number, type, whole))
             continue
 
         for count, said, analysis, comment in gloss_blocks(under):
@@ -371,7 +371,7 @@ def main():
         handle.write("# Residential School speaker who is re-learning her language.\n")
         handle.write("#\n")
         handle.write(
-            "# Mark is language.layer.kind. T is the target language, N is anything else.\n"
+            "# Mark is language.layer.type. T is the target language, N is anything else.\n"
         )
         handle.write(
             "# spoken is what was said. derived is worked out from it: the segmentation\n"
@@ -384,13 +384,13 @@ def main():
             "# Gloss categories are the paper's own, from its footnote 1, unchanged.\n"
         )
         handle.write("line\tstory\tsection\tswitches\tcontent\n")
-        for mark, count, story, number, kind, text in rows:
-            layer = LAYER[kind]
+        for mark, count, story, number, type, text in rows:
+            layer = LAYER[type]
             if mark == "T":
-                content = rendered(text, layer, kind)
+                content = rendered(text, layer, type)
                 crossings = switches(text)
             else:
-                content = "N.%s.%s:{%s}" % (layer, kind, text)
+                content = "N.%s.%s:{%s}" % (layer, type, text)
                 crossings = 0
             handle.write(
                 "line#${%d}\t%s\t%s\t%d\t%s\n"
@@ -404,12 +404,12 @@ def main():
     # twice and weight whatever happens to be glossed. A span already written is not written again,
     # and the number skipped is reported.
     pure = TARGET[:-4] + ".pure.txt"
-    kept = 0
+    retained = 0
     repeated = 0
     already = set()
     with open(pure, "w", encoding="utf-8", newline="") as handle:
-        for mark, count, story, number, kind, text in rows:
-            if (mark != "T") or (LAYER[kind] != SPOKEN):
+        for mark, count, story, number, type, text in rows:
+            if (mark != "T") or (LAYER[type] != SPOKEN):
                 continue
             for span, run in tagged_spans(text):
                 if (span != "T") or (not run.strip()):
@@ -420,23 +420,23 @@ def main():
                     continue
                 already.add(key)
                 handle.write("%s\n" % run)
-                kept += 1
+                retained += 1
 
-    # A file of its own for what the tool could not sort. Two kinds go in it: a gloss-block line
+    # A file of its own for what the tool could not sort. Two types go in it: a gloss-block line
     # none of the tests above typed, and a line no section of SECTIONS ever reached, which is where
     # this paper's front matter and its prose discussion of particular words sit.
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
         (0, "%s block %d" % (number, count), UNKNOWN_KIND, "", text)
-        for mark, count, story, number, kind, text in rows
-        if (kind == UNCLASSIFIED) and (story != "not reached")
+        for mark, count, story, number, type, text in rows
+        if (type == UNCLASSIFIED) and (story != "not reached")
     ]
     flagged.extend(missed)
     held = write_unsorted(stuck, "the Garcia narratives", flagged)
 
     out.write("  %d lines written to\n  %s\n" % (len(rows), os.path.basename(TARGET)))
     out.write(
-        "  %d target-language spans written to\n  %s\n" % (kept, os.path.basename(pure))
+        "  %d target-language spans written to\n  %s\n" % (retained, os.path.basename(pure))
     )
     out.write(
         "  %d spans skipped as already written, this paper prints each sentence twice\n"
@@ -447,18 +447,18 @@ def main():
         % (held, os.path.basename(stuck))
     )
 
-    out.write("\n  %-12s %-8s %-18s %s\n" % ("story", "section", "kind", "lines"))
+    out.write("\n  %-12s %-8s %-18s %s\n" % ("story", "section", "type", "lines"))
     counted = {}
-    for mark, count, story, number, kind, text in rows:
-        counted[(story, number, kind)] = counted.get((story, number, kind), 0) + 1
+    for mark, count, story, number, type, text in rows:
+        counted[(story, number, type)] = counted.get((story, number, type), 0) + 1
     for key in sorted(counted):
         out.write("  %-12s %-8s %-18s %d\n" % (key[0], key[1], key[2], counted[key]))
 
     out.write("\n  breaks in the sentence numbering\n")
     seen = {}
-    for mark, count, story, number, kind, text in rows:
-        if kind in ("transcription", "translation"):
-            seen.setdefault((story, number, kind), set()).add(count)
+    for mark, count, story, number, type, text in rows:
+        if type in ("transcription", "translation"):
+            seen.setdefault((story, number, type), set()).add(count)
     quiet = True
     for key in sorted(seen):
         numbers = seen[key]
@@ -479,10 +479,10 @@ def main():
         out.write("  none\n")
 
     marks = {}
-    for mark, count, story, number, kind, text in rows:
+    for mark, count, story, number, type, text in rows:
         marks[mark] = marks.get(mark, 0) + 1
     # Counted over spoken lines only. A segmentation line is target-language material full of
-    # plain-letter underlying forms. The span test fires on it and calling that a switch would
+    # plain-character underlying forms. The span test fires on it and calling that a switch would
     # report code-switching she did not do.
     mixed = sum(
         1

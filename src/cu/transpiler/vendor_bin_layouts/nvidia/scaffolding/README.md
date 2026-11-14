@@ -1,6 +1,6 @@
 # BAR0: the part's registers, listened to directly
 
-The most direct listen the run channel has on the part. NVML's Xid stamp and the Windows System log report a fault
+The max direct listen the run channel has on the part. NVML's Xid stamp and the Windows System log report a fault
 second-hand and late; the part's own state sits first in its BAR0 register aperture: the 16 MiB block of memory-mapped
 registers the card exposes, the PGRAPH exception registers (an out-of-range register warp exception among them) inside
 it. This module maps that aperture read-only and reads 32-bit registers out of it.
@@ -60,7 +60,7 @@ Give `mmio_read_check` a hex offset and a word count to read any registers: `mmi
 To remove the service: `pwsh -File install_bar0.ps1 -Remove`.
 
 The protocol finds the part's timer register through this driver: `orior protocol learn clock [<from> [<words>]]` puts
-the ADVANCES qualifier at each register of a span of BAR0 and keeps the address of the first that advances in the
+the ADVANCES qualifier at each register of a span of BAR0 and retains the address of the first that advances in the
 part's `.ksc` as `run answers <address> clock address` (`bus_clock.c`, beside the carrier). The carrier then reads that
 register before and after each launch it times. Where the service is not running the command says the install above
 and asks nothing.

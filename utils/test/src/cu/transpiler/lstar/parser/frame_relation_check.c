@@ -63,7 +63,7 @@ int main(void)
     check_that(frame_answer(FRAME_PARAMETER, 7u, word, RUN_COUNT_PLACE, &answered) && (answered == FRAME_LAUNCHED) &&
                    frame_answer(FRAME_PARAMETER, 514u, word, RUN_COUNT_PLACE, &answered) &&
                    (answered == FRAME_LAUNCHED),
-               "a parameter's word is the count the launch hands the kernel on every case");
+               "a parameter's word is the count the launch passes the kernel on every case");
     check_that((FRAME_LAUNCHED >= FRAME_CASES) && ((FRAME_LAUNCHED % RUN_THREADS_A_BLOCK) == 0u) &&
                    ((FRAME_LAUNCHED - FRAME_CASES) < RUN_THREADS_A_BLOCK),
                "and that count is the fewest whole blocks that give every frame case a thread");

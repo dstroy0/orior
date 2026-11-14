@@ -3,7 +3,7 @@
 
 \textbf{Purpose:} Carry the transfinite noise sieve and the fluidic architecture (the drafts in \texttt{thought\_\allowbreak{}experiments/\allowbreak{}engine/\allowbreak{}}) into the ledger, idea by idea, each set beside the part of the engine that is its working form and the status that backs it. The theory and the code are then read as one thing, and a reader knows which ideas already run.
 
-\textbf{Scope:} every idea in the noise sieve and fluidic drafts, the drafts on the demon with a universal Turing machine, the keyspace and folding draft, the subtractive framework and the seed crystal draft; the claims among them with no working form are kept in \hyperref[chap:wants]{wants.md}. \texttt{proposal.\allowbreak{}md} sets the sieve on the cell program. It is in \texttt{thought\_\allowbreak{}experiments/\allowbreak{}cell\_\allowbreak{}tracking/\allowbreak{}}, and its sections are in the cell workbook (on\_\allowbreak{}the\_\allowbreak{}engine.md). Where an idea has a working form, the module is named; cell\_\allowbreak{}tracking\_\allowbreak{}table.md says which part of the n-body problem each module solves, and \hyperref[chap:engine-table]{engine\_\allowbreak{}table.md} what each machine part computes.
+\textbf{Scope:} every idea in the noise sieve and fluidic drafts, the drafts on the demon with a universal Turing machine, the keyspace and folding draft, the subtractive framework and the seed crystal draft; the claims among them with no working form are retained in \hyperref[chap:wants]{wants.md}. \texttt{proposal.\allowbreak{}md} sets the sieve on the cell program. It is in \texttt{thought\_\allowbreak{}experiments/\allowbreak{}cell\_\allowbreak{}tracking/\allowbreak{}}, and its sections are in the cell workbook (on\_\allowbreak{}the\_\allowbreak{}engine.md). Where an idea has a working form, the module is named; cell\_\allowbreak{}tracking\_\allowbreak{}table.md says which part of the n-body problem each module solves, and \hyperref[chap:engine-table]{engine\_\allowbreak{}table.md} what each machine part computes.
 
 The status column follows the ledger's rules (\hyperref[chap:readme]{README.md}): \texttt{proved}, \texttt{measured}, \texttt{built}, \texttt{theory}, \texttt{refuted}, \texttt{not so}.
 
@@ -55,11 +55,11 @@ the application takes no time & not so: measured 31 ms a frame \\
 
 \section{\texorpdfstring{2. The binary LUT engine, AND chaining, and exact division}{2. The binary LUT engine, AND chaining, and exact division}}
 
-\textbf{The idea.} Transform symbols compile to binary primitives; operations chain by \texttt{\&}; exact limbs keep every result without truncation; two's complement limb multiplication gives exact inverses, and division runs without rounding as the limbs expand to absorb the remainder.
+\textbf{The idea.} Transform symbols compile to binary primitives; operations chain by \texttt{\&}; exact limbs retain every result without truncation; two's complement limb multiplication gives exact inverses, and division runs without rounding as the limbs expand to absorb the remainder.
 
-\textbf{In the engine.} Linear steps are imprinted and chained as keys, and two keys ANDed together are one key again. A chain of any length then costs every later atom one application (§2 of \hyperref[chap:imprint-key-cycle]{imprint\_\allowbreak{}key\_\allowbreak{}cycle.md}). The scheduler must keep program order: composition regroups freely but does not reorder freely. Pointwise steps now run as tables (M10, A13 of \hyperref[chap:engine-table]{engine\_\allowbreak{}table.md}), and a table read through a table is their composition in that order. \textbf{Proved:} f(x) = 65535 − x and g(y) = |y − 30000| give g∘f equal to the ops for |35535 − x|, and f∘g differs.
+\textbf{In the engine.} Linear steps are imprinted and chained as keys, and two keys ANDed together are one key again. A chain of any length then costs every later atom one application (§2 of \hyperref[chap:imprint-key-cycle]{imprint\_\allowbreak{}key\_\allowbreak{}cycle.md}). The scheduler must retain program order: composition regroups freely but does not reorder freely. Pointwise steps now run as tables (M10, A13 of \hyperref[chap:engine-table]{engine\_\allowbreak{}table.md}), and a table read through a table is their composition in that order. \textbf{Proved:} f(x) = 65535 − x and g(y) = |y − 30000| give g∘f equal to the ops for |35535 − x|, and f∘g differs.
 
-\textbf{Exact division, stated exactly.} An odd divisor d has an inverse modulo 2\textasciicircum{}n, found by Newton steps on limbs. Where d divides x, x·d⁻¹ mod 2\textasciicircum{}n \emph{is} x / d, exactly, with no remainder and no loop of subtractions. Where d does not divide x, the quotient is a rational, and its two's complement (2-adic) expansion never ends. It is \emph{eventually periodic}, though, with period the order of 2 modulo d. So the “limbs that expand to absorb the remainder” are one period of limbs, laid down once and repeated. That is the same imprint as modulo: one period known, the rest a shift. An even divisor is a shift times an odd one.
+\textbf{Exact division, stated exactly.} An odd divisor d has an inverse modulo 2\textasciicircum{}n, found by Newton steps on limbs. Where d divides x, x·d⁻¹ mod 2\textasciicircum{}n \emph{is} x / d, exactly, with no remainder and no loop of subtractions. Where d does not divide x, the quotient is a rational, and its two's complement (2-adic) expansion never ends. It is \emph{eventually periodic}, though, with period the order of 2 modulo d. So the “limbs that expand to absorb the remainder” are one period of limbs, positioned down once and repeated. That is the same imprint as modulo: one period known, the rest a shift. An even divisor is a shift times an odd one.
 
 {\small
 \setlength{\tabcolsep}{6pt}
@@ -147,7 +147,7 @@ a master schedule by family and order of operation & built for linear keys (the 
 
 \begin{itemize}
 \item \textbf{Eyes} are \texttt{shift\_\allowbreak{}agreement}: how many set bits of one view land on set bits of another at every lag at once: the frame's own motion, read off the field.
-\item \textbf{Arms} are the null draws (\texttt{-\allowbreak{}-\allowbreak{}null}). The same body is climbed at the same lag toward frames far off in time, where no correspondence can exist. A body no draw reaches stands above background, and nothing in that test is a chosen number.
+\item \textbf{Arms} are the null draws (\texttt{-\allowbreak{}-\allowbreak{}null}). The same body is climbed at the same lag toward frames far off in time, where no correspondence can exist. A body no draw reaches is above background, and nothing in that test is a chosen number.
 \item \textbf{Truthy/falsy probes} (fluidic draft §5) are a program's node policies, in the cell workbook (on\_\allowbreak{}the\_\allowbreak{}engine.md).
 \end{itemize}
 
@@ -167,7 +167,7 @@ binary probes in place of chosen thresholds & a program's, in the cell workbook 
 
 \section{\texorpdfstring{7. The demon observer, chords and the uroboros}{7. The demon observer, chords and the uroboros}}
 
-\textbf{The idea.} The observer's position is a probability wave that settles on hot bits: zones of the most torsion and deflection. Weak chords pierce the tower to read its cross-section without disturbing it. The floor −4 output, a 2D array of vector magnitudes, the noise key, is pressed back against the top boundary as the mold for the next cycle.
+\textbf{The idea.} The observer's position is a probability wave that settles on hot bits: zones of the max torsion and deflection. Weak chords pierce the tower to read its cross-section without disturbing it. The floor −4 output, a 2D array of vector magnitudes, the noise key, is pressed back against the top boundary as the mold for the next cycle.
 
 \textbf{In the engine.} The non-perturbing chord is the proof: a CRC-64 folded into a pass that already touches every pixel reads the whole sample without a pass of its own. The press, where the noise key shapes the next cycle, is the per location cost map. It would set stationary artifacts (dust, hot pixels, banding) apart from moving biology and steer the next run.
 
@@ -213,7 +213,7 @@ the construct kit & the program, its key (.imp), the schedule (.sch) and the con
 
 \textbf{Identity as the limit of coherence.} ID(x) = lim C(x, t): an object is who it is because its coherence carries on, and a tag plays no part. In the engine a link is chosen by coherence at the climbed lag (\texttt{held}), and every body's fate follows from the links (\texttt{bodies}: entered, present, split, merged, left, ended, vanished, absorbed).
 
-\textbf{Entropy.} Φ(x) = Θ(H\_\allowbreak{}max − ∫ H(x, t) dt): whatever decays to maximum entropy is background and goes to floor −4; whatever does not is coherence. The anchor counts measure this directly. A bit carried in a fraction p of the frames has entropy −p log p − (1 − p) log(1 − p), which is at its maximum near p = ½. So the low five bit planes, near ½ at every voxel, are H\_\allowbreak{}max: floor −4 by this very test. The anchor bits, near 0 or 1, are coherence. Taking Φ per voxel from the counts on disk costs no new pass over the data.
+\textbf{Entropy.} Φ(x) = Θ(H\_\allowbreak{}max − ∫ H(x, t) dt): whatever decays to max entropy is background and goes to floor −4; whatever does not is coherence. The anchor counts measure this directly. A bit carried in a fraction p of the frames has entropy −p log p − (1 − p) log(1 − p), which is at its max near p = ½. So the low five bit planes, near ½ at every voxel, are H\_\allowbreak{}max: floor −4 by this very test. The anchor bits, near 0 or 1, are coherence. Taking Φ per voxel from the counts on disk costs no new pass over the data.
 
 {\small
 \setlength{\tabcolsep}{6pt}
@@ -241,7 +241,7 @@ entropy separates floor −4 from coherence & measured for the low bit planes (n
 \item \textbf{Measurement without dice.} The noise is taken as deterministic, constant and unique per sample. It is read whole, never drawn from a distribution, and the null draws are deterministic frames far off in time instead of random numbers.
 \end{itemize}
 
-The 2\textasciicircum{}n barrier does not go away in a machine. The engine keeps its state exact and bounds every width before it runs; it does not hold an infinite Hilbert space.
+The 2\textasciicircum{}n barrier does not go away in a machine. The engine retains its state exact and bounds every width before it runs; it does not hold an infinite Hilbert space.
 
 {\small
 \setlength{\tabcolsep}{6pt}
@@ -259,7 +259,7 @@ unbounded state & not so: every width is bounded before a run \\
 
 \section{\texorpdfstring{11. The boundary functional of a keyspace, and folding}{11. The boundary functional of a keyspace, and folding}}
 
-\textbf{The idea.} A 30 digit hex keyspace holds 16\textasciicircum{}30 = 2\textasciicircum{}120 values. Its boundary functional is the threshold latch Φ(x) = 1 where x < T, or the distance |x − T|. It is applied to every output of a sweep at once, and a reduction fold latches the first hit as the floor. Folding keeps the accumulator one size however many instances are folded, and a severe boundary condition adds no dimensions.
+\textbf{The idea.} A 30 digit hex keyspace holds 16\textasciicircum{}30 = 2\textasciicircum{}120 values. Its boundary functional is the threshold latch Φ(x) = 1 where x < T, or the distance |x − T|. It is applied to every output of a sweep at once, and a reduction fold latches the first hit as the floor. Folding retains the accumulator one size however many instances are folded, and a severe boundary condition adds no dimensions.
 
 \textbf{In the engine.} The boundary functional is the same object as the drafts' ∂Ω: the edge between what a pass accepts and what it does not, applied to every element at once. The engine's proved instance of a fold is the CRC-64. Each segment's register is taken from zero as the tower touches the pixels. Registers are then folded pairwise, each left one carried across its neighbor by one imprinted operator a level. The accumulator stays 64 bits whether it covers 64 pixels or 419,430,400. The latch is a reduction the engine already runs: the device comparisons that count differing voxels, and the overflow flag the tower sets.
 
@@ -267,13 +267,13 @@ unbounded state & not so: every width is bounded before a run \\
 
 {\small
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.4569\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5431\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.4581\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5419\linewidth-2\tabcolsep\relax}}
 \toprule
 claim & status \\
 \midrule
 \endhead
 a boundary functional as a latch applied to every element at once & built in the engine's own terms: device reductions over every voxel (the differ count, the overflow flag) \\
-a fold keeps its accumulator one size however much it folds & proved for the CRC-64: 64 bits over every sample, all 25 holding \\
+a fold retains its accumulator one size however much it folds & proved for the CRC-64: 64 bits over every sample, all 25 holding \\
 folding shrinks the search itself & not so: a fold bounds the proof, and the search still evaluates every candidate once \\
 \bottomrule
 \end{longtable}
@@ -285,9 +285,9 @@ The draft in the subtractive framework draft is a cosmology. Its cosmological cl
 
 \textbf{Rules propagate at field speed instead of instantly.} “The ruleset propagates to w at field speed”: the new rules spread from where they are applied as a wavefront, bounded by the medium's clock, instead of blinking into existence everywhere. This corrects §1's “transfinite speed”. In a machine the rules reach every lane in one launch, and the launch takes time; the ledger's 31 ms a frame is that front, measured.
 
-\textbf{Phase cancellation is subtraction of the whole medium.} “You read the incoming packet, flip the sign, and output it. The wave hits your boundary, meets its exact inverse, and resolves to zero.” That is the residual's key: 2\textasciicircum{}g · B\_\allowbreak{}narrow − B\_\allowbreak{}wide · B\_\allowbreak{}narrow. The wide term is the medium, and it is subtracted whole, in exact two's complement. The medium resolves to exactly zero, and what is left stands above it. The inversion is exact only because the arithmetic is: a rounded inverse leaves a residue of rounding, and that residue would read as structure.
+\textbf{Phase cancellation is subtraction of the whole medium.} “You read the incoming packet, flip the sign, and output it. The wave hits your boundary, meets its exact inverse, and resolves to zero.” That is the residual's key: 2\textasciicircum{}g · B\_\allowbreak{}narrow − B\_\allowbreak{}wide · B\_\allowbreak{}narrow. The wide term is the medium, and it is subtracted whole, in exact two's complement. The medium resolves to exactly zero, and the remainder is above it. The inversion is exact only because the arithmetic is: a rounded inverse leaves a residue of rounding, and that residue would read as structure.
 
-\textbf{The identity:null permutation means field noise readings only.} A null is not a blank pointer or an error. Asked what is here, it returns a valid, boring reading of the field noise, indistinguishable from empty space. That is the precise meaning of the engine's null draws. The same body is climbed at the same lag toward frames far off in time, where no correspondence exists. What comes back is the reading field noise alone gives there. A body is real only where it stands above that reading. The reading is taken instead of assumed: nothing is drawn from a distribution, and no threshold is chosen.
+\textbf{The identity:null permutation means field noise readings only.} A null is not a blank pointer or an error. Asked what is here, it returns a valid, boring reading of the field noise, indistinguishable from empty space. That is the precise meaning of the engine's null draws. The same body is climbed at the same lag toward frames far off in time, where no correspondence exists. What comes back is the reading field noise alone gives there. A body is real only where it is above that reading. The reading is taken instead of assumed: nothing is drawn from a distribution, and no threshold is chosen.
 
 \textbf{Listening at the noise floor.} “Tune the receiver to field noise”: a receiver matched to the floor takes only what rises above it. The anchor counts are that receiver. The low five bit planes sit at the floor (near ½ at every voxel), and a bit is signal only where its count leaves ½.
 
@@ -310,24 +310,24 @@ The draft's cosmology (arrival shells, network daemons, black hole sinks) lies o
 
 \section{\texorpdfstring{13. The seed crystal and the needle off zero}{13. The seed crystal and the needle off zero}}
 
-the seed crystal draft was exported under the title “Solving N-Body Problems Deterministically”, but it holds no n-body method. It is a cyclic cosmology. At maximum entropy the field flattens until scale means nothing, and a uniform field is as featureless as a point. The field then inverts. The new rules propagate from a seed crystal: a needle of near-infinite magnitude, perpendicular to the field, with a radius close to zero but not zero. That hair of tilt is the symmetry break that sets the new field's propagation speed. The cosmology is theory and stays there. Two of its mechanics are exactly the engine's.
+the seed crystal draft was exported under the title “Solving N-Body Problems Deterministically”, but it holds no n-body method. It is a cyclic cosmology. At max entropy the field flattens until scale means nothing, and a uniform field is as featureless as a point. The field then inverts. The new rules propagate from a seed crystal: a needle of near-infinite magnitude, perpendicular to the field, with a radius close to zero but not zero. That hair of tilt is the symmetry break that sets the new field's propagation speed. The cosmology is theory and stays there. Two of its mechanics are exactly the engine's.
 
 \textbf{The needle is the impulse.} The imprint pushes one unit at one point, the narrowest thing the lattice holds, through the program once. Everything the program will do to any atom propagates out from that response: the key. A field of zeros imprints nothing, and a flat field has no differential to carry. The whole next pass is seeded by one point's response.
 
 \textbf{Nothing propagates without the tilt.} A perfectly flat field gives steepest ascent nowhere to go: every neighbor ties, and no voxel can climb. In the engine the tie is not left to chance or to arithmetic noise. Comparisons are exact, and in the component tree every face's key carries the face's own name in its lowest limb, below the residual's limbs (\texttt{max\_\allowbreak{}tree\_\allowbreak{}key\_\allowbreak{}limb}). So no two keys ever tie, and where two components choose each other the lower indexed one stays. That lowest limb is the hair of asymmetry: the smallest deterministic difference, weighing less than any difference of the residual, that still gives every choice one direction. It is the reason the same frame always yields the same bodies, on any machine and in any build.
 
-\textbf{Maximum entropy is the floor.} “When everything flattens out, scale loses all meaning”: a field at maximum entropy looks alike at every scale. The measured floor has that property. The low five bit planes sit near ½ at every voxel in every sample, with no anchor at any place, and the tower cannot compress them further.
+\textbf{Max entropy is the floor.} “When everything flattens out, scale loses all meaning”: a field at max entropy looks alike at every scale. The measured floor has that property. The low five bit planes sit near ½ at every voxel in every sample, with no anchor at any place, and the tower cannot compress them further.
 
 {\small
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.4757\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5243\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.4735\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5265\linewidth-2\tabcolsep\relax}}
 \toprule
 claim & status \\
 \midrule
 \endhead
 a single point's response seeds everything the program does & proved: the key is the impulse's response, and it is the residual lane for lane \\
 a flat field propagates nothing; a minimal fixed asymmetry gives every choice one direction & built: exact comparison, the face's name in the key's lowest limb so no two keys tie \\
-maximum entropy looks alike at every scale & measured for the low five bit planes: near ½ everywhere, no anchor \\
+max entropy looks alike at every scale & measured for the low five bit planes: near ½ everywhere, no anchor \\
 \bottomrule
 \end{longtable}
 }
@@ -346,8 +346,8 @@ the four noise vectors draft takes the residual tensor F − I and splits it int
 
 \begin{itemize}
 \item \textbf{Fixed pattern} is constant in time at a place: its bits never flip. It is the anchor bits, measured before the history: set in every frame at a voxel, and different in every sample.
-\item \textbf{Shot, read and quantization} change every frame independently: their bits flip half the time, the maximum. On 44b6\_\allowbreak{}0113de3b, bits 0 to 3 flip 499 to 500 times per thousand transitions in every window, and bit 4 flips 486 to 495 times.
-\item \textbf{The bodies} sit between: bits 5 to 10 flip from about 430 down to about 20 per thousand. They are kept low where a body is and move with it.
+\item \textbf{Shot, read and quantization} change every frame independently: their bits flip half the time, the max. On 44b6\_\allowbreak{}0113de3b, bits 0 to 3 flip 499 to 500 times per thousand transitions in every window, and bit 4 flips 486 to 495 times.
+\item \textbf{The bodies} sit between: bits 5 to 10 flip from about 430 down to about 20 per thousand. They are retained low where a body is and move with it.
 \item \textbf{A sample wide bump.} In window 4 (transitions 45 to 55) every bit from 5 to 10 flips more at once, bit 8 from about 122 to 153 per thousand. Then windows 5 to 8 fall below where they started. That is a rise in entropy across the whole sample followed by a move toward order.
 \end{itemize}
 
@@ -371,24 +371,24 @@ the noise keys stamped top down over the whole set in one cycle & theory; the cy
 
 Every noise term, these four and the rest Doug named has one row in \hyperref[chap:noise-vector-integration-table]{noise\_\allowbreak{}vector\_\allowbreak{}integration\_\allowbreak{}table.md}: how it moves, the exact sums that read it, its form in the sims' camera law, and the experiment that moves its status.
 
-\section{\texorpdfstring{17. The floor laid down first, entropy conserved, and the clock as the elevator}{17. The floor laid down first, entropy conserved, and the clock as the elevator}}
+\section{\texorpdfstring{17. The floor positioned down first, entropy conserved, and the clock as the elevator}{17. The floor positioned down first, entropy conserved, and the clock as the elevator}}
 
-\textbf{The floor is laid down first.} The noise keys are part of the run's configuration: the \texttt{.\allowbreak{}cfg} carries a \texttt{floor} section, written first after the version, naming where each sample's noise keys are stored. A run with a floor lays it down before anything else runs. Each sample's entropy history is kept where it reads back whole and was projected from the sample's \texttt{.\allowbreak{}kcr} as it stands, and projected again where not. A run whose floor cannot be laid down stops there.
+\textbf{The floor is positioned down first.} The noise keys are part of the run's configuration: the \texttt{.\allowbreak{}cfg} carries a \texttt{floor} section, written first after the version, naming where each sample's noise keys are stored. A run with a floor positions it down before anything else runs. Each sample's entropy history is retained where it reads back whole and was projected from the sample's \texttt{.\allowbreak{}kcr} as it is, and projected again where not. A run whose floor cannot be positioned down stops there.
 
 \textbf{Then it accumulates going forward, and entropy is conserved.} The flips accumulate window after window, and each bit's running total is carried to the last frame. Conservation is exact and checked at every voxel in the same pass. Over a voxel's whole line, the flips of a bit have the parity of that bit's net change: an even count where the first and last frames agree in it, odd where they differ. A voxel that breaks it would be a flip counted twice or missed, and the sample is refused.
 
-\textbf{The floor's identity, and where steering happened.} With the floor known at every voxel (half the transitions, a coin at maximum entropy; or no transitions at all, the constant region), every departure from it is placed. Where the history leaves the floor is where steering happened, whether a body moved through, the field was driven, or a split or a lysis bumped it. The demon's waveform, which the fluidic draft lets settle on the hot bits, collapses onto exactly those places: the union U | U of every departure from the floor, over every window. Nothing outside it is asked about again.
+\textbf{The floor's identity, and where steering happened.} With the floor known at every voxel (half the transitions, a coin at max entropy; or no transitions at all, the constant region), every departure from it is placed. Where the history leaves the floor is where steering happened, whether a body moved through, the field was driven, or a split or a lysis bumped it. The demon's waveform, which the fluidic draft lets settle on the hot bits, collapses onto exactly those places: the union U | U of every departure from the floor, over every window. Nothing outside it is asked about again.
 
 \textbf{The clock is the elevator.} The fluidic draft's elevator E(f, t) reads floor f at time t directly. The clock is that elevator: volumeless and dimensionless, it takes you to any floor as fast as you can press the buttons. In the engine every floor of the tower sits at a known offset and every chunk of the stream decodes on its own from a stored first bit. Every window of the history sits at a known place in its \texttt{.\allowbreak{}knf}. So any floor at any time is reached directly, without decoding what comes before it.
 
 {\small
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.4950\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5050\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.4842\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5158\linewidth-2\tabcolsep\relax}}
 \toprule
 claim & status \\
 \midrule
 \endhead
-the floor section in the \texttt{.\allowbreak{}cfg}, laid down before anything else runs & built and not yet run: the \texttt{.\allowbreak{}cfg} reads and writes it; a program's driver laying it down is in the cell workbook \\
+the floor section in the \texttt{.\allowbreak{}cfg}, positioned down before anything else runs & built and not yet run: the \texttt{.\allowbreak{}cfg} reads and writes it; a program's driver positioning it down is in the cell workbook \\
 entropy conserved at every voxel: each bit's flips have the parity of its net change & built and not yet run: checked in the history's own pass \\
 the floor's identity at every voxel places every departure: where steering happened & theory; the history holds it, and the reading is not built \\
 the clock as the elevator: any floor at any time reached directly & built: the tower's floors and the stream's chunks at known offsets; the history's windows at known places \\
@@ -402,13 +402,13 @@ The demon's waveform collapsing onto the union U | U of every departure from the
 
 \textbf{The join.} The sieve's section on the demon (\texttt{noise\_\allowbreak{}sieve\_\allowbreak{}4}, section 6) gives it arms, the identity:null permutation, which strip redundant variance down to the irreducible noise bits. The fluidic draft (\texttt{fluidic\_\allowbreak{}1}, section 2) gives the observer a position governed by a probability wave, |ψ|², that settles on the hot bits. Read apart, the arms sweep: every body gets the same draws, whether anything is there or not. Read together, the arm fires where the observer's cloud is densest, the way an electron is found where |ψ|² is large. It is not placed at random, and it is not swept.
 
-\textbf{The sweep it replaces.} Until now the null draws were a fixed schedule: every frame's bodies climbed against the frames half the series away, stepping on by one per draw, the same for every frame. That is sweating: the same work spent everywhere, most of it on the floor where nothing can answer.
+\textbf{The sweep it replaces.} Until now the null draws were a fixed schedule: every frame's bodies climbed against the frames half the series away, stepping on by one per draw, the same for every frame. That is sweating: the same work spent everywhere, the majority of it on the floor where nothing can answer.
 
 \textbf{The cloud, from the history, with no chosen number.} The entropy history already holds it. At a voxel in a window, the cloud's density is how much the voxel changed: the sum over the window's transitions of the frame XOR the frame before, which is exactly Σ\_\allowbreak{}b (flips of bit b) · 2\textasciicircum{}b read off the history's nibble counts. At the floor only the low bits flip, and the density is small. Where a body moves, or a split or a lysis happens, the high bits flip and the density is large. Nothing is thresholded: the density is the change itself, in the sample's own units.
 
 \textbf{The overlap between windows.} Two windows' clouds overlap where the same voxels are active in both: Σ over voxels of D\_\allowbreak{}w · D\_\allowbreak{}w′. For 9 windows that is 45 exact integers. They are folded into the history's own pass, since that kernel already holds every window of every voxel. They cost no pass of their own.
 
-\textbf{Each floor gets a null draw: the identity line.} The history's windows are the elevator's floors, and the clock numbers them. Frame f stands on floor ⌊f / 11⌋ at place f mod 11. Its null draw on floor g is the frame at the same place on that floor, g · 11 + (f mod 11): the elevator changes only the floor number. Every floor gets its draw, the frame's own floor excepted, and so does any floor whose identity line frame falls within two frames of it. The draws run along the identity line, one per floor, instead of a fixed number stepped from the middle of the series.
+\textbf{Each floor gets a null draw: the identity line.} The history's windows are the elevator's floors, and the clock numbers them. Frame f is on floor ⌊f / 11⌋ at place f mod 11. Its null draw on floor g is the frame at the same place on that floor, g · 11 + (f mod 11): the elevator changes only the floor number. Every floor gets its draw, the frame's own floor excepted, and so does any floor whose identity line frame falls within two frames of it. The draws run along the identity line, one per floor, instead of a fixed number stepped from the middle of the series.
 
 \textbf{Aiming and firing.} A frame's null draw must read field noise only, and nothing of the frame's own bodies. The cloud overlap orders the floors: the floor whose window overlaps this frame's cloud least is drawn first, because where this frame's activity is, that floor is quiet, and what the climb finds there is the floor. The sweep becomes a sieve: every draw is spent along the identity line, in the order the cloud gives.
 

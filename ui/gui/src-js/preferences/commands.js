@@ -7,7 +7,7 @@ import { invoke, pick } from "../bridge.js";
 import { FONT_SETTINGS, setFont } from "../fonts.js";
 import { keysOf, keySettings, SETS, setKeySettings } from "../keys.js";
 import { setLanguage } from "../language.js";
-import { KEPT_LEAST, machineCores, setCoresKept } from "../cores.js";
+import { RETAINED_LEAST, machineCores, setCoresKept } from "../cores.js";
 import { OPACITY_SETTINGS, setOpacity, STEPS as OPACITY_STEPS } from "../opacity.js";
 import { PATTERN_PARTS, setPatterns, setSets } from "../patterns.js";
 import { scheme } from "../scheme.js";
@@ -15,16 +15,16 @@ import { settingsInForce, TREE_FILE } from "../settings.js";
 import { bringBack, say } from "../statusbar.js";
 import { deleteTheme, paletteOf } from "../themes.js";
 import { setZoom, STEPS } from "../zoom.js";
-import { chooseImage, chooseTheme, exportTheme, IMAGE_SHARES, importTheme, keepIcons, newTheme, removeImage, renameTheme, setColor, shareImage, shownTheme } from "./theme.js";
+import { chooseImage, chooseTheme, exportTheme, IMAGE_SHARES, importTheme, retainIcons, newTheme, removeImage, renameTheme, setColor, shareImage, displayedTheme } from "./theme.js";
 
 // Preferences drawn again where it is open, as a command changes what it shows: `draw` is set as the sheet opens.
-export const shown = { draw: () => {} };
+export const displayed = { draw: () => {} };
 
 const failed = (text) => say(text, { failed: true });
 const shares = (steps, scale) => steps.map((step) => Math.round(step * scale)).join(", ");
 const partOf = (setting) => setting.key.split(".").at(-1);
 
-// The keys of the command `command` in force, two at most.
+// The keys of the command `command` in force, two at max.
 async function keysNow(command) {
   const { allCommands } = await import("../menubar.js");
   const item = allCommands().find((one) => one.command === command);
@@ -41,10 +41,10 @@ const PREFERENCES = {
     return step ? setZoom(step) : failed(`Zoom is one of ${shares(STEPS, 100)}.`);
   },
   "prefs-language": ([tag]) => setLanguage(!tag || tag === "system" ? "" : tag),
-  "prefs-cores": ([kept]) => {
-    const most = Math.max(KEPT_LEAST, machineCores() - 1);
-    const count = Number(kept);
-    return Number.isInteger(count) && count >= KEPT_LEAST && count <= most ? setCoresKept(count) : failed(`Cores kept for you is from ${KEPT_LEAST} to ${most}.`);
+  "prefs-cores": ([retained]) => {
+    const max = Math.max(RETAINED_LEAST, machineCores() - 1);
+    const count = Number(retained);
+    return Number.isInteger(count) && count >= RETAINED_LEAST && count <= max ? setCoresKept(count) : failed(`Cores retained for you is from ${RETAINED_LEAST} to ${max}.`);
   },
   "prefs-opacity": ([part, percent]) => {
     const setting = OPACITY_SETTINGS.find((one) => partOf(one) === part);
@@ -67,7 +67,7 @@ const PREFERENCES = {
   "prefs-search-sets": (lines) => setSets(lines.join("\n")),
   "theme-choose": (words) => chooseTheme(words.join(" ")) || failed(`No theme is named ${words.join(" ")}.`),
   "theme-new": () => newTheme(),
-  "theme-delete": () => shownTheme() && deleteTheme(shownTheme().name),
+  "theme-delete": () => displayedTheme() && deleteTheme(displayedTheme().name),
   "theme-rename": (words) => renameTheme(words.join(" ").trim()),
   "theme-export": () => say(exportTheme()),
   "theme-import": async () => {
@@ -97,14 +97,14 @@ const PREFERENCES = {
   "theme-image-remove": () => removeImage(),
   // The icon of the pattern given, changed, or added after the others where none has that pattern.
   "theme-icon": ([pattern, mark = "", color = ""]) => {
-    const icons = shownTheme()?.icons ?? [];
+    const icons = displayedTheme()?.icons ?? [];
     const at = icons.findIndex((one) => one.pattern === pattern);
-    keepIcons(at < 0 ? [...icons, { pattern, mark, color }] : icons.map((one, index) => (index === at ? { pattern, mark, color } : one)));
+    retainIcons(at < 0 ? [...icons, { pattern, mark, color }] : icons.map((one, index) => (index === at ? { pattern, mark, color } : one)));
   },
-  "theme-icon-remove": ([pattern]) => keepIcons((shownTheme()?.icons ?? []).filter((one) => one.pattern !== pattern)),
+  "theme-icon-remove": ([pattern]) => retainIcons((displayedTheme()?.icons ?? []).filter((one) => one.pattern !== pattern)),
   "keys-from": ([set]) => (SETS[set] ? setKeySettings({ set }) : failed(`Keys are from ${Object.keys(SETS).join(", ")}.`)),
-  "keys-letter": ([by]) => (["character", "place"].includes(by) ? setKeySettings({ by }) : failed("A letter's key is by character or by place.")),
-  // A command's keys, the keys given first and the one it kept before after them, two at most.
+  "keys-character": ([by]) => (["character", "place"].includes(by) ? setKeySettings({ by }) : failed("A character's key is by character or by place.")),
+  // A command's keys, the keys given first and the one it retained before after them, two at max.
   "key-set": async ([command, keys]) => {
     const now = await keysNow(command);
     return now && keys ? setOwnKeys(command, [keys, ...now.filter((one) => one !== keys)].slice(0, 2)) : failed(`No command ${command} takes keys ${keys ?? ""}.`);
@@ -137,7 +137,7 @@ export const prefsCommands = Object.fromEntries(
     name,
     async (args) => {
       await run(args);
-      shown.draw();
+      displayed.draw();
     },
   ]),
 );

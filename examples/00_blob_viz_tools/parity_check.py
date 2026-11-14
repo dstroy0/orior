@@ -17,15 +17,15 @@ is a reporter nobody has tested.
 
 WHAT IT DOES
 
-Loads both models into node beside one table of rules and values, in the kinds both carry: a bounded
+Loads both models into node beside one table of rules and values, in the types both carry: a bounded
 whole number, a switch and a word. Each case is applied through both, and the names taken, the names
 refused and the view that results must agree. The bar's int is the scheme's integer.
 
-Loads the watch into node with a frame clock and a timer it drives by hand, runs each kind of loop
+Loads the watch into node with a frame clock and a timer it drives by hand, runs each type of loop
 through it, and holds window.__loopHealth to the verdict each one must give.
 
 Reads every tracked page in view/ and every page in build/view and holds each one's loops to the
-same rule script_check holds a template to: a page whose code schedules frames hands every loop to
+same rule script_check holds a template to: a page whose code schedules frames passes every loop to
 the watch and carries it.
 
 A missing node is reported and never treated as a pass.
@@ -45,16 +45,16 @@ TOOLBOX = os.path.join(HERE, "toolbox")
 ROOT = os.path.dirname(os.path.dirname(HERE))
 PAGES = [os.path.join(HERE, "view"), os.path.join(ROOT, "build", "view")]
 
-# One rule per shared kind, written once and given to each model in its own words.
+# One rule per shared type, written once and given to each model in its own words.
 RULES = {
-    "count": {"bar": {"kind": "int", "low": 3, "high": 9, "fallback": 5},
-              "scheme": {"kind": "integer", "low": 3, "high": 9, "fallback": 5}},
-    "spin": {"bar": {"kind": "switch", "fallback": True}, "scheme": {"kind": "switch", "fallback": True}},
-    "face": {"bar": {"kind": "word", "words": ["human", "machine"], "fallback": "human"},
-             "scheme": {"kind": "word", "words": ["human", "machine"], "fallback": "human"}},
+    "count": {"bar": {"type": "int", "low": 3, "high": 9, "fallback": 5},
+              "scheme": {"type": "integer", "low": 3, "high": 9, "fallback": 5}},
+    "spin": {"bar": {"type": "switch", "fallback": True}, "scheme": {"type": "switch", "fallback": True}},
+    "face": {"bar": {"type": "word", "words": ["human", "machine"], "fallback": "human"},
+             "scheme": {"type": "word", "words": ["human", "machine"], "fallback": "human"}},
 }
 
-# Each case is a section applied over the fallbacks. Every edge of every rule, and every wrong kind.
+# Each case is a section applied over the fallbacks. Every edge of every rule, and every wrong type.
 CASES = [
     {"count": 3}, {"count": 9}, {"count": 6}, {"count": 2}, {"count": 10}, {"count": 4.5}, {"count": "4"},
     {"count": None}, {"count": True}, {"spin": False}, {"spin": True}, {"spin": "on"}, {"spin": 1},
@@ -164,7 +164,7 @@ page.hidden = false;
 (listeners.visibilitychange || []).forEach((fn) => fn());
 refresh(3);
 wait(1600);
-out.shown = health();
+out.displayed = health();
 
 fresh();
 const asleep = EV.watchLoop("on demand", () => false);
@@ -244,7 +244,7 @@ WANTED = [
     ("throws", False, "threw on turn 1", "a loop that throws is reported"),
     ("dead", False, "turned 0 time(s)", "a loop that never turns in its patience is reported"),
     ("hidden", None, "not judged yet", "a hidden page is not judged"),
-    ("shown", True, "turned twice", "a page seen again is judged again, and passes"),
+    ("displayed", True, "turned twice", "a page seen again is judged again, and passes"),
     ("neverWoken", True, "asleep", "a loop never woken is asleep and healthy"),
     ("sleptAfterOne", True, "asleep", "a loop that draws once and sleeps is healthy"),
     ("noDevice", False, "no device", "a page with no device says so"),
@@ -265,9 +265,9 @@ def watch(lines):
         good = one["ok"] is ok and word in one["why"]
         lines.append("  %s%s: ok %s, %s" % ("" if good else "FAIL ", label, one["ok"], one["why"]))
         failed += 0 if good else 1
-    shown = got.get("throwsShown") is True
-    lines.append("  %sa throw shows on the page as well" % ("" if shown else "FAIL "))
-    return failed + (0 if shown else 1)
+    displayed = got.get("throwsShown") is True
+    lines.append("  %sa throw shows on the page as well" % ("" if displayed else "FAIL "))
+    return failed + (0 if displayed else 1)
 
 
 def pages(lines):

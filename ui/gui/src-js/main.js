@@ -38,7 +38,7 @@ import { loadRun, readRunsAgain, startRun } from "./run.js";
 import { linkJoined, startRemote } from "./remote.js";
 import { serveAgain } from "./servers.js";
 import { catchErrors } from "./reports.js";
-import { keepScheme, showKeptScheme } from "./scheme.js";
+import { retainScheme, showKeptScheme } from "./scheme.js";
 import { onSettings, readSettings, startSettings } from "./settings.js";
 import { startNetwork } from "./network.js";
 import { startLanguage } from "./language.js";
@@ -48,17 +48,17 @@ import { showOpacity } from "./opacity.js";
 import { giveCores } from "./cores.js";
 import { keysChanged } from "./keys.js";
 import { startSearch } from "./search.js";
-import { keepPane, settlePanes, togglePaneNode } from "./sides.js";
+import { retainPane, settlePanes, togglePaneNode } from "./sides.js";
 import { watch, write } from "./status.js";
 import { focusTerminalView, newTerminal, runInTerminal, startTerminal } from "./terminal.js";
 import { readTrust, startTrust } from "./trust.js";
-import { onView, showView, shownView } from "./views.js";
+import { onView, showView, displayedView } from "./views.js";
 import { onTold, showWindow } from "./windows.js";
 import { startWordmark } from "./wordmark.js";
-import { keepZoom, showZoom } from "./zoom.js";
-import { keepMemory, say, startNotices } from "./statusbar.js";
+import { retainZoom, showZoom } from "./zoom.js";
+import { retainMemory, say, startNotices } from "./statusbar.js";
 import { startMotion } from "./motion.js";
-import { keepUserCss } from "./usercss.js";
+import { retainUserCss } from "./usercss.js";
 
 // The web view offers what was typed before under any field that does not refuse it, over what the
 // field shows; every field of the window refuses it, those made after this among them, as each
@@ -96,7 +96,7 @@ async function settle(root, said) {
   return true;
 }
 
-// The bars of the files being read, kept from one drawing to the next so each moves steadily, and
+// The bars of the files being read, retained from one drawing to the next so each moves steadily, and
 // when each began; and the bar of the tree's reading of its symbols.
 const readBars = new Map();
 const readBegan = new Map();
@@ -105,7 +105,7 @@ let symbolsBar = null;
 // The bar's reading of the status block: the runs going, the files still being read, each with a
 // bar of how far along it is and the time it has left, and what of the tree is not read yet: its
 // symbols, while they are read, with their bar, their share, their time left and Stop, which ends the
-// reading and keeps what it read.
+// reading and retains what it read.
 function drawPulse(pulse) {
   const parts = [];
   if (pulse.runs.size) {
@@ -158,7 +158,7 @@ const UNREAD_EVERY = 250;
 let treeRead = 0;
 
 // Reads the tree's files and what they declare behind the window, every key at work meanwhile, and
-// keeps the status block told which are not read yet until both are.
+// retains the status block told which are not read yet until both are.
 async function readTree() {
   const ticket = ++treeRead;
   const began = performance.now();
@@ -177,7 +177,7 @@ async function readTree() {
 }
 
 // Shows again each setting a settings file changed whose part of the page took it as the window
-// started: the scheme, the themes, the fonts, the opacity, the zoom, the cores kept, the keys and the
+// started: the scheme, the themes, the fonts, the opacity, the zoom, the cores retained, the keys and the
 // editor's own.
 function showSettings(changed) {
   const has = (name) => [...changed].some((key) => (name.endsWith(".") ? key.startsWith(name) : key === name));
@@ -214,7 +214,7 @@ function showSettings(changed) {
 async function start() {
   invoke("window_show").catch(() => {});
   const commands = invoke("commands_read");
-  // The loading pane, the name standing on it, shows once, on the first start in the system's session, while
+  // The loading pane, the name located on it, shows once, on the first start in the system's session, while
   // the tree is read
   if (await firstStart()) {
     showLoading();
@@ -223,13 +223,13 @@ async function start() {
   catchErrors();
   await startMotion();
   startWordmark();
-  keepScheme();
+  retainScheme();
   applyThemes();
   onSettings(showSettings);
   startSettings();
-  const styled = keepUserCss();
-  keepZoom();
-  keepMemory();
+  const styled = retainUserCss();
+  retainZoom();
+  retainMemory();
   startMenus();
   watch(drawPulse);
   document.getElementById("open-button").addEventListener("click", () => openFolder());
@@ -243,9 +243,9 @@ async function start() {
   });
   await startRun(openInEditor);
   await startTerminal();
-  keepPane(document.getElementById("job-side"), "left", { own: true });
-  keepPane(document.getElementById("explorer"), "left", { own: true });
-  keepPane(document.getElementById("defs-side"), "right");
+  retainPane(document.getElementById("job-side"), "left", { own: true });
+  retainPane(document.getElementById("explorer"), "left", { own: true });
+  retainPane(document.getElementById("defs-side"), "right");
   startStatusItems();
   await startProfile({
     file: () => editing().fileHere(),
@@ -291,7 +291,7 @@ async function start() {
         runCommand("terminal-view");
       } else if (name === "explorer") {
         togglePaneNode(document.getElementById("explorer"), false);
-      } else if (name === "jobs" && shownView() === "run") {
+      } else if (name === "jobs" && displayedView() === "run") {
         showView("edit");
       }
     },
@@ -311,8 +311,8 @@ async function start() {
   startLanguage();
   startTrust();
   startDrop({ changed: () => editing().treeChanged() });
-  // A tree on another machine: once the link to it is made, the runs kept there are read, and once
-  // it is made again after a drop, every open tab is handed to its server there again.
+  // A tree on another machine: once the link to it is made, the runs retained there are read, and once
+  // it is made again after a drop, every open tab is passed to its server there again.
   await startRemote({
     say: (text) => say(text, { failed: true }),
     joined: (again) => {

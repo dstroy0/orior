@@ -4,7 +4,7 @@
 // writing it once before the cell that contains it is taken at its size
 #include "measured.h"
 
-// the pieces a measuring line fills handed on and let go
+// the pieces a measuring line fills passed on and let go
 static int measured_append(void *context, const char *bytes, size_t size)
 {
     (void)context;

@@ -9,16 +9,16 @@ ROOT = os.path.dirname(HERE)
 
 STEPS = [
     ("read", "Read a frame", "one frame's voxels come off disk, as the integers the microscope wrote", "frame"),
-    ("bodies", "Find the cells", "each voxel is smoothed twice and the difference kept exactly, then every voxel"
+    ("bodies", "Find the cells", "each voxel is smoothed twice and the difference retained exactly, then every voxel"
                                  " steps uphill until it stops: one body per resting place", "frame"),
-    ("store", "Keep it as runs", "each body becomes the stretches of voxels it holds along each row, and the"
+    ("store", "Retain it as runs", "each body becomes the stretches of voxels it holds along each row, and the"
                                  " frame is those runs: about 27 times smaller than the labeled volume", "frame"),
     ("motion", "Find the drift", "the whole view's shift between two frames, the same count taken at every shift"
                                  " at once", "pair"),
     ("overlap", "Meet the neighbors", "the positive voxels two frames share, body by body, at that shift", "pair"),
     ("climb", "Let each cell find its own shift", "every cell walks from the view's shift to the shift where it"
                                                   " agrees best with the next frame; each walk stops on its own", "pair"),
-    ("tree", "Link and score", "the strongest partner each way makes a link, divisions are kept as branches, and"
+    ("tree", "Link and score", "the strongest partner each way makes a link, divisions are retained as branches, and"
                                " the links are scored against the answer key", "pair"),
 ]
 

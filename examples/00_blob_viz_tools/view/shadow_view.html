@@ -75,7 +75,7 @@
   .eyebrow {
     font-family: "IBM Plex Mono", ui-monospace, monospace;
     font-size: 11px;
-    letter-spacing: 0.16em;
+    character-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--muted);
     margin: 0 0 10px;
@@ -85,7 +85,7 @@
     font-weight: 600;
     font-size: clamp(28px, 4vw, 40px);
     margin: 0 0 12px;
-    letter-spacing: -0.015em;
+    character-spacing: -0.015em;
     text-wrap: balance;
   }
   .standfirst {
@@ -126,7 +126,7 @@
   legend {
     font-family: "IBM Plex Mono", ui-monospace, monospace;
     font-size: 10px;
-    letter-spacing: 0.15em;
+    character-spacing: 0.15em;
     text-transform: uppercase;
     color: var(--muted);
     padding: 0 6px;
@@ -257,7 +257,7 @@
   .scrub label {
     font-family: "IBM Plex Mono", ui-monospace, monospace;
     font-size: 11px;
-    letter-spacing: 0.1em;
+    character-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--muted);
   }
@@ -287,7 +287,7 @@
   .cell dt {
     font-family: "IBM Plex Mono", ui-monospace, monospace;
     font-size: 10px;
-    letter-spacing: 0.13em;
+    character-spacing: 0.13em;
     text-transform: uppercase;
     color: var(--muted);
     margin: 0 0 3px;
@@ -457,7 +457,7 @@
         dim: "32 × 64",
         signed: true,
         title: "Residue against round",
-        note: "The field folded onto (input bit − output bit) mod 32, the coordinate the rotations act in. 4,096 cells stand behind every square. This shadow sees structure a maximum cannot.",
+        note: "The field folded onto (input bit − output bit) mod 32, the coordinate the rotations act in. 4,096 cells are behind every square. This shadow sees structure a max cannot.",
         axis: function (i) {
           return "residue " + i;
         },
@@ -557,7 +557,7 @@
       ];
     }
 
-    /** Signed log keeps the sign and compresses six decades into the same ramp. */
+    /** Signed log retains the sign and compresses six decades into the same ramp. */
     function shaped(value, ceiling) {
       if (scale === "linear") {
         return ceiling === 0 ? 0 : value / ceiling;
@@ -571,16 +571,16 @@
     }
 
     function ceilingOf(rows) {
-      var most = 0;
+      var max = 0;
       for (var r = 0; r < rows.length; r += 1) {
         for (var c = 0; c < rows[r].length; c += 1) {
           var size = Math.abs(rows[r][c]);
-          if (size > most) {
-            most = size;
+          if (size > max) {
+            max = size;
           }
         }
       }
-      return most;
+      return max;
     }
 
     function drawMap(rows, ceiling) {
@@ -616,9 +616,9 @@
         }
       }
       ctx.putImageData(image, 0, 0);
-      var shown = ceiling >= 1000 ? Math.round(ceiling / 100) / 10 + "k" : Math.round(ceiling);
-      document.getElementById("key-low").textContent = view.signed ? "−" + shown : "0";
-      document.getElementById("key-high").textContent = "+" + shown;
+      var displayed = ceiling >= 1000 ? Math.round(ceiling / 100) / 10 + "k" : Math.round(ceiling);
+      document.getElementById("key-low").textContent = view.signed ? "−" + displayed : "0";
+      document.getElementById("key-high").textContent = "+" + displayed;
     }
 
     function drawProfile(rows, ceiling) {

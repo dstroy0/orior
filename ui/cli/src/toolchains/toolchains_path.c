@@ -287,7 +287,7 @@ unsigned int cli_toolchains_path_folders(const CliToolchainsCountCfg *args)
     return count;
 }
 
-// the folders a list the separator parts names at the most: one for each separator, and one more
+// the folders a list the separator parts names at max: one for each separator, and one more
 EMBED_INLINE unsigned int cli_parts(const ToolchainsPathCtx *args)
 {
     const char *text = args->text;
@@ -299,7 +299,7 @@ EMBED_INLINE unsigned int cli_parts(const ToolchainsPathCtx *args)
 }
 
 char (*cli_toolchains_path_allocated(unsigned int *count, const CellOwner *owner)) [CLI_PATH_MAX_LEN] {
-    // the most folders the tree's tools, the registry's two paths, the PATH and the shell's PATH name, counted from
+    // the max folders the tree's tools, the registry's two paths, the PATH and the shell's PATH name, counted from
     // their texts as cli_toolchains_path_folders reads them
     char *const text = g_cli_guard->temporary_buf_alloc(2ULL * CLI_PATH_TEXT, g_cli_toolchains_owner);
     char *const expanded = (text != NULL) ? text + CLI_PATH_TEXT : NULL;
@@ -308,32 +308,32 @@ char (*cli_toolchains_path_allocated(unsigned int *count, const CellOwner *owner
         *count = 0u;
         return NULL;
     }
-    unsigned int most = CLI_TREE_TOOLS;
+    unsigned int max = CLI_TREE_TOOLS;
     if (EMBED_CALL(cli_out_internal.registry_machine_path, CliOutCtx, .out = text, .capacity = CLI_PATH_TEXT))
     {
         EMBED_CALL(cli_out_internal.registry_expand, CliOutCtx, .text = text, .out = expanded,
                    .capacity = CLI_PATH_TEXT);
-        most += EMBED_CALL(cli_parts, ToolchainsPathCtx, .text = expanded);
+        max += EMBED_CALL(cli_parts, ToolchainsPathCtx, .text = expanded);
     }
     if (EMBED_CALL(cli_out_capacity_internal.registry_user_value, CliOutCapacityCtx, .name = "Path", .out = text,
                    .capacity = CLI_PATH_TEXT))
     {
         EMBED_CALL(cli_out_internal.registry_expand, CliOutCtx, .text = text, .out = expanded,
                    .capacity = CLI_PATH_TEXT);
-        most += EMBED_CALL(cli_parts, ToolchainsPathCtx, .text = expanded);
+        max += EMBED_CALL(cli_parts, ToolchainsPathCtx, .text = expanded);
     }
-    most += EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "PATH", .value_out = text,
+    max += EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "PATH", .value_out = text,
                        .capacity = CLI_PATH_TEXT)
                 ? EMBED_CALL(cli_parts, ToolchainsPathCtx, .text = text)
                 : 0u;
-    most += EMBED_CALL(cli_shell_path, ToolchainsPathCtx, .path = text, .size = CLI_PATH_TEXT)
+    max += EMBED_CALL(cli_shell_path, ToolchainsPathCtx, .path = text, .size = CLI_PATH_TEXT)
                 ? EMBED_CALL(cli_parts, ToolchainsPathCtx, .text = text)
                 : 0u;
     g_cli_guard->persistent_buf_release(text, g_cli_toolchains_owner);
     char (*const folders)[CLI_PATH_MAX_LEN] =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)most * CLI_PATH_MAX_LEN, owner);
+        g_cli_guard->temporary_buf_alloc((unsigned long long)max * CLI_PATH_MAX_LEN, owner);
     *count = (folders != NULL) ? EMBED_CALL(cli_toolchains_count.path_folders, CliToolchainsCountCfg,
-                                            .folders = folders, .capacity = most)
+                                            .folders = folders, .capacity = max)
                                : 0u;
     return folders;
 }
@@ -435,9 +435,9 @@ void cli_toolchains_run_path_with(const CliToolchainsCountPathCfg *args)
                .context = &counted);
     // the folders ahead, the environment's, the tree's own tools', those the reader chose and the PATH's, in a cell
     // of their count
-    const unsigned int most = count + bins + CLI_TREE_TOOLS + counted.count + path_count;
+    const unsigned int max = count + bins + CLI_TREE_TOOLS + counted.count + path_count;
     char (*const folders)[CLI_PATH_MAX_LEN] =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)most * CLI_PATH_MAX_LEN, g_cli_toolchains_owner);
+        g_cli_guard->temporary_buf_alloc((unsigned long long)max * CLI_PATH_MAX_LEN, g_cli_toolchains_owner);
     if (folders == NULL)
     {
         g_cli_guard->persistent_buf_release(path_folders, g_cli_toolchains_owner);
@@ -446,18 +446,18 @@ void cli_toolchains_run_path_with(const CliToolchainsCountPathCfg *args)
         return;
     }
     unsigned int list_entries = EMBED_CALL(cli_folders_append, ToolchainsPathCtx, .folders = folders,
-                                           .list_entries = 0u, .capacity = most, .from = args->ahead, .count = count);
+                                           .list_entries = 0u, .capacity = max, .from = args->ahead, .count = count);
     list_entries =
         EMBED_CALL(cli_folders_append, ToolchainsPathCtx, .folders = folders, .list_entries = list_entries,
-                   .capacity = most, .from = (const char (*)[CLI_PATH_MAX_LEN])environment.bin, .count = bins);
+                   .capacity = max, .from = (const char (*)[CLI_PATH_MAX_LEN])environment.bin, .count = bins);
     list_entries += EMBED_CALL(cli_toolchains_count.tree_tools, CliToolchainsCountCfg,
-                               .folders = folders + list_entries, .capacity = most - list_entries);
-    CliChosenFolders chosen = {folders, list_entries, most};
+                               .folders = folders + list_entries, .capacity = max - list_entries);
+    CliChosenFolders chosen = {folders, list_entries, max};
     EMBED_CALL(cli_toolchains_context.chosen_each, CliToolchainsContextCfg, .each_callback = cli_chosen_each,
                .context = &chosen);
     list_entries =
         EMBED_CALL(cli_folders_append, ToolchainsPathCtx, .folders = folders, .list_entries = chosen.count,
-                   .capacity = most, .from = (const char (*)[CLI_PATH_MAX_LEN])path_folders, .count = path_count);
+                   .capacity = max, .from = (const char (*)[CLI_PATH_MAX_LEN])path_folders, .count = path_count);
     g_cli_guard->persistent_buf_release(path_folders, g_cli_toolchains_owner);
     // each folder once by its key, in order
     VerbaLinea line = {args->path, args->size, 0ULL};

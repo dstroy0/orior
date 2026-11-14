@@ -7,7 +7,7 @@
 #include "../text/regexp.h"
 #include "../text/text.h"
 
-// the most snapshots a file retains, and the most a folder of them is read as containing
+// the max snapshots a file retains, and the max a folder of them is read as containing
 #define CLI_HISTORY_RETAIN_MAX 100u
 
 #define CLI_HISTORY_STAMPS 4096u
@@ -68,10 +68,10 @@ EMBED_INLINE int cli_folder_get(const HistoryCtx *args)
         cli_text_byte.last, CliTextByteCfg, .text = args->path,
         .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}), .byte = '/');
     const char *const name = (slash != NULL) ? (slash + 1) : args->path;
-    unsigned int letters[CLI_PATH_MAX_LEN];
+    unsigned int characters[CLI_PATH_MAX_LEN];
     const unsigned long long count =
-        EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = name,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .letters = letters,
+        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = name,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .characters = characters,
                    .capacity_u64 = CLI_PATH_MAX_LEN);
     VerbaLinea line = {args->folder_out, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->home);
@@ -82,14 +82,14 @@ EMBED_INLINE int cli_folder_get(const HistoryCtx *args)
     mmgr_line_ch(&line, '-');
     for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
-        const unsigned int letter = letters[at];
-        if (EMBED_CALL(cli_regexp_letter.property, CliRegexpLetterCfg, .property = CLI_REGEXP_LETTER,
-                       .letter = letter) ||
-            EMBED_CALL(cli_regexp_letter.property, CliRegexpLetterCfg, .property = CLI_REGEXP_NUMBER,
-                       .letter = letter) ||
-            (letter == '.') || (letter == '_') || (letter == '-'))
+        const unsigned int character = characters[at];
+        if (EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg, .property = CLI_REGEXP_CHARACTER,
+                       .character = character) ||
+            EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg, .property = CLI_REGEXP_NUMBER,
+                       .character = character) ||
+            (character == '.') || (character == '_') || (character == '-'))
         {
-            EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line, .letter = letter);
+            EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line, .character = character);
         }
     }
     const int fits = mmgr_line_ok(&line);

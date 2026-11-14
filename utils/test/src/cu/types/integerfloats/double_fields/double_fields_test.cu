@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // double_fields' ribosome checked 1:1 against double_fields.c. The record program double_fields_record fills is
-// encoded, laid out and loaded by the calls engine_record_encode makes, swept on the device and run on the host, and
+// encoded, arranged and loaded by the calls engine_record_encode makes, swept on the device and run on the host, and
 // every lane's four answers are checked against double_fields_sign, double_fields_exp, double_fields_mant and
-// double_fields_merge on the same words. The lanes are the edges of a double, every field at its least and most,
+// double_fields_merge on the same words. The lanes are the edges of a double, every field at its least and max,
 // and drawn words; a merge's request carries words past every mask: the masking is tested as well. The test is
 // one job on the device's tessera daemon.
 #include "codegen_device.h"
@@ -78,14 +78,14 @@ static unsigned long long double_fields_test_draw(unsigned long long *state)
     return value;
 }
 
-// double_fields.c's answer for one request, the request laid out as the header lays it: the bits, then the sign, the
+// double_fields.c's answer for one request, the request arranged as the header positions it: the bits, then the sign, the
 // exponent and the mantissa
 static void double_fields_test_reference(unsigned long long bits, unsigned long long sign, unsigned long long exp,
                                          unsigned long long mant, unsigned long long answer[DOUBLE_FIELDS_RECORD_OUTPUTS])
 {
-    unsigned long long laid[4] = {bits, sign, exp, mant};
-    static_assert(sizeof(DoubleFieldsRequest) == sizeof(laid), "DoubleFieldsRequest is not four words");
-    const DoubleFieldsRequest *const request = (const DoubleFieldsRequest *)laid;
+    unsigned long long positioned[4] = {bits, sign, exp, mant};
+    static_assert(sizeof(DoubleFieldsRequest) == sizeof(positioned), "DoubleFieldsRequest is not four words");
+    const DoubleFieldsRequest *const request = (const DoubleFieldsRequest *)positioned;
     answer[0] = double_fields_sign(request);
     answer[1] = double_fields_exp(request);
     answer[2] = double_fields_mant(request);
@@ -127,12 +127,12 @@ int main(int count, char **arguments)
                                                      program.reuse, &layout, &error};
     ok = ok && (key_schedule_record_layout(&layout_request) != KEY_SCHEDULE_ERROR);
     keymath_record_release(&math);
-    double_fields_test_check(&results, ok, "the program lays out");
+    double_fields_test_check(&results, ok, "the program arranges");
     const LayoutRequest device_request = {program.steps,   program.count,   program.field_bits, program.field_offset,
                                           program.fields,  program.members, program.in_limbs,   program.outputs,
                                           program.output_count, program.tables, program.table_count, program.reuse};
     ok = ok && (layout_device_agrees(&device_request, &layout, 0) != 0);
-    double_fields_test_check(&results, ok, "the program laid out on the device is the host's layout, word for word");
+    double_fields_test_check(&results, ok, "the program arranged on the device is the host's layout, word for word");
     unsigned int out_offset[DOUBLE_FIELDS_RECORD_OUTPUTS] = {0u, 0u, 0u, 0u};
     unsigned int out_bits[DOUBLE_FIELDS_RECORD_OUTPUTS] = {0u, 0u, 0u, 0u};
     for (unsigned int output = 0u; ok && (output < DOUBLE_FIELDS_RECORD_OUTPUTS); output += 1u)

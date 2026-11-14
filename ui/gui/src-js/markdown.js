@@ -7,7 +7,7 @@
 // MathML, and Mermaid's diagrams in mermaid fences, drawn as SVG. Each block carries the line of the
 // text it starts on, as data-line, which a preview scrolls by.
 //
-// HTML in the text keeps the tags and the attributes ALLOWED names, and no other: a script, a
+// HTML in the text retains the tags and the attributes ALLOWED names, and no other: a script, a
 // handler, a style or a link to javascript: never reaches the page. A link's or an image's address
 // goes through `resolve`, which turns one relative to the file into one the page can reach.
 
@@ -29,7 +29,7 @@ const notes = { defined: new Map(), cited: [] };
 // The types of alert a quote can open with, as GitHub names them.
 const ALERTS = { NOTE: "Note", TIP: "Tip", IMPORTANT: "Important", WARNING: "Warning", CAUTION: "Caution" };
 
-export const escapeHtml = (text) => text.replace(/[&<>"]/g, (letter) => ESCAPES[letter]);
+export const escapeHtml = (text) => text.replace(/[&<>"]/g, (character) => ESCAPES[character]);
 
 // An address that is safe to follow: none that runs script.
 function safeUrl(url) {
@@ -51,7 +51,7 @@ function sanitized(html, resolve) {
     if (closing) {
       return `</${name}>`;
     }
-    const kept = [];
+    const retained = [];
     for (const match of (attrs ?? "").matchAll(/([A-Za-z_:][\w:.-]*)(?:\s*=\s*("[^"]*"|'[^']*'|[^\s"'>]+))?/g)) {
       const key = match[1].toLowerCase();
       if (!allowed.includes(key)) {
@@ -61,10 +61,10 @@ function sanitized(html, resolve) {
       if (key === "href" || key === "src" || key === "srcset") {
         value = safeUrl(key === "href" ? value : resolve(value));
       }
-      kept.push(`${key}="${escapeHtml(value)}"`);
+      retained.push(`${key}="${escapeHtml(value)}"`);
     }
     const self = /\/\s*$/.test(attrs ?? "") || name === "br" || name === "hr" || name === "img" || name === "source";
-    return `<${name}${kept.length ? ` ${kept.join(" ")}` : ""}${self ? " /" : ""}>`;
+    return `<${name}${retained.length ? ` ${retained.join(" ")}` : ""}${self ? " /" : ""}>`;
   });
 }
 
@@ -78,7 +78,7 @@ function inline(text, resolve) {
   let out = text;
   // code spans first, whose contents take no other mark
   out = out.replace(/(`+)([\s\S]*?[^`])\1(?!`)/g, (_, ticks, code) => hold(`<code>${escapeHtml(code.replace(/^ (.*) $/, "$1"))}</code>`));
-  out = out.replace(/\\([\\`*_{}[\]()#+\-.!|~<>$])/g, (_, letter) => hold(escapeHtml(letter)));
+  out = out.replace(/\\([\\`*_{}[\]()#+\-.!|~<>$])/g, (_, character) => hold(escapeHtml(character)));
   out = out.replace(/\$([^\s$](?:[^$]*[^\s$])?)\$/g, (_, math) => hold(texToMathml(math, false)));
   out = out.replace(/\[\^([^\]\s]+)\]/g, (whole, name) => {
     if (!notes.defined.has(name)) {
@@ -107,7 +107,7 @@ function inline(text, resolve) {
   return out.replace(/\u0000(\d+)\u0000/g, (_, index) => spans[Number(index)]);
 }
 
-// A table's row as its cells, the pipes at its ends taken off and an escaped pipe kept.
+// A table's row as its cells, the pipes at its ends taken off and an escaped pipe retained.
 function cellsOf(line) {
   const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
   return trimmed.split(/(?<!\\)\|/).map((cell) => cell.trim().replace(/\\\|/g, "|"));
@@ -301,7 +301,7 @@ function blockList(lines, base, resolve) {
 const blocks = (lines, base, resolve) => blockList(lines, base, resolve).join("\n");
 
 // The Markdown `text` as its blocks, each HTML; `resolve` turns an address in it into one the page
-// can reach. Each footnote's definition is taken out of the text where it stands, its lines left
+// can reach. Each footnote's definition is taken out of the text where it is, its lines left
 // blank, and the notes cited are listed in a block at the end in the order they were first cited.
 export function markdownBlocks(text, resolve = (url) => url) {
   const lines = text.replace(/\r\n?/g, "\n").split("\n");

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// The record programs' speed. Three programs of the kinds the engine runs, each over 2^22 lanes, each timed on the
+// The record programs' speed. Three programs of the types the engine runs, each over 2^22 lanes, each timed on the
 // host around cycle_record_run, which launches the program and waits for it: the best of five runs. The same binary
 // run with CYCLE_RECORD_INTERPRET=1 times the interpreter, and each program reports which ran. Every program's first
 // 65,536 lanes are checked word for word against the host's records.
@@ -177,7 +177,7 @@ int main(int count, char **arguments)
         in_limbs_max = (program->in_limbs > in_limbs_max) ? program->in_limbs : in_limbs_max;
         out_limbs_max = ((ok != 0) && (layouts[at].out_limbs > out_limbs_max)) ? layouts[at].out_limbs : out_limbs_max;
     }
-    sim_check(&results, ok, "the three programs encode and lay out");
+    sim_check(&results, ok, "the three programs encode and arrange");
 
     // the job declares what the test puts on the device at once: one program's lanes, its records and its steps
     const unsigned long long declared = ((unsigned long long)SPEED_TEST_LANES * in_limbs_max * sizeof(unsigned int)) +

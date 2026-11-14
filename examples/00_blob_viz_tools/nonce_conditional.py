@@ -59,7 +59,7 @@ def word_local_entropy_bucket(word, buckets):
     Popcount and not the binary entropy of the fraction: entropy is symmetric, a word of weight 10
     and one of weight 22 fall together, and once a word is well mixed every nonce sits at weight 16 and
     entropy near one, which collapses the grouping to a single bucket at any round past the mixing. The
-    count keeps its spread at every round and is the local structure the entropy is a function of.
+    count retains its spread at every round and is the local structure the entropy is a function of.
     """
     population = bin(word & MASK).count("1")
     index = (population * buckets) // 33

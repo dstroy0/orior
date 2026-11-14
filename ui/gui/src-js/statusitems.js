@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // A status bar of the reader's. Each item of the bar, and each part of the editor's own line on it,
-// is shown or hidden from the bar's menu or View, Status Bar, and moved by the menu's Move Left and
+// is displayed or hidden from the bar's menu or View, Status Bar, and moved by the menu's Move Left and
 // Move Right or by dragging it along the bar; the editor's parts move among themselves. What the
-// reader set is kept, and Reset the Status Bar puts it back as it was.
+// reader set is retained, and Reset the Status Bar puts it back as it was.
 //
 // The tool strip hides until the pointer reaches the window's left edge where View, Hide Tool Strip
 // Until Its Edge is on: it slides out over the work there, and back a moment after the pointer
@@ -34,7 +34,7 @@ const ITEMS = [
   ["wait", "What the Window Waits On", "bar"],
   ["focus", "Focus", "bar"],
   ["plugin", "A Plugin Not Answering", "bar"],
-  ["trust", "The Tree's Code Kept Back", "bar"],
+  ["trust", "The Tree's Code Retained Back", "bar"],
   ["editor", "The Editor's Line", "bar"],
   ["vim", "Vim Mode", "editor"],
   ["cursor", "Line and Column", "editor"],
@@ -50,23 +50,23 @@ const ITEMS = [
 const labelOf = (name) => ITEMS.find(([one]) => one === name)?.[1] ?? name;
 const lineOf = (name) => ITEMS.find(([one]) => one === name)?.[2] ?? "bar";
 
-let kept = { hidden: [], order: [] };
+let retained = { hidden: [], order: [] };
 let sheet = null;
 
 function load() {
   try {
     const read = JSON.parse(localStorage.getItem(KEY) ?? "null");
-    kept = { hidden: Array.isArray(read?.hidden) ? read.hidden : [], order: Array.isArray(read?.order) ? read.order : [] };
+    retained = { hidden: Array.isArray(read?.hidden) ? read.hidden : [], order: Array.isArray(read?.order) ? read.order : [] };
   } catch {
-    kept = { hidden: [], order: [] };
+    retained = { hidden: [], order: [] };
   }
 }
 
-// The items of a line in the order they stand: those the reader moved as moved, the rest after them
+// The items of a line in the order they are: those the reader moved as moved, the rest after them
 // in their own order.
 function ordered(line) {
   const names = ITEMS.filter(([, , one]) => one === line).map(([name]) => name);
-  return [...kept.order.filter((name) => names.includes(name)), ...names.filter((name) => !kept.order.includes(name))];
+  return [...retained.order.filter((name) => names.includes(name)), ...names.filter((name) => !retained.order.includes(name))];
 }
 
 // Sets each item's place and whether it shows, as a sheet of rules over the bar.
@@ -75,19 +75,19 @@ function apply() {
   for (const line of ["bar", "editor"]) {
     ordered(line).forEach((name, at) => rules.push(`[data-item="${name}"] { order: ${at}; }`));
   }
-  for (const name of kept.hidden) {
+  for (const name of retained.hidden) {
     rules.push(`[data-item="${name}"] { display: none !important; }`);
   }
   sheet.textContent = rules.join("\n");
-  localStorage.setItem(KEY, JSON.stringify(kept));
+  localStorage.setItem(KEY, JSON.stringify(retained));
 }
 
-export const itemShown = (name) => !kept.hidden.includes(name);
+export const itemShown = (name) => !retained.hidden.includes(name);
 
-export function setItemShown(name, shown) {
-  kept.hidden = kept.hidden.filter((one) => one !== name);
-  if (!shown) {
-    kept.hidden.push(name);
+export function setItemShown(name, displayed) {
+  retained.hidden = retained.hidden.filter((one) => one !== name);
+  if (!displayed) {
+    retained.hidden.push(name);
   }
   apply();
 }
@@ -111,16 +111,16 @@ export function moveItem(name, by) {
 
 // Takes `line`, an order of one line's items, as the reader's.
 function place(line) {
-  kept.order = [...kept.order.filter((name) => !line.includes(name)), ...line];
+  retained.order = [...retained.order.filter((name) => !line.includes(name)), ...line];
   apply();
 }
 
 export function resetItems() {
-  kept = { hidden: [], order: [] };
+  retained = { hidden: [], order: [] };
   apply();
 }
 
-// The items, each shown or hidden by a press, as View, Status Bar and the bar's menu list them.
+// The items, each displayed or hidden by a press, as View, Status Bar and the bar's menu list them.
 export function statusItems() {
   return [
     ...ITEMS.map(([name, label]) => ({ label, checked: itemShown(name), command: "status-show", args: [name, itemShown(name) ? "off" : "on"], run: () => setItemShown(name, !itemShown(name)) })),
@@ -201,7 +201,7 @@ export const stripEdge = () => localStorage.getItem(EDGE) === "true";
 export function setStripEdge(on = !stripEdge()) {
   localStorage.setItem(EDGE, String(on));
   document.body.toggleAttribute("data-strip-edge", on);
-  document.getElementById("strip").classList.remove("shown");
+  document.getElementById("strip").classList.remove("displayed");
 }
 
 function startEdge() {
@@ -212,7 +212,7 @@ function startEdge() {
   let leaving = 0;
   const show = () => {
     window.clearTimeout(leaving);
-    strip.classList.add("shown");
+    strip.classList.add("displayed");
   };
   const hide = () => {
     window.clearTimeout(leaving);
@@ -221,7 +221,7 @@ function startEdge() {
         leaving = window.setTimeout(stay, LINGER);
         return;
       }
-      strip.classList.remove("shown");
+      strip.classList.remove("displayed");
     }, LINGER);
   };
   edge.addEventListener("pointerenter", show);

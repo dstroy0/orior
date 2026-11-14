@@ -1,9 +1,9 @@
 # The CASMI workbook
 
-**Purpose:** One place where every idea the CASMI program rests on is written beside what stands behind it. A reader then knows at a glance which claims are proved, which are measured, which are built but unmeasured, and which are still only theory.
+**Purpose:** One place where every idea the CASMI program rests on is written beside what is behind it. A reader then knows at a glance which claims are proved, which are measured, which are built but unmeasured, and which are still only theory.
 **Scope:** `workbooks/casmi/`. The program is `examples/chemistry/casmi/`, and the machine it runs on is the engine workbook, `workbooks/engine/`.
 
-## How an entry is kept
+## How an entry is retained
 
 Every claim carries one status, and the status says what backs it:
 
@@ -13,8 +13,8 @@ Every claim carries one status, and the status says what backs it:
 | **measured** | a number was taken on named files; the number is given, and whether it survived |
 | **built** | the code exists and runs; no measurement yet says whether it helps |
 | **theory** | stated, not built |
-| **refuted** | measured, and the measurement went against it; kept, with the number, and not tried again blind |
-| **not so** | fails on its own arithmetic or in any machine, before anything is measured; kept, with the reason |
+| **refuted** | measured, and the measurement went against it; retained, with the number, and not tried again blind |
+| **not so** | fails on its own arithmetic or in any machine, before anything is measured; retained, with the reason |
 | **not taken** | a technique weighed and set aside, with the reason it is not used here |
 
 A claim changes status only when a run changes it, and the run is named. Nothing is deleted. An idea that failed stays, with the number that failed it.
@@ -59,9 +59,9 @@ Every design decision weighed, with what decided it.
 | **H1. Read the file directly** | The ranker reads the three double columns and seven text columns straight from the parquet file through the engine's decoders, and computes on the stored bits. | The full validate fell from about 40 min to 2 min 42 s, with the MRR@25 and every place unchanged. | **measured** |
 | **H2. Compute on the stored bits** | Every double is its 64 stored bits, read as m · 2^(E − 1075), and every program works on m and E with exact wide-integer arithmetic. | The ion sums match the engine's own C sum on every formula (0 differ); the device matches the host on every lane of every stage checked. | **measured** |
 | **H3. No crystals for ranking** | The ranker needs no crystal of its own: it reads the file and processes the stored bits without unzipping into forms. | The parquet-direct ranker ranks the whole train file in 2 min 42 s with no crystal built. | **not taken** (crystals are not read for ranking) |
-| **H4. Intensities on the row's least power of two** | Each intensity is kept as m · 2^s, s its exponent above the row's least nonzero exponent; the row's common power of two cancels in the cosine. | The cosine score is a ratio M²/(QR) in which the row's power of two divides out of both sides. The score run matches the host on every lane. | **measured** |
-| **H5. The match kept on the device** | The match builds its index, runs its program, counts and sorts its kept lanes and gathers them on the device, and copies back only the kept lanes. | On `test.parquet` 62.8 billion lanes reduce to 8,859,804 kept lanes on the device; only those cross back to the host. | **measured** |
-| **H6. Sweeps in pieces within a byte budget** | Each sweep runs its lanes in pieces of at most 1 GiB, uploads only the records its lanes read, shares one copy among members passed the same records, and lays the group sums as three planes read with no index. | Device peak fell from 5.26 GB to 1.89 GB on the test run, under the declaration, with the submission byte-identical. | **measured** |
+| **H4. Intensities on the row's least power of two** | Each intensity is retained as m · 2^s, s its exponent above the row's least nonzero exponent; the row's common power of two cancels in the cosine. | The cosine score is a ratio M²/(QR) in which the row's power of two divides out of both sides. The score run matches the host on every lane. | **measured** |
+| **H5. The match retained on the device** | The match builds its index, runs its program, counts and sorts its retained lanes and gathers them on the device, and copies back only the retained lanes. | On `test.parquet` 62.8 billion lanes reduce to 8,859,804 retained lanes on the device; only those cross back to the host. | **measured** |
+| **H6. Sweeps in pieces within a byte budget** | Each sweep runs its lanes in pieces of at max 1 GiB, uploads only the records its lanes read, shares one copy among members passed the same records, and positions the group sums as three planes read with no index. | Device peak fell from 5.26 GB to 1.89 GB on the test run, under the declaration, with the submission byte-identical. | **measured** |
 | **H7. Ingest the whole file** | `--ingest` seals every member of the parquet file (the footer and each leaf of each row group) as a crystal of a set through the engine's ingest, nothing dropped and nothing reshaped. | The engine's parquet source seals each member as the stored bytes and rebuilds it lane for lane. On the device: `test.parquet` 13 of 13 and `train.parquet` 379 of 379 members sealed and rebuilt lane for lane, 0 checks failed. | **measured** |
 | **H8. Pick columns into forms before the math** | Read a chosen subset of columns into layouts of the ranker's own and seal those. | This reshapes the data the program is required not to reshape: it drops columns and organizes the file into forms before the math. | **not taken** |
 | **H9. The misses are isomers** | The answers the ranker misses lose to a structure of their own formula, whose spectrum the cosine cannot tell from theirs. | On `train.parquet` validate, 34 of the 45 misses lose to a structure of the same formula; 18 of the 19 that lose by less than 1% of cosine squared do. | **measured** |

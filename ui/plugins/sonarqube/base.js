@@ -3,8 +3,8 @@
 
 // SonarQube: the analysis of SonarQube for IDE run on the tree. Its language server and analyzers,
 // found through the toolchain sonarqube-ide, start as the first file opens; this plugin answers what
-// the server asks the editor, keeps its settings and tokens, and draws what it says in panels. The
-// files of this plugin share one scope: this one holds what they all keep and the helpers they share.
+// the server asks the editor, retains its settings and tokens, and draws what it says in panels. The
+// files of this plugin share one scope: this one holds what they all retain and the helpers they share.
 
 // What the plugin holds while it runs.
 const sonar = {
@@ -24,24 +24,24 @@ const sonar = {
   hotspots: new Map(),
   taints: new Map(),
   risks: new Map(),
-  // the analyzers the server holds and how each stands
+  // the analyzers the server holds and how each is
   statuses: [],
   // the last check of each connection, by its id
   checks: new Map(),
-  // the new code each folder is kept to, and the branch each is compared against, by folder URI
+  // the new code each folder is retained to, and the branch each is compared against, by folder URI
   newCode: new Map(),
   branches: new Map(),
-  // the rules, by language, as last listed, and the filter they are shown by
+  // the rules, by language, as last listed, and the filter they are displayed by
   rules: null,
   ruleFilter: null,
-  // the issue whose locations are shown, and the panel each command pressed in a panel runs
+  // the issue whose locations are displayed, and the panel each command pressed in a panel runs
   located: null,
   pressed: {},
   // the groups of duplicated blocks last read from the server, each its blocks
   duplications: null,
 };
 
-// The panels this plugin shows, each by the id it is shown with.
+// The panels this plugin shows, each by the id it is displayed with.
 const PANELS = {
   findings: "SonarQube Findings",
   duplications: "SonarQube Duplications",
@@ -59,7 +59,7 @@ const PANELS = {
   ask: "SonarQube",
 };
 
-// The most lines of the server's log kept.
+// The max lines of the server's log retained.
 const LOG_LINES = 5000;
 
 // `text` written so HTML shows it as it is.
@@ -67,7 +67,7 @@ function escaped(text) {
   return String(text ?? "").replace(/[&<>"']/g, (one) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[one]);
 }
 
-// The whole path a file URI names, its letters unescaped, a drive's path without the slash before it.
+// The whole path a file URI names, its characters unescaped, a drive's path without the slash before it.
 function pathOfUri(uri) {
   const rest = decodeURIComponent(String(uri ?? "").replace(/^file:\/\//, ""));
   return /^\/[A-Za-z]:/.test(rest) ? rest.slice(1) : rest;
@@ -91,7 +91,7 @@ function uriInTree(path) {
   return uriOfPath(top ? `${top}/${path}` : path);
 }
 
-// A line kept in the server's log.
+// A line retained in the server's log.
 function logged(line) {
   sonar.log.push(`[${new Date().toISOString().slice(11, 19)}] ${line}`);
   if (sonar.log.length > LOG_LINES) {
@@ -115,8 +115,8 @@ pre{padding:8px;overflow:auto}code{padding:0 3px}.row{display:flex;gap:8px;align
 </style>`;
 }
 
-// A panel of this plugin shown, by its id, with `body` its HTML.
-async function shown(id, body) {
+// A panel of this plugin displayed, by its id, with `body` its HTML.
+async function displayed(id, body) {
   await orior.panels.show(id, { title: PANELS[id] ?? id, html: `${await panelStyle()}${body}` });
 }
 
@@ -130,13 +130,13 @@ function linked(label, command, value = "") {
   return `<a href="#" data-command="${escaped(command)}" data-value="${escaped(value)}">${escaped(label)}</a>`;
 }
 
-// A question shown in a panel of its own: its text, and a button for each answer, each answer's
+// A question displayed in a panel of its own: its text, and a button for each answer, each answer's
 // command run with the answer as it is pressed.
 async function asked(text, answers, command) {
-  await shown("ask", `<p>${escaped(text)}</p><div class="row">${answers.map((answer) => button(answer, command, answer)).join("")}</div>`);
+  await displayed("ask", `<p>${escaped(text)}</p><div class="row">${answers.map((answer) => button(answer, command, answer)).join("")}</div>`);
 }
 
-// What a command pressed in a panel runs, kept by the command's name.
+// What a command pressed in a panel runs, retained by the command's name.
 function onPressed(command, run) {
   sonar.pressed[command] = run;
 }

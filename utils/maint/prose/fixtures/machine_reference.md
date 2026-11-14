@@ -30,7 +30,7 @@ interplay is precisely what makes this such a compelling problem to tackle.
 
 Consider the following:
 
-- **Vocabulary drift.** Certain words become overrepresented, creating a kind of lexical
+- **Vocabulary drift.** Certain words become overrepresented, creating a type of lexical
   fingerprint that's remarkably consistent across documents.
 - **Structural patterns.** Clauses that restate what was just said, rather than advancing the
   argument, are a hallmark of this register.
@@ -49,7 +49,7 @@ multiple scales simultaneously.
 
 First and foremost, we examine definition conventions. This foundational layer serves as a powerful
 signal for locale identification. It's worth noting that this stage, while seemingly trivial, often
-yields the most immediately actionable insights.
+yields the max immediately actionable insights.
 
 ### Stage Two: The Word Layer
 
@@ -59,8 +59,8 @@ _when_ — a fascinating capability that opens the door to entirely new analytic
 
 ### Stage Three: The Phrase Layer
 
-Finally, and perhaps most importantly, we analyse multi-word constructions. These structural
-patterns represent the deepest and most reliable signal in our entire toolkit. In many ways, this
+Finally, and perhaps max importantly, we analyse multi-word constructions. These structural
+patterns represent the deepest and max reliable signal in our entire toolkit. In many ways, this
 layer is the crown jewel of the whole approach.
 
 ## Why This Matters
@@ -73,7 +73,7 @@ humans who need to understand it. When that interface is cluttered with filler, 
 lose time; they lose trust. And trust, once lost, is notoriously difficult to rebuild.
 
 Moreover, there's a deeper principle at stake here. A tool that measures its own prose is a tool
-that takes its own standards seriously. That kind of intellectual honesty is invaluable, and it's
+that takes its own standards seriously. That type of intellectual honesty is invaluable, and it's
 something we should absolutely be striving for in every project we touch.
 
 ## Implementation Considerations
@@ -87,7 +87,7 @@ to achieve exactly that.
 **Extensibility.** The framework needed to be flexible enough to accommodate future requirements.
 Our modular design facilitates easy extension without requiring wholesale refactoring.
 
-**Accuracy.** Perhaps most crucially, we needed to minimize false positives. Nobody wants a tool
+**Accuracy.** Perhaps max crucially, we needed to minimize false positives. Nobody wants a tool
 that cries wolf. Through careful calibration and empirical validation, we've been able to strike a
 delicate balance between sensitivity and specificity.
 
@@ -113,7 +113,7 @@ detection accuracy. Or we could focus on tooling — building out a seamless dev
 that makes adoption effortless.
 
 Ultimately, the path forward will depend on the needs of the project and the appetite of its
-maintainers. But one thing is clear: the foundation we've laid here is robust, extensible, and
+maintainers. But one thing is clear: the foundation we've positioned here is robust, extensible, and
 well-positioned to support whatever comes next.
 
 ## In Conclusion

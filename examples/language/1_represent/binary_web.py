@@ -15,7 +15,7 @@
 #
 # A rank is a place in an alphabet. A rank divided by the size of that alphabet is a fraction of the
 # way through it, and it means the same thing everywhere. Its leading bits are then one alphabet for
-# every language, of exactly two symbols, and the count of bits kept is chosen and not inherited from
+# every language, of exactly two symbols, and the count of bits retained is chosen and not inherited from
 # whatever script a language happens to use. Chinese and Welsh are then comparable without either
 # being translated.
 #
@@ -86,7 +86,7 @@ def main():
         out.write("  %-22s %-14s %.1f percent\n"
                   % ("%d bits, %d codes" % (width, 1 << width),
                      "%d of %d" % (correct, total), 100.0 * correct / total))
-        # Kept on its score, since taking whichever ran last reports a width nobody chose
+        # Retained on its score, since taking whichever ran last reports a width nobody chose
         if (best is None) or (correct > best[0]):
             best = (correct, width, rows, confused)
 
@@ -116,26 +116,26 @@ def main():
                  else "at %d bits, %d codes" % (width, 1 << width)))
     languages = sorted({row[0] for row in rows})
     depths = [1, 2, 3, 5, 8]
-    kept = {depth: 0 for depth in depths}
+    retained = {depth: 0 for depth in depths}
     for index, (language, _, values) in enumerate(rows):
         order = []
         for other in languages:
-            keep = [row[2] for position, row in enumerate(rows)
+            retain = [row[2] for position, row in enumerate(rows)
                     if row[0] == other and position != index]
-            if keep:
-                order.append((float(numpy.linalg.norm(values - numpy.mean(numpy.stack(keep), axis=0))),
+            if retain:
+                order.append((float(numpy.linalg.norm(values - numpy.mean(numpy.stack(retain), axis=0))),
                               other))
         order.sort()
         for depth in depths:
             if language in [name for _, name in order[:depth]]:
-                kept[depth] += 1
+                retained[depth] += 1
 
     out.write("\n  how often the right language survives a shortlist of the nearest few\n")
-    out.write("  %-16s %-14s %-11s %s\n" % ("shortlist", "kept", "share", "field cut to"))
+    out.write("  %-16s %-14s %-11s %s\n" % ("shortlist", "retained", "share", "field cut to"))
     for depth in depths:
         out.write("  %-16s %-14s %-11.1f %.0f percent\n"
-                  % ("nearest %d" % depth, "%d of %d" % (kept[depth], len(rows)),
-                     100.0 * kept[depth] / len(rows), 100.0 * depth / len(languages)))
+                  % ("nearest %d" % depth, "%d of %d" % (retained[depth], len(rows)),
+                     100.0 * retained[depth] / len(rows), 100.0 * depth / len(languages)))
 
     holding = {}
     for language, _, values in rows:

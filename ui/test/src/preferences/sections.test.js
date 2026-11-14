@@ -5,7 +5,7 @@
 // menu turns on or off, the fonts, the files' patterns and sets, and the notices put away with a press that shows a
 // type again.
 
-import { coresKept, KEPT_LEAST } from "../../../gui/src-js/cores.js";
+import { coresKept, RETAINED_LEAST } from "../../../gui/src-js/cores.js";
 import { FONT_SETTINGS, fontDefault } from "../../../gui/src-js/fonts.js";
 import { OPACITY_SETTINGS } from "../../../gui/src-js/opacity.js";
 import { PATTERN_PARTS, patternsOf, setsText } from "../../../gui/src-js/patterns.js";
@@ -18,7 +18,7 @@ const { test, assert } = window.__harness;
 
 const boxNamed = (section, text) => [...section.querySelectorAll(".report-check")].find((one) => one.textContent === text).querySelector("input");
 
-test("the settings: the zoom, the cores kept, each part's opacity, and a box for each setting a menu turns on or off", async () => {
+test("the settings: the zoom, the cores retained, each part's opacity, and a box for each setting a menu turns on or off", async () => {
   let wrapped = false;
   let more = true;
   const ran = [];
@@ -33,7 +33,7 @@ test("the settings: the zoom, the cores kept, each part's opacity, and a box for
   });
   assert.equal(Number(section.querySelector('select[aria-label="Zoom"]').value), zoom());
   const cores = section.querySelector(".prefs-cores");
-  assert.equal(Number(cores.options[0].value), KEPT_LEAST);
+  assert.equal(Number(cores.options[0].value), RETAINED_LEAST);
   assert.equal(Number(cores.value), coresKept());
   assert.equal(section.querySelectorAll(".prefs-opacity-slider").length, OPACITY_SETTINGS.length);
   assert.equal(section.querySelectorAll(".report-check").length, 2, "Save is no setting");
@@ -43,14 +43,14 @@ test("the settings: the zoom, the cores kept, each part's opacity, and a box for
   wrap.dispatchEvent(new Event("change"));
   await new Promise((done) => setTimeout(done, 0));
   assert.deepEqual(ran, [["wrap", "on"]]);
-  assert.ok(wrap.checked, "the box as the setting now stands");
+  assert.ok(wrap.checked, "the box as the setting now is");
   const other = boxNamed(section, "A setting no menu lists");
   other.checked = false;
   other.dispatchEvent(new Event("change"));
   assert.equal(more, false);
 });
 
-test("the fonts, each a field with the stylesheet's own font shown while it is empty, a size bounded", () => {
+test("the fonts, each a field with the stylesheet's own font displayed while it is empty, a size bounded", () => {
   const fields = [...fontsSection().querySelectorAll(".prefs-font")];
   assert.equal(fields.length, FONT_SETTINGS.length);
   FONT_SETTINGS.forEach(({ name, size }, at) => {
@@ -69,13 +69,13 @@ test("the files' patterns, one field for each part, and the sets of files to sea
   assert.equal(fields.at(-1).value, setsText());
 });
 
-test("none put away is said, and each notice put away has a press that shows its kind again", () => {
+test("none put away is said, and each notice put away has a press that shows its type again", () => {
   localStorage.setItem("orior.notices-away", "[]");
   assert.match(noticesSection({ draw: () => {} }).querySelector(".prefs-said").textContent, /^No notice is put away/);
-  putAway("A kind of the test's");
+  putAway("A type of the test's");
   let drawn = 0;
   const section = noticesSection({ draw: () => (drawn += 1) });
-  section.querySelector('[aria-label="Show again: A kind of the test\'s"]').click();
+  section.querySelector('[aria-label="Show again: A type of the test\'s"]').click();
   assert.deepEqual(noticesAway(), []);
   assert.equal(drawn, 1, "the sheet drawn again");
 });

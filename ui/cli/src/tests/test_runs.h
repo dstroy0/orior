@@ -3,7 +3,7 @@
 // test_runs.h: running a tree's Python tests: with pytest where the tree's Python has it, and with unittest where it
 // has not, unittest running the tests of its `TestCase`s. Its Rust tests run with cargo test in the same run, as
 // cargo_tests.h runs them. The files of a run are spread over the machine's cores, a process of pytest to each share,
-// the files of most tests first, each to the share that has the fewest so far; each test's result is passed on as its
+// the files of max tests first, each to the share that has the fewest so far; each test's result is passed on as its
 // process prints it, and each failure's message and the line it failed at as its process ends, from pytest's report.
 //
 // A run that records its coverage runs pytest under orior's own shim, which marks each line of the tree's files that
@@ -22,7 +22,7 @@ typedef struct CliTestRunsCfg CliTestRunsCfg;
 // What a run reports as it goes, written as JSON, `{"type": "started" | "result" | "coverage" | "done", "run", ...}`:
 // that it started, with how many tests or files, over how many processes and with which runner; each result, `{"id",
 // "outcome", "message", "file", "line", "seconds"}`; the coverage, `{"file", "ran", "missed"}` by file; and its end,
-// with its counts. Handed to `emit` with its context, on a thread of the run's own
+// with its counts. Passed to `emit` with its context, on a thread of the run's own
 typedef struct
 {
     void (*emit)(const CliEachJsonSizeCfg *args);

@@ -71,10 +71,10 @@ the low estimate. A drawn bar has them all whether anyone thought of them.
     a shuffle of labels that returned identical counts every draw, sd 0.00
     a bar at two Poisson floors for a statistic that spans three and a half by construction
     chi-square's variance through a logarithm: 0.0582 where shuffling gives 0.1015
-    root(2 ln N), the EXPECTED maximum, which half of all nulls exceed
+    root(2 ln N), the EXPECTED max, which half of all nulls exceed
 
 Resample instead. Shuffle the labels, redraw the counts at the same N and the same bin count,
-recompute the identical statistic, read the percentile. Where the statistic is a maximum, a minimum
+recompute the identical statistic, read the percentile. Where the statistic is a max, a minimum
 or a range this is not optional, because those have no usable closed form.
 
 ## Match the null to the nuisance parameters
@@ -91,7 +91,7 @@ at every step.
 For points with no preferred direction every mode carries the same expected power, and a degree
 holds (2l+1) of them, and per-degree power therefore RISES as (2l+1) with nothing in it at all. Drawn: the
 ratio is flat at 3.867 for a weight of 64 and 5.095 for 128, to within two and a half per cent
-across ten degrees, and the two constants stand in the ratio the finite-population correction
+across ten degrees, and the two constants are in the ratio the finite-population correction
 predicts - 1.318 measured against 1.333 expected.
 
 Plotted raw, every spectrum rises and the rise is entirely mode count. Divided by (2l+1) the null is
@@ -102,7 +102,7 @@ with nothing to subtract by eye.
 
 ## Know which class an instrument can see
 
-Scanners were raced against planted structure of four kinds. The harmonic expansion beat every rival
+Scanners were raced against planted structure of four types. The harmonic expansion beat every rival
 on anything with a shape - 328 standard errors against 14.8 for the next best - and on a forced
 parity it read 2.43 against its own 3.75 floor, which is BELOW its noise. Not worse: blind, because
 the expansion is a linear map of the lit set and a parity is not a linear property of which bits are
@@ -126,7 +126,7 @@ where a double runs out. Recomputed in fixed point it read 2^-60, 2^-92 and 2^-1
 A mod 2^32 ring IS the function; widening it computes a different one and fails silently. But the
 statistics computed OVER that ring grow without bound and must not share its width - an accumulator
 stored in a thirty-two bit integer was nine bits from silently wrapping, in analysis code, while the
-argument for keeping the ring narrow was being made about the same number.
+argument for retention the ring narrow was being made about the same number.
 
 **The definition fixes a width. Everything else is arbitrary precision.**
 
@@ -167,7 +167,7 @@ What that settles, in both directions:
 
                 Both arms read the digest through the leading-zero count, which is about two bits of
                 entropy per evaluation and discards everything below the first set bit. That was
-                never wrong, and it was never bounded either: "we found no gradient" was standing in
+                never wrong, and it was never bounded either: "we found no gradient" was located in
                 for "no gradient exists" with nothing fixing the difference. Fading an injected
                 gradient until the same statistic loses it puts a number on it - 0.0625 leading-zero
                 bits per single-bit step, with the control flat at every rung. Above that, excluded.
@@ -175,7 +175,7 @@ What that settles, in both directions:
 
                 The engineering conclusion survives intact, because mining's objective IS that
                 count. The general claim did not, and the difference is the whole lesson: this null
-                carried the most weight of any result here and it was the LAST one to get a floor, for
+                carried the max weight of any result here and it was the LAST one to get a floor, for
                 the reason every fault in this file shares - it looked clean, and a readout that
                 guarantees a near-null looks exactly like an object that has nothing in it.
     granted     the arms. Independence lets observations be pooled by addition
@@ -190,7 +190,7 @@ combined into one exact estimate.
 
 Memory per arm is flat. The counters are the same size whatever the depth, and a thousand arms hold
 2.15 trillion evaluations in three megabytes - about 700 million per kilobyte, and the footprint
-does not grow. That flat footprint makes "keep looking until the question is answered" a real option
+does not grow. That flat footprint makes "retain looking until the question is answered" a real option
 instead of a wish: the record never fills.
 
 And the two things arms buy do not scale alike, which decides how many to run:
@@ -206,12 +206,12 @@ over 256 cells, and past that point more arms buy depth only. Thirty-two is the 
 
 Elision is a value ceasing to depend on an input - the state becoming identical whether that input
 was one thing or another. It is normally described as loss, and from the inversion side it is. From
-the measurement side it is the most useful thing in the machine, because an elided dependency is a
+the measurement side it is the max useful thing in the machine, because an elided dependency is a
 HARD fact about the object and costs nothing to establish.
 
 The support measurement is elision read forwards. Six hundred excitations, and 214 of 256 positions
 never moved at all - each one an elision, each one ruling out every trajectory that would require
-it, and none of them needing a null or a bar or a p-value. A frequency needs all three and most come
+it, and none of them needing a null or a bar or a p-value. A frequency needs all three and max come
 back empty anyway.
 
 Three ways to use it:

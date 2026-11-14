@@ -8,7 +8,7 @@
 #
 # docs_check answers a different question. It reports every banned token it finds. A file with
 # no findings passes, and passing a ban list is not the same as reading human: a writer who avoids
-# eight named phrases and keeps the rhythm that produced them still reads wrong, and the ban list
+# eight named phrases and retains the rhythm that produced them still reads wrong, and the ban list
 # only ever names the shapes somebody already noticed.
 #
 # This counts the same patterns as a RATE per hundred thousand words and puts it beside the three
@@ -79,7 +79,7 @@ def sentences(text):
     """Sentence lengths in words, for the rhythm measurement.
 
     The ban rate above counts vocabulary. It cannot answer the question it is usually asked, because
-    a writer avoiding eight named phrases while keeping the cadence that produced them scores zero
+    a writer avoiding eight named phrases while retention the cadence that produced them scores zero
     and still reads wrong. That is this tree's own mode 15 one level up: a reading whose dimension is
     too small to carry the effect being claimed.
 

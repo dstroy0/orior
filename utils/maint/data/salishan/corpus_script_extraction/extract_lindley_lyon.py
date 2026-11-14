@@ -19,7 +19,7 @@
 # reader can then see the text passed through a transformation, and check the mapping.
 #
 # The appendix holds a note on transcription and glossing practice and two pronominal paradigm tables.
-# Those are the language and they are not narrative. They are kept and marked derived.
+# Those are the language and they are not narrative. They are retained and marked derived.
 
 import io
 import os
@@ -101,7 +101,7 @@ ROOT = _repository_root()
 PAPERS = os.path.join(ROOT, "build", "papers")
 CORPORA = os.path.join(ROOT, "build", "corpora")
 
-# The drafted page text instead of the extraction. This paper's PDF hands back the font's own alphabet,
+# The drafted page text instead of the extraction. This paper's PDF passes back the font's own alphabet,
 # and a corpus built on that is not the language: read from the PDF's text, much of what this reader
 # writes is a string the page does not print.
 SOURCE = os.path.join(PAPERS, "2013_Lindley_Lyon.page.txt")
@@ -126,7 +126,7 @@ NUMBERED_BLOCK = re.compile(r"^\((\d{1,4})\)\s*(.*)$")
 QUOTED = re.compile(r"^['‘]")
 
 # A segmentation line joins its morphemes with a hyphen or an equals sign, and neither character is
-# touched by the font repair below. Testing for one keeps a wrapped transcription line from
+# touched by the font repair below. Testing for one retains a wrapped transcription line from
 # entering the record as segmentation because nothing else matched it.
 SEGMENTED = re.compile(r"[-=]")
 
@@ -143,7 +143,7 @@ CATEGORIES = re.compile(
 
 # What each named subsection holds. Matched on the title because the numbering does not line up
 # with the story count once the multiple versions and their commentaries are counted.
-def kind_of(title):
+def type_of(title):
     """What a subsection holds, from its own heading."""
     lowered = title.lower()
     if lowered.startswith("okanagan"):
@@ -168,7 +168,7 @@ LAYER = {
     "gloss": DERIVED,
     "commentary": DERIVED,
     "appendix": DERIVED,
-    # Kept and marked, excluded from the ingestion stream until someone has classified it.
+    # Retained and marked, excluded from the ingestion stream until someone has classified it.
     UNCLASSIFIED: DERIVED,
 }
 
@@ -181,7 +181,7 @@ def carries_language(text):
 def two_line_words(block):
     """One numbered block of the interlinear, as the two lines this paper gives for each word.
 
-    The PDF handed the interlinear over a column at a time. A word arrives as its form and then its
+    The PDF passed the interlinear over a column at a time. A word arrives as its form and then its
     gloss on the next line, and the pair repeats until the free translation closes the block.
     Position is what fixes which line is which. Content cannot: iʔ and DET are both plain ASCII, and
     the form of a word with no affixes carries nothing a gloss does not.
@@ -191,7 +191,7 @@ def two_line_words(block):
     analysis of what was said and not a record of it.
 
     A slipped count is caught, not repaired, on the same test the other Lyon paper uses: an uppercase
-    category label belongs to a gloss and cannot stand in a form.
+    category label belongs to a gloss and cannot are in a form.
 
     Returns the words, the free translation, any line left over, and whether the cycle slipped.
     """
@@ -285,7 +285,7 @@ def main():
                 stories[story] = repaired_prose(title)
                 holds = None
             else:
-                holds = kind_of(title)
+                holds = type_of(title)
             continue
 
         if section is None:
@@ -300,7 +300,7 @@ def main():
 
         if holds == "running speech":
             # A footnote or an acknowledgment printed inside a story section is English throughout,
-            # and the repair hides that by putting a glottal stop where its capital P stood. The
+            # and the repair hides that by putting a glottal stop where its capital P was. The
             # American Philosophical Society's Phillips Fund reached the ingestion stream that way.
             # So the test runs on the line as it arrived, where the English is still English.
             if not language_line(trimmed):
@@ -311,7 +311,7 @@ def main():
             # The Okanagan subsection is the language from end to end. Every substitution
             # applies to it and no token in it needs guarding. Where the extraction broke a word in
             # two is not known yet: the interlinear says that and has not been read. So the row is
-            # written now to keep the paper's order, its place is remembered, and the words are put
+            # written now to retain the paper's order, its place is remembered, and the words are put
             # back together below once the list exists.
             fixed = repaired(trimmed)
             if carries_language(fixed):
@@ -321,7 +321,7 @@ def main():
 
         if holds in ("free translation", "commentary", "appendix"):
             # A free translation and a commentary are Lyon's own English. The appendix is his
-            # pronominal paradigms, which are the language. It keeps the repair that a capital
+            # pronominal paradigms, which are the language. It retains the repair that a capital
             # at the front of a word does not survive.
             fixed = (
                 repaired_line(trimmed)
@@ -413,7 +413,7 @@ def main():
                 rows.append(("T", number, section, name, UNCLASSIFIED, fixed))
 
     # The running text, with the words the extraction broke put back together. Its rows were
-    # written above to keep the paper's order, and the list that says where the breaks are only
+    # written above to retain the paper's order, and the list that says where the breaks are only
     # exists now that the interlinear has been read.
     for at in running_at:
         row = rows[at]
@@ -459,7 +459,7 @@ def main():
         handle.write("# three tellings of another, each with its own commentary.\n")
         handle.write("#\n")
         handle.write(
-            "# READ FROM THE PAGE. This paper's PDF hands back the font's own alphabet\n"
+            "# READ FROM THE PAGE. This paper's PDF passes back the font's own alphabet\n"
         )
         handle.write(
             "# and not what the page prints. This reader takes build/papers/\n"
@@ -481,7 +481,7 @@ def main():
         handle.write("# was read off the pages and says so.\n")
         handle.write("#\n")
         handle.write(
-            "# Mark is language.layer.kind. T is Nsyilxcən, N is anything else.\n"
+            "# Mark is language.layer.type. T is Nsyilxcən, N is anything else.\n"
         )
         handle.write(
             "# Subsections are matched on their titles, not their numbers, because the\n"
@@ -490,27 +490,27 @@ def main():
             "# numbering does not line up with the story count once the versions and\n"
         )
         handle.write("# their commentaries are counted.\n")
-        handle.write("line\tsection\tstory\tkind\tswitches\tcontent\n")
-        for mark, count, sect, name, kind, text in rows:
-            layer = LAYER[kind]
+        handle.write("line\tsection\tstory\ttype\tswitches\tcontent\n")
+        for mark, count, sect, name, type, text in rows:
+            layer = LAYER[type]
             if mark == "T":
-                content = rendered(text, layer, kind, MARKS)
+                content = rendered(text, layer, type, MARKS)
                 crossings = switches(text)
             else:
-                content = "N.%s.%s:{%s}" % (layer, kind, text)
+                content = "N.%s.%s:{%s}" % (layer, type, text)
                 crossings = 0
             handle.write(
                 "line#${%d}\t%s\t%s\t%s\t%d\t%s\n"
-                % (count, sect, name[:40], kind, crossings, content)
+                % (count, sect, name[:40], type, crossings, content)
             )
 
     pure = TARGET[:-4] + ".pure.txt"
-    kept = 0
+    retained = 0
     repeated = 0
     already = set()
     with open(pure, "w", encoding="utf-8", newline="") as handle:
-        for mark, count, sect, name, kind, text in rows:
-            if (mark != "T") or (LAYER[kind] != SPOKEN):
+        for mark, count, sect, name, type, text in rows:
+            if (mark != "T") or (LAYER[type] != SPOKEN):
                 continue
             for span, run in tagged_spans(text, MARKS):
                 if (span != "T") or (not run.strip()):
@@ -521,7 +521,7 @@ def main():
                     continue
                 already.add(key)
                 handle.write("%s\n" % key)
-                kept += 1
+                retained += 1
 
     # A file of its own for what the tool could not sort: an interlinear line none of the tests
     # typed, and a line no subsection reached. The source is put through the same font repair
@@ -529,8 +529,8 @@ def main():
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
         (0, "%s block %d" % (sect, count), UNKNOWN_KIND, "", text)
-        for mark, count, sect, name, kind, text in rows
-        if (kind == UNCLASSIFIED) and (sect != "not reached")
+        for mark, count, sect, name, type, text in rows
+        if (type == UNCLASSIFIED) and (sect != "not reached")
     ]
     flagged.extend(missed)
     stuck_count = write_unsorted(
@@ -539,7 +539,7 @@ def main():
 
     out.write("  %d lines written to\n  %s\n" % (len(rows), os.path.basename(TARGET)))
     out.write(
-        "  %d target-language spans written to\n  %s\n" % (kept, os.path.basename(pure))
+        "  %d target-language spans written to\n  %s\n" % (retained, os.path.basename(pure))
     )
     out.write("  %d spans skipped as already written\n" % repeated)
     out.write(
@@ -556,22 +556,22 @@ def main():
     out.write("\n  %-40s %-16s %s\n" % ("story", "running speech", "rebuilt blocks"))
     spoken = {}
     built = {}
-    for mark, count, sect, name, kind, text in rows:
-        if kind == "running speech":
+    for mark, count, sect, name, type, text in rows:
+        if type == "running speech":
             spoken[name] = spoken.get(name, 0) + 1
-        elif kind == "segmentation":
+        elif type == "segmentation":
             built[name] = built.get(name, 0) + 1
     for name in sorted(set(spoken) | set(built)):
         out.write(
             "  %-40s %-16d %d\n" % (name[:40], spoken.get(name, 0), built.get(name, 0))
         )
 
-    kinds = {}
-    for mark, count, sect, name, kind, text in rows:
-        kinds[kind] = kinds.get(kind, 0) + 1
+    types = {}
+    for mark, count, sect, name, type, text in rows:
+        types[type] = types.get(type, 0) + 1
     out.write(
-        "\n  by kind: %s\n"
-        % ", ".join("%s %d" % (one, kinds[one]) for one in sorted(kinds))
+        "\n  by type: %s\n"
+        % ", ".join("%s %d" % (one, types[one]) for one in sorted(types))
     )
     out.write("  %d stories found\n" % len(stories))
     if opening:

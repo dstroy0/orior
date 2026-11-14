@@ -130,19 +130,19 @@ void test_a_slope_in_the_top_row_covers_each_cell_by_its_area(void)
 void test_the_system_font_has_a_glyph_for_h(void)
 {
     system_font_read();
-    TEST_ASSERT_GREATER_THAN_UINT(0u, EMBED_CALL(font_letter.glyph, FontCfg, .font = &s_font, .letter = 'H'));
+    TEST_ASSERT_GREATER_THAN_UINT(0u, EMBED_CALL(font_character.glyph, FontCfg, .font = &s_font, .character = 'H'));
 }
 
 void test_the_system_font_is_monospace(void)
 {
     system_font_read();
-    TEST_ASSERT_EQUAL_FLOAT(EMBED_CALL(font_glyph_table.advance, FontGlyphCfg, .font = &s_font, .glyph = EMBED_CALL(font_letter.glyph, FontCfg, .font = &s_font, .letter = 'H')), EMBED_CALL(font_glyph_table.advance, FontGlyphCfg, .font = &s_font, .glyph = EMBED_CALL(font_letter.glyph, FontCfg, .font = &s_font, .letter = 'i')));
+    TEST_ASSERT_EQUAL_FLOAT(EMBED_CALL(font_glyph_table.advance, FontGlyphCfg, .font = &s_font, .glyph = EMBED_CALL(font_character.glyph, FontCfg, .font = &s_font, .character = 'H')), EMBED_CALL(font_glyph_table.advance, FontGlyphCfg, .font = &s_font, .glyph = EMBED_CALL(font_character.glyph, FontCfg, .font = &s_font, .character = 'i')));
 }
 
 void test_h_draws_ink_and_not_everywhere(void)
 {
     system_font_read();
-    outlined(EMBED_CALL(font_letter.glyph, FontCfg, .font = &s_font, .letter = 'H'));
+    outlined(EMBED_CALL(font_character.glyph, FontCfg, .font = &s_font, .character = 'H'));
     TEST_ASSERT_GREATER_OR_EQUAL_UINT(1u, s_contours.contours);
     FontMask mask;
     EMBED_CALL(font_contours.rasterize, FontContoursCfg, .contours = &s_contours, .mask_bits = &mask, .cover = s_cover, .capacity = sizeof(s_cover) / sizeof(s_cover[0]), .scratch = s_scratch, .scratch_bytes = sizeof(s_scratch));
@@ -158,12 +158,12 @@ void test_h_draws_ink_and_not_everywhere(void)
 void test_a_character_the_font_lacks_has_no_glyph(void)
 {
     system_font_read();
-    TEST_ASSERT_EQUAL_UINT(0u, EMBED_CALL(font_letter.glyph, FontCfg, .font = &s_font, .letter = 0x10FFFFu));
+    TEST_ASSERT_EQUAL_UINT(0u, EMBED_CALL(font_character.glyph, FontCfg, .font = &s_font, .character = 0x10FFFFu));
 }
 
 void test_an_accented_character_has_an_outline(void)
 {
     system_font_read();
-    outlined(EMBED_CALL(font_letter.glyph, FontCfg, .font = &s_font, .letter = 0xE9u));
+    outlined(EMBED_CALL(font_character.glyph, FontCfg, .font = &s_font, .character = 0xE9u));
     TEST_ASSERT_GREATER_THAN_UINT(0u, s_contours.contours);
 }

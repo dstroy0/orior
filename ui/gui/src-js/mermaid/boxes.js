@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// State, class and entity-relationship diagrams, each drawn as a chart of boxes and lines laid out as a flowchart is.
+// State, class and entity-relationship diagrams, each drawn as a chart of boxes and lines arranged as a flowchart is.
 
 import { chartSvg, plainNode } from "./flowchart.js";
 import { escape, lineOf, textAt, width } from "./svg.js";
@@ -76,14 +76,14 @@ export function parseClasses(text) {
   const named = (id) => {
     const name = id.replace(/~[^~]*~/, "");
     if (!classes.has(name)) {
-      classes.set(name, { id: name, label: id.replace(/~([^~]*)~/, "<$1>"), fields: [], methods: [], kind: "", order: classes.size });
+      classes.set(name, { id: name, label: id.replace(/~([^~]*)~/, "<$1>"), fields: [], methods: [], type: "", order: classes.size });
     }
     return classes.get(name);
   };
   const member = (one, line) => {
     const text = line.trim();
     if (/^<<.*>>$/.test(text)) {
-      one.kind = text;
+      one.type = text;
     } else if (text) {
       (text.includes("(") ? one.methods : one.fields).push(text);
     }
@@ -109,7 +109,7 @@ export function parseClasses(text) {
       const one = named(match[1]);
       open = match[2] ? one : null;
     } else if ((match = line.match(/^<<(.+)>>\s+(\S+)$/))) {
-      named(match[2]).kind = `<<${match[1]}>>`;
+      named(match[2]).type = `<<${match[1]}>>`;
     } else {
       const relation = RELATIONS.find(([mark]) => line.includes(` ${mark} `) || new RegExp(`\\S${mark.replace(/[|*.]/g, "\\$&")}\\S`).test(line));
       if (relation) {
@@ -163,8 +163,8 @@ function sectionsSvg(node, place, title, sections, small = "") {
 
 export function classSvg(text) {
   const read = parseClasses(text);
-  const nodes = read.classes.map((one) => ({ ...one, size: sectionsSize(one.label, [one.fields, one.methods]).map((v, at) => v + (at && one.kind ? 12 : 0)) }));
-  return chartSvg(read.direction, nodes, read.edges, (node, place) => sectionsSvg(node, place, node.label, [node.fields, node.methods], node.kind), "class");
+  const nodes = read.classes.map((one) => ({ ...one, size: sectionsSize(one.label, [one.fields, one.methods]).map((v, at) => v + (at && one.type ? 12 : 0)) }));
+  return chartSvg(read.direction, nodes, read.edges, (node, place) => sectionsSvg(node, place, node.label, [node.fields, node.methods], node.type), "class");
 }
 
 // ---- Entity-relationship diagrams ----

@@ -86,7 +86,7 @@ extern "C"
     EdoubleRecordInterval edouble_record_interval_difference(ExactRecordProgram *program, EdoubleRecordInterval a,
                                                              EdoubleRecordInterval b, unsigned int spread_bits);
 
-    // the least and the most of the four corner products, exact, whatever the signs
+    // the least and the max of the four corner products, exact, whatever the signs
     EdoubleRecordInterval edouble_record_interval_product(ExactRecordProgram *program, EdoubleRecordInterval a,
                                                           EdoubleRecordInterval b);
 
@@ -95,7 +95,7 @@ extern "C"
     EdoubleRecordInterval edouble_record_interval_cut(ExactRecordProgram *program, EdoubleRecordInterval value,
                                                       unsigned int width, unsigned int range_bits);
 
-    // a / b for b containing no 0 and both of b's ends below 2^divisor_bits: the least floor and the most ceiling of
+    // a / b for b containing no 0 and both of b's ends below 2^divisor_bits: the least floor and the max ceiling of
     // the four corners m_a 2^s / m_b, s = width + divisor_bits, at e_a - e_b - s
     EdoubleRecordInterval edouble_record_interval_quotient(ExactRecordProgram *program, EdoubleRecordInterval a,
                                                            EdoubleRecordInterval b, unsigned int width,
@@ -121,7 +121,7 @@ extern "C"
     // A ball's product costs one product for its center and three for its radius, against the four corners and their
     // order a bounded pair's takes. Only a read at an exponent drops bits, and it widens the radius by what it drops.
     // Each read wraps the center and narrows the radius to the widths it is given, and gives the flag `fits`, 1 where
-    // both lay inside them: a run that has every flag at 1 dropped nothing to a wrap. The quotient takes exponents the
+    // both position inside them: a run that has every flag at 1 dropped nothing to a wrap. The quotient takes exponents the
     // program knows.
 
     typedef struct

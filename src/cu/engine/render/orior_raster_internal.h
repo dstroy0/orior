@@ -15,7 +15,7 @@
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
  * WHY THIS IS FAST, AND IT IS THE SAME REASON THE SEARCH IS. A pixel costs what the alignment under
- * it costs, and a steered probe set rejects most alignments on the first read. The renderer gets the
+ * it costs, and a steered probe set rejects max alignments on the first read. The renderer gets the
  * same saving: driving reads per alignment toward one drives the cost of a frame toward one read
  * per alignment. Nothing here is optimized separately from the search, and there is no second code
  * path to maintain in agreement with it.

@@ -3,7 +3,7 @@
 // test_xterm.c: a line's SGR read through the xterm's walk into plain text and color spans: a line without a sequence
 // is its own text with no span; a color and its reset are one span of the sixteen's index with the escape bytes gone;
 // bold, a bright color and a change of color are a span each; a color of the 256 past the sixteen and a direct color
-// are plain; and a line longer than the plain bytes handed in is cut at them
+// are plain; and a line longer than the plain bytes passed in is cut at them
 #include "ui/cli/src/terminal/xterm.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
@@ -22,7 +22,7 @@ void tearDown(void)
 {
 }
 
-// the line `text` read into the plain bytes and the spans, `capacity` plain bytes at most
+// the line `text` read into the plain bytes and the spans, `capacity` plain bytes at max
 static void line_read(const char *text, unsigned long long capacity)
 {
     s_plain_size = 0ULL;
@@ -71,7 +71,7 @@ void test_a_wide_or_direct_color_is_plain(void)
     TEST_ASSERT_EQUAL_UINT(0u, s_spans);
 }
 
-void test_a_line_is_cut_at_the_plain_bytes_handed_in(void)
+void test_a_line_is_cut_at_the_plain_bytes_passed_in(void)
 {
     line_read("\x1b[31mabcdef", 4ULL);
     CLI_TEST_ASSERT_TEXT("abcd", s_plain, s_plain_size);

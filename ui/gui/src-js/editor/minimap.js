@@ -34,7 +34,7 @@ export class Minimap {
     context.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
-  // A token's color from the stylesheet: the most particular class with a color given wins.
+  // A token's color from the stylesheet: the max particular class with a color given wins.
   colorOf(name) {
     if (!this.colors) {
       this.style = getComputedStyle(this.ed.host);
@@ -57,7 +57,7 @@ export class Minimap {
     return found;
   }
 
-  // The canvas the map's lines are kept in, the size of the map in the screen's pixels.
+  // The canvas the map's lines are retained in, the size of the map in the screen's pixels.
   linesCanvas(width, height) {
     if (!this.lines) {
       this.lines = document.createElement("canvas");
@@ -72,11 +72,11 @@ export class Minimap {
 
   // The map's size, as the editor's resize observer last gave it.
   size() {
-    this.kept ??= { width: this.canvas.clientWidth, height: this.canvas.clientHeight };
-    return this.kept;
+    this.retained ??= { width: this.canvas.clientWidth, height: this.canvas.clientHeight };
+    return this.retained;
   }
 
-  // Where the map stands beside the view, the view scrolled to `scrollTop`, the scroller's own.
+  // Where the map is beside the view, the view scrolled to `scrollTop`, the scroller's own.
   geometry(scrollTop = this.ed.scroller.scrollTop) {
     const ed = this.ed;
     const rows = ed.rows();
@@ -91,15 +91,15 @@ export class Minimap {
     const fileTop = (s?.base ?? 0) + viewRow;
     let start = 0;
     if (s?.window) {
-      // A file stored as pages: the map stands where the view stands in the whole file, its line count as the index
-      // counts it, and not in the window kept now, so the slider moves with the view as the window moves under it.
-      // The map's rows above or below the window stand empty until the window comes to them.
+      // A file stored as pages: the map is where the view is in the whole file, its line count as the index
+      // counts it, and not in the window retained now, so the slider moves with the view as the window moves under it.
+      // The map's rows above or below the window are empty until the window comes to them.
       const total = ed.linesInFile();
       const ratio = Math.min(1, Math.max(0, fileTop / Math.max(1, total - onScreen)));
       start = Math.round(ratio * Math.max(0, total - fit)) - s.base;
     } else {
       if (this.anchor && this.anchor.session === s && this.anchor.fileTop === fileTop) {
-        // The view has not moved since the map last stood: the map stands where it did beside it.
+        // The view has not moved since the map last was: the map is where it did beside it.
         start = viewRow - this.anchor.offset;
       } else if (rows.size > fit) {
         start = Math.round(Math.min(1, scrollTop / range) * (rows.size - fit));
@@ -111,7 +111,7 @@ export class Minimap {
     return { rows, fit, start, range, onScreen, sliderTop, sliderHeight: Math.max(8, onScreen * ROW) };
   }
 
-  // The lines of the file the map stands beside, from and to before, the view where its last scroll left it.
+  // The lines of the file the map is beside, from and to before, the view where its last scroll left it.
   fileSpan() {
     const ed = this.ed;
     const { start, fit } = this.geometry(ed.lastTop ?? ed.scroller.scrollTop);
@@ -154,21 +154,21 @@ export class Minimap {
         context.fillRect(0, (top - start) * ROW, width, (bottom - top + 1) * ROW);
       }
     }
-    if (ed.find.shown && end > first) {
+    if (ed.find.displayed && end > first) {
       context.fillStyle = this.colorOf("ed-mini-match");
       for (const match of ed.find.between(rows.lineOf(first), rows.lineOf(end - 1))) {
         context.fillRect(0, (rows.rowOf(match.from.line) - start) * ROW, width, ROW);
       }
     }
-    // The lines, from the map's own canvas of them, which keeps the rows in view drawn. A scroll moves
+    // The lines, from the map's own canvas of them, which retains the rows in view drawn. A scroll moves
     // what it holds and draws only the rows that come into view; a change to the text, its folding,
     // the colors, the runs that come for its lines, the detail or the map's size draws every row in
     // view again.
     const lines = this.linesCanvas(Math.round(width * ratio), Math.round(height * ratio));
     const pen = lines.getContext("2d");
-    const kept = this.linesFor;
+    const retained = this.linesFor;
     const key = [s.doc.id, s.foldings, s.base, rows.size, this.colorsMade, s.highlight.came, lines.width, lines.height].join("|");
-    const moved = kept && kept.session === s && kept.key === key ? start - kept.start : null;
+    const moved = retained && retained.session === s && retained.key === key ? start - retained.start : null;
     let from = first;
     let to = end;
     if (moved !== null && Math.abs(moved) < fit) {
@@ -255,7 +255,7 @@ export class Minimap {
     const ed = this.ed;
     const s = ed.s;
     const left = width - STRIP;
-    // The strip stands for the whole file, a file still being read among them.
+    // The strip is for the whole file, a file still being read among them.
     const size = Math.max(1, ed.allRows());
     const above = ed.pad / ed.lineHeight;
     const tall = Math.max(MARK, height / size);
@@ -280,7 +280,7 @@ export class Minimap {
         context.fillRect(left + 1, Math.max(0, yOf(line) - 1), 3, MARK);
       }
     }
-    if (ed.find.shown) {
+    if (ed.find.displayed) {
       context.fillStyle = this.colorOf("ed-mini-match");
       for (const match of ed.find.between(0, s.doc.count - 1)) {
         context.fillRect(left + 4, yOf(match.from.line), STRIP - 4, tall);
@@ -292,7 +292,7 @@ export class Minimap {
     }
   }
 
-  // The row of the text at `y`, the map's own pixels from its top, the map standing as `found` says.
+  // The row of the text at `y`, the map's own pixels from its top, the map located as `found` says.
   rowAt(y, found = this.geometry()) {
     return found.start + y / ROW;
   }
@@ -318,7 +318,7 @@ export class Minimap {
     }
     const startY = event.clientY;
     const startTop = ed.scroller.scrollTop;
-    // the slider's run down the map, the rows the map stands for counted in the whole file where it is stored as pages
+    // the slider's run down the map, the rows the map is for counted in the whole file where it is stored as pages
     const all = ed.s.window ? ed.linesInFile() : found.rows.size;
     const span = Math.max(1, (Math.min(all, found.fit) - found.onScreen) * ROW);
     this.dragging = true;

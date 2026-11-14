@@ -69,7 +69,7 @@ typedef struct
     unsigned long long body_length_at_value;
     unsigned long long head;
     const unsigned char *bytes_read;
-    char code_letter;
+    char code_character;
     const char **type;
     unsigned long long *at_pointer;
     unsigned int depth;
@@ -120,7 +120,7 @@ int cli_file_pick(const CliPathCapacityCtx *args)
 #define CLI_DBUS_DESTINATION 6u
 #define CLI_DBUS_SIGNATURE 8u
 
-// the most bytes of a message written or read
+// the max bytes of a message written or read
 #define CLI_DBUS_MESSAGE_MAX (64u << 10u)
 
 // how deep a value's types nest that this file passes over
@@ -225,7 +225,7 @@ EMBED_INLINE void dbus_string(const PosixPickerCtx *args)
     EMBED_CALL(dbus_append, PosixPickerCtx, .message = args->message, .bytes_bytess = args->text, .size = length + 1u);
 }
 
-// a signature put: its length in one byte, its letters, and a 0
+// a signature put: its length in one byte, its characters, and a 0
 EMBED_INLINE void dbus_signature(const PosixPickerCtx *args)
 {
     const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->signature, .cap = 255u});
@@ -308,16 +308,16 @@ EMBED_INLINE unsigned int dbus_u32_get(const PosixPickerCtx *args)
 // the bytes a value of the type `code` aligns to
 EMBED_INLINE unsigned long long dbus_alignment_get(const PosixPickerCtx *args)
 {
-    if ((args->code_letter == 'y') || (args->code_letter == 'g') || (args->code_letter == 'v'))
+    if ((args->code_character == 'y') || (args->code_character == 'g') || (args->code_character == 'v'))
     {
         return 1ULL;
     }
-    if ((args->code_letter == 'n') || (args->code_letter == 'q'))
+    if ((args->code_character == 'n') || (args->code_character == 'q'))
     {
         return 2ULL;
     }
-    if ((args->code_letter == 'x') || (args->code_letter == 't') || (args->code_letter == 'd') ||
-        (args->code_letter == '(') || (args->code_letter == '{'))
+    if ((args->code_character == 'x') || (args->code_character == 't') || (args->code_character == 'd') ||
+        (args->code_character == '(') || (args->code_character == '{'))
     {
         return 8ULL;
     }
@@ -357,8 +357,8 @@ static int dbus_value_pass(const PosixPickerCtx *args)
     unsigned long long *at = args->at_pointer;
     const char **type = args->type;
     const char code = **type;
-    *at = (*at + EMBED_CALL(dbus_alignment_get, PosixPickerCtx, .code_letter = code) - 1ULL) &
-          ~(EMBED_CALL(dbus_alignment_get, PosixPickerCtx, .code_letter = code) - 1ULL);
+    *at = (*at + EMBED_CALL(dbus_alignment_get, PosixPickerCtx, .code_character = code) - 1ULL) &
+          ~(EMBED_CALL(dbus_alignment_get, PosixPickerCtx, .code_character = code) - 1ULL);
     if ((args->depth > CLI_DBUS_DEPTH) || (*at > args->size))
     {
         return 0;
@@ -398,8 +398,8 @@ static int dbus_value_pass(const PosixPickerCtx *args)
         *at += 4ULL;
         *type += 1;
         const char item = **type;
-        *at = (*at + EMBED_CALL(dbus_alignment_get, PosixPickerCtx, .code_letter = item) - 1ULL) &
-              ~(EMBED_CALL(dbus_alignment_get, PosixPickerCtx, .code_letter = item) - 1ULL);
+        *at = (*at + EMBED_CALL(dbus_alignment_get, PosixPickerCtx, .code_character = item) - 1ULL) &
+              ~(EMBED_CALL(dbus_alignment_get, PosixPickerCtx, .code_character = item) - 1ULL);
         *at += length;
         return EMBED_CALL(dbus_type_pass, PosixPickerCtx, .type = type) && (*at <= args->size);
     }
@@ -434,7 +434,7 @@ static int dbus_value_pass(const PosixPickerCtx *args)
     // a basic value takes as many bytes as it aligns to
     const int basic = (code == 'y') || (code == 'b') || (code == 'h') || (code == 'i') || (code == 'u') ||
                       (code == 'n') || (code == 'q') || (code == 'x') || (code == 't') || (code == 'd');
-    *at += basic ? EMBED_CALL(dbus_alignment_get, PosixPickerCtx, .code_letter = code) : 0ULL;
+    *at += basic ? EMBED_CALL(dbus_alignment_get, PosixPickerCtx, .code_character = code) : 0ULL;
     *type += 1;
     return basic && (*at <= args->size);
 }

@@ -123,7 +123,7 @@ def main():
             (card(5, 0), card(5, 1), card(0, 0)), (card(4, 0), card(3, 1), card(2, 0))
         ),
         10,
-        lambda move: poker.show(move) if move else "(keep all)",
+        lambda move: poker.show(move) if move else "(retain all)",
     )
 
     game = chess.Chess()

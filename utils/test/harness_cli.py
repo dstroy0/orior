@@ -5,7 +5,7 @@
     harness.py cli build                  the CLI library and programs, ui/cli/build.sh
     harness.py cli test [name...]         the CLI's Unity suites, every one where none is named
     harness.py cli coverage build|test|report  the suites built for gcov, run, and merged by gcovr into build/sonarqube/coverage.xml
-    harness.py cli bench [--label L] [--repeat N]  the CLI's common paths timed over ui/cli/src, rows kept in build/harness/bench
+    harness.py cli bench [--label L] [--repeat N]  the CLI's common paths timed over ui/cli/src, rows retained in build/harness/bench
 
 A child's output streams through the harness's own; the invocation's log under build/harness/log therefore holds it."""
 
@@ -99,7 +99,7 @@ def streamed(command, cwd=ROOT, env=None, stall=STALL_SECONDS, seen=None):
     """A command run with its output streamed line by line through the harness's standard output, each line added to
     `seen` where it is a list; its exit code.
     A child that writes nothing is watched: while its processor time moves a heartbeat says so every
-    HEARTBEAT_SECONDS; one whose time stands still for `stall` seconds is ended and 124 is the exit code. A child whose work
+    HEARTBEAT_SECONDS; one whose time is stationary for `stall` seconds is ended and 124 is the exit code. A child whose work
     runs inside a container shows no processor time here; such a child is therefore run with no stall, the heartbeat alone."""
     import queue
     import threading
@@ -234,7 +234,7 @@ def cmd_cli_bench(a):
     if not a.docker:
         return streamed([bash(), CLI_BENCH, a.label, str(a.repeat)])
     # the tree's sources copied into the container's own filesystem first; the rows therefore measure the code and not the
-    # mount; the rows the run keeps are appended to the host's bench.tsv under a label that says where they ran
+    # mount; the rows the run retains are appended to the host's bench.tsv under a label that says where they ran
     inside = ("mkdir -p /work /usr/src/build/harness/bench && cp -r /usr/src/ui /usr/src/src /usr/src/utils /usr/src/bin_names.tsv /work/"
               " && cd /work && bash utils/test/src/ui/cli/cli_bench.sh %s %d"
               " && cat build/harness/bench/bench.tsv >> /usr/src/build/harness/bench/bench.tsv") % ("docker-" + a.label, a.repeat)
@@ -266,9 +266,9 @@ def register(sub):
     q.set_defaults(fn=cmd_cli_coverage_test)
     q = coverage.add_parser("report", help="the .gcda merged through gcovr into build/sonarqube/coverage.xml")
     q.set_defaults(fn=cmd_cli_coverage_report)
-    p = cli.add_parser("bench", help="the CLI's common paths timed over ui/cli/src, rows kept in build/harness/bench/bench.tsv")
-    p.add_argument("--label", default="", help="the run's label in the kept rows, such as before or after")
-    p.add_argument("--repeat", type=int, default=5, help="how many times each pass runs, the least time kept")
+    p = cli.add_parser("bench", help="the CLI's common paths timed over ui/cli/src, rows retained in build/harness/bench/bench.tsv")
+    p.add_argument("--label", default="", help="the run's label in the retained rows, such as before or after")
+    p.add_argument("--repeat", type=int, default=5, help="how many times each pass runs, the least time retained")
     p.add_argument("--docker", action="store_true", help="run in the Linux test image, on a copy of the tree inside it")
     p.set_defaults(fn=cmd_cli_bench)
 

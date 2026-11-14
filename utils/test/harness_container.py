@@ -6,7 +6,7 @@ copy of the tree of its own, where the window is built and run on that system.
     harness.py container list                      each system window_images.tsv gives a platform, its container's state
     harness.py container build SYSTEM...           its image built for its platform, or pulled where it is built elsewhere
     harness.py container start SYSTEM [--fresh]    its container made where there is none, started, and the tree copied in;
-                                                   --fresh makes it again, its volumes kept
+                                                   --fresh makes it again, its volumes retained
     harness.py container sync SYSTEM               the tree's parts copied into the container's copy
     harness.py container exec SYSTEM -- COMMAND... a command run in the container's copy of ui
     harness.py container stop SYSTEM
@@ -16,8 +16,8 @@ copy of the tree of its own, where the window is built and run on that system.
 The systems are the rows of utils/test/window_images.tsv with a platform: linux, Ubuntu 24.04 on x86-64; ubuntu_arm64,
 the same on arm64; rpi, Debian bookworm on arm64, as Raspberry Pi OS is; windows, Windows Server 2022; and macos.
 
-A Linux container reads the tree at /host, read-only, and keeps its copy on a volume at /top, its builds on a second
-at /top/build, and its crates on the volume the window's suite keeps them on. The tree's parts the window's build reads
+A Linux container reads the tree at /host, read-only, and retains its copy on a volume at /top, its builds on a second
+at /top/build, and its crates on the volume the window's suite retains them on. The tree's parts the window's build reads
 are copied in with rsync, each file where its bytes differ: ui, utils, src/cu, includes, the license texts and bin_names.tsv. An arm64 container
 runs under Docker's emulation, at a fraction of the machine's speed. The Windows container is the same at C:\\host and
 C:\\top, copied with robocopy, and runs only while Docker's engine is Windows', which `engine` switches to and back.
@@ -45,8 +45,8 @@ DOCKER_INSTALL_SETTINGS = r"C:\ProgramData\DockerDesktop\install-settings.json"
 ENGINE_SWITCH = {"linux": "-SwitchLinuxEngine", "windows": "-SwitchWindowsEngine"}
 ENGINE_WAIT_S = 300
 ENGINE_POLL_S = 5
-# the parts of ui each copy keeps of its own: what is built there and the suite's runs
-UI_KEPT = ["cli/target", "gui/src-tauri/target", "test/runs"]
+# the parts of ui each copy retains of its own: what is built there and the suite's runs
+UI_RETAINED = ["cli/target", "gui/src-tauri/target", "test/runs"]
 MACOS_VERSION = "15"
 MACOS_RAM = "8G"
 MACOS_CORES = "4"
@@ -54,9 +54,9 @@ MACOS_VIEWER = "http://localhost:8006"
 
 
 def table():
-    with open(IMAGES_TABLE, encoding="utf-8") as kept:
-        head = kept.readline().rstrip("\n").split("\t")
-        rows = [line.rstrip("\n").split("\t") for line in kept if line.strip()]
+    with open(IMAGES_TABLE, encoding="utf-8") as retained:
+        head = retained.readline().rstrip("\n").split("\t")
+        rows = [line.rstrip("\n").split("\t") for line in retained if line.strip()]
         return [dict(zip(head, cells + [""] * (len(head) - len(cells)))) for cells in rows]
 
 
@@ -136,8 +136,8 @@ def image_made(system):
     print("%s: %s, its output to %s" % (system["id"], " ".join(["docker"] + words[:-1]), log), flush=True)
     with open(log, "wb") as out:
         made = docker(words, cwd=ROOT, stdout=out, stderr=subprocess.STDOUT)
-    with open(log, encoding="utf-8", errors="replace") as kept:
-        lines = kept.readlines()
+    with open(log, encoding="utf-8", errors="replace") as retained:
+        lines = retained.readlines()
     print("".join(lines[-12 if made.returncode else -1:]), end="")
     return made.returncode
 
@@ -180,10 +180,10 @@ def run_words(system, name):
 
 def linux_sync():
     copied = "rsync -a --checksum --no-times --delete --exclude __pycache__"
-    kept = " ".join("--exclude /" + part for part in UI_KEPT)
+    retained = " ".join("--exclude /" + part for part in UI_RETAINED)
     return " && ".join([
         "mkdir -p /top/src/cu",
-        "%s %s /host/ui/ /top/ui/" % (copied, kept),
+        "%s %s /host/ui/ /top/ui/" % (copied, retained),
         "%s /host/utils/ /top/utils/" % copied,
         "%s /host/src/cu/ /top/src/cu/" % copied,
         "%s /host/includes/ /top/includes/" % copied,
@@ -194,12 +194,12 @@ def linux_sync():
 
 
 def windows_sync():
-    """robocopy's mirror of each part, the folders each copy keeps left out on both sides; its exit codes below 8
+    """robocopy's mirror of each part, the folders each copy retains left out on both sides; its exit codes below 8
     are copies made."""
     lines = []
-    for part, kept in (("ui", UI_KEPT), ("utils", []), ("src\\cu", [])):
+    for part, retained in (("ui", UI_RETAINED), ("utils", []), ("src\\cu", [])):
         left_out = ["__pycache__"]
-        for one in kept:
+        for one in retained:
             left_out += ["C:\\host\\%s\\%s" % (part, one.replace("/", "\\")), "C:\\top\\%s\\%s" % (part, one.replace("/", "\\"))]
         lines.append("robocopy C:\\host\\%s C:\\top\\%s /MIR /XD %s /NFL /NDL /NJH /NJS /NP | Out-Null; if ($LASTEXITCODE -ge 8) { exit $LASTEXITCODE }" % (part, part, " ".join(left_out)))
     lines.append("robocopy C:\\host\\LICENSES C:\\top\\LICENSES /MIR /NFL /NDL /NJH /NJS /NP | Out-Null; if ($LASTEXITCODE -ge 8) { exit $LASTEXITCODE }")
@@ -329,8 +329,8 @@ def windows_containers_refused():
     Desktop installed with noWindowsContainers, or Windows' Containers feature off."""
     refused = False
     try:
-        with open(DOCKER_INSTALL_SETTINGS, encoding="utf-8") as kept:
-            if json.load(kept).get("noWindowsContainers"):
+        with open(DOCKER_INSTALL_SETTINGS, encoding="utf-8") as retained:
+            if json.load(retained).get("noWindowsContainers"):
                 print("Docker Desktop was installed with noWindowsContainers, in %s: an administrator sets it false and restarts Docker Desktop" % DOCKER_INSTALL_SETTINGS)
                 refused = True
     except (OSError, ValueError):
@@ -376,7 +376,7 @@ def register(sub):
     p.set_defaults(fn=cmd_container_build)
     p = container.add_parser("start", help="the system's container made where there is none, started, and the tree copied in")
     p.add_argument("system")
-    p.add_argument("--fresh", action="store_true", help="the container made again, its volumes kept")
+    p.add_argument("--fresh", action="store_true", help="the container made again, its volumes retained")
     p.set_defaults(fn=cmd_container_start)
     p = container.add_parser("sync", help="the tree's parts copied into the container's copy")
     p.add_argument("system")

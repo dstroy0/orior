@@ -9,7 +9,7 @@ const { test, assert, calls } = window.__harness;
 
 const sheet = () => document.getElementById("user-css");
 
-test("the reader's stylesheet is laid last, over the app's own", async () => {
+test("the reader's stylesheet is positioned last, over the app's own", async () => {
   calls.answer("user_css_read", () => ":root { --harness-mark: 7px; }");
   await loadUserCss();
   assert.ok(sheet(), "the sheet is there");
@@ -27,7 +27,7 @@ test("a change to it tells what reads the scheme's colors; the same text tells n
   assert.equal(told, 1, "not told again of the same text");
 });
 
-test("a stylesheet that cannot be read is laid as nothing", async () => {
+test("a stylesheet that cannot be read is positioned as nothing", async () => {
   calls.answer("user_css_read", () => {
     throw new Error("no such file");
   });

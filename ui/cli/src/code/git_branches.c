@@ -6,7 +6,7 @@
 #include "../text/text.h"
 #include "git_internal.h"
 
-// the most bytes of what git reports of what it was requested to do, stored to be reported
+// the max bytes of what git reports of what it was requested to do, stored to be reported
 #define CLI_GIT_OUTPUT_MAX_LEN (1u << 16u)
 
 void cli_git_branches(const CliGitRootFoundBranchesCfg *args)

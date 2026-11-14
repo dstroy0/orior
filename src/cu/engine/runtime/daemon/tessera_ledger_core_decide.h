@@ -61,7 +61,7 @@ TESSERA_CORE int tessera_core_start(TesseraLedger *ledger, TesseraJob *job, unsi
     job->reservation = tessera_core_wants(ledger, job);
     // until its first sweep the job uses what its process allocated as it requested, which the device's measure already
     // counts: the headroom owes the device only the bytes it has yet to find
-    job->used = job->request.standing;
+    job->used = job->request.located;
     job->peak = 0ull;
     job->measures = 0ull;
     job->started = now;
@@ -196,12 +196,12 @@ TESSERA_CORE int tessera_core_fire(TesseraLedger *ledger, unsigned long long now
     {
         const TesseraDeadline due = ledger->heap[0];
         tessera_core_heap_pop(ledger);
-        if (due.kind == TESSERA_EVENT_IDLE)
+        if (due.type == TESSERA_EVENT_IDLE)
         {
             if ((ledger->job_count == 0ull) &&
                 (tessera_core_sum(ledger->idle_since, ledger->idle_microseconds) == due.when))
             {
-                event->kind = TESSERA_EVENT_IDLE;
+                event->type = TESSERA_EVENT_IDLE;
                 return 1;
             }
             continue;
@@ -211,14 +211,14 @@ TESSERA_CORE int tessera_core_fire(TesseraLedger *ledger, unsigned long long now
         {
             continue;
         }
-        if ((due.kind == TESSERA_EVENT_SWEEP) && (job->state == TESSERA_JOB_RUNNING) && (job->next_sweep == due.when))
+        if ((due.type == TESSERA_EVENT_SWEEP) && (job->state == TESSERA_JOB_RUNNING) && (job->next_sweep == due.when))
         {
             job->next_sweep = tessera_core_sum(due.when, job->request.sweep_microseconds);
-            event->kind = TESSERA_EVENT_SWEEP;
+            event->type = TESSERA_EVENT_SWEEP;
             event->identity = job->identity;
             return tessera_core_heap_push(ledger, job->next_sweep, job->identity, TESSERA_EVENT_SWEEP);
         }
-        if ((due.kind == TESSERA_EVENT_LOST) && (job->state == TESSERA_JOB_OVER_BUDGET) &&
+        if ((due.type == TESSERA_EVENT_LOST) && (job->state == TESSERA_JOB_OVER_BUDGET) &&
             (job->grace_until == due.when))
         {
             *event = tessera_core_event(TESSERA_EVENT_LOST, job->identity, job->request.declared, 0ull);
@@ -230,7 +230,7 @@ TESSERA_CORE int tessera_core_fire(TesseraLedger *ledger, unsigned long long now
 }
 
 // one call made of the ledger and answered: errored on whole, with nothing changed, where the ledger lacks room for the
-// most the call could add, and otherwise the decision the call names, with the headroom after it
+// max the call could add, and otherwise the decision the call names, with the headroom after it
 TESSERA_CORE void tessera_core_call(TesseraLedger *ledger, const TesseraCall *call, TesseraAnswer *answer)
 {
     answer->result = 0ull;
@@ -238,12 +238,12 @@ TESSERA_CORE void tessera_core_call(TesseraLedger *ledger, const TesseraCall *ca
     answer->identity = 0ull;
     answer->root.when = 0ull;
     answer->root.identity = 0ull;
-    answer->root.kind = TESSERA_EVENT_NONE;
+    answer->root.type = TESSERA_EVENT_NONE;
     for (unsigned int at = 0u; at < TESSERA_CALL_EVENTS; at += 1u)
     {
         answer->events[at] = tessera_core_event(TESSERA_EVENT_NONE, 0ull, 0ull, 0ull);
     }
-    const TesseraCapacity needed = tessera_core_capacity(ledger, call->kind);
+    const TesseraCapacity needed = tessera_core_capacity(ledger, call->type);
     if (!tessera_core_fits(ledger, &needed))
     {
         answer->full = 1;
@@ -251,7 +251,7 @@ TESSERA_CORE void tessera_core_call(TesseraLedger *ledger, const TesseraCall *ca
         return;
     }
     // each decision's 1 or 0 is widened to the answer's word, where an admit's count of jobs started converts exactly
-    switch (call->kind)
+    switch (call->type)
     {
     case TESSERA_CALL_DEVICE:
         tessera_core_device(ledger, call->capacity, call->in_use);

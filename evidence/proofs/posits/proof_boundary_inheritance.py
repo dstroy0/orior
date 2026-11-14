@@ -4,15 +4,15 @@
 # Catalog: PRF-x-010
 #
 # The boundary function asked to define itself, and then run over the sets Fefferman's Navier-Stokes
-# statement names, with the inheritance of each boundary kind through the constructors checked in the
+# statement names, with the inheritance of each boundary type through the constructors checked in the
 # engine's exact integer arithmetic. It claims nothing about any open problem. It presents the rigor and
 # stops.
 #
 #   Usage:  python evidence/proofs/posits/proof_boundary_inheritance.py
 #
-# proof_domain_boundaries.py named three kinds of boundary from a survey and proved each on a case built
-# to have it. A survey assigns the kind by judgment, and judgment is what the discipline forbids. Here the
-# kind is not assigned. It is read off the object by two probes, and the object answers:
+# proof_domain_boundaries.py named three types of boundary from a survey and proved each on a case built
+# to have it. A survey assigns the type by judgment, and judgment is what the discipline forbids. Here the
+# type is not assigned. It is read off the object by two probes, and the object answers:
 #
 #   FORMAT        raising our scale (the format) moves what we reach.
 #   COMPLETENESS  raising our horizon (the computation) moves what we reach.
@@ -22,7 +22,7 @@
 # `measurement` therefore means exactly `unmoved by both of our probes`, and from this side `external`
 # means the same. The verdict is only as good as the probes: a probe that cannot move an object is not a
 # probe of it. That limit is stated here and not hidden. The classifier is run first on four cases whose
-# kind is known by construction (the positive controls, from proof_domain_boundaries.py), and only then
+# type is known by construction (the positive controls, from proof_domain_boundaries.py), and only then
 # on the Navier-Stokes objects, which come from examples/0_experimental/exact_navier_stokes_on_torus.py
 # and are imported from that file so that one representation carries both.
 #
@@ -35,17 +35,17 @@
 # decimals (a coefficient carrying pi has no last digit) and reported in the exact ring (no scale at
 # all); an amplitude deposited to six places, a stand-in for a measured datum; and the ratio in which that
 # amplitude cancels. Then inheritance: does the constructor chain datum -> u_1 -> u_2 -> u_3 carry each
-# kind forward? Measured: the format kind is absent at every order in the ring, and in a decimal report it
+# type forward? Measured: the format type is absent at every order in the ring, and in a decimal report it
 # is absent at the rational datum and present from the first derivative on, because the derivative brings
-# pi in; the measurement kind is carried to every order and canceled only by a ratio; the completeness
-# kind is carried and grows.
+# pi in; the measurement type is carried to every order and canceled only by a ratio; the completeness
+# type is carried and grows.
 #
 # The last part is the algebra of one constructor read in the millennium research paper's Navier-Stokes chapter
 # (theory/theory/millennium/chapters/chapter_navier_stokes.tex, its account of Corollary 10.6 of the
 # 2026 paper it reviews): a periodic field built by summing integer translates of a compactly supported
 # one, whose supports stay disjoint. What that constructor inherits from its pieces rests on one exact
 # fact, that the bilinear term of a sum splits into the pieces' bilinear terms when supports are disjoint,
-# and that fact is shown here on piecewise polynomials with integer coefficients on a lattice of eighths,
+# and that fact is displayed here on piecewise polynomials with integer coefficients on a lattice of eighths,
 # by two routes, with the overlapping case as the drawn null. The construction is theirs; only the
 # algebra is run here.
 #
@@ -91,8 +91,8 @@ def pair_add(left, right):
 # ---------------------------------------------------------------- the boundary function, by probes
 
 
-def boundary_kind(reach, format_level, horizon_level, target):
-    """Read the kind off the object: a gap to the target, and what each probe moves.
+def boundary_type(reach, format_level, horizon_level, target):
+    """Read the type off the object: a gap to the target, and what each probe moves.
 
     `reach(format, horizon)` is what we hold at those settings. Raising each setting by one is the probe.
     """
@@ -101,27 +101,27 @@ def boundary_kind(reach, format_level, horizon_level, target):
     moved_by_format = reach(format_level + 1, horizon_level) != here
     moved_by_horizon = reach(format_level, horizon_level + 1) != here
     if not gap:
-        kind = "none"
+        type = "none"
     elif moved_by_format and moved_by_horizon:
-        kind = "format and completeness"
+        type = "format and completeness"
     elif moved_by_format:
-        kind = "format"
+        type = "format"
     elif moved_by_horizon:
-        kind = "completeness"
+        type = "completeness"
     else:
-        kind = "measurement"
-    return kind, gap, moved_by_format, moved_by_horizon
+        type = "measurement"
+    return type, gap, moved_by_format, moved_by_horizon
 
 
 def describe(out, name, verdict):
-    kind, gap, by_format, by_horizon = verdict
+    type, gap, by_format, by_horizon = verdict
     out.write(
         "    %-48s gap %-5s format %-5s horizon %-5s -> %s\n"
-        % (name, gap, by_format, by_horizon, kind)
+        % (name, gap, by_format, by_horizon, type)
     )
 
 
-# ---------------------------------------------------------------- positive controls, kind known by construction
+# ---------------------------------------------------------------- positive controls, type known by construction
 
 FORMAT_PRIMES = [
     (998244353, 23, 3),
@@ -166,17 +166,17 @@ def deposit_reach(format_level, _horizon_level):
 
 
 def report_controls(out):
-    out.write("  positive controls: four objects whose kind is fixed by construction\n")
-    ntt = boundary_kind(ntt_reach, 0, 25, frozenset(range(1, 26)))
-    tree = boundary_kind(tree_reach, 0, 7, 3**12)
-    deposit = boundary_kind(deposit_reach, 6, 0, reduced(TRUTH[0], 10 ** TRUTH[1]))
-    exact_value = boundary_kind(lambda _f, _h: reduced(22, 7), 0, 0, reduced(22, 7))
+    out.write("  positive controls: four objects whose type is fixed by construction\n")
+    ntt = boundary_type(ntt_reach, 0, 25, frozenset(range(1, 26)))
+    tree = boundary_type(tree_reach, 0, 7, 3**12)
+    deposit = boundary_type(deposit_reach, 6, 0, reduced(TRUTH[0], 10 ** TRUTH[1]))
+    exact_value = boundary_type(lambda _f, _h: reduced(22, 7), 0, 0, reduced(22, 7))
     describe(out, "NTT length, prime 119*2^23+1, horizon 2^25", ntt)
     describe(out, "3-ary tree count at horizon 7 of 12", tree)
     describe(out, "a deposit of 6 places against its true value", deposit)
     describe(out, "the rational 22/7 against itself", exact_value)
     # the null for the classifier: a probe that cannot move the object reports measurement
-    blind = boundary_kind(lambda _f, _h: 3**7, 0, 7, 3**12)
+    blind = boundary_type(lambda _f, _h: 3**7, 0, 7, 3**12)
     describe(out, "null: the tree count with the horizon probe cut", blind)
     out.write(
         "    the null shows the limit: measurement means unmoved by OUR probes, and only that\n\n"
@@ -319,10 +319,10 @@ def report_their_sets(out):
     velocities, _ = torus.taylor_velocity(generic, torus.VISCOSITY, 3)
     second = velocities[2]  # its modes reach |k|_inf = 2
 
-    decimal_narrow = boundary_kind(decimal_reach_for(second), 30, 1, exact_rows(second))
-    decimal_full = boundary_kind(decimal_reach_for(second), 30, 2, exact_rows(second))
-    ring_narrow = boundary_kind(ring_reach_for(second), 30, 1, exact_rows(second))
-    ring_full = boundary_kind(ring_reach_for(second), 30, 2, exact_rows(second))
+    decimal_narrow = boundary_type(decimal_reach_for(second), 30, 1, exact_rows(second))
+    decimal_full = boundary_type(decimal_reach_for(second), 30, 2, exact_rows(second))
+    ring_narrow = boundary_type(ring_reach_for(second), 30, 1, exact_rows(second))
+    ring_full = boundary_type(ring_reach_for(second), 30, 2, exact_rows(second))
     describe(out, "u_2 in decimals, 30 places, modes |k|_inf <= 1", decimal_narrow)
     describe(out, "u_2 in decimals, 30 places, modes |k|_inf <= 2", decimal_full)
     describe(out, "u_2 in the ring, modes |k|_inf <= 1", ring_narrow)
@@ -340,7 +340,7 @@ def report_their_sets(out):
     true_velocities, _ = torus.taylor_velocity(
         abc_with_amplitude(reduced(TRUTH[0], 10 ** TRUTH[1])), torus.VISCOSITY, order
     )
-    measured = boundary_kind(measured_reach, 6, 1, exact_rows(true_velocities[order]))
+    measured = boundary_type(measured_reach, 6, 1, exact_rows(true_velocities[order]))
     describe(out, "u_2 from A deposited to 6 places, against true A", measured)
 
     # the ratio in which the amplitude cancels: u_1 / u_0 mode by mode is -4 nu pi^2 for either A
@@ -360,7 +360,7 @@ def report_their_sets(out):
         )
         return ratio_rows(held)
 
-    ratio = boundary_kind(ratio_reach, 6, 1, ratio_rows(true_velocities))
+    ratio = boundary_type(ratio_reach, 6, 1, ratio_rows(true_velocities))
     ratio_all_true = all(row[2] for row in ratio_rows(true_velocities))
     describe(out, "u_1/u_0 = -4 nu pi^2, deposit against true A", ratio)
     out.write(
@@ -384,7 +384,7 @@ def report_their_sets(out):
 
 def report_inheritance(out):
     out.write(
-        "  inheritance: which kinds the chain datum -> u_1 -> u_2 -> u_3 carries forward\n"
+        "  inheritance: which types the chain datum -> u_1 -> u_2 -> u_3 carries forward\n"
     )
     depth = 3
     generic = torus.generic_field()
@@ -397,10 +397,10 @@ def report_inheritance(out):
         held = velocities[step]
         radius = torus.mode_radius(held)
         ring_silent.append(
-            not boundary_kind(ring_reach_for(held), 30, radius, exact_rows(held))[2]
+            not boundary_type(ring_reach_for(held), 30, radius, exact_rows(held))[2]
         )
         decimal_moves.append(
-            boundary_kind(decimal_reach_for(held), 30, radius, exact_rows(held))[2]
+            boundary_type(decimal_reach_for(held), 30, radius, exact_rows(held))[2]
         )
     decimal_pattern = decimal_moves == [False] + [True] * depth
     out.write(
@@ -680,10 +680,10 @@ def main():
     ]
     if all(results):
         out.write(
-            "  every part lands: the probes recover the known kinds, read their sets, and the chain carries\n"
+            "  every part lands: the probes recover the known types, read their sets, and the chain carries\n"
         )
         out.write(
-            "  the measurement and completeness kinds forward while the ring carries no format kind at all.\n"
+            "  the measurement and completeness types forward while the ring carries no format type at all.\n"
         )
         out.write("  nothing here bears on whether (A), (B), (C) or (D) holds.\n")
     else:

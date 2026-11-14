@@ -112,7 +112,7 @@ extern "C"
      *
      * @return A pointer to the arm, or NULL where no usable device is present.
      * @note Its `equal` and `compare` run on the host and are the portable ones. A single comparison is
-     *       far too small to be worth crossing the bus for, and only `agreement` is handed over.
+     *       far too small to be worth crossing the bus for, and only `agreement` is passed over.
      */
     const OriorExactArm *orior_exact_cuda_arm(void);
 

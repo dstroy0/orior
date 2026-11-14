@@ -1,7 +1,7 @@
 # The header carries what nobody put there
 
 A block header has no field for who built it or what shape their day was in. Twenty-eight bits of
-the version are a fixed protocol value and BIP320 hands sixteen of the rest to miners as scratch
+the version are a fixed protocol value and BIP320 passes sixteen of the rest to miners as scratch
 space, to be swept and discarded. A timestamp is only required to beat a median and sit inside a
 two hour window. Neither field is supposed to say anything.
 
@@ -10,7 +10,7 @@ null, and the timestamps record the network's clocks disagreeing with each other
 minutes. Neither pattern was chosen by anyone, and both are legible in public data.
 
 This document states what was measured, what the measurement rules out, and the mechanism left
-standing.
+located.
 
 ## Proving the instrument first
 
@@ -79,8 +79,8 @@ scatter of 2.6. The observed count sits eight tenths of a standard error below c
 Nothing transfers, and 530 of the 616 distinct signatures appear in exactly one block. The window
 does not identify emitters, and a document claiming it did would contradict two of its own tests.
 
-The mechanism left standing explains the shape without appealing to identity. The field is re-rolled
-continuously during search, and a winning block records wherever the roll stood when it landed. The
+The mechanism left located explains the shape without appealing to identity. The field is re-rolled
+continuously during search, and a winning block records wherever the roll was when it landed. The
 distribution is a picture of where implementations spend their time instead of who is searching. Zero
 is where a counter starts, 0xffff is a mask, 0xfff8 is that mask with three bits cleared, and the
 powers of two are single-bit states. Those are conventions, arrived at independently, and the piles
@@ -118,7 +118,7 @@ it, and that makes the count a direct measurement of the disagreement with no mo
 is height 965370, three hundred and four seconds before its parent.
 
 The three readings together locate the effect precisely. The process is clean and the clocks tick
-correctly. The remainder is offset: machines that keep good time and hold the wrong time.
+correctly. The remainder is offset: machines that retain good time and hold the wrong time.
 
 The offsets are large. They run from two seconds to 304, and the shape over the whole set is broad:
 binned at a minute, nine, three, seven, three, eight and one.
@@ -229,7 +229,7 @@ their machines are.
 Hashrate dips are the same measurement read at a shorter scale, and the same corpus flagged none:
 of 95 windows of 144 blocks, with a Poisson floor of 8.3 per cent on a window mean, not one ran
 three floors slow or fast. That negative is worth nothing on its own. An instrument that has never
-been shown to detect a real event cannot be believed when it reports none, and 48 days of ordinary
+been displayed to detect a real event cannot be believed when it reports none, and 48 days of ordinary
 operation is not a test.
 
 The chain supplies the test. Global hashrate fell by roughly half across May to July 2021 when
@@ -245,7 +245,7 @@ as an event that is really a rule.
 
 The migration gives the daily cycle its own known answer at the same time. Hashrate moved from
 around longitude 105 east to around 100 west, which is close to half the planet, and the phase of
-the daily cycle has to shift by most of twelve hours across 2021. A cycle that does not move when
+the daily cycle has to shift by the majority of twelve hours across 2021. A cycle that does not move when
 the miners demonstrably moved is not measuring the miners.
 
 ## Reproducing it
@@ -300,7 +300,7 @@ Almost all the machinery here already existed. The contribution is pointing exis
 dataset they are not usually pointed at, and the instruments belong to other people.
 
 The detection chain is radar's. Estimating the background under a cell from an order statistic of
-its neighbors, which keeps other targets sitting in the training cells from masking the one
+its neighbors, which retains other targets sitting in the training cells from masking the one
 being tested, is Rohling's ordered-statistic CFAR [7]. Naming the waveform before opening the data and
 projecting onto it is matched filtering, and the reason that projection carries no
 multiple-comparison penalty.

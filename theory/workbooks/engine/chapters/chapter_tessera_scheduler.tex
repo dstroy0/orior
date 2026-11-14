@@ -41,15 +41,15 @@ H(τ) = C − O(τ) − Σ\_\allowbreak{}j max(r\_\allowbreak{}j, u\_\allowbreak
 
 \textbf{Growth.} If u\_\allowbreak{}j(τ) > r\_\allowbreak{}j, then r\_\allowbreak{}j becomes u\_\allowbreak{}j(τ) and the client is warned: declared d\_\allowbreak{}j, now r\_\allowbreak{}j. Growth never stops a job already running, and a job can push H below zero. While H < 0, nothing new is admitted.
 
-\textbf{Invariant.} Admission keeps H ≥ 0. Only growth or an outside process can drive H negative, and both are measured. The sum the scheduler believes it has granted plus what it measured outside equals C − H(τ) at every sweep: the accounting is never perturbed, only corrected, and every correction is reported.
+\textbf{Invariant.} Admission retains H ≥ 0. Only growth or an outside process can drive H negative, and both are measured. The sum the scheduler believes it has granted plus what it measured outside equals C − H(τ) at every sweep: the accounting is never perturbed, only corrected, and every correction is reported.
 
 \textbf{Release.} When job j ends, r\_\allowbreak{}j and u\_\allowbreak{}j leave the sums. Its measured peak
 
 p\_\allowbreak{}j = max over its sweeps of u\_\allowbreak{}j(τ)
 
-is kept under its signum σ\_\allowbreak{}j, the BLAKE3 root of its request. The engine is deterministic in its request and its result. The same request needs about the same bytes again. The kept peak is a measurement at the sweep's resolution, though, not a byte-exact constant: identical requests have read peaks 4,194,304 bytes apart (below).
+is retained under its signum σ\_\allowbreak{}j, the BLAKE3 root of its request. The engine is deterministic in its request and its result. The same request needs about the same bytes again. The retained peak is a measurement at the sweep's resolution, though, not a byte-exact constant: identical requests have read peaks 4,194,304 bytes apart (below).
 
-\textbf{Over budget.} At submission, a job whose signum has a kept peak p and whose declaration exceeds it (d\_\allowbreak{}k > p) is asked. It waits in holding with its precalc intact. With the override set it is admitted on d\_\allowbreak{}k. If no answer comes within its holding time, it is moved to lost and found. A signum never seen is admitted on its declaration and measured.
+\textbf{Over budget.} At submission, a job whose signum has a retained peak p and whose declaration exceeds it (d\_\allowbreak{}k > p) is asked. It waits in holding with its precalc intact. With the override set it is admitted on d\_\allowbreak{}k. If no answer comes within its holding time, it is moved to lost and found. A signum never seen is admitted on its declaration and measured.
 
 \textbf{Dead sweep.} A client that dies closes its socket, and the daemon sees the close at once. The periodic sweep is the backstop. Each ticket carries the pid and the process's start time. A pid reused by a new process is then not mistaken for the old one. A ticket whose process is gone releases its reservation and moves to lost and found with its last measure.
 
@@ -70,7 +70,7 @@ is kept under its signum σ\_\allowbreak{}j, the BLAKE3 root of its request. The
 \item Proved: 143,808 cases, 0 failed. The headroom identity holds on 2,000 random states. The deadlines fire in time order. Budget, hold, override and lost pass their 18 checks. Idle teardown passes its 4. Backfill never moved the head's shadow later, over 121,586 admissions in 20,000 random scenarios, every one of which ran to completion.
 \item Found by the suite: a run released before its first measure had recorded a peak of 0, and every later run of that signum was withheld as over budget. A peak now enters the history only if the run was measured at least once.
 \end{itemize}
-\item \textbf{The frame} (\texttt{tessera.\allowbreak{}h}) is 128 bytes, little-endian, the same on every platform: magic, version, kind, the override, the device's UUID (16 bytes) and LUID, the request's signum, its declared bytes, its three times, and the bytes, measure and identity of a reply.
+\item \textbf{The frame} (\texttt{tessera.\allowbreak{}h}) is 128 bytes, little-endian, the same on every platform: magic, version, type, the override, the device's UUID (16 bytes) and LUID, the request's signum, its declared bytes, its three times, and the bytes, measure and identity of a reply.
 
 \begin{itemize}
 \item Asks: submit, override, release, precalc saved.
@@ -82,9 +82,9 @@ is kept under its signum σ\_\allowbreak{}j, the BLAKE3 root of its request. The
 \begin{itemize}
 \item On each sweep it reads the device's memory and the job's pid, and warns if the job grew.
 \item After every change it runs admission and tells each admitted client.
-\item It keeps each process's identity: a handle on Windows, a pidfd on Linux. A reused pid can never pass for the old process.
+\item It retains each process's identity: a handle on Windows, a pidfd on Linux. A reused pid can never pass for the old process.
 \end{itemize}
-\item \textbf{Its files} live in a state directory per device. The lock is \texttt{tessera.\allowbreak{}lock}. The rest sit under \texttt{hst/\allowbreak{}}: the history \texttt{hst/\allowbreak{}head.\allowbreak{}log} (signum, peak, duration), sealed with the host BLAKE3; \texttt{hst/\allowbreak{}tail.\allowbreak{}log}, the copy each save writes before it renames it over \texttt{hst/\allowbreak{}head.\allowbreak{}log}; and \texttt{hst/\allowbreak{}lnf.\allowbreak{}log}, one append-only file of sealed blocks, each a lost job's ticket or the note a client sends when it keeps that job's precalc.
+\item \textbf{Its files} live in a state directory per device. The lock is \texttt{tessera.\allowbreak{}lock}. The rest sit under \texttt{hst/\allowbreak{}}: the history \texttt{hst/\allowbreak{}head.\allowbreak{}log} (signum, peak, duration), sealed with the host BLAKE3; \texttt{hst/\allowbreak{}tail.\allowbreak{}log}, the copy each save writes before it renames it over \texttt{hst/\allowbreak{}head.\allowbreak{}log}; and \texttt{hst/\allowbreak{}lnf.\allowbreak{}log}, one append-only file of sealed blocks, each a lost job's ticket or the note a client sends when it retains that job's precalc.
 \end{itemize}
 
 \section{\texorpdfstring{One daemon per host}{One daemon per host}}
@@ -92,16 +92,16 @@ is kept under its signum σ\_\allowbreak{}j, the BLAKE3 root of its request. The
 \begin{itemize}
 \item \textbf{Windows:} the daemon creates its pipe with \texttt{FILE\_\allowbreak{}FLAG\_\allowbreak{}FIRST\_\allowbreak{}PIPE\_\allowbreak{}INSTANCE}, and a second daemon fails at birth. A client that finds no pipe starts the daemon detached and retries.
 \item \textbf{Linux:} \texttt{bind()} on the socket path refuses a second daemon. Under systemd the socket unit holds the listening socket and starts the daemon on the first connection (socket activation: the socket arrives as fd 3). The daemon can then exit when idle and wake again. Without systemd, a client starts it as on Windows.
-\item \textbf{Docker:} the host's socket is bind-mounted into the container. The pid namespace translation above keeps the measure exact.
+\item \textbf{Docker:} the host's socket is bind-mounted into the container. The pid namespace translation above retains the measure exact.
 \item \textbf{SAN:} device memory is local to a host. Each host runs its own daemon, and nothing is shared across the SAN but the data.
 \end{itemize}
 
 \section{\texorpdfstring{Order, time and loss (23 September)}{Order, time and loss (23 September)}}
 
 \begin{itemize}
-\item \textbf{Order among waiting jobs: backfill with the head kept.} A job behind the head may go first only if it cannot delay the head's admission. The head never starves, and the room the head cannot use yet is not wasted.
+\item \textbf{Order among waiting jobs: backfill with the head retained.} A job behind the head may go first only if it cannot delay the head's admission. The head never starves, and the room the head cannot use yet is not wasted.
 
-“Cannot delay” is a statement about time, and it needs durations. The engine is deterministic in its request and its result. A signum's run time therefore repeats about as its peak does (each a measurement, not a constant), and the history keeps both: (p\_\allowbreak{}σ, t\_\allowbreak{}σ), the peak bytes and the wall time of the last run. With the head h not fitting (d\_\allowbreak{}h > H):
+“Cannot delay” is a statement about time, and it needs durations. The engine is deterministic in its request and its result. A signum's run time therefore repeats about as its peak does (each a measurement, not a constant), and the history retains both: (p\_\allowbreak{}σ, t\_\allowbreak{}σ), the peak bytes and the wall time of the last run. With the head h not fitting (d\_\allowbreak{}h > H):
 
 \begin{itemize}
 \item The head's shadow time S is the earliest moment at which the running jobs' releases, taken in order of their expected ends e\_\allowbreak{}j = start\_\allowbreak{}j + t\_\allowbreak{}σj, free enough room: the least S with H + Σ\_\allowbreak{}\{e\_\allowbreak{}j ≤ S\} max(r\_\allowbreak{}j, u\_\allowbreak{}j) ≥ d\_\allowbreak{}h.
@@ -110,8 +110,8 @@ is kept under its signum σ\_\allowbreak{}j, the BLAKE3 root of its request. The
 \item A job whose signum has no history has no duration: it can never be proved not to delay the head, and it is not backfilled. It waits its turn, and its first run records (p\_\allowbreak{}σ, t\_\allowbreak{}σ).
 \item If a job overruns its expected end, the head's shadow moves later. That is measured and reported like a growth, never hidden.
 \end{itemize}
-\item \textbf{Time: the soonest change is the root.} “what I want is the shortest time to change of anything to be the root because that is most likely event, in order”. Every deadline goes into one min-heap keyed by the time until it changes something: each live job's next sweep, each withheld job's holding expiry, the idle teardown. The daemon waits on its socket for at most the root's remaining time, handles the root, pushes that item's next deadline and takes the new root. Events are handled strictly in time order, and nothing is polled on a fixed tick. The shortest sweep among live jobs falls out of the heap without being chosen.
-\item \textbf{Lost and found keeps the work.} When a withheld job stalls past its grace time, the daemon appends its ticket (identity, signum, pid, declared, peak, measured, times, reason) to \texttt{hst/\allowbreak{}lnf.\allowbreak{}log} as a sealed block and tells the client, with the log's path. The client keeps its precalc and says so; the daemon then appends a sealed note for that identity. The job can be resumed and not recomputed.
+\item \textbf{Time: the soonest change is the root.} “what I want is the shortest time to change of anything to be the root because that is likely event, in order”. Every deadline goes into one min-heap keyed by the time until it changes something: each live job's next sweep, each withheld job's holding expiry, the idle teardown. The daemon waits on its socket for at max the root's remaining time, handles the root, pushes that item's next deadline and takes the new root. Events are handled strictly in time order, and nothing is polled on a fixed tick. The shortest sweep among live jobs falls out of the heap without being chosen.
+\item \textbf{Lost and found retains the work.} When a withheld job stalls past its grace time, the daemon appends its ticket (identity, signum, pid, declared, peak, measured, times, reason) to \texttt{hst/\allowbreak{}lnf.\allowbreak{}log} as a sealed block and tells the client, with the log's path. The client retains its precalc and says so; the daemon then appends a sealed note for that identity. The job can be resumed and not recomputed.
 \end{itemize}
 
 \textbf{The seal.} The seal is \texttt{obsignatio\_\allowbreak{}seal}, BLAKE3 keyed at the file level (\texttt{OBSIGNATIO\_\allowbreak{}LEVEL\_\allowbreak{}FILE}), and it runs on the host. The daemon still makes no CUDA call and holds no device context.
@@ -159,11 +159,11 @@ The history then contained two records and the seal (128 bytes), and the daemon 
 Two findings, both measured:
 
 \begin{itemize}
-\item \textbf{The kept peak is not a constant.} Identical requests measured peaks 4,194,304 bytes (2\textasciicircum{}22) apart. The peak is the largest of samples taken every 20 ms: a measurement at that resolution. The rule above is qualified to say so. Whether the sampling moves it has not been tested.
-\item \textbf{A job reserves its declaration instead of its kept peak.} The second prove declared less than its kept peak and was admitted on its declaration. Until its sweeps grew it, its reservation stood 3,119,706,112 bytes below what it went on to use. That is Doug's rule: reserve what the job asks for, grow and warn when it takes more.
+\item \textbf{The retained peak is not a constant.} Identical requests measured peaks 4,194,304 bytes (2\textasciicircum{}22) apart. The peak is the largest of samples taken every 20 ms: a measurement at that resolution. The rule above is qualified to say so. Whether the sampling moves it has not been tested.
+\item \textbf{A job reserves its declaration instead of its retained peak.} The second prove declared less than its retained peak and was admitted on its declaration. Until its sweeps grew it, its reservation was 3,119,706,112 bytes below what it went on to use. That is Doug's rule: reserve what the job asks for, grow and warn when it takes more.
 
 \begin{itemize}
-\item The same day, the working tree's code was changed, uncommitted and not yet ruled on, to reserve the larger of the declaration and the kept peak (\texttt{tessera\_\allowbreak{}ledger\_\allowbreak{}wants}). With it, two proves each reserved 3,962,761,216 bytes.
+\item The same day, the working tree's code was changed, uncommitted and not yet ruled on, to reserve the larger of the declaration and the retained peak (\texttt{tessera\_\allowbreak{}ledger\_\allowbreak{}wants}). With it, two proves each reserved 3,962,761,216 bytes.
 \end{itemize}
 \end{itemize}
 
@@ -202,7 +202,7 @@ sim & declared & peak measured & checks \\
 \begin{itemize}
 \item \textbf{The history} was then seven records and the seal (368 bytes).
 \item \textbf{The host-only sims:} \texttt{ask\_\allowbreak{}state} and \texttt{ka\_\allowbreak{}psi} run on the host and submit no job.
-\item \textbf{Every peak is above its declaration.} The smallest peaks sit near 146 MB whatever was declared. The peak is the process's whole dedicated memory, its CUDA context included, and the context is likely most of that; not measured apart.
+\item \textbf{Every peak is above its declaration.} The smallest peaks sit near 146 MB whatever was declared. The peak is the process's whole dedicated memory, its CUDA context included, and the context is likely the majority of that; not measured apart.
 \item \textbf{Two peaks differ from the earlier runs by 2,097,152 bytes (2\textasciicircum{}21):} \texttt{nbody\_\allowbreak{}lattice} and \texttt{fixed\_\allowbreak{}pattern}. That is the same finding as the driver's.
 \item \textbf{The engine DLL:} no program in the repo loads it, and no other caller is left to submit.
 \end{itemize}
@@ -218,7 +218,7 @@ sim & declared & peak measured & checks \\
 
 \begin{itemize}
 \item a native Linux host, where NVML measures a pid;
-\item a daemon kept running on the activated socket;
+\item a daemon retained running on the activated socket;
 \item a job admitted through the docker mount.
 \end{itemize}
 \end{itemize}

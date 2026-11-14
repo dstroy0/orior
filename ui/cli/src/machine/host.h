@@ -13,10 +13,10 @@ typedef struct CliHostCfg CliHostCfg;
 // whether impero runs inside a Flatpak's sandbox
 int cli_sandbox(void);
 // the stand-in for the machine's program `name`, written into `line`
-void cli_stand_in(const CliHostCfg *args);
+void cli_are_in(const CliHostCfg *args);
 // a stand-in written in `into` for each program of `names`, one a line, but those that stay running inside: how many,
 // or -1 with why given
-long long cli_stand_ins_write(const CliHostIntoCfg *args);
+long long cli_are_ins_write(const CliHostIntoCfg *args);
 // inside a sandbox, a stand-in made for each program on the machine's PATH and their folder put first on orior's own
 // PATH, which all it starts take: how many it made, -1 with why given, or -2 outside a sandbox. Run as impero
 // starts, before it starts anything else
@@ -37,21 +37,21 @@ struct CliHostCfg
 
 typedef struct
 {
-    void (*stand_in)(const CliHostCfg *args);
+    void (*are_in)(const CliHostCfg *args);
 } CliHostNs;
-EMBED_TABLE_LAYOUT(CliHostNs, stand_in);
+EMBED_TABLE_LAYOUT(CliHostNs, are_in);
 EMBED_TABLE_STORAGE CliHostNs cli_host EMBED_UNUSED = {
-    .stand_in = cli_stand_in,
+    .are_in = cli_are_in,
 };
 
 typedef struct
 {
-    long long (*stand_ins_write)(const CliHostIntoCfg *args);
+    long long (*are_ins_write)(const CliHostIntoCfg *args);
     long long (*prepare)(const CliHostIntoCfg *args);
 } CliHostIntoNs;
-EMBED_TABLE_LAYOUT(CliHostIntoNs, stand_ins_write, prepare);
+EMBED_TABLE_LAYOUT(CliHostIntoNs, are_ins_write, prepare);
 EMBED_TABLE_STORAGE CliHostIntoNs cli_host_into EMBED_UNUSED = {
-    .stand_ins_write = cli_stand_ins_write,
+    .are_ins_write = cli_are_ins_write,
     .prepare = cli_host_prepare,
 };
 

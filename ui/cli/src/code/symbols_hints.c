@@ -88,7 +88,7 @@ EMBED_INLINE unsigned int hints_next(const SymbolsHintsCtx *args)
 }
 
 // each argument of the call whose opening bracket is the leaf `open` of `read` given the name of its parameter in
-// `head`: its first leaf past the blanks handed to `each` with the name, where the parameter has one and the argument
+// `head`: its first leaf past the blanks passed to `each` with the name, where the parameter has one and the argument
 // is not that name alone
 EMBED_INLINE void hints_arguments(const SymbolsHintsCtx *args)
 {

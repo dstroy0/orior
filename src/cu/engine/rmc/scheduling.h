@@ -47,7 +47,7 @@ CODEGEN_CORE void codegen_schedule_open(MachineFunction *lane, Schedule *schedul
     schedule->writes_max = (writes < ports) ? writes : ports;
     schedule->writes_max = (schedule->writes_max == 0u) ? 1u : schedule->writes_max;
     schedule->state = SCHEDULE_STATE_FIRST;
-    schedule->maximum = 0u;
+    schedule->max = 0u;
     schedule->over = 0u;
     schedule->dispatch_count = 0u;
     for (unsigned int loop = 0u; loop < schedule->loop_count; loop += 1u)
@@ -58,7 +58,7 @@ CODEGEN_CORE void codegen_schedule_open(MachineFunction *lane, Schedule *schedul
     codegen_state_open(lane, schedule);
 }
 
-// one of the body's forms laid out into the schedule. An error's label begins a state of its own, which the dispatch
+// one of the body's forms arranged into the schedule. An error's label begins a state of its own, which the dispatch
 // state sends the lane to, and a loop's label begins one the loop's branch back goes back to; a form that would take
 // the state past its budget or its writes, or follows one that ends a state, begins the next state, which the state
 // before goes on to unless the lane errored in it. An error's test and a memory read's address end their state, a
@@ -117,7 +117,7 @@ CODEGEN_CORE void codegen_schedule_instr(MachineFunction *lane, Schedule *schedu
     schedule->chained = (cost > (schedule->budget - schedule->chained)) ? schedule->budget : (schedule->chained + cost);
     schedule->writes += writes;
     schedule->filled = 1u;
-    schedule->maximum = (schedule->chained > schedule->maximum) ? schedule->chained : schedule->maximum;
+    schedule->max = (schedule->chained > schedule->max) ? schedule->chained : schedule->max;
     schedule->ending =
         ((form == OPCODE_ERROR_IF) || (form == OPCODE_ERROR_OPEN_UNLESS) || codegen_touches_memory(form)) ? 1u : 0u;
     if (form == OPCODE_LOOP_BACK_IF)

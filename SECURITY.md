@@ -5,7 +5,7 @@
 
 ## What is here
 
-A search kernel in C11, a driver that times it, Python tools that fetch and read published papers, and two ports of one statistic. The new parts are an engine that never leaves exact integers, from the first read to the last bit written. When every step is exact, a chain of steps composes into one program and runs on the device as one. The emitter writes such a program to PTX, C or SASS with each target's rules held as data, and where a rule is not known it asks the part and keeps the answer. Nothing here serves, listens on a network, keeps state between runs or runs unattended.
+A search kernel in C11, a driver that times it, Python tools that fetch and read published papers, and two ports of one statistic. The new parts are an engine that never leaves exact integers, from the first read to the last bit written. When every step is exact, a chain of steps composes into one program and runs on the device as one. The emitter writes such a program to PTX, C or SASS with each target's rules held as data, and where a rule is not known it asks the part and retains the answer. Nothing here serves, listens on a network, retains state between runs or runs unattended.
 
 ## The kernel
 
@@ -21,7 +21,7 @@ A search kernel in C11, a driver that times it, Python tools that fetch and read
 
 **They reach the network.** `utils/maint/data/salishan/get_papers.py` fetches from a public archive and is the only thing here that opens a socket. It identifies itself by name and purpose in its user agent. Nothing else in the tree fetches anything.
 
-**They parse PDFs.** The readers run `pypdf` and `pypdfium2` over files downloaded from the web, which is a real parser surface and it is not this work's parser. Keep those dependencies current, and treat a PDF from anywhere else the way you would treat any untrusted document.
+**They parse PDFs.** The readers run `pypdf` and `pypdfium2` over files downloaded from the web, which is a real parser surface and it is not this work's parser. Retain those dependencies current, and treat a PDF from anywhere else the way you would treat any untrusted document.
 
 **They write only under `build/`.** One exception, at a fixed path: the two generators that emit documentation write chapters under `theory/theory/Salishan/chapters/`. `python utils/maint/tree/write_survey.py` reads every script for the files it opens and reports where each one lands. That list is checked instead of remembered.
 

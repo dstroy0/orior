@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	John Hamilton Davis	title	The Expression of Collective in Mainland Comox	page 1
 front	John Hamilton Davis	name	John Hamilton Davis	author
 front	John Hamilton Davis	note	Bellingham, Washington	page 1, under John Hamilton Davis
@@ -7,7 +7,7 @@ front	John Hamilton Davis	note	Keywords: articles, collective plural, distributi
 front	John Hamilton Davis	note	Papers for the International Conference on Salish and Neighboring Languages 55. D. K. E. Reisinger, Hannah Green, Marianne Huijsmans, Gloria Mellesmoen, and Bailey Trotter (eds.). Vancouver, BC: UBCWPL, 2020.	page 1, the volume's header
 front	John Hamilton Davis	language	Mainland Comox	ʔayʔaǰuθəm, Comox-Sliammon, Central Salish, ISO 639-3 coo
 §1	John Hamilton Davis	heading	1 Introduction	page 1
-§1	John Hamilton Davis	note	Although present-day Mainland Comox has undergone change in its reassignments of usages to match the English lexicon, in the past the dichotomy between collective plural and distributive plural was prominent. This is shown by the statements of Noel George Harry (born circa 1890), Bill Galligos (born 1908), and Mrs. Mary George (born 1924), among others.	page 1
+§1	John Hamilton Davis	note	Although present-day Mainland Comox has undergone change in its reassignments of usages to match the English lexicon, in the past the dichotomy between collective plural and distributive plural was prominent. This is displayed by the statements of Noel George Harry (born circa 1890), Bill Galligos (born 1908), and Mrs. Mary George (born 1924), among others.	page 1
 §1	John Hamilton Davis	name	Noel George Harry	Homalco speaker and storyteller, born circa 1890
 §1	John Hamilton Davis	name	Bill Galligos	Sliammon speaker, born 1908
 §1	John Hamilton Davis	name	Mary George	Mainland Comox speaker, born 1924
@@ -15,7 +15,7 @@ front	John Hamilton Davis	language	Mainland Comox	ʔayʔaǰuθəm, Comox-Sliammo
 §1	John Hamilton Davis	language	Comox	Mainland and Island Comox
 §2	John Hamilton Davis	heading	2 {C1əC2-} plural	page 1
 §2	John Hamilton Davis	note	One way to form a plural is with prefixed {C1əC2-}.1	page 1
-footnote 1	John Hamilton Davis	note	The use of curly brackets to indicate morphophonemic notation is in accordance with the convention which can be found at http://www.fb10.uni-bremen.de/anglistik/linguistik/pdf/notation-conventions.pdf. Capital letters are being used to indicate that the segments are morphophonemes, not phonemes (Gleason 1961:82, §7.8).	page 1, footnote 1
+footnote 1	John Hamilton Davis	note	The use of curly brackets to indicate morphophonemic notation is in accordance with the convention which can be found at http://www.fb10.uni-bremen.de/anglistik/linguistik/pdf/notation-conventions.pdf. Capital characters are being used to indicate that the segments are morphophonemes, not phonemes (Gleason 1961:82, §7.8).	page 1, footnote 1
 footnote 1	John Hamilton Davis	name	Gleason	H. A. Gleason, Jr., morphophonemes (1961)
 (1a) line 1	Mainland Comox	transcription	qaymiwh	page 1, in columns
 (1b) line 1	Mainland Comox	transcription	qeyqaymiwh	page 1, in columns
@@ -41,7 +41,7 @@ footnote 1	John Hamilton Davis	name	Gleason	H. A. Gleason, Jr., morphophonemes (
 (3a) line 4	John Hamilton Davis	translation	‘eyebrow’	page 1, in columns
 (3b) line 4	John Hamilton Davis	translation	‘eyebrows’	page 1, in columns
 §3	John Hamilton Davis	heading	3 The collective plural suffix {-VW}	page 2
-§3	John Hamilton Davis	note	The most common phonemic shapes of this suffix include /-iw/ [εʊ] ~ [iʊ] and /-ig-/ [εg].	page 2
+§3	John Hamilton Davis	note	The usual phonemic shapes of this suffix include /-iw/ [εʊ] ~ [iʊ] and /-ig-/ [εg].	page 2
 §3	John Hamilton Davis	note	In June 1969, Noel George Harry (Homalco) started the story of Killing the Wind with the words in Homalco and English “Tl’emîs kw qayiwmiwh. The people had houses.” The beginning words [ƛ́əmεs kʷ qayiʊmiçʷ] are to be analyzed as [ƛ́əms] ‘house, dwelling’ plus stative infix, here [ε] with a tonal accent, [kʷ] ‘the’ and /qaymiçʷ/ ‘person’ with the collective plural suffix, here /-iw/. He then listed the names of the people: Raven, Pileated Woodpecker, Seagull, Heron.	page 2
 §3	Mainland Comox	cited form	Tl’emîs kw qayiwmiwh	page 2, in italics
 §3	John Hamilton Davis	name	Raven	P'ah, in the story of the transformation of the birds
@@ -161,7 +161,7 @@ footnote 5	John Hamilton Davis	note	These are Bill Galligos’ words, not the au
 §6	John Hamilton Davis	heading	6 Examples of the article system	page 4
 §6	John Hamilton Davis	note	The articles of Mainland Comox include /tə/, /ɬ/, /kw/, /šə/, and /ɬəw/ (or /ɬaw/).	page 4
 (15) line 1	Mainland Comox	transcription	tatam te Jack snatolh6	page 4, in columns
-footnote 6	John Hamilton Davis	note	The word ‘last night’ illustrates the stative prefix /s-/. It is most emphatically not the nominalizer /s/ proclitic, which would require the pronominal suffix /-s/. If it were the nominalizer, the output would have been [s natoʊs] ‘that it was last night’; /ɬ/ ⇒ /-w/ before a consonant in this, the past tense morpheme. For more explanation see Davis (2019 §9) with Marion Harry’s comment.	page 4, footnote 6
+footnote 6	John Hamilton Davis	note	The word ‘last night’ illustrates the stative prefix /s-/. It is max emphatically not the nominalizer /s/ proclitic, which would require the pronominal suffix /-s/. If it were the nominalizer, the output would have been [s natoʊs] ‘that it was last night’; /ɬ/ ⇒ /-w/ before a consonant in this, the past tense morpheme. For more explanation see Davis (2019 §9) with Marion Harry’s comment.	page 4, footnote 6
 footnote 6	John Hamilton Davis	name	Marion Harry	commented in Davis 2019 §9
 (15) line 2	Mainland Comox	phonetic	[tatam tə Jack snatoɬ]	page 4, in columns
 (15) line 3	Mainland Comox	underlying	{C1V1-tam tə Jack s-nat-oɬ}	page 4, in columns
@@ -281,7 +281,7 @@ footnote 16	John Hamilton Davis	note	In (28) and (29) the child and the cat are 
 §6	John Hamilton Davis	note	‘My’ occupies the same slot and hides the nominalizer /s/ in (31) and (32). The sequence /šə-s/ has not been recorded; see Davis (2019, §9). Mary George hesitated and changed from /šə …/ to /kwəs/ when this came up in a sentence.	page 7
 §6	John Hamilton Davis	name	Davis	John H. Davis 2019
 §7	John Hamilton Davis	heading	7 The collective article lhew [ɬuʊ]	page 7
-§7	John Hamilton Davis	note	As noted in Section 3, the most common phonemic shapes of the suffix {-VW} include /-iw/ [εʊ] / [iʊ] and /-ig-/ [εg] (before vowels). A third phonemic shape is /-əw/ [uʊ]. The Sechelt cognate of this suffix is /-aw/.	page 7
+§7	John Hamilton Davis	note	As noted in Section 3, the usual phonemic shapes of the suffix {-VW} include /-iw/ [εʊ] / [iʊ] and /-ig-/ [εg] (before vowels). A third phonemic shape is /-əw/ [uʊ]. The Sechelt cognate of this suffix is /-aw/.	page 7
 §7	John Hamilton Davis	language	Sechelt	Central Salish, the cognate /-aw/
 §7	John Hamilton Davis	note	In 1972 Tommy Paul (Homalco) told the story of the transformation of the birds into humans. In this story Transformer refuses to give Raven a colorful coat because of his bad behaviour and instead marks him with a coat of pure black; the narrative refers to lhew P’ah [ɬuʊ p̉ah] — Raven and his cohort. Although the present-day name for ‘raven’ is [p̉oho], his myth name is [p̉ah].	page 7
 §7	John Hamilton Davis	name	Transformer	in Tommy Paul's story

@@ -36,7 +36,7 @@ extern void test_an_import_names_a_module(void);
 extern void test_a_name_set_does_not_name_a_module(void);
 extern void test_a_report_of_an_attribute_names_it_and_its_class(void);
 extern void test_another_report_names_no_attribute(void);
-extern void test_jobs_handed_over_from_four_threads_each_run_once_with_their_bytes(void);
+extern void test_jobs_passed_over_from_four_threads_each_run_once_with_their_bytes(void);
 
 
 /*=======Mock Management=====*/
@@ -126,7 +126,7 @@ int main(void)
   run_test(test_a_name_set_does_not_name_a_module, "test_a_name_set_does_not_name_a_module", 503);
   run_test(test_a_report_of_an_attribute_names_it_and_its_class, "test_a_report_of_an_attribute_names_it_and_its_class", 508);
   run_test(test_another_report_names_no_attribute, "test_another_report_names_no_attribute", 521);
-  run_test(test_jobs_handed_over_from_four_threads_each_run_once_with_their_bytes, "test_jobs_handed_over_from_four_threads_each_run_once_with_their_bytes", 568);
+  run_test(test_jobs_passed_over_from_four_threads_each_run_once_with_their_bytes, "test_jobs_passed_over_from_four_threads_each_run_once_with_their_bytes", 580);
 
   return UNITY_END();
 }

@@ -27,7 +27,7 @@
 
 #define PEAKS_TEST_VOXELS_MAX (16u * 32u * 32u)
 
-// the most the test puts on the device at once: the residual, the peaks' flags, ranks and scratch, and the points
+// the max the test puts on the device at once: the residual, the peaks' flags, ranks and scratch, and the points
 #define PEAKS_TEST_DECLARED                                                                                            \
     ((unsigned long long)PEAKS_TEST_VOXELS_MAX * ((2ull * PEAKS_TEST_LIMBS_MAX) + 4ull) * sizeof(unsigned int))
 
@@ -55,17 +55,17 @@ static void peaks_test_value(unsigned long long key, unsigned long long voxel, u
                              unsigned int *residual)
 {
     const unsigned long long draw = sim_draw(key, voxel);
-    // a remainder below the kinds' count fits unsigned int
-    const unsigned int kind = (unsigned int)(draw % PEAKS_TEST_KINDS);
+    // a remainder below the types' count fits unsigned int
+    const unsigned int type = (unsigned int)(draw % PEAKS_TEST_KINDS);
     // a remainder below 3, plus one, fits unsigned int
     const unsigned int small = 1u + (unsigned int)((draw >> 8u) % 3ull);
     const unsigned int middle = limbs / 2u;
     memset(residual, 0, limbs * sizeof(unsigned int));
-    if (kind == 1u)
+    if (type == 1u)
     {
         residual[0] = small;
     }
-    else if (kind == 2u)
+    else if (type == 2u)
     {
         for (unsigned int limb = 1u; limb < limbs; limb += 1u)
         {
@@ -73,16 +73,16 @@ static void peaks_test_value(unsigned long long key, unsigned long long voxel, u
         }
         residual[0] = 0u - small;
     }
-    else if (kind == 3u)
+    else if (type == 3u)
     {
         residual[middle] = small;
     }
-    else if (kind == 4u)
+    else if (type == 4u)
     {
         residual[middle] = 1u;
         residual[0] = small;
     }
-    else if (kind == 5u)
+    else if (type == 5u)
     {
         residual[0] = small;
         // the high half of the draw, shifted down, is below 2^32
@@ -227,7 +227,7 @@ static void peaks_test_prove(SimResults *results, PeaksTestField *field, const c
     mmgr_line_put(&results->line, ", ");
     mmgr_line_decimal(&results->line, field->expected_count, 1u);
     mmgr_line_put(&results->line, " points on the host, ");
-    // an error is -1 and is shown as the widest word, never as a count
+    // an error is -1 and is displayed as the widest word, never as a count
     mmgr_line_decimal(&results->line, (found >= 0L) ? (unsigned long long)found : ~0ull, 1u);
     mmgr_line_put(&results->line, " on the device\n");
     sim_flush(results);

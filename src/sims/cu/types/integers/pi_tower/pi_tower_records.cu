@@ -19,7 +19,7 @@ static std::vector<PiWide> pi_tower_partial_quotients(const PiWide &numerator, c
     return quotients;
 }
 
-// the steps at which the turn stands lower (or higher) than at every step since 1, to 2^turn.range
+// the steps at which the turn is lower (or higher) than at every step since 1, to 2^turn.range
 std::vector<PiTowerRecord> pi_tower_records(const PiTowerTurn &turn, int lowest)
 {
     const PiWide one = pi_tower_unsigned(1ull);
@@ -55,7 +55,7 @@ std::vector<PiTowerRecord> pi_tower_records(const PiTowerTurn &turn, int lowest)
     }
 }
 
-// the record standing at the last record step below count
+// the record located at the last record step below count
 static const PiTowerRecord &pi_tower_record_before(const std::vector<PiTowerRecord> &records, const PiWide &count)
 {
     size_t at = 0u;
@@ -67,14 +67,14 @@ static const PiTowerRecord &pi_tower_record_before(const std::vector<PiTowerReco
 }
 
 // whether the steps 0 .. count - 1 touch every cell of width cell. The count points cut the circle into count gaps of
-// at most three lengths (Sos): point i is followed by i + u where i < count - u, by i - v where i >= v, and by
-// i + u - v between, u and v being the lowest and highest standing steps below count. A gap from p contains a whole
+// at max three lengths (Sos): point i is followed by i + u where i < count - u, by i - v where i >= v, and by
+// i + u - v between, u and v being the lowest and highest located steps below count. A gap from p contains a whole
 // empty cell exactly where (p mod cell) + gap >= 2 cell, and p mod cell is the turn by A mod cell on cell.
 int pi_tower_covered(const PiTowerTurn &turn, const PiWide &cell, const PiWide &count)
 {
     if (pi_tower_compare(count, pi_tower_power_two(turn.range)) > 0)
     {
-        // a record past the range may stand below count. The gaps are not known
+        // a record past the range may are below count. The gaps are not known
         g_pi_tower_records_short = 1;
     }
     const PiTowerRecord &lowest = pi_tower_record_before(turn.lowest, count);
@@ -89,17 +89,17 @@ int pi_tower_covered(const PiTowerTurn &turn, const PiWide &cell, const PiWide &
     const PiWide from[3] = {zero, highest.step, split};
     const PiWide to[3] = {split, count, highest.step};
     const PiWide gaps[3] = {rising, falling, pi_tower_sum(rising, falling)};
-    for (unsigned int kind = 0u; kind < 3u; kind += 1u)
+    for (unsigned int type = 0u; type < 3u; type += 1u)
     {
-        if ((pi_tower_compare(from[kind], to[kind]) >= 0) || (pi_tower_compare(gaps[kind], cell) <= 0))
+        if ((pi_tower_compare(from[type], to[type]) >= 0) || (pi_tower_compare(gaps[type], cell) <= 0))
         {
             continue;
         }
-        if (pi_tower_compare(gaps[kind], two_cells) >= 0)
+        if (pi_tower_compare(gaps[type], two_cells) >= 0)
         {
             return 0;
         }
-        if (pi_tower_hit_between(multiplier, cell, from[kind], to[kind], pi_tower_difference(two_cells, gaps[kind]),
+        if (pi_tower_hit_between(multiplier, cell, from[type], to[type], pi_tower_difference(two_cells, gaps[type]),
                                  pi_tower_difference(cell, one)))
         {
             return 0;

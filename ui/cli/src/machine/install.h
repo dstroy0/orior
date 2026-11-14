@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// install.h: orior installed from the folder its programs stand in, and taken out again (install.c). The install shows
+// install.h: orior installed from the folder its programs are in, and taken out again (install.c). The install shows
 // the license and takes the reader's answer, copies impero and tabvla with the license texts into the install folder,
-// puts `imp` and `tab` on the PATH where neither name is taken, writes the defaults, and keeps a record of what it
+// puts `imp` and `tab` on the PATH where neither name is taken, writes the defaults, and retains a record of what it
 // made. The uninstall reads the record and removes exactly that, and with --files the reader's orior folder too.
 //
 // `imp` and `tab` reach the PATH as links in ~/.local/bin, or as shell aliases with --aliases; on Windows as .cmd shims
@@ -49,7 +49,7 @@ int cli_install_default_folder(const CliInstallCfg *args);
 // whether `name` already names a program in one of the `folder_count` PATH folders at `folders` other than `own` and
 // `into`: that folder's index plus one, or 0 where no folder answers to the name
 unsigned int cli_install_collision(const CliInstallCfg *args);
-// the install run with `options`, each line of its account handed to `say` and each question to `asked`: 1 where it
+// the install run with `options`, each line of its account passed to `say` and each question to `asked`: 1 where it
 // ended whole, or 0 with why written to `err_msg`
 int cli_install_run(const CliInstallCfg *args);
 // the uninstall run with `options`, read from the record beside the program or in the default folder: 1, or 0 with why

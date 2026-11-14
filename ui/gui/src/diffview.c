@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // diffview.c: the compare drawn over the editor from the CLI's rows and sentences, the rows in the window of the scroll
-// alone, each found by the row height; and its presses, wheel and keys handed to the CLI's steps and options
+// alone, each found by the row height; and its presses, wheel and keys passed to the CLI's steps and options
 #include "diffview.h"
 
 #include "../../cli/src/code/diff_view.h"
@@ -67,11 +67,11 @@ EMBED_INLINE GuiRect diffview_body(const DiffviewCtx *args)
 }
 
 // how many whole rows the body shows
-EMBED_INLINE unsigned int diffview_shown(const DiffviewCtx *args)
+EMBED_INLINE unsigned int diffview_displayed(const DiffviewCtx *args)
 {
     const GuiRect body = EMBED_CALL(diffview_body, DiffviewCtx, .work = args->work);
     const int row = EMBED_CALL(diffview_scaled, DiffviewCtx, .work = args->work, .pixels = GUI_DIFFVIEW_ROW);
-    // a height and a row's both stand positive where they are divided
+    // a height and a row's both are positive where they are divided
     return ((row > 0) && (body.height > 0)) ? (unsigned int)(body.height / row) : 0u;
 }
 
@@ -298,10 +298,10 @@ EMBED_INLINE void diffview_body_draw(const DiffviewCtx *args)
         return;
     }
     const unsigned int rows = EMBED_CALL(cli_diff_view_at_row_length.rows, CliDiffViewAtRowLengthCfg, .at = 0u);
-    const unsigned int shown = EMBED_CALL(diffview_shown, DiffviewCtx, .work = work) + 1u;
+    const unsigned int displayed = EMBED_CALL(diffview_displayed, DiffviewCtx, .work = work) + 1u;
     const unsigned int first = work->work_read->scroll;
     const int left_width = body.width / 2;
-    for (unsigned int at = first; (at < rows) && (at < first + shown); at += 1u)
+    for (unsigned int at = first; (at < rows) && (at < first + displayed); at += 1u)
     {
         CliDiffViewRow row;
         if (!EMBED_CALL(cli_diff_view_at_row_length.row, CliDiffViewAtRowLengthCfg, .at = at, .row = &row))
@@ -346,7 +346,7 @@ static int diffview_hit(const GuiWorkCfg *args)
     {
         return 0;
     }
-    // the pixel stands below the body's top, and the rows it is down are far fewer than an unsigned int counts
+    // the pixel is below the body's top, and the rows it is down are far fewer than an unsigned int counts
     const unsigned int row = args->work_read->scroll + (unsigned int)((args->y - body.y) / height);
     if (row >= EMBED_CALL(cli_diff_view_at_row_length.rows, CliDiffViewAtRowLengthCfg, .at = 0u))
     {
@@ -362,16 +362,16 @@ EMBED_INLINE void diffview_scrolled(const DiffviewCtx *args)
 {
     const GuiWorkCfg *const work = args->work;
     const unsigned int rows = EMBED_CALL(cli_diff_view_at_row_length.rows, CliDiffViewAtRowLengthCfg, .at = 0u);
-    const unsigned int shown = EMBED_CALL(diffview_shown, DiffviewCtx, .work = work);
-    const unsigned int most = (rows > shown) ? rows - shown : 0u;
+    const unsigned int displayed = EMBED_CALL(diffview_displayed, DiffviewCtx, .work = work);
+    const unsigned int max = (rows > displayed) ? rows - displayed : 0u;
     // the scroll and the rows are far fewer than an int counts
     const long long required = (long long)work->work->scroll + (long long)args->rows;
-    // the clamped scroll lies between 0 and `most`, inside an unsigned int
-    work->work->scroll = (required < 0LL) ? 0u : ((required > (long long)most) ? most : (unsigned int)required);
+    // the clamped scroll lies between 0 and `max`, inside an unsigned int
+    work->work->scroll = (required < 0LL) ? 0u : ((required > (long long)max) ? max : (unsigned int)required);
     if (args->on)
     {
         (void)EMBED_CALL(cli_diff_view_at_row_length.step, CliDiffViewAtRowLengthCfg, .direction = 0,
-                         .at = work->work->scroll + ((shown != 0u) ? (shown - 1u) : 0u));
+                         .at = work->work->scroll + ((displayed != 0u) ? (displayed - 1u) : 0u));
     }
 }
 
@@ -379,9 +379,9 @@ EMBED_INLINE void diffview_scrolled(const DiffviewCtx *args)
 EMBED_INLINE void diffview_centered(const DiffviewCtx *args)
 {
     const GuiWorkCfg *const work = args->work;
-    const unsigned int shown = EMBED_CALL(diffview_shown, DiffviewCtx, .work = work);
+    const unsigned int displayed = EMBED_CALL(diffview_displayed, DiffviewCtx, .work = work);
     work->work->scroll = 0u;
-    const unsigned int top = (args->row > (shown / 2u)) ? args->row - (shown / 2u) : 0u;
+    const unsigned int top = (args->row > (displayed / 2u)) ? args->row - (displayed / 2u) : 0u;
     // the top row is far fewer than an int counts
     EMBED_CALL(diffview_scrolled, DiffviewCtx, .work = work, .rows = (int)top, .on = 0);
 }
@@ -408,11 +408,11 @@ static unsigned int diffview_press(const GuiWorkCfg *args)
         return GUI_WORK_CLOSES;
     case GUI_DIFFVIEW_SPACE:
     case GUI_DIFFVIEW_STRUCTURE: {
-        const unsigned int shown = EMBED_CALL(diffview_shown, DiffviewCtx, .work = args);
+        const unsigned int displayed = EMBED_CALL(diffview_displayed, DiffviewCtx, .work = args);
         const unsigned int row =
             EMBED_CALL(cli_diff_view_option_on.option_toggle, CliDiffViewOptionOnCfg,
                        .option = (args->index == GUI_DIFFVIEW_SPACE) ? CLI_DIFF_VIEW_SPACE : CLI_DIFF_VIEW_STRUCTURE,
-                       .at = args->work->scroll + (shown / 2u));
+                       .at = args->work->scroll + (displayed / 2u));
         EMBED_CALL(diffview_centered, DiffviewCtx, .work = args, .row = row);
         return GUI_WORK_TAKEN;
     }
@@ -436,14 +436,14 @@ static unsigned int diffview_wheel(const GuiWorkCfg *args)
 }
 
 // F7 steps to the next change and Shift+F7 to the one before; the arrows, the pages, Home and End scroll; the keys that
-// edit a text are taken and do nothing, the editor under the view standing as it is; any other passes on
+// edit a text are taken and do nothing, the editor under the view located as it is; any other passes on
 static unsigned int diffview_key(const GuiWorkCfg *args)
 {
     static const char *const s_scrolls[6] = {"Up", "Down", "PageUp", "PageDown", "Home", "End"};
     static const char *const s_edits[5] = {"Backspace", "Delete", "Enter", "Tab", "Shift+Tab"};
-    const int shown = (int)EMBED_CALL(diffview_shown, DiffviewCtx, .work = args);
+    const int displayed = (int)EMBED_CALL(diffview_displayed, DiffviewCtx, .work = args);
     // the rows are far fewer than an int counts
-    const int turns[6] = {-1, 1, -shown, shown, -(int)0x3fffffff, (int)0x3fffffff};
+    const int turns[6] = {-1, 1, -displayed, displayed, -(int)0x3fffffff, (int)0x3fffffff};
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "F7", .cap = 16ULL}) ||
         cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "Shift+F7", .cap = 16ULL}))
     {
@@ -468,7 +468,7 @@ static unsigned int diffview_key(const GuiWorkCfg *args)
     return GUI_WORK_PASSED;
 }
 
-// text typed is taken and does nothing, the editor under the view standing as it is
+// text typed is taken and does nothing, the editor under the view located as it is
 static unsigned int diffview_text_typed(const GuiWorkCfg *args)
 {
     (void)args;

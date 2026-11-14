@@ -96,11 +96,11 @@ enum ConstructionKind
     CONSTRUCTION_REGISTER = 2
 };
 
-static ConstructionKind construction_kind(const std::string &parameter)
+static ConstructionKind construction_type(const std::string &parameter)
 {
     static const char *const predicates[] = {"where", "also"};
     static const char *const integers[] = {"bits", "offset", "at", "count", "state", "error"};
-    // a parameter the form takes and does not write, its name opening with an underscore, is of its name's kind
+    // a parameter the form takes and does not write, its name opening with an underscore, is of its name's type
     const std::string named = (!parameter.empty() && (parameter[0] == '_')) ? parameter.substr(1u) : parameter;
     for (const char *const name : predicates)
     {
@@ -208,13 +208,13 @@ static int construction_measure(const Ruleset *rules, const std::string &package
         int skipped = 0;
         for (size_t at = 0u; at < form.parameters.size(); at += 1u)
         {
-            const ConstructionKind kind = construction_kind(form.parameters[at]);
+            const ConstructionKind type = construction_type(form.parameters[at]);
             const int wide = ((binding >> at) & 1u) != 0u;
             // a binding that makes a predicate or an integer wide is the binding before it
-            skipped = skipped || (wide && (kind != CONSTRUCTION_REGISTER));
-            arguments.push_back((kind == CONSTRUCTION_INTEGER) ? std::string("7") : ("x" + std::to_string(at)));
-            types.push_back((kind == CONSTRUCTION_INTEGER)   ? std::string()
-                            : (kind == CONSTRUCTION_BOOLEAN) ? std::string("boolean")
+            skipped = skipped || (wide && (type != CONSTRUCTION_REGISTER));
+            arguments.push_back((type == CONSTRUCTION_INTEGER) ? std::string("7") : ("x" + std::to_string(at)));
+            types.push_back((type == CONSTRUCTION_INTEGER)   ? std::string()
+                            : (type == CONSTRUCTION_BOOLEAN) ? std::string("boolean")
                             : wide                           ? std::string("cycle_wide")
                                                              : std::string("cycle_word"));
         }

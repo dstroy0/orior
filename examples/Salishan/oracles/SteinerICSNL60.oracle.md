@@ -5,10 +5,10 @@ Extraction of nɬeʔkepmxcín Somatic Suffixes by Reed Steiner, University of Br
 
 Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
-pure corpus, then against this paper's own English laid over that reference. What the paper's
+pure corpus, then against this paper's own English positioned over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
 from the characters that sit outside that English, and word_web.web() built 1917 edges over the
-language forms. A person then matched the context: who, kind and gloss for each row, the names,
+language forms. A person then matched the context: who, type and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
 someone reads the paper again and says otherwise.
@@ -25,9 +25,9 @@ its line, and the author's where the line carries a consultant's tag. A consulta
 theirs, and RS in (33b) is the author. The denotations of §3 and §4 and their paraphrases, the
 captions and the prose carry the author.
 
-THE LETTERS
+THE CHARACTERS
 
-Outside the paper's English the engine found these letters and marks: Ø á è é í ó ú č š ƛ ə ɣ ɬ ʔ ʕ
+Outside the paper's English the engine found these characters and marks: Ø á è é í ó ú č š ƛ ə ɣ ɬ ʔ ʕ
 ʷ ́ ̓ ̕ ̣ ∅. The paper writes the glottalized stops with a comma above, c̓ and q̓, and in places
 with a reversed comma, q̕ and w̕, both in the same dialect name, ƛ̓q̕əmcín beside ƛ̓q̓əmcín. ∅ marks
 a null morpheme and [ ] a segment the segmentation restores. The denotations write ⟦ ⟧ for the
@@ -55,7 +55,7 @@ where    the paper's locator: the title, the front matter, a section, a footnote
 who      the language for an example tier and a cited form; the work cited on an example's
          line, or the speaker for a volunteered translation, for its English; the authors for
          the prose, the tables and the notes
-kind     transcription  an example tier in the orthography
+type     transcription  an example tier in the orthography
          segmentation   an example tier broken into morphemes
          gloss          the morpheme gloss tier of an example
          translation    the English of an example

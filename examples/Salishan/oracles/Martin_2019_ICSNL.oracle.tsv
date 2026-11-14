@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Katie Martin	title	Exhaustivity and Focus Marking in Gitksan	page 1, carries footnote ∗
 front	Katie Martin	name	Katie Martin	author
 front	Katie Martin	note	University of British Columbia	page 1, under Katie Martin
@@ -23,7 +23,7 @@ footnote 1	Katie Martin	note	All data, unless otherwise indicated, is from elici
 §1	Katie Martin	language	English	its only exhaustive
 §1	Katie Martin	note	I will begin in §2 by introducing Gitksan’s two purportedly exclusive focus operators, k’am and xsax, and discussing their distribution and behaviour with regards to focus associates and focus movement. I will then introduce two tests for exhaustivity and use them to show that xsax is not exhaustive (§3). Finally, I will introduce a very tentative analysis of these facts (§4).	page 1
 §2	Katie Martin	heading	2 The distributions of k’am and xsax	page 1
-§2	Katie Martin	note	Gitksan is an Interior Tsimshianic language spoken in the Skeena River region of British Columbia. The language has two words that are usually translated as English only: k’am, shown in (1), and xsax, shown in (2)2:	page 1
+§2	Katie Martin	note	Gitksan is an Interior Tsimshianic language spoken in the Skeena River region of British Columbia. The language has two words that are usually translated as English only: k’am, displayed in (1), and xsax, displayed in (2)2:	page 1
 footnote 2	Katie Martin	note	This paper uses the following abbreviations: 1/2/3 = 1st/2nd/3rd person, I/II/III = series I/II/III pronoun, AX = transitive subject extraction, CN = common noun connective, COM = comitative transitive, FOC = focus marker, NEG = negation, PCNJ = phrasal coordinator, PN = proper noun connective, SG = singular. Affixes are marked by a hyphen ‘-’ and clitics by an equal sign ‘=’. The elicitation method is indicated in brackets. Paper of the International Conference on Salish and Neighbouring Languages 54, D. K. E. Reisinger and Gloria Mellesmoen (eds.). Vancouver, BC: UBCWPL, 2019. Forms volunteered by the consultant as translations from English are indicated by ‘vf’ (volunteered form) and forms that were suggested by the elicitor and judged by the consultant are indicated by ‘sf’ (solicited form). I do not gloss k’am or xsax because their specific contributions are the subject of the paper.	page 1, footnote 2
 (1) line 1	Gitksan	segmentation	k’am maa’y=hl gub-’y.	page 2
 (1) line 1	Katie Martin	note	(vf)	page 2, at the right, the elicitation method: volunteered form, given by the consultant as a translation from English
@@ -52,7 +52,7 @@ footnote 3	Gitksan	cited form	max	page 2, in italics
 (4) line 3	Gitksan	gloss	k’am two bird=CN see-1SG.II	page 2
 (4) line 4	Katie Martin	translation	‘I only saw two birds.’	page 2
 §2.1	Katie Martin	note	However, k’am does not seem to be possible with argument/adjunct associates. When I tested sentences with intended argument focus and k’am, my consultant either rejected them or provided an alternative context where the predicate was focused:	page 2
-(5) line 1	Katie Martin	note	Context: There are many kinds of food on the table — bread, cheese, berries, meat — but I only eat the berries and I don’t eat any other kind of food.	page 3, over the example
+(5) line 1	Katie Martin	note	Context: There are many types of food on the table — bread, cheese, berries, meat — but I only eat the berries and I don’t eat any other type of food.	page 3, over the example
 (5) line 2	Gitksan	segmentation	#k’am maa’y=hl gub-’y.	page 3
 (5) line 2	Katie Martin	note	(sf)	page 3, at the right, the elicitation method: solicited form, suggested by the elicitor and judged by the consultant
 (5) line 3	Gitksan	gloss	k’am berries=CN eat-1SG.II	page 3
@@ -97,7 +97,7 @@ footnote 4 (ib) line 3	Katie Martin	translation	‘Peter ate an apple.’	page 4
 footnote 4	Katie Martin	note	This seems to be a clear case of topicalization, since the fronted constituent is the “entity that the ut- terance is about” (Neeleman, Titov, Van de Koot, Vermeulen, et al. 2009) and the movement seems to be triggered at the discourse level (rather than the propositional level, as would be the case for focus). However, this limited data is far from conclusive, and so I will follow (Rigsby 1986) in treating this fronting as an expression of focus for the time being.	page 4, footnote 4
 footnote 4	Katie Martin	name	Neeleman	Ad Neeleman and others, a syntactic typology of topic, focus and contrast (2009)
 §2.2	Katie Martin	name	Hunt	Katharine D. Hunt (1993)
-§2.2	Katie Martin	note	As shown by the following examples, k’am can associate with a predicate in both VSO and fronting environments.	page 4
+§2.2	Katie Martin	note	As displayed by the following examples, k’am can associate with a predicate in both VSO and fronting environments.	page 4
 (8a) line 1	Katie Martin	note	Context: I went to a party and saw my friend Mary, but I didn’t talk to her or greet her or anything else. I just saw her from across the room.	page 4, over the example
 (8a) line 2	Gitksan	segmentation	k’am gya’a-’y=hl Mary.	page 4
 (8a) line 2	Katie Martin	note	(sf)	page 4, at the right, the elicitation method: solicited form, suggested by the elicitor and judged by the consultant
@@ -131,7 +131,7 @@ footnote 4	Katie Martin	name	Neeleman	Ad Neeleman and others, a syntactic typolo
 (11) line 4	Katie Martin	translation	‘I only ate them.’	page 5
 §2.2	Katie Martin	note	Since k’am prefers to associate with predicates, it makes sense that focus-fronting does not affect its interpretation. However, because xsax can only focus adjacent constituents and prefers to focus DPs, and Gitksan is a predicate-initial language, the use of xsax usually co-occurs with focus fronting. Similarly, the use of focus-fronting with k’am xsax triggers an interpretation where the fronted constituent is focused.	page 5
 §3	Katie Martin	heading	3 Exhaustivity	page 5
-§3	Katie Martin	note	English only is exhaustive: its focus associate represents the full and complete set of elements which make the relevant proposition true (this is also referred to as exclusivity). This can be shown using two exhaustivity tests which use entailment relations and additive particles (Keupdjio in prep; Kiss 1998, 2010). However, only one of Gitksan’s two purported words for only is exhaustive: k’am. As will be shown in the following sections, xsax is not exhaustive when used alone.	page 5
+§3	Katie Martin	note	English only is exhaustive: its focus associate represents the full and complete set of elements which make the relevant proposition true (this is also referred to as exclusivity). This can be displayed using two exhaustivity tests which use entailment relations and additive particles (Keupdjio in prep; Kiss 1998, 2010). However, only one of Gitksan’s two purported words for only is exhaustive: k’am. As will be displayed in the following sections, xsax is not exhaustive when used alone.	page 5
 §3	Katie Martin	name	Keupdjio	Hermann Keupdjio, in preparation
 §3.1	Katie Martin	heading	3.1 Entailment relation test	page 5
 §3.1	Katie Martin	note	Generally, if a sentence expresses that propositions p and q are true, it also entails that p is true: (12a) entails (12b).	page 5

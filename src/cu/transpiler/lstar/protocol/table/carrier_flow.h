@@ -193,7 +193,7 @@ static inline std::set<unsigned long long> carrier_operands_loaded(const std::ve
     return loaded;
 }
 
-// the links of `links` between a case's load and link `before`'s read of `register_name`, the most over every case
+// the links of `links` between a case's load and link `before`'s read of `register_name`, the max over every case
 // operand that reaches it: 0 where a load of a case writes it, and -1 where no operand of a case reaches it
 static inline long carrier_delta(const std::vector<CarrierLink> &links, const std::string &register_name, long before,
                                  long cases_defined)
@@ -208,24 +208,24 @@ static inline long carrier_delta(const std::vector<CarrierLink> &links, const st
     {
         return 0;
     }
-    long most = -1;
+    long max = -1;
     for (const std::string &source : link.read)
     {
         const long further = carrier_delta(links, source, defined, cases_defined);
-        most = ((further >= 0) && ((further + 1) > most)) ? (further + 1) : most;
+        max = ((further >= 0) && ((further + 1) > max)) ? (further + 1) : max;
     }
-    return most;
+    return max;
 }
 
 // the carrier's own delta before the form `form_text`, its instructions cut at `;` and the first at link `at` of
-// `links`: the links between a case's load and the form, the most over every operand of a case the form reads, 0
+// `links`: the links between a case's load and the form, the max over every operand of a case the form reads, 0
 // where the form reads the cases as they were loaded or loads them itself, and -1 where it reads none. A put at 0
 // answers of the form alone; past 0 the answer is the form's delta composed with the carrier's, a delta of its own
 static inline long carrier_form_delta(const std::vector<CarrierLink> &links, long cases_defined,
                                       const std::string &form_text, long at)
 {
     std::set<std::string> form_written;
-    long most = -1;
+    long max = -1;
     long line_at = at;
     for (const std::string &form_line : carrier_pieces(form_text, ';'))
     {
@@ -237,18 +237,18 @@ static inline long carrier_form_delta(const std::vector<CarrierLink> &links, lon
         if (link.loads && (cases_defined >= 0) &&
             (carrier_definition(links, link.address_register, line_at) == cases_defined))
         {
-            most = (most < 0) ? 0 : most;
+            max = (max < 0) ? 0 : max;
         }
         for (const std::string &source : link.read)
         {
             const long further =
                 (form_written.count(source) == 0u) ? carrier_delta(links, source, line_at, cases_defined) : -1;
-            most = (further > most) ? further : most;
+            max = (further > max) ? further : max;
         }
         form_written.insert(link.written);
         line_at += 1;
     }
-    return most;
+    return max;
 }
 
 // the registers the form `form_text`, its instructions cut at `;` and the first at link `at` of `links`, reads that an

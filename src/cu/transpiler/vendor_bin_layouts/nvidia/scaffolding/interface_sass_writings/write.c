@@ -139,11 +139,11 @@ void writings_answers_read(FILE *answers, unsigned int count, unsigned int (*ans
     }
 }
 
-char s_forms[WRITINGS_FORMS_MOST][256];
+char s_forms[WRITINGS_FORMS_MAX][256];
 unsigned int s_form_count;
-static unsigned int s_answered[WRITINGS_FORMS_MOST][WRITINGS_CASES];
-unsigned char s_ran[WRITINGS_FORMS_MOST];
-unsigned char s_relation_agreed[WRITINGS_FORMS_MOST][WRITINGS_RELATIONS];
+static unsigned int s_answered[WRITINGS_FORMS_MAX][WRITINGS_CASES];
+unsigned char s_ran[WRITINGS_FORMS_MAX];
+unsigned char s_relation_agreed[WRITINGS_FORMS_MAX][WRITINGS_RELATIONS];
 static unsigned int s_forms_ran;
 static unsigned int s_forms_refused;
 
@@ -165,7 +165,7 @@ int writings_load(const char *folder)
         return 0;
     }
     s_form_count = 0u;
-    while ((s_form_count < WRITINGS_FORMS_MOST) && (fgets(line, sizeof(line), forms) != NULL))
+    while ((s_form_count < WRITINGS_FORMS_MAX) && (fgets(line, sizeof(line), forms) != NULL))
     {
         const char *const tab = strchr(line, '\t');
         if (tab != NULL)

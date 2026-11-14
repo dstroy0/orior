@@ -10,7 +10,7 @@ A CIF entry gives the cell lengths, the angles, and the fractional coordinates o
 \item \textbf{The angles are checked.} Only cells with right angles are used. An oblique cell would need a shear before a shift along one coordinate meant a shift along an axis, and that shear is a second thing able to go wrong between the published number and the recovered one.
 \item \textbf{The cell is tiled.} A single cell holds one period and one period cannot be told from noise. Four tiles an axis, and there is no cap on this: the points are sparse. The cost is linear in the tile count and not the cube of a grid side.
 \item \textbf{The sites are carried as exact integers.} A deposit writes decimal text, and that text is a numerator and a count of decimal places, both integers. A fractional coordinate plus a whole tile, times a cell edge, is a product of two decimals carried through as integers. Nothing rounds. There is neither grid, voxel nor nearest anything.
-\item \textbf{Each axis is asked separately} for its period, and all three answers are kept. One structure therefore contributes up to three independent results.
+\item \textbf{Each axis is asked separately} for its period, and all three answers are retained. One structure therefore contributes up to three independent results.
 \end{enumerate}
 
 Nothing at any step tells the detector what it is looking at. It receives positions carrying values and an axis index.
@@ -19,7 +19,7 @@ Nothing at any step tells the detector what it is looking at. It receives positi
 
 \section{Reading an axis without an order}
 
-An axis is read as a lookup from a coordinate to the arrangement standing at it. Two coordinates agree when their arrangements match, values included, and a period is a coordinate whose arrangement matches the one exactly a period away.
+An axis is read as a lookup from a coordinate to the arrangement located at it. Two coordinates agree when their arrangements match, values included, and a period is a coordinate whose arrangement matches the one exactly a period away.
 
 The values have to be in the comparison. Leaving them out reads a rocksalt cell at half its published edge, correctly: the two sublattices interleave. The positions alone do repeat every $a/2$ and only the elements distinguish the two halves.
 

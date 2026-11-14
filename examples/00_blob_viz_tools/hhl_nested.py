@@ -165,7 +165,7 @@ def _report():
     for dimensions, side in ((1, 512), (1, 64), (2, 16), (2, 24), (3, 8), (3, 10), (4, 5), (4, 6)):
         size = side ** dimensions
         if size > 1500:
-            # A dense SVD of the nested operator is what is being avoided in principle; keep the
+            # A dense SVD of the nested operator is what is being avoided in principle; retain the
             # measured cases small and let the prediction carry the wide ones.
             continue
         laplacian = nested_laplacian(side, dimensions)
@@ -241,7 +241,7 @@ def _crossover():
     print("  with d and they enter the quantum cost squared while the classical cost takes them")
     print("  linearly and as a square root. So nesting does NOT lower the bar.")
     print("")
-    print("  What nesting does is keep the N term logarithmic while the classical term stays")
+    print("  What nesting does is retain the N term logarithmic while the classical term stays")
     print("  linear. Past the crossover the margin widens without limit in N at every")
     print("  dimension. The dimension sets where the race starts and does not decide who wins it.")
     return 0
@@ -274,7 +274,7 @@ def _field():
 
     so it is the SPREAD that sets the bound and the smallest field term that carries it. A spikeball,
     a few qubits with a large field and the rest small, should therefore be punished by its minimum
-    and not rewarded for its maximum. A fuzzball, tightly clustered field distances, should sit
+    and not rewarded for its max. A fuzzball, tightly clustered field distances, should sit
     close to the uniform case. Measured and not argued.
     """
     print("")

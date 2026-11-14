@@ -7,7 +7,7 @@
 // watch sees a run or an overseer's lessons written or loses changes; while a run is live they are
 // listed again every LIST_LIVE ms besides, for a panic its buffer holds. A run opened in the pane is
 // read again every READ_LIVE ms while it is live, its blobs coming in from its buffer as they are
-// handed, and read by its table once it has ended. While no run is live nothing is asked.
+// passed, and read by its table once it has ended. While no run is live nothing is asked.
 //
 // A panic shows the moment it lands: said on the status bar, at the head of its run, and the strip's
 // Runs icon marked in the error's color. A conference, the blobs `conference_` and its question's
@@ -16,17 +16,17 @@
 // overseer.txt, one `lesson <cause> <carrier or *> <stand-in>` a line, show under its runs.
 
 import { invoke, listen } from "./bridge.js";
-import { paneOpen, shownGroup } from "./explorer.js";
+import { paneOpen, displayedGroup } from "./explorer.js";
 import { say } from "./statusbar.js";
 
 const LIST_LIVE = 1000;
 const READ_LIVE = 400;
 // The latest blobs an open run lists; its panics and conferences show however many came before.
-const SHOWN_BLOBS = 200;
+const DISPLAYED_BLOBS = 200;
 const CONFERENCE = "conference_";
 
 // Whether the pane shows: the side on the Runs group, and the pane open in it.
-const shown = () => shownGroup() === "runs" && paneOpen("runs");
+const displayed = () => displayedGroup() === "runs" && paneOpen("runs");
 
 const state = {
   listing: { runs: [], folders: [] },
@@ -58,7 +58,7 @@ function timeOf(nanoseconds) {
   return new Date(Number(BigInt(nanoseconds) / 1000000n)).toLocaleTimeString();
 }
 
-// A conference's lines as its blobs give them, joined in the order handed: each expert's account, and
+// A conference's lines as its blobs give them, joined in the order passed: each expert's account, and
 // the overseer's ruling.
 export function conferenceLines(text) {
   return text
@@ -97,7 +97,7 @@ async function tellPanic(run) {
   say(`${nameOf(run.path)} panicked at blob ${run.panicked}`, { failed: true });
 }
 
-// A run read and kept open: read whole the first time, then on from where the last read stopped while
+// A run read and retained open: read whole the first time, then on from where the last read stopped while
 // it is live, and whole again by its table once it has ended.
 async function opening(path) {
   let opened = state.open.get(path);
@@ -129,7 +129,7 @@ function blobRow(blob) {
   const type = blob.priority === 0 ? "panic" : blob.priority === 1 ? "critical" : "ordinary";
   return element(
     "div",
-    { className: `runs-blob ${type}`, title: `${blob.name}, handed ${timeOf(blob.nanoseconds)}${blob.whole === false ? ", its bytes do not hold to its row's check" : ""}` },
+    { className: `runs-blob ${type}`, title: `${blob.name}, passed ${timeOf(blob.nanoseconds)}${blob.whole === false ? ", its bytes do not hold to its row's check" : ""}` },
     element("span", { className: "runs-seq", textContent: `#${blob.sequence}` }),
     element("span", { className: "runs-name", textContent: blob.name }),
     element("span", { className: "runs-size", textContent: sizeOf(blob.size) })
@@ -157,14 +157,14 @@ function detailOf(opened) {
   for (const blob of opened.blobs.filter((one) => one.name.startsWith(CONFERENCE))) {
     conferences.set(blob.name, [...(conferences.get(blob.name) ?? []), blob]);
   }
-  const shown = opened.blobs.slice(-SHOWN_BLOBS);
+  const displayed = opened.blobs.slice(-DISPLAYED_BLOBS);
   return element(
     "div",
     { className: "runs-detail" },
     ...panics.map((blob) => element("div", { className: "runs-panic" }, element("span", { className: "runs-seq", textContent: `panic #${blob.sequence}` }), element("pre", { className: "runs-panic-text", textContent: blob.text ?? "" }))),
     ...[...conferences].map(([name, blobs]) => conferenceOf(name, blobs)),
     element("p", { className: "runs-count", textContent: `${opened.blobs.length} blob${opened.blobs.length === 1 ? "" : "s"}${opened.live ? " so far" : opened.table ? ", read by its table" : ""}${opened.stepped ? `, ${opened.stepped} bytes no tag opened stepped over` : ""}` }),
-    element("div", { className: "runs-blobs" }, ...shown.map(blobRow))
+    element("div", { className: "runs-blobs" }, ...displayed.map(blobRow))
   );
 }
 
@@ -199,14 +199,14 @@ function lessonsOf(folder) {
     { className: "runs-lessons" },
     element("div", { className: "runs-lessons-head", textContent: "Lessons" }),
     ...folder.lessons.map((lesson) =>
-      element("div", { className: "runs-lesson" }, element("span", { className: "runs-cause", textContent: lesson.cause }), element("span", { className: "runs-carrier", textContent: lesson.carrier }), element("span", { className: "runs-stand-in", textContent: lesson.stand_in }))
+      element("div", { className: "runs-lesson" }, element("span", { className: "runs-cause", textContent: lesson.cause }), element("span", { className: "runs-carrier", textContent: lesson.carrier }), element("span", { className: "runs-stand-in", textContent: lesson.are_in }))
     )
   );
 }
 
 export function draw() {
   const host = document.getElementById("runs");
-  if (!host || !shown()) {
+  if (!host || !displayed()) {
     return;
   }
   const { runs, folders } = state.listing;
@@ -243,7 +243,7 @@ async function beat() {
     state.listedAt = performance.now();
     await list();
   }
-  const live = shown() ? [...state.open].filter(([, opened]) => opened.live).map(([path]) => path) : [];
+  const live = displayed() ? [...state.open].filter(([, opened]) => opened.live).map(([path]) => path) : [];
   for (const path of live) {
     await opening(path);
   }
@@ -264,7 +264,7 @@ async function relist() {
 // A file the tree's watch saw written that changes the runs listed: a run, or a folder's overseer's lessons.
 const ofRuns = (file) => file.endsWith(".qry") || file === "overseer.txt" || file.endsWith("/overseer.txt");
 
-// Lists the tree's runs now and as they change, and keeps a live run's beat.
+// Lists the tree's runs now and as they change, and retains a live run's beat.
 export function startRuns() {
   relist();
   listen("tree-changed", ({ payload }) => {
@@ -273,7 +273,7 @@ export function startRuns() {
     }
   });
   window.addEventListener("panes-changed", () => {
-    if (shown()) {
+    if (displayed()) {
       relist();
     } else {
       draw();
@@ -281,7 +281,7 @@ export function startRuns() {
   });
 }
 
-// The runs of a tree no longer shown are let go, and the tree shown now's listed.
+// The runs of a tree no longer displayed are let go, and the tree displayed now's listed.
 export function forgetRuns() {
   window.clearTimeout(state.timer);
   state.timer = 0;

@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Hank Nater	title	The position of Bella Coola within Salish: bound morphemes	page 1
 front	Hank Nater	name	Hank Nater	author
 front	Hank Nater	note	Abstract: Bella Coola is, etymologically considered, more conservative as regards its bound morphemes (fossilized roots, clitics, affixes) than it is in relation to its non-bound morphemes (particles and verbo-nominals). Here, elements borrowed from North Wakash are low in number, and no morphemes have been copied from (proto-)Athabascan. At the same time, while many Bella Coola fossilized roots, proclitics, deictic enclitics, and suffixes are clearly Salish in origin, both non-deictic enclitics and prefixes are generally not as transparent.	page 1, the abstract
@@ -119,12 +119,12 @@ footnote	Hank Nater	note	Contact info: hanknater@gmail.com, 139 Poplar Drive, Co
 §3	Bella Coola	cited affix	-alic	page 3, in the prose, ‘tooth’
 §3	Bella Coola	cited form	*-al-ǝns	page 3, in the prose
 §4	Hank Nater	heading	4 Data organization, alphabetical order, abbreviations	page 3
-§4	Hank Nater	note	The data are presented in separate subsections under Section 5, where Bella Coola entries appear in the same order as in Nater (1990) (where /ʷ/ was rendered as w (except before u, where it was omitted), /c/ as ts, /ƛ’/ as tl’, /ɬ/ as lh, /x/ as c, /χ/ as x, the apostrophe was the last “letter” of the alphabet, and /ʔ/ (7) was ignored).	page 3
+§4	Hank Nater	note	The data are presented in separate subsections under Section 5, where Bella Coola entries appear in the same order as in Nater (1990) (where /ʷ/ was rendered as w (except before u, where it was omitted), /c/ as ts, /ƛ’/ as tl’, /ɬ/ as lh, /x/ as c, /χ/ as x, the apostrophe was the last “character” of the alphabet, and /ʔ/ (7) was ignored).	page 3
 §4	Hank Nater	note	Abbreviations used in this report are: Ch = Upper Chehalis, CS = Coastal Salish, Li = Lillooet, PS = proto-Salish, Sh = Shuswap, Sq = Squamish; Ki = Kinkade (1991), Ku67 = Kuipers (1967), Ku69 = Kuipers (1969), Ku74 = Kuipers (1974), Ku02 = Kuipers (2002), VE85 = Van Eijk (1985), VE13 = Van Eijk (2013); CAUS = causative, DEF = definite, DEM = demonstrative, FEM = feminine, IMP = imperative, INDEF = indefinite, ITR = intransitive, OBJ = object, PASS = passive, PL = plural, PRES = present, PROX = proximate, REM = remote, SG = singular, SUBJ = subject, TR = transitive.	page 3, the abbreviations
 §5	Hank Nater	heading	5 The data, entry numbering	page 3
 §5	Hank Nater	note	The data are arranged as follows: Section 5.1 fossilized roots, Section 5.2 proclitics, Section 5.3 enclitics, Section 5.4 prefixes, Section 5.5 suffixes. Entry numbers are the same as in Nater (1990).	page 3
 §5.1	Hank Nater	heading	5.1 Fossilized roots	page 3
-§5.1	Hank Nater	note	I have sixteen fossilized roots on record. They are – like most affixes and clitics – semantically vaguer than free verbo-nominals, and are associated with deixis, location, position or motion.	page 3
+§5.1	Hank Nater	note	I have sixteen fossilized roots on record. They are – like max affixes and clitics – semantically vaguer than free verbo-nominals, and are associated with deixis, location, position or motion.	page 3
 entry 0001	Hank Nater	note	0001 √a ‘distal’ (deictic constituent) cf. 1516 ta˽ (in Section 5.2 below)	page 3, the entry as printed
 entry 0001	Bella Coola	root	√a	page 3, ‘distal’ (deictic constituent)
 entry 0051	Hank Nater	note	0051 √ʔaɬay ‘slight distance’ (deictic) < ʔa-ɬay (cf. Section 5.3, Figure 2, and ɬay ‘increased distance’ (innovative nominal deictic))	page 4, the entry as printed
@@ -924,7 +924,7 @@ entry 0552	Hank Nater	note	0552 -(s)la(n)xʷ ‘year’ *-l-anǝxʷ (PS -ánaxʷ
 entry 0552	Bella Coola	cited affix	-(s)la(n)xʷ	page 17, ‘year’
 entry 0552	Bella Coola	cited form	*-l-anǝxʷ	page 17, under the entry
 entry 0552	Proto-Salish	cited form	-ánaxʷ	page 17, under the entry, Ku02:207
-entry 0565	Hank Nater	note	0565 -layx ‘projection, tubercle’ *-l-alx ‘body’ (cf. Sh -ilx ‘body’ (Ku74:283), Li -ílx, -lǝx ‘body’, -al’xǝn ‘tube’ (VE13:434), Sq -ilš petrified suffix found in ɬχilš ‘stand up’ and q’ʷiílš ‘dance’ (Ku67:399))	page 17, the entry as printed
+entry 0565	Hank Nater	note	0565 -layx ‘projection, tubercle’ *-l-alx ‘body’ (cf. Sh -ilx ‘body’ (Ku74:283), Li -ílx, -lǝx ‘body’, -al’xǝn ‘tube’ (VE13:434), Sq -ilš petrified suffix found in ɬχilš ‘are up’ and q’ʷiílš ‘dance’ (Ku67:399))	page 17, the entry as printed
 entry 0565	Bella Coola	cited affix	-layx	page 17, ‘projection, tubercle’
 entry 0565	Bella Coola	cited form	*-l-alx	page 17, under the entry, ‘body’
 entry 0565	Shuswap	cited form	-ilx	page 17, under the entry, ‘body’, Ku74:283
@@ -932,7 +932,7 @@ entry 0565	Lillooet	cited form	-ílx	page 17, under the entry
 entry 0565	Lillooet	cited form	-lǝx	page 17, under the entry, ‘body’
 entry 0565	Lillooet	cited form	-al’xǝn	page 17, under the entry, ‘tube’, VE13:434
 entry 0565	Squamish	cited form	-ilš	page 17, under the entry
-entry 0565	Squamish	cited form	ɬχilš	page 17, under the entry, ‘stand up’
+entry 0565	Squamish	cited form	ɬχilš	page 17, under the entry, ‘are up’
 entry 0565	Squamish	cited form	q’ʷiílš	page 17, under the entry, ‘dance’, Ku67:399
 entry 0612	Hank Nater	note	0612 -ɬq’ ‘…fold’ derived (cf. ɬq’ ‘to slap’ < North Wakash √λq (Nater 2013:119))	page 18, the entry as printed
 entry 0612	Bella Coola	cited affix	-ɬq’	page 18, ‘…fold’

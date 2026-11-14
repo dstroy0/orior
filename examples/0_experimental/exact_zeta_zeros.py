@@ -35,7 +35,7 @@
 # THE COUNT
 #
 # Along a closed path of points the eighth turns sum to eight times the zeros inside (the argument
-# principle). Each edge is read end to end and through its midpoint, and each half carries two kinds
+# principle). Each edge is read end to end and through its midpoint, and each half carries two types
 # of verdict: COMPARE of the smaller |zeta|^2 at its ends against its chord, and at each end COMPARE
 # of |zeta|^2 against |zeta'|^2 times the step squared. Zero doubles the places it reads. A negative
 # verdict, or two readings that disagree, puts the midpoint into the path. An edge is decided where
@@ -364,7 +364,7 @@ class Steering:
         """Two verdicts on a chord: its ends at the same places, and COMPARE(smaller |zeta|^2, chord^2).
 
         The second is truthy and positive where the chord |zeta(c) - zeta(a)| is under the smaller of
-        |zeta(a)| and |zeta(c)|, which keeps the angle between them under a sixth of a turn; negative
+        |zeta(a)| and |zeta(c)|, which retains the angle between them under a sixth of a turn; negative
         where it is not; zero where the places cannot tell."""
         ra, ia, pa = self.values[a][:3]
         rc, ic, pc = self.values[c][:3]
@@ -408,7 +408,7 @@ class Steering:
                 agree = [NOT(self.turn(a, c) - f1 - f2) for (a, m, c), (f1, f2) in zip(edges[k], fine)]
                 settled, split = [], []
                 for (a, m, c), v in zip(edges[k], agree):
-                    positive, kept = v, v
+                    positive, retained = v, v
                     for x, y in ((a, m), (m, c)):
                         same, chord = self.short(x, y)
                         places = max(self.values[x][2], self.values[y][2])
@@ -418,9 +418,9 @@ class Steering:
                         self.deeper(compress((x,), (NOT(from_x),)), 2 * self.values[x][2])
                         self.deeper(compress((y,), (NOT(from_y),)), 2 * self.values[y][2])
                         positive *= same * ((1 + chord) // 2) * ((1 + from_x) // 2) * ((1 + from_y) // 2)
-                        kept *= (1 - same * ((1 - chord) // 2)) * (1 - (1 - from_x) // 2) * (1 - (1 - from_y) // 2)
+                        retained *= (1 - same * ((1 - chord) // 2)) * (1 - (1 - from_x) // 2) * (1 - (1 - from_y) // 2)
                     settled.append(positive)
-                    split.append(1 - kept)
+                    split.append(1 - retained)
                 counts[k] = sum(f1 + f2 for f1, f2 in fine) // 8
                 verdicts.append(min(settled))
                 paths[k] = [p for (a, m, _), s in zip(edges[k], split) for p in compress((a, m), (1, s))]

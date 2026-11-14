@@ -6,7 +6,7 @@ Seven transforms carry this work. They look unrelated and they do one thing: the
 
 \section{The seven}
 
-\textbf{The bitpack.} An integer and a run of 32-bit limbs are the same bytes named twice. Converting one to the other is not a computation; the two are two vocabularies for one object. This lets a number be handed to a device that only knows arrays, without anything being computed.
+\textbf{The bitpack.} An integer and a run of 32-bit limbs are the same bytes named twice. Converting one to the other is not a computation; the two are two vocabularies for one object. This lets a number be passed to a device that only knows arrays, without anything being computed.
 
 \textbf{Fixed point.} A real to whatever depth is paid for, stored as an integer scaled by a power of two. The reals are the human coordinate and the integer is the machine's, and the translation is exact in both directions. The whole floor question turns on this: a residual stopping at \(10^{-16}\) is speaking float64, and one falling with the width is speaking the object.
 
@@ -24,13 +24,13 @@ Seven transforms carry this work. They look unrelated and they do one thing: the
 
 Every one preserves the information and moves the coordinates. That family resemblance has a consequence worth stating flatly: \textbf{a transform cannot make a question answerable that was unanswerable. It can only make an answerable question cheap.}
 
-The number-theoretic transform makes the arithmetic faster and leaves its capability where it was. The harmonic expansion makes the boundary reading legible and adds no information to it. Nothing in this work computes anything a slower arrangement could not compute, and stating that plainly keeps the rest of the claims defensible.
+The number-theoretic transform makes the arithmetic faster and leaves its capability where it was. The harmonic expansion makes the boundary reading legible and adds no information to it. Nothing in this work computes anything a slower arrangement could not compute, and stating that plainly retains the rest of the claims defensible.
 
 \section{The single condition: rank deficiency}
 
 A transform pays when the object has fewer coefficients than it has points. That is the entire mechanism, in every case.
 
-Multipoint evaluation is fast because a degree-\(n\) polynomial has \(n\) coefficients however many places it is evaluated. The work at one point overlaps the work at the next. Harmonic sorting is useful because a smooth field has most of its power in low degrees, and the high ones can be dropped. The arms pool because independent observations share a mean, and \(k\) of them carry one number's worth of uncertainty instead of \(k\).
+Multipoint evaluation is fast because a degree-\(n\) polynomial has \(n\) coefficients however many places it is evaluated. The work at one point overlaps the work at the next. Harmonic sorting is useful because a smooth field has the majority of its power in low degrees, and the high ones can be dropped. The arms pool because independent observations share a mean, and \(k\) of them carry one number's worth of uncertainty instead of \(k\).
 
 That fixes when a transform is useless, and the test for it is direct. A Boolean function of degree below \(k\) sums to zero over any \(k\)-dimensional affine subspace, the property higher-order differentials~\cite{src:Lai-1994} and cube attacks~\cite{src:Dinur-and-Shamir-2009} exploit, and a cube of inputs therefore collapses if and only if the function is rank-deficient in that sense. Measured over \(126\) cells at every depth from eight rounds to sixty-four, nothing collapses: every cell sits near \(128\) of \(256\), which is full degree.
 

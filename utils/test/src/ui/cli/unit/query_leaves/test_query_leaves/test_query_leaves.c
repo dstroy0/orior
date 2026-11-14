@@ -1,34 +1,34 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_query_leaves.c: what a run leaves, shown before it is written: a diff names what changed and folds the rest, a record file is
-// shown by its sizes, and a refused file is restored as the tree stores it
+// test_query_leaves.c: what a run leaves, displayed before it is written: a diff names what changed and folds the rest, a record file is
+// displayed by its sizes, and a refused file is restored as the tree stores it
 #include "ui/query/src/query_internal.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 static char s_root[QUERY_PATH_MAX_LEN];
-static char s_shown[1u << 16u];
+static char s_displayed[1u << 16u];
 static char s_printed[4096];
 static QueryRun s_run;
 static int s_run_finished;
 static int s_refused_restored;
 static int s_accepted_left;
 
-// `tree` against `stored` shown as the run's file `path`, into s_shown
+// `tree` against `stored` displayed as the run's file `path`, into s_displayed
 static const char *displayed(const char *path, const char *tree, const char *stored)
 {
-    VerbaLinea line = {s_shown, sizeof(s_shown), 0ull};
+    VerbaLinea line = {s_displayed, sizeof(s_displayed), 0ull};
     EMBED_CALL(query_path_tree_internal.leaf_show, QueryPathTreeCtx, .path = path, .tree = (const unsigned char *)tree, .tree_size = CLI_UNITY_LENGTH(tree), .stored = (const unsigned char *)stored, .stored_size = CLI_UNITY_LENGTH(stored), .displayed = &line);
     (void)mmgr_line_finish(&line);
-    return s_shown;
+    return s_displayed;
 }
 
-// the lines of s_shown starting with `lead`, and every line in `all`
+// the lines of s_displayed starting with `lead`, and every line in `all`
 static unsigned int lines_led_by(char lead, unsigned int *all)
 {
     unsigned int count = 0u;
     *all = 0u;
-    for (const char *line = s_shown; line[0] != '\0';)
+    for (const char *line = s_displayed; line[0] != '\0';)
     {
         count += (line[0] == lead) ? 1u : 0u;
         *all += 1u;
@@ -38,7 +38,7 @@ static unsigned int lines_led_by(char lead, unsigned int *all)
     return count;
 }
 
-// twenty lines against twenty with the eleventh changed, shown
+// twenty lines against twenty with the eleventh changed, displayed
 static void one_line_changed_displayed(void)
 {
     char before[256];
@@ -132,7 +132,7 @@ static void run_settled(void)
         err_msg.at = 0ull;
         (void)EMBED_CALL(query_path_bytes_size_internal.writer_file, QueryPathBytesSizeCtx, .writer = &s_run.writer, .path = files[at], .bytes = s_left[at], .size = CLI_UNITY_LENGTH(s_left[at]), .err_msg = &err_msg);
     }
-    EMBED_CALL(query_count_err_msg_internal.run_leave, QueryCountErrMsgCtx, .run = &s_run, .paths_letters = paths, .count = 3u);
+    EMBED_CALL(query_count_err_msg_internal.run_leave, QueryCountErrMsgCtx, .run = &s_run, .paths_characters = paths, .count = 3u);
     s_printed[0] = '\0';
     err_msg.at = 0ull;
     TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(query_context_err_msg_internal.leaves_settle, QueryContextErrMsgCtx, .run_read = &s_run, .leave = QUERY_LEAVE_PROMPT, .prompter = asker, .context = &context, .err_msg = &err_msg), "the files are settled");
@@ -164,8 +164,8 @@ void test_a_diff_names_one_removed_and_one_added_line(void)
 void test_a_diff_shows_the_removed_and_added_text(void)
 {
     one_line_changed_displayed();
-    CLI_TEST_ASSERT_CONTAINS("-same", s_shown);
-    CLI_TEST_ASSERT_CONTAINS("+changed", s_shown);
+    CLI_TEST_ASSERT_CONTAINS("-same", s_displayed);
+    CLI_TEST_ASSERT_CONTAINS("+changed", s_displayed);
 }
 
 void test_an_unchanged_run_folds_to_three_lines_a_count_and_three_lines(void)
@@ -173,7 +173,7 @@ void test_an_unchanged_run_folds_to_three_lines_a_count_and_three_lines(void)
     unsigned int all = 0u;
     one_line_changed_displayed();
     (void)lines_led_by('-', &all);
-    CLI_TEST_ASSERT_CONTAINS("... 4 lines the same ...", s_shown);
+    CLI_TEST_ASSERT_CONTAINS("... 4 lines the same ...", s_displayed);
     TEST_ASSERT_LESS_OR_EQUAL_UINT(17u, all);
 }
 

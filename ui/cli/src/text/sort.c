@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// sort.c: the sort of sort.h: the runs to sort kept on a stack, the larger half of a split pushed and the smaller
-// sorted first, so the stack holds at most a run a bit of the count; a short run finished by insertion and a deep one
+// sort.c: the sort of sort.h: the runs to sort retained on a stack, the larger half of a split pushed and the smaller
+// sorted first, so the stack holds at max a run a bit of the count; a short run finished by insertion and a deep one
 // by a heap
 #include "sort.h"
 
@@ -28,16 +28,16 @@ EMBED_INLINE void sort_swapped(unsigned char *one, unsigned char *other, unsigne
     {
         CliSortWord *const one_word = (CliSortWord *)(void *)(one + at);
         CliSortWord *const other_word = (CliSortWord *)(void *)(other + at);
-        const embed_word kept = *one_word;
+        const embed_word retained = *one_word;
         *one_word = *other_word;
-        *other_word = kept;
+        *other_word = retained;
         at += sizeof(embed_word);
     }
     while (at < size)
     {
-        const unsigned char kept = one[at];
+        const unsigned char retained = one[at];
         one[at] = other[at];
-        other[at] = kept;
+        other[at] = retained;
         at += 1ULL;
     }
 }
@@ -160,7 +160,7 @@ typedef struct
 } CliSortRun;
 
 // the levels a run goes through before a heap finishes it: twice the bits the count takes
-EMBED_INLINE unsigned int sort_levels_most(unsigned long long count)
+EMBED_INLINE unsigned int sort_levels_max(unsigned long long count)
 {
     unsigned int bits = 0u;
     while (count != 0ULL)
@@ -180,7 +180,7 @@ void cli_sort(const CliSortCfg *args)
     CliSortRun stack[CLI_SORT_LEVELS];
     stack[0] = (CliSortRun){0ULL, args->count - 1ULL, 0u};
     unsigned int held = 1u;
-    const unsigned int levels_most = sort_levels_most(args->count);
+    const unsigned int levels_max = sort_levels_max(args->count);
     while (held > 0u)
     {
         held -= 1u;
@@ -193,7 +193,7 @@ void cli_sort(const CliSortCfg *args)
                 sort_inserted(&bounds);
                 break;
             }
-            if (run.level >= levels_most)
+            if (run.level >= levels_max)
             {
                 sort_heaped(&bounds);
                 break;

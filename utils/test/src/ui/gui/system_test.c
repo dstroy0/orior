@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // system_test.c: the system body's check, on Windows: a window opened and the messages a check posts to its queue
-// handed on as the window's events, a key with the modifiers posted before it named as the page's editor names it, a
+// passed on as the window's events, a key with the modifiers posted before it named as the page's editor names it, a
 // character posted typed as text and a key pressed with control typing none, Alt+F4 the system's close and no key, the
 // pointer's press and release at their pixel, and the wheel; on another system the check has no window to open and
 // checks nothing
@@ -13,7 +13,7 @@
 #define UNICODE
 #include <windows.h>
 
-// what the window was handed: the keys, the texts and the pointer's events, each the last and how many
+// what the window was passed: the keys, the texts and the pointer's events, each the last and how many
 typedef struct
 {
     unsigned int keys;
@@ -156,12 +156,12 @@ int main(void)
     RECT min;
     GetWindowRect(window, &min);
     cli_check(((min.right - min.left) >= (LONG)CLI_POSITION_MIN_WIDTH) && ((min.bottom - min.top) >= (LONG)CLI_POSITION_MIN_HEIGHT),
-              "a window sized below its least size stands at the least");
+              "a window sized below its least size is at the least");
     BOOL animates = TRUE;
     (void)SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0u, &animates, 0u);
     cli_check(EMBED_CALL(gui_system_position.motion_reduce, GuiSystemPositionCfg, .system_read = system) == (animates ? 0 : 1), "the system's wish for less motion is read");
     SendMessageW(window, WM_SETTINGCHANGE, SPI_SETCLIENTAREAANIMATION, 0);
-    cli_check(transferred.motions == 1u, "the wish changed is handed on");
+    cli_check(transferred.motions == 1u, "the wish changed is passed on");
     SendMessageW(window, WM_SETTINGCHANGE, SPI_SETWORKAREA, 0);
     cli_check(transferred.motions == 1u, "another setting changed is not");
 
@@ -170,7 +170,7 @@ int main(void)
     EMBED_CALL(gui_system_width.display_max, GuiSystemWidthCfg, .width = &max_width, .height = &max_height);
     cli_check((max_width != 0u) && (max_height != 0u), "the largest monitor has a size");
     CliWindowArea areas[16];
-    const unsigned int area_count = EMBED_CALL(cli_system_areas.areas, GuiSystemAreasCfg, .areas = areas, .most = 16u);
+    const unsigned int area_count = EMBED_CALL(cli_system_areas.areas, GuiSystemAreasCfg, .areas = areas, .max = 16u);
     for (unsigned int at = 0u; at < area_count; at += 1u)
     {
         cli_check(((unsigned long long)areas[at].width * areas[at].height) <=
@@ -202,19 +202,19 @@ int main(void)
 
     posted(window, NULL, 0u, 'Q');
     EMBED_CALL(gui_system_table.pumped, GuiSystemCfg, .system = system);
-    cli_check((transferred.keys == 4u) && same(transferred.key, "Q"), "a letter's key goes by its capital");
+    cli_check((transferred.keys == 4u) && same(transferred.key, "Q"), "a character's key goes by its capital");
 
     posted(window, NULL, 0u, VK_APPS);
     EMBED_CALL(gui_system_table.pumped, GuiSystemCfg, .system = system);
     cli_check((transferred.keys == 5u) && same(transferred.key, "ContextMenu"), "the menu key goes by the name a browser gives it");
 
-    // Alt+F4 is the system's, as a browser leaves it to the system: it asks the window to close and is handed on as no
+    // Alt+F4 is the system's, as a browser leaves it to the system: it asks the window to close and is passed on as no
     // key
     PostMessageW(window, WM_SYSKEYDOWN, VK_F4, (LPARAM)KF_ALTDOWN << 16);
     PostMessageW(window, WM_SYSKEYUP, VK_F4, (LPARAM)KF_ALTDOWN << 16);
     EMBED_CALL(gui_system_table.pumped, GuiSystemCfg, .system = system);
     cli_check(transferred.closings == 1u, "Alt+F4 asks the window to close");
-    cli_check(transferred.keys == 5u, "and is handed on as no key");
+    cli_check(transferred.keys == 5u, "and is passed on as no key");
 
     PostMessageW(window, WM_LBUTTONDOWN, 0, (60 << 16) | 50);
     PostMessageW(window, WM_LBUTTONUP, 0, (60 << 16) | 50);
@@ -253,7 +253,7 @@ int main(void)
     SendMessageW(window, WM_KILLFOCUS, 0, 0);
     cli_check(transferred.blurs == (blurs_before + 1u), "the keys gone to another window come as the window blurred");
 
-    // the pointer gone from the client is told only where it stands off the window altogether
+    // the pointer gone from the client is told only where it is off the window altogether
     POINT cursor;
     RECT frame;
     const int cursor_read = GetCursorPos(&cursor) && GetWindowRect(window, &frame);
@@ -283,7 +283,7 @@ int main(void)
         cli_check(EMBED_CALL(gui_system_position.scale, GuiSystemPositionCfg, .system_read = owner) >= 100, "it reads its own monitor's scale");
         CliWindowPosition positioned;
         EMBED_CALL(gui_system_position.place, GuiSystemPositionCfg, .system_read = owner, .position_out = &positioned);
-        cli_check((positioned.x == 60) && (positioned.y == 60) && (positioned.width == 200u) && (positioned.height == 120u), "it stands where it was opened");
+        cli_check((positioned.x == 60) && (positioned.y == 60) && (positioned.width == 200u) && (positioned.height == 120u), "it is where it was opened");
         EMBED_CALL(gui_system_table.close, GuiSystemCfg, .system = owner);
         EMBED_CALL(gui_system_table.free, GuiSystemCfg, .system = owner);
         EMBED_CALL(gui_system_table.pumped, GuiSystemCfg, .system = system);

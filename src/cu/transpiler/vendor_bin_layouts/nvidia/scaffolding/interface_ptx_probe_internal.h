@@ -42,7 +42,7 @@
 #define PROBE_IN_WORDS 8u
 #define PROBE_OUT_WORDS 4u
 #define PROBE_THREADS 256u
-// the operands every case draws most of its words from, the edges of 32-bit arithmetic and of a shift
+// the operands every case draws the majority of its words from, the edges of 32-bit arithmetic and of a shift
 #define PROBE_EDGES 14u
 
 // the answer the host's integers give a case: the output words, and 0 where the rule leaves the answer undefined

@@ -1,15 +1,15 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 line 1	orior_klq_write	klq	klq <stem>	the bridge between languages, its stem L*
 body	orior_klq_write	key	key <form>	a schema form name, gnascor's and no target's
 body	orior_klq_write	pair	pair <form> <form>	two forms whose sameness the text leaves open
 body	-	case	case <case>	a case put to the pair
 body	orior_klq_identity	text_identity	text_identity <text> = <text>	two texts of one meaning, each a function as the stick's manifest writes it, held alike on the part over every case: open with its count of cases alike, closed at the first case they answer apart
-body	orior_klq_identity	slice_identity	slice_identity <address>	two links that set two questions apart, at its most basal carrier's address
-slice_identity	orior_klq_identity	first	first <link>	the link the most basal member writes
+body	orior_klq_identity	slice_identity	slice_identity <address>	two links that set two questions apart, at its max basal carrier's address
+slice_identity	orior_klq_identity	first	first <link>	the link the max basal member writes
 slice_identity	orior_klq_identity	second	second <link>	the link the other member writes
 slice_identity	orior_klq_identity	rule	rule <number> <link>: <reason>	a link the part is not asked as written, the rule it breaks and why
 slice_identity	orior_klq_identity	form	form <side> <form>	a form of the rulesets given whose text writes that side's link
-slice_identity	orior_klq_identity	context	context <address>	the members in one place of their chains' grammar, at its most basal carrier's address
+slice_identity	orior_klq_identity	context	context <address>	the members in one place of their chains' grammar, at its max basal carrier's address
 context	orior_klq_identity	before	[<side>] before <slot> <slot> <link>	the nearest link before that names a register the member's link names, and the slot each names it in
 context	orior_klq_identity	after	[<side>] after <slot> <slot> <link>	the nearest link after that names a register the member's link names, and the slot each names it in
 context	orior_klq_identity	address	address <question>:<position> <question>:<position>	a carrier: each member's question and its link's position in that question's chain
@@ -21,11 +21,11 @@ chain	orior_klq_identity	operands	operands <value>...	the literal operands and t
 body	orior_klq_identity	closed	closed [<address>] <case>	two operations, and the case that witnessed it
 body	orior_klq_write orior_klq_identity	open	open <count>	alike on every case asked, and its count of cases alike
 pair	orior_klq_decoder	qualifier_coherence	qualifier_coherence	the two forms one text but for a qualifier: open on every carrier, or apart only where a case word that an operand of one form alone reads decides it
-pair	orior_klq_decoder	modifier_coherence	modifier_coherence	the two forms one text but for a modifier: apart where a case word that the link reads decides it, both results standing
+pair	orior_klq_decoder	modifier_coherence	modifier_coherence	the two forms one text but for a modifier: apart where a case word that the link reads decides it, both results located
 pair	orior_klq_decoder	statement_coherence	statement_coherence	the two forms one text but for a sign or a width: alike on every case whose operands every statement reads as themselves, apart only past them
 pair	orior_klq_decoder	negation_coherence	negation_coherence	the two forms of a flag one text but for a modifier, apart whatever the link reads: each the other's negation, the two members of one node
 pair	orior_klq_decoder	witness_coherence	witness_coherence	a pair no put of its own answered, known at a third form's link: the lower witness put both forms there, and the part answered them alike or apart, each held against the other
-pair	orior_klq_decoder	concept_coherence	concept_coherence <hash>	the pair's concept, its product whole: whether its two forms write one value or two at each combination of the values the form reads, each as the part holds it at the form, over every put answered and hashed, whatever names the pair and whatever links stand before or after it
+pair	orior_klq_decoder	concept_coherence	concept_coherence <hash>	the pair's concept, its product whole: whether its two forms write one value or two at each combination of the values the form reads, each as the part holds it at the form, over every put answered and hashed, whatever names the pair and whatever links are before or after it
 pair	orior_klq_decoder	structural_coherence	structural_coherence	a meta, above the pair's set: one form is the other with a parameter bound to a literal, the two texts one token for token
 pair	orior_klq_decoder	syntactic_coherence	syntactic_coherence	a meta, above the pair's set: the two forms are two operations, one meaning written twice
 pair	orior_klq_decoder	pragmatic_coherence	pragmatic_coherence	a meta, above the pair's set: both forms read what the launch gives, a thread's or a block's number or an extent, and mean what the launch makes them

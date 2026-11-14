@@ -39,7 +39,7 @@ const state = { acted: -Infinity, waits: new Set(), progress: new Map(), timer: 
 // root over every element would have the page work out every element's style again each time a wait
 // starts and ends.
 function markUnder() {
-  // An element drawn again since the pointer came onto it is found again where the pointer stands.
+  // An element drawn again since the pointer came onto it is found again where the pointer is.
   if (state.showing && state.under && !state.under.isConnected && state.at) {
     state.under = document.elementFromPoint(state.at.x, state.at.y);
   }
@@ -97,7 +97,7 @@ export function told(wait, age) {
   return `Waiting on ${wait.command.replace(/_/g, " ")}: ${along}${seconds(age)}${left ? `, ${left}` : ""}`;
 }
 
-// Draws the waits as they stand at `now`, and sets the next time to look again.
+// Draws the waits as they are at `now`, and sets the next time to look again.
 export function tick(now = performance.now()) {
   window.clearTimeout(state.timer);
   const oldest = [...state.waits].sort((a, b) => a.began - b.began)[0];
@@ -117,7 +117,7 @@ export function tick(now = performance.now()) {
         oldest.bar.set(progress.done / progress.of);
         parts.push(oldest.bar);
       }
-      // One Stop for each wait, kept as the words beside it are drawn again each second: a press
+      // One Stop for each wait, retained as the words beside it are drawn again each second: a press
       // begun on it ends on it.
       if (!oldest.stopper) {
         const wait = oldest;
@@ -136,7 +136,7 @@ export function tick(now = performance.now()) {
 
 export function startWaits() {
   state.node = document.getElementById("status-wait");
-  // Where the pointer stands, from each pointer event: its coming onto an element, its moving and its
+  // Where the pointer is, from each pointer event: its coming onto an element, its moving and its
   // press.
   for (const type of ["pointerover", "pointermove", "pointerdown"]) {
     document.addEventListener(

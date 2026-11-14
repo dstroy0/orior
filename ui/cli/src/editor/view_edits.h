@@ -9,8 +9,8 @@
 typedef struct CliViewEditsCfg CliViewEditsCfg;
 
 // the `count` edits at `edit`, in the order of their places in the text and none overlapping, each placed against the
-// text as it stood before any, written into the view under `key` from the last to the first as one step, the cursor put
-// at the first edit's start: 1, or 0 with why written into `err_msg`, the edits written before the one refused standing
+// text as it was before any, written into the view under `key` from the last to the first as one step, the cursor put
+// at the first edit's start: 1, or 0 with why written into `err_msg`, the edits written before the one refused located
 // in the step
 int cli_view_edits_apply(const CliViewEditsCfg *args);
 struct CliViewEditsCfg

@@ -50,7 +50,7 @@ EMBED_INLINE unsigned long long buttons_press_lasts_ms(const GuiSlide *press)
     return (press->to == BUTTONS_PRESS_REST) ? GUI_BUTTONS_RELEASE_MS : GUI_BUTTONS_PRESS_MS;
 }
 
-// The button `tool`'s press slide sent to `press` at `time_ms` on `curve` from where it stands. A release while the
+// The button `tool`'s press slide sent to `press` at `time_ms` on `curve` from where it is. A release while the
 // press still runs waits for the press to end, so a quick click shows the whole press and the spring back
 EMBED_INLINE void buttons_press_send(const ButtonsCtx *args)
 {

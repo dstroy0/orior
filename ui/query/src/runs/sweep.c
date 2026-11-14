@@ -39,7 +39,7 @@ static unsigned long long sweep_region(const QuerySizeCfg *args)
     unsigned long long members = 0ULL;
     unsigned long long positions = 0ULL;
     unsigned long long run_bytes = 0ULL;
-    const unsigned long long whole = qry_shared_laid(args->size, &members, &positions, &run_bytes);
+    const unsigned long long whole = qry_shared_positioned(args->size, &members, &positions, &run_bytes);
     QryShared *const shared = qry_writer_shared_made(s_scratch, whole);
     if (shared == NULL)
     {

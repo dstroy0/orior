@@ -15,7 +15,7 @@
 #
 # The input is text, tab separated. The head lines are "identical <numerator> <denominator>" and
 # "split <numerator> <denominator>": a language reads IDENTICAL where its share of IDENTICAL verdicts
-# is at least the first, and SPLIT where it is at most the second. Each language is then a line
+# is at least the first, and SPLIT where it is at max the second. Each language is then a line
 # "language <name> <Table 4 class or -> <comparisons>" and that many lines "<paper> <verdicts>", the
 # verdicts parted by a comma.
 

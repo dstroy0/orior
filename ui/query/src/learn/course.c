@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // course.c: the course: the whole protocol as one job and one run, its steps run in order. The course opens the run
-// and names it to every step, each step joining it as a member as every module does, its own buffer handed to the
+// and names it to every step, each step joining it as a member as every module does, its own buffer passed to the
 // run's one writer. The course reports its steps before the first, each step as it begins, where it stops and that it
 // ended, through its own buffer into the run, which the window's panel reads to draw the line and walk the fire along
 // it
@@ -151,8 +151,8 @@ int query_course_run(const QueryLoopCfg *args)
         else
         {
             mmgr_line_put(&print_line, ": ");
-            mmgr_line_put_most(&print_line, step_err_buf, step_err_msg.at);
-            mmgr_line_put_most(err_msg, step_err_buf, step_err_msg.at);
+            mmgr_line_put_max(&print_line, step_err_buf, step_err_msg.at);
+            mmgr_line_put_max(err_msg, step_err_buf, step_err_msg.at);
             ended = -1;
         }
         mmgr_line_finish(&print_line);

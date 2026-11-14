@@ -6,7 +6,7 @@
 //   rows       a row of a channel is read with its answer, its word as a number and its question; a who line is no row
 //   replaced   the rows of a question are let go, the rows put go after the channel's last row, and the channel's
 //              counts are taken again over the rows it then contains; traced, the rows let go that no row put gives
-//              again are handed back
+//              again are passed back
 //   who        what is put goes after a who line of the code that put it, the who before it written again after it
 //              where lines follow, and a who line left over no line is let go
 //   a part's   every cost row of the part's .ksc named on the command line put again in its place, in the order the
@@ -15,7 +15,7 @@
 //
 //     ksc_check <folder> [<a part's .ksc>]
 //
-// It runs in a query run (qry_run.sh): every file it writes is handed to the run's writer.
+// It runs in a query run (qry_run.sh): every file it writes is passed to the run's writer.
 #include "../../../../../../../includes/file_defs/ksc/ksc.h"
 
 #include "../../../../../../../includes/parsers/who.h"
@@ -37,7 +37,7 @@ static void check_that(int passed, const char *what)
     }
 }
 
-// the file joined as a check reads it and as it stood before a write, and each of those with its who lines left out
+// the file joined as a check reads it and as it was before a write, and each of those with its who lines left out
 static char s_text_bytes[QRY_WRITER_RING_BYTES / 4ull];
 static char s_before_bytes[QRY_WRITER_RING_BYTES / 4ull];
 static char s_text_rows_bytes[QRY_WRITER_RING_BYTES / 4ull];
@@ -86,11 +86,11 @@ static const char *without_who(const char *text, char *bytes, size_t room)
     return ended(bytes, room, written);
 }
 
-// 1 where every cost row of `file` stands under a who line whose code is `code`
+// 1 where every cost row of `file` is under a who line whose code is `code`
 static int cost_rows_under(const KscFile *file, const char *code)
 {
     static KscRow s_read;
-    char whose[WHO_CODE_LETTERS + 8u];
+    char whose[WHO_CODE_CHARACTERS + 8u];
     whose[0] = '\0';
     for (unsigned int at = 0u; at < file->lines; at += 1u)
     {
@@ -129,7 +129,7 @@ int main(int count, char **words)
     snprintf(path, sizeof(path), "%s/ksc_check.ksc", words[1]);
     if (qry_member_filed(path, s_written, strlen(s_written)) == 0ull)
     {
-        printf("  %s could not be written: no run's writer runs, or it stands outside the tree\n", path);
+        printf("  %s could not be written: no run's writer runs, or it is outside the tree\n", path);
         return 2;
     }
     check_that(ksc_read(&s_file, path) && (s_file.lines == 7u), "a .ksc is read, a line each");
@@ -143,7 +143,7 @@ int main(int count, char **words)
     const char *const stalls[2] = {"run answers 00000004 stall IADD3 IMAD", "run nothing 00000000 stall FFMA FADD"};
     const Who put = WHO_HERE;
     check_that(ksc_rows_replaced_by(&s_file, "run", "stall", stalls, 2u, put), "a question's rows are replaced");
-    char code[WHO_CODE_LETTERS + 1u];
+    char code[WHO_CODE_CHARACTERS + 1u];
     who_code(put, code, sizeof(code));
     char expected[1024];
     snprintf(expected, sizeof(expected),
@@ -172,7 +172,7 @@ int main(int count, char **words)
     const Who later = WHO_HERE;
     check_that(ksc_rows_replaced_by(&s_file, "run", "stall", again, 1u, later), "the rows are replaced again");
     text = joined(&s_file, s_text_bytes, sizeof(s_text_bytes));
-    char later_code[WHO_CODE_LETTERS + 1u];
+    char later_code[WHO_CODE_CHARACTERS + 1u];
     who_code(later, later_code, sizeof(later_code));
     snprintf(expected, sizeof(expected),
              "ksc part\n"
@@ -190,7 +190,7 @@ int main(int count, char **words)
     check_that(ksc_read(&s_file, path) && (s_file.lines == 8u), "and read back, line for line");
     ksc_free(&s_file);
 
-    // the rows let go that no row put gives again, handed back for a .krf to store
+    // the rows let go that no row put gives again, passed back for a .krf to store
     static KscFile s_traced;
     ksc_line_add(&s_traced, "ksc part");
     ksc_line_add(&s_traced, "run answers 00000005 stall IADD3 IMAD");
@@ -200,7 +200,7 @@ int main(int count, char **words)
     check_that(ksc_rows_replaced_traced_by(&s_traced, "run", "stall", traced_rows, 2u, WHO_HERE, &removed),
                "a question's rows are replaced with the rows let go traced");
     check_that((removed.lines == 1u) && (strcmp(removed.line[0], "run answers 00000007 stall LDG STG") == 0),
-               "the row let go that no row put gives again is handed back, as the file stored it");
+               "the row let go that no row put gives again is passed back, as the file stored it");
     kfile_lines_free(&removed);
     check_that(ksc_rows_replaced_traced_by(&s_traced, "run", "stall", traced_rows, 2u, WHO_HERE, &removed) &&
                    (removed.lines == 0u),

@@ -143,7 +143,7 @@ EV.watchLoop = (label, step, options = {}) => {
 
   return {
     record,
-    // Asks for turns. A loop already awake keeps running, and a stopped loop stays stopped.
+    // Asks for turns. A loop already awake retains running, and a stopped loop stays stopped.
     wake: () => {
       if (stopped || record.awake) {
         return;

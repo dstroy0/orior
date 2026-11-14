@@ -6,8 +6,8 @@
 
 #include "keymath_core_affine.h"
 
-// the bits a form's value needs: with B = |c| + sum |c_i| 2^(b_i), the value is at most B - 1 where any atom is read,
-// since each atom is below 2^(b_i), and at most |c| where none is; B summed in `bound`, KEYMATH_BOUND_LIMBS words
+// the bits a form's value needs: with B = |c| + sum |c_i| 2^(b_i), the value is at max B - 1 where any atom is read,
+// since each atom is below 2^(b_i), and at max |c| where none is; B summed in `bound`, KEYMATH_BOUND_LIMBS words
 KEYMATH_CORE unsigned int keymath_core_affine_bits(const KeymathCoreArena *arena, const KeymathCoreAffine *form,
                                                    const EngineRecordTerm *terms, unsigned int *bound)
 {
@@ -52,7 +52,7 @@ KEYMATH_CORE int keymath_core_error(KeymathCoreEncode *encoding, unsigned int en
     return 0;
 }
 
-// Each step's term, width, never-negative mark and linear form, in step order, as keymath_record_encode lays them out:
+// Each step's term, width, never-negative mark and linear form, in step order, as keymath_record_encode positions them out:
 // 1 where every step and output succeeds, else 0 with where it ended in `end` and `at`
 KEYMATH_CORE int keymath_core_record_encode(KeymathCoreEncode *encoding)
 {
@@ -229,7 +229,7 @@ KEYMATH_CORE int keymath_core_record_encode(KeymathCoreEncode *encoding)
         else if ((doing->operation == ENGINE_RECORD_CONSTANT) &&
                  (term->constant <= (unsigned long long)KEYMATH_COEFFICIENT_MAX))
         {
-            // the constant is at most KEYMATH_COEFFICIENT_MAX, and it fits a signed word
+            // the constant is at max KEYMATH_COEFFICIENT_MAX, and it fits a signed word
             form->constant = (long long)term->constant;
             form->first = arena->used;
             form->count = 0ull;

@@ -1,4 +1,4 @@
-name	file	requires	kind
+name	file	requires	type
 theme	theme.css	-	css
 core/turn_table	core/turn_table.js	-	js
 core/angle	core/angle.js	core/turn_table	js

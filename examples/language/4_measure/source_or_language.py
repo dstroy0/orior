@@ -10,7 +10,7 @@
 #
 # Several languages are now sourced from four places that have nothing to do with each other: novels and
 # other books, encyclopedia articles, and two separate works translated into many languages. Nothing is
-# shared between them: the subject, the century, the translator and the kind of writing all differ.
+# shared between them: the subject, the century, the translator and the type of writing all differ.
 #
 # That makes the question answerable directly instead of by argument. If the reading belongs to a
 # language, the same language read from a novel and from an encyclopedia sits closer together than two

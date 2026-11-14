@@ -121,7 +121,7 @@ static std::vector<PlaneSpherePoint> plane_shell_points(long long radius)
 {
     std::vector<PlaneSpherePoint> points;
     const long long least = (radius * radius) - radius + 1ll;
-    const long long maximum = (radius * radius) + radius;
+    const long long max = (radius * radius) + radius;
     for (long long z = -radius - 1ll; z <= radius + 1ll; z += 1ll)
     {
         for (long long y = -radius - 1ll; y <= radius + 1ll; y += 1ll)
@@ -129,7 +129,7 @@ static std::vector<PlaneSpherePoint> plane_shell_points(long long radius)
             for (long long x = -radius - 1ll; x <= radius + 1ll; x += 1ll)
             {
                 const long long square = (x * x) + (y * y) + (z * z);
-                if ((square >= least) && (square <= maximum))
+                if ((square >= least) && (square <= max))
                 {
                     points.push_back(PlaneSpherePoint{x, y, z});
                 }
@@ -226,7 +226,7 @@ void plane_sphere_views(PlaneExtent *extent, const std::string &name, const std:
     for (size_t bit = 0u; bit < points.size(); bit += 1u)
     {
         const PlaneSpherePoint &point = points[bit];
-        // each view: its row, its column, and how near the eye the point stands
+        // each view: its row, its column, and how near the eye the point is
         const long long row[4] = {-point.y, -point.y, -point.z, -point.z};
         const long long column[4] = {point.x, -point.x, -point.y, point.y};
         const long long toward[4] = {point.z, -point.z, point.x, -point.x};
@@ -281,7 +281,7 @@ static long long plane_gcd(long long left, long long right)
     return left;
 }
 
-// the steps (dy, dx) with coprime parts of at most PLANE_STEP_MAX, one of each pair of opposites
+// the steps (dy, dx) with coprime parts of at max PLANE_STEP_MAX, one of each pair of opposites
 std::vector<PlaneStep> plane_steps(void)
 {
     std::vector<PlaneStep> steps;

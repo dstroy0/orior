@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// page.c: a listing read, the page it prints on, and the listing laid out in pages, each line with its number and a
+// page.c: a listing read, the page it prints on, and the listing arranged in pages, each line with its number and a
 // long line going on under itself
 #include "../../../../includes/arith/arith.h"
 #include "../command_line/callback_cfg.h"
@@ -9,15 +9,15 @@
 #include "../text/text.h"
 #include "print.h"
 
-// The listing, its layout and the letters a run is laid out from, sized to the longest run: the work state, a cell
-// taken with the lock printing is done under, its lists cells of their own at their most, every one given back with the
+// The listing, its layout and the characters a run is arranged from, sized to the longest run: the work state, a cell
+// taken with the lock printing is done under, its lists cells of their own at their max, every one given back with the
 // lock
 typedef struct
 {
     CliPrintListing listing;
-    CliPrintLaid laid;
-    unsigned int *letters;
-    unsigned int letters_capacity;
+    CliPrintLaid positioned;
+    unsigned int *characters;
+    unsigned int characters_capacity;
 } CliPrintWorkState;
 
 // the work state, NULL where the cells could not meet it, and the lock printing is done under
@@ -29,16 +29,16 @@ void cli_print_alloc(void)
     const unsigned long long run_bytes = (unsigned long long)CLI_PRINT_RUNS * sizeof(CliPrintRun);
     const unsigned long long row_bytes = (unsigned long long)CLI_PRINT_ROWS * sizeof(CliPrintRow);
     const unsigned long long piece_bytes = (unsigned long long)CLI_PRINT_PIECES * sizeof(CliPrintPiece);
-    const unsigned long long letter_bytes = (unsigned long long)CLI_PRINT_LETTERS * sizeof(unsigned int);
-    const unsigned long long list_bytes = line_bytes + run_bytes + row_bytes + piece_bytes + letter_bytes;
-    // the work state and its lists are the printer's own for as long as printing stands, at their most, so they
-    // stand fixed outside the pool, where they punch no hole in the persistent tier
+    const unsigned long long character_bytes = (unsigned long long)CLI_PRINT_CHARACTERS * sizeof(unsigned int);
+    const unsigned long long list_bytes = line_bytes + run_bytes + row_bytes + piece_bytes + character_bytes;
+    // the work state and its lists are the printer's own for as long as printing is, at their max, so they
+    // are fixed outside the pool, where they punch no hole in the persistent tier
     static CliPrintWorkState s_state;
     static char s_lists[((unsigned long long)CLI_PRINT_LINES * sizeof(CliPrintLine)) +
                         ((unsigned long long)CLI_PRINT_RUNS * sizeof(CliPrintRun)) +
                         ((unsigned long long)CLI_PRINT_ROWS * sizeof(CliPrintRow)) +
                         ((unsigned long long)CLI_PRINT_PIECES * sizeof(CliPrintPiece)) +
-                        ((unsigned long long)CLI_PRINT_LETTERS * sizeof(unsigned int)) + (2ULL * CLI_PRINT_TEXT)];
+                        ((unsigned long long)CLI_PRINT_CHARACTERS * sizeof(unsigned int)) + (2ULL * CLI_PRINT_TEXT)];
     s_work_state = &s_state;
     char *const cell = s_lists;
     memor.set(&(MemoriaCfg){.dst = s_work_state, .val = 0, .bytes = sizeof(*s_work_state)});
@@ -46,16 +46,16 @@ void cli_print_alloc(void)
     s_work_state->listing.lines_capacity = CLI_PRINT_LINES;
     s_work_state->listing.run = (CliPrintRun *)(void *)(cell + line_bytes);
     s_work_state->listing.runs_capacity = CLI_PRINT_RUNS;
-    s_work_state->laid.row = (CliPrintRow *)(void *)(cell + line_bytes + run_bytes);
-    s_work_state->laid.rows_capacity = CLI_PRINT_ROWS;
-    s_work_state->laid.piece = (CliPrintPiece *)(void *)(cell + line_bytes + run_bytes + row_bytes);
-    s_work_state->laid.pieces_capacity = CLI_PRINT_PIECES;
-    s_work_state->letters = (unsigned int *)(void *)(cell + line_bytes + run_bytes + row_bytes + piece_bytes);
-    s_work_state->letters_capacity = CLI_PRINT_LETTERS;
+    s_work_state->positioned.row = (CliPrintRow *)(void *)(cell + line_bytes + run_bytes);
+    s_work_state->positioned.rows_capacity = CLI_PRINT_ROWS;
+    s_work_state->positioned.piece = (CliPrintPiece *)(void *)(cell + line_bytes + run_bytes + row_bytes);
+    s_work_state->positioned.pieces_capacity = CLI_PRINT_PIECES;
+    s_work_state->characters = (unsigned int *)(void *)(cell + line_bytes + run_bytes + row_bytes + piece_bytes);
+    s_work_state->characters_capacity = CLI_PRINT_CHARACTERS;
     s_work_state->listing.text = cell + list_bytes;
     s_work_state->listing.text_capacity = CLI_PRINT_TEXT;
-    s_work_state->laid.text = cell + list_bytes + CLI_PRINT_TEXT;
-    s_work_state->laid.text_capacity = CLI_PRINT_TEXT;
+    s_work_state->positioned.text = cell + list_bytes + CLI_PRINT_TEXT;
+    s_work_state->positioned.text_capacity = CLI_PRINT_TEXT;
 }
 
 void cli_print_release(void)
@@ -75,16 +75,16 @@ typedef struct
     const char **to;
     const char *from_value;
     const char *to_value;
-    unsigned long long most;
+    unsigned long long max;
     unsigned long long *value;
     const CliPrintLayout *layout;
     int (*each)(const CliEachFromDashToCfg *args);
     void *context;
     char digit;
-    CliPrintLaid *laid;
+    CliPrintLaid *positioned;
     CliPrintRow *row;
     CliPrintPiece *piece;
-    unsigned int letter;
+    unsigned int character;
     const CliPrintListing *listing_read;
     const CliPrintRun *run;
     unsigned long long *column;
@@ -214,8 +214,8 @@ int cli_print_listing_read(const CliPrintJsonCfg *args)
         }
         listing_at->lines += 1u;
     }
-    // the letters a run is laid out from, a place for each byte of the longest run and its end
-    full = full || ((longest + 1u) > s_work_state->letters_capacity);
+    // the characters a run is arranged from, a place for each byte of the longest run and its end
+    full = full || ((longest + 1u) > s_work_state->characters_capacity);
     if (full)
     {
         mmgr_line_put(args->err_msg, "the listing contains more than impero prints");
@@ -262,7 +262,7 @@ void cli_print_layout_read(const CliPrintJsonNodeCfg *args)
                                     args->json->node[copies].text + args->json->node[copies].length, 0u, 0u};
         value = (cfg_json_unsigned(args->json->text, &token, &value) && (value <= 0xffffffffULL)) ? value : 1ULL;
     }
-    // checked against the most 32 bits represent above
+    // checked against the max 32 bits represent above
     args->layout_out->copies = (unsigned int)value;
 }
 
@@ -276,16 +276,16 @@ void cli_print_size(const CliPrintLayoutWidthCfg *args)
 {
     float *width = args->width;
     float *height = args->height;
-    const int letter = EMBED_CALL(cli_by_name, PageCtx, .name = args->layout->paper, .word_text = "letter");
-    const float pixel_width = letter ? 612.0f : 595.276f;
-    const float high = letter ? 792.0f : 841.89f;
+    const int character = EMBED_CALL(cli_by_name, PageCtx, .name = args->layout->paper, .word_text = "character");
+    const float pixel_width = character ? 612.0f : 595.276f;
+    const float high = character ? 792.0f : 841.89f;
     *width = args->layout->landscape ? high : pixel_width;
     *height = args->layout->landscape ? pixel_width : high;
 }
 
 const char *cli_print_media(const CliPrintLayoutCfg *args)
 {
-    return EMBED_CALL(cli_by_name, PageCtx, .name = args->layout->paper, .word_text = "letter") ? "na_letter_8.5x11in"
+    return EMBED_CALL(cli_by_name, PageCtx, .name = args->layout->paper, .word_text = "character") ? "na_character_8.5x11in"
                                                                                                 : "iso_a4_210x297mm";
 }
 
@@ -300,7 +300,7 @@ EMBED_INLINE void cli_trim(const PageCtx *args)
                              .at = (unsigned long long)(*to - *from), .set = CLI_TEXT_WHITE);
 }
 
-// the whole number the bytes from `from` to `to` write, as an unsigned number reads, at most `most`: 1, or 0 where
+// the whole number the bytes from `from` to `to` write, as an unsigned number reads, at max `max`: 1, or 0 where
 // they write none
 EMBED_INLINE int cli_parse(const PageCtx *args)
 {
@@ -315,7 +315,7 @@ EMBED_INLINE int cli_parse(const PageCtx *args)
     for (const char *at = from; at < args->to_value; at += 1)
     {
         const unsigned long long digit = (unsigned long long)(at[0] - '0');
-        if ((at[0] < '0') || (at[0] > '9') || (total > ((args->most - digit) / 10ULL)))
+        if ((at[0] < '0') || (at[0] > '9') || (total > ((args->max - digit) / 10ULL)))
         {
             return 0;
         }
@@ -325,7 +325,7 @@ EMBED_INLINE int cli_parse(const PageCtx *args)
     return 1;
 }
 
-// each part of the pages named, between commas, handed its two ends and the place of its `-`, NULL where it has none
+// each part of the pages named, between commas, passed its two ends and the place of its `-`, NULL where it has none
 EMBED_INLINE int cli_parts(const PageCtx *args)
 {
     const char *from = args->layout->pages;
@@ -365,7 +365,7 @@ static int cli_prints_part(const CliEachFromDashToCfg *args)
     if (args->dash == NULL)
     {
         unsigned long long value = 0ULL;
-        return EMBED_CALL(cli_parse, PageCtx, .from_value = from, .to_value = to, .most = ~0ULL, .value = &value) &&
+        return EMBED_CALL(cli_parse, PageCtx, .from_value = from, .to_value = to, .max = ~0ULL, .value = &value) &&
                (value == page);
     }
     const char *low_from = from;
@@ -376,10 +376,10 @@ static int cli_prints_part(const CliEachFromDashToCfg *args)
     EMBED_CALL(cli_trim, PageCtx, .from = &high_from, .to = &high_to);
     unsigned long long low = 1ULL;
     unsigned long long high = ~0ULL;
-    low = EMBED_CALL(cli_parse, PageCtx, .from_value = low_from, .to_value = low_to, .most = ~0ULL, .value = &low)
+    low = EMBED_CALL(cli_parse, PageCtx, .from_value = low_from, .to_value = low_to, .max = ~0ULL, .value = &low)
               ? low
               : 1ULL;
-    high = EMBED_CALL(cli_parse, PageCtx, .from_value = high_from, .to_value = high_to, .most = ~0ULL, .value = &high)
+    high = EMBED_CALL(cli_parse, PageCtx, .from_value = high_from, .to_value = high_to, .max = ~0ULL, .value = &high)
                ? high
                : ~0ULL;
     return (page >= low) && (page <= high);
@@ -409,7 +409,7 @@ static int cli_range_part(const CliEachFromDashToCfg *args)
     unsigned long long high = 0x7fffffffULL;
     if (args->dash == NULL)
     {
-        if (!EMBED_CALL(cli_parse, PageCtx, .from_value = from, .to_value = to, .most = 0x7fffffffULL, .value = &low))
+        if (!EMBED_CALL(cli_parse, PageCtx, .from_value = from, .to_value = to, .max = 0x7fffffffULL, .value = &low))
         {
             return 0;
         }
@@ -423,19 +423,19 @@ static int cli_range_part(const CliEachFromDashToCfg *args)
         const char *high_to = to;
         EMBED_CALL(cli_trim, PageCtx, .from = &low_from, .to = &low_to);
         EMBED_CALL(cli_trim, PageCtx, .from = &high_from, .to = &high_to);
-        if (!EMBED_CALL(cli_parse, PageCtx, .from_value = low_from, .to_value = low_to, .most = 0x7fffffffULL,
+        if (!EMBED_CALL(cli_parse, PageCtx, .from_value = low_from, .to_value = low_to, .max = 0x7fffffffULL,
                         .value = &low))
         {
             return 0;
         }
-        high = EMBED_CALL(cli_parse, PageCtx, .from_value = high_from, .to_value = high_to, .most = 0x7fffffffULL,
+        high = EMBED_CALL(cli_parse, PageCtx, .from_value = high_from, .to_value = high_to, .max = 0x7fffffffULL,
                           .value = &high)
                    ? high
                    : 0x7fffffffULL;
     }
     if (ranges->count < ranges->capacity)
     {
-        // each is below the most an int represents, checked as it was read
+        // each is below the max an int represents, checked as it was read
         ranges->low[ranges->count] = (int)low;
         ranges->high[ranges->count] = (int)high;
         ranges->count += 1u;
@@ -486,57 +486,57 @@ EMBED_INLINE void cli_piece_append(const PageCtx *args)
     {
         return;
     }
-    if (args->laid->pieces >= args->laid->pieces_capacity)
+    if (args->positioned->pieces >= args->positioned->pieces_capacity)
     {
-        args->laid->full = 1;
+        args->positioned->full = 1;
         args->piece->length = 0u;
         return;
     }
-    args->laid->piece[args->laid->pieces] = *args->piece;
-    args->laid->pieces += 1u;
+    args->positioned->piece[args->positioned->pieces] = *args->piece;
+    args->positioned->pieces += 1u;
     args->row->pieces += 1u;
-    args->piece->text = args->laid->text_used;
+    args->piece->text = args->positioned->text_used;
     args->piece->length = 0u;
 }
 
 // the row being made put after the rows, and a row with no number begun after it
 EMBED_INLINE void cli_row_append(const PageCtx *args)
 {
-    if (args->laid->rows < args->laid->rows_capacity)
+    if (args->positioned->rows < args->positioned->rows_capacity)
     {
-        args->laid->row[args->laid->rows] = *args->row;
-        args->laid->rows += 1u;
+        args->positioned->row[args->positioned->rows] = *args->row;
+        args->positioned->rows += 1u;
     }
     else
     {
-        args->laid->full = 1;
+        args->positioned->full = 1;
     }
     args->row->numbered = 0;
     args->row->number = 0ULL;
-    args->row->first = args->laid->pieces;
+    args->row->first = args->positioned->pieces;
     args->row->pieces = 0u;
 }
 
-// one letter put after the piece being made, in UTF-8 among the layout's texts
-EMBED_INLINE void cli_letter_append(const PageCtx *args)
+// one character put after the piece being made, in UTF-8 among the layout's texts
+EMBED_INLINE void cli_character_append(const PageCtx *args)
 {
-    unsigned int letter = args->letter;
-    // a letter is at most four bytes
-    if ((args->laid->text_used + 4u) > args->laid->text_capacity)
+    unsigned int character = args->character;
+    // a character is at max four bytes
+    if ((args->positioned->text_used + 4u) > args->positioned->text_capacity)
     {
-        args->laid->full = 1;
+        args->positioned->full = 1;
         return;
     }
-    VerbaLinea line = {args->laid->text + args->laid->text_used, args->laid->text_capacity - args->laid->text_used,
+    VerbaLinea line = {args->positioned->text + args->positioned->text_used, args->positioned->text_capacity - args->positioned->text_used,
                        0ULL};
-    EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line, .letter = letter);
+    EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line, .character = character);
     if (!mmgr_line_ok(&line))
     {
-        args->laid->full = 1;
+        args->positioned->full = 1;
         return;
     }
-    // a letter is at most four bytes
-    args->laid->text_used += (unsigned int)line.at;
+    // a character is at max four bytes
+    args->positioned->text_used += (unsigned int)line.at;
     args->piece->length += (unsigned int)line.at;
 }
 
@@ -559,14 +559,14 @@ EMBED_INLINE unsigned long long cli_number_columns(const PageCtx *args)
     return (widest == 0ULL) ? 0ULL : (digits + 2ULL);
 }
 
-// the letter `letter` laid after the piece being made at `*column`: a tab as spaces to the next multiple of `tab`, a
-// control letter as nothing, else the letter itself, the row broken where it reaches `columns`
-EMBED_INLINE void cli_letter_laid(const PageCtx *args)
+// the character `character` positioned after the piece being made at `*column`: a tab as spaces to the next multiple of `tab`, a
+// control character as nothing, else the character itself, the row broken where it reaches `columns`
+EMBED_INLINE void cli_character_positioned(const PageCtx *args)
 {
-    const unsigned int letter = args->letter;
-    const int control = (letter < 0x20u) || ((letter >= 0x7fu) && (letter <= 0x9fu));
+    const unsigned int character = args->character;
+    const int control = (character < 0x20u) || ((character >= 0x7fu) && (character <= 0x9fu));
     unsigned long long spaces = 1ULL;
-    if (letter == '\t')
+    if (character == '\t')
     {
         spaces = args->tab - (*args->column % ((args->tab > 1ULL) ? args->tab : 1ULL));
     }
@@ -578,20 +578,20 @@ EMBED_INLINE void cli_letter_laid(const PageCtx *args)
     {
         if (*args->column == args->columns)
         {
-            EMBED_CALL(cli_piece_append, PageCtx, .laid = args->laid, .row = args->row, .piece = args->piece);
-            EMBED_CALL(cli_row_append, PageCtx, .laid = args->laid, .row = args->row);
+            EMBED_CALL(cli_piece_append, PageCtx, .positioned = args->positioned, .row = args->row, .piece = args->piece);
+            EMBED_CALL(cli_row_append, PageCtx, .positioned = args->positioned, .row = args->row);
             *args->column = 0ULL;
             args->piece->column = 0ULL;
         }
-        EMBED_CALL(cli_letter_append, PageCtx, .laid = args->laid, .piece = args->piece,
-                   .letter = (letter == '\t') ? ' ' : letter);
+        EMBED_CALL(cli_character_append, PageCtx, .positioned = args->positioned, .piece = args->piece,
+                   .character = (character == '\t') ? ' ' : character);
         *args->column += 1ULL;
     }
 }
 
-// the run `run` of `listing_read` laid as pieces after `row` from `*column`, in its color as `layout` prints it, bold
-// or italic, each of its letters laid in turn
-EMBED_INLINE void cli_run_laid(const PageCtx *args)
+// the run `run` of `listing_read` positioned as pieces after `row` from `*column`, in its color as `layout` prints it, bold
+// or italic, each of its characters positioned in turn
+EMBED_INLINE void cli_run_positioned(const PageCtx *args)
 {
     const CliPrintRun *const run = args->run;
     CliPrintPiece piece;
@@ -601,54 +601,54 @@ EMBED_INLINE void cli_run_laid(const PageCtx *args)
     piece.bold = run->bold;
     piece.italic = run->italic;
     piece.column = *args->column;
-    piece.text = args->laid->text_used;
-    unsigned int *const letters = s_work_state->letters;
+    piece.text = args->positioned->text_used;
+    unsigned int *const characters = s_work_state->characters;
     const unsigned long long count =
-        EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->listing_read->text + run->text,
-                   .size = run->length, .letters = letters, .capacity_u64 = s_work_state->letters_capacity);
+        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = args->listing_read->text + run->text,
+                   .size = run->length, .characters = characters, .capacity_u64 = s_work_state->characters_capacity);
     for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
-        EMBED_CALL(cli_letter_laid, PageCtx, .laid = args->laid, .row = args->row, .piece = &piece,
-                   .letter = letters[at], .column = args->column, .columns = args->columns, .tab = args->tab);
+        EMBED_CALL(cli_character_positioned, PageCtx, .positioned = args->positioned, .row = args->row, .piece = &piece,
+                   .character = characters[at], .column = args->column, .columns = args->columns, .tab = args->tab);
     }
-    EMBED_CALL(cli_piece_append, PageCtx, .laid = args->laid, .row = args->row, .piece = &piece);
+    EMBED_CALL(cli_piece_append, PageCtx, .positioned = args->positioned, .row = args->row, .piece = &piece);
 }
 
-const CliPrintLaid *cli_print_lay_out(const CliPrintLayoutListingOutCfg *args)
+const CliPrintLaid *cli_print_position_out(const CliPrintLayoutListingOutCfg *args)
 {
-    CliPrintLaid *const laid = &s_work_state->laid;
-    laid->rows = 0u;
-    laid->pieces = 0u;
-    laid->text_used = 0u;
-    laid->full = 0;
+    CliPrintLaid *const positioned = &s_work_state->positioned;
+    positioned->rows = 0u;
+    positioned->pieces = 0u;
+    positioned->text_used = 0u;
+    positioned->full = 0;
     float width = 0.0f;
     float height = 0.0f;
     EMBED_CALL(cli_print_layout_width.size, CliPrintLayoutWidthCfg, .layout = args->layout, .width = &width,
                .height = &height);
-    laid->number_columns = EMBED_CALL(cli_number_columns, PageCtx, .listing_read = args->listing);
+    positioned->number_columns = EMBED_CALL(cli_number_columns, PageCtx, .listing_read = args->listing);
     // a page's columns and rows are whole and not negative, the floor of what fits
     const unsigned long long fit =
         (unsigned long long)arith_floor_f32((width - (2.0f * CLI_PRINT_MARGIN)) / CLI_PRINT_ADVANCE);
-    const unsigned long long left = (fit > laid->number_columns) ? (fit - laid->number_columns) : 0ULL;
+    const unsigned long long left = (fit > positioned->number_columns) ? (fit - positioned->number_columns) : 0ULL;
     const unsigned long long columns = (left > 8ULL) ? left : 8ULL;
     const unsigned long long rows =
         (unsigned long long)arith_floor_f32((height - (2.0f * CLI_PRINT_MARGIN)) / CLI_PRINT_LEADING);
     // a page contains far fewer rows than an unsigned int counts
-    laid->rows_per_page = (rows > 1ULL) ? (unsigned int)rows : 1u;
+    positioned->rows_per_page = (rows > 1ULL) ? (unsigned int)rows : 1u;
     const unsigned long long tab = args->listing->tab;
     for (unsigned int index = 0u; index < args->listing->lines; index += 1u)
     {
         const CliPrintLine *const line = &args->listing->line[index];
-        CliPrintRow row = {line->numbered, line->number, laid->pieces, 0u};
+        CliPrintRow row = {line->numbered, line->number, positioned->pieces, 0u};
         unsigned long long column = 0ULL;
         for (unsigned int each = 0u; each < line->runs; each += 1u)
         {
-            EMBED_CALL(cli_run_laid, PageCtx, .listing_read = args->listing,
-                       .run = &args->listing->run[line->first + each], .layout = args->layout, .laid = laid,
+            EMBED_CALL(cli_run_positioned, PageCtx, .listing_read = args->listing,
+                       .run = &args->listing->run[line->first + each], .layout = args->layout, .positioned = positioned,
                        .row = &row, .column = &column, .columns = columns, .tab = tab);
         }
-        EMBED_CALL(cli_row_append, PageCtx, .laid = laid, .row = &row);
+        EMBED_CALL(cli_row_append, PageCtx, .positioned = positioned, .row = &row);
     }
-    laid->pages = (laid->rows + laid->rows_per_page - 1u) / laid->rows_per_page;
-    return laid;
+    positioned->pages = (positioned->rows + positioned->rows_per_page - 1u) / positioned->rows_per_page;
+    return positioned;
 }

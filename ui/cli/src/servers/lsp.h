@@ -36,12 +36,12 @@ typedef struct CliLspCapacityPathCfg CliLspCapacityPathCfg;
 typedef struct CliLspCfg CliLspCfg;
 typedef struct CliLspSizeTypeCfg CliLspSizeTypeCfg;
 
-// the most requests that wait on answers at once, and the most bytes of what the server writes to its errors that are
+// the max requests that wait on answers at once, and the max bytes of what the server writes to its errors that are
 // retained
 #define CLI_LSP_WAITERS 64u
 #define CLI_LSP_COMPLAINT 4096u
 
-// the most bytes of orior's answer to a request of the server's
+// the max bytes of orior's answer to a request of the server's
 #define CLI_LSP_ANSWERED (1ull << 20u)
 
 // A running language server
@@ -60,7 +60,7 @@ typedef struct
 // into `answer` as JSON, `null` where nothing is written; and what is not sent for a notification
 typedef void (*CliLspRecvFn)(const CliLspRecvCfg *args);
 
-// Where a framed message is read from: a function that reads a piece of at most `capacity` bytes, 0 at the end, its
+// Where a framed message is read from: a function that reads a piece of at max `capacity` bytes, 0 at the end, its
 // source, and what was read and not yet taken
 typedef struct
 {
@@ -79,8 +79,8 @@ typedef struct
     void *sink;
 } CliLspWriter;
 
-// A piece of a message's body: its bytes, written as they are or, where `quoted`, as a JSON string's letters; the
-// bytes stand at `bytes`, or in the movable cell `cell` from `offset` where that is given
+// A piece of a message's body: its bytes, written as they are or, where `quoted`, as a JSON string's characters; the
+// bytes are at `bytes`, or in the movable cell `cell` from `offset` where that is given
 typedef struct
 {
     const char *bytes;
@@ -94,7 +94,7 @@ typedef struct
 #define CLI_LSP_RAW(text_) {(text_), sizeof(text_) - 1ull, 0, NULL, 0ull}
 
 // `size` bytes of a JSON body framed and written whole by `writer` under `lock`; the same of a body made of `count`
-// pieces, each text written as a JSON string's letters as it goes, so that a file's whole text is never copied: each 1,
+// pieces, each text written as a JSON string's characters as it goes, so that a file's whole text is never copied: each 1,
 // or 0 with why given; one message read from `reader` into `body`, sized for `capacity`, its size into `size`: 1, or 0
 // where the reader's source ended, the message gave no length or the body is no JSON, a body larger than the capacity
 // read and let go and the next one read; one message read into a cell of its length with a 0 after, counted to `owner`,
@@ -106,7 +106,7 @@ int cli_lsp_send_parts(const CliLspWriterLockCfg *args);
 int cli_lsp_read_message(const CliLspReaderCfg *args);
 char *cli_lsp_message_alloc(const CliLspReaderSizeCfg *args);
 int cli_lsp_member(const CliLspBodyCfg *args);
-// a JSON string of `length` bytes read as its letters into `out`, sized for `capacity`: 1, or 0 where it is no string
+// a JSON string of `length` bytes read as its characters into `out`, sized for `capacity`: 1, or 0 where it is no string
 // or does not fit (lsp_wire.c)
 int cli_lsp_string(const CliLspCapacityCfg *args);
 
@@ -137,7 +137,7 @@ int cli_lsp_alive(const CliLspContextCfg *args);
 void cli_lsp_complaint(const CliLspPathOutCfg *args);
 void cli_lsp_stop(const CliLspContextCfg *args);
 
-// a request of `method` with `length` bytes of JSON params, its answer waited for up to `wait` milliseconds and handed
+// a request of `method` with `length` bytes of JSON params, its answer waited for up to `wait` milliseconds and passed
 // over in `answer`, whose message the caller gives back to g_cli_servers_owner, NULL where the request failed; and a
 // notification sent. Each 1, or 0 with why given (lsp.c)
 int cli_lsp_request(const CliLspErrMsgLengthCfg *args);
@@ -156,7 +156,7 @@ void cli_lsp_at(const CliLspPathCfg *args);
 // none open; whether the server has `path` open; the size of the text it was last given of a file it has open into
 // `size` and that text into `out`: each 1, or 0 where it has none; the URIs of the files it has open, each ended by a
 // 0, in a cell of their size counted to `owner`, their size into `size`, NULL where it has none; and each file it has
-// open, with the text it was last given, handed to `each` (lsp_files.c)
+// open, with the text it was last given, passed to `each` (lsp_files.c)
 int cli_lsp_open(const CliLspErrMsgTextCfg *args);
 int cli_lsp_change(const CliLspErrMsgTextCfg *args);
 int cli_lsp_read_again(const CliLspErrMsgTextCfg *args);

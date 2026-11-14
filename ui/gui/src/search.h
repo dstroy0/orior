@@ -14,7 +14,7 @@
 
 // the sizes in the page's pixels: a choice's padding across, the gap between choices and the radius of a choice's
 // corners, the report row, a count pill's padding, the text sizes of the choices, the report and a line found, and the
-// bytes of a line shown before its match where the match stands past the lead
+// bytes of a line displayed before its match where the match is past the lead
 #define GUI_SEARCH_OPTION_PAD 5
 #define GUI_SEARCH_OPTION_GAP 2
 #define GUI_SEARCH_OPTION_RADIUS 2

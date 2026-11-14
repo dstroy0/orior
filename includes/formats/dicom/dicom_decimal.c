@@ -117,7 +117,7 @@ int dicom_decimal_align(DicomDecimal *value, long long exponent, EngineError *er
     {
         return 0;
     }
-    // the gap is at most ORIOR_EXACT_DIGITS. It fits a uint32_t exactly
+    // the gap is at max ORIOR_EXACT_DIGITS. It fits a uint32_t exactly
     const uint32_t power = (uint32_t)(value->exponent - exponent);
     if (!DICOM_CHECK(orior_exact_scale_by_ten(&value->mantissa, power) == ORIOR_EXACT_OK, value, error,
                      ENGINE_ERROR_REQUEST))

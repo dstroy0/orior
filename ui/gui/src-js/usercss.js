@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The reader's stylesheet, user.css in orior's own folder, laid over the app's last so that each of
+// The reader's stylesheet, user.css in orior's own folder, positioned over the app's last so that each of
 // its rules wins over the app's of the same weight. It is read as the app starts, each time the window
 // comes back to the front, and after File, User Stylesheet opens it. A change to it reaches the
 // canvases as a change of theme does.
@@ -9,14 +9,14 @@
 import { invoke } from "./bridge.js";
 import { notifyScheme } from "./scheme.js";
 
-let kept = null;
+let retained = null;
 
 export async function loadUserCss() {
   const text = await invoke("user_css_read").catch(() => "");
-  if (text === kept) {
+  if (text === retained) {
     return;
   }
-  kept = text;
+  retained = text;
   let sheet = document.getElementById("user-css");
   if (!sheet) {
     sheet = Object.assign(document.createElement("style"), { id: "user-css" });
@@ -32,7 +32,7 @@ export async function openUserCss() {
   await loadUserCss();
 }
 
-export async function keepUserCss() {
+export async function retainUserCss() {
   await loadUserCss();
   window.addEventListener("focus", () => loadUserCss());
 }

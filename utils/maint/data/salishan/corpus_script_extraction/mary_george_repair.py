@@ -6,7 +6,7 @@
 #
 #   Usage:  from mary_george_repair import repaired
 #
-# Kept in one file because the reader, the hand extraction check and the coverage check all apply it.
+# Retained in one file because the reader, the hand extraction check and the coverage check all apply it.
 # Two copies drift, and a check then reports as a hole every word one copy put together.
 #
 # THE GRAVE IS GLOTTALIZATION HERE, NOT STRESS
@@ -36,7 +36,7 @@ def closed_spaces(line):
     """One line with the space the PDF left after a glottalization mark taken out.
 
     A lone space after a mark is the inserted one. Two spaces are a column boundary the extraction
-    kept, and one of them survives so the columns stay apart.
+    retained, and one of them survives so the columns stay apart.
     """
     out = []
     at = 0

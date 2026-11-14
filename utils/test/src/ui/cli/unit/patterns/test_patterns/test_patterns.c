@@ -67,7 +67,7 @@ void test_a_double_star_matches_any_depth(void)
     TEST_ASSERT_FALSE(EMBED_CALL(cli_patterns_path.hides, CliPatternsPathCfg, .patterns = patterns, .path = "lib/a.min.js", .dir = 0));
 }
 
-void test_a_question_mark_matches_one_letter(void)
+void test_a_question_mark_matches_one_character(void)
 {
     const CliPatterns *const patterns = patterns_read(s_hiding_lines, 7u);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_patterns_path.hides, CliPatternsPathCfg, .patterns = patterns, .path = "x.tmp", .dir = 0));

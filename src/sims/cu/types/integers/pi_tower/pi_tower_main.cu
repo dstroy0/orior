@@ -37,7 +37,7 @@ int main(int count, char **arguments)
                                            (pi_tower_compare(digits, pi_tower_unsigned(PI_TOWER_SEGMENT_MAX)) <= 0));
         if ((placed != 0) && (sized != 0))
         {
-            // at most PI_TOWER_SEGMENT_MAX. An unsigned int stores it
+            // at max PI_TOWER_SEGMENT_MAX. An unsigned int stores it
             pi_tower_segment_request(&results, count, arguments, position, (unsigned int)pi_tower_word(digits));
             return sim_close(&results, "pi tower");
         }
@@ -270,7 +270,7 @@ static void pi_tower_fill(SimResults *results, const PiTowerTurn &turn, const st
     sim_check(results, found_home,
               "at every resolution cell 0 is etched again after the fill, then the fill's last cell, at steps the "
               "floors name");
-    sim_check(results, g_pi_tower_records_short == 0, "every count searched stands within the records' range");
+    sim_check(results, g_pi_tower_records_short == 0, "every count searched is within the records' range");
     mmgr_line_put(&results->line,
                    "  the second run, cell 0 to the first run's last cell, has the first run's period at ");
     mmgr_line_decimal(&results->line, same_period, 1u);

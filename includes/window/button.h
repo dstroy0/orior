@@ -32,12 +32,12 @@ typedef struct
 
 // buttons at rest with nothing baked
 void gui_buttons_init(const GuiButtonsCfg *args);
-// the bytes the beads' atlas takes for `tools` buttons `width` by `height` pixels at the most, the margin `pad`
-// round each and the reach `reach`, 0 where the bead refuses the sizes; and the atlas laid out for them, their beads
+// the bytes the beads' atlas takes for `tools` buttons `width` by `height` pixels at max, the margin `pad`
+// round each and the reach `reach`, 0 where the bead refuses the sizes; and the atlas arranged for them, their beads
 // of `shape` with the corner `radius`, their cells' top lefts `cells` in the window with each button's own width and
-// height, 0 for the most, lit by `light_count` of `lights` in the palette's bead colors, over `pixels`, which the
-// caller hands in holding the bytes: 1, or 0 where there are no pixels or the bead refuses the sizes. A button whose
-// frames stand baked for the same sizes, shape, place, lights and colors keeps them
+// height, 0 for the max, lit by `light_count` of `lights` in the palette's bead colors, over `pixels`, which the
+// caller passes in holding the bytes: 1, or 0 where there are no pixels or the bead refuses the sizes. A button whose
+// frames are baked for the same sizes, shape, place, lights and colors retains them
 unsigned long long gui_buttons_bytes(const GuiButtonsBakeCfg *args);
 int gui_buttons_bake(const GuiButtonsBakeCfg *args);
 // the button `tool` pressed at `time_ms`, the button held; and the held button let go at `time_ms`, which springs
@@ -46,7 +46,7 @@ void gui_buttons_press(const GuiButtonsMoveCfg *args);
 void gui_buttons_release(const GuiButtonsMoveCfg *args);
 // when the buttons' presses end at `time_ms`, 0 where none runs
 unsigned long long gui_buttons_end_ms(const GuiButtonsCfg *args);
-// the button `tool`'s bead drawn as its press stands at `time_ms`, its cell's top left at x, y, inside `clip`, with
+// the button `tool`'s bead drawn as its press is at `time_ms`, its cell's top left at x, y, inside `clip`, with
 // `fade` of 255 taken off its opacity, 0 for the bead whole
 void gui_buttons_draw(const GuiButtonsDrawCfg *args);
 

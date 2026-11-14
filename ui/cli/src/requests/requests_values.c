@@ -35,7 +35,7 @@ typedef struct
     const char *ignore;
     int *joined;
 } RequestsValuesCtx;
-// 1 where `path` is `base` or stands under it
+// 1 where `path` is `base` or is under it
 EMBED_INLINE int values_under(const RequestsValuesCtx *args)
 {
     const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_POOL_BYTES});
@@ -133,7 +133,7 @@ int cli_requests_value_append(const CliRequestsNameCtx *args)
         args->value_size + 1u + ((at == args->values->count) ? (args->name_size + 1u) : 0u);
     if (args->values->text == NULL)
     {
-        // the pool is the call's own, taken once at its most
+        // the pool is the call's own, taken once at its max
         args->values->text = g_cli_guard->temporary_buf_alloc(CLI_REQUESTS_TEXT, g_cli_requests_owner);
         args->values->capacity = (args->values->text != NULL) ? CLI_REQUESTS_TEXT : 0ULL;
     }
@@ -273,7 +273,7 @@ int cli_requests_environments(const CliRequestsTextCfg *args)
     return list_entries;
 }
 
-// a value of the tree, a string as its letters and any other as JSON on one line, put as `name` in `values`: 1, or 0
+// a value of the tree, a string as its characters and any other as JSON on one line, put as `name` in `values`: 1, or 0
 // where it does not fit
 EMBED_INLINE int values_member_append(const RequestsValuesCtx *args)
 {
@@ -422,7 +422,7 @@ EMBED_INLINE int values_ignore(const RequestsValuesCtx *args)
 }
 
 // the reader's private file written at `file`, an empty set for each environment named in s_names, or for `dev`
-// where none is, as serde_json's pretty writer lays the object out: 1, or 0 where it could not be written
+// where none is, as serde_json's pretty writer positions the object out: 1, or 0 where it could not be written
 EMBED_INLINE int values_private_write(const RequestsValuesCtx *args)
 {
     CliGrownLine object_grown;

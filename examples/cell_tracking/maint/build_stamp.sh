@@ -6,7 +6,7 @@
 # here, before anything compiles
 ENGINE="$(cd "$TOP/.." && pwd)/src/cu/engine"
 
-# the top of the repository TOP stands in, where every build goes under build/; TOP itself where git gives none
+# the top of the repository TOP is in, where every build goes under build/; TOP itself where git gives none
 BUILD_ROOT="$(git -C "$TOP" rev-parse --show-toplevel 2> /dev/null)"
 [ -n "$BUILD_ROOT" ] || BUILD_ROOT="$TOP"
 if [ ! -f "$ENGINE/engine_config.h" ]; then

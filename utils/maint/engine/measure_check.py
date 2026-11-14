@@ -22,7 +22,7 @@ between the two files is the separation the two stages buy.
 EVERY VALUE IS THREE INTEGERS: a quotient, a remainder and a divisor, the value q + r/d with
 0 <= r < d. Integer adds and integer division move them, and every operation carries its remainder
 forward. Nothing is rounded at any width. No floating point value is formed anywhere here. The
-noise is a sum of fair coins, every solve is fraction-free integer elimination, and a spread is kept
+noise is a sum of fair coins, every solve is fraction-free integer elimination, and a spread is retained
 as its square. No root is taken. Each figure prints its quotient and its remainder over its
 divisor, and every figure is written in full to build/engine/measure_check.tsv.
 
@@ -74,9 +74,9 @@ class Exact:
             numerator = -numerator
             divisor = -divisor
         self.q, remainder = divmod(numerator, divisor)
-        self.keep(remainder, divisor)
+        self.retain(remainder, divisor)
 
-    def keep(self, remainder, divisor):
+    def retain(self, remainder, divisor):
         common = math.gcd(remainder, divisor)
         self.r = remainder // common
         self.d = divisor // common
@@ -87,7 +87,7 @@ class Exact:
         carried, remainder = divmod(remainder, divisor)
         value = cls.__new__(cls)
         value.q = quotient + carried
-        value.keep(remainder, divisor)
+        value.retain(remainder, divisor)
         return value
 
     def whole(self):
@@ -158,7 +158,7 @@ def show(value, places=4):
 
     A divisor too long to print is carried on by long division for `places` more digits of the
     quotient, each one an integer division whose remainder carries to the next, and the remainder
-    still standing is named by the length of its divisor.
+    still located is named by the length of its divisor.
     """
     if value.r == 0:
         return str(value.q)
@@ -169,17 +169,17 @@ def show(value, places=4):
     if digits <= 6:
         return "%d + %d/%d" % (value.q, value.r, value.d)
     remainder = value.r
-    shown = ""
+    displayed = ""
     for _ in range(places):
         digit, remainder = divmod(remainder * 10, value.d)
-        shown += str(digit)
+        displayed += str(digit)
     if remainder == 0:
-        return "%d.%s" % (value.q, shown)
-    return "%d.%s + r/d, d of %d digits" % (value.q, shown, digits)
+        return "%d.%s" % (value.q, displayed)
+    return "%d.%s + r/d, d of %d digits" % (value.q, displayed, digits)
 
 
 def figure(label, value):
-    """Keeps `value` for the written record and returns it shown."""
+    """Retains `value` for the written record and returns it displayed."""
     FIGURES.append((label, value))
     return show(value)
 
@@ -221,7 +221,7 @@ def kendall(truth, got):
     return agree, total
 
 
-def first_most(values):
+def first_max(values):
     return max(range(len(values)), key=lambda at: values[at])
 
 
@@ -346,7 +346,7 @@ def check_adjacent(say, rng, trials):
         concordant, total = kendall(truth, got)
         agree += concordant
         pairs += total
-        best += int(first_most(got) == first_most(truth))
+        best += int(first_max(got) == first_max(truth))
         worst += int(first_least(got) == first_least(truth))
 
     error = squares / (trials * LINKS)
@@ -360,8 +360,8 @@ def check_adjacent(say, rng, trials):
     say("   between two of them is one link, and one link is the quantity sitting under it.")
     say("")
     say("   pairs ordered correctly         %s%%   (50%% is a coin)" % figure("1 pairs ordered percent", percent(agree, pairs)))
-    say("   most expensive link found       %s%%   (%s%% is a guess)"
-        % (figure("1 most expensive found percent", percent(best, trials)), show(percent(1, LINKS))))
+    say("   max expensive link found       %s%%   (%s%% is a guess)"
+        % (figure("1 max expensive found percent", percent(best, trials)), show(percent(1, LINKS))))
     say("   cheapest link found             %s%%" % figure("1 cheapest found percent", percent(worst, trials)))
     say("")
     say("   A branch comparison built on this ranks links by coin toss.")
@@ -371,21 +371,21 @@ def check_adjacent(say, rng, trials):
 def check_repetition(say, rng, trials):
     """2. Repetition fixes check 1, and the descent through repeat counts says how far it carries.
 
-    The steering the engine does, put to repetition. One population of chains is kept, and each
+    The steering the engine does, put to repetition. One population of chains is retained, and each
     level reads every chain again at more repeats. The pairs a level orders wrongly are the ones
-    still standing, and a level counts only when it leaves strictly fewer standing than the level
+    still located, and a level counts only when it leaves strictly fewer located than the level
     above it. The first level that does not prune ends the descent, and every level below it is
     destroyed with it.
     """
     say("2. HOW FAR REPETITION CARRIES")
     say("")
     population = [truth_of(rng) for _ in range(max(40, trials // 8))]
-    say("   %d chains kept, read again at every level." % len(population))
+    say("   %d chains retained, read again at every level." % len(population))
     say("")
-    say("   repeats    noise/link squared    pairs ordered    most expensive found    misordered")
-    standing = None
-    kept = None
-    kept_ordered = None
+    say("   repeats    noise/link squared    pairs ordered    max expensive found    misordered")
+    located = None
+    retained = None
+    retained_ordered = None
     for repeats in LEVELS:
         squares = Exact(0)
         agree = 0
@@ -397,30 +397,30 @@ def check_repetition(say, rng, trials):
             held, total = kendall(truth, got)
             agree += held
             pairs += total
-            best += int(first_most(got) == first_most(truth))
+            best += int(first_max(got) == first_max(truth))
         error = squares / (len(population) * LINKS)
         misordered = pairs - agree
         say("   %7d    %18s    %12s%%    %19s%%    %10d"
             % (repeats, figure("2 noise squared at %d" % repeats, error),
                figure("2 pairs ordered percent at %d" % repeats, percent(agree, pairs)),
-               figure("2 most expensive found percent at %d" % repeats, percent(best, len(population))), misordered))
-        if (standing is not None) and (misordered >= standing):
+               figure("2 max expensive found percent at %d" % repeats, percent(best, len(population))), misordered))
+        if (located is not None) and (misordered >= located):
             say("")
             say("   %d repeats left %d pairs misordered against %d at %d: the level prunes nothing, and"
-                % (repeats, misordered, standing, kept))
+                % (repeats, misordered, located, retained))
             say("   the descent ends there.")
             break
-        standing = misordered
-        kept = repeats
-        kept_ordered = percent(agree, pairs)
+        located = misordered
+        retained = repeats
+        retained_ordered = percent(agree, pairs)
     else:
         say("")
         say("   Every level pruned, down to the deepest one tried.")
     say("")
-    say("   %d repeats of every cut is the last level that ordered more pairs, at %s%%." % (kept, show(kept_ordered)))
+    say("   %d repeats of every cut is the last level that ordered more pairs, at %s%%." % (retained, show(retained_ordered)))
     say("   The noise's square falls as one over the count, and the gap between two neighboring")
     say("   links falls as one over the link count. Both have to be paid.")
-    return kept, kept_ordered
+    return retained, retained_ordered
 
 
 def check_subsets(say, rng, trials):
@@ -662,12 +662,12 @@ def check_additive(say, rng, trials):
                 base_after = after
             # the term fires where it is positive and its square clears four times the spread's square
             fires = sum(1 for value in terms if (value > 0) and ((value * value) > (4 * spread)))
-            shown = (figure("6 %s damage at %d" % (name, hundredths), hurt / base),
+            displayed = (figure("6 %s damage at %d" % (name, hundredths), hurt / base),
                      figure("6 %s leftover squared at %d" % (name, hundredths), left),
                      figure("6 %s term at %d" % (name, hundredths), term),
                      figure("6 %s fires percent at %d" % (name, hundredths), percent(fires, count)),
                      figure("6 %s damage left at %d" % (name, hundredths), after / base_after))
-            say("     %10d   %s" % (hundredths, "   ".join(shown)))
+            say("     %10d   %s" % (hundredths, "   ".join(displayed)))
             if builder is size_swept:
                 swept.append((hundredths, hurt / base, percent(fires, count), after / base_after))
         say("")
@@ -708,7 +708,7 @@ def main():
 
     noise_squared, ordered = check_adjacent(say, rng, trials)
     say()
-    kept, kept_ordered = check_repetition(say, rng, trials)
+    retained, retained_ordered = check_repetition(say, rng, trials)
     say()
     gain = check_subsets(say, rng, trials)
     say()
@@ -724,10 +724,10 @@ def main():
     say("=" * 76)
     say("1  a link recovered by adjacent cuts carries %s floors squared of noise against a"
         % show(noise_squared))
-    say("   signal of 1, and orders %s%% of pairs. Written as it stands, slicing does not measure a link."
+    say("   signal of 1, and orders %s%% of pairs. Written as it is, slicing does not measure a link."
         % show(ordered))
     say("2  repetition prunes misordered pairs down to %d repeats of every cut, which order %s%%."
-        % (kept, show(kept_ordered)))
+        % (retained, show(retained_ordered)))
     say("3  one budget spent on covering asks beats the ladder by %s, squared, and the order it"
         % show(gain))
     say("   wants is one the emission already does.")

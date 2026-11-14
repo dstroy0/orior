@@ -16,7 +16,7 @@
 # `modelled`, `labelled`, `signalled`." code-comments:157 says the same thing shorter.
 #
 # ONE COPY. BANNED splices this tuple in directly, so a pattern added here is enforced here. A rule
-# table duplicated into the table that enforces it drifts with no signal at all. Keep it spliced.
+# table duplicated into the table that enforces it drifts with no signal at all. Retain it spliced.
 #
 # THE NAMED PATTERNS BELOW ARE KEYS AND CANNOT BE REWRITTEN FREELY. HUMAN_RATE is keyed by pattern
 # string and holds a measured rate for eight of them. Folding one into a general arm takes that rate
@@ -36,7 +36,7 @@
 #   A general doubled-l arm cannot be written: `controlled`, `installed` and `enrolled`
 #   are American with two l's, so the doubled-l rule stays the named list the standard gives it.
 #   A general `-re` arm cannot be written either: `are`, `here`, `more`, `figure` and `structure`
-#   are the majority of English words ending in those two letters.
+#   are the majority of English words ending in those two characters.
 #
 # The standard's sentence names four shapes and does not name the `ae` and `oe` digraphs
 # (`haemoglobin`, `foetus`, `anaesthetic`). No arm is written for them, and a rule with no measured
@@ -65,10 +65,10 @@ _ISE_TAIL = r"(?:e|es|ed|ing|er|ers)"
 
 # English words ending in -ise where American also writes -ise, because the s belongs to the stem
 # instead of to the Greek -ize suffix. Held as stems so one entry covers every inflection, and
-# matched with any letters allowed in front of them. `madvise`, `imprecise`, `keycompromise` and
+# matched with any characters allowed in front of them. `madvise`, `imprecise`, `keycompromise` and
 # `saxexerciser` are all left alone.
 #
-# TWO STEMS MUST NOT BE ADDED. `anis` exempts `organise`, which ends in those five letters, and
+# TWO STEMS MUST NOT BE ADDED. `anis` exempts `organise`, which ends in those five characters, and
 # `mortis` exempts `amortise`, which ends in those six. A stem matched from the end of a word has
 # to be checked against the British words that end the same way.
 _ISE_STEMS = (
@@ -111,7 +111,7 @@ _ISE_STEMS = (
 # Words ending in -our that American defines the same way. `our`, `your`, `four`, `hour`, `tour`,
 # `pour`, `sour`, `dour`, `flour`, `scour` and `amour` are absent on purpose: the {3,} floor in the
 # arm already errors on them, and listing a short one here would exempt every British word ending in
-# the same letters. `dour` would take `ardour` and `candour` with it.
+# the same characters. `dour` would take `ardour` and `candour` with it.
 _OUR_WORDS = (
     "devour",
     "contour",
@@ -128,7 +128,7 @@ _OUR_WORDS = (
 _OUR_TAIL = r"(?:s|ed|ing|er|ers|ite|ites|able|ably|ful|fully|less|ly|al|ally)?"
 
 LOCALE = LOCALE_NAMED + (
-    # -ise where American takes -ize. The letter before `is` must be a consonant, which errors
+    # -ise where American takes -ize. The character before `is` must be a consonant, which errors
     # `noise`, `raise`, `praise`, `guise`, `cruise`, `tortoise` and `malaise` without naming one of
     # them. `w` is out of the class, which does not match `otherwise`, `likewise` and every
     # `-wise` compound. The {2,} floor does not match `wise`, `rise`, `prise`, `arise` and `anise`, which are too
@@ -137,13 +137,13 @@ LOCALE = LOCALE_NAMED + (
     r"\b(?![A-Za-z]*(?:%s)%s\b)[A-Za-z]{2,}[bcdfghjklmnpqrstvxz]is%s\b"
     % ("|".join(_ISE_STEMS), _ISE_TAIL, _ISE_TAIL),
     # -isation, -isations and -isational, where American takes -ization. This arm needs no
-    # exemption list: no American word ends in those letters.
+    # exemption list: no American word ends in those characters.
     r"\b[A-Za-z]{3,}isation(?:al|s)?\b",
     # -yse where American takes -yze. `analys` is here for the forms the named pattern above cannot
     # reach, which are `analyser`, `analysers` and `analysing`. The two overlap on `analysed` and
     # banned_hits reports the site once.
     r"\b(?:analys|paralys|catalys|dialys|electrolys|hydrolys)(?:e|ed|ing|er|ers)\b",
-    # -our where American takes -or. The {3,} floor carries most of the work and _OUR_WORDS carries
+    # -our where American takes -or. The {3,} floor carries the majority of the work and _OUR_WORDS carries
     # the rest. The tail reaches `behavioural`, `colourful`, `favourite`, `labourer` and
     # `neighbourless`, which the two named patterns above never did.
     r"\b(?![A-Za-z]*(?:%s)%s\b)[A-Za-z]{3,}our%s\b"
@@ -160,7 +160,7 @@ LOCALE = LOCALE_NAMED + (
     r"(?:ed|ing|er|ers|ors|or)\b",
     # The other half of the l rule, where British writes one and American writes two. Bounded to the
     # forms that differ: `fulfilled` and `appalling` are defined the same on both sides, and the
-    # word boundary after `fulfil` keeps them out.
+    # word boundary after `fulfil` retains them out.
     r"\b(?:fulfil|fulfils|fulfilment|fulfilments|enrol|enrols|enrolment|enrolments"
     r"|instal|instals|instalment|instalments|skilful|skilfully|wilful|wilfully"
     r"|enthral|enthrals|appal|appals|distil|distils|instil|instils)\b",

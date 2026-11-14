@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: EXP-x-034
 #
-# The walker w = exp(i theta) F read against known carriers laid on theta / pi, and the demon's arms against each. Each
+# The walker w = exp(i theta) F read against known carriers positioned on theta / pi, and the demon's arms against each. Each
 # cell runs once on the device by the multiple evaluation on a lattice of 16 points a zero or more, every point listed
 # with w and theta / pi less and more its bound, the listing word 3.
 #
@@ -11,7 +11,7 @@
 #
 # A carrier is a run of marks on theta / pi from the cell's first point, `rate` marks a unit on average: the uniform
 # comb, the 1, 1, 2 comb, and the golden and silver words, the Sturmian words of slope 1 / beta with beta = (n +
-# sqrt(n^2 + 4)) / 2, n 1 and 2, two gaps in ratio beta. The word's letter k is floor((k + 1) / beta) - floor(k /
+# sqrt(n^2 + 4)) / 2, n 1 and 2, two gaps in ratio beta. The word's character k is floor((k + 1) / beta) - floor(k /
 # beta), and floor(k / beta) = (isqrt(k^2 (n^2 + 4)) - k n) // 2, exactly. A mark is read at the first listed point
 # whose theta / pi less its bound reaches it: for the uniform comb and 1, 1, 2 by integer comparison, and for the
 # metallic words by A >= 0 and A^2 >= (n^2 + 4) B^2 with A and B the integers the mark's place gives, sqrt(n^2 + 4)
@@ -22,13 +22,13 @@
 # coherence Re(conj(w_k) w_(k+1)) and the angular momentum Im(conj(w_k) w_(k+1)). The beat is the difference of two
 # carriers' moments.
 #
-# The demon's arms, DRAWS draws each: a, the carrier's steps shuffled, every step kept; b, the carrier shifted along
-# theta / pi by d / (DRAWS + 1) of its mean step, d from 1 to DRAWS. A moment stands above background where no draw
+# The demon's arms, DRAWS draws each: a, the carrier's steps shuffled, every step retained; b, the carrier shifted along
+# theta / pi by d / (DRAWS + 1) of its mean step, d from 1 to DRAWS. A moment is above background where no draw
 # reaches it, its reach the fewer of the draws at or above it and at or below it. The uniform comb's steps are all
 # alike, and its arm a gives it back; that is checked. No number is chosen.
 #
 # It sits in 0_experimental and is an entry in the analytic number theory workbook, on its rail. It proves nothing;
-# it reads whether w holds to a carrier laid on theta's own clock.
+# it reads whether w holds to a carrier positioned on theta's own clock.
 
 import bisect
 import math
@@ -70,7 +70,7 @@ def listed(binary, constants, nu):
 
 
 def metallic_word(n, count):
-    """The first `count` letters of the Sturmian word of slope 1 / beta, 1 for the long gap."""
+    """The first `count` characters of the Sturmian word of slope 1 / beta, 1 for the long gap."""
     d = n * n + 4
 
     def floor_k(k):
@@ -79,8 +79,8 @@ def metallic_word(n, count):
 
 
 class Carrier:
-    """A carrier's marks as a reached test: `reached(x, letters)` is 1 where x, theta / pi past the origin at 2^-62
-    times the rate's denominator over its numerator, stands at or past the mark after `letters`."""
+    """A carrier's marks as a reached test: `reached(x, characters)` is 1 where x, theta / pi past the origin at 2^-62
+    times the rate's denominator over its numerator, is at or past the mark after `characters`."""
 
     def __init__(self, name, rate, span):
         self.name, self.n = name, {"golden": 1, "silver": 2}.get(name, 0)
@@ -88,19 +88,19 @@ class Carrier:
         self.num, self.den = exact.numerator, exact.denominator
         count = int(span * rate) * 2 + 8
         if self.n:
-            self.letters = metallic_word(self.n, count)
+            self.characters = metallic_word(self.n, count)
         elif name == "comb 1,1,2":
-            self.letters = [(0, 0, 1)[k % 3] for k in range(count)]
+            self.characters = [(0, 0, 1)[k % 3] for k in range(count)]
         else:
-            self.letters = [0] * count
+            self.characters = [0] * count
 
     def reached(self, x, longs, shorts, shift):
-        """1 where x, theta / pi past the origin as an integer at 2^-62, stands at or past the mark after `longs` long
+        """1 where x, theta / pi past the origin as an integer at 2^-62, is at or past the mark after `longs` long
         and `shorts` short steps, the whole carrier moved on by `shift`, a Fraction of its mean step; in integers."""
         num, den, sn, sd = self.num, self.den, shift.numerator, shift.denominator
         if self.n == 0:
             # the combs: a long step is two short ones, and the mean step is 1 / rate, the short `size` / `total`
-            size, total = len(self.letters), len(self.letters) + sum(self.letters)
+            size, total = len(self.characters), len(self.characters) + sum(self.characters)
             return int(x * num * total * sd >= ONE * den * ((2 * longs + shorts) * size * sd + sn * total))
         # the metallic words: steps short and beta short, the mean step 1 / rate with short = 1 / (rate (2 - omega));
         # q (4 + n - sqrt d) / 2 >= longs (n + sqrt d) / 2 + shorts is A >= sqrt(d) B, everything times ONE den sd
@@ -112,19 +112,19 @@ class Carrier:
         return int(a >= 0 and a * a >= d * b * b)
 
     def guess(self, longs, shorts, shift):
-        """Where the mark stands, in units of theta / pi, near enough to start the search; the verdicts place it."""
+        """Where the mark is, in units of theta / pi, near enough to start the search; the verdicts place it."""
         if self.n == 0:
-            size, total = len(self.letters), len(self.letters) + sum(self.letters)
+            size, total = len(self.characters), len(self.characters) + sum(self.characters)
             return ((2 * longs + shorts) * size / total + float(shift)) * self.den / self.num
         beta = (self.n + math.sqrt(self.n * self.n + 4)) / 2
         return ((longs * beta + shorts) / (2 - 1 / beta) + float(shift)) * self.den / self.num
 
-    def points(self, lows, letters, shift):
+    def points(self, lows, characters, shift):
         """The listed points the carrier reads: for each mark in turn, the first point whose theta / pi less its bound
         reaches it, found from a guess by the verdicts alone."""
         origin, out, longs, shorts = lows[0], [], 0, 0
-        for k, letter in enumerate([0] + letters):
-            longs, shorts = longs + letter * int(k > 0), shorts + (1 - letter) * int(k > 0)
+        for k, character in enumerate([0] + characters):
+            longs, shorts = longs + character * int(k > 0), shorts + (1 - character) * int(k > 0)
             j = bisect.bisect_left(lows, origin + int(self.guess(longs, shorts, shift) * ONE))
             while j > 0 and self.reached(lows[j - 1] - origin, longs, shorts, shift):
                 j -= 1
@@ -181,16 +181,16 @@ def main():
         span = (lows[-1] - lows[0]) // ONE + 1
         for name in CARRIERS:
             carrier = Carrier(name, rate, span)
-            idx = carrier.points(lows, carrier.letters, Fraction(0))
+            idx = carrier.points(lows, carrier.characters, Fraction(0))
             sums, count = moments(ws, idx)
             real[name] = [a + b for a, b in zip(real[name], sums)]
             counts[name] += count
             for d in range(DRAWS):
-                letters = list(carrier.letters)
-                rng.shuffle(letters)
-                drawn = carrier.points(lows, letters, Fraction(0))
+                characters = list(carrier.characters)
+                rng.shuffle(characters)
+                drawn = carrier.points(lows, characters, Fraction(0))
                 given_back = given_back and (name != "uniform" or drawn == idx)
-                for arm, chosen in (("a", drawn), ("b", carrier.points(lows, carrier.letters, Fraction(d + 1, DRAWS + 1)))):
+                for arm, chosen in (("a", drawn), ("b", carrier.points(lows, carrier.characters, Fraction(d + 1, DRAWS + 1)))):
                     s, c = moments(ws, chosen)
                     held, total = arms[(arm, name)][d]
                     arms[(arm, name)][d] = ([x + y for x, y in zip(held, s)], [total[0] + c])

@@ -17,8 +17,8 @@ static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success"
     engine_status_check((int)(call_), ENGINE_MODULE_ENTROPY_HISTORY, (unsigned int)__LINE__,                           \
                         (const void *)(evacaddr_), (error_))
 
-#define ENTROPY_HISTORY_CHECK(condition_, evacaddr_, error_, kind_)                                                    \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_ENTROPY_HISTORY, (unsigned int)__LINE__,                   \
+#define ENTROPY_HISTORY_CHECK(condition_, evacaddr_, error_, type_)                                                    \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_ENTROPY_HISTORY, (unsigned int)__LINE__,                   \
                        (const void *)(evacaddr_), (error_))
 
 #define ENTROPY_HISTORY_THREADS 256u

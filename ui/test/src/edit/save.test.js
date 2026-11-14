@@ -29,7 +29,7 @@ test("File, Save and Save All write the files changed", async () => {
 });
 
 test("Edit, Format Document formats the file with its language's formatter", async () => {
-  // The command line's own format takes the files to format; the menu's formats the tab shown.
+  // The command line's own format takes the files to format; the menu's formats the tab displayed.
   assert.match(await ran("format"), /exit (code|status): 2/, "the command line asks for the files");
   calls.answer("format_languages", () => ["python"]);
   calls.answer("format_text", () => "x = 1\n");
@@ -38,7 +38,7 @@ test("Edit, Format Document formats the file with its language's formatter", asy
   await ui.waitFor(() => editing().editor.doc.text() === "x = 1\n", 5000, "the text formatted");
 });
 
-test("Run, Run File runs the file shown, from the window and from the command line", async () => {
+test("Run, Run File runs the file displayed, from the window and from the command line", async () => {
   assert.equal(await ran("run-file", `${TREE()}/hello.py`), "ran", "Python ran hello.py");
   showView("edit");
   await openFile("hello.py");

@@ -3,7 +3,7 @@
 # lto_words.sh: sourced by build.sh and the scripts that link what it builds, with CC and TOP set. Every object is
 # bitcode and every program is optimized whole at its link, so that a call through a guard folds across files and what
 # a check runs is what ships. LTO_WORDS is what a compile takes, LINK_WORDS what a link takes. The optimized modules
-# are kept under build/lto_cache, and a link reads back what it shares with the link before it.
+# are retained under build/lto_cache, and a link reads back what it shares with the link before it.
 LTO_CACHE="$TOP/build/lto_cache"
 # GCC's link-time optimization is one flag on both sides; clang's is thin, linked by lld where the system's linker is
 # not Apple's, which optimizes at its link itself

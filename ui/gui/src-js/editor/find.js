@@ -5,16 +5,16 @@
 
 import { cmp, pos } from "./document.js";
 
-const MOST = 20000;
+const MAX = 20000;
 // Every search runs on the window's side, over the branch a text is stored as or the pages a paged file is: by its sift,
 // Horspool's shifts within one of the sift's windows and the sift's plan past it, where the query is sought as it is,
 // and by the regular expressions the colorer reads where it is a pattern. The matches are drawn once the answer comes,
 // each in the file's lines, a paged file's window placed among them.
 let searching = null;
 
-// Gives find the way to search on the window's side: `given.search(s, sought, most)` answers a promise of the matches
+// Gives find the way to search on the window's side: `given.search(s, sought, max)` answers a promise of the matches
 // in the file's lines as [line, from col, to col], or of null where the query does not read as a pattern, or null
-// where the text of the session `s` is kept nowhere; `given.reach(s, line)` answers a promise of the file's line `line`
+// where the text of the session `s` is retained nowhere; `given.reach(s, line)` answers a promise of the file's line `line`
 // brought into the window of a paged session `s`.
 export function findWith(given) {
   searching = given;
@@ -31,7 +31,7 @@ const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 export class Find {
   constructor(editor) {
     this.ed = editor;
-    this.shown = false;
+    this.displayed = false;
     this.matches = [];
     this.index = -1;
     this.options = { case: false, word: false, regex: false };
@@ -116,10 +116,10 @@ export class Find {
     this.refresh();
   }
 
-  showReplace(shown) {
-    this.replaceRow.hidden = !shown;
-    this.more.textContent = shown ? "▾" : "▸";
-    if (shown) {
+  showReplace(displayed) {
+    this.replaceRow.hidden = !displayed;
+    this.more.textContent = displayed ? "▾" : "▸";
+    if (displayed) {
       this.replacement.focus();
     }
   }
@@ -135,7 +135,7 @@ export class Find {
     if (from.line === to.line && from.col !== to.col) {
       this.query.value = ed.doc.slice(cmp(from, to) < 0 ? from : to, cmp(from, to) < 0 ? to : from);
     }
-    this.shown = true;
+    this.displayed = true;
     this.bar.hidden = false;
     this.showReplace(replace || !this.replaceRow.hidden);
     if (!replace || !this.query.value) {
@@ -146,7 +146,7 @@ export class Find {
   }
 
   close() {
-    this.shown = false;
+    this.displayed = false;
     this.bar.hidden = true;
     this.matches = [];
     this.ed.schedule();
@@ -176,17 +176,17 @@ export class Find {
     return null;
   }
 
-  // The search asked of the window's side for the bar as it is set, the matches drawn kept until its answer comes: a
+  // The search asked of the window's side for the bar as it is set, the matches drawn retained until its answer comes: a
   // promise of whether the answer was the last asked, or null where nothing is asked.
   refresh() {
     const ed = this.ed;
     this.asking = null;
-    if (!this.shown || !ed.s) {
+    if (!this.displayed || !ed.s) {
       this.matches = [];
       return null;
     }
     const sought = { query: this.query.value, regex: this.options.regex, case: this.options.case, word: this.options.word };
-    const asked = sought.query ? searching?.search(ed.s, sought, MOST) : null;
+    const asked = sought.query ? searching?.search(ed.s, sought, MAX) : null;
     if (!asked) {
       this.bar.dataset.bad = "false";
       this.found([]);
@@ -204,12 +204,12 @@ export class Find {
     });
   }
 
-  // The file's line of the session's first: a paged session's window's, 0 for a text kept whole.
+  // The file's line of the session's first: a paged session's window's, 0 for a text retained whole.
   base() {
     return this.ed.s?.base ?? 0;
   }
 
-  // A match placed in the session's lines, or null where it stands outside a paged session's window.
+  // A match placed in the session's lines, or null where it is outside a paged session's window.
   placed(match) {
     const base = this.base();
     const line = match.from.line - base;
@@ -258,12 +258,12 @@ export class Find {
     } else if (!this.matches.length) {
       this.count.textContent = "No results";
     } else {
-      const more = this.matches.length >= MOST ? "+" : "";
+      const more = this.matches.length >= MAX ? "+" : "";
       this.count.textContent = `${this.index + 1} of ${this.matches.length}${more}`;
     }
   }
 
-  // The current match in the session's lines, null where there is none or it stands outside a paged session's window.
+  // The current match in the session's lines, null where there is none or it is outside a paged session's window.
   current() {
     const match = this.matches[this.index];
     return match ? this.placed(match) : null;
@@ -292,7 +292,7 @@ export class Find {
     return out;
   }
 
-  // The current match selected and shown, a paged session's window brought to it first where it stands outside it.
+  // The current match selected and displayed, a paged session's window brought to it first where it is outside it.
   async jump(fromStart) {
     const at = this.matches[this.index];
     if (!at) {
@@ -316,7 +316,7 @@ export class Find {
   }
 
   step(direction) {
-    if (!this.shown) {
+    if (!this.displayed) {
       this.open(false);
       return;
     }

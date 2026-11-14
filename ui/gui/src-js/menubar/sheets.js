@@ -37,8 +37,8 @@ export function askKeys(label) {
   return new Promise((done) => {
     const body = document.createElement("div");
     body.className = "sheet-ask";
-    const shown = Object.assign(document.createElement("kbd"), { textContent: "…" });
-    body.append(Object.assign(document.createElement("p"), { textContent: label }), shown);
+    const displayed = Object.assign(document.createElement("kbd"), { textContent: "…" });
+    body.append(Object.assign(document.createElement("p"), { textContent: label }), displayed);
     let answer = null;
     const dialog = sheet(body);
     dialog.addEventListener("keydown", (event) => {
@@ -53,7 +53,7 @@ export function askKeys(label) {
       }
       const named = KEY_NAMES[event.code] ?? (/^Key[A-Z]$/.test(event.code) ? event.code.slice(3) : /^Digit\d$/.test(event.code) ? event.code.slice(5) : event.key.length === 1 ? event.key.toUpperCase() : event.key);
       answer = event.key === "Backspace" && !event.ctrlKey && !event.altKey && !event.shiftKey ? "" : [event.ctrlKey && "Ctrl", event.shiftKey && "Shift", event.altKey && "Alt", named].filter(Boolean).join("+");
-      shown.textContent = answer || "…";
+      displayed.textContent = answer || "…";
       window.setTimeout(() => dialog.close(), 300);
     });
     dialog.addEventListener("close", () => done(answer));

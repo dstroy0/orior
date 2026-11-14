@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// door_serve.c: the door's container side: the processes that join, each in a place of its own with a thread reading
+// interface_serve.c: the interface's container side: the processes that join, each in a place of its own with a thread reading
 // what it requests and a thread sending it what it receives, the messages on its channels queued between them, a body
 // past the capacity a message is queued in stored in a region of the transfer layer
-#include "door_serve.h"
+#include "interface_serve.h"
 #include "../command_line/callback_cfg.h"
 #include "../command_line/rings.h"
 
@@ -11,7 +11,7 @@
 
 CliIpcServed g_cli_ipc_served = {0};
 
-// the listener the door is joined through
+// the listener the interface is joined through
 static CliIpcListener s_listener;
 
 typedef struct
@@ -23,9 +23,9 @@ typedef struct
     CliIpcEntry *entry;
     const char *key;
     const char *name;
-} DoorServeCtx;
-// an answer handed to the writer of the process's end, once the one before it has gone: 1, or 0 where its end is broken
-EMBED_INLINE int serve_answer(const DoorServeCtx *args)
+} InterfaceServeCtx;
+// an answer passed to the writer of the process's end, once the one before it has gone: 1, or 0 where its end is broken
+EMBED_INLINE int serve_answer(const InterfaceServeCtx *args)
 {
     CliIpcJoined *const joined = args->joined;
     for (;;)
@@ -50,13 +50,13 @@ EMBED_INLINE int serve_answer(const DoorServeCtx *args)
 }
 
 // a refusal answered, why it was refused given
-EMBED_INLINE int serve_reject(const DoorServeCtx *args)
+EMBED_INLINE int serve_reject(const InterfaceServeCtx *args)
 {
     char answer[CLI_ERR_MSG_MAX_LEN + 8u];
     VerbaLinea out = {answer, sizeof(answer), 0ULL};
     mmgr_line_ch(&out, CLI_IPC_TYPE_REFUSED);
     mmgr_line_put_n(&out, args->why, args->size);
-    return EMBED_CALL(serve_answer, DoorServeCtx, .joined = args->joined, .bytes = out.out, .size = out.at);
+    return EMBED_CALL(serve_answer, InterfaceServeCtx, .joined = args->joined, .bytes = out.out, .size = out.at);
 }
 
 // a message sent on a channel the process listens on queued for it, from any thread, a ticket taken and its slot
@@ -126,7 +126,7 @@ static int serve_recv(const CliCommsRecvCfg *args)
 }
 
 // a queued message sent to the process, through the transfer layer where its body is long: 1, or 0 where it did not go
-EMBED_INLINE int serve_send(const DoorServeCtx *args)
+EMBED_INLINE int serve_send(const InterfaceServeCtx *args)
 {
     char head[CLI_NAME_MAX_LEN * 3u + 512u];
     VerbaLinea prefix = {head, sizeof(head), 0ULL};
@@ -169,7 +169,7 @@ EMBED_INLINE int serve_send(const DoorServeCtx *args)
 }
 
 // a thread's end in the process's place: the last of the two lets the end go and gives the place back
-EMBED_INLINE void serve_thread_end(const DoorServeCtx *args)
+EMBED_INLINE void serve_thread_end(const InterfaceServeCtx *args)
 {
     const int last = (EMBED_ATOMIC_ADD_32(&args->joined->going, (embed_u32)-1) == 1u);
     if (!last)
@@ -181,7 +181,7 @@ EMBED_INLINE void serve_thread_end(const DoorServeCtx *args)
 }
 
 // what the process's end has stopped taking told: its reader let go, and nothing more written
-EMBED_INLINE void serve_end_broken(const DoorServeCtx *args)
+EMBED_INLINE void serve_end_broken(const InterfaceServeCtx *args)
 {
     EMBED_ATOMIC_STORE(&args->joined->sending, 0u);
     EMBED_ATOMIC_STORE(&args->joined->read_state, 0u);
@@ -203,7 +203,7 @@ static void serve_drain(void *context)
                 !EMBED_CALL(cli_ipc_end_internal.frame_write, CliIpcEndCtx, .end = &joined->end,
                             .bytes = joined->answer, .size = joined->answer_size, .region = NULL))
             {
-                EMBED_CALL(serve_end_broken, DoorServeCtx, .joined = joined);
+                EMBED_CALL(serve_end_broken, InterfaceServeCtx, .joined = joined);
             }
             EMBED_ATOMIC_STORE(&joined->answer_waits, 0u);
             EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &joined->queue_wake);
@@ -220,9 +220,9 @@ static void serve_drain(void *context)
         {
             CliIpcEntry *const entry = job;
             if ((EMBED_ATOMIC_LOAD(&joined->sending) != 0u) &&
-                !EMBED_CALL(serve_send, DoorServeCtx, .joined = joined, .entry = entry))
+                !EMBED_CALL(serve_send, InterfaceServeCtx, .joined = joined, .entry = entry))
             {
-                EMBED_CALL(serve_end_broken, DoorServeCtx, .joined = joined);
+                EMBED_CALL(serve_end_broken, InterfaceServeCtx, .joined = joined);
             }
             if (entry->has_region)
             {
@@ -240,12 +240,12 @@ static void serve_drain(void *context)
         }
         EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &joined->queue_wake, .seen = seen);
     }
-    EMBED_CALL(serve_thread_end, DoorServeCtx, .joined = joined);
+    EMBED_CALL(serve_thread_end, InterfaceServeCtx, .joined = joined);
 }
 
 // whether the process at the other end may take the key's part: a persistent part's key from any process, else only the
-// process the key was given to or one it stands under; refused where it may not
-EMBED_INLINE int serve_may_join(const DoorServeCtx *args)
+// process the key was given to or one it is under; refused where it may not
+EMBED_INLINE int serve_may_join(const InterfaceServeCtx *args)
 {
     const char *key = args->key;
     char why[CLI_ERR_MSG_MAX_LEN];
@@ -260,7 +260,7 @@ EMBED_INLINE int serve_may_join(const DoorServeCtx *args)
         mmgr_line_put(&err_msg, "the key of ");
         mmgr_line_put(&err_msg, args->name);
         mmgr_line_put(&err_msg, " was given to no process");
-        (void)EMBED_CALL(serve_reject, DoorServeCtx, .joined = args->joined, .why = err_msg.out, .size = err_msg.at);
+        (void)EMBED_CALL(serve_reject, InterfaceServeCtx, .joined = args->joined, .why = err_msg.out, .size = err_msg.at);
         return 0;
     }
     unsigned int count = 0u;
@@ -276,7 +276,7 @@ EMBED_INLINE int serve_may_join(const DoorServeCtx *args)
         mmgr_line_put(&err_msg, "the key of ");
         mmgr_line_put(&err_msg, args->name);
         mmgr_line_put(&err_msg, " was given to another process");
-        (void)EMBED_CALL(serve_reject, DoorServeCtx, .joined = args->joined, .why = err_msg.out, .size = err_msg.at);
+        (void)EMBED_CALL(serve_reject, InterfaceServeCtx, .joined = args->joined, .why = err_msg.out, .size = err_msg.at);
     }
     return under;
 }
@@ -304,16 +304,16 @@ static void serve_read(void *context)
         char name[CLI_NAME_MAX_LEN];
         if (!EMBED_CALL(cli_comms_key.name_get, CliCommsKeyCfg, .key = joined->key, .name_out = name))
         {
-            (void)EMBED_CALL(serve_reject, DoorServeCtx, .joined = joined, .why = "that key is no part's",
+            (void)EMBED_CALL(serve_reject, InterfaceServeCtx, .joined = joined, .why = "that key is no part's",
                              .size = 21ULL);
         }
-        else if (EMBED_CALL(serve_may_join, DoorServeCtx, .joined = joined, .key = joined->key, .name = name))
+        else if (EMBED_CALL(serve_may_join, InterfaceServeCtx, .joined = joined, .key = joined->key, .name = name))
         {
             char answer[CLI_NAME_MAX_LEN + 8u];
             VerbaLinea out = {answer, sizeof(answer), 0ULL};
             mmgr_line_ch(&out, CLI_IPC_TYPE_ANSWER);
             mmgr_line_put(&out, name);
-            if (EMBED_CALL(serve_answer, DoorServeCtx, .joined = joined, .bytes = out.out, .size = out.at))
+            if (EMBED_CALL(serve_answer, InterfaceServeCtx, .joined = joined, .bytes = out.out, .size = out.at))
             {
                 EMBED_CALL(cli_ipc_serve.ipc_requests_serve, CliIpcServeCfg, .joined = joined);
             }
@@ -325,7 +325,7 @@ static void serve_read(void *context)
     }
     EMBED_ATOMIC_STORE(&joined->read_state, 0u);
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &joined->queue_wake);
-    EMBED_CALL(serve_thread_end, DoorServeCtx, .joined = joined);
+    EMBED_CALL(serve_thread_end, InterfaceServeCtx, .joined = joined);
 }
 
 // the processes that join taken, each into a place of its own, a cell, with its two threads, one refused where every
@@ -356,7 +356,7 @@ static void serve_accept(void *context)
                 at += 1u;
             }
         }
-        // a joined process's record, frame, queued bodies and answer are its two threads' buffers, so they stand
+        // a joined process's record, frame, queued bodies and answer are its two threads' buffers, so they are
         // fixed outside the pool, one set for each place, where they punch no hole in the persistent tier
         static CliIpcJoined s_places[CLI_IPC_JOINED];
         static char s_bytes[CLI_IPC_JOINED]
@@ -375,7 +375,7 @@ static void serve_accept(void *context)
             // the ring's slots, this place's run of the joined part of the rings block
             EmbedTicketRingSlot *const slots =
                 (EmbedTicketRingSlot *)(void *)(EMBED_CALL(cli_rings.part, CliRingsPartCfg,
-                                                           .part = CLI_RINGS_DOOR_JOINED) +
+                                                           .part = CLI_RINGS_INTERFACE_JOINED) +
                                                 ((unsigned long long)place * CLI_IPC_ENTRIES *
                                                  sizeof(EmbedTicketRingSlot)));
             memor.set(&(MemoriaCfg){
@@ -388,7 +388,7 @@ static void serve_accept(void *context)
         }
         if (joined == NULL)
         {
-            static const char s_full[] = "Rthe door has as many processes as it can";
+            static const char s_full[] = "Rthe interface has as many processes as it can";
             (void)EMBED_CALL(cli_ipc_end_internal.frame_write, CliIpcEndCtx, .end = &end, .bytes = s_full,
                              .size = sizeof(s_full) - 1u, .region = NULL);
             EMBED_CALL(cli_ipc_internal.close, CliIpcCtx, .end = &end);
@@ -409,7 +409,7 @@ static void serve_accept(void *context)
         if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &joined->reporter))
         {
             EMBED_ATOMIC_STORE(&joined->sending, 0u);
-            EMBED_CALL(serve_thread_end, DoorServeCtx, .joined = joined);
+            EMBED_CALL(serve_thread_end, InterfaceServeCtx, .joined = joined);
         }
         if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &joined->reader))
         {
@@ -436,7 +436,7 @@ int cli_ipc_open(const CliIpcAddressCfg *args)
     g_cli_ipc_served.accepter = (CliThread){serve_accept, NULL};
     if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &g_cli_ipc_served.accepter))
     {
-        mmgr_line_put(args->err_msg, "the door's thread did not start");
+        mmgr_line_put(args->err_msg, "the interface's thread did not start");
         return 0;
     }
     g_cli_ipc_served.open = 1;
@@ -454,7 +454,7 @@ int cli_ipc_listen_request(const CliIpcServeChannelCfg *args)
     unsigned int listener = 0u;
     if (args->joined->listens == CLI_IPC_LISTENS)
     {
-        mmgr_line_put(err_msg, "a process listens on at most 32 channels");
+        mmgr_line_put(err_msg, "a process listens on at max 32 channels");
         return 0;
     }
     if (!EMBED_CALL(cli_comms_channel.listen, CliCommsChannelCfg, .key = args->joined->key, .channel = channel,
@@ -470,10 +470,10 @@ int cli_ipc_listen_request(const CliIpcServeChannelCfg *args)
 
 int cli_ipc_reject(const CliIpcServeErrorCfg *args)
 {
-    return EMBED_CALL(serve_reject, DoorServeCtx, .joined = args->joined, .why = args->why, .size = args->size);
+    return EMBED_CALL(serve_reject, InterfaceServeCtx, .joined = args->joined, .why = args->why, .size = args->size);
 }
 
 int cli_ipc_answer(const CliIpcServeCfg *args)
 {
-    return EMBED_CALL(serve_answer, DoorServeCtx, .joined = args->joined, .bytes = args->bytes, .size = args->size);
+    return EMBED_CALL(serve_answer, InterfaceServeCtx, .joined = args->joined, .bytes = args->bytes, .size = args->size);
 }

@@ -9,7 +9,7 @@
 #
 #   Usage:  python examples/0_experimental/exact_zeta_values.py
 #
-# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working instead of a stage
+# This reads no corpus. It sits in 0_experimental: an arithmetic result displayed working instead of a stage
 # reading. It is the first entry of an analytic-number-theory workbook, and it claims nothing about any
 # open problem. The Riemann hypothesis concerns the ZEROS of zeta(s) in the critical strip; this file
 # touches none of them. It computes the VALUES at the even integers, which have a closed form Euler
@@ -80,7 +80,7 @@ def pi_euler():
 
 
 def scaled_power(base_scaled, exponent):
-    """base_scaled raised to `exponent`, kept at WORK_DIGITS places."""
+    """base_scaled raised to `exponent`, retained at WORK_DIGITS places."""
     result = SCALE
     for _ in range(exponent):
         result = (result * base_scaled) // SCALE

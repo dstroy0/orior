@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // plugins_tables.c: a language plugin's grammar made whole before the colorer stores it: each word list a table of the
-// tree fills read from that table, `{name}` in the tables' paths the name of the folder the plugin stands for, and each
-// rule whose pattern is a word list given the list's words as its pattern; and the folders a plugin stands for
+// tree fills read from that table, `{name}` in the tables' paths the name of the folder the plugin is for, and each
+// rule whose pattern is a word list given the list's words as its pattern; and the folders a plugin is for
 #include "../command_line/pool.h"
 #include "../editor/defs.h"
 #include "../text/regexp.h"
@@ -34,12 +34,12 @@ typedef struct
     VerbaLinea *out;
     int written;
 } CliTableList;
-// the bytes a grammar and a pattern are written in, the most groups a list's pattern has and one, and the most letters
+// the bytes a grammar and a pattern are written in, the max groups a list's pattern has and one, and the max characters
 // of a cell matched
 #define CLI_TABLES_CAPACITY (4ULL << 20u)
 #define CLI_TABLES_PATTERN_CAPACITY (1ULL << 20u)
 #define CLI_TABLES_GROUPS 8u
-#define CLI_TABLES_LETTERS 1024u
+#define CLI_TABLES_CHARACTERS 1024u
 
 // the tree the tables are read from, as the window opens it
 static char s_tree[CLI_PATH_MAX_LEN];
@@ -71,7 +71,7 @@ typedef struct
     const char *tree;
     char *path;
     const CliRegexp *pattern;
-    unsigned int *letters;
+    unsigned int *characters;
     unsigned long long *count;
     unsigned long long *from;
     unsigned long long *to;
@@ -126,25 +126,25 @@ EMBED_INLINE int cli_tables_path(const PluginsTablesCtx *args)
     return (text != NULL) && (mmgr_line_finish(&line) != 0ULL);
 }
 
-// `length` bytes of `text`, its letters put into `letters`, sized for CLI_TABLES_LETTERS, their count into `count`,
-// matched by `pattern` from its first letter on: 1 with the first group's span, or the whole match's where it has no
+// `length` bytes of `text`, its characters put into `characters`, sized for CLI_TABLES_CHARACTERS, their count into `count`,
+// matched by `pattern` from its first character on: 1 with the first group's span, or the whole match's where it has no
 // group or the group took no part, into `from` and `to`; 0 where it matches nowhere
 EMBED_INLINE int cli_tables_find(const PluginsTablesCtx *args)
 {
     const char *text = args->text;
     unsigned long long length = args->length;
-    unsigned int *letters = args->letters;
+    unsigned int *characters = args->characters;
     unsigned long long *count = args->count;
     unsigned long long *from = args->from;
     unsigned long long *to = args->to;
-    *count = EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text, .size = length, .letters = letters,
-                        .capacity_u64 = CLI_TABLES_LETTERS);
+    *count = EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = text, .size = length, .characters = characters,
+                        .capacity_u64 = CLI_TABLES_CHARACTERS);
     CliRegexpSpan span[CLI_TABLES_GROUPS];
     const unsigned long long last = args->pattern->anchored ? 0ULL : *count;
     for (unsigned long long at = 0ULL; at <= last; at += 1ULL)
     {
         if (EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = args->pattern,
-                       .text_u32s = letters, .length = *count, .at = at, .groups = span))
+                       .text_u32s = characters, .length = *count, .at = at, .groups = span))
         {
             const unsigned int group = ((args->pattern->groups != 0u) && span[1].set) ? 1u : 0u;
             *from = span[group].from;
@@ -158,12 +158,12 @@ EMBED_INLINE int cli_tables_find(const PluginsTablesCtx *args)
 // whether `pattern` matches anywhere in `length` bytes of `text`
 EMBED_INLINE int cli_tables_matches(const PluginsTablesCtx *args)
 {
-    unsigned int letters[CLI_TABLES_LETTERS];
+    unsigned int characters[CLI_TABLES_CHARACTERS];
     unsigned long long count = 0ULL;
     unsigned long long from = 0ULL;
     unsigned long long to = 0ULL;
     return EMBED_CALL(cli_tables_find, PluginsTablesCtx, .pattern = args->pattern, .text = args->text,
-                      .length = args->length, .letters = letters, .count = &count, .from = &from, .to = &to);
+                      .length = args->length, .characters = characters, .count = &count, .from = &from, .to = &to);
 }
 
 // the pattern `source` read into `pattern` in `capacity`: 1, or 0 with why given where it does not read or has more
@@ -192,7 +192,7 @@ EMBED_INLINE int cli_tables_pattern_read(const PluginsTablesCtx *args)
 EMBED_INLINE void cli_tables_word(const PluginsTablesCtx *args)
 {
     unsigned long long length = args->length;
-    unsigned int letters[CLI_TABLES_LETTERS];
+    unsigned int characters[CLI_TABLES_CHARACTERS];
     unsigned long long count = 0ULL;
     unsigned long long from = 0ULL;
     unsigned long long to = 0ULL;
@@ -205,7 +205,7 @@ EMBED_INLINE void cli_tables_word(const PluginsTablesCtx *args)
     if (args->list->supplied[CLI_TABLES_MATCH])
     {
         if (!EMBED_CALL(cli_tables_find, PluginsTablesCtx, .pattern = &args->list->pattern[CLI_TABLES_MATCH],
-                        .text = args->cell, .length = length, .letters = letters, .count = &count, .from = &from,
+                        .text = args->cell, .length = length, .characters = characters, .count = &count, .from = &from,
                         .to = &to))
         {
             return;
@@ -213,15 +213,15 @@ EMBED_INLINE void cli_tables_word(const PluginsTablesCtx *args)
     }
     else
     {
-        count = EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->cell, .size = length,
-                           .letters = letters, .capacity_u64 = CLI_TABLES_LETTERS);
+        count = EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = args->cell, .size = length,
+                           .characters = characters, .capacity_u64 = CLI_TABLES_CHARACTERS);
         to = count;
     }
     char word_text[CLI_NAME_MAX_LEN];
     VerbaLinea line = {word_text, sizeof(word_text), 0ULL};
     for (unsigned long long at = from; at < to; at += 1ULL)
     {
-        EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line, .letter = letters[at]);
+        EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line, .character = characters[at]);
     }
     const unsigned long long size = mmgr_line_finish(&line);
     if (size == 0ULL)

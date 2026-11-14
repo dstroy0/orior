@@ -31,8 +31,8 @@ EV.startGpu = async (canvas) => {
   const clearing = { color: { srcFactor: "zero", dstFactor: "one-minus-src", operation: "add" }, alpha: { srcFactor: "zero", dstFactor: "one-minus-src", operation: "add" } };
   const over = { color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha", operation: "add" }, alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha", operation: "add" } };
   const splatTargets = [{ format: "rgba16float", blend: adding }, { format: "r8unorm", blend: clearing }];
-  const [resolve, keep, level, scatter, count, box, blob, link, edge, mapIds, mapPaint, sliceComposite, soft, softCompose, boxPick, wall, body] = await Promise.all([
-    compute(EV.RESOLVE), compute(EV.KEEP), compute(EV.LEVEL), compute(EV.SCATTER), compute(EV.COUNT),
+  const [resolve, retain, level, scatter, count, box, blob, link, edge, mapIds, mapPaint, sliceComposite, soft, softCompose, boxPick, wall, body] = await Promise.all([
+    compute(EV.RESOLVE), compute(EV.RETAIN), compute(EV.LEVEL), compute(EV.SCATTER), compute(EV.COUNT),
     draw(renderModule, "box", "paint_fragment", "triangle-list", solid),
     draw(renderModule, "blob", "paint_fragment", "triangle-list", solid),
     draw(linesModule, "link", "paint_fragment", "line-list", { format: "depth24plus", depthWriteEnabled: false, depthCompare: "less" }, quiet),
@@ -71,7 +71,7 @@ EV.startGpu = async (canvas) => {
   ]);
   const gpu = {
     adapter, device, context, format, canvas,
-    pipelines: { resolve, keep, level, scatter, count, box, blob, link, edge, mapIds, mapPaint, sliceComposite, soft, softCompose, boxPick, wall, body },
+    pipelines: { resolve, retain, level, scatter, count, box, blob, link, edge, mapIds, mapPaint, sliceComposite, soft, softCompose, boxPick, wall, body },
     compileMs: Math.round(performance.now() - began),
     layoutBytes: new ArrayBuffer(EV.LAYOUT_WORDS * 4),
     layoutBuffer: device.createBuffer({ size: EV.LAYOUT_WORDS * 4, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST }),
@@ -127,7 +127,7 @@ EV.fit = (gpu) => {
   });
 };
 
-// The raw voxels of one whole frame, every layer, or none: a 1 by 1 by 1 texture keeps the binding whole when no
+// The raw voxels of one whole frame, every layer, or none: a 1 by 1 by 1 texture retains the binding whole when no
 // stack is served.
 EV.setRaw = (gpu, voxels, width, height, depth) => {
   gpu.rawTexture?.destroy();
@@ -140,7 +140,7 @@ EV.setRaw = (gpu, voxels, width, height, depth) => {
   gpu.rawOn = voxels ? 1 : 0;
   gpu.compositeGroup = null;
   // The composite of the view reads these voxels too, for the slide under the cells. Its group is made again
-  // against the texture that stands now and never against the one just let go.
+  // against the texture that is now and never against the one just let go.
   if (gpu.composeGroup) {
     gpu.composeGroup = gpu.device.createBindGroup({
       layout: gpu.pipelines.softCompose.getBindGroupLayout(0),
@@ -207,7 +207,7 @@ EV.loadObject = async (gpu, sources) => {
     shape: storage(EV.words(header.cell_total * 6)),
     ids: device.createTexture({ size: [EV.MAP_SIZE, EV.MAP_SIZE], format: "r32uint", usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING }),
     idsDepth: device.createTexture({ size: [EV.MAP_SIZE, EV.MAP_SIZE], format: "depth24plus", usage: GPUTextureUsage.RENDER_ATTACHMENT }),
-    // The plane's own color: every cell of the volume added into it, with no depth standing between them.
+    // The plane's own color: every cell of the volume added into it, with no depth located between them.
     painted: device.createTexture({ size: [EV.MAP_SIZE, EV.MAP_SIZE], format: "rgba16float",
                                     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING }),
   };
@@ -216,23 +216,23 @@ EV.loadObject = async (gpu, sources) => {
   const group = (pipeline, entries) => EV.bindGroup(device, pipeline, entries);
   const numbered = (pipeline, pairs) => EV.bindNumbered(device, pipeline, pairs);
   const p = gpu.pipelines;
-  const lay = gpu.layoutBuffer;
+  const position = gpu.layoutBuffer;
   held.groups = {
-    resolve: group(p.resolve, [buffer, lay, held.runLeaf]),
-    keep: group(p.keep, [buffer, lay, held.chosen, held.prefix]),
-    levels: gpu.levels.map((level) => group(p.level, [level, lay, held.prefix])),
-    scatter: group(p.scatter, [buffer, lay, held.chosen, held.prefix, held.runLeaf, held.compact]),
-    count: group(p.count, [lay, held.prefix, gpu.drawn]),
-    box: group(p.box, [buffer, lay, held.chosen, held.motion, held.runLeaf, held.compact]),
-    boxPick: group(p.boxPick, [buffer, lay, held.chosen, held.motion, held.runLeaf, held.compact]),
-    soft: group(p.soft, [buffer, lay, held.chosen, held.motion, held.runLeaf, held.compact]),
-    wall: numbered(p.wall, [[0, buffer], [1, lay], [2, held.chosen], [3, held.motion], [6, held.shape]]),
-    body: numbered(p.body, [[0, buffer], [1, lay], [2, held.chosen], [3, held.motion], [6, held.shape]]),
-    blob: group(p.blob, [buffer, lay, held.chosen, held.motion]),
-    link: group(p.link, [buffer, lay, held.chosen, held.motion]),
-    edge: group(p.edge, [buffer, lay]),
-    mapIds: numbered(p.mapIds, [[0, buffer], [1, lay], [2, held.chosen], [3, held.motion], [6, held.shape]]),
-    mapPaint: numbered(p.mapPaint, [[0, buffer], [1, lay], [2, held.chosen], [3, held.motion], [6, held.shape]]),
+    resolve: group(p.resolve, [buffer, position, held.runLeaf]),
+    retain: group(p.retain, [buffer, position, held.chosen, held.prefix]),
+    levels: gpu.levels.map((level) => group(p.level, [level, position, held.prefix])),
+    scatter: group(p.scatter, [buffer, position, held.chosen, held.prefix, held.runLeaf, held.compact]),
+    count: group(p.count, [position, held.prefix, gpu.drawn]),
+    box: group(p.box, [buffer, position, held.chosen, held.motion, held.runLeaf, held.compact]),
+    boxPick: group(p.boxPick, [buffer, position, held.chosen, held.motion, held.runLeaf, held.compact]),
+    soft: group(p.soft, [buffer, position, held.chosen, held.motion, held.runLeaf, held.compact]),
+    wall: numbered(p.wall, [[0, buffer], [1, position], [2, held.chosen], [3, held.motion], [6, held.shape]]),
+    body: numbered(p.body, [[0, buffer], [1, position], [2, held.chosen], [3, held.motion], [6, held.shape]]),
+    blob: group(p.blob, [buffer, position, held.chosen, held.motion]),
+    link: group(p.link, [buffer, position, held.chosen, held.motion]),
+    edge: group(p.edge, [buffer, position]),
+    mapIds: numbered(p.mapIds, [[0, buffer], [1, position], [2, held.chosen], [3, held.motion], [6, held.shape]]),
+    mapPaint: numbered(p.mapPaint, [[0, buffer], [1, position], [2, held.chosen], [3, held.motion], [6, held.shape]]),
   };
   gpu.held = held;
   gpu.object = object;
@@ -278,7 +278,7 @@ EV.writeChosen = (gpu, chosen) => {
   gpu.device.queue.writeBuffer(gpu.held.chosen, 0, bits);
 };
 
-// Counts the kept runs of each leaf in range, prefix sums them in place, scatters the kept runs into one list and
+// Counts the retained runs of each leaf in range, prefix sums them in place, scatters the retained runs into one list and
 // writes the draw count where drawIndirect reads it. The layout must already hold the range.
 EV.compact = async (gpu, leafSpan, runSpan) => {
   const began = performance.now();
@@ -287,8 +287,8 @@ EV.compact = async (gpu, leafSpan, runSpan) => {
   const pow2 = EV.nextPower(Math.max(1, leafSpan));
   const encoder = gpu.device.createCommandEncoder();
   const pass = encoder.beginComputePass();
-  pass.setPipeline(p.keep);
-  pass.setBindGroup(0, groups.keep);
+  pass.setPipeline(p.retain);
+  pass.setBindGroup(0, groups.retain);
   pass.dispatchWorkgroups(...EV.workgroups(pow2));
   pass.setPipeline(p.level);
   for (let bit = 0; (1 << bit) < pow2; bit += 1) {

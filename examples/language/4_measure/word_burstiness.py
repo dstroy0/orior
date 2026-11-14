@@ -91,9 +91,9 @@ def main():
         every = [value for _, value in scored.values()]
         # The supplied set is English. It matches nothing in the other corpora. The corpus average
         # is defined for all of them and is the column that carries the comparison
-        shown = ("%-10.3f" % statistics.fmean(picked)) if picked else ("%-10s" % "-")
+        displayed = ("%-10.3f" % statistics.fmean(picked)) if picked else ("%-10s" % "-")
         out.write("  %-28s %s %-10.3f %d of %d\n"
-                  % (os.path.basename(path)[:-4], shown, statistics.fmean(every),
+                  % (os.path.basename(path)[:-4], displayed, statistics.fmean(every),
                      len(picked), len(scored)))
 
     out.flush()

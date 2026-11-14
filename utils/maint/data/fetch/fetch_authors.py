@@ -87,9 +87,9 @@ def main():
             out.write("  %-12s search failed: %s\n" % (short, str(trouble)[:50]))
             continue
 
-        kept = 0
+        retained = 0
         for entry in payload.get("results", []):
-            if kept >= PER_AUTHOR:
+            if retained >= PER_AUTHOR:
                 break
             # The search matches a name anywhere. An entry about a writer is not one by them
             authors = entry.get("authors", [])
@@ -98,13 +98,13 @@ def main():
             number = entry.get("id")
             target = os.path.join(CORPORA, "author_%s_%d.txt" % (short, number))
             if os.path.isfile(target):
-                kept += 1
+                retained += 1
                 landed += 1
                 continue
 
             link = None
-            for kind, address in entry.get("formats", {}).items():
-                if kind.startswith("text/plain") and not address.endswith(".zip"):
+            for type, address in entry.get("formats", {}).items():
+                if type.startswith("text/plain") and not address.endswith(".zip"):
                     link = address
                     break
             if not link:
@@ -122,7 +122,7 @@ def main():
             out.write("  %-12s %-46s %d\n"
                       % (short, (entry.get("title") or "").replace("\n", " ")[:46], len(text)))
             out.flush()
-            kept += 1
+            retained += 1
             landed += 1
 
     out.write("\n  %d works landed\n" % landed)

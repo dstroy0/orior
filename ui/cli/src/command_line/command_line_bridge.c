@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // command_line_bridge.c: the bridge at the command line: its keys listed, each with how many pairs it has and how many
-// of them are open and closed, those that contain a word where one is given; and one key shown whole, its pairs with
+// of them are open and closed, those that contain a word where one is given; and one key displayed whole, its pairs with
 // their verdicts and notes, the name each .klm gives it, and each ruleset's entries of it, every line with the file and
 // line it is read from
 #include "../editor/bridge.h"
@@ -236,7 +236,7 @@ EMBED_INLINE void bridge_maps(const CommandLineBridgeCtx *args)
                 mmgr_line_put(&line, key);
             }
             const unsigned int type = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                                 .json_read = &s_work_state->json, .object = entry, .name = "kind");
+                                                 .json_read = &s_work_state->json, .object = entry, .name = "type");
             if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_work_state->json,
                            .node = type, .type = CFG_JSON_OBJECT))
             {
@@ -306,7 +306,7 @@ EMBED_INLINE void bridge_rulesets(const CommandLineBridgeCtx *args)
             mmgr_line_put(&line, "  ");
             mmgr_line_put(&line, file);
             mmgr_line_put(&line, "  ");
-            mmgr_line_put(&line, EMBED_CALL(bridge_text, CommandLineBridgeCtx, .node = entry, .name = "kind"));
+            mmgr_line_put(&line, EMBED_CALL(bridge_text, CommandLineBridgeCtx, .node = entry, .name = "type"));
             mmgr_line_put(&line, "  ");
             EMBED_CALL(bridge_at, CommandLineBridgeCtx, .out = &line, .path = path, .node = entry);
             EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx,
@@ -356,10 +356,10 @@ EMBED_INLINE int bridge_words(const CommandLineBridgeCtx *args)
         if ((word_text == NULL) || EMBED_CALL(cli_command_line_internal.contains_word, CliCommandLineCtx, .text = name,
                                               .word_text = word_text))
         {
-            const unsigned long long letters =
-                EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = name,
+            const unsigned long long characters =
+                EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = name,
                            .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
-            pad = (letters > pad) ? letters : pad;
+            pad = (characters > pad) ? characters : pad;
             count += 1u;
         }
     }
@@ -378,10 +378,10 @@ EMBED_INLINE int bridge_words(const CommandLineBridgeCtx *args)
         }
         VerbaLinea line = {s_work_state->line, sizeof(s_work_state->line), 0ULL};
         mmgr_line_put(&line, name);
-        for (unsigned long long letters =
-                 EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = name,
+        for (unsigned long long characters =
+                 EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = name,
                             .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
-             letters < pad; letters += 1ULL)
+             characters < pad; characters += 1ULL)
         {
             mmgr_line_ch(&line, ' ');
         }

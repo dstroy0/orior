@@ -16,8 +16,8 @@ static inline __device__ unsigned long long omega_device_count(const unsigned lo
     return __ldg(&counts[(length * (OMEGA_LENGTH_MAX + 2u)) + ((depth < (length - 1u)) ? depth : (length - 1u))]);
 }
 
-// omega_unrank with the pending right parts on a stack; each application leaves one more. A term of at most
-// 60 bits leaves at most 15. The kernel's buffers store shorts and the engine's pool long longs.
+// omega_unrank with the pending right parts on a stack; each application leaves one more. A term of at max
+// 60 bits leaves at max 15. The kernel's buffers store shorts and the engine's pool long longs.
 template <typename Token>
 static __device__ unsigned int omega_device_unrank(const unsigned long long *__restrict__ counts, unsigned int length,
                                                    unsigned long long index, Token *term)
@@ -156,7 +156,7 @@ static inline __device__ int omega_device_lift(const short *term, unsigned int a
             bound += (token == OMEGA_LAMBDA) ? 1 : 0;
             continue;
         }
-        // an index is at most the lambdas above it, within the buffer. The sum fits a short
+        // an index is at max the lambdas above it, within the buffer. The sum fits a short
         next[*out] = (short)((token > bound) ? (token + lifted) : token);
         *out += 1u;
         bound -= omega_device_close(stack, base, &top);

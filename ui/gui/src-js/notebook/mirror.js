@@ -34,6 +34,6 @@ export function mirrorNewCell(book, cell) {
   book.made += 1;
   const key = `${book.key}#made${book.made}`;
   const session = cell.session;
-  const made = invoke("branch_new", { key, id: languageIdOf(book, cell.kind) }).then((one) => one && session.highlight.put(0, one.colors ?? [], one.names));
+  const made = invoke("branch_new", { key, id: languageIdOf(book, cell.type) }).then((one) => one && session.highlight.put(0, one.colors ?? [], one.names));
   mirror(session, key, null, null, made);
 }

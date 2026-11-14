@@ -83,7 +83,7 @@
 // records alone by one 2 MiB page
 #define LANE_TEST_SMALL_BYTES (8ull << 20u)
 
-// the most the test puts on the device at once: the scale run's records, a limb a lane, with the edge records and the
+// the max the test puts on the device at once: the scale run's records, a limb a lane, with the edge records and the
 // small allocations beside
 #define LANE_TEST_DECLARED                                                                                             \
     ((LANE_TEST_SCALE_LANES * sizeof(unsigned int)) +                                                                  \

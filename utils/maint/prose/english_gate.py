@@ -2,7 +2,7 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# Keep the English of a mixed corpus and drop the rest, leaving a comparison that is about English.
+# Retain the English of a mixed corpus and drop the rest, leaving a comparison that is about English.
 #
 #   Usage:  from english_gate import english_only, english_words
 #           python utils/maint/prose/english_gate.py            (reports what the gate removes)
@@ -33,8 +33,8 @@
 # that already measures English. That removes a page of Mandarin and a page of shifted font codes,
 # which are both un-English and only one of them is worth knowing about.
 #
-# Word stage. What the line stage leaves is cut to runs of ASCII letters. A gloss line reading COP=3SBJ
-# D/C=NMLZ=STAT passes the line stage, because it is written in letters and is short, and it is not
+# Word stage. What the line stage leaves is cut to runs of ASCII characters. A gloss line reading COP=3SBJ
+# D/C=NMLZ=STAT passes the line stage, because it is written in characters and is short, and it is not
 # English. Restricting to ASCII words drops the orthography, the IPA and the Greek outright, and the
 # stop lists in the callers drop the language names that survive as ASCII.
 
@@ -67,7 +67,7 @@ _reference = None
 
 
 def reference():
-    """The English byte pair reference, built once and kept."""
+    """The English byte pair reference, built once and retained."""
     global _reference
     if _reference is None:
         counts, total, lines = english_reference()
@@ -99,7 +99,7 @@ def english_only(text, cut=None):
     counts, total, _ = reference()
     if cut is None:
         cut = _default_cut()
-    kept = []
+    retained = []
     for line in text.splitlines():
         trimmed = line.strip()
         if len(trimmed) < LEAST:
@@ -108,8 +108,8 @@ def english_only(text, cut=None):
             continue
         if (cut is not None) and (surprise(trimmed, counts, total) > cut):
             continue
-        kept.append(trimmed)
-    return "\n".join(kept)
+        retained.append(trimmed)
+    return "\n".join(retained)
 
 
 _cut = None
@@ -135,12 +135,12 @@ def _default_cut():
 def english_words(text):
     """Every ASCII word in a text that has an English shape, lowercased.
 
-    Punctuation and glyphs never enter: WORD matches ASCII letters only. The
+    Punctuation and glyphs never enter: WORD matches ASCII characters only. The
     orthography, the IPA, the Greek and the box drawing are gone before this reads a token.
 
-    Two more kinds of residue survive that and are dropped here. A gloss label is written in ASCII
+    Two more types of residue survive that and are dropped here. A gloss label is written in ASCII
     capitals, COP and NMLZ and ERG and 3SBJ, and it passes every test for writing while being the
-    grammar of another language. And a romanized Salishan form is ASCII letters with no vowel in
+    grammar of another language. And a romanized Salishan form is ASCII characters with no vowel in
     it. English words carry a vowel; these do not.
     """
     held = []
@@ -185,16 +185,16 @@ def main():
 
     out.write(
         "\n  %-26s %12s %12s %12s %s\n"
-        % ("corpus", "words in", "words kept", "ascii kept", "share")
+        % ("corpus", "words in", "words retained", "ascii retained", "share")
     )
     for name, text in targets:
         before = len(text.split())
         gated = english_only(text, cut)
         after = len(gated.split())
-        ascii_kept = len(english_words(gated))
+        ascii_retained = len(english_words(gated))
         out.write(
             "  %-26s %12d %12d %12d %.2f\n"
-            % (name, before, after, ascii_kept, ascii_kept / float(max(1, before)))
+            % (name, before, after, ascii_retained, ascii_retained / float(max(1, before)))
         )
     out.write("\n  no sample of any corpus is printed. These are counts.\n\n")
     out.flush()

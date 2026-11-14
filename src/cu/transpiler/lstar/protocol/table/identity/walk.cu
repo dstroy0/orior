@@ -69,7 +69,7 @@ static std::vector<unsigned char> register_renamed(const std::vector<unsigned ch
 // answers alike with its value renamed to it, and falsy where one answers apart, is refused, or is blocked by the gate.
 // The last value is the first truthy number, and every number under it is the code's to name. It is written to the
 // .ksc as the part's answer on the run channel, `run answers <last> <answer>`, and the run's blob `blob` contains every
-// number queried with its verdict. `token` is the letter the group's values are printed with, R for registers and P
+// number queried with its verdict. `token` is the character the group's values are printed with, R for registers and P
 // for predicates. The register walk and the predicate walk are this one walk over their own fields (P11 Step 9)
 static int identity_last(const char *engine, const char *answers, const char *ksc, const std::string &folder,
                          const char *const *carrier, const StallField &stall,
@@ -90,12 +90,12 @@ static int identity_last(const char *engine, const char *answers, const char *ks
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
     unsigned long long queries = 0ull;
-    // the probes the walk is put over at most, each from a chain of its own
-    const size_t most = 3u;
+    // the probes the walk is put over at max, each from a chain of its own
+    const size_t max = 3u;
     std::vector<RegisterProbe> probes;
     for (const auto &entry : host)
     {
-        if (probes.size() >= most)
+        if (probes.size() >= max)
         {
             break;
         }
@@ -249,7 +249,7 @@ int identity_predicate(const char *engine, const char *answers, const char *ksc,
 // register out of range (sass_machine.h, `register past`). A chain of ours the host also computes, with every stall
 // the longest, names a highest register n; it is put declaring d from n + 1 upward, one at a time, until the part
 // answers alike with the host, and past is that d less n. Up to three chains are queried, and the answer recorded is
-// the most any gives, the count that clears every chain's refusal. Written to the .ksc as `run answers <past> register
+// the max any gives, the count that clears every chain's refusal. Written to the .ksc as `run answers <past> register
 // past`, and the run's blob past.txt contains every count queried with what came back
 int identity_past(const char *engine, const char *answers, const char *ksc, const std::string &folder,
                          const char *const *carrier)
@@ -278,12 +278,12 @@ int identity_past(const char *engine, const char *answers, const char *ksc, cons
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
     unsigned long long queries = 0ull;
-    const size_t most = 3u;
+    const size_t max = 3u;
     size_t tried = 0u;
     long long past = -1;
     for (const auto &entry : host)
     {
-        if (tried >= most)
+        if (tried >= max)
         {
             break;
         }

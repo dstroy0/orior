@@ -2,12 +2,12 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# Test a candidate character mapping for a paper whose font substituted plain letters for the writing.
+# Test a candidate character mapping for a paper whose font substituted plain characters for the writing.
 #
 #   Usage:  python maint/data/salishan/corpus_script_extraction/font_substitution.py <damaged> <clean reference> [more references]
 #
 # salish_purity.py sorts papers by whether the marked characters survived extraction, and it reports two
-# different failures under one heading. In most of the older papers the glyphs are simply gone and the
+# different failures under one heading. In the majority of the older papers the glyphs are simply gone and the
 # words arrive with holes in them. In the two Lyon papers the glyphs were replaced: the text reads
 # kmúsm @s iP sncPiws smiPmáy, where @ looks like a schwa and P like a glottal stop. A substitution is
 # recoverable and a deletion is not. The two need telling apart.
@@ -16,7 +16,7 @@
 # words into a corpus that nobody said, and nothing downstream would ever question them.
 #
 # So the mapping is tested instead of asserted. Lyon has recent papers on the same language whose
-# extraction kept its characters. Apply a candidate mapping to the damaged tokens and count how many
+# extraction retained its characters. Apply a candidate mapping to the damaged tokens and count how many
 # become forms that appear in the clean papers. A mapping that is right turns a large share of them into
 # attested words. A mapping that is wrong turns almost none, because a wrong substitution produces strings
 # the language does not contain.
@@ -84,9 +84,9 @@ EDGES = ".,!?;:“”‘’\"'()[]…«»"
 
 # What the damaged text appears to write, and what the clean papers write in its place. Every entry
 # here is a hypothesis and none of it is applied to anything until the hit rate says it holds.
-# The caron entries come first: this font writes it as a separate character before its letter.
-# X̌ arrives as ˇx and č as ˇc. Replacing the bare letters first would consume them and leave the
-# caron stranded. Order matters and a plain dict is relied on to keep insertion order.
+# The caron entries come first: this font writes it as a separate character before its character.
+# X̌ arrives as ˇx and č as ˇc. Replacing the bare characters first would consume them and leave the
+# caron stranded. Order matters and a plain dict is relied on to retain insertion order.
 CANDIDATE = {
     "ˇx": "x̌",
     "ˇc": "č",

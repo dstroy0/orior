@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // recording_values.c: what the replay requests of a recording read: a frame's names' values at a step, the frames
-// standing at a step, and a name's history through the run, each from the line records the steps name
+// located at a step, and a name's history through the run, each from the line records the steps name
 #include "../command_line/callback_cfg.h"
 #include "recording_internal.h"
 
@@ -14,12 +14,12 @@ typedef struct
     void *context;
 } RecordingValuesCtx;
 
-// the changes a step's line record names, each handed to `each` with its value, NULL for a name gone with none: the
+// the changes a step's line record names, each passed to `each` with its value, NULL for a name gone with none: the
 // names whose values changed, then the names gone
 EMBED_INLINE void read_changes(const RecordingValuesCtx *args)
 {
     unsigned int record = CLI_JSON_NONE;
-    // the step's line record in a tree of this call, given back as the changes are handed on
+    // the step's line record in a tree of this call, given back as the changes are passed on
     CliJson tree;
     EMBED_CALL(cli_recording_internal.record, CliRecordingCtx,
                .at_u64 =
@@ -109,8 +109,8 @@ unsigned int cli_recording_values(const CliRecordingAtCtx *args)
         return 0u;
     }
     CliRecordedValue *const cell =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)args->most * sizeof(CliRecordedValue), args->owner);
-    CliRecordedValues recorded = {cell, (cell != NULL) ? args->most : 0u, 0u, args->owner};
+        g_cli_guard->temporary_buf_alloc((unsigned long long)args->max * sizeof(CliRecordedValue), args->owner);
+    CliRecordedValues recorded = {cell, (cell != NULL) ? args->max : 0u, 0u, args->owner};
     const CliRecordedFrame frame =
         EMBED_CALL(cli_recording_index_internal.frame, CliRecordingIndexCtx, .index = args->serial);
     for (unsigned int index = 0u; index < frame.count; index += 1u)

@@ -123,7 +123,7 @@ LAYER = {
     "translation": SPOKEN,
     "gloss": DERIVED,
     "symbol note": DERIVED,
-    # Kept and marked, excluded from the ingestion stream until someone has classified it.
+    # Retained and marked, excluded from the ingestion stream until someone has classified it.
     UNCLASSIFIED: DERIVED,
 }
 
@@ -178,7 +178,7 @@ def main():
 
         # Section 1 names the two genres this story sits between, and section 2 lists every
         # preposition, article, deictic and enclitic adverb the text uses, each with its gloss in
-        # quotes. Both are the language. Kept as whole lines, the record contained forty-odd forms inside
+        # quotes. Both are the language. Retained as whole lines, the record contained forty-odd forms inside
         # six blobs of prose, and the hand extraction of this paper, which has one row per form,
         # matched none of them.
         if section in ("1", "2") and carries_language(trimmed):
@@ -249,10 +249,10 @@ def main():
         )
         handle.write("#\n")
         handle.write(
-            "# Mark is language.layer.kind. T is Nuxalk, N is anything else.\n"
+            "# Mark is language.layer.type. T is Nuxalk, N is anything else.\n"
         )
         handle.write(
-            "# Nater's symbols are kept: ˽ follows a proclitic and precedes an enclitic,\n"
+            "# Nater's symbols are retained: ˽ follows a proclitic and precedes an enclitic,\n"
         )
         handle.write(
             "# a hyphen follows a prefix and precedes a suffix, and a colon precedes a\n"
@@ -263,26 +263,26 @@ def main():
         handle.write(
             "# Gloss categories are the paper's own, from its section 2, unchanged.\n"
         )
-        handle.write("line\tsection\tkind\tswitches\tcontent\n")
-        for mark, count, sect, kind, text in rows:
-            layer = LAYER[kind]
+        handle.write("line\tsection\ttype\tswitches\tcontent\n")
+        for mark, count, sect, type, text in rows:
+            layer = LAYER[type]
             if mark == "T":
-                content = rendered(text, layer, kind, MARKS)
+                content = rendered(text, layer, type, MARKS)
                 crossings = switches(text)
             else:
-                content = "N.%s.%s:{%s}" % (layer, kind, text)
+                content = "N.%s.%s:{%s}" % (layer, type, text)
                 crossings = 0
             handle.write(
-                "line#${%d}\t%s\t%s\t%d\t%s\n" % (count, sect, kind, crossings, content)
+                "line#${%d}\t%s\t%s\t%d\t%s\n" % (count, sect, type, crossings, content)
             )
 
     pure = TARGET[:-4] + ".pure.txt"
-    kept = 0
+    retained = 0
     repeated = 0
     already = set()
     with open(pure, "w", encoding="utf-8", newline="") as handle:
-        for mark, count, sect, kind, text in rows:
-            if (mark != "T") or (kind != "transcription"):
+        for mark, count, sect, type, text in rows:
+            if (mark != "T") or (type != "transcription"):
                 continue
             for span, run in tagged_spans(text, MARKS):
                 if (span != "T") or (not run.strip()):
@@ -293,22 +293,22 @@ def main():
                     continue
                 already.add(key)
                 handle.write("%s\n" % key)
-                kept += 1
+                retained += 1
 
     # A file of its own for what the tool could not sort: a line inside the text that none of the
     # tests typed, and a line no section reached, which here is the introduction and the references.
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
         (0, "%s block %d" % (sect, count), UNKNOWN_KIND, "", text)
-        for mark, count, sect, kind, text in rows
-        if (kind == UNCLASSIFIED) and not sect.startswith("not reached")
+        for mark, count, sect, type, text in rows
+        if (type == UNCLASSIFIED) and not sect.startswith("not reached")
     ]
     flagged.extend(missed)
     stuck_count = write_unsorted(stuck, "The Frog Children", flagged)
 
     out.write("  %d lines written to\n  %s\n" % (len(rows), os.path.basename(TARGET)))
     out.write(
-        "  %d target-language spans written to\n  %s\n" % (kept, os.path.basename(pure))
+        "  %d target-language spans written to\n  %s\n" % (retained, os.path.basename(pure))
     )
     out.write("  %d spans skipped as already written\n" % repeated)
     out.write(
@@ -316,12 +316,12 @@ def main():
         % (stuck_count, os.path.basename(stuck))
     )
 
-    kinds = {}
-    for mark, count, sect, kind, text in rows:
-        kinds[kind] = kinds.get(kind, 0) + 1
+    types = {}
+    for mark, count, sect, type, text in rows:
+        types[type] = types.get(type, 0) + 1
     out.write(
-        "\n  by kind: %s\n"
-        % ", ".join("%s %d" % (one, kinds[one]) for one in sorted(kinds))
+        "\n  by type: %s\n"
+        % ", ".join("%s %d" % (one, types[one]) for one in sorted(types))
     )
     numbers = sorted({row[1] for row in rows if row[1]})
     if numbers:

@@ -9,7 +9,7 @@
 #include "../text/text.h"
 #include "requests_internal.h"
 
-// the most one answer stored takes, written, and the bytes the answers are buffered in before each piece is added to
+// the max one answer stored takes, written, and the bytes the answers are buffered in before each piece is added to
 // the file
 #define CLI_REQUESTS_PIECE (16u << 20u)
 #define CLI_REQUESTS_CAPACITY 16384u
@@ -211,7 +211,7 @@ int cli_requests_history_save(const CliRequestsErrMsgCtx *args)
     {
         mmgr_line_ch(&piece, '[');
         EMBED_CALL(cli_requests_out_internal.answer_write, CliRequestsOutCtx, .answer = args->answer,
-                   .sent = args->sent, .most = CLI_REQUESTS_HISTORY_BODY_MAX, .out = &piece);
+                   .sent = args->sent, .max = CLI_REQUESTS_HISTORY_BODY_MAX, .out = &piece);
         done = mmgr_line_ok(&piece) && ((piece.flushed + piece.at) <= CLI_REQUESTS_PIECE) &&
                (!before || EMBED_CALL(history_before, RequestsHistoryCtx, .piece = &piece, .bytes_bytes = bytes,
                                       .size = size, .at = first));

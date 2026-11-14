@@ -5,7 +5,7 @@
 #include "json_tree.h"
 #include "text.h"
 
-// A reading: the text, its size, where it stands, and how deep it is
+// A reading: the text, its size, where it is, and how deep it is
 typedef struct
 {
     const char *text;
@@ -22,7 +22,7 @@ typedef struct
     VerbaLinea *out;
     const CliCompact *read_read;
     unsigned long long at;
-    unsigned int letter;
+    unsigned int character;
     int object;
 } JsonCompactCtx;
 static int cli_compact_value(const JsonCompactCtx *args);
@@ -49,14 +49,14 @@ EMBED_INLINE unsigned int cli_compact_hex(const JsonCompactCtx *args)
     return value;
 }
 
-// a letter written as JSON writes it inside a string
-EMBED_INLINE void cli_compact_letter(const JsonCompactCtx *args)
+// a character written as JSON writes it inside a string
+EMBED_INLINE void cli_compact_character(const JsonCompactCtx *args)
 {
     VerbaLinea *out = args->out;
-    unsigned int letter = args->letter;
+    unsigned int character = args->character;
     char bytes[8];
     VerbaLinea line = {bytes, sizeof(bytes), 0ULL};
-    EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line, .letter = letter);
+    EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line, .character = character);
     EMBED_CALL(cli_json_tree_length_out.json_escaped_lossy, CliJsonTreeLengthOutCfg, .out = out,
                .text_bytes = (const unsigned char *)bytes, .length = line.at);
 }
@@ -70,29 +70,29 @@ static int cli_compact_string(const JsonCompactCtx *args)
     unsigned long long from = args->read->at;
     while (args->read->at < args->read->size)
     {
-        const unsigned char letter = (unsigned char)args->read->text[args->read->at];
-        if ((letter == '"') || (letter == '\\') || (letter < 0x20u))
+        const unsigned char character = (unsigned char)args->read->text[args->read->at];
+        if ((character == '"') || (character == '\\') || (character < 0x20u))
         {
             EMBED_CALL(cli_json_tree_length_out.json_escaped_lossy, CliJsonTreeLengthOutCfg, .out = out,
                        .text_bytes = (const unsigned char *)args->read->text + from, .length = args->read->at - from);
         }
-        if (letter == '"')
+        if (character == '"')
         {
             args->read->at += 1ULL;
             mmgr_line_ch(out, '"');
             return 1;
         }
-        if (letter < 0x20u)
+        if (character < 0x20u)
         {
             return 0;
         }
-        if (letter >= 0x80u)
+        if (character >= 0x80u)
         {
             unsigned int whole = 0u;
             const unsigned long long reserved =
-                EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                            .text_bytes = (const unsigned char *)args->read->text, .length = args->read->size,
-                           .at = args->read->at, .letter = &whole);
+                           .at = args->read->at, .character = &whole);
             if ((whole == 0xFFFDu) &&
                 ((reserved != 3ULL) ||
                  (memor.cmp(&(MemoriaCfg){
@@ -103,7 +103,7 @@ static int cli_compact_string(const JsonCompactCtx *args)
             args->read->at += reserved;
             continue;
         }
-        if (letter != '\\')
+        if (character != '\\')
         {
             args->read->at += 1ULL;
             continue;
@@ -191,7 +191,7 @@ static int cli_compact_string(const JsonCompactCtx *args)
         {
             return 0;
         }
-        EMBED_CALL(cli_compact_letter, JsonCompactCtx, .out = out, .letter = code);
+        EMBED_CALL(cli_compact_character, JsonCompactCtx, .out = out, .character = code);
         from = args->read->at;
     }
     return 0;
@@ -373,17 +373,17 @@ static int cli_compact_value(const JsonCompactCtx *args)
             return 1;
         }
     }
-    const char letter = args->read->text[args->read->at];
-    if (letter == '"')
+    const char character = args->read->text[args->read->at];
+    if (character == '"')
     {
         return cli_compact_string(args);
     }
-    if ((letter == '{') || (letter == '['))
+    if ((character == '{') || (character == '['))
     {
         return EMBED_CALL(cli_compact_many, JsonCompactCtx, .read = args->read, .out = args->out,
-                          .object = letter == '{');
+                          .object = character == '{');
     }
-    if ((letter == '-') || ((letter >= '0') && (letter <= '9')))
+    if ((character == '-') || ((character >= '0') && (character <= '9')))
     {
         return cli_compact_number(args);
     }

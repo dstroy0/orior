@@ -40,7 +40,7 @@ PYTHON_IN = (
 )
 
 # The shebang stays, the whole-line comment and module docstring go, both trailing comments go, the
-# blank pair collapses to one, the class docstring goes, and g keeps a pass for its emptied body.
+# blank pair collapses to one, the class docstring goes, and g retains a pass for its emptied body.
 PYTHON_OUT = (
     "#!/usr/bin/env python3\n"
     "import os\n"
@@ -61,7 +61,7 @@ SHELL_IN = (
     "set -u  # trailing\n"
     "echo \"a # b\" 'c # d' e#f ${#ARR[@]} $#\n"
     "cat <<END\n"
-    "# kept, inside a heredoc body\n"
+    "# retained, inside a heredoc body\n"
     "END\n"
     "x=1 # gone\n"
 )
@@ -72,7 +72,7 @@ SHELL_OUT = (
     "set -u\n"
     "echo \"a # b\" 'c # d' e#f ${#ARR[@]} $#\n"
     "cat <<END\n"
-    "# kept, inside a heredoc body\n"
+    "# retained, inside a heredoc body\n"
     "END\n"
     "x=1\n"
 )
@@ -107,7 +107,7 @@ def main():
           strip_comments.rewrite(PYTHON_IN, False, ".py"), PYTHON_OUT)
     grade("shell: # only where it opens a word",
           strip_comments.rewrite(SHELL_IN, False, ".sh"), SHELL_OUT)
-    grade("c: line and block comments, literal kept",
+    grade("c: line and block comments, literal retained",
           strip_comments.rewrite(C_IN, False, ".c"), C_OUT)
 
     # Negative controls. Each must error in the check its name gives, and the error message

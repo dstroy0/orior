@@ -9,7 +9,7 @@
 #include "../text/text.h"
 #include "files_internal.h"
 
-// the bytes of the paths a paste's walk queues to go to, and the most of them; and the most numbers a free name is
+// the bytes of the paths a paste's walk queues to go to, and the max of them; and the max numbers a free name is
 // looked for under
 #define CLI_PENDING_TEXT (1u << 23u)
 #define CLI_PENDING_MAX 65536u
@@ -17,7 +17,7 @@
 
 typedef struct
 {
-    char letter;
+    char character;
     const char *path;
     const char *source;
     const char *target;
@@ -30,18 +30,18 @@ typedef struct
 // whether a byte parts a path
 EMBED_INLINE int cli_parts(const FilesPasteCtx *args)
 {
-    return (args->letter == '/') || (args->letter == '\\');
+    return (args->character == '/') || (args->character == '\\');
 }
 
 int cli_paste_name(const CliFilesPathNameCtx *args)
 {
     unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
-    while ((end > 0ULL) && EMBED_CALL(cli_parts, FilesPasteCtx, .letter = args->path[end - 1ULL]))
+    while ((end > 0ULL) && EMBED_CALL(cli_parts, FilesPasteCtx, .character = args->path[end - 1ULL]))
     {
         end -= 1ULL;
     }
     unsigned long long start = end;
-    while ((start > 0ULL) && !EMBED_CALL(cli_parts, FilesPasteCtx, .letter = args->path[start - 1ULL]))
+    while ((start > 0ULL) && !EMBED_CALL(cli_parts, FilesPasteCtx, .character = args->path[start - 1ULL]))
     {
         start -= 1ULL;
     }
@@ -60,20 +60,20 @@ int cli_paste_name(const CliFilesPathNameCtx *args)
 int cli_paste_under(const CliFilesPathFolderCtx *args)
 {
     unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_POOL_BYTES});
-    while ((length > 0ULL) && EMBED_CALL(cli_parts, FilesPasteCtx, .letter = args->folder[length - 1ULL]))
+    while ((length > 0ULL) && EMBED_CALL(cli_parts, FilesPasteCtx, .character = args->folder[length - 1ULL]))
     {
         length -= 1ULL;
     }
     for (unsigned long long at = 0ULL; at < length; at += 1ULL)
     {
         if ((args->folder[at] != args->path[at]) &&
-            !(EMBED_CALL(cli_parts, FilesPasteCtx, .letter = args->folder[at]) &&
-              EMBED_CALL(cli_parts, FilesPasteCtx, .letter = args->path[at])))
+            !(EMBED_CALL(cli_parts, FilesPasteCtx, .character = args->folder[at]) &&
+              EMBED_CALL(cli_parts, FilesPasteCtx, .character = args->path[at])))
         {
             return 0;
         }
     }
-    return (args->path[length] == '\0') || EMBED_CALL(cli_parts, FilesPasteCtx, .letter = args->path[length]);
+    return (args->path[length] == '\0') || EMBED_CALL(cli_parts, FilesPasteCtx, .character = args->path[length]);
 }
 
 // whether a file or a folder is at `path`

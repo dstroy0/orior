@@ -7,7 +7,7 @@
 // it names given. More dependencies than CLI_MAVEN_LISTING in one list are not compared for being listed twice
 #include "maven_internal.h"
 
-// the most dependencies of one list compared for being listed twice, and the bytes they take
+// the max dependencies of one list compared for being listed twice, and the bytes they take
 #define CLI_MAVEN_LISTING 4096u
 #define CLI_MAVEN_LISTING_TEXT (1u << 20u)
 

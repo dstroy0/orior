@@ -9,7 +9,7 @@ Four checks, each with its floor derived from the process instead of chosen:
   anchor rate     the anchor fires when one 32-bit word lands on zero. Survivors are Poisson
                   with mean hashes / 2^32. That makes the ratio the log already prints testable:
                   a deficit means the kernel is missing survivors, which is a CORRECTNESS fault
-                  and not a performance one. This is the most valuable check here because a miner
+                  and not a performance one. This is the max valuable check here because a miner
                   that quietly computes the wrong thing looks exactly like one that is working.
   hashrate drift  the instantaneous rate wanders by timing jitter alone, and that spread is stable
                   on healthy hardware. A widening spread is thermal throttling before the mean has

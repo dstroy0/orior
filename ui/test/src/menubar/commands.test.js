@@ -76,7 +76,7 @@ test("View, Open Tool Window in a Window opens one showing the tool alone, and S
   await press("solo", "explorer");
   assert.equal(document.body.dataset.solo, "explorer");
   await press("solo");
-  assert.equal(document.body.dataset.solo, undefined, "everything shown again");
+  assert.equal(document.body.dataset.solo, undefined, "everything displayed again");
 });
 
 test("View, Move to Next Display asks the window to move", async () => {
@@ -136,8 +136,8 @@ test("Go, Jump marks the places to jump to", async () => {
 test("Go, Gather Lines gathers the cursor's line and Gathered Lines shows and hides them", async () => {
   await given("ab\nc|d");
   await press("gather-lines");
-  const kept = tasks();
-  assert.ok((kept.tasks[kept.current] ?? []).some((piece) => piece.path === GIVEN && piece.from === 1), JSON.stringify(kept));
+  const retained = tasks();
+  assert.ok((retained.tasks[retained.current] ?? []).some((piece) => piece.path === GIVEN && piece.from === 1), JSON.stringify(retained));
   const was = Boolean(boardShown());
   await press("gathered-lines");
   assert.equal(Boolean(boardShown()), !was);
@@ -148,7 +148,7 @@ test("Go, Gather Lines gathers the cursor's line and Gathered Lines shows and hi
 test("Edit, Find and Replace open the find bar, and Next Match and Previous Match step through its matches", async () => {
   const view = await given("[xy] ab xy");
   await press("find");
-  assert.ok(view.find.shown, "the find bar open");
+  assert.ok(view.find.displayed, "the find bar open");
   assert.equal(view.find.query.value, "xy");
   assert.ok(view.find.replaceRow.hidden, "without the replace row");
   await ui.waitFor(() => view.find.matches.length === 2, 3000, "both matches found");
@@ -157,7 +157,7 @@ test("Edit, Find and Replace open the find bar, and Next Match and Previous Matc
   await press("previous-match");
   assert.equal(marked(), "[xy] ab xy");
   await press("replace");
-  assert.ok(!view.find.replaceRow.hidden, "the replace row shown");
+  assert.ok(!view.find.replaceRow.hidden, "the replace row displayed");
   view.find.close();
 });
 

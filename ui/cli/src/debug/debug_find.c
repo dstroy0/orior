@@ -10,7 +10,7 @@
 
 #include "../text/text.h"
 
-// the most toolchains one search names, and the most lines of a failed build reported
+// the max toolchains one search names, and the max lines of a failed build reported
 #define CLI_DEBUG_NAMED 64u
 #define CLI_DEBUG_TAIL 12u
 
@@ -229,7 +229,7 @@ int cli_debug_adapter(const CliDebugErrMsgCtx *args)
     return 0;
 }
 
-// the last lines of what a build wrote that are not blank, CLI_DEBUG_TAIL of them at most, joined by "\n" into `out`
+// the last lines of what a build wrote that are not blank, CLI_DEBUG_TAIL of them at max, joined by "\n" into `out`
 EMBED_INLINE void find_tail(const DebugFindCtx *args)
 {
     const char *text = args->text;

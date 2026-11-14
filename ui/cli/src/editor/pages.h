@@ -26,10 +26,10 @@ typedef struct CliPagesPathCfg CliPagesPathCfg;
 typedef struct CliPagesCfg CliPagesCfg;
 typedef struct CliPagesViewCfg CliPagesViewCfg;
 
-// the file at `path` opened as the paged text `key`, its index read on a thread of its own; its shape as it stands
+// the file at `path` opened as the paged text `key`, its index read on a thread of its own; its shape as it is
 // written as `{"lines", "indexed", "size"}`: 1, or 0 with why given. The shape of the text under `key`; its lines from
 // `from` to before `to`, once the index has read as far as `to` or the whole file, as far as the text contains them,
-// written as a JSON array of strings, each cut after its first `*cut` letters where `cut` is given and not 0, `*cut`
+// written as a JSON array of strings, each cut after its first `*cut` characters where `cut` is given and not 0, `*cut`
 // left 0 where no line was longer, and where `lengths` is given each line's whole length in the page's units, UTF-16's,
 // written into it as a JSON array of numbers; and the text let go
 int cli_pages_open(const CliPagesPathCfg *args);
@@ -37,9 +37,9 @@ int cli_pages_shape(const CliPagesPathCfg *args);
 void cli_pages_release(const CliPagesCfg *args);
 
 // A view of a paged text as the page reports it, each frame it moves and once as it rests: the line at its top, the
-// rows it shows, the letters across it reaches, the lines the minimap stands beside from `map_from` to before `map_to`,
-// the lines the page holds from `cached_from` to before `cached_to`, cut after `cached_cut` letters, 0 where whole, and
-// the letters a row holds where it wraps its lines, each line as many rows as those letters fill, 0 where it does not
+// rows it shows, the characters across it reaches, the lines the minimap is beside from `map_from` to before `map_to`,
+// the lines the page holds from `cached_from` to before `cached_to`, cut after `cached_cut` characters, 0 where whole, and
+// the characters a row holds where it wraps its lines, each line as many rows as those characters fill, 0 where it does not
 typedef struct
 {
     unsigned long long top;
@@ -53,7 +53,7 @@ typedef struct
     unsigned long long width;
 } CliPagesView;
 
-// The lines a view is answered: from `from` to before `to`, none where they are the same, cut after `cut` letters, 0
+// The lines a view is answered: from `from` to before `to`, none where they are the same, cut after `cut` characters, 0
 // where whole; and the lines the page saves, from `save_from` to before `save_to`, those it holds outside them let go
 typedef struct
 {
@@ -67,11 +67,11 @@ typedef struct
 // the view `view` of the paged text under `key` placed into `positioned`, the view saved as the last reported. A view
 // reported where it was reported last, or more than CLI_PAGE_STILL milliseconds after the last report, rests: its rows
 // whole where the page does not hold them whole, then the lines it saves whole, CLI_PAGE_ADJACENT about its rows and
-// the minimap's, a step of CLI_PAGE_REMAINDER_BYTES at a time. Any other moves: its rows where it will stand a report
-// later at the step it moved since the last, and where it stands where that step is no more than its rows,
+// the minimap's, a step of CLI_PAGE_REMAINDER_BYTES at a time. Any other moves: its rows where it will are a report
+// later at the step it moved since the last, and where it is where that step is no more than its rows,
 // CLI_PAGE_EDGE about them, cut at its reach. Nothing where the page holds those already. A step of lines toward the
 // ends of the page's is no more than CLI_PAGE_REMAINDER_BYTES of their bytes reach, one at the least; and a view that
-// wraps its lines is placed the lines its rows take of those about them, each line as many rows as its letters fill at
+// wraps its lines is placed the lines its rows take of those about them, each line as many rows as its characters fill at
 // the view's width, a step as it moves no more than fill the rows placed. 1, or 0 where none is stored under the key
 int cli_pages_on_view(const CliPagesViewCfg *args);
 // how many lines the paged text under `key` contains as far as its index has read, into `lines`, and whether the index
@@ -83,9 +83,9 @@ int cli_pages_count(const CliPagesCfg *args);
 char *cli_pages_lines_alloc(const CliPagesFromCfg *args);
 
 // the page's changes written, each as its document writes it, `edits[at]` edits of `changes[at]`, `count` changes,
-// its edits placed against the text as it stood before any of them, written from the last to the first, the text's
+// its edits placed against the text as it was before any of them, written from the last to the first, the text's
 // shape written after; the lines written since the file was read, each run written as `[from, to]`; the text's matches
-// for `needle`, each `[line, from col, to col]`, read 16384 lines at a time until `most` are found; and the text saved
+// for `needle`, each `[line, from col, to col]`, read 16384 lines at a time until `max` are found; and the text saved
 // to its file through a file beside it, the file read afresh, its index whole before the save answers, its shape
 // written. Each 1, or 0 with the reason written (pages_edit.c)
 int cli_pages_edit(const CliPagesOutErrMsgCfg *args);
@@ -130,7 +130,7 @@ struct CliPagesOutErrMsgNeedleCfg
     VerbaLinea *out;
     VerbaLinea *err_msg;
     const CliDocNeedle *needle;
-    unsigned long long most;
+    unsigned long long max;
 };
 
 struct CliPagesPathCfg

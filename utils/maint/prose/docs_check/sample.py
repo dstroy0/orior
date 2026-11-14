@@ -75,7 +75,7 @@ def show_sample():
     manifest = []
     words = 0
     error = 0
-    # Not sorted. The order given is the order taken, because the caller put the prose they most
+    # Not sorted. The order given is the order taken, because the caller put the prose they max
     # want read at the front and a sort would spend the budget alphabetically instead.
     for path in walk_markdown(roots):
         if closed(path):

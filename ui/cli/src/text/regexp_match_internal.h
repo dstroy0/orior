@@ -13,17 +13,17 @@ typedef struct CliRegexpMatchIndexAtCtx CliRegexpMatchIndexAtCtx;
 typedef struct CliRegexpMatchCtx CliRegexpMatchCtx;
 typedef struct CliRegexpMatchACtx CliRegexpMatchACtx;
 
-// the most passes' ends the one-way repeats standing at once store, the ends a match stores on its own stack before
+// the max passes' ends the one-way repeats located at once store, the ends a match stores on its own stack before
 // they go to a cell, and a pass that took nothing
 #define CLI_REGEXP_ENDS_MAX (1u << 22u)
 #define CLI_REGEXP_ENDS_STACKED 256u
 
 #define CLI_REGEXP_NO_PASS 0xffffffffffffffffull
 
-// Where a match stands: the text and its length, each group's span, the steps taken, where the match's end was handed,
-// and the address its stack stood at as it began; and the passes' ends of the one-way repeats standing on the stack,
-// each repeat's from where it began, how many stand and the capacity they have, stored on the match's own stack until
-// they outgrow it and then in a cell at their most, `ends_reserved` 1 while they are in one
+// Where a match is: the text and its length, each group's span, the steps taken, where the match's end was passed,
+// and the address its stack was at as it began; and the passes' ends of the one-way repeats located on the stack,
+// each repeat's from where it began, how many are and the capacity they have, stored on the match's own stack until
+// they outgrow it and then in a cell at their max, `ends_reserved` 1 while they are in one
 typedef struct
 {
     const unsigned int *text;
@@ -38,9 +38,9 @@ typedef struct
     int ends_reserved;
 } CliRegexpRun;
 
-// What comes after a node, handed the place it stops at: the match's end; the rest of the sequence `node` from its
+// What comes after a node, passed the place it stops at: the match's end; the rest of the sequence `node` from its
 // part `index`; the group `index`'s end, it begun at `from`; a lookahead's true; the repetition `node`'s next pass,
-// after `count` passes, this one begun at `from`. Each hands on to `next`
+// after `count` passes, this one begun at `from`. Each passes on to `next`
 enum
 {
     CLI_THEN_END,
@@ -60,21 +60,21 @@ typedef struct CliRegexpThen
     const struct CliRegexpThen *next;
 } CliRegexpThen;
 
-// a word's character, a space, a line's end; two letters the same, under `i` without case; a class node's or a
-// character node's matching of one letter, -1 for a node that takes no one letter
+// a word's character, a space, a line's end; two characters the same, under `i` without case; a class node's or a
+// character node's matching of one character, -1 for a node that takes no one character
 int cli_regexp_word(const CliRegexpMatchCtx *args);
 int cli_regexp_space(const CliRegexpMatchCtx *args);
 int cli_regexp_ends_line(const CliRegexpMatchCtx *args);
 int cli_regexp_same(const CliRegexpMatchACtx *args);
 int cli_regexp_one(const CliRegexpMatchCtx *args);
-// the steps (regexp_match.c): what comes after handed a place; the rest of a sequence; a repetition at a pass; a repeat
+// the steps (regexp_match.c): what comes after passed a place; the rest of a sequence; a repetition at a pass; a repeat
 // over one character, and one whose pass takes the text one way or none
 int cli_regexp_then(const CliRegexpMatchIndexCtx *args);
 int cli_regexp_chain(const CliRegexpMatchIndexCtx *args);
 int cli_regexp_repeat(const CliRegexpMatchIndexCtx *args);
 int cli_regexp_count(const CliRegexpMatchThenCtx *args);
 int cli_regexp_on_pass(const CliRegexpMatchThenCtx *args);
-// a node walked from `at`, the place it stops handed to `then` (regexp_walk.c); where a pass of a one-way node that
+// a node walked from `at`, the place it stops passed to `then` (regexp_walk.c); where a pass of a one-way node that
 // takes the text at `at` ends, or CLI_REGEXP_NO_PASS
 int cli_regexp_walk(const CliRegexpMatchIndexCtx *args);
 unsigned long long cli_regexp_pass(const CliRegexpMatchIndexAtCtx *args);
@@ -109,7 +109,7 @@ struct CliRegexpMatchIndexAtCtx
 
 struct CliRegexpMatchCtx
 {
-    unsigned int letter;
+    unsigned int character;
     const CliRegexp *regexp;
     unsigned int index;
 };

@@ -5,10 +5,10 @@ Kettle by wlwlmelst (Maurice Michell) and Jonathan Janzen, Kanaka Bar Indian Ban
 
 Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
-pure corpus, then against this paper's own English laid over that reference. What the paper's
+pure corpus, then against this paper's own English positioned over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
 from the characters that sit outside that English, and word_web.web() built 909 edges over the
-language forms. A person then matched the context: who, kind and gloss for each row, the names,
+language forms. A person then matched the context: who, type and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
 someone reads the paper again and says otherwise.
@@ -25,21 +25,21 @@ nɬeʔkepmxcín, and for the English word by word under the gloss, Jonathan Janz
 translation, and for the English of §3.2, is Stewart 1941. The prose, the footnotes, the references
 and the appendix carry the two authors.
 
-THE LETTERS
+THE CHARACTERS
 
-Outside the paper's English the engine found these letters and marks: á é í ú ƛ ə ɣ ɬ ʔ ʕ ʷ ́ ̓ ̣ ∅.
+Outside the paper's English the engine found these characters and marks: á é í ú ƛ ə ɣ ɬ ʔ ʕ ʷ ́ ̓ ̣ ∅.
 The orthography follows Thompson & Thompson 1996. It writes ɬ, ƛ̓, ʔ, ʕ, ə, ɣ, ʷ, x̣ with U+0323
-COMBINING DOT BELOW, and U+0313 COMBINING COMMA ABOVE on glottalized letters, n̓, w̓, y̓, k̓, q̓.
+COMBINING DOT BELOW, and U+0313 COMBINING COMMA ABOVE on glottalized characters, n̓, w̓, y̓, k̓, q̓.
 Stress is an acute. The tiers write ∅ for a null morpheme and the appendix ⦰.
 
 THE PAGE AND THE TEXT LAYER
 
 The forms are in NFC, and the check puts the page text, read from the glyph positions, through the
-same repair: a mark the text sets after a space is put back on its letter, then NFC. The text layer
-of this paper is not the page. Its font names the comma above as the letter ƛ (w in the bold title),
+same repair: a mark the text sets after a space is put back on its character, then NFC. The text layer
+of this paper is not the page. Its font names the comma above as the character ƛ (w in the bold title),
 the acute as ə and the dot below as x, and gives í as i; the text layer reads ƛ ƛ qƛ əmcin for
 ƛ̓q̓əmcín. The source here is the page read from the glyph positions with pypdfium2: each misread
-mark is set on the letter it sits over or under, each row of an example is rebuilt by the glyphs'
+mark is set on the character it sits over or under, each row of an example is rebuilt by the glyphs'
 height, and an i is read as í where the page prints a slanted stroke over it, 12 to 16 pixels wide
 at 600 dpi against the dot's 8 to 10. Every í of §3.1 was checked against a render of page 2 at 400
 dpi.
@@ -54,7 +54,7 @@ where    the paper's locator: the title, the front matter, a section, a footnote
 who      the language for an example tier and a cited form; the work cited on an example's
          line, or the speaker for a volunteered translation, for its English; the authors for
          the prose, the tables and the notes
-kind     transcription  an example tier in the orthography
+type     transcription  an example tier in the orthography
          segmentation   an example tier broken into morphemes
          gloss          the morpheme gloss tier of an example
          word gloss     an English tier under the gloss, word for word

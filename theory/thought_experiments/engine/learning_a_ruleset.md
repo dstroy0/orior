@@ -6,7 +6,7 @@ A machine's rules can be learned by asking it questions and reading its answers.
 
 **Membership and equivalence queries.** A learner that can ask whether a given input is accepted, and whether a conjectured machine is correct, receiving a counterexample when it is not, learns any finite automaton in time polynomial in the number of its states and the length of the longest counterexample, by the algorithm of [Angluin](#src:Angluin-1987).
 
-**Test suites in place of counterexamples.** A learner with no source of counterexamples checks its conjecture with a test suite. A suite of the W-method kind detects every wrong machine only up to an assumed bound on the number of the target's states, as [Vasilevskii](#src:Vasilevskii-1973) and [Chow](#src:Chow-1978) showed. A machine with more states than the bound can pass the suite and still differ.
+**Test suites in place of counterexamples.** A learner with no source of counterexamples checks its conjecture with a test suite. A suite of the W-method type detects every wrong machine only up to an assumed bound on the number of the target's states, as [Vasilevskii](#src:Vasilevskii-1973) and [Chow](#src:Chow-1978) showed. A machine with more states than the bound can pass the suite and still differ.
 
 **Positive examples alone.** No class of languages that holds every finite language and at least one infinite language can be identified in the limit from positive examples alone, as [Gold](#src:Gold-1967) proved.
 

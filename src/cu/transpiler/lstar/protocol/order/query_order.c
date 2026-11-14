@@ -8,11 +8,11 @@
 static int query_order_to_edge(unsigned long long clock, unsigned long long turns, unsigned long long *reads,
                                unsigned int *edge)
 {
-    const unsigned long long most = (turns > 1ull) ? turns : 1ull;
+    const unsigned long long max = (turns > 1ull) ? turns : 1ull;
     const unsigned int was = host_read(clock);
     unsigned int now = was;
     *reads = 0ull;
-    while ((now == was) && (*reads < most))
+    while ((now == was) && (*reads < max))
     {
         now = host_read(clock);
         *reads += 1ull;
@@ -94,7 +94,7 @@ int query_order_put(const QueryOrder *order, QueryCost *cost)
     {
         return 0;
     }
-    unsigned char covered[HADAMARD_ORDER_LINKS_MOST];
+    unsigned char covered[HADAMARD_ORDER_LINKS_MAX];
     // Every pass's answer is retained as it came back. Nothing is summed away and nothing is cut to a least: the spread
     // across passes is the noise floor, read and not set
     for (unsigned int pass = 0u; pass < order->passes; pass += 1u)
@@ -123,7 +123,7 @@ int query_order_solve(unsigned int links, const QueryCost *cost, OriorExactInteg
         return 0;
     }
     // every query's denominator but its own, multiplied together: the factor its numerator takes onto the common one
-    OriorExactInteger others[HADAMARD_ORDER_LINKS_MOST];
+    OriorExactInteger others[HADAMARD_ORDER_LINKS_MAX];
     OriorExactInteger factor;
     for (unsigned int row = 0u; row < links; row += 1u)
     {
@@ -193,7 +193,7 @@ int query_order_sweep(const QueryOrder *order, unsigned int seed, unsigned int s
     {
         return 0;
     }
-    unsigned char covered[HADAMARD_ORDER_LINKS_MOST];
+    unsigned char covered[HADAMARD_ORDER_LINKS_MAX];
     for (unsigned int row = 0u; row < sweeps; row += 1u)
     {
         hadamard_sweep_covers(order->links, seed, row, covered);

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// lsp.c: a running language server: what it writes read on a thread of its own, each answer handed to the request
+// lsp.c: a running language server: what it writes read on a thread of its own, each answer passed to the request
 // waiting on it and what it sends unprompted to its receiver, what it writes to its errors retained, requests and
 // notifications sent, and the server ended
 #include "../command_line/callback_cfg.h"
@@ -8,7 +8,7 @@
 #include "../text/text.h"
 #include "lsp_internal.h"
 
-// the id of the request the reading thread hands to its receiver, as its JSON, and whether its receiver answers later
+// the id of the request the reading thread passes to its receiver, as its JSON, and whether its receiver answers later
 static _Thread_local const char *t_request_id;
 static _Thread_local unsigned long long t_request_id_size;
 static _Thread_local int t_later;
@@ -57,7 +57,7 @@ EMBED_INLINE int lsp_id(const LspCtx *args)
     return args->length > 0ULL;
 }
 
-// an answer handed to the request of `id` that waits on it: `message` with its result in it, or its error: 1 where the
+// an answer passed to the request of `id` that waits on it: `message` with its result in it, or its error: 1 where the
 // message went to the request, which gives it back
 EMBED_INLINE int lsp_answer(const LspCtx *args)
 {
@@ -134,7 +134,7 @@ EMBED_INLINE void lsp_server_message(const LspCtx *args)
     cli_grown_end(&answer);
 }
 
-// a message the server sent, `size` bytes of `body`, ended by a 0: what it sends unprompted received, an answer handed
+// a message the server sent, `size` bytes of `body`, ended by a 0: what it sends unprompted received, an answer passed
 // to its request: 1 where `body` went with the answer
 EMBED_INLINE int lsp_message(const LspCtx *args)
 {
@@ -184,14 +184,14 @@ EMBED_INLINE int lsp_message(const LspCtx *args)
                                       .name = "result", .start = &at, .length_pointer = &length);
     if (has_result)
     {
-        // the result ended by a 0 where it stands: the byte after it is the message's own, read no more
+        // the result ended by a 0 where it is: the byte after it is the message's own, read no more
         body[at + length] = '\0';
     }
     return EMBED_CALL(lsp_answer, LspCtx, .lsp = args->lsp, .id = id, .message = body,
                       .result = has_result ? body + at : "null", .length = has_result ? length : 4ULL, .error = NULL);
 }
 
-// what the server writes read until it ends: each message handed on, and every request still waiting notified the
+// what the server writes read until it ends: each message passed on, and every request still waiting notified the
 // server stopped
 static void lsp_read(void *context)
 {
@@ -224,7 +224,7 @@ static void lsp_read(void *context)
 }
 
 // a line the server wrote to its errors retained, trimmed with "\n" after it, the retained text cut to its last
-// CLI_LSP_COMPLAINT bytes at a letter's start
+// CLI_LSP_COMPLAINT bytes at a character's start
 static void lsp_complaint_line(const LspCtx *args)
 {
     unsigned long long size = args->size;

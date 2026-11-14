@@ -14,7 +14,7 @@
 #   characters  each character's rank in voice_alphabet.tsv, one sample per character.
 #   words       each word's rank in voice.tsv, as log2(1 + rank), one sample per word. A word the
 #               voice never used takes the rank past the last one.
-#   lengths     each word's length in letters, one sample per word.
+#   lengths     each word's length in characters, one sample per word.
 #   sentences   each sentence's length in words, one sample per sentence.
 #
 # A signal's harmonics are its power spectrum. The signal is cut into windows of WINDOW samples
@@ -64,7 +64,7 @@ SIZES = (200, 500, 1000, 2000, 5000, 10000, 20000)
 BLOCKS = 40
 # A band row needs this many blocks. Four sentence signals at 200 words is a row resting on one page.
 MINIMUM_BLOCKS = 20
-# The percentile of the held-out blocks a text is graded against. The worst block is kept in the
+# The percentile of the held-out blocks a text is graded against. The worst block is retained in the
 # table. At 5000 words the sentence signal's median was 0.0735 and its worst 0.8707, set by a few
 # outlying blocks, and an edge at the worst would pass nearly anything.
 EDGE = 95

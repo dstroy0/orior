@@ -28,7 +28,7 @@ typedef struct
 // the reply file at `path` mapped into `reply`: 1, or 0 with the reply empty where it cannot be read; and a reply
 // mapped so let go. The reply's value at its start; the value of member `key` of the object at `object`; the first item
 // of the array at `array`, the item after `item`, and the item at `index`; the place past the value at `at`; the
-// bytes a string at `at` is written in, a bound on its letters decoded; the string at `at` decoded into `out`, which
+// bytes a string at `at` is written in, a bound on its characters decoded; the string at `at` decoded into `out`, which
 // is sized for `capacity`: 1, or 0 where it is no string or does not fit; the whole number at `at`, all ones where none
 // is; whether the value at `at` is `true`; and whether the string at `at` is `word`
 int cli_reply_read(const CliReplyPathCfg *args);

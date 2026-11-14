@@ -20,7 +20,7 @@ typedef struct
     int positioned;
     long long line;
 } CliCargoFailure;
-// the most failures one report names
+// the max failures one report names
 #define CLI_CARGO_FAILURES 4096u
 
 typedef struct

@@ -1,15 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// tokens.c: the tokens of an instruction's text: spaces, a token taken, digits, the high half, an operand's kind and the operand taken, an instruction read, and two forms the same
+// tokens.c: the tokens of an instruction's text: spaces, a token taken, digits, the high half, an operand's type and the operand taken, an instruction read, and two forms the same
 #include "sass_machine_internal.h"
 
-static int sass_is_space(char letter)
+static int sass_is_space(char character)
 {
-    return (letter == ' ') || (letter == '\t');
+    return (character == ' ') || (character == '\t');
 }
 
-// `length` letters of `text` copied into `token`, with the spaces at either end cut and the whole limited below
-// SASS_MACHINE_TOKEN letters
+// `length` characters of `text` copied into `token`, with the spaces at either end cut and the whole limited below
+// SASS_MACHINE_TOKEN characters
 static void sass_token_take(char *token, const char *text, size_t length)
 {
     while ((length != 0u) && sass_is_space(*text))
@@ -26,7 +26,7 @@ static void sass_token_take(char *token, const char *text, size_t length)
     token[copied] = '\0';
 }
 
-// 1 where every letter of `text` from `at` is a digit, and there is one
+// 1 where every character of `text` from `at` is a digit, and there is one
 static int sass_all_digits(const char *text, size_t at)
 {
     const size_t first = at;
@@ -45,8 +45,8 @@ int sass_high_half(const char *text)
     return (length > 3u) && (strcmp(text + length - 3u, ".hi") == 0);
 }
 
-// what kind of thing `text` is, with any mark already cut off it
-static unsigned int sass_operand_kind(const char *text)
+// what type of thing `text` is, with any mark already cut off it
+static unsigned int sass_operand_type(const char *text)
 {
     if (strchr(text, ' ') != NULL)
     {
@@ -60,7 +60,7 @@ static unsigned int sass_operand_kind(const char *text)
         const size_t copied = (length < (SASS_MACHINE_TOKEN - 1u)) ? length : (SASS_MACHINE_TOKEN - 1u);
         memcpy(stem, text, copied);
         stem[copied] = '\0';
-        return sass_operand_kind(stem);
+        return sass_operand_type(stem);
     }
     if ((text[0] == 'R') && ((strcmp(text, "RZ") == 0) || sass_all_digits(text, 1u)))
     {
@@ -109,7 +109,7 @@ static unsigned int sass_operand_kind(const char *text)
     return SASS_OPERAND_UNKNOWN;
 }
 
-// the operand at `place` of `parts` taken from `text`: its mark cut off the front, .reuse off the end, and its kind
+// the operand at `place` of `parts` taken from `text`: its mark cut off the front, .reuse off the end, and its type
 // read. A minus before a number is the number's sign and no mark
 static void sass_operand_take(SassInstructionParts *parts, unsigned int place, const char *text, size_t length)
 {
@@ -124,11 +124,11 @@ static void sass_operand_take(SassInstructionParts *parts, unsigned int place, c
                         : (token[0] == '~') ? SASS_MARK_INVERT
                         : (token[0] == '!') ? SASS_MARK_NOT
                                             : SASS_MARK_NONE;
-    const unsigned int marked = sass_operand_kind(token + ((mark == SASS_MARK_NONE) ? 0u : 1u));
+    const unsigned int marked = sass_operand_type(token + ((mark == SASS_MARK_NONE) ? 0u : 1u));
     // a minus before a number is the number's own sign, and the operand retains it
     mark = ((mark == SASS_MARK_NEGATE) && (marked == SASS_OPERAND_IMMEDIATE)) ? SASS_MARK_NONE : mark;
     parts->mark[place] = mark;
-    parts->kind[place] = (mark == SASS_MARK_NONE) ? sass_operand_kind(token) : marked;
+    parts->type[place] = (mark == SASS_MARK_NONE) ? sass_operand_type(token) : marked;
     memcpy(parts->operand[place], token + ((mark == SASS_MARK_NONE) ? 0u : 1u),
            strlen(token + ((mark == SASS_MARK_NONE) ? 0u : 1u)) + 1u);
 }
@@ -158,10 +158,10 @@ void sass_instruction_read(const char *text, SassInstructionParts *parts)
     const char *start = text;
     for (const char *walk = text;; walk += 1)
     {
-        const char letter = *walk;
-        depth += ((letter == '[') || (letter == '(')) ? 1 : 0;
-        depth -= ((letter == ']') || (letter == ')')) ? 1 : 0;
-        if ((letter == '\0') || ((letter == ',') && (depth == 0)))
+        const char character = *walk;
+        depth += ((character == '[') || (character == '(')) ? 1 : 0;
+        depth -= ((character == ']') || (character == ')')) ? 1 : 0;
+        if ((character == '\0') || ((character == ',') && (depth == 0)))
         {
             const size_t length = (size_t)(walk - start);
             if ((parts->operands < SASS_MACHINE_OPERANDS) && (strspn(start, SASS_SPACES) < length))
@@ -171,14 +171,14 @@ void sass_instruction_read(const char *text, SassInstructionParts *parts)
             }
             start = walk + 1;
         }
-        if (letter == '\0')
+        if (character == '\0')
         {
             break;
         }
     }
 }
 
-// 1 where the two contain the same operation and the same kind and mark at every operand, and the same text at every
+// 1 where the two contain the same operation and the same type and mark at every operand, and the same text at every
 // operand the assembler cannot turn into a number: a system register is named, not counted, and two instructions that
 // name different ones are two forms, each with the encoding it was seen with
 int sass_form_same(const SassForm *form, const SassInstructionParts *parts)
@@ -187,9 +187,9 @@ int sass_form_same(const SassForm *form, const SassInstructionParts *parts)
     int by_text = 0;
     for (unsigned int place = 0u; same && (place < form->operands); place += 1u)
     {
-        same = (form->kind[place] == parts->kind[place]) && (form->mark[place] == parts->mark[place]);
-        by_text = by_text || (form->kind[place] == SASS_OPERAND_SYSTEM) ||
-                  (form->kind[place] == SASS_OPERAND_UNKNOWN);
+        same = (form->type[place] == parts->type[place]) && (form->mark[place] == parts->mark[place]);
+        by_text = by_text || (form->type[place] == SASS_OPERAND_SYSTEM) ||
+                  (form->type[place] == SASS_OPERAND_UNKNOWN);
     }
     if (same && by_text)
     {
@@ -197,7 +197,7 @@ int sass_form_same(const SassForm *form, const SassInstructionParts *parts)
         sass_instruction_read(form->text, &seen);
         for (unsigned int place = 0u; same && (place < form->operands); place += 1u)
         {
-            same = ((form->kind[place] != SASS_OPERAND_SYSTEM) && (form->kind[place] != SASS_OPERAND_UNKNOWN)) ||
+            same = ((form->type[place] != SASS_OPERAND_SYSTEM) && (form->type[place] != SASS_OPERAND_UNKNOWN)) ||
                    (strcmp(seen.operand[place], parts->operand[place]) == 0);
         }
     }

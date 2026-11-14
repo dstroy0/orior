@@ -1,30 +1,30 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // khw_machine_write.c: the vendor's writer, which reads what the query protocol answered and writes the .khw the gate
-// reads. The protocol queries and records the answers; this names them and lays them out in the vendor's own machine
+// reads. The protocol queries and records the answers; this names them and positions them out in the vendor's own machine
 // file (P14). It is a program the protocol runs through the interface, and nothing of it reaches back into the
 // protocol.
 //
 //     orior_khw_machine_write <part> <path.khw> <layout> <mnemonics> <answers> <mode>
 //
-// Six modes; `assemble` assembles the texts the protocol hands and hands them back (assembled.c). What `krs` and
+// Six modes; `assemble` assembles the texts the protocol passes and passes them back (assembled.c). What `krs` and
 // `kernel` write for the protocol is given as `answers`, and what `final` and `costs` read from the protocol is read
 // from it: the blob of that name in the run where a run's writer runs (qry_member.h), and the file where none
 // does. In `krs` the file at `path.khw` is read and each form that answered a relation is given one a line: the
 // relation, 1 where the answers read a word signed and 0 where not, the encoding the form was first seen with, low
-// word first, and the form's text with each operand that stands in the relation's tuple written as its place,
+// word first, and the form's text with each operand that is in the relation's tuple written as its place,
 // {<place>}, for the protocol to name; nothing else is read. In `kernel` the container the layout contains is read and
-// the kernel the system accepted is appended as kernel_blob.h lays it out: its head, the places, the registers a
+// the kernel the system accepted is appended as kernel_blob.h positions it out: its head, the places, the registers a
 // thread uses, the place the least opening begins at and the probe place, each of the two as the part's .ksc beside
 // the machine file answers it (Open 6.3), then every place's encoding as the container stores it. In
 // `gate` the file contains those same places, one form a place, so that the gate reads every question of a round
 // against what the part has already run (cubin_safe.h). In `final` the file contains the forms the part answered for,
-// read from `answers` as the protocol gave them, each named from the vendor's table (mnemonic_nvidia.tsv) and laid
+// read from `answers` as the protocol gave them, each named from the vendor's table (mnemonic_nvidia.tsv) and positioned
 // out as the instruction its runs make; a form the table names none of is no form of the file. The answers are one
 // form a line: the relation the protocol read, whether it read a word signed and whether it queried, the encoding, how
 // many runs its operands sit in, and each run's first and last bit and its place in the relation's tuple, - where it
 // has none. Each form is written with its relation, its signedness and its runs' places as the protocol read them.
-// In `costs` the file contains both: the kernel's places as `gate` lays them out, then the forms the part answered for
+// In `costs` the file contains both: the kernel's places as `gate` positions them out, then the forms the part answered for
 // as `final` does, so that the gate reads a costs question, a form written many times over from the probe place inside
 // the kernel's places, as stored whole.
 #include "khw_machine_write/khw_machine_write_internal.h"
@@ -87,7 +87,7 @@ int main(int count, char **word)
     }
     if (strcmp(mode, "assemble") == 0)
     {
-        // the texts the protocol handed as `answers`, assembled against the machine file and handed back
+        // the texts the protocol passed as `answers`, assembled against the machine file and passed back
         return khw_texts_assembled(path, answers) ? 0 : 1;
     }
     if (strcmp(mode, "krs") == 0)

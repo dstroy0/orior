@@ -13,7 +13,7 @@
 # between two books that happen to be in different languages, and nothing in the measurement separates the
 # two.
 #
-# A translation of one text into many languages removes it. The content is kept fixed by construction.
+# A translation of one text into many languages removes it. The content is retained fixed by construction.
 # What remains between two versions is the language. It also reaches languages a book catalog does not
 # carry, including Vietnamese and Urdu, and it reaches them without hammering an encyclopedia that has
 # been erroring on these requests all evening.
@@ -21,7 +21,7 @@
 # One side of a parallel corpus is fetched per language, which is that language's whole text with
 # no alignment needed, since nothing here compares sentence to sentence. Files are named so their source
 # and their nature are never in doubt, and the languages already stored from books stay where they are so
-# the two kinds can be measured against each other.
+# the two types can be measured against each other.
 
 import io
 import json

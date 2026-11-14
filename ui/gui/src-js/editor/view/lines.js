@@ -73,7 +73,7 @@ export function joinLines() {
 }
 
 // Changes the case of each selection, or of the word at each cursor: upper, lower, or title, each
-// word's first letter upper and the rest lower.
+// word's first character upper and the rest lower.
 export function transformCase(type) {
   const make = {
     upper: (text) => text.toUpperCase(),
@@ -180,9 +180,9 @@ export function addMatch(all) {
   const matches = this.matchesOf(needle, word);
   if (all) {
     const list = matches.map((match) => ({ anchor: match.from, head: match.to, goal: null }));
-    const kept = list.find((sel) => same(sel.anchor, from)) ?? list.at(-1);
+    const retained = list.find((sel) => same(sel.anchor, from)) ?? list.at(-1);
     if (list.length) {
-      this.select(list, kept);
+      this.select(list, retained);
     }
     return;
   }
@@ -212,7 +212,7 @@ export function addCursor(direction) {
 // The bracket pair at the cursor as orior's side reads it off the branch, by the roles the grammar names, its lines the
 // file's, asked once for each state of the text and each place of the cursor in the file: a frame asks for it every
 // frame, and its answer stays until either moves, none until it comes. One is asked at a time: a cursor moved on while
-// one is asked has the place it stands asked once that answer comes, the places it passed meanwhile never asked. A
+// one is asked has the place it is asked once that answer comes, the places it passed meanwhile never asked. A
 // paged file's window asks for none while it moves, its lines cut short or its view not yet at rest.
 export function bracketPair() {
   const s = this.s;
@@ -222,13 +222,13 @@ export function bracketPair() {
   if (this.pairKept?.session !== s || this.pairKept.key !== key) {
     this.pairKept = { session: s, key, pair: null, asked: false };
   }
-  const kept = this.pairKept;
-  if (!moving && !kept.asked && !this.pairAsked) {
-    kept.asked = true;
+  const retained = this.pairKept;
+  if (!moving && !retained.asked && !this.pairAsked) {
+    retained.asked = true;
     this.pairAsked = this.pairOf(s, head)
       .then((pair) => {
-        if (this.pairKept === kept && pair) {
-          kept.pair = pair;
+        if (this.pairKept === retained && pair) {
+          retained.pair = pair;
         }
       })
       .finally(() => {
@@ -236,12 +236,12 @@ export function bracketPair() {
         this.schedule();
       });
   }
-  return kept.pair?.map((at) => pos(at.line - s.base, at.col)) ?? null;
+  return retained.pair?.map((at) => pos(at.line - s.base, at.col)) ?? null;
 }
 
 // Extend Selection: the primary selection grows to the least span orior's side reads off the text that holds it and
-// is more than it: the leaf it stands in, each bracket pair around it, inside its brackets and with them, the
-// statement it stands in among a region's, each region with its head, and the whole text, each by the roles its
+// is more than it: the leaf it is in, each bracket pair around it, inside its brackets and with them, the
+// statement it is in among a region's, each region with its head, and the whole text, each by the roles its
 // grammar names; or each span of the file's parse, where one reads it whole. Shrink Selection takes each step back.
 export async function expandSelection() {
   const s = this.s;

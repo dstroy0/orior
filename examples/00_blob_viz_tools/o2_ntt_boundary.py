@@ -12,7 +12,7 @@ An angle between two fields taken in float64 carries a floor near 4e-16 that bel
 and not to the boundary. Steering on it cannot discriminate past that floor whatever the data holds.
 The steering here is the exact cross-correlation of the two bit fields, taken through the proven NTT
 ring twiddle_proof.py establishes and four_step.py folds. The bit values are 0 and 1 and the length
-is 256. Every correlation entry is at most 256, well under the modulus, and the residue IS the
+is 256. Every correlation entry is at max 256, well under the modulus, and the residue IS the
 true integer. No value is ever rounded. The discrimination is bounded by the data and not by a
 float floor. A steer bounded by a float floor bottoms out, and this one does not.
 
@@ -146,7 +146,7 @@ def signed_state(words):
 
 
 def recover_signed(residue):
-    """The small signed integer a residue stands for, since every autocorrelation entry is within 256."""
+    """The small signed integer a residue is for, since every autocorrelation entry is within 256."""
     return residue - four_step.PRIME if residue > (four_step.PRIME // 2) else residue
 
 
@@ -155,9 +155,9 @@ def self_delta(field):
 
     THE SECOND INSTRUMENTATION. The first asks how a field agrees with the target. This asks how a
     field agrees with ITSELF at every nonzero shift, the cyclic autocorrelation. A field of
-    maximum entropy reflects onto itself only at shift zero and averages to nothing elsewhere. The
+    max entropy reflects onto itself only at shift zero and averages to nothing elsewhere. The
     off-peak energy is small. A field carrying structure, composite and not max entropy, repeats
-    onto itself at some shift and the off-peak energy stands up. The number is the sum of the squared
+    onto itself at some shift and the off-peak energy is up. The number is the sum of the squared
     autocorrelation over every shift but zero, exact through the proven ring, a departure is
     structure and not a float floor.
     """

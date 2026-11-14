@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Jonathan Janzen	note	Papers for the International Conference on Salish and Neighbouring Languages 58. D. K. E. Reisinger, Laura Griffin, Gloria Mellesmoen, Sander Nederveen, Julia Schillo, Bailey Trotter (eds.). Vancouver, BC: UBCWPL, 2023.	page 1
 front	Jonathan Janzen	language	x̄a’iselak̓ala	x̄a’iselak̓ala, Haisla
 front	Jonathan Janzen	title	The Predictability of Word-Stress in Haisla	page 1
@@ -16,7 +16,7 @@ footnote 1	Jonathan Janzen	note	1 See Kwak̕wala (Janzen 2015), Oowekyala (Howe 
 footnote 2	Jonathan Janzen	note	2 All data represented here are done so with the foreknowledge and consent of the Haisla First Nation.	page 1, footnote
 footnote 3	Jonathan Janzen	note	3 Find Emmon Bach’s corpus here: https://web.archive.org/web/20160129043139/http:/people.umass.edu/ebach/haisdict.htm.	page 1, footnote
 footnote 3	Jonathan Janzen	name	Emmon Bach	whose Haisla corpus the data draw on
-§2	Jonathan Janzen	note	There is an interesting trait in the nature of how stress is signalled in x̄a’iselak̓ala not found in other North Wakashan languages. The stressed syllable appears with greater intensity than in other languages, but as low pitch instead of high in most contexts. In natural speech during dialogue or a narrative, the stressed syllable is lower in pitch than the surrounding syllables. In a focus context, such as in one-word citation, phrasal emphasis, or dialogue within a narrative, the stressed syllable appears with high pitch. There is no change in the location of the stressed syllable within a word in any context, so this distinction in pitch does not affect the stress-system in x̄a’iselak̓ala on the whole, only in how stress is signalled.	page 1
+§2	Jonathan Janzen	note	There is an interesting trait in the nature of how stress is signalled in x̄a’iselak̓ala not found in other North Wakashan languages. The stressed syllable appears with greater intensity than in other languages, but as low pitch instead of high in max contexts. In natural speech during dialogue or a narrative, the stressed syllable is lower in pitch than the surrounding syllables. In a focus context, such as in one-word citation, phrasal emphasis, or dialogue within a narrative, the stressed syllable appears with high pitch. There is no change in the location of the stressed syllable within a word in any context, so this distinction in pitch does not affect the stress-system in x̄a’iselak̓ala on the whole, only in how stress is signalled.	page 1
 §2.1	Jonathan Janzen	heading	2.1 Stress leftmost moraic (µ) syllable	page 2
 §2.1	Jonathan Janzen	language	x̄a’iselak̓ala	x̄a’iselak̓ala, Haisla
 §2.1	Jonathan Janzen	notation	µ	a mora
@@ -138,7 +138,7 @@ footnote 4	Jonathan Janzen	note	4 My thanks to Chuck Murphey, Brenden Yoder, and
 footnote 4	Jonathan Janzen	name	Chuck Murphey	thanked for insight on the trait
 footnote 4	Jonathan Janzen	name	Brenden Yoder	thanked for insight on the trait
 footnote 4	Jonathan Janzen	name	Grace Baleno	thanked for insight on the trait
-§3	Jonathan Janzen	note	A potentially confusing trait o f the stress system in x̄a’iselak̓ala is shown when two adjacent vowels orthographically occur, always with stress on the second of the pair.4 These orthographically adjacent vowels do not coalesce to form long vowels as in Section 2.2 above. On the surface, the difference appears to be the quality and order of the vowels themselves. If the vowels are the same, they surface as: [aa, ii, uu]. If the first of the two vowels is low /a/, they also surface as a heavy syllable: [ai, au]. If the first of the two vowels is high /i, u/ and the following vowel is not the same as the first, they do not form a long vowel: *[ia], *[iu], *[ua], *[ui]. (This is assuming that there are two underlying vowels in every case which then coalesce on the surface, though I do not really intend to make any such claim.) I first present the data with the current writing convention, which indeed shows adjacent vowels with the second bearing stress. However, I argue that there is good phonological evidence that these sequences are in fact not serial vowels, but regular CVCV syllables. These then easily conform to the stress rules outlined in Section 2 above.	page 4
+§3	Jonathan Janzen	note	A potentially confusing trait o f the stress system in x̄a’iselak̓ala is displayed when two adjacent vowels orthographically occur, always with stress on the second of the pair.4 These orthographically adjacent vowels do not coalesce to form long vowels as in Section 2.2 above. On the surface, the difference appears to be the quality and order of the vowels themselves. If the vowels are the same, they surface as: [aa, ii, uu]. If the first of the two vowels is low /a/, they also surface as a heavy syllable: [ai, au]. If the first of the two vowels is high /i, u/ and the following vowel is not the same as the first, they do not form a long vowel: *[ia], *[iu], *[ua], *[ui]. (This is assuming that there are two underlying vowels in every case which then coalesce on the surface, though I do not really intend to make any such claim.) I first present the data with the current writing convention, which indeed shows adjacent vowels with the second bearing stress. However, I argue that there is good phonological evidence that these sequences are in fact not serial vowels, but regular CVCV syllables. These then easily conform to the stress rules outlined in Section 2 above.	page 4
 §3.1	Jonathan Janzen	heading	3.1 Examples of VV́	page 5
 §3.1	Jonathan Janzen	notation	iá	a two-vowel sequence
 §3.1	Jonathan Janzen	notation	iú	a two-vowel sequence
@@ -193,7 +193,7 @@ footnote 5	Jonathan Janzen	note	5 [k̓] does not trigger the high vowel lowering
 (11) line 1	Jonathan Janzen	note	Examples of VV́ ~ əRV́	page 6, the caption
 (11a) line 1	Haisla	transcription	’iála	page 6, words
 (11a) line 1	Haisla	variant spelling	’eyála	page 6, the other spelling, in brackets
-(11a) line 1	Jonathan Janzen	translation	‘keep something raised with hands’	page 6, words
+(11a) line 1	Jonathan Janzen	translation	‘retain something raised with passes’	page 6, words
 (11b) line 1	Haisla	transcription	’iása	page 6, words
 (11b) line 1	Haisla	variant spelling	’eyása	page 6, the other spelling, in brackets
 (11b) line 1	Jonathan Janzen	translation	‘urinate (woman)’	page 6, words
@@ -286,7 +286,7 @@ footnote 5	Jonathan Janzen	note	5 [k̓] does not trigger the high vowel lowering
 §5	Jonathan Janzen	language	x̄a’iselak̓ala	x̄a’iselak̓ala, Haisla
 §5	Jonathan Janzen	note	x̄a’iselak̓ala shares basic word -stress system traits with other North Wakashan languages. It also shows its own unique twist on how stress is assigned within a word. As in all North Wakashan languages, x̄a’iselak̓ala stress is signalled on the rhyme of a syllable by a rise 6 in pitch (tone) and greater intensity of that rhyme. Duration is not a good acoustic correlate of stress, likely to preserve the vowel length distinction in this language. The leftmost stress-bearing syllable is, more often than not, assigned stress. I assume all moraic syllables to attract stress, the leftmost of which receives it.	page 9
 (15) line 1	Jonathan Janzen	rule	stress leftmost moraic syllable	page 9, the display
-§5	Jonathan Janzen	note	In x̄a’iselak̓ala, moracity is defined as an underlying v owel, or schwa and coda resonant pair. Heavy syllables, which I claim contain two morae, are also present in x̄a’iselak̓ala. These syllables attract stress over syllables with one or no mora as the most moraic syllables, regardless of their position in the word. If there are two heavy syllables within the same word, the leftmost of them holds word-stress.	page 9
+§5	Jonathan Janzen	note	In x̄a’iselak̓ala, moracity is defined as an underlying v owel, or schwa and coda resonant pair. Heavy syllables, which I claim contain two morae, are also present in x̄a’iselak̓ala. These syllables attract stress over syllables with one or no mora as the max moraic syllables, regardless of their position in the word. If there are two heavy syllables within the same word, the leftmost of them holds word-stress.	page 9
 §5	Haisla	cited affix	-(l)ás	page 9, ‘place’
 §5	Haisla	cited affix	-áyu	page 9, ‘tool’
 §5	Haisla	cited affix	-(x)íd	page 9, ‘PAST’

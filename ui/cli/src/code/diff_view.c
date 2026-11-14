@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // diff_view.c: the open view as the window reads it: its options from the settings and saved to them, its rows, the
 // step from change to change by a binary search over the changes' first rows, and its sentences; the view itself is
-// opened and laid in diff_view_open.c
+// opened and positioned in diff_view_open.c
 #include "../machine/state.h"
 #include "diff_view_internal.h"
 
-// the settings the options stand under and the words each reads while on and while off, as the page stores them
+// the settings the options are under and the words each reads while on and while off, as the page stores them
 #define DIFF_VIEW_SPACE_KEY "diff-space"
 #define DIFF_VIEW_SPACE_ON "aside"
-#define DIFF_VIEW_SPACE_OFF "shown"
+#define DIFF_VIEW_SPACE_OFF "displayed"
 #define DIFF_VIEW_STRUCTURE_KEY "diff-structure"
 #define DIFF_VIEW_STRUCTURE_ON "on"
 
@@ -24,18 +24,18 @@ typedef struct
     const char *key;
     const char *value;
     unsigned int at;
-    CliDiffViewLaid *laid_out;
+    CliDiffViewLaid *arranged;
     const CliDiffViewSide *side;
     unsigned int line;
     unsigned short *units_out;
 } DiffViewOptionCtx;
 
-// the row `at`'s record read out of the rows cell into `laid_out`
-EMBED_INLINE void laid_read(const DiffViewOptionCtx *args)
+// the row `at`'s record read out of the rows cell into `arranged`
+EMBED_INLINE void positioned_read(const DiffViewOptionCtx *args)
 {
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_diff_view.rows_cell,
                                                             .offset = CLI_DIFF_VIEW_ROW_AT(args->at),
-                                                            .dst = args->laid_out,
+                                                            .dst = args->arranged,
                                                             .bytes = sizeof(CliDiffViewLaid)});
 }
 
@@ -95,9 +95,9 @@ EMBED_INLINE unsigned int row_at_right(const DiffViewOptionCtx *args)
     while (low < high)
     {
         const unsigned int middle = low + ((high - low) / 2u);
-        CliDiffViewLaid laid;
-        EMBED_CALL(laid_read, DiffViewOptionCtx, .at = middle, .laid_out = &laid);
-        if (laid.right_at < args->at)
+        CliDiffViewLaid positioned;
+        EMBED_CALL(positioned_read, DiffViewOptionCtx, .at = middle, .arranged = &positioned);
+        if (positioned.right_at < args->at)
         {
             low = middle + 1u;
         }
@@ -162,13 +162,13 @@ unsigned int cli_diff_view_option_toggle(const CliDiffViewOptionOnCfg *args)
     {
         return args->at;
     }
-    // the right line the row `at` stands at, which the row laid again at that line stands for
-    CliDiffViewLaid laid = {0};
+    // the right line the row `at` is at, which the row positioned again at that line is for
+    CliDiffViewLaid positioned = {0};
     if (args->at < view->rows)
     {
-        EMBED_CALL(laid_read, DiffViewOptionCtx, .at = args->at, .laid_out = &laid);
+        EMBED_CALL(positioned_read, DiffViewOptionCtx, .at = args->at, .arranged = &positioned);
     }
-    const unsigned int right_at = (args->at < view->rows) ? laid.right_at : 0u;
+    const unsigned int right_at = (args->at < view->rows) ? positioned.right_at : 0u;
     err_msg.at = 0ULL;
     // the view's sources copied out before the open releases them: the texts into this call's bytes, the clipboard's
     // text into a cell of this call
@@ -223,25 +223,25 @@ int cli_diff_view_row(const CliDiffViewAtRowLengthCfg *args)
     {
         return 0;
     }
-    CliDiffViewLaid laid;
-    EMBED_CALL(laid_read, DiffViewOptionCtx, .at = args->at, .laid_out = &laid);
+    CliDiffViewLaid positioned;
+    EMBED_CALL(positioned_read, DiffViewOptionCtx, .at = args->at, .arranged = &positioned);
     CliDiffViewRow *const row = args->row;
     *row = (CliDiffViewRow){0};
-    row->type = laid.type;
-    row->has_left = laid.left != CLI_DIFF_VIEW_NONE;
-    row->has_right = laid.right != CLI_DIFF_VIEW_NONE;
+    row->type = positioned.type;
+    row->has_left = positioned.left != CLI_DIFF_VIEW_NONE;
+    row->has_right = positioned.right != CLI_DIFF_VIEW_NONE;
     row->left_units = row->left_units_copied;
     row->right_units = row->right_units_copied;
     if (row->has_left)
     {
-        row->left_line = laid.left;
-        row->left_count = EMBED_CALL(line_units_read, DiffViewOptionCtx, .side = &view->left, .line = laid.left,
+        row->left_line = positioned.left;
+        row->left_count = EMBED_CALL(line_units_read, DiffViewOptionCtx, .side = &view->left, .line = positioned.left,
                                      .units_out = row->left_units_copied);
     }
     if (row->has_right)
     {
-        row->right_line = laid.right;
-        row->right_count = EMBED_CALL(line_units_read, DiffViewOptionCtx, .side = &view->right, .line = laid.right,
+        row->right_line = positioned.right;
+        row->right_count = EMBED_CALL(line_units_read, DiffViewOptionCtx, .side = &view->right, .line = positioned.right,
                                       .units_out = row->right_units_copied);
     }
     return 1;
@@ -270,7 +270,7 @@ unsigned int cli_diff_view_step(const CliDiffViewAtRowLengthCfg *args)
     }
     else
     {
-        // the last change whose first row is at most `at`, the first where none is
+        // the last change whose first row is at max `at`, the first where none is
         unsigned int low = 0u;
         unsigned int high = view->changes;
         while ((high - low) > 1u)

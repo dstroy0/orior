@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_cells.c: the files' cells and the lists built of them: a list's paths and places taken for one call at the
 // sizes a count of them sets, put, sorted and released; and the files of the tree a reader picks, by their places in
-// it, laid in one movable cell the reader owns and reads by index. The cells are the one cellblock's, counted to the
+// it, positioned in one movable cell the reader owns and reads by index. The cells are the one cellblock's, counted to the
 // files' own mark, which their report writes
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
@@ -27,7 +27,7 @@ const char *cli_files_at(const CliFilesCfg *args)
 
 int cli_files_append(const CliFilesPathLengthCtx *args)
 {
-    if ((args->files->count >= args->files->most) ||
+    if ((args->files->count >= args->files->max) ||
         ((args->files->used + args->length + 1ULL) > args->files->text_max))
     {
         return 0;
@@ -159,10 +159,10 @@ int cli_files_work_init(const CliFilesBytesCtx *args)
         return 1;
     }
     // each bounded by its limit, which an unsigned int counts
-    files->most = (unsigned int)((args->count < CLI_FILES_MAX) ? args->count : CLI_FILES_MAX);
+    files->max = (unsigned int)((args->count < CLI_FILES_MAX) ? args->count : CLI_FILES_MAX);
     files->text_max = (args->bytes < CLI_FILES_TEXT) ? args->bytes : CLI_FILES_TEXT;
     files->start = EMBED_CALL(cli_files_bytes_internal.work_alloc, CliFilesBytesCtx,
-                              .bytes = (unsigned long long)files->most * sizeof(unsigned int));
+                              .bytes = (unsigned long long)files->max * sizeof(unsigned int));
     files->text = EMBED_CALL(cli_files_bytes_internal.work_alloc, CliFilesBytesCtx, .bytes = files->text_max);
     if ((files->start == NULL) || (files->text == NULL))
     {
@@ -181,7 +181,7 @@ int cli_files_pick(const CliFilesPickedCtx *args)
     unsigned int count = 0u;
     unsigned long long bytes = 0ULL;
     EMBED_CALL(cli_symbols_count.tree_files_count, CliSymbolsCountCfg, .count_pointer = &count, .bytes = &bytes);
-    // the most the tree has, one list of this call: a filter admits no more than every file; the paths the filter
+    // the max the tree has, one list of this call: a filter admits no more than every file; the paths the filter
     // admits, sorted, are written into the picked cell as the call ends
     const unsigned long long cell_bytes = sizeof(CliFiles) + ((unsigned long long)count * sizeof(unsigned int)) + bytes;
     CliFiles *const files = EMBED_CALL(cli_files_bytes_internal.work_alloc, CliFilesBytesCtx, .bytes = cell_bytes);
@@ -249,7 +249,7 @@ unsigned int cli_picked_index(const CliFilesPickedIndexCtx *args)
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_PATH_MAX_LEN});
     unsigned int low = 0u;
     unsigned int high = (picked->cell != NULL) ? picked->count : 0u;
-    // the paths stand sorted, so the one looked for is found by halving
+    // the paths are sorted, so the one looked for is found by halving
     while (low < high)
     {
         const unsigned int middle = low + ((high - low) / 2u);

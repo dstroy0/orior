@@ -219,7 +219,7 @@ def _check():
         failed += 1
 
     # THE TWO PREDICTIONS, stated in the docstring before the run so they can refute it. A shell
-    # placement should be near isotropic; a chain laid along the placement should not be.
+    # placement should be near isotropic; a chain positioned along the placement should not be.
     sphere_moments = numpy.linalg.eigvalsh(inertia_tensor(shaped(QUBITS, "sphere"), places)[0])
     sphere_spread = sphere_moments[2] / sphere_moments[0] if sphere_moments[0] > 1e-12 else float("inf")
     print("  sphere anisotropy %.3f" % sphere_spread)

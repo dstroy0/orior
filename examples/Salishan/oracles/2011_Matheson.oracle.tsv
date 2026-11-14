@@ -1,15 +1,15 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Andrew Matheson	title	Universal and existential quantification as evidence for asymmetrical treatment of subjects and objects in Ktunaxa	page 1
 front	Andrew Matheson	name	Andrew Matheson	author
 front	Andrew Matheson	note	University of British Columbia	page 1, under Andrew Matheson
-front	Andrew Matheson	note	Ktunaxa is an isolate language spoken in the Kootenay Mountains in interior British Columbia that is sandwiched between the Salish family to the west and the Algonquian family to the east. This paper explains Ktunaxa’s methods for using universal and existential quantifiers, and what that means for the syntactic structure of Ktunaxa. There are two methods of quantification: modification of a noun phrase and modification of a verb phrase. After showing the difference, bare trees and a comparison of grammatical and ungrammatical utterances will be shown, which will give evidence of asymmetrical treatment of subjects and objects. It will be shown that preverbs, a class of words that modify verbs, have their own syntactic projection and that the entire VP adjunct is optionally moved to Spec of IP. This syntactic analysis is mirrored in a thesis by Glougie (2000) on Blackfoot quantification, which will be discussed at the paper’s end.	page 1, the abstract
+front	Andrew Matheson	note	Ktunaxa is an isolate language spoken in the Kootenay Mountains in interior British Columbia that is sandwiched between the Salish family to the west and the Algonquian family to the east. This paper explains Ktunaxa’s methods for using universal and existential quantifiers, and what that means for the syntactic structure of Ktunaxa. There are two methods of quantification: modification of a noun phrase and modification of a verb phrase. After showing the difference, bare trees and a comparison of grammatical and ungrammatical utterances will be displayed, which will give evidence of asymmetrical treatment of subjects and objects. It will be displayed that preverbs, a class of words that modify verbs, have their own syntactic projection and that the entire VP adjunct is optionally moved to Spec of IP. This syntactic analysis is mirrored in a thesis by Glougie (2000) on Blackfoot quantification, which will be discussed at the paper’s end.	page 1, the abstract
 front	Andrew Matheson	language	Ktunaxa	a language isolate of the Kootenay Mountains, British Columbia
 §1	Andrew Matheson	heading	1 Preliminary investigation	page 1
 §1.1	Andrew Matheson	heading	1.1 Introduction to Ktunaxa quantifiers	page 1
-§1.1	Andrew Matheson	note	In our investigation of Ktunaxa, we will begin with an explanation on the lexical inventory of the different paradigms. As far as general quantifiers go, most of the quantifiers precede and modify nouns, but most existential and universal quantifiers have a verb-modifying counterpart. The quantifier paradigms divide into phonologically different verbal and nominal formations, and lexical mass versus count categories.	page 1
+§1.1	Andrew Matheson	note	In our investigation of Ktunaxa, we will begin with an explanation on the lexical inventory of the different paradigms. As far as general quantifiers go, the majority of the quantifiers precede and modify nouns, but max existential and universal quantifiers have a verb-modifying counterpart. The quantifier paradigms divide into phonologically different verbal and nominal formations, and lexical mass versus count categories.	page 1
 §1.2	Andrew Matheson	heading	1.2 Inventory of Ktunaxa quantifiers	page 1
 §1.2.1	Andrew Matheson	heading	1.2.1 Modification of the NP	page 1
-§1.2.1	Andrew Matheson	note	According to Dryer (2002), the most commonly elicited forms of quantification are grammatically within the NP. I found this true of my elicitations only when the noun was the Subject NP. Such are the nominal modifications seen below:	page 1
+§1.2.1	Andrew Matheson	note	According to Dryer (2002), the max commonly elicited forms of quantification are grammatically within the NP. I found this true of my elicitations only when the noun was the Subject NP. Such are the nominal modifications seen below:	page 1
 §1.2.1	Andrew Matheson	name	Dryer	Matthew Dryer, preverbs in Kutenai and Algonquian (2002)
 (1) line 1	Ktunaxa	transcription	maʔ-is qaqiks-i ʔatwiɬkani wuʔu	page 2
 (1) line 2	Ktunaxa	gloss	mother-POSS say-INDIC a lot (MASS) water	page 2
@@ -19,7 +19,7 @@ front	Andrew Matheson	language	Ktunaxa	a language isolate of the Kootenay Mounta
 (2) line 1	Ktunaxa	transcription	maʔ-is qaqɬaps-i waha ɬuʔni ʔakitʔɬaʔ-nam	page 2
 (2) line 2	Ktunaxa	gloss	mother-POSS answer-IND no NEG house-INDEF	page 2
 (2) line 3	Andrew Matheson	translation	‘His mother answers, “there are no houses (in this forest).”’	page 2
-§1.2.1	Andrew Matheson	note	The above examples are typical of the quantifier modifying the subject NP. Such a modification most likely manifests itself as an adjunct to the subject DP.	page 2
+§1.2.1	Andrew Matheson	note	The above examples are typical of the quantifier modifying the subject NP. Such a modification likely manifests itself as an adjunct to the subject DP.	page 2
 §1.3	Andrew Matheson	heading	1.3 Existential and universal quantifiers	page 2
 Table A	Andrew Matheson	note	Table A	page 2, the table's caption
 Table A	Andrew Matheson	note	Ktunaxa gloss	page 2, the table's header

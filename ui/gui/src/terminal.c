@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // terminal.c: the terminal's panel drawn as the window last read it of the terminal's tabs (terminal.h). Its places are
-// whole pixels: each cell of a screen stands at its column times the code face's cell, rounded once, and its row times
+// whole pixels: each cell of a screen is at its column times the code face's cell, rounded once, and its row times
 // the row's height
 #include "terminal.h"
 
@@ -29,7 +29,7 @@ typedef struct
     int y;
     unsigned long long *row;
     unsigned long long *column;
-    unsigned int letter;
+    unsigned int character;
     const CliTerminalStyle *style;
     GuiRect box;
     GuiRect place;
@@ -81,7 +81,7 @@ EMBED_INLINE int terminal_cell_width(const TerminalCtx *args)
     const unsigned int size = (unsigned int)EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame,
                                                        .pixels = (int)GUI_TERMINAL_TEXT_SIZE);
     const float cell =
-        EMBED_CALL(gui_glyphs_face_letter.cell, GuiGlyphsFaceLetterCfg, .glyphs = args->glyphs, .size = size);
+        EMBED_CALL(gui_glyphs_face_character.cell, GuiGlyphsFaceLetterCfg, .glyphs = args->glyphs, .size = size);
     // a cell is far inside what an int represents
     const int width = (int)(cell + 0.5f);
     return (width > 0) ? width : 1;
@@ -112,7 +112,7 @@ EMBED_INLINE GuiRect terminal_tool(const TerminalCtx *args)
                      width, height};
 }
 
-// the tab `at`'s rectangle in the side_menu, and its ×'s into `close`, the tabs laid one after another from the
+// the tab `at`'s rectangle in the side_menu, and its ×'s into `close`, the tabs positioned one after another from the
 // side_menu's left
 EMBED_INLINE GuiRect terminal_tab(const TerminalCtx *args)
 {
@@ -192,11 +192,11 @@ EMBED_INLINE GuiRect terminal_view(const TerminalCtx *args)
                               : (GuiRect){views.x + width + line, views.y, views.width - width - line, views.height};
 }
 
-// the row of the pane `view` the pixel at x, y stands on and the column whose left edge it stands nearest, into `row`
+// the row of the pane `view` the pixel at x, y is on and the column whose left edge it is nearest, into `row`
 // and `column`, each clamped to the pane's rows and columns
 EMBED_INLINE void terminal_cell(const TerminalCtx *args)
 {
-    const CliTerminalView *const shown = &args->terminal_read->view[args->view];
+    const CliTerminalView *const displayed = &args->terminal_read->view[args->view];
     const GuiRect place = EMBED_CALL(terminal_view, TerminalCtx, .terminal_read = args->terminal_read,
                                      .frame = args->frame, .view = args->view);
     const int cell = EMBED_CALL(terminal_cell_width, TerminalCtx, .frame = args->frame, .glyphs = args->glyphs);
@@ -208,9 +208,9 @@ EMBED_INLINE void terminal_cell(const TerminalCtx *args)
     const int down = (args->y > top) ? ((args->y - top) / ((row > 0) ? row : 1)) : 0;
     const int across = (args->x > left) ? (((args->x - left) + (cell / 2)) / cell) : 0;
     // a pane's rows and columns are far inside what an int represents, and neither count is below one
-    const int last_row = (shown->rows > 0u) ? ((int)shown->rows - 1) : 0;
+    const int last_row = (displayed->rows > 0u) ? ((int)displayed->rows - 1) : 0;
     *args->row = (unsigned long long)((down < last_row) ? down : last_row);
-    *args->column = (unsigned long long)((across < (int)shown->columns) ? across : (int)shown->columns);
+    *args->column = (unsigned long long)((across < (int)displayed->columns) ? across : (int)displayed->columns);
 }
 
 int gui_terminal_cell_at(const GuiTerminalCfg *args)
@@ -276,7 +276,7 @@ unsigned int gui_terminal_hit(const GuiTerminalCfg *args)
     return CLI_HIT_TERMINAL_PANEL;
 }
 
-// the side_menu drawn inside `place`: each tab, the one shown on the ground with the signal under it, and the two
+// the side_menu drawn inside `place`: each tab, the one displayed on the ground with the signal under it, and the two
 // tools, each color at the share of its alpha the panel has reached
 EMBED_INLINE void terminal_strip_draw(const TerminalCtx *args)
 {
@@ -290,8 +290,8 @@ EMBED_INLINE void terminal_strip_draw(const TerminalCtx *args)
         EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame, .pixels = GUI_TERMINAL_TAB_PAD_LEFT);
     const int close_pad =
         EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame, .pixels = GUI_TERMINAL_CLOSE_PAD);
-    const int shown_line =
-        EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame, .pixels = GUI_TERMINAL_SHOWN_LINE);
+    const int displayed_line =
+        EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame, .pixels = GUI_TERMINAL_DISPLAYED_LINE);
     const GuiRect tabs_clip = EMBED_CALL(
         gui_raster_one.rect_intersect, GuiRasterOneCfg,
         .one = (GuiRect){side_menu.x, side_menu.y,
@@ -309,8 +309,8 @@ EMBED_INLINE void terminal_strip_draw(const TerminalCtx *args)
             break;
         }
         // the tabs are fewer than an int counts
-        const int shown = ((int)at == panel->shown) || ((int)at == panel->beside);
-        if (shown)
+        const int displayed = ((int)at == panel->displayed) || ((int)at == panel->beside);
+        if (displayed)
         {
             EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = args->raster, .rect = on,
                        .radius = (unsigned int)EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame,
@@ -319,7 +319,7 @@ EMBED_INLINE void terminal_strip_draw(const TerminalCtx *args)
             EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
                        .rect =
                            EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                                      .one = (GuiRect){tab.x, tab.y + tab.height - shown_line, tab.width, shown_line},
+                                      .one = (GuiRect){tab.x, tab.y + tab.height - displayed_line, tab.width, displayed_line},
                                       .other = on),
                        .color = GUI_FRAME_FADED(palette->signal, share));
         }
@@ -328,7 +328,7 @@ EMBED_INLINE void terminal_strip_draw(const TerminalCtx *args)
         const int exited = cli_terminal_tabs_label(at, &label_line);
         const unsigned long long label_length = mmgr_line_finish(&label_line);
         const GuiColor text =
-            GUI_FRAME_FADED(exited ? palette->text_3 : (shown ? palette->text : palette->text_2), share);
+            GUI_FRAME_FADED(exited ? palette->text_3 : (displayed ? palette->text : palette->text_2), share);
         const int baseline = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = args->glyphs,
                                         .face = GUI_FACE_CODE, .size = size, .top = tab.y, .pixel_height = tab.height);
         (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = args->raster,
@@ -415,10 +415,10 @@ EMBED_INLINE GuiColor terminal_color(const TerminalCtx *args)
     return GUI_RGB(gray, gray, gray);
 }
 
-// the letter `letter` drawn in `box`, clipped to `place`, in the style `style` with `color` its foreground: its ground
-// where the style has one of its own, the selection's where it is `chosen` and the signal's where the cursor stands on
-// it `solid`; the letter in its color and face, dim at three fifths, inverse with its colors swapped, underlined and
-// struck through; and the cursor's outline where it stands on it and is not solid; every color at the share of its
+// the character `character` drawn in `box`, clipped to `place`, in the style `style` with `color` its foreground: its ground
+// where the style has one of its own, the selection's where it is `chosen` and the signal's where the cursor is on
+// it `solid`; the character in its color and face, dim at three fifths, inverse with its colors swapped, underlined and
+// struck through; and the cursor's outline where it is on it and is not solid; every color at the share of its
 // alpha the panel has reached as it arrives
 EMBED_INLINE void terminal_cell_draw(const TerminalCtx *args)
 {
@@ -436,7 +436,7 @@ EMBED_INLINE void terminal_cell_draw(const TerminalCtx *args)
     ground = args->chosen ? palette->selection : ground;
     ground = (args->cursor && args->solid) ? palette->signal : ground;
     ink = (args->cursor && args->solid) ? palette->well : ink;
-    // a dim letter is drawn at three fifths of its ink
+    // a dim character is drawn at three fifths of its ink
     ink = ((style->marks & CLI_TERMINAL_DIM) != 0u) ? ((ink & 0x00ffffffu) | (((GUI_ALPHA_OF(ink) * 3u) / 5u) << 24u))
                                                     : ink;
     // both at the share of their alpha the panel has reached as it arrives
@@ -448,14 +448,14 @@ EMBED_INLINE void terminal_cell_draw(const TerminalCtx *args)
         EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster, .rect = on,
                    .color = ground);
     }
-    if (args->letter > (unsigned int)' ')
+    if (args->character > (unsigned int)' ')
     {
         const unsigned int bold = ((style->marks & CLI_TERMINAL_BOLD) != 0u) ? 1u : 0u;
         const unsigned int italic = ((style->marks & CLI_TERMINAL_ITALIC) != 0u) ? 2u : 0u;
         float advance = 0.0f;
         const GuiGlyphCell *const glyph =
-            EMBED_CALL(gui_glyphs_face_letter.glyph_cell, GuiGlyphsFaceLetterCfg, .glyphs = args->glyphs,
-                       .face = GUI_FACE_CODE + bold + italic, .letter = args->letter, .size = args->size, .color = ink,
+            EMBED_CALL(gui_glyphs_face_character.glyph_cell, GuiGlyphsFaceLetterCfg, .glyphs = args->glyphs,
+                       .face = GUI_FACE_CODE + bold + italic, .character = args->character, .size = args->size, .color = ink,
                        .advance = &advance);
         if (glyph != NULL)
         {
@@ -501,25 +501,25 @@ EMBED_INLINE int terminal_word_is(const TerminalCtx *args)
            (memor.cmp(&(MemoriaCfg){.src = args->token, .other = args->word, .bytes = length}) == 0);
 }
 
-// the number the `size` bytes at `text` write, their first nine digits at the most
+// the number the `size` bytes at `text` write, their first nine digits at max
 EMBED_INLINE unsigned int terminal_run_number(const TerminalCtx *args)
 {
     unsigned int number = 0u;
     for (unsigned int at = 0u; (at < args->size) && (at < 9u); at += 1u)
     {
-        const char letter = args->text[at];
+        const char character = args->text[at];
         // a digit's value is far inside what an unsigned int counts
-        number = ((letter >= '0') && (letter <= '9')) ? ((number * 10u) + (unsigned int)(letter - '0')) : number;
+        number = ((character >= '0') && (character <= '9')) ? ((number * 10u) + (unsigned int)(character - '0')) : number;
     }
     return number;
 }
 
 // `style_out` changed by the run of `size` bytes at `text` whose token is the `length` bytes at `token`: 1 where the
-// token is keyword or keyword.<what>, an escape sequence among the letters, which takes no column; else 0, nothing
+// token is keyword or keyword.<what>, an escape sequence among the characters, which takes no column; else 0, nothing
 // changed. Past `keyword.`: reset is the plain style; a mark's word puts it on and the word with .off after it takes it
 // off, normal taking bold and dim off; foreground.<n> and background.<n> are the color n of the sixteen, .default the
 // default, .index the color of the 256 at the run's number, .direct red, green and blue at none, and .red, .green
-// and .blue each that part at the run's number, 255 at the most
+// and .blue each that part at the run's number, 255 at max
 EMBED_INLINE int terminal_token_read(const TerminalCtx *args)
 {
     static const char s_keyword[] = "keyword";
@@ -619,7 +619,7 @@ EMBED_INLINE int terminal_token_read(const TerminalCtx *args)
 EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
 {
     const CliTerminalPanel *const panel = &args->terminal_read->panel;
-    const CliTerminalView *const shown = &args->terminal_read->view[args->view];
+    const CliTerminalView *const displayed = &args->terminal_read->view[args->view];
     const GuiPalette *const palette = args->palette;
     const GuiRect place = EMBED_CALL(terminal_view, TerminalCtx, .terminal_read = args->terminal_read,
                                      .frame = args->frame, .view = args->view);
@@ -628,7 +628,7 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
     const GuiRect inside =
         EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = place, .other = args->place);
     const int share = args->frame->terminal_share;
-    if ((panel->views == 2u) && shown->focused)
+    if ((panel->views == 2u) && displayed->focused)
     {
         EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
                    .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
@@ -649,9 +649,9 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
         place.x + EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame, .pixels = GUI_TERMINAL_PAD_SIDE);
     const int top =
         place.y + EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame, .pixels = GUI_TERMINAL_PAD_TOP);
-    const int solid = panel->keys && shown->focused;
+    const int solid = panel->keys && displayed->focused;
     const CliViewFrame *const frame = args->terminal_read->frame[args->view];
-    // the selection's ends in order, nothing chosen where they stand together
+    // the selection's ends in order, nothing chosen where they are together
     const int anchored =
         (frame != NULL) && ((frame->anchor.line < frame->cursor.line) ||
                             ((frame->anchor.line == frame->cursor.line) && (frame->anchor.col < frame->cursor.col)));
@@ -660,12 +660,12 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
     const int selected = (from.line != to.line) || (from.col != to.col);
     const CliDocumentNames *const names = args->terminal_read->names[args->view];
     const unsigned int count = (frame != NULL) ? frame->count : 0u;
-    for (unsigned int y = 0u; (y < count) && (y < shown->rows); y += 1u)
+    for (unsigned int y = 0u; (y < count) && (y < displayed->rows); y += 1u)
     {
         const unsigned long long line = frame->row[y].number;
         const char *const text = frame->bytes + frame->row[y].text;
         const unsigned long long length = frame->row[y].length;
-        // a line's runs stand in the frame's runs cell as its columns and then each run's token's place in the table,
+        // a line's runs are in the frame's runs cell as its columns and then each run's token's place in the table,
         // none where that cell could not be met
         const CliDocumentLineRuns none = {0u, 0u};
         const CliDocumentLineRuns runs = (frame->runs != NULL) ? frame->runs->line[y] : none;
@@ -675,15 +675,15 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
         const int on_chosen = selected && (line >= from.line) && (line <= to.line);
         const unsigned long long chosen_from = (line == from.line) ? from.col : 0ULL;
         const unsigned long long chosen_to = (line == to.line) ? to.col : ~0ULL;
-        const int cursor_row = shown->cursor_shown && (line == (shown->xterm_line + shown->cursor_y));
+        const int cursor_row = displayed->cursor_displayed && (line == (displayed->xterm_line + displayed->cursor_y));
         unsigned long long units = 0ULL;
         unsigned long long at = 0ULL;
         unsigned int x = 0u;
         unsigned int next = 0u;
         int sequence = 0;
-        // the style of the letters, from the plain one at the line's start, changed by each keyword run's token
+        // the style of the characters, from the plain one at the line's start, changed by each keyword run's token
         CliTerminalStyle style = {CLI_TERMINAL_COLOR_DEFAULT, CLI_TERMINAL_COLOR_DEFAULT, 0u};
-        while ((at < length) && (x < shown->columns))
+        while ((at < length) && (x < displayed->columns))
         {
             while ((next < runs.runs) && (units >= column_of[next]))
             {
@@ -693,8 +693,8 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
                     ((next + 1u) < runs.runs) ? column_of[next + 1u] : (units + (length - at));
                 const unsigned long long run_size = (run_end > units) ? (run_end - units) : 0ULL;
                 const unsigned long long within = (run_size < (length - at)) ? run_size : (length - at);
-                // a keyword is an escape sequence among the letters, a byte to each of its units: it takes no column,
-                // and its token changes the style of the letters after it; a run is far shorter than an unsigned int
+                // a keyword is an escape sequence among the characters, a byte to each of its units: it takes no column,
+                // and its token changes the style of the characters after it; a run is far shorter than an unsigned int
                 // counts
                 sequence = EMBED_CALL(terminal_token_read, TerminalCtx, .token = token,
                                       .length = cellul.len(&(CatenaFinitaCfg){.src = token, .cap = 64ULL}),
@@ -702,12 +702,12 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
                 next += 1u;
             }
             unsigned long long consumed = 0ULL;
-            const unsigned int letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = length,
+            const unsigned int character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = text, .size = length,
                                                    .at = at, .length = &consumed);
             at += (consumed != 0ULL) ? consumed : 1ULL;
-            // a column is counted in the units of the text the view chooses in, a letter past the basic plane two
+            // a column is counted in the units of the text the view chooses in, a character past the basic plane two
             const int chosen = on_chosen && (units >= chosen_from) && (units < chosen_to);
-            units += (letter >= 0x10000u) ? 2ULL : 1ULL;
+            units += (character >= 0x10000u) ? 2ULL : 1ULL;
             if (sequence)
             {
                 continue;
@@ -716,20 +716,20 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
                                                    .value = style.foreground, .color = palette->text);
             // a pane's columns and rows are far inside what an int represents
             EMBED_CALL(terminal_cell_draw, TerminalCtx, .raster = args->raster, .glyphs = args->glyphs,
-                       .frame = args->frame, .palette = palette, .letter = letter, .color = foreground, .style = &style,
+                       .frame = args->frame, .palette = palette, .character = character, .color = foreground, .style = &style,
                        .box = (GuiRect){left + ((int)x * cell), top + ((int)y * row), cell, row}, .place = inside,
                        .size = size, .baseline = baseline, .width = cell, .height = row, .one = one, .chosen = chosen,
-                       .cursor = cursor_row && (x == shown->cursor_x), .solid = solid);
+                       .cursor = cursor_row && (x == displayed->cursor_x), .solid = solid);
             x += 1u;
         }
-        // the cursor past the line's letters, on a blank of its own in the plain style
-        if (cursor_row && (shown->cursor_x >= x) && (shown->cursor_x < shown->columns))
+        // the cursor past the line's characters, on a blank of its own in the plain style
+        if (cursor_row && (displayed->cursor_x >= x) && (displayed->cursor_x < displayed->columns))
         {
             const CliTerminalStyle plain = {CLI_TERMINAL_COLOR_DEFAULT, CLI_TERMINAL_COLOR_DEFAULT, 0u};
             EMBED_CALL(terminal_cell_draw, TerminalCtx, .raster = args->raster, .glyphs = args->glyphs,
-                       .frame = args->frame, .palette = palette, .letter = (unsigned int)' ', .color = palette->text,
+                       .frame = args->frame, .palette = palette, .character = (unsigned int)' ', .color = palette->text,
                        .style = &plain,
-                       .box = (GuiRect){left + ((int)shown->cursor_x * cell), top + ((int)y * row), cell, row},
+                       .box = (GuiRect){left + ((int)displayed->cursor_x * cell), top + ((int)y * row), cell, row},
                        .place = inside, .size = size, .baseline = baseline, .width = cell, .height = row, .one = one,
                        .chosen = 0, .cursor = 1, .solid = solid);
         }
@@ -746,7 +746,7 @@ void gui_terminal_draw(const GuiTerminalCfg *args)
     }
     const int line = EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame, .pixels = GUI_TERMINAL_LINE);
     const GuiRect side_menu = EMBED_CALL(terminal_strip, TerminalCtx, .frame = args->frame);
-    // the panel is drawn inside the work's inside, which cuts it off where it stands below its place as it arrives, in
+    // the panel is drawn inside the work's inside, which cuts it off where it is below its place as it arrives, in
     // its colors at the share of their alpha it has reached
     const GuiRect inside =
         EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = place, .other = args->frame->inside);

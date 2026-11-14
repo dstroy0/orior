@@ -29,7 +29,7 @@
 #
 # What confounds this and cannot be removed: the Roman book is a modern English translation and the
 # medieval one comes through a later edition. The date a text was composed and the date its language
-# belongs to are different variables here. Where they separate is stated per book and not averaged over.
+# belongs to be different variables here. Where they separate is stated per book and not averaged over.
 
 import io
 import os
@@ -59,7 +59,7 @@ RANKS = 48
 SEED = 0x51F7
 
 # Uses a word needs before its gaps carry a statistic, which is lower than the floor a symbol takes
-# because a book holds far fewer of any one word than of any one letter.
+# because a book holds far fewer of any one word than of any one character.
 LEAST_USES = 24
 
 
@@ -89,12 +89,12 @@ def from_catalog():
 
 
 def clustering(text):
-    """How tightly each word keeps to one part of the book, against the same words scattered.
+    """How tightly each word retains to one part of the book, against the same words scattered.
 
     Arrangement is a property of the whole book and the character web is a property of neighboring
-    letters. Shuffling blocks left that web almost unmoved: every value came back under 0.03 and the
-    reading said nothing. What arrangement does show in is where a word sits. A book laid out as separate
-    recipes keeps the word for an ingredient inside the recipe that calls for it, and a book that wanders
+    characters. Shuffling blocks left that web almost unmoved: every value came back under 0.03 and the
+    reading said nothing. What arrangement does show in is where a word sits. A book arranged as separate
+    recipes retains the word for an ingredient inside the recipe that calls for it, and a book that wanders
     spreads the same word through the whole of itself.
 
     Measured as the spread of the gaps between one use of a word and the next, over the words common
@@ -142,7 +142,7 @@ def main():
         out.flush()
         return 0
 
-    out.write("  %-40s %-9s %-9s %s\n" % ("book", "written", "language", "words kept in place"))
+    out.write("  %-40s %-9s %-9s %s\n" % ("book", "written", "language", "words retained in place"))
     for _, title, written, language, moved, _ in sorted(
             rows, key=lambda row: row[2] if row[2] else 9999):
         out.write("  %-40s %-9s %-9s %.4f\n"

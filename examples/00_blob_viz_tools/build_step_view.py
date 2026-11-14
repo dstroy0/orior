@@ -7,7 +7,7 @@
 
 Every reading in this work is about what a difference does as it travels. A single trace cannot
 show that: it shows a value, and a value on its own says nothing about propagation. So this runs
-the compression on a pair and keeps every intermediate from both sides, plus the exclusive-or
+the compression on a pair and retains every intermediate from both sides, plus the exclusive-or
 between them: the difference itself.
 
 What becomes visible, none of which a table of digests shows:
@@ -74,7 +74,7 @@ def expand(message):
 
 
 def trace(message):
-    """Every intermediate of every round, kept and never discarded."""
+    """Every intermediate of every round, retained and never discarded."""
     words = expand(message)
     a, b, c, d, e, f, g, h = START
     rounds = []

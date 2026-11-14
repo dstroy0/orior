@@ -81,7 +81,7 @@ static void runs_pruned(char *folder)
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = name, .joined = path);
         (void)EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = "", .size = 0ull);
     }
-    EMBED_CALL(query_folder_max_internal.runs_prune, QueryFolderMaxCtx, .folder = folder, .most = 2u);
+    EMBED_CALL(query_folder_max_internal.runs_prune, QueryFolderMaxCtx, .folder = folder, .max = 2u);
 }
 
 // the case ignored on a machine with no C compiler to build the writer with
@@ -393,7 +393,7 @@ void test_a_file_read_is_written_under_its_path_and_recorded_as_a_leaf(void)
     TEST_ASSERT_TRUE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = file, .bytes = "forms\n", .size = 6ull));
     TEST_ASSERT_TRUE(run_started(&s_run, "build/query_test/read/qry"));
     const char *const read[2] = {file, absent};
-    const int was_read = EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run, .paths_letters = read, .count = 2u, .err_msg = &err_msg);
+    const int was_read = EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run, .paths_characters = read, .count = 2u, .err_msg = &err_msg);
     const int written = latest_is(&s_run, "build/query_test/read/sm_86.khw", "forms\n");
     const unsigned int count = s_run.read.count;
     const int leaf_named = cellul.eq(&(CatenaFinitaCfg){.src = s_run.read.path[0], .other = file, .cap = CLI_POOL_BYTES});
@@ -415,7 +415,7 @@ void test_a_file_written_is_recorded_as_a_leaf(void)
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = base, .relative = "left.txt", .joined = left);
     TEST_ASSERT_TRUE(run_started(&s_run, "build/query_test/read/qry"));
     const char *const lefts[2] = {file, left};
-    EMBED_CALL(query_count_err_msg_internal.run_leave, QueryCountErrMsgCtx, .run = &s_run, .paths_letters = lefts, .count = 2u);
+    EMBED_CALL(query_count_err_msg_internal.run_leave, QueryCountErrMsgCtx, .run = &s_run, .paths_characters = lefts, .count = 2u);
     const unsigned int count = s_run.left.count;
     const int leaf_named = cellul.eq(&(CatenaFinitaCfg){.src = s_run.left.path[1], .other = left, .cap = CLI_POOL_BYTES});
     const unsigned int read_capacity = s_run.read.capacity;
@@ -439,12 +439,12 @@ void test_a_later_step_reads_the_runs_own_not_the_disks_older_copy(void)
     TEST_ASSERT_TRUE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = file, .bytes = "forms\n", .size = 6ull));
     TEST_ASSERT_TRUE(run_started(&s_run, "build/query_test/read/qry"));
     const char *const read[1] = {file};
-    (void)EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run, .paths_letters = read, .count = 1u, .err_msg = &err_msg);
+    (void)EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run, .paths_characters = read, .count = 1u, .err_msg = &err_msg);
     err_msg.at = 0ull;
     (void)EMBED_CALL(query_name_bytes_internal.writer_append, QueryNameBytesCtx, .writer = &s_run.writer, .name = "build/query_test/read/sm_86.khw", .bytes = "forms an earlier step wrote\n", .size = 28ull, .priority = QRY_ORDINARY, .err_msg = &err_msg);
     TEST_ASSERT_TRUE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = file, .bytes = "forms on the disk\n", .size = 18ull));
     err_msg.at = 0ull;
-    const int was_read = EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run, .paths_letters = read, .count = 1u, .err_msg = &err_msg);
+    const int was_read = EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run, .paths_characters = read, .count = 1u, .err_msg = &err_msg);
     const int run_own = latest_is(&s_run, "build/query_test/read/sm_86.khw", "forms an earlier step wrote\n");
     run_ended(&s_run);
     TEST_ASSERT_TRUE(was_read);
@@ -464,7 +464,7 @@ void test_a_runs_end_releases_the_cells_of_its_leaves(void)
     TEST_ASSERT_TRUE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = file, .bytes = "forms\n", .size = 6ull));
     TEST_ASSERT_TRUE(run_started(&s_run, "build/query_test/read/qry"));
     const char *const read[1] = {file};
-    (void)EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run, .paths_letters = read, .count = 1u, .err_msg = &err_msg);
+    (void)EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run, .paths_characters = read, .count = 1u, .err_msg = &err_msg);
     run_ended(&s_run);
     TEST_ASSERT_NULL(s_run.read.path);
     TEST_ASSERT_NULL(s_run.left.path);

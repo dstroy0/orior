@@ -46,7 +46,7 @@ struct CliNetAddressHostCfg
 
 struct CliNetMaxCfg
 {
-    unsigned int most;
+    unsigned int max;
     VerbaLinea *out;
 };
 

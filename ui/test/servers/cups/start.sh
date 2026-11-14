@@ -2,7 +2,7 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# Starts the test printers, each keeping what it is sent in /spool/<its name>, then CUPS, open to
+# Starts the test printers, each retention what it is sent in /spool/<its name>, then CUPS, open to
 # the machine the container runs on, with a queue named office that prints on the PDF printer. CUPS
 # answers a request by any name of the machine, as a container reaches it by Docker's name for it.
 

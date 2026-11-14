@@ -40,7 +40,7 @@ static int daemon_write(TesseraPeer *peer, const TesseraFrame *frame)
         {
             return 0;
         }
-        // a count of bytes moved is positive and at most one frame
+        // a count of bytes moved is positive and at max one frame
         sent += (unsigned int)moved;
     }
     return 1;
@@ -208,7 +208,7 @@ static void *daemon_peer(void *argument)
                 open = (moved < 0) && (errno == EINTR);
                 continue;
             }
-            // a count of bytes moved is positive and at most one frame
+            // a count of bytes moved is positive and at max one frame
             got += (unsigned int)moved;
             if (got == TESSERA_FRAME_BYTES)
             {
@@ -311,12 +311,12 @@ int daemon_arguments(int count, char **arguments, unsigned long long *idle)
     return have_device && have_luid && have_idle;
 }
 
-int daemon_socket_handed(void)
+int daemon_socket_passed(void)
 {
 #if defined(_WIN32)
     return 0;
 #else
-    // systemd hands one listening socket over as fd 3 and names this process as its receiver
+    // systemd passes one listening socket over as fd 3 and names this process as its receiver
     const char *const listen_pid = getenv("LISTEN_PID");
     const char *const listen_fds = getenv("LISTEN_FDS");
     return (listen_pid != NULL) && (listen_fds != NULL) &&
@@ -329,7 +329,7 @@ int daemon_error(void)
 #if !defined(_WIN32)
     // the connections that made systemd start this daemon wait on its socket: each is closed unanswered: its
     // client errors and systemd has none left to start the daemon again for
-    if (daemon_socket_handed())
+    if (daemon_socket_passed())
     {
         const int flags = fcntl(3, F_GETFL);
         fcntl(3, F_SETFL, flags | O_NONBLOCK);

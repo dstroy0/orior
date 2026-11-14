@@ -103,7 +103,7 @@
       "inline": false,
       "optional": [
         "blurb",
-        "kind",
+        "type",
         "title"
       ],
       "requires": [

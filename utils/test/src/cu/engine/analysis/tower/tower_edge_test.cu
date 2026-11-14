@@ -333,7 +333,7 @@ int main(void)
     check("f(x) reads out of the carrier field on the collapsed floor", readouts == BENNETT_TRIALS);
     check("a collapsed-floor edge touches only its one coefficient", untouched == BENNETT_TRIALS);
 
-    // the same two Bennett edges laid out mid-tower, where lifting mixes their outputs, still round-trip
+    // the same two Bennett edges arranged mid-tower, where lifting mixes their outputs, still round-trip
     TowerEdge inside[2];
     inside[0].floor = 1u;
     inside[0].index_bits = BENNETT_BITS;

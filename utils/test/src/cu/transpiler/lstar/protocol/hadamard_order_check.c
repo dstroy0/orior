@@ -120,10 +120,10 @@ static void check_row_costs(unsigned int links, const unsigned long long *cost, 
 
 static void check_solve(unsigned int links, unsigned int *state)
 {
-    unsigned long long cost[HADAMARD_ORDER_LINKS_MOST];
-    unsigned long long row_cost[HADAMARD_ORDER_LINKS_MOST];
-    long long scaled[HADAMARD_ORDER_LINKS_MOST];
-    long long shifted[HADAMARD_ORDER_LINKS_MOST];
+    unsigned long long cost[HADAMARD_ORDER_LINKS_MAX];
+    unsigned long long row_cost[HADAMARD_ORDER_LINKS_MAX];
+    long long scaled[HADAMARD_ORDER_LINKS_MAX];
+    long long shifted[HADAMARD_ORDER_LINKS_MAX];
     for (unsigned int trial = 0u; trial < 64u; trial += 1u)
     {
         const unsigned int passes = 1u + (trial % 8u);
@@ -163,7 +163,7 @@ static void check_solve(unsigned int links, unsigned int *state)
 
 static void check_sweep(unsigned int links)
 {
-    unsigned char covered[HADAMARD_ORDER_LINKS_MOST];
+    unsigned char covered[HADAMARD_ORDER_LINKS_MAX];
     const unsigned int counts[3] = {1u, (links + 1u) / 2u, links};
     int every = 1;
     for (unsigned int row = 0u; row < (3u * links); row += 1u)
@@ -198,16 +198,16 @@ static void check_refusals(void)
 }
 
 // the share, in tenths of a percent, of `trials` passes the read finds contention on, links contending by up to
-// `most` per pair, over `links` links, `passes` passes of the known order and `sweeps` sweep queries
+// `max` per pair, over `links` links, `passes` passes of the known order and `sweeps` sweep queries
 static unsigned int check_contention_rate(unsigned int links, unsigned int passes, unsigned int sweeps,
-                                          unsigned int most, unsigned int trials, unsigned int *state)
+                                          unsigned int max, unsigned int trials, unsigned int *state)
 {
-    static unsigned int contend[HADAMARD_ORDER_LINKS_MOST][HADAMARD_ORDER_LINKS_MOST];
-    unsigned long long cost[HADAMARD_ORDER_LINKS_MOST];
-    unsigned long long row_cost[HADAMARD_ORDER_LINKS_MOST];
-    unsigned long long swept[4u * HADAMARD_ORDER_LINKS_MOST];
-    long long scaled[HADAMARD_ORDER_LINKS_MOST];
-    unsigned char covered[HADAMARD_ORDER_LINKS_MOST];
+    static unsigned int contend[HADAMARD_ORDER_LINKS_MAX][HADAMARD_ORDER_LINKS_MAX];
+    unsigned long long cost[HADAMARD_ORDER_LINKS_MAX];
+    unsigned long long row_cost[HADAMARD_ORDER_LINKS_MAX];
+    unsigned long long swept[4u * HADAMARD_ORDER_LINKS_MAX];
+    long long scaled[HADAMARD_ORDER_LINKS_MAX];
+    unsigned char covered[HADAMARD_ORDER_LINKS_MAX];
     const long long overhead = 20000;
     unsigned int found = 0u;
     for (unsigned int trial = 0u; trial < trials; trial += 1u)
@@ -217,7 +217,7 @@ static unsigned int check_contention_rate(unsigned int links, unsigned int passe
             cost[link] = 500ull + (check_drawn(state) % 1001u);
             for (unsigned int other = link + 1u; other < links; other += 1u)
             {
-                contend[link][other] = (most == 0u) ? 0u : (check_drawn(state) % (most + 1u));
+                contend[link][other] = (max == 0u) ? 0u : (check_drawn(state) % (max + 1u));
             }
         }
         for (unsigned int row = 0u; row < links; row += 1u)
@@ -276,24 +276,24 @@ int main(void)
     check_refusals();
     printf("  exact claims at 3, 7, 15, 31 and 63 links: %llu checks, %llu failed\n", s_checks, s_failed);
 
-    // the noise's spread is 1000, the floor; links cost 500 to 1500, under it, and a pair contends by up to `most`
+    // the noise's spread is 1000, the floor; links cost 500 to 1500, under it, and a pair contends by up to `max`
     const unsigned int links = 15u;
     const unsigned int passes = 4u;
     const unsigned int sweeps = 3u * links;
     const unsigned int trials = 300u;
-    static const unsigned int s_most[] = {0u, 80u, 200u};
+    static const unsigned int s_max[] = {0u, 80u, 200u};
     unsigned int rate[3];
     printf("  contention read, %u links, %u passes of the known order, %u sweep queries, %u trials:\n", links, passes,
            sweeps, trials);
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
-        rate[at] = check_contention_rate(links, passes, sweeps, s_most[at], trials, &state);
-        printf("    up to %3u a pair: contention found on %u.%u%%\n", s_most[at], rate[at] / 10u, rate[at] % 10u);
+        rate[at] = check_contention_rate(links, passes, sweeps, s_max[at], trials, &state);
+        printf("    up to %3u a pair: contention found on %u.%u%%\n", s_max[at], rate[at] / 10u, rate[at] % 10u);
     }
     // the read is required to have a false alarm rate under one in ten and to find the largest contention nine times in
     // ten
-    const int read_stands = (rate[0] < 100u) && (rate[2] >= 900u);
+    const int read_is = (rate[0] < 100u) && (rate[2] >= 900u);
     printf("  the read's false alarms stay under 10%% and it finds the largest contention on 90%% or more: %s\n",
-           read_stands ? "yes" : "NO");
-    return ((s_failed == 0ull) && read_stands) ? 0 : 1;
+           read_is ? "yes" : "NO");
+    return ((s_failed == 0ull) && read_is) ? 0 : 1;
 }

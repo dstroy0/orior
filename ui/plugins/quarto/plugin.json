@@ -2,7 +2,7 @@
   "id": "quarto",
   "name": "Quarto",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "extensions": ["qmd"],
   "comments": {"block":["<!--","-->"]},
   "pairs": ["()","[]","{}","``"],

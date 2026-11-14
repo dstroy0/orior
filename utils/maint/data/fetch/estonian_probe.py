@@ -15,7 +15,7 @@
 # Estonian stored here is one short parallel text. Before that result is leaned on any further, Estonian
 # needs a corpus worth the name.
 #
-# The country keeps its records carefully and publishes them. This asks what its archives and language
+# The country retains its records carefully and publishes them. This asks what its archives and language
 # resource centers serve and under what terms, and downloads nothing.
 
 import io

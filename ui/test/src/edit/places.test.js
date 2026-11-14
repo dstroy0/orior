@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Places: Back and Forward through where the cursor was, and what each tree keeps.
+// Places: Back and Forward through where the cursor was, and what each tree retains.
 
 import { restoreSession } from "../../../gui/src-js/edit/places.js";
 import { editing, openFile } from "../../../gui/src-js/edit.js";
@@ -34,7 +34,7 @@ test("the tabs opened again as the tree starts leave the keys in the field the r
   try {
     field.focus();
     await restoreSession();
-    assert.equal(document.activeElement, field, "the field keeps the keys");
+    assert.equal(document.activeElement, field, "the field retains the keys");
     field.blur();
     await restoreSession();
     assert.ok(editorNode.contains(document.activeElement), "the editor takes the keys nothing has");
@@ -43,8 +43,8 @@ test("the tabs opened again as the tree starts leave the keys in the field the r
   }
 });
 
-test("the changes not saved are kept at once as the window closes, and let go once the text is back as saved", async () => {
-  await invoke("file_write", { path: "closing.txt", text: "kept as typed\n" });
+test("the changes not saved are retained at once as the window closes, and let go once the text is back as saved", async () => {
+  await invoke("file_write", { path: "closing.txt", text: "retained as typed\n" });
   showView("edit");
   await openFile("closing.txt");
   await ui.waitFor(() => editing().active === "closing.txt" && editing().editor?.s, 5000);
@@ -54,10 +54,10 @@ test("the changes not saved are kept at once as the window closes, and let go on
   view.focus();
   await ui.type("Q");
   window.dispatchEvent(new Event("pagehide"));
-  assert.equal(backup(), "Qkept as typed\n", "kept the moment the window closes, not a moment after typing rests");
+  assert.equal(backup(), "Qkept as typed\n", "retained the moment the window closes, not a moment after typing rests");
   await ui.key("Backspace");
   window.dispatchEvent(new Event("pagehide"));
-  assert.equal(backup(), null, "back as saved, nothing kept");
+  assert.equal(backup(), null, "back as saved, nothing retained");
 });
 
 test("the window is put back as the file found it", putBackAsFound);

@@ -255,7 +255,7 @@ long qasm_self_run(const QasmSelfRequest *request, QasmSelfMeasurement *measurem
     unsigned int bits = 0u;
     int ok = qasm_self_inputs(request, amplitudes, &input_denominator, &bits, NULL, 0u);
     QasmSelfBuild *const build = ok ? (QasmSelfBuild *)calloc(1u, sizeof(QasmSelfBuild)) : NULL;
-    // widening: at most 2^10 entries, represented by any size_t
+    // widening: at max 2^10 entries, represented by any size_t
     const size_t entries = (size_t)amplitudes * amplitudes;
     if (build != NULL)
     {
@@ -275,7 +275,7 @@ long qasm_self_run(const QasmSelfRequest *request, QasmSelfMeasurement *measurem
     ok = ok && qasm_self_program(request, build, bits, &program);
     const unsigned int in_limbs = ok ? program.layout.in_limbs[0] : 0u;
     const unsigned int out_limbs = ok ? program.layout.out_limbs : 0u;
-    // widening: the limb counts are unsigned ints, and with at most 2^32 lanes the product stays below 2^64
+    // widening: the limb counts are unsigned ints, and with at max 2^32 lanes the product stays below 2^64
     const unsigned long long record_limbs = request->lanes * (unsigned long long)(in_limbs + out_limbs);
     ok = ok && QASM_CHECK(record_limbs <= (SIZE_MAX / sizeof(unsigned int)), request, error, ENGINE_ERROR_RESOURCE) &&
          QASM_CHECK((request->records == NULL) || (request->record_capacity >= (request->lanes * out_limbs)), request,

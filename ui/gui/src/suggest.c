@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// suggest.c: the completion panel, its rows as the panels over the editor rank them, read where they stand
+// suggest.c: the completion panel, its rows as the panels over the editor rank them, read where they are
 #include "suggest.h"
 
 #include "../../../includes/window/frame.h"
@@ -35,7 +35,7 @@ int gui_suggest_row_at(const GuiSuggestXCfg *args)
     {
         return 0;
     }
-    // the list's height is a row for each row shown, and a pixel inside the list stands on a row that is not negative
+    // the list's height is a row for each row displayed, and a pixel inside the list is on a row that is not negative
     const int row_height = list.height / (int)panel->rows;
     const int row = (row_height > 0) ? (args->y - list.y) / row_height : 0;
     if ((unsigned int)row >= panel->rows)
@@ -100,7 +100,7 @@ void gui_suggest_draw(const GuiSuggestRasterCfg *args)
     const int gap = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SUGGEST_GAP, .scale = scale);
     const int mark = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SUGGEST_TYPE, .scale = scale);
     const unsigned int rows = panel->rows;
-    // the list's width is its widest row's, between the least and the most
+    // the list's width is its widest row's, between the least and the max
     float widest = 0.0f;
     for (unsigned int row = 0u; row < rows; row += 1u)
     {
@@ -120,18 +120,18 @@ void gui_suggest_draw(const GuiSuggestRasterCfg *args)
     }
     int list_width = (int)(widest + 0.5f) + (2 * pad_x) + mark + gap;
     const int min = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SUGGEST_MIN, .scale = scale);
-    const int most = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SUGGEST_MAX, .scale = scale);
+    const int max = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SUGGEST_MAX, .scale = scale);
     if (list_width < min)
     {
         list_width = min;
     }
-    else if (list_width > most)
+    else if (list_width > max)
     {
-        list_width = most;
+        list_width = max;
     }
     // the rows are few: their height is far inside what an int represents
     const int list_height = ((int)rows * row_height) + (2 * pad_y);
-    // the row chosen is always among the rows shown
+    // the row chosen is always among the rows displayed
     CliCompletionRow chosen_row = {"", 0ULL, "", "", 0ULL, 0u};
     (void)cli_servers_panels_completion_row(panel->chosen - panel->first, &chosen_row);
     const CliCompletionRow *const chosen = &chosen_row;
@@ -227,7 +227,7 @@ void gui_suggest_draw(const GuiSuggestRasterCfg *args)
             EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SUGGEST_DETAIL_PAD_X, .scale = scale);
         const int detail_pad_y =
             EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SUGGEST_DETAIL_PAD_Y, .scale = scale);
-        // the detail is laid as code, the panel's inline code, inside one pair of backticks
+        // the detail is positioned as code, the panel's inline code, inside one pair of backticks
         char fenced[GUI_PANEL_RUN + 2u];
         VerbaLinea text = {fenced, sizeof(fenced), 0ULL};
         mmgr_line_ch(&text, '`');

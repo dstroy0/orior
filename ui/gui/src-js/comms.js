@@ -12,7 +12,7 @@ import { invoke } from "./bridge.js";
 // How often the lists are read again while the window shows, in milliseconds.
 const REFRESH = 1000;
 
-const state = { timer: 0, shown: null, channels: [] };
+const state = { timer: 0, displayed: null, channels: [] };
 const parts = {};
 
 function element(tag, props = {}, ...children) {
@@ -69,20 +69,20 @@ function channelRow(channel) {
   const detail = `${plural(channel.bytes, "byte")}${moved}; heard by ${channel.listeners.length ? [...new Set(channel.listeners)].join(", ") : "no part"}`;
   const button = element("button", { className: `containers-row comms-channel ${channel.refused ? "dead" : "running"}`, type: "button", title: detail }, element("span", { className: "containers-dot" }), element("span", { className: "name", textContent: channel.name }), element("span", { className: "status", textContent: status }), element("span", { className: "detail", textContent: detail }));
   button.dataset.key = channel.name;
-  if (state.shown === channel.name) {
+  if (state.displayed === channel.name) {
     button.setAttribute("aria-current", "true");
   }
   button.addEventListener("click", () => {
-    state.shown = channel.name;
+    state.displayed = channel.name;
     parts.list.querySelectorAll(".comms-channel").forEach((one) => one.toggleAttribute("aria-current", one.dataset.key === channel.name));
     showLast();
   });
   return button;
 }
 
-// Puts the shown channel's last messages in the pane beside the list, the newest last.
+// Puts the displayed channel's last messages in the pane beside the list, the newest last.
 function showLast() {
-  const channel = state.channels.find((one) => one.name === state.shown);
+  const channel = state.channels.find((one) => one.name === state.displayed);
   parts.title.textContent = channel ? `Last messages on ${channel.name}` : "";
   parts.out.textContent = channel ? channel.last.map((message) => `${message.from}: ${JSON.stringify(message.body)}`).join("\n") : "";
   parts.out.scrollTop = parts.out.scrollHeight;

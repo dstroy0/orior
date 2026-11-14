@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 title	Mary George	title	Mary George Personal Narratives	the paper's title
 abstract	John Hamilton Davis	language	Mainland Comox	the language of the narratives
 §1	John Hamilton Davis	name	Sliammon	the village where the work was done
@@ -17,7 +17,7 @@ abstract	John Hamilton Davis	language	Mainland Comox	the language of the narrati
 2 4	Mary George	translation	‘One little old man.’
 2 5	Mary George	transcription	jiaqaʔ k’wiʔesh eyt ʔe tez shiaʔtigans t’olhalh
 2 5	John Hamilton Davis	phonetic	[ǰyæqᴧʔ k̀wεʔɪš iɪt ʔə tətθ šyεʔtεgᴧns t̀oɬᴧɬ]
-2 5	Mary George	translation	‘He stood over my bed.’
+2 5	Mary George	translation	‘He was over my bed.’
 2 6	Mary George	transcription	chia’nawh ch’ia qwel’
 2 6	John Hamilton Davis	phonetic	[čyεεnᴧçw č̀yε qwɔlʔ]
 2 6	Mary George	translation	‘He came three times.’
@@ -132,7 +132,7 @@ note 14	John Hamilton Davis	cited affix	-s	she
 note 15	John Hamilton Davis	cited form	lhe	ART
 note 15	John Hamilton Davis	cited form	pipaʔa	one or another person
 note 16	John Hamilton Davis	cited form	jiaqaʔ	unexpectedly
-note 16	John Hamilton Davis	cited form	jiaq’	(standing object) fall over
+note 16	John Hamilton Davis	cited form	jiaq’	(located object) fall over
 note 16	John Hamilton Davis	cited form	jiaq’ît	fallen
 note 17	John Hamilton Davis	cited form	ʔaxîth	lying down
 note 17	John Hamilton Davis	cited form	ʔaxeth	lie down
@@ -699,7 +699,7 @@ note 73	John Hamilton Davis	cited form	q’aymit	believe it
 7 25	Mary George	translation	‘The owl would only spread its wings (repeatedly/each time).’
 7 26	Mary George	transcription	z’ez’qa····tas qajey
 7 26	John Hamilton Davis	phonetic	[t̀θɪt̀θq̀ata····s qᴧǰiɪ]
-7 26	Mary George	translation	‘He kept on throwing.’
+7 26	Mary George	translation	‘He retained on throwing.’
 7 27	Mary George	transcription	hoy ʔot s tix.ayin.s she naʔa xixniq’
 7 27	John Hamilton Davis	phonetic	[hoɪ ʔot s tεχayɪns šɪ naʔᴧ χεχnεq̀]
 7 27	Mary George	translation	‘The owl only spread its wings.’
@@ -735,7 +735,7 @@ note 73	John Hamilton Davis	cited form	q’aymit	believe it
 7 37	Mary George	translation	‘He didn’t pay attention.’
 7 38	Mary George	transcription	pa’yatas ʔot naʔa z’ez’qatas qajey
 7 38	John Hamilton Davis	phonetic	[paayεtᴧs ʔot naʔᴧ t̀θɪt̀θq̀atᴧs qᴧǰiɪ]
-7 38	Mary George	translation	‘He kept on throwing at (the owl).’
+7 38	Mary George	translation	‘He retained on throwing at (the owl).’
 7 39	Mary George	transcription	qajey ch ʔot niʔ naʔa papkwat shiaʔt
 7 39	John Hamilton Davis	phonetic	[qᴧǰiɪ č ʔot nεʔ naʔᴧ papkwat šyεʔt]
 7 39	Mary George	translation	‘I was still there staring (surveilling) up there.’
@@ -1514,7 +1514,7 @@ note 145	John Hamilton Davis	note	rhetorical use of negative question
 13 3	Tommy Paul	translation	‘That’s how tall he is.’ (pointing upwards)
 13 4	Tommy Paul	transcription	thewhins s tihtihs jeshjeshens
 13 4	John Hamilton Davis	phonetic	[θʊçwɪns s tihtihs ǰɪšǰɪšins]
-13 4	Tommy Paul	translation	‘That’s how big his feet are.’ (holding his hands out)
+13 4	Tommy Paul	translation	‘That’s how big his feet are.’ (holding his passes out)
 13 5	Tommy Paul	transcription	ʔey whaʔ ʔot ʔawk’was chia ʔewh niʔs
 13 5	John Hamilton Davis	phonetic	[ʔiɪ çwaʔ ʔot ʔᴧʊk̀wᴧs čyε ʔəçw nεʔs]
 13 5	Tommy Paul	translation	‘But he’s not everywhere.’
@@ -1556,7 +1556,7 @@ note 145	John Hamilton Davis	note	rhetorical use of negative question
 13 17	Tommy Paul	translation	‘(If) you go upstream…’
 13 18	Tommy Paul	transcription	tam jianwh mamaʔtas, z’az’agatas ʔe kw qiwhams kw k’watem
 13 18	John Hamilton Davis	phonetic	[tam ǰyεnçw mamaatᴧs t̀θat̀θagᴧtᴧs ʔə kw qεçwᴧms kw k̀wᴧtəm]
-13 18	Tommy Paul	translation	‘He is taking any kind of fish, putting it out of the water to beside the river.’
+13 18	Tommy Paul	translation	‘He is taking any type of fish, putting it out of the water to beside the river.’
 13 19	Tommy Paul	transcription	nem’ kw ot tam qigath
 13 19	John Hamilton Davis	phonetic	[nʌ́mʔ kwʊt tam qεgᴧθ]
 13 19	Tommy Paul	translation	‘(He does) the same with any deer.’
@@ -1639,7 +1639,7 @@ note 145	John Hamilton Davis	note	rhetorical use of negative question
 13 44	John Hamilton Davis	question	tam kw ʔilhtens kw mayʔalʔalh	What’s food for the sasquatch?
 13 45	Tommy Paul	transcription	ʔewk’w ʔeyt tam jianwh, qigath, xwitl’ay
 13 45	John Hamilton Davis	phonetic	[ʔuʊk̀w iɪt tam ǰyεnçw qεgᴧθ χwᴧɪƛ̀ᴧɪ (χwεƛ̀ᴧɪ)]
-13 45	Tommy Paul	translation	‘Any kind of fish, deer, mountain goat.’
+13 45	Tommy Paul	translation	‘Any type of fish, deer, mountain goat.’
 note 146	John Hamilton Davis	segment	/ʔəwk̀w/	which becomes /ʔawk̀w/ for emphasis
 note 146	John Hamilton Davis	segment	/ʔawk̀w/	what /ʔəwk̀w/ becomes for emphasis
 note 147	John Hamilton Davis	cited affix	C1əC2-	plural of the place name

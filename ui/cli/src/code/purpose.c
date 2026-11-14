@@ -17,12 +17,12 @@ typedef struct
     char text[CLI_PURPOSE_TEXT];
     CliThread thread;
 } CliPurposePart;
-// the most threads the tree's files are read on, and the bytes a file's text takes once read as UTF-8
+// the max threads the tree's files are read on, and the bytes a file's text takes once read as UTF-8
 #define CLI_PURPOSE_THREADS 16u
 
 typedef struct
 {
-    unsigned int letter;
+    unsigned int character;
     const char *within;
     unsigned long long size;
     unsigned long long at;
@@ -36,15 +36,15 @@ typedef struct
     const char *path;
     VerbaLinea *err_msg;
 } PurposeCtx;
-// whether a letter joins a word: a letter, a number or `_`
+// whether a character joins a word: a character, a number or `_`
 EMBED_INLINE int cli_joins(const PurposeCtx *args)
 {
-    unsigned int letter = args->letter;
-    return EMBED_CALL(cli_files_letter_internal.hit_wordy, CliFilesLetterCtx, .letter = letter);
+    unsigned int character = args->character;
+    return EMBED_CALL(cli_files_character_internal.hit_wordy, CliFilesLetterCtx, .character = character);
 }
 
-// whether the span of `length` bytes at `at` of `size` bytes of `within` is a whole word: no letter, number, `_` or
-// `-` before it, and no letter, number or `_` after it
+// whether the span of `length` bytes at `at` of `size` bytes of `within` is a whole word: no character, number, `_` or
+// `-` before it, and no character, number or `_` after it
 EMBED_INLINE int cli_word(const PurposeCtx *args)
 {
     unsigned long long at = args->at;
@@ -57,9 +57,9 @@ EMBED_INLINE int cli_word(const PurposeCtx *args)
             start -= 1ULL;
         }
         unsigned int before = 0u;
-        EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                   .text_bytes = (const unsigned char *)args->within, .length = at, .at = start, .letter = &before);
-        if (EMBED_CALL(cli_joins, PurposeCtx, .letter = before) || (before == '-'))
+        EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                   .text_bytes = (const unsigned char *)args->within, .length = at, .at = start, .character = &before);
+        if (EMBED_CALL(cli_joins, PurposeCtx, .character = before) || (before == '-'))
         {
             return 0;
         }
@@ -67,10 +67,10 @@ EMBED_INLINE int cli_word(const PurposeCtx *args)
     if ((at + length) < args->size)
     {
         unsigned int after = 0u;
-        EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+        EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                    .text_bytes = (const unsigned char *)args->within, .length = args->size, .at = at + length,
-                   .letter = &after);
-        if (EMBED_CALL(cli_joins, PurposeCtx, .letter = after))
+                   .character = &after);
+        if (EMBED_CALL(cli_joins, PurposeCtx, .character = after))
         {
             return 0;
         }
@@ -126,11 +126,11 @@ int cli_purpose_uses(const CliPurposeTextCfg *args)
         unsigned long long lead = 0ULL;
         while (lead < length)
         {
-            unsigned int letter = 0u;
+            unsigned int character = 0u;
             const unsigned long long step =
-                EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                           .text_bytes = (const unsigned char *)line, .length = length, .at = lead, .letter = &letter);
-            if (!EMBED_CALL(cli_files_letter_internal.fuzzy_white, CliFilesLetterCtx, .letter = letter))
+                EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                           .text_bytes = (const unsigned char *)line, .length = length, .at = lead, .character = &character);
+            if (!EMBED_CALL(cli_files_character_internal.fuzzy_white, CliFilesLetterCtx, .character = character))
             {
                 break;
             }

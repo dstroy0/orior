@@ -19,13 +19,13 @@
   .sheet{max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:26px;}
 
   header{border-bottom:2px solid var(--ink);padding-bottom:16px;}
-  h1{font-size:clamp(28px,5vw,44px);font-weight:600;margin:0 0 6px;letter-spacing:-.015em;
+  h1{font-size:clamp(28px,5vw,44px);font-weight:600;margin:0 0 6px;character-spacing:-.015em;
      line-height:1.08;text-wrap:balance;}
   .sub{font-size:16px;color:var(--mute);margin:0 0 14px;text-align:justify;hyphens:auto;}
   .by{font-family:var(--mono);font-size:11.5px;color:var(--mute);display:flex;flex-wrap:wrap;gap:5px 18px;}
   .by b{color:var(--ink);font-weight:500;}
 
-  h2{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.14em;
+  h2{font-family:var(--mono);font-size:10.5px;font-weight:600;character-spacing:.14em;
      text-transform:uppercase;color:var(--mute);margin:0 0 12px;padding-bottom:6px;
      border-bottom:1px solid var(--rule);}
   p{margin:0 0 10px;text-align:justify;hyphens:auto;}
@@ -34,7 +34,7 @@
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;}
   .card{background:var(--card);border:1px solid var(--rule);padding:16px 17px;
         display:flex;flex-direction:column;gap:7px;}
-  .lab{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);}
+  .lab{font-family:var(--mono);font-size:9.5px;character-spacing:.12em;text-transform:uppercase;color:var(--mute);}
   .fig{font-family:var(--mono);font-weight:600;font-size:clamp(20px,3vw,26px);line-height:1.05;
        color:var(--hot);font-variant-numeric:tabular-nums;}
   .fig.b{color:var(--cool);}
@@ -54,7 +54,7 @@
   .scroll{overflow-x:auto;}
   table{border-collapse:collapse;width:100%;font-size:13.5px;}
   th,td{text-align:left;padding:7px 11px 7px 0;border-bottom:1px solid var(--rule);}
-  th{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  th{font-family:var(--mono);font-size:9.5px;character-spacing:.1em;text-transform:uppercase;
      color:var(--mute);font-weight:600;}
   td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap;}
   td.y{font-family:var(--mono);font-size:11.5px;color:var(--good);}
@@ -203,7 +203,7 @@
         <text class="tx" x="22" y="24">4%</text>
       </svg>
       <figcaption>The Gauss circle problem in d dimensions: departure of the exact integer lattice
-      count from the ball volume, at radius&sup2; = 12d. Classical; shown only as an exact
+      count from the ball volume, at radius&sup2; = 12d. Classical; displayed only as an exact
       big-integer computation carried to d = 1024 (a 1,182-digit count), flat to six figures from
       d = 64 with the leading correction d/(4r&sup2;) measured at 0.2506 against 1/4.</figcaption>
     </figure>
@@ -268,7 +268,7 @@
   verified bit-identical against an independent host implementation at every size the host can reach;
   above that only the published &pi; prefix is checked, and it agrees. &pi; is computed to
   10&#8311; places, not beyond. Nothing here claims a record or a new theorem outside the twiddle
-  provenance argument; the counting-law figure is the classical Gauss circle problem shown as an
+  provenance argument; the counting-law figure is the classical Gauss circle problem displayed as an
   exact computation. No claim is made about quantum computation or about factoring.</p>
   <p>&copy; 2026 Douglas Quigg (dstroy0), dquigg123@gmail.com. Licensed AGPL-3.0-or-later, or under a
   negotiated commercial licence, or under an educator's licence issued personally.</p>

@@ -20,7 +20,7 @@ for stem in "$@"; do
         echo "   the generator failed; the oracle was not rewritten"
         continue
     fi
-    # A generator that writes its oracle itself, a person's reading kept row for row, writes no ops
+    # A generator that writes its oracle itself, a person's reading retained row for row, writes no ops
     # and has no finish run over it.
     if [ -f "$PRIVATE/ops/$stem.ops" ]; then
         python finish.py "$stem" 2>&1 | tail -1

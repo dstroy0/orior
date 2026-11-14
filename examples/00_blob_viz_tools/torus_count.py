@@ -73,7 +73,7 @@ def theta_power(dims, top):
 
 
 def points_within(dims, top):
-    """How many integer vectors in this dimension have squared length at most `top`. Exact."""
+    """How many integer vectors in this dimension have squared length at max `top`. Exact."""
     return sum(theta_power(dims, top))
 
 
@@ -96,10 +96,10 @@ def _check():
         want = ball_volume(dims) * math.pow(top, dims / 2.0)
         ratio = got / want
         worst = max(worst, abs(ratio - 1.0))
-        shown = str(got)
-        if len(shown) > 26:
-            shown = shown[:9] + "..." + shown[-9:] + " (%d)" % len(shown)
-        print("  %5d %8d %26s %16.6g %10.5f" % (dims, top, shown, want, ratio))
+        displayed = str(got)
+        if len(displayed) > 26:
+            displayed = displayed[:9] + "..." + displayed[-9:] + " (%d)" % len(displayed)
+        print("  %5d %8d %26s %16.6g %10.5f" % (dims, top, displayed, want, ratio))
 
     print("")
     print("  worst departure: %.3f%%" % (100 * worst))

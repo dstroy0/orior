@@ -3,7 +3,7 @@
 // glyphs.c: the window's text. A face's file is read whole through the caller's faces into its segment of the block
 // and its character map saved after it; a glyph is outlined at its pixel size, measured, rasterized as coverage in a cell of its own
 // size and saved as bytes in a entry found by its key, every entry let go together as they fill; a glyph in a color is
-// a cell of lanes laid for the one blend, saved the same way, which the text is drawn through
+// a cell of lanes positioned for the one blend, saved the same way, which the text is drawn through
 #include "glyphs.h"
 
 #include "block.h"
@@ -12,7 +12,7 @@
 
 #include "../utf8/utf8.h"
 
-// the bytes kept clear after a face's file, as the reader reads past a table's end by a word
+// the bytes retained clear after a face's file, as the reader reads past a table's end by a word
 #define GLYPHS_FILE_SLACK 64ULL
 
 typedef struct
@@ -26,7 +26,7 @@ typedef struct
     unsigned int cover;
     const GuiGlyphs *glyphs_read;
     GuiMask *mask_bits;
-    unsigned int letter;
+    unsigned int character;
     GuiColor color;
     float *advance;
 } GlyphsCtx;
@@ -117,7 +117,7 @@ int gui_glyphs_init(const GuiGlyphsCfg *args)
     if ((args->faces == NULL) || (tables == NULL))
     {
         gui_glyphs.free(args);
-        mmgr_line_put(args->err_msg, "the cells the window's glyphs are kept in could not be taken");
+        mmgr_line_put(args->err_msg, "the cells the window's glyphs are retained in could not be taken");
         return 0;
     }
     args->glyphs->contours = (FontContours *)(void *)tables;
@@ -178,7 +178,7 @@ int gui_glyphs_head_bold_read(const GuiGlyphsCfg *args)
 
 void gui_glyphs_head_bold_free(const GuiGlyphsCfg *args)
 {
-    // its letters' masks go with it: every mask let go, the others drawn again as they are asked for
+    // its characters' masks go with it: every mask let go, the others drawn again as they are asked for
     EMBED_CALL(glyphs_clear, GlyphsCtx, .glyphs = args->glyphs);
     // its file and ranges lie in the face's segment of the block, taken again as the face is read again
     args->glyphs->has[GUI_FACE_HEAD_BOLD] = 0;
@@ -238,7 +238,7 @@ EMBED_INLINE GuiCachedGlyph *glyphs_entry(const GlyphsCtx *args)
 
 // the stem darkening at `size` pixels an em: how far each side of a stroke is pushed out, in pixels, GUI_DARKEN_MAX
 // at GUI_DARKEN_SMALL pixels and below, falling straight to GUI_DARKEN_MIN at GUI_DARKEN_LARGE and above, as a
-// small glyph's thin stems need the most to read at full weight
+// small glyph's thin stems need the max to read at full weight
 EMBED_INLINE float glyphs_darkening(const GlyphsCtx *args)
 {
     if (args->size <= GUI_DARKEN_SMALL)
@@ -385,13 +385,13 @@ const GuiMask *gui_glyph(const GuiGlyphsFaceLetterCfg *args)
     unsigned int had =
         EMBED_CALL(gui_glyphs_face.face_had, GuiGlyphsFaceCfg, .glyphs_read = args->glyphs, .face = face);
     const Font *font = &args->glyphs->face[had];
-    unsigned int glyph = EMBED_CALL(font_letter.glyph, FontCfg, .font = font, .letter = args->letter);
-    // a letter its face has none of is drawn from the symbol face where that face has it, as the system's text does
-    if ((glyph == 0u) && (args->letter > 0x20u) && (had != GUI_FACE_SYMBOL) &&
+    unsigned int glyph = EMBED_CALL(font_character.glyph, FontCfg, .font = font, .character = args->character);
+    // a character its face has none of is drawn from the symbol face where that face has it, as the system's text does
+    if ((glyph == 0u) && (args->character > 0x20u) && (had != GUI_FACE_SYMBOL) &&
         EMBED_CALL(glyphs_symbol_read, GlyphsCtx, .glyphs = args->glyphs))
     {
-        const unsigned int symbol = EMBED_CALL(font_letter.glyph, FontCfg, .font = &args->glyphs->face[GUI_FACE_SYMBOL],
-                                               .letter = args->letter);
+        const unsigned int symbol = EMBED_CALL(font_character.glyph, FontCfg, .font = &args->glyphs->face[GUI_FACE_SYMBOL],
+                                               .character = args->character);
         if (symbol != 0u)
         {
             had = GUI_FACE_SYMBOL;
@@ -451,23 +451,23 @@ int gui_glyphs_baseline(const GuiGlyphsFaceCfg *args)
 float gui_glyphs_cell(const GuiGlyphsFaceLetterCfg *args)
 {
     float advance = 0.0f;
-    (void)EMBED_CALL(gui_glyphs_face_letter.glyph, GuiGlyphsFaceLetterCfg, .glyphs = args->glyphs,
-                     .face = GUI_FACE_CODE, .letter = 'M', .size = args->size, .advance = &advance);
+    (void)EMBED_CALL(gui_glyphs_face_character.glyph, GuiGlyphsFaceLetterCfg, .glyphs = args->glyphs,
+                     .face = GUI_FACE_CODE, .character = 'M', .size = args->size, .advance = &advance);
     return advance;
 }
 
-// the cell keyed by `face`, `letter`, `size` and `color`, or an unused cell for it; the cells are emptied first when
+// the cell keyed by `face`, `character`, `size` and `color`, or an unused cell for it; the cells are emptied first when
 // three quarters of them are in use
 EMBED_INLINE GuiGlyphCell *glyphs_cell_entry(const GlyphsCtx *args)
 {
     const unsigned int start =
-        ((args->face * 31u) + (args->letter * 7u) + (args->size * 131u) + (args->color * 2654435761u)) %
+        ((args->face * 31u) + (args->character * 7u) + (args->size * 131u) + (args->color * 2654435761u)) %
         GUI_CELL_CACHE_ENTRIES;
     unsigned int at = start;
     do
     {
         GuiGlyphCell *const cell = &args->glyphs->cell[at];
-        if (cell->used && (cell->face == args->face) && (cell->letter == args->letter) && (cell->size == args->size) &&
+        if (cell->used && (cell->face == args->face) && (cell->character == args->character) && (cell->size == args->size) &&
             (cell->color == args->color))
         {
             return cell;
@@ -490,27 +490,27 @@ static const GuiGlyphCell *glyphs_cell_init(const GlyphsCtx *args)
 {
     GuiGlyphs *glyphs = args->glyphs;
     unsigned int face = args->face;
-    unsigned int letter = args->letter;
+    unsigned int character = args->character;
     unsigned int size = args->size;
     GuiColor color = args->color;
     float *advance = args->advance;
     const unsigned int had =
         EMBED_CALL(gui_glyphs_face.face_had, GuiGlyphsFaceCfg, .glyphs_read = glyphs, .face = face);
-    GuiGlyphCell *const cell = EMBED_CALL(glyphs_cell_entry, GlyphsCtx, .glyphs = glyphs, .face = had, .letter = letter,
+    GuiGlyphCell *const cell = EMBED_CALL(glyphs_cell_entry, GlyphsCtx, .glyphs = glyphs, .face = had, .character = character,
                                           .size = size, .color = color);
     if (cell->used)
     {
         *advance = cell->advance;
         return cell;
     }
-    const GuiMask *const mask_bits = EMBED_CALL(gui_glyphs_face_letter.glyph, GuiGlyphsFaceLetterCfg, .glyphs = glyphs,
-                                                .face = had, .letter = letter, .size = size, .advance = advance);
+    const GuiMask *const mask_bits = EMBED_CALL(gui_glyphs_face_character.glyph, GuiGlyphsFaceLetterCfg, .glyphs = glyphs,
+                                                .face = had, .character = character, .size = size, .advance = advance);
     if (mask_bits == NULL)
     {
         return NULL;
     }
     cell->face = had;
-    cell->letter = letter;
+    cell->character = character;
     cell->size = size;
     cell->color = color;
     cell->advance = *advance;
@@ -544,7 +544,7 @@ static const GuiGlyphCell *glyphs_cell_init(const GlyphsCtx *args)
         cell->rest = cell->green + pixels;
         // each pixel's share of the color is its cover by the color's alpha, two shares of 255 multiplied being a share
         // of 255 once divided by 255; the lanes are the color's channels by the share with half of 255 in, as the
-        // raster's blend lays them
+        // raster's blend positions them
         const unsigned int alpha = GUI_ALPHA_OF(color);
         for (unsigned long long at = 0ULL; at < pixels; at += 1ULL)
         {
@@ -596,16 +596,16 @@ EMBED_INLINE GuiAsciiTable *glyphs_ascii_table(const GlyphsCtx *args)
 const GuiGlyphCell *gui_glyph_cell(const GuiGlyphsFaceLetterCfg *args)
 {
     float *advance = args->advance;
-    if ((args->letter < GUI_ASCII_FIRST) || (args->letter >= GUI_ASCII_FIRST + GUI_ASCII_COUNT))
+    if ((args->character < GUI_ASCII_FIRST) || (args->character >= GUI_ASCII_FIRST + GUI_ASCII_COUNT))
     {
         return EMBED_CALL(glyphs_cell_init, GlyphsCtx, .glyphs = args->glyphs, .face = args->face,
-                          .letter = args->letter, .size = args->size, .color = args->color, .advance = advance);
+                          .character = args->character, .size = args->size, .color = args->color, .advance = advance);
     }
     const unsigned int had =
         EMBED_CALL(gui_glyphs_face.face_had, GuiGlyphsFaceCfg, .glyphs_read = args->glyphs, .face = args->face);
     GuiAsciiTable *const table = EMBED_CALL(glyphs_ascii_table, GlyphsCtx, .glyphs = args->glyphs, .face = had,
                                             .size = args->size, .color = args->color);
-    const unsigned int at = args->letter - GUI_ASCII_FIRST;
+    const unsigned int at = args->character - GUI_ASCII_FIRST;
     if (table->cell[at] != NULL)
     {
         *advance = table->advance[at];
@@ -613,7 +613,7 @@ const GuiGlyphCell *gui_glyph_cell(const GuiGlyphsFaceLetterCfg *args)
     }
     const unsigned int cells_before = args->glyphs->celled;
     const GuiGlyphCell *const cell =
-        EMBED_CALL(glyphs_cell_init, GlyphsCtx, .glyphs = args->glyphs, .face = had, .letter = args->letter,
+        EMBED_CALL(glyphs_cell_init, GlyphsCtx, .glyphs = args->glyphs, .face = had, .character = args->character,
                    .size = args->size, .color = args->color, .advance = advance);
     // a cell made may have emptied every cell and every table with them: the table is found again before it is filled
     GuiAsciiTable *const saved = (args->glyphs->celled < cells_before)
@@ -643,12 +643,12 @@ float gui_text_draw(const GuiGlyphsFaceSizeCfg *args)
     while (at < args->length)
     {
         unsigned long long consumed = 0ULL;
-        const unsigned int letter = EMBED_CALL(utf8_at.letter, Utf8AtCfg, .text = args->text,
+        const unsigned int character = EMBED_CALL(utf8_at.character, Utf8AtCfg, .text = args->text,
                                                .size = args->length, .at = at, .length = &consumed);
         at += (consumed != 0ULL) ? consumed : 1ULL;
         float advance = 0.0f;
-        const GuiGlyphCell *const cell = EMBED_CALL(gui_glyphs_face_letter.glyph_cell, GuiGlyphsFaceLetterCfg,
-                                                    .glyphs = args->glyphs, .face = args->face, .letter = letter,
+        const GuiGlyphCell *const cell = EMBED_CALL(gui_glyphs_face_character.glyph_cell, GuiGlyphsFaceLetterCfg,
+                                                    .glyphs = args->glyphs, .face = args->face, .character = character,
                                                     .size = args->size, .color = args->color, .advance = &advance);
         if (cell != NULL)
         {
@@ -668,12 +668,12 @@ float gui_text_width(const GuiGlyphsFaceSizeCfg *args)
     while (at < args->length)
     {
         unsigned long long consumed = 0ULL;
-        const unsigned int letter = EMBED_CALL(utf8_at.letter, Utf8AtCfg, .text = args->text,
+        const unsigned int character = EMBED_CALL(utf8_at.character, Utf8AtCfg, .text = args->text,
                                                .size = args->length, .at = at, .length = &consumed);
         at += (consumed != 0ULL) ? consumed : 1ULL;
         float advance = 0.0f;
-        (void)EMBED_CALL(gui_glyphs_face_letter.glyph, GuiGlyphsFaceLetterCfg, .glyphs = args->glyphs,
-                         .face = args->face, .letter = letter, .size = args->size, .advance = &advance);
+        (void)EMBED_CALL(gui_glyphs_face_character.glyph, GuiGlyphsFaceLetterCfg, .glyphs = args->glyphs,
+                         .face = args->face, .character = character, .size = args->size, .advance = &advance);
         width += advance;
     }
     return width;

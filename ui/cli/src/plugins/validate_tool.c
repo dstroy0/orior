@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // validate_tool.c: the tool plugins, those that come with orior and the reader's, each read from its plugin.json as
-// serde reads a Tool: a plugin of type "tool" that is not one is passed over, and of two of one id the later stands
+// serde reads a Tool: a plugin of type "tool" that is not one is passed over, and of two of one id the later is
 #include "plugins.h"
 #include "validate_internal.h"
 
 #include "../text/text.h"
 
-// the most tool plugins looked over
+// the max tool plugins looked over
 #define CLI_VALIDATE_TOOLS (CLI_USER_PLUGINS + 256u)
 
 int cli_validate_in_array(const CliValidateJsonCtx *args)
@@ -54,7 +54,7 @@ typedef struct
     const char **value;
     unsigned int *array_pointer;
     const unsigned long long *fallback;
-    unsigned long long most;
+    unsigned long long max;
     unsigned long long *value_u64s;
     unsigned int array;
     GuiTool *tool;
@@ -112,7 +112,7 @@ EMBED_INLINE int tool_strings(const ValidateToolCtx *args)
     return 1;
 }
 
-// the whole number `name` of `object`, no greater than `most`, into `value`: 1, or 0 where it is none, as serde reads
+// the whole number `name` of `object`, no greater than `max`, into `value`: 1, or 0 where it is none, as serde reads
 // an unsigned integer, or absent and no `fallback` is given; `*fallback` where it is absent
 EMBED_INLINE int tool_count(const ValidateToolCtx *args)
 {
@@ -142,7 +142,7 @@ EMBED_INLINE int tool_count(const ValidateToolCtx *args)
             return 0;
         }
         const unsigned long long digit = (unsigned long long)(text[at] - '0');
-        if (sum > (args->most - digit) / 10ULL)
+        if (sum > (args->max - digit) / 10ULL)
         {
             return 0;
         }
@@ -175,7 +175,7 @@ EMBED_INLINE int tool_barriers(const ValidateToolCtx *args)
                         .value = &barrier->name) ||
             !EMBED_CALL(tool_string, ValidateToolCtx, .json = json, .object = one, .name = "about", .needed = 0,
                         .value = &barrier->about) ||
-            !EMBED_CALL(tool_strings, ValidateToolCtx, .json = json, .object = one, .name = "kinds", .needed = 0,
+            !EMBED_CALL(tool_strings, ValidateToolCtx, .json = json, .object = one, .name = "types", .needed = 0,
                         .array_pointer = &barrier->types) ||
             !EMBED_CALL(tool_strings, ValidateToolCtx, .json = json, .object = one, .name = "phrases", .needed = 0,
                         .array_pointer = &barrier->phrases) ||
@@ -184,11 +184,11 @@ EMBED_INLINE int tool_barriers(const ValidateToolCtx *args)
             !EMBED_CALL(tool_string, ValidateToolCtx, .json = json, .object = one, .name = "lift", .needed = 1,
                         .value = &barrier->lift) ||
             !EMBED_CALL(tool_count, ValidateToolCtx, .json = json, .object = one, .name = "default", .fallback = NULL,
-                        .most = ~0ULL, .value_u64s = &barrier->start) ||
+                        .max = ~0ULL, .value_u64s = &barrier->start) ||
             !EMBED_CALL(tool_count, ValidateToolCtx, .json = json, .object = one, .name = "grow", .fallback = NULL,
-                        .most = ~0ULL, .value_u64s = &barrier->grow) ||
+                        .max = ~0ULL, .value_u64s = &barrier->grow) ||
             !EMBED_CALL(tool_count, ValidateToolCtx, .json = json, .object = one, .name = "ceiling", .fallback = NULL,
-                        .most = ~0ULL, .value_u64s = &barrier->ceiling))
+                        .max = ~0ULL, .value_u64s = &barrier->ceiling))
         {
             return 0;
         }
@@ -217,7 +217,7 @@ EMBED_INLINE int tool_flags(const ValidateToolCtx *args)
             !EMBED_CALL(tool_strings, ValidateToolCtx, .json = json, .object = one, .name = "words", .needed = 1,
                         .array_pointer = &flag->words) ||
             !EMBED_CALL(tool_count, ValidateToolCtx, .json = json, .object = one, .name = "severity", .fallback = NULL,
-                        .most = 255ULL, .value_u64s = &severity) ||
+                        .max = 255ULL, .value_u64s = &severity) ||
             !EMBED_CALL(tool_string, ValidateToolCtx, .json = json, .object = one, .name = "message", .needed = 1,
                         .value = &flag->phrases))
         {
@@ -294,7 +294,7 @@ EMBED_INLINE int tool_read(const ValidateToolCtx *args)
     const char *type = NULL;
     if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = args->root,
                     .type = CFG_JSON_OBJECT) ||
-        !EMBED_CALL(tool_string, ValidateToolCtx, .json = json, .object = args->root, .name = "kind", .needed = 1,
+        !EMBED_CALL(tool_string, ValidateToolCtx, .json = json, .object = args->root, .name = "type", .needed = 1,
                     .value = &type) ||
         (!cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "tool", .cap = CLI_POOL_BYTES})))
     {
@@ -326,7 +326,7 @@ EMBED_INLINE int tool_read(const ValidateToolCtx *args)
            EMBED_CALL(tool_strings, ValidateToolCtx, .json = json, .object = run, .name = "inProject", .needed = 0,
                       .array_pointer = &args->tool->in_project) &&
            EMBED_CALL(tool_count, ValidateToolCtx, .json = json, .object = run, .name = "patience",
-                      .fallback = &s_patience, .most = ~0ULL, .value_u64s = &args->tool->patience) &&
+                      .fallback = &s_patience, .max = ~0ULL, .value_u64s = &args->tool->patience) &&
            ((barriers == CLI_JSON_NONE) || EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
                                                       .json_read = json, .node = barriers, .type = CFG_JSON_ARRAY)) &&
            EMBED_CALL(tool_barriers, ValidateToolCtx, .json = json, .array = barriers, .tool = args->tool) &&
@@ -339,7 +339,7 @@ EMBED_INLINE int tool_read(const ValidateToolCtx *args)
                       .tool = args->tool);
 }
 
-// What a look over the tool plugins finds: each tool by its id, the last plugin of an id standing for it, with its
+// What a look over the tool plugins finds: each tool by its id, the last plugin of an id located for it, with its
 // place among the plugins and whether it checks the language sought; and, as one is read again, the place sought and
 // whether it was read
 typedef struct

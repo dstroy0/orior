@@ -10,7 +10,7 @@
 #include "notebook_cells_internal.h"
 #include "notebook_edit.h"
 
-// the bytes the specs are first written into, the most times they are written again into twice as many, and the
+// the bytes the specs are first written into, the max times they are written again into twice as many, and the
 // milliseconds a kernel has to stop before its process is ended
 #define KERNEL_SPECS_BYTES (1ULL << 20u)
 #define KERNEL_SPECS_TRIES 4u
@@ -83,19 +83,19 @@ EMBED_INLINE void kernels_read(const NotebookKernelCtx *args)
     g_cli_guard->persistent_buf_release(specs, g_cli_notebook_open_owner);
     const unsigned int count = (root != CLI_JSON_NONE) ? json.node[root].count : 0u;
     static const char *const s_fields[4] = {"name", "display_name", "language", "install"};
-    // the rows laid in a cell of this call, each text cut to its field, then written once into the kernels' cell
-    CliNotebookKernelRow *const laid =
+    // the rows positioned in a cell of this call, each text cut to its field, then written once into the kernels' cell
+    CliNotebookKernelRow *const positioned =
         (count != 0u) ? g_cli_guard->temporary_buf_alloc((unsigned long long)count * sizeof(CliNotebookKernelRow),
                                                          g_cli_notebook_open_owner)
                       : NULL;
     unsigned int at = 0u;
-    for (unsigned int spec = (laid != NULL) ? json.node[root].first : CLI_JSON_NONE; spec != CLI_JSON_NONE;
+    for (unsigned int spec = (positioned != NULL) ? json.node[root].first : CLI_JSON_NONE; spec != CLI_JSON_NONE;
          spec = json.node[spec].next)
     {
-        CliNotebookKernelRow *const row = &laid[at];
+        CliNotebookKernelRow *const row = &positioned[at];
         memor.set(&(MemoriaCfg){.dst = row, .val = 0, .bytes = sizeof(*row)});
         char *const field_text[4] = {row->name, row->display, row->language, row->install};
-        const unsigned long long field_most[4] = {sizeof(row->name), sizeof(row->display), sizeof(row->language),
+        const unsigned long long field_max[4] = {sizeof(row->name), sizeof(row->display), sizeof(row->language),
                                                   sizeof(row->install)};
         for (unsigned int field = 0u; field < 4u; field += 1u)
         {
@@ -109,8 +109,8 @@ EMBED_INLINE void kernels_read(const NotebookKernelCtx *args)
             {
                 continue;
             }
-            VerbaLinea line = {field_text[field], field_most[field], 0ULL};
-            mmgr_line_put_most(&line, value, (length < field_most[field]) ? length : field_most[field] - 1ULL);
+            VerbaLinea line = {field_text[field], field_max[field], 0ULL};
+            mmgr_line_put_max(&line, value, (length < field_max[field]) ? length : field_max[field] - 1ULL);
             (void)mmgr_line_finish(&line);
             row->lacks = (field == 3u) ? 1 : row->lacks;
         }
@@ -123,9 +123,9 @@ EMBED_INLINE void kernels_read(const NotebookKernelCtx *args)
     if (s_kernel_cell != NULL)
     {
         (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
-            .cell = s_kernel_cell, .offset = 0u, .src = laid, .bytes = (unsigned long long)at * sizeof(*laid)});
+            .cell = s_kernel_cell, .offset = 0u, .src = positioned, .bytes = (unsigned long long)at * sizeof(*positioned)});
     }
-    g_cli_guard->persistent_buf_release(laid, g_cli_notebook_open_owner);
+    g_cli_guard->persistent_buf_release(positioned, g_cli_notebook_open_owner);
     g_cli_guard->persistent_buf_release(json.node, g_cli_notebook_open_owner);
 }
 
@@ -211,8 +211,8 @@ EMBED_INLINE int kernel_stopped(const NotebookKernelCtx *args)
     return ended;
 }
 
-// the kernel row `at` started for the model in the folder its file stands in, the model's context its receiver is
-// handed, the model's kernel texts laid from the row: 1, or 0 with why written
+// the kernel row `at` started for the model in the folder its file is in, the model's context its receiver is
+// passed, the model's kernel texts positioned from the row: 1, or 0 with why written
 EMBED_INLINE int kernel_started(const NotebookKernelCtx *args)
 {
     CliNotebookModel *const model = args->model;
@@ -254,13 +254,13 @@ EMBED_INLINE int kernel_started(const NotebookKernelCtx *args)
     }
     char text[3u * CLI_NAME_MAX_LEN];
     VerbaLinea line = {text, sizeof(text), 0ULL};
-    mmgr_line_put_most(&line, row.name, CLI_NAME_MAX_LEN - 1u);
+    mmgr_line_put_max(&line, row.name, CLI_NAME_MAX_LEN - 1u);
     mmgr_line_ch(&line, '\0');
-    mmgr_line_put_most(&line, row.display, CLI_NAME_MAX_LEN - 1u);
+    mmgr_line_put_max(&line, row.display, CLI_NAME_MAX_LEN - 1u);
     mmgr_line_ch(&line, '\0');
-    mmgr_line_put_most(&line, row.language, CLI_NAME_MAX_LEN - 1u);
+    mmgr_line_put_max(&line, row.language, CLI_NAME_MAX_LEN - 1u);
     mmgr_line_ch(&line, '\0');
-    (void)EMBED_CALL(cli_notebook_model_internal.kernel_laid, CliNotebookModelCtx, .model = model, .text = text,
+    (void)EMBED_CALL(cli_notebook_model_internal.kernel_positioned, CliNotebookModelCtx, .model = model, .text = text,
                      .size = line.at);
     return 1;
 }

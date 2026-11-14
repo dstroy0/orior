@@ -15,7 +15,7 @@ function element(tag, props = {}, ...children) {
 
 const label = (text, ...fields) => element("label", { className: "report-row" }, element("span", { textContent: text }), ...fields);
 
-// Asks for the path of a new file, or with `folder` a new folder, under `start`, and hands the path
+// Asks for the path of a new file, or with `folder` a new folder, under `start`, and passes the path
 // made to `made`.
 export function showCreate(sheet, { folder = false, start = "", made }) {
   const path = element("input", { className: "report-field", type: "text", spellcheck: false, value: start, ariaLabel: "Path" });
@@ -52,7 +52,7 @@ export function showCreate(sheet, { folder = false, start = "", made }) {
 
 // File, Create, Project from Template: a template of the reader's chosen, a folder to make the project
 // in and its name, the project begun there as a copy of the template with {{name}} written as its
-// name, and its folder handed to `made`. With no template yet, the sheet says where they go and opens
+// name, and its folder passed to `made`. With no template yet, the sheet says where they go and opens
 // that folder.
 export async function showProject(sheet, { given = null, made }) {
   const [templates, folder] = await invoke("templates_list").catch(() => [[], ""]);
@@ -60,7 +60,7 @@ export async function showProject(sheet, { given = null, made }) {
   if (!templates.length) {
     const reveal = element("button", { className: "prefs-button", type: "button", textContent: "Open the Templates Folder" });
     reveal.addEventListener("click", () => invoke("templates_reveal").catch((error) => (said.textContent = String(error))));
-    sheet(element("div", { className: "sheet-report" }, element("h2", { textContent: "Project from Template" }), element("p", { textContent: `A template is a folder in ${folder}, {{name}} in its files' names and texts standing for the project's name. File, Keep Tree as Template keeps the tree open as one.` }), element("div", { className: "report-foot" }, said, reveal)));
+    sheet(element("div", { className: "sheet-report" }, element("h2", { textContent: "Project from Template" }), element("p", { textContent: `A template is a folder in ${folder}, {{name}} in its files' names and texts located for the project's name. File, Retain Tree as Template retains the tree open as one.` }), element("div", { className: "report-foot" }, said, reveal)));
     return;
   }
   const choice = element("select", { className: "report-field", ariaLabel: "Template" }, ...templates.map((name) => element("option", { value: name, textContent: name })));
@@ -95,7 +95,7 @@ export async function showProject(sheet, { given = null, made }) {
 }
 
 // Asks whether the repository goes here, in the open tree, or in a folder chosen, makes it, and
-// hands the folder to `made`.
+// passes the folder to `made`.
 export async function showInit(sheet, { given = null, made }) {
   const root = await invoke("root_get").catch(() => null);
   const here = element("input", { type: "radio", name: "init-where", checked: Boolean(root) && !given, disabled: !root });

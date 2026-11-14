@@ -101,8 +101,8 @@ static void tower_record_lifting_step(TowerRecordBuilder *builder, const TowerLi
 }
 
 // one level along one line of `length` values, or its undoing. Lifting splits the line into its evens, the lows,
-// and its odds, the highs, runs the ruleset's steps in order and lays out the lows first and the highs after them, as
-// tower_forward_kernel lays them out; lowering reads the two bands back from there, runs the steps last first with each
+// and its odds, the highs, runs the ruleset's steps in order and arranges the lows first and the highs after them, as
+// tower_forward_kernel positions them out; lowering reads the two bands back from there, runs the steps last first with each
 // sign turned, and interleaves them again, as tower_inverse_kernel does.
 static void tower_record_line(TowerRecordBuilder *builder, const TowerLiftingStep *rules, unsigned int rule_count,
                               std::vector<unsigned int> &registers, unsigned long long line, unsigned long long stride,

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Focus that follows the pointer, set on or off in View and kept. Where it is on, the editor, a shell
+// Focus that follows the pointer, set on or off in View and retained. Where it is on, the editor, a shell
 // of the terminal, or a list of the explorer, the jobs or the debugger takes the keys once the
 // pointer has rested on it for REST: the editor its own, the terminal the shell under the pointer,
 // and a list the row under the pointer. The keys stay where they are while a menu, a sheet or Go to

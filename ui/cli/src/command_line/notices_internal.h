@@ -7,7 +7,7 @@
 #include "memoria_anularis/memoria_anularis.h"
 #include "pool.h"
 
-// the notices the list takes at the most, and as many wait at the most; the segments of a ring, a power of two over
+// the notices the list takes at max, and as many wait at max; the segments of a ring, a power of two over
 // them; the bytes one ring's notices take; and the two rings' bytes, the notices' part of the rings block, the
 // list's ring first and the waiting ring after it
 #define CLI_NOTICES_LISTED 200u

@@ -17,7 +17,7 @@
 #
 # Crystallography became the first positive control because a cell edge is published in an open
 # database: the Crystallography Open Database gives the edge for every entry, a number somebody else
-# measured before this instrument existed. Proteins have the same kind of open archive and a closer
+# measured before this instrument existed. Proteins have the same type of open archive and a closer
 # reference. The worldwide Protein Data Bank is open and keyless, the same way the COD is: the RCSB
 # mirror serves every deposited coordinate file and every deposit's validation report to anyone, no
 # account and no key. The Richardson laboratory's Ramachandran contours are the rules the wwPDB
@@ -114,7 +114,7 @@ QUERY = {
 
 
 def cached_json(name, url, out, timeout=180):
-    """Fetch a JSON document once and keep it, retrying a reached request that drops.
+    """Fetch a JSON document once and retain it, retrying a reached request that drops.
 
     Returns (parsed body or None, whether the network was reached). A cache hit reaches nothing.
     """

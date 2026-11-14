@@ -4,12 +4,12 @@
 // The Database tool window's state: the connection chosen, the connection a file runs on, and a schema level's key.
 
 import { CHOSEN, chosen, connectionForFile, connectionOf, FILES, filesKept, keyOf, state } from "../../../gui/src-js/database/state.js";
-import { keepingStorage } from "../../helpers.js";
+import { retentionStorage } from "../../helpers.js";
 
 const { test, assert } = window.__harness;
 
 test("a file runs on the connection chosen for it, or else on the window's", async () => {
-  await keepingStorage([CHOSEN, FILES], () => {
+  await retentionStorage([CHOSEN, FILES], () => {
     localStorage.setItem(CHOSEN, "local");
     localStorage.setItem(FILES, JSON.stringify({ "q/report.sql": "warehouse" }));
     assert.equal(chosen(), "local");
@@ -18,8 +18,8 @@ test("a file runs on the connection chosen for it, or else on the window's", asy
   });
 });
 
-test("files kept unreadable are none kept, and nothing chosen is the empty name", async () => {
-  await keepingStorage([CHOSEN, FILES], () => {
+test("files retained unreadable are none retained, and nothing chosen is the empty name", async () => {
+  await retentionStorage([CHOSEN, FILES], () => {
     localStorage.removeItem(CHOSEN);
     localStorage.setItem(FILES, "{not json");
     assert.deepEqual(filesKept(), {});
@@ -28,13 +28,13 @@ test("files kept unreadable are none kept, and nothing chosen is the empty name"
 });
 
 test("a connection is found by its name among those read, and a level's path is one key", () => {
-  const kept = state.connections;
-  state.connections = [{ connection: { name: "local", kind: "postgres" } }];
+  const retained = state.connections;
+  state.connections = [{ connection: { name: "local", type: "postgres" } }];
   try {
-    assert.deepEqual(connectionOf("local"), { name: "local", kind: "postgres" });
+    assert.deepEqual(connectionOf("local"), { name: "local", type: "postgres" });
     assert.equal(connectionOf("gone"), null);
   } finally {
-    state.connections = kept;
+    state.connections = retained;
   }
   assert.equal(keyOf(["db", "public", "users"]), "db\u0000public\u0000users");
   assert.notEqual(keyOf(["a", "bc"]), keyOf(["ab", "c"]));

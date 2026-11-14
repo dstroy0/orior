@@ -32,7 +32,7 @@ export function repoOf(path) {
 }
 
 // The repository open, the one the Git menu, the branch on the status bar and the Commit window's
-// pull and push act on: the one that holds the file shown, or the tree's own, or the first.
+// pull and push act on: the one that holds the file displayed, or the tree's own, or the first.
 export function repoOpen() {
   const file = state.active ? fileOf(state.active) : null;
   const paths = repoPaths();
@@ -62,7 +62,7 @@ export function drawRepoBranch() {
 export async function loadChanges() {
   if (!state.repos) {
     state.repos = await invoke("git_repositories").catch(() => []);
-    // the bar names the tree by its own repository's name where the tree is in one; the folder's stands
+    // the bar names the tree by its own repository's name where the tree is in one; the folder's is
     // where it is in none
     const own = state.repos.find((one) => one.path === "")?.name;
     if (own) {
@@ -95,9 +95,9 @@ export async function loadChanges() {
 }
 
 // Draws the tree from the folders read, and ends once the latest draw has put its rows in. A draw that
-// a later one overtakes while it reads puts nothing in. The rows are what each stands for, and a row
+// a later one overtakes while it reads puts nothing in. The rows are what each is for, and a row
 // list puts on the page only those in sight and those the scroll heads into. A folder of any size
-// opens and scrolls at once, and the row that holds the keys keeps them.
+// opens and scrolls at once, and the row that holds the keys retains them.
 export function drawTree() {
   state.drawn = drawTreeOnce(state.drawing + 1);
   return state.drawn;
@@ -132,7 +132,7 @@ async function drawTreeOnce(drawing) {
     }
   };
   await walk("", 0);
-  // Each folder or file from another place stands after the tree's own, under its own name.
+  // Each folder or file from another place is after the tree's own, under its own name.
   for (const [at, mounted] of state.mounts.entries()) {
     const path = `@${mounted.name}`;
     rows.push({ ...treeRow({ name: mounted.name, path, dir: mounted.dir, ignored: false }, 0), mount: mounted.path, mountFirst: at === 0 });
@@ -148,9 +148,9 @@ const TREE_ROW = 22;
 const MOUNT_GAP = 4;
 
 // A row of the tree as the row list holds it: its key, depth, name and whether it is open, which the
-// list's keys read, and the entry it stands for.
+// list's keys read, and the entry it is for.
 function treeRow(entry, depth) {
-  return { key: entry.path, depth, name: shownName(entry), open: entry.dir ? state.expanded.has(entry.path) : null, entry };
+  return { key: entry.path, depth, name: displayedName(entry), open: entry.dir ? state.expanded.has(entry.path) : null, entry };
 }
 
 // A row of the tree's element, as it comes into sight.
@@ -169,7 +169,7 @@ function treeRowOf(row) {
 export const treeRowShown = (path) => state.rowList?.reveal(path) ?? null;
 
 // More than one tree in a window: folders from other places, and single files from them, mounted
-// beside the tree, each with its own place in the explorer and kept with the tree.
+// beside the tree, each with its own place in the explorer and retained with the tree.
 
 const mountsKey = () => `orior.mounts.${treeKey()}`;
 
@@ -178,10 +178,10 @@ async function readMounts() {
   localStorage.setItem(mountsKey(), JSON.stringify(state.mounts.map((mounted) => mounted.path)));
 }
 
-// Mounts again the folders and files kept with the tree, as it opens.
+// Mounts again the folders and files retained with the tree, as it opens.
 export async function loadMounts() {
-  const kept = readKept(mountsKey(), []);
-  for (const path of Array.isArray(kept) ? kept : []) {
+  const retained = readKept(mountsKey(), []);
+  for (const path of Array.isArray(retained) ? retained : []) {
     await invoke("tree_mount", { path }).catch(() => {});
   }
   state.mounts = await invoke("tree_mounts").catch(() => []);
@@ -251,7 +251,7 @@ export async function chooseNames(path, label) {
 
 // The name an entry shows: its name's own bytes read in the encoding chosen for the archive it is
 // in, where the archive does not say its names are UTF-8 and the reader chose one.
-function shownName(entry) {
+function displayedName(entry) {
   if (!entry.raw) {
     return entry.name;
   }
@@ -268,7 +268,7 @@ function shownName(entry) {
 }
 
 // A row of the tree: a line down from each folder above it, the folder's arrow, the file's icon or
-// the folder's, the name, and git's letter for it. An archive is a folder with its file's icon.
+// the folder's, the name, and git's character for it. An archive is a folder with its file's icon.
 function node(entry, depth) {
   const known = !entry.dir && state.known?.typeOf(entry.path);
   const mark = entry.dir ? state.rolled.get(entry.path) : state.changes.get(entry.path);
@@ -279,7 +279,7 @@ function node(entry, depth) {
   });
   button.append(...guides(depth), element("span", { className: "twisty" }));
   button.append(entry.dir && !entry.archive ? folderIcon() : iconOf(entry.name, Boolean(known)));
-  button.append(element("span", { className: "name", textContent: shownName(entry) }));
+  button.append(element("span", { className: "name", textContent: displayedName(entry) }));
   if (entry.archive) {
     button.dataset.archive = "true";
   }

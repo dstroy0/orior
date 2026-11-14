@@ -1,7 +1,7 @@
 # The cell program on the engine
 
 **Purpose:** Hold what the engine's workbooks measured on the cell program's samples, and the sieve's sections that set it on the cells. The engine workbook carries the machine alone and points here for the program's numbers.
-**Scope:** text from the engine workbook: [engine_table.md](../engine/engine_table.md) (M2, M5, M9, M10, M12 and M14), [noise_sieve_tower.md](../engine/noise_sieve_tower.md) (§14 and §15, and its lines on the program's node policies, links, random numbers, edge rows and floor) and [tessera_scheduler.md](../engine/tessera_scheduler.md) (the driver's jobs). Each part names where it stood, and its words are as they stood there. Statuses follow [README.md](README.md).
+**Scope:** text from the engine workbook: [engine_table.md](../engine/engine_table.md) (M2, M5, M9, M10, M12 and M14), [noise_sieve_tower.md](../engine/noise_sieve_tower.md) (§14 and §15, and its lines on the program's node policies, links, random numbers, edge rows and floor) and [tessera_scheduler.md](../engine/tessera_scheduler.md) (the driver's jobs). Each part names where it was, and its words are as they was there. Statuses follow [README.md](README.md).
 
 ## From the engine table
 
@@ -60,7 +60,7 @@ The two findings these runs gave are the scheduler's, in [tessera_scheduler.md](
 
 | claim | status |
 |---|---|
-| binary probes in place of chosen thresholds | built; `stands` gave 0.12 on the older components dump, far below taking every node (0.22), because it kept 38,114 nodes against 484,255 estimated |
+| binary probes in place of chosen thresholds | built; `is` gave 0.12 on the older components dump, far below taking every node (0.22), because it retained 38,114 nodes against 484,255 estimated |
 
 ### §8. The three irreducible sets: true coherence
 
@@ -80,19 +80,19 @@ The two findings these runs gave are the scheduler's, in [tessera_scheduler.md](
 |---|---|
 | a flat field propagates nothing; a minimal fixed asymmetry gives every choice one direction | the Windows and Linux builds give byte identical edge rows over the 25 |
 
-### §17. The floor laid down first: the driver
+### §17. The floor positioned down first: the driver
 
 The `.cfg`'s `floor` section names where each sample's noise keys are stored (`--floor <dir>` on the command line).
 
 | claim | status |
 |---|---|
-| the floor section in the `.cfg`, laid down before anything else runs | the driver lays the floor down first |
+| the floor section in the `.cfg`, positioned down before anything else runs | the driver positions the floor down first |
 
 ### 14. The sieve on this competition: splits, entropy, and each body's harmonics
 
 `proposal.md` sets the sieve on the Biohub volumes directly. It is the source nearest the score, and each of its mechanics has a concrete form here.
 
-**The engine holds nothing; gradients define themselves.** No gradient is tuned and no threshold is chosen: the field carves the boundaries where the data puts them. This is already the engine's rule for its cuts. It is also the rule the node policies `stands` and `above_null` were written to: a body is a node because it stands here, not because it ranks in a chosen top n.
+**The engine holds nothing; gradients define themselves.** No gradient is tuned and no threshold is chosen: the field carves the boundaries where the data puts them. This is already the engine's rule for its cuts. It is also the rule the node policies `is` and `above_null` were written to: a body is a node because it is here, not because it ranks in a chosen top n.
 
 **One precision note.** The source speaks of a 10^−68 precision floor. The engine has no precision floor: its arithmetic is exact at every width it runs, and every width is proved before the run. The only floor is the measured one in the data (noise_sieve_tower §5).
 
@@ -112,7 +112,7 @@ So every body the tree finds already carries its ℓ ≤ 2 fingerprint as exact 
 
 | claim | status |
 |---|---|
-| no tuned gradient or threshold | built: the cuts; the `stands` and `above_null` policies |
+| no tuned gradient or threshold | built: the cuts; the `is` and `above_null` policies |
 | a precision floor of 10^−68 | not so: the arithmetic is exact, with no floor |
 | a split is a boundary discontinuity, confirmed over the whole sample by an entropy bump that settles; a lysis by one that bleeds out | theory; bodies' fates are built, the entropy test is not; the division term (0.1 of the score) is 0 today |
 | mitosis and lysis change fluidics far around them | theory |
@@ -133,7 +133,7 @@ The engine's rule for what a body is, stated directly: **the jitter scrubs and o
 | the jitter sweep at every offset out to the whole view | built: `LINK_SWEEP_STEPS`, used today to score a link's disagreement |
 | a body's edge stays with it under every jitter | theory; the sweep exists, and its use on edges is not built |
 
-**Never from one frame without context.** Membership is never assigned from a single frame with no knowledge of the local entropy. A frame on its own cannot tell a body's edge from the floor beside it, or two bodies touching from one body. Once there is a history of entropic direction at a place (whether its local entropy is falling toward order, rising toward the floor, or holding), what each place is can be derived. A body is where entropy holds low and moves with it. The floor is where entropy sits at its maximum and goes nowhere. A split is a bump that settles into two lows, and a lysis is a bump that rises into the floor.
+**Never from one frame without context.** Membership is never assigned from a single frame with no knowledge of the local entropy. A frame on its own cannot tell a body's edge from the floor beside it, or two bodies touching from one body. Once there is a history of entropic direction at a place (whether its local entropy is falling toward order, rising toward the floor, or holding), what each place is can be derived. A body is where entropy holds low and moves with it. The floor is where entropy sits at its max and goes nowhere. A split is a bump that settles into two lows, and a lysis is a bump that rises into the floor.
 
 **How it is measured, in the engine's terms.** The anchor count already reads every frame of a sample once, per voxel and per bit. The same pass can carry the history at no extra cost. For each bit, it counts the frames whose bit changes from the frame before, the transitions, in windows of frames. A bit at the floor changes about half the time in every window. A bit inside a body barely changes while the body is there. A bit at a moving edge changes in a run, then settles. The windows in time order are the entropic direction at that voxel, as exact integer counts. No logarithm and no float is needed, because the direction is read from how the counts move instead of from their size.
 

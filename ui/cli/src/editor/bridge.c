@@ -21,8 +21,8 @@ typedef struct
     CliJson *json;
     unsigned int line;
 } CliJsonLineCfg;
-// the most nodes and bytes of texts the bridge's tree makes of a line of one of its files, and of a file besides its
-// lines: a pair under a key not seen yet is the most a line makes, and a verdict the most text, its line's bytes twice
+// the max nodes and bytes of texts the bridge's tree makes of a line of one of its files, and of a file besides its
+// lines: a pair under a key not seen yet is the max a line makes, and a verdict the max text, its line's bytes twice
 #define CLI_BRIDGE_LINE_NODES 16u
 #define CLI_BRIDGE_LINE_TEXT 128u
 #define CLI_BRIDGE_FILE_NODES 8u
@@ -36,17 +36,17 @@ typedef struct
     unsigned long long size;
 } CliBridgeFile;
 
-// The bridge folder's files listed: those retained, counted where `file` is NULL, and the most retained
+// The bridge folder's files listed: those retained, counted where `file` is NULL, and the max retained
 typedef struct
 {
     CliBridgeFile *file;
     unsigned int count;
-    unsigned int most;
+    unsigned int max;
 } CliBridgeFiles;
 
 typedef struct
 {
-    char letter;
+    char character;
     const char **at;
     const char *end;
     unsigned int *number;
@@ -69,7 +69,7 @@ typedef struct
 } BridgeCtx;
 EMBED_INLINE int cli_is_space(const BridgeCtx *args)
 {
-    return (args->letter == ' ') || ((args->letter >= '\t') && (args->letter <= '\r'));
+    return (args->character == ' ') || ((args->character >= '\t') && (args->character <= '\r'));
 }
 
 // the next line from `*at` before `end` that contains something, `*number` counting lines as they pass: 1, or 0 at the
@@ -88,11 +88,11 @@ static int cli_next_line(const BridgeCtx *args)
         *at = (stop < args->end) ? (stop + 1) : stop;
         const unsigned int line = *number;
         *number += 1u;
-        while ((from < stop) && EMBED_CALL(cli_is_space, BridgeCtx, .letter = from[0]))
+        while ((from < stop) && EMBED_CALL(cli_is_space, BridgeCtx, .character = from[0]))
         {
             from += 1;
         }
-        while ((stop > from) && EMBED_CALL(cli_is_space, BridgeCtx, .letter = stop[-1]))
+        while ((stop > from) && EMBED_CALL(cli_is_space, BridgeCtx, .character = stop[-1]))
         {
             stop -= 1;
         }
@@ -101,12 +101,12 @@ static int cli_next_line(const BridgeCtx *args)
             continue;
         }
         const char *word_past = from;
-        while ((word_past < stop) && !EMBED_CALL(cli_is_space, BridgeCtx, .letter = word_past[0]))
+        while ((word_past < stop) && !EMBED_CALL(cli_is_space, BridgeCtx, .character = word_past[0]))
         {
             word_past += 1;
         }
         const char *rest = word_past;
-        while ((rest < stop) && EMBED_CALL(cli_is_space, BridgeCtx, .letter = rest[0]))
+        while ((rest < stop) && EMBED_CALL(cli_is_space, BridgeCtx, .character = rest[0]))
         {
             rest += 1;
         }
@@ -136,12 +136,12 @@ EMBED_INLINE unsigned long long cli_nth(const BridgeCtx *args)
     unsigned int each = 0u;
     while (at < end)
     {
-        while ((at < end) && EMBED_CALL(cli_is_space, BridgeCtx, .letter = at[0]))
+        while ((at < end) && EMBED_CALL(cli_is_space, BridgeCtx, .character = at[0]))
         {
             at += 1;
         }
         const char *stop = at;
-        while ((stop < end) && !EMBED_CALL(cli_is_space, BridgeCtx, .letter = stop[0]))
+        while ((stop < end) && !EMBED_CALL(cli_is_space, BridgeCtx, .character = stop[0]))
         {
             stop += 1;
         }
@@ -267,7 +267,7 @@ unsigned int cli_bridge_klq(const CliBridgePathCfg *args)
         EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = args->json, .type = CFG_JSON_OBJECT);
     const unsigned int identities =
         EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = args->json, .type = CFG_JSON_ARRAY);
-    // the key the lines stand under, as its name in the text
+    // the key the lines are under, as its name in the text
     const char *key = NULL;
     unsigned long long key_length = 0ULL;
     // where the lines under a pair go: the pair's own place in its key, or an identity block
@@ -439,7 +439,7 @@ static unsigned int cli_name_init(const CliJsonLineCfg *args)
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = name,
                .name = "line", .value = EMBED_CALL(cli_number, BridgeCtx, .json = json, .value = args->line));
     EMBED_CALL(
-        cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = name, .name = "kind",
+        cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = name, .name = "type",
         .value = EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = json, .type = CFG_JSON_NULL));
     EMBED_CALL(
         cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = name, .name = "breaks",
@@ -506,7 +506,7 @@ unsigned int cli_bridge_klm(const CliBridgePathCfg *args)
                        .object = entry, .name = "line",
                        .value = EMBED_CALL(cli_number, BridgeCtx, .json = args->json, .value = parsed.line));
         }
-        else if (EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word_text = "kind") ||
+        else if (EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word_text = "type") ||
                  EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word_text = "breaks"))
         {
             const unsigned int entry =
@@ -518,10 +518,10 @@ unsigned int cli_bridge_klm(const CliBridgePathCfg *args)
             const unsigned int note = EMBED_CALL(cli_note, BridgeCtx, .json = args->json, .word_text = parsed.word_text,
                                                  .word_length = parsed.word_length, .rest = joined,
                                                  .remainder_length = length, .line = parsed.line);
-            if (EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word_text = "kind"))
+            if (EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word_text = "type"))
             {
                 EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json,
-                           .object = entry, .name = "kind", .value = note);
+                           .object = entry, .name = "type", .value = note);
             }
             else
             {
@@ -569,9 +569,9 @@ EMBED_INLINE int cli_is_name(const BridgeCtx *args)
     }
     for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
-        const char letter = args->word_text[at];
-        if (!(((letter >= 'a') && (letter <= 'z')) || ((letter >= 'A') && (letter <= 'Z')) ||
-              ((letter >= '0') && (letter <= '9')) || (letter == '_') || (letter == '.')))
+        const char character = args->word_text[at];
+        if (!(((character >= 'a') && (character <= 'z')) || ((character >= 'A') && (character <= 'Z')) ||
+              ((character >= '0') && (character <= '9')) || (character == '_') || (character == '.')))
         {
             return 0;
         }
@@ -609,7 +609,7 @@ unsigned int cli_bridge_ruleset(const CliBridgePathCfg *args)
             const unsigned int entry = EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = args->json,
                                                   .type = CFG_JSON_OBJECT);
             EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json,
-                       .object = entry, .name = "kind",
+                       .object = entry, .name = "type",
                        .value =
                            EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg,
                                       .json = args->json, .text = parsed.word_text, .length = parsed.word_length));
@@ -642,14 +642,14 @@ static void cli_file_each(const CliEachNameIsFolderCfg *args)
     {
         return;
     }
-    if ((files->file != NULL) && (files->count < files->most))
+    if ((files->file != NULL) && (files->count < files->max))
     {
         memor.cpy(
             &(MemoriaCfg){.dst = files->file[files->count].name,
                           .src = args->name,
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) + 1u});
     }
-    files->count += ((files->file == NULL) || (files->count < files->most)) ? 1u : 0u;
+    files->count += ((files->file == NULL) || (files->count < files->max)) ? 1u : 0u;
 }
 
 // whether a file's name ends in an extension the bridge reads
@@ -701,7 +701,7 @@ unsigned int cli_bridge_read(const CliBridgeCfg *args)
         }
         files.file[place] = swap;
     }
-    // each file read mapped, and the tree's cell taken once for the most its files' lines make
+    // each file read mapped, and the tree's cell taken once for the max its files' lines make
     unsigned long long nodes = CLI_BRIDGE_FILE_NODES;
     unsigned long long text = CLI_BRIDGE_FILE_TEXT;
     for (unsigned int at = 0u; at < files.count; at += 1u)

@@ -13,7 +13,7 @@ builds and runs it as written here.
 A program is a list of **steps** in order. Each step is one operation, and its value is stored in a **register**
 named by the step's number. A step reads only steps before it. A program is straight-line and has no branch
 and no loop. A program runs once per **lane**. A lane reads one **record** from each of 1 to 3 **members**, the
-kinds of record the program takes in, and writes one output record. A sweep runs every lane at once.
+types of record the program takes in, and writes one output record. A sweep runs every lane at once.
 
 Every value is an exact signed integer. Nothing is a float and nothing rounds.
 
@@ -58,7 +58,7 @@ A register of 0 bits is given 1.
 The imprint also carries every register as a **linear form**: integer coefficients over **atoms**, plus a constant.
 - A sum or a difference adds its operands' forms, and terms that cancel drop out.
 - A product by a constant, a register whose form has no atoms, scales the other operand's form.
-- A constant is its own value, and a wrap that passes its register through keeps that register's form.
+- A constant is its own value, and a wrap that passes its register through retains that register's form.
 - Every other register, fields included, is an atom with coefficient 1. So is a register whose coefficients or
   constant would pass 2^62.
 
@@ -78,7 +78,7 @@ The imprint knows some registers are **never negative**:
 - a remainder of a never-negative register;
 - an and with a never-negative register.
 
-An and with such a register lies between 0 and it, and an xor of two lies below the wider's top. Neither takes the extra bit. A round on fixed-width words therefore keeps its words at their width.
+An and with such a register lies between 0 and it, and an xor of two lies below the wider's top. Neither takes the extra bit. A round on fixed-width words therefore retains its words at their width.
 
 The bitwise operations read each operand as though its two's complement ran on forever. The xor is then negative
 where exactly one operand is, and the and where both are. The extra bit is needed because −1 xor (2^n − 1) is −2^n. A wrap
@@ -127,7 +127,7 @@ if (engine_record_encode(&request, &record, &error) == ENGINE_ERROR) { /* the er
 2. **The layout** (`key_schedule_record_layout`) places every register in the lane's **register file** and every
    output in the output record. With `reuse` set, a register is freed once its last reader has run. A long
    program then fits a small file.
-3. **The load** (`cycle_record_load`) puts the layout on the device. A program's file of at most 64 limbs runs
+3. **The load** (`cycle_record_load`) puts the layout on the device. A program's file of at max 64 limbs runs
    in the 64-limb kernel, and a larger one in the 256-limb kernel. Only a program that divides carries the
    scratch its divisions need.
 
@@ -149,8 +149,8 @@ The load also builds the program for the device (`compiler/cycle/cycle_compile_*
    Those steps are a gcd, a ladder, a division by more than one limb, and a product of more than 1,024 limb
    products.
 
-   Each word of the output record is stored as soon as the last step that lays it has run. The lane does not
-   hold its outputs to its end. With `CYCLE_RECORD_REPORT=1` the load says the most words a lane holds live at once.
+   Each word of the output record is stored as soon as the last step that positions it has run. The lane does not
+   hold its outputs to its end. With `CYCLE_RECORD_REPORT=1` the load says the max words a lane holds live at once.
 
    **Rule (i).** Once the PTX is built, its local frame, the bytes a thread spills past its registers, is read
    against the device's stack limit. A frame within the limit runs. A frame past it makes the runtime grow the stack
@@ -161,7 +161,7 @@ The load also builds the program for the device (`compiler/cycle/cycle_compile_*
    NVRTC compiles it and nvJitLink links it the same way. Its registers lie in shared memory.
 3. **The interpreter.** Where neither builds, the interpreter runs the program. It is also the oracle both are checked against.
 
-Each build is kept in a cache: `$CYCLE_CACHE`, else `%LOCALAPPDATA%\cycle` or `~/.cache/cycle`. A build is found
+Each build is retained in a cache: `$CYCLE_CACHE`, else `%LOCALAPPDATA%\cycle` or `~/.cache/cycle`. A build is found
 by its text and used only where that text matches byte for byte.
 
 The lane's text is written from a **ruleset**, one for each of the first two ways: `../../transpiler/lstar/protocol/table/ptx.krs` for
@@ -179,7 +179,7 @@ A ruleset is a text file whose first line is `krs 1`, and every other line is on
   parameter p's argument and `\t`, `\n` and `\\` are a tab, a line's end and a backslash;
 - `construct` gives a form as one built from more basic ones: its head is the form's name and parameters, with no
   text, and its lines run to `end`. Each line is a form, or a construct given earlier in the file, and its
-  arguments, split at spaces. An argument that is one of the construct's parameters stands for that parameter's
+  arguments, split at spaces. An argument that is one of the construct's parameters is for that parameter's
   argument, `{bank:n}` for scratch register n of one of the ruleset's banks, and any other word for itself. Each time
   the form is written, its construct's lines are written in its place, and each scratch register is a fresh one: in
   PTX, one of the step's own temporaries, 64-bit temporaries or predicates, declared with them. A ruleset may give a
@@ -267,12 +267,12 @@ The sum takes one output of every record and adds it, exactly, over each run of 
 Σ_{ℓ in run} out(ℓ), as two's complement. `cycle_record_sum` (`compiler/cycle/cycle.h`) reads a sweep's records where
 they lie on the device and returns one sum a run to the host:
 - each thread takes a chunk of consecutive lanes and, limb by limb, adds the field's 32-bit limb into 64 bits while its
-  lanes stay in one run, then adds that to the run's column by one atomic add. A run holds at most 2^32 lanes, and 2^32
+  lanes stay in one run, then adds that to the run's column by one atomic add. A run holds at max 2^32 lanes, and 2^32
   limbs fit 64 bits;
 - the pass past the last limb counts the fields whose sign bit is set;
 - the host takes the carries through the columns and subtracts 2^bits for each negative field, once a run.
 
-The sum merges nothing. Each limb is its own exact column and the whole sum is kept; no lane is averaged, rounded or
+The sum merges nothing. Each limb is its own exact column and the whole sum is retained; no lane is averaged, rounded or
 dropped, and each lane's record stays where it lies: a run's parts are there beside its total. A mean is that sum taken
 over the run's length, an exact rational. The caller names the
 runs, and a run of one lane returns the lane itself. A request whose sums cannot hold `bits` and the bits of the run's
@@ -282,7 +282,7 @@ read: nothing wraps. `cycle_record_sum_host` adds the same records in order, eac
 `utils/test/src/cu/engine/analysis/cycle/record_sum_test.sh` sums a record program's ℓ, -ℓ, ℓ² and -ℓ² over 2^22 lanes,
 whole and in runs of 2^16, and each equals its closed form, L(L - 1) / 2 and (L - 1) L (2L - 1) / 6 over each run, the
 squares past 2^64. Random records of nine limbs, at fields one bit wide, across two limbs, a whole limb, two hundred bits
-and the whole record, at their most negative and most positive, over runs of 1, 3, 1024 and every record, sum on the
+and the whole record, at their max negative and max positive, over runs of 1, 3, 1024 and every record, sum on the
 device to the host's serial sum word for word. 98 checks, 0 failed.
 
 ## Tables
@@ -329,7 +329,7 @@ errors at imprint, and an index past its member errors at the sweep. 12 checks, 
 |---|---|---|
 | `.cfg` | a run's configuration, JSON (`cfg/`, read by `run_cfg` through `formats/cfg_json`) | built for the tracking runs |
 | `.sch` | the schedule: `schedule_program` (`runtime/schedule`) measures the tower (the device's memory), plans against two thirds of what is free, and writes the stages, each with the bytes it needs, as JSON (`nbody_program/program.json`) | written for the tracking runs; nothing reads the stages back |
-| `.imp` | a math key: a program imprinted onto the impulse, carrying the program so it can be verified | the container kind is reserved (`KREP_KIND_KEY`, `includes/file_defs/krep`); no writer or reader yet |
+| `.imp` | a math key: a program imprinted onto the impulse, carrying the program so it can be verified | the container type is reserved (`KREP_KIND_KEY`, `includes/file_defs/krep`); no writer or reader yet |
 
 Until `.imp` is written and read, a program lives as its step list in the source that sweeps it, and is imprinted
 each run.
@@ -339,10 +339,10 @@ each run.
 These are the machine's own limits, from `engine_config.h` and the code above:
 
 - 1 to `ENGINE_RECORD_MEMBERS_MAX` (3) members;
-- a register of at most 32 · `ENGINE_RECORD_LIMBS_MAX` bits (8,192);
-- a register file of at most `ENGINE_RECORD_LIMBS_MAX` (256) limbs live at once;
+- a register of at max 32 · `ENGINE_RECORD_LIMBS_MAX` bits (8,192);
+- a register file of at max `ENGINE_RECORD_LIMBS_MAX` (256) limbs live at once;
 - an index of 32 bits;
-- a table index of at most 32 bits;
+- a table index of at max 32 bits;
 - a wrap of fewer than `ENGINE_RECORD_WRAP_BITS_LEAST` (4) bits.
 
 The step count is not among them. A register's sign is stored beside it in the file, and the step table is read

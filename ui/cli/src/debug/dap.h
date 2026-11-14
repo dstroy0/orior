@@ -21,7 +21,7 @@ typedef struct CliDapEmitCfg CliDapEmitCfg;
 typedef struct CliDapMessageCfg CliDapMessageCfg;
 typedef struct CliDapCfg CliDapCfg;
 
-// the most adapters open at once, and the requests that wait on answers at once
+// the max adapters open at once, and the requests that wait on answers at once
 #define CLI_DAPS_MAX 4u
 #define CLI_DAP_WAITERS 16u
 
@@ -39,13 +39,13 @@ typedef struct
     unsigned long long size;
 } CliDapServeCfg;
 
-// an adapter that runs in orior: handed `size` bytes of a request, it sends the client a message with
-// cli_dap_send and hands itself a message of its own with cli_dap_itself; and reports whether it goes on
+// an adapter that runs in orior: passed `size` bytes of a request, it sends the client a message with
+// cli_dap_send and passes itself a message of its own with cli_dap_itself; and reports whether it goes on
 typedef int (*CliDapServe)(const CliDapServeCfg *args);
 
 // `program` started with `args`, `count` of them, in `folder`, its PATH `path`, as the adapter, `emit` taking its
 // events, ending the session ending the program where `ends_program`; the adapter listening at `host`:`port` connected
-// to, within 5 s; and an adapter that runs in impero started on a thread of its own, `serve` handed each request.
+// to, within 5 s; and an adapter that runs in impero started on a thread of its own, `serve` passed each request.
 // Each referenced once for its starter, or NULL with why given. An adapter referenced once more, and a reference given
 // back, the adapter ended with the last (dap_start.c, dap_within.c, dap.c)
 CliDap *cli_dap_start(const CliDapProgramCfg *args);
@@ -54,13 +54,13 @@ CliDap *cli_dap_within(const CliDapEmitCfg *args);
 void cli_dap_ref(const CliDapCfg *args);
 void cli_dap_unref(const CliDapCfg *args);
 
-// what an adapter in impero sends to the client, and hands itself, `size` bytes of a message's JSON: 1, or 0 where
+// what an adapter in impero sends to the client, and passes itself, `size` bytes of a message's JSON: 1, or 0 where
 // it could not, as where the client let it go (dap_within.c)
 int cli_dap_send(const CliDapMessageCfg *args);
 int cli_dap_itself(const CliDapMessageCfg *args);
 
 // a request of `command` with `length` bytes of JSON arguments, an empty object for none, sent, its sequence number
-// into `seq`; its answer waited for up to `wait` milliseconds and handed over in `answer`, whose message the caller
+// into `seq`; its answer waited for up to `wait` milliseconds and passed over in `answer`, whose message the caller
 // gives back to g_cli_debug_owner, NULL where the request failed; and the two in turn. Each 1, or 0 with why given. The
 // last line the adapter wrote to its errors, which reports why where it stops; and the adapter requested to end the
 // program, or to let go of one it attached to, and itself, and ended where it does not (dap.c)

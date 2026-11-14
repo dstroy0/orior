@@ -3,33 +3,33 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: LNG-4-005
 #
-# Split a word's ambiguity into the part about what kind of word it is and the part about which form of
+# Split a word's ambiguity into the part about what type of word it is and the part about which form of
 # it this is, for Section 4.13 of theory/workbooks/orior.
 #
 #   Usage:  python examples/language/4_measure/category_or_inflection.py
 #
 # Everything measured here so far has counted readings per written word as one number, and it is two
-# things stacked. A form can be unclear about what kind of word it is, where English run is a noun and a
+# things stacked. A form can be unclear about what type of word it is, where English run is a noun and a
 # verb and German Essen is a meal and to eat. Or it can be settled about that and unclear about which
 # form of it this is, where a Russian noun's written form serves several cases at once. Those are
 # different problems and a channel that solves one does not touch the other.
 #
 # The split is multiplicative and exact. For any written word, the readings it carries divide into how
-# many kinds of word it can be, and how many readings it has left once the kind is fixed. The two
+# many types of word it can be, and how many readings it has left once the type is fixed. The two
 # multiply back to the whole. Each is reported as the geometric mean of its factor and the product of
 # the two columns is the geometric mean of the total.
 #
 # The reason to separate them is Straits Salish, which is argued to have no noun and verb contrast at the
 # word level at all. A language like that does not sit at the ambiguous end of the category factor. It
 # sits at one, the settled end, because a language with a single category has nothing to be ambiguous
-# between and any annotation of it records one kind of word everywhere. The instrument would call it
+# between and any annotation of it records one type of word everywhere. The instrument would call it
 # clean. The work of deciding whether a root is predicating or referring still has to happen, and it
-# happens somewhere this measurement cannot reach. Keep the two factors apart for that reason, and
+# happens somewhere this measurement cannot reach. Retain the two factors apart for that reason, and
 # distrust a low category factor without asking what produced it.
 #
 # What makes Straits Salish hard is that its resolver is not written down.
 # Meaning there follows the season and the state of the land, which is shared knowledge between speakers
-# standing in one place at one time and is absent from any text taken away from that place. Every
+# located in one place at one time and is absent from any text taken away from that place. Every
 # measurement in this file assumes the thing that settles a word is somewhere in the string. That
 # assumption is what this scale is for, and it is a property of the languages tested and not of language.
 #
@@ -63,26 +63,26 @@ CORPORA = os.path.join(ROOT, "build", "corpora")
 
 
 def keyed(sentences):
-    """Every word as the key it is written with, and the reading split into kind and form."""
+    """Every word as the key it is written with, and the reading split into type and form."""
     rows = []
     for sentence in sentences:
         row = []
         for place, entry in enumerate(sentence):
             folded, written, reading = entry
-            lemma, kind, feats = reading.split("|", 2)
-            row.append((folded if place == 0 else written, lemma, kind, feats))
+            lemma, type, feats = reading.split("|", 2)
+            row.append((folded if place == 0 else written, lemma, type, feats))
         rows.append(row)
     return rows
 
 
 def split_ambiguity(rows):
-    """How much of a word's ambiguity is which kind of word it is, and how much is which form."""
+    """How much of a word's ambiguity is which type of word it is, and how much is which form."""
     readings = {}
-    kinds = {}
+    types = {}
     for row in rows:
-        for key, lemma, kind, feats in row:
-            readings.setdefault(key, set()).add((lemma, kind, feats))
-            kinds.setdefault(key, set()).add(kind)
+        for key, lemma, type, feats in row:
+            readings.setdefault(key, set()).add((lemma, type, feats))
+            types.setdefault(key, set()).add(type)
 
     category = []
     inflection = []
@@ -93,12 +93,12 @@ def split_ambiguity(rows):
         for entry in row[1:]:
             key = entry[0]
             total = len(readings[key])
-            kind_count = len(kinds[key])
-            category.append(math.log(kind_count))
-            inflection.append(math.log(total / float(kind_count)))
+            type_count = len(types[key])
+            category.append(math.log(type_count))
+            inflection.append(math.log(total / float(type_count)))
             whole.append(math.log(total))
             counted += 1
-            if kind_count > 1:
+            if type_count > 1:
                 mixed += 1
 
     return (math.exp(statistics.fmean(category)),
@@ -124,30 +124,30 @@ def main():
     rows.sort(key=lambda row: -row[2])
 
     out.write("  %-12s %-27s %-11s %-11s %-11s %s\n"
-              % ("language", "what it is", "which kind", "which form", "together",
-                 "words of two kinds"))
+              % ("language", "what it is", "which type", "which form", "together",
+                 "words of two types"))
     for language, used, category, inflection, whole, mixed in rows:
         out.write("  %-12s %-27s %-11.4f %-11.4f %-11.4f %.4f\n"
                   % (language, CAPITALIZES.get(language, ""), category, inflection, whole, mixed))
 
-    out.write("\n  which kind is how many kinds of word the written form can be\n")
-    out.write("  which form is what is left once the kind is settled\n")
+    out.write("\n  which type is how many types of word the written form can be\n")
+    out.write("  which form is what is left once the type is settled\n")
     out.write("  the two multiply to together, all three as geometric means\n")
-    out.write("  words of two kinds is the share of words whose form spans more than one\n")
+    out.write("  words of two types is the share of words whose form spans more than one\n")
 
     out.write("\n  where each language puts its ambiguity\n")
-    out.write("  %-12s %-11s %s\n" % ("language", "in the kind", "reading"))
+    out.write("  %-12s %-11s %s\n" % ("language", "in the type", "reading"))
     for language, used, category, inflection, whole, mixed in rows:
         weight = math.log(category) / math.log(whole) if whole > 1.0 else float("nan")
         if weight != weight:
             note = "carries almost no ambiguity either way"
         elif weight >= 0.5:
-            note = "mostly what kind of word it is"
+            note = "mostly what type of word it is"
         else:
             note = "mostly which form of it this is"
         out.write("  %-12s %-11.3f %s\n" % (language, weight, note))
 
-    out.write("\n  in the kind is the share of the whole taken by the category factor,\n")
+    out.write("\n  in the type is the share of the whole taken by the category factor,\n")
     out.write("  measured on the logarithms since the two factors multiply\n")
     out.write("\n  a language with no noun and verb contrast reads as zero on this scale\n")
     out.write("  and as one on the category factor, because a single category cannot be\n")

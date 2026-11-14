@@ -13,14 +13,14 @@
 #include "commands.h"
 
 // The files of the tree's tests as a run of them is gathered, each once: their paths, each ended by a 0, on a line
-// grown to them up to the most their bytes are, the last path put, and how many are put
+// grown to them up to the max their bytes are, the last path put, and how many are put
 typedef struct
 {
     CliGrownLine line;
     char last[CLI_PATH_MAX_LEN];
     unsigned int count;
 } CliTerminalFiles;
-// the most files of tests one run of the tree's tests is given, and the most bytes of their paths
+// the max files of tests one run of the tree's tests is given, and the max bytes of their paths
 #define CLI_AT_TERMINAL_FILES 65536u
 #define CLI_AT_TERMINAL_FILES_TEXT (1u << 22u)
 
@@ -186,7 +186,7 @@ EMBED_INLINE int at_terminal_branch_delete(const AtTerminalCtx *args)
     return 0;
 }
 
-// a file of tests put among the files, after the last where it is not that one, up to the most files and their bytes
+// a file of tests put among the files, after the last where it is not that one, up to the max files and their bytes
 static void at_terminal_test_file(const CliTestEachCfg *args)
 {
     CliTerminalFiles *const found = args->context;

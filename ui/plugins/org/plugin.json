@@ -2,7 +2,7 @@
   "id": "org",
   "name": "Org",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "extensions": ["org"],
   "comments": {"line":"#"},
   "pairs": ["()","[]","{}"],

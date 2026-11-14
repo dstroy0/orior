@@ -10,7 +10,7 @@
 # The index lists 993 papers over sixty years and there is no reason to take all of them. Four things came
 # out of reading two papers by hand, and the titles in the index name papers about each one.
 #
-# Control, because Lillooet marks whether the actor had any, and a measurement built on kind and form has
+# Control, because Lillooet marks whether the actor had any, and a measurement built on type and form has
 # no column for it. Reduplication, because which side of the stressed vowel the copy lands on selects
 # the meaning, the same question this work asks about position everywhere else.
 # Toponyms and stories, because the claim under test is that meaning here follows the land and the story
@@ -73,7 +73,7 @@ def read_index(path):
             if len(parts) != len(header):
                 continue
             row = dict(zip(header, parts))
-            if row.get("kind") != "pdf":
+            if row.get("type") != "pdf":
                 continue
             rows.append((row["url"], row.get("year", ""), row.get("label", "")))
     return rows

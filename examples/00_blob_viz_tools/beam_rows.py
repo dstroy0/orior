@@ -111,7 +111,7 @@ def beam_set(count, points, seed=0):
 
 
 def harmonic_rows(top=DEGREE, count=COUNT):
-    """The harmonic reading map as rows over the sources, the engine as it stands."""
+    """The harmonic reading map as rows over the sources, the engine as it is."""
     return reading_rank.reading_matrix(top, boundary_read.golden_place(count))
 
 
@@ -171,7 +171,7 @@ def aimed_at_bits(points, width=BEAM_WIDTH, signed=False, seed=0):
     """One beam per source, each aimed at its own source: fixed on bits.
 
     The emitter sits on the outer shell along the source's own direction. The beam arrives at
-    that source head on. That is the most targeted set available and it is the natural reading of
+    that source head on. That is the max targeted set available and it is the natural reading of
     fixing an eye on a bit.
 
     `signed` gives each beam an amplitude with a sign and not an intensity, the part of
@@ -258,7 +258,7 @@ def _fixed():
     print("  distribution is the SQUARE of a wave function, and the difference is phase. These rows")
     print("  are real and non-negative. They carry an intensity and no phase, and two beams")
     print("  cannot interfere or cancel. The harmonic rows are the opposite: their coefficients are")
-    print("  complex and the phase is what torsion reads. So the engine already holds both kinds,")
+    print("  complex and the phase is what torsion reads. So the engine already holds both types,")
     print("  amplitude in the harmonics and intensity in the beams, and calling the beams a wave")
     print("  function claims a phase they do not have.")
     print("")
@@ -378,7 +378,7 @@ def _check():
     lit = int((row > 0.01).sum())
     lines.append("  one beam through the center lights %d of %d sources" % (lit, COUNT))
     if lit == 0 or lit > COUNT // 4:
-        lines.append("    FAIL a beam that lights nothing or most of the set is not a line integral")
+        lines.append("    FAIL a beam that lights nothing or the majority of the set is not a line integral")
         failed += 1
 
     # And sources behind the emitter must be excluded, or the row is a full line and not a ray.
@@ -400,7 +400,7 @@ def _check():
                  % (arm_rank.rank_of(beams)[0], joint, joint - base_rank, reach))
     if joint <= base_rank:
         lines.append("    FAIL the beams added no direction at all, so they are inside the")
-        lines.append("         harmonic row space and are not a new kind of row")
+        lines.append("         harmonic row space and are not a new type of row")
         failed += 1
 
     # The ceiling must hold. However many beams, rank cannot pass the source count.

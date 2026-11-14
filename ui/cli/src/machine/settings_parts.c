@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // settings_parts.c: the parts of a settings file: its own settings, its system's, and on the reader's own
-// settings.json its machine's, each with where it stands; and a type of file's settings, each set aside
+// settings.json its machine's, each with where it is; and a type of file's settings, each set aside
 #include "settings_internal.h"
 
 // the parts, their values and the types' settings, as settings_layers.c stores them under its lock

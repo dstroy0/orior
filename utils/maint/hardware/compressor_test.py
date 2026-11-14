@@ -12,7 +12,7 @@ Three things are varied here, because each of them moves the answer:
   state        whether a and e are resolved every round or carried redundantly. This is the
                that decides the answer, and it is not free to choose: Sigma is a xor of rotations,
                rotation does not distribute over addition. ROTR(s+c) is not ROTR(s)+ROTR(c).
-               A design that keeps the state redundant cannot compute Sigma on it.
+               A design that retains the state redundant cannot compute Sigma on it.
   operands     five for T1, two for T2 and for the two final sums, four in the schedule.
 
 Taint is simulated bit by bit through each compressor and never modeled by a climb rate. The
@@ -175,7 +175,7 @@ def main():
                   % (label, topology, sched, comp, 100.0 * (sched + comp) / ceiling))
 
     print("\n  A resolved state settles a and e every round: the topology stops mattering to")
-    print("  this total even though it changes the climb. Redundant state keeps the climb small")
+    print("  this total even though it changes the climb. Redundant state retains the climb small")
     print("  and cannot be built as written: Sigma is a xor of rotations, rotation does not")
     print("  distribute over addition: a and e must be settled before Sigma reads them.")
 

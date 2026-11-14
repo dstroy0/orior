@@ -11,7 +11,7 @@
 //
 // A place in the text is { line, col }, both from 0, col counted in UTF-16 units as a JS string
 // counts them. An edit is { from, to, text }: the span it removes and what it writes there. The
-// edits of one change never overlap and each is placed against the text as it stood before any.
+// edits of one change never overlap and each is placed against the text as it was before any.
 
 export const pos = (line, col) => ({ line, col });
 
@@ -21,7 +21,7 @@ export function cmp(a, b) {
 
 export const same = (a, b) => cmp(a, b) === 0;
 export const least = (a, b) => (cmp(a, b) <= 0 ? a : b);
-export const most = (a, b) => (cmp(a, b) >= 0 ? a : b);
+export const max = (a, b) => (cmp(a, b) >= 0 ? a : b);
 
 // Where a text written from a place ends.
 export function endOf(from, text) {
@@ -55,7 +55,7 @@ export function mapPos(p, edit, after = false) {
 }
 
 // A place carried through every edit of one change. The edits go last first, because each lies
-// wholly before the ones after it and so keeps its places while those are written.
+// wholly before the ones after it and so retains its places while those are written.
 export function mapThrough(p, edits, after = false) {
   let at = p;
   for (let index = edits.length - 1; index >= 0; index -= 1) {
@@ -94,7 +94,7 @@ export function wordBefore(doc, p) {
   return { text: text.slice(start, p.col), from: pos(p.line, start), to: p };
 }
 
-// The most lines one splice puts in as its arguments.
+// The max lines one splice puts in as its arguments.
 const SPREAD = 1024;
 
 // Edits of one type that follow each other inside this many milliseconds undo as one step.
@@ -254,7 +254,7 @@ export class Doc {
     this.lines = out;
   }
 
-  // Writes a change the undo history keeps. `before` is what the caller restores on undo, its
+  // Writes a change the undo history retains. `before` is what the caller restores on undo, its
   // selections, and `type` joins this change to the last one where both are typing of one type and
   // no state has been made from the last one's.
   change(edits, type, before) {
@@ -267,7 +267,7 @@ export class Doc {
     this.id = this.ids;
     const last = this.steps.get(from);
     const now = performance.now();
-    if (type && last?.done && !last.sealed && last.kind === type && now - last.at < JOINED && !this.forks.has(from)) {
+    if (type && last?.done && !last.sealed && last.type === type && now - last.at < JOINED && !this.forks.has(from)) {
       last.edits.push(undo);
       this.steps.delete(from);
       last.to = this.id;
@@ -275,7 +275,7 @@ export class Doc {
       this.steps.set(this.id, last);
       this.next.set(last.from, this.id);
     } else {
-      this.steps.set(this.id, { kind: type, edits: [undo], done: true, before, after: before, from, to: this.id, at: now, made: Date.now(), sealed: false });
+      this.steps.set(this.id, { type: type, edits: [undo], done: true, before, after: before, from, to: this.id, at: now, made: Date.now(), sealed: false });
       this.next.set(from, this.id);
       this.forks.add(from);
     }
@@ -349,7 +349,7 @@ export class Doc {
     return { selections: step.after, edits };
   }
 
-  // Writes a step's edits, undoing it where it is done and redoing it where it is undone, and keeps
+  // Writes a step's edits, undoing it where it is done and redoing it where it is undone, and retains
   // the edits that go back the other way. Answers the first edits written.
   travel(step) {
     const back = [];

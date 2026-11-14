@@ -63,7 +63,7 @@ MEASURE = (
 
 
 def coarsen(floats, block):
-    """Average neighboring samples in blocks, which cuts the uncorrelated part and keeps the rest."""
+    """Average neighboring samples in blocks, which cuts the uncorrelated part and retains the rest."""
     if block == 1:
         return floats
     usable = (len(floats) // block) * block

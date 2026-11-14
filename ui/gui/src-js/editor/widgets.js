@@ -8,7 +8,7 @@
 // **bold**, `code` and _slanted_ are marked, or { className, text } for a text drawn in a class. Its complete(doc, at) answers items { label, type,
 // detail, doc, insert, snippet }, where a snippet's insert has stops written ${1:name}, or a promise of
 // them from a language server, and its completeNow(doc, at), where it has one, the items it answers
-// at once while the server's are awaited. The list stands at once on those and on the file's own
+// at once while the server's are awaited. The list is at once on those and on the file's own
 // words, and the server's join them as they come.
 
 import { pos } from "./document.js";
@@ -107,7 +107,7 @@ function block(paragraph) {
 export class Hover {
   constructor(editor) {
     this.ed = editor;
-    this.shown = false;
+    this.displayed = false;
     this.el = document.createElement("div");
     this.el.className = "ed-hover";
     this.el.hidden = true;
@@ -138,7 +138,7 @@ export class Hover {
       this.el.append(...holder.childNodes);
     });
     this.el.hidden = false;
-    this.shown = true;
+    this.displayed = true;
     const host = this.ed.host.getBoundingClientRect();
     const at = this.ed.rectOf(found.from);
     const height = this.el.offsetHeight;
@@ -148,36 +148,36 @@ export class Hover {
     const left = Math.max(4, Math.min(at.left - host.left, host.width - width - 12));
     this.el.style.left = `${left}px`;
     this.el.style.top = `${top}px`;
-    // What it is kept open by, from the editor's corner, which it moves with: the name and a character's
+    // What it is retained open by, from the editor's corner, which it moves with: the name and a character's
     // step either side of it, the box, and the gap between the two the pointer crosses on its way to
     // the box.
     const end = this.ed.rectOf(found.to ?? found.from);
     const step = this.ed.cw;
     const near = { left: at.left - host.left - step, right: Math.max(at.left, end.left) - host.left + step, top: at.top - host.top - 2, bottom: at.bottom - host.top + 2 };
-    this.keptBy = [near, { left: left - 4, right: left + width + 4, top: Math.min(top, near.bottom), bottom: Math.max(top + height, near.top) }];
+    this.retainedBy = [near, { left: left - 4, right: left + width + 4, top: Math.min(top, near.bottom), bottom: Math.max(top + height, near.top) }];
   }
 
-  // Whether the pointer at the page's x, y keeps it open: on the name or a step off it, in the box, or
+  // Whether the pointer at the page's x, y retains it open: on the name or a step off it, in the box, or
   // between the two.
-  keeps(x, y) {
-    if (!this.shown || !this.keptBy) {
+  retains(x, y) {
+    if (!this.displayed || !this.retainedBy) {
       return false;
     }
     const host = this.ed.host.getBoundingClientRect();
     const [at, down] = [x - host.left, y - host.top];
-    return this.keptBy.some((one) => at >= one.left && at <= one.right && down >= one.top && down <= one.bottom);
+    return this.retainedBy.some((one) => at >= one.left && at <= one.right && down >= one.top && down <= one.bottom);
   }
 
-  // The pointer is back where it keeps it open: it goes no longer.
+  // The pointer is back where it retains it open: it goes no longer.
   stay() {
     window.clearTimeout(this.wait);
   }
 
   hide() {
     window.clearTimeout(this.wait);
-    if (this.shown) {
+    if (this.displayed) {
       this.el.hidden = true;
-      this.shown = false;
+      this.displayed = false;
     }
   }
 
@@ -187,22 +187,22 @@ export class Hover {
   }
 }
 
-const SHOWN_ROWS = 10;
+const DISPLAYED_ROWS = 10;
 
 // The keys that act on an open list, before which any work put off on it is done.
 export const LIST_KEYS = new Set(["Up", "Down", "PageUp", "PageDown", "Enter", "Tab", "Escape"]);
 
-// How many lines either side of the cursor the file's own words are taken from, and the most taken.
+// How many lines either side of the cursor the file's own words are taken from, and the max taken.
 const NEAR_LINES = 3000;
-const MOST_WORDS = 4000;
+const MAX_WORDS = 4000;
 
-// The words of the file within NEAR_LINES of `at`, each of two letters or more once, as items, the
-// word being typed, `typed`, left out, and the word the cursor stands in, which typing makes.
+// The words of the file within NEAR_LINES of `at`, each of two characters or more once, as items, the
+// word being typed, `typed`, left out, and the word the cursor is in, which typing makes.
 export function fileWords(doc, at, typed) {
   const seen = new Set([typed]);
   const items = [];
   const last = Math.min(doc.count - 1, at.line + NEAR_LINES);
-  for (let line = Math.max(0, at.line - NEAR_LINES); line <= last && items.length < MOST_WORDS; line += 1) {
+  for (let line = Math.max(0, at.line - NEAR_LINES); line <= last && items.length < MAX_WORDS; line += 1) {
     for (const found of doc.line(line).matchAll(/[\p{L}_$][\p{L}\p{N}_$]+/gu)) {
       const word = found[0];
       if (line === at.line && found.index <= at.col && at.col <= found.index + word.length) {
@@ -210,7 +210,7 @@ export function fileWords(doc, at, typed) {
       }
       if (!seen.has(word)) {
         seen.add(word);
-        items.push({ label: word, kind: "word", insert: word });
+        items.push({ label: word, type: "word", insert: word });
       }
     }
   }
@@ -223,7 +223,7 @@ function joined(first, rest) {
   return [...first, ...rest.filter((item) => !labels.has(item.label))];
 }
 
-// How well a label answers what is typed: a start beats a part, a part beats letters in order,
+// How well a label answers what is typed: a start beats a part, a part beats characters in order,
 // and nothing is 0.
 function score(label, typed) {
   if (!typed) {
@@ -257,7 +257,7 @@ export class Suggest {
     this.ed = editor;
     this.open = false;
     this.items = null;
-    this.shown = [];
+    this.displayed = [];
     this.index = 0;
     this.list = document.createElement("div");
     this.list.className = "ed-suggest-list";
@@ -280,7 +280,7 @@ export class Suggest {
   }
 
   // Opens or filters the list for the word before the cursor once the frame that draws the key typed
-  // has been drawn: the letter shows before any of the list's work begins. Keys typed before then
+  // has been drawn: the character shows before any of the list's work begins. Keys typed before then
   // are taken together.
   later(start) {
     this.pending = { start: Boolean(this.pending?.start) || start };
@@ -319,9 +319,9 @@ export class Suggest {
       return;
     }
     const moved = !this.at || this.at.line !== prefix.from.line || this.at.col !== prefix.from.col;
-    // A question already asked for the word begun here is answered for every letter typed since:
-    // its answer is filtered by the word as it stands when it comes, and no letter asks again. Each
-    // letter meanwhile filters the items the list stands on.
+    // A question already asked for the word begun here is answered for every character typed since:
+    // its answer is filtered by the word as it is when it comes, and no character asks again. Each
+    // character meanwhile filters the items the list is on.
     if (this.waiting && !moved && !forced) {
       this.filter(forced);
       return;
@@ -332,7 +332,7 @@ export class Suggest {
       const items = language.complete(ed.doc, head) ?? [];
       const words = fileWords(ed.doc, head, prefix.text);
       this.at = prefix.from;
-      // A language server answers later: the list stands at once on the language's own items and the
+      // A language server answers later: the list is at once on the language's own items and the
       // file's words, and the server's answer joins them, ahead of them, if the word asked about is
       // still the one before the cursor.
       if (typeof items.then === "function") {
@@ -362,23 +362,23 @@ export class Suggest {
   }
 
   // Shows the items that answer the word before the cursor, best first. With `again`, the list
-  // stands open with the server's items joined, the row chosen kept where it is still there.
+  // is open with the server's items joined, the row chosen retained where it is still there.
   filter(forced, again = false) {
     const prefix = this.ed.prefix();
-    const kept = this.shown[this.index]?.label;
-    this.shown = this.items
+    const retained = this.displayed[this.index]?.label;
+    this.displayed = this.items
       .map((item) => ({ item, score: score(item.label, prefix.text) }))
       .filter((one) => one.score > 0)
       .sort((a, b) => b.score - a.score || a.item.label.length - b.item.label.length || a.item.label.localeCompare(b.item.label))
       .slice(0, 400)
       .map((one) => one.item);
-    if (!this.shown.length || (this.shown.length === 1 && this.shown[0].label === prefix.text && !forced)) {
+    if (!this.displayed.length || (this.displayed.length === 1 && this.displayed[0].label === prefix.text && !forced)) {
       if (!again) {
         this.close();
       }
       return;
     }
-    this.index = Math.max(0, this.shown.findIndex((item) => item.label === kept));
+    this.index = Math.max(0, this.displayed.findIndex((item) => item.label === retained));
     if (!this.open) {
       this.first = 0;
     }
@@ -391,25 +391,25 @@ export class Suggest {
 
   draw() {
     const typed = this.typed ?? "";
-    // The window of rows moves only as far as it must to keep the chosen row in it.
+    // The window of rows moves only as far as it must to retain the chosen row in it.
     let first = this.first ?? 0;
     if (this.index < first) {
       first = this.index;
-    } else if (this.index >= first + SHOWN_ROWS) {
-      first = this.index - SHOWN_ROWS + 1;
+    } else if (this.index >= first + DISPLAYED_ROWS) {
+      first = this.index - DISPLAYED_ROWS + 1;
     }
-    this.first = Math.max(0, Math.min(first, this.shown.length - SHOWN_ROWS));
-    const rows = this.shown.slice(this.first, this.first + SHOWN_ROWS).map((item, offset) => {
+    this.first = Math.max(0, Math.min(first, this.displayed.length - DISPLAYED_ROWS));
+    const rows = this.displayed.slice(this.first, this.first + DISPLAYED_ROWS).map((item, offset) => {
       const index = this.first + offset;
       const label = item.label.toLowerCase().startsWith(typed.toLowerCase()) && typed
         ? `<b>${escapeHtml(item.label.slice(0, typed.length))}</b>${escapeHtml(item.label.slice(typed.length))}`
         : escapeHtml(item.label);
-      const type = escapeHtml(item.kind ?? "word");
+      const type = escapeHtml(item.type ?? "word");
       const detail = item.detail ? `<span class="ed-item-detail">${escapeHtml(item.detail)}</span>` : "";
-      return `<div class="ed-item" data-index="${index}" aria-selected="${index === this.index}"><span class="ed-kind k-${type}"></span><span class="ed-item-label">${label}</span>${detail}</div>`;
+      return `<div class="ed-item" data-index="${index}" aria-selected="${index === this.index}"><span class="ed-type k-${type}"></span><span class="ed-item-label">${label}</span>${detail}</div>`;
     });
     this.list.innerHTML = rows.join("");
-    const chosen = this.shown[this.index];
+    const chosen = this.displayed[this.index];
     const said = [chosen?.detail ? `\`${chosen.detail}\`` : "", chosen?.doc ?? ""].filter(Boolean).join("\n\n");
     this.detail.hidden = !said;
     this.detail.innerHTML = said ? markup(said) : "";
@@ -430,8 +430,8 @@ export class Suggest {
   }
 
   key(name) {
-    const count = this.shown.length;
-    const steps = { Up: -1, Down: 1, PageUp: -SHOWN_ROWS, PageDown: SHOWN_ROWS };
+    const count = this.displayed.length;
+    const steps = { Up: -1, Down: 1, PageUp: -DISPLAYED_ROWS, PageDown: DISPLAYED_ROWS };
     if (name in steps) {
       const next = this.index + steps[name];
       this.index = name === "Up" || name === "Down" ? (next + count) % count : Math.max(0, Math.min(count - 1, next));
@@ -451,7 +451,7 @@ export class Suggest {
 
   accept() {
     const ed = this.ed;
-    const item = this.shown[this.index];
+    const item = this.displayed[this.index];
     if (!item) {
       this.close();
       return;

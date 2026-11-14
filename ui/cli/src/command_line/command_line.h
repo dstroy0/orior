@@ -19,7 +19,7 @@ typedef struct CliCommandLineNamedCfg CliCommandLineNamedCfg;
 typedef struct CliCommandLineCfg CliCommandLineCfg;
 typedef struct CliCommandLineLaunchOutCfg CliCommandLineLaunchOutCfg;
 
-// the most words a command the window runs is given, and the bytes they take
+// the max words a command the window runs is given, and the bytes they take
 #define CLI_LAUNCH_ARGS 256u
 #define CLI_LAUNCH_TEXT (1u << 16u)
 
@@ -58,14 +58,14 @@ void cli_console_let_go(void);
 // the window's command line and its tree (command_line_window.c): the command line run on the words the program was
 // started with, as the system gives them: the code to exit with, 1 in `window` where the words open the window
 // instead; the tree the window opens on found and readied: imp run on the machine where it is in a Flatpak's
-// sandbox, every process it starts contained under it, the door opened for the command line, `woken` called from the
-// door's thread as a command comes, and the tree watched, each batch of files changed outside the window noted among
-// its runs, walked into the tree's branches and handed to the servers on the watch's own thread; every server,
+// sandbox, every process it starts contained under it, the interface opened for the command line, `woken` called from the
+// interface's thread as a command comes, and the tree watched, each batch of files changed outside the window noted among
+// its runs, walked into the tree's branches and passed to the servers on the watch's own thread; every server,
 // session and process of the window's ended as it ends; the tree open, NULL for none; the tree's name, the last part of
 // its folder, empty for none; and the words the program was started with
 int cli_command_line_window(int *window);
 void cli_command_line_tree_begin(void (*woken)(void));
-// the catalog's cell taken as the process starts, after the pool is made, so it stands at the pool's lowest address
+// the catalog's cell taken as the process starts, after the pool is made, so it is at the pool's lowest address
 void cli_command_line_catalog_alloc(void);
 void cli_command_line_tree_end(void);
 const char *cli_command_line_root(void);
@@ -80,17 +80,17 @@ const CliOutcome *cli_command_line_launched(void);
 // the notices (notices.c), as the page's status bar shows them: the notice `text` posted, a failure's where `failed` is
 // 1: one that answers a press or a key that gives a command within CLI_NOTICES_ANSWERS_MS shows at once, any other
 // waits for a break in the work, CLI_NOTICES_REST_MS of no input or a save, and Focus stops every one until it ends; a
-// notice whose type is put away shows not at all; one shown stands CLI_NOTICES_SHOWN_MS on the status bar, a failure's
+// notice whose type is put away shows not at all; one displayed is CLI_NOTICES_DISPLAYED_MS on the status bar, a failure's
 // CLI_NOTICES_FAILED_MS, and a press on it takes it away, one on Silence beside it putting its type away for good,
 // saved in orior's folder. Any input, a press of the pointer, or the key `name` while the editor takes the keys where
 // `editing` is 1, so the notices know when the reader commanded and when the work rests; a break taken; a press on the
 // status bar's
-// part `part`; Focus on or off; the type `type` shown again; the timers whose time came taken, 1 where anything
+// part `part`; Focus on or off; the type `type` displayed again; the timers whose time came taken, 1 where anything
 // changed; the clock's reading of the next timer, 0 for none; the types put away read in place in `entries` as the
-// window begins, which stand until the window ends; and every notice let go as the window ends, before its entries go
+// window begins, which are until the window ends; and every notice let go as the window ends, before its entries go
 #define CLI_NOTICES_ANSWERS_MS 1500ULL
 #define CLI_NOTICES_REST_MS 2000ULL
-#define CLI_NOTICES_SHOWN_MS 5000ULL
+#define CLI_NOTICES_DISPLAYED_MS 5000ULL
 #define CLI_NOTICES_FAILED_MS 15000ULL
 void cli_notice_post(const char *text, int failed);
 void cli_notices_input(void);
@@ -106,7 +106,7 @@ void cli_notices_restore(const CliStateEntries *entries);
 void cli_notices_end(void);
 // the notice the status bar shows, its first line, NULL for none, and whether it is a failure's; whether Focus is on,
 // and how many notices wait on it
-const char *cli_notice_shown(void);
+const char *cli_notice_displayed(void);
 int cli_notice_failed(void);
 int cli_notices_focused(void);
 unsigned int cli_notices_waiting(void);

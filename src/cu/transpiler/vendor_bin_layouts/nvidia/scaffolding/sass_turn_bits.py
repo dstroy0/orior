@@ -10,7 +10,7 @@ itself goes first. The disassembler's line at address 0 is then the form given, 
 is that form with bit `bit` turned over.
 
 `--without` names, in hex, the addresses of encodings the disassembler refused. Each is written as a NOP instead of
-being dropped, and every other encoding then keeps the address that says which bit it is. Their bits read as NOP,
+being dropped, and every other encoding then retains the address that says which bit it is. Their bits read as NOP,
 and by that the caller tells a refused encoding from a decoded one.
 """
 

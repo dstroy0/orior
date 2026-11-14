@@ -4,7 +4,7 @@
 // where its leaf is a name, a keyword or a type, a number, a string, the leaves of one string one token, else a mark;
 // each with the roles its grammar names, a bracket that opens or closes a pair, a region's bracket, and a statement's
 // end. A statement's end the leaves' reading puts at a line's end is a statement's end token, and a block's close it
-// puts where an indent returns a mark with its roles, each standing where the token before it ends. A pattern's
+// puts where an indent returns a mark with its roles, each located where the token before it ends. A pattern's
 // placeholders, `$name$` or `$name:type$`, are the search's own and read off its text first, its grammar reading it
 // with their bytes blank, each a name token at its bytes among the leaves'. Tokens past what their storage fits are not
 // read
@@ -38,13 +38,13 @@ typedef struct
     unsigned long long to;
     const CliShapeHolePosition *positions_read;
 } ShapeCtx;
-// a token put on the tokens where it fits: its place among them, or the most they hold where it does not fit
+// a token put on the tokens where it fits: its place among them, or the max they hold where it does not fit
 EMBED_INLINE unsigned int shape_append(const ShapeCtx *args)
 {
-    if (args->tokens->count == args->tokens->most)
+    if (args->tokens->count == args->tokens->max)
     {
         args->tokens->full = 1;
-        return args->tokens->most;
+        return args->tokens->max;
     }
     args->tokens->type[args->tokens->count] = args->type;
     args->tokens->role[args->tokens->count] = args->role;
@@ -88,9 +88,9 @@ EMBED_INLINE int shape_hole_at(const ShapeCtx *args)
     for (unsigned long long walk = 0ULL; walk < name_size;)
     {
         unsigned long long length = 0ULL;
-        const unsigned int letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = inside, .size = name_size,
+        const unsigned int character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = inside, .size = name_size,
                                                .at = walk, .length = &length);
-        if (!EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .letter = letter) && (letter != '_'))
+        if (!EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .character = character) && (character != '_'))
         {
             return 0;
         }
@@ -111,7 +111,7 @@ EMBED_INLINE int shape_hole_at(const ShapeCtx *args)
     return 1;
 }
 
-// the placeholders of the pattern, CLI_SHAPE_HOLES at the most, each put among the holes with its bytes into
+// the placeholders of the pattern, CLI_SHAPE_HOLES at max, each put among the holes with its bytes into
 // `positions` and its bytes made blank in `blank`, the pattern's copy
 EMBED_INLINE void shape_holes_find(const ShapeCtx *args)
 {
@@ -195,7 +195,7 @@ EMBED_INLINE int shape_join(const ShapeCtx *args)
 }
 
 // each leaf of `read`, the leaves of `size` bytes of `src`, past blanks and comments put as a token, a string's leaves
-// one token and a leaf with no bytes standing where the token before it ends, a statement's end a statement's end
+// one token and a leaf with no bytes located where the token before it ends, a statement's end a statement's end
 // token; and before each the placeholders that start before it, or at it where it has bytes, each hole given its
 // token's place; and those left after the last
 EMBED_INLINE void shape_leaves_append(const ShapeCtx *args)

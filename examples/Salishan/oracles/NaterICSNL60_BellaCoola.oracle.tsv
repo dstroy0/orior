@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Hank Nater	note	In Proceedings of the International Conference on Salish and Neighbouring Languages 60. Ella Hannon, Brian Diep, Laura Griffin, Mila Loginova, Bruce Oliver, Lauren Schneider, Reed Steiner, and Bailey Trotter (eds.). Vancouver, BC: UBCWPL, 2025.	page 1
 front	Hank Nater	note	Abstract: Bella Coola is a Coast Salish language, now defunct, that is closely affiliated with other Coast Salish in regards to certain deictic and phonological features. However, it differs on other levels profoundly from all non-Bella Coola Salish, e.g., where the genetic makeup of its lexicon is concerned: less than a third of all Bella Coola verbo-nominal vocabulary is of Salish (and areal) descent (Nater 2013). In this report, I focus on those Bella Coola verbo-nominal stems that have been copied from Chinook Jargon, Russian and Spanish.	page 1, the abstract
 front	Hank Nater	note	Keywords: Salish, Bella Coola, trade- & migration-induced contact, lexical copying	page 1
@@ -55,7 +55,7 @@ footnote 1	Chinook Proper	cited form	ik’awan	page 3, footnote 1, ‘type of sa
 §2	Hank Nater	heading	2 Bella Coola Phoneme inventory	page 4
 §2	Hank Nater	note	The BeCo phonemes can be tabulated as follows:	page 4
 Table 2	Hank Nater	note	Table 2: BeCo phoneme inventory	page 4, the caption
-Table 2	Hank Nater	note	O B S T R U E N T S O N O R A N T	page 4, the column heads, set over four lines, the letters of OBSTRUENT and SONORANT spaced apart
+Table 2	Hank Nater	note	O B S T R U E N T S O N O R A N T	page 4, the column heads, set over four lines, the characters of OBSTRUENT and SONORANT spaced apart
 Table 2 line 1	Hank Nater	note	P L O S I V E	page 4, a line of the table
 Table 2 line 2	Hank Nater	note	FRICATIVE CONSONANTAL VOCALIC	page 4, a line of the table
 Table 2 line 3	Hank Nater	note	PLAIN EJECTIVE	page 4, a line of the table
@@ -188,7 +188,7 @@ Table 3 line 21	Chinook Jargon	transcription	… dala haws ‘bank’	page 5, th
 Table 3 line 21	Hank Nater	note	English dollar + house	page 5, the Origin column
 §4.1	Chinook Jargon	cited form	musmus	page 5, ‘cow’, of “obscure origin” in Zenk et al 2010
 §4.1	Upper Chehalis	root	√músmuski	page 5, ‘cow, cattle’, compared in Zenk et al 2010
-footnote 3	Hank Nater	note	3 Here and henceforth, CTGR stands for Confederated Tribes of the Grand Ronde Community of Oregon.	page 5, footnote
+footnote 3	Hank Nater	note	3 Here and henceforth, CTGR is for Confederated Tribes of the Grand Ronde Community of Oregon.	page 5, footnote
 footnote 4	Hank Nater	note	4 The original meaning must have been ‘to (go to the) bank: deposit or withdraw money for a dowry or wedding feast’.	page 5, footnote
 §4.1	Tahltan	cited form	mášmaš	page 6, ‘cow’, the author's field notes
 §4.1	Tlingit	cited form	wasóos	page 6, ‘cow’, Edwards 2009
@@ -238,15 +238,15 @@ Table 4	Hank Nater	note	(For Haida, see Lachler 2010; Heiltsuk – Rath 2010; Ni
 §5	Hank Nater	note	In regards to the southern origin of BeCo, the significance of ancient migrations and trade patterns is often underestimated. Thus, Kinkade (2005) found it difficult to reconcile similarities between Salish and Alsea with the seemingly insurmountable distances separating these languages. Neither could he imagine how similarities between Penutian and Salish could have resulted from interaction with Tillamook:	page 7
 §5	Kinkade 2005	note	If Alsea has borrowed from Salish, how did it get forms with p or m, which could not have come from Tillamook, Alsea’s only Salishan neighbor (unless the changes of *p to h and *m to w are recent changes in Tillamook)? Unless there have been major population shifts in the area, borrowing is possible, although problematic, given changes in Tillamook phonology and morphology. Intermarriage, slavery, or trade would not provide adequate sources for borrowing in either direction because of the distances involved. Contact between Alsea and non-Tillamook Salish must have been minimal.	page 7, a quotation, Kinkade 2005: 66-67
 §5	Hank Nater	citation	(Kinkade 2005: 66-67)	the source of the quotation above
-§5	Hank Nater	note	Yet, Alsea is located between Chinookan and Takelma, within the ancient trade network shown in Figure 3, and it is unlikely that Alsea contact with Salish (pre-Tillamook and/or pre-BeCo) would not have taken place a millennium or so ago. It is precisely this type of regular interaction that could motivate lexical and structural copying (cf. Nater 2010 and 2018b).	page 7
+§5	Hank Nater	note	Yet, Alsea is located between Chinookan and Takelma, within the ancient trade network displayed in Figure 3, and it is unlikely that Alsea contact with Salish (pre-Tillamook and/or pre-BeCo) would not have taken place a millennium or so ago. It is precisely this type of regular interaction that could motivate lexical and structural copying (cf. Nater 2010 and 2018b).	page 7
 §5	Hank Nater	note	Figure 3: Traditional trade centers and networks (based on Walker 1997)	page 7, the caption of Figure 3, a map the text layer does not carry
 §5	Hank Nater	note	Amounts and percentages pertaining to BeCo verbo-nominal vocabulary are:	page 8
 Table 5	Hank Nater	note	Table 5: Etymological distribution of verbo-nominal vocabulary	page 8, the caption
 Table 5	Hank Nater	note	Proto-Salish Coast Salish Interior Salish Areal Copied Unaffiliated	page 8, the column heads
 Table 5 line 1	Hank Nater	note	209 (16%) 94 (7%) 63 (5%) 34 (3%) 214 (17%) 661 (52%)	page 8, a line of the table
 Table 5 line 2	Hank Nater	note	400 (31%) 875 (69%)	page 8, a line of the table
-§5	Hank Nater	note	These percentages confirm the early separation of BeCo from other Coast Salish. Note that most copied vocabulary is originally North Wakashan. It should here be mentioned that morpho- syntactically, too, North Wakashan influence has been pervasive:	page 8
-§5	Hank Nater	note	♦ nowhere in Salish do we find spatio-temporal deictic systems as elaborate as in BeCo (see Nater 1983); ♦ lexical suffix stringing plays in BeCo a more prominent role than in all other Salish: while most BeCo lexical suffixes are retentions from PS, productive suffix-stringing (detailed in Nater 1983) is a BeCo innovation; ♦ more typical of BeCo than of all other Salish, except Lillooet, is post-predicative enclisis and enclitic-stringing, which must have evolved parallel to a rise in usage of suffixation (this escalation may underlie another difference: where other Salish marks mood via different verbal paradigms, BeCo uses enclisis); ♦ the rigid PSO syntax of BeCo is more reminiscent of North Wakashan than of other Salish (where word order appears to be less fixed than is the case in BeCo).	page 8
+§5	Hank Nater	note	These percentages confirm the early separation of BeCo from other Coast Salish. Note that max copied vocabulary is originally North Wakashan. It should here be mentioned that morpho- syntactically, too, North Wakashan influence has been pervasive:	page 8
+§5	Hank Nater	note	♦ nowhere in Salish do we find spatio-temporal deictic systems as elaborate as in BeCo (see Nater 1983); ♦ lexical suffix stringing plays in BeCo a more prominent role than in all other Salish: while max BeCo lexical suffixes are retentions from PS, productive suffix-stringing (detailed in Nater 1983) is a BeCo innovation; ♦ more typical of BeCo than of all other Salish, except Lillooet, is post-predicative enclisis and enclitic-stringing, which must have evolved parallel to a rise in usage of suffixation (this escalation may underlie another difference: where other Salish marks mood via different verbal paradigms, BeCo uses enclisis); ♦ the rigid PSO syntax of BeCo is more reminiscent of North Wakashan than of other Salish (where word order appears to be less fixed than is the case in BeCo).	page 8
 §5	Proto-Salish	cited form	ə	page 8, *ə, whose elimination BeCo shows
 §5	Bella Coola	cited form	q’psttχ	page 8, ‘taste it!’, a voiceless word
 §5	Bella Coola	cited form	k’xłłcxʷ słχʷtłłc	page 8, ‘you had seen me go through the passage’, a voiceless sentence

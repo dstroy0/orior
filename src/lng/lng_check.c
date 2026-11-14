@@ -45,10 +45,10 @@ int main(void)
     LngTable hol = {{NULL, 0u, 0u}, NULL, 0u, 0u};
     LngTable asm_table = {{NULL, 0u, 0u}, NULL, 0u, 0u};
     lng_check_table("src/lng/transpiler_lng.tsv", &table, &defects);
-    lng_table_check(&table, g_lng_kinds, LNG_KINDS, &defects);
+    lng_table_check(&table, g_lng_types, LNG_KINDS, &defects);
     lng_table_findings(&table, &findings);
     lng_check_table("src/lng/gnascor_hol_lng.tsv", &hol, &defects);
-    lng_table_check(&hol, g_lng_hol_kinds, LNG_HOL_KINDS, &defects);
+    lng_table_check(&hol, g_lng_hol_types, LNG_HOL_KINDS, &defects);
     lng_table_findings(&hol, &findings);
     lng_check_table("src/lng/gnascor_asm_lng.tsv", &asm_table, &defects);
 
@@ -125,22 +125,22 @@ int main(void)
     }
     (void)verba_finis.finish(&(VerbaFinisCfg){.out = s_text_bytes, .cap = sizeof(s_text_bytes), .at = joined});
     LngList listed[3] = {{NULL, 0u, 0u}, {NULL, 0u, 0u}, {NULL, 0u, 0u}};
-    static const char *const s_listed_kind[3] = {"doing", "gluing", "thing"};
+    static const char *const s_listed_type[3] = {"doing", "gluing", "thing"};
     lng_gnascor_lists(s_text_bytes, &listed[2], &listed[0], &listed[1]);
     LngList listed_words = {NULL, 0u, 0u};
-    for (unsigned int kind = 0u; kind < 3u; kind += 1u)
+    for (unsigned int type = 0u; type < 3u; type += 1u)
     {
-        for (unsigned int at = 0u; at < listed[kind].count; at += 1u)
+        for (unsigned int at = 0u; at < listed[type].count; at += 1u)
         {
-            lng_set_add(&listed_words, listed[kind].text[at]);
+            lng_set_add(&listed_words, listed[type].text[at]);
         }
     }
     for (unsigned int at = 0u; at < listed_words.count; at += 1u)
     {
-        for (unsigned int kind = 0u; kind < 3u; kind += 1u)
+        for (unsigned int type = 0u; type < 3u; type += 1u)
         {
             unsigned int place = 0u;
-            if (!lng_set_find(&listed[kind], listed_words.text[at], &place))
+            if (!lng_set_find(&listed[type], listed_words.text[at], &place))
             {
                 continue;
             }
@@ -148,12 +148,12 @@ int main(void)
             for (unsigned int row = 0u; (row < table.rows) && !found; row += 1u)
             {
                 found = (strcmp(lng_cell(&table, row, "word"), listed_words.text[at]) == 0) &&
-                        (strcmp(lng_cell(&table, row, "kind"), s_listed_kind[kind]) == 0);
+                        (strcmp(lng_cell(&table, row, "type"), s_listed_type[type]) == 0);
             }
             if (!found)
             {
                 lng_list_printed(&defects, "gnascor lists %s as a %s word and the table does not",
-                                 listed_words.text[at], s_listed_kind[kind]);
+                                 listed_words.text[at], s_listed_type[type]);
             }
         }
     }
@@ -170,9 +170,9 @@ int main(void)
     for (unsigned int row = 0u; row < table.rows; row += 1u)
     {
         const char *const word = lng_cell(&table, row, "word");
-        const char *const kind = lng_cell(&table, row, "kind");
+        const char *const type = lng_cell(&table, row, "type");
         const int naming =
-            (strcmp(kind, "thing") == 0) || (strcmp(kind, "doing") == 0) || (strcmp(kind, "gluing") == 0);
+            (strcmp(type, "thing") == 0) || (strcmp(type, "doing") == 0) || (strcmp(type, "gluing") == 0);
         int named = (lng_map_get(&used, word) != NULL);
         if (!naming || named)
         {
@@ -187,7 +187,7 @@ int main(void)
         lng_list_free(&marked);
         if (!named)
         {
-            lng_list_printed(&findings, "%s is a %s word nothing in the tree uses", word, kind);
+            lng_list_printed(&findings, "%s is a %s word nothing in the tree uses", word, type);
         }
     }
 
@@ -235,9 +235,9 @@ int main(void)
     lng_list_free(&form_names);
     lng_list_free(&names);
     lng_list_free(&listed_words);
-    for (unsigned int kind = 0u; kind < 3u; kind += 1u)
+    for (unsigned int type = 0u; type < 3u; type += 1u)
     {
-        lng_list_free(&listed[kind]);
+        lng_list_free(&listed[type]);
     }
     for (unsigned int suffix = 0u; suffix < 3u; suffix += 1u)
     {

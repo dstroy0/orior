@@ -19,7 +19,7 @@ const apart = ([ax, ay], [bx, by]) => Math.hypot(ax - bx, ay - by);
 
 test("a word incised is its Roman capitals, one cut for each stroke a stylus makes, with no text of its own", () => {
   const word = incised("TABVLA");
-  assert.equal(word.getAttribute("aria-hidden"), "true", "the word read from the name it stands under, not from its cuts");
+  assert.equal(word.getAttribute("aria-hidden"), "true", "the word read from the name it is under, not from its cuts");
   assert.equal(word.textContent, "", "no text of its own");
   assert.equal(word.dataset.word, "TABVLA");
   // T two strokes, A three, B a stem and two bowls, V two, L two, A three
@@ -38,20 +38,20 @@ test("each cut is widest where the stylus went in and narrows to its tail", () =
   }
 });
 
-test("the letters stand on one line at one height, each apart from the next", () => {
+test("the characters are on one line at one height, each apart from the next", () => {
   const word = incised("TABVLA");
   document.body.append(word);
   word.style.cssText = "position: fixed; left: 0; top: 0; height: 60px;";
   try {
-    const letters = [...word.querySelectorAll("g.letter")].map((letter) => letter.getBoundingClientRect());
-    assert.equal(letters.length, 6, "six letters");
-    // a stroke's head may stand out of the line by its own width, and no further
+    const characters = [...word.querySelectorAll("g.character")].map((character) => character.getBoundingClientRect());
+    assert.equal(characters.length, 6, "six characters");
+    // a stroke's head may are out of the line by its own width, and no further
     const head = 60 * 0.1;
-    const tops = letters.map((box) => box.top);
-    const bottoms = letters.map((box) => box.bottom);
+    const tops = characters.map((box) => box.top);
+    const bottoms = characters.map((box) => box.bottom);
     assert.ok(Math.max(...tops) - Math.min(...tops) < head, `one top line: ${tops.map(Math.round)}`);
     assert.ok(Math.max(...bottoms) - Math.min(...bottoms) < head, `one foot line: ${bottoms.map(Math.round)}`);
-    letters.slice(1).forEach((box, index) => assert.ok(box.left > letters[index].right, `letter ${index + 2} apart from the one before`));
+    characters.slice(1).forEach((box, index) => assert.ok(box.left > characters[index].right, `character ${index + 2} apart from the one before`));
   } finally {
     word.remove();
   }

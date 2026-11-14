@@ -317,7 +317,7 @@ EMBED_INLINE void files_message_print(const CommandLineFilesCtx *args)
 EMBED_INLINE void files_finding_print(const CommandLineFilesCtx *args)
 {
     const unsigned int finding = args->node;
-    const char *const type = EMBED_CALL(files_member_text, CommandLineFilesCtx, .node = finding, .name = "kind");
+    const char *const type = EMBED_CALL(files_member_text, CommandLineFilesCtx, .node = finding, .name = "type");
     const char *const message = EMBED_CALL(files_member_text, CommandLineFilesCtx, .node = finding, .name = "message");
     const char *const lifted = EMBED_CALL(files_member_text, CommandLineFilesCtx, .node = finding, .name = "lifted");
     VerbaLinea line = {s_work_state->line, sizeof(s_work_state->line), 0ULL};

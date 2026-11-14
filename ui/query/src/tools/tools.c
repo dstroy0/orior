@@ -275,7 +275,7 @@ EMBED_INLINE unsigned long long query_newest_header(const ToolsCtx *args)
     return walk.newest;
 }
 
-// the folder `path` stands in written into `folder`
+// the folder `path` is in written into `folder`
 EMBED_INLINE void query_folder_get(const ToolsCtx *args)
 {
     const char *const slash = EMBED_CALL(
@@ -286,7 +286,7 @@ EMBED_INLINE void query_folder_get(const ToolsCtx *args)
     mmgr_line_finish(&line);
 }
 
-// the newest .h across the folders a tool's sources read: those its `sources` stand in, those the tool names, the file
+// the newest .h across the folders a tool's sources read: those its `sources` are in, those the tool names, the file
 // definitions' where it links them, and its includes; 0 where none contains one
 unsigned long long query_newest_header_get(const QueryToolsRootToolSourcesCtx *args)
 {
@@ -316,14 +316,14 @@ unsigned long long query_newest_header_get(const QueryToolsRootToolSourcesCtx *a
     return newest;
 }
 
-// 1 where an object stands: it is there, and neither its source nor the newest header its tool reads is newer
+// 1 where an object is: it is there, and neither its source nor the newest header its tool reads is newer
 int query_fresh(const QueryToolsSourceKnownCtx *args)
 {
     return args->object_known && args->source_known && (args->source <= args->object) &&
            (args->newest_header <= args->object);
 }
 
-// 1 where `binary` is missing or older than a source of `tool`, or a header of a folder its sources stand in or it
+// 1 where `binary` is missing or older than a source of `tool`, or a header of a folder its sources are in or it
 // names
 int query_stale(const QueryToolsRootToolCtx *args)
 {
@@ -385,7 +385,7 @@ int query_tool_build(const QueryNameCapacityCtx *args)
 }
 
 // the object `source` is compiled to under `objects`, named by its path from the top of the tree with its separators
-// made `_`, so that two sources of one base name in two folders stand apart
+// made `_`, so that two sources of one base name in two folders are apart
 void query_object_get(const QueryToolsRootObjectsCtx *args)
 {
     const size_t root_length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = QUERY_PATH_MAX_LEN});

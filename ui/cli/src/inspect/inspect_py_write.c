@@ -7,7 +7,7 @@
 #include "../text/text.h"
 #include "inspect_py.h"
 
-// the most parameters and raised names a function's docstring names
+// the max parameters and raised names a function's docstring names
 #define CLI_PY_PARAMS 256u
 
 // What a function declares of itself for its docstring: its parameters, each its name with its stars and its
@@ -315,7 +315,7 @@ static VerbaLinea *write_line(void)
     return &s_pool_line;
 }
 
-// the docstring's last line ended where the pool stands
+// the docstring's last line ended where the pool is
 static void write_line_finish(void)
 {
     s_line_size[s_lines - 1u] = s_pool_line.at - s_line_start[s_lines - 1u];
@@ -500,7 +500,7 @@ int cli_inspect_py_docstring(const CliInspectSizeSrcCtx *args)
     }
     if (EMBED_CALL(cli_inspect_py.py_block_end, CliInspectPyCfg, .at = at) <= at + 1u)
     {
-        mmgr_line_put(args->err_msg, "The function's body stands on its header's line.");
+        mmgr_line_put(args->err_msg, "The function's body is on its header's line.");
         return 0;
     }
     const CliPyLine *const first = &g_cli_py_line[at + 1u];
@@ -524,16 +524,16 @@ int cli_inspect_py_docstring(const CliInspectSizeSrcCtx *args)
     unsigned int units = 0u;
     while (indent < args->size)
     {
-        unsigned int letter = 0u;
+        unsigned int character = 0u;
         const unsigned long long reserved =
-            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                       .text_bytes = (const unsigned char *)src, .length = args->size, .at = indent, .letter = &letter);
-        if ((letter == '\n') || !EMBED_CALL(cli_inspect_internal.white, CliInspectCtx, .letter = letter))
+            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                       .text_bytes = (const unsigned char *)src, .length = args->size, .at = indent, .character = &character);
+        if ((character == '\n') || !EMBED_CALL(cli_inspect_internal.white, CliInspectCtx, .character = character))
         {
             break;
         }
         indent += reserved;
-        units += (letter >= 0x10000u) ? 2u : 1u;
+        units += (character >= 0x10000u) ? 2u : 1u;
     }
     s_pool_line = (VerbaLinea){s_pool, sizeof(s_pool), 0ULL};
     s_lines = 0u;

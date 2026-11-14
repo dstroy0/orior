@@ -24,7 +24,7 @@ The derived direction runs from dwell to entropy. The dwell laws fix the entropy
 
 ## No arrow in the rate
 
-Reversing a sequence reverses the order of its runs and keeps their lengths. A stationary process has the same block entropies read in either direction, as in [Cover and Thomas](#src:Cover-Thomas-2006). Neither dwell nor the entropy rate carries a direction of time. A direction needs a process that is not stationary, such as entropy rising from a low start, or a record of an earlier sweep to compare against.
+Reversing a sequence reverses the order of its runs and retains their lengths. A stationary process has the same block entropies read in either direction, as in [Cover and Thomas](#src:Cover-Thomas-2006). Neither dwell nor the entropy rate carries a direction of time. A direction needs a process that is not stationary, such as entropy rising from a low start, or a record of an earlier sweep to compare against.
 
 ## The dwell bench
 

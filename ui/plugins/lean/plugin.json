@@ -2,7 +2,7 @@
   "id": "lean",
   "name": "Lean",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "extensions": ["lean"],
   "comments": {"line":"--","block":["/-","-/"]},
   "pairs": ["()","[]","{}","⟨⟩"],

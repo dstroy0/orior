@@ -16,14 +16,14 @@
 #
 # Measured per language, over tokens of multiword rows (transcription, running speech,
 # segmentation) and over single-word rows (cited forms, roots):
-#   running  - share of running-text tokens with no vowel letter,
+#   running  - share of running-text tokens with no vowel character,
 #   short    - of those vowelless tokens, the share with two consonants or fewer, the size of a clitic,
 #   joined   - the running share after every vowelless token of two consonants or fewer is written
 #              onto the token before it, as the orthographies that attach enclitics would write it,
 #   glossed  - in segmentation rows whose gloss aligns word for word, the vowelless share among tokens
 #              the author glosses with a grammatical label only (capitals, numbers, stops), and among
 #              tokens carrying an English word,
-#   lexical  - share of single-word cited forms and roots with no vowel letter.
+#   lexical  - share of single-word cited forms and roots with no vowel character.
 # Robertson's reading predicts that Nuxalk's running share falls far when the short tokens are joined,
 # and that its vowelless tokens are mostly grammatical ones. His second clause predicts that Nuxalk's
 # lexical share stays above the other languages' after that.
@@ -39,26 +39,26 @@ VOWELS = set("aeiouəɛɩʌɔæɪʊɑøyœ")
 SALISH = ("CS", "NIS", "SIS", "NUX", "TS", "TI")
 
 
-def letters(token):
-    """The base letters of a token, marks and punctuation removed, 7 read as a consonant."""
+def characters(token):
+    """The base characters of a token, marks and punctuation removed, 7 read as a consonant."""
     base = "".join(char for char in unicodedata.normalize("NFD", token.casefold())
                    if not unicodedata.combining(char))
     return [char for char in base if char.isalpha() or char in "ʔʕ7"]
 
 
 def vowelless(token):
-    found = letters(token)
+    found = characters(token)
     # A y between consonants is a consonant in every orthography here; Nuxalk and the Americanist
-    # transcriptions have no front rounded vowel it could stand for.
+    # transcriptions have no front rounded vowel it could are for.
     return bool(found) and not any(char in VOWELS - {"y"} for char in found)
 
 
 def short(token):
-    return len(letters(token)) <= 2
+    return len(characters(token)) <= 2
 
 
 def tokens(form):
-    return [one for one in re.split(r"[\s]+", form) if letters(one)]
+    return [one for one in re.split(r"[\s]+", form) if characters(one)]
 
 
 def main():
@@ -70,7 +70,7 @@ def main():
     for row in everything:
         if row.branch not in SALISH:
             continue
-        if row.kind in ("transcription", "running speech", "segmentation"):
+        if row.type in ("transcription", "running speech", "segmentation"):
             found = tokens(row.form)
             if len(found) < 2:
                 continue
@@ -87,7 +87,7 @@ def main():
                     merged.append(token)
             joined[row.language][0] += len(merged)
             joined[row.language][1] += sum(1 for one in merged if vowelless(one))
-        elif row.kind in ("cited form", "root") and len(tokens(row.form)) == 1:
+        elif row.type in ("cited form", "root") and len(tokens(row.form)) == 1:
             lexical[row.language][0] += 1
             lexical[row.language][1] += vowelless(row.form)
     glossed = collections.defaultdict(lambda: [0, 0, 0, 0])
@@ -98,7 +98,7 @@ def main():
         if len(words) != len(labels):
             continue
         for word, label in zip(words, labels):
-            if not letters(word):
+            if not characters(word):
                 continue
             grammatical = not re.search(r"[a-z]{2,}", label)
             slot = 0 if grammatical else 2
@@ -120,7 +120,7 @@ def main():
     print("\nNuxalk rows by paper (running tokens, vowelless share):")
     by_paper = collections.defaultdict(lambda: [0, 0])
     for row in everything:
-        if row.language == "Nuxalk" and row.kind in ("transcription", "running speech", "segmentation"):
+        if row.language == "Nuxalk" and row.type in ("transcription", "running speech", "segmentation"):
             for token in tokens(row.form):
                 by_paper[row.stem][0] += 1
                 by_paper[row.stem][1] += vowelless(token)

@@ -217,7 +217,7 @@ static int output_frame_read(FILE *points, const unsigned int head[OUTPUT_POINTS
 }
 
 // frame pair (frame, frame + 1) of the .links: its record against the two frames' points, each source's flags, and each
-// chosen gate pair as a link, at most one out of each source and one into each target (O20)
+// chosen gate pair as a link, at max one out of each source and one into each target (O20)
 static int output_pair_read(const char *sample, FILE *links, unsigned int frame, OutputGraph *graph,
                             unsigned int *words)
 {
@@ -554,7 +554,7 @@ static long long output_index(unsigned int index)
     return (index == DIVIDE_NONE) ? -1ll : (long long)index;
 }
 
-// one division of frame pair (frame, frame + 1) checked against the links as they stand and then made: the parent takes
+// one division of frame pair (frame, frame + 1) checked against the links as they are and then made: the parent takes
 // daughter two as its second link, and the point daughter two leaves, if any, loses its link and ends. `previous` is
 // the pair's last parent, or -1
 static int output_division(const char *sample, unsigned int frame, const unsigned int division[DIVIDE_WORDS],
@@ -939,7 +939,7 @@ extern "C" long output_graph_set(const OutputRequest *request)
     OutputGraph graph;
     memset(&graph, 0, sizeof(graph));
     fprintf(report, "  %-24s %6s %10s %10s %s\n", "sample", "frames", "nodes", "edges",
-            "ends (outside the view; most a frame), starts (most a frame); H4");
+            "ends (outside the view; max a frame), starts (max a frame); H4");
     OutputResults totals;
     memset(&totals, 0, sizeof(totals));
     unsigned long long faced_ends = 0ull;

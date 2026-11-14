@@ -1,18 +1,18 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// What the window's tests share: each test leaves the window as it found it, and these keep and give
+// What the window's tests share: each test leaves the window as it found it, and these retain and give
 // back what a test changes.
 
 const { calls, ui } = window.__harness;
 
-// Runs `work` with the page's keys in `keys` kept, and puts each back as it stood once it ends.
-export async function keepingStorage(keys, work) {
-  const kept = keys.map((key) => [key, localStorage.getItem(key)]);
+// Runs `work` with the page's keys in `keys` retained, and puts each back as it was once it ends.
+export async function retentionStorage(keys, work) {
+  const retained = keys.map((key) => [key, localStorage.getItem(key)]);
   try {
     return await work();
   } finally {
-    for (const [key, value] of kept) {
+    for (const [key, value] of retained) {
       if (value === null) {
         localStorage.removeItem(key);
       } else {

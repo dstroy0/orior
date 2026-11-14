@@ -30,13 +30,13 @@ in once, ahead of its first use. Three placeholders receive the result:
                              closed by `// ---- end ----`
     /*STYLE*/                every CSS tool, each under `/* ---- label ---- */`, closed by
                              `/* ---- end ---- */`
-    /*DATA*/ null            the builder's data as JSON; the null keeps an unbuilt template parsing
+    /*DATA*/ null            the builder's data as JSON; the null retains an unbuilt template parsing
 
 The closing label ends the last piece. A template's own code after a placeholder is never read as part of
 a tool.
 
-A data placeholder may hold any whitespace between the marker and its null. A template carries at most one
-data placeholder, and data handed to a template with none is refused instead of dropped. A template that
+A data placeholder may hold any whitespace between the marker and its null. A template carries at max one
+data placeholder, and data passed to a template with none is refused instead of dropped. A template that
 leaves a script element open is refused: published, the closing tags after it land inside the script
 as a syntax error and the whole page is dead, while the file opened on its own still runs.
 
@@ -89,7 +89,7 @@ def read(path):
 
 
 def load_manifest(toolbox=TOOLBOX):
-    """Every tool by name: its file, the tools it requires, and its kind. Refuses a broken manifest."""
+    """Every tool by name: its file, the tools it requires, and its type. Refuses a broken manifest."""
     path = os.path.join(toolbox, "manifest.tsv")
     if not os.path.isfile(path):
         raise Refused("no manifest at %s" % path)
@@ -100,16 +100,16 @@ def load_manifest(toolbox=TOOLBOX):
             continue
         cells = row.split("\t")
         if len(cells) != 4:
-            raise Refused("manifest line %d: name, file, requires, kind" % number)
-        name, file, requires, kind = cells
-        if kind not in KINDS:
-            raise Refused("manifest line %d: kind %s is not one of %s" % (number, kind, ", ".join(KINDS)))
+            raise Refused("manifest line %d: name, file, requires, type" % number)
+        name, file, requires, type = cells
+        if type not in KINDS:
+            raise Refused("manifest line %d: type %s is not one of %s" % (number, type, ", ".join(KINDS)))
         if name in tools:
             raise Refused("manifest line %d: %s is listed twice" % (number, name))
         if not os.path.isfile(os.path.join(toolbox, file)):
             raise Refused("manifest line %d: %s has no file %s" % (number, name, file))
         needs = [] if requires == "-" else requires.split(",")
-        tools[name] = {"file": file, "requires": needs, "kind": kind}
+        tools[name] = {"file": file, "requires": needs, "type": type}
     for name, tool in tools.items():
         for need in tool["requires"]:
             if need not in tools:
@@ -135,7 +135,7 @@ def expand(name, tools, order, seen, path=()):
 
 
 def pieces_of(template_text, parts_dir, tools, toolbox=TOOLBOX):
-    """The namespace, and every piece in order as (label, kind, text). Refuses a missing piece."""
+    """The namespace, and every piece in order as (label, type, text). Refuses a missing piece."""
     namespace = None
     pieces = []
     seen = set()
@@ -149,13 +149,13 @@ def pieces_of(template_text, parts_dir, tools, toolbox=TOOLBOX):
             for name in expand(value, tools, [], seen):
                 tool = tools[name]
                 label = "toolbox/" + tool["file"]
-                pieces.append((label, tool["kind"], read(os.path.join(toolbox, tool["file"]))))
+                pieces.append((label, tool["type"], read(os.path.join(toolbox, tool["file"]))))
         else:
             path = os.path.join(parts_dir, value)
             if not os.path.isfile(path):
                 raise Refused("no part %s beside the template" % value)
-            kind = "css" if value.endswith(".css") else "js"
-            pieces.append((value, kind, read(path)))
+            type = "css" if value.endswith(".css") else "js"
+            pieces.append((value, type, read(path)))
     return namespace, pieces
 
 
@@ -177,8 +177,8 @@ def assemble(template, data=None, parts_dir=None, toolbox=TOOLBOX):
 
     script = [] if namespace is None else ["const %s = {};" % namespace]
     styles = []
-    for label, kind, body in pieces:
-        if kind == "css":
+    for label, type, body in pieces:
+        if type == "css":
             styles.extend([CSS_LABEL % label, body])
         else:
             script.extend([JS_LABEL % label, body])
@@ -270,7 +270,7 @@ def verify(path):
 
 
 # A toolbox and templates written into a scratch directory, each case built to pass or to be refused.
-# Every refusal below is a case the generator must be able to reach, and each is shown reached.
+# Every refusal below is a case the generator must be able to reach, and each is displayed reached.
 def _scratch(files):
     root = tempfile.mkdtemp(prefix="generate_template_")
     for name, text in files.items():
@@ -281,7 +281,7 @@ def _scratch(files):
     return root
 
 
-MANIFEST_HEAD = "name\tfile\trequires\tkind\n"
+MANIFEST_HEAD = "name\tfile\trequires\ttype\n"
 SAMPLE_TOOLBOX = {
     "box/manifest.tsv": MANIFEST_HEAD + "base\tbase.js\t-\tjs\nturn\tturn.js\tbase\tjs\n"
                         "draw\tdraw.js\tbase,turn\tjs\ntheme\ttheme.css\t-\tcss\n",

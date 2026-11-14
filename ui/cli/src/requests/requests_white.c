@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// requests_white.c: the white letters of a file of requests as Rust's char::is_whitespace has them, a part trimmed of
+// requests_white.c: the white characters of a file of requests as Rust's char::is_whitespace has them, a part trimmed of
 // them as Rust's str::trim trims it, and a text of a pool
 #include "../text/json_tree.h"
 #include "requests_internal.h"
@@ -12,31 +12,31 @@ const char *cli_requests_text(const CliRequestsPoolCtx *args)
 
 typedef struct
 {
-    unsigned int letter;
+    unsigned int character;
     const char *text;
     unsigned long long start;
     unsigned long long end;
 } RequestsWhiteCtx;
-// whether a letter is white as Rust's char::is_whitespace has it
+// whether a character is white as Rust's char::is_whitespace has it
 EMBED_INLINE int white_is(const RequestsWhiteCtx *args)
 {
-    return ((args->letter >= 0x09u) && (args->letter <= 0x0du)) || (args->letter == 0x20u) || (args->letter == 0x85u) ||
-           (args->letter == 0xa0u) || (args->letter == 0x1680u) ||
-           ((args->letter >= 0x2000u) && (args->letter <= 0x200au)) || (args->letter == 0x2028u) ||
-           (args->letter == 0x2029u) || (args->letter == 0x202fu) || (args->letter == 0x205fu) ||
-           (args->letter == 0x3000u);
+    return ((args->character >= 0x09u) && (args->character <= 0x0du)) || (args->character == 0x20u) || (args->character == 0x85u) ||
+           (args->character == 0xa0u) || (args->character == 0x1680u) ||
+           ((args->character >= 0x2000u) && (args->character <= 0x200au)) || (args->character == 0x2028u) ||
+           (args->character == 0x2029u) || (args->character == 0x202fu) || (args->character == 0x205fu) ||
+           (args->character == 0x3000u);
 }
 
 unsigned long long cli_requests_white_at(const CliRequestsTextAtCtx *args)
 {
-    unsigned int letter = 0u;
-    const unsigned long long reserved = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+    unsigned int character = 0u;
+    const unsigned long long reserved = EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                                                    .text_bytes = (const unsigned char *)args->text,
-                                                   .length = args->end_value, .at = args->at, .letter = &letter);
-    return EMBED_CALL(white_is, RequestsWhiteCtx, .letter = letter) ? reserved : 0ULL;
+                                                   .length = args->end_value, .at = args->at, .character = &character);
+    return EMBED_CALL(white_is, RequestsWhiteCtx, .character = character) ? reserved : 0ULL;
 }
 
-// the bytes of the white letter that ends at `end`, 0 where the letter there is not white
+// the bytes of the white character that ends at `end`, 0 where the character there is not white
 EMBED_INLINE unsigned long long white_before(const RequestsWhiteCtx *args)
 {
     const char *text = args->text;
@@ -45,11 +45,11 @@ EMBED_INLINE unsigned long long white_before(const RequestsWhiteCtx *args)
     {
         at -= 1u;
     }
-    unsigned int letter = 0u;
+    unsigned int character = 0u;
     const unsigned long long reserved =
-        EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg, .text_bytes = (const unsigned char *)text,
-                   .length = args->end, .at = at, .letter = &letter);
-    return ((at + reserved == args->end) && EMBED_CALL(white_is, RequestsWhiteCtx, .letter = letter)) ? reserved : 0ULL;
+        EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg, .text_bytes = (const unsigned char *)text,
+                   .length = args->end, .at = at, .character = &character);
+    return ((at + reserved == args->end) && EMBED_CALL(white_is, RequestsWhiteCtx, .character = character)) ? reserved : 0ULL;
 }
 
 void cli_requests_trim(const CliRequestsTextStartCtx *args)

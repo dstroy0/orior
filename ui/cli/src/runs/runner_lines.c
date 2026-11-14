@@ -9,7 +9,7 @@
 #include "../text/text.h"
 
 // What one stream's carrier reads: its run, its pipe, its stream's name, whether it has ended, and the line it buffers
-// so far, in a cell of the most a line carried whole holds, and its size
+// so far, in a cell of the max a line carried whole holds, and its size
 typedef struct
 {
     CliRun *run;
@@ -19,7 +19,7 @@ typedef struct
     char *pending;
     unsigned long long pending_size;
 } CliTransport;
-// the most bytes of one line carried whole: a longer one is printed in pieces of this size
+// the max bytes of one line carried whole: a longer one is printed in pieces of this size
 #define CLI_TRANSFERRED_LINE (1u << 18u)
 
 void cli_run_line(const CliRunnerRunStreamCtx *args)
@@ -93,8 +93,8 @@ EMBED_INLINE unsigned int cli_sequence(const RunnerLinesCtx *args)
     return shortest ? bytes : 0u;
 }
 
-// one line of a stream printed: its `\r` and `\n` at the end left off, each byte that starts no letter read as U+FFFD,
-// written into a cell of its size, a letter read as U+FFFD three bytes for one
+// one line of a stream printed: its `\r` and `\n` at the end left off, each byte that starts no character read as U+FFFD,
+// written into a cell of its size, a character read as U+FFFD three bytes for one
 EMBED_INLINE void cli_line_emit(const RunnerLinesCtx *args)
 {
     unsigned long long length = args->length;
@@ -128,7 +128,7 @@ EMBED_INLINE void cli_line_emit(const RunnerLinesCtx *args)
 }
 
 // the line buffered, with `size` bytes of `bytes` after it, printed: from the bytes where none is buffered or no buffer
-// is held, else from the buffer, which holds both, a line ending at the most it holds at the latest
+// is held, else from the buffer, which holds both, a line ending at max it holds at the latest
 EMBED_INLINE void cli_pending_emit(const RunnerLinesCtx *args)
 {
     const char *bytes = args->bytes;
@@ -202,7 +202,7 @@ static void cli_errors_stream_thread(void *context)
 
 void cli_run_output_relay(const CliRunnerRunSpawnedCtx *args)
 {
-    // the step's two carriers, retained as long as the step goes, each with a cell of the most a line holds
+    // the step's two carriers, retained as long as the step goes, each with a cell of the max a line holds
     CliTransport out_transport = {args->run, args->spawned->out, "stdout", 0, NULL, 0ULL};
     CliTransport err_transport = {args->run, args->spawned->err, "stderr", 0, NULL, 0ULL};
     out_transport.pending = g_cli_guard->temporary_buf_alloc(CLI_TRANSFERRED_LINE, g_cli_runs_owner);

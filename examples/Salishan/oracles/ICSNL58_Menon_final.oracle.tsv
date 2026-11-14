@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Aarya Menon	language	ʔayʔaǰuθəm	ʔayʔaǰuθəm, Comox-Sliammon, a Central Salish language
 front	Aarya Menon	title	A Phonetic Analysis of Stress Correlates and Stative Ambiguity in ʔayʔaǰuθəm*	page 1
 front	Aarya Menon	byline	Aarya Menon, University of Alberta	page 1
@@ -14,7 +14,7 @@ front	Aarya Menon	name	Aarya Menon	author, University of Alberta
 §1.1	Aarya Menon	note	ʔayʔaǰuθəm is generally accepted to have four phonemic vowels: /i/, /u/, /a/, /ə/, with a rather large degree of allophonic variation allowed (Mellesmoen and Huijsmans 2019a). All non-schwa vowels are also referred to as full vowels, as they pattern similarly to one another and differently from word forms with /ə/.	page 1
 §1.2	Aarya Menon	heading	1.2 Verbs in ʔayʔaǰuθəm	page 1
 §1.2	Aarya Menon	language	ʔayʔaǰuθəm	ʔayʔaǰuθəm, Comox-Sliammon, a Central Salish language
-§1.2	Aarya Menon	note	Verbs in ʔayʔaǰuθəm generally are formed with a root which are typically of shape CVC or CVCC. Roots can be multiple syllables as well, though most verb roots focused on in this investigation are monosyllabic, with the form CVC. This was prioritized primarily to standardize the verbs and create a direct comparison between the tested conditions.	page 1
+§1.2	Aarya Menon	note	Verbs in ʔayʔaǰuθəm generally are formed with a root which are typically of shape CVC or CVCC. Roots can be multiple syllables as well, though max verb roots focused on in this investigation are monosyllabic, with the form CVC. This was prioritized primarily to standardize the verbs and create a direct comparison between the tested conditions.	page 1
 footnote *	Aarya Menon	note	* Thanks goes to Molly Harry for her assistance in providing language data for this project. Contact info: anmenon@ualberta.ca	page 1, footnote
 footnote *	Aarya Menon	name	Molly Harry	thanked for providing language data, the consultant
 front	Aarya Menon	note	Papers for the International Conference on Salish and Neighbouring Languages 58, D. K. E. Reisinger, Laura Griffin, Gloria Mellesmoen, Sander Nederveen, Julia Schillo, Bailey Trotter (eds.). Vancouver, BC: UBCWPL, 2023.	page 1, the volume, set in the footnote
@@ -25,7 +25,7 @@ front	Aarya Menon	note	Papers for the International Conference on Salish and Nei
 §1.3	Aarya Menon	language	ʔayʔaǰuθəm	ʔayʔaǰuθəm, Comox-Sliammon, a Central Salish language
 §1.3	ʔayʔaǰuθəm	cited form	/-ʔəm/	page 2
 §1.3	Aarya Menon	note	Primary stress in ʔayʔaǰuθəm occurs on the initial syllable, with the secondary stresses following a trochaic pattern (Blake 2000); secondary stress is assigned rightwards in alternating syllables when a word equals four syllables in length. It does appear that some suffixes, such as the in- directive (/-ʔəm/) appear to break this pattern by promoting themselves to take secondary stress even when would otherwise be unexpected (Watanabe 2003).	page 2
-§1.3	Aarya Menon	note	It has been shown in the past that ʔayʔaǰuθəm displays stress-associated patterns of reductions in length, and to a lesser extent in quality (Blake and Shahin 2008). This less prominent vowel reduction is much more expected of languages similar to ʔayʔaǰuθəm. However, what has not yet been investigated is an attempt to quantify the language specific indicators of stress.	page 2
+§1.3	Aarya Menon	note	It has been displayed in the past that ʔayʔaǰuθəm displays stress-associated patterns of reductions in length, and to a lesser extent in quality (Blake and Shahin 2008). This less prominent vowel reduction is much more expected of languages similar to ʔayʔaǰuθəm. However, what has not yet been investigated is an attempt to quantify the language specific indicators of stress.	page 2
 §1.4	Aarya Menon	heading	1.4 Stative ambiguity	page 2
 §1.4	Aarya Menon	note	Watanabe (2003) also brings up multiple cases in which stress is seemingly distinctive. One of these is ambiguity in the stative form, the secondary focus of this investigation. The stative is a suffix /-it/1. This contrasts with the control transitive, which is formed by copying the root vowel and appending a /t/. For strong roots that have an /i/ central vowel, however, the two forms are seemingly identical, as seen below in Examples (1) and (2).(Watanabe 2003).	page 2
 (1) line 1	ʔayʔaǰuθəm	segmentation	ǰiχ-it	page 2, engine language

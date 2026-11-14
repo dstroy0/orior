@@ -3,7 +3,7 @@
 
 // The window as it opens: on the tree and the tabs left, nothing in the way of them, the tree read
 // behind it, and no address reached. The page each file of tests runs on is loaded fresh, and this
-// file reads it as it stands once it has started.
+// file reads it as it is once it has started.
 
 import { invoke } from "../../gui/src-js/bridge.js";
 import { write } from "../../gui/src-js/status.js";

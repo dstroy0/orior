@@ -64,13 +64,13 @@ static int sass_operation_named(const char *operation)
 }
 
 // 1 where `text` is an instruction a form can be stored from: the disassembler took it, it names an operation it could
-// define whole, and every operand it prints is a kind the assembler knows where to put.
+// define whole, and every operand it prints is a type the assembler knows where to put.
 //
-// The operation's name alone does not determine which form this is. A form is keyed by its operation and the kind of
+// The operation's name alone does not determine which form this is. A form is keyed by its operation and the type of
 // each operand together, because those are what decide where the assembler puts a number: SHF.L.U32 with a register in
 // the shift field and SHF.L.U32 with a number there read the same name and are two forms. So nothing here is turned
 // away for naming the operation it was turned from, and what is genuinely the form already in hand -- its registers
-// moved, or its control bits -- is turned away by sass_machine_take, which finds the operation and the kinds
+// moved, or its control bits -- is turned away by sass_machine_take, which finds the operation and the types
 static int sass_widened_matches(const char *text, SassInstructionParts *parts)
 {
     if ((strcmp(text, "illegal") == 0) || (strcmp(text, "unprinted") == 0))
@@ -84,7 +84,7 @@ static int sass_widened_matches(const char *text, SassInstructionParts *parts)
     }
     for (unsigned int place = 0u; place < parts->operands; place += 1u)
     {
-        if (parts->kind[place] == SASS_OPERAND_UNKNOWN)
+        if (parts->type[place] == SASS_OPERAND_UNKNOWN)
         {
             return 0;
         }
@@ -100,14 +100,14 @@ unsigned int sass_machine_widen(SassMachine *machine, const char *architecture, 
     unsigned int rounds = 0u;
     // A form one bit from a listed one is a form the next round can be a bit from in turn. Widening only the
     // listings reaches whatever is one bit out and stops, which leaves a form two bits out unreached even where the
-    // bit between them is a form the part takes. The kind of a field is such a field, and the lane is short of it:
+    // bit between them is a form the part takes. The type of a field is such a field, and the lane is short of it:
     // the low word picks a register, a number or a constant for the second and the third operand, and on sm_86 those
     // read 0x2 for a register in both, 0xa and 0x8 for a constant and a number in the second, 0x6 and 0x4 for a
     // constant and a number in the third. A register to a number is two bits either way, through the constant that
     // lies between. One round reaches the constant and the round after reaches the number.
     //
     // SASS_WIDEN_ROUNDS is that reach. Letting the walk run to its own end does not close: it continues finding more,
-    // because the component reachable a bit at a time is most of what the part decodes. Two things are wrong with
+    // because the component reachable a bit at a time is the majority of what the part decodes. Two things are wrong with
     // taking all of it. It
     // does not close anywhere near the 16384 a machine contains: the run ends in `refused` and reports nothing. And a
     // form reached far out carries the operand bits of a chain of forms it has nothing to do with, the PLOP3.LUT
@@ -188,7 +188,7 @@ int sass_machine_fields(SassMachine *machine, const char *architecture, const ch
 }
 
 // The carriers picked out of the forms already stored: the first form, then each later one whose operands are shaped
-// unlike every carrier taken so far. A shape is the count of operands and the kind of each, and it decides
+// unlike every carrier taken so far. A shape is the count of operands and the type of each, and it decides
 // where the bits outside the key sit. How many were taken
 static unsigned int sass_sweep_carriers(const SassMachine *machine, unsigned int *carrier)
 {
@@ -203,7 +203,7 @@ static unsigned int sass_sweep_carriers(const SassMachine *machine, unsigned int
             int same = (already->operands == one->operands);
             for (unsigned int place = 0u; same && (place < one->operands); place += 1u)
             {
-                same = (already->kind[place] == one->kind[place]);
+                same = (already->type[place] == one->type[place]);
             }
             seen = seen || same;
         }
@@ -260,7 +260,7 @@ unsigned int sass_machine_sweep(SassMachine *machine, const char *architecture, 
                 SassInstructionParts parts;
                 SassForm *found_form = NULL;
                 // a swept encoding came from no form, and is read the same way a widened one is: every operation the
-                // decoder names, with every operand a kind the assembler can place, is one to retain
+                // decoder names, with every operand a type the assembler can place, is one to retain
                 if (sass_widened_matches(text, &parts))
                 {
                     sass_machine_take(machine, text, s_low[at], s_high[at], &found_form);

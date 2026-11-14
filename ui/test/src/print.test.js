@@ -11,8 +11,8 @@ test("File, Print shows the printers to print to", async () => {
   calls.answer("printers_list", () => ({ printers: [{ name: "Test Printer", default: true }], silent: true }));
   await given("printed|");
   await press("print");
-  const shown = await sheetShown("select");
-  assert.ok([...shown.options].some((one) => one.textContent === "Save as PDF"));
+  const displayed = await sheetShown("select");
+  assert.ok([...displayed.options].some((one) => one.textContent === "Save as PDF"));
 });
 
 test("the window is put back as the file found it", putBackAsFound);

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_seen.c: what the tree lists off its trunk, git's where git can read it, every file it tracks or would track,
-// or else every file walked from the top; and the tree's files laid flat for the length of one call, sorted, in the
+// or else every file walked from the top; and the tree's files positioned flat for the length of one call, sorted, in the
 // temporary tier
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
@@ -21,7 +21,7 @@ typedef struct
     void (*each)(const CliEachPathLengthCfg *args);
     void *context;
 } CliWalk;
-// the most folders still to look in on a walk
+// the max folders still to look in on a walk
 #define CLI_WALK_PENDING 4096u
 
 // the folders a walk does not go into where git cannot determine: version control's own, and the one cargo writes the
@@ -86,7 +86,7 @@ static void walk_each(const CliEachNameIsFolderCfg *args)
                .length = cellul.len(&(CatenaFinitaCfg){.src = relative, .cap = CLI_POOL_BYTES}));
 }
 
-// the files under the folder `from` walked, each path from `root` handed to `each`
+// the files under the folder `from` walked, each path from `root` passed to `each`
 EMBED_INLINE void walked_from(const FilesSeenCtx *args)
 {
     CliWalk walk = {
@@ -121,7 +121,7 @@ void cli_files_walk(const CliFilesRootEachContextCfg *args)
     EMBED_CALL(walked_from, FilesSeenCtx, .root = root, .from = root, .each = each, .context = context);
 }
 
-// git's listing of the tree at `root`, or of the folder `folder` under it where one is named, each path handed to
+// git's listing of the tree at `root`, or of the folder `folder` under it where one is named, each path passed to
 // `each`: 1 where git read it, its whole answer into `*whole`, and for the whole tree where it lists a file. A tree in
 // a folder its repository ignores is one git lists nothing of
 static int git_list(const FilesSeenCtx *args)
@@ -323,7 +323,7 @@ void cli_files_let(const CliFilesCfg *args)
 }
 
 // where the name of the file at `path`, `length` bytes, starts in it, and the bytes of its ending from its last dot
-// into `*ending`, 0 where no dot stands past the name's first letter
+// into `*ending`, 0 where no dot is past the name's first character
 EMBED_INLINE unsigned long long seen_name(const FilesSeenCtx *args)
 {
     unsigned long long *ending = args->ending;

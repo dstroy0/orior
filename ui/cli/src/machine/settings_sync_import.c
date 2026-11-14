@@ -6,7 +6,7 @@
 #include "../text/text.h"
 #include "settings_sync_internal.h"
 
-// the most keys a settings comparison reads
+// the max keys a settings comparison reads
 #define CLI_SETTINGS_SYNC_KEYS 4096u
 
 // The work state import needs: what travels here, the settings read, the keys of two settings, and an import
@@ -348,7 +348,7 @@ EMBED_INLINE int cli_settings_alloc(const SettingsSyncImportCtx *args)
     return mmgr_line_ok(out);
 }
 
-// one place taken in: its file saved in `backup_dir` where one stood, and written as there: 1, or 0 with why given
+// one place taken in: its file saved in `backup_dir` where one was, and written as there: 1, or 0 with why given
 EMBED_INLINE int cli_position_alloc(const SettingsSyncImportCtx *args)
 {
     const char *place = args->place;

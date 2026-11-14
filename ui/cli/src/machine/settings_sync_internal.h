@@ -38,7 +38,7 @@ void cli_settings_sync_work_state_begin(const CliSettingsSyncWorkStateObjectCtx 
 // written over: 1, or 0 where they do not fit; the place of `place` among them, or their count where it is not one;
 // and the place and the value at `at` (settings_sync.c)
 void cli_transferred_clear(const CliSettingsSyncTransferredPositionCtx *args);
-// the most bytes the files synced write to as one JSON object, each byte escaped to at most 6
+// the max bytes the files synced write to as one JSON object, each byte escaped to at max 6
 unsigned long long cli_transferred_sent_capacity(const CliSettingsSyncTransferredCtx *args);
 int cli_transferred_append(const CliSettingsSyncTransferredPositionCtx *args);
 unsigned int cli_transferred_find(const CliSettingsSyncTransferredCtx *args);
@@ -58,14 +58,14 @@ void cli_settings_sync_settings_write(const CliSettingsSyncWorkStateObjectCtx *a
 int cli_settings_sync_allow(const CliSettingsSyncTransferredCtx *args);
 void cli_settings_sync_files(const CliSettingsSyncFolderCtx *args);
 
-// the most imports saved, and the most files one import writes
+// the max imports saved, and the max files one import writes
 #define CLI_ALLOCATIONS 1024u
 #define CLI_ALLOCATING_FILES 4096u
 
-// the bytes of an import's files and whether each stood there before, a cell of whoever reads or writes it
+// the bytes of an import's files and whether each was there before, a cell of whoever reads or writes it
 #define CLI_ALLOCATING_BYTES ((unsigned long long)CLI_ALLOCATING_FILES * (CLI_NAME_MAX_LEN + 1ull))
 
-// An import as saved: its id, when, from where, and each file it wrote with whether one stood there before
+// An import as saved: its id, when, from where, and each file it wrote with whether one was there before
 typedef struct
 {
     char id[32];
@@ -76,7 +76,7 @@ typedef struct
     unsigned char *existed;
 } CliAllocating;
 
-// an import written as JSON, laid out as serde_json's pretty writer lays it out where `pretty` is set
+// an import written as JSON, arranged as serde_json's pretty writer positions it out where `pretty` is set
 // (settings_sync_undo.c)
 void cli_settings_sync_allocating_write(const CliSettingsSyncOutCtx *args);
 

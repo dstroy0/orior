@@ -15,7 +15,7 @@
 #include "../toolchains/toolchains.h"
 #include "executables.h"
 
-// the most names a program is looked for under
+// the max names a program is looked for under
 #define CLI_DISASM_NAMES 8u
 
 // A toolchain the loop reads a program through: its id as the command names it, the toolchain and program of its
@@ -23,7 +23,7 @@
 // a module's object to its IR, the lister of a program's symbols and the disassembler go by, the newest version first
 // where the system versions them, the compiler build.sh is given, and the words that instruct Ghidra's analyzer how to
 // load the program so that its addresses are the disassembler's: an ELF that is position independent loaded at 0, where
-// Ghidra would lay it at its own base; a Mach-O at the base it names, and no words
+// Ghidra would position it at its own base; a Mach-O at the base it names, and no words
 typedef struct
 {
     const char *id;
@@ -364,11 +364,11 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
         !EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = "ghidra", .name = "analyzeHeadless",
                     .path = analyzer, .err_msg = &err_msg) ||
         !EMBED_CALL(cli_disasm_verify_path.disasm_adjacent, CliDisasmVerifyPathCfg, .compiler = compiler,
-                    .names_letters = toolchain->lifter, .path = lifter, .err_msg = &err_msg) ||
+                    .names_characters = toolchain->lifter, .path = lifter, .err_msg = &err_msg) ||
         !EMBED_CALL(cli_disasm_verify_path.disasm_adjacent, CliDisasmVerifyPathCfg, .compiler = compiler,
-                    .names_letters = toolchain->lister, .path = lister, .err_msg = &err_msg) ||
+                    .names_characters = toolchain->lister, .path = lister, .err_msg = &err_msg) ||
         !EMBED_CALL(cli_disasm_verify_path.disasm_adjacent, CliDisasmVerifyPathCfg, .compiler = compiler,
-                    .names_letters = toolchain->disassembler, .path = disassembler, .err_msg = &err_msg))
+                    .names_characters = toolchain->disassembler, .path = disassembler, .err_msg = &err_msg))
     {
         (void)mmgr_line_finish(&err_msg);
         EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx, .text = s_err_buf);

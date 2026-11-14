@@ -10,7 +10,7 @@
 // retains its lines before the first cell, writes a markdown cell's lines behind the language's comment, and contains
 // no outputs.
 //
-// Every call works in a tree its caller hands it, `tokens` sized for `tokens_max` for the JSON it reads
+// Every call works in a tree its caller passes it, `tokens` sized for `tokens_max` for the JSON it reads
 #ifndef NOTEBOOK_H
 #define NOTEBOOK_H
 #include "../text/json_tree.h"
@@ -21,7 +21,7 @@ typedef struct CliNotebookPathCfg CliNotebookPathCfg;
 typedef struct CliNotebookCfg CliNotebookCfg;
 typedef struct CliNotebookPathBookCfg CliNotebookPathBookCfg;
 
-// the most cells of one side a merge aligns
+// the max cells of one side a merge aligns
 #define CLI_NOTEBOOK_CELLS 1024u
 
 // whether a file is a notebook: a .ipynb, or a script whose lines mark cells with `# %%`
@@ -39,7 +39,7 @@ int cli_notebook_for_diff(const CliNotebookTextCfg *args);
 // the cells two sides of a merge make of the cells of their base, as Jupyter's notebooks store them: each cell one side
 // changed taken from it, each cell both changed alike taken once, and each cell they changed apart, or one changed and
 // the other deleted, a conflict of the two to choose between. Run counts, ids and metadata never conflict; a cell's
-// outputs go with its source. Cells either side added stand after the cell they follow there. `{"book": ours with no
+// outputs go with its source. Cells either side added are after the cell they follow there. `{"book": ours with no
 // cells, "entries": [{"take": cell} or {"conflict": {"base", "ours", "theirs"}}]}`
 unsigned int cli_notebook_merge(const CliNotebookCfg *args);
 

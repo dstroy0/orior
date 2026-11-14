@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// inspect_internal.h: what the inspections' sources share: a reading of a text by its letters, lines and UTF-16
+// inspect_internal.h: what the inspections' sources share: a reading of a text by its characters, lines and UTF-16
 // columns; the tokens a reader makes and the comments it passes; a painting of each column's class; a set of names;
 // and the facts' own writers. One reading runs at a time, under the inspections' lock
 #ifndef INSPECT_INTERNAL_H
@@ -32,8 +32,8 @@ typedef struct CliInspectScanAheadCtx CliInspectScanAheadCtx;
 typedef struct CliInspectPartitionSetCtx CliInspectPartitionSetCtx;
 typedef struct CliInspectCtx CliInspectCtx;
 
-// The most a reading of one text contains, counted from the text as its cell is taken: its tokens, a token for each
-// name, number and other letter that is no space and one for each line; its lines; its comments, one for each letter
+// The max a reading of one text contains, counted from the text as its cell is taken: its tokens, a token for each
+// name, number and other character that is no space and one for each line; its lines; its comments, one for each character
 // a comment opens with; the columns a painting contains; and the names a set contains, one for each name of the text
 typedef struct
 {
@@ -46,7 +46,7 @@ typedef struct
 
 extern CliInspectMax g_cli_inspect_max;
 
-// the most tokens, lines and comments a reading contains, and the most columns a painting contains
+// the max tokens, lines and comments a reading contains, and the max columns a painting contains
 #define CLI_INSPECT_TOKENS (g_cli_inspect_max.tokens)
 #define CLI_INSPECT_LINES (g_cli_inspect_max.lines)
 #define CLI_INSPECT_COMMENTS (g_cli_inspect_max.comments)
@@ -98,7 +98,7 @@ _Static_assert((sizeof(CLI_INSPECT_LEAVING_MAX_LEN) >= sizeof("return")) &&
                    (sizeof(CLI_INSPECT_LEAVING_MAX_LEN) >= sizeof("raise")),
                "CLI_INSPECT_LEAVING_MAX_LEN must be the longest word that leaves a block");
 
-// A reading of a text by its letters: the text and its size, where it stands, its line and its column in UTF-16 units
+// A reading of a text by its characters: the text and its size, where it is, its line and its column in UTF-16 units
 typedef struct
 {
     const char *src;
@@ -121,7 +121,7 @@ typedef struct
 } CliInspectTok;
 
 // A set of names, each `size` bytes at `at`, `buckets` of them, a power of two, and the buckets it took, to clear it
-// by, at most half its buckets; its lists carved from a reading's cell
+// by, at max half its buckets; its lists carved from a reading's cell
 typedef struct
 {
     const char **at;
@@ -139,14 +139,14 @@ extern CliInspectSpan *g_cli_inspect_comment;
 extern unsigned int g_cli_inspect_comments;
 extern int g_cli_inspect_over;
 
-// what a reading's letter is past the text's end
+// what a reading's character is past the text's end
 #define CLI_INSPECT_END 0xffffffffu
 
-// a reading begun at the start of `size` bytes of `src`; the letter where it stands, and `ahead` letters on,
-// CLI_INSPECT_END past the text's end; the letter where it stands taken, its line and column moved past it, the same
-// past the end, where nothing is taken; where it stands; a comment's span
-// recorded from where it stands to the end of its line, before the line's end; a token put on the reading's tokens, its
-// span from `from` to where the reading stands; and a comment's span recorded (inspect_scan.c)
+// a reading begun at the start of `size` bytes of `src`; the character where it is, and `ahead` characters on,
+// CLI_INSPECT_END past the text's end; the character where it is taken, its line and column moved past it, the same
+// past the end, where nothing is taken; where it is; a comment's span
+// recorded from where it is to the end of its line, before the line's end; a token put on the reading's tokens, its
+// span from `from` to where the reading is; and a comment's span recorded (inspect_scan.c)
 void cli_inspect_scan_begin(const CliInspectSizeScanCtx *args);
 unsigned int cli_inspect_peek(const CliInspectScanAheadCtx *args);
 unsigned int cli_inspect_peek_at(const CliInspectScanAheadCtx *args);
@@ -156,7 +156,7 @@ void cli_inspect_skip_line(const CliInspectSizeScanCtx *args);
 void cli_inspect_tok_append(const CliInspectScanCtx *args);
 void cli_inspect_comment_append(const CliInspectFromToCtx *args);
 
-// whether a letter is alphabetic, alphanumeric or white as Rust's char defines, ASCII and the letters of the Unicode
+// whether a character is alphabetic, alphanumeric or white as Rust's char defines, ASCII and the characters of the Unicode
 // properties the regular expressions read (inspect_scan.c)
 int cli_inspect_alphabetic(const CliInspectCtx *args);
 int cli_inspect_alphanumeric(const CliInspectCtx *args);
@@ -179,7 +179,7 @@ void cli_inspect_fold_append(const CliInspectParsedCtx *args);
 void cli_inspect_range_append(const CliInspectFromToParsedCtx *args);
 void cli_inspect_folds_finish(const CliInspectSizeSrcParsedCtx *args);
 
-// `size` bytes stored in the facts' pool: where they stand, empty where the pool is full and the facts marked full; the
+// `size` bytes stored in the facts' pool: where they are, empty where the pool is full and the facts marked full; the
 // same of a text written into `line` and taken from it; a finding put on the facts, its fixes those put after it; a fix
 // put on the last finding, `title` its title; and an edit put on the last fix (inspect.c)
 CliInspectText cli_inspect_text_store(const CliInspectTextCtx *args);
@@ -195,9 +195,9 @@ unsigned int cli_inspect_name_append(const CliInspectSizeFromCtx *args);
 // the body written again from its members' lines with the methods among them sorted by name, case aside and then by
 // their bytes: each member a run of lines, `firsts` to `lasts`, and its name where `names` gives one; the lines between
 // members stay as they were, and a method's position takes the next method in the order of their names. Into `out`: 1,
-// or 0 where fewer than two methods are among them or they stand sorted already (inspect.c) the physical lines of
+// or 0 where fewer than two methods are among them or they are sorted already (inspect.c) the physical lines of
 // `size` bytes of `src`, split at each "\n" as Rust's str::split splits them, each where it starts and where it ends,
-// into `starts` and `ends`, sized for `most`: their count, at most `most`
+// into `starts` and `ends`, sized for `max`: their count, at max `max`
 unsigned int cli_inspect_physical(const CliInspectSizeSrcStartsCtx *args);
 int cli_inspect_sorted_body(const CliInspectSizeCtx *args);
 
@@ -278,7 +278,7 @@ struct CliInspectSizeSrcStartsCtx
     const char *src;
     unsigned long long *starts;
     unsigned long long *ends;
-    unsigned int most;
+    unsigned int max;
 };
 
 struct CliInspectScanCtx
@@ -391,7 +391,7 @@ struct CliInspectPartitionSetCtx
 
 struct CliInspectCtx
 {
-    unsigned int letter;
+    unsigned int character;
 };
 
 typedef struct

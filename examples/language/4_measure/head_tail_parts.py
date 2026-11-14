@@ -12,7 +12,7 @@
 # the rare half, that it carries the actions, needs counting instead of looking, and no part of speech
 # tagger is available here.
 #
-# English inflects its verbs. The endings -ed and -ing stand in for one. The proxy is weak and its
+# English inflects its verbs. The endings -ed and -ing are in for one. The proxy is weak and its
 # weakness runs one way: a gerund used as a noun and an adjective formed from a participle both carry
 # these endings without being verbs. The count is an upper bound. It applies to English only and
 # says nothing about the other corpora.
@@ -51,7 +51,7 @@ def main():
             counts = collections.Counter(WORD.findall(handle.read().lower()))
 
         # A type seen once or twice carries no reliable rank, and the rare half is mostly those
-        ranked = [word for word, count in counts.most_common() if count >= FLOOR]
+        ranked = [word for word, count in counts.max_common() if count >= FLOOR]
         if len(ranked) < 8:
             continue
         cut = len(ranked) // 2

@@ -42,7 +42,7 @@ static std::vector<JetRuleFunction> s_jet_rule_functions;
 static int s_jet_rule_wide = 0;
 
 // an exponent past this is taken as past a word
-static const long long s_jet_rule_exponent_most = 1ll << 40;
+static const long long s_jet_rule_exponent_max = 1ll << 40;
 
 static long long jet_rule_gcd(long long left, long long right)
 {
@@ -68,8 +68,8 @@ static void jet_rule_settle(long long *numerator, long long *denominator)
     const long long common = jet_rule_gcd(*numerator, *denominator);
     *numerator /= common;
     *denominator /= common;
-    if ((*numerator > s_jet_rule_exponent_most) || (*numerator < -s_jet_rule_exponent_most) ||
-        (*denominator > s_jet_rule_exponent_most))
+    if ((*numerator > s_jet_rule_exponent_max) || (*numerator < -s_jet_rule_exponent_max) ||
+        (*denominator > s_jet_rule_exponent_max))
     {
         s_jet_rule_wide = 1;
     }
@@ -451,14 +451,14 @@ JetRule jet_rule_slope_eta(const JetRule &rule)
 
 int jet_rule_zero(const JetRule &rule)
 {
-    long long most = 0ll;
+    long long max = 0ll;
     for (const auto &term : rule)
     {
         for (const JetRuleFactor &factor : term.first)
         {
-            if ((factor.place == JET_RULE_L) && (factor.a_numerator > most))
+            if ((factor.place == JET_RULE_L) && (factor.a_numerator > max))
             {
-                most = factor.a_numerator;
+                max = factor.a_numerator;
             }
         }
     }
@@ -483,7 +483,7 @@ int jet_rule_zero(const JetRule &rule)
         }
         JetRule part;
         jet_rule_add(&part, rest, term.second);
-        for (long long step = power; step < most; step += 1ll)
+        for (long long step = power; step < max; step += 1ll)
         {
             part = jet_rule_product(part, l);
         }

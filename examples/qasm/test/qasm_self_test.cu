@@ -31,7 +31,7 @@ static void qasm_test_check(QasmResults *results, int passed, const char *claim)
 
 static int qasm_test_error_here(long status, const EngineError *error)
 {
-    return (status == QASM_ERROR) && (error->kind == ENGINE_ERROR_REQUEST) && (error->module == ENGINE_MODULE_QASM);
+    return (status == QASM_ERROR) && (error->type == ENGINE_ERROR_REQUEST) && (error->module == ENGINE_MODULE_QASM);
 }
 
 // the matrix gates: [out][in], and [2 t0 + t1][2 s0 + s1]
@@ -215,8 +215,8 @@ static int qasm_test_run(const QasmTestCircuit *circuit, const QasmNumber *input
         capacity,        &error};
     if (qasm_self_run(&request, measurement) == QASM_ERROR)
     {
-        printf("  %s errored on the %s: error kind %d, module %d, site %u, status %d\n", circuit->name,
-               (on_host != 0) ? "host" : "device", (int)error.kind, (int)error.module, error.site, error.status);
+        printf("  %s errored on the %s: error type %d, module %d, site %u, status %d\n", circuit->name,
+               (on_host != 0) ? "host" : "device", (int)error.type, (int)error.module, error.site, error.status);
         return 0;
     }
     return 1;
@@ -233,7 +233,7 @@ static unsigned long long qasm_test_host(QasmResults *results)
         const unsigned int amplitudes = 1u << circuit->qubits;
         EngineError error;
         memset(&error, 0, sizeof(error));
-        // widening: at most 2^10 numbers
+        // widening: at max 2^10 numbers
         QasmNumber *const outputs = (QasmNumber *)calloc((size_t)amplitudes * amplitudes, sizeof(QasmNumber));
         QasmNumber *const general =
             (QasmNumber *)calloc((size_t)QASM_TEST_GENERAL_LANES * amplitudes, sizeof(QasmNumber));
@@ -268,12 +268,12 @@ static unsigned long long qasm_test_host(QasmResults *results)
 }
 
 // One launch on the device against the same lanes on the host: every record limb and every state equal. The host's
-// first run lays out the program and gives the record's limbs.
+// first run arranges the program and gives the record's limbs.
 static void qasm_test_agree(QasmResults *results, const QasmTestCircuit *circuit, const QasmNumber *inputs,
                             unsigned long long lanes, const char *which)
 {
     const unsigned int amplitudes = 1u << circuit->qubits;
-    // the lanes are at most 2^5: the numbers are at most 2^10, represented by a size_t
+    // the lanes are at max 2^5: the numbers are at max 2^10, represented by a size_t
     const size_t numbers = (size_t)(lanes * amplitudes);
     QasmNumber *const host_outputs = (QasmNumber *)calloc(numbers, sizeof(QasmNumber));
     QasmNumber *const device_outputs = (QasmNumber *)calloc(numbers, sizeof(QasmNumber));
@@ -285,7 +285,7 @@ static void qasm_test_agree(QasmResults *results, const QasmTestCircuit *circuit
                 qasm_test_run(circuit, inputs, lanes, 1, host_outputs, NULL, 0ull, &host);
     // widening: the out limbs are an unsigned int
     const unsigned long long capacity = lanes * (unsigned long long)host.out_limbs;
-    // at most 2^5 records of a layout the host just laid out, represented by a size_t
+    // at max 2^5 records of a layout the host just arranged, represented by a size_t
     unsigned int *const host_records = agree ? (unsigned int *)calloc((size_t)capacity, sizeof(unsigned int)) : NULL;
     unsigned int *const device_records = agree ? (unsigned int *)calloc((size_t)capacity, sizeof(unsigned int)) : NULL;
     agree = agree && (host_records != NULL) && (device_records != NULL) &&
@@ -320,7 +320,7 @@ static void qasm_test_device(QasmResults *results)
         EngineError error;
         memset(&error, 0, sizeof(error));
         qasm_test_agree(results, circuit, NULL, amplitudes, "basis");
-        // widening: at most 2^5 amplitudes a lane
+        // widening: at max 2^5 amplitudes a lane
         QasmNumber *const general =
             (QasmNumber *)calloc((size_t)QASM_TEST_GENERAL_LANES * amplitudes, sizeof(QasmNumber));
         if ((general != NULL) && qasm_test_general(circuit->qubits, general, &error))
@@ -390,7 +390,7 @@ static void qasm_test_errors(QasmResults *results)
                                          NULL,
                                          0ull,
                                          &error};
-        errored = (qasm_self_run(&request, &measurement) == QASM_ERROR) && (error.kind == ENGINE_ERROR_REQUEST) &&
+        errored = (qasm_self_run(&request, &measurement) == QASM_ERROR) && (error.type == ENGINE_ERROR_REQUEST) &&
                   (error.module == ENGINE_MODULE_KEY_SCHEDULE);
     }
     qasm_test_check(
@@ -412,8 +412,8 @@ int main(void)
     static const unsigned char named[] = "qasm_self_test";
     if (qasm_job_submit(named, sizeof(named) - 1u, (widest != 0ull) ? widest : 1ull, &job, &error) == QASM_ERROR)
     {
-        printf("  FAIL the device's tessera daemon did not admit the test (error kind %d, module %d, site %u)\n",
-               (int)error.kind, (int)error.module, error.site);
+        printf("  FAIL the device's tessera daemon did not admit the test (error type %d, module %d, site %u)\n",
+               (int)error.type, (int)error.module, error.site);
         results.failed += 1u;
     }
     else

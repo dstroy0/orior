@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 title	Brent Hall	title	Ctrl-Alt-Delete: The Control Directive and Associated /t/ Deletion in nɬeʔkepmxcín*	the paper's title, with the footnote marker the page prints on it
 title	Brent Hall	title	Ctrl-Alt-Delete: The Control Directive and Associated /t/ Deletion in nɬeʔkepmxcín	the paper's title without the footnote marker
 title	Brent Hall	name	Brent Hall	the first author
@@ -250,8 +250,8 @@ Table 3	nɬeʔkepmxcín	cited form	[kicetəm]	the surface form of kic-n-t-em
 §3.3	nɬeʔkepmxcín	root	súxʷ-	'recognize', the t-type alternate root
 §3.3	nɬeʔkepmxcín	root	sóx̣ʷes-	'take down', the t-type alternate root
 §3.3	nɬeʔkepmxcín	root	/pílex̣/	'inform', the one strong root whose variation the paper cannot explain
-§3.3	nɬeʔkepmxcín	cited affix	-sut	the reflexive, after which weak roots keep their /n/
-§3.3	nɬeʔkepmxcín	cited affix	-wáxʷ	the reciprocal, after which weak roots keep their /n/
+§3.3	nɬeʔkepmxcín	cited affix	-sut	the reflexive, after which weak roots retain their /n/
+§3.3	nɬeʔkepmxcín	cited affix	-wáxʷ	the reciprocal, after which weak roots retain their /n/
 §3.3	nɬeʔkepmxcín	root	/cw/	'do, make', a weak root whose /w/ can vocalize
 §3.3	nɬeʔkepmxcín	root	/n̓/	'give', as section 3.3 writes it between slashes
 (37)	nɬeʔkepmxcín	derivation step	kə	the first syllable of the t-type variant in the moraicity diagram
@@ -261,7 +261,7 @@ Table 3	nɬeʔkepmxcín	cited form	[kicetəm]	the surface form of kic-n-t-em
 (39)	nɬeʔkepmxcín	derivation step	səl	the first syllable of the three-consonant weak root diagram
 (39)	nɬeʔkepmxcín	derivation step	ke	the second syllable of the three-consonant weak root diagram
 fn9	nɬeʔkepmxcín	cited form	[ʔúʔenc]	the same form as footnote 9 writes it, without the syllable dots
-§1.2	Brent Hall	reference	B7	Table B7, whose page number the check reads as language because 7 is a letter here
+§1.2	Brent Hall	reference	B7	Table B7, whose page number the check reads as language because 7 is a character here
 §3.1.2	nɬeʔkepmxcín	notation	n-t-n	a consonant sequence section 3.1.2 names
 §3.1.2	nɬeʔkepmxcín	notation	n-t-xʷ	a consonant sequence section 3.1.2 names
 §3.1.2	nɬeʔkepmxcín	notation	n-t-p	a consonant sequence section 3.1.2 names

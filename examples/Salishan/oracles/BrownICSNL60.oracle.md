@@ -5,10 +5,10 @@ British Columbia, ICSNL 60.
 
 Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
-pure corpus, then against this paper's own English laid over that reference. What the paper's
+pure corpus, then against this paper's own English positioned over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
 from the characters that sit outside that English, and word_web.web() built 7 edges over the
-language forms. A person then matched the context: who, kind and gloss for each row, the names,
+language forms. A person then matched the context: who, type and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
 someone reads the paper again and says otherwise.
@@ -26,9 +26,9 @@ cites, Forbes et al. in prep. for a story, and Colin Brown for an example tagged
 initials. The comment under (60) is Vincent Gogag's. The prose, the headings, the displays and the
 notes carry Colin Brown.
 
-THE LETTERS
+THE CHARACTERS
 
-Outside the paper's English the engine found these letters and marks: ̱ ̲ ∅. Gitksan is written in
+Outside the paper's English the engine found these characters and marks: ̱ ̲ ∅. Gitksan is written in
 its practical orthography, with ’ for glottalization and the underlined g̲ and k̲ of the story in
 (59), U+0332, beside the g̱ of (60), U+0331. The segmentations write the transitive vowel as @. The
 gloss labels are ASCII capitals in the text layer.
@@ -36,7 +36,7 @@ gloss labels are ASCII capitals in the text layer.
 THE PAGE AND THE TEXT LAYER
 
 The forms are in NFC, and the check puts the page text, read from the glyph positions, through the
-same repair: a mark the text sets after a space is put back on its letter, then NFC, then 1
+same repair: a mark the text sets after a space is put back on its character, then NFC, then 1
 page-read correction. The page text was read by glyph rows, a word space over 0.133 em, and a
 smaller gap where a roman word meets an italic one. The trees of (35), (44), (47), (48), (50), (51)
 and (52) are given one row for each depth of nodes. The reference to Huijsmans 2023 prints
@@ -52,7 +52,7 @@ where    the paper's locator: the title, the front matter, a section, a footnote
 who      the language for an example tier and a cited form; the work cited on an example's
          line, or the speaker for a volunteered translation, for its English; the authors for
          the prose, the tables and the notes
-kind     transcription  an example tier in the orthography
+type     transcription  an example tier in the orthography
          segmentation   an example tier broken into morphemes
          gloss          the morpheme gloss tier of an example
          translation    the English of an example

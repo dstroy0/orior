@@ -21,14 +21,14 @@
 #
 # WHAT AN ALPHABET IS FOR
 #
-# A token holding one of these characters is the language. Most of these papers share ʔ, ə and ɬ, and
+# A token holding one of these characters is the language. The majority of these papers share ʔ, ə and ɬ, and
 # each entry is the shared space plus what that paper adds. A per-paper set is written as SHARED plus
-# its additions and never as its own alphabet, because a checker that knows one paper's letters reads
+# its additions and never as its own alphabet, because a checker that knows one paper's characters reads
 # every other paper as empty and then reports nothing missing from it.
 #
 # WHAT A GRAIN IS
 #
-# A named kind of damage the extraction did, out of the five refs.md measures. A paper declares the
+# A named type of damage the extraction did, out of the five refs.md measures. A paper declares the
 # ones it has and no others. The evidence for each declaration is the comment above it, because
 # the count behind a decision is a fact about that paper.
 
@@ -51,7 +51,7 @@ STRESS = "́̀"
 # after an acute as the inserted one every time.
 STACKED_AND_STRESS = "̓̌́̀̕"
 
-# The two ways a paper can write the ejective. Where one letter is written both ways in one paper,
+# The two ways a paper can write the ejective. Where one character is written both ways in one paper,
 # the two are one mark and normalizing is arithmetic.
 COMMA_ABOVE = "̓"
 COMMA_ABOVE_RIGHT = "̕"
@@ -69,7 +69,7 @@ class Paper(object):
 
     coverage is the repair the coverage check applies, named where it differs from the one the
     oracle check applies. Two papers differ today and neither difference was deliberate: they are
-    what two hand-kept lists drifting apart looks like. Reconciling them changes what the coverage
+    what two hand-retained lists drifting apart looks like. Reconciling them changes what the coverage
     check reports. It is a measurement to run and not an edit to make quietly.
     """
 
@@ -110,15 +110,15 @@ DAMAGED = "?~JG@V%]!"
 # The wedge over x in x̌ast and the raised dot of ya·ʕt are the two the shared set does not carry.
 OKANAGAN = SHARED + "̌·"
 
-# The 1975 typescript, whose glottal stop is ? and which keeps the rest of the orthography.
+# The 1975 typescript, whose glottal stop is ? and which retains the rest of the orthography.
 HILBERT_HESS = "?ə" + "čšɬƛᶻʷ" + "̌̓"
 
 # Robertson writes his Thompson and Shuswap in Americanist symbols and says so on page 30.
 ROBERTSON = SHARED + "̣čš"
 
-# Wolfe's forms are affixes instead of words. The set has to reach a suffix written in plain letters
+# Wolfe's forms are affixes instead of words. The set has to reach a suffix written in plain characters
 # with one accent on it. The accents are given composed and combining both: NFC makes á one
-# character while ə́ has no composed form and keeps its acute standing alone.
+# character while ə́ has no composed form and retains its acute located alone.
 WOLFE = SHARED + "ʸːɛεέŋᶿθǰčšĺ" + "áéíóú" + "̌́"
 
 # Nater's voiceless words. The apostrophe is deliberately absent: it is his ejective mark and also
@@ -136,7 +136,7 @@ KIM = SHARED + "ɫˀščóéɔ" + "̦́ʹ"
 # inserts a space inside the onset and it repeats the combining mark. x̦̦ carries two commas below
 # where the page prints one, and ƛ̓̓ two commas above.
 #
-# That doubling is its own kind and Robertson has it too, where page 1's epigraph prints one ɬ and
+# That doubling is its own type and Robertson has it too, where page 1's epigraph prints one ɬ and
 # one ʔ and the text holds four of each. It is not decidable from the text, because a language may
 # genuinely stack two marks. These four were read off the page and are listed one at a time.
 KIM_DOUBLED = (
@@ -151,7 +151,7 @@ KIM_DOUBLED = (
 NATER_ETYM = SHARED + "ǝ√" + "áíúà" + "ᴗɢʁʒščɣλˑ"
 
 # Hall and colleagues on the control directive. The dot below is its rounded uvular; ǰ and θ are
-# here to make the Comox forms visible so the who column can keep them out of the target stream.
+# here to make the Comox forms visible so the who column can retain them out of the target stream.
 HALL_CTR = SHARED + "̣" + "áéíóúè" + "́" + "ǰθ"
 
 # Davis and Mellesmoen on St'át'imcets reduplication. The caron is its x̌, the dot below its
@@ -301,7 +301,7 @@ GIVENS_HALL_NLEKEPMXCIN = SHARED + "́" + "̣"
 # Written as seven patterns and not as a rule mapping every Cw to Cʷ. The rule is the guess
 # draft_page_text.py already makes and papers.py already warns about, that page kʷ and page wist both
 # arrive as w and a draft labializes whichever consonant takes it. Here the sites are counted. Each
-# pattern is evidence about one word. None of them is a rule about a letter.
+# pattern is evidence about one word. None of them is a rule about a character.
 GIVENS_HALL_FLATTENED = (
     ("xwúy̓", "xʷúy̓"),
     ("xwʔít", "xʷʔít"),
@@ -498,7 +498,7 @@ PAPERS = (
         repair=glyph_names_decoded,
         coverage=("glyph names", "line joins"),
         note="Their texts are written in Chinuk pipa. Texts 3 to 6 are Chinook Jargon, which is a "
-        "pidgin and is not Salish, and the speaker column keeps those out.",
+        "pidgin and is not Salish, and the speaker column retains those out.",
         cite="src:Robertson-2012",
     ),
     Paper(
@@ -512,7 +512,7 @@ PAPERS = (
         coverage=("inserted spaces",),
         note="Every form is cited from a published dictionary of one of eighteen languages. there "
         "is nobody this corpus is of. The speaker column carries the language instead, and the "
-        "gold standard corpus for this paper is kept per language.",
+        "gold standard corpus for this paper is retained per language.",
         cite="src:Wolfe-2025",
     ),
     Paper(
@@ -542,7 +542,7 @@ PAPERS = (
         marks=LYON_INCH,
         repair=INSERTED_SPACE,
         coverage=("inserted spaces",),
-        note="Elicited from both speakers. Most cells of its two tables are starred, which is "
+        note="Elicited from both speakers. Max cells of its two tables are starred, which is "
         "a form the linguist built and the speakers rejected, and those are held out.",
         cite="src:Lyon-2025",
     ),

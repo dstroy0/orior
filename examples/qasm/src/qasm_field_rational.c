@@ -128,7 +128,7 @@ static long qasm_rational_reduce(const OriorExactInteger *numerator, const Orior
     {
         return QASM_ERROR;
     }
-    // a negative denominator hands its sign to the numerator
+    // a negative denominator passes its sign to the numerator
     reduced_numerator.sign *= reduced_denominator.sign;
     reduced_denominator.sign = 1;
     value->numerator = reduced_numerator;

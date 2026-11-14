@@ -8,18 +8,18 @@
 #
 #   Usage:  python examples/0_experimental/pi_has_no_last_digit.py
 #
-# This reads no corpus and sits in 0_experimental: an arithmetic result shown working, ahead of any stage
+# This reads no corpus and sits in 0_experimental: an arithmetic result displayed working, ahead of any stage
 # reading. Pi is transcendental, and its decimal expansion never ends and never repeats. A floor is a
 # scale, 10^-N, and pi truncated to that floor has a definite last digit, its Nth decimal digit, exact
 # and computable. But N has no ceiling on this engine, and raising the floor always turns up another
 # digit. The last digit at the floor exists for every floor and is never the last, the same claim the
-# precision document beside this file makes, shown on the most familiar irrational.
+# precision document beside this file makes, displayed on the max familiar irrational.
 #
 # The digits come from representation/constants/naturals.py, which computes pi to any precision and returns
 # a value only when two independent routes, Machin and Euler, agree at that precision. That agreement is
 # the positive control, and it consults no stored expansion: a natural constant is derived, never looked
 # up. The posit evidence/proofs/posits/proof_constants_two_routes.py drives the two routes apart on a wrong
-# series and shows the disagreement caught. Drawn null here: computing at a deeper floor keeps every digit
+# series and shows the disagreement caught. Drawn null here: computing at a deeper floor retains every digit
 # above the old floor and moves only the last one, the shape "no floor" takes from inside. No bounding: the
 # floor is a declared input, and the arithmetic is exact integers throughout.
 
@@ -73,7 +73,7 @@ def main():
               % (deeper, DEEPEST, prefix_stable))
     out.write("  at place %d is still %d, and a new last digit appears at place %d, the value %d. the floor\n"
               % (DEEPEST, old_digit, deeper, new_digit))
-    out.write("  dropped and pi handed up another digit. there is no bottom, and there is no last digit.\n")
+    out.write("  dropped and pi passed up another digit. there is no bottom, and there is no last digit.\n")
     out.flush()
 
     return 0 if prefix_stable else 1

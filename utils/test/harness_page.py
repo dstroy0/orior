@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 """The window's page as the suite drives it: the runner put into the page, each test file of ui/test/src loaded and
 run with the page fresh for each, every step the runner asks for performed as real input, every file the page asks
-for under /__harness/ served, and what the page threw kept. The same run through the debugging port, where the
+for under /__harness/ served, and what the page threw retained. The same run through the debugging port, where the
 window is WebView2, and through WebDriver, where it is WebKitGTK. Before the first file the window's comms are proven;
 after each file every job it started is stopped."""
 
@@ -48,8 +48,8 @@ TEARDOWN = """(async () => {
   const { stopLive } = await import("/run.js");
   return await stopLive();
 })()"""
-# the page's side of the steps under WebDriver: each step the runner asks for kept until the harness takes it, and the
-# file's end kept the same way
+# the page's side of the steps under WebDriver: each step the runner asks for retained until the harness takes it, and the
+# file's end retained the same way
 QUEUE = "const h = (window.__harnessDriven = { queue: [], end: null, wake: null }); window.__harnessCall = (payload) => { h.queue.push(payload); h.wake?.(); }; return true;"
 RUN = "const h = window.__harnessDriven; const url = arguments[0]; (async () => { await import(url); return await window.__harness.run(); })().then((results) => { h.end = { results }; h.wake?.(); }, (error) => { h.end = { error: String(error?.stack || error) }; h.wake?.(); }); return true;"
 NEXT = "const done = arguments[arguments.length - 1]; const h = window.__harnessDriven; const look = () => { if (h.queue.length) { h.wake = null; done({ step: h.queue.shift() }); } else if (h.end) { h.wake = null; done({ end: h.end }); } else { h.wake = look; } }; look();"
@@ -119,7 +119,7 @@ def content_type(path):
 
 
 class Page:
-    """The page over the debugging port: its errors kept, whether it closed, its steps performed and its files served."""
+    """The page over the debugging port: its errors retained, whether it closed, its steps performed and its files served."""
 
     def __init__(self, conn, told_servers):
         self.conn = conn
@@ -138,7 +138,7 @@ class Page:
     def closed(self):
         return self.conn.closed
 
-    def kept(self, text):
+    def retained(self, text):
         with self.lock:
             self.errors.append(text)
 
@@ -185,17 +185,17 @@ class Page:
 
     def thrown(self, params):
         details = params.get("exceptionDetails", {})
-        self.kept("threw " + (details.get("exception", {}).get("description") or details.get("text") or "an error"))
+        self.retained("threw " + (details.get("exception", {}).get("description") or details.get("text") or "an error"))
 
     def console(self, params):
         if params.get("type") in ("error", "assert"):
             words = [arg.get("value") if isinstance(arg.get("value"), str) else arg.get("description") or json.dumps(arg.get("value")) for arg in params.get("args", [])]
-            self.kept("console.error " + " ".join(words))
+            self.retained("console.error " + " ".join(words))
 
     def logged(self, params):
         entry = params.get("entry", {})
         if entry.get("level") == "error":
-            self.kept(("%s %s %s" % (entry.get("source", "log"), entry.get("text", ""), entry.get("url", ""))).strip())
+            self.retained(("%s %s %s" % (entry.get("source", "log"), entry.get("text", ""), entry.get("url", ""))).strip())
 
     def wait_started(self):
         until = time.monotonic() + START_WAIT
@@ -253,14 +253,14 @@ class Page:
 
 
 def as_async_script(expression):
-    """`expression` as a WebDriver async script: its promise's value handed to the script's callback, a rejection as
+    """`expression` as a WebDriver async script: its promise's value passed to the script's callback, a rejection as
     `{ error }`."""
     return "const done = arguments[arguments.length - 1]; (%s).then(done, (error) => done({ error: String(error) }));" % expression
 
 
 class DrivenPage:
     """The page over WebDriver: the same run, the steps taken from the page's own queue and the errors read from what
-    catch.js kept."""
+    catch.js retained."""
 
     def __init__(self, session, told_servers):
         self.session = session
@@ -300,8 +300,8 @@ class DrivenPage:
 
     def begin(self, runner):
         self.wait_started()
-        kept = [line for line in runner.splitlines() if not line.lstrip().startswith("//# sourceURL")]
-        self.session.execute("return (\n%s\n);" % "\n".join(kept).rstrip().rstrip(";"), [])
+        retained = [line for line in runner.splitlines() if not line.lstrip().startswith("//# sourceURL")]
+        self.session.execute("return (\n%s\n);" % "\n".join(retained).rstrip().rstrip(";"), [])
         self.session.execute(QUEUE, [])
         self.session.execute("window.__harness.servers = arguments[0]; if (window.__harnessErrors) window.__harnessErrors.length = 0; return true;", [self.told])
 
@@ -325,8 +325,8 @@ class DrivenPage:
 
     def taken(self):
         try:
-            kept = self.session.execute("return window.__harnessErrors || [];", [])
-            return [one for one in kept if isinstance(one, str)]
+            retained = self.session.execute("return window.__harnessErrors || [];", [])
+            return [one for one in retained if isinstance(one, str)]
         except RuntimeError:
             return []
 
@@ -355,7 +355,7 @@ def comms_outcome(page):
 
 
 def torn_down(page):
-    """Every job the file started stopped; how many, or the error that kept them running."""
+    """Every job the file started stopped; how many, or the error that retained them running."""
     value = page.evaluate(TEARDOWN, TEARDOWN_WAIT)
     if isinstance(value, dict) and isinstance(value.get("error"), str):
         raise RuntimeError(value["error"])

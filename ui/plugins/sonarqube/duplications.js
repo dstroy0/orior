@@ -6,7 +6,7 @@
 // first, each block a link to its lines in the editor. The server measures duplication only in an
 // analysis of the whole project, which the scanner runs; the plugin reads what the last one found.
 
-// The most files whose duplications are read, and the files a page of the server's listing holds.
+// The max files whose duplications are read, and the files a page of the server's listing holds.
 const DUPLICATED_FILES = 400;
 const PAGE = 500;
 
@@ -44,7 +44,7 @@ async function asked(server, path, params) {
 }
 
 // Every file of the project the server holds duplicated lines in: its key, its path and its counts,
-// the most duplicated first.
+// the max duplicated first.
 async function duplicatedFiles(server) {
   const files = [];
   for (let page = 1; ; page += 1) {
@@ -68,9 +68,9 @@ async function duplicatedFiles(server) {
 async function duplicationGroups(server, files) {
   const groups = new Map();
   for (const file of files.slice(0, DUPLICATED_FILES)) {
-    const shown = await asked(server, "duplications/show", { key: file.key });
-    const named = shown.files ?? {};
-    for (const duplication of shown.duplications ?? []) {
+    const displayed = await asked(server, "duplications/show", { key: file.key });
+    const named = displayed.files ?? {};
+    for (const duplication of displayed.duplications ?? []) {
       const blocks = (duplication.blocks ?? [])
         .map((block) => ({ path: named[block._ref]?.name ?? named[block._ref]?.key ?? "?", from: Number(block.from), size: Number(block.size) }))
         .sort((one, other) => one.path.localeCompare(other.path) || one.from - other.from);
@@ -87,10 +87,10 @@ async function duplicationGroups(server, files) {
 async function drawDuplications() {
   const server = await boundServer();
   if (server.failed) {
-    await shown("duplications", `<h1>Duplications</h1><p class="fail">${escaped(server.failed)}</p>`);
+    await displayed("duplications", `<h1>Duplications</h1><p class="fail">${escaped(server.failed)}</p>`);
     return;
   }
-  await shown("duplications", `<h1>Duplications</h1><p class="quiet">Reading the duplications of ${escaped(server.projectKey)} from ${escaped(server.base)}...</p>`);
+  await displayed("duplications", `<h1>Duplications</h1><p class="quiet">Reading the duplications of ${escaped(server.projectKey)} from ${escaped(server.base)}...</p>`);
   const files = await duplicatedFiles(server);
   const groups = await duplicationGroups(server, files);
   const lines = files.reduce((sum, file) => sum + file.lines, 0);
@@ -104,7 +104,7 @@ async function drawDuplications() {
   const summary = files.length
     ? `<p>${lines} duplicated lines in ${files.length} files, in ${groups.length} groups of blocks found the same, from the server's last analysis of the project.</p>`
     : `<p class="quiet">The server holds no duplicated lines for ${escaped(server.projectKey)}: the project has no analysis of its whole code yet, or none is duplicated. The scanner runs such an analysis; this plugin reads what it found.</p>`;
-  await shown("duplications", `<h1>Duplications</h1><div class="row">${button("Read Again", "duplication-refresh")}</div>${summary}${rows ? `<table><tr><th>Lines</th><th>Places</th><th>Blocks</th></tr>${rows}</table>` : ""}`);
+  await displayed("duplications", `<h1>Duplications</h1><div class="row">${button("Read Again", "duplication-refresh")}</div>${summary}${rows ? `<table><tr><th>Lines</th><th>Places</th><th>Blocks</th></tr>${rows}</table>` : ""}`);
 }
 
 onPressed("duplication-refresh", () => drawDuplications());

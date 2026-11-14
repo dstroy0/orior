@@ -24,7 +24,7 @@ typedef struct CliWatchBatchCfg CliWatchBatchCfg;
 // while the call runs; whether git's view changed, and whether changes were lost
 typedef void (*CliWatchTake)(const CliWatchBatchCfg *args);
 
-// the tree at `root` watched, each batch of changes handed to `take` on a thread of the watch's own, any watch before
+// the tree at `root` watched, each batch of changes passed to `take` on a thread of the watch's own, any watch before
 // it stopped first; and the watch stopped, its threads waited for
 void cli_watch_start(const CliWatchCfg *args);
 void cli_watch_stop(void);

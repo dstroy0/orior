@@ -7,12 +7,12 @@
 #
 #   Usage:  python examples/0_experimental/theil_sen_robust_trend.py
 #
-# This reads no corpus. It sits in 0_experimental: an algorithm shown working, a robust-regression
+# This reads no corpus. It sits in 0_experimental: an algorithm displayed working, a robust-regression
 # filter beside the signal ones. The invariant here is a linear trend, and the consensus is the slope
 # the majority of point PAIRS agree on: the Theil-Sen estimator takes the median of every pairwise
 # slope, and the intercept as the median of the residual offsets. It is application logic and not an
 # engine primitive, for the same reason the collaborative filter is -- a trend estimate is what a
-# reading is measured INTO instead of the null it stands against.
+# reading is measured INTO instead of the null it is against.
 #
 # Why it is in the family. Two points from a clean line give exactly the line's slope; a point pulled
 # off the line by an outlier gives a slope that is nearly anything. So the clean pairs all agree on one
@@ -26,7 +26,7 @@
 # chasing the far point. Theil-Sen and least-squares therefore return DIFFERENT slopes on the same data
 # whenever an outlier is present, and that gap is not a bug to reconcile: it is the measurement of what
 # a square costs. Where the data is clean the two agree; where it is not, the robust route
-# kept the slope and the square is the wrong reference.
+# retained the slope and the square is the wrong reference.
 #
 # NOTHING IS BOUNDED HERE. The slope is a median, a rank, not a residual threshold chosen by anyone. The
 # arithmetic is exact rational. A clean line is recovered to the last digit. The floor is stated and
@@ -41,7 +41,7 @@ from fractions import Fraction
 
 
 def median(values):
-    """The exact median of a list, the lower-and-upper average on an even count, kept rational."""
+    """The exact median of a list, the lower-and-upper average on an even count, retained rational."""
     ordered = sorted(values)
     count = len(ordered)
     middle = count // 2

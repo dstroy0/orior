@@ -112,7 +112,7 @@ def cmd_wsl_mount(a):
 def synced():
     """The working tree copied onto the volume, build/ and .git left out, and a repository of its own there: the first
     exit code that is not zero. A file copied is stamped with WSL's clock, which runs apart from the system's, and a build
-    on the volume sees it as newer than what it built; `-c` keeps a deleted file's name from being made again."""
+    on the volume sees it as newer than what it built; `-c` retains a deleted file's name from being made again."""
     copied = ran(
         "set -o pipefail; rsync -a --delete --exclude /build/ --exclude /.git/ --out-format=%%n %s/ %s/ "
         "| sed '/\\/$/d' | (cd %s && xargs -r -d '\\n' touch -c --)" % (wsl_path(ROOT), TREE, TREE)
@@ -151,7 +151,7 @@ def register(sub):
     p = wsl.add_parser("sync", help="the working tree copied onto the volume")
     p.set_defaults(fn=cmd_wsl_sync, create=False, attach=False)
     p = wsl.add_parser("run", help="a command run in the volume's tree, the tree copied first")
-    p.add_argument("--no-sync", action="store_true", help="run on the tree as it stands on the volume")
+    p.add_argument("--no-sync", action="store_true", help="run on the tree as it is on the volume")
     p.add_argument("--user", default=None, help="the user the command runs as, the distribution's default where none is named")
     p.add_argument("words", nargs=argparse.REMAINDER, help="the command and its words, after --")
     p.set_defaults(fn=cmd_wsl_run, create=False, attach=False)

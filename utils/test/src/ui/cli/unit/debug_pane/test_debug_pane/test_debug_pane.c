@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_debug_pane.c: the Debug pane against a session of the suite's own, a table of requests answering fixed data:
 // with no session the views show their notices and no step acts; a stop reads three frames, the first chosen, the
-// status line its sentence; a frame in the tree opens at its line and one outside does not; the first scope stands open
+// status line its sentence; a frame in the tree opens at its line and one outside does not; the first scope is open
 // and the rest closed, a variable opens and closes and stays open over a new stop; a watch is evaluated and its box
 // takes it out, a refusal its failed value; the console runs a piece on into its line, drops its oldest line past its
-// most, and Enter evaluates in the chosen frame; the bar's flags follow the session and each step reaches its request;
-// continued, exited and terminated change the rows and the status line; and the views' labels and the view shown
+// max, and Enter evaluates in the chosen frame; the bar's flags follow the session and each step reaches its request;
+// continued, exited and terminated change the rows and the status line; and the views' labels and the view displayed
 #include "ui/cli/src/debug/debug_pane.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-// the tree the suite's paths stand under, and the session and thread its adapter reports
+// the tree the suite's paths are under, and the session and thread its adapter reports
 #define CHECK_ROOT "/check/tree"
 #define CHECK_SESSION 1ULL
 
@@ -58,16 +58,16 @@ static int variables_written(const CliDebugOutCfg *args)
     switch (args->reference)
     {
     case 10LL:
-        mmgr_line_put(args->out, "[{\"name\":\"count\",\"value\":\"3\",\"kind\":\"int\",\"reference\":0,\"memory\":null},"
-                                 "{\"name\":\"items\",\"value\":\"[1, 2]\",\"kind\":\"list\",\"reference\":30,"
+        mmgr_line_put(args->out, "[{\"name\":\"count\",\"value\":\"3\",\"type\":\"int\",\"reference\":0,\"memory\":null},"
+                                 "{\"name\":\"items\",\"value\":\"[1, 2]\",\"type\":\"list\",\"reference\":30,"
                                  "\"memory\":null}]");
         return 1;
     case 30LL:
-        mmgr_line_put(args->out, "[{\"name\":\"0\",\"value\":\"1\",\"kind\":\"int\",\"reference\":0,\"memory\":null},"
-                                 "{\"name\":\"1\",\"value\":\"2\",\"kind\":\"int\",\"reference\":0,\"memory\":null}]");
+        mmgr_line_put(args->out, "[{\"name\":\"0\",\"value\":\"1\",\"type\":\"int\",\"reference\":0,\"memory\":null},"
+                                 "{\"name\":\"1\",\"value\":\"2\",\"type\":\"int\",\"reference\":0,\"memory\":null}]");
         return 1;
     default:
-        mmgr_line_put(args->out, "[{\"name\":\"G\",\"value\":\"9\",\"kind\":\"int\",\"reference\":0,\"memory\":null}]");
+        mmgr_line_put(args->out, "[{\"name\":\"G\",\"value\":\"9\",\"type\":\"int\",\"reference\":0,\"memory\":null}]");
         return 1;
     }
 }
@@ -79,7 +79,7 @@ static int evaluated(const CliDebugOutErrMsgCfg *args)
         mmgr_line_put(args->err_msg, "name 'missing' is not defined");
         return 0;
     }
-    mmgr_line_put(args->out, "{\"name\":\"count\",\"value\":\"3\",\"kind\":\"int\",\"reference\":0,\"memory\":null}");
+    mmgr_line_put(args->out, "{\"name\":\"count\",\"value\":\"3\",\"type\":\"int\",\"reference\":0,\"memory\":null}");
     return 1;
 }
 
@@ -137,7 +137,7 @@ void tearDown(void)
 {
 }
 
-// the event `event` with the body `body` of the suite's session handed to the sink, then the step run
+// the event `event` with the body `body` of the suite's session passed to the sink, then the step run
 static int event_read(const char *event, const char *body)
 {
     const CliDebugSink sink = EMBED_CALL(cli_debug_pane_view.sink, CliDebugPaneViewCfg, .root = CHECK_ROOT);
@@ -151,14 +151,14 @@ static int stop_read(void)
     return event_read("stopped", "{\"reason\":\"breakpoint\",\"threadId\":7}");
 }
 
-// the row `at` of `view` read into `row`, whose texts stand in the row's own bytes
+// the row `at` of `view` read into `row`, whose texts are in the row's own bytes
 static void row_of(unsigned int view, unsigned int at, CliDebugPaneRow *row)
 {
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_debug_pane_view.row, CliDebugPaneViewCfg, .view = view, .at = at,
                                         .row = row));
 }
 
-// the row `at` of `view` read into the one row kept here, for a member read at once
+// the row `at` of `view` read into the one row retained here, for a member read at once
 static CliDebugPaneRow s_row;
 static const CliDebugPaneRow *row_at(unsigned int view, unsigned int at)
 {
@@ -216,8 +216,8 @@ void test_with_no_session_the_views_show_their_notices_and_no_step_acts(void)
         TEST_ASSERT_EQUAL_INT(0, item_of(at).enabled);
         TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_debug_pane_bar.run, CliDebugPaneBarCfg, .at = at, .root = CHECK_ROOT));
     }
-    TEST_ASSERT_EQUAL_INT(0, item_of(CLI_DEBUG_STEP_BACK).shown);
-    TEST_ASSERT_EQUAL_INT(1, item_of(CLI_DEBUG_STEP_CONTINUE).shown);
+    TEST_ASSERT_EQUAL_INT(0, item_of(CLI_DEBUG_STEP_BACK).displayed);
+    TEST_ASSERT_EQUAL_INT(1, item_of(CLI_DEBUG_STEP_CONTINUE).displayed);
     const CliDebugBarItem item = item_of(CLI_DEBUG_STEP_OVER);
     CLI_TEST_ASSERT_TEXT("Step Over", item.label, item.label_length);
     TEST_ASSERT_EQUAL_STRING("step-over", item.command);
@@ -274,7 +274,7 @@ void test_a_frame_in_the_tree_opens_at_its_line_and_one_outside_does_not(void)
                                         .at = 3u, .open_out = &open, .root = CHECK_ROOT));
 }
 
-void test_the_first_scope_stands_open_and_the_rest_closed(void)
+void test_the_first_scope_is_open_and_the_rest_closed(void)
 {
     TEST_ASSERT_EQUAL_INT(1, stop_read());
     TEST_ASSERT_EQUAL_UINT(4u, rows_of(CLI_DEBUG_VIEW_VARIABLES));
@@ -338,7 +338,7 @@ void test_a_watch_is_evaluated_and_its_box_takes_it_out(void)
     EMBED_CALL(cli_debug_pane_view.view_set, CliDebugPaneViewCfg, .view = CLI_DEBUG_VIEW_VARIABLES);
     CliDebugPaneField field;
     EMBED_CALL(cli_debug_pane_input.field, CliDebugPaneInputCfg, .field_out = &field);
-    TEST_ASSERT_EQUAL_INT(1, field.shown);
+    TEST_ASSERT_EQUAL_INT(1, field.displayed);
     CLI_TEST_ASSERT_TEXT("Add a watch: an expression, then Enter", field.placeholder, field.placeholder_length);
     EMBED_CALL(cli_debug_pane_input.type, CliDebugPaneInputCfg, .text = "  cou", .size = 5ULL);
     EMBED_CALL(cli_debug_pane_input.type, CliDebugPaneInputCfg, .text = "ntx ", .size = 4ULL);
@@ -394,7 +394,7 @@ void test_the_console_runs_a_piece_on_into_its_line(void)
     CLI_TEST_ASSERT_TEXT("oops", error.text, error.text_length);
 }
 
-void test_the_console_drops_its_oldest_line_past_its_most(void)
+void test_the_console_drops_its_oldest_line_past_its_max(void)
 {
     VerbaLinea lines = {s_lines, sizeof(s_lines), 0ULL};
     mmgr_line_put(&lines, "{\"output\":\"");
@@ -452,7 +452,7 @@ void test_enter_in_the_console_evaluates_in_the_chosen_frame(void)
     CLI_TEST_ASSERT_TEXT("name 'missing' is not defined", refused.text, refused.text_length);
     EMBED_CALL(cli_debug_pane_view.view_set, CliDebugPaneViewCfg, .view = CLI_DEBUG_VIEW_FRAMES);
     EMBED_CALL(cli_debug_pane_input.field, CliDebugPaneInputCfg, .field_out = &field);
-    TEST_ASSERT_EQUAL_INT(0, field.shown);
+    TEST_ASSERT_EQUAL_INT(0, field.displayed);
     TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_debug_pane_input.key, CliDebugPaneInputCfg, .name = "Enter"));
 }
 
@@ -475,11 +475,11 @@ void test_the_bar_flags_follow_the_session(void)
     TEST_ASSERT_EQUAL_INT(1, item_of(CLI_DEBUG_STEP_INTO).enabled);
     TEST_ASSERT_EQUAL_INT(1, item_of(CLI_DEBUG_STEP_OUT).enabled);
     TEST_ASSERT_EQUAL_INT(0, item_of(CLI_DEBUG_STEP_BACK).enabled);
-    TEST_ASSERT_EQUAL_INT(0, item_of(CLI_DEBUG_STEP_BACKWARD).shown);
+    TEST_ASSERT_EQUAL_INT(0, item_of(CLI_DEBUG_STEP_BACKWARD).displayed);
     s_step_back = 1;
     EMBED_CALL(cli_debug_pane_view.begin, CliDebugPaneViewCfg, .root = CHECK_ROOT, .requests = &s_requests);
     TEST_ASSERT_EQUAL_INT(1, stop_read());
-    TEST_ASSERT_EQUAL_INT(1, item_of(CLI_DEBUG_STEP_BACK).shown);
+    TEST_ASSERT_EQUAL_INT(1, item_of(CLI_DEBUG_STEP_BACK).displayed);
     TEST_ASSERT_EQUAL_INT(1, item_of(CLI_DEBUG_STEP_BACKWARD).enabled);
 }
 
@@ -545,7 +545,7 @@ void test_continued_exited_and_terminated_change_the_rows_and_the_status_line(vo
     TEST_ASSERT_EQUAL_INT(0, item_of(CLI_DEBUG_STEP_PAUSE).enabled);
 }
 
-void test_the_view_shown_and_the_labels(void)
+void test_the_view_displayed_and_the_labels(void)
 {
     TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_VIEW_FRAMES, EMBED_CALL(cli_debug_pane_view.view, CliDebugPaneViewCfg, .at = 0u));
     EMBED_CALL(cli_debug_pane_view.view_set, CliDebugPaneViewCfg, .view = CLI_DEBUG_VIEW_CONSOLE);

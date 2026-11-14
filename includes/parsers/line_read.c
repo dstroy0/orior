@@ -30,10 +30,10 @@ static void line_spaces_passed(const char **at)
     }
 }
 
-// 1 where `letter` ends a word: a space, a tab, a line's end or the text's end
-static int line_word_ended(char letter)
+// 1 where `character` ends a word: a space, a tab, a line's end or the text's end
+static int line_word_ended(char character)
 {
-    return (letter == ' ') || (letter == '\t') || (letter == '\r') || (letter == '\n') || (letter == '\0');
+    return (character == ' ') || (character == '\t') || (character == '\r') || (character == '\n') || (character == '\0');
 }
 
 int line_word(const char **at, char *word, size_t room)
@@ -84,19 +84,19 @@ int line_number(const char **at, int hex, unsigned long long *value)
     unsigned int digits = 0u;
     for (;; walk += 1)
     {
-        const char letter = *walk;
+        const char character = *walk;
         unsigned long long digit = base;
-        if ((letter >= '0') && (letter <= '9'))
+        if ((character >= '0') && (character <= '9'))
         {
-            digit = (unsigned long long)(letter - '0');
+            digit = (unsigned long long)(character - '0');
         }
-        else if (hex && (letter >= 'a') && (letter <= 'f'))
+        else if (hex && (character >= 'a') && (character <= 'f'))
         {
-            digit = (unsigned long long)(letter - 'a') + 10ULL;
+            digit = (unsigned long long)(character - 'a') + 10ULL;
         }
-        else if (hex && (letter >= 'A') && (letter <= 'F'))
+        else if (hex && (character >= 'A') && (character <= 'F'))
         {
-            digit = (unsigned long long)(letter - 'A') + 10ULL;
+            digit = (unsigned long long)(character - 'A') + 10ULL;
         }
         if (digit >= base)
         {
@@ -118,7 +118,7 @@ int line_number(const char **at, int hex, unsigned long long *value)
     return 1;
 }
 
-int line_letters(const char **at, const char *text)
+int line_characters(const char **at, const char *text)
 {
     line_spaces_passed(at);
     const size_t length = strlen(text);

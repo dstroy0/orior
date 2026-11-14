@@ -12,10 +12,10 @@ typedef struct
     unsigned int place;
 } KhwVariant;
 
-// the most immediates the retained places contain that an opening place is put with, each one apart
+// the max immediates the retained places contain that an opening place is put with, each one apart
 #define KHW_FRAME_IMMEDIATES 8u
 
-// the most variants a place is put in: as it stands, each operand run of the probe place's form and the guard, and each
+// the max variants a place is put in: as it is, each operand run of the probe place's form and the guard, and each
 // of those with the constant bank's first word and with each immediate a retained place contains
 #define KHW_VARIANTS_A_PLACE ((2u + KHW_FRAME_IMMEDIATES) * (KHW_RUNS + 2u))
 
@@ -39,13 +39,13 @@ typedef struct
     unsigned int known_immediates;
 } KhwFrameFields;
 
-// the variants of the place `place` containing `low` and `high` added to `variants`: as it stands; with the field
+// the variants of the place `place` containing `low` and `high` added to `variants`: as it is; with the field
 // containing each operand run of the probe place's own form `probed_form` set to the register the kernel stores, the
 // relation's first word's to the record's register; with its guard at every predicate where it contains another; and,
 // where the place is the opening's, `opening` not 0, each of those again with the field the .ksc names `immediate` set
-// to 0, the constant bank's first word, which the launch's block size stands at, so that a place reading the bank
+// to 0, the constant bank's first word, which the launch's block size is at, so that a place reading the bank
 // writes it to the register the record reads, and set to each immediate a retained place contains, so that a place
-// reading the bank reads what a retained place reads there, the count the launch hands the kernel among it. The
+// reading the bank reads what a retained place reads there, the count the launch passes the kernel among it. The
 // opening's places are the ones that read the launch's bank, and the kernel runs without them; a retained place's
 // immediate set to 0 writes a register a place after the probe place reads, a number or an address, and the part faults
 // on the address
@@ -86,13 +86,13 @@ static void khw_place_varied(const KhwAnswered *probed_form, const KhwFrameField
     const unsigned int immediate_last = fields->immediate_first + fields->immediate_bits - 1u;
     for (unsigned int at = first; (opening != 0) && fields->immediate && (at < last); at += 1u)
     {
-        const unsigned long long stands = khw_run_read(variants[at].low, variants[at].high, fields->immediate_first,
+        const unsigned long long is = khw_run_read(variants[at].low, variants[at].high, fields->immediate_first,
                                                        immediate_last);
         // 0 first, then each immediate a retained place contains; a variant that contains one already is that variant
-        for (unsigned int each = 0u; (stands != 0ull) && (each <= fields->known_immediates); each += 1u)
+        for (unsigned int each = 0u; (is != 0ull) && (each <= fields->known_immediates); each += 1u)
         {
             const unsigned long long set = (each == 0u) ? 0ull : fields->known_immediate[each - 1u];
-            if (set == stands)
+            if (set == is)
             {
                 continue;
             }
@@ -105,7 +105,7 @@ static void khw_place_varied(const KhwAnswered *probed_form, const KhwFrameField
 }
 
 // the immediates the retained places contain, read off the field the .ksc names `immediate` into `fields`: each not 0
-// and apart from those before it, the place a question is put at and the unreached places not read, at most
+// and apart from those before it, the place a question is put at and the unreached places not read, at max
 // KHW_FRAME_IMMEDIATES
 static void khw_known_immediates_read(KhwFrameFields *fields)
 {
@@ -131,8 +131,8 @@ static void khw_known_immediates_read(KhwFrameFields *fields)
 }
 
 // `low` and `high` from `place` added to `variants`, `*count` of them, where no variant of that place contains it
-// already; two places that stand alike each retain their own, so that each place's first variant is its own as it
-// stands
+// already; two places that are alike each retain their own, so that each place's first variant is its own as it
+// is
 static void khw_variant_added(KhwVariant *variants, unsigned int *count, unsigned long long low,
                               unsigned long long high, unsigned int place)
 {
@@ -153,7 +153,7 @@ static void khw_variant_added(KhwVariant *variants, unsigned int *count, unsigne
 // the frame's cases in its variants, every one pooled and carried as one round with nothing, the unreached encoding at
 // the probe place, which the candidates are read against. The places are the retained ones from the opening on and the
 // opening's own before it, which the part ran as well and which every question drops, numbered after the retained ones.
-// The variants (khw_place_varied): as it stands; with the field of the instruction word that contains each operand run
+// The variants (khw_place_varied): as it is; with the field of the instruction word that contains each operand run
 // of the probe place's own classified form `probed_form`, as the part's .ksc gives the fields, set to the register the
 // kernel stores, KHW_SECOND_REGISTER, the field of the relation's first word to the record's register instead, since a
 // load or a store reads that field as an address and the record's register contains one, and not put where the part's
@@ -202,7 +202,7 @@ unsigned int khw_frame_round(const KhwAnswered *probed_form, int discover)
         s_pooled_at[at] = khw_frame_pooled(s_variants[at].low, s_variants[at].high, s_frame_word, FRAME_CASES);
     }
     khw_round_carried();
-    if (nothing_at < SCHEDULER_ROUND_MOST)
+    if (nothing_at < SCHEDULER_ROUND_MAX)
     {
         khw_frame_nothing_read(&s_pool[nothing_at]);
     }
@@ -210,7 +210,7 @@ unsigned int khw_frame_round(const KhwAnswered *probed_form, int discover)
     unsigned int retained_place = s_kernel_places + s_opening_places;
     for (unsigned int at = 0u; (at < variants) && (s_names < KHW_FORMS); at += 1u)
     {
-        if ((s_variants[at].place == retained_place) || (s_pooled_at[at] >= SCHEDULER_ROUND_MOST))
+        if ((s_variants[at].place == retained_place) || (s_pooled_at[at] >= SCHEDULER_ROUND_MAX))
         {
             continue;
         }
@@ -225,7 +225,7 @@ unsigned int khw_frame_round(const KhwAnswered *probed_form, int discover)
         form.low = s_variants[at].low;
         form.high = s_variants[at].high;
         // a variant the set's form answers for already, a turn of it, is that form, and enters nowhere
-        if (!khw_frame_of(&s_pool[s_pooled_at[at]], &form) || khw_form_stood_for(s_named, s_names, &form))
+        if (!khw_frame_of(&s_pool[s_pooled_at[at]], &form) || khw_form_was_for(s_named, s_names, &form))
         {
             continue;
         }

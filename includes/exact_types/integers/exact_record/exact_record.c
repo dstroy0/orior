@@ -459,7 +459,7 @@ unsigned int exact_record_power(ExactRecordProgram *program, unsigned int base, 
     return power;
 }
 
-// value *= factor over `limbs` limbs, a table row laid out on the host: the factor's two limbs, a row each as the long
+// value *= factor over `limbs` limbs, a table row arranged on the host: the factor's two limbs, a row each as the long
 // multiplication takes them. 1 where the product passes the limbs or its room cannot be allocated
 static unsigned int exact_record_limbs_times(unsigned int *value, unsigned int limbs, unsigned long long factor)
 {
@@ -496,7 +496,7 @@ unsigned int exact_record_power_of(ExactRecordProgram *program, unsigned long lo
     {
         return exact_record_power(program, exact_record_constant(program, base), exponent, exponent_bits);
     }
-    // the table's rows base^v for v below 16, in limbs enough for base^15 at 15 times base's bits, then laid out as wide
+    // the table's rows base^v for v below 16, in limbs enough for base^15 at 15 times base's bits, then arranged as wide
     // as the widest row, base^15 for a base past 1
     const unsigned int bound_limbs = ((exact_record_bits_of(base) * (EXACT_RECORD_NIBBLE_ROWS - 1u)) / 32u) + 1u;
     unsigned int *const rows = (unsigned int *)calloc((size_t)EXACT_RECORD_NIBBLE_ROWS * bound_limbs, sizeof(unsigned int));
@@ -545,7 +545,7 @@ unsigned int exact_record_power_of(ExactRecordProgram *program, unsigned long lo
     const unsigned int table = exact_record_table(program, EXACT_RECORD_NIBBLE_BITS, out_bits, values);
     free(values);
     const unsigned int nibbles = (exponent_bits + EXACT_RECORD_NIBBLE_BITS - 1u) / EXACT_RECORD_NIBBLE_BITS;
-    // 16^nibbles stands above every exponent: added, it leaves each nibble's bits as they are, and a quotient by any
+    // 16^nibbles is above every exponent: added, it leaves each nibble's bits as they are, and a quotient by any
     // lower power of 16 leaves a whole nibble for the table's index
     const unsigned int guarded =
         exact_record_sum(program, exponent, exact_record_power_two(program, EXACT_RECORD_NIBBLE_BITS * nibbles));

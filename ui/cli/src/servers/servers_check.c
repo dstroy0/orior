@@ -9,7 +9,7 @@
 #include "../command_line/pool.h"
 #include "servers_internal.h"
 
-// the most languages one batch of files is of
+// the max languages one batch of files is of
 #define CLI_SERVERS_BATCH_LANGUAGES 64u
 
 // the check, under its lock, and the wake its threads wait on for a file
@@ -320,7 +320,7 @@ int cli_servers_check_files_change(const CliServersFilesCountCtx *args)
                            .queue = &s_queue, .files = &args->files[at], .count = 1u);
             }
         }
-        // the files still on the disk kept, each read out of the cell and written back at the first free place
+        // the files still on the disk retained, each read out of the cell and written back at the first free place
         unsigned int remaining = 0u;
         unsigned long long used = 0ULL;
         for (unsigned int at = 0u; at < s_queue.file_count; at += 1u)

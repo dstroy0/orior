@@ -8,7 +8,7 @@
 extern void setUp(void);
 extern void tearDown(void);
 extern void test_a_pixel_inside_a_rectangle_takes_the_color_whole(void);
-extern void test_a_pixel_outside_a_rectangle_keeps_its_ground(void);
+extern void test_a_pixel_outside_a_rectangle_retains_its_ground(void);
 extern void test_a_pixel_an_edge_halves_takes_half_the_color(void);
 extern void test_a_slope_covers_each_pixel_by_its_area(void);
 extern void test_a_wide_rectangle_fills_the_gap_between_its_edges_and_across_wide_tiles(void);
@@ -79,7 +79,7 @@ int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\coverage\\test_coverage\\test_coverage.c");
   run_test(test_a_pixel_inside_a_rectangle_takes_the_color_whole, "test_a_pixel_inside_a_rectangle_takes_the_color_whole", 57);
-  run_test(test_a_pixel_outside_a_rectangle_keeps_its_ground, "test_a_pixel_outside_a_rectangle_keeps_its_ground", 65);
+  run_test(test_a_pixel_outside_a_rectangle_retains_its_ground, "test_a_pixel_outside_a_rectangle_retains_its_ground", 65);
   run_test(test_a_pixel_an_edge_halves_takes_half_the_color, "test_a_pixel_an_edge_halves_takes_half_the_color", 74);
   run_test(test_a_slope_covers_each_pixel_by_its_area, "test_a_slope_covers_each_pixel_by_its_area", 81);
   run_test(test_a_wide_rectangle_fills_the_gap_between_its_edges_and_across_wide_tiles, "test_a_wide_rectangle_fills_the_gap_between_its_edges_and_across_wide_tiles", 96);

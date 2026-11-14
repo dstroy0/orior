@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // version_catalog_complete.c: what completes the word before the cursor in a version catalog: a section's name after
 // `[`; in a string, the versions' aliases after `version.ref =` or `ref =`, and in a bundle the libraries'; and a
-// table's keys after its `{` or a `,`, by the section the cursor's line stands under
+// table's keys after its `{` or a `,`, by the section the cursor's line is under
 #include "../command_line/callback_cfg.h"
 #include "../text/text.h"
 #include "version_catalog_internal.h"
@@ -13,24 +13,24 @@ static const char *const s_library_keys[5] = {"module", "group", "name", "versio
 static const char *const s_plugin_keys[3] = {"id", "version", "version.ref"};
 static const char *const s_version_keys[5] = {"strictly", "require", "prefer", "reject", "rejectAll"};
 
-// whether a letter is of a section's name, of an alias, and of a table's key
+// whether a character is of a section's name, of an alias, and of a table's key
 static int complete_alphanumeric(const CliEachLetterCfg *args)
 {
-    unsigned int letter = args->letter;
-    return EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .letter = letter);
+    unsigned int character = args->character;
+    return EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .character = character);
 }
 
-static int complete_alias_letter(const CliEachLetterCfg *args)
+static int complete_alias_character(const CliEachLetterCfg *args)
 {
-    unsigned int letter = args->letter;
-    return EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .letter = letter) || (letter == '_') ||
-           (letter == '.') || (letter == '-');
+    unsigned int character = args->character;
+    return EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .character = character) || (character == '_') ||
+           (character == '.') || (character == '-');
 }
 
-static int complete_key_letter(const CliEachLetterCfg *args)
+static int complete_key_character(const CliEachLetterCfg *args)
 {
-    unsigned int letter = args->letter;
-    return EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .letter = letter) || (letter == '.');
+    unsigned int character = args->character;
+    return EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .character = character) || (character == '.');
 }
 
 typedef struct
@@ -44,7 +44,7 @@ typedef struct
     unsigned long long token_size;
     CliCompletions *items;
 } VersionCatalogCompleteCtx;
-// the section the line starting at `line_start` stands under, the last line above it that starts with `[`, into
+// the section the line starting at `line_start` is under, the last line above it that starts with `[`, into
 // `name`, `*size` bytes
 EMBED_INLINE const char *complete_section(const VersionCatalogCompleteCtx *args)
 {
@@ -76,7 +76,7 @@ EMBED_INLINE const char *complete_section(const VersionCatalogCompleteCtx *args)
     return "";
 }
 
-// the aliases of the catalog's section `chosen` put as items after `token`, each with what it stands for
+// the aliases of the catalog's section `chosen` put as items after `token`, each with what it is for
 EMBED_INLINE void complete_names(const VersionCatalogCompleteCtx *args)
 {
     const char *text = args->text;
@@ -151,7 +151,7 @@ void cli_versions_complete(const CliVersionCatalogTextSizeAtCtx *args)
         quotes += ((before[one] == '"') || (before[one] == '\'')) ? 1u : 0u;
     }
     const unsigned long long token = EMBED_CALL(cli_builds_text_at.build_run_before, CliBuildsTextAtCfg,
-                                                .text = args->text, .at = args->at_u64, .of = complete_alias_letter);
+                                                .text = args->text, .at = args->at_u64, .of = complete_alias_character);
     if ((quotes % 2u) == 1u)
     {
         unsigned long long opened = token - line_start;
@@ -233,7 +233,7 @@ void cli_versions_complete(const CliVersionCatalogTextSizeAtCtx *args)
     mmgr_line_put_n(&detail, section, section_size);
     mmgr_line_ch(&detail, ']');
     const unsigned long long start = EMBED_CALL(cli_builds_text_at.build_run_before, CliBuildsTextAtCfg,
-                                                .text = args->text, .at = args->at_u64, .of = complete_key_letter);
+                                                .text = args->text, .at = args->at_u64, .of = complete_key_character);
     for (unsigned int one = 0u; one < count; one += 1u)
     {
         EMBED_CALL(cli_builds_items.build_relative, CliBuildsItemsCfg, .items = items, .token = args->text + start,

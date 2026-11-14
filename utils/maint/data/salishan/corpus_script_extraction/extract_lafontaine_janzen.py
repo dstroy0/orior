@@ -7,7 +7,7 @@
 #
 #   Usage:  python maint/data/salishan/corpus_script_extraction/extract_lafontaine_janzen.py
 #
-# Written for one paper, and it is laid out unlike either of the other two. Each of the four stories is a
+# Written for one paper, and it is arranged unlike either of the other two. Each of the four stories is a
 # running paragraph with no sentence numbering at all, followed by numbered interlinear blocks. The blocks
 # are three lines deep and wrap. One example carries several transcription, segmentation and gloss
 # lines before its translation arrives.
@@ -17,7 +17,7 @@
 #
 # Two parts of this paper are the language and are not transcript. Section 2 cites forms directly while
 # discussing dialect, and the appendix is a full morpheme inventory with a gloss and a meaning for each
-# entry. Both are kept and marked for what they are, because a token of this language that appears in the
+# entry. Both are retained and marked for what they are, because a token of this language that appears in the
 # paper and not in the extraction is a hole, and the coverage check counts every one of them.
 #
 # wlwlmelst transcribed and translated these stories himself. The translations are his and are marked
@@ -140,7 +140,7 @@ LAYER = {
     "gloss": DERIVED,
     "cited form": DERIVED,
     "morpheme entry": DERIVED,
-    # Kept and marked, excluded from the ingestion stream until someone has classified it.
+    # Retained and marked, excluded from the ingestion stream until someone has classified it.
     UNCLASSIFIED: DERIVED,
 }
 
@@ -370,7 +370,7 @@ def main():
         handle.write("# the language.\n")
         handle.write("#\n")
         handle.write(
-            "# Mark is language.layer.kind. T is the target language, N is anything else.\n"
+            "# Mark is language.layer.type. T is the target language, N is anything else.\n"
         )
         handle.write(
             "# spoken is what was said or written by him, including his own translations.\n"
@@ -385,13 +385,13 @@ def main():
             "# Gloss categories are the paper's own, from its appendix, unchanged.\n"
         )
         handle.write("line\tstory\tsection\tswitches\tcontent\n")
-        for mark, count, story, number, kind, text in rows:
-            layer = LAYER[kind]
+        for mark, count, story, number, type, text in rows:
+            layer = LAYER[type]
             if mark == "T":
-                content = rendered(text, layer, kind)
+                content = rendered(text, layer, type)
                 crossings = switches(text)
             else:
-                content = "N.%s.%s:{%s}" % (layer, kind, text)
+                content = "N.%s.%s:{%s}" % (layer, type, text)
                 crossings = 0
             handle.write(
                 "line#${%d}\t%s\t%s\t%d\t%s\n"
@@ -399,12 +399,12 @@ def main():
             )
 
     pure = TARGET[:-4] + ".pure.txt"
-    kept = 0
+    retained = 0
     repeated = 0
     already = set()
     with open(pure, "w", encoding="utf-8", newline="") as handle:
-        for mark, count, story, number, kind, text in rows:
-            if (mark != "T") or (LAYER[kind] != SPOKEN):
+        for mark, count, story, number, type, text in rows:
+            if (mark != "T") or (LAYER[type] != SPOKEN):
                 continue
             for span, run in tagged_spans(text):
                 if (span != "T") or (not run.strip()):
@@ -415,22 +415,22 @@ def main():
                     continue
                 already.add(key)
                 handle.write("%s\n" % run)
-                kept += 1
+                retained += 1
 
     # A file of its own for what the tool could not sort: a block line none of the tests typed,
     # and a line no section reached, which here is the front matter and sections 1 and 4.
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
         (0, "%s block %d" % (number, count), UNKNOWN_KIND, "", text)
-        for mark, count, story, number, kind, text in rows
-        if (kind == UNCLASSIFIED) and (story != "not reached")
+        for mark, count, story, number, type, text in rows
+        if (type == UNCLASSIFIED) and (story != "not reached")
     ]
     flagged.extend(missed)
     stuck_count = write_unsorted(stuck, "Four Stories by wlwlmelst", flagged)
 
     out.write("  %d lines written to\n  %s\n" % (len(rows), os.path.basename(TARGET)))
     out.write(
-        "  %d target-language spans written to\n  %s\n" % (kept, os.path.basename(pure))
+        "  %d target-language spans written to\n  %s\n" % (retained, os.path.basename(pure))
     )
     out.write("  %d spans skipped as already written\n" % repeated)
     out.write(
@@ -438,17 +438,17 @@ def main():
         % (stuck_count, os.path.basename(stuck))
     )
 
-    out.write("\n  %-38s %-10s %-16s %s\n" % ("story", "section", "kind", "lines"))
+    out.write("\n  %-38s %-10s %-16s %s\n" % ("story", "section", "type", "lines"))
     counted = {}
-    for mark, count, story, number, kind, text in rows:
-        counted[(story, number, kind)] = counted.get((story, number, kind), 0) + 1
+    for mark, count, story, number, type, text in rows:
+        counted[(story, number, type)] = counted.get((story, number, type), 0) + 1
     for key in sorted(counted):
         out.write(
             "  %-38s %-10s %-16s %d\n" % (key[0][:38], key[1], key[2], counted[key])
         )
 
     marks = {}
-    for mark, count, story, number, kind, text in rows:
+    for mark, count, story, number, type, text in rows:
         marks[mark] = marks.get(mark, 0) + 1
     mixed = sum(
         1

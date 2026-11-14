@@ -15,7 +15,7 @@ CODEGEN_CORE int codegen_never_negative(unsigned int operation)
            (operation == ENGINE_RECORD_TABLE) || (operation == ENGINE_RECORD_GCD);
 }
 
-// each record word stored as the last put that lays it out ends; the lane does not carry it to its end
+// each record word stored as the last put that positions it out ends; the lane does not carry it to its end
 CODEGEN_CORE void codegen_store_placed(MachineFunction *lane, const DeviceRecordStep *step)
 {
     unsigned int low = 0u;

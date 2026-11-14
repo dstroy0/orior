@@ -29,9 +29,9 @@ test("the eye draws on its canvas as it runs, and stops when told", async () => 
     assert.ok(canvas.width >= 300 && canvas.height >= 200, "sized to the page's pixels");
     assert.ok(painted(canvas) > 1000, "the eye drawn");
     stop();
-    const kept = canvas.toDataURL();
+    const retained = canvas.toDataURL();
     await ui.rest(200);
-    assert.equal(canvas.toDataURL(), kept, "no frame after it stops");
+    assert.equal(canvas.toDataURL(), retained, "no frame after it stops");
   } finally {
     host.remove();
   }

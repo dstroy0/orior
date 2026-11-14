@@ -20,7 +20,7 @@ test("a mode line among the first and last lines sets the indent as Vim and Emac
   assert.deepEqual(modeIndent(new Doc(far)), { size: 2 }, "the file's last lines are read too");
 });
 
-test("the indent is read from the lines: tabs where more open with one, else the step most often taken, and a mode line over it", () => {
+test("the indent is read from the lines: tabs where more open with one, else the step usually taken, and a mode line over it", () => {
   assert.deepEqual(new Session("a\n\tb\n\tc\n  d", null).indent, { tabs: true, size: 4 });
   assert.deepEqual(new Session("a:\n  b\n    c\n  d\ne", null).indent, { tabs: false, size: 2 });
   assert.deepEqual(new Session("a:\n  b\n# vim: sw=8 noet", null).indent, { tabs: true, size: 8 });
@@ -53,11 +53,11 @@ test("a region orior's side folds is folded to the last line its fold hides, and
   assert.ok(session.shows(0), "the closing line drawn after what the fold hides");
   session.fold(6);
   assert.ok(!session.folded.has(6), "a line that opens nothing does not fold");
-  assert.deepEqual(session.openersOf(3, 10), [0, 2], "the regions a line stands inside, the outermost first");
+  assert.deepEqual(session.openersOf(3, 10), [0, 2], "the regions a line is inside, the outermost first");
   assert.deepEqual(session.openersOf(3, 1), [2], "the innermost alone");
 });
 
-test("orior's side's folds go with their lines through an edit until it hands them on again", () => {
+test("orior's side's folds go with their lines through an edit until it passes them on again", () => {
   const session = new Session("f {\n    x\n}\nz", null);
   session.highlight.folded(0, [[0, 2, 1]]);
   session.doc.change([{ from: { line: 0, col: 0 }, to: { line: 0, col: 0 }, text: "a\n" }]);
@@ -79,7 +79,7 @@ test("a large file's window grows above and below, and lets lines go, every plac
   assert.deepEqual(session.selections[0].head, at(1, 1));
   session.shrink(2, false);
   assert.deepEqual(session.doc.lines, ["c"]);
-  assert.deepEqual(session.selections[0].head, at(0, 1), "a place let go kept at the window's last line");
+  assert.deepEqual(session.selections[0].head, at(0, 1), "a place let go retained at the window's last line");
   session.replaceWindow(["x", "y"], 100, 1);
   assert.deepEqual([session.doc.lines, session.base, session.top], [["x", "y"], 100, 1]);
   assert.deepEqual(session.selections[0].head, at(0, 0));

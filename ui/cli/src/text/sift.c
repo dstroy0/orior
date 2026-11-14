@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// sift.c: every offset a needle stands at in a text: each start the library's byte find gives for the needle's first
+// sift.c: every offset a needle is at in a text: each start the library's byte find gives for the needle's first
 // byte, proven by the library's bounded compare, so a zero byte in the text is a byte like any other
 #include "sift.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 
-// one byte the search anchors on, and the next start that holds it, kept until the walk passes it
+// one byte the search anchors on, and the next start that holds it, retained until the walk passes it
 typedef struct
 {
     unsigned char val;
@@ -41,7 +41,7 @@ EMBED_INLINE const unsigned char *sift_anchor_next(const SiftCtx *args)
     return anchor->next;
 }
 
-// the first byte's other case where the needle's first byte is an ASCII letter and the search folds case, else the
+// the first byte's other case where the needle's first byte is an ASCII character and the search folds case, else the
 // byte itself
 EMBED_INLINE unsigned char sift_first_other_case(const CliSiftLengthCfg *args)
 {
@@ -82,7 +82,7 @@ unsigned long long cli_sift_find_all(const CliSiftLengthCfg *args)
         {
             break;
         }
-        // a hit stands inside the text, so its distance from the start is not negative
+        // a hit is inside the text, so its distance from the start is not negative
         at = (unsigned long long)(hit - text);
         if (cellul.diff(&(CatenaFinitaCfg){.src = (const char *)text + at,
                                            .other = (const char *)args->needle,

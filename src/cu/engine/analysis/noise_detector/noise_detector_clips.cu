@@ -18,7 +18,7 @@ __device__ static void noise_spikes_flush(unsigned long long *cells, unsigned in
 }
 
 // One thread a voxel. Every frame's value is counted. A frame with a frame on either side is a triple, binned by the
-// mean of the two beside it, and a spike or a dip where it clears both by a threshold. A voxel whose least and most
+// mean of the two beside it, and a spike or a dip where it clears both by a threshold. A voxel whose least and max
 // values agree is constant: counted, its value counted apart, and its place taken into the box.
 __global__ static void noise_clips_kernel(const unsigned short *lanes, unsigned long long frames,
                                           unsigned long long depth, unsigned long long height, unsigned long long width,
@@ -44,7 +44,7 @@ __global__ static void noise_clips_kernel(const unsigned short *lanes, unsigned 
          voxel += jump)
     {
         unsigned int least = NOISE_LANE_TOP;
-        unsigned int maximum = 0u;
+        unsigned int max = 0u;
         unsigned long long run[NOISE_SPIKE_SUMS];
         for (unsigned int sum = 0u; sum < NOISE_SPIKE_SUMS; sum += 1u)
         {
@@ -57,7 +57,7 @@ __global__ static void noise_clips_kernel(const unsigned short *lanes, unsigned 
         {
             const unsigned int value = lanes[(frame * voxels) + voxel];
             least = (value < least) ? value : least;
-            maximum = (value > maximum) ? value : maximum;
+            max = (value > max) ? value : max;
             at_zero += (value == 0u) ? 1ull : 0ull;
             at_top += (value == NOISE_LANE_TOP) ? 1ull : 0ull;
             if (value < NOISE_SHARED_VALUES)
@@ -95,7 +95,7 @@ __global__ static void noise_clips_kernel(const unsigned short *lanes, unsigned 
         {
             noise_spikes_flush(cells, run_bin, run);
         }
-        if (least != maximum)
+        if (least != max)
         {
             continue;
         }
@@ -156,7 +156,7 @@ long noise_clips_sample(const unsigned short *volume, const unsigned long long e
     const unsigned int blocks = (unsigned int)((needed < 65536ull) ? needed : 65536ull);
     // the voxels each thread takes in turn
     const unsigned long long rounds = (blocks != 0u) ? ((needed + blocks - 1ull) / blocks) : 0ull;
-    // every count is at most the sample's voxel-frames; a block's shared counts are at most its threads' voxel-frames,
+    // every count is at max the sample's voxel-frames; a block's shared counts are at max its threads' voxel-frames,
     // which an unsigned int represents; every coordinate fits an unsigned int
     const int bounded = (frames >= 1ull) && (voxels != 0ull) && (frames <= (~0ull / voxels)) &&
                         (depth <= 0xFFFFFFFFull) && (height <= 0xFFFFFFFFull) && (width <= 0xFFFFFFFFull) &&
@@ -170,7 +170,7 @@ long noise_clips_sample(const unsigned short *volume, const unsigned long long e
     const size_t box_bytes = (size_t)NOISE_CLIPS_BOX * sizeof(unsigned int);
     const size_t value_bytes = (size_t)NOISE_VALUES * sizeof(unsigned long long);
     const size_t spike_bytes = (size_t)NOISE_SPIKE_CELLS * sizeof(unsigned long long);
-    // an empty box: every least at the widest coordinate and every most at 0
+    // an empty box: every least at the widest coordinate and every max at 0
     const unsigned int empty_box[NOISE_CLIPS_BOX] = {0xFFFFFFFFu, 0u, 0xFFFFFFFFu, 0u, 0xFFFFFFFFu, 0u};
     unsigned short *device_lanes = NULL;
     unsigned long long *device_counts = NULL;
@@ -221,13 +221,13 @@ long noise_clips_sample(const unsigned short *volume, const unsigned long long e
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }
 
-// the least and most values the sample contains, and how many values between them it never contains
-static void noise_clips_range(const NoiseClips *clips, unsigned int *least, unsigned int *maximum,
+// the least and max values the sample contains, and how many values between them it never contains
+static void noise_clips_range(const NoiseClips *clips, unsigned int *least, unsigned int *max,
                               unsigned long long *empty)
 {
     int found = 0;
     *least = 0u;
-    *maximum = 0u;
+    *max = 0u;
     for (unsigned int value = 0u; value < NOISE_VALUES; value += 1u)
     {
         if (clips->values[value] == 0ull)
@@ -235,11 +235,11 @@ static void noise_clips_range(const NoiseClips *clips, unsigned int *least, unsi
             continue;
         }
         *least = (found != 0) ? *least : value;
-        *maximum = value;
+        *max = value;
         found = 1;
     }
     *empty = 0ull;
-    for (unsigned int value = *least; (found != 0) && (value <= *maximum); value += 1u)
+    for (unsigned int value = *least; (found != 0) && (value <= *max); value += 1u)
     {
         *empty += (clips->values[value] == 0ull) ? 1ull : 0ull;
     }
@@ -261,12 +261,12 @@ void noise_spikes_pooled(const NoiseClips *clips, unsigned long long pooled[NOIS
 void noise_clips_summary(const char *name, const NoiseClips *clips)
 {
     unsigned int least = 0u;
-    unsigned int maximum = 0u;
+    unsigned int max = 0u;
     unsigned long long empty = 0ull;
-    noise_clips_range(clips, &least, &maximum, &empty);
+    noise_clips_range(clips, &least, &max, &empty);
     printf("  %-24s values %u to %u, %llu never present between; at 0: %llu, at the top: %llu; constant voxels: %llu"
            " (at 0: %llu, at the top: %llu)",
-           name, least, maximum, empty, clips->counts[NOISE_CLIPS_AT_ZERO], clips->counts[NOISE_CLIPS_AT_TOP],
+           name, least, max, empty, clips->counts[NOISE_CLIPS_AT_ZERO], clips->counts[NOISE_CLIPS_AT_TOP],
            clips->counts[NOISE_CLIPS_CONSTANT], clips->counts[NOISE_CLIPS_CONSTANT_ZERO],
            clips->counts[NOISE_CLIPS_CONSTANT_TOP]);
     if (clips->counts[NOISE_CLIPS_CONSTANT] != 0ull)
@@ -290,12 +290,12 @@ void noise_clips_summary(const char *name, const NoiseClips *clips)
 int noise_clips_rows(FILE *const tables[NOISE_CLIPS_TABLES], const char *name, const NoiseClips *clips)
 {
     unsigned int least = 0u;
-    unsigned int maximum = 0u;
+    unsigned int max = 0u;
     unsigned long long empty = 0ull;
-    noise_clips_range(clips, &least, &maximum, &empty);
+    noise_clips_range(clips, &least, &max, &empty);
     int ok =
         fprintf(tables[NOISE_TABLE_CLIPS], "%s\t%u\t%u\t%llu\t%llu\t%llu\t%llu\t%llu\t%llu\t%u\t%u\t%u\t%u\t%u\t%u\n",
-                name, least, maximum, empty, clips->counts[NOISE_CLIPS_AT_ZERO], clips->counts[NOISE_CLIPS_AT_TOP],
+                name, least, max, empty, clips->counts[NOISE_CLIPS_AT_ZERO], clips->counts[NOISE_CLIPS_AT_TOP],
                 clips->counts[NOISE_CLIPS_CONSTANT], clips->counts[NOISE_CLIPS_CONSTANT_ZERO],
                 clips->counts[NOISE_CLIPS_CONSTANT_TOP], clips->box[0], clips->box[1], clips->box[2], clips->box[3],
                 clips->box[4], clips->box[5]) > 0;

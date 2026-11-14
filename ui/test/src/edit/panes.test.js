@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The page's panes bound as the window starts: a link in a hover, a diagnostic or a document opened in the browser
-// with the window kept, and the tree's changes read again as the window comes back to the front.
+// with the window retained, and the tree's changes read again as the window comes back to the front.
 
 import { putBackAsFound } from "../../menus.js";
 

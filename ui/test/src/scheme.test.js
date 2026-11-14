@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 import { followsSystem, notifyScheme, onScheme, scheme, setFollowSystem, setScheme, toggleScheme } from "../../gui/src-js/scheme.js";
-import { keepingStorage } from "../helpers.js";
+import { retentionStorage } from "../helpers.js";
 
 const { test, assert, ui } = window.__harness;
 
@@ -13,8 +13,8 @@ test("the window opens dark", () => {
   assert.equal(document.documentElement.dataset.scheme, "dark");
 });
 
-test("choosing a scheme shows it, keeps it and tells each listener", () =>
-  keepingStorage([KEY], () => {
+test("choosing a scheme shows it, retains it and tells each listener", () =>
+  retentionStorage([KEY], () => {
     const told = [];
     onScheme((name) => told.push(name));
     try {
@@ -29,8 +29,8 @@ test("choosing a scheme shows it, keeps it and tells each listener", () =>
     }
   }));
 
-test("following the system shows the system's scheme and keeps that it follows", () =>
-  keepingStorage([KEY], () => {
+test("following the system shows the system's scheme and retains that it follows", () =>
+  retentionStorage([KEY], () => {
     try {
       setFollowSystem(true);
       assert.equal(followsSystem(), true);
@@ -52,7 +52,7 @@ test("a theme's change tells each listener with the scheme unchanged", () => {
 });
 
 test("following the system, the window turns light and dark as the system's light changes while it is open", async () => {
-  const kept = localStorage.getItem(KEY);
+  const retained = localStorage.getItem(KEY);
   try {
     setFollowSystem(true);
     await ui.media("prefers-color-scheme", "light");
@@ -63,10 +63,10 @@ test("following the system, the window turns light and dark as the system's ligh
   } finally {
     await ui.media("prefers-color-scheme", "").catch(() => {});
     setScheme("dark");
-    if (kept === null) {
+    if (retained === null) {
       localStorage.removeItem(KEY);
     } else {
-      localStorage.setItem(KEY, kept);
+      localStorage.setItem(KEY, retained);
     }
   }
 });

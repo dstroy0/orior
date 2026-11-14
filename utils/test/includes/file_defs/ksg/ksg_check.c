@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // ksg_check.c: a file's seal checked against what ksg.h specifies. The root the seal folds as the lines come is the
 // root of the leaves made again whole and joined as RFC 6962 joins a Merkle tree's, at the largest power of two below
-// their count; the same bytes handed in pieces of every size seal alike; one line changed changes that leaf and the
-// root and no other leaf; a file of no bytes is one leaf; a line longer than KSG_LINE_MOST is a leaf for each
-// KSG_LINE_MOST of it; and the trailer contains the size, KSG_LINE_MOST, the count of leaves and the root. Exit 0 where
+// their count; the same bytes passed in pieces of every size seal alike; one line changed changes that leaf and the
+// root and no other leaf; a file of no bytes is one leaf; a line longer than KSG_LINE_MAX is a leaf for each
+// KSG_LINE_MAX of it; and the trailer contains the size, KSG_LINE_MAX, the count of leaves and the root. Exit 0 where
 // every one passed
 #include "../../../../../src/cu/engine/runtime/obsignatio/obsignatio_internal.h"
 #include "../../../../../includes/file_defs/ksg/ksg.h"
@@ -13,11 +13,11 @@
 #include <stdio.h>
 #include <string.h>
 
-// the most leaves a check makes, and the most bytes of a text it seals
+// the max leaves a check makes, and the max bytes of a text it seals
 #define KSG_CHECK_LEAVES 4096u
 #define KSG_CHECK_BYTES (1u << 20u)
 
-// The leaves one seal handed on, in order
+// The leaves one seal passed on, in order
 typedef struct
 {
     unsigned char leaf[KSG_CHECK_LEAVES][KSG_SIGNUM_BYTES];
@@ -38,7 +38,7 @@ static void ksg_check(int passed, const char *what)
     s_failed += passed ? 0u : 1u;
 }
 
-// a leaf stored in the leaves handed as context
+// a leaf stored in the leaves passed as context
 static int ksg_leaf_stored(void *context, const unsigned char *leaf, unsigned long long line)
 {
     (void)line;
@@ -52,7 +52,7 @@ static int ksg_leaf_stored(void *context, const unsigned char *leaf, unsigned lo
     return 1;
 }
 
-// `size` bytes of `text` sealed handed `piece` bytes at a time into `leaves`, its root into `root` and its trailer into
+// `size` bytes of `text` sealed passed `piece` bytes at a time into `leaves`, its root into `root` and its trailer into
 // `trailer`: 1, or 0 where the seal did not end whole
 static int ksg_sealed(const char *text, unsigned long long size, unsigned long long piece, KsgCheckLeaves *leaves,
                       unsigned char *root, unsigned char *trailer)
@@ -101,13 +101,13 @@ static void ksg_root_again(const KsgCheckLeaves *leaves, unsigned long long size
     {
         // each word shifted down to one byte retains only that byte
         rooted[at] = (unsigned char)(size >> (8u * at));
-        rooted[8u + at] = (unsigned char)((unsigned long long)KSG_LINE_MOST >> (8u * at));
+        rooted[8u + at] = (unsigned char)((unsigned long long)KSG_LINE_MAX >> (8u * at));
     }
     ksg_tree(node_key, leaves, 0u, leaves->count, rooted + 16u);
     obsignatio_host_digest(file_key, OBSIGNATIO_MODE_KEYED, rooted, sizeof(rooted), root, KSG_SIGNUM_BYTES);
 }
 
-// a text of `lines` lines, each its number and letters after it, a line of `long_line` bytes among them where it is
+// a text of `lines` lines, each its number and characters after it, a line of `long_line` bytes among them where it is
 // not 0: its size
 static unsigned long long ksg_text(unsigned int lines, unsigned int long_line)
 {
@@ -119,10 +119,10 @@ static unsigned long long ksg_text(unsigned int lines, unsigned int long_line)
         text = verba_numerus.u64(&(VerbaNumerusCfg){.out = s_text, .cap = room, .at = text, .val = line});
         text = verba_textus.put(&(VerbaTextusCfg){
             .out = s_text, .cap = room, .at = text, .text = (line % 3u) == 0u ? " lt r1 r2" : " ge r3 r4"});
-        for (unsigned int letter = 0u; (line == 7u) && (letter < long_line); letter += 1u)
+        for (unsigned int character = 0u; (line == 7u) && (character < long_line); character += 1u)
         {
             text = verba_littera.ch(
-                &(VerbaLitteraCfg){.out = s_text, .cap = room, .at = text, .ch = (char)('a' + (letter % 26u))});
+                &(VerbaLitteraCfg){.out = s_text, .cap = room, .at = text, .ch = (char)('a' + (character % 26u))});
         }
         text = verba_littera.ch(&(VerbaLitteraCfg){.out = s_text, .cap = room, .at = text, .ch = '\n'});
     }
@@ -153,7 +153,7 @@ int main(void)
                 (memcmp(s_other.leaf, s_one.leaf, (size_t)s_one.count * KSG_SIGNUM_BYTES) == 0) &&
                 (memcmp(root, other, KSG_SIGNUM_BYTES) == 0);
     }
-    ksg_check(alike, "the same bytes handed in pieces of every size seal alike");
+    ksg_check(alike, "the same bytes passed in pieces of every size seal alike");
     ksg_text(1000u, 0u);
     char *const relation = strstr(s_text, "rel 412 ge");
     relation[8] = 'l';
@@ -175,7 +175,7 @@ int main(void)
               "a file of no bytes is one leaf");
     const unsigned long long long_size = ksg_text(10u, 3000u);
     ksg_check(ksg_sealed(s_text, long_size, long_size, &s_one, root, trailer) && (s_one.count == 12u),
-              "a line of 3000 bytes and more is a leaf for each KSG_LINE_MOST of it");
+              "a line of 3000 bytes and more is a leaf for each KSG_LINE_MAX of it");
     unsigned long long words[3] = {0ull, 0ull, 0ull};
     for (unsigned int word = 0u; word < 3u; word += 1u)
     {
@@ -184,9 +184,9 @@ int main(void)
             words[word] |= (unsigned long long)trailer[(word * 8u) + at] << (8u * at);
         }
     }
-    ksg_check((words[0] == long_size) && (words[1] == KSG_LINE_MOST) && (words[2] == 12u) &&
+    ksg_check((words[0] == long_size) && (words[1] == KSG_LINE_MAX) && (words[2] == 12u) &&
                   (memcmp(trailer + 24u, root, KSG_SIGNUM_BYTES) == 0),
-              "the trailer contains the size, KSG_LINE_MOST, the count of leaves and the root");
+              "the trailer contains the size, KSG_LINE_MAX, the count of leaves and the root");
     printf("ksg check: %u checks, %u failed\n", s_passed + s_failed, s_failed);
     return (s_failed == 0u) ? 0 : 1;
 }

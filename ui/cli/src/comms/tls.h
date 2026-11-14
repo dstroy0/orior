@@ -15,7 +15,7 @@ typedef struct CliTlsCfg CliTlsCfg;
 typedef struct CliTlsOutCfg CliTlsOutCfg;
 typedef struct CliTlsDataCfg CliTlsDataCfg;
 
-// the most sessions open at once
+// the max sessions open at once
 #define CLI_TLS_MAX 32u
 
 // A TLS session over a socket: what is written to it goes out sealed, and each read opens what came

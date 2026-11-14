@@ -3,12 +3,14 @@
 // claim.h: the claim: while the reader edits, the work takes the bar's row, the side_menu's column and the status bar's
 // row and saves the frame's gap on every side, and inside the work the editor's text takes the tabs row's inset and
 // the minimap's. A pointer resting within three gaps of an edge brings that edge's part back: the status bar at the
-// foot, the bar and the tabs row at the head, the side_menu at the left, the minimap at the right, and in the controls'
+// foot, the bar at the head, the side_menu at the left, the minimap at the right, and in the controls'
 // corner the three controls alone as a tab, a ghost of them showing as soon as the pointer slows in the corner. A
-// part goes back a linger after the pointer leaves it, and one edge's part comes only once another's has gone. A
+// part goes back a linger after the pointer leaves it, and one edge's part comes only once another's has gone. The
+// tabs row is a claim of its own inside the work: a rest in the band under the head's brings it, and the head's
+// rest leaves it away. A
 // pointer crossing a gap faster than the criterion is passing through, not resting. Every number the parts move on
 // runs from 0 to 1 and back on one curve over one slide, as the page's claim does; the claim saves the numbers and
-// the timers and says when it next wants the clock, and the frame lays the parts out for the numbers (claim.c)
+// the timers and says when it next wants the clock, and the frame positions the parts out for the numbers (claim.c)
 #ifndef GUI_AUTOHIDE_H
 #define GUI_AUTOHIDE_H
 #include "embed_dispatch_layout.h"
@@ -25,13 +27,15 @@ typedef struct GuiAutohideStillCfg GuiAutohideStillCfg;
 typedef struct GuiAutohideShareCfg GuiAutohideShareCfg;
 typedef struct GuiAutohideSlideCfg GuiAutohideSlideCfg;
 
-// the edges whose parts a rest brings back, and none
+// the edges whose parts a rest brings back, and none; the tabs row is a claim of its own inside the work, brought
+// back by a rest in the band under the head's
 #define GUI_AUTOHIDE_NONE 0u
 #define GUI_AUTOHIDE_TOP 1u
 #define GUI_AUTOHIDE_BOTTOM 2u
 #define GUI_AUTOHIDE_LEFT 3u
 #define GUI_AUTOHIDE_RIGHT 4u
 #define GUI_AUTOHIDE_CONTROLS 5u
+#define GUI_AUTOHIDE_TABS 6u
 // the delay before a part shows, the delay before it hides after the pointer leaves it, and a slide's duration; the
 // window of the pointer's path its speed is measured over, and the speed, in pixels a millisecond, past which it is
 // passing through;
@@ -47,8 +51,8 @@ typedef struct GuiAutohideSlideCfg GuiAutohideSlideCfg;
 #define GUI_AUTOHIDE_TRAIL 16u
 
 // A slide: a number of GUI_FIXED_ONE running from `from` to `to` from `start_ms` over its length on its curve, the
-// claim's own GUI_AUTOHIDE_ANIMATION_MS on the page's ease; a slide whose ends are one stands at them. A bead's slide
-// also keeps the speed it starts with, in GUI_FIXED_ONE a slide's length, so a slide sent on from mid-way keeps its
+// claim's own GUI_AUTOHIDE_ANIMATION_MS on the page's ease; a slide whose ends are one is at them. A bead's slide
+// also retains the speed it starts with, in GUI_FIXED_ONE a slide's length, so a slide sent on from mid-way retains its
 // speed; `curve` is the slide's own curve, which a caller's curve other than the ease replaces
 typedef struct
 {
@@ -75,14 +79,14 @@ typedef struct
     unsigned long long time_ms;
 } GuiTrailPoint;
 
-// The claim: whether it holds; the edge whose part is shown, the one waiting for it to hide and the deadline that shows
+// The claim: whether it holds; the edge whose part is displayed, the one waiting for it to hide and the deadline that shows
 // it; the pointer's edge, the edge the show deadline is armed for and that deadline, the hide deadline and the
 // controls' preview deadline, each 0 while disarmed; whether
-// the controls' ghost shows; whether the pointer stands over the shown part, as its last move left it; where the
-// pointer stands; its path over the last span; the slides: the claim, each edge's reveal, the controls' way down,
+// the controls' ghost shows; whether the pointer is over the displayed part, as its last move left it; where the
+// pointer is; its path over the last span; the slides: the claim, each edge's reveal, the controls' way down,
 // each edge's inset and the controls' opacity; each slat's grown share and its reveal as last read; the point of each
 // edge its slat is pulled from, -1 where none has been; whether less motion is asked for; and how many times a slide
-// has been sent somewhere new, which says when the stages made from them stand out of date
+// has been sent somewhere new, which says when the stages made from them are out of date
 typedef struct
 {
     int still;
@@ -106,6 +110,7 @@ typedef struct
     GuiSlide reveal_bottom;
     GuiSlide reveal_left;
     GuiSlide reveal_right;
+    GuiSlide reveal_tabs;
     GuiSlide reveal_down;
     GuiSlide inset_top;
     GuiSlide inset_left;
@@ -124,17 +129,17 @@ typedef struct
 
 // the page's ease curve, cubic-bezier(0.25, 0.1, 0.25, 1), and its ease-out, cubic-bezier(0, 0, 0.58, 1), at `share`
 // of the way, 0 to GUI_FIXED_ONE: its number, 0 to GUI_FIXED_ONE, read from a table of the curve at sixty-four steps,
-// the step between two entries laid straight
+// the step between two entries positioned straight
 int gui_ease(const GuiAutohideShareCfg *args);
 int gui_ease_out(const GuiAutohideShareCfg *args);
 // a CSS cubic-bezier(x1, y1, x2, y2) made into a table of its number at each of GUI_EASE_STEPS steps of the way, its
 // ends 0 and GUI_FIXED_ONE; and such a table read at `share` of the way, 0 to GUI_FIXED_ONE, the step between two
-// entries laid straight
+// entries positioned straight
 #define GUI_EASE_STEPS 64u
 void gui_ease_table_init(const GuiAutohideTableCfg *args);
 int gui_ease_table_read(const GuiAutohideShareCfg *args);
 // a slide's number at `time_ms`, the slide `lasts_ms` long, GUI_AUTOHIDE_ANIMATION_MS where 0, on `curve`, the page's
-// ease where 0; and the claim's slide sent to `to` from where it stands now, starting after `delay_ms`, a slide already
+// ease where 0; and the claim's slide sent to `to` from where it is now, starting after `delay_ms`, a slide already
 // bound for `to` left running
 int gui_slide_at(const GuiAutohideSlideCfg *args);
 void gui_slide_to(const GuiAutohideTargetCfg *args);
@@ -144,24 +149,24 @@ unsigned long long gui_slide_end_ms(const GuiAutohideSlideCfg *args);
 
 // a claim not holding, every number at 0 and the controls whole
 void gui_autohide_init(const GuiAutohideStillCfg *args);
-// less motion asked for or no longer: asked for, every slide stands where it is bound, a slide running ending there,
-// and a part waiting on the shown one to go comes as soon as it is asked for
+// less motion asked for or no longer: asked for, every slide is where it is bound, a slide running ending there,
+// and a part waiting on the displayed one to go comes as soon as it is asked for
 void gui_autohide_still(const GuiAutohideStillCfg *args);
 // the claim made or let go: let go, every part goes back
 void gui_autohide_set(const GuiAutohideOnCfg *args);
-// the edge whose band the pointer at x, y stands in, for a window `width` by `height` at `scale` whose controls are
+// the edge whose band the pointer at x, y is in, for a window `width` by `height` at `scale` whose controls are
 // `controls_width` wide: the controls' corner, the head, the foot, the left, the right, or none
 unsigned int gui_autohide_zone(const GuiAutohideWidthCfg *args);
-// the pointer moved to x, y, standing in `zone`, `over_parts` 1 where it stands over the part shown: the show deadline
-// armed or armed again, the preview shown or hidden, the hide deadline armed or disarmed; with `menu_open` the claim
-// holds, no part comes, and the part shown stands through a linger that begins again at each move
+// the pointer moved to x, y, located in `zone`, `over_parts` 1 where it is over the part displayed: the show deadline
+// armed or armed again, the preview displayed or hidden, the hide deadline armed or disarmed; with `menu_open` the claim
+// holds, no part comes, and the part displayed is through a linger that begins again at each move
 void gui_autohide_move(const GuiAutohidePointerCfg *args);
-// `zone`'s part shown at once for a press at x, y: no rest and no slide, every slide standing at its target
+// `zone`'s part displayed at once for a press at x, y: no rest and no slide, every slide located at its target
 void gui_autohide_show_now(const GuiAutohidePointerCfg *args);
 // the pointer gone out of the window: the show and preview deadlines disarmed
 void gui_autohide_leave(const GuiAutohideStillCfg *args);
-// every expired deadline run: the show deadline reveals its edge, the hide deadline hides the part shown unless the
-// pointer stands over it or `menu_open`, the pending deadline shows the edge waiting, the preview shows; 1 where
+// every expired deadline run: the show deadline reveals its edge, the hide deadline hides the part displayed unless the
+// pointer is over it or `menu_open`, the pending deadline shows the edge waiting, the preview shows; 1 where
 // anything changed
 int gui_autohide_step(const GuiAutohideStateCfg *args);
 // the claim's earliest deadline, 0 for none; the next frame's while a slide runs

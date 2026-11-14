@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// host_entry_check.c: the kind an address shows and the width a sizing register names, read from the two words put
+// host_entry_check.c: the type an address shows and the width a sizing register names, read from the two words put
 // and the word given back, with no bus. The reads and writes themselves are checked elsewhere
 // (query_interface_check.c); here the decision over the read-back words and the width over a sizing register's mask are
 // put their own values
@@ -23,7 +23,7 @@ static void check_that(int passed, const char *what)
 
 int main(void)
 {
-    // the four kinds, each from the words a register of that kind gives back
+    // the four types, each from the words a register of that type gives back
     check_that(host_address_classify(HOST_PATTERN_FIRST, HOST_PATTERN_THEN) == HOST_RETAINS,
                "a register that gives back each word it was put retains");
     check_that(host_address_classify(HOST_NO_ANSWER, HOST_NO_ANSWER) == HOST_NOTHING,

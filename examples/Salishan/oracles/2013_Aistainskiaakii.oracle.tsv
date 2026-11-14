@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Áístainskiaakii	title	Aakíípisskani ‘the women’s buffalo jump’	page 1
 front	Áístainskiaakii	name	Áístainskiaakii	author
 front	Áístainskiaakii	name	Issapóíkoan	author
@@ -28,7 +28,7 @@ footnote 2	Áístainskiaakii	name	Karsten Koch	commented on the transcription an
 §2	Áístainskiaakii	note	The first three authors are speakers of the Káínaa (Blood) dialect of Blackfoot, spoken on the Blood Reserve in Southern Alberta. As such, some of the lexical and grammatical content of this story appears different from that described in Frantz’s (1997) grammar and Frantz and Russel’s (1995) dictionary. However the interlinearisation is based on these two works.	page 2
 §2	Áístainskiaakii	name	Frantz	Donald G. Frantz, Blackfoot grammar (1997); Frantz and Russell, Blackfoot dictionary (1995)
 §2	Áístainskiaakii	language	Káínaa	the Blood dialect of Blackfoot, the storytellers'
-§2	Áístainskiaakii	note	The most recent major publication of traditional Blackfoot sto- ries is Uhlenbeck’s (1912) collection. The story ‘The men and the women’ (ibid.:167), a story similar to Aakíípisskani, features in this volume. It was told, translated and interpreted by a Southern Peigan man, Joseph Tatsey, Uhlenbeck’s primary consultant during his four-month field trip in 1911.	page 2
+§2	Áístainskiaakii	note	The latest major publication of traditional Blackfoot sto- ries is Uhlenbeck’s (1912) collection. The story ‘The men and the women’ (ibid.:167), a story similar to Aakíípisskani, features in this volume. It was told, translated and interpreted by a Southern Peigan man, Joseph Tatsey, Uhlenbeck’s primary consultant during his four-month field trip in 1911.	page 2
 §2	Blackfoot	cited form	Aakíípisskani	page 2, in italics
 §2	Áístainskiaakii	name	Uhlenbeck	C. C. Uhlenbeck, A new series of Blackfoot texts from the Southern Peigans Blackfoot Reservation (1912)
 §2	Áístainskiaakii	name	Joseph Tatsey	Southern Peigan, Uhlenbeck's primary consultant
@@ -293,7 +293,7 @@ Figure 1	Áístainskiaakii	note	Figure 1: Blackfoot Syllabary (p.c. Dean Many Gu
 §5 sentence 25	Áístainskiaakii	translation	So away she went to the top of the hill.	page 5, sentence 25 in English
 §5 sentence 26	Áístainskiaakii	translation	The men waited to see who would be married.	page 5, sentence 26 in English
 §5 sentence 27	Áístainskiaakii	translation	The chief of the women went up to the top of the hill as well.	page 5, sentence 27 in English
-§5 sentence 28	Áístainskiaakii	translation	When she arrived, she saw all the men standing in a line.	page 5, sentence 28 in English
+§5 sentence 28	Áístainskiaakii	translation	When she arrived, she saw all the men located in a line.	page 5, sentence 28 in English
 §5 sentence 29	Áístainskiaakii	translation	The woman looked at all of them.	page 5, sentence 29 in English
 §5 sentence 30	Áístainskiaakii	translation	She picked her partner.	page 6, sentence 30 in English
 §5 sentence 31	Áístainskiaakii	translation	When she stepped out, she saw Náápi.	page 6, sentence 31 in English
@@ -313,7 +313,7 @@ Figure 1	Áístainskiaakii	note	Figure 1: Blackfoot Syllabary (p.c. Dean Many Gu
 §5 sentence 45	Áístainskiaakii	translation	She was offended by what happened.	page 6, sentence 45 in English
 §5 sentence 46	Áístainskiaakii	translation	She ran down the hill.	page 6, sentence 46 in English
 §5 sentence 47	Áístainskiaakii	translation	She told the rest of the women,	page 6, sentence 47 in English
-§5 sentence 48	Áístainskiaakii	translation	“There is a man standing at the top of the hill.	page 6, sentence 48 in English
+§5 sentence 48	Áístainskiaakii	translation	“There is a man located at the top of the hill.	page 6, sentence 48 in English
 §5 sentence 49	Áístainskiaakii	translation	His fur cap is very nice.	page 6, sentence 49 in English
 §5 sentence 50	Áístainskiaakii	translation	He has a pale face.	page 6, sentence 50 in English
 §5 sentence 51	Áístainskiaakii	translation	He has blue eyes.	page 6, sentence 51 in English
@@ -344,7 +344,7 @@ Figure 1	Áístainskiaakii	note	Figure 1: Blackfoot Syllabary (p.c. Dean Many Gu
 §5 sentence 76	Áístainskiaakii	translation	But she didn’t want to meet him.	page 6, sentence 76 in English
 §5 sentence 77	Áístainskiaakii	translation	She and her partner picked each other and they went back down the hill.	page 6, sentence 77 in English
 §5 sentence 78	Áístainskiaakii	translation	That afternoon,	page 6, sentence 78 in English
-§5 sentence 79	Áístainskiaakii	translation	Náápi was standing alone at the top of the hill.	page 6, sentence 79 in English
+§5 sentence 79	Áístainskiaakii	translation	Náápi was located alone at the top of the hill.	page 6, sentence 79 in English
 §5 sentence 80	Áístainskiaakii	translation	Nobody had picked him.	page 6, sentence 80 in English
 §5 sentence 81	Áístainskiaakii	translation	He heard all the people laughing.	page 6, sentence 81 in English
 §5 sentence 82	Áístainskiaakii	translation	Everyone was having a good time.	page 6, sentence 82 in English
@@ -561,8 +561,8 @@ footnote 3	Áístainskiaakii	note	A.ZIP file containing MP3 audio files correspo
 (28) line 3	Áístainskiaakii	gloss	dem-4sg.an 3-obl-arrive(vai)-conj loc-see(vta)-3sg>4	page 12
 (28) line 4	Blackfoot	transcription	nííksi nínaiksi otsitáínnipoyissi.	page 12
 (28) line 5	Blackfoot	segmentation	ann-iksi nínaa-iksi ot-it-a-inno-ipoyi-hsi	page 12
-(28) line 6	Áístainskiaakii	gloss	dem-pl.an man-pl.an 3-loc-ipfv-long-stand(vai)-conj	page 12
-(28) line 7	Áístainskiaakii	translation	‘When she arrived, she saw all the men standing in a line.’	page 12
+(28) line 6	Áístainskiaakii	gloss	dem-pl.an man-pl.an 3-loc-ipfv-long-are(vai)-conj	page 12
+(28) line 7	Áístainskiaakii	translation	‘When she arrived, she saw all the men located in a line.’	page 12
 (28) line 8	Áístainskiaakii	citation	(05:52, BLA_2013-04-01_004)	page 12, the recording, under the translation
 (29) line 1	Blackfoot	transcription	Náá aakííwa itohkónaissammiiwa.	page 12
 (29) line 2	Blackfoot	segmentation	ann-wa aakíí-wa it-ohkona-ssamm-yiiwa	page 12
@@ -667,8 +667,8 @@ footnote 3	Áístainskiaakii	note	A.ZIP file containing MP3 audio files correspo
 (47) line 5	Áístainskiaakii	citation	(01:58, BLA_2013-04-01_002)	page 15, the recording, under the translation
 (48) line 1	Blackfoot	transcription	“Óónahkayi nínaawa itsspáípoyiwa.”	page 15
 (48) line 2	Blackfoot	segmentation	onn-wa-hka-yi nínaa-wa it-ssp-a-ipoyi-wa	page 15
-(48) line 3	Áístainskiaakii	gloss	dem-3sg.an-invs-be.vblz man-3sg.an loc-top-ipfv-stand(vai)-3sg	page 15
-(48) line 4	Áístainskiaakii	translation	“There is a man standing at the top of the hill.”	page 15
+(48) line 3	Áístainskiaakii	gloss	dem-3sg.an-invs-be.vblz man-3sg.an loc-top-ipfv-are(vai)-3sg	page 15
+(48) line 4	Áístainskiaakii	translation	“There is a man located at the top of the hill.”	page 15
 (48) line 5	Áístainskiaakii	citation	(02:09, BLA_2013-04-01_002)	page 15, the recording, under the translation
 (49) line 1	Blackfoot	transcription	“Ííksstatsinaattsiwa otsímmoyiisttsomo’kaani.”	page 15
 (49) line 2	Blackfoot	segmentation	iik-sstat-inááttsi-wa ot-immoyi-isttsomo’kaan-yi	page 15
@@ -840,8 +840,8 @@ footnote 3	Áístainskiaakii	note	A.ZIP file containing MP3 audio files correspo
 (78) line 5	Áístainskiaakii	citation	(04:04, BLA_2013-04-01_003)	page 19, the recording, right of the translation
 (79) line 1	Blackfoot	transcription	Náápiwa itsíí’tsitsspaipoyiwa.	page 19
 (79) line 2	Blackfoot	segmentation	Náápi-wa it-ni’t-it-ssp-a-ipoyi-wa	page 19
-(79) line 3	Áístainskiaakii	gloss	Náápi-3sg.an loc-one-loc-top-ipfv-stand(vai)-3sg	page 19
-(79) line 4	Áístainskiaakii	translation	‘Náápi was standing alone at the top of the hill.’	page 19
+(79) line 3	Áístainskiaakii	gloss	Náápi-3sg.an loc-one-loc-top-ipfv-are(vai)-3sg	page 19
+(79) line 4	Áístainskiaakii	translation	‘Náápi was located alone at the top of the hill.’	page 19
 (79) line 5	Áístainskiaakii	citation	(04:50, BLA_2013-04-01_003)	page 19, the recording, under the translation
 (80) line 1	Blackfoot	transcription	Máátohkoisspiisao’toaawa.	page 20
 (80) line 2	Blackfoot	segmentation	maat-ohko-sspiisao’to-aawa	page 20

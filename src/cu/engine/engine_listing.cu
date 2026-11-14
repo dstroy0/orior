@@ -110,7 +110,7 @@ static long long entry_geff_array(const char *root, const char *leaf, unsigned l
     if ((entry_joined(path, sizeof(path), root, leaf) == 0) ||
         (entry_zarr_describe(path, NULL, &layout, array_root, sizeof(array_root)) == 0) ||
         (layout.extent.rank != want_rank) || (layout.extent.element_bytes != 8u) ||
-        (layout.extent.element_kind == ENGINE_ELEMENT_FLOAT))
+        (layout.extent.element_type == ENGINE_ELEMENT_FLOAT))
     {
         fprintf(stderr, "  %s/%s: not an 8 byte integer array of rank %llu\n", root, leaf, want_rank);
         return -1ll;

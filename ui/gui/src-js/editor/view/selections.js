@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-import { cmp, isWordChar, least, most, pos, same } from "../document.js";
+import { cmp, isWordChar, least, max, pos, same } from "../document.js";
 import { status, write } from "../../status.js";
 import { caret, COLUMN_KEY, empty, endOfSel, INPUT_REST, LINE, startOf } from "../view.js";
 
@@ -66,7 +66,7 @@ export function setSelections(list, chosen = list.at(-1)) {
     const touching = prev && same(startOf(sel), endOfSel(prev)) && (empty(sel) || empty(prev));
     if (prev && (cmp(startOf(sel), endOfSel(prev)) < 0 || touching)) {
       const start = least(startOf(prev), startOf(sel));
-      const end = most(endOfSel(prev), endOfSel(sel));
+      const end = max(endOfSel(prev), endOfSel(sel));
       const forward = cmp(prev.head, prev.anchor) >= 0;
       prev.anchor = forward ? start : end;
       prev.head = forward ? end : start;
@@ -107,7 +107,7 @@ export function moved() {
 }
 
 // Input first. A key or a press marks the status block's input active, and until it has rested
-// INPUT_REST every piece of work off the rows on screen is kept here, one of each type, and done
+// INPUT_REST every piece of work off the rows on screen is retained here, one of each type, and done
 // once input stops.
 //
 // The caret holds still while input is active. A caret that blinks starts its blink again each

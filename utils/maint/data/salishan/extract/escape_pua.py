@@ -3,7 +3,7 @@
 usage: python escape_pua.py <file> [file ...]
 
 A private-use glyph prints as nothing in an editor or a terminal, and a table keyed on one reads
-as empty strings. The escape keeps the same string in Python and can be read.
+as empty strings. The escape retains the same string in Python and can be read.
 """
 import re
 import sys

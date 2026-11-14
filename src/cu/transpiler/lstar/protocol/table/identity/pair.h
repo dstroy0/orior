@@ -14,7 +14,7 @@ extern thread_local std::vector<unsigned int> *t_places;
 
 struct PairWork;
 
-// A link of a carrier a form stands in at, as the put reads it: the pair's two forms, the first's parameters, text
+// A link of a carrier a form is in at, as the put reads it: the pair's two forms, the first's parameters, text
 // and the parameters the second reads, whether the two unify and the parameters bound to literals, the values the
 // forms write of their own and the cases the pair is put over, the question and places the pair's thread uses, the
 // product so far, the carrier's chain and the link found in it, the operands the link gives by name, the carrier's
@@ -40,10 +40,10 @@ struct PutLink
     const std::pair<std::vector<CarrierLink>, long> &flow;
     long link_at;
     const char *link_address;
-    const std::string &standing;
+    const std::string &located;
     const char *address;
     long delta;
-    int stand_in_blocked;
+    int are_in_blocked;
     int shape_new;
     // the put beneath its query in the log and the product queried at the link (pair_product.cu): 1 where a put added a
     // row that came back one way
@@ -73,10 +73,10 @@ struct PairWork
     // the conference a refused put calls (pair.cu): the overseer's guidance, OVERSEER_HANDS_OFF where no party called
     // a conference of `statement`
     unsigned int conferred(const std::string &from, const std::string &to, const std::string &statement,
-                           const std::string &standing, const std::string &carrier_name, unsigned int scratch,
+                           const std::string &located, const std::string &carrier_name, unsigned int scratch,
                            const RunQuestion &question, const std::string &closed_here,
                            const std::string &link_address);
-    // `from` stood in for by `to` at each of its links in each carrier (pair_put.cu): 1 with its verdict, 0 where the
+    // `from` was in for by `to` at each of its links in each carrier (pair_put.cu): 1 with its verdict, 0 where the
     // part answered none
     int put(const std::string &from, const std::string &to, std::string *verdict);
     // the lower witness of a pair whose puts queried nothing (pair_witness.cu): 1 with the verdict where the part

@@ -25,29 +25,29 @@ static int s_who_program_found;
 
 static const char s_who_digits[] = "0123456789abcdef";
 
-// the value of the hex digit `letter`: 0 to 15, or 16 where it is none
-static unsigned int who_hex_digit(char letter)
+// the value of the hex digit `character`: 0 to 15, or 16 where it is none
+static unsigned int who_hex_digit(char character)
 {
-    if ((letter >= '0') && (letter <= '9'))
+    if ((character >= '0') && (character <= '9'))
     {
-        return (unsigned int)(letter - '0');
+        return (unsigned int)(character - '0');
     }
-    if ((letter >= 'a') && (letter <= 'f'))
+    if ((character >= 'a') && (character <= 'f'))
     {
-        return (unsigned int)(letter - 'a') + 10u;
+        return (unsigned int)(character - 'a') + 10u;
     }
-    if ((letter >= 'A') && (letter <= 'F'))
+    if ((character >= 'A') && (character <= 'F'))
     {
-        return (unsigned int)(letter - 'A') + 10u;
+        return (unsigned int)(character - 'A') + 10u;
     }
     return 16u;
 }
 
-// the `letters` hex digits at `text` read into `value`: 1, or 0 where one is no hex digit
-static int who_hex(const char *text, unsigned int letters, unsigned long long *value)
+// the `characters` hex digits at `text` read into `value`: 1, or 0 where one is no hex digit
+static int who_hex(const char *text, unsigned int characters, unsigned long long *value)
 {
     *value = 0ull;
-    for (unsigned int at = 0u; at < letters; at += 1u)
+    for (unsigned int at = 0u; at < characters; at += 1u)
     {
         const unsigned int digit = who_hex_digit(text[at]);
         if (digit == 16u)
@@ -105,8 +105,8 @@ static int who_row(const unsigned char *table, unsigned long long size, unsigned
     return 1;
 }
 
-// 1 where the `length` letters at `one` and `other` are the same, a letter's case aside
-static int who_same_letters(const char *one, const char *other, size_t length)
+// 1 where the `length` characters at `one` and `other` are the same, a character's case aside
+static int who_same_characters(const char *one, const char *other, size_t length)
 {
     for (size_t at = 0u; at < length; at += 1u)
     {
@@ -121,7 +121,7 @@ static int who_same_letters(const char *one, const char *other, size_t length)
 }
 
 // the number the table gives the source `file`, as __FILE__ gives it, its path from the top of the tree: 0 where it
-// gives none or the path stands outside the top
+// gives none or the path is outside the top
 static unsigned int who_source_number(const char *file)
 {
     char plain[WHO_PATH_MAX_LEN];
@@ -137,7 +137,7 @@ static unsigned int who_source_number(const char *file)
     }
     const size_t top = strlen(run_top);
     const char *name = plain;
-    if ((length > top) && who_same_letters(plain, run_top, top) && (plain[top] == '/'))
+    if ((length > top) && who_same_characters(plain, run_top, top) && (plain[top] == '/'))
     {
         name = plain + top + 1u;
     }
@@ -164,8 +164,8 @@ static unsigned int who_source_number(const char *file)
     return 0u;
 }
 
-// the number of the program's own source: the last source the table gives whose name without its kind is the
-// program's, a header after every other; 0 where none is. The table only grows: a source given a new path stands
+// the number of the program's own source: the last source the table gives whose name without its type is the
+// program's, a header after every other; 0 where none is. The table only grows: a source given a new path is
 // after the row its old path retains
 static unsigned int who_program_number(void)
 {
@@ -196,8 +196,8 @@ static unsigned int who_program_number(void)
         {
             continue;
         }
-        const char *const kind = own + stem;
-        if ((strcmp(kind, ".h") != 0) && (strcmp(kind, ".cuh") != 0) && (strcmp(kind, ".hpp") != 0))
+        const char *const type = own + stem;
+        if ((strcmp(type, ".h") != 0) && (strcmp(type, ".cuh") != 0) && (strcmp(type, ".hpp") != 0))
         {
             found = number;
         }
@@ -252,7 +252,7 @@ Who who_of_words(const unsigned long long *words)
 
 void who_code(Who who, char *code, size_t room)
 {
-    if (room <= WHO_CODE_LETTERS)
+    if (room <= WHO_CODE_CHARACTERS)
     {
         code[0] = (room != 0u) ? '\0' : code[0];
         return;
@@ -264,13 +264,13 @@ void who_code(Who who, char *code, size_t room)
         code[at] = s_who_digits[(words[0] >> (60u - (4u * at))) & 0xfull];
         code[16u + at] = s_who_digits[(words[1] >> (60u - (4u * at))) & 0xfull];
     }
-    code[WHO_CODE_LETTERS] = '\0';
+    code[WHO_CODE_CHARACTERS] = '\0';
 }
 
 int who_read(const char *code, Who *who)
 {
     unsigned long long words[2];
-    if ((strlen(code) < WHO_CODE_LETTERS) || !who_hex(code, 16u, &words[0]) || !who_hex(code + 16, 16u, &words[1]))
+    if ((strlen(code) < WHO_CODE_CHARACTERS) || !who_hex(code, 16u, &words[0]) || !who_hex(code + 16, 16u, &words[1]))
     {
         return 0;
     }

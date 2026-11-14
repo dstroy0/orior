@@ -5,7 +5,7 @@
 
 THE DEFECT THIS EXISTS FOR
 
-Two faults of this kind fail silently and neither is found by looking for it. One is a fresh array
+Two faults of this type fail silently and neither is found by looking for it. One is a fresh array
 built once per frame, the same fault a surface sum can carry. The other is worse: a source teardown
 that calls dispose() on a geometry and a material every source shares, freeing the buffers out from
 under all of them when one source is removed.
@@ -43,11 +43,11 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 # The functions the animation loop calls directly. Everything reachable from these is on the path.
-FRAME_ROOTS = ("frame", "step", "layTrail", "flowSpray", "tracePierce", "project", "callout",
+FRAME_ROOTS = ("frame", "step", "positionTrail", "flowSpray", "tracePierce", "project", "callout",
                "untangle", "drawCallout", "applyTick", "paintSurface", "paintBars", "paintArms",
                "updateSticks", "applyEnergy", "layoutRail", "drawCounts", "showClock")
 
-# Expressions that allocate. Kept narrow deliberately: a wide pattern reports the whole file and a
+# Expressions that allocate. Retained narrow deliberately: a wide pattern reports the whole file and a
 # report nobody reads is worth less than no report.
 ALLOCATORS = (
     (re.compile(r"\bnew\s+THREE\.(\w+)"), "three object"),
@@ -188,10 +188,10 @@ def audit(path):
             continue
         for at in range(span[0], span[1] + 1):
             clean = strip_strings(lines[at])
-            for pattern, kind in ALLOCATORS:
+            for pattern, type in ALLOCATORS:
                 if pattern.search(clean):
                     findings.append(("allocation", at + 1, name, depth[name],
-                                     "%s in %s, depth %d" % (kind, name, depth[name]),
+                                     "%s in %s, depth %d" % (type, name, depth[name]),
                                      lines[at].strip()[:96]))
                     break
 
@@ -228,13 +228,13 @@ def report(path):
                (len(shared), ", ".join(shared[:8]) + (" ..." if len(shared) > 8 else "")))
     out.append("")
 
-    kinds = {}
-    for kind, at, who, deep, why, text in findings:
-        kinds.setdefault(kind, []).append((at, why, text))
+    types = {}
+    for type, at, who, deep, why, text in findings:
+        types.setdefault(type, []).append((at, why, text))
 
-    for kind in ("shared disposal", "draw count", "allocation"):
-        rows = kinds.get(kind, [])
-        out.append("  %s: %d" % (kind, len(rows)))
+    for type in ("shared disposal", "draw count", "allocation"):
+        rows = types.get(type, [])
+        out.append("  %s: %d" % (type, len(rows)))
         for at, why, text in rows:
             out.append("    line %-5d %s" % (at, why))
             out.append("              %s" % text)
@@ -258,7 +258,7 @@ def _check():
     hard = [one for one in findings if one[0] == "shared disposal"]
     lines_out.append("  shared disposals: %d" % len(hard))
     if hard:
-        for kind, at, who, deep, why, text in hard:
+        for type, at, who, deep, why, text in hard:
             lines_out.append("    FAIL line %d, %s" % (at, why))
         failed += len(hard)
 

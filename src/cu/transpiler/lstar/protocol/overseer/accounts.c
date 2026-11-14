@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// accounts.c: the accounts: a conference named, an account written to the run, a standing joined, a cause read, text trimmed, an expert named, a clause read, and an account and the accounts read back
+// accounts.c: the accounts: a conference named, an account written to the run, a located joined, a cause read, text trimmed, an expert named, a clause read, and an account and the accounts read back
 #include "overseer_internal.h"
 #include "verba_scribo/verba_scribo.h"
 #include "../table_text.h"
 #include "../../../../../../includes/parsers/who.h"
 
-OverseerLesson s_lessons[OVERSEER_LESSONS_MOST];
+OverseerLesson s_lessons[OVERSEER_LESSONS_MAX];
 unsigned int s_lesson_count;
 
 OverseerTally s_conference_tally;
@@ -16,7 +16,7 @@ void overseer_conference_named(const char *identity, char *name)
     VerbaLinea line = {name, OVERSEER_NAME_MAX_LEN, 0ull};
     mmgr_line_put(&line, QRY_CONFERENCE_CALL);
     mmgr_line_ch(&line, '_');
-    mmgr_line_put_most(&line, identity, OVERSEER_NAME_MAX_LEN - sizeof(QRY_CONFERENCE_CALL) - 1u);
+    mmgr_line_put_max(&line, identity, OVERSEER_NAME_MAX_LEN - sizeof(QRY_CONFERENCE_CALL) - 1u);
     // the name cut to its room; each space of it an underscore
     const size_t written = (size_t)mmgr_line_finish(&line);
     for (size_t at = 0u; at < written; at += 1u)
@@ -31,10 +31,10 @@ int overseer_account(QryShared *run, const char *identity, const char *expert, c
     char account[OVERSEER_ACCOUNT_MAX_LEN];
     overseer_conference_named(identity, name);
     VerbaLinea line = {account, sizeof(account), 0ull};
-    mmgr_line_put_most(&line, expert, OVERSEER_EXPERT_MAX_LEN);
+    mmgr_line_put_max(&line, expert, OVERSEER_EXPERT_MAX_LEN);
     mmgr_line_put(&line, ": ");
     // an account longer than its room is cut, its line ended
-    mmgr_line_put_most(&line, text, sizeof(account) - line.at - 2u);
+    mmgr_line_put_max(&line, text, sizeof(account) - line.at - 2u);
     mmgr_line_ch(&line, '\n');
     const size_t line_length = (size_t)mmgr_line_finish(&line);
     if (line_length == 0u)
@@ -44,13 +44,13 @@ int overseer_account(QryShared *run, const char *identity, const char *expert, c
     return (run != NULL) && (qry_member_append(name, account, (unsigned long long)line_length, QRY_ORDINARY) != 0);
 }
 
-void overseer_standing_joined(const char *standing, char *joined)
+void overseer_located_joined(const char *located, char *joined)
 {
     size_t length = 0u;
-    for (size_t at = 0u; (standing[at] != '\0') && (length < (OVERSEER_STANDING_MAX_LEN - 1u)); at += 1u)
+    for (size_t at = 0u; (located[at] != '\0') && (length < (OVERSEER_STANDING_MAX_LEN - 1u)); at += 1u)
     {
-        const char letter = ((standing[at] == '\n') || (standing[at] == '\r')) ? ' ' : standing[at];
-        joined[length] = letter;
+        const char character = ((located[at] == '\n') || (located[at] == '\r')) ? ' ' : located[at];
+        joined[length] = character;
         length += 1u;
     }
     while ((length != 0u) && (joined[length - 1u] == ' '))
@@ -101,7 +101,7 @@ static void overseer_expert_named(OverseerTally *tally, const char *expert)
             return;
         }
     }
-    if (tally->expert_count < OVERSEER_EXPERTS_MOST)
+    if (tally->expert_count < OVERSEER_EXPERTS_MAX)
     {
         (void)verba_finis.finish(&(VerbaFinisCfg){.out = tally->experts[tally->expert_count], .cap = OVERSEER_EXPERT_MAX_LEN, .at = verba_textus.put_clip(&(VerbaTextusCfg){.out = tally->experts[tally->expert_count], .cap = OVERSEER_EXPERT_MAX_LEN, .at = 0u, .text = expert})});
         tally->expert_count += 1u;
@@ -133,7 +133,7 @@ static void overseer_clause_read(OverseerTally *tally, const char *expert, const
     if (strcmp(word, "cause") == 0)
     {
         const unsigned int cause = overseer_cause_read(rest);
-        if ((cause != OVERSEER_CAUSE_NONE) && (tally->vote_count < OVERSEER_VOTES_MOST))
+        if ((cause != OVERSEER_CAUSE_NONE) && (tally->vote_count < OVERSEER_VOTES_MAX))
         {
             (void)verba_finis.finish(&(VerbaFinisCfg){.out = tally->votes[tally->vote_count].expert, .cap = OVERSEER_EXPERT_MAX_LEN, .at = verba_textus.put_clip(&(VerbaTextusCfg){.out = tally->votes[tally->vote_count].expert, .cap = OVERSEER_EXPERT_MAX_LEN, .at = 0u, .text = expert})});
             tally->votes[tally->vote_count].cause = cause;
@@ -162,7 +162,7 @@ static void overseer_clause_read(OverseerTally *tally, const char *expert, const
 }
 
 // One account, the line from `line` to `end`, read into `received`: its expert, then each clause after a `;`, a
-// `standing` clause taking the rest of the line. The account a row of the run's table of accounts: the conference,
+// `located` clause taking the rest of the line. The account a row of the run's table of accounts: the conference,
 // the number of the question's identity, `conference`; the expert's text, the account's and the cause it reads, 0
 // where it reads none
 static void overseer_account_read(OverseerTally *tally, const char *line, const char *end, QryShared *run,
@@ -182,13 +182,13 @@ static void overseer_account_read(OverseerTally *tally, const char *line, const 
     const unsigned long long account[3] = {conference, table_text(expert, strlen(expert)),
                                            table_text(text, strlen(text))};
     const unsigned int votes_before = tally->vote_count;
-    char *const standing = strstr(text, "; standing ");
-    if (standing != NULL)
+    char *const located = strstr(text, "; located ");
+    if (located != NULL)
     {
         char joined[OVERSEER_STANDING_MAX_LEN];
-        overseer_trimmed(standing + strlen("; standing "), text + strlen(text), joined, sizeof(joined));
-        overseer_standing_joined(joined, tally->standing);
-        *standing = '\0';
+        overseer_trimmed(located + strlen("; located "), text + strlen(text), joined, sizeof(joined));
+        overseer_located_joined(joined, tally->located);
+        *located = '\0';
     }
     char *clause = strchr(text, ';');
     while (clause != NULL)

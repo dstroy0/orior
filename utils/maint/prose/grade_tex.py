@@ -1,7 +1,7 @@
 """Runs the prose gate over LaTeX, which the gate itself does not read.
 
 docs_check checks .md, .py, .c and .h. Pointed at this tree's theory/ it reports six files and
-exits clean while skipping fifteen .tex files carrying 11,409 words, which is most of the prose in
+exits clean while skipping fifteen .tex files carrying 11,409 words, the majority of the prose in
 the repository. That is not the checker being wrong; it is the checker being pointed at a format it
 never claimed. The count at the foot of the run is the only signal, and a number that looks like an
 answer is the failure this whole class shares.
@@ -23,7 +23,7 @@ act on.
 WHAT THIS DELIBERATELY DOES NOT DO
 
 It does not parse LaTeX. Macros are stripped by pattern, and the argument of a text-bearing command
-is kept while the command itself goes. Maths comes out entirely: the gate measures English and an
+is retained while the command itself goes. Maths comes out entirely: the gate measures English and an
 equation is not English. Where a construct is not recognized the text is left in place and never
 dropped, and a hit may therefore land on something that was never prose. That is the right way to be
 wrong in: a false finding is read and dismissed, a dropped paragraph is never graded at all.
@@ -41,7 +41,7 @@ CHECK = os.path.join(HERE, "utils", "maint", "prose", "docs_check")
 THEORY = os.path.join(HERE, "theory")
 
 # Commands whose braced argument is prose and belongs in the graded text.
-KEEP_ARGUMENT = (
+RETAIN_ARGUMENT = (
     "emph", "textbf", "textit", "texttt", "chapter", "section", "subsection", "subsubsection",
     "paragraph", "caption", "title", "author", "footnote", "textsc", "underline", "text",
 )
@@ -69,9 +69,9 @@ def flatten(line):
                   r"|bibliography|bibliographystyle|hypersetup|newcommand|renewcommand"
                   r"|DeclareMathOperator|index)\s*(\[[^\]]*\])?\s*(\{[^{}]*\})*", " ", line)
 
-    # Text-bearing commands: keep the argument, drop the command. Repeated because arguments nest.
+    # Text-bearing commands: retain the argument, drop the command. Repeated because arguments nest.
     for _ in range(4):
-        line = re.sub(r"\\(" + "|".join(KEEP_ARGUMENT) + r")\s*\*?\s*(\[[^\]]*\])?\s*\{([^{}]*)\}",
+        line = re.sub(r"\\(" + "|".join(RETAIN_ARGUMENT) + r")\s*\*?\s*(\[[^\]]*\])?\s*\{([^{}]*)\}",
                       r"\3", line)
 
     # Any remaining command, with its optional argument. The braced argument is left in place: it is
@@ -153,10 +153,10 @@ def main():
         text, words = reduce_file(path)
         total_words += words
         # Flat names, because the checker prints the path it was given and it has to map back.
-        stand_in = os.path.join(room, os.path.basename(path).replace(".tex", "") + ".md")
-        with io.open(stand_in, "w", encoding="utf-8", newline="\n") as handle:
+        are_in = os.path.join(room, os.path.basename(path).replace(".tex", "") + ".md")
+        with io.open(are_in, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(text)
-        made[os.path.normcase(stand_in)] = path
+        made[os.path.normcase(are_in)] = path
 
     order = [os.path.join(room, os.path.basename(p).replace(".tex", "") + ".md") for p in targets]
     call = [sys.executable, CHECK] + order + (["--strict"] if strict else [])
@@ -165,10 +165,10 @@ def main():
     # Findings name the temporary file. Rewrite them to the .tex they came from; the line numbers
     # already line up because the reduction never reflows.
     for line in (done.stdout + done.stderr).split("\n"):
-        for stand_in, real in made.items():
-            if stand_in in os.path.normcase(line):
-                start = os.path.normcase(line).index(stand_in)
-                line = line[:start] + os.path.relpath(real, HERE) + line[start + len(stand_in):]
+        for are_in, real in made.items():
+            if are_in in os.path.normcase(line):
+                start = os.path.normcase(line).index(are_in)
+                line = line[:start] + os.path.relpath(real, HERE) + line[start + len(are_in):]
                 break
         if line.strip():
             print(line)

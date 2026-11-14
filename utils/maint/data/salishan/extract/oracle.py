@@ -2,14 +2,14 @@
 
 usage:
   python oracle.py STEM start "AUTHORS" "LANGUAGE"   the engine passes, the draft, the paper's AUTHORS and LANG in its table file
-  printf '%s\\n' 'OP' 'OP' | python oracle.py STEM ops  keep the ops, rebuild, print changed rows
+  printf '%s\\n' 'OP' 'OP' | python oracle.py STEM ops  retain the ops, rebuild, print changed rows
   python oracle.py STEM show [REGEX]                 oracle rows whose line matches, compact
   python oracle.py STEM draft [REGEX]                draft rows whose line matches, compact
-  python oracle.py STEM build                        rebuild from the ops as they stand
+  python oracle.py STEM build                        rebuild from the ops as they are
   python oracle.py STEM undo [N]                     drop the last N ops (1), rebuild
   python oracle.py STEM done                         md, prose check, baseline, the log line counts
 
-The ops are the one-line context ops.py reads, kept in ops/<stem>.ops. A rebuild runs finish.py and
+The ops are the one-line context ops.py reads, retained in ops/<stem>.ops. A rebuild runs finish.py and
 residue.py and prints the rows that differ from the build before, - for a row gone and + for a row
 new, then the residue verdict. stdin is read only by ops, since the shell here never closes it.
 """
@@ -42,8 +42,8 @@ def run(*command, allowed=(0,)):
 
 
 def compact(row, width=110):
-    where, who, kind, form, gloss = (row + [""] * 5)[:5]
-    return "%s | %s | %s | %s || %s" % (where, who[:16], kind, form[:width], gloss[:60])
+    where, who, type, form, gloss = (row + [""] * 5)[:5]
+    return "%s | %s | %s | %s || %s" % (where, who[:16], type, form[:width], gloss[:60])
 
 
 def table(stem):
@@ -124,15 +124,15 @@ def main():
     elif command == "build":
         rebuild(stem)
     elif command == "summary":
-        # Each where once, in order, with the count of each kind in it: the shape of a build
+        # Each where once, in order, with the count of each type in it: the shape of a build
         # without its rows.
         counts = {}
         for row in table(stem):
             where = "(examples)" if row[0].startswith("(") else re.sub(r" line \d+$", "", row[0])
             counts.setdefault(where, {}).setdefault(row[2], 0)
             counts[where][row[2]] += 1
-        print("; ".join("%s %s" % (where, " ".join("%s:%d" % (kind[:5], n) for kind, n in kinds.items()))
-                        for where, kinds in counts.items()))
+        print("; ".join("%s %s" % (where, " ".join("%s:%d" % (type[:5], n) for type, n in types.items()))
+                        for where, types in counts.items()))
     elif command == "show":
         show(table(stem), rest[0] if rest else "")
     elif command == "draft":

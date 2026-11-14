@@ -7,7 +7,7 @@
 #include "query_internal.h"
 #include "query_loops.h"
 
-// the most bytes of a program's output a run records
+// the max bytes of a program's output a run records
 #define QUERY_OUTPUT_MAX (64ULL << 20u)
 
 // the name of the record this process's own lines go to, `<loop>.console`
@@ -18,7 +18,7 @@ void query_print(const QueryTextCtx *args)
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     EMBED_CALL(args->context->sink.print, CliEachLineSizeCfg, .context = args->context->sink.context,
                .line = args->text, .size = length);
-    // the line handed to the run this process is a member of, as it is given; nothing where it is a member of none
+    // the line passed to the run this process is a member of, as it is given; nothing where it is a member of none
     if ((s_console[0] != '\0') && (qry_member_run() != NULL))
     {
         static char s_line[QUERY_LINE_MAX_LEN + 1u];
@@ -148,7 +148,7 @@ int query_context_dispatch(const QueryLoopsContextErrMsgNameRunCfg *args)
         mmgr_line_put(err_msg, ": it could not be started");
         return 0;
     }
-    // the output read to its end into a cell of the most it holds; what it writes past that is read and let go, for the
+    // the output read to its end into a cell of the max it holds; what it writes past that is read and let go, for the
     // program to run to its end, and the output refused
     char *const output = g_cli_guard->temporary_buf_alloc(QUERY_OUTPUT_MAX, g_query_owner);
     const unsigned long long capacity = (output != NULL) ? QUERY_OUTPUT_MAX - 1ULL : 0ULL;

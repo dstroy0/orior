@@ -6,7 +6,7 @@
 // A container's layout as rows in a file. The emitter carries none of it.
 //
 // Every offset, width, tag and name a format uses is a fact about that format and not about the work of emitting.
-// The emitter reads a pattern's tables, puts code and attributes in, and lays the sections out again. Which byte
+// The emitter reads a pattern's tables, puts code and attributes in, and positions the sections out again. Which byte
 // stores the section count is the layout's to specify. A second format is a second file and no second emitter.
 //
 // A layout may be partly known. A field nobody has found yet is absent, and requesting it reports so instead of
@@ -28,7 +28,7 @@ typedef enum
 typedef struct
 {
     char name[LAYOUT_NAME_MAX_LEN];
-    unsigned int kind;
+    unsigned int type;
     unsigned long long offset;
     unsigned int width;
     char text[LAYOUT_TEXT_MAX_LEN];

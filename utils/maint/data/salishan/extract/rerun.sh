@@ -2,7 +2,7 @@
 # Rebuild every finished paper from the engine through the residue check, to catch regressions
 # after a change to paper_sift.py or finish.py. Prints one verdict line per paper, and the rows of
 # its oracle the rebuild changed: the residue check holds every form to the page, and a row whose
-# kind or who moved still passes it. The papers are those whose table file sets AUTHORS and LANG.
+# type or who moved still passes it. The papers are those whose table file sets AUTHORS and LANG.
 cd "$(dirname "$0")"
 export PYTHONIOENCODING=utf-8
 # The oracle tables are the public tree's, and the oracles saved to compare against go to the work

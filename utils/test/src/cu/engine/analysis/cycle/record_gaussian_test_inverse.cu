@@ -14,18 +14,18 @@ unsigned int gaussian_random(void)
     return (unsigned int)(s_gaussian_state >> 32u);
 }
 
-// a signed 24-bit field value of the given kind: an edge, or a drawn word's low 24 bits read back signed
-long long gaussian_value(unsigned int kind)
+// a signed 24-bit field value of the given type: an edge, or a drawn word's low 24 bits read back signed
+long long gaussian_value(unsigned int type)
 {
-    const long long maximum = 1ll << (GAUSSIAN_TEST_FIELD_BITS - 1u);
-    const long long edges[GAUSSIAN_TEST_EDGES] = {0ll, -1ll, 1ll, -maximum, maximum - 1ll};
-    if (kind < GAUSSIAN_TEST_EDGES)
+    const long long max = 1ll << (GAUSSIAN_TEST_FIELD_BITS - 1u);
+    const long long edges[GAUSSIAN_TEST_EDGES] = {0ll, -1ll, 1ll, -max, max - 1ll};
+    if (type < GAUSSIAN_TEST_EDGES)
     {
-        return edges[kind];
+        return edges[type];
     }
     // the masked word is below 2^24. It widens to long long exactly
     const long long drawn = (long long)(gaussian_random() & ((1u << GAUSSIAN_TEST_FIELD_BITS) - 1u));
-    return (drawn >= maximum) ? (drawn - (2ll * maximum)) : drawn;
+    return (drawn >= max) ? (drawn - (2ll * max)) : drawn;
 }
 
 // a field's word: the value's low 24 bits of two's complement
@@ -38,7 +38,7 @@ unsigned int gaussian_word(long long value)
 // the inverse programs' fields: floor 8's registers are 28 bits signed, and the chosen pairs' below 32
 #define GAUSSIAN_TEST_INVERSE_FIELD_BITS 32u
 
-// `floors` inverse floors on (c, d) in fields 0 and 1, every floor's two registers output; encoded and laid out, and
+// `floors` inverse floors on (c, d) in fields 0 and 1, every floor's two registers output; encoded and arranged, and
 // loaded onto the device by the caller once the job is admitted
 int gaussian_inverse_build(unsigned int floors, GaussianLoaded *loaded, EngineError *error)
 {
@@ -123,11 +123,11 @@ int gaussian_inverse_run(const GaussianLoaded *loaded, const unsigned int *atoms
     return (memcmp(host_out, device_out, out_bytes) == 0) ? 1 : -1;
 }
 
-// the (1 + i)-adic valuation of c + d i, counted up to `maximum`: 0 counts as `maximum`, since every power divides it
-unsigned int gaussian_valuation(long long real_part, long long imaginary_part, unsigned int maximum)
+// the (1 + i)-adic valuation of c + d i, counted up to `max`: 0 counts as `max`, since every power divides it
+unsigned int gaussian_valuation(long long real_part, long long imaginary_part, unsigned int max)
 {
     unsigned int valuation = 0u;
-    while ((valuation < maximum) && ((real_part != 0ll) || (imaginary_part != 0ll)) &&
+    while ((valuation < max) && ((real_part != 0ll) || (imaginary_part != 0ll)) &&
            (((real_part - imaginary_part) % 2ll) == 0ll))
     {
         const long long next_real = (real_part + imaginary_part) / 2ll;
@@ -135,7 +135,7 @@ unsigned int gaussian_valuation(long long real_part, long long imaginary_part, u
         real_part = next_real;
         valuation += 1u;
     }
-    return ((real_part == 0ll) && (imaginary_part == 0ll)) ? maximum : valuation;
+    return ((real_part == 0ll) && (imaginary_part == 0ll)) ? max : valuation;
 }
 
 // `bits` of a record at `offset` as two's complement

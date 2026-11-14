@@ -26,15 +26,15 @@ async function opened(path, text) {
   return editing().editor;
 }
 
-test("a theme colors a kind of token the stylesheet has no color of its own for, and the rest keep theirs", async () => {
+test("a theme colors a type of token the stylesheet has no color of its own for, and the rest retain theirs", async () => {
   await opened("themes_a.js", "const said = `one\\ntwo`;\n");
-  assert.ok(tokenTypes().includes("string.escape"), "a kind a grammar names");
+  assert.ok(tokenTypes().includes("string.escape"), "a type a grammar names");
   assert.ok(paletteOf(scheme()).has("--t-string-escape"), "and its color in the palette");
   const editor = editing().editor;
   const escape = () => editor.host.querySelector(".t-string-escape");
   await ui.waitFor(() => escape(), 5000);
   const string = getComputedStyle(editor.host.querySelector(".t-string:not(.t-string-escape)")).color;
-  assert.equal(getComputedStyle(escape()).color, string, "a kind no theme colors takes the color of the kind it is part of");
+  assert.equal(getComputedStyle(escape()).color, string, "a type no theme colors takes the color of the type it is part of");
   useTheme("Escapes for Themes", { colors: { "--t-string-escape": "#ff0000" } });
   await ui.waitFor(() => escape() && getComputedStyle(escape()).color === "rgb(255, 0, 0)", 2000);
   assert.equal(getComputedStyle(editor.host.querySelector(".t-string:not(.t-string-escape)")).color, string);
@@ -42,7 +42,7 @@ test("a theme colors a kind of token the stylesheet has no color of its own for,
   await ui.waitFor(() => escape() && getComputedStyle(escape()).color === string, 2000);
 });
 
-test("a theme lays an image behind the editor's text at the share it sets, read from a picture", async () => {
+test("a theme positions an image behind the editor's text at the share it sets, read from a picture", async () => {
   const root = document.getElementById("tree-path").textContent.replace(/[\\/]+$/, "");
   const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8" fill="#6fdcb4"/></svg>';
   await invoke("file_write", { path: "themes_picture.svg", text: svg });
@@ -51,7 +51,7 @@ test("a theme lays an image behind the editor's text at the share it sets, read 
   assert.equal(atob(src.slice(src.indexOf(",") + 1)), svg);
   await invoke("file_write", { path: "themes_not_picture.txt", text: "words" });
   const refused = await invoke("image_data", { path: `${root}/themes_not_picture.txt` }).catch((error) => String(error));
-  assert.match(refused, /not a picture of a kind a theme takes/);
+  assert.match(refused, /not a picture of a type a theme takes/);
   const editor = await opened("themes_b.txt", "text over a picture\n");
   useTheme("Picture for Themes", { image: { src, opacity: 0.3 } });
   const behind = () => getComputedStyle(editor.host, "::before");
@@ -81,7 +81,7 @@ test("a file takes the icon of the first of the theme's patterns its name matche
   assert.equal(iconOf("a.test.js").style.color, "var(--t2)");
   assert.equal(iconOf("B.JS").textContent, "J", "a pattern matches a name as the file system does, any case");
   assert.equal(iconOf("b.js").style.color, "rgb(18, 52, 86)");
-  assert.equal(iconOf("c.py").textContent, "py", "a name no pattern matches keeps its type's");
+  assert.equal(iconOf("c.py").textContent, "py", "a name no pattern matches retains its type's");
   await opened("themes_c.test.js", "test();\n");
   await ui.waitFor(() => [...document.querySelectorAll(".icon")].some((one) => one.textContent === "T" && one.parentElement.textContent.includes("themes_c.test.js")), 3000);
   runCommand("preferences");
@@ -98,8 +98,8 @@ test("a file takes the icon of the first of the theme's patterns its name matche
   await ui.waitFor(() => iconOf("c.py").textContent === "P", 2000);
   document.querySelector("dialog.sheet")?.close();
   const copied = readTheme(themeText({ name: "Icons Copied", base: scheme(), colors: { "--t-string-escape": "#00ff00" }, icons: [{ pattern: "*.md", mark: "M", color: "--t4" }] }));
-  assert.deepEqual(copied.icons, [{ pattern: "*.md", mark: "M", color: "--t4" }], "a theme copied out and read back keeps its icons");
-  assert.equal(copied.colors["--t-string-escape"], "#00ff00", "and its colors of kinds of token");
+  assert.deepEqual(copied.icons, [{ pattern: "*.md", mark: "M", color: "--t4" }], "a theme copied out and read back retains its icons");
+  assert.equal(copied.colors["--t-string-escape"], "#00ff00", "and its colors of types of token");
   leave("Icons for Themes");
 });
 

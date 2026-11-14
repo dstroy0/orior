@@ -8,14 +8,14 @@
 #include "../text/text.h"
 #include "scons_internal.h"
 
-// The hand an import is handed to: the function and its context
+// The hand an import is passed to: the function and its context
 typedef struct
 {
     CliSconsSpan each;
     void *context;
 } CliSconsHand;
 
-// each word of a string handed to the hand
+// each word of a string passed to the hand
 static void names_word_dispatch(const CliSconsSpanCfg *args)
 {
     const CliSconsHand *const hand = args->context;
@@ -31,7 +31,7 @@ static void names_word_dispatch(const CliSconsSpanCfg *args)
     }
 }
 
-// the strings of an `Import` call's arguments handed on, word by word
+// the strings of an `Import` call's arguments passed on, word by word
 static void names_import_call(const CliSconsSpanCfg *args)
 {
     void *context = args->context;
@@ -48,14 +48,14 @@ void cli_scons_import(const CliSconsNameCtx *args)
                .context = &hand);
 }
 
-// The hand an exported name is handed to: the function and its context
+// The hand an exported name is passed to: the function and its context
 typedef struct
 {
     void (*named)(const CliEachNameSizeCfg *args);
     void *context;
 } CliSconsNamed;
 
-// each word of a string handed on as an exported name
+// each word of a string passed on as an exported name
 static void names_exported_words(const CliSconsSpanCfg *args)
 {
     const CliSconsNamed *const hand = args->context;
@@ -101,8 +101,8 @@ static void names_export_argument(const CliSconsSpanCfg *args)
     for (unsigned long long walk = from + bare_from; walk < from + bare_to;)
     {
         unsigned long long length = 0ULL;
-        if (!EMBED_CALL(cli_each_letter.build_word_letter, CliEachLetterCfg,
-                        .letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = from + bare_to,
+        if (!EMBED_CALL(cli_each_character.build_word_character, CliEachLetterCfg,
+                        .character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = text, .size = from + bare_to,
                                              .at = walk, .length = &length)))
         {
             return;
@@ -162,7 +162,7 @@ void cli_scons_export(const CliSconsContextCtx *args)
                .context = &hand);
 }
 
-// the most arguments of one `SConscript` call and strings of its `dirs` read
+// the max arguments of one `SConscript` call and strings of its `dirs` read
 #define CLI_SCONS_ARGUMENTS 256u
 
 // An `SConscript` call being read: its arguments' spans, how many, the name its `dirs` are joined to, and the scripts'
@@ -178,7 +178,7 @@ typedef struct
     void *context;
 } CliSconsCall;
 
-// a string of `dirs` handed on as a script, its slashes at its end left off and the call's name joined to it
+// a string of `dirs` passed on as a script, its slashes at its end left off and the call's name joined to it
 static void names_dir_string(const CliSconsSpanCfg *args)
 {
     const CliSconsCall *const call = args->context;
@@ -210,7 +210,7 @@ static void names_argument_store(const CliSconsSpanCfg *args)
     }
 }
 
-// a string of the first argument handed on as a script
+// a string of the first argument passed on as a script
 static void names_script_string(const CliSconsSpanCfg *args)
 {
     const CliSconsCall *const call = args->context;

@@ -299,12 +299,12 @@ void omega_results_open(OmegaResults *results)
 }
 
 // a busy beaver candidate: runs finish out of rank order. A tie retains the lower rank
-void omega_champion(unsigned long long *maximum, unsigned long long *champion, unsigned long long value,
+void omega_champion(unsigned long long *max, unsigned long long *champion, unsigned long long value,
                     unsigned long long index)
 {
-    if ((value > *maximum) || ((value == *maximum) && (index < *champion)))
+    if ((value > *max) || ((value == *max) && (index < *champion)))
     {
-        *maximum = value;
+        *max = value;
         *champion = index;
     }
 }
@@ -383,12 +383,12 @@ static void omega_worker(const OmegaCounts *counts, const std::vector<unsigned l
     }
 }
 
-// every closed term through `maximum` bits run on the host's threads
-void omega_host(const OmegaCounts *counts, unsigned int maximum, unsigned int workers, OmegaResults *fates)
+// every closed term through `max` bits run on the host's threads
+void omega_host(const OmegaCounts *counts, unsigned int max, unsigned int workers, OmegaResults *fates)
 {
     std::vector<unsigned long long> chunk_length;
     std::vector<unsigned long long> chunk_from;
-    for (unsigned int length = 2u; length <= maximum; length += 1u)
+    for (unsigned int length = 2u; length <= max; length += 1u)
     {
         for (unsigned long long from = 0ull; from < omega_count(counts, length, 0u); from += OMEGA_CHUNK)
         {

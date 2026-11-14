@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // preview_test.c: the preview part's check on a tree of its own, a Markdown file open as a view: with the mode off the
-// frame has no preview and nothing is drawn; beside, the items are drawn in the editor's right half and the editor keeps
+// frame has no preview and nothing is drawn; beside, the items are drawn in the editor's right half and the editor retains
 // its left; alone, the preview fills the editor's rectangle; the wheel moves the top by whole rows and no further than
 // the last item fills the rectangle; nothing is drawn outside the rectangle, the draw starting at the item the CLI
-// finds for the top; a press on a link hands the CLI's answer on and a press elsewhere does nothing; the cursor's line
+// finds for the top; a press on a link passes the CLI's answer on and a press elsewhere does nothing; the cursor's line
 // draws its block's mark; and a scroll of the editor moves the preview's top with no scroll going back to the editor
 #include "../../../../../includes/window/block.h"
 #include "../../../../../ui/cli/src/editor/view.h"
@@ -31,7 +31,7 @@ static unsigned int drawn_in(const GuiRaster *raster, GuiRect rect)
     {
         for (int x = rect.x; x < rect.x + rect.width; x += 1)
         {
-            // the rectangle stands inside the raster
+            // the rectangle is inside the raster
             count += (raster->pixels[((unsigned int)y * raster->width) + (unsigned int)x] != 0u) ? 1u : 0u;
         }
     }
@@ -147,13 +147,13 @@ int main(void)
     EMBED_CALL(gui_frame_displayed.preview, GuiFrameDisplayedCfg, .frame = &frame,
                .displayed = (int)EMBED_CALL(cli_preview.mode_get, CliPreviewCfg, .now_ms = now_ms));
     now_ms += CLI_PREVIEW_LOOK_MS;
-    cli_check(stepped(key, &frame, now_ms), "the step lays the notes as the preview shows");
+    cli_check(stepped(key, &frame, now_ms), "the step positions the notes as the preview shows");
     cli_check(run_reading("Notes") < EMBED_CALL(cli_preview_item.count, CliPreviewItemCfg, .at = 0u),
               "the heading is among the items");
     drawn(&raster, &glyphs, palette, &frame);
     cli_check((frame.editor.width + between == shared - (shared / 2)) && (frame.preview.width == shared / 2) &&
                   (frame.preview.x == frame.editor.x + frame.editor.width + between),
-              "beside, the preview stands in the editor's right half, the editor's scrollbar between them");
+              "beside, the preview is in the editor's right half, the editor's scrollbar between them");
     cli_check((drawn_in(&raster, frame.preview) != 0u) && (drawn_in(&raster, frame.editor) == 0u),
               "the items are drawn in the right half and the left half is left to the text");
     const GuiRect over = {frame.preview.x, frame.preview.y - 1, frame.preview.width, 1};
@@ -191,7 +191,7 @@ int main(void)
     const unsigned int first = EMBED_CALL(cli_preview_item.first, CliPreviewItemCfg, .top_px = top);
     const CliPreviewItem started = *EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = first);
     cli_check((started.type == CLI_PREVIEW_ITEM_BLOCK) && (started.y <= top) && (first > 0u),
-              "the draw starts at the block standing at the top, past the items above it");
+              "the draw starts at the block located at the top, past the items above it");
     drawn(&raster, &glyphs, palette, &frame);
     cli_check((drawn_in(&raster, over) == 0u) && (drawn_in(&raster, under) == 0u) &&
                   (drawn_in(&raster, frame.preview) != 0u),
@@ -199,7 +199,7 @@ int main(void)
 
     // a press on the link opens the file it names; one elsewhere does nothing
     (void)EMBED_CALL(gui_preview.wheel, GuiPreviewCfg, .frame = &frame, .rows = -100000);
-    // the rows handed out are copies the next row read replaces, so each is copied before the next read
+    // the rows passed out are copies the next row read replaces, so each is copied before the next read
     const CliPreviewItem *const link_row =
         EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = run_reading("next"));
     const CliPreviewItem link = (link_row != NULL) ? *link_row : (CliPreviewItem){0};
@@ -233,7 +233,7 @@ int main(void)
               "the block of the cursor's line is marked");
     drawn(&raster, &glyphs, palette, &frame);
     const int top_now = EMBED_CALL(cli_preview_scroll.top, CliPreviewScrollCfg, .delta_px = 0);
-    // the mark stands inside the raster, at the block's left less its reach
+    // the mark is inside the raster, at the block's left less its reach
     const unsigned int edge_x = (unsigned int)(frame.preview.x + mark.x - GUI_PREVIEW_MARK_OUT);
     const unsigned int edge_y = (unsigned int)(frame.preview.y + mark.y - top_now + (mark.height / 2));
     cli_check(raster.pixels[(edge_y * raster.width) + edge_x] !=

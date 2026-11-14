@@ -61,20 +61,20 @@ def fft(values):
 
 
 # Windows, by the sidelobe response that decides which artifacts an analysis invents.
-def window(kind, n):
+def window(type, n):
     if n < 2:
         return [1.0] * n
     last = n - 1.0
-    if kind == "rect":
+    if type == "rect":
         return [1.0] * n
-    if kind == "hann":
+    if type == "hann":
         return [0.5 - (0.5 * math.cos(TAU * i / last)) for i in range(n)]
-    if kind == "hamming":
+    if type == "hamming":
         return [0.54 - (0.46 * math.cos(TAU * i / last)) for i in range(n)]
-    if kind == "blackman":
+    if type == "blackman":
         return [0.42 - (0.5 * math.cos(TAU * i / last))
                 + (0.08 * math.cos(2 * TAU * i / last)) for i in range(n)]
-    if kind == "flattop":
+    if type == "flattop":
         # Poor resolution, excellent amplitude accuracy. The one to reach for when the height of a
         # peak matters more than telling two peaks apart.
         a = (0.21557895, 0.41663158, 0.277263158, 0.083578947, 0.006947368)
@@ -84,7 +84,7 @@ def window(kind, n):
             out.append(a[0] - (a[1] * math.cos(t)) + (a[2] * math.cos(2 * t))
                        - (a[3] * math.cos(3 * t)) + (a[4] * math.cos(4 * t)))
         return out
-    raise ValueError("unknown window: %s" % kind)
+    raise ValueError("unknown window: %s" % type)
 
 
 WINDOWS = ("rect", "hann", "hamming", "blackman", "flattop")
@@ -153,7 +153,7 @@ def synth(count, rate, seed=7):
 
 
 def spectrum(chunk, win, pad_to):
-    """One magnitude spectrum: window, zero-pad, transform, keep the real half.
+    """One magnitude spectrum: window, zero-pad, transform, retain the real half.
 
     Zero-padding does not add resolution. It interpolates the spectrum onto a finer grid, and that
     interpolation stops a peak falling between two bins from being reported at the wrong height and

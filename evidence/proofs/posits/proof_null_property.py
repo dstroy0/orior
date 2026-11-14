@@ -9,7 +9,7 @@
 #   Usage:  python evidence/proofs/posits/proof_null_property.py
 #
 # The posit came from one domain. Protein structures gave 1.066 against a null that shuffled the values
-# among fixed points and 2.512 against one that scattered the points and kept the values, on the same
+# among fixed points and 2.512 against one that scattered the points and retained the values, on the same
 # live arm. That is one case, and a rule inferred from the case that suggested it is a hypothesis.
 #
 # Proving it needs domains where the answer is known by construction instead of inferred. Four are

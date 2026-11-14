@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The connections to SonarQube Server and SonarQube Cloud: each kept in the settings, its token in the
+// The connections to SonarQube Server and SonarQube Cloud: each retained in the settings, its token in the
 // keychain, checked by the server as it is saved; and the connections the server asks to be made as
 // SonarQube opens an issue in the editor.
 
@@ -10,8 +10,8 @@ const REGIONS = ["EU", "US"];
 
 // Every connection, each with whether it is a server's: `cloud` false for SonarQube Server.
 function connections() {
-  const kept = sonar.settings?.connectedMode?.connections ?? { sonarqube: [], sonarcloud: [] };
-  return [...(kept.sonarqube ?? []).map((one) => ({ ...one, cloud: false })), ...(kept.sonarcloud ?? []).map((one) => ({ ...one, cloud: true }))];
+  const retained = sonar.settings?.connectedMode?.connections ?? { sonarqube: [], sonarcloud: [] };
+  return [...(retained.sonarqube ?? []).map((one) => ({ ...one, cloud: false })), ...(retained.sonarcloud ?? []).map((one) => ({ ...one, cloud: true }))];
 }
 
 // A connection by its id, null where none has it.
@@ -40,7 +40,7 @@ async function drawConnections() {
     ? `<p>The tree is bound to <strong>${escaped(project.projectKey)}</strong> through ${escaped(project.connectionId)}.</p><div class="row">${button("Edit Binding", "binding-edit")}${button("Remove Binding", "binding-remove")}${button("Share Configuration", "binding-share")}</div>`
     : `<p class="quiet">The tree is bound to no project.</p><div class="row">${button("Add Binding", "binding-edit")}${button("Bind Automatically", "binding-auto")}</div>`;
   const newCode = [...sonar.newCode.values()][0];
-  await shown(
+  await displayed(
     "connections",
     `<h1>Connections</h1><div class="row">${button("Connect to SonarQube Server", "connection-new", "server")}${button("Connect to SonarQube Cloud", "connection-new", "cloud")}</div>${rows ? `<table>${rows}</table>` : '<p class="quiet">No connections.</p>'}<h2>Binding</h2>${binding}${newCode ? `<h2>New code</h2><p>${escaped(newCode.newCodeDefinitionOrMessage)}${newCode.isSupported ? "" : ' <span class="quiet">(not supported)</span>'}</p>` : ""}`,
   );
@@ -55,7 +55,7 @@ async function drawConnection(cloud, id, message, values) {
   const where = cloud
     ? `<label>Organization key<br><input name="organizationKey" value="${escaped(one?.organizationKey ?? "")}" size="40"></label><label>Region<br><select name="region">${REGIONS.map((region) => `<option${(one?.region ?? "EU") === region ? " selected" : ""}>${region}</option>`).join("")}</select></label>${button("List My Organizations", "connection-organizations")}`
     : `<label>Server URL<br><input name="serverUrl" value="${escaped(one?.serverUrl ?? "http://localhost:9000")}" size="50"></label>`;
-  await shown(
+  await displayed(
     "connection",
     `<h1>${one ? "Edit" : "New"} ${cloud ? "SonarQube Cloud" : "SonarQube Server"} connection</h1>${message ? `<p class="fail">${escaped(message)}</p>` : ""}<form>
 <input type="hidden" name="cloud" value="${cloud ? "1" : ""}"><input type="hidden" name="previous" value="${escaped(id ?? "")}">
@@ -67,7 +67,7 @@ ${button("Save Connection", "connection-save")}</form>`,
   );
 }
 
-// The connection a form holds, as the settings keep it.
+// The connection a form holds, as the settings retain it.
 function connectionFromFields(fields) {
   const cloud = Boolean(fields.cloud);
   const base = { connectionId: String(fields.connectionId ?? "").trim(), disableNotifications: !fields.notifications };
@@ -79,7 +79,7 @@ function connectionFromFields(fields) {
   return { ...base, connectionId: base.connectionId || serverUrl, serverUrl };
 }
 
-// A connection saved: checked by the server with its token first, kept in the settings, its token in
+// A connection saved: checked by the server with its token first, retained in the settings, its token in
 // the keychain, and the server told of a token changed.
 async function connectionSaved(one, token, previous) {
   if (!(await started())) {
@@ -93,10 +93,10 @@ async function connectionSaved(one, token, previous) {
   }
   await orior.secrets.write(tokenKey(one), token);
   await settingsChanged((settings) => {
-    const kept = settings.connectedMode.connections;
-    kept.sonarqube = (kept.sonarqube ?? []).filter((other) => other.connectionId !== previous && other.connectionId !== one.connectionId);
-    kept.sonarcloud = (kept.sonarcloud ?? []).filter((other) => other.connectionId !== previous && other.connectionId !== one.connectionId);
-    (cloud ? kept.sonarcloud : kept.sonarqube).push(one);
+    const retained = settings.connectedMode.connections;
+    retained.sonarqube = (retained.sonarqube ?? []).filter((other) => other.connectionId !== previous && other.connectionId !== one.connectionId);
+    retained.sonarcloud = (retained.sonarcloud ?? []).filter((other) => other.connectionId !== previous && other.connectionId !== one.connectionId);
+    (cloud ? retained.sonarcloud : retained.sonarqube).push(one);
   });
   await orior.server.notify("sonarlint/onTokenUpdate", { connectionId: one.connectionId, token });
   sonar.checks.set(one.connectionId, { connectionId: one.connectionId, success: true });
@@ -151,7 +151,7 @@ onPressed("connection-organizations", async (value, fields) => {
   const token = String(fields.token ?? "");
   const found = token ? await orior.server.request("sonarlint/listUserOrganizations", { token, region: fields.region ?? "EU" }).catch(() => []) : [];
   const rows = (found ?? []).map((one) => `<li><code>${escaped(one.key)}</code> ${escaped(one.name)} <span class="quiet">${escaped(one.description ?? "")}</span></li>`).join("");
-  await shown("ask", rows ? `<h2>Your organizations</h2><ul>${rows}</ul>` : "<p>No organizations were found for this token.</p>");
+  await displayed("ask", rows ? `<h2>Your organizations</h2><ul>${rows}</ul>` : "<p>No organizations were found for this token.</p>");
 });
 
 onPressed("connection-check", async (id) => {
@@ -169,9 +169,9 @@ onPressed("connection-remove", async (id) => {
   }
   await orior.secrets.write(tokenKey(one), null);
   await settingsChanged((settings) => {
-    const kept = settings.connectedMode.connections;
-    kept.sonarqube = (kept.sonarqube ?? []).filter((other) => other.connectionId !== id);
-    kept.sonarcloud = (kept.sonarcloud ?? []).filter((other) => other.connectionId !== id);
+    const retained = settings.connectedMode.connections;
+    retained.sonarqube = (retained.sonarqube ?? []).filter((other) => other.connectionId !== id);
+    retained.sonarcloud = (retained.sonarcloud ?? []).filter((other) => other.connectionId !== id);
     if (settings.connectedMode.project?.connectionId === id) {
       settings.connectedMode.project = {};
     }
@@ -214,12 +214,12 @@ orior.server.on("sonarlint/assistCreatingConnection", async ({ isSonarCloud, ser
   const one = isSonarCloud
     ? { connectionId: serverUrlOrOrganisationKey, disableNotifications: false, organizationKey: serverUrlOrOrganisationKey, region: REGIONS[region] ?? region ?? "EU" }
     : { connectionId: serverUrlOrOrganisationKey, disableNotifications: false, serverUrl: serverUrlOrOrganisationKey };
-  const kept = token || (await orior.secrets.read(tokenKey(one)).catch(() => null));
-  if (!kept) {
+  const retained = token || (await orior.secrets.read(tokenKey(one)).catch(() => null));
+  if (!retained) {
     await drawConnection(isSonarCloud, null, "Enter a token for this connection");
     throw new Error("Automatic Connection setup cancelled; User will manually enter token");
   }
-  const failed = await connectionSaved(one, kept, null);
+  const failed = await connectionSaved(one, retained, null);
   if (failed) {
     throw new Error(failed);
   }

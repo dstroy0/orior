@@ -267,17 +267,17 @@ static unsigned long long msq_bytes_hash(const MsqBytes *item)
     return hash;
 }
 
-// the set made ready for as many as `most` distinct runs: 1, or 0 where the system gives no memory
-int msq_distinct_made(MsqDistinct *set, size_t most)
+// the set made ready for as many as `max` distinct runs: 1, or 0 where the system gives no memory
+int msq_distinct_made(MsqDistinct *set, size_t max)
 {
     memset(set, 0, sizeof(*set));
     size_t slots = 64u;
-    while (slots < (2u * most))
+    while (slots < (2u * max))
     {
         slots *= 2u;
     }
     set->slots = (size_t *)malloc(slots * sizeof(size_t));
-    set->items = (MsqBytes *)malloc((most + 1u) * sizeof(MsqBytes));
+    set->items = (MsqBytes *)malloc((max + 1u) * sizeof(MsqBytes));
     if ((set->slots == NULL) || (set->items == NULL))
     {
         return 0;
@@ -287,7 +287,7 @@ int msq_distinct_made(MsqDistinct *set, size_t most)
         set->slots[at] = (size_t)-1;
     }
     set->slot_count = slots;
-    set->room = most + 1u;
+    set->room = max + 1u;
     return 1;
 }
 

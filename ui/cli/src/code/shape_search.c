@@ -10,7 +10,7 @@
 #include "../text/text.h"
 #include "shape_internal.h"
 
-// A walk of the text forward: the byte it stands at, its line and its column in UTF-16 units, and where its line starts
+// A walk of the text forward: the byte it is at, its line and its column in UTF-16 units, and where its line starts
 typedef struct
 {
     unsigned long long at;
@@ -48,17 +48,17 @@ typedef struct
     unsigned int code_capacity;
     unsigned int part_capacity;
 } ShapeSearchCtx;
-// the walk moved forward to `byte`: the place it stands at
+// the walk moved forward to `byte`: the place it is at
 EMBED_INLINE CliTextPosition search_walk(const ShapeSearchCtx *args)
 {
     unsigned long long size = args->size;
     while (args->walk->at < args->byte)
     {
         unsigned long long length = 0ULL;
-        const unsigned int letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->src, .size = size,
+        const unsigned int character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = args->src, .size = size,
                                                .at = args->walk->at, .length = &length);
         args->walk->at += length;
-        if (letter == '\n')
+        if (character == '\n')
         {
             args->walk->line += 1u;
             args->walk->col = 0u;
@@ -66,7 +66,7 @@ EMBED_INLINE CliTextPosition search_walk(const ShapeSearchCtx *args)
         }
         else
         {
-            args->walk->col += (letter >= 0x10000u) ? 2u : 1u;
+            args->walk->col += (character >= 0x10000u) ? 2u : 1u;
         }
     }
     return (CliTextPosition){args->walk->line, args->walk->col};
@@ -197,7 +197,7 @@ void cli_shape_search(const CliShapeLanguagesCfg *args)
                .size = cellul.len(&(CatenaFinitaCfg){.src = pattern, .cap = CLI_POOL_BYTES}), .from_u64s = &from,
                .to_u64s = &to);
     // a token takes a byte at the least: the code contains no more tokens than bytes, nor the pattern; each below
-    // its most, which an unsigned int stores
+    // its max, which an unsigned int stores
     const unsigned int code_capacity =
         (args->size < CLI_SHAPE_TOKENS) ? ((unsigned int)args->size + 1u) : CLI_SHAPE_TOKENS;
     const unsigned int part_capacity =
@@ -264,7 +264,7 @@ void cli_shape_search(const CliShapeLanguagesCfg *args)
         VerbaLinea with = {NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
         if (args->template_text != NULL)
         {
-            // the template's bytes, and for each placeholder, 3 bytes of it at the least, what the match spans at most
+            // the template's bytes, and for each placeholder, 3 bytes of it at the least, what the match spans at max
             const unsigned long long template_length =
                 cellul.len(&(CatenaFinitaCfg){.src = args->template_text, .cap = CLI_POOL_BYTES});
             const unsigned long long span =

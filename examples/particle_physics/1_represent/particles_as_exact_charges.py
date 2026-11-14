@@ -94,7 +94,7 @@ def charge_is_quantized(out):
               % (len(fractional), " ".join(one.symbol for one in fractional)))
     out.write("\n    every fractional particle is a quark, and a quark is never seen alone; the free\n")
     out.write("    particles carry a charge that divides by three.\n")
-    return all(one.kind == "quark" for one in fractional)
+    return all(one.type == "quark" for one in fractional)
 
 
 def spin_census(out):

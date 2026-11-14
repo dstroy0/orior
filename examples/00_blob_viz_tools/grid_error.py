@@ -268,9 +268,9 @@ def gradient_error(total, top, rows=ROWS, columns=COLUMNS, inside=INSIDE, skip_r
             truth_around = by_around[down_step::inside, across_step::inside]
             here = sine[down_step::inside]
 
-            keep = slice(skip_rings, rows - skip_rings)
-            first = numpy.stack([drawn_down[keep], drawn_around[keep] / here[keep]])
-            second = numpy.stack([truth_down[keep], truth_around[keep] / here[keep]])
+            retain = slice(skip_rings, rows - skip_rings)
+            first = numpy.stack([drawn_down[retain], drawn_around[retain] / here[retain]])
+            second = numpy.stack([truth_down[retain], truth_around[retain] / here[retain]])
 
             dot = numpy.sum(first * second, axis=0)
             size_one = numpy.sqrt(numpy.sum(first * first, axis=0))
@@ -410,7 +410,7 @@ def _check():
         failed += 1
 
     # At a cell corner the interpolant is the vertex value. The error there is zero by
-    # construction. This is why the samples are taken at half step offsets, and checking it keeps
+    # construction. This is why the samples are taken at half step offsets, and checking it retains
     # the reported error from being quietly diluted by exact points.
     corners = (numpy.array([[1.0]]), numpy.array([[2.0]]),
                numpy.array([[4.0]]), numpy.array([[8.0]]))

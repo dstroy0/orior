@@ -6,7 +6,7 @@ WHAT IS BEING TESTED
 
 `theory/workbooks/orior/arm-records.md` states that an arm is identified by its topology together with its weight, and
 that a shape is one realization of that. If the claim holds, then redrawing an arm as a different
-shape carrying the same topology and the same weight leaves every letter of the reading unchanged. A
+shape carrying the same topology and the same weight leaves every character of the reading unchanged. A
 reading that moves under such a redraw depends on how the arm was drawn, and that is a defect in the
 reading.
 
@@ -18,7 +18,7 @@ THE ARM SET
 
 Eight sign octants and one graded arm, the graded one carrying the height coordinate as its weight.
 That weight is the degree one harmonic's own pattern. Eight indicator arms alone would leave the
-graded row of the record's three-kinds table untested, and two of the drawings below behave
+graded row of the record's three-types table untested, and two of the drawings below behave
 differently on integer weights than on real ones.
 
 THE DRAWINGS
@@ -29,7 +29,7 @@ THE DRAWINGS
                      through a text round trip the way a stored record would be.
     rotated frame    the same arms stated in a rotated frame, with the frame carried through the
                      query. Mathematically the same region, reached by different arithmetic.
-    recombination    each octant's letter built as a difference of two other arms instead of being
+    recombination    each octant's character built as a difference of two other arms instead of being
                      read. Applies to the eight indicators, where containment holds.
     dwell on a line  the support is the golden spiral taken as a curve, the dwell along it is the
                      arm's weight at that place on the curve, and the sampling rule is incidence at
@@ -40,18 +40,18 @@ calls to one piece of code agree for reasons that have nothing to do with the cl
 
 THE DRAWINGS THAT ARE NOT REDRAWS
 
-Four faults are kept here and declared as redraws, and a measurement that fails to catch them is not
+Four faults are retained here and declared as redraws, and a measurement that fails to catch them is not
 measuring anything. Each is an implementation somebody would write, and none was invented to be
 easy.
 
     orientation dropped   the arms stated in a rotated frame while the object is read in the
                           original one. This is the fault the required orientation field exists to
                           prevent.
-    normalized by the arm the letter divided by the arm's own weight total instead of by the lit
+    normalized by the arm the character divided by the arm's own weight total instead of by the lit
                           count. That computes what fraction of the arm is lit, instead of what
                           fraction of the lit set is in the arm. Both sound reasonable. A line arm
                           and a body arm disagree under it, and a change of dimension leaks into a
-                          letter that way.
+                          character that way.
     face nudged           one face moved just far enough that a single lit point changes arm. The
                           smallest change of topology available.
     record shortened      the stored record written at six significant figures. Harmless on
@@ -115,10 +115,10 @@ IDENTITY = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
 # -------------------------------------------------------------------------------------------------
 
 class Arm(object):
-    """A region a reading takes one letter from.
+    """A region a reading takes one character from.
 
     `weight` holds a real value per placement point. `origin` and `orientation` are required because
-    recombination needs the overlap structure. `extent` and `sampling` are kept when a shape is how
+    recombination needs the overlap structure. `extent` and `sampling` are retained when a shape is how
     the arm was stated, and `sampling` carries the rule taking that shape onto the placement, since
     two arms with the same support and different sampling rules are two different arms.
     """
@@ -135,17 +135,17 @@ class Arm(object):
         self.sampling = sampling
 
 
-def letter(arm, live):
-    """The arm's letter: its weight summed over the lit points, over the count of lit points."""
+def character(arm, live):
+    """The arm's character: its weight summed over the lit points, over the count of lit points."""
     total = float(len(live)) or 1.0
     return sum(arm.weight[at] for at in live) / total
 
 
 def reading(arms, live):
-    return [letter(one, live) for one in arms]
+    return [character(one, live) for one in arms]
 
 
-def worst_letter_gap(before, after):
+def worst_character_gap(before, after):
     """What a caller of the reading would see move."""
     return max((abs(two - one) for one, two in zip(before, after)), default=0.0)
 
@@ -153,8 +153,8 @@ def worst_letter_gap(before, after):
 def worst_weight_gap(before, after):
     """What the claim is actually about: the arm itself, point by point.
 
-    Letters are sums, and a sum hides a pair of moves that cancel inside it. Two points swapping
-    arms leaves both letters where they were while the arms are no longer the arms. Comparing the
+    Characters are sums, and a sum hides a pair of moves that cancel inside it. Two points swapping
+    arms leaves both characters where they were while the arms are no longer the arms. Comparing the
     weights directly cannot be fooled that way, and it costs one pass.
     """
     worst = 0.0
@@ -232,7 +232,7 @@ def by_rotated_frame(points, carry_the_frame=True):
     carries its axis through the same frame.
 
     With `carry_the_frame` off, the normals move and the query does not. That is the fault the
-    orientation field exists to prevent, and it is kept here to be caught.
+    orientation field exists to prevent, and it is retained here to be caught.
     """
     frame = a_frame()
     back = transposed(frame)
@@ -294,14 +294,14 @@ def by_dwell_on_a_line(points):
 
 
 def by_recombination(points, live):
-    """Each octant's letter built as a difference of two arms instead of read from one.
+    """Each octant's character built as a difference of two arms instead of read from one.
 
-    Where arm A contains arm B, the letter of A minus the letter of B is the letter of A without B.
+    Where arm A contains arm B, the character of A minus the character of B is the character of A without B.
     Octant `q` and its sibling `q ^ 1` differ in the sign of the last coordinate alone, and together
-    they are the arm holding both. So the letter of `q` comes back as the letter of the pair minus
-    the letter of the sibling, from two arms neither of which is `q`.
+    they are the arm holding both. So the character of `q` comes back as the character of the pair minus
+    the character of the sibling, from two arms neither of which is `q`.
 
-    This returns letters and not arms, since the point of it is that no arm for `q` is measured.
+    This returns characters and not arms, since the point of it is that no arm for `q` is measured.
     """
     plain = by_sign_test(points)
     count = len(points)
@@ -310,8 +310,8 @@ def by_recombination(points, live):
         sibling = q ^ 1
         pair = [plain[q].weight[at] + plain[sibling].weight[at] for at in range(count)]
         both = Arm("pair %d" % q, pair, extent="two octants sharing the first two signs")
-        out.append(letter(both, live) - letter(plain[sibling], live))
-    out.append(letter(plain[8], live))
+        out.append(character(both, live) - character(plain[sibling], live))
+    out.append(character(plain[8], live))
     return out
 
 
@@ -319,8 +319,8 @@ def by_recombination(points, live):
 # The drawings that are not redraws.
 # -------------------------------------------------------------------------------------------------
 
-def letter_by_arm(arm, live):
-    """The fault: the letter divided by the arm's own weight total instead of the lit count."""
+def character_by_arm(arm, live):
+    """The fault: the character divided by the arm's own weight total instead of the lit count."""
     held = sum(arm.weight)
     if held == 0.0:
         return 0.0
@@ -387,7 +387,7 @@ def on_face_decided_by(points, at):
 
     Returns the carried dot product against each face the point's plain coordinate is zero on. A
     face crossing is available exactly when one of these comes back negative, and the magnitude
-    says how little was standing between the two answers.
+    says how little was located between the two answers.
     """
     back = transposed(a_frame())
     normals = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
@@ -426,7 +426,7 @@ def frame_rounding(points):
 def compared(points, live, drawn):
     """One drawing against the reference, at the three levels a redraw can move something.
 
-    `weight` is the arm itself, `points` is its topology, `letter` is what a caller reads. The
+    `weight` is the arm itself, `points` is its topology, `character` is what a caller reads. The
     claim in `theory/workbooks/orior/arm-records.md` is about the first two. The third is a consequence and is
     reported because it is the quantity anybody would have checked.
     """
@@ -434,7 +434,7 @@ def compared(points, live, drawn):
     return {
         "weight": worst_weight_gap(plain, drawn),
         "points": points_reassigned(plain, drawn, len(points)),
-        "letter": worst_letter_gap(reading(plain, live), reading(drawn, live)),
+        "character": worst_character_gap(reading(plain, live), reading(drawn, live)),
     }
 
 
@@ -444,12 +444,12 @@ def redraw_residuals(points, live):
     out["point cloud, record round trip"] = compared(points, live, by_point_cloud(points))
     out["rotated frame, frame carried"] = compared(points, live, by_rotated_frame(points))
     out["dwell on a line"] = compared(points, live, by_dwell_on_a_line(points))
-    # Recombination produces letters and no arms, since the arm for each octant is the thing it
+    # Recombination produces characters and no arms, since the arm for each octant is the thing it
     # declines to measure. Only the third level applies to it.
     out["algebraic recombination"] = {
         "weight": None,
         "points": None,
-        "letter": worst_letter_gap(reading(by_sign_test(points), live),
+        "character": worst_character_gap(reading(by_sign_test(points), live),
                                    by_recombination(points, live)),
     }
     return out
@@ -464,11 +464,11 @@ def fault_residuals(points, live):
     out["one face nudged"] = compared(points, live, by_nudged_face(points, live))
     out["record at six figures"] = compared(points, live, by_point_cloud(points, digits=6))
     # This fault leaves every arm untouched and moves only the division. It has no reading at
-    # the first two levels. It is a fault in the letter and is caught there.
+    # the first two levels. It is a fault in the character and is caught there.
     out["normalized by the arm"] = {
         "weight": 0.0,
         "points": 0,
-        "letter": worst_letter_gap(reading(plain, live), [letter_by_arm(one, live) for one in plain]),
+        "character": worst_character_gap(reading(plain, live), [character_by_arm(one, live) for one in plain]),
     }
     return out
 
@@ -477,28 +477,28 @@ STRUCTURAL_FAULTS = ("orientation dropped", "normalized by the arm", "one face n
 
 
 def faults_caught(points, live):
-    """Whether every drawing that is not a redraw moved a letter. The gate on this null.
+    """Whether every drawing that is not a redraw moved a character. The gate on this null.
 
-    Three of the four move a letter by more than a millionth. The fourth writes the record at six
+    Three of the four move a character by more than a millionth. The fourth writes the record at six
     significant figures, which cannot touch an indicator weight and does touch a graded one. It
     is limited to moving something at all.
     """
     faults = fault_residuals(points, live)
-    if not all(faults[name]["letter"] > 1e-6 for name in STRUCTURAL_FAULTS):
+    if not all(faults[name]["character"] > 1e-6 for name in STRUCTURAL_FAULTS):
         return False
-    return faults["record at six figures"]["letter"] > 0.0
+    return faults["record at six figures"]["character"] > 0.0
 
 
 def null_redraw(points, live):
     """The floor: the worst gap across every genuine redraw, at whatever level it appears."""
     worst = 0.0
     for gaps in redraw_residuals(points, live).values():
-        for level in ("weight", "letter"):
+        for level in ("weight", "character"):
             if gaps[level] is not None:
                 worst = max(worst, gaps[level])
         if gaps["points"]:
             # A reassigned point is a change of topology and has no size in these units. Report it
-            # as a whole letter, which is past any floor a caller would set.
+            # as a whole character, which is past any floor a caller would set.
             worst = max(worst, 1.0)
     return worst
 
@@ -516,7 +516,7 @@ def a_lit_set_holding_the_faces(points, total):
     """The same lit set with every on-face point forced lit.
 
     The default lit set leaves index 0 dark, and index 0 is the point sitting exactly on a face. So
-    the letters could not have moved for it whatever the drawings did, and a pass over that lit set
+    the characters could not have moved for it whatever the drawings did, and a pass over that lit set
     says nothing about the case the pre-check flags. This one makes the drawings carry it.
     """
     live = set(a_lit_set(total))
@@ -537,14 +537,14 @@ def _check():
     step = 1.0 / float(len(live))
 
     def row(name, gaps):
-        def shown(value, form):
+        def displayed(value, form):
             return "        -" if value is None else form % value
-        say("    %-30s %s %s %s" % (name, shown(gaps["weight"], "%12.3e"),
-                                    shown(gaps["points"], "%8d"),
-                                    shown(gaps["letter"], "%12.3e")))
+        say("    %-30s %s %s %s" % (name, displayed(gaps["weight"], "%12.3e"),
+                                    displayed(gaps["points"], "%8d"),
+                                    displayed(gaps["character"], "%12.3e")))
 
     say("  nine arms, eight indicator and one graded, over a %d point golden placement" % count)
-    say("  lit weight %d. One point changing arm moves a letter by %.3e" % (len(live), step))
+    say("  lit weight %d. One point changing arm moves a character by %.3e" % (len(live), step))
     say("")
 
     # The engine's pre-check. Whether a point can cross a face is decided by the placement and the
@@ -569,48 +569,48 @@ def _check():
         say("    decides which arm holds it and no measurement here records that it did.")
     say("")
 
-    say("  three levels, because a letter is a sum and a sum hides a pair of moves that cancel")
+    say("  three levels, because a character is a sum and a sum hides a pair of moves that cancel")
     say("    weight   the largest move in any arm's weight at any point. The arm itself.")
     say("    points   how many placement points changed indicator arm. The topology.")
-    say("    letter   the largest move in any letter. What a caller of the reading sees.")
+    say("    character   the largest move in any character. What a caller of the reading sees.")
     say("")
 
     say("  the drawings that are not redraws, each of which has to be caught")
-    say("    %-30s %12s %8s %12s" % ("", "weight", "points", "letter"))
+    say("    %-30s %12s %8s %12s" % ("", "weight", "points", "character"))
     faults = fault_residuals(points, live)
     for name in sorted(faults):
         row(name, faults[name])
     for name in STRUCTURAL_FAULTS:
-        if not (faults[name]["letter"] > 1e-6):
+        if not (faults[name]["character"] > 1e-6):
             say("  FAIL %s was not caught" % name)
             failed += 1
     # The graded arm carries this one alone. An indicator weight is 0.0 or 1.0 and survives any
     # format anybody would write, and a graded arm sits in the set because it does not.
-    if not (faults["record at six figures"]["letter"] > 0.0):
+    if not (faults["record at six figures"]["character"] > 0.0):
         say("  FAIL a shortened record moved nothing, and the graded arm is missing from the set")
         failed += 1
     say("")
 
     if failed:
-        say("  the redraw residuals are withheld, since the measurement has not shown it works")
+        say("  the redraw residuals are withheld, since the measurement has not displayed it works")
         sys.stdout.write("\n".join(lines) + "\n\n%d check(s) failed\n" % failed)
         return failed
 
     dropped = faults["orientation dropped"]
-    say("  the size of the frame fault, which the letters understate")
+    say("  the size of the frame fault, which the characters understate")
     say("    lit points landing in a different arm   %d of %d" % (
         points_reassigned(by_sign_test(points), by_rotated_frame(points, carry_the_frame=False),
                           count), count))
-    say("    worst letter move                       %.3e, or %.0f point crossings" % (
-        dropped["letter"], dropped["letter"] / step))
+    say("    worst character move                       %.3e, or %.0f point crossings" % (
+        dropped["character"], dropped["character"] / step))
     say("    The reading moves in 8 of 256 directions, and a turn of the frame is mostly a move")
-    say("    in the other 248. Four fifths of the points change arm and the letters shift by a")
+    say("    in the other 248. Four fifths of the points change arm and the characters shift by a")
     say("    few percent. The fault is caught with room to spare, and a reading with a coarser")
     say("    floor than this one would have to check the topology to catch it at all.")
     say("")
 
     say("  the redraws, measured")
-    say("    %-30s %12s %8s %12s" % ("", "weight", "points", "letter"))
+    say("    %-30s %12s %8s %12s" % ("", "weight", "points", "character"))
     good = redraw_residuals(points, live)
     for name in sorted(good):
         row(name, good[name])
@@ -622,7 +622,7 @@ def _check():
     if on_face:
         held = a_lit_set_holding_the_faces(points, count)
         say("  the same redraws with the on-face points forced lit, weight %d" % len(held))
-        say("    %-30s %12s %8s %12s" % ("", "weight", "points", "letter"))
+        say("    %-30s %12s %8s %12s" % ("", "weight", "points", "character"))
         carried = redraw_residuals(points, held)
         for name in sorted(carried):
             row(name, carried[name])
@@ -630,8 +630,8 @@ def _check():
             if gaps["points"]:
                 say("  FAIL %s moved %d points with the faces lit" % (name, gaps["points"]))
                 failed += 1
-            if gaps["letter"] >= 1.0 / float(len(held)):
-                say("  FAIL %s moved a letter with the faces lit" % name)
+            if gaps["character"] >= 1.0 / float(len(held)):
+                say("  FAIL %s moved a character with the faces lit" % name)
                 failed += 1
         decided = on_face_decided_by(points, on_face[0])
         say("    every drawing put index %d in the same arm. Under the rotated frame it got there"
@@ -639,7 +639,7 @@ def _check():
         for axis, value in decided:
             say("    on a carried dot product of %+.3e against face %d, whose plain coordinate is"
                 % (value, axis))
-            say("    exactly zero. It kept its arm by the sign of a rounding residual.")
+            say("    exactly zero. It retained its arm by the sign of a rounding residual.")
         say("    The reading is stable here and the reason it is stable is thin.")
         say("")
 
@@ -647,8 +647,8 @@ def _check():
         if gaps["points"]:
             say("  FAIL %s moved %d points to a different arm" % (name, gaps["points"]))
             failed += 1
-        if gaps["letter"] >= step:
-            say("  FAIL %s moved a letter by a whole point crossing" % name)
+        if gaps["character"] >= step:
+            say("  FAIL %s moved a character by a whole point crossing" % name)
             failed += 1
 
     worst = null_redraw(points, live)
@@ -662,8 +662,8 @@ def _check():
 
     say("  what this settles")
     say("    A one-dimensional arm and a three-dimensional one carrying the same weight return")
-    say("    the same letters. The arm set stated in a rotated frame returns them again, and")
-    say("    zero of %d points change arm in the process. An octant's letter also comes back" % count)
+    say("    the same characters. The arm set stated in a rotated frame returns them again, and")
+    say("    zero of %d points change arm in the process. An octant's character also comes back" % count)
     say("    from two arms neither of which is that octant. A reading over these arms does not")
     say("    depend on how they were drawn, down to a grain of %.1e." % worst)
     say("")

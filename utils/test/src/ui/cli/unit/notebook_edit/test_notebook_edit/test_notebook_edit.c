@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_notebook_edit.c: an open notebook's cells edited: one cell at a time has a view, a line put in grows the cell's
-// rows and moves the rows after it while a letter typed does not, the notebook's own keys are taken and others are
+// rows and moves the rows after it while a character typed does not, the notebook's own keys are taken and others are
 // not, cells added, changed in type, moved, cleared and deleted with the notebook marked changed and a deleted cell
-// that ran standing among the cells gone, and the menu of a cell refusing a move past either end
+// that ran located among the cells gone, and the menu of a cell refusing a move past either end
 #include "ui/cli/src/command_line/commands.h"
 #include "ui/cli/src/notebooks/notebook_cells_internal.h"
 #include "ui/cli/src/notebooks/notebook_edit.h"
@@ -41,15 +41,15 @@ static CliNotebookModel *opened(const char *path, const char *text)
     return EMBED_CALL(cli_notebook_model_internal.of, CliNotebookModelCtx, .key = "edit:a");
 }
 
-// the keys handed to the cell `cell` of edit:a at `line` and `column`
+// the keys passed to the cell `cell` of edit:a at `line` and `column`
 static void focused(unsigned int cell, unsigned long long line, unsigned long long column)
 {
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_focus.focus, CliNotebookEditFocusCfg, .key = "edit:a",
                                         .cell = cell, .line = line, .column = column, .err_msg = &s_err_msg));
 }
 
-// the input `input` handed to the cell of edit:a that has the keys
-static void handed(const CliViewInput *input)
+// the input `input` passed to the cell of edit:a that has the keys
+static void passed(const CliViewInput *input)
 {
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_focus.input, CliNotebookEditFocusCfg, .key = "edit:a",
                                         .input = input, .err_msg = &s_err_msg));
@@ -86,19 +86,19 @@ void test_one_cell_at_a_time_has_a_view(void)
     TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_NONE, model->focused);
 }
 
-void test_a_line_put_in_grows_the_cells_rows_and_a_letter_typed_does_not(void)
+void test_a_line_put_in_grows_the_cells_rows_and_a_character_typed_does_not(void)
 {
     const CliNotebookModel *const model = opened("edit.py", s_script);
     focused(0u, 1ULL, 8ULL);
     const unsigned int rows = rows_of();
     const unsigned int after = notebook_first_row_at(model, 2u);
-    const CliViewInput letter = {.type = CLI_VIEW_TEXT, .text = "z", .length = 1ULL};
-    handed(&letter);
+    const CliViewInput character = {.type = CLI_VIEW_TEXT, .text = "z", .length = 1ULL};
+    passed(&character);
     TEST_ASSERT_EQUAL_UINT(rows, rows_of());
     TEST_ASSERT_EQUAL_UINT(after, notebook_first_row_at(model, 2u));
     TEST_ASSERT_TRUE(notebook_cell_at(model, 0u).edited != 0u);
     const CliViewInput line = {.type = CLI_VIEW_KEY, .name = "Enter"};
-    handed(&line);
+    passed(&line);
     TEST_ASSERT_EQUAL_UINT(3u, notebook_cell_at(model, 0u).lines);
     TEST_ASSERT_EQUAL_UINT(rows + 1u, rows_of());
     TEST_ASSERT_EQUAL_UINT(after + 1u, notebook_first_row_at(model, 2u));
@@ -153,7 +153,7 @@ void test_cells_added_changed_moved_cleared_and_deleted(void)
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_cell.outputs_clear, CliNotebookEditCellCfg,
                                         .key = "edit:a", .cell = 1u));
     TEST_ASSERT_EQUAL_UINT(0u, model->outputs);
-    // the cell at 1 ran first and the last cell after it; the first deleted, the last stands on a cell gone
+    // the cell at 1 ran first and the last cell after it; the first deleted, the last is on a cell gone
     model->clock = 2u;
     CliNotebookCell second = notebook_cell_at(model, 1u);
     second.first_run = 1u;

@@ -8,7 +8,7 @@
 #include "../text/text.h"
 #include "devcontainer_internal.h"
 
-// the most bytes a description contains and the most tokens it reads into
+// the max bytes a description contains and the max tokens it reads into
 #define CLI_DESCRIPTION_BYTES (1u << 20u)
 
 #define CLI_DESCRIPTION_TOKENS 65536u
@@ -108,7 +108,7 @@ int cli_plan_overflow(void)
 // A string too long to decode is recorded as none and the plan refused
 int cli_plan_string(const CliDevcontainerValueOutCtx *args)
 {
-    if ((args->value == 0u) || (s_tokens[args->value].kind != CFG_JSON_STRING))
+    if ((args->value == 0u) || (s_tokens[args->value].type != CFG_JSON_STRING))
     {
         return 0;
     }
@@ -132,18 +132,18 @@ unsigned int cli_plan_member_get(const CliDevcontainerNameCtx *args)
 
 unsigned int cli_plan_strings(const CliDevcontainerValueCtx *args)
 {
-    if ((args->value != 0u) && (s_tokens[args->value].kind == CFG_JSON_STRING) && (args->capacity != 0u))
+    if ((args->value != 0u) && (s_tokens[args->value].type == CFG_JSON_STRING) && (args->capacity != 0u))
     {
         args->tokens[0] = args->value;
         return 1u;
     }
     unsigned int count = 0u;
     unsigned int at = args->value + 1u;
-    for (unsigned int each = 0u; (args->value != 0u) && (s_tokens[args->value].kind == CFG_JSON_ARRAY) &&
+    for (unsigned int each = 0u; (args->value != 0u) && (s_tokens[args->value].type == CFG_JSON_ARRAY) &&
                                  (each < s_tokens[args->value].count) && (count < args->capacity);
          each += 1u)
     {
-        if (s_tokens[at].kind == CFG_JSON_STRING)
+        if (s_tokens[at].type == CFG_JSON_STRING)
         {
             args->tokens[count] = at;
             count += 1u;
@@ -179,13 +179,13 @@ EMBED_INLINE int cli_same_key(const DevcontainerPlanCtx *args)
                                     .bytes = size}) == 0);
 }
 
-// each member of the object at token `object` once, as a JSON object contains it: where its key first stands, with the
+// each member of the object at token `object` once, as a JSON object contains it: where its key first is, with the
 // value of its last; the count, each key and value token into `keys` and `values`
 EMBED_INLINE unsigned int cli_members(const DevcontainerPlanCtx *args)
 {
     unsigned int count = 0u;
     unsigned int key = args->object + 1u;
-    for (unsigned int member = 0u; (args->object != 0u) && (s_tokens[args->object].kind == CFG_JSON_OBJECT) &&
+    for (unsigned int member = 0u; (args->object != 0u) && (s_tokens[args->object].type == CFG_JSON_OBJECT) &&
                                    (member < s_tokens[args->object].count);
          member += 1u)
     {
@@ -249,7 +249,7 @@ EMBED_INLINE const char *cli_last_part(const DevcontainerPlanCtx *args)
     return last;
 }
 
-// A variable the description does not know, and `${` with no `}` after it, stand as they are
+// A variable the description does not know, and `${` with no `}` after it, are as they are
 void cli_plan_expand(const CliDevcontainerOutCtx *args)
 {
     VerbaLinea line = {args->out, CLI_STRING_MAX_LEN, 0ULL};
@@ -349,7 +349,7 @@ static void cli_commands_get(const DevcontainerPlanCtx *args)
     unsigned int value = args->value;
     unsigned int *count = args->count;
     static char s_word[CLI_STRING_MAX_LEN];
-    const CfgJsonKind type = s_tokens[value].kind;
+    const CfgJsonKind type = s_tokens[value].type;
     if ((type == CFG_JSON_STRING) || (type == CFG_JSON_ARRAY))
     {
         if (*count >= CLI_PLAN_COMMANDS_MAX)
@@ -391,7 +391,7 @@ void cli_plan_commands(const CliDevcontainerPlanCtx *args)
 {
     const unsigned int value =
         EMBED_CALL(cli_devcontainer_name_internal.plan_member, CliDevcontainerNameCtx, .name = args->key);
-    if ((value != 0u) && (s_tokens[value].kind != CFG_JSON_NULL))
+    if ((value != 0u) && (s_tokens[value].type != CFG_JSON_NULL))
     {
         EMBED_CALL(cli_commands_get, DevcontainerPlanCtx, .plan = args->plan, .value = value,
                    .commands = args->commands, .count = args->count);
@@ -442,7 +442,7 @@ EMBED_INLINE void cli_mount_get(const DevcontainerPlanCtx *args)
                    .list = &plan->mounts, .text = s_read);
         return;
     }
-    if (s_tokens[value].kind != CFG_JSON_OBJECT)
+    if (s_tokens[value].type != CFG_JSON_OBJECT)
     {
         return;
     }
@@ -483,7 +483,7 @@ void cli_plan_mounts(const CliDevcontainerObjectCtx *args)
         EMBED_CALL(cli_devcontainer_name_internal.plan_member, CliDevcontainerNameCtx, .name = "mounts");
     unsigned int at = mounts + 1u;
     for (unsigned int each = 0u;
-         (mounts != 0u) && (s_tokens[mounts].kind == CFG_JSON_ARRAY) && (each < s_tokens[mounts].count); each += 1u)
+         (mounts != 0u) && (s_tokens[mounts].type == CFG_JSON_ARRAY) && (each < s_tokens[mounts].count); each += 1u)
     {
         EMBED_CALL(cli_mount_get, DevcontainerPlanCtx, .plan = args->plan, .value = at, .positions = args->positions);
         at = s_tokens[at].next;

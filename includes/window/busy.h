@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// busy.h: the busy circle at the foot of the editor, shown while an ask of the CLI stands unanswered, or work it
+// busy.h: the busy circle at the foot of the editor, displayed while an ask of the CLI is unanswered, or work it
 // reports on runs, past a wait: a fuse bent into the ring of the regular busy indicator, the fire swirling round it,
 // ash ahead of the fire and the trail burnt behind it, and at its head the burn, five pixels, two lines of three
 // crossing, twitching, pulsing and dithered. A swirl's stages are pictures made once as the circle comes and given back
@@ -18,7 +18,7 @@ typedef struct GuiBusyCfg GuiBusyCfg;
 typedef struct GuiBusyStillCfg GuiBusyStillCfg;
 typedef struct GuiBusySinceCfg GuiBusySinceCfg;
 
-// the milliseconds an ask stands before the circle comes, and the least the circle stands once it has come; a swirl's
+// the milliseconds an ask is before the circle comes, and the least the circle is once it has come; a swirl's
 // stages, a power of two, and the shift from milliseconds to a stage; and the sizes in the page's pixels: the circle's
 // side, how far the ring's middle reaches from its center, and how far the circle saves from the editor's corner
 #define GUI_BUSY_SHOW_DELAY_MS 200ull
@@ -30,8 +30,8 @@ typedef struct GuiBusySinceCfg GuiBusySinceCfg;
 #define GUI_BUSY_REACH 7
 #define GUI_BUSY_EDGE 8
 
-// The circle: when the window last found an ask standing, one past the millisecond and 0 where none does; whether the
-// circle is shown, since when, and whether it stands still at one stage for less motion; the one cell its pictures lie
+// The circle: when the window last found an ask located, one past the millisecond and 0 where none does; whether the
+// circle is displayed, since when, and whether it is stationary at one stage for less motion; the one cell its pictures lie
 // in, their side and stages, each stage's three lanes of a blit side by side pixels; the pixels saved from under it,
 // the rectangle they came from, and whether any are saved
 typedef struct
@@ -49,27 +49,27 @@ typedef struct
     unsigned int *rest;
     GuiColor *under;
     GuiRect under_rect;
-    GuiRect laid_rect;
+    GuiRect positioned_rect;
     int under_saved;
     unsigned int stage_drawn;
 } GuiBusy;
 
 // a circle with nothing asked; and its cell given back
 void gui_busy_init(const GuiBusyStillCfg *args);
-// whether an ask stands; and when it began to, in `*since`: 1, or 0 where none stands
+// whether an ask is; and when it began to, in `*since`: 1, or 0 where none is
 void gui_busy_work(const GuiBusyRunningCfg *args);
 int gui_busy_waiting(const GuiBusySinceCfg *args);
-// the tick come: the circle come where an ask has stood past the wait, gone where none has and it has stood
+// the tick come: the circle come where an ask has was past the wait, gone where none has and it has was
 // its least: 1 where it came or went; and the milliseconds from `now` until a tick is wanted, 0 where none is
 int gui_busy_tick(const GuiBusyRunningCfg *args);
 unsigned long long gui_busy_next_deadline_ms(const GuiBusyCfg *args);
-// the stage standing, the first while it stands still; and whether it stands still, its pictures made again
+// the stage located, the first while it is stationary; and whether it is stationary, its pictures made again
 // for it
 unsigned int gui_busy_stage_at(const GuiBusyCfg *args);
 void gui_busy_still(const GuiBusyStillCfg *args);
 // the circle's rectangle in `frame`, at the editor's foot on its right
 GuiRect gui_busy_rect(const GuiBusyFrameCfg *args);
-// the circle laid at the end of a whole frame, its pictures made where they are wanted, the pixels under it saved
+// the circle positioned at the end of a whole frame, its pictures made where they are wanted, the pixels under it saved
 // first; and a step of its stage alone: the pixels saved restored and the stage blitted over them: the
 // rectangle to show again, empty where none is saved
 void gui_busy_draw(const GuiBusyFrameCfg *args);

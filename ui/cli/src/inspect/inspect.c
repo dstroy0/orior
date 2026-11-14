@@ -104,7 +104,7 @@ CliInspectText cli_inspect_text_store(const CliInspectTextCtx *args)
         args->facts->full = 1;
         return stored;
     }
-    // a pool contains at most 4 GiB, which its places count
+    // a pool contains at max 4 GiB, which its places count
     stored.at = args->facts->used;
     stored.size = (unsigned int)size;
     memor.cpy(
@@ -395,7 +395,7 @@ void cli_inspect_finding_write(const CliInspectFactsFindingCfg *args)
     mmgr_line_put(args->out, ",\"end\":");
     EMBED_CALL(inspect_position_write, InspectCtx, .place = found.to, .col = ",\"character\":", .out = args->out);
     mmgr_line_put(args->out, (found.severity == CLI_INSPECT_WARNING) ? "},\"severity\":2" : "},\"severity\":3");
-    mmgr_line_put(args->out, ",\"message\":{\"kind\":\"markdown\",\"value\":");
+    mmgr_line_put(args->out, ",\"message\":{\"type\":\"markdown\",\"value\":");
     EMBED_CALL(inspect_stored_quote, InspectCtx, .out = args->out, .facts = facts,
                .text_at = CLI_FACTS_TEXT_AT(facts, found.message.at), .size = found.message.size);
     mmgr_line_put(args->out, "},\"source\":\"orior\",\"code\":");
@@ -448,7 +448,7 @@ unsigned int cli_inspect_physical(const CliInspectSizeSrcStartsCtx *args)
 {
     const char *src = args->src;
     unsigned int count = 0u;
-    for (unsigned long long at = 0ULL; (at <= args->size) && (count < args->most);)
+    for (unsigned long long at = 0ULL; (at <= args->size) && (count < args->max);)
     {
         const char *const newline =
             (at < args->size)
@@ -486,7 +486,7 @@ EMBED_INLINE int inspect_sorted_before(const InspectCtx *args)
     return order < 0;
 }
 
-// the methods of a body sorted, a list of the reading's cell, one for each token at the most
+// the methods of a body sorted, a list of the reading's cell, one for each token at max
 static unsigned int *s_methods;
 
 void cli_inspect_sort_layout(const CliInspectPartitionCtx *args)

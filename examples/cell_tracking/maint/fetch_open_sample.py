@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fetches the open sample the examples run on and lays it out as a source.
+"""Fetches the open sample the examples run on and positions it out as a source.
 
 The sample is a mouse intestinal organoid imaged by light-sheet over time, H2B nuclei on channel 1 and the mem9
 membrane on channel 0, from "Reference OME-Zarr for 3D time-lapse light-sheet microscopy with nuclei tracking"
@@ -88,9 +88,9 @@ def array_of(packed, root):
     return list(struct.unpack("<%d%s" % (len(data) // 8, defined), data)), meta["shape"]
 
 
-def array_write(root, shape, values, kind):
+def array_write(root, shape, values, type):
     os.makedirs(os.path.join(root, "c"), exist_ok=True)
-    meta = {"zarr_format": 3, "node_type": "array", "shape": shape, "data_type": {"q": "int64", "Q": "uint64"}[kind],
+    meta = {"zarr_format": 3, "node_type": "array", "shape": shape, "data_type": {"q": "int64", "Q": "uint64"}[type],
             "chunk_grid": {"name": "regular", "configuration": {"chunk_shape": shape}},
             "chunk_key_encoding": {"name": "default", "configuration": {"separator": "/"}}, "fill_value": 0,
             "codecs": [{"name": "bytes", "configuration": {"endian": "little"}}]}
@@ -99,7 +99,7 @@ def array_write(root, shape, values, kind):
     chunk = os.path.join(root, "c", *("0" * len(shape)))
     os.makedirs(os.path.dirname(chunk), exist_ok=True)
     with open(chunk, "wb") as handle:
-        handle.write(struct.pack("<%d%s" % (len(values), kind), *values))
+        handle.write(struct.pack("<%d%s" % (len(values), type), *values))
 
 
 def answer_key(archive, stem, image, into):

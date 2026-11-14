@@ -9,7 +9,7 @@
 #include "../text/text.h"
 
 // What the search of one package records: the tree, where the tests go, the manifest, package and target, and the files
-// followed, where each starts in their texts, both in cells at their most
+// followed, where each starts in their texts, both in cells at their max
 typedef struct
 {
     const char *root;

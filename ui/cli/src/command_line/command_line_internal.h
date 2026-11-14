@@ -34,7 +34,7 @@ typedef struct CliCommandLineSizeCtx CliCommandLineSizeCtx;
 #define CLI_NO_CODE 1
 #define CLI_WRONG 2
 
-// the most jobs the catalog the command line reads contains
+// the max jobs the catalog the command line reads contains
 #define CLI_LINE_JOBS 4096u
 
 // `size` bytes of `text` written as a line of the output, and of the errors; and the same of a text ended by a 0
@@ -45,8 +45,8 @@ void cli_out(const CliCommandLineCtx *args);
 void cli_err(const CliCommandLineCtx *args);
 // the terminal's width, COLUMNS where it is 40 or more, else 100
 unsigned int cli_width(void);
-// `size` bytes of `text` cut to `most` letters, ending in `...` where it was cut, written into `out`; and broken into
-// lines of at most `most` letters at whitespace, each led by `lead`, each handed to `each`
+// `size` bytes of `text` cut to `max` characters, ending in `...` where it was cut, written into `out`; and broken into
+// lines of at max `max` characters at whitespace, each led by `lead`, each passed to `each`
 void cli_cut(const CliCommandLineTextSizeCtx *args);
 void cli_wrap(const CliCommandLineTextCtx *args);
 // a word written quoted so the runner's shell words give it back whole; and whether `text` contains `word`, case aside
@@ -66,7 +66,7 @@ int cli_job_values(const CliCommandLineCatalogCtx *args);
 void cli_job_subject(const CliCommandLineCatalogJobCtx *args);
 
 // the tree's tests listed, each with its line, or as JSON with `--json`; the tree's jobs listed, those that contain
-// `word` where it is given; a job shown; and a job run here, reported to the window where a terminal of the window's
+// `word` where it is given; a job displayed; and a job run here, reported to the window where a terminal of the window's
 // started this, each giving the code to exit with (command_line_jobs.c)
 int cli_tests_list(const CliCommandLineRootCtx *args);
 int cli_jobs_list(const CliCommandLineWordCtx *args);
@@ -77,13 +77,13 @@ int cli_job_run(const CliCommandLineRootCtx *args);
 
 // the jobs of the menu's groups, their places in the catalog into `list_entries`, sized for CLI_LINE_JOBS: their count;
 // a menu's commands and the jobs of a menu of jobs listed, as `imp <menu>` alone shows them, its jobs from the
-// tree at `root`, NULL where there is none; and a job of a menu of jobs shown, as the window shows it on choosing, each
+// tree at `root`, NULL where there is none; and a job of a menu of jobs displayed, as the window shows it on choosing, each
 // giving the code to exit with (command_line_menus.c)
 unsigned int cli_menu_jobs(const CliCommandLineCatalogMenuCtx *args);
 int cli_menu_lines(const CliCommandLineWordCtx *args);
 int cli_menu_job(const CliCommandLineWordsCountMenuCtx *args);
 
-// the keys of the bridge listed, those that contain `word` where it is given, or the one it names shown whole: the code
+// the keys of the bridge listed, those that contain `word` where it is given, or the one it names displayed whole: the code
 // to exit with (command_line_bridge.c)
 int cli_bridge_words(const CliCommandLineWordCtx *args);
 
@@ -91,8 +91,8 @@ int cli_bridge_words(const CliCommandLineWordCtx *args);
 // can follow the menu `menu`; and the completion script for `shell` written into `out`: 1, or 0 with why given
 // (command_line_help.c)
 void cli_help(const CliCommandLineOutErrMsgShellCtx *args);
-// the width the help's lines are wrapped to; and `text` broken at spaces into lines of at most `width` letters, each
-// after the first indented `indent` more, each handed to `each`, a word wider than the width alone on its line
+// the width the help's lines are wrapped to; and `text` broken at spaces into lines of at max `width` characters, each
+// after the first indented `indent` more, each passed to `each`, a word wider than the width alone on its line
 #define CLI_HELP_WIDTH 100ull
 void cli_help_wrap(const CliCommandLineTextEachCtx *args);
 void cli_keys(void);
@@ -103,7 +103,7 @@ int cli_completions(const CliCommandLineOutErrMsgShellCtx *args);
 int cli_console(const CliCommandLineWordsCountCtx *args);
 // a setting of the tree of commands, its key the chain `command` and its words its value, as the node's `args_text`
 // takes them: the value written to orior's settings.json and sent as it is to the window open on the tree, which takes
-// it into what it draws with and reads no file for it; with no words, the text standing written out. The code to exit
+// it into what it draws with and reads no file for it; with no words, the text located written out. The code to exit
 // with (command_line_console.c)
 int cli_console_setting(const CliCommandLineWordsCountCtx *args);
 // `imp edit search [--case] [--word] [--regex] <text>`: every line in the tree's files that contains the text, as
@@ -145,7 +145,7 @@ struct CliCommandLineTextCtx
 {
     const char *text;
     unsigned long long size;
-    unsigned long long most;
+    unsigned long long max;
     const char *lead;
     void (*each)(const CliEachLineSizeCfg *args);
     void *context;
@@ -200,7 +200,7 @@ struct CliCommandLineTextSizeCtx
 {
     const char *text;
     unsigned long long size;
-    unsigned long long most;
+    unsigned long long max;
     VerbaLinea *out;
 };
 

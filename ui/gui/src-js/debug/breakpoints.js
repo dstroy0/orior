@@ -21,7 +21,7 @@ function readKept(key) {
 // A breakpoint as the adapter takes it: its line, its condition, its count of hits, its message.
 const specOf = (line, one) => ({ line, condition: one.condition ?? "", hits: one.hits ?? "", log: one.log ?? "" });
 
-function keepBreaks() {
+function retainBreaks() {
   const all = readKept(BREAKS);
   const mine = {};
   for (const [path, lines] of state.breaks) {
@@ -33,16 +33,16 @@ function keepBreaks() {
   localStorage.setItem(BREAKS, JSON.stringify(all));
 }
 
-// Each breakpoint kept for a file, a line alone or a breakpoint whole, as a Map of its line to it.
-function breaksOf(kept) {
-  return new Map(kept.map((one) => (typeof one === "number" ? [one, { bound: true }] : [one.line, { bound: true, condition: one.condition ?? "", hits: one.hits ?? "", log: one.log ?? "" }])));
+// Each breakpoint retained for a file, a line alone or a breakpoint whole, as a Map of its line to it.
+function breaksOf(retained) {
+  return new Map(retained.map((one) => (typeof one === "number" ? [one, { bound: true }] : [one.line, { bound: true, condition: one.condition ?? "", hits: one.hits ?? "", log: one.log ?? "" }])));
 }
 
-// Reads the breakpoints kept for the tree that is open.
+// Reads the breakpoints retained for the tree that is open.
 export function loadBreakpoints() {
   state.breaks = new Map();
-  for (const [path, kept] of Object.entries(readKept(BREAKS)[treeKey()] ?? {})) {
-    state.breaks.set(path, breaksOf(kept));
+  for (const [path, retained] of Object.entries(readKept(BREAKS)[treeKey()] ?? {})) {
+    state.breaks.set(path, breaksOf(retained));
   }
   state.hooks?.repaint();
 }
@@ -99,7 +99,7 @@ export function toggleBreakpoint(path, line) {
   } else {
     lines.set(line, { bound: true, condition: "", hits: "", log: "" });
   }
-  keepBreaks();
+  retainBreaks();
   state.hooks.repaint();
   tellBreaks(path);
 }
@@ -119,7 +119,7 @@ export function setBreakpoint(path, line, change) {
   }
   const lines = state.breaks.get(path);
   lines.set(line, { bound: true, condition: "", hits: "", log: "", ...lines.get(line), ...change });
-  keepBreaks();
+  retainBreaks();
   state.hooks.repaint();
   tellBreaks(path);
 }
@@ -173,9 +173,9 @@ export async function exportBreakpoints() {
   if (!file) {
     return;
   }
-  const kept = { breakpoints: Object.fromEntries([...state.breaks].filter(([, lines]) => lines.size).map(([path, lines]) => [path, [...lines].map(([line, one]) => specOf(line, one))])), watches: state.watches };
+  const retained = { breakpoints: Object.fromEntries([...state.breaks].filter(([, lines]) => lines.size).map(([path, lines]) => [path, [...lines].map(([line, one]) => specOf(line, one))])), watches: state.watches };
   try {
-    await invoke("file_write_any", { path: file, text: `${JSON.stringify(kept, null, 2)}\n` });
+    await invoke("file_write_any", { path: file, text: `${JSON.stringify(retained, null, 2)}\n` });
     say(`The breakpoints and watches are written to ${file}.`);
   } catch (error) {
     say(String(error), { failed: true });
@@ -189,18 +189,18 @@ export async function importBreakpoints() {
     return;
   }
   try {
-    const kept = JSON.parse(await invoke("file_read_any", { path: file }));
-    for (const [path, list] of Object.entries(kept.breakpoints ?? {})) {
+    const retained = JSON.parse(await invoke("file_read_any", { path: file }));
+    for (const [path, list] of Object.entries(retained.breakpoints ?? {})) {
       state.breaks.set(path, new Map([...(state.breaks.get(path) ?? new Map()), ...breaksOf(list)]));
       tellBreaks(path);
     }
-    for (const watch of kept.watches ?? []) {
+    for (const watch of retained.watches ?? []) {
       if (!state.watches.includes(watch)) {
         state.watches.push(watch);
       }
     }
     localStorage.setItem(WATCHES, JSON.stringify(state.watches));
-    keepBreaks();
+    retainBreaks();
     state.hooks.repaint();
     drawVariables();
     say(`The breakpoints and watches of ${file} are taken in.`);
@@ -216,13 +216,13 @@ export function exceptionsOf(language) {
   return readKept(EXCEPTIONS)[language] ?? null;
 }
 
-export function keepExceptions(language, on) {
+export function retainExceptions(language, on) {
   const all = readKept(EXCEPTIONS);
   all[language] = on;
   localStorage.setItem(EXCEPTIONS, JSON.stringify(all));
 }
 
-// The stepping the tree asks for: whether a step keeps to its own code, the patterns a step passes
+// The stepping the tree asks for: whether a step retains to its own code, the patterns a step passes
 // over, and the patterns of the frames a stop hides.
 export function steppingOf() {
   return { mine_only: true, skip: [], hide: [], ...(readKept(STEPPING)[treeKey()] ?? {}) };

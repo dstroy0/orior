@@ -4,25 +4,25 @@
 // Plugins that run code of their own, type "script" (plugins.rs). Each runs in a worker of its own,
 // apart from the editor and from every other plugin: one that is slow or stuck holds up neither the
 // keys nor the others. Every second each is asked whether it is there; one that has not answered for
-// STUCK is named on the status bar with how long, the status bar shown while it stands, and Stop there
+// STUCK is named on the status bar with how long, the status bar displayed while it is, and Stop there
 // ends it. Find the Slow Plugin turns
 // half of the plugins on off at a time, asking the reader each time whether the window is still slow,
 // until one is left, and turns them all back as they were.
 //
 // A plugin draws through orior's calls, `orior` in its worker, and never reaches into the editor's
-// own parts. It lays marks on the lines of a file, each in the gutter with a word at the line's end;
-// lays an overlay of text over the editor at a line; shows panels of its own over the window, each
+// own parts. It positions marks on the lines of a file, each in the gutter with a word at the line's end;
+// positions an overlay of text over the editor at a line; shows panels of its own over the window, each
 // its HTML in a frame that runs none of its scripts; sets the label of a file's tab; reads the
 // theme's colors; and changes the window's chrome, a badge on the top bar and the color of its
 // signal. It hears when a file opens, changes, saves and the cursor moves, and reads and writes
-// files, from the second form on keeps settings of its own, and from the third sends requests to
+// files, from the second form on retains settings of its own, and from the third sends requests to
 // hosts. A plugin runs only once the reader has let it read, write and reach what its plugin.json
-// asks for, and each call is kept to that: a file it did not ask to read or write, or a host it did
+// asks for, and each call is retained to that: a file it did not ask to read or write, or a host it did
 // not ask to reach, is refused; one that asks for more after an update waits to be let again. A
 // plugin names the form of the calls it was written for, `api` in its plugin.json, and orior
-// keeps each form it has given: a plugin of an older form gets that form's calls, each answered as
+// retains each form it has given: a plugin of an older form gets that form's calls, each answered as
 // it was. From the fifth form on it brings a language server of its own, puts commands in the
-// command palette, hears what is pressed in its panels and keeps secrets (plugin_server.js,
+// command palette, hears what is pressed in its panels and retains secrets (plugin_server.js,
 // plugin_panels.js).
 
 import { invoke, onCalls } from "./bridge.js";
@@ -86,7 +86,7 @@ const orior = (() => {
 `,
 };
 
-// The second form: the first's calls, and the plugin's own settings, read and written whole, kept
+// The second form: the first's calls, and the plugin's own settings, read and written whole, retained
 // apart from every other plugin's and carried with the reader's settings to another machine.
 PRELUDES[2] = PRELUDES[1].replace("api: 1,", "api: 2,").replace("    files: Object.freeze(", '    settings: Object.freeze({ read: () => call("settings.read"), write: (values) => call("settings.write", values) }),\n    files: Object.freeze(');
 
@@ -101,13 +101,13 @@ PRELUDES[4] = PRELUDES[3].replace("api: 3,", "api: 4,").replace('active: () => c
 // browser (plugin_server.js).
 PRELUDES[5] = preludeFive(PRELUDES[4]);
 
-// What each plugin was let read, write and reach, by its id, kept as the setting plugins.allowed.
+// What each plugin was let read, write and reach, by its id, retained as the setting plugins.allowed.
 const ALLOWED = "orior.plugins.allowed";
 
 function allowedAll() {
   try {
-    const kept = JSON.parse(localStorage.getItem(ALLOWED) ?? "{}");
-    return kept && typeof kept === "object" ? kept : {};
+    const retained = JSON.parse(localStorage.getItem(ALLOWED) ?? "{}");
+    return retained && typeof retained === "object" ? retained : {};
   } catch {
     return {};
   }
@@ -139,23 +139,23 @@ export function asksText(asks) {
 
 const globs = new Map();
 
-// Whether the tree's path `path` matches the pattern `pattern`: `**` any folders, `*` any letters but
+// Whether the tree's path `path` matches the pattern `pattern`: `**` any folders, `*` any characters but
 // `/`, and `?` one.
 function matches(pattern, path) {
   let found = globs.get(pattern);
   if (!found) {
     let source = "";
     for (let at = 0; at < pattern.length; at += 1) {
-      const letter = pattern[at];
-      if (letter === "*" && pattern[at + 1] === "*") {
+      const character = pattern[at];
+      if (character === "*" && pattern[at + 1] === "*") {
         source += pattern[at + 2] === "/" ? "(?:.*/)?" : ".*";
         at += pattern[at + 2] === "/" ? 2 : 1;
-      } else if (letter === "*") {
+      } else if (character === "*") {
         source += "[^/]*";
-      } else if (letter === "?") {
+      } else if (character === "?") {
         source += "[^/]";
       } else {
-        source += letter.replace(/[\\^$.|+()[\]{}]/g, "\\$&");
+        source += character.replace(/[\\^$.|+()[\]{}]/g, "\\$&");
       }
     }
     found = new RegExp(`^${source}$`);
@@ -180,7 +180,7 @@ const COLORS = ["--bg", "--surface", "--well", "--fg", "--fg-2", "--fg-3", "--li
 
 const state = { running: new Map(), hooks: null, timer: 0, node: null, told: new Set() };
 
-// The marks the running plugins lay on the file at `path`: each line's, from every plugin, as
+// The marks the running plugins position on the file at `path`: each line's, from every plugin, as
 // [{ text, type, title, plugin }].
 export function marksOf(path) {
   const out = new Map();
@@ -190,7 +190,7 @@ export function marksOf(path) {
       if (!out.has(line)) {
         out.set(line, []);
       }
-      out.get(line).push({ text: String(mark.text ?? ""), kind: ["info", "warn", "error", "note"].includes(mark.kind) ? mark.kind : "info", title: `${one.name}${mark.title ? `: ${mark.title}` : ""}` });
+      out.get(line).push({ text: String(mark.text ?? ""), type: ["info", "warn", "error", "note"].includes(mark.type) ? mark.type : "info", title: `${one.name}${mark.title ? `: ${mark.title}` : ""}` });
     }
   }
   return out.size ? out : null;
@@ -438,7 +438,7 @@ function ask() {
 export async function syncPlugins() {
   await new Promise((drawn) => requestAnimationFrame(() => setTimeout(drawn, 0)));
   const off = pluginsOff();
-  const scripts = pluginReadings().filter((reading) => reading.kind === "script" && !reading.error && !reading.replaced);
+  const scripts = pluginReadings().filter((reading) => reading.type === "script" && !reading.error && !reading.replaced);
   for (const id of [...state.running.keys()]) {
     if (off.has(id) || !scripts.some((reading) => reading.id === id)) {
       stopPlugin(id);

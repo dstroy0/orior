@@ -6,7 +6,7 @@ import { act, element, guides, paneOpen, state } from "../explorer.js";
 import { iconOf } from "./icons.js";
 
 // Timeline: the commits that touched the open file, the newest first, each with its date. A commit's
-// menu opens the file as it left it, or sets it beside the file as it stands or another commit's.
+// menu opens the file as it left it, or sets it beside the file as it is or another commit's.
 
 export const day = (when) => {
   const date = new Date(when * 1000);
@@ -67,8 +67,8 @@ export function timelineItems(event) {
   ];
 }
 
-// Local History: the open file as each save left it, the newest first, kept apart from git. A row
-// shows its difference from the text as it stands; its menu takes the file back to it.
+// Local History: the open file as each save left it, the newest first, retained apart from git. A row
+// shows its difference from the text as it is; its menu takes the file back to it.
 
 const clock = (ms) => {
   const date = new Date(ms);
@@ -107,9 +107,9 @@ export async function drawLocalHistory(path, again = false) {
 }
 
 // Undo History: every state the open file's text has been in since it opened, the first at the top,
-// each by when it was made and the line its step changed. A branch an edit after an undo left stands
+// each by when it was made and the line its step changed. A branch an edit after an undo left is
 // a level in, under the state it was made from. The state the text is in is marked, and a press on a
-// row takes the text to its state. Drawn at most once a frame.
+// row takes the text to its state. Drawn at max once a frame.
 export function drawUndo(session) {
   state.undo.session = session;
   if (state.undo.wait || !paneOpen("undo")) {
@@ -117,14 +117,14 @@ export function drawUndo(session) {
   }
   state.undo.wait = window.requestAnimationFrame(() => {
     state.undo.wait = 0;
-    const shown = state.undo.session;
-    const rows = shown ? shown.doc.states() : [];
+    const displayed = state.undo.session;
+    const rows = displayed ? displayed.doc.states() : [];
     const body = document.getElementById("undo-history");
     const focused = body.contains(document.activeElement) ? document.activeElement.dataset.key : null;
     body.replaceChildren(
       ...rows.map(({ id, depth, step, here }) => {
         const line = step?.edits[0]?.[0]?.from.line;
-        const row = element("button", { className: "commit", type: "button", title: step ? `${clock(step.made)}${step.kind ? `, ${step.kind}` : ""}` : "" });
+        const row = element("button", { className: "commit", type: "button", title: step ? `${clock(step.made)}${step.type ? `, ${step.type}` : ""}` : "" });
         row.dataset.key = String(id);
         row.dataset.depth = String(depth);
         if (here) {
@@ -134,7 +134,7 @@ export function drawUndo(session) {
         dot.setAttribute("aria-hidden", "true");
         row.append(...guides(depth), dot, element("span", { className: "name", textContent: step ? clock(step.made) : "As opened" }));
         if (line !== undefined) {
-          row.append(element("span", { className: "where", textContent: `line ${shown.base + line + 1}` }));
+          row.append(element("span", { className: "where", textContent: `line ${displayed.base + line + 1}` }));
         }
         row.addEventListener("click", () => state.hooks.goToState(id));
         return row;

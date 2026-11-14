@@ -20,7 +20,7 @@
 # tree with a low cophenetic correlation means there are no groups to test and the gate has to be a table.
 #
 # The three numbers are put on the same footing first. Vocabulary growth runs to ten percent, what the
-# branch buys runs to nine hundredths, and clustering them as they stand would let the larger number
+# branch buys runs to nine hundredths, and clustering them as they are would let the larger number
 # decide everything. Each is centered on its own average and divided by its own scatter.
 #
 # The family each language belongs to is checked separately and directly, because the proposal was

@@ -145,7 +145,7 @@ int pi_tower_first_hit_from(const PiWide &multiplier, const PiWide &modulus, con
     const PiWide shifted_high = pi_tower_remainder(pi_tower_difference(pi_tower_sum(high, modulus), start), modulus);
     if (pi_tower_compare(shifted_low, shifted_high) > 0)
     {
-        // the window wraps past 0, and x = from stands in it
+        // the window wraps past 0, and x = from is in it
         *step = from;
         return 1;
     }
@@ -171,7 +171,7 @@ int pi_tower_hit_between(const PiWide &multiplier, const PiWide &modulus, const 
     const PiWide shifted_high = pi_tower_remainder(pi_tower_difference(pi_tower_sum(high, modulus), start), modulus);
     if (pi_tower_compare(shifted_low, shifted_high) > 0)
     {
-        // the window wraps past 0, and x = from stands in it
+        // the window wraps past 0, and x = from is in it
         return 1;
     }
     PiWide step;

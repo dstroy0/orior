@@ -14,7 +14,7 @@
 #
 # A character run length chosen for Chinese is a statement about how much a Chinese character carries. One
 # chosen for Finnish is a statement about how long a Finnish word is. If those settings line up across
-# many papers with what kind of language each is about, that is a constant nobody set out to publish, and
+# many papers with what type of language each is about, that is a constant nobody set out to publish, and
 # it is evidence from outside this work, which almost nothing here has.
 #
 # The whole bibliography of the field is served as one file with abstracts. The abstracts are mined:
@@ -56,7 +56,7 @@ LANGUAGES = (
 
 # How a run length gets written down in an abstract. The digit forms alone found fifteen papers of
 # fifteen hundred, because almost nobody writes 2-gram or 3-gram: they write bigram and trigram, and
-# generic n-gram with the letter n, which states no length at all.
+# generic n-gram with the character n, which states no length at all.
 ORDERS = (
     re.compile(r"\b(\d)\s*-?\s*gram", re.I),
     re.compile(r"\bn\s*=\s*(\d)\b", re.I),
@@ -146,11 +146,11 @@ def main():
     grouped = {}
     for language in ready:
         grouped.setdefault(KIND.get(language, "fusional or other"), []).extend(by_language[language])
-    out.write("\n  %-22s %-9s %s\n" % ("kind of language", "readings", "run length"))
-    for kind in sorted(grouped, key=lambda kind: statistics.fmean(grouped[kind])):
-        marks = grouped[kind]
+    out.write("\n  %-22s %-9s %s\n" % ("type of language", "readings", "run length"))
+    for type in sorted(grouped, key=lambda type: statistics.fmean(grouped[type])):
+        marks = grouped[type]
         if len(marks) >= 6:
-            out.write("  %-22s %-9d %.2f\n" % (kind, len(marks), statistics.fmean(marks)))
+            out.write("  %-22s %-9d %.2f\n" % (type, len(marks), statistics.fmean(marks)))
 
     out.flush()
     return 0

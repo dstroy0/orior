@@ -5,7 +5,7 @@
 
 THE SCALAR, AND WHY IT IS ONE NUMBER AND NOT A CHOICE OF UNITS
 
-The definition: propagation speed here is a conceptual scalar standing for anisotropic field
+The definition: propagation speed here is a conceptual scalar located for anisotropic field
 deformation, read through torsion and deflection. That is constructible, and it is worth saying
 first what it is NOT: no kernel in this tree has a kinematic signal speed. Depth is elliptic and
 conduction is the heat semigroup, and both have instantaneous global dependence. So the quantity
@@ -115,7 +115,7 @@ def norm_between(one, two):
     """The norm of the difference of two coefficient tables, orders above zero counted twice.
 
     The doubling matches `boundary_read.deflection`: a real expansion carries every order above zero
-    as a matched pair and only the zonal term stands alone. Using a different weighting here than
+    as a matched pair and only the zonal term is alone. Using a different weighting here than
     the deflection reading uses would measure a different object than the one the tree reports.
     """
     total = 0.0
@@ -131,7 +131,7 @@ def best_angle(before, after):
 
     THE FIRST VERSION READ THE ANGLE OFF THE ORDER-ONE PHASE AND THE TOOL PRINTED A SCALAR OF 2.65.
     That is impossible for a quantity documented as a fraction between zero and one, and the reason
-    is worth keeping: the order-one phase is the exact rotation only when the move IS a rotation.
+    is worth retention: the order-one phase is the exact rotation only when the move IS a rotation.
     For a move that is partly shape, it names an angle that is not the best rigid fit, and applying
     it can leave MORE difference than doing nothing. A scalar above one was the tool reporting that
     its own rotation estimate had made things worse.
@@ -144,7 +144,7 @@ def best_angle(before, after):
     where c_m collects conj(after) times before over every degree at that order. Only the second
     term moves with alpha. Minimizing the norm is maximizing a band-limited sum over orders up to
     the reading degree. A scan at a resolution far finer than that band, refined by a parabola
-    through the best three samples, finds the maximum to well under the arithmetic floor.
+    through the best three samples, finds the max to well under the arithmetic floor.
 
     Alpha zero is always in the search. The returned angle can never be worse than no rotation
     and the scalar is genuinely bounded above by one.
@@ -354,7 +354,7 @@ def quarter_turns(table, quarters):
 def _exact():
     """Which nulls are EXACTLY zero and which are only small, and what decides it.
 
-    The claim: against the most entropic noise in existence, the noise floor is zero.
+    The claim: against the max entropic noise in existence, the noise floor is zero.
 
     It holds for a class of moves and the class has a sharp boundary. The useful answer is
     the boundary and not a yes or a no. A null is exactly zero when the move is exact in the

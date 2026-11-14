@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // block.c: the window's block: the system's pages reserved once at the largest monitor's size, each part of them a
-// ring of MMgr's laid over its span, and a part's pages committed as far as a raster first drawn in it reaches
+// ring of MMgr's positioned over its span, and a part's pages committed as far as a raster first drawn in it reaches
 #include "block.h"
 
 #include "memoria_operor/memoria_operor.h"

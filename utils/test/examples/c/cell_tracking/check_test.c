@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// The checkers (cell_tracking/src/check) shown to fire. Under the directory named this writes, by hand, a good set for
+// The checkers (cell_tracking/src/check) displayed to fire. Under the directory named this writes, by hand, a good set for
 // each checker and one broken copy for each fault the checker names; check_test.sh runs the checkers on every copy and
 // checks each exit and each fault's count against the case's.
 //
@@ -760,7 +760,7 @@ static int check_test_output_case(const char *root, OutputCase which)
     }
     int ok = check_test_graph(set, which, 0);
     // the files: a byte of a row changed in chain's first row (its x, 1 to 9), in the submission's row 9's x, or in the
-    // nodes header's first letter
+    // nodes header's first character
     char path[CHECK_TEST_PATH];
     const size_t header = strlen(CHECK_TEST_NODES_HEADER);
     const size_t nodes_at = (which == OUTPUT_CASE_NODES_HEADER) ? 0u : (header + strlen("chain\t0\t0\t0\t1\t"));

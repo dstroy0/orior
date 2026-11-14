@@ -2,7 +2,7 @@
 
 usage: python inner_spaces.py <stem> [max gap in em, default 0.1]
 
-For each page, each pair of neighboring page-text tokens with a letter outside ASCII in either is
+For each page, each pair of neighboring page-text tokens with a character outside ASCII in either is
 looked up on the glyph line holding them both: where the gap between the last glyph of the first
 and the first glyph of the second is under the threshold, the page sets them as one word and the
 space is the text layer's. Prints the spaced and the joined text with the gap, once per distinct
@@ -47,7 +47,7 @@ for number, text in enumerate(pages, 1):
                 continue
             last = glyphs[found + len(first) - 1]
             nxt = glyphs[found + len(first)]
-            # A combining mark has no box of its own worth measuring; step back to its letter.
+            # A combining mark has no box of its own worth measuring; step back to its character.
             back = found + len(first) - 1
             while 0x0300 <= ord(glyphs[back][0][0]) <= 0x036F and back > found:
                 back -= 1

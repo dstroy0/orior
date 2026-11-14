@@ -4,7 +4,7 @@
 // row a commit, the newest first, with its subject, its day, the branch's name at HEAD and its strokes; a commit's row
 // pressed opens the files it changed under it with their states and folders and closes them again; text typed rests
 // before the history is searched, then lists what the query finds; the authors setting shows each commit's author and
-// searches by it; the pane's table stands the field under the head, a press on the field takes the keys, which typed
+// searches by it; the pane's table is the field under the head, a press on the field takes the keys, which typed
 // text then reaches and Escape lets go, the branch's row is taller than a commit's, and a file's row pressed opens the
 // file
 #include "../../../../../includes/window/block.h"
@@ -115,15 +115,15 @@ int main(void)
     EMBED_CALL(cli_git_log.begin, CliGitLogCfg, .woken = NULL, .entries = NULL);
     cli_check(EMBED_CALL(cli_git_log.rows, CliGitLogCfg, .at = 0u) == 0u, "nothing is listed before the pane shows");
     cli_check(!EMBED_CALL(cli_git_log.authors, CliGitLogCfg, .at = 0u), "authors are off until turned on");
-    EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = table, .event = GUI_PANE_SHOWN, .root = s_root);
+    EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = table, .event = GUI_PANE_DISPLAYED, .root = s_root);
     cli_check(EMBED_CALL(cli_git_log.rows, CliGitLogCfg, .at = 0u) == 3u,
-              "the pane shown lists the branch's row and a row a commit");
+              "the pane displayed lists the branch's row and a row a commit");
     CliGitLogRow row;
-    cli_check(row_is(0u, CLI_GIT_LOG_ROW_BRANCH, branch, &row) && second_is(&row, "2 commits shown"),
+    cli_check(row_is(0u, CLI_GIT_LOG_ROW_BRANCH, branch, &row) && second_is(&row, "2 commits displayed"),
               "the branch's row carries the branch's name and the commits counted");
     cli_check(row_is(1u, CLI_GIT_LOG_ROW_COMMIT, "second commit", &row) && !row.open && !row.merge &&
                   (row.lane_at == 0u) && (row.across == 1u) && (row.second_length == 0ULL) && (row.refs >= 1u),
-              "the newest commit stands first in the first column, closed, with no author shown and a name at it");
+              "the newest commit is first in the first column, closed, with no author displayed and a name at it");
     cli_check((cellul.len(&(CatenaFinitaCfg){.src = row.day, .cap = CLI_GIT_LOG_DAY}) == CLI_GIT_LOG_DAY - 1u) && (row.day[4] == '-') && (row.day[7] == '-') &&
                   (row.day[0] == '2'),
               "the commit's day reads as a year, a month and a day");
@@ -133,13 +133,13 @@ int main(void)
     cli_check(EMBED_CALL(cli_git_log.ref, CliGitLogCfg, .at = 1u, .which = 0u, .ref = &ref) && ref.head && !ref.tag &&
                   (ref.length == cellul.len(&(CatenaFinitaCfg){.src = branch, .cap = sizeof(branch)})) &&
                   (memor.cmp(&(MemoriaCfg){.src = ref.name, .other = branch, .bytes = ref.length}) == 0),
-              "the branch's name stands at the newest commit with HEAD");
+              "the branch's name is at the newest commit with HEAD");
     cli_check(!EMBED_CALL(cli_git_log.ref, CliGitLogCfg, .at = 1u, .which = row.refs, .ref = &ref),
-              "no name stands past the commit's last");
+              "no name is past the commit's last");
     cli_check(row_is(2u, CLI_GIT_LOG_ROW_COMMIT, "first commit", &row) && (row.refs == 0u) && (row.strokes == 1u) &&
                   (row.stroke[0][2] == 0u),
-              "the first commit stands last, with no name and the stroke from its child ending at its dot");
-    cli_check(!EMBED_CALL(cli_git_log.row, CliGitLogCfg, .at = 3u, .row = &row), "no row stands past the last");
+              "the first commit is last, with no name and the stroke from its child ending at its dot");
+    cli_check(!EMBED_CALL(cli_git_log.row, CliGitLogCfg, .at = 3u, .row = &row), "no row is past the last");
 
     EMBED_CALL(cli_git_log.toggle, CliGitLogCfg, .at = 1u, .root = s_root);
     cli_check((EMBED_CALL(cli_git_log.rows, CliGitLogCfg, .at = 0u) == 4u) &&
@@ -160,7 +160,7 @@ int main(void)
     EMBED_CALL(cli_git_log.toggle, CliGitLogCfg, .at = 1u, .root = s_root);
     cli_check((EMBED_CALL(cli_git_log.rows, CliGitLogCfg, .at = 0u) == 5u) &&
                   row_is(2u, CLI_GIT_LOG_ROW_COMMIT, "first commit", &row) && row.open,
-              "the newest commit closed hides its file, the first commit's files standing");
+              "the newest commit closed hides its file, the first commit's files located");
 
     cli_check(EMBED_CALL(cli_git_log.deadline_ms, CliGitLogCfg, .at = 0u) == 0ULL, "no change waits before typing");
     EMBED_CALL(cli_git_log.type, CliGitLogCfg, .text = "second", .size = 6ULL, .now_ms = 1000ULL);
@@ -184,13 +184,13 @@ int main(void)
     for (unsigned int erased = 0u; erased < 6u; erased += 1u)
     {
         cli_check(EMBED_CALL(cli_git_log.key, CliGitLogCfg, .name = "Backspace", .now_ms = 2000ULL),
-                  "Backspace erases a letter");
+                  "Backspace erases a character");
     }
     cli_check(EMBED_CALL(cli_git_log.key, CliGitLogCfg, .name = "Enter", .now_ms = 2000ULL) &&
                   EMBED_CALL(cli_git_log.step, CliGitLogCfg, .root = s_root, .now_ms = 2000ULL, .on = 1) &&
                   (EMBED_CALL(cli_git_log.rows, CliGitLogCfg, .at = 0u) == 5u),
               "the query erased and Enter pressed lists the graph again without the rest, the first commit's files "
-              "standing");
+              "located");
     cli_check(!EMBED_CALL(cli_git_log.key, CliGitLogCfg, .name = "Tab", .now_ms = 2000ULL),
               "another key goes elsewhere");
 
@@ -230,7 +230,7 @@ int main(void)
         "the raster is taken");
     const int rows_top = EMBED_CALL(gui_pane.rows_top, GuiPaneCfg, .table = table, .frame = &frame);
     cli_check(rows_top == frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + GUI_PANE_BOX,
-              "the rows stand under the pane's head and the field, no repository choice for one repository");
+              "the rows are under the pane's head and the field, no repository choice for one repository");
     const int field_y = frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + (GUI_PANE_BOX / 2);
     cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
                          .glyphs = &glyphs, .x = frame.side.x + GUI_PANE_PAD_LEFT + 20,
@@ -305,7 +305,7 @@ int main(void)
         EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .table = table, .frame = &frame, .pane_read = &pane, .row = 1u);
     cli_check((first.height == GUI_GIT_BRANCH_ROW) && (second.height == GUI_PANE_ROW) &&
                   (second.y == first.y + first.height),
-              "the branch's row is taller than a commit's, which stands under it");
+              "the branch's row is taller than a commit's, which is under it");
     cli_check(EMBED_CALL(gui_pane.move, GuiPaneCfg, .table = table, .pane = &pane, .frame = &frame, .glyphs = &glyphs,
                          .x = second.x + 20, .y = second.y + 3) &&
                   (pane.pointed == 1),
@@ -328,7 +328,7 @@ int main(void)
     cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 0u, .open_out = &open, .root = s_root),
               "the branch's row pressed opens nothing");
 
-    EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = table, .event = GUI_PANE_SHOWN, .root = NULL);
+    EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = table, .event = GUI_PANE_DISPLAYED, .root = NULL);
     cli_check(EMBED_CALL(cli_git_log.rows, CliGitLogCfg, .at = 0u) == 0u, "no tree leaves no rows");
 
     raster.pixels = NULL;

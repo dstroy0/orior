@@ -5,10 +5,10 @@ Columbia – Okanagan, ICSNL 60.
 
 Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
-pure corpus, then against this paper's own English laid over that reference. What the paper's
+pure corpus, then against this paper's own English positioned over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
 from the characters that sit outside that English, and word_web.web() built 950 edges over the
-language forms. A person then matched the context: who, kind and gloss for each row, the names,
+language forms. A person then matched the context: who, type and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
 someone reads the paper again and says otherwise.
@@ -31,9 +31,9 @@ Beavers and Koontz-Garboden's and Beavers', (53) is Kennedy and Levin's, and foo
 Beavers and Koontz-Garboden's. The other denotations, the prose, the contexts, the headings and the
 notes carry John Lyon.
 
-THE LETTERS
+THE CHARACTERS
 
-Outside the paper's English the engine found these letters and marks: á í ú ƛ ǰ ə ɬ ʔ ʕ ʷ ́ ̌ ̓ ̕ Δ
+Outside the paper's English the engine found these characters and marks: á í ú ƛ ǰ ə ɬ ʔ ʕ ʷ ́ ̌ ̓ ̕ Δ
 θ. The forms are in the Americanist orthography the Nsyilxcn literature uses, with the
 glottalization of a consonant as U+0313, the uvular of x̌ with a caron, U+030C, and the raised w of
 kʷ as U+02B7. The bullet • marks C2 reduplication and <ʔ> the inchoative infix. The denotations use
@@ -44,10 +44,10 @@ THE PAGE AND THE TEXT LAYER
 
 The forms are in NFC, and the check puts the text layer through the same repair: the space the PDF
 sets after a stacked mark is closed, except before an opening quote, then NFC, then 2 page-read
-corrections. The text layer leaves a space after a glottalized letter, nik̓ •ək̓ for nik̓•ək̓, and
+corrections. The text layer leaves a space after a glottalized character, nik̓ •ək̓ for nik̓•ək̓, and
 the table closes it. It runs DET into the noun after it in (46e) and (49a), DETwind and DETrope, and
 the table puts the space back. The page prints totarget in Section 5 and intepretation in Section 6,
-labels the last row of (9) h., and gives (8k) and (4b) no closing quote; each is kept. The trees of
+labels the last row of (9) h., and gives (8k) and (4b) no closing quote; each is retained. The trees of
 Figures 1 to 6 are drawings the text layer does not hold, and only their captions are rows.
 
 orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
@@ -60,7 +60,7 @@ where    the paper's locator: the title, the front matter, a section, a footnote
 who      the language for an example tier and a cited form; the work cited on an example's
          line, or the speaker for a volunteered translation, for its English; the authors for
          the prose, the tables and the notes
-kind     transcription  an example tier in the orthography
+type     transcription  an example tier in the orthography
          segmentation   an example tier broken into morphemes
          gloss          the morpheme gloss tier of an example
          translation    the English of an example

@@ -49,13 +49,13 @@ static void tiff_extent(const TiffPage *page, const TiffLayout *layout, EngineAr
     extent->axes[layout->leading + 1u] = 'x';
     extent->rank = layout->leading + 2u;
     extent->element_bytes = page->element_bytes;
-    extent->element_kind = page->element_kind;
+    extent->element_type = page->element_type;
 }
 
 static int tiff_extent_equal(const EngineArrayExtent *expected, const EngineArrayExtent *given)
 {
     int equal = (expected->rank == given->rank) && (expected->element_bytes == given->element_bytes) &&
-                (expected->element_kind == given->element_kind);
+                (expected->element_type == given->element_type);
     for (unsigned int axis = 0u; equal && (axis < expected->rank); axis += 1u)
     {
         equal = (expected->sizes[axis] == given->sizes[axis]) && (expected->axes[axis] == given->axes[axis]);

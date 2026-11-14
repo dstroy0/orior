@@ -128,7 +128,7 @@ void gui_scrollbar_layout(const GuiScrollbarCfg *args)
 
 int gui_scrollbar_needed(const GuiScrollbarCfg *args)
 {
-    return args->total > args->shown;
+    return args->total > args->displayed;
 }
 
 GuiRect gui_scrollbar_thumb(const GuiScrollbarCfg *args)
@@ -140,11 +140,11 @@ GuiRect gui_scrollbar_thumb(const GuiScrollbarCfg *args)
     }
     const int track = bar->across ? bar->track.width : bar->track.height;
     // a track's length is far inside what an int represents, and the shares below never pass it
-    const int share = (int)(((unsigned long long)track * args->shown) / args->total);
+    const int share = (int)(((unsigned long long)track * args->displayed) / args->total);
     const int length = (share < bar->least) ? bar->least : share;
-    const unsigned long long most = args->total - args->shown;
-    const unsigned long long first = (args->first < most) ? args->first : most;
-    const int start = (int)(((unsigned long long)(track - length) * first) / most);
+    const unsigned long long max = args->total - args->displayed;
+    const unsigned long long first = (args->first < max) ? args->first : max;
+    const int start = (int)(((unsigned long long)(track - length) * first) / max);
     return bar->across ? (GuiRect){bar->track.x + start, bar->track.y + bar->inset, length, bar->thickness}
                        : (GuiRect){bar->track.x + bar->inset, bar->track.y + start, bar->thickness, length};
 }
@@ -221,10 +221,10 @@ void gui_scrollbar_first_at(const GuiScrollbarCfg *args)
     const int room = bar->across ? (bar->track.width - thumb.width) : (bar->track.height - thumb.height);
     const int wanted = bar->across ? (args->x - bar->track.x) : (args->y - bar->track.y);
     const int start = (wanted < 0) ? 0 : ((wanted > room) ? room : wanted);
-    const unsigned long long most = args->total - args->shown;
+    const unsigned long long max = args->total - args->displayed;
     // the place on the track is not negative past the tests, and rounds to the nearest line
     *args->first_out =
         (room > 0)
-            ? ((((unsigned long long)start * most) + ((unsigned long long)room / 2ull)) / (unsigned long long)room)
+            ? ((((unsigned long long)start * max) + ((unsigned long long)room / 2ull)) / (unsigned long long)room)
             : 0ull;
 }

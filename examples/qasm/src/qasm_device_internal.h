@@ -33,8 +33,8 @@
 // or a power of i) chosen by the same index. The outputs are narrowed back into the canonical state after each
 // sweep. Every program reads one fixed layout.
 
-#define QASM_CHECK(condition_, evacaddr_, error_, kind_)                                                               \
-    engine_error_check((condition_) ? 1 : 0, (kind_), ENGINE_MODULE_QASM, (unsigned int)__LINE__,                      \
+#define QASM_CHECK(condition_, evacaddr_, error_, type_)                                                               \
+    engine_error_check((condition_) ? 1 : 0, (type_), ENGINE_MODULE_QASM, (unsigned int)__LINE__,                      \
                        (const void *)(evacaddr_), (error_))
 
 #define QASM_STATUS_CHECK(call_, evacaddr_, error_)                                                                    \

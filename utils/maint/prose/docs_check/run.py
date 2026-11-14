@@ -61,7 +61,7 @@ def main():
     # PROSE NEVER FAILS A BUILD, IN EITHER TIER, IN ANY REPOSITORY, ORIOR INCLUDED. Both
     # standards state it in the same sentence that names this tool, verbatim and word for word:
     # "A hit is a prose finding. It never fails a build, because a person has to decide each site: a
-    # proper name, a quoted title, or a term of art is left standing and reported as a false
+    # proper name, a quoted title, or a term of art is left located and reported as a false
     # positive." That is code-documentation:145, and code-comments:208 says it again.
     #
     # So --strict is a cleanup-pass mode and is never a pre-commit setting anywhere. A tier does not
@@ -103,7 +103,7 @@ def main():
             print("  no changed lines. No prose was checked.")
             return 0
         where_given = changed_paths(added)
-    # Every place this project keeps prose, since a README beside the code is read the same way a
+    # Every place this project retains prose, since a README beside the code is read the same way a
     # page under docs is. Checking only docs left the twelve engine and example READMEs unchecked,
     # and one of them was carrying a paragraph sitting inside a table.
     # A named root is taken as given, then tried against the repository. A hook runs from wherever
@@ -155,7 +155,7 @@ def main():
     allowed = []
     # What --changed reports, counted apart from what the run found. The ratchet reads every finding
     # in a touched file and the status reads only the ones the change wrote, and the two have to be
-    # separate numbers or one of them is wrong. Kept in two columns for the same reason the run's
+    # separate numbers or one of them is wrong. Retained in two columns for the same reason the run's
     # own counts are: prose never fails anything, on a changed line as much as anywhere else.
     on_new_breaking = 0
     on_new_prose = 0
@@ -163,7 +163,7 @@ def main():
     # Under --staged the read is scoped to the staged files, since a pre-commit hook holds what the
     # commit carries and reading the rest of the tree is the whole cost it adds to a commit. The
     # ratchet already held only the staged files; now the walk reads only them too. --changed sets
-    # its own roots from the diff and keeps them.
+    # its own roots from the diff and retains them.
     scan_roots = staged_under(roots) if (staged and added is None) else roots
     for path in sorted(walk_markdown(scan_roots, ledger)):
         with open(path, encoding="utf-8", errors="replace") as handle:
@@ -204,7 +204,7 @@ def main():
         # section 200 gives its three outright tokens. A .md is a page and a .tex is prose all
         # the way down. Neither is a comment; everything else here is read for its comments.
         # smart_quotes reads the same blanked lines the ban table does. printed_hits reads the parse
-        # tree instead, because the text a tool prints is the one kind of prose prose_only blanks.
+        # tree instead, because the text a tool prints is the one type of prose prose_only blanks.
         wording = (
             banned_tokens(
                 said,
@@ -283,7 +283,7 @@ def main():
         if lowered:
             ratchet_write(ratchet, ceilings)
         print(
-            "  ratchet: %d file(s) kept at their ceiling, %d lowered, %d risen"
+            "  ratchet: %d file(s) retained at their ceiling, %d lowered, %d risen"
             % (len([one for one in scope if one in counts]), lowered, len(risen))
         )
         for name, count, ceiling in risen:
@@ -324,7 +324,7 @@ def main():
                 % (os.path.basename(one), reconcile_command(one))
             )
 
-    # The one line that keeps this report from claiming more than it measured. Four independent
+    # The one line that retains this report from claiming more than it measured. Four independent
     # reasons a finding survives a gate, each sufficient alone: the hook is not installed, the
     # declared roots exclude the file, no rule matches it, and the extension cannot be opened. This
     # tool answers for the last two. The first two are per-repository decisions and belong to

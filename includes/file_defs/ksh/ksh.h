@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// ksh.h: the shard's kind and its head
+// ksh.h: the shard's type and its head
 #ifndef KSH_H
 #define KSH_H
 

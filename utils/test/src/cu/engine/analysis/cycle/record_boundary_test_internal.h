@@ -16,13 +16,13 @@
 // is bounded to the range L + 2 the same way. What passes through T: a constant added to every sample lands on the
 // crystal's lows alone, and a vector in 2^(3L) Z^n lands as M times it; negation and doubling do not pass. The
 // identity of a lane's structure, taken with T and null permutations of its own samples: every structured lane's
-// crystal heap stands below all its shuffles', and noise no more often than 1 / (draws + 1) allows. The heap
+// crystal heap is below all its shuffles', and noise no more often than 1 / (draws + 1) allows. The heap
 // and the ring at every floor of T then T^-1: the heap mirrors exactly, the ring is ring_0 + n + 2(n - n / 2^l) at
 // floor l >= 1 (keymath's linear forms give every register at level l, low and high, w + l + 1 bits) and its mirror
 // one bit wider per wrapped low, and the heap's pinch at the crystal orders a ramp, a ramp +-8, a
 // ramp +-1024 and noise. Last, the top projection x -> x / 2^k toward zero, the other end of the window from the
 // 2-adic projection: nested quotients commute with it, it never reverses a comparison (the 8-bit wrap reverses
-// many), and a sum through it is off by at most one. The count each crystal preserves: on a 4-sample tower every input
+// many), and a sum through it is off by at max one. The count each crystal preserves: on a 4-sample tower every input
 // quantum at level w + 3 is run, and T and T^-1 send exactly as many onto every output quantum at level w (Haar
 // measure on Z_2^n); det M and det M^-1 are +-1 exactly, proved modulo primes past Hadamard's bound (volume on R^n).
 // T includes no error correction. A redundant residue code carries the crystal: each coefficient modulo four odd
@@ -82,7 +82,7 @@
 
 #define BOUNDARY_TEST_COUNT_RANGE 3u
 
-// the most the test puts on the device at once: the counted tower's 2^20 lanes at w = 2, under 8 words a lane
+// the max the test puts on the device at once: the counted tower's 2^20 lanes at w = 2, under 8 words a lane
 #define BOUNDARY_TEST_DECLARED                                                                                         \
     ((1ull << (BOUNDARY_TEST_COUNT_SAMPLES * (2u + BOUNDARY_TEST_COUNT_RANGE))) * 8ull * sizeof(unsigned int))
 
@@ -186,7 +186,7 @@ void boundary_written(BoundaryResults *results);
 
 void boundary_read_off(BoundaryResults *results);
 
-void boundary_class_fill(unsigned int *atom, unsigned int kind);
+void boundary_class_fill(unsigned int *atom, unsigned int type);
 
 unsigned int boundary_heap(long long value);
 

@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Every entry the page keeps under a key starting `orior.` is kept as well in orior's own folder, laid
-// out as the README's "orior's own folder" says, KEEP_REST after it last changed and as the page goes.
-// The folder's entries are in the page's storage before this script runs; where the folder keeps
+// Every entry the page retains under a key starting `orior.` is retained as well in orior's own folder, positioned
+// out as the README's "orior's own folder" says, RETAIN_REST after it last changed and as the page goes.
+// The folder's entries are in the page's storage before this script runs; where the folder retains
 // nothing yet, every entry is written there now. The entries go as bridge.js sends a window's own call,
 // since this script runs before any module loads.
 {
-  const KEEP_REST = 400;
+  const RETAIN_REST = 400;
   const changed = new Map();
   let wait = 0;
   const flush = () => {
@@ -23,14 +23,14 @@
     if (key.startsWith("orior.")) {
       changed.set(key, text);
       window.clearTimeout(wait);
-      wait = window.setTimeout(flush, KEEP_REST);
+      wait = window.setTimeout(flush, RETAIN_REST);
     }
   };
   // While `taken` is set, the entries put come from orior's folder: the folder holds them already, so
   // none is written back, and a change of the same key still waiting is dropped, so no older value
   // lands over what the folder holds.
   let taken = false;
-  const kept = (storage, key, text) => {
+  const retained = (storage, key, text) => {
     if (storage !== window.localStorage) {
       return;
     }
@@ -44,11 +44,11 @@
   const remove = Storage.prototype.removeItem;
   Storage.prototype.setItem = function (key, text) {
     set.call(this, key, text);
-    kept(this, String(key), String(text));
+    retained(this, String(key), String(text));
   };
   Storage.prototype.removeItem = function (key) {
     remove.call(this, key);
-    kept(this, String(key), null);
+    retained(this, String(key), null);
   };
   // Runs `put`, each entry it puts into the page's storage taken from orior's folder.
   window.oriorKeptTaken = (put) => {
@@ -68,12 +68,12 @@
   }
 }
 
-// The kept scheme, the colors of the theme chosen for each scheme, the reader's fonts and the opacity
+// The retained scheme, the colors of the theme chosen for each scheme, the reader's fonts and the opacity
 // of each part of the window, set before the page draws anything, so that its first frame is already in
-// them. themes.js, fonts.js and opacity.js keep them under the same keys, and fonts.js writes the
+// them. themes.js, fonts.js and opacity.js retain them under the same keys, and fonts.js writes the
 // same rule.
-const kept = localStorage.getItem("orior.scheme");
-const followed = kept === "system" ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : kept;
+const retained = localStorage.getItem("orior.scheme");
+const followed = retained === "system" ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : retained;
 document.documentElement.dataset.scheme = followed === "light" ? "light" : "dark";
 try {
   const list = JSON.parse(localStorage.getItem("orior.themes") ?? "[]");
@@ -91,7 +91,7 @@ try {
   node.textContent = text;
   document.head.append(node);
 } catch {
-  // Kept themes that do not read leave the scheme's own colors.
+  // Retained themes that do not read leave the scheme's own colors.
 }
 try {
   const set = JSON.parse(localStorage.getItem("orior.fonts") ?? "{}");
@@ -111,7 +111,7 @@ try {
   node.textContent = lines.length ? `:root[data-scheme] { ${lines.join(" ")} }` : "";
   document.head.append(node);
 } catch {
-  // Kept fonts that do not read leave the stylesheet's own.
+  // Retained fonts that do not read leave the stylesheet's own.
 }
 for (const [name, key] of [
   ["--bar-opacity", "orior.opacity.bar"],
@@ -123,8 +123,8 @@ for (const [name, key] of [
   ["--sheet-opacity", "orior.opacity.sheet"],
 ]) {
   // A share is a step of opacity.js's, 0 to 100 by tens; anything else leaves the stylesheet's own.
-  const kept = localStorage.getItem(key) ?? "";
-  if (/^(?:0|[1-9]0|100)$/.test(kept)) {
-    document.documentElement.style.setProperty(name, `${kept}%`);
+  const retained = localStorage.getItem(key) ?? "";
+  if (/^(?:0|[1-9]0|100)$/.test(retained)) {
+    document.documentElement.style.setProperty(name, `${retained}%`);
   }
 }

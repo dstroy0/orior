@@ -8,7 +8,7 @@
 #   Usage:  python examples/any_corpus/5_sift/survivor_regimes.py corpus.sym [more.sym ...]
 #
 # The workbook leaves the choice between rarity and separation open and names the term it waits on:
-# whether survivors are verified and discarded, or buffered and handed on. This file supplies that
+# whether survivors are verified and discarded, or buffered and passed on. This file supplies that
 # term. A descent that resumes from a parent's survivors, through the resume field of
 # OriorSteerDescent, is the second case: the child reads only what the parent stored.
 #
@@ -105,9 +105,9 @@ def by_scan(seats, needle, offsets, counts):
 def needed_multiple(rows):
     """The least h, as a strict lower bound, at which ceil(h * predicted) entries hold every survivor."""
     bound = 0.0
-    for kept, _, predicted in rows:
-        if len(kept) > 1:
-            bound = max(bound, (len(kept) - 1) / predicted)
+    for retained, _, predicted in rows:
+        if len(retained) > 1:
+            bound = max(bound, (len(retained) - 1) / predicted)
     return bound
 
 
@@ -117,14 +117,14 @@ def capacity(multiple, predicted):
 
 def overflowed(rows, multiple):
     """Needles whose survivors do not fit a store of ceil(multiple * predicted) entries."""
-    return sum(1 for kept, _, predicted in rows if len(kept) > capacity(multiple, predicted))
+    return sum(1 for retained, _, predicted in rows if len(retained) > capacity(multiple, predicted))
 
 
 def real_dropped(rows, multiple):
     """Planted occurrences that land past the end of the store, filled in corpus order."""
-    return sum(1 for kept, start, predicted in rows
-               if (start is not None) and (start in kept)
-               and (kept.index(start) >= capacity(multiple, predicted)))
+    return sum(1 for retained, start, predicted in rows
+               if (start is not None) and (start in retained)
+               and (retained.index(start) >= capacity(multiple, predicted)))
 
 
 def measure(seats, counts, places, alphabet, disagreements):
@@ -145,13 +145,13 @@ def measure(seats, counts, places, alphabet, disagreements):
             rows = []
             for start, needle in drawn:
                 offsets = offsets_for(rule, needle, counts)
-                kept = by_intersection(places, needle, offsets, total)
-                if kept != by_scan(seats, needle, offsets, counts):
+                retained = by_intersection(places, needle, offsets, total)
+                if retained != by_scan(seats, needle, offsets, counts):
                     disagreements.append((rule, source, start))
                 predicted = float(total - NEEDLE)
                 for offset in offsets:
                     predicted *= counts[needle[offset]] / float(total)
-                rows.append((kept, start, predicted))
+                rows.append((retained, start, predicted))
             table[(rule, source)] = rows
     return table
 
@@ -172,10 +172,10 @@ def report(out, label, seats, controls):
     for rule in RULES:
         for source in ("from corpus", "independent"):
             rows = table[(rule, source)]
-            excess = [len(kept) - (1 if (start is not None and start in kept) else 0)
-                      for kept, start, _ in rows]
+            excess = [len(retained) - (1 if (start is not None and start in retained) else 0)
+                      for retained, start, _ in rows]
             errors = [spare / predicted for spare, (_, _, predicted) in zip(excess, rows) if predicted > 0.0]
-            dropped = sum(1 for kept, start, _ in rows if start is not None and start not in kept)
+            dropped = sum(1 for retained, start, _ in rows if start is not None and start not in retained)
             controls["discard_dropped"] += dropped
             out.write("    %-12s %-12s %-10.1f %-13.2f %d\n"
                       % (rule, source, statistics.fmean(excess),
@@ -204,13 +204,13 @@ def report(out, label, seats, controls):
     # has to fall past the end. A detector that miscounts rank or capacity reports fewer here.
     for rule in RULES:
         rows = table[(rule, "from corpus")]
-        planted = sum(1 for kept, start, _ in rows if start in kept)
+        planted = sum(1 for retained, start, _ in rows if start in retained)
         if real_dropped(rows, 0.0) != planted:
             controls["zero_store_failed"] = True
 
     out.write("  verdict, rarest against spread\n")
     for source in ("from corpus", "independent"):
-        verified = {rule: statistics.fmean(len(kept) for kept, _, _ in table[(rule, source)])
+        verified = {rule: statistics.fmean(len(retained) for retained, _, _ in table[(rule, source)])
                     for rule in ("rarest", "spread")}
         out.write("    discarded, %-11s %s, %.2f survivors to verify against %.2f\n"
                   % (source + ":", "rarest" if verified["rarest"] < verified["spread"] else "spread",

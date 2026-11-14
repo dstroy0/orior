@@ -139,9 +139,9 @@ unsigned int whole_cases(RunQuestion *question, const std::set<unsigned long lon
     }
     const unsigned long long each = values.size();
     const unsigned long long count = each * each * each;
-    const unsigned long long first = (unsigned long long)run * RUN_CASES_MOST;
+    const unsigned long long first = (unsigned long long)run * RUN_CASES_MAX;
     question->cases =
-        (unsigned int)std::min<unsigned long long>(RUN_CASES_MOST, (count > first) ? (count - first) : 0u);
+        (unsigned int)std::min<unsigned long long>(RUN_CASES_MAX, (count > first) ? (count - first) : 0u);
     for (unsigned int place = 0u; place < question->cases; place += 1u)
     {
         const unsigned long long at = first + place;
@@ -158,7 +158,7 @@ unsigned int whole_cases(RunQuestion *question, const std::set<unsigned long lon
                                                   0u};
         memcpy(question->word[place], words, sizeof(words));
     }
-    return (unsigned int)((count + RUN_CASES_MOST - 1u) / RUN_CASES_MOST);
+    return (unsigned int)((count + RUN_CASES_MAX - 1u) / RUN_CASES_MAX);
 }
 
 // The cases a question is put over: every case the host computes, spread evenly through them only where the run
@@ -166,7 +166,7 @@ unsigned int whole_cases(RunQuestion *question, const std::set<unsigned long lon
 void stall_cases(RunQuestion *question, std::vector<unsigned int> *places)
 {
     places->clear();
-    const unsigned int count = (IDENTITY_CASES < RUN_CASES_MOST) ? IDENTITY_CASES : RUN_CASES_MOST;
+    const unsigned int count = (IDENTITY_CASES < RUN_CASES_MAX) ? IDENTITY_CASES : RUN_CASES_MAX;
     question->cases = count;
     for (unsigned int place = 0u; place < count; place += 1u)
     {
@@ -279,7 +279,7 @@ void record_open(const char *ksc, const char *mode)
         std::string refusal;
         std::getline(words, refusal);
         refusal = (!refusal.empty() && (refusal[0] == ' ')) ? refusal.substr(1u) : refusal;
-        // the word is the host's place of the first case apart, at most eight hex digits
+        // the word is the host's place of the first case apart, at max eight hex digits
         s_record[key] = QueryRecorded{answer, (unsigned int)s_row.value, refusal};
     }
     ksc_free(&ksc_file);

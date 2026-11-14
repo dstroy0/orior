@@ -22,7 +22,7 @@ char s_channel_list[RUN_LIST_ROOM];
 char s_carrier_text[RUN_CARRIER_ENDING + RUN_CARRIER_OUTPUT];
 char s_cases_text[RUN_CASES_TEXT];
 
-// `message` handed to the run's trace: where there is no run, it is reported to none
+// `message` passed to the run's trace: where there is no run, it is reported to none
 void run_channel_trace_line(const char *message)
 {
     qry_member_append("trace", message, strlen(message), QRY_ORDINARY);
@@ -32,7 +32,7 @@ void run_channel_trace_line(const char *message)
 void run_channel_refused(RunQuestion *question, const char *message)
 {
     VerbaLinea refused = {question->refused, sizeof(question->refused), 0ull};
-    mmgr_line_put_most(&refused, message, sizeof(question->refused) - 1u);
+    mmgr_line_put_max(&refused, message, sizeof(question->refused) - 1u);
     mmgr_line_finish(&refused);
 }
 
@@ -41,7 +41,7 @@ void run_channel_started_refused(RunQuestion *question)
 {
     VerbaLinea refused = {question->refused, sizeof(question->refused), 0ull};
     mmgr_line_put(&refused, "the carrier ");
-    mmgr_line_put_most(&refused, s_channel.word[0], 96ull);
+    mmgr_line_put_max(&refused, s_channel.word[0], 96ull);
     mmgr_line_put(&refused, " was not started");
     mmgr_line_finish(&refused);
 }
@@ -65,7 +65,7 @@ void run_channel_counted(char *text, size_t room, unsigned long long count)
     mmgr_line_finish(&counted);
 }
 
-// the panic the teacher has handed its account of: it reports once for each
+// the panic the teacher has passed its account of: it reports once for each
 static unsigned long long s_panic_answered = 0ull;
 
 // the sequence of the panic whose ruling stopped the run, 0 while no panic has been ruled on
@@ -98,7 +98,7 @@ void run_channel_conference_called(const RunQuestion *question, const char *how,
         *space = '_';
     }
     const unsigned long long panic = qry_member_panicked();
-    // the account and what the carrier reported after it, a record at most half a ring, what the carrier reported cut
+    // the account and what the carrier reported after it, a record at max half a ring, what the carrier reported cut
     // to it
     static char s_conference[QRY_WRITER_RING_BYTES / 2ull];
     VerbaLinea whole = {s_conference, sizeof(s_conference), 0ull};
@@ -115,7 +115,7 @@ void run_channel_conference_called(const RunQuestion *question, const char *how,
     mmgr_line_put(&whole, " launches, over ");
     mmgr_line_decimal(&whole, question->cases, 0u);
     mmgr_line_put(&whole, " cases, ");
-    mmgr_line_put_most(&whole, how, 256ull);
+    mmgr_line_put_max(&whole, how, 256ull);
     mmgr_line_put(&whole, "; ");
     mmgr_line_put(&whole, (panic != 0ull) ? "a panic is on the line" : "the line is quiet");
     mmgr_line_ch(&whole, '\n');
@@ -211,7 +211,7 @@ void run_channel_halted(RunQuestion *const *questions, unsigned int first, unsig
     }
 }
 
-// The teacher's account on the line, handed as a panic of the call once for each panic: the round it handed the
+// The teacher's account on the line, passed as a panic of the call once for each panic: the round it passed the
 // carrier, its count of questions and its sequence, how the carrier ended, how many it answered before it, the line of
 // the question it was carrying, and that no question is put after this
 void run_channel_panic_written(unsigned int questions, unsigned long long round, const InterfaceAnswer *answer,
@@ -227,7 +227,7 @@ void run_channel_panic_written(unsigned int questions, unsigned long long round,
     VerbaLinea line = {message, sizeof(message), 0ull};
     mmgr_line_put(&line, "teacher: the round questions.txt of ");
     mmgr_line_decimal(&line, questions, 0u);
-    mmgr_line_put(&line, " questions, handed at sequence ");
+    mmgr_line_put(&line, " questions, passed at sequence ");
     mmgr_line_decimal(&line, round, 0u);
     mmgr_line_put(&line, "; the carrier ");
     mmgr_line_put(&line, interface_ending_name(answer->ending));
@@ -236,7 +236,7 @@ void run_channel_panic_written(unsigned int questions, unsigned long long round,
     mmgr_line_put(&line, "; ");
     mmgr_line_decimal(&line, answered, 0u);
     mmgr_line_put(&line, " answered before it ended; the question it was carrying: ");
-    mmgr_line_put_most(&line, carrying, RUN_LINE_MAX_LEN);
+    mmgr_line_put_max(&line, carrying, RUN_LINE_MAX_LEN);
     if ((carrying[0] == '\0') || (carrying[strlen(carrying) - 1u] != '\n'))
     {
         mmgr_line_ch(&line, '\n');

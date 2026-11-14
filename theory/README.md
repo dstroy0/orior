@@ -26,9 +26,9 @@ Output goes to `build/theory/<research_paper>/` and nothing is written beside th
 
 ## Layout
 
-- `theory/theory/` holds the research papers, one directory per subject: `theory/theory/<subject>/`. Some are complete; most are at preprint status.
+- `theory/theory/` holds the research papers, one directory per subject: `theory/theory/<subject>/`. Some are complete; max are at preprint status.
 - `theory/workbooks/` holds the workbooks, one per program. It mirrors `theory/theory/`.
-- `theory/thought_experiments/` holds the thought experiments, kept apart from what was measured. It mirrors `theory/theory/` where applicable.
+- `theory/thought_experiments/` holds the thought experiments, retained apart from what was measured. It mirrors `theory/theory/` where applicable.
 - `theory/figures/` holds the figures. It mirrors `theory/theory/`, `theory/workbooks/` and `theory/thought_experiments/` in layout when applicable: a figure the boundary research paper reads sits under `theory/figures/theory/boundary/`.
 - `theory/LICENSES/` holds the license texts.
 

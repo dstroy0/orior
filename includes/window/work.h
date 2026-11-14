@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// work.h: the one host of the views that stand over the editor in its place, a compare, a merge, a review: one table
+// work.h: the one host of the views that are over the editor in its place, a compare, a merge, a review: one table
 // of hooks a view, one open at a time, drawn in the frame's editor rectangle in place of the editor, its map and the
 // problems' underline, and taking the presses, the wheel, the keys and the text there while it is open; Escape closes
 // it. The host's own state is the open table and the rows scrolled off its top (work.c)
@@ -15,7 +15,7 @@
 typedef struct GuiWorkCfg GuiWorkCfg;
 typedef struct GuiWorkTable GuiWorkTable;
 
-// a pixel off the open table's rectangle, and one on it that stands on no control or row of it
+// a pixel off the open table's rectangle, and one on it that is on no control or row of it
 #define GUI_WORK_OUTSIDE 0xFFFFFFFFu
 #define GUI_WORK_NOTHING 0xFFFFFFFEu
 
@@ -32,7 +32,7 @@ typedef struct
 } GuiWork;
 
 // A view's table: its name; the view drawn in `rect`; the control or row at x, y in `rect`, its index into
-// `index_out`: 1, or 0 where it stands on none; the control or row `index` pressed, the wheel turned `rows` rows, a
+// `index_out`: 1, or 0 where it is on none; the control or row `index` pressed, the wheel turned `rows` rows, a
 // turn of none bringing the view's first change into sight, the key `name` pressed and `length` bytes of `text` typed,
 // each one of the answers above; the menu at `index` built as the menus' own rows, 1 where it has any, NULL for none;
 // and the view closed, its data let go
@@ -51,7 +51,7 @@ struct GuiWorkTable
 
 // the host begun with none open; `table` opened, another open before closed, and the wheel turned none for the view to
 // bring its first change into sight; the open view closed; whether one is open; the open view drawn in the frame's
-// editor rectangle; what the pixel at x, y stands on, GUI_WORK_OUTSIDE off the editor and the map or with none open,
+// editor rectangle; what the pixel at x, y is on, GUI_WORK_OUTSIDE off the editor and the map or with none open,
 // GUI_WORK_NOTHING on neither a control nor a row; the control or row `index` pressed; the wheel turned `rows` over the
 // editor or the map; the key `name`, Escape closing the view; `length` bytes of `text`; and the menu at `index`: each 1
 // where the open view took it, 0 with none open or where it passed it on

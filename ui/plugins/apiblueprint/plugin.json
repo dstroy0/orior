@@ -2,7 +2,7 @@
   "id": "apiblueprint",
   "name": "API Blueprint",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "extensions": ["apib"],
   "comments": {"block":["<!--","-->"]},
   "pairs": ["()","[]","{}","``"],

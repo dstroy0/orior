@@ -7,7 +7,7 @@
 #
 # NAMES DO NOT CHANGE, ONLY PATHS
 #
-# check_slant.py becomes check\check_slant.py and keeps its name. The repetition is deliberate.
+# check_slant.py becomes check\check_slant.py and retains its name. The repetition is deliberate.
 # Every document, every printf inside a bench, and every usage line in a docstring names these files.
 # A rename means finding all of those and being right every time. Inserting one directory level
 # means the filename is still the search key. A previous mechanical rewrite in this tree corrupted a
@@ -84,7 +84,7 @@ try
                 continue
             }
 
-            # git mv keeps the file's history attached. An ignored file such as blocks.json is not
+            # git mv retains the file's history attached. An ignored file such as blocks.json is not
             # tracked. Git errors on it and a plain move is correct there.
             git ls-files --error-unmatch $from 2>&1 | Out-Null
             if ($LASTEXITCODE -eq 0)

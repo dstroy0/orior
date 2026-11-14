@@ -30,7 +30,7 @@ player's win, an exact `fractions.Fraction` in [0, 1]. It closes to 1 as a win b
 rests at 0 when no winning path survives. A winning path bottoms out where the opponent has no legal
 move, which is checkmate as the backend already reports it. The two windicators are separate state,
 one per player. This is the orior construction named for a game: exact rationals are the exact
-measure, a move keeping only some branches-to-win is the necessary-condition sift over
+measure, a move retention only some branches-to-win is the necessary-condition sift over
 `archive/src/python/engine/nbody/orior/sift/anchors.py`, and refusing to fold the horizon is the no-bounding rule.
 
 ## Taming the infinite movers with the field's own rule
@@ -69,10 +69,10 @@ Reproduced by `examples/game_theory/6_oracle/first_move_advantage.py`:
   verdict `None`, tournament verdict `draw`. The field's own rule makes the cyclic line finite and
   exact.
 - **Mate in one** (depth 3 plies): W(P1) = 167071/3009600, W(P2) = 0. The opponent has no winning
-  path. 19 of 20 P1 moves keep a branch-to-win; the one forcing the win outright, mass 1, is `e1e8`.
+  path. 19 of 20 P1 moves retain a branch-to-win; the one forcing the win outright, mass 1, is `e1e8`.
   Two routes on W(P1): enumerated 0.055513, sampled 0.057775 at 40000 trials, seed 1511, agreeing to
   within sampling error.
-- **King and rook vs king** (depth 4 plies): W(P1) = 59/1083, W(P2) = 0. Only 3 of 19 moves keep a
+- **King and rook vs king** (depth 4 plies): W(P1) = 59/1083, W(P2) = 0. Only 3 of 19 moves retain a
   branch-to-win; the other 16 prune every one. The move forcing the win, mass 1, is `a1a8`.
 
 ## The value of the move, proved exactly for K+P vs K
@@ -98,7 +98,7 @@ a constant. The retrograde solve and the agreement with published theory are the
 Reproduced by `examples/game_theory/6_oracle/krk_both_sides.py` (about half a minute; the position
 graph is folded by the eight board symmetries, valid because no pawn breaks them). The tablebase is
 extended with distance to mate and a move rule -- the winning side takes the move of least distance to
-mate, the losing side the most -- and the exact predictor then plays a whole game as both sides. K+R
+mate, the losing side the max -- and the exact predictor then plays a whole game as both sides. K+R
 vs K is the class where this closes: a forced win, no promotion, and the game stays in the class until
 mate.
 
@@ -117,7 +117,7 @@ caution that applies here.
 
 - **Chemistry**: never fold the set into one magnitude; each part and each pair is a vector
   whose magnitude is read, the set stays a point cloud, and the reported quantity is a departure from
-  a size-matched null (shuffle keeping counts). The null must be drawn at the same size as the
+  a size-matched null (shuffle retention counts). The null must be drawn at the same size as the
   sample; one number off the whole tree bounds nothing about a line cut at depth d. So the windicator
   is per depth, each paired with a null at that depth.
 - **Crystallography**: a norm is irrational and leaves the integers; carry squared magnitudes and
@@ -130,7 +130,7 @@ caution that applies here.
   magnitude carries none of it. This is the anti-invariant argument, and it is why first-move advantage must be the
   signed channel.
 - **btc_miner engine**: a norm is a rank-1 readout that throws the rank away; a real higher-degree
-  object read as one number vanished into the null and survived only per component (per degree). Keep
+  object read as one number vanished into the null and survived only per component (per degree). Retain
   the answer a set of refutations, draw the null by resampling, gate with a positive control.
 
 Shared conclusion: the collapse is per-component exact, never a single norm, and the answer is a
@@ -150,7 +150,7 @@ draw rules that make value depend on the path.
 - **Irreversible moves partition the graph.** A pawn move or a capture resets both the repetition
   count and the fifty-move counter, and it can never be undone: it leads to strictly less material or
   a further-advanced pawn. So irreversible edges form an acyclic order of **reversible blocks**, and
-  the table is solved block by block, the blocks needing the most future pawn moves and captures
+  the table is solved block by block, the blocks needing the max future pawn moves and captures
   first.
 - **Cycles inside a block are the draw.** Within one reversible block the subgraph has cycles. Solve
   it as a fixed point: a node is a win if one move reaches a node that is a loss for the opponent (in
@@ -160,7 +160,7 @@ draw rules that make value depend on the path.
   block at 100 plies. Each block is finite.
 - **Graph-history interaction, named.** A position's value can differ by how it was reached, because
   a repetition draws. The value is well defined only relative to the last irreversible move, and that
-  boundary is the state that leaves it path-independent. Solving per block keeps the table
+  boundary is the state that leaves it path-independent. Solving per block retains the table
   sound; a single position-keyed memo across blocks does not, and the plain negamax stalled and
   mismeasured for that reason.
 
@@ -189,7 +189,7 @@ Every open question becomes an exact lookup or filter, no search and no bound.
 - **K+R vs K and K+P vs K+P.** K+P vs K is done, solved and checked above. K+R vs K is the next class
   by the same retrograde. K+P vs K+P is where a two-sided mutual zugzwang lives, and it is solved the
   same way once the promotion tables beneath it (K+Q vs K, K+R vs K) are in hand. The promotion edge
-  is why the classes are solved bottom-up, with a stalemate-on-promotion kept a draw instead of a win.
+  is why the classes are solved bottom-up, with a stalemate-on-promotion retained a draw instead of a win.
 - **Find a trebuchet by filter instead of by hand.** Once the K+P vs K+P table exists, question 3 finds the
   mutual zugzwang without hand-construction, the robust way to exhibit the negative case.
 - **The README routing line.** `theory/` is plain tracked content with no gitlink behind it, and the

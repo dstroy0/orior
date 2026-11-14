@@ -199,7 +199,7 @@ EMBED_INLINE int validate_grow(const ValidateCtx *args)
 }
 
 // the options the grown limits set, by their names, each limit's barrier lifting by `-D<name>=...`, a later of one
-// name standing for an earlier, into `names` and `values`: their count
+// name located for an earlier, into `names` and `values`: their count
 EMBED_INLINE unsigned int validate_options(const ValidateCtx *args)
 {
     const GuiTool *const tool = &g_cli_validate->tool;

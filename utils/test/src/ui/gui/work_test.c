@@ -108,7 +108,7 @@ static int rect_touched(const GuiRaster *raster, GuiRect rect, GuiColor ground)
     {
         for (int x = rect.x; x < rect.x + rect.width; x += 1)
         {
-            // the rectangle stands inside the raster
+            // the rectangle is inside the raster
             if (raster->pixels[((unsigned int)y * raster->width) + (unsigned int)x] != ground)
             {
                 return 1;

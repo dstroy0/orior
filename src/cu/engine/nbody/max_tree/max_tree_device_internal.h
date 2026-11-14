@@ -33,8 +33,8 @@ static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success"
     engine_status_check((int)(call_), ENGINE_MODULE_MAX_TREE, (unsigned int)__LINE__, (const void *)(evacaddr_),       \
                         (error_))
 
-#define MAX_TREE_CHECK(condition_, evacaddr_, error_, kind_)                                                           \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_MAX_TREE, (unsigned int)__LINE__,                          \
+#define MAX_TREE_CHECK(condition_, evacaddr_, error_, type_)                                                           \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_MAX_TREE, (unsigned int)__LINE__,                          \
                        (const void *)(evacaddr_), (error_))
 
 // a residual lane above zero, the lanes `limb_count` limbs apart
@@ -131,7 +131,7 @@ __global__ void max_tree_code_levels_kernel(const unsigned int *code, const unsi
 
 __global__ void max_tree_reverse_kernel(const int *change, unsigned int top, int *reversed);
 
-__global__ void max_tree_level_pick_kernel(const int *counts, unsigned int top, const int *maximum,
+__global__ void max_tree_level_pick_kernel(const int *counts, unsigned int top, const int *max,
                                            unsigned int *level);
 
 __global__ void max_tree_cc_start_kernel(const unsigned int *code, unsigned int voxels, unsigned int level,
@@ -188,7 +188,7 @@ struct MaxTreeResident
     unsigned int *label;
     int *change;
     int *counts;
-    int *maximum;
+    int *max;
     unsigned int *level;
     unsigned int *moved;
     unsigned int *pinned_moved;

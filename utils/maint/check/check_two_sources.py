@@ -1,6 +1,6 @@
 """Compares the residue structure of two sources class by class, common mode removed.
 
-Toggling between two ablations in the viewer shows which residue classes each one keeps. The eye
+Toggling between two ablations in the viewer shows which residue classes each one retains. The eye
 does that by flicker; this does it by subtraction, on the same fields, with the offset every class
 shares taken out first - because the raw fold is dominated by that offset and would show the two as
 identical whatever they carry.
@@ -29,7 +29,7 @@ def load():
     packed = {}
     with open(SOURCE, newline="") as handle:
         for row in csv.DictReader(handle):
-            if row["kind"] != "residue":
+            if row["type"] != "residue":
                 continue
             packed.setdefault(row["source"], {}).setdefault(int(row["round"]), {})[
                 int(row["a"])] = float(row["value"])
@@ -101,7 +101,7 @@ def main():
                   % (k, labels.get(k, ""), a[k], b[k], mark))
 
     # How alike are the two profiles overall? A correlation near -1 would mean the two ablations
-    # keep opposite halves of the transport, as the mechanism predicts.
+    # retain opposite halves of the transport, as the mechanism predicts.
     mean_a = sum(a) / 32.0
     mean_b = sum(b) / 32.0
     top = sum((a[k] - mean_a) * (b[k] - mean_b) for k in range(32))

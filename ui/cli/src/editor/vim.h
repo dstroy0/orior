@@ -4,7 +4,7 @@
 // each text typed first, and what this does not take goes to the view's own keys: in insert mode every key but Escape
 // and Ctrl+[, in the other modes every key pressed with Ctrl that Vim has no use for. Normal mode takes a count before
 // a command, and "x before it for the register x; the register " takes every yank and delete, and 0 the last yank.
-// The motions: h j k l and the arrows, w b e and W B E, 0 ^ $, gg and G, f F t T to a letter on the line and ; , to go
+// The motions: h j k l and the arrows, w b e and W B E, 0 ^ $, gg and G, f F t T to a character on the line and ; , to go
 // to it again, % to the bracket that pairs with the next on the line, { } to the empty line before or after, n N to
 // the next or the last place searched for, and Ctrl+D Ctrl+U by half the view's rows. The operators d c y > < act on a
 // motion, on a text object (iw aw iW aW, and i or a before one of " ' ` ( ) b [ ] { } B < >) or, doubled, on whole
@@ -12,7 +12,7 @@
 // again with the text typed in insert mode after it. Visual mode, from v, and visual line mode, from V, move the
 // selection's end by the motions, take a text object, swap the ends with o, and act on what is chosen with d c y > <
 // ~ J p, x and s. Every edit is one of the view's own steps, so undo and the save point stay the view's, and every
-// search goes through the view's find. The registers, the keys typed and every sentence stand in one text cell (vim.c,
+// search goes through the view's find. The registers, the keys typed and every sentence are in one text cell (vim.c,
 // vim_parse.c, vim_motions.c, vim_objects.c, vim_commands.c, vim_visual.c; the view's steps in view.c)
 #ifndef VIM_H
 #define VIM_H
@@ -32,7 +32,7 @@ typedef struct CliViewVimCfg CliViewVimCfg;
 // What the window draws for Vim on a view: whether Vim's keys are on; the mode; whether the caret is a block a cell
 // wide, every mode but insert; the label, the mode in capitals and after a space the keys typed of the command so
 // far, `label_length` bytes; and whether the search prompt is open, whether it searches back, from ?, and its text,
-// `prompt_length` bytes. The label and the prompt stand in the module's text cell until its next input
+// `prompt_length` bytes. The label and the prompt are in the module's text cell until its next input
 typedef struct
 {
     int on;

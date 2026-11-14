@@ -124,7 +124,7 @@ EMBED_INLINE void check_elements(const MavenCheckCtx *args)
     }
 }
 
-// whether the byte at `at` stands in one of the POM's comments
+// whether the byte at `at` is in one of the POM's comments
 EMBED_INLINE int check_in_comment(const MavenCheckCtx *args)
 {
     for (unsigned int one = 0u; one < args->xml->comments; one += 1u)

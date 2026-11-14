@@ -9,7 +9,7 @@
 
 #include "../text/text.h"
 
-// the most words git is started with
+// the max words git is started with
 #define CLI_GIT_WORDS 8192u
 // A work state a run of git takes: what it gave, what it wrote in a line grown to it, the process, the threads that
 // read its errors and write its input and the count of them ended, and the words it is started with
@@ -28,7 +28,7 @@ typedef struct
     CliGitResult result;
 } CliGitWorkState;
 
-// the empty gave handed out where the cells cannot meet a run, which every run of git refuses
+// the empty gave passed out where the cells cannot meet a run, which every run of git refuses
 static char s_nothing[1];
 static CliGitResult s_refused = {s_nothing, 0ULL, 1, s_nothing, 0ULL, 0};
 
@@ -51,7 +51,7 @@ void cli_git_text_begin(const CliGitTextCfg *args)
 void cli_git_text_end(const CliGitTextCfg *args)
 {
     CliGitText *const text = args->text;
-    if (!text->standing || (text->bytes == NULL))
+    if (!text->located || (text->bytes == NULL))
     {
         return;
     }
@@ -83,8 +83,8 @@ void cli_git_text_release(const CliGitTextCfg *args)
 
 unsigned int cli_git_text_append(const CliGitTextCfg *args)
 {
-    const unsigned long long most = args->text->used + args->length + 1ULL;
-    if ((most > CLI_GIT_TEXT) || (args->text->bytes == NULL))
+    const unsigned long long max = args->text->used + args->length + 1ULL;
+    if ((max > CLI_GIT_TEXT) || (args->text->bytes == NULL))
     {
         args->text->full = 1;
         return 0u;

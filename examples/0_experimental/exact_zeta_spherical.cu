@@ -21,7 +21,7 @@
 //
 // The two routes are the same function: route two's real part is route one, and its imaginary part is 0.
 //
-// Lane l stands at r = (l / U) r_unit and u = (l mod U) u_unit, U the grid's count of u. Every value is an integer at
+// Lane l is at r = (l / U) r_unit and u = (l mod U) u_unit, U the grid's count of u. Every value is an integer at
 // the scale 2^62, and a product taken back to it divides by 2^31 twice, toward zero.
 //
 // The input, little-endian: 64-bit words lanes, checked, U, A, K, L1, L2, M, then the constants, each a 64-bit word
@@ -301,7 +301,7 @@ static int spherical_read_constant(FILE *in, SphericalConstant *constant)
     return read;
 }
 
-// `bits` of a two's complement value, its magnitude's limbs given, laid at `offset` of `record`
+// `bits` of a two's complement value, its magnitude's limbs given, positioned at `offset` of `record`
 static void spherical_put(unsigned int *record, unsigned int offset, unsigned int bits, const std::vector<unsigned int> &limbs,
                           long long sign)
 {
@@ -328,7 +328,7 @@ static void spherical_put(unsigned int *record, unsigned int offset, unsigned in
     }
 }
 
-// imprints, lays out and loads the program, runs every lane, and checks the host's first `checked` records against the
+// imprints, arranges and loads the program, runs every lane, and checks the host's first `checked` records against the
 // device's
 static int spherical_sweep(SimResults *job, SphericalStage *stage, unsigned long long lanes, unsigned long long checked,
                            EngineError *error, int count, char **arguments)
@@ -341,9 +341,9 @@ static int spherical_sweep(SimResults *job, SphericalStage *stage, unsigned long
     int ok = keymath_record_encode(&encode) != KEYMATH_ERROR;
     sim_check(job, ok, "keymath imprints the spherical program");
     unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {(unsigned int)stage->shared.size(), 0u, 0u};
-    const KeyScheduleRecordRequest lay = {&stage->key, program->field_offset.data(), fields, in_limbs, 1, &stage->layout, error};
-    ok = ok && (key_schedule_record_layout(&lay) != KEY_SCHEDULE_ERROR);
-    sim_check(job, ok, "the scheduler lays the spherical program out");
+    const KeyScheduleRecordRequest position = {&stage->key, program->field_offset.data(), fields, in_limbs, 1, &stage->layout, error};
+    ok = ok && (key_schedule_record_layout(&position) != KEY_SCHEDULE_ERROR);
+    sim_check(job, ok, "the scheduler positions the spherical program out");
     const unsigned int out_limbs = ok ? stage->layout.out_limbs : 0u;
     const unsigned long long declared = (lanes * out_limbs + stage->shared.size()) * sizeof(unsigned int) + (64ull << 20u);
     ok = ok && sim_job_submit(job, "exact_zeta_spherical", count, arguments, declared);

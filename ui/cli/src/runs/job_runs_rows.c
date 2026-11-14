@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// job_runs_rows.c: the Run pane's rows (job_runs.h). The rows stand in sections laid in order, each its first row,
-// its rows, their type, the item they read and the flags of its one row, each a cell of the store's, laid anew as
-// the store changes, the cells past those laid given back: a group's, a job's, the chosen job's file and about, a
-// param's, the choices of the param focused, a run's, the lines of the run shown and its end. A row is read by a binary
+// job_runs_rows.c: the Run pane's rows (job_runs.h). The rows are in sections positioned in order, each its first row,
+// its rows, their type, the item they read and the flags of its one row, each a cell of the store's, positioned anew as
+// the store changes, the cells past those positioned given back: a group's, a job's, the chosen job's file and about, a
+// param's, the choices of the param focused, a run's, the lines of the run displayed and its end. A row is read by a binary
 // search over the sections' starts; its texts point into the catalog or into the rows' own buffers, which hold what was
 // copied out of the store's cells for the row last read
 #include "job_runs_internal.h"
@@ -61,7 +61,7 @@ EMBED_INLINE int job_live(const RowsCtx *args)
     return 0;
 }
 
-// the flags of the run `item`: going, ended with 0, ended otherwise or stopped, and shown
+// the flags of the run `item`: going, ended with 0, ended otherwise or stopped, and displayed
 EMBED_INLINE unsigned int run_flags(const RowsCtx *args)
 {
     const CliJobRunsStore *const store = &g_cli_job_runs_store;
@@ -70,7 +70,7 @@ EMBED_INLINE unsigned int run_flags(const RowsCtx *args)
     const int failed = !run.live && (run.stopped || (run.has_code && (run.code != 0LL)));
     const int ok = !run.live && !run.stopped && run.has_code && (run.code == 0LL);
     return (run.live ? CLI_JOB_RUN_LIVE : 0u) | (ok ? CLI_JOB_RUN_OK : 0u) | (failed ? CLI_JOB_RUN_FAILED : 0u) |
-           ((run.run == store->shown) ? CLI_JOB_RUN_SHOWN : 0u);
+           ((run.run == store->displayed) ? CLI_JOB_RUN_DISPLAYED : 0u);
 }
 
 // whether `type` is one of the param types whose choices are the value itself
@@ -81,8 +81,8 @@ EMBED_INLINE int type_chosen(const RowsCtx *args)
            cellul.eq(&(CatenaFinitaCfg){.src = args->text, .other = CLI_JOB_RUNS_TYPE_MANY, .cap = CLI_NAME_MAX_LEN});
 }
 
-// the chosen job's sections laid from `start` from the section `at`, written where `write` is: how many
-EMBED_INLINE unsigned int chosen_laid(const RowsCtx *args)
+// the chosen job's sections positioned from `start` from the section `at`, written where `write` is: how many
+EMBED_INLINE unsigned int chosen_positioned(const RowsCtx *args)
 {
     const CliJobRunsStore *const store = &g_cli_job_runs_store;
     const CliJob *const job = &store->catalog->job[args->job];
@@ -121,11 +121,11 @@ EMBED_INLINE unsigned int chosen_laid(const RowsCtx *args)
                    .type = CLI_JOB_RUN_RUN, .item = run, .flags = EMBED_CALL(run_flags, RowsCtx, .item = run));
         at += 1u;
         row += 1u;
-        if (one.run != store->shown)
+        if (one.run != store->displayed)
         {
             continue;
         }
-        // the lines in flight are at most CLI_LINES_MAX, inside an unsigned int
+        // the lines in flight are at max CLI_LINES_MAX, inside an unsigned int
         const unsigned int lines = (unsigned int)anularis.seg_inflight(&(AnularisCfg){.ring = &one.rings->line});
         if (lines != 0u)
         {
@@ -144,8 +144,8 @@ EMBED_INLINE unsigned int chosen_laid(const RowsCtx *args)
     return at - args->at;
 }
 
-// every section laid in order, written into the store's cell where `write` is: how many
-EMBED_INLINE unsigned int sections_laid(const RowsCtx *args)
+// every section positioned in order, written into the store's cell where `write` is: how many
+EMBED_INLINE unsigned int sections_positioned(const RowsCtx *args)
 {
     const CliJobRunsStore *const store = &g_cli_job_runs_store;
     const int filtered = store->filter.length != 0ULL;
@@ -189,24 +189,24 @@ EMBED_INLINE unsigned int sections_laid(const RowsCtx *args)
             {
                 continue;
             }
-            const unsigned int laid =
-                EMBED_CALL(chosen_laid, RowsCtx, .write = args->write, .at = at, .start = row, .job = job);
-            // the rows the chosen job's sections take read off them as they are laid; a count of sections alone reads
+            const unsigned int positioned =
+                EMBED_CALL(chosen_positioned, RowsCtx, .write = args->write, .at = at, .start = row, .job = job);
+            // the rows the chosen job's sections take read off them as they are positioned; a count of sections alone reads
             // no rows
-            for (unsigned int each = 0u; args->write && (each < laid) && (at + each < CLI_JOB_RUNS_SECTIONS_MAX);
+            for (unsigned int each = 0u; args->write && (each < positioned) && (at + each < CLI_JOB_RUNS_SECTIONS_MAX);
                  each += 1u)
             {
                 CliJobRunsSection section;
                 EMBED_CALL(cli_job_runs_cells.section_read, CliJobRunsCellCfg, .at = (at + each), .section = &section);
                 row += section.count;
             }
-            at += laid;
+            at += positioned;
         }
     }
     return at;
 }
 
-// the place of the section the row `row_at` stands in: the last whose first row is at most it
+// the place of the section the row `row_at` is in: the last whose first row is at max it
 EMBED_INLINE unsigned int section_at(const RowsCtx *args)
 {
     const CliJobRunsStore *const store = &g_cli_job_runs_store;
@@ -229,7 +229,7 @@ EMBED_INLINE unsigned int section_at(const RowsCtx *args)
     return low;
 }
 
-// whether the `length` bytes at `text` stand as one of the words of the `other_length` bytes at `other`, a space
+// whether the `length` bytes at `text` are as one of the words of the `other_length` bytes at `other`, a space
 // between them
 EMBED_INLINE int word_among(const RowsCtx *args)
 {
@@ -256,11 +256,11 @@ void cli_job_runs_sections_settle(const CliJobRunsCtx *args)
     CliJobRunsStore *const store = &g_cli_job_runs_store;
     const unsigned int was_rows = store->rows;
     const unsigned int was_sections = store->sections;
-    const unsigned int count = EMBED_CALL(sections_laid, RowsCtx, .write = 0);
+    const unsigned int count = EMBED_CALL(sections_positioned, RowsCtx, .write = 0);
     store->sections = (count <= CLI_JOB_RUNS_SECTIONS_MAX) ? count : CLI_JOB_RUNS_SECTIONS_MAX;
     if (store->sections != 0u)
     {
-        (void)EMBED_CALL(sections_laid, RowsCtx, .write = 1);
+        (void)EMBED_CALL(sections_positioned, RowsCtx, .write = 1);
     }
     for (unsigned int at = store->sections; at < was_sections; at += 1u)
     {
@@ -477,7 +477,7 @@ int cli_job_runs_row_press(const CliJobRunsRowCfg *args)
         break;
     }
     case CLI_JOB_RUN_JOB: {
-        // the job chosen, its id with its end, or let go where it was; the run shown its newest
+        // the job chosen, its id with its end, or let go where it was; the run displayed its newest
         store->chosen = (store->chosen == item) ? CLI_CATALOG_NONE : item;
         const char *const id =
             (store->chosen != CLI_CATALOG_NONE)
@@ -491,12 +491,12 @@ int cli_job_runs_row_press(const CliJobRunsRowCfg *args)
             memor.cpy(&(MemoriaCfg){.dst = store->chosen_id, .src = id, .bytes = length});
         }
         store->chosen_id[length] = '\0';
-        store->shown = 0ULL;
+        store->displayed = 0ULL;
         for (unsigned int at = 0u; at < store->runs; at += 1u)
         {
             CliJobRunsRun run;
             EMBED_CALL(cli_job_runs_cells.run_read, CliJobRunsCellCfg, .at = at, .run = &run);
-            store->shown = (run.job == store->chosen) ? run.run : store->shown;
+            store->displayed = (run.job == store->chosen) ? run.run : store->displayed;
         }
         EMBED_CALL(cli_job_runs_internal.form_clear, CliJobRunsCtx, .values = NULL);
         break;
@@ -514,7 +514,7 @@ int cli_job_runs_row_press(const CliJobRunsRowCfg *args)
     case CLI_JOB_RUN_RUN: {
         CliJobRunsRun run;
         EMBED_CALL(cli_job_runs_cells.run_read, CliJobRunsCellCfg, .at = item, .run = &run);
-        store->shown = run.run;
+        store->displayed = run.run;
         break;
     }
     default:
@@ -527,6 +527,6 @@ int cli_job_runs_row_press(const CliJobRunsRowCfg *args)
 unsigned int cli_job_runs_follow(const CliJobRunsScrollCfg *args)
 {
     const CliJobRunsStore *const store = &g_cli_job_runs_store;
-    const int stood_last = (args->scroll_top + args->capacity) >= store->rows_before;
-    return (stood_last && (store->rows > args->capacity)) ? store->rows - args->capacity : args->scroll_top;
+    const int was_last = (args->scroll_top + args->capacity) >= store->rows_before;
+    return (was_last && (store->rows > args->capacity)) ? store->rows - args->capacity : args->scroll_top;
 }

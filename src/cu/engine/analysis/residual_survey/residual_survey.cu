@@ -96,7 +96,7 @@ void survey_report(void)
            positive_tenths % 10ull);
     printf("    limbs the residual reaches    %u of %u  (%u bits of 288)\n", s_survey_reached, ENGINE_RESIDUAL_LIMBS,
            s_survey_reached * 32u);
-    printf("    distinct levels a frame contains least %llu, most %llu, mean %llu\n", s_survey_distinct_least,
+    printf("    distinct levels a frame contains least %llu, max %llu, mean %llu\n", s_survey_distinct_least,
            s_survey_distinct_max, s_survey_distinct_sum / s_survey_frames);
     unsigned int occupied = 0u;
     for (unsigned int band = 0u; band < DAMP_BANDS; band += 1u)

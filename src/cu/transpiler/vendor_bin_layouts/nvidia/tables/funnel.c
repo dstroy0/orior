@@ -9,8 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the most an archive unpacks to: a table is a few million bytes, and a header past this is no header
-#define TABLES_MOST (256u * 1024u * 1024u)
+// the max an archive unpacks to: a table is a few million bytes, and a header past this is no header
+#define TABLES_MAX (256u * 1024u * 1024u)
 
 int tables_text_added(TablesText *text, const void *bytes, size_t count)
 {
@@ -44,7 +44,7 @@ void tables_text_freed(TablesText *text)
 
 int tables_record_read(const unsigned char *bytes, size_t size, size_t *at, TablesRecord *record)
 {
-    // the line is short: two addresses and a count, past which nothing of it stands
+    // the line is short: two addresses and a count, past which nothing of it is
     char line[96];
     size_t place = *at;
     if ((place + 2u > size) || (bytes[place] != '\n') || (bytes[place + 1u] != '<'))
@@ -184,7 +184,7 @@ int tables_unpacked(const unsigned char *bytes, size_t size, TablesText *text)
         const unsigned long long unpacked = tables_word(bytes + at);
         const unsigned long long packed = tables_word(bytes + at + 4u);
         at += 8u;
-        if ((packed == 0ull) || (packed > (unsigned long long)(size - at)) || (unpacked > TABLES_MOST))
+        if ((packed == 0ull) || (packed > (unsigned long long)(size - at)) || (unpacked > TABLES_MAX))
         {
             return 0;
         }

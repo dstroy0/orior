@@ -29,7 +29,7 @@ PASSAGE = re.compile(r"[\"“][^\"“”]{16,600}[\"”]")
 # regex still decides every finding. A pattern the parser cannot name a literal for goes into the
 # always-run list and is scanned against every run. The patterns are matched with
 # IGNORECASE, and so the run is folded the way re folds it: ASCII lowercased, and a non-ASCII
-# character mapped to the ASCII letter re would let it match (the long s matches `s`, the Kelvin
+# character mapped to the ASCII character re would let it match (the long s matches `s`, the Kelvin
 # sign `k`, dotted capital I `i`). str.lower() is not that fold. It turns the dotted capital I
 # into two characters and leaves the long s alone, and a prefilter built on it would drop a match
 # re makes.
@@ -101,9 +101,9 @@ def _fold(character):
     """The character a literal in the index is compared against, the way IGNORECASE compares."""
     if character not in _FOLDS:
         folded = character
-        for letter in "abcdefghijklmnopqrstuvwxyz":
-            if re.fullmatch(letter, character, re.IGNORECASE):
-                folded = letter
+        for character in "abcdefghijklmnopqrstuvwxyz":
+            if re.fullmatch(character, character, re.IGNORECASE):
+                folded = character
                 break
         _FOLDS[character] = folded
     return _FOLDS[character]
@@ -120,7 +120,7 @@ def present(text, needing=None):
     """The index entries whose literal text holds.
 
     banned_hits asks this once of the whole file and then once of each run, against only what the
-    file held. Most files hold a few dozen of the 596 literals, so a run is compared against those
+    file held. Max files hold a few dozen of the 596 literals, so a run is compared against those
     and not against all of them.
     """
     text = folded(text)

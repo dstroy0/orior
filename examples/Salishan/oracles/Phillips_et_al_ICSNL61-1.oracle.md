@@ -5,10 +5,10 @@ Matthewson, University of British Columbia, and Danica Reid, Simon Fraser Univer
 
 Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
-pure corpus, then against this paper's own English laid over that reference. What the paper's
+pure corpus, then against this paper's own English positioned over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
 from the characters that sit outside that English, and word_web.web() built 2713 edges over the
-language forms. A person then matched the context: who, kind and gloss for each row, the names,
+language forms. A person then matched the context: who, type and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
 someone reads the paper again and says otherwise.
@@ -25,9 +25,9 @@ a translation, and for the English of §4, is Bev Phillips, because she voluntee
 translation. The prose, the footnotes, the references and the Appendix carry the four authors. The
 people the story describes are the lab's members, and the paper does not name them, footnote 4.
 
-THE LETTERS
+THE CHARACTERS
 
-Outside the paper's English the engine found these letters and marks: Ø á é í ó ú ƛ ə ɬ ʔ ʕ ʷ ́ ̓ ̣.
+Outside the paper's English the engine found these characters and marks: Ø á é í ó ú ƛ ə ɬ ʔ ʕ ʷ ́ ̓ ̣.
 The orthography is the NAPA one of Thompson & Thompson 1992 and 1996. The segmentation line writes Ø
 for a null morpheme and puts unpronounced sounds in square brackets. Thompson & Thompson 1996 write
 ł in the dictionary's title where the paper writes ɬ, and scw̕exmxcín carries U+0315 COMBINING COMMA
@@ -40,7 +40,7 @@ sets after a stacked mark is closed, except before an opening quote, then NFC, t
 corrections. The text layer sets a space inside some words: nɬeʔkepmxc ín in §1.1, n ɬeʔkepmxcín in
 §2 and in Koch 2011, and N ɬeʔkepmxcín in Garcia, Hannon & Stacey 2024. These are the page-read
 corrections. It also sets the dot below of the retracted schwa after a space, k̓ə ̣pqns, and the
-check puts every combining mark that follows a space back on its letter. Footnotes 5 and 6 fall
+check puts every combining mark that follows a space back on its character. Footnotes 5 and 6 fall
 between the segmentation and the gloss of (2), and footnote 4 inside the first paragraph of §4. Both
 are notes, and (2) and the paragraph go on over the page break.
 
@@ -54,7 +54,7 @@ where    the paper's locator: the title, the front matter, a section, a footnote
 who      the language for an example tier and a cited form; the work cited on an example's
          line, or the speaker for a volunteered translation, for its English; the authors for
          the prose, the tables and the notes
-kind     transcription  an example tier in the orthography
+type     transcription  an example tier in the orthography
          segmentation   an example tier broken into morphemes
          gloss          the morpheme gloss tier of an example
          translation    the English of an example

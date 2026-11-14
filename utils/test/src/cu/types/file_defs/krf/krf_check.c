@@ -11,7 +11,7 @@
 //
 //     krf_check <folder>
 //
-// It runs in a query run (qry_run.sh): every file it writes is handed to the run's writer.
+// It runs in a query run (qry_run.sh): every file it writes is passed to the run's writer.
 #include "../../../../../../../includes/file_defs/krf/krf.h"
 
 #include "../../../../../../../includes/parsers/who.h"
@@ -85,7 +85,7 @@ int main(int count, char **words)
     check_that(krf_removed_by(path, "ksc", "replaced", first, 1u, put), "a removal is stored in a .krf of the part");
     check_that(krf_read(&s_file, path) && (s_file.lines == 3u),
                "the file starts with its head, a who line and the row");
-    char code[WHO_CODE_LETTERS + 1u];
+    char code[WHO_CODE_CHARACTERS + 1u];
     who_code(put, code, sizeof(code));
     char expected[2048];
     snprintf(expected, sizeof(expected),
@@ -110,7 +110,7 @@ int main(int count, char **words)
     const Who later = WHO_HERE;
     check_that(krf_removed_by(path, "krs", "refused", later_rows, 2u, later), "a later removal is stored after it");
     check_that(krf_read(&s_file, path) && (s_file.lines == 6u), "under a who line of its own");
-    char later_code[WHO_CODE_LETTERS + 1u];
+    char later_code[WHO_CODE_CHARACTERS + 1u];
     who_code(later, later_code, sizeof(later_code));
     snprintf(expected, sizeof(expected),
              "krf krf_check_%s\n"
@@ -121,7 +121,7 @@ int main(int count, char **words)
              "removed krs %s refused form word_add to left right = IADD {to}, {left}, {right}\\n\n",
              query, code, query, later_code, query, query);
     text = joined(&s_file);
-    check_that((text != NULL) && (strcmp(text, expected) == 0), "the earlier rows standing as they were");
+    check_that((text != NULL) && (strcmp(text, expected) == 0), "the earlier rows located as they were");
     check_that(krf_row_read(s_file.line[5], &s_row) && (strcmp(s_row.type, "krs") == 0) &&
                    (strcmp(s_row.reason, "refused") == 0) && (strncmp(s_row.row, "form word_add", 13u) == 0),
                "and a form's line is read back whole");

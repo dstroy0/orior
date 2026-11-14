@@ -3,15 +3,15 @@
 // inspect_tree_findings.c: every finding in every file, by its path: what each file shows alone, then what the tree
 // shows, its imports that lead back round and the attributes no class of a family sets, each written as the
 // protocol's diagnostic. The tree's findings are counted by one walk of what makes them and stored by a second, in one
-// movable cell sized to their count and their messages, laid as a facts cell of findings and texts, with the order
-// they are handed on in by their files in a cell of the call's own; a diagnostic is measured before it is written, in a
+// movable cell sized to their count and their messages, positioned as a facts cell of findings and texts, with the order
+// they are passed on in by their files in a cell of the call's own; a diagnostic is measured before it is written, in a
 // cell of its size
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
 #include "../text/measured.h"
 #include "inspect_tree_internal.h"
 
-// The tree's findings: each one's file, span, name and message, and the order they are handed on in by their files,
+// The tree's findings: each one's file, span, name and message, and the order they are passed on in by their files,
 // counted where `counting` is 1 and stored where it is 0; the findings and their messages in the movable cell `facts`
 // names, the numbers in `numbers`
 typedef struct
@@ -149,7 +149,7 @@ typedef struct
     CliInspectFound each;
     void *context;
 } InspectTreeFindingsCtx;
-// finding `finding` of the facts cell `facts` measured, written into a cell of its size and handed to `each` for
+// finding `finding` of the facts cell `facts` measured, written into a cell of its size and passed to `each` for
 // `path`
 EMBED_INLINE void findings_dispatch(const InspectTreeFindingsCtx *args)
 {

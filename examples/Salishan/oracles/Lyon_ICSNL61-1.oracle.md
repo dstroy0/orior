@@ -5,10 +5,10 @@ Salish) by John Lyon, University of British Columbia - Okanagan, ICSNL 61.
 
 Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
-pure corpus, then against this paper's own English laid over that reference. What the paper's
+pure corpus, then against this paper's own English positioned over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
 from the characters that sit outside that English, and word_web.web() built 6683 edges over the
-language forms. A person then matched the context: who, kind and gloss for each row, the names,
+language forms. A person then matched the context: who, type and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
 someone reads the paper again and says otherwise.
@@ -27,17 +27,17 @@ named in the tag, and John Lyon otherwise. The who for a speaker comment is the 
 or the speaker named in the example's tag where the comment is unsigned. The prose, the contexts and
 the notes carry John Lyon.
 
-THE LETTERS
+THE CHARACTERS
 
-Outside the paper's English the engine found these letters and marks: á é í ú ƛ ə ɬ ʔ ʕ ʷ ́ ̌ ̓ ̕ ∅.
-The null morpheme ∅ is U+2205. Glottalization is U+0313 on the letter, and the caron of x̌ is
+Outside the paper's English the engine found these characters and marks: á é í ú ƛ ə ɬ ʔ ʕ ʷ ́ ̌ ̓ ̕ ∅.
+The null morpheme ∅ is U+2205. Glottalization is U+0313 on the character, and the caron of x̌ is
 U+030C. The raised w of kʷ is U+02B7. The gloss labels are ASCII capitals in the text layer.
 
 THE PAGE AND THE TEXT LAYER
 
 The forms are in NFC, and the check puts the text layer through the same repair: the space the PDF
 sets after a stacked mark is closed, except before an opening quote, then NFC. Pages 1 and 4 were
-read against the text layer and agree with it letter for letter. The rest of the paper was
+read against the text layer and agree with it character for character. The rest of the paper was
 reconstructed by the engine and checked by the residue check alone.
 
 orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
@@ -50,7 +50,7 @@ where    the paper's locator: the title, the front matter, a section, a footnote
 who      the language for an example tier and a cited form; the work cited on an example's
          line, or the speaker for a volunteered translation, for its English; the authors for
          the prose, the tables and the notes
-kind     transcription  an example tier in the orthography
+type     transcription  an example tier in the orthography
          segmentation   an example tier broken into morphemes
          gloss          the morpheme gloss tier of an example
          translation    the English of an example

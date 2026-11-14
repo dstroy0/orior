@@ -1,8 +1,8 @@
 # The conditions of use
 
-The method reads anything that can be split into parts and counted. That includes people: what they speak, what they write, what a scan of their body holds, and what they keep closed. Each section below names one thing the work can do, what it cannot tell you, and what has to be true before you use it. Every condition here is a condition of use.
+The method reads anything that can be split into parts and counted. That includes people: what they speak, what they write, what a scan of their body holds, and what they retain closed. Each section below names one thing the work can do, what it cannot tell you, and what has to be true before you use it. Every condition here is a condition of use.
 
-Anyone may read, run and change this work under the AGPL. A product or service that keeps its source closed needs [the commercial license](https://github.com/dstroy0/orior/blob/main/LICENSES/LicenseRef-Commercial.txt), and an educator's exception is issued under [the educator's license](https://github.com/dstroy0/orior/blob/main/LICENSES/LicenseRef-Educational.txt). Section 7A of each makes every condition on this page a term of that license, beside Section 7 for language. Breaking one can end it at once.
+Anyone may read, run and change this work under the AGPL. A product or service that retains its source closed needs [the commercial license](https://github.com/dstroy0/orior/blob/main/LICENSES/LicenseRef-Commercial.txt), and an educator's exception is issued under [the educator's license](https://github.com/dstroy0/orior/blob/main/LICENSES/LicenseRef-Educational.txt). Section 7A of each makes every condition on this page a term of that license, beside Section 7 for language. Breaking one can end it at once.
 
 ## Whose language this is
 
@@ -40,9 +40,9 @@ That band is where a native speaker belongs. The question there is _is this mine
 
     For a language with few remaining speakers, publishing a form drawn from outside the distribution as though it were the language is not a recoverable harm.
 
-## What is kept closed
+## What is retained closed
 
-In many traditions a language or a story is kept under restriction, open to some people and closed to the rest, and it cannot be separated from law and country. A repository serving a file is not permission to use what is in it, and the license on this code says nothing about it.
+In many traditions a language or a story is retained under restriction, open to some people and closed to the rest, and it cannot be separated from law and country. A repository serving a file is not permission to use what is in it, and the license on this code says nothing about it.
 
 Use of that material needs the permission of the people who hold it, on their terms. Where their terms say no, the answer is no.
 
@@ -76,6 +76,6 @@ Nothing here claims a weakness in SHA-256, and nothing from it should be publish
 
 ## Reporting a result
 
-Report a result with its null, its positive control and the bar it was drawn against, and keep what killed a claim beside it. A number that leaves those behind reads as more than it is. For a reading about people, that is where the harm is done.
+Report a result with its null, its positive control and the bar it was drawn against, and retain what killed a claim beside it. A number that leaves those behind reads as more than it is. For a reading about people, that is where the harm is done.
 
 **Author:** dstroy0 (Douglas Quigg) <dquigg123@gmail.com>

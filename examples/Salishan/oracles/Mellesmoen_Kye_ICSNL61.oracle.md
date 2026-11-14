@@ -9,7 +9,7 @@ until someone reads the paper again and says otherwise.
 
 Forms are written after two repairs, both of which the reader applies too.
 The PDF puts a space after a stacked diacritic, so c̓ íx̌ id is the single word c̓íx̌id. A space after
-ʷ is a real word boundary and is kept, and that holds sčədadxʷ sʔuladxʷ apart.
+ʷ is a real word boundary and is retained, and that holds sčədadxʷ sʔuladxʷ apart.
 The paper writes the ejective on ƛ and l two ways. č̓ƛ̓aʔ 'rock' is printed four times with
 COMBINING COMMA ABOVE and once with COMBINING COMMA ABOVE RIGHT. One paper prints one word both
 ways, and the second mark is normalized to the first.
@@ -17,7 +17,7 @@ ways, and the second mark is normalized to the first.
 where    the paper's own locator: a table, a numbered example, a section, a figure
 dialect  northern, southern, both where the paper prints one form for the two, unstated where the
 paper does not say, or the name of another language for a cited cognate
-kind     citation    a word form the paper presents as attested
+type     citation    a word form the paper presents as attested
 surface     a phonetic realization the paper prints in square brackets
 transcription a line of connected speech from a recording
 morphemes   the morpheme-by-morpheme line printed under an utterance

@@ -228,7 +228,7 @@ int cli_big_pow_mod(const CliMysqlOutBigCtx *args)
     return 1;
 }
 
-// the most bytes of a key's modulus, a PEM's DER, and a block OAEP pads
+// the max bytes of a key's modulus, a PEM's DER, and a block OAEP pads
 #define CLI_RSA_BYTES 1024u
 #define CLI_RSA_DER 8192u
 

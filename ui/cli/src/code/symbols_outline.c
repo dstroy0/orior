@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // symbols_outline.c: the outline of one text, its declarations as rows. The text is read whole from its document and
-// handed to the declaration reader in its path's language; each declaration's name and type are copied beside the rows
-// as they come, and the depths are read off the lines' indents in one walk of the text once every row stands
+// passed to the declaration reader in its path's language; each declaration's name and type are copied beside the rows
+// as they come, and the depths are read off the lines' indents in one walk of the text once every row is
 #include "symbols.h"
 
 #include "../command_line/pool.h"
@@ -33,14 +33,14 @@ typedef struct
     char text[OUTLINE_TEXT_BYTES];
 } Outline;
 
-// the outline under build, a cell of the temporary tier for the one read; and the outline standing: its rows then its
+// the outline under build, a cell of the temporary tier for the one read; and the outline located: its rows then its
 // text from `text_at` in a movable cell sized to them, and how many rows
 static Outline *s_outline;
 static const CarcerMovableEntry *s_outline_cell;
 static unsigned int s_outline_count;
 static unsigned long long s_outline_text_at;
 
-// the outline standing let go, none standing
+// the outline located let go, none located
 static void outline_released(void)
 {
     (void)g_cli_guard->movable_buf_release(s_outline_cell, g_cli_code_owner);
@@ -49,7 +49,7 @@ static void outline_released(void)
     s_outline_text_at = 0ULL;
 }
 
-// the outline under build published as the outline standing, in a movable cell of its rows and the text they use
+// the outline under build published as the outline located, in a movable cell of its rows and the text they use
 static void outline_published(void)
 {
     outline_released();
@@ -114,7 +114,7 @@ static void outline_declared(const CliDeclaredCfg *args)
     outline->count += 1u;
 }
 
-// each row's indent read off its line in one walk of `length` bytes of `text`, the rows standing in the order of their
+// each row's indent read off its line in one walk of `length` bytes of `text`, the rows located in the order of their
 // lines; then each row's depth, its indent in steps of the smallest indent any row has, no deeper than
 // CLI_OUTLINE_DEEPEST, 0 where no row is indented
 EMBED_INLINE void outline_depths_read(const OutlineCtx *args)
@@ -166,7 +166,7 @@ void cli_outline_read(const CliOutlineCfg *args)
     }
     CliShape shape = {0ULL, 0ULL};
     if (!EMBED_CALL(cli_document_text.shape, CliDocumentTextCfg, .key = args->key, .shape = &shape) ||
-        (shape.lines > CLI_OUTLINE_LINES_MOST))
+        (shape.lines > CLI_OUTLINE_LINES_MAX))
     {
         return;
     }

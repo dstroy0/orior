@@ -1,17 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_terminal.c: an xterm reads a shell's output into a text paged over a file, a line each of its screen's rows:
-// letters at the cursor, the SGR of their style before them, the cursor moved, lines erased, the lines that leave the
+// characters at the cursor, the SGR of their style before them, the cursor moved, lines erased, the lines that leave the
 // main screen's top as it scrolls joining the history above it and the history cleared, the history beyond the lines
-// kept taken out of the text's head, the text written through to its file, the second screen's rows after the main
-// screen's, the answers to where the cursor is, the folder a shell reports, wrapping at the last column, letters past
-// ASCII cut between two reads, a column's place among a line's units and a line's letters with its sequences left
+// retained taken out of the text's head, the text written through to its file, the second screen's rows after the main
+// screen's, the answers to where the cursor is, the folder a shell reports, wrapping at the last column, characters past
+// ASCII cut between two reads, a column's place among a line's units and a line's characters with its sequences left
 // out; a shell started in a pseudo-terminal, what it writes drained onto its xterm, text typed while it starts sent
 // once it settles, and its end printed; and the terminal's tabs, the panel opened on a tab whose shell starts as its
-// pane is sized, the keys it takes and those it lets go to the window, the panel and its panes as they stand, the
+// pane is sized, the keys it takes and those it lets go to the window, the panel and its panes as they are, the
 // panel's place stored as the window ends and read back as it starts, a tab's shell started in its folder, its file
-// in the folder the settings name with the defaults written there, and the rows standing at the end written through
-// to its file; and the panel's menu, Split Terminal shown on while a shell stands beside the one shown, opened where
+// in the folder the settings name with the defaults written there, and the rows located at the end written through
+// to its file; and the panel's menu, Split Terminal displayed on while a shell is beside the one displayed, opened where
 // it was asked for
 #include "ui/cli/src/command_line/pool.h"
 #include "ui/cli/src/editor/document.h"
@@ -27,7 +27,7 @@
 
 static CliTerminalXterm s_xterm;
 static char s_text[1024];
-// the key of the text the xterm writes into, the folder and the file it is paged over, and whether a text stands under
+// the key of the text the xterm writes into, the folder and the file it is paged over, and whether a text is under
 // the key
 static const char *const s_key = "terminal-check";
 static char s_folder[CLI_PATH_MAX_LEN];
@@ -35,7 +35,7 @@ static char s_path[CLI_PATH_MAX_LEN];
 static int s_folder_created;
 static int s_stored;
 // the home the suite's tabs store their history and place under; the shell they start and the command that prints the
-// folder a shell stands in, each this system's
+// folder a shell is in, each this system's
 static const char s_home[] = "build/harness/terminal_home";
 #if defined(_WIN32)
 static const char s_shell[] = "cmd.exe";
@@ -150,16 +150,16 @@ static void text_written_through(void)
     TEST_ASSERT_TRUE_MESSAGE(saved, why);
 }
 
-// the line `line` of the text under s_key as it stands, its sequences among its letters, into s_text
+// the line `line` of the text under s_key as it is, its sequences among its characters, into s_text
 static const char *xterm_line_text(unsigned long long line)
 {
     (void)line_bytes(s_key, line);
     return s_text;
 }
 
-// the letters of the line `line` of the text under `key` into s_text, the sequences among them and the blanks at its
+// the characters of the line `line` of the text under `key` into s_text, the sequences among them and the blanks at its
 // end left out
-static const char *line_letters(const char *key, unsigned long long line)
+static const char *line_characters(const char *key, unsigned long long line)
 {
     // the bytes read as unsigned are the same bytes
     unsigned long long size = EMBED_CALL(cli_terminal_xterm_plain, CliTerminalXtermPlainCfg,
@@ -184,10 +184,10 @@ static void xterm_put(const char *text)
                .bytes = (const unsigned char *)text, .size = size);
 }
 
-// the letters of row `y` of the screen drawn on, the sequences among them and the blanks at its end left out
+// the characters of row `y` of the screen drawn on, the sequences among them and the blanks at its end left out
 static const char *xterm_row_text(unsigned int y)
 {
-    return line_letters(s_key, s_xterm.base + y);
+    return line_characters(s_key, s_xterm.base + y);
 }
 
 // the bytes the key `name` sends with the modifiers `mods` into s_text, ended by a 0: 1, or 0 where it sends nothing
@@ -245,7 +245,7 @@ void test_the_keys_with_sequences_of_their_own_send_them_alt_putting_an_escape_f
     TEST_ASSERT_EQUAL_STRING("\x08", s_text);
 }
 
-void test_control_sends_control_letters_and_alt_an_escape_and_the_letter(void)
+void test_control_sends_control_characters_and_alt_an_escape_and_the_character(void)
 {
     TEST_ASSERT_TRUE(key_sent("A", CLI_TERMINAL_MOD_CONTROL, 0));
     TEST_ASSERT_EQUAL_STRING("\x01", s_text);
@@ -278,36 +278,36 @@ void tearDown(void)
     }
 }
 
-void test_what_the_xterm_writes_stands_in_the_texts_file_once_written_through(void)
+void test_what_the_xterm_writes_is_in_the_texts_file_once_written_through(void)
 {
     xterm_open(10u, 3u);
     xterm_put("ab\r\ncd");
     text_written_through();
     TEST_ASSERT_EQUAL_UINT64(6ULL, file_text());
     TEST_ASSERT_EQUAL_STRING("ab\ncd\n", s_text);
-    // the text goes on from the file as it stands
+    // the text goes on from the file as it is
     xterm_put("\r\nef");
     TEST_ASSERT_EQUAL_STRING("ef", xterm_row_text(2u));
     TEST_ASSERT_EQUAL_UINT64(3ULL, text_lines());
 }
 
-void test_the_history_beyond_the_lines_kept_is_taken_out_of_the_texts_head(void)
+void test_the_history_beyond_the_lines_retained_is_taken_out_of_the_texts_head(void)
 {
     xterm_open(10u, 2u);
     xterm_put("1\r\n2\r\n3\r\n4\r\n5");
     TEST_ASSERT_EQUAL_UINT64(3ULL, s_xterm.history);
-    TEST_ASSERT_EQUAL_UINT64(2ULL, EMBED_CALL(cli_terminal_xterm_keep.trim, CliTerminalXtermKeepCfg,
-                                              .xterm = &s_xterm, .keep = 1ULL));
+    TEST_ASSERT_EQUAL_UINT64(2ULL, EMBED_CALL(cli_terminal_xterm_retain.trim, CliTerminalXtermKeepCfg,
+                                              .xterm = &s_xterm, .retain = 1ULL));
     TEST_ASSERT_EQUAL_UINT64(1ULL, s_xterm.history);
     TEST_ASSERT_EQUAL_UINT64(1ULL, s_xterm.base);
     TEST_ASSERT_EQUAL_UINT64(3ULL, text_lines());
     TEST_ASSERT_EQUAL_STRING("3", xterm_line_text(0ULL));
     TEST_ASSERT_EQUAL_STRING("4", xterm_row_text(0u));
-    TEST_ASSERT_EQUAL_UINT64(0ULL, EMBED_CALL(cli_terminal_xterm_keep.trim, CliTerminalXtermKeepCfg,
-                                              .xterm = &s_xterm, .keep = 1ULL));
+    TEST_ASSERT_EQUAL_UINT64(0ULL, EMBED_CALL(cli_terminal_xterm_retain.trim, CliTerminalXtermKeepCfg,
+                                              .xterm = &s_xterm, .retain = 1ULL));
 }
 
-void test_letters_land_at_the_cursor_and_a_return_and_a_feed_start_the_next_line(void)
+void test_characters_land_at_the_cursor_and_a_return_and_a_feed_start_the_next_line(void)
 {
     xterm_open(10u, 4u);
     xterm_put("ab\r\ncd");
@@ -317,7 +317,7 @@ void test_letters_land_at_the_cursor_and_a_return_and_a_feed_start_the_next_line
     TEST_ASSERT_EQUAL_UINT(1u, s_xterm.cursor.y);
 }
 
-void test_the_16_colors_and_bold_are_written_before_their_letters_and_a_reset_takes_them_off(void)
+void test_the_16_colors_and_bold_are_written_before_their_characters_and_a_reset_takes_them_off(void)
 {
     xterm_open(10u, 2u);
     xterm_put("\x1b[31;1mX\x1b[0mY\x1b[94mZ");
@@ -333,7 +333,7 @@ void test_the_256_colors_and_direct_colors_are_read_an_empty_color_space_among_t
                              xterm_line_text(0ULL));
 }
 
-void test_letters_written_over_others_put_the_style_after_them_back_where_letters_follow(void)
+void test_characters_written_over_others_put_the_style_after_them_back_where_characters_follow(void)
 {
     xterm_open(10u, 2u);
     xterm_put("\x1b[32mabc\r\x1b[0mX");
@@ -344,7 +344,7 @@ void test_letters_written_over_others_put_the_style_after_them_back_where_letter
     TEST_ASSERT_EQUAL_STRING("\x1b[0;33mZ\x1b[0;32mbc", xterm_line_text(0ULL));
 }
 
-void test_letters_deleted_take_the_sequences_before_them_and_leave_the_style_after_them(void)
+void test_characters_deleted_take_the_sequences_before_them_and_leave_the_style_after_them(void)
 {
     xterm_open(10u, 2u);
     xterm_put("\x1b[31mab\x1b[32mcd\x1b[0me\r\x1b[2P");
@@ -436,7 +436,7 @@ void test_the_folder_a_shell_reports_in_osc_7_is_written_as_a_path_ended_by_a_be
     TEST_ASSERT_EQUAL_STRING("/d/x y", folder);
     xterm_put("\x1b]7;file://host/e\x1b\\");
     TEST_ASSERT_EQUAL_STRING("/e", folder);
-    // a path alone stands as it is, and one past the folder's bytes leaves it empty
+    // a path alone is as it is, and one past the folder's bytes leaves it empty
     xterm_put("\x1b]7;/f/g\x07");
     TEST_ASSERT_EQUAL_STRING("/f/g", folder);
     xterm_put("\x1b]7;file://host/a/long/folder/path\x07");
@@ -444,7 +444,7 @@ void test_the_folder_a_shell_reports_in_osc_7_is_written_as_a_path_ended_by_a_be
     TEST_ASSERT_EQUAL_STRING("", xterm_row_text(0u));
 }
 
-void test_a_letter_at_the_last_column_wraps_the_next_onto_the_next_line(void)
+void test_a_character_at_the_last_column_wraps_the_next_onto_the_next_line(void)
 {
     xterm_open(4u, 3u);
     xterm_put("abcde");
@@ -452,13 +452,13 @@ void test_a_letter_at_the_last_column_wraps_the_next_onto_the_next_line(void)
     TEST_ASSERT_EQUAL_STRING("e", xterm_row_text(1u));
 }
 
-void test_a_letter_past_ascii_is_read_whole_across_two_reads(void)
+void test_a_character_past_ascii_is_read_whole_across_two_reads(void)
 {
     xterm_open(10u, 2u);
     xterm_put("\xc3");
     xterm_put("\xa9!");
     xterm_put("\xff");
-    // the letter whole, the mark and the replacement letter, which the ill-formed byte is written as
+    // the character whole, the mark and the replacement character, which the ill-formed byte is written as
     TEST_ASSERT_EQUAL_UINT64(6ULL, line_raw(s_key, 0ULL));
     TEST_ASSERT_EQUAL_MEMORY("\xc3\xa9!\xef\xbf\xbd", s_text, 6u);
     TEST_ASSERT_EQUAL_UINT(3u, s_xterm.cursor.x);
@@ -496,7 +496,7 @@ void test_a_smaller_xterm_sends_the_lines_above_the_cursor_to_the_history(void)
 }
 
 // the shell `words` started on an 80 by 24 xterm, `typed` typed into it at once where it is not NULL, and drained
-// onto the xterm until it stands exited or ten seconds pass, then hung up on and drained until it ends: 1 where it
+// onto the xterm until it is exited or ten seconds pass, then hung up on and drained until it ends: 1 where it
 // ended of itself
 static int shell_run(const char *const *words, const char *typed)
 {
@@ -575,17 +575,17 @@ void test_text_typed_while_a_shell_starts_reaches_it_once_the_shell_settles(void
     TEST_ASSERT_TRUE(xterm_holds("[exited 0]"));
 }
 
-// whether a row of the pane `view` shows `text`, a C string, among the letters of its tab's text's line
+// whether a row of the pane `view` shows `text`, a C string, among the characters of its tab's text's line
 static int pane_holds(unsigned int view, const char *text)
 {
-    CliTerminalView shown;
-    if (!cli_terminal_tabs_view(view, &shown) || (shown.key == NULL))
+    CliTerminalView displayed;
+    if (!cli_terminal_tabs_view(view, &displayed) || (displayed.key == NULL))
     {
         return 0;
     }
-    for (unsigned int y = 0u; y < shown.rows; y += 1u)
+    for (unsigned int y = 0u; y < displayed.rows; y += 1u)
     {
-        if (cellul.has(&(CatenaFinitaCfg){.src = line_letters(shown.key, shown.xterm_line + y),
+        if (cellul.has(&(CatenaFinitaCfg){.src = line_characters(displayed.key, displayed.xterm_line + y),
                                           .cap = CLI_POOL_BYTES,
                                           .other = text,
                                           .other_cap = CLI_POOL_BYTES}))
@@ -596,7 +596,7 @@ static int pane_holds(unsigned int view, const char *text)
     return 0;
 }
 
-// the tabs stepped until the pane shown shows `text` or ten seconds pass: 1 where it does
+// the tabs stepped until the pane displayed shows `text` or ten seconds pass: 1 where it does
 static int tabs_until(const char *text)
 {
     static CliWake s_pause;
@@ -659,13 +659,13 @@ void test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_
     TEST_ASSERT_TRUE(cli_terminal_tabs_view(0u, &pane));
     TEST_ASSERT_EQUAL_UINT(80u, pane.columns);
     TEST_ASSERT_EQUAL_UINT(24u, pane.rows);
-    // the pane is a view of the tab's text, standing on the xterm's rows
+    // the pane is a view of the tab's text, located on the xterm's rows
     TEST_ASSERT_NOT_NULL(pane.key);
     CliViewFrame *const frame = cli_view_frame_alloc(pane.key);
     TEST_ASSERT_NOT_NULL(frame);
     TEST_ASSERT_EQUAL_UINT64(pane.xterm_line, frame->top);
     cli_view_frame_release(frame);
-    // Control with a letter goes to the shell, a plain letter comes as text, and Ctrl+` goes on to the window
+    // Control with a character goes to the shell, a plain character comes as text, and Ctrl+` goes on to the window
     TEST_ASSERT_TRUE(cli_terminal_tabs_key("A"));
     TEST_ASSERT_FALSE(cli_terminal_tabs_key("Ctrl+`"));
     // what is typed and echoed reads `tabs^_heard` or `tabs''_heard`; only the shell's output reads `tabs_heard`
@@ -719,18 +719,18 @@ void test_the_terminal_place_is_stored_as_the_window_ends_and_read_back_as_it_st
     TEST_ASSERT_TRUE(cli_terminal_tabs_command("split", NULL, 0u));
     cli_terminal_tabs_height(300u);
     const CliTerminalPanel before = cli_terminal_tabs_panel();
-    const int shown = before.shown;
+    const int displayed = before.displayed;
     const int beside = before.beside;
     TEST_ASSERT_EQUAL_UINT(2u, before.tabs);
-    TEST_ASSERT_TRUE((shown >= 0) && (beside >= 0) && (shown != beside));
+    TEST_ASSERT_TRUE((displayed >= 0) && (beside >= 0) && (displayed != beside));
     terminal_ended();
     place_restored();
     const CliTerminalPanel after = cli_terminal_tabs_panel();
-    // the panel opens as it stood, without taking the keys, its tabs, the one shown, the one beside it and its height
+    // the panel opens as it was, without taking the keys, its tabs, the one displayed, the one beside it and its height
     TEST_ASSERT_TRUE(after.open);
     TEST_ASSERT_FALSE(after.keys);
     TEST_ASSERT_EQUAL_UINT(2u, after.tabs);
-    TEST_ASSERT_EQUAL_INT(shown, after.shown);
+    TEST_ASSERT_EQUAL_INT(displayed, after.displayed);
     TEST_ASSERT_EQUAL_INT(beside, after.beside);
     TEST_ASSERT_EQUAL_UINT(300u, after.height);
     (void)tab_label(0u);
@@ -754,7 +754,7 @@ void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_
     mmgr_line_put(&folder_line, "/place_folder");
     TEST_ASSERT_NOT_EQUAL(0ull, mmgr_line_finish(&folder_line));
     TEST_ASSERT_TRUE(EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder));
-    // the place as the window stores it: open, the first tab shown and none beside, the height, then a tab a line
+    // the place as the window stores it: open, the first tab displayed and none beside, the height, then a tab a line
     char place[CLI_PATH_MAX_LEN + 64u];
     VerbaLinea place_line = {place, sizeof(place), 0ull};
     mmgr_line_put(&place_line, "1 1 0 256\n1 ");
@@ -774,11 +774,11 @@ void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_
                                 .bytes = "line_before\n", .size = 12ull, .fresh = 1));
     place_restored();
     cli_terminal_tabs_size(0u, 120u, 24u);
-    // the history read back stands in the tab's text above the xterm's rows, its one line
+    // the history read back is in the tab's text above the xterm's rows, its one line
     CliTerminalView restored;
     TEST_ASSERT_TRUE(cli_terminal_tabs_view(0u, &restored));
     TEST_ASSERT_EQUAL_UINT64(1ull, restored.xterm_line);
-    // the folder the files stand in and the lines each keeps stand among the reader's settings, the defaults written
+    // the folder the files are in and the lines each retains are among the reader's settings, the defaults written
     // there as the tab stored
     CliStateEntries settings = entries_read();
     TEST_ASSERT_NOT_NULL(settings.cell);
@@ -790,7 +790,7 @@ void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_
     TEST_ASSERT_EQUAL_STRING(s_text, cli_state_entry_value(&settings, "terminal.folder", setting, sizeof(setting)));
     TEST_ASSERT_EQUAL_STRING("10000", cli_state_entry_value(&settings, "terminal.lines", setting, sizeof(setting)));
     cli_state_entries_release(&settings);
-    // the panel opens as it stood, without the keys, which a press in its pane gives it
+    // the panel opens as it was, without the keys, which a press in its pane gives it
     TEST_ASSERT_FALSE(cli_terminal_tabs_panel().keys);
     cli_terminal_tabs_press(&(CliTerminalTabsPressCfg){.hit = CLI_TERMINAL_HIT_PANE, .index = 0u, .clicks = 1u});
     TEST_ASSERT_TRUE(cli_terminal_tabs_pointer(&(CliTerminalTabsPressCfg){.hit = CLI_TERMINAL_HIT_PANE, .up = 1}));
@@ -809,7 +809,7 @@ void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_
         found = found || (memor.cmp(&(MemoriaCfg){.src = history + at, .other = "place_folder", .bytes = 12u}) == 0);
     }
     g_cli_guard->persistent_buf_release((void *)(uintptr_t)history, (g_cli_terminal_owner));
-    TEST_ASSERT_TRUE_MESSAGE(found, "the rows standing as the window ended are in the tab's history");
+    TEST_ASSERT_TRUE_MESSAGE(found, "the rows located as the window ended are in the tab's history");
 }
 
 // the answers the window gives the menus, as they read for the terminal's rows: an item that needs a state of the
@@ -824,7 +824,7 @@ static int menu_item_checked(const CliItem *item)
     return cli_terminal_tabs_checked(item->checks);
 }
 
-// the catalog read and the menus handed the window's answers
+// the catalog read and the menus passed the window's answers
 static void menus_answered(void)
 {
     char why[512];
@@ -849,7 +849,7 @@ static void menu_row(const char *label, CliItem *item)
     TEST_FAIL_MESSAGE(label);
 }
 
-// the Terminal menu opened on the bar, every title shown
+// the Terminal menu opened on the bar, every title displayed
 static void terminal_menu_opened(void)
 {
     unsigned int title = 0u;
@@ -866,7 +866,7 @@ static void terminal_menu_opened(void)
     cli_menus_title_press(title);
 }
 
-void test_the_terminal_menu_shows_split_terminal_on_while_a_shell_stands_beside_the_one_shown(void)
+void test_the_terminal_menu_shows_split_terminal_on_while_a_shell_is_beside_the_one_displayed(void)
 {
     TEST_ASSERT_TRUE(
         EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = s_home));
@@ -878,13 +878,13 @@ void test_the_terminal_menu_shows_split_terminal_on_while_a_shell_stands_beside_
     CliItem toggle;
     menu_row("Split Terminal", &split);
     menu_row("Toggle Terminal", &toggle);
-    TEST_ASSERT_FALSE_MESSAGE(g_cli_menus_open.checked(&split), "Split Terminal is off with one shell shown");
+    TEST_ASSERT_FALSE_MESSAGE(g_cli_menus_open.checked(&split), "Split Terminal is off with one shell displayed");
     TEST_ASSERT_EQUAL_STRING_MESSAGE("", toggle.checks, "Toggle Terminal is neither on nor off");
     cli_menus_close(0u);
     TEST_ASSERT_TRUE(cli_terminal_tabs_command("split", NULL, 0u));
     terminal_menu_opened();
     menu_row("Split Terminal", &split);
-    TEST_ASSERT_TRUE_MESSAGE(g_cli_menus_open.checked(&split), "Split Terminal is on while a shell stands beside");
+    TEST_ASSERT_TRUE_MESSAGE(g_cli_menus_open.checked(&split), "Split Terminal is on while a shell is beside");
     cli_menus_close(0u);
     terminal_ended();
 }
@@ -916,7 +916,7 @@ void test_a_menu_asked_for_on_the_terminal_opens_its_items_where_it_was_asked_th
     TEST_ASSERT_TRUE(cli_terminal_tabs_command("toggle", NULL, 0u));
     terminal_menu_asked(300, 400);
     TEST_ASSERT_EQUAL_UINT(1u, g_cli_menus_open.levels);
-    TEST_ASSERT_EQUAL_INT_MESSAGE(-1, g_cli_menus_open.open, "a menu asked for stands under no title of the bar");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(-1, g_cli_menus_open.open, "a menu asked for is under no title of the bar");
     TEST_ASSERT_EQUAL_UINT(CLI_MENU_PLACE_POINT, g_cli_menus_open.place);
     TEST_ASSERT_EQUAL_INT(300, g_cli_menus_open.x);
     TEST_ASSERT_EQUAL_INT(400, g_cli_menus_open.y);
@@ -949,7 +949,7 @@ void test_a_menu_asked_for_on_the_terminal_opens_its_items_where_it_was_asked_th
     menus_key("Enter");
     TEST_ASSERT_EQUAL_UINT_MESSAGE(0u, g_cli_menus_open.levels, "a row chosen closes the menu");
     TEST_ASSERT_TRUE_MESSAGE(cli_terminal_tabs_panel().beside >= 0,
-                             "Split Terminal chosen shows a shell beside the one shown");
+                             "Split Terminal chosen shows a shell beside the one displayed");
     terminal_menu_asked(20, 30);
     TEST_ASSERT_TRUE(g_cli_menus_open.checked(&split));
     // Tab closes it

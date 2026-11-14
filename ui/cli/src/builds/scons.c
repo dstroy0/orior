@@ -181,8 +181,8 @@ void cli_scons_calls(const CliSconsNameCtx *args)
         unsigned long long before = 0ULL;
         if ((memor.cmp(&(MemoriaCfg){.src = text + at, .other = args->name, .bytes = length}) != 0) ||
             (class_of[at] != CLI_SCONS_CODE) ||
-            ((at > 0u) && EMBED_CALL(cli_each_letter.build_word_letter, CliEachLetterCfg,
-                                     .letter = EMBED_CALL(cli_text_length.letter_before, CliTextLengthCfg, .text = text,
+            ((at > 0u) && EMBED_CALL(cli_each_character.build_word_character, CliEachLetterCfg,
+                                     .character = EMBED_CALL(cli_text_length.character_before, CliTextLengthCfg, .text = text,
                                                           .end_value = at, .length = &before))))
         {
             at += 1u;
@@ -306,8 +306,8 @@ int cli_scons_keyword(const CliSconsFromCtx *args)
     for (unsigned long long walk = name_from; walk < name_to;)
     {
         unsigned long long length = 0ULL;
-        if (!EMBED_CALL(cli_each_letter.build_word_letter, CliEachLetterCfg,
-                        .letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = part, .size = name_to,
+        if (!EMBED_CALL(cli_each_character.build_word_character, CliEachLetterCfg,
+                        .character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = part, .size = name_to,
                                              .at = walk, .length = &length)))
         {
             return 0;

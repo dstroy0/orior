@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// xterm.c: a shell's output read into the text as an xterm reads it (xterm.h). The output's runs of letters, ASCII a
-// word at a time and whole UTF-8 letters among them, are written into the row at the cursor as one edit each, a run
-// past the row's columns cut where it wraps; a letter cut across two writes is put together on the stack, an
-// ill-formed one written as U+FFFD. A column's place in a row counts its letters, a sequence among them counting none
+// xterm.c: a shell's output read into the text as an xterm reads it (xterm.h). The output's runs of characters, ASCII a
+// word at a time and whole UTF-8 characters among them, are written into the row at the cursor as one edit each, a run
+// past the row's columns cut where it wraps; a character cut across two writes is put together on the stack, an
+// ill-formed one written as U+FFFD. A column's place in a row counts its characters, a sequence among them counting none
 #include "xterm.h"
 #include "../../../includes/utf8/utf8.h"
 #include "../command_line/cli_internal.h"
@@ -11,7 +11,7 @@
 #include "../editor/document.h"
 #include "../editor/pages.h"
 
-// where the reading of the output stands: in plain text, after an escape, in a control sequence, in an
+// where the reading of the output is: in plain text, after an escape, in a control sequence, in an
 // operating-system command, in a device control string, after the escape that may end a string, or before the one
 // byte a character set's choice takes
 #define XTERM_GROUND 0u
@@ -22,18 +22,18 @@
 #define XTERM_STRING_END 5u
 #define XTERM_CHARSET 6u
 
-// the most numbers of a control sequence read, and the number an empty one stands for
+// the max numbers of a control sequence read, and the number an empty one is for
 #define XTERM_NUMBERS 32u
 #define XTERM_ABSENT 0xffffffffu
 
-// the tab stops' spacing; the most bytes an SGR the xterm writes takes; the spaces and line ends one edit writes; and
+// the tab stops' spacing; the max bytes an SGR the xterm writes takes; the spaces and line ends one edit writes; and
 // the lines one edit of a trim takes out, within what one reading of a paged text contains
 #define XTERM_TAB 8u
 #define XTERM_SGR_MAX 64u
 #define XTERM_RUN 64u
 #define XTERM_TRIM_RUN 1024ULL
 
-// the replacement letter's UTF-8, which an ill-formed run of bytes is written as
+// the replacement character's UTF-8, which an ill-formed run of bytes is written as
 static const char s_replacement[3] = {(char)0xefu, (char)0xbfu, (char)0xbdu};
 // XTERM_RUN spaces and XTERM_RUN line ends, which blanks and empty lines are written from
 static const char s_spaces[XTERM_RUN + 1u] = "                                                                ";
@@ -57,14 +57,14 @@ typedef struct
     unsigned char byte;
     const unsigned char *bytes;
     unsigned long long size;
-    unsigned long long letters;
+    unsigned long long characters;
     const unsigned int *numbers;
     unsigned int *numbers_out;
     unsigned int number_count;
     const unsigned short *units;
     unsigned long long units_count;
     unsigned long long at;
-    unsigned long long *letters_out;
+    unsigned long long *characters_out;
     unsigned long long line;
     unsigned long long lines;
     CliPosition place;
@@ -94,9 +94,9 @@ EMBED_INLINE unsigned long long xterm_text_lines(const XtermCtx *args)
 }
 
 // the line `line` of a paged text read through the pages into a cell of the temporary tier as UTF-16 units, their
-// count into `letters_out`, the cell given back with persistent_buf_release: the cell, or NULL with the count 0 where
-// the line has no units or the cells cannot meet them. A letter past the plane is its two surrogates, an ill-formed
-// byte the replacement letter
+// count into `characters_out`, the cell given back with persistent_buf_release: the cell, or NULL with the count 0 where
+// the line has no units or the cells cannot meet them. A character past the plane is its two surrogates, an ill-formed
+// byte the replacement character
 EMBED_INLINE unsigned short *xterm_paged_units(const XtermCtx *args)
 {
     const char *start = NULL;
@@ -107,15 +107,15 @@ EMBED_INLINE unsigned short *xterm_paged_units(const XtermCtx *args)
     const unsigned long long size = ((read != NULL) && (count != 0ULL))
                                         ? cellul.len(&(CatenaFinitaCfg){.src = start, .cap = CLI_POOL_BYTES})
                                         : 0ULL;
-    // a letter of one to three bytes is one unit and one of four two: the units are no more than the bytes
+    // a character of one to three bytes is one unit and one of four two: the units are no more than the bytes
     unsigned short *const units =
         (size != 0ULL) ? g_cli_guard->temporary_buf_alloc(size * sizeof(*units), g_cli_terminal_owner) : NULL;
     unsigned long long made = 0ULL;
     for (unsigned long long at = 0ULL; (units != NULL) && (at < size);)
     {
         unsigned long long length = 1ULL;
-        const unsigned int letter = utf8_letter(&(Utf8AtCfg){.text = start, .at = at, .size = size, .length = &length});
-        const unsigned int whole = ((length == 1ULL) && (letter >= 0x80u)) ? 0xfffdu : letter;
+        const unsigned int character = utf8_character(&(Utf8AtCfg){.text = start, .at = at, .size = size, .length = &length});
+        const unsigned int whole = ((length == 1ULL) && (character >= 0x80u)) ? 0xfffdu : character;
         if (whole >= 0x10000u)
         {
             // the surrogates each fit a unit
@@ -125,18 +125,18 @@ EMBED_INLINE unsigned short *xterm_paged_units(const XtermCtx *args)
         }
         else
         {
-            // a letter within the plane fits a unit
+            // a character within the plane fits a unit
             units[made] = (unsigned short)whole;
             made += 1ULL;
         }
         at += length;
     }
     g_cli_guard->persistent_buf_release(read, g_cli_terminal_owner);
-    *args->letters_out = (units != NULL) ? made : 0ULL;
+    *args->characters_out = (units != NULL) ? made : 0ULL;
     return units;
 }
 
-// the units of the text's line `line` copied into a cell of the temporary tier, their count into `letters_out`, the
+// the units of the text's line `line` copied into a cell of the temporary tier, their count into `characters_out`, the
 // cell given back with persistent_buf_release: the cell, or NULL with the count 0 where the line has no units or the
 // cells cannot meet them
 EMBED_INLINE unsigned short *xterm_line_units(const XtermCtx *args)
@@ -159,7 +159,7 @@ EMBED_INLINE unsigned short *xterm_line_units(const XtermCtx *args)
         (void)EMBED_CALL(cli_document_line.line_units, CliDocumentLineUnitsCfg, .key = args->xterm_read->key,
                          .line = args->line, .count = &copied, .dst = units, .capacity = count);
     }
-    *args->letters_out = (units != NULL) ? count : 0ULL;
+    *args->characters_out = (units != NULL) ? count : 0ULL;
     return units;
 }
 
@@ -168,7 +168,7 @@ EMBED_INLINE unsigned long long xterm_line_count(const XtermCtx *args)
 {
     unsigned long long count = 0ULL;
     unsigned short *const units = EMBED_CALL(xterm_line_units, XtermCtx, .xterm_read = args->xterm_read,
-                                             .line = args->line, .letters_out = &count);
+                                             .line = args->line, .characters_out = &count);
     g_cli_guard->persistent_buf_release(units, g_cli_terminal_owner);
     return count;
 }
@@ -208,8 +208,8 @@ EMBED_INLINE unsigned int xterm_unit(const XtermCtx *args)
     return (args->units != NULL) ? args->units[args->at] : args->bytes[args->at];
 }
 
-// the units an escape sequence at `at` takes: its escape, its opening, its numbers and its last letter, the rest of the
-// units where it runs past them, one for an escape alone; 0 where no escape stands at `at`. The units are the text's,
+// the units an escape sequence at `at` takes: its escape, its opening, its numbers and its last character, the rest of the
+// units where it runs past them, one for an escape alone; 0 where no escape is at `at`. The units are the text's,
 // or the bytes where no units are passed
 EMBED_INLINE unsigned long long xterm_sequence_units(const XtermCtx *args)
 {
@@ -237,8 +237,8 @@ EMBED_INLINE unsigned long long xterm_sequence_units(const XtermCtx *args)
     return ((end < count) && (unit >= 0x40u) && (unit <= 0x7eu)) ? (end + 1ULL - at) : (count - at);
 }
 
-// the units the letter at `at` takes: two for a surrogate pair, else one; one byte where no units are passed
-EMBED_INLINE unsigned long long xterm_letter_units(const XtermCtx *args)
+// the units the character at `at` takes: two for a surrogate pair, else one; one byte where no units are passed
+EMBED_INLINE unsigned long long xterm_character_units(const XtermCtx *args)
 {
     if (args->units == NULL)
     {
@@ -251,12 +251,12 @@ EMBED_INLINE unsigned long long xterm_letter_units(const XtermCtx *args)
     return paired ? 2ULL : 1ULL;
 }
 
-// the place where the letter of column `x` starts among a row's units, the sequences before it passed over: the units'
-// count where the row's letters end first, the letters standing before the place into `letters_out`
+// the place where the character of column `x` starts among a row's units, the sequences before it passed over: the units'
+// count where the row's characters end first, the characters located before the place into `characters_out`
 EMBED_INLINE unsigned long long xterm_column_start(const XtermCtx *args)
 {
     unsigned long long at = 0ULL;
-    unsigned long long letters = 0ULL;
+    unsigned long long characters = 0ULL;
     for (;;)
     {
         unsigned long long sequence = EMBED_CALL(xterm_sequence_units, XtermCtx, .units = args->units,
@@ -267,42 +267,42 @@ EMBED_INLINE unsigned long long xterm_column_start(const XtermCtx *args)
             sequence = EMBED_CALL(xterm_sequence_units, XtermCtx, .units = args->units,
                                   .units_count = args->units_count, .at = at);
         }
-        if ((at >= args->units_count) || (letters == args->x))
+        if ((at >= args->units_count) || (characters == args->x))
         {
             break;
         }
         at +=
-            EMBED_CALL(xterm_letter_units, XtermCtx, .units = args->units, .units_count = args->units_count, .at = at);
-        letters += 1ULL;
+            EMBED_CALL(xterm_character_units, XtermCtx, .units = args->units, .units_count = args->units_count, .at = at);
+        characters += 1ULL;
     }
-    if (args->letters_out != NULL)
+    if (args->characters_out != NULL)
     {
-        *args->letters_out = letters;
+        *args->characters_out = characters;
     }
     return at;
 }
 
-// the place just past the letter of column `x` among a row's units, no sequence after it passed over: the units' count
-// where the row's letters end first
+// the place just past the character of column `x` among a row's units, no sequence after it passed over: the units' count
+// where the row's characters end first
 EMBED_INLINE unsigned long long xterm_column_end(const XtermCtx *args)
 {
     const unsigned long long start = EMBED_CALL(xterm_column_start, XtermCtx, .units = args->units,
-                                                .units_count = args->units_count, .x = args->x, .letters_out = NULL);
+                                                .units_count = args->units_count, .x = args->x, .characters_out = NULL);
     return (start >= args->units_count) ? args->units_count
-                                        : (start + EMBED_CALL(xterm_letter_units, XtermCtx, .units = args->units,
+                                        : (start + EMBED_CALL(xterm_character_units, XtermCtx, .units = args->units,
                                                               .units_count = args->units_count, .at = start));
 }
 
-// whether an escape sequence stands at `at` among a row's units: every sequence the xterm writes into the text sets the
-// whole style from the plain one, so one standing just past letters written sets the style of those after it itself
+// whether an escape sequence is at `at` among a row's units: every sequence the xterm writes into the text sets the
+// whole style from the plain one, so one located just past characters written sets the style of those after it itself
 EMBED_INLINE int xterm_sequence_at(const XtermCtx *args)
 {
     return EMBED_CALL(xterm_sequence_units, XtermCtx, .units = args->units, .units_count = args->units_count,
                       .at = args->at) != 0ULL;
 }
 
-// whether a letter stands at or past `at` among a row's units
-EMBED_INLINE int xterm_letters_follow(const XtermCtx *args)
+// whether a character is at or past `at` among a row's units
+EMBED_INLINE int xterm_characters_follow(const XtermCtx *args)
 {
     unsigned long long at = args->at;
     while (at < args->units_count)
@@ -326,7 +326,7 @@ EMBED_INLINE unsigned int xterm_number(const XtermCtx *args)
     return present ? args->numbers[args->count] : (unsigned int)args->value;
 }
 
-// a red, a green and a blue each read as at most 255, put together as a direct color
+// a red, a green and a blue each read as at max 255, put together as a direct color
 EMBED_INLINE unsigned int xterm_direct(const XtermCtx *args)
 {
     unsigned int color = CLI_TERMINAL_COLOR_DIRECT;
@@ -389,7 +389,7 @@ EMBED_INLINE void xterm_rendition(const XtermCtx *args)
         }
         if (type == 2u)
         {
-            // an empty color space may stand before the three parts, as 38:2::r:g:b
+            // an empty color space may are before the three parts, as 38:2::r:g:b
             const unsigned int from = (((at + 2u) < count) && (numbers[at + 2u] == XTERM_ABSENT)) ? at + 3u : at + 2u;
             color = EMBED_CALL(xterm_direct, XtermCtx, .numbers = numbers, .number_count = count, .from = from);
             at = from + 2u;
@@ -400,7 +400,7 @@ EMBED_INLINE void xterm_rendition(const XtermCtx *args)
 }
 
 // the style `style` changed by the escape sequence of `size` units at `at` where it is an SGR, the units the text's
-// or the bytes where no units are passed: its numbers read, XTERM_NUMBERS at most, and the rendition applied
+// or the bytes where no units are passed: its numbers read, XTERM_NUMBERS at max, and the rendition applied
 EMBED_INLINE void xterm_sgr_apply(const XtermCtx *args)
 {
     const unsigned long long place = args->at;
@@ -420,7 +420,7 @@ EMBED_INLINE void xterm_sgr_apply(const XtermCtx *args)
         const unsigned int was = (numbers[count - 1u] == XTERM_ABSENT) ? 0u : numbers[count - 1u];
         if ((unit >= (unsigned int)'0') && (unit <= (unsigned int)'9'))
         {
-            // a number of more than nine digits stands at its first nine, far below what an unsigned int counts
+            // a number of more than nine digits is at its first nine, far below what an unsigned int counts
             numbers[count - 1u] = (was < 100000000u) ? ((was * 10u) + (unit - (unsigned int)'0')) : was;
         }
         else if (((unit == (unsigned int)';') || (unit == (unsigned int)':')) && (count < XTERM_NUMBERS))
@@ -448,7 +448,7 @@ EMBED_INLINE void xterm_style_apply(const XtermCtx *args)
                        .size = sequence, .style = args->style);
         }
         place += (sequence != 0ULL) ? sequence
-                                    : EMBED_CALL(xterm_letter_units, XtermCtx, .units = args->units,
+                                    : EMBED_CALL(xterm_character_units, XtermCtx, .units = args->units,
                                                  .units_count = args->units_count, .at = place);
     }
 }
@@ -547,7 +547,7 @@ EMBED_INLINE void xterm_lines_put(const XtermCtx *args)
     }
 }
 
-// `lines` of the text's lines from `line` on taken out, the text keeping one line at the least
+// `lines` of the text's lines from `line` on taken out, the text retention one line at the least
 EMBED_INLINE void xterm_lines_take(const XtermCtx *args)
 {
     const unsigned long long lines = EMBED_CALL(xterm_text_lines, XtermCtx, .xterm_read = args->xterm);
@@ -595,15 +595,15 @@ EMBED_INLINE void xterm_rows_clear(const XtermCtx *args)
     }
 }
 
-// the letters of row `y` from column `from` up to, not including, column `to` erased: to the row's end taken out, else
-// written as spaces, the style that stood after them put back where it differs from the one before them
+// the characters of row `y` from column `from` up to, not including, column `to` erased: to the row's end taken out, else
+// written as spaces, the style that was after them put back where it differs from the one before them
 EMBED_INLINE void xterm_cells_erase(const XtermCtx *args)
 {
     CliTerminalXterm *const xterm = args->xterm;
     const unsigned long long line = xterm->base + args->y;
     unsigned long long count = 0ULL;
     unsigned short *const units =
-        EMBED_CALL(xterm_line_units, XtermCtx, .xterm_read = xterm, .line = line, .letters_out = &count);
+        EMBED_CALL(xterm_line_units, XtermCtx, .xterm_read = xterm, .line = line, .characters_out = &count);
     const unsigned long long start =
         EMBED_CALL(xterm_column_start, XtermCtx, .units = units, .units_count = count, .x = args->from);
     if (start >= count)
@@ -615,7 +615,7 @@ EMBED_INLINE void xterm_cells_erase(const XtermCtx *args)
         ((args->to == XTERM_ABSENT) || (args->to <= args->from))
             ? count
             : EMBED_CALL(xterm_column_end, XtermCtx, .units = units, .units_count = count, .x = args->to - 1u);
-    const int follows = EMBED_CALL(xterm_letters_follow, XtermCtx, .units = units, .units_count = count, .at = end);
+    const int follows = EMBED_CALL(xterm_characters_follow, XtermCtx, .units = units, .units_count = count, .at = end);
     if (!follows)
     {
         g_cli_guard->persistent_buf_release(units, g_cli_terminal_owner);
@@ -634,7 +634,7 @@ EMBED_INLINE void xterm_cells_erase(const XtermCtx *args)
             : EMBED_CALL(xterm_sgr_write, XtermCtx, .style_read = &after, .out = put_back);
     g_cli_guard->persistent_buf_release(units, g_cli_terminal_owner);
     unsigned long long blanks = (unsigned long long)args->to - args->from;
-    // the edits from the right, so each place stands as it was read
+    // the edits from the right, so each place is as it was read
     if (put_back_size != 0ULL)
     {
         (void)EMBED_CALL(xterm_edit, XtermCtx, .xterm = xterm, .place = (CliPosition){line, end},
@@ -654,7 +654,7 @@ EMBED_INLINE void xterm_cells_erase(const XtermCtx *args)
 }
 
 // the region scrolled up `count` lines: on the main screen with the region the whole screen, the lines leaving its top
-// join the history where they stand and empty lines come in at its foot; else the region's top lines taken out and
+// join the history where they are and empty lines come in at its foot; else the region's top lines taken out and
 // empty lines put after its foot
 EMBED_INLINE void xterm_scroll_up(const XtermCtx *args)
 {
@@ -685,7 +685,7 @@ EMBED_INLINE void xterm_scroll_down(const XtermCtx *args)
     EMBED_CALL(xterm_lines_put, XtermCtx, .xterm = xterm, .line = xterm->base + xterm->top, .lines = count);
 }
 
-// the cursor moved to column `x` and row `y`, each bounded by the screen, the next letter no longer wrapping first
+// the cursor moved to column `x` and row `y`, each bounded by the screen, the next character no longer wrapping first
 EMBED_INLINE void xterm_move(const XtermCtx *args)
 {
     CliTerminalXterm *const xterm = args->xterm;
@@ -725,11 +725,11 @@ EMBED_INLINE void xterm_reverse_index(const XtermCtx *args)
     }
 }
 
-// the bytes of the first `letters` letters of the `size` bytes of UTF-8 at `bytes`, each letter whole
-EMBED_INLINE unsigned long long xterm_letters_bytes(const XtermCtx *args)
+// the bytes of the first `characters` characters of the `size` bytes of UTF-8 at `bytes`, each character whole
+EMBED_INLINE unsigned long long xterm_characters_bytes(const XtermCtx *args)
 {
     unsigned long long at = 0ULL;
-    for (unsigned long long letter = 0ULL; (letter < args->letters) && (at < args->size); letter += 1ULL)
+    for (unsigned long long character = 0ULL; (character < args->characters) && (at < args->size); character += 1ULL)
     {
         const unsigned char lead = args->bytes[at];
         at += (lead < 0x80u) ? 1ULL : (((lead & 0xe0u) == 0xc0u) ? 2ULL : (((lead & 0xf0u) == 0xe0u) ? 3ULL : 4ULL));
@@ -737,39 +737,39 @@ EMBED_INLINE unsigned long long xterm_letters_bytes(const XtermCtx *args)
     return (at < args->size) ? at : args->size;
 }
 
-// `letters` letters, the `size` bytes of UTF-8 at `bytes`, written at column `x` of row `y` in the style of the
-// moment, in place of the letters they cover and the sequences between the letter before the column and the column's
-// own, or before the column's letter in insert mode, the row cut at its last column after: the SGR of the style of the
-// moment before them where the line's style past the letter before is another, the style that stood after them put back
-// where letters follow, and spaces up to the column first where the row ends before it. The edits go from the right, so
-// each place stands as the row was read
+// `characters` characters, the `size` bytes of UTF-8 at `bytes`, written at column `x` of row `y` in the style of the
+// moment, in place of the characters they cover and the sequences between the character before the column and the column's
+// own, or before the column's character in insert mode, the row cut at its last column after: the SGR of the style of the
+// moment before them where the line's style past the character before is another, the style that was after them put back
+// where characters follow, and spaces up to the column first where the row ends before it. The edits go from the right, so
+// each place is as the row was read
 EMBED_INLINE void xterm_row_put(const XtermCtx *args)
 {
     CliTerminalXterm *const xterm = args->xterm;
     const unsigned long long line = xterm->base + args->y;
     unsigned long long count = 0ULL;
     unsigned short *const units =
-        EMBED_CALL(xterm_line_units, XtermCtx, .xterm_read = xterm, .line = line, .letters_out = &count);
+        EMBED_CALL(xterm_line_units, XtermCtx, .xterm_read = xterm, .line = line, .characters_out = &count);
     unsigned long long before = 0ULL;
     const unsigned long long column = EMBED_CALL(xterm_column_start, XtermCtx, .units = units, .units_count = count,
-                                                 .x = args->x, .letters_out = &before);
-    // where the row's letters reach the column, the letters start just past the letter before it, the sequences
+                                                 .x = args->x, .characters_out = &before);
+    // where the row's characters reach the column, the characters start just past the character before it, the sequences
     // between written over and the style they set put back after; the first column's start at the row's start
     const unsigned long long start = (before < args->x) ? column
                                      : (args->x == 0u)  ? 0ULL
                                                         : EMBED_CALL(xterm_column_end, XtermCtx, .units = units,
                                                                      .units_count = count, .x = args->x - 1u);
     unsigned long long pad = (before < args->x) ? (args->x - before) : 0ULL;
-    // the letters covered end at the last the run reaches; a run past the row's letters covers to the row's end
+    // the characters covered end at the last the run reaches; a run past the row's characters covers to the row's end
     const unsigned long long end = (xterm->inserts || (column >= count))
                                        ? column
                                        : EMBED_CALL(xterm_column_end, XtermCtx, .units = units, .units_count = count,
-                                                    .x = args->x + (unsigned int)args->letters - 1u);
+                                                    .x = args->x + (unsigned int)args->characters - 1u);
     const CliTerminalStyle lined =
         EMBED_CALL(xterm_style_at, XtermCtx, .units = units, .units_count = count, .at = start);
     const CliTerminalStyle after =
         EMBED_CALL(xterm_style_at, XtermCtx, .units = units, .units_count = count, .at = end);
-    const int follows = EMBED_CALL(xterm_letters_follow, XtermCtx, .units = units, .units_count = count, .at = end);
+    const int follows = EMBED_CALL(xterm_characters_follow, XtermCtx, .units = units, .units_count = count, .at = end);
     char lead[XTERM_SGR_MAX];
     char put_back[XTERM_SGR_MAX];
     const unsigned long long lead_size =
@@ -787,7 +787,7 @@ EMBED_INLINE void xterm_row_put(const XtermCtx *args)
         (void)EMBED_CALL(xterm_edit, XtermCtx, .xterm = xterm, .place = (CliPosition){line, end},
                          .past = (CliPosition){line, end}, .text = put_back, .size = put_back_size);
     }
-    // the output's bytes, where they lie, are the letters written
+    // the output's bytes, where they lie, are the characters written
     (void)EMBED_CALL(xterm_edit, XtermCtx, .xterm = xterm, .place = (CliPosition){line, start},
                      .past = (CliPosition){line, end}, .text = (const char *)args->bytes, .size = args->size);
     if (lead_size != 0ULL)
@@ -806,7 +806,7 @@ EMBED_INLINE void xterm_row_put(const XtermCtx *args)
     {
         unsigned long long now = 0ULL;
         unsigned short *const row =
-            EMBED_CALL(xterm_line_units, XtermCtx, .xterm_read = xterm, .line = line, .letters_out = &now);
+            EMBED_CALL(xterm_line_units, XtermCtx, .xterm_read = xterm, .line = line, .characters_out = &now);
         const unsigned long long cut =
             EMBED_CALL(xterm_column_end, XtermCtx, .units = row, .units_count = now, .x = xterm->columns - 1u);
         g_cli_guard->persistent_buf_release(row, g_cli_terminal_owner);
@@ -818,15 +818,15 @@ EMBED_INLINE void xterm_row_put(const XtermCtx *args)
     }
 }
 
-// `letters` letters, the `size` bytes of UTF-8 at `bytes`, printed at the cursor, a line fed first where the last
-// printed stood at the last column, each row taking as many as its columns left take and the rest wrapping
-EMBED_INLINE void xterm_letters_put(const XtermCtx *args)
+// `characters` characters, the `size` bytes of UTF-8 at `bytes`, printed at the cursor, a line fed first where the last
+// printed was at the last column, each row taking as many as its columns left take and the rest wrapping
+EMBED_INLINE void xterm_characters_put(const XtermCtx *args)
 {
     CliTerminalXterm *const xterm = args->xterm;
     const unsigned char *bytes = args->bytes;
     unsigned long long size = args->size;
-    unsigned long long letters = args->letters;
-    while (letters > 0ULL)
+    unsigned long long characters = args->characters;
+    while (characters > 0ULL)
     {
         if (xterm->cursor.wrap_pending && xterm->wraps)
         {
@@ -836,21 +836,21 @@ EMBED_INLINE void xterm_letters_put(const XtermCtx *args)
         }
         const unsigned int x = xterm->cursor.x;
         const unsigned long long fits = (unsigned long long)xterm->columns - x;
-        const unsigned long long taken = (letters < fits) ? letters : fits;
+        const unsigned long long taken = (characters < fits) ? characters : fits;
         const unsigned long long part =
-            EMBED_CALL(xterm_letters_bytes, XtermCtx, .bytes = bytes, .size = size, .letters = taken);
+            EMBED_CALL(xterm_characters_bytes, XtermCtx, .bytes = bytes, .size = size, .characters = taken);
         EMBED_CALL(xterm_row_put, XtermCtx, .xterm = xterm, .x = x, .y = xterm->cursor.y, .bytes = bytes, .size = part,
-                   .letters = taken);
+                   .characters = taken);
         bytes += part;
         size -= part;
-        letters -= taken;
+        characters -= taken;
         // a row's columns are far inside what an unsigned int counts
         const unsigned int reached = x + (unsigned int)taken;
         xterm->cursor.wrap_pending = reached >= xterm->columns;
         xterm->cursor.x = xterm->cursor.wrap_pending ? (xterm->columns - 1u) : reached;
         xterm->moved = 1;
-        // with wrapping off the letters past the last column are let go
-        letters = xterm->wraps ? letters : 0ULL;
+        // with wrapping off the characters past the last column are let go
+        characters = xterm->wraps ? characters : 0ULL;
     }
 }
 
@@ -913,7 +913,7 @@ EMBED_INLINE void xterm_reset(const XtermCtx *args)
     xterm->bottom = xterm->rows - 1u;
     xterm->application_cursor = 0;
     xterm->wraps = 1;
-    xterm->cursor_shown = 1;
+    xterm->cursor_displayed = 1;
     xterm->bracketed_paste = 0;
     xterm->inserts = 0;
     xterm->moved = 1;
@@ -943,7 +943,7 @@ EMBED_INLINE void xterm_answer_place(const XtermCtx *args)
     xterm->answer_size += mmgr_line_ok(&line) ? (unsigned int)line.at : 0u;
 }
 
-// a private mode set or reset: the cursor keys' application mode, wrapping, the cursor shown, the second screen and
+// a private mode set or reset: the cursor keys' application mode, wrapping, the cursor displayed, the second screen and
 // bracketed paste
 EMBED_INLINE void xterm_private_mode(const XtermCtx *args)
 {
@@ -957,7 +957,7 @@ EMBED_INLINE void xterm_private_mode(const XtermCtx *args)
         xterm->wraps = args->on;
         break;
     case 25u:
-        xterm->cursor_shown = args->on;
+        xterm->cursor_displayed = args->on;
         xterm->moved = 1;
         break;
     case 47u:
@@ -1040,8 +1040,8 @@ EMBED_INLINE void xterm_lines_insert(const XtermCtx *args)
     EMBED_CALL(xterm_move, XtermCtx, .xterm = xterm, .x = 0u, .y = xterm->cursor.y);
 }
 
-// `count` columns at the cursor: blanks inserted, the row cut at its last column after, or letters deleted with the
-// sequences between the letter before the column and the column's own, the style that stood after them put back where
+// `count` columns at the cursor: blanks inserted, the row cut at its last column after, or characters deleted with the
+// sequences between the character before the column and the column's own, the style that was after them put back where
 // it differs from the one before them
 EMBED_INLINE void xterm_cells_insert(const XtermCtx *args)
 {
@@ -1049,7 +1049,7 @@ EMBED_INLINE void xterm_cells_insert(const XtermCtx *args)
     const unsigned long long line = xterm->base + xterm->cursor.y;
     unsigned long long count = 0ULL;
     unsigned short *const units =
-        EMBED_CALL(xterm_line_units, XtermCtx, .xterm_read = xterm, .line = line, .letters_out = &count);
+        EMBED_CALL(xterm_line_units, XtermCtx, .xterm_read = xterm, .line = line, .characters_out = &count);
     const unsigned int left = xterm->columns - xterm->cursor.x;
     const unsigned int many = (args->count < left) ? args->count : left;
     const unsigned long long start =
@@ -1072,7 +1072,7 @@ EMBED_INLINE void xterm_cells_insert(const XtermCtx *args)
             xterm->cursor.style =
                 EMBED_CALL(xterm_style_at, XtermCtx, .units = units, .units_count = count, .at = start);
             EMBED_CALL(xterm_row_put, XtermCtx, .xterm = xterm, .x = xterm->cursor.x, .y = xterm->cursor.y,
-                       .bytes = (const unsigned char *)s_spaces, .size = run, .letters = run);
+                       .bytes = (const unsigned char *)s_spaces, .size = run, .characters = run);
             xterm->cursor.style = style;
             blanks -= run;
         }
@@ -1089,7 +1089,7 @@ EMBED_INLINE void xterm_cells_insert(const XtermCtx *args)
     const CliTerminalStyle before =
         EMBED_CALL(xterm_style_at, XtermCtx, .units = units, .units_count = count, .at = from);
     CliTerminalStyle after = EMBED_CALL(xterm_style_at, XtermCtx, .units = units, .units_count = count, .at = end);
-    const int follows = EMBED_CALL(xterm_letters_follow, XtermCtx, .units = units, .units_count = count, .at = end);
+    const int follows = EMBED_CALL(xterm_characters_follow, XtermCtx, .units = units, .units_count = count, .at = end);
     char put_back[XTERM_SGR_MAX];
     const unsigned long long put_back_size =
         (!follows || EMBED_CALL(xterm_sequence_at, XtermCtx, .units = units, .units_count = count, .at = end) ||
@@ -1134,7 +1134,7 @@ EMBED_INLINE unsigned int xterm_numbers_read(const XtermCtx *args)
         const unsigned int was = (numbers[count - 1u] == XTERM_ABSENT) ? 0u : numbers[count - 1u];
         if (digit)
         {
-            // a number of more than nine digits stands at its first nine, far below what an unsigned int counts
+            // a number of more than nine digits is at its first nine, far below what an unsigned int counts
             numbers[count - 1u] = (was < 100000000u) ? ((was * 10u) + (unsigned int)(byte - (unsigned char)'0')) : was;
         }
         else if (cut)
@@ -1316,7 +1316,7 @@ EMBED_INLINE unsigned int xterm_hex(const XtermCtx *args)
                                                                             : 16u;
 }
 
-// an operating-system command read: OSC 7, the folder the shell stands in as a file URL, `file://host/path`, its path
+// an operating-system command read: OSC 7, the folder the shell is in as a file URL, `file://host/path`, its path
 // written into the xterm's folder with its %XX escapes read, the folder left empty where the path is empty or does not
 // fit
 EMBED_INLINE void xterm_command(const XtermCtx *args)
@@ -1361,8 +1361,8 @@ EMBED_INLINE void xterm_command(const XtermCtx *args)
     xterm->folder_known = 1;
 }
 
-// a control letter: the bell read past, backspace, a tab to the next stop, a line fed, and a carriage return
-EMBED_INLINE void xterm_control_letter(const XtermCtx *args)
+// a control character: the bell read past, backspace, a tab to the next stop, a line fed, and a carriage return
+EMBED_INLINE void xterm_control_character(const XtermCtx *args)
 {
     CliTerminalXterm *const xterm = args->xterm;
     const CliTerminalCursor at = xterm->cursor;
@@ -1448,37 +1448,37 @@ EMBED_INLINE void xterm_command_put(const XtermCtx *args)
     }
 }
 
-// a letter whose bytes were cut across two writes, put together, printed whole
-EMBED_INLINE void xterm_letter_ended(const XtermCtx *args)
+// a character whose bytes were cut across two writes, put together, printed whole
+EMBED_INLINE void xterm_character_ended(const XtermCtx *args)
 {
     CliTerminalXterm *const xterm = args->xterm;
-    EMBED_CALL(xterm_letters_put, XtermCtx, .xterm = xterm, .bytes = xterm->letter, .size = xterm->letter_size,
-               .letters = 1ULL);
-    xterm->letter_size = 0u;
+    EMBED_CALL(xterm_characters_put, XtermCtx, .xterm = xterm, .bytes = xterm->character, .size = xterm->character_size,
+               .characters = 1ULL);
+    xterm->character_size = 0u;
 }
 
-// a byte read in plain text: an escape begun, a control letter, or a letter's byte, a letter printed once whole
+// a byte read in plain text: an escape begun, a control character, or a character's byte, a character printed once whole
 EMBED_INLINE void xterm_ground(const XtermCtx *args)
 {
     CliTerminalXterm *const xterm = args->xterm;
     const unsigned char byte = args->byte;
     const int continues = (byte & 0xc0u) == 0x80u;
-    if ((xterm->letter_bytes_left > 0u) && !continues)
+    if ((xterm->character_bytes_left > 0u) && !continues)
     {
-        // a letter cut before its end reads as the replacement, and the byte after it is read afresh
-        xterm->letter_bytes_left = 0u;
-        xterm->letter_size = 0u;
-        EMBED_CALL(xterm_letters_put, XtermCtx, .xterm = xterm, .bytes = (const unsigned char *)s_replacement,
-                   .size = sizeof(s_replacement), .letters = 1ULL);
+        // a character cut before its end reads as the replacement, and the byte after it is read afresh
+        xterm->character_bytes_left = 0u;
+        xterm->character_size = 0u;
+        EMBED_CALL(xterm_characters_put, XtermCtx, .xterm = xterm, .bytes = (const unsigned char *)s_replacement,
+                   .size = sizeof(s_replacement), .characters = 1ULL);
     }
-    if (xterm->letter_bytes_left > 0u)
+    if (xterm->character_bytes_left > 0u)
     {
-        xterm->letter[xterm->letter_size] = byte;
-        xterm->letter_size += 1u;
-        xterm->letter_bytes_left -= 1u;
-        if (xterm->letter_bytes_left == 0u)
+        xterm->character[xterm->character_size] = byte;
+        xterm->character_size += 1u;
+        xterm->character_bytes_left -= 1u;
+        if (xterm->character_bytes_left == 0u)
         {
-            EMBED_CALL(xterm_letter_ended, XtermCtx, .xterm = xterm);
+            EMBED_CALL(xterm_character_ended, XtermCtx, .xterm = xterm);
         }
         return;
     }
@@ -1489,25 +1489,25 @@ EMBED_INLINE void xterm_ground(const XtermCtx *args)
     }
     if ((byte < 0x20u) || (byte == 0x7fu))
     {
-        EMBED_CALL(xterm_control_letter, XtermCtx, .xterm = xterm, .byte = byte);
+        EMBED_CALL(xterm_control_character, XtermCtx, .xterm = xterm, .byte = byte);
         return;
     }
     const unsigned int left = ((byte & 0xe0u) == 0xc0u) ? 1u : (((byte & 0xf0u) == 0xe0u) ? 2u : 3u);
     const int leads = (byte >= 0xc2u) && (byte <= 0xf4u);
     if (byte < 0x80u)
     {
-        EMBED_CALL(xterm_letters_put, XtermCtx, .xterm = xterm, .bytes = &args->byte, .size = 1ULL, .letters = 1ULL);
+        EMBED_CALL(xterm_characters_put, XtermCtx, .xterm = xterm, .bytes = &args->byte, .size = 1ULL, .characters = 1ULL);
     }
     else if (!leads)
     {
-        EMBED_CALL(xterm_letters_put, XtermCtx, .xterm = xterm, .bytes = (const unsigned char *)s_replacement,
-                   .size = sizeof(s_replacement), .letters = 1ULL);
+        EMBED_CALL(xterm_characters_put, XtermCtx, .xterm = xterm, .bytes = (const unsigned char *)s_replacement,
+                   .size = sizeof(s_replacement), .characters = 1ULL);
     }
     else
     {
-        xterm->letter[0] = byte;
-        xterm->letter_size = 1u;
-        xterm->letter_bytes_left = left;
+        xterm->character[0] = byte;
+        xterm->character_size = 1u;
+        xterm->character_bytes_left = left;
     }
 }
 
@@ -1535,7 +1535,7 @@ EMBED_INLINE void xterm_sequence(const XtermCtx *args)
         }
         else if (byte != 0x1bu)
         {
-            EMBED_CALL(xterm_control_letter, XtermCtx, .xterm = xterm, .byte = byte);
+            EMBED_CALL(xterm_control_character, XtermCtx, .xterm = xterm, .byte = byte);
         }
         break;
     case XTERM_COMMAND:
@@ -1573,14 +1573,14 @@ EMBED_INLINE void xterm_sequence(const XtermCtx *args)
     }
 }
 
-// how many of the `size` bytes at `bytes` from the start are letters printed as they lie: printable ASCII, a word at a
-// time, and whole UTF-8 letters past it, their count into `letters_out`
+// how many of the `size` bytes at `bytes` from the start are characters printed as they lie: printable ASCII, a word at a
+// time, and whole UTF-8 characters past it, their count into `characters_out`
 EMBED_INLINE unsigned long long xterm_text_run(const XtermCtx *args)
 {
     const unsigned long long ones = 0x0101010101010101ULL;
     const unsigned long long highs = 0x8080808080808080ULL;
     unsigned long long at = 0ULL;
-    unsigned long long letters = 0ULL;
+    unsigned long long characters = 0ULL;
     for (;;)
     {
         while ((at + 8ULL) <= args->size)
@@ -1595,7 +1595,7 @@ EMBED_INLINE unsigned long long xterm_text_run(const XtermCtx *args)
                 break;
             }
             at += 8ULL;
-            letters += 8ULL;
+            characters += 8ULL;
         }
         if (at >= args->size)
         {
@@ -1605,7 +1605,7 @@ EMBED_INLINE unsigned long long xterm_text_run(const XtermCtx *args)
         if ((lead >= 0x20u) && (lead < 0x7fu))
         {
             at += 1ULL;
-            letters += 1ULL;
+            characters += 1ULL;
             continue;
         }
         const unsigned long long length = ((lead >= 0xc2u) && (lead <= 0xdfu))   ? 2ULL
@@ -1622,9 +1622,9 @@ EMBED_INLINE unsigned long long xterm_text_run(const XtermCtx *args)
             break;
         }
         at += length;
-        letters += 1ULL;
+        characters += 1ULL;
     }
-    *args->letters_out = letters;
+    *args->characters_out = characters;
     return at;
 }
 
@@ -1634,15 +1634,15 @@ void cli_terminal_xterm_write(const CliTerminalXtermBytesCfg *args)
     unsigned long long at = 0ULL;
     while (at < args->size)
     {
-        const int plain = (xterm->state == XTERM_GROUND) && (xterm->letter_bytes_left == 0u);
-        unsigned long long letters = 0ULL;
+        const int plain = (xterm->state == XTERM_GROUND) && (xterm->character_bytes_left == 0u);
+        unsigned long long characters = 0ULL;
         const unsigned long long run = plain ? EMBED_CALL(xterm_text_run, XtermCtx, .bytes = args->bytes + at,
-                                                          .size = args->size - at, .letters_out = &letters)
+                                                          .size = args->size - at, .characters_out = &characters)
                                              : 0ULL;
         if (run != 0ULL)
         {
-            EMBED_CALL(xterm_letters_put, XtermCtx, .xterm = xterm, .bytes = args->bytes + at, .size = run,
-                       .letters = letters);
+            EMBED_CALL(xterm_characters_put, XtermCtx, .xterm = xterm, .bytes = args->bytes + at, .size = run,
+                       .characters = characters);
         }
         at += run;
         if (at >= args->size)
@@ -1684,7 +1684,7 @@ int cli_terminal_xterm_init(const CliTerminalXtermSizeCfg *args)
 unsigned long long cli_terminal_xterm_trim(const CliTerminalXtermKeepCfg *args)
 {
     CliTerminalXterm *const xterm = args->xterm;
-    const unsigned long long dropped = (xterm->history > args->keep) ? (xterm->history - args->keep) : 0ULL;
+    const unsigned long long dropped = (xterm->history > args->retain) ? (xterm->history - args->retain) : 0ULL;
     for (unsigned long long left = dropped; left > 0ULL;)
     {
         const unsigned long long run = (left < XTERM_TRIM_RUN) ? left : XTERM_TRIM_RUN;
@@ -1700,7 +1700,7 @@ unsigned long long cli_terminal_xterm_trim(const CliTerminalXtermKeepCfg *args)
 unsigned short *cli_terminal_xterm_line_units_alloc(const CliTerminalXtermLineCfg *args)
 {
     return EMBED_CALL(xterm_line_units, XtermCtx, .xterm_read = args->xterm_read, .line = args->line,
-                      .letters_out = args->count);
+                      .characters_out = args->count);
 }
 
 int cli_terminal_xterm_resize(const CliTerminalXtermSizeCfg *args)
@@ -1803,7 +1803,7 @@ unsigned int cli_terminal_xterm_spans(const CliTerminalXtermSpansCfg *args)
                 : CLI_TERMINAL_SPAN_PLAIN;
         const int bold = (style.marks & CLI_TERMINAL_BOLD) != 0u;
         CliTerminalXtermSpan *const last = (spans != 0u) ? &args->spans_out[spans - 1u] : NULL;
-        // a line's plain bytes are far fewer than an unsigned int counts, bounded by the capacity handed in
+        // a line's plain bytes are far fewer than an unsigned int counts, bounded by the capacity passed in
         const unsigned int offset = (unsigned int)plain_count;
         if ((last != NULL) && ((last->offset + last->length) == offset) && (last->color == color) &&
             (last->bold == bold))

@@ -11,8 +11,8 @@ Read from the LaTeX source arXiv gives for v2, sections 1 to 9, with the macros 
 
 - Section 1, system (1.1). The paper works on the torus $\mathbb{T}_d$, "which might be seen as the
   cube with periodic boundary conditions", and says this is "assumed for technical reasons" and
-  that most results "should still hold true for Lipschitz domains". The paper that the workbook
-  cites for putting a magnitude in place of a constant keeps the box. Bears on Proposition 6 and
+  that max results "should still hold true for Lipschitz domains". The paper that the workbook
+  cites for putting a magnitude in place of a constant retains the box. Bears on Proposition 6 and
   on the entry "Never put the fluid in a box".
 - Section 1, after (1.3). "Although many liquids and gases, such as water and air, may reasonably
   be considered Newtonian, many real fluids are in fact non-Newtonian." The paper holds water to
@@ -35,7 +35,7 @@ Read from the LaTeX source arXiv gives for v2, sections 1 to 9, with the macros 
 - Section 2.1, the potential $W$. The stress is $\sigma = -\pi\,\mathrm{id} + DW(\varepsilon) =
   -\pi\,\mathrm{id} + 2\mu(|\varepsilon|)\varepsilon$, called "generalized Newtonian". The
   viscosity depends on $|\varepsilon|$ alone. No temperature and no bulk viscosity enter, and
-  $\mathrm{div}\,u = 0$ is kept. The paper keeps one dropped dependence and leaves the others of
+  $\mathrm{div}\,u = 0$ is retained. The paper retains one dropped dependence and leaves the others of
   the table of terms to put back out.
 - Section 2.1, notation. $(u\cdot\nabla)u$ and $\mathrm{div}(u\otimes u)$ are used as one term
   "due to the incompressibility condition".
@@ -75,14 +75,14 @@ Read from the LaTeX source arXiv gives for v2, sections 1 to 9, with the macros 
   Leray--Hopf solutions for $p < (3d+2)/(d+2)$ "is still an open problem" (their BV19). For
   Newtonian fluids the weak convergence of $DW$ is "trivial" because it is linear.
 - Appendix, the truncation. Maximal functions, Whitney cubes, a partition of unity, and a potential
-  $\mathrm{curl}^*$ to keep the divergence zero. It is technical and has no physical content.
+  $\mathrm{curl}^*$ to retain the divergence zero. It is technical and has no physical content.
 - Bibliography (`1main.bbl`). Ladyzhenskaya: Trudy Mat. Inst. Steklov. 102 (1967) 85--104; Zap.
   Nauchn. Sem. LOMI 7 (1968) 126--154; *The mathematical theory of viscous incompressible flow*,
   Gordon and Breach (1969). Buckmaster and Vicol, Ann. of Math. 189 (2019) 101--144.
 
-What changes. The research paper and the workbook hold that this paper keeps a magnitude where
-equation (1) keeps a constant, and that it proves the energy equality for $p > 11/5$. Both stand.
-Three things the workbook does not say and should: the paper keeps the periodic box "for technical
+What changes. The research paper and the workbook hold that this paper retains a magnitude where
+equation (1) retains a constant, and that it proves the energy equality for $p > 11/5$. Both are.
+Three things the workbook does not say and should: the paper retains the periodic box "for technical
 reasons"; it treats water as Newtonian; and for the range that contains $p = 2$ in three
 dimensions it says the flow "might develop anomalous dissipation".
 
@@ -97,7 +97,7 @@ equations do not survive it; a note that rests on an equation says so.
   orders of magnitude. Bears on I11 and on the thesis of the research paper chapters: the source
   says, in its own words, that the motion leaves what the continuum equations describe.
 - Section 1, Fig. 1. The flash is under 50 ps; the outgoing acoustic spike under 20 ns; the
-  maximum radius about 45 µm; drive about 1.2 atm; about $2\times10^5$ photons per flash for air
+  max radius about 45 µm; drive about 1.2 atm; about $2\times10^5$ photons per flash for air
   in water.
 - Section 1. Light intensity rises a hundredfold from 40 °C to 0 °C. Matches the workbook row.
 - Section 2. "A magnetic stirrer accelerates the degassing by creating turbulent voids which
@@ -146,7 +146,7 @@ equations do not survive it; a note that rests on an equation says so.
   spike, and that the mechanism "lies outside chemistry". Bears on I2 and on the chain to
   microcavitation: a light-emitting bubble sheds microbubbles, and the source names that as a
   mass flow it cannot yet explain.
-- Section 6, Fig. 32. In a bouncing bubble that emits no light the maximum temperature at
+- Section 6, Fig. 32. In a bouncing bubble that emits no light the max temperature at
   collapse is about 1000 K.
 - Section 6. A quiescent 5 µm air bubble dissolves in about a third of a second (Epstein and
   Plesset); an SL bubble decays in about a tenth of a second after the sound stops.
@@ -154,7 +154,7 @@ equations do not survive it; a note that rests on an equation says so.
   temperature falls in every fluid tried: from 40 °C to −6 °C for air in water by over a factor of
   100, correlated with a higher drive level the bubble survives. "It seems to be fortunate
   happenstance for the discovery of SL that room temperature is not 20 °C hotter." Static pressure
-  of one atmosphere gives the most stable SL; at a quarter atmosphere the focusing would be an
+  of one atmosphere gives the max stable SL; at a quarter atmosphere the focusing would be an
   order of magnitude greater than the Section 1 estimate; SL has been seen down to a third of an
   atmosphere. At 4 to 5 atm tap water gives stable SL. Bears on I6 and I9 (pressure as the second
   shared variable) and on the row that says nine of thirteen rows carry temperature.
@@ -200,12 +200,12 @@ equations do not survive it; a note that rests on an equation says so.
   unity, the model gives about $10^7$ eV per flash, "in rather good agreement with experiment".
   Corrections for "a dense cold plasma" should be considered. Bears on I12: the source states the
   gas in the bubble as ionized, a plasma, and the light as radiation from its free electrons.
-  This is the model the source calls "the most complete candidate", and it says the model "is,
+  This is the model the source calls "the max complete candidate", and it says the model "is,
   however, far from satisfactory".
 - Section 10. "Since the light emission occurs as a (mathematical) singularity is forming, any
   transport process which a theorist chooses to incorporate in this model can affect the result."
   Bears on the research paper's thesis: the source says, of a forming singularity in a real
-  fluid, that the terms kept or dropped decide the answer.
+  fluid, that the terms retained or dropped decide the answer.
 - Section 10. SL is relatively unaffected by a 20 T magnetic field. Whether Planck's constant
   enters is open; Schwinger's zero-point proposal, Unruh radiation (powers too small by many
   orders), discharge from charge separation (compared to ball lightning), and fracto- or
@@ -215,7 +215,7 @@ equations do not survive it; a note that rests on an equation says so.
   ellipticity of the bubble; the dipole has a memory as long as the free decay of the sound field.
   Upper bound on ellipticity in the narrow state about 3 percent.
 - Section 11. Shape perturbations are expanded in spherical harmonics $a_\ell(t)$ (their (64)).
-  Collapse is Rayleigh--Taylor stable, with growth at most a factor of 3, and viscosity damps the
+  Collapse is Rayleigh--Taylor stable, with growth at max a factor of 3, and viscosity damps the
   harmonics between flashes in under 1 µs. "Therefore, there no usable energy is stored inside the
   bubble during a cycle." Bears on the spherical-harmonics entry of the first observation and on
   I1: the source reads the shape of the collapse from spherical harmonics, and finds that no shape
@@ -236,9 +236,9 @@ equations do not survive it; a note that rests on an equation says so.
   (1942) 302; Rayleigh, Phil. Mag. 34 (1917) 94; Plesset, J. Appl. Mech. 16 (1949) 277;
   Prosperetti, Quart. Appl. Math. 34 (1977) 339; Schwinger, PNAS 90 (1993) 2105, 7285.
 
-What changes. I11 was scored on the abstract and section 1 and stands. I12 gains a source obtained and
+What changes. I11 was scored on the abstract and section 1 and is. I12 gains a source obtained and
 read: section 10 states the gas forms "a dense ionized region" whose free electrons radiate the
-light, and names this the most complete candidate while calling it far from satisfactory. That is
+light, and names this the max complete candidate while calling it far from satisfactory. That is
 a statement of the claim by the source, short of a measurement; I12 is to be scored on it, and the
 Flannigan and Suslick measurement is still wanted. Section 10 also gives the research paper a
 second instance, beside Proposition 5, of a fluid equation that reaches an infinity at a point
@@ -294,7 +294,7 @@ What changes.
    changed. The entry stays "by report" with its source still not located; this source is to be
    recorded beside it as one that bears on it and does not support it.
 2. The scaling estimate of the first workbook chapter. The estimate puts the dropped viscosity
-   term on a par with the kept one above $U^* \approx 110$ m/s at 20 °C. This source puts
+   term on a par with the retained one above $U^* \approx 110$ m/s at 20 °C. This source puts
    cavitation in water at 10 to 17 m/s and the temperature rise of viscous heating at 0.01 K. On
    this source's numbers the fluid cavitates well below $U^*$. Cavitation, not the dropped
    temperature term, is the first assumption to fail in water. The estimate stays theory; this is
@@ -311,7 +311,7 @@ What changes.
 
 *Plasma formation and temperature measurement during single-bubble cavitation*, the published
 pages from the Zenodo record 895438, read from the text layer, 4 pages. The two-column layout
-interleaves the neighboring letters on the same pages; only this letter is noted.
+interleaves the neighboring characters on the same pages; only this character is noted.
 
 - Opening. Single-bubble sonoluminescence "results from extreme temperatures and pressures achieved
   during bubble compression; calculations have predicted the existence of a hot, optically opaque
@@ -344,7 +344,7 @@ interleaves the neighboring letters on the same pages; only this letter is noted
 What changes. I12 now has a measurement obtained and read. The light is emitted by species that only
 a plasma can excite, and the source concludes there is a hot plasma core. That is the author's
 claim, measured: I12 is to be scored a hit on this source. It also bears on I11: light and heat
-come together, the plasma at 15,000 K in a liquid kept at room temperature.
+come together, the plasma at 15,000 K in a liquid retained at room temperature.
 
 ## Leray, Acta Mathematica 63 (1934) 193--248, in Terrell's translation, arXiv:1604.02484
 
@@ -359,11 +359,11 @@ French consulted where the text layer breaks a formula.
   irregular in a finite time. Unfortunately I have not succeeded in creating an example of such a
   singularity." Leray expected blowup.
 - Introduction I. "In fact it is not paradoxical to suppose that the thing which regularizes the
-  motion, dissipation of energy, does not suffice to keep the second derivatives of the velocity
+  motion, dissipation of energy, does not suffice to retain the second derivatives of the velocity
   components bounded and continuous. Navier's theory assumes the second derivatives bounded and
   continuous. Oseen himself had already emphasised that this was not a natural hypothesis." A
   solution that may lack those derivatives Leray calls "a turbulent solution".
-- Introduction I, footnote quoting Oseen. Two kinds of motion: regular, without singularity, and
+- Introduction I, footnote quoting Oseen. Two types of motion: regular, without singularity, and
   irregular, with singularity; "one is tempted from now on to presume that laminar motions
   furnished by experiment are identical to theoretical regular motions, and that experimental
   turbulent motions are identified with irregular theoretical motion. Does this presumption
@@ -484,7 +484,7 @@ and read in the Russian; the notes translate.
   Minty and Browder" on monotone operators (1.27): $[A^k(v'_x) - A^k(v''_x)](v'_{x_k} -
   v''_{x_k}) \ge \nu_0(v' - v'')^2_x$.
 - Theorem 1.1. Problem (1.1) has at least one generalized solution for every $f \in L_2(Q_T)$
-  and initial value in the right space, if $\mu \ge 1/5$. Theorem 1.2: at most one, if $\mu \ge
+  and initial value in the right space, if $\mu \ge 1/5$. Theorem 1.2: at max one, if $\mu \ge
   1/4$. In the exponent $p$, existence for $p \ge 12/5$ and uniqueness for $p \ge 5/2$.
 - Theorem 1.3. The same for (0.2). Theorem 1.4. With $\int_0^\infty\|f\|\,dt < \infty$, solutions
   exist on the whole half-line.
@@ -505,7 +505,7 @@ and read in the Russian; the notes translate.
   incompressible fluid* (1961), Minty (1962, 1963), Browder (1965), Leray and Lions (1965).
 
 What changes. The research paper says Ladyzhenskaya's papers were not read; the first of the three
-that Lienstromberg, Schiffer and Schubert cite is now read. It bears on the section on keeping a
+that Lienstromberg, Schiffer and Schubert cite is now read. It bears on the section on retention a
 magnitude in two ways. Ladyzhenskaya replaced the constant viscosity with one that grows with
 the rate of deformation, and proved existence, uniqueness and stability in the large for every
 time; for equation (1) it is open. She also wrote that she would not argue for the
@@ -604,7 +604,7 @@ pages to a sheet. This is the third of the sources Lienstromberg, Schiffer and S
   then the problem has a unique solution 'in the large', i.e. at all instants of time, with no
   restrictions whatsoever on the smallness of $f$, $a$ or the domain. The same is true in the
   three-dimensional problem if there is axial symmetry and the axis of symmetry does not belong to
-  the domain occupied by the fluid. In the general three-dimensional case, it has been shown that
+  the domain occupied by the fluid. In the general three-dimensional case, it has been displayed that
   the problem has a unique solution for all $t \ge 0$ under the condition that the forces $f$ are
   derivable from a potential and that the 'generalized Reynolds number' is less than 1 at the
   initial instant of time. However, if these conditions are not met, then it has been proved only
@@ -616,7 +616,7 @@ pages to a sheet. This is the third of the sources Lienstromberg, Schiffer and S
   solution"; "for every problem there are infinitely many 'generalized solutions', but they
   coincide with the classical solution, if the latter exists." Bears on the workbook's status
   table: what "proved" means depends on the space named.
-- Chapter 6, §1, Theorem 1. At most one generalized solution in her class (with $\int v^4\,dx$
+- Chapter 6, §1, Theorem 1. At max one generalized solution in her class (with $\int v^4\,dx$
   bounded). §2, Lemmas 1 to 6: a priori estimates; Lemma 3 bounds solutions when the initial data
   and forces are small against $\nu^3/\beta^2$; Lemma 4 gives a time $T_1$ set by the data for
   large data; Lemma 5 gives estimates for all time in plane flows; Lemma 6 the same for axially
@@ -625,7 +625,7 @@ pages to a sheet. This is the third of the sources Lienstromberg, Schiffer and S
   potential forces with small initial data for all $t$ (Theorem 3, condition (42) $\|v_x(x,0)\|
   \cdot\|v_t(x,0)\| < \nu^3/\beta^2$); general data on an interval $0 \le t \le T_1$ (Theorem 5);
   axial symmetry with the domain at a positive distance $\delta$ from the axis, for all $t$
-  (Theorem 6). Bears on the forced construction: her axisymmetric theorem needs the axis kept out
+  (Theorem 6). Bears on the forced construction: her axisymmetric theorem needs the axis retained out
   of the fluid; the forced construction's core sits on the axis.
 - Chapter 6, §§4 to 6. Generalized solutions are classical when $f$ is Hölder (Theorem 7);
   Golovkin and Solonnikov's sharper results (Theorems 8, 9); stability for plane flows (Theorems 10
@@ -704,7 +704,7 @@ three papers Lienstromberg, Schiffer and Schubert cite for the energy equality a
   rates of deformation $\mathcal{D}$", the stress is $\mathcal{P} = \alpha E + \beta\mathcal{D} +
   \gamma\mathcal{D}^2$ with $\alpha, \beta, \gamma$ scalar functions of the invariants. For an
   incompressible fluid, $\mathcal{P} = -pE + \beta(\hat v^2, \det\mathcal{D})\mathcal{D} + \gamma
-  (\hat v^2, \det\mathcal{D})\mathcal{D}^2$. The function $p$ "is most often called the pressure
+  (\hat v^2, \det\mathcal{D})\mathcal{D}^2$. The function $p$ "is usually called the pressure
   (by the analogy by which this pressure is connected with the pressure given by measuring
   instruments)." Bears on Proposition 13: the pressure of the incompressible equations is named a
   pressure by analogy with the measured one.
@@ -719,7 +719,7 @@ three papers Lienstromberg, Schiffer and Schubert cite for the energy equality a
   f_i$ and $T_t + v_kT_{x_k} - \partial_{x_k}(\kappa T_{x_k}) - c\mu\hat v^2 = 0$, with $\mu$ and
   $\kappa$ "the coefficients of viscosity and heat conduction, which depend in a definite way on $T$
   (the form of this dependence is determined by the model of interaction between the molecules)";
-  "in most cases they increase monotonically as $T \to \infty$". With $\theta(T) = \int dT/\mu(T)$,
+  "in general they increase monotonically as $T \to \infty$". With $\theta(T) = \int dT/\mu(T)$,
   (8) $\theta_t + v_k\theta_{x_k} - c_1\mu\Delta\theta - 2c_1\mu'\mu\theta_x^2 - c\hat v^2 = 0$. On all
   of space, (9): $\min\theta(x,0) + ct_1\min\hat v^2 \le \theta(x,t_1) \le \max\theta(x,0) +
   ct_1\max\hat v^2$; in a bounded domain, (10), with boundary values. "These strictly derived
@@ -735,7 +735,7 @@ three papers Lienstromberg, Schiffer and Schubert cite for the energy equality a
   "differs from the Navier--Stokes system only by the term containing the small $\varepsilon$. For
   it, unlike the Navier--Stokes system, one succeeds in proving unique solvability of
   initial-boundary problems (and solvability of stationary boundary problems) for any Reynolds
-  numbers. The term containing $\varepsilon$ can be regarded as a kind of 'regularizer' of the
+  numbers. The term containing $\varepsilon$ can be regarded as a type of 'regularizer' of the
   Navier--Stokes system, 'correcting' it when $|\hat v|$ becomes very large." Footnote: "One may
   even take in (12) $\varepsilon = \varepsilon_1 t$, $\varepsilon_1 = \mathrm{const} > 0$."
 - Molecular repulsion as $1/r^\nu$ with $\nu = 12$ gives $\mu = c_3T^\lambda$, $\lambda = \tfrac12
@@ -759,11 +759,11 @@ derives her modified viscosity from the coupling equation (1) drops: kinetic the
 viscosity rise with temperature, $\mu = c_2\sqrt T$ for hard spheres; the energy balance (7) with
 shear heating $c\mu\hat v^2$ makes the temperature rise with the rate of deformation, (9) proved
 on all of space; and together they give $\mu = \nu_0(1 + \varepsilon\hat v^2)$, the viscosity that
-grows with $|D|^2$. With that term kept, she proves unique solvability for every Reynolds number;
+grows with $|D|^2$. With that term retained, she proves unique solvability for every Reynolds number;
 for equation (1) it is open. The research paper's Propositions 3 and 4 (the dropped
-term $2\mu'(T)D\nabla T$ and the energy balance) and its section on keeping a magnitude are, in
+term $2\mu'(T)D\nabla T$ and the energy balance) and its section on retention a magnitude are, in
 this source, one argument: put the temperature back and the equation is regular. Two cautions
-stand beside it. For a gas $\mu$ rises with $T$; for water it falls, $(\ln\mu)' = -0.0245$ per
+are beside it. For a gas $\mu$ rises with $T$; for water it falls, $(\ln\mu)' = -0.0245$ per
 kelvin at 20 °C (IAPWS R12-08), and her derivation then gives the opposite sign of $\varepsilon$,
 where her theorem does not apply. And she says the inequalities give "some ground" for (11), not a
 derivation of it.
@@ -835,7 +835,7 @@ What it bears on.
 
 ## Ożański and Pooley, arXiv:1708.09787v1, a modern review of Leray's paper
 
-Kept as a guide to Leray's paper, and read at its abstract, introduction and Section 1.
+Retained as a guide to Leray's paper, and read at its abstract, introduction and Section 1.
 
 - Introduction. Leray studied the equations on the whole space $\mathbb{R}^3$ with explicit kernels;
   later authors adopted Faedo--Galerkin methods. Hopf (1951) treated bounded domains;
@@ -846,7 +846,7 @@ Kept as a guide to Leray's paper, and read at its abstract, introduction and Sec
   set is zero.
 - Introduction. Weak solutions "can be thought of as weak continuations of the strong solution
   beyond the blow-up time, a revolutionary idea at the time." The set of singular times has
-  box-counting dimension at most $1/2$.
+  box-counting dimension at max $1/2$.
 - Section 1.1. The rescaling $u_\nu(x,t) = \nu u(x, \nu t)$, $p_\nu = \nu^2 p(x, \nu t)$ takes a
   solution at viscosity one to one at viscosity $\nu$. This is a different rescaling from the
   forced construction's (10.22), which fixes time and scales space; both remove $\nu$, and neither
@@ -904,7 +904,7 @@ the notes translate.
   the temperature rises." Water with nitrate of potash runs slower than pure water in glass below
   250 degrees and faster above; "one conceives in fact that the rise of temperature can determine,
   in certain cases, a beginning of chemical action". Navier records from experiment that the
-  constants change with temperature, and keeps them constant in his equations. Bears on Proposition
+  constants change with temperature, and retains them constant in his equations. Bears on Proposition
   3 and the viscosity row.
 - §IV. Mercury in glass, which does not wet it, stops flowing at a certain head; "the resistance
   arising from sliding on the wall ... is dependent, like the friction of solid bodies, on the
@@ -931,12 +931,12 @@ survive; the words do, and the notes follow them.
 
 - Preface. The analysis is "such as are familiar under a slightly different form to students of
   quaternions"; Gibbs does not need "the conception of the quaternion", only "a suitable notation
-  for those relations between vectors, or between vectors and scalars, which seem most important".
+  for those relations between vectors, or between vectors and scalars, which seem primary".
 - Chapter I, Nos. 1 to 41. Vectors, the direct product (the scalar product) and the skew product
   (the cross product), triple products, reciprocal systems of vectors, linear equations in a
   vector.
 - Chapter II, Nos. 50 to 54. The derivative $\nabla u$ of a scalar function of position, with the
-  direction of most rapid increase; for a vector function $\omega$, $\nabla\cdot\omega$ is its
+  direction of max rapid increase; for a vector function $\omega$, $\nabla\cdot\omega$ is its
   divergence and $\nabla\times\omega$ its curl. No. 55: the divergence is "the rate of decrease of
   the density" of a substance whose flux is $\omega$, per unit volume, independent of the axes.
 - Nos. 57 to 61. The surface integral of a vector over a closed surface equals the volume integral
@@ -950,7 +950,7 @@ survive; the words do, and the notes follow them.
   proportioned to the excess of the average value of the function in an infinitesimal spherical
   surface above the value at the center." Bears on the averaged-fluid chapter: the viscous term
   $\nu\Delta u$ is, in the words of the text that named it, the excess of the average of the
-  velocity on a small sphere over its value at the center. The term the equation keeps is itself
+  velocity on a small sphere over its value at the center. The term the equation retains is itself
   an average.
 - Nos. 73 to 77. Integration by parts; Green's theorem and its generalization "due to Thomson".
 - Nos. 78 to 90. Uniqueness theorems: if $\nabla u = 0$ in a continuous space, $u$ is constant;
@@ -1034,7 +1034,7 @@ them.
 - Art. 3, the bulk term $\kappa$. "We may at once put $K = 0$ if we assume that in the case of a
   uniform motion of dilatation the pressure at any instant depends only on the actual density and
   temperature at that instant, and not on the rate at which the former changes with the time. In
-  most cases to which it would be interesting to apply the theory of the friction of fluids the
+  max cases to which it would be interesting to apply the theory of the friction of fluids the
   density of the fluid is either constant, or may without sensible error be regarded as constant,
   or else changes slowly with the time." And: "if theory and experiment should in such cases
   agree, the experiments must not be regarded as confirming that part of the theory which relates
@@ -1072,10 +1072,10 @@ them.
 - Art. 6, the later note (1880). "By friction that the eddies die away, and the kinetic energy of the
   mass is converted into molecular kinetic energy, that is, heat." Bears on Proposition 4 and the
   energy balance: Stokes names the dissipated energy as heat, the term equation (1) does not carry.
-- Art. 6. "The most interesting questions connected with this subject require for their solution a
+- Art. 6. "The max interesting questions connected with this subject require for their solution a
   knowledge of the conditions which must be satisfied at the surface of a solid in contact with the
   fluid, which, except perhaps in case of very small motions, are unknown."
-- Art. 7, sound. Plane waves with the temperature changes of compression kept through the ratio of
+- Art. 7, sound. Plane waves with the temperature changes of compression retained through the ratio of
   specific heats (20); "the effect of the tangential force is to make the intensity of the sound
   diminish as the time increases, and to render the velocity of propagation less than what it
   would otherwise be." Neither can yet be tested "as we do not possess any means of measuring the
@@ -1106,7 +1106,7 @@ them.
   as well, as $u\,dx + v\,dy + w\,dz$ is or is not an exact differential.
 - Section III, Art. 15. Elastic solids by the same method; two constants $A$, $B$. Cauchy's
   equations agree "except that he has not considered the effect of the heat developed by sudden
-  compression"; Stokes keeps it through $m$, the ratio of specific heats, for rapid vibration.
+  compression"; Stokes retains it through $m$, the ratio of specific heats, for rapid vibration.
 - Section IV, Art. 17. Poisson supposes ultimate molecules acting along lines between centers, and
   neglects "the irregular part of the force exerted by a hemisphere of the medium on a molecule in
   the centre of its base"; that gives one constant ($A = 5B$) for solids. Stokes calls this
@@ -1118,7 +1118,7 @@ them.
   comparable with that of a gas". Oersted's direct experiments give compressibilities for solids
   20 or 30 times smaller than Poisson's theory. Bears on the thesis: a theory with one constant
   where the material has two gives answers off by an order of magnitude.
-- Art. 21. Two kinds of elasticity: of volume and of form. "There seems no line of demarcation
+- Art. 21. Two types of elasticity: of volume and of form. "There seems no line of demarcation
   between a solid and a viscous fluid", and the distinction depends on gravity compared with the
   cohesive forces: "what on the Earth is a soft solid might, if carried to the Sun, and retained at
   the same temperature, be a viscous fluid". "Some experiments which have been made on the sudden
@@ -1147,7 +1147,7 @@ the mean velocity of the molecules, the irregular part neglected; Proposition 8 
 averaged-fluid chapter rest on that. The research paper's sentence that the papers of Stokes were
 not read is to change for Stokes; Navier remains.
 
-Read from the text layer of the PDF, 166 pages, extracted with its layout kept and blank lines
+Read from the text layer of the PDF, 166 pages, extracted with its layout retained and blank lines
 dropped. Symbols survive; fractions and superscripts break across lines. A note that rests on an
 exponent says whether it was checked on the rendered page.
 
@@ -1333,7 +1333,7 @@ exponent says whether it was checked on the rendered page.
   Step 5 confirms the growth $u_\theta(\sqrt{2X_{\rm in}\tau}, 0, 0, 1-\tau) = \tau^{-A}(\varepsilon_0 +
   O(\tau^{2h}))$. This closes Theorem 3.1.
 - Section 10 opening. "We must give it zero initial datum and compact spatial support, while
-  keeping its momentum residual the restriction of a force in $C_c^\infty$." Rescaling gives
+  retention its momentum residual the restriction of a force in $C_c^\infty$." Rescaling gives
   arbitrary positive viscosity and the periodic construction (Corollary 10.6).
 - Proposition 10.1, (10.5). $u = \mathrm{curl}(cA) + cB e_\theta$, $p = c\,p_{\rm loc}$ with a
   spatial cutoff $\chi_X$ and a temporal cutoff $\chi_t$ that is zero for $t$ near $0$. "For $0 \le
@@ -1392,8 +1392,8 @@ exponent says whether it was checked on the rendered page.
   doi:10.1007/BF02547354; Euler, *Principes généraux du mouvement des fluides* (1757); Caffarelli,
   Kohn and Nirenberg (1982); Escauriaza, Seregin and Šverák (2003); Tao (2016).
 
-What changes. The research paper's figures for the construction all stand: the force is the
-residual, it is flat at the singular point, the constants are existential, the rescaling keeps
+What changes. The research paper's figures for the construction all are: the force is the
+residual, it is flat at the singular point, the constants are existential, the rescaling retains
 the singular time, and the core quantities scale as stated. The proof of Theorem 1.1 has now been
 read through, at the level of its statements, its order of choices and its closing estimates; the
 technical bounds of Sections 6 to 9 and the appendices were followed and not checked line by line.
@@ -1416,7 +1416,7 @@ Final report, General Electric Re-entry Systems Department, July 1964, NTRS 1965
 from page images of the scan for report pages 5 to 22 and the bibliography, and from the text
 layer for the abstract and introduction.
 
-- Abstract. "Instabilities due to regenerative thermal feedback are shown to severely limit the
+- Abstract. "Instabilities due to regenerative thermal feedback are displayed to severely limit the
   range of shear rates or shear stresses for which steady flows are possible. A new instability
   mode for the flow with constant average velocity gradient is described which may be connected
   with the effectiveness of lubricants. Possible relationships of the heating effect to the
@@ -1450,7 +1450,7 @@ layer for the abstract and introduction.
 Water, evaluated with the IAPWS values at $20\,^\circ$C and atmospheric pressure ($k = 0.5980$
 W/(m K), $\mu = 1.0016$ mPa s, $a = 0.0245$ per kelvin):
 
-- $V_m = 666$ m/s. The center plane then stands at $48.5$ K above the walls, near $68\,^\circ$C,
+- $V_m = 666$ m/s. The center plane then is at $48.5$ K above the walls, near $68\,^\circ$C,
   where the vapor pressure is $0.029$ MPa. $V_m$ is $6.04\,U^*$, with $U^*$ the 110 m/s of the
   scaling estimate of the first workbook chapter, since $V_m^2 = 8(e^{1.187} - 1)k/(a\mu)$ and
   $U^{*2} = k/(2a\mu)$.
@@ -1471,7 +1471,7 @@ What changes.
    the steady layer exists at every speed, and 666 m/s is where its wall stress peaks. The vapor is
    not in this source.
 2. The scaling estimate of the first workbook chapter. $U^*$ is where the dropped term is on a par
-   with the kept one; the wall stress peaks at six times $U^*$. Both are far above the 10 to 17 m/s
+   with the retained one; the wall stress peaks at six times $U^*$. Both are far above the 10 to 17 m/s
    at which the forced construction in water cavitates (Duraiswami).
 3. Navier's slip. Gruntfest's lowered wall gradient is the same effect as the slip at a wall that
    equation (1) sets to zero, reached here by heating instead of by a vapor layer.
@@ -1525,13 +1525,13 @@ the text layer.
   represents a potential mechanism for mechanical failure of viscoelastic solids." Onset "is
   controlled by only two dimensionless combinations of physical parameters." Thermal diffusion
   "leads to continuous and extreme localization of the strain and temperature profiles in space".
-- The model is a Maxwell slab between clamped walls kept at the background temperature, with an
+- The model is a Maxwell slab between clamped walls retained at the background temperature, with an
   Arrhenius viscosity, $\eta = A^{-1}e^{E/RT}\tau^{1-n}$, and an energy equation with the shear
   heating. A slightly warmer central zone of width $h$ starts it.
 - Adiabatic case: runaway above a critical stress $\tau_c$, and the temperature rise is the stored
   elastic energy spread over the central zone, $\Delta T_{\max} = \tau_0^2 L/(2GCh)$.
 - With diffusion: the critical stress grows with the ratio of relaxation time to diffusion time,
-  and for that ratio below one $\tau_c$ stands. Two kinds of runaway: adiabatic, uniform across the
+  and for that ratio below one $\tau_c$ is. Two types of runaway: adiabatic, uniform across the
   zone; and self-localizing, where the band narrows to well below $h$ and the peak temperature
   exceeds the adiabatic estimate. "The self-localizing failure modes occur at lower values of the
   shear stress compared to the adiabatic modes."
@@ -1559,7 +1559,7 @@ leaves out of the model. Nothing here is water or vapor.
 - Section 4. A stochastic model of vapor production driven by the largest principal stress, with
   the impurities entered as disorder in a random-field Ising model.
 - Section 4.4. "The cavitation inception (S > 0), which is roughly connected to the location of
-  the maximum stress, is seen to occur in the shear layer at the channel inlet, in the vortices
+  the max stress, is seen to occur in the shear layer at the channel inlet, in the vortices
   resulting from the destabilization of the shear layer."
 
 What changes. I13 and its addition. Inception is in the shear layer between two regions of flow,
@@ -1622,7 +1622,7 @@ text layer.
   a higher gas solubility and acts upon pressure reduction as a gas reservoir that accumulates at
   the interface."
 - Background. Few experiments reach the cavitation threshold of water predicted by classical
-  nucleation theory; "most experiments however suffer from a considerably lower threshold".
+  nucleation theory; "max experiments however suffer from a considerably lower threshold".
 - Experiment. Tension from a Lamb-type wave in a gap of 3 to 5 µm of water holding droplets of a
   perfluorocarbon. "Bubbles are mostly nucleated along the PFC/water interface." A droplet can
   nucleate more than once and is not used up.
@@ -1651,7 +1651,7 @@ either.
 - Section III B. For a 1.2 mm drop at a pool of 118 °C the vapor film is 57 µm at the center and
   18 µm at the neck.
 - Section IV B. No Leidenfrost drop was seen on oils of viscosity above 150 mPa s, which the
-  authors relate to convection in the pool that keeps the surface warm.
+  authors relate to convection in the pool that retains the surface warm.
 - Conclusion. "Over a pool, a Leidenfrost state is possible as soon as the liquid of the pool is
   just hotter than the drop boiling point, with no apparent Leidenfrost threshold. This is at
   least partly due to the fact that a liquid substrate has no roughness unlike the solid ones."
@@ -1724,8 +1724,8 @@ lower stress than either slips on a wall. The source does not vary how unlike th
 technique and sono-luminescence.* Read in full from the text layer.
 
 - The rig. Water forced through nozzles of 0.4 to 0.6 mm into a chamber of water, at up to 450
-  bar upstream and 1 to 5 bar downstream, with the water temperature kept to within 1 °C. In the
-  cases shown the jet leaves at 147 to 191 m/s, with cavitation numbers from 0.0063 to 0.025.
+  bar upstream and 1 to 5 bar downstream, with the water temperature retained to within 1 °C. In the
+  cases displayed the jet leaves at 147 to 191 m/s, with cavitation numbers from 0.0063 to 0.025.
 - Introduction, from the work it reviews. "The inception bubbles grew intensively in the shear
   layer and developed into cloudlike coherent structures", and "the instabilities of the shear
   layer caused the cloud cavitation structures to break off". Soyama and others report the clouds

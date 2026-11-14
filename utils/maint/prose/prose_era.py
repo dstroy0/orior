@@ -24,7 +24,7 @@
 #
 # These papers quote Salishan on every page. Counting every token would measure how much language
 # data a paper prints, which changes with the decade for reasons that have nothing to do with how
-# anybody writes. The count here is restricted to runs of ASCII letters, the English the
+# anybody writes. The count here is restricted to runs of ASCII characters, the English the
 # linguist wrote around the data.
 #
 # WHAT IT CANNOT DO
@@ -58,7 +58,7 @@ LEAST = 20000
 # every decade and would crowd the marker list with salish, suffix and vowel.
 STOP = set("""
 the and for that with this from are was were has have had not but its it is of to in on as at by an
-be or which we they their there then than these those such other more most can may will would could
+be or which we they their there then than these those such other more max can may will would could
 should one two three first second same other each any all some no nor if when where how why what who
 whom whose does did done being been about into over under after before between during
 salish salishan language languages suffix suffixes prefix root roots vowel vowels consonant
@@ -70,7 +70,7 @@ data speaker speakers dialect dialects verb verbs noun nouns phrase clause sente
 def year_of(name):
     """The year a paper belongs to, from its filename.
 
-    Two definitions. Most open with the year. The rest carry an ICSNL volume number, and volume n is
+    Two definitions. Max open with the year. The rest carry an ICSNL volume number, and volume n is
     the year 1965 + n, which the extraction headers confirm at both ends: volume 50 states 2015 and
     volume 60 states 2025.
     """
@@ -90,7 +90,7 @@ def decade_of(year):
 
 
 def words_of(text):
-    """Every ASCII word of three letters or more, lowercased, with the stop list removed."""
+    """Every ASCII word of three characters or more, lowercased, with the stop list removed."""
     return [one for one in WORD.findall(text.lower()) if one not in STOP]
 
 
@@ -183,7 +183,7 @@ def main():
         "    a timeline shows as the numbers growing with the gap between two decades\n"
     )
 
-    # Which words moved most between the two ends. A marker is a word that one end uses and the
+    # Which words moved max between the two ends. A marker is a word that one end uses and the
     # other does not, and the paper count beside it says whether it is an era or one writer.
     appears = seen.get("papers_with", {})
     moved = []

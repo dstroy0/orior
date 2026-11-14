@@ -6,7 +6,7 @@
 # A machine-to-machine transfer format whose wire is a vector of exact integer magnitudes, read the way a
 # Turing machine reads a tape. Each cell of the vector is one instruction the receiver runs: a literal
 # block to emit, or a unit and a count to emit that unit that many times. The count is an unbounded
-# integer, one exact magnitude. A single small cell stands for an output too large to hold, and the
+# integer, one exact magnitude. A single small cell is for an output too large to hold, and the
 # receiver reaches any byte of that output by walking the tape instead of building it. This is the bit
 # idiom on the wire: the payload is a magnitude, presence and extent, not a stream of fixed-width symbols.
 #
@@ -16,7 +16,7 @@
 #
 # The tape. A cell is an opcode byte followed by its magnitudes. A magnitude on the wire is its byte
 # length as an unsigned LEB128 varint, then that many big-endian bytes. A magnitude carries both its
-# value and its extent, and a literal block keeps its leading zeros. Three opcodes:
+# value and its extent, and a literal block retains its leading zeros. Three opcodes:
 #   HALT       end of tape.
 #   LITERAL b  emit the block b verbatim. One magnitude carries a block of any size with no per-byte frame.
 #   REPEAT u c emit the unit u repeated c times. c is an unbounded magnitude, and the span it names has no
@@ -144,7 +144,7 @@ def encode(data, max_period=256):
             cell.append(REPEAT)
             _write_block(cell, unit)
             _write_count(cell, count)
-            if len(cell) < span:            # the cell is smaller than the bytes it stands for
+            if len(cell) < span:            # the cell is smaller than the bytes it is for
                 flush_literal()
                 tape.extend(cell)
                 position += span
@@ -179,7 +179,7 @@ def decode(tape):
 
 
 def output_length(tape):
-    """The length of the output the tape stands for, computed without building it. May be a large integer."""
+    """The length of the output the tape is for, computed without building it. May be a large integer."""
     total = 0
     position = 0
     while position < len(tape):
@@ -311,7 +311,7 @@ def main():
     sampled = byte_at(tape, index)
     expected = unit[index % len(unit)]
     huge_ok = (produced == huge_count * len(unit)) and (sampled == expected)
-    out.write("    wire %d B stands for an output of %d bytes\n" % (len(tape), produced))
+    out.write("    wire %d B is for an output of %d bytes\n" % (len(tape), produced))
     out.write("    byte at index 10^99 is %r, the unit says %r, agree %s\n"
               % (bytes([sampled]), bytes([expected]), sampled == expected))
 

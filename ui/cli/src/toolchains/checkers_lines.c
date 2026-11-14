@@ -7,7 +7,7 @@
 
 typedef struct
 {
-    char letter;
+    char character;
     const char **at;
     unsigned long long *length;
     const char *line;
@@ -19,19 +19,19 @@ typedef struct
 // whether a byte is ASCII's whitespace, and a span with that whitespace at either end left off
 EMBED_INLINE int cli_blank(const CheckersLinesCtx *args)
 {
-    return (args->letter == ' ') || ((args->letter >= '\t') && (args->letter <= '\r'));
+    return (args->character == ' ') || ((args->character >= '\t') && (args->character <= '\r'));
 }
 
 EMBED_INLINE void cli_trim(const CheckersLinesCtx *args)
 {
     const char **at = args->at;
     unsigned long long *length = args->length;
-    while ((*length > 0ULL) && EMBED_CALL(cli_blank, CheckersLinesCtx, .letter = (*at)[0]))
+    while ((*length > 0ULL) && EMBED_CALL(cli_blank, CheckersLinesCtx, .character = (*at)[0]))
     {
         *at += 1;
         *length -= 1ULL;
     }
-    while ((*length > 0ULL) && EMBED_CALL(cli_blank, CheckersLinesCtx, .letter = (*at)[*length - 1ULL]))
+    while ((*length > 0ULL) && EMBED_CALL(cli_blank, CheckersLinesCtx, .character = (*at)[*length - 1ULL]))
     {
         *length -= 1ULL;
     }
@@ -152,7 +152,7 @@ EMBED_INLINE void cli_code_get(const CheckersLinesCtx *args)
         }
     }
     unsigned long long first = 0ULL;
-    while ((first < length) && !EMBED_CALL(cli_blank, CheckersLinesCtx, .letter = rest[first]))
+    while ((first < length) && !EMBED_CALL(cli_blank, CheckersLinesCtx, .character = rest[first]))
     {
         first += 1ULL;
     }

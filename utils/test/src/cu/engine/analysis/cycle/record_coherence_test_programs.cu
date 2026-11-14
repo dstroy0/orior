@@ -110,7 +110,7 @@ void coherence_run(CoherenceLoaded *loaded, const unsigned int *atoms, unsigned 
     *device_ran = ok;
 }
 
-// an output of at most 64 bits, read back as two's complement
+// an output of at max 64 bits, read back as two's complement
 long long coherence_take(const unsigned int *record, const DeviceRecordStep *step)
 {
     unsigned long long low = 0ull;
@@ -163,13 +163,13 @@ static unsigned long long coherence_native(EngineRecordOperation operation, unsi
 // bitwise operations, or with ring_only the sum, difference and product alone
 void coherence_draw(CoherenceOperation *operations, int ring_only)
 {
-    static const EngineRecordOperation kinds[5] = {ENGINE_RECORD_SUM, ENGINE_RECORD_DIFFERENCE, ENGINE_RECORD_PRODUCT,
+    static const EngineRecordOperation types[5] = {ENGINE_RECORD_SUM, ENGINE_RECORD_DIFFERENCE, ENGINE_RECORD_PRODUCT,
                                                    ENGINE_RECORD_XOR, ENGINE_RECORD_AND};
-    const unsigned int kind_count = (ring_only != 0) ? 3u : 5u;
+    const unsigned int type_count = (ring_only != 0) ? 3u : 5u;
     unsigned int products = 0u;
     for (unsigned int at = 0u; at < COHERENCE_TEST_OPERATIONS; at += 1u)
     {
-        EngineRecordOperation operation = kinds[coherence_random() % kind_count];
+        EngineRecordOperation operation = types[coherence_random() % type_count];
         if ((operation == ENGINE_RECORD_PRODUCT) && (products == COHERENCE_TEST_PRODUCTS_MAX))
         {
             operation = (ring_only != 0) ? ENGINE_RECORD_SUM : ENGINE_RECORD_XOR;
@@ -218,28 +218,28 @@ static void coherence_build(const CoherenceOperation *operations, CoherenceProgr
     }
 }
 
-// signed 24-bit inputs in edge cases: random, zero, -1, the most negative, the most positive, one
+// signed 24-bit inputs in edge cases: random, zero, -1, the max negative, the max positive, one
 unsigned int coherence_input(unsigned int pattern)
 {
     const unsigned int mask = (1u << COHERENCE_TEST_INPUT_BITS) - 1u;
-    const unsigned int kind = pattern % 8u;
-    if (kind == 1u)
+    const unsigned int type = pattern % 8u;
+    if (type == 1u)
     {
         return 0u;
     }
-    if (kind == 2u)
+    if (type == 2u)
     {
         return mask;
     }
-    if (kind == 3u)
+    if (type == 3u)
     {
         return 1u << (COHERENCE_TEST_INPUT_BITS - 1u);
     }
-    if (kind == 4u)
+    if (type == 4u)
     {
         return mask >> 1u;
     }
-    if (kind == 5u)
+    if (type == 5u)
     {
         return 1u;
     }
@@ -341,7 +341,7 @@ void coherence_programs(CoherenceResults *results)
     mmgr_line_put(&results->line, " of ");
     mmgr_line_decimal(&results->line, comparisons, 1u);
     mmgr_line_put(&results->line, " lane-widths agree three ways\n");
-    coherence_check(results, loaded_all, "every random program encodes, lays out and loads");
+    coherence_check(results, loaded_all, "every random program encodes, arranges and loads");
     coherence_check(results, words_all, "every program's device records equal the host's word for word");
     coherence_check(results, (comparisons != 0ull) && (agreements == comparisons),
                     "wrapping the exact run, running wrapped at every step and native 64-bit two's complement agree at "

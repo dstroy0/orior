@@ -4,12 +4,12 @@
 # Catalog: EXP-x-015
 #
 # The symmetry group of the Riemann zeta zeros, verified exactly on Gaussian rationals, and the critical
-# line shown to be its fixed set. This records structure and computes no zero; it claims nothing about
+# line displayed to be its fixed set. This records structure and computes no zero; it claims nothing about
 # the Riemann hypothesis.
 #
 #   Usage:  python examples/0_experimental/zeta_zero_symmetry.py
 #
-# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working instead of a stage
+# This reads no corpus. It sits in 0_experimental: an arithmetic result displayed working instead of a stage
 # reading. It is an entry in the analytic-number-theory workbook and follows the same rail: claim
 # nothing. Two facts about zeta are theorems and are not computed here: the functional equation makes the zero
 # set invariant under s -> 1 - s, and the real coefficients make it invariant under conjugation
@@ -98,7 +98,7 @@ def main():
         # the fixed set of s -> 1 - conj(s) is the critical line
         if fixed_by_reflect_conjugate != on_critical_line(point):
             fixed_set_correct = False
-        # a point on the line has an orbit that collapses to at most the conjugate pair
+        # a point on the line has an orbit that collapses to at max the conjugate pair
         if on_critical_line(point) and size > 2:
             collapse_correct = False
         out.write("  %-22s %-8s %d\n"
@@ -108,11 +108,11 @@ def main():
               % fixed_set_correct)
     out.write("  a point on the line has an orbit collapsing to the conjugate pair: %s\n" % collapse_correct)
 
-    # drawn null: a point off the line is not fixed and keeps a four-point orbit
+    # drawn null: a point off the line is not fixed and retains a four-point orbit
     off_line = (Fraction(9, 11), Fraction(-4, 3))
     null_holds = (not on_critical_line(off_line)) and reflect_conjugate(off_line) != off_line and \
                  len(orbit(off_line)) == 4
-    out.write("  a point off the line is not fixed and keeps four orbit points: %s\n" % null_holds)
+    out.write("  a point off the line is not fixed and retains four orbit points: %s\n" % null_holds)
     out.flush()
 
     return 0 if (involutions and closes and fixed_set_correct and collapse_correct and null_holds) else 1

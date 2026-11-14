@@ -2,29 +2,29 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // Macros: what the editor's keys did and the text typed, recorded as they are pressed and played back
-// once or many times. The last one recorded is kept under a name where the reader gives one, and a
-// kept one plays from Edit, Macros, or from keys of its own. The kept ones are under orior.macros,
+// once or many times. The last one recorded is retained under a name where the reader gives one, and a
+// retained one plays from Edit, Macros, or from keys of its own. The retained ones are under orior.macros,
 // each with its name, its steps and its keys.
 
-const KEPT = "orior.macros";
+const RETAINED = "orior.macros";
 
 const state = { last: null, recorder: null, playing: false, listeners: [] };
 
-export function keptMacros() {
+export function retainedMacros() {
   try {
-    const list = JSON.parse(localStorage.getItem(KEPT) ?? "[]");
+    const list = JSON.parse(localStorage.getItem(RETAINED) ?? "[]");
     return Array.isArray(list) ? list.filter((one) => one && typeof one.name === "string" && Array.isArray(one.steps)) : [];
   } catch {
     return [];
   }
 }
 
-function keep(list) {
-  localStorage.setItem(KEPT, JSON.stringify(list));
+function retain(list) {
+  localStorage.setItem(RETAINED, JSON.stringify(list));
   state.listeners.forEach((listener) => listener());
 }
 
-// Tells the listener each time the kept macros change.
+// Tells the listener each time the retained macros change.
 export function onMacros(listener) {
   state.listeners.push(listener);
 }
@@ -70,18 +70,18 @@ export async function playMacro(editor, steps, count = 1) {
   return true;
 }
 
-// Keeps the steps under the name, in place of a macro kept under it before, its keys kept with it.
-export function keepMacro(name, steps = state.last) {
-  const list = keptMacros();
+// Retains the steps under the name, in place of a macro retained under it before, its keys retained with it.
+export function retainMacro(name, steps = state.last) {
+  const list = retainedMacros();
   const before = list.find((one) => one.name === name);
-  keep([...list.filter((one) => one !== before), { name, steps, keys: before?.keys ?? "" }].sort((a, b) => a.name.localeCompare(b.name)));
+  retain([...list.filter((one) => one !== before), { name, steps, keys: before?.keys ?? "" }].sort((a, b) => a.name.localeCompare(b.name)));
 }
 
 export function forgetMacro(name) {
-  keep(keptMacros().filter((one) => one.name !== name));
+  retain(retainedMacros().filter((one) => one.name !== name));
 }
 
 // Binds the keys to the macro, taking them from any other macro they were bound to.
 export function setMacroKeys(name, keys) {
-  keep(keptMacros().map((one) => (one.name === name ? { ...one, keys } : one.keys === keys ? { ...one, keys: "" } : one)));
+  retain(retainedMacros().map((one) => (one.name === name ? { ...one, keys } : one.keys === keys ? { ...one, keys: "" } : one)));
 }

@@ -27,7 +27,7 @@ typedef struct CliSconsCtx CliSconsCtx;
 #define CLI_SCONS_STRING 1u
 #define CLI_SCONS_COMMENT 2u
 
-// the most bytes of a file read
+// the max bytes of a file read
 #define CLI_SCONS_TEXT (1u << 24u)
 
 // A file as read, under the reader's lock: its text and each byte's class, a cell of the scons cellblock's temporary
@@ -42,7 +42,7 @@ typedef struct
 extern CliSconsFile g_cli_scons;
 
 // the names SCons gives an SConstruct and an SConscript, an environment's methods, the construction variables an
-// environment contains most often, and the calls whose keyword arguments are construction variables (scons.c)
+// environment contains usually, and the calls whose keyword arguments are construction variables (scons.c)
 extern const char *const g_cli_scons_globals[76];
 extern const char *const g_cli_scons_methods[52];
 extern const char *const g_cli_scons_variables[44];
@@ -56,8 +56,8 @@ int cli_scons_read(const CliSconsTextSizeClassOfCtx *args);
 typedef void (*CliSconsSpan)(const CliSconsSpanCfg *args);
 
 // each call of `name` in code, where its arguments start, after its `(`, and where they end, at its `)`; each string
-// from `from` to `to`, the span inside its quotes; and each argument of a call, split at its commas that stand outside
-// brackets, handed to `each` (scons.c)
+// from `from` to `to`, the span inside its quotes; and each argument of a call, split at its commas that are outside
+// brackets, passed to `each` (scons.c)
 void cli_scons_calls(const CliSconsNameCtx *args);
 void cli_scons_strings(const CliSconsEachCtx *args);
 void cli_scons_arguments(const CliSconsEachCtx *args);
@@ -65,24 +65,24 @@ void cli_scons_arguments(const CliSconsEachCtx *args);
 // starts, or 0
 int cli_scons_keyword(const CliSconsFromCtx *args);
 
-// each name the `Import` calls of the file read take, with its span, handed to `each`; and each name the file read
-// exports, by `Export`, its strings and its keywords, and by an `exports` given an SConscript call, handed to `named`
+// each name the `Import` calls of the file read take, with its span, passed to `each`; and each name the file read
+// exports, by `Export`, its strings and its keywords, and by an `exports` given an SConscript call, passed to `named`
 void cli_scons_import(const CliSconsNameCtx *args);
 void cli_scons_export(const CliSconsContextCtx *args);
 
 // each SConscript the `SConscript` calls of the file read read, as written, with the span of the string that names it,
-// handed to `each`
+// passed to `each`
 typedef void (*CliSconsScript)(const CliSconsScriptCfg *args);
 void cli_scons_read_scripts(const CliSconsContextEachScriptCtx *args);
 
 // the findings of the SConstruct or SConscript at `path` of the tree at `root`, `size` bytes of its text; the names
-// SCons gives it, its own and those it imports, each handed to `each`; and what completes the word before byte `at`:
+// SCons gives it, its own and those it imports, each passed to `each`; and what completes the word before byte `at`:
 // an environment's methods after its name and a dot, its construction variables in its brackets and as the keywords of
 // the calls that set them, and SCons's names (scons_check.c)
 void cli_scons_check(const CliSconsTextCtx *args);
 void cli_scons_free(const CliSconsTextSizeContextCtx *args);
 void cli_scons_complete(const CliSconsTextSizeCtx *args);
-// the scons checks' own report, `<pool's bytes> <their mark> 0`, the most their capacities occupied of the cellblock at
+// the scons checks' own report, `<pool's bytes> <their mark> 0`, the max their capacities occupied of the cellblock at
 // once, written into `out` (scons_check.c)
 void cli_scons_cells_usage_write(const CliSconsCtx *args);
 

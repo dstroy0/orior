@@ -11,17 +11,17 @@
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  * @date 2026-09-17
  *
- * WHAT THIS PROVES. A single descent places at most ORIOR_STEER_ANCHORS probes and resets its
- * survivor vector to all standing on entry. That caps one descent at four conditions. The resume
+ * WHAT THIS PROVES. A single descent places at max ORIOR_STEER_ANCHORS probes and resets its
+ * survivor vector to all located on entry. That caps one descent at four conditions. The resume
  * member of OriorSteerDescent lifts the cap by composition: run a descent, then run the next over
- * the survivors the last one left. Each level reads only what its parent left standing and the
+ * the survivors the last one left. Each level reads only what its parent left located and the
  * depth is data-dependent and unbounded. This suite drives that composition and grades it against the
  * controls a recursive search needs.
  *
  *   POSITIVE CONTROL. A field with one planted occurrence over N alignments. A probe poses every
  *   survivor one yes-or-no question, whether its byte at one offset is the needle's, and retains the
  *   target's side. Sides that halved the survivors would take log2(N) probes, eleven with N past
- *   2000. The descent places the probe that prunes most and a side can be under half: a given
+ *   2000. The descent places the probe that prunes max and a side can be under half: a given
  *   target can take fewer; the run prints how many. Isolating the target composes past one
  *   descent's cap of four, which the case checks. The lone survivor is then verified against the
  *   whole needle with a full compare before it is called found, which is this tree's rule that a
@@ -30,7 +30,7 @@
  *   descent at its true-occurrence count, and that is a different outcome.
  *
  *   NULL. A flat field matches the needle at every alignment. No probe prunes anything and the
- *   destroy rule ends the composition at depth zero with every alignment still standing. A field with
+ *   destroy rule ends the composition at depth zero with every alignment still located. A field with
  *   no cheap condition errors, it does not answer.
  *
  *   ANYTIME. Stopped early, before the target is isolated, the survivor set is still a superset that
@@ -71,7 +71,7 @@ static uint32_t o2_next(uint64_t *const state)
     return (uint32_t)(*state >> 33);
 }
 
-/** @brief Standing alignments in a survivor buffer. */
+/** @brief Located alignments in a survivor buffer. */
 static size_t o2_alive(const uint8_t *const survivors, const size_t alignments)
 {
     size_t alive = 0u;
@@ -92,10 +92,10 @@ static size_t o2_alive(const uint8_t *const survivors, const size_t alignments)
  * @param[in]  needle     Bytes to find [BORROWS].
  * @param[out] survivors  One byte per alignment, the composition's output [BORROWS].
  * @param[in]  alignments How many.
- * @param[in]  max_depth  Levels to run at most. The anytime control passes a small one.
+ * @param[in]  max_depth  Levels to run at max. The anytime control passes a small one.
  * @param[out] depth_out  Probes actually placed [BORROWS].
  * @param[out] sum_out    Sum of the survivors each placed level read, the read cost [BORROWS].
- * @return                Alignments still standing when the composition stopped.
+ * @return                Alignments still located when the composition stopped.
  * @note The first call resets, every later call resumes. The loop stops when a level prunes nothing,
  *       the destroy rule, or when one alignment is left, or at the depth ceiling.
  */
@@ -111,7 +111,7 @@ static size_t o2_compose(const uint8_t *const corpus, const uint8_t *const needl
     while (depth < max_depth)
     {
         // What this level reads: every alignment on the first, its parent's survivors after that.
-        const size_t standing = alive;
+        const size_t located = alive;
         size_t offset = 0u;
         const size_t placed = ORIOR_STEER_CALL(orior_steer_spawn_coarms, OriorSteerDescent, .offsets = &offset,
                                                 .count = 1u, .corpus = corpus, .corpus_len = O2_CORPUS,
@@ -126,7 +126,7 @@ static size_t o2_compose(const uint8_t *const corpus, const uint8_t *const needl
             break;
         }
         depth += 1u;
-        survivor_sum += (uint64_t)standing;
+        survivor_sum += (uint64_t)located;
         if (alive <= 1u)
         {
             break;
@@ -138,7 +138,7 @@ static size_t o2_compose(const uint8_t *const corpus, const uint8_t *const needl
     return alive;
 }
 
-/** @brief Fills a corpus over an alphabet of the given size, least value most common where skewed. */
+/** @brief Fills a corpus over an alphabet of the given size, least value usual where skewed. */
 static void o2_fill(uint8_t *const corpus, const uint32_t alphabet, uint64_t *const state)
 {
     for (size_t at = 0u; at < O2_CORPUS; at += 1u)
@@ -201,7 +201,7 @@ static int o2_case_found_past_cap(void)
 
     if (left != 1u)
     {
-        printf("    FAIL the composition left %zu standing, not the single target\n", left);
+        printf("    FAIL the composition left %zu located, not the single target\n", left);
         failed = 1;
     }
     if (depth <= ORIOR_STEER_ANCHORS)
@@ -274,7 +274,7 @@ static int o2_case_flat_errors(void)
         failed = 1;
     }
 
-    printf("  flat field errors: %zu standing at depth %zu, verdict %s\n", left, depth, (failed == 0) ? "ok" : "FAILS");
+    printf("  flat field errors: %zu located at depth %zu, verdict %s\n", left, depth, (failed == 0) ? "ok" : "FAILS");
     free(corpus);
     free(survivors);
     return failed;
@@ -283,7 +283,7 @@ static int o2_case_flat_errors(void)
 /**
  * @brief Case 3. Stopped early, the survivor superset still contains the target.
  *
- * @return 0 where the target is still standing after a shallow, incomplete composition, 1 otherwise.
+ * @return 0 where the target is still located after a shallow, incomplete composition, 1 otherwise.
  */
 static int o2_case_anytime_superset(void)
 {
@@ -337,7 +337,7 @@ static int o2_case_anytime_superset(void)
         failed = 1;
     }
 
-    printf("  anytime superset: target still standing among %zu after %zu probes, verdict %s\n", left, depth,
+    printf("  anytime superset: target still located among %zu after %zu probes, verdict %s\n", left, depth,
            (failed == 0) ? "ok" : "FAILS");
     free(corpus);
     free(survivors);
@@ -350,7 +350,7 @@ static int o2_case_anytime_superset(void)
  * @return 0 always. The cost is reported and not asserted, since the numbers belong to the fields.
  * @note THE HONEST BOUNDARY. A pruning field collapses the survivors fast. The sum of survivor
  *       counts down the levels stays near twice the universe. A field whose conditions barely prune
- *       runs many levels each reading most of the universe. The sum approaches the universe times
+ *       runs many levels each reading the majority of the universe. The sum approaches the universe times
  *       the depth and the recursion saves nothing. Both are printed so the boundary is a number.
  */
 static int o2_case_cost_boundary(void)
@@ -388,8 +388,8 @@ static int o2_case_cost_boundary(void)
                          &prune_sum);
     }
 
-    // Barely pruning field: the least symbol dominates and the needle is all of it. Most
-    // alignments agree at most positions and each probe removes few.
+    // Barely pruning field: the least symbol dominates and the needle is all of it. Max
+    // alignments agree at max positions and each probe removes few.
     uint64_t skew_state = 0x0BADC0DE0BADC0DEULL;
     for (size_t at = 0u; at < O2_CORPUS; at += 1u)
     {

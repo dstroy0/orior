@@ -5,7 +5,7 @@ source's path (who.h, who_here).
 
 The table at <table> is read and printed again with every source the tree holds that it does not, each given the
 number after the highest it holds, in the order of their paths. A number once given is never given again and never
-taken back: a source the tree no longer holds keeps its row, so that every code written before still decodes.
+taken back: a source the tree no longer holds retains its row, so that every code written before still decodes.
 """
 
 import pathlib

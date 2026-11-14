@@ -4,8 +4,8 @@
 #include <chrono>
 #include "cycle_record_internal.h"
 
-// The compiled program run resident. Its block is laid out for this run and sent to the device, and the program is
-// launched, then launched again from where its block records it stands, until every lane is done. The host reads the
+// The compiled program run resident. Its block is arranged for this run and sent to the device, and the program is
+// launched, then launched again from where its block records it is, until every lane is done. The host reads the
 // block back only between launches, when it is sealed: a device block whose seal does not match (written while no
 // launch referenced it), a launch that failed, or a launch that left the block anywhere but yielded or done errors on
 // the run, and the host's copy is left sealed at the fault with the error's module and site. It runs on as many thread
@@ -16,7 +16,7 @@ static int cycle_record_resident(const CycleRecord *record, CycleCompiledLaunch 
 {
     const unsigned long long share = (program.count + record->processors - 1ull) / record->processors;
     const unsigned long long warps = ((share + 31ull) / 32ull) * 32ull;
-    // at most record->threads, itself at most CYCLE_BLOCK
+    // at max record->threads, itself at max CYCLE_BLOCK
     const unsigned int threads = (unsigned int)((warps < record->threads) ? warps : record->threads);
     const unsigned long long needed = (program.count + threads - 1ull) / threads;
     // the device's thread blocks at once are a small count, far under 2^31
@@ -392,7 +392,7 @@ __device__ static unsigned int cycle_sum_limb(const unsigned int *record, unsign
 
 // the sum over the records: each thread takes `chunk` consecutive records and, limb by limb, adds the field's limb
 // into 64 bits for as long as its records stay in one run, then adds that total to the run's by one atomic add. The
-// pass past the last limb counts the fields whose sign bit is set. A run contains at most 2^32 records, and 2^32 limbs
+// pass past the last limb counts the fields whose sign bit is set. A run contains at max 2^32 records, and 2^32 limbs
 // fit 64 bits
 __global__ static void cycle_sum_kernel(const unsigned int *records, unsigned long long count,
                                         unsigned long long group, unsigned int out_limbs, unsigned int offset,
@@ -454,7 +454,7 @@ static void cycle_sum_subtract(unsigned int *sum, unsigned int limbs, unsigned i
     }
 }
 
-// the sum's device totals and negative counts, retained between calls and grown to the most bytes requested so far, so
+// the sum's device totals and negative counts, retained between calls and grown to the max bytes requested so far, so
 // that a sum requested once a sweep allocates nothing after the first
 typedef struct
 {
@@ -509,8 +509,8 @@ extern "C" long cycle_record_sum(const CycleRecordSumRequest *request)
     }
     const unsigned long long runs = request->count / request->group;
     const unsigned int field_limbs = (request->bits + 31u) / 32u;
-    const unsigned long long most = CYCLE_RECORD_BLOCKS_MAX * CYCLE_BLOCK;
-    const unsigned long long chunk = (request->count + most - 1ull) / most;
+    const unsigned long long max = CYCLE_RECORD_BLOCKS_MAX * CYCLE_BLOCK;
+    const unsigned long long chunk = (request->count + max - 1ull) / max;
     const unsigned long long threads = (request->count + chunk - 1ull) / chunk;
     const unsigned int blocks = (unsigned int)((threads + CYCLE_BLOCK - 1ull) / CYCLE_BLOCK);
     const size_t total_bytes = (size_t)(runs * field_limbs) * sizeof(unsigned long long);

@@ -4,12 +4,12 @@ Fixing a finding needs the sentence instead of the token. The gate prints a file
 which is enough to locate but not enough to rewrite, and rewriting from the phrase alone is how a
 replacement ends up saying less than the original did.
 
-    python utils/maint/prose/show_findings.py src hooks          # checked kinds
-    python utils/maint/prose/show_findings.py --unread src       # kinds the gate does not read
+    python utils/maint/prose/show_findings.py src hooks          # checked types
+    python utils/maint/prose/show_findings.py --unread src       # types the gate does not read
     python utils/maint/prose/show_findings.py --tsv src          # tab separated, for building a fix table
 
 One line of output per finding. Two findings on one source line appear twice and both get
-rewritten in the same pass instead of one being cleared and the other left standing.
+rewritten in the same pass instead of one being cleared and the other left located.
 """
 
 import io
@@ -38,7 +38,7 @@ def main():
     done = subprocess.run(call, capture_output=True, text=True, encoding="utf-8", env=dict(os.environ, PYTHONIOENCODING="utf-8"))
 
     held = {}
-    shown = 0
+    displayed = 0
     for line in (done.stdout + done.stderr).split("\n"):
         found = SITE.match(line)
         if not found:
@@ -59,11 +59,11 @@ def main():
         else:
             print("%s:%d  [%s]" % (name, number, token))
             print("    %s" % text.rstrip())
-        shown += 1
+        displayed += 1
 
     if not as_tsv:
         print("")
-        print("%d finding(s) with their lines" % shown)
+        print("%d finding(s) with their lines" % displayed)
     return 0
 
 

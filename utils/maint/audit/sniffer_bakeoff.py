@@ -4,7 +4,7 @@ The claim under test is that spherical harmonics are the best sniffer for decidi
 expensive measurement. That is testable instead of arguable: plant structures whose nature is known,
 run every scan on each, and see which finds what.
 
-Four structures, chosen so they are NOT all of one kind:
+Four structures, chosen so they are NOT all of one type:
 
     cap         a region of the sphere over-lit. Spatial, and the harmonic's home ground.
     word        one 32-bit state word biased. Aligned to SHA's own structure, not to the sphere's.
@@ -21,7 +21,7 @@ Four scans:
     runs        adjacent-index agreement, which sees clumping in index order
 
 A scan that finds everything would be the answer. The expected result is that each finds its own
-kind, which would mean "best sniffer" is not a property a single transform can have.
+type, which would mean "best sniffer" is not a property a single transform can have.
 """
 
 import argparse
@@ -40,11 +40,11 @@ POINTS = 256
 TOP = 8
 
 
-def plant(kind, weight, rng):
-    """A lit set of `weight` bits carrying one known kind of structure."""
-    if kind == "none":
+def plant(type, weight, rng):
+    """A lit set of `weight` bits carrying one known type of structure."""
+    if type == "none":
         return sorted(rng.sample(range(POINTS), weight))
-    if kind == "cap":
+    if type == "cap":
         # Over-light a polar region: spatial, and invisible to anything index-based.
         places = boundary_read.golden_place(POINTS)
         ordered = sorted(range(POINTS), key=lambda i: places[i][1])
@@ -52,19 +52,19 @@ def plant(kind, weight, rng):
         rest = [i for i in range(POINTS) if i not in set(head)]
         take = min(len(head), int(weight * 0.62))
         return sorted(rng.sample(head, take) + rng.sample(rest, weight - take))
-    if kind == "word":
+    if type == "word":
         # Bias one 32-bit word: aligned to SHA's structure, not the sphere's.
         band = list(range(64, 96))
         rest = [i for i in range(POINTS) if i not in set(band)]
         take = min(len(band), int(weight * 0.34))
         return sorted(rng.sample(band, take) + rng.sample(rest, weight - take))
-    if kind == "stride":
+    if type == "stride":
         # Every seventh index: periodic in index, scattered by the placement.
         band = [i for i in range(POINTS) if i % 7 == 0]
         rest = [i for i in range(POINTS) if i % 7 != 0]
         take = min(len(band), int(weight * 0.42))
         return sorted(rng.sample(band, take) + rng.sample(rest, weight - take))
-    if kind == "parity":
+    if type == "parity":
         # Force a parity over a fixed mask. No bit is individually biased and no region is
         # over-lit; the structure is purely algebraic.
         chosen = rng.sample(range(POINTS), weight)
@@ -78,7 +78,7 @@ def plant(kind, weight, rng):
                     chosen.append(rng.choice(spare))
                     break
         return sorted(chosen)
-    raise ValueError(kind)
+    raise ValueError(type)
 
 
 def scan_harmonic(sets, weight, rng, places, draws=160):
@@ -162,13 +162,13 @@ def main():
     print("  every cell is the loudest reading that scan produced, in standard errors")
     print()
     print("    structure   harmonic    shares     walsh      runs")
-    for kind in ("none", "cap", "word", "stride", "parity"):
-        sets = [plant(kind, given.weight, rng) for _ in range(given.trials)]
+    for type in ("none", "cap", "word", "stride", "parity"):
+        sets = [plant(type, given.weight, rng) for _ in range(given.trials)]
         row = (scan_harmonic(sets, given.weight, rng, places),
                scan_shares(sets),
                scan_walsh(sets, rng),
                scan_runs(sets))
-        print("    %-10s %9.2f %9.2f %9.2f %9.2f" % (kind, row[0], row[1], row[2], row[3]))
+        print("    %-10s %9.2f %9.2f %9.2f %9.2f" % (type, row[0], row[1], row[2], row[3]))
 
     print()
     print("=" * 76)
@@ -179,7 +179,7 @@ def main():
     print("    own loudest over many cells and that is large by construction.")
     print()
     print("    A scan that led every row would settle the question. One that leads only its own")
-    print("    kind means 'best sniffer' is not a property a single transform has, and the right")
+    print("    type means 'best sniffer' is not a property a single transform has, and the right")
     print("    move is to run more than one instead of picking.")
     return 0
 

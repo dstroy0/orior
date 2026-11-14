@@ -117,8 +117,8 @@ obsignatio_sim.obj
     65  a 1  q 847018236122935192166388903710609  ||q pi|| 1.626e-34
   the turn's closest returns to 2^112 steps: 66; the floors' q_j to 2^112: 66; equal in order: 66
   the billiard from the corner at slope pi, 2^24 columns: 69484394 segments between 16777216 side-wall and 52707178 floor-wall hits, 0 corners
-    the lead in L about the centre changed hands 35929962 times, the longest lead 2 segments, one side ahead on 34742196 of 69484394
-    the nearest tie: |L| = 1.910e-8 (p = (1, pi)) in cell (862516, 2709675), where pi stands nearest 5419351/1725033
+    the lead in L about the centre changed passes 35929962 times, the longest lead 2 segments, one side ahead on 34742196 of 69484394
+    the nearest tie: |L| = 1.910e-8 (p = (1, pi)) in cell (862516, 2709675), where pi is nearest 5419351/1725033
     the record near-corners at the side walls: 1, 7, 106, 113, 33102, 33215, 66317, 99532, 265381, 364913, 1360120, 1725033
   2^k cells: the step that fills the boundary, its ratio to the cells, the last cell filled as a place on the circle, and the floor it fills on
     2^1  step 4.000e0 = 4  x2.0000  last cell at 0.500000000000  floor 0 (a 7)  cell 0 again at step 8, 4 after the fill  walked 4, longest stall 4, etched again by 5

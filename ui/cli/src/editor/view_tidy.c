@@ -129,9 +129,9 @@ int cli_view_tidy(const CliViewTidyCfg *args)
         const unsigned long long end = EMBED_CALL(tidy_line_end, ViewTidyCtx, .text = text, .size = size, .at = at);
         const unsigned long long units = EMBED_CALL(tidy_units, ViewTidyCtx, .key = args->key, .line = line);
         // the blanks at the line's end are ASCII, each one unit
-        const unsigned long long kept = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
+        const unsigned long long retained = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
                                                    .text = text + at, .at = end - at, .set = " \t");
-        const unsigned long long blanks = end - at - kept;
+        const unsigned long long blanks = end - at - retained;
         if (args->trim && (blanks != 0ULL) && (units >= blanks))
         {
             edits[count] = (CliEdit){{line, units - blanks}, {line, units}, "", 0ULL};

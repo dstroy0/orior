@@ -177,7 +177,7 @@ int cli_requests_decode(const CliRequestsSizeErrMsgCtx *args)
         EMBED_CALL(head_is, RequestsHeadCtx, .answer = answer, .value_requests_text_pointer = encoding,
                    .lower = "x-gzip"))
     {
-        // the work state's undone bytes hold a body at the most, where the gzip's bytes go
+        // the work state's undone bytes hold a body at max, where the gzip's bytes go
         if (!EMBED_CALL(cli_archive_bytes.gunzip, CliArchiveBytesCfg, .bytes = raw, .size = size,
                         .out = args->work_state->unpacked, .capacity = args->work_state->unpacked_capacity,
                         .out_size = &unpacked, .err_msg = args->err_msg))

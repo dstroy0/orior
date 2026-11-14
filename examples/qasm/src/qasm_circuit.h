@@ -66,7 +66,7 @@ _Static_assert((QASM_FRACTION_BITS >= 32u) && (QASM_FRACTION_BITS <= 63u), "QASM
 
     typedef struct
     {
-        unsigned int kind;
+        unsigned int type;
         unsigned int pattern;
         unsigned int target;
         unsigned int second;
@@ -169,10 +169,10 @@ _Static_assert((QASM_FRACTION_BITS >= 32u) && (QASM_FRACTION_BITS <= 63u), "QASM
 #define QASM_BOTH static inline
 #endif
 
-    // members each gate kind's program reads
+    // members each gate type's program reads
     QASM_BOTH unsigned int qasm_gate_members(const QasmGate *gate)
     {
-        return (gate->kind == QASM_GATE_PAIR) ? 3u : 2u;
+        return (gate->type == QASM_GATE_PAIR) ? 3u : 2u;
     }
 
     // lane i's records: which amplitude each state member reads, and which gate record
@@ -181,7 +181,7 @@ _Static_assert((QASM_FRACTION_BITS >= 32u) && (QASM_FRACTION_BITS <= 63u), "QASM
         const unsigned long long target = 1ull << gate->target;
         const unsigned int on = ((lane & gate->controls) == gate->controls) ? 1u : 0u;
         const unsigned int bit = ((lane & target) != 0ull) ? 1u : 0u;
-        if (gate->kind == QASM_GATE_PAIR)
+        if (gate->type == QASM_GATE_PAIR)
         {
             index[0] = (unsigned int)(lane & ~target);
             index[1] = (unsigned int)(lane | target);
@@ -189,7 +189,7 @@ _Static_assert((QASM_FRACTION_BITS >= 32u) && (QASM_FRACTION_BITS <= 63u), "QASM
             index[2] = (on != 0u) ? bit : (2u + bit);
             return;
         }
-        if (gate->kind == QASM_GATE_DIAGONAL)
+        if (gate->type == QASM_GATE_DIAGONAL)
         {
             const unsigned int second = (unsigned int)((lane >> gate->second) & 1ull);
             index[0] = (unsigned int)lane;

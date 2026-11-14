@@ -44,14 +44,14 @@ typedef struct CliSchemaCtx CliSchemaCtx;
 #define CLI_SCHEMA_BOOL 5u
 #define CLI_SCHEMA_NULL 6u
 
-// the most values of a file, members, things that prevented it from reading, the bytes their texts take, and none
+// the max values of a file, members, things that prevented it from reading, the bytes their texts take, and none
 #define CLI_SCHEMA_NODES (1u << 20u)
 #define CLI_SCHEMA_MEMBERS (1u << 20u)
 #define CLI_SCHEMA_ERRORS 4096u
 #define CLI_SCHEMA_POOL (1u << 23u)
 #define CLI_SCHEMA_NONE 0xffffffffu
 
-// A value of a JSON file and its span: its type, a string's letters in the pool, a number's value, a boolean's truth;
+// A value of a JSON file and its span: its type, a string's characters in the pool, a number's value, a boolean's truth;
 // an object's first member or an array's first item, and how many; and the next item of its array
 typedef struct
 {
@@ -89,8 +89,8 @@ typedef struct
 
 // A JSON file as read: its text, its values and members, what prevented it from reading, its root, CLI_SCHEMA_NONE
 // where none was read, the texts of all, and 1 in `full` where a part of it did not fit. The values, the members and
-// the texts stand in one cell, `nodes_max`, `members_max` and `pool_max` places sized from the text, to
-// CLI_SCHEMA_NODES, CLI_SCHEMA_MEMBERS and CLI_SCHEMA_POOL at the most; the values' capacity holds a value for each
+// the texts are in one cell, `nodes_max`, `members_max` and `pool_max` places sized from the text, to
+// CLI_SCHEMA_NODES, CLI_SCHEMA_MEMBERS and CLI_SCHEMA_POOL at max; the values' capacity holds a value for each
 // member and CLI_SCHEMA_CHECK_NODES past those read, for the keys a check makes values of
 typedef struct
 {
@@ -125,7 +125,7 @@ const char *cli_schema_type(const CliSchemaCtx *args);
 // the meta-schemas impero bundles, each its URL with no scheme and no `#` and its text (schema_bundled.c)
 extern const char *const g_cli_schema_bundled[5][2];
 
-// the most documents a check reaches, those it could not find, the values and bytes their tree is taken with, and the
+// the max documents a check reaches, those it could not find, the values and bytes their tree is taken with, and the
 // deepest a value is checked
 #define CLI_SCHEMA_DOCUMENTS 32u
 #define CLI_SCHEMA_MISSING 64u
@@ -221,7 +221,7 @@ void cli_schema_text_check(const CliSchemaBaseMapCtx *args);
 void cli_schema_array_check(const CliSchemaBaseMapCtx *args);
 void cli_schema_object_check(const CliSchemaBaseMapCtx *args);
 
-// the most steps to the cursor's value, the most keys open objects contain before it, and the most schemas reached
+// the max steps to the cursor's value, the max keys open objects contain before it, and the max schemas reached
 #define CLI_SCHEMA_STEPS 513u
 #define CLI_SCHEMA_OPEN_KEYS 65536u
 #define CLI_SCHEMA_REACHED 1024u
@@ -235,7 +235,7 @@ typedef struct
     unsigned int index;
 } CliSchemaStep;
 
-// Where the cursor stands: the steps to the value it is in, whether it is at a key and inside a string, and the keys
+// Where the cursor is: the steps to the value it is in, whether it is at a key and inside a string, and the keys
 // the object contains before it
 typedef struct
 {
@@ -247,9 +247,9 @@ typedef struct
     unsigned int keys;
 } CliSchemaSpot;
 
-// where the cursor stands, the keys its object contains before it, and the schemas reached, each its node and the base
-// it is read in, under the reader's lock; where the cursor stands at the end of `size` bytes of `text`: 1, or 0 where
-// nothing stands open; the schemas that apply at the end of its steps from `schema`, read in `base`, `$ref`s followed
+// where the cursor is, the keys its object contains before it, and the schemas reached, each its node and the base
+// it is read in, under the reader's lock; where the cursor is at the end of `size` bytes of `text`: 1, or 0 where
+// nothing is open; the schemas that apply at the end of its steps from `schema`, read in `base`, `$ref`s followed
 // and `allOf`, `anyOf`, `oneOf` and `if`'s branches taken together; and a schema's description or title, its first
 // line, or its type, for a completion's detail, into `out` (schema_complete.c)
 extern CliSchemaSpot g_cli_schema_spot;

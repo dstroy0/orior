@@ -10,8 +10,8 @@
 // A finished run's .qry is its records end to end (qry.h), each checked against its CRC; a read of it goes on from the
 // byte the last stopped at, and a record not yet whole where a writer still writes it is read by the next read.
 //
-// What a record contains is read for a panic or a critical record, a conference, and a record of at most 4096 bytes,
-// and at most 65536 bytes of it; of any other record, its name and its count
+// What a record contains is read for a panic or a critical record, a conference, and a record of at max 4096 bytes,
+// and at max 65536 bytes of it; of any other record, its name and its count
 #ifndef CLI_QRY_H
 #define CLI_QRY_H
 #include "../command_line/cli_internal.h"
@@ -32,7 +32,7 @@ typedef struct CliQryPathFromEachCfg CliQryPathFromEachCfg;
 typedef struct CliQryCfg CliQryCfg;
 typedef struct CliRunsPaneCfg CliRunsPaneCfg;
 
-// A record of a run handed on as it is read: the record where it stands, and its sequence, its count among the run's
+// A record of a run passed on as it is read: the record where it is, and its sequence, its count among the run's
 // records from 0
 typedef struct
 {
@@ -45,7 +45,7 @@ typedef struct
 #define CLI_CONFERENCE "conference_"
 
 // the backend's channels to a run, each with a thread of its own: the primary channel, for the regular traps a party
-// gathers, its traces and the files it hands; the control channel, for what steers a run; and the signal channel, for
+// gathers, its traces and the files it passes; the control channel, for what steers a run; and the signal channel, for
 // its panics and critical records. A record on one never waits behind the records queued on another
 enum
 {
@@ -80,11 +80,11 @@ void cli_qry_join_window(const CliQryPathPanickedCfg *args);
 // `size` bytes queued to be appended to the run at `path` as the record `name` at `priority`, on `channel`; a panic
 // or a critical record on the signal channel whatever channel is named, and a record larger than half a channel's
 // ring appended before the call returns; and what the queue has done so far written as
-// `{"handed", "dumped", "failed", "message"}` (qry_queue.c)
+// `{"passed", "dumped", "failed", "message"}` (qry_queue.c)
 void cli_qry_queue(const CliQryPathNameCfg *args);
 // whether the run at `path` is live, and the place of the panic on its line where it is
 int cli_qry_existing(const CliQryPathPanickedCfg *args);
-// each record of the run at `path` from the place `from` handed to `each` with `context`, counted on from `sequence`:
+// each record of the run at `path` from the place `from` passed to `each` with `context`, counted on from `sequence`:
 // from its shared memory while its writer runs, `from` a place in the writer's schedule; from its .qry where none does,
 // `from` a byte of it. The place past the last record into `next`, and the .qry's bytes past the last whole record
 // into `rest`, 0 while the writer runs. 1 while the writer runs, else 0
@@ -111,7 +111,7 @@ void cli_qry_runs_lose(const CliQryOutRootCfg *args);
 #define CLI_RUNS_LIST_LIVE_MS 1000ULL
 #define CLI_RUNS_READ_LIVE_MS 400ULL
 // the latest records an opened run lists as rows; its panics and conferences show however many came before
-#define CLI_RUNS_SHOWN_BLOBS 200u
+#define CLI_RUNS_DISPLAYED_BLOBS 200u
 // the rows: the tree has no run; a folder of runs; a run; a panic's head and a line of its text; a conference's
 // question and a line of its accounts; an opened run's count of records; one of its latest records; and the lessons'
 // head and a lesson
@@ -156,7 +156,7 @@ typedef struct
 void cli_runs_pane_begin(const CliRunsPaneCfg *args);
 // the runs of the tree at `root` listed now
 void cli_runs_pane_relist(const CliRunsPaneCfg *args);
-// one step of the window at `now_ms` for the tree at `root`, NULL where none is open, the pane in sight where `shown`:
+// one step of the window at `now_ms` for the tree at `root`, NULL where none is open, the pane in sight where `displayed`:
 // the runs listed where none were, where the listing is stale or where one is live and CLI_RUNS_LIST_LIVE_MS passed;
 // and where the pane shows, each opened live run read on where CLI_RUNS_READ_LIVE_MS passed: 1 where the rows changed.
 // And when the next beat falls, 0 where none is awaited
@@ -174,7 +174,7 @@ struct CliRunsPaneCfg
     void (*woken)(void);
     const char *root;
     unsigned long long now_ms;
-    int shown;
+    int displayed;
     unsigned int at;
     CliRunsRow *row;
     unsigned int *live_out;

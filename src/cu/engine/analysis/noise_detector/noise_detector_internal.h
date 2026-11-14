@@ -21,8 +21,8 @@ static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success"
     engine_status_check((int)(call_), ENGINE_MODULE_NOISE_DETECTOR, (unsigned int)__LINE__, (const void *)(evacaddr_), \
                         (error_))
 
-#define NOISE_DETECTOR_CHECK(condition_, evacaddr_, error_, kind_)                                                     \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_NOISE_DETECTOR, (unsigned int)__LINE__,                    \
+#define NOISE_DETECTOR_CHECK(condition_, evacaddr_, error_, type_)                                                     \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_NOISE_DETECTOR, (unsigned int)__LINE__,                    \
                        (const void *)(evacaddr_), (error_))
 
 #define NOISE_DETECTOR_IO(condition_, evacaddr_, error_)                                                               \
@@ -122,8 +122,8 @@ typedef struct
 // them with frame differences summed to R and squared to S, E[R^2 - S] = (n^2 - n)(var_row + var_plane) along a row
 // and (n^2 - n)(var_column + var_plane) along a column. A plane's static sum P over N members, squared to Q, gives
 // E[P^2 - Q] = K_row var_row + K_column var_column + (N^2 - N) var_plane, K summing n^2 - n over its rows or columns.
-// Pooled here: the ceiling (the highest voxel mean retained), the members M and their squares T, each kind's n^2 - n
-// summed, and each kind's squared sums summed.
+// Pooled here: the ceiling (the highest voxel mean retained), the members M and their squares T, each type's n^2 - n
+// summed, and each type's squared sums summed.
 typedef struct
 {
     unsigned long long ceiling;
@@ -178,7 +178,7 @@ static_assert(NOISE_NEIGHBOR_RADII == (ENGINE_AXES + 5u),
               "noise_detector: the radii are one voxel along each axis, then 2 to 32 planes along z");
 
 // the summary's level bins: means 24, 40, 72, 104 and 200, where compression_table.md reads its correlations
-#define NOISE_NEIGHBORS_SHOWN 5u
+#define NOISE_NEIGHBORS_DISPLAYED 5u
 
 long noise_neighbors_sample(const unsigned short *volume, const unsigned long long extent[4],
                             unsigned long long sums[NOISE_NEIGHBORS_CELLS], EngineError *error);
@@ -228,7 +228,7 @@ int noise_table_open(const char *set, const char *file, const char *header, char
                      FILE **table, EngineError *error);
 
 // The moment pass reads each voxel's frames in blocks of this many, each block about its own mean rounded. A level
-// that moves over the frames then adds to a block only what it moves within one: the set's static level moves at most
+// that moves over the frames then adds to a block only what it moves within one: the set's static level moves at max
 // about one lane unit a frame, which adds about 2 lane units squared to a block's variance, under 2% of the shot's
 // there, and nothing to its third cumulant.
 #define NOISE_MOMENT_BLOCK 5ull
@@ -359,7 +359,7 @@ void noise_exact_words(OriorExactInteger *value, const unsigned long long *words
 
 #define NOISE_HALVES_SUMS 4u
 
-// a box contains at most 2^31 voxels. A pattern value's sum of at most that many lanes fits a word
+// a box contains at max 2^31 voxels. A pattern value's sum of at max that many lanes fits a word
 #define NOISE_ROOT_VOXELS_MAX (1ull << 31u)
 
 // a price past 2^61 bits errors. The box's less a residual's and a pattern's is a long long

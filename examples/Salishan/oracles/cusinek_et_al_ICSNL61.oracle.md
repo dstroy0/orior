@@ -21,8 +21,8 @@ everywhere the page does. The audio the paper names is not part of this table.
 THE LATERAL IS ɬ
 
 The paper writes the lateral fricative as ɬ, U+026C, 352 times, and as ł, U+0142, once, in
-kʷałtèzetkʷ in footnote 1. Every other place the paper writes her name it has ɬ. The table keeps
-each letter where it falls.
+kʷałtèzetkʷ in footnote 1. Every other place the paper writes her name it has ɬ. The table retains
+each character where it falls.
 
 THE PAGE AND THE TEXT LAYER
 
@@ -31,9 +31,9 @@ seventy-one examples in §4. The three printings differ in a few words, and each
 row of its own.
 
 The text layer writes an accented vowel sometimes as one precomposed code point and sometimes as a
-base letter and a combining mark. The forms are in NFC, as every table in the corpus is, and the
+base character and a combining mark. The forms are in NFC, as every table in the corpus is, and the
 reader normalizes the text layer to NFC before it compares. The combining marks that NFC leaves
-alone are kept as the text layer holds them: the comma above is U+0313 at 459 sites and U+0315
+alone are retained as the text layer holds them: the comma above is U+0313 at 459 sites and U+0315
 at 14, in q̕ax̣ném, k̓ʷén̓n̕s, k̓ʷén̓~n̕ and ɬə̣́n̕e wherever they are printed, and the schwa of mə̣̣́m carries U+0323 twice where the page shows one dot. The page and
 the text layer disagree in a few more places, and the table names each: three line-end hyphens
 held as U+FFFE, a line break after every closing quote of a translation, footnote digits set
@@ -51,7 +51,7 @@ where    the paper's locator: the title, a section, a footnote, a line of §2, a
 who      the language for a form, nɬeʔkepmxcín or St’at’imcets, c̓úʔsinek for her English and her
          comments, and Reed Steiner, Ella Hannon, and Brent Hall for their prose and for the notes
          on the page
-kind     transcription  the unbroken line of an example, or a line of §2 or §3
+type     transcription  the unbroken line of an example, or a line of §2 or §3
          segmentation   the broken line of an example, with its gloss tier in the gloss column
          translation    the English of an example, or of a line of §3
          cited form     a word or phrase named in the prose or a footnote

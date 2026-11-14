@@ -49,7 +49,7 @@ static void windows_program_written(const char *const *names, unsigned int count
     {
         number_append(0x400u + index * 20u + 12u, name_rva, 4u);
         memor.cpy(&(MemoriaCfg){.dst = s_bytes + (name_rva - 0x1000u + 0x400u), .src = names[index], .bytes = CLI_UNITY_LENGTH(names[index])});
-        // a name of a dozen letters is far below what an unsigned int counts
+        // a name of a dozen characters is far below what an unsigned int counts
         name_rva += (unsigned int)CLI_UNITY_LENGTH(names[index]) + 1u;
     }
     number_append(0x600u, 1u, 4u);

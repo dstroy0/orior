@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 import { STEPS, setZoom, zoom, zoomBy } from "../../gui/src-js/zoom.js";
-import { callsTo, keepingStorage } from "../helpers.js";
+import { callsTo, retentionStorage } from "../helpers.js";
 
 const { test, assert, ui, calls } = window.__harness;
 
@@ -18,7 +18,7 @@ test("the window opens at 100%, with nothing on the status bar", () => {
 });
 
 test("zooming in and out goes a step at a time and shows on the status bar", () =>
-  keepingStorage(["orior.zoom"], () => {
+  retentionStorage(["orior.zoom"], () => {
     holdZoom();
     zoomBy(1);
     assert.equal(zoom(), 1.1);
@@ -35,7 +35,7 @@ test("zooming in and out goes a step at a time and shows on the status bar", () 
   }));
 
 test("the zoom stops at its first and last steps", () =>
-  keepingStorage(["orior.zoom"], () => {
+  retentionStorage(["orior.zoom"], () => {
     holdZoom();
     setZoom(STEPS[0]);
     zoomBy(-1);
@@ -46,14 +46,14 @@ test("the zoom stops at its first and last steps", () =>
     setZoom(1);
   }));
 
-test("a kept zoom that is no step reads as 100%", () =>
-  keepingStorage(["orior.zoom"], () => {
+test("a retained zoom that is no step reads as 100%", () =>
+  retentionStorage(["orior.zoom"], () => {
     localStorage.setItem("orior.zoom", "1.33");
     assert.equal(zoom(), 1);
   }));
 
 test("Ctrl+= and Ctrl+- zoom, Ctrl+0 sets it back", () =>
-  keepingStorage(["orior.zoom"], async () => {
+  retentionStorage(["orior.zoom"], async () => {
     holdZoom();
     await ui.key("Ctrl+=");
     await ui.waitFor(() => zoom() === 1.1);
@@ -65,7 +65,7 @@ test("Ctrl+= and Ctrl+- zoom, Ctrl+0 sets it back", () =>
   }));
 
 test("a click on the status bar's zoom sets it back to 100%", () =>
-  keepingStorage(["orior.zoom"], async () => {
+  retentionStorage(["orior.zoom"], async () => {
     holdZoom();
     setZoom(1.25);
     assert.equal(status().title, "Reset Zoom");

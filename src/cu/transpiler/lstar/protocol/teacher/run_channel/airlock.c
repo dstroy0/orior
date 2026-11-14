@@ -4,7 +4,7 @@
 // traced, and a register refusal put again with the count raised
 #include "run_channel_internal.h"
 
-// The words `command`, ended by NULL, run as a process given `limit_microseconds`, what it printed handed as the blob
+// The words `command`, ended by NULL, run as a process given `limit_microseconds`, what it printed passed as the blob
 // returned: the code it exited with, or -1 where it was not started or did not exit of its own
 static long long run_channel_airlock_ran(char *const *command, unsigned long long limit_microseconds,
                                          const char *member)
@@ -15,7 +15,7 @@ static long long run_channel_airlock_ran(char *const *command, unsigned long lon
     answer.output = s_airlock_output;
     answer.output_capacity = sizeof(s_airlock_output);
     EngineError error = {0};
-    // what this process handed moved into the run before the airlock reads it, and what it handed once it ends
+    // what this process passed moved into the run before the airlock reads it, and what it passed once it ends
     qry_member_settled();
     const long ran = interface_probe_run(&probe, &answer, &error);
     qry_member_rings_settled();
@@ -34,15 +34,15 @@ static long long run_channel_airlock_ran(char *const *command, unsigned long lon
     return (long long)answer.code;
 }
 
-// The airlock the round on the channel's list, `questions` of them, passes before the part. The list is handed as
-// RUN_AIRLOCK_LIST, each question's answers named RUN_AIRLOCK_ANSWERS before its own name, so that what the pop hands
-// stands apart from the round's own answers; the pop is run over it, handing each question's container as the part
-// would be handed it; and the cross over the containers, handing the gated list the carrier reads (--gated). 1 where
+// The airlock the round on the channel's list, `questions` of them, passes before the part. The list is passed as
+// RUN_AIRLOCK_LIST, each question's answers named RUN_AIRLOCK_ANSWERS before its own name, so that what the pop passes
+// is apart from the round's own answers; the pop is run over it, handing each question's container as the part
+// would be passed it; and the cross over the containers, handing the gated list the carrier reads (--gated). 1 where
 // the pop and the cross ran, the cross reading the round (exit 0, or 1 where it gated some), and the gated list was
-// handed after the list; 0 otherwise, and the round is not carried
+// passed after the list; 0 otherwise, and the round is not carried
 static int run_channel_airlock_passed(unsigned int questions)
 {
-    // the list renamed, a record at most as long as the list's room
+    // the list renamed, a record at max as long as the list's room
     static char s_renamed[RUN_LIST_ROOM];
     if ((s_channel.list_size + ((size_t)questions * sizeof(RUN_AIRLOCK_ANSWERS))) > sizeof(s_renamed))
     {
@@ -71,9 +71,9 @@ static int run_channel_airlock_passed(unsigned int questions)
         renamed[length] = '\n';
         length += 1u;
     }
-    const unsigned long long handed = qry_member_append(RUN_AIRLOCK_LIST, renamed, length, QRY_ORDINARY);
-    // the list's sequence, once it is moved into the run: the gated list and the refusals the cross hands come after it
-    const unsigned long long began = (handed != 0ull) ? qry_member_settled() : 0ull;
+    const unsigned long long passed = qry_member_append(RUN_AIRLOCK_LIST, renamed, length, QRY_ORDINARY);
+    // the list's sequence, once it is moved into the run: the gated list and the refusals the cross passes come after it
+    const unsigned long long began = (passed != 0ull) ? qry_member_settled() : 0ull;
     s_channel.airlock_began = began;
     if (began == 0ull)
     {
@@ -98,7 +98,7 @@ static int run_channel_airlock_passed(unsigned int questions)
     {
         return 0;
     }
-    // the cross's words, the list after its first, and after its last the refusals it hands the teacher and the probe
+    // the cross's words, the list after its first, and after its last the refusals it passes the teacher and the probe
     // places it read clear
     char gated_name[] = RUN_AIRLOCK_GATED;
     char read_name[] = RUN_AIRLOCK_READ;
@@ -125,7 +125,7 @@ static int run_channel_airlock_passed(unsigned int questions)
 }
 
 // 1 where the round on the channel's list, `questions` of them, may be carried: it passed the airlock; or the channel
-// has none and its carrier is handed the gated list of a cross that read the whole pass before it; or the channel is
+// has none and its carrier is passed the gated list of a cross that read the whole pass before it; or the channel is
 // dry with no airlock at all, where nothing reaches the part and there is nothing to block off it. 0 otherwise, `why`
 // reported into `refused`, which has room for `room`: nothing the vendor has not read goes to the part
 int run_channel_airlocked(unsigned int questions, char *refused, size_t room)
@@ -194,7 +194,7 @@ size_t run_channel_list_line_written(char *line, size_t room, const char *code_n
 }
 
 // The questions of `questions` from `first` to `count` put on the channel's list again, a line each, their blobs as
-// they were handed and named as run_channel_named names them: 1, or 0 where there was no memory for the list
+// they were passed and named as run_channel_named names them: 1, or 0 where there was no memory for the list
 int run_channel_relisted(RunQuestion *const *questions, unsigned int first, unsigned int count, int alone)
 {
     s_channel.list_size = 0u;
@@ -214,7 +214,7 @@ int run_channel_relisted(RunQuestion *const *questions, unsigned int first, unsi
 }
 
 // The teacher's trace of the check before the part (qry_member.h, the record `teacher`): `message` of the
-// question `question`, a line handed to the run's trace after its identity, as run_channel_traced hands one, so that a
+// question `question`, a line passed to the run's trace after its identity, as run_channel_traced passes one, so that a
 // branch the learner took is traced back to the check that put its question
 void run_channel_check_traced(const RunQuestion *question, const char *message)
 {
@@ -232,7 +232,7 @@ void run_channel_check_traced(const RunQuestion *question, const char *message)
     mmgr_line_put(&written, "teacher: ");
     mmgr_line_put(&written, identity);
     mmgr_line_put(&written, " checked: ");
-    mmgr_line_put_most(&written, message, sizeof(line) - 128u);
+    mmgr_line_put_max(&written, message, sizeof(line) - 128u);
     mmgr_line_ch(&written, '\n');
     if (mmgr_line_ok(&written))
     {
@@ -240,7 +240,7 @@ void run_channel_check_traced(const RunQuestion *question, const char *message)
     }
 }
 
-// The refusals the airlock's cross handed for the round it last read, each question of `questions` from `first` to
+// The refusals the airlock's cross passed for the round it last read, each question of `questions` from `first` to
 // `count` read off them by its answers' stem: every refusal of a question traced, and a question of no shape of its
 // own, whose blocks the carrier sizes, refused only for registers past the count its kernel allots given the count that
 // clears every refusal of it, where that is past its own, and that traced. The count of questions given a count
@@ -263,7 +263,7 @@ unsigned int run_channel_raised(RunQuestion *const *questions, unsigned int firs
         run_channel_named(at, alone, code_name, cases_name, answers_name);
         VerbaLinea stem_line = {stem, sizeof(stem), 0ull};
         mmgr_line_put(&stem_line, RUN_AIRLOCK_ANSWERS);
-        mmgr_line_put_most(&stem_line, answers_name, strcspn(answers_name, "."));
+        mmgr_line_put_max(&stem_line, answers_name, strcspn(answers_name, "."));
         const size_t stem_length = (size_t)mmgr_line_finish(&stem_line);
         unsigned int clearing = 0u;
         int gated = 0;
@@ -281,7 +281,7 @@ unsigned int run_channel_raised(RunQuestion *const *questions, unsigned int firs
             // a refusal's line: the stem, the count that clears it, and why
             char text[RUN_LINE_MAX_LEN + 512u];
             VerbaLinea text_line = {text, sizeof(text), 0ull};
-            mmgr_line_put_most(&text_line, line + stem_length + 1u, length - stem_length - 1u);
+            mmgr_line_put_max(&text_line, line + stem_length + 1u, length - stem_length - 1u);
             mmgr_line_finish(&text_line);
             char *after = NULL;
             const unsigned long long count_read = strtoull(text, &after, 10);
@@ -293,7 +293,7 @@ unsigned int run_channel_raised(RunQuestion *const *questions, unsigned int firs
             mmgr_line_finish(&message_line);
             run_channel_check_traced(questions[at], message);
             gated = 1;
-            // a count of registers is at most what a kernel allots a thread, which an unsigned int represents
+            // a count of registers is at max what a kernel allots a thread, which an unsigned int represents
             cleared = cleared && (count_read != 0ull) && (count_read <= 0xffffffffull);
             clearing = (cleared && ((unsigned int)count_read > clearing)) ? (unsigned int)count_read : clearing;
         }
@@ -316,12 +316,12 @@ unsigned int run_channel_raised(RunQuestion *const *questions, unsigned int firs
         // the cross clears a refusal with one past the register it read, and a container's code reaches no further than
         // the part's count past short of what it declares
         const unsigned long long reaching = (unsigned long long)clearing - 1ull + (unsigned long long)s_registers_past;
-        if (reaching > RUN_REGISTERS_MOST)
+        if (reaching > RUN_REGISTERS_MAX)
         {
             run_channel_check_traced(questions[at], "still refused: no count of registers a kernel allots reaches it");
             continue;
         }
-        // a count at most RUN_REGISTERS_MOST fits an unsigned int
+        // a count at max RUN_REGISTERS_MAX fits an unsigned int
         clearing = (unsigned int)reaching;
         if (shaped)
         {

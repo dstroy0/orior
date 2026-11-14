@@ -2,7 +2,7 @@
   "id": "g",
   "name": "g",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "extensions": ["g"],
   "comments": {"line": "//", "block": ["/*", "*/"]},
   "pairs": ["()", "[]", "{}"],
@@ -32,15 +32,15 @@
       "_Static_assert", "_Thread_local"
     ],
     "typeWords": {
-      "table": "src/lng/gnascor_hol_lng.tsv", "columns": ["word"], "rows": {"column": "kind", "match": "^type$"},
+      "table": "src/lng/gnascor_hol_lng.tsv", "columns": ["word"], "rows": {"column": "type", "match": "^type$"},
       "match": "^[A-Za-z_]\\w*$"
     },
     "opWords": {
-      "table": "src/lng/gnascor_hol_lng.tsv", "columns": ["word"], "rows": {"column": "kind", "match": "^core op$"},
+      "table": "src/lng/gnascor_hol_lng.tsv", "columns": ["word"], "rows": {"column": "type", "match": "^core op$"},
       "match": "^[A-Za-z_]\\w*$"
     },
     "plainWords": {
-      "table": "src/lng/gnascor_hol_lng.tsv", "columns": ["word"], "rows": {"column": "kind", "skip": "^(?:type|core op)$"},
+      "table": "src/lng/gnascor_hol_lng.tsv", "columns": ["word"], "rows": {"column": "type", "skip": "^(?:type|core op)$"},
       "match": "^[A-Za-z_]\\w*$"
     },
     "mnemonics": {"table": "src/lng/gnascor_asm_lng.tsv", "columns": ["mnemonic"], "match": "^[A-Za-z_]\\w*$"},

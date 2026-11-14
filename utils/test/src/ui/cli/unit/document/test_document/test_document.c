@@ -11,9 +11,9 @@
 #include "ui/cli/src/plugins/plugins.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-// the cells the pool is allocated in for a search in little capacity, and the most of them
+// the cells the pool is allocated in for a search in little capacity, and the max of them
 #define DOCUMENT_TAKEN_CELL (8ull << 20u)
-#define DOCUMENT_TAKEN_MOST 64u
+#define DOCUMENT_TAKEN_MAX 64u
 
 // the lines of the branch, a comment opened on the first and closed on the one before the last
 #define DOCUMENT_BRANCH_LINES 401u
@@ -75,12 +75,12 @@ static CliDocNeedle needle_of(const char *query, int regex, int match_case, int 
 }
 
 // the matches of what is sought in the lines, asserted against `required`
-static void assert_found(const CliLines *lines, CliDocNeedle needle, unsigned long long most, const char *required)
+static void assert_found(const CliLines *lines, CliDocNeedle needle, unsigned long long max, const char *required)
 {
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_lines_out.find_in, CliDocumentLinesOutCfg, .lines = lines, .needle = &needle, .most = most, .out = &out, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_lines_out.find_in, CliDocumentLinesOutCfg, .lines = lines, .needle = &needle, .max = max, .out = &out, .err_msg = &err_msg));
     CLI_TEST_ASSERT_TEXT(required, s_out, out.at);
 }
 
@@ -91,7 +91,7 @@ static void assert_stored_found(const char *key, const char *query, const char *
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    (void)EMBED_CALL(cli_document_out_needle.find, CliDocumentOutNeedleCfg, .key = key, .needle = &needle, .most = 100ull, .out = &out, .err_msg = &err_msg);
+    (void)EMBED_CALL(cli_document_out_needle.find, CliDocumentOutNeedleCfg, .key = key, .needle = &needle, .max = 100ull, .out = &out, .err_msg = &err_msg);
     CLI_TEST_ASSERT_TEXT(required, s_out, out.at);
 }
 
@@ -193,12 +193,12 @@ void test_a_text_is_split_as_the_page_splits_a_file_a_char_end_the_basic_plane_t
     TEST_ASSERT_EQUAL_UINT64(2ull, lines->length[3]);
 }
 
-void test_a_large_text_accepts_letters_one_edit_at_a_time_each_where_its_edit_writes_it(void)
+void test_a_large_text_accepts_characters_one_edit_at_a_time_each_where_its_edit_writes_it(void)
 {
-    static const CliEdit s_letter[1] = {{{50000u, 0u}, {50000u, 0u}, "x", 1u}};
-    const CliEdit *const changes[1] = {s_letter};
+    static const CliEdit s_character[1] = {{{50000u, 0u}, {50000u, 0u}, "x", 1u}};
+    const CliEdit *const changes[1] = {s_character};
     const unsigned int counts[1] = {1u};
-    // 100000 lines of 12 letters, in a cell released once the text is stored
+    // 100000 lines of 12 characters, in a cell released once the text is stored
     const unsigned long long lines = 100000ull;
     const unsigned long long size = lines * 13ull;
     CliShape shape;
@@ -314,20 +314,20 @@ void test_find_folds_the_long_s_and_the_kelvin_sign(void)
 void test_the_line_that_reaches_the_max_is_searched_complete(void)
 {
     unsigned int found = CLI_JSON_NONE;
-    const CliDocNeedle most = needle_of("line", 0, 0, 0);
+    const CliDocNeedle max = needle_of("line", 0, 0, 0);
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    (void)EMBED_CALL(cli_document_lines_out.find_in, CliDocumentLinesOutCfg, .lines = lines_of("Line one line\nnoline LINE\n\xC5\xBFtar KING"), .needle = &most, .most = 1ull, .out = &out, .err_msg = &err_msg);
+    (void)EMBED_CALL(cli_document_lines_out.find_in, CliDocumentLinesOutCfg, .lines = lines_of("Line one line\nnoline LINE\n\xC5\xBFtar KING"), .needle = &max, .max = 1ull, .out = &out, .err_msg = &err_msg);
     const CliJson *const json = cli_unity_parsed(s_out, out.at, &found);
     TEST_ASSERT_EQUAL_UINT(2u, json->node[found].count);
 }
 
-void test_find_without_case_finds_a_letter_outside_ascii_in_either_case(void)
+void test_find_without_case_finds_a_character_outside_ascii_in_either_case(void)
 {
     assert_found(lines_of("Caf\xC3\xA9 caf\xC3\x89\nnone"), needle_of("\xC3\xA9", 0, 0, 0), 100ull, "[[0,3,4],[0,8,9]]");
 }
 
-void test_complete_words_adjacent_text_outside_ascii_a_mark_ends_a_word_a_letter_does_not(void)
+void test_complete_words_adjacent_text_outside_ascii_a_mark_ends_a_word_a_character_does_not(void)
 {
     assert_found(lines_of("a line\xD9\x8B here, \xC3\xA9line"), needle_of("line", 0, 1, 1), 100ull, "[[0,2,6]]");
 }
@@ -339,7 +339,7 @@ void test_a_pattern_is_found_by_the_regular_expressions_the_colorer_reads(void)
                  needle_of("x_\\d+", 1, 1, 0), 100ull, "[[0,0,3],[1,0,4]]");
 }
 
-void test_a_patterns_cols_are_in_utf16_units_end_a_letter_outside_the_basic_plane(void)
+void test_a_patterns_cols_are_in_utf16_units_end_a_character_outside_the_basic_plane(void)
 {
     assert_found(lines_of("x_1 = 10\nx_22 = 3\xF0\x9F\x98\x80"
                           "ab"),
@@ -351,7 +351,7 @@ void test_a_pattern_that_does_not_read_is_refused(void)
     const CliDocNeedle needle = needle_of("(", 1, 1, 0);
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_document_lines_out.find_in, CliDocumentLinesOutCfg, .lines = lines_of("x_1 = 10"), .needle = &needle, .most = 100ull, .out = &out, .err_msg = &err_msg));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_document_lines_out.find_in, CliDocumentLinesOutCfg, .lines = lines_of("x_1 = 10"), .needle = &needle, .max = 100ull, .out = &out, .err_msg = &err_msg));
 }
 
 void test_a_finds_cols_are_in_utf16_units(void)
@@ -374,10 +374,10 @@ void test_nothing_found_runs_over_a_lines_end(void)
 void test_a_small_text_is_searched_while_the_pool_has_little_capacity(void)
 {
     // the pool allocated in cells of DOCUMENT_TAKEN_CELL until it refuses, one of them released, the search still answers
-    static void *s_allocated[DOCUMENT_TAKEN_MOST];
+    static void *s_allocated[DOCUMENT_TAKEN_MAX];
     CliShape shape;
     unsigned int reserved = 0u;
-    while (reserved < DOCUMENT_TAKEN_MOST)
+    while (reserved < DOCUMENT_TAKEN_MAX)
     {
         s_allocated[reserved] = g_cli_guard->persistent_buf_alloc(DOCUMENT_TAKEN_CELL, g_checks_owner);
         if (s_allocated[reserved] == NULL)

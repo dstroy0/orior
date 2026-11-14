@@ -21,7 +21,7 @@
  *       count the portable host arm returns on the same data.
  * @note Positions arrive already sorted, and each thread runs a binary search with no coordination.
  *       Threads share nothing. Each writes its own displaced position and one atomic increment at
- *       most.
+ *       max.
  * @note A repeated position sits in adjacent entries once sorted. A thread counts its position only
  *       where it contains the last of those entries. The search returns the last entry equal to the
  *       displaced position. The count matches the portable arm, which retains the last value at a
@@ -202,7 +202,7 @@ __device__ static int device_add(const OriorExactInteger *left, const OriorExact
  * @brief One thread per position: displace it by the lag and look for where it landed.
  *
  * @param[in]     positions Positions, ascending [BORROWS].
- * @param[in]     values    The value standing at each position [BORROWS].
+ * @param[in]     values    The value located at each position [BORROWS].
  * @param[in]     count     How many positions.
  * @param[in]     lag       The offset to test [BORROWS].
  * @param[out]    displaced One integer per position, where each thread writes its displaced
@@ -361,7 +361,7 @@ done:
  * @brief The agreement count, as the arm table expects it.
  *
  * @param[in] positions Positions, ascending [BORROWS].
- * @param[in] values    The value standing at each position [BORROWS].
+ * @param[in] values    The value located at each position [BORROWS].
  * @param[in] count     How many positions.
  * @param[in] lag       The offset to test [BORROWS].
  * @return              The count, or the portable count where the device errored on the work.
@@ -384,7 +384,7 @@ static size_t arm_agreement(const OriorExactInteger *positions, const uint64_t *
  * @brief The arm as a driver sees it. Static storage. Returning its address is safe.
  *
  * @note equal and compare are the portable ones. One comparison is far too small to be
- *       worth a bus crossing, and only the whole sweep is handed to the device.
+ *       worth a bus crossing, and only the whole sweep is passed to the device.
  */
 static const OriorExactArm CUDA_ARM = {
     "cuda",

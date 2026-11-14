@@ -13,7 +13,7 @@
 
 (() => {
   if (window.__motion) {
-    return "kept";
+    return "retained";
   }
 
   const PARTS = {
@@ -30,7 +30,7 @@
     editor: "#mode-edit .editor",
   };
   const NUMBERS = ["--claim", "--reveal-top", "--reveal-bottom", "--reveal-left", "--reveal-down", "--room-top", "--room-left", "--room-bottom", "--tabs-away", "--map-away", "--claim-gap"];
-  // The most other elements followed, so a page of animations cannot fill the recording.
+  // The max other elements followed, so a page of animations cannot fill the recording.
   const OTHERS = 60;
 
   const motion = { frames: [], marks: [], late: [], running: false, others: new Map(), lateRead: true };

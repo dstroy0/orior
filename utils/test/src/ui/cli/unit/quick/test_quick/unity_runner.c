@@ -13,7 +13,7 @@ extern void setUp(void);
 extern void tearDown(void);
 extern void test_a_command_none_of_the_quick_opens_nothing(void);
 extern void test_a_leading_greater_lists_the_commands_the_ones_run_last_first(void);
-extern void test_a_query_after_the_greater_marks_the_letters_it_matched(void);
+extern void test_a_query_after_the_greater_marks_the_characters_it_matched(void);
 extern void test_a_leading_colon_answers_the_line_clamped_to_the_view(void);
 extern void test_an_at_lists_the_views_declarations_with_type_and_line(void);
 extern void test_a_hash_lists_the_trees_declarations_with_path_and_line(void);
@@ -24,7 +24,7 @@ extern void test_the_keys_edit_the_typed_text_and_move_its_caret(void);
 extern void test_the_keys_of_a_command_open_the_box_as_it_does(void);
 extern void test_shift_twice_within_its_time_opens_search_everywhere(void);
 extern void test_a_command_chosen_answers_its_word_and_runs_first_after(void);
-extern void test_the_rows_asked_again_while_the_tree_is_read_keep_the_chosen_row(void);
+extern void test_the_rows_asked_again_while_the_tree_is_read_retain_the_chosen_row(void);
 
 
 /*=======Mock Management=====*/
@@ -88,7 +88,7 @@ int main(void)
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\quick\\test_quick\\test_quick.c");
   run_test(test_a_command_none_of_the_quick_opens_nothing, "test_a_command_none_of_the_quick_opens_nothing", 117);
   run_test(test_a_leading_greater_lists_the_commands_the_ones_run_last_first, "test_a_leading_greater_lists_the_commands_the_ones_run_last_first", 123);
-  run_test(test_a_query_after_the_greater_marks_the_letters_it_matched, "test_a_query_after_the_greater_marks_the_letters_it_matched", 143);
+  run_test(test_a_query_after_the_greater_marks_the_characters_it_matched, "test_a_query_after_the_greater_marks_the_characters_it_matched", 143);
   run_test(test_a_leading_colon_answers_the_line_clamped_to_the_view, "test_a_leading_colon_answers_the_line_clamped_to_the_view", 161);
   run_test(test_an_at_lists_the_views_declarations_with_type_and_line, "test_an_at_lists_the_views_declarations_with_type_and_line", 200);
   run_test(test_a_hash_lists_the_trees_declarations_with_path_and_line, "test_a_hash_lists_the_trees_declarations_with_path_and_line", 225);
@@ -99,7 +99,7 @@ int main(void)
   run_test(test_the_keys_of_a_command_open_the_box_as_it_does, "test_the_keys_of_a_command_open_the_box_as_it_does", 357);
   run_test(test_shift_twice_within_its_time_opens_search_everywhere, "test_shift_twice_within_its_time_opens_search_everywhere", 365);
   run_test(test_a_command_chosen_answers_its_word_and_runs_first_after, "test_a_command_chosen_answers_its_word_and_runs_first_after", 376);
-  run_test(test_the_rows_asked_again_while_the_tree_is_read_keep_the_chosen_row, "test_the_rows_asked_again_while_the_tree_is_read_keep_the_chosen_row", 393);
+  run_test(test_the_rows_asked_again_while_the_tree_is_read_retain_the_chosen_row, "test_the_rows_asked_again_while_the_tree_is_read_retain_the_chosen_row", 393);
 
   return UNITY_END();
 }

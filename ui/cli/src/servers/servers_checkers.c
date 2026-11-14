@@ -4,7 +4,7 @@
 // them as they are named and the tree where its check is on, a checker no longer named taking its findings with it; one
 // file checked with each checker named for its language on a thread of the servers', with its text as the editor has
 // it where the checker reads its input and as the disk stores it where `disk` specifies the disk has it, a later run of
-// the same checker over the same file standing in for an earlier one still going; and each checker that reads a tree
+// the same checker over the same file located in for an earlier one still going; and each checker that reads a tree
 // whole run over the tree
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
@@ -12,7 +12,7 @@
 #include "../toolchains/checkers.h"
 #include "servers_internal.h"
 
-// the most runs counted
+// the max runs counted
 #define CLI_SERVERS_RUNS_MAX 16384u
 
 // A checker's run: the checker, its tree, the file, its key and its run, where what is reported goes, whether the text

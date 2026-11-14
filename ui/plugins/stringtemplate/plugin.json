@@ -2,7 +2,7 @@
   "id": "stringtemplate",
   "name": "StringTemplate",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "extensions": ["stg","st"],
   "comments": {"line":"//","block":["<!","!>"]},
   "pairs": ["()","[]","{}","<>"],

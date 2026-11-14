@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // The compiler on the device checked against the compiler on the host (engine_table.md item 11(f)(a)).
-// record_test's programs, drawn from the same stream in the same order (record_image.h), are laid out on the host
+// record_test's programs, drawn from the same stream in the same order (record_image.h), are arranged on the host
 // by keymath and key_schedule and on the device by the same cores (keymath_core.h, key_schedule_core.h, layout_device):
 // the two layouts must agree word for word. In each language of the register lane, PTX, C and VHDL, the forms the
 // device decides (codegen_device_instrs) must be the host's (CodeGenerator::decided) item for item, as the lane runs
-// and split into states by a schedule model, with the schedule's states, most chained cost and forms over the budget
+// and split into states by a schedule model, with the schedule's states, max chained cost and forms over the budget
 // the host's. The text the device writes from the host's layout (codegen_device) and from its own
 // (codegen_device_steps) must be the code generator's byte for byte, where the assembly printer takes the language's
 // ruleset. Last, the bootstrap's fixed point: the assembly printer's own lane, written by the device with the assembly
@@ -27,8 +27,8 @@
 #include <string>
 #include <vector>
 
-// the most the test puts on the device at once: a lane's forms, records and bytes, and the assembly printer, each a
-// few megabytes at most for these programs. The first run peaked 8 MB over its process's CUDA context
+// the max the test puts on the device at once: a lane's forms, records and bytes, and the assembly printer, each a
+// few megabytes at max for these programs. The first run peaked 8 MB over its process's CUDA context
 #define DEVICE_TEST_DECLARED (64ull << 20u)
 
 // the schedule model each lane is split by: every form a cost of 1, four to a state, one write a state
@@ -146,7 +146,7 @@ static void device_language(DeviceResults *results, const std::string &name, Cod
         device_check(results,
                      scheduled_decided && device_items_same(host_items, device_items) &&
                          (device_report.states == host_report.states) &&
-                         (device_report.maximum == host_report.maximum) && (device_report.over == host_report.over),
+                         (device_report.max == host_report.max) && (device_report.over == host_report.over),
                      lane + " split into " + std::to_string(host_report.states) +
                          " states: the device splits it as the host does" + device_why(scheduled_decided, error));
     }
@@ -215,7 +215,7 @@ static std::string device_text_differ(const std::string &host, const std::string
            ")\n    host:   " + host.substr(from, 160u) + "\n    device: " + device.substr(from, 160u);
 }
 
-// the program laid out on the host and on the device, and each language's lane of it
+// the program arranged on the host and on the device, and each language's lane of it
 static void device_run(void *context, const HostProgram *program, int reuse, unsigned int *const *atoms,
                        const unsigned long long *bodies, const unsigned int *index, int errors)
 {
@@ -228,7 +228,7 @@ static void device_run(void *context, const HostProgram *program, int reuse, uns
     HostLoaded loaded;
     if (host_load(program, reuse, &loaded) == 0)
     {
-        device_check(results, 0, name + " is laid out on the host");
+        device_check(results, 0, name + " is arranged on the host");
         return;
     }
     LayoutRequest request{};
@@ -248,7 +248,7 @@ static void device_run(void *context, const HostProgram *program, int reuse, uns
     std::string error;
     const int device_built = layout_device(&request, &device_layout, &error);
     device_check(results, device_built && layout_same(&device_layout, &loaded.layout),
-                 name + ": the device lays out the host's " + std::to_string(loaded.layout.steps) + " steps and " +
+                 name + ": the device arranges the host's " + std::to_string(loaded.layout.steps) + " steps and " +
                      std::to_string(loaded.layout.file_limbs) + " limbs of file word for word" +
                      device_why(device_built, error));
     if (device_built)
@@ -266,7 +266,7 @@ static void device_run(void *context, const HostProgram *program, int reuse, uns
 }
 
 // The bootstrap's fixed point: the assembly printer's own lane in a language, written by the device with the text
-// program from the step table the device laid out, must be the code generator's text byte for byte: the assembly
+// program from the step table the device arranged, must be the code generator's text byte for byte: the assembly
 // printer writes itself
 static void device_bootstrap(DeviceResults *results, CodeGenerator *generator, const char *language)
 {

@@ -15,7 +15,7 @@ static char s_text[1u << 18u];
 static CliCatalog s_catalog;
 static CliValues s_values;
 static CliCommand s_command;
-static char s_shown[256];
+static char s_displayed[256];
 static char s_words_text[256];
 
 // the catalog emptied
@@ -43,10 +43,10 @@ static void bash_required(void)
     }
 }
 
-// the command of the catalog's first step with the values, its line into s_shown
+// the command of the catalog's first step with the values, its line into s_displayed
 static void command_created(void)
 {
-    VerbaLinea line = {s_shown, sizeof(s_shown), 0ull};
+    VerbaLinea line = {s_displayed, sizeof(s_displayed), 0ull};
     char why[512];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     TEST_ASSERT_TRUE(EMBED_CALL(cli_runner_command_table.command, CliRunnerCommandCfg, .root = ".", .catalog = &s_catalog, .step = &s_catalog.step[0], .values = &s_values, .command = &s_command, .displayed = &line, .err_msg = &err_msg));
@@ -151,7 +151,7 @@ void test_a_setting_leads_the_steps_line(void)
     bash_required();
     setting_job_created();
     command_created();
-    TEST_ASSERT_EQUAL_STRING("KLQ_SEED=2 bash run.sh pair", s_shown);
+    TEST_ASSERT_EQUAL_STRING("KLQ_SEED=2 bash run.sh pair", s_displayed);
 }
 
 void test_a_variable_is_set_when_its_param_has_its_value(void)
@@ -162,7 +162,7 @@ void test_a_variable_is_set_when_its_param_has_its_value(void)
     TEST_ASSERT_EQUAL_UINT(1u, s_command.settings);
     TEST_ASSERT_EQUAL_STRING("SHELLOPTS", s_command.setting[0].name);
     TEST_ASSERT_EQUAL_STRING("xtrace", s_command.setting[0].value);
-    TEST_ASSERT_EQUAL_STRING("SHELLOPTS=xtrace bash build.sh", s_shown);
+    TEST_ASSERT_EQUAL_STRING("SHELLOPTS=xtrace bash build.sh", s_displayed);
 }
 
 void test_a_variable_is_not_set_for_another_value(void)
@@ -171,7 +171,7 @@ void test_a_variable_is_not_set_for_another_value(void)
     conditional_job_created("quiet");
     command_created();
     TEST_ASSERT_EQUAL_UINT(0u, s_command.settings);
-    TEST_ASSERT_EQUAL_STRING("bash build.sh", s_shown);
+    TEST_ASSERT_EQUAL_STRING("bash build.sh", s_displayed);
 }
 
 void test_words_split_on_quotes_and_escapes(void)

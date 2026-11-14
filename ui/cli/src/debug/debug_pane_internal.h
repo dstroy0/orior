@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// debug_pane_internal.h: what the Debug pane's sources share: the stores its rows stand in, the session it follows,
+// debug_pane_internal.h: what the Debug pane's sources share: the stores its rows are in, the session it follows,
 // the events the sink stores for the view's thread, and the helpers that fill the stores (debug_pane.c,
 // debug_pane_rows.c, debug_pane_bar.c)
 #ifndef DEBUG_PANE_INTERNAL_H
@@ -10,10 +10,10 @@
 #include "embed_atomic.h"
 #include "memoria_anularis/memoria_anularis.h"
 
-// the segments of the console's ring, a power of two over the lines it keeps
+// the segments of the console's ring, a power of two over the lines it retains
 #define CLI_DEBUG_CONSOLE_RING 8192u
 EMBED_STATIC_ASSERT(MMGR_RING_POW2(CLI_DEBUG_CONSOLE_RING) && (CLI_DEBUG_CONSOLE_RING >= CLI_DEBUG_CONSOLE_LINES),
-                    "the console ring's segments are a power of two over the lines kept");
+                    "the console ring's segments are a power of two over the lines retained");
 
 typedef struct CliDebugPaneCtx CliDebugPaneCtx;
 
@@ -48,7 +48,7 @@ typedef struct
 #define CLI_DEBUG_CONSOLE_RING_BYTES ((unsigned long long)CLI_DEBUG_CONSOLE_RING * sizeof(CliDebugPaneEntry))
 
 // A store: its entries in a movable cell, read and written one at a time, how many and how many the cell carries; or,
-// for the console, its entries in one fixed cell MMgr's ring is laid over, its count the ring's segments in flight;
+// for the console, its entries in one fixed cell MMgr's ring is positioned over, its count the ring's segments in flight;
 // and its texts in a movable cell, each with its end after it, the bytes used and the bytes the cell carries
 typedef struct
 {
@@ -67,8 +67,8 @@ typedef struct
 #define CLI_DEBUG_PANE_NO_ENTRY 0xffffffffu
 
 // The pane: the stores of the frames, the variables, the console's lines as a ring, the watches' expressions, the open
-// set's keys sorted by their bytes, a key standing where its row's open state is the reverse of its first one, and the
-// events the sink stored since the last step; the field's text in Variables and in Console; the view shown; the
+// set's keys sorted by their bytes, a key located where its row's open state is the reverse of its first one, and the
+// events the sink stored since the last step; the field's text in Variables and in Console; the view displayed; the
 // session followed and whether one is, its name, tool and language as offsets into its own movable text cell, whether
 // it steps back; whether it is stopped, its thread and whether one is known, the frame chosen; the status line in its
 // own bytes with its end, whether it reports a failure; the bar's flags, set as the state changes; where the wake goes
@@ -101,7 +101,7 @@ typedef struct
     unsigned long long status_length;
     int status_failed;
     unsigned char enabled[CLI_DEBUG_STEPS];
-    unsigned char shown[CLI_DEBUG_STEPS];
+    unsigned char displayed[CLI_DEBUG_STEPS];
     void (*woken)(void);
     const CliDebugPaneRequestsNs *requests;
     CliGate lock;
@@ -126,7 +126,7 @@ void cli_debug_pane_store_empty(const CliDebugPaneCtx *args);
 // sentence of the session followed running, its name and its tool (debug_pane.c)
 void cli_debug_pane_status_set(const CliDebugPaneCtx *args);
 void cli_debug_pane_running_said(const CliDebugPaneCtx *args);
-// the bar's flags set from the session followed: whether each step can act and whether it is shown
+// the bar's flags set from the session followed: whether each step can act and whether it is displayed
 // (debug_pane_bar.c)
 void cli_debug_pane_bar_settle(const CliDebugPaneCtx *args);
 // `length` bytes of `text` written to the console as `type`, a piece run on into the last line of its type where that

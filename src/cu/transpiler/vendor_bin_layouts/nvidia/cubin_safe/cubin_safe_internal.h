@@ -20,7 +20,7 @@
 
 #define CUBIN_WAIT_SHIFT (SASS_WAIT_FIRST - 64u)
 
-// the most code sections one image is read for: a kernel and the functions it calls
+// the max code sections one image is read for: a kernel and the functions it calls
 #define CUBIN_SAFE_SECTIONS 64u
 
 // where a register sits in an instruction, read whole however much of it a run covered: the first bit of each of the

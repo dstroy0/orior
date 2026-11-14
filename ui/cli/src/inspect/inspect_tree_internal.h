@@ -16,12 +16,12 @@ typedef struct CliInspectTreeSizeFileCtx CliInspectTreeSizeFileCtx;
 typedef struct CliInspectTreeCtx CliInspectTreeCtx;
 typedef struct CliInspectTreePathCtx CliInspectTreePathCtx;
 
-// the most files the tree contains, and no file
+// the max files the tree contains, and no file
 #define CLI_TREE_FILES 65536u
 #define CLI_TREE_NONE 0xffffffffu
 
 // A file of the tree: whether it contains one, whether its language is Python, the length of its path and the bucket
-// its path hashes to, and its facts. The path stands at the start of the facts' movable cell, a 0 after it, and the
+// its path hashes to, and its facts. The path is at the start of the facts' movable cell, a 0 after it, and the
 // facts' lists after the path; the cell is taken as the file is set and given back as it is taken out
 typedef struct
 {
@@ -32,15 +32,15 @@ typedef struct
     CliFactsCell facts;
 } CliTreeFile;
 
-// where a file's path stands in its facts' cell
+// where a file's path is in its facts' cell
 #define CLI_TREE_PATH_AT 0ULL
 
-// the most bytes a path of the tree is read into on the stack
+// the max bytes a path of the tree is read into on the stack
 #define CLI_TREE_PATH_BYTES (CLI_PATH_MAX_LEN * 2u)
 
 // the tree's files in pages of CLI_TREE_PAGE, each page a movable cell taken as the first place in it is and given
-// back as the tree is cleared, and how many places among them were ever taken; the page the file at `file_` stands
-// in and where its record stands in that page. A reader reads the record through the guard's movable read into a
+// back as the tree is cleared, and how many places among them were ever taken; the page the file at `file_` is
+// in and where its record is in that page. A reader reads the record through the guard's movable read into a
 // record of its own (inspect_tree.c)
 #define CLI_TREE_PAGE 256u
 #define CLI_TREE_PAGES (CLI_TREE_FILES / CLI_TREE_PAGE)
@@ -69,7 +69,7 @@ unsigned int cli_tree_find_join(const CliInspectTreeFolderCtx *args);
 unsigned long long cli_tree_parent(const CliInspectTreePathCtx *args);
 
 // the file a Python module names, found from the file at `file`: its place, CLI_TREE_NONE where none is; and the
-// files an import at `import` of the file at `file` runs, each handed to `each` (inspect_tree_imports.c)
+// files an import at `import` of the file at `file` runs, each passed to `each` (inspect_tree_imports.c)
 unsigned int cli_tree_python_module(const CliInspectTreeSizeFileCtx *args);
 void cli_tree_targets(const CliInspectTreeFileCtx *args);
 
@@ -86,12 +86,12 @@ typedef struct
 // A finding the tree makes across its files: the file it is in, its span, its name and what it reports
 typedef void (*CliTreeFindingFn)(const CliTreeFindingCfg *args);
 
-// each import that leads back round to the file that makes it, handed to `each` (inspect_tree_cycles.c)
+// each import that leads back round to the file that makes it, passed to `each` (inspect_tree_cycles.c)
 void cli_tree_cycles(const CliInspectTreeCtx *args);
 
 // the families of the tree's Python classes worked out again, in cells sized to them, where the tree changed since
 // they last were; those cells given back as the tree changes; and each attribute a method reads of `self` that no
-// class of its family sets, handed to `each` (inspect_tree_family.c, inspect_tree_bases.c)
+// class of its family sets, passed to `each` (inspect_tree_family.c, inspect_tree_bases.c)
 void cli_tree_families(void);
 void cli_tree_families_free(void);
 void cli_tree_attributes(const CliInspectTreeCtx *args);

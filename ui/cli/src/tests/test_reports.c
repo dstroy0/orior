@@ -7,7 +7,7 @@
 
 #include "../text/text.h"
 
-// the most attributes a tag of the report contains, and the most bytes their values and a failure's text take
+// the max attributes a tag of the report contains, and the max bytes their values and a failure's text take
 #define CLI_REPORT_ATTRIBUTES 32u
 // The attributes of a tag: each name's start and size in the report, and its value, its entities read, in the values,
 // a cell of `capacity` bytes taken larger as a longer tag is read and given back as the report is
@@ -53,14 +53,14 @@ typedef struct
     double seconds;
 } TestReportsCtx;
 
-// the tags a case's outcome other than a pass stands in, and the outcome each reports
+// the tags a case's outcome other than a pass is in, and the outcome each reports
 static const char *const s_tags[3] = {"<failure", "<error", "<skipped"};
 static const char *const s_outcomes[3] = {"failed", "failed", "skipped"};
 // `length` bytes of an XML text with their entities read written into `out`
 EMBED_INLINE void report_unescaped(const TestReportsCtx *args)
 {
     static const char *const s_entities[7] = {"&#10;", "&#13;", "&quot;", "&apos;", "&lt;", "&gt;", "&amp;"};
-    static const char s_letters[7] = {'\n', '\r', '"', '\'', '<', '>', '&'};
+    static const char s_characters[7] = {'\n', '\r', '"', '\'', '<', '>', '&'};
     unsigned long long at = 0ULL;
     while (at < args->length)
     {
@@ -72,7 +72,7 @@ EMBED_INLINE void report_unescaped(const TestReportsCtx *args)
             if ((at + size <= args->length) &&
                 (memor.cmp(&(MemoriaCfg){.src = args->text + at, .other = s_entities[entity], .bytes = size}) == 0))
             {
-                mmgr_line_ch(args->out, s_letters[entity]);
+                mmgr_line_ch(args->out, s_characters[entity]);
                 at += size;
                 read = 1;
             }
@@ -105,7 +105,7 @@ static void report_attributes(const TestReportsCtx *args)
     unsigned long long length = args->length;
     args->tag->count = 0u;
     args->tag->used = 0ULL;
-    // each value takes its letters, an entity read to one, and a terminator for the `="` and `"` about it, so the
+    // each value takes its characters, an entity read to one, and a terminator for the `="` and `"` about it, so the
     // values fit in the bytes of the tag's text and one more
     const unsigned long long capacity = (length < CLI_REPORT_VALUES) ? (length + 1ULL) : CLI_REPORT_VALUES;
     if (args->tag->capacity < capacity)
@@ -220,8 +220,8 @@ int cli_report_ends_with(const CliTestRunsLengthPathCtx *args)
     }
     for (unsigned long long at = 0ULL; at < size; at += 1ULL)
     {
-        const char letter = args->path[args->length - size + at];
-        if (((letter == '\\') ? '/' : letter) != args->required[at])
+        const char character = args->path[args->length - size + at];
+        if (((character == '\\') ? '/' : character) != args->required[at])
         {
             return 0;
         }
@@ -387,7 +387,7 @@ EMBED_INLINE void report_outcome_emit(const TestReportsCtx *args)
                                                            .length = args->body_size - tag_end, .needle = "</")
                                     : args->body_size;
     const unsigned long long text_start = (tag_end + 1ULL < text_end) ? tag_end + 1ULL : text_end;
-    // the text read takes no more bytes than it is written in, an entity read to one letter
+    // the text read takes no more bytes than it is written in, an entity read to one character
     const unsigned long long text_capacity =
         ((text_end - text_start) < CLI_REPORT_TEXT) ? ((text_end - text_start) + 1ULL) : CLI_REPORT_TEXT;
     char *const text_cell = g_cli_guard->temporary_buf_alloc(text_capacity, g_cli_test_report_owner);

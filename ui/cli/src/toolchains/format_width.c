@@ -15,7 +15,7 @@ typedef struct
 
 typedef struct
 {
-    char letter;
+    char character;
     CliSpan span;
     CliSpan part;
     const char *key;
@@ -25,18 +25,18 @@ typedef struct
 // whether a byte is ASCII's whitespace
 EMBED_INLINE int cli_blank(const FormatWidthCtx *args)
 {
-    return (args->letter == ' ') || ((args->letter >= '\t') && (args->letter <= '\r'));
+    return (args->character == ' ') || ((args->character >= '\t') && (args->character <= '\r'));
 }
 
 // the span with the whitespace at either end left off
 EMBED_INLINE CliSpan cli_trim(const FormatWidthCtx *args)
 {
     CliSpan span = args->span;
-    while ((span.length > 0ULL) && EMBED_CALL(cli_blank, FormatWidthCtx, .letter = span.at[0]))
+    while ((span.length > 0ULL) && EMBED_CALL(cli_blank, FormatWidthCtx, .character = span.at[0]))
     {
         span = (CliSpan){span.at + 1, span.length - 1ULL};
     }
-    while ((span.length > 0ULL) && EMBED_CALL(cli_blank, FormatWidthCtx, .letter = span.at[span.length - 1ULL]))
+    while ((span.length > 0ULL) && EMBED_CALL(cli_blank, FormatWidthCtx, .character = span.at[span.length - 1ULL]))
     {
         span.length -= 1ULL;
     }
@@ -47,10 +47,10 @@ int cli_format_utf8(const CliFormatBytesCtx *args)
 {
     for (unsigned long long at = 0ULL; at < args->size;)
     {
-        unsigned int letter = 0u;
-        const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+        unsigned int character = 0u;
+        const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                                                    .text_bytes = (const unsigned char *)args->bytes,
-                                                   .length = args->size, .at = at, .letter = &letter);
+                                                   .length = args->size, .at = at, .character = &character);
         if ((step == 1ULL) && ((unsigned char)args->bytes[at] >= 0x80u))
         {
             return 0;

@@ -148,7 +148,7 @@ export function openBefore(line, col, lang) {
 }
 
 // The innermost bracket line `line` opens before `col` and leaves open there: its closing bracket,
-// and where it stands.
+// and where it is.
 export function openAt(line, col, lang) {
   const closing = new Map((lang.pairs ?? []).filter((pair) => pair[0] !== pair[1]).map((pair) => [pair[0], pair[1]]));
   const closers = new Set(closing.values());
@@ -173,8 +173,8 @@ export function openAt(line, col, lang) {
 
 // A new line at each selection, as deep as the line it leaves, and a step deeper after what the
 // language opens a block with. A bracket the line leaves open before the cursor puts the new line
-// deeper too, by the continuation indent of the place the bracket stands, one step where none is
-// set, as Black, rustfmt and Prettier lay out a call that runs past one line; and where what
+// deeper too, by the continuation indent of the place the bracket is, one step where none is
+// set, as Black, rustfmt and Prettier arrange a call that runs past one line; and where what
 // follows the cursor closes that bracket, the close goes down to a line of its own at the first
 // line's depth. Inside a bracket, where the reader has an operator's sign go to the next line, a
 // line that ends in a binary operator takes it to the head of the new line.
@@ -211,7 +211,7 @@ export function newline() {
 
 export function backspace(word = false) {
   // Cursors past their lines' ends step back a column; past the end beside others, they are filled
-  // out to where they stand first.
+  // out to where they are first.
   const past = this.s.selections.map((sel) => this.pastEnd(sel));
   if (past.every((columns) => columns > 0)) {
     this.select(this.s.selections.map((sel, index) => ({ ...caret(sel.head, this.vcol(sel.head) + past[index] - 1), column: sel.column })));

@@ -66,15 +66,15 @@ void pi_tower_golden(SimResults *results, const PiTowerTurn &turn, const std::ve
             pi_tower_difference(pi_tower_product(pi_tower_unsigned(5ull), pi_tower_product(low[at - 1u], low[at - 1u])),
                                 pi_tower_product(pi_tower_sum(pi_tower_sum(high[at], high[at]), low[at - 1u]),
                                                  pi_tower_sum(pi_tower_sum(high[at], high[at]), low[at - 1u])));
-        const PiWide maximum = pi_tower_difference(
+        const PiWide max = pi_tower_difference(
             pi_tower_product(pi_tower_unsigned(5ull), pi_tower_product(high[at - 1u], high[at - 1u])),
             pi_tower_product(pi_tower_sum(pi_tower_sum(low[at], low[at]), high[at - 1u]),
                              pi_tower_sum(pi_tower_sum(low[at], low[at]), high[at - 1u])));
         const int under = least.sign > 0;
-        decided = decided && (least.sign == maximum.sign) && (least.sign != 0);
+        decided = decided && (least.sign == max.sign) && (least.sign != 0);
         below += (under != 0) ? 1u : 0u;
         above += (under == 0) ? 1u : 0u;
-        // the shrink stands between 1/2 and 1 exactly on the floors of 1: 2 x > y
+        // the shrink is between 1/2 and 1 exactly on the floors of 1: 2 x > y
         const int wide = pi_tower_compare(pi_tower_sum(low[at], low[at]), high[at - 1u]) > 0;
         const int narrow = pi_tower_compare(pi_tower_sum(high[at], high[at]), low[at - 1u]) < 0;
         decided = decided && ((wide != 0) || (narrow != 0));
@@ -144,7 +144,7 @@ void pi_tower_golden(SimResults *results, const PiTowerTurn &turn, const std::ve
               "every floor is at least the golden one, q_j >= F_(j+1), and every residue is under the next floor's 1 / "
               "q_(j+1)");
     sim_check(results, decided && band_ok,
-              "the shrink stands between 1/2 and 1 exactly where the next floor is 1, each side of 1/phi decided at "
+              "the shrink is between 1/2 and 1 exactly where the next floor is 1, each side of 1/phi decided at "
               "both ends");
     sim_flush(results);
 }

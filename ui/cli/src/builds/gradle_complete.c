@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // gradle_complete.c: what completes the word before the cursor in a Gradle script: after a catalog's accessor, its
 // libraries' aliases and its versions', plugins' and bundles' under their sections; and at the head of a statement,
-// what the block it stands in takes, a settings script's own words or a build script's at the top, and in
+// what the block it is in takes, a settings script's own words or a build script's at the top, and in
 // `dependencies` the configurations, what the block calls beside them, and those the script declares. Nothing completes
 // in a string or a comment
 #include "../command_line/callback_cfg.h"
@@ -12,7 +12,7 @@
 #include "gradle_internal.h"
 #include "version_catalog_internal.h"
 
-// the most lines of a script indexed for its statements, and the most bytes of a catalog read
+// the max lines of a script indexed for its statements, and the max bytes of a catalog read
 #define CLI_GRADLE_LINES (1u << 20u)
 #define CLI_GRADLE_CATALOG_TEXT (1u << 22u)
 
@@ -27,10 +27,10 @@ static const char *const s_settings_top[9] = {"rootProject",
                                               "plugins",
                                               "gradle"};
 
-// whether a letter goes in a catalog's accessor chain
-static int complete_chain_letter(const CliEachLetterCfg *args)
+// whether a character goes in a catalog's accessor chain
+static int complete_chain_character(const CliEachLetterCfg *args)
 {
-    return cli_each_letter.build_word_letter(args) || (args->letter == '.');
+    return cli_each_character.build_word_character(args) || (args->character == '.');
 }
 
 typedef struct
@@ -173,7 +173,7 @@ void cli_gradle_complete(const CliGradleTextCtx *args)
     const int open = (args->at > 0u) && (before[args->at - 1u] != CLI_GRADLE_CODE) && (text[args->at - 1u] != '\n');
     g_cli_guard->persistent_buf_release(before, g_cli_gradle_owner);
     const unsigned long long token = EMBED_CALL(cli_builds_text_at.build_run_before, CliBuildsTextAtCfg, .text = text,
-                                                .at = args->at, .of = complete_chain_letter);
+                                                .at = args->at, .of = complete_chain_character);
     const char *const dot =
         memor.chr(&(MemoriaCfg){.src = text + token, .val = '.', .bytes = (embed_word)(args->at - token)});
     if (open)
@@ -241,7 +241,7 @@ void cli_gradle_complete(const CliGradleTextCtx *args)
             CliBuildLines lines;
             // a count no more than CLI_GRADLE_LINES, which an unsigned int stores
             EMBED_CALL(cli_builds_text_size.build_lines_get, CliBuildsTextSizeCfg, .text = text, .size = size,
-                       .starts = starts, .most = (unsigned int)count, .lines_out = &lines);
+                       .starts = starts, .max = (unsigned int)count, .lines_out = &lines);
             EMBED_CALL(cli_gradle_lines_internal.declare, CliGradleLinesCtx, .lines = &lines);
             EMBED_CALL(complete_declare, GradleCompleteCtx, .items = items);
         }

@@ -20,7 +20,7 @@
 #define CLI_CLIPBOARD_TRIES 10u
 #define CLI_CLIPBOARD_APART 5u
 // the largest size the system's text calls count, an int
-#define CLI_CLIPBOARD_INT_MOST 0x7FFFFFFFULL
+#define CLI_CLIPBOARD_INT_MAX 0x7FFFFFFFULL
 
 // the drop effects a file manager reads: a copy, a move, and a link to the file
 #define CLI_CLIPBOARD_COPY 1u
@@ -79,10 +79,10 @@ int cli_clipboard_text_read(const CliCtx *args)
         for (SIZE_T at = 0u; at < units;)
         {
             SIZE_T count = ((units - at) < CLI_CLIPBOARD_PIECE) ? (units - at) : CLI_CLIPBOARD_PIECE;
-            // a letter of two units is not cut between pieces
+            // a character of two units is not cut between pieces
             const wchar_t last = pixel_width[at + count - 1u];
             count -= ((at + count < units) && (last >= 0xd800u) && (last <= 0xdbffu)) ? 1u : 0u;
-            // a piece is at most CLI_CLIPBOARD_PIECE units, which an int counts
+            // a piece is at max CLI_CLIPBOARD_PIECE units, which an int counts
             const int bytes =
                 WideCharToMultiByte(CP_UTF8, 0u, pixel_width + at, (int)count, piece, (int)sizeof(piece), NULL, NULL);
             mmgr_line_put_n(args->text_verba_linea_pointer, piece, (bytes > 0) ? (unsigned long long)bytes : 0ull);
@@ -131,11 +131,11 @@ EMBED_INLINE int clipboard_append(const WindowsClipboardCtx *args)
 
 int cli_clipboard_text_write(const CliSizeTextCtx *args)
 {
-    if (args->size > CLI_CLIPBOARD_INT_MOST)
+    if (args->size > CLI_CLIPBOARD_INT_MAX)
     {
         return 0;
     }
-    // the size is at most what an int counts, as checked above
+    // the size is at max what an int counts, as checked above
     const int units = (args->size > 0ull) ? MultiByteToWideChar(CP_UTF8, 0u, args->text, (int)args->size, NULL, 0) : 0;
     const HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, ((SIZE_T)units + 1u) * sizeof(wchar_t));
     wchar_t *const pixel_width = (memory != NULL) ? (wchar_t *)GlobalLock(memory) : NULL;
@@ -146,7 +146,7 @@ int cli_clipboard_text_write(const CliSizeTextCtx *args)
     }
     if (units > 0)
     {
-        // the size is at most what an int counts, as checked above
+        // the size is at max what an int counts, as checked above
         (void)MultiByteToWideChar(CP_UTF8, 0u, args->text, (int)args->size, pixel_width, units);
     }
     pixel_width[units] = L'\0';
@@ -185,7 +185,7 @@ int cli_clipboard_files_append(const CliCountCtx *args)
     SIZE_T left = units;
     for (unsigned int path = 0u; path < args->count; path += 1u)
     {
-        // what is left is at most the units counted above, which an int counts
+        // what is left is at max the units counted above, which an int counts
         const int written = MultiByteToWideChar(CP_UTF8, 0u, args->paths[path], -1, at, (int)left);
         // a count the system gave is positive here
         at += (written > 0) ? (SIZE_T)written : 0u;

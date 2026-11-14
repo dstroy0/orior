@@ -11,7 +11,7 @@
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_a_path_is_written_as_a_file_uri_its_letters_escaped(void);
+extern void test_a_path_is_written_as_a_file_uri_its_characters_escaped(void);
 extern void test_a_uri_names_the_path_it_was_written_from(void);
 extern void test_a_servers_end_is_known(void);
 extern void test_what_an_ended_server_had_open_is_recorded(void);
@@ -83,7 +83,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\lsp\\test_lsp\\test_lsp.c");
-  run_test(test_a_path_is_written_as_a_file_uri_its_letters_escaped, "test_a_path_is_written_as_a_file_uri_its_letters_escaped", 186);
+  run_test(test_a_path_is_written_as_a_file_uri_its_characters_escaped, "test_a_path_is_written_as_a_file_uri_its_characters_escaped", 186);
   run_test(test_a_uri_names_the_path_it_was_written_from, "test_a_uri_names_the_path_it_was_written_from", 199);
   run_test(test_a_servers_end_is_known, "test_a_servers_end_is_known", 219);
   run_test(test_what_an_ended_server_had_open_is_recorded, "test_what_an_ended_server_had_open_is_recorded", 226);

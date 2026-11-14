@@ -4,7 +4,7 @@
 #define C_TARGET_H
 
 // The lane as C source, a language of the register lane (code_generator.h): its ruleset is c.krs, NVRTC compiles it,
-// and its header is the prelude. It lays out the file and its signs in the thread block's shared memory. A program
+// and its header is the prelude. It arranges the file and its signs in the thread block's shared memory. A program
 // whose PTX needs too great a local frame runs from a small one as C (rule (i), cycle_compile_*.cu)
 
 #include "../engine/rmc/code_generator.h"

@@ -140,7 +140,7 @@ int cli_test_seen_any(const CliTestRunsRunLengthCtx *args)
 void cli_test_result_emit(const CliTestRunsOutcomeCtx *args)
 {
     VerbaLinea out = {args->worker->event, sizeof(args->worker->event), 0ULL};
-    mmgr_line_put(&out, "{\"kind\":\"result\",\"run\":");
+    mmgr_line_put(&out, "{\"type\":\"result\",\"run\":");
     mmgr_line_decimal(&out, args->worker->run->number, 1u);
     mmgr_line_put(&out, ",\"outcome\":{\"id\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &out,
@@ -205,7 +205,7 @@ static void test_end(void *context)
     s_going = (s_going == run) ? NULL : s_going;
     char done[CLI_TEST_MESSAGE_MAX_LEN + 512u];
     VerbaLinea out = {done, sizeof(done), 0ULL};
-    mmgr_line_put(&out, "{\"kind\":\"done\",\"run\":");
+    mmgr_line_put(&out, "{\"type\":\"done\",\"run\":");
     mmgr_line_decimal(&out, run->number, 1u);
     mmgr_line_put(&out, ",\"passed\":");
     mmgr_line_decimal(&out, run->passed, 1u);
@@ -263,7 +263,7 @@ static CliTestRun *test_run_alloc(void)
             EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_runs_wake);
         }
     }
-    // a run's record holds the wake its workers wait on, so the records stand fixed outside the pool, one for each
+    // a run's record holds the wake its workers wait on, so the records are fixed outside the pool, one for each
     // run place, where they punch no hole in the persistent tier
     static CliTestRun s_places[CLI_TEST_RUNS];
     run = &s_places[at];
@@ -384,7 +384,7 @@ int cli_test_runs_start(const CliTestRunsRootCfg *args)
     if (python_count > 0u)
     {
         EMBED_CALL(cli_test_runs_run_count_internal.test_shares, CliTestRunsRunCountCtx, .run = run,
-                   .count = python_count, .most = args->parallel ? cli_cores_for_work() : 1u);
+                   .count = python_count, .max = args->parallel ? cli_cores_for_work() : 1u);
     }
     const unsigned int cargo_runs =
         (rust_count > 0u) ? EMBED_CALL(cli_cargo_tests_input_table.cargo_targets_free, CliCargoTestsInputCfg,
@@ -393,7 +393,7 @@ int cli_test_runs_start(const CliTestRunsRootCfg *args)
     const char *const python_runner = pytest ? "pytest" : "unittest";
     char started[512];
     VerbaLinea out = {started, sizeof(started), 0ULL};
-    mmgr_line_put(&out, "{\"kind\":\"started\",\"run\":");
+    mmgr_line_put(&out, "{\"type\":\"started\",\"run\":");
     mmgr_line_decimal(&out, run->number, 1u);
     mmgr_line_put(&out, ",\"given\":");
     mmgr_line_decimal(&out, python_count + rust_count, 1u);

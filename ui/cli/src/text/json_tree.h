@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // json_tree.h: JSON values as a tree the command line reads, changes and writes (json_tree.c, json_tree_write.c). An
 // object stores its members in the order they were put, one to a key: a key put again takes the place it had. Every
-// node and every text of a tree is stored in the storage its caller hands it, so a tree is made, read and written with
+// node and every text of a tree is stored in the storage its caller passes it, so a tree is made, read and written with
 // nothing allocated
 #ifndef JSON_TREE_H
 #define JSON_TREE_H
@@ -44,7 +44,7 @@ typedef struct CliJsonTreeSizeCfg CliJsonTreeSizeCfg;
 #define CLI_JSON_NONE 0xffffffffu
 
 // One node: its type, as cfg_json names types; its key in the text where it is an object's member; its text, a
-// string's letters or a number as written, `length` bytes; its children from `first` to `last`, `count` of them, and
+// string's characters or a number as written, `length` bytes; its children from `first` to `last`, `count` of them, and
 // the node after it among its parent's
 typedef struct
 {
@@ -58,7 +58,7 @@ typedef struct
     unsigned int count;
 } CliJsonNode;
 
-// A tree: its nodes and its texts in the storage handed it, and 1 in `full` where a node or a text did not fit; a tree
+// A tree: its nodes and its texts in the storage passed it, and 1 in `full` where a node or a text did not fit; a tree
 // taken stores both in one cell of its own
 typedef struct
 {
@@ -82,7 +82,7 @@ unsigned int cli_json_read(const CliJsonTreeTextSizeTokensCfg *args);
 unsigned int cli_json_tokens_count(const CliJsonTreeTextCfg *args);
 // a tree made empty in a cell of the call's own, on the temporary tier, sized for `nodes_max` nodes and `text_max`
 // bytes of texts: 1, or 0 with the cell refused and reported and the tree containing nothing. Every take below counts
-// the tree's cell to `owner`, the tree is given back for the owner its cell counts to, and a tree that stands past the
+// the tree's cell to `owner`, the tree is given back for the owner its cell counts to, and a tree that is past the
 // call is stored with cli_json_stored; capacity on the tree for `nodes` nodes and `text` bytes more: 1, or 0 with the
 // tree full; and a tree emptied, its capacity retained
 int cli_json_reserve(const CliJsonTreeNodesMaxCfg *args);
@@ -124,7 +124,7 @@ unsigned int cli_json_number_init(const CliJsonTreeTextLengthTypeCfg *args);
 // or the node is not of that type
 unsigned int cli_json_member(const CliJsonTreeObjectCfg *args);
 unsigned int cli_json_item(const CliJsonTreeArrayIndexCfg *args);
-// the letters of a string node, NULL where the node is none or no string; its length into `length` where it is given
+// the characters of a string node, NULL where the node is none or no string; its length into `length` where it is given
 const char *cli_json_string(const CliJsonTreeNodeLengthCfg *args);
 // whether a node is of `type`, none never is
 int cli_json_is(const CliJsonTreeNodeTypeCfg *args);
@@ -141,20 +141,20 @@ unsigned int cli_json_copy(const CliJsonTreeCfg *args);
 unsigned int cli_json_copy_from(const CliJsonTreeNodeCfg *args);
 // whether two nodes contain the same value, an object's members compared by key whatever their order
 int cli_json_same(const CliJsonTreeOneCfg *args);
-// the node written as JSON into `out`: on one line, or as serde_json's pretty writer lays it out with `indent` spaces
+// the node written as JSON into `out`: on one line, or as serde_json's pretty writer positions it out with `indent` spaces
 // to a level where `indent` is not 0; every object's keys in order where `sorted` is 1 (json_tree_write.c)
 void cli_json_write(const CliJsonTreeNodeOutCfg *args);
-// the most bytes any node of the tree writes to on one line, its 0 after them counted: a line of this capacity holds
+// the max bytes any node of the tree writes to on one line, its 0 after them counted: a line of this capacity holds
 // what cli_json_write writes of it with no indent, and what is written from its strings as they are
 unsigned long long cli_json_write_capacity(const CliJsonTreeNodeOutCfg *args);
 // the same with `indent` spaces to a level, for a tree no deeper than CLI_JSON_PRETTY_DEPTH
 unsigned long long cli_json_pretty_capacity(const CliJsonTreeNodeOutCfg *args);
 // `length` bytes of `text` written as a JSON string, quotes about them, as serde_json escapes it
 void cli_json_quote(const CliJsonTreeTextLengthCfg *args);
-// `length` bytes written as a JSON string as cli_json_quote writes them, each byte that starts no whole UTF-8 letter
+// `length` bytes written as a JSON string as cli_json_quote writes them, each byte that starts no whole UTF-8 character
 // written as U+FFFD, as Rust's from_utf8_lossy reads it
 void cli_json_quoted_lossy(const CliJsonTreeLengthOutCfg *args);
-// A JSON string being written into `out` from a line that hands it its bytes as it fills, and the bytes of a letter
+// A JSON string being written into `out` from a line that passes it its bytes as it fills, and the bytes of a character
 // the last piece ended inside of
 typedef struct
 {
@@ -163,7 +163,7 @@ typedef struct
     unsigned int count;
 } CliJsonQuoting;
 // the string opened in `out` and `line` made a line over `piece`, sized for `piece_size`, whose every byte goes into
-// the string escaped as cli_json_quoted_lossy escapes it; and what `line` contains handed on and the string closed
+// the string escaped as cli_json_quoted_lossy escapes it; and what `line` contains passed on and the string closed
 // (json_quoting.c)
 void cli_json_quoting_begin(const CliJsonTreeOutCfg *args);
 void cli_json_quoting_end(const CliJsonTreeOutCfg *args);
@@ -171,9 +171,9 @@ void cli_json_quoting_end(const CliJsonTreeOutCfg *args);
 void cli_json_escaped_lossy(const CliJsonTreeLengthOutCfg *args);
 // `length` bytes written as cli_json_quoted_lossy reads them, with no quotes and nothing escaped
 void cli_lossy(const CliJsonTreeLengthOutCfg *args);
-// the letter at `at` of `length` bytes as cli_lossy reads it into `letter`, U+FFFD for a byte that starts no whole
-// letter: the bytes it takes
-unsigned long long cli_lossy_letter(const CliJsonTreeLengthCfg *args);
+// the character at `at` of `length` bytes as cli_lossy reads it into `character`, U+FFFD for a byte that starts no whole
+// character: the bytes it takes
+unsigned long long cli_lossy_character(const CliJsonTreeLengthCfg *args);
 // `value` written as serde_json writes a 64-bit float: the fewest digits that read back as it, `100000.0`, `-0.62`,
 // `1e-7`, `1.5e300`, and `null` where it is not finite (json_number.c)
 void cli_json_double(const CliJsonTreeOutValueCfg *args);
@@ -181,7 +181,7 @@ void cli_json_double(const CliJsonTreeOutValueCfg *args);
 // tree made: 1, or 0 with nothing written where serde_json reads them as no Value (json_compact.c)
 int cli_json_compact(const CliJsonTreeTextCfg *args);
 // where the JSON value at `at` of `size` bytes of `text`, past the spaces before it, ends: past it, or `at` where no
-// whole value stands there (json_compact.c)
+// whole value is there (json_compact.c)
 unsigned long long cli_json_value_end(const CliJsonTreeTextSizeCfg *args);
 // whether `size` bytes are UTF-8 whole, as Rust's str reads them (json_compact.c)
 int cli_utf8_valid(const CliJsonTreeSizeCfg *args);
@@ -291,7 +291,7 @@ struct CliJsonTreeLengthCfg
     unsigned long long length;
     const unsigned char *text_bytes;
     unsigned long long at;
-    unsigned int *letter;
+    unsigned int *character;
 };
 
 struct CliJsonTreeArrayCfg
@@ -642,11 +642,11 @@ EMBED_TABLE_STORAGE CliJsonTreeOutNs cli_json_tree_out EMBED_UNUSED = {
 
 typedef struct
 {
-    unsigned long long (*lossy_letter)(const CliJsonTreeLengthCfg *args);
+    unsigned long long (*lossy_character)(const CliJsonTreeLengthCfg *args);
 } CliJsonTreeLengthNs;
-EMBED_TABLE_LAYOUT(CliJsonTreeLengthNs, lossy_letter);
+EMBED_TABLE_LAYOUT(CliJsonTreeLengthNs, lossy_character);
 EMBED_TABLE_STORAGE CliJsonTreeLengthNs cli_json_tree_length EMBED_UNUSED = {
-    .lossy_letter = cli_lossy_letter,
+    .lossy_character = cli_lossy_character,
 };
 
 typedef struct

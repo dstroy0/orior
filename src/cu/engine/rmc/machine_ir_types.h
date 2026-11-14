@@ -30,7 +30,7 @@
             fixed_(SIGN_BASE, "sign_base") fixed_(INDEXED, "indexed") fixed_(ONE, "one") fixed_(OK, "ok")              \
                 fixed_(LAUNCH, "launch") fixed_(CARRY, "carry")
 
-#define OPCODE_NAMED(name_, text_, parameters_, kind_) OPCODE_##name_,
+#define OPCODE_NAMED(name_, text_, parameters_, type_) OPCODE_##name_,
 #define REGCLASS_NAMED(name_, text_) REGCLASS_##name_,
 #define PHYSREG_NAMED(name_, text_) PHYSREG_##name_,
 
@@ -50,7 +50,7 @@ enum PhysicalRegister
 };
 
 // the parameters each form takes, by its place in the schema
-#define OPCODE_PARAMETERS(name_, text_, parameters_, kind_)                                                                   \
+#define OPCODE_PARAMETERS(name_, text_, parameters_, type_)                                                                   \
     case OPCODE_##name_:                                                                                               \
         return parameters_;
 
@@ -64,7 +64,7 @@ CODEGEN_CORE unsigned int codegen_operand_count(unsigned int form)
     }
 }
 
-// the most limb products a lane unrolls a product into; a wider product is a loop over the left's limbs
+// the max limb products a lane unrolls a product into; a wider product is a loop over the left's limbs
 #define CODEGEN_PRODUCT_MAX 1024u
 
 // the state an errored lane goes to, which sends it on to its error's states, and the state the lane's opening begins
@@ -72,7 +72,7 @@ CODEGEN_CORE unsigned int codegen_operand_count(unsigned int form)
 #define SCHEDULE_STATE_DISPATCH 1u
 #define SCHEDULE_STATE_FIRST 2u
 
-// the most arguments a form a step decides takes. The program's note and its resident take more, every one of them the
+// the max arguments a form a step decides takes. The program's note and its resident take more, every one of them the
 // target's or the launch's layout, and are written from those (codegen_unit)
 #define MACHINE_INSTR_OPERANDS 4u
 
@@ -92,11 +92,11 @@ enum MachineOperandKind
     OPERAND_SIGNED = 4
 };
 
-// an argument: its kind, the bank or the fixed register it names, and its number, or its value for a number (a signed
+// an argument: its type, the bank or the fixed register it names, and its number, or its value for a number (a signed
 // number's two's complement)
 struct MachineOperand
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int which;
     unsigned int number;
 };
@@ -142,7 +142,7 @@ struct IrProgram
 };
 
 // a lane being decided: the program; the step being decided; the temporaries, 64-bit temporaries and predicates taken
-// and the most taken; the next loop's number; 1 where the step can leave the lane errored, where it reads the tables,
+// and the max taken; the next loop's number; 1 where the step can leave the lane errored, where it reads the tables,
 // and where a form breaks the lane; one past the atom word the step last read; and the sink the forms go to, the forms
 // it contains, and how many were decided, which a sink too small for them does not stop
 struct MachineFunction
@@ -187,7 +187,7 @@ struct IrStep
 // the lane's body being split into states, a clock each: each form's cost by its place in the schema, how much a state
 // may chain and how many memory writes it may make; the state being written, the cost it has chained and the writes it
 // has made, 1 where it contains a form, 1 where its last form ends it and 1 where its last form left the lane; the states,
-// the most cost one state chains, and the forms that alone cost more than a state contains; each error's label, by the
+// the max cost one state chains, and the forms that alone cost more than a state contains; each error's label, by the
 // error it names (-1 the opening's), and its first state, as many as `dispatch_max`; and each loop's first state, by
 // the loop's number, as many as `loop_count`
 struct Schedule
@@ -201,7 +201,7 @@ struct Schedule
     unsigned int filled;
     unsigned int ending;
     unsigned int left;
-    unsigned int maximum;
+    unsigned int max;
     unsigned int over;
     MachineOperand *dispatch_error;
     unsigned int *dispatch_state;

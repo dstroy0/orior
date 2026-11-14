@@ -26,7 +26,7 @@ typedef struct
     int closed;
 } CliDapQueue;
 
-// The adapter in orior, one at a time: the adapter, the requests it is handed and the messages it sends the client,
+// The adapter in orior, one at a time: the adapter, the requests it is passed and the messages it sends the client,
 // woken by their wake; what the client wrote and not yet framed whole, the head as it comes and the request its
 // length is taken for, its size and as much of it as came; what the client reads, the head that frames a message, the
 // message's token and size, and how much of the two is read; and the function that serves a request, its context,
@@ -164,7 +164,7 @@ EMBED_INLINE void within_close(const DapWithinCtx *args)
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_queue_wake);
 }
 
-// every message pushed on a queue and not popped given back, and the queue laid again, open
+// every message pushed on a queue and not popped given back, and the queue positioned again, open
 EMBED_INLINE void within_clear(const DapWithinCtx *args)
 {
     CliDapQueue *const queue = args->queue;
@@ -241,7 +241,7 @@ EMBED_INLINE int within_length(const DapWithinCtx *args)
     return has_length;
 }
 
-// the request coming whole handed to the adapter as a request, its bytes read into a cell of this call for the JSON
+// the request coming whole passed to the adapter as a request, its bytes read into a cell of this call for the JSON
 // check: 1, or 0 where it is no JSON or no more come
 static int within_request_complete(void)
 {
@@ -268,7 +268,7 @@ static int within_request_complete(void)
 }
 
 // bytes the client writes to its adapter in orior: the head of each message read to the empty line that ends it, the
-// request's cell taken for the length it gives and written as its bytes come, and handed to the adapter whole
+// request's cell taken for the length it gives and written as its bytes come, and passed to the adapter whole
 static int within_frame(const CliSinkBytesSizeCfg *args)
 {
     const void *bytes = args->bytes;
@@ -369,7 +369,7 @@ static unsigned long long within_unframed(const CliSourcePieceCapacityCfg *args)
     return count;
 }
 
-// each request handed to the adapter in impero, read into a cell of this call, until it reports it goes no further
+// each request passed to the adapter in impero, read into a cell of this call, until it reports it goes no further
 // or no more come; then the client notified no more comes from it
 static void within_serve(void *context)
 {
@@ -422,7 +422,7 @@ CliDap *cli_dap_within(const CliDapEmitCfg *args)
         return NULL;
     }
     s_within = dap;
-    // what the adapter before this one left given back, the rings laid
+    // what the adapter before this one left given back, the rings positioned
     EMBED_CALL(within_clear, DapWithinCtx, .queue = &s_incoming);
     EMBED_CALL(within_clear, DapWithinCtx, .queue = &s_outgoing);
     s_head_size = 0ULL;

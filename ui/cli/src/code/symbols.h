@@ -45,26 +45,26 @@ CliSymbolsLanguages *cli_symbols_languages_for_call(void);
 
 // whether the declarations of the file at `path` are read: whether its language is one read here
 int cli_symbols_reads(const CliSymbolsPathNameCfg *args);
-// the declarations of `size` bytes of `text`, read in the language of the file at `path`, each handed to `each`
+// the declarations of `size` bytes of `text`, read in the language of the file at `path`, each passed to `each`
 void cli_symbols_declare(const CliSymbolsPathTextSizeCfg *args);
 // How well `query` names `name`, higher the better, into `points`: the name itself first, then a name it begins, then
 // one containing it, then one whose words it starts, as `gtf` starts `go_to_file` and `goToFile`, then one containing
-// its letters in order. Case is set aside, and the shorter of two names that answer alike comes first. 1, or 0 where it
+// its characters in order. Case is set aside, and the shorter of two names that answer alike comes first. 1, or 0 where it
 // does not name it
 int cli_symbols_score(const CliSymbolsQueryCfg *args);
 // every branch forgotten, for a tree opened in place of the last
 void cli_tree_forgotten(void);
 // the tree at `root` listed, one time as it opens: every file git tracks or would track, or for a tree git cannot read
-// every file less `.git` and `target`, a branch under its closest parent, at most CLI_BRANCHES_MAX of them. Standing
-// already, it is left as it stands. Whether it is listed, without listing it; whether git listed it; and when it was
+// every file less `.git` and `target`, a branch under its closest parent, at max CLI_BRANCHES_MAX of them. Located
+// already, it is left as it is. Whether it is listed, without listing it; whether git listed it; and when it was
 // last listed, in milliseconds
 void cli_tree_list(const CliSymbolsContextCfg *args);
 int cli_tree_is_list(const CliSymbolsRootCfg *args);
 int cli_tree_git(void);
 unsigned long long cli_tree_listing_at(void);
-// the files of the tree standing, how many and the bytes of their paths with their ends; the next file at or past
+// the files of the tree located, how many and the bytes of their paths with their ends; the next file at or past
 // `*at`, from 0, its path into `path`, sized for CLI_PATH_MAX_LEN, `*at` moved past it: 1, or 0 past the last; and
-// whether a branch of the listed tree stands at `path`, a file and a folder
+// whether a branch of the listed tree is at `path`, a file and a folder
 void cli_tree_files_count(const CliSymbolsCountCfg *args);
 int cli_tree_next_file(const CliSymbolsAtCfg *args);
 int cli_tree_has_file(const CliSymbolsPathNameCfg *args);
@@ -76,9 +76,9 @@ typedef void (*CliTreeChange)(const CliEachPathTypeCfg *args);
 // left with nothing under it let go in turn
 void cli_tree_mirror(const CliSymbolsRootCfg *args);
 // the tree at `root` listed again, as a listing's rules change or changes were lost: each file now listed joined and
-// each no longer listed let go, each handed to `emit` where it is given, every other branch left as it stands
+// each no longer listed let go, each passed to `emit` where it is given, every other branch left as it is
 void cli_tree_relist(const CliSymbolsContextCfg *args);
-// each file of the tree stamped where nothing reports its changes, each stamp that moved handed to `emit`
+// each file of the tree stamped where nothing reports its changes, each stamp that moved passed to `emit`
 void cli_tree_stamp(const CliSymbolsContextCfg *args);
 // the tree's branches walked on a thread of its own, one time as it opens, and again only over a mount added or taken
 void cli_tree_on_walk(const CliSymbolsRootCfg *args);
@@ -90,7 +90,7 @@ int cli_tree_walk_progress(const CliSymbolsDoneCfg *args);
 void cli_tree_walk_stop(void);
 // whether the tree's files are being read for the first time
 int cli_tree_unwalked(void);
-// the declarations whose names answer `query`, at most `most` of them, the best first, written as `{"symbols":
+// the declarations whose names answer `query`, at max `max` of them, the best first, written as `{"symbols":
 // [{"name", "type", "path", "line", "text"}...], "reading"}`, `text` the declaration's own line trimmed, read from
 // its file as the answer is written
 typedef struct
@@ -109,62 +109,62 @@ typedef struct
     CliFoundDeclaration *found;
 } CliFoundDeclarations;
 CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *args);
-// the signature of the call the cursor stands in at `line`, `col` in UTF-16 units of `size` bytes of `text`, the lines
-// the page hands from the file at `path`, the first starting in its grammar's `state`: written as `{"name", "active",
+// the signature of the call the cursor is in at `line`, `col` in UTF-16 units of `size` bytes of `text`, the lines
+// the page passes from the file at `path`, the first starting in its grammar's `state`: written as `{"name", "active",
 // "arguments": [{"text", "type"}], "declarations": [{"path", "line", "label", "params": [[from, to]], "types",
 // "count", "variadic", "differs"}], "reading"}`, the declarations every one of the call's name in the tree in order of
-// fit, or as `null` where the cursor stands in no call or the file's language is none read here: 1, or 0 with why
+// fit, or as `null` where the cursor is in no call or the file's language is none read here: 1, or 0 with why
 // given where the cells cannot meet it; and the first declaration the call may be of written into `store` as a panel
-// with the call's parameter and those the arguments differ from: 1, or 0 where the cursor stands in no call, no
+// with the call's parameter and those the arguments differ from: 1, or 0 where the cursor is in no call, no
 // declaration is known or the cells cannot meet the reading, with why given (symbols_signature.c)
 int cli_symbols_signature_read(const CliSymbolsPathTextSizeOutCfg *args);
-// the line of no branch, a bracket the slice closes; what each line of a slice is handed to: the path of the branch it
+// the line of no branch, a bracket the slice closes; what each line of a slice is passed to: the path of the branch it
 // came from, NULL for none, its line there, CLI_SLICE_NOWHERE for none, and its text, `length` bytes; and the same
-// slice handed to `each` a line at a time in place of being written (symbols_slice.c)
+// slice passed to `each` a line at a time in place of being written (symbols_slice.c)
 #define CLI_SLICE_NOWHERE 0xffffffffu
 typedef void (*CliSliceLine)(const CliSliceLineCfg *args);
 int cli_symbols_slice_each(const CliSymbolsPathCfg *args);
-// what each window of a branch's slices is handed to once its slice's lines are: its first and last lines and the lines
-// opening the regions its first stands in, outermost first, and how many: 1 to cut the next, 0 to stop; and the branch
+// what each window of a branch's slices is passed to once its slice's lines are: its first and last lines and the lines
+// opening the regions its first is in, outermost first, and how many: 1 to cut the next, 0 to stop; and the branch
 // at `path`, `size` bytes of `text`, cut in one walk of it into the slices of its windows, `height` lines each from its
 // first line, each window that holds a leaf cut as the walk reaches it, its openers read off the brackets of the active
-// lines above it, its slice handed to `each` a line at a time and then to `window`: 1, or 0 with why given where the
+// lines above it, its slice passed to `each` a line at a time and then to `window`: 1, or 0 with why given where the
 // cells cannot meet the walk (symbols_slice.c)
 typedef int (*CliSliceWindow)(const CliSliceWindowCfg *args);
 int cli_symbols_slices_each(const CliSymbolsPathTextSizeContextErrMsgCfg *args);
 
-// one usage of a name: the tree's file it stands in, by its path in the tree, its line counted from 0, its span from
+// one usage of a name: the tree's file it is in, by its path in the tree, its line counted from 0, its span from
 // `from` to `to` in UTF-16 units, and its line's text, `length` bytes; and the text the editor holds of the tree's file
 // at `path`, in a cell the caller gives back with g_cli_guard->persistent_buf_release, its size into `size`, NULL where
 // the editor holds none
 typedef void (*CliUsage)(const CliUsageCfg *args);
 typedef char *(*CliOpenText)(const CliOpenTextCfg *args);
-// the usages of the name at `line`, `col` in UTF-16 units of the tree's file at `path`, each handed to `each`, the
+// the usages of the name at `line`, `col` in UTF-16 units of the tree's file at `path`, each passed to `each`, the
 // place's own among them, each file's text the one `open_text` gives, else the disk's: a local's or a parameter's, the
 // leaves of its name in the region of the function that declares it; any other name's, the leaves of it whose
 // definition in effect is the one at the place, in the file at `path` alone where `across` is 0, else in every file of
-// the tree. 1, or 0 where the place names no name or the tree knows no definition of it, nothing handed on, or -1 with
+// the tree. 1, or 0 where the place names no name or the tree knows no definition of it, nothing passed on, or -1 with
 // why given where the cells cannot meet it (symbols_usages.c)
 int cli_symbols_usages(const CliSymbolsPathContextCfg *args);
-// the definition in effect of the name at `line`, `col` in UTF-16 units of the tree's file at `path`, handed to `each`
+// the definition in effect of the name at `line`, `col` in UTF-16 units of the tree's file at `path`, passed to `each`
 // as a usage: a local's or a parameter's first leaf in the region of the function that declares it, any other name's
 // leaf on the line of the define in effect or of the first declaration the walk met, in that declaration's file, each
 // file's text the one `open_text` gives. 1, or 0 where the place names no name or the tree knows no definition of it,
-// as for a define the compile database gives, nothing handed on, or -1 with why given (symbols_usages.c)
+// as for a define the compile database gives, nothing passed on, or -1 with why given (symbols_usages.c)
 int cli_symbols_definition(const CliSymbolsPathContextCfg *args);
 // the names that complete the word that ends at `line`, `col` in UTF-16 units of `size` bytes of `text`, the editor's
-// text of the tree's file at `path`, each handed to `each` once with what it is and the line it is declared on, in its
+// text of the tree's file at `path`, each passed to `each` once with what it is and the line it is declared on, in its
 // own file: every define in effect at the line, then every declaration a walk of the file to the line met in an active
-// region, then the parameters and the locals above the place of the function it stands in, each that begins with the
+// region, then the parameters and the locals above the place of the function it is in, each that begins with the
 // word, the whole of each where no word ends there; a define the compilation database gives on line 0xffffffff. 1, or
 // 0 with why given where the cells cannot meet the walk (symbols_complete.c)
 int cli_symbols_complete(const CliSymbolsPathTextSizeCfg *args);
-// one hint: the line and the column in UTF-16 units it stands before, and the name of the parameter the argument there
+// one hint: the line and the column in UTF-16 units it is before, and the name of the parameter the argument there
 // is given to, `length` bytes
 typedef void (*CliHinted)(const CliHintedCfg *args);
 // the hints on the lines `from` to `to` of `size` bytes of `text`, the editor's text of the tree's file at `path`: at
 // each call there, before each argument, the name of the parameter of the call's definition in effect it is given to,
-// where that parameter has a name and the argument is not that name alone, each handed to `each` in the order of the
+// where that parameter has a name and the argument is not that name alone, each passed to `each` in the order of the
 // text. 1, or 0 with why given where the cells cannot meet it (symbols_hints.c)
 int cli_symbols_hints(const CliSymbolsPathTextSizeContextCfg *args);
 // a place in a file: its line counted from 0 and its column in UTF-16 units
@@ -191,11 +191,11 @@ typedef struct
 // lead there, `count` of them
 typedef void (*CliCallReached)(const CliCallReachedCfg *args);
 // the call hierarchy over the tree's files, each file's text the one `open_text` gives, else the disk's: the function
-// of the tree's file at `path` whose name or body stands on line `line`, handed to `each` with no calls; the functions
-// that call the function whose name stands on that line, each with the places of its calls of it in its file, a call a
+// of the tree's file at `path` whose name or body is on line `line`, passed to `each` with no calls; the functions
+// that call the function whose name is on that line, each with the places of its calls of it in its file, a call a
 // usage of the name a bracket `(` follows; and the functions it calls, each the definition in effect of a call in its
 // body, with the places of those calls in it. A function is a region its bracket `{` opens at no depth whose head
-// holds a bracket `(` after a leaf that declares its name. Each 1, 0 where no function stands there, or -1 with why
+// holds a bracket `(` after a leaf that declares its name. Each 1, 0 where no function is there, or -1 with why
 // given (symbols_calls.c)
 int cli_symbols_function_at(const CliSymbolsPathContextLineCfg *args);
 int cli_symbols_callers(const CliSymbolsPathContextLineCfg *args);
@@ -210,16 +210,16 @@ typedef struct
 // one span Expand Selection steps through, from `from` to `to`
 typedef void (*CliSpanned)(const CliSpannedCfg *args);
 // the spans of `size` bytes of `text`, the editor's text of the tree's file at `path`, that hold `from` to `to` and are
-// more than it, each handed to `each` once, the least first: the leaf the place stands in, each bracket pair around
-// it, inside its brackets and with them, the statement it stands in among a region's, each region with its head, and
+// more than it, each passed to `each` once, the least first: the leaf the place is in, each bracket pair around
+// it, inside its brackets and with them, the statement it is in among a region's, each region with its head, and
 // the whole text; each read by the roles its grammar names. 1, or 0 with why given where the cells cannot meet them
 // (symbols_spans.c)
 int cli_symbols_spans(const CliSymbolsPathTextSizeContextErrMsgFromSymbolPositionCfg *args);
 // the bracket pair at `at` in `size` bytes of `text`, the editor's text of the tree's file at `path`, the first line
 // starting in its grammar's `state`: the bracket that ends at the place, else the one that starts at it, into `pair[0]`
 // and the bracket it pairs with into `pair[1]`, each a leaf that opens or closes by the roles its grammar names and
-// neither a string's nor a comment's, paired as the spans pair them: 1, or 0 where no bracket of a pair stands there,
-// a pair a mark of no letters closes none, or the cells cannot meet the text's leaves (symbols_spans.c)
+// neither a string's nor a comment's, paired as the spans pair them: 1, or 0 where no bracket of a pair is there,
+// a pair a mark of no characters closes none, or the cells cannot meet the text's leaves (symbols_spans.c)
 int cli_symbols_pair(const CliSymbolsPathTextSizeStateCfg *args);
 // the roles a token's name gives it as a text is walked, read off its segments as a leaf's are: it opens a region, it
 // closes one, or it closes a bracket pair, ends a statement or parts one; it is a bare name, nothing more; it declares
@@ -388,7 +388,7 @@ struct CliSymbolsRootCfg
 struct CliSymbolsQueryMaxCfg
 {
     const char *query;
-    unsigned int most;
+    unsigned int max;
     const CellOwner *owner;
 };
 
@@ -600,13 +600,13 @@ EMBED_TABLE_STORAGE CliSymbolsPathTextSizeStateNs cli_symbols_path_text_size_sta
     .pair = cli_symbols_pair,
 };
 
-// The outline, the declarations of the view shown as rows (symbols_outline.c): a row is a declaration's name, `length`
-// bytes, what it is, its line counted from 0, and how deep it stands, its line's indent in steps of the text's smallest
-// indent, no deeper than CLI_OUTLINE_DEEPEST. A text longer than CLI_OUTLINE_LINES_MOST lines has no rows, and at most
+// The outline, the declarations of the view displayed as rows (symbols_outline.c): a row is a declaration's name, `length`
+// bytes, what it is, its line counted from 0, and how deep it is, its line's indent in steps of the text's smallest
+// indent, no deeper than CLI_OUTLINE_DEEPEST. A text longer than CLI_OUTLINE_LINES_MAX lines has no rows, and at max
 // CLI_OUTLINE_ROWS are read
 #define CLI_OUTLINE_DEEPEST 5u
 #define CLI_OUTLINE_ROWS 4096u
-#define CLI_OUTLINE_LINES_MOST 50000ULL
+#define CLI_OUTLINE_LINES_MAX 50000ULL
 typedef struct
 {
     char name[CLI_PATH_MAX_LEN];
@@ -618,7 +618,7 @@ typedef struct
 typedef struct CliOutlineCfg CliOutlineCfg;
 
 // the outline read anew of the text under `key`, the file at `path`, in the language of the path, its rows in the order
-// of their lines; none where `key` is NULL or no text read whole stands under it
+// of their lines; none where `key` is NULL or no text read whole is under it
 void cli_outline_read(const CliOutlineCfg *args);
 // how many rows the outline has; and the row `at` into `row`: 1, or 0 past the last
 unsigned int cli_outline_rows(const CliOutlineCfg *args);

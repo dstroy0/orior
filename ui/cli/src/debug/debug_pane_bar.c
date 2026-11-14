@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // debug_pane_bar.c: the Debug pane's bar and field. The bar's steps, each with the state it acts in: Continue and the
 // steps forward while the session followed is stopped, Pause while it runs, the steps backward while it is stopped and
-// steps back, and shown only for a session that steps back, Restart once a start is remembered, Stop while a session
+// steps back, and displayed only for a session that steps back, Restart once a start is remembered, Stop while a session
 // is followed; each run on the stopped thread, a Python session's Step Into through the step across. The field takes
 // a watch's expression in Variables and an expression to evaluate in the chosen frame in Console
 #include "debug_internal.h"
@@ -81,8 +81,8 @@ void cli_debug_pane_bar_settle(const CliDebugPaneCtx *args)
             break;
         }
         g_cli_debug_pane.enabled[at] = enabled ? 1u : 0u;
-        // the steps backward are shown only for a session that takes them
-        g_cli_debug_pane.shown[at] =
+        // the steps backward are displayed only for a session that takes them
+        g_cli_debug_pane.displayed[at] =
             ((s_steps[at].need != BAR_BACK) || (session && g_cli_debug_pane.step_back)) ? 1u : 0u;
     }
 }
@@ -100,7 +100,7 @@ int cli_debug_pane_item(const CliDebugPaneBarCfg *args)
                                     step->command,
                                     step->keys,
                                     g_cli_debug_pane.enabled[args->at],
-                                    g_cli_debug_pane.shown[args->at]};
+                                    g_cli_debug_pane.displayed[args->at]};
     return 1;
 }
 
@@ -215,7 +215,7 @@ void cli_debug_pane_status(const CliDebugPaneBarCfg *args)
         (CliDebugPaneStatus){g_cli_debug_pane.status, g_cli_debug_pane.status_length, g_cli_debug_pane.status_failed};
 }
 
-// the field's text of the view shown, NULL where the view has no field
+// the field's text of the view displayed, NULL where the view has no field
 EMBED_INLINE CliTyped *bar_typed(const DebugPaneBarCtx *args)
 {
     (void)args;
@@ -257,7 +257,7 @@ void cli_debug_pane_type(const CliDebugPaneInputCfg *args)
         return;
     }
     EMBED_CALL(cli_typed.put, CliTypedCfg, .typed = typed, .text = args->text, .size = args->size,
-               .most = CLI_DEBUG_FIELD_MAX, .owner = g_cli_debug_pane_owner);
+               .max = CLI_DEBUG_FIELD_MAX, .owner = g_cli_debug_pane_owner);
 }
 
 // an expression evaluated in the chosen frame, or with no frame where the session runs, written to the console: the

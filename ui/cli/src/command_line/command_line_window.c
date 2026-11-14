@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // command_line_window.c: the command line of the window's program and the tree the window opens on: the command line
 // run first and the window it leaves to open recorded, the machine's own programs reached from inside a sandbox, every
-// process the window starts contained under it, the tree found, the door opened and the tree watched, and the
+// process the window starts contained under it, the tree found, the interface opened and the tree watched, and the
 // servers, sessions and processes ended as the window ends. A batch the watch takes is noted among the tree's runs,
-// walked into the tree's branches and handed to the servers on the watch's own thread, which takes the next batch once
-// they are done. A file git leaves out, as a build's output is, is shown in the tree and not checked
+// walked into the tree's branches and passed to the servers on the watch's own thread, which takes the next batch once
+// they are done. A file git leaves out, as a build's output is, is displayed in the tree and not checked
 #include "../text/sort.h"
 #include "command_line.h"
 
@@ -80,7 +80,7 @@ static int window_path_order(const void *one, const void *other)
 }
 
 // on the watch's thread: each file written noted among the tree's runs, a lost batch marked for them; the files in
-// order, each once, those git leaves out passed over, walked into the tree's branches and handed to the servers and
+// order, each once, those git leaves out passed over, walked into the tree's branches and passed to the servers and
 // the tree's check
 static void window_watch_take(const CliWatchBatchCfg *args)
 {
@@ -151,7 +151,7 @@ void cli_command_line_tree_begin(void (*woken)(void))
     {
         EMBED_CALL(window_err, CliCommandLineWindowCtx, .err_msg = &err_msg);
     }
-    // every process the window starts stands under it, and ends with it
+    // every process the window starts is under it, and ends with it
     (void)cli_container_init();
     char found[CLI_PATH_MAX_LEN];
     const char *root = NULL;

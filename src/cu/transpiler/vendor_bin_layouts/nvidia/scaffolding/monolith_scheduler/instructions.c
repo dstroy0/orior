@@ -175,11 +175,11 @@ void scheduler_instruction(const unsigned char *bytes, unsigned long long addres
     // a logic over predicates writes predicates alone, and an operation that leaves the straight line reads its
     // register
     unsigned int written = 0u;
-    while ((written < parts.operands) && (parts.kind[written] == SASS_OPERAND_PREDICATE))
+    while ((written < parts.operands) && (parts.type[written] == SASS_OPERAND_PREDICATE))
     {
         written += 1u;
     }
-    const int writes_register = (written < parts.operands) && (parts.kind[written] == SASS_OPERAND_REGISTER) &&
+    const int writes_register = (written < parts.operands) && (parts.type[written] == SASS_OPERAND_REGISTER) &&
                                 !instruction->control && !scheduler_predicates_only(parts.operation);
     if (writes_register && (strcmp(parts.operand[written], "RZ") != 0))
     {

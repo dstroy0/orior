@@ -19,7 +19,7 @@
 import re
 
 # A pattern and the fault it suspects. Each one is a shape English does not make, which is what lets
-# a list this short stand in for reading every edited line.
+# a list this short are in for reading every edited line.
 HOLE = (
     (re.compile(r"\bis the (to|that|which|whose|who)\b"), "article with no noun"),
     (re.compile(r"\bthe (whose|which|that) \w+ing\b"), "article with no noun"),
@@ -31,7 +31,7 @@ HOLE = (
     (re.compile(r"\b(instead|rather) (of|than) (of|than)\b"), "doubled hinge"),
     (re.compile(r"\bThat is\s*[.]"), "pronoun with no predicate"),
     (re.compile(r"[a-z]\s+[.]\s"), "space before a full stop"),
-    # The hinge wants a noun or a gerund after it. A bare infinitive there is the verb left standing
+    # The hinge wants a noun or a gerund after it. A bare infinitive there is the verb left located
     # where its subject came out.
     (re.compile(r"\binstead of (report|draw|write|render|pick|assume|sample|support|place|count"
                 r"|replace|start|sign|generate|carry|return)\b"), "bare verb after the hinge"),

@@ -8,8 +8,8 @@
 #            text, the two the same
 #   raw      a table raw and decoded is the same rows, by the same keys in the same order
 #   range    --from and --count select the row of a key, and --from and --to the rows from one key through another
-#   texts    a text the run numbers stands in its table once, decoded to its bytes
-#   queries  a k-file's table opens with its head, the kind and the file's name, and a record put is named by its
+#   texts    a text the run numbers is in its table once, decoded to its bytes
+#   queries  a k-file's table opens with its head, the type and the file's name, and a record put is named by its
 #            format's oracle
 #   links    a link a file's write makes is from the blob of the file's bytes
 #   bare     a table with no oracle and no head is given raw, decoded or not
@@ -72,7 +72,7 @@ check_that $? "range: a range whose first key is past its last holds no row"
 # texts
 said="$(bash "$KDECODE" --table texts "$RUN" | grep -cF ' a text the check numbers twice]')"
 [ "$said" -eq 1 ]
-check_that $? "texts: a text the rows check numbers twice stands in the table once, decoded to its bytes"
+check_that $? "texts: a text the rows check numbers twice is in the table once, decoded to its bytes"
 
 # blob: every blob of a name printed whole after a line of its sequence, name and size, and the latest alone
 blobs="$(bash "$KDECODE" --blob texts "$RUN")"
@@ -85,7 +85,7 @@ check_that $? "blob: the texts blobs are printed whole, each after its head line
 queries="$(bash "$KDECODE" --table queries "$RUN")"
 head_row="$(lines "$queries" | sed -n 1p)"
 [ "$(lines "$head_row" | cut -d' ' -f2-5)" = "head KQR 1 build/engine/kqr_check.kqr" ]
-check_that $? "queries: the table opens with the head of R's file, its kind, its version and its name"
+check_that $? "queries: the table opens with the head of R's file, its type, its version and its name"
 lines "$queries" | grep -qE '^[0-9]+ put [0-9]+ [0-9a-f]+ (kqr|cycle|seed|round|query|sample|pair|comment) '
 check_that $? "queries: a record put is named by its format's oracle"
 

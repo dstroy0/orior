@@ -3,22 +3,22 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: EXP-x-001
 #
-# The Bloom filter shown to be the orior's theorem in another field, and its floor measured
+# The Bloom filter displayed to be the orior's theorem in another field, and its floor measured
 # and not assumed.
 #
 #   Usage:  python examples/0_experimental/bloom_is_the_sift_theorem.py
 #
-# This reads no corpus. It sits in 0_experimental: it is an algorithm shown working instead of a stage
+# This reads no corpus. It sits in 0_experimental: it is an algorithm displayed working instead of a stage
 # reading. When a Bloom filter runs over an actual corpus with its false-positive rate measured against
 # a drawn null it graduates to any_corpus/5_sift; until then it is an idea that works.
 #
-# Two things are shown. First, the theorem: a Bloom filter never reports a member absent, for any choice
+# Two things are displayed. First, the theorem: a Bloom filter never reports a member absent, for any choice
 # of hashes, and only the false-positive COST moves with the choice. That is the anchor cascade's own
 # result -- a necessary condition loses no true occurrence whatever rule selects it, and the rule moves
 # only how many false candidates survive -- so the two are one object. Second, the honest measurement:
 # the false-positive rate is not quoted from the formula, it is measured over items the filter never
 # saw, and it is measured over STRUCTURED items and uniform ones both, because a filter that matches its
-# formula on uniform data has shown you the formula and not the data.
+# formula on uniform data has displayed you the formula and not the data.
 #
 # No bounding: the table size and the hash count are declared inputs, printed with every reading. The
 # false-positive rate is a consequence of them, reported beside the formula's exact rational
@@ -50,7 +50,7 @@ def formula_rate(bits, hashes, count):
     """The textbook false-positive rate, computed exactly as a rational instead of a float.
 
     One minus the chance a given bit is still zero after every insertion, raised to the hash count.
-    The exact form keeps this a prediction to compare the measurement against, with no rounding of its
+    The exact form retains this a prediction to compare the measurement against, with no rounding of its
     own to hide behind.
     """
     zero_bit = Fraction(bits - 1, bits) ** (hashes * count)

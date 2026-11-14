@@ -29,7 +29,7 @@ static std::vector<std::regex> form_links(const std::string &text)
         }
         std::string pattern;
         static const std::regex s_special("[.^$|()\\[\\]*+?\\\\]");
-        const std::string escaped = std::regex_replace(link.kind, s_special, "\\$&");
+        const std::string escaped = std::regex_replace(link.type, s_special, "\\$&");
         // an offset added to an address is not written where it is 0: the parameter after a + is there or not
         static const std::regex s_offset("\\\\\\+\\{[a-z_]+\\}");
         static const std::regex s_parameter("\\{[a-z_]+\\}(\\\\\\.hi)?");
@@ -59,7 +59,7 @@ int forms_read(int count, char **files, std::vector<std::pair<std::string, std::
         for (unsigned int at = 0u; at < set.relations.entry_count; at += 1u)
         {
             const RulesetCoreEntry *const entry = &set.relations.entries[at];
-            if (entry->kind != RULESET_CORE_ENTRY_FORM)
+            if (entry->type != RULESET_CORE_ENTRY_FORM)
             {
                 continue;
             }
@@ -96,15 +96,15 @@ int forms_read(int count, char **files, std::vector<std::pair<std::string, std::
     return 1;
 }
 
-// the names of the forms whose texts write `kind`, joined by spaces, or - where none does
+// the names of the forms whose texts write `type`, joined by spaces, or - where none does
 std::string forms_writing(const std::vector<std::pair<std::string, std::vector<std::regex>>> &forms,
-                                 const std::string &kind)
+                                 const std::string &type)
 {
     std::string names;
     for (const auto &form : forms)
     {
         if (std::any_of(form.second.begin(), form.second.end(),
-                        [&](const std::regex &one) { return std::regex_match(kind, one); }))
+                        [&](const std::regex &one) { return std::regex_match(type, one); }))
         {
             names += (names.empty() ? "" : " ") + form.first;
         }
@@ -180,7 +180,7 @@ static int member_before(const Member &one, const Member &other)
     return std::stoull(one.position, nullptr, 16) < std::stoull(other.position, nullptr, 16);
 }
 
-// 1 where `one` sits before `other`: contention defers to the most basal member of each, then to the other member
+// 1 where `one` sits before `other`: contention defers to the max basal member of each, then to the other member
 static bool carrier_before(const Carrier &one, const Carrier &other)
 {
     const int one_swapped = member_before(one.second, one.first);
@@ -217,7 +217,7 @@ int identity_read(const std::string &folder, const std::string &klq, int count, 
         }
     }
     // members the same make the identity the same, and the carriers of one identity are distinguished by address: the
-    // position of each in the chain, the most basal member first
+    // position of each in the chain, the max basal member first
     std::map<std::string, std::vector<Carrier>> carried;
     std::istringstream sliced(run_blob_text("slices.txt"));
     while (std::getline(sliced, line))
@@ -239,7 +239,7 @@ int identity_read(const std::string &folder, const std::string &klq, int count, 
         return 1;
     }
     std::vector<std::pair<std::string, std::vector<Carrier>>> addressed;
-    // the most basal member writes an identity's first link
+    // the max basal member writes an identity's first link
     for (auto &identity : carried)
     {
         std::sort(identity.second.begin(), identity.second.end(), carrier_before);
@@ -287,7 +287,7 @@ int identity_read(const std::string &folder, const std::string &klq, int count, 
     {
         const size_t tab = identity.first.find('\t');
         const std::string sides[2] = {identity.first.substr(0u, tab), identity.first.substr(tab + 1u)};
-        // an identity's address is its most basal carrier's
+        // an identity's address is its max basal carrier's
         run_print(&file, "slice_identity %s\nfirst %s\nsecond %s\n", carrier_text(identity.second[0]).c_str(),
                   sides[0].c_str(), sides[1].c_str());
         number += 1u;
@@ -312,7 +312,7 @@ int identity_read(const std::string &folder, const std::string &klq, int count, 
                 }
             }
         }
-        // the carriers of one identity, gathered by context in the order of their most basal carrier: each context the
+        // the carriers of one identity, gathered by context in the order of their max basal carrier: each context the
         // same members in one place of the grammar, with a verdict of its own
         std::vector<std::pair<std::string, std::vector<const Carrier *>>> placed;
         for (const Carrier &slice : identity.second)
@@ -383,7 +383,7 @@ int identity_read(const std::string &folder, const std::string &klq, int count, 
     return 0;
 }
 
-// the files `given` names, a folder standing for every .dis file in it by name: a folder of the engine's writing of the
+// the files `given` names, a folder located for every .dis file in it by name: a folder of the engine's writing of the
 // stick contains more files than one command line can name
 std::vector<std::string> candidate_paths(const std::vector<std::string> &given)
 {

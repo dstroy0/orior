@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // debug.c: the Debug pane at the work's foot: its head, the bar's steps with the status line, the views' choices and
-// the field, and its rows, each laid from what the debug module answers and nothing composed here
+// the field, and its rows, each positioned from what the debug module answers and nothing composed here
 #include "debug.h"
 
 #include "../../../includes/window/icons.h"
@@ -37,7 +37,7 @@ EMBED_INLINE GuiRect debug_field_rect(const DebugCtx *args)
     return EMBED_CALL(gui_pane_field.field_rect, GuiPaneFieldCfg, .pane = args->pane, .y = views.y + views.height);
 }
 
-// the box of the bar's step `at`, after the boxes of the steps shown before it; an empty box for a step not shown
+// the box of the bar's step `at`, after the boxes of the steps displayed before it; an empty box for a step not displayed
 EMBED_INLINE GuiRect debug_step_rect(const DebugCtx *args)
 {
     const GuiPaneCfg *const pane = args->pane;
@@ -50,7 +50,7 @@ EMBED_INLINE GuiRect debug_step_rect(const DebugCtx *args)
     for (unsigned int each = 0u; each <= args->at; each += 1u)
     {
         CliDebugBarItem item;
-        if (!EMBED_CALL(cli_debug_pane_bar.item, CliDebugPaneBarCfg, .at = each, .item = &item) || !item.shown)
+        if (!EMBED_CALL(cli_debug_pane_bar.item, CliDebugPaneBarCfg, .at = each, .item = &item) || !item.displayed)
         {
             if (each == args->at)
             {
@@ -79,14 +79,14 @@ static int debug_head(const GuiPaneCfg *args)
     return GUI_PANE_CHOICE + GUI_PANE_CHOICE + GUI_PANE_BOX;
 }
 
-// the bar's step `at` drawn in its box: on the hover's ground where the pointer stands on it, its icon where the icons
+// the bar's step `at` drawn in its box: on the hover's ground where the pointer is on it, its icon where the icons
 // carry one and else its label, quieter where it cannot act
 EMBED_INLINE void debug_step_draw(const DebugCtx *args)
 {
     const GuiPaneCfg *const pane = args->pane;
     const GuiPalette *const palette = pane->palette;
     CliDebugBarItem item;
-    if (!EMBED_CALL(cli_debug_pane_bar.item, CliDebugPaneBarCfg, .at = args->at, .item = &item) || !item.shown)
+    if (!EMBED_CALL(cli_debug_pane_bar.item, CliDebugPaneBarCfg, .at = args->at, .item = &item) || !item.displayed)
     {
         return;
     }
@@ -118,8 +118,8 @@ EMBED_INLINE void debug_step_draw(const DebugCtx *args)
                      .text = item.label, .length = item.label_length, .color = color, .clip = box);
 }
 
-// the head drawn: the bar's steps, the status line after the last shown, the views' choices with the one shown lit,
-// and the field of the view shown with its text or its placeholder
+// the head drawn: the bar's steps, the status line after the last displayed, the views' choices with the one displayed lit,
+// and the field of the view displayed with its text or its placeholder
 static void debug_head_draw(const GuiPaneCfg *args)
 {
     const GuiPalette *const palette = args->palette;
@@ -139,7 +139,7 @@ static void debug_head_draw(const GuiPaneCfg *args)
                      .size = GUI_DEBUG_STATUS_SIZE, .x_f32 = (float)status_x, .text = status.text,
                      .length = status.length, .color = status.failed ? palette->mark[0] : palette->text_3,
                      .clip = (GuiRect){status_x, bar.y, bar.x + bar.width - status_x, bar.height});
-    const unsigned int shown = EMBED_CALL(cli_debug_pane_view.view, CliDebugPaneViewCfg, .at = 0u);
+    const unsigned int displayed = EMBED_CALL(cli_debug_pane_view.view, CliDebugPaneViewCfg, .at = 0u);
     for (unsigned int view = 0u; view < CLI_DEBUG_VIEWS; view += 1u)
     {
         unsigned long long length = 0ULL;
@@ -148,11 +148,11 @@ static void debug_head_draw(const GuiPaneCfg *args)
         EMBED_CALL(gui_pane_field.choice_draw, GuiPaneFieldCfg, .pane = args,
                    .rect = EMBED_CALL(debug_view_rect, DebugCtx, .pane = args, .at = view), .text = label,
                    .length = length,
-                   .pointed = (view == shown) || (args->pane_read->action == (GUI_DEBUG_VIEW_FIRST + view)));
+                   .pointed = (view == displayed) || (args->pane_read->action == (GUI_DEBUG_VIEW_FIRST + view)));
     }
     CliDebugPaneField field;
     EMBED_CALL(cli_debug_pane_input.field, CliDebugPaneInputCfg, .field_out = &field);
-    if (field.shown)
+    if (field.displayed)
     {
         const GuiRect rect = EMBED_CALL(debug_field_rect, DebugCtx, .pane = args);
         EMBED_CALL(gui_pane_field.field_draw, GuiPaneFieldCfg, .pane = args, .rect = rect, .right = rect.x + rect.width,
@@ -161,13 +161,13 @@ static void debug_head_draw(const GuiPaneCfg *args)
     }
 }
 
-// the action at x, y: the field where the view shown has one and the pixel stands in it, a view's choice, or a step
-// shown
+// the action at x, y: the field where the view displayed has one and the pixel is in it, a view's choice, or a step
+// displayed
 static unsigned int debug_head_hit(const GuiPaneCfg *args)
 {
     CliDebugPaneField field;
     EMBED_CALL(cli_debug_pane_input.field, CliDebugPaneInputCfg, .field_out = &field);
-    if (field.shown &&
+    if (field.displayed &&
         EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
                    .rect = EMBED_CALL(debug_field_rect, DebugCtx, .pane = args), .x = args->x, .y = args->y))
     {
@@ -387,7 +387,7 @@ static int debug_press(const GuiPaneCfg *args)
                                     .pane_read = args->pane_read, .row = args->row);
     const int pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_PANE_PAD_LEFT);
     const int guide = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_PANE_GUIDE);
-    // the depth is at most CLI_DEBUG_DEPTH guides, far inside an int; the arrow and a watch's box stand in the guide
+    // the depth is at max CLI_DEBUG_DEPTH guides, far inside an int; the arrow and a watch's box are in the guide
     // after the row's own
     const int reach = rect.x + pad + (((int)row.depth + 1) * guide);
     if ((args->x < reach) && (row.opens || (row.type == CLI_DEBUG_ROW_WATCH)))
@@ -398,7 +398,7 @@ static int debug_press(const GuiPaneCfg *args)
     return 0;
 }
 
-// text typed goes into the field of the view shown
+// text typed goes into the field of the view displayed
 static int debug_text(const GuiPaneCfg *args)
 {
     EMBED_CALL(cli_debug_pane_input.type, CliDebugPaneInputCfg, .text = args->text, .size = args->length);

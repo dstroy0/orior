@@ -117,35 +117,35 @@ void bitwise_run(BitwiseLoaded *loaded, const unsigned int *atoms, unsigned int 
 }
 
 // raw two's complement bits for one field, in an edge case picked by `pattern`: random bits, zero, all ones (-1), the
-// top bit alone (the most negative), all but the top bit (the most positive), one, or random under a set top bit
+// top bit alone (the max negative), all but the top bit (the max positive), one, or random under a set top bit
 void bitwise_field_fill(unsigned int *atom, unsigned int offset, unsigned int bits, unsigned int pattern)
 {
-    const unsigned int kind = pattern % 7u;
+    const unsigned int type = pattern % 7u;
     for (unsigned int bit = 0u; bit < bits; bit += 1u)
     {
         const unsigned int top = (bit == (bits - 1u)) ? 1u : 0u;
         unsigned int bit_value = bitwise_random() & 1u;
-        if (kind == 1u)
+        if (type == 1u)
         {
             bit_value = 0u;
         }
-        else if (kind == 2u)
+        else if (type == 2u)
         {
             bit_value = 1u;
         }
-        else if (kind == 3u)
+        else if (type == 3u)
         {
             bit_value = top;
         }
-        else if (kind == 4u)
+        else if (type == 4u)
         {
             bit_value = top ^ 1u;
         }
-        else if (kind == 5u)
+        else if (type == 5u)
         {
             bit_value = (bit == 0u) ? 1u : 0u;
         }
-        else if ((kind == 6u) && (top != 0u))
+        else if ((type == 6u) && (top != 0u))
         {
             bit_value = 1u;
         }

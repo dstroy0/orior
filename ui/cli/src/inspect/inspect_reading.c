@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // inspect_read_state.c: the reading of one text: its tokens, lines, comments, columns and names counted from its
-// letters, and every list the sources of its language read it into carved from one cell sized to those counts, taken
+// characters, and every list the sources of its language read it into carved from one cell sized to those counts, taken
 // with the inspections' lock and given back before it is
 #include "../command_line/pool.h"
 #include "inspect_internal.h"
@@ -27,7 +27,7 @@ typedef struct
     const char *language;
     CliInspectPartition *partition;
 } InspectReadingCtx;
-// whether a byte goes on a name: a letter, a digit, `_` or `$`, or a byte of a letter past ASCII
+// whether a byte goes on a name: a character, a digit, `_` or `$`, or a byte of a character past ASCII
 EMBED_INLINE int read_state_name_byte(const InspectReadingCtx *args)
 {
     return ((args->byte >= 'a') && (args->byte <= 'z')) || ((args->byte >= 'A') && (args->byte <= 'Z')) ||

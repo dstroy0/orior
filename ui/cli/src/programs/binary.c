@@ -161,7 +161,7 @@ int cli_pe_imports(const CliBinaryErrMsgCfg *args)
                                                 .size = size, .at = optional, .width = 2u);
     if ((magic != 0x20bu) && (magic != 0x10bu))
     {
-        mmgr_line_put(args->err_msg, "the file's optional header is of no kind impero reads");
+        mmgr_line_put(args->err_msg, "the file's optional header is of no type impero reads");
         return -1;
     }
     const unsigned long long directories = optional + ((magic == 0x20bu) ? 112ULL : 96ULL);

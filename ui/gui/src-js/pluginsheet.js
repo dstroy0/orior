@@ -4,7 +4,7 @@
 // File, Plugins and File, New Language Plugin. The first lists every plugin as plugins.js read it,
 // each with what it opens, where it comes from and a box that turns it on or off, what was wrong
 // with one that does not read, and for a script plugin what it reads, writes and reaches, with Let It
-// Run where it waits for the reader's leave (scripts.js). Under them stands the catalog the reader
+// Run where it waits for the reader's leave (scripts.js). Under them is the catalog the reader
 // names (plugin_catalog.rs): the plugins it lists that the search finds, each with what it asks for,
 // installed by Install and let run as it asks, and updated only by Update, an update that asks for
 // more waiting to be let again. The second asks what a language plugin needs, shows a sample colored
@@ -29,8 +29,8 @@ function later(a, b) {
   return false;
 }
 
-// Whether each of what `asks` asks for is among what `shown` named.
-const within = (asks, shown) => ["reads", "writes", "reaches"].every((type) => (asks?.[type] ?? []).every((one) => (shown?.[type] ?? []).includes(one)));
+// Whether each of what `asks` asks for is among what `displayed` named.
+const within = (asks, displayed) => ["reads", "writes", "reaches"].every((type) => (asks?.[type] ?? []).every((one) => (displayed?.[type] ?? []).includes(one)));
 
 function element(tag, props = {}, ...children) {
   const made = Object.assign(document.createElement(tag), props);
@@ -68,8 +68,8 @@ export function showPlugins(sheet) {
     const opens = element(
       "span",
       { className: "plugin-opens" },
-      ...(reading.kind === "tool" ? [element("span", { textContent: `checks ${reading.checks.join(", ")}`, title: reading.about })] : []),
-      ...(reading.kind === "script" ? [element("span", { className: "plugin-asks", textContent: asksText(reading.asks), title: reading.about })] : []),
+      ...(reading.type === "tool" ? [element("span", { textContent: `checks ${reading.checks.join(", ")}`, title: reading.about })] : []),
+      ...(reading.type === "script" ? [element("span", { className: "plugin-asks", textContent: asksText(reading.asks), title: reading.about })] : []),
       ...reading.extensions.map((ext) => {
         const opener = openerOf(ext);
         const other = !reading.error && opener && opener !== reading.id;
@@ -88,7 +88,7 @@ export function showPlugins(sheet) {
     if (reading.error) {
       made.append(element("p", { className: "plugin-error", textContent: reading.error }));
     }
-    const more = reading.kind === "script" && !reading.error && reading.on ? askedMore(reading) : null;
+    const more = reading.type === "script" && !reading.error && reading.on ? askedMore(reading) : null;
     if (more) {
       made.append(
         element(
@@ -107,7 +107,7 @@ export function showPlugins(sheet) {
     return made;
   }
 
-  // The catalog: its address, kept as plugins.catalog, and the plugins it lists.
+  // The catalog: its address, retained as plugins.catalog, and the plugins it lists.
   const address = element("input", { className: "report-field plugins-catalog-address", type: "text", value: localStorage.getItem(CATALOG) ?? "", placeholder: "A catalog's address, on the web or on this machine", ariaLabel: "Catalog", spellcheck: false });
   const catalog = element("div", { className: "plugins-catalog", role: "list" });
   let listed = [];
@@ -132,7 +132,7 @@ export function showPlugins(sheet) {
               const now = pluginReadings().find((reading) => reading.id === entry.id);
               // An install the reader pressed seeing what it asks for lets it run, where it asks for no
               // more than it showed; an update runs as it was let, and one that asks for more waits.
-              if (!here && now?.kind === "script" && within(now.asks, entry)) {
+              if (!here && now?.type === "script" && within(now.asks, entry)) {
                 await allowPlugin(entry.id);
               }
               said.textContent = now && askedMore(now) ? `${entry.name || entry.id} ${entry.version} is installed, and waits for you to let it run.` : `${entry.name || entry.id} ${entry.version} is installed.`;
@@ -180,9 +180,9 @@ export function showPlugins(sheet) {
 
   function draw() {
     const word = filter.value.trim().toLowerCase();
-    const shown = pluginReadings().filter((reading) => !word || [reading.id, reading.name, ...reading.extensions].some((text) => text.toLowerCase().includes(word)));
-    list.replaceChildren(...shown.map(row));
-    if (!shown.length) {
+    const displayed = pluginReadings().filter((reading) => !word || [reading.id, reading.name, ...reading.extensions].some((text) => text.toLowerCase().includes(word)));
+    list.replaceChildren(...displayed.map(row));
+    if (!displayed.length) {
       list.append(element("p", { className: "prefs-said", textContent: word ? "No plugin matches." : "No plugins were found." }));
     }
     drawCatalog();

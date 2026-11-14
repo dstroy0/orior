@@ -58,7 +58,7 @@ const char *const g_query_mmgr_settings[] = {"-DMMGR_ENABLE_DMA=0",
                                              "-DMMGR_CARCER_OWNERS=1024u",
                                              NULL};
 
-// the folders the file definitions' headers stand in beyond their sources' own
+// the folders the file definitions' headers are in beyond their sources' own
 const char *const g_query_file_defs_headers[] = {"includes/file_defs", "includes/parsers",
                                                  "src/cu/transpiler/lstar/protocol", NULL};
 

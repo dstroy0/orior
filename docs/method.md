@@ -1,6 +1,6 @@
 # The algorithm
 
-Measure how far something sits from the most disordered arrangement of its own parts. (This is Shannon's information entropy.)
+Measure how far something sits from the max disordered arrangement of its own parts. (This is Shannon's information entropy.)
 
 That is the basic idea, and everything else is built from it.
 
@@ -11,7 +11,7 @@ Every subject asks that same question. What changes is what counts as a part:
 - bytes in a file
 - coordinates in a board layout
 
-The reference is built from the object's own parts. Nothing is estimated in advance. No training set, model or neural network stands in for the subject.
+The reference is built from the object's own parts. Nothing is estimated in advance. No training set, model or neural network is in for the subject.
 
 Building the reference this way, by making entropy as high as the object's own constraints allow, is Jaynes's principle. How far the object sits from that reference is the free energy above equilibrium.
 
@@ -21,7 +21,7 @@ The basic construction, called Identity:Null Permutation, runs through all six p
 
 1. Write the object as points that carry values.
 2. Choose how to group those points.
-3. Build the maximum entropy reference that grouping allows.
+3. Build the max entropy reference that grouping allows.
 4. Measure how far the object sits from that reference.
 
 The sift and the oracle sit on either side. The sift throws out candidates, and the oracle brings in an answer from outside the sample.
@@ -30,7 +30,7 @@ The sift and the oracle sit on either side. The sift throws out candidates, and 
 | ---------------- | -------------------------------------------------------------------------------------------------- |
 | `representation` | any domain written as points carrying values, and the re-seatings that put one symbol in one place |
 | `partition`      | the unit(s) and the scale those points are read at                                                 |
-| `reference`      | the maximum entropy background under the constraints the object supplies                           |
+| `reference`      | the max entropy background under the constraints the object supplies                           |
 | `measure`        | the departure from that background                                                                 |
 | `sift`           | the sound filter, a necessary condition over any index set                                         |
 | `oracle`         | agreement with ground truth that somebody else published                                           |
@@ -61,13 +61,13 @@ The engine has many readers, one per file under [`archive/src/python/engine/anal
 
 A number from one is not a number from the other.
 
-The workbook records, row by row, what each reader has and hasn't been shown to do, including the rows that failed. Read it before you quote any reading. Only one reading has been checked against an answer from outside this work: the crystal cell edge, described under [Areas of research](research.md).
+The workbook records, row by row, what each reader has and hasn't been displayed to do, including the rows that failed. Read it before you quote any reading. Only one reading has been checked against an answer from outside this work: the crystal cell edge, described under [Areas of research](research.md).
 
 ## What it knows
 
 Nothing. There is no model, no training, no set of examples to learn from, and nothing assumed in advance. It knows nothing about language, chemistry or images, and it never learns anything. It computes one distance, and every result comes from that.
 
-It runs in human time: seconds on a laptop, against a database someone else published. It can be pointed at anything, because it assumes nothing about the subject. All it needs is an object that isn't already at maximum entropy. Every single reading has a limit, and each one comes with a stated floor. If a reading doesn't clear its floor, the honest answer is that nothing was found. [Reading the result](usage.md#reading-the-result) explains what a floor is.
+It runs in human time: seconds on a laptop, against a database someone else published. It can be pointed at anything, because it assumes nothing about the subject. All it needs is an object that isn't already at max entropy. Every single reading has a limit, and each one comes with a stated floor. If a reading doesn't clear its floor, the honest answer is that nothing was found. [Reading the result](usage.md#reading-the-result) explains what a floor is.
 
 ## Terms borrowed from physics
 
@@ -75,7 +75,7 @@ Some names come from physics and mathematics. Each one names a part of the engin
 
 | term | meaning |
 | --- | --- |
-| the null, the shuffle | the object with its counts kept and its order shuffled: the background a pattern is measured against |
+| the null, the shuffle | the object with its counts retained and its order shuffled: the background a pattern is measured against |
 | the demon | the null space of a reading, worked out before any object is read: every change to an object that the reading cannot see, known in advance from rank and nullity instead of found by experiment. [`null_first.py`](https://github.com/dstroy0/orior/blob/main/examples/00_blob_viz_tools/null_first.py) builds it. Laplace's name is borrowed for that position only. |
 | the boundary, holographic | the contents of a volume read from how they are arranged on its two-dimensional boundary. The holographic principle in physics is an analogy for it, and nothing here tests that principle. |
 

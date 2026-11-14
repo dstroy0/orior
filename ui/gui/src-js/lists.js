@@ -8,24 +8,24 @@
 // a closed group are not.
 //
 // A row says how deep it sits in data-depth, and a folder row says whether it is open in
-// aria-expanded. A group is a details element, open or closed as it is. A list drawn again keeps the
+// aria-expanded. A group is a details element, open or closed as it is. A list drawn again retains the
 // focus on the row it was on, by the row's data-key.
 //
-// Letters typed while a row holds the keys find the rows in sight whose names match them, as Go to
-// File matches a name: the first match from that row on takes the keys, each match's letters are
-// marked, Up and Down step from match to match, and Backspace takes the last letter back. Escape, a
+// Characters typed while a row holds the keys find the rows in sight whose names match them, as Go to
+// File matches a name: the first match from that row on takes the keys, each match's characters are
+// marked, Up and Down step from match to match, and Backspace takes the last character back. Escape, a
 // click in the list, a key that opens or closes a row, or the keys leaving the list ends the search.
 // What was typed shows over the list's top right.
 //
 // A list inside the list whose rows are not all on the page, as the tree's, holds a model of them, as
-// rowlist.js keeps it: the keys step through all its rows by the model, its first and last are where
-// a step from outside it comes in, and letters typed in it find the rows among all of its own.
+// rowlist.js retains it: the keys step through all its rows by the model, its first and last are where
+// a step from outside it comes in, and characters typed in it find the rows among all of its own.
 
 import { fuzzy } from "./fuzzy.js";
 
 const ROWS = "button, summary";
 
-// A row is in sight where neither it nor any element holding it is laid out as none or has its content hidden, as a
+// A row is in sight where neither it nor any element holding it is arranged as none or has its content hidden, as a
 // closed group's rows are.
 const inSight = (row) => row.checkVisibility();
 
@@ -74,17 +74,17 @@ function setOpen(row, open) {
 // The text of a row's name: its name's own element where it has one, else the row's text.
 const nameOf = (row) => row.querySelector(".name") ?? row;
 
-// The search typed in a list: the letters, the label that shows them, and the rows that match.
+// The search typed in a list: the characters, the label that shows them, and the rows that match.
 function typedSearch(list) {
-  const shown = document.createElement("div");
-  shown.className = "list-typed";
-  shown.hidden = true;
-  document.body.append(shown);
+  const displayed = document.createElement("div");
+  displayed.className = "list-typed";
+  displayed.hidden = true;
+  document.body.append(displayed);
   const search = { text: "", matches: [], model: null };
   const mark = () => {
     const ranges = [];
     for (const { row: given, at, hits } of search.matches) {
-      const row = given ?? search.model.shownAt(at);
+      const row = given ?? search.model.displayedAt(at);
       const node = row && nameOf(row).firstChild;
       if (node?.nodeType !== Node.TEXT_NODE) {
         continue;
@@ -98,14 +98,14 @@ function typedSearch(list) {
     }
     CSS.highlights?.set("list-typed", new Highlight(...ranges));
   };
-  // What is typed, shown over the list's top right, marked where nothing matches.
+  // What is typed, displayed over the list's top right, marked where nothing matches.
   const show = () => {
     const box = list.getBoundingClientRect();
-    shown.textContent = search.text;
-    shown.classList.toggle("none", !search.matches.length);
-    shown.style.top = `${Math.round(box.top + 4)}px`;
-    shown.style.right = `${Math.round(window.innerWidth - box.right + 8)}px`;
-    shown.hidden = false;
+    displayed.textContent = search.text;
+    displayed.classList.toggle("none", !search.matches.length);
+    displayed.style.top = `${Math.round(box.top + 4)}px`;
+    displayed.style.right = `${Math.round(window.innerWidth - box.right + 8)}px`;
+    displayed.hidden = false;
   };
   return {
     get text() {
@@ -136,7 +136,7 @@ function typedSearch(list) {
         mark();
         return row;
       }
-      // In a list whose rows name what they stand for, as the explorer's files and folders do, the
+      // In a list whose rows name what they are for, as the explorer's files and folders do, the
       // headings of its groups are no matches.
       const all = rowsOf(list);
       const named = all.filter((row) => row.querySelector(".name"));
@@ -167,14 +167,14 @@ function typedSearch(list) {
       if (search.text) {
         search.text = "";
         search.matches = [];
-        shown.hidden = true;
+        displayed.hidden = true;
         CSS.highlights?.delete("list-typed");
       }
     },
   };
 }
 
-export function keepListKeys(list, search) {
+export function retainListKeys(list, search) {
   const typed = typedSearch(list);
   list.addEventListener("focusout", (event) => !list.contains(event.relatedTarget) && typed.end());
   list.addEventListener("pointerdown", () => typed.end());
@@ -188,10 +188,10 @@ export function keepListKeys(list, search) {
     if (at < 0) {
       return;
     }
-    const letter = event.key.length === 1 && (event.key !== " " || typed.text);
-    if (letter || (typed.text && ["Backspace", "Escape", "ArrowDown", "ArrowUp"].includes(event.key))) {
+    const character = event.key.length === 1 && (event.key !== " " || typed.text);
+    if (character || (typed.text && ["Backspace", "Escape", "ArrowDown", "ArrowUp"].includes(event.key))) {
       let next = row;
-      if (letter) {
+      if (character) {
         next = typed.find(typed.text + event.key, row) ?? row;
       } else if (event.key === "Backspace") {
         const left = typed.text.slice(0, -1);

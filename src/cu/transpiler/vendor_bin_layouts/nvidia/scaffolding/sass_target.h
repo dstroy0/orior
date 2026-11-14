@@ -16,7 +16,7 @@ class SassTarget : public CodeGenerator
   public:
     SassTarget(void);
 
-    // the part has one register file and the banks are laid into it end to end: R0 through R235, the registers
+    // the part has one register file and the banks are positioned into it end to end: R0 through R235, the registers
     // sm_86.kdm does not pin (R236 is sign_base, R237 the scratch, R238 and R239 the launch, R240 through R252 the
     // lane's fixed words and wides, and RZ is R255)
     unsigned int register_file_size(void) const override;

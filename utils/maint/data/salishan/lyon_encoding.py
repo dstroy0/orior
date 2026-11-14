@@ -7,7 +7,7 @@
 #   Usage:  from lyon_encoding import drafted
 #
 # 19-Lyon_ICSNL50_final-78 and 2013_Lindley_Lyon are set in NimbusRomNo9L and TeX-xipa with a custom
-# encoding and no ToUnicode map. What pypdf hands back is glyph codes read as ASCII. Page 1 of
+# encoding and no ToUnicode map. What pypdf passes back is glyph codes read as ASCII. Page 1 of
 # Lindley prints q̓sápi ɬaʔ ct̓ʕapənwíxʷ and the text holds ’qsápi ìaP c’tQap@nwíxw.
 #
 # WHAT THIS IS AND IS NOT
@@ -19,13 +19,13 @@
 #
 # WHAT IT CANNOT DO
 #
-# w is two letters. Page kʷukʷ and page wist both arrive as w, and nothing in the text separates
+# w is two characters. Page kʷukʷ and page wist both arrive as w, and nothing in the text separates
 # them. The rule below labializes a w that follows one of the consonants that take it, which is
 # right for kʷ, qʷ, xʷ, x̌ʷ and wrong wherever a real w follows a consonant.
 #
-# Word boundaries are the other one. The PDF puts a space in front of a letter carrying a mark.
+# Word boundaries are the other one. The PDF puts a space in front of a character carrying a mark.
 # s ’plá ’ks@lx is one word, iP ’kl is two, and both of them are a space in front of a marked
-# letter. Page 25 settles the first as sp̓lák̓səlx and page 24 the second as iʔ k̓l. `wa’y` and `Lyon’s`
+# character. Page 25 settles the first as sp̓lák̓səlx and page 24 the second as iʔ k̓l. `wa’y` and `Lyon’s`
 # are the same case with the space missing instead of inserted.
 #
 # Those are the sites to read first on any page, and they are why this file is not a repair in
@@ -34,41 +34,41 @@
 import re
 import unicodedata
 
-# The marks the extraction prints in front of the letter they belong over, against the combining
-# mark each one is. ’ is glottalization and is most of them.
+# The marks the extraction prints in front of the character they belong over, against the combining
+# mark each one is. ’ is glottalization and is the majority of them.
 #
-# ´ turns up only where the font has no precomposed letter to carry the accent. á é í ó ú arrive
+# ´ turns up only where the font has no precomposed character to carry the accent. á é í ó ú arrive
 # whole, and the schwa does not. Lasy´@t is the page's lasyə́t and is the only word in this paper
 # that needs it.
 MOVED = {"’": "̓", "´": "́"}
 
-# What the glyph codes stand for, one for one, wherever they appear in a Salish token. ; was in this
+# What the glyph codes are for, one for one, wherever they appear in a Salish token. ; was in this
 # table until níkmən; showed that it is not one for one: see lengthened().
-LETTERS = (
+CHARACTERS = (
     ("@", "ə"),
     ("ì", "ɬ"),
     ("Q", "ʕ"),
     ("ň", "ƛ"),
 )
 
-# The wedge arrives before its letter as well, and only ever sits on x here.
+# The wedge arrives before its character as well, and only ever sits on x here.
 WEDGE = (("ˇx", "x̌"),)
 
 # One place the inserted space is not a question. √ opens a root on a parse line and the root
 # follows it immediately. √ never ends a word and a space after it is always the PDF's. The
-# roots that start with a marked letter get one: √ q̓ʷʕay=lqs is √q̓ʷʕay=lqs on the page.
+# roots that start with a marked character get one: √ q̓ʷʕay=lqs is √q̓ʷʕay=lqs on the page.
 AFTER_ROOT = ("√ ", "√")
 
 # The consonants a following w labializes. A w after anything else, or at the front of a word, is
-# the letter w: wist, wa’y, nwíwpəm.
+# the character w: wist, wa’y, nwíwpəm.
 LABIALIZED = "kqxgɣʕǰč"
 
 
 def moved_marks(token):
-    """One token with each spacing mark carried onto the letter it was printed in front of.
+    """One token with each spacing mark carried onto the character it was printed in front of.
 
     Called only for a token salish() answered for. In the English the same ’ is an apostrophe and
-    follows its letter, and moving it turns Lyon’s into Lyons̓.
+    follows its character, and moving it turns Lyon’s into Lyons̓.
     """
     out = []
     at = 0
@@ -92,21 +92,21 @@ def moved_marks(token):
 # The characters of the extraction that only the language is written with. A token holding one of
 # them is Salish. These are the codes as they arrive instead of what they become: an earlier version of
 # this listed ə ɬ ʕ ƛ, which the test never sees, and s’tmQa’lt came through with its ejective marks
-# still standing in front of their letters.
+# still located in front of their characters.
 #
 # The first two characters are the wedge. drafted() runs WEDGE over the whole line before any of
-# this. A wedge that stood on an x is a combining caron by the time the test reads it, and the
-# standalone ˇ catches one that stood anywhere else. Writing the pair as the string "x̌" put a bare x
+# this. A wedge that was on an x is a combining caron by the time the test reads it, and the
+# standalone ˇ catches one that was anywhere else. Writing the pair as the string "x̌" put a bare x
 # in the set and made every English word holding one Salish.
 #
 # √ opens a root on a parse line and appears in no English word. A token carrying one is Salish.
-# Without it in_ks_√’ma came through with the mark still in front of the m, and that is most of the
+# Without it in_ks_√’ma came through with the mark still in front of the m, and that is the majority of the
 # parse lines in the five-line format.
 MARKS = "̌ˇ@ìQň·√áéíóú"
 
 # A gloss token is plain ASCII, apart from two things. The ligatures the PDF sets its f-words with:
 # the whole gloss of one morpheme is one token. Go-n-dip.ﬂuid-MID-3SG.POSS is a single string and
-# the one ﬂ in it kept it out of this class. It was then read as Salish and its POSS came out as
+# the one ﬂ in it retained it out of this class. It was then read as Salish and its POSS came out as
 # ʔOSS. And the reduplication mark, which the gloss line of the five-line format uses as well as the
 # parse line does: C1C2.PL•speak-CAUS came out as C1C2.ʔL•speak-CAUS.
 #
@@ -114,7 +114,7 @@ MARKS = "̌ˇ@ìQň·√áéíóú"
 # +get.read-APPL came out as +get.read-AʔʔL and +C1C2.PL•son+DRV as +C1C2.ʔL•son+DRV.
 #
 # √ stays out. It opens a root on the parse line and appears on no gloss line, and a parse line is
-# Salish. The run of two capitals LABEL asks for keeps a parse token out of this class
+# Salish. The run of two capitals LABEL asks for retains a parse token out of this class
 # anyway: a parse is written in lower case and a gloss is not.
 GLOSS = re.compile(r"^[A-Za-z0-9.()\[\]/,;:'•+=ﬁﬂﬀﬃﬄ-]+$")
 LABEL = re.compile(r"[A-Z]{2}")
@@ -138,7 +138,7 @@ def salish(token):
     and the apostrophe in Lyon’s and Society’s.
 
     A token carrying any other mark of the orthography is Salish, and so is one holding a P that is
-    not the first letter, as iP, smsámaP and nPaysənúlaPxw are and Philosophical is not.
+    not the first character, as iP, smsámaP and nPaysənúlaPxw are and Philosophical is not.
 
     Two things this misses. A P-initial Salish word with no other mark on it, as Pitx, Pamn and
     Pasil are, comes through as English. So does a word whose ’ the extraction did not put a space
@@ -162,22 +162,22 @@ def salish(token):
         return False
     if any((mark in token) for mark in MARKS):
         return True
-    # A ’ that opens a token is the mark waiting for its letter: ’ti is t̓i. One that follows a
-    # letter is the apostrophe of Lyon’s and Society’s.
+    # A ’ that opens a token is the mark waiting for its character: ’ti is t̓i. One that follows a
+    # character is the apostrophe of Lyon’s and Society’s.
     #
     # An English elision opens with one too. Lyon writes ’til in the translation of stanza 137 and
     # it comes out as t̓il, the same shape as ’ti, and it cannot be told from it inside one
     # token. That is the only one in this paper.
     if token.startswith("’"):
         return True
-    # A glottal stop standing alone, left by a break the PDF put in front of it, as ixí P is.
+    # A glottal stop located alone, left by a break the PDF put in front of it, as ixí P is.
     if token == "P":
         return True
     return "P" in token[1:]
 
 
 def lengthened(line):
-    """One line with ; read as the length mark where the letter it lengthens follows it.
+    """One line with ; read as the length mark where the character it lengthens follows it.
 
     Lyon writes length with a raised dot and the font gives it the semicolon's code. Ya;Qt is
     ya·ʕt and ’qsá;;;pi is q̓sá···pi. He also ends a clause with a semicolon, and the page prints
@@ -186,7 +186,7 @@ def lengthened(line):
     Run over the whole line, before the tokens are split, because the mark survives the inserted
     space and the test needs to see across it. qw@mí;; ’wt is one word: the run is followed by a
     space and then the ’ that the space was inserted in front of. níkmən; is followed by a space and
-    a plain letter, the sentence carrying on.
+    a plain character, the sentence carrying on.
     """
     out = []
     at = 0
@@ -199,10 +199,10 @@ def lengthened(line):
         while (end < len(line)) and (line[end] == ";"):
             end += 1
         after = line[end : end + 2]
-        # The letter it lengthens comes next, and one of two things can stand between. A spacing
-        # mark waiting for that letter, as ’kwu;’l-s has. An inserted space in front of that mark,
-        # as qw@mí;; ’wt has. A space with a plain letter after it is the sentence carrying on,
-        # and that keeps níkmən; iP apart.
+        # The character it lengthens comes next, and one of two things can are between. A spacing
+        # mark waiting for that character, as ’kwu;’l-s has. An inserted space in front of that mark,
+        # as qw@mí;; ’wt has. A space with a plain character after it is the sentence carrying on,
+        # and that retains níkmən; iP apart.
         carries = bool(after) and (
             after[0].isalpha()
             or (after[0] in MOVED)
@@ -249,20 +249,20 @@ def drafted(line):
     The length mark goes over the whole line too, and for the same reason: lengthened() has to see
     across the inserted space to tell qw@mí;; ’wt from níkmən; iP.
 
-    LETTERS runs on a Salish token only. Its codes are ordinary characters elsewhere, and ; was the
+    CHARACTERS runs on a Salish token only. Its codes are ordinary characters elsewhere, and ; was the
     one that showed it: Lyon ends a clause with a semicolon in his English, and mapping the line
     without asking turned long ago over there; we came into over there· we came.
 
     labialized runs over the whole joined line, and that is a known defect, and its cost is measured on
     both sides. Running it line-wide reads the w of an English gloss as a labializing one wherever
-    a k or a q or an x stands in front of it. Backwards is drafted backʷards and
+    a k or a q or an x is in front of it. Backwards is drafted backʷards and
     he.fell.off.backwards is drafted he.fell.off.backʷards, and the check then reports the hand
     extraction as disagreeing with the paper over a word of English.
 
     Gating it on salish() instead is worse and was measured: the drafted ʷ count falls from 1624 to
     1172 on 19-Lyon and from 1729 to 1017 on Lindley, and the tree goes from 214 disagreements to
     827. salish() asks for a mark of the orthography or a medial P, and kwukw carries neither.
-    The tokens that most need labializing are exactly the ones that gate turns off.
+    The tokens that max need labializing are exactly the ones that gate turns off.
 
     a_gloss() does not separate them either: it wants a run of two capitals, and backwards has
     none. What actually distinguishes them is the line, not the token, since the five-line
@@ -276,10 +276,10 @@ def drafted(line):
     held = []
     for token in line.split(" "):
         if salish(token):
-            # LETTERS first. moved_marks carries a mark onto the letter after it and asks whether
-            # that letter is one, and @ is not: lasy´@t kept its acute standing in front until the
+            # CHARACTERS first. moved_marks carries a mark onto the character after it and asks whether
+            # that character is one, and @ is not: lasy´@t retained its acute located in front until the
             # schwa was a schwa.
-            for before, after in LETTERS:
+            for before, after in CHARACTERS:
                 token = token.replace(before, after)
             token = moved_marks(token).replace("P", "ʔ")
         held.append(token)

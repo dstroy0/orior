@@ -4,7 +4,7 @@
 #include "khw_learn_internal.h"
 
 // The turning case of `form` into `stage`: for a ladder form, the first case of its relation whose readings in the
-// register pass stand apart (khw_turning_words), in the order the form reads its words, so that a changed answer is a
+// register pass are apart (khw_turning_words), in the order the form reads its words, so that a changed answer is a
 // changed answer and not a coincidence; for a frame form, the words 3 and 5 over the frame's shape, a parameter's over
 // the frame's every case. 1, or 0 where the relation contains no such case
 int khw_turning_case(KhwAnswered *form, KhwStaged *stage)
@@ -16,7 +16,7 @@ int khw_turning_case(KhwAnswered *form, KhwStaged *stage)
     {
         stage->word[0][0] = 3u;
         stage->word[0][1] = 5u;
-        // a parameter's answer is the count the launch hands the kernel, which the frame's cases set
+        // a parameter's answer is the count the launch passes the kernel, which the frame's cases set
         stage->count = (form->frame == (unsigned int)FRAME_PARAMETER) ? FRAME_CASES : (FRAME_READ_AT + 1u);
         stage->read_at = FRAME_READ_AT;
         return frame_answer(form->frame, FRAME_READ_AT, stage->word[0], form->reading, &stage->expected);
@@ -45,7 +45,7 @@ int khw_turning_case(KhwAnswered *form, KhwStaged *stage)
 // frame form's whole over its cases, each case the stage's words
 unsigned int khw_staged_pooled(const KhwStaged *stage, unsigned long long low, unsigned long long high)
 {
-    static unsigned int s_words[RUN_CASES_MOST][2];
+    static unsigned int s_words[RUN_CASES_MAX][2];
     for (unsigned int at = 0u; at < stage->count; at += 1u)
     {
         s_words[at][0] = stage->word[0][0];
@@ -159,7 +159,7 @@ unsigned int khw_comparisons_void(KhwAnswered **forms, unsigned int count)
 
 // The classified ladder forms of the working set two of whose runs carry one place of the relation's tuple, added to
 // `forms` after its `count`: a place a relation's word takes once is covered by two runs only where the turning case
-// read a run by a coincidence, and the form is queried its register pass again over a case whose readings stand apart
+// read a run by a coincidence, and the form is queried its register pass again over a case whose readings are apart
 // (khw_turning_words). The count with them
 unsigned int khw_forms_placed_twice(KhwAnswered **forms, unsigned int count)
 {
@@ -230,7 +230,7 @@ unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count)
             {
                 break;
             }
-            if (s_pooled == SCHEDULER_ROUND_MOST)
+            if (s_pooled == SCHEDULER_ROUND_MAX)
             {
                 khw_round_carried();
                 on = khw_turning_read(s_staged, on, staged);
@@ -252,7 +252,7 @@ unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count)
     unsigned int first = 0u;
     for (unsigned int at = 0u; at < on; at += 1u)
     {
-        if ((s_pooled + KHW_TURNS) > SCHEDULER_ROUND_MOST)
+        if ((s_pooled + KHW_TURNS) > SCHEDULER_ROUND_MAX)
         {
             khw_round_carried();
             for (unsigned int read = first; read < at; read += 1u)

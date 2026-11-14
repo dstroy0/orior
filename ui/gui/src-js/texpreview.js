@@ -31,7 +31,7 @@ export function showTex(holder, session, path, goTo) {
   texChanged();
 }
 
-// Makes the text as it now stands, at once where no make runs and as soon as the one running ends
+// Makes the text as it now is, at once where no make runs and as soon as the one running ends
 // where one does.
 export async function texChanged() {
   if (!state.session || !state.holder) {
@@ -120,7 +120,7 @@ function drawErrors(errors) {
   );
 }
 
-// The boxes the line `line` of the file shown, counted from 0, was set in, or, where none holds it,
+// The boxes the line `line` of the file displayed, counted from 0, was set in, or, where none holds it,
 // those of the nearest line before it that some box holds.
 export function boxesOf(boxes, path, line) {
   const own = boxes.filter((box) => box.file === path);
@@ -192,7 +192,7 @@ function pressed(event) {
   }
 }
 
-// Lets go of the file shown, its make left to end unseen.
+// Lets go of the file displayed, its make left to end unseen.
 export function hideTex() {
   state.holder?.removeEventListener("click", pressed);
   Object.assign(state, { holder: null, session: null, path: null, made: null, last: null });

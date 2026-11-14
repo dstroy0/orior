@@ -42,7 +42,7 @@ __global__ static void drift_pack_kernel(const unsigned int *residual, unsigned 
     if (((threadIdx.x % DRIFT_WARP) == 0u) && (voxel < voxels))
     {
         halves[voxel / DRIFT_WARP] = ballot;
-        // a count of 32 bits at most widens to unsigned long long exactly
+        // a count of 32 bits at max widens to unsigned long long exactly
         atomicAdd(positives, (unsigned long long)__popc(ballot));
     }
 }
@@ -92,7 +92,7 @@ extern "C" long drift_positive(const DriftPositiveRequest *request)
                          cudaMemcpyDeviceToHost) == cudaSuccess) &&
              (cudaMemcpy(&positives, resident->positives, sizeof(positives), cudaMemcpyDeviceToHost) == cudaSuccess);
     }
-    // the positives are at most the voxels, below 2^31. They narrow to long exactly
+    // the positives are at max the voxels, below 2^31. They narrow to long exactly
     return (ok != 0) ? (long)positives : DRIFT_ERROR;
 }
 

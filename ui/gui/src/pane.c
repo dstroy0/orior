@@ -58,13 +58,13 @@ EMBED_INLINE int pane_scaled(const PaneCtx *args)
     return EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = args->pixels, .scale = args->frame->scale);
 }
 
-// the rectangle the table's pane stands in: the frame's terminal panel for a foot table, else its side
+// the rectangle the table's pane is in: the frame's terminal panel for a foot table, else its side
 EMBED_INLINE GuiRect pane_region(const PaneCtx *args)
 {
     return ((args->table != NULL) && args->table->foot) ? args->frame->terminal : args->frame->side;
 }
 
-// the share of its colors the part the table's pane stands in has reached: the panel's for a foot table, else the
+// the share of its colors the part the table's pane is in has reached: the panel's for a foot table, else the
 // side's; a call with no table is a side pane's
 EMBED_INLINE int pane_share(const PaneCtx *args)
 {
@@ -83,7 +83,7 @@ GuiRect gui_pane_region(const GuiPaneCfg *args)
     return EMBED_CALL(pane_region, PaneCtx, .table = args->table, .frame = args->frame);
 }
 
-// the rectangle of what the table stands under the pane's head, empty where it stands nothing
+// the rectangle of what the table is under the pane's head, empty where it is nothing
 EMBED_INLINE GuiRect pane_head_rect(const GuiPaneCfg *args)
 {
     const GuiPaneTable *const table = args->table;
@@ -145,7 +145,7 @@ int gui_pane_hit(const GuiPaneCfg *args)
     const unsigned int count = args->table->rows(args);
     if (args->table->row_height == NULL)
     {
-        // the pointer stands below the top, and the rows it is down are far fewer than an unsigned int counts
+        // the pointer is below the top, and the rows it is down are far fewer than an unsigned int counts
         const unsigned int row = args->pane_read->scroll + (unsigned int)((args->y - top) / gui_pane.row_height(args));
         if (row >= count)
         {
@@ -208,16 +208,16 @@ int gui_pane_wheel(const GuiPaneCfg *args)
     const int displayed = (pixel_height > 0) ? capacity / pixel_height : 0;
     // the rows are far fewer than an int counts
     const int count = (int)args->table->rows(args);
-    const int most = (count > displayed) ? count - displayed : 0;
+    const int max = (count > displayed) ? count - displayed : 0;
     const int required = (int)args->pane->scroll + args->rows;
     int clamped;
     if (required < 0)
     {
         clamped = 0;
     }
-    else if (required > most)
+    else if (required > max)
     {
-        clamped = most;
+        clamped = max;
     }
     else
     {
@@ -322,7 +322,7 @@ void gui_pane_draw(const GuiPaneCfg *args)
     {
         return;
     }
-    // the pane's line, its head with the arrow open and the table's title where it has one, what the table stands under
+    // the pane's line, its head with the arrow open and the table's title where it has one, what the table is under
     // the head, and the body on the editor's ground
     const int line_y = side.y + side_head;
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
@@ -525,7 +525,7 @@ void gui_pane_field_draw(const GuiPaneFieldCfg *args)
     {
         return;
     }
-    // the caret stands after the text, at the field's start while the text is empty
+    // the caret is after the text, at the field's start while the text is empty
     const int caret_pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_BOX_PAD);
     const int caret_x = empty ? field.x + field_pad : (int)(after + 0.5f);
     EMBED_CALL(

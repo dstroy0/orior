@@ -90,7 +90,7 @@ export function reportForm(sheet, given = []) {
     try {
       const filed = await invoke("report_bug", { report, withErrors: withErrors.checked });
       drawFiled(filed);
-      said.textContent = filed.kind === "page" ? "Opened in the browser to submit there." : filed.kind === "known" ? `Already reported: ${filed.url}` : `Reported: ${filed.url}`;
+      said.textContent = filed.type === "page" ? "Opened in the browser to submit there." : filed.type === "known" ? `Already reported: ${filed.url}` : `Reported: ${filed.url}`;
     } catch (error) {
       said.textContent = String(error);
       send.disabled = false;

@@ -72,7 +72,7 @@ def digest(path):
 
 
 def builders():
-    """Every builder in the view directory, by path, sorted to keep a record stable across runs."""
+    """Every builder in the view directory, by path, sorted to retain a record stable across runs."""
     return sorted(os.path.join(HERE, one) for one in os.listdir(HERE)
                   if one.startswith("build_") and one.endswith(".py"))
 
@@ -80,7 +80,7 @@ def builders():
 def template_reads(path):
     """The data keys a template reads, split by whether anything guards the read.
 
-    Only the first segment of each path is kept. A builder supplies top level keys, and whether
+    Only the first segment of each path is retained. A builder supplies top level keys, and whether
     `clock.ticks` is present once `clock` is supplied is the builder's own business and
     `data_check`'s question about a built page.
     """
@@ -99,7 +99,7 @@ def template_reads(path):
 
 
 def survey():
-    """The record as the tree currently stands."""
+    """The record as the tree currently is."""
     rows = []
     for path in builders():
         name = os.path.basename(path)

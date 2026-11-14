@@ -18,7 +18,7 @@ if(NOT DEFINED ORIOR_ROOT)
 endif()
 
 # MMgr, built as orior builds it: its suites left to its own runs, embedded_types taken from the tree's checkout, and its
-# link time optimization the flags ui/cli/build.sh hands it, which the program's whole link reads. orior_mmgr
+# link time optimization the flags ui/cli/build.sh passes it, which the program's whole link reads. orior_mmgr
 # builds the modules of its host environment, the ones ui/cli/build.sh joins to the command line's objects. The
 # owner queue has room for every owner orior registers, the same room in MMgr's objects and orior's
 set(MMGR_BUILD_TESTS OFF)
@@ -29,8 +29,8 @@ add_subdirectory("${ORIOR_ROOT}/includes/mmgr" includes/mmgr)
 get_property(ORIOR_MMGR_MODULES GLOBAL PROPERTY MMGR_TARGETS_host)
 add_custom_target(orior_mmgr)
 foreach(module ${ORIOR_MMGR_MODULES})
-    get_target_property(module_kind ${module} TYPE)
-    if(NOT module_kind STREQUAL "INTERFACE_LIBRARY")
+    get_target_property(module_type ${module} TYPE)
+    if(NOT module_type STREQUAL "INTERFACE_LIBRARY")
         add_dependencies(orior_mmgr ${module})
     endif()
 endforeach()

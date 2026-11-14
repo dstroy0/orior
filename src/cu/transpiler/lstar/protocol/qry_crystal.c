@@ -27,17 +27,17 @@
 #define QRY_CRYSTAL_FOLDER_REMOVED(path_) rmdir(path_)
 #endif
 
-// the most bytes of the .qry one sample takes, which bounds what the device stores while it lifts one: two bytes a lane
+// the max bytes of the .qry one sample takes, which bounds what the device stores while it lifts one: two bytes a lane
 // and four a coefficient, with the tower's blocks beside them
 #define QRY_CRYSTAL_PART (256ull << 20u)
 
-// the most samples a set contains, and the source folder the samples are read from while the set is made, inside it
+// the max samples a set contains, and the source folder the samples are read from while the set is made, inside it
 #define QRY_CRYSTAL_PARTS 4096u
 #define QRY_CRYSTAL_SOURCE "source"
 
 static void qry_crystal_error_printed(const char *what, const EngineError *error)
 {
-    fprintf(stderr, "qry_crystal: %s (kind %d, module %d, site %u, status %d)\n", what, (int)error->kind,
+    fprintf(stderr, "qry_crystal: %s (type %d, module %d, site %u, status %d)\n", what, (int)error->type,
             (int)error->module, error->site, error->status);
 }
 

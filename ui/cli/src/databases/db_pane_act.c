@@ -6,7 +6,7 @@
 // transaction committed or rolled back through a run
 #include "db_pane_internal.h"
 
-// the sentence the ask for a password stands under, and its button
+// the sentence the ask for a password is under, and its button
 #define ACT_PASSWORD "The server refused the connection's password:"
 
 static const char *const s_connect_choices[1] = {"Connect"};
@@ -81,7 +81,7 @@ const char *cli_db_pane_head_tool(const CliDbPaneHeadCfg *args)
 {
     const CliDbPaneState *const pane = &g_cli_db_pane_state;
     const int open = EMBED_CALL(chosen_open, DbPaneActCtx, .text = NULL);
-    const int running = pane->run.standing;
+    const int running = pane->run.located;
     // the chosen connection's transaction state read out of the connections cell
     char transaction[CLI_DB_PANE_TRANSACTION] = {0};
     if (open)
@@ -120,7 +120,7 @@ const char *cli_db_pane_head_tool(const CliDbPaneHeadCfg *args)
         *args->enabled_out = !pane->form.open;
         break;
     case CLI_DB_PANE_STOP_READING:
-        // a level is read on the view's thread, between frames, so that no reading stands for the bar to stop
+        // a level is read on the view's thread, between frames, so that no reading is for the bar to stop
         *args->enabled_out = 0;
         break;
     case CLI_DB_PANE_STOP:
@@ -211,11 +211,11 @@ int cli_db_pane_connected(const CliDbPaneCtx *args)
         return 0;
     }
     EMBED_CALL(open_written, DbPaneActCtx, .at = chosen, .open = open);
-    EMBED_CALL(cli_db_pane_internal.labels_laid, CliDbPaneCtx, .at = 0u);
+    EMBED_CALL(cli_db_pane_internal.labels_positioned, CliDbPaneCtx, .at = 0u);
     EMBED_CALL(cli_db_pane_internal.note_set, CliDbPaneCtx, .text = NULL);
     EMBED_CALL(cli_db_pane_internal.schema_released, CliDbPaneCtx, .at = 0u);
     (void)EMBED_CALL(cli_db_pane_internal.level_read, CliDbPaneCtx, .at = CLI_DB_PANE_NONE);
-    EMBED_CALL(cli_db_pane_internal.shown_laid, CliDbPaneCtx, .at = 0u);
+    EMBED_CALL(cli_db_pane_internal.displayed_positioned, CliDbPaneCtx, .at = 0u);
     return 1;
 }
 
@@ -228,7 +228,7 @@ EMBED_INLINE void chosen_closed(const DbPaneActCtx *args)
     EMBED_CALL(cli_db_grid.clear, CliDbGridCfg, .open = open);
     EMBED_CALL(cli_db_err_msg.close, CliDbErrMsgCfg, .open = open);
     EMBED_CALL(open_written, DbPaneActCtx, .at = pane->chosen, .open = NULL);
-    EMBED_CALL(cli_db_pane_internal.labels_laid, CliDbPaneCtx, .at = 0u);
+    EMBED_CALL(cli_db_pane_internal.labels_positioned, CliDbPaneCtx, .at = 0u);
     EMBED_CALL(cli_db_pane_internal.schema_released, CliDbPaneCtx, .at = 0u);
     EMBED_CALL(cli_db_pane_internal.note_set, CliDbPaneCtx, .text = NULL);
 }

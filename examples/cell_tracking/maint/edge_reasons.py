@@ -12,7 +12,7 @@ REASONS = [
     ("object linked none", "the cell's object made no link at all into the next frame"),
     ("nothing shared", "the cell and the key's leaf share no voxel at this pair's lag"),
     ("not mutual", "the key's leaf does not land back on this cell, so the pair was never a candidate"),
-    ("landed elsewhere", "the cell shares most with the key's leaf, but its landing fell in another"),
+    ("landed elsewhere", "the cell shares max with the key's leaf, but its landing fell in another"),
     ("leaf shares less", "the key's leaf shares fewer voxels with this cell than another leaf does"),
     ("object outweighed", "this cell's own landing and its best share are both the key's leaf, so the object it"
                           " belongs to lost the weighing for the whole object"),

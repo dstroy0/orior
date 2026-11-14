@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// `length` letters at `text` copied into an allocation of their own, ended: NULL where there was no memory
+// `length` characters at `text` copied into an allocation of their own, ended: NULL where there was no memory
 static char *kfile_lines_copy(const char *text, size_t length)
 {
     char *const copy = (char *)malloc(length + 1u);
@@ -61,7 +61,7 @@ int kfile_lines_read(KfileLines *file, const char *path)
     unsigned long long at = 0ull;
     while (ok && (at < size))
     {
-        // a file read whole is at most what a size_t counts
+        // a file read whole is at max what a size_t counts
         const char *const start = (const char *)(bytes + at);
         const char *const end = (const char *)memchr(start, '\n', (size_t)(size - at));
         size_t length = (end != NULL) ? (size_t)(end - start) : (size_t)(size - at);
@@ -84,7 +84,7 @@ int kfile_lines_read(KfileLines *file, const char *path)
 
 int kfile_lines_write_by(const KfileLines *file, const char *path, Who who)
 {
-    // the file put together in memory and handed whole to the run's writer, which writes it in the file's place
+    // the file put together in memory and passed whole to the run's writer, which writes it in the file's place
     static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ull];
     size_t written = 0u;
     for (unsigned int at = 0u; at < file->lines; at += 1u)
@@ -165,7 +165,7 @@ int kfile_lines_who_line(const char *line, Who *who, int *has_who)
         *has_who = 0;
         return 1;
     }
-    *has_who = who_read(line + 4, who) && (line[4u + WHO_CODE_LETTERS] == '\0');
+    *has_who = who_read(line + 4, who) && (line[4u + WHO_CODE_CHARACTERS] == '\0');
     return *has_who;
 }
 
@@ -182,10 +182,10 @@ int kfile_lines_who_at(const KfileLines *file, unsigned int at, Who *who)
     return 0;
 }
 
-// the who line of `who` into `line`, which has room for WHO_CODE_LETTERS + 5, `who -` where `has_who` is 0
+// the who line of `who` into `line`, which has room for WHO_CODE_CHARACTERS + 5, `who -` where `has_who` is 0
 static void kfile_lines_who_written(Who who, int has_who, char *line, size_t room)
 {
-    char code[WHO_CODE_LETTERS + 1u];
+    char code[WHO_CODE_CHARACTERS + 1u];
     who_code(who, code, sizeof(code));
     snprintf(line, room, "who %s", has_who ? code : "-");
 }
@@ -198,7 +198,7 @@ unsigned int kfile_lines_put_by(KfileLines *file, unsigned int at, const char *c
     const int there_has_who = kfile_lines_who_at(file, at, &there);
     const int own =
         there_has_who && (there.source == who.source) && (there.line == who.line) && (there.program == who.program);
-    // lines of the file follow where `at` stands before one that is no who line of its own
+    // lines of the file follow where `at` is before one that is no who line of its own
     Who next_who;
     int next_has_who = 0;
     const int follows = (at < file->lines) && !kfile_lines_who_line(file->line[at], &next_who, &next_has_who);
@@ -210,7 +210,7 @@ unsigned int kfile_lines_put_by(KfileLines *file, unsigned int at, const char *c
         free(made);
         return 0u;
     }
-    char whose[WHO_CODE_LETTERS + 8u];
+    char whose[WHO_CODE_CHARACTERS + 8u];
     unsigned int next = 0u;
     int ok = 1;
     if (!own)
@@ -403,7 +403,7 @@ int kfile_lines_written_by(KfileLines *file, unsigned int first, const char *con
             (wanted_has_who == in_force_has_who) && (!wanted_has_who || kfile_lines_who_equal(wanted, in_force));
         if ((line >= first) && !same)
         {
-            char whose_line[WHO_CODE_LETTERS + 8u];
+            char whose_line[WHO_CODE_CHARACTERS + 8u];
             kfile_lines_who_written(wanted, wanted_has_who, whose_line, sizeof(whose_line));
             written = kfile_lines_line_add(&made, whose_line);
             in_force = wanted;

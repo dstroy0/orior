@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: PP-3-001
 #
-# The periodic recurrence measured against two backgrounds, one keeping the counts and one keeping no
+# The periodic recurrence measured against two backgrounds, one retention the counts and one retention no
 # exclusion. What Pauli builds is read as the departure from what it does not.
 #
 #   Usage:  python examples/particle_physics/3_reference/what_exclusion_builds.py
@@ -11,13 +11,13 @@
 # A reference is the background a signal is read against, built by deleting a property from the data.
 # Two are drawn here.
 #
-# The first keeps the census and deletes the order. reference.shuffles.permuted draws a uniform
+# The first retains the census and deletes the order. reference.shuffles.permuted draws a uniform
 # arrangement of the same signatures. Every count is exactly preserved and only the accumulation
 # order is gone. It is the least committal background consistent with the histogram, and it cannot be
 # wrong about the counts because it is the counts. If the recurrence is in the order it falls to the
 # floor here; if it is in the census it survives.
 #
-# The second keeps no exclusion. Fermions accumulate into successive states because Pauli forbids two
+# The second retains no exclusion. Fermions accumulate into successive states because Pauli forbids two
 # in one; delete that and every electron drops to 1s, and an element is then only a count of electrons
 # in one state, with nothing to recur. Its signatures are all distinct, one per element, and its match rate
 # is the floor of a set with no repeats. This is the background Doug named: we accumulate here because
@@ -97,10 +97,10 @@ def main(argv):
     out.write("    %-16s %6s   %5s  %5s  %5s   %s\n"
               % ("arm", "floor", "8", "18", "32", "tallest lag"))
     arm_row("real (Pauli)", real, out)
-    arm_row("counts kept", shuffled, out)
+    arm_row("counts retained", shuffled, out)
     arm_row("no exclusion", ladder, out)
 
-    out.write("\n  The real accumulation stands above its floor at 8, 18 and 32. Keeping the counts and\n")
+    out.write("\n  The real accumulation is above its floor at 8, 18 and 32. Retention the counts and\n")
     out.write("  deleting the order drops those to the floor. The recurrence is in the order Pauli\n")
     out.write("  fills the shells in and not in the counts. Deleting the exclusion leaves a ladder of\n")
     out.write("  distinct counts with a floor of zero and nothing to recur: no shells, no table.\n\n")

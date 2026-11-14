@@ -51,7 +51,7 @@ int main(int count, char **arguments)
     built = built && plane_disc(&extents[PLANE_WIDTHS + 1u], &extents[PLANE_WIDTHS + 2u], bits_count);
     built = built && plane_spiral(&extents[PLANE_WIDTHS + 3u], bits_count);
     built = built && plane_twindragon(&extents[PLANE_WIDTHS + 4u], bits_count);
-    sim_check(&results, built, "every shape lays out each bit on its own pixel");
+    sim_check(&results, built, "every shape arranges each bit on its own pixel");
     ok = ok && built;
 
     std::vector<unsigned char> drawn;
@@ -157,7 +157,7 @@ int main(int count, char **arguments)
             plane_picture(spheres[fill], sphere_bits.data(), directory + "/pi_" + spheres[fill].name + ".png") &&
             plane_picture(spheres[fill], sphere_drawn.data(), directory + "/shuffled_" + spheres[fill].name + ".png");
     }
-    sim_check(&results, sphere_drew, "the sphere is laid out and drawn for pi and for one shuffle of its bits");
+    sim_check(&results, sphere_drew, "the sphere is arranged and drawn for pi and for one shuffle of its bits");
     ok = ok && sphere_drew;
     std::vector<PlaneLine> sphere_found(spheres.size());
     std::vector<unsigned long long> sphere_latitude(spheres.size(), 0ull);
@@ -181,10 +181,10 @@ int main(int count, char **arguments)
         {
             band[extent].push_back(plane_longest_line(extents[extent], drawn.data(), steps).length);
         }
-        for (unsigned int kind = 0u; kind < 2u * PLANE_SCALES; kind += 1u)
+        for (unsigned int type = 0u; type < 2u * PLANE_SCALES; type += 1u)
         {
-            // the kind's low bit chooses residues or blocks
-            spread_band[kind].push_back(plane_spread(drawn.data(), bits_count, (kind / 2u) + 1u, (int)(kind % 2u)));
+            // the type's low bit chooses residues or blocks
+            spread_band[type].push_back(plane_spread(drawn.data(), bits_count, (type / 2u) + 1u, (int)(type % 2u)));
         }
         depth_band.push_back(plane_depth_spread(dragon, dragon_depth, drawn.data(), depth_ones, depth_sizes));
         plane_shuffle(sphere_bits, draw, &sphere_drawn);
@@ -258,16 +258,16 @@ int main(int count, char **arguments)
         mmgr_line_put(
             line, "  the ones' spread, sum over the classes of (2 ones - size)^2; a residue is one place on every");
         mmgr_line_put(line, " arm of the twindragon, a block one whole sub-dragon\n");
-        for (unsigned int kind = 0u; kind < 2u * PLANE_SCALES; kind += 1u)
+        for (unsigned int type = 0u; type < 2u * PLANE_SCALES; type += 1u)
         {
-            const unsigned int scale = (kind / 2u) + 1u;
-            // the kind's low bit chooses residues or blocks
-            const unsigned long long measurement = plane_spread(bits.data(), bits_count, scale, (int)(kind % 2u));
-            mmgr_line_put(line, ((kind % 2u) == 0u) ? "  residues mod 2^" : "  blocks, 2^");
+            const unsigned int scale = (type / 2u) + 1u;
+            // the type's low bit chooses residues or blocks
+            const unsigned long long measurement = plane_spread(bits.data(), bits_count, scale, (int)(type % 2u));
+            mmgr_line_put(line, ((type % 2u) == 0u) ? "  residues mod 2^" : "  blocks, 2^");
             mmgr_line_decimal(line, scale, 1u);
-            mmgr_line_put(line, ((kind % 2u) == 0u) ? ": pi's spread " : " of them: pi's spread ");
+            mmgr_line_put(line, ((type % 2u) == 0u) ? ": pi's spread " : " of them: pi's spread ");
             mmgr_line_decimal(line, measurement, 1u);
-            plane_band_print(line, spread_band[kind], measurement);
+            plane_band_print(line, spread_band[type], measurement);
             sim_flush(&results);
         }
         const unsigned long long depth_measurement =

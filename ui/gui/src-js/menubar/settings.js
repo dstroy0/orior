@@ -73,11 +73,11 @@ export async function askMavenSettings() {
   const fields = [];
   const parts = [Object.assign(document.createElement("h2"), { textContent: "Maven Settings" })];
   for (const [group, title] of [["pom", `The compiler, as ${pom ?? "pom.xml"} sets it`], ["settings", "Maven's own"]]) {
-    const shown = rows.filter((row) => row.group === group);
-    if (shown.length) {
+    const displayed = rows.filter((row) => row.group === group);
+    if (displayed.length) {
       parts.push(Object.assign(document.createElement("h3"), { textContent: title }));
     }
-    for (const row of shown) {
+    for (const row of displayed) {
       const field = Object.assign(document.createElement("input"), { className: "report-field", value: row.value, readOnly: !row.settable, placeholder: row.settable ? "Not set" : "None", title: row.file });
       field.setAttribute("aria-label", row.label);
       const line = Object.assign(document.createElement("label"), { className: "report-row" });
@@ -165,7 +165,7 @@ export async function askDocMargin(given) {
 }
 
 // File, Tree Environment: the environments the tree holds, each by its folder in the tree and its
-// type, the one in use checked, and the toolchains' own Python; the one chosen kept for the tree by
+// type, the one in use checked, and the toolchains' own Python; the one chosen retained for the tree by
 // its folder in it, which moves with the tree, and taken up again as the tree opens. A tree with none
 // chosen takes its own virtual environment, the one nearest its top, with no setup. An environment
 // chosen says which packages the files beside it require that it has not installed.
@@ -178,17 +178,17 @@ function environmentKey() {
   return `orior.environment.${document.getElementById("tree-path").textContent}`;
 }
 
-// Uses `env` for the tree, or the toolchains' own Python for null, kept as the reader's choice where
-// `kept`.
-async function useEnvironment(env, { quiet = false, kept = true } = {}) {
+// Uses `env` for the tree, or the toolchains' own Python for null, retained as the reader's choice where
+// `retained`.
+async function useEnvironment(env, { quiet = false, retained = true } = {}) {
   try {
-    const used = await invoke("env_use", { kind: env?.kind ?? null, place: env?.place ?? "", requires: env?.requires ?? [] });
+    const used = await invoke("env_use", { type: env?.type ?? null, place: env?.place ?? "", requires: env?.requires ?? [] });
     environmentInUse = env ?? null;
-    if (kept) {
-      localStorage.setItem(environmentKey(), JSON.stringify({ kind: env?.kind ?? null, place: env?.place ?? "" }));
+    if (retained) {
+      localStorage.setItem(environmentKey(), JSON.stringify({ type: env?.type ?? null, place: env?.place ?? "" }));
     }
     if (!quiet) {
-      const where = env ? `${env.place || "the tree's top folder"}, a ${ENV_TYPES[env.kind]}` : "the toolchains' own";
+      const where = env ? `${env.place || "the tree's top folder"}, a ${ENV_TYPES[env.type]}` : "the toolchains' own";
       const missing = used.missing.length ? `; it has not installed ${used.missing.join(", ")}` : "";
       say(`The tree's environment is ${where}${used.python ? `, its Python ${used.python}` : ""}${missing}.`, { failed: Boolean(used.missing.length) });
     }
@@ -200,7 +200,7 @@ async function useEnvironment(env, { quiet = false, kept = true } = {}) {
 export async function chooseEnvironment(given) {
   const found = await invoke("envs_found").catch(() => []);
   if (given) {
-    const env = given === "none" ? null : found.find((one) => one.place === given || `${one.kind}:${one.place}` === given);
+    const env = given === "none" ? null : found.find((one) => one.place === given || `${one.type}:${one.place}` === given);
     if (env === undefined) {
       say(`The tree holds no environment at ${given}.`, { failed: true });
       return;
@@ -211,27 +211,27 @@ export async function chooseEnvironment(given) {
   const items = [
     { label: "The Toolchains' Own Python", checked: !environmentInUse, command: "environment", args: ["none"], run: () => useEnvironment(null) },
     ...(found.length ? ["-"] : []),
-    ...found.map((env) => ({ label: `${env.place || "The tree's top folder"}: ${ENV_TYPES[env.kind]}${env.requires.length ? `, ${env.requires.length} package${env.requires.length === 1 ? "" : "s"} required` : ""}`, checked: environmentInUse?.kind === env.kind && environmentInUse?.place === env.place, command: "environment", args: [`${env.kind}:${env.place}`], run: () => useEnvironment(env) })),
+    ...found.map((env) => ({ label: `${env.place || "The tree's top folder"}: ${ENV_TYPES[env.type]}${env.requires.length ? `, ${env.requires.length} package${env.requires.length === 1 ? "" : "s"} required` : ""}`, checked: environmentInUse?.type === env.type && environmentInUse?.place === env.place, command: "environment", args: [`${env.type}:${env.place}`], run: () => useEnvironment(env) })),
   ];
   showMenu(window.innerWidth / 3, window.innerHeight / 4, items);
 }
 
-// Takes up again the environment kept for the tree open, where one is kept and the tree still holds
-// it; where none is kept, the tree's own virtual environment nearest its top, not kept, for one the
+// Takes up again the environment retained for the tree open, where one is retained and the tree still holds
+// it; where none is retained, the tree's own virtual environment nearest its top, not retained, for one the
 // tree comes to hold later to be taken in its place.
 export async function restoreEnvironment() {
-  const kept = JSON.parse(localStorage.getItem(environmentKey()) ?? "null");
-  if (kept && kept.kind === null) {
-    await useEnvironment(null, { quiet: true, kept: false });
+  const retained = JSON.parse(localStorage.getItem(environmentKey()) ?? "null");
+  if (retained && retained.type === null) {
+    await useEnvironment(null, { quiet: true, retained: false });
     return;
   }
   const found = await invoke("envs_found").catch(() => []);
-  if (!kept) {
-    await useEnvironment(found.find((one) => one.kind === "venv") ?? null, { quiet: true, kept: false });
+  if (!retained) {
+    await useEnvironment(found.find((one) => one.type === "venv") ?? null, { quiet: true, retained: false });
     return;
   }
-  const env = found.find((one) => one.kind === kept.kind && one.place === kept.place);
-  await useEnvironment(env ?? null, { quiet: true, kept: false });
+  const env = found.find((one) => one.type === retained.type && one.place === retained.place);
+  await useEnvironment(env ?? null, { quiet: true, retained: false });
 }
 
 // View, Checkers: the type checkers and linters to run as files change, by name, as given or asked
@@ -251,7 +251,7 @@ export async function askCheckers(given) {
   }
 }
 
-// View, Memory Budget: the megabytes the app is kept to in RAM, as given or asked for.
+// View, Memory Budget: the megabytes the app is retained to in RAM, as given or asked for.
 export async function askBudget(given) {
   const answer = given ?? (await askFor("The memory budget, in megabytes", String(memoryBudget())));
   const mb = Number(answer);

@@ -41,10 +41,10 @@ VARIANT_FONTS = {"Cambria Math": ("cambria.ttc", 1)}
 _VARIANTS = {}
 
 
-def variant_letters(name, letters):
+def variant_characters(name, characters):
     """{glyph id: [code point]} for each glyph of the system face name that its cmap does not reach
     and a GSUB single or alternate substitution, or a MATH size variant, makes from one glyph it
-    does: that glyph's code point. Empty where the paper's program, whose cmap is letters, does not
+    does: that glyph's code point. Empty where the paper's program, whose cmap is characters, does not
     number its glyphs as the system face does."""
     face, index = VARIANT_FONTS[name]
     if name not in _VARIANTS:
@@ -75,7 +75,7 @@ def variant_letters(name, letters):
                             if glyph not in points and len({points.get(one) for one in sources}) == 1
                             and all(one in points for one in sources)})
     numbered, variant = _VARIANTS[name]
-    if any(numbered.get(point, gid) != gid for gid, found in letters.items() for point in found):
+    if any(numbered.get(point, gid) != gid for gid, found in characters.items() for point in found):
         return {}
     return {gid: found[:1] for gid, found in variant.items()}
 
@@ -93,7 +93,7 @@ def tounicode_entries(font):
             low, high = int(low, 16), int(high, 16)
             if target.startswith("<"):
                 # A range steps the last UTF-16 unit of its target, which can be the low half of a
-                # surrogate pair or the last letter of several, as the CMap specification has it.
+                # surrogate pair or the last character of several, as the CMap specification has it.
                 units = bytes.fromhex(target[1:-1] or "0000")
                 units = units if len(units) % 2 == 0 and units else b"\x00" + units
                 last = int.from_bytes(units[-2:], "big")
@@ -106,7 +106,7 @@ def tounicode_entries(font):
     return entries
 
 
-def font_letters(font):
+def font_characters(font):
     """{glyph id: code points} from the TrueType program a Type0 font draws: its embedded FontFile2,
     or the system face it names. None where there is no program, or its glyph ids are not the CIDs."""
     descendant = font["/DescendantFonts"][0].get_object()
@@ -123,19 +123,19 @@ def font_letters(font):
         program = TTFont(os.path.join(WINDOWS_FONTS, face))
     if "cmap" not in program:
         return None
-    # A glyph the program maps to the private use area alone keeps that code, for PRIVATE_USE to
-    # write as the letter it draws; one it also maps to a real letter takes the letter.
-    letters, private = {}, {}
+    # A glyph the program maps to the private use area alone retains that code, for PRIVATE_USE to
+    # write as the character it draws; one it also maps to a real character takes the character.
+    characters, private = {}, {}
     for point, name in (program.getBestCmap() or {}).items():
-        target = private if 0xE000 <= point <= 0xF8FF else letters
+        target = private if 0xE000 <= point <= 0xF8FF else characters
         target.setdefault(program.getGlyphID(name), []).append(point)
     for gid, points in private.items():
-        letters.setdefault(gid, points)
+        characters.setdefault(gid, points)
     name = str(font["/BaseFont"]).lstrip("/").split("+", 1)[-1]
     if name in VARIANT_FONTS:
-        for gid, points in variant_letters(name, letters).items():
-            letters.setdefault(gid, points)
-    return letters
+        for gid, points in variant_characters(name, characters).items():
+            characters.setdefault(gid, points)
+    return characters
 
 
 def tounicode_stream(entries):
@@ -158,11 +158,11 @@ def tounicode_stream(entries):
 
 # The 2008 volume's PDFs set their text in CID TrueType subsets with no ToUnicode and a font program
 # stripped of its cmap and glyph names, and each page carries its own subset that numbers the glyphs
-# afresh: the Times-Roman of Thompson's page 1 and of its page 2 give one letter two codes. The text
+# afresh: the Times-Roman of Thompson's page 1 and of its page 2 give one character two codes. The text
 # layer is a cipher (2&'1 for this). A glyph is known by its outline instead: the decomposed contours
 # and advance width, hashed. A glyph copied from a system face has the same key as the system face's
 # own glyph, and OUTLINE_FACES names the face to look in for each font; a glyph of a face the system
-# lacks is named in outline_letters.tsv, each outline read by eye off outline_sheet.py's drawing and
+# lacks is named in outline_characters.tsv, each outline read by eye off outline_sheet.py's drawing and
 # checked in the decoded text. Adobe's Times-Roman, which Windows lacks, is looked for in TeX Gyre
 # Termes, the clone of its shapes MiKTeX installs; its outlines are no copy, and outline_match.py
 # names those glyphs by raster.
@@ -194,7 +194,7 @@ def outline_key(glyphset, name, advance):
 def face_keys(face):
     """{outline key: text} for every glyph a system face's cmap maps. Where several code points
     draw one outline, the right single quote and the modifier apostrophe of Times New Roman, the
-    text is a character Windows-1252 holds, as Word exports, then a letter of the IPA block, the
+    text is a character Windows-1252 holds, as Word exports, then a character of the IPA block, the
     schwa ə of Lucida Sans Unicode, which draws the turned e ǝ alike, in Mattina's 2008 forms, and
     failing that the lowest code point past the private use area."""
     if face not in _FACE_KEYS:
@@ -228,15 +228,15 @@ def in_cp1252(point):
         return False
 
 
-def outline_letters():
-    """{outline key: text} from outline_letters.tsv."""
-    letters = {}
-    with open(os.path.join(PRIVATE, "outline_letters.tsv"), encoding="utf-8") as handle:
+def outline_characters():
+    """{outline key: text} from outline_characters.tsv."""
+    characters = {}
+    with open(os.path.join(PRIVATE, "outline_characters.tsv"), encoding="utf-8") as handle:
         for line in handle:
             fields = line.rstrip("\n").split("\t")
             if len(fields) >= 2 and not fields[0].startswith("#"):
-                letters[fields[0]] = fields[1]
-    return letters
+                characters[fields[0]] = fields[1]
+    return characters
 
 
 def outlined_fonts(path):
@@ -245,7 +245,7 @@ def outlined_fonts(path):
     PDF's bytes, a line per font, and a line per glyph no key names)."""
     reader = pypdf.PdfReader(path)
     writer = pypdf.PdfWriter(clone_from=reader)
-    letters = outline_letters()
+    characters = outline_characters()
     seen, report, named, given = set(), [], 0, 0
 
     def fonts_under(resources):
@@ -278,7 +278,7 @@ def outlined_fonts(path):
                     continue
                 advance = tt["hmtx"][glyph][0] * 2048 // units
                 key = outline_key(glyphset, glyph, advance)
-                text = letters.get(key) or system.get(key)
+                text = characters.get(key) or system.get(key)
                 if text is None:
                     from fontTools.pens.recordingPen import DecomposingRecordingPen
                     pen = DecomposingRecordingPen(glyphset)
@@ -315,7 +315,7 @@ def mapped_fonts(path, maps, added=False):
     with a one-byte ToUnicode for each font maps names, {font name without its subset tag: {code:
     text}}. pdfium reads such a font's codes as control characters, drops U+0002 and U+0003 from
     its text, and sets no character at all for a drawn code 32, the w of Denzer-King's wis; with the
-    map it gives the letters. With added, a map adds to the codes the font's own ToUnicode gives.
+    map it gives the characters. With added, a map adds to the codes the font's own ToUnicode gives.
     Returns (the PDF's bytes, a line for each font given a map)."""
     reader = pypdf.PdfReader(path)
     writer = pypdf.PdfWriter(clone_from=reader)
@@ -359,17 +359,17 @@ def mapped_fonts(path, maps, added=False):
 
 
 def mended_fonts(path):
-    """A paper whose Type0 fonts give a letter's glyph a space in ToUnicode, pro ides and howe er in
-    Nater's 2019 paper and the whole run of Jantzen's small capitals, written again with the letter
+    """A paper whose Type0 fonts give a character's glyph a space in ToUnicode, pro ides and howe er in
+    Nater's 2019 paper and the whole run of Jantzen's small capitals, written again with the character
     the font program itself maps to that glyph. A font is mended only where its program agrees with
-    every single letter the ToUnicode names. Returns (the mended PDF's bytes, or None where no font
+    every single character the ToUnicode names. Returns (the mended PDF's bytes, or None where no font
     needed it, and a line for each font mended or left alone)."""
     reader = pypdf.PdfReader(path)
     writer = pypdf.PdfWriter(clone_from=reader)
     seen, report, changed = set(), [], False
-    # A face whose ToUnicode names no letter to check its program by, the bold italic -mín and -tín
+    # A face whose ToUnicode names no character to check its program by, the bold italic -mín and -tín
     # of McKay's 2019 headings, is mended where another face of its family in the same paper agrees
-    # with its program on ten letters and disagrees on none.
+    # with its program on ten characters and disagrees on none.
     unchecked, vouched = [], set()
     for page in writer.pages:
         fonts = page.get("/Resources", {}).get("/Font", {})
@@ -380,24 +380,24 @@ def mended_fonts(path):
             seen.add(id(font))
             entries = tounicode_entries(font)
             blank = [gid for gid, text in entries.items() if not text.strip()]
-            letters = font_letters(font) if blank else None
-            if not letters:
+            characters = font_characters(font) if blank else None
+            if not characters:
                 continue
             agree, disagree = 0, []
             for gid, text in entries.items():
-                if len(text) == 1 and text.strip() and gid in letters:
-                    agree += ord(text) in letters[gid]
-                    if ord(text) not in letters[gid]:
+                if len(text) == 1 and text.strip() and gid in characters:
+                    agree += ord(text) in characters[gid]
+                    if ord(text) not in characters[gid]:
                         disagree.append(gid)
-            # A ligature's glyph is given its letters, fi for ﬁ, as a ToUnicode gives them.
-            given = {gid: unicodedata.normalize("NFKC", chr(min(letters[gid])))
-                     if 0xFB00 <= min(letters[gid]) <= 0xFB06 else chr(min(letters[gid])) for gid in blank
-                     if gid in letters and not any(chr(point).isspace() for point in letters[gid])}
+            # A ligature's glyph is given its characters, fi for ﬁ, as a ToUnicode gives them.
+            given = {gid: unicodedata.normalize("NFKC", chr(min(characters[gid])))
+                     if 0xFB00 <= min(characters[gid]) <= 0xFB06 else chr(min(characters[gid])) for gid in blank
+                     if gid in characters and not any(chr(point).isspace() for point in characters[gid])}
             name = str(font["/BaseFont"]).lstrip("/")
-            # The program draws the page, and where it agrees with twenty of the ToUnicode's letters
+            # The program draws the page, and where it agrees with twenty of the ToUnicode's characters
             # for each it does not, the few it does not are the ToUnicode's own faults: „ and ‟ for
             # the ‘ and ’ Laturnus's Times New Roman draws. A program embedded in the paper
-            # draws it, and needs no ten letters to agree where none disagrees: Griffin's
+            # draws it, and needs no ten characters to agree where none disagrees: Griffin's
             # 2019 bold qəǰi, whose ToUnicode names the ə alone.
             descendant = font["/DescendantFonts"][0].get_object()
             descriptor = descendant.get("/FontDescriptor")
@@ -409,24 +409,24 @@ def mended_fonts(path):
                 unchecked.append((font, entries, given, name, family))
                 continue
             if agree < 10 and not (embedded and agree and not disagree) or len(disagree) * 20 > agree:
-                report.append("%s: left alone, its program agrees with %d letters and not %d"
+                report.append("%s: left alone, its program agrees with %d characters and not %d"
                               % (name, agree, len(disagree)))
                 continue
-            given.update((gid, chr(min(letters[gid]))) for gid in disagree)
+            given.update((gid, chr(min(characters[gid]))) for gid in disagree)
             if given:
                 entries.update(given)
                 font[NameObject("/ToUnicode")] = writer._add_object(tounicode_stream(entries))
                 changed = True
-                report.append("%s: %d glyphs given their letters, %s"
+                report.append("%s: %d glyphs given their characters, %s"
                               % (name, len(given), " ".join(sorted(set(given.values())))))
     for font, entries, given, name, family in unchecked:
         if family not in vouched:
-            report.append("%s: left alone, no letter to check its program by" % name)
+            report.append("%s: left alone, no character to check its program by" % name)
             continue
         entries.update(given)
         font[NameObject("/ToUnicode")] = writer._add_object(tounicode_stream(entries))
         changed = True
-        report.append("%s: %d glyphs given their letters by its family's program, %s"
+        report.append("%s: %d glyphs given their characters by its family's program, %s"
                       % (name, len(given), " ".join(sorted(set(given.values())))))
     if not changed:
         return None, report
@@ -435,8 +435,8 @@ def mended_fonts(path):
     return data.getvalue(), report
 
 
-# Papers read before mended_fonts, whose oracles were checked against the fonts as they stand. Each
-# has a font that gives one mark or one dotless letter a space, the ̌ of č or the ȷ of ǰ, and the
+# Papers read before mended_fonts, whose oracles were checked against the fonts as they are. Each
+# has a font that gives one mark or one dotless character a space, the ̌ of č or the ȷ of ǰ, and the
 # mend would change what their ops and hand rows are keyed to. A paper leaves this list when its
 # oracle is rebuilt on the mended fonts.
 UNMENDED = tables.members("UNMENDED")
@@ -445,7 +445,7 @@ _OPENED = {}
 
 def paper_document(stem):
     """(pdfium document, [line per font mended or left alone], whether any font was mended) for a
-    paper, its fonts mended by mended_fonts unless it is in UNMENDED. Kept per stem, since gen.py
+    paper, its fonts mended by mended_fonts unless it is in UNMENDED. Retained per stem, since gen.py
     opens a paper several times."""
     if stem not in _OPENED:
         path = os.path.join(CORPUS, "papers", stem + ".pdf")
@@ -497,24 +497,24 @@ LAYER_SPACED = tables.members("LAYER_SPACED")
 # Papers typed and scanned, whose page text a person transcribed from the scan, a line for each line
 # the page prints and each page under its ===== page N ===== marker.
 TRANSCRIBED_FROM_SCAN = tables.members("TRANSCRIBED_FROM_SCAN")
-# The two letters a font's ToUnicode gives one glyph, and the letter the glyph draws: ə and the
+# The two characters a font's ToUnicode gives one glyph, and the character the glyph draws: ə and the
 # Cyrillic ә in one box, in Stewart, Noguchi, Sardinha and Davis's 2011 and 2012 papers.
 CLOSEUP_UNJOINED = tables.members("CLOSEUP_UNJOINED")
 ONE_GLYPH = {"əә": "ə"}
-# The letter a font's ToUnicode gives for each mark, in wlwlmelst and Janzen's paper: ƛ for the
+# The character a font's ToUnicode gives for each mark, in wlwlmelst and Janzen's paper: ƛ for the
 # comma above in the running text and w in the bold title, ə for the acute and x for the dot below.
 MARK_OF = {"ƛ": COMMA_ABOVE, "w": COMMA_ABOVE, "ə": ACUTE, "x": DOT_BELOW}
 
 
-# Glyphs a paper's text layer can drop where pdfium keeps them: the tilde operator of reduplication.
+# Glyphs a paper's text layer can drop where pdfium retains them: the tilde operator of reduplication.
 DROPPED = "∼"
-# A font that maps the letters it draws to the private use area, which the text layer drops: [o for
+# A font that maps the characters it draws to the private use area, which the text layer drops: [o for
 # [p̓oq̓] `‘grey’` in Huijsmans. Each code point was read off a 600 dpi render of the page named, with
 # pua_crops.py.
 PRIVATE_USE = tables.gather("PRIVATE_USE")
 
 
-# The modifier letter for each letter a page sets small and raised after another letter: the
+# The modifier character for each character a page sets small and raised after another character: the
 # labialized [pɔqʷs] and palatalized čʸε of John Hamilton Davis's bracketed forms, which the text
 # layer flattens to pɔqws and čyε.
 MODIFIER = {"w": "ʷ", "y": "ʸ", "θ": "ᶿ", "ε": "ᵋ", "ɛ": "ᵋ", "o": "ᵒ", "a": "ᵃ", "h": "ʰ", "j": "ʲ",
@@ -522,26 +522,26 @@ MODIFIER = {"w": "ʷ", "y": "ʸ", "θ": "ᶿ", "ε": "ᵋ", "ɛ": "ᵋ", "o": "�
             "i": "ⁱ", "u": "ᵘ", "e": "ᵉ", "t": "ᵗ", "k": "ᵏ", "p": "ᵖ", "b": "ᵇ", "d": "ᵈ", "g": "ᶢ",
             "r": "ʳ", "v": "ᵛ", "z": "ᶻ", "ɪ": "ᶦ", "ʊ": "ᶷ", "ɔ": "ᵓ", "χ": "ᵡ", "c": "ᶜ", "f": "ᶠ",
             "ɵ": "ᶱ"}
-MODIFIER_LETTERS = set(MODIFIER.values())
+MODIFIER_CHARACTERS = set(MODIFIER.values())
 
 
 SUBSCRIPT = dict(zip("0123456789", "₀₁₂₃₄₅₆₇₈₉"))
 
 
-def raised_letters(textpage, mapping=None, ciphers=None, found=None, lifted=None, mark_base=False,
+def raised_characters(textpage, mapping=None, ciphers=None, found=None, lifted=None, mark_base=False,
                    lowered=False):
-    """The glyphs of a page with no space among them, and {position: modifier letter} for each
-    letter set at under 0.85 of the size of the letter before it and raised a fifth of that size
-    over its baseline. A digit is a footnote's mark and stays, and so does a letter raised after
-    a digit, the th of 19th. A private-use glyph mapping names is taken as the letters it draws,
-    and the ʷ after van Eijk's private-use k̓ is raised after a letter. ciphers, the paper's
+    """The glyphs of a page with no space among them, and {position: modifier character} for each
+    character set at under 0.85 of the size of the character before it and raised a fifth of that size
+    over its baseline. A digit is a footnote's mark and stays, and so does a character raised after
+    a digit, the th of 19th. A private-use glyph mapping names is taken as the characters it draws,
+    and the ʷ after van Eijk's private-use k̓ is raised after a character. ciphers, the paper's
     PAPER_CIPHERS entry, gives each glyph as its font means it, and Bird's raised SILDoulosIPA ´
-    is read as the ə it draws. found, where given, collects {index in textpage: modifier letter}
-    for each raised letter. lifted holds the indexes of the raised letters the glyph rows already
-    write as their modifiers: each stands among the glyphs as its modifier and is left out of
-    the positions returned. With mark_base, an apostrophe after a letter leaves that letter the
-    one a raised letter is measured against, the ʷ of [k’ʷ]. With lowered, a digit set at under
-    0.85 of the size of the letter, ∅ or bracket before it and lowered a tenth of that size under
+    is read as the ə it draws. found, where given, collects {index in textpage: modifier character}
+    for each raised character. lifted holds the indexes of the raised characters the glyph rows already
+    write as their modifiers: each is among the glyphs as its modifier and is left out of
+    the positions returned. With mark_base, an apostrophe after a character leaves that character the
+    one a raised character is measured against, the ʷ of [k’ʷ]. With lowered, a digit set at under
+    0.85 of the size of the character, ∅ or bracket before it and lowered a tenth of that size under
     its baseline is an index, the subscript of Bill₁ and ∅₁ in Cable's co-reference examples."""
     glyphs, raised = [], {}
     base = None
@@ -558,7 +558,7 @@ def raised_letters(textpage, mapping=None, ciphers=None, found=None, lifted=None
             glyphs.extend(mapping[symbol])
             symbol = mapping[symbol][0]
         elif len(symbol) > 1:
-            # A ligature a cipher gives as its letters, Galloway's fi, counts letter by letter.
+            # A ligature a cipher gives as its characters, Galloway's fi, counts character by character.
             glyphs.extend(symbol)
             symbol = symbol[0]
         else:
@@ -587,13 +587,13 @@ def raised_letters(textpage, mapping=None, ciphers=None, found=None, lifted=None
     return glyphs, raised
 
 
-def raise_letters(document, merged, mapping=None, ciphers=None, lifted=None, mark_base=False, lowered=False):
-    """merged, a page text with its ===== page N ===== markers, with each raised letter of the page
-    written as its modifier: the page's glyphs are aligned to the text's letters page by page.
-    mapping is the paper's PRIVATE_USE letters and ciphers its PAPER_CIPHERS entry. lifted, where
-    given, holds for each page the indexes of the raised letters the glyph rows already wrote as
-    their modifiers, and those are not set again. mark_base is raised_letters's. Every read ends
-    here, and each pair of ONE_GLYPH is then written as the one letter its glyph draws. Returns the text and a defects row to each
+def raise_characters(document, merged, mapping=None, ciphers=None, lifted=None, mark_base=False, lowered=False):
+    """merged, a page text with its ===== page N ===== markers, with each raised character of the page
+    written as its modifier: the page's glyphs are aligned to the text's characters page by page.
+    mapping is the paper's PRIVATE_USE characters and ciphers its PAPER_CIPHERS entry. lifted, where
+    given, holds for each page the indexes of the raised characters the glyph rows already wrote as
+    their modifiers, and those are not set again. mark_base is raised_characters's. Every read ends
+    here, and each pair of ONE_GLYPH is then written as the one character its glyph draws. Returns the text and a defects row to each
     line changed."""
     import difflib
     out, repairs, page, lines = [], [], 0, []
@@ -602,26 +602,26 @@ def raise_letters(document, merged, mapping=None, ciphers=None, lifted=None, mar
         if not lines or page < 1 or page > len(document):
             out.extend(lines)
             return
-        glyphs, raised = raised_letters(document[page - 1].get_textpage(), mapping, ciphers,
+        glyphs, raised = raised_characters(document[page - 1].get_textpage(), mapping, ciphers,
                                         lifted=lifted.get(page - 1) if lifted else None, mark_base=mark_base,
                                         lowered=lowered)
         if not raised:
             out.extend(lines)
             return
-        places = [(row, at) for row, line in enumerate(lines) for at, letter in enumerate(line)
-                  if not letter.isspace()]
-        letters = [lines[row][at] for row, at in places]
+        places = [(row, at) for row, line in enumerate(lines) for at, character in enumerate(line)
+                  if not character.isspace()]
+        characters = [lines[row][at] for row, at in places]
         edited = [list(line) for line in lines]
-        matcher = difflib.SequenceMatcher(None, glyphs, letters, autojunk=False)
+        matcher = difflib.SequenceMatcher(None, glyphs, characters, autojunk=False)
         for first, second, count in matcher.get_matching_blocks():
             for step in range(count):
                 if first + step in raised:
                     row, at = places[second + step]
                     edited[row][at] = raised[first + step]
-        for line, letters_of in zip(lines, edited):
-            changed = "".join(letters_of)
+        for line, characters_of in zip(lines, edited):
+            changed = "".join(characters_of)
             if changed != line:
-                repairs.append((page, "raised letter set on the line", line.strip(), changed.strip()))
+                repairs.append((page, "raised character set on the line", line.strip(), changed.strip()))
             out.append(changed)
 
     for line in merged:
@@ -633,7 +633,7 @@ def raise_letters(document, merged, mapping=None, ciphers=None, lifted=None, mar
             continue
         lines.append(line)
     flush()
-    # A font whose ToUnicode gives one glyph two letters writes each ə of Stewart's Kwak'wala as ə
+    # A font whose ToUnicode gives one glyph two characters writes each ə of Stewart's Kwak'wala as ə
     # and the Cyrillic ә, both in the one box: nəәpʔiden for the nəpʔiden the page prints.
     page = 0
     for at, line in enumerate(out):
@@ -643,25 +643,25 @@ def raise_letters(document, merged, mapping=None, ciphers=None, lifted=None, mar
             continue
         single = one_glyph(line)
         if single != line:
-            repairs.append((page, "one glyph given two letters", line.strip(), single.strip()))
+            repairs.append((page, "one glyph given two characters", line.strip(), single.strip()))
             out[at] = single
     return out, repairs
 
 
 def one_glyph(text):
-    """text with each pair of ONE_GLYPH written as the one letter its glyph draws."""
-    for doubled, letter in ONE_GLYPH.items():
-        text = text.replace(doubled, letter)
+    """text with each pair of ONE_GLYPH written as the one character its glyph draws."""
+    for doubled, character in ONE_GLYPH.items():
+        text = text.replace(doubled, character)
     return text
 
 
 def lettered_glyphs(text, mapping):
-    """text with each private-use glyph mapping names written as the letter it draws."""
+    """text with each private-use glyph mapping names written as the character it draws."""
     return "".join(mapping.get(symbol, symbol) for symbol in text) if mapping else text
 
 
 def put_back(line, source):
-    """line with each DROPPED glyph of source put back where source sets it, line's spaces kept."""
+    """line with each DROPPED glyph of source put back where source sets it, line's spaces retained."""
     out, at = [], 0
     for symbol in source:
         if symbol in DROPPED:
@@ -679,24 +679,24 @@ def put_back(line, source):
 
 
 def misread_mark(symbol, box, size, last):
-    """The combining mark a letter glyph stands for, where the font's ToUnicode names a mark as a
-    letter, or None. The mark glyphs are 0.12 to 0.18 em wide and under 0.4 em tall, against 0.4 em
-    wide and more for the letters themselves."""
+    """The combining mark a character glyph is for, where the font's ToUnicode names a mark as a
+    character, or None. The mark glyphs are 0.12 to 0.18 em wide and under 0.4 em tall, against 0.4 em
+    wide and more for the characters themselves."""
     left, bottom, right, top = box
     if last is None or symbol not in MARK_OF or (right - left) >= 0.25 * size or \
             (top - bottom) >= 0.4 * size:
         return None
     mark = MARK_OF[symbol]
-    # The comma and the acute sit above the letter before them, the dot on or under its baseline.
+    # The comma and the acute sit above the character before them, the dot on or under its baseline.
     if mark == DOT_BELOW:
         return mark if top < last[1] + 0.15 * size else None
     return mark if bottom > last[1] + 0.4 * size else None
 
 
 def accent_lost(symbol, box, size):
-    """A plain vowel whose glyph stands as tall as an accented one, 0.69 em for the é of weʔxstés
-    against 0.47 for e: the font's ToUnicode dropped the acute of a precomposed letter. The i and í
-    of the same font stand equally tall, and acute_on_i reads the í from the ink over it."""
+    """A plain vowel whose glyph is as tall as an accented one, 0.69 em for the é of weʔxstés
+    against 0.47 for e: the font's ToUnicode dropped the acute of a precomposed character. The i and í
+    of the same font are equally tall, and acute_on_i reads the í from the ink over it."""
     left, bottom, right, top = box
     return symbol in "aeouə" and (top - bottom) > 0.6 * size
 
@@ -737,7 +737,7 @@ def acute_on_i(image, box, size, page_height, scale):
 def word_gaps(document):
     """The glyph gaps of a paper in em, inside the text layer's words and at its spaces.
 
-    Two neighboring letters on one baseline with no space between them in the text layer are one
+    Two neighboring characters on one baseline with no space between them in the text layer are one
     word, and the gap between their boxes is a gap inside a word. With a space between them the gap
     is a word space, or a space the layer inserted inside a word."""
     inside, spaced = [], []
@@ -766,7 +766,7 @@ def word_gaps(document):
 
 def calibrated_share(document):
     """A word-space threshold for this paper's own setting: 0.02 em over the 99.9th percentile of
-    its gaps inside words, kept between 0.1 and 0.18. Brown's gaps inside words reach 0.113 em at
+    its gaps inside words, retained between 0.1 and 0.18. Brown's gaps inside words reach 0.113 em at
     the 99.9th and its word spaces open at 0.18, where a justified line sets wil precedes 0.17 apart."""
     inside, spaced = word_gaps(document)
     if not inside:
@@ -778,9 +778,9 @@ def calibrated_share(document):
 def gap_lines(document, share=0.18, marks=None, wide=False, fonts=False, held_wide=False):
     """Each line of every page rebuilt from the characters' boxes, a space where the page leaves one.
 
-    pdfium's own text keeps the spaces its layer holds and no others. Here two neighboring glyphs on
+    pdfium's own text retains the spaces its layer holds and no others. Here two neighboring glyphs on
     one line are two words where the gap between their boxes is wider than share of the font size.
-    A word space measures about 0.22 em on these pages and the gap inside a word 0.12 em at most,
+    A word space measures about 0.22 em on these pages and the gap inside a word 0.12 em at max,
     at the narrow box of an apostrophe, which finds the space a justified line printed and the
     layer dropped: withinarm’sreach is within arm’s reach on the page. A glyph that starts left of
     the one before it on a lower baseline opens a new line.
@@ -789,16 +789,16 @@ def gap_lines(document, share=0.18, marks=None, wide=False, fonts=False, held_wi
     for number in range(len(document)):
         textpage = document[number].get_textpage()
         current = []
-        # The box of each letter in current, for a dot below the stream sets after later letters.
+        # The box of each character in current, for a dot below the stream sets after later characters.
         boxes = []
         last = None
         # pdfium breaks the line at a raised mark it misread: nk̓ / y̓ep in the title. The break
-        # waits for the next glyph, and stands only if that glyph starts a line of its own.
+        # waits for the next glyph, and is only if that glyph starts a line of its own.
         held_break = False
         last_font, last_size = None, 0
         for index in range(textpage.count_chars()):
             symbol = textpage.get_text_range(index, 1)
-            # A glyph with no text behind it, a rule or a picture font's mark, holds no letter.
+            # A glyph with no text behind it, a rule or a picture font's mark, holds no character.
             if not symbol:
                 continue
             if symbol in ("\r", "\n", "￾"):
@@ -829,8 +829,8 @@ def gap_lines(document, share=0.18, marks=None, wide=False, fonts=False, held_wi
             mark = misread_mark(symbol, box, size, last) if marks is not None else None
             if mark:
                 marks.append(symbol)
-                # The mark goes on the letter its box sits over or under, after any mark already
-                # on it: the stream can set a dot below after the letters that follow its own.
+                # The mark goes on the character its box sits over or under, after any mark already
+                # on it: the stream can set a dot below after the characters that follow its own.
                 middle = (box[0] + box[2]) / 2
                 under = [at for at, one in enumerate(boxes) if one is not None and one[0] <= middle <= one[2]]
                 at = under[-1] + 1 if under else len(current)
@@ -851,10 +851,10 @@ def gap_lines(document, share=0.18, marks=None, wide=False, fonts=False, held_wi
             if last is not None and left < last[0] and bottom < last[1] - size / 2 and current:
                 lines.append("".join(current))
                 current, boxes, last = [], [], None
-            # A letter given back its acute with no precomposed form, ə́, is two characters, and
-            # its base letter answers for it.
+            # A character given back its acute with no precomposed form, ə́, is two characters, and
+            # its base character answers for it.
             base = symbol[0]
-            # A combining mark sits over its letter and has no gap of its own.
+            # A combining mark sits over its character and has no gap of its own.
             # A digit sits narrower than its advance, and (11) is no two words.
             if last is not None and not unicodedata.combining(base) and \
                     not symbol.isdigit() and not (current and current[-1].isdigit()):
@@ -862,16 +862,16 @@ def gap_lines(document, share=0.18, marks=None, wide=False, fonts=False, held_wi
                 # With fonts, a change of face or size across the gap marks a word space at a
                 # narrower gap: the small capitals of EXCL meet the bold of get.forgotten 0.15 em
                 # on in Davis's (11), where a word's own gaps reach 0.14 em, St'át'imcets.
-                # A letter with a mark can come from a second regular face, z̓ in cunám̓-ən, and
-                # only weight, slant and size count, between two letters.
+                # A character with a mark can come from a second regular face, z̓ in cunám̓-ən, and
+                # only weight, slant and size count, between two characters.
                 changed = fonts and base.isalpha() and current[-1].isalpha() and (
                     face(font_name(textpage, index)) != face(last_font) or
                     abs(size - last_size) > 0.1 * size)
                 gap_share = 0.08 if changed else share
-                # A typewriter face sets each glyph in the same advance, and a narrow letter leaves
+                # A typewriter face sets each glyph in the same advance, and a narrow character leaves
                 # a wide gap on either side: recognize, never recogni ze, in the Courier of
                 # Lonsdale and Matsushita's Figure 1. Between two of its glyphs only the layer's
-                # own spaces stand.
+                # own spaces are.
                 if left - last[2] > gap_share * size and current[-1] != " " and \
                         symbol not in ",.;:!?)]’”" and current[-1] not in "([‘“" and \
                         not (MONOSPACE.search(font_name(textpage, index)) and
@@ -918,9 +918,9 @@ def font_name(textpage, index):
     return buffer.value.decode("latin-1")
 
 
-# A font whose ToUnicode puts its letters at a fixed offset from their own codes: the name after the
+# A font whose ToUnicode puts its characters at a fixed offset from their own codes: the name after the
 # subset prefix, then the lowest and highest code it uses and the offset to take off. McClay and
-# Birdstone set their small-capital gloss labels in Brill-Roman at U+0614 to U+062D, Arabic letters
+# Birdstone set their small-capital gloss labels in Brill-Roman at U+0614 to U+062D, Arabic characters
 # in the text layer, IND as U+061C U+0621 U+0617, and pdfium's bidi order scrambles them there.
 FONT_CIPHERS = {"Brill-Roman": (0x614, 0x62D, 0x5D3)}
 # A paper whose font puts every code it sets at an offset, by the font's name: each range, lowest
@@ -931,39 +931,39 @@ PAPER_CIPHERS = tables.gather("PAPER_CIPHERS")
 PAPER_TOUNICODE = tables.gather("PAPER_TOUNICODE")
 # Papers whose PAPER_TOUNICODE maps add to the faces' own ToUnicode.
 PAPER_TOUNICODE_ADDED = tables.members("PAPER_TOUNICODE_ADDED")
-# A paper that draws letters as images, by the first ten hex digits of the SHA-1 of each bitmap's
-# pixels and size: the letters it stands for, ' for the comma above. Read in rows mode only.
+# A paper that draws characters as images, by the first ten hex digits of the SHA-1 of each bitmap's
+# pixels and size: the characters it is for, ' for the comma above. Read in rows mode only.
 PAPER_IMAGES = tables.gather("PAPER_IMAGES")
-# Papers that draw the glottal mark as an apostrophe over its letter, q and y of stsq̓éy̓ in Ignace,
-# Ignace and Lyon: the stream sets it after the line, its middle over the letter and its bottom
-# above the letter's top, and the rows would read it into the line above, transfor’mers. Each is
-# set on its letter as the comma above. Read in rows mode only.
+# Papers that draw the glottal mark as an apostrophe over its character, q and y of stsq̓éy̓ in Ignace,
+# Ignace and Lyon: the stream sets it after the line, its middle over the character and its bottom
+# above the character's top, and the rows would read it into the line above, transfor’mers. Each is
+# set on its character as the comma above. Read in rows mode only.
 PAPER_OVERSET = tables.members("PAPER_OVERSET")
 # Papers whose word-space share the calibration sets too low, read in rows mode. The calibration
-# counts only gaps between two letters.
+# counts only gaps between two characters.
 PAPER_SHARE = tables.gather("PAPER_SHARE")
 # Papers read with row_lines's tracked rules. Read in rows mode only.
 PAPER_TRACKED = tables.members("PAPER_TRACKED")
 # Faces whose word spaces the stream alone sets, by paper, read in rows mode.
 PAPER_STREAM_FACES = tables.gather("PAPER_STREAM_FACES")
-# Papers that underline a letter with a rule drawn under it, the k̲, x̲ and g̲ of the U'mista
-# orthography in Black's k̲ina̲m=ox̲=da ga̲la mix̲a, where the font holds no underlined letter. Each
-# rule a letter wide is set on its letter as the macron below. Read in rows mode only.
+# Papers that underline a character with a rule drawn under it, the k̲, x̲ and g̲ of the U'mista
+# orthography in Black's k̲ina̲m=ox̲=da ga̲la mix̲a, where the font holds no underlined character. Each
+# rule a character wide is set on its character as the macron below. Read in rows mode only.
 PAPER_UNDERLINED = tables.members("PAPER_UNDERLINED")
 UNDER_RULE = "̱"
-# The letters the U'mista orthography underlines, a̲ for schwa, g̲, k̲ and x̲, and the schwa Black's
+# The characters the U'mista orthography underlines, a̲ for schwa, g̲, k̲ and x̲, and the schwa Black's
 # phonetic lines underline once, m̉ə̲kwalá in (18b).
-UNDERLINED_LETTERS = set("agkxə")
+UNDERLINED_CHARACTERS = set("agkxə")
 
 
 def under_rules(page, glyphs):
     """Set the macron below on each glyph of glyphs a short rule is drawn under: a filled path
-    under 0.15 em high whose level is within 0.3 em of the letters' bottoms and below their
-    middles, over one to four letters side by side, the letters whose middles it spans. Its
+    under 0.15 em high whose level is within 0.3 em of the characters' bottoms and below their
+    middles, over one to four characters side by side, the characters whose middles it spans. Its
     width is 0.6 to 1.6 times theirs and 0.1 em more: one rule underlines g̲a̲ of Black's
     g̲a̲ls=ox̲=da, and the rule under 'a̲m in (14a) runs under its apostrophe too. A g's
-    descender reaches under the rule, which stands on the row's baseline. The corners and stubs
-    of the table (32) span no letter's width and are passed over, and the underline of a caption
+    descender reaches under the rule, which is on the row's baseline. The corners and stubs
+    of the table (32) span no character's width and are passed over, and the underline of a caption
     runs the length of its words and is left alone. Returns the count set."""
     count = 0
     for one in page.get_objects(filter=[pdfium_c.FPDF_PAGEOBJ_PATH], max_depth=3):
@@ -974,9 +974,9 @@ def under_rules(page, glyphs):
                  and abs(level - glyph[1][1]) < 0.3 * glyph[2] and level < (glyph[1][1] + glyph[1][3]) / 2]
         if not 1 <= len(under) <= 4:
             continue
-        # A rule under two letters or more underlines a letter of the orthography each, or else a
+        # A rule under two characters or more underlines a character of the orthography each, or else a
         # word for emphasis, #-Noun and gukʷ in the schema of Black's (7), which is left alone.
-        if len(under) > 1 and not all(glyph[0][:1] in UNDERLINED_LETTERS for glyph in under):
+        if len(under) > 1 and not all(glyph[0][:1] in UNDERLINED_CHARACTERS for glyph in under):
             continue
         span = max(glyph[1][2] for glyph in under) - min(glyph[1][0] for glyph in under)
         if 0.6 * span <= right - left <= 1.6 * span + 0.1 * under[0][2]:
@@ -986,8 +986,8 @@ def under_rules(page, glyphs):
     return count
 
 
-# Papers that strike letters out with a rule drawn through them, the deleted hi of Sardinha's 2011
-# Table 4, hi sk, and of (ii) on her page 12. Each struck letter takes the long stroke overlay.
+# Papers that strike characters out with a rule drawn through them, the deleted hi of Sardinha's 2011
+# Table 4, hi sk, and of (ii) on her page 12. Each struck character takes the long stroke overlay.
 # Read in rows mode only.
 PAPER_STRUCK = tables.members("PAPER_STRUCK")
 # Papers that link the words of a gloss with underscores set under the gaps between them, the
@@ -1000,14 +1000,14 @@ PAPER_LONE_ACUTE = tables.members("PAPER_LONE_ACUTE")
 # Papers that draw a glyph back over the stream space set before it, Lyon's 2010 iʔ. Read in rows
 # mode only.
 PAPER_DRAWN_BACK = tables.members("PAPER_DRAWN_BACK")
-# Papers that raise a letter after an apostrophe set on the letter before it, Smith's 2011 ejective
+# Papers that raise a character after an apostrophe set on the character before it, Smith's 2011 ejective
 # [k’ʷ] and [q’ʷ]: the apostrophe is passed over and the ʷ is measured against the k. Read in rows
 # mode only.
 PAPER_MARK_BASE = tables.members("PAPER_MARK_BASE")
 MARK_BASES = "’'ʼ"
-# Papers whose stream sets a mark ahead of the letter it stands over: the comma above of Lyon's
-# 2011 k̓ʷúl̓-nt-n, which TIPA draws before the k and before the l. A mark with no letter under it
-# yet waits for the page's glyphs, and the letter under its middle takes it. Read in rows mode only.
+# Papers whose stream sets a mark ahead of the character it is over: the comma above of Lyon's
+# 2011 k̓ʷúl̓-nt-n, which TIPA draws before the k and before the l. A mark with no character under it
+# yet waits for the page's glyphs, and the character under its middle takes it. Read in rows mode only.
 PAPER_MARKS_AHEAD = tables.members("PAPER_MARKS_AHEAD")
 # Papers that set an index as a lowered digit, Bill₁ and ∅₁ in Cable's co-reference examples, which
 # the glyph rows read as a plain one. Read in rows mode only.
@@ -1094,8 +1094,8 @@ def drawn_edges(page, xs, ys):
 
 def ruled_tables(page, bold=None, grids=None):
     """Each ruled grid of a page read cell by cell, top first: (xs, ys, rows), each row a list of
-    cells and each cell a list of lines. Each glyph goes to the cell its middle stands in. Inside a
-    cell the glyphs keep the order the stream sets them in, and a glyph whose top stands below the
+    cells and each cell a list of lines. Each glyph goes to the cell its middle is in. Inside a
+    cell the glyphs retain the order the stream sets them in, and a glyph whose top is below the
     lowest bottom of the line so far opens a new line: a comma after a raised U+2019 stays on its line.
     The spaces are the stream's own; a gap test between boxes reads the side bearings of a narrow 1
     as spaces, Ku02 : 1 43 for Ku02:143. With bold, a pair of strings, each run of glyphs set in a
@@ -1115,7 +1115,7 @@ def ruled_tables(page, bold=None, grids=None):
         if symbol in ("\r", "\n", ""):
             continue
         box = textpage.get_charbox(index)
-        # pdfium gives U+FFFE for a hyphen that ends a line after a letter, and the page prints
+        # pdfium gives U+FFFE for a hyphen that ends a line after a character, and the page prints
         # it: ‘chiseling- / mouth’ in Nater's 2013 line 28, c’ikʷn- ending line 155's form, and C1i-
         # at the end of a line of Table 1's cell in Mellesmoen's 2017 paper.
         if symbol == "￾":
@@ -1133,17 +1133,17 @@ def ruled_tables(page, bold=None, grids=None):
             key = (which, row, column)
             lines = cells[which][row][column]
             # pdfium makes up a space on either side of a mark the stream positions apart from its
-            # letter, the acute of dìlɪ́bərèt in Mattina's Table 6, which goes. The spaces it makes up
-            # between words stand: nu- ‘water’ in Nater's 2013 line 18, and Tahltan q’anaˑχán̥ (my
-            # in-laws in its line 577, after a mark set over the letter streamed before it.
+            # character, the acute of dìlɪ́bərèt in Mattina's Table 6, which goes. The spaces it makes up
+            # between words are: nu- ‘water’ in Nater's 2013 line 18, and Tahltan q’anaˑχán̥ (my
+            # in-laws in its line 577, after a mark set over the character streamed before it.
             if symbol == " ":
                 if not (pdfium.raw.FPDFText_IsGenerated(textpage.raw, index) and displaced_mark(textpage, index)):
                     spaced[key] = bool(lines)
                 break
-            # A combining mark goes on the glyph of its line it stands over, wherever the stream
+            # A combining mark goes on the glyph of its line it is over, wherever the stream
             # sets it: Mattina's tables stream the marks of a cell's word after the word, pn+kin ̓ ̓
             # for pn̓+kin̓ in Table 1, and the acute of lɪ́bərèt after its t in Table 6. A comma
-            # above right stands just past its letter, the l̕ of k̕ʷul̕+l̕ t in Table 1, 0.1pt after it.
+            # above right is just past its character, the l̕ of k̕ʷul̕+l̕ t in Table 1, 0.1pt after it.
             if unicodedata.combining(symbol) and lines:
                 under = [one for one in lines[-1][3] if one[0] <= middle_x <= one[1]] or \
                     [one for one in lines[-1][3] if 0 <= box[0] - one[1] <= 1.0]
@@ -1154,8 +1154,8 @@ def ruled_tables(page, bold=None, grids=None):
                         if one[2] >= end:
                             one[2] += len(symbol)
                     break
-            # A tie of enclisis stands low between the words it joins, its top under the line's
-            # letters, and opens no line. The stream sets a space before it, which the page draws
+            # A tie of enclisis is low between the words it joins, its top under the line's
+            # characters, and opens no line. The stream sets a space before it, which the page draws
             # it back into: ʔinutᴗʔiks in Nater's 2013 line 360 streams as ʔinut ᴗʔiks.
             # So does an underscore linking the words of a gloss, cracked_feet in Mattina's Table 7.
             tie = symbol == "ᴗ"
@@ -1185,8 +1185,8 @@ def ruled_tables(page, bold=None, grids=None):
 
 
 def displaced_mark(textpage, index):
-    """Whether the space at index stands before a combining mark, or after one that does not stand
-    over the glyph the stream sets before it: a mark the stream positions apart from its letter."""
+    """Whether the space at index is before a combining mark, or after one that does not are
+    over the glyph the stream sets before it: a mark the stream positions apart from its character."""
     count = textpage.count_chars()
     if index + 1 < count and unicodedata.combining(textpage.get_text_range(index + 1, 1)):
         return True
@@ -1204,8 +1204,8 @@ def displaced_mark(textpage, index):
 
 def cell_text(cell):
     """A cell's lines joined with a space, as gen joins a paragraph's lines. A line that ends on a
-    hyphen keeps it and the space: the page does not show whether the hyphen joins a compound,
-    ‘chiseling- / mouth’ in Nater's 2013 line 28, or stands before a space, C1i- / for CVC roots in
+    hyphen retains it and the space: the page does not show whether the hyphen joins a compound,
+    ‘chiseling- / mouth’ in Nater's 2013 line 28, or is before a space, C1i- / for CVC roots in
     Mellesmoen's 2017 Table 1, and pdfium's stream is the same for both."""
     return " ".join(cell)
 
@@ -1218,13 +1218,13 @@ def ruled_line(row):
 
 def strike_rules(page, glyphs):
     """Set the long stroke overlay on each glyph of glyphs a short rule is drawn through: a filled
-    path under 0.15 em high whose level stands inside the letters' boxes and 0.15 to 0.6 em over
+    path under 0.15 em high whose level is inside the characters' boxes and 0.15 to 0.6 em over
     their bottoms, through their x-height and the descender of the j of Cable's struck Object in
-    (41), over the letters whose middles it spans. Its width is 0.8 to 1.3 times that of the glyphs
+    (41), over the characters whose middles it spans. Its width is 0.8 to 1.3 times that of the glyphs
     whose middles it spans on the row, brackets and stops among them, and 0.1 em more: the rule
-    through Sardinha's hi runs 7.7pt over letters 7.4pt wide, 0.22 em up, and the one through
+    through Sardinha's hi runs 7.7pt over characters 7.4pt wide, 0.22 em up, and the one through
     Cable's [ S. or R.-ko ]₁ in (44) over its brackets. A table's border runs a cell wide and spans
-    no letters' width. Returns the count set."""
+    no characters' width. Returns the count set."""
     count = 0
     for one in page.get_objects(filter=[pdfium_c.FPDF_PAGEOBJ_PATH], max_depth=3):
         left, bottom, right, top = one.get_bounds()
@@ -1251,7 +1251,7 @@ def strike_rules(page, glyphs):
         if before and max(before) >= left - 0.1 * size:
             first = min(first, max(max(before), left))
         span = last - first
-        # A rule drawn twice over the same letters, as Lyon's 2008 struck transcriptions are on
+        # A rule drawn twice over the same characters, as Lyon's 2008 struck transcriptions are on
         # page 3, strikes them once.
         through = [glyph for glyph in through if not glyph[0].endswith(STRIKE_RULE)]
         if 0.8 * span <= right - left <= 1.3 * span + 0.1 * size:
@@ -1265,7 +1265,7 @@ def underlined_runs(document, ciphers=None):
     """The runs of text each page underlines, {page number: [text, ...]}, left to right down the
     page: a rule under 1.2pt high and 3 to 80pt wide drawn up to 3.5pt under the glyphs whose
     middles it spans. Rude's 2012 paper underlines the Nez Perce morphemes of strong vowel harmony,
-    /tahay/ in his (3), and the text layer keeps the letters and drops the rule. A table's border
+    /tahay/ in his (3), and the text layer retains the characters and drops the rule. A table's border
     runs wider than any form and is left out. A glyph set more than 0.2 em after the one before it
     opens a new word."""
     found = {}
@@ -1289,12 +1289,12 @@ def underlined_runs(document, ciphers=None):
             sitting = [glyph for glyph in spanned if -1.0 <= glyph[1][1] - top <= 3.5]
             if not sitting:
                 continue
-            # A mark standing clear of the letters, the lone ´ of /c̓´kn/ in Rude's Table 3, is
+            # A mark located clear of the characters, the lone ´ of /c̓´kn/ in Rude's Table 3, is
             # taken with them where its box reaches into their height.
             low, high = min(glyph[1][1] for glyph in sitting), max(glyph[1][3] for glyph in sitting)
             over = sorted((glyph for glyph in spanned if glyph[1][1] < high and glyph[1][3] > low),
                           key=lambda glyph: glyph[1][0])
-            # An underline runs the width of its letters, give or take a letter; a table's rule
+            # An underline runs the width of its characters, give or take a character; a table's rule
             # under a row runs out to the cell's edges.
             span = over[-1][1][2] - over[0][1][0]
             if abs(left - over[0][1][0]) > 0.5 * over[0][2] or abs(right - over[-1][1][2]) > 0.5 * over[-1][2]:
@@ -1312,35 +1312,35 @@ def underlined_runs(document, ciphers=None):
     return found
 
 
-def over_letters(glyphs):
-    """glyphs with each apostrophe drawn over a letter set on that letter as the comma above. The
-    mark's left edge starts inside the letter's box or at its edge, 0.05 em in over the l̓ of
+def over_characters(glyphs):
+    """glyphs with each apostrophe drawn over a character set on that character as the comma above. The
+    mark's left edge starts inside the character's box or at its edge, 0.05 em in over the l̓ of
     Sisyúl̓ecw, 0.08 over the italic y̓ of stsq̓ey̓ and 0.00 over the italic k̓ of n7ek̓, where a spacing
-    apostrophe starts 0.07 em past it or more, Teit’s and St’át’imcets. Its middle stands over the letter or up to 0.15 em past its right edge,
-    and its bottom at most 0.12 em under the letter's top, over the ascender of l, and at most a third
+    apostrophe starts 0.07 em past it or more, Teit’s and St’át’imcets. Its middle is over the character or up to 0.15 em past its right edge,
+    and its bottom at max 0.12 em under the character's top, over the ascender of l, and at max a third
     of an em over it. The glyphs
-    left are renumbered in stream order. The stream can carry the mark far from its letter, the ’ of
+    left are renumbered in stream order. The stream can carry the mark far from its character, the ’ of
     skwtut̓s set among the glyphs of a line above, with a space each side of it; the glyph after it
     is left to the gap test."""
-    kept = []
+    retained = []
     dropped = False
     for glyph in glyphs:
         if dropped:
             glyph[5] = False
             dropped = False
-        under = letter_under(glyph, glyphs) if glyph[0] == "’" else None
+        under = character_under(glyph, glyphs) if glyph[0] == "’" else None
         if under is not None:
             under[0] += COMMA_ABOVE
             dropped = True
             continue
-        kept.append(glyph)
-    for order, glyph in enumerate(kept):
+        retained.append(glyph)
+    for order, glyph in enumerate(retained):
         glyph[4] = order
-    return kept
+    return retained
 
 
-def letter_under(mark, glyphs):
-    """The glyph of glyphs whose letter the apostrophe glyph mark is drawn over, by over_letters's
+def character_under(mark, glyphs):
+    """The glyph of glyphs whose character the apostrophe glyph mark is drawn over, by over_characters's
     measures, or None."""
     box, size = mark[1], mark[2]
     middle = (box[0] + box[2]) / 2
@@ -1352,8 +1352,8 @@ def letter_under(mark, glyphs):
 
 
 def overset_marks(textpage):
-    """For italic_runs: {the index of each letter an apostrophe is drawn over: the comma above}, and
-    the set of those apostrophes' indexes, by over_letters's measures on the page's glyphs."""
+    """For italic_runs: {the index of each character an apostrophe is drawn over: the comma above}, and
+    the set of those apostrophes' indexes, by over_characters's measures on the page's glyphs."""
     glyphs = []
     for index in range(textpage.count_chars()):
         symbol = textpage.get_text_range(index, 1)
@@ -1361,7 +1361,7 @@ def overset_marks(textpage):
             glyphs.append([symbol, textpage.get_charbox(index), glyph_size(textpage, index), None, index, False])
     marks, taken = {}, set()
     for glyph in glyphs:
-        under = letter_under(glyph, glyphs) if glyph[0] == "’" else None
+        under = character_under(glyph, glyphs) if glyph[0] == "’" else None
         if under is not None:
             marks[under[4]] = marks.get(under[4], "") + COMMA_ABOVE
             taken.add(glyph[4])
@@ -1369,9 +1369,9 @@ def overset_marks(textpage):
 
 
 def image_glyphs(page, images, number=None):
-    """(letters, box, size) for each image of page that images names by its bitmap, the box its ink's
-    alone: a bitmap's white margin reaches over the letter after it, and its box would close the word
-    space there. An image whose letter is drawn by its soft mask over a bitmap of two by two pixels,
+    """(characters, box, size) for each image of page that images names by its bitmap, the box its ink's
+    alone: a bitmap's white margin reaches over the character after it, and its box would close the word
+    space there. An image whose character is drawn by its soft mask over a bitmap of two by two pixels,
     which pdfium does not hand back, is named by its place instead, "page@left,bottom" in whole
     points, number the page's index; its box is the image's and its size two thirds of its height."""
     found = []
@@ -1379,7 +1379,7 @@ def image_glyphs(page, images, number=None):
         left, bottom, right, top = one.get_bounds()
         place = "%d@%d,%d" % ((number or 0) + 1, round(left), round(bottom))
         if place in images:
-            # Janzen's masked images stand 15.1 points tall over a line of 9.96 point type.
+            # Janzen's masked images are 15.1 points tall over a line of 9.96 point type.
             found.append((unicodedata.normalize("NFC", images[place].replace("'", COMMA_ABOVE)),
                           (left, bottom, right, top), (top - bottom) * 2 / 3))
             continue
@@ -1392,12 +1392,12 @@ def image_glyphs(page, images, number=None):
         width, height = right - left, top - bottom
         box = (left + ink[0] / gray.width * width, top - ink[3] / gray.height * height,
                left + ink[2] / gray.width * width, top - ink[1] / gray.height * height)
-        # The size is the box's height where the box stands a line tall; a bold letter's box ten lines
+        # The size is the box's height where the box is a line tall; a bold character's box ten lines
         # tall would draw the rows round it into one, and there the ink's height gives the size, a
-        # letter's ink with its comma about 0.7 of the type size.
+        # character's ink with its comma about 0.7 of the type size.
         size = min(height, (box[3] - box[1]) / 0.7)
         # A tie's ink is a thin arc under the line, and its middle and size would set it on a row of
-        # its own; it takes its height from the image, which stands a line tall, as its tier does.
+        # its own; it takes its height from the image, which is a line tall, as its tier does.
         if set(images[key]) == {"˽"}:
             box, size = (box[0], bottom, box[2], top), height
         found.append((unicodedata.normalize("NFC", images[key].replace("'", COMMA_ABOVE)), box, size))
@@ -1421,8 +1421,8 @@ def deciphered(symbol, textpage, index, ciphers=None):
     cipher = FONT_CIPHERS.get(re.sub(r"^[A-Z]{6}\+", "", font_name(textpage, index)))
     if cipher is None or not cipher[0] <= ord(symbol) <= cipher[1]:
         return symbol
-    letter = chr(ord(symbol) - cipher[2])
-    return letter if "A" <= letter <= "Z" else symbol
+    character = chr(ord(symbol) - cipher[2])
+    return character if "A" <= character <= "Z" else symbol
 
 
 def drawn_space(textpage, index):
@@ -1450,11 +1450,11 @@ def clip_box(obj):
 
 
 def clipped(textpage, index, box, clips):
-    """True for a glyph standing wholly outside its text object's clip, which the page carries and
+    """True for a glyph located wholly outside its text object's clip, which the page carries and
     does not draw: an earlier draft of Noguchi's page 19 under the one printed, 1,987 glyphs clipped
     to Figure 13's frame. Of the other papers only Schneider's and Thompson's carry any, two glyphs
     each, and both are read from the text layer. clips caches each object's clip box by its
-    pointer, one dict per page; 1 pt of slack keeps a glyph whose box only grazes the clip's edge."""
+    pointer, one dict per page; 1 pt of slack retains a glyph whose box only grazes the clip's edge."""
     obj = pdfium_c.FPDFText_GetTextObject(textpage.raw, index)
     if not obj:
         return False
@@ -1507,33 +1507,33 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
 
     An interlinear set cell by cell, ɬe / ɬ= / REM / e= / DET / the in the stream of wlwlmelst and
     Janzen's (1), comes out as its four tiers. With read_marks, for a font that names its marks as
-    letters, the misread marks are set on their letters first, in the stream order the font gives
-    them, and each í is read from the ink over it. A heading's number keeps the gap after it, 3.3
-    Interlinear, where a digit inside a line keeps none. slanted, where given, collects each space
+    characters, the misread marks are set on their characters first, in the stream order the font gives
+    them, and each í is read from the ink over it. A heading's number retains the gap after it, 3.3
+    Interlinear, where a digit inside a line retains none. slanted, where given, collects each space
     set only because a roman word met an italic one or a capital followed f: (page, the word
-    before, the letter after, the gap in em). With stream_spaces, a space pdfium sets between two
-    glyphs that follow each other in the stream is kept too, where the gap is narrower than a word
+    before, the character after, the gap in em). With stream_spaces, a space pdfium sets between two
+    glyphs that follow each other in the stream is retained too, where the gap is narrower than a word
     space: of the in Hannon's §4.2, 0.07 em apart on a tight justified line, and Section 2
-    presents, 0.22 em on each side of the digit. A space after a letter carrying a mark is left
+    presents, 0.22 em on each side of the digit. A space after a character carrying a mark is left
     to the gap alone. ciphers, where given, is the paper's PAPER_CIPHERS entry, and images its
-    PAPER_IMAGES entry, each image it names set among the glyphs as the letters it draws. With
-    overset, an apostrophe drawn over a letter is set on it as the comma above, with underlined
-    a rule drawn under a letter as the macron below, and with struck a rule drawn through a letter
+    PAPER_IMAGES entry, each image it names set among the glyphs as the characters it draws. With
+    overset, an apostrophe drawn over a character is set on it as the comma above, with underlined
+    a rule drawn under a character as the macron below, and with struck a rule drawn through a character
     as the long stroke overlay. With tracked, a small capital's gap is measured against its row's
-    size, a gap beside a Menlo modifier letter is weighed against its wide advance, and a space the
-    stream sets inside a bracket or brace is kept. lifted, where given, is filled with each
-    page's raised letters, {page index: {index in the text page: modifier}}, and each is written
-    as its modifier where it stands: the raised j of -kʲ in Black's table (32) stands over a row
+    size, a gap beside a Menlo modifier character is weighed against its wide advance, and a space the
+    stream sets inside a bracket or brace is retained. lifted, where given, is filled with each
+    page's raised characters, {page index: {index in the text page: modifier}}, and each is written
+    as its modifier where it is: the raised j of -kʲ in Black's table (32) is over a row
     of its own, and the stream sets the table's cells in another order than its rows, and aligning
     the stream to the rows afterward misses it. Its "lines" holds a defects row to each line given
-    a raised letter. With ruled, each ruled grid of a page is read by ruled_tables and set where its
-    rows stand, a line to a table row. stream_faces names the faces whose word spaces the stream
+    a raised character. With ruled, each ruled grid of a page is read by ruled_tables and set where its
+    rows are, a line to a table row. stream_faces names the faces whose word spaces the stream
     alone sets, a paper's PAPER_STREAM_FACES entry. With underscored, a row of underscores alone
-    joins the row over it. With marks_ahead, a mark with no letter under it waits for the letter
+    joins the row over it. With marks_ahead, a mark with no character under it waits for the character
     the stream sets after it."""
     pages = []
     scale = INK_DPI / 72.0
-    # The gap an f's overhang leaves before the next letter of its word stays under 0.08 em, of the
+    # The gap an f's overhang leaves before the next character of its word stays under 0.08 em, of the
     # apart; a share set over the calibration's 0.18 ceiling for a loose face loosens it by half.
     after_f = 0.08 if share <= 0.18 else share / 2
     for number in range(len(document)):
@@ -1553,22 +1553,22 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
         raised_at, unlifted = {}, {}
         reach = {}
         if lifted is not None:
-            raised_letters(textpage, ciphers=ciphers, found=raised_at, mark_base=mark_base)
+            raised_characters(textpage, ciphers=ciphers, found=raised_at, mark_base=mark_base)
             lifted[number] = raised_at
         for index in range(textpage.count_chars()):
             symbol = textpage.get_text_range(index, 1)
-            # A letter past U+FFFF, the math italic 𝜆 and 𝑥 of Mellesmoen's formulas in Cambria Math,
+            # A character past U+FFFF, the math italic 𝜆 and 𝑥 of Mellesmoen's formulas in Cambria Math,
             # takes two indexes, one per surrogate, and each alone reads as nothing. The first is read
             # with the second; the second stays empty and is passed over.
             if not symbol and 0xD800 <= pdfium_c.FPDFText_GetUnicode(textpage, index) < 0xDC00:
                 symbol = textpage.get_text_range(index, 2)
-            # A space a cipher's font draws with ink is a letter of that font, Galloway's =.
+            # A space a cipher's font draws with ink is a character of that font, Galloway's =.
             drawn = symbol == " " and ciphers and drawn_space(textpage, index) and \
                 deciphered(symbol, textpage, index, ciphers) != " "
             # pdfium sets a space of no width after a mark the stream carries late, x a s ̣ í l̓ for
-            # x̣asíl̓ in Mellesmoen's (3d); the gap alone decides whether a word space stands there.
+            # x̣asíl̓ in Mellesmoen's (3d); the gap alone decides whether a word space is there.
             # A space pdfium made up is marked "made", one the stream carries True. A space the
-            # stream carries with its width after a mark set on its letter stands: the x̌ and
+            # stream carries with its width after a mark set on its character is: the x̌ and
             # all-spice of Lyon's 2008 (7).
             if symbol == " " and not drawn and (not after_mark or textpage.get_charbox(index)[2] -
                                                 textpage.get_charbox(index)[0] > 0.01):
@@ -1583,10 +1583,10 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
             # Each glyph is placed by its box below, which puts a ciphered run back in order.
             coded = symbol
             symbol = raised_at.get(index) or deciphered(symbol, textpage, index, ciphers)
-            # A tie bar a cipher's font sets before the two letters it joins, the > of Tammpere,
-            # Birdstone and Wiltschko's t͡s, stands over both, raised above the line. It goes after
-            # the first letter the stream sets next. A U+0361 the stream itself carries already
-            # stands in Unicode order and takes the mark reading below.
+            # A tie bar a cipher's font sets before the two characters it joins, the > of Tammpere,
+            # Birdstone and Wiltschko's t͡s, is over both, raised above the line. It goes after
+            # the first character the stream sets next. A U+0361 the stream itself carries already
+            # is in Unicode order and takes the mark reading below.
             if symbol == "͡" and coded != symbol:
                 tie = True
                 continue
@@ -1600,21 +1600,21 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                 if mark != symbol:
                     marks.append(symbol)
                 middle = (box[0] + box[2]) / 2
-                # A mark set above its letter stands over the letter's bottom. The comma above right
-                # of Janzen's t̕ and k̕ in the Dawson wordlist stands past its letter's box, its middle
-                # over a letter of the line above, whose bottom is higher than the mark's, or at the
-                # foot of that line's g; the letter before it in the stream takes it.
+                # A mark set above its character is over the character's bottom. The comma above right
+                # of Janzen's t̕ and k̕ in the Dawson wordlist is past its character's box, its middle
+                # over a character of the line above, whose bottom is higher than the mark's, or at the
+                # foot of that line's g; the character before it in the stream takes it.
                 above = unicodedata.combining(mark[0]) >= 230
                 under = [one for one in glyphs if one[1][0] <= middle <= one[1][2]
                          and abs(one[1][1] - box[1]) < size and not (above and one[1][1] >= box[1])]
                 # With drawn_back the stream sets a line's DejaVu glyphs after its Times ones, and
-                # the letter before a mark in the stream can stand anywhere on the line: the comma
-                # above right of Lyon's k̕ʷúl follows the stop that ends the line. Where no letter
-                # stands under the mark, the letter ending nearest before its middle, within 0.4
-                # em on its line, takes it. The comma above right stands past its letter and over
+                # the character before a mark in the stream can are anywhere on the line: the comma
+                # above right of Lyon's k̕ʷúl follows the stop that ends the line. Where no character
+                # is under the mark, the character ending nearest before its middle, within 0.4
+                # em on its line, takes it. The comma above right is past its character and over
                 # the next, t̕uk̕ʷ in Lyon's (11a) with its middle over the u, and always goes to
-                # the letter before it. A mark set above takes no letter of the line over it, whose
-                # bottom stands higher than the mark's: the a of also over the l̕ of k+s+ql̕t=mixʷ on
+                # the character before it. A mark set above takes no character of the line over it, whose
+                # bottom is higher than the mark's: the a of also over the l̕ of k+s+ql̕t=mixʷ on
                 # Mattina's page 10.
                 if drawn_back and (not under or mark == "̕"):
                     under = sorted((one for one in glyphs if abs(one[1][1] - box[1]) < size and
@@ -1628,17 +1628,17 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                 target = under[-1] if under else (glyphs[-1] if glyphs else None)
                 if target is not None:
                     target[0] += mark
-                    # The comma above right stands past its letter in an advance of its own, the
+                    # The comma above right is past its character in an advance of its own, the
                     # Calibri l̕ of Lyon's 2008 (sgweshúl̕emxw), and where the stream sets no space
-                    # after it and the next glyph keeps its slant, the gap after the letter is
+                    # after it and the next glyph retains its slant, the gap after the character is
                     # measured from the mark, the Times ε after it in (hεnq̓ʷεlúl̕εmxʷεn) too. Where
-                    # the slant changes the mark can stand in the word space itself: the italic
+                    # the slant changes the mark can are in the word space itself: the italic
                     # t̕íl̕ before the upright is of Lyon and Czaykowska-Higgins's page 14, the is
                     # 0.05 em past the mark.
                     if mark == "̕" and box[2] > target[1][2]:
                         reach[target[4]] = box[2]
                     # A mark the stream carries after other glyphs, the caron of *t'əx̌ is at the end
-                    # of its line in Denzer-King's §3.1, leaves the letter's own space in the stream.
+                    # of its line in Denzer-King's §3.1, leaves the character's own space in the stream.
                     if target is not glyphs[-1]:
                         late.add(target[4])
                         # pdfium makes up a space before such a mark as well: gígiȷ̉atsáɢa in
@@ -1658,12 +1658,12 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
             if tie:
                 symbol, tie = symbol + "͡", False
             # A bold faked by printing a word twice, Upper Chehalis heading Denzer-King's (5) with its
-            # second print 0.024 em right of the first: a letter over the same letter less than 0.05
-            # em away is the second print and is passed over. Two letters set side by side stand
-            # an advance apart, 0.2 em or more. The letters of a ligature share its box and follow
+            # second print 0.024 em right of the first: a character over the same character less than 0.05
+            # em away is the second print and is passed over. Two characters set side by side are
+            # an advance apart, 0.2 em or more. The characters of a ligature share its box and follow
             # each other in the stream, the ff of suffixes in Jantzen's introduction; the glyph just
             # before is never the first print. While a second print is being passed over, the glyph
-            # last kept is not the one before in the stream.
+            # last retained is not the one before in the stream.
             if box[2] > box[0] and any(one[0] == symbol and abs(one[1][0] - box[0]) < 0.05 * size and
                                        abs(one[1][1] - box[1]) < 0.05 * size
                                        for one in (glyphs[-60:] if overprint else glyphs[-60:-1])):
@@ -1671,7 +1671,7 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                 continue
             overprint = False
             # With drawn_back, a space the stream sets before a glyph but draws past that glyph's
-            # right edge stands after it: Lyon's 2010 Word export sets iʔ as i, a space, and a
+            # right edge is after it: Lyon's 2010 Word export sets iʔ as i, a space, and a
             # DejaVu ʔ drawn back over the space, 0.04 em after the i. pdfium makes up a space of
             # its own where the stream steps back, past the ʔ of sámaʔ in (4); that one goes too.
             if drawn_back and space_before and space_left >= box[2] - 0.05 * size:
@@ -1682,9 +1682,9 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
             space_before = False
             if box[2] > box[0]:
                 last = box
-        # An italic letter leans right, its top a quarter of its rise past its foot: the comma over
-        # the italic l of sl̓ax̌ts on page 20 of Lyon's 2011 paper stands right of the l's upright box
-        # and over the l's top. A waiting mark is measured against the letter's box shifted by that
+        # An italic character leans right, its top a quarter of its rise past its foot: the comma over
+        # the italic l of sl̓ax̌ts on page 20 of Lyon's 2011 paper is right of the l's upright box
+        # and over the l's top. A waiting mark is measured against the character's box shifted by that
         # lean at the mark's height.
         def lean(one, box):
             return 0.25 * (box[1] - one[1][1]) if italic(one[3]) else 0
@@ -1693,16 +1693,16 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                      and abs(one[1][1] - box[1]) < size and not (above and one[1][1] >= box[1])]
             if under:
                 under[-1][0] += mark
-        for letters, box, size in image_glyphs(document[number], images, number):
-            glyphs.append([letters, box, size, "image", len(glyphs), False])
+        for characters, box, size in image_glyphs(document[number], images, number):
+            glyphs.append([characters, box, size, "image", len(glyphs), False])
         if overset:
-            glyphs = over_letters(glyphs)
+            glyphs = over_characters(glyphs)
         if underlined:
             under_rules(document[number], glyphs)
         if struck:
             strike_rules(document[number], glyphs)
         # Rows by the glyphs' vertical middles, taken top down: within a line the middles of the
-        # letters, the descenders, the parentheses and the = sit close together, and the next line
+        # characters, the descenders, the parentheses and the = sit close together, and the next line
         # starts after a gap of more than 0.3 em.
         rows = []
         for glyph in sorted(glyphs, key=lambda one: -(one[1][1] + one[1][3]) / 2):
@@ -1713,7 +1713,7 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
             else:
                 rows.append([middle, [glyph]])
         # A row of quote marks alone is the marks of the row beside it: the quotes round a gloss
-        # set in small capitals stand clear of its letters, ‘1sg’ in Brown, Forbes and Schwan's
+        # set in small capitals are clear of its characters, ‘1sg’ in Brown, Forbes and Schwan's
         # (48c), and so do the apostrophes of ’waa-’nu in their footnote 17, and the closing quote
         # of pronouns.”, alone on the last line of a quotation in Baier and Wdzenczny's §6.
         # Each such row joins the neighbor whose middle is nearer. The ties of enclisis do the same,
@@ -1729,7 +1729,7 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
             nearest = min(beside, key=lambda one: (abs(rows[one][0] - middle), -one))
             rows[nearest][1].extend(members)
             del rows[place]
-        # A row of stops alone is the stop of a row whose other glyphs stand taller: the period of
+        # A row of stops alone is the stop of a row whose other glyphs are taller: the period of
         # 2. at the head of a line in van Eijk, its middle 3.2 points under the digit's. It joins the
         # neighbor whose baseline it sits on, within 0.2 em.
         for place in range(len(rows) - 1, -1, -1):
@@ -1748,8 +1748,8 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
         # With underscored, a row of underscores alone is the underscores linking the words of the
         # row over it, set under that row's baseline in the gaps between its words: the italic
         # -take_back and bring_pl_cisl in Mattina's Tables 12 and 13. It joins that row where it
-        # stands within an em under its middle. A scanned paper's text layer sets an underscore
-        # where the page underlines a word, the alikw of Bates and Hess's page 1, and keeps it apart.
+        # is within an em under its middle. A scanned paper's text layer sets an underscore
+        # where the page underlines a word, the alikw of Bates and Hess's page 1, and retains it apart.
         for place in range(len(rows) - 1, 0, -1):
             middle, members = rows[place]
             if not underscored or not all(one[0] == "_" for one in members):
@@ -1761,9 +1761,9 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                 del rows[place]
         # A row of a note's mark alone is the mark raised over the row under it: the * set high
         # after the title Orbital Clitics in Nxaʔamxčín and before the note it opens, Deep gratitude,
-        # in Lyon and Czaykowska-Higgins, or a number set smaller than the row's letters. So is a
+        # in Lyon and Czaykowska-Higgins, or a number set smaller than the row's characters. So is a
         # row of primes set smaller, the w′′ of y(w′′) = x(w′′)] closing Lyon's 2011 (129). It joins
-        # that row where it stands within an em of it.
+        # that row where it is within an em of it.
         for place in range(len(rows) - 2, -1, -1):
             middle, members = rows[place]
             below_middle, below = rows[place + 1]
@@ -1776,27 +1776,27 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
             if middle - below_middle < size:
                 below.extend(members)
                 del rows[place]
-        # A row of small raised letters alone is the raised letters of the row under it: the ʷ of
-        # kxʷans, cǝkʷlátǝn and qʷáy in Davis and Van Eijk's bird names stands clear of its row
-        # where no tall letter of that row reaches up to it. It joins the row under it where it
-        # stands within an em over it, set smaller than that row's letters. Only a w or an h joins,
-        # the h the aspiration of [tɕɪpʰamej:ʊ̀χda] in Black's (39b), or a letter already written as
-        # its modifier, the ʲ of -kʲ in Black's (32): a raised digit or suffix standing alone
-        # (Crowgey's 331, Thompson's rd) is read where it stands. The raised apostrophes of the same
+        # A row of small raised characters alone is the raised characters of the row under it: the ʷ of
+        # kxʷans, cǝkʷlátǝn and qʷáy in Davis and Van Eijk's bird names is clear of its row
+        # where no tall character of that row reaches up to it. It joins the row under it where it
+        # is within an em over it, set smaller than that row's characters. Only a w or an h joins,
+        # the h the aspiration of [tɕɪpʰamej:ʊ̀χda] in Black's (39b), or a character already written as
+        # its modifier, the ʲ of -kʲ in Black's (32): a raised digit or suffix located alone
+        # (Crowgey's 331, Thompson's rd) is read where it is. The raised apostrophes of the same
         # word join with them, ’ ’w over u c oq m for c’oq’ʷm in Baier and Wdzenczny's (4).
         for place in range(len(rows) - 2, -1, -1):
             middle, members = rows[place]
             below_middle, below = rows[place + 1]
             size = sorted(one[2] for one in below)[len(below) // 2]
-            if not all(one[0] in "wh’'ʼ" or one[0] in MODIFIER_LETTERS for one in members) or \
+            if not all(one[0] in "wh’'ʼ" or one[0] in MODIFIER_CHARACTERS for one in members) or \
                     all(one[0] in "’'ʼ" for one in members) or \
                     max(one[2] for one in members if one[0] not in "’'ʼ") >= 0.85 * size:
                 continue
             if middle - below_middle < size:
                 below.extend(members)
                 del rows[place]
-        def standing(glyph):
-            """Where glyph stands in its row, its box's left edge. An opening quote goes before the
+        def located(glyph):
+            """Where glyph is in its row, its box's left edge. An opening quote goes before the
             glyph after it in the stream where that glyph's box starts left of the quote's and
             reaches over it: the f of ‘feed’ in Robertson's tables starts 0.5pt left of its quote."""
             following = glyphs[glyph[4] + 1] if glyph[0] in "‘“" and glyph[4] + 1 < len(glyphs) else None
@@ -1812,8 +1812,8 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
         def grid_of(lowest):
             return next((which for which, (xs, ys, _) in enumerate(tables) if ys[-1] < lowest < ys[0]), None)
 
-        # The glyphs of a grid's rows that stand left or right of the grid go on the line of the
-        # grid row whose height they stand in: the number (3) beside the head of Mellesmoen's 2017
+        # The glyphs of a grid's rows that are left or right of the grid go on the line of the
+        # grid row whose height they are in: the number (3) beside the head of Mellesmoen's 2017
         # tableau, and the pointing hand beside its winner.
         flanking = {}
         for lowest, members in rows:
@@ -1841,9 +1841,9 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                                                                   outside(inside, at, True)) if one)
                                       for at, row in enumerate(tables[inside][2]))
                 continue
-            members.sort(key=standing)
+            members.sort(key=located)
             text = []
-            # The letter each raised one written as its modifier stands for, by its place in text,
+            # The character each raised one written as its modifier is for, by its place in text,
             # for the defects row.
             swapped = {}
             previous = None
@@ -1852,18 +1852,18 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                 if previous is not None:
                     gap = box[0] - (reach.get(previous[3], previous[1][2])
                                     if not spaced and italic(font) == italic(previous[2]) else previous[1][2])
-                    # A capital set smaller than its row's letters, a word processor's small
-                    # capital, keeps the row's letter spacing: the O B L of Sardinha's 2011 glosses
-                    # stands 1.1 to 1.3pt apart, 0.16 em of its 7.92pt and 0.13 of the row's 9.84.
+                    # A capital set smaller than its row's characters, a word processor's small
+                    # capital, retains the row's character spacing: the O B L of Sardinha's 2011 glosses
+                    # is 1.1 to 1.3pt apart, 0.16 em of its 7.92pt and 0.13 of the row's 9.84.
                     # Its gap is measured against the row's size.
                     measure = row_size if tracked and symbol[0].isupper() and size < 0.9 * row_size else size
                     digit = symbol[0].isdigit() or previous[0][-1].isdigit()
                     # Where the slant changes the gap takes the word space too: Lyon and Davis set
                     # an italic Clinton against a roman a 0.08 em on, and s against an italic Cultus
                     # 0.10 em on, both inside a word. A narrower space there, marker ji in Brown's §3
-                    # at 0.09 em and of Indigenous at 0.05, stands on the stream's space. A word can
+                    # at 0.09 em and of Indigenous at 0.05, is on the stream's space. A word can
                     # change weight inside it, japxwit with its extraction suffix bold.
-                    # The box of an f reaches over the letter after it and a j's under the letter
+                    # The box of an f reaches over the character after it and a j's under the character
                     # before it: -0.10 em inside after, 0.15 em between of the. The word space
                     # there is narrower than share, and so is the gap it has to beat.
                     # The box of U+2019 is narrower than its advance: t’aan in Brown's (16) sets a after
@@ -1873,9 +1873,9 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                     # A 1 is narrow in a figure's advance: the raised 11 of Lyon and
                     # Czaykowska-Higgins's page 7 sets its 1s 0.27 em apart.
                     # The box of the Straight face's hyphen is narrower than its advance too: the
-                    # 202 hyphens of Gerdts and Peter, Urbanczyk and Gerdts's 2010 paper stand 0.10
-                    # to 0.18 em before the next letter with no space in the stream, and the renders
-                    # print s-xʷənitəm̓-aʔł and š-niʔ-s closed. The face sets its letters loose as
+                    # 202 hyphens of Gerdts and Peter, Urbanczyk and Gerdts's 2010 paper are 0.10
+                    # to 0.18 em before the next character with no space in the stream, and the renders
+                    # print s-xʷənitəm̓-aʔł and š-niʔ-s closed. The face sets its characters loose as
                     # well, 0.15 to 0.16 em apart, and the justified abstract of Gerdts's 2010 paper
                     # tracks naʔət out to 0.18 em. No gap between two glyphs of the face without a
                     # space in the stream passes 0.18 em in the three papers.
@@ -1890,16 +1890,16 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                     # space after it, hadiks ’nii’y in Brown's (1), 0.37 em.
                     closing = symbol[0] in ",.;:!?)]}”" or (symbol[0] == "’" and gap <= 0.25 * size)
                     # The box of ’, ∙, ʹ and ʼ also starts well into its advance: Robertson's tables
-                    # set the ’ closing a gloss 0.24 to 0.33 em after its letter and hi∙lu∙'s dots
+                    # set the ’ closing a gloss 0.24 to 0.33 em after its character and hi∙lu∙'s dots
                     # 0.11 to 0.15, with no space in the stream. Where the stream sets none, a gap
                     # up to 0.35 em before one of them is no word space.
                     if symbol[0] in "’∙ʹʼ" and not spaced and gap <= 0.35 * size:
                         closing = True
-                    # A spacing acute standing for a stressed vowel the form leaves unwritten, Rude's
+                    # A spacing acute located for a stressed vowel the form leaves unwritten, Rude's
                     # 2012 /p´qʷn/ and /s´wn/, draws its stroke to the right of its advance too.
                     # With lone_acute, where the stream sets no space, a gap up to 0.35 em before
-                    # one is no word space. Lyon's and Lee's papers set ´ as a mark over the letter
-                    # before it, and keep their gaps.
+                    # one is no word space. Lyon's and Lee's papers set ´ as a mark over the character
+                    # before it, and retain their gaps.
                     if lone_acute and symbol[0] == "´" and not spaced and gap <= 0.35 * size:
                         closing = True
                     # The stress marks ˈ and ˌ draw a hairline in the middle of their advance: Black's
@@ -1908,20 +1908,20 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                     # side of one is no word space.
                     if (symbol[0] in "ˈˌ" or previous[0][-1] in "ˈˌ") and not spaced and gap <= 0.25 * size:
                         closing = True
-                    # A modifier letter taken from a monospaced Menlo sits in the middle of an
-                    # advance 0.6 em wide: the ʲ of [hʲi-] on Sardinha's 2011 page 26 stands 0.25 em
+                    # A modifier character taken from a monospaced Menlo sits in the middle of an
+                    # advance 0.6 em wide: the ʲ of [hʲi-] on Sardinha's 2011 page 26 is 0.25 em
                     # after its h and 0.27 before its i. Where the stream sets no space, a gap up to
                     # 0.3 em on either side of one is no word space.
-                    if tracked and (symbol[0] in MODIFIER_LETTERS and "Menlo" in font or
-                            previous[0][-1] in MODIFIER_LETTERS and "Menlo" in previous[2]) and \
+                    if tracked and (symbol[0] in MODIFIER_CHARACTERS and "Menlo" in font or
+                            previous[0][-1] in MODIFIER_CHARACTERS and "Menlo" in previous[2]) and \
                             not spaced and gap <= 0.3 * size:
                         closing = True
                     # A face named in stream_faces sets every word space in the stream: the Calibri
                     # of Mellesmoen's footnote 8 on page 11 opens 0.14 em between the l and l of
                     # following, and her Times 0.14 em between the ] and - of [h]-epenthesis, where
-                    # its word spaces stand 0.05 em apart. Between two glyphs of that face with no
+                    # its word spaces are 0.05 em apart. Between two glyphs of that face with no
                     # space in the stream, a gap under a column's is no word space. A glyph after a
-                    # smaller one keeps the gap test: the stream sets no space after the raised 5
+                    # smaller one retains the gap test: the stream sets no space after the raised 5
                     # opening footnote 5, where the page prints one. The two glyphs can be of two
                     # faces the paper names: Brown's Lucida Sans ː sits 0.14 em before the Times s
                     # of thoːst, over the paper's calibrated 0.127.
@@ -1935,34 +1935,34 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                     if symbol[0] == "." and "." in beside:
                         closing = False
                     # pdfium also sets a space after a combining mark the stream carries on its
-                    # own, scw̓ éxmx and ƛ̓ ʔék, where the page has none. A letter whose mark came late
-                    # keeps a space the stream itself carries after it, *t'əx̌ is in Denzer-King's
+                    # own, scw̓ éxmx and ƛ̓ ʔék, where the page has none. A character whose mark came late
+                    # retains a space the stream itself carries after it, *t'əx̌ is in Denzer-King's
                     # §3.1; one pdfium made up there, spiʔx̣ éwt in Hannon's (25), goes.
                     streamed = stream_spaces and spaced and previous[3] == order - 1 and \
                         gap > 0.03 * size and (not unicodedata.combining(previous[0][-1]) or
                                                (previous[3] in late and spaced is True))
                     # The box of an f can reach over the whole word space after it: of pidgins,
-                    # of London and of American in Robertson's references stand -0.05 to 0.02 em
-                    # apart, where no f inside a word stands more than -0.03 em from its letter.
+                    # of London and of American in Robertson's references are -0.05 to 0.02 em
+                    # apart, where no f inside a word is more than -0.03 em from its character.
                     # There the stream's space goes.
                     if previous[0][-1] == "f" and spaced and previous[3] == order - 1 and gap > -0.06 * size:
                         streamed = True
                     # Between two glyphs of a face named in stream_faces, the space the stream itself
-                    # carries stands whatever the gap: the italic f of Jules's returned for and off
-                    # for in (55) and (45) reaches back over the space to the letter before it.
+                    # carries is whatever the gap: the italic f of Jules's returned for and off
+                    # for in (55) and (45) reaches back over the space to the character before it.
                     if spaced is True and previous[3] == order - 1 and \
                             any(face in font for face in stream_faces) and \
                             any(face in previous[2] for face in stream_faces):
                         streamed = True
                     # The box of a stop is narrower than its advance, and a stop with a stop or a
-                    # letter after it takes the gap test of U+2019: the stops of built... on Lyon and
-                    # Davis's page 13 stand 0.15 em apart and the s of stsut.s 0.12 em after its
+                    # character after it takes the gap test of U+2019: the stops of built... on Lyon and
+                    # Davis's page 13 are 0.15 em apart and the s of stsut.s 0.12 em after its
                     # stop, where a word space after a stop measures 0.33 em at least. Between two
                     # stops the stream's space goes too.
                     if previous[0][-1] == "." and (symbol[0] == "." or symbol[0].isalpha()):
                         closing, limit = False, 0.25
                         streamed = streamed and symbol[0] != "."
-                    # A brace or square bracket keeps the word space the stream sets inside it:
+                    # A brace or square bracket retains the word space the stream sets inside it:
                     # Table 5 of Sardinha's 2011 paper prints { =ńd.s } and { = sgi }, the = 0.38 em
                     # after its { and the } 0.41 em after its i, and her (S.1) [ PREP + NP ].
                     braced = tracked and (symbol[0] in "]}" or previous[0][-1] in "[{") and spaced and \
@@ -1982,7 +1982,7 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
             line = "".join(text)
             if swapped:
                 lifted.setdefault("lines", []).append(
-                    (number + 1, "raised letter set on the line",
+                    (number + 1, "raised character set on the line",
                      "".join(swapped.get(at, piece) for at, piece in enumerate(text)).strip(), line.strip()))
             # An example's number the page sets lower than its first line, (1) beside ɬe
             # meʔmʔéw̓s, heads that line as the text layer has it.
@@ -1997,32 +1997,32 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
 
 def union_spaces(line, spaced):
     """Add to spaced the gaps the text layer line has and it lost: like ɬɛn̓ in, where the glyph
-    positions give ɬɛn̓in. A text layer gap after a combining mark with no letter under it is not
+    positions give ɬɛn̓in. A text layer gap after a combining mark with no character under it is not
     the page's, ⃗ v for ⃗v, and neither is one beside a digit, string. 3 for the footnote mark of
     string.3, or before closing or after opening punctuation."""
     def gaps(text):
         found, count = set(), 0
-        for letter in text:
-            if letter.isspace():
+        for character in text:
+            if character.isspace():
                 found.add(count)
             else:
                 count += 1
         return found
-    letters = [one for one in spaced if not one.isspace()]
+    characters = [one for one in spaced if not one.isspace()]
     spaced_gaps = gaps(spaced)
-    keep = spaced_gaps | {
-        at for at in gaps(line) - spaced_gaps if 0 < at < len(letters)
-        and not (unicodedata.category(letters[at - 1]).startswith("M")
+    retain = spaced_gaps | {
+        at for at in gaps(line) - spaced_gaps if 0 < at < len(characters)
+        and not (unicodedata.category(characters[at - 1]).startswith("M")
                  and (at < 2 or at - 1 in spaced_gaps
-                      or not unicodedata.category(letters[at - 2]).startswith("L")))
-        and not unicodedata.category(letters[at]).startswith("M")
-        and not letters[at].isdigit() and not letters[at - 1].isdigit()
-        and letters[at] not in ",.;:!?)]’”" and letters[at - 1] not in "([‘“"}
+                      or not unicodedata.category(characters[at - 2]).startswith("L")))
+        and not unicodedata.category(characters[at]).startswith("M")
+        and not characters[at].isdigit() and not characters[at - 1].isdigit()
+        and characters[at] not in ",.;:!?)]’”" and characters[at - 1] not in "([‘“"}
     out = []
-    for at, letter in enumerate(letters):
-        if at in keep and at > 0:
+    for at, character in enumerate(characters):
+        if at in retain and at > 0:
             out.append(" ")
-        out.append(letter)
+        out.append(character)
     return "".join(out)
 
 
@@ -2030,51 +2030,51 @@ def open_columns(line, spaced):
     """Open in line the column gaps spaced shows as three spaces and line runs together:
     almost=1SG.SUBJ=EXCLget.forgotten in Davis's (11), where the page leaves 1.44 em before get."""
     wide, count, run = set(), 0, ""
-    for letter in spaced:
-        if letter.isspace():
-            run += letter
+    for character in spaced:
+        if character.isspace():
+            run += character
             continue
         if len(run) >= 3:
             wide.add(count)
         run = ""
         count += 1
     opened, count, previous = [], 0, ""
-    for letter in line:
-        if not letter.isspace():
+    for character in line:
+        if not character.isspace():
             if count in wide and count and not previous.isspace():
                 opened.append("   ")
             count += 1
-        opened.append(letter)
-        previous = letter
+        opened.append(character)
+        previous = character
     return "".join(opened)
 
 
 def subtract_spaces(line, spaced):
-    """Take out of the text layer line the gaps the glyph positions do not show, keeping the width
+    """Take out of the text layer line the gaps the glyph positions do not show, retention the width
     of each one left: n ɬeʔkepmxcín demonstrative s is nɬeʔkepmxcín demonstratives on the page, and
     the three spaces between two cells of a tier stay three."""
-    kept, count, run = [], 0, ""
+    retained, count, run = [], 0, ""
     glyph_gaps = set()
-    for letter in spaced:
-        if letter.isspace():
+    for character in spaced:
+        if character.isspace():
             glyph_gaps.add(count)
         else:
             count += 1
     count = 0
-    for letter in line:
-        if letter.isspace():
-            run += letter
+    for character in line:
+        if character.isspace():
+            run += character
             continue
         if run and (count in glyph_gaps or count == 0):
-            kept.append(run)
+            retained.append(run)
         run = ""
-        kept.append(letter)
+        retained.append(character)
         count += 1
-    return "".join(kept)
+    return "".join(retained)
 
 
-def base_letters(text):
-    """text's letters less their combining marks and spaces: the key a layer line and a glyph row
+def base_characters(text):
+    """text's characters less their combining marks and spaces: the key a layer line and a glyph row
     share where the rows set a mark apart or drop it, ḵ ̕ux̱ -t̕sa̱ w in the layer and ḵux̱ -tsa̱w in the
     row of Sardinha's (2d)."""
     return "".join(one for one in unicodedata.normalize("NFD", text)
@@ -2082,26 +2082,26 @@ def base_letters(text):
 
 
 def subtract_base_spaces(line, spaced):
-    """subtract_spaces counted on base letters: a space before a combining mark counts after the
-    letter the mark belongs to, and the layer's marks are kept."""
+    """subtract_spaces counted on base characters: a space before a combining mark counts after the
+    character the mark belongs to, and the layer's marks are retained."""
     gaps, count = set(), 0
-    for letter in unicodedata.normalize("NFD", spaced):
-        if letter.isspace():
+    for character in unicodedata.normalize("NFD", spaced):
+        if character.isspace():
             gaps.add(count)
-        elif not unicodedata.category(letter).startswith("M"):
+        elif not unicodedata.category(character).startswith("M"):
             count += 1
-    kept, count, run = [], 0, ""
-    for letter in unicodedata.normalize("NFD", line):
-        if letter.isspace():
-            run += letter
+    retained, count, run = [], 0, ""
+    for character in unicodedata.normalize("NFD", line):
+        if character.isspace():
+            run += character
             continue
-        if run and (count in gaps or count == 0) and not unicodedata.category(letter).startswith("M"):
-            kept.append(run)
+        if run and (count in gaps or count == 0) and not unicodedata.category(character).startswith("M"):
+            retained.append(run)
         run = ""
-        kept.append(letter)
-        if not unicodedata.category(letter).startswith("M"):
+        retained.append(character)
+        if not unicodedata.category(character).startswith("M"):
             count += 1
-    return unicodedata.normalize("NFC", "".join(kept))
+    return unicodedata.normalize("NFC", "".join(retained))
 
 
 MACRON_BELOW = "macron below read as a space"
@@ -2110,17 +2110,17 @@ BAR, COMMA = chr(0x331), chr(0x315)
 
 
 def italic_mark_words(textpage):
-    """The words of one page whose italic marks the text layer misreads, each as (units, kinds): a
-    unit is one letter with its marks, as the layer defines it, mended, and the letter's box.
+    """The words of one page whose italic marks the text layer misreads, each as (units, types): a
+    unit is one character with its marks, as the layer defines it, mended, and the character's box.
 
     Sardinha's italic Kwak̕wala sets the macron below as a space glyph 0.6pt tall under the baseline,
     x ux for x̱ux̱, and the comma above as one glyph read as U+0331 U+0315 in one box, ṯ̕sud for
     t̕sud. A bar is a space glyph over 0.3pt and under 1.2pt tall whose top is below the bottom of the
-    letter before it, and at least twice as wide as it is tall: a real space has no height, the
+    character before it, and at least twice as wide as it is tall: a real space has no height, the
     upright tiers' macron is U+0331 itself, and Pincott's dot below, k̓lə̣́m in Table 8 of
     PincottICSNL60, is a space glyph 1.2pt square. pdfium breaks the line before a mark glyph inside a word, t ̓sux̱wa, which the layer does not. A
-    comma the stream sets after later letters, tsu ̱̕ x̱wit̕id in Sardinha's note 8, belongs to the
-    last letter that ends before it, and the space pdfium sets back after it is no word break."""
+    comma the stream sets after later characters, tsu ̱̕ x̱wit̕id in Sardinha's note 8, belongs to the
+    last character that ends before it, and the space pdfium sets back after it is no word break."""
     count = textpage.count_chars()
     glyphs = [(textpage.get_text_range(index, 1), textpage.get_charbox(index)) for index in range(count)]
 
@@ -2128,20 +2128,20 @@ def italic_mark_words(textpage):
         return index + 1 < count and glyphs[index][0] == BAR and glyphs[index + 1][0] == COMMA and \
             glyphs[index][1] == glyphs[index + 1][1]
 
-    words, units, kinds, letter = [], [], [], None
+    words, units, types, character = [], [], [], None
 
     def close():
-        if kinds:
-            words.append((list(units), list(kinds)))
-        del units[:], kinds[:]
+        if types:
+            words.append((list(units), list(types)))
+        del units[:], types[:]
 
-    def mark(layer, mended, kind=None, unit=-1):
+    def mark(layer, mended, type=None, unit=-1):
         if not units:
             units.append(["", "", None])
         units[unit][0] += layer
         units[unit][1] += mended
-        if kind and kind not in kinds:
-            kinds.append(kind)
+        if type and type not in types:
+            types.append(type)
 
     index = 0
     while index < count:
@@ -2152,24 +2152,24 @@ def italic_mark_words(textpage):
                 after += 1
             if not (after < count and unicodedata.category(glyphs[after][0]).startswith("M")):
                 close()
-                letter = None
+                character = None
             index = after
             continue
-        if symbol == " " and letter is not None and 0.3 < top - bottom < 1.2 and top < letter[1] and \
+        if symbol == " " and character is not None and 0.3 < top - bottom < 1.2 and top < character[1] and \
                 right - left >= 2 * (top - bottom):
             mark(" ", BAR, MACRON_BELOW)
-            # A bar that ends a word stands for its space too, x ux Simonx ‘Simon in pdfium's
-            # stream: the word ends where the next glyph stands clear of the barred letter.
-            if index + 1 < count and glyphs[index + 1][1][0] - letter[2] > 1.5:
+            # A bar that ends a word is for its space too, x ux Simonx ‘Simon in pdfium's
+            # stream: the word ends where the next glyph is clear of the barred character.
+            if index + 1 < count and glyphs[index + 1][1][0] - character[2] > 1.5:
                 close()
-            letter = None
+            character = None
             index += 1
         elif symbol == " " and index and glyphs[index - 1][0] == COMMA and units and \
                 units[-1][2] and left < units[-1][2][0]:
             index += 1
         elif symbol.isspace():
             close()
-            letter = None
+            character = None
             index += 1
         elif pair_at(index):
             target = len(units) - 1
@@ -2182,8 +2182,8 @@ def italic_mark_words(textpage):
             mark(symbol, symbol)
             index += 1
         else:
-            letter = (left, bottom, right, top) if symbol.isalpha() else None
-            units.append([symbol, symbol, letter])
+            character = (left, bottom, right, top) if symbol.isalpha() else None
+            units.append([symbol, symbol, character])
             index += 1
     close()
     return words
@@ -2191,9 +2191,9 @@ def italic_mark_words(textpage):
 
 def mend_italic_marks(lines, words, page):
     """lines, one page of the text layer, with each word of words mended where the layer holds its
-    letters in order, taken in reading order. A space the layer sets between two letters where the
-    glyphs have none, no g adalat for nog̱adalat, is kept for the closeup to weigh. A word that
-    begins or ends at a letter or a bar must not run on into a letter. Returns the lines and a
+    characters in order, taken in reading order. A space the layer sets between two characters where the
+    glyphs have none, no g adalat for nog̱adalat, is retained for the closeup to weigh. A word that
+    begins or ends at a character or a bar must not run on into a character. Returns the lines and a
     defects row to each repair."""
     decomposed = [unicodedata.normalize("NFD", one) for one in lines]
     changed, repairs = set(), []
@@ -2203,7 +2203,7 @@ def mend_italic_marks(lines, words, page):
         return column < 0 or column >= len(text) or \
             not (text[column].isalpha() or unicodedata.category(text[column]).startswith("M"))
 
-    for units, kinds in words:
+    for units, types in words:
         spelled = [unicodedata.normalize("NFD", one[0]) for one in units]
         pattern = re.compile("( ?)".join(re.escape(one) for one in spelled))
         opens = spelled[0][:1].isalnum()
@@ -2230,8 +2230,8 @@ def mend_italic_marks(lines, words, page):
         decomposed[number] = text[:match.start()] + mended + text[match.end():]
         changed.add(number)
         at_line, at_column = number, match.start() + len(mended)
-        for kind in kinds:
-            repairs.append((page, kind, unicodedata.normalize("NFC", match.group(0)),
+        for type in types:
+            repairs.append((page, type, unicodedata.normalize("NFC", match.group(0)),
                             unicodedata.normalize("NFC", mended)))
     return [unicodedata.normalize("NFC", decomposed[number]) if number in changed else line
             for number, line in enumerate(lines)], repairs
@@ -2239,13 +2239,13 @@ def mend_italic_marks(lines, words, page):
 
 def write_rows(stem, by_page, document, lifted=None):
     """Write a page text read by glyph rows, with the .rows file residue.paper_repair looks for.
-    lifted is row_lines's record of the raised letters it wrote. Returns the file and the lines
-    given back a raised letter."""
+    lifted is row_lines's record of the raised characters it wrote. Returns the file and the lines
+    given back a raised character."""
     merged = []
     for number, page_lines in enumerate(by_page):
         merged.append("===== page %d =====" % (number + 1))
         merged.extend(page_lines)
-    merged, raised = raise_letters(document, merged, PRIVATE_USE.get(stem), PAPER_CIPHERS.get(stem), lifted,
+    merged, raised = raise_characters(document, merged, PRIVATE_USE.get(stem), PAPER_CIPHERS.get(stem), lifted,
                                    mark_base=stem in PAPER_MARK_BASE, lowered=stem in PAPER_SUBSCRIPTED)
     os.makedirs(os.path.join(PRIVATE, "pagetext"), exist_ok=True)
     target = os.path.join(PRIVATE, "pagetext", stem + ".txt")
@@ -2265,20 +2265,20 @@ def write_rows(stem, by_page, document, lifted=None):
 def drop_other_readings(stem):
     """Remove the .rows and .layer files an earlier rows or closeup read of stem left: residue reads
     a page text with a .rows file as read by glyph rows, and one with a .layer file as closed up, and
-    a default read is neither. Mayer's VOT paper kept a .rows past a default read."""
+    a default read is neither. Mayer's VOT paper retained a .rows past a default read."""
     for suffix in (".rows", ".layer"):
         stale = os.path.join(PRIVATE, "pagetext", stem + suffix)
         if os.path.isfile(stale):
             os.remove(stale)
 
 
-def join_broken_lines(layer, by_letters, spaced_join=False, columns=None):
+def join_broken_lines(layer, by_characters, spaced_join=False, columns=None):
     """The layer can break a line the glyphs set on one row: Dery / le Lonsdale in Lonsdale and
     Matsushita's byline, <pre / f-asp2> in their Figure 2, Figu / re 6, and in Stewart's (46) the
-    gloss throw= / OBJ=DET. Two layer lines are one where their letters together make a glyph line
+    gloss throw= / OBJ=DET. Two layer lines are one where their characters together make a glyph line
     and neither makes one alone. With spaced_join the two meet with a space where the glyph row
     sets one between them, no / NEG=1P.POSS in Stewart's (7); without it they meet with none.
-    columns maps the letters of a glyph row to the row read with wide gaps (gap_lines with wide and
+    columns maps the characters of a glyph row to the row read with wide gaps (gap_lines with wide and
     held_wide),
     and two lines a column's gap parts on the row stay two: the captions (a) and (b) of Menon's
     side-by-side figures. Returns the lines and the repairs."""
@@ -2290,9 +2290,9 @@ def join_broken_lines(layer, by_letters, spaced_join=False, columns=None):
         key = "".join(line.split())
         before = "".join(joined[-1].split()) if joined else ""
         if key and before and not marker and not re.match(r"^===== page", joined[-1]) and \
-                before + key in by_letters and before not in by_letters and key not in by_letters:
-            row = by_letters[before + key]
-            # The glyph row's letter count up to the join, and whether a space follows it there.
+                before + key in by_characters and before not in by_characters and key not in by_characters:
+            row = by_characters[before + key]
+            # The glyph row's character count up to the join, and whether a space follows it there.
             count, at = 0, 0
             while count < len(before):
                 count += not row[at].isspace()
@@ -2323,7 +2323,7 @@ def main():
     if stem in TRANSCRIBED_FROM_SCAN:
         raise SystemExit("%s: the page text is transcribed from the scan, and page_text.py leaves it" % stem)
     document, mended, _ = paper_document(stem)
-    # A font that gives letters a space in ToUnicode is read with the letters its program maps.
+    # A font that gives characters a space in ToUnicode is read with the characters its program maps.
     # Its rows go under a name of their own, since each reading below replaces page_text.py's rows.
     defects.write(stem, "page_text.py fonts", [(0, "ToUnicode gives glyphs a space, mended from the font program",
                                                 one, "") for one in mended])
@@ -2332,17 +2332,17 @@ def main():
     # word-space threshold is the paper's own, from its gaps inside words.
     # A text layer that puts spaces inside words, associa te and C hinook in Zenk's §1, while
     # the glyph rows break words the layer holds whole, mamuk- ˈhihi at a stress mark's narrow box,
-    # is read on request as python page_text.py <stem> closeup: each layer line keeps its own
+    # is read on request as python page_text.py <stem> closeup: each layer line retains its own
     # spacing less the gaps its glyph row does not show. No space is added, and a layer line with
-    # no glyph row of the same letters stays as the layer has it.
+    # no glyph row of the same characters stays as the layer has it.
     if sys.argv[2:3] == ["closeup"]:
         share = calibrated_share(document)
-        by_letters, by_base = {}, {}
+        by_characters, by_base = {}, {}
         for page_lines in row_lines(document, [], share=share, read_marks=False, slanted=[],
                                     stream_spaces=True):
             for one in page_lines:
-                by_letters.setdefault(unicodedata.normalize("NFC", "".join(one.split())), one)
-                by_base.setdefault(base_letters(one), one)
+                by_characters.setdefault(unicodedata.normalize("NFC", "".join(one.split())), one)
+                by_base.setdefault(base_characters(one), one)
         layer = layer_text(stem).split("\n")
         merged, repairs, unmatched, page = [], [], 0, 0
         # An italic mark the layer reads as a space or as two marks, x ux and ṯ̕sud in Sardinha's
@@ -2359,12 +2359,12 @@ def main():
                                              number)
             layer += lines
             repairs += found
-        # A paper closed up before closeup joined broken lines keeps its line numbers, its ops keyed
+        # A paper closed up before closeup joined broken lines retains its line numbers, its ops keyed
         # to them: Reisinger's modality paper, its table row k̓ ʷa / PAST T. P.
         if stem not in CLOSEUP_UNJOINED:
-            layer, found = join_broken_lines(layer, by_letters, spaced_join=True)
+            layer, found = join_broken_lines(layer, by_characters, spaced_join=True)
             repairs += found
-        kept = []
+        retained = []
         for line in layer:
             marker = re.match(r"^===== page (\d+) =====$", line)
             if marker:
@@ -2374,25 +2374,25 @@ def main():
             # A layer that defines á as a and a combining acute, St' át'imcets in Davis's
             # introduction, meets the glyph row's á once both are composed.
             if unicodedata.normalize("NFC", line) != line and \
-                    unicodedata.normalize("NFC", "".join(line.split())) in by_letters:
+                    unicodedata.normalize("NFC", "".join(line.split())) in by_characters:
                 line = unicodedata.normalize("NFC", line)
-            spaced = by_letters.get("".join(line.split()))
+            spaced = by_characters.get("".join(line.split()))
             closer = subtract_spaces
-            # A glyph row that sets a mark apart from its letter or drops it, ḵ ̕ux̱ in the layer and
-            # ḵux̱ in the row of Sardinha's second paper, meets the layer line on base letters.
+            # A glyph row that sets a mark apart from its character or drops it, ḵ ̕ux̱ in the layer and
+            # ḵux̱ in the row of Sardinha's second paper, meets the layer line on base characters.
             if spaced is None and line.strip():
-                spaced, closer = by_base.get(base_letters(line)), subtract_base_spaces
+                spaced, closer = by_base.get(base_characters(line)), subtract_base_spaces
             if spaced is None:
                 unmatched += bool(line.strip())
                 if line.strip():
-                    kept.append(line.strip())
+                    retained.append(line.strip())
                 merged.append(line)
                 continue
             closed = closer(line, spaced)
             if closed != line:
                 repairs.append((page, "space inside a word", line.strip(), closed.strip()))
             merged.append(closed)
-        merged, raised = raise_letters(document, merged)
+        merged, raised = raise_characters(document, merged)
         repairs += raised
         defects.write(stem, "page_text.py", repairs)
         os.makedirs(os.path.join(PRIVATE, "pagetext"), exist_ok=True)
@@ -2402,14 +2402,14 @@ def main():
         rows_file = os.path.join(PRIVATE, "pagetext", stem + ".rows")
         if os.path.isfile(rows_file):
             os.remove(rows_file)
-        # The lines kept as the layer has them, for residue.paper_repair: only these can hold the
+        # The lines retained as the layer has them, for residue.paper_repair: only these can hold the
         # layer's space after a stacked mark. A closed-up line's spaces are the glyph row's own,
         # =ox̱ =da in Sardinha's (6), and closing one there joins two words.
         with open(os.path.join(PRIVATE, "pagetext", stem + ".layer"), "w", encoding="utf-8",
                   newline="\n") as handle:
-            handle.write("\n".join(one_glyph(one) for one in kept) + "\n")
+            handle.write("\n".join(one_glyph(one) for one in retained) + "\n")
         print("%s: %d layer lines closed up from the glyph rows, a word space over %.3f em; %d lines "
-              "with no glyph row of the same letters kept as the layer has them"
+              "with no glyph row of the same characters retained as the layer has them"
               % (target, len(repairs), share, unmatched))
         return
     if sys.argv[2:3] == ["rows"]:
@@ -2423,12 +2423,12 @@ def main():
                             drawn_back=stem in PAPER_DRAWN_BACK, mark_base=stem in PAPER_MARK_BASE,
                             ruled=stem in PAPER_RULED, stream_faces=PAPER_STREAM_FACES.get(stem, ()),
                             underscored=stem in PAPER_UNDERSCORED, marks_ahead=stem in PAPER_MARKS_AHEAD)
-        # A private-use glyph is written as the letter it draws here too, before the raised letters
+        # A private-use glyph is written as the character it draws here too, before the raised characters
         # are read: x̌ʷ in van Eijk's nax̌ʷít sets its ʷ after the private-use x̌.
         mapping = PRIVATE_USE.get(stem, {})
         by_page = [[lettered_glyphs(one, mapping) for one in page_lines] for page_lines in by_page]
         # A page set a quarter turn round, a wide table printed sideways, has its glyph rows run
-        # across the table's columns; the text layer reads it in order, and that page keeps the
+        # across the table's columns; the text layer reads it in order, and that page retains the
         # layer's lines.
         layer_pages = re.split(r"^===== page \d+ =====$", layer_text(stem), flags=re.M)[1:]
         turned = []
@@ -2439,8 +2439,8 @@ def main():
             angles = [min(one, abs(math.pi * 2 - one)) for one in angles if one >= 0]
             if angles and sorted(angles)[len(angles) // 2] > math.pi / 4 and number < len(layer_pages):
                 by_page[number] = [one.rstrip() for one in layer_pages[number].strip("\n").split("\n")]
-                turned.append((number + 1, "page turned a quarter round, kept as the text layer reads it", "", ""))
-                # The layer's lines hold their raised letters flat, and raise_letters sets them.
+                turned.append((number + 1, "page turned a quarter round, retained as the text layer reads it", "", ""))
+                # The layer's lines hold their raised characters flat, and raise_characters sets them.
                 lifted.pop(number, None)
         pages_turned = {one[0] for one in turned}
         lines_lifted = [one for one in lifted.pop("lines", []) if one[0] not in pages_turned]
@@ -2448,7 +2448,7 @@ def main():
         defects.write(stem, "page_text.py", [(0, "tiers set one cell to a line, read by glyph rows",
                                               "word space over %.3f em" % share, "")] +
                       slant_defects(slanted) + turned + lines_lifted + raised)
-        print("%s: read by glyph rows, a word space over %.3f em; turned pages kept from the layer: %s"
+        print("%s: read by glyph rows, a word space over %.3f em; turned pages retained from the layer: %s"
               % (target, share, " ".join(str(one[0]) for one in turned) or "none"))
         return
     out = []
@@ -2456,12 +2456,12 @@ def main():
         out.append("===== page %d =====" % (number + 1))
         text = document[number].get_textpage().get_text_range()
         out.extend(one.rstrip() for one in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"))
-    # pdfium keeps the spaces of running prose and drops the wide column gaps of an example, where
+    # pdfium retains the spaces of running prose and drops the wide column gaps of an example, where
     # it gives ƛ̓ʊxʷegənč. for the text layer's ƛ̓ʊxʷegən č. Neither is the page everywhere. A text
-    # layer line keeps its own spacing unless it holds a glued token, and then takes the pdfium
+    # layer line retains its own spacing unless it holds a glued token, and then takes the pdfium
     # line with the same characters once spaces are set aside.
-    # A font whose ToUnicode names the comma above as a letter leaves both the text layer and
-    # pdfium's text wrong at every glottalized letter, ƛ ƛ qƛ əmcin for ƛ̓q̓əmcín. There the page is
+    # A font whose ToUnicode names the comma above as a character leaves both the text layer and
+    # pdfium's text wrong at every glottalized character, ƛ ƛ qƛ əmcin for ƛ̓q̓əmcín. There the page is
     # read from the glyph positions alone, page by page, with each misread mark set right.
     marks = []
     for number in range(len(document)):
@@ -2475,10 +2475,10 @@ def main():
         for number, page_lines in enumerate(by_page):
             merged.append("===== page %d =====" % (number + 1))
             merged.extend(page_lines)
-        merged, raised = raise_letters(document, merged)
+        merged, raised = raise_characters(document, merged)
         named = {COMMA_ABOVE: "comma above", ACUTE: "acute", DOT_BELOW: "dot below"}
         defects.write(stem, "page_text.py",
-                      [(0, "%s read as a letter" % named[MARK_OF[one]], one, MARK_OF[one])
+                      [(0, "%s read as a character" % named[MARK_OF[one]], one, MARK_OF[one])
                        for one in sorted(set(marks)) if one in MARK_OF] +
                       [(0, "acute dropped from a vowel, or í given as i", "´",
                         "%d vowels" % marks.count("´"))] +
@@ -2496,36 +2496,36 @@ def main():
         layer_file = os.path.join(PRIVATE, "pagetext", stem + ".layer")
         if os.path.isfile(layer_file):
             os.remove(layer_file)
-        print("%s: the font names its marks as the letters %s; %d marks set right, the page read from "
+        print("%s: the font names its marks as the characters %s; %d marks set right, the page read from "
               "the glyph positions" % (target, " and ".join(sorted(set(marks) & set(MARK_OF))), len(marks)))
         return
-    # A private-use glyph is written as the letter it draws, in pdfium's lines as in the layer's.
+    # A private-use glyph is written as the character it draws, in pdfium's lines as in the layer's.
     mapping = PRIVATE_USE.get(stem, {})
     out = [lettered_glyphs(one, mapping) for one in out]
     glyphs = [lettered_glyphs(one, mapping) for one in gap_lines(document)]
-    by_letters = {}
+    by_characters = {}
     for one in out + glyphs:
         key = "".join(one.split())
-        if len(one.split()) > len(by_letters.get(key, "").split()):
-            by_letters[key] = one
-    # pdfium's own lines by their letters, where it spaces them one way only.
+        if len(one.split()) > len(by_characters.get(key, "").split()):
+            by_characters[key] = one
+    # pdfium's own lines by their characters, where it spaces them one way only.
     by_out = {}
     for one in out:
         by_out.setdefault("".join(one.split()), set()).add(" ".join(one.split()))
     by_out = {key: next(iter(found)) for key, found in by_out.items() if len(found) == 1}
     layer = layer_text(stem).split("\n")
-    # The layer can drop a glyph pdfium keeps, the ∼ of reduplication in Huijsmans' det=prog∼sing-md
+    # The layer can drop a glyph pdfium retains, the ∼ of reduplication in Huijsmans' det=prog∼sing-md
     # and [tə=wu∼wuw-əm]. A layer line without it takes pdfium's line of the same characters once
     # the glyph and the spaces are set aside, with the glyph put back where pdfium sets it. The layer
     # can leave a control character in its place, det=prog\x18sing-md, and that goes.
-    kept = {}
+    retained = {}
     for one in out:
         if any(glyph in one for glyph in DROPPED):
-            kept.setdefault(re.sub(r"[\s%s]" % DROPPED, "", one), set()).add(one)
+            retained.setdefault(re.sub(r"[\s%s]" % DROPPED, "", one), set()).add(one)
     restored = []
     for at, line in enumerate(layer):
         plain = lettered_glyphs(re.sub(r"[\x00-\x08\x0b-\x1f]", "", line), mapping)
-        found = kept.get(re.sub(r"[\s%s]" % DROPPED, "", plain))
+        found = retained.get(re.sub(r"[\s%s]" % DROPPED, "", plain))
         if found and len(found) == 1 and not any(glyph in plain for glyph in DROPPED):
             layer[at] = put_back(plain, next(iter(found)))
             restored.append(at)
@@ -2560,7 +2560,7 @@ def main():
         spans = {}
         for one in gap_lines(document, wide=True, fonts=True, held_wide=True):
             spans.setdefault("".join(one.split()), lettered_glyphs(one, mapping))
-        layer, repairs = join_broken_lines(layer, by_letters, spaced_join=True, columns=spans)
+        layer, repairs = join_broken_lines(layer, by_characters, spaced_join=True, columns=spans)
         for line in layer:
             marker = re.match(r"^===== page (\d+) =====$", line)
             if marker:
@@ -2578,7 +2578,7 @@ def main():
                                     opened.strip()))
                     line = opened
             merged.append(line)
-        merged, raised = raise_letters(document, merged)
+        merged, raised = raise_characters(document, merged)
         repairs += raised
         defects.write(stem, "page_text.py", repairs)
         os.makedirs(os.path.join(PRIVATE, "pagetext"), exist_ok=True)
@@ -2592,17 +2592,17 @@ def main():
         return
     merged = []
     taken = 0
-    layer, repairs = join_broken_lines(layer, by_letters)
+    layer, repairs = join_broken_lines(layer, by_characters)
     page = 0
     for line in layer:
         marker = re.match(r"^===== page (\d+) =====$", line)
         if marker:
             page = int(marker.group(1))
         # Of two printings of one line, the one with more spaces lost fewer of the page's gaps.
-        spaced = by_letters.get("".join(line.split()))
-        # The layer can also set a space inside a word or move one: most ex tensive, b y the and
+        spaced = by_characters.get("".join(line.split()))
+        # The layer can also set a space inside a word or move one: max ex tensive, b y the and
         # 1Seeww w.tei-c.org in Lonsdale and Matsushita. Where pdfium's line and the glyph line read
-        # the same letters alike, their spacing is the page's.
+        # the same characters alike, their spacing is the page's.
         agreed = by_out.get("".join(line.split()))
         glyph_line = by_glyphs.get("".join(line.split()))
         if spaced and len(spaced.split()) > len(line.split()):
@@ -2620,7 +2620,7 @@ def main():
     # A line whose marks pdfium sets in another order than the layer, scw̓ éxmx beside scw̓éxmx,
     # matches no pdfium line whole, and its glued tokens stay: information(YY)isabbreviatedasNV in
     # Hannon's footnote *. Each such token takes the spacing of the same characters in pdfium's
-    # text of its page, where they stand once with only spaces between them.
+    # text of its page, where they are once with only spaces between them.
     page_texts = {}
     for number in range(len(document)):
         text = document[number].get_textpage().get_text_range()
@@ -2635,13 +2635,13 @@ def main():
         changed = False
         for place, token in enumerate(tokens):
             if len(token) < 8 or token.startswith("http") or \
-                    sum(1 for letter in token if letter.isascii() and letter.isalpha()) < 6:
+                    sum(1 for character in token if character.isascii() and character.isalpha()) < 6:
                 continue
-            # Each run of plain letters is matched alone, nukʷasideforthe... and discus- carry a
+            # Each run of plain characters is matched alone, nukʷasideforthe... and discus- carry a
             # mark and a line-end hyphen pdfium may set otherwise; a run pdfium prints more than
             # once, past temporal orientation, is taken where every printing is spaced alike.
             def respaced(run):
-                pattern = r"\s?".join(re.escape(letter) for letter in run.group(0))
+                pattern = r"\s?".join(re.escape(character) for character in run.group(0))
                 found = {one.group(0) for one in re.finditer(pattern, page_texts.get(page, ""))}
                 if len(found) == 1:
                     return found.pop()
@@ -2658,7 +2658,7 @@ def main():
             respaced = " ".join(tokens)
             repairs.append((page, "glued words", line, respaced))
             merged[index] = respaced
-    merged, raised = raise_letters(document, merged)
+    merged, raised = raise_characters(document, merged)
     repairs += raised
     defects.write(stem, "page_text.py", repairs)
     os.makedirs(os.path.join(PRIVATE, "pagetext"), exist_ok=True)
@@ -2668,7 +2668,7 @@ def main():
     drop_other_readings(stem)
     left = sum(1 for line in merged for one in line.split()
                if len(one) > 22 and not one.startswith("http")
-               and sum(1 for letter in one if letter.isascii() and letter.isalpha()) > 16)
+               and sum(1 for character in one if character.isascii() and character.isalpha()) > 16)
     print("%s: %d text layer lines respaced from the glyph positions, %d glued tokens left, "
           "%d lines given back a glyph the layer dropped" % (target, taken, left, len(restored)))
 

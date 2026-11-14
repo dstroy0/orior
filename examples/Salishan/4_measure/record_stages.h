@@ -3,7 +3,7 @@
 //
 // The record programs and stages the Salishan measurements share: whole numbers as limbs, exact rationals as
 // their numerator and denominator, a program built step by step over one member's fields, and a stage that
-// imprints it, lays it out, sweeps every lane on the device and on the host, and compares the two word for word.
+// imprints it, positions it out, sweeps every lane on the device and on the host, and compares the two word for word.
 //
 //   Usage:  #include "record_stages.h", after sim.h
 //
@@ -35,9 +35,9 @@
 #include <string>
 #include <vector>
 
-#define STAGE_STEPS_MOST 32u
-#define STAGE_FIELDS_MOST 8u
-#define STAGE_OUTPUTS_MOST 4u
+#define STAGE_STEPS_MAX 32u
+#define STAGE_FIELDS_MAX 8u
+#define STAGE_OUTPUTS_MAX 4u
 #define STAGE_DIGITS 6u
 #define STAGE_DIGITS_SCALE 1000000ull
 
@@ -52,13 +52,13 @@ typedef struct
 
 typedef struct
 {
-    EngineRecordStep steps[STAGE_STEPS_MOST];
+    EngineRecordStep steps[STAGE_STEPS_MAX];
     unsigned int count;
-    unsigned int field_bits[STAGE_FIELDS_MOST];
-    unsigned int field_offset[STAGE_FIELDS_MOST];
+    unsigned int field_bits[STAGE_FIELDS_MAX];
+    unsigned int field_offset[STAGE_FIELDS_MAX];
     unsigned int fields;
     unsigned int record_bits;
-    unsigned int outputs[STAGE_OUTPUTS_MOST];
+    unsigned int outputs[STAGE_OUTPUTS_MAX];
     unsigned int output_count;
 } StageProgram;
 
@@ -239,7 +239,7 @@ static void stage_digits_program(unsigned int bits, StageProgram *program)
     stage_output(program, stage_step(program, ENGINE_RECORD_QUOTIENT, scaled, den));
 }
 
-// `bits` of a whole number laid into a record at `offset`
+// `bits` of a whole number positioned into a record at `offset`
 static void stage_put(unsigned int *record, unsigned int offset, unsigned int bits, const StageWhole &value)
 {
     for (unsigned int bit = 0u; bit < bits; bit += 1u)
@@ -283,8 +283,8 @@ static std::vector<size_t> stage_run(size_t from, size_t until, size_t step)
     return picked;
 }
 
-// imprints and lays out a stage's program over one member's records
-static int stage_lay(SimResults *job, Stage *stage, EngineError *error)
+// imprints and arranges a stage's program over one member's records
+static int stage_position(SimResults *job, Stage *stage, EngineError *error)
 {
     const StageProgram *program = &stage->program;
     const KeymathRecordRequest encode = {program->steps, program->count, program->field_bits, program->fields,
@@ -292,10 +292,10 @@ static int stage_lay(SimResults *job, Stage *stage, EngineError *error)
     int ok = keymath_record_encode(&encode) != KEYMATH_ERROR;
     sim_check(job, ok, (std::string("keymath imprints the ") + stage->name + " program").c_str());
     const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {(program->record_bits + 31u) / 32u, 0u, 0u};
-    const KeyScheduleRecordRequest lay = {&stage->key, program->field_offset, program->fields, in_limbs, 1,
+    const KeyScheduleRecordRequest position = {&stage->key, program->field_offset, program->fields, in_limbs, 1,
                                           &stage->layout, error};
-    ok = ok && (key_schedule_record_layout(&lay) != KEY_SCHEDULE_ERROR);
-    sim_check(job, ok, (std::string("the scheduler lays the ") + stage->name + " program out").c_str());
+    ok = ok && (key_schedule_record_layout(&position) != KEY_SCHEDULE_ERROR);
+    sim_check(job, ok, (std::string("the scheduler positions the ") + stage->name + " program out").c_str());
     return ok;
 }
 
@@ -344,7 +344,7 @@ static void stage_release(Stage *stage)
 // one lane a row of whole numbers, every field `bits` wide
 typedef std::vector<std::vector<StageWhole>> StageRows;
 
-// lays a stage out over rows, sweeps it, and returns each lane's outputs
+// positions a stage out over rows, sweeps it, and returns each lane's outputs
 static int stage_rows(SimResults *job, Stage *stage, const StageRows &rows,
                            std::vector<std::vector<StageWhole>> *outputs, EngineError *error)
 {
@@ -353,7 +353,7 @@ static int stage_rows(SimResults *job, Stage *stage, const StageRows &rows,
     {
         return 1;
     }
-    int ok = stage_lay(job, stage, error);
+    int ok = stage_position(job, stage, error);
     const unsigned int limbs = (stage->program.record_bits + 31u) / 32u;
     std::vector<unsigned int> records(rows.size() * limbs, 0u);
     for (size_t lane = 0u; lane < rows.size(); lane += 1u)
@@ -535,9 +535,9 @@ static std::vector<std::string> stage_split(const std::string &line)
 }
 
 // a name cut to `width` characters and padded to them, counting a UTF-8 character once and not by its bytes
-static std::string stage_shown(const std::string &text, size_t width, int pad)
+static std::string stage_displayed(const std::string &text, size_t width, int pad)
 {
-    std::string shown;
+    std::string displayed;
     size_t characters = 0u;
     for (size_t at = 0u; at < text.size(); at += 1u)
     {
@@ -547,14 +547,14 @@ static std::string stage_shown(const std::string &text, size_t width, int pad)
             break;
         }
         characters += (size_t)starts;
-        shown += text[at];
+        displayed += text[at];
     }
     while (pad && (characters < width))
     {
-        shown += ' ';
+        displayed += ' ';
         characters += 1u;
     }
-    return shown;
+    return displayed;
 }
 
 // how many bits of a 32-bit word are set, by the halving sums of adjacent fields; where `masked`, the word is
@@ -618,7 +618,7 @@ static int stage_sums(SimResults *job, const char *what, const unsigned int *dev
     return ok;
 }
 
-// lays a stage out over prepared records, sweeps it, and sums one output over runs of `group` lanes
+// positions a stage out over prepared records, sweeps it, and sums one output over runs of `group` lanes
 static int stage_summed(SimResults *job, Stage *stage, const std::vector<unsigned int> &records,
                         unsigned long long lanes, unsigned long long group, const std::vector<unsigned int> &outputs,
                         std::vector<std::vector<StageWhole>> *sums, EngineError *error)

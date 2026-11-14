@@ -5,18 +5,18 @@
 // that no class of its family sets. A class is numbered by the files in the tree's order and its place among its
 // file's classes. The families are worked out in two cells of the working alone, one sized to the classes counted and
 // the bases they name, one to the ancestors a walk of them counts, then written into two movable cells of the same
-// layout that stand until the tree changes, each list read out of them a word at a time. A class and a name are read
+// layout that are until the tree changes, each list read out of them a word at a time. A class and a name are read
 // out of a file's facts cell through the guard, by the file's token. A base that adds no attribute a class reads of
 // `self` is not followed
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
 #include "inspect_tree_internal.h"
 
-// the most bytes a class's or an attribute's name is read into on the stack
+// the max bytes a class's or an attribute's name is read into on the stack
 #define CLI_TREE_FAMILY_NAME_BYTES 1024u
 
-// The names a family sets, each once, in a table sized to the most names one family sets: a bucket's round, and the
-// name it contains, where it stands in the facts cell of the class that sets it
+// The names a family sets, each once, in a table sized to the max names one family sets: a bucket's round, and the
+// name it contains, where it is in the facts cell of the class that sets it
 typedef struct
 {
     unsigned int round;
@@ -32,7 +32,7 @@ static const char *const s_bare_bases[7] = {"object",         "ABC",      "abc.A
 // classes; each class's bases in the tree, whether all it names are, and whether it is a Python file's; its ancestors,
 // itself first, whether all are in the tree, and whether one sets attributes by name; its descendants; the round a
 // class was last seen in, the walk's waiting classes, and the round. While the families are worked out each list is
-// a part of a cell of the working, `laid` and `laid_ancestors`, which the pointers name; once they stand the lists are
+// a part of a cell of the working, `positioned` and `positioned_ancestors`, which the pointers name; once they are the lists are
 // in the movable cells `tables_cell` and `ancestors_cell` at the places `*_at`, the pointers NULL
 typedef struct
 {
@@ -57,10 +57,10 @@ typedef struct
     unsigned int *seen;
     unsigned int *waiting;
     unsigned int round;
-    unsigned char *laid;
-    unsigned long long laid_bytes;
-    unsigned char *laid_ancestors;
-    unsigned long long laid_ancestors_bytes;
+    unsigned char *positioned;
+    unsigned long long positioned_bytes;
+    unsigned char *positioned_ancestors;
+    unsigned long long positioned_ancestors_bytes;
     const CarcerMovableEntry *tables_cell;
     const CarcerMovableEntry *ancestors_cell;
     unsigned long long class_file_at;
@@ -80,8 +80,8 @@ static CliTreeFamilies s_family;
 
 void cli_tree_families_free(void)
 {
-    g_cli_guard->persistent_buf_release(s_family.laid, g_cli_inspect_owner);
-    g_cli_guard->persistent_buf_release(s_family.laid_ancestors, g_cli_inspect_owner);
+    g_cli_guard->persistent_buf_release(s_family.positioned, g_cli_inspect_owner);
+    g_cli_guard->persistent_buf_release(s_family.positioned_ancestors, g_cli_inspect_owner);
     if (s_family.tables_cell != NULL)
     {
         (void)g_cli_guard->movable_buf_release(s_family.tables_cell, g_cli_inspect_owner);
@@ -148,7 +148,7 @@ EMBED_INLINE unsigned char family_byte(const InspectTreeFamilyCtx *args)
     return byte;
 }
 
-// the file of the class numbered `number`, and its place among its file's classes: out of the lists as they are laid
+// the file of the class numbered `number`, and its place among its file's classes: out of the lists as they are positioned
 // while the families are worked out, else out of their movable cell
 EMBED_INLINE unsigned int family_class_file(const InspectTreeFamilyCtx *args)
 {
@@ -281,8 +281,8 @@ static int family_class_cell(void)
     const unsigned long long words = (11ULL * classes) + g_cli_tree_files + links + 16ULL;
     const unsigned long long bytes = (words * sizeof(unsigned int)) + (4ULL * (classes + 8ULL));
     unsigned char *at = g_cli_guard->temporary_buf_alloc(bytes, g_cli_inspect_owner);
-    s_family.laid = at;
-    s_family.laid_bytes = bytes;
+    s_family.positioned = at;
+    s_family.positioned_bytes = bytes;
     if (at == NULL)
     {
         return 0;
@@ -452,40 +452,40 @@ static unsigned int family_ancestors_get(const InspectTreeFamilyCtx *args)
     return args->used + count;
 }
 
-// the lists as they are laid written into two movable cells of the same layout, each list's place in them kept, the
+// the lists as they are positioned written into two movable cells of the same layout, each list's place in them retained, the
 // cells of the working given back and the pointers into them dropped: 1, or 0 where the cells cannot meet them
 static int family_stored(void)
 {
-    const unsigned char *const laid = s_family.laid;
-    const unsigned char *const laid_ancestors = s_family.laid_ancestors;
-    s_family.tables_cell = g_cli_guard->movable_buf_alloc(s_family.laid_bytes, g_cli_inspect_owner);
-    s_family.ancestors_cell = g_cli_guard->movable_buf_alloc(s_family.laid_ancestors_bytes, g_cli_inspect_owner);
+    const unsigned char *const positioned = s_family.positioned;
+    const unsigned char *const positioned_ancestors = s_family.positioned_ancestors;
+    s_family.tables_cell = g_cli_guard->movable_buf_alloc(s_family.positioned_bytes, g_cli_inspect_owner);
+    s_family.ancestors_cell = g_cli_guard->movable_buf_alloc(s_family.positioned_ancestors_bytes, g_cli_inspect_owner);
     if ((s_family.tables_cell == NULL) || (s_family.ancestors_cell == NULL))
     {
         return 0;
     }
     (void)g_cli_guard->movable_buf_write(
-        &(CarcerMovableCfg){.cell = s_family.tables_cell, .offset = 0ULL, .src = laid, .bytes = s_family.laid_bytes});
+        &(CarcerMovableCfg){.cell = s_family.tables_cell, .offset = 0ULL, .src = positioned, .bytes = s_family.positioned_bytes});
     (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_family.ancestors_cell,
                                                              .offset = 0ULL,
-                                                             .src = laid_ancestors,
-                                                             .bytes = s_family.laid_ancestors_bytes});
-    // each list's place is where its pointer stands past its cell's start
-    s_family.class_file_at = (unsigned long long)((const unsigned char *)s_family.class_file - laid);
-    s_family.class_at_at = (unsigned long long)((const unsigned char *)s_family.class_at - laid);
-    s_family.python_at = (unsigned long long)(s_family.python - laid);
-    s_family.ancestor_first_at = (unsigned long long)((const unsigned char *)s_family.ancestor_first - laid);
-    s_family.ancestors_at = (unsigned long long)((const unsigned char *)s_family.ancestors - laid);
-    s_family.known_at = (unsigned long long)(s_family.known - laid);
-    s_family.dynamic_at = (unsigned long long)(s_family.dynamic - laid);
-    s_family.descendant_first_at = (unsigned long long)((const unsigned char *)s_family.descendant_first - laid);
-    s_family.descendants_at = (unsigned long long)((const unsigned char *)s_family.descendants - laid);
-    s_family.ancestor_at = (unsigned long long)((const unsigned char *)s_family.ancestor - laid_ancestors);
-    s_family.descendant_at = (unsigned long long)((const unsigned char *)s_family.descendant - laid_ancestors);
-    g_cli_guard->persistent_buf_release(s_family.laid, g_cli_inspect_owner);
-    g_cli_guard->persistent_buf_release(s_family.laid_ancestors, g_cli_inspect_owner);
-    s_family.laid = NULL;
-    s_family.laid_ancestors = NULL;
+                                                             .src = positioned_ancestors,
+                                                             .bytes = s_family.positioned_ancestors_bytes});
+    // each list's place is where its pointer is past its cell's start
+    s_family.class_file_at = (unsigned long long)((const unsigned char *)s_family.class_file - positioned);
+    s_family.class_at_at = (unsigned long long)((const unsigned char *)s_family.class_at - positioned);
+    s_family.python_at = (unsigned long long)(s_family.python - positioned);
+    s_family.ancestor_first_at = (unsigned long long)((const unsigned char *)s_family.ancestor_first - positioned);
+    s_family.ancestors_at = (unsigned long long)((const unsigned char *)s_family.ancestors - positioned);
+    s_family.known_at = (unsigned long long)(s_family.known - positioned);
+    s_family.dynamic_at = (unsigned long long)(s_family.dynamic - positioned);
+    s_family.descendant_first_at = (unsigned long long)((const unsigned char *)s_family.descendant_first - positioned);
+    s_family.descendants_at = (unsigned long long)((const unsigned char *)s_family.descendants - positioned);
+    s_family.ancestor_at = (unsigned long long)((const unsigned char *)s_family.ancestor - positioned_ancestors);
+    s_family.descendant_at = (unsigned long long)((const unsigned char *)s_family.descendant - positioned_ancestors);
+    g_cli_guard->persistent_buf_release(s_family.positioned, g_cli_inspect_owner);
+    g_cli_guard->persistent_buf_release(s_family.positioned_ancestors, g_cli_inspect_owner);
+    s_family.positioned = NULL;
+    s_family.positioned_ancestors = NULL;
     s_family.class_first = NULL;
     s_family.class_file = NULL;
     s_family.class_at = NULL;
@@ -559,8 +559,8 @@ void cli_tree_families(void)
     }
     const unsigned long long ancestors_bytes = (2ULL * total + 2ULL) * sizeof(unsigned int);
     unsigned int *const ancestors = g_cli_guard->temporary_buf_alloc(ancestors_bytes, g_cli_inspect_owner);
-    s_family.laid_ancestors = (unsigned char *)(void *)ancestors;
-    s_family.laid_ancestors_bytes = ancestors_bytes;
+    s_family.positioned_ancestors = (unsigned char *)(void *)ancestors;
+    s_family.positioned_ancestors_bytes = ancestors_bytes;
     if (ancestors == NULL)
     {
         cli_tree_families_free();
@@ -652,7 +652,7 @@ EMBED_INLINE int family_pass(const InspectTreeFamilyCtx *args)
     return 0;
 }
 
-// the attributes the class numbered `key` reads of `self` that no class of its family sets, each handed to `each`
+// the attributes the class numbered `key` reads of `self` that no class of its family sets, each passed to `each`
 EMBED_INLINE void family_attributes_get(const InspectTreeFamilyCtx *args)
 {
     CliTreeFile tree_file;
@@ -785,7 +785,7 @@ EMBED_INLINE int family_supplied_append(const InspectTreeFamilyCtx *args)
     return 1;
 }
 
-// what each class the class `number` comes from sets, each attribute first stored in `table` this `round` handed to
+// what each class the class `number` comes from sets, each attribute first stored in `table` this `round` passed to
 // `supplied` with the `path` and `class_name` of the class it is supplied to
 EMBED_INLINE void family_supplied_above(const InspectTreeFamilyCtx *args)
 {
@@ -825,18 +825,18 @@ EMBED_INLINE void family_supplied_above(const InspectTreeFamilyCtx *args)
 void cli_inspect_tree_supplied(const CliInspectTreeContextEachSuppliedCfg *args)
 {
     cli_tree_families();
-    // the table's buckets twice the most names one family sets, rounded up to a power of two
-    unsigned long long most = 0ULL;
+    // the table's buckets twice the max names one family sets, rounded up to a power of two
+    unsigned long long max = 0ULL;
     for (unsigned int key = 0u; s_family.current && (key < s_family.classes); key += 1u)
     {
         const unsigned long long count =
             EMBED_CALL(family_table_byte, InspectTreeFamilyCtx, .table_at = s_family.python_at, .index = key)
                 ? EMBED_CALL(family_supplied_count, InspectTreeFamilyCtx, .key = key)
                 : 0ULL;
-        most = (count > most) ? count : most;
+        max = (count > max) ? count : max;
     }
     unsigned int buckets = 16u;
-    while ((buckets < (2ULL * most)) && (buckets < 0x80000000u))
+    while ((buckets < (2ULL * max)) && (buckets < 0x80000000u))
     {
         buckets <<= 1u;
     }

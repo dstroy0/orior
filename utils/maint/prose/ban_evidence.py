@@ -30,7 +30,7 @@
 #
 # WHAT A ROW MEANS
 #
-# Rates are per hundred thousand words, because most of these phrases are rare enough that per
+# Rates are per hundred thousand words, because the majority of these phrases are rare enough that per
 # thousand rounds everything to zero. A pattern that fires in the papers is a pattern describing
 # ordinary technical English, and banning it costs a writer a phrase they are entitled to. A pattern
 # that never fires in 154 papers and fires in the machine arm is doing the job the list claims.
@@ -122,7 +122,7 @@ def main():
     out.write("\n  %d of %d patterns fire in the human papers, %d never do\n"
               % (len(human), len(rows), len(absent)))
 
-    out.write("\n  patterns the humans use most, per %d words\n" % int(PER))
+    out.write("\n  patterns the humans use max, per %d words\n" % int(PER))
     out.write("    %-46s %9s %9s %9s\n" % ("pattern", "papers", "repository", ""))
     for pattern, counts, rates in sorted(human, key=lambda one: -one[2]["papers"])[:worst]:
         out.write("    %-46s %9.1f %9.1f %9.1f\n"
@@ -138,10 +138,10 @@ def main():
         out.write("    none\n")
 
     # The summary rate over the whole list. This is the number the ban list is worth as one figure.
-    for label, keep in (("every pattern", rows),
+    for label, retain in (("every pattern", rows),
                         ("only the ones no paper uses", absent)):
         totals = {name: 0 for name in arms}
-        for pattern, counts, rates in keep:
+        for pattern, counts, rates in retain:
             for name in arms:
                 totals[name] += counts[name]
         out.write("\n  total hits per %d words, %s\n" % (int(PER), label))

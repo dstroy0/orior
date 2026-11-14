@@ -43,13 +43,13 @@ EXCLUSIONS = "**/node_modules/**,**/target/**,**/build/**,**/build-*/**,**/_deps
 PAGE = 500
 CLOUD_SERVER = "https://sonarcloud.io"
 CLOUD_PROJECT = "dstroy0_orior"
-CLOUD_MOST = 10000
+CLOUD_MAX = 10000
 CLOUD_SEVERITIES = ["BLOCKER", "CRITICAL", "MAJOR", "MINOR", "INFO"]
 
 
 def token_read():
-    with open(TOKEN_FILE, encoding="utf-8") as kept:
-        return kept.read().strip()
+    with open(TOKEN_FILE, encoding="utf-8") as retained:
+        return retained.read().strip()
 
 
 def asked(path, method="GET", auth=None, token=None, server=SERVER, **params):
@@ -151,7 +151,7 @@ def cmd_scan(a):
         "docker", "run", "--rm", "--add-host", "host.docker.internal:host-gateway",
         "-e", "SONAR_HOST_URL=http://host.docker.internal:9000", "-e", "SONAR_TOKEN=" + token_read(),
         "-v", top + ":/usr/src", "-v", SCANNER_CACHE + ":/opt/sonar-scanner/.sonar/cache",
-        # the scanner walks the whole tree: an empty folder stands over build/, whose objects come and go under a
+        # the scanner walks the whole tree: an empty folder is over build/, whose objects come and go under a
         # build and whose test homes it cannot open, with the reports it reads mounted back in
         "--tmpfs", "/usr/src/build", "-v", top + "/build/sonarqube:/usr/src/build/sonarqube",
         SCANNER_IMAGE,
@@ -171,8 +171,8 @@ def cmd_scan(a):
     ]
     with open(log, "wb") as out:
         ran = subprocess.run(command, cwd=ROOT, stdout=out, stderr=subprocess.STDOUT)
-    with open(log, encoding="utf-8", errors="replace") as kept:
-        lines = kept.readlines()
+    with open(log, encoding="utf-8", errors="replace") as retained:
+        lines = retained.readlines()
     if ran.returncode != 0:
         print("".join(lines[-30:]), end="")
         return 1
@@ -182,8 +182,8 @@ def cmd_scan(a):
 
 
 def processed():
-    """Whether the server finished the report a scan handed it, within two minutes. The scanner ends when the report
-    is handed over, and until the server has read it the issues listed are the last scan's."""
+    """Whether the server finished the report a scan passed it, within two minutes. The scanner ends when the report
+    is passed over, and until the server has read it the issues listed are the last scan's."""
     for _ in range(120):
         state = asked("ce/component", "GET", ADMIN, component=PROJECT)
         if not state.get("queue") and state.get("current", {}).get("status") != "IN_PROGRESS":
@@ -211,9 +211,9 @@ def duplications_listed(token):
         page += 1
     groups = {}
     for key, _ in files:
-        shown = asked("duplications/show", token=token, key=key)
-        named = shown.get("files", {})
-        for duplication in shown.get("duplications", []):
+        displayed = asked("duplications/show", token=token, key=key)
+        named = displayed.get("files", {})
+        for duplication in displayed.get("duplications", []):
             blocks = sorted((named.get(block["_ref"], {}).get("name") or named.get(block["_ref"], {}).get("key") or "?", int(block["from"]), int(block["size"])) for block in duplication.get("blocks", []))
             groups.setdefault("|".join("%s:%d+%d" % block for block in blocks), blocks)
     ordered = sorted(groups.values(), key=lambda blocks: (-blocks[0][2] * len(blocks), -blocks[0][2]))
@@ -228,7 +228,7 @@ def duplications_listed(token):
 
 def issues_listed(token, under=""):
     """The project's open issues, each file's together, as Markdown lines: the file, then its issues by line with
-    the rule and the message. `under` keeps the issues of files under that path alone."""
+    the rule and the message. `under` retains the issues of files under that path alone."""
     found = []
     page = 1
     while True:
@@ -288,7 +288,7 @@ def cloud_issues():
             for issue in answer.get("issues", []):
                 found[issue["key"]] = (issue.get("severity", ""), issue.get("type", ""), issue.get("rule", ""),
                                        issue.get("component", "").split(":", 1)[-1], issue.get("line", 0), issue.get("message", ""))
-            if (page * PAGE >= answer.get("paging", {}).get("total", 0)) or (page * PAGE >= CLOUD_MOST) or not answer.get("issues"):
+            if (page * PAGE >= answer.get("paging", {}).get("total", 0)) or (page * PAGE >= CLOUD_MAX) or not answer.get("issues"):
                 break
             page += 1
     return sorted(found.values(), key=lambda row: (CLOUD_SEVERITIES.index(row[0]) if row[0] in CLOUD_SEVERITIES else 9, row[2], row[3], row[4]))

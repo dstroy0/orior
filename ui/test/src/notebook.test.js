@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // A notebook as cells: a .ipynb opened as a model of code and Markdown cells, changes marked and written back as the
-// file keeps them, a cell out of date where a cell it stands on changed since it ran, and the file a Python cell is
+// file retains them, a cell out of date where a cell it is on changed since it ran, and the file a Python cell is
 // debugged in.
 
 import { cellFile, cellFileOf, cellName, isNotebook, markNotebookSaved, notebookDirty, notebookFile, notebookOfCellFile, staleBy } from "../../gui/src-js/notebook.js";
@@ -13,10 +13,10 @@ const { test, assert } = window.__harness;
 
 const CELLS = [code("x = 1"), markdown("# Title"), code("print(x)", { execution_count: 2, outputs: [{ output_type: "stream", name: "stdout", text: "1\n" }] })];
 
-test("a .ipynb opens as a notebook, its cells of code and Markdown drawn, each output and count as the file kept them", async () => {
+test("a .ipynb opens as a notebook, its cells of code and Markdown drawn, each output and count as the file retained them", async () => {
   assert.ok(isNotebook("a/b.IPYNB") && !isNotebook("a.py"));
   const book = await openedNotebook("model", CELLS);
-  assert.deepEqual(book.cells.map((cell) => cell.kind), ["code", "markdown", "code"]);
+  assert.deepEqual(book.cells.map((cell) => cell.type), ["code", "markdown", "code"]);
   assert.equal(book.languageName, "python");
   assert.equal(book.cells[2].count, 2);
   assert.equal(book.cells[2].outputs.length, 1);
@@ -25,7 +25,7 @@ test("a .ipynb opens as a notebook, its cells of code and Markdown drawn, each o
   assert.equal(book.cells[2].node.querySelector(".nb-outputs").textContent.trim(), "1");
 });
 
-test("a cell changed marks the notebook, and the file written back holds the cells as they stand", async () => {
+test("a cell changed marks the notebook, and the file written back holds the cells as they are", async () => {
   const book = await openedNotebook("written", CELLS);
   assert.ok(!notebookDirty(book));
   const cell = book.cells[0];
@@ -33,9 +33,9 @@ test("a cell changed marks the notebook, and the file written back holds the cel
   assert.ok(notebookDirty(book));
   const file = notebookFile(book);
   assert.equal(file.cells[0].source, "x = 2");
-  assert.ok(!("outputs" in file.cells[1]) && !("execution_count" in file.cells[1]), "a Markdown cell keeps no outputs");
+  assert.ok(!("outputs" in file.cells[1]) && !("execution_count" in file.cells[1]), "a Markdown cell retains no outputs");
   assert.deepEqual([file.cells[2].execution_count, file.cells[2].outputs.length], [2, 1]);
-  assert.deepEqual(file.cells.map((one) => one.id), book.cells.map((one) => one.id), "each cell's id written, as nbformat 4.5 keeps them");
+  assert.deepEqual(file.cells.map((one) => one.id), book.cells.map((one) => one.id), "each cell's id written, as nbformat 4.5 retains them");
   markNotebookSaved(book);
   assert.ok(!notebookDirty(book));
 });
@@ -55,7 +55,7 @@ test("a cell is out of date where one that ran before it was changed, ran again 
     first.runs = [1];
     first.gone = true;
     assert.deepEqual(staleBy(book, last), [first], "deleted");
-    assert.deepEqual(staleBy(book, first), [], "a cell that stands on none that ran before it");
+    assert.deepEqual(staleBy(book, first), [], "a cell that is on none that ran before it");
     assert.equal(cellName(book, first), "cell 1");
     assert.equal(cellName(book, { id: "elsewhere" }), "a cell since deleted");
   } finally {

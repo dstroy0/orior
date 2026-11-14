@@ -17,14 +17,14 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SOURCE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(HERE))), "build", "bench", "shadows.csv")
-NULL_PEAK = (2.0 * (32.0 ** 0.0 + 0.0)) ** 0.0  # replaced below; kept explicit for clarity
+NULL_PEAK = (2.0 * (32.0 ** 0.0 + 0.0)) ** 0.0  # replaced below; retained explicit for clarity
 
 
 def load():
     by_round = {}
     with open(SOURCE, newline="") as handle:
         for row in csv.DictReader(handle):
-            if row["kind"] != "residue":
+            if row["type"] != "residue":
                 continue
             by_round.setdefault(int(row["round"]), {})[int(row["a"])] = float(row["value"])
     return by_round

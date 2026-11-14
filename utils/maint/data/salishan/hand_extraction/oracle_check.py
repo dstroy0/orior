@@ -97,7 +97,7 @@ from papers import EVERY, NOT_FAITHFUL, ORTHOGRAPHY_ABSENT, PAGE_TEXT  # noqa: E
 EDGES = '.,!?;:“”"()[]…«»{}/*•→≤≥'
 
 # Hall and Phillips write the null third person clitic with a symbol font, and the extraction
-# carries that glyph through as a private use character. It stands where a morpheme is not
+# carries that glyph through as a private use character. It is where a morpheme is not
 # pronounced. It is never part of a form, and it sits inside a token as often as at the end of
 # one: cw-[n]-t-<glyph>-és=us is one word with one unpronounced morpheme in the middle of it.
 NULL_CLITIC = ""
@@ -109,7 +109,7 @@ NULL_CLITIC = ""
 PAIRED = (("‘", "’"), ("'", "'"), ("“", "”"))
 
 # How many tokens one broken word may arrive as. A pair covers the papers that break before a
-# marked letter, where các l̓ep is two. Lyon's break more than once: nt̓ə k̓ʷt̓í k̓ʷləx is three
+# marked character, where các l̓ep is two. Lyon's break more than once: nt̓ə k̓ʷt̓í k̓ʷləx is three
 # pieces of one word and s- m̓ y̓- m̓ y̓-á y̓-s is five, and a table holding the whole word had every
 # piece of it reported as a word no row covers.
 #
@@ -121,7 +121,7 @@ PIECES = 6
 # The mark Lyon opens every parsed root with.
 ROOT_MARK = "√"
 
-# What stands in front of a √ inside one parse. yaQ•√yáQt is a reduplicant and its root, n+√ ’ks+tan
+# What is in front of a √ inside one parse. yaQ•√yáQt is a reduplicant and its root, n+√ ’ks+tan
 # a preposition and its root: one form each. A √ with anything else in front of it is the point
 # where the extraction ran a surface line into the parse line under it.
 INSIDE_PARSE = "+-•="
@@ -136,7 +136,7 @@ def surface_parse_join(token):
 
 
 # The Latin ligatures a PDF sets f-words with. None of these orthographies uses one. Every
-# occurrence is the typesetter's and the letters underneath are what the paper says. Lyon's
+# occurrence is the typesetter's and the characters underneath are what the paper says. Lyon's
 # translations carry ﬁnish, ﬁll and ﬁrst, and a table typed at a keyboard holds none of them.
 LIGATURES = (("ﬁ", "fi"), ("ﬂ", "fl"), ("ﬀ", "ff"), ("ﬃ", "ffi"), ("ﬄ", "ffl"))
 
@@ -156,7 +156,7 @@ QUOTES = (("’", "'"), ("‘", "'"))
 # own punctuation: tuʔúʔt.6 puts the marker after the period, yéyeʔ?”’ closes the inner quote after
 # the outer one, and tea.̓ is a ’ the PDF left as a bare combining mark. Peeling any of them off the
 # end of a word outright takes the glottalization off ˽c’ and the 3 off a 3OBJ gloss. Each comes off
-# only where an EDGES character stands in front of it.
+# only where an EDGES character is in front of it.
 def trailing_marker(plain):
     """One token with a footnote marker and a doubled closing quote off the end of it."""
     while len(plain) > 1:
@@ -165,7 +165,7 @@ def trailing_marker(plain):
             at -= 1
         # A footnote marker set against a word that ends in a stacked mark, as Hall and Phillips'
         # nhén̓4 is. 7 is the glottal stop in the van Eijk orthography. A run that is only 7 is
-        # the word's own last letter and stays.
+        # the word's own last character and stays.
         if (
             (at < len(plain))
             and (at > 0)
@@ -179,7 +179,7 @@ def trailing_marker(plain):
         ):
             at -= 1
         # A footnote marker set past a closing quote, as walk.’17 is. The ’ counts as a quote only
-        # where the sentence's own punctuation stands in front of it, which keeps ˽c’ whole.
+        # where the sentence's own punctuation is in front of it, which retains ˽c’ whole.
         elif (at > 1) and (plain[at - 1] == "’") and (plain[at - 2] in EDGES):
             at -= 1
         if (at == len(plain)) or (at == 0) or (plain[at - 1] not in EDGES):
@@ -204,15 +204,15 @@ def leading_marker(plain):
         plain = plain[at:].lstrip(EDGES)
 
 
-# A footnote marker set against a word that ends in a plain letter, as Lyon's zuxʷt5, ʕant7 and
+# A footnote marker set against a word that ends in a plain character, as Lyon's zuxʷt5, ʕant7 and
 # ks-cúy-iʔ-səlx11 are. trailing_marker leaves those alone, and it has to: a run of digits at the end
-# of a word is the word's own last letter in the van Eijk orthography, where skúza7 and Cw7aoz define
+# of a word is the word's own last character in the van Eijk orthography, where skúza7 and Cw7aoz define
 # the glottal stop as 7.
 #
 # So this is never applied. It is offered as a second string to look for, the way a slashed cell and
 # a hyphen join are, and direction two lets a token through only when the table holds the form
 # without the marker. Both sides then have to agree before anything is skipped, and a paper that
-# writes 7 as a letter is unaffected because its rows carry the 7.
+# writes 7 as a character is unaffected because its rows carry the 7.
 def without_marker(plain):
     """One token with a trailing run of digits off the end of it, or the token as it came."""
     at = len(plain)
@@ -223,17 +223,17 @@ def without_marker(plain):
     return plain[:at]
 
 
-# The letters of the paper currently being checked, set once per paper by main.
+# The characters of the paper currently being checked, set once per paper by main.
 #
 # Module state, because bare() is reached from eight places across three functions and the paper is
 # the same for all of them within one check. It sits beside EDGES, PAIRED and LIGATURES, which are
-# the same kind of fact about how a paper is written; this is the part of that which changes per
+# the same type of fact about how a paper is written; this is the part of that which changes per
 # paper instead of holding for all of them.
 MARKS = ""
 
 
 def edges_for(marks):
-    """The punctuation to strip, with this paper's own letters taken out of it.
+    """The punctuation to strip, with this paper's own characters taken out of it.
 
     Off by default. Turning it on for every paper moved the tree from 438 disagreements to 457,
     and Hilbert_Hess stayed at exactly 200. Pass an explicit `marks` to use it for one call.
@@ -248,13 +248,13 @@ def bare(token, marks=None):
     comes off only where an opening one is on the same token, because ’ ends real words in Nuxalk
     and in Lyon's Okanagan.
 
-    `marks` is the paper's own letters, and anything in it is not punctuation for that paper. It
+    `marks` is the paper's own characters, and anything in it is not punctuation for that paper. It
     defaults to the paper under check, which main sets before reading either side of it.
     """
     edges = edges_for(MARKS if marks is None else marks)
     plain = token.replace(NULL_CLITIC, "")
-    for ligature, letters in LIGATURES:
-        plain = plain.replace(ligature, letters)
+    for ligature, characters in LIGATURES:
+        plain = plain.replace(ligature, characters)
     plain = plain.strip(edges)
     for opens, closes in PAIRED:
         if (len(plain) > 1) and plain.startswith(opens) and plain.endswith(closes):
@@ -271,7 +271,7 @@ def bare(token, marks=None):
     return plain
 
 
-# What a form may be built out of besides its letters. A morpheme boundary, a clitic boundary, a
+# What a form may be built out of besides its characters. A morpheme boundary, a clitic boundary, a
 # reduplication tilde and the parentheses around a deleted segment are all part of how the paper
 # writes a form, and splitting on them would compare pieces the paper never printed apart.
 INSIDE = "-=~()"
@@ -293,7 +293,7 @@ def pieces(form):
 
 
 def oracle_rows(path):
-    """Every row of a hand extraction, as where, who, kind, form, gloss.
+    """Every row of a hand extraction, as where, who, type, form, gloss.
 
     Twenty-four of the twenty-five files declare that header. Mellesmoen_Kye_ICSNL61 declares
     `dialect` in the second column and fills it with dialect labels instead of the people who
@@ -327,7 +327,7 @@ def wrong_width(path):
     other. Any other width is damage and not a shape somebody chose.
 
     A short row is dropped by oracle_rows and says nothing. A wide one is worse, because it is
-    kept and everything past the fifth field goes unread. One tab written where a space belongs
+    retained and everything past the fifth field goes unread. One tab written where a space belongs
     turns `n > <null> / n_` into `n > <null>`, moves the conditioning environment into the gloss
     column where nothing reads it as one, and drops the name of the rule off the end. A
     conditioned rule becomes an unconditional one, attributed to a named language, and the row
@@ -357,7 +357,7 @@ def source_forms(path, repair=None, pieces=2, line_joins=False):
 
     Three things beyond splitting on spaces. A cell can hold two alternants divided by a slash, as
     Table A2 does at dᶻəlč̓/ǰəlč̓. Each half of a slashed token is offered as well as the whole
-    token, which keeps the constraint name *P/ə findable too. A form can be broken across a line break,
+    token, which retains the constraint name *P/ə findable too. A form can be broken across a line break,
     as sčəbíd-ac is in both of the Figure 7 captions, and a line ending in a hyphen is also offered
     joined to the line after it. All of this widens what a lookup finds and none of it builds a
     corpus. An over-join here costs nothing but a question not asked.
@@ -367,7 +367,7 @@ def source_forms(path, repair=None, pieces=2, line_joins=False):
     # about these. Asking about a join would make every accidental pairing a hole to answer for.
     printed = set()
     # Each printed token against what it makes when welded to the token beside it. A PDF that breaks
-    # a word before a marked letter leaves các and l̓epa, and the hand extraction has cácl̓epa. Both
+    # a word before a marked character leaves các and l̓epa, and the hand extraction has cácl̓epa. Both
     # halves are then words the paper prints that no row holds, and neither is a row anybody should
     # write: the word is one word.
     welds = {}
@@ -445,7 +445,7 @@ def source_forms(path, repair=None, pieces=2, line_joins=False):
                 )
                 # The token itself, its slash-separated halves, and it joined to the tokens
                 # after it. The last of those is for the PDFs that break a word before a
-                # marked letter: cácl̓ep arrives as các l̓ep, and the hand extraction records
+                # marked character: cácl̓ep arrives as các l̓ep, and the hand extraction records
                 # the word. A join offered here only widens what a lookup finds.
                 plain = bare(token)
                 if plain:
@@ -456,7 +456,7 @@ def source_forms(path, repair=None, pieces=2, line_joins=False):
                     if (at == 0) and not wrapped:
                         printed.add(plain)
                 reach = list(token.split("/"))
-                # The same token without a footnote marker welded to its last letter.
+                # The same token without a footnote marker welded to its last character.
                 if plain:
                     reach.append(without_marker(plain))
                 # Lyon's five-line interlinear puts a form on one line and its parse on the
@@ -473,7 +473,7 @@ def source_forms(path, repair=None, pieces=2, line_joins=False):
                     run = tokens[where : where + span]
                     # The join is offered with and without a footnote marker on the end of it.
                     # n-t̓ə k̓[ʷ]-t̓í k̓[ʷ]-ləx2 is one word carrying a 2 and the row holds the
-                    # word, while (s)K ékets’a7 ends in the letter van Eijk writes the glottal
+                    # word, while (s)K ékets’a7 ends in the character van Eijk writes the glottal
                     # stop with and the row holds the 7, and only the stripped form would lose
                     # the second one.
                     joined = bare("".join(run))
@@ -566,18 +566,18 @@ def main():
         unfound = []
         cost = []
         written = set()
-        for where, who, kind, form, gloss in rows:
+        for where, who, type, form, gloss in rows:
             for piece in pieces(form):
                 written.add(piece)
                 if piece in held:
                     continue
-                (cost if piece in raw else unfound).append((where, kind, form, piece))
+                (cost if piece in raw else unfound).append((where, type, form, piece))
         out.write("    %d forms the repair took out of the paper\n" % len(cost))
-        for where, kind, form, piece in cost:
-            out.write("      %-12s %-11s %-28s %s\n" % (where, kind, form, piece))
+        for where, type, form, piece in cost:
+            out.write("      %-12s %-11s %-28s %s\n" % (where, type, form, piece))
         out.write("    %d written forms the paper does not hold\n" % len(unfound))
-        for where, kind, form, piece in unfound:
-            out.write("      %-12s %-11s %-28s %s\n" % (where, kind, form, piece))
+        for where, type, form, piece in unfound:
+            out.write("      %-12s %-11s %-28s %s\n" % (where, type, form, piece))
 
         # Direction two. A word in the paper that no row holds is a row the reader skipped. Only
         # tokens carrying a character of the language are asked about; the paper is otherwise
@@ -600,7 +600,7 @@ def main():
             if token.lower() in written:
                 continue
             # A footnote marker welded to the word it marks, as Lyon's zuxʷt5 is. The row holds the
-            # word. A paper definition the glottal stop as 7 keeps the 7 in its rows. Skúza7 is not
+            # word. A paper definition the glottal stop as 7 retains the 7 in its rows. Skúza7 is not
             # let through here by a row holding skúza.
             marked = without_marker(token)
             if (marked != token) and (marked in written):

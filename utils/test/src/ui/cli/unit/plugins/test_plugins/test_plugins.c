@@ -134,7 +134,7 @@ static void file_written(const char *folder, const char *name, const char *text)
 // a reader's plugin written in a fresh ORIOR_HOME
 static void reader_plugin_written(void)
 {
-    static const char s_manifest[] = "{\"id\": \"readers\", \"name\": \"Readers\", \"version\": \"1.0.0\", \"kind\": "
+    static const char s_manifest[] = "{\"id\": \"readers\", \"name\": \"Readers\", \"version\": \"1.0.0\", \"type\": "
                                      "\"script\", \"api\": 1}";
     char home[CLI_PATH_MAX_LEN];
     cli_unity_folder("plugins_reader_home", home);
@@ -150,7 +150,7 @@ static void parts_plugin_written(const char *main_list)
     VerbaLinea line = {manifest, sizeof(manifest), 0ull};
     cli_unity_folder("plugins_code_home", home);
     (void)EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = home);
-    mmgr_line_put(&line, "{\"id\": \"parts\", \"name\": \"Parts\", \"version\": \"1.0.0\", \"kind\": \"script\", \"main\": ");
+    mmgr_line_put(&line, "{\"id\": \"parts\", \"name\": \"Parts\", \"version\": \"1.0.0\", \"type\": \"script\", \"main\": ");
     mmgr_line_put(&line, main_list);
     mmgr_line_ch(&line, '}');
     (void)mmgr_line_finish(&line);
@@ -173,7 +173,7 @@ static void folders_read(void)
     cli_unity_folder("plugins_folders_home", home);
     cli_unity_folder("plugins_folders_tree", tree);
     (void)EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = home);
-    file_written(home, "plugins/folders/plugin.json", "{\"id\": \"folders\", \"name\": \"Folders\", \"version\": \"1.0.0\", \"kind\": \"language\", "
+    file_written(home, "plugins/folders/plugin.json", "{\"id\": \"folders\", \"name\": \"Folders\", \"version\": \"1.0.0\", \"type\": \"language\", "
                                                       "\"each\": {\"folder\": \"defs\", \"table\": \"{name}/{name}.table.tsv\", \"unless\": {\"column\": "
                                                       "\"where\", \"match\": \"^head \\\\d\"}, \"except\": [\"gamma\"]}, \"grammar\": {\"keywords\": "
                                                       "{\"table\": \"defs/{name}/{name}.table.tsv\", \"columns\": [\"form\"], \"match\": \"^([a-z]+)\"}, "
@@ -216,7 +216,7 @@ void test_every_bundled_plugin_reads_and_names_itself_and_a_script_transfers_its
     {
         const unsigned int root = tree_read((const char *)g_cli_bundled[at].text, g_cli_bundled[at].size);
         const char *const id = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = root, .name = "id"), .length_pointer = NULL);
-        const char *const type = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = root, .name = "kind"), .length_pointer = NULL);
+        const char *const type = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = root, .name = "type"), .length_pointer = NULL);
         TEST_ASSERT_NOT_NULL_MESSAGE(id, g_cli_bundled[at].id);
         TEST_ASSERT_EQUAL_STRING(g_cli_bundled[at].id, id);
         TEST_ASSERT_NOT_NULL_MESSAGE(type, g_cli_bundled[at].id);
@@ -332,7 +332,7 @@ void test_each_run_of_other_characters_is_one_dash(void)
     TEST_ASSERT_EQUAL_STRING("c-more", id_of("  C++ & More!! "));
 }
 
-void test_a_name_of_no_letters_has_no_id(void)
+void test_a_name_of_no_characters_has_no_id(void)
 {
     TEST_ASSERT_EQUAL_STRING("", id_of("!!!"));
 }
@@ -463,10 +463,10 @@ void test_a_plugin_starts_from_another_larger_than_the_answers_own_tree(void)
 
 void test_a_grammar_is_created_complete_from_the_trees_tables(void)
 {
-    static const char s_grammar[] = "{\"types\": {\"table\": \"lng/words.tsv\", \"columns\": [\"word\"], \"rows\": {\"column\": \"kind\", "
+    static const char s_grammar[] = "{\"types\": {\"table\": \"lng/words.tsv\", \"columns\": [\"word\"], \"rows\": {\"column\": \"type\", "
                                     "\"match\": "
                                     "\"^type$\"}, \"match\": \"^[a-z]+\"}, \"others\": {\"table\": \"lng/words.tsv\", \"columns\": [\"word\"], "
-                                    "\"rows\": {\"column\": \"kind\", \"skip\": \"^type$\"}}, \"arrows\": {\"table\": \"lng/{name}.tsv\", "
+                                    "\"rows\": {\"column\": \"type\", \"skip\": \"^type$\"}}, \"arrows\": {\"table\": \"lng/{name}.tsv\", "
                                     "\"columns\": [\"arrow\"], \"skip\": \"^(?:[a-z]+|-)?$\"}, \"none\": {\"table\": \"lng/missing.tsv\", "
                                     "\"columns\": [\"word\"]}, \"tokenizer\": {\"root\": [[{\"words\": \"arrows\", \"before\": \"\\\\s\", "
                                     "\"after\": \"$\"}, \"operator\"], [{\"words\": \"none\"}, \"keyword\"], [\"[a-z]+\", \"identifier\"]]}}";
@@ -474,7 +474,7 @@ void test_a_grammar_is_created_complete_from_the_trees_tables(void)
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_unity_folder("plugins_tables_tree", tree);
-    file_written(tree, "lng/words.tsv", "# the words of the check\nword\tkind\tarrow\nalpha\ttype\t->\nbeta\tplain\t-\ngamma-x\ttype\tx>\n"
+    file_written(tree, "lng/words.tsv", "# the words of the check\nword\ttype\tarrow\nalpha\ttype\t->\nbeta\tplain\t-\ngamma-x\ttype\tx>\n"
                                         "\tplain\t\n");
     const unsigned int grammar = tree_read(s_grammar, sizeof(s_grammar) - 1u);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_err_msg_json.grammar_resolved, CliPluginsErrMsgJsonCfg, .json = &s_json, .grammar = grammar, .tree = tree, .name = "words", .out = &out, .err_msg = &err_msg));

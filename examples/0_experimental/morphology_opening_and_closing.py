@@ -7,9 +7,9 @@
 #
 #   Usage:  python examples/0_experimental/morphology_opening_and_closing.py
 #
-# This reads no corpus. It sits in 0_experimental: an algorithm shown working, an image-morphology
+# This reads no corpus. It sits in 0_experimental: an algorithm displayed working, an image-morphology
 # filter beside the signal ones. Erosion takes the minimum over a structuring element, dilation the
-# maximum; opening is an erosion then a dilation, closing a dilation then an erosion. Opening removes a
+# max; opening is an erosion then a dilation, closing a dilation then an erosion. Opening removes a
 # bright feature narrower than the element and leaves everything wider untouched; closing does the same
 # for a dark feature. It is a rank operator. Like the windowed median it rejects a replacement noise
 # a mean cannot, and it needs no threshold: the element width is a declared input and min and max are

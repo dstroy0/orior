@@ -36,7 +36,7 @@ int query_identity_run(const QueryPairsContextErrMsgRunCtx *args)
 {
     QueryContext *context = args->context;
     const QueryRun *run = args->run;
-    const char *const *words = args->words_letters;
+    const char *const *words = args->words_characters;
     long long *code = args->code;
     VerbaLinea *err_msg = args->err_msg;
     static const char *s_words[QUERY_WORDS_MAX + 2u];
@@ -203,7 +203,7 @@ int query_text_identity(const QueryPairsContextErrMsgCtx *args)
                                 .architecture = reader, .folder = engine_out, .err_msg = err_msg);
     const char *const sliced[4] = {"slice", sass, tsv, engine_out};
     whole = whole && EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
-                                .context = context, .run = &s_run, .identity = args->identity, .words_letters = sliced,
+                                .context = context, .run = &s_run, .identity = args->identity, .words_characters = sliced,
                                 .count = 4u, .code = &code, .err_msg = err_msg);
     if (whole && (code != 0LL))
     {
@@ -238,7 +238,7 @@ int query_text_identity(const QueryPairsContextErrMsgCtx *args)
         EMBED_CALL(query_pairs_part_context_dry_internal.tools_words, QueryPairsPartContextDryCtx, .context = context,
                    .part = args->mode->part, .dry = args->mode->dry, .words = &s_words, .err_msg = err_msg) &&
         EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
-                   .context = context, .run = &s_run, .identity = args->identity, .words_letters = s_words.word_text,
+                   .context = context, .run = &s_run, .identity = args->identity, .words_characters = s_words.word_text,
                    .count = s_words.count, .code = &code, .err_msg = err_msg);
     if (!EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context, .run_out = &s_run,
                     .err_msg = err_msg) ||

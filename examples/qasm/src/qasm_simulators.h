@@ -39,7 +39,7 @@ extern "C"
 
     typedef struct
     {
-        QasmExactGateKind kind;
+        QasmExactGateKind type;
         unsigned int first;
         unsigned int second;
         const QasmNumber *numbers;

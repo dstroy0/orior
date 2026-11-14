@@ -35,7 +35,7 @@ static unsigned int qasm_lens_splitmix_word(QasmLensSplitMix *draws)
 
 unsigned int qasm_lens_splitmix_bits(QasmLensSplitMix *draws, unsigned int count)
 {
-    // masked below 2^count, count at most QASM_LENS_BITS_MAX < 32, which an unsigned int represents exactly
+    // masked below 2^count, count at max QASM_LENS_BITS_MAX < 32, which an unsigned int represents exactly
     return (unsigned int)(qasm_lens_splitmix_next(draws) & ((1ull << count) - 1ull));
 }
 

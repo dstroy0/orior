@@ -14,9 +14,9 @@
 #
 # This asks the harder question. The hand extraction says what each form is. The reader is graded
 # against it form by form, on three things: whether it found the form at all, whether it says the
-# same kind, and whether it says the same dialect.
+# same type, and whether it says the same dialect.
 #
-# The one it must not fail is kind, because kind decides the pure corpus. A candidate filed as a
+# The one it must not fail is type, because type decides the pure corpus. A candidate filed as a
 # citation puts a form the paper rejects into the corpus, and nothing downstream ever asks again.
 
 import io
@@ -106,7 +106,7 @@ NOT_ASKED = (
 SOUTHERN = "southern"
 NORTHERN = "northern"
 
-# Kinds that make the same claim about a form under two names. A paper printing its story as
+# Types that make the same claim about a form under two names. A paper printing its story as
 # unnumbered prose gets running speech and one printing it as numbered lines gets transcription.
 # Both say the speaker said this in the target language, and the pure stream takes both.
 SAME = {"running speech": "transcription", "transcription": "transcription"}
@@ -129,11 +129,11 @@ def oracle_rows(path):
     return held
 
 
-# One span of a record's content column, written by salish_marking as language.layer.kind:{text}.
+# One span of a record's content column, written by salish_marking as language.layer.type:{text}.
 # A line the speaker mixed carries several of these, joined with a comma. A row is read as spans and
 # not as one string.
 #
-# The kind may hold a space, and nine of the eleven readers write one that does: symbol note,
+# The type may hold a space, and nine of the eleven readers write one that does: symbol note,
 # running speech, stage direction, word gloss, free translation, cited example, morpheme entry,
 # speaker comment, orthography chart. Excluding whitespace here made every one of those spans
 # invisible to this check, which then reported the forms in them as forms the reader never wrote.
@@ -141,7 +141,7 @@ SPAN = re.compile(r"([TN])((?:\.[^:{}]*)*):\{")
 
 
 def spans_of(content):
-    """Every span of one content column, as its mark, its kind, and the text inside its braces."""
+    """Every span of one content column, as its mark, its type, and the text inside its braces."""
     held = []
     for found in SPAN.finditer(content):
         at = found.end()
@@ -160,10 +160,10 @@ def spans_of(content):
 
 
 def record_rows(path):
-    """Every item a reader wrote, as where, who, kind, form.
+    """Every item a reader wrote, as where, who, type, form.
 
-    The kind comes out of the span marker. The eleven records do not share a column layout: three of
-    them have no kind column at all and the rest disagree on where it sits. Every one of them writes
+    The type comes out of the span marker. The eleven records do not share a column layout: three of
+    them have no type column at all and the rest disagree on where it sits. Every one of them writes
     the marker, because salish_marking writes it.
 
     The speaker or dialect is read from a column when the record has one under that name. Several
@@ -185,8 +185,8 @@ def record_rows(path):
                 if (name in columns) and (columns.index(name) < len(fields)):
                     who = fields[columns.index(name)]
                     break
-            for mark, kind, text in spans_of(fields[-1]):
-                held.append((where, who, kind, normalized(text)))
+            for mark, type, text in spans_of(fields[-1]):
+                held.append((where, who, type, normalized(text)))
     return held, any((one in columns) for one in ("speaker", "dialect"))
 
 
@@ -198,7 +198,7 @@ def main():
     waiting = []
     # A paper with a hand extraction and no reader yet. It is not graded either, and counting it as
     # graded is how this file reported 12 of 12 on the day the twelfth paper had a table and no
-    # reader. The two lists are kept apart because the thing to do about them is different.
+    # reader. The two lists are retained apart because the thing to do about them is different.
     unwritten = []
     for name, stem, record, repair, marks, _line_joins in EVERY:
         table = os.path.join(ORACLES, name)
@@ -221,8 +221,8 @@ def main():
         # reader inventing something either.
         asked = {one[3] for one in every}
         dialects = {}
-        for where, dialect, kind, form in every:
-            dialects.setdefault((kind, form), set()).add(dialect)
+        for where, dialect, type, form in every:
+            dialects.setdefault((type, form), set()).add(dialect)
 
         out.write("  %s\n" % name)
         out.write(
@@ -231,8 +231,8 @@ def main():
         )
 
         by_form = {}
-        for where, dialect, kind, form in got:
-            by_form.setdefault(form, []).append((where, dialect, kind))
+        for where, dialect, type, form in got:
+            by_form.setdefault(form, []).append((where, dialect, type))
 
         # What the reader said it could not sort. A form it flagged is a different thing from a form
         # it got wrong without noticing: the first is the reader doing its job, and the second is
@@ -255,22 +255,22 @@ def main():
 
         missing = []
         said_so = []
-        wrong_kind = []
+        wrong_type = []
         wrong_dialect = []
         undecided = []
-        for where, dialect, kind, form in wanted:
+        for where, dialect, type, form in wanted:
             found = by_form.get(form)
             if not found:
-                (said_so if (where in flagged) else missing).append((where, kind, form))
+                (said_so if (where in flagged) else missing).append((where, type, form))
                 continue
-            wanted_kind = SAME.get(kind, kind)
-            if not any(SAME.get(one[2], one[2]) == wanted_kind for one in found):
-                wrong_kind.append(
-                    (where, kind, form, sorted({one[2] for one in found}))
+            wanted_type = SAME.get(type, type)
+            if not any(SAME.get(one[2], one[2]) == wanted_type for one in found):
+                wrong_type.append(
+                    (where, type, form, sorted({one[2] for one in found}))
                 )
                 continue
             said = sorted(
-                {one[1] for one in found if SAME.get(one[2], one[2]) == wanted_kind}
+                {one[1] for one in found if SAME.get(one[2], one[2]) == wanted_type}
             )
             # A record with no speaker or dialect column was never asked who was talking, and
             # grading it on an answer its paper's reader does not give is asking a question of the
@@ -281,7 +281,7 @@ def main():
                 continue
             # čalaš ‘hand’ is printed as Twana and as Squamish in one sentence. Either answer is
             # the paper's answer and asking for one of them would be asking for a coin toss.
-            if dialects.get((kind, form), set()) & set(said):
+            if dialects.get((type, form), set()) & set(said):
                 continue
             if dialect in said:
                 continue
@@ -293,11 +293,11 @@ def main():
             # dialect wherever the passage names both of them. That is counted here and is not
             # graded as an error.
             if said == [""]:
-                undecided.append((where, kind, form, dialect))
+                undecided.append((where, type, form, dialect))
                 continue
-            wrong_dialect.append((where, kind, form, dialect, said))
+            wrong_dialect.append((where, type, form, dialect, said))
 
-        # Prose the reader kept whole is not a form it claims to have extracted, and neither is a
+        # Prose the reader retained whole is not a form it claims to have extracted, and neither is a
         # line of somebody else's paper bound into the same PDF.
         ignored = NOT_ASKED + (
             "essay",
@@ -312,50 +312,50 @@ def main():
         overrun = sorted(asked, key=len, reverse=True)
         extra = sorted(
             {
-                (kind, form)
-                for where, dialect, kind, form in got
+                (type, form)
+                for where, dialect, type, form in got
                 if (form not in asked)
-                and (kind not in ignored)
+                and (type not in ignored)
                 and not any(form.startswith(one) for one in overrun if len(one) > 12)
             }
         )
 
         out.write("    %d forms the reader did not find\n" % len(missing))
-        for where, kind, form in missing:
-            out.write("      %-12s %-11s %s\n" % (where, kind, form))
+        for where, type, form in missing:
+            out.write("      %-12s %-11s %s\n" % (where, type, form))
         out.write(
             "    %d forms the reader could not bound and flagged as such\n"
             % len(said_so)
         )
-        for where, kind, form in said_so:
-            out.write("      %-12s %-11s %s\n" % (where, kind, form[:70]))
-        out.write("    %d forms the reader typed differently\n" % len(wrong_kind))
-        for where, kind, form, said in wrong_kind:
+        for where, type, form in said_so:
+            out.write("      %-12s %-11s %s\n" % (where, type, form[:70]))
+        out.write("    %d forms the reader typed differently\n" % len(wrong_type))
+        for where, type, form, said in wrong_type:
             out.write(
                 "      %-12s %-11s %-26s reader said %s\n"
-                % (where, kind, form, ", ".join(said))
+                % (where, type, form, ", ".join(said))
             )
         out.write(
             "    %d forms the reader put in the wrong dialect\n" % len(wrong_dialect)
         )
-        for where, kind, form, dialect, said in wrong_dialect:
+        for where, type, form, dialect, said in wrong_dialect:
             out.write(
                 "      %-12s %-11s %-26s %s, reader said %s\n"
-                % (where, kind, form, dialect, ", ".join(one or "none" for one in said))
+                % (where, type, form, dialect, ", ".join(one or "none" for one in said))
             )
         out.write("    %d forms the reader invented\n" % len(extra))
-        for kind, form in extra:
-            out.write("      %-11s %s\n" % (kind, form))
+        for type, form in extra:
+            out.write("      %-11s %s\n" % (type, form))
         out.write(
             "    %d forms whose dialect the reader would not claim\n" % len(undecided)
         )
-        for where, kind, form, dialect in undecided:
+        for where, type, form, dialect in undecided:
             out.write(
                 "      %-12s %-11s %-26s the paper's is %s\n"
-                % (where, kind, form, dialect)
+                % (where, type, form, dialect)
             )
 
-        failed += len(missing) + len(wrong_kind) + len(wrong_dialect) + len(extra)
+        failed += len(missing) + len(wrong_type) + len(wrong_dialect) + len(extra)
 
     out.write(
         "\n  %d of %d readers are graded against a hand extraction\n"

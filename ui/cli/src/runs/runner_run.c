@@ -521,7 +521,7 @@ void cli_run_steps(void *context)
         (void)cellul.copy(&(CatenaFinitaCfg){.dst = opens, .src = pinned.catalog.job[0].opens, .cap = sizeof(opens)});
         EMBED_CALL(cli_runner_run_internal.run_unpinned, CliRunnerRunCtx, .pinned = &pinned);
     }
-    // the command a step runs and the line it is shown as, a cell of the run's allocated while it runs; and the pages
+    // the command a step runs and the line it is displayed as, a cell of the run's allocated while it runs; and the pages
     // it wrote, a cell taken as it ends
     typedef struct
     {

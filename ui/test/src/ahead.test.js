@@ -22,7 +22,7 @@ test("a view moving down reads as far ahead as its speed carries it over two rea
     ahead.moved(at * 40, 1000 + at * 20);
   }
   const speed = ahead.speedAt(1200);
-  assert.ok(speed > 1 && speed <= 2, `two rows a millisecond at most: ${speed}`);
+  assert.ok(speed > 1 && speed <= 2, `two rows a millisecond at max: ${speed}`);
   const [from, to] = ahead.span(400, 430, 1200);
   assert.equal(from, 390, "the least behind");
   assert.equal(to, 430 + Math.ceil(speed * ahead.readMs * 2), "the reach ahead");
@@ -56,10 +56,10 @@ test("what lies behind the motion is let go first, the farthest first", () => {
   const ahead = new Ahead(10);
   ahead.moved(0, 1000);
   ahead.moved(500, 1010);
-  // The view shows rows 500 to 530 heading down; rows kept behind it and far ahead of its reach.
-  const kept = [100, 200, 300, 495, 510, 5000, 6000];
-  const gone = ahead.letGo(kept, 500, 530, 4, 1010);
+  // The view shows rows 500 to 530 heading down; rows retained behind it and far ahead of its reach.
+  const retained = [100, 200, 300, 495, 510, 5000, 6000];
+  const gone = ahead.letGo(retained, 500, 530, 4, 1010);
   assert.deepEqual(gone, [100, 200, 300], "the three behind go, the farthest first, before any ahead");
-  assert.deepEqual(ahead.letGo(kept, 500, 530, 2, 1010), [100, 200, 300, 6000, 5000], "then the farthest ahead");
-  assert.deepEqual(ahead.letGo(kept, 500, 530, 10, 1010), [], "none goes while all fit");
+  assert.deepEqual(ahead.letGo(retained, 500, 530, 2, 1010), [100, 200, 300, 6000, 5000], "then the farthest ahead");
+  assert.deepEqual(ahead.letGo(retained, 500, 530, 10, 1010), [], "none goes while all fit");
 });

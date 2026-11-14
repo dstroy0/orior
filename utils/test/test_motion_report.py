@@ -36,10 +36,10 @@ class Written(unittest.TestCase):
         taken = recording(clock(1800), tracks, [(90, "left in"), (990, "left out")])
         reading = motion_read.read(taken)
         path = motion_report.written(reading, taken, FOLDER)
-        with open(path, encoding="utf-8") as kept:
-            text = kept.read()
+        with open(path, encoding="utf-8") as retained:
+            text = retained.read()
         for one in reading.findings:
-            self.assertIn("| %s |" % one.kind, text)
+            self.assertIn("| %s |" % one.type, text)
         self.assertEqual(len(os.listdir(os.path.join(FOLDER, "pictures"))), len(reading.findings))
         self.assertEqual(text.count("\n| bar.top |") + text.count("\n| strip.left |") + text.count("\n| minimap.left |"), len(reading.motions))
         self.assertGreaterEqual(len(reading.findings), 3)

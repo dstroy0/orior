@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// preview.h: the live preview of the view shown, as the window draws it beside the text or alone over it: the type of
+// preview.h: the live preview of the view displayed, as the window draws it beside the text or alone over it: the type of
 // preview a file's path has, the mode chosen once for every file and saved, the view the preview is bound to, and the
-// step that lays the view's text out again as it changes, at most once a look, a Markdown text as items (preview.c,
-// preview_markdown.c). The items stand in two movable cells sized to them, the items with the blocks after them and the
+// step that positions the view's text out again as it changes, at max once a look, a Markdown text as items (preview.c,
+// preview_markdown.c). The items are in two movable cells sized to them, the items with the blocks after them and the
 // text the items draw, read out by copy at each site, each item a row of the first cell sorted by its top: a run of
-// text, a box, a rule, a line segment, or a block's rectangle, outlined while the cursor's line stands in the block.
-// The item row handed out is a copy, with its text copied beside it, that the next row read replaces. The preview's
-// scroll top stands here alone: the wheel moves it and leads the view's top along, the view's top moved by the editor
+// text, a box, a rule, a line segment, or a block's rectangle, outlined while the cursor's line is in the block.
+// The item row passed out is a copy, with its text copied beside it, that the next row read replaces. The preview's
+// scroll top is here alone: the wheel moves it and leads the view's top along, the view's top moved by the editor
 // moves it in turn and leads nothing back, and the source line at a top and the top of a source line answer each other
 // between two blocks. A press on a link answers where it goes: a place in the preview, scrolled to, a file of the tree
 // to open, or an address opened in the reader's browser here
@@ -107,7 +107,7 @@ typedef struct
 } CliPreviewItem;
 
 // One block of the preview, a row after the items in the items cell, in the order of the source: the line it starts on,
-// its top in the page's pixels, its block item's row, how deep in other blocks it stands, and whether it is a heading
+// its top in the page's pixels, its block item's row, how deep in other blocks it is, and whether it is a heading
 typedef struct
 {
     unsigned int line;
@@ -134,7 +134,7 @@ typedef struct
 #define CLI_PREVIEW_ITEM_AT(at_) ((unsigned long long)(at_) * sizeof(CliPreviewItem))
 #define CLI_PREVIEW_BLOCK_AT(items_, at_) ((items_)->block_at + ((unsigned long long)(at_) * sizeof(CliPreviewBlock)))
 
-// the most bytes of a run's text the item row hands out beside the row, the run's `length` cut to them
+// the max bytes of a run's text the item row passes out beside the row, the run's `length` cut to them
 #define CLI_PREVIEW_ROW_TEXT 4096u
 
 // Where a press goes: the file's path from the tree's top, the line to open it at where `placed`, the target, one of
@@ -150,10 +150,10 @@ typedef struct
 
 // the preview begun with the mode saved among `entries`, off where none is saved; the type of preview the file at
 // `path` has, CLI_PREVIEW_NONE for none; the mode; the mode set for every file and saved: the mode `word` reads,
-// off, beside or alone, where it is not NULL, else `mode` where the preview stands in another, and off where it stands
+// off, beside or alone, where it is not NULL, else `mode` where the preview is in another, and off where it is
 // in `mode` already; the view under `key` bound, its path read from the views, the items let go and the top put at 0
 // where the view, its path or its type changed: 1 where it did, NULL unbinding; and the step at `now_ms` for the view
-// under `key` shown in a rectangle `width_px` by `height_px` frame pixels at `scale`: the view bound, the text laid out
+// under `key` displayed in a rectangle `width_px` by `height_px` frame pixels at `scale`: the view bound, the text arranged
 // again where it changed since the last look and a look is owed or the width moved, the top following the view's
 // where the editor moved it, and the block of the cursor's line marked: 1 where the preview draws anew; and when the
 // next look is owed, 0 for none
@@ -199,9 +199,9 @@ EMBED_TABLE_STORAGE CliPreviewNs cli_preview EMBED_UNUSED = {
 };
 
 // how many items the preview has; the item `at` copied out of its cell, its text copied beside it and its first byte
-// into `text_out` where it is not NULL, the copy standing until the next row is read: the item, NULL past the last;
+// into `text_out` where it is not NULL, the copy located until the next row is read: the item, NULL past the last;
 // the first item a draw from the top `top_px` starts at, the first item of the outermost
-// block standing at that top, found by a binary search over the blocks' tops; and the height every item fills, in the
+// block located at that top, found by a binary search over the blocks' tops; and the height every item fills, in the
 // page's pixels
 unsigned int cli_preview_item_count(const CliPreviewItemCfg *args);
 const CliPreviewItem *cli_preview_item_row(const CliPreviewItemCfg *args);
@@ -230,9 +230,9 @@ EMBED_TABLE_STORAGE CliPreviewItemNs cli_preview_item EMBED_UNUSED = {
 };
 
 // the top moved by `delta_px` page pixels, no further up than the first item and no further down than the last fills
-// the rectangle, and in the beside mode the source line at the new top handed to the view as its scroll, the view's
+// the rectangle, and in the beside mode the source line at the new top passed to the view as its scroll, the view's
 // top read back so the follow leads nothing: 1 where the top moved; the top in the page's pixels; the source line at
-// the top `top_px`, between the two blocks it stands between, its fraction of a line in 65536ths into `fraction_out`
+// the top `top_px`, between the two blocks it is between, its fraction of a line in 65536ths into `fraction_out`
 // where it is not NULL; and the top of the source line `line` and `line_fraction` 65536ths, between the two blocks it
 // falls between, each a binary search over the blocks
 int cli_preview_scroll_by(const CliPreviewScrollCfg *args);
@@ -266,7 +266,7 @@ EMBED_TABLE_STORAGE CliPreviewScrollNs cli_preview_scroll EMBED_UNUSED = {
 // the innermost block at or before the source line `line` marked, the block marked before let go: 1 where the mark
 // moved; and a press at `x`, `y` page pixels from the preview's top left resolved into `open_out`: a link to a place of
 // the preview scrolls there, one to a file of the tree answers the file, one to an address out of the tree is opened
-// in the reader's browser: the target, CLI_PREVIEW_OPEN_NONE where the press stands on no link
+// in the reader's browser: the target, CLI_PREVIEW_OPEN_NONE where the press is on no link
 int cli_preview_mark_line(const CliPreviewMarkCfg *args);
 unsigned int cli_preview_mark_press(const CliPreviewMarkCfg *args);
 struct CliPreviewMarkCfg

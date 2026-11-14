@@ -5,13 +5,13 @@
 //     orior_khw_learn <part> <path.khw> <layout> <mnemonics> <fields> <machine writer> [<rounds>] -- <carrier word>...
 //
 // Every form in the file this writes is there because the part answered for it (P8). Nothing reads a listing, a
-// disassembler or a vendor's table of operations: the part is handed code and cases over the run channel
+// disassembler or a vendor's table of operations: the part is passed code and cases over the run channel
 // (run_channel.h), the host computes the same cases off the ladder's relations (ladder.h), and a form enters the file
 // where the part's answer and the host's agree on every case of one relation.
 //
 // The kernel is the code the container the system accepted already contains (the layout's container rows, `layout`
 // above). It loads a case's first two words into two registers, computes one instruction, and stores the result as
-// the case's answer. That one instruction is the position, and which place of the kernel it stands at is queried: the
+// the case's answer. That one instruction is the position, and which place of the kernel it is at is queried: the
 // kernel is put with each place containing the encoding its unreached places contain, and the place whose answer comes
 // back as the case's second word is the position, because nothing then wrote the register the kernel stores.
 //
@@ -42,8 +42,8 @@
 // turned encoding is queried its relation from the top. A turn that answers a relation is a form of its own. Widening
 // repeats over what it finds for `rounds` rounds, 1 where none is given.
 //
-// The gate on the host (cubin_safe.h) reads every question against the .khw the vendor's writer lays out, so that
-// file is written before querying and the carrier is handed that same path. The vendor's writer runs in a gate mode,
+// The gate on the host (cubin_safe.h) reads every question against the .khw the vendor's writer arranges, so that
+// file is written before querying and the carrier is passed that same path. The vendor's writer runs in a gate mode,
 // which stores every place of the kernel whole under its own encoding so the gate reads a question against what the
 // part has already run, and a final mode, which at the end stores only the forms the part named.
 #include "khw_learn_internal.h"
@@ -129,7 +129,7 @@ int main(int count, char **word)
     {
         return 1;
     }
-    // the gate's file written before querying: the vendor's writer lays the kernel's places out, and the carrier reads
+    // the gate's file written before querying: the vendor's writer positions the kernel's places out, and the carrier reads
     // the questions of every round against them
     if (!khw_vendor_run("gate", KHW_FORMS_NAME))
     {
@@ -168,7 +168,7 @@ int main(int count, char **word)
         run_channel_close();
         return 1;
     }
-    s_pool = (RunQuestion *)calloc(SCHEDULER_ROUND_MOST, sizeof(RunQuestion));
+    s_pool = (RunQuestion *)calloc(SCHEDULER_ROUND_MAX, sizeof(RunQuestion));
     if (s_pool == NULL)
     {
         printf("  khw_write: no room for a round's questions\n");
@@ -209,8 +209,8 @@ int main(int count, char **word)
             return 1;
         }
         s_probe_place = probe_place;
-        // the working set read contains one form for each answer: a form an older one stands for is let go
-        // (khw_form_stands_for), so that the turns of a form's bits outside its operands do not fill the set
+        // the working set read contains one form for each answer: a form an older one is for is let go
+        // (khw_form_is_for), so that the turns of a form's bits outside its operands do not fill the set
         const unsigned int read = khw_forms_read(KHW_WORK_NAME);
         s_names = khw_forms_folded(s_named, read);
         if (read != s_names)
@@ -260,7 +260,7 @@ int main(int count, char **word)
             const unsigned int framed = (probed_form != NULL) ? khw_frame_round(probed_form, 1) : 0u;
             printf("  the frame round: %s%u place(s) answered a frame relation\n",
                    (probed_form == NULL) ? "the probe place's form is not yet classified, " : "", framed);
-            khw_plan_handed("discover", (unsigned long long)KHW_FORMS);
+            khw_plan_passed("discover", (unsigned long long)KHW_FORMS);
             const unsigned int found = khw_widened(0u, 1);
             run_channel_close();
             if (!khw_forms_work_written())
@@ -285,7 +285,7 @@ int main(int count, char **word)
             {
                 stages += (unsigned long long)khw_turning_cases(s_forms[at]);
             }
-            khw_plan_handed("turns", stages * ((unsigned long long)KHW_TURNS + 1ull));
+            khw_plan_passed("turns", stages * ((unsigned long long)KHW_TURNS + 1ull));
             const unsigned int fields_turned = khw_fields_turns(s_forms, count);
             run_channel_close();
             if (!khw_forms_work_written())
@@ -302,7 +302,7 @@ int main(int count, char **word)
             // part's .ksc beside the machine file. A costs question writes a form many times over from the position,
             // and the gate contains a second instruction no form contains: so the gate's file is written again before
             // querying, the kernel's places and the forms the part answered for together (the vendor's writer,
-            // `costs`). After, the machine file is laid out by the vendor once more from the forms the part answered
+            // `costs`). After, the machine file is arranged by the vendor once more from the forms the part answered
             // for, as the registers pass leaves it
             char ksc_path[1024];
             snprintf(ksc_path, sizeof(ksc_path), "%.*s.ksc", (int)stem, s_path);
@@ -323,7 +323,7 @@ int main(int count, char **word)
             return 0;
         }
         // every turned form's register-runs queried at once, in shared rounds, its operand runs recorded and its phase
-        // classified; what the part has answered for whole then laid out by the vendor
+        // classified; what the part has answered for whole then arranged by the vendor
         static KhwAnswered *s_forms[KHW_FORMS];
         const unsigned int turned = khw_forms_in_phase(KHW_PHASE_TURNED, s_forms);
         // a classified form two of whose runs carry one place is queried again, over a turning case that reads apart
@@ -337,7 +337,7 @@ int main(int count, char **word)
         {
             settings += (unsigned long long)s_forms[at]->runs * KHW_SETTINGS * KHW_STAGES;
         }
-        khw_plan_handed("registers", settings);
+        khw_plan_passed("registers", settings);
         const unsigned int fields_turned = khw_fields_registers(s_forms, count);
         run_channel_close();
         if (!khw_forms_work_written() || !khw_answers_written() || !khw_vendor_run("final", KHW_FORMS_NAME))
@@ -420,7 +420,7 @@ int main(int count, char **word)
         }
     }
     run_channel_close();
-    // the forms the part answered written out, and the vendor's writer run once more to name them and lay out the file
+    // the forms the part answered written out, and the vendor's writer run once more to name them and arrange the file
     if (!khw_answers_written() || !khw_vendor_run("final", KHW_FORMS_NAME))
     {
         return 1;

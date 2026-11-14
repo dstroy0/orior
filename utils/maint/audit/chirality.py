@@ -44,17 +44,17 @@ import state_deflection
 GOLDEN = (3.0 - math.sqrt(5.0)) * math.pi
 
 
-def helix_place(count, handed):
-    """The golden placement, wound either way. handed is +1 for the tree's arm, -1 for its mirror.
+def helix_place(count, passed):
+    """The golden placement, wound either way. passed is +1 for the tree's arm, -1 for its mirror.
 
     Heights are identical between the two; only the direction of the longitude advance changes. That
-    keeps every other property - no seam, no pole pile, even coverage - exactly as it was. A
+    retains every other property - no seam, no pole pile, even coverage - exactly as it was. A
     difference between the readings cannot be blamed on the placement being worse one way round.
     """
     out = []
     for k in range(count):
         height = 1.0 - 2.0 * (k + 0.5) / float(count)
-        around = (handed * k * GOLDEN) % (2.0 * math.pi)
+        around = (passed * k * GOLDEN) % (2.0 * math.pi)
         flat = math.sqrt(max(0.0, 1.0 - height * height))
         out.append((flat * math.cos(around), height, flat * math.sin(around)))
     return out
@@ -66,7 +66,7 @@ def phase_residual(right_phases, left_phases):
     Reflecting a point set through a plane sends every longitude to its negative, and for real data
     that sends each coefficient to its conjugate. The phases negate. That is a GEOMETRIC identity
     and it holds for any lit set whatever. So this residual is expected to be zero to the format's
-    floor, and a nonzero one would mean the placement is wrong instead of the data being handed.
+    floor, and a nonzero one would mean the placement is wrong instead of the data being passed.
     """
     total = 0.0
     scale = 0.0
@@ -144,7 +144,7 @@ def main():
         if rel_d > 1e-9:
             verdict = "PLACEMENT FAULT"
         elif rel_t > 1e-6:
-            verdict = "handed"
+            verdict = "passed"
             chiral_rounds += 1
         else:
             verdict = "mirror-symmetric"
@@ -162,7 +162,7 @@ def main():
     print()
     if chiral_rounds:
         print("    %d of the sampled rounds read differently through the mirror. The handedness of" % chiral_rounds)
-        print("    the round function survives into the boundary, and a single-handed arm has been")
+        print("    the round function survives into the boundary, and a single-passed arm has been")
         print("    reading half of something.")
     else:
         print("    No round reads differently through the mirror at this degree. The reading is")

@@ -29,8 +29,8 @@
 #include <unistd.h>
 #endif
 
-#define TESSERA_CHECK(condition_, evacaddr_, error_, kind_)                                                            \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_TESSERA, (unsigned int)__LINE__,                           \
+#define TESSERA_CHECK(condition_, evacaddr_, error_, type_)                                                            \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_TESSERA, (unsigned int)__LINE__,                           \
                        (const void *)(evacaddr_), (error_))
 
 #define TESSERA_IO(condition_, evacaddr_, error_)                                                                      \
@@ -87,6 +87,6 @@ unsigned long long tessera_client_now(void);
 // deadline of 0 is none, and answers 1 at once for tessera_receive to wait on
 int tessera_readable(TesseraClient *client, unsigned long long deadline);
 
-void tessera_frame_start(const TesseraClient *client, TesseraFrame *frame, unsigned int kind);
+void tessera_frame_start(const TesseraClient *client, TesseraFrame *frame, unsigned int type);
 
 #endif

@@ -5,29 +5,29 @@ University of Canada, ICSNL 44.
 
 Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
-pure corpus, then against this paper's own English laid over that reference. What the paper's
+pure corpus, then against this paper's own English positioned over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
 from the characters that sit outside that English, and word_web.web() built 650 edges over the
-language forms. A person then matched the context: who, kind and gloss for each row, the names,
+language forms. A person then matched the context: who, type and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
 someone reads the paper again and says otherwise.
 
 WHOSE WORDS THESE ARE
 
-The forms of the table are each language's as the sources in §3 give them: Kinkade (1991a) for most
+The forms of the table are each language's as the sources in §3 give them: Kinkade (1991a) for max
 languages, Nater for Bella Coola, Timmers for Sechelt, Kuipers for Squamish and Shuswap, Galloway
 for Upriver Halkomelem, Nooksack and Samish, Montler for Saanich and Klallam, Hess for Lushootseed,
 Thompson and Thompson for Thompson, Mattina for Okanagan, and the author's own research for
 Lillooet. The proto-forms are Kinkade's and Kuipers's.
 
-THE LETTERS
+THE CHARACTERS
 
-Outside the paper's English the engine found these letters and marks: á é ê í ó ú č ē ō š ū ƛ ə ɛ ɬ
+Outside the paper's English the engine found these characters and marks: á é ê í ó ú č ē ō š ū ƛ ə ɛ ɬ
 ʌ ʔ ʷ ˑ ́ ̌ ̓ ̕ ̣ ΄ έ θ ι υ χ ⁱ. The forms are in the Americanist Phonetic Alphabet, standardized by
-the author: x̌ for the voiceless uvular fricative, ̕ for glottalization over or after its letter,
+the author: x̌ for the voiceless uvular fricative, ̕ for glottalization over or after its character,
 k̕ʷ and ƛ̕, ʔ, ɬ, ə, ʷ, the acute of stress, and a period after a prefix, s.čə́txʷn. The pre-APA
-forms keep their sources' letters, ′ for stress, ō and ū, ˑ for length, and ι and υ in Tenino k·ι′t
+forms retain their sources' characters, ′ for stress, ō and ū, ˑ for length, and ι and υ in Tenino k·ι′t
 ʷυn.
 
 THE PAGE AND THE TEXT LAYER
@@ -46,7 +46,7 @@ where    the paper's locator: the title, the front matter, a section, a footnote
 who      the language for an example tier and a cited form; the work cited on an example's
          line, or the speaker for a volunteered translation, for its English; the authors for
          the prose, the tables and the notes
-kind     cited form     a word of the language named in the prose, a note or a table
+type     cited form     a word of the language named in the prose, a note or a table
          cited affix    an affix named on its own
          root           a root named on its own
          language       a language name

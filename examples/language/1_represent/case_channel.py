@@ -3,14 +3,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: LNG-1-003
 #
-# Measure letter case as a channel, for the symbol width discussion in Section 4.10 of
+# Measure character case as a channel, for the symbol width discussion in Section 4.10 of
 # theory/workbooks/orior.
 #
 #   Usage:  python examples/language/1_represent/case_channel.py corpus.txt [more.txt ...]
 #
-# A byte slice keeps upper and lower case as separate symbols and treats them as unrelated, which is
+# A byte slice retains upper and lower case as separate symbols and treats them as unrelated, which is
 # right for prose and loses something in a source file. In C the case of an identifier marks
-# which kind of thing it is: an upper snake name is a macro, a leading capital is a type, a lower snake
+# which type of thing it is: an upper snake name is a macro, a leading capital is a type, a lower snake
 # name is a variable. So case is a second channel carried on the same symbols, and it is legible from
 # the run lengths alone without knowing any identifier.
 #
@@ -25,7 +25,7 @@ import sys
 
 
 def case_runs(text):
-    """Lengths of maximal runs of upper case letters."""
+    """Lengths of maximal runs of upper case characters."""
     runs = []
     current = 0
     for character in text:

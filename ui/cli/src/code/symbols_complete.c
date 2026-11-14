@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // symbols_complete.c: the names that complete a word in a file of the tree, read off the tree as a walk of the file to
 // the word's line meets them: the defines in effect there, the declarations the walk met in an active region, and the
-// parameters and locals of the function the word stands in that its grammar names, above the word. A name is known by
+// parameters and locals of the function the word is in that its grammar names, above the word. A name is known by
 // the roles its grammar's tokens name, a region by the brackets it names a region's, a function's by a head that
 // declares a function
 #include "../command_line/callback_cfg.h"
@@ -11,7 +11,7 @@
 #include "symbols_internal.h"
 #include "symbols_tree.h"
 
-// The names being completed: the word typed and how long, the names handed on, each with a zero after, in a line, and
+// The names being completed: the word typed and how long, the names passed on, each with a zero after, in a line, and
 // where each goes
 typedef struct
 {
@@ -21,7 +21,7 @@ typedef struct
     CliDeclared each;
     void *context;
 } CliComplete;
-// the most bytes the names handed on grow to
+// the max bytes the names passed on grow to
 #define CLI_COMPLETE_CAPACITY (1ULL << 20u)
 
 typedef struct
@@ -37,8 +37,8 @@ typedef struct
     const CliLeafRead *read;
     unsigned int place;
 } SymbolsCompleteCtx;
-// `length` bytes of `name` handed on as `type` declared on `line`, where they begin with the word typed and were not
-// handed on before
+// `length` bytes of `name` passed on as `type` declared on `line`, where they begin with the word typed and were not
+// passed on before
 EMBED_INLINE void complete_offer(const SymbolsCompleteCtx *args)
 {
     if ((args->length < args->complete->length) ||
@@ -139,7 +139,7 @@ EMBED_INLINE void complete_walk(const SymbolsCompleteCtx *args)
     }
 }
 
-// the parameters and locals of the function region the leaf `place` of `read` stands in, from its head to the place,
+// the parameters and locals of the function region the leaf `place` of `read` is in, from its head to the place,
 // each offered: a bracket its grammar names a region's opening, at no depth, opens a region, its head the statement
 // before it, after the last statement's end or region at no depth or the last directive's line, and a region whose
 // head declares a function is a function's
@@ -209,7 +209,7 @@ int cli_symbols_complete(const CliSymbolsPathTextSizeCfg *args)
     const int leaved = (languages != NULL) && EMBED_CALL(cli_symbols_path_internal.leaves_save, CliSymbolsPathCtx,
                                                          .languages = languages, .path = args->path, .state = "root",
                                                          .text = args->text, .size = args->size, .read = &read);
-    // the byte the place stands at: its line's first, then its column's
+    // the byte the place is at: its line's first, then its column's
     unsigned long long start = 0ULL;
     for (unsigned int lines = 0u; (lines < args->line) && (start < args->size); start += 1ULL)
     {
@@ -223,7 +223,7 @@ int cli_symbols_complete(const CliSymbolsPathTextSizeCfg *args)
     const unsigned long long at =
         start + EMBED_CALL(cli_symbols_size_internal.byte_at, CliSymbolsSizeCtx, .line = args->text + start,
                            .size = end - start, .col = args->col, .byte = &byte, .at = &units);
-    // the word typed: the name the place ends or stands in, from its first byte to the place
+    // the word typed: the name the place ends or is in, from its first byte to the place
     unsigned int place = 0u;
     while (leaved && (place < read.count) && (read.leaf[place].to < at))
     {

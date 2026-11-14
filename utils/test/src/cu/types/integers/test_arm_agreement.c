@@ -86,7 +86,7 @@ static void grade(const char *what, size_t measured, size_t expected)
     //
     // Measured and not assumed, because an earlier revision of this file got it wrong in the
     // other direction: it widened every count to unsigned long long and recorded in a comment that
-    // the runtime rejects %zu and prints the letter. That was inferred from the warning and never
+    // the runtime rejects %zu and prints the character. That was inferred from the warning and never
     // observed. A probe printing two %zu followed by a %s prints all three correctly. Argument
     // consumption does not slip. The widening was a portability choice stated as a repair, and it
     // put a second printf convention into a tree that already had one.

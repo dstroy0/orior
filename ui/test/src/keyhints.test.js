@@ -27,7 +27,7 @@ test("holding Ctrl shows each button's keys over it, and letting go takes them a
     const hint = hintsShown().find((one) => one.keys === "Ctrl+Shift+E");
     assert.ok(hint, JSON.stringify(hintsShown()));
     assert.ok(Math.abs(hint.x - (explorer.left + explorer.width / 2)) < 1 && Math.abs(hint.y - (explorer.top + explorer.height / 2)) < 1, "over its button");
-    assert.ok(hintsShown().some((one) => one.keys === "Alt+F"), `the File menu's letter: ${JSON.stringify(hintsShown().map((one) => one.keys))}`);
+    assert.ok(hintsShown().some((one) => one.keys === "Alt+F"), `the File menu's character: ${JSON.stringify(hintsShown().map((one) => one.keys))}`);
   } finally {
     await ui.release("Ctrl");
   }

@@ -12,7 +12,7 @@ import { isNotebook, openNotebook } from "../notebook.js";
 import { say } from "../statusbar.js";
 import { element, show, state } from "../edit.js";
 import { mirror } from "./mirror.js";
-import { backupKey, keepRecent } from "./places.js";
+import { backupKey, retainRecent } from "./places.js";
 import { actingPath, closeTab, dirty, drawTabs, mainTabs, markSaved, tabName, tabOf } from "./tabs.js";
 
 // A file too large to read whole opens paged (paged.js): the CLI holds it, and the page holds a
@@ -46,7 +46,7 @@ function placeOf(path) {
   }
 }
 
-export function keepPlace() {
+export function retainPlace() {
   const tab = tabOf(state.active);
   const s = tab?.session;
   if (s && !tab.readOnly) {
@@ -64,7 +64,7 @@ function settleAt(session, place) {
 }
 
 // Loads a file's tab, or says on the status bar why its file could not be read, as for a file gone
-// from the disk since its tab was kept. Answers whether the tab is there.
+// from the disk since its tab was retained. Answers whether the tab is there.
 async function loaded(path) {
   try {
     await load(path);
@@ -124,7 +124,7 @@ export async function openInSplit(path) {
   showInSplit(path);
 }
 
-// Opens a file's tab without showing it, with the text kept for it where it had changes not saved.
+// Opens a file's tab without showing it, with the text retained for it where it had changes not saved.
 export async function load(path, as = null) {
   if (!tabOf(path) && (as === "notebook" || (as === null && isNotebook(path)))) {
     const tab = { path, file: path, size: 0, closing: false };
@@ -138,7 +138,7 @@ export async function load(path, as = null) {
     const place = placeOf(path);
     const first = Math.max(0, (place?.line ?? 0) - SETTLE_ABOVE);
     const key = keyFor(path);
-    // each line colored as far across as the editor draws it, scrolled to its left edge, every letter where it wraps
+    // each line colored as far across as the editor draws it, scrolled to its left edge, every character where it wraps
     const reach = state.editor?.reachAt?.(0) ?? Infinity;
     const columns = Number.isFinite(reach) ? reach : 0;
     await hearBranches();
@@ -149,11 +149,11 @@ export async function load(path, as = null) {
       markSaved(tab);
       settleAt(tab.session, place);
     } else if (opened.text !== null && opened.text !== undefined) {
-      const kept = localStorage.getItem(backupKey(path));
-      // A text with color codes in it, as a log or a run's output keeps, shows in its colors with the
+      const retained = localStorage.getItem(backupKey(path));
+      // A text with color codes in it, as a log or a run's output retains, shows in its colors with the
       // codes taken out, read-only, until its lock is pressed.
-      const colored = kept === null && opened.text.includes("\x1b[") ? coloredLines(opened.text.split(/\r?\n/)) : null;
-      tab.session = new Session(colored ? colored.map((one) => one.text).join("\n") : (kept ?? opened.text), state.known.languageOf(path));
+      const colored = retained === null && opened.text.includes("\x1b[") ? coloredLines(opened.text.split(/\r?\n/)) : null;
+      tab.session = new Session(colored ? colored.map((one) => one.text).join("\n") : (retained ?? opened.text), state.known.languageOf(path));
       tab.key = key;
       if (colored) {
         tab.session.colored = colored.map((one) => one.html);
@@ -161,23 +161,23 @@ export async function load(path, as = null) {
         tab.readOnly = true;
         tab.colored = opened.text;
       }
-      // Kept text that differs from the file's is a change not saved, and the tab says so; the window's side is
-      // handed it as a change of the file's text, the colors that came with the file's text left.
+      // Retained text that differs from the file's is a change not saved, and the tab says so; the window's side is
+      // passed it as a change of the file's text, the colors that came with the file's text left.
       markSaved(tab, opened.text);
-      const changed = kept !== null && kept !== opened.text;
+      const changed = retained !== null && retained !== opened.text;
       if (changed) {
         tab.saved = -1;
       }
       settleAt(tab.session, place);
       if (!colored) {
-        mirror(tab.session, key, opened, changed ? [{ from: { line: 0, col: 0 }, to: endOf(opened.text), text: kept }] : null);
+        mirror(tab.session, key, opened, changed ? [{ from: { line: 0, col: 0 }, to: endOf(opened.text), text: retained }] : null);
       }
     } else {
       tab.bytes = new Uint8Array(opened.bytes);
     }
     state.tabs.push(tab);
     serve(tab).then(() => tab.served && state.editor?.s === tab.session && state.editor.schedule());
-    // The width the file's formatter keeps its lines to, drawn as a line down the editor.
+    // The width the file's formatter retains its lines to, drawn as a line down the editor.
     if (tab.session) {
       invoke("format_margin", { path: tab.path, language: tab.session.language?.id ?? "" })
         .then((found) => {
@@ -238,7 +238,7 @@ export async function openCommit(path, commit) {
 // closes with Unsplit or its own close button, its files going back to the first side, or as its
 // last tab closes.
 
-// A file of the tree, open and read whole, can be shown in the split.
+// A file of the tree, open and read whole, can be displayed in the split.
 export const splittable = (tab) => Boolean(tab?.session && !tab.session.window && !tab.commit);
 
 export function makeSplit(direction) {
@@ -253,7 +253,7 @@ export function makeSplit(direction) {
   node.setAttribute("aria-label", "Split");
   desk.append(node);
   desk.dataset.split = direction;
-  // Its status line stands in the status bar beside the first one's, the one shown being that of the
+  // Its status line is in the status bar beside the first one's, the one displayed being that of the
   // editor last pressed in.
   const editor = new Editor(host, { ...state.editorHooks, statusHost: document.getElementById("statusbar"), onChange: (s) => state.editorHooks.onChange(s.of ?? s) });
   state.editor.status.after(editor.status);
@@ -263,7 +263,7 @@ export function makeSplit(direction) {
   splitFocused(true);
 }
 
-// Split Right and Split Down: the file shown on the first side shown in a split beside it or under
+// Split Right and Split Down: the file displayed on the first side displayed in a split beside it or under
 // it as well.
 export function splitEditor(direction) {
   const tab = tabOf(state.active);
@@ -293,7 +293,7 @@ export function showInSplit(path) {
   split.editor.show(split.twins.get(path));
   split.editor.focus();
   splitFocused(true);
-  keepRecent(tab.file);
+  retainRecent(tab.file);
   drawTabs();
 }
 
@@ -353,7 +353,7 @@ export function closeSplitTab(path) {
   leaveSplit(path);
 }
 
-// View, Move to Next Split: the file shown on the side last pressed in moves to the other side, a
+// View, Move to Next Split: the file displayed on the side last pressed in moves to the other side, a
 // split to the right made where there is none, and the side it left shows its file used last.
 export function moveToNextSplit() {
   const path = actingPath();

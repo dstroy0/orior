@@ -140,10 +140,10 @@ static CubinRunStatus cubin_run_bounded(const CubinRunDriver *driver, void *func
     return status;
 }
 
-// The least and the most block latency of the last timed question, the runs P6 reads (cubin_run_timed)
+// The least and the max block latency of the last timed question, the runs P6 reads (cubin_run_timed)
 unsigned long long s_timed_least;
 
-unsigned long long s_timed_most;
+unsigned long long s_timed_max;
 
 // the register count the part reports for the last kernel a launch loaded (cuFuncGetAttribute), or
 // CUBIN_RUN_REGISTERS_UNREAD before it is read: the count read off the part, a question never walking up to the
@@ -151,7 +151,7 @@ unsigned long long s_timed_most;
 unsigned int s_part_registers = CUBIN_RUN_REGISTERS_UNREAD;
 
 // `launches` launches of `function` over `arguments`, one at a time, each under cubin_safe's rule 6, their block
-// latencies summed into `nanoseconds` and the least and the most of them into s_timed_least and s_timed_most: 0, or the
+// latencies summed into `nanoseconds` and the least and the max of them into s_timed_least and s_timed_max: 0, or the
 // status the driver gave the first launch that did not return clean, none launched after it. The timer is the part's
 // and not the host's, and counts the same whatever clock the part's multiprocessors run at
 static CubinRunStatus cubin_run_timed(const CubinRunDriver *driver, void *function, void **arguments,
@@ -161,7 +161,7 @@ static CubinRunStatus cubin_run_timed(const CubinRunDriver *driver, void *functi
     CubinRunStatus status = 0;
     *nanoseconds = 0ull;
     s_timed_least = 0ull;
-    s_timed_most = 0ull;
+    s_timed_max = 0ull;
     for (unsigned int launch = 0u; (status == 0) && (launch < launches); launch += 1u)
     {
         unsigned long long latency = 0ull;
@@ -179,7 +179,7 @@ static CubinRunStatus cubin_run_timed(const CubinRunDriver *driver, void *functi
         {
             *nanoseconds += latency;
             s_timed_least = ((launch == 0u) || (latency < s_timed_least)) ? latency : s_timed_least;
-            s_timed_most = (latency > s_timed_most) ? latency : s_timed_most;
+            s_timed_max = (latency > s_timed_max) ? latency : s_timed_max;
         }
     }
     return status;
@@ -310,9 +310,9 @@ int s_dry = 0;
                                  // against the vendor's own disassembler, which scaffolding compiles the same C through
 unsigned int s_facets = 0u;
 
-// The container as it would reach the part, `size` bytes of it, handed as the run's blob named as `answers_path` with
+// The container as it would reach the part, `size` bytes of it, passed as the run's blob named as `answers_path` with
 // .cubin for its extension: the --diff-output-against-vendor facet's object, for scaffolding to read against the
-// vendor's own disassembler. It is the post-safety-word container, handed whatever the gate's verdict; a question the
+// vendor's own disassembler. It is the post-safety-word container, passed whatever the gate's verdict; a question the
 // gate blocked is read too
 void cubin_run_container_out(const char *answers_path, const unsigned char *container, unsigned long long size)
 {
@@ -323,7 +323,7 @@ void cubin_run_container_out(const char *answers_path, const unsigned char *cont
     qry_member_append(path, container, size, QRY_ORDINARY);
 }
 
-// What a dry run would have handed the part, a record of each question: the question's shape, the gate's verdict, its
+// What a dry run would have passed the part, a record of each question: the question's shape, the gate's verdict, its
 // cases, and each place of its code. With the --query facet every place is written; without it, only the places that
 // are not as the run's first question contains them, read back as our reader reads them. The first question's code is
 // stored as dry_base.bin, and every place of it is written. The record is a blob dry.txt of the run, a blob

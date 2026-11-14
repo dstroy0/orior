@@ -1,6 +1,6 @@
 \chapter{Claims that do not hold, with what refutes each}
 
-A refuted claim with its cause attached is the cheapest kind of knowledge. This chapter lists the claims about SHA-256 that the measurements refute, each with the measurement that refutes it.
+A refuted claim with its cause attached is the cheapest type of knowledge. This chapter lists the claims about SHA-256 that the measurements refute, each with the measurement that refutes it.
 
 \section{Claims about this work's own measurements}
 
@@ -40,7 +40,7 @@ A refuted claim with its cause attached is the cheapest kind of knowledge. This 
 
 \textbf{The octant delta sits at a level.} It does not hold, for any level: a ramp, a stationary value and a floor all fail. The quantity has a trend and crosses its own null between the ends of the run. A threshold placed on it is a threshold on the wrong shape.
 
-\textbf{Sixty-four distinct signatures out of sixty-four rounds is coherence.} It does not hold, by a rank. The eight-letter reading is a linear map of rank \(8\) on a \(256\)-dimensional source, leaving seven free numbers at fixed weight and \(248\) directions that move no letter at all. Seven numbers separate sixty-four arbitrary states whether the seven carry meaning. Distinctness at that sample size is free.
+\textbf{Sixty-four distinct signatures out of sixty-four rounds is coherence.} It does not hold, by a rank. The eight-character reading is a linear map of rank \(8\) on a \(256\)-dimensional source, leaving seven free numbers at fixed weight and \(248\) directions that move no character at all. Seven numbers separate sixty-four arbitrary states whether the seven carry meaning. Distinctness at that sample size is free.
 
 \textbf{A ridge at residue twenty-six decays at \(1/32\) per round.} It does not hold. Residue twenty-six sits \(-1.36\) sigmas from the class mean, a deficit, and the \(1/32\) decay belongs to the common mode every class shares.
 
@@ -48,13 +48,13 @@ A refuted claim with its cause attached is the cheapest kind of knowledge. This 
 
 \textbf{SHA-256 fails the strict avalanche criterion at rounds fifty-four to fifty-seven.} It does not hold. Measured at three sample sizes, the absolute deviation halves each time \(k\) quadruples, \(1/\sqrt{k}\) exactly, while the sigma holds at \(4.5\) across a sixteenfold range. The threshold crossed is \(5.327\) sigmas against a null that peaks at \(4.85\) unaided.
 
-\textbf{SHA-256 never meets the strict avalanche criterion at any round.} It does not hold. The persistent \(0.21\%\) is \(4.2\) sigmas at a million trials, \emph{below} what the maximum of \(131{,}072\) null draws produces without any function at all.
+\textbf{SHA-256 never meets the strict avalanche criterion at any round.} It does not hold. The persistent \(0.21\%\) is \(4.2\) sigmas at a million trials, \emph{below} what the max of \(131{,}072\) null draws produces without any function at all.
 
 \textbf{Choice and majority dampen each other, ratio \(0.508\).} Reproduced at \(0.5082\) and explained. Choice alone gives a SAC-mean of \(0.01562361\), majority alone \(0.01560888\), and the two together \(0.01562336\), identical to choice alone to two parts in ten million. The pair does not dampen; majority contributes no diffusion that choice does not already provide. The measured value is \(A\) while the independence model predicts about \(2A\), and the ratio is one half by construction.
 
 \section{The shape they share}
 
-Five of these are one error: a maximum over \(N\) cells compared against a threshold built for a single test, two published and three in this work. Two more are a trend read from a threshold crossing instead of from the statistic. Two more are a baseline measured under different conditions from the effect. Three more are a level asserted for a quantity that has a trend, the same error inverted.
+Five of these are one error: a max over \(N\) cells compared against a threshold built for a single test, two published and three in this work. Two more are a trend read from a threshold crossing instead of from the statistic. Two more are a baseline measured under different conditions from the effect. Three more are a level asserted for a quantity that has a trend, the same error inverted.
 
 Two are a different shape and a worse one. \textbf{The saturation claim reads the wrong object}, and the coherence claim \textbf{counts a separation that a rank makes free}. Neither can be caught by a better null, because the null is fine: one measures a state that does not contain the effect, and the other measures a quantity whose dimension is too small to carry it. The discipline therefore needs a second rule beside the first (\textbf{name the object, and count the dimensions of the reading}), and both failures stay silent in the direction that looks like a result.
 

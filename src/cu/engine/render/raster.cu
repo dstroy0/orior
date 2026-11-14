@@ -252,7 +252,7 @@ __global__ void render_volume(unsigned int *staging, int *error, DeviceVolumeCon
     }
 
     // device_sample reads only the channel and the gain from the configuration. The width, height
-    // and layout it is handed are the volume's and go unread.
+    // and layout it is passed are the volume's and go unread.
     DeviceConfig sample_config;
     sample_config.width = vconfig.width;
     sample_config.height = vconfig.height;

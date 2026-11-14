@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The rows in sight, in the explorer's panes and the lists beside a view. A row out of sight is
-// neither laid out nor painted, as style.css sets each row's content-visibility, keeping the height
+// neither arranged nor painted, as style.css sets each row's content-visibility, retention the height
 // it had. As a list scrolls, the rows past its edge the way it heads, as many as its speed carries it
 // over two frames' drawing and never fewer than LEAST, are drawn ahead, marked `ahead`; those it has
 // left are drawn only as they come into sight again.
@@ -10,7 +10,7 @@
 import { Ahead } from "./ahead.js";
 import { frameMs } from "./motion.js";
 
-// The rows of a list, the height of most of them, and the fewest drawn ahead.
+// The rows of a list, the height of the majority of them, and the fewest drawn ahead.
 export const ROWS = ".node, .open-row, .sym, .commit, .item, .search-hit, .problem";
 const ROW = 22;
 const LEAST = 8;

@@ -17,7 +17,7 @@
  * @note A big integer is a fixed width limb array here exactly as it is on the host. A device can
  *       store one for that reason alone. The representation is a transform of the value, and the
  *       device carries the same transform, one warp's worth of limbs at a time.
- * @note Only `agreement` is handed over. A single comparison is far too small to be worth a bus
+ * @note Only `agreement` is passed over. A single comparison is far too small to be worth a bus
  *       crossing. The arm's `equal` and `compare` stay on the host and are the portable ones.
  */
 #ifndef ORIOR_EXACT_GPU_H
@@ -52,7 +52,7 @@ extern "C"
      * @brief Counts agreeing places over a sorted run, one position per thread.
      *
      * @param[in] positions Positions, ascending [BORROWS].
-     * @param[in] values    The value standing at each position [BORROWS].
+     * @param[in] values    The value located at each position [BORROWS].
      * @param[in] count     How many positions.
      * @param[in] lag       The offset to test [BORROWS].
      * @return              How many positions agree with the place one lag above them, or SIZE_MAX

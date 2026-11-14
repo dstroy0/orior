@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// asm_printer_layout.cu: the program and rulesets laid out, and the host's lists
+// asm_printer_layout.cu: the program and rulesets arranged, and the host's lists
 #include "asm_printer_internal.h"
 
-// the assembly printer's program, as the build stored it, encoded by keymath and laid out by key_schedule into
+// the assembly printer's program, as the build stored it, encoded by keymath and arranged by key_schedule into
 // `program`'s key and layout: 1 where they are, else 0 and why in `error`
 static int asm_printer_program_layout(AsmPrinterProgram *program, std::string *error_message)
 {
@@ -40,8 +40,8 @@ static int asm_printer_program_layout(AsmPrinterProgram *program, std::string *e
 }
 
 // the schema checked and the scratch taken, which are the reader's, then the build: every word and part a lane the core
-// decides can be written in, the lists, the program and its tables, laid out by the core (asm_printer_core.h) the
-// device runs as well, its steps given twice the memory each time they run past it; then the program encoded and laid
+// decides can be written in, the lists, the program and its tables, arranged by the core (asm_printer_core.h) the
+// device runs as well, its steps given twice the memory each time they run past it; then the program encoded and positioned
 // out
 int asm_printer_ruleset_build(const Ruleset *rules, const TargetInfo *target, const std::string &header,
                               AsmPrinterRuleset *text_rules, std::string *error)
@@ -119,8 +119,8 @@ AsmPrinterLists asm_printer_lists(const AsmPrinterRuleset *text_rules)
     return forms;
 }
 
-// the host oracle, in the device's order: each item's records counted and laid out, each record's first lane and the
-// index laid out from the running sum of the records' lanes, the program run, and the bytes that are not 0 taken in
+// the host oracle, in the device's order: each item's records counted and arranged, each record's first lane and the
+// index arranged from the running sum of the records' lanes, the program run, and the bytes that are not 0 taken in
 // lane order
 int asm_printer_host(const AsmPrinterRuleset *text_rules, const std::vector<MachineInstr> &items, std::string *text,
                      std::string *error_message)

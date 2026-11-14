@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // comms_view.c: the Comms pane as the window reads it. The Channels view lists every part and every channel that has
-// carried or refused a message, each list by name, as items in one cell: the items, the row each item's row stands at,
+// carried or refused a message, each list by name, as items in one cell: the items, the row each item's row is at,
 // the messages stored under each channel opened, and every text the rows read, written by the CLI. The cell is sized
 // to what the layer contains as it is listed: the texts are written once into a line that only counts them, then once
 // into the cell. The layer is listed again only where its change stamp moved since it was last listed, so a frame reads
-// numbers already laid and a row is a binary search over the rows the items start at
+// numbers already positioned and a row is a binary search over the rows the items start at
 #include "../command_line/callback_cfg.h"
 #include "../requests/requests.h"
 #include "comms_internal.h"
@@ -16,7 +16,7 @@
 #define COMMS_COUNTING 64u
 
 // An item of the Channels view: its type, the part's or the channel's place in the layer's tables, its name, status
-// and detail as offsets into the text and their bytes, the first of its messages and how many stand under it, and
+// and detail as offsets into the text and their bytes, the first of its messages and how many are under it, and
 // whether it refused a message
 typedef struct
 {
@@ -42,11 +42,11 @@ typedef struct
     unsigned long long body_length;
 } CommsMessage;
 
-// The Channels view: its one movable cell and, in it, the places of the items, of the row each item's row stands at
+// The Channels view: its one movable cell and, in it, the places of the items, of the row each item's row is at
 // with one more than the items, of the messages and of the texts, each read out by copy; how many items and messages;
 // the summary's offset and bytes, and the summary in the pane's own bytes; a byte a channel, 1 where it is open; the
-// channel last opened or closed and the row it stands at, -1 for none; the stamp the layer had as it was last listed
-// and whether it was; the millisecond the layer was last looked at; and the view shown
+// channel last opened or closed and the row it is at, -1 for none; the stamp the layer had as it was last listed
+// and whether it was; the millisecond the layer was last looked at; and the view displayed
 typedef struct
 {
     const CarcerMovableEntry *cell;
@@ -78,7 +78,7 @@ typedef struct
     unsigned int channels;
     CommsItem *item;
     CommsMessage *message;
-    unsigned int messages_most;
+    unsigned int messages_max;
     unsigned int *messages_out;
     unsigned long long count;
     const char *word;
@@ -100,7 +100,7 @@ static int comms_counted(void *context, const char *bytes, size_t size)
     return 1;
 }
 
-// the place the next text of `line` starts at: the bytes it handed on and those it has
+// the place the next text of `line` starts at: the bytes it passed on and those it has
 EMBED_INLINE unsigned long long comms_place(const CommsViewCtx *args)
 {
     return args->line->flushed + args->line->at;
@@ -194,7 +194,7 @@ EMBED_INLINE void comms_listeners_put(const CommsViewCtx *args)
     }
 }
 
-// the name of the table place `at` read into `name_out`: a part's where `key` is 1, else a channel's. Each name stands
+// the name of the table place `at` read into `name_out`: a part's where `key` is 1, else a channel's. Each name is
 // in an array of CLI_NAME_MAX_LEN bytes cleared as it was registered, so two compare whole
 EMBED_INLINE void comms_name_of(const CommsViewCtx *args)
 {
@@ -248,9 +248,9 @@ EMBED_INLINE void comms_order_sorted(const CommsViewCtx *args)
     }
 }
 
-// every text of the view written into `line`, and where `item` is not NULL each item laid with its texts' places, the
-// messages under the channels opened laid into `message`, no more than `messages_most` of them: how many messages into
-// `messages_out`, and the summary's place laid
+// every text of the view written into `line`, and where `item` is not NULL each item positioned with its texts' places, the
+// messages under the channels opened positioned into `message`, no more than `messages_max` of them: how many messages into
+// `messages_out`, and the summary's place positioned
 EMBED_INLINE void comms_written(const CommsViewCtx *args)
 {
     VerbaLinea *const line = args->line;
@@ -261,33 +261,33 @@ EMBED_INLINE void comms_written(const CommsViewCtx *args)
         const int parts_group = at == 0u;
         const int channels_group = at == (1u + args->parts);
         const int is_part = !parts_group && (at <= args->parts);
-        CommsItem laid = {0};
-        laid.type = (parts_group || channels_group) ? CLI_COMMS_ROW_GROUP
+        CommsItem positioned = {0};
+        positioned.type = (parts_group || channels_group) ? CLI_COMMS_ROW_GROUP
                     : is_part                       ? CLI_COMMS_ROW_PART
                                                     : CLI_COMMS_ROW_CHANNEL;
-        laid.index = (laid.type == CLI_COMMS_ROW_GROUP) ? COMMS_NONE : args->order[is_part ? at - 1u : at - 2u];
-        laid.message_first = messages;
-        laid.name = EMBED_CALL(comms_place, CommsViewCtx, .line = line);
-        if (laid.type == CLI_COMMS_ROW_GROUP)
+        positioned.index = (positioned.type == CLI_COMMS_ROW_GROUP) ? COMMS_NONE : args->order[is_part ? at - 1u : at - 2u];
+        positioned.message_first = messages;
+        positioned.name = EMBED_CALL(comms_place, CommsViewCtx, .line = line);
+        if (positioned.type == CLI_COMMS_ROW_GROUP)
         {
             mmgr_line_put(line, parts_group ? "Parts" : "Channels");
-            laid.name_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - laid.name;
-            laid.status = EMBED_CALL(comms_place, CommsViewCtx, .line = line);
+            positioned.name_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - positioned.name;
+            positioned.status = EMBED_CALL(comms_place, CommsViewCtx, .line = line);
             mmgr_line_decimal(line, parts_group ? args->parts : args->channels, 1u);
-            laid.status_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - laid.status;
-            laid.detail = laid.status + laid.status_length;
+            positioned.status_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - positioned.status;
+            positioned.detail = positioned.status + positioned.status_length;
         }
-        else if (laid.type == CLI_COMMS_ROW_PART)
+        else if (positioned.type == CLI_COMMS_ROW_PART)
         {
             CliCommsPart part = {0};
             (void)g_cli_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = g_cli_comms.tables,
-                                    .offset = COMMS_PARTS_AT + ((unsigned long long)laid.index * sizeof(part)),
+                                    .offset = COMMS_PARTS_AT + ((unsigned long long)positioned.index * sizeof(part)),
                                     .dst = &part,
                                     .bytes = sizeof(part)});
             mmgr_line_put(line, part.name);
-            laid.name_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - laid.name;
-            laid.status = EMBED_CALL(comms_place, CommsViewCtx, .line = line);
+            positioned.name_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - positioned.name;
+            positioned.status = EMBED_CALL(comms_place, CommsViewCtx, .line = line);
             mmgr_line_decimal(line, part.sent_count, 1u);
             mmgr_line_put(line, " sent");
             if (part.refused != 0ULL)
@@ -296,8 +296,8 @@ EMBED_INLINE void comms_written(const CommsViewCtx *args)
                 mmgr_line_decimal(line, part.refused, 1u);
                 mmgr_line_put(line, " refused");
             }
-            laid.status_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - laid.status;
-            laid.detail = EMBED_CALL(comms_place, CommsViewCtx, .line = line);
+            positioned.status_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - positioned.status;
+            positioned.detail = EMBED_CALL(comms_place, CommsViewCtx, .line = line);
             if (part.has_process)
             {
                 mmgr_line_put(line, "process ");
@@ -313,20 +313,20 @@ EMBED_INLINE void comms_written(const CommsViewCtx *args)
             mmgr_line_put(line, "; speaks on ");
             EMBED_CALL(comms_grants_put, CommsViewCtx, .line = line, .part = &part, .grants_from = part.listens,
                        .grants_count = part.send_grants);
-            laid.detail_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - laid.detail;
-            laid.refused = part.refused != 0ULL;
+            positioned.detail_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - positioned.detail;
+            positioned.refused = part.refused != 0ULL;
         }
         else
         {
             CliCommsTraffic traffic = {0};
             (void)g_cli_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = g_cli_comms.tables,
-                                    .offset = COMMS_TRAFFIC_AT + ((unsigned long long)laid.index * sizeof(traffic)),
+                                    .offset = COMMS_TRAFFIC_AT + ((unsigned long long)positioned.index * sizeof(traffic)),
                                     .dst = &traffic,
                                     .bytes = sizeof(traffic)});
             mmgr_line_put(line, traffic.name);
-            laid.name_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - laid.name;
-            laid.status = EMBED_CALL(comms_place, CommsViewCtx, .line = line);
+            positioned.name_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - positioned.name;
+            positioned.status = EMBED_CALL(comms_place, CommsViewCtx, .line = line);
             EMBED_CALL(comms_plural, CommsViewCtx, .line = line, .count = traffic.messages, .word = "message");
             if (traffic.refused != 0ULL)
             {
@@ -334,8 +334,8 @@ EMBED_INLINE void comms_written(const CommsViewCtx *args)
                 mmgr_line_decimal(line, traffic.refused, 1u);
                 mmgr_line_put(line, " refused");
             }
-            laid.status_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - laid.status;
-            laid.detail = EMBED_CALL(comms_place, CommsViewCtx, .line = line);
+            positioned.status_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - positioned.status;
+            positioned.detail = EMBED_CALL(comms_place, CommsViewCtx, .line = line);
             EMBED_CALL(comms_plural, CommsViewCtx, .line = line, .count = traffic.bytes, .word = "byte");
             if (traffic.transferred != 0ULL)
             {
@@ -345,19 +345,19 @@ EMBED_INLINE void comms_written(const CommsViewCtx *args)
             }
             mmgr_line_put(line, "; heard by ");
             EMBED_CALL(comms_listeners_put, CommsViewCtx, .line = line, .channel = traffic.name);
-            laid.detail_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - laid.detail;
-            laid.refused = traffic.refused != 0ULL;
+            positioned.detail_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - positioned.detail;
+            positioned.refused = traffic.refused != 0ULL;
             // the messages stored under a channel opened, the oldest first, no more than the cell was sized for, each
             // read out of its cell into a temporary cell
-            CliCommsStored *const ring = &g_cli_comms.stored[laid.index];
+            CliCommsStored *const ring = &g_cli_comms.stored[positioned.index];
             size_t front = 0u;
             (void)anularis.seg_front(&(AnularisCfg){.ring = &ring->ring, .out_index = &front});
-            // the messages stored are at most CLI_COMMS_STORED_MAX, inside an unsigned int
+            // the messages stored are at max CLI_COMMS_STORED_MAX, inside an unsigned int
             const unsigned int stored =
-                s_pane.open[laid.index] ? (unsigned int)anularis.seg_inflight(&(AnularisCfg){.ring = &ring->ring}) : 0u;
+                s_pane.open[positioned.index] ? (unsigned int)anularis.seg_inflight(&(AnularisCfg){.ring = &ring->ring}) : 0u;
             for (unsigned int one = 0u; one < stored; one += 1u)
             {
-                if ((args->item != NULL) && (messages >= args->messages_most))
+                if ((args->item != NULL) && (messages >= args->messages_max))
                 {
                     break;
                 }
@@ -391,12 +391,12 @@ EMBED_INLINE void comms_written(const CommsViewCtx *args)
                     args->message[messages] = written;
                 }
                 messages += 1u;
-                laid.messages += 1u;
+                positioned.messages += 1u;
             }
         }
         if (args->item != NULL)
         {
-            args->item[at] = laid;
+            args->item[at] = positioned;
         }
     }
     *args->messages_out = messages;
@@ -457,7 +457,7 @@ EMBED_INLINE void comms_listed(const CommsViewCtx *args)
     }
     EMBED_CALL(comms_order_sorted, CommsViewCtx, .order = order, .at = 0u, .count = parts, .key = 1u);
     EMBED_CALL(comms_order_sorted, CommsViewCtx, .order = order, .at = parts, .count = parts + channels, .key = 0u);
-    // the texts counted, then the cell taken for the items, their rows, the messages and the texts, and laid
+    // the texts counted, then the cell taken for the items, their rows, the messages and the texts, and positioned
     char counting_bytes[COMMS_COUNTING];
     VerbaLinea counting = {counting_bytes, sizeof(counting_bytes), 0ULL, comms_counted, NULL, 0ULL};
     unsigned int messages = 0u;
@@ -468,7 +468,7 @@ EMBED_INLINE void comms_listed(const CommsViewCtx *args)
     const unsigned long long item_bytes = (unsigned long long)items * sizeof(CommsItem);
     const unsigned long long row_bytes = (((items + 1ULL) * sizeof(unsigned int)) + 7ULL) & ~7ULL;
     const unsigned long long message_bytes = (unsigned long long)messages * sizeof(CommsMessage);
-    // the whole laid in a cell of this call, then written once into a movable cell of its size
+    // the whole positioned in a cell of this call, then written once into a movable cell of its size
     const unsigned long long bytes = item_bytes + row_bytes + message_bytes + text_bytes + 1ULL;
     unsigned char *const cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_comms_owner);
     const CarcerMovableEntry *const stored =
@@ -484,9 +484,9 @@ EMBED_INLINE void comms_listed(const CommsViewCtx *args)
     CommsMessage *const message = (CommsMessage *)(void *)(cell + item_bytes + row_bytes);
     char *const text = (char *)(cell + item_bytes + row_bytes + message_bytes);
     VerbaLinea text_line = {text, text_bytes + 1ULL, 0ULL};
-    unsigned int laid_messages = 0u;
+    unsigned int positioned_messages = 0u;
     EMBED_CALL(comms_written, CommsViewCtx, .line = &text_line, .order = order, .parts = parts, .channels = channels,
-               .item = item, .message = message, .messages_most = messages, .messages_out = &laid_messages);
+               .item = item, .message = message, .messages_max = messages, .messages_out = &positioned_messages);
     (void)mmgr_line_finish(&text_line);
     g_cli_guard->persistent_buf_release(order, g_cli_comms_owner);
     first_row[0] = 0u;
@@ -499,7 +499,7 @@ EMBED_INLINE void comms_listed(const CommsViewCtx *args)
                                  ? (int)first_row[at]
                                  : s_pane.current_row;
     }
-    // the summary, cut to the pane's bytes, read off the laid text
+    // the summary, cut to the pane's bytes, read off the positioned text
     const unsigned long long summary_length = (s_pane.summary_length < sizeof(s_pane.summary_text))
                                                   ? s_pane.summary_length
                                                   : (sizeof(s_pane.summary_text) - 1ULL);
@@ -523,7 +523,7 @@ EMBED_INLINE void comms_listed(const CommsViewCtx *args)
     s_pane.message_at = item_bytes + row_bytes;
     s_pane.text_at = item_bytes + row_bytes + message_bytes;
     s_pane.items = items;
-    s_pane.messages = laid_messages;
+    s_pane.messages = positioned_messages;
     s_pane.stamp = stamp;
     s_pane.listed = 1;
 }
@@ -575,7 +575,7 @@ EMBED_INLINE unsigned long long comms_text_read(const CommsViewCtx *args)
     return copied;
 }
 
-// the item a row stands under: the last whose first row is at most `at`, among `key` items
+// the item a row is under: the last whose first row is at max `at`, among `key` items
 EMBED_INLINE unsigned int comms_item_under(const CommsViewCtx *args)
 {
     unsigned int low = 0u;
@@ -603,7 +603,7 @@ void cli_comms_pane_begin(const CliCommsPaneCfg *args)
 int cli_comms_pane_step(const CliCommsPaneCfg *args)
 {
     int listed = 0;
-    if (args->shown && (s_pane.view == CLI_COMMS_VIEW_CHANNELS))
+    if (args->displayed && (s_pane.view == CLI_COMMS_VIEW_CHANNELS))
     {
         const unsigned int stamp = EMBED_ATOMIC_LOAD(&g_cli_comms.stamp);
         if (args->force || !s_pane.listed || (stamp != s_pane.stamp))
@@ -615,13 +615,13 @@ int cli_comms_pane_step(const CliCommsPaneCfg *args)
     }
     const int stepped =
         EMBED_CALL(cli_requests_pane.step, CliRequestsPaneCfg, .root = args->root, .now_ms = args->now_ms,
-                   .shown = args->shown && (s_pane.view == CLI_COMMS_VIEW_REQUESTS));
+                   .displayed = args->displayed && (s_pane.view == CLI_COMMS_VIEW_REQUESTS));
     return listed || stepped;
 }
 
 unsigned long long cli_comms_pane_deadline_ms(const CliCommsPaneCfg *args)
 {
-    return (args->shown && (s_pane.view == CLI_COMMS_VIEW_CHANNELS)) ? s_pane.read_ms + CLI_COMMS_REFRESH_MS : 0ULL;
+    return (args->displayed && (s_pane.view == CLI_COMMS_VIEW_CHANNELS)) ? s_pane.read_ms + CLI_COMMS_REFRESH_MS : 0ULL;
 }
 
 unsigned int cli_comms_pane_rows(const CliCommsPaneCfg *args)

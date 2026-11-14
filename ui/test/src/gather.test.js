@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The task's code in one place: lines gathered from several files into a task, shown side by side
-// over the editor, each the live text of its file, found again where lines come above it, and kept
+// The task's code in one place: lines gathered from several files into a task, displayed side by side
+// over the editor, each the live text of its file, found again where lines come above it, and retained
 // with the task.
 
 import { invoke } from "../../gui/src-js/bridge.js";
@@ -19,7 +19,7 @@ const TWO = "x = 1\ny = 2\nz = 3\n";
 const tabNamed = (name) => [...document.querySelectorAll("#tabs .tab")].find((one) => one.textContent.includes(name));
 const gathered = () => tasks().tasks[tasks().current].map((one) => [one.path, one.from, one.to]);
 
-test("Gather Lines takes the declaration the cursor stands in, or the lines selected", async () => {
+test("Gather Lines takes the declaration the cursor is in, or the lines selected", async () => {
   localStorage.removeItem(`orior.gather.${document.getElementById("tree-path").textContent}`);
   await invoke("file_write", { path: "gather_one.py", text: ONE });
   await invoke("file_write", { path: "gather_two.py", text: TWO });
@@ -77,7 +77,7 @@ test("a piece is found again by its first line where lines come above it", async
   assert.equal(one.s.doc.line(one.head().line), "def first():");
 });
 
-test("a task is named, keeps its own pieces, and a piece's name opens its file at its lines", async () => {
+test("a task is named, retains its own pieces, and a piece's name opens its file at its lines", async () => {
   const board = () => boardShown().board;
   board().querySelector(".gather-name").value = "Other";
   await ui.click([...board().querySelectorAll(".gather-bar button")].find((one) => one.textContent === "New Task"));

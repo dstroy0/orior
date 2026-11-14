@@ -302,7 +302,7 @@ EMBED_INLINE void cli_source_date(const RunnerCommandCtx *args)
 }
 
 // the PATH every step runs with, less each folder that contains the program `name`, put on the command, and the line
-// it leads shown in `set`
+// it leads displayed in `set`
 EMBED_INLINE void cli_unpath(const RunnerCommandCtx *args)
 {
     static char s_settings_buf[256][CLI_PATH_MAX_LEN];
@@ -431,7 +431,7 @@ EMBED_INLINE void cli_settings(const RunnerCommandCtx *args)
     }
 }
 
-// one word of a shown line put after the line, in quotes where it contains a space
+// one word of a displayed line put after the line, in quotes where it contains a space
 EMBED_INLINE void cli_displayed_word(const RunnerCommandCtx *args)
 {
     int *first = args->first;
@@ -523,8 +523,8 @@ EMBED_INLINE int cli_path_given(const RunnerCommandCtx *args)
     return 0;
 }
 
-// the tree's own tools, which come first on the PATH every step runs with, shown leading the line where it has any
-EMBED_INLINE void cli_tools_shown(const RunnerCommandCtx *args)
+// the tree's own tools, which come first on the PATH every step runs with, displayed leading the line where it has any
+EMBED_INLINE void cli_tools_displayed(const RunnerCommandCtx *args)
 {
     static char s_tools[16][CLI_PATH_MAX_LEN];
     const unsigned int tools =
@@ -550,8 +550,8 @@ EMBED_INLINE void cli_tools_shown(const RunnerCommandCtx *args)
                .first = args->first);
 }
 
-// each setting of the set `word_text`, `length` bytes, one to a line, shown as a word of the line
-EMBED_INLINE void cli_set_shown(const RunnerCommandCtx *args)
+// each setting of the set `word_text`, `length` bytes, one to a line, displayed as a word of the line
+EMBED_INLINE void cli_set_displayed(const RunnerCommandCtx *args)
 {
     const char *const set = args->word_text;
     unsigned long long from = 0ULL;
@@ -625,11 +625,11 @@ int cli_runner_command(const CliRunnerCommandCfg *args)
     }
     if (!EMBED_CALL(cli_path_given, RunnerCommandCtx, .catalog = args->catalog, .step = args->step))
     {
-        EMBED_CALL(cli_tools_shown, RunnerCommandCtx, .root = args->root, .displayed = args->displayed,
+        EMBED_CALL(cli_tools_displayed, RunnerCommandCtx, .root = args->root, .displayed = args->displayed,
                    .first = &first);
     }
     // each setting, one to a line of the set, then the program and its words
-    EMBED_CALL(cli_set_shown, RunnerCommandCtx, .word_text = s_set, .length = mmgr_line_ok(&set) ? set.at : 0ULL,
+    EMBED_CALL(cli_set_displayed, RunnerCommandCtx, .word_text = s_set, .length = mmgr_line_ok(&set) ? set.at : 0ULL,
                .displayed = args->displayed, .first = &first);
     EMBED_CALL(cli_displayed_word, RunnerCommandCtx, .displayed = args->displayed, .word_text = displayed_program,
                .length = cellul.len(&(CatenaFinitaCfg){.src = displayed_program, .cap = CLI_POOL_BYTES}),
@@ -663,7 +663,7 @@ int cli_runner_show(const CliRunnerErrMsgRootCfg *args)
     const CliValues *values = args->values;
     VerbaLinea *err_msg = args->err_msg;
     static CliCommand s_command;
-    static char s_shown[CLI_COMMAND_TEXT];
+    static char s_displayed[CLI_COMMAND_TEXT];
     const CliJob *const job_at = &catalog->job[args->job];
     for (unsigned int at = 0u; at < job_at->steps; at += 1u)
     {
@@ -673,7 +673,7 @@ int cli_runner_show(const CliRunnerErrMsgRootCfg *args)
         {
             continue;
         }
-        VerbaLinea displayed = {s_shown, sizeof(s_shown), 0ULL};
+        VerbaLinea displayed = {s_displayed, sizeof(s_displayed), 0ULL};
         if (!EMBED_CALL(cli_runner_command_table.command, CliRunnerCommandCfg, .root = root, .catalog = catalog,
                         .step = step, .values = values, .command = &s_command, .displayed = &displayed,
                         .err_msg = err_msg))
@@ -681,7 +681,7 @@ int cli_runner_show(const CliRunnerErrMsgRootCfg *args)
             return 0;
         }
         mmgr_line_finish(&displayed);
-        EMBED_CALL(args->each, CliEachDisplayedCfg, .context = args->context, .displayed = s_shown);
+        EMBED_CALL(args->each, CliEachDisplayedCfg, .context = args->context, .displayed = s_displayed);
     }
     return 1;
 }

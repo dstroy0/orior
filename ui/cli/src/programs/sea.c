@@ -209,7 +209,7 @@ int cli_sea_signature(const CliSeaErrMsgProgramCfg *args)
     }
     if ((magic != 0x20bULL) && (magic != 0x10bULL))
     {
-        mmgr_line_put(args->err_msg, "node's optional header is of the unknown kind 0x");
+        mmgr_line_put(args->err_msg, "node's optional header is of the unknown type 0x");
         mmgr_line_hex(args->err_msg, magic, 1u);
         return -1;
     }

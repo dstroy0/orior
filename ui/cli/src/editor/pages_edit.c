@@ -8,15 +8,15 @@
 #include "files.h"
 #include "pages_internal.h"
 
-// The pieces a replace retains as it builds them: a cell of `most`, the text's pieces and the two a cut piece's parts
+// The pieces a replace retains as it builds them: a cell of `max`, the text's pieces and the two a cut piece's parts
 // about the lines written add
 typedef struct
 {
     CliPagePiece *piece;
-    unsigned int most;
+    unsigned int max;
     unsigned int count;
 } CliPagePieces;
-// the most bytes of an edit's lines, the most bytes of the matches find writes, and the bytes a reading's cell takes
+// the max bytes of an edit's lines, the max bytes of the matches find writes, and the bytes a reading's cell takes
 // for an edit, find and a save
 #define CLI_PAGE_EDIT (1u << 25u)
 #define CLI_PAGE_FOUND (1u << 24u)
@@ -69,7 +69,7 @@ EMBED_INLINE int save_stage(const PagesEditCtx *args)
 // a piece put after the pieces retained, one of written lines left out where it contains none
 EMBED_INLINE void cli_piece_append(const PagesEditCtx *args)
 {
-    if ((args->piece.written && (args->piece.lines == 0ULL)) || (args->pieces->count >= args->pieces->most))
+    if ((args->piece.written && (args->piece.lines == 0ULL)) || (args->pieces->count >= args->pieces->max))
     {
         return;
     }
@@ -100,9 +100,9 @@ EMBED_INLINE CliPagePiece cli_cut(const PagesEditCtx *args)
 EMBED_INLINE int cli_on_replace(const PagesEditCtx *args)
 {
     CliPaged *one = args->one;
-    const unsigned int most = ((one->pieces + 2u) < CLI_PAGE_PIECES) ? (one->pieces + 2u) : CLI_PAGE_PIECES;
+    const unsigned int max = ((one->pieces + 2u) < CLI_PAGE_PIECES) ? (one->pieces + 2u) : CLI_PAGE_PIECES;
     CliPagePieces pieces = {
-        g_cli_guard->temporary_buf_alloc((unsigned long long)most * sizeof(CliPagePiece), g_cli_editor_owner), most,
+        g_cli_guard->temporary_buf_alloc((unsigned long long)max * sizeof(CliPagePiece), g_cli_editor_owner), max,
         0u};
     if (pieces.piece == NULL)
     {
@@ -186,11 +186,11 @@ EMBED_INLINE unsigned long long cli_byte_at(const PagesEditCtx *args)
         {
             return at;
         }
-        unsigned int letter = 0u;
+        unsigned int character = 0u;
         at +=
-            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                       .text_bytes = (const unsigned char *)args->line, .length = length, .at = at, .letter = &letter);
-        units += (letter > 0xffffu) ? 2ULL : 1ULL;
+            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                       .text_bytes = (const unsigned char *)args->line, .length = length, .at = at, .character = &character);
+        units += (character > 0xffffu) ? 2ULL : 1ULL;
     }
     return length;
 }
@@ -351,8 +351,8 @@ int cli_pages_change(const CliPagesPathCfg *args)
     return one != NULL;
 }
 
-// the bytes a block of UTF-16 lines for find takes over the lines read: a unit for each byte at the most, since a
-// letter of one to three bytes is one unit and one of four bytes two, and each line's start and length
+// the bytes a block of UTF-16 lines for find takes over the lines read: a unit for each byte at max, since a
+// character of one to three bytes is one unit and one of four bytes two, and each line's start and length
 EMBED_INLINE unsigned long long cli_block_bytes(const PagesEditCtx *args)
 {
     const unsigned long long count = (args->lines->count < CLI_PAGE_BLOCK) ? args->lines->count : CLI_PAGE_BLOCK;
@@ -374,21 +374,21 @@ EMBED_INLINE CliLines cli_block_get(const PagesEditCtx *args)
         block.start[block.lines] = block.used;
         for (unsigned long long at = 0ULL; at < size;)
         {
-            unsigned int letter = 0u;
-            at += EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                             .text_bytes = (const unsigned char *)text, .length = size, .at = at, .letter = &letter);
-            const unsigned long long need = (letter > 0xffffu) ? 2ULL : 1ULL;
+            unsigned int character = 0u;
+            at += EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                             .text_bytes = (const unsigned char *)text, .length = size, .at = at, .character = &character);
+            const unsigned long long need = (character > 0xffffu) ? 2ULL : 1ULL;
             if ((block.used + need) > block.units_max)
             {
                 block.full = 1;
                 break;
             }
-            // each unit of a letter is below 2^16
+            // each unit of a character is below 2^16
             block.unit[block.used] =
-                (unsigned short)((letter > 0xffffu) ? (0xd800u + ((letter - 0x10000u) >> 10u)) : letter);
+                (unsigned short)((character > 0xffffu) ? (0xd800u + ((character - 0x10000u) >> 10u)) : character);
             if (need == 2ULL)
             {
-                block.unit[block.used + 1ULL] = (unsigned short)(0xdc00u + ((letter - 0x10000u) & 0x3ffu));
+                block.unit[block.used + 1ULL] = (unsigned short)(0xdc00u + ((character - 0x10000u) & 0x3ffu));
             }
             block.used += need;
         }
@@ -438,7 +438,7 @@ EMBED_INLINE unsigned long long cli_total(const PagesEditCtx *args)
 int cli_pages_find(const CliPagesOutErrMsgNeedleCfg *args)
 {
     const CliDocNeedle *needle = args->needle;
-    unsigned long long most = args->most;
+    unsigned long long max = args->max;
     VerbaLinea *err_msg = args->err_msg;
     CliPaged *const one =
         EMBED_CALL(cli_pages_err_msg_internal.paged_get, CliPagesErrMsgCtx, .key = args->key, .err_msg = err_msg);
@@ -455,7 +455,7 @@ int cli_pages_find(const CliPagesOutErrMsgNeedleCfg *args)
     VerbaLinea written = {found_text, CLI_PAGE_FOUND, 0ULL};
     CliPageFound found = {&written, 0ULL, 0ULL};
     unsigned long long block_max = CLI_PAGE_BLOCK;
-    for (unsigned long long from = 0ULL; read && (from < total) && (found.found < most);)
+    for (unsigned long long from = 0ULL; read && (from < total) && (found.found < max);)
     {
         unsigned long long to = from;
         read = EMBED_CALL(cli_pages_lines_internal.page_block_read, CliPagesLinesCtx, .one = one, .from = from,
@@ -488,7 +488,7 @@ int cli_pages_find(const CliPagesOutErrMsgNeedleCfg *args)
             found.from = from;
             read =
                 EMBED_CALL(cli_document_lines.find_each, CliDocumentLinesCfg, .lines = &block, .needle = needle,
-                           .most = most - found.found, .each = cli_page_match, .context = &found, .err_msg = err_msg);
+                           .max = max - found.found, .each = cli_page_match, .context = &found, .err_msg = err_msg);
         }
         g_cli_guard->persistent_buf_release(storage, g_cli_editor_owner);
         from = to;

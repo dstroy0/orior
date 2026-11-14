@@ -253,7 +253,7 @@ int main(void)
     energy_print(line, &top);
     mmgr_line_put(line, "\n  case                      live ratio   above band  outcome\n");
     const char *const case_name[3] = {"matched pattern         ", "no pattern              ",
-                                      "wrong kind (impulses)   "};
+                                      "wrong type (impulses)   "};
     for (unsigned int arm = 0u; ok && (arm < 3u); arm += 1u)
     {
         for (unsigned long long at = 0ull; at < PATTERN_LENGTH; at += 1ull)

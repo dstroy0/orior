@@ -2,10 +2,10 @@
 
 usage: python pua_crops.py <stem> <out dir> [per glyph]
 
-A font can map a letter it draws to the private use area, U+F729 for a glottalized letter, and a
+A font can map a character it draws to the private use area, U+F729 for a glottalized character, and a
 text layer then drops it. Each crop holds the glyph and the word around it, named for its code
 point and page, and the pdfium text around it is printed beside the file name, for reading the
-glyph by eye and writing the page's letter back.
+glyph by eye and writing the page's character back.
 """
 import os
 import sys

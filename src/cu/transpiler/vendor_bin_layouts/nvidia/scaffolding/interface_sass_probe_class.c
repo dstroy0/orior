@@ -17,7 +17,7 @@
 #include "../../../../../../includes/parsers/who.h"
 #include "../../../../../../includes/parsers/line_read.h"
 
-// the most questions stored whole. The decode channel puts one for every bit of every form, far past this, and is
+// the max questions stored whole. The decode channel puts one for every bit of every form, far past this, and is
 // counted in place of being stored
 #define SASS_CLASSED 512u
 
@@ -72,7 +72,7 @@ static SassPipe s_pipe[SASS_PIPES];
 static unsigned int s_pipe_count;
 
 // The forms the file contains as a ruleset reads them, each line with its newline: what the system folds into one
-// instruction, which the ruleset beside the file reads after its own lines. A rewrite writes them back as they stood,
+// instruction, which the ruleset beside the file reads after its own lines. A rewrite writes them back as they was,
 // since nothing here finds them
 #define SASS_FORMS_MAX_LEN 16384u
 static char s_forms[SASS_FORMS_MAX_LEN];
@@ -80,7 +80,7 @@ static size_t s_forms_length;
 
 // The field and container rows the file contains, each line with its newline: the fields of an instruction a question
 // on the run channel turns, and the container the system accepted, which every such question is put in (cubin_write.h).
-// A rewrite writes them back as they stood, since nothing here finds them
+// A rewrite writes them back as they was, since nothing here finds them
 static char s_containers[SASS_FORMS_MAX_LEN];
 static size_t s_containers_length;
 
@@ -292,13 +292,13 @@ int sass_class_read(const char *machines, const char *part)
         unsigned int word = 0u;
         unsigned int tally = 0u;
         const char *read = line;
-        if (line_letters(&read, "equal ") && line_word(&read, one, sizeof(one)) && line_word(&read, other, sizeof(other)))
+        if (line_characters(&read, "equal ") && line_word(&read, one, sizeof(one)) && line_word(&read, other, sizeof(other)))
         {
             sass_equal_take(one, other);
             continue;
         }
         read = line;
-        if (line_letters(&read, "count ") && line_word(&read, channel_text, sizeof(channel_text)) &&
+        if (line_characters(&read, "count ") && line_word(&read, channel_text, sizeof(channel_text)) &&
             line_word(&read, class_text, sizeof(class_text)) && line_unsigned(&read, &tally))
         {
             const unsigned int channel = sass_channel_of(channel_text);
@@ -407,7 +407,7 @@ int sass_class_write_by(const char *machines, const char *part, Who who)
     char path[1024];
     snprintf(path, sizeof(path), "%s/%s.ksc", machines, part);
     // the classification put together in memory, its first line, and then every line after it under a who line of
-    // `who`, handed whole to the run's writer (ksc.h)
+    // `who`, passed whole to the run's writer (ksc.h)
     s_lines_at = 0u;
     lines_text("# How this system is queried, and what came back. A probe is not a thing of its own: it is a\n");
     lines_text("# question put on one of the channels below and the answer read back. Written by the interface's\n");
@@ -446,7 +446,7 @@ int sass_class_write_by(const char *machines, const char *part, Who who)
     }
     lines_text("\n# every question the system was queried in its own code, one a line: the channel, what came\n");
     lines_text("# back, the word it answered, and the question. These are the ones the system answered for\n");
-    lines_text("# itself, with no compiler and no disassembler standing between.\n");
+    lines_text("# itself, with no compiler and no disassembler located between.\n");
     for (unsigned int number = 0u; number < s_classed_count; number += 1u)
     {
         const SassClassed *const one = &s_classed[number];
@@ -526,7 +526,7 @@ int sass_pipe_read(const char *machines, const char *part)
         unsigned int least = 0u;
         unsigned int over = 0u;
         const char *read = s_file.line[at];
-        if (line_letters(&read, "pipe ") && line_word(&read, one, sizeof(one)) && line_word(&read, other, sizeof(other)) &&
+        if (line_characters(&read, "pipe ") && line_word(&read, one, sizeof(one)) && line_word(&read, other, sizeof(other)) &&
             line_unsigned(&read, &least) && line_unsigned(&read, &over))
         {
             sass_pipe_take(one, other, least, over);

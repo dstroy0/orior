@@ -75,32 +75,32 @@ void cli_catalog_entries(const CliCatalogFolderCtx *args)
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->folder,
                .each = cli_entry_count, .context_bytess = &walk);
     (void)EMBED_CALL(cli_catalog_names_internal.names_capacity, CliCatalogNamesCtx, .names = entries,
-                     .most = walk.seen);
+                     .max = walk.seen);
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->folder,
                .each = cli_entry_each, .context_bytess = &walk);
 }
 
-// the most names or paths one list contains, its cell taken at them as the list is first made capacity in
+// the max names or paths one list contains, its cell taken at them as the list is first made capacity in
 #define CLI_CATALOG_ENTRIES_MAX 16384u
 
 int cli_catalog_names_capacity(const CliCatalogNamesCtx *args)
 {
-    if ((args->names->name == NULL) && (args->most <= CLI_CATALOG_ENTRIES_MAX))
+    if ((args->names->name == NULL) && (args->max <= CLI_CATALOG_ENTRIES_MAX))
     {
         args->names->name = g_cli_guard->temporary_buf_alloc(
             (unsigned long long)CLI_CATALOG_ENTRIES_MAX * CLI_NAME_MAX_LEN, g_cli_catalog_owner);
         args->names->capacity = (args->names->name != NULL) ? CLI_CATALOG_ENTRIES_MAX : 0u;
     }
-    return args->most <= args->names->capacity;
+    return args->max <= args->names->capacity;
 }
 
 int cli_catalog_paths_capacity(const CliCatalogMaxCtx *args)
 {
-    if ((args->paths->path == NULL) && (args->most <= CLI_CATALOG_ENTRIES_MAX))
+    if ((args->paths->path == NULL) && (args->max <= CLI_CATALOG_ENTRIES_MAX))
     {
         args->paths->path = g_cli_guard->temporary_buf_alloc(
             (unsigned long long)CLI_CATALOG_ENTRIES_MAX * CLI_PATH_MAX_LEN, g_cli_catalog_owner);
         args->paths->capacity = (args->paths->path != NULL) ? CLI_CATALOG_ENTRIES_MAX : 0u;
     }
-    return args->most <= args->paths->capacity;
+    return args->max <= args->paths->capacity;
 }

@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The editor's typing and deleting: brackets and quotes paired and stepped over, a new line as deep as the one it
-// leaves, and deleting a letter, a word, an indent's step, a pair, or the line break.
+// leaves, and deleting a character, a word, an indent's step, a pair, or the line break.
 
 import { given, marked, putBackAsFound } from "../../../menus.js";
 
 const { test, assert } = window.__harness;
 
-test("an opening bracket types its pair, its closer is stepped over, and a selection is kept between them", async () => {
+test("an opening bracket types its pair, its closer is stepped over, and a selection is retained between them", async () => {
   const view = await given("x = |");
   view.type("(");
   assert.equal(marked(), "x = (|)");
@@ -19,7 +19,7 @@ test("an opening bracket types its pair, its closer is stepped over, and a selec
   assert.equal(marked(), "([word])");
   await given("it|");
   view.type("'");
-  assert.equal(marked(), "it'|", "a quote after a word's letter is not paired");
+  assert.equal(marked(), "it'|", "a quote after a word's character is not paired");
 });
 
 test("a new line is as deep as the line it leaves, and a step deeper after a block opens", async () => {
@@ -31,7 +31,7 @@ test("a new line is as deep as the line it leaves, and a step deeper after a blo
   assert.equal(marked(), "    x = 1\n    |");
 });
 
-test("Backspace takes a letter, a whole step of indent, an empty pair, a word, or the line break above", async () => {
+test("Backspace takes a character, a whole step of indent, an empty pair, a word, or the line break above", async () => {
   const view = await given("ab|c");
   view.backspace();
   assert.equal(marked(), "a|c");
@@ -49,7 +49,7 @@ test("Backspace takes a letter, a whole step of indent, an empty pair, a word, o
   assert.equal(marked(), "a|b");
 });
 
-test("Delete takes the letter after, a word, or the line break below, and a selection whole", async () => {
+test("Delete takes the character after, a word, or the line break below, and a selection whole", async () => {
   const view = await given("|ab");
   view.deleteForward();
   assert.equal(marked(), "|b");

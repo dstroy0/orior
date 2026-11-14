@@ -10,7 +10,7 @@ import { asFound, calls, press, putBackAsFound, told } from "../../menus.js";
 
 const { test, assert, ui } = window.__harness;
 
-test("Review's menu, from the command line: a comment opened, its changes shown, resolved, copied and deleted", async () => {
+test("Review's menu, from the command line: a comment opened, its changes displayed, resolved, copied and deleted", async () => {
   asFound();
   addComment("hello.py", 0, "def greet(name):", "a note of the test's");
   const one = comments().find((comment) => comment.body === "a note of the test's");

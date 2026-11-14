@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // report_page.c: a report's new-issue page with the template's fields filled in, and the issue's body as the
-// template's form lays out what is entered in it
+// template's form arranges what is entered in it
 #include "../text/text.h"
 #include "report_internal.h"
 
@@ -145,7 +145,7 @@ void cli_report_body(const CliReportCtx *args)
     mmgr_line_put(args->out, " -->\n");
 }
 
-// `length` bytes of `text` written into `out` as an address's query writes them, letters, digits and `-_.~` as they
+// `length` bytes of `text` written into `out` as an address's query writes them, characters, digits and `-_.~` as they
 // are and every other byte as `%XX`
 EMBED_INLINE void cli_encode(const ReportPageCtx *args)
 {
@@ -210,19 +210,19 @@ void cli_report_page(const CliReportRootOutCfg *args)
                    EMBED_CALL(cli_encoded_length, ReportPageCtx, .text = texts[at],
                               .length = cellul.len(&(CatenaFinitaCfg){.src = texts[at], .cap = CLI_POOL_BYTES}));
     }
-    // the logs cut to three quarters of their letters at a time until the address fits within its limit
+    // the logs cut to three quarters of their characters at a time until the address fits within its limit
     unsigned long long logs = cellul.len(&(CatenaFinitaCfg){.src = args->report->logs, .cap = CLI_POOL_BYTES});
     while (
         (logs != 0ULL) &&
         ((without + 6ULL + EMBED_CALL(cli_encoded_length, ReportPageCtx, .text = args->report->logs, .length = logs)) >
          CLI_REPORT_ADDRESS))
     {
-        unsigned long long letters = 0ULL;
+        unsigned long long characters = 0ULL;
         for (unsigned long long at = 0ULL; at < logs; at += 1ULL)
         {
-            letters += (((unsigned char)args->report->logs[at] & 0xc0u) != 0x80u) ? 1ULL : 0ULL;
+            characters += (((unsigned char)args->report->logs[at] & 0xc0u) != 0x80u) ? 1ULL : 0ULL;
         }
-        const unsigned long long budget = (letters * 3ULL) / 4ULL;
+        const unsigned long long budget = (characters * 3ULL) / 4ULL;
         unsigned long long count = 0ULL;
         unsigned long long at = 0ULL;
         for (; at < logs; at += 1ULL)

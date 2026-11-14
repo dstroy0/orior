@@ -102,7 +102,7 @@ typedef struct
     unsigned long long frame_start;
     unsigned long long block_start;
     unsigned long long window;
-    unsigned long long block_maximum;
+    unsigned long long block_max;
 } ZstdDecoder;
 
 unsigned long long zstd_little_endian(const unsigned char *bytes, unsigned int count);
@@ -117,7 +117,7 @@ unsigned long long zstd_backward_peek(const ZstdBackwardStream *stream, unsigned
 
 unsigned long long zstd_backward_read(ZstdBackwardStream *stream, unsigned int count);
 
-int zstd_fse_describe(ZstdSpan *input, const ZstdTableKind *kind, long *counts, unsigned int *accuracy);
+int zstd_fse_describe(ZstdSpan *input, const ZstdTableKind *type, long *counts, unsigned int *accuracy);
 
 int zstd_fse_build(ZstdFseTable *table, const long *counts, unsigned int symbols, unsigned int accuracy);
 
@@ -126,7 +126,7 @@ int zstd_weights_decode(const ZstdFseTable *table, const ZstdSpan *payload, unsi
 
 int zstd_literals(ZstdDecoder *decoder, ZstdSpan *input);
 
-int zstd_table_prepare(ZstdSpan *input, unsigned int mode, const ZstdTableKind *kind, ZstdFseTable *table);
+int zstd_table_prepare(ZstdSpan *input, unsigned int mode, const ZstdTableKind *type, ZstdFseTable *table);
 
 int zstd_output_fits(const ZstdDecoder *decoder, unsigned long long length);
 

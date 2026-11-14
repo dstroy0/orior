@@ -7,7 +7,7 @@
 #include "../utf8/utf8.h"
 #include "frame.h"
 
-// What a layout holds as it runs: where it draws, the width, the scale, the pen's x on the line being laid, the y of
+// What a layout holds as it runs: where it draws, the width, the scale, the pen's x on the line being positioned, the y of
 // the line's top and the line's height, and the faces' sizes
 typedef struct
 {
@@ -82,9 +82,9 @@ EMBED_INLINE void layout_run(const PanelCtx *args)
     }
 }
 
-// `text`, `length` bytes, laid letter by letter in `face` at `size` on lines `pixel_height` tall, a letter that does
+// `text`, `length` bytes, positioned character by character in `face` at `size` on lines `pixel_height` tall, a character that does
 // not fit after the pen beginning the next line
-EMBED_INLINE void layout_letters(const PanelCtx *args)
+EMBED_INLINE void layout_characters(const PanelCtx *args)
 {
     const char *text = args->text;
     unsigned long long length = args->length;
@@ -93,12 +93,12 @@ EMBED_INLINE void layout_letters(const PanelCtx *args)
     while (at < length)
     {
         unsigned long long consumed = 0ULL;
-        (void)EMBED_CALL(utf8_at.letter, Utf8AtCfg, .text = text, .size = length, .at = at, .length = &consumed);
+        (void)EMBED_CALL(utf8_at.character, Utf8AtCfg, .text = text, .size = length, .at = at, .length = &consumed);
         consumed = (consumed != 0ULL) ? consumed : 1ULL;
-        const float letter_width =
+        const float character_width =
             EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->layout->glyphs,
                        .face = args->face, .size = args->size, .text = text + at, .length = consumed);
-        if ((args->layout->x + letter_width > right) && (args->layout->x > (float)args->layout->left))
+        if ((args->layout->x + character_width > right) && (args->layout->x > (float)args->layout->left))
         {
             args->layout->y += args->pixel_height;
             args->layout->x = (float)args->layout->left;
@@ -109,19 +109,19 @@ EMBED_INLINE void layout_letters(const PanelCtx *args)
     }
 }
 
-// a line of code laid from `text`, `length` bytes, broken by letters where it is wider than the width: each piece on
+// a line of code positioned from `text`, `length` bytes, broken by characters where it is wider than the width: each piece on
 // a line of its own
 EMBED_INLINE void layout_code_line(const PanelCtx *args)
 {
     args->layout->x = (float)args->layout->left;
-    EMBED_CALL(layout_letters, PanelCtx, .layout = args->layout, .face = GUI_FACE_CODE, .size = args->layout->code_size,
+    EMBED_CALL(layout_characters, PanelCtx, .layout = args->layout, .face = GUI_FACE_CODE, .size = args->layout->code_size,
                .pixel_height = args->layout->code_line, .text = args->text, .length = args->length,
                .color = args->color);
     args->layout->y += args->layout->code_line;
 }
 
-// a word of a paragraph laid from `text`, `length` bytes, in `face`, wrapped to the next line where it does not fit
-// after the pen, and broken by letters where it is wider than the whole width
+// a word of a paragraph positioned from `text`, `length` bytes, in `face`, wrapped to the next line where it does not fit
+// after the pen, and broken by characters where it is wider than the whole width
 EMBED_INLINE void layout_word(const PanelCtx *args)
 {
     unsigned int face = args->face;
@@ -143,11 +143,11 @@ EMBED_INLINE void layout_word(const PanelCtx *args)
                    .pixel_height = args->layout->text_line, .text = text, .length = length, .color = args->color);
         return;
     }
-    EMBED_CALL(layout_letters, PanelCtx, .layout = args->layout, .face = face, .size = size,
+    EMBED_CALL(layout_characters, PanelCtx, .layout = args->layout, .face = face, .size = size,
                .pixel_height = args->layout->text_line, .text = text, .length = length, .color = args->color);
 }
 
-// a paragraph's line laid from `text`, `length` bytes, word by word, the text between single backticks in the code
+// a paragraph's line positioned from `text`, `length` bytes, word by word, the text between single backticks in the code
 // face in the type's color; the pen left after its last word, a blank's width on, for the next line's words
 EMBED_INLINE void layout_paragraph_line(const PanelCtx *args)
 {
@@ -332,7 +332,7 @@ GuiRect gui_panel_position(const GuiPanelWidthCfg *args)
     }
     else if (!fits_below)
     {
-        // neither side has the capacity: the box stands as low as the bounds allow
+        // neither side has the capacity: the box is as low as the bounds allow
         y = args->bounds.y + args->bounds.height - args->pixel_height;
         y = (y < args->bounds.y) ? args->bounds.y : y;
     }

@@ -1,8 +1,8 @@
 # The octant lexicon
 
-Eight regions, one letter each, and a word that a computation defines as it runs. The alphabet is
+Eight regions, one character each, and a word that a computation defines as it runs. The alphabet is
 general. It reads a lit set on a boundary and knows nothing about what lit it, and the same eight
-letters serve any object that can be placed on a sphere. The instance it was tested on is SHA-256,
+characters serve any object that can be placed on a sphere. The instance it was tested on is SHA-256,
 and `examples/00_blob_viz_tools/octant_lex.py` lexes that hash round by round and prints the word.
 
 This page records what the reading does and, at greater length, what it cannot do.
@@ -14,8 +14,8 @@ counted.
 
 ## The alphabet
 
-Choose some regions. A state writes one letter per region, the letter being the share of the lit set
-sitting inside it. A step of the computation rewrites every letter at once, and the numbers tracked
+Choose some regions. A state writes one character per region, the character being the share of the lit set
+sitting inside it. A step of the computation rewrites every character at once, and the numbers tracked
 across the steps are the word it defines.
 
 **The regions are free.** They may sit at any origin, inside the object or outside it, they may
@@ -24,8 +24,8 @@ them as govern the rest of the dimensions, and shape does not enter: a region ha
 that its geometry is a drawing convenience carrying nothing. The established table in
 `docs/boundary-counting.md` holds that as a measurement in its own right.
 
-Two properties do follow from choices, and it is worth keeping them apart from the reading itself.
-Regions that tile without gap or overlap force the letters to add to one, which costs one degree of
+Two properties do follow from choices, and it is worth retention them apart from the reading itself.
+Regions that tile without gap or overlap force the characters to add to one, which costs one degree of
 freedom. Regions that overlap carry no such constraint and can therefore hold one number each.
 
 ## The instance this page uses
@@ -61,7 +61,7 @@ map reaches the rank its coefficient count allows at every degree below the sour
 shortfall in coefficients accounts for the blindness on its own. Neither sample size, precision nor the
 number of beams changes it.
 
-The eight-letter alphabet on this page is rank 8, seven free numbers once the weight is fixed, nullity
+The eight-character alphabet on this page is rank 8, seven free numbers once the weight is fixed, nullity
 248 of 256 directions.
 
 Degree fifteen is the floor, where `(L+1)^2` first reaches 256. Reaching the floor is not reaching a
@@ -69,7 +69,7 @@ usable reading: the least singular value collapses to 3.5e-3 there and recovers 
 sixteen: one degree of headroom is worth 44 times in conditioning. A reading degree picked by
 counting coefficients alone lands on fifteen and reports success.
 
-Measured at full depth and no conduction, the most favorable case, in `examples/00_blob_viz_tools/frame_findings.md`.
+Measured at full depth and no conduction, the max favorable case, in `examples/00_blob_viz_tools/frame_findings.md`.
 
 ## The instance it was tested on
 
@@ -151,7 +151,7 @@ digest.
 
 The delta says the reading moved. It does not say how much of the change the reading was able to
 move for, and those are different questions. A reading is a linear map, two states give the same
-letters exactly when their difference lies in its kernel, and the part of a change lying there is
+characters exactly when their difference lies in its kernel, and the part of a change lying there is
 invisible however large it is.
 
 The visible fraction answers the second question: the share of a difference lying in the row space
@@ -191,7 +191,7 @@ misses.
 ## The reading that was corrected
 
 An earlier version of this page reported the alphabet as saturated: the delta sitting at the redraw
-level from round one, no room left to show mixing take hold, and eight letters called too coarse for
+level from round one, no room left to show mixing take hold, and eight characters called too coarse for
 the question. That was measured on the wrong object.
 
 Frames came from `digest_after`, which adds the initial values back into the working state before
@@ -200,14 +200,14 @@ applied after the round, hiding the round's own structure. The count gives it aw
 state all 378 carried words survive and on the digest none do.
 
 So the saturation was a property of the digest sequence and not of the alphabet. `rounds_of` reads
-the working state by default now and keeps the digest to compare against. The coarseness statement
+the working state by default now and retains the digest to compare against. The coarseness statement
 was withdrawn, and the counting statement in the size of the instrument replaces it, since that one
 holds whatever object is read.
 
 ## The distinctness result is close to free
 
 Sixty-four rounds wrote sixty-four distinct signatures, a coherence of 100%, with no collisions.
-This is not evidence that the letters carry meaning, and it should not be presented as a finding.
+This is not evidence that the characters carry meaning, and it should not be presented as a finding.
 
 The rank says why in one line. Seven free numbers separate sixty-four arbitrary states nearly
 always, whether the seven carry anything about the source. Distinctness here reports the
@@ -254,7 +254,7 @@ python examples/00_blob_viz_tools/octant_lex.py --read digest
 python examples/00_blob_viz_tools/octant_lex.py --top 12
 ```
 
-`--check` holds the trace to the published digest, holds the eight letters to a sum of one, counts
+`--check` holds the trace to the published digest, holds the eight characters to a sum of one, counts
 the carried words to confirm which object it is reading, and holds the delta to clearing the floor
 early and falling across the run. `--read digest` reproduces the withdrawn reading, and its own
 check asserts that no carried word survives there.

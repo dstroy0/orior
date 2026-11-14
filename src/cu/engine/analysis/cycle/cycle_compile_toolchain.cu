@@ -135,7 +135,7 @@ int cycle_linker_ready(void)
     return linker->ready;
 }
 
-// the target's text for the device and the kind of link, which names both, then the prelude
+// the target's text for the device and the type of link, which names both, then the prelude
 std::string cycle_target_source(int major, int minor, int lto)
 {
     std::string text;

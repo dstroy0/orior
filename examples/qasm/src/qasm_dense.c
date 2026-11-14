@@ -7,8 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define QASM_CHECK(condition_, evacaddr_, error_, kind_)                                                               \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_QASM, (unsigned int)__LINE__, (const void *)(evacaddr_),   \
+#define QASM_CHECK(condition_, evacaddr_, error_, type_)                                                               \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_QASM, (unsigned int)__LINE__, (const void *)(evacaddr_),   \
                        (error_))
 
 long qasm_dense_alloc(QasmDense *state, unsigned int qubits, EngineError *error)
@@ -22,7 +22,7 @@ long qasm_dense_alloc(QasmDense *state, unsigned int qubits, EngineError *error)
         return QASM_ERROR;
     }
     const unsigned long long count = 1ull << qubits;
-    // the count is at most 2^30. It fits in a size_t on every target the capacity test admits
+    // the count is at max 2^30. It fits in a size_t on every target the capacity test admits
     const int fits = (count <= (SIZE_MAX / sizeof(QasmNumber)));
     QasmNumber *const amplitudes = fits ? (QasmNumber *)malloc((size_t)count * sizeof(QasmNumber)) : NULL;
     if (QASM_CHECK(amplitudes != NULL, state, error, ENGINE_ERROR_RESOURCE) == 0)
@@ -207,15 +207,15 @@ long qasm_dense_apply(QasmDense *state, const QasmExactGate *gate, EngineError *
         return QASM_ERROR;
     }
     const int present = (state != NULL) && (state->amplitudes != NULL) && (gate != NULL);
-    const int pair = present && ((gate->kind == QASM_EXACT_GATE_CNOT) || (gate->kind == QASM_EXACT_GATE_CZ) ||
-                                 (gate->kind == QASM_EXACT_GATE_CONTROLLED_PHASE));
+    const int pair = present && ((gate->type == QASM_EXACT_GATE_CNOT) || (gate->type == QASM_EXACT_GATE_CZ) ||
+                                 (gate->type == QASM_EXACT_GATE_CONTROLLED_PHASE));
     const int numbered =
-        present && ((gate->kind == QASM_EXACT_GATE_CONTROLLED_PHASE) || (gate->kind == QASM_EXACT_GATE_ONE_QUBIT) ||
-                    (gate->kind == QASM_EXACT_GATE_TWO_QUBIT));
-    const int ok = present && (gate->kind >= QASM_EXACT_GATE_X) && (gate->kind <= QASM_EXACT_GATE_TWO_QUBIT) &&
+        present && ((gate->type == QASM_EXACT_GATE_CONTROLLED_PHASE) || (gate->type == QASM_EXACT_GATE_ONE_QUBIT) ||
+                    (gate->type == QASM_EXACT_GATE_TWO_QUBIT));
+    const int ok = present && (gate->type >= QASM_EXACT_GATE_X) && (gate->type <= QASM_EXACT_GATE_TWO_QUBIT) &&
                    (gate->first < state->qubits) && (!pair || (gate->second < state->qubits)) &&
                    (!numbered || (gate->numbers != NULL)) &&
-                   ((gate->kind != QASM_EXACT_GATE_TWO_QUBIT) || ((gate->first + 1u) < state->qubits));
+                   ((gate->type != QASM_EXACT_GATE_TWO_QUBIT) || ((gate->first + 1u) < state->qubits));
     if (QASM_CHECK(ok, gate, error, ENGINE_ERROR_REQUEST) == 0)
     {
         return QASM_ERROR;
@@ -223,7 +223,7 @@ long qasm_dense_apply(QasmDense *state, const QasmExactGate *gate, EngineError *
     const unsigned long long first = 1ull << gate->first;
     const unsigned long long second = pair ? (1ull << gate->second) : 0ull;
     long status = 0L;
-    switch (gate->kind)
+    switch (gate->type)
     {
     case QASM_EXACT_GATE_X:
         qasm_dense_x(state, first);

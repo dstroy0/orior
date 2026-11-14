@@ -77,7 +77,7 @@ int main(void)
         "  1. the root stays exact: random edge programs (1 to 6 edges, random floors, widths 1 to 12 bits, and one\n");
     mmgr_line_put(line, "     20-bit edge per extent) through lift, code, wipe, decode, lower\n");
     mmgr_line_put(
-        line, "  extent (t x z x y x)  floors  volumes  edges laid out  plain exact  edged exact  crystals changed\n");
+        line, "  extent (t x z x y x)  floors  volumes  edges arranged  plain exact  edged exact  crystals changed\n");
     sim_flush(&results);
     for (unsigned int shaped = 0u; ok && (shaped < ROOT_EXTENTS); shaped += 1u)
     {
@@ -169,12 +169,12 @@ int main(void)
     mmgr_line_decimal_columns(line, blocks, 24u);
     mmgr_line_ch(line, '\n');
     sim_flush(&results);
-    // "differs" is read on these keyed draws: tables that agree on every value the crystal contains would lay out the
+    // "differs" is read on these keyed draws: tables that agree on every value the crystal contains would arrange the
     // same crystal swapped or split. The last two checks show order and blocking on these volumes, not for every table
     sim_check(&results, folds == ROOT_FOLD_VOLUMES,
               "two edges on one floor fold into the one table that composes them");
     sim_check(&results, orders == ROOT_FOLD_VOLUMES,
-              "the fold preserves order: the swapped pair lays out a different crystal");
+              "the fold preserves order: the swapped pair arranges a different crystal");
     sim_check(&results, blocks == ROOT_FOLD_VOLUMES, "a floor between two edges blocks the fold");
 
     const unsigned int width[ROOT_COST_WIDTHS] = {2u, 4u, 8u, 12u};

@@ -18,7 +18,7 @@ typedef struct
 {
     const CarcerMovableEntry *text;
     unsigned long long bytes;
-    unsigned int start[CLI_RECENT_MOST];
+    unsigned int start[CLI_RECENT_MAX];
     unsigned int count;
     int read;
 } RecentList;
@@ -47,14 +47,14 @@ EMBED_INLINE char *recent_text_copy(const RecentCtx *args)
     return copy;
 }
 
-// the list `list` laid anew from `length` bytes of `text`, its entries a line each, an empty line none, at most
-// CLI_RECENT_MOST of them, in a cell sized to them with their ends; the list as it was where the cells cannot meet it
-EMBED_INLINE void recent_laid(const RecentCtx *args)
+// the list `list` positioned anew from `length` bytes of `text`, its entries a line each, an empty line none, at max
+// CLI_RECENT_MAX of them, in a cell sized to them with their ends; the list as it was where the cells cannot meet it
+EMBED_INLINE void recent_positioned(const RecentCtx *args)
 {
     RecentList *const list = &s_recent[args->list];
     unsigned long long bytes = 0ULL;
     unsigned int count = 0u;
-    for (unsigned long long at = 0ULL; (at < args->length) && (count < CLI_RECENT_MOST);)
+    for (unsigned long long at = 0ULL; (at < args->length) && (count < CLI_RECENT_MAX);)
     {
         unsigned long long end = at;
         while ((end < args->length) && (args->text[end] != '\n'))
@@ -65,18 +65,18 @@ EMBED_INLINE void recent_laid(const RecentCtx *args)
         count += (end > at) ? 1u : 0u;
         at = end + 1ULL;
     }
-    // the entries laid in a temporary cell, then written whole into a movable cell of the list's own
+    // the entries positioned in a temporary cell, then written whole into a movable cell of the list's own
     char *const cell = (bytes != 0ULL) ? g_cli_guard->temporary_buf_alloc(bytes, g_cli_machine_owner) : NULL;
-    const CarcerMovableEntry *const kept =
+    const CarcerMovableEntry *const retained =
         (cell != NULL) ? g_cli_guard->movable_buf_alloc(bytes, g_cli_machine_owner) : NULL;
-    if ((bytes != 0ULL) && (kept == NULL))
+    if ((bytes != 0ULL) && (retained == NULL))
     {
         g_cli_guard->persistent_buf_release(cell, g_cli_machine_owner);
         return;
     }
-    unsigned int laid = 0u;
+    unsigned int positioned = 0u;
     unsigned long long used = 0ULL;
-    for (unsigned long long at = 0ULL; (at < args->length) && (laid < count);)
+    for (unsigned long long at = 0ULL; (at < args->length) && (positioned < count);)
     {
         unsigned long long end = at;
         while ((end < args->length) && (args->text[end] != '\n'))
@@ -87,23 +87,23 @@ EMBED_INLINE void recent_laid(const RecentCtx *args)
         {
             memor.cpy(&(MemoriaCfg){.dst = cell + used, .src = args->text + at, .bytes = end - at});
             cell[used + (end - at)] = '\0';
-            // the cell is below CLI_RECENT_MOST entries of a path's length, far inside an unsigned int
-            list->start[laid] = (unsigned int)used;
+            // the cell is below CLI_RECENT_MAX entries of a path's length, far inside an unsigned int
+            list->start[positioned] = (unsigned int)used;
             used += (end - at) + 1ULL;
-            laid += 1u;
+            positioned += 1u;
         }
         at = end + 1ULL;
     }
-    if (kept != NULL)
+    if (retained != NULL)
     {
         (void)g_cli_guard->movable_buf_write(
-            &(CarcerMovableCfg){.cell = kept, .offset = 0ULL, .src = cell, .bytes = bytes});
+            &(CarcerMovableCfg){.cell = retained, .offset = 0ULL, .src = cell, .bytes = bytes});
     }
     g_cli_guard->persistent_buf_release(cell, g_cli_machine_owner);
     (void)g_cli_guard->movable_buf_release(list->text, g_cli_machine_owner);
-    list->text = kept;
+    list->text = retained;
     list->bytes = bytes;
-    list->count = laid;
+    list->count = positioned;
 }
 
 // the list `list` read from orior's folder the first time it is asked
@@ -128,7 +128,7 @@ EMBED_INLINE void recent_read(const RecentCtx *args)
         (size != CLI_STATE_NONE) ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_machine_owner) : NULL;
     if ((value != NULL) && (cli_state_entry_value(&entries, s_recent_keys[args->list], value, size + 1ULL) != NULL))
     {
-        EMBED_CALL(recent_laid, RecentCtx, .list = args->list, .text = value, .length = size);
+        EMBED_CALL(recent_positioned, RecentCtx, .list = args->list, .text = value, .length = size);
     }
     g_cli_guard->persistent_buf_release(value, g_cli_machine_owner);
     cli_state_entries_release(&entries);
@@ -176,7 +176,7 @@ void cli_recent_push(const CliRecentCfg *args)
         }
     }
     const unsigned long long written = mmgr_line_finish(&line);
-    EMBED_CALL(recent_laid, RecentCtx, .list = args->list, .text = joined, .length = written);
+    EMBED_CALL(recent_positioned, RecentCtx, .list = args->list, .text = joined, .length = written);
     char folder[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {joined + bytes, CLI_ERR_MSG_MAX_LEN, 0ULL};
     if ((written != 0ULL) && EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder))
@@ -197,10 +197,10 @@ unsigned int cli_recent_list(const CliRecentCfg *args)
     }
     EMBED_CALL(recent_read, RecentCtx, .list = args->list);
     const RecentList *const list = &s_recent[args->list];
-    // the entries read out into the caller's cell, the rows standing in it
+    // the entries read out into the caller's cell, the rows located in it
     char *const text = EMBED_CALL(recent_text_copy, RecentCtx, .list = args->list, .owner = args->owner);
     *args->cell_out = text;
-    const unsigned int count = (text == NULL) ? 0u : (list->count < args->most) ? list->count : args->most;
+    const unsigned int count = (text == NULL) ? 0u : (list->count < args->max) ? list->count : args->max;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         args->rows_out[at] = text + list->start[at];

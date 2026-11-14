@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // Extract Function in Rust and the C family: it takes its types from the language server, and says so where no
-// server serves the file, and where the selection stands in no function.
+// server serves the file, and where the selection is in no function.
 
 import { extractTyped } from "../../../gui/src-js/extract/typed.js";
 import { given, putBackAsFound, told } from "../../menus.js";
@@ -20,7 +20,7 @@ test("with no server serving the file, Extract Function in Rust and the C family
 test("a selection in no function is refused", async () => {
   const view = await given("int x = 1;|");
   await extractTyped(view, { served: true, file: "a.c" }, "c", {}, { s: view.s, doc: view.doc, head: -1 });
-  assert.ok(told(/The selection stands in no function/));
+  assert.ok(told(/The selection is in no function/));
 });
 
 test("the window is put back as the file found it", putBackAsFound);

@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // Requests: a file of HTTP requests sent from the window's own process to the harness's own server,
-// each answer shown beside it and kept, two answers compared, a request copied as curl, a curl line
-// pasted as a request, and the reader's private values kept out of git.
+// each answer displayed beside it and retained, two answers compared, a request copied as curl, a curl line
+// pasted as a request, and the reader's private values retained out of git.
 
 import { invoke } from "../../gui/src-js/bridge.js";
 import { editing, openFile } from "../../gui/src-js/edit.js";
 import { runCommand } from "../../gui/src-js/menubar.js";
 import { previewMode, setPreview } from "../../gui/src-js/preview.js";
-import { answerText, bodyText, isRequests, shownAnswers } from "../../gui/src-js/requests.js";
+import { answerText, bodyText, isRequests, displayedAnswers } from "../../gui/src-js/requests.js";
 import { showView } from "../../gui/src-js/views.js";
 
 const { test, assert, ui } = window.__harness;
@@ -27,18 +27,18 @@ async function sendAt(line, key, count) {
   editor.focus();
   const before = Date.now();
   await ui.key("Ctrl+Enter");
-  const shown = () => shownAnswers();
-  await ui.waitFor(() => shown().key === key && shown().answers[0]?.at >= before && shown().answers.length === count && pane().querySelector(".rq-send:not([disabled])"), 15000).catch((error) => {
-    throw new Error(`${error.message}: ${shown().key} shows ${shown().answers.length}, ${shown().answers.map((one) => `${one.at - before} ${one.status} ${one.failed ?? ""}`).join("; ")}`);
+  const displayed = () => displayedAnswers();
+  await ui.waitFor(() => displayed().key === key && displayed().answers[0]?.at >= before && displayed().answers.length === count && pane().querySelector(".rq-send:not([disabled])"), 15000).catch((error) => {
+    throw new Error(`${error.message}: ${displayed().key} shows ${displayed().answers.length}, ${displayed().answers.map((one) => `${one.at - before} ${one.status} ${one.failed ?? ""}`).join("; ")}`);
   });
-  return shown().answers[0];
+  return displayed().answers[0];
 }
 
 test("a file of requests is a .http or a .rest file", () => {
   assert.deepEqual(["a.http", "b.REST", "c.txt", null].map(isRequests), [true, true, false, false]);
 });
 
-test("Ctrl+Enter sends the request the cursor stands in with the environment chosen, its answer shown beside it", async () => {
+test("Ctrl+Enter sends the request the cursor is in with the environment chosen, its answer displayed beside it", async () => {
   assert.ok(server(), "the harness's server is told");
   await invoke("file_write", { path: "http-client.env.json", text: JSON.stringify({ local: { host: server(), who: "tester" } }) });
   await invoke("file_write", { path: "calls.http", text: FILE });
@@ -49,20 +49,20 @@ test("Ctrl+Enter sends the request the cursor stands in with the environment cho
   localStorage.setItem("orior.requests.env", "local");
   const answer = await sendAt(1, "Echo", 1);
   assert.equal(previewMode(), "beside", "the preview turned on");
-  assert.equal(pane().dataset.kind, "requests");
+  assert.equal(pane().dataset.type, "requests");
   assert.equal(answer.status, 200, JSON.stringify(answer).slice(0, 300));
   const echoed = JSON.parse(answer.body);
   assert.deepEqual([echoed.method, echoed.path, echoed.headers["x-who"], echoed.body], ["POST", "/echo?x=1", "tester", '{"a": 1}']);
   await ui.waitFor(() => pane().querySelector(".rq-status strong")?.textContent === "200 OK", 2000);
-  assert.match(pane().querySelector(".rq-body").textContent, /\n {2}"method": "POST"/, "JSON laid out");
+  assert.match(pane().querySelector(".rq-body").textContent, /\n {2}"method": "POST"/, "JSON arranged");
   assert.match(pane().querySelector(".rq-sent pre").textContent, new RegExp(`^POST http://${server()}/echo\\?x=1\\n`), "what was sent, its variables filled in");
 });
 
-test("each request keeps its last answers, the last first, and two of them are compared side by side", async () => {
+test("each request retains its last answers, the last first, and two of them are compared side by side", async () => {
   await sendAt(8, "Count", 1);
   const second = await sendAt(8, "Count", 2);
   assert.equal(second.body, "2", "the last first");
-  assert.equal(shownAnswers().answers[1].body, "1");
+  assert.equal(displayedAnswers().answers[1].body, "1");
   const checks = pane().querySelectorAll(".rq-history input[type=checkbox]");
   assert.equal(checks.length, 2);
   await ui.click(checks[0]);
@@ -75,8 +75,8 @@ test("each request keeps its last answers, the last first, and two of them are c
   });
   await ui.key("Escape");
   editing().editor.goTo(1, 0);
-  await ui.waitFor(() => shownAnswers().key === "Echo", 3000);
-  assert.equal(shownAnswers().answers.length, 1, "the cursor's request shows its own answers");
+  await ui.waitFor(() => displayedAnswers().key === "Echo", 3000);
+  assert.equal(displayedAnswers().answers.length, 1, "the cursor's request shows its own answers");
 });
 
 test("a redirect is followed, and an image shows as itself", async () => {
@@ -86,9 +86,9 @@ test("a redirect is followed, and an image shows as itself", async () => {
   assert.match(pane().querySelector(".rq-status").textContent, /after 1 redirect/);
   const image = await sendAt(14, "Image", 1);
   assert.equal(image.binary, true);
-  const shown = pane().querySelector(".rq-image");
-  assert.ok(shown?.src.startsWith("data:image/png;base64,"));
-  await ui.waitFor(() => shown.complete && shown.naturalWidth === 1, 2000);
+  const displayed = pane().querySelector(".rq-image");
+  assert.ok(displayed?.src.startsWith("data:image/png;base64,"));
+  await ui.waitFor(() => displayed.complete && displayed.naturalWidth === 1, 2000);
 });
 
 test("Copy as curl gives the request back as a curl line, and a curl line pasted becomes a request", async () => {
@@ -108,7 +108,7 @@ test("Copy as curl gives the request back as a curl line, and a curl line pasted
   });
 });
 
-test("Private Environment File makes the reader's own values beside the file and keeps them out of git", async () => {
+test("Private Environment File makes the reader's own values beside the file and retains them out of git", async () => {
   runCommand("private-environment");
   await ui.waitFor(() => editing().active === "http-client.private.env.json", 5000);
   assert.deepEqual(JSON.parse(editing().editor.s.doc.text()), { local: {} });
@@ -117,7 +117,7 @@ test("Private Environment File makes the reader's own values beside the file and
   setPreview("off");
 });
 
-test("an answer reads as its status line, its headers and its body, JSON laid out", () => {
+test("an answer reads as its status line, its headers and its body, JSON arranged", () => {
   const answer = { version: "HTTP/1.1", status: 200, reason: "OK", headers: [["Content-Type", "application/json"]], body: '{"a":[1]}', binary: false, size: 9 };
   assert.equal(bodyText(answer), '{\n  "a": [\n    1\n  ]\n}');
   assert.equal(answerText(answer), 'HTTP/1.1 200 OK\nContent-Type: application/json\n\n{\n  "a": [\n    1\n  ]\n}');

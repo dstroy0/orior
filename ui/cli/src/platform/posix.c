@@ -136,11 +136,11 @@ static void cli_proc_walk(const CliEachNameIsFolderCfg *args)
     mmgr_line_put(&line, args->name);
     mmgr_line_put(&line, "/stat");
     char stat[1024];
-    // the file's bytes are read as bytes into text that is read as letters
+    // the file's bytes are read as bytes into text that is read as characters
     const unsigned long long size = (mmgr_line_finish(&line) != 0ULL)
                                         ? qry_member_file_read(path, (unsigned char *)stat, sizeof(stat) - 1u)
                                         : QRY_MEMBER_UNREAD;
-    // QRY_MEMBER_UNREAD stands above every size
+    // QRY_MEMBER_UNREAD is above every size
     if ((size == 0ULL) || (size >= sizeof(stat)))
     {
         return;
@@ -252,7 +252,7 @@ int cli_output_terminal(void)
     return isatty(1);
 }
 
-// the most bytes of the words this program was started with, read where none are given
+// the max bytes of the words this program was started with, read where none are given
 #define CLI_ARGUMENTS_TEXT (1u << 16u)
 
 typedef struct
@@ -262,7 +262,7 @@ typedef struct
     unsigned int capacity;
 #endif
 } PosixCtx;
-// the words this program was started with, read of the system where its main hands none: on Linux /proc/self/cmdline,
+// the words this program was started with, read of the system where its main passes none: on Linux /proc/self/cmdline,
 // each word ended by a 0, and on macOS the words the system saved for the program
 EMBED_INLINE unsigned int cli_arguments_own(const PosixCtx *args)
 {
@@ -469,7 +469,7 @@ int cli_socket_connect(const CliErrMsgCtx *args)
     }
     const int no_delay = 1;
     setsockopt(made, IPPROTO_TCP, TCP_NODELAY, &no_delay, sizeof(no_delay));
-    // a descriptor is not negative; one past it so that 0 stands for none
+    // a descriptor is not negative; one past it so that 0 is for none
     args->sock_out->handle = (unsigned long long)made + 1ULL;
     return 1;
 }

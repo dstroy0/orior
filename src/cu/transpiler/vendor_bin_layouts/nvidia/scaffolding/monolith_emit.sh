@@ -6,7 +6,7 @@
 #
 # NVIDIA's compiler builds the tagged monolith once and its listing is the answer key. monolith_emit is linked from
 # the code generator's objects, the machine file's reader and our assembler, and reads sass.krs, the machine file and
-# the word web as they stand.
+# the word web as they are.
 #
 #     src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_emit.sh [arch]
 set -u

@@ -278,7 +278,7 @@ export async function renameSymbol() {
     }
   });
   field.addEventListener("blur", () => state.rename?.field === field && closeRename(false));
-  const hint = element("div", { className: "ed-rename-hint", textContent: "Enter renames it everywhere it is used. Escape keeps the old name." });
+  const hint = element("div", { className: "ed-rename-hint", textContent: "Enter renames it everywhere it is used. Escape retains the old name." });
   hint.style.left = field.style.left;
   hint.style.top = `${rect.bottom - host.top + 4}px`;
   editor.host.append(field, hint);
@@ -355,7 +355,7 @@ export const intelCommands = {
 };
 
 
-// A press on the fix mark: the quick fixes of the cursor's place, as they stand at the press. It is made apart from
+// A press on the fix mark: the quick fixes of the cursor's place, as they are at the press. It is made apart from
 // placeFix, so it holds nothing of the place the mark was first put at.
 function fixPressed(event) {
   event.preventDefault();
@@ -363,7 +363,7 @@ function fixPressed(event) {
   quickFix();
 }
 
-// The fix mark: shown beside the cursor's line in a served tab where a diagnostic is on it.
+// The fix mark: displayed beside the cursor's line in a served tab where a diagnostic is on it.
 function placeFix() {
   if (!state.hooks) {
     return;
@@ -414,12 +414,12 @@ export async function quickDoc() {
     return;
   }
   const { editor, s, head } = found;
-  const shown = await s.language?.hover?.(s.doc, head);
-  if (!shown?.parts?.length || editor.s !== s) {
+  const displayed = await s.language?.hover?.(s.doc, head);
+  if (!displayed?.parts?.length || editor.s !== s) {
     say("No documentation for the symbol at the cursor.");
     return;
   }
-  editor.hover.show(shown);
+  editor.hover.show(displayed);
 }
 
 // `hooks` gives the editor, the tab it shows and every tab, the text of a line of an open file,

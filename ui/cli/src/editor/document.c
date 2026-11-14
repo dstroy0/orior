@@ -20,7 +20,7 @@ typedef struct
     unsigned int lines;
 } CliJoined;
 // A search's work state, each part in a cell sized to what it holds: the text's lines joined, the units sought, and the
-// matches found, work state for as many as the joined units hold of the units sought, CLI_FIND_MATCHES at the most
+// matches found, work state for as many as the joined units hold of the units sought, CLI_FIND_MATCHES at max
 typedef struct
 {
     CliJoined joined;
@@ -31,7 +31,7 @@ typedef struct
 typedef struct
 {
     CliLines *lines_out;
-    unsigned int letter;
+    unsigned int character;
     const CliLines *lines;
     CliJoined *joined;
     unsigned short unit;
@@ -42,9 +42,9 @@ typedef struct
     const CliDocNeedle *needle;
     VerbaLinea *out;
     unsigned int line_u32;
-    unsigned int *letters;
+    unsigned int *characters;
     unsigned int *cols;
-    unsigned long long most;
+    unsigned long long max;
     CliFound3 each;
     void *context;
     VerbaLinea *err_msg;
@@ -56,13 +56,13 @@ typedef struct
 #define CLI_LONG_S 0x017fu
 #define CLI_KELVIN 0x212au
 
-// `unit` as a search without case reads it: a capital to its small letter, the long s to s, the Kelvin sign to k, and
+// `unit` as a search without case reads it: a capital to its small character, the long s to s, the Kelvin sign to k, and
 // every other unit itself
 EMBED_INLINE unsigned short cli_unit_folded(const DocumentCtx *args)
 {
     if ((args->unit >= 0x41u) && (args->unit <= 0x5au))
     {
-        // a capital and its small letter differ in the one bit 0x20
+        // a capital and its small character differ in the one bit 0x20
         return (unsigned short)(args->unit | 0x20u);
     }
     if (args->unit == CLI_LONG_S)
@@ -76,26 +76,26 @@ EMBED_INLINE unsigned short cli_unit_folded(const DocumentCtx *args)
     return args->unit;
 }
 
-// a letter put after the lines' units, as UTF-16
+// a character put after the lines' units, as UTF-16
 EMBED_INLINE void cli_unit_append(const DocumentCtx *args)
 {
-    const unsigned long long need = (args->letter > 0xffffu) ? 2ULL : 1ULL;
+    const unsigned long long need = (args->character > 0xffffu) ? 2ULL : 1ULL;
     if ((args->lines_out->used + need) > args->lines_out->units_max)
     {
         args->lines_out->full = 1;
         return;
     }
-    if (args->letter > 0xffffu)
+    if (args->character > 0xffffu)
     {
-        const unsigned int rest = args->letter - 0x10000u;
+        const unsigned int rest = args->character - 0x10000u;
         // each half of a pair of surrogates is below 2^16
         args->lines_out->unit[args->lines_out->used] = (unsigned short)(0xd800u + (rest >> 10u));
         args->lines_out->unit[args->lines_out->used + 1ULL] = (unsigned short)(0xdc00u + (rest & 0x3ffu));
     }
     else
     {
-        // a letter of the basic plane is below 2^16
-        args->lines_out->unit[args->lines_out->used] = (unsigned short)args->letter;
+        // a character of the basic plane is below 2^16
+        args->lines_out->unit[args->lines_out->used] = (unsigned short)args->character;
     }
     args->lines_out->used += need;
 }
@@ -134,11 +134,11 @@ void cli_document_lines_get(const CliDocumentTextSizeCfg *args)
         }
         for (unsigned long long place = at; place < (at + length);)
         {
-            unsigned int letter = 0u;
-            place += EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+            unsigned int character = 0u;
+            place += EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                                 .text_bytes = (const unsigned char *)args->text, .length = at + length, .at = place,
-                                .letter = &letter);
-            EMBED_CALL(cli_unit_append, DocumentCtx, .lines_out = lines, .letter = letter);
+                                .character = &character);
+            EMBED_CALL(cli_unit_append, DocumentCtx, .lines_out = lines, .character = character);
         }
         lines->length[lines->lines] = lines->used - lines->start[lines->lines];
         lines->lines += 1u;
@@ -160,22 +160,22 @@ CliShape cli_document_shape_get(const CliDocumentLinesOutCfg *args)
     return shape;
 }
 
-unsigned int cli_document_unit_letter(const CliDocumentUnitsCfg *args)
+unsigned int cli_document_unit_character(const CliDocumentUnitsCfg *args)
 {
     unsigned long long *consumed = args->consumed;
-    unsigned int letter = args->units[args->at];
+    unsigned int character = args->units[args->at];
     *consumed = 1ULL;
-    if ((letter >= 0xd800u) && (letter <= 0xdbffu) && ((args->at + 1ULL) < args->count) &&
+    if ((character >= 0xd800u) && (character <= 0xdbffu) && ((args->at + 1ULL) < args->count) &&
         (args->units[args->at + 1ULL] >= 0xdc00u) && (args->units[args->at + 1ULL] <= 0xdfffu))
     {
-        letter = 0x10000u + ((letter - 0xd800u) << 10u) + (args->units[args->at + 1ULL] - 0xdc00u);
+        character = 0x10000u + ((character - 0xd800u) << 10u) + (args->units[args->at + 1ULL] - 0xdc00u);
         *consumed = 2ULL;
     }
-    else if ((letter >= 0xd800u) && (letter <= 0xdfffu))
+    else if ((character >= 0xd800u) && (character <= 0xdfffu))
     {
-        letter = 0xfffdu;
+        character = 0xfffdu;
     }
-    return letter;
+    return character;
 }
 
 void cli_document_units_write(const CliDocumentUnitsCountCfg *args)
@@ -186,12 +186,12 @@ void cli_document_units_write(const CliDocumentUnitsCountCfg *args)
     while (at < args->count)
     {
         unsigned long long consumed = 0ULL;
-        const unsigned int letter =
-            EMBED_CALL(cli_document_units.unit_letter, CliDocumentUnitsCfg, .units = args->units, .count = args->count,
+        const unsigned int character =
+            EMBED_CALL(cli_document_units.unit_character, CliDocumentUnitsCfg, .units = args->units, .count = args->count,
                        .at = at, .consumed = &consumed);
         at += consumed;
         VerbaLinea one = {bytes, sizeof(bytes), 0ULL};
-        EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &one, .letter = letter);
+        EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &one, .character = character);
         EMBED_CALL(cli_json_tree_length_out.json_escaped_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
                    .text_bytes = (const unsigned char *)bytes, .length = one.at);
     }
@@ -204,11 +204,11 @@ void cli_document_units_utf8(const CliDocumentUnitsCountCfg *args)
     while (at < args->count)
     {
         unsigned long long consumed = 0ULL;
-        const unsigned int letter =
-            EMBED_CALL(cli_document_units.unit_letter, CliDocumentUnitsCfg, .units = args->units, .count = args->count,
+        const unsigned int character =
+            EMBED_CALL(cli_document_units.unit_character, CliDocumentUnitsCfg, .units = args->units, .count = args->count,
                        .at = at, .consumed = &consumed);
         at += consumed;
-        EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = args->out, .letter = letter);
+        EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = args->out, .character = character);
     }
 }
 
@@ -255,7 +255,7 @@ EMBED_INLINE void cli_joined_let_go(const DocumentCtx *args)
     *joined = (CliJoined){NULL, 0ULL, NULL, 0u};
 }
 
-// a word's letter as find reads one for whole words, where it is ASCII: a letter, a digit, `_` or `$`: 1 or 0, or -1
+// a word's character as find reads one for whole words, where it is ASCII: a character, a digit, `_` or `$`: 1 or 0, or -1
 // for a unit outside ASCII, which the regular expressions' tables read
 EMBED_INLINE int cli_word_unit(const DocumentCtx *args)
 {
@@ -281,17 +281,17 @@ EMBED_INLINE int cli_span_is_whole_word(const DocumentCtx *args)
     return !before && !after;
 }
 
-// the most matches found that are buffered until the sift's search is known to be whole
+// the max matches found that are buffered until the sift's search is known to be whole
 #define CLI_FIND_MATCHES (1u << 20u)
 
-// whether `letter` is a letter of a word as find reads one for whole words: a letter, a number, `_` or `$`
-EMBED_INLINE int cli_word_letter(const DocumentCtx *args)
+// whether `character` is a character of a word as find reads one for whole words: a character, a number, `_` or `$`
+EMBED_INLINE int cli_word_character(const DocumentCtx *args)
 {
-    unsigned int letter = args->letter;
-    return (letter == '_') || (letter == '$') ||
-           EMBED_CALL(cli_regexp_letter.property, CliRegexpLetterCfg, .property = CLI_REGEXP_LETTER,
-                      .letter = letter) ||
-           EMBED_CALL(cli_regexp_letter.property, CliRegexpLetterCfg, .property = CLI_REGEXP_NUMBER, .letter = letter);
+    unsigned int character = args->character;
+    return (character == '_') || (character == '$') ||
+           EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg, .property = CLI_REGEXP_CHARACTER,
+                      .character = character) ||
+           EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg, .property = CLI_REGEXP_NUMBER, .character = character);
 }
 
 // the query of `needle` written into `out` as a pattern's source: the query itself where it is a pattern, else with
@@ -309,9 +309,9 @@ EMBED_INLINE void cli_pattern_source(const DocumentCtx *args)
                .set = s_signs, .mark = '\\');
 }
 
-// the line `line` of `lines` as code points into `letters`, each one's col in UTF-16 units into `cols` and the line's
+// the line `line` of `lines` as code points into `characters`, each one's col in UTF-16 units into `cols` and the line's
 // length after the last: how many
-EMBED_INLINE unsigned long long cli_line_letters(const DocumentCtx *args)
+EMBED_INLINE unsigned long long cli_line_characters(const DocumentCtx *args)
 {
     const unsigned short *const unit = args->lines->unit + args->lines->start[args->line_u32];
     const unsigned long long length = args->lines->length[args->line_u32];
@@ -321,28 +321,28 @@ EMBED_INLINE unsigned long long cli_line_letters(const DocumentCtx *args)
     {
         const int paired = (unit[place] >= 0xd800u) && (unit[place] < 0xdc00u) && ((place + 1ULL) < length) &&
                            (unit[place + 1ULL] >= 0xdc00u) && (unit[place + 1ULL] < 0xe000u);
-        // a line's cols stand below its length, which an unsigned int counts
+        // a line's cols are below its length, which an unsigned int counts
         args->cols[count] = (unsigned int)place;
-        args->letters[count] =
+        args->characters[count] =
             paired ? (0x10000u + ((unit[place] - 0xd800u) << 10u) + (unit[place + 1ULL] - 0xdc00u)) : unit[place];
         place += paired ? 2ULL : 1ULL;
         count += 1ULL;
     }
-    // the length stands below 2^32, as a line's cols do
+    // the length is below 2^32, as a line's cols do
     args->cols[count] = (unsigned int)length;
     return count;
 }
 
 // the matches of `needle` read as a pattern by the regular expressions the colorer reads, under the `u` flag, and `i`
 // where it runs without case, the `u` let go where the pattern reads only without it and whole words are not sought, as
-// the page's find reads one: each line matched from each letter a match can start at, a match of no letters passed
-// over and one that is no whole word where whole words are sought, each handed to `each` with its line and its cols in
-// UTF-16 units, the lines searched whole until one ends with `most` found: 1, or 0 with why given where the pattern
+// the page's find reads one: each line matched from each character a match can start at, a match of no characters passed
+// over and one that is no whole word where whole words are sought, each passed to `each` with its line and its cols in
+// UTF-16 units, the lines searched whole until one ends with `max` found: 1, or 0 with why given where the pattern
 // does not read or the cells cannot meet it
 static int cli_found_pattern(const DocumentCtx *args)
 {
     VerbaLinea *err_msg = args->err_msg;
-    char source[2u * CLI_REGEXP_LETTERS];
+    char source[2u * CLI_REGEXP_CHARACTERS];
     VerbaLinea written = {source, sizeof(source), 0ULL};
     EMBED_CALL(cli_pattern_source, DocumentCtx, .needle = args->needle, .out = &written);
     if (mmgr_line_finish(&written) == 0ULL)
@@ -362,8 +362,8 @@ static int cli_found_pattern(const DocumentCtx *args)
         mmgr_line_put(err_msg, "the text could not be searched: the cells cannot meet it");
         return 0;
     }
-    unsigned int *const letters = (unsigned int *)(void *)(cell + sizeof(CliRegexpWorkState));
-    unsigned int *const cols = letters + longest + 1ULL;
+    unsigned int *const characters = (unsigned int *)(void *)(cell + sizeof(CliRegexpWorkState));
+    unsigned int *const cols = characters + longest + 1ULL;
     CliRegexp regexp;
     EMBED_CALL(cli_regexp_capacity.capacity, CliRegexpWorkStateCfg, .regexp_out = &regexp,
                .work_state = (CliRegexpWorkState *)(void *)cell);
@@ -379,25 +379,25 @@ static int cli_found_pattern(const DocumentCtx *args)
                           .flags = args->needle->match_case ? "" : "i", .err_msg = err_msg);
     }
     unsigned long long found = 0ULL;
-    for (unsigned int line = 0u; read && (line < args->lines->lines) && (found < args->most); line += 1u)
+    for (unsigned int line = 0u; read && (line < args->lines->lines) && (found < args->max); line += 1u)
     {
-        const unsigned long long count = EMBED_CALL(cli_line_letters, DocumentCtx, .lines = args->lines,
-                                                    .line_u32 = line, .letters = letters, .cols = cols);
+        const unsigned long long count = EMBED_CALL(cli_line_characters, DocumentCtx, .lines = args->lines,
+                                                    .line_u32 = line, .characters = characters, .cols = cols);
         for (unsigned long long at = 0ULL; at < count;)
         {
             CliRegexpSpan groups[CLI_REGEXP_GROUPS + 1u];
             const int starts = (!regexp.anchored || (at == 0ULL)) &&
                                (regexp.first.empty || EMBED_CALL(cli_regexp.allows, CliRegexpCfg,
-                                                                 .first = &regexp.first, .letter = letters[at]));
+                                                                 .first = &regexp.first, .character = characters[at]));
             const int matched = starts &&
                                 EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = &regexp,
-                                           .text_u32s = letters, .length = count, .at = at, .groups = groups) &&
+                                           .text_u32s = characters, .length = count, .at = at, .groups = groups) &&
                                 (groups[0].to > groups[0].from);
             const unsigned long long to = matched ? groups[0].to : at;
             const int whole =
                 !args->needle->word_text ||
-                (((at == 0ULL) || !EMBED_CALL(cli_word_letter, DocumentCtx, .letter = letters[at - 1ULL])) &&
-                 ((to == count) || !EMBED_CALL(cli_word_letter, DocumentCtx, .letter = letters[to])));
+                (((at == 0ULL) || !EMBED_CALL(cli_word_character, DocumentCtx, .character = characters[at - 1ULL])) &&
+                 ((to == count) || !EMBED_CALL(cli_word_character, DocumentCtx, .character = characters[to])));
             if (matched && whole)
             {
                 EMBED_CALL(args->each, CliFound3Cfg, .context = args->context, .line = line, .from = cols[at],
@@ -413,7 +413,7 @@ static int cli_found_pattern(const DocumentCtx *args)
     return read;
 }
 
-// the search of `size` units sought through the work state's lines joined, the lines `lines`, each match handed to
+// the search of `size` units sought through the work state's lines joined, the lines `lines`, each match passed to
 // `each`, searched again as a pattern where whole words are sought and a unit beside a match is outside ASCII: 1, or 0
 // with why given
 EMBED_INLINE int cli_found_each(const DocumentCtx *args);
@@ -427,7 +427,7 @@ int cli_document_find_each(const CliDocumentLinesCfg *args)
     if (args->needle->regex || (!args->needle->match_case && !ascii))
     {
         return EMBED_CALL(cli_found_pattern, DocumentCtx, .lines = args->lines, .needle = args->needle,
-                          .most = args->most, .each = args->each, .context = args->context, .err_msg = args->err_msg);
+                          .max = args->max, .each = args->each, .context = args->context, .err_msg = args->err_msg);
     }
     const unsigned long long query_size =
         cellul.len(&(CatenaFinitaCfg){.src = args->needle->query, .cap = CLI_POOL_BYTES});
@@ -445,15 +445,15 @@ int cli_document_find_each(const CliDocumentLinesCfg *args)
     unsigned long long size = 0ULL;
     for (unsigned long long at = 0ULL; at < query_size;)
     {
-        unsigned int letter = 0u;
-        at += EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+        unsigned int character = 0u;
+        at += EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                          .text_bytes = (const unsigned char *)args->needle->query, .length = query_size, .at = at,
-                         .letter = &letter);
-        const unsigned long long need = (letter > 0xffffu) ? 2ULL : 1ULL;
-        // each unit of a letter is below 2^16
+                         .character = &character);
+        const unsigned long long need = (character > 0xffffu) ? 2ULL : 1ULL;
+        // each unit of a character is below 2^16
         work_state.required[size] =
-            (unsigned short)((letter > 0xffffu) ? (0xd800u + ((letter - 0x10000u) >> 10u)) : letter);
-        work_state.required[size + 1ULL] = (unsigned short)(0xdc00u + ((letter - 0x10000u) & 0x3ffu));
+            (unsigned short)((character > 0xffffu) ? (0xd800u + ((character - 0x10000u) >> 10u)) : character);
+        work_state.required[size + 1ULL] = (unsigned short)(0xdc00u + ((character - 0x10000u) & 0x3ffu));
         size += need;
     }
     int newline = 0;
@@ -479,7 +479,7 @@ int cli_document_find_each(const CliDocumentLinesCfg *args)
     const int done =
         with_capacity &&
         (!needle_any || EMBED_CALL(cli_found_each, DocumentCtx, .work_state = &work_state, .lines = args->lines,
-                                   .size = size, .needle = args->needle, .most = args->most, .each = args->each,
+                                   .size = size, .needle = args->needle, .max = args->max, .each = args->each,
                                    .context = args->context, .err_msg = args->err_msg));
     g_cli_guard->persistent_buf_release(work_state.match, g_cli_editor_owner);
     EMBED_CALL(cli_joined_let_go, DocumentCtx, .joined = &work_state.joined);
@@ -487,15 +487,15 @@ int cli_document_find_each(const CliDocumentLinesCfg *args)
     return done;
 }
 
-// A search's walk over the joined units as the sift hands each offset it finds the needle at: the matches taken in
+// A search's walk over the joined units as the sift passes each offset it finds the needle at: the matches taken in
 // order, each past the one before, on a unit's boundary, a whole word where one is sought, as the page searches each
-// line whole and stops before the first line it starts with `most` found
+// line whole and stops before the first line it starts with `max` found
 typedef struct
 {
     CliFindWorkState *work_state;
     const CliDocNeedle *needle;
     unsigned long long size;
-    unsigned long long most;
+    unsigned long long max;
     unsigned long long found;
     unsigned int line;
     unsigned int last;
@@ -549,7 +549,7 @@ static void cli_found_at(const CliEachAtCfg *args)
         walk->work_state->match[walk->found][2] = to;
     }
     walk->found += 1ULL;
-    if ((walk->found >= walk->most) && (walk->last == 0xffffffffu))
+    if ((walk->found >= walk->max) && (walk->last == 0xffffffffu))
     {
         walk->last = walk->line;
     }
@@ -559,7 +559,7 @@ static void cli_found_at(const CliEachAtCfg *args)
 EMBED_INLINE int cli_found_each(const DocumentCtx *args)
 {
     // a search without case folds the work state's units and the needle's first, each unit to the one the page's search
-    // folds it to, and the sift reads them as they are: the units searched as their bytes, the needle's laid the same
+    // folds it to, and the sift reads them as they are: the units searched as their bytes, the needle's positioned the same
     // way, a match starting on an even byte; a text within one of the sift's windows goes by Horspool's shifts and a
     // longer one by the sift's plan
     if (!args->needle->match_case)
@@ -575,7 +575,7 @@ EMBED_INLINE int cli_found_each(const DocumentCtx *args)
                 EMBED_CALL(cli_unit_folded, DocumentCtx, .unit = args->work_state->required[at]);
         }
     }
-    CliFindWalk walk = {args->work_state, args->needle, args->size, args->most, 0ULL, 0u, 0xffffffffu, 0ULL, 0, 0};
+    CliFindWalk walk = {args->work_state, args->needle, args->size, args->max, 0ULL, 0u, 0xffffffffu, 0ULL, 0, 0};
     (void)EMBED_CALL(
         cli_sift_length.find_all, CliSiftLengthCfg, .text = (const unsigned char *)args->work_state->joined.unit,
         .length = args->work_state->joined.used * 2ULL, .needle = (const unsigned char *)args->work_state->required,
@@ -620,7 +620,7 @@ int cli_document_find_in(const CliDocumentLinesOutCfg *args)
     CliMatchesOut matches = {args->out, 0ULL};
     const int found =
         EMBED_CALL(cli_document_lines.find_each, CliDocumentLinesCfg, .lines = args->lines, .needle = args->needle,
-                   .most = args->most, .each = cli_match_write, .context = &matches, .err_msg = args->err_msg);
+                   .max = args->max, .each = cli_match_write, .context = &matches, .err_msg = args->err_msg);
     mmgr_line_ch(args->out, ']');
     args->out->at = found ? args->out->at : start;
     return found;

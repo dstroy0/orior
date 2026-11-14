@@ -64,7 +64,7 @@ async function released(key) {
 }
 
 async function measured() {
-  // what the page keeps, its garbage collected first
+  // what the page retains, its garbage collected first
   await ui.gc();
   const read = await invoke("memory_usage");
   // the bytes the window's own process and the web view's have committed, each by its name, not their working
@@ -155,7 +155,7 @@ test("a large text is stored on the window's side, each change follows it there,
   }
   // Closed, its tab's text is let go on the window's side. The tab strip is drawn again as the marks
   // come, and the editing claims the window's edges, so each press is by the close button's selector:
-  // the press brings the strip back from its edge and finds the button as it then stands.
+  // the press brings the strip back from its edge and finds the button as it then is.
   const mark = `#tabs .tab .close[title="mirrored/mirrored.py"]`;
   const closer = () => document.querySelector(mark);
   // a press brings the strip back, one asks again of a changed tab, one closes it
@@ -166,7 +166,7 @@ test("a large text is stored on the window's side, each change follows it there,
   await ui.waitFor(() => !closer(), 3000).catch((error) => {
     const box = closer()?.getBoundingClientRect();
     const at = box ? document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2) : null;
-    throw new Error(`${error.message}; the close at ${box ? `${Math.round(box.left)},${Math.round(box.top)} ${Math.round(box.width)}x${Math.round(box.height)}` : "nowhere"}, shown ${closer()?.checkVisibility()}, under it ${at?.outerHTML.slice(0, 160)}; sheet ${document.querySelector("dialog[open]")?.textContent.slice(0, 200)}; status ${document.getElementById("status-said")?.textContent}`);
+    throw new Error(`${error.message}; the close at ${box ? `${Math.round(box.left)},${Math.round(box.top)} ${Math.round(box.width)}x${Math.round(box.height)}` : "nowhere"}, displayed ${closer()?.checkVisibility()}, under it ${at?.outerHTML.slice(0, 160)}; sheet ${document.querySelector("dialog[open]")?.textContent.slice(0, 200)}; status ${document.getElementById("status-said")?.textContent}`);
   });
   assert.ok(await released(mirrored.key), "no branch is stored under its key");
 });

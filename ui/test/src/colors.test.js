@@ -19,7 +19,7 @@ test("a variable's color is read as red, green and blue", () => {
   }
 });
 
-test("a color with alpha keeps its alpha", () => {
+test("a color with alpha retains its alpha", () => {
   root.setProperty("--harness-color", "rgba(1, 2, 3, 0.5)");
   notifyScheme();
   try {
@@ -42,13 +42,13 @@ test("a variable that holds no color reads as black", () => {
   }
 });
 
-test("a color is kept until the scheme or a theme changes", () => {
+test("a color is retained until the scheme or a theme changes", () => {
   root.setProperty("--harness-color", "#010203");
   notifyScheme();
   try {
     assert.deepEqual(rgbOf("--harness-color"), [1, 2, 3]);
     root.setProperty("--harness-color", "#040506");
-    assert.deepEqual(rgbOf("--harness-color"), [1, 2, 3], "kept");
+    assert.deepEqual(rgbOf("--harness-color"), [1, 2, 3], "retained");
     notifyScheme();
     assert.deepEqual(rgbOf("--harness-color"), [4, 5, 6], "read again");
   } finally {

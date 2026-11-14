@@ -97,20 +97,20 @@ extern "C" int krep_limbs_read(FILE *file, unsigned int *limbs, size_t count)
     return 1;
 }
 
-extern "C" int krep_head_write(FILE *file, const char *kind)
+extern "C" int krep_head_write(FILE *file, const char *type)
 {
     const unsigned int version = KREP_VERSION;
-    return (fwrite(KREP_MAGIC, 1u, 8u, file) == 8u) && (fwrite(kind, 1u, 4u, file) == 4u) &&
+    return (fwrite(KREP_MAGIC, 1u, 8u, file) == 8u) && (fwrite(type, 1u, 4u, file) == 4u) &&
            (krep_limbs_write(file, &version, 1u) != 0);
 }
 
-extern "C" int krep_head_read(FILE *file, const char *kind)
+extern "C" int krep_head_read(FILE *file, const char *type)
 {
     unsigned char magic[8];
     char named[4];
     unsigned int version = 0u;
     return (fread(magic, 1u, 8u, file) == 8u) && (memcmp(magic, KREP_MAGIC, 8u) == 0) &&
-           (fread(named, 1u, 4u, file) == 4u) && (memcmp(named, kind, 4u) == 0) &&
+           (fread(named, 1u, 4u, file) == 4u) && (memcmp(named, type, 4u) == 0) &&
            (krep_limbs_read(file, &version, 1u) != 0) && (version == KREP_VERSION);
 }
 

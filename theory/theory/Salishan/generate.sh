@@ -15,7 +15,7 @@
 # Each prints "  wrote <path>" for every file it rewrites, and build_theory.sh shows those.
 #
 # The corpora and papers they read are under build/, which is not tracked. Where build/corpora is
-# absent the generated files stand as they are tracked, and this says so and succeeds.
+# absent the generated files are as they are tracked, and this says so and succeeds.
 set -u
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -27,7 +27,7 @@ esac
 export PYTHONIOENCODING=utf-8
 
 if [ ! -d "$TOP/build/corpora" ]; then
-    echo "  Salishan: no build/corpora, the generated files stand as tracked"
+    echo "  Salishan: no build/corpora, the generated files are as tracked"
     exit 0
 fi
 

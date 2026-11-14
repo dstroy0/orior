@@ -11,13 +11,13 @@
 // instruction by instruction: the assembler and the disassembler agree on every operation the comparison counts.
 //
 // Each operation is stored as a number, the place of its name in the run's table of names, and compared as one. Every
-// file is read as the run stores it (kfile_lines.h), and the record is handed to the run's writer, which writes it.
+// file is read as the run stores it (kfile_lines.h), and the record is passed to the run's writer, which writes it.
 //
 //     orior_measuring_stick_read <nvcc listing> <manifest> <sass.krs> <record> [<engine.tsv> <engine directory>]
 #include "measuring_stick_read/stick_internal.h"
 #include "verba_scribo/verba_scribo.h"
 
-// the record, written into s_record_bytes and handed whole to the run's writer, `s_record_at` bytes so far, the room
+// the record, written into s_record_bytes and passed whole to the run's writer, `s_record_at` bytes so far, the room
 // once a write did not fit
 static char s_record_bytes[QRY_WRITER_RING_BYTES / 2ull];
 static size_t s_record_at;
@@ -126,7 +126,7 @@ int main(int argc, char **argv)
         operations_room = s_names + 1u;
     }
 
-    // by category, in the order each first stands; and each operation no form writes, the kernels it is in
+    // by category, in the order each first is; and each operation no form writes, the kernels it is in
     const char **const category = (const char **)stick_allocated(calloc(sticks + 1u, sizeof(char *)));
     unsigned int *const category_kernels = (unsigned int *)stick_allocated(calloc(sticks + 1u, sizeof(unsigned int)));
     unsigned int *const category_instructions =
@@ -253,7 +253,7 @@ int main(int argc, char **argv)
             s_record_at = stick_counts_written(s_record_bytes, sizeof(s_record_bytes), s_record_at, order, count, other);
             record_text(" |\n");
         }
-        // the questions the engine puts: each note, the kernels that put it and the first of them, the most first
+        // the questions the engine puts: each note, the kernels that put it and the first of them, the max first
         char **const note = (char **)stick_allocated(calloc(sticks + 1u, sizeof(char *)));
         unsigned int *const note_kernels = (unsigned int *)stick_allocated(calloc(sticks + 1u, sizeof(unsigned int)));
         unsigned int *const note_first = (unsigned int *)stick_allocated(calloc(sticks + 1u, sizeof(unsigned int)));

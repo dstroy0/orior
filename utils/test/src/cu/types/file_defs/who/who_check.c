@@ -3,7 +3,7 @@
 // who_check.c: a who checked against what the who table gives (who.h)
 //
 //   here       the who of a line of this file numbers this file, gives the line, and numbers this program's source
-//   code       a who's code reads back as the who it was made from, and a code of other letters is none
+//   code       a who's code reads back as the who it was made from, and a code of other characters is none
 //   named      a who named through the table gives this file's path and line, and the program's source
 //   filed      a file written through the run's writer is the run's, read back as the run stores it
 //
@@ -44,13 +44,13 @@ int main(int count, char **words)
     check_that(here.program == here.source, "and numbers this program's source, this file");
     check_that(here.time != 0ull, "and gives the time");
 
-    char code[WHO_CODE_LETTERS + 1u];
+    char code[WHO_CODE_CHARACTERS + 1u];
     who_code(here, code, sizeof(code));
     Who again;
     check_that(who_read(code, &again) && (again.source == here.source) && (again.line == here.line) &&
                    (again.program == here.program) && (again.time == here.time),
                "a who's code reads back as the who it was made from");
-    check_that(!who_read("not a code", &again), "a code of other letters is none");
+    check_that(!who_read("not a code", &again), "a code of other characters is none");
 
     char named[2400];
     char expected[128];

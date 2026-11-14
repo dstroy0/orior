@@ -132,8 +132,8 @@ struct Decoding
     void pair_closed();
     // the bridge folded line by line, each pair closed in its turn
     void bridge_folded();
-    // the bridge written handed to the run's writer for `klq`: 0, or 1 where it was not handed
-    int bridge_handed(const char *klq);
+    // the bridge written passed to the run's writer for `klq`: 0, or 1 where it was not passed
+    int bridge_passed(const char *klq);
     // each pair's lights, the choices, the concepts shared and each set's rows printed
     void printed(const char *klq);
 };

@@ -11,7 +11,7 @@ if [ ! -f "$ENGINE/engine_config.h" ]; then
     exit 1
 fi
 
-# the top of the repository TOP stands in, the project's own where it takes orior as a submodule, where every build
+# the top of the repository TOP is in, the project's own where it takes orior as a submodule, where every build
 # goes under build/; TOP itself where git gives none
 BUILD_ROOT="$(git -C "$TOP" rev-parse --show-toplevel 2> /dev/null)"
 [ -n "$BUILD_ROOT" ] || BUILD_ROOT="$TOP"
@@ -45,7 +45,7 @@ if [ "${COMPILE_CACHE:-1}" != 0 ] && [ -n "$COMPILE_CACHE_NVCC" ] && [ -n "$COMP
     }
 fi
 
-# the host compiler a program built on the host (CYCLE_RECORD_HOST_C=1) is compiled by: on Windows nvcc, handed
+# the host compiler a program built on the host (CYCLE_RECORD_HOST_C=1) is compiled by: on Windows nvcc, passed
 # MSVC's folder as CYCLE_HOST_CCBIN, found as the suites find it
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)

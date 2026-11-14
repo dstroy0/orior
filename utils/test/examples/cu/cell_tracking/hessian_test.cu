@@ -4,7 +4,7 @@
 // The scan's hessian, faces and drift (cell_tracking/src/peaks/hessian and cell_tracking/src/scan/drift). Every voxel
 // of a drawn exact residual is taken as a point, in descending order. The device's six second differences are checked
 // against the exact integer library's at 1, 9, 10 and 12 limbs. The fields mix zeros, small and half-width values of
-// both signs, and the most and least values each width represents. Each point's faces are checked against the host's,
+// both signs, and the max and least values each width represents. Each point's faces are checked against the host's,
 // and a difference whose axes meet a face is zero. The frame's positive set, packed on the device, is the host's bit
 // for bit, with its count. The drift's weights are sigma squared, sigma being the voxel's size over the sizes' greatest
 // common divisor; for voxel_pm 1625000, 406250, 406250 they are 16, 1, 1. The engine's drift on the device
@@ -44,7 +44,7 @@
 
 #define HESSIAN_TEST_DENSITIES 8ull
 
-// the most the test puts on the device at once: the residual, the points, their faces and differences, the drift's
+// the max the test puts on the device at once: the residual, the points, their faces and differences, the drift's
 // volumes, and the positive sets
 #define HESSIAN_TEST_DECLARED                                                                                          \
     (((unsigned long long)HESSIAN_TEST_VOXELS_MAX *                                                                    \
@@ -80,17 +80,17 @@ static void hessian_test_value(unsigned long long key, unsigned long long voxel,
                                unsigned int *residual)
 {
     const unsigned long long draw = sim_draw(key, voxel);
-    // a remainder below the kinds' count fits unsigned int
-    const unsigned int kind = (unsigned int)(draw % HESSIAN_TEST_KINDS);
+    // a remainder below the types' count fits unsigned int
+    const unsigned int type = (unsigned int)(draw % HESSIAN_TEST_KINDS);
     // a remainder below 3, plus one, fits unsigned int
     const unsigned int small = 1u + (unsigned int)((draw >> 8u) % 3ull);
     const unsigned int middle = limbs / 2u;
     memset(residual, 0, limbs * sizeof(unsigned int));
-    if (kind == 1u)
+    if (type == 1u)
     {
         residual[0] = small;
     }
-    else if (kind == 2u)
+    else if (type == 2u)
     {
         for (unsigned int limb = 1u; limb < limbs; limb += 1u)
         {
@@ -98,22 +98,22 @@ static void hessian_test_value(unsigned long long key, unsigned long long voxel,
         }
         residual[0] = 0u - small;
     }
-    else if (kind == 3u)
+    else if (type == 3u)
     {
         residual[middle] = small;
     }
-    else if (kind == 4u)
+    else if (type == 4u)
     {
         residual[middle] = 1u;
         residual[0] = small;
     }
-    else if (kind == 5u)
+    else if (type == 5u)
     {
         residual[0] = small;
         // the high half of the draw, shifted down, is below 2^32
         residual[limbs - 1u] = 0x80000000u | (unsigned int)(draw >> 32u);
     }
-    else if (kind == 6u)
+    else if (type == 6u)
     {
         for (unsigned int limb = 0u; limb < limbs; limb += 1u)
         {
@@ -121,7 +121,7 @@ static void hessian_test_value(unsigned long long key, unsigned long long voxel,
         }
         residual[limbs - 1u] = 0x7FFFFFFFu;
     }
-    else if (kind == 7u)
+    else if (type == 7u)
     {
         residual[limbs - 1u] = 0x80000000u;
     }

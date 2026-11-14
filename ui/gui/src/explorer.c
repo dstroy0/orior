@@ -1,14 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// explorer.c: the explorer's rows as the listing stands. A file's mark is its type's as the page's icons draw them,
-// else the first two letters of its type quieter
+// explorer.c: the explorer's rows as the listing is. A file's mark is its type's as the page's icons draw them,
+// else the first two characters of its type quieter
 #include "explorer.h"
 
 #include "../../cli/src/command_line/cli_internal.h"
 #include "../../cli/src/editor/view.h"
 #include "../../cli/src/text/text.h"
 
-// A mark: the type or name it stands for, its text, and which of the palette's mark colors it takes, 0 for the
+// A mark: the type or name it is for, its text, and which of the palette's mark colors it takes, 0 for the
 // quieter text color
 typedef struct
 {
@@ -210,7 +210,7 @@ EMBED_INLINE int explorer_icon_color(const GuiExplorerMarkCfg *args)
 }
 
 // the mark of the file `name`, `length` bytes, its text into `text`, sized GUI_EXPLORER_MARK_MAX, and the mark's
-// color, 0 for the quieter one; the theme's icon stands first where one covers the name
+// color, 0 for the quieter one; the theme's icon is first where one covers the name
 unsigned int gui_explorer_mark(const GuiExplorerMarkCfg *args)
 {
     char *text = args->text;
@@ -242,7 +242,7 @@ unsigned int gui_explorer_mark(const GuiExplorerMarkCfg *args)
             return s_named[at].color;
         }
     }
-    // the type is what follows the last dot after the first letter; a name of dots alone has none
+    // the type is what follows the last dot after the first character; a name of dots alone has none
     const unsigned long long past_dot = (saved > 1ULL)
                                             ? EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
                                                          .text = lower + 1, .at = saved - 1ULL, .set = ".")
@@ -259,7 +259,7 @@ unsigned int gui_explorer_mark(const GuiExplorerMarkCfg *args)
             return s_marks[at].color;
         }
     }
-    // the quieter mark: the first two letters of the type, or of the name past its leading dots
+    // the quieter mark: the first two characters of the type, or of the name past its leading dots
     const char *from = (type[0] != '\0') ? type : lower;
     from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
                        .size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES}), .set = ".");
@@ -282,18 +282,18 @@ static unsigned int explorer_rows(const GuiPaneCfg *args)
     return cli_files_explorer_rows();
 }
 
-// the row of the file the editor shows, its path the shown view's; a view's place is far inside an int
+// the row of the file the editor shows, its path the displayed view's; a view's place is far inside an int
 static int explorer_current(const GuiPaneCfg *args)
 {
     (void)args;
-    const int shown = cli_view_shown();
-    char shown_path[CLI_PATH_MAX_LEN];
-    const int named = (shown >= 0) && cli_view_path_at((unsigned int)shown, shown_path);
+    const int displayed = cli_view_displayed();
+    char displayed_path[CLI_PATH_MAX_LEN];
+    const int named = (displayed >= 0) && cli_view_path_at((unsigned int)displayed, displayed_path);
     CliExplorerRow listed;
     for (unsigned int at = 0u; named && cli_files_explorer_row(at, &listed); at += 1u)
     {
         if (!listed.dir &&
-            cellul.eq(&(CatenaFinitaCfg){.src = listed.path, .other = shown_path, .cap = CLI_PATH_MAX_LEN}))
+            cellul.eq(&(CatenaFinitaCfg){.src = listed.path, .other = displayed_path, .cap = CLI_PATH_MAX_LEN}))
         {
             // the rows are far fewer than an int counts
             return (int)at;
@@ -318,7 +318,7 @@ static void explorer_row_draw(const GuiPaneCfg *args)
     }
     const CliExplorerRow *const node = &listed;
     const unsigned long long name_length = cellul.len(&(CatenaFinitaCfg){.src = node->name, .cap = CLI_PATH_MAX_LEN});
-    // the row stands in under its folder by its depth, a guide down each level
+    // the row is in under its folder by its depth, a guide down each level
     GuiPaneCfg guided = *args;
     guided.depth = node->depth;
     int x = gui_pane.guides(&guided);
@@ -440,7 +440,7 @@ static int explorer_press(const GuiPaneCfg *args)
 // the tree listed as the pane shows
 static void explorer_read(const GuiPaneCfg *args)
 {
-    if (args->event == GUI_PANE_SHOWN)
+    if (args->event == GUI_PANE_DISPLAYED)
     {
         cli_files_explorer_show(args->root);
     }

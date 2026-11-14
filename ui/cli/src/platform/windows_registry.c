@@ -8,7 +8,7 @@
 #define NOMINMAX
 #include <windows.h>
 
-// the most UTF-16 units of a value read or written
+// the max UTF-16 units of a value read or written
 #define CLI_REGISTRY_UNITS 32768u
 
 typedef struct

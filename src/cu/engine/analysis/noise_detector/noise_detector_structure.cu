@@ -45,7 +45,7 @@ __global__ static void noise_structure_kernel(const unsigned short *lanes, unsig
             continue;
         }
         const unsigned long long apart = (own > beside) ? (own - beside) : (beside - own);
-        // apart is at most 65535 T, below 2^32 for the frames the bound admits. Q fits one word; M is at most twice
+        // apart is at max 65535 T, below 2^32 for the frames the bound admits. Q fits one word; M is at max twice
         // that, and each product below is limited to 128 bits as its low and high words
         const unsigned long long along = apart * apart;
         const unsigned long long level = own + beside;
@@ -142,7 +142,7 @@ extern "C" long noise_structure_volume(const unsigned short *volume, const unsig
     const unsigned long long width = extent[3];
     int bounded =
         (frames >= 2ull) && (frames <= 65536ull) && (width >= 2ull) && (voxels != 0ull) && (frames <= (~0ull / voxels));
-    // every sum is at most the frame pairs times the widest q^2, (65535 T)^4, which must stay below 2^128; the
+    // every sum is at max the frame pairs times the widest q^2, (65535 T)^4, which must stay below 2^128; the
     // widest q y, (65535 T)^2 131070^2, is no wider for T of 2 or more
     OriorExactInteger bound;
     OriorExactInteger factor;

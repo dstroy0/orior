@@ -1,7 +1,7 @@
 """Print, for each space character around a word in the text layer, whether pdfium generated it
 or the page's content stream holds it.
 
-usage: python space_kind.py <stem> <word>
+usage: python space_type.py <stem> <word>
 """
 import os
 import sys

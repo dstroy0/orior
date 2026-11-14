@@ -18,7 +18,7 @@ void omega_engine_ledger_read(const char *path, std::vector<OmegaEngineJob> &job
         omega_results_open(&job.results);
         unsigned long long fate[6];
         unsigned long long contradictions = 0ull;
-        unsigned long long maximum[4];
+        unsigned long long max[4];
         int read = 0;
         const size_t written = strlen(line);
         if ((written == 0u) || (line[written - 1u] != '\n'))
@@ -27,7 +27,7 @@ void omega_engine_ledger_read(const char *path, std::vector<OmegaEngineJob> &job
         }
         if ((sscanf(line, "engine %u %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu end%n",
                     &job.length, &job.from, &job.count, &fate[0], &fate[1], &fate[2], &fate[3], &fate[4], &fate[5],
-                    &contradictions, &maximum[0], &maximum[1], &maximum[2], &maximum[3], &read) != 14) ||
+                    &contradictions, &max[0], &max[1], &max[2], &max[3], &read) != 14) ||
             ((size_t)read != (written - 1u)) || (job.length > OMEGA_LENGTH_MAX) ||
             ((fate[0] + fate[1] + fate[2] + fate[3] + fate[4] + fate[5]) != job.count))
         {
@@ -38,10 +38,10 @@ void omega_engine_ledger_read(const char *path, std::vector<OmegaEngineJob> &job
             job.results.fate[one][job.length] = fate[one];
         }
         job.results.contradictions = contradictions;
-        job.results.max_steps[job.length] = maximum[0];
-        job.results.steps_champion[job.length] = maximum[1];
-        job.results.max_bits[job.length] = maximum[2];
-        job.results.bits_champion[job.length] = maximum[3];
+        job.results.max_steps[job.length] = max[0];
+        job.results.steps_champion[job.length] = max[1];
+        job.results.max_bits[job.length] = max[2];
+        job.results.bits_champion[job.length] = max[3];
         job.settled = job.count;
         jobs.push_back(job);
     }
@@ -168,7 +168,7 @@ unsigned int omega_pool_grid(unsigned long long count)
 {
     const unsigned long long blocks = (count + OMEGA_POOL_BLOCK - 1ull) / OMEGA_POOL_BLOCK;
     const unsigned long long grid = (blocks == 0ull) ? 1ull : blocks;
-    // at most OMEGA_POOL_GRID_MAX, which an unsigned int stores
+    // at max OMEGA_POOL_GRID_MAX, which an unsigned int stores
     return (unsigned int)((grid < OMEGA_POOL_GRID_MAX) ? grid : OMEGA_POOL_GRID_MAX);
 }
 
@@ -232,11 +232,11 @@ int omega_pool_insert_job(SimResults *results, OmegaBuffer *buffers, const Omega
 #define OMEGA_ENGINE_TERM_BYTES ((2u * sizeof(OmegaTerm)) + sizeof(OmegaSettled) + (12u * sizeof(unsigned long long)))
 
 // a token's bytes across a round's buffers: its token, its watcher's copy and a spine end, each twice (16 each), its
-// two frames (2), its record and its plan (8 each at most), its index pair (8), its reduct and the reduct's spine
+// two frames (2), its record and its plan (8 each at max), its index pair (8), its reduct and the reduct's spine
 // end (8 each): 90, taken as 96
 #define OMEGA_ENGINE_TOKEN_BYTES 96ull
 
-// The bytes a run on the engine declares to tessera: its first round's admitted terms, each at the most tokens its
+// The bytes a run on the engine declares to tessera: its first round's admitted terms, each at max tokens its
 // length allows (a token takes 2 bits at least), and the counts it copies to the device.
 unsigned long long omega_engine_declared(const OmegaCounts *counts)
 {

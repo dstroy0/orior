@@ -42,7 +42,7 @@ typedef struct
     const char **at;
     const char *end;
     CatalogTextLine *line_pointer;
-    char letter;
+    char character;
     CatalogTextLine line;
     const char *word_text;
     VerbaLinea *out;
@@ -78,18 +78,18 @@ EMBED_INLINE int cli_line(const CatalogScanCtx *args)
 
 EMBED_INLINE int cli_space(const CatalogScanCtx *args)
 {
-    return (args->letter == ' ') || ((args->letter >= '\t') && (args->letter <= '\r'));
+    return (args->character == ' ') || ((args->character >= '\t') && (args->character <= '\r'));
 }
 
 EMBED_INLINE CatalogTextLine cli_trim(const CatalogScanCtx *args)
 {
     CatalogTextLine line = args->line;
-    while ((line.length != 0ULL) && EMBED_CALL(cli_space, CatalogScanCtx, .letter = line.at[0]))
+    while ((line.length != 0ULL) && EMBED_CALL(cli_space, CatalogScanCtx, .character = line.at[0]))
     {
         line.at += 1;
         line.length -= 1ULL;
     }
-    while ((line.length != 0ULL) && EMBED_CALL(cli_space, CatalogScanCtx, .letter = line.at[line.length - 1u]))
+    while ((line.length != 0ULL) && EMBED_CALL(cli_space, CatalogScanCtx, .character = line.at[line.length - 1u]))
     {
         line.length -= 1ULL;
     }

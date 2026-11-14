@@ -142,14 +142,14 @@ export async function drawGit(branch) {
   if (query !== state.git.query || repo !== gitRepo() || authors !== authorsShown()) {
     return;
   }
-  // A graph that is drawn as it stands is left as it is, the focus and the scroll with it.
+  // A graph that is drawn as it is, is left as it is, the focus and the scroll with it.
   const drawn = `${repo}\n${label}\n${query}\n${authors}\n${commits.map((one) => `${one.id}${one.refs.join()}`).join()}`;
   if (drawn === state.git.drawn && body.childElementCount) {
     return;
   }
   state.git.drawn = drawn;
   state.git.commits = commits;
-  const count = `${commits.length} commit${commits.length === 1 ? "" : "s"} ${query ? "found" : "shown"}`;
+  const count = `${commits.length} commit${commits.length === 1 ? "" : "s"} ${query ? "found" : "displayed"}`;
   const focused = body.contains(document.activeElement) ? document.activeElement.dataset.key : null;
   body.innerHTML = `<div class="node git-branch"><span class="name">${escapeHtml(label ?? "no branch")}</span><span class="where">${count}</span></div>${commits.map(commitRow).join("")}`;
   for (const id of state.git.open) {

@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_sift.c: the byte search: the sift finds what the plain comparison finds on flat, skewed and repeating texts, a search without case
-// finds each letter in either case and only letters fold, a needle at the ends and in the middle of a long text is found once each, and
+// finds each character in either case and only characters fold, a needle at the ends and in the middle of a long text is found once each, and
 // empty and too long needles are found nowhere
 #include "ui/cli/src/text/sift.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-// the most offsets a search records, and the bytes of the long text
+// the max offsets a search records, and the bytes of the long text
 #define SIFT_FOUND (1u << 14u)
 #define SIFT_LONG ((2u << 20u) + 100u)
 
@@ -31,7 +31,7 @@ static void offset_recorded(const CliEachAtCfg *args)
     s_found_count += 1ull;
 }
 
-// `byte` as a search without case reads it where `fold` is set: a capital to its small letter
+// `byte` as a search without case reads it where `fold` is set: a capital to its small character
 static unsigned char folded(unsigned char byte, int fold)
 {
     return (fold && (byte >= 'A') && (byte <= 'Z')) ? (unsigned char)(byte | 0x20u) : byte;
@@ -70,7 +70,7 @@ static void bytes_generated(unsigned char *out, unsigned long long length, unsig
     for (unsigned long long at = 0ull; at < length; at += 1ull)
     {
         state = state * 6364136223846793005ull + 1442695040888963407ull;
-        // a symbol is below the alphabet, a few dozen at most
+        // a symbol is below the alphabet, a few dozen at max
         out[at] = (unsigned char)(base + (unsigned char)((state >> 33u) % alphabet));
     }
 }
@@ -144,13 +144,13 @@ void test_a_search_without_case_agrees_with_the_plain_comparison(void)
     assert_sift_agrees(s_texts[0], length, (const unsigned char *)"fox", 3ull, 1);
 }
 
-void test_a_search_without_case_finds_each_letter_in_either_case(void)
+void test_a_search_without_case_finds_each_character_in_either_case(void)
 {
     const unsigned long long length = case_text_written();
     TEST_ASSERT_EQUAL_UINT64(4ull * 50ull + 50ull, EMBED_CALL(cli_sift_length.find_all, CliSiftLengthCfg, .text = s_texts[0], .length = length, .needle = (const unsigned char *)"FOX", .needle_length = 3ull, .fold = 1, .found = offset_recorded, .context = NULL));
 }
 
-void test_only_letters_fold(void)
+void test_only_characters_fold(void)
 {
     const unsigned long long length = case_text_written();
     TEST_ASSERT_EQUAL_UINT64(50ull, EMBED_CALL(cli_sift_length.find_all, CliSiftLengthCfg, .text = s_texts[0], .length = length, .needle = (const unsigned char *)"f@x", .needle_length = 3ull, .fold = 1, .found = offset_recorded, .context = NULL));
@@ -165,7 +165,7 @@ void test_a_needle_at_the_ends_and_in_the_middle_of_a_long_text_is_found_once_ea
 
 void test_a_text_with_zero_bytes_is_searched_past_them(void)
 {
-    // the units of "fox fox FOX" laid as two bytes each, the high byte zero, as the editor's text is searched
+    // the units of "fox fox FOX" positioned as two bytes each, the high byte zero, as the editor's text is searched
     static const char s_units[] = "f\0o\0x\0 \0f\0o\0x\0 \0F\0O\0X\0";
     assert_sift_agrees((const unsigned char *)s_units, sizeof(s_units) - 1u, (const unsigned char *)"f\0o\0x", 6ull, 0);
     TEST_ASSERT_EQUAL_UINT64(2ull, s_found_count);

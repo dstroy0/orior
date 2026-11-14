@@ -12,14 +12,14 @@
 # background is drawn from the object by deleting one property, never assumed. Two deletions are
 # available on a molecule and they are not the same question.
 #
-# Null one deletes the match between an element and the site it sits on: keep the bond graph and the
+# Null one deletes the match between an element and the site it sits on: retain the bond graph and the
 # multiset of elements, permute which element sits where. The octet then closes only when each element
-# lands on a site whose degree is its valence. The real molecule departs from this null and most
+# lands on a site whose degree is its valence. The real molecule departs from this null and max
 # permutations fail. This is the reading the sift stage rests on.
 #
-# Null two deletes the connectivity: keep each atom's degree exactly equal to its valence, rewire
+# Null two deletes the connectivity: retain each atom's degree exactly equal to its valence, rewire
 # which atoms are joined by drawing a random matching of the bond stubs. Every rewire closes the
-# octet, because the octet counts degree and the degree is kept fixed by construction. So the octet
+# octet, because the octet counts degree and the degree is retained fixed by construction. So the octet
 # does not depart from this null at all, and the rewires it admits include self-bonded and
 # disconnected graphs that are not molecules.
 #
@@ -113,7 +113,7 @@ def octet_holds(atoms, bonds):
 
 
 def null_one_rate(molecule, draws):
-    """Element-label permutation: keep the bond graph, permute which element sits at which site."""
+    """Element-label permutation: retain the bond graph, permute which element sits at which site."""
     codes = {
         element: index for index, element in enumerate(sorted(set(molecule.atoms)))
     }

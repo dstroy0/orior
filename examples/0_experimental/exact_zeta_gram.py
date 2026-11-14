@@ -62,7 +62,7 @@
 # Positive control: the Gram points g_0 to g_15 against the table the Riemann-Siegel theta article
 # on Wikipedia prints, and the first failure of Gram's law at n = 126, as the same article reports
 # it, both read by a web fetch. Drawn null: the Bernoulli terms left out of both routes of theta,
-# where the routes do not meet at the doublings shown and no Gram index is decided.
+# where the routes do not meet at the doublings displayed and no Gram index is decided.
 
 import os
 import sys
@@ -266,8 +266,8 @@ class Gram:
         """Each bracket cut in half by the Gram index at its midpoint."""
         mids = [middle(lo, h) for lo, h, _ in brackets]
         self.sweep(mids)
-        kept = [int(self.index[m] >= n) for m, (_, _, n) in zip(mids, brackets)]
-        return [(select(v, lo, m), select(v, m, h), n) for v, m, (lo, h, n) in zip(kept, mids, brackets)]
+        retained = [int(self.index[m] >= n) for m, (_, _, n) in zip(mids, brackets)]
+        return [(select(v, lo, m), select(v, m, h), n) for v, m, (lo, h, n) in zip(retained, mids, brackets)]
 
     def place(self, brackets, bits):
         for _ in range(bits):
@@ -365,7 +365,7 @@ def main():
               % (plus_count, len(seats) - plus_count))
     out.write("    agreement at lag 1: %d of %d, at lag 2: %d of %d\n"
               % (live_one, len(seats) - 1, live_two, len(seats) - 2))
-    out.write("    %d drawn orders of the same signs, %d reaching %d at lag 2, the most %d\n"
+    out.write("    %d drawn orders of the same signs, %d reaching %d at lag 2, the max %d\n"
               % (DRAWS, reach, live_two, max(shuffled)))
     enough = int(min(plus_count, len(seats) - plus_count) >= 32)
     alternates = int(live_two > max(shuffled)) * enough
@@ -381,7 +381,7 @@ def main():
     out.write("    with the Bernoulli terms:     %s\n" % true_gaps)
     out.write("    without them:                 %s\n" % null_gaps)
     apart = NOT(true_gaps[-1]) * int(null_gaps[-1] > 0)
-    out.write("  without the Bernoulli terms the routes do not meet at the doublings shown: %s\n" % bool(apart))
+    out.write("  without the Bernoulli terms the routes do not meet at the doublings displayed: %s\n" % bool(apart))
     return 1 - consecutive * every * first * alternates * apart
 
 

@@ -327,7 +327,7 @@ EMBED_INLINE void cli_head_param(const SymbolsHeadsCtx *args)
     args->head->params += 1u;
 }
 
-// the head's label from its first line's first letter to the end of the bracket at `close`, each line break and the
+// the head's label from its first line's first character to the end of the bracket at `close`, each line break and the
 // white space after it one space, and each parameter's span and its name's, stored as their bytes, made the label's in
 // UTF-16 units
 EMBED_INLINE void cli_head_label(const SymbolsHeadsCtx *args)

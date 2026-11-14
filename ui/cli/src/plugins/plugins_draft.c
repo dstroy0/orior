@@ -5,7 +5,7 @@
 #include "../text/text.h"
 #include "plugins.h"
 
-// the most bytes of a pattern made; and the nodes and bytes of texts a draft makes besides the copies of its answers
+// the max bytes of a pattern made; and the nodes and bytes of texts a draft makes besides the copies of its answers
 // and the plugin it starts from, the members of a plugin and a grammar made from nothing among them
 #define CLI_PATTERN_MAX_LEN 1024u
 #define CLI_DRAFT_NODES_MORE 512u
@@ -497,9 +497,9 @@ EMBED_INLINE unsigned int cli_extensions_read(const PluginsDraftCtx *args)
                          .size = (unsigned long long)(end - at), .set = ".");
         char lower[CLI_NAME_MAX_LEN];
         VerbaLinea line = {lower, sizeof(lower), 0ULL};
-        for (const char *letter = at; letter < end; letter += 1)
+        for (const char *character = at; character < end; character += 1)
         {
-            mmgr_line_ch(&line, ((letter[0] >= 'A') && (letter[0] <= 'Z')) ? (char)(letter[0] + 32) : letter[0]);
+            mmgr_line_ch(&line, ((character[0] >= 'A') && (character[0] <= 'Z')) ? (char)(character[0] + 32) : character[0]);
         }
         if (mmgr_line_finish(&line) != 0ULL)
         {
@@ -664,7 +664,7 @@ unsigned int cli_plugins_draft(const CliPluginsErrMsgJsonSpecTypeCfg *args)
                .id_out = id);
     if (id[0] == '\0')
     {
-        mmgr_line_put(args->err_msg, "a plugin needs a name made of letters or digits");
+        mmgr_line_put(args->err_msg, "a plugin needs a name made of characters or digits");
         return CLI_JSON_NONE;
     }
     const unsigned int extensions =
@@ -696,7 +696,7 @@ unsigned int cli_plugins_draft(const CliPluginsErrMsgJsonSpecTypeCfg *args)
                .name = "version",
                .value = EMBED_CALL(cli_text_init, PluginsDraftCtx, .json = args->json_out, .text = "1.0.0"));
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json_out, .object = plugin,
-               .name = "kind",
+               .name = "type",
                .value = EMBED_CALL(cli_text_init, PluginsDraftCtx, .json = args->json_out, .text = "language"));
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json_out, .object = plugin,
                .name = "extensions", .value = extensions);

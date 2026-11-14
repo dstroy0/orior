@@ -14,7 +14,7 @@ typedef struct CliPgCtx CliPgCtx;
 typedef struct CliPgTypeCtx CliPgTypeCtx;
 typedef struct CliPgBodyCtx CliPgBodyCtx;
 
-// the most connections at once; the bytes read off the socket at a time; the most bytes of one message's body; the
+// the max connections at once; the bytes read off the socket at a time; the max bytes of one message's body; the
 // parameters the server reports of itself recorded, and the bytes of each; and the notices of one statement recorded,
 // and the bytes of each
 #define CLI_PG_LINKS 8u

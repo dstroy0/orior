@@ -70,7 +70,7 @@
     margin: 0 0 7px;
     font-size: 10px;
     font-weight: 600;
-    letter-spacing: 0.09em;
+    character-spacing: 0.09em;
     text-transform: uppercase;
     color: var(--dim);
     cursor: move;
@@ -301,7 +301,7 @@
   // ---------------------------------------------------------------------------------------------
   // The page recomputes no physics. Every profile, every coefficient and the whole surface came out
   // of the generator. What moves here is the reading: where the edge is cut, how hard that cut is,
-  // and where the observer stands. Keeping those apart from the field is the entire point of the
+  // and where the observer is. Retention those apart from the field is the entire point of the
   // tool, because a control that changed the physics would let a slider manufacture a result.
   // ---------------------------------------------------------------------------------------------
 
@@ -474,7 +474,7 @@
 
   // ---------------------------------------------------------------------------------------------
   // The circles. A source's spot is a disc about its own direction. The level cuts each profile
-  // at one angle and that angle is the circle drawn. Nothing about where the observer stands enters
+  // at one angle and that angle is the circle drawn. Nothing about where the observer is enters
   // this: the circles belong to the sources and the observer is free to go anywhere.
   // ---------------------------------------------------------------------------------------------
 
@@ -845,9 +845,9 @@
     var input = document.getElementById(id);
     var out = document.getElementById(outId);
     function run() {
-      var shown = apply(Number(input.value));
+      var displayed = apply(Number(input.value));
       if (out) {
-        out.textContent = format ? format(shown) : shown;
+        out.textContent = format ? format(displayed) : displayed;
       }
     }
     input.addEventListener("input", run);
@@ -1005,7 +1005,7 @@
   }
 
   // The observer, dragged. Left and right always mean left and right to whoever is looking, and the
-  // axes come from where the observer is standing now instead of from a world axis. Nothing
+  // axes come from where the observer is located now instead of from a world axis. Nothing
   // inverts when it passes over the top.
   var dragging = false,
     lastX = 0,
@@ -1090,8 +1090,8 @@
   fit();
 
   // Opening appearance through the shared control bar's model. The schema is the build's one settings
-  // source: a value of the wrong kind or out of range is named in the report below and never applied,
-  // and a key the build leaves out keeps the page default. The sphere's own reading controls are
+  // source: a value of the wrong type or out of range is named in the report below and never applied,
+  // and a key the build leaves out retains the page default. The sphere's own reading controls are
   // untouched. The bar governs the chrome the page can honor: the theme, the backdrop the transparent
   // canvas lets through, the opening observer distance, and how present the boxes are. The observer
   // distance opens on a range narrowed to this scene, a span a ball-centered view needs and an open

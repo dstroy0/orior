@@ -74,7 +74,7 @@ the replacement is a direct check of the partition on the surviving windows.
 
 Any probe may be replaced by a weaker necessary condition without endangering the count. The weakest
 available is the probe that always agrees, and a plan of those is the empty plan, which sends every
-alignment to the full compare and returns the exact answer at maximum cost.
+alignment to the full compare and returns the exact answer at max cost.
 
 A probe implementation whose errors run only toward agreement is therefore sound. A comparator that returns
 agreement when it is uncertain, a memory that occasionally reads a stale byte in the direction of a
@@ -192,7 +192,7 @@ at worst, which exceeds the scan it plans for on any but a short needle
 sharpest open cost problem, and the determinant removes its dominant factor.
 
 Scoring a candidate today walks the alignments. Scoring a candidate by determinant walks a `k` by `k`
-integer matrix, where `k` is at most `ORIOR_STEER_ANCHORS`, which is 4. The corpus is touched once,
+integer matrix, where `k` is at max `ORIOR_STEER_ANCHORS`, which is 4. The corpus is touched once,
 by the census that collects `C`, and never again during planning.
 
 | | corpus touched during planning | per-candidate cost |
@@ -206,7 +206,7 @@ as a single scan. Everything after it is arithmetic on counts.
 **The falsifiable claim, stated so it can fail.** A probe set chosen by determinant reads no more
 bytes per alignment than the set chosen by survivor scoring, on the same field, while costing a
 planning pass that does not scale with the alignment count. If the determinant set reads measurably
-more, then the linear relaxation is losing what the Boolean test keeps, and the result is that
+more, then the linear relaxation is losing what the Boolean test retains, and the result is that
 survivor scoring carries information the Gram matrix does not. That outcome is worth as much as the
 other one and costs one bench.
 
@@ -259,8 +259,8 @@ combinatorial ancestors of the probe-spreading argument, and section 7 replaces 
 measurement against the field.
 
 **Edwin T. Jaynes**, *Information Theory and Statistical Mechanics*, Physical Review 106(4), 1957,
-pages 620 to 630, and the sequel at 108(2), 1957. The maximum entropy principle this whole tree is
-built on, and the reason a determinantal process is the right object: it is the maximum entropy
+pages 620 to 630, and the sequel at 108(2), 1957. The max entropy principle this whole tree is
+built on, and the reason a determinantal process is the right object: it is the max entropy
 distribution carrying prescribed marginals with negative correlation.
 
 **Robert S. Boyer and J Strother Moore**, 1977, and **R. Nigel Horspool**, 1980, for the shift rules

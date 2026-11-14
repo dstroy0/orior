@@ -48,7 +48,7 @@ const char *cli_symbols_declares(const CliSymbolsNameCtx *args)
     return NULL;
 }
 
-// each letter decoded as the colorer decodes it, one past U+FFFF taking two columns as UTF-16 counts them
+// each character decoded as the colorer decodes it, one past U+FFFF taking two columns as UTF-16 counts them
 unsigned long long cli_symbols_byte_at(const CliSymbolsSizeCtx *args)
 {
     unsigned long long *byte = args->byte;
@@ -73,34 +73,34 @@ unsigned long long cli_symbols_byte_at(const CliSymbolsSizeCtx *args)
         {
             length = 4u;
         }
-        unsigned int letter;
+        unsigned int character;
         if (length == 1u)
         {
-            letter = lead;
+            character = lead;
         }
         else if (length == 2u)
         {
-            letter = lead & 0x1fu;
+            character = lead & 0x1fu;
         }
         else if (length == 3u)
         {
-            letter = lead & 0x0fu;
+            character = lead & 0x0fu;
         }
         else
         {
-            letter = lead & 0x07u;
+            character = lead & 0x07u;
         }
         for (unsigned int more = 1u; (more < length) && ((*byte + more) < args->size); more += 1u)
         {
-            letter = (letter << 6u) | ((unsigned char)args->line[*byte + more] & 0x3fu);
+            character = (character << 6u) | ((unsigned char)args->line[*byte + more] & 0x3fu);
         }
-        *at += (letter >= 0x10000u) ? 2u : 1u;
+        *at += (character >= 0x10000u) ? 2u : 1u;
         *byte += length;
     }
     return (*byte < args->size) ? *byte : args->size;
 }
 
-// One line's leaves read: each run whose token names a declaration handed on, the run's text its name and the rest
+// One line's leaves read: each run whose token names a declaration passed on, the run's text its name and the rest
 // of its token's name its type
 static void cli_symbols_line(const CliLeavesEachCfg *args)
 {
@@ -132,7 +132,7 @@ static void cli_symbols_line(const CliLeavesEachCfg *args)
 }
 
 // a language plugin's grammar noted where it has one, and whether it names a declaration, in the place of one of its id
-// noted before, and one of its id that has none taken out: the plugin read for each id that stands is the last noted
+// noted before, and one of its id that has none taken out: the plugin read for each id that exists is the last noted
 static void cli_symbols_grammar_note(const CliEachPluginCfg *args)
 {
     CliSymbolsLanguages *const read = (CliSymbolsLanguages *)args->context;
@@ -149,7 +149,7 @@ static void cli_symbols_grammar_note(const CliEachPluginCfg *args)
         (root != CLI_JSON_NONE)
             ? EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
                          .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
-                                            .object = root, .name = "kind"),
+                                            .object = root, .name = "type"),
                          .length_pointer = NULL)
             : NULL;
     const int language =
@@ -342,7 +342,7 @@ void cli_symbols_declared_in(const CliSymbolsPathReadLanguagesCtx *args)
 }
 
 // the leaves of `size` bytes of `text` read by the grammar at `place` among `read`'s, the first line starting in
-// `state`, each line's handed to `each`: 1, or 0 where the place is none or the cells cannot meet the text's copy
+// `state`, each line's passed to `each`: 1, or 0 where the place is none or the cells cannot meet the text's copy
 static int cli_symbols_leaves_at(const SymbolsReadCtx *args)
 {
     const char *state = args->state;

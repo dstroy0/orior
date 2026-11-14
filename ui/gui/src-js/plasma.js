@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The eye's plasma, drawn by the GPU. Everything in it is a list of triangles laid down in one draw
+// The eye's plasma, drawn by the GPU. Everything in it is a list of triangles positioned down in one draw
 // a frame: each corner a place in the canvas's own pixels, where it lies across its shape and along
 // it, and a color and a strength. The light of each point is the shape's color, strongest down its
 // middle and gone at its edges, with a pale core along the middle, and fading out along it. Light
@@ -22,7 +22,7 @@ export const dusk = () => rgbOf("--plasma-dusk");
 export const plum = () => rgbOf("--plasma-plum");
 export const orchid = () => rgbOf("--plasma-orchid");
 
-// The triangles of a frame's plasma, written corner by corner into one list that is kept from frame
+// The triangles of a frame's plasma, written corner by corner into one list that is retained from frame
 // to frame and grows when it fills. A corner is [x, y, across, along, color, strength].
 export function cornersOf() {
   let list = new Float32Array(4096 * CORNER);
@@ -134,7 +134,7 @@ function compiled(gl, type, source) {
   return shader;
 }
 
-// The drawer for a canvas, made once and kept with it, or null where the canvas has no WebGL. The
+// The drawer for a canvas, made once and retained with it, or null where the canvas has no WebGL. The
 // eye and the fuse go on without their plasma there.
 //
 // The GPU can take a context back, when its driver restarts or the page holds too many. The drawer

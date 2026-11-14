@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // Menus: each grows out of the point it was opened from, within the tenth of a second a press's
-// answer keeps to, and stands above every panel that stays open.
+// answer retains to, and is above every panel that stays open.
 
 import { closeMenu, GROWS, showMenu } from "../../gui/src-js/menu.js";
 
@@ -37,7 +37,7 @@ test("a menu pushed back from the window's edge grows from the edge nearest the 
   }
 });
 
-test("a menu opened over a panel that stays open stands above it, each item pressable", async () => {
+test("a menu opened over a panel that stays open is above it, each item pressable", async () => {
   const panel = document.getElementById("slow-finder");
   const was = { hidden: panel.hidden, children: [...panel.childNodes] };
   panel.replaceChildren(Object.assign(document.createElement("p"), { textContent: "A panel that stays open.".repeat(8) }));

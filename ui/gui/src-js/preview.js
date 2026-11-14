@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The live preview: the file in the editor shown as it reads, beside its text or alone, as the reader
+// The live preview: the file in the editor displayed as it reads, beside its text or alone, as the reader
 // chooses once for every file it shows (View, Preview, Ctrl+K V), for each type of file that sets how
 // something looks and runs nothing: Markdown, HTML and the CSS it takes, CSS over a page of its own,
 // SVG, Mermaid's diagrams and LaTeX; and the answers of a file of requests (requests.js). Each
-// change is drawn as it is typed, and the place the cursor stands in the text is marked in the
+// change is drawn as it is typed, and the place the cursor is in the text is marked in the
 // preview.
 //
 // Markdown is drawn a block at a time, each block tied to the line it came from, and the text and the
@@ -48,7 +48,7 @@ const TYPES = [
   ["requests", /\.(http|rest)$/i],
 ];
 
-const state = { pane: null, kind: null, session: null, path: null, blocks: [], seen: null, timer: 0, idle: 0, paneSet: null, editorSet: null, scroller: null, diagram: null, frame: null, sheets: new Map(), linked: new Set(), last: null };
+const state = { pane: null, type: null, session: null, path: null, blocks: [], seen: null, timer: 0, idle: 0, paneSet: null, editorSet: null, scroller: null, diagram: null, frame: null, sheets: new Map(), linked: new Set(), last: null };
 
 // The type of preview the file at `path` has: "markdown", "html", "css", "svg", "mermaid", "latex"
 // or "requests", the answers of a file of requests, or null for a file that has none.
@@ -58,8 +58,8 @@ export const isMarkdown = (path) => typeOf(path) === "markdown";
 
 // How the reader sees a file the preview shows: "off", "beside" its text, or "alone".
 export function previewMode() {
-  const kept = localStorage.getItem(KEY);
-  return kept === "beside" || kept === "alone" ? kept : "off";
+  const retained = localStorage.getItem(KEY);
+  return retained === "beside" || retained === "alone" ? retained : "off";
 }
 
 export function setPreview(mode) {
@@ -110,25 +110,25 @@ function element(html) {
 
 function drawMarkdown(text) {
   const fresh = markdownBlocks(text, resolveFrom(state.path ?? ""));
-  const shown = [...state.pane.children];
-  const drawn = { kept: 0, moved: 0, drawn: 0 };
+  const displayed = [...state.pane.children];
+  const drawn = { retained: 0, moved: 0, drawn: 0 };
   for (let at = 0; at < Math.max(fresh.length, state.blocks.length); at += 1) {
     const was = state.blocks[at];
     const now = fresh[at];
     if (now === undefined) {
-      shown[at]?.remove();
-    } else if (was === undefined || !shown[at]) {
+      displayed[at]?.remove();
+    } else if (was === undefined || !displayed[at]) {
       state.pane.append(element(now));
       drawn.drawn += 1;
     } else if (was === now) {
-      drawn.kept += 1;
+      drawn.retained += 1;
     } else if (was.replace(LINES, "") === now.replace(LINES, "")) {
       // Only its lines moved: each element of the block is told its new line.
       const lines = [...now.matchAll(/data-line="(\d+)"/g)].map((match) => match[1]);
-      [shown[at], ...shown[at].querySelectorAll("[data-line]")].filter((one) => one.dataset.line !== undefined).forEach((one, index) => (one.dataset.line = lines[index] ?? one.dataset.line));
+      [displayed[at], ...displayed[at].querySelectorAll("[data-line]")].filter((one) => one.dataset.line !== undefined).forEach((one, index) => (one.dataset.line = lines[index] ?? one.dataset.line));
       drawn.moved += 1;
     } else {
-      shown[at].replaceWith(element(now));
+      displayed[at].replaceWith(element(now));
       drawn.drawn += 1;
     }
   }
@@ -138,7 +138,7 @@ function drawMarkdown(text) {
 
 function drawDiagram(text) {
   if (text === state.diagram) {
-    state.last = { kept: 1, moved: 0, drawn: 0 };
+    state.last = { retained: 1, moved: 0, drawn: 0 };
     return;
   }
   state.diagram = text;
@@ -146,7 +146,7 @@ function drawDiagram(text) {
   holder.className = "mermaid";
   holder.innerHTML = mermaidSvg(text);
   state.pane.replaceChildren(holder);
-  state.last = { kept: 0, moved: 0, drawn: 1 };
+  state.last = { retained: 0, moved: 0, drawn: 1 };
 }
 
 function drawPage(text) {
@@ -164,14 +164,14 @@ function drawPage(text) {
     sheets.set(path, session);
     return { text: session.doc.text(), base: folderAddress(path) };
   };
-  const doc = pageOf(state.kind, text, { base: folderAddress(state.path), sheet });
+  const doc = pageOf(state.type, text, { base: folderAddress(state.path), sheet });
   if (doc) {
     state.sheets = sheets;
     state.last = state.frame.draw(doc);
   }
 }
 
-// Draws the text as it stands: Markdown block by block, keeping each block that has not changed, a
+// Draws the text as it is: Markdown block by block, retention each block that has not changed, a
 // page patched where it changed, a diagram where its text changed, and LaTeX made anew.
 export function render() {
   const s = state.session;
@@ -179,20 +179,20 @@ export function render() {
     return;
   }
   state.seen = s.doc.id;
-  if (state.kind === "markdown") {
+  if (state.type === "markdown") {
     drawMarkdown(s.doc.text());
-  } else if (state.kind === "mermaid") {
+  } else if (state.type === "mermaid") {
     drawDiagram(s.doc.text());
-  } else if (state.kind === "latex") {
+  } else if (state.type === "latex") {
     texChanged();
-  } else if (state.kind !== "requests") {
+  } else if (state.type !== "requests") {
     drawPage(s.doc.text());
   }
   mark(false);
 }
 
-// What the last drawing did, for the tests: for Markdown and a diagram how many blocks it kept, told
-// new lines, and drew; for a page whether it was drawn whole, or how many nodes it kept, changed,
+// What the last drawing did, for the tests: for Markdown and a diagram how many blocks it retained, told
+// new lines, and drew; for a page whether it was drawn whole, or how many nodes it retained, changed,
 // added and took out.
 export const lastDrawing = () => state.last;
 
@@ -212,19 +212,19 @@ function edited(session) {
     return;
   }
   if (session === state.session) {
-    if (state.kind === "latex") {
+    if (state.type === "latex") {
       texChanged();
     } else {
       schedule();
     }
-  } else if (state.kind === "html") {
+  } else if (state.type === "html") {
     // Another file changed, a stylesheet the page takes among those it may be.
     state.seen = null;
     schedule();
   }
 }
 
-// The Markdown block the cursor's line `line` stands in: of the blocks tied to the nearest line at or
+// The Markdown block the cursor's line `line` is in: of the blocks tied to the nearest line at or
 // before it, the innermost.
 function markBlock(line) {
   let best = null;
@@ -250,7 +250,7 @@ function markNodes(line) {
   }
 }
 
-// Marks in the preview the place the cursor stands in the text, and where `reveal` brings it into
+// Marks in the preview the place the cursor is in the text, and where `reveal` brings it into
 // sight in a page or the pages that scroll on their own.
 function mark(reveal) {
   const view = editing().editor;
@@ -261,20 +261,20 @@ function mark(reveal) {
   if (line === null) {
     return;
   }
-  if (state.kind === "markdown") {
+  if (state.type === "markdown") {
     markBlock(line);
-  } else if (state.kind === "mermaid") {
+  } else if (state.type === "mermaid") {
     markNodes(line);
-  } else if (state.kind === "latex") {
+  } else if (state.type === "latex") {
     markTex(line, reveal);
-  } else if (state.kind === "requests") {
+  } else if (state.type === "requests") {
     requestsCursor(line);
   } else {
     state.frame?.mark(line, reveal);
   }
 }
 
-// The line the top of the preview stands at, between the two blocks it stands between.
+// The line the top of the preview is at, between the two blocks it is between.
 function lineAtPreview() {
   const blocks = [...state.pane.children].filter((one) => one.dataset.line !== undefined);
   const top = state.pane.scrollTop;
@@ -313,7 +313,7 @@ function previewToLine(line) {
   state.paneSet = state.pane.scrollTop;
 }
 
-// The line the top of the editor stands at.
+// The line the top of the editor is at.
 function lineAtEditor(view) {
   const rows = view.rows();
   const row = view.scrollY() / lineHeight();
@@ -326,7 +326,7 @@ const ours = (top, set) => set !== null && Math.abs(top - set) <= 1;
 
 function followEditor() {
   const view = editing().editor;
-  if (!view || view.s !== state.session || state.pane.hidden || state.kind !== "markdown") {
+  if (!view || view.s !== state.session || state.pane.hidden || state.type !== "markdown") {
     return;
   }
   if (ours(view.scroller.scrollTop, state.editorSet)) {
@@ -338,7 +338,7 @@ function followEditor() {
 
 function followPreview() {
   const view = editing().editor;
-  if (!view || view.s !== state.session || previewMode() !== "beside" || state.kind !== "markdown") {
+  if (!view || view.s !== state.session || previewMode() !== "beside" || state.type !== "markdown") {
     return;
   }
   if (ours(state.pane.scrollTop, state.paneSet)) {
@@ -351,7 +351,7 @@ function followPreview() {
   state.editorSet = view.scroller.scrollTop;
 }
 
-// Takes the editor to line `line` of the file `file`, the one shown or another of the tree.
+// Takes the editor to line `line` of the file `file`, the one displayed or another of the tree.
 function goTo(file, line) {
   if (file === state.path) {
     jumpTo(line);
@@ -364,7 +364,7 @@ function goTo(file, line) {
 function follow(given) {
   const href = resolveFrom(state.path ?? "")(given);
   if (href.startsWith("#")) {
-    const doc = state.kind === "markdown" ? state.pane : state.frame?.page();
+    const doc = state.type === "markdown" ? state.pane : state.frame?.page();
     doc?.querySelector(`[id="${CSS.escape(href.slice(1))}"]`)?.scrollIntoView({ block: "start" });
   } else if (href.startsWith(VIEW)) {
     openFile(decodeURIComponent(href.slice(VIEW.length).split("#")[0])).catch((error) => say(String(error), { failed: true }));
@@ -384,27 +384,27 @@ export function apply() {
   state.pane.style.top = `${document.getElementById("tabs").offsetHeight}px`;
   window.clearInterval(state.timer);
   if (mode === "off") {
-    if (state.kind === "latex") {
+    if (state.type === "latex") {
       hideTex();
     }
-    if (state.kind === "requests") {
+    if (state.type === "requests") {
       hideRequests();
     }
-    Object.assign(state, { session: null, path: null, kind: null });
-    delete state.pane.dataset.kind;
+    Object.assign(state, { session: null, path: null, type: null });
+    delete state.pane.dataset.type;
     return;
   }
-  // A stylesheet the page shown links stays under that page, swapped into it as it is typed.
-  const under = type === "css" && state.kind === "html" && state.linked.has(active) && editing().sessionOf(state.path) === state.session;
-  if (!under && (state.session !== editor.s || state.path !== active || state.kind !== type)) {
-    if (state.kind === "latex") {
+  // A stylesheet the page displayed links stays under that page, swapped into it as it is typed.
+  const under = type === "css" && state.type === "html" && state.linked.has(active) && editing().sessionOf(state.path) === state.session;
+  if (!under && (state.session !== editor.s || state.path !== active || state.type !== type)) {
+    if (state.type === "latex") {
       hideTex();
     }
-    if (state.kind === "requests") {
+    if (state.type === "requests") {
       hideRequests();
     }
-    Object.assign(state, { session: editor.s, path: active, kind: type, blocks: [], seen: null, diagram: null, sheets: new Map(), linked: new Set(), last: null });
-    state.pane.dataset.kind = type;
+    Object.assign(state, { session: editor.s, path: active, type: type, blocks: [], seen: null, diagram: null, sheets: new Map(), linked: new Set(), last: null });
+    state.pane.dataset.type = type;
     state.pane.replaceChildren();
     window.cancelIdleCallback?.(state.idle);
     state.idle = 0;
@@ -431,7 +431,7 @@ export function apply() {
 
 function onLink(event) {
   const link = event.target.closest("a[href]");
-  if (!link || state.kind !== "markdown") {
+  if (!link || state.type !== "markdown") {
     return;
   }
   event.preventDefault();

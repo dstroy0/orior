@@ -13,7 +13,7 @@
 typedef struct CliDefsPathCfg CliDefsPathCfg;
 typedef struct CliDefsCfg CliDefsCfg;
 
-// the most cells of a table's line read, those past it left out
+// the max cells of a table's line read, those past it left out
 #define CLI_DEFS_CELLS 32u
 
 // One line of a table: its cells between tabs, where each starts and its length, and how many
@@ -31,10 +31,10 @@ typedef struct
     int named;
 } CliDefsLineEachCfg;
 
-// what each line of a table is handed to, `named` 1 for the line that names its columns
+// what each line of a table is passed to, `named` 1 for the line that names its columns
 typedef void (*CliDefsLineEach)(const CliDefsLineEachCfg *args);
 
-// the tab separated table at `path` read: its first line that is not a comment, naming its columns, handed to `each`
+// the tab separated table at `path` read: its first line that is not a comment, naming its columns, passed to `each`
 // with `named` 1, then each line after it that is not a comment with `named` 0: 1, or 0 where it could not be read or
 // names no columns
 int cli_defs_lines(const CliDefsPathCfg *args);

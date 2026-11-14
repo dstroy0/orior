@@ -11,7 +11,7 @@ const { test, assert, ui, calls } = window.__harness;
 
 const wait = (ms) => new Promise((done) => setTimeout(done, ms));
 const sheetOf = () => document.querySelector("dialog[open] .sheet-prefs");
-const shown = (node) => node.isConnected && node.getClientRects().length > 0 && !node.disabled;
+const displayed = (node) => node.isConnected && node.getClientRects().length > 0 && !node.disabled;
 
 test(
   "every option of Preferences is changed as a person changes it, put back, and none throws",
@@ -22,8 +22,8 @@ test(
     addEventListener("error", heard);
     addEventListener("unhandledrejection", heard);
     let changed = 0;
-    // The setting of reports sent on their own is kept by the tree's side, which the harness holds
-    // from the network; here it is kept as the tree's side keeps it.
+    // The setting of reports sent on their own is retained by the tree's side, which the harness holds
+    // from the network; here it is retained as the tree's side retains it.
     calls.answer("report_auto_set", () => null);
     try {
       runCommand("preferences");
@@ -32,8 +32,8 @@ test(
 
       // The field at `at` of those `selector` finds, found again each time it is read: a change
       // can draw the sheet again, and the field with it.
-      const nth = (selector, at) => [...sheet.querySelectorAll(selector)].filter(shown)[at];
-      const count = (selector) => [...sheet.querySelectorAll(selector)].filter(shown).length;
+      const nth = (selector, at) => [...sheet.querySelectorAll(selector)].filter(displayed)[at];
+      const count = (selector) => [...sheet.querySelectorAll(selector)].filter(displayed).length;
 
       for (let at = 0, boxes = count("input[type=checkbox]"); at < boxes; at++) {
         const box = () => nth("input[type=checkbox]", at);
@@ -78,7 +78,7 @@ test(
         await ui.key(down ? "Up" : "Down");
         await wait(80);
         assert.equal(list().selectedIndex, was, `${changing} steps back`);
-        assert.equal(document.activeElement, list(), `${changing} keeps the keys`);
+        assert.equal(document.activeElement, list(), `${changing} retains the keys`);
         changed++;
       }
     } finally {

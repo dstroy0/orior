@@ -19,10 +19,10 @@
 #
 # What the night predicts: the century should be worth almost nothing, since it was worth five percent
 # already. The author should be worth little, since seven English writers sharing an alphabet were told
-# apart only 35 percent of the time by this same reading. If both are small then most of what separates
+# apart only 35 percent of the time by this same reading. If both are small then the majority of what separates
 # two books is neither of them, and the residue has a size even where it has no name.
 #
-# Length is kept equal because it has to be. A reading taken over more text is steadier. A long book
+# Length is retained equal because it has to be. A reading taken over more text is steadier. A long book
 # and a short one differ for that reason alone before anything about either of them is considered.
 
 import io
@@ -49,7 +49,7 @@ CORPORA = os.path.join(ROOT, "build", "corpora")
 CENTURIES = ("1600-1699", "1700-1799", "1800-1899")
 SAME_LENGTH = 60000
 RANKS = 64
-MOST_PER_AUTHOR = 6
+MAX_PER_AUTHOR = 6
 
 
 def read_all(century):
@@ -101,12 +101,12 @@ def main():
     by_author = {}
     for row in gathered:
         by_author.setdefault(row[0], []).append(row)
-    kept = []
+    retained = []
     for author, works in by_author.items():
-        kept.extend(sorted(works, key=lambda row: row[1])[:MOST_PER_AUTHOR])
+        retained.extend(sorted(works, key=lambda row: row[1])[:MAX_PER_AUTHOR])
 
     rows = []
-    for author, year, century, text in kept:
+    for author, year, century, text in retained:
         values = web(text, RANKS)
         if values is not None:
             rows.append((author, year, century, values))

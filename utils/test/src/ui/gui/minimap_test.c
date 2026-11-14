@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// minimap_test.c: the minimap's check: the map stands whole, its left at its column's left, and shows only within its
+// minimap_test.c: the minimap's check: the map is whole, its left at its column's left, and shows only within its
 // column as the claim closes it, nothing of it past the editor's right edge; a press past the column's edge misses the
 // map, a press within it lands; the column whole shows the overview side_menu at the map's right
 #include "../../../../../includes/window/block.h"
@@ -45,7 +45,7 @@ int main(void)
     GuiEditor painter = {0};
     painter.frame = &view;
     GuiMinimap map = {0};
-    // halfway through the claim the column is half closed and the map stands whole past the editor's right edge
+    // halfway through the claim the column is half closed and the map is whole past the editor's right edge
     GuiAutohideNumbers numbers = frame.claim;
     numbers.claim = GUI_FIXED_ONE / 2;
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
@@ -77,7 +77,7 @@ int main(void)
                .editor = &painter, .on_screen = 40.0f, .raster = &raster, .palette = palette);
     const int side_menu = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_MAP_STRIP, .scale = 100);
     const GuiRect side_menu_rect = {frame.map.x + frame.map.width - side_menu, frame.map.y, side_menu, frame.map.height};
-    cli_check(!all_colored(&raster, side_menu_rect, MINIMAP_TEST_UNDER), "the overview side_menu stands at the map's right");
+    cli_check(!all_colored(&raster, side_menu_rect, MINIMAP_TEST_UNDER), "the overview side_menu is at the map's right");
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;

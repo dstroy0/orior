@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cli_bench.c: the command line's common paths timed over a corpus, the tree's own C: each file read, read as UTF-8,
-// counted in UTF-16 units, decoded to letters, searched for a needle, sifted for it, its facts set in the tree's
+// counted in UTF-16 units, decoded to characters, searched for a needle, sifted for it, its facts set in the tree's
 // index, parsed, its declarations read, its lines colored with the C grammar; the corpus's paths sorted; the tree's
 // JSON read and written again; and the tree searched. Each is run `repeat` times and the best time recorded; a row is
 // written for each as `name<tab>bytes<tab>microseconds<tab>megabytes a second`, the corpus and the repeats first.
@@ -100,14 +100,14 @@ static void each_units(const BenchEachCfg *args)
     *(unsigned long long *)context += EMBED_CALL(cli_text_size_byte.units, CliTextSizeByteCfg, .text = (const char *)args->bytes, .size = size);
 }
 
-static void each_letters(const BenchEachCfg *args)
+static void each_characters(const BenchEachCfg *args)
 {
     unsigned long long size = args->size;
-    unsigned int *const letters = args->context;
-    (void)EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = (const char *)args->bytes, .size = size, .letters = letters, .capacity_u64 = size);
+    unsigned int *const characters = args->context;
+    (void)EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = (const char *)args->bytes, .size = size, .characters = characters, .capacity_u64 = size);
 }
 
-// the file read as UTF-8 a byte that starts no letter at a time read as U+FFFD, into the line `context` from its start
+// the file read as UTF-8 a byte that starts no character at a time read as U+FFFD, into the line `context` from its start
 static void each_lossy(const BenchEachCfg *args)
 {
     VerbaLinea *const line = args->context;
@@ -438,7 +438,7 @@ static BenchMeasure bench_sorted(void)
     return measure;
 }
 
-// a cell of 4 KiB taken and given back `BENCH_CELL_TURNS` times while the corpus's cells stand: the cost of one take
+// a cell of 4 KiB taken and given back `BENCH_CELL_TURNS` times while the corpus's cells are: the cost of one take
 // and one give with that many cells alive
 #define BENCH_CELL_TURNS 2000u
 static BenchMeasure bench_cells(void)
@@ -488,11 +488,11 @@ int main(int argc, char **argv)
     bench_row("utf8", bench_pass(each_utf8, NULL));
     unsigned long long sum = 0ull;
     bench_row("units", bench_pass(each_units, &sum));
-    unsigned int *const letters =
+    unsigned int *const characters =
         g_cli_guard->persistent_buf_alloc((largest + 1ull) * sizeof(unsigned int), g_checks_owner);
-    bench_row("letters", bench_pass(each_letters, letters));
-    g_cli_guard->persistent_buf_release(letters, g_checks_owner);
-    // each byte that starts no letter written as U+FFFD's three bytes at the most
+    bench_row("characters", bench_pass(each_characters, characters));
+    g_cli_guard->persistent_buf_release(characters, g_checks_owner);
+    // each byte that starts no character written as U+FFFD's three bytes at max
     char *const lossy_cell = g_cli_guard->persistent_buf_alloc((3ull * largest) + 1ull, g_checks_owner);
     VerbaLinea lossy = {lossy_cell, (3ull * largest) + 1ull, 0ull};
     bench_row("lossy", bench_pass(each_lossy, &lossy));

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The quick open along the top of the window, which reads what is typed by its first letter: a file
+// The quick open along the top of the window, which reads what is typed by its first character: a file
 // of the tree by default, the files opened last first, and path:line:column going to that place; >
 // for the menus' commands, the ones run last first; : for a line of the open file, as :line:column;
 // @ for what the open file declares; and # for what any file of the tree declares. Up and Down
@@ -14,7 +14,7 @@
 import { invoke } from "./bridge.js";
 import { fuzzy, marked } from "./fuzzy.js";
 
-const MOST = 200;
+const MAX = 200;
 
 const RECENT_COMMANDS = "orior.palette.recent";
 
@@ -91,8 +91,8 @@ function lineRows(query) {
   if (!line) {
     return [{ label: `Type a line number from 1 to ${count} to go to it.`, hits: [], run: null }];
   }
-  const shown = Math.min(line, count);
-  return [{ label: col ? `Go to line ${shown}, column ${col}` : `Go to line ${shown}`, hits: [], run: () => state.hooks.goLine(shown - 1, Math.max(0, (col ?? 1) - 1)) }];
+  const displayed = Math.min(line, count);
+  return [{ label: col ? `Go to line ${displayed}, column ${col}` : `Go to line ${displayed}`, hits: [], run: () => state.hooks.goLine(displayed - 1, Math.max(0, (col ?? 1) - 1)) }];
 }
 
 function symbolRows(query) {
@@ -104,13 +104,13 @@ function symbolRows(query) {
   for (const symbol of symbols) {
     const found = fuzzy(query, symbol.name);
     if (found) {
-      rows.push({ label: symbol.name, hits: found.hits, detail: `${symbol.kind}, line ${symbol.shownLine}`, score: query ? found.score : -symbol.line, run: () => state.hooks.goLine(symbol.line, 0) });
+      rows.push({ label: symbol.name, hits: found.hits, detail: `${symbol.type}, line ${symbol.displayedLine}`, score: query ? found.score : -symbol.line, run: () => state.hooks.goLine(symbol.line, 0) });
     }
   }
   return rows.sort((a, b) => b.score - a.score);
 }
 
-// What the tree's files declare whose names answer `query`, from the tree the app keeps of them.
+// What the tree's files declare whose names answer `query`, from the tree the app retains of them.
 // While the tree is still being read, a last row says more may be found.
 async function treeSymbolRows(query) {
   const found = await state.hooks.treeSymbols(query).catch(() => null);
@@ -120,7 +120,7 @@ async function treeSymbolRows(query) {
   const rows = found.symbols.map((symbol) => ({
     label: symbol.name,
     hits: fuzzy(query, symbol.name)?.hits ?? [],
-    detail: `${symbol.kind}, ${symbol.path}:${symbol.line + 1}`,
+    detail: `${symbol.type}, ${symbol.path}:${symbol.line + 1}`,
     run: () => state.hooks.openFile(symbol.path, symbol.line, 0),
   }));
   if (found.reading) {
@@ -147,10 +147,10 @@ async function fileRows(query) {
   if (!path) {
     return recent.map((file, at) => rowOf(file, [], -at, "recently opened"));
   }
-  // The tree's files are matched in files.rs, where the list of them is kept: a name the same as
+  // The tree's files are matched in files.rs, where the list of them is retained: a name the same as
   // what was typed first, then one that starts with it, ahead of a longer name that only holds it.
   // Until the tree's files are read, the files opened lately answer.
-  const found = await state.hooks.findFiles(path, recent, MOST).catch(() => ({ found: [], reading: false }));
+  const found = await state.hooks.findFiles(path, recent, MAX).catch(() => ({ found: [], reading: false }));
   const rows = found.found.map((one) => rowOf(one.path, one.hits, one.score));
   if (found.reading) {
     rows.push(readingRow());
@@ -158,8 +158,8 @@ async function fileRows(query) {
   return rows;
 }
 
-// The first `most` rows of `rows` that go somewhere, and the row that says the tree is being read.
-const firstOf = (rows, most) => [...rows.filter((row) => row.run).slice(0, most), ...rows.filter((row) => row.reading)];
+// The first `max` rows of `rows` that go somewhere, and the row that says the tree is being read.
+const firstOf = (rows, max) => [...rows.filter((row) => row.run).slice(0, max), ...rows.filter((row) => row.reading)];
 
 // A heading over the rows of one type, which the keys step past.
 const heading = (label) => ({ label, hits: [], run: null, heading: true });
@@ -202,12 +202,12 @@ async function rowsFor(text) {
   return fileRows(text);
 }
 
-// The rows of a list given as items, matched on the window's side, picks.c, where its texts are kept:
-// the best MOST of them for what is typed, each item's own label marked where it matched.
+// The rows of a list given as items, matched on the window's side, picks.c, where its texts are retained:
+// the best MAX of them for what is typed, each item's own label marked where it matched.
 async function cachedRows(query) {
   const { items } = state.custom;
   const id = await state.pickId;
-  const found = await invoke("pick_find", { id, query, most: MOST }).catch(() => []);
+  const found = await invoke("pick_find", { id, query, max: MAX }).catch(() => []);
   return found
     .filter(({ at }) => items[at])
     .map(({ at, hits }) => {
@@ -216,7 +216,7 @@ async function cachedRows(query) {
     });
 }
 
-// Lets go of the list stored on the window's side for the list shown, where one is.
+// Lets go of the list stored on the window's side for the list displayed, where one is.
 function letGo() {
   const pickId = state.pickId;
   state.pickId = null;
@@ -281,10 +281,10 @@ async function draw(again = false) {
   if (items.some((item) => item.reading)) {
     setTimeout(() => drawing === state.drawing && !state.node.hidden && draw(true), AGAIN);
   }
-  // Every list draws its best MOST rows at most, whatever its source gives: what is typed narrows it.
-  state.items = items.length > MOST ? items.slice(0, MOST) : items;
-  const kept = was ? state.items.findIndex((item) => item.run && item.label === was.label && item.detail === was.detail) : -1;
-  state.chosen = kept >= 0 ? kept : Math.max(0, state.items.findIndex((item) => !item.heading));
+  // Every list draws its best MAX rows at max, whatever its source gives: what is typed narrows it.
+  state.items = items.length > MAX ? items.slice(0, MAX) : items;
+  const retained = was ? state.items.findIndex((item) => item.run && item.label === was.label && item.detail === was.detail) : -1;
+  state.chosen = retained >= 0 ? retained : Math.max(0, state.items.findIndex((item) => !item.heading));
   state.input.placeholder = placeholderOf(text);
   if (!items.length) {
     state.items = [{ label: state.custom?.empty ?? (text.startsWith(">") ? "No matching commands" : "No matching results"), hits: [], run: null }];

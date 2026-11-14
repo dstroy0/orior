@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// container.c: orior's container: the one process every process impero starts stands under, the language servers,
+// container.c: orior's container: the one process every process impero starts is under, the language servers,
 // kernels, debuggers, shells, database links and runs, and every process those start. On Windows the process puts
 // itself in a job object as it starts: every process it starts joins the job on its own, and so does every process
 // those start; the job lists them, and ends them all with the container, however the container ends. On Linux and
@@ -8,7 +8,7 @@
 // opens for the reader to retain, a page in the browser, a folder in the file manager or another window of orior's, is
 // started outside the container and outlives it: on Windows it breaks away from the job; on Linux and macOS it is its
 // own process group, and the container leaves it and every process under it out of its members. The calls the system
-// gives stand in platform/windows.c and platform/posix.c
+// gives are in platform/windows.c and platform/posix.c
 #include "container.h"
 
 CliProcess *cli_processes_alloc(const CliContainerCfg *args)
@@ -85,9 +85,9 @@ unsigned int cli_descendants(const CliContainerRootCfg *args)
 
 void cli_restarts_init(const CliContainerRestartsCfg *args)
 {
-    unsigned int most = args->most;
+    unsigned int max = args->max;
     unsigned long long within = args->within;
-    args->restarts->most = (most < CLI_RESTARTS_MAX) ? most : CLI_RESTARTS_MAX;
+    args->restarts->max = (max < CLI_RESTARTS_MAX) ? max : CLI_RESTARTS_MAX;
     args->restarts->within = within;
     args->restarts->deaths = 0u;
 }
@@ -115,7 +115,7 @@ int cli_restarts_dy(const CliContainerRestartsAtCfg *args)
     }
     args->restarts->death[args->restarts->deaths] = args->at;
     args->restarts->deaths += 1u;
-    return args->restarts->deaths <= args->restarts->most;
+    return args->restarts->deaths <= args->restarts->max;
 }
 
 unsigned int cli_restarts_count(const CliContainerAtCfg *args)

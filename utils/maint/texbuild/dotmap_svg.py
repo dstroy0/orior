@@ -29,16 +29,16 @@
 # WHY THE FACETS ARE THE POINT
 #
 # The outline is exact at cell boundaries. A 64 grid gives hard facets where a font gives smooth
-# curves. That reads as a cut or brushed letter and not a typeset one. --smooth cuts corners by
+# curves. That reads as a cut or brushed character and not a typeset one. --smooth cuts corners by
 # Chaikin's rule, which shortens every segment toward its neighbors and softens the facets without
 # inventing a curve the dotmap did not have. Two passes is usually enough; four looks like a font
 # again and loses the reason to do this.
 #
 # WHAT IT IS FOR
 #
-# A composed glyph of this orthography is a letter plus a combining mark, and where that mark sits is
+# A composed glyph of this orthography is a character plus a combining mark, and where that mark sits is
 # decided by a shaping engine at render time. That placement is what a PDF text extraction
-# destroys, and papers.py:29-31 records a page printing the mark over its letter while the extracted
+# destroys, and papers.py:29-31 records a page printing the mark over its character while the extracted
 # text puts it in front. An outline traced from a rendered composition has the placement baked in and
 # cannot lose it again.
 
@@ -91,7 +91,7 @@ def from_hex(text, side):
 def boundary_edges(grid):
     """Every unit edge with a set cell on one side and nothing on the other.
 
-    Each edge is returned as (start, end) with the set cell kept on the left of the direction of
+    Each edge is returned as (start, end) with the set cell retained on the left of the direction of
     travel. That makes an outer loop run one way and a hole run the other. The
     fill rule then separates them later without anything here knowing which is which.
     """
@@ -152,11 +152,11 @@ def straightened(ring):
 
     A traced ring carries a point per cell along a straight run. A flat side of forty cells
     arrives as forty points describing one line. Dropping the middles changes no geometry at all and
-    keeps the path readable and the file small.
+    retains the path readable and the file small.
     """
     if len(ring) < 3:
         return ring
-    kept = []
+    retained = []
     count = len(ring)
     for at in range(count):
         before = ring[(at - 1) % count]
@@ -166,15 +166,15 @@ def straightened(ring):
             (here[1] - before[1]) * (after[0] - here[0])
         )
         if turning:
-            kept.append(here)
-    return kept or ring
+            retained.append(here)
+    return retained or ring
 
 
 def chaikin(ring, passes):
     """The ring with its corners cut, `passes` times, by Chaikin's rule.
 
     Each pass replaces every corner with two points a quarter and three quarters along its edges.
-    The ring keeps its shape and loses its sharpest angles. It invents no curve the dotmap did not
+    The ring retains its shape and loses its sharpest angles. It invents no curve the dotmap did not
     imply, and it is preferred here over fitting splines for that reason.
     """
     for _ in range(max(0, passes)):

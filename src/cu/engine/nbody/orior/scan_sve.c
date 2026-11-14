@@ -13,7 +13,7 @@
  * THE SAME QUESTION AVX2 ANSWERS, WITHOUT A FIXED WIDTH. Fixed at one needle offset, does
  * `corpus[at + offset]` equal `needle[offset]` for consecutive `at`. The needle byte broadcasts
  * once, the corpus side is a sliding window at unit stride, and the survivor mask enters as the
- * alignments still standing. SVE answers a vector's worth of those per compare, and the vector is
+ * alignments still located. SVE answers a vector's worth of those per compare, and the vector is
  * as wide as the part.
  *
  * WHAT THIS ARM IS NOT ALLOWED TO DO. It returns the portable arm's count or it has a defect. The
@@ -78,7 +78,7 @@ size_t orior_steer_truthy_after_sve(const uint8_t *corpus, size_t alignments, co
     }
 
     const uint64_t total = (uint64_t)alignments;
-    uint64_t standing = 0u;
+    uint64_t located = 0u;
 
     for (uint64_t at = 0u; at < total; at += svcntb())
     {
@@ -86,19 +86,19 @@ size_t orior_steer_truthy_after_sve(const uint8_t *corpus, size_t alignments, co
          * predicated load reads no byte past the alignment count. */
         const svbool_t live = svwhilelt_b8(at, total);
         const svuint8_t window = svld1_u8(live, corpus + at + offset);
-        const svuint8_t standing_bytes = svld1_u8(live, alive + at);
+        const svuint8_t located_bytes = svld1_u8(live, alive + at);
 
         const svbool_t agrees = svcmpeq_n_u8(live, window, wanted);
 
-        /* An alive flag is zero or non-zero. The standing lanes are the ones not equal to zero.
+        /* An alive flag is zero or non-zero. The located lanes are the ones not equal to zero.
          * Testing this way and not against one retains it correct if a caller ever stores a flag
          * other than one. */
-        const svbool_t alive_mask = svcmpne_n_u8(live, standing_bytes, 0u);
+        const svbool_t alive_mask = svcmpne_n_u8(live, located_bytes, 0u);
 
-        standing += (uint64_t)svcntp_b8(live, svand_b_z(live, agrees, alive_mask));
+        located += (uint64_t)svcntp_b8(live, svand_b_z(live, agrees, alive_mask));
     }
 
-    return (size_t)standing;
+    return (size_t)located;
 }
 
 const OriorSteerEngine *orior_steer_sve_engine(void)

@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // ruleset_core_relation_walk.h: the entries of any files of rulesets, device maps and classifications read together,
-// each line's kind and its relation to the others named on it, and the walk over them (ruleset_core_relation.h
+// each line's type and its relation to the others named on it, and the walk over them (ruleset_core_relation.h
 // includes the parts in order)
 #ifndef RULESET_CORE_RELATION_WALK_H
 #define RULESET_CORE_RELATION_WALK_H
 
-// Each line of each file is read as an entry of its own, its kind the line's first word and its relation to the
+// Each line of each file is read as an entry of its own, its type the line's first word and its relation to the
 // others named on the same line: no entry waits on another and no file is read before another. Every entry is then
 // checked against every other, and a relation no set of files should contain is recorded: the file each entry came from
 // is recorded with it, and the caller reads a relation within one file, between two, or across the whole set from that.
@@ -16,7 +16,7 @@
 
 #include "ruleset_core_words.h"
 
-// what an entry is, by the first word of its line: a construct's line by the construct it stands in, a device map's
+// what an entry is, by the first word of its line: a construct's line by the construct it is in, a device map's
 // arrangement by its tabs, and any other line, a classification's channel, class, count or question among them, by
 // its first word alone
 #define RULESET_CORE_ENTRY_FORM 0u
@@ -36,10 +36,10 @@
 // in the entry's head or text, a count, or which of the schema's lists a name is of (0 forms, 1 banks, 2 fixed
 // registers)
 //
-//     GIVEN_TWICE          a name given by an earlier entry of the same kind
+//     GIVEN_TWICE          a name given by an earlier entry of the same type
 //     SAME_TEXT            a form's text is an earlier form's, each parameter read as its place in its own head
 //     RENAMED              a construct of one line writing its own parameters, in order, to the form `other`
-//     MODIFIERS            names one word apart, and texts the same once every dot and the letters after it are struck
+//     MODIFIERS            names one word apart, and texts the same once every dot and the characters after it are struck
 //     OPENED               a form is the form `other` with literal operands opened as parameters of its own
 //     LINE_NOT_GIVEN       a construct's line writes a name no entry gives
 //     LINE_ARGUMENTS       a construct's line gives the form `other` another count of arguments than it takes
@@ -47,7 +47,7 @@
 //     PARAMETER_UNWRITTEN  a form takes its parameter at place `other` in its head and its text never writes it, where
 //                          the parameter's name does not open with an underscore, which marks one the form takes and
 //                          does not write
-//     PLACE_UNKNOWN        a form's text writes a place, `other` letters into the text, that its head does not take
+//     PLACE_UNKNOWN        a form's text writes a place, `other` characters into the text, that its head does not take
 //     NO_TEXT              a form with nothing after its equals, which specifies neither nop nor err
 //     NUMERIC_NAME         a form's text uses the numeric name of the register the fixed entry `other` names
 //     SCHEMA_NOT_NAMED     a name given that the schema does not name
@@ -81,24 +81,24 @@
 // is true only of a set that is whole, and no set read is known to be whole: the file that gives the name undoes it.
 // Such a relation is open, retained for a later read to close or retain and never a verdict. A classification's counts
 // and classes are contained within one file, which is read whole, and its file witnesses them
-#define RULESET_CORE_RELATION_OPEN(kind_)                                                                              \
-    (((kind_) == RULESET_CORE_RELATION_LINE_NOT_GIVEN) || ((kind_) == RULESET_CORE_RELATION_SCHEMA_NOT_GIVEN))
+#define RULESET_CORE_RELATION_OPEN(type_)                                                                              \
+    (((type_) == RULESET_CORE_RELATION_LINE_NOT_GIVEN) || ((type_) == RULESET_CORE_RELATION_SCHEMA_NOT_GIVEN))
 
 // A relation between two forms' writings is true of writings that are right as well as of wrong ones: a form's text
 // another's, a construct writing another form under its own parameters, two names a word and their modifiers apart,
 // and a form opening another's literal operands. A target writes two operations one modifier apart, and a language
 // writes one text for two names. Such a relation is recorded and written, the bridge's pairs are read from it
 // (klq_write.cu), and it is no verdict; every other relation that is not open is one
-#define RULESET_CORE_RELATION_VERDICT(kind_)                                                                           \
-    (!RULESET_CORE_RELATION_OPEN(kind_) && ((kind_) != RULESET_CORE_RELATION_SAME_TEXT) &&                             \
-     ((kind_) != RULESET_CORE_RELATION_RENAMED) && ((kind_) != RULESET_CORE_RELATION_MODIFIERS) &&                     \
-     ((kind_) != RULESET_CORE_RELATION_OPENED))
+#define RULESET_CORE_RELATION_VERDICT(type_)                                                                           \
+    (!RULESET_CORE_RELATION_OPEN(type_) && ((type_) != RULESET_CORE_RELATION_SAME_TEXT) &&                             \
+     ((type_) != RULESET_CORE_RELATION_RENAMED) && ((type_) != RULESET_CORE_RELATION_MODIFIERS) &&                     \
+     ((type_) != RULESET_CORE_RELATION_OPENED))
 
-// one line of one file: its kind, the file and the line it is, the construct a construct's line stands in, whether
+// one line of one file: its type, the file and the line it is, the construct a construct's line is in, whether
 // the line has an equals, its name, the words after the name up to the equals, and the text after it
 struct RulesetCoreEntry
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int file;
     unsigned int line;
     unsigned int owner;
@@ -108,16 +108,16 @@ struct RulesetCoreEntry
     RulesetCoreSpan text;
 };
 
-// a relation recorded: its kind, the entry it is of, and the other entry or place it names
+// a relation recorded: its type, the entry it is of, and the other entry or place it names
 struct RulesetCoreRelation
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int entry;
     unsigned int other;
 };
 
-// the files read together and what is read of them: the schema, its letters NULL where the files are read against
-// none; the letters of every file, each file a span of them; the entries, the walk's marks and stack, and the
+// the files read together and what is read of them: the schema, its characters NULL where the files are read against
+// none; the characters of every file, each file a span of them; the entries, the walk's marks and stack, and the
 // relations, each with the capacity the caller sized. A relation past the capacity is counted and not recorded
 struct RulesetCoreRelations
 {
@@ -135,30 +135,30 @@ struct RulesetCoreRelations
     unsigned int relation_count;
 };
 
-// the place of `letter` in the span `within` from `from` on, or its length where it is not there
+// the place of `character` in the span `within` from `from` on, or its length where it is not there
 CODEGEN_CORE unsigned int ruleset_core_relation_find(const unsigned char *text, RulesetCoreSpan within,
-                                                     unsigned char letter, unsigned int from)
+                                                     unsigned char character, unsigned int from)
 {
     unsigned int found = within.length;
     for (unsigned int at = from; (found == within.length) && (at < within.length); at += 1u)
     {
-        found = (text[within.first + at] == letter) ? at : found;
+        found = (text[within.first + at] == character) ? at : found;
     }
     return found;
 }
 
-// part `index` of the span `within` cut at `letter`, runs of it counted as one where `letter` is a space, or an empty
+// part `index` of the span `within` cut at `character`, runs of it counted as one where `character` is a space, or an empty
 // span past its end where it has fewer parts
 CODEGEN_CORE RulesetCoreSpan ruleset_core_relation_part(const unsigned char *text, RulesetCoreSpan within,
-                                                        unsigned char letter, unsigned int index)
+                                                        unsigned char character, unsigned int index)
 {
     unsigned int at = 0u;
     unsigned int counted = 0u;
     while (at <= within.length)
     {
-        const unsigned int end = ruleset_core_relation_find(text, within, letter, at);
+        const unsigned int end = ruleset_core_relation_find(text, within, character, at);
         // a space between words may be several, and an empty part between two of them is no word
-        if ((end > at) || (letter != (unsigned char)' '))
+        if ((end > at) || (character != (unsigned char)' '))
         {
             if (counted == index)
             {
@@ -173,22 +173,22 @@ CODEGEN_CORE RulesetCoreSpan ruleset_core_relation_part(const unsigned char *tex
     return none;
 }
 
-// how many parts the span `within` has cut at `letter`, as ruleset_core_relation_part counts them
+// how many parts the span `within` has cut at `character`, as ruleset_core_relation_part counts them
 CODEGEN_CORE unsigned int ruleset_core_relation_parts(const unsigned char *text, RulesetCoreSpan within,
-                                                      unsigned char letter)
+                                                      unsigned char character)
 {
     unsigned int counted = 0u;
     unsigned int at = 0u;
     while (at <= within.length)
     {
-        const unsigned int end = ruleset_core_relation_find(text, within, letter, at);
-        counted += ((end > at) || (letter != (unsigned char)' ')) ? 1u : 0u;
+        const unsigned int end = ruleset_core_relation_find(text, within, character, at);
+        counted += ((end > at) || (character != (unsigned char)' ')) ? 1u : 0u;
         at = end + 1u;
     }
     return counted;
 }
 
-// 1 where the spans `one` and `other` contain the same letters
+// 1 where the spans `one` and `other` contain the same characters
 CODEGEN_CORE int ruleset_core_relation_same(const unsigned char *text, RulesetCoreSpan one, RulesetCoreSpan other)
 {
     return ruleset_core_equal(&text[one.first], one.length, &text[other.first], other.length);
@@ -224,12 +224,12 @@ CODEGEN_CORE void ruleset_core_relation_entry(RulesetCoreRelations *relations, c
 }
 
 // a relation counted, and recorded where the caller made room for it
-CODEGEN_CORE void ruleset_core_relation_add(RulesetCoreRelations *relations, unsigned int kind, unsigned int entry,
+CODEGEN_CORE void ruleset_core_relation_add(RulesetCoreRelations *relations, unsigned int type, unsigned int entry,
                                             unsigned int other)
 {
     if (relations->relation_count < relations->relation_capacity)
     {
-        const RulesetCoreRelation relation = {kind, entry, other};
+        const RulesetCoreRelation relation = {type, entry, other};
         relations->relations[relations->relation_count] = relation;
     }
     relations->relation_count += 1u;
@@ -273,12 +273,12 @@ CODEGEN_CORE void ruleset_core_relation_file(RulesetCoreRelations *relations, un
                 building = RULESET_CORE_NONE;
                 continue;
             }
-            entry.kind = RULESET_CORE_ENTRY_LINE;
+            entry.type = RULESET_CORE_ENTRY_LINE;
             entry.owner = building;
             ruleset_core_relation_entry(relations, &entry);
             continue;
         }
-        const unsigned int kind = ruleset_core_relation_is(text, first, "form")        ? RULESET_CORE_ENTRY_FORM
+        const unsigned int type = ruleset_core_relation_is(text, first, "form")        ? RULESET_CORE_ENTRY_FORM
                                   : ruleset_core_relation_is(text, first, "nop")       ? RULESET_CORE_ENTRY_NOP
                                   : ruleset_core_relation_is(text, first, "err")       ? RULESET_CORE_ENTRY_ERR
                                   : ruleset_core_relation_is(text, first, "construct") ? RULESET_CORE_ENTRY_CONSTRUCT
@@ -286,7 +286,7 @@ CODEGEN_CORE void ruleset_core_relation_file(RulesetCoreRelations *relations, un
                                   : ruleset_core_relation_is(text, first, "fixed")     ? RULESET_CORE_ENTRY_FIXED
                                                                                        : RULESET_CORE_ENTRY_OTHER;
         const unsigned int tab = ruleset_core_relation_find(text, line, (unsigned char)'\t', 0u);
-        if (kind != RULESET_CORE_ENTRY_OTHER)
+        if (type != RULESET_CORE_ENTRY_OTHER)
         {
             // a named entry's head is its name and parameters, and its text follows the head's "= "
             const RulesetCoreSpan rest = ruleset_core_relation_after(line, space + 1u);
@@ -297,7 +297,7 @@ CODEGEN_CORE void ruleset_core_relation_file(RulesetCoreRelations *relations, un
                     ? rest.length
                     : ((((equals + 1u) < rest.length) && (text[rest.first + equals + 1u] == ' ')) ? (equals + 2u)
                                                                                                   : (equals + 1u));
-            entry.kind = kind;
+            entry.type = type;
             entry.equals = (equals != rest.length) ? 1u : 0u;
             entry.name = ruleset_core_relation_part(text, head, (unsigned char)' ', 0u);
             entry.head = ruleset_core_relation_after(head, entry.name.first + entry.name.length - head.first);
@@ -306,23 +306,23 @@ CODEGEN_CORE void ruleset_core_relation_file(RulesetCoreRelations *relations, un
         else if (tab != line.length)
         {
             // an arrangement's cells are its operator, its nodes, its chain, its cost and its runs
-            entry.kind = RULESET_CORE_ENTRY_ROW;
+            entry.type = RULESET_CORE_ENTRY_ROW;
             entry.name = ruleset_core_relation_part(text, line, (unsigned char)'\t', 0u);
             entry.head = ruleset_core_relation_part(text, line, (unsigned char)'\t', 2u);
         }
         ruleset_core_relation_entry(relations, &entry);
-        if (kind == RULESET_CORE_ENTRY_CONSTRUCT)
+        if (type == RULESET_CORE_ENTRY_CONSTRUCT)
         {
             building = relations->entry_count - 1u;
         }
     }
 }
 
-// 1 where an entry of kind `kind` gives a name: a form, nop, err or construct
-CODEGEN_CORE int ruleset_core_relation_gives(unsigned int kind)
+// 1 where an entry of type `type` gives a name: a form, nop, err or construct
+CODEGEN_CORE int ruleset_core_relation_gives(unsigned int type)
 {
-    return (kind == RULESET_CORE_ENTRY_FORM) || (kind == RULESET_CORE_ENTRY_NOP) || (kind == RULESET_CORE_ENTRY_ERR) ||
-           (kind == RULESET_CORE_ENTRY_CONSTRUCT);
+    return (type == RULESET_CORE_ENTRY_FORM) || (type == RULESET_CORE_ENTRY_NOP) || (type == RULESET_CORE_ENTRY_ERR) ||
+           (type == RULESET_CORE_ENTRY_CONSTRUCT);
 }
 
 // the first entry giving the name `name`, or RULESET_CORE_NONE where none does
@@ -331,7 +331,7 @@ CODEGEN_CORE unsigned int ruleset_core_relation_giver(const RulesetCoreRelations
     for (unsigned int at = 0u; at < relations->entry_count; at += 1u)
     {
         const RulesetCoreEntry *const entry = &relations->entries[at];
-        if (ruleset_core_relation_gives(entry->kind) && ruleset_core_relation_same(relations->text, entry->name, name))
+        if (ruleset_core_relation_gives(entry->type) && ruleset_core_relation_same(relations->text, entry->name, name))
         {
             return at;
         }
@@ -357,7 +357,7 @@ CODEGEN_CORE unsigned int ruleset_core_relation_place(const RulesetCoreRelations
 }
 
 // the parameter `entry`'s text names at `at`, a place of its text containing {: the name between the braces, or an
-// empty span where no } closes it or what the braces contain is not a name of letters, digits and underscores, as a
+// empty span where no } closes it or what the braces contain is not a name of characters, digits and underscores, as a
 // brace of the target's own language is not
 CODEGEN_CORE RulesetCoreSpan ruleset_core_relation_braced(const RulesetCoreRelations *relations,
                                                           const RulesetCoreEntry *entry, unsigned int at)
@@ -366,16 +366,16 @@ CODEGEN_CORE RulesetCoreSpan ruleset_core_relation_braced(const RulesetCoreRelat
     const RulesetCoreSpan none = {entry->text.first + at, 0u};
     const RulesetCoreSpan named = {entry->text.first + at + 1u, close - at - 1u};
     int name = (close != entry->text.length) && (named.length != 0u);
-    for (unsigned int letter = 0u; (name != 0) && (letter < named.length); letter += 1u)
+    for (unsigned int character = 0u; (name != 0) && (character < named.length); character += 1u)
     {
-        const unsigned char one = relations->text[named.first + letter];
+        const unsigned char one = relations->text[named.first + character];
         name = ((one >= 'a') && (one <= 'z')) || ((one >= 'A') && (one <= 'Z')) || ((one >= '0') && (one <= '9')) ||
                (one == '_');
     }
     return (name != 0) ? named : none;
 }
 
-// the place past a dot at `at` of `entry`'s text and the letters and digits after it, or `at` where no dot is there
+// the place past a dot at `at` of `entry`'s text and the characters and digits after it, or `at` where no dot is there
 CODEGEN_CORE unsigned int ruleset_core_relation_struck(const RulesetCoreRelations *relations,
                                                        const RulesetCoreEntry *entry, unsigned int at)
 {
@@ -383,29 +383,29 @@ CODEGEN_CORE unsigned int ruleset_core_relation_struck(const RulesetCoreRelation
     while ((past < entry->text.length) && (relations->text[entry->text.first + past] == '.'))
     {
         past += 1u;
-        unsigned char letter = (past < entry->text.length) ? relations->text[entry->text.first + past] : 0u;
+        unsigned char character = (past < entry->text.length) ? relations->text[entry->text.first + past] : 0u;
         while ((past < entry->text.length) &&
-               (((letter >= 'a') && (letter <= 'z')) || ((letter >= 'A') && (letter <= 'Z')) ||
-                ((letter >= '0') && (letter <= '9'))))
+               (((character >= 'a') && (character <= 'z')) || ((character >= 'A') && (character <= 'Z')) ||
+                ((character >= '0') && (character <= '9'))))
         {
             past += 1u;
-            letter = (past < entry->text.length) ? relations->text[entry->text.first + past] : 0u;
+            character = (past < entry->text.length) ? relations->text[entry->text.first + past] : 0u;
         }
     }
     return past;
 }
 
-// 1 where the letter is one an operand ends at
-CODEGEN_CORE int ruleset_core_relation_ends(unsigned char letter)
+// 1 where the character is one an operand ends at
+CODEGEN_CORE int ruleset_core_relation_ends(unsigned char character)
 {
-    return (letter == ' ') || (letter == ',') || (letter == ';') || (letter == '[') || (letter == ']') ||
-           (letter == '(') || (letter == ')') || (letter == '+') || (letter == '\\') || (letter == '\t') ||
-           (letter == '{');
+    return (character == ' ') || (character == ',') || (character == ';') || (character == '[') || (character == ']') ||
+           (character == '(') || (character == ')') || (character == '+') || (character == '\\') || (character == '\t') ||
+           (character == '{');
 }
 
 // The texts of forms `one` and `other` walked together, each parameter read as its place in its own head. With
-// `struck`, every dot and the letters and digits after it are passed over in both. With `opened`, a parameter of
-// `one` past `other`'s count stands for a literal operand of `other`, and the operands it stood for are counted into
+// `struck`, every dot and the characters and digits after it are passed over in both. With `opened`, a parameter of
+// `one` past `other`'s count is for a literal operand of `other`, and the operands it was for are counted into
 // `opened`. 1 where the walk reaches both ends together
 CODEGEN_CORE int ruleset_core_relation_walk(const RulesetCoreRelations *relations, const RulesetCoreEntry *one,
                                             const RulesetCoreEntry *other, int struck, unsigned int *opened)
@@ -422,23 +422,23 @@ CODEGEN_CORE int ruleset_core_relation_walk(const RulesetCoreRelations *relation
         {
             return (at == one->text.length) && (other_at == other->text.length);
         }
-        const unsigned char letter = text[one->text.first + at];
-        const unsigned char other_letter = text[other->text.first + other_at];
+        const unsigned char character = text[one->text.first + at];
+        const unsigned char other_character = text[other->text.first + other_at];
         const RulesetCoreSpan named = ruleset_core_relation_braced(relations, one, at);
         const RulesetCoreSpan other_named = ruleset_core_relation_braced(relations, other, other_at);
-        const unsigned int place = (letter == '{') && (named.length != 0u)
+        const unsigned int place = (character == '{') && (named.length != 0u)
                                        ? ruleset_core_relation_place(relations, one, named)
                                        : RULESET_CORE_NONE;
-        const unsigned int other_place = (other_letter == '{') && (other_named.length != 0u)
+        const unsigned int other_place = (other_character == '{') && (other_named.length != 0u)
                                              ? ruleset_core_relation_place(relations, other, other_named)
                                              : RULESET_CORE_NONE;
         const unsigned int one_count = ruleset_core_relation_parts(text, one->head, (unsigned char)' ');
         const int is_parameter = (place != RULESET_CORE_NONE) && (place < one_count);
         const int other_is_parameter = (other_place != RULESET_CORE_NONE) && (other_place < other_count);
         if ((opened != 0) && is_parameter && (place >= other_count) && !other_is_parameter &&
-            !ruleset_core_relation_ends(other_letter))
+            !ruleset_core_relation_ends(other_character))
         {
-            // a parameter `one` added, standing for the operand `other` writes as it stands
+            // a parameter `one` added, located for the operand `other` writes as it is
             while ((other_at < other->text.length) && !ruleset_core_relation_ends(text[other->text.first + other_at]))
             {
                 other_at += 1u;
@@ -457,7 +457,7 @@ CODEGEN_CORE int ruleset_core_relation_walk(const RulesetCoreRelations *relation
             other_at = other_named.first + other_named.length + 1u - other->text.first;
             continue;
         }
-        if (letter != other_letter)
+        if (character != other_character)
         {
             return 0;
         }

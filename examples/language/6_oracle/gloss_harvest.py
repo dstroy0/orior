@@ -15,13 +15,13 @@
 #
 # It does not have to be recovered by hand, because the interlinear format already holds both halves. An
 # example is printed in three lines: the form with its morpheme boundaries, a morpheme by morpheme gloss,
-# and a running translation. The second line is what the word composes. The third is what English keeps.
+# and a running translation. The second line is what the word composes. The third is what English retains.
 # The difference between them is the metaphor, and it comes out by subtraction.
 #
 # That difference is countable. A word built from five morphemes and translated by one English word has
 # four morphemes of scene that the translation discarded, and the ratio of morphemes composed to words
 # retained says how much of the picture a reader of the English never sees. It is a lower bound on the
-# metaphor and not a measure of it, since a translation can also keep the scene and just be long.
+# metaphor and not a measure of it, since a translation can also retain the scene and just be long.
 #
 # The form lines came out of the PDF with the glottalized and retracted consonants dropped, which would
 # ruin any measurement of the phonology. Gloss lines and translation lines are close to plain ASCII and
@@ -94,14 +94,14 @@ def main():
                          % (number, pieces, words, ratio, gloss, english))
 
     out.write("  written to %s\n" % target)
-    out.write("\n  morphemes composed against English words kept\n")
+    out.write("\n  morphemes composed against English words retained\n")
     out.write("  median %.3f, mean %.3f, over %d examples\n"
               % (statistics.median(ratios), statistics.fmean(ratios), len(ratios)))
     out.write("  a ratio above one means the morphology carries more pieces than the\n")
-    out.write("  translation keeps words, which is where the scene is being discarded\n")
+    out.write("  translation retains words, which is where the scene is being discarded\n")
 
     steep = sorted(zip(ratios, found), key=lambda pair: -pair[0])[:8]
-    out.write("\n  the examples that lose the most, by that ratio\n")
+    out.write("\n  the examples that lose the max, by that ratio\n")
     for ratio, (number, gloss, english) in steep:
         out.write("  %-6.2f page %-4d %s\n" % (ratio, number, english[:66]))
         out.write("         %s\n" % gloss[:100])

@@ -38,7 +38,7 @@
 
 #define SORT_TEST_GROUPS 5u
 
-// the most the test puts on the device at once: the records, the order, the swept records, and room beside for the
+// the max the test puts on the device at once: the records, the order, the swept records, and room beside for the
 // sort's spare order and counts and the index program's compiled module
 #define SORT_TEST_DECLARED ((SORT_TEST_RECORDS * (SORT_TEST_RECORD_LIMBS + 4ull) * sizeof(unsigned int)) + (96ull << 20u))
 
@@ -223,11 +223,11 @@ static void sort_index(SortResults *results, unsigned int *records, unsigned int
     const unsigned int field_offset[1] = {32u};
     unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {SORT_TEST_RECORD_LIMBS, 0u, 0u};
     const KeymathRecordRequest encode = {steps, 1u, field_bits, 1u, 1u, outputs, 1u, NULL, 0u, &key, &error};
-    const KeyScheduleRecordRequest lay = {&key, field_offset, 1u, in_limbs, 1, &layout, &error};
+    const KeyScheduleRecordRequest position = {&key, field_offset, 1u, in_limbs, 1, &layout, &error};
     int ok = (keymath_record_encode(&encode) != KEYMATH_ERROR) &&
-             (key_schedule_record_layout(&lay) != KEY_SCHEDULE_ERROR) &&
+             (key_schedule_record_layout(&position) != KEY_SCHEDULE_ERROR) &&
              (cycle_record_load(&layout, &record, &error) != CYCLE_ERROR);
-    sort_check(results, ok, "the index program is encoded, laid out and loaded");
+    sort_check(results, ok, "the index program is encoded, arranged and loaded");
     const unsigned int out_limbs = layout.out_limbs;
     unsigned int *const order = (unsigned int *)malloc((size_t)SORT_TEST_RECORDS * sizeof(unsigned int));
     unsigned int *const out = (unsigned int *)malloc((size_t)SORT_TEST_RECORDS * out_limbs * sizeof(unsigned int));
@@ -260,7 +260,7 @@ static void sort_index(SortResults *results, unsigned int *records, unsigned int
     const DeviceRecordStep *const step = &layout.step_table[0];
     for (unsigned long long at = 0ull; (ok != 0) && (at < SORT_TEST_RECORDS); at += 1ull)
     {
-        // the output is the 32-bit field, laid at its offset in 33 bits; a field below 2^32 fills its low 32
+        // the output is the 32-bit field, positioned at its offset in 33 bits; a field below 2^32 fills its low 32
         const unsigned int *const written = &out[at * out_limbs];
         unsigned long long value = 0ull;
         for (unsigned int bit = 0u; bit < 32u; bit += 1u)

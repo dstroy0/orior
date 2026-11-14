@@ -7,7 +7,7 @@
 #include "../command_line/pool.h"
 #include "lsp_internal.h"
 
-// the most files every server has open at once, the places the table of them is taken with, and the longest URI of one
+// the max files every server has open at once, the places the table of them is taken with, and the longest URI of one
 #define CLI_LSP_FILES 2048u
 #define CLI_LSP_URI 2048u
 
@@ -22,7 +22,7 @@ typedef struct
     unsigned long long version;
 } CliLspFile;
 
-// the files open, by place, records in a movable cell at their most, read and written a record at a time; a place
+// the files open, by place, records in a movable cell at their max, read and written a record at a time; a place
 // retains its number while its file is open, the file its text is stored in named by it
 static const CarcerMovableEntry *s_files;
 static unsigned int s_files_capacity;
@@ -85,8 +85,8 @@ EMBED_INLINE unsigned int files_position(const LspFilesCtx *args)
     return CLI_LSP_FILES;
 }
 
-// the table taken at its most, every place free, under the files' lock: 1, or 0 where it stands taken or the cell is
-// refused. A movable cell is not zeroed: the empty records are laid in the temporary tier and written whole
+// the table taken at its max, every place free, under the files' lock: 1, or 0 where it is taken or the cell is
+// refused. A movable cell is not zeroed: the empty records are positioned in the temporary tier and written whole
 static int files_init(void)
 {
     const unsigned long long bytes = LSP_FILE_AT(CLI_LSP_FILES);
@@ -413,7 +413,7 @@ int cli_lsp_has(const CliLspPathOutCfg *args)
 char *cli_lsp_open_uris_alloc(const CliLspSizeCfg *args)
 {
     unsigned long long *size = args->size;
-    // each file the server has open holds a URI of at most CLI_LSP_URI bytes
+    // each file the server has open holds a URI of at max CLI_LSP_URI bytes
     unsigned long long open = 0ULL;
     for (unsigned int at = 0u; at < s_files_capacity; at += 1u)
     {
@@ -442,8 +442,8 @@ char *cli_lsp_open_uris_alloc(const CliLspSizeCfg *args)
 
 void cli_lsp_open_each(const CliLspContextCfg *args)
 {
-    // the server's files are copied as they stand under the lock into cells of their count and their URIs' bytes, and
-    // each is handed on with the lock given back, so that `each` may open it in another server
+    // the server's files are copied as they are under the lock into cells of their count and their URIs' bytes, and
+    // each is passed on with the lock given back, so that `each` may open it in another server
     unsigned int count = 0u;
     unsigned long long bytes = 0ULL;
     for (unsigned int at = 0u; at < s_files_capacity; at += 1u)

@@ -13,7 +13,7 @@
 //   input    whether a key or the pointer is working the editor now
 //
 // A process writes only its own part and reads any. The view writes `scroll` and `frame`, and a
-// file being read and the idle coloring read them and stand back while the view moves.
+// file being read and the idle coloring read them and are back while the view moves.
 // While `input` is active everything but the rows on screen waits, and a key costs only its own
 // rows.
 
@@ -59,7 +59,7 @@ export function watch(watcher) {
   return () => watchers.delete(watcher);
 }
 
-// Whether the view is taking input or moving, the time for background work to stand back.
+// Whether the view is taking input or moving, the time for background work to be back.
 export function pressed() {
   return status.input.active || status.scroll.speed > 0;
 }

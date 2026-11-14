@@ -13,11 +13,11 @@
 
 typedef struct CliDapCtx CliDapCtx;
 
-// the most bytes of what an adapter writes to its errors that are retained
+// the max bytes of what an adapter writes to its errors that are retained
 #define CLI_DAP_COMPLAINT 4096u
 
 // the adapter in orior's two queues, the slots of each one's ring as a two's power, the messages in flight at the
-// most, and the bytes the slots take, the adapter's part of the rings block
+// max, and the bytes the slots take, the adapter's part of the rings block
 #define CLI_DAP_QUEUES 2u
 #define CLI_DAP_RING_SHIFT 8u
 #define CLI_DAP_RING_SLOTS (1u << CLI_DAP_RING_SHIFT)
@@ -29,7 +29,7 @@ typedef struct CliDapCtx CliDapCtx;
 #define CLI_DAP_WITHIN 2u
 
 // A request waiting on its answer: its sequence number, whether it came, the error it came with, empty where none did,
-// and the message it came in with its body, handed over as the request takes it and given back where it never does
+// and the message it came in with its body, passed over as the request takes it and given back where it never does
 typedef struct
 {
     int waiting;
@@ -71,7 +71,7 @@ struct CliDap
 extern CliDap g_cli_daps[CLI_DAPS_MAX];
 
 // a place for an adapter taken, referenced once and made empty, NULL where every place is taken; and its readers
-// started: what it writes read on a thread of its own, each response handed to the request waiting on it, each event
+// started: what it writes read on a thread of its own, each response passed to the request waiting on it, each event
 // received and each request of its refused, and, for a program, what it writes to its errors retained (dap.c)
 CliDap *cli_dap_position_alloc(void);
 void cli_dap_readers_start(const CliDapCtx *args);

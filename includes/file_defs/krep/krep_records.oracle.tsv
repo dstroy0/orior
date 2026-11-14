@@ -1,12 +1,12 @@
-where	who	kind	code	form	numbers	gloss
+where	who	type	code	form	numbers	gloss
 head 0	krep_write_by	magic	-	8 bytes	-	KREP and four zero bytes
-head 1	krep_write_by	kind	-	4 bytes	-	the file's kind
+head 1	krep_write_by	type	-	4 bytes	-	the file's type
 head 2	krep_write_by	version	-	1 limb	-	KREP_VERSION; a file of another version errors on read
 record	krep_write_by	text	0x1	text <number> <text>	<length> <bytes>	a text, numbered from 1 in the order the file gives them and held once, which a record names by its number: its count of bytes, then the bytes; every text comes before the first record
 record	krep_write_by	who	0x2	who <code> <source>:<line> <program> <time>	<source line program> <time>	the who of the records after it to the next who: the source, its line and the program as the who table numbers them, sixteen bits each, then the time in nanoseconds since 1970 in UTC; of no numbers, no who is known of the records after it
 record	-	format	0x10 on	<code> <number>...	<count> <number>...	a record of the file's format, the code its oracle gives: its count of numbers, then the numbers
 any	-	number	-	-	-	every code, count, length and number written in as few bytes as it takes, seven bits a byte, the low bits first and the top bit set on every byte but its last; in memory each is a 64-bit word, compared as one
-row	krep_tabled_by	head	0x0	-	0 <who> 0x0 <kind> <version> <length> <bytes>	the head of a file a run is to write, a row of the table the format names handed critical, its sequence the file's key: the file's kind as a number, its four bytes the low first, the version, and the length and bytes of the file's name in the run
+row	krep_tabled_by	head	0x0	-	0 <who> 0x0 <type> <version> <length> <bytes>	the head of a file a run is to write, a row of the table the format names passed critical, its sequence the file's key: the file's type as a number, its four bytes the low first, the version, and the length and bytes of the file's name in the run
 row	krep_tabled_by	text	0x1	-	<key> 0 0 0x1 <number> <length> <bytes>	a text the file takes, in the order it takes them, of no who: its number, its length and its bytes
 row	krep_record_put	put	0x2	-	<key> <who> 0x2 <place> <code> <count> <word>...	a record put at its place, every record from it on one later, the who in force over it its who: its code, its count of words and the words
 row	krep_record_set	set	0x3	-	<key> <who> 0x3 <place> <count> <word>...	a record given other words in its place: their count and the words

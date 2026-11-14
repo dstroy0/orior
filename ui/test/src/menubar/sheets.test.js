@@ -32,11 +32,11 @@ test("Help, What's New shows what each release changed, the running version's ow
   await ui.click(help);
   const menu = await ui.waitFor(() => document.querySelector("body > .menu"), 3000);
   await ui.click([...menu.querySelectorAll(".menu-item")].find((one) => one.querySelector("span")?.textContent === "What's New"));
-  const shown = await ui.waitFor(() => document.querySelector("dialog[open] .sheet-changes"), 3000);
+  const displayed = await ui.waitFor(() => document.querySelector("dialog[open] .sheet-changes"), 3000);
   try {
     const version = await invoke("app_version");
-    assert.equal(shown.querySelector("h1")?.textContent, "What's new in orior");
-    assert.ok([...shown.querySelectorAll("h2")].some((one) => one.textContent === version), `a section for ${version}`);
+    assert.equal(displayed.querySelector("h1")?.textContent, "What's new in orior");
+    assert.ok([...displayed.querySelectorAll("h2")].some((one) => one.textContent === version), `a section for ${version}`);
   } finally {
     document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
   }

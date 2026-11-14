@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // A notebook as cells: a Jupyter notebook, or a script of `# %%` cells opened as one. Each code cell
-// runs on its own on the notebook's kernel, its output shown under it; a markdown cell shows as it
+// runs on its own on the notebook's kernel, its output displayed under it; a markdown cell shows as it
 // reads, and as its text where it is being written.
 //
 // The cell being written holds the notebook's one editor; every other cell shows its code in the
-// editor's colors, which keeps a long notebook as quick as a short one.
+// editor's colors, which retains a long notebook as quick as a short one.
 //
 // Each cell shows when it ran in the kernel's order, and a cell is marked out of date where its
-// output stands on a cell that ran before it and has changed since, has run again since, or is
+// output is on a cell that ran before it and has changed since, has run again since, or is
 // gone: the values such a cell left are not what the page shows. Check from the Top runs every code
 // cell in a kernel of its own, from the first, and says the first that fails.
 //
@@ -17,7 +17,7 @@
 // than LONG lines shows its first and last lines, the whole a press away.
 //
 // A Python cell debugged is written to a file of the tree of its own under CELLS, which its
-// breakpoints are kept by, and runs on the notebook's kernel under that file's name with the
+// breakpoints are retained by, and runs on the notebook's kernel under that file's name with the
 // debugger attached to the kernel: it stops at the cell's breakpoints, or at its first line where it
 // has none, and the debugger lets go of the kernel once the cell has run.
 
@@ -70,7 +70,7 @@ export function cellOf(book, raw) {
   const language = type === "code" ? book.language : state.hooks.languageOf("cell.md");
   const cell = {
     id: raw.id ?? crypto.randomUUID().replaceAll("-", "").slice(0, 8),
-    kind: type,
+    type: type,
     raw,
     session: new Session(raw.source ?? "", language),
     outputs: raw.outputs ? raw.outputs.slice() : [],
@@ -103,7 +103,7 @@ export async function openNotebook(path) {
     clock: 0,
     kernel: { state: "none", display: null },
     waiting: new Map(),
-    // What a kernel said of a run before its id came back to the page, kept until it does.
+    // What a kernel said of a run before its id came back to the page, retained until it does.
     early: new Map(),
     changed: false,
     focused: null,
@@ -120,12 +120,12 @@ export function notebookDirty(book) {
   return book.changed || book.cells.some((cell) => cell.session.doc.id !== cell.saved);
 }
 
-// The notebook as its file keeps it, the cells' text and outputs as they stand.
+// The notebook as its file retains it, the cells' text and outputs as they are.
 export function notebookFile(book) {
   const raw = structuredClone(book.raw);
   raw.cells = book.cells.map((cell) => {
-    const out = { ...structuredClone(cell.raw), cell_type: cell.kind, source: cell.session.doc.text() };
-    if (cell.kind === "code") {
+    const out = { ...structuredClone(cell.raw), cell_type: cell.type, source: cell.session.doc.text() };
+    if (cell.type === "code") {
       out.outputs = cell.outputs;
       out.execution_count = cell.count;
     } else {
@@ -143,7 +143,7 @@ export function notebookFile(book) {
   return raw;
 }
 
-// Marks a notebook saved as it stands.
+// Marks a notebook saved as it is.
 export function markNotebookSaved(book) {
   book.changed = false;
   book.cells.forEach((cell) => (cell.saved = cell.session.doc.id));
@@ -159,7 +159,7 @@ export function closeNotebook(book) {
 }
 
 // The cells that ran before `cell` and have changed since, run again since, or are gone, which the
-// values `cell` left stand on.
+// values `cell` left are on.
 export function staleBy(book, cell) {
   const ran = cell.runs.at(-1);
   if (ran === undefined) {
@@ -184,9 +184,9 @@ export function cellName(book, cell) {
 }
 
 // The file of the tree a code cell of a Python notebook is written to as it is debugged, which its
-// breakpoints are kept by; null for any other cell.
+// breakpoints are retained by; null for any other cell.
 export function cellFile(book, cell) {
-  if (cell.kind !== "code" || book.languageName !== "python") {
+  if (cell.type !== "code" || book.languageName !== "python") {
     return null;
   }
   return `${CELLS}/${book.path.replace(/[^\w.-]+/g, "_")}.${cell.id.replace(/[^\w-]+/g, "_")}.py`;
@@ -223,7 +223,7 @@ export function notebookOfCellFile(path) {
 // shows.
 export function showCellLine(path, line, col = 0) {
   const found = cellAt(path);
-  if (!found || state.shown !== found.book || !found.cell.node) {
+  if (!found || state.displayed !== found.book || !found.cell.node) {
     return false;
   }
   focusCell(found.book, found.cell);
@@ -242,13 +242,13 @@ export function breaksKey(book, cell) {
 // Draws again what the debugger marks: the cell's editor, and each cell in view whose breakpoints
 // have changed.
 export function repaintNotebook() {
-  const book = state.shown;
+  const book = state.displayed;
   if (!book) {
     return;
   }
   state.editor?.schedule();
   for (const cell of book.cells) {
-    if (cell.kind === "code" && book.focused !== cell && (cell.marked ?? "") !== breaksKey(book, cell)) {
+    if (cell.type === "code" && book.focused !== cell && (cell.marked ?? "") !== breaksKey(book, cell)) {
       drawSource(book, cell);
     }
   }
@@ -298,7 +298,7 @@ function sizeEditor(cell) {
 // The bar over the cells: the kernel to run on, its state, and what runs.
 export function drawBar(book) {
   const bar = document.querySelector("#notebook .nb-bar");
-  if (!bar || state.books.get(book.path) !== book || state.shown !== book) {
+  if (!bar || state.books.get(book.path) !== book || state.displayed !== book) {
     return;
   }
   const kernelState = bar.querySelector(".nb-state");
@@ -311,7 +311,7 @@ export function drawBar(book) {
 // Draws the notebook `book` into the notebook's node of the page.
 export async function drawNotebook(book) {
   const node = document.getElementById("notebook");
-  state.shown = book;
+  state.displayed = book;
   const pick = element("select", { className: "nb-pick", title: "The kernel the notebook runs on" });
   const button = (label, act, title = "") => {
     const one = element("button", { type: "button", textContent: label, title });
@@ -389,7 +389,7 @@ export function startNotebooks(hooks) {
   state.editor.input.addEventListener(
     "keydown",
     (event) => {
-      const book = state.shown;
+      const book = state.displayed;
       const cell = book?.focused;
       if (!cell) {
         return;
@@ -449,7 +449,7 @@ export function showNotebookMerge(host, path, merged, { resolved, close }) {
   const sourceOf = (cell) => element("pre", { className: "nb-merge-source", textContent: cell ? cell.source : "deleted on this side" });
   entries.forEach((entry, index) => {
     if (entry.take) {
-      body.append(element("div", { className: `nb-merge-cell ${entry.take.cell_type}` }, element("span", { className: "nb-merge-kind", textContent: entry.take.cell_type }), sourceOf(entry.take)));
+      body.append(element("div", { className: `nb-merge-cell ${entry.take.cell_type}` }, element("span", { className: "nb-merge-type", textContent: entry.take.cell_type }), sourceOf(entry.take)));
       return;
     }
     const sides = element("div", { className: "nb-merge-sides" });
@@ -463,7 +463,7 @@ export function showNotebookMerge(host, path, merged, { resolved, close }) {
       });
       sides.append(side);
     }
-    body.append(element("div", { className: "nb-merge-cell conflict" }, element("span", { className: "nb-merge-kind", textContent: `cell ${index + 1}: changed on both sides` }), sides));
+    body.append(element("div", { className: "nb-merge-cell conflict" }, element("span", { className: "nb-merge-type", textContent: `cell ${index + 1}: changed on both sides` }), sides));
   });
   done.addEventListener("click", () => {
     const book = structuredClone(merged.book);
@@ -487,8 +487,8 @@ export function notebookEditor() {
 
 // Leaves the cell being written, as the notebook goes out of view.
 export function hideNotebook() {
-  if (state.shown) {
-    blurCell(state.shown);
+  if (state.displayed) {
+    blurCell(state.displayed);
   }
-  state.shown = null;
+  state.displayed = null;
 }

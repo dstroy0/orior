@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // deploy_existing.c: what a place has against what was last sent there and what goes now: the files changed there
-// since they were sent, each shown with its differences where both copies are text, and the files there the tree no
+// since they were sent, each displayed with its differences where both copies are text, and the files there the tree no
 // longer has; and the record of the hashes last sent to a place written after a send
 #include "../command_line/pool.h"
 #include "cellularum_laboro/cellularum_laboro.h"
@@ -15,7 +15,7 @@ typedef struct
     unsigned long long *start;
     unsigned long long *size;
 } CliDeployLines;
-// the most bytes of a copy at a place compared, and the most lines of a copy here compared
+// the max bytes of a copy at a place compared, and the max lines of a copy here compared
 #define CLI_DEPLOY_COMPARED 65536u
 #define CLI_DEPLOY_LINES (1u << 18u)
 
@@ -23,7 +23,7 @@ typedef struct
 {
     const CliDeployLines *lines;
     unsigned long long size;
-    unsigned int most;
+    unsigned int max;
     const CliDeployLines *old;
     unsigned int one;
     const CliDeployLines *new_lines;
@@ -44,7 +44,7 @@ typedef struct
     VerbaLinea *record;
 } DeployStandingCtx;
 // the lines of `size` bytes of `lines->text`, as Rust's str::lines splits them, into its starts and sizes where they
-// are not NULL, `most` at the most: their count, or more than `most` where there are more
+// are not NULL, `max` at max: their count, or more than `max` where there are more
 EMBED_INLINE unsigned int existing_lines(const DeployStandingCtx *args)
 {
     const char *const text = args->lines->text;
@@ -54,9 +54,9 @@ EMBED_INLINE unsigned int existing_lines(const DeployStandingCtx *args)
         const char *const newline =
             memor.chr(&(MemoriaCfg){.src = text + at, .bytes = (embed_word)(args->size - at), .val = (embed_u8)'\n'});
         unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - text) : args->size;
-        if (count == args->most)
+        if (count == args->max)
         {
-            return args->most + 1u;
+            return args->max + 1u;
         }
         const unsigned long long start = at;
         at = (newline != NULL) ? (end + 1u) : args->size;
@@ -97,9 +97,9 @@ void cli_deploy_difference(const CliDeployOldCtx *args)
     CliDeployLines olds_lines = {args->old, NULL, NULL};
     CliDeployLines news_lines = {args->new_text, NULL, NULL};
     const unsigned int olds = EMBED_CALL(existing_lines, DeployStandingCtx, .lines = &olds_lines,
-                                         .size = args->old_size, .most = CLI_DEPLOY_COMPARED + 1u);
+                                         .size = args->old_size, .max = CLI_DEPLOY_COMPARED + 1u);
     const unsigned int news = EMBED_CALL(existing_lines, DeployStandingCtx, .lines = &news_lines,
-                                         .size = args->new_size, .most = CLI_DEPLOY_LINES);
+                                         .size = args->new_size, .max = CLI_DEPLOY_LINES);
     if ((olds > CLI_DEPLOY_COMPARED + 1u) || (news > CLI_DEPLOY_LINES))
     {
         return;
@@ -115,8 +115,8 @@ void cli_deploy_difference(const CliDeployOldCtx *args)
     olds_lines.size = counted + olds;
     news_lines.start = counted + (2u * olds);
     news_lines.size = counted + (2u * olds) + news;
-    (void)EMBED_CALL(existing_lines, DeployStandingCtx, .lines = &olds_lines, .size = args->old_size, .most = olds);
-    (void)EMBED_CALL(existing_lines, DeployStandingCtx, .lines = &news_lines, .size = args->new_size, .most = news);
+    (void)EMBED_CALL(existing_lines, DeployStandingCtx, .lines = &olds_lines, .size = args->old_size, .max = olds);
+    (void)EMBED_CALL(existing_lines, DeployStandingCtx, .lines = &news_lines, .size = args->new_size, .max = news);
     unsigned int head = 0u;
     while ((head < olds) && (head < news) &&
            EMBED_CALL(existing_same, DeployStandingCtx, .old = &olds_lines, .one = head, .new_lines = &news_lines,
@@ -149,8 +149,8 @@ void cli_deploy_difference(const CliDeployOldCtx *args)
     g_cli_guard->persistent_buf_release(counted, g_cli_deploy_owner);
 }
 
-// the copy of `path` the place at `index` has read as text into a cell of the most that is compared and one byte past
-// it, its size into `size`, where it is text of 64 KB at most: the cell, or NULL where it is not
+// the copy of `path` the place at `index` has read as text into a cell of the max that is compared and one byte past
+// it, its size into `size`, where it is text of 64 KB at max: the cell, or NULL where it is not
 EMBED_INLINE char *existing_theirs(const DeployStandingCtx *args)
 {
     const char *path = args->path;

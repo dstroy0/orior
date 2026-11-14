@@ -7,7 +7,7 @@
 #include "gradle_internal.h"
 #include "version_catalog_internal.h"
 
-// the most words of one chain a catalog's accessor leads
+// the max words of one chain a catalog's accessor leads
 #define CLI_GRADLE_SEGMENTS 64u
 
 // the calls a chain of a catalog's accessor ends in that name no alias
@@ -34,7 +34,7 @@ typedef struct
     const unsigned long long *to_read;
     unsigned int count;
 } GradleReferencesCtx;
-// the run of word letters from `at`: its size
+// the run of word characters from `at`: its size
 EMBED_INLINE unsigned long long references_word(const GradleReferencesCtx *args)
 {
     unsigned long long at = args->at;
@@ -42,8 +42,8 @@ EMBED_INLINE unsigned long long references_word(const GradleReferencesCtx *args)
     while (end < g_cli_gradle.size)
     {
         unsigned long long length = 0ULL;
-        if (!EMBED_CALL(cli_each_letter.build_word_letter, CliEachLetterCfg,
-                        .letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = g_cli_gradle.text,
+        if (!EMBED_CALL(cli_each_character.build_word_character, CliEachLetterCfg,
+                        .character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = g_cli_gradle.text,
                                              .size = g_cli_gradle.size, .at = end, .length = &length)))
         {
             break;
@@ -239,10 +239,10 @@ void cli_gradle_references(const CliVersionCatalogLinesCtx *args)
             continue;
         }
         unsigned long long length = 0ULL;
-        const unsigned int before = (at > 0u) ? EMBED_CALL(cli_text_length.letter_before, CliTextLengthCfg,
+        const unsigned int before = (at > 0u) ? EMBED_CALL(cli_text_length.character_before, CliTextLengthCfg,
                                                            .text = text, .end_value = at, .length = &length)
                                               : ' ';
-        if (EMBED_CALL(cli_each_letter.build_word_letter, CliEachLetterCfg, .letter = before) || (before == '.'))
+        if (EMBED_CALL(cli_each_character.build_word_character, CliEachLetterCfg, .character = before) || (before == '.'))
         {
             at += 1u;
             continue;

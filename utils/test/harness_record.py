@@ -11,16 +11,16 @@ the recording slid through a frame at a time.
     harness.py window slide                            the last recording, every frame, each against the one before
     harness.py window slide REC --from 0.4 --to 1.2 --crop 0,0,400,200 --scale 3
     harness.py window frames [VIDEO] [--text L,T,R,B] [--thumb X]  each frame's text blank, plain or colored, and where
-                                                       it stood still as the scrollbar's thumb moved
+                                                       it was still as the scrollbar's thumb moved
 
 record grabs the screen through the Desktop Duplication API, ffmpeg's ddagrab, at --rate frames a second: the window's
-rectangle of the display it stands on, or with --start the whole display the window is placed on, the window's
-rectangle on it kept beside the recording. It is written lossless to build/harness/recordings/<stamp>.mkv.
+rectangle of the display it is on, or with --start the whole display the window is placed on, the window's
+rectangle on it retained beside the recording. It is written lossless to build/harness/recordings/<stamp>.mkv.
 
-strip lays one column of each slid frame side by side, a part's place over time, in build/harness/strip_columns.png.
+strip positions one column of each slid frame side by side, a part's place over time, in build/harness/strip_columns.png.
 slide writes each frame from --from to --to seconds under build/harness/slide as <number>_<ms>ms.png, cut to the
-window's rectangle where the recording keeps one, says how far each differs from the frame before it so the frames
-where something moves or flashes stand out, lays the frames that differ from the one before side by side, each under
+window's rectangle where the recording retains one, says how far each differs from the frame before it so the frames
+where something moves or flashes are out, positions the frames that differ from the one before side by side, each under
 its time, in strip.png, and writes the range as clip.mp4, --slower times slower, for any player to play and scrub."""
 
 import glob
@@ -41,10 +41,10 @@ FRAMES = os.path.join(os.path.dirname(RECORDINGS), "frames.tsv")
 # How long the recording may take to give its first frame, in seconds.
 FIRST_FRAME_S = 15
 # The width a frame is read at to measure how far it differs from the one before, and the difference, of 255, a frame
-# must pass to stand in the strip; the most frames the strip holds, and the width of each there.
+# must pass to be in the strip; the max frames the strip holds, and the width of each there.
 MEASURE_WIDTH = 240
 STRIP_DIFFERS = 0.5
-STRIP_MOST = 48
+STRIP_MAX = 48
 STRIP_WIDTH = 360
 
 
@@ -85,7 +85,7 @@ def dxgi_outputs():
     adapter = ctypes.c_void_p()
     found = []
     try:
-        # IDXGIFactory::EnumAdapters, IDXGIAdapter::EnumOutputs and IDXGIOutput::GetDesc each stand 7th in their table
+        # IDXGIFactory::EnumAdapters, IDXGIAdapter::EnumOutputs and IDXGIOutput::GetDesc each are 7th in their table
         if method(factory, 7, ctypes.c_uint, ctypes.POINTER(ctypes.c_void_p))(factory, 0, ctypes.byref(adapter)) != 0:
             return []
         index = 0
@@ -104,7 +104,7 @@ def dxgi_outputs():
     return found
 
 
-def shown_bounds(handle):
+def displayed_bounds(handle):
     """(left, top, right, bottom) of the window as it is drawn, its invisible resizing border left out."""
     import ctypes
     from ctypes import wintypes
@@ -118,7 +118,7 @@ def shown_bounds(handle):
 
 
 def output_holding(left, top, right, bottom):
-    """The output that holds the most of the rectangle, or None."""
+    """The output that holds the max of the rectangle, or None."""
     best = None
     best_area = 0
     for one in dxgi_outputs():
@@ -158,17 +158,17 @@ def recording_started(command):
     def read():
         line = b""
         while True:
-            letter = process.stderr.read(1)
-            if not letter:
+            character = process.stderr.read(1)
+            if not character:
                 break
-            if letter in b"\r\n":
+            if character in b"\r\n":
                 text = line.decode("utf-8", "replace")
                 said.append(text)
                 if re.search(r"frame=\s*[1-9]", text):
                     first.set()
                 line = b""
             else:
-                line += letter
+                line += character
 
     reader = threading.Thread(target=read, daemon=True)
     reader.start()
@@ -205,7 +205,7 @@ def cmd_window_record(a):
     os.makedirs(RECORDINGS, exist_ok=True)
     stamp = time.strftime("%Y%m%d_%H%M%S")
     path = os.path.join(RECORDINGS, stamp + ".mkv")
-    kept = {"rate": a.rate}
+    retained = {"rate": a.rate}
     if a.start or a.display:
         display = (r"\\.\DISPLAY" + a.display if a.display.isdigit() else a.display) or hw.DISPLAY
         areas = win.displays()
@@ -218,7 +218,7 @@ def cmd_window_record(a):
         found = hw.window_of(a.id)
         if not found:
             return 1
-        left, top, right, bottom = shown_bounds(found[1])
+        left, top, right, bottom = displayed_bounds(found[1])
         output = output_holding(left, top, right, bottom)
         if output:
             o_left, o_top, o_right, o_bottom = output[2]
@@ -240,8 +240,8 @@ def cmd_window_record(a):
             started = hw.frames_window_started()
             found = hw.window_of(started.pid)
             if found:
-                left, top, right, bottom = shown_bounds(found[1])
-                kept["window"] = [left - output[2][0], top - output[2][1], right - left, bottom - top]
+                left, top, right, bottom = displayed_bounds(found[1])
+                retained["window"] = [left - output[2][0], top - output[2][1], right - left, bottom - top]
         if a.port and a.trigger:
             import harness_cdp
 
@@ -270,10 +270,10 @@ def cmd_window_record(a):
         if started:
             started.kill()
             started.wait()
-    kept.update({"display": output[1], "grabbed": [x, y, width, height]})
+    retained.update({"display": output[1], "grabbed": [x, y, width, height]})
     with open(os.path.join(RECORDINGS, stamp + ".json"), "w", encoding="utf-8") as out:
-        json.dump(kept, out, indent=1)
-    print("%s: %d frames of %s at %d,%d, %d x %d, %d a second%s" % (path, frames_said(process.said), output[1], x, y, width, height, a.rate, ", the window at %d,%d %d x %d of it" % tuple(kept["window"]) if "window" in kept else ""))
+        json.dump(retained, out, indent=1)
+    print("%s: %d frames of %s at %d,%d, %d x %d, %d a second%s" % (path, frames_said(process.said), output[1], x, y, width, height, a.rate, ", the window at %d,%d %d x %d of it" % tuple(retained["window"]) if "window" in retained else ""))
     return 0
 
 
@@ -328,7 +328,7 @@ def strip_written(path, frames, measured):
     """The frames that differ from the one before, the first among them, side by side under their times."""
     from PIL import Image, ImageDraw
 
-    chosen = [frame for at, frame in enumerate(frames) if at == 0 or measured[at] >= STRIP_DIFFERS][:STRIP_MOST]
+    chosen = [frame for at, frame in enumerate(frames) if at == 0 or measured[at] >= STRIP_DIFFERS][:STRIP_MAX]
     if not chosen:
         return 0
     thumbs = []
@@ -352,7 +352,7 @@ def strip_written(path, frames, measured):
 
 
 def cmd_window_strip(a):
-    """One column of each slid frame from --from ms, --frames of them, laid side by side and drawn --scale times
+    """One column of each slid frame from --from ms, --frames of them, positioned side by side and drawn --scale times
     larger, to build/harness/strip_columns.png: a part's place over time read across the picture."""
     from PIL import Image
 
@@ -396,8 +396,8 @@ def cmd_window_slide(a):
     crop = [int(one) for one in a.crop.split(",")] if a.crop else None
     beside = os.path.splitext(recording)[0] + ".json"
     if not crop and not a.whole and os.path.isfile(beside):
-        with open(beside, encoding="utf-8") as kept:
-            window = json.load(kept).get("window")
+        with open(beside, encoding="utf-8") as retained:
+            window = json.load(retained).get("window")
         crop = [even(one) for one in window] if window else None
     shutil.rmtree(SLIDE, ignore_errors=True)
     os.makedirs(SLIDE)
@@ -409,10 +409,10 @@ def cmd_window_slide(a):
     for (path, at), differs in zip(frames, measured):
         if a.all or differs >= STRIP_DIFFERS:
             print("%7d ms  %6.2f  %s" % (at, differs, os.path.basename(path)))
-    shown = strip_written(os.path.join(SLIDE, "strip.png"), frames, measured)
+    displayed = strip_written(os.path.join(SLIDE, "strip.png"), frames, measured)
     clip = clip_written(program, recording, os.path.join(SLIDE, "clip.mp4"), a, crop, frames[0][1], frames[-1][1])
-    most = sorted(range(len(frames)), key=lambda at: -measured[at])[:5]
-    print("%d frames from %d to %d ms of %s in %s; %d in strip.png%s; the most change at %s" % (len(frames), frames[0][1], frames[-1][1], os.path.basename(recording), SLIDE, shown, ", clip.mp4 at a %gth of the speed" % a.slower if clip and a.slower > 1 else ", clip.mp4" if clip else "", ", ".join("%d ms (%.2f)" % (frames[at][1], measured[at]) for at in most)))
+    max = sorted(range(len(frames)), key=lambda at: -measured[at])[:5]
+    print("%d frames from %d to %d ms of %s in %s; %d in strip.png%s; the max change at %s" % (len(frames), frames[0][1], frames[-1][1], os.path.basename(recording), SLIDE, displayed, ", clip.mp4 at a %gth of the speed" % a.slower if clip and a.slower > 1 else ", clip.mp4" if clip else "", ", ".join("%d ms (%.2f)" % (frames[at][1], measured[at]) for at in max)))
     return 0
 
 
@@ -453,8 +453,8 @@ def thumb_runs(bright):
 
 def thumb_column(profiles, width):
     """The column of the scrollbar's thumb among `profiles`, each frame's brightness down every column of its right
-    fifth: the column whose one bright run of a thumb's length moves most often from one frame looked at to the next,
-    the leftmost of those, a part of the window that stands still holding a run that never moves; -1 where none
+    fifth: the column whose one bright run of a thumb's length moves usually from one frame looked at to the next,
+    the leftmost of those, a part of the window that is stationary holding a run that never moves; -1 where none
     moves."""
     import numpy
 
@@ -475,7 +475,7 @@ def thumb_column(profiles, width):
 
 def cmd_window_frames(a):
     """A recording, or any video of the window, read a frame at a time with the scrollbar's thumb as the compass: where
-    the thumb stands, whether the text moved from the frame before, and whether the text is blank, plain or colored;
+    the thumb is, whether the text moved from the frame before, and whether the text is blank, plain or colored;
     the frames the thumb moved in and the text did not, and those the text moved in and the thumb did not, counted. Each
     frame to build/harness/frames.tsv."""
     import numpy
@@ -509,10 +509,10 @@ def cmd_window_frames(a):
         hued = ink & ((high - text.min(axis=2)) > 40)
         inked = int(ink.sum())
         share = float(hued.sum()) / max(1, inked)
-        kind = "blank" if inked < ink.size // 500 else ("colored" if share > 0.12 else "plain")
+        type = "blank" if inked < ink.size // 500 else ("colored" if share > 0.12 else "plain")
         moved = float(numpy.abs(text - before).mean()) if before is not None else 0.0
         before = text
-        rows.append([kind, share, moved])
+        rows.append([type, share, moved])
     reader.wait()
     if not rows:
         print("no frame read of %s" % video)
@@ -527,19 +527,19 @@ def cmd_window_frames(a):
     marks = []
     with open(FRAMES, "w", encoding="utf-8") as out:
         out.write("frame\tms\tthumb\tthumb_moved\ttext\thued\ttext_moved\n")
-        for at, (kind, share, moved) in enumerate(rows):
+        for at, (type, share, moved) in enumerate(rows):
             thumb_moved = thumbs[at] - thumbs[at - 1] if at and thumbs[at] >= 0 and thumbs[at - 1] >= 0 else 0.0
             sliding = abs(thumb_moved) >= 0.5
             text_moved = moved > 1.0
             slid += sliding
             stalls += sliding and not text_moved
             bursts += text_moved and not sliding and at > 0
-            marks.append("." if kind == "blank" else kind[0])
-            out.write("%d\t%.0f\t%.1f\t%.1f\t%s\t%.2f\t%.2f\n" % (at, at * 1000.0 / rate, thumbs[at], thumb_moved, kind, share, moved))
-    kinds = {kind: sum(1 for row in rows if row[0] == kind) for kind in ("blank", "plain", "colored")}
+            marks.append("." if type == "blank" else type[0])
+            out.write("%d\t%.0f\t%.1f\t%.1f\t%s\t%.2f\t%.2f\n" % (at, at * 1000.0 / rate, thumbs[at], thumb_moved, type, share, moved))
+    types = {type: sum(1 for row in rows if row[0] == type) for type in ("blank", "plain", "colored")}
     print("%s: %d frames, the thumb in column %d" % (os.path.basename(video), len(rows), column))
-    print("  text blank in %d, plain in %d, colored in %d" % (kinds["blank"], kinds["plain"], kinds["colored"]))
-    print("  the thumb moved in %d; of those the text stood still in %d; the text moved with the thumb still in %d" % (slid, stalls, bursts))
+    print("  text blank in %d, plain in %d, colored in %d" % (types["blank"], types["plain"], types["colored"]))
+    print("  the thumb moved in %d; of those the text was still in %d; the text moved with the thumb still in %d" % (slid, stalls, bursts))
     print("  each frame, . blank, p plain, c colored:")
     for at in range(0, len(marks), 60):
         print("    " + "".join(marks[at : at + 60]))
@@ -567,14 +567,14 @@ def register(window):
     p.add_argument("--from", dest="seconds_from", type=float, default=0.0, help="seconds")
     p.add_argument("--to", dest="seconds_to", type=float, default=0.0, help="seconds; the recording's end where 0")
     p.add_argument("--every", type=int, default=1, help="every this many frames")
-    p.add_argument("--crop", default="", help="LEFT,TOP,WIDTH,HEIGHT of each frame kept; the window's rectangle where the recording keeps one")
+    p.add_argument("--crop", default="", help="LEFT,TOP,WIDTH,HEIGHT of each frame retained; the window's rectangle where the recording retains one")
     p.add_argument("--whole", action="store_true", help="each frame whole, the window's rectangle set aside")
     p.add_argument("--scale", type=int, default=1, help="each frame drawn this many times larger")
     p.add_argument("--all", action="store_true", help="every frame listed, and not only those that differ from the one before")
     p.add_argument("--slower", type=int, default=1, help="clip.mp4 played this many times slower")
     p.set_defaults(fn=cmd_window_slide)
 
-    p = window.add_parser("strip", help="one column of each slid frame laid side by side, a part's place over time, to build/harness/strip_columns.png")
+    p = window.add_parser("strip", help="one column of each slid frame positioned side by side, a part's place over time, to build/harness/strip_columns.png")
     p.add_argument("--from", dest="ms_from", type=int, default=0, help="the first frame's milliseconds")
     p.add_argument("--frames", type=int, default=40, help="how many frames")
     p.add_argument("--x", type=int, default=60, help="the column's left edge in the slid frame")
@@ -583,7 +583,7 @@ def register(window):
     p.set_defaults(fn=cmd_window_strip)
 
     p = window.add_parser("frames", help="a recording or any video of the window read a frame at a time, the scrollbar's thumb as the compass: "
-                                         "the text blank, plain or colored, and where it stood still as the thumb moved, to build/harness/frames.tsv")
+                                         "the text blank, plain or colored, and where it was still as the thumb moved, to build/harness/frames.tsv")
     p.add_argument("recording", nargs="?", default="", help="the video; the last recorded where none")
     p.add_argument("--text", default="", help="LEFT,TOP,RIGHT,BOTTOM of the text in each frame; the frame's middle where none")
     p.add_argument("--thumb", type=int, default=0, help="the column the scrollbar's thumb runs down; found where none")

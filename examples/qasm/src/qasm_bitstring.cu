@@ -7,7 +7,7 @@
 #include <string.h>
 
 // qasm_bitstring [--host] circuit.qasm
-// Reads an OpenQASM 2.0 circuit, runs it exactly in fixed point on the device (or the host), and prints the most
+// Reads an OpenQASM 2.0 circuit, runs it exactly in fixed point on the device (or the host), and prints the max
 // likely bitstring, its probability, the runner-up, and whether the proved error bound separates them.
 // Exit 0: the peak is proved. Exit 3: it is not. Exit 1: the circuit or the run errored.
 
@@ -20,7 +20,7 @@
 
 static void qasm_print_error(const char *what, const EngineError *error)
 {
-    fprintf(stderr, "qasm_bitstring: %s (error kind %d, module %d, site %u, status %d)\n", what, (int)error->kind,
+    fprintf(stderr, "qasm_bitstring: %s (error type %d, module %d, site %u, status %d)\n", what, (int)error->type,
             (int)error->module, error->site, error->status);
 }
 
@@ -94,7 +94,7 @@ int main(int count, char **arguments)
     }
     if (ran == QASM_ERROR)
     {
-        qasm_print_error((error.kind == ENGINE_ERROR_RESOURCE) ? "the run errored: the state does not fit"
+        qasm_print_error((error.type == ENGINE_ERROR_RESOURCE) ? "the run errored: the state does not fit"
                                                                : "the run errored",
                          &error);
         qasm_release(&circuit);

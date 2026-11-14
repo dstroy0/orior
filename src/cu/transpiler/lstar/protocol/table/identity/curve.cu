@@ -35,15 +35,15 @@ static int curve_point(const std::vector<unsigned char> &code, const std::vector
 // The cost of registers to a task, queried of the part by timing it. A task is a chain of ours the host also computes,
 // with every stall the longest. For each count of threads a block contains, from 1 and doubling, the task is launched
 // over CURVE_THREADS threads in all, and its curve is its time against the registers its container declares: from the
-// fewest it answers alike with to the most the register field names. The fewest is queried in blocks of one thread,
+// fewest it answers alike with to the max the register field names. The fewest is queried in blocks of one thread,
 // walked up from the registers the chain names, or where it gives none from one past the highest number its
 // register fields allow, until it answers alike and halved down from there, and is the task's at every count of
-// threads. The fewest's band is the least and the most of its times, queried
+// threads. The fewest's band is the least and the max of its times, queried
 // again until it sustains CURVE_SUSTAIN queries in a row without widening. A count of registers is truthy where the
 // task answers alike and its time a launch stays within the band, and falsy where it answers apart, the part refuses
 // the launch, or its time is past the band twice running with the fewest bounced between and staying in the band; where
 // the bounced fewest strays past the band itself, the band widens and the count is queried again. Declaring more
-// registers takes residency and never gives it: every count past a falsy one is falsy, and the knee, the most
+// registers takes residency and never gives it: every count past a falsy one is falsy, and the knee, the max
 // registers truthy, is found by halving. The counts of threads end where the part answers no count of registers. Each
 // knee is written to the .ksc as the part's answer on the run channel, `run answers <registers> curve <task>
 // <threads>`, and each task's count of threads whose fewest registers run soonest as `run answers <threads> curve
@@ -137,7 +137,7 @@ int identity_curve(const char *engine, const char *answers, const char *ksc, con
             // without widening
             CurveBand band{first, first};
             unsigned int sustained = 0u;
-            for (unsigned int step = 0u; (sustained < CURVE_SUSTAIN) && (step < CURVE_QUERIES_MOST); step += 1u)
+            for (unsigned int step = 0u; (sustained < CURVE_SUSTAIN) && (step < CURVE_QUERIES_MAX); step += 1u)
             {
                 unsigned long long again = 0ull;
                 if (curve_point(code, host[task], places, &s_question, &queries, task, threads, fewest, &again, &table))
@@ -151,7 +151,7 @@ int identity_curve(const char *engine, const char *answers, const char *ksc, con
             // falsy
             const auto within_band = [&](long long count) -> int {
                 unsigned int past = 0u;
-                for (unsigned int step = 0u; step < CURVE_QUERIES_MOST; step += 1u)
+                for (unsigned int step = 0u; step < CURVE_QUERIES_MAX; step += 1u)
                 {
                     unsigned long long time = 0ull;
                     if (!curve_point(code, host[task], places, &s_question, &queries, task, threads,

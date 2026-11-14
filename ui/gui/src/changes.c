@@ -124,7 +124,7 @@ EMBED_INLINE GuiRect changes_tool_rect(const ChangesCtx *args)
     }
 }
 
-// the bar's tool `which` drawn: its ground where the pointer stands on it, and its icon `text`, quieter where it
+// the bar's tool `which` drawn: its ground where the pointer is on it, and its icon `text`, quieter where it
 // `failed`, which is where it can do nothing
 EMBED_INLINE void changes_tool_draw(const ChangesCtx *args)
 {
@@ -172,9 +172,9 @@ EMBED_INLINE void changes_count_draw(const ChangesCtx *args)
 }
 
 // the head drawn: the bar, its tools quieter where they can do nothing, the pull and the push with how far the branch
-// stands from its remote; the all box lit while every file is taken, its inside the line's while some are, beside how
+// is from its remote; the all box lit while every file is taken, its inside the line's while some are, beside how
 // many are taken of how many; the message box with the message typed; Commit and Commit and Push; and git's refusal
-// under them where it stands
+// under them where it is
 static void changes_head_draw(const GuiPaneCfg *args)
 {
     const GuiPalette *const palette = args->palette;
@@ -248,7 +248,7 @@ static void changes_head_draw(const GuiPaneCfg *args)
     }
 }
 
-// whether the pixel at x, y stands in the bar's tool `which`
+// whether the pixel at x, y is in the bar's tool `which`
 EMBED_INLINE int changes_tool_holds(const ChangesCtx *args)
 {
     return EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
@@ -256,8 +256,8 @@ EMBED_INLINE int changes_tool_holds(const ChangesCtx *args)
                       .x = args->pane->x, .y = args->pane->y);
 }
 
-// the action at x, y: the message box where the pixel stands in it, Commit or Commit and Push where it stands in
-// their halves, the bar's tool it stands on, or the all box's row where files are listed
+// the action at x, y: the message box where the pixel is in it, Commit or Commit and Push where it is in
+// their halves, the bar's tool it is on, or the all box's row where files are listed
 static unsigned int changes_head_hit(const GuiPaneCfg *args)
 {
     if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
@@ -592,14 +592,14 @@ static void changes_row_draw(const GuiPaneCfg *args)
     }
 }
 
-// the x where a row's box ends, past the guides a change's or a line's row stands in
+// the x where a row's box ends, past the guides a change's or a line's row is in
 EMBED_INLINE int changes_box_end(const ChangesCtx *args)
 {
     const GuiPaneCfg *const pane = args->pane;
     const unsigned int depth = (args->row->type == CLI_CHANGES_ROW_FILE)   ? 0u
                                : (args->row->type == CLI_CHANGES_ROW_HUNK) ? 1u
                                                                            : 2u;
-    // the depth is at most two guides, far inside an int
+    // the depth is at max two guides, far inside an int
     return EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_PAD_LEFT) +
            ((int)depth * EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_GUIDE)) +
            EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_CHANGES_BOX) +
@@ -634,7 +634,7 @@ static int changes_press(const GuiPaneCfg *args)
         }
     }
     const int placed = changed.type != CLI_CHANGES_ROW_FILE;
-    // the path the press opens, kept past the row for the window to open
+    // the path the press opens, retained past the row for the window to open
     static char s_pressed_path[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = s_pressed_path, .src = changed.path, .bytes = sizeof(s_pressed_path)});
     *args->open_out = (GuiPaneOpen){s_pressed_path, {placed ? changed.from : 0ULL, 0ULL}, placed};
@@ -644,7 +644,7 @@ static int changes_press(const GuiPaneCfg *args)
 // the changes read anew of the tree as the pane shows and as a file is saved
 static void changes_read(const GuiPaneCfg *args)
 {
-    if ((args->event == GUI_PANE_SHOWN) || (args->event == GUI_PANE_SAVED))
+    if ((args->event == GUI_PANE_DISPLAYED) || (args->event == GUI_PANE_SAVED))
     {
         EMBED_CALL(cli_changes.read, CliGitChangesCfg, .root = args->root);
     }

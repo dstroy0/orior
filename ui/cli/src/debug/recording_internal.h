@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // recording_internal.h: what the recording sources share: a recorded run read from the recorder's lines, and where the
-// replay stands and what it stops at
+// replay is and what it stops at
 #ifndef RECORDING_INTERNAL_H
 #define RECORDING_INTERNAL_H
 #include "../command_line/callback_cfg.h"
@@ -24,7 +24,7 @@ typedef struct CliRecordingDapReasonCtx CliRecordingDapReasonCtx;
 typedef struct CliRecordingIndexCtx CliRecordingIndexCtx;
 
 // the threads whose stacks are followed as a recording is read and the depth of each, the files and lines
-// breakpoints are set at, the most bytes of one name read out of the recording, and no step: a frame's last step
+// breakpoints are set at, the max bytes of one name read out of the recording, and no step: a frame's last step
 // where it has none, and a step requested that is none
 #define CLI_RECORDING_THREADS 256u
 #define CLI_RECORDING_DEPTH 4096u
@@ -34,7 +34,7 @@ typedef struct CliRecordingIndexCtx CliRecordingIndexCtx;
 #define CLI_RECORDING_NO_STEP 0xffffffffu
 
 // A step of the recording: where its line record starts in the recording's text, its frame, its line, and how deep
-// its frame stood
+// its frame was
 typedef struct
 {
     unsigned long long record;
@@ -70,7 +70,7 @@ typedef struct
 // the recording stopped short of the run's end. The steps, frames, steps by frame, files, threads, raises, names and
 // the text are parts of one movable cell, `cell`, the replay owns, each part at its place from the cell's start, sized
 // by a count of the file's lines by type before they are read, and given back with the recording; each part's `max` is
-// what the count found. The text's lines end with zero bytes, so each stands as one text at the place its step names
+// what the count found. The text's lines end with zero bytes, so each is as one text at the place its step names
 typedef struct
 {
     char path[CLI_PATH_MAX_LEN];
@@ -109,7 +109,7 @@ typedef struct
     int has;
 } CliRecordedValue;
 
-// Where the replay stands and what it stops at: the tree, the program, its Python, the recording, the step, the
+// Where the replay is and what it stops at: the tree, the program, its Python, the recording, the step, the
 // breakpoints by file, and whether it stops at raises
 typedef struct
 {
@@ -125,7 +125,7 @@ typedef struct
     int on_raised;
 } CliReplay;
 
-// the replay, one for the process, which stands fixed outside the pool from the first replay begun or recording read;
+// the replay, one for the process, which is fixed outside the pool from the first replay begun or recording read;
 // and it made ready where it is not: 1 (recording_read.c, recording_request.c)
 extern CliReplay *g_cli_replay;
 int cli_replay_lock(void);
@@ -134,13 +134,13 @@ int cli_replay_lock(void);
 // (recording_shim.c)
 extern const char g_cli_recording_shim[];
 
-// the recording the recorder wrote at `path` read into the replay's, its file's lines kept in the recording's cell; the
+// the recording the recorder wrote at `path` read into the replay's, its file's lines retained in the recording's cell; the
 // recording let go; the name at place `at` of its names copied into `name_out`, sized `name_capacity`, cut where it is
 // longer: `name_out`; the last step of frame `serial` at or before step `at`, CLI_RECORDING_NO_STEP for none; the
-// values of frame `serial`'s names as step `at` was about to run, by name, `most` of them at the most, in a cell of
-// their count into `reserved`, given back with g_cli_guard->persistent_buf_release: their count; the frames standing
+// values of frame `serial`'s names as step `at` was about to run, by name, `max` of them at max, in a cell of
+// their count into `reserved`, given back with g_cli_guard->persistent_buf_release: their count; the frames located
 // at step `at`, the innermost first, each frame's number and the step of its line then: their count; and each step
-// where `name` of frame `serial` took a new value, the line that gave it and the value, handed to `each`
+// where `name` of frame `serial` took a new value, the line that gave it and the value, passed to `each`
 // (recording_read.c, recording_values.c, the last step recording_replay.c)
 void cli_recording_read(const CliRecordingPathCtx *args);
 void cli_recording_let_go(void);
@@ -164,7 +164,7 @@ unsigned int cli_recording_stack(const CliRecordingAtFramesCtx *args);
 void cli_recording_history(const CliRecordingSerialCtx *args);
 
 // the run the replay was recording ended, where it goes on; the same, then waited for until its readers end; the
-// program run under the shim, its output sent to the client by `dap` as it comes, and the recording handed `dap` as the
+// program run under the shim, its output sent to the client by `dap` as it comes, and the recording passed `dap` as the
 // run ends: 1, or 0 with why given, a run the replay was recording before ended first; and the recording the message
 // `message` of `json` names read, what it contains sent, and the replay stopped at its first stop (recording_serve.c)
 void cli_recording_run_kill(void);
@@ -180,9 +180,9 @@ int cli_replay_answer(const CliRecordingDapCtx *args);
 // replay; a path as the replay compares it, into `key`; the full path of tree path `relative`, into `full`; the tree
 // path of frame `serial`'s file into `path_out`, sized CLI_PATH_MAX_LEN, "" where the recording saw none: `path_out`;
 // the thread of a step, 0 where it names none, and the
-// thread the replay stands on; where `how` goes from the step the replay stands at, into `step`, and why it stops
+// thread the replay is on; where `how` goes from the step the replay is at, into `step`, and why it stops
 // there; frame `serial` written as a stack frame at `step`; whether node `id` of `json` is a whole number from 0 below
-// 2^63, it into `value`; and the frame `id` names, or the innermost where it names none or one not standing
+// 2^63, it into `value`; and the frame `id` names, or the innermost where it names none or one not located
 // (recording_replay.c)
 void cli_replay_stopped_send(const CliRecordingDapReasonCtx *args);
 int cli_replay_at_breakpoint(const CliRecordingSerialStepCtx *args);
@@ -212,7 +212,7 @@ struct CliRecordingAtCtx
     unsigned int at;
     unsigned int serial;
     CliRecordedValue **reserved;
-    unsigned int most;
+    unsigned int max;
     const CellOwner *owner;
 };
 

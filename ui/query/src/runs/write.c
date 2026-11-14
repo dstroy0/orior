@@ -8,7 +8,7 @@
 #include "../../../cli/src/text/text.h"
 #include "../query_loops.h"
 
-// the most rulesets one bridge is written over
+// the max rulesets one bridge is written over
 #define QUERY_RULESETS_MAX 16u
 
 typedef struct
@@ -100,7 +100,7 @@ int query_bridge(const QueryLoopsContextErrMsgRulesetsCfg *args)
     }
     long long code = -1LL;
     const int whole = EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run,
-                                 .paths_letters = s_reads, .count = input_count + 1u, .err_msg = err_msg) &&
+                                 .paths_characters = s_reads, .count = input_count + 1u, .err_msg = err_msg) &&
                       EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                                  .context = context, .run = &s_run, .name = "orior_klq_write",
                                  .words = s_words.word_text, .code = &code, .err_msg = err_msg);
@@ -153,7 +153,7 @@ EMBED_INLINE int query_part_write(const WriteCtx *args)
     long long code = -1LL;
     const int whole =
         EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run,
-                   .paths_letters = args->krs ? krs_read : gsm_read, .count = args->krs ? 7u : 3u,
+                   .paths_characters = args->krs ? krs_read : gsm_read, .count = args->krs ? 7u : 3u,
                    .err_msg = err_msg) &&
         EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                    .context = context, .run = &s_run, .name = args->krs ? "orior_krs_write" : "orior_gsm_write",
@@ -277,7 +277,7 @@ EMBED_INLINE int query_bare_names(const WriteCtx *args)
     return 1;
 }
 
-// whether the `named` names in `names` make a query: two or three, each with letters and no `/`, `\` or `.`, and three
+// whether the `named` names in `names` make a query: two or three, each with characters and no `/`, `\` or `.`, and three
 // for a `dry` one
 EMBED_INLINE int query_names_usable(const WriteCtx *args)
 {
@@ -323,7 +323,7 @@ EMBED_INLINE int query_missing_reported(const WriteCtx *args)
         mmgr_line_put(args->err_msg, args->words[at]);
     }
     mmgr_line_put(args->err_msg, ": not in the tree: ");
-    mmgr_line_put_most(args->err_msg, missing_text, missing.at);
+    mmgr_line_put_max(args->err_msg, missing_text, missing.at);
     return 0;
 }
 
@@ -357,15 +357,15 @@ int query_query_words(const QueryLoopsErrMsgContextWordsCfg *args)
                            (cellul.eq(&(CatenaFinitaCfg){.src = plain[0], .other = "--to", .cap = CLI_POOL_BYTES})) ||
                            (cellul.eq(&(CatenaFinitaCfg){.src = plain[0], .other = "--part", .cap = CLI_POOL_BYTES})));
     const int read = flagged ? EMBED_CALL(query_flagged_names, WriteCtx, .plain = plain, .plains = plains,
-                                          .names = args->names_letters, .named = named)
+                                          .names = args->names_characters, .named = named)
                              : EMBED_CALL(query_bare_names, WriteCtx, .plain = plain, .plains = plains,
-                                          .names = args->names_letters, .named = named);
-    if (!read || !EMBED_CALL(query_names_usable, WriteCtx, .names = args->names_letters, .named = named, .dry = *dry))
+                                          .names = args->names_characters, .named = named);
+    if (!read || !EMBED_CALL(query_names_usable, WriteCtx, .names = args->names_characters, .named = named, .dry = *dry))
     {
         mmgr_line_put(args->err_msg, s_usage);
         return 0;
     }
-    return EMBED_CALL(query_missing_reported, WriteCtx, .context = args->context_read, .names = args->names_letters,
+    return EMBED_CALL(query_missing_reported, WriteCtx, .context = args->context_read, .names = args->names_characters,
                       .named = named, .words = args->words, .count = args->count, .err_msg = args->err_msg);
 }
 
@@ -379,7 +379,7 @@ int query_query_run(const QueryLoopCfg *args)
     unsigned int named = 0u;
     int dry = 0;
     if (!EMBED_CALL(query_loops_err_msg_context_words.query_words, QueryLoopsErrMsgContextWordsCfg,
-                    .context_read = context, .words = words, .count = count, .names_letters = names,
+                    .context_read = context, .words = words, .count = count, .names_characters = names,
                     .named_u32s = &named, .dry_pointer = &dry, .err_msg = err_msg))
     {
         return -1;

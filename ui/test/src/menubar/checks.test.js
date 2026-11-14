@@ -4,25 +4,25 @@
 // What a command needs and whether a setting is on, and the macros' items.
 
 import { isChecked } from "../../../gui/src-js/menubar/checks.js";
-import { forgetMacro, keptMacros } from "../../../gui/src-js/macros.js";
+import { forgetMacro, retainedMacros } from "../../../gui/src-js/macros.js";
 import { given, press, putBackAsFound, SETTINGS } from "../../menus.js";
 import { allCommands } from "../../../gui/src-js/menubar.js";
 import { showView } from "../../../gui/src-js/views.js";
 
 const { test, assert, ui } = window.__harness;
 
-test("a kept macro's menu, from the command line: keys given and the macro forgotten", async () => {
+test("a retained macro's menu, from the command line: keys given and the macro forgotten", async () => {
   const view = await given("|");
   await press("macro-record");
   view.focus();
   await ui.type("q");
   await press("macro-record");
-  await press("macro-keep", "keyed macro");
+  await press("macro-retain", "keyed macro");
   try {
     await press("macro-keys", "keyed macro", "Ctrl+Alt+9");
-    assert.equal(keptMacros().find((one) => one.name === "keyed macro")?.keys, "Ctrl+Alt+9");
+    assert.equal(retainedMacros().find((one) => one.name === "keyed macro")?.keys, "Ctrl+Alt+9");
     await press("macro-forget", "keyed macro");
-    assert.ok(!keptMacros().some((one) => one.name === "keyed macro"), "forgotten");
+    assert.ok(!retainedMacros().some((one) => one.name === "keyed macro"), "forgotten");
   } finally {
     forgetMacro("keyed macro");
   }

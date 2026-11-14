@@ -10,7 +10,7 @@
 // build/orior/compile_commands.json.
 //
 // clangd queries each compiler the database names, but MSVC's cl, for its own headers and target (`--query-driver`);
-// where one is cl, clangd runs in Visual Studio's environment, as cl does. The database is looked for again at most
+// where one is cl, clangd runs in Visual Studio's environment, as cl does. The database is looked for again at max
 // every two seconds, and a clangd running when it changes is started again on it (compile_db.c, compile_db_look.c,
 // compile_db_gather.c, compile_db_program.c)
 #ifndef COMPILE_DB_H
@@ -26,7 +26,7 @@ typedef struct CliCompileDbRootDatabaseCfg CliCompileDbRootDatabaseCfg;
 typedef struct CliCompileDbDatabaseCfg CliCompileDbDatabaseCfg;
 typedef struct CliCompileDbCfg CliCompileDbCfg;
 
-// where the database gathered from the tree's builds is written, from the tree's top; and the most compilers one
+// where the database gathered from the tree's builds is written, from the tree's top; and the max compilers one
 // database names
 #define CLI_COMPILE_WRITTEN "build/orior/compile_commands.json"
 #define CLI_COMPILERS 64u
@@ -65,7 +65,7 @@ typedef struct
 } CliVsEnvironment;
 
 // the database of the tree at `root` into `database`, gathered and written where the tree's builds changed since the
-// last look, at most every two seconds: 1 where it changed since the last look at this tree, else 0; whether a
+// last look, at max every two seconds: 1 where it changed since the last look at this tree, else 0; whether a
 // compiler is MSVC's cl; the words clangd starts with for a database put after `words`: the folder it is given and
 // the compilers it may query for their headers and target, every one but cl
 int cli_compile_db_refresh(const CliCompileDbRootDatabaseCfg *args);
@@ -81,13 +81,13 @@ int cli_compile_db_program_get(const CliCompileDbRootFileCfg *args);
 // C++ tools that vswhere finds: NULL off Windows or where none is found
 const CliVsEnvironment *cli_compile_db_vs_environment(void);
 
-// the most parameters of a define read
+// the max parameters of a define read
 #define CLI_DEFINE_PARAMS 32u
 
 // One define a branch inherits, as its `-D` word gives it: its name; whether it is called with arguments, and if so
 // its parameters' names, how many, and whether it takes the arguments past them, a `-D` word's `...`; its value; and
-// the node it is given to, its path from the tree's top, empty for the top's own; each text one that stands while it
-// is handed on
+// the node it is given to, its path from the tree's top, empty for the top's own; each text one that is while it
+// is passed on
 typedef struct
 {
     const char *name;
@@ -105,10 +105,10 @@ typedef struct
     const CliDefineInput *define;
 } CliDefineEachCfg;
 
-// what each define a branch inherits is handed to
+// what each define a branch inherits is passed to
 typedef void (*CliDefineEach)(const CliDefineEachCfg *args);
 // each define the file or folder at `path`, from the top of the tree at `root`, inherits from the tree's compilation
-// database handed to `each`: the top's, then each folder's down to its own, so a later one stands in for an earlier
+// database passed to `each`: the top's, then each folder's down to its own, so a later one is in for an earlier
 // of the same name. The database's entries are read again each time its file changes: each entry's `-D` and `/D`
 // words, a define every entry under a folder gives with the same value given to that folder, the highest such, and an
 // entry's file saving those its folder does not give it (compile_db_flags.c)
@@ -122,15 +122,15 @@ void cli_compile_db_defines_get(const CliCompileDbRootCfg *args);
 #define CLI_INCLUDE_SYSTEM 2u
 #define CLI_INCLUDE_AFTER 3u
 #define CLI_INCLUDE_FORCED 4u
-// what each include folder or file is handed to: its whole path, its slashes `/`, a text that stands while `each`
+// what each include folder or file is passed to: its whole path, its slashes `/`, a text that is while `each`
 // runs, and its type
 typedef void (*CliIncludeEach)(const CliEachPathTypeCfg *args);
 // each include folder and file of the file at `path`, from the top of the tree at `root`, from the tree's compilation
-// database handed to `each`, the folders in the order a compiler searches them and then the files included before its
-// first line: its own entry's, or a file no entry names takes those of the entry sharing the most of its folders
+// database passed to `each`, the folders in the order a compiler searches them and then the files included before its
+// first line: its own entry's, or a file no entry names takes those of the entry sharing the max of its folders
 // (compile_db_flags.c)
 void cli_compile_db_includes_get(const CliCompileDbRootPathCfg *args);
-// every include folder and file the entries of the tree's compilation database name handed to `each`, each once
+// every include folder and file the entries of the tree's compilation database name passed to `each`, each once
 // (compile_db_flags.c)
 void cli_compile_db_includes_all(const CliCompileDbRootPathCfg *args);
 

@@ -21,7 +21,7 @@
 # the reading where the space is a real word boundary.
 #
 # Each candidate is scored on the runs it makes. Run counts are taken from the tokens that carry no
-# break, the paper's own undamaged vocabulary, and then flattened to maximum entropy the way
+# break, the paper's own undamaged vocabulary, and then flattened to max entropy the way
 # radix flattens the pooled counts of two dialects: a run common everywhere contributes nothing
 # however common it is, and the rest is the part that belongs to this candidate. A restoration
 # the language actually has makes runs the paper already uses. A wrong one makes runs nobody wrote.
@@ -117,7 +117,7 @@ WIDTHS = (2, 3, 4)
 # rate at half a percent, the same budget boundary_check spends.
 DRAWS = 200
 
-# How far ahead of the random draws a winner has to stand before it is reported as read. A site where
+# How far ahead of the random draws a winner has to be before it is reported as read. A site where
 # the random marks reach the winner's score more than this often is a site with no answer in it.
 BEATEN_AT = 0.05
 
@@ -143,7 +143,7 @@ def clean_runs(tokens, width):
 
 
 def flattened(counts):
-    """The pooled counts raised to maximum entropy, as the share each run would hold if flat.
+    """The pooled counts raised to max entropy, as the share each run would hold if flat.
 
     This is the same subtraction radix makes. What a candidate is scored on afterward is its distance
     from this reference and never its raw frequency. A run that is common everywhere carries no
@@ -176,7 +176,7 @@ def scored(candidate, counts, total, flat):
     return held
 
 
-# A plain letter the page set as a raised modifier. This is the collapse kind, which is irreversible
+# A plain character the page set as a raised modifier. This is the collapse type, which is irreversible
 # as a rule: page kʷ and page wist both arrive as w and no rule separates them. Per site it is
 # decidable anyway, wherever the paper writes the joined form somewhere it was not collapsed, the
 # same evidence every other candidate here rests on. Robertson's page 30 names its own symbols as
@@ -188,7 +188,7 @@ def candidates_for(first, second, inventory):
     """Every reading of one break site: a dropped mark, a lost space, or a collapsed modifier."""
     held = [(one, first + one + second) for one in inventory]
     held.append(("", first + second))
-    # The second token opening with a letter the page set raised. Taking that letter as the modifier
+    # The second token opening with a character the page set raised. Taking that character as the modifier
     # is a third reading and it is what recovers a labialization.
     if second and (second[0] in COLLAPSED):
         held.append((COLLAPSED[second[0]], first + COLLAPSED[second[0]] + second[1:]))
@@ -204,7 +204,7 @@ def break_sites(lines, marks, vocabulary, inventory):
 
     The evidence is the paper. This damage drops a mark and leaves the space the typesetter made room
     for, and a paper long enough to print a word twice prints it once damaged and once whole:
-    xʷəlp-í<p>l̓əx stands in section 2.2.2 and xʷəlp-í<p>l əx in example (23). A site is therefore a pair
+    xʷəlp-í<p>l̓əx is in section 2.2.2 and xʷəlp-í<p>l əx in example (23). A site is therefore a pair
     whose join, under some mark, is a form this paper writes somewhere it was not broken. The word
     supplies its own answer and nothing here has to be inferred from a page.
 
@@ -236,7 +236,7 @@ def break_sites(lines, marks, vocabulary, inventory):
             # A restoration counts as attested where the paper writes it as a token, and also where
             # the paper writes it inside one. qʷal út is qʷal̓út, which this paper never prints alone
             # and does print inside qʷəqʷal̓út, and a whole-token test reads that site as unreadable
-            # while the answer is on the page. A floor on the length keeps a short candidate from
+            # while the answer is on the page. A floor on the length retains a short candidate from
             # matching everything: two or three characters occur inside almost any word.
             attested = []
             for one, joined in candidates_for(first, second, inventory):
@@ -259,7 +259,7 @@ def inventory(text, marks):
     for symbol in text:
         if unicodedata.combining(symbol) and (symbol in marks):
             held[symbol] += 1
-    return [one for one, times in held.most_common()]
+    return [one for one, times in held.max_common()]
 
 
 def main():

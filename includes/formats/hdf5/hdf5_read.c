@@ -96,7 +96,7 @@ static int hdf5_request_check(Hdf5File *file, const Hdf5Object *object, const En
     const EngineArrayExtent *const extent = request->extent;
     int matches =
         (extent == NULL) || ((extent->rank == object->rank) && (extent->element_bytes == object->element_bytes) &&
-                             (extent->element_kind == object->element_kind));
+                             (extent->element_type == object->element_type));
     for (unsigned int axis = 0u; matches && (extent != NULL) && (axis < object->rank); axis += 1u)
     {
         matches = (extent->sizes[axis] == object->extent[axis]);
@@ -142,7 +142,7 @@ static int hdf5_gather_chunks(Hdf5Gather *gather)
     {
         const unsigned long long span = object->chunk[axis];
         const unsigned long long bounded =
-            (object->maximum[axis] >= object->extent[axis]) ? object->maximum[axis] : object->extent[axis];
+            (object->max[axis] >= object->extent[axis]) ? object->max[axis] : object->extent[axis];
         gather->grid[axis] = (object->extent[axis] / span) + (((object->extent[axis] % span) != 0ull) ? 1ull : 0ull);
         gather->range[axis] = (bounded / span) + (((bounded % span) != 0ull) ? 1ull : 0ull);
     }
@@ -240,7 +240,7 @@ long hdf5_describe(const EngineDescribeRequest *request)
             extent->axes[axis] = 0;
         }
         extent->element_bytes = object.element_bytes;
-        extent->element_kind = object.element_kind;
+        extent->element_type = object.element_type;
     }
     hdf5_object_close(&object);
     if (!ok)

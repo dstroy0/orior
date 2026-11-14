@@ -8,7 +8,7 @@
 #   Usage:  python maint/data/salishan/corpus_script_extraction/extract_hilbert.py
 #
 # Written for one paper. Poking Fun in Lushootseed is her essay, in English, about humor her
-# students kept missing, with forty numbered examples in Lushootseed set into it. Each example is
+# students retained missing, with forty numbered examples in Lushootseed set into it. Each example is
 # printed twice under the same number: the Lushootseed first, then her English for it. So the
 # number is the pairing and the order decides which is which. Nothing else has to.
 #
@@ -45,7 +45,7 @@
 # graded against, and neither reaches the pure stream, since only the Lushootseed does.
 #
 # She asks in the paper that the moral of a story never be explained. That is not this file's to
-# keep or break. It is the reason her essay is kept whole beside the examples and not thrown away
+# retain or break. It is the reason her essay is retained whole beside the examples and not thrown away
 # as apparatus. The essay is where she says what she is doing and why.
 
 import io
@@ -278,7 +278,7 @@ def main():
     # damaged mark set reads Victoria and nonconfigurationality? as forms of the language. It
     # would put both into this record as things somebody said.
     #
-    # Kept and named instead of cut. Cutting it lost those tokens from the record and the coverage check
+    # Retained and named instead of cut. Cutting it lost those tokens from the record and the coverage check
     # then reported this paper as incomplete. It is not incomplete. The words are in the PDF and
     # they belong to somebody else's paper.
     next_paper = len(lines)
@@ -301,7 +301,7 @@ def main():
             rows.append(("N", number, "translation", english))
 
     # Her essay. It is English and it is hers, and it is what the examples are set into. It is
-    # kept and marked derived instead of dropped as apparatus. Told from the examples by which lines they
+    # retained and marked derived instead of dropped as apparatus. Told from the examples by which lines they
     # took instead of by comparing text. A line matched against a bag of words matches nothing, and every
     # continuation line went into the essay a second time.
     for at, line in enumerate(lines):
@@ -319,11 +319,11 @@ def main():
         rows.append(("N", 0, "essay", trimmed))
         # She names four words in her essay and glosses each in quotes, and gives three names: the
         # supernatural dawi?, the same name written ~awi? ten lines later, and the place ~acaladi.
-        # Those are the only Lushootseed outside the numbered examples, and a reader that keeps the
+        # Those are the only Lushootseed outside the numbered examples, and a reader that retains the
         # essay whole without pulling them leaves seven forms in prose and out of the record.
         for token in trimmed.split():
             # Only sentence punctuation comes off. The damaged orthography writes with ], [, ' and "
-            # as letters: ]u?il ‘happy’ opens with one, and stripping it gives u?il, a word this
+            # as characters: ]u?il ‘happy’ opens with one, and stripping it gives u?il, a word this
             # paper does not contain.
             plain = token.strip(".,;:")
             if plain and carries_language(plain) and (plain not in cited):
@@ -343,7 +343,7 @@ def main():
             "# International Conference on Salish and Neighboring Languages, 1983.\n"
         )
         handle.write(
-            "# Her essay on humor her students kept missing, with forty numbered\n"
+            "# Her essay on humor her students retained missing, with forty numbered\n"
         )
         handle.write("# Lushootseed examples and her own English for each.\n")
         handle.write("#\n")
@@ -351,7 +351,7 @@ def main():
             "# ORTHOGRAPHY NOT REPAIRED. This is a 1983 typescript and its scan is\n"
         )
         handle.write(
-            "# damaged: ? stands for the glottal stop, ~ and J and G for the schwa,\n"
+            "# damaged: ? is for the glottal stop, ~ and J and G for the schwa,\n"
         )
         handle.write(
             "# V and v for labialization. A repair table for it cannot be\n"
@@ -368,7 +368,7 @@ def main():
         handle.write("# words would put forms in that nobody said. None was applied.\n")
         handle.write("#\n")
         handle.write(
-            "# Mark is language.layer.kind. T is Lushootseed, N is anything else.\n"
+            "# Mark is language.layer.type. T is Lushootseed, N is anything else.\n"
         )
         handle.write(
             "# An example is printed twice under one number, the Lushootseed first and\n"
@@ -376,34 +376,34 @@ def main():
         handle.write(
             "# her English second. The number pairs them and the order names them.\n"
         )
-        handle.write("line\tkind\tswitches\tcontent\n")
-        for mark, number, kind, text in rows:
+        handle.write("line\ttype\tswitches\tcontent\n")
+        for mark, number, type, text in rows:
             # Not span-marked. The damage leaves this paper's Lushootseed in plain ASCII. The
             # span test reads huy, six, tud and Zilid as English and cuts them out of her own
             # sentence. She does not switch languages inside an example: her English is the second
             # block under the same number. An example line is one language from end to end.
-            content = "%s.%s.%s:{%s}" % (mark, LAYER[kind], kind, text)
-            handle.write("line#${%d}\t%s\t0\t%s\n" % (number, kind, content))
+            content = "%s.%s.%s:{%s}" % (mark, LAYER[type], type, text)
+            handle.write("line#${%d}\t%s\t0\t%s\n" % (number, type, content))
 
     pure = TARGET[:-4] + ".pure.txt"
-    kept = 0
+    retained = 0
     already = set()
     with open(pure, "w", encoding="utf-8", newline="") as handle:
-        for mark, number, kind, text in rows:
-            if (mark != "T") or (kind != "transcription"):
+        for mark, number, type, text in rows:
+            if (mark != "T") or (type != "transcription"):
                 continue
             key = " ".join(text.split())
             if not key or (key in already):
                 continue
             already.add(key)
             handle.write("%s\n" % key)
-            kept += 1
+            retained += 1
 
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
         (0, "example %d" % number, UNKNOWN_KIND, "", text)
-        for mark, number, kind, text in rows
-        if kind == UNCLASSIFIED
+        for mark, number, type, text in rows
+        if type == UNCLASSIFIED
     ]
     flagged.extend(missed)
 
@@ -433,18 +433,18 @@ def main():
     stuck_count = write_unsorted(stuck, "Poking Fun in Lushootseed", flagged)
 
     counted = {}
-    for mark, number, kind, text in rows:
-        counted[kind] = counted.get(kind, 0) + 1
+    for mark, number, type, text in rows:
+        counted[type] = counted.get(type, 0) + 1
     out.write("  %d lines written to\n  %s\n" % (len(rows), os.path.basename(TARGET)))
     out.write(
-        "  %d target-language spans written to\n  %s\n" % (kept, os.path.basename(pure))
+        "  %d target-language spans written to\n  %s\n" % (retained, os.path.basename(pure))
     )
     out.write(
         "  %d lines the tool could not sort written to\n  %s\n"
         % (stuck_count, os.path.basename(stuck))
     )
     out.write(
-        "\n  by kind: %s\n"
+        "\n  by type: %s\n"
         % ", ".join("%s %d" % (one, counted[one]) for one in sorted(counted))
     )
     out.flush()

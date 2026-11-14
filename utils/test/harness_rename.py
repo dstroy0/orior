@@ -6,14 +6,14 @@
 
 Each C, CUDA, C++, Python and JavaScript file under the folders that carries the tree's copyright line is cut into
 code, comment and string pieces. In code, an identifier part that is the word or its plural becomes the new word in
-the same case: kind_of becomes type_of, KIND_X becomes TYPE_X, scrollKind becomes scrollType. In a comment and a
-Python docstring, the word becomes the new word, with its case kept. A string literal keeps its text, but the code in
+the same case: type_of becomes type_of, KIND_X becomes TYPE_X, scrollKind becomes scrollType. In a comment and a
+Python docstring, the word becomes the new word, with its case retained. A string literal retains its text, but the code in
 an f-string's braces and in a template literal's `${}` is code. A JavaScript property name, after a dot or before a
-colon in an object, keeps its text, since it names a key that JSON carries.
+colon in an object, retains its text, since it names a key that JSON carries.
 
 Without --write, the command writes nothing: it lists each name the rename makes that the tree has already, each a
 collision to settle first, and counts the changes by file. With --write, it writes the files, and does not write
-where a collision stands.
+where a collision is.
 """
 
 import os
@@ -41,7 +41,7 @@ def cased(old, new):
 
 
 def word_renamed(text, word, new, plural, news):
-    """Each whole word `word` or `plural` in `text` as `new` or `news`, its case kept."""
+    """Each whole word `word` or `plural` in `text` as `new` or `news`, its case retained."""
 
     def swap(match):
         found = match.group(0)
@@ -51,7 +51,7 @@ def word_renamed(text, word, new, plural, news):
 
 
 def identifier_renamed(name, word, new, plural, news):
-    """The identifier `name` with each part that is the word or its plural renamed, its case kept."""
+    """The identifier `name` with each part that is the word or its plural renamed, its case retained."""
     parts = PART.findall(name)
     if "".join(parts) != name:
         return name
@@ -98,7 +98,7 @@ def pieces(text, language):
             at = code_start = end
             continue
         if language == "script" and char == "/" and previous in ("", "(", ",", "=", ":", "[", "!", "&", "|", "?", "{", "}", ";"):
-            # a regular expression literal, kept as a string
+            # a regular expression literal, retained as a string
             flush(at)
             end = at + 1
             in_class = False
@@ -164,11 +164,11 @@ def pieces(text, language):
 
 
 def code_renamed(code, word, new, plural, news, language, names_made, brackets=None):
-    """The identifiers of a run of code renamed; a JavaScript property name kept.
+    """The identifiers of a run of code renamed; a JavaScript property name retained.
 
     In JavaScript, `brackets` is the stack of the brackets open before the run, and the run updates it. A name after
-    `.` is a property and keeps its text. A name first in a pair of an object, after `{` or `,` with a `{` innermost,
-    is a key: before `:` it keeps its text, and as a shorthand before `,` or `}` it becomes `key: renamed`, so the key
+    `.` is a property and retains its text. A name first in a pair of an object, after `{` or `,` with a `{` innermost,
+    is a key: before `:` it retains its text, and as a shorthand before `,` or `}` it becomes `key: renamed`, so the key
     stays the same.
     """
     brackets = [] if brackets is None else brackets
@@ -213,7 +213,7 @@ def code_renamed(code, word, new, plural, news, language, names_made, brackets=N
 
 
 def formatted_renamed(body, word, new, plural, news, language, names_made):
-    """An f-string's or a template literal's code, inside its braces, renamed; its text kept."""
+    """An f-string's or a template literal's code, inside its braces, renamed; its text retained."""
     opener = "${" if language == "script" else "{"
     out = []
     at = 0
@@ -345,8 +345,8 @@ def cmd_source_rename(a):
     new = a.new
     news = a.plural or (a.new + "s")
     files = [name for name in tracked(a.folders) if name not in a.exclude]
-    # every identifier the tree has already, by language, to find the names a rename makes that stand already
-    standing = {"c": set(), "python": set(), "script": set()}  # noqa: F841
+    # every identifier the tree has already, by language, to find the names a rename makes that are already
+    located = {"c": set(), "python": set(), "script": set()}  # noqa: F841
     texts = {}
     for name in files:
         path = os.path.join(ROOT, name)
@@ -356,7 +356,7 @@ def cmd_source_rename(a):
         texts[name] = (text, language)
         for piece, body in pieces(text, language):
             if piece == "code":
-                standing[language].update(IDENTIFIER.findall(body))
+                located[language].update(IDENTIFIER.findall(body))
     changed = {}
     made = {"c": set(), "python": set(), "script": set()}
     collisions = []
@@ -414,5 +414,5 @@ def register(source):
                    help="the folders read, from the top of the tree")
     p.add_argument("--exclude", nargs="+", default=[], help="the files excluded, from the top of the tree")
     p.add_argument("--write", action="store_true", help="the files written; else the collisions and counts alone")
-    p.add_argument("--force", action="store_true", help="the files written where collisions stand, each checked")
+    p.add_argument("--force", action="store_true", help="the files written where collisions are, each checked")
     p.set_defaults(fn=cmd_source_rename)

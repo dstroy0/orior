@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// An iris: the bodies of its pupil drawn from a seed, its picture painted at a size, and the picture laid down for an
+// An iris: the bodies of its pupil drawn from a seed, its picture painted at a size, and the picture positioned down for an
 // iris on the eye's sphere.
 
 import { drawIris, irisPicture, lavaOf } from "../../../gui/src-js/eye/iris.js";
@@ -18,7 +18,7 @@ test("the pupil's bodies are drawn from a seed, the first the largest near the m
   assert.equal(JSON.stringify(lavaOf(seeded(4))), JSON.stringify(lava));
 });
 
-test("an iris's picture is painted at a size, and laid down inside the iris's circle and nowhere else", () => {
+test("an iris's picture is painted at a size, and positioned down inside the iris's circle and nowhere else", () => {
   const draw = seeded(6);
   const picture = irisPicture(draw);
   picture.paint(80, lavaOf(draw), 0.5, 1);

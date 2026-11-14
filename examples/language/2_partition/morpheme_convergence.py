@@ -9,11 +9,11 @@
 #
 # Taken as a share of the positions its alphabet occupies, the tightest spread runs 0.0610 to 0.0736 over
 # eleven languages written in an alphabet, and Chinese sits at 0.0855, which is 5.6 deviations outside
-# them. Quoting it in levels instead put Chinese 565.9 deviations out. The normalizing was most of the
+# them. Quoting it in levels instead put Chinese 565.9 deviations out. The normalizing was the majority of the
 # distance and something smaller is left.
 #
-# The comparison is between unlike units. A Chinese character stands for a morpheme.
-# A Latin letter stands for a piece of one, and it takes several to reach anything that means something.
+# The comparison is between unlike units. A Chinese character is for a morpheme.
+# A Latin character is for a piece of one, and it takes several to reach anything that means something.
 # Measuring one symbol on each side measures meaning on one and fragments on the other, and two languages
 # could agree perfectly about how their meaning is distributed while disagreeing here.
 #

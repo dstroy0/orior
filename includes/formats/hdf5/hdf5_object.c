@@ -6,20 +6,20 @@
 static Hdf5Walk hdf5_object_layout(Hdf5File *file, Hdf5Object *object, Hdf5Cursor *cursor)
 {
     const unsigned int version = (unsigned int)hdf5_take(cursor, 1u);
-    const unsigned int kind = (unsigned int)hdf5_take(cursor, 1u);
+    const unsigned int type = (unsigned int)hdf5_take(cursor, 1u);
     if (cursor->broken || object->has_layout)
     {
         return hdf5_walk_error(file, "a malformed or repeated data layout message");
     }
     object->has_layout = 1;
     object->layout_version = version;
-    object->layout_class = kind;
+    object->layout_class = type;
     if ((version < 3u) || (version > 5u))
     {
         hdf5_object_unsupported(object, "data layout message version", version);
         return HDF5_WALK_ON;
     }
-    if (kind == 0u)
+    if (type == 0u)
     {
         const unsigned long long size = hdf5_take(cursor, 2u);
         const unsigned char *const data = hdf5_span(cursor, size);
@@ -39,18 +39,18 @@ static Hdf5Walk hdf5_object_layout(Hdf5File *file, Hdf5Object *object, Hdf5Curso
         }
         return HDF5_WALK_ON;
     }
-    if (kind == 1u)
+    if (type == 1u)
     {
         object->data_address = hdf5_take(cursor, file->offset_bytes);
         object->data_bytes = hdf5_take(cursor, file->length_bytes);
         return cursor->broken ? hdf5_walk_error(file, "a malformed contiguous layout message") : HDF5_WALK_ON;
     }
-    if (kind == 2u)
+    if (type == 2u)
     {
         return hdf5_object_chunking(file, object, cursor, version);
     }
-    hdf5_object_unsupported(object, (kind == 3u) ? "the virtual dataset layout; class" : "an unknown layout class",
-                            kind);
+    hdf5_object_unsupported(object, (type == 3u) ? "the virtual dataset layout; class" : "an unknown layout class",
+                            type);
     return HDF5_WALK_ON;
 }
 

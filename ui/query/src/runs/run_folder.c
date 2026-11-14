@@ -64,7 +64,7 @@ static void query_run_walk(const CliEachNameIsFolderCfg *args)
     int is_folder = args->is_folder;
     QueryRunsWalk *const walk = (QueryRunsWalk *)args->context;
     const unsigned long long number = EMBED_CALL(query_run_number, RunFolderCtx, .name = name, .is_folder = is_folder);
-    // a walk handed no storage counts the runs and finds the highest number
+    // a walk passed no storage counts the runs and finds the highest number
     if ((number != 0ULL) && (walk->path == NULL))
     {
         walk->count += 1u;
@@ -287,9 +287,9 @@ unsigned int query_retain_max(void)
         return QUERY_RETAIN_MAX;
     }
     char *end = NULL;
-    const unsigned long most = strtoul(retain_text, &end, 10);
+    const unsigned long max = strtoul(retain_text, &end, 10);
     // a count recorded is far below what an unsigned int represents
-    return ((end != retain_text) && (*end == '\0')) ? (unsigned int)most : QUERY_RETAIN_MAX;
+    return ((end != retain_text) && (*end == '\0')) ? (unsigned int)max : QUERY_RETAIN_MAX;
 }
 
 void query_runs_prune(const QueryFolderMaxCtx *args)
@@ -304,7 +304,7 @@ void query_runs_prune(const QueryFolderMaxCtx *args)
     }
     QueryRuns runs;
     (void)EMBED_CALL(query_folder_runs_internal.runs_alloc, QueryFolderRunsCtx, .folder = args->folder, .runs = &runs);
-    for (unsigned int at = args->most; at < runs.count; at += 1u)
+    for (unsigned int at = args->max; at < runs.count; at += 1u)
     {
         EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = runs.path[at]);
     }

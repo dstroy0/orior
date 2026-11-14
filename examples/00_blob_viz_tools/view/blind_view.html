@@ -92,7 +92,7 @@ right one flat. generate_template.py builds it through build_blind_view.py.
     scrollbar-width: thin; scrollbar-color: color-mix(in oklab, var(--blue) 28%, transparent) transparent;
   }
   .box:not(:hover):not(:focus-within), .glass:not(:hover):not(:focus-within) { scrollbar-color: transparent transparent; }
-  .box h4 { margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.01em; color: var(--ink); cursor: move; user-select: none; }
+  .box h4 { margin: 0 0 8px; font-size: 11px; font-weight: 600; character-spacing: 0.01em; color: var(--ink); cursor: move; user-select: none; }
 
   /* A row: its label, its control, and the value the control holds, on the same three columns everywhere. */
   .row { display: grid; grid-template-columns: 92px minmax(0, 1fr) 48px; align-items: center; column-gap: 8px; min-height: 24px; }
@@ -108,7 +108,7 @@ right one flat. generate_template.py builds it through build_blind_view.py.
   /* Buttons. */
   button {
     height: 26px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--control-edge); background: var(--control);
-    color: var(--control-ink); font: 500 11.5px/1 var(--font); letter-spacing: 0.005em; cursor: pointer;
+    color: var(--control-ink); font: 500 11.5px/1 var(--font); character-spacing: 0.005em; cursor: pointer;
     transition: border-color 120ms var(--ease), background-color 120ms var(--ease), box-shadow 160ms var(--ease), color 120ms var(--ease);
   }
   button:hover { border-color: color-mix(in oklab, var(--blue) 38%, transparent); background: var(--control-hi); color: var(--ink); }
@@ -191,7 +191,7 @@ right one flat. generate_template.py builds it through build_blind_view.py.
   details.section:first-of-type { border-top: 0; }
   details.section > summary {
     list-style: none; display: flex; align-items: center; gap: 8px; height: 30px; cursor: pointer; user-select: none;
-    font-size: 11px; font-weight: 600; letter-spacing: 0.01em; color: var(--ink);
+    font-size: 11px; font-weight: 600; character-spacing: 0.01em; color: var(--ink);
   }
   details.section > summary::-webkit-details-marker { display: none; }
   details.section > summary::after {
@@ -256,10 +256,10 @@ right one flat. generate_template.py builds it through build_blind_view.py.
   }
 
   .toolbar-head { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; height: var(--button); }
-  .toolbar-title { font-size: 11px; font-weight: 600; letter-spacing: 0.01em; color: var(--ink); opacity: 0; transition: opacity 160ms var(--ease); }
+  .toolbar-title { font-size: 11px; font-weight: 600; character-spacing: 0.01em; color: var(--ink); opacity: 0; transition: opacity 160ms var(--ease); }
   .toolbar.open .toolbar-title { opacity: 1; transition-delay: 120ms; }
 
-  /* The menu button keeps its own glass: closed, it reads as a whole button. Its three lines turn into a cross. */
+  /* The menu button retains its own glass: closed, it reads as a whole button. Its three lines turn into a cross. */
   .toolbar-button {
     position: relative; flex: 0 0 auto; width: var(--button); height: var(--button); margin: -1px; padding: 0; border-radius: 10px;
     border: 1px solid var(--hair); background: linear-gradient(180deg, var(--glass-top), var(--glass-low)); box-shadow: var(--shadow);
@@ -295,7 +295,7 @@ right one flat. generate_template.py builds it through build_blind_view.py.
   html, body { height: auto; min-height: 100%; overflow: auto; }
   main { box-sizing: border-box; max-width: 1280px; margin: 0 auto; padding: 72px 24px 32px; display: grid; gap: 16px; }
   main .glass { position: relative; max-height: none; overflow: visible; padding: 14px 16px; }
-  h1 { margin: 0 0 4px; font-size: 17px; font-weight: 600; letter-spacing: 0.01em; }
+  h1 { margin: 0 0 4px; font-size: 17px; font-weight: 600; character-spacing: 0.01em; }
   .maps { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 820px) { .maps { grid-template-columns: 1fr; } }
   figure { margin: 0; }
@@ -316,7 +316,7 @@ right one flat. generate_template.py builds it through build_blind_view.py.
     <h1>Directions the boundary cannot see</h1>
     <p class="note">A reading to degree L maps a weight per interior source to (L+1)&sup2; boundary coefficients. Its right
       singular vectors are directions in source space, ordered by how strongly the boundary answers them, and past
-      the rank the answer is nothing at all. Both maps keep one scale across every direction, so a quiet map is
+      the rank the answer is nothing at all. Both maps retain one scale across every direction, so a quiet map is
       quiet and not rescaled.</p>
     <div class="stats" id="totals"></div>
   </header>
@@ -333,7 +333,7 @@ const EV = {};
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// The floating toolbar emitter. A page hands EV.toolbar a spec and gets back one toolbar in a corner: a menu button
+// The floating toolbar emitter. A page passes EV.toolbar a spec and gets back one toolbar in a corner: a menu button
 // that opens it, and folding sections of rows. Every control is emitted with the id the spec gives it, and the page
 // binds its controls by id as it would hand-written markup. A slider's value shows in an output whose id is the
 // slider's id followed by "Out".

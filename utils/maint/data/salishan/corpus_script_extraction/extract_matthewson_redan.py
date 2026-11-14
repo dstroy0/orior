@@ -19,7 +19,7 @@
 # marked derived. The same notes in section 3 are in English.
 #
 # Linda moves into English inside her own narrative and the paper glosses that as part of the utterance,
-# and her closing lines are entirely English. Those lines are hers and are kept whole.
+# and her closing lines are entirely English. Those lines are hers and are retained whole.
 #
 # Section 5 discusses indefinite pronouns and repeats lines from the story, and one of its examples is not
 # Linda's at all: example 35 is from Sam Mitchell, published in Van Eijk and Williams 1981. That is marked
@@ -132,7 +132,7 @@ QUOTED = re.compile(r"^['‘“]")
 SENTENCE = re.compile(r"(?<=[.!?])(?=\s)|(?<=[.!?][\"”’'])(?=\s)")
 
 # A segmentation line writes each morpheme on its own and joins them with a hyphen or an equals
-# sign. Testing for that keeps a wrapped transcription line, a page number or a line of
+# sign. Testing for that retains a wrapped transcription line, a page number or a line of
 # footnote prose from entering the record under the name segmentation because nothing else matched.
 SEGMENTED = re.compile(r"[-=]")
 
@@ -151,7 +151,7 @@ LAYER = {
     "gloss": DERIVED,
     "stage direction": DERIVED,
     "cited example": DERIVED,
-    # Kept and marked, excluded from the ingestion stream until someone has classified it.
+    # Retained and marked, excluded from the ingestion stream until someone has classified it.
     UNCLASSIFIED: DERIVED,
 }
 
@@ -229,8 +229,8 @@ def main():
     # a third. Read line by line, the record contained fragments, and the hand extraction of this paper,
     # which is one row per sentence, matched none of them.
     whole = " ".join(" ".join(one.split()) for one in held.get("2", []) if one.strip())
-    for kind, piece in split_brackets(whole):
-        if kind == "note":
+    for type, piece in split_brackets(whole):
+        if type == "note":
             count += 1
             rows.append(("T", count, "2", "stage direction", "Lisa Matthewson", piece))
             continue
@@ -338,7 +338,7 @@ def main():
 
     # Every line of the paper no section reached, added to the record as unclassified. The
     # marked file holds every token of the language the paper printed. The speaker column is left
-    # unset, which also keeps these out of the pure stream, and they are listed in the flag file.
+    # unset, which also retains these out of the pure stream, and they are listed in the flag file.
     # The union of every orthography, not this paper's own set. The coverage check counts a token
     # against the union. A finder using a narrower set leaves holes the check still reports.
     missed = unreached(lines, covered_tokens(one[5] for one in rows))
@@ -365,11 +365,11 @@ def main():
             "# Lisa transcribed, translated and glossed it; the transcription and the\n"
         )
         handle.write(
-            "# translation were checked with Linda. Audio and video are kept by her.\n"
+            "# translation were checked with Linda. Audio and video are retained by her.\n"
         )
         handle.write("#\n")
         handle.write(
-            "# Mark is language.layer.kind. T is St'át'imcets, N is anything else.\n"
+            "# Mark is language.layer.type. T is St'át'imcets, N is anything else.\n"
         )
         handle.write("# The glottal stop is written 7 in this orthography.\n")
         handle.write(
@@ -384,27 +384,27 @@ def main():
         handle.write(
             "# Gloss categories are the paper's own, from its footnote 1, unchanged.\n"
         )
-        handle.write("line\tsection\tkind\tspeaker\tswitches\tcontent\n")
-        for mark, number, section, kind, who, text in rows:
-            layer = LAYER[kind]
+        handle.write("line\tsection\ttype\tspeaker\tswitches\tcontent\n")
+        for mark, number, section, type, who, text in rows:
+            layer = LAYER[type]
             if mark == "T":
-                content = rendered(text, layer, kind, MARKS)
+                content = rendered(text, layer, type, MARKS)
                 crossings = switches(text)
             else:
-                content = "N.%s.%s:{%s}" % (layer, kind, text)
+                content = "N.%s.%s:{%s}" % (layer, type, text)
                 crossings = 0
             handle.write(
                 "line#${%d}\t%s\t%s\t%s\t%d\t%s\n"
-                % (number, section, kind, who, crossings, content)
+                % (number, section, type, who, crossings, content)
             )
 
     pure = TARGET[:-4] + ".pure.txt"
-    kept = 0
+    retained = 0
     repeated = 0
     already = set()
     with open(pure, "w", encoding="utf-8", newline="") as handle:
-        for mark, number, section, kind, who, text in rows:
-            if (mark != "T") or (LAYER[kind] != SPOKEN):
+        for mark, number, section, type, who, text in rows:
+            if (mark != "T") or (LAYER[type] != SPOKEN):
                 continue
             if not who.startswith("K̓weswapáw̓"):
                 continue
@@ -417,22 +417,22 @@ def main():
                     continue
                 already.add(key)
                 handle.write("%s\n" % run)
-                kept += 1
+                retained += 1
 
     # A file of its own for what the tool could not sort: a section 4 line none of the tests typed,
     # and a line no section reached, which here is the front matter, section 1 and the references.
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
         (0, "%s block %d" % (section, number), UNKNOWN_KIND, "", text)
-        for mark, number, section, kind, who, text in rows
-        if (kind == UNCLASSIFIED) and not section.startswith("not reached")
+        for mark, number, section, type, who, text in rows
+        if (type == UNCLASSIFIED) and not section.startswith("not reached")
     ]
     flagged.extend(missed)
     stuck_count = write_unsorted(stuck, "Cw7aoz káti7 láti7 ku naxwít", flagged)
 
     out.write("  %d lines written to\n  %s\n" % (len(rows), os.path.basename(TARGET)))
     out.write(
-        "  %d target-language spans written to\n  %s\n" % (kept, os.path.basename(pure))
+        "  %d target-language spans written to\n  %s\n" % (retained, os.path.basename(pure))
     )
     out.write("  %d spans skipped as already written\n" % repeated)
     out.write(
@@ -440,17 +440,17 @@ def main():
         % (stuck_count, os.path.basename(stuck))
     )
 
-    out.write("\n  %-8s %-16s %-38s %s\n" % ("section", "kind", "speaker", "lines"))
+    out.write("\n  %-8s %-16s %-38s %s\n" % ("section", "type", "speaker", "lines"))
     counted = {}
-    for mark, number, section, kind, who, text in rows:
-        counted[(section, kind, who)] = counted.get((section, kind, who), 0) + 1
+    for mark, number, section, type, who, text in rows:
+        counted[(section, type, who)] = counted.get((section, type, who), 0) + 1
     for key in sorted(counted):
         out.write(
             "  %-8s %-16s %-38s %d\n" % (key[0], key[1], key[2][:38], counted[key])
         )
 
     marks = {}
-    for mark, number, section, kind, who, text in rows:
+    for mark, number, section, type, who, text in rows:
         marks[mark] = marks.get(mark, 0) + 1
     mixed = sum(
         1

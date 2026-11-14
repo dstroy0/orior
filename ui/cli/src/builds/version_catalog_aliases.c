@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // version_catalog_aliases.c: what a catalog read describes: a field of a table by its key, what a value describes in a
-// few words, the accessor a script names an alias by, and the aliases of each section with what each stands for. An
+// few words, the accessor a script names an alias by, and the aliases of each section with what each is for. An
 // alias past what the aliases contain is left out
 #include "version_catalog_internal.h"
 

@@ -15,7 +15,7 @@ typedef struct CliStructureOldCtx CliStructureOldCtx;
 typedef struct CliStructureSideCtx CliStructureSideCtx;
 typedef struct CliStructureCtx CliStructureCtx;
 
-// the most tokens and lines a side contains, the most steps an edit takes, and the most texts the names number; a text
+// the max tokens and lines a side contains, the max steps an edit takes, and the max texts the names number; a text
 // past them reads as too far apart
 #define CLI_STRUCTURE_TOKENS (1u << 16u)
 
@@ -25,7 +25,7 @@ typedef struct CliStructureCtx CliStructureCtx;
 
 #define CLI_STRUCTURE_NAMES (1u << 18u)
 
-// the most edits either comparison makes before the texts read as too far apart, and the fewest tokens a line contains
+// the max edits either comparison makes before the texts read as too far apart, and the fewest tokens a line contains
 // for it to read as moved
 #define CLI_MAX_EDITS 1500u
 
@@ -34,7 +34,7 @@ typedef struct CliStructureCtx CliStructureCtx;
 // no place: an index not found
 #define CLI_STRUCTURE_NONE 0xffffffffu
 
-// A token: its line, where it starts and ends in the line in UTF-16 units as the window counts, and where it stands in
+// A token: its line, where it starts and ends in the line in UTF-16 units as the window counts, and where it is in
 // the text in bytes
 typedef struct
 {

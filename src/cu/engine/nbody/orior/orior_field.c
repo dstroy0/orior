@@ -19,7 +19,7 @@
  *       argument pointer each and both call this.
  * @note THE POPULATION IS THE ARGUMENT. One call numbers one
  *       population. Every rank it produces is comparable with every other rank it produced and
- *       with none produced elsewhere. orior_field_pair_project hands it a corpus and a needle
+ *       with none produced elsewhere. orior_field_pair_project passes it a corpus and a needle
  *       together for exactly that reason.
  */
 static size_t field_number_classes(OriorSameAt same_in_field, const void *field, size_t length,

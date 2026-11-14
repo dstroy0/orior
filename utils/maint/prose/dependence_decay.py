@@ -38,7 +38,7 @@ still produces a positive number, and the bias grows as the table gets sparse. D
 possible, and this tree has a rule against it: a derived bar comes out too low, always in the same
 direction.
 
-So it is measured. Shuffling the tokens destroys arrangement and keeps every count identical, and that
+So it is measured. Shuffling the tokens destroys arrangement and retains every count identical, and that
 makes a shuffle EXACTLY the memoryless surrogate for this statistic. The floor at each lag is what
 the shuffle produces at that lag, drawn several times. What gets reported is the excess over that
 floor. A decay to zero means decay to where this corpus at this size can no longer tell.
@@ -83,7 +83,7 @@ the large-lag excess survives the scramble, the tail is drift, not a long-range 
 
 The inversion is worth stating plainly, because it reverses the premise the line starts from. A
 continuous single-author work is the arm with the LEAST large-lag excess; concatenated corpora have
-the most. Large-k excess tracks how a corpus is assembled and is close to silent about the writing
+the max. Large-k excess tracks how a corpus is assembled and is close to silent about the writing
 inside it.
 
 WHAT A NULL ON THE SHAPE MEANS
@@ -142,11 +142,11 @@ LAGS = (1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 7
 
 
 def tokens_of(text, vocabulary=256):
-    """Words as integer symbols, the commonest `vocabulary` kept and the rest merged.
+    """Words as integer symbols, the commonest `vocabulary` retained and the rest merged.
 
     A JOINT TABLE IS V SQUARED CELLS AND THE COUNTS HAVE TO FILL IT. With a full vocabulary the
     table is emptier than the data, every cell holds zero or one, and the estimate is almost pure
-    bias - the shuffle floor then sits on top of the signal and nothing is visible above it. Keeping
+    bias - the shuffle floor then sits on top of the signal and nothing is visible above it. Retention
     the commonest few hundred words trades resolution for a table the corpus can actually fill.
     That is a choice about the estimator and not about the text, and the same choice is made for
     every corpus compared here.
@@ -157,7 +157,7 @@ def tokens_of(text, vocabulary=256):
         counts[word] = counts.get(word, 0) + 1
     common = sorted(counts, key=lambda w: -counts[w])[:vocabulary - 1]
     index = dict((word, number) for number, word in enumerate(common))
-    # Everything outside the kept vocabulary shares the last symbol.
+    # Everything outside the retained vocabulary shares the last symbol.
     other = vocabulary - 1
     return numpy.fromiter((index.get(w, other) for w in words), dtype=numpy.int32,
                           count=len(words)), vocabulary
@@ -252,7 +252,7 @@ def decay_shape(rows):
 
 
 def reach(rows):
-    """The largest lag whose excess still stands clear of the shuffle floor.
+    """The largest lag whose excess still is clear of the shuffle floor.
 
     "Clear" is a quarter of the floor where a sigma would be expected. The floor here is a bias.
     It is no noise band: three shuffles agree with each other closely, and the spread understates
@@ -312,7 +312,7 @@ def main():
         # The two are separable and the test is exact. Scramble the tokens INSIDE each window of 100
         # and every arrangement shorter than 100 words is destroyed, while composition above that
         # scale is untouched. Real dependence at lag 256 cannot survive that. Drift is unaffected by
-        # it. So if the large-lag excess stands up after scrambling, the curve was never reading
+        # it. So if the large-lag excess is up after scrambling, the curve was never reading
         # dependence.
         span = 100
         human, size = tokens_of(load_papers(limit_words=400000), given.vocabulary)
@@ -555,7 +555,7 @@ def main():
         session_rows = curve(session, size)
         show("MACHINE POLE, own transcript", session_rows, session.size)
 
-        # SIZE IS THE NUISANCE PARAMETER AND IT HAS TO BE KEPT FIXED.
+        # SIZE IS THE NUISANCE PARAMETER AND IT HAS TO BE RETAINED FIXED.
         #
         # The poles differ by eleven times in length and their shuffle floors differ by five times -
         # 0.098 bits against 0.519 - because MI bias grows as a corpus shrinks and its joint table
@@ -563,7 +563,7 @@ def main():
         # it register, the fault this tree has caught more than once.
         #
         # So the human pole is cut to the machine pole's exact token count and the comparison is
-        # made there. The full-length human curve above is kept only to show what the instrument can
+        # made there. The full-length human curve above is retained only to show what the instrument can
         # see when it is not starved; it is not what the verdict rests on.
         matched = human[:session.size]
         matched_rows = curve(matched, size)
@@ -643,8 +643,8 @@ def main():
             print("    reported here so nobody quotes it later as though it were.")
             return 1
         print()
-        print("    human dependence stands clear of its floor out to lag      %d" % human_reach)
-        print("    machine dependence stands clear of its floor out to lag    %d" % session_reach)
+        print("    human dependence is clear of its floor out to lag      %d" % human_reach)
+        print("    machine dependence is clear of its floor out to lag    %d" % session_reach)
         print()
         if human_reach > session_reach:
             print("    The human corpus carries dependence further AT THE SAME LENGTH: the")
@@ -665,7 +665,7 @@ def main():
     rows = curve(symbols, size)
     show(given.file, rows, symbols.size)
     print()
-    print("    dependence stands clear of the floor out to lag %d" % reach(rows))
+    print("    dependence is clear of the floor out to lag %d" % reach(rows))
     return 0
 
 

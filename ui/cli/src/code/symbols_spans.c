@@ -1,17 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // symbols_spans.c: the spans Expand Selection steps through, read off a text's leaves by the roles its grammar names.
-// From the leaf a place stands in outward: each bracket pair around it, inside its brackets and with them; where the
-// pair encloses a region, first the statement the place stands in among the region's, bounded at the region's depth by
+// From the leaf a place is in outward: each bracket pair around it, inside its brackets and with them; where the
+// pair encloses a region, first the statement the place is in among the region's, bounded at the region's depth by
 // a statement's end, a region's close, a directive's line and the region's own brackets, and after the region the
-// region with its head, the statement before its opening bracket; and last the whole text. A span is handed only where
+// region with its head, the statement before its opening bracket; and last the whole text. A span is passed only where
 // it holds the one before it and is more than it
 #include "../text/edits.h"
 #include "../text/text.h"
 #include "symbols.h"
 #include "symbols_internal.h"
 
-// The spans being handed: the leaves, the text's size, where the last one handed stands, and to whom
+// The spans being passed: the leaves, the text's size, where the last one passed is, and to whom
 typedef struct
 {
     const CliLeafRead *read;
@@ -92,8 +92,8 @@ EMBED_INLINE CliSymbolPosition spans_position(const SymbolsSpansCtx *args)
                                                               .text = text + start, .size = args->byte - start)};
 }
 
-// the bytes `from` to `to` handed as a span, the leaves `first` and `last` on their lines, where they hold the last
-// span handed and are more than it
+// the bytes `from` to `to` passed as a span, the leaves `first` and `last` on their lines, where they hold the last
+// span passed and are more than it
 EMBED_INLINE void spans_dispatch(const SymbolsSpansCtx *args)
 {
     unsigned long long from = args->from;
@@ -112,7 +112,7 @@ EMBED_INLINE void spans_dispatch(const SymbolsSpansCtx *args)
     args->spans->to = to;
 }
 
-// the leaves `first` to before `end` handed as a span, the blanks and comments at either end left out
+// the leaves `first` to before `end` passed as a span, the blanks and comments at either end left out
 EMBED_INLINE void spans_leaves_dispatch(const SymbolsSpansCtx *args)
 {
     unsigned int first = args->first;
@@ -158,7 +158,7 @@ EMBED_INLINE unsigned int spans_closing(const SymbolsSpansCtx *args)
     return read->count;
 }
 
-// the bracket that opens the pair the leaves before the leaf `leaf` of `read` stand in, CLI_JSON_NONE where none does
+// the bracket that opens the pair the leaves before the leaf `leaf` of `read` are in, CLI_JSON_NONE where none does
 EMBED_INLINE unsigned int spans_opening(const SymbolsSpansCtx *args)
 {
     const CliLeafRead *read = args->read;
@@ -184,9 +184,9 @@ EMBED_INLINE unsigned int spans_opening(const SymbolsSpansCtx *args)
     return CLI_JSON_NONE;
 }
 
-// the first leaf of the statement the leaf `leaf` of `read` stands in among those from `first` on at their depth: past
+// the first leaf of the statement the leaf `leaf` of `read` is in among those from `first` on at their depth: past
 // the last statement's end, region's close or directive's line at that depth before it, or the first of the directive's
-// line it stands on
+// line it is on
 EMBED_INLINE unsigned int spans_statement_first(const SymbolsSpansCtx *args)
 {
     const CliLeafRead *read = args->read;
@@ -232,7 +232,7 @@ EMBED_INLINE unsigned int spans_statement_first(const SymbolsSpansCtx *args)
 }
 
 // the leaf past the statement whose first leaf is `start`, the leaf `leaf` among it: past its end at its depth, at the
-// opening bracket of the region its head is before, at the bracket that closes the pair it stands in, or past the
+// opening bracket of the region its head is before, at the bracket that closes the pair it is in, or past the
 // directive's line it is
 EMBED_INLINE unsigned int spans_statement_end(const SymbolsSpansCtx *args)
 {
@@ -281,7 +281,7 @@ EMBED_INLINE unsigned int spans_statement_end(const SymbolsSpansCtx *args)
     return read->count;
 }
 
-// the pair the leaf `open` opens and `close` closes handed, inside its brackets and with them, the text's end where no
+// the pair the leaf `open` opens and `close` closes passed, inside its brackets and with them, the text's end where no
 // bracket closes it; a pair a mark of no bytes closes ending, both ways, where the last leaf before the mark that is
 // no blank ends
 EMBED_INLINE void spans_pair_dispatch(const SymbolsSpansCtx *args)
@@ -307,7 +307,7 @@ EMBED_INLINE void spans_pair_dispatch(const SymbolsSpansCtx *args)
                .from = read->leaf[args->open].from, .last = last, .to = whole);
 }
 
-// the statement the leaf `leaf` stands in among those from `first` on handed, and where it is the head of a region,
+// the statement the leaf `leaf` is in among those from `first` on passed, and where it is the head of a region,
 // the region with it
 EMBED_INLINE void spans_statement_dispatch(const SymbolsSpansCtx *args)
 {
@@ -326,7 +326,7 @@ EMBED_INLINE void spans_statement_dispatch(const SymbolsSpansCtx *args)
     }
 }
 
-// the leaf a place at the byte `byte` stands in: the one that holds it, else the one that ends at it where that one is
+// the leaf a place at the byte `byte` is in: the one that holds it, else the one that ends at it where that one is
 // a name and the one that holds it is not, or is a blank; the last that starts at or before it
 EMBED_INLINE unsigned int spans_leaf_at(const SymbolsSpansCtx *args)
 {

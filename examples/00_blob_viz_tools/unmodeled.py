@@ -166,7 +166,7 @@ def _report():
             limit = amplitude
     if limit is not None:
         print("  DETECTION LIMIT: %.0e, the smallest amplitude tried whose residual clears the" % limit)
-        print("  floor by a factor of ten. Below it an unmodeled source of this kind is present")
+        print("  floor by a factor of ten. Below it an unmodeled source of this type is present")
         print("  and unreadable: a limit, and not an absence.")
     else:
         print("  NO AMPLITUDE LIFTED THE RESIDUAL. The instrument is blind and every number above")

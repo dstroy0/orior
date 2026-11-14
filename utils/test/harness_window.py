@@ -5,7 +5,7 @@
     harness.py window start [--display \\\\.\\DISPLAY1] [--id N]   one window alone, placed on the display, its debugging
                             [--port P]                           port on P where one is given
     harness.py window ended                                      every window running from the release program ended
-    harness.py window watch [--seconds 25]                       started alone with its output kept, ended after
+    harness.py window watch [--seconds 25]                       started alone with its output retained, ended after
     harness.py window shot [--id N] [--width 480] [--height 320] its top-left pictured to build/harness/window_shot.png
     harness.py window zoom [--x --y --width --height --scale]    a part drawn larger to build/harness/window_zoom.png
     harness.py window record [--for 3000] [--start]              recorded as a video at the display's rate, lossless, into
@@ -14,7 +14,7 @@
     harness.py window slide [REC] [--from S] [--to S] [--crop]   a recording slid through a frame at a time, each against
                                                                  the one before, into build/harness/slide (harness_record.py)
     harness.py window frames [VIDEO] [--thumb X] [--rate R]      each frame's text blank, plain or colored, and where it
-                                                                 stood still as the scrollbar's thumb moved, to
+                                                                 was still as the scrollbar's thumb moved, to
                                                                  build/harness/frames.tsv (harness_record.py)
     harness.py window dump [--path FILE]                         the newest crash dump read under cdb, the faulting stack
     harness.py window eval --port P EXPRESSION                   an expression run on the window's page, its answer printed
@@ -22,11 +22,11 @@
     harness.py window drag --port P [--steps 120] [--rounds 1]   the editor's scrollbar dragged by its thumb end to end
                                                                  and back
     harness.py window profile --port P [--no-drag]               the page's processor time sampled over such a drag, its
-                                                                 late frames and the functions that spent the most
-    harness.py window regions [--id N] [--count 12]              committed bytes by kind and the largest allocations
+                                                                 late frames and the functions that spent the max
+    harness.py window regions [--id N] [--count 12]              committed bytes by type and the largest allocations
     harness.py window debug [--seconds 45]                       run under cdb, the stack where it faults
     harness.py window memory [--id N] [--port P]                 its process tree's working set, private working set and
-                                                                 commit, by kind and with the page's heap through a port
+                                                                 commit, by type and with the page's heap through a port
     harness.py window luminance [--floor 78] [--each 6]          the dark scheme's tokens by lightness, with their rules
     harness.py window cpu [--minutes 2] [--step 5] [--spike 150] its processor time each step, its busiest threads, a
                                                                  stack of the busiest past the spike, to window_cpu.txt
@@ -45,7 +45,7 @@
 
 The window's program is build/cli/<target>/<gui>.exe as ui/cli/build.sh window writes it, gui as bin_names.tsv
 names it. Every start ends the windows
-running from that program first; one window therefore runs at a time, and its process id is kept in build/harness/window.pid
+running from that program first; one window therefore runs at a time, and its process id is retained in build/harness/window.pid
 for the commands that read it back."""
 
 import os
@@ -112,8 +112,8 @@ def pid_written(process_id):
 
 def pid_read():
     try:
-        with open(PID_FILE, encoding="utf-8") as kept:
-            return int(kept.read().strip() or 0)
+        with open(PID_FILE, encoding="utf-8") as retained:
+            return int(retained.read().strip() or 0)
     except (OSError, ValueError):
         return 0
 
@@ -132,7 +132,7 @@ def windows_ended():
 
 
 def window_placed(process_id, display):
-    """The process's window waited for and moved onto the display's working area; True once it stands there."""
+    """The process's window waited for and moved onto the display's working area; True once it is there."""
     import harness_win32 as win
 
     areas = win.displays()
@@ -153,7 +153,7 @@ def window_placed(process_id, display):
             print("window %d on %s at %d,%d" % (process_id, display, rect[0], rect[1]))
             return True
         win.window_moved(handle, left, top)
-    print("the window of %d did not stand on %s" % (process_id, display))
+    print("the window of %d did not are on %s" % (process_id, display))
     return False
 
 
@@ -170,7 +170,7 @@ WINDOW_ERRORS = os.path.join(HARNESS_BUILD, "window_errors.txt")
 
 
 def window_started(stdout=None, stderr=None, port=0):
-    """The release window started alone, from the repository's top, its id kept, its debugging port on `port` where
+    """The release window started alone, from the repository's top, its id retained, its debugging port on `port` where
     one is given. Its error stream, where the cells' log is written, goes to build/harness/window_errors.txt where the
     caller names none."""
     windows_ended()
@@ -267,14 +267,14 @@ def cmd_wheel(a):
     return 0
 
 
-FRAMES_LINE = re.compile(r"^frames (\d+) draw (\d+) (\d+) shown (\d+) (\d+) moving (\d+) events (\d+) (\d+) gap (\d+)\s*$")
+FRAMES_LINE = re.compile(r"^frames (\d+) draw (\d+) (\d+) displayed (\d+) (\d+) moving (\d+) events (\d+) (\d+) gap (\d+)\s*$")
 
 
 def cmd_scroll(a):
     """A scroll driven at the window's pace and its frames read back: a press on x, y dragged --moves times by --step
     pixels down, or across with --across, a --spacing of milliseconds between moves; or with --wheel the wheel turned
     --moves times by --units of 120 a notch. Then the frames' telemetry lines the window wrote over the run, each with
-    the frames, the draw's mean and most, the events' mean and most and the longest gap between frames shown, in
+    the frames, the draw's mean and max, the events' mean and max and the longest gap between frames displayed, in
     microseconds."""
     if not windows_only():
         return 1
@@ -304,9 +304,9 @@ def cmd_scroll(a):
             time.sleep(pause)
         win.pointer_sent(handle, moved[-1][0], moved[-1][1], False, True)
     time.sleep(2.5)
-    with open(WINDOW_ERRORS, "rb") as kept:
-        kept.seek(offset)
-        text = kept.read().decode("utf-8", errors="replace")
+    with open(WINDOW_ERRORS, "rb") as retained:
+        retained.seek(offset)
+        text = retained.read().decode("utf-8", errors="replace")
     lines = [found.groups() for found in map(FRAMES_LINE.match, text.splitlines()) if found]
     print("window %d %s %d moves, %d ms apart" % (process_id, "wheel" if a.wheel else "drag", a.moves, a.spacing))
     print("frames  draw_us mean max  events_us mean max  gap_max_us")
@@ -359,8 +359,16 @@ def cmd_move(a):
     if not found:
         return 1
     process_id, handle, _ = found
-    via =[(a.via[at], a.via[at + 1]) for at in range(0, len(a.via or []), 2)]
-    win.pointer_moved(handle, via + [(a.x, a.y)], a.pause)
+    via = [(a.via[at], a.via[at + 1]) for at in range(0, len(a.via or []), 2)]
+    # the window's own pointer, moved through the interface: the system's cursor stays where the person has it, and
+    # the window reads no leave while its own pointer is on
+    import time
+
+    for at, (x, y) in enumerate(via + [(a.x, a.y)]):
+        if at:
+            time.sleep(a.pause)
+        subprocess.run([program(), "help", "pointer", str(x), str(y)], cwd=ROOT, stdin=subprocess.DEVNULL,
+                       capture_output=True)
     print("window %d pointer moved to %d,%d through %d places" % (process_id, a.x, a.y, len(via)))
     return 0
 
@@ -391,14 +399,14 @@ def cmd_icon(a):
     if code:
         return code
     written = os.path.join(ROOT, "build", "gui_test", "orior.ico")
-    kept = os.path.join(ROOT, "ui", "gui", "src", "orior.ico")
-    shutil.copyfile(written, kept)
-    print("icon: %s, %d bytes" % (os.path.relpath(kept, ROOT), os.path.getsize(kept)), flush=True)
+    retained = os.path.join(ROOT, "ui", "gui", "src", "orior.ico")
+    shutil.copyfile(written, retained)
+    print("icon: %s, %d bytes" % (os.path.relpath(retained, ROOT), os.path.getsize(retained)), flush=True)
     return 0
 
 
 def orior_home():
-    """orior's own folder, where it keeps its state: ORIOR_HOME where set, else the user's roaming folder on Windows and
+    """orior's own folder, where it retains its state: ORIOR_HOME where set, else the user's roaming folder on Windows and
     ~/.orior elsewhere."""
     if os.environ.get("ORIOR_HOME"):
         return os.environ["ORIOR_HOME"]
@@ -408,9 +416,9 @@ def orior_home():
 
 
 def cmd_session(a):
-    """The tree's kept session in orior's state written as given: the tabs in order and the one shown, under the key
-    the window keeps it by, the rest of the state left as it stands; or read and printed where no tabs are given. The
-    window keeps a session as text: the path of the tab shown on the first line, then each tab's path on a line of
+    """The tree's retained session in orior's state written as given: the tabs in order and the one displayed, under the key
+    the window retains it by, the rest of the state left as it is; or read and printed where no tabs are given. The
+    window retains a session as text: the path of the tab displayed on the first line, then each tab's path on a line of
     its own, each from the tree's top."""
     import json
 
@@ -418,16 +426,16 @@ def cmd_session(a):
     key = "window.session." + os.path.normpath(ROOT)
     state = {}
     if os.path.exists(path):
-        with open(path, encoding="utf-8") as kept:
-            state = json.load(kept)
+        with open(path, encoding="utf-8") as retained:
+            state = json.load(retained)
     if not a.tabs:
         print(state.get(key))
         return 0
     active = a.active or a.tabs[-1]
     state[key] = "".join(line + "\n" for line in [active] + list(a.tabs))
-    with open(path, "w", encoding="utf-8") as kept:
-        json.dump(state, kept, indent=2)
-    print("kept %d tabs for %s, %s shown, in %s" % (len(a.tabs), ROOT, active, path))
+    with open(path, "w", encoding="utf-8") as retained:
+        json.dump(state, retained, indent=2)
+    print("retained %d tabs for %s, %s displayed, in %s" % (len(a.tabs), ROOT, active, path))
     return 0
 
 
@@ -449,8 +457,8 @@ def cmd_watch(a):
             pid_written(0)
     for label, path, count in (("out", out_path, 15), ("err", err_path, 25)):
         print("--- " + label)
-        with open(path, encoding="utf-8", errors="replace") as kept:
-            print("".join(kept.readlines()[-count:]), end="")
+        with open(path, encoding="utf-8", errors="replace") as retained:
+            print("".join(retained.readlines()[-count:]), end="")
     return 0
 
 
@@ -550,7 +558,7 @@ def cmd_type(a):
 
 
 def thumb_of(conn):
-    """The active editor's scrollbar as the page lays it out: the column it runs down, the middle of its thumb, and the
+    """The active editor's scrollbar as the page positions it out: the column it runs down, the middle of its thumb, and the
     farthest the thumb's middle goes up and down, its arrows at each end; None where no editor with a scrollbar is in
     front."""
     return conn.evaluate(
@@ -567,7 +575,7 @@ def thumb_of(conn):
 
 def cmd_drag(a):
     """The editor's scrollbar dragged through the window's debugging port by its thumb, a person's drag: pressed on the
-    thumb where it stands, carried to the bottom end, up to the top end and back to where it began, --rounds times, --steps
+    thumb where it is, carried to the bottom end, up to the top end and back to where it began, --rounds times, --steps
     moves each way, a move a frame."""
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import harness_cdp
@@ -589,24 +597,24 @@ def cmd_drag(a):
 
 
 def timeline_started(conn):
-    """The browser's timeline begun through `conn`: the events it hands on kept in the list given back, and an event set
+    """The browser's timeline begun through `conn`: the events it passes on retained in the list given back, and an event set
     once the timeline is whole."""
-    kept = {"events": [], "whole": threading.Event()}
-    conn.on("Tracing.dataCollected", lambda params: kept["events"].extend(params.get("value", [])))
-    conn.on("Tracing.tracingComplete", lambda _params: kept["whole"].set())
+    retained = {"events": [], "whole": threading.Event()}
+    conn.on("Tracing.dataCollected", lambda params: retained["events"].extend(params.get("value", [])))
+    conn.on("Tracing.tracingComplete", lambda _params: retained["whole"].set())
     conn.call("Tracing.start", timeout=10, transferMode="ReportEvents", traceConfig={"includedCategories": ["devtools.timeline", "disabled-by-default-devtools.timeline", "blink", "v8"]})
-    return kept
+    return retained
 
 
-def timeline_read(conn, kept, count):
-    """The timeline begun by timeline_started ended and read: the renderer's main thread's work by its kind, each event's
+def timeline_read(conn, retained, count):
+    """The timeline begun by timeline_started ended and read: the renderer's main thread's work by its type, each event's
     own time, the time of the events within it taken off, as lines of the profile."""
     conn.call("Tracing.end", timeout=10)
-    kept["whole"].wait(60)
-    events = kept["events"]
+    retained["whole"].wait(60)
+    events = retained["events"]
     main = {(event.get("pid"), event.get("tid")) for event in events if event.get("ph") == "M" and event.get("name") == "thread_name" and event.get("args", {}).get("name") == "CrRendererMain"}
     spans = sorted(((event["ts"], event["ts"] + event["dur"], event.get("name", "")) for event in events if event.get("ph") == "X" and "dur" in event and (event.get("pid"), event.get("tid")) in main), key=lambda span: (span[0], -span[1]))
-    # each kind's own time: its spans' lengths less the spans that begin and end within them, the nearest enclosing span
+    # each type's own time: its spans' lengths less the spans that begin and end within them, the nearest enclosing span
     # giving up each
     own = {}
     stack = []
@@ -619,7 +627,7 @@ def timeline_read(conn, kept, count):
         own[name] = own.get(name, 0) + (ended - begun)
     selves = own
     whole = sum(selves.values()) or 1
-    lines = ["the renderer's main thread, %.0f ms of events, by the kind of work, each kind's own time:" % (whole / 1000.0)]
+    lines = ["the renderer's main thread, %.0f ms of events, by the type of work, each type's own time:" % (whole / 1000.0)]
     for name, micro in sorted(selves.items(), key=lambda one: -one[1])[:count]:
         lines.append("  %7.1f ms %5.1f%%  %s" % (micro / 1000.0, 100.0 * micro / whole, name))
     return lines
@@ -628,16 +636,16 @@ def timeline_read(conn, kept, count):
 def cmd_profile(a):
     """The page's processor time sampled through its debugging port while the editor's scrollbar is dragged by its
     thumb, or for --seconds where --no-drag is given: the frames the page drew and those that came late, and the
-    functions that took the most time themselves, to build/harness/window_profile.txt and the screen."""
+    functions that took the max time themselves, to build/harness/window_profile.txt and the screen."""
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import harness_cdp
     import harness_input
 
     conn = harness_cdp.Connection(harness_cdp.window_page(a.port))
     conn.call("Runtime.enable", timeout=10)
-    # each frame's time kept on the page while the profile runs, and how many of the editor's frames drew and how many
-    # kept the last frame drawn, its view past the lines its file's window holds
-    conn.evaluate("(() => { const kept = []; window.__profileFrames = kept; const each = (now) => { kept.push(now); if (window.__profileFrames === kept) requestAnimationFrame(each); }; requestAnimationFrame(each); return kept.length; })()", timeout=10)
+    # each frame's time retained on the page while the profile runs, and how many of the editor's frames drew and how many
+    # retained the last frame drawn, its view past the lines its file's window holds
+    conn.evaluate("(() => { const retained = []; window.__profileFrames = retained; const each = (now) => { retained.push(now); if (window.__profileFrames === retained) requestAnimationFrame(each); }; requestAnimationFrame(each); return retained.length; })()", timeout=10)
     # the browser's own account of each frame later than --late: each script it ran with the style and layout the
     # script forced, the style and layout after them, and the rest of its drawing
     conn.evaluate(
@@ -652,13 +660,13 @@ def cmd_profile(a):
     )
     conn.evaluate(
         "(async () => { const e = await import(location.origin + '/edit.js'); const v = e.editing().editor; if (!v) return null;"
-        " const painted = v.painted; const told = { drawn: 0, kept: 0, shown: new Set(), reports: 0, answered: 0, letters: 0 }; window.__profilePaints = told; window.__profilePainted = painted;"
-        " v.painted = function (...given) { const result = painted.apply(this, given); if (this.pastWindowFrame === this.s && this.lastTop !== undefined && this.pastWindow?.(this.lastTop)) told.kept += 1; else told.drawn += 1;"
+        " const painted = v.painted; const told = { drawn: 0, retained: 0, displayed: new Set(), reports: 0, answered: 0, characters: 0 }; window.__profilePaints = told; window.__profilePainted = painted;"
+        " v.painted = function (...given) { const result = painted.apply(this, given); if (this.pastWindowFrame === this.s && this.lastTop !== undefined && this.pastWindow?.(this.lastTop)) told.retained += 1; else told.drawn += 1;"
         " const rows = this.rows(); const first = Math.max(0, Math.floor(this.scrollYKnown() / this.lineHeight)); const last = Math.min(rows.size - 1, first + Math.ceil(this.viewSize().height / this.lineHeight));"
-        " for (let row = first; row <= last; row += 1) told.shown.add(this.s.base + rows.lineOf(row)); return result; };"
+        " for (let row = first; row <= last; row += 1) told.displayed.add(this.s.base + rows.lineOf(row)); return result; };"
         " if (!window.__profileHeard) { window.__profileHeard = true; const b = await import(location.origin + '/bridge.js');"
-        " b.onCalls((command, args, promise) => { const kept = window.__profilePaints; if (!kept || command !== 'pages_view') return; kept.reports += 1;"
-        " promise.then((answer) => { kept.answered += answer?.lines?.length ?? 0; kept.letters += (answer?.lines ?? []).reduce((sum, line) => sum + line.length, 0); }, () => {}); }); }"
+        " b.onCalls((command, args, promise) => { const retained = window.__profilePaints; if (!retained || command !== 'pages_view') return; retained.reports += 1;"
+        " promise.then((answer) => { retained.answered += answer?.lines?.length ?? 0; retained.characters += (answer?.lines ?? []).reduce((sum, line) => sum + line.length, 0); }, () => {}); }); }"
         " return true; })()",
         timeout=10,
     )
@@ -666,7 +674,7 @@ def cmd_profile(a):
     conn.call("Profiler.setSamplingInterval", timeout=10, interval=a.interval)
     traced = timeline_started(conn) if a.trace else None
     conn.call("Profiler.start", timeout=10)
-    # the page's clock as the profile begins, which lays the profile's samples against its frames
+    # the page's clock as the profile begins, which positions the profile's samples against its frames
     began = conn.evaluate("performance.now()", timeout=10)
     where = thumb_of(conn) if not (a.no_drag or a.wheel) else None
     if a.wheel:
@@ -684,17 +692,17 @@ def cmd_profile(a):
     else:
         time.sleep(a.seconds)
     profile = conn.call("Profiler.stop", timeout=60)["profile"]
-    frames = conn.evaluate("(() => { const kept = window.__profileFrames || []; window.__profileFrames = null; return kept; })()", timeout=10) or []
+    frames = conn.evaluate("(() => { const retained = window.__profileFrames || []; window.__profileFrames = null; return retained; })()", timeout=10) or []
     long = conn.evaluate("(() => { window.__profileObserver?.disconnect(); const long = window.__profileLong || []; window.__profileLong = null; return long; })()", timeout=10) or []
     paints = conn.evaluate(
         "(async () => { const e = await import(location.origin + '/edit.js'); const v = e.editing().editor; if (v && window.__profilePainted) v.painted = window.__profilePainted;"
         " window.__profilePainted = null; const told = window.__profilePaints; window.__profilePaints = null;"
-        " return told ? { ...told, shown: told.shown.size } : null; })()",
+        " return told ? { ...told, displayed: told.displayed.size } : null; })()",
         timeout=10,
     )
     gaps = [later - earlier for earlier, later in zip(frames, frames[1:])]
     late = sorted((gap for gap in gaps if gap > a.late), reverse=True)
-    # each node's own time: its samples by the time between samples, each sample also laid on the page's clock
+    # each node's own time: its samples by the time between samples, each sample also positioned on the page's clock
     spent = {}
     deltas = profile.get("timeDeltas", [])
     by_id = {node["id"]: node for node in profile["nodes"]}
@@ -726,9 +734,9 @@ def cmd_profile(a):
         callers[key] = callers.get(key, 0) + after
     lines = ["%d frames, %d later than %d ms%s" % (len(frames), len(late), a.late, (": " + ", ".join("%.0f" % gap for gap in late[:12]) + " ms") if late else "")]
     if paints:
-        lines.append("the editor drew %d frames and kept the last one drawn in %d, its view past its file's window" % (paints["drawn"], paints["retained"]))
-        lines.append("a paged file's %d reports answered %d lines, %d letters; the frames showed %d lines of the file"
-                     % (paints["reports"], paints["answered"], paints["letters"], paints["shown"]))
+        lines.append("the editor drew %d frames and retained the last one drawn in %d, its view past its file's window" % (paints["drawn"], paints["retained"]))
+        lines.append("a paged file's %d reports answered %d lines, %d characters; the frames showed %d lines of the file"
+                     % (paints["reports"], paints["answered"], paints["characters"], paints["displayed"]))
     lines.append("the page's time, %.0f ms sampled, by the function that spent it itself:" % (whole / 1000.0))
     for name, micro in sorted(spent.items(), key=lambda one: -one[1])[: a.count]:
         lines.append("  %7.1f ms %5.1f%%  %s" % (micro / 1000.0, 100.0 * micro / whole, name))
@@ -758,8 +766,8 @@ def cmd_profile(a):
 
 def cmd_presses(a):
     """Down, or Up with --up, pressed --count times in the editor of the window behind --port as fast as the page takes
-    them, from --line where it is given and else from the line the cursor stands on: each press that left the cursor
-    where it was or sent it back, with the window of a paged file as it stood, its reports in flight and whether the calls about the
+    them, from --line where it is given and else from the line the cursor is on: each press that left the cursor
+    where it was or sent it back, with the window of a paged file as it was, its reports in flight and whether the calls about the
     file before them were answered; the calls unanswered as the presses begin; and the slowest of a paged file's
     reports, to build/harness/window_presses.txt and the screen."""
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -770,7 +778,7 @@ def cmd_presses(a):
     key = "ArrowUp" if a.up else "ArrowDown"
     conn = harness_cdp.Connection(harness_cdp.window_page(a.port))
     conn.call("Runtime.enable", timeout=10)
-    # every call the page sends kept until it is answered, and each report of a paged file's view timed with its
+    # every call the page sends retained until it is answered, and each report of a paged file's view timed with its
     # answer, by a listener the bridge is given once in the page's life
     conn.evaluate(
         "(async () => { if (window.__pressesHeard) return true; window.__pressesHeard = true; const b = await import(location.origin + '/bridge.js');"
@@ -821,9 +829,9 @@ def cmd_presses(a):
         lines.append("  at %d ms from line %d col %d to line %d col %d: the window %d to %d, reports in flight %s, at rest %s, another wanted %s, the calls before them answered %s"
                      % ((one[0],) + was + tuple(one[1:])))
     if began["paged"]:
-        lines.append("%d reports of where the view stands; the slowest:" % len(reports))
+        lines.append("%d reports of where the view is; the slowest:" % len(reports))
         for one in sorted(reports, key=lambda one: -one[1])[: a.listed]:
-            lines.append("  sent at %d ms, answered in %d ms: top %d, the window %d to %d; lines from %d, %d of them, %d letters" % tuple(one))
+            lines.append("  sent at %d ms, answered in %d ms: top %d, the window %d to %d; lines from %d, %d of them, %d characters" % tuple(one))
     text = "\n".join(lines)
     os.makedirs(HARNESS_BUILD, exist_ok=True)
     with open(os.path.join(HARNESS_BUILD, "window_presses.txt"), "w", encoding="utf-8") as out:
@@ -963,7 +971,7 @@ def cmd_heap(a):
             count, total = detached.get(name, (0, 0))
             detached[name] = (count + 1, total + size)
     lines = ["the page's heap, its garbage collected: %d objects, %.1f MiB of their own" % (len(nodes) // width, whole / MIB)]
-    lines.append("by name, the most bytes first:")
+    lines.append("by name, the max bytes first:")
     for name, (count, total) in sorted(by_name.items(), key=lambda one: -one[1][1])[: a.count]:
         lines.append("  %9.1f KiB %8d  %s" % (total / 1024.0, count, name[:120]))
     lines.append("retained by no document: %d objects, %.1f KiB" % (sum(one[0] for one in detached.values()), sum(one[1] for one in detached.values()) / 1024.0))
@@ -1029,15 +1037,15 @@ def cmd_debug(a):
             windows_ended()
             print("no fault within %d s" % a.seconds)
     telling = re.compile(r"Access violation|orior|Call Site|^[0-9a-f]{2} ")
-    with open(log, encoding="utf-8", errors="replace") as kept:
-        lines = [line.rstrip("\n") for line in kept if telling.search(line)]
+    with open(log, encoding="utf-8", errors="replace") as retained:
+        lines = [line.rstrip("\n") for line in retained if telling.search(line)]
     print("\n".join(lines[:40]))
     return 0
 
 
 def cmd_regions(a):
-    """The window's own process's committed bytes by kind, private, mapped and image, and its largest committed
-    allocations of each kind, every region of one allocation summed: where the process grows outside the cellblock
+    """The window's own process's committed bytes by type, private, mapped and image, and its largest committed
+    allocations of each type, every region of one allocation summed: where the process grows outside the cellblock
     and the Rust allocator, this says whether it grew in private heaps or in mapped files."""
     if not windows_only():
         return 1
@@ -1047,13 +1055,13 @@ def cmd_regions(a):
     if not found:
         return 1
     process_id = found[0]
-    kinds = {win.MEM_PRIVATE: "private", win.MEM_MAPPED: "mapped", win.MEM_IMAGE: "image"}
+    types = {win.MEM_PRIVATE: "private", win.MEM_MAPPED: "mapped", win.MEM_IMAGE: "image"}
     totals = {}
     allocations = {}
-    for _, allocation, size, state, kind, _ in win.regions(process_id):
+    for _, allocation, size, state, type, _ in win.regions(process_id):
         if state != win.MEM_COMMIT:
             continue
-        name = kinds.get(kind, "other")
+        name = types.get(type, "other")
         totals[name] = totals.get(name, 0) + size
         allocations[(name, allocation)] = allocations.get((name, allocation), 0) + size
     print("process %d committed: %s" % (process_id, ", ".join("%s %d MB" % (name, bytes_ >> 20) for name, bytes_ in sorted(totals.items()))))
@@ -1065,9 +1073,9 @@ def cmd_regions(a):
     return 0
 
 
-def kinds_on_port(port):
-    """The window behind a debugging port and its web view's processes by kind, as the browser names them: the
-    window's process id, and each process id's kind, the window's own named window."""
+def types_on_port(port):
+    """The window behind a debugging port and its web view's processes by type, as the browser names them: the
+    window's process id, and each process id's type, the window's own named window."""
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import harness_cdp
     import harness_win32 as win
@@ -1077,11 +1085,11 @@ def kinds_on_port(port):
         listed = conn.call("SystemInfo.getProcessInfo", timeout=10).get("processInfo", [])
     finally:
         conn.close()
-    kinds = {one["id"]: one["type"].lower() for one in listed}
-    browser_id = next((process_id for process_id, kind in kinds.items() if kind == "browser"), 0)
+    types = {one["id"]: one["type"].lower() for one in listed}
+    browser_id = next((process_id for process_id, type in types.items() if type == "browser"), 0)
     window_id = next((parent for process_id, parent, _ in win.processes() if process_id == browser_id), 0)
-    kinds[window_id] = "window"
-    return window_id, kinds
+    types[window_id] = "window"
+    return window_id, types
 
 
 def page_memory(port):
@@ -1151,10 +1159,10 @@ def cmd_memory(a):
         finally:
             conn.close()
         time.sleep(3)
-    kinds = {}
+    types = {}
     if a.port:
         try:
-            root, kinds = kinds_on_port(a.port)
+            root, types = types_on_port(a.port)
         except (ConnectionError, OSError, TimeoutError) as error:
             print(error)
             return 1
@@ -1173,7 +1181,7 @@ def cmd_memory(a):
         if said is None:
             continue
         private, working, commit = said
-        name = kinds.get(process_id) or next((exe for other, _, exe in every if other == process_id), "?")
+        name = types.get(process_id) or next((exe for other, _, exe in every if other == process_id), "?")
         print("%7d %-28s working %8.1f MiB  private %8.1f MiB  commit %8.1f MiB" % (process_id, name, working / MIB, private / MIB, commit / MIB))
         working_sum += working
         private_sum += private
@@ -1185,7 +1193,7 @@ def cmd_memory(a):
         print("page, its garbage collected: heap %.1f MiB used of %.1f MiB, %d documents, %d nodes, %d listeners" % (heap.get("usedSize", 0) / MIB, heap.get("totalSize", 0) / MIB, counters.get("documents", 0), counters.get("nodes", 0), counters.get("jsEventListeners", 0)))
     if a.port and a.infra:
         for process_id, allocators in sorted(memory_retained(a.port).items(), key=lambda one: -sum(one[1].values())):
-            name = kinds.get(process_id) or next((exe for other, _, exe in every if other == process_id), "?")
+            name = types.get(process_id) or next((exe for other, _, exe in every if other == process_id), "?")
             largest = sorted(allocators.items(), key=lambda one: -one[1])
             print("%7s %-28s %8.1f MiB: %s" % (process_id, name, sum(allocators.values()) / MIB, ", ".join("%s %.1f MiB" % (allocator, size / MIB) for allocator, size in largest if size >= MIB / 10)))
     return 0
@@ -1209,9 +1217,9 @@ def telemetry_read(offset):
     """MMgr's telemetry the window's main thread wrote to build/harness/window_errors.txt past `offset`: the last
     telemetry line's fields or None, each owner's last (in use, peak), and the offset read to."""
     try:
-        with open(WINDOW_ERRORS, "rb") as kept:
-            kept.seek(offset)
-            text = kept.read()
+        with open(WINDOW_ERRORS, "rb") as retained:
+            retained.seek(offset)
+            text = retained.read()
     except OSError:
         return None, {}, offset
     last = None
@@ -1285,11 +1293,11 @@ def cmd_poll(a):
         rows.append(row)
         print("\t".join(row))
     out = os.path.join(HARNESS_BUILD, "window_poll.tsv")
-    with open(out, "w", encoding="utf-8", newline="\n") as kept:
-        kept.write("\t".join(head) + "\n")
-        kept.writelines("\t".join(row) + "\n" for row in rows)
-        kept.write("\nowner\tin_use_bytes\tpeak_bytes\n")
-        kept.writelines("%s\t%d\t%d\n" % (name, used, peak) for name, (used, peak) in sorted(owners.items(), key=lambda one: -one[1][1]))
+    with open(out, "w", encoding="utf-8", newline="\n") as retained:
+        retained.write("\t".join(head) + "\n")
+        retained.writelines("\t".join(row) + "\n" for row in rows)
+        retained.write("\nowner\tin_use_bytes\tpeak_bytes\n")
+        retained.writelines("%s\t%d\t%d\n" % (name, used, peak) for name, (used, peak) in sorted(owners.items(), key=lambda one: -one[1][1]))
     if telemetry is None:
         print("no MMgr telemetry line in %s" % WINDOW_ERRORS)
     print("owners by peak:")
@@ -1357,7 +1365,7 @@ def cmd_wiggle(a):
     out = os.path.join(HARNESS_BUILD, "wiggle.tsv")
     started = time.monotonic()
     with open(out, "w", encoding="utf-8", newline="\n") as log:
-        log.write("round\tedge\tkind\tx\ty\trest_ms\tstart_s\talive\n")
+        log.write("round\tedge\ttype\tx\ty\trest_ms\tstart_s\talive\n")
         for round_at in range(a.rounds):
             edge = chance.choice(WIGGLE_EDGES)
             round_type = chance.choice(WIGGLE_TYPES)
@@ -1404,8 +1412,8 @@ def cmd_wiggle(a):
 
 def cmd_gpu(a):
     """The released window's process tree over --seconds: the processor time its processes used, and each second the
-    share of the GPU's 3D engine they kept busy as the system counts it (typeperf over the GPU Engine counters), their
-    mean and their most, to build/harness/window_gpu.txt."""
+    share of the GPU's 3D engine they retained busy as the system counts it (typeperf over the GPU Engine counters), their
+    mean and their max, to build/harness/window_gpu.txt."""
     if not windows_only():
         return 1
     import csv
@@ -1424,8 +1432,8 @@ def cmd_gpu(a):
     used = sum(each.values())
     names = {one: exe for one, _, exe in win.processes()}
     named = re.compile(r"pid_(\d+)_.*engtype_3D\)")
-    with open(sampled, encoding="utf-8", errors="replace", newline="") as kept:
-        rows = list(csv.reader(kept))
+    with open(sampled, encoding="utf-8", errors="replace", newline="") as retained:
+        rows = list(csv.reader(retained))
     columns = [at for at, head in enumerate(rows[0]) if (found := named.search(head)) and int(found.group(1)) in tree] if rows else []
     seconds = []
     for row in rows[1:]:
@@ -1436,9 +1444,9 @@ def cmd_gpu(a):
         print("no GPU Engine sample named the window's processes")
         return 1
     lines = ["window %d, %d processes, %d s" % (process_id, len(tree), len(seconds)),
-             "3D engine busy: mean %.2f%%, most %.2f%%" % (sum(seconds) / len(seconds), max(seconds)),
+             "3D engine busy: mean %.2f%%, max %.2f%%" % (sum(seconds) / len(seconds), max(seconds)),
              "processor: %.2f s over %d s, %.1f%% of one core" % (used, a.seconds, 100.0 * used / a.seconds)]
-    lines += ["  %7d %-28s %7.2f s" % (one, names.get(one, "?"), spent) for one, spent in sorted(each.items(), key=lambda kept: -kept[1]) if spent > 0.0]
+    lines += ["  %7d %-28s %7.2f s" % (one, names.get(one, "?"), spent) for one, spent in sorted(each.items(), key=lambda retained: -retained[1]) if spent > 0.0]
     with open(os.path.join(HARNESS_BUILD, "window_gpu.txt"), "w", encoding="utf-8", newline="\n") as out:
         out.write("\n".join(lines) + "\n")
     print("\n".join(lines))
@@ -1482,10 +1490,10 @@ def color_parsed(text):
 
 def cmd_luminance(a):
     """Every color token of the dark scheme ranked by its CIE lightness, from --floor down, with how many rules of
-    the stylesheet read it and the first of them: the tokens standing as bright as the operators show beside what
+    the stylesheet read it and the first of them: the tokens located as bright as the operators show beside what
     they paint."""
-    with open(STYLE, encoding="utf-8") as kept:
-        css = kept.read()
+    with open(STYLE, encoding="utf-8") as retained:
+        css = retained.read()
     root = css[: css.index('[data-scheme="light"]')]
     tokens = {}
     for name, value in re.findall(r"(--[\w-]+):\s*([^;]+);", root):
@@ -1531,7 +1539,7 @@ def register(sub):
     p.add_argument("title", help="the dialog's title")
     p.add_argument("body", help="the dialog's text, its lines ended by a line end")
     p.add_argument("buttons", nargs="+", help="one to four button labels, the first the one Enter presses")
-    p.add_argument("--error", action="store_true", help="the dialog tells of an error: its focus border stands in the error color")
+    p.add_argument("--error", action="store_true", help="the dialog tells of an error: its focus border is in the error color")
     p.set_defaults(fn=cmd_ask)
     p = window.add_parser("chars", help="text sent to the window as characters typed, any character, with no key pressed")
     p.add_argument("texts", nargs="+", help="the text, the words joined as given")
@@ -1581,12 +1589,12 @@ def register(sub):
     p.set_defaults(fn=cmd_check)
     p = window.add_parser("icon", help="the program's icon file written from the eye: ui/gui/src/orior.ico, built into the window on Windows")
     p.set_defaults(fn=cmd_icon)
-    p = window.add_parser("session", help="the tree's kept session in orior's state: written from the tabs given, or printed")
+    p = window.add_parser("session", help="the tree's retained session in orior's state: written from the tabs given, or printed")
     p.add_argument("tabs", nargs="*", help="the tabs' paths from the tree's top, in order")
-    p.add_argument("--active", help="the tab shown; the last given where none")
+    p.add_argument("--active", help="the tab displayed; the last given where none")
     p.set_defaults(fn=cmd_session)
 
-    p = window.add_parser("watch", help="started alone with its output kept, ended after --seconds where it still runs")
+    p = window.add_parser("watch", help="started alone with its output retained, ended after --seconds where it still runs")
     p.add_argument("--seconds", type=int, default=25)
     p.set_defaults(fn=cmd_watch)
 
@@ -1598,7 +1606,7 @@ def register(sub):
     p.set_defaults(fn=cmd_shot)
 
     p = window.add_parser("eval", help="an expression run on the window's page through its debugging port, its answer printed")
-    p.add_argument("--port", type=int, required=True, help="the window's debugging port, as window test --keep-window prints it")
+    p.add_argument("--port", type=int, required=True, help="the window's debugging port, as window test --retain-window prints it")
     p.add_argument("--seconds", type=int, default=30, help="how long the answer is waited for")
     p.add_argument("expression")
     p.set_defaults(fn=cmd_eval)
@@ -1616,27 +1624,27 @@ def register(sub):
     p.set_defaults(fn=cmd_drag)
 
     p = window.add_parser("profile", help="the page's processor time sampled while the editor's scrollbar is dragged: late frames and the "
-                                           "functions that spent the most, to build/harness/window_profile.txt")
+                                           "functions that spent the max, to build/harness/window_profile.txt")
     p.add_argument("--port", type=int, required=True, help="the window's debugging port")
     p.add_argument("--steps", type=int, default=60, help="the drag's moves each way, a frame apart")
-    p.add_argument("--no-drag", action="store_true", help="sampled for --seconds as the window stands, with no drag")
+    p.add_argument("--no-drag", action="store_true", help="sampled for --seconds as the window is, with no drag")
     p.add_argument("--wheel", type=int, default=0, help="the wheel turned this many notches down and as many up over the editor, a notch a frame, in place of the drag")
     p.add_argument("--delta", type=float, default=120.0, help="the pixels each notch of --wheel turns")
     p.add_argument("--seconds", type=float, default=5.0)
     p.add_argument("--interval", type=int, default=250, help="microseconds between samples")
     p.add_argument("--late", type=float, default=25.0, help="a frame later than this many milliseconds after the one before is late")
     p.add_argument("--count", type=int, default=30, help="how many functions are listed")
-    p.add_argument("--trace", action="store_true", help="the browser's timeline taken as well: the renderer's main thread by the kind of work it did, "
-                                                         "style, layout, paint, script and the rest, each kind's own time")
+    p.add_argument("--trace", action="store_true", help="the browser's timeline taken as well: the renderer's main thread by the type of work it did, "
+                                                         "style, layout, paint, script and the rest, each type's own time")
     p.set_defaults(fn=cmd_profile)
 
     p = window.add_parser("presses", help="Down or Up pressed in the editor as fast as the page takes them: each press that left the cursor where it "
-                                          "was or sent it back, a paged file's window and reports as it stood, to build/harness/window_presses.txt")
+                                          "was or sent it back, a paged file's window and reports as it was, to build/harness/window_presses.txt")
     p.add_argument("--port", type=int, required=True, help="the window's debugging port")
     p.add_argument("--count", type=int, default=300, help="how many presses")
-    p.add_argument("--line", type=int, default=-1, help="the line of the open file the cursor is put on first; where none, the line it stands on")
+    p.add_argument("--line", type=int, default=-1, help="the line of the open file the cursor is put on first; where none, the line it is on")
     p.add_argument("--up", action="store_true", help="Up pressed in place of Down")
-    p.add_argument("--rest", type=float, default=2.0, help="seconds the window is let stand before the presses and after them")
+    p.add_argument("--rest", type=float, default=2.0, help="seconds the window is let are before the presses and after them")
     p.add_argument("--listed", type=int, default=20, help="how many presses and reports are listed")
     p.set_defaults(fn=cmd_presses)
 
@@ -1674,16 +1682,16 @@ def register(sub):
     p.set_defaults(fn=cmd_debug)
 
     p = window.add_parser("memory", help="the window's process tree, each one's working set, private working set and commit, "
-                                          "and with --port each one's kind and the page's heap, its garbage collected")
+                                          "and with --port each one's type and the page's heap, its garbage collected")
     p.add_argument("--id", type=int, default=0, help="the window's process, as the suite's; the released window's where none")
-    p.add_argument("--port", type=int, default=0, help="the debugging port of the window measured, as a kept test window's")
+    p.add_argument("--port", type=int, default=0, help="the debugging port of the window measured, as a retained test window's")
     p.add_argument("--pressure", action="store_true", help="with --port, the page told first that memory runs short, as the system tells a browser, "
                                                             "and measured once it has had time to give back what it can")
     p.add_argument("--infra", action="store_true", help="with --port, the browser's memory-infra dump as well: each web view process's memory by the allocators "
                                                          "that hold it, the largest first")
     p.set_defaults(fn=cmd_memory)
 
-    p = window.add_parser("regions", help="the window's committed bytes by kind, private, mapped and image, and its largest allocations")
+    p = window.add_parser("regions", help="the window's committed bytes by type, private, mapped and image, and its largest allocations")
     p.add_argument("--id", type=int, default=0, help="the process; window.pid's where none")
     p.add_argument("--count", type=int, default=12, help="how many of the largest allocations are listed")
     p.set_defaults(fn=cmd_regions)
@@ -1700,7 +1708,7 @@ def register(sub):
     p.add_argument("--spike", type=int, default=150)
     p.set_defaults(fn=cmd_cpu)
 
-    p = window.add_parser("gpu", help="the window's process tree over --seconds, the GPU's 3D engine it kept busy and the "
+    p = window.add_parser("gpu", help="the window's process tree over --seconds, the GPU's 3D engine it retained busy and the "
                                        "processor time it used, to build/harness/window_gpu.txt")
     p.add_argument("--seconds", type=int, default=50, help="how long it is watched, the lattice's whole loop where none is given")
     p.add_argument("--id", type=int, default=0, help="the process; window.pid's where none")

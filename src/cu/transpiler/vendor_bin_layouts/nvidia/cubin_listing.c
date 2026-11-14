@@ -15,7 +15,7 @@
 // of the codes left is read once. Each code set aside is read alone as a raw run, as the vendor reads it, what it
 // prints its listing. A code its kernel is not in the pattern for is set aside too.
 //
-// Each code's listing is handed to the run as `<number>.dis`: its instruction lines as the vendor prints the code read
+// Each code's listing is passed to the run as `<number>.dis`: its instruction lines as the vendor prints the code read
 // alone (cubin_listing.h). Exit 0 where every code was read, 2 where the run, the pattern, a code or the disassembler
 // was not reached
 #include "cubin_listing.h"
@@ -41,7 +41,7 @@ typedef struct
     int aside;
 } ListedCode;
 
-// the output the disassembler printed, grown to contain the most it prints
+// the output the disassembler printed, grown to contain the max it prints
 static char *s_output = NULL;
 static unsigned long long s_output_room = 0ull;
 static unsigned long long s_output_size = 0ull;
@@ -120,7 +120,7 @@ static int listing_stopped_at(unsigned long long *address)
 }
 
 // the codes not set aside read as one raw run: each that stops the vendor set aside, and the run read again without it,
-// until it reads clean. 1, or 0 where the vendor could not be run, the run could not be handed, or it stopped at no
+// until it reads clean. 1, or 0 where the vendor could not be run, the run could not be passed, or it stopped at no
 // address it named, every code left then set aside
 static int listing_raw_cleared(QryShared *run, ListedCode *codes, unsigned int count, const char *nvdisasm,
                                const char *architecture)
@@ -198,7 +198,7 @@ static int listing_raw_cleared(QryShared *run, ListedCode *codes, unsigned int c
 }
 
 // the cubin of every code not set aside written from the pattern and read once, its listing cut into each code's and
-// handed to the run: 1 where it read clean, 0 where it did not, nothing then handed
+// passed to the run: 1 where it read clean, 0 where it did not, nothing then passed
 static int listing_cubin_read(QryShared *run, ListedCode *codes, unsigned int count, const unsigned char *pattern,
                               unsigned long long pattern_size, const char *nvdisasm)
 {

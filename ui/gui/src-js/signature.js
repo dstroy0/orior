@@ -11,10 +11,10 @@
 // A call is the function's name and a bracket after it, in any file of the tree the search reads, a
 // declaration's own name and a C prototype's being declarations. Each call's arguments are moved as
 // their parameters moved, an argument whose parameter is taken out goes, and an added parameter's
-// value goes where it stands. Where a call passed fewer arguments than a moved parameter needs, the
+// value goes where it is. Where a call passed fewer arguments than a moved parameter needs, the
 // gap takes the parameter's default, and where it has none the gap ends the arguments. A method's
 // first parameter, `self`, `cls` or `this`, is passed by the object a dotted call is made on and stays
-// first. Python's keyword arguments keep their places and take a parameter's new name.
+// first. Python's keyword arguments retain their places and take a parameter's new name.
 
 import { symbolsOf } from "./outline.js";
 import { say } from "./statusbar.js";
@@ -137,7 +137,7 @@ export function functionAt(doc, language, head) {
     while (to < line.length && /[\w$]/.test(line[to])) to += 1;
     return line.slice(from, to);
   })();
-  const symbols = symbolsOf(language, doc).filter((one) => /function|method|fn/i.test(one.kind ?? "function"));
+  const symbols = symbolsOf(language, doc).filter((one) => /function|method|fn/i.test(one.type ?? "function"));
   const symbol = symbols.find((one) => one.line === head.line && (!word || one.name === word || !symbols.some((two) => two.name === word))) ?? symbols.find((one) => one.name === word);
   if (!symbol) {
     return null;
@@ -193,7 +193,7 @@ export function argumentsFor(old, params, { receiver, language, keywords }) {
     }
     out.push({ text: arg, filler: false });
   }
-  // Fillers at the end stand for nothing a call passed, and go.
+  // Fillers at the end are for nothing a call passed, and go.
   while (out.length && out.at(-1).filler) {
     out.pop();
   }
@@ -278,9 +278,9 @@ function askParams(sheet, name, params, language) {
     let answer = null;
     body.addEventListener("submit", (event) => {
       event.preventDefault();
-      const kept = rows.filter((row) => row.text.trim());
-      const taken = new Set(kept.map((row) => row.from).filter((from) => from !== null));
-      answer = kept.map((row) => ({ from: row.from, text: row.text.trim(), value: row.value, oldName: row.from === null ? null : paramName(params[row.from], language) }));
+      const retained = rows.filter((row) => row.text.trim());
+      const taken = new Set(retained.map((row) => row.from).filter((from) => from !== null));
+      answer = retained.map((row) => ({ from: row.from, text: row.text.trim(), value: row.value, oldName: row.from === null ? null : paramName(params[row.from], language) }));
       answer.removed = params.map((text, from) => (taken.has(from) ? null : paramName(text, language))).filter(Boolean);
       dialog.close();
     });

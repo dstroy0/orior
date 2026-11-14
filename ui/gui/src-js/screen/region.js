@@ -8,7 +8,7 @@
 import { PLAIN, blank, bufferOf, lineHtml, lineOf, restyled } from "./cells.js";
 
 // Scrolls the region up n lines. On the main screen, with the region the whole screen, each line
-// that leaves the top is kept, and its row goes with it.
+// that leaves the top is retained, and its row goes with it.
 export function scrollUp(count) {
   const { lines, rows } = this.buffer;
   for (let at = 0; at < Math.min(count, this.bottom - this.top + 1); at += 1) {
@@ -18,7 +18,7 @@ export function scrollUp(count) {
       if (gone.dirty || gone === this.cursorDrawn) {
         row.innerHTML = lineHtml(gone, -1);
       }
-      this.keepRow(row);
+      this.retainRow(row);
       lines.splice(this.bottom, 0, lineOf(this.cols, this.style));
       const fresh = document.createElement("div");
       rows.splice(this.bottom, 0, fresh);

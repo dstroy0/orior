@@ -218,7 +218,7 @@ void setUp(void)
     {
         exit(head_code());
     }
-    EMBED_CALL(cli_container_restarts.restarts_init, CliContainerRestartsCfg, .restarts = &s_restarts, .most = 3u, .within = 60000ull);
+    EMBED_CALL(cli_container_restarts.restarts_init, CliContainerRestartsCfg, .restarts = &s_restarts, .max = 3u, .within = 60000ull);
 }
 
 void tearDown(void)

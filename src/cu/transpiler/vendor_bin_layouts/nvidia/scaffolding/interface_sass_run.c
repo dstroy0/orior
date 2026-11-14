@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // interface_sass_run.c: a list of cubins run on the part in one process, one answer a cubin. Nothing is compiled here:
-// the driver is handed each cubin as it was written and queried for its kernel.
+// the driver is passed each cubin as it was written and queried for its kernel.
 //
-//     interface_sass_run [--gated <file>] <machine file> <list> <first> <answers> [<cases> [<most>]]
+//     interface_sass_run [--gated <file>] <machine file> <list> <first> <answers> [<cases> [<max>]]
 //
 // It joins the gate's safety airlock like the carrier: --gated reads the vendor's verdict (cubin_safe_verdict_*), and a
 // line reaches the part only with a verdict in hand, an encoding the verdict blocks never reaching it. Given no verdict
@@ -11,11 +11,11 @@
 // the host.
 //
 // The list contains one cubin a line, as `<path> <kernel>`. Each from line `first` on is read on the host first and
-// checked by cubin_safe against the machine file; one that breaks a rule is never handed to the driver and adds
+// checked by cubin_safe against the machine file; one that breaks a rule is never passed to the driver and adds
 // `<number> skipped cubin_safe_<verdict>`. Every other is loaded, its kernel run over the probe's case, and a line
 // `<number> answered <w0> <w1> <w2> <w3>` added to the answers file. Given a cases file, one case a line as up to eight
 // words in hex, the kernel is run once over every case, a thread a case, and the line contains the first word of each
-// case's answer in the file's order. Given `most`, a pass runs that many lines at most and ends with exit 4 where lines
+// case's answer in the file's order. Given `max`, a pass runs that many lines at max and ends with exit 4 where lines
 // are left, making a pass short enough for a cap on its time to bound one cubin. A cubin the part refuses kills
 // the context past recovery: resetting the part's primary context in place leaves the next launch failing. A refusal
 // adds `<number> refused <error>` and ends the process with exit 3, and the caller starts it again past that line. A
@@ -31,7 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the most bytes a cubin takes, and the longest line of the list
+// the max bytes a cubin takes, and the longest line of the list
 #define SASS_RUN_CUBIN 262144u
 #define SASS_RUN_LINE 1024u
 // the words of the case and of an answer, and the threads a launch gives the kernel, which leaves every thread past
@@ -154,10 +154,10 @@ int main(int count, char **words)
     if ((count < 5) || (count > 7))
     {
         fprintf(stderr,
-                "interface_sass_run [--gated <file>] <machine file> <list> <first> <answers> [<cases> [<most>]]\n");
+                "interface_sass_run [--gated <file>] <machine file> <list> <first> <answers> [<cases> [<max>]]\n");
         return 2;
     }
-    const unsigned long most = (count == 7) ? strtoul(words[6], NULL, 10) : 0ul;
+    const unsigned long max = (count == 7) ? strtoul(words[6], NULL, 10) : 0ul;
     if ((count >= 6) && !sass_run_cases(words[5]))
     {
         fprintf(stderr, "the cases %s did not read, or contain more than %u\n", words[5], SASS_RUN_THREADS);
@@ -192,7 +192,7 @@ int main(int count, char **words)
             number += 1ul;
             continue;
         }
-        if ((most != 0ul) && (number >= (first + most)))
+        if ((max != 0ul) && (number >= (first + max)))
         {
             fclose(answers);
             fclose(list);

@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Lisa Matthewson	title	Gitksan modals	page 1
 front	Lisa Matthewson	name	Lisa Matthewson	author
 front	Lisa Matthewson	note	University of British Columbia	page 1, under Lisa Matthewson
@@ -64,7 +64,7 @@ footnote 4	Lisa Matthewson	note	Kratzer’s original sentence contained can, but
 (9) line 1	Lisa Matthewson	note	You have to/must/should go to bed.	page 4, set as an example
 §2.1.3	Lisa Matthewson	note	Priority modality which relates to an agent’s goals is called teleological. An example is given in (10).	page 4
 (10) line 1	Lisa Matthewson	note	To get to Whistler, you can/should/have to take Highway 99.	page 4, set as an example
-§2.1.3	Lisa Matthewson	note	Bouletic modality relates to an agent’s desires or wishes, as shown in (11).	page 4
+§2.1.3	Lisa Matthewson	note	Bouletic modality relates to an agent’s desires or wishes, as displayed in (11).	page 4
 (11) line 1	Lisa Matthewson	note	You should try this chocolate. (Portner 2009:135)	page 4, set as an example
 §2.1.4	Lisa Matthewson	heading	2.1.4 Future-in-the-past / counterfactual	page 4
 §2.1.4	Lisa Matthewson	note	Circumstantial modals can be used to make claims about what might or should have happened at some time subsequent to a certain past time. Examples are given in (12).	page 4
@@ -141,13 +141,13 @@ footnote 10	Lisa Matthewson	note	I have changed the spatial orientation of Vande
 (24)	Javanese	transcription	mungkin	page 8, a line of the table
 §2.3	Lisa Matthewson	note	Similarly, Reis Silva (2010, in prep.) argues that Blackfoot (Algonquian) encodes both modal strength and modality type. As mentioned above, I will argue that Gitksan has a mixed system, in which modality type is lexically encoded, but modal strength is encoded only for certain modality types.11	page 8
 footnote 11	Lisa Matthewson	note	Another potential mixed system is Kwak’wala (Wakashan), which may possess variable-strength epistemic modals but no variable-strength circumstantial ones (Stacey Menzies, p.c.). See also Deal (to appear) on Nez Perce (Penutian), which does not make modal strength distinctions in the non-epistemic domain, and Gipper (2010) for the claim that Yurakaré (Central Bolivia, unclassified) does not express a contrast between necessity and possibility in the epistemic domain.	page 8, footnote 11
-§2.3	Lisa Matthewson	note	It is important to keep expanding the empirical base of this type of modality research, in order to detect cross-linguistic patterns, and also because evidence about how languages lexically divide up the modal space can shed light on formal analyses of many phenomena. One example of this arises in the area of evidentiality. Earlier study of evidential systems had sometimes led to the claim that evidentials were not analyzable as modals, because evidentials typically do not make lexical distinctions based on speaker certainty (which would correspond to modal strength); see for example de Haan (1999), Aikhenvald (2004). As shown by Matthewson et al. (2007) and Rullmann et al. (2008), all modals in St’át’imcets fail to lexically distinguish modal strength. This discovery therefore eliminates one conceptual argument against a modal analysis of evidentials.12	page 8
+§2.3	Lisa Matthewson	note	It is important to retain expanding the empirical base of this type of modality research, in order to detect cross-linguistic patterns, and also because evidence about how languages lexically divide up the modal space can shed light on formal analyses of many phenomena. One example of this arises in the area of evidentiality. Earlier study of evidential systems had sometimes led to the claim that evidentials were not analyzable as modals, because evidentials typically do not make lexical distinctions based on speaker certainty (which would correspond to modal strength); see for example de Haan (1999), Aikhenvald (2004). As displayed by Matthewson et al. (2007) and Rullmann et al. (2008), all modals in St’át’imcets fail to lexically distinguish modal strength. This discovery therefore eliminates one conceptual argument against a modal analysis of evidentials.12	page 8
 footnote 12	Lisa Matthewson	note	Of course, there are other reasons why some evidentials are argued not to be modal; see Faller (2002, 2011), Murray (2010), Peterson (2010), among others, for discussion.	page 9, footnote 12
 §2.4	Lisa Matthewson	heading	2.4 The Gitksan language and prior research on Gitksan modality	page 9
 §2.4	Lisa Matthewson	note	Gitksan is a Tsimshianic language spoken in north-western British Columbia, Canada.13 According to Peterson (2010), there are approximately 400 speakers remaining. For a detailed discussion of the grammatical properties of Gitksan, see Rigsby (1986), and see also Tarpent (1987) on the very closely related Nisgha.	page 9
 footnote 13	Lisa Matthewson	note	The native spelling for the language depends on the dialect. One of my consultants (BS) is from Kispiox and speaks Gitxsanimx̱; the other (VG) is from Gitanyow (Kitwancool) and speaks Gyanimx̱.	page 9, footnote 13
 §2.4	Lisa Matthewson	note	The data to be presented here are from the author’s fieldwork unless otherwise noted, and were collected using standard semantic elicitation techniques (cf. Matthewson 2004), as well as via storyboards. Storyboards are series of pictures which prompt the speaker to tell a story in their own words, and which are designed to elicit certain constructions or lexical items in specified discourse contexts.	page 9
-§2.4	Lisa Matthewson	note	Data are presented in the orthography developed by Hindle and Rigsby (1973); see Appendix A for details, and for a list of abbreviations used in morpheme glosses. Morpho-phonological changes sometimes obscure the base form of morphemes; one of the most ubiquitous of these is the voicing of (non- glottalized) obstruents before a vowel (see Rigsby 1986:133, Tarpent 1987:44). The orthography represents the surface pronunciation, and I follow that practice here. There are several lexical items which are pronounced differently by my consultants than the spelling in the available literature; these probably represent dialect differences, and they are listed in Appendix B.	page 9
+§2.4	Lisa Matthewson	note	Data are presented in the orthography developed by Hindle and Rigsby (1973); see Appendix A for details, and for a list of abbreviations used in morpheme glosses. Morpho-phonological changes sometimes obscure the base form of morphemes; one of the max ubiquitous of these is the voicing of (non- glottalized) obstruents before a vowel (see Rigsby 1986:133, Tarpent 1987:44). The orthography represents the surface pronunciation, and I follow that practice here. There are several lexical items which are pronounced differently by my consultants than the spelling in the available literature; these probably represent dialect differences, and they are listed in Appendix B.	page 9
 §2.4	Lisa Matthewson	note	There are variations in glossing conventions for Gitksan in the literature. For example, Rigsby (1986) glosses the =hl enclitic as CNN ‘connective’, Hunt (1993) glosses it as CN ‘connective’, Peterson (2010) glosses it as CND ‘common noun determiner’, and Tarpent (1987) glosses the Nisgha equivalent as NC, ‘non-determinate connective’. When citing data from other sources, I have in some cases altered glosses for consistency with those used here.	page 9
 §2.4	Lisa Matthewson	note	I turn now to some relevant features of Gitksan in the areas of tense and modality. First, Gitksan does not overtly distinguish past vs. present tense (Jóhannsdóttir and Matthewson 2007). This is illustrated in (25-26) for eventive and stative predicates.	page 9
 (25) line 1	Gitksan	segmentation	bax=t Yoko	page 10
@@ -158,7 +158,7 @@ footnote 13	Lisa Matthewson	note	The native spelling for the language depends on
 (26) line 2	Gitksan	gloss	sick=PN James (yesterday)	page 10
 (26) line 3	Lisa Matthewson	translation	‘James was sick (yesterday)’ / ‘James is sick.’	page 10
 (26) line 4	Lisa Matthewson	citation	(BS)	page 10, the tag or source at the right of the translation
-§2.4	Lisa Matthewson	note	For future time reference, overt marking is required. As shown in (27- 29), the marker dim is necessary and sufficient for a future interpretation, with both eventive and stative predicates. This accords with both Rigsby’s (1986:279) and Tarpent’s (1987:466) analysis of dim as a future marker.14	page 10
+§2.4	Lisa Matthewson	note	For future time reference, overt marking is required. As displayed in (27- 29), the marker dim is necessary and sufficient for a future interpretation, with both eventive and stative predicates. This accords with both Rigsby’s (1986:279) and Tarpent’s (1987:466) analysis of dim as a future marker.14	page 10
 footnote 14	Lisa Matthewson	note	Tarpent (1987:466) writes that dim indicates ‘strong or definite potentiality of an event that is certain or at least intended to happen (hence the future).’	page 10, footnote 14
 (27a) line 1	Gitksan	segmentation	dim yookxw=t James ji tʼaahlakxw	page 10
 (27a) line 2	Gitksan	gloss	FUT eat=PN James IRR tomorrow	page 10
@@ -166,7 +166,7 @@ footnote 14	Lisa Matthewson	note	Tarpent (1987:466) writes that dim indicates �
 (27a) line 4	Lisa Matthewson	citation	(Jóhannsdóttir and Matthewson 2007)	page 10, the tag or source at the right of the translation
 (27b) line 1	Gitksan	segmentation	* yookxw=t James ji tʼaahlakxw	page 10
 (27b) line 2	Gitksan	gloss	eat=PN James IRR tomorrow	page 10
-(27b) line 3	Lisa Matthewson	citation	(Jóhannsdóttir and Matthewson 2007)	page 10, where the translation stands
+(27b) line 3	Lisa Matthewson	citation	(Jóhannsdóttir and Matthewson 2007)	page 10, where the translation is
 (28a) line 1	Gitksan	segmentation	dim ha’w=t James t’aahlakxw	page 10
 (28a) line 2	Gitksan	gloss	FUT go.home=PN James tomorrow	page 10
 (28a) line 3	Lisa Matthewson	translation	‘James will go home tomorrow.’	page 10
@@ -174,7 +174,7 @@ footnote 14	Lisa Matthewson	note	Tarpent (1987:466) writes that dim indicates �
 (28b) line 1	Gitksan	segmentation	* ha’w=t James t’aahlakxw	page 10
 (28b) line 2	Gitksan	gloss	go.home=PN James tomorrow	page 10
 (28b) line 3	Lisa Matthewson	citation	(VG)	page 10, the tag at the right of the gloss
-(28b) line 4	Lisa Matthewson	speaker comment	Consultant’s comment: “If it’s for future, then there’s … no getting around that dim.”	page 10, where the translation stands, the consultant not named
+(28b) line 4	Lisa Matthewson	speaker comment	Consultant’s comment: “If it’s for future, then there’s … no getting around that dim.”	page 10, where the translation is, the consultant not named
 (29a) line 1	Gitksan	segmentation	dim siipxw=t James t’aahlakxw	page 10
 (29a) line 2	Gitksan	gloss	FUT sick=PN James tomorrow	page 10
 (29a) line 3	Lisa Matthewson	translation	‘James will be sick tomorrow.’	page 10
@@ -223,7 +223,7 @@ footnote 16	Lisa Matthewson	note	The progressive/imperfective yukw is preferred 
 (34) line 4	Gitksan	gloss	crazy.PL=CN man.PL OBL.PRO-3SG.II	page 12
 (34) line 5	Lisa Matthewson	translation	‘Maybe she is pretty, that’s why the men are crazy for her.’	page 12
 (34) line 6	Lisa Matthewson	citation	(BS)	page 12, the tag or source at the right of the translation
-§3.1	Lisa Matthewson	note	Peterson provides evidence that ima(’a) is only interpretable as epistemic; he contrasts it with the verb da’aḵhlxw, which is a circumstantial possibility modal (Peterson 2010:154). The contrast is shown in (35), which is adapted from Kratzer’s (1991) hydrangea example in (4) above. This context is the circumstantial one; you have no reason to believe huckleberries might actually be growing here, you are merely reasoning based on the landscape. We see that ima(’a) is infelicitous, and da’akhlxw is used.	page 12
+§3.1	Lisa Matthewson	note	Peterson provides evidence that ima(’a) is only interpretable as epistemic; he contrasts it with the verb da’aḵhlxw, which is a circumstantial possibility modal (Peterson 2010:154). The contrast is displayed in (35), which is adapted from Kratzer’s (1991) hydrangea example in (4) above. This context is the circumstantial one; you have no reason to believe huckleberries might actually be growing here, you are merely reasoning based on the landscape. We see that ima(’a) is infelicitous, and da’akhlxw is used.	page 12
 (35) line 1	Lisa Matthewson	note	Context: You’re up in the Suskwa and notice a burnt patch of forest. You know that huckleberries typically take seed in burnt alpine areas.	page 13, over the example
 (35a) line 1	Gitksan	segmentation	da’aḵhlxw=hl dim limx̱s=hl maa’y go’osun	page 13
 (35a) line 2	Gitksan	gloss	CIRC=CN FUT grow=CN berries LOC.here	page 13
@@ -232,7 +232,7 @@ footnote 16	Lisa Matthewson	note	The progressive/imperfective yukw is preferred 
 (35b) line 2	Gitksan	gloss	grow=EPIS=CN berries LOC.here	page 13
 (35b) line 3	Lisa Matthewson	translation	ʻBerries might be growing here.’	page 13
 (35b) line 4	Lisa Matthewson	citation	(Peterson 2010:154)	page 13, the tag or source at the right of the translation
-§3.1	Lisa Matthewson	note	Peterson also provides evidence that ima(’a) has variable modal strength: it can function as anything from a possibility to a necessity modal.17 Initial evidence for this comes from the wide range of English translations offered for ima(’a), as shown in (36). As Peterson observes (2010:157), the context here ‘is simple enough that both must and might are felicitous translations in English: depending on a speaker’s previous experiences with John and his rod and tackle box, John might be fishing, or he must be fishing.’	page 13
+§3.1	Lisa Matthewson	note	Peterson also provides evidence that ima(’a) has variable modal strength: it can function as anything from a possibility to a necessity modal.17 Initial evidence for this comes from the wide range of English translations offered for ima(’a), as displayed in (36). As Peterson observes (2010:157), the context here ‘is simple enough that both must and might are felicitous translations in English: depending on a speaker’s previous experiences with John and his rod and tackle box, John might be fishing, or he must be fishing.’	page 13
 footnote 17	Lisa Matthewson	note	In terms of the formal analysis, Peterson uses existential quantification plus an ordering source which derives strengthened readings. Deal (to appear) offers an alternative analysis of a variable-strength modal in Nez Perce, whereby it is simply a possibility modal. Peterson’s and Deal’s analyses make different empirical predictions only for downward-entailing contexts, and the relevant data to distinguish them have not yet been gathered for Gitksan.	page 13, footnote 17
 (36) line 1	Lisa Matthewson	note	Context: You’re wondering where your friend is. You notice his rod and tackle box are not in their usual place.	page 13, over the example
 (36) line 2	Gitksan	segmentation	yugw=ima=hl dim iixw-t	page 13
@@ -266,7 +266,7 @@ footnote 17	Lisa Matthewson	note	In terms of the formal analysis, Peterson uses 
 (40) line 3	Gitksan	gloss	PROG=EPIS=CN sick-3SG.II	page 14
 (40) line 4	Lisa Matthewson	translation	‘He must have been sick.’	page 14
 (40) line 5	Lisa Matthewson	citation	(BS)	page 14, the tag or source at the right of the translation
-§3.1	Lisa Matthewson	note	Summarizing the results of this section, we have seen that Gitksan ima(’a) is an epistemic modal which is felicitous in a range of contexts corresponding to different modal strengths. In the next sub-section we turn to a second epistemic modal, which is specialized for a particular kind of evidence, namely reports.	page 14
+§3.1	Lisa Matthewson	note	Summarizing the results of this section, we have seen that Gitksan ima(’a) is an epistemic modal which is felicitous in a range of contexts corresponding to different modal strengths. In the next sub-section we turn to a second epistemic modal, which is specialized for a particular type of evidence, namely reports.	page 14
 §3.2	Lisa Matthewson	heading	3.2 G̱at	page 14
 §3.2	Lisa Matthewson	note	Examples of reportative g̱at are given in (41-42).	page 14
 (41) line 1	Gitksan	segmentation	’maj-i-(t)=g̱at=hl ha-’nii-guyp’ax ’a=hl lo’op	page 14
@@ -288,7 +288,7 @@ footnote 17	Lisa Matthewson	note	In terms of the formal analysis, Peterson uses 
 (43) line 6	Lisa Matthewson	citation	(Peterson 2010:123)	page 15, the tag or source at the right of the comment
 §3.2	Lisa Matthewson	note	The conclusion – already argued for by Peterson (2010) – is that g̱at is a reportative epistemic modal, with variable modal strength. In the next sub- section we turn to the issue of modal-temporal interactions in the epistemic domain.	page 15
 §3.3	Lisa Matthewson	heading	3.3 Modal-temporal interactions with epistemic modals	page 15
-§3.3	Lisa Matthewson	note	Before we look at the Gitksan facts with respect to modal-temporal interactions, let’s consider what we predict will happen. According to Condoravdi (2002), the temporal perspective of an unembedded modal is given by the tense. Assuming a null non-future tense in Gitksan as outlined above, this predicts that the temporal perspective of both ima(’a) and g̱at should be able to be past or present. In other words, the modals should be felicitous when the claim is based on evidence gained prior to the utterance time, or when the evidence holds at the utterance time. With respect to temporal orientation, Condoravdi analyzes English possibility modals as being inherently future- oriented. Along with certain assumptions about the temporal interpretation of different aspectual classes, her analysis correctly derives the core facts for an English epistemic possibility modal like might, namely that a future orientation is permitted with stative predicates, and required for eventive predicates (in the perfective aspect). This is shown in (44):	page 15
+§3.3	Lisa Matthewson	note	Before we look at the Gitksan facts with respect to modal-temporal interactions, let’s consider what we predict will happen. According to Condoravdi (2002), the temporal perspective of an unembedded modal is given by the tense. Assuming a null non-future tense in Gitksan as outlined above, this predicts that the temporal perspective of both ima(’a) and g̱at should be able to be past or present. In other words, the modals should be felicitous when the claim is based on evidence gained prior to the utterance time, or when the evidence holds at the utterance time. With respect to temporal orientation, Condoravdi analyzes English possibility modals as being inherently future- oriented. Along with certain assumptions about the temporal interpretation of different aspectual classes, her analysis correctly derives the core facts for an English epistemic possibility modal like might, namely that a future orientation is permitted with stative predicates, and required for eventive predicates (in the perfective aspect). This is displayed in (44):	page 15
 (44a) line 1	Lisa Matthewson	note	He might run. FUTURE T.O. ONLY	page 16, set as an example
 (44b) line 1	Lisa Matthewson	note	He might be sick. PRESENT / FUTURE T.O.	page 16, set as an example
 §3.3	Lisa Matthewson	note	(44a) makes a claim only about a potential running which takes place after the utterance time; (44b) can be talking either about a sickness which coincides with the utterance time, or will happen in the future. (See Condoravdi’s paper for the formal analysis which derives these facts.) We will see below that while Condoravdi’s predictions about temporal perspective are upheld (with one principled exception for present-perspective g̱at), the predictions about temporal orientation based on English do not extend to Gitksan. The data suggest that we will need a semantics for Gitksan epistemic modals which is not inherently future-oriented.	page 16
@@ -344,7 +344,7 @@ footnote 18	Lisa Matthewson	note	The Nisgha data presented in Tarpent (1984) are
 (49) line 9	Lisa Matthewson	note	PRESENT T.O.	page 18, the tag at the right of the context
 (49) line 10	Lisa Matthewson	note	√ Context: You hear thunder, so you think it might rain soon.	page 18, the context
 (49) line 11	Lisa Matthewson	note	FUTURE T.O.	page 18, the tag at the right of the context
-§3.3.1	Lisa Matthewson	note	The same facts hold with stative predicates, as shown in (50-51).	page 18
+§3.3.1	Lisa Matthewson	note	The same facts hold with stative predicates, as displayed in (50-51).	page 18
 (50) line 1	Gitksan	segmentation	yugw=imaa/ima’=hl siipxw-t	page 18
 (50) line 2	Gitksan	gloss	IMPF=EPIS=CN sick-3SG.II	page 18
 (50) line 3	Lisa Matthewson	translation	‘He might be sick (now) / He might have been sick.’	page 18
@@ -367,7 +367,7 @@ footnote 18	Lisa Matthewson	note	The Nisgha data presented in Tarpent (1984) are
 (51) line 9	Lisa Matthewson	note	PRESENT T.O.	page 18, the tag at the right of the context
 (51) line 10	Lisa Matthewson	note	√ Context: She’s wearing no coat in the rain, she might get sick.	page 18, the context
 (51) line 11	Lisa Matthewson	note	FUTURE T.O.	page 18, the tag at the right of the context
-§3.3.1	Lisa Matthewson	note	The stative, dim-less case in (50) displays an interesting contrast with English. In English, temporally unmarked epistemic statives can be future- oriented, as shown in (44b) above; in Gitksan they cannot. I argue in Matthewson (2011) that this follows from the absence of any future-orientation in the lexical semantics of epistemic modals in Gitksan (unlike in English; cf. Condoravdi 2002).	page 18
+§3.3.1	Lisa Matthewson	note	The stative, dim-less case in (50) displays an interesting contrast with English. In English, temporally unmarked epistemic statives can be future- oriented, as displayed in (44b) above; in Gitksan they cannot. I argue in Matthewson (2011) that this follows from the absence of any future-orientation in the lexical semantics of epistemic modals in Gitksan (unlike in English; cf. Condoravdi 2002).	page 18
 §3.3.1	Lisa Matthewson	note	(47-51) showed cases with present temporal perspectives and all possible temporal orientations, but for past temporal perspectives, we have so far only seen present temporal orientations, as in (45-46), where the evidence held at some past time, about a potential event taking place at that same past time. In order to complete the paradigm, we need cases with past temporal perspectives and past or future temporal orientations. (52-55) show again that dim is necessary and sufficient for a future temporal orientation for ima(’a). (In (52), I give versions both with and without the progressive aspect on ima(’a).)	page 18
 (52) line 1	Lisa Matthewson	note	Context: When you looked out your window earlier today, the ground was wet, so it looked like it might have rained. But you found out later that the sprinklers had been watering the ground.	page 19, over the example
 (52a) line 1	Gitksan	segmentation	yugw=imaa=hl (#dim) wis da’awhl	page 19
@@ -450,7 +450,7 @@ footnote 19 (i) line 4	Lisa Matthewson	citation	(BS)	page 19, the tag or source 
 (60) line 3	Lisa Matthewson	translation	‘They say Peter is going to marry Lilian.’	page 21
 (60) line 4	Lisa Matthewson	citation	(Tarpent 1984:362)	page 21, the tag or source at the right of the translation
 §3.4	Lisa Matthewson	heading	3.4 Summary of epistemic modality	page 21
-§3.4	Lisa Matthewson	note	The data presented in this section have shown that Gitksan possesses two epistemic modals, which differ in that one of them is restricted to allowing evidence which comes via reports. Both the epistemic modals have variable modal strength, allowing anything from possibility to necessity interpretations. Both allow past temporal perspectives, and both allow future temporal orientations only if dim is present. Ima(’a) does, but g̱at does not, allow present temporal perspectives (since for g̱at this would involve hearing the report at the utterance time). The temporal results are summarized in (61), with numbers given for one relevant example of each type.20	page 21
+§3.4	Lisa Matthewson	note	The data presented in this section have displayed that Gitksan possesses two epistemic modals, which differ in that one of them is restricted to allowing evidence which comes via reports. Both the epistemic modals have variable modal strength, allowing anything from possibility to necessity interpretations. Both allow past temporal perspectives, and both allow future temporal orientations only if dim is present. Ima(’a) does, but g̱at does not, allow present temporal perspectives (since for g̱at this would involve hearing the report at the utterance time). The temporal results are summarized in (61), with numbers given for one relevant example of each type.20	page 21
 footnote 20	Lisa Matthewson	note	I exclude from consideration cases with a future temporal perspective, since for an epistemic modal, these would involve pragmatically odd meanings which express that some evidence or knowledge will arise in the future. These meanings are not expressible in English using modal auxiliaries; they would be something like ‘It will might rain’, meaning ‘I will have evidence that it might rain.’	page 22, footnote 20
 (61)	Lisa Matthewson	note	TEMPORAL ORIENTATION	page 22, a line of the table
 (61)	Lisa Matthewson	note	PAST PRESENT FUTURE	page 22, a line of the table
@@ -471,7 +471,7 @@ footnote 20	Lisa Matthewson	note	I exclude from consideration cases with a futur
 §4	Lisa Matthewson	heading	4 Circumstantial modality in Gitksan	page 22
 §4	Lisa Matthewson	note	In this section I will show how all the sub-types of circumstantial modality listed in section 2.1 above are encoded in Gitksan.	page 22
 §4.1	Lisa Matthewson	heading	4.1 Circumstantial possibility: da’aḵhlxw	page 22
-§4.1	Lisa Matthewson	note	Rigsby (1987:240) glosses the verb da’aḵhlxw as ‘be able to’. I show in this section that da’aḵhlxw is used for all kinds of circumstantial possibility, including pure circumstantial, ability, and priority interpretations. Da’aḵhlxw is acceptable but not preferred for expressing priority interpretations, such as bouletic or deontic readings; there is an alternative lexical item for deontic possibility, as we will see below. Syntactically, da’aḵhlxw has two manifestations. Usually, it is an independent-order transitive verb, which takes an individual subject and a subordinate clause which functions as direct object. Da’aḵhlxw may also appear as an intransitive verb in an impersonal construction, in a structure similar to ‘It is possible that …’. No semantic differences in terms of available readings have been detected for the personal vs. impersonal construction, although further research is required.	page 22
+§4.1	Lisa Matthewson	note	Rigsby (1987:240) glosses the verb da’aḵhlxw as ‘be able to’. I show in this section that da’aḵhlxw is used for all types of circumstantial possibility, including pure circumstantial, ability, and priority interpretations. Da’aḵhlxw is acceptable but not preferred for expressing priority interpretations, such as bouletic or deontic readings; there is an alternative lexical item for deontic possibility, as we will see below. Syntactically, da’aḵhlxw has two manifestations. Usually, it is an independent-order transitive verb, which takes an individual subject and a subordinate clause which functions as direct object. Da’aḵhlxw may also appear as an intransitive verb in an impersonal construction, in a structure similar to ‘It is possible that …’. No semantic differences in terms of available readings have been detected for the personal vs. impersonal construction, although further research is required.	page 22
 §4.1	Gitksan	cited form	da’aḵhlxw	page 22, in italics
 §4.1	Lisa Matthewson	note	Pure circumstantial possibility is encoded by da’aḵhlxw, as already noticed by Peterson (2010); see (31a), repeated here as (62). The version my consultant volunteers is given in (63); he also accepts (62). Notice that (62) vs. (63) contrast in the respect just noted: (62) is intransitive, (63) is transitive.	page 22
 (62) line 1	Gitksan	segmentation	da’aḵhlxw=hl dim limx̱s=hl maa’y go’osun	page 22
@@ -482,7 +482,7 @@ footnote 20	Lisa Matthewson	note	I exclude from consideration cases with a futur
 (63) line 2	Gitksan	gloss	CIRC.POSS-TRA=CN berries FUT grow-3SG.II	page 23
 (63) line 3	Lisa Matthewson	translation	‘Berries could grow here.’	page 23
 (63) line 4	Lisa Matthewson	citation	(VG)	page 23, the tag or source at the right of the translation
-§4.1	Lisa Matthewson	note	Recall that the pure circumstantial interpretation (unlike the epistemic) allows the speaker to know that there are not actually any berries growing here. This is shown for da’aḵhlxw in (64) (each consultant offers a slightly different version of the sentence).21	page 23
+§4.1	Lisa Matthewson	note	Recall that the pure circumstantial interpretation (unlike the epistemic) allows the speaker to know that there are not actually any berries growing here. This is displayed for da’aḵhlxw in (64) (each consultant offers a slightly different version of the sentence).21	page 23
 footnote 21	Lisa Matthewson	note	BS pronounces the modal as da’aḵxw. I will write the longer form, da’akhlxw, in the data below, except where an example is only from this consultant. BS also usually does not use da’aḵxw for pure circumstantial interpretations (although she volunteered (64b)). She translates (62) as ʻBerries are able to grow hereʼ and comments “Maybe [daʼaḵxw] doesnʼt apply to plant life.”	page 23, footnote 21
 footnote 21	Gitksan	cited form	da’aḵxw	page 23, in italics
 footnote 21	Gitksan	cited form	daʼaḵxw	page 23, in italics
@@ -511,7 +511,7 @@ footnote 21	Gitksan	cited form	daʼaḵxw	page 23, in italics
 (66) line 3	Gitksan	gloss	yes CIRC.POSS-TRA-3SG.II *(FUT) catch.a.ride OBL-1SG.II	page 23
 (66) line 4	Lisa Matthewson	translation	‘Yes, she can come with me.’	page 23
 (66) line 5	Lisa Matthewson	citation	(BS)	page 23, the tag or source at the right of the translation
-§4.1	Lisa Matthewson	note	Ability interpretations of da’aḵhlxw are shown in (67-69). A co- occurring dim is obligatory.	page 24
+§4.1	Lisa Matthewson	note	Ability interpretations of da’aḵhlxw are displayed in (67-69). A co- occurring dim is obligatory.	page 24
 (67) line 1	Gitksan	segmentation	da’aḵhlxw-i-s Henry *(dim) jam-t	page 24
 (67) line 2	Gitksan	gloss	CIRC.POSS-TRA-PN Henry *(FUT) cook-3SG.II	page 24
 (67) line 3	Lisa Matthewson	translation	‘Henry is able to cook.’ / ‘Henry was able to cook.’	page 24
@@ -539,7 +539,7 @@ footnote 22	Lisa Matthewson	note	Both consultants volunteered the same sentence 
 (71) line 3	Gitksan	gloss	PROG=EPIS FUT-3SG.II make-PN Cathy cheese OBL-3SG.II	page 24
 (71) line 4	Lisa Matthewson	translation	‘Cathy might make cheese out of this milk.’	page 24
 (71) line 5	Lisa Matthewson	citation	(BS)	page 24, the tag or source at the right of the translation
-§4.1	Lisa Matthewson	note	One often-discussed property of ability attributions is whether they have actuality entailments (cf. Bhatt 1999, Hacquard 2006, Davis et al. 2009). Actuality entailments (AEs) are when a perfective/past tense circumstantial possibility modal gives rise to an entailment that the relevant event took place As shown in (72), Gitksan da’aḵhhxw does not give rise to AEs. This makes it similar to the St’át’imcets circumstantial modal ka- … -a as discussed by Davis et al. (2009). See Matthewson (2011, in prep.) for an explanation for the absence of AEs with da’aḵhlxw which relies on the presence of dim.	page 24
+§4.1	Lisa Matthewson	note	One often-discussed property of ability attributions is whether they have actuality entailments (cf. Bhatt 1999, Hacquard 2006, Davis et al. 2009). Actuality entailments (AEs) are when a perfective/past tense circumstantial possibility modal gives rise to an entailment that the relevant event took place As displayed in (72), Gitksan da’aḵhhxw does not give rise to AEs. This makes it similar to the St’át’imcets circumstantial modal ka- … -a as discussed by Davis et al. (2009). See Matthewson (2011, in prep.) for an explanation for the absence of AEs with da’aḵhlxw which relies on the presence of dim.	page 24
 §4.1	Gitksan	cited form	da’aḵhhxw	page 24, in italics
 (72) line 1	Gitksan	segmentation	da’aḵhlxw-i=’y *(dim) hahlaʼalsd-ʼy (kʼyoots), ii (ap)	page 25
 (72) line 2	Gitksan	gloss	CIRC.POSS-TRA-1SG.II *(FUT) work-1SG.II (yesterday) and (EMPH)	page 25
@@ -547,7 +547,7 @@ footnote 22	Lisa Matthewson	note	Both consultants volunteered the same sentence 
 (72) line 4	Gitksan	gloss	NEG=CONTR COMP-1SG.II	page 25
 (72) line 5	Lisa Matthewson	translation	ʻI was able to work yesterday, but I didnʼt.ʼ	page 25
 (72) line 6	Lisa Matthewson	citation	(BS, VG)	page 25, the tag or source at the right of the translation
-§4.1	Lisa Matthewson	note	Ability-like interpretations with non-agentive subjects are also possible, as shown in (73-74).	page 25
+§4.1	Lisa Matthewson	note	Ability-like interpretations with non-agentive subjects are also possible, as displayed in (73-74).	page 25
 (73) line 1	Gitksan	segmentation	da’aḵxw-i=hl aats’ip tun=sa dim ḵ’aḵ’-t	page 25
 (73) line 2	Gitksan	gloss	CIRC.POSS-TRA=CN door DEM=here FUT open-3SG.II	page 25
 (73) line 3	Lisa Matthewson	translation	‘The door can open.’	page 25
@@ -556,7 +556,7 @@ footnote 22	Lisa Matthewson	note	Both consultants volunteered the same sentence 
 (74) line 2	Gitksan	gloss	CIRC.POSS-TRA=CN knife DEM *(FUT) cut-TRA-3SG.II	page 25
 (74) line 3	Lisa Matthewson	translation	‘This knife can cut.’	page 25
 (74) line 4	Lisa Matthewson	citation	(BS)	page 25, the tag or source at the right of the translation
-§4.1	Lisa Matthewson	note	Turning to priority interpretations, we see that da’aḵhlxw allows bouletic interpretations, as shown in (75). Both consultants originally offered plain future sentences lacking da’aḵhlxw when translating from English in this discourse context. However, they offered (75a,b) when they were asked if a statement in this context could begin with da’aḵhlxw. This suggests that da’aḵhlxw is possible but dispreferred with a bouletic interpretation.	page 25
+§4.1	Lisa Matthewson	note	Turning to priority interpretations, we see that da’aḵhlxw allows bouletic interpretations, as displayed in (75). Both consultants originally offered plain future sentences lacking da’aḵhlxw when translating from English in this discourse context. However, they offered (75a,b) when they were asked if a statement in this context could begin with da’aḵhlxw. This suggests that da’aḵhlxw is possible but dispreferred with a bouletic interpretation.	page 25
 (75) line 1	Lisa Matthewson	note	Context: Given that you want to be thinner, …	page 25, over the example
 (75a) line 1	Gitksan	segmentation	da’aḵhlxw-i-n dim sa-yeed-n=hl gabii=hl	page 25
 (75a) line 2	Gitksan	gloss	CIRC.POSS-TRA-2SG.II FUT PV-lesssen-2SG.II= CN amount=CN	page 25
@@ -568,7 +568,7 @@ footnote 22	Lisa Matthewson	note	Both consultants volunteered the same sentence 
 (75b) line 2	Gitksan	gloss	CIRC.POSS-TRA-2SG.II 2SG.I=FUT stop-TRA=CN sweet-ATTRIB bread	page 25
 (75b) line 3	Lisa Matthewson	translation	‘You could stop eating cake.’	page 25
 (75b) line 4	Lisa Matthewson	citation	(BS)	page 25, the tag or source at the right of the translation
-§4.1	Lisa Matthewson	note	Da’aḵhlxw is also possible in teleological contexts, as shown in (76).	page 25
+§4.1	Lisa Matthewson	note	Da’aḵhlxw is also possible in teleological contexts, as displayed in (76).	page 25
 (76) line 1	Lisa Matthewson	note	Context: We are burglars in someone’s house, and we discover the residents are still at home, so we have to be quiet if we don’t want to be caught. Finally the people leave, so we can make noise now.	page 25, over the example
 (76a) line 1	Gitksan	segmentation	woy hlaa dim da’aḵhlxw-’m dim ha’jimuxw23	page 26
 footnote 23	Lisa Matthewson	note	The morpheme breakdown of this word is unclear, and I have not been able to find the form in the published literature.	page 26, footnote 23
@@ -593,13 +593,13 @@ footnote 23	Lisa Matthewson	note	The morpheme breakdown of this word is unclear,
 (78) line 4	Gitksan	gloss	CIRC.POSS FUT play-1SG.II	page 26
 (78) line 5	Lisa Matthewson	translation	‘And Mary said, “My mother told me I could play.” ’	page 26
 (78) line 6	Lisa Matthewson	citation	(BS, Totem Field Storyboard Collection, “Chore Girl”)	page 26, under the translation
-§4.1	Lisa Matthewson	note	I have claimed that da’aḵhlxw has a specified modal strength, as a possibility modal. This is supported by all the data shown so far. Further evidence that da’aḵhlxw is a specialized possibility modal comes from the fact that it is rejected when the context warrants a necessity claim instead:	page 26
+§4.1	Lisa Matthewson	note	I have claimed that da’aḵhlxw has a specified modal strength, as a possibility modal. This is supported by all the data displayed so far. Further evidence that da’aḵhlxw is a specialized possibility modal comes from the fact that it is rejected when the context warrants a necessity claim instead:	page 26
 (79) line 1	Lisa Matthewson	note	Context: Bob ate bad chicken last night. He should be sick now.	page 26, over the example
 (79) line 2	Gitksan	segmentation	?? da’aḵxw=hl dim sim siipxw-t	page 26
 (79) line 3	Gitksan	gloss	CIRC.POSS=CN FUT very sick-3SG.II	page 26
 (79) line 4	Lisa Matthewson	translation	Attempted: ‘He should be very sick.’	page 26
 (79) line 5	Lisa Matthewson	speaker comment	Consultant’s comment: “Not very good. Nothing wrong with [the sentence] because da’aḵxw is ‘able’. He’s able to be very sick.”	page 26, under the example, the consultant not named
-§4.1	Lisa Matthewson	note	Examples showing the interaction of da’aḵhlxw with negation are shown in (80-83). We obtain a ‘not possible’ reading, just like for English can’t (see Horn 1989).	page 26
+§4.1	Lisa Matthewson	note	Examples showing the interaction of da’aḵhlxw with negation are displayed in (80-83). We obtain a ‘not possible’ reading, just like for English can’t (see Horn 1989).	page 26
 (80) line 1	Gitksan	segmentation	nee=dii da’aḵxw *(dim) xsaw-’y	page 27
 (80) line 2	Gitksan	gloss	NEG=CONTR CIRC.POSS *(FUT) go.out-1SG.II	page 27
 (80) line 3	Lisa Matthewson	translation	‘And I am not able to go out.’	page 27
@@ -616,13 +616,13 @@ footnote 23	Lisa Matthewson	note	The morpheme breakdown of this word is unclear,
 (83) line 2	Gitksan	gloss	NEG=CONTR-3SG.II CIRC.POSS=CN door DEM=here FUT open-3SG.II	page 27
 (83) line 3	Lisa Matthewson	translation	‘This door can’t open.’	page 27
 (83) line 4	Lisa Matthewson	citation	(BS)	page 27, the tag or source at the right of the translation
-§4.1	Lisa Matthewson	note	Turning finally to temporal interpretation, we find that, just like ima(’a), da’aḵhlxw allows either a present or a past temporal perspective. This is predicted by the claim that Gitksan has a null non-future tense which provides the temporal perspective. Most of the data given above involve a present temporal perspective: the relevant circumstances which license the possibility hold at the utterance time. However, we have seen several cases where the relevant circumstances held in the past: (67), (69), (72), (77), (78), and (81). A further example, showing that the pure circumstantial interpretation allows a past temporal perspective, is given in (84).	page 27
+§4.1	Lisa Matthewson	note	Turning finally to temporal interpretation, we find that, just like ima(’a), da’aḵhlxw allows either a present or a past temporal perspective. This is predicted by the claim that Gitksan has a null non-future tense which provides the temporal perspective. The majority of the data given above involve a present temporal perspective: the relevant circumstances which license the possibility hold at the utterance time. However, we have seen several cases where the relevant circumstances held in the past: (67), (69), (72), (77), (78), and (81). A further example, showing that the pure circumstantial interpretation allows a past temporal perspective, is given in (84).	page 27
 (84) line 1	Lisa Matthewson	note	Context: You are talking about some land you used to have. I ask you ‘What was the soil like? Could berries have grown there?’	page 27, over the example
 (84) line 2	Gitksan	segmentation	da’aḵhlxw-i=hl maa’y=hl *(dim) limx̱s-t	page 27
 (84) line 3	Gitksan	gloss	CIRC.POSS-TRA=CN berries=CN *(FUT) grow-3SG.II	page 27
 (84) line 4	Lisa Matthewson	translation	‘Berries could have grown.’	page 27
 (84) line 5	Lisa Matthewson	citation	(VG)	page 27, the tag or source at the right of the translation
-§4.1	Lisa Matthewson	note	As da’aḵhlxw is a circumstantial possibility modal which allows past temporal perspective, it is predicted to allow future-in-the-past / counterfactual readings (cf. Condoravdi 2002). This prediction is upheld, as shown in (85).24	page 27
+§4.1	Lisa Matthewson	note	As da’aḵhlxw is a circumstantial possibility modal which allows past temporal perspective, it is predicted to allow future-in-the-past / counterfactual readings (cf. Condoravdi 2002). This prediction is upheld, as displayed in (85).24	page 27
 footnote 24	Lisa Matthewson	note	The fact that the circumstantial possibility modal da’aḵhlxw is used for future-in-the- past / counterfactual readings provides (weak cross-linguistic) support for Condoravdi’s claim that English might can have this reading. This contrasts with Hacquard (2006), who argues that might cannot have a counterfactual reading by itself. Hacquard argues that in sentences like They might (still) have won the game, we actually have epistemic might scoping over a separate counterfactual modal. But Gitksan doesn’t use the epistemic modal ima(‘a) here; it uses only a circumstantial one.	page 27, footnote 24
 (85) line 1	Lisa Matthewson	note	Context: You were watching the Canucks and at one point in the first period they were up 2-1. At that point, they might have still won (but they didnʼt in the end).	page 28, over the example
 (85a) line 1	Gitksan	segmentation	kʼay daʼaḵxw-diit *(dim) x̱staa-diit, ii ap	page 28
@@ -635,13 +635,13 @@ footnote 24	Lisa Matthewson	note	The fact that the circumstantial possibility mo
 (85b) line 2	Gitksan	gloss	CIRC.POSS-3PL.II FUT win-3PL.II and NEG=CONTR do-3PL.II	page 28
 (85b) line 3	Lisa Matthewson	translation	‘They could have won but they didn’t.’	page 28
 (85b) line 4	Lisa Matthewson	citation	(VG)	page 28, the tag or source at the right of the translation
-§4.1	Lisa Matthewson	note	Da’aḵhlxw always obligatorily co-occurs with the future marker dim; this holds regardless of whether the temporal perspective is present or past, and can be verified by all the data in this section. The presence of dim correlates with an obligatory future temporal orientation, something which is often observed to hold for circumstantial modals, particularly possibility ones (cf. Werner 2006, Kratzer 2010, Vander Vate 2010, and, for the metaphysical subtype of circumstantial modality, Condoravdi 2002, Copley 2006). Having a future orientation means that da’aḵhlxw always makes a claim about a possible event subsequent to the time at which the modal claim is assessed. For example, an ability claim with a present temporal perspective entails that it is possible for the event to happen after the utterance time. This is shown in (86).	page 28
+§4.1	Lisa Matthewson	note	Da’aḵhlxw always obligatorily co-occurs with the future marker dim; this holds regardless of whether the temporal perspective is present or past, and can be verified by all the data in this section. The presence of dim correlates with an obligatory future temporal orientation, something which is often observed to hold for circumstantial modals, particularly possibility ones (cf. Werner 2006, Kratzer 2010, Vander Vate 2010, and, for the metaphysical subtype of circumstantial modality, Condoravdi 2002, Copley 2006). Having a future orientation means that da’aḵhlxw always makes a claim about a possible event subsequent to the time at which the modal claim is assessed. For example, an ability claim with a present temporal perspective entails that it is possible for the event to happen after the utterance time. This is displayed in (86).	page 28
 (86) line 1	Gitksan	segmentation	da’aḵxw[-i]-’y dim ayee=hl bax̱-’y	page 28
 (86) line 2	Gitksan	gloss	CIRC.POSS[-TRA]-1SG.II FUT fast=CN run-1SG.II	page 28
 (86) line 3	Lisa Matthewson	translation	‘I can run fast.’	page 28
 (86) line 4	Lisa Matthewson	citation	(BS)	page 28, the tag or source at the right of the translation
 (86) line 5	Lisa Matthewson	note	Rejected in context: You were always a fast runner, but you have become permanently paralysed.	page 28, the context
-§4.1	Lisa Matthewson	note	The final case to consider is da’aḵhlxw with a future temporal perspective – cases where the speaker makes a claim about a possibility which does not yet hold at the utterance time, but which will hold in the future. So far I have claimed that the (null) tense provides the temporal perspective for modals in Gitksan. This predicts that if we want a future temporal perspective with da’aḵhlxw, we will need ‘double dim’: first, the obligatory dim which gives future temporal orientation, and second, a higher dim which appears before da’aḵhlxw and moves the temporal perspective into the future. This is exactly what we find, as shown in (87).	page 28
+§4.1	Lisa Matthewson	note	The final case to consider is da’aḵhlxw with a future temporal perspective – cases where the speaker makes a claim about a possibility which does not yet hold at the utterance time, but which will hold in the future. So far I have claimed that the (null) tense provides the temporal perspective for modals in Gitksan. This predicts that if we want a future temporal perspective with da’aḵhlxw, we will need ‘double dim’: first, the obligatory dim which gives future temporal orientation, and second, a higher dim which appears before da’aḵhlxw and moves the temporal perspective into the future. This is exactly what we find, as displayed in (87).	page 28
 (87) line 1	Lisa Matthewson	note	Context: He canʼt cook now, but he will be able to cook (after taking this cooking course).	page 28, over the example
 (87) line 2	Gitksan	segmentation	dim daʼakxw-i-t dim jam-t	page 29
 (87) line 3	Gitksan	gloss	FUT CIRC.POSS-TRA-3SG.II FUT cook-3SG.II	page 29
@@ -655,7 +655,7 @@ footnote 25 (i) line 3	Lisa Matthewson	translation	‘A spider can kill you.’	
 footnote 25 (i) line 4	Lisa Matthewson	citation	(VG)	page 29, the tag or source at the right of the translation
 footnote 25	Lisa Matthewson	note	The other consultant declines to use any modal when translating sentences of this type. Note that in (i), we probably have an ability reading of da’aḵhlxw (‘Spiders are able to kill you’), not a quantificational reading (‘Some spiders kill you’). Quantificational modal constructions raise independent issues to do with the expression of genericity, determiners, and so on, and I set them aside for future research.	page 29, footnote 25
 §4.2	Lisa Matthewson	heading	4.2 Deontic possibility: anooḵ(xw)	page 29
-§4.2	Lisa Matthewson	note	Gitksan expresses deontic possibility (permission) by means of the verb anooḵ(xw) (cf. English allow or be allowed to).26 Anooḵ(xw) introduces a subordinate clause, whose subject is the one being granted the permission. It seems to allow both impersonal and personal subjects, as shown in (88) vs. (89- 92). Just like da’aḵhlxw, anooḵ(xw) obligatorily co-occurs with the future marker dim.	page 29
+§4.2	Lisa Matthewson	note	Gitksan expresses deontic possibility (permission) by means of the verb anooḵ(xw) (cf. English allow or be allowed to).26 Anooḵ(xw) introduces a subordinate clause, whose subject is the one being granted the permission. It seems to allow both impersonal and personal subjects, as displayed in (88) vs. (89- 92). Just like da’aḵhlxw, anooḵ(xw) obligatorily co-occurs with the future marker dim.	page 29
 footnote 26	Lisa Matthewson	note	In my data, this verb shows up as anoog̱ (with the ḵ having turned to a g̱ by predictable voicing rules) whenever it is followed by a transitivizer -i. Otherwise, it usually shows up as anooḵxw, for example when followed by the 3PL.II suffix -diit (which blocks the transitivizer), or by a connective =hl. The -xw is an argument-structure adjuster whose nature is not yet 100% clear; it may be phonologically deleted before the transitivizer (Henry Davis, p.c.). BS comments that this verb also means ‘to like’, and this is confirmed by Tarpent (1987:474), as well as by VG’s volunteered sentence in (i).	page 29, footnote 26
 footnote 26	Gitksan	cited form	anoog̱	page 29, in italics
 footnote 26	Gitksan	cited form	ḵ	page 29, in italics
@@ -716,7 +716,7 @@ footnote 26	Lisa Matthewson	note	I have not found mention of this meaning in Rig
 (96) line 3	Lisa Matthewson	translation	‘Berries can grow here.’	page 31
 (96) line 4	Lisa Matthewson	citation	(VG)	page 31, the tag or source at the right of the translation
 (96) line 5	Lisa Matthewson	speaker comment	Consultant’s comment: “Yeah, you let them grow, I guess.”	page 31, under the example, the consultant not named
-§4.2	Lisa Matthewson	note	The claim that anooḵ(xw) expresses deontic possibility also predicts that it will not be felicitous in situations where deontic necessity (obligation) is the intended meaning. This is correct, as shown in (97).	page 31
+§4.2	Lisa Matthewson	note	The claim that anooḵ(xw) expresses deontic possibility also predicts that it will not be felicitous in situations where deontic necessity (obligation) is the intended meaning. This is correct, as displayed in (97).	page 31
 (97) line 1	Lisa Matthewson	note	Context: “Can you go out tonight?” “No, I have to work.”	page 31, over the example
 (97) line 2	Gitksan	segmentation	# anooḵxw=diit dim hahla’alsd-’y yuxsa tun	page 31
 (97) line 3	Gitksan	gloss	DEON.POSS=3PL.II FUT work-1SG.II evening DEM	page 31
@@ -724,7 +724,7 @@ footnote 26	Lisa Matthewson	note	I have not found mention of this meaning in Rig
 (97) line 5	Lisa Matthewson	citation	(VG)	page 31, the tag or source at the right of the translation
 §4.2	Lisa Matthewson	note	Turning to temporal interpretation, we see that just like ima(’a) and da’aḵhlxw, anooḵ(xw) allows both a present temporal perspective (where the permission is granted at the utterance time) and a past temporal perspective (where the permission was granted in the past). This can be seen in the data in (88-95), which involve both past and present temporal perspectives.	page 31
 §4.2	Lisa Matthewson	note	With respect to temporal orientation, we have seen that just like da’aḵhlxw, anook(xw) always co-occurs with dim. This correlates with the future-orientation of permission statements: if I allow you to do something, it means that you are able to do it after the time at which I give you the permission.	page 31
-§4.2	Lisa Matthewson	note	If a future temporal perspective is desired for anooḵ(xw) (i.e., if the speaker wants to talk about permission which will be granted after the utterance time), then just as with da’aḵhlxw, we predict the appearance of a second, higher dim preceding anooḵ(xw). This is correct, as shown in (98).	page 31
+§4.2	Lisa Matthewson	note	If a future temporal perspective is desired for anooḵ(xw) (i.e., if the speaker wants to talk about permission which will be granted after the utterance time), then just as with da’aḵhlxw, we predict the appearance of a second, higher dim preceding anooḵ(xw). This is correct, as displayed in (98).	page 31
 (98) line 1	Lisa Matthewson	note	Context: Savanna is currently in prison, but tomorrow the governor of the prison is going to change her mind about Savannaʼs parole.	page 31, over the example
 (98) line 2	Gitksan	segmentation	dim anooḵxw-diit dim haʼwi-s Savanna tʼaahlaḵxw	page 31
 (98) line 3	Gitksan	gloss	FUT DEON.POSS-3PL.II FUT go.home-PN Savanna tomorrow	page 31
@@ -733,7 +733,7 @@ footnote 26	Lisa Matthewson	note	I have not found mention of this meaning in Rig
 §4.2	Lisa Matthewson	note	Summarizing this section, we have seen that in addition to the general circumstantial possibility modal da’aḵhlxw, there is a specialized deontic possibility modal anooḵ(xw). The temporal properties of anooḵ(xw) match those for the other modals examined so far, namely that either a past or a present temporal perspective is possible. Like da’aḵhlxw but unlike the epistemic modals ima(’a) or g̱at, anooḵ(xw) obligatorily requires a future orientation and therefore obligatorily requires dim. Future temporal perspective is achieved via an additional dim preceding the modal.	page 32
 §4.3	Lisa Matthewson	heading	4.3 Circumstantial (weak) necessity: sgi	page 32
 §4.3	Lisa Matthewson	note	Circumstantial necessity and weak necessity interpretations are rendered in Gitksan by the modal sgi, which obligatorily co-occurs with the future marker dim. Syntactically, sgi is a ʻdependent markerʼ. It does not take its own pronominal endings, but the rest of the clause following it is in the dependent clause type (see Rigsby 1986:251ff,. Tarpent 1987:224ff, and Hunt 1993: ch. 4 for discussion of clause types).	page 32
-§4.3	Lisa Matthewson	note	One of the most common uses of sgi is to express deontic necessity (obligation), as in (99-102). As predicted, either a past or a present temporal perspective is allowed; the obligation can either hold at the utterance time, or have held in the past.	page 32
+§4.3	Lisa Matthewson	note	One of the usual uses of sgi is to express deontic necessity (obligation), as in (99-102). As predicted, either a past or a present temporal perspective is allowed; the obligation can either hold at the utterance time, or have held in the past.	page 32
 (99) line 1	Gitksan	segmentation	sgi *(dim) ap haʼw-s Lisa	page 32
 (99) line 2	Gitksan	gloss	CIRC.NECESS *(FUT) EMPH go.home-PN Lisa	page 32
 (99) line 3	Lisa Matthewson	translation	ʻLisa should go home.ʼ / ʻLisa should have gone home.ʼ	page 32
@@ -772,7 +772,7 @@ footnote 27	Lisa Matthewson	note	VG gives a similar sentence, but prefers siipxw
 (106) line 3	Gitksan	gloss	CIRC.NECESS FUT already-3SG.II INDEF arrive-3SG.II then	page 33
 (106) line 4	Lisa Matthewson	translation	ʻShe should have got home long ago.ʼ	page 33
 (106) line 5	Lisa Matthewson	citation	(BS)	page 33, the tag or source at the right of the translation
-§4.3	Lisa Matthewson	note	Sgi also allows teleological (weak) necessity interpretations, as shown in (107-108) (adapted from von Fintel and Iatridou 2008), as well as bouletic interpretations, as in (109-110).	page 33
+§4.3	Lisa Matthewson	note	Sgi also allows teleological (weak) necessity interpretations, as displayed in (107-108) (adapted from von Fintel and Iatridou 2008), as well as bouletic interpretations, as in (109-110).	page 33
 (107) line 1	Lisa Matthewson	note	Context: There is only one way to get to Whistler: Highway 99.	page 34, over the example
 (107) line 2	Lisa Matthewson	note	NECESSITY	page 34, the label
 (107) line 3	Gitksan	segmentation	ji daa hasaḵ-t dim yee-t goo=hl Whistler ii	page 34
@@ -804,7 +804,7 @@ footnote 28	Lisa Matthewson	note	Tarpent (1987:59) also notes a Nisgha verb sgi 
 (111) line 3	Lisa Matthewson	translation	‘Don’t wash the dishes.’	page 34
 (111) line 4	Lisa Matthewson	citation	(BS, VG)	page 34, the tag or source at the right of the translation
 §4.3	Lisa Matthewson	note	With respect to whether the sgi which I am analyzing as a circumstantial necessity modal is the same element as the locational verb sgi, there are several ways to tell them apart, and it is clear that (at least synchronically) this is a case of homophony. See Appendix C for the argumentation.	page 34
-§4.3	Lisa Matthewson	note	Returning to the interpretations available for the modal sgi, my claim that it is a circumstantial (weak) necessity modal predicts that it cannot be used for possibility meanings, such as permission or ability. This is correct, as shown in (112) and (113) respectively. In (112), the consultant accepts the sentence in the given context, but makes it clear that the permission interpretation is not what is meant.	page 34
+§4.3	Lisa Matthewson	note	Returning to the interpretations available for the modal sgi, my claim that it is a circumstantial (weak) necessity modal predicts that it cannot be used for possibility meanings, such as permission or ability. This is correct, as displayed in (112) and (113) respectively. In (112), the consultant accepts the sentence in the given context, but makes it clear that the permission interpretation is not what is meant.	page 34
 (112) line 1	Lisa Matthewson	note	Context: Savanna is in prison and she gets her parole.	page 35, over the example
 (112) line 2	Gitksan	segmentation	sgi dim ha’w-s Savanna gyu’un	page 35
 (112) line 3	Gitksan	gloss	CIRC.NECESS FUT go.home-PN Savanna now	page 35
@@ -818,7 +818,7 @@ footnote 28	Lisa Matthewson	note	Tarpent (1987:59) also notes a Nisgha verb sgi 
 (113) line 5	Lisa Matthewson	citation	(BS)	page 35, the tag or source at the right of the translation
 (113) line 6	Lisa Matthewson	note	Elicitor: “Can this mean that he is able to cook now?”	page 35, the interviewer's question
 (113) line 7	Lisa Matthewson	speaker comment	Consultant: “He should cook now. Especially if it’s salmon!”	page 35, the consultant's answer, the consultant not named
-§4.3	Lisa Matthewson	note	There is one circumstantial necessity interpretation which sgi does not seem to instantiate, and that is pure circumstantial strong necessity: the sneeze case (see (5) above). In Gitksan, such sentences are expressed using a plain future, as shown in (114a), or by using ’nim ‘want’, as in (114b).	page 35
+§4.3	Lisa Matthewson	note	There is one circumstantial necessity interpretation which sgi does not seem to instantiate, and that is pure circumstantial strong necessity: the sneeze case (see (5) above). In Gitksan, such sentences are expressed using a plain future, as displayed in (114a), or by using ’nim ‘want’, as in (114b).	page 35
 (114a) line 1	Gitksan	segmentation	dim ha’jiswa-’y29	page 35
 footnote 29	Lisa Matthewson	note	One consultant prefers dim ha j’ iswa ’nii’y here, using the independent order series III pronoun. There is a certain amount of flexibility in when dependent and independent order pronouns may be used; see Rigsby (1986), Tarpent (1987) and Hunt (1993) for discussion.	page 35, footnote 29
 (114a) line 2	Gitksan	gloss	FUT sneeze-1SG.II	page 35
@@ -828,13 +828,13 @@ footnote 29	Lisa Matthewson	note	One consultant prefers dim ha j’ iswa ’nii�
 (114b) line 2	Gitksan	gloss	want sneeze 1SG.III	page 35
 (114b) line 3	Lisa Matthewson	translation	‘I have to sneeze.’	page 35
 (114b) line 4	Lisa Matthewson	citation	(BS)	page 35, the tag or source at the right of the translation
-§4.3	Lisa Matthewson	note	The speakers do not like sgi in this context, as shown in (115).	page 35
+§4.3	Lisa Matthewson	note	The speakers do not like sgi in this context, as displayed in (115).	page 35
 (115) line 1	Gitksan	segmentation	sgi dim ha’jiswa-’y	page 35
 (115) line 2	Gitksan	gloss	CIRC.NECESS FUT sneeze-1SG.II	page 35
 (115) line 3	Lisa Matthewson	translation	‘I should sneeze.’	page 35
 (115) line 4	Lisa Matthewson	citation	(BS)	page 35, the tag or source at the right of the translation
 (115) line 5	Lisa Matthewson	speaker comment	Consultant’s comment: “Sgidim says I should sneeze. You wouldn’t say it if you just mean you have to sneeze because you have something in your nose.”	page 36, under the example, the consultant not named
-§4.3	Lisa Matthewson	note	The same effect, namely a circumstantial necessity modal not being felicitous in the sneeze case, is also observed for St’át’imcets by Davis et al. (2009). They point out that even in English, the use of must here is marginal (although for some reason have to is fine), and postulate that the infelicity of necessity circumstantial modals in these cases results from an interference from the plain future (see their paper for details). Their analysis correctly predicts that in St’át’imcets, if we place a sneeze case into the past, or the habitual aspect, the circumstantial necessity modal becomes felicitous. However, in Gitksan even these measures do not suffice to license sgi, as shown in (116-118). In each case, the consultants volunteer sentences without sgi. When asked about a version with sgi in, as in (116b) or (118b), they indicate that the sentence does not have the intended meaning.	page 36
+§4.3	Lisa Matthewson	note	The same effect, namely a circumstantial necessity modal not being felicitous in the sneeze case, is also observed for St’át’imcets by Davis et al. (2009). They point out that even in English, the use of must here is marginal (although for some reason have to is fine), and postulate that the infelicity of necessity circumstantial modals in these cases results from an interference from the plain future (see their paper for details). Their analysis correctly predicts that in St’át’imcets, if we place a sneeze case into the past, or the habitual aspect, the circumstantial necessity modal becomes felicitous. However, in Gitksan even these measures do not suffice to license sgi, as displayed in (116-118). In each case, the consultants volunteer sentences without sgi. When asked about a version with sgi in, as in (116b) or (118b), they indicate that the sentence does not have the intended meaning.	page 36
 (116a) line 1	Gitksan	segmentation	’yim-i-s Gertie=hl pepper ts’im ts’aḵ-t ii	page 36
 (116a) line 2	Gitksan	gloss	sniff-TRA-PN Gertie=CN pepper inside nose-3SG.II and	page 36
 (116a) line 3	Gitksan	segmentation	’nim/dim ha’jiswa-t	page 36
@@ -894,7 +894,7 @@ footnote 31 (i) line 4	Lisa Matthewson	citation	(BS)	page 37, the tag or source 
 (122) line 4	Lisa Matthewson	citation	(BS)	page 37, the tag or source at the right of the translation
 §4.3	Lisa Matthewson	note	With regard to the temporal properties of sgi, we have seen that like all the other modals, sgi allows both past and present temporal perspectives. Like the other circumstantial modals, sgi always co-occurs with the future marker dim, and this correlates with a future orientation. If an obligation is imposed, for example, it is an obligation to do something after the time at which the obligation is imposed.32	page 37
 footnote 32	Lisa Matthewson	note	Not all circumstantial modals have future orientations, cross-linguistically. As mentioned above, some modals display actuality entailments, and these are not future- oriented; the ability coincides temporally with the actual event (see Hacquard 2006). I return briefly to this in section 5.	page 38, footnote 32
-§4.3	Lisa Matthewson	note	As with the other circumstantial modals, we predict double dim in cases of future temporal perspective (e.g., cases where an obligation will arise in the future). The prediction is upheld, as shown in (123).	page 38
+§4.3	Lisa Matthewson	note	As with the other circumstantial modals, we predict double dim in cases of future temporal perspective (e.g., cases where an obligation will arise in the future). The prediction is upheld, as displayed in (123).	page 38
 (123) line 1	Lisa Matthewson	note	Context: Your son is going to military school. You are telling him that things are going to change; he’s going to have to get up early.	page 38, over the example
 (123) line 2	Gitksan	segmentation	dim sgi dim hlooḵx̱ ’niin hlaa dim suwilaaks-’n	page 38
 (123) line 3	Gitksan	gloss	FUT CIRC.NECESS FUT early 2SG.III INCEPT FUT learn-2SG.II	page 38
@@ -918,7 +918,7 @@ footnote 32	Lisa Matthewson	note	Not all circumstantial modals have future orien
 §5	Lisa Matthewson	note	Gitksan lexically encodes both modal strength and type of modality, possessing two purely epistemic modals (following Peterson 2010), a general circumstantial possibility modal, a deontic possibility modal, and a (weak) necessity circumstantial modal. Gitksan is thus a ‘mixed’ system: it encodes modal strength distinctions only within the circumstantial domain.	page 38
 §5	Lisa Matthewson	note	In the remainder of the paper I will outline some theoretical questions raised by the Gitksan results reported on here, as well as some further empirical issues.	page 38
 §5.1	Lisa Matthewson	heading	5.1 Plain dim: modal or not?	page 39
-§5.1	Lisa Matthewson	note	I have been assuming that the future marker dim is analogous to Abusch’s (1985) WOLL predicate, in that it co-occurs with a (null) tense marker rather than itself being a tense. This makes correct temporal predictions, including for example that future-in-the-past readings will be possible for dim; see Jóhannsdóttir and Matthewson (2007), Matthewson (2011). However, the question arises as to whether dim expresses modality as well as temporal ordering (like, for example, most people’s analysis of English will/would). In Matthewson (2011, in prep.) I propose that dim is non-modal, but Peterson (2011) argues that dim is modal. Initial evidence in support of Peterson’s proposal comes from deontic uses of dim, as shown in (125-128).33	page 39
+§5.1	Lisa Matthewson	note	I have been assuming that the future marker dim is analogous to Abusch’s (1985) WOLL predicate, in that it co-occurs with a (null) tense marker rather than itself being a tense. This makes correct temporal predictions, including for example that future-in-the-past readings will be possible for dim; see Jóhannsdóttir and Matthewson (2007), Matthewson (2011). However, the question arises as to whether dim expresses modality as well as temporal ordering (like, for example, max people’s analysis of English will/would). In Matthewson (2011, in prep.) I propose that dim is non-modal, but Peterson (2011) argues that dim is modal. Initial evidence in support of Peterson’s proposal comes from deontic uses of dim, as displayed in (125-128).33	page 39
 footnote 33	Lisa Matthewson	note	Rigsby (1986) and Tarpent (1987) also give many examples of dim-sentences translated into English as imperatives.	page 39, footnote 33
 (125) line 1	Gitksan	segmentation	dim ha’w ’niin ji gyu’un	page 39
 (125) line 2	Gitksan	gloss	FUT leave 2SG.III IRR now	page 39
@@ -941,7 +941,7 @@ footnote 33	Lisa Matthewson	note	Rigsby (1986) and Tarpent (1987) also give many
 (128) line 5	Lisa Matthewson	citation	(Peterson 2011)	page 39, the tag or source at the right of the translation
 §5.1	Lisa Matthewson	note	A non-modal analysis of dim would have to claim either that there is a null modal element in (124-128), or that these sentences really only make predictions, rather than true deontic claims. Further research is required.	page 39
 §5.2	Lisa Matthewson	heading	5.2 The (absence of) inherent future orientation for modals	page 39
-§5.2	Lisa Matthewson	note	Recall that Gitksan epistemic modals cannot be future-oriented without the presence of dim; this holds even for stative predicates, as shown in (50) above, repeated here.	page 39
+§5.2	Lisa Matthewson	note	Recall that Gitksan epistemic modals cannot be future-oriented without the presence of dim; this holds even for stative predicates, as displayed in (50) above, repeated here.	page 39
 (129) line 1	Gitksan	segmentation	yugw=imaa=hl siipxw-t	page 40
 (129) line 2	Gitksan	gloss	IMPF=EPIS=CN sick-3SG.II	page 40
 (129) line 3	Lisa Matthewson	translation	‘He might be sick (now) / He might have been sick.’	page 40
@@ -960,7 +960,7 @@ footnote 33	Lisa Matthewson	note	Rigsby (1986) and Tarpent (1987) also give many
 (131) line 2	Gitksan	gloss	DEON.POSS-3PL.II IRR go.out-PN Savanna	page 41
 (131) line 3	Lisa Matthewson	translation	‘Savanna is allowed to go out.’	page 41
 (131) line 4	Lisa Matthewson	citation	(BS)	page 41, the tag or source at the right of the translation
-§5.3	Lisa Matthewson	note	The ji constructions are definitely not the preferred way to express circumstantial modality, and ji is not always substitutable for dim under modals, as shown in (132-133).	page 41
+§5.3	Lisa Matthewson	note	The ji constructions are definitely not the preferred way to express circumstantial modality, and ji is not always substitutable for dim under modals, as displayed in (132-133).	page 41
 (132) line 1	Gitksan	segmentation	* anooḵxw ji ha’w-s Savanna k’yoots	page 41
 (132) line 2	Gitksan	gloss	DEON.POSS IRR go.home-PN Savanna yesterday	page 41
 (132) line 3	Lisa Matthewson	translation	‘Savanna was allowed to go home yesterday.’	page 41
@@ -975,13 +975,13 @@ footnote 33	Lisa Matthewson	note	Rigsby (1986) and Tarpent (1987) also give many
 (134) line 3	Lisa Matthewson	translation	‘It might be going to rain.’	page 41
 (134) line 4	Lisa Matthewson	citation	(BS)	page 41, the tag or source at the right of the translation
 §5.3	Lisa Matthewson	note	My proposal that dim normally provides the future-orientation of circumstantial or epistemic modals, and that this future orientation is not intrinsic to the modal itself, may require me to assume that ji also contains future semantics. This is not completely implausible, but more work is required.34 (See Tarpent 1987:466-471 for discussion of ji.)	page 41
-footnote 34	Lisa Matthewson	note	Ji cannot function on its own as a future marker, as shown by the contrast in (i).	page 41, footnote 34
+footnote 34	Lisa Matthewson	note	Ji cannot function on its own as a future marker, as displayed by the contrast in (i).	page 41, footnote 34
 footnote 34 (i) line 1	Gitksan	segmentation	dim/*ji yookxw-t James t’aahlakxw	page 41
 footnote 34 (i) line 2	Gitksan	gloss	FUT/*IRR eat-3SG.II James tomorrow	page 41
 footnote 34 (i) line 3	Lisa Matthewson	translation	‘James will eat tomorrow.’	page 41
 footnote 34 (i) line 4	Lisa Matthewson	citation	(BS)	page 41, the tag or source at the right of the translation
 §5.4	Lisa Matthewson	heading	5.4 Syntax	page 41
-§5.4	Lisa Matthewson	note	I have largely ignored matters of syntax in this paper. One interesting question concerns whether Gitksan modals can shed any light on the debate about whether modals display syntactic differences which correlate with interpretive differences (cf. Brennan 1993, Bhatt 1998, Wurmbrand 1999, Lechner 2005, Hacquard 2006, among others). For example, it has often been argued that epistemic modals sit higher in the tree than most circumstantial ones, and that epistemic modals take an entire proposition in their scope, while some circumstantial ones are relativized to individuals. For Gitksan, there is suggestive evidence that some version of these proposals might be on the right track. The epistemic modals are second-position clitics, hence plausibly take scope over the entire proposition, whereas da’aḵhlxw is a verb which usually takes an individual subject argument (cf. (63), (67), (69)). As noted above, however, da’aḵhlxw sometimes seems to appear in an impersonal construction, taking the entire proposition as its argument (cf. (62), (80), (81)). So far, no interpretive differences have been detected between the different structures with da’aḵhlxw; further research is required.	page 41
+§5.4	Lisa Matthewson	note	I have largely ignored matters of syntax in this paper. One interesting question concerns whether Gitksan modals can shed any light on the debate about whether modals display syntactic differences which correlate with interpretive differences (cf. Brennan 1993, Bhatt 1998, Wurmbrand 1999, Lechner 2005, Hacquard 2006, among others). For example, it has often been argued that epistemic modals sit higher in the tree than max circumstantial ones, and that epistemic modals take an entire proposition in their scope, while some circumstantial ones are relativized to individuals. For Gitksan, there is suggestive evidence that some version of these proposals might be on the right track. The epistemic modals are second-position clitics, hence plausibly take scope over the entire proposition, whereas da’aḵhlxw is a verb which usually takes an individual subject argument (cf. (63), (67), (69)). As noted above, however, da’aḵhlxw sometimes seems to appear in an impersonal construction, taking the entire proposition as its argument (cf. (62), (80), (81)). So far, no interpretive differences have been detected between the different structures with da’aḵhlxw; further research is required.	page 41
 §Appendix A	Lisa Matthewson	heading	Appendix A: Hindle and Rigsby orthography and abbreviations	page 42
 §Appendix A	Lisa Matthewson	heading	Orthography	page 42
 §Appendix A	Lisa Matthewson	note	Orth. IPA Orth. IPA Orth. IPA Orth. IPA Orth. IPA	page 42, heads the columns
@@ -1146,7 +1146,7 @@ Appendix C (1b) line 1	Gitksan	segmentation	ee’e, sgi=hl gwila-’y	page 43
 Appendix C (1b) line 2	Gitksan	gloss	yes lie=CN blanket-1SG.II	page 43
 Appendix C (1b) line 3	Lisa Matthewson	translation	‘Yes, I have a blanket.’	page 43
 Appendix C (1b) line 4	Lisa Matthewson	citation	(Rigsby 1986:298)	page 43, the tag or source at the right of the translation
-§Appendix C	Lisa Matthewson	note	The second way to tell the two sgi’s apart is that only the location/possessive one has a suppletive plural form (Rigsby 1986:76). This is shown in (2), which contains the suppletive plural, vs. (3), which shows that the modal sgi does not turn to dox̱ in the plural.	page 43
+§Appendix C	Lisa Matthewson	note	The second way to tell the two sgi’s apart is that only the location/possessive one has a suppletive plural form (Rigsby 1986:76). This is displayed in (2), which contains the suppletive plural, vs. (3), which shows that the modal sgi does not turn to dox̱ in the plural.	page 43
 §Appendix C	Gitksan	cited form	dox̱	page 43, in italics
 Appendix C (2) line 1	Gitksan	segmentation	dox̱=hl ha-’nii-wan loo-’m35	page 43
 footnote 35	Lisa Matthewson	note	VG prefers ha’niit’aa here for ‘chair’; he reserves ha’niiwan for ‘floor’ (cf. Hindle and Rigsby 1973:23).	page 43, footnote 35
@@ -1163,7 +1163,7 @@ Appendix C (3b) line 2	Gitksan	gloss	lie.PL FUT win-3PL.II and NEG=CONTR do-3PL.
 Appendix C (3b) line 3	Lisa Matthewson	translation	‘They should have won, and they didn’t.’	page 44
 Appendix C (3b) line 4	Lisa Matthewson	citation	(BS, VG)	page 44, the tag or source at the right of the translation
 §Appendix C	Lisa Matthewson	note	The third distinction between the two sgi’s is that only the modal sgi obligatorily co-occurs with dim. (1) and (2) show that location/possession sgi/dox̱ does not require the presence of dim.	page 44
-§Appendix C	Lisa Matthewson	note	As predicted by the claim that there are two homophonous sgis, they can co-occur, as shown in (4).	page 44
+§Appendix C	Lisa Matthewson	note	As predicted by the claim that there are two homophonous sgis, they can co-occur, as displayed in (4).	page 44
 Appendix C (4) line 1	Gitksan	segmentation	sgi dim sgi=hl ha’nit’aa loo-’y	page 44
 Appendix C (4) line 2	Gitksan	gloss	CIRC.NECESS FUT lie=CN INSTR-in-sit OBL-1SG.II	page 44
 Appendix C (4) line 3	Lisa Matthewson	translation	‘I should have a chair.’	page 44

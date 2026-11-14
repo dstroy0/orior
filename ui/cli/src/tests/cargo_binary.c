@@ -9,7 +9,7 @@
 #include "cargo_report.h"
 #include "cargo_tests.h"
 
-// the most bytes of one line of Cargo's words read
+// the max bytes of one line of Cargo's words read
 #define CLI_CARGO_LINE_TEXT (1ULL << 20u)
 
 static CliCargoTests s_binary_tests;
@@ -116,7 +116,7 @@ EMBED_INLINE int binary_line(const CargoBinaryCtx *args)
         (executable != NULL) &&
         EMBED_CALL(binary_is, CargoBinaryCtx, .target = &args->one->target, .json = &json,
                    .types = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
-                                       .object = target, .name = "kind"),
+                                       .object = target, .name = "type"),
                    .name = (name != NULL) ? name : "");
     if (named)
     {

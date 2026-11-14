@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 
 # Values that appear in almost any binary and carry no information about folding. Printing one of
-# these proves nothing either way. They are excluded to keep the report readable.
+# these proves nothing either way. They are excluded to retain the report readable.
 UNINTERESTING = {
     0.0,
     0.5,
@@ -89,7 +89,7 @@ def printed_numbers(path):
 
 
 def tolerance_for(text):
-    """Half a unit in the last printed place, the most a rounded value can be off by."""
+    """Half a unit in the last printed place, the max a rounded value can be off by."""
     body = text.split("e")[0].split("E")[0]
     decimals = len(body.split(".")[1]) if "." in body else 0
     return 0.5 * (10.0 ** -decimals)

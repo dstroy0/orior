@@ -34,7 +34,7 @@ sanitized_checks_begin() {
     export TSAN_OPTIONS="halt_on_error=0:log_path=sanitizer${TSAN_OPTIONS_GIVEN:+:$TSAN_OPTIONS_GIVEN}"
 }
 
-# the exit of the check `name` that just ran in `run`, 1 where the sanitizer wrote a report: the report kept as
+# the exit of the check `name` that just ran in `run`, 1 where the sanitizer wrote a report: the report retained as
 # <name>.sanitizer.<pid> and its summary lines said
 sanitized_exit() {
     local name="$1" run="$2" code="$3" report

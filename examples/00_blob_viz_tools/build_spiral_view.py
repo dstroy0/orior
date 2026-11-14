@@ -8,7 +8,7 @@ is a cluster in the data instead of an artifact of where the points were put.
 
 WHAT EACH ARM ADDS
 
-An arm is one survey under one header. Arms cost nothing to keep: the counters are 256 numbers and
+An arm is one survey under one header. Arms cost nothing to retain: the counters are 256 numbers and
 33 bins whatever the depth, and the device buffers are allocated once. Memory is flat in the arm
 count. What they buy is not flat, and it does not all scale alike:
 
@@ -18,7 +18,7 @@ count. What they buy is not flat, and it does not all scale alike:
 
 So the size of a point is its pooled deviation, which answers HOW LARGE, and the color is how many
 arms agreed on its sign, which answers WHETHER IT IS ANYTHING. Those are different questions and
-the drawing keeps them apart.
+the drawing retains them apart.
 
 Every comparison is integer: a position set c times out of N deviates by exactly 2c - N, pooling is
 addition, and reach in standard errors is (sum of deviations) squared against k squared times the

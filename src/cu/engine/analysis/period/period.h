@@ -66,8 +66,8 @@ extern "C"
 
     // The bytes of the device pool period_read and period_draw retain after they return, for `voxels` lanes and
     // `entries` agreement counts (period_agreement_entries): the histogram, the agreement and a shuffled copy of the
-    // lanes. The pool grows to the most voxels and the most entries requested so far, and a job over several extents
-    // declares it for the most of each. 0 for no voxels or more than 2^32 - 1, which the calls error.
+    // lanes. The pool grows to the max voxels and the max entries requested so far, and a job over several extents
+    // declares it for the max of each. 0 for no voxels or more than 2^32 - 1, which the calls error.
     unsigned long long period_reserve_bytes(unsigned long long voxels, unsigned long long entries);
 
     long period_read(const PeriodRequest *request);

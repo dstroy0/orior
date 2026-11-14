@@ -5,17 +5,17 @@ of Victoria, and Bailey Trotter, University of British Columbia, ICSNL 61.
 
 Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
-pure corpus, then against this paper's own English laid over that reference. What the paper's
+pure corpus, then against this paper's own English positioned over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
 from the characters that sit outside that English, and word_web.web() built 371 edges over the
-language forms. A person then matched the context: who, kind and gloss for each row, the names,
+language forms. A person then matched the context: who, type and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
 someone reads the paper again and says otherwise.
 
 WHOSE WORDS THESE ARE
 
-The language is ʔayʔaǰuθəm. Most examples are cited from Huijsmans 2023 and Watanabe 2003, and (14)
+The language is ʔayʔaǰuθəm. Max examples are cited from Huijsmans 2023 and Watanabe 2003, and (14)
 from Elsie Paul's stories, Paul in press. (18), (23) and (25) are volunteered forms tagged vf with
 EP, FL or both: Elsie Paul and the late Freddie Louie, the two speakers footnote * thanks by name.
 
@@ -24,9 +24,9 @@ its line, and the two authors where the line carries a speaker tag. The rules, t
 derivations, the prose and the notes carry the two authors. =čən is Sechelt and =(ɬ)kan
 St'át'imcets.
 
-THE LETTERS
+THE CHARACTERS
 
-Outside the paper's English the engine found these letters and marks: µ č š ƛ ǰ ə ɛ ɩ ɬ ʊ ʔ ʷ ̓ θ χ
+Outside the paper's English the engine found these characters and marks: µ č š ƛ ǰ ə ɛ ɩ ɬ ʊ ʔ ʷ ̓ θ χ
 ω ᶿ ∅. The orthography tier writes ᶿ, U+1DBF, for the raised theta of tᶿ, and ɩ, U+0269, and ʊ,
 U+028A, for lax vowels. The rules write µ, U+00B5 MICRO SIGN, for the mora, σ for the syllable and ω
 for the prosodic word, and ⇔ between a feature bundle and its exponent.
@@ -35,8 +35,8 @@ THE PAGE AND THE TEXT LAYER
 
 The forms are in NFC, and the check puts the text layer through the same repair: the space the PDF
 sets after a stacked mark is closed, except before an opening quote, then NFC, then 1 page-read
-correction. The text layer of this paper runs the words of whole lines together and keeps the column
-gaps of the examples, and the glyph positions, read with pypdfium2, keep the spaces of the prose and
+correction. The text layer of this paper runs the words of whole lines together and retains the column
+gaps of the examples, and the glyph positions, read with pypdfium2, retain the spaces of the prose and
 lose the gaps of the examples. The source here takes each line from whichever of the two holds more
 spaces. 106 lines came from the glyph positions. Page 17 prints In press. χʷaχʷaǰɩm with a space
 both extractions lose, read at 400 dpi and entered as a page-read correction.
@@ -51,7 +51,7 @@ where    the paper's locator: the title, the front matter, a section, a footnote
 who      the language for an example tier and a cited form; the work cited on an example's
          line, or the speaker for a volunteered translation, for its English; the authors for
          the prose, the tables and the notes
-kind     transcription  an example tier in the orthography
+type     transcription  an example tier in the orthography
          segmentation   an example tier broken into morphemes
          gloss          the morpheme gloss tier of an example
          translation    the English of an example

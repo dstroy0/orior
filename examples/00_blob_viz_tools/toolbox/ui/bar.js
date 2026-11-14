@@ -2,35 +2,35 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // The shared control bar: one option model for every blob viz unit, carrying the discipline the
-// toolbox's core/scheme.js holds. A unit hands the bar a schema, one entry per setting with its kind,
+// toolbox's core/scheme.js holds. A unit passes the bar a schema, one entry per setting with its type,
 // its range and its fallback, and the opening values a build wrote. The bar draws one control per
 // entry, and on every change it reports what it took and what it refused, each by name. An absent
-// value takes its fallback. A value of the wrong kind or outside its range is named in the status
+// value takes its fallback. A value of the wrong type or outside its range is named in the status
 // line and not applied, and the control that holds it stays. Nothing goes silently inert.
 //
 // A template names it with <!--TOOL ui/bar-->. The unit calls BAR.mount with a container, its schema,
-// the build's settings, and a draw callback the bar hands a view on every applied change.
+// the build's settings, and a draw callback the bar passes a view on every applied change.
 
 window.BAR = (function () {
   // Checks one value against its rule; returns the reason it errors, or null. The reasons read as a
   // control's allowed range, the same shape cfg.js reports.
   function errorValue(rule, value) {
-    if (rule.kind === "int" || rule.kind === "float") {
-      var number = rule.kind === "int"
+    if (rule.type === "int" || rule.type === "float") {
+      var number = rule.type === "int"
         ? (typeof value === "number" && Number.isInteger(value))
         : (typeof value === "number" && Number.isFinite(value));
-      if (!number) { return rule.kind === "int" ? "a whole number" : "a number"; }
+      if (!number) { return rule.type === "int" ? "a whole number" : "a number"; }
       if (rule.low !== undefined && value < rule.low) { return "at least " + rule.low; }
-      if (rule.high !== undefined && value > rule.high) { return "at most " + rule.high; }
+      if (rule.high !== undefined && value > rule.high) { return "at max " + rule.high; }
       return null;
     }
-    if (rule.kind === "switch") {
+    if (rule.type === "switch") {
       return typeof value === "boolean" ? null : "on or off";
     }
-    if (rule.kind === "word") {
+    if (rule.type === "word") {
       return rule.words.indexOf(value) >= 0 ? null : "one of " + rule.words.join(", ");
     }
-    if (rule.kind === "color") {
+    if (rule.type === "color") {
       return (typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value)) ? null : "a color as #rrggbb";
     }
     // text takes any string.
@@ -72,7 +72,7 @@ window.BAR = (function () {
     row.appendChild(caption);
 
     var field;
-    if (rule.kind === "word") {
+    if (rule.type === "word") {
       field = document.createElement("select");
       rule.words.forEach(function (word) {
         var option = document.createElement("option");
@@ -82,23 +82,23 @@ window.BAR = (function () {
       });
       field.value = view[name];
       field.addEventListener("change", function () { report(name, field.value); });
-    } else if (rule.kind === "switch") {
+    } else if (rule.type === "switch") {
       field = document.createElement("input");
       field.type = "checkbox";
       field.checked = view[name] === true;
       field.addEventListener("change", function () { report(name, field.checked); });
-    } else if (rule.kind === "color") {
+    } else if (rule.type === "color") {
       field = document.createElement("input");
       field.type = "color";
       field.value = /^#[0-9a-fA-F]{6}$/.test(view[name]) ? view[name] : "#000000";
       field.addEventListener("input", function () { report(name, field.value); });
-    } else if (rule.kind === "int" || rule.kind === "float") {
+    } else if (rule.type === "int" || rule.type === "float") {
       var bounded = rule.low !== undefined && rule.high !== undefined;
       field = document.createElement("input");
       field.type = bounded ? "range" : "number";
       if (rule.low !== undefined) { field.min = rule.low; }
       if (rule.high !== undefined) { field.max = rule.high; }
-      if (rule.kind === "int") { field.step = 1; }
+      if (rule.type === "int") { field.step = 1; }
       field.value = view[name];
       var readout = null;
       if (bounded) {
@@ -108,7 +108,7 @@ window.BAR = (function () {
       }
       field.addEventListener("input", function () {
         var text = field.value;
-        var parsed = rule.kind === "int" ? parseInt(text, 10) : parseFloat(text);
+        var parsed = rule.type === "int" ? parseInt(text, 10) : parseFloat(text);
         if (readout) { readout.textContent = field.value; }
         report(name, Number.isNaN(parsed) ? text : parsed);
       });

@@ -121,7 +121,7 @@ def main():
 
         # The contrast phrase takes two shapes. Before a noun or a participle it survives as
         # the paired form, where a null described one way becomes one described the other. Before a gerund
-        # it does not, because the verb needs a preposition to hang from. A deferral standing before
+        # it does not, because the verb needs a preposition to hang from. A deferral located before
         # a gerund takes the preposition form, and the paired form reads wrong in that position.
         if phrase == "rather than":
             after = text.split("rather than", 1)[1].strip().split(" ")

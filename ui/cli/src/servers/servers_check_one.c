@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// servers_check_one.c: one file of the tree's check: handed to its server as the disk stores it, the server queried for
+// servers_check_one.c: one file of the tree's check: passed to its server as the disk stores it, the server queried for
 // its diagnostics or, where it refuses to be queried, waited on for them and for any it gives after them, then let go
-// where the check still opens it, its clearing as it closes not passed on. A server given the tree's slices is handed
+// where the check still opens it, its clearing as it closes not passed on. A server given the tree's slices is passed
 // the file a window at a time, each window's slice cut as one walk of the file reaches it (servers_slice.c), and its
 // diagnostics on the window's own lines gathered; the file's, every window's, are passed on once it is let go. The
 // files a server has open for the check and not for the editor are tracked by their URIs; a server is written to about
@@ -28,7 +28,7 @@ typedef struct
     CliGrownLine all;
     int written;
 } CliServersCheckSliced;
-// the most files open for the check and let go by it at once; the most servers that refuse to be queried for a file's
+// the max files open for the check and let go by it at once; the max servers that refuse to be queried for a file's
 // diagnostics; and the bytes a sliced file's diagnostics are written in: the server's reader writes the gathered line
 // while the checker copies it, so its cell is one that does not move, and the window's own line grows to its data
 #define CLI_SERVERS_CHECK_OPEN_MAX (1u << 16u)
@@ -249,7 +249,7 @@ EMBED_INLINE int check_one_reject(const ServersCheckOneCtx *args)
     return refused;
 }
 
-// the file handed to its server as the disk stores it, `size` bytes of `text`: 1, or 0 where the editor has it open or
+// the file passed to its server as the disk stores it, `size` bytes of `text`: 1, or 0 where the editor has it open or
 // it could not be given
 EMBED_INLINE int check_one_free(const ServersCheckOneCtx *args)
 {
@@ -328,7 +328,7 @@ static void check_one_request(const ServersCheckOneCtx *args)
     unsigned long long items_at = 0ULL;
     unsigned long long items_length = 0ULL;
     char type[16];
-    if (!EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = answer, .size_value = size, .name = "kind",
+    if (!EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = answer, .size_value = size, .name = "type",
                     .start = &type_at, .length_pointer = &type_length) ||
         !EMBED_CALL(cli_lsp_capacity.string, CliLspCapacityCfg, .text = answer + type_at, .length = type_length,
                     .out_capacity = type, .capacity = sizeof(type)) ||

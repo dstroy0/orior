@@ -56,10 +56,10 @@ OmegaComputerFate omega_computer_rewrite(std::vector<int> &term, unsigned int st
 }
 
 // The lazy machine: a node appended to the term arena
-static int omega_computer_node(OmegaComputerMachine *machine, int kind, int left, int right)
+static int omega_computer_node(OmegaComputerMachine *machine, int type, int left, int right)
 {
     OmegaComputerNode node;
-    node.kind = kind;
+    node.type = type;
     node.left = left;
     node.right = right;
     machine->nodes.push_back(node);
@@ -180,7 +180,7 @@ static OmegaComputerFate omega_computer_whnf(OmegaComputerMachine *machine, int 
     for (;;)
     {
         const OmegaComputerNode node = machine->nodes[(size_t)term];
-        if (node.kind == OMEGA_COMPUTER_NODE_APPLY)
+        if (node.type == OMEGA_COMPUTER_NODE_APPLY)
         {
             if (omega_computer_cells_left(machine) == 0)
             {
@@ -188,14 +188,14 @@ static OmegaComputerFate omega_computer_whnf(OmegaComputerMachine *machine, int 
             }
             const OmegaComputerNode argument = machine->nodes[(size_t)node.right];
             // a variable argument shares the thunk it names. No chain of thunks forms
-            const int thunk = (argument.kind == OMEGA_COMPUTER_NODE_VARIABLE)
+            const int thunk = (argument.type == OMEGA_COMPUTER_NODE_VARIABLE)
                                   ? omega_computer_lookup(machine, environment, argument.left)
                                   : omega_computer_thunk(machine, node.right, environment);
             stack.push_back(thunk << 1);
             term = node.left;
             continue;
         }
-        if (node.kind == OMEGA_COMPUTER_NODE_LAMBDA)
+        if (node.type == OMEGA_COMPUTER_NODE_LAMBDA)
         {
             const int top = stack.back();
             if ((top & 1) == 0)

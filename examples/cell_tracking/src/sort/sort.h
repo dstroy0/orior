@@ -45,7 +45,7 @@ extern "C"
 #define SORT_GATE_BACKWARD 0x4u
 #define SORT_GATE_STILL 0x8u
 
-// the most sources, targets or gate pairs a frame pair takes: heaviest_matching's bound
+// the max sources, targets or gate pairs a frame pair takes: heaviest_matching's bound
 #define SORT_COUNT_MAX 0x3FFFFFFFu
 
 // why a frame pair errored
@@ -96,21 +96,21 @@ extern "C"
     } SortLinks;
 
     // S5 on one frame pair: the gate, the costs, the support components and their weights K - cost, the heaviest
-    // matching (the most links, then the least cost) and the chosen links' crossing verdict. Returns the chosen links,
+    // matching (the max links, then the least cost) and the chosen links' crossing verdict. Returns the chosen links,
     // or SORT_ERROR with `why` set
     long sort_link_pair(const SortPairRequest *request, SortLinks *links);
 
     void sort_links_release(SortLinks *links);
 
-    // the device bytes the gate allocates for frames of at most `maximum` points
-    unsigned long long sort_reserve_bytes(unsigned int maximum);
+    // the device bytes the gate allocates for frames of at max `max` points
+    unsigned long long sort_reserve_bytes(unsigned int max);
 
     // gives back the gate's device pool
     void sort_release(void);
 
-    // the most points a frame over the samples' .points, read by their counts; returns 1, or 0 when a .points is
+    // the max points a frame over the samples' .points, read by their counts; returns 1, or 0 when a .points is
     // missing or its head does not read
-    int sort_points_max(const char *set, char *const *samples, unsigned int count, unsigned int *maximum);
+    int sort_points_max(const char *set, char *const *samples, unsigned int count, unsigned int *max);
 
     // O7's count at one distance (a gate pair's weighted squared distance): the gate pairs there, the first-rank ones
     // among them (forward, their target among their source's nearest), and the level the pooling gives it
@@ -124,7 +124,7 @@ extern "C"
 
     // pool-adjacent-violators over `count` distances in ascending order: a block whose share of first-rank pairs, its
     // summed firsts over its summed pairs, passes the block before it joins it, until the share never rises with the
-    // distance. Each distance's level is its block's place among the distinct pooled shares, the most first, and blocks
+    // distance. Each distance's level is its block's place among the distinct pooled shares, the max first, and blocks
     // of equal shares share a level. The shares are compared exactly, as 128-bit cross products. Returns 1, or 0 with
     // no level set when the distances do not ascend, a distance has no pairs or more firsts than pairs, the pairs sum
     // past 64 bits, or the blocks' memory cannot be reserved

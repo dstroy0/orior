@@ -40,7 +40,7 @@ case "$(uname -s)" in
         ;;
 esac
 
-# every source built to a cubin, each named for its path; a cubin already newer than its source is kept
+# every source built to a cubin, each named for its path; a cubin already newer than its source is retained
 built=0
 passed=0
 CUBINS=()

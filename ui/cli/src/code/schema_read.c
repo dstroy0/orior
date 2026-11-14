@@ -7,7 +7,7 @@
 #include "../text/text.h"
 #include "schema_internal.h"
 
-// A reader of a JSON file: the read it fills, the byte it stands at, and how deep it is
+// A reader of a JSON file: the read it fills, the byte it is at, and how deep it is
 typedef struct
 {
     CliSchemaRead *read;
@@ -34,7 +34,7 @@ typedef struct
     unsigned char type;
     unsigned int *first;
 } SchemaReadCtx;
-// the byte the reader stands at, -1 past the text's end
+// the byte the reader is at, -1 past the text's end
 EMBED_INLINE int read_peek(const SchemaReadCtx *args)
 {
     return (args->reader_read->at < args->reader_read->read->size)
@@ -138,20 +138,20 @@ static void read_string(const SchemaReadCtx *args)
     while (going && (args->reader->at < size))
     {
         unsigned long long length = 0ULL;
-        const unsigned int letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = size,
+        const unsigned int character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = text, .size = size,
                                                .at = args->reader->at, .length = &length);
-        if (letter == '"')
+        if (character == '"')
         {
             args->reader->at += 1u;
             return;
         }
-        if (letter == '\n')
+        if (character == '\n')
         {
             going = 0;
             continue;
         }
         args->reader->at += length;
-        if (letter != '\\')
+        if (character != '\\')
         {
             mmgr_line_put_n(args->out, text + args->reader->at - length, length);
             continue;
@@ -161,7 +161,7 @@ static void read_string(const SchemaReadCtx *args)
             going = 0;
             continue;
         }
-        const unsigned int next = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = size,
+        const unsigned int next = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = text, .size = size,
                                              .at = args->reader->at, .length = &length);
         args->reader->at += length;
         static const char s_from[5] = {'n', 't', 'r', 'b', 'f'};
@@ -181,8 +181,8 @@ static void read_string(const SchemaReadCtx *args)
                            .size = args->reader->at + left, .end = &end);
             if ((left == 4u) && (end == args->reader->at + 4ULL) && ((value < 0xd800ULL) || (value > 0xdfffULL)))
             {
-                EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = args->out,
-                           .letter = (unsigned int)value);
+                EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = args->out,
+                           .character = (unsigned int)value);
             }
             args->reader->at += left;
         }
@@ -420,7 +420,7 @@ EMBED_INLINE unsigned int read_word(const SchemaReadCtx *args)
     const char *const text = args->reader->read->text;
     args->reader->at =
         EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = text, .at = args->reader->at,
-                   .size = args->reader->read->size, .classes = CLI_TEXT_LETTERS, .set = "");
+                   .size = args->reader->read->size, .classes = CLI_TEXT_CHARACTERS, .set = "");
     const unsigned long long size = args->reader->at - args->from;
     const int is_true =
         (size == 4u) && (memor.cmp(&(MemoriaCfg){.src = text + args->from, .other = "true", .bytes = 4u}) == 0);
@@ -536,13 +536,13 @@ static unsigned int read_value(const SchemaReadCtx *args)
     }
     const unsigned long long end = EMBED_CALL(read_stop, SchemaReadCtx, .reader_read = args->reader, .stops = ",}]\n");
     EMBED_CALL(read_error, SchemaReadCtx, .reader = args->reader, .from = from, .to = end,
-               .before = "A value stands here: a string, a number, an object, an array, `true`, `false` or `null`",
+               .before = "A value is here: a string, a number, an object, an array, `true`, `false` or `null`",
                .middle = "", .size = 0u, .after = "");
     args->reader->at = end;
     return CLI_SCHEMA_NONE;
 }
 
-// the most bytes of the error messages a read writes
+// the max bytes of the error messages a read writes
 #define CLI_SCHEMA_READ_MORE (64ULL << 10u)
 
 void cli_schema_read(const CliSchemaReadTextCtx *args)
@@ -557,7 +557,7 @@ void cli_schema_read(const CliSchemaReadTextCtx *args)
     args->read_out->members_max = 0u;
     args->read_out->pool_max = 0u;
     // a value takes two bytes of the text at the least with its comma, a member five, a text no more than its own bytes
-    // and its end; the values a check makes stand past those the read makes, one for each value and member
+    // and its end; the values a check makes are past those the read makes, one for each value and member
     const unsigned long long values = (size / 2ULL) + 2ULL;
     const unsigned long long keyed = (size / 5ULL) + 2ULL;
     const unsigned long long nodes = values + keyed + CLI_SCHEMA_CHECK_NODES;
@@ -598,7 +598,7 @@ void cli_schema_read(const CliSchemaReadTextCtx *args)
     {
         EMBED_CALL(read_error, SchemaReadCtx, .reader = &reader, .from = reader.at,
                    .to = (reader.at + 1u < size) ? reader.at + 1u : size,
-                   .before = "The file contains one value, and more stands after it", .middle = "", .size = 0u,
+                   .before = "The file contains one value, and more is after it", .middle = "", .size = 0u,
                    .after = "");
     }
 }

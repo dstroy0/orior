@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 line 1	-	krs	krs 1	its first line is krs 1
 head	-	ruleset	ruleset <name>	the target this file describes
 head	-	toolchain	toolchain <name>	what turns the text into a program the target loads

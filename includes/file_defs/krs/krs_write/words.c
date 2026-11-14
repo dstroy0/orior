@@ -22,17 +22,17 @@ unsigned int krs_parameters_named(const char *path, const char *name, char param
     unsigned int count = 0u;
     while ((count == 0u) && (line_read(file_bytes, file_size, &file_at, line, sizeof(line))))
     {
-        char kind[KRS_NAME];
+        char type[KRS_NAME];
         char named[KRS_NAME];
         const char *rest = line;
-        if (!line_word(&rest, kind, sizeof(kind)) || !line_word(&rest, named, sizeof(named)))
+        if (!line_word(&rest, type, sizeof(type)) || !line_word(&rest, named, sizeof(named)))
         {
             continue;
         }
         int naming = 0;
         for (unsigned int each = 0u; each < (sizeof(s_naming) / sizeof(s_naming[0])); each += 1u)
         {
-            naming = naming || (strcmp(kind, s_naming[each]) == 0);
+            naming = naming || (strcmp(type, s_naming[each]) == 0);
         }
         if (!naming || (strcmp(named, name) != 0))
         {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // themes.c: the reader's color themes read from the state store's entry and written back to it, found, added, renamed
 // and taken out, their colors and icons set, an icon matched to a file's name, and one theme shared as text. The
-// themes stand as records in one movable cell their holder owns, each read into a record of the call that reads it
+// themes are as records in one movable cell their holder owns, each read into a record of the call that reads it
 #include "themes.h"
 
 #include "../../../includes/window/palette.h"
@@ -642,12 +642,12 @@ void gui_theme_icon_remove(const GuiThemesAtIconCfg *args)
 }
 
 // a byte in lower case where it is an ASCII capital
-EMBED_INLINE char theme_lower(char letter)
+EMBED_INLINE char theme_lower(char character)
 {
-    return ((letter >= 'A') && (letter <= 'Z')) ? (char)(letter + ('a' - 'A')) : letter;
+    return ((character >= 'A') && (character <= 'Z')) ? (char)(character + ('a' - 'A')) : character;
 }
 
-// whether `pattern` covers `name`, `length` bytes: `*` stands for any letters and `?` for one byte, the rest compared
+// whether `pattern` covers `name`, `length` bytes: `*` is for any characters and `?` for one byte, the rest compared
 // without case. A `*` that fails later is tried again one byte further on
 EMBED_INLINE int theme_pattern_covers(const ThemesCtx *args)
 {

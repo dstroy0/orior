@@ -3,7 +3,7 @@
 // record_boundary_test_floors.cu: floor registers, floors and the top
 #include "record_boundary_test_internal.h"
 
-// the registers standing at floor k of T then T^-1: at a forward floor l the level-l lows and the highs of levels 1
+// the registers located at floor k of T then T^-1: at a forward floor l the level-l lows and the highs of levels 1
 // to l, at the mirror floor 2L - l the rebuilt lows and the same highs
 static unsigned int boundary_floor_registers(const BoundaryTower *tower, const BoundaryTower *back, unsigned int floor,
                                              unsigned int *registers)
@@ -193,28 +193,28 @@ void boundary_floors(BoundaryResults *results)
     const char *const names[BOUNDARY_TEST_CLASSES] = {"ramp", "ramp +-8", "ramp +-1024", "noise"};
     unsigned long long pinch_top[BOUNDARY_TEST_CLASSES];
     unsigned long long pinch_bottom[BOUNDARY_TEST_CLASSES];
-    for (unsigned int kind = 0u; kind < BOUNDARY_TEST_CLASSES; kind += 1u)
+    for (unsigned int type = 0u; type < BOUNDARY_TEST_CLASSES; type += 1u)
     {
         mmgr_line_put(&results->line, "    heap by floor, ");
-        mmgr_line_put(&results->line, names[kind]);
+        mmgr_line_put(&results->line, names[type]);
         mmgr_line_put(&results->line, ":");
         for (unsigned int floor = 0u; floor < BOUNDARY_TEST_FLOORS; floor += 1u)
         {
             mmgr_line_ch(&results->line, ' ');
-            mmgr_line_decimal(&results->line, heap[kind][floor] / BOUNDARY_TEST_CLASS_LANES, 1u);
+            mmgr_line_decimal(&results->line, heap[type][floor] / BOUNDARY_TEST_CLASS_LANES, 1u);
         }
-        pinch_top[kind] = heap[kind][0];
-        pinch_bottom[kind] = heap[kind][BOUNDARY_TEST_LEVELS];
+        pinch_top[type] = heap[type][0];
+        pinch_bottom[type] = heap[type][BOUNDARY_TEST_LEVELS];
         mmgr_line_put(&results->line, "; pinch ");
-        boundary_hundredths(&results->line, pinch_top[kind], pinch_bottom[kind]);
+        boundary_hundredths(&results->line, pinch_top[type], pinch_bottom[type]);
         mmgr_line_ch(&results->line, '\n');
     }
     int ordered = 1;
-    for (unsigned int kind = 1u; kind < BOUNDARY_TEST_CLASSES; kind += 1u)
+    for (unsigned int type = 1u; type < BOUNDARY_TEST_CLASSES; type += 1u)
     {
-        // pinch[kind - 1] > pinch[kind], cross-multiplied; every sum is below 2^40
+        // pinch[type - 1] > pinch[type], cross-multiplied; every sum is below 2^40
         ordered =
-            ordered && ((pinch_top[kind - 1u] * pinch_bottom[kind]) > (pinch_top[kind] * pinch_bottom[kind - 1u]));
+            ordered && ((pinch_top[type - 1u] * pinch_bottom[type]) > (pinch_top[type] * pinch_bottom[type - 1u]));
     }
     boundary_check(results, ran != 0, "the floors run on the host and the device, word for word");
     boundary_check(results, narrow != 0, "every floor's register fits a 64-bit word");
@@ -238,7 +238,7 @@ void boundary_floors(BoundaryResults *results)
 
 // the top projection x -> x / 2^k toward zero, the machine's own quotient by a power of two, against the 2-adic
 // projection's wrap: nested quotients by 2^k and by c commute, a comparison through it is never reversed, and a sum
-// through it is off by at most one. The comparison through an 8-bit wrap is counted where it reverses.
+// through it is off by at max one. The comparison through an 8-bit wrap is counted where it reverses.
 void boundary_top(BoundaryResults *results)
 {
     const unsigned int shifts[BOUNDARY_TEST_TOP_SETTINGS] = {3u, 7u, 5u};
@@ -342,6 +342,6 @@ void boundary_top(BoundaryResults *results)
                    "the quotient by c passes through the top projection: (x / 2^k) / c = (x / c) / 2^k");
     boundary_check(results, retained == total, "the top projection never reverses a comparison, it only ties");
     boundary_check(results, (near == total) && (carried != 0ull),
-                   "a sum through the top projection is off by the carry from below, at most one");
+                   "a sum through the top projection is off by the carry from below, at max one");
     boundary_check(results, reversed != 0ull, "the 8-bit wrap reverses comparisons the top projection preserves");
 }

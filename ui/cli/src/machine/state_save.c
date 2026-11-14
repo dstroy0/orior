@@ -81,13 +81,13 @@ EMBED_INLINE int cli_atomic_write(const StateSaveCtx *args)
     return 1;
 }
 
-// an object written to `path` with its keys in order, as serde_json's pretty writer lays it out, a newline after
+// an object written to `path` with its keys in order, as serde_json's pretty writer positions it out, a newline after
 EMBED_INLINE int cli_map_write(const StateSaveCtx *args)
 {
     CliJson *json = args->json;
     unsigned int object = args->object;
     EMBED_CALL(cli_json_tree_object_name.json_sort, CliJsonTreeObjectNameCfg, .json = json, .object = object);
-    // a file past the most read is one that never reads back
+    // a file past the max read is one that never reads back
     const unsigned long long capacity = CLI_STATE_BYTES + 1ULL;
     char *const written = g_cli_guard->temporary_buf_alloc(capacity, g_cli_state_owner);
     VerbaLinea out = mmgr_line_over(written, capacity);
@@ -153,7 +153,7 @@ EMBED_INLINE unsigned int cli_write(const StateSaveCtx *args)
                       .text = text, .length = length);
 }
 
-// a theme's file name: its name with each letter a file name cannot contain, or should not, made `_`, `.` and spaces
+// a theme's file name: its name with each character a file name cannot contain, or should not, made `_`, `.` and spaces
 // trimmed from its ends, `theme` where nothing is left, then `.json`, into `out`, sized for CLI_NAME_MAX_LEN
 EMBED_INLINE void cli_theme_file(const StateSaveCtx *args)
 {
@@ -161,7 +161,7 @@ EMBED_INLINE void cli_theme_file(const StateSaveCtx *args)
     char safe[CLI_NAME_MAX_LEN];
     VerbaLinea line = {safe, sizeof(safe), 0ULL};
     EMBED_CALL(cli_text_classes.append_save, CliTextClassesCfg, .out = &line, .text = args->name,
-               .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS | CLI_TEXT_END_ASCII, .set = " -_.", .other = '_');
+               .classes = CLI_TEXT_CHARACTERS | CLI_TEXT_DIGITS | CLI_TEXT_END_ASCII, .set = " -_.", .other = '_');
     const unsigned long long length = mmgr_line_finish(&line);
     const char *from = safe;
     const char *to = safe + length;
@@ -222,7 +222,7 @@ EMBED_INLINE int cli_themes_save(const StateSaveCtx *args)
         (count != 0u)
             ? g_cli_guard->temporary_buf_alloc((unsigned long long)count * CLI_NAME_MAX_LEN, g_cli_state_owner)
             : NULL;
-    // the one cell each theme is written in, of the most a stored file reads back
+    // the one cell each theme is written in, of the max a stored file reads back
     const unsigned long long capacity = CLI_STATE_BYTES + 1ULL;
     char *const written = (count != 0u) ? g_cli_guard->temporary_buf_alloc(capacity, g_cli_state_owner) : NULL;
     unsigned int names = 0u;
@@ -428,7 +428,7 @@ int cli_state_save(const CliStateFolderCfg *args)
         return 0;
     }
     // what the changes put in the settings or the state: each a key and an entry's text, read as JSON or as a string:
-    // a node for each 2 bytes of it at the most, and its bytes
+    // a node for each 2 bytes of it at max, and its bytes
     const unsigned int nodes_more = supplied.nodes + (unsigned int)(args->length / 2ULL) + 2u;
     const unsigned long long text_more = args->length + 2ULL;
     CliJson settings;

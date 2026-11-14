@@ -177,7 +177,7 @@ void test_lanes_closed(TestResults *results)
         unsigned char after[OBSIGNATIO_SIGNUM_BYTES];
         const int read = cudaMemcpy(after, device_nodes, sizeof(after), cudaMemcpyDeviceToHost) == cudaSuccess;
         test_count(results, ready && (status == OBSIGNATIO_ERROR) && read &&
-                                (memcmp(after, before, sizeof(after)) == 0) && (error.kind == ENGINE_ERROR_REQUEST) &&
+                                (memcmp(after, before, sizeof(after)) == 0) && (error.type == ENGINE_ERROR_REQUEST) &&
                                 (error.module == ENGINE_MODULE_OBSIGNATIO));
     }
     const ObsignatioLanesRequest unfinished = {device_lanes, extent, device_nodes, NULL};
@@ -437,7 +437,7 @@ void test_bits_closed(const TestVectors *vectors, TestResults *results)
         const long status = obsignatio_bits(&cases[index]);
         const int read = ready && (cudaMemcpy(after, device.signa, signa_bytes, cudaMemcpyDeviceToHost) == cudaSuccess);
         test_count(results, read && (status == OBSIGNATIO_ERROR) && (memcmp(after, before, signa_bytes) == 0) &&
-                                (error.kind == ENGINE_ERROR_REQUEST) && (error.module == ENGINE_MODULE_OBSIGNATIO));
+                                (error.type == ENGINE_ERROR_REQUEST) && (error.module == ENGINE_MODULE_OBSIGNATIO));
     }
     const ObsignatioBitsRequest unfinished = {device.limbs, device.offsets,       stream.messages, stream.bits,
                                               NULL,         OBSIGNATIO_MODE_HASH, device.signa,    NULL};
@@ -445,7 +445,7 @@ void test_bits_closed(const TestVectors *vectors, TestResults *results)
     test_count(results, obsignatio_bits(NULL) == OBSIGNATIO_ERROR);
     memset(&error, 0, sizeof(error));
     const ObsignatioBitsRequest nothing = {NULL, NULL, 0ull, 0ull, NULL, OBSIGNATIO_MODE_HASH, NULL, &error};
-    test_count(results, (obsignatio_bits(&nothing) == 0L) && (error.kind == ENGINE_ERROR_NONE));
+    test_count(results, (obsignatio_bits(&nothing) == 0L) && (error.type == ENGINE_ERROR_NONE));
     cudaFree(device_backward);
     free(backward);
     free(after);

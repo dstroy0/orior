@@ -2,9 +2,9 @@
 
 usage: python table_cells.py <stem> <page> [first words of a line]
 
-A table's text layer runs its cells together with spaces that do not keep the columns: the
+A table's text layer runs its cells together with spaces that do not retain the columns: the
 violation marks of an OT tableau come out as *! * with nothing to say which constraint each falls
-under. The glyph boxes do keep them. word_lines() gives each printed line of a page as a list of
+under. The glyph boxes do retain them. word_lines() gives each printed line of a page as a list of
 (left, right, word), and column_of() puts a word under the column head whose middle is nearest.
 With first words, only the lines from the one opening on them to the next blank gap are printed.
 """
@@ -17,7 +17,7 @@ import pypdfium2.raw as pdfium_c
 from workdir import CORPUS  # noqa: E402
 
 # Two glyphs on one line are two words where the gap between their boxes is wider than this share
-# of the font size. The cells of a tableau stand an em and more apart.
+# of the font size. The cells of a tableau are an em and more apart.
 WORD_GAP = 0.3
 
 
@@ -33,8 +33,8 @@ def word_lines(stem, page):
         box = textpage.get_charbox(index)
         size = pdfium_c.FPDFText_GetFontSize(textpage.raw, index) or 10
         glyphs.append((box, size, symbol))
-    # A line is the glyphs whose baselines stand within a third of the font size of each other. A
-    # combining mark joins the line of the letter before it wherever its own box sits.
+    # A line is the glyphs whose baselines are within a third of the font size of each other. A
+    # combining mark joins the line of the character before it wherever its own box sits.
     lines = []
     for box, size, symbol in glyphs:
         combining = 0x0300 <= ord(symbol) <= 0x036F
@@ -49,8 +49,8 @@ def word_lines(stem, page):
             lines.append((box[1], [(box, size, symbol, False)]))
     out = []
     for baseline, members in sorted(lines, key=lambda one: -one[0]):
-        # The stream order keeps a mark after its letter, and the letters sort by x and each mark
-        # goes after the letter it followed in the stream.
+        # The stream order retains a mark after its character, and the characters sort by x and each mark
+        # goes after the character it followed in the stream.
         ordered = []
         for box, size, symbol, combining in members:
             if combining and ordered:
@@ -70,7 +70,7 @@ def word_lines(stem, page):
 
 
 def column_of(word, heads):
-    """The index of the head, a (left, right, text), whose middle stands nearest the word's."""
+    """The index of the head, a (left, right, text), whose middle is nearest the word's."""
     middle = (word[0] + word[1]) / 2
     return min(range(len(heads)), key=lambda at: abs((heads[at][0] + heads[at][1]) / 2 - middle))
 

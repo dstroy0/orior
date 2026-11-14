@@ -100,8 +100,8 @@ def states_of(block, start=None):
         choose = (e & f) ^ (~e & g)
         t1 = (h + s1 + choose + ROUND_CONSTANT[at] + words[at]) & MASK
         s0 = turn_right(a, 2) ^ turn_right(a, 13) ^ turn_right(a, 22)
-        most = (a & b) ^ (a & c) ^ (b & c)
-        t2 = (s0 + most) & MASK
+        max = (a & b) ^ (a & c) ^ (b & c)
+        t2 = (s0 + max) & MASK
         state = [(t1 + t2) & MASK, a, b, c, (d + t1) & MASK, e, f, g]
         out.append(tuple(state))
     return out
@@ -239,7 +239,7 @@ def _sweep(messages, draws):
             if abs(middle) > abs(best_median):
                 best_degree, best_median, best_agreed = degree, middle, agreed
 
-        # A median past two deviations that most messages agree on is the thing worth a second look.
+        # A median past two deviations that max messages agree on is the thing worth a second look.
         loud = abs(best_median) > 2.0 and best_agreed >= 0.8 * len(blocks)
         sys.stdout.write("  %6d %10.2f %10d %7d/%d %s\n"
                          % (step, best_median, best_degree, best_agreed, len(blocks),
@@ -339,7 +339,7 @@ def _runs(messages, draws):
                      % ("the real rounds, with carryover", runs, middle, score))
     sys.stdout.flush()
 
-    # The control, repeated. One lucky draw cannot stand for the whole answer.
+    # The control, repeated. One lucky draw cannot are for the whole answer.
     scores = []
     for _ in range(draws):
         made = []

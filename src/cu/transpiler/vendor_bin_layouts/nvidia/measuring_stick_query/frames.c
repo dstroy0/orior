@@ -20,13 +20,13 @@ static void msq_failed(MsqPool *pool, const char *why)
 // what the vendor prints of it alone. 1, or 0 where the vendor could not be run or the system gave no memory
 static int msq_piece_read(MsqReader *reader, MsqPool *pool, const MsqPiece *piece)
 {
-    if (piece->kind == MSQ_PIECE_FRAME)
+    if (piece->type == MSQ_PIECE_FRAME)
     {
         return msq_frame_read(reader, &piece->bytes, &pool->frame_read[piece->index]);
     }
-    if ((piece->kind == MSQ_PIECE_WORD) && (piece->state == MSQ_PIECE_STOPPED))
+    if ((piece->type == MSQ_PIECE_WORD) && (piece->state == MSQ_PIECE_STOPPED))
     {
-        pool->readings[piece->index].kind = MSQ_ILLEGAL;
+        pool->readings[piece->index].type = MSQ_ILLEGAL;
         return 1;
     }
     const int status = msq_read(reader, &piece->bytes, 1u);
@@ -39,15 +39,15 @@ static int msq_piece_read(MsqReader *reader, MsqPool *pool, const MsqPiece *piec
     {
         return 0;
     }
-    if (piece->kind == MSQ_PIECE_WORD)
+    if (piece->type == MSQ_PIECE_WORD)
     {
         // the reading points into the listing's text, which the cross retains until it ends
         pool->readings[piece->index] =
             (status == 0) ? msq_listing_at(&listing, 0ull) : (MsqReading){MSQ_NONE, "", NULL};
-        pool->readings[piece->index].kind =
+        pool->readings[piece->index].type =
             ((status != 0) && msq_illegal_found(reader->output, (size_t)reader->output_size))
                 ? MSQ_ILLEGAL
-                : pool->readings[piece->index].kind;
+                : pool->readings[piece->index].type;
         listing.text = (status == 0) ? NULL : listing.text;
         msq_listing_free(&listing);
         return 1;
@@ -208,11 +208,11 @@ void msq_clear_reported(MsqVerdicts *verdicts, const MsqQuestion *question, cons
 }
 
 // the count of registers that clears a refusal of a register past the count, `reached` the highest register it reaches:
-// one past it, or 0 where that is past MSQ_ALLOTTED_MOST
+// one past it, or 0 where that is past MSQ_ALLOTTED_MAX
 unsigned int msq_clearing(unsigned long long reached)
 {
-    // a count at most MSQ_ALLOTTED_MOST fits an unsigned int
-    return (reached < MSQ_ALLOTTED_MOST) ? (unsigned int)(reached + 1ull) : 0u;
+    // a count at max MSQ_ALLOTTED_MAX fits an unsigned int
+    return (reached < MSQ_ALLOTTED_MAX) ? (unsigned int)(reached + 1ull) : 0u;
 }
 
 // One refusal of `question`: the encoding at `encoding`, NULL where there is none to block, added to the gated list,

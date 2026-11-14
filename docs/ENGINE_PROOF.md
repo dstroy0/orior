@@ -21,7 +21,7 @@
 Let the alphabet be any set carrying equality. No order on it is used, no enumeration of it is used,
 and its cardinality is unconstrained.
 
-Fix a corpus `c` of length `n` and a needle `w` of length `m`, with `m` at most `n`. The alignments
+Fix a corpus `c` of length `n` and a needle `w` of length `m`, with `m` at max `n`. The alignments
 are `A = {0, 1, ..., n - m}`. An alignment `t` is an OCCURRENCE when `c[t + j] = w[j]` for every `j`
 in `[0, m)`. Write `Occ` for the set of occurrences and `N` for its size. `N` is the quantity the
 engine is required to return.
@@ -127,12 +127,12 @@ V(i) = |Surv(S_i)|
 
 which is a non-negative integer.
 
-**`V` strictly decreases at every level that does not stop. The descent therefore performs at most `|A|`
+**`V` strictly decreases at every level that does not stop. The descent therefore performs at max `|A|`
 levels and terminates. No depth bound is required for this.**
 
 *Proof.* At a level that does not stop, the chosen probe attains a survivor count strictly below the
 current one, which gives `V(i+1) < V(i)`. A strictly decreasing sequence of non-negative integers is finite,
-and its length is at most `V(0) = |A|`. ∎
+and its length is at max `V(0) = |A|`. ∎
 
 **The depth constant is a resource limit and not the termination argument.**
 `ORIOR_STEER_ANCHORS` bounds the work and the register footprint. Theorem 5 shows the recursion is
@@ -164,7 +164,7 @@ survivor set unchanged. The minimum over `C_{k+1}` again equals the whole surviv
 condition fires. Induction on the level. ∎
 
 *The precondition is exactly non-increasing enumeration.* Shrinking is safe, by the containment step
-above. Growing is not, because a candidate absent from the level that fired has never been shown to
+above. Growing is not, because a candidate absent from the level that fired has never been displayed to
 leave the survivor set unchanged. Any edit making the candidate set depend on the level must preserve
 containment or this theorem is void.
 
@@ -183,7 +183,7 @@ below will, and the plan in hand is correct by Theorem 1.
 
 **Exit two, ask a slightly different question.** Enlarge the candidate set. Theorem 6's precondition
 is non-increasing enumeration. Its proof does not cover growing the class, and that omission
-points the useful way: a candidate absent from the class that fired has never been shown to
+points the useful way: a candidate absent from the class that fired has never been displayed to
 leave the survivor set unchanged, and it may prune.
 
 Formally, let `C^(0) ⊆ C^(1) ⊆ C^(2) ...` be an ascending chain of question classes, each a set of
@@ -193,7 +193,7 @@ the engine can hold in any class, at any moment.
 
 **The total productive work is bounded no matter how many times the question changes.** Theorem 5's
 variant is the survivor count, and it does not reset when the class changes. Every level that places
-a probe strictly decreases it, across all classes, at most `|A|` levels in the whole run can
+a probe strictly decreases it, across all classes, at max `|A|` levels in the whole run can
 prune. Changing the question cannot buy unbounded work; it can only buy up to `|A|` productive levels
 in total.
 
@@ -231,7 +231,7 @@ the count of alignments refuted by at least one probe in `S`.
 
 **`f` is a coverage function**, being the cardinality of a union of fixed sets indexed by the chosen
 probes. So `f` is monotone, `f(empty) = 0`, and `f` is submodular: for `S` contained in `T` and any
-probe `p`, the marginal gain of `p` over `T` is at most its marginal gain over `S`, because every
+probe `p`, the marginal gain of `p` over `T` is at max its marginal gain over `S`, because every
 alignment `p` newly refutes over `T` is one it newly refutes over `S`.
 
 **The descent is the greedy algorithm on `f`.** Each level places the probe attaining the fewest
@@ -240,7 +240,7 @@ when the greatest marginal gain is zero, which is where greedy halts of its own 
 
 **Therefore the descent's `k` probes refute at least `1 - 1/e` of what the best `k` probes refute**,
 by the guarantee of Nemhauser, Wolsey and Fisher for a monotone submodular function under a
-cardinality constraint. That constant is about 0.632, and by Feige's hardness for maximum coverage no
+cardinality constraint. That constant is about 0.632, and by Feige's hardness for max coverage no
 polynomial-time planner improves it for coverage functions unless P equals NP.
 
 So the two statements sit together. **Correctness does not depend on the planner at all, and the
@@ -258,7 +258,7 @@ thing to prove instead of a thing proved here.
 
 The engine as built TERMINATES. The machine described here is PRODUCTIVE, which is a different
 property: it need never terminate, and every finite prefix of its output is computed in finite time.
-Type theory keeps the two apart, inductive definitions carrying termination and coinductive ones
+Type theory retains the two apart, inductive definitions carrying termination and coinductive ones
 carrying productivity, and a productive process is the right shape for something that runs forever
 and emits as it goes.
 
@@ -288,7 +288,7 @@ say completely.**
 
 **And the generator cannot buy unbounded productive work.** Theorem 5's variant is the survivor
 count, it never increases, and it does not reset when `G` changes the question. across an infinite
-run, driven by a Turing complete generator feeding on its own output, at most `|A|` probes can ever
+run, driven by a Turing complete generator feeding on its own output, at max `|A|` probes can ever
 prune. Everything beyond that is `G` spinning, each spin detected by one stop condition, with the
 answer correct throughout.
 
@@ -303,7 +303,7 @@ and by Theorem 1 there was none left to buy.
 ## What is not claimed
 
 **The engine is not Turing complete.** The sweep is a bounded loop over `A`.
-The descent terminates in at most `|A|` levels by Theorem 5, under a compile-time cap in the present
+The descent terminates in at max `|A|` levels by Theorem 5, under a compile-time cap in the present
 code. Both are primitive recursive, every primitive recursive function is total, and the class cannot
 express the Ackermann function. No claim of universality is made or needed.
 
@@ -329,7 +329,7 @@ the corpus and needle as vectors, a probe as a finite set of bounded offsets, an
 set of probes. Theorems 1 through 3 are short: Lemma 1 is a subset argument on index ranges, Lemma 2 a
 conjunction introduction, Theorem 1 an intersection identity, and Theorems 2 and 3 are corollaries.
 
-Theorem 4 repays the effort most, because its content is the quantifier. Model the planner as an
+Theorem 4 repays the effort max, because its content is the quantifier. Model the planner as an
 arbitrary function into an option type, or the trajectory as a coinductive stream, and state that the
 observable is constant along it. A development in which the planner is an opaque parameter, with the
 count proved equal to `N` regardless, is a machine-checked statement that an arbitrary embedded
@@ -359,7 +359,7 @@ empty here is what this document adds.
 
 **Alan M. Turing**, *On Computable Numbers, with an Application to the Entscheidungsproblem*,
 Proceedings of the London Mathematical Society, 1936. The undecidability of halting. Nothing in this
-document bears on it, and the section on what is not claimed exists to keep that boundary visible.
+document bears on it, and the section on what is not claimed exists to retain that boundary visible.
 
 **Wilhelm Ackermann**, 1928, for the total computable function that is not primitive recursive. It
 witnesses that the class this engine sits in is a proper subclass.
@@ -376,7 +376,7 @@ their framework, and it is the point this construction occupies.
 **George L. Nemhauser, Laurence A. Wolsey and Marshall L. Fisher**, *An Analysis of Approximations
 for Maximizing Submodular Set Functions*, Mathematical Programming, 1978. The greedy algorithm on a
 monotone submodular function under a cardinality constraint attains `1 - 1/e` of the optimum.
-**Uriel Feige**, 1998, for the matching hardness: no polynomial algorithm beats `1 - 1/e` for maximum
+**Uriel Feige**, 1998, for the matching hardness: no polynomial algorithm beats `1 - 1/e` for max
 coverage unless P equals NP. Theorem 8 is their result applied to a coverage function the engine was
 already maximizing without saying so.
 

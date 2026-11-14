@@ -36,7 +36,7 @@ typedef struct QueryLoopsCfg QueryLoopsCfg;
     "imp protocol takes one of course, tables, decode, query, learn, cross, write, pairs, stick, retention, "          \
     "sweep"
 
-// the folder the bridge, the rulesets and the part's files stand in
+// the folder the bridge, the rulesets and the part's files are in
 #define QUERY_TABLE "src/cu/transpiler/lstar/protocol/table"
 
 // a run started in `folder`, a path from the top of the tree, or joined: the run the context has open where it has
@@ -45,7 +45,7 @@ int query_context_start(const QueryLoopsContextRunCfg *args);
 // the tool `name` built where stale, its path into `binary`, sized for QUERY_PATH_MAX_LEN
 int query_context_tool(const QueryLoopsErrMsgContextCfg *args);
 // `words` run in the run's environment, every setting appended first: teed into the run as `<name>.console`; run
-// with this process's own output; or its output whole handed as the blob `name`. Its exit code into `code`
+// with this process's own output; or its output whole passed as the blob `name`. Its exit code into `code`
 int query_context_teed(const QueryLoopsContextErrMsgNameRunCfg *args);
 int query_context_run(const QueryLoopsContextErrMsgNameRunCfg *args);
 int query_context_dispatch(const QueryLoopsContextErrMsgNameRunCfg *args);
@@ -60,7 +60,7 @@ int query_context_end(const QueryLoopsContextRunCfg *args);
 
 #define QUERY_LEARN_WORK "build/engine/khw"
 
-// the texts composed for lists of words standing at once, beyond the words they point at, a ring in one cell for the
+// the texts composed for lists of words located at once, beyond the words they point at, a ring in one cell for the
 // run
 #define QUERY_WORD_TEXTS 256u
 
@@ -90,7 +90,7 @@ void query_files_get(const QueryLoopsRootCfg *args);
 // the carrier's words for a live pass, added to `words`: the gated list it will not reach the part without, the
 // lessons the conferences taught where `lessons`, and the airlock, the pop and the cross
 void query_transport_words(const QueryLoopsWordsWordsTransportCfg *args);
-// the base source through the vendor's compiler, what it printed handed as `nvcc.txt`, its container as
+// the base source through the vendor's compiler, what it printed passed as `nvcc.txt`, its container as
 // `base_nvcc.cubin` and its listing as `base_nvcc.sass`
 int query_base_compile(const QueryLoopsContextErrMsgCfg *args);
 // nvdisasm beside nvcc, which the airlock reads with, into `path`; without it nothing goes to the part
@@ -103,7 +103,7 @@ int query_bridge(const QueryLoopsContextErrMsgRulesetsCfg *args);
 int query_pairs_pair(const QueryLoopsContextErrMsgPartCfg *args);
 
 // every `.bin` under `folder`, each the code of the kernel `<prefix><number>` of the cubin at `pattern`, read by the
-// vendor at one start (`orior_cubin_listing`), and each code's listing, the run's `<number>.dis`, handed to the run's
+// vendor at one start (`orior_cubin_listing`), and each code's listing, the run's `<number>.dis`, passed to the run's
 // writer as the `.dis` beside it (stick.c)
 int query_listings_read(const QueryLoopsContextFolderCfg *args);
 
@@ -137,7 +137,7 @@ int query_stick_run(const QueryLoopCfg *args);
 int query_retention_run(const QueryLoopCfg *args);
 int query_sweep_run(const QueryLoopCfg *args);
 
-// the most bytes of a name the table contains whole
+// the max bytes of a name the table contains whole
 #define QUERY_NAME_MAX_LEN 64u
 
 // the writers `write` runs, by its words
@@ -234,7 +234,7 @@ struct QueryLoopsErrMsgContextWordsCfg
     const QueryContext *context_read;
     const char *const *words;
     unsigned int count;
-    const char **names_letters;
+    const char **names_characters;
     unsigned int *named_u32s;
     int *dry_pointer;
 };

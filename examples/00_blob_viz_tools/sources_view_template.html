@@ -62,7 +62,7 @@
   .eyebrow {
     font-family: "IBM Plex Mono", monospace;
     font-size: 11px;
-    letter-spacing: 0.16em;
+    character-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--muted);
     margin: 0 0 9px;
@@ -72,7 +72,7 @@
     font-weight: 600;
     font-size: clamp(27px, 4vw, 38px);
     margin: 0 0 11px;
-    letter-spacing: -0.015em;
+    character-spacing: -0.015em;
   }
   .standfirst {
     margin: 0;
@@ -99,7 +99,7 @@
   .group span {
     font-family: "IBM Plex Mono", monospace;
     font-size: 10px;
-    letter-spacing: 0.14em;
+    character-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--muted);
   }
@@ -147,7 +147,7 @@
   .panel h2 {
     font-family: "IBM Plex Mono", monospace;
     font-size: 12px;
-    letter-spacing: 0.1em;
+    character-spacing: 0.1em;
     text-transform: uppercase;
     margin: 0 0 3px;
     color: var(--ink);
@@ -226,7 +226,7 @@
     </div>
     <div class="group">
       <span>Projection</span>
-      <div class="pills" id="kinds"></div>
+      <div class="pills" id="types"></div>
     </div>
     <div class="group">
       <span>Scale</span>
@@ -283,7 +283,7 @@
 
     var left = DATA.order[0];
     var right = DATA.order.length > 1 ? DATA.order[1] : DATA.order[0];
-    var kind = KINDS[0];
+    var type = KINDS[0];
     var scale = "log";
 
     function token(name) {
@@ -300,20 +300,20 @@
 
     function planeOf(name) {
       var box = DATA.sources[name];
-      return box && box[kind.key] ? box[kind.key] : null;
+      return box && box[type.key] ? box[type.key] : null;
     }
 
     function ceilingOf(rows) {
-      var most = 0;
+      var max = 0;
       for (var r = 0; r < rows.length; r += 1) {
         for (var c = 0; c < rows[r].length; c += 1) {
           var v = Math.abs(rows[r][c]);
-          if (v > most) {
-            most = v;
+          if (v > max) {
+            max = v;
           }
         }
       }
-      return most;
+      return max;
     }
 
     function shaped(value, ceiling) {
@@ -356,17 +356,17 @@
       for (var r = 0; r < rows.length; r += 1) {
         for (var c = 0; c < rows[r].length; c += 1) {
           var v = rows[r][c];
-          if (kind.signed) {
+          if (type.signed) {
             total += v * v;
           } else {
             // The bit projections are already a sum of squares over their row, offset by the
             // expected value. The per-cell figure is recovered by dividing it back out.
-            total += Math.abs(v) / (kind.key === "inbit" ? 256 : 512);
+            total += Math.abs(v) / (type.key === "inbit" ? 256 : 512);
           }
           count += 1;
         }
       }
-      return kind.signed ? Math.sqrt(total / count) : Math.sqrt(1 + total / count);
+      return type.signed ? Math.sqrt(total / count) : Math.sqrt(1 + total / count);
     }
 
     function refresh() {
@@ -442,17 +442,17 @@
       },
     );
     pills(
-      document.getElementById("kinds"),
+      document.getElementById("types"),
       KINDS.map(function (k) {
         return { label: k.label, value: k.key };
       }),
       function () {
-        return kind.key;
+        return type.key;
       },
       function (v) {
         KINDS.forEach(function (k) {
           if (k.key === v) {
-            kind = k;
+            type = k;
           }
         });
       },

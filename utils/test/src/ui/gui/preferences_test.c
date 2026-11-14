@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // preferences_test.c: Preferences's check: the zoom's steps and the opacities' ends, each row a sentence, the keys and presses
-// marking and moving what they name, one section drawn at a time with how bright each thing stands telling them apart, and the
+// marking and moving what they name, one section drawn at a time with how bright each thing is telling them apart, and the
 // colors' grid, a value typed as hex taken and one that is no color refused
 #include "../../../../../includes/window/block.h"
 #include "../../../../../ui/gui/src/preferences.h"
@@ -51,7 +51,7 @@ static int painted(const GuiRaster *raster, GuiRect rect, GuiColor background_fi
 // the brightest of the pixels of `rect`: the greatest sum of a pixel's channels
 static unsigned int brightest(const GuiRaster *raster, GuiRect rect)
 {
-    unsigned int most = 0u;
+    unsigned int max = 0u;
     for (int row = rect.y; row < rect.y + rect.height; row += 1)
     {
         for (int column = rect.x; column < rect.x + rect.width; column += 1)
@@ -59,10 +59,10 @@ static unsigned int brightest(const GuiRaster *raster, GuiRect rect)
             // the place lies on the raster in every check here
             const GuiColor pixel = raster->pixels[((unsigned int)row * raster->width) + (unsigned int)column];
             const unsigned int sum = GUI_RED_OF(pixel) + GUI_GREEN_OF(pixel) + GUI_BLUE_OF(pixel);
-            most = (sum > most) ? sum : most;
+            max = (sum > max) ? sum : max;
         }
     }
-    return most;
+    return max;
 }
 
 // the rows of the check's table, Settings' four and then Fonts' one
@@ -126,10 +126,10 @@ int main(void)
     cli_check(EMBED_CALL(gui_preferences.preference_zoom_step, GuiPreferencesCfg, .percent = 125u, .step_pointer = &step) && (EMBED_CALL(gui_preferences_step.preference_zoom_percent, GuiPreferencesStepCfg, .step = step) == 125u), "a percent that is a step names its step");
     cli_check(!EMBED_CALL(gui_preferences.preference_zoom_step, GuiPreferencesCfg, .percent = 130u, .step_pointer = &step), "a percent that is no step names none");
     cli_check(EMBED_CALL(gui_preferences_step.preference_zoom_move, GuiPreferencesStepCfg, .step = 0u, .by = -1, .round = 0) == 0u, "the zoom stops at its least");
-    cli_check(EMBED_CALL(gui_preferences_step.preference_zoom_move, GuiPreferencesStepCfg, .step = GUI_PREFERENCE_ZOOM_STEPS - 1u, .by = 1, .round = 0) == GUI_PREFERENCE_ZOOM_STEPS - 1u, "and at its most");
+    cli_check(EMBED_CALL(gui_preferences_step.preference_zoom_move, GuiPreferencesStepCfg, .step = GUI_PREFERENCE_ZOOM_STEPS - 1u, .by = 1, .round = 0) == GUI_PREFERENCE_ZOOM_STEPS - 1u, "and at its max");
     cli_check(EMBED_CALL(gui_preferences_step.preference_zoom_move, GuiPreferencesStepCfg, .step = GUI_PREFERENCE_ZOOM_STEPS - 1u, .by = 1, .round = 1) == 0u, "or runs round where asked");
     cli_check(EMBED_CALL(gui_preferences_percent.preference_opacity_move, GuiPreferencesPercentCfg, .percent = 30u, .by = 1, .round = 0) == 40u, "an opacity moves a step");
-    cli_check(EMBED_CALL(gui_preferences_percent.preference_opacity_move, GuiPreferencesPercentCfg, .percent = 100u, .by = 1, .round = 0) == 100u, "and stops at its most");
+    cli_check(EMBED_CALL(gui_preferences_percent.preference_opacity_move, GuiPreferencesPercentCfg, .percent = 100u, .by = 1, .round = 0) == 100u, "and stops at its max");
     cli_check(EMBED_CALL(gui_preferences_percent.preference_opacity_move, GuiPreferencesPercentCfg, .percent = 100u, .by = 1, .round = 1) == 0u, "or runs round where asked");
     cli_check(EMBED_CALL(gui_preferences_percent.preference_opacity_move, GuiPreferencesPercentCfg, .percent = 0u, .by = -1, .round = 0) == 0u, "and stops at none");
 
@@ -228,18 +228,18 @@ int main(void)
     EMBED_CALL(gui_preferences_palette_name.key, GuiPreferencesPaletteNameCfg, .preferences = &preferences, .palette = palette, .name = "Down", .change = &change);
     cli_check(!EMBED_CALL(gui_preferences_palette_change.move, GuiPreferencesPaletteChangeCfg, .preferences = &preferences, .palette = palette, .x = EMBED_CALL(gui_preferences_row.row_rect, GuiPreferencesRowCfg, .preferences_read = &preferences, .row = ROW_ZOOM).x + 6, .y = EMBED_CALL(gui_preferences_row.row_rect, GuiPreferencesRowCfg, .preferences_read = &preferences, .row = ROW_ZOOM).y + 5) &&
                   (preferences.marked == ROW_BAR),
-              "a move with no change of place keeps the mark the keys moved");
+              "a move with no change of place retains the mark the keys moved");
     preferences.marked = ROW_ZOOM;
     cli_check(!EMBED_CALL(gui_preferences_palette_change.press, GuiPreferencesPaletteChangeCfg, .preferences = &preferences, .palette = palette, .x = 1, .y = 700, .change = &change) && (change.type == GUI_PREFERENCE_NOTHING), "a press on its ground changes nothing");
     // the close mark at its head's right end
     const GuiRect close_mark = EMBED_CALL(gui_preferences_row.close_rect, GuiPreferencesRowCfg, .preferences_read = &preferences);
-    cli_check((close_mark.x + close_mark.width == 1200 - GUI_PREFERENCES_EDGE) && (close_mark.y == GUI_PREFERENCES_EDGE) && !EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = close_mark), "the close mark stands at the right end of the tabs' row");
+    cli_check((close_mark.x + close_mark.width == 1200 - GUI_PREFERENCES_EDGE) && (close_mark.y == GUI_PREFERENCES_EDGE) && !EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = close_mark), "the close mark is at the right end of the tabs' row");
     cli_check(EMBED_CALL(gui_preferences_palette_change.move, GuiPreferencesPaletteChangeCfg, .preferences = &preferences, .palette = palette, .x = close_mark.x + 4, .y = close_mark.y + 4) && preferences.close_pointed, "the pointer on the close mark marks it");
     cli_check(EMBED_CALL(gui_preferences_palette_change.move, GuiPreferencesPaletteChangeCfg, .preferences = &preferences, .palette = palette, .x = 1, .y = 700) && !preferences.close_pointed, "and moving off it lets it go");
     cli_check(EMBED_CALL(gui_preferences_palette_change.press, GuiPreferencesPaletteChangeCfg, .preferences = &preferences, .palette = palette, .x = close_mark.x + 4, .y = close_mark.y + 4, .change = &change) && (change.type == GUI_PREFERENCE_CLOSED) && !preferences.displayed, "a press on the close mark closes it");
     preferences.displayed = 1;
 
-    // one section drawn at a time, how bright each thing stands telling them apart
+    // one section drawn at a time, how bright each thing is telling them apart
     GuiRaster raster;
     cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1200u, .height = 800u), "a raster to draw on");
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 1200, 800}, .color = palette->background_fill);
@@ -252,15 +252,15 @@ int main(void)
     cli_check((margin_pixel != sheet_pixel) && (margin_pixel != palette->surface), "the sheet floats on the lattice in from the window's sides");
     const unsigned int section_on = brightest(&raster, EMBED_CALL(gui_preferences_palette_values.section_rect, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .at = GUI_PREFERENCES_SETTINGS));
     const unsigned int section_off = brightest(&raster, EMBED_CALL(gui_preferences_palette_values.section_rect, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .at = GUI_PREFERENCES_COLORS));
-    cli_check(section_on > section_off, "the section shown stands brighter than the quiet list");
+    cli_check(section_on > section_off, "the section displayed is brighter than the quiet list");
     cli_check(section_off > brightest(&raster, (GuiRect){EMBED_CALL(gui_preferences_palette_values.rect, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences).x + 2, EMBED_CALL(gui_preferences_palette_values.rect, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences).y + 2, 4, 4}), "and the list brighter than the ground");
     const unsigned int marked_row = brightest(&raster, EMBED_CALL(gui_preferences_row.row_rect, GuiPreferencesRowCfg, .preferences_read = &preferences, .row = ROW_ZOOM));
     const unsigned int other_row = brightest(&raster, EMBED_CALL(gui_preferences_row.row_rect, GuiPreferencesRowCfg, .preferences_read = &preferences, .row = ROW_BAR));
-    cli_check(marked_row > other_row, "the row marked stands brighter than the others");
+    cli_check(marked_row > other_row, "the row marked is brighter than the others");
     cli_check(other_row > 0u, "and every row is drawn");
-    // no ground or line under a row: the row's far end stands as the ground stood
+    // no ground or line under a row: the row's far end is as the ground was
     const GuiRect far = EMBED_CALL(gui_preferences_row.row_rect, GuiPreferencesRowCfg, .preferences_read = &preferences, .row = ROW_ZOOM);
-    cli_check(brightest(&raster, (GuiRect){far.x + far.width - 6, far.y, 4, far.height}) <= brightest(&raster, (GuiRect){700, 760, 300, 30}), "a row lays no ground or line about itself");
+    cli_check(brightest(&raster, (GuiRect){far.x + far.width - 6, far.y, 4, far.height}) <= brightest(&raster, (GuiRect){700, 760, 300, 30}), "a row positions no ground or line about itself");
 
     // the colors' grid
     EMBED_CALL(gui_preferences_palette_name.key, GuiPreferencesPaletteNameCfg, .preferences = &preferences, .palette = palette, .name = "PageDown", .change = &change);
@@ -287,7 +287,7 @@ int main(void)
     EMBED_CALL(gui_preferences_palette_name.key, GuiPreferencesPaletteNameCfg, .preferences = &preferences, .palette = palette, .name = "PageDown", .change = &change);
     cli_check(preferences.section == GUI_PREFERENCES_COLORS, "and stops at the last");
     const unsigned int across = EMBED_CALL(gui_preferences_palette_values.cells_across, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences);
-    cli_check(across >= 2u, "the grid stands in columns");
+    cli_check(across >= 2u, "the grid is in columns");
     EMBED_CALL(gui_preferences_palette_name.key, GuiPreferencesPaletteNameCfg, .preferences = &preferences, .palette = palette, .name = "Right", .change = &change);
     cli_check(preferences.marked == 1u, "Right marks the color beside");
     EMBED_CALL(gui_preferences_palette_name.key, GuiPreferencesPaletteNameCfg, .preferences = &preferences, .palette = palette, .name = "Down", .change = &change);
@@ -302,14 +302,14 @@ int main(void)
     // the swatch of the window's ground shows on the widget's; the widget's own would not
     const GuiRect second_cell = EMBED_CALL(gui_preferences_palette_values.cell_rect, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .at = 1u);
     const GuiColor swatch = raster.pixels[((unsigned int)(first_cell.y + (first_cell.height / 2)) * raster.width) + (unsigned int)(first_cell.x + 7)];
-    cli_check(swatch == palette->background_fill, "a color's swatch stands in its color");
+    cli_check(swatch == palette->background_fill, "a color's swatch is in its color");
 
     // the contrast marks: over the grid a row says which colors are under the least, and each such color's cell ends in its ratio
-    // what a section shows starts where its first row stands, half an edge under the tabs
+    // what a section shows starts where its first row is, half an edge under the tabs
     const GuiRect colors_row = EMBED_CALL(gui_preferences_row.row_rect, GuiPreferencesRowCfg, .preferences_read = &preferences, .row = 0u);
     const GuiRect tab = EMBED_CALL(gui_preferences_palette_values.section_rect, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .at = GUI_PREFERENCES_COLORS);
-    cli_check(colors_row.y == tab.y + tab.height + (GUI_PREFERENCES_EDGE / 2), "what a section shows stands under the tabs");
-    cli_check(first_cell.y == colors_row.y + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_CELL, .scale = 100), "the grid stands a row under the row of contrasts");
+    cli_check(colors_row.y == tab.y + tab.height + (GUI_PREFERENCES_EDGE / 2), "what a section shows is under the tabs");
+    cli_check(first_cell.y == colors_row.y + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_CELL, .scale = 100), "the grid is a row under the row of contrasts");
     const GuiRect contrasts = {first_cell.x, colors_row.y, (first_cell.width * 2), EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_CELL, .scale = 100)};
     cli_check(painted(&raster, contrasts, palette->surface), "the row over the grid says the colors under the least");
     const int mark_left = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_SWATCH + 8 + GUI_PREFERENCES_NAME_WIDTH + 5 + GUI_PREFERENCES_VALUE_WIDTH, .scale = 100);
@@ -383,7 +383,7 @@ int main(void)
     cli_check((preferences.buttons.pressed == GUI_BEAD_TOOLS_MAX) && (preferences.buttons.press[GUI_PREFERENCES_COLORS].to == GUI_FIXED_ONE), "the press let go springs the bead back");
 
     // the palettes' list at the grid's left: Window and each language plugin named, a row a palette; the one chosen
-    // gives the grid its colors, a plugin's tokens alone from the first the window hands in
+    // gives the grid its colors, a plugin's tokens alone from the first the window passes in
     static GuiPaletteOwn plugin;
     EMBED_CALL(gui_palette_scheme.own_init, GuiPaletteCfg, .own = &plugin, .scheme = GUI_SCHEME_DARK);
     EMBED_CALL(gui_palette_own_name.token_add, GuiPaletteOwnNameCfg, .own = &plugin, .name = "keyword", .color = GUI_RGB(1u, 2u, 3u));
@@ -396,8 +396,8 @@ int main(void)
     const GuiRect window_row = EMBED_CALL(gui_preferences_palette_values.list_rect, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .at = 0u);
     const GuiRect c_row = EMBED_CALL(gui_preferences_palette_values.list_rect, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .at = 1u);
     const GuiRect listed_cell = EMBED_CALL(gui_preferences_palette_values.cell_rect, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .at = 0u);
-    cli_check(!EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = window_row) && (c_row.y == window_row.y + window_row.height) && (c_row.x == window_row.x), "the list stands a row a palette");
-    cli_check((listed_cell.x >= window_row.x + window_row.width) && (listed_cell.y == window_row.y), "the grid stands at the list's right, from the list's top");
+    cli_check(!EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = window_row) && (c_row.y == window_row.y + window_row.height) && (c_row.x == window_row.x), "the list is a row a palette");
+    cli_check((listed_cell.x >= window_row.x + window_row.width) && (listed_cell.y == window_row.y), "the grid is at the list's right, from the list's top");
     cli_check(EMBED_CALL(gui_preferences_palette_change.press, GuiPreferencesPaletteChangeCfg, .preferences = &preferences, .palette = palette, .x = c_row.x + 3, .y = c_row.y + 3, .change = &change) && (change.type == GUI_PREFERENCE_PALETTE) && (change.at == 1u) && (preferences.palette_chosen == 1u) && (preferences.marked == 0u), "a press on a palette's row chooses it for the window to load");
     preferences.color_first = EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = &plugin.colors) - 2u;
     EMBED_CALL(gui_preferences_palette_name.key, GuiPreferencesPaletteNameCfg, .preferences = &preferences, .palette = &plugin.colors, .name = "Right", .change = &change);
@@ -406,7 +406,7 @@ int main(void)
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 1200, 800}, .color = palette->background_fill);
     EMBED_CALL(gui_preferences_palette_values.draw, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .raster = &raster, .glyphs = &glyphs, .palette = &plugin.colors, .values = &displayed_values);
     cli_check(raster.pixels[((unsigned int)(listed_cell.y + (listed_cell.height / 2)) * raster.width) + (unsigned int)(listed_cell.x + 7)] == GUI_RGB(1u, 2u, 3u), "the first cell shows the plugin's first token");
-    cli_check(painted(&raster, c_row, palette->background_fill) && (brightest(&raster, c_row) > brightest(&raster, window_row)), "the chosen palette's row stands out in the list");
+    cli_check(painted(&raster, c_row, palette->background_fill) && (brightest(&raster, c_row) > brightest(&raster, window_row)), "the chosen palette's row is out in the list");
     EMBED_CALL(gui_preferences_palette_name.key, GuiPreferencesPaletteNameCfg, .preferences = &preferences, .palette = &plugin.colors, .name = "Enter", .change = &change);
     (void)EMBED_CALL(gui_preferences_size.type, GuiPreferencesSizeCfg, .preferences = &preferences, .text = "#0a0b0c", .size = 7ull);
     EMBED_CALL(gui_preferences_palette_name.key, GuiPreferencesPaletteNameCfg, .preferences = &preferences, .palette = &plugin.colors, .name = "Enter", .change = &change);

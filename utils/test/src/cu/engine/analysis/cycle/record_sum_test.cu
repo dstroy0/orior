@@ -10,7 +10,7 @@
 //   which passes 2^64, and sum -l^2, over all the lanes and over runs of 2^16, each run its own closed form;
 // - random records of nine limbs, fields one bit wide, across two limbs, a whole limb, two hundred bits and the whole
 //   record, over runs of 1, 3, 1024 and every record;
-// - every field at its most negative and at its most positive, the sums' two ends.
+// - every field at its max negative and at its max positive, the sums' two ends.
 // A request whose sums cannot represent the run's total, whose count is not a whole number of runs, or whose run passes
 // 2^32 records errors on both routes before a record is read. The test is one job on the device's tessera daemon.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
@@ -51,7 +51,7 @@
 
 #define SUM_TEST_GROUPS 4u
 
-// the most the test puts on the device at once: the program's records, with room beside for the small allocations
+// the max the test puts on the device at once: the program's records, with room beside for the small allocations
 #define SUM_TEST_DECLARED ((SUM_TEST_LANES * 8ull * sizeof(unsigned int)) + (16ull << 20u))
 
 typedef struct
@@ -246,7 +246,7 @@ static void sum_program(SumResults *results)
 {
     SumLoaded loaded;
     const int loaded_ok = sum_load(&loaded);
-    sum_check(results, loaded_ok, "the lane program is encoded, laid out and loaded");
+    sum_check(results, loaded_ok, "the lane program is encoded, arranged and loaded");
     if (loaded_ok == 0)
     {
         return;
@@ -338,8 +338,8 @@ static void sum_records(SumResults *results)
     const unsigned int offsets[SUM_TEST_FIELDS] = {0u, 5u, 30u, 32u, 7u, 0u};
     const unsigned int bits[SUM_TEST_FIELDS] = {1u, 31u, 34u, 32u, 200u, 32u * SUM_TEST_RECORD_LIMBS};
     const unsigned long long groups[SUM_TEST_GROUPS] = {1ull, 3ull, 1024ull, SUM_TEST_RECORDS};
-    // the fill: random, every field at its most negative (only the sign bit set), and at its most positive
-    const char *const fills[3] = {"random", "most negative", "most positive"};
+    // the fill: random, every field at its max negative (only the sign bit set), and at its max positive
+    const char *const fills[3] = {"random", "max negative", "max positive"};
     for (unsigned int fill = 0u; (ok != 0) && (fill < 3u); fill += 1u)
     {
         for (unsigned int field = 0u; field < SUM_TEST_FIELDS; field += 1u)

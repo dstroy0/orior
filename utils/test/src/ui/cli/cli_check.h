@@ -11,7 +11,7 @@
 #include "../../../../../includes/window/block.h"
 #include "../../../../../includes/window/glyphs.h"
 
-// the system's pages the window's block lays in, the CLI's (ui/gui/src/pages.c), and the faces the window's glyphs
+// the system's pages the window's block positions in, the CLI's (ui/gui/src/pages.c), and the faces the window's glyphs
 // read, this system's (ui/gui/src/faces.c)
 extern const GuiBlockPages g_gui_pages;
 extern const GuiGlyphsFaces g_gui_faces;

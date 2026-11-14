@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <string.h>
 
-// the carriers the sweep runs from, at most. Each is a form the part ran whose operands are shaped unlike the ones
+// the carriers the sweep runs from, at max. Each is a form the part ran whose operands are shaped unlike the ones
 // before it, since an operation that reads an address decodes as nothing from a carrier whose operand bits contained
 // two registers. More carriers reach more operations and cost a batch of decodes apiece
 #define SASS_CARRIERS 8u

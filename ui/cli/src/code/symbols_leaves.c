@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// symbols_leaves.c: a text's leaves saved for a walk over them, in a cell at their most: each leaf's line, its bytes in
+// symbols_leaves.c: a text's leaves saved for a walk over them, in a cell at their max: each leaf's line, its bytes in
 // the text and what it is, read off its token's name's segments alone. No language is read here but by its plugin's
 // grammar
 #include "../command_line/callback_cfg.h"
@@ -12,7 +12,7 @@
 #define CLI_LEAVES_MARKS 256ULL
 #define CLI_LEAVES_MAX (1u << 19u)
 
-// what each segment of a leaf's name says the leaf is, by where in the name it stands: the first, one after
+// what each segment of a leaf's name says the leaf is, by where in the name it is: the first, one after
 // `directive`, or any other; and those that say so of a type alone
 typedef struct
 {
@@ -229,7 +229,7 @@ unsigned int cli_symbols_name_roles(const CliSymbolsQueryCfg *args)
 }
 
 // the leaves' cell grown as the leaves come: CLI_LEAVES_MARKS leaves first, then twice the leaves it holds, the leaves
-// moved into the new cell and the old given back, at most CLI_LEAVES_MAX: 1, or 0 where it stands full or the cells
+// moved into the new cell and the old given back, at max CLI_LEAVES_MAX: 1, or 0 where it is full or the cells
 // cannot meet it
 EMBED_INLINE int cli_leaves_alloc(const SymbolsLeavesCtx *args)
 {
@@ -240,7 +240,7 @@ EMBED_INLINE int cli_leaves_alloc(const SymbolsLeavesCtx *args)
     }
     const unsigned long long wanted =
         (read->capacity == 0u) ? CLI_LEAVES_MARKS : ((unsigned long long)read->capacity * 2ULL);
-    // the capacity is at most CLI_LEAVES_MAX, which an unsigned int counts
+    // the capacity is at max CLI_LEAVES_MAX, which an unsigned int counts
     const unsigned int capacity = (wanted < CLI_LEAVES_MAX) ? (unsigned int)wanted : CLI_LEAVES_MAX;
     CliLeaf *const grown =
         g_cli_guard->temporary_buf_alloc((unsigned long long)capacity * sizeof(CliLeaf), g_cli_leaves_owner);
@@ -268,7 +268,7 @@ static void cli_leaves_line(const CliLeavesEachCfg *args)
     {
         read->first = line;
     }
-    // the line stands in the copy at or past its first byte
+    // the line is in the copy at or past its first byte
     const unsigned long long start = (unsigned long long)(line - read->first);
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_POOL_BYTES});
     unsigned long long byte = 0ULL;
@@ -283,7 +283,7 @@ static void cli_leaves_line(const CliLeavesEachCfg *args)
                 ? EMBED_CALL(cli_symbols_size_internal.byte_at, CliSymbolsSizeCtx, .line = line, .size = size,
                              .col = args->leaves->col[run + 1u], .byte = &byte, .at = &at)
                 : size;
-        // a run of no letters is a leaf where it is a mark, a run its grammar names
+        // a run of no characters is a leaf where it is a mark, a run its grammar names
         if ((to < from) || ((to == from) && (args->leaves->name[run] == 0u)))
         {
             continue;

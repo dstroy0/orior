@@ -1,13 +1,13 @@
-"""Read a table whose columns stand under a line of heads, by glyph position.
+"""Read a table whose columns are under a line of heads, by glyph position.
 
 usage: python grid_table.py <stem> <page> <first head> [<bottom baseline>]
 
 The heads are the words of the line opening on the first head. Below it, the printed lines run to
-the bottom baseline, or to the first line wider than the table where none is given. Lines standing
+the bottom baseline, or to the first line wider than the table where none is given. Lines located
 within CLUSTER points of each other are one visual line: a superscript hyphen and the word it
 belongs to, or a label set lower than its cells. A visual line with a word left of the first head
 opens a row; one without joins the row above as a second line of its cells. Each word goes under
-the head whose middle stands nearest. rows() gives (label, [cell text for each head]).
+the head whose middle is nearest. rows() gives (label, [cell text for each head]).
 """
 import sys
 
@@ -19,7 +19,7 @@ CLUSTER = 7.0
 def _joined(words):
     """Words of one cell or label, left to right; a lone hyphen joins the word after it."""
     # Two pieces from different printed lines whose boxes touch are one word split by a descender
-    # or a raised letter, y and es of yes; a raised hyphen joins the word after it and never the one
+    # or a raised character, y and es of yes; a raised hyphen joins the word after it and never the one
     # before, as in (+ -as).
     pieces, edge = [], None
     for left, right, text in sorted(words):

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The plasma round the opening: its tongues drawn from a seed, spread along both lids and longest over the middle,
-// and the plasma laid down as it grows.
+// and the plasma positioned down as it grows.
 
 import { drawPlasma, tonguesOf } from "../../../gui/src-js/eye/tongues.js";
 import { edges, placeOf } from "../../../gui/src-js/eye/lids.js";
@@ -24,7 +24,7 @@ test("the tongues are drawn from a seed, the same for the same seed, spread from
   assert.ok(middle.length > corner.length, "longer over the middle");
 });
 
-test("the plasma lays down nothing while the eye is a slit and its tongues and rim once it opens", () => {
+test("the plasma positions down nothing while the eye is a slit and its tongues and rim once it opens", () => {
   const drawn = [];
   const state = { plasma: { draw: (list, count) => drawn.push(count) }, corners: cornersOf(), tongues: tonguesOf(seeded(2)), seconds: 1, still: true, arcs: [], sparkUntil: 0, draw: seeded(2) };
   const size = placeOf(400, 200);

@@ -8,7 +8,7 @@
 #include "../text/text.h"
 #include "recording_internal.h"
 
-// the bytes of a command's name and of why a request failed, and the most bytes of an answer's body
+// the bytes of a command's name and of why a request failed, and the max bytes of an answer's body
 #define CLI_RECORDING_COMMAND 256u
 #define CLI_RECORDING_ERR_MSG_MAX_LEN 4096u
 #define CLI_RECORDING_BODY (8ULL << 20u)
@@ -46,7 +46,7 @@ EMBED_INLINE void request_raw(const RecordingRequestCtx *args)
     }
 }
 
-// the reply to request `message` sent, written into a cell of the most it holds: the body the line `body` holds where
+// the reply to request `message` sent, written into a cell of the max it holds: the body the line `body` holds where
 // it succeeded, why it failed where it did not
 EMBED_INLINE void request_answer(const RecordingRequestCtx *args)
 {
@@ -183,7 +183,7 @@ EMBED_INLINE int request_on_raise(const RecordingRequestCtx *args)
     return 0;
 }
 
-// the replay stands fixed outside the pool, one for the process, where it punches no hole in the persistent tier
+// the replay is fixed outside the pool, one for the process, where it punches no hole in the persistent tier
 static CliReplay s_replay;
 
 int cli_replay_lock(void)

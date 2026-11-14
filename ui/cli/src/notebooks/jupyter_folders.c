@@ -38,22 +38,22 @@ EMBED_INLINE unsigned int jupyter_entry_append(const JupyterFoldersCtx *args)
         return args->count;
     }
     VerbaLinea line = {args->folders[args->count], CLI_PATH_MAX_LEN, 0ULL};
-    for (const char *letter = args->name; letter < args->end; letter += 1)
+    for (const char *character = args->name; character < args->end; character += 1)
     {
 #if defined(_WIN32)
         // Windows takes quotes out of a path list's entries
-        if (*letter == '"')
+        if (*character == '"')
         {
             continue;
         }
 #endif
-        mmgr_line_ch(&line, *letter);
+        mmgr_line_ch(&line, *character);
     }
     mmgr_line_finish(&line);
     return args->count + 1u;
 }
 
-// the prefix a Python's program stands in into `prefix`: its own folder on Windows, or the folder above its bin or
+// the prefix a Python's program is in into `prefix`: its own folder on Windows, or the folder above its bin or
 // Scripts folder. 1, or 0 where it has none
 EMBED_INLINE int jupyter_python_prefix(const JupyterFoldersCtx *args)
 {
@@ -72,8 +72,8 @@ EMBED_INLINE int jupyter_python_prefix(const JupyterFoldersCtx *args)
     const embed_word size = length - start;
     for (embed_word at = 0u; (at < size) && (at < sizeof(name) - 1u); at += 1u)
     {
-        const char letter = folder[start + at];
-        name[at] = ((letter >= 'A') && (letter <= 'Z')) ? (char)(letter - 'A' + 'a') : letter;
+        const char character = folder[start + at];
+        name[at] = ((character >= 'A') && (character <= 'Z')) ? (char)(character - 'A' + 'a') : character;
     }
     name[(size < sizeof(name) - 1u) ? size : sizeof(name) - 1u] = '\0';
     const int up = (size < sizeof(name) - 1u) &&

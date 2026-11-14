@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// state.h: what the window stores between runs, as files in orior's own folder, laid out as the README's "orior's own
+// state.h: what the window stores between runs, as files in orior's own folder, arranged as the README's "orior's own
 // folder" describes (state.c, state_save.c):
 //
 // - `settings.json`, the reader's settings, those the settings list names, each under its key, and the keys of a
@@ -13,7 +13,7 @@
 //
 // The page stores each entry as text under a key starting `orior.`; here the key goes without it. An entry whose text
 // is JSON other than a string is written as JSON, and any other as a string, and each reads back as the text it was. A
-// key the reader takes out of a file is gone at the next start, and the window's default stands for it
+// key the reader takes out of a file is gone at the next start, and the window's default is for it
 #ifndef STATE_H
 #define STATE_H
 #include "../text/json_tree.h"
@@ -37,7 +37,7 @@ int cli_state_read(const CliStateOutCfg *args);
 // (state_save.c)
 int cli_state_save(const CliStateFolderCfg *args);
 
-// One entry of orior's folder: where its key without `orior.` and its text stand in the entries' cell, each with a 0
+// One entry of orior's folder: where its key without `orior.` and its text are in the entries' cell, each with a 0
 // after it
 typedef struct
 {
@@ -54,7 +54,7 @@ typedef struct
     unsigned int count;
 } CliStateEntries;
 
-// where the entry `at_` stands in the entries' cell
+// where the entry `at_` is in the entries' cell
 #define CLI_STATE_ENTRY_AT(at_) ((unsigned long long)(at_) * sizeof(CliStateEntry))
 
 // no entry

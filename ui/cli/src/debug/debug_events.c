@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // debug_events.c: an adapter's events as a session receives them: its readiness, the process it debugs, a stop, which
 // ends a step across, and a stop at a breakpoint the reader did not place reported as the stop of a data breakpoint,
-// which it is; then each event handed on with the session's number
+// which it is; then each event passed on with the session's number
 #include "../command_line/callback_cfg.h"
 #include "debug_internal.h"
 

@@ -42,7 +42,7 @@ void levels_check(LevelsResults *results, int passed, const char *what, unsigned
 unsigned long long levels_draw(unsigned long long *state);
 
 void levels_fill(LevelsVolume *volume, unsigned long long *state, unsigned int depth, unsigned int height,
-                 unsigned int width, long long least, long long maximum, int wide);
+                 unsigned int width, long long least, long long max, int wide);
 
 unsigned int levels_flood(const LevelsVolume *volume, unsigned int level, unsigned int *label);
 

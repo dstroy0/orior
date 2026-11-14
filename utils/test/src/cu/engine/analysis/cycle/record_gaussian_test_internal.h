@@ -32,12 +32,12 @@
 // both registers of every floor
 #define GAUSSIAN_TEST_OUTPUTS (2u * GAUSSIAN_TEST_FLOORS)
 
-// the kinds of field value: 0, -1, 1, the most negative and the most positive, then drawn
+// the types of field value: 0, -1, 1, the max negative and the max positive, then drawn
 #define GAUSSIAN_TEST_EDGES 5u
 
 unsigned int gaussian_random(void);
 
-long long gaussian_value(unsigned int kind);
+long long gaussian_value(unsigned int type);
 
 unsigned int gaussian_word(long long value);
 
@@ -71,7 +71,7 @@ void gaussian_inverse_release(GaussianLoaded *loaded);
 int gaussian_inverse_run(const GaussianLoaded *loaded, const unsigned int *atoms, unsigned int lanes,
                          unsigned int *host_out, unsigned int *device_out, EngineError *error);
 
-unsigned int gaussian_valuation(long long real_part, long long imaginary_part, unsigned int maximum);
+unsigned int gaussian_valuation(long long real_part, long long imaginary_part, unsigned int max);
 
 long long gaussian_take(const unsigned int *record, unsigned int offset, unsigned int bits);
 

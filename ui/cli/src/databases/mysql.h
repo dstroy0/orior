@@ -43,9 +43,9 @@ CliMysql *cli_mysql_connect(const CliMysqlHostCfg *args);
 void cli_mysql_close(const CliMysqlFailureSqlCfg *args);
 
 // `size` bytes of `sql` sent as one query and read until it gives rows or ends, how it began recorded as the
-// connection's head; up to `count` rows more of the statement running each handed to `each_row`, a tag once it has none
+// connection's head; up to `count` rows more of the statement running each passed to `each_row`, a tag once it has none
 // left into `tag`, sized for CLI_DB_TAG, with `done` set; the rows the statement running has left read past; and every
-// row `sql` gives handed to `each_row`, for a question that gives few. Each 1, or 0 with the failure into `failure`
+// row `sql` gives passed to `each_row`, for a question that gives few. Each 1, or 0 with the failure into `failure`
 int cli_mysql_start(const CliMysqlFailureSqlCfg *args);
 int cli_mysql_rows(const CliMysqlFailureCfg *args);
 int cli_mysql_finish(const CliMysqlFailureSqlCfg *args);

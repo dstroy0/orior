@@ -32,7 +32,7 @@ import docs_check
 # N of N" is then two independent enumerations agreeing, instead of a regex agreeing with itself.
 #
 # Held as a tuple of single-quoted strings, deliberately. A triple-quoted block here would be a
-# docstring, prose_only keeps docstrings, and this tree's own run would then report every word in
+# docstring, prose_only retains docstrings, and this tree's own run would then report every word in
 # the list as a British variant, against the file that tests for British variants.
 BRITISH_FORMS = (
     "initialise",
@@ -387,7 +387,7 @@ class BuildFilesAreReadAtAll(unittest.TestCase):
 
     def test_a_git_hook_is_selected_although_it_has_no_extension(self):
         # A hook has no extension, and a sweep by extension drops it and the gate with it. HOOK_NAMES
-        # exists for that, and orior keeps three of these under roots it already scans.
+        # exists for that, and orior retains three of these under roots it already scans.
         for name in ("pre-commit", "commit-msg", "pre-push"):
             self.assertTrue(docs_check.build_file(os.path.join("hooks", name)), name)
 
@@ -402,7 +402,7 @@ class BuildFilesAreReadAtAll(unittest.TestCase):
         got = [
             one for one in docs_check.walk_markdown(roots) if docs_check.build_file(one)
         ]
-        kinds = sorted(
+        types = sorted(
             set(
                 (
                     os.path.basename(one)
@@ -414,14 +414,14 @@ class BuildFilesAreReadAtAll(unittest.TestCase):
             )
         )
         print(
-            "\n  build files under this tree's own roots: %d, of kinds %s"
-            % (len(got), kinds)
+            "\n  build files under this tree's own roots: %d, of types %s"
+            % (len(got), types)
         )
         self.assertGreater(
             len(got), 0, "no build file was selected under this tree's own roots"
         )
-        self.assertIn("CMakeLists.txt", kinds)
-        self.assertIn("pre-commit", kinds)
+        self.assertIn("CMakeLists.txt", types)
+        self.assertIn("pre-commit", types)
 
 
 class TheCommentExtractorForTheHashForm(unittest.TestCase):
@@ -461,7 +461,7 @@ class TheCommentExtractorForTheHashForm(unittest.TestCase):
     def test_the_extractor_is_reached_through_prose_only(self):
         # The dispatch and not only the helper, because a caller that has to know which extractor to
         # call is a caller that will get it wrong. submission_check.py imports CHECKED and
-        # prose_only and never asks what kind of file it has.
+        # prose_only and never asks what type of file it has.
         said = docs_check.prose_only(
             "x/CMakeLists.txt", ["set(a 1)", "# undefined behaviour"]
         )
@@ -492,7 +492,7 @@ class TheAlphabetStageIsAPatternAndNotAList(unittest.TestCase):
             )
         self.assertEqual(len(set(docs_check.LOCALE)), len(docs_check.LOCALE))
 
-    def test_the_first_ten_keep_their_human_rate_keys_character_for_character(self):
+    def test_the_first_ten_retain_their_human_rate_keys_character_for_character(self):
         # Nine of the ten are keys in HUMAN_RATE, which is keyed by the pattern string itself.
         # Rewriting one to fold it into a general arm takes a measured rate out of
         # submission_check.py's table with nothing left to show the rate. `whilst` carries no rate,
@@ -649,7 +649,7 @@ class PrecisionOverRecall(unittest.TestCase):
 
     def test_anis_and_mortis_are_not_safe_stems(self):
         # These two must not be added. `anis` would exempt `organise`, which ends in those five
-        # letters, and `mortis` would exempt `amortise`, which ends in those six. A stem matched
+        # characters, and `mortis` would exempt `amortise`, which ends in those six. A stem matched
         # from the end has to be checked against the British words that end the same way.
         self.assertTrue(stage_reaches("organise"))
         self.assertTrue(stage_reaches("amortise"))
@@ -718,7 +718,7 @@ class PrecisionOverRecall(unittest.TestCase):
 
     def test_the_single_l_arm_stops_at_the_word_boundary(self):
         # `fulfilled` and `appalling` are defined the same on both sides of the Atlantic. Only the
-        # forms that differ are in the arm, and the word boundary keeps the rest out.
+        # forms that differ are in the arm, and the word boundary retains the rest out.
         self.assertTrue(stage_reaches("fulfil"))
         self.assertTrue(stage_reaches("fulfilment"))
         self.assertFalse(stage_reaches("fulfilled"))
@@ -738,7 +738,7 @@ class PrecisionOverRecall(unittest.TestCase):
 
     def test_the_stage_reports_nothing_in_either_standard(self):
         # The governing test, in the alphabet stage's slice. A gate that flags the documents that
-        # authorize it is wrong by construction, and a new pattern arm is the most likely way to
+        # authorize it is wrong by construction, and a new pattern arm is the likely way to
         # break that. The standards write `initialise` and `behaviour` by name at :149 and :157,
         # inside backticks. The document is naming a form there, and a name is not a use.
         standards = {

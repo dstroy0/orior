@@ -21,7 +21,7 @@ What it does not share is the convention, and the gap is not small:
     examples/proofing/exact_harmonics.py     unnormalized, WITH the Condon-Shortley sign,
                                              P_m^m = (-1)^m (2m-1)!! sin^m, binary fixed point
     this module, and sphere_field.py         normalized, NO Condon-Shortley sign, the climb
-                                             kept at unit scale, decimal arithmetic
+                                             retained at unit scale, decimal arithmetic
 
 The two therefore differ by sqrt((2l+1)(l-m)! / (4 pi (l+m)!)) and by a sign in the odd orders.
 Either is a correct convention; mixing them is not, and the mixture would be quiet, because the low
@@ -55,7 +55,7 @@ enters only as cos(m*longitude) and sin(m*longitude):
     cos(m*lon), sin(m*lon)                            de Moivre recurrence from the pair above
 
 So no arccosine, no arctangent, and the whole basis is square roots and rational arithmetic. The
-single series evaluation in the file is the cosine of the golden angle, needed once to lay the
+single series evaluation in the file is the cosine of the golden angle, needed once to position the
 placement out, and the placement's own spiral then advances by a de Moivre recurrence as well.
 
 PI COMES FROM OUR TABLE AND THERE IS NO FALLBACK
@@ -259,7 +259,7 @@ def harmonics_at(top, x, cos_lon, sin_lon, digits):
 
     Row l holds 2l + 1 values ordered from -l to +l, matching `sphere_field.harmonics_at` and the
     storage order every reading in this tree uses. The order's cosine and sine come off a de Moivre
-    recurrence and not a trigonometric call, which is exact arithmetic on the pair handed in.
+    recurrence and not a trigonometric call, which is exact arithmetic on the pair passed in.
     """
     context = _context(digits)
     rows = [[decimal.Decimal(0)] * (2 * degree + 1) for degree in range(top + 1)]

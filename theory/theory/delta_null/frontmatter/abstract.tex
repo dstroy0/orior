@@ -7,13 +7,13 @@
 \end{center}
 \bigskip
 
-\noindent Measure how far an object is from the most disordered arrangement of its own parts.
+\noindent Measure how far an object is from the max disordered arrangement of its own parts.
 
 That is the method. Each subject in this work applies it with a different answer to what a part
 is: atoms in a crystal cell, symbols in a corpus, bytes in a file, coordinates on a circuit board.
 The reference is built only from the object's own parts. There is neither a prior estimate, a
-training set nor a model or neural network. The reference is the maximum entropy arrangement of
-those parts, the shuffled copy that keeps every count, and the measurement is the exact difference
+training set nor a model or neural network. The reference is the max entropy arrangement of
+those parts, the shuffled copy that retains every count, and the measurement is the exact difference
 from it. In statistics this is a permutation test \cite{src:Good-2005}.
 
 Two propositions set the limits of the search. First, any subset of a pattern's positions is a
@@ -31,17 +31,17 @@ guarantees, each with the condition it needs. The
 counts are exact for any valid set of checks on byte data, and on ranked data with 256 classes or
 fewer under a transitive equality test. Placing the checks greedily drops at least \(1 - 1/e\) of
 what the best placement drops when every alignment is scored \cite{src:Nemhauser-Wolsey-and-Fisher}.
-The search goes at most four levels deep, and fewer when the data, the candidates available or the
+The search goes at max four levels deep, and fewer when the data, the candidates available or the
 number of checks asked for run out first.
 
 The work uses two basic measurements:
 
 \begin{enumerate}
-  \item \textbf{Entropy of the object.} The set \(T\) measured against its own maximum entropy. It
+  \item \textbf{Entropy of the object.} The set \(T\) measured against its own max entropy. It
     has no unit. Shannon defines entropy in section 6, page 389, where \(H\) is largest, at
     \(\log n\), when every \(p_i\) is equal \cite{src:Shannon}.
   \item \textbf{Difference from the permutation null}, \(\Delta_{\Sigma}\). How far \(T\) is from the
-    maximum entropy arrangement of its own parts. In its bitwise form it lists the exact symmetries
+    max entropy arrangement of its own parts. In its bitwise form it lists the exact symmetries
     of \(T\) that the shuffled copies do not reproduce.
 \end{enumerate}
 
@@ -51,7 +51,7 @@ from the permutation null compares the data with shuffles of the same symbols, a
 holds the answer to check it against.
 
 The negative result is that collision entropy does not change when the data is shuffled. An object
-and its most disordered rearrangement have the same symbol counts, and so the same collision entropy.
+and its max disordered rearrangement have the same symbol counts, and so the same collision entropy.
 No bound built from a histogram can tell structured data from a rearrangement of the same symbols.
 
 What follows is the simplest form of the algorithm. Other arrangements are in the orior engine

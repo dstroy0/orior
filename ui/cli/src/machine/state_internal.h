@@ -21,7 +21,7 @@ enum
     CLI_STATE_BACKUP
 };
 
-// the most bytes of a file of entries read, and so of one written, and the most JSON files of a folder
+// the max bytes of a file of entries read, and so of one written, and the max JSON files of a folder
 #define CLI_STATE_BYTES (1u << 22u)
 
 #define CLI_STATE_FILES 4096u

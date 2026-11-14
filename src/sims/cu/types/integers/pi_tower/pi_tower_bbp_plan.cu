@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// pi_tower_bbp_plan.cu: the BBP program laid out and planned
+// pi_tower_bbp_plan.cu: the BBP program arranged and planned
 #include "pi_tower_internal.h"
 
 // the four denominators' offsets, 8 i + j
 static const unsigned int s_pi_tower_bbp_offset[4] = {1u, 4u, 5u, 6u};
 
-// keymath encodes the program, its last step the output, and the scheduler lays out its registers, each reused once its
+// keymath encodes the program, its last step the output, and the scheduler arranges its registers, each reused once its
 // last reader has run
 static int pi_tower_program_build(PiTowerProgram *program, const std::vector<EngineRecordStep> &steps,
                                   const unsigned int *field_bits, unsigned int members, const unsigned int *in_limbs,
@@ -56,7 +56,7 @@ static int pi_tower_bbp_term_build(PiTowerBbp *bbp, EngineError *error)
     const unsigned int position = pi_tower_constant(&steps, bbp->position);
     const unsigned int exponent = pi_tower_step(&steps, ENGINE_RECORD_DIFFERENCE, position, index);
     const unsigned int nibbles = (bbp->position_bits + 3u) / 4u;
-    // 16^nibbles stands above every exponent. A quotient by any lower power of 16 leaves a whole nibble to index by
+    // 16^nibbles is above every exponent. A quotient by any lower power of 16 leaves a whole nibble to index by
     const unsigned int above = pi_tower_constant(&steps, pi_tower_power_two(4u * nibbles));
     const unsigned int guarded = pi_tower_step(&steps, ENGINE_RECORD_SUM, exponent, above);
     const unsigned int eight = pi_tower_step(&steps, ENGINE_RECORD_CONSTANT, 8u, 0u);
@@ -64,11 +64,11 @@ static int pi_tower_bbp_term_build(PiTowerBbp *bbp, EngineError *error)
     const unsigned int one = pi_tower_step(&steps, ENGINE_RECORD_CONSTANT, 1u, 0u);
     unsigned int modulus[4];
     unsigned int residue[4];
-    for (unsigned int kind = 0u; kind < 4u; kind += 1u)
+    for (unsigned int type = 0u; type < 4u; type += 1u)
     {
-        const unsigned int offset = pi_tower_step(&steps, ENGINE_RECORD_CONSTANT, s_pi_tower_bbp_offset[kind], 0u);
-        modulus[kind] = pi_tower_step(&steps, ENGINE_RECORD_SUM, eighth, offset);
-        residue[kind] = one;
+        const unsigned int offset = pi_tower_step(&steps, ENGINE_RECORD_CONSTANT, s_pi_tower_bbp_offset[type], 0u);
+        modulus[type] = pi_tower_step(&steps, ENGINE_RECORD_SUM, eighth, offset);
+        residue[type] = one;
     }
     // 16^e from the top nibble down: r becomes r^16 . 16^(the nibble), each square and product taken mod 8 i + j
     for (unsigned int nibble = nibbles; nibble > 0u; nibble -= 1u)
@@ -76,23 +76,23 @@ static int pi_tower_bbp_term_build(PiTowerBbp *bbp, EngineError *error)
         const unsigned int place = pi_tower_constant(&steps, pi_tower_power_two(4u * (nibble - 1u)));
         const unsigned int digit = pi_tower_step(&steps, ENGINE_RECORD_QUOTIENT, guarded, place);
         const unsigned int power = pi_tower_step(&steps, ENGINE_RECORD_TABLE, digit, 0u);
-        for (unsigned int kind = 0u; kind < 4u; kind += 1u)
+        for (unsigned int type = 0u; type < 4u; type += 1u)
         {
             for (unsigned int square = 0u; square < 4u; square += 1u)
             {
-                const unsigned int squared = pi_tower_step(&steps, ENGINE_RECORD_PRODUCT, residue[kind], residue[kind]);
-                residue[kind] = pi_tower_step(&steps, ENGINE_RECORD_REMAINDER, squared, modulus[kind]);
+                const unsigned int squared = pi_tower_step(&steps, ENGINE_RECORD_PRODUCT, residue[type], residue[type]);
+                residue[type] = pi_tower_step(&steps, ENGINE_RECORD_REMAINDER, squared, modulus[type]);
             }
-            const unsigned int raised = pi_tower_step(&steps, ENGINE_RECORD_PRODUCT, residue[kind], power);
-            residue[kind] = pi_tower_step(&steps, ENGINE_RECORD_REMAINDER, raised, modulus[kind]);
+            const unsigned int raised = pi_tower_step(&steps, ENGINE_RECORD_PRODUCT, residue[type], power);
+            residue[type] = pi_tower_step(&steps, ENGINE_RECORD_REMAINDER, raised, modulus[type]);
         }
     }
     const unsigned int unit = pi_tower_constant(&steps, pi_tower_power_two(bbp->fraction_bits));
     unsigned int fraction[4];
-    for (unsigned int kind = 0u; kind < 4u; kind += 1u)
+    for (unsigned int type = 0u; type < 4u; type += 1u)
     {
-        const unsigned int scaled = pi_tower_step(&steps, ENGINE_RECORD_PRODUCT, residue[kind], unit);
-        fraction[kind] = pi_tower_step(&steps, ENGINE_RECORD_QUOTIENT, scaled, modulus[kind]);
+        const unsigned int scaled = pi_tower_step(&steps, ENGINE_RECORD_PRODUCT, residue[type], unit);
+        fraction[type] = pi_tower_step(&steps, ENGINE_RECORD_QUOTIENT, scaled, modulus[type]);
     }
     pi_tower_bbp_combine(&steps, fraction, bbp->fraction_bits);
     // 16^v for a nibble v, below 2^61
@@ -122,12 +122,12 @@ static int pi_tower_bbp_tail_build(PiTowerBbp *bbp, EngineError *error)
     const unsigned int scale = pi_tower_step(&steps, ENGINE_RECORD_TABLE, ahead, 0u);
     const unsigned int unit = pi_tower_constant(&steps, pi_tower_power_two(bbp->fraction_bits));
     unsigned int fraction[4];
-    for (unsigned int kind = 0u; kind < 4u; kind += 1u)
+    for (unsigned int type = 0u; type < 4u; type += 1u)
     {
-        const unsigned int offset = pi_tower_step(&steps, ENGINE_RECORD_CONSTANT, s_pi_tower_bbp_offset[kind], 0u);
+        const unsigned int offset = pi_tower_step(&steps, ENGINE_RECORD_CONSTANT, s_pi_tower_bbp_offset[type], 0u);
         const unsigned int modulus = pi_tower_step(&steps, ENGINE_RECORD_SUM, eighth, offset);
         const unsigned int below = pi_tower_step(&steps, ENGINE_RECORD_PRODUCT, modulus, scale);
-        fraction[kind] = pi_tower_step(&steps, ENGINE_RECORD_QUOTIENT, unit, below);
+        fraction[type] = pi_tower_step(&steps, ENGINE_RECORD_QUOTIENT, unit, below);
     }
     pi_tower_bbp_combine(&steps, fraction, bbp->fraction_bits);
     // 16^v for every v the tail's field can represent
@@ -243,7 +243,7 @@ int pi_tower_bbp_counted(SimResults *results, unsigned int *out, unsigned long l
                          unsigned long long first)
 {
     const unsigned long long blocks = sim_launch_blocks(count, 256ull);
-    // at most 4096 blocks. The count fits an unsigned int
+    // at max 4096 blocks. The count fits an unsigned int
     pi_tower_bbp_count<<<(unsigned int)((blocks < 4096ull) ? blocks : 4096ull), 256u>>>(out, count, limbs, first);
     return sim_status_check(results, cudaGetLastError(), "engine: the lanes' integers");
 }

@@ -5,9 +5,9 @@ import { isWordChar, pos, same, wordAt } from "../document.js";
 import { selectionPath } from "../shape.js";
 import { status, write } from "../../status.js";
 import { enter, leave } from "../../trace.js";
-import { BREAK_STRIP, DRAWN_MOST, DRAWN_PAGED, empty, endOfSel, escapeHtml, historyChars, LINE, ORIGIN_ROWS, PAD, RTL, SELECTION_ROUND, startOf } from "../view.js";
+import { BREAK_STRIP, DRAWN_MAX, DRAWN_PAGED, empty, endOfSel, escapeHtml, historyChars, LINE, ORIGIN_ROWS, PAD, RTL, SELECTION_ROUND, startOf } from "../view.js";
 
-// The most rows a paged file's view draws ahead of where it heads as it scrolls.
+// The max rows a paged file's view draws ahead of where it heads as it scrolls.
 const LEAD_PAGED = 16;
 
 // A frame drawn, it and each of its stages traced where the window is joined to a run.
@@ -46,9 +46,9 @@ export function painted() {
   const total = this.linesInFile();
   // The gutter holds, left to right, the strip a breakpoint is set in, Line History's column where
   // it shows, the line numbers, and the fold arrows and change marks.
-  // Where the view stands, read before this frame changes the page.
-  // Where the view stands, as this frame's scroll event read it, or read now where none came: a read
-  // after the page has changed lays it out again before the frame does.
+  // Where the view is, read before this frame changes the page.
+  // Where the view is, as this frame's scroll event read it, or read now where none came: a read
+  // after the page has changed positions it out again before the frame does.
   const known = this.scrolledNow;
   this.scrolledNow = null;
   const scrolledTop = known ? known.top : this.scroller.scrollTop;
@@ -65,8 +65,8 @@ export function painted() {
   const height = this.viewSize().height;
   // The rows past each edge of the screen, more of them the way the view heads the faster it
   // goes. The page's own scroll never shows a row before a frame draws it.
-  // A file stored as pages whose view reaches past the lines its window holds keeps its last frame where it was drawn
-  // until the window comes to the view, so no row stands blank and no part of the view is torn from the rest; the
+  // A file stored as pages whose view reaches past the lines its window holds retains its last frame where it was drawn
+  // until the window comes to the view, so no row is blank and no part of the view is torn from the rest; the
   // minimap goes on with the view.
   if (this.pastWindowFrame === s && this.pastWindow(scrolledTop)) {
     this.minimap.paint(scrolledTop);
@@ -76,7 +76,7 @@ export function painted() {
   this.pastWindowFrame = s;
   // A paged file's window holds the view and a margin about it, so it draws fewer rows ahead than a text read whole;
   // and none past its edges where its view has moved farther than its height since the frame before, as a drag of the
-  // scrollbar moves it, the rows about a view that leaps never shown.
+  // scrollbar moves it, the rows about a view that leaps never displayed.
   const file = s.base + top / LINE;
   const leaps = s.window?.paged && this.drawnFileTop !== undefined && Math.abs(file - this.drawnFileTop) * LINE > height;
   this.drawnFileTop = file;
@@ -85,12 +85,12 @@ export function painted() {
   const first = Math.max(0, Math.floor(top / LINE) - (status.scroll.heading < 0 ? lead : edge));
   const last = Math.min(rows.size - 1, Math.ceil((top + height) / LINE) + (status.scroll.heading > 0 ? lead : edge));
   if (rows.size) {
-    const shownCall = enter("shown");
+    const displayedCall = enter("displayed");
     this.onShown(s, rows.lineOf(first), rows.lineOf(last));
-    leave(shownCall);
+    leave(displayedCall);
   }
   // The origin moves only once the rows drawn have left the two spans of ORIGIN_ROWS below it. A
-  // new origin moves every row, each layer placing its rows again where they stand from it.
+  // new origin moves every row, each layer placing its rows again where they are from it.
   if (first < this.originRow || first >= this.originRow + 2 * ORIGIN_ROWS) {
     this.originRow = Math.floor(first / ORIGIN_ROWS) * ORIGIN_ROWS;
   }
@@ -108,7 +108,7 @@ export function painted() {
   const tests = this.testsOf?.(s) ?? null;
   const covered = this.coverageOf?.(s) ?? null;
   const paused = this.pausedOf?.(s) ?? null;
-  // The marks plugins lay, each line's from every plugin.
+  // The marks plugins position, each line's from every plugin.
   const plugged = this.pluginMarksOf?.(s) ?? null;
 
   const text = new Map();
@@ -144,8 +144,8 @@ export function painted() {
   if (occurrence && occurrence.length > 120) {
     occurrence = null;
   }
-  const matches = this.find.shown ? this.find.between(rows.lineOf(first), rows.lineOf(last)) : [];
-  const current = this.find.shown ? this.find.current() : null;
+  const matches = this.find.displayed ? this.find.between(rows.lineOf(first), rows.lineOf(last)) : [];
+  const current = this.find.displayed ? this.find.current() : null;
 
   const rowsCall = enter("rows");
   for (let row = first; row <= last; row += 1) {
@@ -186,10 +186,10 @@ export function painted() {
     const test = tests?.get(base + line);
     const testMark = test === undefined ? "" : `<span class="ed-test ${test}" data-test="${base + line}" title="Run or debug the test">▶</span>`;
     const cover = covered?.ran.has(base + line) ? '<span class="ed-cover ran"></span>' : covered?.missed.has(base + line) ? '<span class="ed-cover missed"></span>' : "";
-    const laid = plugged?.get(base + line);
-    const plugMark = laid ? `<span class="ed-plugin ${laid[0].kind}" title="${escapeHtml(laid.map((one) => one.title + (one.text ? `: ${one.text}` : "")).join("\n"))}"></span>` : "";
-    if (laid?.some((one) => one.text)) {
-      over.push(`<div class="ed-plugin-text ${laid[0].kind}" style="left:${this.xOf({ line, col: doc.line(line).length }) + 2 * this.cw}px;top:${this.yOf(rows.lastRowOf(line))}px;height:${LINE}px">${escapeHtml(laid.map((one) => one.text).filter(Boolean).join("  "))}</div>`);
+    const positioned = plugged?.get(base + line);
+    const plugMark = positioned ? `<span class="ed-plugin ${positioned[0].type}" title="${escapeHtml(positioned.map((one) => one.title + (one.text ? `: ${one.text}` : "")).join("\n"))}"></span>` : "";
+    if (positioned?.some((one) => one.text)) {
+      over.push(`<div class="ed-plugin-text ${positioned[0].type}" style="left:${this.xOf({ line, col: doc.line(line).length }) + 2 * this.cw}px;top:${this.yOf(rows.lastRowOf(line))}px;height:${LINE}px">${escapeHtml(positioned.map((one) => one.text).filter(Boolean).join("  "))}</div>`);
     }
     gutter.set(row, [headLines.has(line) ? "ed-num on" : "ed-num", dot + here + ribbon + history + testMark + plugMark + number + mark + cover + this.changeMark(line)]);
   }
@@ -203,7 +203,7 @@ export function painted() {
     }
   }
   // A language server's diagnostics, each underlined in the color of its severity: 1 an error, 2 a
-  // warning, 3 a note and 4 a hint. One that spans nothing marks the character it stands at.
+  // warning, 3 a note and 4 a hint. One that spans nothing marks the character it is at.
   for (const diag of s.diagnostics ?? []) {
     for (let line = diag.from.line - s.base; line <= diag.to.line - s.base; line += 1) {
       if (line < 0 || line >= doc.count || visible(line) < 0) {
@@ -227,12 +227,12 @@ export function painted() {
   const rowTop = (row) => this.yOf(row);
   const textCall = enter("text");
   // The rows drawn: those in sight, and those drawn out from them since in the session and from the
-  // origin they were drawn in, at most DRAWN_MOST of them, as many past the view on either side as
+  // origin they were drawn in, at max DRAWN_MAX of them, as many past the view on either side as
   // there are room for, and none past the text's end. A row drawn before an edit or a scroll across
-  // is drawn again from the text as it stands as it comes into sight.
+  // is drawn again from the text as it is as it comes into sight.
   const drawnFor = this.drawnFor();
   const was = this.drawn?.for === drawnFor && this.drawn.from <= last + 1 && this.drawn.to >= first - 1 ? this.drawn : null;
-  const half = Math.floor(((s.window?.paged ? DRAWN_PAGED : DRAWN_MOST) - (last - first + 1)) / 2);
+  const half = Math.floor(((s.window?.paged ? DRAWN_PAGED : DRAWN_MAX) - (last - first + 1)) / 2);
   this.drawn = { for: drawnFor, from: Math.max(Math.min(first, was?.from ?? first), first - half), to: Math.min(Math.max(last, was?.to ?? last), last + half, rows.size - 1) };
   const drawn = this.drawn;
   this.textLayer.draw(text, rowTop, (row) => row >= drawn.from && row <= drawn.to);
@@ -242,7 +242,7 @@ export function painted() {
   // one blank character, the rows' spans drawn as one shape; on a line that holds text running
   // right to left, each run of its characters as the page draws them is a shape of its own.
   const shapes = [];
-  // Read only for a line that runs right to left: a read here lays out the rows just written.
+  // Read only for a line that runs right to left: a read here arranges the rows just written.
   let spaceLeft = null;
   for (const sel of sels) {
     if (empty(sel)) {

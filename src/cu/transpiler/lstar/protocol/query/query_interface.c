@@ -11,14 +11,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define QUERY_INTERFACE_CHECK(condition_, evacaddr_, error_, kind_)                                                    \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_INTERFACE, (unsigned int)__LINE__,                         \
+#define QUERY_INTERFACE_CHECK(condition_, evacaddr_, error_, type_)                                                    \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_INTERFACE, (unsigned int)__LINE__,                         \
                        (const void *)(evacaddr_), (error_))
 
-// one line is an address and two numbers, at most 16 + 1 + 10 + 1 + 10 + 1 characters; this fits every line of
-// the most addresses a probe is given
+// one line is an address and two numbers, at max 16 + 1 + 10 + 1 + 10 + 1 characters; this fits every line of
+// the max addresses a probe is given
 #define QUERY_INTERFACE_LINE 48ull
-static char s_query_interface_lines[(QUERY_INTERFACE_MOST * QUERY_INTERFACE_LINE) + 1ull];
+static char s_query_interface_lines[(QUERY_INTERFACE_MAX * QUERY_INTERFACE_LINE) + 1ull];
 
 // `value` in hex written into `text`, which has room for 24
 static void query_interface_hex(char *text, unsigned long long value)
@@ -28,7 +28,7 @@ static void query_interface_hex(char *text, unsigned long long value)
     mmgr_line_finish(&line);
 }
 
-// The lines the walk's probe handed the run (QUERY_WALK_RECORD) after the place `began` of the run's schedule, once
+// The lines the walk's probe passed the run (QUERY_WALK_RECORD) after the place `began` of the run's schedule, once
 // every ring is taken, joined into s_query_interface_lines in the order the writer took them and ended by a zero byte
 static void query_interface_lines_gathered(unsigned long long began)
 {
@@ -55,7 +55,7 @@ int query_interface_run(const QueryWalk *walk, const QueryInterfaceDriver *drive
     while (next < walk->count)
     {
         const unsigned long long left = walk->count - next;
-        const unsigned long long given = (left < QUERY_INTERFACE_MOST) ? left : QUERY_INTERFACE_MOST;
+        const unsigned long long given = (left < QUERY_INTERFACE_MAX) ? left : QUERY_INTERFACE_MAX;
         char qualifier[24];
         char from[24];
         char count[24];
@@ -74,7 +74,7 @@ int query_interface_run(const QueryWalk *walk, const QueryInterfaceDriver *drive
         const InterfaceProbe probe = {(driver->takes_qualifier != 0) ? qualified : spanned, NULL,
                                       walk->limit_microseconds};
         InterfaceAnswer answer = {0};
-        // the place the run's schedule records before the probe starts: every line it hands stands past it
+        // the place the run's schedule records before the probe starts: every line it passes is past it
         const unsigned long long began = qry_member_settled();
         if (interface_probe_run(&probe, &answer, error) != 0L)
         {
@@ -111,7 +111,7 @@ int query_interface_run(const QueryWalk *walk, const QueryInterfaceDriver *drive
 }
 
 // The lines query_walk wrote, read into the queries `answers` contains from `next` on. How many it answered in order; a
-// line out of order, past the addresses it was given, or not three numbers ends the read where it stands
+// line out of order, past the addresses it was given, or not three numbers ends the read where it is
 static unsigned long long query_interface_read(const QueryWalk *walk, const char *lines, unsigned long long next,
                                                unsigned long long given, void *answers)
 {
@@ -127,7 +127,7 @@ static unsigned long long query_interface_read(const QueryWalk *walk, const char
             break;
         }
         at = end;
-        // a bit and a kind are each one small number, stored at the width of the fields that contain them
+        // a bit and a type are each one small number, stored at the width of the fields that contain them
         const unsigned int bit = (unsigned int)strtoul(at, &end, 10);
         if (end == at)
         {
@@ -135,7 +135,7 @@ static unsigned long long query_interface_read(const QueryWalk *walk, const char
         }
         at = end;
         // as above
-        const unsigned int kind = (unsigned int)strtoul(at, &end, 10);
+        const unsigned int type = (unsigned int)strtoul(at, &end, 10);
         if ((end == at) || (address != (walk->from + ((next + read) * walk->stride))))
         {
             break;
@@ -146,7 +146,7 @@ static unsigned long long query_interface_read(const QueryWalk *walk, const char
         answer->qualifier = walk->qualifier;
         answer->word = walk->word;
         answer->bit = bit;
-        answer->kind = kind;
+        answer->type = type;
         answer->fault = 0u;
         read += 1ull;
     }
@@ -161,7 +161,7 @@ static void query_interface_ended(const QueryWalk *walk, unsigned long long next
     ended->qualifier = walk->qualifier;
     ended->word = walk->word;
     ended->bit = 0u;
-    ended->kind = QUERY_ENDED;
+    ended->type = QUERY_ENDED;
     // an InterfaceFault is a small count, which the field represents
     ended->fault = (unsigned int)fault;
 }

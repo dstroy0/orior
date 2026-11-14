@@ -48,7 +48,7 @@ total <- 0
 for (name in sort(unique(data$corpus))) {
   values <- data$ratio[data$corpus == name]
   if (length(values) < 12) next
-  # Shapiro-Wilk takes at most 5000 observations
+  # Shapiro-Wilk takes at max 5000 observations
   sample_values <- if (length(values) > 5000) sample(values, 5000) else values
   test <- shapiro.test(sample_values)
   logged <- shapiro.test(log(sample_values[sample_values > 0]))

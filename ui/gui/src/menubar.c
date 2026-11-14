@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // menubar.c: the menu bar. What is open, what is marked and what can be chosen are the menus' own, read where they
-// stand (commands.c); where each title and menu stands, and which pixel stands on what, are worked out here
+// are (commands.c); where each title and menu is, and which pixel is on what, are worked out here
 #include "menubar.h"
 #include "../../../includes/arith/arith.h"
 #include "../../cli/src/command_line/pool.h"
@@ -9,7 +9,7 @@
 #include "../../../includes/glass/glass.h"
 #include "../../../includes/window/top_menu.h"
 
-// the most titles the bar shows at a window width in the page's pixels, narrowest last, as the page folds them
+// the max titles the bar shows at a window width in the page's pixels, narrowest last, as the page folds them
 typedef struct
 {
     int width;
@@ -192,13 +192,13 @@ static void menubar_menu_position(const MenubarCtx *args)
 EMBED_INLINE void menubar_scroll_clamp(const MenubarCtx *args)
 {
     GuiMenubar *const menubar = args->menubar_out;
-    const int most = menubar->content[args->level] - menubar->menu_rect[args->level].height;
+    const int max = menubar->content[args->level] - menubar->menu_rect[args->level].height;
     int scrolled = menubar->scrolled[args->level];
-    scrolled = (scrolled > most) ? most : scrolled;
+    scrolled = (scrolled > max) ? max : scrolled;
     menubar->scrolled[args->level] = (scrolled < 0) ? 0 : scrolled;
 }
 
-// the rows of the open menu at `level` scrolled as it is laid: a menu opened anew stands at its first row, and a row
+// the rows of the open menu at `level` scrolled as it is positioned: a menu opened anew is at its first row, and a row
 // marked anew is scrolled into view by the least that shows it whole, as a browser scrolls what takes the keys
 static void menubar_scroll_layout(const MenubarCtx *args)
 {
@@ -248,8 +248,8 @@ void gui_menubar_menus_layout(const GuiMenubarBarCfg *args)
     }
     if (menus->open < 0)
     {
-        // a menu asked for stands with its top left at its point, or at the terminal's key field, the panel's foot at
-        // its left, as the page's stands at the one-pixel field it gives the keys
+        // a menu asked for is with its top left at its point, or at the terminal's key field, the panel's foot at
+        // its left, as the page's is at the one-pixel field it gives the keys
         const int keys = menus->place == CLI_MENU_PLACE_TERMINAL_KEYS;
         EMBED_CALL(menubar_menu_position, MenubarCtx, .menubar_out = menubar, .glyphs = args->glyphs,
                    .frame = args->frame, .level = 0u, .x = keys ? args->frame->terminal.x : menus->x,
@@ -305,7 +305,7 @@ void gui_menubar_titles_layout(const GuiMenubarBarCfg *args)
     GuiMenubar *const menubar = args->menubar;
     const unsigned int count = cli_menu_titles();
     menubar->titles = 0u;
-    // the bar moves under a pointer standing still, which marks no title until it moves, while a menu open saves its
+    // the bar moves under a pointer stationary, which marks no title until it moves, while a menu open saves its
     // own
     if (g_cli_menus_open.levels == 0u)
     {
@@ -317,13 +317,13 @@ void gui_menubar_titles_layout(const GuiMenubarBarCfg *args)
     }
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                        .pixels = (int)GUI_HEAD_SIZE, .scale = args->frame->scale);
-    unsigned int most = GUI_MENUBAR_TITLES;
+    unsigned int max = GUI_MENUBAR_TITLES;
     for (unsigned int at = 0u; at < sizeof(s_titles_at) / sizeof(s_titles_at[0]); at += 1u)
     {
         if ((int)args->frame->width >= EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                   .pixels = s_titles_at[at].width, .scale = args->frame->scale))
         {
-            most = s_titles_at[at].titles;
+            max = s_titles_at[at].titles;
             break;
         }
     }
@@ -361,7 +361,7 @@ void gui_menubar_titles_layout(const GuiMenubarBarCfg *args)
         const int reach =
             x + margin_x + pixel_width + margin_x + (((at + 1u) < count) ? (margin_x + folded_width + margin_x) : 0);
         const int fits =
-            (menubar->titles < most) && (reach <= capacity_end) && ((menubar->titles + 1u) < GUI_MENUBAR_TITLES);
+            (menubar->titles < max) && (reach <= capacity_end) && ((menubar->titles + 1u) < GUI_MENUBAR_TITLES);
         if (!fits)
         {
             menubar->folded_from = at;
@@ -477,7 +477,7 @@ void gui_menubar_titles_draw(const GuiMenubarGlyphsFrameCfg *args)
     GuiGlyphs *glyphs = args->glyphs;
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                        .pixels = (int)GUI_HEAD_SIZE, .scale = args->frame->scale);
-    // the titles stand in the bar's pane, the slat its edge shows
+    // the titles are in the bar's pane, the slat its edge shows
     const GuiRect pane = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->frame->top_menu_band,
                                     .other = args->frame->top_menu);
     const int open = g_cli_menus_open.open;
@@ -552,9 +552,9 @@ void gui_menubar_menus_draw(const GuiMenubarGlyphsFrameCfg *args)
             const CliItem *const row = &item;
             const GuiRect rect = EMBED_CALL(menubar_row_rect, MenubarCtx, .menubar = args->menubar_read, .level = level,
                                             .index = at, .scale = scale);
-            const GuiRect shown =
+            const GuiRect displayed =
                 EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = rect, .other = inner);
-            if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = shown))
+            if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = displayed))
             {
                 continue;
             }
@@ -572,14 +572,14 @@ void gui_menubar_menus_draw(const GuiMenubarGlyphsFrameCfg *args)
             // the rows are fewer than an int counts
             if ((int)at == menu->pointed)
             {
-                EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = shown,
+                EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = displayed,
                            .radius = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 4,
                                                               .scale = scale),
                            .color = args->palette->selection);
             }
             else if ((int)at == menu->opened)
             {
-                EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = shown,
+                EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = displayed,
                            .radius = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 4,
                                                               .scale = scale),
                            .color = args->palette->selection_idle);
@@ -597,18 +597,18 @@ void gui_menubar_menus_draw(const GuiMenubarGlyphsFrameCfg *args)
                 (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster,
                                  .glyphs = glyphs, .face = GUI_FACE_HEAD, .size = size,
                                  .x_f32 = (float)(rect.x + check_x), .y = baseline, .text = "\xe2\x9c\x93",
-                                 .length = 3ULL, .color = args->palette->signal, .clip = shown);
+                                 .length = 3ULL, .color = args->palette->signal, .clip = displayed);
             }
             (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                              .face = GUI_FACE_HEAD, .size = size, .x_f32 = (float)(rect.x + label_x), .y = baseline,
                              .text = row->label,
                              .length = cellul.len(&(CatenaFinitaCfg){.src = row->label, .cap = CLI_LABEL_MAX_LEN}),
-                             .color = color, .clip = shown);
+                             .color = color, .clip = displayed);
             const unsigned long long keys_length =
                 cellul.len(&(CatenaFinitaCfg){.src = row->keys, .cap = CLI_LABEL_MAX_LEN});
             const int arm = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 3, .scale = scale);
             const int middle = rect.y + (rect.height / 2);
-            if ((row->list != 0u) && ((middle - arm) >= shown.y) && ((middle + arm) < (shown.y + shown.height)))
+            if ((row->list != 0u) && ((middle - arm) >= displayed.y) && ((middle + arm) < (displayed.y + displayed.height)))
             {
                 // a chevron pointing to where the items open, drawn where all of it shows
                 const int tip_x = rect.x + rect.width - item_pad;
@@ -626,7 +626,7 @@ void gui_menubar_menus_draw(const GuiMenubarGlyphsFrameCfg *args)
                                  .glyphs = glyphs, .face = GUI_FACE_CODE, .size = keys_size,
                                  .x_f32 = (float)(rect.x + rect.width - item_pad) - keys_width, .y = baseline,
                                  .text = row->keys, .length = keys_length, .color = args->palette->text_3,
-                                 .clip = shown);
+                                 .clip = displayed);
             }
         }
     }

@@ -8,9 +8,9 @@
 #   Usage:  python examples/particle_physics/4_measure/shell_closures_from_the_difference_set.py
 #
 # The group signatures in atomic number order are a sequence, and the match rate at a lag is how often
-# a signature equals the one that many elements ahead. A single period would stand up at one lag and
+# a signature equals the one that many elements ahead. A single period would are up at one lag and
 # its multiples. The periodic table does not: its rows run 2, 8, 8, 18, 18, 32, 32. No one lag
-# carries the recurrence, and a reader that reported one period would be wrong for most of the table.
+# carries the recurrence, and a reader that reported one period would be wrong for the majority of the table.
 # periodicity.py's header records the same trap from the other side, a period scored against its own
 # harmonics; here the harmonics are genuinely different lengths.
 #
@@ -43,7 +43,7 @@ from measure.sequence_match import match_rate_at_lag, coincidence_floor  # noqa:
 from representation.atom import element  # noqa: E402
 
 # How many of the tallest lags to list.
-SHOWN = 10
+DISPLAYED = 10
 
 
 def signature_sequence():
@@ -86,7 +86,7 @@ def main(argv):
               % floor)
     out.write("    for a reason the counts do not force.\n\n")
     out.write("    %6s %10s %10s\n" % ("lag", "rate", "over floor"))
-    tallest = sorted(rates.items(), key=lambda pair: (-pair[1], pair[0]))[:SHOWN]
+    tallest = sorted(rates.items(), key=lambda pair: (-pair[1], pair[0]))[:DISPLAYED]
     for lag, rate in tallest:
         ratio = rate / floor if floor > 0 else 0.0
         out.write("    %6d %10.3f %9.2fx\n" % (lag, rate, ratio))

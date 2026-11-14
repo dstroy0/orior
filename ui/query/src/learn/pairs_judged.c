@@ -123,7 +123,7 @@ int query_judged(const QueryPairsContextErrMsgCtx *args)
                    .name = "orior_khw_machine_write", .binary = s_writer, .err_msg = err_msg);
     if (whole && EMBED_CALL(query_pairs_internal.kernel_dispatch, QueryPairsCtx, .mode_text = args->mode->mode))
     {
-        // the kernel the system accepted, handed to the run by the vendor's writer for the frame's queries
+        // the kernel the system accepted, passed to the run by the vendor's writer for the frame's queries
         static QueryWords s_kernel;
         memor.set(&(MemoriaCfg){.dst = &s_kernel, .val = 0, .bytes = sizeof(s_kernel)});
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_kernel,
@@ -135,7 +135,7 @@ int query_judged(const QueryPairsContextErrMsgCtx *args)
                            .words = s_kernel.word_text, .code = &code, .err_msg = err_msg);
         if (whole && (code != 0LL))
         {
-            mmgr_line_put(err_msg, "the vendor's writer handed the run no kernel");
+            mmgr_line_put(err_msg, "the vendor's writer passed the run no kernel");
             whole = 0;
         }
     }
@@ -174,7 +174,7 @@ int query_judged(const QueryPairsContextErrMsgCtx *args)
                    .part = args->mode->part, .extension = ".kdm", .path = kdm);
         const char *const read[1] = {kdm};
         whole = EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run,
-                           .paths_letters = read, .count = 1u, .err_msg = err_msg);
+                           .paths_characters = read, .count = 1u, .err_msg = err_msg);
     }
     static QueryWords s_words;
     memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
@@ -195,7 +195,7 @@ int query_judged(const QueryPairsContextErrMsgCtx *args)
                .words = &s_words);
     if (whole && (cellul.eq(&(CatenaFinitaCfg){.src = args->mode->mode, .other = "cost", .cap = CLI_POOL_BYTES})))
     {
-        // the machine file's forms placed by the vendor's writer, handed to the run for the identity to cost in the
+        // the machine file's forms placed by the vendor's writer, passed to the run for the identity to cost in the
         // part's clock beside the arrangements
         const char *const positioned[8] = {s_writer,          args->mode->part, s_files.machine, s_files.layout,
                                            s_files.mnemonics, "krs_forms.bin",  "krs",           NULL};
@@ -217,7 +217,7 @@ int query_judged(const QueryPairsContextErrMsgCtx *args)
         EMBED_CALL(query_pairs_part_context_dry_internal.tools_words, QueryPairsPartContextDryCtx, .context = context,
                    .part = args->mode->part, .dry = args->mode->dry, .words = &s_words, .err_msg = err_msg) &&
         EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
-                   .context = context, .run = &s_run, .identity = args->identity, .words_letters = s_words.word_text,
+                   .context = context, .run = &s_run, .identity = args->identity, .words_characters = s_words.word_text,
                    .count = s_words.count, .code = &code, .err_msg = err_msg);
     if (whole && (code != 0LL))
     {
@@ -252,7 +252,7 @@ int query_judged(const QueryPairsContextErrMsgCtx *args)
     return (int)code;
 }
 
-// what the walk for a read-back listing in the engine's folder records: whether one `.dis` stands there
+// what the walk for a read-back listing in the engine's folder records: whether one `.dis` is there
 static void query_dis_find(const CliEachNameIsFolderCfg *args)
 {
     void *context = args->context;
@@ -302,7 +302,7 @@ int query_stick_slice(const QueryPairsContextErrMsgCtx *args)
                            .run_out = &s_run, .part = args->mode->part, .err_msg = err_msg);
     const char *const sliced[6] = {"slice", sass, tsv, cu, work, engine};
     whole = whole && EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
-                                .context = context, .run = &s_run, .identity = args->identity, .words_letters = sliced,
+                                .context = context, .run = &s_run, .identity = args->identity, .words_characters = sliced,
                                 .count = 6u, .code = &code, .err_msg = err_msg);
     stopped = whole && (code != 0LL);
     whole = whole && !stopped &&
@@ -328,13 +328,13 @@ int query_stick_slice(const QueryPairsContextErrMsgCtx *args)
     }
     whole = whole && !stopped &&
             EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
-                       .context = context, .run = &s_run, .identity = args->identity, .words_letters = s_read.word_text,
+                       .context = context, .run = &s_run, .identity = args->identity, .words_characters = s_read.word_text,
                        .count = s_read.count, .code = &code, .err_msg = err_msg);
     stopped = stopped || (whole && (code != 0LL));
     const char *const permuted[4] = {"permute", sass, tsv, work};
     whole = whole && !stopped &&
             EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
-                       .context = context, .run = &s_run, .identity = args->identity, .words_letters = permuted,
+                       .context = context, .run = &s_run, .identity = args->identity, .words_characters = permuted,
                        .count = 4u, .code = &code, .err_msg = err_msg);
     stopped = stopped || (whole && (code != 0LL));
     int read_back = 0;
@@ -344,7 +344,7 @@ int query_stick_slice(const QueryPairsContextErrMsgCtx *args)
     {
         const char *const known[5] = {"known", sass, tsv, work, engine};
         whole = EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
-                           .context = context, .run = &s_run, .identity = args->identity, .words_letters = known,
+                           .context = context, .run = &s_run, .identity = args->identity, .words_characters = known,
                            .count = 5u, .code = &code, .err_msg = err_msg);
         stopped = whole && (code != 0LL);
         static QueryWords s_broken;
@@ -375,7 +375,7 @@ int query_stick_slice(const QueryPairsContextErrMsgCtx *args)
             whole && !stopped &&
             EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
                        .context = context, .run = &s_run, .identity = args->identity,
-                       .words_letters = s_broken.word_text, .count = s_broken.count, .code = &code, .err_msg = err_msg);
+                       .words_characters = s_broken.word_text, .count = s_broken.count, .code = &code, .err_msg = err_msg);
     }
     else if (whole && !stopped)
     {

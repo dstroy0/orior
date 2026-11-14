@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // Flowcharts, and the charts of boxes and lines that states, classes, entities and a mind map's ideas are drawn as,
-// laid out as a flowchart is.
+// arranged as a flowchart is.
 
 import { escape, linesOf, svg, textAt, widest } from "./svg.js";
 
@@ -325,7 +325,7 @@ function edgesSvg(edges, places) {
   return parts.join("");
 }
 
-// A chart of `nodes` and `edges` laid out as a flowchart runs `direction`, each node drawn by `draw`.
+// A chart of `nodes` and `edges` arranged as a flowchart runs `direction`, each node drawn by `draw`.
 export function chartSvg(direction, nodes, edges, draw, type) {
   const chart = { direction, nodes, edges };
   const { places, total } = layoutFlowchart(chart);

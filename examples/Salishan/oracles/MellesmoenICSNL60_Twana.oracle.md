@@ -5,10 +5,10 @@ University of British Columbia, ICSNL 60.
 
 Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
-pure corpus, then against this paper's own English laid over that reference. What the paper's
+pure corpus, then against this paper's own English positioned over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
 from the characters that sit outside that English, and word_web.web() built 488 edges over the
-language forms. A person then matched the context: who, kind and gloss for each row, the names,
+language forms. A person then matched the context: who, type and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
 someone reads the paper again and says otherwise.
@@ -27,9 +27,9 @@ Blake's, MAX and LINEARITY (15) McCarthy and Prince's, and SYLLCON (23) Urbanczy
 constraints, the rankings, the tables, the prose, the headings and the notes carry Gloria
 Mellesmoen.
 
-THE LETTERS
+THE CHARACTERS
 
-Outside the paper's English the engine found these letters and marks: á é ó č š ƛ ə ɬ ʔ ʷ ́ ̓ ̣ μ σ.
+Outside the paper's English the engine found these characters and marks: á é ó č š ƛ ə ɬ ʔ ʷ ́ ̓ ̣ μ σ.
 The Twana and Tillamook forms are in the Americanist orthography of Drachman 1969 and Egesdal and
 Thompson 1998, with the glottalization of a consonant as U+0313, the dot below of a uvular as
 U+0323, and stress as an acute accent on the vowel. A tilde joins the reduplicant to the root,
@@ -42,7 +42,7 @@ THE PAGE AND THE TEXT LAYER
 The forms are in NFC, and the check puts the text layer through the same repair: the space the PDF
 sets after a stacked mark is closed, except before an opening quote, then NFC. The page marks the
 winning candidate of each tableau with a pointing hand, U+F046 in the text layer; the table drops it
-and says so in the candidate's gloss. The text layer sets a space after a glottalized letter, q̓ ʷ
+and says so in the candidate's gloss. The text layer sets a space after a glottalized character, q̓ ʷ
 for q̓ʷ, and the table closes it. The page underlines the segments between a copied consonant and
 its source in kt̓ə́keʔəs and qəbə́qsəd; the text layer breaks kt̓ə́keʔəs at the underline and writes
 C1C2 in its translation as C 1C2. Figures 1 and 2 are drawings, and only their captions are in the
@@ -58,7 +58,7 @@ where    the paper's locator: the title, the front matter, a section, a footnote
 who      the language for an example tier and a cited form; the work cited on an example's
          line, or the speaker for a volunteered translation, for its English; the authors for
          the prose, the tables and the notes
-kind     transcription  an example tier in the orthography
+type     transcription  an example tier in the orthography
          segmentation   an example tier broken into morphemes
          translation    the English of an example
          rule           a line of a rule, a derivation or a tree the authors display

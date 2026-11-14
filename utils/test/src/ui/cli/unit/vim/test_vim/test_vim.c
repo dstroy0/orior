@@ -38,7 +38,7 @@ static void pressed(const char *name)
     TEST_ASSERT_TRUE(sent(&input));
 }
 
-// each letter of `text` typed as the window types it, a key and then its text
+// each character of `text` typed as the window types it, a key and then its text
 static void typed(const char *text)
 {
     const unsigned long long length = CLI_UNITY_LENGTH(text);
@@ -47,9 +47,9 @@ static void typed(const char *text)
         char name[2] = {text[at], '\0'};
         name[0] = ((name[0] >= 'a') && (name[0] <= 'z')) ? (char)(name[0] - 'a' + 'A') : name[0];
         const CliViewInput key = {.type = CLI_VIEW_KEY, .name = name};
-        const CliViewInput letter = {.type = CLI_VIEW_TEXT, .text = text + at, .length = 1ULL};
+        const CliViewInput character = {.type = CLI_VIEW_TEXT, .text = text + at, .length = 1ULL};
         TEST_ASSERT_TRUE(sent(&key));
-        TEST_ASSERT_TRUE(sent(&letter));
+        TEST_ASSERT_TRUE(sent(&character));
     }
 }
 
@@ -146,7 +146,7 @@ void test_the_motions_move_over_words_blanks_punctuation_and_line_ends_with_coun
     at(0ULL, 2ULL);
 }
 
-void test_f_F_t_T_go_to_a_letter_on_the_line_and_semicolon_and_comma_go_again(void)
+void test_f_F_t_T_go_to_a_character_on_the_line_and_semicolon_and_comma_go_again(void)
 {
     fresh("a,b,c;d,e");
     typed("f,");
@@ -234,7 +234,7 @@ void test_the_operators_act_on_motions_objects_and_lines_with_counts_and_registe
     reads("ab cdab ");
 }
 
-void test_the_letter_commands_act_with_counts_and_put_as_the_register_took(void)
+void test_the_character_commands_act_with_counts_and_put_as_the_register_took(void)
 {
     fresh("abcdef");
     typed("x");

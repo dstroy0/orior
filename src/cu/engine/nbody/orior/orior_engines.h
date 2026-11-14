@@ -17,7 +17,7 @@ extern "C"
      * @brief One implementation of the steering scan.
      *
      * @note `count` takes the corpus, the alignment count, the survivor flags, the needle byte being
-     *       tested and the offset it sits at, and returns how many still-standing alignments agree.
+     *       tested and the offset it sits at, and returns how many still-located alignments agree.
      *       A planner queries a scan engine for this operation alone.
      */
     typedef struct
@@ -68,10 +68,10 @@ extern "C"
      *
      * @param[in] corpus     Bytes under examination [BORROWS].
      * @param[in] alignments How many alignments the object has.
-     * @param[in] alive      One flag per alignment, non-zero where still standing [BORROWS].
+     * @param[in] alive      One flag per alignment, non-zero where still located [BORROWS].
      * @param[in] wanted     The needle byte being tested.
      * @param[in] offset     Needle offset the probe sits at.
-     * @return               How many still-standing alignments agree.
+     * @return               How many still-located alignments agree.
      */
     size_t orior_steer_truthy_after_portable(const uint8_t *corpus, size_t alignments, const uint8_t *alive,
                                               uint8_t wanted, size_t offset);

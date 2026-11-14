@@ -83,7 +83,7 @@ EMBED_INLINE void cli_attribute_count(const IppCtx *args)
         args->message->full = 1;
         return;
     }
-    // a name is at most what the encoding's 16 bits count
+    // a name is at max what the encoding's 16 bits count
     const CliIppAttribute attribute = {
         EMBED_CALL(cli_bytes_store, IppCtx, .message = args->message, .bytes = args->name, .length = args->length),
         (unsigned int)args->length, args->message->values, 0u};
@@ -132,7 +132,7 @@ void cli_ipp_range(const CliIppMessageLowCfg *args)
 void cli_ipp_text(const CliIppMessageTagCfg *args)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
-    // a text is at most what the encoding's 16 bits count
+    // a text is at max what the encoding's 16 bits count
     const CliIppValue made = {
         CLI_IPP_TEXT,
         args->tag,
@@ -339,7 +339,7 @@ int cli_ipp_decode(const CliIppMessageCfg *args)
         default:
             value.type = ((tag[0] >= 0x41u) && (tag[0] <= 0x49u)) ? CLI_IPP_TEXT : CLI_IPP_OTHER;
             value.bytes = EMBED_CALL(cli_bytes_store, IppCtx, .message = args->message, .bytes = raw, .length = length);
-            // a value is at most what the encoding's 16 bits count
+            // a value is at max what the encoding's 16 bits count
             value.length = (unsigned int)length;
             break;
         }

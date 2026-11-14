@@ -24,8 +24,8 @@ extern "C" long noise_clips_set(const NoiseSetRequest *request)
     EngineError *const error = request->error;
     static const char *const files[NOISE_CLIPS_TABLES] = {"noise_clips.tsv", "noise_values.tsv", "noise_spikes.tsv"};
     static const char *const headers[NOISE_CLIPS_TABLES] = {
-        "sample\tleast\tmost\tnever_present_between\tat_zero\tat_top\tconstant\tconstant_zero\tconstant_top\tz_least"
-        "\tz_most\ty_least\ty_most\tx_least\tx_most\n",
+        "sample\tleast\tmax\tnever_present_between\tat_zero\tat_top\tconstant\tconstant_zero\tconstant_top\tz_least"
+        "\tz_max\ty_least\ty_max\tx_least\tx_max\n",
         "sample\tvalue\tcount\tconstant_voxels\n",
         "sample\tlowest_mean\ttriples\tspikes_16\tdips_16\tspikes_32\tdips_32\tspikes_64\tdips_64\tspikes_128"
         "\tdips_128\n"};
@@ -33,9 +33,9 @@ extern "C" long noise_clips_set(const NoiseSetRequest *request)
     FILE *tables[NOISE_CLIPS_TABLES] = {NULL, NULL, NULL};
     int ok = NOISE_DETECTOR_CHECK((request->set != NULL) && (request->samples != NULL) && (request->load != NULL),
                                   request, error, ENGINE_ERROR_REQUEST);
-    for (unsigned int kind = 0u; ok && (kind < NOISE_CLIPS_TABLES); kind += 1u)
+    for (unsigned int type = 0u; ok && (type < NOISE_CLIPS_TABLES); type += 1u)
     {
-        ok = noise_table_open(request->set, files[kind], headers[kind], paths[kind], &tables[kind], error);
+        ok = noise_table_open(request->set, files[type], headers[type], paths[type], &tables[type], error);
     }
     printf("  clips: every value counted; the voxel-frames at 0 and at the lane's top, 65535; the voxels whose every"
            " frame is one value, and the box they sit in\n");
@@ -60,11 +60,11 @@ extern "C" long noise_clips_set(const NoiseSetRequest *request)
         }
     }
     free(clips);
-    for (unsigned int kind = 0u; kind < NOISE_CLIPS_TABLES; kind += 1u)
+    for (unsigned int type = 0u; type < NOISE_CLIPS_TABLES; type += 1u)
     {
-        if (tables[kind] != NULL)
+        if (tables[type] != NULL)
         {
-            ok = NOISE_DETECTOR_IO(fclose(tables[kind]) == 0, paths[kind], error) && ok;
+            ok = NOISE_DETECTOR_IO(fclose(tables[type]) == 0, paths[type], error) && ok;
         }
     }
     if (ok != 0)
@@ -102,7 +102,7 @@ static long noise_pixels_sample(const unsigned short *volume, const unsigned lon
     const unsigned long long depth = extent[1];
     const unsigned long long plane_voxels = extent[2] * extent[3];
     const unsigned long long voxels = depth * plane_voxels;
-    // a pixel's squares total at most the sample's voxel-frames times 65535 squared
+    // a pixel's squares total at max the sample's voxel-frames times 65535 squared
     const int bounded = (frames >= 2ull) && (voxels != 0ull) && (frames <= (~0ull / voxels)) &&
                         ((frames * voxels) <= (~0ull / (65535ull * 65535ull)));
     if (!NOISE_DETECTOR_CHECK(bounded, extent, error, ENGINE_ERROR_REQUEST))

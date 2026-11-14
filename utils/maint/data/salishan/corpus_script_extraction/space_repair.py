@@ -16,13 +16,13 @@
 # it.
 #
 # The list was tested before being used, on the oracle the font table was tested on: Lyon's later
-# papers on the same language, whose extraction kept its characters. Of the entries holding a
+# papers on the same language, whose extraction retained its characters. Of the entries holding a
 # space, none has all its pieces attested there as words in their own right, in either paper: 0 of
 # 252 and 0 of 319. Joined, 4% and 36% of them are attested. The pieces are not words and the joins
 # are. The low rate on the first paper comes from the reference sharing little vocabulary with it,
 # and not from the joins being wrong.
 #
-# One word already whole is never joined to its neighbor. That keeps iʔ sɬiqw two words: a
+# One word already whole is never joined to its neighbor. That retains iʔ sɬiqw two words: a
 # join starts only from a token that is not itself in the list.
 
 import re
@@ -98,14 +98,14 @@ def joined_words(text, vocabulary, longest=LONGEST):
 
     Walks the line and, at a token that is not already a word, takes the longest run of tokens
     whose pieces define one. Punctuation rides along: the run is looked up without it and written
-    back with it. The pair sta ʔx̌íl. joins to staʔx̌íl. and keeps the stop.
+    back with it. The pair sta ʔx̌íl. joins to staʔx̌íl. and retains the stop.
     """
     tokens = text.split()
     out = []
     at = 0
     while at < len(tokens):
         best = None
-        # A token that is already a word is left alone, which keeps a real boundary.
+        # A token that is already a word is left alone, which retains a real boundary.
         if bare_token(tokens[at]) not in vocabulary:
             for take in range(2, min(longest, len(tokens) - at) + 1):
                 candidate = "".join(tokens[at:at + take])

@@ -3,11 +3,11 @@
 
 // Files the tree's side opens paged, too large to read whole, stored as pages (ui/cli/src/editor/pages.c). The tree's
 // side holds the file and the lines written over it, and an index of its lines, and colors it as it colors every
-// branch; the page holds a window of the lines about the view, as a file still being read is kept: the view scrolls the
-// whole file, and the lines outside the window stand as padding. Each read answers the lines with their colors, and the
+// branch; the page holds a window of the lines about the view, as a file still being read is retained: the view scrolls the
+// whole file, and the lines outside the window are as padding. Each read answers the lines with their colors, and the
 // page puts the colors before it draws the lines, so no line is drawn uncolored.
 //
-// The tree's side places the window. The page tells it where the view stands each frame the view moves and once it has
+// The tree's side places the window. The page tells it where the view is each frame the view moves and once it has
 // rested, and takes the lines it answers: as the view moves, the view's rows where it will be, each line cut at how far
 // across the view reaches; as it rests, the view's rows whole, then the lines about it and the minimap's a step at a
 // time, those outside them let go. A window of cut lines takes no edit and gives no copy until the rest makes it whole. A
@@ -22,23 +22,23 @@ import { Session } from "./editor/session.js";
 import { say } from "./statusbar.js";
 
 // The window's sizes in lines as a file opens or jumps: the lines above the line it opens at, and the lines read; and
-// the most it keeps while the history reaches lines it would let go.
+// the max it retains while the history reaches lines it would let go.
 const NEAR = 100;
 const STEP = 400;
 const HARD = 20000;
 
-// How long the view stands still, in milliseconds, before it is told as resting; and the reports of where it stands in
+// How long the view is stationary, in milliseconds, before it is told as resting; and the reports of where it is in
 // flight at once.
 const CALM = 100;
 const FLYING = 2;
 
 // The lines a view moves before, once it rests, the web view is asked to give back the memory the drawing on the way
-// kept, and the milliseconds its memory target is kept low for it.
+// retained, and the milliseconds its memory target is retained low for it.
 const MOVED_GIVEN = 1000;
 const LOW_FOR = 1000;
 
-// How far across each line of the paged session `s` is drawn, the letters a read colors: as far as its view reaches,
-// every letter where its lines wrap, and where no view shows it as far as its colors were last told to reach.
+// How far across each line of the paged session `s` is drawn, the characters a read colors: as far as its view reaches,
+// every character where its lines wrap, and where no view shows it as far as its colors were last told to reach.
 const columnsOf = (s) => {
   const reach = s.view?.reach?.() ?? null;
   return reach === null ? s.highlight.columnsTold : Number.isFinite(reach) ? reach : 0;
@@ -56,15 +56,15 @@ function along(paged, work) {
 
 // Runs `work`, a read of the paged file `paged`, once every call `along` ran before it is answered: a read waits for
 // the edits sent before it and not for another read, so a read slow to come holds back no report of where the view
-// stands.
+// is.
 export function after(paged, work) {
   return paged.chain.then(work);
 }
 
-// How the paged file `paged` stands as a report is sent: its edits and the window's jumps; and whether it stands so
+// How the paged file `paged` is as a report is sent: its edits and the window's jumps; and whether it is so
 // still, so the lines answered are the lines the report was for.
-const standing = (paged) => ({ edits: paged.edits, jumps: paged.jumps });
-const stands = (paged, stood) => !paged.gone && paged.edits === stood.edits && paged.jumps === stood.jumps;
+const located = (paged) => ({ edits: paged.edits, jumps: paged.jumps });
+const is = (paged, was) => !paged.gone && paged.edits === was.edits && paged.jumps === was.jumps;
 
 // The file at `path` that orior's side opened paged under `key`, `opened` its answer with the file's shape, the names
 // its grammar's tokens take and the colors of the lines in view: its window about the line `line`, in `language`, the
@@ -83,7 +83,7 @@ export async function openPaged(path, line, language, key, opened) {
   const to = Math.min(shape.lines, from + STEP);
   const read = await invoke("pages_read", { key, from, to, columns: opened.columns ?? 0 });
   // the calls about the file one after another; the edits made and the window's jumps, counted; and the reports of
-  // where the view stands, those in flight, the last sent, the last whose answer the window took, and the view's top
+  // where the view is, those in flight, the last sent, the last whose answer the window took, and the view's top
   // last told
   const paged = { key, chain: Promise.resolve(), indexed: shape.indexed, edits: 0, jumps: 0, flying: 0, sent: 0, taken: 0, told: null, resting: false, wanted: false, moved: 0 };
   // the window: its lines' cut, 0 where whole, and where cut each line's whole length
@@ -91,7 +91,7 @@ export async function openPaged(path, line, language, key, opened) {
   session.highlight.mirrors(key, opened.names, opened.colors, opened.columns ?? 0);
   session.highlight.given(read.colors);
   paged.session = session;
-  // Each edit goes to the tree's side in the file's lines, as the window stands when it is made.
+  // Each edit goes to the tree's side in the file's lines, as the window is when it is made.
   paged.unwatch = session.doc.watch(({ edits }) => {
     paged.edits += 1;
     const base = session.base;
@@ -132,7 +132,7 @@ const topOf = (s, view) => {
   return row < rows.size ? s.base + rows.lineOf(row) : s.base + s.doc.count + (row - rows.size);
 };
 
-// Tells orior's side where the view of `view` on the paged session `s` stands as it moves, and once it has stood CALM
+// Tells orior's side where the view of `view` on the paged session `s` is as it moves, and once it has was CALM
 // milliseconds that it rests, the lines it moved counted.
 export function follow(s, view) {
   const paged = s?.window?.paged;
@@ -148,8 +148,8 @@ export function follow(s, view) {
 }
 
 // The view of `view` on the paged session `s` told as resting; and where it moved MOVED_GIVEN lines since the web view
-// last gave its memory back, the web view's memory target kept low LOW_FOR milliseconds, so it gives back what the
-// drawing on the way kept.
+// last gave its memory back, the web view's memory target retained low LOW_FOR milliseconds, so it gives back what the
+// drawing on the way retained.
 function restAgain(s, view) {
   const paged = s.window.paged;
   paged.resting = true;
@@ -163,18 +163,18 @@ function restAgain(s, view) {
   }
 }
 
-// Whether the window of the paged session `s` stands as orior's side placed it for a view at rest, nothing in flight.
+// Whether the window of the paged session `s` is as orior's side placed it for a view at rest, nothing in flight.
 export const settled = (s) => {
   const paged = s.window.paged;
   return paged.resting && !paged.flying && !paged.wanted;
 };
 
-// Tells orior's side where the view of `view` on the paged session `s` stands: its top, its rows, how far across it
-// reaches, the lines the minimap stands beside, the lines the window holds and their cut, and the letters a row holds
+// Tells orior's side where the view of `view` on the paged session `s` is: its top, its rows, how far across it
+// reaches, the lines the minimap is beside, the lines the window holds and their cut, and the characters a row holds
 // where its lines wrap, 0 where they do not, by which orior's side answers the lines its rows take. FLYING are in
-// flight at the most, and one more is sent as one lands where one was wanted meanwhile. The newest answer to land takes
+// flight at max, and one more is sent as one lands where one was wanted meanwhile. The newest answer to land takes
 // the window, unless the file was edited or the window jumped since it was sent; and at rest, an answer that brought
-// lines in is followed by another until the window holds what the view keeps.
+// lines in is followed by another until the window holds what the view retains.
 function report(s, view) {
   const paged = s.window.paged;
   if (paged.gone || view.s !== s) {
@@ -191,11 +191,11 @@ function report(s, view) {
   const told = { key: paged.key, top, rows, columns: columnsOf(s), map_from: Math.max(0, mapFrom), map_to: Math.max(0, mapTo), cached_from: s.base, cached_to: s.base + s.doc.count, cached_cut: s.window.cut, width: view.wrapOn ? view.wrapColumns() : 0 };
   paged.told = top;
   const sent = ++paged.sent;
-  const stood = standing(paged);
+  const was = located(paged);
   paged.flying += 1;
   after(paged, () => invoke("pages_view", told))
     .then((answer) => {
-      if (sent > paged.taken && stands(paged, stood)) {
+      if (sent > paged.taken && is(paged, was)) {
         paged.taken = sent;
         took(s, answer);
         paged.wanted = paged.wanted || (paged.resting && Boolean(answer.lines?.length));
@@ -212,8 +212,8 @@ function report(s, view) {
 
 // The answer to a report put into the window of the paged session `s`: lines that meet or cross the window's ends grow
 // it by those past them, the window cut where they are, as an answer to a report sent before the window last grew
-// does; lines apart from it, or whole lines for a window of cut ones, take its place, the view left where it stands;
-// and the lines outside those orior's side keeps let go.
+// does; lines apart from it, or whole lines for a window of cut ones, take its place, the view left where it is;
+// and the lines outside those orior's side retains let go.
 function took(s, answer) {
   const lines = answer.lines ?? [];
   const cut = answer.cut ?? 0;
@@ -240,20 +240,20 @@ function took(s, answer) {
       s.replaceWindow(lines, answer.from, null, answer.colors);
     }
   }
-  letGo(s, answer.keep);
+  letGo(s, answer.retain);
 }
 
-// Lets go of the window's lines outside the file's lines `keep`, from and to, those above and those below, unless the
+// Lets go of the window's lines outside the file's lines `retain`, from and to, those above and those below, unless the
 // history reaches them while the window holds fewer than HARD.
-function letGo(s, keep) {
-  if (!keep) {
+function letGo(s, retain) {
+  if (!retain) {
     return;
   }
-  const above = Math.max(0, Math.min(s.doc.count, keep[0] - s.base));
+  const above = Math.max(0, Math.min(s.doc.count, retain[0] - s.base));
   if (above && !(s.doc.count < HARD && s.doc.reaches((line) => line < above))) {
     s.shrink(above, true);
   }
-  const below = Math.max(0, Math.min(s.doc.count, s.base + s.doc.count - keep[1]));
+  const below = Math.max(0, Math.min(s.doc.count, s.base + s.doc.count - retain[1]));
   if (below && !(s.doc.count < HARD && s.doc.reaches((line) => line >= s.doc.count - below))) {
     s.window.after += below;
     s.shrink(below, false);
@@ -291,10 +291,10 @@ export function readPaged(s, from, to) {
 }
 
 // The matches find gives for the paged session `s`'s whole file on the tree's side, once every edit before has gone
-// there: `sought` as the find bar sets it, at most `most`, each [line, from col, to col] in the file's lines.
-export function findPaged(s, sought, most) {
+// there: `sought` as the find bar sets it, at max `max`, each [line, from col, to col] in the file's lines.
+export function findPaged(s, sought, max) {
   const paged = s.window.paged;
-  return after(paged, () => invoke("pages_find", { key: paged.key, sought, most }));
+  return after(paged, () => invoke("pages_find", { key: paged.key, sought, max }));
 }
 
 // Saves a paged file on the tree's side, once every edit before it has gone there.

@@ -95,7 +95,7 @@ TRIES = 3
 
 # Entries taken per name, and how many of those are read all the way through.
 PER_NAME = 8
-KEPT_PER_NAME = 3
+RETAINED_PER_NAME = 3
 
 # Minerals and simple compounds likely to be published with right angles. Names, not formulas,
 # because the archive's text search is what accepts them.
@@ -168,7 +168,7 @@ WANTED = (
 
 
 def cached(name, url, out):
-    """Fetch a URL once and keep it. Returns the text, or None where the archive errored."""
+    """Fetch a URL once and retain it. Returns the text, or None where the archive errored."""
     path = os.path.join(CACHE, name)
     if os.path.isfile(path):
         with open(path, encoding="utf-8", errors="replace") as handle:
@@ -209,7 +209,7 @@ def cached(name, url, out):
 
 
 def angstroms(value):
-    """An exact integer at the scale, as the decimal text it stands for.
+    """An exact integer at the scale, as the decimal text it is for.
 
     Rendered by moving the point in the digit string. Dividing by the scale to print it would put a
     float back into the one path that has none.
@@ -276,9 +276,9 @@ def main():
         except ValueError:
             continue
 
-        kept = 0
+        retained = 0
         for entry in entries:
-            if kept >= KEPT_PER_NAME:
+            if retained >= RETAINED_PER_NAME:
                 break
             identifier = str(entry.get("file", ""))
             if (not identifier) or (identifier in seen):
@@ -293,7 +293,7 @@ def main():
             measured = measure_entry(text)
             if not measured:
                 continue
-            kept += 1
+            retained += 1
             for axis, published, recovered, score in measured:
                 same = recovered == published
                 rows.append((name, identifier, axis, published, recovered, same, score))

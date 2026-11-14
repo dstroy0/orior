@@ -8,13 +8,13 @@
 import { invoke } from "../../gui/src-js/bridge.js";
 import { editing, openFile } from "../../gui/src-js/edit.js";
 import { runCommand } from "../../gui/src-js/menubar.js";
-import { bringBack, focusOn, kindOf: typeOf, noticesAway, noticesWaiting, noticesSaid, noticesUnseen, say, setFocus } from "../../gui/src-js/statusbar.js";
+import { bringBack, focusOn, typeOf: typeOf, noticesAway, noticesWaiting, noticesSaid, noticesUnseen, say, setFocus } from "../../gui/src-js/statusbar.js";
 import { showView } from "../../gui/src-js/views.js";
 
 const { test, assert, ui } = window.__harness;
 
 const said = () => document.getElementById("status-said");
-const shown = (text) => !said().hidden && said().textContent === text;
+const displayed = (text) => !said().hidden && said().textContent === text;
 
 // Types in the editor, a press longer ago than a notice answers it.
 async function typing() {
@@ -31,31 +31,31 @@ async function typing() {
 test("a notice that answers a press shows at once", async () => {
   await ui.click("#statusbar");
   say("Answered at once");
-  assert.ok(shown("Answered at once"));
-  assert.equal(noticesSaid().at(-1).text, "Answered at once", "the bell keeps it");
+  assert.ok(displayed("Answered at once"));
+  assert.equal(noticesSaid().at(-1).text, "Answered at once", "the bell retains it");
 });
 
 test("a notice that comes while the reader types waits for the keys to rest, and none takes the keys", async () => {
   await typing();
   const before = noticesSaid().length;
   say("Came while typing");
-  assert.ok(!shown("Came while typing"), "not at once");
+  assert.ok(!displayed("Came while typing"), "not at once");
   assert.equal(noticesSaid().length, before, "the bell has not got it yet");
   assert.deepEqual(noticesWaiting().map((one) => one.text), ["Came while typing"]);
   await ui.type(" three");
   await ui.rest(1200);
-  assert.ok(!shown("Came while typing"), "the keys have not rested");
+  assert.ok(!displayed("Came while typing"), "the keys have not rested");
   await ui.waitFor(() => !noticesWaiting().length && noticesSaid().some((one) => one.text === "Came while typing"), 4000);
-  assert.ok(shown(noticesSaid().at(-1).text), "the last waiting shows on the bar");
-  assert.ok(document.activeElement.classList.contains("ed-input"), "the editor keeps the keys");
+  assert.ok(displayed(noticesSaid().at(-1).text), "the last waiting shows on the bar");
+  assert.ok(document.activeElement.classList.contains("ed-input"), "the editor retains the keys");
 });
 
 test("a save is a break, and the notices waiting show at it", async () => {
   await typing();
   say("Waiting for the save");
-  assert.ok(!shown("Waiting for the save"));
+  assert.ok(!displayed("Waiting for the save"));
   await invoke("file_write", { path: "notices.txt", text: "saved\n" });
-  await ui.waitFor(() => shown("Waiting for the save"), 500);
+  await ui.waitFor(() => displayed("Waiting for the save"), 500);
 });
 
 test("Focus holds every notice until it ends, even at a break, and then shows them", async () => {
@@ -67,42 +67,42 @@ test("Focus holds every notice until it ends, even at a break, and then shows th
   say("Second while focused");
   await invoke("file_write", { path: "notices.txt", text: "saved again\n" });
   await ui.rest(2500);
-  assert.ok(!shown("First while focused") && !shown("Second while focused"), "a press, a save and the keys at rest all wait");
+  assert.ok(!displayed("First while focused") && !displayed("Second while focused"), "a press, a save and the keys at rest all wait");
   const waiting = noticesWaiting().map((one) => one.text);
   assert.ok(waiting.includes("First while focused") && waiting.includes("Second while focused"), JSON.stringify(waiting));
   assert.equal(document.getElementById("status-focus").textContent, `Focus, ${waiting.length} waiting`);
   await ui.click("#status-focus");
   assert.equal(focusOn(), false);
   assert.equal(noticesWaiting().length, 0);
-  assert.ok(shown(waiting.at(-1)), "the last on the bar");
+  assert.ok(displayed(waiting.at(-1)), "the last on the bar");
   const bell = noticesSaid().map((one) => one.text);
   assert.ok(bell.indexOf("First while focused") < bell.indexOf("Second while focused") && bell.indexOf("First while focused") >= 0, "each in the bell, in order");
   assert.equal(document.getElementById("status-focus").hidden, true);
   setFocus(false);
 });
 
-test("Silence beside a notice puts its kind away for good: said again, with another count, it shows no more", async () => {
+test("Silence beside a notice puts its type away for good: said again, with another count, it shows no more", async () => {
   const type = typeOf("3 files could not be read");
   bringBack(type);
   try {
     await ui.click("#statusbar");
     say("3 files could not be read");
-    assert.ok(shown("3 files could not be read"));
+    assert.ok(displayed("3 files could not be read"));
     await ui.click("#status-said-away");
     assert.ok(said().hidden && document.getElementById("status-said-away").hidden, "the notice and its press go");
-    assert.ok(noticesAway().includes(type), "its kind is put away");
+    assert.ok(noticesAway().includes(type), "its type is put away");
     await ui.click("#statusbar");
     const unseen = noticesUnseen();
     say("7 files could not be read");
-    assert.ok(!shown("7 files could not be read"), "the same kind, with another count, shows no more");
-    assert.equal(noticesSaid().at(-1).text, "7 files could not be read", "the bell keeps it");
+    assert.ok(!displayed("7 files could not be read"), "the same type, with another count, shows no more");
+    assert.equal(noticesSaid().at(-1).text, "7 files could not be read", "the bell retains it");
     assert.equal(noticesUnseen(), unseen, "and counts it as nothing unseen");
   } finally {
     bringBack(type);
   }
 });
 
-test("Preferences lists each notice put away and shows its kind again on a press", async () => {
+test("Preferences lists each notice put away and shows its type again on a press", async () => {
   const type = typeOf("The tree has 12 plugins to update");
   bringBack(type);
   await ui.click("#statusbar");
@@ -112,21 +112,21 @@ test("Preferences lists each notice put away and shows its kind again on a press
     runCommand("preferences");
     const row = await ui.waitFor(() => [...document.querySelectorAll("dialog[open] .prefs-notice-away")].find((one) => one.textContent.includes(type)), 5000);
     await ui.click(row.querySelector("button"));
-    assert.ok(!noticesAway().includes(type), "its kind is back");
+    assert.ok(!noticesAway().includes(type), "its type is back");
     document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
     await ui.click("#statusbar");
     say("The tree has 12 plugins to update");
-    assert.ok(shown("The tree has 12 plugins to update"), "and shows again");
+    assert.ok(displayed("The tree has 12 plugins to update"), "and shows again");
   } finally {
     bringBack(type);
     document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
   }
 });
 
-test("the lock at the end of the editor's line stands as far in from the work's right line as the file's icon does from its left", async () => {
+test("the lock at the end of the editor's line is as far in from the work's right line as the file's icon does from its left", async () => {
   showView("edit");
   await openFile("hello.py");
-  await ui.waitFor(() => editing().editor?.s && document.querySelector("#statusbar .status-lock")?.checkVisibility(), 10000, "the lock shown");
+  await ui.waitFor(() => editing().editor?.s && document.querySelector("#statusbar .status-lock")?.checkVisibility(), 10000, "the lock displayed");
   await ui.rest(400);
   const work = document.querySelector(".work").getBoundingClientRect();
   const icon = document.querySelector("#statusbar .crumb.file .icon").getBoundingClientRect();
@@ -144,7 +144,7 @@ test("the RAM reading on the bar is orior's own, its process and its web view's,
   assert.ok(read.orior.working <= read.working, "and no more than the whole");
   const node = document.getElementById("status-memory");
   const first = () => node.title.split("\n")[0];
-  // the pointer off the reading, whose hover keeps the title it opened with
+  // the pointer off the reading, whose hover retains the title it opened with
   await ui.hover({ x: 4, y: 4 });
   await ui.waitFor(() => first() === `orior and its web view: ${node.textContent} in RAM`, 6000, "the bar shows orior's share, as its hover says");
   assert.match(node.title.split("\n")[1], /^with the tools it started: [\d.]+ MB in RAM of a budget of /);

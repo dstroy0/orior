@@ -72,7 +72,7 @@ int qry_writer_file_put(long long file, const unsigned char *bytes, unsigned lon
     unsigned long long done = 0ULL;
     while (done < size)
     {
-        // a write is at most QRY_WRITER_PIECE_BYTES, at most a gibibyte, which a size_t counts
+        // a write is at max QRY_WRITER_PIECE_BYTES, at max a gibibyte, which a size_t counts
         const unsigned long long piece =
             ((size - done) < QRY_WRITER_PIECE_BYTES) ? (size - done) : QRY_WRITER_PIECE_BYTES;
         const ssize_t wrote = write((int)file, bytes + done, (size_t)piece);
@@ -100,7 +100,7 @@ int qry_writer_file_closed(long long file)
     return (close((int)file) == 0) && flushed;
 }
 
-// the folder `path` is in made sure of on the disk; a rename into it therefore stands once the call returns
+// the folder `path` is in made sure of on the disk; a rename into it therefore is once the call returns
 static void qry_writer_folder_synced(const char *path)
 {
     char folder[QRY_WRITER_TOP_MAX_LEN + QRY_NAME_MAX_LEN + 2u];
@@ -110,7 +110,7 @@ static void qry_writer_folder_synced(const char *path)
     {
         return;
     }
-    // the cut stands inside the path; its place is therefore not negative and below its length
+    // the cut is inside the path; its place is therefore not negative and below its length
     const size_t folder_len = (cut == path) ? 1u : (size_t)(cut - path);
     memcpy(folder, path, folder_len);
     folder[folder_len] = '\0';

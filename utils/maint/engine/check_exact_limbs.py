@@ -107,14 +107,14 @@ DRIVER = os.path.join(ROOT, "build", "engine_c", "bench_exact.exe")
 if not os.path.isfile(DRIVER):
     DRIVER = os.path.join(ROOT, "build", "engine_c", "bench_exact")
 
-# Positions in the planted run the C builds, and the value standing at each. Stated here as the plan
+# Positions in the planted run the C builds, and the value located at each. Stated here as the plan
 # and built independently, the same way bench_lattice plants an occurrence instead of looking for
 # one. Nothing is read back from the C to construct it.
 RUN_PLACES = 64
 RUN_STEP = 4
 
 # The run with repeated positions, as bench_exact.c lists it: unsorted, with four positions listed
-# twice carrying two values. Built here from the plan, and counted with a dict, which keeps the last
+# twice carrying two values. Built here from the plan, and counted with a dict, which retains the last
 # value at a repeated position.
 REPEATED_POSITIONS = (
     "2.00",
@@ -166,7 +166,7 @@ def version_lock(out):
     The C carries a limb count and a declared digit floor; the python side carries the scale it
     ingests at. They are separate declarations of one number, and nothing in either file refers to
     the other. They can drift apart silently. A drift makes the two arms disagree about values
-    neither of them is wrong about individually. That is the hardest kind of disagreement to read.
+    neither of them is wrong about individually. That is the hardest type of disagreement to read.
 
     Returns 1 where they agree, 0 where they do not.
     """
@@ -344,14 +344,14 @@ def main():
         field = row.split()
         if not field:
             continue
-        kind = field[0]
+        type = field[0]
 
-        if kind == "read":
+        if type == "read":
             index = int(field[1])
             text = text_of(field[2])
             status, wanted, _uncertainty = measured_of(text, places, width)
             if field[3] == "errored":
-                # An error has to be the one the python side says is required, of the same kind, or
+                # An error has to be the one the python side says is required, of the same type, or
                 # the C is erroring on values it should have read.
                 if int(field[4]) != status:
                     wrong.append(
@@ -377,7 +377,7 @@ def main():
             checked += 1
             continue
 
-        if kind == "meas":
+        if type == "meas":
             index = int(field[1])
             text = text_of(field[2])
             status, wanted, spread = measured_of(text, places, width)
@@ -416,14 +416,14 @@ def main():
             checked += 1
             continue
 
-        if kind == "keep":
+        if type == "retain":
             # An error must leave its output as it was. The last field is 1 where it did.
             if field[-1] != "1":
                 wrong.append("%s: an error changed its output" % row)
             checked += 1
             continue
 
-        if kind == "agreerep":
+        if type == "agreerep":
             lag = exact_of(field[1], places)
             positions = [exact_of(one, places) for one in REPEATED_POSITIONS]
             wanted = agreement(positions, list(REPEATED_VALUES), lag)
@@ -432,15 +432,15 @@ def main():
             checked += 1
             continue
 
-        if kind in ("add", "sub", "mul"):
+        if type in ("add", "sub", "mul"):
             low = subjects.get(int(field[1]))
             high = subjects.get(int(field[2]))
             if (low is None) or (high is None):
                 continue
             wanted = (
                 (low + high)
-                if kind == "add"
-                else (low - high) if kind == "sub" else (low * high)
+                if type == "add"
+                else (low - high) if type == "sub" else (low * high)
             )
             fits = abs(wanted) < (1 << width)
             if field[3] == "errored":
@@ -462,7 +462,7 @@ def main():
             checked += 1
             continue
 
-        if kind == "cmp":
+        if type == "cmp":
             low = subjects.get(int(field[1]))
             high = subjects.get(int(field[2]))
             if (low is None) or (high is None):
@@ -477,7 +477,7 @@ def main():
             checked += 1
             continue
 
-        if kind == "agree":
+        if type == "agree":
             lag = exact_of(field[1], places)
             positions, values = planted_run(places)
             wanted = agreement(positions, values, lag)

@@ -87,7 +87,7 @@ static int magnitude_add_small(uint32_t *value, size_t *used, uint32_t added)
  */
 static int magnitude_scale_by_ten(uint32_t *value, size_t *used, uint32_t power)
 {
-    // Nine powers of ten at a time, the most that fits a limb without overflowing it.
+    // Nine powers of ten at a time, the max that fits a limb without overflowing it.
     while (power > 0u)
     {
         const uint32_t step = (power > LIMB_DECIMAL_DIGITS) ? LIMB_DECIMAL_DIGITS : power;
@@ -234,7 +234,7 @@ static OriorExactStatus decimal_layout(const char *text, size_t length, DecimalL
  * @return              1 where the magnitude ran off the top limb, 0 otherwise.
  * @note Takes nine digits a step. The magnitude is multiplied by 10^9 and the nine digits are added
  *       as one limb. A text overruns the width in nine digit steps exactly where it overruns one
- *       digit at a time, because every partial value is at most the finished one.
+ *       digit at a time, because every partial value is at max the finished one.
  * @warning On a return of 1 `value` contains a wrapped magnitude. Callers run this on a copy they
  *          discard on error.
  */
@@ -249,7 +249,7 @@ static int magnitude_accumulate_digits(uint32_t *value, size_t *used, const char
         for (size_t within = 0u; within < step; within++)
         {
             // decimal_layout checked that the byte is an ASCII digit, and the difference is 0 to 9.
-            // Nine of them fold to at most 999999999, below 2^32.
+            // Nine of them fold to at max 999999999, below 2^32.
             digits = (digits * 10u) + (uint32_t)(text[at + within] - '0');
         }
         if (magnitude_multiply_small(value, used, TEN_TO[step]) != 0)
@@ -312,7 +312,7 @@ static OriorExactStatus decimal_read(const char *text, size_t length, uint32_t d
     {
         return ORIOR_EXACT_WILL_NOT_FIT;
     }
-    // places is at most digits, checked above. The difference fits the uint32_t it is passed as.
+    // places is at max digits, checked above. The difference fits the uint32_t it is passed as.
     if (magnitude_scale_by_ten(value->limb, &value_used, digits - (uint32_t)places) != 0)
     {
         return ORIOR_EXACT_WILL_NOT_FIT;
@@ -333,7 +333,7 @@ static OriorExactStatus decimal_read(const char *text, size_t length, uint32_t d
         {
             return ORIOR_EXACT_WILL_NOT_FIT;
         }
-        // printed is at most digits, checked above. The difference fits the uint32_t.
+        // printed is at max digits, checked above. The difference fits the uint32_t.
         if (magnitude_scale_by_ten(uncertainty->limb, &spread_used, digits - (uint32_t)printed) != 0)
         {
             return ORIOR_EXACT_WILL_NOT_FIT;

@@ -27,7 +27,7 @@
 #
 # Tables 2 to 5 are every two-member voiceless cluster the language allows, about two hundred cells.
 # They are Bella Coola phonotactics and they are not words anybody said. They stay out of the pure
-# stream. The hand extraction records them under the kind "cluster" for the same reason.
+# stream. The hand extraction records them under the type "cluster" for the same reason.
 
 import io
 import os
@@ -105,7 +105,7 @@ TARGET = os.path.join(
     "unstated_VoicelessWordsInBellaCoolaFactVsFiction_Nater_Salish_nuxalk_2024_mixed.txt",
 )
 
-# Kept in step with NATER in hand_extraction/papers.py. The apostrophe is deliberately absent: it is
+# Retained in step with NATER in hand_extraction/papers.py. The apostrophe is deliberately absent: it is
 # Nater's ejective mark, and putting it in the set also makes every English gloss a word of the
 # language, because a gloss ends in a closing quote. papers.py has the count behind that decision.
 MARKS = "ʔʕɬłƛəχ7̓̔̕ʷ˽" + "̩̌"
@@ -117,7 +117,7 @@ PAGE = re.compile(r"^===== page \d+ =====$")
 #
 # The right single quote cannot be used to delimit anything here. It is Nater's ejective mark. Cq’
 # and c’p carry one inside the form, and a pattern that stopped at it read 73 of the 133 entries as
-# ending before their own last letter and then failed to match them at all. The left single quote
+# ending before their own last character and then failed to match them at all. The left single quote
 # never occurs inside a form. The form is everything up to that, and the gloss ends at the right
 # quote that is followed by the next entry number or by the end of the line. Without that lookahead
 # the gloss of (54) stops inside ‘pass one’s hand through sth.’
@@ -172,13 +172,13 @@ def main():
 
         found = ENTRY.findall(trimmed)
         if found:
-            for number, letter, text, gloss in found:
+            for number, character, text, gloss in found:
                 count = int(number)
                 form = form_of(text)
                 if not form:
                     continue
                 who = "Nuxalk" if (count <= BELLA_COOLA_LAST) else "Heiltsuk"
-                spot = "(%s%s)" % (number, letter)
+                spot = "(%s%s)" % (number, character)
                 rows.append((spot, who, "cited form", form, gloss))
                 seen.add(count)
             continue
@@ -233,28 +233,28 @@ def main():
             "# The cluster charts of Tables 2 to 5 are phonotactics and not words. They\n"
         )
         handle.write("# are not read here. The hand extraction records them.\n")
-        handle.write("line\twho\tkind\tswitches\tcontent\n")
-        for at, (spot, who, kind, text, gloss) in enumerate(rows, 1):
-            layer = SPOKEN if (kind == "cited form") else DERIVED
-            if kind == UNCLASSIFIED:
-                content = "N.%s.%s:{%s}" % (layer, kind, text)
+        handle.write("line\twho\ttype\tswitches\tcontent\n")
+        for at, (spot, who, type, text, gloss) in enumerate(rows, 1):
+            layer = SPOKEN if (type == "cited form") else DERIVED
+            if type == UNCLASSIFIED:
+                content = "N.%s.%s:{%s}" % (layer, type, text)
                 crossings = 0
             else:
-                content = rendered(text, layer, kind, MARKS)
+                content = rendered(text, layer, type, MARKS)
                 crossings = switches(text, MARKS)
             handle.write(
                 "line#${%d}\t%s\t%s\t%d\t%s\n"
-                % (at, who or spot, kind, crossings, content)
+                % (at, who or spot, type, crossings, content)
             )
 
     # The Bella Coola words alone, one per line. Heiltsuk is excluded by the who column, which the
     # column exists for.
     pure = TARGET[:-4] + ".pure.txt"
-    kept = 0
+    retained = 0
     already = set()
     with open(pure, "w", encoding="utf-8", newline="") as handle:
-        for spot, who, kind, text, gloss in rows:
-            if (kind != "cited form") or (who != "Nuxalk"):
+        for spot, who, type, text, gloss in rows:
+            if (type != "cited form") or (who != "Nuxalk"):
                 continue
             for span, run in tagged_spans(text, MARKS):
                 if (span != "T") or not run.strip():
@@ -264,20 +264,20 @@ def main():
                     continue
                 already.add(key)
                 handle.write("%s\n" % key)
-                kept += 1
+                retained += 1
 
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
         (0, spot, UNKNOWN_KIND, "", text)
-        for spot, who, kind, text, gloss in rows
-        if (kind == UNCLASSIFIED) and not spot.startswith("not reached")
+        for spot, who, type, text, gloss in rows
+        if (type == UNCLASSIFIED) and not spot.startswith("not reached")
     ]
     flagged.extend(missed)
     stuck_count = write_unsorted(stuck, "Voiceless Words in Bella Coola", flagged)
 
     out.write("  %d lines written to\n  %s\n" % (len(rows), os.path.basename(TARGET)))
     out.write(
-        "  %d Bella Coola words written to\n  %s\n" % (kept, os.path.basename(pure))
+        "  %d Bella Coola words written to\n  %s\n" % (retained, os.path.basename(pure))
     )
     out.write(
         "  %d lines the tool could not sort written to\n  %s\n"

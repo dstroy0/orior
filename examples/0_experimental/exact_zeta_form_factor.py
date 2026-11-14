@@ -22,7 +22,7 @@
 # - the prime powers, the diagonal of the explicit formula: a spike of weight Lambda(x)^2 / (x L^2) at
 #   tau = ln x / L, L = ln(t / 2 pi), for every prime power x up to t / 2 pi; their weights below tau sum to tau^2 / 2,
 #   which is GUE's ramp, and none falls below ln 2 / L;
-# - the same spacings shuffled, every gap kept and their order dropped;
+# - the same spacings shuffled, every gap retained and their order dropped;
 # - each half of the zeros alone, its L a little apart from the other's.
 #
 # The statistics are the host's, in floating point, over the device's Z. It sits in 0_experimental and is an entry
@@ -123,7 +123,7 @@ def analyse(zeros):
     for tau in (0.03, 0.0606, 0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5):
         zeros_sum, clocks = two_routes(u, tau)
         worst = max(worst, abs(zeros_sum - clocks) / abs(zeros_sum))
-    print("  the zeros' sum against D's, at 10 tau from 0.03 to 2.5: they differ by %.1e of the sum at most" % worst)
+    print("  the zeros' sum against D's, at 10 tau from 0.03 to 2.5: they differ by %.1e of the sum at max" % worst)
 
     random.seed(20261004)
     gaps = [u[k + 1] - u[k] for k in range(m - 1)]
@@ -166,7 +166,7 @@ def analyse(zeros):
             print("    %.2f  %.4f  %.4f  %.4f" % (tau, k_wide[i], k_wide_gue[i], k_wide_shuffled[i]))
     for low, high in ((0.2, 0.8), (0.8, 1.2), (1.2, 3.01)):
         band = [i for i, tau in enumerate(wide) if low <= tau < high]
-        print("    tau in [%.1f, %.1f]: the zeros less GUE's, mean %+.4f, most %.4f; the shuffled spacings', mean %+.4f" %
+        print("    tau in [%.1f, %.1f]: the zeros less GUE's, mean %+.4f, max %.4f; the shuffled spacings', mean %+.4f" %
               (low, min(high, 3.0), sum(k_wide[i] - k_wide_gue[i] for i in band) / len(band),
                max(abs(k_wide[i] - k_wide_gue[i]) for i in band),
                sum(k_wide_shuffled[i] - k_wide_gue[i] for i in band) / len(band)))

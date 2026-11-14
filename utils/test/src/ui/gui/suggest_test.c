@@ -9,7 +9,7 @@
 #include "../../../../../ui/cli/src/servers/servers.h"
 #include "../cli/cli_check.h"
 
-// whether the row `row` of the list shown reads `label`
+// whether the row `row` of the list displayed reads `label`
 static int row_reads(unsigned int row, const char *label)
 {
     CliCompletionRow read = {"", 0ULL, "", "", 0ULL, 0u};
@@ -53,7 +53,7 @@ int main(void)
     cli_servers_panels_begin(".");
     cursor_put(s_key, 2ULL, 3ULL);
     CliCompletionPanel panel;
-    cli_check(!cli_servers_panels_completion(&panel), "no list stands before one is asked for");
+    cli_check(!cli_servers_panels_completion(&panel), "no list is before one is asked for");
     cli_check(cli_servers_panels_key("Mod+Space"), "the list is forced open by its key");
     cli_check(cli_servers_panels_completion(&panel) && (panel.count == 2u) && (panel.rows == 2u) &&
                   (panel.line == 2ULL) && (panel.from == 0ULL) &&
@@ -64,13 +64,13 @@ int main(void)
     cli_check(cli_servers_panels_completion_row(0u, &read) && (read.marked == 3u) &&
                   cellul.eq(&(CatenaFinitaCfg){.src = read.type, .other = "word", .cap = 5ULL}),
               "a row marks the prefix's bytes and names its type");
-    cli_check(!cli_servers_panels_completion_row(2u, &read), "no row stands past the list");
+    cli_check(!cli_servers_panels_completion_row(2u, &read), "no row is past the list");
     cli_check(cli_servers_panels_key("Down") && cli_servers_panels_completion(&panel) && (panel.chosen == 1u),
               "Down moves the row chosen");
     cli_check(cli_servers_panels_key("Up") && cli_servers_panels_completion(&panel) && (panel.chosen == 0u),
               "Up moves it back");
     cli_check(!cli_servers_panels_key("F9"), "a key the list has no use for is not taken");
-    // the prefix typed on: the view's text grows by the letters and the list narrows to the words that still answer
+    // the prefix typed on: the view's text grows by the characters and the list narrows to the words that still answer
     const CliViewInput typed = {.type = CLI_VIEW_TEXT, .text = "hab", .length = 3ULL};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = s_key, .input = &typed, .err_msg = &why);
     cli_servers_panels_text("hab", 3ULL);
@@ -84,7 +84,7 @@ int main(void)
                                   .owner = g_cli_servers_owner);
     cli_check((text != NULL) && (size == sizeof(s_text) - 1ULL + 5ULL) &&
                   (memor.cmp(&(MemoriaCfg){.src = text + size - 8ULL, .other = "alphabet", .bytes = 8ULL}) == 0),
-              "the accepted word stands over the prefix in the text");
+              "the accepted word is over the prefix in the text");
     g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
     // the list opened at a word's end lists the longer words that start with it, and Escape closes it
     cursor_put(s_key, 0ULL, 9ULL);

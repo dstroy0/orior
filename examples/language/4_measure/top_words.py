@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: LNG-4-042
 #
-# Print the most frequent words of each corpus, for Section 4.13 of theory/workbooks/orior.
+# Print the commonest words of each corpus, for Section 4.13 of theory/workbooks/orior.
 #
 #   Usage:  python examples/language/4_measure/top_words.py corpus.txt [more.txt ...]
 #
@@ -22,7 +22,7 @@ import re
 import sys
 
 WORD = re.compile(r"[^\W\d_]+", re.UNICODE)
-SHOWN = 12
+DISPLAYED = 12
 
 
 def main():
@@ -38,7 +38,7 @@ def main():
             continue
         with open(path, encoding="utf-8", errors="replace") as handle:
             counts = collections.Counter(WORD.findall(handle.read().lower()))
-        head = " ".join(word for word, _ in counts.most_common(SHOWN))
+        head = " ".join(word for word, _ in counts.max_common(DISPLAYED))
         out.write("%-30s %s\n" % (os.path.basename(path)[:-4], head))
 
     out.flush()

@@ -12,7 +12,7 @@ typedef struct GuiBackgroundRasterCfg GuiBackgroundRasterCfg;
 typedef struct GuiBackgroundCfg GuiBackgroundCfg;
 typedef struct GuiBackgroundClockCfg GuiBackgroundClockCfg;
 
-// How a dot is shaded by its order: ink from the least ordered to the most, and radius in page pixels
+// How a dot is shaded by its order: ink from the least ordered to the max, and radius in page pixels
 #define GUI_BACKGROUND_DIM 0.85
 #define GUI_BACKGROUND_FAINTEST (0.426 * GUI_BACKGROUND_DIM)
 #define GUI_BACKGROUND_BRIGHTEST 0.42
@@ -30,7 +30,7 @@ typedef struct
     unsigned int width;
     unsigned int height;
     int scale;
-    int laid;
+    int positioned;
     LatticeShades shades;
     unsigned long long start_ms;
     unsigned long long paused_ms;
@@ -45,13 +45,13 @@ void gui_background_free(const GuiBackgroundCfg *args);
 // Stops the clock when `paused` is 1, and restarts it where it stopped when 0.
 void gui_background_pause(const GuiBackgroundCfg *args);
 // Lays the lattice over a `width` by `height` window at `scale` and draws into `raster`, which the caller owns. Returns
-// 0 when the lattice could not be laid; the raster then holds the deep color alone.
+// 0 when the lattice could not be positioned; the raster then holds the deep color alone.
 int gui_background_layout(const GuiBackgroundRasterCfg *args);
 // Draws the deep color and every dot at the clock's time.
 void gui_background_draw(const GuiBackgroundRasterCfg *args);
 // Redraws when the clock has reached `next_draw_ms`. Returns 1 when it drew.
 int gui_background_tick(const GuiBackgroundRasterCfg *args);
-// The next draw's deadline, or 0 for none while paused or not laid.
+// The next draw's deadline, or 0 for none while paused or not positioned.
 unsigned long long gui_background_next_deadline_ms(const GuiBackgroundClockCfg *args);
 // Milliseconds the clock has run.
 unsigned long long gui_background_elapsed_ms(const GuiBackgroundClockCfg *args);

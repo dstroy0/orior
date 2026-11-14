@@ -33,7 +33,7 @@ int cli_run_cells_alloc(const CliRunnerRunCtx *args)
         sizeof(CliJob) + ((unsigned long long)extent.params * sizeof(CliParam)) +
         ((unsigned long long)extent.steps * sizeof(CliStep)) + ((unsigned long long)extent.args * sizeof(CliArg)) +
         ((unsigned long long)extent.lists * sizeof(unsigned int)) + extent.text + sizeof(CliValues) + 64ULL;
-    // the job laid in a cell of this call, then written into the run's movable cell
+    // the job positioned in a cell of this call, then written into the run's movable cell
     unsigned char *const cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_runs_owner);
     if (cell == NULL)
     {
@@ -87,7 +87,7 @@ int cli_run_cells_alloc(const CliRunnerRunCtx *args)
     args->run->arg_at = (unsigned long long)((unsigned char *)arguments - cell);
     args->run->list_at = (unsigned long long)((unsigned char *)lists - cell);
     args->run->text_at = (unsigned long long)((unsigned char *)text - cell);
-    // the catalog's lists point into no cell between pins; its counts stand
+    // the catalog's lists point into no cell between pins; its counts are
     args->run->catalog.job = NULL;
     args->run->catalog.param = NULL;
     args->run->catalog.step = NULL;
@@ -137,7 +137,7 @@ int cli_runs_start(const CliRunnerErrMsgCfg *args)
     CliRunSink sink = args->sink;
     unsigned long long *run_number = args->run_number_pointer;
     static CliCommand s_checked;
-    static char s_shown[CLI_COMMAND_TEXT];
+    static char s_displayed[CLI_COMMAND_TEXT];
     if (!cli_runner_err_msg.check(args))
     {
         return 0;
@@ -147,7 +147,7 @@ int cli_runs_start(const CliRunnerErrMsgCfg *args)
     for (unsigned int at = 0u; at < job_at->steps; at += 1u)
     {
         const CliStep *const step = &args->catalog->step[job_at->step_first + at];
-        VerbaLinea displayed = {s_shown, sizeof(s_shown), 0ULL};
+        VerbaLinea displayed = {s_displayed, sizeof(s_displayed), 0ULL};
         if ((step->program != CLI_PROGRAM_CREATED) &&
             EMBED_CALL(cli_runner_command_table.runs, CliRunnerCommandCfg, .catalog = args->catalog, .step = step,
                        .values = args->values) &&

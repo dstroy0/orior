@@ -5,10 +5,10 @@ Grand Ronde, Oregon, ICSNL 60.
 
 Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
-pure corpus, then against this paper's own English laid over that reference. What the paper's
+pure corpus, then against this paper's own English positioned over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
 from the characters that sit outside that English, and word_web.web() built 1175 edges over the
-language forms. A person then matched the context: who, kind and gloss for each row, the names,
+language forms. A person then matched the context: who, type and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
 someone reads the paper again and says otherwise.
@@ -27,9 +27,9 @@ interlinear lines to the language. The field translations set under the words in
 are Victoria Howard's English, the published translations Jacobs's, and the free translations the
 author's. WB's answers in (18) and Appendix 6 are his own words.
 
-THE LETTERS
+THE CHARACTERS
 
-Outside the paper's English the engine found these letters and marks: á é ê í ú ġ ŋ ǝ ɑ ɔ ə ɛ ɡ ɩ ɫ
+Outside the paper's English the engine found these characters and marks: á é ê í ú ġ ŋ ǝ ɑ ɔ ə ɛ ɡ ɩ ɫ
 ɬ ʃ ʊ ʋ ʌ ʔ ʰ ʼ ˈ ˊ ˑ ́ ̃ ̇ ̓ ̣ ̥ ̩ ̬ ͡ ί ι χ ώ ṛ ∅. The first line of an example is IPA in square
 brackets, or Jacobs's field transcription in angle brackets with his ʋ, ι, ɩ, ɡ̇ and ɫ; the second
 is the CWDP alphabet of the Confederated Tribes of Grand Ronde, with ɬ, x̣, qʰ, kʰ, ʔ and the
@@ -41,8 +41,8 @@ THE PAGE AND THE TEXT LAYER
 The forms are in NFC, and the check puts the text layer through the same repair: the space the PDF
 sets after a stacked mark is closed, except before an opening quote, then NFC, then 6 page-read
 corrections. The text layer sets a space inside several IPA spellings of names, [ˈw ɑwɑ], [w
-ɑˈt͡ʃʼi:nu] and [wɑˈ ɢɑjuɬən], after a letter that stands before a stress mark or a wide vowel; the
-rows keep the space. From §4 on the draft ran the examples into the prose, and the rows there are
+ɑˈt͡ʃʼi:nu] and [wɑˈ ɢɑjuɬən], after a character that is before a stress mark or a wide vowel; the
+rows retain the space. From §4 on the draft ran the examples into the prose, and the rows there are
 read off the page again, the prose a paragraph a row, each example and appendix set a line a row,
 and Figures 1 and 2 a cell a row.
 
@@ -56,7 +56,7 @@ where    the paper's locator: the title, the front matter, a section, a footnote
 who      the language for an example tier and a cited form; the work cited on an example's
          line, or the speaker for a volunteered translation, for its English; the authors for
          the prose, the tables and the notes
-kind     transcription  an example tier in the orthography
+type     transcription  an example tier in the orthography
          segmentation   an example tier broken into morphemes
          gloss          the morpheme gloss tier of an example
          word gloss     an English tier under the gloss, word for word

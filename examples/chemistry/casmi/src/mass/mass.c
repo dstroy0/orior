@@ -8,7 +8,7 @@
 
 #include "isotope_table.h"
 
-/** Symbol indices: an upper-case letter, then nothing or one lower-case letter. */
+/** Symbol indices: an upper-case character, then nothing or one lower-case character. */
 #define MASS_SYMBOL_INDEX_COUNT (26u * 27u)
 
 /** Not yet looked up, in the monoisotope memo. */
@@ -150,7 +150,7 @@ static int mass_formula_add(const char *text, unsigned long long start, unsigned
         }
         if (symbol_index == formula->element_count)
         {
-            if (symbol_index >= CASMI_FORMULA_ELEMENTS_MOST)
+            if (symbol_index >= CASMI_FORMULA_ELEMENTS_MAX)
             {
                 return 0;
             }

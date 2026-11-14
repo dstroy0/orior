@@ -17,14 +17,14 @@
 #
 # Both sides have to be put through the same transformation first, which the first version of this file
 # did not do. Some extractors repair the source before writing it: the space the PDF inserted after each
-# combining mark is closed, and two papers had a font that wrote plain letters in place of the
+# combining mark is closed, and two papers had a font that wrote plain characters in place of the
 # orthography. Comparing a repaired extraction against an unrepaired source reports every correctly
 # repaired word as missing, and that produced 173 false holes in one paper. So the repairs are
 # applied to the source lines here before either side is tokenized, and it does not matter that a repair
 # is lossy as long as both sides receive it.
 #
 # What this reports that is not an error: a token is counted as covered if it appears anywhere in the
-# extraction. A form living only in a footnote is found wherever the extractor kept it. What it reports
+# extraction. A form living only in a footnote is found wherever the extractor retained it. What it reports
 # that is an error: a form cited in prose that no section captures, an appendix nobody read, and a
 # sentence a splitter dropped.
 
@@ -105,7 +105,7 @@ PAGE = re.compile(r"^===== page (\d+) =====$")
 MARKER = re.compile(r"\b[TN](?:\.[^:\s{}]*)*:")
 
 # A brace is punctuation on both sides of the comparison. The record delimits a span with them and
-# one paper cites a reduplication template written in them. Neither side may keep them.
+# one paper cites a reduplication template written in them. Neither side may retain them.
 EDGES = ".,!?;:“”‘’\"'()[]…«»{}"
 
 # A token carrying any of these is the language. The union of every orthography in the set, since a
@@ -118,7 +118,7 @@ guarded one everywhere else, and the check has no columns to work from. It takes
 form for the whole source. That leaves an all-caps gloss label and an address alone, and that stops
 INCEPT and jmlyon@sfu.ca being counted as words of the language and then reported as holes.
 
-The cost is that a word like Paks keeps its capital here and so is not counted as a language token
+The cost is that a word like Paks retains its capital here and so is not counted as a language token
 at all. The check under-counts by about ten tokens a paper and never invents a hole, the direction
 to be wrong in for a measurement."""
 
@@ -197,8 +197,8 @@ def vocabulary_beside(target):
 
 def prepared(line, repairs, vocabulary=None):
     """One source line put through the same transformation its extractor applied."""
-    # Applied to every paper. A ligature is one codepoint for two letters and the readers take
-    # them out on the way in. A source keeping them reports every repaired word as a hole.
+    # Applied to every paper. A ligature is one codepoint for two characters and the readers take
+    # them out on the way in. A source retention them reports every repaired word as a hole.
     line = unligatured(line)
     if "font" in repairs:
         line = font_repaired(line)
@@ -265,7 +265,7 @@ def extracted_tokens(path, marks=MARKS):
     """The language tokens present anywhere in the content column of an extracted file.
 
     Read from the whole content column instead of from the braces inside it. The record writes a
-    span as kind:{text}, and one of these papers cites a reduplication template that is itself
+    span as type:{text}, and one of these papers cites a reduplication template that is itself
     written in braces, {C1aC2-ɬəχ.t.ana(n).θot}, which ends a span early and lost the token. The
     span markers hold no character of any of these languages. Taking the column entire costs
     nothing, and the column is the last field of every paper's format.
@@ -324,10 +324,10 @@ def main():
             by_page.setdefault(where.get(token, 0), []).append(token)
         out.write("\n  %s, %d missing on %d page(s)\n" % (stem, count, len(by_page)))
         for page in sorted(by_page)[:6]:
-            shown = by_page[page][:5]
+            displayed = by_page[page][:5]
             out.write(
                 "    page %-4d %-3d  %s\n"
-                % (page, len(by_page[page]), "  ".join(shown))
+                % (page, len(by_page[page]), "  ".join(displayed))
             )
         if len(by_page) > 6:
             out.write("    and %d more page(s)\n" % (len(by_page) - 6))

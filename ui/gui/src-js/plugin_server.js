@@ -6,7 +6,7 @@
 // it puts before its plugin.json's, and stopped as the plugin stops, asked and told, and heard:
 // `orior.server.on(method, handler)` hears what the server says on its own, the handler's value the
 // answer where it asks; a request no handler hears is answered with null. `orior.commands.on(id, handler)` hears a command its plugin.json's `commands`
-// put in the command palette pressed. `orior.secrets` keeps a plugin's secrets, a token, in the
+// put in the command palette pressed. `orior.secrets` retains a plugin's secrets, a token, in the
 // system's keychain, on this machine alone and never with the settings carried to another;
 // `orior.browse(address)` opens an address in the browser; `orior.git.ignored(path)` says whether git
 // ignores a file of the tree; `orior.tree.files()` lists the tree's files and `orior.tree.relative(path)`
@@ -53,7 +53,7 @@ export const SERVER_CALLS = {
   "server.start": async (one, options, args) => {
     await invoke("plugin_server_start", { id: one.id, options, args: (Array.isArray(args) ? args : []).map(String) });
     one.serving = true;
-    // every open tab handed over again, so the server hears each file's changes and closing as the editor makes them
+    // every open tab passed over again, so the server hears each file's changes and closing as the editor makes them
     serveAgain();
   },
   "server.stop": async (one) => {
@@ -79,7 +79,7 @@ export function serverStopped(one) {
   }
 }
 
-// What a plugin's server says on its own handed to its plugin of those `running`, as `server:` and
+// What a plugin's server says on its own passed to its plugin of those `running`, as `server:` and
 // the method, a request of a plugin not running answered with null.
 export function hearServers(running) {
   listen("plugin-server", (event) => {

@@ -41,7 +41,7 @@
 #
 # WHAT THE RATES ARE COUNTED OVER, WHICH DECIDES WHETHER THEY MEAN ANYTHING
 #
-# A rate is per hundred thousand words. The denominator here is a count of letter runs in the prose
+# A rate is per hundred thousand words. The denominator here is a count of character runs in the prose
 # of the submission, after docs_check.prose_only has removed code, math and markup. The human rates
 # were counted over english_gate's output instead, which is stricter: it drops the interlinear
 # glosses, the orthography and the tables that fill a Salishan paper.
@@ -69,7 +69,7 @@ from docs_check import (
     BANNED,
     CHECKED,
     HUMAN_RATE,
-    kept_dirs,  # noqa: E402
+    retained_dirs,  # noqa: E402
     banned_hits,
     prose_only,
     quieted,
@@ -93,7 +93,7 @@ NAMES = ("anthropic", "claude", "openai", "chatgpt")
 # Words that are ordinary English on their own. Each is matched only where a version number sits
 # beside it. opus is a work, sonnet is a poem, haiku is a poem, and all three are model names.
 #
-# Two details here were measured. The leading \b keeps octopus 4 out, and a Salishan word list
+# Two details here were measured. The leading \b retains octopus 4 out, and a Salishan word list
 # supplied that one. The separator is required instead of optional because
 # opus1.com is an address inside an RFC, and an optional separator matched it.
 PHRASES = (
@@ -115,28 +115,28 @@ ALLOWED = ("claudetite",)
 # A person is recognized by shape instead. A given name is followed by a surname, or it trails one,
 # and a scanned page separates the two with whatever the scanner made of the comma.
 #
-# The surname is captured instead of only matched, because its first letter separates a person from
+# The surname is captured instead of only matched, because its first character separates a person from
 # a model. Claude Hagege carries a capital there and Claude output does not. The test runs on the
 # line as written and never on a folded copy, since folding destroys the capital it reads.
 #
-# The letter class admits combining marks. A scanned bibliography stores Levi-Strauss decomposed,
+# The character class admits combining marks. A scanned bibliography stores Levi-Strauss decomposed,
 # as L, e, U+0301, and \w alone stops at the mark and falls through to a lowercase start further
 # along, which reported one bibliography entry as a vendor reference.
 #
 # These do not clear a line. They move it to a count that prints and errors nothing, and the lines
 # themselves print under --people. A hit that is quietly dropped is a hit nobody reads.
-LETTER = r"[^\W\d_]"
+CHARACTER = r"[^\W\d_]"
 MARK = chr(0x0300) + chr(0x002D) + chr(0x036F)
 PEOPLE = (
     re.compile(
         r"(?i:claude)\s+(?:de\s+la\s+|de\s+|van\s+|von\s+)?(?P<surname>"
-        + LETTER
+        + CHARACTER
         + r"[\w'~"
         + MARK
         + r"\-]{2,})"
     ),
     re.compile(
-        r"(?P<surname>" + LETTER + r"[\w'~." + MARK + r"\-]{2,})\s*[,.•] *(?i:claude)\b"
+        r"(?P<surname>" + CHARACTER + r"[\w'~." + MARK + r"\-]{2,})\s*[,.•] *(?i:claude)\b"
     ),
 )
 
@@ -188,7 +188,7 @@ MATCHERS = tuple(
     + [(one, re.compile(one)) for one in PHRASES]
 )
 
-# A letter run. Digits, punctuation and the markup docs_check leaves behind are not words, and
+# A character run. Digits, punctuation and the markup docs_check leaves behind are not words, and
 # counting them lowers every rate by inflating the denominator.
 WORD = re.compile(r"[^\W\d_][\w'’-]*")
 
@@ -239,8 +239,8 @@ def names_in(text):
     return (tuple(found), False)
 
 
-def shown(text):
-    """One matched line, trimmed to keep a report line from wrapping."""
+def displayed(text):
+    """One matched line, trimmed to retain a report line from wrapping."""
     flat = " ".join(text.split())
     if len(flat) <= TRIM:
         return flat
@@ -281,7 +281,7 @@ def walk(roots):
             found.append(root)
             continue
         for here, dirs, names in os.walk(root):
-            dirs[:] = kept_dirs(here, dirs)
+            dirs[:] = retained_dirs(here, dirs)
             found.extend(os.path.join(here, name) for name in sorted(names))
     return sorted(found)
 
@@ -374,12 +374,12 @@ def counted(paths, base, show_people, out, clones=None):
         if found and not person:
             # Where the tree is a repository, whether a fresh clone already receives this path.
             # A submission is tracked nowhere. The column is left off entirely.
-            standing = (
+            located = (
                 None
                 if clones is None
                 else ("in every clone" if shortened in clones else "local only")
             )
-            named.append((shortened, found, standing))
+            named.append((shortened, found, located))
 
         if path.endswith(BINARY) or not path.endswith(SUBMITTED):
             continue
@@ -407,21 +407,21 @@ def counted(paths, base, show_people, out, clones=None):
 
     if named:
         out.write("\n  NAMES IN A PATH\n")
-        for shortened, found, standing in named:
-            if standing is None:
+        for shortened, found, located in named:
+            if located is None:
                 out.write("    %s  [%s]\n" % (shortened, ", ".join(found)))
             else:
                 out.write(
-                    "    %-15s %s  [%s]\n" % (standing, shortened, ", ".join(found))
+                    "    %-15s %s  [%s]\n" % (located, shortened, ", ".join(found))
                 )
     if lined:
         out.write("\n  NAMES IN THE TEXT\n")
         for shortened, number, line in lined:
-            out.write("    %s:%d\n      %s\n" % (shortened, number, shown(line)))
+            out.write("    %s:%d\n      %s\n" % (shortened, number, displayed(line)))
     if people and show_people:
         out.write("\n  A PERSON OF THAT NAME, reported and not counted against\n")
         for shortened, number, line in people:
-            out.write("    %s:%d\n      %s\n" % (shortened, number, shown(line)))
+            out.write("    %s:%d\n      %s\n" % (shortened, number, displayed(line)))
     if unread:
         out.write("\n  NOT READ\n")
         for shortened in unread:

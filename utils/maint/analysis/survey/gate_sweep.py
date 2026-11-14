@@ -13,7 +13,7 @@
 # a corpus that has never been through the gate is visible as one with no verdict.
 #
 # Its catches are worth stating plainly, because two of these were found by accident and cost hours
-# each. A Greek to English lexicon standing in a Greek corpus. Untranslated English in seven Indic files,
+# each. A Greek to English lexicon located in a Greek corpus. Untranslated English in seven Indic files,
 # from 1.8 to 30.0 percent, which inverted a whole language family and drew three explanations before
 # anyone looked. Neither is exotic and neither announces itself.
 #
@@ -37,7 +37,7 @@ CORPORA = os.path.join(ROOT, "build", "corpora")
 TARGET = os.path.join(ROOT, "build", "corpus_manifest.csv")
 
 CAP = 400000
-LEAST_LETTERS = 500
+LEAST_CHARACTERS = 500
 
 
 def verdict_for(share):
@@ -64,16 +64,16 @@ def main():
             continue
         with open(path, encoding="utf-8", errors="replace") as handle:
             text = handle.read(CAP)
-        share, letters = share_of_own(text, wanted)
-        if letters < LEAST_LETTERS:
-            rows.append((name, language, share, "too short", letters))
+        share, characters = share_of_own(text, wanted)
+        if characters < LEAST_CHARACTERS:
+            rows.append((name, language, share, "too short", characters))
             continue
-        rows.append((name, language, share, verdict_for(share), letters))
+        rows.append((name, language, share, verdict_for(share), characters))
 
     with open(TARGET, "w", encoding="utf-8", newline="") as handle:
-        handle.write("corpus,language,own_script,verdict,letters\n")
-        for name, language, share, verdict, letters in rows:
-            handle.write("%s,%s,%.4f,%s,%d\n" % (name, language, share, verdict, letters))
+        handle.write("corpus,language,own_script,verdict,characters\n")
+        for name, language, share, verdict, characters in rows:
+            handle.write("%s,%s,%.4f,%s,%d\n" % (name, language, share, verdict, characters))
 
     counts = {}
     for _, _, _, verdict, _ in rows:
@@ -87,7 +87,7 @@ def main():
         "clean": "carries enough foreign writing to cut out first",
         "error": "is not mostly the language it is named for",
         "unknown": "no writing registered for it, never checked",
-        "too short": "not enough letters to judge",
+        "too short": "not enough characters to judge",
     }
     for verdict in ("pass", "watch", "clean", "error", "unknown", "too short"):
         if verdict in counts:
@@ -105,7 +105,7 @@ def main():
     if unknown:
         out.write("\n  never checked, by name: %s\n" % ", ".join(unknown[:24]))
         if len(unknown) > 24:
-            out.write("  and %d more kinds\n" % (len(unknown) - 24))
+            out.write("  and %d more types\n" % (len(unknown) - 24))
 
     out.write("\n  wrote %s\n" % TARGET)
     out.flush()

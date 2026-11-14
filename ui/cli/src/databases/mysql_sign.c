@@ -137,7 +137,7 @@ EMBED_INLINE void sign_lenenc(const MysqlSignCtx *args)
     }
 }
 
-// the handshake's answer: the capabilities, the most packet, the charset, the user, the answer to the scramble, the
+// the handshake's answer: the capabilities, the max packet, the charset, the user, the answer to the scramble, the
 // database where one is named, and the plugin
 EMBED_INLINE int sign_reply(const MysqlSignCtx *args)
 {
@@ -149,14 +149,14 @@ EMBED_INLINE int sign_reply(const MysqlSignCtx *args)
                          CLI_MYSQL_TRANSACTIONS | CLI_MYSQL_SECURE_CONNECTION | CLI_MYSQL_MULTI_RESULTS |
                          CLI_MYSQL_PLUGIN_AUTH | CLI_MYSQL_PLUGIN_AUTH_LENENC;
     flags |= (args->database[0] != '\0') ? CLI_MYSQL_CONNECT_WITH_DB : 0u;
-    const unsigned int most = 16u << 20u;
+    const unsigned int max = 16u << 20u;
     for (unsigned int byte = 0u; byte < 4u; byte += 1u)
     {
         mmgr_line_ch(&out, (char)((flags >> (8u * byte)) & 0xffu));
     }
     for (unsigned int byte = 0u; byte < 4u; byte += 1u)
     {
-        mmgr_line_ch(&out, (char)((most >> (8u * byte)) & 0xffu));
+        mmgr_line_ch(&out, (char)((max >> (8u * byte)) & 0xffu));
     }
     // utf8mb4's general collation, then 23 bytes reserved for later
     mmgr_line_ch(&out, (char)45);
@@ -375,7 +375,7 @@ CliMysql *cli_mysql_connect(const CliMysqlHostCfg *args)
     {
         at += 1u;
     }
-    // a link's record holds its socket, so the records stand fixed outside the pool, one for each link open at once,
+    // a link's record holds its socket, so the records are fixed outside the pool, one for each link open at once,
     // where they punch no hole in the persistent tier
     static CliMysql s_places[CLI_MYSQL_LINKS];
     mysql = (at < CLI_MYSQL_LINKS) ? &s_places[at] : NULL;
@@ -412,7 +412,7 @@ CliMysql *cli_mysql_connect(const CliMysqlHostCfg *args)
                       .src = args->password,
                       .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->password, .cap = CLI_POOL_BYTES}) + 1u});
     mysql->cancel.id = 0u;
-    // the wait is at most what a socket's wait counts, in milliseconds
+    // the wait is at max what a socket's wait counts, in milliseconds
     const unsigned int within = (args->wait > 0xffffffffULL) ? 0xffffffffu : (unsigned int)args->wait;
     int connected = EMBED_CALL(cli_err_msg_internal.socket_connected_within, CliErrMsgCtx, .sock_out = &mysql->socket,
                                .host = args->host, .port = port, .milliseconds = within, .err_msg = &err_msg);

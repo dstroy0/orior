@@ -32,7 +32,7 @@
 #include <time.h>
 #endif
 
-// the most bytes a container and its code take, and the longest line of the cases
+// the max bytes a container and its code take, and the longest line of the cases
 #define CUBIN_RUN_BYTES 262144u
 
 #define CUBIN_RUN_LINE 1024u
@@ -53,14 +53,14 @@
 
 #define CUBIN_RUN_THREADS 256u
 
-// the place among the launch's parameters the count stands at, in bytes: past the cases' address and the records',
+// the place among the launch's parameters the count is at, in bytes: past the cases' address and the records',
 // the kernel's (in, out, count)
 #define CUBIN_RUN_COUNT_PLACE (2u * (unsigned int)sizeof(CubinRunAddress))
 
-// the most threads one launch gives a case each, and the most cases a question gives: every case is a thread's
-#define CUBIN_RUN_THREADS_MOST (1u << 20u)
+// the max threads one launch gives a case each, and the max cases a question gives: every case is a thread's
+#define CUBIN_RUN_THREADS_MAX (1u << 20u)
 
-// the exits a question's code contains at most
+// the exits a question's code contains at max
 #define CUBIN_RUN_EXITS 256u
 
 // the run's tables of the gate's verdicts and the carrier's launches, and what came of a launch, its row's outcome
@@ -157,8 +157,8 @@ typedef struct
 
 // the Xid critical errors the part stamped against the last launch, each one's datum, its Xid, with the text the
 // driver wrote of it where the system's log records one, stored for the listener's account of a panic
-// (cubin_run_refusal_written): as many as CUBIN_RUN_XID_MOST, and the count of all
-#define CUBIN_RUN_XID_MOST 16u
+// (cubin_run_refusal_written): as many as CUBIN_RUN_XID_MAX, and the count of all
+#define CUBIN_RUN_XID_MAX 16u
 
 #define CUBIN_RUN_XID_TEXT 192u
 
@@ -166,11 +166,11 @@ typedef struct
 
 #endif
 
-// the facets a dry run pops out, each the object a stage of the carry hands on, for any one to be examined off
+// the facets a dry run pops out, each the object a stage of the carry passes on, for any one to be examined off
 // the part. The flags that set them come after --dry; --full sets them all
 #define CUBIN_FACET_QUERY 1u     // --query: the query object, the whole code read back, every place our reader names it
 
-#define CUBIN_FACET_GATE 2u // --gate-check: the safety word laid on and cubin_safe's verdict on what it then contains
+#define CUBIN_FACET_GATE 2u // --gate-check: the safety word positioned on and cubin_safe's verdict on what it then contains
 
 #define CUBIN_FACET_VENDOR 4u    // --diff-output-against-vendor: the post-safety-word container written out to be read
 
@@ -179,22 +179,22 @@ extern unsigned char s_pattern[CUBIN_RUN_BYTES];
 extern unsigned char s_code[CUBIN_RUN_BYTES];
 extern unsigned char s_container[CUBIN_RUN_BYTES];
 extern unsigned int s_exits[CUBIN_RUN_EXITS];
-extern unsigned int s_cases[CUBIN_RUN_THREADS_MOST][CUBIN_RUN_IN_WORDS];
+extern unsigned int s_cases[CUBIN_RUN_THREADS_MAX][CUBIN_RUN_IN_WORDS];
 extern unsigned int s_case_count;
-extern unsigned int s_answers[CUBIN_RUN_THREADS_MOST][CUBIN_RUN_OUT_WORDS];
+extern unsigned int s_answers[CUBIN_RUN_THREADS_MAX][CUBIN_RUN_OUT_WORDS];
 extern QryShared *s_run;
 extern VerbaLinea s_answers_line;
 extern VerbaLinea s_dry_line;
 extern VerbaLinea s_call_line;
 extern int s_telemetry_ready;
 extern int s_events_ready;
-extern unsigned long long s_xid_data[CUBIN_RUN_XID_MOST];
-extern char s_xid_text[CUBIN_RUN_XID_MOST][CUBIN_RUN_XID_TEXT];
+extern unsigned long long s_xid_data[CUBIN_RUN_XID_MAX];
+extern char s_xid_text[CUBIN_RUN_XID_MAX][CUBIN_RUN_XID_TEXT];
 extern unsigned int s_xid_count;
 extern int s_launch_timed_out;
 extern int s_launch_faulted;
 extern unsigned long long s_timed_least;
-extern unsigned long long s_timed_most;
+extern unsigned long long s_timed_max;
 extern unsigned int s_part_registers;
 extern CubinRunDriver s_driver;
 extern int s_driver_opened;
@@ -204,7 +204,7 @@ extern unsigned int s_facets;
 // the carrier's clocks over a list, the host's nanoseconds in each stage of a question summed over every question and
 // reported as the list ends: the inputs read; the container written and read by the gate; the module loaded and its
 // function found; the memory allotted, filled, read back and given back; the launch between its events; the fault
-// telemetry read; and the rows and the answer handed
+// telemetry read; and the rows and the answer passed
 typedef struct
 {
     unsigned long long input;
@@ -213,7 +213,7 @@ typedef struct
     unsigned long long memory;
     unsigned long long launch;
     unsigned long long telemetry;
-    unsigned long long handed;
+    unsigned long long passed;
 } CubinRunClocks;
 
 extern CubinRunClocks s_clocks;
@@ -233,7 +233,7 @@ unsigned long long cubin_run_input(const char *name, unsigned char *bytes, unsig
 unsigned long long cubin_run_query_key(const char *code_path);
 void cubin_run_verdict_row(unsigned long long query_key, unsigned int verdict, unsigned long long at, int dry);
 void cubin_run_launch_row(unsigned long long query_key, unsigned int outcome, unsigned int launches,
-                          unsigned long long nanoseconds, unsigned long long least, unsigned long long most,
+                          unsigned long long nanoseconds, unsigned long long least, unsigned long long max,
                           const char *message);
 int cubin_run_lines_open(CubinRunLines *lines, const char *name);
 int cubin_run_line(CubinRunLines *lines, char *line, size_t room);

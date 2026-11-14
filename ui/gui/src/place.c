@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// place.c: the window's place for each tree: where it stood, how large it was and whether it filled its monitor, saved
+// place.c: the window's place for each tree: where it was, how large it was and whether it filled its monitor, saved
 // in the file `places` in orior's home as the window closes, one record for each tree, and put back as the tree opens,
 // fitted to the monitors there are now. A place on no monitor there is goes onto the first, in its middle, and a place
 // larger than its monitor is cut to it
@@ -10,7 +10,7 @@
 #include "../../cli/src/command_line/pool.h"
 #include "../../cli/src/text/text.h"
 
-// how much of a window's top edge must stand on a monitor for its place there to stand, in pixels: enough to take it
+// how much of a window's top edge must are on a monitor for its place there to be, in pixels: enough to take it
 // by its title and move it
 #define CLI_PLACE_STRIP 64LL
 
@@ -38,7 +38,7 @@ typedef struct
     unsigned long long *length;
 } CliPlaceCtx;
 
-// the part of `place`'s top side_menu, CLI_PLACE_STRIP high, that stands on `area`, in pixels
+// the part of `place`'s top side_menu, CLI_PLACE_STRIP high, that is on `area`, in pixels
 EMBED_INLINE long long place_existing(const CliPlaceCtx *args)
 {
     const long long left = (args->place->x > args->area->x) ? args->place->x : args->area->x;
@@ -54,10 +54,10 @@ EMBED_INLINE long long place_existing(const CliPlaceCtx *args)
     return pixel_width * high;
 }
 
-// `at` moved in to stand between `start` and `start + span - size`
+// `at` moved in to be between `start` and `start + span - size`
 EMBED_INLINE int place_inside(const CliPlaceCtx *args)
 {
-    // a monitor's span and a size cut to it are below what an int counts, and the size is at most the span
+    // a monitor's span and a size cut to it are below what an int counts, and the size is at max the span
     const int last = args->start + (int)(args->span - args->size);
     if (args->at < args->start)
     {
@@ -71,15 +71,15 @@ EMBED_INLINE int place_inside(const CliPlaceCtx *args)
 }
 
 // `place` fitted to the monitors `areas`, `count` of them, the first the system's main one: put on the monitor its top
-// edge stands on most, the last of those standing on as much, cut to that monitor's size and moved in to stand wholly
-// on it; or, standing on none enough, put in the middle of the first: 1, or 0 where there is no monitor
+// edge is on max, the last of those located on as much, cut to that monitor's size and moved in to be wholly
+// on it; or, located on none enough, put in the middle of the first: 1, or 0 where there is no monitor
 EMBED_INLINE int place_fit(const CliPlaceCtx *args)
 {
     if (args->count == 0u)
     {
         return 0;
     }
-    unsigned int most = 0u;
+    unsigned int max = 0u;
     long long exists = EMBED_CALL(place_existing, CliPlaceCtx, .place = args->position_out, .area = &args->areas[0]);
     for (unsigned int at = 1u; at < args->count; at += 1u)
     {
@@ -87,17 +87,17 @@ EMBED_INLINE int place_fit(const CliPlaceCtx *args)
             EMBED_CALL(place_existing, CliPlaceCtx, .place = args->position_out, .area = &args->areas[at]);
         if (existing >= exists)
         {
-            most = at;
+            max = at;
             exists = existing;
         }
     }
     const long long width_strip =
         (args->position_out->width < CLI_PLACE_STRIP) ? (long long)args->position_out->width : CLI_PLACE_STRIP;
-    const int stands = exists >= CLI_PLACE_STRIP * width_strip;
-    const CliWindowArea *const area = stands ? &args->areas[most] : &args->areas[0];
+    const int is = exists >= CLI_PLACE_STRIP * width_strip;
+    const CliWindowArea *const area = is ? &args->areas[max] : &args->areas[0];
     const unsigned int width = (args->position_out->width < area->width) ? args->position_out->width : area->width;
     const unsigned int height = (args->position_out->height < area->height) ? args->position_out->height : area->height;
-    if (stands)
+    if (is)
     {
         args->position_out->x = EMBED_CALL(place_inside, CliPlaceCtx, .at = args->position_out->x, .size = width,
                                            .start = area->x, .span = area->width);
@@ -180,8 +180,8 @@ void cli_view_place_store(const char *root, const CliWindowPosition *place)
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                   .size_pointer = &size, .owner = g_cli_view_owner);
-    const unsigned long long most = ((bytes != NULL) ? size : 0ULL) + sizeof(CliPlaceRecord) + key_length;
-    unsigned char *const written = g_cli_guard->temporary_buf_alloc(most, g_cli_view_owner);
+    const unsigned long long max = ((bytes != NULL) ? size : 0ULL) + sizeof(CliPlaceRecord) + key_length;
+    unsigned char *const written = g_cli_guard->temporary_buf_alloc(max, g_cli_view_owner);
     if (written != NULL)
     {
         // a key's bytes are below what a record's length counts

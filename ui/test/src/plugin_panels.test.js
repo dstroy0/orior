@@ -20,7 +20,7 @@ const { test, assert, ui } = window.__harness;
 // value with itself, whose issue has a second location.
 const UNUSED = "def compute(value):\n    if value == value:\n        return 1\n    x = 5\n    return value\n";
 
-// The HTML of the plugin's panel titled `title`, "" where none is shown.
+// The HTML of the plugin's panel titled `title`, "" where none is displayed.
 const panel = (title) => [...document.querySelectorAll(".plugin-panel")].find((one) => one.getAttribute("aria-label") === title)?.querySelector("iframe")?.dataset.html ?? "";
 
 // The frame of the plugin's panel titled `title`.

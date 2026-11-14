@@ -124,7 +124,7 @@ export function keyMap() {
 }
 
 // Binds keys written as a menu lists them, such as "Shift+Alt+F" or "Ctrl+K Ctrl+I", each to its
-// `run`, in place of those the menus bound before. A key the editor already binds keeps its own.
+// `run`, in place of those the menus bound before. A key the editor already binds retains its own.
 // The keys of the menus' commands for the editor. A command marked `native` leaves its key to the
 // browser, which does the work itself: a paste's text then comes in the paste event, straight from
 // the system's clipboard, and never crosses to the app's side and back as text.
@@ -202,10 +202,10 @@ export function onKey(event) {
   }
 }
 
-// Jump: the letter or two typed after it are looked for in the lines in sight, case aside, and each
-// place they stand gets a mark of a letter of its own, the nearest the cursor first; typing a mark's
-// letter puts the cursor there. After one letter typed, a mark's letter is never one that follows a
-// place found, which leaves that letter free to look for two. Escape, a press, a scroll, or any key
+// Jump: the character or two typed after it are looked for in the lines in sight, case aside, and each
+// place they are gets a mark of a character of its own, the nearest the cursor first; typing a mark's
+// character puts the cursor there. After one character typed, a mark's character is never one that follows a
+// place found, which leaves that character free to look for two. Escape, a press, a scroll, or any key
 // that is none of these ends it.
 export function startJump() {
   this.endJump();
@@ -232,12 +232,12 @@ export function endJump() {
 
 export function jumpKey(event) {
   const jump = this.jump;
-  const letter = event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey ? event.key : null;
+  const character = event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey ? event.key : null;
   if (["Shift", "Control", "Alt", "Meta"].includes(event.key)) {
     return;
   }
   event.preventDefault();
-  const mark = letter && jump.marks.find((one) => one.label === letter.toLowerCase());
+  const mark = character && jump.marks.find((one) => one.label === character.toLowerCase());
   if (mark) {
     this.endJump();
     this.setSelections([caret(mark.at)], caret(mark.at));
@@ -245,15 +245,15 @@ export function jumpKey(event) {
     this.reveal();
     return;
   }
-  if (!letter || jump.query.length >= 2) {
+  if (!character || jump.query.length >= 2) {
     this.endJump();
     return;
   }
-  jump.query += letter;
+  jump.query += character;
   this.markJumps();
 }
 
-// Marks every place in sight the query stands, the nearest the cursor first, while labels last.
+// Marks every place in sight the query is, the nearest the cursor first, while labels last.
 export function markJumps() {
   const jump = this.jump;
   const wanted = jump.query.toLowerCase();
@@ -300,7 +300,7 @@ export function note(step) {
 }
 
 // Vim's keys, on or off.
-// Shows the line at the width the file's formatter keeps lines to, or takes it away.
+// Shows the line at the width the file's formatter retains lines to, or takes it away.
 export function setMargin(on) {
   this.marginShown = on;
   this.follow();

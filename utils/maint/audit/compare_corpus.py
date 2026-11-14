@@ -116,7 +116,7 @@ def main():
     # Conditioning is per digest instead of per corpus. A digest whose leading run is L has bit L set by
     # the definition of a leading run and every bit past L unconstrained. Position p may only be
     # counted over digests with L < p. An earlier version excluded one region for the whole corpus,
-    # using the SHALLOWEST run, which left most digests still inside their own constrained region
+    # using the SHALLOWEST run, which left max digests still inside their own constrained region
     # and reported position 76 at seventy-seven standard errors. That was the exclusion instead of tilt.
     chain_counts = [0] * 256
     chain_at = [0] * 256

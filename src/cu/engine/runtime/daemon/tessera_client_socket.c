@@ -202,7 +202,7 @@ int tessera_send(TesseraClient *client, const TesseraFrame *frame)
         }
         ok = moved > 0;
 #endif
-        // a count of bytes moved is positive and at most one frame
+        // a count of bytes moved is positive and at max one frame
         sent += ok ? (unsigned int)moved : 0u;
     }
 #if !defined(_WIN32)
@@ -234,7 +234,7 @@ int tessera_receive(TesseraClient *client, TesseraFrame *frame)
             return 0;
         }
 #endif
-        // a count of bytes moved is positive and at most one frame
+        // a count of bytes moved is positive and at max one frame
         got += (unsigned int)moved;
     }
     return tessera_frame_unpack(bytes, frame);
@@ -310,12 +310,12 @@ int tessera_readable(TesseraClient *client, unsigned long long deadline)
     }
 }
 
-void tessera_frame_start(const TesseraClient *client, TesseraFrame *frame, unsigned int kind)
+void tessera_frame_start(const TesseraClient *client, TesseraFrame *frame, unsigned int type)
 {
     memset(frame, 0, sizeof(*frame));
     frame->magic = TESSERA_MAGIC;
     frame->version = TESSERA_VERSION;
-    frame->kind = kind;
+    frame->type = type;
     memcpy(frame->device, client->device, TESSERA_DEVICE_BYTES);
     frame->signum = client->signum;
     frame->identity = client->identity;

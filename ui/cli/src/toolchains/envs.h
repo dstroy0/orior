@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// envs.h: the tree's environments: the places in the tree a Python environment stands, found at any depth, each the
+// envs.h: the tree's environments: the places in the tree a Python environment is, found at any depth, each the
 // tree's own environment once the reader chooses it.
 //
 // A virtual environment is a folder that contains `pyvenv.cfg`. A Pipfile's folder is a Pipenv environment, which
@@ -9,7 +9,7 @@
 // recorded, and one that moves with the tree. The packages a `setup.cfg`, a Pipfile or a `requirements.txt` beside it
 // requires are read, and an environment chosen reports which of them it has not installed.
 //
-// The environment chosen is the toolchains' own while it stands: its folders come first on the PATH of everything
+// The environment chosen is the toolchains' own while it is: its folders come first on the PATH of everything
 // impero starts, and its Python is the tree's Python (envs.c, envs_find.c, envs_resolve.c)
 #ifndef ENVS_H
 #define ENVS_H

@@ -28,7 +28,7 @@ static_assert(sizeof(QryRecord) == 24u, "QryRecord must be the 24 bytes a record
 _Static_assert(sizeof(QryRecord) == 24u, "QryRecord must be the 24 bytes a record opens with");
 #endif
 
-// a record's name and its blob, where the record stands
+// a record's name and its blob, where the record is
 #define QRY_RECORD_NAME(record_) ((const char *)((record_) + 1))
 #define QRY_RECORD_BLOB(record_) ((const unsigned char *)((record_) + 1) + (record_)->name_length)
 

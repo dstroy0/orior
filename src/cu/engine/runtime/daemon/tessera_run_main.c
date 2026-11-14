@@ -19,7 +19,7 @@ int main(int count, char **arguments)
         return RUN_FAILED;
     }
     const unsigned long long mask = tessera_self_host_mask();
-    // a processor count is at most sixty-four, represented whole
+    // a processor count is at max sixty-four, represented whole
     const unsigned long long given = (unsigned long long)engine_word_population(mask);
     if ((mask == 0ull) || (request.processors > given))
     {
@@ -79,7 +79,7 @@ int main(int count, char **arguments)
     const unsigned long long whole = ticket.granted / TESSERA_HOST_PROCESSOR;
     if (!run_processors_named((whole != 0ull) ? whole : 1ull))
     {
-        fprintf(stderr, "  tessera_run: the processors granted were not handed on to %s\n", label);
+        fprintf(stderr, "  tessera_run: the processors granted were not passed on to %s\n", label);
     }
     const unsigned long long started = run_now();
     if (run_start(&child, words, started_count, mask, &channel))

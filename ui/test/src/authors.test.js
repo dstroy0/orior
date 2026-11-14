@@ -3,22 +3,22 @@
 
 import { authorsShown, onAuthors, setAuthorsShown } from "../../gui/src-js/authors.js";
 import { runCommand } from "../../gui/src-js/menubar.js";
-import { keepingStorage } from "../helpers.js";
+import { retentionStorage } from "../helpers.js";
 
 const { test, assert } = window.__harness;
 
 const KEY = "orior.git.authors";
 
 test("authors are off until the reader turns them on", () =>
-  keepingStorage([KEY], () => {
+  retentionStorage([KEY], () => {
     localStorage.removeItem(KEY);
     assert.equal(authorsShown(), false);
     localStorage.setItem(KEY, "anything");
     assert.equal(authorsShown(), false);
   }));
 
-test("turning authors on and off keeps the choice and tells each listener", () =>
-  keepingStorage([KEY], () => {
+test("turning authors on and off retains the choice and tells each listener", () =>
+  retentionStorage([KEY], () => {
     const told = [];
     onAuthors((on) => told.push(on));
     setAuthorsShown(true);
@@ -30,7 +30,7 @@ test("turning authors on and off keeps the choice and tells each listener", () =
   }));
 
 test("Git, Authors turns them on and off, and on or off as asked", () =>
-  keepingStorage([KEY], () => {
+  retentionStorage([KEY], () => {
     localStorage.removeItem(KEY);
     runCommand("git-authors");
     assert.equal(authorsShown(), true);

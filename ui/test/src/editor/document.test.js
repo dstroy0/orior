@@ -4,7 +4,7 @@
 // The document under a paste: a text of ten lines to ten thousand, then of megabytes, put at a known
 // line by the Ctrl+V the harness presses, on each of the two buses, the editor's own clipboard and
 // the system's. Each paste is timed from its paste event to the document holding the text and to the
-// frame drawn after, and lands whole where the cursor stood. The times go to paste.tsv beside the
+// frame drawn after, and lands whole where the cursor was. The times go to paste.tsv beside the
 // run's report.
 
 import { invoke } from "../../../gui/src-js/bridge.js";
@@ -80,7 +80,7 @@ async function put(bus, text, name) {
     const source = await opened(`${name}.source.txt`, text);
     await ui.waitFor(() => source.s.doc.count === text.split("\n").length, 30000, `${name}: the source's lines read`);
     source.selectAll();
-    // The copy's own time, from its event to the text taken, is kept beside the paste's.
+    // The copy's own time, from its event to the text taken, is retained beside the paste's.
     let copying = 0;
     const copy = source.copy;
     source.copy = (event, cut) => {
@@ -92,7 +92,7 @@ async function put(bus, text, name) {
     try {
       await ui.waitFor(() => source.clip?.text === text, 20000, "the editor's clipboard holding the text");
     } catch (error) {
-      throw new Error(`${error.message}: the copy ran ${copying.toFixed(1)} ms, the clipboard holds ${source.clip?.text?.length ?? "nothing"} of ${text.length} letters, the source ${source.s.doc.count} lines`);
+      throw new Error(`${error.message}: the copy ran ${copying.toFixed(1)} ms, the clipboard holds ${source.clip?.text?.length ?? "nothing"} of ${text.length} characters, the source ${source.s.doc.count} lines`);
     } finally {
       source.copy = copy;
     }
@@ -110,11 +110,11 @@ async function closed(path) {
   const mark = `#tabs .tab .close[title="${path}"]`;
   const closer = () => document.querySelector(mark);
   for (let press = 0; press < 2 && closer(); press += 1) {
-    // the tab may stand past the strip's edge among the tabs the pastes opened
+    // the tab may are past the strip's edge among the tabs the pastes opened
     closer().scrollIntoView({ block: "nearest", inline: "nearest" });
     await ui.waitFor(() => closer()?.checkVisibility(), 3000);
-    // pressed by its selector: the tab is drawn anew as the undo leaves the text clean, and a node kept across
-    // that redraw stands detached
+    // pressed by its selector: the tab is drawn anew as the undo leaves the text clean, and a node retained across
+    // that redraw is detached
     await ui.click(mark);
   }
   await ui.waitFor(() => !closer(), 30000, `${path} closed`);
@@ -159,7 +159,7 @@ async function pasted(bus, text, named) {
   }
   assert.ok(began > 0, `${name}: the editor's paste ran`);
   assert.equal(doc.count, expected, `${name}: the lines after the paste`);
-  assert.equal(doc.line(AT), lineOf(0).trimEnd(), `${name}: the first pasted line stands at line ${AT}`);
+  assert.equal(doc.line(AT), lineOf(0).trimEnd(), `${name}: the first pasted line is at line ${AT}`);
   assert.equal(doc.line(AT + text.split("\n").length - 2), lineOf(text.split("\n").length - 2).trimEnd(), `${name}: and the last after it`);
   assert.equal(doc.line(AT + text.split("\n").length - 1), "# a line of the target", `${name}: the target's line follows`);
   // The paste undone leaves the target as its file is, so its tab closes clean and holds no large text behind.

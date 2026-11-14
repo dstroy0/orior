@@ -53,21 +53,21 @@ unsigned int query_put(Query *query)
 
     if (satisfied == 0u)
     {
-        query->kind = QUERY_UNSATISFIED;
+        query->type = QUERY_UNSATISFIED;
         query->bit = 0u;
     }
-    // A bound is the most the answer may cost, and a cost nobody read cannot be shown to be inside it: a bound with
+    // A bound is the max the answer may cost, and a cost nobody read cannot be displayed to be inside it: a bound with
     // no clock reads 0 and is never a verdict nobody measured
     else if ((query->bound != 0ull) && ((clocked == 0u) || (query->cost > query->bound)))
     {
-        query->kind = QUERY_PAST_BOUND;
+        query->type = QUERY_PAST_BOUND;
         query->bit = 0u;
     }
     else
     {
-        // Unbound, the cost is what the query returns, and the kind still reports the qualifier was true. The cost of a
+        // Unbound, the cost is what the query returns, and the type still reports the qualifier was true. The cost of a
         // query whose qualifier was not true is not the cost of an answer, and the unbound pass separates the two
-        query->kind = QUERY_SATISFIED;
+        query->type = QUERY_SATISFIED;
         query->bit = 1u;
     }
     return query->bit;

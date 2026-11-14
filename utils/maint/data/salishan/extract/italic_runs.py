@@ -1,12 +1,12 @@
 """The runs of italic text on each page, for the forms a paper cites in its prose by setting them in
-italics: aa, nee dii and k'ap/ap in Hill and Matthewson, which are plain letters and read as English
+italics: aa, nee dii and k'ap/ap in Hill and Matthewson, which are plain characters and read as English
 to the engine.
 
 usage: python italic_runs.py <stem> [first page] [last page]
 
-A run is the italic glyphs between two roman ones, with the spaces inside it kept; one line per run,
+A run is the italic glyphs between two roman ones, with the spaces inside it retained; one line per run,
 page first. Punctuation and a dash at either end are set aside. cited_rows turns the runs that
-stand in the prose into cited form rows for a context file's ADD.
+are in the prose into cited form rows for a context file's ADD.
 """
 import os
 import re
@@ -20,8 +20,8 @@ import tables
 
 EDGES = " .,;:!?()[]‘’“”–"
 # A paper that sets its forms upright in a face of their own has that face read as its italics:
-# van Eijk's AboriginalSans against the AboriginalSerif of his prose. Its runs take the letters of
-# the paper's private-use glyphs and write each raised letter as its modifier, as the page text does.
+# van Eijk's AboriginalSans against the AboriginalSerif of his prose. Its runs take the characters of
+# the paper's private-use glyphs and write each raised character as its modifier, as the page text does.
 FORM_FACES = tables.gather("FORM_FACES")
 
 
@@ -37,8 +37,8 @@ def italic_runs(stem, first=1, last=None):
         textpage = document[number].get_textpage()
         raised = set()
         if face:
-            # The glyphs page_text.raised_letters raises, counted over the same glyphs.
-            _, lifted = page_text.raised_letters(textpage, mapping, ciphers)
+            # The glyphs page_text.raised_characters raises, counted over the same glyphs.
+            _, lifted = page_text.raised_characters(textpage, mapping, ciphers)
             at = 0
             for index in range(textpage.count_chars()):
                 symbol = textpage.get_text_range(index, 1)
@@ -49,10 +49,10 @@ def italic_runs(stem, first=1, last=None):
                 if at in lifted:
                     raised.add(index)
                 at += len(mapping.get(symbol, symbol))
-        # The stream breaks the line either side of a raised letter, set on a baseline of its own,
-        # k̓ ʷ zús; the page sets it inside its word. The break after it stands for the word space as
-        # well, n̓á:n̓atxʷ ʔác̓x̌-n-əm, and is kept where the next glyph stands more than 0.8 em past
-        # the letter the raised one sits on: 10.3 points at a word space in van Eijk, 6.1 at most inside
+        # The stream breaks the line either side of a raised character, set on a baseline of its own,
+        # k̓ ʷ zús; the page sets it inside its word. The break after it is for the word space as
+        # well, n̓á:n̓atxʷ ʔác̓x̌-n-əm, and is retained where the next glyph is more than 0.8 em past
+        # the character the raised one sits on: 10.3 points at a word space in van Eijk, 6.1 at max inside
         # a word.
         apart = set()
         for index in raised:
@@ -69,12 +69,12 @@ def italic_runs(stem, first=1, last=None):
                     if textpage.get_charbox(near)[0] - textpage.get_charbox(base)[2] > 0.8 * size:
                         continue
                 apart.update(breaks)
-        # A paper that draws the glottal mark as an apostrophe over its letter has it set on the
-        # letter, as page_text does, and the apostrophe left out of the run with the space the stream
+        # A paper that draws the glottal mark as an apostrophe over its character has it set on the
+        # character, as page_text does, and the apostrophe left out of the run with the space the stream
         # sets after it: stsq̓ey̓.
         marks, taken = page_text.overset_marks(textpage) if stem in page_text.PAPER_OVERSET else ({}, set())
-        # Gerdts and Peter set a letter of a form in Times now and then, the i of ʔəmilyə in italic
-        # and the t of tenəs upright: the letters of a word that holds a glyph of the face are the
+        # Gerdts and Peter set a character of a form in Times now and then, the i of ʔəmilyə in italic
+        # and the t of tenəs upright: the characters of a word that holds a glyph of the face are the
         # form's. A footnote's mark on the word, and a space the face sets, are not. Where the paper
         # names two faces, Gerdts and Peter's Straight and italic, a run ends where the face changes:
         # boat > put is two forms. inside maps each glyph of a form to its face.
@@ -86,7 +86,7 @@ def italic_runs(stem, first=1, last=None):
                 found = re.search(face, page_text.font_name(textpage, index))
                 if found and not symbols[index].isspace():
                     inside[index] = found.group(0)
-            # A paper with one face of forms, van Eijk's AboriginalSans, sets every letter of a form
+            # A paper with one face of forms, van Eijk's AboriginalSans, sets every character of a form
             # in it, and its runs are its glyphs.
             for index in sorted(inside) if "|" in face else ():
                 for step in (-1, 1):
@@ -95,7 +95,7 @@ def italic_runs(stem, first=1, last=None):
                             (symbols[near].isalpha() or unicodedata.combining(symbols[near][:1] or " ")):
                         inside[near] = inside[index]
                         near += step
-            # A word's glyphs, a footnote's mark aside, take the face most of them are set in: the
+            # A word's glyphs, a footnote's mark aside, take the face the majority of them are set in: the
             # italic i of ʔəmilyə is Straight's, and so is the italic ti:t of ti:t,tiʔtəm.
             start = 0 if "|" in face else count
             while start < count:
@@ -106,10 +106,10 @@ def italic_runs(stem, first=1, last=None):
                 # Two faces set as often go to the one the word opens on: the k of Lyon's 2011 k̓ʷúl-n
                 # is italic and its comma above slanted TeX-xipa, the k̓ the stream sets apart.
                 if faces:
-                    most = max(faces, key=faces.count)
+                    max = max(faces, key=faces.count)
                     for index in range(start, end):
                         if index in inside and not symbols[index].isdigit():
-                            inside[index] = most
+                            inside[index] = max
                 start = end + 1
         run, run_face, tie, last = [], None, False, None
         for index in range(textpage.count_chars()):
@@ -127,10 +127,10 @@ def italic_runs(stem, first=1, last=None):
                 coded = symbol
                 if ciphers:
                     symbol = page_text.deciphered(symbol, textpage, index, ciphers)
-                # A tie bar a cipher's font sets before the two letters it joins goes after the
+                # A tie bar a cipher's font sets before the two characters it joins goes after the
                 # first of them, as page_text sets it: maʔt͡s. The stream breaks the line either side
-                # of the raised bar, and the break stands for no space where the letter after the
-                # bar stands within 0.3 em of the letter before it.
+                # of the raised bar, and the break is for no space where the character after the
+                # bar is within 0.3 em of the character before it.
                 if symbol == "͡" and coded != symbol:
                     tie = True
                     continue
@@ -169,7 +169,7 @@ def italic_runs(stem, first=1, last=None):
 
 
 def cited_rows(stem, draft, language, skip=()):
-    """ADD entries for the italic runs that stand as whole words in a prose note of the draft: one
+    """ADD entries for the italic runs that are as whole words in a prose note of the draft: one
     cited form row per run and place, where "footnote N" for a run in a footnote, glossed with the
     English in quotes the prose sets after it, Hasaga'y dimin gidaxin (‘I wanna ask you.’). A run
     in skip, or the same as a tier of an example, is left out."""
@@ -182,8 +182,8 @@ def cited_rows(stem, draft, language, skip=()):
         pattern = re.compile(r"(?<![\w'’])%s(?![\w'’])" % re.escape(run))
         # The aa of Halaayin aa? is part of that run, and takes none of its English.
         longer = [one for number, one in runs if number == page and run in one and one != run]
-        for where, who, kind, form, gloss in draft:
-            if kind != "note" or where in ("references", "front") or where.startswith("(") or \
+        for where, who, type, form, gloss in draft:
+            if type != "note" or where in ("references", "front") or where.startswith("(") or \
                     not re.search(r"\bpage %d\b" % page, gloss):
                 continue
             covered = [(at.start(), at.end()) for one in longer

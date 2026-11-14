@@ -95,7 +95,7 @@ CODEGEN_CORE MachineOperandRange codegen_limbs(unsigned int place, unsigned int 
 
 // a form decided into the lane's sink, or counted where the sink has room for none. A form the ruleset gives as a
 // construct takes its scratch as the step's own temporaries, 64-bit temporaries and predicates, fresh for it, from
-// where each bank stands, and declared with them; a construct that takes scratch of another bank breaks the lane
+// where each bank is, and declared with them; a construct that takes scratch of another bank breaks the lane
 CODEGEN_CORE void codegen_instr(MachineFunction *lane, unsigned int form, unsigned int count, MachineOperand first,
                                 MachineOperand second, MachineOperand third, MachineOperand fourth)
 {
@@ -163,7 +163,7 @@ CODEGEN_CORE void codegen_take(MachineFunction *lane, const MachineInstr *item)
     lane->count += 1ull;
 }
 
-// the next of a bank's registers for the step, the most any step took retained for the lane to declare
+// the next of a bank's registers for the step, the max any step took retained for the lane to declare
 CODEGEN_CORE MachineOperand codegen_temporary(MachineFunction *lane)
 {
     const MachineOperand taken = codegen_register(REGCLASS_TEMPORARY, lane->temps);
@@ -220,7 +220,7 @@ CODEGEN_CORE int codegen_reads_left(unsigned int operation)
            (operation != ENGINE_RECORD_CONSTANT) && (operation != ENGINE_RECORD_LANE);
 }
 
-// 1 where a compiled program supports the step as it is laid out: its operands are earlier steps, each read whole (a
+// 1 where a compiled program supports the step as it is arranged: its operands are earlier steps, each read whole (a
 // table reads its source's low limb alone, and key_schedule leaves its left_limbs 0), its own limbs lie inside the
 // file, and a field reads a member the program has, a signed field's top bit inside its limbs. A step that fails this
 // leaves the whole program on the interpreter
@@ -374,10 +374,10 @@ CODEGEN_CORE unsigned int codegen_claim_named(CodegenClaim *claims, unsigned int
 }
 
 // Every register `items` name, each claimed by the first item naming it and released by the last, and each scratch
-// register an item takes, the scratch `scratch` lays out four words a form (ruleset_scratch) in the banks
+// register an item takes, the scratch `scratch` arranges four words a form (ruleset_scratch) in the banks
 // `scratch_banks`, used by that item alone. A temporary, a 64-bit temporary and a predicate are the step's own, a new
 // one at each step's note, and every other register the lane's throughout, a fixed register by its place past the
-// banks. The count recorded, at most `capacity`, and in `*collided` the first item naming a register another item uses
+// banks. The count recorded, at max `capacity`, and in `*collided` the first item naming a register another item uses
 // as its scratch, CODEGEN_NO_ITEM where none does
 CODEGEN_CORE unsigned int codegen_claims(const MachineInstr *items, unsigned long long item_count,
                                          const unsigned int *scratch, const unsigned int *scratch_banks,
@@ -406,14 +406,14 @@ CODEGEN_CORE unsigned int codegen_claims(const MachineInstr *items, unsigned lon
              argument += 1u)
         {
             const MachineOperand given = item->arguments[argument];
-            if ((given.kind == OPERAND_REGISTER) && (given.which != REGCLASS_IMMEDIATE))
+            if ((given.type == OPERAND_REGISTER) && (given.which != REGCLASS_IMMEDIATE))
             {
                 const int own = (given.which == REGCLASS_TEMPORARY) || (given.which == REGCLASS_WIDE) ||
                                 (given.which == REGCLASS_PREDICATE);
                 count = codegen_claim_named(claims, count, capacity, given.which, given.number,
                                             own ? step : CODEGEN_NO_ITEM, at, CODEGEN_NO_ITEM, collided);
             }
-            else if (given.kind == OPERAND_PHYSREG)
+            else if (given.type == OPERAND_PHYSREG)
             {
                 count = codegen_claim_named(claims, count, capacity, REGCLASS_COUNT + given.which, 0u, CODEGEN_NO_ITEM,
                                             at, CODEGEN_NO_ITEM, collided);

@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: LNG-3-001
 #
-# Read the web with the content kept fixed across every language, for Section 4.13 of
+# Read the web with the content retained fixed across every language, for Section 4.13 of
 # theory/workbooks/orior.
 #
 #   Usage:  python examples/language/3_reference/parallel_web.py

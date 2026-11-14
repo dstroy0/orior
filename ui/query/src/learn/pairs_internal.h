@@ -51,7 +51,7 @@ int query_pairs_tools_words(const QueryPairsPartContextDryCtx *args);
 // the part's files, the bridge, the rulesets and the stick's manifest read into the run
 int query_pairs_configs(const QueryPairsPartContextCtx *args);
 // the host's questions, the C++ the run contains as `host_questions.cpp`, compiled under `out` with signed arithmetic
-// wrapping as the part's does, run, and its answers handed as `host_answers.txt`
+// wrapping as the part's does, run, and its answers passed as `host_answers.txt`
 int query_host_answer(const QueryPairsContextCtx *args);
 // `folder`/`name` into `path`; `part` and `extension` under the bridge's folder into `path`; the identity run with
 // `words` teed as `orior_klq_identity.console`, 1 where it ran (pairs_modes.c)
@@ -92,7 +92,7 @@ struct QueryPairsContextErrMsgRunCtx
     VerbaLinea *err_msg;
     const QueryRun *run;
     const char *identity;
-    const char *const *words_letters;
+    const char *const *words_characters;
     unsigned int count;
     long long *code;
 };
@@ -134,7 +134,7 @@ struct QueryPairsPartContextCtx
 struct QueryPairsErrMsgCtx
 {
     VerbaLinea *err_msg;
-    const char *const *words_letters;
+    const char *const *words_characters;
     unsigned int count;
     QueryPairsMode *mode_out;
 };

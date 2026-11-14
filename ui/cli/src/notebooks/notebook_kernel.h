@@ -22,7 +22,7 @@ typedef struct CliNotebookKernelStopCfg CliNotebookKernelStopCfg;
 #define CLI_NOTEBOOK_TOOL_RESTART 8u
 #define CLI_NOTEBOOK_TOOL_STOP 16u
 
-// A kernel the machine has, a row of the kernels' movable cell read out by copy: its name, the text it is shown by,
+// A kernel the machine has, a row of the kernels' movable cell read out by copy: its name, the text it is displayed by,
 // its language, whether it lacks what it runs on, and the line that installs that where it lacks it, empty where not
 typedef struct
 {

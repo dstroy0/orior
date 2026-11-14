@@ -21,7 +21,7 @@ def main():
     parser = argparse.ArgumentParser(description="Serve the room view, the engine view's objects and raw slices from the source on localhost.")
     parser.add_argument("--port", type=int, default=8733)
     parser.add_argument("--source", default=os.path.join(REPO, "build", "data", "source"),
-                        help="the samples the slices are read from, as fetch_open_sample.py lays them out. "
+                        help="the samples the slices are read from, as fetch_open_sample.py positions them out. "
                              "Default: build/data/source")
     parser.add_argument("--channel", type=int, default=1,
                         help="the channel a sample with a c axis is read at. Default: 1, the open sample's nuclei")
@@ -45,9 +45,9 @@ def main():
         def log_message(self, *_):
             return
 
-        def reply(self, code, body, kind):
+        def reply(self, code, body, type):
             self.send_response(code)
-            self.send_header("Content-Type", kind)
+            self.send_header("Content-Type", type)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
             self.end_headers()

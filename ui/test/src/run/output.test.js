@@ -13,7 +13,7 @@ import { asFound, calls, press, putBackAsFound, QUICK, SLOW } from "../../menus.
 
 const { test, assert, ui } = window.__harness;
 
-test("the Changes pane's menu, from the command line: a file's changes shown", async () => {
+test("the Changes pane's menu, from the command line: a file's changes displayed", async () => {
   asFound();
   const before = (await invoke("file_read", { path: "README.md" })).text;
   await invoke("file_write", { path: "README.md", text: `${before}a change of the test's\n` });

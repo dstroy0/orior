@@ -32,12 +32,12 @@
 /** @brief Everything below the limb boundary, for taking the low half of a 64 bit accumulator. */
 #define LIMB_MASK ((uint64_t)0xFFFFFFFFu)
 
-/** @brief Most decimal digits one limb takes in a single multiply, since 10^9 is below 2^32. */
+/** @brief Max decimal digits one limb takes in a single multiply, since 10^9 is below 2^32. */
 #define LIMB_DECIMAL_DIGITS 9u
 
 #define EXACT_LIMBS ((size_t)ORIOR_EXACT_LIMBS)
 
-// A call's width-sized working copies are one block, placed at compile time: on the stack while the width is at most
+// A call's width-sized working copies are one block, placed at compile time: on the stack while the width is at max
 // ORIOR_EXACT_STACK_LIMBS, from the heap beyond it. No width is bounded by a stack. A block from the heap that
 // cannot be allocated errors as ORIOR_EXACT_WILL_NOT_FIT.
 #if (ORIOR_EXACT_LIMBS) <= (ORIOR_EXACT_STACK_LIMBS)

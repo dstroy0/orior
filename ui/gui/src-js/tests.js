@@ -14,7 +14,7 @@ import { iconOf, paneOpen } from "./explorer.js";
 import { showMenu } from "./menu.js";
 import { say } from "./statusbar.js";
 
-// The kept choice of spreading a run over the machine's cores.
+// The retained choice of spreading a run over the machine's cores.
 const PARALLEL_KEY = "orior.tests.parallel";
 
 const state = {
@@ -58,7 +58,7 @@ export function setTestsParallel(on) {
   draw();
 }
 
-// Reads the tree's tests again, keeping each one's last result.
+// Reads the tree's tests again, retention each one's last result.
 export async function loadTests() {
   try {
     state.found = await invoke("tests_found");
@@ -71,7 +71,7 @@ export async function loadTests() {
   return state.found;
 }
 
-// Forgets what the tree open before kept.
+// Forgets what the tree open before retained.
 export function forgetTests() {
   Object.assign(state, { found: [], loaded: false, results: new Map(), run: null, last: null, coverage: new Map() });
   draw();
@@ -159,20 +159,20 @@ export function testMenu(file, line, x, y) {
 
 // What a run tells as it goes.
 function heard(told) {
-  if (told.kind === "started") {
+  if (told.type === "started") {
     state.run = { number: told.run, given: told.given, workers: told.workers, runner: told.runner, started: performance.now() };
     for (const test of state.found) {
       if (state.runGiven.includes(test.id) || state.runGiven.includes(test.file)) {
         state.results.set(test.id, { id: test.id, outcome: "running", message: "", file: null, line: null, seconds: 0 });
       }
     }
-  } else if (told.kind === "result") {
+  } else if (told.type === "result") {
     const before = state.results.get(told.outcome.id);
-    // A failure's details come after its result, and keep what the result said.
+    // A failure's details come after its result, and retain what the result said.
     state.results.set(told.outcome.id, { ...before, ...told.outcome, message: told.outcome.message || before?.message || "" });
-  } else if (told.kind === "coverage") {
+  } else if (told.type === "coverage") {
     state.coverage = new Map(told.files.map((one) => [one.file, { ran: new Set(one.ran), missed: new Set(one.missed) }]));
-  } else if (told.kind === "done") {
+  } else if (told.type === "done") {
     for (const [id, one] of state.results) {
       if (one.outcome === "running") {
         state.results.set(id, { ...one, outcome: "none" });

@@ -106,16 +106,16 @@ export function snippetStep(direction) {
 export function escape() {
   if (this.suggest.open) {
     this.suggest.close();
-  } else if (this.hover.shown) {
+  } else if (this.hover.displayed) {
     this.hover.hide();
-  } else if (this.find.shown) {
+  } else if (this.find.displayed) {
     this.find.close();
   } else if (this.s.snippet) {
     this.s.snippet = null;
     this.schedule();
   } else if (this.s.selections.length > 1) {
-    const kept = this.primary();
-    this.select([kept], kept);
+    const retained = this.primary();
+    this.select([retained], retained);
   } else if (!empty(this.primary())) {
     this.select([caret(this.primary().head)]);
   }
@@ -134,7 +134,7 @@ export function copy(event, cut) {
   this.note({ cut });
 }
 
-// What a copy takes, the selections' text or for none the whole lines the cursors are on, kept for
+// What a copy takes, the selections' text or for none the whole lines the cursors are on, retained for
 // a paste; a cut takes it out of the text as well.
 export function takeOut(cut) {
   const doc = this.doc;
@@ -159,7 +159,7 @@ export function takeOut(cut) {
 }
 
 // A paste puts the text on the clipboard, or the text pasteAs gives for it, at once or when its
-// promise keeps it.
+// promise retains it.
 export function paste(event) {
   event.preventDefault();
   const text = event.clipboardData.getData("text/plain").replace(/\r\n?/g, "\n");

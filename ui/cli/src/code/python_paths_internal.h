@@ -18,12 +18,12 @@ typedef struct CliPythonPathsAtCtx CliPythonPathsAtCtx;
 typedef struct CliPythonPathsTextTypeCtx CliPythonPathsTextTypeCtx;
 typedef struct CliPythonPathsFirstCtx CliPythonPathsFirstCtx;
 
-// the most expressions, list items, letters of one expression, bytes of texts, values and names one script's reading
-// contains; no expression; and the most values a pairing of two lists gives. A reading's own most of each is sized to
+// the max expressions, list items, characters of one expression, bytes of texts, values and names one script's reading
+// contains; no expression; and the max values a pairing of two lists gives. A reading's own the majority of each is sized to
 // its script within these
 #define CLI_PY_EXPRS 16384u
 #define CLI_PY_ITEMS 16384u
-#define CLI_PY_LETTERS (1u << 20u)
+#define CLI_PY_CHARACTERS (1u << 20u)
 #define CLI_PY_TEXT (1u << 22u)
 #define CLI_PY_VALUES 65536u
 #define CLI_PY_NAMES 1024u
@@ -72,11 +72,11 @@ typedef struct
     CliValues values;
 } CliPyName;
 
-// One script's reading: its expressions, the items of their lists and the items of lists being read, the letters of
-// the expression being read and where the reading stands, the texts, the values, the lists being joined into one, the
+// One script's reading: its expressions, the items of their lists and the items of lists being read, the characters of
+// the expression being read and where the reading is, the texts, the values, the lists being joined into one, the
 // names set, the script's path, and what it puts on `sys.path`, as places in the texts. Its lists are one cell taken
 // for the script, each sized to it: `exprs_max` expressions, `items_max` items, stacked items and ranges,
-// `letters_max` letters and `text_max` bytes of texts, and CLI_PY_VALUES values and found
+// `characters_max` characters and `text_max` bytes of texts, and CLI_PY_VALUES values and found
 typedef struct
 {
     CliExpr *expr;
@@ -87,9 +87,9 @@ typedef struct
     unsigned int items_max;
     unsigned int *stack;
     unsigned int stacked;
-    unsigned int *letter;
-    unsigned int letters;
-    unsigned int letters_max;
+    unsigned int *character;
+    unsigned int characters;
+    unsigned int characters_max;
     unsigned int at;
     char *text;
     unsigned int used;

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_install.c: the install's words fill its options and a word it does not take is refused; the default folder
-// stands under the reader's programs; a name another PATH folder answers to collides, and the program's own folder and
+// is under the reader's programs; a name another PATH folder answers to collides, and the program's own folder and
 // the install folder do not
 #include "ui/cli/src/machine/install.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
@@ -52,7 +52,7 @@ void test_a_port_that_is_not_a_number_is_refused(void)
                                  .err_msg = &s_err_msg));
 }
 
-void test_the_default_folder_stands_under_the_readers_programs(void)
+void test_the_default_folder_is_under_the_readers_programs(void)
 {
     char folder[CLI_PATH_MAX_LEN];
     TEST_ASSERT_TRUE(EMBED_CALL(cli_install.default_folder, CliInstallCfg, .home = "/home/reader",

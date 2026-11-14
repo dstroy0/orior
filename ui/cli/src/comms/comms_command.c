@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// comms_command.c: the catalog's Comms commands run by name, each on the request the shown view's cursor stands in
+// comms_command.c: the catalog's Comms commands run by name, each on the request the displayed view's cursor is in
 // where it takes one, so that the window reaches all of them through one entry
 #include "../command_line/command_line.h"
 #include "../editor/view.h"
@@ -19,8 +19,8 @@ typedef struct
     unsigned int view;
 } CommsCommand;
 
-// The view shown: its key and its path, each a copy out of the views table in a buffer of the record's own, NULL where
-// no view is shown, and its cursor's line
+// The view displayed: its key and its path, each a copy out of the views table in a buffer of the record's own, NULL where
+// no view is displayed, and its cursor's line
 typedef struct
 {
     const char *key;
@@ -41,28 +41,28 @@ typedef struct
 {
     const char *path;
     VerbaLinea *out;
-    CommsShown *shown_out;
+    CommsShown *displayed_out;
 } CommsCommandCtx;
 
-// the shown view's key, its path and its cursor's line into `shown_out`: 1, or 0 where no view is shown
-EMBED_INLINE int command_shown(const CommsCommandCtx *args)
+// the displayed view's key, its path and its cursor's line into `displayed_out`: 1, or 0 where no view is displayed
+EMBED_INLINE int command_displayed(const CommsCommandCtx *args)
 {
-    CommsShown *const shown_out = args->shown_out;
-    const int shown = cli_view_shown();
-    if (shown < 0)
+    CommsShown *const displayed_out = args->displayed_out;
+    const int displayed = cli_view_displayed();
+    if (displayed < 0)
     {
         return 0;
     }
-    // the view shown is among the views: its key and path copied into the shown record's own buffers
-    const int named = cli_view_key((unsigned int)shown, shown_out->key_text) &&
-                      cli_view_path_at((unsigned int)shown, shown_out->path_text);
-    shown_out->key = named ? shown_out->key_text : NULL;
-    shown_out->path = named ? shown_out->path_text : NULL;
+    // the view displayed is among the views: its key and path copied into the displayed record's own buffers
+    const int named = cli_view_key((unsigned int)displayed, displayed_out->key_text) &&
+                      cli_view_path_at((unsigned int)displayed, displayed_out->path_text);
+    displayed_out->key = named ? displayed_out->key_text : NULL;
+    displayed_out->path = named ? displayed_out->path_text : NULL;
     CliPosition cursor = {0ULL, 0ULL};
-    const int placed = (shown_out->key != NULL) && EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg,
-                                                              .key = shown_out->key, .cursor = &cursor);
-    shown_out->line = cursor.line;
-    return placed && (shown_out->path != NULL);
+    const int placed = (displayed_out->key != NULL) && EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg,
+                                                              .key = displayed_out->key, .cursor = &cursor);
+    displayed_out->line = cursor.line;
+    return placed && (displayed_out->path != NULL);
 }
 
 // the reader's private environment file beside the file at `path` written into `out` as its path in the tree, made
@@ -79,22 +79,22 @@ EMBED_INLINE int command_private(const CommsCommandCtx *args)
     {
         return 0;
     }
-    // the path is written as a JSON string: its letters read through a tree of this call alone
+    // the path is written as a JSON string: its characters read through a tree of this call alone
     CliJson read = {0};
     const unsigned int root =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &read,
                    .text = written, .size = quoted.at, .err_msg = &err_msg, .owner = g_cli_comms_owner);
     unsigned long long length = 0ULL;
-    const char *const letters = (root != CLI_JSON_NONE)
+    const char *const characters = (root != CLI_JSON_NONE)
                                     ? EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                                  .json_read = &read, .node = root, .length_pointer = &length)
                                     : NULL;
-    if (letters != NULL)
+    if (characters != NULL)
     {
-        (void)mmgr_line_put_n(args->out, letters, length);
+        (void)mmgr_line_put_n(args->out, characters, length);
     }
     g_cli_guard->persistent_buf_release(read.node, g_cli_comms_owner);
-    return letters != NULL;
+    return characters != NULL;
 }
 
 int cli_comms_command_run(const CliCommsCommandCfg *args)
@@ -113,31 +113,31 @@ int cli_comms_command_run(const CliCommsCommandCfg *args)
     if (command->view != COMMAND_NO_VIEW)
     {
         EMBED_CALL(cli_comms_pane.choose, CliCommsPaneCfg, .view = command->view);
-        *args->shown_out = 1;
+        *args->displayed_out = 1;
     }
-    CommsShown shown = {NULL, NULL, 0ULL};
-    const int on_view = EMBED_CALL(command_shown, CommsCommandCtx, .shown_out = &shown);
+    CommsShown displayed = {NULL, NULL, 0ULL};
+    const int on_view = EMBED_CALL(command_displayed, CommsCommandCtx, .displayed_out = &displayed);
     const char *const root = cli_command_line_root();
     switch (found)
     {
     case 0u:
         if (on_view)
         {
-            (void)EMBED_CALL(cli_requests_pane.send, CliRequestsPaneCfg, .root = root, .path = shown.path,
-                             .key = shown.key, .line = shown.line);
+            (void)EMBED_CALL(cli_requests_pane.send, CliRequestsPaneCfg, .root = root, .path = displayed.path,
+                             .key = displayed.key, .line = displayed.line);
         }
         return 1;
     case 1u:
         if (on_view)
         {
-            (void)EMBED_CALL(cli_requests_pane.curl, CliRequestsPaneCfg, .root = root, .path = shown.path,
-                             .key = shown.key, .line = shown.line, .out = args->clipboard);
+            (void)EMBED_CALL(cli_requests_pane.curl, CliRequestsPaneCfg, .root = root, .path = displayed.path,
+                             .key = displayed.key, .line = displayed.line, .out = args->clipboard);
         }
         return 1;
     case 2u:
         if (on_view)
         {
-            (void)EMBED_CALL(command_private, CommsCommandCtx, .path = shown.path, .out = args->open_out);
+            (void)EMBED_CALL(command_private, CommsCommandCtx, .path = displayed.path, .out = args->open_out);
         }
         return 1;
     case 4u: {

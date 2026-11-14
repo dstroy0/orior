@@ -14,7 +14,7 @@
 
 #define KRS_FRAME_TEXT 512u
 
-// one frame form the vendor's writer hands back: its relation, frame.<relation>, and its text with each operand of
+// one frame form the vendor's writer passes back: its relation, frame.<relation>, and its text with each operand of
 // the relation's tuple written as {<place>}
 typedef struct
 {
@@ -37,7 +37,7 @@ int krs_frame_named(const KrsFrameForm *form, const char *named_ruleset, char *l
 // they did not fit (verba_scribo.h), one line a row of the table in the table's order: of the `count` forms in `form`,
 // the first the row names writes the line, the writers of one placed text being one, a row of no places written as well
 // from a form of its relation whose one place is a guard, with the guard struck, since the vendor writes a guard at
-// every predicate as none; and where the run hands none the row names, the line the ruleset at `krs_path` gave the
+// every predicate as none; and where the run passes none the row names, the line the ruleset at `krs_path` gave the
 // row's form before this run, retained whole. A given line a written one replaces with another text is stored in the
 // .krf beside the .ksc at `ksc_path` (krf.h). `krs_path` may be NULL or name no file, and then nothing is given. The
 // count written

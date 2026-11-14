@@ -4,12 +4,12 @@
 // of queries (kqr.h, krep_viewed_at). Every query a run's record contains whose identity the record does not, or
 // contains timed out where the run's resolved, and every sample a run's record contains that the record contains no
 // sample of, the same identity and nanoseconds, is stored into the record in the order of the runs, and the record is
-// handed to the run's writer, which writes it in its place as the run ends (kqr_write_by). The pairs of the record stay
-// as they are. What each run adds is handed to the run as the record `kqr_merge`.
+// passed to the run's writer, which writes it in its place as the run ends (kqr_write_by). The pairs of the record stay
+// as they are. What each run adds is passed to the run as the record `kqr_merge`.
 //
 //     kqr_merge <member> <record.kqr> <run.qry>...
 //
-// Exit 0 where every run's record was read and the record handed; 1 where one was not, or the record was not handed,
+// Exit 0 where every run's record was read and the record passed; 1 where one was not, or the record was not passed,
 // no run's writer running; 2 where the words are not these
 #include "kqr_record.h"
 
@@ -54,7 +54,7 @@ static int sample_new(const KqrSample *sample)
     return 1;
 }
 
-// the program's report, gathered and handed to the run as the record `kqr_merge` once it is written, `s_report_at`
+// the program's report, gathered and passed to the run as the record `kqr_merge` once it is written, `s_report_at`
 // bytes so far, the room once a write did not fit
 static char s_report[2048];
 static size_t s_report_at;
@@ -73,7 +73,7 @@ static void report_decimal(unsigned long long value)
         &(VerbaNumerusCfg){.out = s_report, .cap = sizeof(s_report), .at = s_report_at, .val = value});
 }
 
-// what the report contains handed to the run, and emptied
+// what the report contains passed to the run, and emptied
 static void merge_report_flush(void)
 {
     if (verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_report), .at = s_report_at}))
@@ -145,12 +145,12 @@ int main(int count, char **word)
         merge_report_flush();
         kqr_free(&s_run);
     }
-    const int handed = kqr_write_by(&s_record, word[2], who);
+    const int passed = kqr_write_by(&s_record, word[2], who);
     print_text("kqr_merge: ");
     print_text(word[2]);
-    print_text(handed ? " handed to the run's writer, written in its place as the run ends\n"
-                      : " was not handed: no run's writer runs, or the path stands outside the tree\n");
+    print_text(passed ? " passed to the run's writer, written in its place as the run ends\n"
+                      : " was not passed: no run's writer runs, or the path is outside the tree\n");
     merge_report_flush();
     kqr_free(&s_record);
-    return (read && handed) ? 0 : 1;
+    return (read && passed) ? 0 : 1;
 }

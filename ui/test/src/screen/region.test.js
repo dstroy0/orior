@@ -55,14 +55,14 @@ test("a scroll region scrolls within itself only, and a line put in pushes the r
 
 test("the second screen is drawn on apart, and leaving it gives back the main screen's text and cursor", async () => {
   await withScreen(10, 3, (screen) => {
-    screen.write("main\r\nkept");
+    screen.write("main\r\nretained");
     screen.write("\x1b[?1049h");
     assert.notEqual(screen.buffer, screen.main);
     assert.deepEqual(textsOf(screen), ["", "", ""]);
     screen.write("\x1b[1;1Hfull screen");
     screen.write("\x1b[?1049l");
     assert.equal(screen.buffer, screen.main);
-    assert.deepEqual(textsOf(screen), ["main", "kept", ""]);
+    assert.deepEqual(textsOf(screen), ["main", "retained", ""]);
     assert.deepEqual([screen.x, screen.y], [4, 1]);
   });
 });

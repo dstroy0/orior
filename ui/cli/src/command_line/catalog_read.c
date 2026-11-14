@@ -144,7 +144,7 @@ void cli_catalog_builds(const CliCatalogPathCtx *args)
     EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = place, .folders = 1, .filter = NULL,
                .entries = &examples);
     (void)EMBED_CALL(cli_catalog_max_internal.paths_capacity, CliCatalogMaxCtx, .paths = &list_entries,
-                     .most = 3u + examples.count);
+                     .max = 3u + examples.count);
     unsigned int positions = 0u;
     for (unsigned int at = 0u; (at < 3u) && (positions < list_entries.capacity); at += 1u)
     {
@@ -298,7 +298,7 @@ void cli_catalog_sims(const CliCatalogPathCtx *args)
     CliEntries names = {NULL, 0u, 0u};
     CliEntries sources = {NULL, 0u, 0u};
     (void)EMBED_CALL(cli_catalog_names_internal.names_capacity, CliCatalogNamesCtx, .names = &names,
-                     .most = EMBED_CALL(cli_catalog_text_variable_internal.case_names, CliCatalogTextVariableCtx,
+                     .max = EMBED_CALL(cli_catalog_text_variable_internal.case_names, CliCatalogTextVariableCtx,
                                         .text_read = text, .variable = "SIM", .names_callback = NULL, .capacity = 0u));
     const unsigned int count =
         (names.name != NULL)
@@ -382,7 +382,7 @@ unsigned int cli_catalog_paths(const CliCatalogFilterCtx *args)
     EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = args->dir, .folders = 0,
                .filter = args->filter, .entries = &files);
     (void)EMBED_CALL(cli_catalog_max_internal.paths_capacity, CliCatalogMaxCtx, .paths = args->list,
-                     .most = at + files.count);
+                     .max = at + files.count);
     for (unsigned int each = 0u; (each < files.count) && (at < args->list->capacity); each += 1u)
     {
         char path[CLI_PATH_MAX_LEN];

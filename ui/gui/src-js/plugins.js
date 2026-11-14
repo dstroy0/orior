@@ -3,12 +3,12 @@
 
 // The language plugins, as plugins.rs in the command line's crate describes them: those that come
 // with orior and the reader's own, read as the app starts and again on Reload Plugins. Each becomes a
-// language as the editor takes one, opened for the extensions it names. One of the reader's stands
+// language as the editor takes one, opened for the extensions it names. One of the reader's is
 // in for one that comes with orior of the same id.
 //
 // Where two plugins that are on name one extension, one of the reader's opens it ahead of one that
 // comes with orior, and of two that come with orior the first by id opens it. Turning that one off
-// hands the extension to the next.
+// passes the extension to the next.
 //
 // A plugin that does not read, or whose grammar does not compile, is set aside with what was wrong,
 // which the Plugins sheet shows. One the reader turned off is read and not used. A file whose
@@ -40,8 +40,8 @@ export function onPlugins(listener) {
 // The ids of the plugins the reader turned off.
 export function pluginsOff() {
   try {
-    const kept = JSON.parse(localStorage.getItem(OFF) ?? "[]");
-    return new Set(Array.isArray(kept) ? kept : []);
+    const retained = JSON.parse(localStorage.getItem(OFF) ?? "[]");
+    return new Set(Array.isArray(retained) ? retained : []);
   } catch {
     return new Set();
   }
@@ -61,7 +61,7 @@ export function setPluginOn(id, on) {
 const patternOf = (value) => (typeof value === "string" ? new RegExp(value) : new RegExp(value.pattern, value.flags ?? ""));
 
 // A grammar as a plugin writes it, with each rule's pattern made a pattern; a rule whose pattern is a word list, which
-// orior's side makes from the list's words, kept as it is written.
+// orior's side makes from the list's words, retained as it is written.
 function revive(grammar) {
   const tokenizer = {};
   const revived = (pattern) => (pattern && typeof pattern === "object" && "words" in pattern ? pattern : patternOf(pattern));
@@ -112,8 +112,8 @@ function languageOf(plugin) {
               return [];
             }
             return [
-              ...lists.flatMap(([list, words]) => words.map((word) => ({ label: String(word), kind: typeOf(list), detail: list, insert: String(word) }))),
-              ...snippets.map((one) => ({ label: String(one.label), kind: "snippet", detail: "snippet", insert: String(one.body), snippet: true })),
+              ...lists.flatMap(([list, words]) => words.map((word) => ({ label: String(word), type: typeOf(list), detail: list, insert: String(word) }))),
+              ...snippets.map((one) => ({ label: String(one.label), type: "snippet", detail: "snippet", insert: String(one.body), snippet: true })),
             ];
           }
         : undefined,
@@ -132,14 +132,14 @@ function build() {
       }
       Object.assign(reading, { name: plugin.name ?? id, version: plugin.version ?? "", extensions: Array.isArray(plugin.extensions) ? plugin.extensions.map(String) : [], names: Array.isArray(plugin.names) ? plugin.names.map(String) : [], paths: Array.isArray(plugin.paths) ? plugin.paths.map(String) : [] });
       // A tool plugin opens no files: it checks those of the languages it names.
-      if (plugin.kind === "tool") {
-        Object.assign(reading, { kind: "tool", checks: Array.isArray(plugin.languages) ? plugin.languages.map(String) : [], about: String(plugin.about ?? "") });
-      } else if (plugin.kind === "script") {
+      if (plugin.type === "tool") {
+        Object.assign(reading, { type: "tool", checks: Array.isArray(plugin.languages) ? plugin.languages.map(String) : [], about: String(plugin.about ?? "") });
+      } else if (plugin.type === "script") {
         // A script plugin opens no files: it runs code of its own (scripts.js).
         const list = (value) => (Array.isArray(value) ? value.map(String).filter(Boolean) : []);
         // The commands it puts in the command palette, each by its id with its title.
         const commands = Array.isArray(plugin.commands) ? plugin.commands.filter((one) => one?.id).map((one) => ({ id: String(one.id), title: String(one.title ?? one.id) })) : [];
-        Object.assign(reading, { kind: "script", api: Number(plugin.api ?? 1), about: String(plugin.about ?? ""), commands, asks: { reads: list(plugin.reads), writes: list(plugin.writes), reaches: list(plugin.reaches) } });
+        Object.assign(reading, { type: "script", api: Number(plugin.api ?? 1), about: String(plugin.about ?? ""), commands, asks: { reads: list(plugin.reads), writes: list(plugin.writes), reaches: list(plugin.reaches) } });
       } else {
         reading.language = languageOf(plugin);
       }
@@ -192,7 +192,7 @@ export async function loadPlugins() {
 
 // The tool plugin that checks files of `language`, where one is on.
 export function toolFor(language) {
-  return state.readings?.find((reading) => reading.kind === "tool" && reading.on && !reading.replaced && !reading.error && reading.checks.includes(language)) ?? null;
+  return state.readings?.find((reading) => reading.type === "tool" && reading.on && !reading.replaced && !reading.error && reading.checks.includes(language)) ?? null;
 }
 
 // Each plugin as found, with what was wrong where it did not read, for the Plugins sheet.

@@ -22,17 +22,17 @@ EMBED_INLINE GuiRect controls_button(const ControlsCtx *args)
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CONTROL_WIDTH, .scale = args->frame->scale);
     const int gap =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CONTROL_GAP, .scale = args->frame->scale);
-    // the row the control is laid in: the one handed in, else the frame's; a control's index is one of three
+    // the row the control is positioned in: the one passed in, else the frame's; a control's index is one of three
     const GuiRect controls = (args->controls != NULL) ? *args->controls : args->frame->controls;
     const int at = controls.x + ((int)args->which * (pixel_width + gap));
     const GuiRect button = {at, controls.y, pixel_width, controls.height};
     return button;
 }
 
-// The controls' beads laid out, one a control at its rest place on the top menu's row, where the row stands with no
+// The controls' beads arranged, one a control at its rest place on the top menu's row, where the row is with no
 // claim, each on the top menu tools' side centred on the control, lit by the window's lights. A control's frames
 // bake the first time it is drawn
-EMBED_INLINE void controls_beads_laid(const GuiControlsRasterCfg *args)
+EMBED_INLINE void controls_beads_positioned(const GuiControlsRasterCfg *args)
 {
     const GuiFrame *const frame = args->frame;
     const int scale = frame->scale;
@@ -66,13 +66,13 @@ EMBED_INLINE void controls_beads_laid(const GuiControlsRasterCfg *args)
 
 void gui_controls_draw(const GuiControlsRasterCfg *args)
 {
-    EMBED_CALL(controls_beads_laid, GuiControlsRasterCfg, .buttons = args->buttons, .palette = args->palette,
+    EMBED_CALL(controls_beads_positioned, GuiControlsRasterCfg, .buttons = args->buttons, .palette = args->palette,
                .frame = args->frame);
     const int box =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CONTROL_GLYPH, .scale = args->frame->scale);
-    // the controls' pane lays no glass and casts no shadow behind the beads: the beads stand on the table alone
+    // the controls' pane positions no glass and casts no shadow behind the beads: the beads are on the table alone
     const GuiColor text_color = GUI_FRAME_FADED(args->palette->status_text, args->frame->controls_alpha);
-    // each control's bead stands on the top menu tools' side, centred on the control, as faded as its glyph
+    // each control's bead is on the top menu tools' side, centred on the control, as faded as its glyph
     const int side = args->frame->top_menu_tools.height;
     const int pad = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_BEAD_PAD, .scale = args->frame->scale);
     for (unsigned int which = GUI_CONTROL_MINIMIZE; which <= GUI_CONTROL_CLOSE; which += 1u)
@@ -80,7 +80,7 @@ void gui_controls_draw(const GuiControlsRasterCfg *args)
         const GuiRect button = EMBED_CALL(controls_button, ControlsCtx, .frame = args->frame, .which = which);
         const int left = button.x + ((button.width - box) / 2);
         const int top = button.y + ((button.height - box) / 2);
-        // the glyphs' strokes in the box, as the icons stand in theirs of sixteen: the line at 3.5..12.5 by 8, the
+        // the glyphs' strokes in the box, as the icons are in theirs of sixteen: the line at 3.5..12.5 by 8, the
         // square at 4..12, the diagonals from 4.2 to 11.8
         const int low = left + ((box * 4) / 16);
         const int high = left + ((box * 12) / 16) - 1;

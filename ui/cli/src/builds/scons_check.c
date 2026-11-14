@@ -13,8 +13,8 @@
 
 #include "../text/text.h"
 
-// the most names a file imports stored, the most names exported matched to them and the bytes they take, the most files
-// read for what they export, and the most bytes of one read
+// the max names a file imports stored, the max names exported matched to them and the bytes they take, the max files
+// read for what they export, and the max bytes of one read
 #define CLI_SCONS_IMPORTS 4096u
 #define CLI_SCONS_EXPORTS 65536u
 #define CLI_SCONS_EXPORTS_TEXT (1u << 22u)
@@ -218,7 +218,7 @@ static void check_export(const CliEachNameSizeCfg *args)
     s_export_used += (unsigned int)args->size;
 }
 
-// what the other SConstructs and SConscripts of the tree export, the file at `path` left out: the tree's files laid
+// what the other SConstructs and SConscripts of the tree export, the file at `path` left out: the tree's files positioned
 // flat for the walk, and each file read into cells given back before the next
 EMBED_INLINE void check_others(const SconsCheckCtx *args)
 {
@@ -330,14 +330,14 @@ void cli_scons_check(const CliSconsTextCtx *args)
     g_cli_guard->persistent_buf_release(class_of, g_cli_scons_work_states_owner);
 }
 
-// The hand a name SCons gives is handed to
+// The hand a name SCons gives is passed to
 typedef struct
 {
     void (*each)(const CliEachNameSizeCfg *args);
     void *context;
 } CliSconsInput;
 
-// a name the file imports handed on
+// a name the file imports passed on
 static void check_input_import(const CliSconsSpanCfg *args)
 {
     const CliSconsInput *const supplied = args->context;
@@ -365,14 +365,14 @@ void cli_scons_free(const CliSconsTextSizeContextCtx *args)
     g_cli_guard->persistent_buf_release(class_of, g_cli_scons_work_states_owner);
 }
 
-// whether a letter goes in an environment's name and its method
-static int check_chain_letter(const CliEachLetterCfg *args)
+// whether a character goes in an environment's name and its method
+static int check_chain_character(const CliEachLetterCfg *args)
 {
-    return cli_each_letter.build_word_letter(args) || (args->letter == '.');
+    return cli_each_character.build_word_character(args) || (args->character == '.');
 }
 
 // the `(` of the call whose arguments end at `end`, the class of each byte read: its byte, or `end` where the cursor
-// stands in no call's arguments
+// is in no call's arguments
 EMBED_INLINE unsigned long long check_call_open(const SconsCheckCtx *args)
 {
     const char *const text = g_cli_scons.text;
@@ -412,7 +412,7 @@ EMBED_INLINE void check_complete(const SconsCheckCtx *args)
     unsigned long long at = args->at;
     CliCompletions *items = args->items;
     const unsigned long long token = EMBED_CALL(cli_builds_text_at.build_run_before, CliBuildsTextAtCfg, .text = text,
-                                                .at = at, .of = check_chain_letter);
+                                                .at = at, .of = check_chain_character);
     unsigned long long line_start = token;
     line_start = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = text, .at = line_start,
                             .set = "\n");
@@ -448,7 +448,7 @@ EMBED_INLINE void check_complete(const SconsCheckCtx *args)
         const unsigned long long name_end =
             EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg, .text = text, .size = open);
         const unsigned long long name = EMBED_CALL(cli_builds_text_at.build_run_before, CliBuildsTextAtCfg,
-                                                   .text = text, .at = name_end, .of = cli_build_word_letter);
+                                                   .text = text, .at = name_end, .of = cli_build_word_character);
         unsigned long long since = token;
         since = (open + 1u +
                  EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = text + open + 1u,

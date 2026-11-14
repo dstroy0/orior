@@ -33,7 +33,7 @@ A product longer than the moduli support. The three primes admit a transform of 
 
 A run whose answer was never compared. `--check` walks sizes where Python can still multiply, and
 a size past that is reported as timed and never as verified, since a fast wrong answer is the
-thing this tree keeps producing.
+thing this tree retains producing.
 """
 
 import argparse
@@ -72,7 +72,7 @@ NATIVE_LIMBS = 1 << 10
 # ONE PROCESS FOR THE WHOLE RUN. Creating a CUDA context costs 192 ms, measured, and a run of pi to
 # a million places made 56 device calls: 10.76 s of a 19.55 s wall clock was context setup against
 # 0.25 s of transform. The card was idle 98.7 percent of the time. So the process is started once
-# and kept, and the per call cost becomes a pipe write.
+# and retained, and the per call cost becomes a pipe write.
 _SERVED = None
 
 
@@ -129,7 +129,7 @@ def read_packed(path):
         return int.from_bytes(handle.read(), "little")
 
 
-def device_multiply(left, right, keep=False):
+def device_multiply(left, right, retain=False):
     """The product, by way of the card. Returns the value and the milliseconds the device spent.
 
     THROUGH A PIPE AND NOT THROUGH THE DISK. The three returned arrays at a billion digits are some
@@ -189,7 +189,7 @@ def _made(bits, seed):
     """A value of about `bits` bits, made from a cheap recurrence that repeats exactly on a re-run.
 
     BUILT AS BYTES AND CONVERTED ONCE. Accumulating with `out = (out << 64) | x` shifts a value that
-    is already most of the answer on every one of a million iterations and is therefore quadratic in
+    is already the majority of the answer on every one of a million iterations and is therefore quadratic in
     the bit count: at the sizes this file exists to measure, that helper takes longer than every
     multiply it is written to time, and the run looks like a slow device and not a slow test.
     Assembling the bytes first and converting once is linear.

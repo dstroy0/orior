@@ -31,25 +31,25 @@ export function backward(p) {
   return p.line > 0 ? pos(p.line - 1, this.line(p.line - 1).length) : null;
 }
 
-// A letter's type: 0 for space and line ends, 1 for a word's letters, 2 for any other; with `big`,
-// 1 for every letter but space.
-export function type(letter, big) {
-  if (letter === "\n" || /\s/.test(letter)) {
+// A character's type: 0 for space and line ends, 1 for a word's characters, 2 for any other; with `big`,
+// 1 for every character but space.
+export function type(character, big) {
+  if (character === "\n" || /\s/.test(character)) {
     return 0;
   }
-  return big || KEYWORD.test(letter) ? 1 : 2;
+  return big || KEYWORD.test(character) ? 1 : 2;
 }
 
 export function wordStart(p, big) {
   let at = p;
-  const start = this.kind(this.charAt(at), big);
-  while (start && this.kind(this.charAt(at), big) === start) {
+  const start = this.type(this.charAt(at), big);
+  while (start && this.type(this.charAt(at), big) === start) {
     at = this.forward(at);
     if (!at) {
       return p;
     }
   }
-  while (this.kind(this.charAt(at), big) === 0) {
+  while (this.type(this.charAt(at), big) === 0) {
     const next = this.forward(at);
     if (!next) {
       return at;
@@ -64,14 +64,14 @@ export function wordStart(p, big) {
 
 export function wordEnd(p, big) {
   let at = this.forward(p);
-  while (at && this.kind(this.charAt(at), big) === 0) {
+  while (at && this.type(this.charAt(at), big) === 0) {
     at = this.forward(at);
   }
   if (!at) {
     return p;
   }
-  const type = this.kind(this.charAt(at), big);
-  for (let next = this.forward(at); next && this.kind(this.charAt(next), big) === type; next = this.forward(next)) {
+  const type = this.type(this.charAt(at), big);
+  for (let next = this.forward(at); next && this.type(this.charAt(next), big) === type; next = this.forward(next)) {
     at = next;
   }
   return at;
@@ -79,34 +79,34 @@ export function wordEnd(p, big) {
 
 export function wordBack(p, big) {
   let at = this.backward(p);
-  while (at && this.kind(this.charAt(at), big) === 0 && !(at.col === 0 && this.line(at.line).length === 0)) {
+  while (at && this.type(this.charAt(at), big) === 0 && !(at.col === 0 && this.line(at.line).length === 0)) {
     at = this.backward(at);
   }
   if (!at) {
     return pos(0, 0);
   }
-  const type = this.kind(this.charAt(at), big);
-  for (let back = this.backward(at); type && back && back.line === at.line && this.kind(this.charAt(back), big) === type; back = this.backward(back)) {
+  const type = this.type(this.charAt(at), big);
+  for (let back = this.backward(at); type && back && back.line === at.line && this.type(this.charAt(back), big) === type; back = this.backward(back)) {
     at = back;
   }
   return at;
 }
 
-// The next or the last letter on the line that is `letter`, `times` over: on it for f and F, and
+// The next or the last character on the line that is `character`, `times` over: on it for f and F, and
 // short of it for t and T.
-export function findOnLine(p, how, letter, times) {
+export function findOnLine(p, how, character, times) {
   const text = this.line(p.line);
   let col = p.col;
   for (let time = 0; time < times; time += 1) {
     if (how === "f" || how === "t") {
-      const found = text.indexOf(letter, col + (how === "t" ? 2 : 1));
+      const found = text.indexOf(character, col + (how === "t" ? 2 : 1));
       if (found < 0) {
         return null;
       }
       col = how === "t" ? found - 1 : found;
     } else {
       const from = col - (how === "T" ? 2 : 1);
-      const found = from < 0 ? -1 : text.lastIndexOf(letter, from);
+      const found = from < 0 ? -1 : text.lastIndexOf(character, from);
       if (found < 0) {
         return null;
       }
@@ -126,13 +126,13 @@ export function pairOf(p) {
   if (col >= text.length) {
     return null;
   }
-  const letter = text[col];
-  const open = "([{".includes(letter);
-  const pair = { "(": ")", ")": "(", "[": "]", "]": "[", "{": "}", "}": "{" }[letter];
+  const character = text[col];
+  const open = "([{".includes(character);
+  const pair = { "(": ")", ")": "(", "[": "]", "]": "[", "{": "}", "}": "{" }[character];
   let depth = 0;
   for (let at = pos(p.line, col); at; at = open ? this.forward(at) : this.backward(at)) {
     const here = this.charAt(at);
-    if (here === letter) {
+    if (here === character) {
       depth += 1;
     } else if (here === pair && --depth === 0) {
       return at;
@@ -185,7 +185,7 @@ export function searchFrom(p, searched, back) {
   return null;
 }
 
-// Where a motion goes from a place, and whether it takes whole lines or takes the letter it ends on.
+// Where a motion goes from a place, and whether it takes whole lines or takes the character it ends on.
 export function motion(motion, count, from) {
   const times = count ?? 1;
   const lineEnd = (line) => pos(line, this.line(line).length);
@@ -201,7 +201,7 @@ export function motion(motion, count, from) {
       const rows = motion.name.startsWith("C-") ? Math.max(1, Math.floor(this.editor.scroller.clientHeight / 2 / this.editor.lineHeight)) * times : times;
       const line = Math.max(0, Math.min(this.doc.count - 1, from.line + (motion.name === "j" || motion.name === "C-d" ? rows : -rows)));
       this.goal ??= from.col;
-      return { to: pos(line, this.goal), linewise: true, keepGoal: true };
+      return { to: pos(line, this.goal), linewise: true, retainGoal: true };
     }
     case "w":
     case "W": {
@@ -244,8 +244,8 @@ export function motion(motion, count, from) {
     case "F":
     case "t":
     case "T":
-      this.found = { how: motion.name, letter: motion.letter };
-      return this.toLetter(from, motion.name, motion.letter, times);
+      this.found = { how: motion.name, character: motion.character };
+      return this.toLetter(from, motion.name, motion.character, times);
     case ";":
     case ",": {
       if (!this.found) {
@@ -253,7 +253,7 @@ export function motion(motion, count, from) {
       }
       const turned = { f: "F", F: "f", t: "T", T: "t" };
       const how = motion.name === ";" ? this.found.how : turned[this.found.how];
-      return this.toLetter(from, how, this.found.letter, times);
+      return this.toLetter(from, how, this.found.character, times);
     }
     case "%": {
       const to = this.pairOf(from);
@@ -278,8 +278,8 @@ export function motion(motion, count, from) {
   }
 }
 
-export function toLetter(from, how, letter, times) {
-  const to = this.findOnLine(from, how, letter, times);
+export function toLetter(from, how, character, times) {
+  const to = this.findOnLine(from, how, character, times);
   return to && { to, inclusive: how === "f" || how === "t" };
 }
 
@@ -291,17 +291,17 @@ export function moveBy(motion, count) {
   if (this.visual) {
     this.visual.head = pos(found.to.line, Math.min(found.to.col, this.lastCol(found.to.line)));
     this.drawChosen();
-    if (!found.keepGoal) {
+    if (!found.retainGoal) {
       this.goal = null;
     }
     return;
   }
-  this.put(found.to, found.keepGoal);
+  this.put(found.to, found.retainGoal);
 }
 
 // Text objects: the span of a word, of a quoted text on the line, or of a bracketed one around the
 // cursor, inside its marks for i and with them for a.
-export function object({ kind: type, of }, from, count) {
+export function object({ type: type, of }, from, count) {
   const inner = type === "i";
   const text = this.line(from.line);
   if (of === "w" || of === "W") {
@@ -310,13 +310,13 @@ export function object({ kind: type, of }, from, count) {
     }
     const big = of === "W";
     const at = Math.min(from.col, text.length - 1);
-    const sort = this.kind(text[at], big);
+    const sort = this.type(text[at], big);
     let start = at;
     let end = at + 1;
-    while (start > 0 && this.kind(text[start - 1], big) === sort) {
+    while (start > 0 && this.type(text[start - 1], big) === sort) {
       start -= 1;
     }
-    while (end < text.length && this.kind(text[end], big) === sort) {
+    while (end < text.length && this.type(text[end], big) === sort) {
       end += 1;
     }
     if (!inner) {
@@ -335,7 +335,7 @@ export function object({ kind: type, of }, from, count) {
     return { start: pos(from.line, start), end: pos(from.line, end) };
   }
   if (QUOTES.has(of)) {
-    const marks = [...text].map((letter, at) => (letter === of && text[at - 1] !== "\\" ? at : -1)).filter((at) => at >= 0);
+    const marks = [...text].map((character, at) => (character === of && text[at - 1] !== "\\" ? at : -1)).filter((at) => at >= 0);
     for (let at = 0; at + 1 < marks.length; at += 2) {
       if (from.col <= marks[at + 1]) {
         const [open, close] = [marks[at], marks[at + 1]];
@@ -368,10 +368,10 @@ export function object({ kind: type, of }, from, count) {
   for (let level = 0; level < (count ?? 1); level += 1) {
     let depth = 0;
     for (let back = level === 0 && this.charAt(at) === pair[0] ? at : this.backward(at); back; back = this.backward(back)) {
-      const letter = this.charAt(back);
-      if (letter === pair[1] && !(level === 0 && cmp(back, from) === 0)) {
+      const character = this.charAt(back);
+      if (character === pair[1] && !(level === 0 && cmp(back, from) === 0)) {
         depth += 1;
-      } else if (letter === pair[0]) {
+      } else if (character === pair[0]) {
         if (depth === 0) {
           open = back;
           break;
@@ -391,10 +391,10 @@ export function object({ kind: type, of }, from, count) {
   let depth = 0;
   let close = null;
   for (let ahead = this.forward(open); ahead; ahead = this.forward(ahead)) {
-    const letter = this.charAt(ahead);
-    if (letter === pair[0]) {
+    const character = this.charAt(ahead);
+    if (character === pair[0]) {
       depth += 1;
-    } else if (letter === pair[1]) {
+    } else if (character === pair[1]) {
       if (depth === 0) {
         close = ahead;
         break;

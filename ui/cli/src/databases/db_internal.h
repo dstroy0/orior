@@ -31,7 +31,7 @@ typedef struct CliDbStopCtx CliDbStopCtx;
 
 // what the connections and SQLite's processes occupy in the cellblock, each a cell taken as it opens and given back as
 
-// the most connections open at once; how long, in milliseconds, a connection, a tunnel or a sign-in is waited for; how
+// the max connections open at once; how long, in milliseconds, a connection, a tunnel or a sign-in is waited for; how
 // many statements a connection's history stores; and how often, in rows, the place of a row buffered is marked, and how
 // many marks are stored
 #define CLI_DB_OPENS 4u
@@ -41,7 +41,7 @@ typedef struct CliDbStopCtx CliDbStopCtx;
 #define CLI_DB_RESULTS_MARKS (1u << 18u)
 
 // the SQLite processes at once, two links for each connection; the bytes SQLite's process is read in at a time, the
-// most bytes of a line it prints, and of the texts of the rows of one line; and the rows requested from it in one line
+// max bytes of a line it prints, and of the texts of the rows of one line; and the rows requested from it in one line
 #define CLI_DB_LITES (CLI_DB_OPENS * 2u)
 #define CLI_DB_LITE_READ (1u << 16u)
 #define CLI_DB_LITE_LINE (1u << 20u)
@@ -57,7 +57,7 @@ enum
 };
 
 // A tunnel to the server through ssh: its process, the port of this machine's loopback it forwards, and whether it
-// stands
+// is
 typedef struct
 {
     CliSpawned child;
@@ -143,9 +143,9 @@ struct CliDbOpen
 };
 
 // a link opened to `config`'s database at `host`:`port`, read-only where `read_only`: 1, or 0 with the failure given;
-// how a statement began on it, its head, stored by the link; up to `count` rows more handed to `each_row`; every row a
-// statement gives handed to `each_row`; the transaction's state, idle, open or failed; what stops it into `stop`: 1, or
-// 0 where nothing does; what the server noted while the last statement ran, each handed to `each`; the link ended; and
+// how a statement began on it, its head, stored by the link; up to `count` rows more passed to `each_row`; every row a
+// statement gives passed to `each_row`; the transaction's state, idle, open or failed; what stops it into `stop`: 1, or
+// 0 where nothing does; what the server noted while the last statement ran, each passed to `each`; the link ended; and
 // a stop sent (db_link.c)
 int cli_db_link_open(const CliDbLinkCtx *args);
 int cli_db_link_start(const CliDbLinkFailureStatementCtx *args);
@@ -170,7 +170,7 @@ void cli_db_lite_close(const CliDbErrMsgCtx *args);
 // the shim SQLite's process runs (db_lite_shim.c)
 extern const char g_cli_db_lite_shim[];
 
-// a tunnel opened through the ssh `through` names to `host`:`port`: 1, or 0 with the failure given; whether it stands;
+// a tunnel opened through the ssh `through` names to `host`:`port`: 1, or 0 with the failure given; whether it is;
 // and it ended (db_tunnel.c)
 int cli_db_tunnel_open(const CliDbHostCtx *args);
 int cli_db_tunnel_alive(const CliDbHostCtx *args);
@@ -183,7 +183,7 @@ typedef struct
     CliDbFailure *failure;
 } CliEachLinkFailureCfg;
 
-// the query link acquired and handed to `work`, made again where its connection broke; and the same of the schema's
+// the query link acquired and passed to `work`, made again where its connection broke; and the same of the schema's
 // link. Each what `work` gives, 0 with the failure given (db_open.c)
 int cli_db_with_query(const CliDbFailureContextCtx *args);
 int cli_db_with_meta(const CliDbFailureContextCtx *args);
@@ -194,7 +194,7 @@ void cli_db_zone_read(const CliDbFailureContextCtx *args);
 // written into `out` as a JSON array: 1, or 0 with the failure given; and the statement recorded in the connection's
 // history with how long it took and its tag, or the failure where `failed` (db_results.c, db_history.c)
 int cli_db_results_begin(const CliDbLinkFailureDoneCtx *args);
-// the lines of the rows buffered from `start` to `end`, each a JSON array of the row's values, handed to `each`, under
+// the lines of the rows buffered from `start` to `end`, each a JSON array of the row's values, passed to `each`, under
 // the buffered rows' lock (db_results.c)
 void cli_db_results_lines(const CliDbContextCtx *args);
 void cli_db_remembered(const CliDbStatementCtx *args);

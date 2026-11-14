@@ -106,9 +106,9 @@ unsigned int query_learn_lines(const QueryLearnCtx *args)
             &(MemoriaCfg){.src = bytes + at, .val = '\n', .bytes = (size_t)(size - at)});
         const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - bytes) : size;
         int blank = 1;
-        for (unsigned long long letter = at; letter < end; letter += 1ULL)
+        for (unsigned long long character = at; character < end; character += 1ULL)
         {
-            blank = blank && ((bytes[letter] == ' ') || (bytes[letter] == '\t') || (bytes[letter] == '\r'));
+            blank = blank && ((bytes[character] == ' ') || (bytes[character] == '\t') || (bytes[character] == '\r'));
         }
         lines += blank ? 0u : 1u;
         at = end + 1ULL;
@@ -186,19 +186,19 @@ void query_verdicts_print(const QueryLearnRunCtx *args)
         const unsigned long long length = (end != NULL) ? (unsigned long long)(end - line) : (dry_size - at);
         at += length + 1ULL;
         const char *found = NULL;
-        unsigned long long letter = 0ULL;
-        while ((found == NULL) && ((letter + 10ULL) <= length))
+        unsigned long long character = 0ULL;
+        while ((found == NULL) && ((character + 10ULL) <= length))
         {
-            found = (memor.cmp(&(MemoriaCfg){.src = line + letter, .other = "the gate: ", .bytes = 10u}) == 0)
-                        ? (line + letter)
+            found = (memor.cmp(&(MemoriaCfg){.src = line + character, .other = "the gate: ", .bytes = 10u}) == 0)
+                        ? (line + character)
                         : NULL;
-            letter += 1ULL;
+            character += 1ULL;
         }
         if (found == NULL)
         {
             continue;
         }
-        // the verdict: its lower-case letters, spaces, commas and colons, its end trimmed
+        // the verdict: its lower-case characters, spaces, commas and colons, its end trimmed
         unsigned long long reserved = 0ULL;
         const unsigned long long capacity = length - (unsigned long long)(found - line);
         reserved = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = found, .at = 0ULL,

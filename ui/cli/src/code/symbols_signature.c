@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // symbols_signature.c: the signature of the call the cursor is in, from the tree: the call found off the leaves of the
-// lines the page hands, its arguments and each one's type, every declaration of its name in the tree with its head
+// lines the page passes, its arguments and each one's type, every declaration of its name in the tree with its head
 // read off its own file's leaves, each checked against the arguments, the best fit first. No language is read here but
 // by its plugin's grammar
 #include "../command_line/pool.h"
@@ -11,7 +11,7 @@
 #include "symbols_tree.h"
 
 #define CLI_SYMBOLS_ARGUMENTS 32u
-// The call the cursor is in: its name's leaf, its bracket's, the argument the cursor stands in, and each argument's
+// The call the cursor is in: its name's leaf, its bracket's, the argument the cursor is in, and each argument's
 // first leaf, the leaf after its last, and its type
 typedef struct
 {
@@ -38,7 +38,7 @@ typedef struct
     unsigned int needle_line;
     char language[CLI_NAME_MAX_LEN];
 } CliSymbolSignature;
-// how many lines above the cursor's the call may have opened on, the most arguments read, and the most bytes of an
+// how many lines above the cursor's the call may have opened on, the max arguments read, and the max bytes of an
 // argument's text written
 #define CLI_SYMBOLS_CALL_LINES 24u
 #define CLI_SYMBOLS_ARGUMENT_TEXT 80ULL
@@ -80,7 +80,7 @@ EMBED_INLINE int cli_signature_language_is(const SymbolsSignatureCtx *args)
            cellul.eq(&(CatenaFinitaCfg){.src = id, .other = args->signature_read->language, .cap = CLI_POOL_BYTES});
 }
 
-// the byte of `size` bytes of `text` the place `line`, `col` stands at, `size` where the text has no such line
+// the byte of `size` bytes of `text` the place `line`, `col` is at, `size` where the text has no such line
 EMBED_INLINE unsigned long long cli_signature_cursor(const SymbolsSignatureCtx *args)
 {
     const char *text = args->text;
@@ -107,7 +107,7 @@ EMBED_INLINE unsigned long long cli_signature_cursor(const SymbolsSignatureCtx *
                               .size = end - start, .col = col, .byte = &byte, .at = &units);
 }
 
-// the call the cursor at byte `cursor` of line `line` stands in, walked back over the leaves before it, each as its
+// the call the cursor at byte `cursor` of line `line` is in, walked back over the leaves before it, each as its
 // grammar names it: its bracket the first that opens at depth 0, a name named a call right before it, the separators at
 // that depth counted: 1, or 0 where a bracket opens at depth 0 with no call before it, a statement ends at depth 0, or
 // the lines' reach comes first
@@ -340,7 +340,7 @@ EMBED_INLINE void cli_signature_tree_type(const SymbolsSignatureCtx *args)
 
 // the type of the argument at `argument`: a literal's where every leaf of it is a number's or every one a string's,
 // and for one name its declaration's, the last parameter or local of that name before the call among the leaves
-// handed, else the tree's; none for any other
+// passed, else the tree's; none for any other
 EMBED_INLINE void cli_signature_type(const SymbolsSignatureCtx *args)
 {
     const CliLeafRead *read = args->read;
@@ -387,7 +387,7 @@ EMBED_INLINE void cli_signature_type(const SymbolsSignatureCtx *args)
 }
 
 // the heads of every declaration of the call's name, `length` bytes, in the tree's files of the call's language,
-// CLI_SYMBOLS_HEADS at most, each matched against the call's arguments, and the places of those read put in order of
+// CLI_SYMBOLS_HEADS at max, each matched against the call's arguments, and the places of those read put in order of
 // fit: those whose count fits first, then those with fewer arguments that differ
 EMBED_INLINE void cli_signature_heads(const SymbolsSignatureCtx *args)
 {
@@ -481,20 +481,20 @@ EMBED_INLINE int cli_signature_store_written(const SymbolsSignatureCtx *args)
     const CliSymbolHead *const head = &args->signature_read->head[args->signature_read->order[0]];
     CliSignatureStore *const store = args->store;
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = head->label, .cap = sizeof(head->label)});
-    const unsigned long long kept = (length < CLI_SIGNATURE_LABEL) ? length : CLI_SIGNATURE_LABEL - 1ULL;
+    const unsigned long long retained = (length < CLI_SIGNATURE_LABEL) ? length : CLI_SIGNATURE_LABEL - 1ULL;
     const unsigned int params = (head->params <= CLI_SIGNATURE_PARAMETERS) ? head->params : CLI_SIGNATURE_PARAMETERS;
     const unsigned int differing =
         (head->differing <= CLI_SIGNATURE_PARAMETERS) ? head->differing : CLI_SIGNATURE_PARAMETERS;
     CliSignaturePanel *const panel = &store->panel;
     memor.set(&(MemoriaCfg){.dst = panel, .val = 0, .bytes = sizeof(*panel)});
-    if (kept != 0ULL)
+    if (retained != 0ULL)
     {
-        memor.cpy(&(MemoriaCfg){.dst = store->label, .src = head->label, .bytes = kept});
+        memor.cpy(&(MemoriaCfg){.dst = store->label, .src = head->label, .bytes = retained});
     }
-    store->label[kept] = '\0';
+    store->label[retained] = '\0';
     store->doc[0] = '\0';
     panel->label = store->label;
-    panel->length = kept;
+    panel->length = retained;
     panel->doc = store->doc;
     panel->parameter = store->parameter;
     panel->parameters = params;
@@ -576,7 +576,7 @@ int cli_symbols_signature_read(const CliSymbolsPathTextSizeOutCfg *args)
     g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
     if (refused)
     {
-        mmgr_line_put(args->err_msg, "the cells cannot meet the leaves of the lines handed");
+        mmgr_line_put(args->err_msg, "the cells cannot meet the leaves of the lines passed");
     }
     return written;
 }

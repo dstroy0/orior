@@ -5,7 +5,7 @@
 #include "../text/text.h"
 #include "git_internal.h"
 
-// the most files a commit is chosen, and the most bytes of its message
+// the max files a commit is chosen, and the max bytes of its message
 #define CLI_GIT_CHOSEN 4096u
 
 #define CLI_GIT_MESSAGE (1u << 16u)
@@ -58,7 +58,7 @@ struct GitCommitCtx
     int (*commit)(const GitCommitCtx *args);
 };
 // the commit's capacity taken for `count` chosen paths and `message` trimmed, the message's capacity CLI_GIT_MESSAGE at
-// the most: 1, or 0 with why given where more files are chosen than a commit takes or the cellblock could not meet it
+// the max: 1, or 0 with why given where more files are chosen than a commit takes or the cellblock could not meet it
 EMBED_INLINE int cli_committing_alloc(const GitCommitCtx *args)
 {
     const char *message = args->message;
@@ -131,7 +131,7 @@ EMBED_INLINE unsigned int cli_displayed_words(const GitCommitCtx *args)
     return at;
 }
 
-// the files at `paths` committed with the message stored, each as it stands, whether changed, new or gone, every other
+// the files at `paths` committed with the message stored, each as it is, whether changed, new or gone, every other
 // file left as it was, in the repository at `folder`: git's line for the commit into `out`, 1, or 0 with why given
 EMBED_INLINE int cli_commit_in(const GitCommitCtx *args)
 {
@@ -187,7 +187,7 @@ EMBED_INLINE int cli_commit_in(const GitCommitCtx *args)
     return made;
 }
 
-// the files of `whole` as each stands and the files of `parts` with the text each is given committed with the message
+// the files of `whole` as each is and the files of `parts` with the text each is given committed with the message
 // stored, everything else left as the last commit had it, in what is staged as well: the commit is made from an index
 // of its own, read from the last commit; after it, git's index takes the commit's text for each file committed,
 // and a file committed in part leaves the rest of its changes unstaged. git's line for the commit into `out`, 1, or 0
@@ -391,7 +391,7 @@ EMBED_INLINE const char *cli_short(const GitCommitCtx *args)
 }
 
 // The files of the repository `repo` under `root` committed with the message by `commit`, which reads the files it is
-// handed in the context, on a line of `out` after the lines from `from`, and the repository pushed where `push` asks,
+// passed in the context, on a line of `out` after the lines from `from`, and the repository pushed where `push` asks,
 // git's words after the commit's line: 1, or 0 with the line taken back and the failure told in `err_msg`
 EMBED_INLINE int cli_repo_committed(const GitCommitCtx *args)
 {

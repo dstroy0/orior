@@ -615,13 +615,13 @@ size_t term_form_entries(const TermForm &form)
 
 unsigned long long term_form_bits(const TermForm &form)
 {
-    unsigned long long most = sim_exact_bits(&form.denominator);
+    unsigned long long max = sim_exact_bits(&form.denominator);
     for (const OriorExactInteger &entry : form.magnitude)
     {
         const unsigned long long bits = sim_exact_bits(&entry);
-        most = (bits > most) ? bits : most;
+        max = (bits > max) ? bits : max;
     }
-    return most;
+    return max;
 }
 
 int term_form_short(void)

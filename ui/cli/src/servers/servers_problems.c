@@ -6,7 +6,7 @@
 // ticket of its own, and sleeps while every slot is in flight. The view's thread pops the reports in the order of their
 // tickets at each step, builds the table, one movable cell of the files' heads, over the last from each and releases
 // the table and the report each replaced: the table is that thread's alone, and no other thread reads it. A press on a
-// row closes a file's rows or points to the file and the place a diagnostic stands at; the tree's check is started and
+// row closes a file's rows or points to the file and the place a diagnostic is at; the tree's check is started and
 // stopped here
 #include "../text/sort.h"
 #include "servers.h"
@@ -30,7 +30,7 @@ typedef struct
     int closed;
 } ServersProblemFile;
 
-// the most bytes of a diagnostic's message a row shows
+// the max bytes of a diagnostic's message a row shows
 #define CLI_PROBLEMS_MESSAGE 4096u
 
 // the place in the table's cell of the file `at_`
@@ -70,7 +70,7 @@ typedef struct
 
 static ServersProblems s_problems;
 
-// two diagnostics in the order shown: the worse first, then the earlier
+// two diagnostics in the order displayed: the worse first, then the earlier
 static int problems_order(const void *one, const void *other)
 {
     const CliServerStoredDiagnostic *const first = (const CliServerStoredDiagnostic *)one;
@@ -142,7 +142,7 @@ static unsigned long long problems_message(const CarcerMovableEntry *report, con
 }
 
 // the head of a file whose report has diagnostics: each message cut to its first line where it lies, the diagnostics
-// in the order shown, written back into the report's cell, the errors counted and the name found from the path's end
+// in the order displayed, written back into the report's cell, the errors counted and the name found from the path's end
 static void problems_file_built(const CarcerMovableEntry *report, ServersProblemFile *file)
 {
     file->report = report;
@@ -191,7 +191,7 @@ static int problems_report_is(const CarcerMovableEntry *report, const char *path
 }
 
 // The table with the file of `path` taken out and `file` put at the end where `has_file`, the place the file of
-// `path` stood in into `found`, the count where none did, the new table's files and errors into `count` and `errors`:
+// `path` was in into `found`, the count where none did, the new table's files and errors into `count` and `errors`:
 // the new table's cell, or NULL where nothing changes or its cell could not be taken
 static const CarcerMovableEntry *problems_table_built(const char *path, const ServersProblemFile *file, int has_file,
                                                       unsigned int *found, unsigned int *count, unsigned int *errors)
@@ -453,7 +453,7 @@ int cli_servers_problems_checking(void)
 
 int cli_servers_problems_row(unsigned int at, CliProblemRow *row)
 {
-    // a row's texts are read out of the report's cell into the view's thread's own buffers, which stand until its next
+    // a row's texts are read out of the report's cell into the view's thread's own buffers, which are until its next
     // row
     static char s_path[CLI_PATH_MAX_LEN];
     static char s_message[CLI_PROBLEMS_MESSAGE];

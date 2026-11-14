@@ -9,12 +9,12 @@
 //
 // `ui` drives the window as a person does: each press, key, drag, hover and wheel goes to the
 // harness, which sends it through the debugging port as real input, the page receiving it as it
-// would from the mouse and keyboard. A step waits for the harness to have sent it. `calls` keeps the
+// would from the mouse and keyboard. A step waits for the harness to have sent it. `calls` retains the
 // calls the page makes and lets a test answer one itself, as the system's picker.
 
 (() => {
   if (window.__harness) {
-    return "kept";
+    return "retained";
   }
   const harness = { tests: [], waiting: new Map(), next: 1 };
   window.__harness = harness;
@@ -139,8 +139,8 @@
   };
 
   // The middle of a target in the window, or the point given, once a person could press it: the
-  // target shown, in view, scrolled into it where it is not, standing still from one frame to the
-  // next, and the topmost thing at its middle, nothing laid over it. Within 5 s, or the step fails
+  // target displayed, in view, scrolled into it where it is not, stationary from one frame to the
+  // next, and the topmost thing at its middle, nothing positioned over it. Within 5 s, or the step fails
   // saying which of these it waited for.
   const pointOf = async (target) => {
     if (target && typeof target === "object" && "x" in target && "y" in target && !(target instanceof Element)) {
@@ -169,7 +169,7 @@
       }
       const seen = node.getBoundingClientRect();
       const point = { x: seen.left + seen.width / 2, y: seen.top + seen.height / 2 };
-      // Still once it stands where it stood a frame before and nothing holding it is animating: two
+      // Still once it is where it was a frame before and nothing holding it is animating: two
       // slow frames can fall on one moment of a menu's growth, and its items move after.
       const animating = (() => {
         for (let one = node; one; one = one.parentElement) {
@@ -183,9 +183,9 @@
       last = point;
       const hit = document.elementFromPoint(point.x, point.y);
       if (seen.width === 0 || seen.height === 0 || getComputedStyle(node).visibility === "hidden") {
-        why = "is not shown";
+        why = "is not displayed";
       } else if (!still) {
-        why = "keeps moving";
+        why = "retains moving";
       } else if (!hit || !(hit === node || node.contains(hit))) {
         why = `is under ${named(hit)}`;
         if (!scrolled) {
@@ -235,18 +235,18 @@
     // A media feature the system sets, as prefers-reduced-motion, told to the page as `value`; with
     // no value, the page has what the system truly sets.
     media: async (name, value = "") => ask({ op: "media", name, value }),
-    // The page's garbage collected, so what a measure of its memory reads is what it keeps.
+    // The page's garbage collected, so what a measure of its memory reads is what it retains.
     gc: async () => ask({ op: "gc" }),
     // A program started apart from the window, waited for unless `wait` is false: its words, its
     // environment and what its standard input reads.
     run: async (program, args = [], { env = {}, input = "", wait = true } = {}) => ask({ op: "run", program, args, env, input, wait }),
-    // The browser's own trace of the window's frames, started, and ended with its summary handed to the
+    // The browser's own trace of the window's frames, started, and ended with its summary passed to the
     // query run `qry` as the file `name`, a path under the run's top, by the run's `writer`.
     browserTrace: async () => ask({ op: "browser_trace" }),
     browserTraced: async (writer, qry, name) => ask({ op: "browser_trace", end: true, writer, qry, name }),
     type: async (text) => ask({ op: "type", text }),
-    // Waits for `what`, a selector shown or a function's true value, and gives it.
-    // Waits for `what`, a test or a selector, at most `ms`; `said` names it where it never comes.
+    // Waits for `what`, a selector displayed or a function's true value, and gives it.
+    // Waits for `what`, a test or a selector, at max `ms`; `said` names it where it never comes.
     waitFor: async (what, ms = 5000, said = null) => {
       const until = performance.now() + ms;
       while (performance.now() < until) {
@@ -277,18 +277,18 @@
     // measures the part before it presses it.
     brought: async (target) => edgeRested(elementOf(target)),
     text: (target) => elementOf(target).textContent.trim(),
-    shown: (target) => {
+    displayed: (target) => {
       const node = typeof target === "string" ? document.querySelector(target) : target;
       return Boolean(node && node.getClientRects().length && getComputedStyle(node).visibility !== "hidden");
     },
   };
 
-  // Every call the page makes goes through the watch bridge.js keeps, which this sets. A call a test
+  // Every call the page makes goes through the watch bridge.js retains, which this sets. A call a test
   // answers itself is answered by it; one that would leave the window, by quitting or moving it,
   // opening another, the system's picker, the browser or the desktop, the network, a report, an
   // install, or a plugin of the system's other than its events, fails with BLOCKED in its message, the
   // picker answering as the reader would who closed it; every other call is made. Each call a test
-  // causes is kept in `calls.made`, and what a test answers is forgotten once it ends.
+  // causes is retained in `calls.made`, and what a test answers is forgotten once it ends.
   const BLOCKED = "blocked by the test harness";
   const REFUSED = new Set([
     "app_exit", "window_open", "window_act", "link_open", "home_reveal", "templates_reveal",
@@ -325,7 +325,7 @@
   harness.ui = ui;
   harness.calls = calls;
   harness.Failure = Failure;
-  // What a kept call's error says, for a test that sets those errors aside.
+  // What a retained call's error says, for a test that sets those errors aside.
   harness.blocked = BLOCKED;
 
   // The memory each test leaves, its garbage collected, the system's account of the app and the
@@ -335,25 +335,25 @@
   const memoryRows = ["test\tworking\tcommit\town_working\town_commit\tpool\tpersistent\ttemporary\taccounted\towners\theap"];
   // The rows the files before this one wrote, read once, so the table runs across the whole run and
   // not the last file alone.
-  let kept_before = null;
+  let retained_before = null;
   async function memorySampled(name) {
     const { invoke } = await import(`${location.origin}/bridge.js`);
     const home = harness.servers?.ORIOR_TEST_HOME;
-    if (kept_before === null && home) {
+    if (retained_before === null && home) {
       const path = `${String(home).replace(/\\/g, "/")}/../memory.tsv`;
       const text = await invoke("file_read_any", { path }).catch(() => "");
-      kept_before = text.split("\n").filter((line) => line.trim() && !line.startsWith("test\t"));
-      memoryRows.push(...kept_before);
+      retained_before = text.split("\n").filter((line) => line.trim() && !line.startsWith("test\t"));
+      memoryRows.push(...retained_before);
     }
     const read = await invoke("memory_usage").catch(() => null);
     const cells = await invoke("cells_usage").catch(() => null);
-    // the three modules holding the most at their peaks, each as name:bytes, for the audit of who holds what
+    // the three modules holding the max at their peaks, each as name:bytes, for the audit of who holds what
     const listed = await invoke("cells_owners").catch(() => null);
     const owners = (listed?.owners ?? []).sort((a, b) => b.hw - a.hw).slice(0, 3).map((one) => `${one.name}:${one.hw}`).join(",");
     if (!read || !cells || !home) {
       return;
     }
-    // the window's own process by its name: the parts stand largest first, and the web view is the largest
+    // the window's own process by its name: the parts are largest first, and the web view is the largest
     const own = read.parts.find((one) => one.name === "tabvla") ?? { working: 0, commit: 0 };
     const accounted = own.commit > 0 ? (cells.pool / own.commit).toFixed(3) : "";
     const heap = performance.memory?.usedJSHeapSize ?? "";
@@ -371,7 +371,7 @@
     await ui.gc().catch(() => {});
     for (const one of tests) {
       const started = performance.now();
-      // Each run's failure is kept, so a test that fails for one reason first and for another on its
+      // Each run's failure is retained, so a test that fails for one reason first and for another on its
       // runs after tells both.
       const failures = [];
       for (let ran = 1; ran <= one.tries; ran += 1) {

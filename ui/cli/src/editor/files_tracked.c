@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// files_tracked.c: whether git tracks a path or would, as the tree's branches stand: a file it lists, a file in a
+// files_tracked.c: whether git tracks a path or would, as the tree's branches are: a file it lists, a file in a
 // folder containing one it lists or at the tree's top, or a file in a folder the tree does not contain that git does
 // not ignore, git queried once a listing for each such folder. Every path is, in a tree git cannot read
 #include "../code/symbols.h"
@@ -8,7 +8,7 @@
 #include "../text/text.h"
 #include "files_internal.h"
 
-// the most folders outside the tree whose answers are cached for a listing
+// the max folders outside the tree whose answers are cached for a listing
 #define CLI_TRACKED_CACHE 64u
 
 // What git reported of each folder outside the tree it was queried about, for the listing made at `at`, under their own

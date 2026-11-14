@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// coverage.c: the one rasterizer. All numbers are 16.16 fixed point. The edges stand in a structure of arrays. The walk
+// coverage.c: the one rasterizer. All numbers are 16.16 fixed point. The edges are in a structure of arrays. The walk
 // takes the cover tile by tile, in x and y order. Inside a tile it takes the 16 pixels in Morton order. Each pixel maps
 // back into the outline's space, P' = M^-1 * P, as two lanes of one 64-bit word: v' in the high lane and u' in the low
 // lane. A pixel's share is the sum over the edges of d * H(u'). Here d is the signed height of the edge in the pixel's
@@ -28,7 +28,7 @@ _Static_assert((sizeof(long long) + (4u * sizeof(unsigned long long)) + (4u * si
                "a scene's arrays take COVERAGE_SCENE_BYTES_A_CAPACITY for each unit of capacity");
 
 // The edges as a structure of arrays, one entry each. For edge e: its lowest y and its highest y, its x at the lowest
-// y, its least x and its most x, its way (+1 where it runs up, -1 where it runs down), and its slope, the x it moves
+// y, its least x and its max x, its way (+1 where it runs up, -1 where it runs down), and its slope, the x it moves
 // for each unit of y. Then the bounds of all the edges. All are in 16.16, y up
 typedef struct
 {
@@ -37,7 +37,7 @@ typedef struct
     embed_i32 *high_y;
     embed_i32 *x_low;
     embed_i32 *x_least;
-    embed_i32 *x_most;
+    embed_i32 *x_max;
     embed_i32 *way;
     unsigned int count;
     embed_i32 bound_left;
@@ -53,7 +53,7 @@ typedef struct
     float value;
     embed_i32 number;
     embed_i32 least;
-    embed_i32 most;
+    embed_i32 max;
     embed_i64 span;
     unsigned int edge;
     embed_i32 y;
@@ -66,15 +66,15 @@ EMBED_INLINE embed_i32 coverage_fixed(const CoverageCtx *args)
     return (embed_i32)arith_round_whole_f32(args->value * (float)COVERAGE_ONE);
 }
 
-// `number` held from `least` to `most`
+// `number` held from `least` to `max`
 EMBED_INLINE embed_i32 coverage_clamp(const CoverageCtx *args)
 {
     const embed_i32 raised = (args->number < args->least) ? args->least : args->number;
-    return (raised > args->most) ? args->most : raised;
+    return (raised > args->max) ? args->max : raised;
 }
 
 // The integral of clamp(s, 0, 1) from 0 to `span`, `span` in 16.16: clamp(s, 0, 1) squared over 2, plus the part of s
-// past 1. The result is in 16.32, so a narrow piece's mean keeps all its bits
+// past 1. The result is in 16.32, so a narrow piece's mean retains all its bits
 EMBED_INLINE embed_i64 coverage_ramp_area(const CoverageCtx *args)
 {
     const embed_i64 clamped = (args->span < 0) ? 0 : ((args->span > COVERAGE_ONE) ? COVERAGE_ONE : args->span);
@@ -136,7 +136,7 @@ EMBED_INLINE unsigned int coverage_edges_read(const CoverageCtx *args)
             edges->high_y[count] = high_y;
             edges->x_low[count] = x_low;
             edges->x_least[count] = (from_x < to_x) ? from_x : to_x;
-            edges->x_most[count] = (from_x < to_x) ? to_x : from_x;
+            edges->x_max[count] = (from_x < to_x) ? to_x : from_x;
             edges->way[count] = up ? 1 : -1;
             edges->slope[count] = (((embed_i64)x_high - x_low) * COVERAGE_ONE) / ((embed_i64)high_y - low_y);
             count += 1u;
@@ -182,16 +182,16 @@ static void coverage_tile_draw(const CoverageCfg *cfg, const CoverageEdges *edge
         {
             const embed_i32 row_top = tile_top - ((embed_i32)row * COVERAGE_ONE);
             const embed_i32 piece_top =
-                EMBED_CALL(coverage_clamp, CoverageCtx, .number = row_top, .least = low_y, .most = high_y);
+                EMBED_CALL(coverage_clamp, CoverageCtx, .number = row_top, .least = low_y, .max = high_y);
             const embed_i32 piece_foot = EMBED_CALL(coverage_clamp, CoverageCtx, .number = row_top - COVERAGE_ONE,
-                                                    .least = low_y, .most = high_y);
+                                                    .least = low_y, .max = high_y);
             height[row] = edges->way[edge] * (piece_top - piece_foot);
             from_x[row] =
                 EMBED_CALL(coverage_x_at, CoverageCtx, .edges = (CoverageEdges *)edges, .edge = edge, .y = piece_foot);
             to_x[row] =
                 EMBED_CALL(coverage_x_at, CoverageCtx, .edges = (CoverageEdges *)edges, .edge = edge, .y = piece_top);
         }
-        if (edges->x_most[edge] <= tile_left)
+        if (edges->x_max[edge] <= tile_left)
         {
             // wholly left of the tile: H is 1 at every pixel's right side
             for (unsigned int row = 0u; row < COVERAGE_TILE; row += 1u)
@@ -200,7 +200,7 @@ static void coverage_tile_draw(const CoverageCfg *cfg, const CoverageEdges *edge
             }
             continue;
         }
-        // the reciprocal of each row piece's width, and whether the piece stands straight up
+        // the reciprocal of each row piece's width, and whether the piece is straight up
         embed_i64 reciprocal[COVERAGE_TILE];
         embed_i32 upright[COVERAGE_TILE];
         for (unsigned int row = 0u; row < COVERAGE_TILE; row += 1u)
@@ -226,7 +226,7 @@ static void coverage_tile_draw(const CoverageCfg *cfg, const CoverageEdges *edge
                                            ? 0
                                            : (((u - from_x[down]) > COVERAGE_ONE) ? COVERAGE_ONE : (u - from_x[down]));
             const embed_i64 mean = (straight & upright[down]) | (sloped & ~(embed_i64)upright[down]);
-            // a height and a mean of at most one pixel each give at most one pixel
+            // a height and a mean of at max one pixel each give at max one pixel
             share[local] += (embed_i32)(((embed_i64)height[down] * mean) >> 16);
         }
     }
@@ -280,8 +280,8 @@ void coverage_draw(const CoverageCfg *args)
     edges.high_y = edges.low_y + points;
     edges.x_low = edges.high_y + points;
     edges.x_least = edges.x_low + points;
-    edges.x_most = edges.x_least + points;
-    edges.way = edges.x_most + points;
+    edges.x_max = edges.x_least + points;
+    edges.way = edges.x_max + points;
     edges.count = EMBED_CALL(coverage_edges_read, CoverageCtx, .cfg = args, .edges = &edges);
     const embed_i32 origin_u = EMBED_CALL(coverage_fixed, CoverageCtx, .value = args->origin_x);
     const embed_i32 origin_v = EMBED_CALL(coverage_fixed, CoverageCtx, .value = args->origin_y);
@@ -302,8 +302,8 @@ void coverage_draw(const CoverageCfg *args)
 #define SCENE_WIDE_TILES (COVERAGE_WIDE / COVERAGE_TILE)
 #define SCENE_ROWS 0xffffffffu
 
-// The most wide tiles a scene holds: each key's wide tile is the index of a count the sort keeps
-#define SCENE_WIDES_MOST 65536u
+// The max wide tiles a scene holds: each key's wide tile is the index of a count the sort retains
+#define SCENE_WIDES_MAX 65536u
 
 // The Morton place of the pixel at `column`, `row` inside its tile, each from 0 to 3
 EMBED_INLINE unsigned int scene_morton(unsigned int column, unsigned int row)
@@ -331,7 +331,7 @@ int coverage_scene_init(const CoverageSceneCfg *args)
     // a target of more wide tiles than the sort counts is refused
     const unsigned long long wides = (((unsigned long long)args->width + COVERAGE_WIDE - 1u) / COVERAGE_WIDE) *
                                      (((unsigned long long)args->height + COVERAGE_TILE - 1u) / COVERAGE_TILE);
-    if (wides > SCENE_WIDES_MOST)
+    if (wides > SCENE_WIDES_MAX)
     {
         return 0;
     }
@@ -418,11 +418,11 @@ static void scene_sort(unsigned long long *keys, unsigned long long *spare, unsi
 }
 
 // The command keys copied into `sorted` by their high 32 bits, the wide tile, from low to high and stable: one
-// counting pass over the `wides` wide tiles, each below SCENE_WIDES_MOST
+// counting pass over the `wides` wide tiles, each below SCENE_WIDES_MAX
 static void scene_sort_wides(const unsigned long long *keys, unsigned long long *sorted, unsigned int count,
                              unsigned int wides)
 {
-    static unsigned int s_counts[SCENE_WIDES_MOST];
+    static unsigned int s_counts[SCENE_WIDES_MAX];
     memor.set(&(MemoriaCfg){.dst = s_counts, .val = 0, .bytes = wides * sizeof(s_counts[0])});
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -443,7 +443,7 @@ static void scene_sort_wides(const unsigned long long *keys, unsigned long long 
     }
 }
 
-// The command that lays `tiles` tiles from tile column `column` of tile row `row`. Where `share` is SCENE_ROWS each
+// The command that positions `tiles` tiles from tile column `column` of tile row `row`. Where `share` is SCENE_ROWS each
 // pixel row of each tile takes its share from `rows`, a byte a row from the lowest; else each tile takes its shares
 // from `share` on. The run splits at each wide tile's side: 1, or 0 where no command has room
 static int scene_command(CoverageScene *scene, unsigned int row, unsigned int column, unsigned int tiles,
@@ -587,9 +587,9 @@ static void scene_tile_shares(CoverageScene *scene, unsigned int first, unsigned
         {
             const int row_top = ((row * SCENE_TILE_PIXELS) + pixel_row) * COVERAGE_ONE;
             const int piece_low =
-                EMBED_CALL(coverage_clamp, CoverageCtx, .number = row_top, .least = low_y, .most = high_y);
+                EMBED_CALL(coverage_clamp, CoverageCtx, .number = row_top, .least = low_y, .max = high_y);
             const int piece_high = EMBED_CALL(coverage_clamp, CoverageCtx, .number = row_top + COVERAGE_ONE,
-                                              .least = low_y, .most = high_y);
+                                              .least = low_y, .max = high_y);
             const int height = scene->way[edge] * (piece_high - piece_low);
             if (height == 0)
             {
@@ -609,7 +609,7 @@ static void scene_tile_shares(CoverageScene *scene, unsigned int first, unsigned
                 const long long straight =
                     ((u - x_from) < 0) ? 0 : (((u - x_from) > COVERAGE_ONE) ? COVERAGE_ONE : (u - x_from));
                 const long long mean = (width == 0) ? straight : sloped;
-                // a height and a mean of at most one pixel each give at most one pixel
+                // a height and a mean of at max one pixel each give at max one pixel
                 sum[(pixel_row * SCENE_TILE_PIXELS) + pixel_column] += (int)(((long long)height * mean) >> 16);
             }
             carried[pixel_row] += ends_here ? height : 0;
@@ -634,19 +634,19 @@ void coverage_scene_fill(const CoverageSceneCfg *args)
     CoverageScene *const scene = args->scene;
     const unsigned int shares_before = scene->shares;
     const unsigned int commands_before = scene->commands;
-    int laid = scene_tiles_read(args);
-    if (laid)
+    int positioned = scene_tiles_read(args);
+    if (positioned)
     {
         scene_sort(scene->tile, scene->tile_spare, scene->tiles);
     }
     unsigned int at = 0u;
-    while (laid && (at < scene->tiles))
+    while (positioned && (at < scene->tiles))
     {
-        // one tile row: the winding each pixel row carries from the left, and the last column laid
+        // one tile row: the winding each pixel row carries from the left, and the last column positioned
         const unsigned int row = (unsigned int)(scene->tile[at] >> 48u);
         int carry[COVERAGE_TILE] = {0};
-        int laid_column = -1;
-        while (laid && (at < scene->tiles) && ((unsigned int)(scene->tile[at] >> 48u) == row))
+        int positioned_column = -1;
+        while (positioned && (at < scene->tiles) && ((unsigned int)(scene->tile[at] >> 48u) == row))
         {
             const unsigned int key = (unsigned int)(scene->tile[at] >> 32u);
             unsigned int next = at;
@@ -655,7 +655,7 @@ void coverage_scene_fill(const CoverageSceneCfg *args)
                 next += 1u;
             }
             const int column = (int)(key & 0xffffu) - 1;
-            // The gap from the last column laid to this one holds no edge, so each of its pixel rows keeps the winding
+            // The gap from the last column positioned to this one holds no edge, so each of its pixel rows retains the winding
             // it carries in. A horizontal edge makes no tile, so the 4 rows can differ: each row takes its own share
             unsigned int rows = 0u;
             for (unsigned int pixel_row = 0u; pixel_row < COVERAGE_TILE; pixel_row += 1u)
@@ -665,33 +665,33 @@ void coverage_scene_fill(const CoverageSceneCfg *args)
                 // a share of one pixel in 16.16 by 255, rounded, is a byte
                 rows |= (unsigned int)(((whole * 255) + (COVERAGE_ONE / 2)) >> 16) << (8u * pixel_row);
             }
-            const int from = (laid_column + 1 < 0) ? 0 : (laid_column + 1);
+            const int from = (positioned_column + 1 < 0) ? 0 : (positioned_column + 1);
             if ((rows != 0u) && (column > from))
             {
-                laid = scene_command(scene, row, (unsigned int)from, (unsigned int)(column - from), SCENE_ROWS, rows,
+                positioned = scene_command(scene, row, (unsigned int)from, (unsigned int)(column - from), SCENE_ROWS, rows,
                                      args->color);
             }
-            if (laid && (column >= 0) &&
+            if (positioned && (column >= 0) &&
                 ((unsigned long long)scene->shares + 16u > (unsigned long long)scene->capacity * 16u))
             {
-                laid = 0;
+                positioned = 0;
             }
-            if (laid)
+            if (positioned)
             {
                 unsigned char scratch[COVERAGE_TILE * COVERAGE_TILE];
                 unsigned char *const shares = (column >= 0) ? (scene->share + scene->shares) : scratch;
                 scene_tile_shares(scene, at, next, (int)row, column, carry, shares);
                 if (column >= 0)
                 {
-                    laid = scene_command(scene, row, (unsigned int)column, 1u, scene->shares, 0u, args->color);
+                    positioned = scene_command(scene, row, (unsigned int)column, 1u, scene->shares, 0u, args->color);
                     scene->shares += 16u;
                 }
             }
-            laid_column = column;
+            positioned_column = column;
             at = next;
         }
     }
-    if (!laid)
+    if (!positioned)
     {
         // a fill past a capacity is dropped whole
         scene->shares = shares_before;
@@ -700,7 +700,7 @@ void coverage_scene_fill(const CoverageSceneCfg *args)
     }
 }
 
-// `color` laid over `ground` by `share` of 255 of its own alpha, left opaque
+// `color` positioned over `ground` by `share` of 255 of its own alpha, left opaque
 EMBED_INLINE unsigned int scene_blend(unsigned int ground, unsigned int color, unsigned int share)
 {
     // a share by an alpha, each of 255, over 255 is a share of 255
@@ -771,7 +771,7 @@ static void scene_wide_store(const CoverageSceneCfg *args, const unsigned int *s
     }
 }
 
-// The commands from `first` to before `last` in `sorted` laid in order on the wide tile's pixels in `scratch`
+// The commands from `first` to before `last` in `sorted` positioned in order on the wide tile's pixels in `scratch`
 static void scene_wide_commands(const CoverageScene *scene, const unsigned long long *sorted, unsigned int first,
                                 unsigned int last, unsigned int *scratch, int wide_x, int wide_y, int left, int top,
                                 int right, int foot)
@@ -804,7 +804,7 @@ void coverage_scene_render(const CoverageSceneCfg *args)
     CoverageScene *const scene = args->scene;
     const unsigned int wides_across = (scene->width + COVERAGE_WIDE - 1u) / COVERAGE_WIDE;
     const unsigned int wides_down = (scene->height + COVERAGE_TILE - 1u) / COVERAGE_TILE;
-    // the commands' keys sorted into the spare keys by wide tile, the keys themselves kept for the next render
+    // the commands' keys sorted into the spare keys by wide tile, the keys themselves retained for the next render
     unsigned long long *const sorted = scene->key_spare;
     scene_sort_wides(scene->key, sorted, scene->commands, wides_across * wides_down);
     // the clip cut to the target; the target is far inside what an int holds

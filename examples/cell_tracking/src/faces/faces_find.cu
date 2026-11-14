@@ -233,7 +233,7 @@ static int faces_frame_read(const char *sample, FILE *points, FILE *drift, FILE 
 }
 
 // frame pair (frame, frame + 1) of the .links: its record against the two frames' points, each source's prediction's
-// faces against the source's own flag, and each chosen gate pair as a link, at most one out of each source and one
+// faces against the source's own flag, and each chosen gate pair as a link, at max one out of each source and one
 // into each target (O20)
 static int faces_pair_read(const char *sample, FILE *links, const unsigned int head[FACES_SCAN_HEADER_WORDS],
                            unsigned int frame, FacesFrame *now, FacesFrame *next, unsigned int *chunk)

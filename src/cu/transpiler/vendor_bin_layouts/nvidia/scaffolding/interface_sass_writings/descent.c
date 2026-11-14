@@ -6,15 +6,15 @@
 
 // The arrangements a descent ran over, written by `chains` into each `into` with its verdict, read back against the
 // cases the descent placed for that relation, each `cases` file a case a line as the two words and the word the
-// relation gives them. An arrangement stands on the part where it gives every placed case its word, and the part's
+// relation gives them. An arrangement is on the part where it gives every placed case its word, and the part's
 // verdict is checked against the descent's, written to `record`: 0 where every verdict agrees, 1 where one does not, 2
 // where nothing could be read
 int writings_descent_read(const char *record, unsigned int pairs, char **folders)
 {
-    static char s_chain[WRITINGS_CHAINS_MOST][512];
-    static char s_verdict[WRITINGS_CHAINS_MOST][16];
-    static unsigned int s_chain_answered[WRITINGS_CHAINS_MOST][WRITINGS_CASES];
-    static unsigned char s_chain_ran[WRITINGS_CHAINS_MOST];
+    static char s_chain[WRITINGS_CHAINS_MAX][512];
+    static char s_verdict[WRITINGS_CHAINS_MAX][16];
+    static unsigned int s_chain_answered[WRITINGS_CHAINS_MAX][WRITINGS_CASES];
+    static unsigned char s_chain_ran[WRITINGS_CHAINS_MAX];
     FILE *const out = fopen(record, "wb");
     if (out == NULL)
     {
@@ -25,9 +25,9 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
     fprintf(out, "Written by `interface_sass_writings.sh` whole on every run. For each relation `gate_descent` writes "
                  "every arrangement it descends over, its verdict on each and the cases it placed. Each arrangement "
                  "is written node by node from the writings `interface_sass_writings.md` found and run on the part "
-                 "over the placed cases alone, and stands where it gives every one its word. The part's verdict is "
+                 "over the placed cases alone, and is where it gives every one its word. The part's verdict is "
                  "checked against the descent's.\n\n");
-    fprintf(out, "| relation | cases placed | arrangements | run | standing on the part | standing on the host | "
+    fprintf(out, "| relation | cases placed | arrangements | run | located on the part | located on the host | "
                  "verdicts that differ |\n|---|---|---|---|---|---|---|\n");
     unsigned int differ_total = 0u;
     for (unsigned int pair = 0u; pair < pairs; pair += 1u)
@@ -69,7 +69,7 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
         }
         char relation[32] = "";
         unsigned int count = 0u;
-        while ((count < WRITINGS_CHAINS_MOST) && (fgets(line, sizeof(line), chains) != NULL))
+        while ((count < WRITINGS_CHAINS_MAX) && (fgets(line, sizeof(line), chains) != NULL))
         {
             unsigned int number = 0u;
             const char *read = line;
@@ -93,8 +93,8 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
         writings_answers_read(answers, count, s_chain_answered, s_chain_ran, &ran, &refused);
         s_cases = saved;
         fclose(answers);
-        unsigned int standing_part = 0u;
-        unsigned int standing_host = 0u;
+        unsigned int located_part = 0u;
+        unsigned int located_host = 0u;
         unsigned int differ = 0u;
         for (unsigned int number = 0u; number < count; number += 1u)
         {
@@ -104,21 +104,21 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
                 agreed += (s_chain_answered[number][at] == placed[at][2]) ? 1u : 0u;
             }
             const int part = s_chain_ran[number] && (agreed == placed_count);
-            const int host = (strcmp(s_verdict[number], "standing") == 0);
-            standing_part += part ? 1u : 0u;
-            standing_host += host ? 1u : 0u;
+            const int host = (strcmp(s_verdict[number], "located") == 0);
+            located_part += part ? 1u : 0u;
+            located_host += host ? 1u : 0u;
             if (part != host)
             {
                 differ += 1u;
                 fprintf(out, "%s `%s`: %s on the host, %s on the part\n\n", relation, s_chain[number],
-                        host ? "standing" : "out", s_chain_ran[number] ? (part ? "standing" : "out") : "not run");
+                        host ? "located" : "out", s_chain_ran[number] ? (part ? "located" : "out") : "not run");
             }
         }
-        fprintf(out, "| %s | %u | %u | %u | %u | %u | %u |\n", relation, placed_count, count, ran, standing_part,
-                standing_host, differ);
-        printf("  %-8s %u cases placed, %u arrangements, %u run, %u standing on the part and %u on the host, %u "
+        fprintf(out, "| %s | %u | %u | %u | %u | %u | %u |\n", relation, placed_count, count, ran, located_part,
+                located_host, differ);
+        printf("  %-8s %u cases placed, %u arrangements, %u run, %u located on the part and %u on the host, %u "
                "verdicts differ\n",
-               relation, placed_count, count, ran, standing_part, standing_host, differ);
+               relation, placed_count, count, ran, located_part, located_host, differ);
         differ_total += differ;
     }
     fclose(out);

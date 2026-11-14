@@ -7,13 +7,13 @@
 #
 #   Usage:  python examples/0_experimental/collaborative_filter.py
 #
-# This reads no corpus. It sits in 0_experimental: an algorithm shown working, a recommender-systems
+# This reads no corpus. It sits in 0_experimental: an algorithm displayed working, a recommender-systems
 # filter beside the signal ones. It is the group-mean estimate the denoisers use, over a table with
 # holes: to fill a missing entry, find the rows that agree with its row wherever both have values, and
 # average what those neighbors put in the missing column.
 #
 # It is application logic, not an engine primitive, and it lives here and not in reference/ for a
-# reason worth stating: reference/ is the null a reading stands AGAINST -- memoryless, solved for. A
+# reason worth stating: reference/ is the null a reading is AGAINST -- memoryless, solved for. A
 # group-mean is the signal estimate a reading is measured INTO. A denoiser OUTPUTS it; nothing outputs
 # a null. Same mathematical form, opposite role. The estimate is application and only the null is a
 # reference-stage object.

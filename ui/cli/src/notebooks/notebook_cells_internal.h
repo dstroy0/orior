@@ -13,7 +13,7 @@
 
 typedef struct CliNotebookModelCtx CliNotebookModelCtx;
 
-// an output's types: a stream, a run's value, data shown, and an error
+// an output's types: a stream, a run's value, data displayed, and an error
 #define CLI_NOTEBOOK_STREAM 0u
 #define CLI_NOTEBOOK_RESULT 1u
 #define CLI_NOTEBOOK_DISPLAY 2u
@@ -52,7 +52,7 @@ typedef struct
 } CliNotebookCell;
 
 // An output: the serial its document is keyed by, its type, whether it is a stream written to stderr, its lines, the
-// rows it takes, the rows before it among its cell's outputs, whether it is shown whole past its cut, whether its text
+// rows it takes, the rows before it among its cell's outputs, whether it is displayed whole past its cut, whether its text
 // ends a line, which its document leaves off, and its JSON as a notebook stores it, where it starts among the model's
 // output texts and its bytes
 typedef struct
@@ -69,25 +69,25 @@ typedef struct
     unsigned long long json_length;
 } CliNotebookOutput;
 
-// A cell deleted after it ran, the clocks of its first and its last run, for the cells that stand on it
+// A cell deleted after it ran, the clocks of its first and its last run, for the cells that are on it
 typedef struct
 {
     unsigned int first_run;
     unsigned int last_run;
 } CliNotebookGone;
 
-// the most bytes of the sentence last asked of a model, with its end
+// the max bytes of the sentence last asked of a model, with its end
 #define CLI_NOTEBOOK_SENTENCE 4096u
 
 // the least bytes the ring of a model's kernel messages holds once a message comes
 #define CLI_NOTEBOOK_RING_LEAST 16384u
 
-// the notebooks open as models at once, at the most, and the place in the models' cell of the model `at_`
-#define CLI_NOTEBOOK_MODELS_MOST 64u
+// the notebooks open as models at once, at max, and the place in the models' cell of the model `at_`
+#define CLI_NOTEBOOK_MODELS_MAX 64u
 #define CLI_NOTEBOOK_MODEL_AT(at_) ((unsigned long long)(at_) * sizeof(CliNotebookModel *))
 
 // A notebook open as a model, in one cell of its own with its key and its path after it, its place fixed while it
-// stands open, which the kernel's receiver is handed as its context. The tree its file was read into and the root of
+// is open, which the kernel's receiver is passed as its context. The tree its file was read into and the root of
 // it; the cells and the row each starts at, one more than the cells, in one movable cell, the rows' starts from
 // `first_row_at`; the outputs, in the order of their cells, in a movable cell, and their JSON texts in another; the
 // cells deleted after they ran, in a movable cell; each movable cell read by copy and written in place. The next
@@ -117,7 +117,7 @@ typedef struct
     unsigned int next_serial;
     unsigned int clock;
     unsigned long long top;
-    unsigned int shown;
+    unsigned int displayed;
     unsigned int focused;
     unsigned int menu_cell;
     int dirty;
@@ -142,7 +142,7 @@ typedef struct
 #define CLI_NOTEBOOK_OUTPUT_AT(at_) ((unsigned long long)(at_) * sizeof(CliNotebookOutput))
 #define CLI_NOTEBOOK_GONE_AT(at_) ((unsigned long long)(at_) * sizeof(CliNotebookGone))
 
-// the model open under `key`, NULL for none; the model a model's place stands for, NULL past the last, for the step
+// the model open under `key`, NULL for none; the model a model's place is for, NULL past the last, for the step
 // and the kernels; the key of the cell `cell`'s document, or of its output `output` where that is not
 // CLI_NOTEBOOK_NONE, written into `out`, sized for the model's key and CLI_NOTEBOOK_KEY_MORE
 CliNotebookModel *cli_notebook_model_of(const CliNotebookModelCtx *args);
@@ -164,20 +164,20 @@ void cli_notebook_model_stale_settled(const CliNotebookModelCtx *args);
 // the source lines of the cell `cell` read again from its document after an edit
 void cli_notebook_model_lines_read(const CliNotebookModelCtx *args);
 // the outputs of the cell `cell` let go, their documents and their texts, the cell's failed mark cleared; and the
-// rows the cell's outputs take settled, each output's rows before it among them, after an output was shown whole
+// rows the cell's outputs take settled, each output's rows before it among them, after an output was displayed whole
 void cli_notebook_model_outputs_released(const CliNotebookModelCtx *args);
 void cli_notebook_model_outputs_settled(const CliNotebookModelCtx *args);
-// the model's kernel name, display text and language laid from `size` bytes of `text`, the three each with its end:
+// the model's kernel name, display text and language positioned from `size` bytes of `text`, the three each with its end:
 // 1, or 0 where the cells cannot meet them; and every message waiting in the model's ring let go
-int cli_notebook_model_kernel_laid(const CliNotebookModelCtx *args);
+int cli_notebook_model_kernel_positioned(const CliNotebookModelCtx *args);
 void cli_notebook_model_ring_cleared(const CliNotebookModelCtx *args);
 // the cell `cell`'s document stored with `size` bytes of `text` and colored by the grammar its type and the kernel's
 // language take: 1, or 0 where the store refused it
 int cli_notebook_model_source_stored(const CliNotebookModelCtx *args);
-// the cells laid anew for `count` cells, the cells before `cell` standing, a cell of none at `cell` where `count` is
+// the cells positioned anew for `count` cells, the cells before `cell` located, a cell of none at `cell` where `count` is
 // one more than the cells, the cell `cell` taken out where it is one fewer: 1, or 0 where the cells cannot meet it,
 // the model as it was
-int cli_notebook_model_cells_laid(const CliNotebookModelCtx *args);
+int cli_notebook_model_cells_positioned(const CliNotebookModelCtx *args);
 // the run `id` bound to the cell `cell`, its messages applied to it from the next step
 void cli_notebook_model_bound(const CliNotebookModelCtx *args);
 // what a kernel sent, copied into the ring of the model its context is, the ring taken anew larger where the message
@@ -219,15 +219,15 @@ typedef struct
     void (*lines_read)(const CliNotebookModelCtx *args);
     void (*outputs_released)(const CliNotebookModelCtx *args);
     void (*outputs_settled)(const CliNotebookModelCtx *args);
-    int (*kernel_laid)(const CliNotebookModelCtx *args);
+    int (*kernel_positioned)(const CliNotebookModelCtx *args);
     void (*ring_cleared)(const CliNotebookModelCtx *args);
     int (*source_stored)(const CliNotebookModelCtx *args);
-    int (*cells_laid)(const CliNotebookModelCtx *args);
+    int (*cells_positioned)(const CliNotebookModelCtx *args);
     void (*bound)(const CliNotebookModelCtx *args);
 } CliNotebookModelNs;
 EMBED_TABLE_LAYOUT(CliNotebookModelNs, of, at, key, cell_read, cell_written, output_read, output_written, first_row,
-                   gone_read, rows_settled, stale_settled, lines_read, outputs_released, outputs_settled, kernel_laid,
-                   ring_cleared, source_stored, cells_laid, bound);
+                   gone_read, rows_settled, stale_settled, lines_read, outputs_released, outputs_settled, kernel_positioned,
+                   ring_cleared, source_stored, cells_positioned, bound);
 EMBED_TABLE_STORAGE CliNotebookModelNs cli_notebook_model_internal EMBED_UNUSED = {
     .of = cli_notebook_model_of,
     .at = cli_notebook_model_at,
@@ -243,10 +243,10 @@ EMBED_TABLE_STORAGE CliNotebookModelNs cli_notebook_model_internal EMBED_UNUSED 
     .lines_read = cli_notebook_model_lines_read,
     .outputs_released = cli_notebook_model_outputs_released,
     .outputs_settled = cli_notebook_model_outputs_settled,
-    .kernel_laid = cli_notebook_model_kernel_laid,
+    .kernel_positioned = cli_notebook_model_kernel_positioned,
     .ring_cleared = cli_notebook_model_ring_cleared,
     .source_stored = cli_notebook_model_source_stored,
-    .cells_laid = cli_notebook_model_cells_laid,
+    .cells_positioned = cli_notebook_model_cells_positioned,
     .bound = cli_notebook_model_bound,
 };
 

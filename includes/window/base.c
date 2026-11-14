@@ -1,17 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // base.c: the frame's base composed through the map. The map is a list of rectangles, each of one layer, the later
-// laid over the earlier; the rectangles' top and bottom edges cut the rows into bands, and in a band the rectangles
+// positioned over the earlier; the rectangles' top and bottom edges cut the rows into bands, and in a band the rectangles
 // covering it have their left and right edges in order, each span between two edges a run of the layer of the last
-// rectangle laid over it. A row is drawn run by run from its band's runs, a run of a part's ground blended with the
-// layer's one entry, which the compiler lays across the lanes, and a run of the sheet or a pane blended pixel by
+// rectangle positioned over it. A row is drawn run by run from its band's runs, a run of a part's ground blended with the
+// layer's one entry, which the compiler positions across the lanes, and a run of the sheet or a pane blended pixel by
 // pixel with the entry of the grain's level there, read straight along the tile tables. An entry at a grain level
 // folds the layer's tint and the grain's white into one blend: the lattice saves (255 - tint) * (255 - grain) / 255
 // of itself, and takes the tint's color by its alpha and the grain's rest, and white by the grain; a layer with no
 // grain is the fill's own blend to the bit. The map's glass sheet lies everywhere outside the work; the work's inside
 // is its parts' grounds, its lines' ring and the map's column the lattice; a hole a part makes in the work is the
 // sheet, its fillets' squares saved the part's ground for the outline to round; and a pane that has slid in is its
-// thinner tint laid from its edges in the frame's words, the row or column an edge falls in at the edge's share of it,
+// thinner tint positioned from its edges in the frame's words, the row or column an edge falls in at the edge's share of it,
 // square-cornered here, its corners the pane's own drawing
 #include "base.h"
 
@@ -52,7 +52,7 @@ void gui_base_resize(const GuiBaseWidthCfg *args)
     args->base->height = height;
     args->base->layers = 0u;
     args->base->bands = 0u;
-    args->base->laid = 0;
+    args->base->positioned = 0;
 }
 
 typedef struct
@@ -94,7 +94,7 @@ EMBED_INLINE void base_entry_set(const BaseCtx *args)
     args->entry->rest = (((255u - alpha) * grain_remainder) + 127u) / 255u;
 }
 
-// the entries from `entry` of `color` at each of the parts a fading part's share stands at but the whole, the first at
+// the entries from `entry` of `color` at each of the parts a fading part's share is at but the whole, the first at
 // a sixteenth of its alpha and the last at fifteen, with no grain
 EMBED_INLINE void base_parts_set(const BaseCtx *args)
 {
@@ -107,7 +107,7 @@ EMBED_INLINE void base_parts_set(const BaseCtx *args)
     }
 }
 
-// the part a fading part's `share` of GUI_FIXED_ONE stands at, GUI_BASE_PARTS whole and 0 none; a share is no more
+// the part a fading part's `share` of GUI_FIXED_ONE is at, GUI_BASE_PARTS whole and 0 none; a share is no more
 // than GUI_FIXED_ONE and not negative
 EMBED_INLINE unsigned int base_part_of(const BaseCtx *args)
 {
@@ -115,8 +115,8 @@ EMBED_INLINE unsigned int base_part_of(const BaseCtx *args)
                                           : (((unsigned int)args->share * GUI_BASE_PARTS) / GUI_FIXED_ONE);
 }
 
-// `rect` of `layer` laid on the map, over everything laid before, no further than the map; a rectangle past the
-// capacity for them is not laid
+// `rect` of `layer` positioned on the map, over everything positioned before, no further than the map; a rectangle past the
+// capacity for them is not positioned
 EMBED_INLINE void base_layout(const BaseCtx *args)
 {
     GuiRect rect = args->rect;
@@ -150,8 +150,8 @@ EMBED_INLINE unsigned int base_part_layer(const BaseCtx *args)
     return (part <= 0) ? GUI_BASE_CLEAR : GUI_BASE_PANE_PART + (((unsigned int)part - 1u) * GUI_BASE_GRAIN_LEVELS);
 }
 
-// a pane laid from its `edges` in the frame's words: the pixels it covers whole its layer, and the row or column an
-// edge falls in laid at the edge's share of it, the rows across the pane's whole width and the columns down its whole
+// a pane positioned from its `edges` in the frame's words: the pixels it covers whole its layer, and the row or column an
+// edge falls in positioned at the edge's share of it, the rows across the pane's whole width and the columns down its whole
 // height, a corner the column's
 static void base_pane_layout(const BaseCtx *args)
 {
@@ -236,9 +236,9 @@ EMBED_INLINE unsigned int base_edge_append(const BaseCtx *args)
     return args->count + 1u;
 }
 
-// the bands and their runs read from the rectangles laid: the bands cut at every rectangle's top and bottom, and a
+// the bands and their runs read from the rectangles positioned: the bands cut at every rectangle's top and bottom, and a
 // band's runs cut at the left and right of every rectangle covering it, each run the layer of the last rectangle
-// laid over its start, runs of one layer joined
+// positioned over its start, runs of one layer joined
 EMBED_INLINE void base_bands_read(const BaseCtx *args)
 {
     GuiBase *base = args->base;
@@ -248,7 +248,7 @@ EMBED_INLINE void base_bands_read(const BaseCtx *args)
     cuts = EMBED_CALL(base_edge_append, BaseCtx, .edges_u32s = rows, .count = cuts, .value = base->height);
     for (unsigned int at = 0u; at < base->layers; at += 1u)
     {
-        // a rectangle laid lies on the map: its edges are not negative
+        // a rectangle positioned lies on the map: its edges are not negative
         const GuiRect rect = base->layer[at].rect;
         cuts = EMBED_CALL(base_edge_append, BaseCtx, .edges_u32s = rows, .count = cuts, .value = (unsigned int)rect.y);
         cuts = EMBED_CALL(base_edge_append, BaseCtx, .edges_u32s = rows, .count = cuts,
@@ -259,11 +259,11 @@ EMBED_INLINE void base_bands_read(const BaseCtx *args)
     {
         base->band_from[band] = rows[band];
     }
-    unsigned int laid_runs = 0u;
+    unsigned int positioned_runs = 0u;
     for (unsigned int band = 0u; band < base->bands; band += 1u)
     {
-        base->run_first[band] = laid_runs;
-        GuiBaseRun *const band_runs = &base->run[laid_runs];
+        base->run_first[band] = positioned_runs;
+        GuiBaseRun *const band_runs = &base->run[positioned_runs];
         // the band's row and width are far inside what an int represents
         const int y = (int)base->band_from[band];
         unsigned int columns[GUI_BASE_RUNS + 1u];
@@ -294,9 +294,9 @@ EMBED_INLINE void base_bands_read(const BaseCtx *args)
             band_runs[runs] = (GuiBaseRun){columns[edge], columns[edge + 1u] - columns[edge], layer};
             runs += 1u;
         }
-        laid_runs += runs;
+        positioned_runs += runs;
     }
-    base->run_first[base->bands] = laid_runs;
+    base->run_first[base->bands] = positioned_runs;
 }
 
 void gui_base_paint(const GuiBaseFrameCfg *args)
@@ -309,7 +309,7 @@ void gui_base_paint(const GuiBaseFrameCfg *args)
         return;
     }
     args->base->painted = 1;
-    args->base->laid = 0;
+    args->base->positioned = 0;
     args->base->editor_background = args->palette->editor_background;
     args->base->side_background = args->palette->side_background;
     args->base->surface = args->palette->surface;
@@ -354,7 +354,7 @@ void gui_base_paint(const GuiBaseFrameCfg *args)
                        .color = edge, .grain = level);
         }
     }
-    // the sheet's and the pane's entries laid out as the tile is
+    // the sheet's and the pane's entries arranged as the tile is
     const unsigned char *const grain = gui_grain();
     for (unsigned int at = 0u; at < GUI_GRAIN_TILE * GUI_GRAIN_TILE; at += 1u)
     {
@@ -375,7 +375,7 @@ int gui_base_layout(const GuiBaseFrameCfg *args)
     int controls_steady = args->controls_steady;
     gui_base_frame.paint(args);
     const int same =
-        args->base->laid &&
+        args->base->positioned &&
         (memor.cmp(&(MemoriaCfg){.src = &args->base->frame, .other = frame, .bytes = sizeof(*frame)}) == 0) &&
         (args->base->controls_steady == controls_steady);
     if (same || (args->base->tile_red_blue == NULL))
@@ -390,7 +390,7 @@ int gui_base_layout(const GuiBaseFrameCfg *args)
     EMBED_CALL(base_layout, BaseCtx, .base = args->base,
                .rect = (GuiRect){0, 0, (int)args->base->width, (int)args->base->height}, .layer = GUI_BASE_GLASS);
     EMBED_CALL(base_layout, BaseCtx, .base = args->base, .rect = frame->work, .layer = GUI_BASE_CLEAR);
-    // the side's ground where its pane stands as it slides, inside the work's inside, at the share of it shown by
+    // the side's ground where its pane is as it slides, inside the work's inside, at the share of it displayed by
     // sixteenths, the side it leaves the lattice
     const unsigned int side_part = EMBED_CALL(base_part_of, BaseCtx, .share = frame->side_share);
     if (side_part != 0u)
@@ -400,7 +400,7 @@ int gui_base_layout(const GuiBaseFrameCfg *args)
                                       .other = frame->inside),
                    .layer = (side_part >= GUI_BASE_PARTS) ? GUI_BASE_SIDE : (GUI_BASE_SIDE_PART + side_part - 1u));
     }
-    // the tabs row's surface at the share of it shown, by sixteenths, none of it leaving the lattice
+    // the tabs row's surface at the share of it displayed, by sixteenths, none of it leaving the lattice
     const unsigned int tabs_part = EMBED_CALL(base_part_of, BaseCtx, .share = frame->tabs_share);
     if (tabs_part != 0u)
     {
@@ -412,7 +412,7 @@ int gui_base_layout(const GuiBaseFrameCfg *args)
                .rect = (GuiRect){frame->editor.x, frame->editor.y, frame->editor.width + frame->editor_bar.width,
                                  frame->editor.height + frame->editor_bar_across.height},
                .layer = GUI_BASE_EDITOR);
-    // the terminal's panel on the ink at half as the side is, its views on the editor's ground, each where it stands as
+    // the terminal's panel on the ink at half as the side is, its views on the editor's ground, each where it is as
     // it arrives, inside the work's inside, at the part of its opacity reached
     const unsigned int terminal_part = EMBED_CALL(base_part_of, BaseCtx, .share = frame->terminal_share);
     if (terminal_part != 0u)
@@ -428,7 +428,7 @@ int gui_base_layout(const GuiBaseFrameCfg *args)
                    .layer = (terminal_part >= GUI_BASE_PARTS) ? GUI_BASE_EDITOR
                                                               : (GUI_BASE_EDITOR_PART + terminal_part - 1u));
     }
-    // each hole the sheet, its fillets' squares saved what lay there
+    // each hole the sheet, its fillets' squares saved what position there
     GuiRect holes[4];
     const unsigned int count = EMBED_CALL(gui_frame_holes_table.holes, GuiFrameHolesCfg, .frame_read = frame, .holes = holes);
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -449,7 +449,7 @@ int gui_base_layout(const GuiBaseFrameCfg *args)
             EMBED_CALL(base_layout, BaseCtx, .base = args->base, .rect = saved[fillet], .layer = under[fillet]);
         }
     }
-    // the panes that have slid in, each the slat its edge shows, and the controls' pane where it stands, each laid
+    // the panes that have slid in, each the slat its edge shows, and the controls' pane where it is, each positioned
     // from its edges in the frame's words; the controls' pane coming down at its share's part, the tint between the
     // sheet's and a pane's
     EMBED_CALL(base_pane_layout, BaseCtx, .base = args->base, .edges = frame->bar_edges);
@@ -465,8 +465,8 @@ int gui_base_layout(const GuiBaseFrameCfg *args)
                    .layer = EMBED_CALL(base_part_layer, BaseCtx, .share = frame->controls_pane_share));
     }
     EMBED_CALL(base_bands_read, BaseCtx, .base = args->base);
-    args->base->laid = 1;
-    args->base->laid_count += 1u;
+    args->base->positioned = 1;
+    args->base->positioned_count += 1u;
     return 1;
 }
 
@@ -582,7 +582,7 @@ EMBED_INLINE void base_run_draw(const BaseCtx *args)
 
 void gui_base_draw(const GuiBaseRasterCfg *args)
 {
-    if (args->base_read->laid)
+    if (args->base_read->positioned)
     {
         const GuiBaseMap own = {args->base_read->bands, args->base_read->band_from, args->base_read->run_first,
                                 args->base_read->run};

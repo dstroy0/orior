@@ -112,7 +112,7 @@ extern "C"
 
 #define NOISE_CLIPS_COUNTS 5u
 
-// the constant voxels' box: least and most z, then y, then x
+// the constant voxels' box: least and max z, then y, then x
 #define NOISE_CLIPS_BOX (2u * ENGINE_AXES)
 
     // every sample's value counts, the voxel-frames at either end of the lane, the voxels that never change and the
@@ -133,7 +133,7 @@ extern "C"
     long noise_moments_set(const NoiseSetRequest *request);
 
     // One volume's measurements, the numbers each set call prints for a sample. A sim plants a term and reads it back
-    // through these. The volume and extent are laid out as NoiseLoad gives them. Each returns 0, or
+    // through these. The volume and extent are arranged as NoiseLoad gives them. Each returns 0, or
     // NOISE_DETECTOR_ERROR with the error filled; a measurement the volume cannot give is 0.
 
     // each lag's mean square against lag 1's, per mille over means 40 to 199: the frame difference, then it less its x
@@ -344,7 +344,7 @@ extern "C"
 // the axes it is retained on and the same along the axes it is shared along. A term's pattern over a box is the box's
 // mean along its shared axes, rounded down, exactly; its residual is the box less the pattern spread back along them.
 // The crystal's own coder prices the box, each residual and each pattern in bits (NoiseCost), and a term saves what the
-// box costs less what its residual and its pattern cost together. The root noise is the term that saves the most, the
+// box costs less what its residual and its pattern cost together. The root noise is the term that saves the max, the
 // first of them where two save alike, and none where no term saves. Yanking it retains its residual and its pattern,
 // from which the box returns exactly (noise_root_return).
 // rows (table row 8): shared along x, a value for each frame, z and y
@@ -364,7 +364,7 @@ extern "C"
 
 #define NOISE_ROOT_TERMS 5u
 
-    // Prices a lattice of ints laid out as NoiseLoad lays out a volume, frames, z, y and x: the bits the crystal spends
+    // Prices a lattice of ints arranged as NoiseLoad arranges a volume, frames, z, y and x: the bits the crystal spends
     // on it. Returns 0, or a negative value with the error filled. The driver passes the engine's, and the detector
     // reaches no module but its own.
     typedef long (*NoiseCost)(const int *values, const unsigned long long extent[4], unsigned long long *bits,
@@ -382,7 +382,7 @@ extern "C"
     } NoiseRootMeasurement;
 
     // The box runs from `low` to below `high` on every axis, frames, z, y and x, inside the volume's extent, and
-    // contains at most 2^31 voxels. Where `residual` is set, the root's residual is left in it, the box's voxels as
+    // contains at max 2^31 voxels. Where `residual` is set, the root's residual is left in it, the box's voxels as
     // ints, or the box itself where there is no root; where `pattern` is set, the root's pattern is left in it
     // (noise_root_extent sizes it, never more than the box's voxels), and nothing where there is no root. A price the
     // cost gives past 2^61 bits errors.

@@ -8,7 +8,7 @@
 #
 # The text under build/papers is what pypdf could recover, and on these papers that is not what the
 # page says. Lyon's Okanagan comes out as ˇx@cm@ncut where the page prints x̌əcməncut: the caron
-# arrives before its letter, the schwa as @, the glottal stop as P. Words break mid-token, and the
+# arrives before its character, the schwa as @, the glottal stop as P. Words break mid-token, and the
 # five-line interlinear arrives one token per line with the surface run into its own parse.
 #
 # A hand extraction taken off that text records the extractor. The page is the source. The page

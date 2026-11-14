@@ -56,8 +56,8 @@ typedef struct QueryProcessCtx QueryProcessCtx;
 
 // what the query's modules occupy in the cellblock, their own count, every cell the query takes and gives back counted
 
-// the most files a run reads or leaves, the most settings a context appends, the most words a command takes, and the
-// most runs a folder contains that the query walks
+// the max files a run reads or leaves, the max settings a context appends, the max words a command takes, and the
+// max runs a folder contains that the query walks
 #define QUERY_LEAVES_MAX 256u
 
 #define QUERY_SETTINGS_MAX 8u
@@ -72,7 +72,7 @@ typedef struct QueryProcessCtx QueryProcessCtx;
 // how many runs of a folder are retained where QRY_RETAINED is not set
 #define QUERY_RETAIN_MAX 64u
 
-// A list of paths, each in a row of QUERY_PATH_MAX_LEN, in a cell of `capacity` taken at its most with
+// A list of paths, each in a row of QUERY_PATH_MAX_LEN, in a cell of `capacity` taken at its max with
 // query_paths_alloc and released through persistent_buf_release
 typedef struct
 {
@@ -154,8 +154,8 @@ typedef struct
 int query_process_start(const QueryStartedCtx *args);
 unsigned long long query_process_read(const QueryProcessPieceCtx *args);
 long long query_process_wait(const QueryProcessCtx *args);
-// the most bytes of one environment variable's value as UTF-8 with its zero: Windows stores 32767 letters of UTF-16 in
-// one, each at most three bytes of UTF-8, and a POSIX system's is no longer than that in practice
+// the max bytes of one environment variable's value as UTF-8 with its zero: Windows stores 32767 characters of UTF-16 in
+// one, each at max three bytes of UTF-8, and a POSIX system's is no longer than that in practice
 #define QUERY_ENVIRONMENT_MAX_LEN ((32767u * 3u) + 1u)
 
 // an environment variable of this process set, which every process it starts after inherits, or read into `value`,
@@ -164,7 +164,7 @@ long long query_process_wait(const QueryProcessCtx *args);
 int query_environment_set(const QueryNameCtx *args);
 int query_environment_read(const QueryNameValueCtx *args);
 int query_environment_write(const QueryNameOutCtx *args);
-// each entry of `folder` handed to `each` by its name, 1 where it is a folder; 0 where the folder could not be read
+// each entry of `folder` passed to `each` by its name, 1 where it is a folder; 0 where the folder could not be read
 int query_folder_each(const QueryFolderEachCtx *args);
 // `folder` made with every folder above it; the file or the folder at `path` removed whole, a read-only file among them
 int query_folder_init(const QueryFolderContextCtx *args);
@@ -194,7 +194,7 @@ int query_terminal_is(void);
 unsigned long long query_terminal_line_read(const QueryCapacityLineCtx *args);
 void query_terminal_write(const QueryErrorsCtx *args);
 
-// `text` printed through the context's sink, and handed to the run this process is a member of as its console
+// `text` printed through the context's sink, and passed to the run this process is a member of as its console
 void query_print(const QueryTextCtx *args);
 // the path `under` the top of the tree written into `path`, sized for QUERY_PATH_MAX_LEN
 void query_at(const QueryContextUnderCtx *args);
@@ -396,7 +396,7 @@ struct QueryCountErrMsgCtx
     unsigned int count;
     VerbaLinea *err_msg;
     QueryRun *run;
-    const char *const *paths_letters;
+    const char *const *paths_characters;
 };
 
 struct QueryFolderNumberCtx
@@ -523,7 +523,7 @@ struct QueryTextCtx
 struct QueryFolderMaxCtx
 {
     const char *folder;
-    unsigned int most;
+    unsigned int max;
 };
 
 struct QueryFolderRunsCtx

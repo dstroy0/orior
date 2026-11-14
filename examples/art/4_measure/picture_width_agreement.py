@@ -20,7 +20,7 @@
 # while at a wrong width the rows slide against each other and the arrangement is scrambled.
 #
 # The two share neither code, null nor statistic. If they peak at the same width on the same file, that
-# is a measured link between them and the first this work has. If they peak at different widths, at most
+# is a measured link between them and the first this work has. If they peak at different widths, at max
 # one of them recovers a picture's width and the other has been reporting something else.
 #
 # Both are swept over the widths that divide the file length exactly, since a partial final row is not a

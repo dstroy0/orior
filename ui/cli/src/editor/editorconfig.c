@@ -11,9 +11,9 @@ typedef struct
     char text[CLI_VALUE_MAX_LEN];
     int set;
 } CliValue;
-// the lock acquired while the files' bytes and a pattern's letters are stored
+// the lock acquired while the files' bytes and a pattern's characters are stored
 
-// the most bytes one `.editorconfig` contains, the most folders above a file, and the longest value of a key stored
+// the max bytes one `.editorconfig` contains, the max folders above a file, and the longest value of a key stored
 #define CLI_EDITORCONFIG_BYTES (1u << 20u)
 
 #define CLI_EDITORCONFIG_FOLDERS 256u
@@ -37,7 +37,7 @@ typedef struct
     CliValue *width;
     const CliValue *value_read;
     unsigned int *number;
-    char letter;
+    char character;
     const char *path;
     CliIndent *indent;
     unsigned long long *ends;
@@ -56,7 +56,7 @@ EMBED_INLINE void cli_trim(const EditorconfigCtx *args)
                              .at = (unsigned long long)(*to - *from), .set = CLI_TEXT_WHITE);
 }
 
-// whether the bytes from `from` up to `to` are `word`, the ASCII letters of either case the same
+// whether the bytes from `from` up to `to` are `word`, the ASCII characters of either case the same
 EMBED_INLINE int cli_folded_is(const EditorconfigCtx *args)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES});
@@ -66,9 +66,9 @@ EMBED_INLINE int cli_folded_is(const EditorconfigCtx *args)
     }
     for (unsigned long long at = 0ULL; at < length; at += 1ULL)
     {
-        const char letter =
+        const char character =
             ((args->from[at] >= 'A') && (args->from[at] <= 'Z')) ? (char)(args->from[at] + 32) : args->from[at];
-        if (letter != args->word_text[at])
+        if (character != args->word_text[at])
         {
             return 0;
         }
@@ -219,17 +219,17 @@ EMBED_INLINE int cli_value_number(const EditorconfigCtx *args)
     {
         return 0;
     }
-    // checked against the most 32 bits represent above
+    // checked against the max 32 bits represent above
     *number = (unsigned int)size;
     return 1;
 }
 
 EMBED_INLINE int cli_is_separator(const EditorconfigCtx *args)
 {
-    return (args->letter == '/') || (args->letter == '\\');
+    return (args->character == '/') || (args->character == '\\');
 }
 
-// the `.editorconfig` of the folder `folder` letters of `path` long, `leaf` its name after them, read into s_text: its
+// the `.editorconfig` of the folder `folder` characters of `path` long, `leaf` its name after them, read into s_text: its
 // size, or QRY_MEMBER_UNREAD where it is not read
 EMBED_INLINE unsigned long long cli_editorconfig_read(const EditorconfigCtx *args)
 {
@@ -250,7 +250,7 @@ EMBED_INLINE unsigned int cli_folders_found(const EditorconfigCtx *args)
     while (going && (folders < CLI_EDITORCONFIG_FOLDERS))
     {
         unsigned long long cut = end;
-        while ((cut > 0ULL) && !EMBED_CALL(cli_is_separator, EditorconfigCtx, .letter = args->path[cut - 1u]))
+        while ((cut > 0ULL) && !EMBED_CALL(cli_is_separator, EditorconfigCtx, .character = args->path[cut - 1u]))
         {
             cut -= 1ULL;
         }
@@ -290,7 +290,7 @@ EMBED_INLINE void cli_folders_read(const EditorconfigCtx *args)
         const unsigned long long folder = args->ends[at - 1u];
         const char *const inside =
             args->path + folder +
-            (EMBED_CALL(cli_is_separator, EditorconfigCtx, .letter = args->path[folder]) ? 1u : 0u);
+            (EMBED_CALL(cli_is_separator, EditorconfigCtx, .character = args->path[folder]) ? 1u : 0u);
         char relative[CLI_PATH_MAX_LEN];
         memor.cpy(&(MemoriaCfg){.dst = relative,
                                 .src = inside,
@@ -299,7 +299,7 @@ EMBED_INLINE void cli_folders_read(const EditorconfigCtx *args)
                    .size = cellul.len(&(CatenaFinitaCfg){.src = relative, .cap = CLI_POOL_BYTES}), .from = '\\',
                    .to = '/');
         const int separated =
-            (folder != 0ULL) && EMBED_CALL(cli_is_separator, EditorconfigCtx, .letter = args->path[folder - 1u]);
+            (folder != 0ULL) && EMBED_CALL(cli_is_separator, EditorconfigCtx, .character = args->path[folder - 1u]);
         const unsigned long long size =
             EMBED_CALL(cli_editorconfig_read, EditorconfigCtx, .path = args->path, .folder = folder,
                        .leaf = separated ? ".editorconfig" : "/.editorconfig");
@@ -363,7 +363,7 @@ EMBED_INLINE void cli_indent_resolve(const EditorconfigCtx *args)
     CliValue size_value = {{0}, 0};
     CliValue width = {{0}, 0};
     const char *name = args->path + cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
-    while ((name > args->path) && !EMBED_CALL(cli_is_separator, EditorconfigCtx, .letter = name[-1]))
+    while ((name > args->path) && !EMBED_CALL(cli_is_separator, EditorconfigCtx, .character = name[-1]))
     {
         name -= 1;
     }

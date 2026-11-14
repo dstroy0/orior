@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // overseer_carrier.c: a carrier for overseer_check that reaches no part, and the airlock's pop and cross beside it.
-// Given `refuse`, it hands the question it is handed the answer the carrier hands where the part refused a question
+// Given `refuse`, it passes the question it is passed the answer the carrier passes where the part refused a question
 // and stayed whole, with the accounts a refusal carries (cubin_run.c); given `hang`, it outlasts the time it is given
 // and answers nothing. A `--gated <name>` after either is the gated list a carrier reads, and is passed over. Given
-// `pop`, it pops nothing and ends clean. As the airlock's cross, the round's list put after its first word, it hands an
-// empty gated list given `cross`, ends as a cross that did not read given `unread`, and ends clean having handed
-// nothing given `silent` (run_channel.h). Given `registers`, it hands an empty gated list and refuses each question of
-// fewer than OVERSEER_CARRIER_CLEARING registers for a register past its count, the refusals it hands the teacher
+// `pop`, it pops nothing and ends clean. As the airlock's cross, the round's list put after its first word, it passes an
+// empty gated list given `cross`, ends as a cross that did not read given `unread`, and ends clean having passed
+// nothing given `silent` (run_channel.h). Given `registers`, it passes an empty gated list and refuses each question of
+// fewer than OVERSEER_CARRIER_CLEARING registers for a register past its count, the refusals it passes the teacher
 // naming that count; given `illegal`, it refuses each question for an instruction no count clears. Either ends as the
 // cross does where it refuses some
 //
@@ -15,7 +15,7 @@
 //     overseer_carrier pop ... --list <list>
 //     overseer_carrier <list> cross|unread|silent|registers|illegal <gated> [<refusals> [<read>]]
 //
-// Exit 0 where it answered, popped, crossed or hung out its time, 1 where the answer could not be handed, 2 where the
+// Exit 0 where it answered, popped, crossed or hung out its time, 1 where the answer could not be passed, 2 where the
 // words are none of the above or the cross did not read
 #if !defined(_POSIX_C_SOURCE) && !defined(_WIN32)
 // nanosleep is POSIX, outside strict C11
@@ -46,7 +46,7 @@ static const char s_refused[] =
     "listener: the part stamped 1 Xid critical errors against the launch, Xid 31; cause address\n"
     "gate: the code read safe, its register fields bound by 16; the gated list loaded; the code contains no probe\n";
 
-// The refusals of the cross `mode`, `registers` or `illegal`, over the list `list_name` of `run`, handed as
+// The refusals of the cross `mode`, `registers` or `illegal`, over the list `list_name` of `run`, passed as
 // `gated_list_name`, and an empty gated list as `gated_name`: 1 where it refused any, 0 where it refused none, 2 where
 // the list or a blob was not had
 static int overseer_carrier_gated(QryShared *run, const char *mode, const char *list_name, const char *gated_name,
@@ -144,7 +144,7 @@ int main(int count, char **words)
     QryShared *const run = qry_member_run();
     if ((run == NULL) || (qry_member_append(words[first + 3], s_refused, sizeof(s_refused) - 1u, QRY_ORDINARY) == 0ull))
     {
-        fprintf(stderr, "overseer_carrier: the answer could not be handed to the run\n");
+        fprintf(stderr, "overseer_carrier: the answer could not be passed to the run\n");
         return 1;
     }
     return 0;

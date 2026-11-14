@@ -117,13 +117,13 @@ def main():
     for author in many:
         person, family, born = author
         short = re.sub(r"[^0-9A-Za-z]", "", family).lower()[:14] or ("p%s" % person)
-        kept = 0
+        retained = 0
         for title, address in by_author[author][:PER_AUTHOR * 3]:
-            if kept >= PER_AUTHOR:
+            if retained >= PER_AUTHOR:
                 break
-            target = os.path.join(CORPORA, "jp_%s_%s_%d.txt" % (short, person, kept))
+            target = os.path.join(CORPORA, "jp_%s_%s_%d.txt" % (short, person, retained))
             if os.path.isfile(target):
-                kept += 1
+                retained += 1
                 landed += 1
                 continue
             try:
@@ -143,10 +143,10 @@ def main():
                 continue
             with open(target, "w", encoding="utf-8", newline="") as handle:
                 handle.write(text)
-            kept += 1
+            retained += 1
             landed += 1
-        if kept:
-            out.write("  %-20s %d works\n" % (author[:20], kept))
+        if retained:
+            out.write("  %-20s %d works\n" % (author[:20], retained))
             out.flush()
 
     out.write("\n  %d works landed\n" % landed)

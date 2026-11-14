@@ -3,7 +3,7 @@
 // prints.h: the print statements a change added: each line the tree's change against its last commit puts in, a file
 // new to git whole, that prints in its file's language as a print for a task does, such as Python's print(),
 // JavaScript's console.log(), Rust's dbg! and println!, C's printf, Go's fmt.Println, Java's System.out.println and
-// Ruby's puts. Each is named by its file, its line in the file as it stands, and its text, for the reader to see before
+// Ruby's puts. Each is named by its file, its line in the file as it is, and its text, for the reader to see before
 // a commit and take out in one step (prints.c)
 #ifndef PRINTS_H
 #define PRINTS_H

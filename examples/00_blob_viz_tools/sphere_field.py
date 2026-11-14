@@ -89,7 +89,7 @@ def gauss_legendre(count):
 def legendre_column(top, order, x):
     """Normalized associated Legendre values for one order, every degree from `order` to `top`.
 
-    Climbs the diagonal first and then recurs in degree, which keeps every intermediate at unit
+    Climbs the diagonal first and then recurs in degree, which retains every intermediate at unit
     scale. Computing these from factorials overflows above degree about 150 and loses digits long
     before that, and the failure is quiet: the low degrees stay right and only the fine structure
     goes wrong, and a picture built on it looks plausible.
@@ -160,7 +160,7 @@ def coefficients(sources, top, tau, spread=False):
     happens once at the end, for the whole field and not per source.
 
     With `spread` the direction is averaged over the sphere before the sum, which leaves degree
-    zero standing and zeroes every other degree exactly. That is the reading with no direction
+    zero located and zeroes every other degree exactly. That is the reading with no direction
     chosen, and it is computed and never approximated by drawing many directions.
     """
     total = [[0.0] * (2 * degree + 1) for degree in range(top + 1)]
@@ -173,9 +173,9 @@ def coefficients(sources, top, tau, spread=False):
         for degree in range(top + 1):
             weight = strength * gains[degree]
             row = rows[degree]
-            keep = total[degree]
+            retain = total[degree]
             for at in range(2 * degree + 1):
-                keep[at] += weight * row[at]
+                retain[at] += weight * row[at]
     return total
 
 
@@ -288,13 +288,13 @@ def live_modes(spectrum, floor):
     total = sum(spectrum)
     if total <= 0.0:
         return 0, 0
-    kept = 0
+    retained = 0
     reached = 0
     for degree, here in enumerate(spectrum):
         if here / total > floor:
-            kept += 2 * degree + 1
+            retained += 2 * degree + 1
             reached = degree
-    return kept, reached
+    return retained, reached
 
 
 def spot_radians(radius_fraction):
@@ -317,7 +317,7 @@ def zonal_profile(radius_fraction, tau, top, samples=721):
     This is the spot itself, sampled from its center to the far side. It falls away from the center
     and never rises again, and a level cuts it at one angle and the region above that level is a
     circle. Everything about overlap below rests on the profile being monotone, and conduction
-    keeps it so because a heat kernel cannot sharpen anything.
+    retains it so because a heat kernel cannot sharpen anything.
     """
     gains = kernel(top, radius_fraction, tau)
     out = []
@@ -343,7 +343,7 @@ def cap_radius(profile, level):
 
     Returns zero where the peak never reaches the level, and pi where the profile stays above it
     everywhere. The second case is a source deep enough that its circle has swallowed the sphere,
-    and reporting it as a circle of radius pi keeps the caller from treating a swallowed sphere as
+    and reporting it as a circle of radius pi retains the caller from treating a swallowed sphere as
     a missing spot.
     """
     samples = len(profile)
@@ -413,10 +413,10 @@ def distinguishable(radii):
     any size at all. This is the same area law the mode count reports, arrived at by measuring the
     spots instead of counting the harmonics, and the two agreeing is worth more than either alone.
     """
-    kept = [one for one in radii if one > 0.0]
-    if not kept:
+    retained = [one for one in radii if one > 0.0]
+    if not retained:
         return 0
-    mean = sum(kept) / len(kept)
+    mean = sum(retained) / len(retained)
     if mean >= math.pi:
         return 1
     area = 2.0 * math.pi * (1.0 - math.cos(mean))
@@ -473,7 +473,7 @@ def _check():
         print("  FAIL conduction is not undone")
         bad += 1
 
-    # No direction chosen leaves degree zero standing and nothing above it.
+    # No direction chosen leaves degree zero located and nothing above it.
     total = coefficients(
         [(1.0, 0.9, 0.5, 1.0), (2.0, 0.4, 2.0, 3.0)], top, 0.0, spread=True
     )

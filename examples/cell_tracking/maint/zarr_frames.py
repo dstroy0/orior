@@ -69,7 +69,7 @@ class Frames(object):
         with open(key, "rb") as handle:
             chunk = handle.read()
         if self.codecs[1] == "zstd":
-            return self.keep(frame, zstd.decompress(chunk))
+            return self.retain(frame, zstd.decompress(chunk))
         version, flags, typesize = chunk[0], chunk[2], chunk[3]
         total, block_bytes, compressed = struct.unpack_from("<3I", chunk, 4)
         if (version != 2) or (compressed != len(chunk)) or ((flags >> 5) != 4) or ((flags & 0x10) == 0) \
@@ -91,9 +91,9 @@ class Frames(object):
                     data = unshuffle_bits(data, elements, typesize) + data[whole:size]
                 pieces.append(data)
             out = b"".join(pieces)
-        return self.keep(frame, out)
+        return self.retain(frame, out)
 
-    def keep(self, frame, out):
+    def retain(self, frame, out):
         if len(out) != 2 * self.shape[1] * self.shape[2] * self.shape[3]:
             raise ValueError("frame %d: %d bytes, not one frame" % (frame, len(out)))
         self.held = frame

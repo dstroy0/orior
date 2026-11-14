@@ -5,13 +5,13 @@
 #
 # The Navier-Stokes equations on the unit torus, run in the engine's exact integer arithmetic over the
 # sets Fefferman's problem statement names: an exact solution reproduced by two routes, the horizon a
-# generic datum runs past, the two removals (viscosity, force) shown on an instance to change the
+# generic datum runs past, the two removals (viscosity, force) displayed on an instance to change the
 # solution, and the countable island of exactly nameable fields inside the uncountable data class. It
 # claims nothing about any open problem. It presents the rigor and stops.
 #
 #   Usage:  python examples/0_experimental/exact_navier_stokes_on_torus.py
 #
-# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working instead of a stage
+# This reads no corpus. It sits in 0_experimental: an arithmetic result displayed working instead of a stage
 # reading. The sets are Fefferman's, read from the Clay statement: equations (1) momentum, (2)
 # divergence, (3) initial datum; (8) periodic datum and force with the erratum's periodic pressure; (10)
 # periodic solution; (11) smooth pressure and velocity; and (7) bounded energy, which on the torus is
@@ -433,7 +433,7 @@ def norm_multiple(modes):
 
 
 def leray(vector):
-    """The divergence-free part: for each mode k, v_k - k (k . v_k) / |k|^2. The mean mode is kept.
+    """The divergence-free part: for each mode k, v_k - k (k . v_k) / |k|^2. The mean mode is retained.
 
     The division is carried by the denominator: every numerator is multiplied by the least common
     multiple M of the |k|^2 present. K (k . v_k) M / |k|^2 is an integer, and the field's denominator
@@ -740,7 +740,7 @@ def report_horizon(out):
     out.write("    order:                 %s\n" % "  ".join("%4d" % step for step in range(ORDER + 1)))
     out.write("    largest |k|_1:         %s\n" % "  ".join("%4d" % reach for reach in reaches))
     out.write("    largest |k|_inf:       %s\n" % "  ".join("%4d" % radius for radius in radii))
-    out.write("    modes kept:            %s\n" % "  ".join("%4d" % count for count in counts))
+    out.write("    modes retained:            %s\n" % "  ".join("%4d" % count for count in counts))
     for radius in (1, 2):
         missed = [modes_outside(velocities[step], radius) for step in range(ORDER + 1)]
         out.write("    outside |k|_inf <= %d:  %s\n" % (radius, "  ".join("%4d" % count for count in missed)))
@@ -758,7 +758,7 @@ def stretched_by(vector, factor):
 
 
 def report_scaling(out):
-    """The two exact symmetries: time scaling moves the viscosity, space scaling keeps the period."""
+    """The two exact symmetries: time scaling moves the viscosity, space scaling retains the period."""
     out.write("  symmetries, exact on the coefficients: the viscosity is a parameter a scaling moves\n")
     datum = generic_field()
     depth = 3
@@ -782,7 +782,7 @@ def report_scaling(out):
 
     out.write("    time scaling mu = %d: v_m = mu^(m+1) u_m at viscosity mu nu, orders 0..%d: %s\n"
               % (mu, depth, time_scaling))
-    out.write("    space scaling lam = %d: v_m = lam^(1+2m) u_m(lam x) at the same nu, period kept: %s\n"
+    out.write("    space scaling lam = %d: v_m = lam^(1+2m) u_m(lam x) at the same nu, period retained: %s\n"
               % (lam, space_scaling))
     out.write("    null, exponent mu^m: %s (errored)\n\n" % wrong_exponent)
     return time_scaling and space_scaling and not wrong_exponent
@@ -868,7 +868,7 @@ def report_island(out):
 
 def main():
     out = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", newline="")
-    out.write("  Navier-Stokes on the unit torus in exact integer arithmetic: rigor shown, nothing claimed\n\n")
+    out.write("  Navier-Stokes on the unit torus in exact integer arithmetic: rigor displayed, nothing claimed\n\n")
     results = [
         report_exact_solution(out),
         report_horizon(out),

@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 title	John Lyon	title	Nsyilxcn Inchoatives and their Distributions Across Root Types	the paper's title
 title	John Lyon	name	John Lyon	the author
 title	John Lyon	place	University of British Columbia - Okanagan	the author's institution
@@ -347,12 +347,12 @@ Table 2	Nsyilxcən	impossible	*p<ʔ>an̓	rejected for √pan̓
 Table 2	Nsyilxcən	cited form	pn̓-ap	'get bent', the -p inchoative of √pan̓
 Table 2	Nsyilxcən	cited form	pn̓•an̓	'get bent', the C2 inchoative of √pan̓
 Table 2	Nsyilxcən	stative	əc-pan̓	'already bent', the result state of √pan̓
-Table 2	Nsyilxcən	root	√t̓ak̓ʷ	'lay down', root 42, phonologically weak
+Table 2	Nsyilxcən	root	√t̓ak̓ʷ	'position down', root 42, phonologically weak
 Table 2	Nsyilxcən	impossible	*t̓ak̓ʷ-t	the positive adjective rejected for √t̓ak̓ʷ
 Table 2	Nsyilxcən	cited form	t̓<ʔ>ak̓ʷ	'come to top', the ʔ form of √t̓ak̓ʷ
 Table 2	Nsyilxcən	cited form	n-t̓k̓ʷ-ap	'burst', the -p form of √t̓ak̓ʷ
-Table 2	Nsyilxcən	cited form	t̓k̓ʷ•ak̓ʷ	'get laid down', the C2 inchoative of √t̓ak̓ʷ
-Table 2	Nsyilxcən	stative	əc-t̓ak̓ʷ	'already laid down', the result state of √t̓ak̓ʷ
+Table 2	Nsyilxcən	cited form	t̓k̓ʷ•ak̓ʷ	'get positioned down', the C2 inchoative of √t̓ak̓ʷ
+Table 2	Nsyilxcən	stative	əc-t̓ak̓ʷ	'already positioned down', the result state of √t̓ak̓ʷ
 Table 2	Nsyilxcən	root	√x̌aw̓	'dry', root 43, phonologically weak
 Table 2	Nsyilxcən	positive	x̌əw̓•x̌áw̓-t	the positive adjective of √x̌aw̓
 Table 2	Nsyilxcən	impossible	*x̌<ʔ>aw̓	rejected for √x̌aw̓
@@ -423,7 +423,7 @@ Table 2	Nsyilxcən	damage	yr̓•ar̓əc-yar̓	the page prints yr̓•ar̓ and �
 (50)	Nsyilxcən	root	√ɬp	'suck in', the root ɬ•ɬ<ʔ>ap comes from
 (50)	Nsyilxcən	cited form	ɬip	'extinguish, disappear', cited beside √ɬp
 (50)	Nsyilxcən	cited form	t̓<ʔ>ak̓ʷ	'to surface; to come to the top'
-(50)	Nsyilxcən	root	√t̓k̓ʷ	'lay down/place/fall', the root t̓<ʔ>ak̓ʷ comes from
+(50)	Nsyilxcən	root	√t̓k̓ʷ	'position down/place/fall', the root t̓<ʔ>ak̓ʷ comes from
 (50)	Nsyilxcən	cited form	t̓k̓ʷ•ak̓ʷ	'fall down', cited beside √t̓k̓ʷ
 (50)	Secwepemctsin	cited form	(s-)tʔek̓ʷ	'to rise to surface of water', the Secwepemctsín cognate
 (50)	Lillooet	cited form	n.ƛ̓ak̓ʷ	'to get filled with liquid', the Lillooet cognate
@@ -494,7 +494,7 @@ Table 2	Nsyilxcən	damage	yr̓•ar̓əc-yar̓	the page prints yr̓•ar̓ and �
 (54)	nɬeʔkepmxcín	cited form	zaʕ•záʕ-t	'[of people] assembled, gotten together, having arrived at a place', the Thompson cognate
 (54)	nɬeʔkepmxcín	cited form	zaʕ-m-ə́m	'assemble, collect, gather (things) in a particular place', the Thompson cognate
 §4	Nsyilxcən	cited form	t̓ʔak̓ʷ	'to float to the surface', against t̓k̓ʷak̓ʷ
-§4	Nsyilxcən	cited form	t̓k̓ʷak̓ʷ	'get laid down'
+§4	Nsyilxcən	cited form	t̓k̓ʷak̓ʷ	'get positioned down'
 §4	Nsyilxcən	root	√t̓ak̓ʷ	the strong root ʔ became lexicalized in
 fn9	Nsyilxcən	predicted	t̓əʔáʔk̓ʷ	an expected C2 form of t̓ʔak̓ʷ that has not been found
 fn9	Nsyilxcən	predicted	t̓áʔəʔk̓ʷ	the other expected C2 form of t̓ʔak̓ʷ that has not been found

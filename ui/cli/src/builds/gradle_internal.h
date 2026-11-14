@@ -26,7 +26,7 @@ typedef struct CliGradleSizeWordCtx CliGradleSizeWordCtx;
 #define CLI_GRADLE_STRING 1u
 #define CLI_GRADLE_COMMENT 2u
 
-// the most bytes of a script read, the most blocks and stray braces of it, the most configurations it declares, and
+// the max bytes of a script read, the max blocks and stray braces of it, the max configurations it declares, and
 // no block
 #define CLI_GRADLE_TEXT (1u << 24u)
 #define CLI_GRADLE_BLOCKS 65536u
@@ -85,7 +85,7 @@ unsigned int cli_gradle_block_at(const CliGradleTextCtx *args);
 int cli_gradle_block_by_name(const CliGradleCtx *args);
 
 // each statement the block at `block` contains itself, not those of the blocks inside it, before `end`: its first word,
-// where the word starts, and what follows it on its line, handed to `each`
+// where the word starts, and what follows it on its line, passed to `each`
 typedef void (*CliGradleStatement)(const CliGradleStatementCfg *args);
 void cli_gradle_statements(const CliGradleLinesCtx *args);
 
@@ -101,7 +101,7 @@ int cli_gradle_known_configuration(const CliGradleSizeWordCtx *args);
 // none does; into `out`, sized for CLI_PATH_MAX_LEN
 void cli_gradle_build_root(const CliGradleRootCtx *args);
 
-// the most catalogs of a build's `gradle` folder
+// the max catalogs of a build's `gradle` folder
 #define CLI_GRADLE_CATALOGS 64u
 
 // The catalogs of a build: each one's accessor, its name before `.versions.toml`, and its path, sorted
@@ -119,7 +119,7 @@ void cli_gradle_catalogs(const CliGradleFolderCtx *args);
 void cli_gradle_check(const CliGradleTextSizeCtx *args);
 
 // what completes the word before byte `at` of the script at `path`: a catalog's aliases after its accessor, and at the
-// head of a statement, what the block it stands in takes (gradle_complete.c)
+// head of a statement, what the block it is in takes (gradle_complete.c)
 void cli_gradle_complete(const CliGradleTextCtx *args);
 
 struct CliGradleTextCtx

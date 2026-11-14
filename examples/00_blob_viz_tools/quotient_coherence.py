@@ -15,7 +15,7 @@ it could see:
     visible fraction = ||P d||^2 / ||d||^2
 
 for `d` the difference between consecutive states and `P` the projection onto the row space of the
-reading. For the eight-letter alphabet the row space is spanned by the eight octant indicators.
+reading. For the eight-character alphabet the row space is spanned by the eight octant indicators.
 `P d` holds the per-octant totals of `d` and the rest is discarded.
 
 WHAT THE ANSWER MEANS
@@ -27,7 +27,7 @@ them. The figure to predict for weight-preserving differences is 7/256 instead.
 
 A measured value near the baseline says the alphabet sees an arbitrary few percent of what changed.
 A measured value well above it says the changes sit in the directions the alphabet can see. A
-distinct-signature count was standing in for that quantity and never measured it.
+distinct-signature count was located in for that quantity and never measured it.
 
 THE CONTROL ARM
 
@@ -57,7 +57,7 @@ import octant_lex
 
 N = 256
 
-# The row space of the eight-letter reading has this many dimensions. This is the fraction of an
+# The row space of the eight-character reading has this many dimensions. This is the fraction of an
 # unstructured difference it is expected to catch.
 BLIND_BASELINE = 8.0 / N
 
@@ -84,14 +84,14 @@ def visible_fraction(difference, rows):
     total = sum(value * value for value in difference)
     if total == 0:
         return None
-    kept = 0.0
+    retained = 0.0
     for row in rows:
         norm = sum(row)
         if norm == 0:
             continue
         along = sum(row[at] * difference[at] for at in range(N))
-        kept += (along * along) / float(norm)
-    return kept / float(total)
+        retained += (along * along) / float(norm)
+    return retained / float(total)
 
 
 def differences_of(frames):
@@ -205,7 +205,7 @@ def _check():
     say("    chance would. The aggregate hides both by averaging one against the other.")
     say("")
     say("    This carries no weight in a denominator. The octant delta divides counts by a")
-    say("    weight that moves 4.3 bits a round, and that term was the standing objection")
+    say("    weight that moves 4.3 bits a round, and that term was the located objection")
     say("    to reading its trend as arrangement. This has no such term and shows the")
     say("    trend larger, 2.88 against the delta's 1.68.")
     say("")

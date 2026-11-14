@@ -6,7 +6,7 @@
 // ---------------------------------------------------------------------------------------------------------------
 // the lexer
 
-static int qasm_is_letter(char c)
+static int qasm_is_character(char c)
 {
     return ((c >= 'a') && (c <= 'z')) || ((c >= 'A') && (c <= 'Z')) || (c == '_');
 }
@@ -96,20 +96,20 @@ int qasm_lex(QasmParser *parser)
         token->column = column;
         if (at >= length)
         {
-            token->kind = QASM_TOKEN_END;
+            token->type = QASM_TOKEN_END;
             token->length = 0u;
             parser->token_count += 1u;
             return 1;
         }
         const char c = text[at];
         size_t end = at + 1u;
-        if (qasm_is_letter(c))
+        if (qasm_is_character(c))
         {
-            while ((end < length) && (qasm_is_letter(text[end]) || qasm_is_digit(text[end])))
+            while ((end < length) && (qasm_is_character(text[end]) || qasm_is_digit(text[end])))
             {
                 end += 1u;
             }
-            token->kind = QASM_TOKEN_IDENT;
+            token->type = QASM_TOKEN_IDENT;
         }
         else if (qasm_is_digit(c) || ((c == '.') && ((at + 1u) < length) && qasm_is_digit(text[at + 1u])))
         {
@@ -142,7 +142,7 @@ int qasm_lex(QasmParser *parser)
                     }
                 }
             }
-            token->kind = QASM_TOKEN_NUMBER;
+            token->type = QASM_TOKEN_NUMBER;
         }
         else if (c == '"')
         {
@@ -152,32 +152,32 @@ int qasm_lex(QasmParser *parser)
             }
             if ((end >= length) || (text[end] != '"'))
             {
-                token->kind = QASM_TOKEN_SYMBOL;
+                token->type = QASM_TOKEN_SYMBOL;
                 token->length = 1u;
                 parser->token_count += 1u;
                 qasm_error(parser, token, "a string is not closed on its line");
                 return 0;
             }
             end += 1u;
-            token->kind = QASM_TOKEN_STRING;
+            token->type = QASM_TOKEN_STRING;
         }
         else if ((c == '-') && ((at + 1u) < length) && (text[at + 1u] == '>'))
         {
             end = at + 2u;
-            token->kind = QASM_TOKEN_SYMBOL;
+            token->type = QASM_TOKEN_SYMBOL;
         }
         else if ((c == '=') && ((at + 1u) < length) && (text[at + 1u] == '='))
         {
             end = at + 2u;
-            token->kind = QASM_TOKEN_SYMBOL;
+            token->type = QASM_TOKEN_SYMBOL;
         }
         else if (strchr(";,()[]{}+-*/^", c) != NULL)
         {
-            token->kind = QASM_TOKEN_SYMBOL;
+            token->type = QASM_TOKEN_SYMBOL;
         }
         else
         {
-            token->kind = QASM_TOKEN_SYMBOL;
+            token->type = QASM_TOKEN_SYMBOL;
             token->length = 1u;
             parser->token_count += 1u;
             qasm_error(parser, token, "'%c' is not part of OpenQASM 2.0", c);
@@ -213,7 +213,7 @@ int qasm_tokens_equal(const QasmParser *parser, const QasmToken *left, const Qas
 int qasm_accept(QasmParser *parser, const char *text)
 {
     const QasmToken *const token = qasm_peek(parser);
-    if ((token->kind != QASM_TOKEN_END) && (token->kind != QASM_TOKEN_STRING) && qasm_token_is(parser, token, text))
+    if ((token->type != QASM_TOKEN_END) && (token->type != QASM_TOKEN_STRING) && qasm_token_is(parser, token, text))
     {
         parser->at += 1u;
         return 1;
@@ -241,7 +241,7 @@ void qasm_token_name(const QasmParser *parser, const QasmToken *token, char *nam
 int qasm_expect_ident(QasmParser *parser, char *name, unsigned int *token_at)
 {
     const QasmToken *const token = qasm_peek(parser);
-    if (token->kind != QASM_TOKEN_IDENT)
+    if (token->type != QASM_TOKEN_IDENT)
     {
         qasm_error(parser, token, "a name was expected here");
         return 0;
@@ -267,7 +267,7 @@ int qasm_expect_count(QasmParser *parser, unsigned int *count)
 {
     const QasmToken *const token = qasm_peek(parser);
     unsigned long long value = 0ull;
-    int digits = (token->kind == QASM_TOKEN_NUMBER);
+    int digits = (token->type == QASM_TOKEN_NUMBER);
     for (unsigned int at = 0u; digits && (at < token->length); at += 1u)
     {
         const char c = parser->text[token->start + at];

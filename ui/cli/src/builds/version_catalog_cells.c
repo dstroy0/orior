@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // version_catalog_cells.c: the cells a catalog read is allocated in, each counted from its text before it is read. A
 // section starts at a `[`, a field at its `=` and a string of a list between two quotes, so each part is a cell of as
-// many as those bytes make, up to its most. What prevented a catalog from reading is at most four a line and one more a
+// many as those bytes make, up to its max. What prevented a catalog from reading is at max four a line and one more a
 // `{` and a
 // `,`. Each text the reader stores is bytes of the catalog's own, none stored twice, or a message of its own naming a
 // key, so its texts take the catalog's bytes, a message's for each error and a terminator each. A key or a string is
@@ -12,14 +12,14 @@
 typedef struct
 {
     unsigned long long count;
-    unsigned long long most;
+    unsigned long long max;
     CliVersionsNames *names;
 } VersionCatalogCellsCtx;
 
-// `count` up to `most`
+// `count` up to `max`
 EMBED_INLINE unsigned long long cells_max(const VersionCatalogCellsCtx *args)
 {
-    return (args->count < args->most) ? args->count : args->most;
+    return (args->count < args->max) ? args->count : args->max;
 }
 
 int cli_versions_alloc(const CliVersionCatalogTextCtx *args)
@@ -49,23 +49,23 @@ int cli_versions_alloc(const CliVersionCatalogTextCtx *args)
         }
     }
     parsed->longest = (args->size - line_from > parsed->longest) ? args->size - line_from : parsed->longest;
-    // each capacity is under its most, so it fits an unsigned int
+    // each capacity is under its max, so it fits an unsigned int
     parsed->sections_capacity =
-        (unsigned int)EMBED_CALL(cells_max, VersionCatalogCellsCtx, .count = opens, .most = CLI_VERSIONS_SECTIONS);
+        (unsigned int)EMBED_CALL(cells_max, VersionCatalogCellsCtx, .count = opens, .max = CLI_VERSIONS_SECTIONS);
     parsed->fields_capacity =
-        (unsigned int)EMBED_CALL(cells_max, VersionCatalogCellsCtx, .count = equals, .most = CLI_VERSIONS_FIELDS);
+        (unsigned int)EMBED_CALL(cells_max, VersionCatalogCellsCtx, .count = equals, .max = CLI_VERSIONS_FIELDS);
     parsed->items_capacity =
-        (unsigned int)EMBED_CALL(cells_max, VersionCatalogCellsCtx, .count = quotes / 2u, .most = CLI_VERSIONS_ITEMS);
+        (unsigned int)EMBED_CALL(cells_max, VersionCatalogCellsCtx, .count = quotes / 2u, .max = CLI_VERSIONS_ITEMS);
     parsed->errors_capacity =
         (unsigned int)EMBED_CALL(cells_max, VersionCatalogCellsCtx, .count = (4ULL * lines) + braces + commas + 1ULL,
-                                 .most = CLI_VERSIONS_ERRORS);
+                                 .max = CLI_VERSIONS_ERRORS);
     const unsigned long long capacities_total =
         parsed->sections_capacity + (2ULL * parsed->fields_capacity) + parsed->items_capacity + parsed->errors_capacity;
     parsed->pool_capacity =
         (unsigned int)EMBED_CALL(cells_max, VersionCatalogCellsCtx,
                                  .count = args->size + capacities_total +
                                           ((unsigned long long)parsed->errors_capacity * CLI_VERSIONS_MSG_MAX_LEN),
-                                 .most = CLI_VERSIONS_POOL);
+                                 .max = CLI_VERSIONS_POOL);
     // a part of none is a cell of one, so every part is a cell
     parsed->section = g_cli_guard->temporary_buf_alloc((parsed->sections_capacity + 1ULL) * sizeof(CliVersionsSection),
                                                        g_cli_versions_owner);

@@ -6,14 +6,14 @@ rule somebody else published and applied to the same deposit before this instrum
 
 | stage         | script                                 | what it answers                                               |
 | ------------- | -------------------------------------- | ------------------------------------------------------------- |
-| `1_represent` | `protein_bonds.py`, `protein_chain.py` | what the reader keeps and what it threw away                  |
+| `1_represent` | `protein_bonds.py`, `protein_chain.py` | what the reader retains and what it threw away                  |
 | `2_partition` | `protein_dimension.py`                 | what the dimension count reads off a real structure           |
 | `3_reference` | `what_a_shuffle_reaches.py`            | how much of the favored fraction a shuffle also reaches       |
 | `4_measure`   | `outlier_rate_from_the_rules.py`       | what the rules return, with no answer key                     |
 | `5_sift`      | `protein_domain.py`                    | how far the anchor cascade survives on a real cloud of points |
 | `6_oracle`    | `published_outlier_rate.py`            | whether it matches what wwPDB published for the same deposit  |
 
-The subject stood at three of the six stages: represent, partition and sift. It had neither reference,
+The subject was at three of the six stages: represent, partition and sift. It had neither reference,
 measure nor oracle, and the reason that gap mattered is written into the crystallography
 subject next door. Every control in this work until the crystals was a memoryless process, and a
 memoryless process shows only that an instrument does not invent structure. It cannot show that
@@ -27,7 +27,7 @@ stages close it for proteins, against a rule that is closer to the ideal than a 
 ## Why this subject can carry a positive control at last
 
 A crystal's periodicity is published because somebody measured the cell and wrote the edge down. A
-protein has no single published number of that kind, and the subject therefore sat without an
+protein has no single published number of that type, and the subject therefore sat without an
 oracle. The Ramachandran rules are what it has instead, and they are better suited than an edge.
 
 Two backbone torsions, phi and psi, place each residue on a plane. The Richardson laboratory's
@@ -51,7 +51,7 @@ of as a formula. So there is a quantum here, and the discipline is to take it fr
 instead of picking one.
 
 `representation.structure.protein.phi_psi` computes each torsion as exact integer terms: all
-of it is cross and dot products of integer coordinates, and it hands back the two integers whose
+of it is cross and dot products of integer coordinates, and it passes back the two integers whose
 ratio the angle is, without ever taking the `atan2`. The single irrational step is taken once, in
 `ramachandran_rules.angle`, in decimal and to forty digits, which is forty orders of magnitude
 under the two-degree grid the answer is read against. The precision decides nothing. The grid is
@@ -71,7 +71,7 @@ The reading is the favored fraction and the outlier fraction, said plainly and l
 to check.
 
 **Stage three** deletes the pairing and asks how much of the favored fraction survives. Permuting
-psi against phi keeps both marginal angle distributions exactly and destroys only which psi stood
+psi against phi retains both marginal angle distributions exactly and destroys only which psi was
 with which phi. On every structure the favored fraction falls by ten to sixteen points, because the
 favored regions are diagonal ridges on the plane and not a rectangle: a phi from a helix put beside
 a psi from a sheet lands between them, where the reference is thin. That gap is the fraction of the
@@ -127,11 +127,11 @@ The crystallography subject records being built wrong twice: first as a separate
 `data/` that reimplemented a parse the engine already did, then as a scratch script that fixed one
 measurement and left the bound it came from sitting in the base primitive for every other domain.
 
-This subject keeps to the corrected shape. The reusable reader, the exact-integer torsion, is one
+This subject retains to the corrected shape. The reusable reader, the exact-integer torsion, is one
 function in the engine, `representation.structure.protein.phi_psi`, additive and domain-blind about
 everything except that a protein backbone is `N`, `CA`, `C`. The Ramachandran rules, which are
 reference data and not a reader, live beside the examples in `ramachandran_rules.py`, exactly as
-the crystallography oracle keeps its COD fetch in the example and not the engine. Nothing here
+the crystallography oracle retains its COD fetch in the example and not the engine. Nothing here
 reimplements the backbone parse, and no bound sits under the engine waiting to charge the next
 domain that reads through it.
 
@@ -140,8 +140,8 @@ domain that reads through it.
 A ladder stage reads one deposit. `derive_family_rules.py` reads the whole cached corpus at once and
 asks whether the proteins group by their own Ramachandran signature: the two-degree grid occupancy
 of each deposit, coarsened to the resolution a null supports. It writes each group's quirks to
-`family_rules.py`, beside the Ramachandran rules and kept out of the engine the same way the oracle
-keeps its archive fetch in the example.
+`family_rules.py`, beside the Ramachandran rules and retained out of the engine the same way the oracle
+retains its archive fetch in the example.
 
 Three controls hold the grouping, and the generator carries all three:
 
@@ -151,14 +151,14 @@ Three controls hold the grouping, and the generator carries all three:
   signature sits farthest above that null, and the committed grid is ten degrees. The sweep prints
   on every run.
 - A gap statistic sets the number of families. It is the gap statistic of Tibshirani 2001 against a
-  reference uniform over the data's own PCA box. A count is kept only where the live dispersion
+  reference uniform over the data's own PCA box. A count is retained only where the live dispersion
   falls below what a structure-free reference of the same shape reaches.
 - A positive control gates the write. Before any family is emitted, the same pipeline runs on
   synthetic proteins built from four planted archetypes. If it fails to recover that split,
   `derive_family_rules.py` errors instead of writing a ruleset, because a grouping found by a method that
   cannot find a known one means nothing.
 
-With the control passing, the corpus shows a near-continuum: the gap keeps improving as the count
+With the control passing, the corpus shows a near-continuum: the gap retains improving as the count
 rises, with only a weak first peak. The families are soft partitions of a helix-rich to
 sheet-rich continuum and are labeled as such. The committed `family_rules.py` records ten families
 over 10280 deposits, 10267 of which carry a usable signature, at the ten-degree grid. Each family's

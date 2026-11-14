@@ -21,7 +21,7 @@ extern "C"
      *
      * @note AN OMITTED MEMBER IS ZERO AND THAT IS PART OF THE CONTRACT. `sample_stride` of zero is read
      *       as one, `force_full_depth` of zero honors the destroy rule, `any` of zero takes the byte
-     *       path, and `resume` of zero resets the survivors to all standing. A caller that omits all four
+     *       path, and `resume` of zero resets the survivors to all located. A caller that omits all four
      *       gets the full sweep, the destroy rule, bytes, and a fresh survivor set, as almost every
      *       caller wants.
      *
@@ -49,14 +49,14 @@ extern "C"
     typedef struct
     {
         size_t *offsets;         /**< Where the chosen offsets are written [BORROWS]. */
-        size_t count;            /**< Offsets to place. At most ORIOR_STEER_ANCHORS. */
+        size_t count;            /**< Offsets to place. At max ORIOR_STEER_ANCHORS. */
         const uint8_t *corpus;   /**< Bytes the search will run over [BORROWS]. Unread where `any` is set. */
         size_t corpus_len;       /**< How many. Unread where `any` is set. */
         const uint8_t *needle;   /**< Bytes to find [BORROWS]. Unread where `any` is set. */
         size_t needle_len;       /**< How many. Unread where `any` is set. */
         uint8_t *survivors;      /**< One byte per alignment, written during the call [BORROWS]. THE
                                   *   DESCENT'S OUTPUT AND NOT A TEMPORARY: it records, per alignment,
-                                  *   whether the probes left that alignment standing. A caller wanting
+                                  *   whether the probes left that alignment located. A caller wanting
                                   *   only the depth may discard it; a caller wanting to know WHICH
                                   *   alignments survived has no other way to learn it. */
         size_t survivors_length; /**< How many. Must reach the alignment count or the call errors. */
@@ -64,10 +64,10 @@ extern "C"
         int force_full_depth;    /**< Non-zero descends every level, ignoring the destroy rule. */
         const OriorField *any;  /**< A field of any symbol type [BORROWS]. Null takes the byte path. */
         int resume;             /**< Non-zero starts the descent from the survivors already in the buffer
-                                 *   instead of resetting them to all standing. A caller uses it to
+                                 *   instead of resetting them to all located. A caller uses it to
                                  *   compose a recursive spawn: descend, then descend again over the
                                  *   survivors the last descent left. Each child reads only what its
-                                 *   parent left standing. Zero, the default, resets the buffer and is what
+                                 *   parent left located. Zero, the default, resets the buffer and is what
                                  *   every existing caller gets. The engine does not check the incoming set
                                  *   is a valid superset; that is the caller's, and a lone survivor is
                                  *   verified against the conditions not yet tested before it is found. */
@@ -98,7 +98,7 @@ extern "C"
      *
      * @param[in,out] args          The descent [BORROWS], each member as OriorSteerDescent gives it:
      *                              `offsets` reordered in place into evaluation order.
-     * @return                      Levels actually descended, which is AT MOST `count` and is fewer
+     * @return                      Levels actually descended, which is AT MAX `count` and is fewer
      *                              when the destroy rule ends the descent early. `count` on a valid call
      *                              is the ceiling the depth cannot exceed. Read the return to learn the
      *                              depth reached, and see the note below on `force_full_depth`.
@@ -106,7 +106,7 @@ extern "C"
      * WHY RECURSION BUYS ANYTHING OVER ONE PASS. orior_steer_probe_order ranks the anchors once, by
      * the MARGINAL rarity of each symbol in the whole field. That is the right first question and the
      * wrong second one: once the first probe has rejected almost everything, the alignments still
-     * standing are no longer a sample of the field. They are the subset that agreed with one specific
+     * located are no longer a sample of the field. They are the subset that agreed with one specific
      * symbol, and within that subset the remaining anchors have different pruning power than they had
      * over the field. Ranking the second anchor by its marginal rarity ignores what the first one just
      * informed you.
@@ -121,7 +121,7 @@ extern "C"
      *
      *   - exactly one anchor is placed per level, and a placed anchor is never reconsidered
      *   - the unplaced set therefore shrinks by exactly one each level and never grows
-     *   - the depth is AT MOST `count`, which is bounded by ORIOR_STEER_ANCHORS, a compile-time
+     *   - the depth is AT MAX `count`, which is bounded by ORIOR_STEER_ANCHORS, a compile-time
      *     constant, and the loop cannot run past it whatever the corpus contains
      *
      * So the depth is bounded from ABOVE before the program runs, and that bound is what terminates it:
@@ -146,19 +146,19 @@ extern "C"
     size_t orior_steer_plan_recursive(const OriorSteerDescent *args);
 
     /**
-     * @brief Spawns coarms at the positions that prune most, one per level, and places them in order.
+     * @brief Spawns coarms at the positions that prune max, one per level, and places them in order.
      *
      * @param[in,out] args          The descent [BORROWS], each member as OriorSteerDescent gives it:
      *                              `offsets` written in evaluation order, and `count` the coarms
      *                              wanted, written `wanted` below.
-     * @return                      Coarms actually placed, which is AT MOST `wanted` and is fewer when
+     * @return                      Coarms actually placed, which is AT MAX `wanted` and is fewer when
      *                              the destroy rule ends the descent early. `wanted` on a valid call is
      *                              the ceiling the count cannot exceed. Read the return to learn how many
      *                              were placed, and size any read of `offsets` by the return itself.
      *
      * SPAWNING. orior_steer_plan_recursive takes anchors somebody else placed
      * and decides the order to test them in. This decides WHERE THEY GO. At each level it tests every
-     * position in the needle how many of the currently surviving alignments would still stand if a
+     * position in the needle how many of the currently surviving alignments would still are if a
      * coarm were placed there, and puts one at the position that leaves fewest. The arm is spawned at
      * the place the field shows is worth reading, and not at a place a spread rule chose before the
      * field was looked at.
@@ -183,7 +183,7 @@ extern "C"
      *          taken on a sample, the oracle is approximate, and the ratio no longer is valid as stated.
      *
      * TERMINATION IS A BOUND FROM ABOVE AND NOT A FIXED DEPTH. One coarm per level, a placed position
-     * never reconsidered, and depth AT MOST `wanted`, which the guard bounds at or under
+     * never reconsidered, and depth AT MAX `wanted`, which the guard bounds at or under
      * ORIOR_STEER_ANCHORS. The loop cannot run longer than that whatever the corpus contains, and
      * it therefore terminates.
      *
@@ -251,7 +251,7 @@ extern "C"
     typedef struct
     {
         OriorProbe *probes;     /**< Where the chosen probes are written [BORROWS]. */
-        size_t count;            /**< Probes to place. At most ORIOR_STEER_ANCHORS. */
+        size_t count;            /**< Probes to place. At max ORIOR_STEER_ANCHORS. */
         const uint8_t *corpus;   /**< Bytes the search will run over [BORROWS]. */
         size_t corpus_len;       /**< How many. */
         const uint8_t *needle;   /**< Bytes to find [BORROWS]. */
@@ -260,7 +260,7 @@ extern "C"
         uint8_t *survivors;      /**< One byte per alignment, written during the call [BORROWS]. THE
                                   *   SWEEP'S OUTPUT AND NOT A TEMPORARY, exactly as it is for
                                   *   OriorSteerDescent: it records which alignments the probes left
-                                  *   standing. */
+                                  *   located. */
         size_t survivors_length; /**< How many. Must reach the alignment count or the call errors. */
         size_t sample_stride;    /**< Plan on every Nth alignment. Zero is read as one. */
     } OriorSteerSweep;
@@ -286,7 +286,7 @@ extern "C"
      *
      * THE SWEEP TOUCHES EVERYTHING IT IS ALLOWED TO REACH. At each level it considers every origin in
      * the needle, every step that retains the probe inside it, and every length up to `max_length`, scores
-     * each shape by how many currently truthy alignments would still stand, and spawns the one that
+     * each shape by how many currently truthy alignments would still are, and spawns the one that
      * leaves fewest. Nothing about the placement is inherited from a spread rule and nothing about the
      * shape is assumed; a point probe wins where a point probe is best, and a line wins where a line is.
      *

@@ -20,7 +20,7 @@ unsigned int *cli_build_lines_alloc(const CliBuildsTextSizeCfg *args)
                                      : NULL;
     // a count no more than 0xffffffff where the cell is taken, which an unsigned int stores
     EMBED_CALL(cli_builds_text_size.build_lines_get, CliBuildsTextSizeCfg, .text = args->text, .size = args->size,
-               .starts = starts, .most = (starts != NULL) ? (unsigned int)count : 0u, .lines_out = args->lines_out);
+               .starts = starts, .max = (starts != NULL) ? (unsigned int)count : 0u, .lines_out = args->lines_out);
     return starts;
 }
 
@@ -32,13 +32,13 @@ void cli_build_lines_get(const CliBuildsTextSizeCfg *args)
     args->lines_out->size = size;
     args->lines_out->start = args->starts;
     args->lines_out->count = 0u;
-    if (args->most == 0u)
+    if (args->max == 0u)
     {
         return;
     }
     args->starts[0] = 0u;
     args->lines_out->count = 1u;
-    for (unsigned long long at = 0ULL; (at < size) && (args->lines_out->count < args->most);)
+    for (unsigned long long at = 0ULL; (at < size) && (args->lines_out->count < args->max);)
     {
         const char *const newline =
             memor.chr(&(MemoriaCfg){.src = text + at, .val = '\n', .bytes = (embed_word)(size - at)});
@@ -343,7 +343,7 @@ void cli_build_findings_write(const CliBuildsCfg *args)
         EMBED_CALL(help_position_write, BuildsHelpCtx, .place = one->to, .out = args->out);
         mmgr_line_put(args->out, "},\"severity\":");
         mmgr_line_decimal(args->out, one->severity, 1u);
-        mmgr_line_put(args->out, ",\"message\":{\"kind\":\"markdown\",\"value\":");
+        mmgr_line_put(args->out, ",\"message\":{\"type\":\"markdown\",\"value\":");
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
                    .text = args->found_read->text + one->message_at, .length = one->message_size);
         mmgr_line_put(args->out, "},\"source\":\"orior\",\"code\":");
@@ -391,10 +391,10 @@ unsigned long long cli_build_byte_at(const CliBuildsPathCfg *args)
                               .size = end - start, .col = args->col);
 }
 
-int cli_build_word_letter(const CliEachLetterCfg *args)
+int cli_build_word_character(const CliEachLetterCfg *args)
 {
-    unsigned int letter = args->letter;
-    return EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .letter = letter) || (letter == '_') || (letter == '$');
+    unsigned int character = args->character;
+    return EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .character = character) || (character == '_') || (character == '$');
 }
 
 unsigned long long cli_build_run_before(const CliBuildsTextAtCfg *args)
@@ -408,10 +408,10 @@ unsigned long long cli_build_run_before(const CliBuildsTextAtCfg *args)
     while (start > line_start)
     {
         unsigned long long length = 0ULL;
-        const unsigned int letter =
-            EMBED_CALL(cli_text_length.letter_before, CliTextLengthCfg, .text = text + line_start,
+        const unsigned int character =
+            EMBED_CALL(cli_text_length.character_before, CliTextLengthCfg, .text = text + line_start,
                        .end_value = start - line_start, .length = &length);
-        if (!EMBED_CALL(args->of, CliEachLetterCfg, .letter = letter))
+        if (!EMBED_CALL(args->of, CliEachLetterCfg, .character = character))
         {
             break;
         }
@@ -424,7 +424,7 @@ void cli_build_relative(const CliBuildsItemsCfg *args)
 {
     const unsigned long long base =
         EMBED_CALL(cli_builds_text_at.build_run_before, CliBuildsTextAtCfg, .text = args->token, .at = args->token_size,
-                   .of = cli_build_word_letter);
+                   .of = cli_build_word_character);
     if ((args->value_size <= base) ||
         (memor.cmp(&(MemoriaCfg){.src = args->value, .other = args->token, .bytes = (embed_word)base}) != 0))
     {

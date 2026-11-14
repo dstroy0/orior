@@ -9,8 +9,8 @@
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_a_typed_name_matches_its_letters_in_the_name(void);
-extern void test_a_name_without_the_letters_does_not_match(void);
+extern void test_a_typed_name_matches_its_characters_in_the_name(void);
+extern void test_a_name_without_the_characters_does_not_match(void);
 extern void test_an_empty_query_matches_with_no_hits(void);
 extern void test_each_score_is_the_palettes_own(void);
 extern void test_a_match_too_torn_is_no_match(void);
@@ -80,8 +80,8 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\files_rank\\test_files_rank\\test_files_rank.c");
-  run_test(test_a_typed_name_matches_its_letters_in_the_name, "test_a_typed_name_matches_its_letters_in_the_name", 63);
-  run_test(test_a_name_without_the_letters_does_not_match, "test_a_name_without_the_letters_does_not_match", 68);
+  run_test(test_a_typed_name_matches_its_characters_in_the_name, "test_a_typed_name_matches_its_characters_in_the_name", 63);
+  run_test(test_a_name_without_the_characters_does_not_match, "test_a_name_without_the_characters_does_not_match", 68);
   run_test(test_an_empty_query_matches_with_no_hits, "test_an_empty_query_matches_with_no_hits", 73);
   run_test(test_each_score_is_the_palettes_own, "test_each_score_is_the_palettes_own", 78);
   run_test(test_a_match_too_torn_is_no_match, "test_a_match_too_torn_is_no_match", 84);

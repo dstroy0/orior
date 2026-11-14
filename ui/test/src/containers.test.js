@@ -20,7 +20,7 @@ test("the Containers window's menu and controls, from the command line: logs, a 
   calls.answer("container_act", ({ name, act }) => acted.push(`${act} ${name}`));
   const opened = [];
   calls.answer("window_open", ({ remote }) => opened.push(remote));
-  await press("containers-kind", "docker");
+  await press("containers-type", "docker");
   await ui.waitFor(() => containersShown().rows.some(([key]) => key === "web"), 5000, "the container listed");
   const read = made("containers_list").length;
   await press("containers-read");
@@ -37,13 +37,13 @@ test("the Containers window's menu and controls, from the command line: logs, a 
   assert.deepEqual(opened, ["docker:web:/app"]);
   await press("container-terminal", "web");
   await ui.waitFor(() => /docker exec -it 'web' sh/.test(document.getElementById("term-views").textContent), 10000, "a shell asked for in the container");
-  await press("containers-kind", "pods");
+  await press("containers-type", "pods");
   await ui.waitFor(() => containersShown().rows.some(([key]) => key === "shop/api"), 5000, "the pod listed");
   await press("container-logs", "shop/api", "side");
   await ui.waitFor(() => containersShown().out === "the logs of api side", 5000, "a pod's container's logs");
   await press("container-terminal", "shop/api", "side");
   await ui.waitFor(() => /kubectl exec -it -n 'shop' 'api' -c 'side' -- sh/.test(document.getElementById("term-views").textContent), 10000, "a shell asked for in the pod");
-  await press("containers-kind", "docker");
+  await press("containers-type", "docker");
   await press("kill").catch(() => {});
   asFound();
   runCommand("containers-view");

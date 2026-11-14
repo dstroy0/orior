@@ -272,7 +272,7 @@ EMBED_INLINE int cli_expand(const ToolchainsCtx *args)
         {
             end += EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
                               .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_POOL_BYTES}),
-                              .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, .set = "_");
+                              .classes = CLI_TEXT_CHARACTERS | CLI_TEXT_DIGITS, .set = "_");
         }
         char name[CLI_NAME_MAX_LEN];
         VerbaLinea named = {name, sizeof(name), 0ULL};
@@ -287,7 +287,7 @@ EMBED_INLINE int cli_expand(const ToolchainsCtx *args)
     return mmgr_line_finish(&line) != 0ULL;
 }
 
-// whether `name` matches `pattern`, whose * matches any run of letters, case aside on Windows
+// whether `name` matches `pattern`, whose * matches any run of characters, case aside on Windows
 int cli_toolchains_matches(const CliToolchainsPatternCtx *args)
 {
     char left[CLI_NAME_MAX_LEN];
@@ -355,7 +355,7 @@ int cli_toolchains_matches(const CliToolchainsPatternCtx *args)
     }
 }
 
-// whether the text's first letter is a digit
+// whether the text's first character is a digit
 EMBED_INLINE int cli_natural_digit(const ToolchainsCtx *args)
 {
     return (args->text[0] >= '0') && (args->text[0] <= '9');
@@ -394,9 +394,9 @@ EMBED_INLINE embed_iword cli_natural_numbers(const ToolchainsCtx *args)
     return memor.cmp(&(MemoriaCfg){.src = a, .other = b, .bytes = (unsigned long long)a_size});
 }
 
-// two runs, `a` to `a_end` and `b` to `b_end`, ordered by their letters without case: below 0 where `a`'s comes first,
+// two runs, `a` to `a_end` and `b` to `b_end`, ordered by their characters without case: below 0 where `a`'s comes first,
 // 0 where they are equal
-EMBED_INLINE embed_iword cli_natural_letters(const ToolchainsCtx *args)
+EMBED_INLINE embed_iword cli_natural_characters(const ToolchainsCtx *args)
 {
     const char *x = args->a;
     const char *y = args->b;
@@ -429,7 +429,7 @@ int cli_toolchains_natural(const CliToolchainsACtx *args)
                             EMBED_CALL(cli_natural_digit, ToolchainsCtx, .text = b);
         const embed_iword order =
             numbers ? EMBED_CALL(cli_natural_numbers, ToolchainsCtx, .a = a, .a_end = a_end, .b = b, .b_end = b_end)
-                    : EMBED_CALL(cli_natural_letters, ToolchainsCtx, .a = a, .a_end = a_end, .b = b, .b_end = b_end);
+                    : EMBED_CALL(cli_natural_characters, ToolchainsCtx, .a = a, .a_end = a_end, .b = b, .b_end = b_end);
         if (order != 0)
         {
             return (order < 0) ? -1 : 1;
@@ -492,7 +492,7 @@ EMBED_INLINE int cli_folder_joined(const ToolchainsCtx *args)
 
 // each of the `found` paths so far in `found_from` followed by the part `text` and `separator`, written into
 // `found_into`: the part as it is, or where it holds a *, each folder in the path whose name matches it, the newest
-// first, `names` holding them as they are read; how many paths are written, 64 at the most
+// first, `names` holding them as they are read; how many paths are written, 64 at max
 EMBED_INLINE unsigned int cli_folders_expanded(const ToolchainsCtx *args)
 {
     const int pattern = cellul.chr(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES, .byte = '*'}) != NULL;
@@ -583,14 +583,14 @@ void cli_toolchains_key_get(const CliToolchainsDirKeyCfg *args)
                         .set = "\\/");
     args->key[length] = '\0';
 #if defined(_WIN32)
-    unsigned int letters[CLI_PATH_MAX_LEN];
-    const unsigned long long count = EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->key,
-                                                .size = length, .letters = letters, .capacity_u64 = CLI_PATH_MAX_LEN);
+    unsigned int characters[CLI_PATH_MAX_LEN];
+    const unsigned long long count = EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = args->key,
+                                                .size = length, .characters = characters, .capacity_u64 = CLI_PATH_MAX_LEN);
     VerbaLinea line = {args->key, CLI_PATH_MAX_LEN, 0ULL};
     for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
-        EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line,
-                   .letter = EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = letters[at]));
+        EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line,
+                   .character = EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = characters[at]));
     }
     mmgr_line_finish(&line);
 #endif

@@ -17,7 +17,7 @@ const { test, assert, ui } = window.__harness;
 
 const BENCH = window.__harness.servers.ORIOR_TEST_BENCH;
 const LINES = 3000000;
-const MOST = 1000;
+const MAX = 1000;
 const lineOf = (n) => `${String(n).padStart(9, "0")} a line of the paged file, the same width as every other, read from anywhere in it`.padEnd(99);
 
 test("a file of hundreds of megabytes opens at once as pages, the page holding only a window of its lines", async () => {
@@ -36,7 +36,7 @@ test("a file of hundreds of megabytes opens at once as pages, the page holding o
   assert.ok(s.window?.paged, "stored as pages");
   assert.ok(opened < 1500, `in sight in ${Math.round(opened)} ms`);
   assert.equal(s.doc.line(0 - s.base), lineOf(0));
-  assert.ok(s.doc.count <= MOST, `the page holds ${s.doc.count} lines`);
+  assert.ok(s.doc.count <= MAX, `the page holds ${s.doc.count} lines`);
   await ui.waitFor(() => view.linesInFile() === LINES + 1, 30000);
   // A line far down the file: the window goes there.
   await openAt(path, 2500000, 3);
@@ -44,7 +44,7 @@ test("a file of hundreds of megabytes opens at once as pages, the page holding o
   assert.equal(s.doc.line(2500000 - s.base), lineOf(2500000));
   assert.equal(view.head().line + s.base, 2500000, "the cursor on it");
   // Scrolled down past the window's end, the window reads on and lets go above, never holding more
-  // than MOST lines.
+  // than MAX lines.
   const start = s.base;
   for (let step = 0; step < 12; step += 1) {
     view.scroller.scrollTop += 15000 * view.lineHeight;
@@ -54,7 +54,7 @@ test("a file of hundreds of megabytes opens at once as pages, the page holding o
   await ui.waitFor(() => settled(s), 5000);
   const first = s.base + Math.floor(view.scrollY() / view.lineHeight);
   assert.ok(s.base > start, `the window moved down: from ${start} to ${s.base}`);
-  assert.ok(s.doc.count <= MOST, `the page holds ${s.doc.count} lines`);
+  assert.ok(s.doc.count <= MAX, `the page holds ${s.doc.count} lines`);
   assert.equal(s.doc.line(first - s.base), lineOf(first), `the line at the top of the view is the file's ${first}`);
   if (before !== null) {
     const grew = (heap() - before) / 1024 / 1024;
@@ -105,9 +105,9 @@ test("a paged file's lines come with their colors: no frame draws a line in view
   const view = editing().editor;
   const s = view.s;
   assert.ok(s.window?.paged, "stored as pages");
-  // the page holds the lines near the view, a few megabytes of the file's 26 at most
+  // the page holds the lines near the view, a few megabytes of the file's 26 at max
   const units = () => s.doc.lines.reduce((sum, line) => sum + line.length, 0);
-  assert.ok(s.doc.count <= MOST && units() < 3 << 20, `the page holds ${s.doc.count} lines, ${units()} units`);
+  assert.ok(s.doc.count <= MAX && units() < 3 << 20, `the page holds ${s.doc.count} lines, ${units()} units`);
   const colored = (line) => s.highlight.runsOf(line - s.base).some(([, cls]) => cls);
   // the file opens at the place it was last left, its lines in view colored as it opens
   const inView = () => s.base + Math.floor(view.scrollY() / view.lineHeight);
@@ -126,7 +126,7 @@ test("a paged file's lines come with their colors: no frame draws a line in view
   assert.equal(plain.length, 0, `frames drew lines in view without their colors: ${plain.slice(0, 8).join(", ")} rows`);
 });
 
-test("the caret kept moving down a paged file goes on line by line past every window, never sent back", async () => {
+test("the caret retained moving down a paged file goes on line by line past every window, never sent back", async () => {
   const path = `${BENCH}/large-file.json`;
   await openAt(path, 100, 0);
   const view = editing().editor;
@@ -158,8 +158,8 @@ test("a paged file dragged by its scrollbar end to end and back: each frame draw
   const bottomY = box.bottom - bar - 4;
   const rows = Math.floor(view.viewSize().height / view.lineHeight) - 1;
   // Each frame the view draws, read as it leaves it: rows in view drawn with text and no token of their colors, too few
-  // rows of text for the view, and the frames in a row that kept the last lines drawn while the view stood past the
-  // window, the most of them; and each frame's time since the frame before.
+  // rows of text for the view, and the frames in a row that retained the last lines drawn while the view was past the
+  // window, the max of them; and each frame's time since the frame before.
   const plain = [];
   const blank = [];
   const late = [];
@@ -222,8 +222,8 @@ test("a paged file dragged by its scrollbar end to end and back: each frame draw
   }
   // the minimap's slider goes the way the view goes from frame to frame, never back
   const back = slides.filter(([line, slider], at) => at > 0 && Math.sign(slider - slides[at - 1][1]) * Math.sign(line - slides[at - 1][0]) < 0 && Math.abs(slider - slides[at - 1][1]) > 1).length;
-  // the view shows the lines it stands on within three frames of reaching them, all the way
-  const told = `${plain.length} frames with rows uncolored, ${blank.length} with too few rows (${blank.slice(0, 6).join(", ")} of ${rows}), ${late.length} late (${late.slice(0, 6).join(", ")} ms; the long ones ${long.filter((one) => parseInt(one, 10) > 50).slice(0, 4).join("; ") || "none told"}), ${pastFramesMost} frames in a row kept, the slider back against the view in ${back}`;
+  // the view shows the lines it is on within three frames of reaching them, all the way
+  const told = `${plain.length} frames with rows uncolored, ${blank.length} with too few rows (${blank.slice(0, 6).join(", ")} of ${rows}), ${late.length} late (${late.slice(0, 6).join(", ")} ms; the long ones ${long.filter((one) => parseInt(one, 10) > 50).slice(0, 4).join("; ") || "none told"}), ${pastFramesMost} frames in a row retained, the slider back against the view in ${back}`;
   assert.ok(plain.length === 0 && blank.length === 0 && late.length === 0 && pastFramesMost <= 3 && back === 0, told);
 });
 
@@ -233,7 +233,7 @@ test("a paged file's minimap at rest: every row of the map beside the view holds
   const view = editing().editor;
   const s = view.s;
   const total = view.linesInFile();
-  // the lines of the file the map stands beside, as the map places itself about the view
+  // the lines of the file the map is beside, as the map places itself about the view
   const span = () => {
     const { start, fit } = view.minimap.geometry(view.scroller.scrollTop);
     return [Math.max(0, s.base + start), Math.min(total, s.base + start + fit), fit];
@@ -245,17 +245,17 @@ test("a paged file's minimap at rest: every row of the map beside the view holds
   await ui.waitFor(() => settled(s) && covered(), 10000).catch(() => {});
   const [from, to, fit] = span();
   assert.ok(fit > 50, `the map holds ${fit} rows`);
-  assert.ok(covered(), `the map stands beside lines ${from} to ${to}, the window holds ${s.base} to ${s.base + s.doc.count}`);
-  assert.ok(s.doc.count <= Math.max(MOST, fit + 2 * 100 + 64), `the page holds ${s.doc.count} lines`);
+  assert.ok(covered(), `the map is beside lines ${from} to ${to}, the window holds ${s.base} to ${s.base + s.doc.count}`);
+  assert.ok(s.doc.count <= Math.max(MAX, fit + 2 * 100 + 64), `the page holds ${s.doc.count} lines`);
 });
 
-test("a paged file's reads wait for the edits sent before them and not for one another, so a report of where its view stands is never kept behind them", async () => {
+test("a paged file's reads wait for the edits sent before them and not for one another, so a report of where its view is located is never retained behind them", async () => {
   const path = `${BENCH}/large-file.json`;
   await openAt(path, 1000, 0);
   const view = editing().editor;
   const s = view.s;
   await ui.waitFor(() => settled(s), 10000).catch(() => {});
-  // the bracket pair at forty places read at once, as a caret kept moving asks for the pair at each line it reaches
+  // the bracket pair at forty places read at once, as a caret retained moving asks for the pair at each line it reaches
   let answered = 0;
   const pairs = Array.from({ length: 40 }, (_, line) => view.pairOf(s, { line, col: 0 }).finally(() => {
     answered += 1;
@@ -266,19 +266,19 @@ test("a paged file's reads wait for the edits sent before them and not for one a
   assert.ok(behind < 10, `the calls a report waits for behind it behind ${behind} of the 40 reads`);
 });
 
-test("a paged file's caret moved from place to place asks for the bracket pair at one place at a time, and at the place it stands once that answer comes", async () => {
+test("a paged file's caret moved from place to place asks for the bracket pair at one place at a time, and at the place it is once that answer comes", async () => {
   const path = `${BENCH}/large-file.json`;
   await openAt(path, 1000, 0);
   const view = editing().editor;
   const s = view.s;
   await ui.waitFor(() => settled(s), 10000).catch(() => {});
   let open = 0;
-  let most = 0;
+  let max = 0;
   let watching = true;
   onCalls((command, args, promise) => {
     if (watching && command === "branch_pair") {
       open += 1;
-      most = Math.max(most, open);
+      max = Math.max(max, open);
       promise.finally(() => {
         open -= 1;
       }).catch(() => {});
@@ -293,9 +293,9 @@ test("a paged file's caret moved from place to place asks for the bracket pair a
   } finally {
     watching = false;
   }
-  assert.equal(most, 1, `${most} pairs asked at once`);
+  assert.equal(max, 1, `${max} pairs asked at once`);
   const asked = await view.pairOf(s, view.primary().head);
-  assert.deepEqual(view.bracketPair(), asked?.map((at) => pos(at.line - s.base, at.col)) ?? null, "the pair drawn the one at the place the caret stands");
+  assert.deepEqual(view.bracketPair(), asked?.map((at) => pos(at.line - s.base, at.col)) ?? null, "the pair drawn the one at the place the caret is");
 });
 
 test("a paged file whose lines wrap is placed by its rows: each report tells the width a row holds, no answer holds more than its rows take, and the view's top line is the one its top row shows", async () => {
@@ -326,12 +326,12 @@ test("a paged file whose lines wrap is placed by its rows: each report tells the
   }
   const row = Math.floor(view.scrollY() / view.lineHeight);
   const rows = view.rows();
-  const shown = row >= 0 && row < rows.size ? s.base + rows.lineOf(row) : null;
+  const displayed = row >= 0 && row < rows.size ? s.base + rows.lineOf(row) : null;
   const told = view.s.window.paged.told;
   localStorage.setItem(WRAP_KEY, "false");
   view.takeSettings();
-  const most = Math.max(0, ...answers.map(([, units]) => units));
+  const max = Math.max(0, ...answers.map(([, units]) => units));
   assert.ok(answers.length > 0 && answers.every(([width]) => width > 0), `${answers.length} reports, each telling the width its rows hold`);
-  assert.ok(most < 256 * 1024, `the largest answer holds ${most} units of its lines`);
-  assert.equal(told, shown, "the line told as the view's top is the one its top row shows");
+  assert.ok(max < 256 * 1024, `the largest answer holds ${max} units of its lines`);
+  assert.equal(told, displayed, "the line told as the view's top is the one its top row shows");
 });

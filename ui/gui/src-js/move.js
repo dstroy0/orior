@@ -67,7 +67,7 @@ export async function moveDeclaration({ editor, path, ask, textOf, make, apply }
   const s = editor.s;
   const language = s.language?.id;
   const head = editor.primary().head;
-  const symbol = symbolsOf(language, s.doc).find((one) => one.line === head.line && ["function", "class", "constant", "method"].includes(one.kind));
+  const symbol = symbolsOf(language, s.doc).find((one) => one.line === head.line && ["function", "class", "constant", "method"].includes(one.type));
   if (!symbol) {
     say("Move moves what the cursor's line declares: a function, a class or a constant.");
     return;

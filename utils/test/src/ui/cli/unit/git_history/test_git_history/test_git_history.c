@@ -362,7 +362,7 @@ void test_a_search_finds_a_commit_each_word_in_any_case(void)
     TEST_ASSERT_EQUAL_STRING(s_second_id, EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &s_graph.text, .at = s_graph.item[0].id));
 }
 
-// the author's name holds letters no hex id holds: a commit's id cannot match the name by chance
+// the author's name holds characters no hex id holds: a commit's id cannot match the name by chance
 void test_an_author_is_matched_only_where_authors_show(void)
 {
     graph_read("RENAMED grace", 0);

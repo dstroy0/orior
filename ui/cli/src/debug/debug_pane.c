@@ -4,7 +4,7 @@
 // under a lock taken by exchange and wakes the view's thread; the step takes the store whole under the lock and reads
 // each event on the view's thread: output into the console, a stop into the frames and variables with the status
 // line, a continue, an exit and an end into the rows and the status line. Here too are the stores' cells, the status
-// line's, and the view shown
+// line's, and the view displayed
 #include "debug_internal.h"
 #include "debug_pane_internal.h"
 
@@ -304,7 +304,7 @@ EMBED_INLINE void pane_followed(const DebugPaneCtx *args)
                 EMBED_CALL(cli_debug_json_node_internal.debug_true, CliDebugJsonNodeCtx, .json = &json,
                            .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                               .json_read = &json, .object = one, .name = "step_back"));
-            // the three texts one after another, each with its end, laid in a cell of this call and written whole into
+            // the three texts one after another, each with its end, positioned in a cell of this call and written whole into
             // a movable cell of their size
             const unsigned long long bytes = name_length + tool_length + language_length + 3ULL;
             char *const texts =
@@ -648,7 +648,7 @@ unsigned long long cli_debug_pane_deadline_ms(const CliDebugPaneViewCfg *args)
     return (EMBED_ATOMIC_LOAD(&g_cli_debug_pane.waiting) != 0u) ? args->now_ms : 0ULL;
 }
 
-unsigned int cli_debug_pane_shown(const CliDebugPaneViewCfg *args)
+unsigned int cli_debug_pane_displayed(const CliDebugPaneViewCfg *args)
 {
     (void)args;
     return g_cli_debug_pane.view;

@@ -14,10 +14,10 @@ typedef struct
     unsigned int file;
     unsigned int symbol;
 } CliScored;
-// the most declarations a search hands
+// the max declarations a search passes
 #define CLI_SYMBOLS_FOUND 1024u
 
-// the most bytes of a declaration's line written with it, and the most bytes of a file read for that line
+// the max bytes of a declaration's line written with it, and the max bytes of a file read for that line
 #define CLI_SYMBOL_LINE_MAX 240ULL
 #define CLI_SYMBOL_LINE_FILE_MAX (1ULL << 20u)
 
@@ -197,7 +197,7 @@ EMBED_INLINE unsigned int cli_rank_in(const SymbolsFindCtx *args)
 CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *args)
 {
     static CliScored s_found[CLI_SYMBOLS_FOUND];
-    const unsigned int capacity = (args->most < CLI_SYMBOLS_FOUND) ? args->most : CLI_SYMBOLS_FOUND;
+    const unsigned int capacity = (args->max < CLI_SYMBOLS_FOUND) ? args->max : CLI_SYMBOLS_FOUND;
     unsigned int count = 0u;
     char *const scratch = cli_branch_copy_alloc();
     for (unsigned int file = 0u; (scratch != NULL) && (file < g_cli_branch_count); file += 1u)
@@ -224,8 +224,8 @@ CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *a
                                .count = count, .capacity = capacity);
         }
     }
-    // each found's name, type, path and line of text in one line laid after the list, a line of text no longer than its
-    // most
+    // each found's name, type, path and line of text in one line positioned after the list, a line of text no longer than its
+    // max
     const unsigned long long text_capacity =
         (count * ((3ULL * CLI_PATH_MAX_LEN) + (4ULL * CLI_SYMBOL_LINE_MAX))) + 1ULL;
     // the caller gives the list back within its call: a cell of the temporary tier

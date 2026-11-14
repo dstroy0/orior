@@ -7,7 +7,7 @@
 
 import { invoke } from "../../gui/src-js/bridge.js";
 import { languageById, languageForExtension, languageForName, languageForPath, languageFromText, loadPlugins, onPlugins, openerOf, pluginReadings, pluginsOff, setPluginOn, toolFor } from "../../gui/src-js/plugins.js";
-import { keepingStorage } from "../helpers.js";
+import { retentionStorage } from "../helpers.js";
 import { putBackAsFound } from "../menus.js";
 
 const { test, assert, calls } = window.__harness;
@@ -19,7 +19,7 @@ const FOUND = [
   found("beta", "user", { id: "beta", name: "Beta of the reader's", extensions: ["AB"] }),
   found("broken", "orior", "{ not a plugin"),
   found("misplaced", "orior", { id: "other" }),
-  found("lint", "orior", { id: "lint", kind: "tool", languages: ["alpha"], about: "checks alpha" }),
+  found("lint", "orior", { id: "lint", type: "tool", languages: ["alpha"], about: "checks alpha" }),
 ];
 
 // Runs `work` with the plugins read as FOUND and none off, and the tree's own read again after it with those the
@@ -27,7 +27,7 @@ const FOUND = [
 async function withFound(work) {
   calls.answer("plugins_read", () => FOUND);
   try {
-    await keepingStorage(["orior.plugins.off"], async () => {
+    await retentionStorage(["orior.plugins.off"], async () => {
       localStorage.removeItem("orior.plugins.off");
       await loadPlugins();
       await work();
@@ -38,11 +38,11 @@ async function withFound(work) {
   }
 }
 
-test("each plugin opens what it names, the reader's own ahead of one that comes with orior and standing in for it", async () => {
+test("each plugin opens what it names, the reader's own ahead of one that comes with orior and located in for it", async () => {
   await withFound(() => {
     assert.equal(openerOf("AB"), "beta", "the reader's beta takes ab from alpha");
     assert.equal(languageForExtension("ab").name, "Beta of the reader's");
-    assert.equal(openerOf("bb"), null, "the beta that comes with orior stands aside whole");
+    assert.equal(openerOf("bb"), null, "the beta that comes with orior is aside whole");
     assert.equal(languageForName("ALPHAFILE").id, "alpha");
     assert.equal(languageForPath("docs\\notes.txt")?.id, "alpha", "a path's slashes read either way");
     assert.equal(languageForPath("src/notes.txt"), null);
@@ -56,7 +56,7 @@ test("each plugin opens what it names, the reader's own ahead of one that comes 
   });
 });
 
-test("a plugin turned off hands its extension on, is kept off, and each change is heard", async () => {
+test("a plugin turned off passes its extension on, is retained off, and each change is heard", async () => {
   await withFound(() => {
     let heard = 0;
     const stop = onPlugins(() => (heard += 1));
@@ -72,7 +72,7 @@ test("a plugin turned off hands its extension on, is kept off, and each change i
     } finally {
       stop();
     }
-    assert.deepEqual([...pluginsOff()], ["lint"], "kept off where the page keeps its settings");
+    assert.deepEqual([...pluginsOff()], ["lint"], "retained off where the page retains its settings");
   });
 });
 

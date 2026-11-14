@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// Whether a kernel's machine code may be put to the part, read on the host before the driver is handed it
+// Whether a kernel's machine code may be put to the part, read on the host before the driver is passed it
 #ifndef CUBIN_SAFE_H
 #define CUBIN_SAFE_H
 
-// A cubin the driver is handed runs as it is written. Machine code our own assembler wrote, or a probe turned one bit
+// A cubin the driver is passed runs as it is written. Machine code our own assembler wrote, or a probe turned one bit
 // of, is read here first with our own reader against the machine file, and goes to the part only where every
 // instruction it reaches satisfies these, in order:
 //
@@ -14,7 +14,7 @@
 //   2. where a form of the machine file matches its encoding, that form neither transfers control nor waits
 //      (sass_operation_control_or_wait), EXIT alone excepted;
 //   3. where no form matches it, its operation key has forms and no form under the key transfers control or waits.
-//      Whatever its other bits specify, it falls through to the next instruction. One instruction at most is matched by
+//      Whatever its other bits specify, it falls through to the next instruction. One instruction at max is matched by
 //      no form: the one a probe queries. An encoding whose key has no form is put only where a conference admitted it,
 //      exactly as its lesson gives it (overseer.h, cubin_safe_admitted): the cross read it as a legal instruction that
 //      is no control transfer, wait or memory access and names no register past the count, and no party blocked it;
@@ -58,14 +58,14 @@
 //
 // Where the vendor's instruction set is there, the tables the tables step pulls, rules 2 and 3 read each encoding's
 // class off it as well, and treat an operation it names as a control transfer or a wait whatever name the machine
-// file's form gives the encoding (class.c); a kernel's own places, handed as forms with no operation of their own,
+// file's form gives the encoding (class.c); a kernel's own places, passed as forms with no operation of their own,
 // are so read by what they are. Two rules more read the code against the instruction set:
 //
 //  13. an instruction of a class that reads the constant bank reads bank 0, the parameters' bank, the one bank a
 //      container of ours carries a section for, and ends inside that section (cubin_safe_tables_read, constant.c);
 //  14. an encoding satisfies its class's own conditions on its registers, OOR_REG_ERROR and MISALIGNED_REG_ERROR as
 //      the instruction set states them: a register in range for its width and a 64-bit register pair even. This is
-//      the vendor's pipe, its rules read off its text before the part is queried, and it stands apart from ours, what
+//      the vendor's pipe, its rules read off its text before the part is queried, and it is apart from ours, what
 //      the part answered as the learned files store it, the forms of the .khw, the answers and the refusals of the
 //      .ksc, the ruleset of the .krs, the record of the .kqr and R over them: the verdict names which pipe blocked a
 //      question, so that the two are compared (class.c, tables_class_legal).
@@ -133,7 +133,7 @@ int cubin_constant_out_of_bank(const struct TablesSetTag *tables, unsigned long 
 // The verdict on one launch carried under rule 7: `status` the driver's last word on its stop event, 0 where the part
 // reached it, and `waited` the nanoseconds the host read it for. CUBIN_SAFE_LAUNCH_TIMEOUT where the driver gave
 // CUDA_ERROR_LAUNCH_TIMEOUT, or where the event was not reached and the bound passed; CUBIN_SAFE otherwise, an error
-// of another kind being the part's refusal and no breach of this rule
+// of another type being the part's refusal and no breach of this rule
 unsigned int cubin_safe_launch(int status, unsigned long long waited);
 
 // The verdict on one launch read under rule 8: `part_faulted` 1 where the part stamped an Xid critical error during the
@@ -152,7 +152,7 @@ unsigned int cubin_safe_fault(int part_faulted, int status);
 // every language. 1, or 0 where the file did not read
 int cubin_safe_verdict_load(const char *path);
 
-// The same verdict read from `size` bytes at `bytes`, the gated list as the cross hands it to the run
+// The same verdict read from `size` bytes at `bytes`, the gated list as the cross passes it to the run
 // (qry_member.h): 1, or 0 where it did not fit memory, and then nothing is loaded and every code is blocked from the
 // part
 int cubin_safe_verdict_read(const char *bytes, unsigned long long size);
@@ -172,7 +172,7 @@ int cubin_safe_verdict_ready(void);
 int cubin_safe_verdict_gated(unsigned long long low, unsigned long long high);
 
 // The encodings a conference admitted past rule 3, read from `size` bytes at `bytes`, the lessons blob as the overseer
-// hands it (overseer.h): each line `lesson admitted * <low> <high>` an encoding, its scheduler's bits masked off,
+// passes it (overseer.h): each line `lesson admitted * <low> <high>` an encoding, its scheduler's bits masked off,
 // every other line passed over. Whatever was admitted before is let go. 1, or 0 where the list did not fit memory, and
 // then nothing is admitted
 int cubin_safe_admitted_read(const char *bytes, unsigned long long size);

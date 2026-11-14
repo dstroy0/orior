@@ -21,13 +21,13 @@ import { keyFor, load, openFile, openInSplit, splitEditor, splittable, VIEW_LINE
 import { backupKey, forgetBackup } from "./places.js";
 import { holdMemory } from "./refactor.js";
 import { saveActive } from "./save.js";
-import { addToGroup, closeTab, dirty, drawTabs, fileOf, groupOf, keepMarks, leaveGroup, markedFiles, tabOf, tabOfSession, tabToNewWindow, toggleMark } from "./tabs.js";
+import { addToGroup, closeTab, dirty, drawTabs, fileOf, groupOf, retainMarks, leaveGroup, markedFiles, tabOf, tabOfSession, tabToNewWindow, toggleMark } from "./tabs.js";
 import { childrenOf, chooseNames, drawTree, loadChanges, NAME_ENCODINGS, namesChosen, removeFromWindow, treeRowShown } from "./tree.js";
 
 // The menus.
 
 // Files a page window draws, which open in one from the tree's menu.
-const SHOWN_IN_WINDOW = new Set(["html", "htm", "svg", "png", "jpg", "jpeg"]);
+const DISPLAYED_IN_WINDOW = new Set(["html", "htm", "svg", "png", "jpg", "jpeg"]);
 
 // A row of the tree's menu: open or close a folder, open a file in the editor or a page in a window
 // of its own, cut or copy it, paste files into its folder, copy where it is, or open the terminal in
@@ -97,10 +97,10 @@ export const popupCommands = {
     const list = markedFiles();
     const at = list.indexOf(path);
     if (at > 0) {
-      keepMarks(list.map((one, index) => (index === at - 1 ? path : index === at ? list[at - 1] : one)));
+      retainMarks(list.map((one, index) => (index === at - 1 ? path : index === at ? list[at - 1] : one)));
     }
   },
-  "mark-let-go": ([path]) => keepMarks(markedFiles().filter((one) => one !== path)),
+  "mark-let-go": ([path]) => retainMarks(markedFiles().filter((one) => one !== path)),
   "servers-stop-idle": () => holdMemory(Number.MAX_SAFE_INTEGER),
 };
 
@@ -126,9 +126,9 @@ export function fileItems(event) {
   return [
     open,
     ...(mounted ? [act("file-remove", [mounted], { label: "Remove from Window" })] : []),
-    ...(row.dataset.archive ? [{ label: "Names' Encoding", items: NAME_ENCODINGS.map(([label, shown]) => act("file-names", [path, label], { label: shown, checked: names === label })) }] : []),
+    ...(row.dataset.archive ? [{ label: "Names' Encoding", items: NAME_ENCODINGS.map(([label, displayed]) => act("file-names", [path, label], { label: displayed, checked: names === label })) }] : []),
     ...(folder ? [] : [{ label: "Open in Next Split", command: "open-in-split", args: [path], run: () => openInSplit(path) }]),
-    ...(!folder && SHOWN_IN_WINDOW.has(extOf(path)) ? [act("file-open-window", [path], { label: "Open in a window" })] : []),
+    ...(!folder && DISPLAYED_IN_WINDOW.has(extOf(path)) ? [act("file-open-window", [path], { label: "Open in a window" })] : []),
     "-",
     act("file-cut", [path], { label: "Cut", keys: "Ctrl+X" }),
     act("file-copy", [path], { label: "Copy", keys: "Ctrl+C" }),
@@ -146,7 +146,7 @@ export function fileItems(event) {
   ];
 }
 
-// The folder a row of the tree stands for, or the one its file is in.
+// The folder a row of the tree is for, or the one its file is in.
 export function folderOfRow(row) {
   const path = row.dataset.key;
   return row.classList.contains("dir") ? path : path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
@@ -202,10 +202,10 @@ function moveTabs(from, to) {
     const was = tab.path;
     const now = to + was.slice(from.length);
     stopServing(tab);
-    const kept = localStorage.getItem(backupKey(was));
+    const retained = localStorage.getItem(backupKey(was));
     forgetBackup(was);
-    if (kept !== null) {
-      localStorage.setItem(backupKey(now), kept);
+    if (retained !== null) {
+      localStorage.setItem(backupKey(now), retained);
     }
     tab.path = now;
     tab.file = now;
@@ -214,7 +214,7 @@ function moveTabs(from, to) {
       group.paths = group.paths.map((path) => (path === was ? now : path));
     }
     if (markedFiles().includes(was)) {
-      keepMarks(markedFiles().map((path) => (path === was ? now : path)));
+      retainMarks(markedFiles().map((path) => (path === was ? now : path)));
     }
     if (state.active === was) {
       state.active = now;
@@ -285,7 +285,7 @@ export function editorItems() {
     return null;
   }
   // A right click leaves the keys with the page, and the clipboard's commands act on what holds them.
-  const keptCommand = (command) => () => {
+  const retainedCommand = (command) => () => {
     editor.focus();
     document.execCommand(command);
   };
@@ -310,8 +310,8 @@ export function editorItems() {
       ],
     },
     "-",
-    { command: "cut", args: [], label: "Cut", keys: "Ctrl+X", run: keptCommand("cut") },
-    { command: "copy", args: [], label: "Copy", keys: "Ctrl+C", run: keptCommand("copy") },
+    { command: "cut", args: [], label: "Cut", keys: "Ctrl+X", run: retainedCommand("cut") },
+    { command: "copy", args: [], label: "Copy", keys: "Ctrl+C", run: retainedCommand("copy") },
     { command: "paste", args: [], label: "Paste", keys: "Ctrl+V", run: pasted },
     "-",
     { command: "select-all", args: [], label: "Select all", keys: "Ctrl+A", run: () => editor.selectAll() },
@@ -330,7 +330,7 @@ export function bindEditorKeys(list) {
   state.editor?.addKeys(list);
 }
 
-// Vim's keys in the editor and its split, set on or off in Preferences and kept under orior.vim.
+// Vim's keys in the editor and its split, set on or off in Preferences and retained under orior.vim.
 const VIM_KEY = "orior.vim";
 
 export function vimKeys() {
@@ -343,8 +343,8 @@ export function setVimKeys(on) {
   state.split?.editor.setVim(on);
 }
 
-// The line down the editor at the width the file's formatter keeps lines to, which names the
-// formatter and the width at its top: off until View, Formatter's Line Width turns it on, and kept
+// The line down the editor at the width the file's formatter retains lines to, which names the
+// formatter and the width at its top: off until View, Formatter's Line Width turns it on, and retained
 // under orior.margin.
 const MARGIN_KEY = "orior.margin";
 

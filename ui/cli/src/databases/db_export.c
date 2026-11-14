@@ -25,7 +25,7 @@ typedef struct
     CliDbValue *values;
     unsigned int columns;
 } CliDbExport;
-// the bytes written to the file at a time, the most of the values of one buffered row read back, and the bytes a value
+// the bytes written to the file at a time, the max of the values of one buffered row read back, and the bytes a value
 // of a JSON line is written in
 #define CLI_DB_EXPORT_CAPACITY (1u << 20u)
 #define CLI_DB_EXPORT_ROW (1u << 20u)
@@ -156,9 +156,9 @@ static void export_line(const DbExportCtx *args)
         }
         for (unsigned long long one = 0ULL; !args->values[at].null && (one < args->values[at].size); one += 1ULL)
         {
-            const char letter = args->values[at].text[one];
+            const char character = args->values[at].text[one];
             EMBED_CALL(export_append, DbExportCtx, .export = args->export,
-                       .text = ((letter == '\t') || (letter == '\n')) ? " " : args->values[at].text + one,
+                       .text = ((character == '\t') || (character == '\n')) ? " " : args->values[at].text + one,
                        .size = 1ULL);
         }
     }

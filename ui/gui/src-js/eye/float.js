@@ -12,7 +12,7 @@ import { angle, cross, dot, flat, mix, plus, smooth, times, toward, unit } from 
 // opening about as much however many there are.
 //
 // A split takes SPLIT seconds. The halves start as the whole iris in one place, leaving each other at
-// POP; over the split each shrinks to its own size, and the room the two keep from each other grows
+// POP; over the split each shrinks to its own size, and the room the two retain from each other grows
 // from none to their full reach. They draw apart instead of being thrown apart, and no iris moves
 // faster than FASTEST radians a second, however hard a crowd squeezes it.
 //
@@ -42,7 +42,7 @@ const RISE = 0.75;
 const WALL = 6000;
 const STIFF = 700;
 const DAMP = 10;
-// The steps each frame is cut into, which keeps a hard push from passing one iris through another.
+// The steps each frame is cut into, which retains a hard push from passing one iris through another.
 const STEPS = 4;
 
 // An iris's `whole` is the size it grows to, `size` the size it has now, and `grown` how far through
@@ -50,9 +50,9 @@ const STEPS = 4;
 export const irisAt = (p, v, whole, draw) => ({ p, v, size: whole, whole, from: whole, born: -Infinity, grown: 1, twin: null, phase: draw() * Math.PI * 2, look: [0, 0] });
 
 // The largest iris divides into two in one place, leaving each other at POP along a line near the
-// level, which keeps their momentum.
+// level, which retains their momentum.
 export function divide(irises, draw, seconds) {
-  const largest = irises.reduce((most, iris) => (iris.whole > most.whole ? iris : most));
+  const largest = irises.reduce((max, iris) => (iris.whole > max.whole ? iris : max));
   const level = unit(cross([0, 1, 0], largest.p));
   const upright = cross(largest.p, level);
   const turn = (draw() - 0.5) * 0.8;

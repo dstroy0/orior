@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The tabs: drawn in their row, marked, grouped, and the tab shown kept in sight.
+// The tabs: drawn in their row, marked, grouped, and the tab displayed retained in sight.
 
 import { runCommand } from "../../../gui/src-js/menubar.js";
 import { invoke } from "../../../gui/src-js/bridge.js";
@@ -96,7 +96,7 @@ test("the marked files' menu, from the command line: a file moved up the list an
   asFound();
 });
 
-test("a tab stands 85% of 2.3rem tall with the row's line under it, however many tabs the row holds", async () => {
+test("a tab is 85% of 2.3rem tall with the row's line under it, however many tabs the row holds", async () => {
   showView("edit");
   await openFile("hello.py");
   await ui.waitFor(() => editing().active === "hello.py", 10000);
@@ -105,7 +105,7 @@ test("a tab stands 85% of 2.3rem tall with the row's line under it, however many
   assert.ok(Math.abs(tall - 2.3 * 0.85 * rem) < 0.5, `a tab and the line under it ${tall}px tall`);
 });
 
-test("the tabs stand inside the work's lines, the first tab clear of its corner", async () => {
+test("the tabs are inside the work's lines, the first tab clear of its corner", async () => {
   showView("edit");
   togglePane(false);
   await openFile("hello.py");
@@ -119,7 +119,7 @@ test("the tabs stand inside the work's lines, the first tab clear of its corner"
   assert.ok(first.left >= work.left + 0.75, `the first tab's left ${first.left - work.left}px in from the work's, past its 1px line`);
 });
 
-test("a row of more tabs than it holds keeps each tab its height, its scrollbar hanging below it over the editor, the editor where it stood", async () => {
+test("a row of more tabs than it holds retains each tab its height, its scrollbar hanging below it over the editor, the editor where it was", async () => {
   showView("edit");
   await openFile("hello.py");
   await ui.waitFor(() => editing().active === "hello.py", 10000);
@@ -127,7 +127,7 @@ test("a row of more tabs than it holds keeps each tab its height, its scrollbar 
   const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
   const editorTop = () => document.querySelector("#mode-edit .ed").getBoundingClientRect().top;
   // the editor holds the keys and the tabs row is brought back to it, so each reading is taken with
-  // the window's edges standing as they stand while a person edits and looks at the tabs
+  // the window's edges located as they are while a person edits and looks at the tabs
   await ui.click(document.querySelector("#mode-edit .editor"));
   await ui.brought(strip);
   const before = editorTop();
@@ -152,7 +152,7 @@ test("a row of more tabs than it holds keeps each tab its height, its scrollbar 
   }
 });
 
-test("the tab shown stands in sight in a strip of more tabs than the window holds", async () => {
+test("the tab displayed is in sight in a strip of more tabs than the window holds", async () => {
   showView("edit");
   const names = Array.from({ length: 40 }, (_, at) => `many_tabs/a_file_with_a_long_name_${String(at).padStart(2, "0")}.txt`);
   await invoke("folder_create", { path: "many_tabs" }).catch(() => {});
@@ -170,7 +170,7 @@ test("the tab shown stands in sight in a strip of more tabs than the window hold
     assert.ok(strip.scrollWidth > strip.clientWidth, `the strip holds more than it shows: ${strip.scrollWidth} px in ${strip.clientWidth}`);
     await ui.waitFor(() => inSight(names.at(-1)), 2000, "the last tab opened in sight");
     await openFile(names[0]);
-    await ui.waitFor(() => inSight(names[0]), 2000, "the first tab, shown again, in sight");
+    await ui.waitFor(() => inSight(names[0]), 2000, "the first tab, displayed again, in sight");
   } finally {
     for (const name of names) {
       const tab = strip.querySelector(`.tab .close[title="${name}"]`);

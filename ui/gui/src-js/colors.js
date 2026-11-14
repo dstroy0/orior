@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The colors the canvases draw in, read from the stylesheet's variables: a theme reaches the eye,
-// the plasma, the fuse and the lattice as it reaches the page. Each is read once and kept until the
+// the plasma, the fuse and the lattice as it reaches the page. Each is read once and retained until the
 // scheme or a theme changes.
 
 import { onScheme } from "./scheme.js";
 
-const kept = new Map();
+const retained = new Map();
 let pen = null;
 
-onScheme(() => kept.clear());
+onScheme(() => retained.clear());
 
 // A variable's color as { rgb: [red, green, blue] from 0 to 255, alpha from 0 to 1, text }, the
 // text as a canvas takes it. A variable that holds no color reads as black.
 function read(name) {
-  let found = kept.get(name);
+  let found = retained.get(name);
   if (!found) {
     const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
     pen ??= document.createElement("canvas").getContext("2d");
@@ -32,7 +32,7 @@ function read(name) {
       alpha = parts[3] ?? 1;
     }
     found = { rgb, alpha, text };
-    kept.set(name, found);
+    retained.set(name, found);
   }
   return found;
 }

@@ -84,17 +84,17 @@ __global__ static void noise_lines_kernel(const unsigned short *lanes, const uns
     }
 }
 
-static void noise_line_add(NoiseLineCell *cells, unsigned int kind, unsigned long long length, long long summed,
+static void noise_line_add(NoiseLineCell *cells, unsigned int type, unsigned long long length, long long summed,
                            unsigned long long squared, unsigned long long level)
 {
     // the line's mean pair level, in bins of 8: the level sum contains 2 values a member
     const unsigned long long level_bin = level / (length * 16ull);
     NoiseLineCell *const cell =
-        &cells[(kind * NOISE_LEVEL_BINS) + ((level_bin < NOISE_LEVEL_BINS) ? level_bin : (NOISE_LEVEL_BINS - 1u))];
+        &cells[(type * NOISE_LEVEL_BINS) + ((level_bin < NOISE_LEVEL_BINS) ? level_bin : (NOISE_LEVEL_BINS - 1u))];
     cell->lines += 1ull;
     cell->members += length;
     cell->member_squares += squared;
-    // a line's sum is far from the most negative long long. Its negation is exact
+    // a line's sum is far from the max negative long long. Its negation is exact
     noise_wide_add_square(&cell->line_squares, (unsigned long long)((summed < 0ll) ? -summed : summed));
 }
 
@@ -126,7 +126,7 @@ static int noise_planes_pool(const NoisePlane *planes, unsigned long long count,
     {
         const NoisePlane *const one = &planes[plane];
         OriorExactInteger square;
-        // a plane's sum is far from the most negative long long. Its negation is exact
+        // a plane's sum is far from the max negative long long. Its negation is exact
         noise_exact_word(&square, (unsigned long long)((one->summed < 0ll) ? -one->summed : one->summed));
         ok = (orior_exact_multiply(&square, &square, &square) == ORIOR_EXACT_OK) &&
              noise_exact_add_centerd(&pool->spread, height * width, one->squared, &square) &&
@@ -152,9 +152,9 @@ static int noise_planes_rows(FILE *table, const char *name, const NoisePlane *pl
     return ok;
 }
 
-// A quiet voxel's frame differences have a mean square of at most NOISE_QUIET_SLOPE times its mean plus
+// A quiet voxel's frame differences have a mean square of at max NOISE_QUIET_SLOPE times its mean plus
 // NOISE_QUIET_FLOOR. A still voxel's is 2 (g L + R^2), and the set's transfer curves (compression_table.md) give g at
-// most 1.162 and the read variance near 2.5, at most 0.6 of this bound at every level; a voxel that structure moves
+// max 1.162 and the read variance near 2.5, at max 0.6 of this bound at every level; a voxel that structure moves
 // through reads far past it.
 #define NOISE_QUIET_SLOPE 4ull
 
@@ -169,12 +169,12 @@ int noise_static_mask(const unsigned short *volume, unsigned long long frames, u
 {
     unsigned long long *const totals = (unsigned long long *)calloc((size_t)voxels, sizeof(unsigned long long));
     unsigned short *const least = (unsigned short *)malloc((size_t)voxels * sizeof(unsigned short));
-    unsigned short *const maximum = (unsigned short *)calloc((size_t)voxels, sizeof(unsigned short));
+    unsigned short *const max = (unsigned short *)calloc((size_t)voxels, sizeof(unsigned short));
     unsigned long long *const counted = (unsigned long long *)calloc(NOISE_VALUES, sizeof(unsigned long long));
     unsigned long long *const squares =
         (quiet != 0u) ? (unsigned long long *)calloc((size_t)voxels, sizeof(unsigned long long)) : NULL;
-    // a voxel's squares times the frames is at most the frames squared times 65535 squared, a word to 65536 frames
-    const int ok = (totals != NULL) && (least != NULL) && (maximum != NULL) && (counted != NULL) &&
+    // a voxel's squares times the frames is at max the frames squared times 65535 squared, a word to 65536 frames
+    const int ok = (totals != NULL) && (least != NULL) && (max != NULL) && (counted != NULL) &&
                    ((quiet == 0u) || ((squares != NULL) && (frames <= 65536ull)));
     *ceiling = 0ull;
     if (ok != 0)
@@ -187,7 +187,7 @@ int noise_static_mask(const unsigned short *volume, unsigned long long frames, u
             {
                 totals[voxel] += lanes[voxel];
                 least[voxel] = (lanes[voxel] < least[voxel]) ? lanes[voxel] : least[voxel];
-                maximum[voxel] = (lanes[voxel] > maximum[voxel]) ? lanes[voxel] : maximum[voxel];
+                max[voxel] = (lanes[voxel] > max[voxel]) ? lanes[voxel] : max[voxel];
             }
             for (unsigned long long voxel = 0ull; (quiet != 0u) && (frame != 0ull) && (voxel < voxels); voxel += 1ull)
             {
@@ -202,8 +202,8 @@ int noise_static_mask(const unsigned short *volume, unsigned long long frames, u
         {
             const unsigned long long bound = (NOISE_QUIET_SLOPE * totals[voxel]) + (NOISE_QUIET_FLOOR * frames);
             const int still = (quiet == 0u) || ((squares[voxel] * frames) <= ((frames - 1ull) * bound));
-            mask[voxel] = ((least[voxel] != 0u) && (maximum[voxel] != NOISE_LANE_TOP) &&
-                           (least[voxel] != maximum[voxel]) && still)
+            mask[voxel] = ((least[voxel] != 0u) && (max[voxel] != NOISE_LANE_TOP) &&
+                           (least[voxel] != max[voxel]) && still)
                               ? 1u
                               : 0u;
             if (mask[voxel] != 0u)
@@ -227,7 +227,7 @@ int noise_static_mask(const unsigned short *volume, unsigned long long frames, u
     }
     free(totals);
     free(least);
-    free(maximum);
+    free(max);
     free(counted);
     free(squares);
     return ok;
@@ -237,7 +237,7 @@ int noise_static_mask(const unsigned short *volume, unsigned long long frames, u
 static void noise_static_line_add(NoiseWide *line_squares, unsigned long long *pairs, long long summed,
                                   unsigned long long members)
 {
-    // a line's sum is far from the most negative long long. Its negation is exact
+    // a line's sum is far from the max negative long long. Its negation is exact
     noise_wide_add_square(line_squares, (unsigned long long)((summed < 0ll) ? -summed : summed));
     // n^2 - n is 0 for no member, where the unsigned n - 1 wraps and the product is still 0
     *pairs += members * (members - 1ull);
@@ -257,9 +257,9 @@ long noise_lines_sample(const unsigned short *volume, const unsigned long long e
     const unsigned long long plane_voxels = height * width;
     const unsigned long long longer = (height > width) ? height : width;
     // every member square sum fits a word, and a plane's sum and level sum fit theirs; a plane's squared row sums
-    // total at most its voxels times its width times 65535 squared, its columns' at most its voxels times its height
-    // times that, and the longer side bounds both; every n^2 - n pooled totals at most the sample's voxel-frames times
-    // a plane's voxels, which a plane of at most 65535 squared voxels represents in a word
+    // total at max its voxels times its width times 65535 squared, its columns' at max its voxels times its height
+    // times that, and the longer side bounds both; every n^2 - n pooled totals at max the sample's voxel-frames times
+    // a plane's voxels, which a plane of at max 65535 squared voxels represents in a word
     const int bounded = (frames >= 2ull) && (voxels != 0ull) && (frames <= (~0ull / voxels)) &&
                         ((frames * voxels) <= (~0ull / (65535ull * 65535ull))) &&
                         (plane_voxels <= (0x7FFFFFFFFFFFFFFFull / 131070ull)) &&
@@ -319,9 +319,9 @@ long noise_lines_sample(const unsigned short *volume, const unsigned long long e
                                     error) &&
         NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(device_mask, mask, (size_t)voxels, cudaMemcpyHostToDevice), device_mask,
                                     error);
-    for (unsigned int kind = NOISE_LINE_ROWS; ok && (kind <= NOISE_LINE_COLUMNS); kind += 1u)
+    for (unsigned int type = NOISE_LINE_ROWS; ok && (type <= NOISE_LINE_COLUMNS); type += 1u)
     {
-        const unsigned int along_x = (kind == NOISE_LINE_ROWS) ? 1u : 0u;
+        const unsigned int along_x = (type == NOISE_LINE_ROWS) ? 1u : 0u;
         const unsigned long long lines = (along_x != 0u) ? row_lines : column_lines;
         const unsigned long long length = (along_x != 0u) ? width : height;
         const unsigned long long needed = (lines + NOISE_DETECTOR_THREADS - 1ull) / NOISE_DETECTOR_THREADS;
@@ -350,7 +350,7 @@ long noise_lines_sample(const unsigned short *volume, const unsigned long long e
         unsigned long long *const static_pairs = (along_x != 0u) ? &still->row_pairs : &still->column_pairs;
         for (unsigned long long line = 0ull; ok && (line < lines); line += 1ull)
         {
-            noise_line_add(cells, kind, length, sums[line], squares[line], levels[line]);
+            noise_line_add(cells, type, length, sums[line], squares[line], levels[line]);
             noise_static_line_add(static_lines, static_pairs, static_sums[line], static_members[line]);
         }
         // the rows of one frame pair and one z plane sit together, height of them, and together they are the plane
@@ -369,7 +369,7 @@ long noise_lines_sample(const unsigned short *volume, const unsigned long long e
                 summed += sums[row];
                 squared += squares[row];
                 level += levels[row];
-                // a row's sum is far from the most negative long long. Its negation is exact
+                // a row's sum is far from the max negative long long. Its negation is exact
                 const unsigned long long magnitude = (unsigned long long)((sums[row] < 0ll) ? -sums[row] : sums[row]);
                 row_squares += magnitude * magnitude;
                 static_summed += static_sums[row];
@@ -396,7 +396,7 @@ long noise_lines_sample(const unsigned short *volume, const unsigned long long e
             unsigned long long column_squares = 0ull;
             for (unsigned long long column = plane * width; column < ((plane + 1ull) * width); column += 1ull)
             {
-                // a column's sum is far from the most negative long long. Its negation is exact
+                // a column's sum is far from the max negative long long. Its negation is exact
                 const unsigned long long magnitude =
                     (unsigned long long)((sums[column] < 0ll) ? -sums[column] : sums[column]);
                 column_squares += magnitude * magnitude;

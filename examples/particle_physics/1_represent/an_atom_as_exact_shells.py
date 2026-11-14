@@ -8,16 +8,16 @@
 #   Usage:  python examples/particle_physics/1_represent/an_atom_as_exact_shells.py [Z | symbol ...]
 #
 # The ledger is read from representation.atom.element, the one transcribed element table. This file is
-# the reading over it: it prints what each reading keeps and what it throws away.
+# the reading over it: it prints what each reading retains and what it throws away.
 #
 # The crystallography reader put every site on a 0.25 angstrom grid on the way in, and the recovered
 # cell edge then carried the grid instead of the deposit. An atom has the same failure available. An
 # electron sits at a quantum state, four numbers: principal, azimuthal, magnetic, spin. A reader that
-# keeps only the subshell, the first two, drops the magnetic and spin numbers that tell two electrons
+# retains only the subshell, the first two, drops the magnetic and spin numbers that tell two electrons
 # of one subshell apart.
 #
 # This reads each element both ways. The exact reading places Z electrons at Z distinct states. The
-# subshell reading keeps only the subshell, and a filled 2p then arrives as one address holding six
+# subshell reading retains only the subshell, and a filled 2p then arrives as one address holding six
 # electrons where the exact reading holds six.
 #
 # The difference is a count, and only a count. Both readings agree on the value every electron carries,
@@ -51,7 +51,7 @@ from representation import exact  # noqa: E402
 from representation.atom import element  # noqa: E402
 
 # How many elements are detailed one by one before the run summarizes the rest.
-SHOWN = 10
+DISPLAYED = 10
 
 
 def signature_text(signature):
@@ -77,7 +77,7 @@ def read_both_ways(electrons):
 
 
 def one_element(atomic_number, out):
-    """Detail one element: what the exact reading keeps, what the subshell reading collapses."""
+    """Detail one element: what the exact reading retains, what the subshell reading collapses."""
     electrons = element.electrons(atomic_number)
     exact_states, subshell_states, contested_count = read_both_ways(electrons)
     signature = element.group_signature(electrons)
@@ -85,7 +85,7 @@ def one_element(atomic_number, out):
 
     out.write("\n  %-3s Z=%d  %d electron(s)\n"
               % (element.symbol(atomic_number), atomic_number, len(electrons)))
-    out.write("    exact states kept %d,  subshell states %d,  collapsed %d\n"
+    out.write("    exact states retained %d,  subshell states %d,  collapsed %d\n"
               % (exact_states, subshell_states, len(electrons) - subshell_states))
     out.write("    contested by value on the collapsed reading: %d\n" % contested_count)
     out.write("    differentiating electron %s, group signature %s\n"
@@ -146,20 +146,20 @@ def wanted_numbers(argv):
 
 def main(argv):
     out = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", newline="")
-    out.write("\n  Each element read twice. The exact reading keeps every electron at its own quantum\n")
-    out.write("  state. The subshell reading keeps 2p, which drops the numbers that separate its six\n")
+    out.write("\n  Each element read twice. The exact reading retains every electron at its own quantum\n")
+    out.write("  state. The subshell reading retains 2p, which drops the numbers that separate its six\n")
     out.write("  electrons, and the loss is a count the labels never report.\n")
 
     detail = wanted_numbers(argv)
     if not detail:
-        detail = list(range(1, SHOWN + 1))
+        detail = list(range(1, DISPLAYED + 1))
 
-    shown = 0
+    displayed = 0
     for atomic_number in detail:
         if one_element(atomic_number, out):
-            shown += 1
+            displayed += 1
 
-    if shown == 0:
+    if displayed == 0:
         out.write("\n  nothing represented. Name a Z from 1 to %d or a symbol.\n\n" % element.ELEMENT_COUNT)
         out.flush()
         return 2

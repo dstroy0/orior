@@ -21,7 +21,7 @@
 # themselves would give. If it follows language, the two results swap.
 #
 # Subtitles carry Cantonese, which almost nothing else freely available does. Software translations carry
-# the simplified and traditional pair, which is a narrow kind of writing and is used here only against
+# the simplified and traditional pair, which is a narrow type of writing and is used here only against
 # itself.
 
 import gzip

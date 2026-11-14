@@ -9,7 +9,7 @@ The noiseless half of the query protocol. Seven checks, each one isolating a cla
 on. Every number below is produced by the run and none is quoted from anywhere.
 
     7  gate-then-rank against one combined score
-    8  how many arrangements a precept set leaves standing
+    8  how many arrangements a precept set leaves located
     9  whether a precept set is independent
     10  whether agreement inside a floor defines a set at all
     11  what an answer costs when it is read outside what it was derived on
@@ -120,30 +120,30 @@ CASES = (((1, 1), 2), ((2, 2), 4), ((3, 1), 4), ((0, 5), 5), ((7, 2), 9))
 
 
 def check_survivors(say):
-    """8. How many arrangements a precept set leaves standing is a reading, and it is kept."""
+    """8. How many arrangements a precept set leaves located is a reading, and it is retained."""
     say("8. WHAT A PRECEPT SET LEAVES STANDING")
     say("")
     space = arrangement_space()
     say("   %d candidate arrangements, over the relation a,b -> a+b." % len(space))
     say("")
     say("   cases put    survivors    decided")
-    standing = space
+    located = space
     for upto in range(1, len(CASES) + 1):
-        standing = [
+        located = [
             (name, form)
             for name, form in space
             if all(form(*given) == want for given, want in CASES[:upto])
         ]
         say("   %9d    %9d    %s"
-            % (upto, len(standing), "yes" if len(standing) == 1 else "no"))
+            % (upto, len(located), "yes" if len(located) == 1 else "no"))
     say("")
-    say("   names still standing: %s" % ", ".join(name for name, _ in standing))
+    say("   names still located: %s" % ", ".join(name for name, _ in located))
     say("")
     say("   The count is the reading. One survivor means the precepts decide this operator.")
     say("   More than one means they do not, and the answer to that is another relation and")
     say("   never more measurement: no cost reading can separate two arrangements that both")
     say("   compute the relation.")
-    return len(standing)
+    return len(located)
 
 
 def check_independence(say):
@@ -408,7 +408,7 @@ def check_mnemonics(say):
     say("   separates them survives in the baseline instead of in the bit.")
     say("")
     say("   So each name above carrying more than one transition owes an answer to where the")
-    say("   distinction is kept. The largest here covers %d." % worst)
+    say("   distinction is retained. The largest here covers %d." % worst)
     return worst
 
 
@@ -431,7 +431,7 @@ def check_tables_agree(say):
     say("13. WHETHER THE TABLES AGREE WITH EACH OTHER AND WITH THEIR OWN MIRROR")
     say("")
     say("   A transition is its pair, the state it left and the state it reached, and a name is a")
-    say("   label read off the pair. Kept that way, a name over many transitions loses none of them.")
+    say("   label read off the pair. Retained that way, a name over many transitions loses none of them.")
     say("   What a label can still get wrong is checked here, from the tables alone.")
     say("")
     tables = [table_cells(names, rows) for _where, names, rows in read_matrices(MATRIX_DOC)]
@@ -494,7 +494,7 @@ def main():
 
     wrong = check_two_stage(say)
     say()
-    standing = check_survivors(say)
+    located = check_survivors(say)
     say()
     implied = check_independence(say)
     say()
@@ -511,8 +511,8 @@ def main():
     say("WHAT THIS RUN SAYS")
     say("=" * 76)
     say("7  one score ships a wrong program at %d of 5 exchange rates. Two stages cannot." % wrong)
-    say("8  the gate leaves %d standing after every case is put, where one means decided."
-        % standing)
+    say("8  the gate leaves %d located after every case is put, where one means decided."
+        % located)
     say("9  %d of %d cases carry nothing the rest do not, and a count of precepts is therefore"
         % (implied, len(CASES)))
     say("   not a count of independent facts.")
@@ -523,12 +523,12 @@ def main():
     say("   both, or it answers nothing.")
     say("12  one name in the document covers %d separate transitions. Each name covering more"
         % shared)
-    say("   than one owes an answer to where the distinction is kept.")
+    say("   than one owes an answer to where the distinction is retained.")
     say("13  the two tables name %d transitions apart, and %d transitions read otherwise from the"
         % (apart, unmirrored))
     say("   other side of the branch.")
     say()
-    say("Every finding above holds whatever a cost reading says. Keeping the two files apart is")
+    say("Every finding above holds whatever a cost reading says. Retention the two files apart is")
     say("worth it for that property alone.")
     return 0
 

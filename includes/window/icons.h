@@ -47,7 +47,7 @@ void gui_icons_init(const GuiIconsCfg *args);
 // whether an icon is named `name`
 int gui_icon_exists(const GuiIconsCfg *args);
 // the icon named `name` drawn on a square of `size` pixels a side, its line `stroke` pixels wide, and saved: its mask,
-// laid with its top left at the square's, or NULL where no icon has the name or a cell could not be taken
+// positioned with its top left at the square's, or NULL where no icon has the name or a cell could not be taken
 const GuiMask *gui_icon_get(const GuiIconsCfg *args);
 // the shape of `corners` corners, each an x and a y in pixels, filled on `cover`, `width` by `height` floats from 0 to
 // 1: each pixel of it takes its share inside the shape where that is more than it has, a sample inside where the edges

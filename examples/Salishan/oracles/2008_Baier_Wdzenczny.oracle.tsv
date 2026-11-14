@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Nico Baier, Di Wdzenczny	title	Negation in Montana Salish	page 1, carries footnote 1
 front	Nico Baier, Di Wdzenczny	name	Nico Baier	author
 front	Nico Baier, Di Wdzenczny	name	Di Wdzenczny	author
@@ -66,7 +66,7 @@ footnote 1	Nico Baier, Di Wdzenczny	name	Sally Thomason	Prof. Sally Thomason of 
 (6b) line 2	Montana Salish	segmentation	ta epł-s-plím’=cín	page 3
 (6b) line 3	Montana Salish	gloss	NEG have-NOM-lip=mouth	page 3
 (6b) line 4	Nico Baier, Di Wdzenczny	translation	‘He didn’t have any lips’	page 3
-§2	Nico Baier, Di Wdzenczny	note	In 6a, s- follows the irrealis prefix qł-, while in 6b it follows the morpheme epł- ‘have’. It is hard to determine whether these demonstrate the same use as the construction shown in ex. 5. It could be further evidence that predicates negated by ta are subordinated, or it could simply be a requirement of this construction.	page 3
+§2	Nico Baier, Di Wdzenczny	note	In 6a, s- follows the irrealis prefix qł-, while in 6b it follows the morpheme epł- ‘have’. It is hard to determine whether these demonstrate the same use as the construction displayed in ex. 5. It could be further evidence that predicates negated by ta are subordinated, or it could simply be a requirement of this construction.	page 3
 §2	Montana Salish	cited form	qł-	page 3, in italics
 §2	Montana Salish	cited form	epł-	page 3, in italics, ‘have’
 §2	Montana Salish	cited form	qł-	page 4, in italics
@@ -78,7 +78,7 @@ footnote 1	Nico Baier, Di Wdzenczny	name	Sally Thomason	Prof. Sally Thomason of 
 (7) line 4	Nico Baier, Di Wdzenczny	translation	‘You’re not buttoned!’	page 4
 §2	Nico Baier, Di Wdzenczny	note	It could be the case that the prefix es- blocks the use of the s- prefix, therefore obscuring any sign of subordination.	page 4
 §3	Nico Baier, Di Wdzenczny	heading	3 Environment of ta	page 4
-§3	Nico Baier, Di Wdzenczny	note	We first examine the environments in which the negative element ta occurs. The first and most common of these environments is before completive verbal predicates prefixed with s- (see also exx. 1a and 5):	page 4
+§3	Nico Baier, Di Wdzenczny	note	We first examine the environments in which the negative element ta occurs. The first and usual of these environments is before completive verbal predicates prefixed with s- (see also exx. 1a and 5):	page 4
 (8a) line 1	Montana Salish	transcription	ta sč'stmís t Čoní	page 4
 (8a) line 2	Montana Salish	segmentation	ta s-č'és-t-mí-nt-és t Čoní	page 4
 (8a) line 3	Montana Salish	gloss	NEG NOM-bad-STATV-DER.TR-TR-3.TR.SUBJ OBL Johny	page 4
@@ -100,7 +100,7 @@ footnote 1	Nico Baier, Di Wdzenczny	name	Sally Thomason	Prof. Sally Thomason of 
 (9b) line 2	Montana Salish	segmentation	ta qł-es-qʷom-st-cút	page 5
 (9b) line 3	Montana Salish	gloss	NEG IRR-ASP-mistake-TR-3.TR.SBJ	page 5
 (9b) line 4	Nico Baier, Di Wdzenczny	translation	‘Don’t make a mistake!’	page 5
-§3	Nico Baier, Di Wdzenczny	note	As can be seen from the examples above, the prefix qł- does not surface as such. In most cases, either the prefix s- or the prefix es- follows the irrealis prefix. This sequence then contracts to qs- or qes-, respectively. It is not clear what the function of these prefixes is in the formation, or what underpins their distribution. As discussed in section 2 above, the s- may be a sign of subordination to ta.	page 5
+§3	Nico Baier, Di Wdzenczny	note	As can be seen from the examples above, the prefix qł- does not surface as such. In general, either the prefix s- or the prefix es- follows the irrealis prefix. This sequence then contracts to qs- or qes-, respectively. It is not clear what the function of these prefixes is in the formation, or what underpins their distribution. As discussed in section 2 above, the s- may be a sign of subordination to ta.	page 5
 §3	Montana Salish	cited form	qs-	page 5, in italics
 §3	Montana Salish	cited form	qes-	page 5, in italics
 §3	Nico Baier, Di Wdzenczny	note	Ta also negates verbal predicates containing the morpheme epł- ‘have’ (see also ex. 3c):	page 5
@@ -271,10 +271,10 @@ footnote 2	Nico Baier, Di Wdzenczny	note	This sound change, like quite a few oth
 §6	Kalispel	cited form	talčén	page 11, in italics, ‘nowhere,’
 §6	Kalispel	cited form	tasuwét	page 11, in italics, ‘no one’
 §6	Nico Baier, Di Wdzenczny	note	3) “continuative forms of the verb”	page 11, an item of the list
-§6	Nico Baier, Di Wdzenczny	note	Most of these uses match the uses of the Montana Salish negators, though there is a key difference in that ta may be used with continuative verb forms. Vogt does not discuss this point, therefore which continuative forms are used with which negator is unknown. He also notes that “the resultative has ta”, which may resemble uses of ta as noted above, and speaks of negative forms bearing a possessive prefix, which he analyzes as arising out of nominalization present in those forms (Vogt 1940).	page 11
+§6	Nico Baier, Di Wdzenczny	note	The majority of these uses match the uses of the Montana Salish negators, though there is a key difference in that ta may be used with continuative verb forms. Vogt does not discuss this point, therefore which continuative forms are used with which negator is unknown. He also notes that “the resultative has ta”, which may resemble uses of ta as noted above, and speaks of negative forms bearing a possessive prefix, which he analyzes as arising out of nominalization present in those forms (Vogt 1940).	page 11
 §6	Nico Baier, Di Wdzenczny	note	We can only superficially speak of Spokane’s negation system, but it appears to be similar to that of MSa. Both ta and tam are present in Spokane. The use of tam seems to be more limited. In his 1972 grammar, Carlson states the following about tam:	page 12
 §6	Nico Baier, Di Wdzenczny	note	“s- derived words also occur commonly after restricted negative word tam ‘be nothing’. However, after tam, s- words serving as adjuncts refer to entities rather than events and occur only with possessive and intransitive pronouns.”	page 12, the block quotation
-§6	Nico Baier, Di Wdzenczny	note	He also states that after ta, most predicates have the nominalizing s-. These two facts, though not elaborated upon in Carlson’s grammar, do point to at least some similar processes in the language involving the distribution of negatives.	page 12
+§6	Nico Baier, Di Wdzenczny	note	He also states that after ta, max predicates have the nominalizing s-. These two facts, though not elaborated upon in Carlson’s grammar, do point to at least some similar processes in the language involving the distribution of negatives.	page 12
 §6	Nico Baier, Di Wdzenczny	note	Two other Southern Interior Languages, Colville-Okanagan and Couer D’Alene, do not have negative systems like MSa. Both these languages use a different negative, lut, and neither appears to make a distinction in negative constructions according to predicate type of aspect (Doak 1997, Mattina 1973). In the Couer D’Alene, the negated predicate is subordinated, and immediately follows lut.	page 12
 §6	Nico Baier, Di Wdzenczny	language	Colville-Okanagan	a Southern Interior language whose negative is lut, Mattina (1973)
 §6	Nico Baier, Di Wdzenczny	language	Couer D’Alene	a Southern Interior language whose negative is lut, Doak (1997), the title of which spells it Coeur d’Alene

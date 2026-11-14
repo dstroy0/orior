@@ -164,7 +164,7 @@ int qasm_angle_scale(QasmParser *parser, const QasmAngle *angle, long long num, 
 // ---------------------------------------------------------------------------------------------------------------
 // fixed point at QASM_GUARD_BITS: value * 2^QASM_GUARD_BITS as an exact integer
 
-// (left * right) / 2^QASM_GUARD_BITS, toward zero: at most one unit lost
+// (left * right) / 2^QASM_GUARD_BITS, toward zero: at max one unit lost
 int qasm_fixed_multiply(QasmParser *parser, const OriorExactInteger *left, const OriorExactInteger *right,
                         OriorExactInteger *result)
 {
@@ -176,7 +176,7 @@ int qasm_fixed_multiply(QasmParser *parser, const OriorExactInteger *left, const
            qasm_exact_ok(parser, orior_exact_divide(&product, &scale, result, &remainder));
 }
 
-// value / divisor for a small positive divisor, toward zero: at most one unit lost
+// value / divisor for a small positive divisor, toward zero: at max one unit lost
 int qasm_fixed_divide_small(QasmParser *parser, const OriorExactInteger *value, unsigned long long divisor,
                             OriorExactInteger *result)
 {

@@ -14,7 +14,7 @@ typedef struct GuiSignatureRasterCfg GuiSignatureRasterCfg;
 typedef struct GuiSignatureXCfg GuiSignatureXCfg;
 typedef struct GuiSignatureCfg GuiSignatureCfg;
 
-// the box's most width and height in the page's pixels, 40rem by 12rem, its padding down and across and the gap between
+// the box's max width and height in the page's pixels, 40rem by 12rem, its padding down and across and the gap between
 // the label and the documentation
 #define GUI_SIGNATURE_WIDTH 640
 #define GUI_SIGNATURE_HEIGHT 192
@@ -22,7 +22,7 @@ typedef struct GuiSignatureCfg GuiSignatureCfg;
 #define GUI_SIGNATURE_PAD_X 10
 #define GUI_SIGNATURE_GAP 4
 
-// The signature: the panel shown, NULL for none, the panels' and read alone; and the box's rectangle where it was drawn
+// The signature: the panel displayed, NULL for none, the panels' and read alone; and the box's rectangle where it was drawn
 // last
 typedef struct
 {
@@ -32,7 +32,7 @@ typedef struct
 
 // a signature showing nothing
 void gui_signature_init(const GuiSignatureCfg *args);
-// whether the pixel at x, y stands in the box shown
+// whether the pixel at x, y is in the box displayed
 int gui_signature_holds(const GuiSignatureXCfg *args);
 // the box drawn over the row of the cell `anchor`, the cursor's, inside `bounds` at `scale`, below it where the
 // capacity above is wanting: the label in the code face, the active parameter in the type's color underlined, the

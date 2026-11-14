@@ -3,9 +3,9 @@
 // change_peek.h: the change peek over the editor, under the lines of the change it shows, above them where the editor's
 // foot cannot fit it: a head with the sentence `Change i of n` and its controls, revert, the change before, the change
 // after and close, from the right; and under it a row a line of the change, the lines the last commit had with a minus
-// sign in the first mark's color, then the lines now with a plus sign in the second's, in the code face. The peek keeps
+// sign in the first mark's color, then the lines now with a plus sign in the second's, in the code face. The peek retains
 // the place of the change it shows and the key it shows it on; the change itself is asked of the store's diff
-// (editor/document_changes.h) each time. The box and the controls stand where they were last drawn, which a press reads
+// (editor/document_changes.h) each time. The box and the controls are where they were last drawn, which a press reads
 // (change_peek.c)
 #ifndef GUI_WINDOW_CHANGE_PEEK_H
 #define GUI_WINDOW_CHANGE_PEEK_H
@@ -16,8 +16,8 @@
 #include "editor.h"
 #include "embed_dispatch_layout.h"
 typedef struct GuiChangePeekCfg GuiChangePeekCfg;
-// what a press on the peek stands on: the box off its controls, revert, the change before, the change after, and close;
-// and how many controls stand in the head
+// what a press on the peek is on: the box off its controls, revert, the change before, the change after, and close;
+// and how many controls are in the head
 #define GUI_CHANGE_PEEK_BOX 0u
 #define GUI_CHANGE_PEEK_REVERT 1u
 #define GUI_CHANGE_PEEK_PREVIOUS 2u
@@ -25,8 +25,8 @@ typedef struct GuiChangePeekCfg GuiChangePeekCfg;
 #define GUI_CHANGE_PEEK_CLOSE 4u
 #define GUI_CHANGE_PEEK_CONTROLS 4u
 // the sizes in the page's pixels: the head, a line's row, the padding, a control's side and its icon's, and the head's
-// text size; the most rows the box shows; the most units of a line a row shows with the bytes they may take; and the
-// milliseconds a change shown stands against a scroll
+// text size; the max rows the box shows; the max units of a line a row shows with the bytes they may take; and the
+// milliseconds a change displayed is against a scroll
 #define GUI_CHANGE_PEEK_HEAD 26
 #define GUI_CHANGE_PEEK_ROW 20
 #define GUI_CHANGE_PEEK_PAD 8
@@ -38,16 +38,16 @@ typedef struct GuiChangePeekCfg GuiChangePeekCfg;
 #define GUI_CHANGE_PEEK_LINE_BYTES 769u
 #define GUI_CHANGE_PEEK_SETTLE_MS 300ULL
 // the peek drawn for the editor `editor_read` drawn in `place` at `scale` with the code cell `cell`, inside `bounds`:
-// nothing, and no box standing, where no change is shown or its line is out of the rows drawn; what a press at x, y
-// stands on into `action_out`: 1, or 0 off the box; and the box as last drawn, empty where none stands
+// nothing, and no box located, where no change is displayed or its line is out of the rows drawn; what a press at x, y
+// is on into `action_out`: 1, or 0 off the box; and the box as last drawn, empty where none is
 void gui_change_peek_draw(const GuiChangePeekCfg *args);
 int gui_change_peek_hit(const GuiChangePeekCfg *args);
 GuiRect gui_change_peek_box(const GuiChangePeekCfg *args);
-// the change the line `line` of the text under `key` stands in shown: 1, or 0 where it stands in none; the change `by`
-// changes on from the one shown, or from `line` where none is, shown, the ends wrapping, its first marked line into
-// `line_out`: 1, or 0 where no change stands; the change shown closed; the key `name` while a change is shown, Escape
-// closing it: 1 where taken; whether a scroll moves the view: 1 where no change is shown or GUI_CHANGE_PEEK_SETTLE_MS
-// have passed since it was shown; and the edit that puts the change shown's older lines back into `edit_out`, its text
+// the change the line `line` of the text under `key` is in displayed: 1, or 0 where it is in none; the change `by`
+// changes on from the one displayed, or from `line` where none is, displayed, the ends wrapping, its first marked line into
+// `line_out`: 1, or 0 where no change is; the change displayed closed; the key `name` while a change is displayed, Escape
+// closing it: 1 where taken; whether a scroll moves the view: 1 where no change is displayed or GUI_CHANGE_PEEK_SETTLE_MS
+// have passed since it was displayed; and the edit that puts the change displayed's older lines back into `edit_out`, its text
 // given back with revert_end once the edit is applied: 1, or 0 with why into `err_msg`
 int gui_change_peek_show(const GuiChangePeekCfg *args);
 int gui_change_peek_step(const GuiChangePeekCfg *args);

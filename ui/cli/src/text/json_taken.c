@@ -9,7 +9,7 @@
 
 typedef struct
 {
-    char letter;
+    char character;
     CliJson *json;
     unsigned int nodes_max;
     unsigned long long text_max;
@@ -22,12 +22,12 @@ typedef struct
     VerbaLinea *err_msg;
 } JsonTakenCtx;
 
-// whether a letter goes on a number or a literal: a digit, a letter, or a sign, a point or an exponent's sign
-EMBED_INLINE int json_word_letter(const JsonTakenCtx *args)
+// whether a character goes on a number or a literal: a digit, a character, or a sign, a point or an exponent's sign
+EMBED_INLINE int json_word_character(const JsonTakenCtx *args)
 {
-    return ((args->letter >= '0') && (args->letter <= '9')) || ((args->letter >= 'a') && (args->letter <= 'z')) ||
-           ((args->letter >= 'A') && (args->letter <= 'Z')) || (args->letter == '.') || (args->letter == '+') ||
-           (args->letter == '-');
+    return ((args->character >= '0') && (args->character <= '9')) || ((args->character >= 'a') && (args->character <= 'z')) ||
+           ((args->character >= 'A') && (args->character <= 'Z')) || (args->character == '.') || (args->character == '+') ||
+           (args->character == '-');
 }
 
 unsigned int cli_json_tokens_count(const CliJsonTreeTextCfg *args)
@@ -36,8 +36,8 @@ unsigned int cli_json_tokens_count(const CliJsonTreeTextCfg *args)
     unsigned long long at = 0ULL;
     while (at < args->size)
     {
-        const char letter = args->text[at];
-        if (letter == '"')
+        const char character = args->text[at];
+        if (character == '"')
         {
             at += 1ULL;
             at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->text, .at = at,
@@ -50,14 +50,14 @@ unsigned int cli_json_tokens_count(const CliJsonTreeTextCfg *args)
             at += 1ULL;
             count += 1u;
         }
-        else if ((letter == '{') || (letter == '['))
+        else if ((character == '{') || (character == '['))
         {
             at += 1ULL;
             count += 1u;
         }
-        else if (EMBED_CALL(json_word_letter, JsonTakenCtx, .letter = letter))
+        else if (EMBED_CALL(json_word_character, JsonTakenCtx, .character = character))
         {
-            while ((at < args->size) && EMBED_CALL(json_word_letter, JsonTakenCtx, .letter = args->text[at]))
+            while ((at < args->size) && EMBED_CALL(json_word_character, JsonTakenCtx, .character = args->text[at]))
             {
                 at += 1ULL;
             }

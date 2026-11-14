@@ -55,7 +55,7 @@ static unsigned int line_found(const char *type, const char *id, unsigned int fr
             unsigned int one = CLI_JSON_NONE;
             const CliJson *const read = cli_unity_parsed(s_seen + at, length, &one);
             const unsigned int outcome = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = read, .object = one, .name = "outcome");
-            const int type_matches = cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(one, "kind"), .other = type, .cap = CLI_POOL_BYTES});
+            const int type_matches = cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(one, "type"), .other = type, .cap = CLI_POOL_BYTES});
             const int id_matches = (id == NULL) || cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(outcome, "id"), .other = id, .cap = CLI_POOL_BYTES});
             if (type_matches && id_matches)
             {
@@ -200,7 +200,7 @@ void test_a_run_is_spread_by_complete_files_the_largest_first(void)
     {
         s_run.supplied[at] = s_paths[at];
     }
-    EMBED_CALL(cli_test_runs_run_count_internal.test_shares, CliTestRunsRunCountCtx, .run = &s_run, .count = 6u, .most = 2u);
+    EMBED_CALL(cli_test_runs_run_count_internal.test_shares, CliTestRunsRunCountCtx, .run = &s_run, .count = 6u, .max = 2u);
     TEST_ASSERT_EQUAL_UINT(2u, s_run.shares);
     for (unsigned int share = 0u; share < 2u; share += 1u)
     {
@@ -219,7 +219,7 @@ void test_a_run_has_no_more_shares_than_files(void)
     {
         s_run.supplied[at] = s_paths[at];
     }
-    EMBED_CALL(cli_test_runs_run_count_internal.test_shares, CliTestRunsRunCountCtx, .run = &s_run, .count = 5u, .most = 8u);
+    EMBED_CALL(cli_test_runs_run_count_internal.test_shares, CliTestRunsRunCountCtx, .run = &s_run, .count = 5u, .max = 8u);
     TEST_ASSERT_EQUAL_UINT(3u, s_run.shares);
 }
 
@@ -230,7 +230,7 @@ void test_a_run_has_one_share_where_one_is_requested(void)
     {
         s_run.supplied[at] = s_paths[at];
     }
-    EMBED_CALL(cli_test_runs_run_count_internal.test_shares, CliTestRunsRunCountCtx, .run = &s_run, .count = 5u, .most = 1u);
+    EMBED_CALL(cli_test_runs_run_count_internal.test_shares, CliTestRunsRunCountCtx, .run = &s_run, .count = 5u, .max = 1u);
     TEST_ASSERT_EQUAL_UINT(1u, s_run.shares);
 }
 
@@ -319,7 +319,7 @@ void test_unittests_failures_are_read(void)
                                      "======================================================================\n"
                                      "FAIL: test_two (tests.test_a.Checks.test_two)\n"
                                      "----------------------------------------------------------------------\n"
-                                     "Traceback (most recent call last):\n  File \"D:\\t\\tests\\test_a.py\", line 7, in test_two\n"
+                                     "Traceback (latest call last):\n  File \"D:\\t\\tests\\test_a.py\", line 7, in test_two\n"
                                      "    self.assertEqual(1, 2)\nAssertionError: 1 != 2\n\n"
                                      "----------------------------------------------------------------------\nRan 1 test in 0.001s\n";
     unsigned int lines = 0u;

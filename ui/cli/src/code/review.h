@@ -6,7 +6,7 @@
 // Each declaration a change adds, takes out or changes is a piece of the review, its text as it was and as it is, a
 // declaration's text running from its line to the line before the next declaration, its blank lines at the end left
 // off. One taken out of a place and put in at another, in the same file or another, by its name and its type and with
-// the most of its lines retained, is one piece that moved. The pieces that call one another stand together, each caller
+// the max of its lines retained, is one piece that moved. The pieces that call one another are together, each caller
 // before what it calls. A file whose language is not read here, or whose lines outside its declarations changed, is
 // named apart (review.c, review_compare.c, review_text.c)
 #ifndef REVIEW_H

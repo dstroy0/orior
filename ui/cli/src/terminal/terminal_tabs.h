@@ -11,7 +11,7 @@
 
 typedef struct CliTerminalTabsPressCfg CliTerminalTabsPressCfg;
 
-// what a press on the panel stands on: a pane, `index` 0 the one shown and 1 the one beside it; a tab or its ×,
+// what a press on the panel is on: a pane, `index` 0 the one displayed and 1 the one beside it; a tab or its ×,
 // `index` its place; New Terminal; Split; and the panel on none of these
 #define CLI_TERMINAL_HIT_PANE 1u
 #define CLI_TERMINAL_HIT_TAB 2u
@@ -24,20 +24,20 @@ typedef struct CliTerminalTabsPressCfg CliTerminalTabsPressCfg;
 #define CLI_TERMINAL_MENU_ROWS 7u
 
 // The panel: whether it is open and whether it takes the keys; its height in pixels at a scale of one; how many tabs
-// it has; the tab shown and the one beside it, -1 for none; and how many panes it shows
+// it has; the tab displayed and the one beside it, -1 for none; and how many panes it shows
 typedef struct
 {
     int open;
     int keys;
     unsigned int height;
     unsigned int tabs;
-    int shown;
+    int displayed;
     int beside;
     unsigned int views;
 } CliTerminalPanel;
 
 // One pane: the key of its tab's text, NULL before it is stored; the text's line the screen drawn on starts on; the
-// xterm's columns and rows, 0 before it is sized, the cursor's column and row and whether it is shown; and whether its
+// xterm's columns and rows, 0 before it is sized, the cursor's column and row and whether it is displayed; and whether its
 // shell is the one the keys go to
 typedef struct
 {
@@ -47,7 +47,7 @@ typedef struct
     unsigned int rows;
     unsigned int cursor_x;
     unsigned int cursor_y;
-    int cursor_shown;
+    int cursor_displayed;
     int focused;
 } CliTerminalView;
 
@@ -57,9 +57,9 @@ typedef struct
 void cli_terminal_tabs_restore(const CliStateEntries *entries, const char *root);
 void cli_terminal_tabs_end(void);
 // the terminal's command `name` run with its `count` `words`: 1, or 0 where it is none of the terminal's; whether its
-// state `name` is on, terminal-split while a shell stands beside the one shown, terminal-chosen while text is chosen in
+// state `name` is on, terminal-split while a shell is beside the one displayed, terminal-chosen while text is chosen in
 // the pane the keys go to and terminal-keys while the panel takes the keys; and the panel's menu, its
-// CLI_TERMINAL_MENU_ROWS rows, standing as long as the program runs
+// CLI_TERMINAL_MENU_ROWS rows, located as long as the program runs
 int cli_terminal_tabs_command(const char *name, const char *const *words, unsigned int count);
 int cli_terminal_tabs_checked(const char *name);
 const CliItem *cli_terminal_tabs_menu(void);
@@ -68,7 +68,7 @@ const CliItem *cli_terminal_tabs_menu(void);
 int cli_terminal_tabs_key(const char *name);
 int cli_terminal_tabs_text(const char *bytes, unsigned long long length);
 // a press on what `hit` names, a CLI_TERMINAL_HIT_*, elsewhere taking the keys from the panel; the pointer moved or let
-// go after a press on a pane, handed to the pane's view: 1, or 0 where no press on a pane came before it; the wheel's
+// go after a press on a pane, passed to the pane's view: 1, or 0 where no press on a pane came before it; the wheel's
 // `rows` over the pane `view`; the pane `view` sized to `columns` and `rows`; and the panel's height
 void cli_terminal_tabs_press(const CliTerminalTabsPressCfg *args);
 int cli_terminal_tabs_pointer(const CliTerminalTabsPressCfg *args);
@@ -79,7 +79,7 @@ void cli_terminal_tabs_height(unsigned int height);
 // its next timer, 0 for none
 int cli_terminal_tabs_step(void);
 unsigned long long cli_terminal_tabs_next_ms(void);
-// the panel as it stands; the pane `view` into `out`: 1, or 0 where it shows no tab; and the label of the tab `at`
+// the panel as it is; the pane `view` into `out`: 1, or 0 where it shows no tab; and the label of the tab `at`
 // put after `out`: 1 where its shell ended, else 0
 CliTerminalPanel cli_terminal_tabs_panel(void);
 int cli_terminal_tabs_view(unsigned int view, CliTerminalView *out);

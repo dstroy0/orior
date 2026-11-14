@@ -6,7 +6,7 @@ import { icon } from "../icons.js";
 import { element } from "../explorer.js";
 
 // A file's icon: the one the theme gives its name, else a mark for its type or its name in a color
-// of the palette, else the first two letters of its type, or of its name where it has none, quieter
+// of the palette, else the first two characters of its type, or of its name where it has none, quieter
 // than a mark: no file is drawn without one. A folder's icon is the folder's shape.
 const ICONS = {
   js: ["JS", 3], mjs: ["JS", 3], cjs: ["JS", 3], jsx: ["JS", 3], ts: ["TS", 4], tsx: ["TS", 4], mts: ["TS", 4], cts: ["TS", 4],
@@ -33,7 +33,7 @@ const NAMED = {
   license: ["Li", 8], licence: ["Li", 8], copying: ["Li", 8], readme: ["M", 4], changelog: ["M", 4], justfile: ["mk", 7], procfile: ["≡", 7],
 };
 
-// The quieter mark a file of no type or name above is drawn with: the first two letters of its type,
+// The quieter mark a file of no type or name above is drawn with: the first two characters of its type,
 // or of its name where it has none.
 function markOf(name, ext) {
   const from = ext || name.replace(/^\.+/, "");
@@ -41,7 +41,7 @@ function markOf(name, ext) {
 }
 
 // How far up each mark is moved, in pixels, for its ink to center on the middle of the capitals of
-// the name beside it: a mark of small letters, as py or zp, stands with its ink lower than the name's,
+// the name beside it: a mark of small characters, as py or zp, is with its ink lower than the name's,
 // and the mark's line and the name's are not the same in every engine. Each is measured once the
 // fonts are in, as a row sets the mark and the name.
 const lifts = new Map();
@@ -91,7 +91,7 @@ export function liftOf(mark) {
     icon.style.width = "auto";
     name.style.flex = "none";
     document.body.append(row);
-    // A box of no height set in a text stands on the text's line.
+    // A box of no height set in a text is on the text's line.
     const lineOf = (node) => {
       const probe = element("span");
       probe.style.cssText = "display:inline-block;width:0;height:0;vertical-align:baseline";

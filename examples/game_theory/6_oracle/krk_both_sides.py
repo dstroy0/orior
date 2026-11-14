@@ -175,8 +175,8 @@ def solve():
             loss_child_distances = []
             win_child_distances = []
             unknown = has_draw = False
-            for kind, payload in kids:
-                if kind == "draw":
+            for type, payload in kids:
+                if type == "draw":
                     has_draw = True
                     continue
                 child_value = value[payload]

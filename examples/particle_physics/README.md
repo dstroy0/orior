@@ -5,7 +5,7 @@
 
 | stage         | script                                      | what it answers                                                                           |
 | ------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `1_represent` | `an_atom_as_exact_shells.py`                | what an element keeps when it is written as points, and what a coarse reading loses       |
+| `1_represent` | `an_atom_as_exact_shells.py`                | what an element retains when it is written as points, and what a coarse reading loses       |
 | `1_represent` | `an_orbit_as_exact_rationals.py`            | the Bohr orbit as an exact rational, a trajectory reproduced with no rounding             |
 | `1_represent` | `particles_as_exact_charges.py`             | the Standard Model particles by exact quantum numbers, and the structure they emit        |
 | `1_represent` | `hadrons_from_quarks.py`                    | the baryons and mesons the quarks make, and the integer charge color-neutrality forces    |
@@ -26,7 +26,7 @@ The element ledger, Z and symbol and the Madelung filling order, lives once at `
 
 ## One element read twice
 
-The crystallography reader put every site on a 0.25 angstrom grid on the way in, and the recovered cell edge then carried the grid instead of the deposit. An atom has the same failure available. `an_atom_as_exact_shells.py` reads each element two ways. The exact reading keeps the whole state and places Z electrons at Z distinct addresses. The subshell reading keeps only the first two numbers, principal and azimuthal, and a filled 2p then arrives as one address holding six electrons where the exact reading holds six.
+The crystallography reader put every site on a 0.25 angstrom grid on the way in, and the recovered cell edge then carried the grid instead of the deposit. An atom has the same failure available. `an_atom_as_exact_shells.py` reads each element two ways. The exact reading retains the whole state and places Z electrons at Z distinct addresses. The subshell reading retains only the first two numbers, principal and azimuthal, and a filled 2p then arrives as one address holding six electrons where the exact reading holds six.
 
 The difference is a count, and only a count. Both readings agree on the value every electron carries, its subshell, and a check that compares values reports nothing. `exact.contested` returns empty on the collapsed reading, because the six electrons of a 2p all say `2p` and none disagrees. The loss sits in the cardinality, and `exact.placed`, a dict, is where the six become one without a word. Over the whole table the subshell reading collapses 5645 electron states, and a value-comparing check flags 0 of them. A reader who trusted the labels to disagree would miss every one.
 
@@ -34,11 +34,11 @@ The difference is a count, and only a count. Both readings agree on the value ev
 
 `exact.contested` returns the positions carrying more than one value, and it is domain blind: in a crystal it finds a doped site, two elements at one position, and in an atom it finds two electrons at one state, a Pauli violation. For every element the exact reading places Z electrons at Z distinct states. Pauli holds for 118 of 118, and no address is contested.
 
-The check is proven by breaking its subject. A filling that placed two electrons at the same state gives `exact.placed`, a dict, one entry where the count expects two. The distinct-state count drops below Z and the run reports the violation. A correct fill of two electrons keeps two distinct states; a doubled state keeps one. The count separates them and the labels do not.
+The check is proven by breaking its subject. A filling that placed two electrons at the same state gives `exact.placed`, a dict, one entry where the count expects two. The distinct-state count drops below Z and the run reports the violation. A correct fill of two electrons retains two distinct states; a doubled state retains one. The count separates them and the labels do not.
 
 ## The periodic law is a recurrence in the census
 
-The differentiating electron of an element is the last one Madelung order adds. Its group signature is its azimuthal type and how many electrons stand in that subshell, with the principal number dropped. Sodium and lithium both close on a lone s electron and both read `(s,1)`; carbon and silicon both read `(p,2)`. Dropping the principal number is what leaves them equal, and that recurrence down the table is the periodic law.
+The differentiating electron of an element is the last one Madelung order adds. Its group signature is its azimuthal type and how many electrons are in that subshell, with the principal number dropped. Sodium and lithium both close on a lone s electron and both read `(s,1)`; carbon and silicon both read `(p,2)`. Dropping the principal number is what leaves them equal, and that recurrence down the table is the periodic law.
 
 The census of signatures over 118 elements carries the block structure with nothing told to it:
 
@@ -57,9 +57,9 @@ A signature's magnitude is the total minus its count, larger meaning rarer, and 
 
 ## The partition is the quantum numbers
 
-`what_a_quantum_number_costs.py` reads the accumulated electrons at each of five partitions: keep all four numbers of a state, then drop the spin, the magnetic number, the subshell and the shell in turn. The sweep over the whole table:
+`what_a_quantum_number_costs.py` reads the accumulated electrons at each of five partitions: retain all four numbers of a state, then drop the spin, the magnetic number, the subshell and the shell in turn. The sweep over the whole table:
 
-| partition    | tells apart    | distinct states | capacity | keeps all distinct |
+| partition    | tells apart    | distinct states | capacity | retains all distinct |
 | ------------ | -------------- | --------------- | -------- | ------------------ |
 | spin-orbital | every electron | 7021            | 1        | 118 of 118         |
 | orbital      | spins folded   | 3640            | 2        | 1 of 118           |
@@ -67,7 +67,7 @@ A signature's magnitude is the total minus its count, larger meaning rarer, and 
 | shell        | one shell      | 620             | 32       | 1 of 118           |
 | atom         | the whole atom | 118             | 118      | 1 of 118           |
 
-Distinct is the states summed over the table; the accumulation is 7021 electrons, the sum of the atomic numbers. Capacity is the fullest one cell ever gets at that partition, and it lands on the Pauli number for that level with nothing put in: one per spin-orbital, two per orbital, fourteen at the f subshell, thirty two at the full n=4 shell. Only the full partition keeps every element's electrons apart. Every coarser one agglomerates an accumulation of fermions into fewer states, and hydrogen alone survives every partition, because it has one electron to fold.
+Distinct is the states summed over the table; the accumulation is 7021 electrons, the sum of the atomic numbers. Capacity is the fullest one cell ever gets at that partition, and it lands on the Pauli number for that level with nothing put in: one per spin-orbital, two per orbital, fourteen at the f subshell, thirty two at the full n=4 shell. Only the full partition retains every element's electrons apart. Every coarser one agglomerates an accumulation of fermions into fewer states, and hydrogen alone survives every partition, because it has one electron to fold.
 
 ## What Pauli builds, read against two backgrounds
 
@@ -76,14 +76,14 @@ Distinct is the states summed over the table; the accumulation is 7021 electrons
 | arm                        | floor | lag 8 | lag 18 | lag 32 | tallest     |
 | -------------------------- | ----- | ----- | ------ | ------ | ----------- |
 | real accumulation          | 0.030 | 0.091 | 0.280  | 0.558  | 0.558 at 32 |
-| counts kept, order deleted | 0.030 | 0.027 | 0.060  | 0.035  | 0.094 at 22 |
+| counts retained, order deleted | 0.030 | 0.027 | 0.060  | 0.035  | 0.094 at 22 |
 | no exclusion               | 0.000 | 0.000 | 0.000  | 0.000  | 0.000 at 1  |
 
-The first background is `reference.shuffles.permuted`, a uniform arrangement of the same signatures. Its floor is identical to the real one, 0.030, because it keeps every count exactly, and its match rate at the row lengths falls to that floor. The recurrence is in the order Pauli fills the shells in. It is not in the counts. The second background deletes the exclusion: every electron drops to 1s, and an element is then only a count of electrons in one state; every signature is distinct, and the floor and the match rate are both zero. Without exclusion there is a ladder and no table. The real accumulation is the positive control and the only arm carrying the recurrence.
+The first background is `reference.shuffles.permuted`, a uniform arrangement of the same signatures. Its floor is identical to the real one, 0.030, because it retains every count exactly, and its match rate at the row lengths falls to that floor. The recurrence is in the order Pauli fills the shells in. It is not in the counts. The second background deletes the exclusion: every electron drops to 1s, and an element is then only a count of electrons in one state; every signature is distinct, and the floor and the match rate are both zero. Without exclusion there is a ladder and no table. The real accumulation is the positive control and the only arm carrying the recurrence.
 
 ## The row lengths, off the difference set
 
-`shell_closures_from_the_difference_set.py` reads the match rate at every lag. It stands above the floor at 32, 18 and 8, and at their sums 50 and 26, and no single lag carries the recurrence, because the rows are 2, 8, 8, 18, 18, 32, 32 and not one length. A reader reporting one period would be wrong for most of the table, the same harmonic trap `measure/periodicity.py` records from the other side.
+`shell_closures_from_the_difference_set.py` reads the match rate at every lag. It is above the floor at 32, 18 and 8, and at their sums 50 and 26, and no single lag carries the recurrence, because the rows are 2, 8, 8, 18, 18, 32, 32 and not one length. A reader reporting one period would be wrong for the majority of the table, the same harmonic trap `measure/periodicity.py` records from the other side.
 
 The one number per row is the gap between shell closures. A closure is a filled p subshell, signature `(p,6)`, with helium closing the first row. Read off the signatures, the closures sit at Z 2, 10, 18, 36, 54, 86, 118, the noble gases, and the gaps between them are 8, 8, 18, 18, 32, 32, the row lengths, with no row told to the reader. That is the crystallography difference-set reading in one dimension: a period is a difference between two things that agree. The differences are the complete candidate set.
 
@@ -97,7 +97,7 @@ A second sift reads the same necessary condition on particle decays. `decays_pas
 
 ## The exceptions, read off the ground states
 
-`measured_configuration_vs_ideal.py` holds the ideal filling against the published ground states and reports where they disagree. The measured configurations come from the NIST Atomic Spectra Database, fetched by `utils/maint/data/fetch/fetch_nist_ground_states.py`, which carries neutral atoms through element 108. For 109 to 118 no neutral atom has been measured. Those ten take the predicted relativistic configurations, marked predicted and kept apart from the measured ones. Every configuration is checked to account for exactly Z electrons before it is compared.
+`measured_configuration_vs_ideal.py` holds the ideal filling against the published ground states and reports where they disagree. The measured configurations come from the NIST Atomic Spectra Database, fetched by `utils/maint/data/fetch/fetch_nist_ground_states.py`, which carries neutral atoms through element 108. For 109 to 118 no neutral atom has been measured. Those ten take the predicted relativistic configurations, marked predicted and retained apart from the measured ones. Every configuration is checked to account for exactly Z electrons before it is compared.
 
 All 118 elements are covered: 108 measured, 10 predicted. Of the measured, 88 agree with the ideal filling and 20 differ; the 10 predicted all agree. The 20 disagreements are read off instead of listed by hand:
 
@@ -124,7 +124,7 @@ All 118 elements are covered: 108 measured, 10 predicted. Of the measured, 88 ag
 | Cm  | 96  | 5f8     | 5f7 6d1      |
 | Lr  | 103 | 6d1     | 7p1          |
 
-Most agree, the positive control: a reading where nothing agreed would be broken instead of a table of exceptions. The disagreements are the transition metals that borrow an s electron for a fuller d shell, the lanthanides and actinides that seat an early d electron before the f shell fills, and lawrencium's 7p ground state. The ten predicted configurations follow the ideal order. Every exception is a measured one.
+Max agree, the positive control: a reading where nothing agreed would be broken instead of a table of exceptions. The disagreements are the transition metals that borrow an s electron for a fuller d shell, the lanthanides and actinides that seat an early d electron before the f shell fills, and lawrencium's 7p ground state. The ten predicted configurations follow the ideal order. Every exception is a measured one.
 
 ## The particles, and the structure the exact numbers emit
 

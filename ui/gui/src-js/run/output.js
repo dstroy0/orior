@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// A job's output: its runs' tabs and the console of the run shown, what a build that made a program offers, and the
+// A job's output: its runs' tabs and the console of the run displayed, what a build that made a program offers, and the
 // output's menu.
 
 import { invoke, viewOpen } from "../bridge.js";
@@ -21,50 +21,50 @@ export function console_(job) {
     state.ruler.follow(null);
     return null;
   }
-  const shown = state.runs.get(state.shown.get(job.id)) ?? runs[runs.length - 1];
+  const displayed = state.runs.get(state.displayed.get(job.id)) ?? runs[runs.length - 1];
   const head = element("div", { className: "console-head" });
   for (const run of runs) {
     const tab = element("button", { className: `run ${endClass(run)}`, type: "button", textContent: `#${run.run} ${status(run)}` });
-    if (run === shown) {
+    if (run === displayed) {
       tab.setAttribute("aria-current", "true");
     }
     tab.addEventListener("click", () => {
-      state.shown.set(job.id, run.run);
+      state.displayed.set(job.id, run.run);
       drawStage();
     });
     head.append(tab);
   }
-  if (shown?.views.length) {
+  if (displayed?.views.length) {
     const views = element("div", { className: "views" });
-    for (const page of shown.views) {
+    for (const page of displayed.views) {
       const button = element("button", { type: "button", textContent: page.split("/").pop(), title: page });
       button.addEventListener("click", () => viewOpen(page));
       views.append(button);
     }
     head.append(views);
   }
-  if (shown?.made) {
-    head.append(madeButtons(job, shown.made));
+  if (displayed?.made) {
+    head.append(madeButtons(job, displayed.made));
   }
-  const protocol = job.group === PROTOCOL && shown;
+  const protocol = job.group === PROTOCOL && displayed;
   if (protocol) {
-    const body = viewBody(shown);
+    const body = viewBody(displayed);
     requestAnimationFrame(() => {
       body.scrollTop = body.scrollHeight;
-      state.fuse.follow(shown);
-      state.ruler.follow(shown);
+      state.fuse.follow(displayed);
+      state.ruler.follow(displayed);
     });
-    return element("div", { className: "console" }, head, tabStrip(shown), body);
+    return element("div", { className: "console" }, head, tabStrip(displayed), body);
   }
   const lines = element("pre", { className: "lines", id: "lines" });
-  shown?.lines.forEach((line) => lines.append(lineNode(line)));
-  if (shown?.done) {
-    lines.append(endNode(shown));
+  displayed?.lines.forEach((line) => lines.append(lineNode(line)));
+  if (displayed?.done) {
+    lines.append(endNode(displayed));
   }
   requestAnimationFrame(() => {
     lines.scrollTop = lines.scrollHeight;
-    state.fuse.follow(shown ?? null);
-    state.ruler.follow(shown ?? null);
+    state.fuse.follow(displayed ?? null);
+    state.ruler.follow(displayed ?? null);
   });
   if (!state.ruler.element.contains(state.fuse.canvas)) {
     state.ruler.element.prepend(state.fuse.canvas);

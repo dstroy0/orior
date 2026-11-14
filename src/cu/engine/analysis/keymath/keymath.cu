@@ -8,8 +8,8 @@
 
 #include <vector>
 
-#define KEYMATH_CHECK(condition_, evacaddr_, error_, kind_)                                                            \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_KEYMATH, (unsigned int)__LINE__,                           \
+#define KEYMATH_CHECK(condition_, evacaddr_, error_, type_)                                                            \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_KEYMATH, (unsigned int)__LINE__,                           \
                        (const void *)(evacaddr_), (error_))
 
 typedef std::vector<unsigned int> ExactLimbs;
@@ -288,8 +288,8 @@ extern "C" void keymath_key_release(EngineKey *key)
     memset(key, 0, sizeof(*key));
 }
 
-// The record encoding: each step's term, width and form laid out by keymath_core_record_encode (keymath_core.h), which
-// the device runs as well, and the key laid out from the terms, the outputs and the tables
+// The record encoding: each step's term, width and form arranged by keymath_core_record_encode (keymath_core.h), which
+// the device runs as well, and the key arranged from the terms, the outputs and the tables
 extern "C" long keymath_record_encode(const KeymathRecordRequest *request)
 {
     if ((request == NULL) || (request->error == NULL))
@@ -371,7 +371,7 @@ extern "C" long keymath_record_encode(const KeymathRecordRequest *request)
         for (unsigned int table = 0u; table < request->table_count; table += 1u)
         {
             const EngineRecordTable &source = request->tables[table];
-            // index_bits is at most 32, and the entry count at most 2^32, which an unsigned long long represents
+            // index_bits is at max 32, and the entry count at max 2^32, which an unsigned long long represents
             const unsigned long long entries = 1ull << source.index_bits;
             const unsigned int out_limbs = (source.out_bits + 31u) / 32u;
             key->table[table].index_bits = source.index_bits;

@@ -3,11 +3,11 @@
 
 import { bindEditorKeys } from "../edit.js";
 import { menuOpen } from "../menu.js";
-import { keysOf as commandKeys, letterOf } from "../keys.js";
+import { keysOf as commandKeys, characterOf } from "../keys.js";
 import { runCommand, state } from "../menubar.js";
 import { NEEDS } from "./checks.js";
 
-// The key names commands.json writes, as the page names the key: a letter or digit by its place on
+// The key names commands.json writes, as the page names the key: a character or digit by its place on
 // the keyboard, and the rest by name.
 // The menus' names for keys a code names otherwise, the other way about from KEY_CODES.
 export const KEY_NAMES = { Backquote: "`", Backslash: "\\", Slash: "/", ArrowUp: "Up", ArrowDown: "Down", ArrowLeft: "Left", ArrowRight: "Right" };
@@ -25,13 +25,13 @@ function pressed(keys, event) {
     return false;
   }
   if (/^[A-Z]$/.test(key) || /^\d$/.test(key)) {
-    return letterOf(event) === key;
+    return characterOf(event) === key;
   }
   return KEY_CODES[key] ? event.code === KEY_CODES[key] : event.key === key;
 }
 
 // Runs the command whose keys an event is, where nothing nearer the focus took the keys first. The
-// keys of a command for the editor are the editor's own, and a text field or the run's output keeps
+// keys of a command for the editor are the editor's own, and a text field or the run's output retains
 // them for itself. Of two commands with the same keys, the first that can act now runs, as F5
 // continues a stopped program and otherwise starts the chosen job. A key bound here never reaches
 // the web view, even where no command of it can act.
@@ -58,7 +58,7 @@ export function onShortcut(event) {
 }
 
 // The keys of the commands `items`, each for one type of file, offered to the editor first: a key goes
-// to the command whose type the file shown is, of those that share it, as Ctrl+Enter goes to Run
+// to the command whose type the file displayed is, of those that share it, as Ctrl+Enter goes to Run
 // Statement in an SQL file and to Send Request in a file of requests, and to the editor's own use of
 // the key where the file is of none of their types.
 export function firstKeys(items, needs = NEEDS, run = runCommand) {

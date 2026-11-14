@@ -76,7 +76,7 @@ unsigned int cli_replay_thread_get(const CliRecordingSerialStepCtx *args)
     return frame.seen ? frame.thread : 0u;
 }
 
-// the thread the replay stands on
+// the thread the replay is on
 unsigned int cli_replay_thread(void)
 {
     return (g_cli_replay->recording.step_count == 0u) ? 1u
@@ -181,7 +181,7 @@ EMBED_INLINE const char *replay_reason(const RecordingReplayCtx *args)
                : "breakpoint";
 }
 
-// where `how` goes from where the replay stands into `step`, and the reason it stops there
+// where `how` goes from where the replay is into `step`, and the reason it stops there
 const char *cli_replay_go(const CliRecordingHowCtx *args)
 {
     unsigned int *step = args->step_pointer;
@@ -329,7 +329,7 @@ void cli_replay_frame_write(const CliRecordingSerialStepCtx *args)
     mmgr_line_put(args->out, "}}");
 }
 
-// the frames standing at a step, each its number and the step of its line then
+// the frames located at a step, each its number and the step of its line then
 static unsigned int s_stack[512][2];
 
 // whether node `id` of `json` is a whole number at least 0 and below 2^63, and it into `value`
@@ -353,7 +353,7 @@ int cli_replay_integer(const CliRecordingJsonCtx *args)
     return whole && (*value <= 9223372036854775807ULL);
 }
 
-// the frame `id` names, a node of the request's arguments, or the innermost where it names none or one not standing
+// the frame `id` names, a node of the request's arguments, or the innermost where it names none or one not located
 unsigned int cli_replay_frame_get(const CliRecordingJsonCtx *args)
 {
     const unsigned int count = EMBED_CALL(cli_recording_at_frames_internal.stack, CliRecordingAtFramesCtx,

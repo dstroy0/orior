@@ -14,7 +14,7 @@
 //   excess = m / n - S / (n P), with S the sum of the m_k,   and   p = (a + 1) / (P + 1),
 //
 // with a the number of shuffles where m_k >= m. Both are exact rationals. The excess is carried as excess + 1,
-// (m P - S + n P) / (n P), which is never negative since each m_k is at most n. Orders and means are unchanged by
+// (m P - S + n P) / (n P), which is never negative since each m_k is at max n. Orders and means are unchanged by
 // the shift, and the excess is printed with its sign by the signed digits program.
 //
 // The criteria are subgrouping_check.py's, fixed before its first run, with (d) as it records the change:
@@ -43,7 +43,7 @@
 // whole, and the verdicts.
 //
 // Checks:
-//   1. each program imprints and lays out;
+//   1. each program imprints and arranges;
 //   2. each program loads onto the device and every lane runs it;
 //   3. the host's records of each program equal the device's word for word;
 //   4. the device's sums of each run equal the host's;
@@ -444,7 +444,7 @@ int main(int count, char **arguments)
         }
     }
 
-    int ok = stage_lay(&job, &count_stage, &error);
+    int ok = stage_position(&job, &count_stage, &error);
     const unsigned long long declared =
         count_lanes * (1ull + (ok ? count_stage.layout.out_limbs : 1u)) * sizeof(unsigned int);
     ok = ok && sim_job_submit(&job, "subgrouping", count, arguments, declared);
@@ -460,7 +460,7 @@ int main(int count, char **arguments)
     above_stage.name = "above";
     const unsigned int count_bits = stage_bits(stage_whole(widest));
     stage_above_program(count_bits, &above_stage.program);
-    ok = ok && stage_lay(&job, &above_stage, &error);
+    ok = ok && stage_position(&job, &above_stage, &error);
     const unsigned int above_limbs = (above_stage.program.record_bits + 31u) / 32u;
     const unsigned long long above_lanes = (unsigned long long)pairs.size() * shuffles;
     std::vector<unsigned int> above_records((size_t)(above_lanes * above_limbs), 0u);
@@ -630,18 +630,18 @@ int main(int count, char **arguments)
     }
     std::vector<std::vector<StageWhole>> signed_out;
     ok = ok && stage_rows(&job, &signed_stage, signed_rows, &signed_out, &error);
-    std::vector<std::string> shown(printed.size());
+    std::vector<std::string> displayed(printed.size());
     for (size_t at = 0u; ok && (at < printed.size()); at += 1u)
     {
         const DeviceRecordStep *sign_step = &signed_stage.layout.step_table[signed_stage.program.outputs[0]];
         const int sign = stage_sign(signed_out[at][0], sign_step->out_bits);
         char fraction[16];
         snprintf(fraction, sizeof(fraction), "%06u", signed_out[at][2][0]);
-        shown[at] = std::string((sign < 0) ? "-" : "+") + stage_text_of(signed_out[at][1]) + "." + fraction;
+        displayed[at] = std::string((sign < 0) ? "-" : "+") + stage_text_of(signed_out[at][1]) + "." + fraction;
     }
     for (size_t at = 0u; ok && (at < pairs.size()); at += 1u)
     {
-        pairs[at].excess_text = shown[at];
+        pairs[at].excess_text = displayed[at];
     }
 
     // the verdicts
@@ -659,8 +659,8 @@ int main(int count, char **arguments)
             const int in_group = in(best, group);
             char line[256];
             snprintf(line, sizeof(line), "(%c) %s best Salish partner %s %s", (pass == 0) ? 'a' : 'b',
-                     stage_shown(languages[left].name, 18u, 1).c_str(),
-                     stage_shown(languages[best].name, 18u, 1).c_str(), in_group ? "pass" : "FAIL");
+                     stage_displayed(languages[left].name, 18u, 1).c_str(),
+                     stage_displayed(languages[best].name, 18u, 1).c_str(), in_group ? "pass" : "FAIL");
             lines.push_back(line);
         }
     }
@@ -704,15 +704,15 @@ int main(int count, char **arguments)
         }
         fprintf(out, "(c) %s\n", means_agree ? "pass" : "FAIL");
         fprintf(out, "(d) %s\n", failures.empty() ? "pass" : "FAIL");
-        const char *kinds[6] = {"interior", "central", "interior-central", "nuxalk-interior", "nuxalk-central",
+        const char *types[6] = {"interior", "central", "interior-central", "nuxalk-interior", "nuxalk-central",
                                 "nuxalk-tsamosan"};
         for (size_t group = 0u; group < groups.size(); group += 1u)
         {
             if (!groups[group].empty())
             {
-                fprintf(out, "mean %s pairs %zu excess+1 %s/%s excess %s\n", kinds[group], groups[group].size(),
+                fprintf(out, "mean %s pairs %zu excess+1 %s/%s excess %s\n", types[group], groups[group].size(),
                         stage_text_of(means[group].num).c_str(), stage_text_of(means[group].den).c_str(),
-                        shown[means_at + group].c_str());
+                        displayed[means_at + group].c_str());
             }
         }
         fclose(out);
@@ -725,7 +725,7 @@ int main(int count, char **arguments)
         for (size_t at = 0u; at < languages.size(); at += 1u)
         {
             printf("   %-5s %s %5zu meanings\n", languages[at].branch.c_str(),
-                   stage_shown(languages[at].name, 18u, 1).c_str(), languages[at].meanings.size());
+                   stage_displayed(languages[at].name, 18u, 1).c_str(), languages[at].meanings.size());
         }
         printf("\nexcess match rate (observed minus shuffled), shared meanings in brackets\n");
         for (size_t left = 0u; left < languages.size(); left += 1u)
@@ -736,10 +736,10 @@ int main(int count, char **arguments)
                 const size_t right = partner_of[left][partner_orders[left].sorted[place - 1u]];
                 ranked.push_back({right, table[{left, right}]});
             }
-            printf("%-5s %s", languages[left].branch.c_str(), stage_shown(languages[left].name, 18u, 1).c_str());
+            printf("%-5s %s", languages[left].branch.c_str(), stage_displayed(languages[left].name, 18u, 1).c_str());
             for (size_t at = 0u; (at < ranked.size()) && (at < 5u); at += 1u)
             {
-                printf("  %s %.6s[%zu]", stage_shown(languages[ranked[at].first].name, 10u, 0).c_str(),
+                printf("  %s %.6s[%zu]", stage_displayed(languages[ranked[at].first].name, 10u, 0).c_str(),
                        pairs[ranked[at].second].excess_text.c_str(), pairs[ranked[at].second].shared);
             }
             printf("\n");
@@ -749,8 +749,8 @@ int main(int count, char **arguments)
             printf("%s\n", lines[at].c_str());
         }
         printf("(c) mean excess: Interior pairs %s (%zu), Central pairs %s (%zu), Interior-Central %s (%zu): %s\n",
-               shown[means_at].c_str(), groups[0].size(), shown[means_at + 1u].c_str(), groups[1].size(),
-               shown[means_at + 2u].c_str(), groups[2].size(), means_agree ? "pass" : "FAIL");
+               displayed[means_at].c_str(), groups[0].size(), displayed[means_at + 1u].c_str(), groups[1].size(),
+               displayed[means_at + 2u].c_str(), groups[2].size(), means_agree ? "pass" : "FAIL");
         printf("(d) outside-Salish pairs with shuffle p below %llu/%llu: ", settings.p_below[0], settings.p_below[1]);
         if (failures.empty())
         {
@@ -770,7 +770,7 @@ int main(int count, char **arguments)
             if (!groups[3u + branch].empty())
             {
                 printf("Nuxalk mean excess with %-9s %s over %zu languages\n", names[branch],
-                       shown[means_at + 3u + branch].c_str(), groups[3u + branch].size());
+                       displayed[means_at + 3u + branch].c_str(), groups[3u + branch].size());
             }
         }
         printf("each excess is the sign, whole part and first six digits of the exact rational in the records\n");

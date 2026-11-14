@@ -36,8 +36,8 @@ JOBS="${JOBS:-2}"
 source "$HERE/lto_words.sh"
 # the folder a build's objects and programs go in, beside the target's name
 BUILD_SUFFIX=""
-# ORIOR_SANITIZE=address or thread builds every object and link under that sanitizer, with frame pointers kept for
-# its stacks and the code position-independent, since the sanitizer's constructors keep every object's sections in
+# ORIOR_SANITIZE=address or thread builds every object and link under that sanitizer, with frame pointers retained for
+# its stacks and the code position-independent, since the sanitizer's constructors retain every object's sections in
 # the window's shared library, into build/cli/<target>-<sanitizer> beside the plain build; the window's build links
 # the same. Every report is recoverable: a program run with halting off tells each one and goes on, and the
 # bundler here runs with halting off
@@ -87,7 +87,7 @@ if [[ -n "${ORIOR_COVERAGE:-}" ]]; then
 fi
 
 # MMgr's two include roots and embedded_types' headers, and the capabilities MMgr is built with: a CLI source
-# reaching a module header sees the layouts the module was compiled to; each cellblock keeps its high-water mark, in
+# reaching a module header sees the layouts the module was compiled to; each cellblock retains its high-water mark, in
 # the CLI's objects and in MMgr's alike, since the mark is a member of every cellblock's state, and the owner queue
 # has the room src/cu/CMakeLists.txt builds MMgr with
 MMGR="$TOP/includes/mmgr"
@@ -96,7 +96,7 @@ MMGR_HIGH_WATER=-DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1
 # the mover's readings for the window: a reading every 10 ms, two quiet in a row before a sort, since the frame loop
 # leaves gaps of that order and none of 100 ms
 MMGR_MOVER_WORDS=(-DMMGR_MOVABLE_READ_MS=10u -DMMGR_MOVABLE_QUIET_READINGS=2u)
-# the program lays its owner table in pool.c, and MMgr's weak defaults for the table stay out of its build: a compiler
+# the program positions its owner table in pool.c, and MMgr's weak defaults for the table stay out of its build: a compiler
 # can fold a read of a weak const object to the default's own value, and that fold refuses every take
 MMGR_OWNERS_WORD=-DMMGR_OWNERS_IN_THIS_UNIT=1
 MMGR_WORDS=(-I "$MMGR/include" -I "$MMGR/src" -I "$EMBEDDED_TYPES/include" -DMMGR_ENABLE_DMA=0
@@ -241,7 +241,7 @@ compiled() {
 }
 
 # the objects after `listed`, each as a path from the tree's top, one a line into the file `listed`, which a program
-# run from the top takes as @listed, which keeps every command line inside what Windows takes
+# run from the top takes as @listed, which retains every command line inside what Windows takes
 listed_into() {
     local listed="$1"
     shift

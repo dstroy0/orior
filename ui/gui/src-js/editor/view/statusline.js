@@ -4,7 +4,7 @@
 import { wordBefore } from "../document.js";
 import { enter, leave } from "../../trace.js";
 import { icon } from "../../icons.js";
-import { empty, endOfSel, LINE, PAD, startOf, STICKY_KEY, STICKY_MOST } from "../view.js";
+import { empty, endOfSel, LINE, PAD, startOf, STICKY_KEY, STICKY_MAX } from "../view.js";
 
 // Moves the cursor to the next of the language server's diagnostics after it, or the one before
 // it where `dir` is -1, round from the end to the start, and says what it is.
@@ -92,7 +92,7 @@ export function drawStatus() {
   this.status.replaceChildren(...parts);
 }
 
-// Sticky scroll: the line that opens each region the editor's top row is inside, kept along the
+// Sticky scroll: the line that opens each region the editor's top row is inside, retained along the
 // top, the outermost first. A click on one goes to it, and the wheel over them scrolls the text.
 export function setSticky(on) {
   this.stickyOn = on;
@@ -101,7 +101,7 @@ export function setSticky(on) {
   this.schedule();
 }
 
-// The regions the top row stands inside are the session's folds that hold it, found again each time the top row, the
+// The regions the top row is inside are the session's folds that hold it, found again each time the top row, the
 // text or the folds change.
 export function drawSticky(rows, top, left = this.scroller.scrollLeft) {
   const s = this.s;
@@ -113,11 +113,11 @@ export function drawSticky(rows, top, left = this.scroller.scrollLeft) {
   const firstRow = Math.floor(top / LINE);
   const rowsFor = `${s.doc.id}|${firstRow}|${rows.size}|${s.highlight.foldsCame}`;
   let stickyLines = this.stickyRowsFor === rowsFor ? this.stickyRows : [];
-  // The kept lines cover rows of their own, and they hold the regions of the row under them.
+  // The retained lines cover rows of their own, and they hold the regions of the row under them.
   for (let pass = 0; pass < 3 && this.stickyRowsFor !== rowsFor; pass += 1) {
     const line = rows.lineOf(Math.min(rows.size - 1, firstRow + stickyLines.length));
     const openersCall = enter("openers");
-    const next = s.openersOf(line, STICKY_MOST);
+    const next = s.openersOf(line, STICKY_MAX);
     leave(openersCall);
     if (next.join() === stickyLines.join()) {
       break;

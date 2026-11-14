@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # cli_bench.sh: the command line's common paths timed: its library built by ui/cli/build.sh, bench/cli_bench.c
 # compiled against it at -O2, and run over the corpus, the C and headers under ui/cli/src, from build/cli_test.
-# Each row it writes is kept in build/harness/bench/bench.tsv with the run's stamp and label before it, so a run
-# before a change stands beside the run after it. The first argument is the label, the second the repeats.
+# Each row it writes is retained in build/harness/bench/bench.tsv with the run's stamp and label before it, so a run
+# before a change is beside the run after it. The first argument is the label, the second the repeats.
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../../../.." && pwd)"
@@ -28,8 +28,8 @@ bash "$TOP/ui/cli/build.sh" library "$HOST" || { echo "bench exit 1"; exit 1; }
 CLI_NAME="$(awk -F'\t' '$1 == "cli" { print $2 }' "$TOP/bin_names.tsv")"
 LIBRARY="$TOP/build/cli/$HOST/lib$CLI_NAME.a"
 RUN="$TOP/build/cli_test"
-KEPT="$TOP/build/harness/bench"
-mkdir -p "$RUN" "$KEPT"
+RETAINED="$TOP/build/harness/bench"
+mkdir -p "$RUN" "$RETAINED"
 
 if ! "$CC" "--target=$HOST" -std=c11 -O2 "${LTO_WORDS[@]}" "${LINK_WORDS[@]}" "${MMGR_WORDS[@]}" -o "$RUN/cli_bench$SUFFIX" "$HERE/bench/cli_bench.c" "$HERE/bench/cli_bench_rules.c" "$HERE/bench/cli_bench_files.c" "$LIBRARY" \
     "${LIBRARIES[@]}" > "$RUN/cli_bench.log" 2>&1; then
@@ -50,5 +50,5 @@ ROWS="$RUN/bench_rows.tsv"
 (cd "$RUN" && "./cli_bench$SUFFIX" "$CORPUS" "$TREE" "$REPEAT") > "$ROWS"
 CODE=$?
 cat "$ROWS"
-sed "s|^|$STAMP\t$LABEL\t|" "$ROWS" >> "$KEPT/bench.tsv"
+sed "s|^|$STAMP\t$LABEL\t|" "$ROWS" >> "$RETAINED/bench.tsv"
 echo "bench exit $CODE"

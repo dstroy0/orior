@@ -140,15 +140,15 @@ unsigned int focus_links(TreeFrame *frames, unsigned int frame_count, unsigned i
                     target_weight = (tree->pool_target[entry] == taken) ? tree->pool_weight[entry] : target_weight;
                 }
                 unsigned int found = 0xFFFFFFFFu;
-                unsigned int maximum = 0u;
+                unsigned int max = 0u;
                 for (unsigned int entry = tree->pool_start[object]; entry < tree->pool_start[object + 1u]; entry += 1u)
                 {
                     const unsigned int candidate = tree->pool_target[entry];
                     const unsigned int agrees = (unsigned int)(onward_of(later, candidate) == reached);
                     const unsigned int level = (unsigned int)((tree->pool_weight[entry] * 2u) >= target_weight);
                     const int ahead = (agrees != 0u) && (level != 0u) &&
-                                      ((tree->pool_weight[entry] > maximum) || (found == 0xFFFFFFFFu));
-                    maximum = (ahead != 0) ? tree->pool_weight[entry] : maximum;
+                                      ((tree->pool_weight[entry] > max) || (found == 0xFFFFFFFFu));
+                    max = (ahead != 0) ? tree->pool_weight[entry] : max;
                     found = (ahead != 0) ? candidate : found;
                 }
                 if ((found == 0xFFFFFFFFu) || (found == taken))
@@ -178,14 +178,14 @@ static int settle_links(TreeFrame *earlier, const TreeFrame *later)
     unsigned int *const object_entry = (unsigned int *)malloc(((size_t)objects + 1u) * sizeof(unsigned int));
     unsigned char *const turned = (unsigned char *)calloc((size_t)earlier->pool_start[objects] + 1u, 1u);
     unsigned int *const survivor = (unsigned int *)malloc(((size_t)later->object_count + 1u) * sizeof(unsigned int));
-    unsigned long long *const standing =
+    unsigned long long *const located =
         (unsigned long long *)malloc(((size_t)later->object_count + 1u) * sizeof(unsigned long long));
-    if ((object_entry == NULL) || (turned == NULL) || (survivor == NULL) || (standing == NULL))
+    if ((object_entry == NULL) || (turned == NULL) || (survivor == NULL) || (located == NULL))
     {
         free(object_entry);
         free(turned);
         free(survivor);
-        free(standing);
+        free(located);
         return 0;
     }
     for (unsigned int object = 0u; object < objects; object += 1u)
@@ -205,7 +205,7 @@ static int settle_links(TreeFrame *earlier, const TreeFrame *later)
         for (unsigned int target = 0u; target <= later->object_count; target += 1u)
         {
             survivor[target] = 0xFFFFFFFFu;
-            standing[target] = 0ull;
+            located[target] = 0ull;
         }
         for (unsigned int object = 0u; object < objects; object += 1u)
         {
@@ -227,8 +227,8 @@ static int settle_links(TreeFrame *earlier, const TreeFrame *later)
             const unsigned long long delta = (mine > second) ? (mine - second) : 0ull;
             const unsigned int target = earlier->pool_target[entry];
             const int ahead =
-                (delta > standing[target]) || ((delta == standing[target]) && (survivor[target] == 0xFFFFFFFFu));
-            standing[target] = (ahead != 0) ? delta : standing[target];
+                (delta > located[target]) || ((delta == located[target]) && (survivor[target] == 0xFFFFFFFFu));
+            located[target] = (ahead != 0) ? delta : located[target];
             survivor[target] = (ahead != 0) ? object : survivor[target];
         }
         moving = 0u;
@@ -246,14 +246,14 @@ static int settle_links(TreeFrame *earlier, const TreeFrame *later)
             }
             turned[entry] = 1u;
             unsigned int next = 0xFFFFFFFFu;
-            unsigned long long maximum = 0ull;
+            unsigned long long max = 0ull;
             for (unsigned int other = earlier->pool_start[object]; other < earlier->pool_start[object + 1u];
                  other += 1u)
             {
                 const int open = (turned[other] == 0u);
-                const int better = (open != 0) && (((unsigned long long)earlier->pool_weight[other] > maximum) ||
+                const int better = (open != 0) && (((unsigned long long)earlier->pool_weight[other] > max) ||
                                                    (next == 0xFFFFFFFFu));
-                maximum = (better != 0) ? (unsigned long long)earlier->pool_weight[other] : maximum;
+                max = (better != 0) ? (unsigned long long)earlier->pool_weight[other] : max;
                 next = (better != 0) ? other : next;
             }
             object_entry[object] = (next != 0xFFFFFFFFu) ? next : entry;
@@ -272,7 +272,7 @@ static int settle_links(TreeFrame *earlier, const TreeFrame *later)
     free(object_entry);
     free(turned);
     free(survivor);
-    free(standing);
+    free(located);
     return 1;
 }
 
@@ -489,11 +489,11 @@ int link_objects_unbound(TreeFrame *earlier, const TreeFrame *later, const TreeF
         g_web_queried += (unsigned long long)(queries_web != 0);
         g_web_capped += (unsigned long long)((near_start != NULL) && (company != 0u) && (members > WEB_MEMBERS));
         unsigned int followed = leader;
-        unsigned long long maximum = 0ull;
+        unsigned long long max = 0ull;
         if (queries_web != 0)
         {
             mark += 1u;
-            maximum = web_count(earlier, object, later, pool[leader], near_start, nearby, later_near_start,
+            max = web_count(earlier, object, later, pool[leader], near_start, nearby, later_near_start,
                                 later_nearby, seen, mark);
         }
         for (unsigned int entry = 0u; (queries_web != 0) && (entry < filled); entry += 1u)
@@ -507,8 +507,8 @@ int link_objects_unbound(TreeFrame *earlier, const TreeFrame *later, const TreeF
             mark += 1u;
             const unsigned long long web_found = web_count(earlier, object, later, pool[entry], near_start, nearby,
                                                            later_near_start, later_nearby, seen, mark);
-            followed = (web_found > maximum) ? entry : followed;
-            maximum = (web_found > maximum) ? web_found : maximum;
+            followed = (web_found > max) ? entry : followed;
+            max = (web_found > max) ? web_found : max;
         }
         g_web_moved += (unsigned long long)((queries_web != 0) && (followed != leader));
         leader = (queries_web != 0) ? followed : leader;
@@ -610,13 +610,13 @@ int link_objects_unbound(TreeFrame *earlier, const TreeFrame *later, const TreeF
                     reached[where] += (unsigned long long)later->sizes[later->members[member]];
                 }
                 unsigned int best = 0xFFFFFFFFu;
-                unsigned long long maximum = 0ull;
+                unsigned long long max = 0ull;
                 for (unsigned int member = first; member < last; member += 1u)
                 {
                     const int back = later->backward[later->members[member]];
                     const unsigned int where = (back >= 0) ? earlier->object_of[(unsigned int)back] : objects;
-                    const int ahead = (back >= 0) && (reached[where] > maximum);
-                    maximum = (ahead != 0) ? reached[where] : maximum;
+                    const int ahead = (back >= 0) && (reached[where] > max);
+                    max = (ahead != 0) ? reached[where] : max;
                     best = (ahead != 0) ? where : best;
                 }
                 for (unsigned int member = first; member < last; member += 1u)

@@ -6,7 +6,7 @@
 #
 #   Usage:  from mellesmoen_kye_repair import repaired
 #
-# Kept in one file because three things apply them: the reader, the hand extraction check, and the
+# Retained in one file because three things apply them: the reader, the hand extraction check, and the
 # coverage check. Two copies of a repair drift, and the check then reports as a hole every word one
 # copy put together and the other did not.
 #
@@ -15,12 +15,12 @@
 # The PDF sets a stacked diacritic by leaving room after it, and the extraction reads that room as a
 # space. c̓ íx̌ id is the single word c̓íx̌id, x̌ ə́ k̓ ʷəd is x̌ə́k̓ʷəd, and there are 186 lines of it.
 #
-# ʷ is left out of the joining set. It is a spacing modifier letter on the baseline, and the PDF
+# ʷ is left out of the joining set. It is a spacing modifier character on the baseline, and the PDF
 # never has to make room after one. Every space following a ʷ in this paper is a real word boundary:
 # bəlkʷ ‘return’, wix̌ʷ x̌il, sčədadxʷ sʔuladxʷ, tíləxʷ ʔəsxʷák̓ʷilbids. Including it welded thirteen
 # pairs of words, among them the first two words of Annie Jack's opening sentence.
 #
-# The extraction prints two spaces where a real boundary follows a stacked mark. That keeps
+# The extraction prints two spaces where a real boundary follows a stacked mark. That retains
 # the two columns of Table A1 apart at č̓ ə́šay̓  č̓ əsáy̓. Only a lone space gets closed.
 #
 # One join is wrong and is known to be. Line 1349 cites the palatal series in prose as /ǰ č č̓  š/.
@@ -38,7 +38,7 @@
 # x̌ʷul̕-b with COMBINING COMMA ABOVE RIGHT.
 #
 # Eight tokens carry the second mark, all of them in the two appendices. Left alone, ƛ̓ and ƛ̕ are two
-# different letters to everything downstream, and the corpus holds Annie Jack's ƛ̕u= apart from the
+# different characters to everything downstream, and the corpus holds Annie Jack's ƛ̕u= apart from the
 # ƛ̓ of every other paper.
 #
 # EVERY ACCENTED VOWEL WRITTEN TWO WAYS
@@ -48,7 +48,7 @@
 # identically and no reading of the paper finds the difference. The hand extraction did not find it:
 # thirteen of its rows were reported as forms the paper does not hold until this ran.
 #
-# c̓ágʷačiʔb ‘wash hands’ is the case to look at. Table 7 prints it one way and the prose about
+# c̓ágʷačiʔb ‘wash passes’ is the case to look at. Table 7 prints it one way and the prose about
 # Figure 3 prints it the other. One word of one paper is then two words to anything comparing
 # strings, and a corpus built without this holds both of them.
 #
@@ -71,7 +71,7 @@ def closed_spaces(line):
     """One line with the space the PDF left after a stacked diacritic taken out.
 
     A lone space after a mark is the inserted one. Two spaces are a column boundary the extraction
-    kept, and one of them survives so the columns stay apart.
+    retained, and one of them survives so the columns stay apart.
     """
     out = []
     at = 0

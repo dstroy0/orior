@@ -24,7 +24,7 @@
 #
 # So the control is to leave the hard part hard. Publishing the corpus would convert months of
 # somebody's reading into a download, and every casual misuse downstream starts with that download
-# existing. Not shipping it keeps the cost where it already was.
+# existing. Not shipping it retains the cost where it already was.
 #
 # It is deliberately only casual. It stops the easy path and does not pretend to stop somebody who
 # does the gathering themselves and means it.
@@ -36,14 +36,14 @@
 # structure in it, and it is measured with the same total variation and entropy the corpus work
 # uses, out of orior.py.
 #
-# The support figure keeps the delta honest. A 24 bit field has 16.8 million states and a
-# twenty minute recording has 135 thousand frames. Most states are unreachable at this sample
+# The support figure retains the delta honest. A 24 bit field has 16.8 million states and a
+# twenty minute recording has 135 thousand frames. Max states are unreachable at this sample
 # size whatever the recording does. The delta against uniform is therefore near 1 on the wide field
 # by construction, and the entropy against the field width is the reading to take.
 #
 # So the segment field is also reported at the narrow widths where its states are sampled. The bits
 # come out of a rotation ordered by how much the recording varies along each axis. The leading
-# ones carry the most and a prefix of the field is the best code of that width. At 12 bits a
+# ones carry the max and a prefix of the field is the best code of that width. At 12 bits a
 # recording of this length has 33 frames per state, and a delta measured there is a fact about the
 # recording. At 24 it is a fact about the frame count.
 
@@ -159,7 +159,7 @@ def recordings():
 def from_uniform(profile, width):
     """Total variation between an observed code distribution and the flat one over 2^width states.
 
-    Written out instead of handed to orior.distance, because the reference has 2^width cells
+    Written out instead of passed to orior.distance, because the reference has 2^width cells
     and building a dictionary that size to compare against costs more than the answer. The states
     nothing landed on each contribute their whole share of the flat distribution, the second term.
     """

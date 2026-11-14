@@ -49,7 +49,7 @@ static unsigned int omega_computer_proven(unsigned long long low, unsigned long 
     {
         const unsigned int shift = bits - place;
         const unsigned long long floor_low = low >> shift;
-        // the value is below high. Its first `place` bits are at most ceil(high / 2^shift) - 1
+        // the value is below high. Its first `place` bits are at max ceil(high / 2^shift) - 1
         const unsigned long long top = ((high + ((1ull << shift) - 1ull)) >> shift) - 1ull;
         if (floor_low != top)
         {
@@ -60,7 +60,7 @@ static unsigned int omega_computer_proven(unsigned long long low, unsigned long 
     return proven;
 }
 
-static int omega_computer_request(const char *text, unsigned long long least, unsigned long long maximum,
+static int omega_computer_request(const char *text, unsigned long long least, unsigned long long max,
                                   unsigned long long *value)
 {
     unsigned long long read = 0ull;
@@ -70,14 +70,14 @@ static int omega_computer_request(const char *text, unsigned long long least, un
     }
     for (const char *walk = text; *walk != '\0'; walk += 1)
     {
-        if ((*walk < '0') || (*walk > '9') || (read > maximum))
+        if ((*walk < '0') || (*walk > '9') || (read > max))
         {
             return 0;
         }
         // one decimal digit, 0 to 9
         read = (read * 10ull) + (unsigned long long)(*walk - '0');
     }
-    if ((read < least) || (read > maximum))
+    if ((read < least) || (read > max))
     {
         return 0;
     }
@@ -103,8 +103,8 @@ int main(int count, char **arguments)
         sim_check(&results, 0, "the request names its length, its depth and its steps");
         return sim_close(&results, "omega computer");
     }
-    // the request's values are at most 40 and 8
-    const unsigned int maximum = (unsigned int)length;
+    // the request's values are at max 40 and 8
+    const unsigned int max = (unsigned int)length;
     const unsigned int depths = (unsigned int)deepest;
 
     // 1. U, and Tromp's test at every depth
@@ -215,7 +215,7 @@ int main(int count, char **arguments)
 
     // 2 to 4. every closed M through L bits, run on nil at every depth
     OmegaComputerCounts counts;
-    omega_computer_count_all(&counts, maximum);
+    omega_computer_count_all(&counts, max);
     std::vector<unsigned long long> halted(depths + 1u, 0ull);
     std::vector<unsigned long long> looped(depths + 1u, 0ull);
     std::vector<unsigned long long> open(depths + 1u, 0ull);
@@ -234,10 +234,10 @@ int main(int count, char **arguments)
     std::vector<unsigned long long> depth_steps(depths + 1u, 0ull);
     std::vector<OmegaComputerFate> fates(depths + 1u, OMEGA_COMPUTER_OPEN);
     std::vector<std::vector<int>> normals(depths + 1u);
-    for (unsigned int bits = 2u; bits <= maximum; bits += 1u)
+    for (unsigned int bits = 2u; bits <= max; bits += 1u)
     {
         const unsigned long long terms = omega_computer_count(&counts, bits, 0u);
-        const unsigned long long mass = 1ull << (maximum - bits);
+        const unsigned long long mass = 1ull << (max - bits);
         for (unsigned long long index = 0ull; index < terms; index += 1ull)
         {
             std::vector<int> program;
@@ -318,10 +318,10 @@ int main(int count, char **arguments)
     }
 
     // the mass of every code through L bits, closed or not, over 2^L; what it leaves of 1 bounds every longer code
-    std::vector<unsigned long long> all_codes(maximum + 1u, 0ull);
+    std::vector<unsigned long long> all_codes(max + 1u, 0ull);
     unsigned long long counted = 0ull;
     unsigned long long closed_mass = 0ull;
-    for (unsigned int bits = 2u; bits <= maximum; bits += 1u)
+    for (unsigned int bits = 2u; bits <= max; bits += 1u)
     {
         unsigned long long codes = 1ull + all_codes[bits - 2u];
         for (unsigned int left = 2u; (left + 4u) <= bits; left += 1u)
@@ -329,17 +329,17 @@ int main(int count, char **arguments)
             codes += all_codes[left] * all_codes[bits - 2u - left];
         }
         all_codes[bits] = codes;
-        counted += codes << (maximum - bits);
-        closed_mass += omega_computer_count(&counts, bits, 0u) << (maximum - bits);
+        counted += codes << (max - bits);
+        closed_mass += omega_computer_count(&counts, bits, 0u) << (max - bits);
     }
-    const unsigned long long total = 1ull << maximum;
+    const unsigned long long total = 1ull << max;
     // the upper bound: everything but the proven non-halts and the codes through L that are not closed
     const unsigned long long upper = total - proven_mass - (counted - closed_mass);
 
     mmgr_line_put(&results.line, "  ");
     mmgr_line_decimal(&results.line, programs, 1u);
     mmgr_line_put(&results.line, " closed programs through ");
-    mmgr_line_decimal(&results.line, maximum, 1u);
+    mmgr_line_decimal(&results.line, max, 1u);
     mmgr_line_put(&results.line, " bits, run on nil; the direct run halts ");
     mmgr_line_decimal(&results.line, direct_halted, 1u);
     mmgr_line_put(&results.line, " and proves ");
@@ -365,9 +365,9 @@ int main(int count, char **arguments)
         mmgr_line_put(&results.line, "  ");
         mmgr_line_decimal(&results.line, grew[depth], 1u);
         mmgr_line_put(&results.line, "  ");
-        omega_computer_binary(&results.line, halted_mass[depth], maximum);
+        omega_computer_binary(&results.line, halted_mass[depth], max);
         mmgr_line_put(&results.line, "  ");
-        mmgr_line_decimal(&results.line, omega_computer_proven(halted_mass[depth], upper, maximum), 1u);
+        mmgr_line_decimal(&results.line, omega_computer_proven(halted_mass[depth], upper, max), 1u);
         mmgr_line_put(&results.line, "  ");
         mmgr_line_decimal(&results.line, steps_total[depth], 1u);
         if (depth > 0u)
@@ -380,8 +380,8 @@ int main(int count, char **arguments)
         mmgr_line_ch(&results.line, '\n');
         sim_flush(&results);
     }
-    mmgr_line_put(&results.line, "  Omega_nil at most ");
-    omega_computer_binary(&results.line, upper, maximum);
+    mmgr_line_put(&results.line, "  Omega_nil at max ");
+    omega_computer_binary(&results.line, upper, max);
     mmgr_line_put(&results.line, " at every depth; ");
     mmgr_line_decimal(&results.line, settled_everywhere, 1u);
     mmgr_line_put(&results.line, " programs halt at every depth\n");

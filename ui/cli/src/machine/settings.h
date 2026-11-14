@@ -1,14 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// settings.h: settings by file, each part of a file standing over the parts before it: the files the reader's
+// settings.h: settings by file, each part of a file located over the parts before it: the files the reader's
 // settings.json takes, settings.json itself, the files a tree's `.orior/settings.json` takes, and that file
 // (settings.c, settings_layers.c). A settings file is JSON, with comments and trailing commas as VS Code's files write
 // them, each key a setting as settings.json stores it (state.c), and these keys of its own:
 //
 // - `allocs`: the path of another settings file, from the file's own folder, whose settings this one takes, its own
-//   standing over them;
-// - `windows`, `linux` and `macos`: settings for that system alone, standing over the file's others;
-// - `machine`, in the reader's own settings.json: settings for this machine alone, standing over the file's others and
+//   located over them;
+// - `windows`, `linux` and `macos`: settings for that system alone, located over the file's others;
+// - `machine`, in the reader's own settings.json: settings for this machine alone, located over the file's others and
 //   its system's, and never carried to another machine;
 // - `[type]`, as `[markdown]`: the theme of each scheme, `theme.dark` and `theme.light`, the editor shows the files of
 //   the language `type` in.
@@ -29,7 +29,7 @@ typedef struct CliSettingsKeyCfg CliSettingsKeyCfg;
 typedef struct CliSettingsCfg CliSettingsCfg;
 typedef struct CliSettingsOutCfg CliSettingsOutCfg;
 
-// the tree's settings file, from its top folder; the most files one chain of `allocs` reads; and the most settings one
+// the tree's settings file, from its top folder; the max files one chain of `allocs` reads; and the max settings one
 // `${setting:name}` reads through
 #define CLI_SETTINGS_TREE ".orior/settings.json"
 
@@ -37,13 +37,13 @@ typedef struct CliSettingsOutCfg CliSettingsOutCfg;
 
 #define CLI_SETTINGS_NAMES_DEEP 8u
 
-// the most bytes of the layers' texts, and the most problems a chain or the layers report
+// the max bytes of the layers' texts, and the max problems a chain or the layers report
 #define CLI_SETTINGS_TEXT (1u << 21u)
 
 #define CLI_SETTINGS_PROBLEMS 64u
 
 // The files of one chain, the first taken by the second and so on to the last, read into one tree in a cell of their
-// tokens and bytes, each the path it is shown by and the object of every key it contains, and what could not be read
+// tokens and bytes, each the path it is displayed by and the object of every key it contains, and what could not be read
 typedef struct
 {
     CliJson json;
@@ -54,7 +54,7 @@ typedef struct
     unsigned int problems;
 } CliChain;
 
-// the most keys the layers set, and the most parts of files that set them
+// the max keys the layers set, and the max parts of files that set them
 #define CLI_LAYERS_KEYS 4096u
 
 #define CLI_LAYERS_SOURCES 8192u
@@ -86,7 +86,7 @@ typedef struct
 } CliTypeText;
 
 // The settings in force, as the page reads them over its own entries, each by its key without `orior.`: `over`, the
-// text of each a file stands over the reader's own settings.json with, and of each settings.json sets through a
+// text of each a file is over the reader's own settings.json with, and of each settings.json sets through a
 // variable, those in `own`; `under`, the text of each only the files settings.json takes set; `from`, each part of a
 // file that sets a setting, the one in force first, a type's settings under `[type] key`; `types`, the settings of each
 // type of file; `own_file`, the reader's own settings.json as `from` names it, where it is there; and the files read,
@@ -120,20 +120,20 @@ typedef struct
 // no setting: `allocs`, a system's, `machine` or a type's
 const char *cli_settings_system(void);
 int cli_settings_is_file_key(const CliSettingsKeyCfg *args);
-// the file at `path` and each it takes, the one taken first, each shown by its path from `root` where it is under it,
+// the file at `path` and each it takes, the one taken first, each displayed by its path from `root` where it is under it,
 // else as it is; a file not there gives none; a file taken that is not there, or that a chain takes twice, is a
-// problem. The tree's settings, its file and each it takes, shown from the tree's top folder; and the reader's,
+// problem. The tree's settings, its file and each it takes, displayed from the tree's top folder; and the reader's,
 // settings.json in orior's own folder and each file it takes. Each into `chain`, which contains nothing before, its
 // tree released through persistent_buf_release (settings.c)
 void cli_settings_chain(const CliSettingsPathCfg *args);
 void cli_settings_tree(const CliSettingsPathCfg *args);
 void cli_settings_reader(const CliSettingsPathCfg *args);
 // a chain written as the window reads it, `{"files": [{"file", "values"}], "problems"}`, after `out`; a chain the
-// window hands back, so written, read into `chain`, which contains nothing before: 1, or 0 with why given; and a
+// window passes back, so written, read into `chain`, which contains nothing before: 1, or 0 with why given; and a
 // chain's tree given back, the chain left containing nothing (settings_chain_text.c)
 int cli_settings_chain_read(const CliSettingsChainCfg *args);
 // the settings in force from the reader's chain and the tree's, for the tree at `root`, into `layers`, which contain
-// nothing before, their texts in a cell at their most; the layers' texts given back, the layers left containing none;
+// nothing before, their texts in a cell at their max; the layers' texts given back, the layers left containing none;
 // the layers written as the window reads them after `out`; and the text of `key` the layers set over the reader's own,
 // or under it, NULL where they set none (settings_layers.c)
 void cli_settings_layers(const CliSettingsRootCfg *args);

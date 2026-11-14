@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // The object as the host holds it: the header, the small sections copied out of the mapped buffer, and what the
-// panels read from them. The runs stay on the card. Every number here is an integer; a fraction is shown by
-// integer division to the places asked for. The object is two files, laid end to end in one buffer: the .vbo (the
+// panels read from them. The runs stay on the card. Every number here is an integer; a fraction is displayed by
+// integer division to the places asked for. The object is two files, positioned end to end in one buffer: the .vbo (the
 // header, frames, leaves, cells, runs and the .cfg) and the .ibo (its own short header, the links and the edges). A
 // run is two words, its first voxel in the frame and its length; the header's version is 2.
 
@@ -220,13 +220,13 @@ EV.lineage = (object, seeds) => {
   return [...seen].sort((left, right) => left - right);
 };
 
-// What a reader should look at, each item naming its frame and cells. Rankings, never cutoffs: the most linked and
+// What a reader should look at, each item naming its frame and cells. Rankings, never cutoffs: the max linked and
 // the largest cells are listed first, and the reader decides where concern starts.
 EV.reviewList = (object) => {
   const header = object.header;
   const items = [];
   if (header.aberrant_leaves || header.aberrant_voxels || header.wide_sums) {
-    items.push({ kind: "control", frame: 0, cells: [], text: `control: ${header.aberrant_leaves} leaves, ${header.aberrant_voxels} voxels, ${header.wide_sums} wide sums` });
+    items.push({ type: "control", frame: 0, cells: [], text: `control: ${header.aberrant_leaves} leaves, ${header.aberrant_voxels} voxels, ${header.wide_sums} wide sums` });
   }
   for (let edge = 0; edge < header.edge_total; edge += 1) {
     const status = object.edges[3 * edge + 2];
@@ -235,7 +235,7 @@ EV.reviewList = (object) => {
     if (status === 2 || status === 3) {
       const cells = [source, target].filter((cell) => cell !== EV.NONE);
       const frame = source !== EV.NONE ? object.cellFrame[source] : 0;
-      items.push({ kind: EV.STATUS_NAMES[status], frame, cells, edge });
+      items.push({ type: EV.STATUS_NAMES[status], frame, cells, edge });
     }
   }
   const byDegree = [];
@@ -248,10 +248,10 @@ EV.reviewList = (object) => {
   byDegree.sort((left, right) => right[0] - left[0] || left[1] - right[1]);
   bySize.sort((left, right) => right[0] - left[0] || left[1] - right[1]);
   for (const [degree, cell] of byDegree.slice(0, 12)) {
-    items.push({ kind: "most linked", frame: object.cellFrame[cell], cells: [cell], degree });
+    items.push({ type: "max linked", frame: object.cellFrame[cell], cells: [cell], degree });
   }
   for (const [voxels, cell] of bySize.slice(0, 12)) {
-    items.push({ kind: "largest", frame: object.cellFrame[cell], cells: [cell], voxels });
+    items.push({ type: "largest", frame: object.cellFrame[cell], cells: [cell], voxels });
   }
   return items;
 };

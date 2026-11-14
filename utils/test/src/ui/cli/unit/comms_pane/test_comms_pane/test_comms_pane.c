@@ -4,7 +4,7 @@
 // two parts and a channel list by name under their groups, each with its counts and its grants as the page writes
 // them; a part whose message was refused is marked and one with none is not; a channel opened lists its stored
 // messages under it, the oldest first, and closes again; the layer is listed again only as its stamp moves; the
-// deadline is a second on while the view is in sight and none while it is not; a view chosen is the view shown; the
+// deadline is a second on while the view is in sight and none while it is not; a view chosen is the view displayed; the
 // head's labels; and the catalog's eight Comms commands are run by name and no other. The cases share the one comms
 // layer a process has, run in order
 #include "ui/cli/src/comms/comms.h"
@@ -23,7 +23,7 @@ void tearDown(void)
 {
 }
 
-// the row `at` of the Channels view read into `row`, whose texts stand in its own bytes, the test failed where there
+// the row `at` of the Channels view read into `row`, whose texts are in its own bytes, the test failed where there
 // is none
 static void row_at(unsigned int at, CliCommsRow *row)
 {
@@ -33,7 +33,7 @@ static void row_at(unsigned int at, CliCommsRow *row)
 // the view read with its stamp looked at, in sight: 1 where it was listed again
 static int stepped(int force)
 {
-    return EMBED_CALL(cli_comms_pane.step, CliCommsPaneCfg, .shown = 1, .force = force, .now_ms = 5000ULL);
+    return EMBED_CALL(cli_comms_pane.step, CliCommsPaneCfg, .displayed = 1, .force = force, .now_ms = 5000ULL);
 }
 
 // a part `name` registered listening on and sending on `grant`, its key into `key`
@@ -185,16 +185,16 @@ void test_a_channel_opened_lists_its_messages_the_oldest_first_and_closes(void)
 void test_the_deadline_is_a_second_on_while_in_sight_and_none_while_not(void)
 {
     TEST_ASSERT_EQUAL_UINT64(5000ULL + CLI_COMMS_REFRESH_MS,
-                             EMBED_CALL(cli_comms_pane.deadline_ms, CliCommsPaneCfg, .shown = 1));
-    TEST_ASSERT_EQUAL_UINT64(0ULL, EMBED_CALL(cli_comms_pane.deadline_ms, CliCommsPaneCfg, .shown = 0));
+                             EMBED_CALL(cli_comms_pane.deadline_ms, CliCommsPaneCfg, .displayed = 1));
+    TEST_ASSERT_EQUAL_UINT64(0ULL, EMBED_CALL(cli_comms_pane.deadline_ms, CliCommsPaneCfg, .displayed = 0));
 }
 
-void test_a_view_chosen_is_the_view_shown_and_channels_returns(void)
+void test_a_view_chosen_is_the_view_displayed_and_channels_returns(void)
 {
     TEST_ASSERT_EQUAL_UINT(CLI_COMMS_VIEW_CHANNELS, EMBED_CALL(cli_comms_pane.view, CliCommsPaneCfg, .at = 0u));
     EMBED_CALL(cli_comms_pane.choose, CliCommsPaneCfg, .view = CLI_COMMS_VIEW_NETWORK);
     TEST_ASSERT_EQUAL_UINT(CLI_COMMS_VIEW_NETWORK, EMBED_CALL(cli_comms_pane.view, CliCommsPaneCfg, .at = 0u));
-    TEST_ASSERT_EQUAL_UINT64(0ULL, EMBED_CALL(cli_comms_pane.deadline_ms, CliCommsPaneCfg, .shown = 1));
+    TEST_ASSERT_EQUAL_UINT64(0ULL, EMBED_CALL(cli_comms_pane.deadline_ms, CliCommsPaneCfg, .displayed = 1));
     EMBED_CALL(cli_comms_pane.choose, CliCommsPaneCfg, .view = CLI_COMMS_VIEWS);
     TEST_ASSERT_EQUAL_UINT(CLI_COMMS_VIEW_NETWORK, EMBED_CALL(cli_comms_pane.view, CliCommsPaneCfg, .at = 0u));
     EMBED_CALL(cli_comms_pane.choose, CliCommsPaneCfg, .view = CLI_COMMS_VIEW_CHANNELS);
@@ -224,31 +224,31 @@ void test_the_eight_comms_commands_run_by_name_and_no_other(void)
     {
         VerbaLinea clipboard = {clipboard_text, sizeof(clipboard_text), 0ULL};
         VerbaLinea open_out = {open_text, sizeof(open_text), 0ULL};
-        int shown = 0;
+        int displayed = 0;
         TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_comms_command.run, CliCommsCommandCfg, .name = s_names[at],
-                                            .clipboard = &clipboard, .open_out = &open_out, .shown_out = &shown),
+                                            .clipboard = &clipboard, .open_out = &open_out, .displayed_out = &displayed),
                                  s_names[at]);
     }
     VerbaLinea clipboard = {clipboard_text, sizeof(clipboard_text), 0ULL};
     VerbaLinea open_out = {open_text, sizeof(open_text), 0ULL};
-    int shown = 0;
+    int displayed = 0;
     TEST_ASSERT_FALSE(EMBED_CALL(cli_comms_command.run, CliCommsCommandCfg, .name = "terminal-view",
-                                 .clipboard = &clipboard, .open_out = &open_out, .shown_out = &shown));
-    TEST_ASSERT_FALSE(shown);
+                                 .clipboard = &clipboard, .open_out = &open_out, .displayed_out = &displayed));
+    TEST_ASSERT_FALSE(displayed);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_comms_command.run, CliCommsCommandCfg, .name = "report", .clipboard = &clipboard,
-                                .open_out = &open_out, .shown_out = &shown));
-    TEST_ASSERT_TRUE(shown);
+                                .open_out = &open_out, .displayed_out = &displayed));
+    TEST_ASSERT_TRUE(displayed);
     TEST_ASSERT_EQUAL_UINT(CLI_COMMS_VIEW_REPORT, EMBED_CALL(cli_comms_pane.view, CliCommsPaneCfg, .at = 0u));
     const char *const on[1] = {"on"};
     const char *const off[1] = {"off"};
     TEST_ASSERT_TRUE(EMBED_CALL(cli_comms_command.run, CliCommsCommandCfg, .name = "network-off", .words = on,
-                                .count = 1u, .clipboard = &clipboard, .open_out = &open_out, .shown_out = &shown));
+                                .count = 1u, .clipboard = &clipboard, .open_out = &open_out, .displayed_out = &displayed));
     TEST_ASSERT_TRUE(cli_net_is_disable());
     TEST_ASSERT_TRUE(EMBED_CALL(cli_comms_command.run, CliCommsCommandCfg, .name = "network-off",
-                                .clipboard = &clipboard, .open_out = &open_out, .shown_out = &shown));
+                                .clipboard = &clipboard, .open_out = &open_out, .displayed_out = &displayed));
     TEST_ASSERT_FALSE(cli_net_is_disable());
     TEST_ASSERT_TRUE(EMBED_CALL(cli_comms_command.run, CliCommsCommandCfg, .name = "network-off", .words = off,
-                                .count = 1u, .clipboard = &clipboard, .open_out = &open_out, .shown_out = &shown));
+                                .count = 1u, .clipboard = &clipboard, .open_out = &open_out, .displayed_out = &displayed));
     TEST_ASSERT_FALSE(cli_net_is_disable());
     TEST_ASSERT_EQUAL_UINT64(0ULL, clipboard.at);
     TEST_ASSERT_EQUAL_UINT64(0ULL, open_out.at);

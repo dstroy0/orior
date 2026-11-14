@@ -9,12 +9,12 @@
 // and typing arrive at a hidden text area that sits at the primary cursor, which is also where an
 // input method opens its window.
 
-import { least, most, same } from "./document.js";
+import { least, max, same } from "./document.js";
 import { motionReduced } from "../motion.js";
 import { Find, GoTo } from "./find.js";
 import { Layer } from "./layer.js";
 import { Minimap } from "./minimap.js";
-import { letterOf } from "../keys.js";
+import { characterOf } from "../keys.js";
 import { Hover, Suggest } from "./widgets.js";
 import { authorsShown } from "../authors.js";
 import * as changes from "./view/changes.js";
@@ -42,31 +42,31 @@ export const historyChars = () => (authorsShown() ? HISTORY_CHARS : DATE_CHARS);
 // The height of a row, read from the code's line height each time the editor measures.
 let LINE = 20;
 
-// How many rows of padding a paged file's window has above it and below it at most: the scrolling
-// space stays within what the page lays out, and the window moves as the view nears its edge.
+// How many rows of padding a paged file's window has above it and below it at max: the scrolling
+// space stays within what the page arranges, and the window moves as the view nears its edge.
 export const PAGED_PAD = 250000;
 
-// The fewest columns a wrapped row holds, and the most lines' breaks kept.
+// The fewest columns a wrapped row holds, and the max lines' breaks retained.
 export const WRAP_LEAST = 20;
-export const WRAPS_KEPT = 200000;
+export const WRAPS_RETAINED = 200000;
 
 // How round a selection's corners are, in pixels.
 export const SELECTION_ROUND = 4;
 
 // Rows are placed from an origin, a row near the screen and a whole number of ORIGIN_ROWS from
-// the first, and never from the first row itself. A row of a long file placed from the first stands
+// the first, and never from the first row itself. A row of a long file placed from the first is
 // millions of pixels down, where the page draws text a pixel off, and a row drawn again there lands
 // over what it was and not on it.
 export const ORIGIN_ROWS = 512;
 
-// The letters of the scripts that run right to left: Hebrew, Arabic, Syriac, Thaana, N'Ko and the
+// The characters of the scripts that run right to left: Hebrew, Arabic, Syriac, Thaana, N'Ko and the
 // rest of the right-to-left blocks, and their presentation forms. A line that holds one is placed as
-// the page draws it, each character where it stands, and every other line by its columns.
+// the page draws it, each character where it is, and every other line by its columns.
 export const RTL = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF\u{10800}-\u{10FFF}\u{1E800}-\u{1EFFF}]/u;
 
-// Whether each character of `text` is drawn running right to left: a letter of such a script is, a
-// letter of any other script and a digit are not, and a character of neither, as a space or a mark of
-// punctuation, runs as the letters on both sides of it do where they agree, and left to right where
+// Whether each character of `text` is drawn running right to left: a character of such a script is, a
+// character of any other script and a digit are not, and a character of neither, as a space or a mark of
+// punctuation, runs as the characters on both sides of it do where they agree, and left to right where
 // they do not.
 export function runsRightToLeft(text) {
   const strong = [...text].flatMap((char) => {
@@ -93,17 +93,17 @@ export function runsRightToLeft(text) {
 // Column Selection Mode's key: while it is on, a drag chooses a column, as Shift and Alt do.
 export const COLUMN_KEY = "orior.column";
 
-// Sticky scroll: the most lines it holds along the top.
-export const STICKY_MOST = 5;
+// Sticky scroll: the max lines it holds along the top.
+export const STICKY_MAX = 5;
 
 // Smooth scrolling: a wheel's step and a page key glide to where they head on a critically damped
 // spring of rate GLIDE_RATE a second, which covers all but a twentieth of its way in about 190 ms. A
-// step during a glide moves where it heads and the glide keeps its speed: under a steady wheel each
-// frame moves the text an even step, and no frame stands still. The spring moves in pieces of at most GLIDE_PIECE ms, each
+// step during a glide moves where it heads and the glide retains its speed: under a steady wheel each
+// frame moves the text an even step, and no frame is stationary. The spring moves in pieces of at max GLIDE_PIECE ms, each
 // frame by the time since the one before. Flick scrolling: a touchpad's movement runs on once the
 // fingers lift, where no event has come for FLICK_REST and the system gives no run of its own, from
 // no slower than FLICK_LEAST pixels a millisecond, slowing by a factor of e every FLICK_SLOWS until
-// under FLICK_STOP. Each is a setting, on where none is kept.
+// under FLICK_STOP. Each is a setting, on where none is retained.
 export const GLIDE_RATE = 25;
 export const GLIDE_PIECE = 4;
 export const FLICK_REST = 50;
@@ -115,22 +115,22 @@ export const SMOOTH_KEY = "orior.smooth-scroll";
 // and never turned it on here.
 export const smoothScrolling = () => (localStorage.getItem(SMOOTH_KEY) ?? String(!motionReduced())) !== "false";
 
-// The kept settings of the reader's formatting: the continuation indent of each place a bracket
-// stands, in columns; whether an operator's sign goes to the next line where a line breaks after it
+// The retained settings of the reader's formatting: the continuation indent of each place a bracket
+// is, in columns; whether an operator's sign goes to the next line where a line breaks after it
 // inside brackets; and the margin documentation is filled to.
 export const CONTINUATION_KEY = "orior.continuation";
 export const OPERATOR_KEY = "orior.operator-next-line";
 export const DOC_MARGIN_KEY = "orior.doc-margin";
 
-// What stands before a bracket that opens a declaration's parameters: `def name`, `function name`,
+// What is before a bracket that opens a declaration's parameters: `def name`, `function name`,
 // `fn name`, or a C declaration's type and name.
 export const DECLARES = /(?:\bdef\s+[\w$]+|\bfunction\b\s*\*?\s*[\w$]*|\bfn\s+[\w$]+(?:<[^>]*>)?|^\s*(?!(?:return|else|new|delete|throw|case|await|yield)\b)(?:(?:static|inline|extern|const|unsigned|signed|long|short|struct|enum|virtual)\s+)*[\w:<>]+[\s*&]+[\w$:~]+)$/;
 
-// A line that ends in a binary operator after a value: what stands before the operator, and the
+// A line that ends in a binary operator after a value: what is before the operator, and the
 // operator.
 export const OPERATOR_END = /^(.*?[\w$)\]}"'`])\s*(\*\*|\/\/|==|!=|<=|>=|&&|\|\||\?\?|\band|\bor|[-+*\/%<>|&^])\s*$/;
 
-// The kept settings of the hints a server writes in the text: inferred types, and parameters' names.
+// The retained settings of the hints a server writes in the text: inferred types, and parameters' names.
 export const HINT_KEYS = { type: "orior.type-hints", parameter: "orior.parameter-hints" };
 export const FLICK_KEY = "orior.flick-scroll";
 export const STICKY_KEY = "orior.sticky";
@@ -138,25 +138,25 @@ export const WRAP_KEY = "orior.word-wrap";
 
 // Bracket pairs colored by depth: the setting's key.
 export const BRACKETS_KEY = "orior.brackets";
-export const SHOWN = 10000;
+export const DISPLAYED = 10000;
 // A row is drawn as far as the view reaches across, to the end of the step it reaches into, so that
 // a scroll across draws the rows again only as it passes into the next: a line of tens of thousands
-// of characters lays out what can be seen, and not the rest. The step is in characters.
+// of characters arranges what can be seen, and not the rest. The step is in characters.
 export const REACH_STEP = 64;
 // The rows a view draws are those in sight first, then out from them a slice of DRAW_SLICE rows at a
-// time, as a large file is read, to DRAWN_MOST rows at the most, and DRAWN_PAGED for a file kept as
+// time, as a large file is read, to DRAWN_MAX rows at max, and DRAWN_PAGED for a file retained as
 // pages, whose window moves under the view and whose rows are drawn again as it does.
 export const DRAW_SLICE = 32;
-export const DRAWN_MOST = 1200;
+export const DRAWN_MAX = 1200;
 export const DRAWN_PAGED = 120;
 const sessionIds = new WeakMap();
 let sessionsSeen = 0;
 
-// The most rows whose markup is kept; past it the kept rows are let go and made again as they show.
-export const ROWS_KEPT = 5000;
+// The max rows whose markup is retained; past it the retained rows are let go and made again as they show.
+export const ROWS_RETAINED = 5000;
 
 // What is not drawn: the keys of the settings that mark spaces, tabs and line ends, and that hide
-// comments, and the most lines a text has for its lines of comments alone to go out of sight.
+// comments, and the max lines a text has for its lines of comments alone to go out of sight.
 export const MARKS_KEY = "orior.whitespace";
 export const COMMENTS_KEY = "orior.comments-hidden";
 
@@ -164,30 +164,30 @@ export const COMMENTS_KEY = "orior.comments-hidden";
 export const PAST_KEY = "orior.past-ends";
 export const COMMENT_LINES = 200000;
 
-// A row's text, escaped, with a mark laid over each space and each tab, neither moving a letter.
+// A row's text, escaped, with a mark positioned over each space and each tab, neither moving a character.
 export const marked = (html) => html.replace(/ /g, '<span class="ed-sp"> </span>').replace(/\t/g, '<span class="ed-tab">\t</span>');
 export const MAC = /Mac|iPhone|iPad/.test(navigator.platform);
 // How long a scroll rests before it counts as stopped, and how many screens ahead the idle coloring
 // reaches.
 export const REST = 140;
 const AHEAD = 3;
-// How many rows ahead of the view the idle coloring reaches, for a view `shown` rows high: AHEAD
+// How many rows ahead of the view the idle coloring reaches, for a view `displayed` rows high: AHEAD
 // screens, or as far as `speed`, in pixels a millisecond, carries the view over two screens' coloring
 // of `screenMs` each, where that is farther.
 // The height of a row, in pixels, as the editor's zoom sets it.
 export const lineHeight = () => LINE;
 
-export const coloringReach =(shown, speed, screenMs) => Math.max(shown * AHEAD, Math.ceil((speed / LINE) * screenMs * 2));
+export const coloringReach =(displayed, speed, screenMs) => Math.max(displayed * AHEAD, Math.ceil((speed / LINE) * screenMs * 2));
 
-// How long input rests before the work it kept runs.
+// How long input rests before the work it retained runs.
 export const INPUT_REST = 300;
 
 export const startOf = (sel) => least(sel.anchor, sel.head);
-export const endOfSel = (sel) => most(sel.anchor, sel.head);
+export const endOfSel = (sel) => max(sel.anchor, sel.head);
 export const empty = (sel) => same(sel.anchor, sel.head);
 export const caret = (p, goal = null) => ({ anchor: p, head: p, goal });
 
-// The letters a jump marks places with, those under the fingers at rest first.
+// The characters a jump marks places with, those under the fingers at rest first.
 export const JUMP_LABELS = "asdfjklghqweruiopzxcvbnmty";
 
 const ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" };
@@ -233,13 +233,13 @@ export function keyName(event) {
   const code = event.code ?? "";
   let key = CODES[code];
   if (!key) {
-    key = letterOf(event) ?? event.key;
+    key = characterOf(event) ?? event.key;
   }
   parts.push(key);
   return parts.join("+");
 }
 
-// A snippet's text with its stops: ${1:name} stops on name, $1 stops where it stands, and $0 is
+// A snippet's text with its stops: ${1:name} stops on name, $1 stops where it is, and $0 is
 // where the cursor ends.
 export function parseSnippet(body) {
   let text = "";
@@ -297,7 +297,7 @@ export class Editor {
     this.picked.setAttribute("class", "ed-picked");
     this.picked.setAttribute("aria-hidden", "true");
     this.pickedHtml = "";
-    // The scrolling space holds nothing and only sizes the scroll. What is drawn stands in a sheet
+    // The scrolling space holds nothing and only sizes the scroll. What is drawn is in a sheet
     // over it that lets the pointer through, moved as the view scrolls, the gutter's numbers with it.
     this.sheet = div("ed-sheet");
     this.layers = div("ed-layers");
@@ -306,7 +306,7 @@ export class Editor {
     this.margin = div("ed-margin");
     this.margin.hidden = true;
     this.marginAt = null;
-    // What the line is, at its top: the formatter that keeps lines to it and the width.
+    // What the line is, at its top: the formatter that retains lines to it and the width.
     this.marginSays = div("ed-margin-says");
     this.margin.append(this.marginSays);
     this.marginShown = false;
@@ -334,20 +334,20 @@ export class Editor {
     this.glide = null;
     this.flick = null;
     this.stickyKey = "";
-    // The lines kept along the top, and the top row and text they were read for.
+    // The lines retained along the top, and the top row and text they were read for.
     this.stickyRows = [];
     this.stickyRowsFor = "";
     host.append(this.gutter, this.scroller, this.sheet, canvas, this.sticky);
     (statusHost ?? host).append(this.status);
     this.minimap = new Minimap(this, canvas);
-    // The scroller's inner size and the map's, kept as the page lays them out, read without
-    // asking the page to lay itself out again.
+    // The scroller's inner size and the map's, retained as the page positions them out, read without
+    // asking the page to position itself out again.
     new ResizeObserver(([entry]) => {
       this.viewKept = { width: Math.round(entry.contentRect.width), height: Math.round(entry.contentRect.height) };
       this.schedule();
     }).observe(this.scroller);
     new ResizeObserver(([entry]) => {
-      this.minimap.kept = { width: entry.contentRect.width, height: entry.contentRect.height };
+      this.minimap.retained = { width: entry.contentRect.width, height: entry.contentRect.height };
       this.schedule();
     }).observe(canvas);
     this.sticky.addEventListener("mousedown", (event) => {
@@ -430,7 +430,7 @@ export class Editor {
     return LINE;
   }
 
-  // A number for each session the view has shown, kept with the session.
+  // A number for each session the view has displayed, retained with the session.
   sessionId(s) {
     if (!s) {
       return 0;
@@ -443,7 +443,7 @@ export class Editor {
   }
 }
 
-// The editor's methods kept in editor/view/, put on the class as its own methods are: not counted among an object's keys.
+// The editor's methods retained in editor/view/, put on the class as its own methods are: not counted among an object's keys.
 for (const part of [layout, geometry, selections, editing, changes, lines, folding, keys, pointer, scroll, drawn, frame, statusline]) {
   for (const [name, method] of Object.entries(part)) {
     Object.defineProperty(Editor.prototype, name, { value: method, writable: true, configurable: true });

@@ -142,12 +142,12 @@ def main():
             bucket.append(text)
 
     os.makedirs(OUT, exist_ok=True)
-    kept = 0
+    retained = 0
     for key, parts in sorted(gathered.items()):
-        # Line endings are kept. Folding them here would decide, at ingest, that layout is noise, and
+        # Line endings are retained. Folding them here would decide, at ingest, that layout is noise, and
         # for a source file it is the authored layer: a language that ignores its own whitespace carries
         # indentation only because a person put it there. Whichever treatment a measurement wants can be
-        # applied downstream, where normalize_symbols.py takes keep-layout, and nothing is lost by
+        # applied downstream, where normalize_symbols.py takes retain-layout, and nothing is lost by
         # storing the text as it arrived. Documents are joined by a newline for the same reason.
         body = "\n".join(parts)
         if len(body) < FLOOR:
@@ -156,9 +156,9 @@ def main():
         with open(target, "w", encoding="utf-8", newline="") as out:
             out.write(body)
         print("  cc_%-14s %d characters from %d documents" % (key, len(body), len(parts)))
-        kept += 1
+        retained += 1
 
-    print("  %d corpora written" % kept)
+    print("  %d corpora written" % retained)
     return 0
 
 

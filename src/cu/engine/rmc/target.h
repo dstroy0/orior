@@ -21,7 +21,7 @@
 #define CODEGEN_RECORD_SCRATCH(wide_) ((5u * (wide_)) + 4u)
 
 // what a compiled program's thread blocks share on the device across one run: the next lane to take, and within one
-// launch its start, the thread blocks gone and the check-ins made, laid out as the kernel's own (s_cycle_prelude)
+// launch its start, the thread blocks gone and the check-ins made, arranged as the kernel's own (s_cycle_prelude)
 struct CycleHot
 {
     unsigned long long next_lane;
@@ -30,7 +30,7 @@ struct CycleHot
     unsigned long long checkins;
 };
 
-// the compiled program's argument, laid out as the kernel's own (g_cycle_prelude) declares it: the block is the
+// the compiled program's argument, arranged as the kernel's own (g_cycle_prelude) declares it: the block is the
 // program's EngineProgramBlock as 64-bit words, at its device address, and places a thread's registers in shared memory
 struct CycleCompiledLaunch
 {
@@ -49,7 +49,7 @@ struct CycleCompiledLaunch
     unsigned long long places;
 };
 
-// what a lane is written for, which its first line names: the target, by the hash of its text (the device, the kind
+// what a lane is written for, which its first line names: the target, by the hash of its text (the device, the type
 // of link and the prelude), the device's compute capability, NVRTC's version, and the prelude a lane whose ruleset's
 // header is the prelude opens with
 struct TargetInfo
@@ -92,7 +92,7 @@ class Target
     // the folds of the classification beside the ruleset read again, for a pass that has just written it
     void folds_read(void);
 
-    // a program's lane in the language under `header`, the places a thread uses in shared memory and the most words
+    // a program's lane in the language under `header`, the places a thread uses in shared memory and the max words
     // it uses live at once (0 where the language does not reckon them); empty where the ruleset is not read, or the
     // program is one the language does not support
     virtual std::string program(const EngineRecordLayout *layout, const TargetInfo *target, const std::string &header,

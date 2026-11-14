@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// menubar_test.c: the menu bar's check: a menu asked for at a point stands there, turned in from the window's edges; a
-// menu too long for the window stands no taller than the window less 3.5rem and scrolls: the wheel over it moves its
+// menubar_test.c: the menu bar's check: a menu asked for at a point is there, turned in from the window's edges; a
+// menu too long for the window is no taller than the window less 3.5rem and scrolls: the wheel over it moves its
 // rows a hundred pixels a notch, no further than its last, a row marked anew is scrolled into view, and a menu opened
-// anew stands at its first row
+// anew is at its first row
 #include "../../../../../includes/window/block.h"
 #include "../../../../../ui/gui/src/menubar.h"
 #include "../cli/cli_check.h"
@@ -12,7 +12,7 @@
 
 static CliItem s_rows[MENUBAR_TEST_ROWS];
 
-// the row of the open menu the pixel at x, y stands on, the rows' count where it stands on none
+// the row of the open menu the pixel at x, y is on, the rows' count where it is on none
 static unsigned int row_at(const GuiMenubar *menubar, int x, int y)
 {
     unsigned int level = 0u;
@@ -48,11 +48,11 @@ int main(void)
     EMBED_CALL(gui_menubar.init, GuiMenubarCfg, .menubar = &menubar);
     EMBED_CALL(gui_menubar_bar.menus_layout, GuiMenubarBarCfg, .menubar = &menubar, .glyphs = &glyphs, .frame = &frame);
     const GuiRect menu = menubar.menu_rect[0];
-    cli_check(menu.height == (920 - 56), "a menu too long for the window stands no taller than the window less 3.5rem");
+    cli_check(menu.height == (920 - 56), "a menu too long for the window is no taller than the window less 3.5rem");
     cli_check((menu.x == 300) && (menu.y == 4),
-              "turned up from the window's foot, it stands at the window's top edge less its margin");
+              "turned up from the window's foot, it is at the window's top edge less its margin");
     const int first_y = menu.y + GUI_MENU_PAD + (GUI_ITEM_HEIGHT / 2);
-    cli_check(row_at(&menubar, 310, first_y) == 0u, "unscrolled, its first row stands at its top");
+    cli_check(row_at(&menubar, 310, first_y) == 0u, "unscrolled, its first row is at its top");
 
     cli_check(EMBED_CALL(gui_menubar_glyphs_frame_x.wheel, GuiMenubarGlyphsFrameXCfg, .menubar = &menubar,
                          .glyphs = &glyphs, .frame = &frame, .x = 310, .y = first_y, .rows = 3),
@@ -66,12 +66,12 @@ int main(void)
                      .glyphs = &glyphs, .frame = &frame, .x = 310, .y = first_y, .rows = 300);
     const int last_y = menu.y + menu.height - GUI_MENU_PAD - (GUI_ITEM_HEIGHT / 2);
     cli_check(row_at(&menubar, 310, last_y) == (MENUBAR_TEST_ROWS - 1u),
-              "scrolled to its end, its last row stands at its foot and no further");
+              "scrolled to its end, its last row is at its foot and no further");
 
     g_cli_menus_open.level[0].pointed = 2;
     EMBED_CALL(gui_menubar_bar.menus_layout, GuiMenubarBarCfg, .menubar = &menubar, .glyphs = &glyphs, .frame = &frame);
     cli_check(row_at(&menubar, 310, menu.y + 1 + (GUI_ITEM_HEIGHT / 2)) == 2u,
-              "a row marked anew above the rows shown is scrolled to the top");
+              "a row marked anew above the rows displayed is scrolled to the top");
     (void)EMBED_CALL(gui_menubar_glyphs_frame_x.wheel, GuiMenubarGlyphsFrameXCfg, .menubar = &menubar,
                      .glyphs = &glyphs, .frame = &frame, .x = 310, .y = first_y, .rows = 3);
     EMBED_CALL(gui_menubar_bar.menus_layout, GuiMenubarBarCfg, .menubar = &menubar, .glyphs = &glyphs, .frame = &frame);
@@ -80,7 +80,7 @@ int main(void)
 
     cli_menus_own_open(s_rows, MENUBAR_TEST_ROWS, CLI_MENU_PLACE_POINT, 300, 100);
     EMBED_CALL(gui_menubar_bar.menus_layout, GuiMenubarBarCfg, .menubar = &menubar, .glyphs = &glyphs, .frame = &frame);
-    cli_check(row_at(&menubar, 310, first_y) == 0u, "a menu opened anew stands at its first row");
+    cli_check(row_at(&menubar, 310, first_y) == 0u, "a menu opened anew is at its first row");
 
     // a menu at a point drawn: its line is rounded at every corner, so each corner pixel is short of the line's color
     // at the edge's middle, at the top and the foot alike
@@ -116,7 +116,7 @@ int main(void)
                   cellul.eq(&(CatenaFinitaCfg){
                       .src = rows[2].command, .cap = CLI_POOL_BYTES, .other = "close-all", .other_cap = 10u}) &&
                   (rows[2].label[0] != '\0'),
-              "the rows stand as built, the catalog's with its label");
+              "the rows are as built, the catalog's with its label");
     cli_check((cli_menus_own_word(rows[0].args) != NULL) &&
                   cellul.eq(&(CatenaFinitaCfg){
                       .src = cli_menus_own_word(rows[0].args), .cap = CLI_POOL_BYTES, .other = "a b.txt", .other_cap = 8u}),
@@ -124,7 +124,7 @@ int main(void)
     cli_check(cli_menus_own_word(rows[2].args) == NULL, "a catalog item's pattern reads as no word");
     cli_check(cellul.eq(&(CatenaFinitaCfg){
                   .src = cli_menus_own_word("[on|off]"), .cap = CLI_POOL_BYTES, .other = "[on|off]", .other_cap = 9u}),
-              "a word standing outside the catalog is the row's, whatever it reads as");
+              "a word located outside the catalog is the row's, whatever it reads as");
     cli_menus_own_open(rows, built, CLI_MENU_PLACE_POINT, 300, 100);
     CliItem read;
     cli_check(cli_menus_row(0u, 0u, &read) &&

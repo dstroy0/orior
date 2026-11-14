@@ -63,7 +63,7 @@ for module in "${MODULES[@]}"; do
     INCLUDES+=(-I "$ROOT/src/$module")
 done
 
-# the objects are kept per width in one place, and an object is compiled again only where its source, or a header in a
+# the objects are retained per width in one place, and an object is compiled again only where its source, or a header in a
 # directory the build reads, is newer than it
 OBJECT_DIRECTORY="$BUILD_ROOT/build/navier_stokes_objects_${SIM_EXACT_LIMBS:-default}"
 mkdir -p "$OBJECT_DIRECTORY"

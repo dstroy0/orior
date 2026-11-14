@@ -1,4 +1,4 @@
-  the bump keeps the tree: 80256 of 80256 values below 20000 at bases 2 to 6 whose bump fits 64 bits
+  the bump retains the tree: 80256 of 80256 values below 20000 at bases 2 to 6 whose bump fits 64 bits
   2^^1 = 2 in hereditary base 2 is w
   2^^2 = 4 in hereditary base 2 is w^(w)
   2^^3 = 16 in hereditary base 2 is w^(w^(w))

@@ -8,13 +8,13 @@
 #   Usage:  python examples/sound/3_reference/period_background_and_its_null.py
 #
 # This is the reference stage for sound, which the tree did not have: there was no shuffle of a
-# vocalization and so no null for a sound reading to stand against. It answers the stage-three
+# vocalization and so no null for a sound reading to be against. It answers the stage-three
 # question crystallography's what_a_grid_invents asks of a lattice: how much of a reading is the
 # structure, and how much a shuffle of the same values reaches on its own.
 #
 # The reference a period allows is the phase mean: group the samples by their position modulo the
 # period and average each group. Under the one constraint that a value depends only on its phase, this
-# is the maximum entropy background. It asserts nothing the phase did not already carry. On a signal
+# is the max entropy background. It asserts nothing the phase did not already carry. On a signal
 # with a real period the phase means spread far apart and the background carries energy. On a shuffle
 # of the same samples the phase is gone, the phase means collapse toward the grand mean, and the
 # background carries almost nothing. The gap between the two is the only part of the reading that means
@@ -101,7 +101,7 @@ def main():
                      ("%.3f" % to_float(ratio_live)) if ratio_live is not None else "none",
                      ("%.3f" % to_float(ratio_dead)) if ratio_dead is not None else "none"))
 
-    out.write("\n  the true period stands far above its shuffle; the others sit near it. the reference\n")
+    out.write("\n  the true period is far above its shuffle; the others sit near it. the reference\n")
     out.write("  invents nothing a shuffle does not also reach. The part that clears the null is\n")
     out.write("  the whole reading. This is the null a sound measurement had been missing.\n")
     out.flush()

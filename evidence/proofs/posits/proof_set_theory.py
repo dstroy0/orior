@@ -20,7 +20,7 @@
 #   Moore closure    the generation operator is extensive, monotone and idempotent; a single round of
 #                    derivation is extensive and monotone but not idempotent, the null.
 #   countable        finite descriptions over a finite alphabet enumerate. The nameable quantities
-#                    inject into the naturals; the enumeration is shown injective and total on a sample.
+#                    inject into the naturals; the enumeration is displayed injective and total on a sample.
 #   uncountable      Cantor's diagonal: from any finite table of reals a real is built differing from
 #                    every row. No list catches them all.
 #   measure zero     a countable set is covered by intervals of total length epsilon for any epsilon.
@@ -169,7 +169,7 @@ def prove_countable(out):
 def prove_uncountable(out):
     """Cantor's diagonal: from any table of reals a real is built that is in no row."""
     out.write("  uncountable: Cantor's diagonal builds a real outside any given list\n")
-    # a table of reals in [0,1) as decimal-digit rows, deterministic, standing in for any enumeration
+    # a table of reals in [0,1) as decimal-digit rows, deterministic, located in for any enumeration
     table = []
     state = 0x1234
     rows, digits = 12, 12

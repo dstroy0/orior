@@ -192,7 +192,7 @@ static void writings_swap(const char *operand, const char *put, char *out, size_
 // and every operand is a register, a predicate or a number, which reach no memory and no state of the part's own
 int writings_form_fits(const SassForm *form)
 {
-    if ((form->operands < 2u) || (form->kind[0] != SASS_OPERAND_REGISTER) ||
+    if ((form->operands < 2u) || (form->type[0] != SASS_OPERAND_REGISTER) ||
         sass_operation_control_or_wait(form->operation) || (strncmp(form->operation, "NOP", 3u) == 0))
     {
         return 0;
@@ -200,12 +200,12 @@ int writings_form_fits(const SassForm *form)
     unsigned int sources = 0u;
     for (unsigned int at = 0u; at < form->operands; at += 1u)
     {
-        const unsigned int kind = form->kind[at];
-        if ((kind != SASS_OPERAND_REGISTER) && (kind != SASS_OPERAND_PREDICATE) && (kind != SASS_OPERAND_IMMEDIATE))
+        const unsigned int type = form->type[at];
+        if ((type != SASS_OPERAND_REGISTER) && (type != SASS_OPERAND_PREDICATE) && (type != SASS_OPERAND_IMMEDIATE))
         {
             return 0;
         }
-        sources += ((at != 0u) && (kind == SASS_OPERAND_REGISTER)) ? 1u : 0u;
+        sources += ((at != 0u) && (type == SASS_OPERAND_REGISTER)) ? 1u : 0u;
     }
     return sources != 0u;
 }
@@ -221,7 +221,7 @@ unsigned int writings_table(const SassForm *form)
         {
             width += (form->run[at].operand == operand) ? (form->run[at].last - form->run[at].first + 1u) : 0u;
         }
-        if ((form->kind[operand] == SASS_OPERAND_IMMEDIATE) && (width == 8u))
+        if ((form->type[operand] == SASS_OPERAND_IMMEDIATE) && (width == 8u))
         {
             return operand;
         }
@@ -235,7 +235,7 @@ unsigned int writings_sources(const SassForm *form)
     unsigned int sources = 0u;
     for (unsigned int operand = 1u; operand < form->operands; operand += 1u)
     {
-        sources += (form->kind[operand] == SASS_OPERAND_REGISTER) ? 1u : 0u;
+        sources += (form->type[operand] == SASS_OPERAND_REGISTER) ? 1u : 0u;
     }
     return sources;
 }
@@ -283,7 +283,7 @@ int writings_instruction(const SassForm *form, unsigned int table, unsigned int 
     for (unsigned int operand = 0u; operand < parts.operands; operand += 1u)
     {
         char text[SASS_MACHINE_TOKEN];
-        if (parts.kind[operand] == SASS_OPERAND_REGISTER)
+        if (parts.type[operand] == SASS_OPERAND_REGISTER)
         {
             const char *const put = (operand == 0u) ? WRITINGS_RESULT : s_given[writings_digit(assignment, source)];
             source += (operand != 0u) ? 1u : 0u;
@@ -303,7 +303,7 @@ int writings_instruction(const SassForm *form, unsigned int table, unsigned int 
     return at < room;
 }
 
-// `code`, `count` instructions, laid into a cubin and written to `path`: 1, or 0 where it was not
+// `code`, `count` instructions, positioned into a cubin and written to `path`: 1, or 0 where it was not
 int writings_cubin(unsigned int count, const char *path)
 {
     const unsigned long long code_size = 16ull * count;

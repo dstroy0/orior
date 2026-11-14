@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// sql.c: a text's tokens as each database writes them, its statements, and the statement a place stands in
+// sql.c: a text's tokens as each database writes them, its statements, and the statement a place is in
 #include "sql.h"
 #include "../text/text.h"
 
@@ -67,7 +67,7 @@ EMBED_INLINE int cli_digit(const SqlCtx *args)
     return (args->byte >= '0') && (args->byte <= '9');
 }
 
-// `*at` moved past a quoted run that began just before it and ends at `close`, a doubled `close` standing for itself,
+// `*at` moved past a quoted run that began just before it and ends at `close`, a doubled `close` located for itself,
 // and a backslash escaping the byte after it where `escapes` is 1
 EMBED_INLINE void cli_quote(const SqlCtx *args)
 {
@@ -104,7 +104,7 @@ EMBED_INLINE unsigned long long cli_dollar_tag(const SqlCtx *args)
     unsigned long long at = args->at_value;
     unsigned long long end = at + 1ULL;
     end = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = (const char *)args->bytes,
-                     .at = end, .size = args->length, .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, .set = "_");
+                     .at = end, .size = args->length, .classes = CLI_TEXT_CHARACTERS | CLI_TEXT_DIGITS, .set = "_");
     const int digit_first = ((at + 1ULL) < args->length) && EMBED_CALL(cli_digit, SqlCtx, .byte = args->bytes[at + 1u]);
     return ((end < args->length) && (args->bytes[end] == '$') && !digit_first) ? (end - at + 1ULL) : 0ULL;
 }
@@ -247,14 +247,14 @@ EMBED_INLINE unsigned int cli_sql_bare(const SqlCtx *args)
     if (EMBED_CALL(cli_alpha, SqlCtx, .byte = args->byte) || (args->byte == '_') || (args->byte >= 0x80u))
     {
         *at = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = text, .at = *at,
-                         .size = args->length, .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS | CLI_TEXT_END_ASCII,
+                         .size = args->length, .classes = CLI_TEXT_CHARACTERS | CLI_TEXT_DIGITS | CLI_TEXT_END_ASCII,
                          .set = "_$");
         return CLI_SQL_WORD;
     }
     if (EMBED_CALL(cli_digit, SqlCtx, .byte = args->byte))
     {
         *at = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = text, .at = *at,
-                         .size = args->length, .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, .set = ".");
+                         .size = args->length, .classes = CLI_TEXT_CHARACTERS | CLI_TEXT_DIGITS, .set = ".");
         return CLI_SQL_NUMBER;
     }
     *at += 1ULL;
@@ -401,7 +401,7 @@ void cli_sql_statements(const CliSqlTextLengthCfg *args)
     }
 }
 
-// The statement a place stands in: the first that contains it, and else the last that ends before it
+// The statement a place is in: the first that contains it, and else the last that ends before it
 typedef struct
 {
     unsigned long long at;
@@ -444,13 +444,13 @@ int cli_sql_statement_at(const CliSqlTextCfg *args)
     {
         return 0;
     }
-    // what stands between the statement and the place: its semicolon, then nothing but spaces and a comment on its line
+    // what is between the statement and the place: its semicolon, then nothing but spaces and a comment on its line
     const char *from = args->text + finding.before.end;
     const char *const to = args->text + ((at < args->length) ? at : args->length);
     from += ((from < to) && (from[0] == ';')) ? 1 : 0;
-    for (const char *letter = from; letter < to; letter += 1)
+    for (const char *character = from; character < to; character += 1)
     {
-        if (letter[0] == '\n')
+        if (character[0] == '\n')
         {
             return 0;
         }

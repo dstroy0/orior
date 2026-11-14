@@ -218,7 +218,7 @@ extern const char __ehdr_start;
 
     typedef struct
     {
-        EngineErrorKind kind;
+        EngineErrorKind type;
         EngineModule module;
         unsigned int site;
         int status;
@@ -229,12 +229,12 @@ extern const char __ehdr_start;
         const void *frames[ENGINE_ERROR_FRAMES];
     } EngineError;
 
-    static inline void engine_error_raise(EngineError *error, EngineErrorKind kind, EngineModule module,
+    static inline void engine_error_raise(EngineError *error, EngineErrorKind type, EngineModule module,
                                           unsigned int site, int status, const void *execaddr, const void *evacaddr)
     {
-        if (error->kind == ENGINE_ERROR_NONE)
+        if (error->type == ENGINE_ERROR_NONE)
         {
-            error->kind = kind;
+            error->type = type;
             error->module = module;
             error->site = site;
             error->status = status;
@@ -245,12 +245,12 @@ extern const char __ehdr_start;
         }
     }
 
-    ENGINE_NOINLINE_HELPER int engine_error_check(int condition, EngineErrorKind kind, EngineModule module,
+    ENGINE_NOINLINE_HELPER int engine_error_check(int condition, EngineErrorKind type, EngineModule module,
                                                   unsigned int site, const void *evacaddr, EngineError *error)
     {
         if (condition == 0)
         {
-            engine_error_raise(error, kind, module, site, 0, ENGINE_RETURN_ADDRESS(), evacaddr);
+            engine_error_raise(error, type, module, site, 0, ENGINE_RETURN_ADDRESS(), evacaddr);
         }
         return (condition != 0) ? 1 : 0;
     }
@@ -277,7 +277,7 @@ extern const char __ehdr_start;
 
     ENGINE_NOINLINE_HELPER void engine_error_frame(EngineError *error)
     {
-        if ((error->kind != ENGINE_ERROR_NONE) && (error->frame_count < ENGINE_ERROR_FRAMES))
+        if ((error->type != ENGINE_ERROR_NONE) && (error->frame_count < ENGINE_ERROR_FRAMES))
         {
             error->frames[error->frame_count] = ENGINE_RETURN_ADDRESS();
             error->frame_count += 1u;

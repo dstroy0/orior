@@ -13,12 +13,12 @@ import { closeMenu } from "../../gui/src-js/menu.js";
 
 const { test, assert, ui } = window.__harness;
 
-test("Run, Profile profiles the file shown, Stop Profiling stops it, and Profile on a Machine profiles there", async () => {
+test("Run, Profile profiles the file displayed, Stop Profiling stops it, and Profile on a Machine profiles there", async () => {
   await invoke("file_write", { path: "profiled.py", text: "import time\nfor _ in range(200):\n    time.sleep(0.05)\n" });
   showView("edit");
   await openFile("profiled.py");
   await press("profile");
-  assert.ok(!document.getElementById("profile").hidden, "the profile shown");
+  assert.ok(!document.getElementById("profile").hidden, "the profile displayed");
   assert.ok(made("profile_start").some((one) => one.args.path === "profiled.py" && !one.args.remote));
   await press("stop-profile");
   assert.ok(made("profile_stop").length);
@@ -28,7 +28,7 @@ test("Run, Profile profiles the file shown, Stop Profiling stops it, and Profile
   runCommand("profile-view");
 });
 
-test("the profile's menu, from the command line: a function opened, zoomed to, zoomed out of, and the whole run shown", async () => {
+test("the profile's menu, from the command line: a function opened, zoomed to, zoomed out of, and the whole run displayed", async () => {
   asFound();
   const file = "profiled_calls.py";
   await invoke("file_write", { path: file, text: "import time\n\n\ndef slow():\n    time.sleep(0.02)\n\n\ndef outer():\n    for _ in range(150):\n        slow()\n\n\nouter()\n" });

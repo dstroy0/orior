@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // inspect_py_sort.c: the Python class around a line with its methods sorted by name, each method with the comments
-// and decorators over it, the class's other members and its blank lines staying where they stand
+// and decorators over it, the class's other members and its blank lines staying where they are
 #include "../text/json_tree.h"
 #include "inspect_py.h"
 
@@ -36,19 +36,19 @@ typedef struct
     const char *src;
     unsigned int index;
 } InspectPySortCtx;
-// whether the physical line at `index` is a comment, past the white letters at its start
+// whether the physical line at `index` is a comment, past the white characters at its start
 EMBED_INLINE int sort_comment(const InspectPySortCtx *args)
 {
     unsigned long long at = s_starts[args->index];
     while (at < s_ends[args->index])
     {
-        unsigned int letter = 0u;
-        const unsigned long long reserved = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+        unsigned int character = 0u;
+        const unsigned long long reserved = EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                                                        .text_bytes = (const unsigned char *)args->src,
-                                                       .length = s_ends[args->index], .at = at, .letter = &letter);
-        if (!EMBED_CALL(cli_inspect_internal.white, CliInspectCtx, .letter = letter))
+                                                       .length = s_ends[args->index], .at = at, .character = &character);
+        if (!EMBED_CALL(cli_inspect_internal.white, CliInspectCtx, .character = character))
         {
-            return letter == '#';
+            return character == '#';
         }
         at += reserved;
     }
@@ -69,13 +69,13 @@ int cli_inspect_py_sort_methods(const CliInspectSizeSrcCtx *args)
     const unsigned int end = EMBED_CALL(cli_inspect_py.py_block_end, CliInspectPyCfg, .at = at);
     if (end <= at + 1u)
     {
-        mmgr_line_put(args->err_msg, "The class's body stands on its header's line.");
+        mmgr_line_put(args->err_msg, "The class's body is on its header's line.");
         return 0;
     }
     const unsigned int indent = g_cli_py_line[at + 1u].indent;
     const unsigned int physical =
         EMBED_CALL(cli_inspect_size_src_starts_internal.physical, CliInspectSizeSrcStartsCtx, .src = args->src,
-                   .size = args->size, .starts = s_starts, .ends = s_ends, .most = CLI_INSPECT_LINES);
+                   .size = args->size, .starts = s_starts, .ends = s_ends, .max = CLI_INSPECT_LINES);
     unsigned int members = 0u;
     unsigned int index = at + 1u;
     unsigned int floor = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = &g_cli_py_line[at],
@@ -151,17 +151,17 @@ int cli_inspect_py_sort_methods(const CliInspectSizeSrcCtx *args)
                     .line_starts = s_starts, .line_ends = s_ends, .firsts = s_firsts, .lasts = s_lasts,
                     .names = s_names, .name_sizes = s_name_sizes, .members = members, .out = args->text))
     {
-        mmgr_line_put(args->err_msg, "The class's methods stand in the order of their names.");
+        mmgr_line_put(args->err_msg, "The class's methods are in the order of their names.");
         return 0;
     }
     unsigned int end_col = 0u;
-    for (unsigned long long letter_at = s_starts[last]; letter_at < s_ends[last];)
+    for (unsigned long long character_at = s_starts[last]; character_at < s_ends[last];)
     {
-        unsigned int letter = 0u;
-        letter_at += EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                                .text_bytes = (const unsigned char *)args->src, .length = s_ends[last], .at = letter_at,
-                                .letter = &letter);
-        end_col += (letter >= 0x10000u) ? 2u : 1u;
+        unsigned int character = 0u;
+        character_at += EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                                .text_bytes = (const unsigned char *)args->src, .length = s_ends[last], .at = character_at,
+                                .character = &character);
+        end_col += (character >= 0x10000u) ? 2u : 1u;
     }
     *edit = (CliInspectEdit){{first, 0u}, {last, end_col}, {0u, 0u}};
     return 1;

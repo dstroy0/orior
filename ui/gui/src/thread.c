@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // thread.c: the view's thread and what joins it to the window's. The system's thread writes the events' two rings and
-// reads the orders' ring; the view's thread reads the first and writes the second. A raster ordered shown stands
+// reads the orders' ring; the view's thread reads the first and writes the second. A raster ordered displayed is
 // untouched until its event comes back, one at a time on each surface, which paces the frames by the system's own
 // showing. A thread that finds nothing to do tests its rings again after reading the wake's generation and sleeps on
 // that generation, so a write after the test ends the sleep.
@@ -20,7 +20,7 @@ EMBED_STATIC_ASSERT(sizeof(CliViewOrder) <= CLI_VIEW_ORDER_SEGMENT,
 // A surface's maps on their way over: the ticket ring the view's thread pushes a map on each frame and the system's
 // thread pops them off in order, its slots a run of the view's part of the rings block, the stamp of the map granted
 // and not yet pushed, the next ticket the view's thread takes and the next the system's thread pops, the buffers a
-// ticket's map is laid in, one a slot, and the map the system's thread keeps, the last it popped
+// ticket's map is positioned in, one a slot, and the map the system's thread retains, the last it popped
 typedef struct
 {
     EmbedTicketRing ring;
@@ -28,13 +28,13 @@ typedef struct
     embed_u32 ticket;
     embed_u32 taken;
     CliViewHits *buffer;
-    CliViewHits *kept;
+    CliViewHits *retained;
 } CliViewHitsTransfer;
 
 // The view: its window; the rings and the maps, in one cell; what wakes each thread; whether the thread is to end and
-// whether it runs; a raster's showing awaited on each surface, the framebuffer a whole frame ordered stands in, when
-// the last was shown and the monitor's refresh; when the tick the window wants is due; whether Preferences' window was
-// ordered open; whether the main window's frame has been laid, and the icons
+// whether it runs; a raster's showing awaited on each surface, the framebuffer a whole frame ordered is in, when
+// the last was displayed and the monitor's refresh; when the tick the window wants is due; whether Preferences' window was
+// ordered open; whether the main window's frame has been positioned, and the icons
 typedef struct
 {
     GuiWindow window;
@@ -56,7 +56,7 @@ typedef struct
     int presenting_dialog;
     int dialog_opened;
     int frame_ordered;
-    // a frame of the changes alone ordered shown on the raster shown, which flips nothing as it is shown
+    // a frame of the changes alone ordered displayed on the raster displayed, which flips nothing as it is displayed
     int damage_ordered;
     unsigned long long presented_ms;
     unsigned int frame_ms;
@@ -73,9 +73,9 @@ typedef struct
 static CliView s_view;
 
 // The frames' telemetry since its last line, on the view's thread alone: the whole frames drawn, the microseconds each
-// draw took and the most of them, the microseconds from a frame's order to its showing and the most of them, and
-// the passes of the view's loop that a moving part paced. Then the microseconds the events took and the most of one
-// pass's events, and the most microseconds between two frames shown, a gap of VIEW_GAP_IDLE_US or more left out as a
+// draw took and the max of them, the microseconds from a frame's order to its showing and the max of them, and
+// the passes of the view's loop that a moving part paced. Then the microseconds the events took and the max of one
+// pass's events, and the max microseconds between two frames displayed, a gap of VIEW_GAP_IDLE_US or more left out as a
 // rest. Then the timed waits each of the window's deadlines set
 typedef struct
 {
@@ -84,8 +84,8 @@ typedef struct
     unsigned long long moving_passes;
     unsigned long long draw_us;
     unsigned long long draw_max_us;
-    unsigned long long shown_us;
-    unsigned long long shown_max_us;
+    unsigned long long displayed_us;
+    unsigned long long displayed_max_us;
     unsigned long long ordered_at_us;
     unsigned long long line_at_us;
     unsigned long long events_us;
@@ -94,7 +94,7 @@ typedef struct
     unsigned long long presented_at_us;
 } ViewFrameTelemetry;
 
-// the gap between two frames shown that counts as a rest, not a late frame
+// the gap between two frames displayed that counts as a rest, not a late frame
 #define VIEW_GAP_IDLE_US 250000ULL
 
 static ViewFrameTelemetry s_frame_telemetry;
@@ -114,13 +114,13 @@ static void view_frame_telemetry_log(unsigned long long now_us)
         const unsigned long long counts[9] = {told->frames,
                                               told->draw_us / told->frames,
                                               told->draw_max_us,
-                                              told->shown_us / told->frames,
-                                              told->shown_max_us,
+                                              told->displayed_us / told->frames,
+                                              told->displayed_max_us,
                                               told->moving_passes,
                                               told->events_us / told->frames,
                                               told->events_max_us,
                                               told->gap_max_us};
-        static const char *const s_names[9] = {"frames ",  " draw ",   " ", " shown ", " ",
+        static const char *const s_names[9] = {"frames ",  " draw ",   " ", " displayed ", " ",
                                                " moving ", " events ", " ", " gap "};
         for (unsigned int at = 0u; at < 9u; at += 1u)
         {
@@ -161,8 +161,8 @@ static void view_frame_telemetry_log(unsigned long long now_us)
     told->moving_passes = 0ULL;
     told->draw_us = 0ULL;
     told->draw_max_us = 0ULL;
-    told->shown_us = 0ULL;
-    told->shown_max_us = 0ULL;
+    told->displayed_us = 0ULL;
+    told->displayed_max_us = 0ULL;
     told->line_at_us = now_us;
 }
 
@@ -229,8 +229,8 @@ unsigned int cli_view_hit_of(const CliViewHits *hits, int x, int y)
                : GUI_HIT_CLIENT;
 }
 
-// On the system's thread: every map pushed popped in the order of its ticket, each copied whole into the kept map,
-// its rectangles after it, before its slot goes back to the view's thread; then the point read against the kept map
+// On the system's thread: every map pushed popped in the order of its ticket, each copied whole into the retained map,
+// its rectangles after it, before its slot goes back to the view's thread; then the point read against the retained map
 unsigned int cli_view_hit(unsigned int surface, int x, int y)
 {
     CliViewHitsTransfer *const transfer = &s_view.hits[surface];
@@ -246,14 +246,14 @@ unsigned int cli_view_hit(unsigned int surface, int x, int y)
             break;
         }
         const CliViewHits *const map = job;
-        GuiRect *const rects = transfer->kept->client;
+        GuiRect *const rects = transfer->retained->client;
         memor.cpy(&(MemoriaCfg){.dst = rects, .src = map->client, .bytes = GUI_WINDOW_HIT_CLIENTS * sizeof(GuiRect)});
-        *transfer->kept = *map;
-        transfer->kept->client = rects;
+        *transfer->retained = *map;
+        transfer->retained->client = rects;
         (void)embed_ticket_ring_released(&s_view.hits_turnstiles, &transfer->ring, stamp, &seen);
         transfer->taken += 1u;
     }
-    return cli_view_hit_of(transfer->kept, x, y);
+    return cli_view_hit_of(transfer->retained, x, y);
 }
 
 // On the view's thread: the buffer of `surface`'s next map, its ticket's slot granted: NULL where every slot is in
@@ -273,7 +273,7 @@ static CliViewHits *view_hits_next(unsigned int surface)
     return &transfer->buffer[transfer->ticket & (CLI_VIEW_HITS_SLOTS - 1u)];
 }
 
-// the map laid in the granted buffer pushed over to the system's thread
+// the map positioned in the granted buffer pushed over to the system's thread
 static void view_hits_publish(unsigned int surface)
 {
     CliViewHitsTransfer *const transfer = &s_view.hits[surface];
@@ -360,7 +360,7 @@ static int view_order_write(const CliViewOrder *order)
     return 1;
 }
 
-// the eye made at the two sizes and given to the system, the rasters standing until the view ends
+// the eye made at the two sizes and given to the system, the rasters located until the view ends
 static void view_icons_order(void)
 {
     if (s_view.icons_ordered)
@@ -417,7 +417,7 @@ static void view_input(const GuiInput *input)
     }
 }
 
-// a raster's showing come back: the framebuffer a whole frame stood in shown, the two flipped
+// a raster's showing come back: the framebuffer a whole frame was in displayed, the two flipped
 static void view_presented(unsigned int surface)
 {
     if (surface == CLI_VIEW_PREFERENCES)
@@ -432,7 +432,7 @@ static void view_presented(unsigned int surface)
     }
     s_view.presenting_main = 0;
     s_view.presented_ms = cli_clock_milliseconds();
-    // a frame of changes alone was drawn on the raster shown, so it counts as a frame shown and flips nothing
+    // a frame of changes alone was drawn on the raster displayed, so it counts as a frame displayed and flips nothing
     if (s_view.damage_ordered)
     {
         const unsigned long long presented_us = cli_clock_microseconds();
@@ -453,10 +453,10 @@ static void view_presented(unsigned int surface)
             s_frame_telemetry.gap_max_us = gap_us;
         }
         s_frame_telemetry.presented_at_us = presented_us;
-        const unsigned long long shown_us = presented_us - s_frame_telemetry.ordered_at_us;
-        s_frame_telemetry.shown_us += shown_us;
-        s_frame_telemetry.shown_max_us =
-            (shown_us > s_frame_telemetry.shown_max_us) ? shown_us : s_frame_telemetry.shown_max_us;
+        const unsigned long long displayed_us = presented_us - s_frame_telemetry.ordered_at_us;
+        s_frame_telemetry.displayed_us += displayed_us;
+        s_frame_telemetry.displayed_max_us =
+            (displayed_us > s_frame_telemetry.displayed_max_us) ? displayed_us : s_frame_telemetry.displayed_max_us;
         s_view.frame_ordered = 0;
         EMBED_CALL(gui_window_table.flip, GuiWindowCfg, .window = &s_view.window);
     }
@@ -520,7 +520,7 @@ static void view_event(const CliViewEvent *event)
         }
         break;
     case CLI_VIEW_EVENT_DISPLAYED:
-        EMBED_CALL(cli_window_shown.show, GuiWindowDisplayedCfg, .window = window, .displayed = event->flag);
+        EMBED_CALL(cli_window_displayed.show, GuiWindowDisplayedCfg, .window = window, .displayed = event->flag);
         break;
     case CLI_VIEW_EVENT_MOTION:
         EMBED_CALL(gui_window_reduced.motion_wish, GuiWindowReducedCfg, .window = window, .reduced = event->flag);
@@ -563,7 +563,7 @@ static void view_events_take(void)
     }
 }
 
-// Preferences' window opened or closed as the command last left it, and its frame drawn and ordered shown where one is
+// Preferences' window opened or closed as the command last left it, and its frame drawn and ordered displayed where one is
 // owed and none is on its way
 static void view_preferences_follow(void)
 {
@@ -616,8 +616,8 @@ static void view_preferences_follow(void)
     }
 }
 
-// The dialog's window opened or closed as the dialog last stood, modal over the window that owns it. Its frame is
-// drawn and ordered shown where one is owed and none is on its way
+// The dialog's window opened or closed as the dialog last was, modal over the window that owns it. Its frame is
+// drawn and ordered displayed where one is owed and none is on its way
 static void view_dialog_follow(void)
 {
     GuiWindow *const window = &s_view.window;
@@ -667,7 +667,7 @@ static void view_dialog_follow(void)
     }
 }
 
-// a part of the raster shown, drawn over it, ordered shown again
+// a part of the raster displayed, drawn over it, ordered displayed again
 static void view_part_order(GuiRect part)
 {
     const GuiWindow *const window = &s_view.window;
@@ -682,8 +682,8 @@ static void view_part_order(GuiRect part)
     s_view.presenting_main = view_order_write(&order);
 }
 
-// what is owed of the main window drawn and ordered shown, one at a time: a frame whole where one is owed, else the
-// caret's ink or the circle's stage alone over the frame shown
+// what is owed of the main window drawn and ordered displayed, one at a time: a frame whole where one is owed, else the
+// caret's ink or the circle's stage alone over the frame displayed
 static void view_frame(void)
 {
     GuiWindow *const window = &s_view.window;
@@ -728,7 +728,7 @@ static void view_frame(void)
         }
         return;
     }
-    // the parts of the frame that changed drawn again alone, the caret and the circle with them where they stand there
+    // the parts of the frame that changed drawn again alone, the caret and the circle with them where they are there
     if ((window->damage.width > 0) && (window->damage.height > 0))
     {
         const unsigned long long draw_from_us = cli_clock_microseconds();
@@ -757,7 +757,7 @@ static void view_frame(void)
 
 // what the view's thread runs: every event in turn, the window's modules stepped, the tick where its time came and what
 // is owed drawn, until the view ends; the window's own moving things come to it by the clock, each no sooner than the
-// monitor's next refresh after the last frame shown
+// monitor's next refresh after the last frame displayed
 static void view_run(void *context)
 {
     (void)context;
@@ -800,7 +800,7 @@ static void view_run(void *context)
             continue;
         }
         // While a part of the window moves, or the editor's scroll moves, the frames follow the showing: the next frame
-        // is drawn as the last one is shown, and the device's flip queue holds each frame to the monitor's refresh. A
+        // is drawn as the last one is displayed, and the device's flip queue holds each frame to the monitor's refresh. A
         // timed wait sleeps to the system timer's step and misses refreshes, so a moving part does not wait on a timer
         if (window->autohide_moving || window->scroll_moving || window->buttons_moving)
         {
@@ -835,20 +835,20 @@ static void view_run(void *context)
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_view.ended);
 }
 
-// what a module's thread brings, a command through the door, a server's report or a line the walk colored, wakes the
+// what a module's thread brings, a command through the interface, a server's report or a line the walk colored, wakes the
 // view's thread
 static void view_woken(void)
 {
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_view.wake);
 }
 
-// the rings and the maps laid in one cell, whichever bytes each takes: 1, or 0 where the cell cannot be taken
+// the rings and the maps positioned in one cell, whichever bytes each takes: 1, or 0 where the cell cannot be taken
 static int view_cell_init(void)
 {
     const embed_word event_bytes = (embed_word)CLI_VIEW_EVENTS * CLI_VIEW_EVENT_SEGMENT;
     const embed_word order_bytes = (embed_word)CLI_VIEW_ORDERS * CLI_VIEW_ORDER_SEGMENT;
     const embed_word map_bytes = sizeof(CliViewHits) + (GUI_WINDOW_HIT_CLIENTS * sizeof(GuiRect));
-    // a surface's maps: one a slot of its ring, and the one the system's thread keeps
+    // a surface's maps: one a slot of its ring, and the one the system's thread retains
     const embed_word maps_each = (embed_word)CLI_VIEW_HITS_SLOTS + 1u;
     const embed_word maps_bytes = (embed_word)CLI_VIEW_SURFACES * maps_each * map_bytes;
     // the rings and the maps are the view's part of the rings block
@@ -880,7 +880,7 @@ static int view_cell_init(void)
     {
         CliViewHitsTransfer *const transfer = &s_view.hits[surface];
         transfer->buffer = headers + (surface * maps_each);
-        transfer->kept = transfer->buffer + CLI_VIEW_HITS_SLOTS;
+        transfer->retained = transfer->buffer + CLI_VIEW_HITS_SLOTS;
         transfer->ticket = 0u;
         transfer->taken = 0u;
         embed_ticket_ring_begin(&transfer->ring, slots + (surface * CLI_VIEW_HITS_SLOTS), CLI_VIEW_HITS_SHIFT);

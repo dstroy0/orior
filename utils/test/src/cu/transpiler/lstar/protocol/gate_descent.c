@@ -9,8 +9,8 @@
 //
 // Three readings, each against a ground truth that does not depend on the descent:
 //
-//   survivors   what the descent leaves standing, verified case by case, equals what every arrangement given every
-//               case leaves standing, and both equal what chain_build retains with its sweep on
+//   survivors   what the descent leaves located, verified case by case, equals what every arrangement given every
+//               case leaves located, and both equal what chain_build retains with its sweep on
 //   depth       a descent with the destroy rule off leaves the same count as one with it on. Stopping where the best
 //               case prunes nothing gives up nothing, and this checks the descent against that claim
 //   cases       the cases the descent places, which are the ones that decide the relation
@@ -30,9 +30,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define GATE_NEEDLE_MOST (LADDER_CASE_COUNT + CHAIN_SWEEP)
-// a descent places at most ORIOR_STEER_ANCHORS cases, and resume chains descents until one places none
-#define GATE_DESCENTS_MOST 16u
+#define GATE_NEEDLE_MAX (LADDER_CASE_COUNT + CHAIN_SWEEP)
+// a descent places at max ORIOR_STEER_ANCHORS cases, and resume chains descents until one places none
+#define GATE_DESCENTS_MAX 16u
 
 #define LADDER_TEXT(name_, text_, words_, measured_) text_,
 static const char *const s_anchor_text[] = {LADDER_ANCHORS(LADDER_TEXT)};
@@ -42,8 +42,8 @@ static const char *const s_anchor_text[] = {LADDER_ANCHORS(LADDER_TEXT)};
 typedef struct
 {
     const ChainSet *arrangements;
-    PreceptCase given[GATE_NEEDLE_MOST];
-    unsigned int expected[GATE_NEEDLE_MOST];
+    PreceptCase given[GATE_NEEDLE_MAX];
+    unsigned int expected[GATE_NEEDLE_MAX];
     unsigned int cases;
     unsigned int ladder_cases;
     unsigned long long queries;
@@ -52,9 +52,9 @@ typedef struct
 static ChainSet s_fitted;
 static ChainSet s_swept;
 static GateField s_gate;
-static uint8_t s_survivors[CHAIN_MOST];
-static uint8_t s_full_depth[CHAIN_MOST];
-static uint8_t s_one_descent[CHAIN_MOST];
+static uint8_t s_survivors[CHAIN_MAX];
+static uint8_t s_full_depth[CHAIN_MAX];
+static uint8_t s_one_descent[CHAIN_MAX];
 
 // whether arrangement (corpus_at - needle_at) gives case needle_at the word the relation gives it
 static int gate_same_at(const void *field, size_t corpus_at, size_t needle_at)
@@ -86,14 +86,14 @@ static unsigned int gate_matches_every_case(const GateField *gate, unsigned int 
     return 1u;
 }
 
-static unsigned int gate_standing(const uint8_t *survivors, unsigned int length)
+static unsigned int gate_located(const uint8_t *survivors, unsigned int length)
 {
-    unsigned int standing = 0u;
+    unsigned int located = 0u;
     for (unsigned int at = 0u; at < length; at += 1u)
     {
-        standing += (survivors[at] != 0u) ? 1u : 0u;
+        located += (survivors[at] != 0u) ? 1u : 0u;
     }
-    return standing;
+    return located;
 }
 
 // the ladder's cases for `anchor` into the field, then the words chain_build's sweep puts, from its own seed
@@ -146,7 +146,7 @@ static unsigned long long gate_split_queries(const unsigned char *checks, unsign
 // how the failing checks sit together changes what halving costs
 static void gate_queries_put(unsigned int anchor, unsigned int alignments, const size_t *chosen, unsigned int placed)
 {
-    static unsigned char s_checks[CHAIN_MOST * GATE_DESCENTS_MOST * ORIOR_STEER_ANCHORS];
+    static unsigned char s_checks[CHAIN_MAX * GATE_DESCENTS_MAX * ORIOR_STEER_ANCHORS];
     unsigned int checks = 0u;
     unsigned int failing = 0u;
     for (unsigned int arrangement = 0u; arrangement < alignments; arrangement += 1u)
@@ -183,11 +183,11 @@ static void gate_queries_put(unsigned int anchor, unsigned int alignments, const
 // the folder a target's half is written to, or NULL where none was named
 static const char *s_put_folder;
 
-// What a target is queried for `anchor`, handed to the run's writer in s_put_folder where one was named: <anchor>.kdm
-// (kdm.h), every arrangement the descent ran over as a row of a .kdm with the descent's verdict last, 1 standing and 0
+// What a target is queried for `anchor`, passed to the run's writer in s_put_folder where one was named: <anchor>.kdm
+// (kdm.h), every arrangement the descent ran over as a row of a .kdm with the descent's verdict last, 1 located and 0
 // out, after a who line of the descent's, and <anchor>_cases.txt, the cases it placed, a line each as the two words and
-// the word the relation gives them. A target that runs every arrangement over the placed cases alone leaves standing
-// what the descent leaves standing
+// the word the relation gives them. A target that runs every arrangement over the placed cases alone leaves located
+// what the descent leaves located
 static void gate_put(unsigned int anchor, unsigned int alignments, const size_t *chosen, unsigned int placed)
 {
     if (s_put_folder == NULL)
@@ -274,11 +274,11 @@ static unsigned int gate_relation(unsigned int anchor, const LadderQuestion *cas
 
     const OriorField field = {gate_same_at, &s_gate, alignments, s_gate.cases};
     size_t offsets[ORIOR_STEER_ANCHORS];
-    size_t chosen[GATE_DESCENTS_MOST * ORIOR_STEER_ANCHORS];
+    size_t chosen[GATE_DESCENTS_MAX * ORIOR_STEER_ANCHORS];
     unsigned int placed = 0u;
     int resume = 0;
     s_gate.queries = 0ull;
-    for (unsigned int descent = 0u; descent < GATE_DESCENTS_MOST; descent += 1u)
+    for (unsigned int descent = 0u; descent < GATE_DESCENTS_MAX; descent += 1u)
     {
         const size_t depth =
             ORIOR_STEER_CALL(orior_steer_spawn_coarms, OriorSteerDescent, .offsets = offsets,
@@ -301,7 +301,7 @@ static unsigned int gate_relation(unsigned int anchor, const LadderQuestion *cas
     }
     const unsigned long long planned = s_gate.queries;
 
-    // the find step: every arrangement still standing checked against every case
+    // the find step: every arrangement still located checked against every case
     unsigned int verified = 0u;
     unsigned int lost = 0u;
     for (unsigned int at = 0u; at < alignments; at += 1u)
@@ -316,16 +316,16 @@ static unsigned int gate_relation(unsigned int anchor, const LadderQuestion *cas
     ORIOR_STEER_CALL(orior_steer_spawn_coarms, OriorSteerDescent, .offsets = offsets, .count = ORIOR_STEER_ANCHORS,
                       .survivors = s_full_depth, .survivors_length = alignments, .sample_stride = 1u, .any = &field,
                       .force_full_depth = 1);
-    const unsigned int stopped = gate_standing(s_one_descent, alignments);
-    const unsigned int continued = gate_standing(s_full_depth, alignments);
+    const unsigned int stopped = gate_located(s_one_descent, alignments);
+    const unsigned int continued = gate_located(s_full_depth, alignments);
 
     const unsigned int agreed =
         ((lost == 0u) && (verified == truth) && (truth == built) && (stopped == continued)) ? 1u : 0u;
     gate_put(anchor, alignments, chosen, placed);
     printf("  %-8s %4u fit the ladder, %4u satisfy every case, %4u retained by the sweep; %u case(s) placed, %4u "
-           "standing, "
+           "located, "
            "%4u verified, %u lost; stopped %u and full depth %u; %llu questions planned on this host; %s\n",
-           s_anchor_text[anchor], alignments, truth, built, placed, gate_standing(s_survivors, alignments), verified,
+           s_anchor_text[anchor], alignments, truth, built, placed, gate_located(s_survivors, alignments), verified,
            lost, stopped, continued, planned, (agreed != 0u) ? "agrees" : "DISAGREES");
     gate_queries_put(anchor, alignments, chosen, placed);
     return agreed;

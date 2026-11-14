@@ -25,7 +25,7 @@ typedef struct CliCargoTestsIdCfg CliCargoTestsIdCfg;
 typedef struct CliCargoTestsInputCfg CliCargoTestsInputCfg;
 typedef struct CliCargoTestsCfg CliCargoTestsCfg;
 
-// the most tests found, and the bytes their texts take
+// the max tests found, and the bytes their texts take
 #define CLI_CARGO_FOUND 16384u
 #define CLI_CARGO_TEXT (1u << 22u)
 
@@ -65,8 +65,8 @@ typedef struct CliCargoPieceStruct
 } CliCargoPiece;
 
 // The Rust tests of a tree and the texts they take, with 1 in `full` where one did not fit: the tests in a cell at
-// their most, CLI_CARGO_FOUND at the most, and their texts in pieces that never move, the newest first, CLI_CARGO_TEXT
-// bytes at the most, every cell the temporary tier's, the call that finds the tests giving each back as it ends
+// their max, CLI_CARGO_FOUND at max, and their texts in pieces that never move, the newest first, CLI_CARGO_TEXT
+// bytes at max, every cell the temporary tier's, the call that finds the tests giving each back as it ends
 typedef struct
 {
     CliCargoFound *found;

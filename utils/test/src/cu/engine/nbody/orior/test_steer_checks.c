@@ -224,7 +224,7 @@ int check_dispatch_exact(void)
     failed += (got == 1) ? 0 : 1;
 
     /* An empty field has no structure and takes the short circuiting arm. Stated and not
-     * discovered, because a caller with no corpus hands over a census of nothing. */
+     * discovered, because a caller with no corpus passes over a census of nothing. */
     memset(&census, 0, sizeof(census));
     got = orior_steer_prefers_free(&census);
     printf("  %26s %10d %10d %10s\n", "empty field", 0, got, (got == 0) ? "ok" : "FAILS");

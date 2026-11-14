@@ -67,7 +67,7 @@ extern "C"
 
     // The tree as nodes (A2). A node is one component of one upper level set, the nodes of a tree built by
     // max_tree_build. A node's level is the dense rank of its value among the admitted values, 1 the least, and
-    // `levels` is the most. Nodes are numbered in DFS order: a node's subtree is a single range [node,
+    // `levels` is the max. Nodes are numbered in DFS order: a node's subtree is a single range [node,
     // subtree_end[node]), its parent is the node of the next lower level that contains it, a root is its own parent,
     // and `root` names each node's root. A child's level is above its parent's. `own` names each voxel's own node, the
     // node at its own level that contains it, and is MAX_TREE_ABSENT for a voxel that is not admitted. The component at

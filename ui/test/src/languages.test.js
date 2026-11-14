@@ -13,7 +13,7 @@ import { putBackAsFound } from "../menus.js";
 
 const { test, assert, ui } = window.__harness;
 
-const COLUMNS = ["where", "who", "kind", "form", "gloss"];
+const COLUMNS = ["where", "who", "type", "form", "gloss"];
 const LINES = {
   ext: "kx",
   table: {
@@ -29,8 +29,8 @@ const BYTES = { ext: "kb", table: { columns: COLUMNS, rows: [["head 0", "-", "ma
 const docOf = (...lines) => ({ line: (at) => lines[at] });
 
 test("a row is read by its columns' names, and a form opens with its first word or with none", () => {
-  assert.deepEqual(rowOf(LINES.table, LINES.table.rows[1]), { where: "line 2", who: "teacher", kind: "ask", form: "ask <form> ... = <text>", gloss: "an ask of the teacher's" });
-  assert.deepEqual(rowOf({ columns: ["form"], rows: [] }, ["x"]), { where: "", who: "", kind: "", form: "x", gloss: "" }, "a column the table lacks read as empty");
+  assert.deepEqual(rowOf(LINES.table, LINES.table.rows[1]), { where: "line 2", who: "teacher", type: "ask", form: "ask <form> ... = <text>", gloss: "an ask of the teacher's" });
+  assert.deepEqual(rowOf({ columns: ["form"], rows: [] }, ["x"]), { where: "", who: "", type: "", form: "x", gloss: "" }, "a column the table lacks read as empty");
   assert.equal(opening("  form <name> = <text>"), "form");
   assert.equal(opening("<channel> <answer>"), "");
   assert.ok(isBinary(BYTES));
@@ -75,9 +75,9 @@ async function colored(path, text, wanted) {
 
 // The tables the plugins kfile, gsm and g read their words from, written into the tree at the paths they name.
 const TABLES = {
-  "includes/file_defs/krs/krs.oracle.tsv": "where\twho\tkind\tform\tgloss\nline 1\t-\tcomment\t# <text>\ta note\nline 2\t-\truleset\truleset <name>\tthe ruleset's name\n",
+  "includes/file_defs/krs/krs.oracle.tsv": "where\twho\ttype\tform\tgloss\nline 1\t-\tcomment\t# <text>\ta note\nline 2\t-\truleset\truleset <name>\tthe ruleset's name\n",
   "src/lng/gnascor_asm_lng.tsv": "mnemonic\ttable\tpast\tpresent\tarrow\ncore\tthe pair\tlead\tvoid\t->\n",
-  "src/lng/gnascor_hol_lng.tsv": "word\tkind\ni32_t\ttype\n",
+  "src/lng/gnascor_hol_lng.tsv": "word\ttype\ni32_t\ttype\n",
 };
 
 test("a k-file, a .gsm and a .g file open colored on orior's side by the words the tree's tables give", async () => {

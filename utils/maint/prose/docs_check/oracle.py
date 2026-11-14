@@ -13,7 +13,7 @@
 #
 # project_words.tsv is the second word list: the names and the mnemonics of this project, which the
 # research papers do not hold. It carries no counts. Its words are the author's, one row each with
-# what kind of word it is, and like voice.tsv it is read here and never written here. counted() joins
+# what type of word it is, and like voice.tsv it is read here and never written here. counted() joins
 # the two into one dict, and a project word carries the count 0, which is its true count in the
 # corpus.
 #
@@ -42,9 +42,9 @@ WEB_TABLE = os.path.join(TABLES, "voice_word_web.tsv")
 WORD = re.compile(r"[a-z][a-z'-]*")
 
 # How many rows a reading prints. A longer tail is the same information at a length nobody reads.
-SHOWN = 30
+DISPLAYED = 30
 
-# Words this reading will not report missing. Two letters is a particle, and the question of whether
+# Words this reading will not report missing. Two characters is a particle, and the question of whether
 # the corpus happens to hold `fd` or `ok` is not a question about voice.
 SHORTEST = 3
 
@@ -119,11 +119,11 @@ def pick(asked, given):
         return None
     after, before = adjacent()
     if asked == "after":
-        return sorted(after.get(given[0], []), reverse=True)[:SHOWN]
+        return sorted(after.get(given[0], []), reverse=True)[:DISPLAYED]
     if asked == "before":
-        return sorted(before.get(given[0], []), reverse=True)[:SHOWN]
+        return sorted(before.get(given[0], []), reverse=True)[:DISPLAYED]
     if asked == "between" and len(given) > 1:
-        return between(after, before, given[0], given[1])[:SHOWN]
+        return between(after, before, given[0], given[1])[:DISPLAYED]
     return None
 
 

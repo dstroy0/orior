@@ -104,7 +104,7 @@ def complex_coefficients(angles, live, top):
     A lit point at (colatitude, longitude) contributes P_lm(cos colatitude) times exp(-i m
     longitude), summed over the lit set. Moving every longitude by alpha multiplies the order m
     entry by exp(-i m alpha). The magnitude holds still and the phase moves by m alpha. Both
-    readings below come off this one table. It is formed once and handed to them.
+    readings below come off this one table. It is formed once and passed to them.
     """
     out = {}
     for order in range(top + 1):
@@ -128,7 +128,7 @@ def deflection(table, top):
     """The magnitude reading: power per degree, summed over the orders. Blind to a rotation.
 
     The orders above zero are counted twice, because a real expansion carries each of them as a
-    matched pair and only the zonal term stands alone.
+    matched pair and only the zonal term is alone.
     """
     out = [0.0] * (top + 1)
     for (degree, order), (real, imaginary) in table.items():

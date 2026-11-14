@@ -23,17 +23,17 @@
 
 #define OVERSEER_LESSONS_TABLE "lessons"
 
-// the most lessons a run stores, the longest carrier name, the most experts a conference names, and the most causes it
+// the max lessons a run stores, the longest carrier name, the max experts a conference names, and the max causes it
 // receives read
-#define OVERSEER_LESSONS_MOST 16384u
+#define OVERSEER_LESSONS_MAX 16384u
 
 #define OVERSEER_CARRIER_MAX_LEN 64u
 
-#define OVERSEER_EXPERTS_MOST 32u
+#define OVERSEER_EXPERTS_MAX 32u
 
 #define OVERSEER_EXPERT_MAX_LEN 32u
 
-#define OVERSEER_VOTES_MOST 64u
+#define OVERSEER_VOTES_MAX 64u
 
 #define OVERSEER_CLAUSE_MAX_LEN 512u
 
@@ -42,7 +42,7 @@ typedef struct
 {
     unsigned int cause;
     char carrier[OVERSEER_CARRIER_MAX_LEN];
-    char standing[OVERSEER_STANDING_MAX_LEN];
+    char located[OVERSEER_STANDING_MAX_LEN];
 } OverseerLesson;
 
 // each cause by the word an account reads it with, in the order of OverseerCause
@@ -60,15 +60,15 @@ typedef struct
 // conference
 typedef struct
 {
-    char experts[OVERSEER_EXPERTS_MOST][OVERSEER_EXPERT_MAX_LEN];
+    char experts[OVERSEER_EXPERTS_MAX][OVERSEER_EXPERT_MAX_LEN];
     unsigned int expert_count;
-    OverseerVote votes[OVERSEER_VOTES_MOST];
+    OverseerVote votes[OVERSEER_VOTES_MAX];
     unsigned int vote_count;
     int addresses;
     int controls;
     int scratch;
     char carrier[OVERSEER_CARRIER_MAX_LEN];
-    char standing[OVERSEER_STANDING_MAX_LEN];
+    char located[OVERSEER_STANDING_MAX_LEN];
     char learning[OVERSEER_CLAUSE_MAX_LEN];
     char counterexample[OVERSEER_CLAUSE_MAX_LEN];
     unsigned int accounts;
@@ -76,7 +76,7 @@ typedef struct
     unsigned int blocks;
 } OverseerTally;
 
-extern OverseerLesson s_lessons[OVERSEER_LESSONS_MOST];
+extern OverseerLesson s_lessons[OVERSEER_LESSONS_MAX];
 extern unsigned int s_lesson_count;
 extern OverseerTally s_conference_tally;
 

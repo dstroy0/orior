@@ -83,7 +83,7 @@ unsigned int khw_kernel_forms_store(void)
 }
 
 // the runs of `answered_form` read from `text`, `answered_form->runs` of them: three words a run, its first bit, its
-// last and its place with its kind's letter after it, a register where none; or two, its first bit and its last, where
+// last and its place with its type's character after it, a register where none; or two, its first bit and its last, where
 // the line contains no place, every run then containing none. 1, or 0 where the words are neither
 static int khw_runs_read(KhwForm *answered_form, const char *text)
 {
@@ -106,7 +106,7 @@ static int khw_runs_read(KhwForm *answered_form, const char *text)
     {
         char place[16];
         answered_form->place[run] = SASS_RUN_NO_PLACE;
-        answered_form->kind[run] = KHW_KIND_REGISTER;
+        answered_form->type[run] = KHW_KIND_REGISTER;
         if (each == 2u)
         {
             if (!line_unsigned(&rest, &answered_form->first[run]) || !line_unsigned(&rest, &answered_form->last[run]))
@@ -121,14 +121,14 @@ static int khw_runs_read(KhwForm *answered_form, const char *text)
             {
                 return 0;
             }
-            // the none mark, with its kind's letter after it where the run is no register's, or the place with its
-            // letter after it; the letter's place among the four is its kind, and no letter is a register's
+            // the none mark, with its type's character after it where the run is no register's, or the place with its
+            // character after it; the character's place among the four is its type, and no character is a register's
             char *end = NULL;
             const int none = (strncmp(place, SASS_RUN_NO_PLACE_TEXT, strlen(SASS_RUN_NO_PLACE_TEXT)) == 0);
             answered_form->place[run] = none ? SASS_RUN_NO_PLACE : (unsigned int)strtoul(place, &end, 10);
             end = none ? (place + strlen(SASS_RUN_NO_PLACE_TEXT)) : end;
-            const char *const letter = ((end != NULL) && (*end != '\0')) ? strchr(KHW_KIND_LETTERS, *end) : NULL;
-            answered_form->kind[run] = (letter != NULL) ? (unsigned int)(letter - KHW_KIND_LETTERS) : KHW_KIND_REGISTER;
+            const char *const character = ((end != NULL) && (*end != '\0')) ? strchr(KHW_KIND_CHARACTERS, *end) : NULL;
+            answered_form->type[run] = (character != NULL) ? (unsigned int)(character - KHW_KIND_CHARACTERS) : KHW_KIND_REGISTER;
         }
     }
     return 1;

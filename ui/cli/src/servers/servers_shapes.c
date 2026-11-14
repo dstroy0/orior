@@ -309,7 +309,7 @@ void cli_servers_item_get(const CliServersJsonOneCtx *args)
                    .type = EMBED_CALL(cli_servers_json_node_otherwise_internal.integer, CliServersJsonNodeOtherwiseCtx,
                                       .json = args->json,
                                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                                         .json_read = args->json, .object = args->one, .name = "kind"),
+                                                         .json_read = args->json, .object = args->one, .name = "type"),
                                       .otherwise = 1ULL));
     (void)EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = args->items, .label = name,
                      .label_size = name_size, .type = type, .detail = s_detail + detail_from,

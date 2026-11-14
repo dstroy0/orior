@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// font_outline.c: a glyph's outline read from glyf, its curves cut into lines, and the lines handed to the one
+// font_outline.c: a glyph's outline read from glyf, its curves cut into lines, and the lines passed to the one
 // rasterizer (coverage.h) as the glyph's mask
 #include "../arith/arith.h"
 #include "font.h"

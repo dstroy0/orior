@@ -19,7 +19,7 @@
 
 #define TEST_LOW_HALF 0xFFFFFFFFull
 
-// the largest volume, 32 x 64 x 64, and the most agreement entries, the one-axis line's 4096 / 2
+// the largest volume, 32 x 64 x 64, and the max agreement entries, the one-axis line's 4096 / 2
 #define TEST_VOXELS_MAX (32ull * 64ull * 64ull)
 
 #define TEST_ENTRIES_MAX 2048ull

@@ -260,8 +260,8 @@ extern "C" unsigned long long period_agreement_entries(unsigned int rank, const 
     return entries;
 }
 
-// the pool's slices for `voxels` and `entries`, in the order they are laid out and taken: the histogram, the agreement
-// and the shuffled lanes; the plan is laid out from them, and a pool reserved from it takes them
+// the pool's slices for `voxels` and `entries`, in the order they are arranged and taken: the histogram, the agreement
+// and the shuffled lanes; the plan is arranged from them, and a pool reserved from it takes them
 static DevicePoolPlan period_plan(unsigned long long voxels, unsigned long long entries, EngineError *error,
                                   DevicePoolTakeRequest takes[PERIOD_SLICES])
 {
@@ -280,7 +280,7 @@ static DevicePoolPlan period_plan(unsigned long long voxels, unsigned long long 
 }
 
 // the pool grown to contain `voxels` and `entries`. A pool that already contains both is retained as it is, and a grown
-// pool contains the most of each requested so far: extents that take turns grow it once.
+// pool contains the max of each requested so far: extents that take turns grow it once.
 int period_reserve(unsigned long long voxels, unsigned long long entries, EngineError *error)
 {
     PeriodResident *const resident = &g_period_resident;
@@ -300,7 +300,7 @@ int period_reserve(unsigned long long voxels, unsigned long long entries, Engine
     const DevicePoolPlan plan = period_plan(max_voxels, max_entries, error, takes);
     const DevicePoolReserveRequest reserve = {&plan, &resident->pool, error};
     int ok = device_pool_reserve(&reserve) == 0L;
-    // the slices are taken in the plan's order, and each lands where the plan laid it out with none errored
+    // the slices are taken in the plan's order, and each lands where the plan positioned it out with none errored
     for (unsigned int at = 0u; (ok != 0) && (at < PERIOD_SLICES); at += 1u)
     {
         ok = device_pool_take(&takes[at]) == 0L;

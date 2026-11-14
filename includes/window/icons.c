@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // icons.c: the icons as the page's icons module draws them, each path in the path language of SVG, the moves, lines,
 // cubic curves, arcs and closes, absolute and relative, and its dots as circles. A curve is flattened to short lines,
-// and each line is laid as a capsule, the pixels within half the line's width of it covered by the distance left to
-// its edge, the cover of a pixel the most any capsule gives it, which draws the line with round ends and joins; a dot
+// and each line is positioned as a capsule, the pixels within half the line's width of it covered by the distance left to
+// its edge, the cover of a pixel the max any capsule gives it, which draws the line with round ends and joins; a dot
 // is a capsule of no length. The cog is drawn from its teeth
 #include "icons.h"
 #include "palette.h"
@@ -31,8 +31,8 @@ typedef struct
     const char *filled;
 } GuiIconShape;
 // The pen a path is drawn with: the cover it draws into, floats of 0 to 1 a pixel of the square, the square's side,
-// the pixels a unit takes, the units the shape's box starts at and the pixels the box stands in from the square's
-// top left, and the line's half width in pixels; where the pen stands and where its subpath began, in units; the
+// the pixels a unit takes, the units the shape's box starts at and the pixels the box is in from the square's
+// top left, and the line's half width in pixels; where the pen is and where its subpath began, in units; the
 // second control point of the last curve, for a smooth curve to mirror, where the last part was one; and the
 // corners gathered while a shape is filled, in pixels, in place of lines drawn, NULL while it draws
 typedef struct
@@ -55,7 +55,7 @@ typedef struct
     float *corner;
     unsigned int corners;
 } GuiPen;
-// the pixels between the points a curve is flattened to, and the most parts an icon's path has
+// the pixels between the points a curve is flattened to, and the max parts an icon's path has
 #define ICONS_STEP 0.5f
 
 // the eye of the wordmark, the page's line art: each stroke the center line of one line of the drawing, and the
@@ -214,7 +214,7 @@ static const GuiIconShape s_shapes[] = {
 };
 #define ICONS_COUNT (sizeof(s_shapes) / sizeof(s_shapes[0]))
 
-// the most corners a filled shape has, and the samples across and down a pixel its cover is read from
+// the max corners a filled shape has, and the samples across and down a pixel its cover is read from
 #define ICONS_CORNERS 256u
 #define ICONS_SAMPLES 4u
 
@@ -275,7 +275,7 @@ EMBED_INLINE float pen_py(const IconsCtx *args)
     return ((args->y - args->pen_read->top) * args->pen_read->scale) + args->pen_read->pad_y;
 }
 
-// a capsule of `radius` pixels about the line from x0, y0 to x1, y1 in pixels laid on the cover: each pixel's share
+// a capsule of `radius` pixels about the line from x0, y0 to x1, y1 in pixels positioned on the cover: each pixel's share
 // the distance left from its middle to the capsule's edge, clamped, where that is more than the pixel has; a capsule
 // of no length is a disc
 EMBED_INLINE void pen_capsule(const IconsCtx *args)
@@ -390,7 +390,7 @@ EMBED_INLINE unsigned int polygon_crossings(const IconsCtx *args)
 }
 
 // a run across the row from x0 to x1 in pixels counted into `counts` across the samples it covers, a whole pixel at a
-// time inside it, the samples the row's runs span widened to it. A sample stands at the middle of its fraction of a
+// time inside it, the samples the row's runs span widened to it. A sample is at the middle of its fraction of a
 // pixel: the first at or past each end
 EMBED_INLINE void polygon_run_counted(const IconsCtx *args)
 {
@@ -620,7 +620,7 @@ EMBED_INLINE void pen_arc(const IconsCtx *args)
 }
 
 // a number read from `*at` as the path language writes one, a sign, digits and a fraction, the separators before it
-// passed over: 1 with the number into `value` and `*at` past it, or 0 where none stands there
+// passed over: 1 with the number into `value` and `*at` past it, or 0 where none is there
 EMBED_INLINE int icons_number(const IconsCtx *args)
 {
     const char **at = args->at;
@@ -663,7 +663,7 @@ EMBED_INLINE int icons_number(const IconsCtx *args)
     return 1;
 }
 
-// `count` numbers read from `*at` into `values`: 1 where all stood there
+// `count` numbers read from `*at` into `values`: 1 where all was there
 EMBED_INLINE int icons_numbers(const IconsCtx *args)
 {
     for (unsigned int each = 0u; each < args->count; each += 1u)
@@ -676,7 +676,7 @@ EMBED_INLINE int icons_numbers(const IconsCtx *args)
     return 1;
 }
 
-EMBED_INLINE int icons_letter(const IconsCtx *args)
+EMBED_INLINE int icons_character(const IconsCtx *args)
 {
     return ((args->byte >= 'A') && (args->byte <= 'Z')) || ((args->byte >= 'a') && (args->byte <= 'z'));
 }
@@ -776,7 +776,7 @@ EMBED_INLINE void pen_path(const IconsCtx *args)
         {
             return;
         }
-        if (EMBED_CALL(icons_letter, IconsCtx, .byte = *at))
+        if (EMBED_CALL(icons_character, IconsCtx, .byte = *at))
         {
             command = *at;
             at += 1;
@@ -880,7 +880,7 @@ EMBED_INLINE int icons_draw(const IconsCtx *args)
     pen.cover = floats;
     pen.side = args->size;
     // a shape on its own box is fitted to the square by the box's longer side and centered along its shorter
-    // a shape on no box of its own stands on the icon's square
+    // a shape on no box of its own is on the icon's square
     static const float s_square[4] = {0.0f, 0.0f, GUI_ICON_UNITS, GUI_ICON_UNITS};
     const float *const box = (args->shape->box != NULL) ? args->shape->box : s_square;
     const float box_width = box[2];

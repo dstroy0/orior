@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// A statement run from a .sql file of the tree: the one the cursor stands in or the text selected, or each of the
+// A statement run from a .sql file of the tree: the one the cursor is in or the text selected, or each of the
 // file's in turn.
 
 import { invoke } from "../bridge.js";
@@ -9,7 +9,7 @@ import { readConnections, runOn } from "../database.js";
 import { say } from "../statusbar.js";
 import { connectionForFile, connectionOf, state } from "./state.js";
 
-// The statement of the .sql file shown that the cursor stands in, or the text selected, and its
+// The statement of the .sql file displayed that the cursor is in, or the text selected, and its
 // place in the file by character.
 function statementHere() {
   const editor = state.hooks.editor();
@@ -40,20 +40,20 @@ function placeAt(here, offset) {
   }
 }
 
-const typeOf = (name) => connectionOf(name)?.kind ?? "postgres";
+const typeOf = (name) => connectionOf(name)?.type ?? "postgres";
 
 // The page counts text in UTF-16 units and the window's side and the servers count it in characters: the
 // characters before a place the page gives, and the units before a count of characters.
 const charsBefore = (text, units) => [...text.slice(0, units)].length;
 const unitsBefore = (text, chars) => [...text].slice(0, chars).join("").length;
 
-// Run, Run Statement: the statement the cursor stands in, or the text selected, on the file's
+// Run, Run Statement: the statement the cursor is in, or the text selected, on the file's
 // connection.
 export async function runStatement() {
   const file = state.hooks.file();
   const here = statementHere();
   if (!file || !here) {
-    say("Run Statement runs a statement of the file shown", { failed: true });
+    say("Run Statement runs a statement of the file displayed", { failed: true });
     return;
   }
   const name = connectionForFile(file);
@@ -64,9 +64,9 @@ export async function runStatement() {
   let start = charsBefore(here.text, here.from);
   let statement = here.text.slice(here.from, here.to);
   if (!statement.trim()) {
-    const span = await invoke("db_statement_at", { text: here.text, offset: start, kind: typeOf(name) });
+    const span = await invoke("db_statement_at", { text: here.text, offset: start, type: typeOf(name) });
     if (!span) {
-      say("The cursor stands in no statement: Run File runs them all");
+      say("The cursor is in no statement: Run File runs them all");
       return;
     }
     [start] = span;
@@ -89,7 +89,7 @@ export async function runSqlFile() {
   if (!state.connections.length) {
     await readConnections();
   }
-  const spans = await invoke("db_statements", { text: here.text, kind: typeOf(name) });
+  const spans = await invoke("db_statements", { text: here.text, type: typeOf(name) });
   const characters = [...here.text];
   let done = 0;
   for (const [from, to] of spans) {

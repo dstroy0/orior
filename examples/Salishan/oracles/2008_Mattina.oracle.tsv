@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Tony Mattina	title	How I Interlinearize “Invaluable Stories” and Other Texts	page 1
 front	Tony Mattina	name	Tony Mattina	author
 front	Tony Mattina	note	In this paper I describe how and explain why I interlinearize Colville-Okanagan texts. First I describe the basic units of near-phonemic transcriptions; then how I analyze each word of the recorded utterance into stems and inflectional affixes, and how each stem and each inflectional affix is assigned an English gloss; and finally how each recorded utterance is translated into English. I explain how I treat phrasal words, amalgams, lexical variants, compounds and complex forms; and I explain how I treat non-inflectional material, and special cases of inflectional material.	page 1, the abstract, carries footnote 1
@@ -22,7 +22,7 @@ footnote 2	Tony Mattina	name	Madeline	who called the language she spoke natively
 §1.1	Colville-Okanagan	cited form	ƛ̕ax̌əx̌ƛ̕x̌áp	page 2, in Lucida Sans Unicode
 §1.1	Colville-Okanagan	cited form	ƛ̕ax̌x̌ƛ̕x̌áp	page 2, in Lucida Sans Unicode
 §1.1	Tony Mattina	language	Okanagan	the language of the texts, its Southern and Northern speakers
-§1.1	Tony Mattina	note	The initial vowel of a form like [ilmíxʷum] is an underlying semi- consonant, as the plural [ililmíxʷum] demonstrates: the plural reduplicative prefix is C1C2-, not VC1-. What to write? In my approximate phonemic line I write ilmíxʷəm and ililmíxʷəm; in the line below I write ylmixʷm and yl+yl=mixʷ+m (with morph boundaries marked as appropriate—more on the use of the symbol [+] below). Notice, incidentally, that the epenthetic vowel between xʷ and m is phonetically [u]. I write ə in the approximate phonemic line in an attempt to remind readers and writers of the language that this is an epenthetic vowel, the shape of which is determined by the rounded consonant that precedes (and/or follows) it. An analogous example with [u] (underlying /w/) is uksqílxʷ /wk+s+qilxʷ/ (√wik). These practices are subject to criticism, I realize, because they represent neither a phonetic nor a phonemic reality. The theoretically most consistent alternative would be to write underlying forms; the reason that is not acceptable can be summed up as follows: many underlying forms are too abstract to be recognized easily by the speaker / reader / writer (more on the subject later). In sum, I have compromized in a number of cases for the benefit of the Colville-Okanagan speaker / reader / writer.	page 2
+§1.1	Tony Mattina	note	The initial vowel of a form like [ilmíxʷum] is an underlying semi- consonant, as the plural [ililmíxʷum] demonstrates: the plural reduplicative prefix is C1C2-, not VC1-. What to write? In my approximate phonemic line I write ilmíxʷəm and ililmíxʷəm; in the line below I write ylmixʷm and yl+yl=mixʷ+m (with morph boundaries marked as appropriate—more on the use of the symbol [+] below). Notice, incidentally, that the epenthetic vowel between xʷ and m is phonetically [u]. I write ə in the approximate phonemic line in an attempt to remind readers and writers of the language that this is an epenthetic vowel, the shape of which is determined by the rounded consonant that precedes (and/or follows) it. An analogous example with [u] (underlying /w/) is uksqílxʷ /wk+s+qilxʷ/ (√wik). These practices are subject to criticism, I realize, because they represent neither a phonetic nor a phonemic reality. The theoretically max consistent alternative would be to write underlying forms; the reason that is not acceptable can be summed up as follows: many underlying forms are too abstract to be recognized easily by the speaker / reader / writer (more on the subject later). In sum, I have compromized in a number of cases for the benefit of the Colville-Okanagan speaker / reader / writer.	page 2
 §1.1	Colville-Okanagan	cited form	ilmíxʷum	page 2, in Lucida Sans Unicode
 §1.1	Colville-Okanagan	cited form	ililmíxʷum	page 2, in Lucida Sans Unicode
 §1.1	Colville-Okanagan	cited form	ilmíxʷəm	page 2, in Lucida Sans Unicode
@@ -108,7 +108,7 @@ footnote 5	Tony Mattina	language	Moses-Columbian	its intransitive person markers
 §1.2	Colville-Okanagan	cited form	kən	page 4, in Lucida Sans Unicode
 §1.2	Colville-Okanagan	cited form	incá	page 4, in Lucida Sans Unicode
 §1.2	Tony Mattina	note	Different from phrasal words are the amalgams I list in Table 2 in that only one member of the amalgam is an independent word. Okanagan speakers view these forms more as single words than those listed in Table 1, and this criterion overrides formal considerations.	page 4
-§1.2	Tony Mattina	note	While most of these amalgams consist of a stem and a clitic, it may be in order to spell out these details: several include an enclitic iʔ, otherwise analyzable as an article; one includes the proclitic iʔ; several others include the proclitics la(ʔ), ta, tla, variants, respectively of l, t, tl; two have an initial t̕s, a form with still unconfirmed connections; and laʔx̌c+xʔít+iʔ has some other unidentified material.	page 4
+§1.2	Tony Mattina	note	While the majority of these amalgams consist of a stem and a clitic, it may be in order to spell out these details: several include an enclitic iʔ, otherwise analyzable as an article; one includes the proclitic iʔ; several others include the proclitics la(ʔ), ta, tla, variants, respectively of l, t, tl; two have an initial t̕s, a form with still unconfirmed connections; and laʔx̌c+xʔít+iʔ has some other unidentified material.	page 4
 §1.2	Colville-Okanagan	cited form	iʔ	page 4, in Lucida Sans Unicode
 §1.2	Colville-Okanagan	cited form	la(ʔ)	page 4, in Lucida Sans Unicode
 §1.2	Colville-Okanagan	cited form	ta	page 4, in Lucida Sans Unicode
@@ -143,7 +143,7 @@ Table 2	Colville-Okanagan	transcription	ta+ʔkín̓	page 5, the form
 Table 2	Tony Mattina	translation	from where	page 5, the gloss
 Table 2	Tony Mattina	note	lnx2 401	page 5, source
 Table 2	Colville-Okanagan	transcription	ta+n+yʕ̓ip	page 5, the form
-Table 2	Tony Mattina	translation	keep on	page 5, the gloss
+Table 2	Tony Mattina	translation	retain on	page 5, the gloss
 Table 2	Tony Mattina	note	lnx1	page 5, source
 Table 2	Colville-Okanagan	transcription	tla+ʔkín	page 5, the form
 Table 2	Tony Mattina	translation	from there	page 5, the gloss
@@ -162,7 +162,7 @@ Table 2	Tony Mattina	note	Table 2 - Amalgams	page 5, the table's caption, under 
 §1.2	Colville-Okanagan	cited form	lút+iʔ	page 5, in Lucida Sans Unicode
 §1.2	Colville-Okanagan	cited form	lut iʔ	page 5, in Lucida Sans Unicode
 §1.3	Tony Mattina	heading	1.3 Alternate Forms	page 5
-§1.3	Tony Mattina	note	Alternate forms are of several different kinds. First, there are dialectal or idiosyncratic differences with words that differ in one or two sounds, as the examples I chart in Table 3.	page 5
+§1.3	Tony Mattina	note	Alternate forms are of several different types. First, there are dialectal or idiosyncratic differences with words that differ in one or two sounds, as the examples I chart in Table 3.	page 5
 Table 3	Colville-Okanagan	transcription	yutlxʷ	page 6, the form
 Table 3	Colville-Okanagan	transcription	yutlx	page 6, a variant
 Table 3	Tony Mattina	translation	raven	page 6, the gloss
@@ -295,13 +295,13 @@ Table 6	Tony Mattina	note	Table 6 – Some English false pairs	page 8, the table
 §1.4	English	cited form	ɪŋkrɛ́dɪbəl	page 8, in Lucida Sans Unicode
 §1.4	English	cited form	əpóynt	page 8, in Lucida Sans Unicode
 §1.4	English	cited form	dɪ̀səpóynt	page 8, in Lucida Sans Unicode
-§1.4	Tony Mattina	note	In an effort to arrive at a meaningful typological classification of a language as somewhere on the analytic-synthetic cline, I don’t think it makes sense to give all affixes equal weight. The fact that English has words like rì- di-ǽkt-ɪv-èt-əd, analyzable as consisting of six recognizable morphs, does not entitle one to claim that English is a synthetic language, and an agglutinative one at that. Nor should glosses for each morph clutter the interlinearization. My transcription of that item would be rì+di+ǽkt+ɪv+èt-əd, and I would keep out of the interlinearization information about the layered bracketing of the non- inflectional morphemes that make up the word.	page 8
+§1.4	Tony Mattina	note	In an effort to arrive at a meaningful typological classification of a language as somewhere on the analytic-synthetic cline, I don’t think it makes sense to give all affixes equal weight. The fact that English has words like rì- di-ǽkt-ɪv-èt-əd, analyzable as consisting of six recognizable morphs, does not entitle one to claim that English is a synthetic language, and an agglutinative one at that. Nor should glosses for each morph clutter the interlinearization. My transcription of that item would be rì+di+ǽkt+ɪv+èt-əd, and I would retain out of the interlinearization information about the layered bracketing of the non- inflectional morphemes that make up the word.	page 8
 §1.4	English	cited form	rì+di+ǽkt+ɪv+èt-əd	page 8, in Lucida Sans Unicode
 §1.4	Tony Mattina	note	While I am making progress towards a consistent segmentation of words into stem and inflectional affixes (where stems may include non- inflectional material), I am still not true to my own precepts in several cases, as I now discuss.	page 8
-§1.4	Tony Mattina	note	By my reckoning, affixes that prepare stems for transitivization are derivational suffixes. (Variants of at least) two such are commonly recognized for the (Southern) Interior languages, +min, and –nu(n), which I mark as shown here: the former with a plus sign, the latter with a hyphen. The meaning of the former is unpredictable; that of the latter consistently success, manage. Similarly, all transitivizers are derivational suffixes, but I have been marking them as though they were inflectional—except as described below.	page 9
+§1.4	Tony Mattina	note	By my reckoning, affixes that prepare stems for transitivization are derivational suffixes. (Variants of at least) two such are commonly recognized for the (Southern) Interior languages, +min, and –nu(n), which I mark as displayed here: the former with a plus sign, the latter with a hyphen. The meaning of the former is unpredictable; that of the latter consistently success, manage. Similarly, all transitivizers are derivational suffixes, but I have been marking them as though they were inflectional—except as described below.	page 9
 §1.4	Colville-Okanagan	cited form	+min	page 9, in Lucida Sans Unicode
 §1.4	Colville-Okanagan	cited form	–nu(n)	page 9, in Lucida Sans Unicode
-§1.4	Tony Mattina	note	Verb stems may have intransitive, middle, and transitive forms as I exemplify here: ʔiɬn is an intransitive stem, conjugated with the intransitive person markers (kʷ ʔiɬn you ate); it can be transitivized, (ʔiɬn+(n)t-xʷ you ate it); and, in certain constructions, can be intransitive or middle (lut a-ks-ʔíɬn don’t eat; lut a-ks-ʔíɬn+m don’t eat it). The root √tx comb can be transitivized (tx-nt-in I combed her)7, and it can occur as a middle stem (tkən txa+m8 I combed (my hair)). Here, too, I mark these affixes inconsistenly, as I have shown, the transitive suffixes with a hyphen, and the middle suffix with a plus sign.	page 9
+§1.4	Tony Mattina	note	Verb stems may have intransitive, middle, and transitive forms as I exemplify here: ʔiɬn is an intransitive stem, conjugated with the intransitive person markers (kʷ ʔiɬn you ate); it can be transitivized, (ʔiɬn+(n)t-xʷ you ate it); and, in certain constructions, can be intransitive or middle (lut a-ks-ʔíɬn don’t eat; lut a-ks-ʔíɬn+m don’t eat it). The root √tx comb can be transitivized (tx-nt-in I combed her)7, and it can occur as a middle stem (tkən txa+m8 I combed (my hair)). Here, too, I mark these affixes inconsistenly, as I have displayed, the transitive suffixes with a hyphen, and the middle suffix with a plus sign.	page 9
 footnote 7	Tony Mattina	note	This form, based on a weak stem, is suffix-stressed.	page 9, footnote 7
 footnote 8	Tony Mattina	note	The vowel /a/ of this and other weak stems is analogous to the paragogic /a/ mentioned above.	page 9, footnote 8
 §1.4	Colville-Okanagan	cited form	ʔiɬn	page 9, in Lucida Sans Unicode
@@ -312,7 +312,7 @@ footnote 8	Tony Mattina	note	The vowel /a/ of this and other weak stems is analo
 §1.4	Colville-Okanagan	cited form	√tx	page 9, in Lucida Sans Unicode
 §1.4	Colville-Okanagan	cited form	tx-nt-in	page 9, in Lucida Sans Unicode
 §1.4	Colville-Okanagan	cited form	tkən txa+m	page 9, in Lucida Sans Unicode
-§1.4	Tony Mattina	note	The transitivizer -st / +st has three functions. Together with the prefix c- it marks the customary: c-wik-st-xʷ you always see him (cf. wik-nt-xʷ you saw him); in a number of specific stems which have no other corresponding simple transitive stems, it functions as a simple transitivizer (wy̓-st-ixʷ you finished it; miy-st-xʷ you are sure of it; *wy̓-nt-ixʷ, *miy-nt-xʷ)9; and, in a number of specific stems it marks causative: xʷuy+st-xʷ you took it (there) (kʷ xʷuy you went; *xʷuy-nt-xʷ); ʔácqaʔ+st-xʷ you took it out(side) (kʷ ʔácqaʔ you went outside, *ʔácqaʔ-nt-xʷ). I have begun writing with the plus sign the affix of the causative stems, but not so the affixes of the other two stems, as I have shown.	page 9
+§1.4	Tony Mattina	note	The transitivizer -st / +st has three functions. Together with the prefix c- it marks the customary: c-wik-st-xʷ you always see him (cf. wik-nt-xʷ you saw him); in a number of specific stems which have no other corresponding simple transitive stems, it functions as a simple transitivizer (wy̓-st-ixʷ you finished it; miy-st-xʷ you are sure of it; *wy̓-nt-ixʷ, *miy-nt-xʷ)9; and, in a number of specific stems it marks causative: xʷuy+st-xʷ you took it (there) (kʷ xʷuy you went; *xʷuy-nt-xʷ); ʔácqaʔ+st-xʷ you took it out(side) (kʷ ʔácqaʔ you went outside, *ʔácqaʔ-nt-xʷ). I have begun writing with the plus sign the affix of the causative stems, but not so the affixes of the other two stems, as I have displayed.	page 9
 footnote 9	Tony Mattina	note	Here I have given an example of a form based on a weak (suffix-stressed) stem, and one based on a strong (stem-stressed) stem.	page 9, footnote 9
 §1.4	Colville-Okanagan	cited form	-st	page 9, in Lucida Sans Unicode
 §1.4	Colville-Okanagan	cited form	+st	page 9, in Lucida Sans Unicode
@@ -327,7 +327,7 @@ footnote 9	Tony Mattina	note	Here I have given an example of a form based on a w
 §1.4	Colville-Okanagan	cited form	ʔácqaʔ+st-xʷ	page 9, in Lucida Sans Unicode
 §1.4	Colville-Okanagan	cited form	kʷ ʔácqaʔ	page 9, in Lucida Sans Unicode
 §1.4	Colville-Okanagan	cited form	*ʔácqaʔ-nt-xʷ	page 9, in Lucida Sans Unicode
-§1.4	Tony Mattina	note	The productive prefix kɬ- derives verb stems from nouns, yet, in most cases, I write its boundary with a hyphen. Table 7 lists the stems that derive “have verbs”.	page 9
+§1.4	Tony Mattina	note	The productive prefix kɬ- derives verb stems from nouns, yet, in general, I write its boundary with a hyphen. Table 7 lists the stems that derive “have verbs”.	page 9
 §1.4	Colville-Okanagan	cited form	kɬ-	page 9, in Lucida Sans Unicode
 Table 7	Colville-Okanagan	transcription	k -ɬwis+tn	page 10, the form
 Table 7	Tony Mattina	translation	have -aunt	page 10, the gloss
@@ -394,7 +394,7 @@ Table 9	Tony Mattina	translation	hunger pl	page 11, the gloss
 Table 9	Colville-Okanagan	transcription	suxʷ+xʷ	page 11, the form
 Table 9	Tony Mattina	translation	leave pl	page 11, the gloss
 Table 9	Tony Mattina	note	Table 9 – Plural stems with –C2 in texts	page 11, the table's caption, under it
-§1.4	Tony Mattina	note	While there are some discernible patterns in stems with +C2 reduplication (ʔickn: ʔicckn play: pl play; ʔácqaʔ: ʔáccqaʔ go out: pl go out, xʷl+xʷalt: xʷlˑ+xʷalt alive: alive pl), the reduplicative suffix is stem-specific. I write the variants of such plural stems with plus signs, for example, kl+kil+l+x and kl+kil̕+l+x11 hands.The referent of suxʷ(+xʷ) is always plural, but the distribution of the two variants is not straight-forward. Nor is the distribution of the other two stems listed in Table 9.	page 11
+§1.4	Tony Mattina	note	While there are some discernible patterns in stems with +C2 reduplication (ʔickn: ʔicckn play: pl play; ʔácqaʔ: ʔáccqaʔ go out: pl go out, xʷl+xʷalt: xʷlˑ+xʷalt alive: alive pl), the reduplicative suffix is stem-specific. I write the variants of such plural stems with plus signs, for example, kl+kil+l+x and kl+kil̕+l+x11 passes.The referent of suxʷ(+xʷ) is always plural, but the distribution of the two variants is not straight-forward. Nor is the distribution of the other two stems listed in Table 9.	page 11
 footnote 11	Tony Mattina	note	Here and in many other forms, especially diminutives, the laryngealization of resonants is not as regular as one might wish it to be. Many lexical items have alternate pronunciations, with and without laryngealization of resonants. In the glossary I list separately such forms as ckʷ=ink and ckʷ=in̓k bow, c+yaʕ and c+yaʕ̕ all, lots. See also my discussion of alternate forms, above.	page 11, footnote 11
 footnote 11	Colville-Okanagan	cited form	ckʷ=ink	page 11, in Lucida Sans Unicode
 footnote 11	Colville-Okanagan	cited form	ckʷ=in̓k	page 11, in Lucida Sans Unicode
@@ -411,7 +411,7 @@ footnote 11	Colville-Okanagan	cited form	c+yaʕ̕	page 11, in Lucida Sans Unicod
 §1.4	Colville-Okanagan	cited form	suxʷ(+xʷ)	page 11, in Lucida Sans Unicode
 §1.4	Tony Mattina	note	The well-known C1C2+ plural prefix is also a derivational prefix, with various references such as repeated action or plural participants. Likewise for C1a+, that signals repeated action.	page 11
 §1.4	Tony Mattina	note	I segment lexical affixes with an equal sign, but because these are stem- forming affixes, I do not gloss them. I am unsure whether to classify a number of other stem-forming affixes as lexical or not.	page 11
-§1.4	Tony Mattina	note	I gloss compounds as single stems, even though some stems participate in many such, as wy̓ finish,12 as shown in Table 10.	page 11
+§1.4	Tony Mattina	note	I gloss compounds as single stems, even though some stems participate in many such, as wy̓ finish,12 as displayed in Table 10.	page 11
 footnote 12	Tony Mattina	note	This root participates in such transitive forms as wy̓-st-in I fiished it, and may be on its way to becoming a gram (or gramming) in compounds.	page 11, footnote 12
 footnote 12	Colville-Okanagan	cited form	wy̓-st-in	page 11, in Lucida Sans Unicode
 §1.4	Colville-Okanagan	cited form	wy̓	page 11, in Lucida Sans Unicode
@@ -430,7 +430,7 @@ Table 10	Tony Mattina	translation	after_born	page 12, the gloss
 Table 10	Colville-Okanagan	transcription	wy̓+s+t+k̕ʷaxʷ=lqʷ	page 12, the form
 Table 10	Tony Mattina	translation	finish_untie	page 12, the gloss
 Table 10	Tony Mattina	note	Table 10 – Compounds with wy̓	page 12, the table's caption, under it
-§1.4	Tony Mattina	note	I do not write any morph boundaries in the independent personal referents, which are otherwise transparently made up of four separate stems, the amalgamated markers that belong to what I call the in- set (possessive), and, in the third plural, the plural marker, as shown in Table 11.	page 12
+§1.4	Tony Mattina	note	I do not write any morph boundaries in the independent personal referents, which are otherwise transparently made up of four separate stems, the amalgamated markers that belong to what I call the in- set (possessive), and, in the third plural, the plural marker, as displayed in Table 11.	page 12
 §1.4	Colville-Okanagan	cited form	in-	page 12, in Lucida Sans Unicode
 Table 11	Colville-Okanagan	transcription	in-cá	page 12, the form
 Table 11	Tony Mattina	translation	1sg	page 12, the gloss
@@ -445,7 +445,7 @@ Table 11	Tony Mattina	translation	2pl	page 12, the gloss
 Table 11	Colville-Okanagan	transcription	mnimɬ-c-lx	page 12, the form
 Table 11	Tony Mattina	translation	3pl	page 12, the gloss
 Table 11	Tony Mattina	note	Table 11 – Independent personal markers	page 12, the table's caption, under it
-§1.4	Tony Mattina	note	The most complex of my current transcriptions of verb forms have six fillers: (1) a prefix (most commonly the customary, also the future), (2-3) a stem with a transitivive marker, (4) an object marker, (5) a subject or (anti)passive marker; and (6) the plural suffix -lx. Examples of the most complex forms in the DeSautel anthology have all but (6), the plural suffix, as shown in Table 12.	page 12
+§1.4	Tony Mattina	note	The max complex of my current transcriptions of verb forms have six fillers: (1) a prefix (max commonly the customary, also the future), (2-3) a stem with a transitivive marker, (4) an object marker, (5) a subject or (anti)passive marker; and (6) the plural suffix -lx. Examples of the max complex forms in the DeSautel anthology have all but (6), the plural suffix, as displayed in Table 12.	page 12
 §1.4	Colville-Okanagan	cited form	-lx	page 12, in Lucida Sans Unicode
 Table 12	Tony Mattina	note	bj 102	page 12, source
 Table 12	Colville-Okanagan	transcription	ksck̕əɬxʷíc̓xtəms	page 12
@@ -534,7 +534,7 @@ Table 13	Colville-Okanagan	segmentation	n+k̕ʷaʔ+k̕ʷín -y̓ -s	page 14
 Table 13	Colville-Okanagan	gloss	pick -y̓ -3erg	page 14
 Table 13	Tony Mattina	note	Table 13 – Forms with y̓	page 14, the table's caption, under it
 §2	Tony Mattina	heading	2 Person markers	page 14
-§2	Tony Mattina	note	Having laid out my analytical and presentational choices, I now list in tabular form the paradigms of the person markers. Details of other inflectional categories such as aspect and tense are beyond the scope of this essay.18 The intransitive subject markers include four proclitics and a suffix:	page 14
+§2	Tony Mattina	note	Having arranged my analytical and presentational choices, I now list in tabular form the paradigms of the person markers. Details of other inflectional categories such as aspect and tense are beyond the scope of this essay.18 The intransitive subject markers include four proclitics and a suffix:	page 14
 footnote 18	Tony Mattina	note	Pertinent information is available in such publications as “Okanagan and Salishan languages,” Dora ɬaʔ kɬcaptíkʷɬ, and others.	page 14, footnote 18
 footnote 18	Colville-Okanagan	cited form	ɬaʔ kɬcaptíkʷɬ	page 14, in Lucida Sans Unicode
 Table 14	Colville-Okanagan	transcription	kən	page 14, the form

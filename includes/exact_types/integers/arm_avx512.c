@@ -55,7 +55,7 @@
  *
  * @return 1 where AVX-512F and AVX-512BW are both present, 0 otherwise.
  * @note Leaf 7 subleaf 0: bit 16 of EBX is AVX-512F and bit 30 is AVX-512BW. The leaf exists only
- *       where leaf 0 reports a maximum of at least 7, which is checked before it is read.
+ *       where leaf 0 reports a max of at least 7, which is checked before it is read.
  */
 static int avx512_present(void)
 {
@@ -122,7 +122,7 @@ static int avx512_magnitude_equal(const uint32_t *left, const uint32_t *right)
  * @return          -1 where left is smaller, 1 where it is larger, 0 where they are equal.
  * @note The mask marks which lanes differ and not which of them sits highest. The block containing the
  *       highest difference is found with the mask and then walked backward one limb at a time, which
- *       runs at most sixteen scalar steps, once per comparison.
+ *       runs at max sixteen scalar steps, once per comparison.
  */
 static int avx512_magnitude_compare(const uint32_t *left, const uint32_t *right)
 {
@@ -198,7 +198,7 @@ static int arm_compare(const OriorExactInteger *left, const OriorExactInteger *r
  * @brief Counts agreeing places over a sorted run, through the AVX-512 equality.
  *
  * @param[in] positions Positions, ascending [BORROWS].
- * @param[in] values    The value standing at each position [BORROWS].
+ * @param[in] values    The value located at each position [BORROWS].
  * @param[in] count     How many positions.
  * @param[in] lag       The offset to test [BORROWS].
  * @return              How many positions agree with the place one lag above them.

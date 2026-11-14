@@ -22,8 +22,8 @@ typedef struct CliLatexTextLengthValueI64sCtx CliLatexTextLengthValueI64sCtx;
 typedef struct CliLatexFileCtx CliLatexFileCtx;
 typedef struct CliLatexCtx CliLatexCtx;
 
-// the most bytes of the SVG drawn and of the SyncTeX file unzipped, the most boxes open at once, the most lines marked
-// in them, the most files a SyncTeX file names and the bytes their names take
+// the max bytes of the SVG drawn and of the SyncTeX file unzipped, the max boxes open at once, the max lines marked
+// in them, the max files a SyncTeX file names and the bytes their names take
 #define CLI_LATEX_SVG (1u << 22u)
 #define CLI_LATEX_SYNC (1u << 22u)
 #define CLI_LATEX_OPEN 4096u
@@ -57,7 +57,7 @@ typedef struct
     unsigned int at;
 } CliTexInput;
 
-// The file of the tree a name the engine writes stands for: the text made for `path`, by its name or its full path in
+// The file of the tree a name the engine writes is for: the text made for `path`, by its name or its full path in
 // the make's folder, a file under the tree by its path there, and none for any other
 typedef struct
 {
@@ -70,7 +70,7 @@ typedef struct
 // whether a byte is whitespace, as ASCII has it; the next line of `length` bytes of `text` from `at`, split at each
 // "\n", a "\r" before it taken off: 1 with its start and size and `at` moved past it, or 0 where none is left; the
 // digits from `at` of `length` bytes, their count; and a whole text read as Rust reads an f64, and as a count no
-// greater than `most` or a signed 64-bit number, a sign before it as Rust takes one: 1, or 0 where it reads as none
+// greater than `max` or a signed 64-bit number, a sign before it as Rust takes one: 1, or 0 where it reads as none
 // (latex_text.c)
 int cli_tex_white(const CliLatexCtx *args);
 int cli_tex_line(const CliLatexTextCtx *args);
@@ -80,12 +80,12 @@ int cli_tex_count(const CliLatexTextLengthCtx *args);
 int cli_tex_sign(const CliLatexTextLengthValueI64sCtx *args);
 
 // the names a make in `dir` of the job `job` for the file `path` of the tree `root` reads; and the file of the tree
-// `length` bytes of a name stand for into `file`, sized for CLI_PATH_MAX_LEN: 1, or 0 where they stand for none
+// `length` bytes of a name are for into `file`, sized for CLI_PATH_MAX_LEN: 1, or 0 where they are for none
 void cli_tex_names_init(const CliLatexNamesRootCtx *args);
 int cli_tex_names_get(const CliLatexLengthCtx *args);
 
 // the name a file is made under into `job`, sized for CLI_PATH_MAX_LEN: its own where that is a plain one, of ASCII
-// letters, digits, - and _, which preserves \jobname and the bibliography made beside it, and `preview` for any other
+// characters, digits, - and _, which preserves \jobname and the bibliography made beside it, and `preview` for any other
 // (latex.c)
 void cli_latex_job_get(const CliLatexFileCtx *args);
 
@@ -119,7 +119,7 @@ struct CliLatexTextLengthCtx
 {
     const char *text;
     unsigned long long length;
-    unsigned long long most;
+    unsigned long long max;
     unsigned long long *value_u64s;
 };
 
@@ -175,7 +175,7 @@ struct CliLatexFileCtx
 
 struct CliLatexCtx
 {
-    char letter;
+    char character;
 };
 
 typedef struct

@@ -9,8 +9,8 @@
 # Standalone unittest, no pytest dependency, same as the three suites beside it.
 #
 # WHAT THESE TESTS ARE FOR. Every exclusion in docs_check is a rule that makes the tool report LESS,
-# and a rule that makes a checker report less is the easiest kind of rule to get wrong and the
-# hardest kind to notice being wrong. A wrong exclusion reports a clean tree. So each one here is
+# and a rule that makes a checker report less is the easiest type of rule to get wrong and the
+# hardest type to notice being wrong. A wrong exclusion reports a clean tree. So each one here is
 # asserted from both ends: what it silences and what it must NOT silence.
 #
 # EVERY COUNT IS DERIVED AT RUN TIME AND NONE IS WRITTEN DOWN. The manifest row count, the British
@@ -58,7 +58,7 @@ class EveryExclusionErrorsAndSaysSo(unittest.TestCase):
     """
 
 
-    def test_the_ledger_keeps_the_sites_and_not_only_a_count(self):
+    def test_the_ledger_retains_the_sites_and_not_only_a_count(self):
         ledger = dc.Ledger()
         ledger.note("a rule", "a reason", "a/site.md:1")
         ledger.note("a rule", "a reason", "a/site.md:9")
@@ -86,7 +86,7 @@ class VerbatimThirdPartyIsANamedConcept(unittest.TestCase):
     """Somebody else's words, reproduced byte for byte.
 
     Three instances were found independently, which is what makes this a concept. The test that
-    matters most is the marker one: a path list is a chore somebody has to remember to extend, and
+    matters max is the marker one: a path list is a chore somebody has to remember to extend, and
     the way a chore fails is that a fourth corpus arrives and nobody adds it.
     """
 
@@ -178,9 +178,9 @@ class LegalBlocksAreBlankedPerBlockAndNotPerLine(unittest.TestCase):
             "#",
             "# The header carries a crucial myriad of things, the point.",
         ]
-        kept = dc.legal_blank(said)
-        self.assertEqual(kept[:3], ["", "", ""], "the legal block goes")
-        self.assertIn("crucial", kept[4], "and the prose under the separator stays")
+        retained = dc.legal_blank(said)
+        self.assertEqual(retained[:3], ["", "", ""], "the legal block goes")
+        self.assertIn("crucial", retained[4], "and the prose under the separator stays")
 
     def test_a_doxygen_file_block_under_an_spdx_block_is_still_read(self):
         """The comment standard puts the @file block directly under the SPDX block with no blank.
@@ -197,9 +197,9 @@ class LegalBlocksAreBlankedPerBlockAndNotPerLine(unittest.TestCase):
             " * @brief A crucial myriad of frames, which is what makes it work.",
             " */",
         ]
-        kept = dc.legal_blank(said)
-        self.assertEqual(kept[:3], ["", "", ""], "the license block goes")
-        self.assertIn("crucial", kept[5], "and the @file block beneath it does not")
+        retained = dc.legal_blank(said)
+        self.assertEqual(retained[:3], ["", "", ""], "the license block goes")
+        self.assertIn("crucial", retained[5], "and the @file block beneath it does not")
 
     def test_a_file_with_no_legal_line_is_returned_unchanged(self):
         said = ["# a comment", "# another", "", "# a third"]
@@ -284,7 +284,7 @@ class GeneratedRegionsAreAttributedAndNeverSuppressed(unittest.TestCase):
         self.assertIn("no END GENERATED", complaints[0][1])
         self.assertIn(3, inside)
 
-    def test_a_finding_inside_a_region_keeps_its_place_and_names_the_generator(self):
+    def test_a_finding_inside_a_region_retains_its_place_and_names_the_generator(self):
         note = dc.attributed(
             "table header with no rows under it", 4, {4: "gen_sections.py"}
         )
@@ -317,7 +317,7 @@ class GeneratedRegionsAreAttributedAndNeverSuppressed(unittest.TestCase):
 class TheSubjectIsTheConvention(unittest.TestCase):
     """A passage about a writing convention has to be able to write the word it is about.
 
-    Bounded to the alphabet tier and to the run, which is what keeps it from being a bypass.
+    Bounded to the alphabet tier and to the run, which is what retains it from being a bypass.
     """
 
     def test_a_passage_about_the_convention_may_write_the_word(self):
@@ -402,7 +402,7 @@ class TheSubjectIsTheConvention(unittest.TestCase):
         self.assertEqual(silenced, 0)
 
     def test_the_standards_rule_is_a_rewrite_error_and_not_a_scan_exemption(self):
-        """Measured out and not kept, and the measurement is the reason.
+        """Measured out and not retained, and the measurement is the reason.
 
         Exempting a run for naming a standard silenced 1,733 findings in one tree unbounded and 20
         bounded to the alphabet tier, and every one of the 20 was ordinary prose in a paragraph that
@@ -477,7 +477,7 @@ class NothingIsRewrittenThatIsNotTokenForToken(unittest.TestCase):
         )
 
     def test_the_source_states_the_limit_where_a_maintainer_will_look_for_it(self):
-        """A rule with no reason beside it is the kind a later maintainer finishes.
+        """A rule with no reason beside it is the type a later maintainer finishes.
 
         This one reads as an unimplemented feature and is a permanent limit. The reasoning has to
         sit at the constant a person would edit.
@@ -612,19 +612,19 @@ class TheWorkBesideThisOneIsUntouched(unittest.TestCase):
         self.assertTrue(dc.checked_file("a/tree/CMakeLists.txt"))
         self.assertTrue(dc.checked_file("a/tree/.githooks/pre-commit"))
 
-    def test_every_git_query_hands_off_the_callers_repository(self):
+    def test_every_git_query_passes_off_the_callers_repository(self):
         """Git EXPORTS GIT_DIR to a hook, and a rev-parse inheriting it answers about that
         repository instead of the directory it was asked from.
 
         The worktree repair that landed --git-common-dir was written against this and the clearing
-        did not come with it. A correct query kept giving a wrong answer under a hook. This pass
+        did not come with it. A correct query retained giving a wrong answer under a hook. This pass
         added it, and the reporting lines depend on it: every one of them asks git a question about
-        a directory it was handed.
+        a directory it was passed.
         """
         for one in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR"):
             self.assertIn(one, dc.GIT_HANDOFF)
-        kept = dict(os.environ)
-        kept["GIT_DIR"] = "somewhere/else/.git"
+        retained = dict(os.environ)
+        retained["GIT_DIR"] = "somewhere/else/.git"
         was = os.environ.get("GIT_DIR")
         os.environ["GIT_DIR"] = "somewhere/else/.git"
         try:

@@ -9,7 +9,7 @@
 #include "../toolchains/format.h"
 #include "purpose_lines.h"
 
-// the most lines of a text read for its comment, and the most bytes of each text a comment is made in
+// the max lines of a text read for its comment, and the max bytes of each text a comment is made in
 #define CLI_COMMENT_LINES 65536u
 #define CLI_COMMENT_CAPACITY (1u << 18u)
 
@@ -44,7 +44,7 @@ typedef struct
     VerbaLinea *out;
     unsigned int *at;
 } PurposeCommentCtx;
-// a text's lines, as Rust's lines() splits them, CLI_COMMENT_LINES at the most, read into the work state where it has
+// a text's lines, as Rust's lines() splits them, CLI_COMMENT_LINES at max, read into the work state where it has
 // work state for a list of them: their count
 EMBED_INLINE unsigned int cli_lines_read(const PurposeCommentCtx *args)
 {
@@ -68,7 +68,7 @@ EMBED_INLINE unsigned int cli_lines_read(const PurposeCommentCtx *args)
 }
 
 // the work state taken for the lines of `size` bytes of `text`, and the texts made of them, each its bytes and one more
-// at the most CLI_COMMENT_CAPACITY, the lines read into it: 1, or 0 where the cellblock could not meet it
+// at max CLI_COMMENT_CAPACITY, the lines read into it: 1, or 0 where the cellblock could not meet it
 EMBED_INLINE int cli_byte_buffer_alloc(const PurposeCommentCtx *args)
 {
     s_work_state.line = NULL;
@@ -152,21 +152,21 @@ EMBED_INLINE void cli_marks_get(const PurposeCommentCtx *args)
     }
 }
 
-// the first sentences of a text, its words joined by spaces, up to CLI_PURPOSE_TEXT_MAX_LEN letters, written into `out`
+// the first sentences of a text, its words joined by spaces, up to CLI_PURPOSE_TEXT_MAX_LEN characters, written into `out`
 static void cli_sentences(const PurposeCommentCtx *args)
 {
     const char *text = args->text;
     VerbaLinea joined = {s_work_state.joined, s_work_state.capacity, 0ULL};
-    unsigned long long letters = 0ULL;
+    unsigned long long characters = 0ULL;
     unsigned long long cut = 0ULL;
     int in_word = 0;
     for (unsigned long long at = 0ULL; at < args->size;)
     {
-        unsigned int letter = 0u;
+        unsigned int character = 0u;
         const unsigned long long step =
-            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                       .text_bytes = (const unsigned char *)text, .length = args->size, .at = at, .letter = &letter);
-        if (EMBED_CALL(cli_files_letter_internal.fuzzy_white, CliFilesLetterCtx, .letter = letter))
+            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                       .text_bytes = (const unsigned char *)text, .length = args->size, .at = at, .character = &character);
+        if (EMBED_CALL(cli_files_character_internal.fuzzy_white, CliFilesLetterCtx, .character = character))
         {
             in_word = 0;
             at += step;
@@ -175,16 +175,16 @@ static void cli_sentences(const PurposeCommentCtx *args)
         if (!in_word && (joined.at != 0ULL))
         {
             mmgr_line_ch(&joined, ' ');
-            letters += 1ULL;
-            cut = (letters == CLI_PURPOSE_TEXT_MAX_LEN) ? joined.at : cut;
+            characters += 1ULL;
+            cut = (characters == CLI_PURPOSE_TEXT_MAX_LEN) ? joined.at : cut;
         }
         in_word = 1;
         mmgr_line_put_n(&joined, text + at, step);
-        letters += 1ULL;
-        cut = (letters == CLI_PURPOSE_TEXT_MAX_LEN) ? joined.at : cut;
+        characters += 1ULL;
+        cut = (characters == CLI_PURPOSE_TEXT_MAX_LEN) ? joined.at : cut;
         at += step;
     }
-    if (letters <= CLI_PURPOSE_TEXT_MAX_LEN)
+    if (characters <= CLI_PURPOSE_TEXT_MAX_LEN)
     {
         mmgr_line_put_n(args->out, s_work_state.joined, joined.at);
         return;
@@ -281,18 +281,18 @@ EMBED_INLINE void cli_first_paragraph(const PurposeCommentCtx *args)
     unsigned long long paragraph = begun;
     for (unsigned long long at = begun; at < args->out->at; at += 1ULL)
     {
-        const char letter = written[at];
-        const int double_under = (letter == '_') && ((at + 1ULL) < args->out->at) && (written[at + 1ULL] == '_');
+        const char character = written[at];
+        const int double_under = (character == '_') && ((at + 1ULL) < args->out->at) && (written[at + 1ULL] == '_');
         if (double_under)
         {
             at += 1ULL;
             continue;
         }
-        if ((letter == '[') || (letter == '*') || (letter == '`'))
+        if ((character == '[') || (character == '*') || (character == '`'))
         {
             continue;
         }
-        written[paragraph] = letter;
+        written[paragraph] = character;
         paragraph += 1ULL;
     }
     args->out->at = paragraph;

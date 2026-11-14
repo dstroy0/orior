@@ -28,7 +28,7 @@ window.addEventListener("storage", (event) => {
   try {
     const told = JSON.parse(event.newValue);
     if (told.to === windowId) {
-      heard.get(told.kind)?.(told.body);
+      heard.get(told.type)?.(told.body);
     }
   } catch {
     // A message this window cannot read is for no window it knows.
@@ -42,7 +42,7 @@ export function onTold(type, run) {
 
 // Tells window `to` a message of `type`.
 export function tell(to, type, body) {
-  localStorage.setItem(TELL, JSON.stringify({ to, kind: type, body, at: Date.now() }));
+  localStorage.setItem(TELL, JSON.stringify({ to, type: type, body, at: Date.now() }));
   localStorage.removeItem(TELL);
 }
 

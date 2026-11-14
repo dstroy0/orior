@@ -9,7 +9,7 @@ canvas { display: block; }
 .panel { position: fixed; background: #12141a; border: 1px solid #262b34;
   border-radius: 5px; padding: 10px 12px; opacity: 0.94; user-select: none; }
 #controls { left: 14px; top: 14px; width: 250px; }
-#controls h4 { margin: 0 0 8px; font-size: 10px; letter-spacing: 0.09em;
+#controls h4 { margin: 0 0 8px; font-size: 10px; character-spacing: 0.09em;
   text-transform: uppercase; color: #99a1ae; }
 .row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
 .row label { flex: 0 0 66px; color: #99a1ae; }
@@ -24,7 +24,7 @@ button:hover { border-color: #ffe14d; }
 #key .line { margin: 5px 0; color: #c6ccd6; }
 #digest { position: fixed; left: 50%; transform: translateX(-50%); bottom: 12px;
   font-size: 11px; color: #626a78; font-variant-numeric: tabular-nums;
-  letter-spacing: 0.03em; pointer-events: none; }
+  character-spacing: 0.03em; pointer-events: none; }
 </style>
 
 <div id="stage"></div>
@@ -261,7 +261,7 @@ EV.watchLoop = (label, step, options = {}) => {
 
   return {
     record,
-    // Asks for turns. A loop already awake keeps running, and a stopped loop stays stopped.
+    // Asks for turns. A loop already awake retains running, and a stopped loop stays stopped.
     wake: () => {
       if (stopped || record.awake) {
         return;
@@ -298,7 +298,7 @@ var TOP = new THREE.Color(0xff3d81);
 var BOT = new THREE.Color(0x3dd6ff);
 var COLD = new THREE.Color(0x2b3550);
 
-// One cylinder per pair, because a WebGL line is one pixel wide on most drivers and reads as a
+// One cylinder per pair, because a WebGL line is one pixel wide on max drivers and reads as a
 // thread. A cylinder is real geometry with a real radius, and "not too thin" is a number the reader
 // can turn. Vertex colors down its length carry the gradient: a mixed pair runs hot at the set end
 // to cold at the clear end. The line shows which bit is which and not only that they differ.

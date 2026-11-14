@@ -1,14 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_ipc.c: a process joins by its key and receives and sends on its channels; a key sent to another process or to no part is refused at the door; a
+// test_ipc.c: a process joins by its key and receives and sends on its channels; a key sent to another process or to no part is refused at the interface; a
 // persistent key is accepted from any process and grants its own channels alone; a key of a process is accepted from every process under it; a body past
-// the most a frame accepts goes through the transfer layer each way; a frame past the most is not read; and every place a process joined into is released
+// the max a frame accepts goes through the transfer layer each way; a frame past the max is not read; and every place a process joined into is released
 // to the cellblock once its process is gone
 #include "ui/cli/src/comms/comms.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
-#include "ui/cli/src/comms/door.h"
-#include "ui/cli/src/comms/door_internal.h"
-#include "ui/cli/src/comms/door_serve.h"
+#include "ui/cli/src/comms/interface.h"
+#include "ui/cli/src/comms/interface_internal.h"
+#include "ui/cli/src/comms/interface_serve.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 // what a part's listener received: the last channel, speaker and body, and the last body's size
@@ -19,10 +19,10 @@ typedef struct
     char body[256];
     unsigned long long size;
     unsigned int count;
-} DoorReceived;
+} InterfaceReceived;
 
 static char s_address[CLI_PATH_MAX_LEN];
-static DoorReceived s_received = {"", "", "", 0ull, 0u};
+static InterfaceReceived s_received = {"", "", "", 0ull, 0u};
 static char s_big[CLI_IPC_MAX + (CLI_IPC_MAX / 5u) + 16u];
 static char s_next[CLI_IPC_MAX + (CLI_IPC_MAX / 5u) + 16u];
 static char s_view[1u << 16u];
@@ -90,7 +90,7 @@ static unsigned long long s_back_moved;
 static int message_recorded(const CliCommsRecvCfg *args)
 {
     unsigned long long size = args->size;
-    DoorReceived *const received = args->context;
+    InterfaceReceived *const received = args->context;
     memor.cpy(&(MemoriaCfg){.dst = received->channel, .src = args->channel, .bytes = CLI_UNITY_LENGTH(args->channel) + 1u});
     memor.cpy(&(MemoriaCfg){.dst = received->from, .src = args->from, .bytes = CLI_UNITY_LENGTH(args->from) + 1u});
     const unsigned long long copy_len = (size < sizeof(received->body) - 1u) ? size : sizeof(received->body) - 1u;
@@ -131,7 +131,7 @@ static void part_registered(const char *name, int has_process, unsigned int proc
     TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_comms_name.comms_register, CliCommsNameCfg, .name = name, .has_process = has_process, .process = process, .listen = listen, .listens = listens, .send_grant = send_grant, .send_grants = send_grants, .key_out = key, .err_msg = &err_msg), name);
 }
 
-// the door joined with `key`: the client, NULL with why into `why`, which is sized for 256
+// the interface joined with `key`: the client, NULL with why into `why`, which is sized for 256
 static CliIpcClient *ipc_joined(const char *key, char *why)
 {
     VerbaLinea err_msg = {why, 256u, 0ull};
@@ -198,7 +198,7 @@ static void channels_run_result(void)
     EMBED_CALL(cli_ipc_client.leave, CliIpcClientCfg, .client = client);
 }
 
-// the keys the door refuses tried, what each answered recorded, once for the process
+// the keys the interface refuses tried, what each answered recorded, once for the process
 static void refused_run_result(void)
 {
     static const char *const s_all[1] = {"*"};
@@ -448,11 +448,11 @@ void test_a_frame_end_the_max_a_frame_accepts_is_not_read(void)
     CliIpcEnd client;
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     ends_joined(&s_listener, &s_thread, &client);
-    const unsigned long long most = CLI_IPC_MAX + 1u;
+    const unsigned long long max = CLI_IPC_MAX + 1u;
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
         // a byte of the length, its low eight bits
-        head[at] = (unsigned char)((most >> (8u * at)) & 0xffu);
+        head[at] = (unsigned char)((max >> (8u * at)) & 0xffu);
     }
     memor.cpy(&(MemoriaCfg){.dst = head + 4, .src = "{}", .bytes = 2u});
     (void)EMBED_CALL(cli_ipc_end_size_internal.write, CliIpcEndSizeCtx, .end = &client, .bytes_read = head, .size = sizeof(head), .region = NULL);

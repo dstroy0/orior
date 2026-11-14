@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The editor's view: how far ahead of a view at rest its lines are colored, its marks drawn at every speed, text
-// that runs right to left placed where the page draws it, and a letter typed drawn in the frame after its key.
+// that runs right to left placed where the page draws it, and a character typed drawn in the frame after its key.
 
 import { coloringReach, runsRightToLeft } from "../../../gui/src-js/editor/view.js";
 import { invoke } from "../../../gui/src-js/bridge.js";
@@ -74,7 +74,7 @@ test("each character runs as its script does, and a space between two of a right
   assert.deepEqual(runsRightToLeft("a 1"), [false, false, false]);
 });
 
-test("on a line where Hebrew meets text that runs left to right, the caret goes by the order the text is read in and stands where the page draws it", async () => {
+test("on a line where Hebrew meets text that runs left to right, the caret goes by the order the text is read in and is where the page draws it", async () => {
   await invoke("file_write", { path: "bidi.txt", text: "abc שלום def\nمرحبًا بك\n" });
   showView("edit");
   await openFile("bidi.txt");
@@ -83,7 +83,7 @@ test("on a line where Hebrew meets text that runs left to right, the caret goes 
   view.paint();
   const x = (col) => view.xOf({ line: 0, col });
   assert.ok(x(4) > x(5) && x(5) > x(6) && x(6) > x(7), `inside the Hebrew word the caret steps to the left as the reading goes on: ${[4, 5, 6, 7].map(x)}`);
-  assert.ok(x(3) < x(7) && x(9) > x(4), "the words that run left to right stand on either side of it");
+  assert.ok(x(3) < x(7) && x(9) > x(4), "the words that run left to right are on either side of it");
   view.goTo(0, 4);
   view.focus();
   await ui.key("Right");
@@ -91,17 +91,17 @@ test("on a line where Hebrew meets text that runs left to right, the caret goes 
   const node = view.rowNode(0);
   const shin = view.charBox(node, 4);
   const pressed = view.posAt({ clientX: shin.right - 1, clientY: shin.top + shin.height / 2 });
-  assert.deepEqual([pressed.line, pressed.col], [0, 4], "a press on the first half of a letter, as it is read, lands before it");
+  assert.deepEqual([pressed.line, pressed.col], [0, 4], "a press on the first half of a character, as it is read, lands before it");
   const later = view.posAt({ clientX: shin.left + 1, clientY: shin.top + shin.height / 2 });
   assert.equal(later.col, 5, "and on its second half, after it");
   view.setSelections([{ anchor: { line: 0, col: 4 }, head: { line: 0, col: 6 }, goal: null }]);
   view.paint();
   const path = view.picked.querySelector("path")?.getAttribute("d") ?? "";
   const xs = [...path.matchAll(/[ML]\s*([\d.]+)/g)].map((one) => Number(one[1]));
-  assert.ok(xs.length && Math.min(...xs) >= x(6) - 2 && Math.max(...xs) <= x(4) + 2, `the selection covers the two letters where they are drawn: ${xs} against ${x(6)}..${x(4)}`);
+  assert.ok(xs.length && Math.min(...xs) >= x(6) - 2 && Math.max(...xs) <= x(4) + 2, `the selection covers the two characters where they are drawn: ${xs} against ${x(6)}..${x(4)}`);
 });
 
-test("the word keys stop at the ends of words of either script, a letter's marks part of its word", async () => {
+test("the word keys stop at the ends of words of either script, a character's marks part of its word", async () => {
   await openFile("bidi.txt");
   await ui.waitFor(() => editing().active === "bidi.txt", 5000);
   const view = editing().editor;
@@ -119,7 +119,7 @@ let hearing = null;
 
 onEdit((s) => hearing?.(s));
 
-test("a letter typed is drawn before anything told of each edit hears of it", async () => {
+test("a character typed is drawn before anything told of each edit hears of it", async () => {
   await invoke("file_write", { path: "told.py", text: "first = 1\n" });
   showView("edit");
   await openFile("told.py");
@@ -139,11 +139,11 @@ test("a letter typed is drawn before anything told of each edit hears of it", as
   assert.ok(heard[0].startsWith("xfirst"), `the row as the first told of the edit found it: ${JSON.stringify(heard[0])}`);
 });
 
-// Holds a letter down in the editor shown for `count` presses, as the system's repeat sends a kept
-// key, and gives, for each press: whether the letter was in its row when the frame after it began,
-// how far the caret stood from where it stood before the key, the page's own milliseconds for it from
+// Holds a character down in the editor displayed for `count` presses, as the system's repeat sends a retained
+// key, and gives, for each press: whether the character was in its row when the frame after it began,
+// how far the caret was from where it was before the key, the page's own milliseconds for it from
 // its key to its row drawn, and the milliseconds from the frame after it to the next, the display's
-// interval where that frame came on time. Each is kept as it comes and given once the key is let go.
+// interval where that frame came on time. Each is retained as it comes and given once the key is let go.
 async function keysTimed(view, line, count) {
   const timed = [];
   let key = null;
@@ -183,7 +183,7 @@ async function keysTimed(view, line, count) {
   return timed;
 }
 
-test("a letter typed in the middle of 250,000 lines, and inside a line of 20,000 characters, is drawn in the frame after its key", async () => {
+test("a character typed in the middle of 250,000 lines, and inside a line of 20,000 characters, is drawn in the frame after its key", async () => {
   const rest = await framesOver(500);
   const interval = (rest.at(-1) - rest[0]) / (rest.length - 1);
   const files = [
@@ -193,7 +193,7 @@ test("a letter typed in the middle of 250,000 lines, and inside a line of 20,000
   for (const [path, text, line, col] of files) {
     await invoke("file_write", { path, text });
     showView("edit");
-    // a file of 250,000 lines is stored as pages: opened at the line, the window stands about it
+    // a file of 250,000 lines is stored as pages: opened at the line, the window is about it
     await openAt(path, line, col);
     await ui.waitFor(() => editing().active === path && editing().editor?.s, 10000);
     const view = editing().editor;
@@ -205,17 +205,17 @@ test("a letter typed in the middle of 250,000 lines, and inside a line of 20,000
     const own = timed.map((one) => one.own).sort((a, b) => a - b);
     const late = timed.filter((one) => one.frame > 1.5 * interval).length;
     const said = `${path}: own ms ${own.map((ms) => ms.toFixed(1)).join(" ")}; frames after ${timed.map((one) => one.frame.toFixed(1)).join(" ")}`;
-    assert.equal(timed.filter((one) => one.drawn).length, timed.length, `each letter in its row as the frame after it began: ${said}`);
-    assert.deepEqual(timed.filter((one) => Math.abs(one.moved - view.cw) > 0.5).map((one) => one.moved), [], `the caret a letter on, past the letter typed, as the frame after it began: ${said}`);
+    assert.equal(timed.filter((one) => one.drawn).length, timed.length, `each character in its row as the frame after it began: ${said}`);
+    assert.deepEqual(timed.filter((one) => Math.abs(one.moved - view.cw) > 0.5).map((one) => one.moved), [], `the caret a character on, past the character typed, as the frame after it began: ${said}`);
     // The page's own work for a key as a share of the display's frame: at 144 frames a second, 5 ms
-    // in the middle and 12 at most, and the same shares of a frame on any display.
+    // in the middle and 12 at max, and the same shares of a frame on any display.
     assert.ok(own[Math.floor(own.length / 2)] <= 0.72 * interval, `the page's own work for a key, in the middle, within ${(0.72 * interval).toFixed(1)} ms: ${said}`);
-    assert.ok(own.at(-1) <= 1.73 * interval, `and at most ${(1.73 * interval).toFixed(1)} ms: ${said}`);
+    assert.ok(own.at(-1) <= 1.73 * interval, `and at max ${(1.73 * interval).toFixed(1)} ms: ${said}`);
     assert.ok(late <= 2, `frames after a key that came late: ${late} of ${timed.length}: ${said}`);
   }
 });
 
-test("a letter typed with the preview beside, Vim's keys on and the tree's check running is drawn in the frame after its key", async () => {
+test("a character typed with the preview beside, Vim's keys on and the tree's check running is drawn in the frame after its key", async () => {
   const rest = await framesOver(500);
   const interval = (rest.at(-1) - rest[0]) / (rest.length - 1);
   const lines = [];
@@ -236,15 +236,15 @@ test("a letter typed with the preview beside, Vim's keys on and the tree's check
     view.focus();
     await ui.key("Escape");
     await ui.key("i");
-    // The tree's check reads every file of the tree as the letters are typed.
+    // The tree's check reads every file of the tree as the characters are typed.
     invoke("problems_check").catch(() => {});
     await framesOver(300);
     const timed = await keysTimed(view, 1400, 20);
     const own = timed.map((one) => one.own).sort((a, b) => a - b);
     const late = timed.filter((one) => one.frame > 1.5 * interval).length;
     const said = `own ms ${own.map((ms) => ms.toFixed(1)).join(" ")}; frames after ${timed.map((one) => one.frame.toFixed(1)).join(" ")}`;
-    assert.equal(timed.filter((one) => one.drawn).length, timed.length, `each letter in its row as the frame after it began: ${said}`);
-    assert.deepEqual(timed.filter((one) => Math.abs(one.moved - view.cw) > 0.5).map((one) => one.moved), [], `the caret a letter on, past the letter typed, as the frame after it began: ${said}`);
+    assert.equal(timed.filter((one) => one.drawn).length, timed.length, `each character in its row as the frame after it began: ${said}`);
+    assert.deepEqual(timed.filter((one) => Math.abs(one.moved - view.cw) > 0.5).map((one) => one.moved), [], `the caret a character on, past the character typed, as the frame after it began: ${said}`);
     assert.ok(own[Math.floor(own.length / 2)] <= 0.72 * interval, `the page's own work for a key, in the middle, within ${(0.72 * interval).toFixed(1)} ms: ${said}`);
     assert.ok(late <= 2, `frames after a key that came late: ${late} of ${timed.length}: ${said}`);
     // The caret's moves answer at once too.

@@ -165,7 +165,7 @@ static void coherence_residue_table(CoherenceResults *results)
     mmgr_line_put(&results->line, " of ");
     mmgr_line_decimal(&results->line, reckonings, 1u);
     mmgr_line_put(&results->line, " reads are the host's row\n");
-    coherence_check(results, loads != 0, "the residue table program encodes, lays out and loads");
+    coherence_check(results, loads != 0, "the residue table program encodes, arranges and loads");
     coherence_check(results, words, "the residue table program's device records equal the host's word for word");
     coherence_check(results, (reckonings != 0ull) && (reckoned == reckonings),
                     "every table read is the row of x mod 2^b in two's complement, or of |x| mod 2^b");

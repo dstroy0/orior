@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Hank Nater	title	Complex predicate-argument relations in Bella Coola1	page 1
 front	Hank Nater	name	Hank Nater	author
 front	Hank Nater	note	Abstract: Bella Coola, a head-marking and polysynthetic PSO language, has a few predicate-internal suffixes that are linked with two syntactic arguments; vice versa, such arguments can relate to two or three predicate components. Although these suffixes are paralleled by similar suffixes in other Salish, they (with the exception of CAUS -(s)tu-) differ from those in function and/or origin.	page 1, the abstract
@@ -10,7 +10,7 @@ front	Hank Nater	note	Contact info: hanknater@gmail.com	page 1, the note at the 
 footnote 1	Hank Nater	language	Dutch	the author's analogues, Germanic
 §1	Hank Nater	heading	1 Introduction	page 1
 §1	Hank Nater	note	In this brief report on valency-related phenomena in Bella Coola, I consider the morpho-semantics of the predicate base, different types of divalent suffix, relations between the predicate and syntactic arguments, and areal-etymological aspects of the divalent suffixes.	page 1
-§1	Hank Nater	note	As concerns predicate base properties, note that morpho-semantic traits of Bella Coola verbo-nominals warrant a four-way partition of this class: TR stative / ITR stative / TR active / ITR active (cf. Nater 1984, p. 34). Of these, ITR stative verbs are generally unaccusative, while most ITR active verbs are unergative. (But certain ITR verbs – e.g. those that convey perception or a bodily function, where the degree of subjective control/purpose may vary – can be ambiguous.) This division also holds – but on a distributional, rather than morpho-semantic, basis – where verbo-nominals accept a divalent suffix. For instance, benefactive -tu- is compatible only with ITR active (antipassive) bases, CAUS -tu- with ITR active/stative and detransitive bases, NC CAUS -nix with ITR stative (including adjectival) bases. (In addition, there are ambitransitive verbs and transitivizible nouns and adjectives, for which see Nater 1984, pp. 59–60.)	page 1
+§1	Hank Nater	note	As concerns predicate base properties, note that morpho-semantic traits of Bella Coola verbo-nominals warrant a four-way partition of this class: TR stative / ITR stative / TR active / ITR active (cf. Nater 1984, p. 34). Of these, ITR stative verbs are generally unaccusative, while max ITR active verbs are unergative. (But certain ITR verbs – e.g. those that convey perception or a bodily function, where the degree of subjective control/purpose may vary – can be ambiguous.) This division also holds – but on a distributional, rather than morpho-semantic, basis – where verbo-nominals accept a divalent suffix. For instance, benefactive -tu- is compatible only with ITR active (antipassive) bases, CAUS -tu- with ITR active/stative and detransitive bases, NC CAUS -nix with ITR stative (including adjectival) bases. (In addition, there are ambitransitive verbs and transitivizible nouns and adjectives, for which see Nater 1984, pp. 59–60.)	page 1
 §1	Bella Coola	cited form	-tu-	page 1, in italics
 §1	Bella Coola	cited form	-nix	page 1, in italics
 §1	Hank Nater	note	On the other hand, and regardless of TR-ITR and active-stative distinctions, divalent -alst DEPR combines specifically with bases associated with removal or displacement, and applicative suffixes are often found with bases conveying a ritual, artistic expression, mood, or need.	page 1
@@ -24,7 +24,7 @@ footnote 1	Hank Nater	language	Dutch	the author's analogues, Germanic
 (b) line 1	Bella Coola	segmentation	sta:taltmx-uuɬla-liwa-naw-tχʷ	page 2
 (b) line 2	Bella Coola	gloss	chief.PL-appearance-…like-3PL.SUBJ-optative	page 2
 (b) line 3	Hank Nater	translation	‘let them look like chiefs!’	page 2
-§1	Hank Nater	note	Within the predicate, which has a (((([BASE] suffix) suffix) suffix) …) structure (prefixes being disregarded), suffixes occupy the positions shown below:	page 2
+§1	Hank Nater	note	Within the predicate, which has a (((([BASE] suffix) suffix) suffix) …) structure (prefixes being disregarded), suffixes occupy the positions displayed below:	page 2
 Figure 1 line 1	Hank Nater	note	BASE	page 2, a row of the table as the page prints it
 Figure 1 line 2	Hank Nater	note	1 -alst(n) deprivative ← lexical	page 2, a row of the table as the page prints it
 Figure 1 line 2	Bella Coola	cited form	-alst(n)	page 2, in italics
@@ -115,7 +115,7 @@ Figure 3	Hank Nater	note	Figure 3 Morpho-syntactic relations in re benefit	page 
 (5) line 4	Hank Nater	translation	‘did you give his mother something to eat?’	page 5
 (5) line 5	Hank Nater	note	(NOT *‘did you eat something on behalf of his mother?’)	page 5, at the right of the translation, a reading the sentence does not have
 §2.1.2	Hank Nater	heading	2.1.2 The deprivative suffix	page 5
-§2.1.2	Hank Nater	note	The suffix -alst(n) ‘deprivative’ (Nater 1984, p. 71) is associated with a sense of loss implicated by the base (denoting removal or displacement) it combines with. When -alst(n) is deleted from such constructions, the OBL OBJ becomes the ITR SUBJ or TR DIR OBJ, and the possessor appears as a GEN ADJ, as shown in examples (7) and (9) below. Such redirection also characterizes constructions involving a classifying suffix (see Section 2.2), and is similar to applicative- related redirection considered in Section 2.3 below. The allomorph -alstn occurs in TR forms (Figure 4), while -alst goes with ITR ones (Figure 5).	page 5
+§2.1.2	Hank Nater	note	The suffix -alst(n) ‘deprivative’ (Nater 1984, p. 71) is associated with a sense of loss implicated by the base (denoting removal or displacement) it combines with. When -alst(n) is deleted from such constructions, the OBL OBJ becomes the ITR SUBJ or TR DIR OBJ, and the possessor appears as a GEN ADJ, as displayed in examples (7) and (9) below. Such redirection also characterizes constructions involving a classifying suffix (see Section 2.2), and is similar to applicative- related redirection considered in Section 2.3 below. The allomorph -alstn occurs in TR forms (Figure 4), while -alst goes with ITR ones (Figure 5).	page 5
 §2.1.2	Bella Coola	cited form	-alst(n)	page 5, in italics, ‘deprivative’
 §2.1.2	Bella Coola	cited form	-alstn	page 5, in italics
 Figure 4 line 1	Hank Nater	note	act of X-ing	page 6, a line of the figure
@@ -152,7 +152,7 @@ Figure 4	Hank Nater	note	Figure 4 Morpho-syntactic relations in re TR loss	page 
 (9) line 2	Hank Nater	note	PREDICATE SUBJ GEN ADJ	page 6, the constituent each stretch of the sentence over it is
 (9) line 3	Bella Coola	gloss	die-3SG.SUBJ˽now ART˽son-3SG.POSS˽ART ART˽chief˽ART	page 6
 (9) line 4	Hank Nater	translation	‘now the chief’s son died’	page 6
-§2.1.2	Hank Nater	note	In example (8), divalency patterns are as shown below:	page 7
+§2.1.2	Hank Nater	note	In example (8), divalency patterns are as displayed below:	page 7
 Figure 5 line 1	Hank Nater	note	SUBJ ITR OBL	page 7, a line of the figure
 Figure 5 line 2	Hank Nater	note	base -alst	page 7, a line of the figure
 Figure 5 line 3	Hank Nater	note	suffix SUBJ OBJ	page 7, a line of the figure
@@ -237,7 +237,7 @@ Figure 8 line 6	Hank Nater	note	the one included	page 9, a line of the figure
 Figure 8 line 7	Hank Nater	note	being included	page 9, a line of the figure
 Figure 8	Hank Nater	note	Figure 8 Morpho-syntactic relations in re applicative	page 9, the caption
 §2.3.1.1	Hank Nater	heading	2.3.1.1 Applicative -m	page 9
-§2.3.1.1	Hank Nater	note	The most versatile among all valency-affecting suffixes is -m ‘medium’ (Nater 1984, pp. 61–63). Broadly, ITR verbs with -m are denominal active (unergative), detransitive active (unergative, valency reducing), detransitive stative (unaccusative (mainly anticausative), valency reducing), or detransitive reflexive (valency reducing). Here, we consider transitivizing -m ‘make or find … the object or goal of one’s …ing’, which increases valency (and is not related to ITR -m, see Section 3.1). This is a truly applicative suffix insofar as the OBL OBJ following a predicate without this suffix becomes the DIR OBJ after addition of transitivizing -m to the base, as in (14)–(16).	page 9
+§2.3.1.1	Hank Nater	note	The max versatile among all valency-affecting suffixes is -m ‘medium’ (Nater 1984, pp. 61–63). Broadly, ITR verbs with -m are denominal active (unergative), detransitive active (unergative, valency reducing), detransitive stative (unaccusative (mainly anticausative), valency reducing), or detransitive reflexive (valency reducing). Here, we consider transitivizing -m ‘make or find … the object or goal of one’s …ing’, which increases valency (and is not related to ITR -m, see Section 3.1). This is a truly applicative suffix insofar as the OBL OBJ following a predicate without this suffix becomes the DIR OBJ after addition of transitivizing -m to the base, as in (14)–(16).	page 9
 §2.3.1.1	Hank Nater	note	with -m without -m	page 9, the heads of the two columns of the examples under it
 (14) line 1	Bella Coola	segmentation	talaws-m-i-c c’ayx	page 9, the column with -m
 (14) line 2	Hank Nater	note	PREDICATE DIR OBJ	page 9, the column with -m, the constituent each stretch of the sentence over it is
@@ -435,8 +435,8 @@ Figure 11	Hank Nater	note	Figure 11 Salish cognates of Bella Coola divalent suff
 (29) line 3	Halkomelem	gloss	AUX Q 2SG.SUB borrow/lend-CSDET John OBL DET money	page 14
 (29) line 4	Hank Nater	translation	‘Did you borrow some money for John?’	page 14
 §3.2	Hank Nater	note	The morpho-semantic and distributional mechanisms underlying Bella Coola divalent constructions, too, deviate from other Salish, where:	page 14
-§3.2	Hank Nater	note	“Redirective applicatives are formed on transitive bases, and their precise interpretation—as benefactive, delegative, or malefactive—depends upon the context of the situation and the semantics of the verb. Most transitive verbs form redirectives with benefactive meanings, but redirectives formed on transfer verbs often express malefactive meanings, especially when a source or possessor is the applied object. Relational applicatives are formed on intransitive bases. They frequently have malefactive or adversative meanings, especially with natural or psychological events, and only rarely express benefactive meanings.” (Kiyosawa & Gerdts, p. 27)	page 14, the quotation
-§3.2	Hank Nater	note	The Bella Coola morpho-syntactic details discussed in this paper may also differ from those in other Salish. Nevertheless, the PREDICATE (+ SUBJ) + DIR OBJ + OBL OBJ clause type associated with benefactive/malefactive is found across Salish (note: in Interior Salish, the subject often precedes the predicate, and the OBL OBJ may precede the DIR OBJ), which is shown in (30)–(34).	page 14
+§3.2	Hank Nater	note	“Redirective applicatives are formed on transitive bases, and their precise interpretation—as benefactive, delegative, or malefactive—depends upon the context of the situation and the semantics of the verb. Max transitive verbs form redirectives with benefactive meanings, but redirectives formed on transfer verbs often express malefactive meanings, especially when a source or possessor is the applied object. Relational applicatives are formed on intransitive bases. They frequently have malefactive or adversative meanings, especially with natural or psychological events, and only rarely express benefactive meanings.” (Kiyosawa & Gerdts, p. 27)	page 14, the quotation
+§3.2	Hank Nater	note	The Bella Coola morpho-syntactic details discussed in this paper may also differ from those in other Salish. Nevertheless, the PREDICATE (+ SUBJ) + DIR OBJ + OBL OBJ clause type associated with benefactive/malefactive is found across Salish (note: in Interior Salish, the subject often precedes the predicate, and the OBL OBJ may precede the DIR OBJ), which is displayed in (30)–(34).	page 14
 §3.2	Hank Nater	language	Interior Salish	Salish
 (30) line 1	Hank Nater	citation	Halkomelem (Kiyosawa & Gerdts, sample 1)	page 15, over the example, its language and source
 (30) line 2	Halkomelem	segmentation	niʔ q̓ʷǝ́l-ǝɬc-t-ǝs ɬǝ sɬéniʔ ʔǝ kʷθǝ sǝplíl.	page 15
@@ -481,7 +481,7 @@ Figure 12 line 5	Hank Nater	note	branch branch	page 16, a line of the figure
 Figure 12 line 6	Hank Nater	note	Oregon Central maritime inland	page 16, a line of the figure
 Figure 12 line 7	Hank Nater	note	northern central southern	page 16, a line of the figure
 Figure 12	Hank Nater	note	Figure 12 Bella Coola within Salish	page 16, the caption
-§4	Hank Nater	note	In re PREDICATE–ARGUMENT interaction, it remains to be determined to what extent the morpho-syntax, semantic roles of the links, and combinatorial traits described in Sections 2 and 2.1–3 are matched in other Salish. In the meantime, I suspect, in view of the similarities shown in examples (28)–(29) and (30)–(34) (and conclusions drawn in Nater 2013 and 2014), that further research will reveal more morpho-syntactic resemblances between Bella Coola and Coastal Salish than we have seen to date.	page 17
+§4	Hank Nater	note	In re PREDICATE–ARGUMENT interaction, it remains to be determined to what extent the morpho-syntax, semantic roles of the links, and combinatorial traits described in Sections 2 and 2.1–3 are matched in other Salish. In the meantime, I suspect, in view of the similarities displayed in examples (28)–(29) and (30)–(34) (and conclusions drawn in Nater 2013 and 2014), that further research will reveal more morpho-syntactic resemblances between Bella Coola and Coastal Salish than we have seen to date.	page 17
 references	Hank Nater	heading	References	page 17
 references	Hank Nater	reference	Hinkson, Mercedes Quesney. (1999). Salishan Lexical Suffixes: A Study in the Conceptualization of Space. Ph.D. dissertation, Simon Fraser University.	page 17
 references	Hank Nater	reference	Kiyosawa, Kaoru. (2006). Applicatives in Salish Languages. Ph.D. dissertation. Simon Fraser University.	page 17

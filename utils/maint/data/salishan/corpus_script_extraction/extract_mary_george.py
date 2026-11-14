@@ -8,7 +8,7 @@
 #   Usage:  python maint/data/salishan/corpus_script_extraction/extract_mary_george.py
 #
 # Written for one paper. This one holds fourteen separate narratives, each its own numbered section with a
-# title and a date, and it is not all one speaker. Mary George told most of them between 1969 and 1980.
+# title and a date, and it is not all one speaker. Mary George told the majority of them between 1969 and 1980.
 # The Mink story is Noel George Harry's, the basket ogre is Tommy Paul's, and the last is John Hamilton
 # Davis's own. Attributing all of it to Mary George would be wrong about three of them. The speaker is
 # a column and is set per section.
@@ -19,8 +19,8 @@
 # same utterance written a second way, and both are records of what was said.
 #
 # The pure stream takes the community orthography and not the phonetic line, because the two are one
-# utterance and writing both would put every sentence into the stream twice. The phonetic line is kept in
-# the marked file with its own kind. A reader who wants Davis's ear instead has it there.
+# utterance and writing both would put every sentence into the stream twice. The phonetic line is retained in
+# the marked file with its own type. A reader who wants Davis's ear instead has it there.
 #
 # Notes sections carry his commentary on particular lines and are derived.
 #
@@ -100,7 +100,7 @@ SOURCE = os.path.join(PAPERS, "ICSNL56_DavisJ_2_final-1.txt")
 # <spoken by>_<original paper>_<who wrote it down>_Salish_<language without accents>_<year>_<mixed>
 #
 # Three of the fourteen narratives are not Mary George's, and the speaker column in the record
-# says which. The name in the filename is who most of it is by.
+# says which. The name in the filename is who the majority of it is by.
 TARGET = os.path.join(
     CORPORA,
     "MaryGeorge_MaryGeorgePersonalNarratives_JohnHamiltonDavis"
@@ -132,7 +132,7 @@ LAYER = {
     "phonetic": SPOKEN,
     "translation": SPOKEN,
     "note": DERIVED,
-    # Kept, marked, and excluded from the ingestion stream until someone has looked at it. A line
+    # Retained, marked, and excluded from the ingestion stream until someone has looked at it. A line
     # nobody has classified is not a line to feed to anything, and it is not a line to throw away.
     UNCLASSIFIED: DERIVED,
 }
@@ -228,7 +228,7 @@ def main():
             rows.append(("T", number, section, title, "transcription", who, trimmed))
             seen_orthography = True
             continue
-        # Anything else carrying the language is kept and marked unsorted. None of it is dropped.
+        # Anything else carrying the language is retained and marked unsorted. None of it is dropped.
         # A phonetic line that wrapped does not open with its bracket, and the notes cite forms
         # inline as form = gloss. Both fall past the tests above. Eighty-six tokens of this
         # paper went missing that way, the largest hole the coverage check found.
@@ -265,7 +265,7 @@ def main():
         handle.write("# Sliammon in 1969 and offered to teach him her language.\n")
         handle.write("#\n")
         handle.write(
-            "# Mark is language.layer.kind. T is Mainland Comox, N is anything else.\n"
+            "# Mark is language.layer.type. T is Mainland Comox, N is anything else.\n"
         )
         handle.write(
             "# Each utterance appears twice: the community orthography, then a phonetic\n"
@@ -276,27 +276,27 @@ def main():
         handle.write(
             "# The speaker column is set per section and is not the same throughout.\n"
         )
-        handle.write("line\tsection\ttitle\tkind\tspeaker\tswitches\tcontent\n")
-        for mark, count, sect, name, kind, who, text in rows:
-            layer = LAYER[kind]
+        handle.write("line\tsection\ttitle\ttype\tspeaker\tswitches\tcontent\n")
+        for mark, count, sect, name, type, who, text in rows:
+            layer = LAYER[type]
             if mark == "T":
-                content = rendered(text, layer, kind, MARKS)
+                content = rendered(text, layer, type, MARKS)
                 crossings = switches(text)
             else:
-                content = "N.%s.%s:{%s}" % (layer, kind, text)
+                content = "N.%s.%s:{%s}" % (layer, type, text)
                 crossings = 0
             handle.write(
                 "line#${%d}\t%s\t%s\t%s\t%s\t%d\t%s\n"
-                % (count, sect, (name or "")[:46], kind, who, crossings, content)
+                % (count, sect, (name or "")[:46], type, who, crossings, content)
             )
 
     pure = TARGET[:-4] + ".pure.txt"
-    kept = 0
+    retained = 0
     repeated = 0
     already = set()
     with open(pure, "w", encoding="utf-8", newline="") as handle:
-        for mark, count, sect, name, kind, who, text in rows:
-            if (mark != "T") or (kind != "transcription"):
+        for mark, count, sect, name, type, who, text in rows:
+            if (mark != "T") or (type != "transcription"):
                 continue
             for span, run in tagged_spans(text, MARKS):
                 if (span != "T") or (not run.strip()):
@@ -307,24 +307,24 @@ def main():
                     continue
                 already.add(key)
                 handle.write("%s\n" % key)
-                kept += 1
+                retained += 1
 
     # A file of its own for what the tool could not sort, in the columns every paper's file uses.
     # A wrapped phonetic line does not open with its bracket and the notes cite forms inline as
-    # form = gloss. Both fall past the tests above and are flagged. The second kind is a line no
+    # form = gloss. Both fall past the tests above and are flagged. The second type is a line no
     # section reached, which here is the front matter and the paper's own introduction.
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
         (0, "%s block %d" % (sect, count), UNKNOWN_KIND, "", text)
-        for mark, count, sect, name, kind, who, text in rows
-        if (kind == UNCLASSIFIED) and (sect != "not reached")
+        for mark, count, sect, name, type, who, text in rows
+        if (type == UNCLASSIFIED) and (sect != "not reached")
     ]
     flagged.extend(missed)
     stuck_count = write_unsorted(stuck, "the Mary George narratives", flagged)
 
     out.write("  %d lines written to\n  %s\n" % (len(rows), os.path.basename(TARGET)))
     out.write(
-        "  %d target-language spans written to\n  %s\n" % (kept, os.path.basename(pure))
+        "  %d target-language spans written to\n  %s\n" % (retained, os.path.basename(pure))
     )
     out.write("  %d spans skipped as already written\n" % repeated)
     out.write(
@@ -334,7 +334,7 @@ def main():
 
     out.write("\n  %-4s %-46s %-16s %s\n" % ("sec", "title", "speaker", "lines"))
     counted = {}
-    for mark, count, sect, name, kind, who, text in rows:
+    for mark, count, sect, name, type, who, text in rows:
         counted[(sect, name, who)] = counted.get((sect, name, who), 0) + 1
     # Sorted numerically where the section is a number. The lines no section reached carry a name
     # instead of a number and sort after them.
@@ -347,13 +347,13 @@ def main():
         )
 
     marks = {}
-    kinds = {}
-    for mark, count, sect, name, kind, who, text in rows:
+    types = {}
+    for mark, count, sect, name, type, who, text in rows:
         marks[mark] = marks.get(mark, 0) + 1
-        kinds[kind] = kinds.get(kind, 0) + 1
+        types[type] = types.get(type, 0) + 1
     out.write(
-        "\n  by kind: %s\n"
-        % ", ".join("%s %d" % (one, kinds[one]) for one in sorted(kinds))
+        "\n  by type: %s\n"
+        % ", ".join("%s %d" % (one, types[one]) for one in sorted(types))
     )
     out.write("  T lines %d, N lines %d\n" % (marks.get("T", 0), marks.get("N", 0)))
 

@@ -10,7 +10,7 @@ export const remembered = (id) => JSON.parse(localStorage.getItem(`orior.values.
 export const remember = (id, values) => localStorage.setItem(`orior.values.${id}`, JSON.stringify(values));
 
 async function pickInto(param, input) {
-  const given = await pick(param.kind);
+  const given = await pick(param.type);
   if (typeof given === "string") {
     input.value = given;
     input.dispatchEvent(new Event("input"));
@@ -22,14 +22,14 @@ export function field(job, param, values) {
   const label = element("label", { htmlFor: id, textContent: param.key, className: param.required ? "needed" : "" });
   const given = values[param.key] ?? (param.default ? [param.default] : []);
   let control;
-  if (param.kind === "choice") {
+  if (param.type === "choice") {
     control = element("select", { id });
     if (!param.required) {
       control.append(element("option", { value: "", textContent: "" }));
     }
     param.choices.forEach((value) => control.append(element("option", { value, textContent: value })));
     control.value = given[0] ?? "";
-  } else if (param.kind === "many") {
+  } else if (param.type === "many") {
     control = element("div", { className: "choices", id });
     for (const value of param.choices) {
       const box = element("input", { type: "checkbox", value, checked: given.includes(value) });
@@ -37,12 +37,12 @@ export function field(job, param, values) {
     }
   } else {
     const input = element("input", { id, type: "text", value: given[0] ?? "", spellcheck: false });
-    if (param.kind === "choice-or-file") {
+    if (param.type === "choice-or-file") {
       const list = element("datalist", { id: `${id}-list` });
       param.choices.forEach((value) => list.append(element("option", { value })));
       input.setAttribute("list", list.id);
       control = element("div", { className: "pick" }, input, list, pickButton(param, input));
-    } else if (["file", "dir", "save", "save-dir"].includes(param.kind)) {
+    } else if (["file", "dir", "save", "save-dir"].includes(param.type)) {
       control = element("div", { className: "pick" }, input, pickButton(param, input));
     } else {
       control = input;
@@ -64,7 +64,7 @@ export function valuesFrom(job) {
     if (!node) {
       continue;
     }
-    if (param.kind === "many") {
+    if (param.type === "many") {
       values[param.key] = [...node.querySelectorAll("input:checked")].map((box) => box.value);
     } else {
       const input = node.matches("input, select") ? node : node.querySelector("input");

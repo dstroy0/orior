@@ -10,7 +10,7 @@ typedef struct
     const char *at;
     const char *end;
     unsigned int *bytes;
-    unsigned int letter;
+    unsigned int character;
     const unsigned int *a;
     int n;
     const unsigned int *b;
@@ -28,8 +28,8 @@ typedef struct
     unsigned int *line_names;
 } StructureCtx;
 
-// the letter of UTF-8 at `at` before `end`, its bytes into `bytes`: a byte that starts no letter is U+FFFD, one byte
-EMBED_INLINE unsigned int cli_letter(const StructureCtx *args)
+// the character of UTF-8 at `at` before `end`, its bytes into `bytes`: a byte that starts no character is U+FFFD, one byte
+EMBED_INLINE unsigned int cli_character(const StructureCtx *args)
 {
     unsigned int *bytes = args->bytes;
     const unsigned char lead = (unsigned char)args->at[0];
@@ -60,7 +60,7 @@ EMBED_INLINE unsigned int cli_letter(const StructureCtx *args)
         return (length == 1u) ? lead : 0xfffdu;
     }
     static const unsigned int s_prefix_bits[5] = {0x00u, 0x7fu, 0x1fu, 0x0fu, 0x07u};
-    unsigned int letter = lead & s_prefix_bits[length];
+    unsigned int character = lead & s_prefix_bits[length];
     for (unsigned int step = 1u; step < length; step += 1u)
     {
         const unsigned char next = (unsigned char)args->at[step];
@@ -69,44 +69,44 @@ EMBED_INLINE unsigned int cli_letter(const StructureCtx *args)
             *bytes = 1u;
             return 0xfffdu;
         }
-        letter = (letter << 6u) | (next & 0x3fu);
+        character = (character << 6u) | (next & 0x3fu);
     }
     *bytes = length;
-    return letter;
+    return character;
 }
 
-// how many UTF-16 units a letter takes
+// how many UTF-16 units a character takes
 EMBED_INLINE unsigned int cli_units(const StructureCtx *args)
 {
-    return (args->letter >= 0x10000u) ? 2u : 1u;
+    return (args->character >= 0x10000u) ? 2u : 1u;
 }
 
 EMBED_INLINE int cli_is_whitespace(const StructureCtx *args)
 {
-    return ((args->letter >= 0x09u) && (args->letter <= 0x0du)) || (args->letter == 0x20u) || (args->letter == 0x85u) ||
-           (args->letter == 0xa0u) || (args->letter == 0x1680u) ||
-           ((args->letter >= 0x2000u) && (args->letter <= 0x200au)) || (args->letter == 0x2028u) ||
-           (args->letter == 0x2029u) || (args->letter == 0x202fu) || (args->letter == 0x205fu) ||
-           (args->letter == 0x3000u);
+    return ((args->character >= 0x09u) && (args->character <= 0x0du)) || (args->character == 0x20u) || (args->character == 0x85u) ||
+           (args->character == 0xa0u) || (args->character == 0x1680u) ||
+           ((args->character >= 0x2000u) && (args->character <= 0x200au)) || (args->character == 0x2028u) ||
+           (args->character == 0x2029u) || (args->character == 0x202fu) || (args->character == 0x205fu) ||
+           (args->character == 0x3000u);
 }
 
-EMBED_INLINE int cli_starts_name_letter(const StructureCtx *args)
+EMBED_INLINE int cli_starts_name_character(const StructureCtx *args)
 {
-    unsigned int letter = args->letter;
-    return EMBED_CALL(cli_regexp_letter.property, CliRegexpLetterCfg, .property = CLI_REGEXP_LETTER,
-                      .letter = letter) ||
-           (letter == '_') || (letter == '$');
+    unsigned int character = args->character;
+    return EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg, .property = CLI_REGEXP_CHARACTER,
+                      .character = character) ||
+           (character == '_') || (character == '$');
 }
 
 EMBED_INLINE int cli_alphanumeric(const StructureCtx *args)
 {
-    unsigned int letter = args->letter;
-    return EMBED_CALL(cli_regexp_letter.property, CliRegexpLetterCfg, .property = CLI_REGEXP_LETTER,
-                      .letter = letter) ||
-           EMBED_CALL(cli_regexp_letter.property, CliRegexpLetterCfg, .property = CLI_REGEXP_NUMBER, .letter = letter);
+    unsigned int character = args->character;
+    return EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg, .property = CLI_REGEXP_CHARACTER,
+                      .character = character) ||
+           EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg, .property = CLI_REGEXP_NUMBER, .character = character);
 }
 
-// what a token continues taking after its first letter: a name's letters, a number's, or a string's to its closing
+// what a token continues taking after its first character: a name's characters, a number's, or a string's to its closing
 // quote
 enum
 {
@@ -130,8 +130,8 @@ int cli_structure_lex(const CliStructureTextCtx *args)
     while (at < end)
     {
         unsigned int bytes = 0u;
-        const unsigned int letter = EMBED_CALL(cli_letter, StructureCtx, .at = at, .end = end, .bytes = &bytes);
-        if (letter == '\n')
+        const unsigned int character = EMBED_CALL(cli_character, StructureCtx, .at = at, .end = end, .bytes = &bytes);
+        if (character == '\n')
         {
             line += 1u;
             column = 0u;
@@ -144,9 +144,9 @@ int cli_structure_lex(const CliStructureTextCtx *args)
             at += bytes;
             continue;
         }
-        if (EMBED_CALL(cli_is_whitespace, StructureCtx, .letter = letter))
+        if (EMBED_CALL(cli_is_whitespace, StructureCtx, .character = character))
         {
-            column += EMBED_CALL(cli_units, StructureCtx, .letter = letter);
+            column += EMBED_CALL(cli_units, StructureCtx, .character = character);
             at += bytes;
             continue;
         }
@@ -157,18 +157,18 @@ int cli_structure_lex(const CliStructureTextCtx *args)
         const unsigned int from = column;
         // a place in the text below what a side contains, which an unsigned int counts
         const unsigned int start = (unsigned int)(at - text);
-        column += EMBED_CALL(cli_units, StructureCtx, .letter = letter);
+        column += EMBED_CALL(cli_units, StructureCtx, .character = character);
         at += bytes;
         unsigned int take;
-        if (EMBED_CALL(cli_starts_name_letter, StructureCtx, .letter = letter))
+        if (EMBED_CALL(cli_starts_name_character, StructureCtx, .character = character))
         {
             take = CLI_ALLOC_NAME;
         }
-        else if ((letter >= '0') && (letter <= '9'))
+        else if ((character >= '0') && (character <= '9'))
         {
             take = CLI_ALLOC_NUMBER;
         }
-        else if ((letter == '"') || (letter == '\'') || (letter == '`'))
+        else if ((character == '"') || (character == '\'') || (character == '`'))
         {
             take = CLI_ALLOC_STRING;
         }
@@ -181,29 +181,29 @@ int cli_structure_lex(const CliStructureTextCtx *args)
         while ((take != CLI_ALLOC_SIGN) && (at < end))
         {
             unsigned int next_bytes = 0u;
-            const unsigned int next = EMBED_CALL(cli_letter, StructureCtx, .at = at, .end = end, .bytes = &next_bytes);
+            const unsigned int next = EMBED_CALL(cli_character, StructureCtx, .at = at, .end = end, .bytes = &next_bytes);
             int continues = next != '\n';
             if (continues && (take == CLI_ALLOC_NAME))
             {
                 continues =
-                    EMBED_CALL(cli_alphanumeric, StructureCtx, .letter = next) || (next == '_') || (next == '$');
+                    EMBED_CALL(cli_alphanumeric, StructureCtx, .character = next) || (next == '_') || (next == '$');
             }
             else if (continues && (take == CLI_ALLOC_NUMBER))
             {
                 continues =
-                    EMBED_CALL(cli_alphanumeric, StructureCtx, .letter = next) || (next == '.') || (next == '_');
+                    EMBED_CALL(cli_alphanumeric, StructureCtx, .character = next) || (next == '.') || (next == '_');
             }
             else if (continues)
             {
                 continues = !closed;
-                closed = closed || (!escaped && (next == letter));
+                closed = closed || (!escaped && (next == character));
                 escaped = !escaped && (next == '\\');
             }
             if (!continues)
             {
                 break;
             }
-            column += EMBED_CALL(cli_units, StructureCtx, .letter = next);
+            column += EMBED_CALL(cli_units, StructureCtx, .character = next);
             at += next_bytes;
         }
         // as above, a place in the text a side contains
@@ -220,15 +220,15 @@ int cli_structure_lex(const CliStructureTextCtx *args)
 
 EMBED_INLINE unsigned int cli_myers(const StructureCtx *args)
 {
-    const int most = ((args->n + args->m) < (int)CLI_MAX_EDITS) ? (args->n + args->m) : (int)CLI_MAX_EDITS;
-    const int middle = most + 1;
+    const int max = ((args->n + args->m) < (int)CLI_MAX_EDITS) ? (args->n + args->m) : (int)CLI_MAX_EDITS;
+    const int middle = max + 1;
     memor.set(&(MemoriaCfg){.dst = g_cli_structure->frontier,
                             .val = 0,
-                            .bytes = sizeof(g_cli_structure->frontier[0]) * (embed_word)((2 * most) + 3)});
+                            .bytes = sizeof(g_cli_structure->frontier[0]) * (embed_word)((2 * max) + 3)});
     int found = -1;
     {
         int d = 0;
-        while ((found < 0) && (d <= most))
+        while ((found < 0) && (d <= max))
         {
             // the frontier before this edit stored, d squared on, the band from middle - d to middle + d
             memor.cpy(&(MemoriaCfg){.dst = g_cli_structure->trace + (d * d),
@@ -473,8 +473,8 @@ int cli_structure_starts_name(const CliStructureSideCtx *args)
 {
     const char *const at = args->side_read->text + args->side_read->token[args->token].start;
     unsigned int bytes = 0u;
-    return EMBED_CALL(cli_starts_name_letter, StructureCtx,
-                      .letter = EMBED_CALL(cli_letter, StructureCtx, .at = at,
+    return EMBED_CALL(cli_starts_name_character, StructureCtx,
+                      .character = EMBED_CALL(cli_character, StructureCtx, .at = at,
                                            .end = args->side_read->text + args->side_read->token[args->token].end,
                                            .bytes = &bytes));
 }

@@ -22,7 +22,7 @@
 #include <utility>
 #include <vector>
 
-// the kinds of value a form reads: a word, a wide, a register and its `.hi` read as one, and a flag
+// the types of value a form reads: a word, a wide, a register and its `.hi` read as one, and a flag
 enum ConceptValueKind
 {
     CONCEPT_VALUE_WORD,
@@ -33,16 +33,16 @@ enum ConceptValueKind
 // each value a form reads, as the form writes it, and its value on every case
 typedef std::vector<std::pair<std::string, std::vector<unsigned long long>>> ConceptReads;
 
-// a pair's product: the kind of each value its form reads, and what came back at each combination of them
+// a pair's product: the type of each value its form reads, and what came back at each combination of them
 struct ConceptProduct
 {
-    std::vector<int> kinds;
+    std::vector<int> types;
     std::map<std::string, std::set<char>> rows;
     // 1 where two puts read the form as different values, and no product is recorded
     int mixed = 0;
 };
 
-// The values the cases are made of, by kind, from every operand of every case: each operand is a wide, its low and
+// The values the cases are made of, by type, from every operand of every case: each operand is a wide, its low and
 // its high word a word, and a flag is set or does not
 static inline std::vector<std::set<unsigned long long>> concept_values(const std::vector<unsigned long long> &operands)
 {
@@ -124,23 +124,23 @@ static inline void concept_product_made(const ConceptReads &reads, const std::ve
         }
         (high ? high_at : low_at)[found] = (int)at;
     }
-    std::vector<int> kinds;
+    std::vector<int> types;
     for (size_t value = 0u; value < bases.size(); value += 1u)
     {
-        kinds.push_back((bases[value][0] == 'P')                               ? CONCEPT_VALUE_FLAG
+        types.push_back((bases[value][0] == 'P')                               ? CONCEPT_VALUE_FLAG
                         : (bases[value][0] == '[')                             ? CONCEPT_VALUE_WIDE
                         : ((low_at[value] >= 0) && (high_at[value] >= 0)) ? CONCEPT_VALUE_WIDE
                                                                                : CONCEPT_VALUE_WORD);
     }
-    if (kinds.empty())
+    if (types.empty())
     {
         return;
     }
-    if (product->rows.empty() && product->kinds.empty())
+    if (product->rows.empty() && product->types.empty())
     {
-        product->kinds = kinds;
+        product->types = types;
     }
-    if (product->kinds != kinds)
+    if (product->types != types)
     {
         product->mixed = 1;
         return;
@@ -168,7 +168,7 @@ static inline void concept_product_made(const ConceptReads &reads, const std::ve
                                                 ? ((high << 32u) | (low & 0xffffffffull))
                                             : (low_at[value] >= 0) ? low
                                                                    : high;
-            cased_all &= (cased[(size_t)kinds[value]].count(read) != 0u) ? 1 : 0;
+            cased_all &= (cased[(size_t)types[value]].count(read) != 0u) ? 1 : 0;
             char written[24];
             snprintf(written, sizeof(written), "%llx,", read);
             values += written;
@@ -194,10 +194,10 @@ static inline size_t concept_signal(const ConceptProduct &product)
 // 1 where `product` is whole: a row at every combination of the values the cases are made of, `cased`
 static inline int concept_whole(const ConceptProduct &product, const std::vector<std::set<unsigned long long>> &cased)
 {
-    size_t whole = product.kinds.empty() ? 0u : 1u;
-    for (const int kind : product.kinds)
+    size_t whole = product.types.empty() ? 0u : 1u;
+    for (const int type : product.types)
     {
-        whole *= cased[(size_t)kind].size();
+        whole *= cased[(size_t)type].size();
     }
     return (!product.mixed && (whole != 0u) && (product.rows.size() == whole)) ? 1 : 0;
 }
@@ -217,9 +217,9 @@ static inline std::string concept_identity(const ConceptProduct &product,
         written += row.first + ((row.second.size() > 1u) ? "?" : std::string(1u, *row.second.begin())) + ";";
     }
     unsigned long long hashed = 0xcbf29ce484222325ull;
-    for (const char letter : written)
+    for (const char character : written)
     {
-        hashed = (hashed ^ (unsigned char)letter) * 0x100000001b3ull;
+        hashed = (hashed ^ (unsigned char)character) * 0x100000001b3ull;
     }
     char identity[24];
     snprintf(identity, sizeof(identity), "%016llx", hashed);

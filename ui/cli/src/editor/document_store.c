@@ -11,7 +11,7 @@
 #include "document_internal.h"
 #include "pages.h"
 
-// the most units and lines of a text stored
+// the max units and lines of a text stored
 #define CLI_DOC_UNITS (1u << 22u)
 #define CLI_DOC_LINES (1u << 18u)
 
@@ -93,7 +93,7 @@ EMBED_INLINE unsigned long long stored_lines_in(const DocumentStoreCtx *args)
     return count;
 }
 
-// A work cell of the temporary tier laid out as `lines`: `units_max` units, then each line's start and length, then
+// A work cell of the temporary tier arranged as `lines`: `units_max` units, then each line's start and length, then
 // each line's four words, `lines_max` lines of each; `lines` empty where the cells cannot meet it: 1, or 0
 EMBED_INLINE int stored_work_enter(const DocumentStoreCtx *args)
 {
@@ -300,11 +300,11 @@ EMBED_INLINE CliStoredText *cli_stored_init(const DocumentStoreCtx *args)
     {
         return there;
     }
-    // a stored text's record carries the claims and the readers' count its threads pin it by, so the records stand
+    // a stored text's record carries the claims and the readers' count its threads pin it by, so the records are
     // fixed outside the pool, one place for each text stored at once, where they punch no hole in the persistent tier
-    static CliStoredText s_places[CLI_STORED_MOST];
+    static CliStoredText s_places[CLI_STORED_MAX];
     CliStoredText *one = NULL;
-    for (unsigned int at = 0u; (one == NULL) && (at < CLI_STORED_MOST); at += 1u)
+    for (unsigned int at = 0u; (one == NULL) && (at < CLI_STORED_MAX); at += 1u)
     {
         one = (s_places[at].reserved == 0) ? &s_places[at] : NULL;
     }
@@ -375,7 +375,7 @@ void cli_document_holder_end(const CliDocumentCtx *args)
     }
 }
 
-// `size` bytes of `text` laid as lines in a work cell sized to them and stored in `stored`, in place of what it held:
+// `size` bytes of `text` positioned as lines in a work cell sized to them and stored in `stored`, in place of what it held:
 // 1, or 0 where the cells cannot meet them
 EMBED_INLINE int stored_text_take(const DocumentStoreCtx *args)
 {
@@ -523,7 +523,7 @@ EMBED_INLINE int stored_states_edit(const DocumentStoreCtx *args)
     return 1;
 }
 
-// the lines the changes `changes` add at the most, `count` of them with `edits[at]` edits each
+// the lines the changes `changes` add at max, `count` of them with `edits[at]` edits each
 EMBED_INLINE unsigned long long stored_edits_lines(const CliEdit *const *changes, const unsigned int *edits,
                                                    unsigned int count)
 {
@@ -658,7 +658,7 @@ int cli_document_shape(const CliDocumentTextCfg *args)
     return answer;
 }
 
-// the units of the line `line` of `stored` copied into `dst`, `capacity` of them at the most: the line's units, 0 where
+// the units of the line `line` of `stored` copied into `dst`, `capacity` of them at max: the line's units, 0 where
 // the text holds no such line
 EMBED_INLINE unsigned long long stored_line_read(const CliStoredLines *stored, unsigned long long line,
                                                  unsigned short *dst, unsigned long long capacity)
@@ -778,16 +778,16 @@ EMBED_INLINE int cli_edit_position(const DocumentStoreCtx *args)
     unsigned long long breaks = 0ULL;
     for (unsigned long long at = 0ULL; at < args->edit->length;)
     {
-        unsigned int letter = 0u;
-        at += EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+        unsigned int character = 0u;
+        at += EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                          .text_bytes = (const unsigned char *)args->edit->text, .length = args->edit->length, .at = at,
-                         .letter = &letter);
-        breaks += (letter == '\n') ? 1ULL : 0ULL;
-        if (letter == '\n')
+                         .character = &character);
+        breaks += (character == '\n') ? 1ULL : 0ULL;
+        if (character == '\n')
         {
             units += 0ULL;
         }
-        else if (letter > 0xffffu)
+        else if (character > 0xffffu)
         {
             units += 2ULL;
         }
@@ -808,7 +808,7 @@ EMBED_INLINE int cli_edit_position(const DocumentStoreCtx *args)
     const unsigned long long tail = args->now->length[args->edit->to.line] - args->edit->to.col;
     EMBED_CALL(cli_units_move, DocumentStoreCtx, .unit = args->now->unit, .from = to, .to = from + units,
                .count = args->now->used - to);
-    // the lines after the edit moved to stand after the lines it writes, each starting as many units on
+    // the lines after the edit moved to be after the lines it writes, each starting as many units on
     const unsigned long long after = args->edit->to.line + 1ULL;
     const unsigned long long after_to = args->edit->from.line + breaks + 1ULL;
     const unsigned long long after_count = args->now->lines - after;
@@ -833,18 +833,18 @@ EMBED_INLINE int cli_edit_position(const DocumentStoreCtx *args)
     unsigned long long put = from;
     for (unsigned long long at = 0ULL; at <= args->edit->length;)
     {
-        unsigned int letter = '\n';
+        unsigned int character = '\n';
         if (at < args->edit->length)
         {
-            at += EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+            at += EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                              .text_bytes = (const unsigned char *)args->edit->text, .length = args->edit->length,
-                             .at = at, .letter = &letter);
+                             .at = at, .character = &character);
         }
         else
         {
             at += 1ULL;
         }
-        if (letter == '\n')
+        if (character == '\n')
         {
             const unsigned long long ends = (at > args->edit->length) ? (put + tail) : put;
             args->now->length[line] = ends - args->now->start[line];
@@ -859,14 +859,14 @@ EMBED_INLINE int cli_edit_position(const DocumentStoreCtx *args)
             }
             continue;
         }
-        // each unit of a letter is below 2^16
+        // each unit of a character is below 2^16
         const unsigned short first =
-            (unsigned short)((letter > 0xffffu) ? (0xd800u + ((letter - 0x10000u) >> 10u)) : letter);
+            (unsigned short)((character > 0xffffu) ? (0xd800u + ((character - 0x10000u) >> 10u)) : character);
         args->now->unit[put] = first;
         put += 1ULL;
-        if (letter > 0xffffu)
+        if (character > 0xffffu)
         {
-            args->now->unit[put] = (unsigned short)(0xdc00u + ((letter - 0x10000u) & 0x3ffu));
+            args->now->unit[put] = (unsigned short)(0xdc00u + ((character - 0x10000u) & 0x3ffu));
             put += 1ULL;
         }
     }
@@ -876,7 +876,7 @@ EMBED_INLINE int cli_edit_position(const DocumentStoreCtx *args)
     return 1;
 }
 
-// whether a place stands in the text: on a line it contains, at or before the line's end
+// whether a place is in the text: on a line it contains, at or before the line's end
 EMBED_INLINE int cli_fits(const DocumentStoreCtx *args)
 {
     return (args->position_position_pointer->line < args->lines_read->lines) &&
@@ -968,34 +968,34 @@ int cli_document_has_head(const CliDocumentCfg *args)
     return answer;
 }
 
-// The changes the diff hands on as they are laid for the save: the reader they are handed on to with its context, the
-// words of this call they are laid in, how many changes, and how many the words hold
+// The changes the diff passes on as they are positioned for the save: the reader they are passed on to with its context, the
+// words of this call they are positioned in, how many changes, and how many the words hold
 typedef struct
 {
     void (*each)(const CliEachHunkCfg *args);
     void *context;
     unsigned int *word;
     unsigned int count;
-    unsigned int most;
+    unsigned int max;
 } HunksLaying;
 
-// a change the diff found handed on to the reader and laid among the words where they have room
-static void hunk_laid(const CliEachHunkCfg *args)
+// a change the diff found passed on to the reader and positioned among the words where they have room
+static void hunk_positioned(const CliEachHunkCfg *args)
 {
-    HunksLaying *const laying = args->context;
-    laying->each(&(CliEachHunkCfg){laying->context, args->now_from, args->now_to, args->then_from, args->then_to});
-    if (laying->count < laying->most)
+    HunksLaying *const positioning = args->context;
+    positioning->each(&(CliEachHunkCfg){positioning->context, args->now_from, args->now_to, args->then_from, args->then_to});
+    if (positioning->count < positioning->max)
     {
-        unsigned int *const word = laying->word + ((unsigned long long)laying->count * CLI_DOC_HUNK_WORDS);
+        unsigned int *const word = positioning->word + ((unsigned long long)positioning->count * CLI_DOC_HUNK_WORDS);
         word[0] = args->now_from;
         word[1] = args->now_to;
         word[2] = args->then_from;
         word[3] = args->then_to;
     }
-    laying->count += 1u;
+    positioning->count += 1u;
 }
 
-// the changes saved off the diff read out of their cell into a cell of this call and handed to `each` in order
+// the changes saved off the diff read out of their cell into a cell of this call and passed to `each` in order
 EMBED_INLINE void hunks_replayed(const DocumentStoreCtx *args)
 {
     const CliStoredText *const one = args->one;
@@ -1019,7 +1019,7 @@ EMBED_INLINE void hunks_replayed(const DocumentStoreCtx *args)
     g_cli_guard->persistent_buf_release(word, g_cli_editor_owner);
 }
 
-// the diff of the head against the lines run, each change handed to `each` as it is found, and the changes saved in a
+// the diff of the head against the lines run, each change passed to `each` as it is found, and the changes saved in a
 // movable cell sized to them at the text's serial where they all fit the words of this call: 1 where the diff ran
 EMBED_INLINE int hunks_found(const DocumentStoreCtx *args)
 {
@@ -1032,17 +1032,17 @@ EMBED_INLINE int hunks_found(const DocumentStoreCtx *args)
     const int copied = EMBED_CALL(stored_copy_enter, DocumentStoreCtx, .stored_read = &one->head, .lines = &then) &&
                        EMBED_CALL(stored_copy_enter, DocumentStoreCtx, .stored_read = &one->lines, .lines = &now);
     // the lines of both texts are far below 2^32
-    const unsigned int most = copied ? (unsigned int)(then.lines + now.lines) : 0u;
+    const unsigned int max = copied ? (unsigned int)(then.lines + now.lines) : 0u;
     unsigned int *const word =
-        (most != 0u) ? g_cli_guard->temporary_buf_alloc(
-                           (unsigned long long)most * CLI_DOC_HUNK_WORDS * sizeof(unsigned int), g_cli_editor_owner)
+        (max != 0u) ? g_cli_guard->temporary_buf_alloc(
+                           (unsigned long long)max * CLI_DOC_HUNK_WORDS * sizeof(unsigned int), g_cli_editor_owner)
                      : NULL;
-    HunksLaying laying = {args->each, args->context, word, 0u, (word != NULL) ? most : 0u};
+    HunksLaying positioning = {args->each, args->context, word, 0u, (word != NULL) ? max : 0u};
     const int changed = copied && EMBED_CALL(cli_document_out_then.line_changes, CliDocumentOutThenCfg, .then = &then,
-                                             .now = &now, .each = hunk_laid, .context = &laying);
-    if (changed && (laying.count <= laying.most))
+                                             .now = &now, .each = hunk_positioned, .context = &positioning);
+    if (changed && (positioning.count <= positioning.max))
     {
-        const unsigned long long bytes = (unsigned long long)laying.count * CLI_DOC_HUNK_WORDS * sizeof(unsigned int);
+        const unsigned long long bytes = (unsigned long long)positioning.count * CLI_DOC_HUNK_WORDS * sizeof(unsigned int);
         one->hunks_cell = (bytes != 0ULL) ? g_cli_guard->movable_buf_alloc(bytes, g_cli_editor_owner) : NULL;
         if ((bytes == 0ULL) || (one->hunks_cell != NULL))
         {
@@ -1051,7 +1051,7 @@ EMBED_INLINE int hunks_found(const DocumentStoreCtx *args)
                 (void)g_cli_guard->movable_buf_write(
                     &(CarcerMovableCfg){.cell = one->hunks_cell, .offset = 0u, .src = word, .bytes = bytes});
             }
-            one->hunks = laying.count;
+            one->hunks = positioning.count;
             one->hunks_serial = one->serial;
             one->hunks_known = 1;
         }
@@ -1077,7 +1077,7 @@ static int changes_locked(const CliDocumentOutKeyHeadInputCfg *args)
     }
     if (args->head_given)
     {
-        // the last commit's file laid into lines beside the text, in cells sized to it, the changes saved against the
+        // the last commit's file positioned into lines beside the text, in cells sized to it, the changes saved against the
         // file before let go
         one->head_known = 1;
         one->head_has = args->head != NULL;
@@ -1128,7 +1128,7 @@ static int find_locked(const CliDocumentOutNeedleCfg *args)
     }
     const int found =
         EMBED_CALL(cli_document_lines_out.find_in, CliDocumentLinesOutCfg, .lines = &work, .needle = args->needle,
-                   .most = args->most, .out = args->out, .err_msg = args->err_msg);
+                   .max = args->max, .out = args->out, .err_msg = args->err_msg);
     EMBED_CALL(stored_work_exit, DocumentStoreCtx, .lines = &work);
     return found;
 }

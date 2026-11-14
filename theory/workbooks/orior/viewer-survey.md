@@ -55,7 +55,7 @@ it was visible.
 
 So the precondition is not *a* frame-loop checker. It is one that is run against a page it should
 pass, in the conditions a reader will actually open it in, because a split inheriting this watchdog
-inherits a checker that reports a failure it causes. That is the same shape as the letter and the
+inherits a checker that reports a failure it causes. That is the same shape as the character and the
 topology in `docs/arm-records.md`: the quantity reported is not the quantity intended, and a cheap
 counting check settles which is in hand.
 

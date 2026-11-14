@@ -31,7 +31,7 @@
 # defines for itself in section 1.1, a defined language name, or a reconstruction opening with an
 # asterisk. All three are the paper's own notation. No rule here was invented for the purpose.
 #
-# THE PRACTICAL ORTHOGRAPHY IS THE SAME WORDS IN DIFFERENT LETTERS
+# THE PRACTICAL ORTHOGRAPHY IS THE SAME WORDS IN DIFFERENT CHARACTERS
 #
 # Section 4 prints each entry twice. AKW'A and ʔak‟ʷa are one word, and section 2.1 gives the
 # mapping: ʷ is written w, c is ts, ƛ‟ is tl‟, ɬ is lh, x is c, χ is x, and ʔ is 7. Both are Bella
@@ -113,7 +113,7 @@ TARGET = os.path.join(
     CORPORA, "unstated_HowSalishIsBellaCoola_Nater_Salish_nuxalk_2013_mixed.txt"
 )
 
-# Kept in step with NATER_ETYM in hand_extraction/papers.py. ǝ is U+01DD and ə is U+0259, which NFC
+# Retained in step with NATER_ETYM in hand_extraction/papers.py. ǝ is U+01DD and ə is U+0259, which NFC
 # does not unify, and this paper prints both. The apostrophe is deliberately absent for the same
 # reason it is absent from the other Nater paper: it is his ejective mark and also the closing quote
 # of all 1275 glosses. Holding it makes every English gloss a word of the language.
@@ -190,7 +190,7 @@ COMPARE = ("cf.", "(cf.")
 # fit on the line above. An entry with erased numbering opens with an English gloss word instead.
 WRAPPED = ("(", "„", "*", "√", "-", "+")
 
-# Which languages a two-letter tag names, for the who column of the cognate side.
+# Which languages a two-character tag names, for the who column of the cognate side.
 NAMED = {
     "Ha": "Haisla",
     "He": "Heiltsuk",
@@ -220,9 +220,9 @@ NAMED = {
 # left for a person, because assigning it would mean picking whichever language the cell names first.
 HEADED = {"CS": "CS", "IS": "IS", "PS": "PS", "NW": "NW"}
 
-# What a practical orthography lemma is made of once its notation is taken off: capital letters. The
+# What a practical orthography lemma is made of once its notation is taken off: capital characters. The
 # root sign, the parentheses of an optional segment, the 7 that writes a glottal stop and the two
-# apostrophes that write an ejective are all notation and none of them is a letter.
+# apostrophes that write an ejective are all notation and none of them is a character.
 NOTATION = "√()7'‟,"
 
 
@@ -264,13 +264,13 @@ def leading_lemma(tokens):
     The gloss can hold a capital of its own, as in horn played in KUSYUT dance. The run is read
     from the head of the row and stops at the first token that is not one.
     """
-    kept = []
+    retained = []
     for token in tokens:
         bare = token.strip(NOTATION)
         if not bare or not bare.isupper() or not bare.isalpha():
             break
-        kept.append(token.strip(","))
-    return kept
+        retained.append(token.strip(","))
+    return retained
 
 
 def main():
@@ -342,8 +342,8 @@ def main():
         if opens < len(tokens):
             tag = tokens[opens]
             who = NAMED.get(tag, "") if tag in TAGS else headed
-            kind = "cited form" if who else UNCLASSIFIED
-            rows.append((where, who, kind, " ".join(tokens[opens:]), ""))
+            type = "cited form" if who else UNCLASSIFIED
+            rows.append((where, who, type, " ".join(tokens[opens:]), ""))
 
     # Every line no branch above reached. The record holds every token the paper printed.
     missed = unreached(lines, covered_tokens(one[3] for one in rows), marks=MARKS)
@@ -389,29 +389,29 @@ def main():
             "# written to the pure file, because two orthographies in one stream would\n"
         )
         handle.write("# measure a transliteration alongside the language.\n")
-        handle.write("line\twho\tkind\tswitches\tcontent\n")
-        for at, (spot, who, kind, text, gloss) in enumerate(rows, 1):
-            spoken = (kind == "cited form") and (who == TARGET_LANGUAGE)
+        handle.write("line\twho\ttype\tswitches\tcontent\n")
+        for at, (spot, who, type, text, gloss) in enumerate(rows, 1):
+            spoken = (type == "cited form") and (who == TARGET_LANGUAGE)
             layer = SPOKEN if spoken else DERIVED
-            if kind == UNCLASSIFIED:
-                content = "N.%s.%s:{%s}" % (layer, kind, text)
+            if type == UNCLASSIFIED:
+                content = "N.%s.%s:{%s}" % (layer, type, text)
                 crossings = 0
             else:
-                content = rendered(text, layer, kind, MARKS)
+                content = rendered(text, layer, type, MARKS)
                 crossings = switches(text, MARKS)
             handle.write(
                 "line#${%d}\t%s\t%s\t%d\t%s\n"
-                % (at, who or spot, kind, crossings, content)
+                % (at, who or spot, type, crossings, content)
             )
 
-    # The Bella Coola words alone. The practical orthography is excluded by its kind and every other
+    # The Bella Coola words alone. The practical orthography is excluded by its type and every other
     # language by the who column. Both columns are there for that.
     pure = TARGET[:-4] + ".pure.txt"
-    kept = 0
+    retained = 0
     already = set()
     with open(pure, "w", encoding="utf-8", newline="") as handle:
-        for spot, who, kind, text, gloss in rows:
-            if (kind != "cited form") or (who != TARGET_LANGUAGE):
+        for spot, who, type, text, gloss in rows:
+            if (type != "cited form") or (who != TARGET_LANGUAGE):
                 continue
             for span, run in tagged_spans(text, MARKS):
                 if (span != "T") or not run.strip():
@@ -421,20 +421,20 @@ def main():
                     continue
                 already.add(key)
                 handle.write("%s\n" % key)
-                kept += 1
+                retained += 1
 
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
         (0, spot, UNKNOWN_KIND, "", text)
-        for spot, who, kind, text, gloss in rows
-        if (kind == UNCLASSIFIED) and not spot.startswith("not reached")
+        for spot, who, type, text, gloss in rows
+        if (type == UNCLASSIFIED) and not spot.startswith("not reached")
     ]
     flagged.extend(missed)
     stuck_count = write_unsorted(stuck, "How Salish is Bella Coola", flagged)
 
     out.write("  %d lines written to\n  %s\n" % (len(rows), os.path.basename(TARGET)))
     out.write(
-        "  %d Bella Coola words written to\n  %s\n" % (kept, os.path.basename(pure))
+        "  %d Bella Coola words written to\n  %s\n" % (retained, os.path.basename(pure))
     )
     out.write(
         "  %d lines the tool could not sort written to\n  %s\n"
@@ -442,8 +442,8 @@ def main():
     )
 
     languages = {}
-    for spot, who, kind, text, gloss in rows:
-        if kind == "cited form":
+    for spot, who, type, text, gloss in rows:
+        if type == "cited form":
             languages[who] = languages.get(who, 0) + 1
     out.write(
         "\n  by language: %s\n"

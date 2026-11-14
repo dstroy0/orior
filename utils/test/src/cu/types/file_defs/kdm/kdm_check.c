@@ -7,13 +7,13 @@
 //              a who line and a line of a block are no row
 //   blocks     a block of a language ends at its own closer alone: a closer of another language, a parenthesis and a
 //              closer of a block inside it of the same language end nothing; a block never closed is none
-//   section    the section written again goes after a who line of the code that wrote it, and the tail stands as the
+//   section    the section written again goes after a who line of the code that wrote it, and the tail is as the
 //              file stored it, the who in force over it written again before it
 //   pipes      the pipes and their comment let go and put again at the end, after a who line of the code that put them
 //   whole      a file written whole again retains the who of each line it contained, and a line it did not goes under
 //   the
 //              writer's (kfile_lines_written_by)
-//   put        a file handed to the run is read as the run stores it and is not on the disk while the run runs; once
+//   put        a file passed to the run is read as the run stores it and is not on the disk while the run runs; once
 //              the run ends it is in its place (chain_check.sh); a file the run reads from the disk is the run's after,
 //              read from memory
 //   a part's   the section of the part's .kdm named on the command line written again as it contains it leaves the file
@@ -21,7 +21,7 @@
 //
 //     kdm_check <folder> [<a part's .kdm>]
 //
-// It runs in a query run (qry_run.sh): every file it writes is handed to the run's writer.
+// It runs in a query run (qry_run.sh): every file it writes is passed to the run's writer.
 #include "../../../../../../../includes/file_defs/kdm/kdm.h"
 #include "../../../../../../../includes/file_defs/klang/klang.h"
 
@@ -44,7 +44,7 @@ static void check_that(int passed, const char *what)
     }
 }
 
-// the file joined as a check reads it, and as it stood before a write
+// the file joined as a check reads it, and as it was before a write
 static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ull];
 static char s_before_bytes[QRY_WRITER_RING_BYTES / 2ull];
 
@@ -108,7 +108,7 @@ int main(int count, char **words)
     snprintf(path, sizeof(path), "%s/kdm_check.kdm", words[1]);
     if (qry_member_filed(path, s_written, strlen(s_written)) == 0ull)
     {
-        printf("  %s could not be written: no run's writer runs, or it stands outside the tree\n", path);
+        printf("  %s could not be written: no run's writer runs, or it is outside the tree\n", path);
         return 2;
     }
     check_that(kdm_read(&s_file, path) && (s_file.lines == 15u), "a .kdm is read, a line each");
@@ -144,7 +144,7 @@ int main(int count, char **words)
                                     "add\t1\tadd(w0, w1)\t2/1\t3", "sub\t1\tsub(w0, w1)\t-\t0"};
     const Who wrote = WHO_HERE;
     check_that(kdm_section_written_by(&s_file, "part", section, 4u, wrote), "the section is written again");
-    char code[WHO_CODE_LETTERS + 1u];
+    char code[WHO_CODE_CHARACTERS + 1u];
     who_code(wrote, code, sizeof(code));
     char expected[2048];
     snprintf(expected, sizeof(expected),
@@ -158,7 +158,7 @@ int main(int count, char **words)
              code);
     const char *text = joined(&s_file, 0u, s_text_bytes, sizeof(s_text_bytes));
     check_that((text != NULL) && (strcmp(text, expected) == 0),
-               "the section goes after a who line of the code that wrote it, and the tail stands as it was, the who in "
+               "the section goes after a who line of the code that wrote it, and the tail is as it was, the who in "
                "force over it, none, written again before it");
     Who there;
     check_that(kfile_lines_who_at(&s_file, 4u, &there) && (there.source == wrote.source) && (there.line == wrote.line),
@@ -246,7 +246,7 @@ int main(int count, char **words)
     snprintf(put_path, sizeof(put_path), "%s/kdm_check_put.kdm", words[1]);
     char put_text[1200];
     snprintf(put_text, sizeof(put_text), "kdm put\n# %s\n", qry_member_path());
-    check_that(qry_member_filed(put_path, put_text, strlen(put_text)) != 0ull, "a file is handed to the run");
+    check_that(qry_member_filed(put_path, put_text, strlen(put_text)) != 0ull, "a file is passed to the run");
     const unsigned char *put_bytes = NULL;
     unsigned long long put_size = 0ull;
     check_that(qry_member_file_blob(put_path, &put_bytes, &put_size) && (put_size == strlen(put_text)) &&
@@ -282,7 +282,7 @@ int main(int count, char **words)
             part_lines[section_lines] = s_file.line[at];
             section_lines += 1u;
         }
-        // the section's lines stand in the file until it is written again: they are copied first
+        // the section's lines are in the file until it is written again: they are copied first
         static char s_copied_bytes[QRY_WRITER_RING_BYTES / 2ull];
         size_t copied = 0u;
         for (unsigned int at = 0u; at < section_lines; at += 1u)

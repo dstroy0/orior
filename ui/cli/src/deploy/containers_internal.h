@@ -28,14 +28,14 @@ typedef struct
     int has_service;
 } CliContainer;
 
-// The containers or pods listed, `most` of them, the order they are written in, and the texts stored of them,
+// The containers or pods listed, `max` of them, the order they are written in, and the texts stored of them,
 // `text_max` bytes; one cell, sized to what docker or kubectl wrote, taken with the lock and given back with it
 typedef struct
 {
     CliContainer *item;
     unsigned int *order;
     unsigned int count;
-    unsigned int most;
+    unsigned int max;
     char *text;
     unsigned long long used;
     unsigned long long text_max;
@@ -43,7 +43,7 @@ typedef struct
 
 extern CliContainers g_cli_containers;
 
-// the lock taken and the list's cell taken under it, for `most` items and `text_max` bytes of texts: 1, or 0 with the
+// the lock taken and the list's cell taken under it, for `max` items and `text_max` bytes of texts: 1, or 0 with the
 // lock given back and an empty list written into `out` with why as its problem; and the cell given back with the lock
 // (containers.c)
 void cli_containers_release(void);
@@ -82,7 +82,7 @@ struct CliContainersOutListingCtx
 struct CliContainersCtx
 {
     VerbaLinea *out;
-    unsigned int most;
+    unsigned int max;
     unsigned long long text_max;
 };
 

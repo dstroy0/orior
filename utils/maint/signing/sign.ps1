@@ -84,13 +84,13 @@ ots stamp "$manifest.asc"
 
 if ($LASTEXITCODE -ne 0)
 {
-    Write-Output "  ots errored. The signature stands and the anchor does not."
+    Write-Output "  ots errored. The signature is and the anchor does not."
     exit 1
 }
 
 Write-Output ""
 Write-Output "  done. Three files now carry the claim:"
-Write-Output "      manifest.tsv        the digests, keep private while the work is withheld"
+Write-Output "      manifest.tsv        the digests, retain private while the work is withheld"
 Write-Output "      manifest.tsv.asc    who, verifiable against the published public key"
 Write-Output "      manifest.tsv.asc.ots  when, verifiable against any full node"
 Write-Output ""

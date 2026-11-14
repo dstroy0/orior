@@ -19,7 +19,7 @@ An \emph{ask} \(a\) is an address and a predicate. Put with no timeout it return
 \end{definition}
 
 A missing address, a false predicate, a timeout, an error and an answer too dear all read 0. The
-bit does not keep them apart; the record of costs does. This is the health probe of service
+bit does not retain them apart; the record of costs does. This is the health probe of service
 monitoring, which passes when it answers correctly inside its timeout and fails on a slow answer
 as on a wrong one \cite{src:Kubernetes-probes}.
 
@@ -30,7 +30,7 @@ left_input    = @system.auth?is_active($5ms)
 right_input   = @db.user_session?is_valid($12ms)
 branch_result = [left_input, right_input]
 \end{verbatim}
-The figures in the example stand for derived ones. No absolute figure enters a program: a bound
+The figures in the example are for derived ones. No absolute figure enters a program: a bound
 written by hand fixes a scale the rest of the language never assumes.
 
 On a Windows workstation the ask is realized with no compiler, runtime or driver between the
@@ -49,10 +49,10 @@ least value \(m\), its spread \(s\), the largest less the least, and its mean.
 
 An ask with no timeout returns a cost and no bit, and every timeout is expressed
 against the baseline. The language ranks on the least value. A run is lengthened by whatever
-else the host does and never shortened by it, and under noise of that kind the minimum is the
+else the host does and never shortened by it, and under noise of that type the minimum is the
 estimator of the true cost with the smallest error \cite{src:Chen-Revels}.
 
-Two rules keep a baseline sound. First, an ask stopped by a watchdog did not report its cost; it
+Two rules retain a baseline sound. First, an ask stopped by a watchdog did not report its cost; it
 reported that the cost was at least the watchdog's limit. Survival analysis calls this a
 right-censored observation, and a mean taken over censored samples as if they were costs reads
 low \cite{src:Kaplan-Meier}. Second, a baseline goes stale: the host under load now is not the
@@ -125,7 +125,7 @@ The survivors are \(\{c : \bigwedge_{k \in K} c(k) = r(k)\}\), a conjunction, an
 commutative. No term of it is a cost.
 \end{proof}
 
-The order sets only the price. Putting first the case the most remaining candidates fail prunes
+The order sets only the price. Putting first the case the max remaining candidates fail prunes
 fastest, and the gate is planned this way on the host against arithmetic every computing system
 agrees about; a target is asked only the cases the plan placed. A badly steered plan costs speed
 and never a wrong survivor.
@@ -208,7 +208,7 @@ linear term taken out,
   P_{ss} = C_{uu}C_{ss} - C_{us}^2, \quad P_{sy} = C_{uu}C_{sy} - C_{us}C_{uy}, \quad
   P_{yy} = C_{uu}C_{yy} - C_{uy}^2,
 \]
-the quadratic slope stands above twice its standard error exactly where
+the quadratic slope is above twice its standard error exactly where
 \[
   P_{sy}^2\,(N+1) > 4\,P_{yy}\,P_{ss},
 \]
@@ -260,14 +260,14 @@ where one three-input logic instruction computes either.
 A timeout counts as a reading of 0 only where the run returns. A run that never returns ends in a
 reset by the display watchdog, and a reset is not a reading. A body loops without end only where
 control reaches a line it has passed and the way back never closes. An ask that holds a waited
-read therefore carries its own bound inside the body, a turn count kept in registers the bits
+read therefore carries its own bound inside the body, a turn count retained in registers the bits
 under test cannot reach. This is a loop variant, a counter that strictly falls and guarantees
 termination \cite{src:Floyd}, placed where no fault under test can disable it.
 
 \section{The record}
 
 A known order is a carrier and a shuffle is not: the same asks reach the part either way, and
-only a record of the order makes the answers decodable. The record keeps what the host cannot
+only a record of the order makes the answers decodable. The record retains what the host cannot
 reproduce, the target's answers, their costs, refusals and censored samples, and the seeds the
 rest follows from.
 

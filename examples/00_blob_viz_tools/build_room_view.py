@@ -1,4 +1,4 @@
-"""A dark room you stand inside, with a beam you carry and things that stop it.
+"""A dark room you are inside, with a beam you carry and things that stop it.
 
     python tools/view/build_room_view.py
     python tools/view/build_room_view.py --shell cube --things 9 --seed 4
@@ -27,7 +27,7 @@ the next, and the rate a shadow moves against the wall gives the depth of the th
 Objects have a stopping power apiece and the beam has an energy. An object stops the beam where its
 stopping power is above that energy. Turning the energy up switches shadows off one at a time,
 weakest first. That is the only honest way to draw a probe that mostly passes through: a surface is
-opaque to a neutron most of the time and to a neutrino almost never, and the difference between
+opaque to a neutron the majority of the time and to a neutrino almost never, and the difference between
 those two sentences is a cross-section falling with energy and not a wall becoming a window.
 
 WHY THE SHELL SHAPE IS A CONTROL
@@ -91,7 +91,7 @@ def drift(stream, speed):
 def from_draw(count, seed):
     """A cloud of small lights, confined by the shell and moving inside it.
 
-    They carry a velocity and never an orbit. An orbit is a path somebody laid down for them, and
+    They carry a velocity and never an orbit. An orbit is a path somebody positioned down for them, and
     what is wanted here is a population that goes where it goes and turns back at the wall, since
     the wall being a wall to them is the thing worth showing. It is a window to whoever is looking
     in from outside and a hard boundary to everything inside, and those are not in conflict: what

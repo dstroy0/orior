@@ -10,16 +10,16 @@ extern void tearDown(void);
 extern void test_with_no_session_the_views_show_their_notices_and_no_step_acts(void);
 extern void test_a_stop_reads_the_frames_the_first_chosen(void);
 extern void test_a_frame_in_the_tree_opens_at_its_line_and_one_outside_does_not(void);
-extern void test_the_first_scope_stands_open_and_the_rest_closed(void);
+extern void test_the_first_scope_is_open_and_the_rest_closed(void);
 extern void test_a_variable_opens_closes_and_stays_open_over_a_new_stop(void);
 extern void test_a_watch_is_evaluated_and_its_box_takes_it_out(void);
 extern void test_the_console_runs_a_piece_on_into_its_line(void);
-extern void test_the_console_drops_its_oldest_line_past_its_most(void);
+extern void test_the_console_drops_its_oldest_line_past_its_max(void);
 extern void test_enter_in_the_console_evaluates_in_the_chosen_frame(void);
 extern void test_the_bar_flags_follow_the_session(void);
 extern void test_each_step_reaches_its_request(void);
 extern void test_continued_exited_and_terminated_change_the_rows_and_the_status_line(void);
-extern void test_the_view_shown_and_the_labels(void);
+extern void test_the_view_displayed_and_the_labels(void);
 
 
 /*=======Mock Management=====*/
@@ -84,16 +84,16 @@ int main(void)
   run_test(test_with_no_session_the_views_show_their_notices_and_no_step_acts, "test_with_no_session_the_views_show_their_notices_and_no_step_acts", 196);
   run_test(test_a_stop_reads_the_frames_the_first_chosen, "test_a_stop_reads_the_frames_the_first_chosen", 230);
   run_test(test_a_frame_in_the_tree_opens_at_its_line_and_one_outside_does_not, "test_a_frame_in_the_tree_opens_at_its_line_and_one_outside_does_not", 258);
-  run_test(test_the_first_scope_stands_open_and_the_rest_closed, "test_the_first_scope_stands_open_and_the_rest_closed", 277);
+  run_test(test_the_first_scope_is_open_and_the_rest_closed, "test_the_first_scope_is_open_and_the_rest_closed", 277);
   run_test(test_a_variable_opens_closes_and_stays_open_over_a_new_stop, "test_a_variable_opens_closes_and_stays_open_over_a_new_stop", 305);
   run_test(test_a_watch_is_evaluated_and_its_box_takes_it_out, "test_a_watch_is_evaluated_and_its_box_takes_it_out", 335);
   run_test(test_the_console_runs_a_piece_on_into_its_line, "test_the_console_runs_a_piece_on_into_its_line", 375);
-  run_test(test_the_console_drops_its_oldest_line_past_its_most, "test_the_console_drops_its_oldest_line_past_its_most", 397);
+  run_test(test_the_console_drops_its_oldest_line_past_its_max, "test_the_console_drops_its_oldest_line_past_its_max", 397);
   run_test(test_enter_in_the_console_evaluates_in_the_chosen_frame, "test_enter_in_the_console_evaluates_in_the_chosen_frame", 427);
   run_test(test_the_bar_flags_follow_the_session, "test_the_bar_flags_follow_the_session", 459);
   run_test(test_each_step_reaches_its_request, "test_each_step_reaches_its_request", 486);
   run_test(test_continued_exited_and_terminated_change_the_rows_and_the_status_line, "test_continued_exited_and_terminated_change_the_rows_and_the_status_line", 526);
-  run_test(test_the_view_shown_and_the_labels, "test_the_view_shown_and_the_labels", 548);
+  run_test(test_the_view_displayed_and_the_labels, "test_the_view_displayed_and_the_labels", 548);
 
   return UNITY_END();
 }

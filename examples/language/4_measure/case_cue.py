@@ -3,19 +3,19 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: LNG-4-003
 #
-# Measure what folding letter case costs each language, for Section 4.13 of
+# Measure what folding character case costs each language, for Section 4.13 of
 # theory/workbooks/orior.
 #
 #   Usage:  python examples/language/4_measure/case_cue.py
 #
 # The positional counts were taken with every word folded to lowercase, the routine move, and it is
-# wrong for German. A capital letter mid-sentence in German marks a noun, and the same letters written
+# wrong for German. A capital character mid-sentence in German marks a noun, and the same characters written
 # lowercase are a verb. Essen is the meal and essen is to eat, and a German reader is never in doubt
 # between them because the orthography carries the distinction on the page. Folding the case throws that
-# channel away and then reports German as the most ambiguous language in the set, which is a fact about
+# channel away and then reports German as the max ambiguous language in the set, which is a fact about
 # the preprocessing and not about German.
 #
-# Keeping the case lowers the count in every language, because a capitalized word at the start of a
+# Retention the case lowers the count in every language, because a capitalized word at the start of a
 # sentence stops sharing a key with the lowercase word mid-sentence. That drop is not the thing being
 # tested. It is the baseline, and the seven other languages supply it.
 #
@@ -29,8 +29,8 @@
 # nothing mid-sentence has no channel to lose.
 #
 # There is a prediction about position attached to this. German neutralizes its own cue at the first word
-# of a sentence, where everything is capitalized whether it is a noun or not. So keeping the case should
-# make German's first place stand out further above its own average, since the places after it gain a cue
+# of a sentence, where everything is capitalized whether it is a noun or not. So retention the case should
+# make German's first place are out further above its own average, since the places after it gain a cue
 # the first place cannot have. The ratio of the first place to the profile average is printed both ways.
 #
 # What this cannot see: a treebank records the reading a word had where it appeared, not every reading it
@@ -56,7 +56,7 @@ def readings_per_word(sentences, from_place):
 
 
 def capital_share(sentences, from_place):
-    """The share of words from a given place on that are written with a capital first letter."""
+    """The share of words from a given place on that are written with a capital first character."""
     total = 0
     capitals = 0
     for sentence in sentences:
@@ -79,53 +79,53 @@ def main():
         language = name[3:-7]
         path = os.path.join(CORPORA, name)
         folded = read_sentences(path, fold_case=True)
-        kept = read_sentences(path, fold_case=False)
-        if sum(len(sentence) for sentence in kept) < 5000:
+        retained = read_sentences(path, fold_case=False)
+        if sum(len(sentence) for sentence in retained) < 5000:
             continue
 
-        width = capital_share(kept, 1)
+        width = capital_share(retained, 1)
         all_folded = readings_per_word(folded, 0)
-        all_kept = readings_per_word(kept, 0)
+        all_retained = readings_per_word(retained, 0)
         mid_folded = readings_per_word(folded, 1)
-        mid_kept = readings_per_word(kept, 1)
+        mid_retained = readings_per_word(retained, 1)
 
         folded_profile = measure(folded)[2]
-        kept_profile = measure(kept)[2]
+        retained_profile = measure(retained)[2]
         folded_spike = folded_profile[0] / statistics.fmean(folded_profile)
-        kept_spike = kept_profile[0] / statistics.fmean(kept_profile)
+        retained_spike = retained_profile[0] / statistics.fmean(retained_profile)
 
-        rows.append((language, width, all_folded, all_kept, mid_folded, mid_kept,
-                     folded_spike, kept_spike, kept_profile))
+        rows.append((language, width, all_folded, all_retained, mid_folded, mid_retained,
+                     folded_spike, retained_spike, retained_profile))
 
     rows.sort(key=lambda row: -row[1])
 
     out.write("  how wide the channel is, and what folding it costs over every word\n")
     out.write("  %-12s %-11s %-11s %-11s %s\n"
-              % ("language", "caps mid", "folded", "case kept", "drop"))
-    for language, width, all_folded, all_kept, mid_f, mid_k, spike_f, spike_k, profile in rows:
+              % ("language", "caps mid", "folded", "case retained", "drop"))
+    for language, width, all_folded, all_retained, mid_f, mid_k, spike_f, spike_k, profile in rows:
         out.write("  %-12s %-11.4f %-11.4f %-11.4f %.1f%%\n"
-                  % (language, width, all_folded, all_kept,
-                     100.0 * (all_folded - all_kept) / all_folded))
+                  % (language, width, all_folded, all_retained,
+                     100.0 * (all_folded - all_retained) / all_folded))
     out.write("\n  caps mid is the share of words past the first that carry a capital\n")
 
     out.write("\n  the same, counting only words past the first, where nothing is\n")
-    out.write("  capitalized for standing at the start of a sentence\n")
+    out.write("  capitalized for located at the start of a sentence\n")
     out.write("  %-12s %-11s %-11s %-11s %s\n"
-              % ("language", "folded", "case kept", "drop", "what it means"))
-    for language, width, all_f, all_k, mid_folded, mid_kept, spike_f, spike_k, profile in rows:
-        drop = 100.0 * (mid_folded - mid_kept) / mid_folded
+              % ("language", "folded", "case retained", "drop", "what it means"))
+    for language, width, all_f, all_k, mid_folded, mid_retained, spike_f, spike_k, profile in rows:
+        drop = 100.0 * (mid_folded - mid_retained) / mid_folded
         out.write("  %-12s %-11.4f %-11.4f %-11.1f %s\n"
-                  % (language, mid_folded, mid_kept, drop,
+                  % (language, mid_folded, mid_retained, drop,
                      "uses capitals grammatically" if drop >= 5.0 else "no channel to lose"))
 
     out.write("\n  the first place against the profile average, both ways\n")
-    out.write("  %-12s %-11s %-11s %s\n" % ("language", "folded", "case kept", "moves"))
-    for language, width, all_f, all_k, mid_f, mid_k, folded_spike, kept_spike, profile in rows:
+    out.write("  %-12s %-11s %-11s %s\n" % ("language", "folded", "case retained", "moves"))
+    for language, width, all_f, all_k, mid_f, mid_k, folded_spike, retained_spike, profile in rows:
         out.write("  %-12s %-11.4f %-11.4f %s\n"
-                  % (language, folded_spike, kept_spike,
-                     "up" if kept_spike > folded_spike else "down"))
+                  % (language, folded_spike, retained_spike,
+                     "up" if retained_spike > folded_spike else "down"))
 
-    out.write("\n  german's profile with the case kept\n")
+    out.write("\n  german's profile with the case retained\n")
     for language, width, all_f, all_k, mid_f, mid_k, spike_f, spike_k, profile in rows:
         if language != "german":
             continue

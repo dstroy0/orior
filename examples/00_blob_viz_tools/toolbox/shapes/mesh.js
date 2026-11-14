@@ -56,7 +56,7 @@ fn surface_vertex(sample: Sample) -> Shaded {
 fn surface_fragment(shaded: Shaded) -> @location(0) vec4<f32> {
   let toward = normalize(frame.eye.xyz - shaded.world);
   // The face under this pixel, from the change in position across it, turned toward the eye. The smooth normal is
-  // flipped only where it disagrees with that face, which keeps a silhouette seen edge-on lit.
+  // flipped only where it disagrees with that face, which retains a silhouette seen edge-on lit.
   var face = normalize(cross(dpdx(shaded.world), dpdy(shaded.world)));
   face = select(-face, face, dot(face, toward) >= 0.0);
   var normal = normalize(shaded.normal);

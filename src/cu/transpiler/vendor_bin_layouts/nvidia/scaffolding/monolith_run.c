@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // monolith_run.c: the monolith's cubin (monolith.cu) loaded as it was built and run on the part. Nothing is compiled
-// here: the driver is handed the cubin and queried for its entries.
+// here: the driver is passed the cubin and queried for its entries.
 //
 // The first entry answers every precept for each case, checked against precept_applied on the host, and the part's
 // clock across it is read on every run. The second runs every costed precept as a chain of `turns` turns of
@@ -106,7 +106,7 @@ static int monolith_answers(CUfunction entry, CUdeviceptr in, CUdeviceptr out, u
     };
     const unsigned int case_count = (unsigned int)(sizeof(cases) / sizeof(cases[0]));
     unsigned long long least = ~0ull;
-    unsigned long long most = 0ull;
+    unsigned long long max = 0ull;
     for (unsigned int at = 0u; at < case_count; at += 1u)
     {
         const unsigned int given[MONOLITH_IN_WORDS] = {cases[at][0], cases[at][1], 0u};
@@ -126,7 +126,7 @@ static int monolith_answers(CUfunction entry, CUdeviceptr in, CUdeviceptr out, u
             const unsigned long long spent =
                 (unsigned long long)answered[PRECEPT_COUNT] | ((unsigned long long)answered[PRECEPT_COUNT + 1u] << 32u);
             least = (spent < least) ? spent : least;
-            most = (spent > most) ? spent : most;
+            max = (spent > max) ? spent : max;
         }
         for (unsigned int precept = 0u; precept < PRECEPT_COUNT; precept += 1u)
         {
@@ -134,8 +134,8 @@ static int monolith_answers(CUfunction entry, CUdeviceptr in, CUdeviceptr out, u
                        "the part's answer is the host's", precept, given[0], given[1]);
         }
     }
-    printf("  monolith %s: %u cases, %u runs a case, the program %llu cycles at least, %llu at most\n", cubin,
-           case_count, runs, least, most);
+    printf("  monolith %s: %u cases, %u runs a case, the program %llu cycles at least, %llu at max\n", cubin,
+           case_count, runs, least, max);
     return 1;
 }
 
@@ -151,10 +151,10 @@ static int monolith_costs(CUfunction entry, unsigned int turns, unsigned int cos
         fprintf(stderr, "  monolith: the costs' words were not allocated on the part\n");
         return 0;
     }
-    // each section's counts over the runs: their sum, the least and the most
+    // each section's counts over the runs: their sum, the least and the max
     static double s_spent[MONOLITH_SECTIONS];
     static unsigned long long s_least[MONOLITH_SECTIONS];
-    static unsigned long long s_most[MONOLITH_SECTIONS];
+    static unsigned long long s_max[MONOLITH_SECTIONS];
     for (unsigned int section = 0u; section < MONOLITH_SECTIONS; section += 1u)
     {
         s_least[section] = ~0ull;
@@ -180,7 +180,7 @@ static int monolith_costs(CUfunction entry, unsigned int turns, unsigned int cos
         {
             s_spent[section] += (double)counted[section];
             s_least[section] = (counted[section] < s_least[section]) ? counted[section] : s_least[section];
-            s_most[section] = (counted[section] > s_most[section]) ? counted[section] : s_most[section];
+            s_max[section] = (counted[section] > s_max[section]) ? counted[section] : s_max[section];
         }
     }
     cuMemFree(cycles);
@@ -207,7 +207,7 @@ static int monolith_costs(CUfunction entry, unsigned int turns, unsigned int cos
         }
     }
 
-    // every section read a step, past NOP's turns read the same way: its mean, its least m, and its spread s, the most
+    // every section read a step, past NOP's turns read the same way: its mean, its least m, and its spread s, the max
     // less the least, over the runs (P6 in query_protocol_table.md)
     const double chain = (double)steps;
     const double bare_mean = (s_spent[0] / (double)cost_runs) / chain;
@@ -219,7 +219,7 @@ static int monolith_costs(CUfunction entry, unsigned int turns, unsigned int cos
     {
         s_mean[section] = ((s_spent[section] / (double)cost_runs) / chain) - bare_mean;
         s_m[section] = ((double)s_least[section] / chain) - bare_least;
-        s_s[section] = (double)(s_most[section] - s_least[section]) / chain;
+        s_s[section] = (double)(s_max[section] - s_least[section]) / chain;
     }
     printf("  monolith costs: %u turns of %u steps a section, %llu steps a chain, %u runs\n", turns, MONOLITH_BLOCK,
            steps, cost_runs);

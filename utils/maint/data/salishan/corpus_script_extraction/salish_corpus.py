@@ -282,7 +282,7 @@ def main():
 
     everything = [(when, one) for when, pair in by_clock.items() for one in pair if one]
     words = sum(len(text.split()) for when, text in everything)
-    letters = sum(1 for when, text in everything for symbol in text if symbol.isalpha())
+    characters = sum(1 for when, text in everything for symbol in text if symbol.isalpha())
     left = sum(
         1
         for when, text in everything
@@ -290,8 +290,8 @@ def main():
         if (symbol == " ") and index and (unicodedata.combining(text[index - 1]) != 0)
     )
     out.write(
-        "  %d words, %d letters, %d spaces still following a combining mark\n"
-        % (words, letters, left)
+        "  %d words, %d characters, %d spaces still following a combining mark\n"
+        % (words, characters, left)
     )
 
     out.flush()

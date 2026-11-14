@@ -18,12 +18,12 @@ If you run an example with no argument, it prints how to use it and stops.
 |---|---|
 | `representation` | turn your object into points carrying values |
 | `partition` | choose the unit and the scale to read at |
-| `reference` | build the maximum entropy background the object's own constraints allow |
+| `reference` | build the max entropy background the object's own constraints allow |
 | `measure` | read the departure from that background |
 | `sift` | filter candidates with a necessary condition |
 | `oracle` | check against ground truth somebody else published |
 
-Only `representation` knows what kind of thing your object is. Under it are `atom`, `constants`, `game`, `particle`, `picture`, `sound`, `structure` and `text`. Everything after it sees only points and values.
+Only `representation` knows what type of thing your object is. Under it are `atom`, `constants`, `game`, `particle`, `picture`, `sound`, `structure` and `text`. Everything after it sees only points and values.
 
 [`archive/src/python/README.md`](https://github.com/dstroy0/orior/blob/main/archive/src/python/README.md) is the map.
 
@@ -34,7 +34,7 @@ Only `representation` knows what kind of thing your object is. Under it are `ato
 | [`src/`](https://github.com/dstroy0/orior/tree/main/src) | points and values, no domain. The engine |
 | [`evidence/`](https://github.com/dstroy0/orior/tree/main/evidence) | the claims. The proofs, and the R and MATLAB ports |
 | [`examples/`](https://github.com/dstroy0/orior/tree/main/examples) | a corpus, through `src/`. Numbered demonstrations |
-| [`utils/test/`](https://github.com/dstroy0/orior/tree/main/utils/test) | the engine. The correctness checks in `utils/test/src/`, laid out as `src/` is, and the published test vectors |
+| [`utils/test/`](https://github.com/dstroy0/orior/tree/main/utils/test) | the engine. The correctness checks in `utils/test/src/`, arranged as `src/` is, and the published test vectors |
 | [`utils/bench/`](https://github.com/dstroy0/orior/tree/main/utils/bench) | the engine. The benches: how fast it is |
 | [`theory/`](https://github.com/dstroy0/orior/tree/main/theory) | the research papers, and the ledger they cite |
 | [`utils/maint/`](https://github.com/dstroy0/orior/tree/main/utils/maint) | the repository itself. Records, gates, prose checks, fetchers, the research paper build |
@@ -51,7 +51,7 @@ The floor changes with the size of the sample. A floor worked out on a large bod
 
 ## The twelve subjects
 
-`examples/` runs the same six parts from start to finish on real data. The proofs behind the ledger are kept separately, in `evidence/proofs/posits/`.
+`examples/` runs the same six parts from start to finish on real data. The proofs behind the ledger are retained separately, in `evidence/proofs/posits/`.
 
 | domain | examples | what it reads |
 |---|---|---|
@@ -68,11 +68,11 @@ The floor changes with the size of the sample. A floor worked out on a large bod
 | `sound` | 3 | recordings as bit fields |
 | `molecules` | 3 | molecular formulae, legal from illegal by valence |
 
-Every example has a catalog number at the top of the file, such as `LNG-4-012`. If you cite that number, the citation still works after the file moves. [`utils/maint/catalog/catalog.py`](https://github.com/dstroy0/orior/blob/main/utils/maint/catalog/catalog.py) keeps the list.
+Every example has a catalog number at the top of the file, such as `LNG-4-012`. If you cite that number, the citation still works after the file moves. [`utils/maint/catalog/catalog.py`](https://github.com/dstroy0/orior/blob/main/utils/maint/catalog/catalog.py) retains the list.
 
 ## The search kernel
 
-`orior_steer_count` counts how many times a needle (the pattern you search for) appears in a corpus (the text you search in). Its last argument is 1 to order the probes by rarity, or 0 to keep them in the order they appear. The count is the same either way ([`orior_descent.h:342-368`](https://github.com/dstroy0/orior/blob/main/src/cu/engine/nbody/orior/orior_descent.h#L342-L368)). The function borrows both buffers for the length of the call ([BORROWS]).
+`orior_steer_count` counts how many times a needle (the pattern you search for) appears in a corpus (the text you search in). Its last argument is 1 to order the probes by rarity, or 0 to retain them in the order they appear. The count is the same either way ([`orior_descent.h:342-368`](https://github.com/dstroy0/orior/blob/main/src/cu/engine/nbody/orior/orior_descent.h#L342-L368)). The function borrows both buffers for the length of the call ([BORROWS]).
 
 ```c
 #include <stdint.h>
@@ -101,7 +101,7 @@ Built with the gcc line in [Setup](setup.md#the-c-engine), under gcc on x86-64 W
 The sift is a safe filter: no arrangement of anchors can lose a true occurrence.
 
 - **It can only be wrong in one direction.** Any mistake is an over-count, never a missed match.
-- **Its memory is small.** It keeps `m` bits of state for a pattern of length `m`, with no table over the alphabet. An alphabet of real numbers, or one too large to list, costs it nothing extra.
+- **Its memory is small.** It retains `m` bits of state for a pattern of length `m`, with no table over the alphabet. An alphabet of real numbers, or one too large to list, costs it nothing extra.
 
 The Python in [`archive/src/python/engine/nbody/orior/sift/`](https://github.com/dstroy0/orior/tree/main/archive/src/python/engine/nbody/orior/sift) builds the same thing and shares no code with the C version. The two are checked against each other by making sure their counts agree.
 

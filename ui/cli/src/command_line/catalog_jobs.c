@@ -78,7 +78,7 @@ EMBED_INLINE void cli_driver(const CatalogJobsCtx *args)
         return;
     }
     (void)EMBED_CALL(cli_catalog_names_internal.names_capacity, CliCatalogNamesCtx, .names = &s_jobs->parts,
-                     .most = EMBED_CALL(cli_catalog_capacity_internal.driver_parts, CliCatalogCapacityCtx,
+                     .max = EMBED_CALL(cli_catalog_capacity_internal.driver_parts, CliCatalogCapacityCtx,
                                         .source = text, .parts = NULL, .capacity = 0u));
     const unsigned int parts =
         (s_jobs->parts.name != NULL)
@@ -96,7 +96,7 @@ EMBED_INLINE void cli_driver(const CatalogJobsCtx *args)
     EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = tracker, .name = "cfg",
                .path_out = cfg);
     unsigned int runs = 0u;
-    if (EMBED_CALL(cli_catalog_max_internal.paths_capacity, CliCatalogMaxCtx, .paths = &s_jobs->runs, .most = 1u))
+    if (EMBED_CALL(cli_catalog_max_internal.paths_capacity, CliCatalogMaxCtx, .paths = &s_jobs->runs, .max = 1u))
     {
         EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = root, .path = base,
                    .relative_out = s_jobs->runs.path[0]);
@@ -199,7 +199,7 @@ EMBED_INLINE void cli_runners(const CatalogJobsCtx *args)
     if (text != NULL)
     {
         (void)EMBED_CALL(cli_catalog_names_internal.names_capacity, CliCatalogNamesCtx, .names = &s_jobs->parts,
-                         .most = EMBED_CALL(cli_catalog_text_variable_internal.case_names, CliCatalogTextVariableCtx,
+                         .max = EMBED_CALL(cli_catalog_text_variable_internal.case_names, CliCatalogTextVariableCtx,
                                             .text_read = text, .variable = "PROGRAM", .names_callback = NULL,
                                             .capacity = 0u));
         const unsigned int programs =
@@ -319,7 +319,7 @@ EMBED_INLINE void cli_views(const CatalogJobsCtx *args)
     EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = examples, .folders = 1,
                .filter = NULL, .entries = &s_jobs->subjects);
     (void)EMBED_CALL(cli_catalog_max_internal.paths_capacity, CliCatalogMaxCtx, .paths = &s_jobs->runs,
-                     .most = 1u + (2u * s_jobs->subjects.count));
+                     .max = 1u + (2u * s_jobs->subjects.count));
     if (s_jobs->runs.capacity != 0u)
     {
         EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = args->root,
@@ -344,7 +344,7 @@ EMBED_INLINE void cli_views(const CatalogJobsCtx *args)
         EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = s_jobs->runs.path[at],
                    .folders = 0, .filter = cli_catalog_is_builder, .entries = &s_jobs->files);
         (void)EMBED_CALL(cli_catalog_max_internal.paths_capacity, CliCatalogMaxCtx, .paths = &s_jobs->paths,
-                         .most = seen + s_jobs->files.count);
+                         .max = seen + s_jobs->files.count);
         for (unsigned int each = 0u; each < s_jobs->files.count; each += 1u)
         {
             EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = s_jobs->runs.path[at],
@@ -355,7 +355,7 @@ EMBED_INLINE void cli_views(const CatalogJobsCtx *args)
         EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = s_jobs->runs.path[at],
                    .folders = 0, .filter = cli_catalog_is_figure, .entries = &s_jobs->files);
         (void)EMBED_CALL(cli_catalog_max_internal.paths_capacity, CliCatalogMaxCtx, .paths = &s_jobs->paths,
-                         .most = seen + s_jobs->files.count);
+                         .max = seen + s_jobs->files.count);
         for (unsigned int each = 0u; each < s_jobs->files.count; each += 1u)
         {
             EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = s_jobs->runs.path[at],
@@ -366,7 +366,7 @@ EMBED_INLINE void cli_views(const CatalogJobsCtx *args)
     }
 }
 
-// whether a folder is a stage's: its name two or more letters, a digit and then `_`
+// whether a folder is a stage's: its name two or more characters, a digit and then `_`
 EMBED_INLINE int cli_is_stage(const CatalogJobsCtx *args)
 {
     return (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) > 2u) && (args->name[0] >= '0') &&
@@ -435,7 +435,7 @@ EMBED_INLINE void cli_stages(const CatalogJobsCtx *args)
             EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = folder, .folders = 0,
                        .filter = cli_catalog_is_py, .entries = &s_jobs->files);
             (void)EMBED_CALL(cli_catalog_max_internal.paths_capacity, CliCatalogMaxCtx, .paths = &s_jobs->paths,
-                             .most = every + s_jobs->files.count);
+                             .max = every + s_jobs->files.count);
             for (unsigned int each = 0u; each < s_jobs->files.count; each += 1u)
             {
                 EMBED_CALL(cli_stage_script, CatalogJobsCtx, .root = root, .catalog = catalog, .path = folder,
@@ -488,7 +488,7 @@ static unsigned int cli_collect(const CatalogJobsCtx *args)
                .path_out = here);
     if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = here) &&
         EMBED_CALL(cli_catalog_max_internal.paths_capacity, CliCatalogMaxCtx, .paths = &s_jobs->paths,
-                   .most = count + 1u))
+                   .max = count + 1u))
     {
         memor.cpy(&(MemoriaCfg){.dst = s_jobs->paths.path[count],
                                 .src = here,

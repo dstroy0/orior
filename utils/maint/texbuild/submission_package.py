@@ -11,14 +11,14 @@
 #   python utils/maint/texbuild/submission_package.py --arxiv [<research_paper>] arXiv's shape, under build/arxiv/
 #
 # Writes build/submission/<research_paper>/ and, unless --archive none, an archive beside it. Nothing under
-# theory/ is modified: the rewrite happens on the copy, and the source keeps the shared preamble it
+# theory/ is modified: the rewrite happens on the copy, and the source retains the shared preamble it
 # has always had.
 #
 # THE REQUIREMENT IS NOT ANY ONE VENUE'S
 #
 # A submission is a directory that compiles in place. Every venue enforces that and they
 # differ only in what they want it wrapped in. arXiv extracts a tarball into one root and runs LaTeX
-# there. Most journals ask for a zip. A repository deposit takes the directory as it stands. A venue
+# there. Max journals ask for a zip. A repository deposit takes the directory as it is. A venue
 # that wants only the built PDF still needs the build to have worked somewhere.
 #
 # So the assembly and the checks below are the whole job and they are the same every time. The
@@ -33,7 +33,7 @@
 # says \input{../../preamble.tex}, and preamble.tex then says \input{../macros.tex}. That resolves
 # here because theory/ is the directory above them all, and it resolves nowhere else.
 #
-# The fix is not to restructure theory/, because one shared preamble across every research paper keeps
+# The fix is not to restructure theory/, because one shared preamble across every research paper retains
 # a layout change reaching all of them. The fix is to copy the shared files into the research paper at
 # packaging time and rewrite the lines that point at them.
 #
@@ -64,7 +64,7 @@
 #                  that named it are rewritten. Checked first for two files sharing a basename,
 #                  because flattening those would destroy one of them silently.
 #   comments gone  A full-line comment is deleted. A comment at the end of a line has its text
-#                  deleted and its percent sign kept, because in LaTeX that percent sign eats the
+#                  deleted and its percent sign retained, because in LaTeX that percent sign eats the
 #                  newline and dropping it inserts a space into the typeset page. Stripping it
 #                  wholesale is the standard way this step goes wrong.
 #   nothing hidden A dotfile or dot-directory is not copied. None is ever read by the document and
@@ -73,7 +73,7 @@
 #                  draft nobody compiles still publishes.
 #   no notes       A Markdown file is dropped. The ones beside a research paper are working notes and logs,
 #                  and LaTeX reads none of them. Any other file that is not source or a figure is
-#                  named and kept.
+#                  named and retained.
 #   four passes    \typeout just before \end{document} makes arXiv run LaTeX until the labels
 #                  settle. It was once placed after \end{document}, where LaTeX has already stopped
 #                  reading and the line never reached the log.
@@ -146,7 +146,7 @@ OUT_ARXIV = os.path.join(ROOT, "build", "arxiv")
 # The files every research paper shares, which sat in theory/ and not in any research paper. These are copied into the
 # submission root and the lines that reach up for them are rewritten to name them plainly.
 #
-# dedication.tex is here for the same reason preamble.tex is. One wording reaches every research paper, kept
+# dedication.tex is here for the same reason preamble.tex is. One wording reaches every research paper, retained
 # in one place so it cannot drift between them.
 #
 # Every research paper now carries its own preamble.tex, and theory/ holds none of the three. A shared file
@@ -167,7 +167,7 @@ README = {
 # gets reported instead of quietly repointed.
 CLIMBING = re.compile(r"(\\(?:input|include)\{)((?:\.\./)+)([^}]+)(\})")
 
-# What a source file is. Everything else in a research paper directory is copied as it stands, and on those
+# What a source file is. Everything else in a research paper directory is copied as it is, and on those
 # terms the matplotlib figure beside the corpus derivation chapter travels with its chapter.
 TEX = ".tex"
 
@@ -214,21 +214,21 @@ def uncomment(text):
     A percent sign starts a comment when the run of backslashes before it is even, because an odd
     run ends in an escaped percent that typesets as a character.
 
-    A full line comment is deleted outright. A comment after content keeps its percent sign and
+    A full line comment is deleted outright. A comment after content retains its percent sign and
     loses everything after it. That percent sign is doing work: LaTeX drops the newline following
     it. Removing it joins two words with a space that was not there before. This is the step
-    that quietly changes a typeset page, and keeping the sign stops it.
+    that quietly changes a typeset page, and retention the sign stops it.
     """
     held = []
     found = 0
     for line in text.splitlines():
         at = -1
         run = 0
-        for index, letter in enumerate(line):
-            if letter == "\\":
+        for index, character in enumerate(line):
+            if character == "\\":
                 run += 1
                 continue
-            if (letter == "%") and (run % 2 == 0):
+            if (character == "%") and (run % 2 == 0):
                 at = index
                 break
             run = 0
@@ -314,7 +314,7 @@ def strip_latex(text):
     """One run of LaTeX source as the plain text arXiv's web form wants.
 
     Control sequences and their braces come out, the accented forms LaTeX defines in ASCII are left
-    as their letter, and every run of whitespace becomes one space. The last part matters most:
+    as their character, and every run of whitespace becomes one space. The last part matters max:
     LaTeX ignores the line breaks in an abstract and arXiv prints them.
     """
     text = re.sub(r"\\(?:emph|textbf|textit|texttt|text|mbox|spacedallcaps|spacedlowsmallcaps)"
@@ -400,7 +400,7 @@ def research_paper_tree(research_paper):
 def research_papers():
     """Every research paper, as its path below theory/.
 
-    Two depths, matching build_theory.sh. <shelf>/<research_paper>/ is where most of them sit, and
+    Two depths, matching build_theory.sh. <shelf>/<research_paper>/ is where the majority of them sit, and
     theory/<subject>/<research_paper>/ is where the cryptography one does.
     """
     import glob
@@ -482,16 +482,16 @@ def still_climbing(out):
     return held
 
 
-def bundle(out, kind):
+def bundle(out, type):
     """The assembled directory wrapped as the venue asked. Returns (name, bytes), or None.
 
     Every path inside the archive sits under one top-level directory named for the research paper.
     An extract-into-one-root venue needs that, and a person unpacking it locally wants it anyway.
     """
     base = os.path.basename(out)
-    if kind == "none":
+    if type == "none":
         return None
-    if kind == "tar.gz":
+    if type == "tar.gz":
         archive = "%s.tar.gz" % out
         if os.path.isfile(archive):
             os.remove(archive)
@@ -584,25 +584,25 @@ def for_arxiv(out, research_paper):
 
 
 def wanted_archive(argv):
-    """The archive kind named on the command line, defaulting to a gzipped tar."""
+    """The archive type named on the command line, defaulting to a gzipped tar."""
     if "--archive" not in argv:
         return "tar.gz"
     at = argv.index("--archive")
     if (at + 1) >= len(argv):
         raise SystemExit("submission_package: --archive wants one of %s" % ", ".join(ARCHIVES))
-    kind = argv[at + 1]
-    if kind not in ARCHIVES:
+    type = argv[at + 1]
+    if type not in ARCHIVES:
         raise SystemExit("submission_package: unknown archive %r, wants one of %s"
-                         % (kind, ", ".join(ARCHIVES)))
-    return kind
+                         % (type, ", ".join(ARCHIVES)))
+    return type
 
 
 def main():
     out = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", newline="")
     argv = sys.argv[1:]
-    kind = wanted_archive(argv)
+    type = wanted_archive(argv)
     arxiv = "--arxiv" in argv
-    skip = {"--archive", kind}
+    skip = {"--archive", type}
     named = [one for one in argv if (one not in skip) and not one.startswith("-")]
     status = 0
 
@@ -641,7 +641,7 @@ def main():
             out.write("    %s  %d bytes\n" % flat_tar(target))
             continue
 
-        made = bundle(target, kind)
+        made = bundle(target, type)
         if made is None:
             out.write("    %s/  directory only\n" % flat)
         else:

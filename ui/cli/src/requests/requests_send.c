@@ -8,7 +8,7 @@
 #include "../text/json_tree.h"
 #include "requests_internal.h"
 
-// the most requests sent at once, each in a fixed work state outside the pool with its body, its raw answer and the
+// the max requests sent at once, each in a fixed work state outside the pool with its body, its raw answer and the
 // answer undone, where they punch no hole in the persistent tier; how many are taken, and the wake of a request waiting
 // for one to end
 #define CLI_REQUESTS_WORK_STATES 2u

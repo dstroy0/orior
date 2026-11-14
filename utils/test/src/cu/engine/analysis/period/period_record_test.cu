@@ -33,7 +33,7 @@
 
 #define RECORD_TEST_TIMED_YX 640ull
 
-// the most the test puts on the device at once: the timed lattice's lanes, both routes' pools, and 8 MiB for the
+// the max the test puts on the device at once: the timed lattice's lanes, both routes' pools, and 8 MiB for the
 // record programs' compiled modules beside them. It stays under the job's recorded peak, which the daemon checks a
 // declaration to
 #define RECORD_TEST_DECLARED(voxels_, entries_)                                                                        \
@@ -64,7 +64,7 @@ static unsigned int ref_line_random(const PeriodShuffle *shuffle, unsigned long 
     return ref_round(hash ^ step, shuffle->keys[3]);
 }
 
-// the agreement along an axis of `data` laid with `stride`, as the kernel counts it: each usable place and the place a
+// the agreement along an axis of `data` positioned with `stride`, as the kernel counts it: each usable place and the place a
 // lag on
 static void ref_agreement(const unsigned short *data, unsigned long long voxels, unsigned long long stride,
                           unsigned long long extent, unsigned long long *same)

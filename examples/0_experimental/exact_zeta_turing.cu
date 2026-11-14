@@ -10,11 +10,11 @@
 //           exact_zeta_turing serve
 //
 // With `serve`, the program reads two lines a run from its input, the run's input path and its output path, and
-// answers each with the line "done" and the run's code once the output is written. Every program is imprinted, laid
+// answers each with the line "done" and the run's code once the output is written. Every program is imprinted, positioned
 // out and loaded onto the device once for the process, under its steps, fields, members and outputs, and each later
 // stage whose program matches runs on the one loaded.
 //
-// Point j of cell nu stands at t = 2 pi s, s = x^2 = S / 2^p, S = nu^2 2^p + j (2 nu + 1), for j below P = 2^p: the
+// Point j of cell nu is at t = 2 pi s, s = x^2 = S / 2^p, S = nu^2 2^p + j (2 nu + 1), for j below P = 2^p: the
 // lattice is even in t, and in theta to within 1 / nu across the cell. Every value is an integer at the scale 2^62,
 // and a step that takes a product back to that scale divides by 2^31 twice, toward zero, an error below one unit;
 // the bound on every value's error is the machine's to enforce, from the program's own steps.
@@ -53,7 +53,7 @@
 //
 // The main sum's half comes from the pair stage, or from the multiple evaluation below, or from both, the method
 // word 0, 1 or 2, or from the pair stage at listed points, 4; with both, the verdict is the multiple evaluation's and
-// the most the two Z differ by is written.
+// the max the two Z differ by is written.
 //
 // Method 3 is Euler-Maclaurin, which is valid at every t: zeta = sum over n < N of n^(-s) + N^(-s) C, the pole stage
 // takes k <= N, the pair stage the N - 1 terms of each point, and the Euler-Maclaurin stage C and the term
@@ -65,7 +65,7 @@
 //
 // The multiple evaluation runs each of its programs many times a cell: the host checks a stage's first run over
 // `checked` lanes and each later run over its first lane. A check copies back only the records its lanes read and
-// runs in parts of 8 lanes or more on host threads beside the device's next runs, at most half the cores at once; every
+// runs in parts of 8 lanes or more on host threads beside the device's next runs, at max half the cores at once; every
 // check is settled before the output is written.
 //
 // The input, little-endian: 64-bit words points (2^p), checked, nu, p, L, K, J, Newton steps, piece, method, the
@@ -83,14 +83,14 @@
 // certified points and point 0, each with its sign, S, and theta / pi less and more its bound, the sums, with the
 // listing word 2 the steps past F that are clean and those flagged, Z at two points for the positive control, the
 // host's checks of every stage and sum, each 1 where they equal the device's word for word, the steps of each
-// program, with both methods the most the two Z differ by and the point it falls at, and where the input requests, each
+// program, with both methods the max the two Z differ by and the point it falls at, and where the input requests, each
 // point's sign, S, Z and w, with the twist the shift and each point's exp(i theta) F' / 2^shift, and with the
 // listing word 2 the flag of the step that ends at the point, and with the listing word 3 theta / pi less and more
 // its bound.
 //
 // The twist: the pole stage again with a and every charge times -i ln k / 2^shift, 2^shift at least ln nu, and the
 // multiple evaluation over those poles gives F' / 2^shift at every point, F' = dF/dt. The poles and the weighted poles
-// stand at the same places and run as two sets of one evaluation, one run a stage over both, the near field's one a
+// are at the same places and run as two sets of one evaluation, one run a stage over both, the near field's one a
 // set: its lanes find their points from their own numbers. The twist stage turns it by
 // exp(i theta) beside w; (exp(i theta) F') / w = F'/F, the twist (arg F)' its imaginary part and the swell (ln |F|)'
 // its real part. It places no point and certifies no sign.
@@ -126,7 +126,7 @@
 #include <thread>
 #include <vector>
 
-// the seconds the run spends imprinting, laying out and loading programs, and in the host's checks with the copies
+// the seconds the run spends imprinting, arranging and loading programs, and in the host's checks with the copies
 // back they read, each summed over every stage
 static double turing_load_seconds = 0.0;
 static double turing_check_seconds = 0.0;
@@ -157,16 +157,16 @@ static unsigned int turing_lane_bits = TURING_LANE_FLOOR;
 // |1 / D| <= 2^l / (6 pi) < 2^(l - 4), stored at the scale in 63 + l - 4 bits, which 60 + l covers
 #define TURING_SCALED_FLOOR 80u
 static unsigned int turing_scaled_bits = TURING_SCALED_FLOOR;
-// every coefficient of an expansion, and every value the transform carries, wrapped to one width, which lays every
+// every coefficient of an expansion, and every value the transform carries, wrapped to one width, which positions every
 // expansion record out alike
 #define TURING_EXP_BITS 72u
-// the verdict records laid before the first, read as uncertified points by the count stage
+// the verdict records positioned before the first, read as uncertified points by the count stage
 #define TURING_PADS 2u
 // the width of S, nu^2 2^p + j (2 nu + 1), below (nu + 1)^2 2^p, with two bits more
 #define TURING_S_FLOOR 58u
 static unsigned int turing_s_bits = TURING_S_FLOOR;
 // the lanes of an indexed run of the multiple evaluation: below 8 P, and below the leaves' count and the near
-// field's, each at most ((2 nu + 1) turing_nu_bits + 9 W) nu
+// field's, each at max ((2 nu + 1) turing_nu_bits + 9 W) nu
 #define TURING_OS_LANE_FLOOR 26u
 static unsigned int turing_os_lane_bits = TURING_OS_LANE_FLOOR;
 
@@ -204,14 +204,14 @@ typedef struct
     EngineRecordKey key;
     EngineRecordLayout layout;
     CycleRecord *record;
-    // the shared fields of the run's parameters, in the order the build lays them, filled before each run
+    // the shared fields of the run's parameters, in the order the build positions them, filled before each run
     std::vector<unsigned int> params;
     // the shared fields still to fill, each with its constant
     std::vector<unsigned int> put_field;
     std::vector<std::vector<unsigned int> > put_limbs;
     std::vector<long long> put_sign;
     // a shared field TURING_EXP_BITS wide containing 0, added to each expansion value before its wrap: a field is as
-    // wide as it is laid, which gives every expansion's outputs one width whatever bound the imprint finds on the value
+    // wide as it is positioned, which gives every expansion's outputs one width whatever bound the imprint finds on the value
     int anchored;
     unsigned int anchor_field;
     unsigned int anchor_member;
@@ -221,7 +221,7 @@ typedef struct
     int cached;
 } TuringStage;
 
-// a program imprinted, laid out and loaded once for the process, under its steps, fields, members and outputs, which
+// a program imprinted, arranged and loaded once for the process, under its steps, fields, members and outputs, which
 // are all the imprint and the layout read
 typedef struct
 {
@@ -286,7 +286,7 @@ static unsigned int turing_power(TuringProgram *program, unsigned int bits)
                      turing_constant(program, 1ull << (bits - 63u)));
 }
 
-// a field laid at the shared record's next bit
+// a field positioned at the shared record's next bit
 static unsigned int turing_field(TuringProgram *program, unsigned int bits)
 {
     const unsigned int field = (unsigned int)program->field_bits.size();
@@ -601,7 +601,7 @@ static void turing_log_fields(TuringProgram *program, TuringLogFields *fields, c
 // gives, besides ln k and k^(-1/2): pos = (2 nu + 1) ln k, where the pole sits among the frequencies h;
 // a = k^(-1/2) exp(-2 pi i nu^2 ln k); and q = -a (1 - exp(-2 pi i pos)) exp(2 pi i pos / P) / P, its charge.
 // Where `weighted`, a and q are each times -i ln k / 2^shift: d/dt k^(-it) = -i ln k k^(-it), and the multiple
-// evaluation over these poles gives F' / 2^shift. With 2^shift at least ln nu every charge is at most F's, and every
+// evaluation over these poles gives F' / 2^shift. With 2^shift at least ln nu every charge is at max F's, and every
 // width that represents F represents it
 static void turing_pole_build(TuringStage *stage, unsigned int newton, const TuringConstant &ln2,
                               const std::vector<TuringConstant> &artanh, unsigned int p,
@@ -757,7 +757,7 @@ static void turing_point_build(TuringStage *stage, unsigned int p, unsigned int 
     }
 }
 
-// a step's output place in a laid-out stage
+// a step's output place in a positioned-out stage
 static const DeviceRecordStep *turing_place(const TuringStage *stage, unsigned int output)
 {
     return &stage->layout.step_table[stage->outputs[output]];
@@ -916,7 +916,7 @@ static void turing_em_build(TuringStage *stage, unsigned int p, const TuringStag
 //
 // Between a target box T and a source box S of the same level, Delta = T - S, D = exp(2 pi i Delta V / P) - 1:
 // 1 / (z - w) = (1 / (sigma_S D)) sum of binom(m + n, n) (-(1 + D) rho zeta / D)^n (rho eta / D)^m. Both ratios are
-// at most rho / |D|, a third or less where |Delta| >= 3, and the terms past N are the error the machine bounds.
+// at max rho / |D|, a third or less where |Delta| >= 3, and the terms past N are the error the machine bounds.
 
 // an expansion record's layout: each value's offset and width
 typedef struct
@@ -956,7 +956,7 @@ static int turing_same_expansion(const TuringExpansion &a, const TuringExpansion
     return same;
 }
 
-// an expansion's fields in member `member`, laid once; each value is read at the step that wants it, which leaves it
+// an expansion's fields in member `member`, positioned once; each value is read at the step that wants it, which leaves it
 // out of the register file until then
 typedef struct
 {
@@ -1205,7 +1205,7 @@ static void turing_m2m_build(TuringStage *stage, const TuringExpansion &layout, 
 
 // a source box's multipole carried to a target box's local expansion: member 0 the source's multipole, member 1 the
 // shared record of Delta and 2^l at level l and the constants.
-// L_n = (1 / D) (-(1 + D) rho / D)^n sum over m of binom(m + n, n) (rho / D)^m M_m. Both ratios are at most
+// L_n = (1 / D) (-(1 + D) rho / D)^n sum over m of binom(m + n, n) (rho / D)^m M_m. Both ratios are at max
 // rho / |D| <= 0.22, and with y_m = (4 rho / D)^m M_m, stored live in two limbs,
 // L_n = (1 / D) (4 c)^n 4^(-2(N - 1)) sum over m of binom(m + n, n) 4^(2(N - 1) - m - n) y_m, c = -(1 + D) rho / D:
 // the binomial sum is exact, and its one division leaves each y_m's error weighed by binom(m + n, n) 4^(-m - n)
@@ -1223,7 +1223,7 @@ static void turing_m2l_build(TuringStage *stage, const TuringExpansion &layout, 
     const unsigned int level = turing_read(program, level_field, 1u);
     const unsigned int phi = turing_op(program, ENGINE_RECORD_QUOTIENT, turing_read(program, of.pi, 1u), level);
     // D = exp(i theta) - 1, theta / pi = 2 Delta / 2^l exactly, from cos and sin, whose Horner's rule runs in an
-    // argument of at most 1; rho / D = phi / D and -(1 + D) rho / D = -(rho / D + phi)
+    // argument of at max 1; rho / D = phi / D and -(1 + D) rho / D = -(rho / D + phi)
     const unsigned int turn = turing_wrap(
         program,
         turing_op(program, ENGINE_RECORD_QUOTIENT,
@@ -1572,7 +1572,7 @@ static void turing_margin_build(TuringStage *stage, const TuringStage *slope, un
 // the verdict stage: member 0 the sums, member 1 the point records, member 2 the shared record of nu^2 2^p,
 // 2 nu + 1 and the bounds
 // member 0 is the transform's F where `transform` is given, its layout, and the pair stage's sums where it is not.
-// Member 1 is the point records, or the Euler-Maclaurin records, which lay their term and theta / pi alike.
+// Member 1 is the point records, or the Euler-Maclaurin records, which position their term and theta / pi alike.
 // Z = 2 sum + the term where `doubled`, the Riemann-Siegel sum's half, and sum + the term where not, Euler-Maclaurin's.
 // The shared record's fields are the stage's parameters, in order
 static void turing_verdict_build(TuringStage *stage, unsigned int p, unsigned int sum_limbs, const TuringStage *point,
@@ -1683,7 +1683,7 @@ static int turing_read_constant(FILE *in, TuringConstant *constant)
     return read;
 }
 
-// `bits` of a two's complement value, its magnitude's limbs given, laid at `offset` of `record`
+// `bits` of a two's complement value, its magnitude's limbs given, positioned at `offset` of `record`
 static void turing_put(unsigned int *record, unsigned int offset, unsigned int bits, const std::vector<unsigned int> &limbs,
                        long long sign)
 {
@@ -1722,7 +1722,7 @@ static void turing_put_small(TuringStage *stage, unsigned int field, unsigned lo
     turing_put_field(stage, field, limbs, sign);
 }
 
-// the stage's shared record laid out and its constants filled
+// the stage's shared record arranged and its constants filled
 static void turing_seal(TuringStage *stage)
 {
     stage->shared.assign((stage->program.shared_bits + 31u) / 32u + 1u, 0u);
@@ -1748,7 +1748,7 @@ static void turing_open_stage(TuringStage *stage, const char *name, unsigned int
 
 static int turing_load_once(SimResults *job, TuringStage *stage, EngineError *error);
 
-// imprints, lays out and loads a stage's program, the seconds it takes counted
+// imprints, arranges and loads a stage's program, the seconds it takes counted
 static int turing_load(SimResults *job, TuringStage *stage, EngineError *error)
 {
     const double began = turing_now();
@@ -1800,7 +1800,7 @@ static void turing_forget(void)
     turing_loaded.clear();
 }
 
-// imprints, lays out and loads a stage's program, and reports where it stops when it does; a program the process stores
+// imprints, arranges and loads a stage's program, and reports where it stops when it does; a program the process stores
 // already is read from it, and one it loads is cached
 static int turing_load_once(SimResults *job, TuringStage *stage, EngineError *error)
 {
@@ -1816,7 +1816,7 @@ static int turing_load_once(SimResults *job, TuringStage *stage, EngineError *er
         stage->cached = 1;
         turing_reuses += 1u;
         sim_check(job, 1, (std::string("keymath imprints the ") + stage->name + " program").c_str());
-        sim_check(job, 1, (std::string("the scheduler lays the ") + stage->name + " program out").c_str());
+        sim_check(job, 1, (std::string("the scheduler positions the ") + stage->name + " program out").c_str());
         sim_check(job, 1, (std::string("the ") + stage->name + " program loads onto the device").c_str());
         return 1;
     }
@@ -1846,20 +1846,20 @@ static int turing_load_once(SimResults *job, TuringStage *stage, EngineError *er
                 (step >= 0) ? at->left : 0u, (step >= 0) ? at->right : 0u);
     }
     sim_check(job, ok, (std::string("keymath imprints the ") + stage->name + " program").c_str());
-    const KeyScheduleRecordRequest lay = {&stage->key, program->field_offset.data(), fields, stage->in_limbs, 1,
+    const KeyScheduleRecordRequest position = {&stage->key, program->field_offset.data(), fields, stage->in_limbs, 1,
                                           &stage->layout, error};
     const double imprinted = turing_now();
-    const int laid = ok && (key_schedule_record_layout(&lay) != KEY_SCHEDULE_ERROR);
+    const int positioned = ok && (key_schedule_record_layout(&position) != KEY_SCHEDULE_ERROR);
     turing_layout_seconds += turing_now() - imprinted;
-    if (ok && !laid)
+    if (ok && !positioned)
     {
         const char *const end = (error->evacaddr == (const void *)&stage->key)       ? "the register file"
                                 : (error->evacaddr == (const void *)stage->key.output) ? "the outputs"
                                                                                         : "a step";
         fprintf(stderr, "  exact_zeta_turing: the %s layout ends at %s\n", stage->name, end);
     }
-    ok = laid;
-    sim_check(job, ok, (std::string("the scheduler lays the ") + stage->name + " program out").c_str());
+    ok = positioned;
+    sim_check(job, ok, (std::string("the scheduler positions the ") + stage->name + " program out").c_str());
     ok = ok && (cycle_record_load(&stage->layout, &stage->record, error) != CYCLE_ERROR);
     sim_check(job, ok, (std::string("the ") + stage->name + " program loads onto the device").c_str());
     if (ok)
@@ -1924,7 +1924,7 @@ static int turing_check_lanes(std::shared_ptr<const TuringCheck> check, unsigned
                    host_out.size() * sizeof(unsigned int)) == 0);
 }
 
-// the host checks running beside the device, at most one a core, each with the flag it clears where it differs
+// the host checks running beside the device, at max one a core, each with the flag it clears where it differs
 typedef struct
 {
     std::future<int> result;
@@ -2416,7 +2416,7 @@ typedef struct
 
 // the multiple evaluation: from `sets` sets of pole records, each nu of them and a zero record after and every set's
 // poles at the same places, the sum at every point of the cell for each set into the returned array, set s at records
-// s P to (s + 1) P - 1, laid out as `values`. The sets share the tree, its lists and its twiddles, and run in one run
+// s P to (s + 1) P - 1, arranged as `values`. The sets share the tree, its lists and its twiddles, and run in one run
 // a stage, set after set; each run checks the first lanes of the first set and of the last
 static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *owned, unsigned long long nu, unsigned int p,
                                unsigned int beta, unsigned int order, unsigned long long checked,
@@ -2533,11 +2533,11 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
         fft.in_limbs[2] = twiddle.layout.out_limbs;
         ok = turing_load(job, &fft, error) && turing_same_expansion(turing_expansion_of(&fft), *values);
     }
-    sim_check(job, ok, "the multiple evaluation's programs load, every expansion laid out alike");
+    sim_check(job, ok, "the multiple evaluation's programs load, every expansion arranged alike");
     const unsigned int limbs = ok ? expansion.out_limbs : 0u;
 
     // the poles below each leaf boundary b W, b from 0, the frequency 0's leaf first, up to the leaf past
-    // pos_nu = (2 nu + 1) ln nu <= (2 nu + 1) 0.7 log2(2 nu) and two leaves short of P/2 at most, which places every
+    // pos_nu = (2 nu + 1) ln nu <= (2 nu + 1) 0.7 log2(2 nu) and two leaves short of P/2 at max, which places every
     // pole's near field off the circle's far side; the device's count places every pole below the last boundary, and
     // the leaves end at the first boundary with every pole below it
     unsigned int bits = 0u;
@@ -2575,7 +2575,7 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
             }
         }
     }
-    sim_check(job, ok, "every pole falls in a leaf the multiple evaluation lays out");
+    sim_check(job, ok, "every pole falls in a leaf the multiple evaluation arranges");
 
     // the leaves' multipoles: lane (leaf, position) over the leaves that contain poles
     std::vector<unsigned long long> source_leaf;
@@ -2913,7 +2913,7 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
             near.swept = 0u;
             ok = turing_sweep(&near, members, bodies, index, per, out + set * per * near.layout.out_limbs, checked, error, same);
         }
-        // each point's sum, laid into a record of two fields of near_limbs limbs, set after set
+        // each point's sum, positioned into a record of two fields of near_limbs limbs, set after set
         near_records.assign((size_t)((sets * near_points + 1ull) * 2ull * near_limbs), 0u);
         for (unsigned int part = 0u; ok && (part < 2u); part += 1u)
         {
@@ -3404,7 +3404,7 @@ static int turing_job(const char *input, const char *output)
     }
 
     // the multiple evaluation; with the twist, over the poles and the weighted poles as two sets of one evaluation,
-    // the weighted poles' records after the poles', where the two are laid out alike
+    // the weighted poles' records after the poles', where the two are arranged alike
     TuringExpansion values, values_twist;
     TuringOsReport report;
     unsigned int *device_transform = NULL;
@@ -3521,7 +3521,7 @@ static int turing_job(const char *input, const char *output)
     const std::vector<unsigned int> verdicts(ok ? verdict_records.begin() + TURING_PADS * verdict_limbs : verdict_records.end(),
                                              verdict_records.end());
 
-    // both ways at once: the pairs' verdict beside the transform's, and the most their Z differ by
+    // both ways at once: the pairs' verdict beside the transform's, and the max their Z differ by
     std::vector<unsigned int> apart;
     if (ok && pairs_run && transform_run)
     {
@@ -3574,7 +3574,7 @@ static int turing_job(const char *input, const char *output)
 
     marks[5] = turing_now();
     // with the listing word 2: Z' at every point, by the twist or by the pairs' sine sums, then each step's hull
-    // against the margin; the slope records laid after one empty record, which point 0's step reads as uncertified
+    // against the margin; the slope records positioned after one empty record, which point 0's step reads as uncertified
     std::vector<unsigned int> margin_records, slope_apart;
     unsigned int *device_margin = NULL;
     if (ok && sloped)
@@ -3619,7 +3619,7 @@ static int turing_job(const char *input, const char *output)
             ok = ok && turing_sweep(&slope, members, bodies, std::vector<unsigned int>(), points, device_slope + slope_limbs,
                                     checked, &error, &host_twist);
         }
-        // with both methods, Z' by the pairs beside Z' by the twist, and the most the two differ by
+        // with both methods, Z' by the pairs beside Z' by the twist, and the max the two differ by
         if (ok && twisted && pairs_sloped)
         {
             turing_slope_pairs_build(&slope_pairs, &verdict, &point, log_output, sum_limbs);

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The menu bar's keys: a key two commands for different types of file share goes to the one whose
-// type the file shown is. And every item of every menu, pressed from its menu as a person presses it.
+// type the file displayed is. And every item of every menu, pressed from its menu as a person presses it.
 
 import { allCommands, hasCommand, runCommand } from "../../gui/src-js/menubar.js";
 import { editing, openFile } from "../../gui/src-js/edit.js";
@@ -18,7 +18,7 @@ const ANSWERS = {
   "create-folder": "walk_folder",
   "new-branch": "walk-branch",
   stash: "walk stash",
-  "macro-keep": "walk macro",
+  "macro-retain": "walk macro",
 };
 
 // What puts the window back after a command: its own press again for a setting that turns on and
@@ -54,7 +54,7 @@ test(
   "every item of every menu is pressed from its menu as a person presses it, and none throws",
   async () => {
     const commandOf = new Map();
-    // A setting the menus check turns on and off: pressed again, it stands as the walk found it.
+    // A setting the menus check turns on and off: pressed again, it is as the walk found it.
     const checking = new Set(allCommands().filter((item) => item.checks).map((item) => item.command));
     // A label is read as a command of the bar's own menus: a list's menu can give the same label
     // another command, as the profile's Zoom Out does.
@@ -87,7 +87,7 @@ test(
       return remove.call(this);
     };
     let pressed = 0;
-    // What kept an item from being reached or pressed, by its path, the walk going on past it.
+    // What retained an item from being reached or pressed, by its path, the walk going on past it.
     const unreached = [];
     try {
       const titles = document.getElementById("menubar").children.length;
@@ -150,7 +150,7 @@ test(
 );
 
 test("a command given at a command line on the tree runs in this window, as its menu runs it", async () => {
-  const kept = localStorage.getItem("orior.word-wrap");
+  const retained = localStorage.getItem("orior.word-wrap");
   showView("edit");
   await openFile("hello.py");
   editing().setWordWrap(false);
@@ -167,7 +167,7 @@ test("a command given at a command line on the tree runs in this window, as its 
   } finally {
     killTerminal();
     toggleTerminal(false);
-    editing().setWordWrap(kept === "true");
+    editing().setWordWrap(retained === "true");
   }
 }, { timeout: 90000 });
 
@@ -183,9 +183,9 @@ test("each command on text, given at the command line, leaves the text and selec
   for (const [command, [before, after, only]] of Object.entries(ON_TEXT)) {
     await given(before);
     await press(command);
-    const shown = only === "text" ? editing().editor.doc.text() : marked();
-    if (shown !== after) {
-      wrong.push(`${command}: ${JSON.stringify(before)} gave ${JSON.stringify(shown)}, not ${JSON.stringify(after)}`);
+    const displayed = only === "text" ? editing().editor.doc.text() : marked();
+    if (displayed !== after) {
+      wrong.push(`${command}: ${JSON.stringify(before)} gave ${JSON.stringify(displayed)}, not ${JSON.stringify(after)}`);
     }
   }
   assert.deepEqual(wrong, []);

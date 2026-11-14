@@ -3,13 +3,13 @@ font was subset from.
 
 usage: python -B glyph_match.py stem [font_substring]
 
-Word's PDF export can give a subset font two copies of a letter: one under its name, which the
+Word's PDF export can give a subset font two copies of a character: one under its name, which the
 ToUnicode maps, and one under /gN, which it does not, and pdfium reads that code as a control
 character. Each glyph is drawn at 120 px to the em about its own origin and compared with every glyph
 of the system face whose advance is within 1.5% of its own. The glyphs the ToUnicode already maps
 are matched the same way, as the check on the method: every one of them must come back as its own
-letter. Prints, per font, the mapped codes that disagree, then each unmapped code with its best
-letter, the overlap and the runner-up, and last a PAPER_TOUNICODE entry of the unmapped codes.
+character. Prints, per font, the mapped codes that disagree, then each unmapped code with its best
+character, the overlap and the runner-up, and last a PAPER_TOUNICODE entry of the unmapped codes.
 """
 import io
 import os
@@ -91,7 +91,7 @@ def raster(glyph, glyphset, units):
 
 
 def rank(text):
-    """Where a letter stands among outlines drawn alike: Latin and IPA before Greek, Greek before
+    """Where a character is among outlines drawn alike: Latin and IPA before Greek, Greek before
     Cyrillic and the letterlike numerals, a plain space and hyphen before their variants."""
     point = ord(text[0])
     blocks = ((0x20, 0x7F), (0xA0, 0x250), (0x250, 0x370), (0x1E00, 0x1F00), (0x370, 0x400))
@@ -189,8 +189,8 @@ def main():
             first = font.get("/FirstChar", 0)
             widths = list(font.get("/Widths", []))
             mapped = tounicode(font)
-            # The font's own mapped glyphs come first: Word's /gN copy of a letter draws the same
-            # outline as the letter under its name.
+            # The font's own mapped glyphs come first: Word's /gN copy of a character draws the same
+            # outline as the character under its name.
             own = []
             for code, glyph in codes.items():
                 text = mapped.get(code)

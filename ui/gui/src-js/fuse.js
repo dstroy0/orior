@@ -4,18 +4,18 @@
 // The fuse along the foot of a run's output: a line of the eye's plasma that burns from left to
 // right while the run goes, on the scale of the time ruler under it.
 //
-// The fire's head stands where the run's latest moment falls on the ruler, and the fuse burnt
+// The fire's head is where the run's latest moment falls on the ruler, and the fuse burnt
 // behind it is the time gone. Zooming or moving the ruler moves the fire with it, and a ruler moved
 // back from the latest moment shows the fuse burnt across its whole width. Each line the run writes
 // makes the head flare. A run that ends well flashes, at its brightest PEAK seconds after the end
 // and gone FLASH seconds after that. One that fails or is stopped sputters out over SPUTTER seconds
 // and leaves the fuse burnt dark as far as it came. A reader who asks the system for less motion
-// gets the fuse drawn where it stands, with no spark.
+// gets the fuse drawn where it is, with no spark.
 //
 // The fuse not yet burnt is --fuse-ash, the trail and the embers --fuse-burn and --fuse-fire, and
 // the head and its sparks --fuse-fire.
 //
-// While the run goes, the head twitches where it stands: it wanders as far as JITTER pixels on
+// While the run goes, the head twitches where it is: it wanders as far as JITTER pixels on
 // quick waves that never line up, and throws its sparks from wherever it is.
 
 import { rgbOf } from "./colors.js";
@@ -33,12 +33,12 @@ const SPARKS = 4;
 const SPARK_STEPS = 3;
 const SPARK_EVERY = 0.05;
 // The embers burning up off the trail behind the head, each EMBER_GAP pixels behind the last and
-// wider than the gap, which runs them together into one flame along the trail. Each stands on the
+// wider than the gap, which runs them together into one flame along the trail. Each is on the
 // trail where it waves, as much as WAVE pixels up and down.
 const EMBERS = 24;
 const EMBER_GAP = 4;
 const WAVE = 1.2;
-// Each piece of the fuse's line is at most PIECE pixels long, and NOSE near its ends, where it
+// Each piece of the fuse's line is at max PIECE pixels long, and NOSE near its ends, where it
 // rounds off over TAPER pixels.
 const PIECE = 8;
 const NOSE = 2;
@@ -46,7 +46,7 @@ const TAPER = 12;
 // How far the head wanders.
 const JITTER = 3;
 // How far the canvas reaches past the fuse's box on every side, its glow, its sparks and its embers
-// drawn whole there over what lies beside it, and the fuse itself laid out on the box alone.
+// drawn whole there over what lies beside it, and the fuse itself arranged on the box alone.
 export const REACH = 24;
 
 const mix = (a, b, x) => a + (b - a) * x;
@@ -65,7 +65,7 @@ export function makeFuse(place) {
 
   // A line of light from x0 to x1 about the height y, `half` to each side, waving `wave` pixels. Its
   // width rounds off to a point within TAPER of each end, where it is cut into pieces NOSE pixels
-  // long to keep the curve smooth.
+  // long to retain the curve smooth.
   const strip = (x0, x1, y, half, color, strength, along, wave, seconds) => {
     const width = (x) => half * Math.sqrt(Math.max(0, Math.min(1, (x - x0) / TAPER, (x1 - x) / TAPER)));
     const at = (x, way) => [x, y + wave * Math.sin(x * 0.05 + seconds * 3) + width(x) * way, way, along(x), color, strength];
@@ -88,7 +88,7 @@ export function makeFuse(place) {
     }
   };
 
-  // New sparks off the head: crooked lines, most of them up and ahead.
+  // New sparks off the head: crooked lines, the majority of them up and ahead.
   const sparksAt = (head, y) =>
     Array.from({ length: SPARKS }, () => {
       let turn = -Math.PI / 2 + (Math.random() - 0.3) * 2.4;
@@ -197,7 +197,7 @@ export function makeFuse(place) {
     return going;
   };
 
-  // The fire keeps its time on the animation's clock, and while motion is stopped holds the frame it
+  // The fire retains its time on the animation's clock, and while motion is stopped holds the frame it
   // is at.
   const tick = (moment) => {
     const now = clock(moment);
@@ -210,7 +210,7 @@ export function makeFuse(place) {
     }
   };
 
-  // Draws the fire now, and keeps drawing it each frame while it has more to do.
+  // Draws the fire now, and retains drawing it each frame while it has more to do.
   const wake = () => {
     if (frame) {
       return;

@@ -5,25 +5,25 @@
 
 // the longest a varint may run: ten groups of seven bits cover sixty-four, and the last group's bits that land
 // inside sixty-four, 64 - 7 x 9 = 1
-#define PARQUET_VARINT_BYTES_MOST 10u
-#define PARQUET_VARINT_LAST_GROUP_BITS (64u - (7u * (PARQUET_VARINT_BYTES_MOST - 1u)))
+#define PARQUET_VARINT_BYTES_MAX 10u
+#define PARQUET_VARINT_LAST_GROUP_BITS (64u - (7u * (PARQUET_VARINT_BYTES_MAX - 1u)))
 
-_Static_assert((7u * PARQUET_VARINT_BYTES_MOST) >= 64u,
-               "PARQUET_VARINT_BYTES_MOST: its seven-bit groups must cover a 64-bit value");
-_Static_assert((7u * (PARQUET_VARINT_BYTES_MOST - 1u)) < 64u,
-               "PARQUET_VARINT_BYTES_MOST: the last group's shift must stay below the 64-bit width");
+_Static_assert((7u * PARQUET_VARINT_BYTES_MAX) >= 64u,
+               "PARQUET_VARINT_BYTES_MAX: its seven-bit groups must cover a 64-bit value");
+_Static_assert((7u * (PARQUET_VARINT_BYTES_MAX - 1u)) < 64u,
+               "PARQUET_VARINT_BYTES_MAX: the last group's shift must stay below the 64-bit width");
 
 // a Thrift field id is an i16
 #define PARQUET_FIELD_ID_LEAST (-32768ll)
-#define PARQUET_FIELD_ID_MOST 32767ll
+#define PARQUET_FIELD_ID_MAX 32767ll
 
 // one open container of a Thrift value being skipped: a struct's fields, or a list's or map's values
 typedef struct
 {
-    unsigned int container_kind;
+    unsigned int container_type;
     unsigned long long values_left;
-    unsigned int key_kind;
-    unsigned int value_kind;
+    unsigned int key_type;
+    unsigned int value_type;
     long long field_id;
 } ParquetThriftFrame;
 
@@ -49,17 +49,17 @@ unsigned int parquet_byte_read(ParquetCursor *cursor)
     return byte;
 }
 
-// an unsigned LEB128 varint of at most sixty-four bits. One that runs past PARQUET_VARINT_BYTES_MOST bytes, or whose
+// an unsigned LEB128 varint of at max sixty-four bits. One that runs past PARQUET_VARINT_BYTES_MAX bytes, or whose
 // last group carries a bit at or past PARQUET_VARINT_LAST_GROUP_BITS, encodes more than 2^64 - 1 and breaks the
 // cursor
 unsigned long long parquet_varint_read(ParquetCursor *cursor)
 {
     unsigned long long value = 0ull;
-    for (unsigned int group = 0u; group < PARQUET_VARINT_BYTES_MOST; group += 1u)
+    for (unsigned int group = 0u; group < PARQUET_VARINT_BYTES_MAX; group += 1u)
     {
         const unsigned int byte = parquet_byte_read(cursor);
         const unsigned int group_bits = byte & 0x7Fu;
-        if ((group == (PARQUET_VARINT_BYTES_MOST - 1u)) && ((group_bits >> PARQUET_VARINT_LAST_GROUP_BITS) != 0u))
+        if ((group == (PARQUET_VARINT_BYTES_MAX - 1u)) && ((group_bits >> PARQUET_VARINT_LAST_GROUP_BITS) != 0u))
         {
             cursor->broken = 1u;
             return 0ull;
@@ -80,7 +80,7 @@ static long long parquet_zigzag_read(ParquetCursor *cursor)
 {
     const unsigned long long stored = parquet_varint_read(cursor);
     // the bits past the sign bit are below 2^63 and convert exactly; the low bit alone decides the sign, and set,
-    // the value is -value_bits - 1, which reaches -2^63 at most
+    // the value is -value_bits - 1, which reaches -2^63 at max
     const long long value_bits = (long long)(stored >> 1u);
     return ((stored & 1ull) != 0ull) ? (-value_bits - 1ll) : value_bits;
 }
@@ -113,11 +113,11 @@ const unsigned char *parquet_binary_read(ParquetCursor *cursor, unsigned long lo
     return start;
 }
 
-// a list or set header: the element count, with the element type through *element_kind
-unsigned long long parquet_list_header_read(ParquetCursor *cursor, unsigned int *element_kind)
+// a list or set header: the element count, with the element type through *element_type
+unsigned long long parquet_list_header_read(ParquetCursor *cursor, unsigned int *element_type)
 {
     const unsigned int header = parquet_byte_read(cursor);
-    *element_kind = header & 0x0Fu;
+    *element_type = header & 0x0Fu;
     const unsigned long long short_count = header >> 4u;
     return (short_count == 15ull) ? parquet_varint_read(cursor) : short_count;
 }
@@ -133,10 +133,10 @@ unsigned int parquet_field_read(ParquetCursor *cursor, long long *field_id)
         return PARQUET_THRIFT_STOP;
     }
     const unsigned int delta = header >> 4u;
-    // a delta is at most 15 and widens exactly; every caller starts *field_id at zero and only this function writes
+    // a delta is at max 15 and widens exactly; every caller starts *field_id at zero and only this function writes
     // it; the last id is an i16 and the sum does not overflow
     const long long next_id = (delta == 0u) ? parquet_zigzag_read(cursor) : (*field_id + (long long)delta);
-    if ((next_id < PARQUET_FIELD_ID_LEAST) || (next_id > PARQUET_FIELD_ID_MOST))
+    if ((next_id < PARQUET_FIELD_ID_LEAST) || (next_id > PARQUET_FIELD_ID_MAX))
     {
         cursor->broken = 1u;
         return PARQUET_THRIFT_STOP;
@@ -145,10 +145,10 @@ unsigned int parquet_field_read(ParquetCursor *cursor, long long *field_id)
     return header & 0x0Fu;
 }
 
-// skip one value that contains no other value. A kind that is not a scalar breaks the cursor
-static void parquet_scalar_skip(ParquetCursor *cursor, unsigned int kind)
+// skip one value that contains no other value. A type that is not a scalar breaks the cursor
+static void parquet_scalar_skip(ParquetCursor *cursor, unsigned int type)
 {
-    switch (kind)
+    switch (type)
     {
     case PARQUET_THRIFT_TRUE:
     case PARQUET_THRIFT_FALSE:
@@ -177,22 +177,22 @@ static void parquet_scalar_skip(ParquetCursor *cursor, unsigned int kind)
     }
 }
 
-// skip one value of any kind, nested containers included, without recursion: each open struct, list or map is a
-// frame, and a value nested deeper than PARQUET_THRIFT_DEPTH_MOST breaks the cursor
-void parquet_value_skip(ParquetCursor *cursor, unsigned int kind)
+// skip one value of any type, nested containers included, without recursion: each open struct, list or map is a
+// frame, and a value nested deeper than PARQUET_THRIFT_DEPTH_MAX breaks the cursor
+void parquet_value_skip(ParquetCursor *cursor, unsigned int type)
 {
-    ParquetThriftFrame frame[PARQUET_THRIFT_DEPTH_MOST];
+    ParquetThriftFrame frame[PARQUET_THRIFT_DEPTH_MAX];
     unsigned int depth = 0u;
-    unsigned int next_kind = kind;
+    unsigned int next_type = type;
     while (cursor->broken == 0u)
     {
-        const int opens_container = (next_kind == PARQUET_THRIFT_STRUCT) || (next_kind == PARQUET_THRIFT_LIST) ||
-                                    (next_kind == PARQUET_THRIFT_SET) || (next_kind == PARQUET_THRIFT_MAP);
+        const int opens_container = (next_type == PARQUET_THRIFT_STRUCT) || (next_type == PARQUET_THRIFT_LIST) ||
+                                    (next_type == PARQUET_THRIFT_SET) || (next_type == PARQUET_THRIFT_MAP);
         if (!opens_container)
         {
-            parquet_scalar_skip(cursor, next_kind);
+            parquet_scalar_skip(cursor, next_type);
         }
-        else if (depth == PARQUET_THRIFT_DEPTH_MOST)
+        else if (depth == PARQUET_THRIFT_DEPTH_MAX)
         {
             cursor->broken = 1u;
             return;
@@ -200,56 +200,56 @@ void parquet_value_skip(ParquetCursor *cursor, unsigned int kind)
         else
         {
             ParquetThriftFrame *const opened = &frame[depth];
-            opened->container_kind = (next_kind == PARQUET_THRIFT_SET) ? PARQUET_THRIFT_LIST : next_kind;
+            opened->container_type = (next_type == PARQUET_THRIFT_SET) ? PARQUET_THRIFT_LIST : next_type;
             opened->values_left = 0ull;
-            opened->key_kind = 0u;
-            opened->value_kind = 0u;
+            opened->key_type = 0u;
+            opened->value_type = 0u;
             opened->field_id = 0ll;
-            if (opened->container_kind == PARQUET_THRIFT_LIST)
+            if (opened->container_type == PARQUET_THRIFT_LIST)
             {
-                opened->values_left = parquet_list_header_read(cursor, &opened->value_kind);
-                opened->key_kind = opened->value_kind;
+                opened->values_left = parquet_list_header_read(cursor, &opened->value_type);
+                opened->key_type = opened->value_type;
             }
-            else if (opened->container_kind == PARQUET_THRIFT_MAP)
+            else if (opened->container_type == PARQUET_THRIFT_MAP)
             {
                 const unsigned long long entry_count = parquet_varint_read(cursor);
-                const unsigned int map_kinds = (entry_count != 0ull) ? parquet_byte_read(cursor) : 0u;
+                const unsigned int map_types = (entry_count != 0ull) ? parquet_byte_read(cursor) : 0u;
                 // every entry takes at least one byte: more entries than bytes left is refused, and the doubling
                 // that counts keys and values apart does not wrap
                 cursor->broken |= (entry_count > (cursor->byte_count - cursor->position)) ? 1u : 0u;
                 opened->values_left = (cursor->broken != 0u) ? 0ull : (2ull * entry_count);
-                opened->key_kind = map_kinds >> 4u;
-                opened->value_kind = map_kinds & 0x0Fu;
+                opened->key_type = map_types >> 4u;
+                opened->value_type = map_types & 0x0Fu;
             }
             depth += 1u;
         }
         // the next value to skip is the innermost open container's next one; each container that has none left
         // closes, and when none is open the whole value is skipped
-        next_kind = PARQUET_THRIFT_STOP;
-        while ((depth != 0u) && (next_kind == PARQUET_THRIFT_STOP) && (cursor->broken == 0u))
+        next_type = PARQUET_THRIFT_STOP;
+        while ((depth != 0u) && (next_type == PARQUET_THRIFT_STOP) && (cursor->broken == 0u))
         {
             ParquetThriftFrame *const innermost = &frame[depth - 1u];
-            if (innermost->container_kind == PARQUET_THRIFT_STRUCT)
+            if (innermost->container_type == PARQUET_THRIFT_STRUCT)
             {
-                next_kind = parquet_field_read(cursor, &innermost->field_id);
+                next_type = parquet_field_read(cursor, &innermost->field_id);
             }
             else if (innermost->values_left != 0ull)
             {
                 innermost->values_left -= 1ull;
                 // a map counts down from an even total, and an odd count left means a key comes next
-                next_kind = ((innermost->values_left & 1ull) != 0ull) ? innermost->key_kind : innermost->value_kind;
+                next_type = ((innermost->values_left & 1ull) != 0ull) ? innermost->key_type : innermost->value_type;
                 // a boolean inside a list or map is one byte, not a type code carrying the value
-                next_kind = ((next_kind == PARQUET_THRIFT_TRUE) || (next_kind == PARQUET_THRIFT_FALSE))
+                next_type = ((next_type == PARQUET_THRIFT_TRUE) || (next_type == PARQUET_THRIFT_FALSE))
                                 ? PARQUET_THRIFT_BYTE
-                                : next_kind;
-                cursor->broken |= (next_kind == PARQUET_THRIFT_STOP) ? 1u : 0u;
+                                : next_type;
+                cursor->broken |= (next_type == PARQUET_THRIFT_STOP) ? 1u : 0u;
             }
-            if ((next_kind == PARQUET_THRIFT_STOP) && (cursor->broken == 0u))
+            if ((next_type == PARQUET_THRIFT_STOP) && (cursor->broken == 0u))
             {
                 depth -= 1u;
             }
         }
-        if (next_kind == PARQUET_THRIFT_STOP)
+        if (next_type == PARQUET_THRIFT_STOP)
         {
             return;
         }

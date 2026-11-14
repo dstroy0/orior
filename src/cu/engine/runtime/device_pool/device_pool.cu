@@ -22,8 +22,8 @@ static_assert(sizeof(size_t) >= sizeof(unsigned long long),
     engine_status_check((int)(call_), ENGINE_MODULE_DEVICE_POOL, (unsigned int)__LINE__, (const void *)(evacaddr_),    \
                         (error_))
 
-#define DEVICE_POOL_CHECK(condition_, evacaddr_, error_, kind_)                                                        \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_DEVICE_POOL, (unsigned int)__LINE__,                       \
+#define DEVICE_POOL_CHECK(condition_, evacaddr_, error_, type_)                                                        \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_DEVICE_POOL, (unsigned int)__LINE__,                       \
                        (const void *)(evacaddr_), (error_))
 
 // a plan's sum is bounded by this, a whole number of slices and of pages. Its rounding to either never wraps and never
@@ -32,7 +32,7 @@ static_assert(sizeof(size_t) >= sizeof(unsigned long long),
 
 static_assert(((DEVICE_POOL_BYTES_MAX % DEVICE_POOL_SLICE_ALIGN) == 0ull) &&
                   ((DEVICE_POOL_BYTES_MAX % DEVICE_POOL_PAGE_BYTES) == 0ull),
-              "the most a plan contains rounds to itself on the slice and on the page");
+              "the max a plan contains rounds to itself on the slice and on the page");
 
 static unsigned long long device_pool_round(unsigned long long bytes, unsigned long long step)
 {
@@ -41,7 +41,7 @@ static unsigned long long device_pool_round(unsigned long long bytes, unsigned l
 
 extern "C" unsigned long long device_pool_plan_slice(DevicePoolPlan *plan, unsigned long long bytes)
 {
-    // an unspoiled plan's sum is at most 2^62. Its offset is too, and the capacity left never wraps
+    // an unspoiled plan's sum is at max 2^62. Its offset is too, and the capacity left never wraps
     const unsigned long long offset = device_pool_round(plan->bytes, DEVICE_POOL_SLICE_ALIGN);
     if ((plan->spoiled != 0) || (bytes > (DEVICE_POOL_BYTES_MAX - offset)))
     {
@@ -78,7 +78,7 @@ extern "C" long device_pool_reserve(const DevicePoolReserveRequest *request)
         return 0L;
     }
     unsigned char *base = NULL;
-    // a plan's bytes are at most 2^62, and size_t is at least 64 bits (asserted above)
+    // a plan's bytes are at max 2^62, and size_t is at least 64 bits (asserted above)
     if (!DEVICE_POOL_STATUS_CHECK(cudaMalloc((void **)&base, (size_t)bytes), pool, error))
     {
         return DEVICE_POOL_ERROR;
@@ -100,7 +100,7 @@ extern "C" long device_pool_take(const DevicePoolTakeRequest *request)
         return DEVICE_POOL_ERROR;
     }
     DevicePool *const pool = request->pool;
-    // what is taken never passes the pool, which is at most 2^62 bytes: the rounding never wraps
+    // what is taken never passes the pool, which is at max 2^62 bytes: the rounding never wraps
     const unsigned long long offset = device_pool_round(pool->used, DEVICE_POOL_SLICE_ALIGN);
     if (!DEVICE_POOL_CHECK((offset <= pool->bytes) && (request->bytes <= (pool->bytes - offset)), pool, error,
                            ENGINE_ERROR_REQUEST))

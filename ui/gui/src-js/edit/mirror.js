@@ -169,7 +169,7 @@ export function setLineHistory(on) {
   markChanges(tabOf(state.active));
 }
 
-// Authors shown or hidden, the Line History shown is drawn again, its column the width it needs.
+// Authors displayed or hidden, the Line History displayed is drawn again, its column the width it needs.
 onAuthors(() => {
   const s = state.editor?.s;
   if (s?.history) {

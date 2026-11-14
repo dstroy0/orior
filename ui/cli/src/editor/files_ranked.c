@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_ranked.c: the quick open's files: the tree listed behind the window, and the files that answer a query, the
 // best first. A file whose name equals what was typed scores over any match, one whose name starts with it half that,
-// and one opened lately over the match itself. The ranking is one pass over the sorted files into a bounded list kept
+// and one opened lately over the match itself. The ranking is one pass over the sorted files into a bounded list retained
 // in score order, a file's place in it found by a binary search; the answer is one cell sized to it
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
@@ -24,15 +24,15 @@ int cli_files_unread(const CliFilesRootPathsCfg *args)
     return !EMBED_CALL(cli_symbols_root.tree_is_list, CliSymbolsRootCfg, .root = root);
 }
 
-// the query's letters, a path's letters as they are and in lower case, the latest place each letter of a match may
+// the query's characters, a path's characters as they are and in lower case, the latest place each character of a match may
 // take, the places a match took, and the bounded list, each file's place among the files, or among the recent paths
 // while the tree is not listed, with its score, for one find at a time on the view's thread
-static unsigned int s_required[CLI_FUZZY_LETTERS];
-static unsigned int s_shown[CLI_FUZZY_LETTERS];
-static unsigned int s_lower[CLI_FUZZY_LETTERS];
-static unsigned int s_latest[CLI_FUZZY_LETTERS];
-static unsigned int s_hit[CLI_FUZZY_LETTERS];
-static CliTopPlace s_top[CLI_FILES_RANKED_MOST];
+static unsigned int s_required[CLI_FUZZY_CHARACTERS];
+static unsigned int s_displayed[CLI_FUZZY_CHARACTERS];
+static unsigned int s_lower[CLI_FUZZY_CHARACTERS];
+static unsigned int s_latest[CLI_FUZZY_CHARACTERS];
+static unsigned int s_hit[CLI_FUZZY_CHARACTERS];
+static CliTopPlace s_top[CLI_FILES_RANKED_MAX];
 
 typedef struct
 {
@@ -42,20 +42,20 @@ typedef struct
     double *score_out;
     unsigned int *hits_out;
     unsigned int count;
-    unsigned int most;
+    unsigned int max;
     unsigned int at;
     double score;
 } FilesRankedCtx;
 
-// whether `path` answers the find's `required` letters: 1 with its score into `score_out` and the places of its
-// letters that matched into s_hit, their count into `hits_out`, else 0
+// whether `path` answers the find's `required` characters: 1 with its score into `score_out` and the places of its
+// characters that matched into s_hit, their count into `hits_out`, else 0
 EMBED_INLINE int ranked_matched(const FilesRankedCtx *args)
 {
     const CliFilesRootRowsCfg *const find = args->find;
-    const unsigned int letters = EMBED_CALL(cli_files_text.letters, CliFilesTextCfg, .text = args->path,
-                                            .displayed = s_shown, .lower = s_lower, .capacity = CLI_FUZZY_LETTERS);
+    const unsigned int characters = EMBED_CALL(cli_files_text.characters, CliFilesTextCfg, .text = args->path,
+                                            .displayed = s_displayed, .lower = s_lower, .capacity = CLI_FUZZY_CHARACTERS);
     unsigned int name = 0u;
-    for (unsigned int at = 0u; at < letters; at += 1u)
+    for (unsigned int at = 0u; at < characters; at += 1u)
     {
         name = (s_lower[at] == '/') ? (at + 1u) : name;
     }
@@ -64,15 +64,15 @@ EMBED_INLINE int ranked_matched(const FilesRankedCtx *args)
     int matched = 0;
     if (find->fuzzy)
     {
-        matched = EMBED_CALL(cli_files_bytes_requested_internal.fuzzy_letters, CliFilesBytesRequestedCtx,
-                             .required = s_required, .requested_count = args->required, .displayed = s_shown,
-                             .lower = s_lower, .count_u32 = letters, .from_u32 = name, .bytes_i32 = 0,
+        matched = EMBED_CALL(cli_files_bytes_requested_internal.fuzzy_characters, CliFilesBytesRequestedCtx,
+                             .required = s_required, .requested_count = args->required, .displayed = s_displayed,
+                             .lower = s_lower, .count_u32 = characters, .from_u32 = name, .bytes_i32 = 0,
                              .latest = s_latest, .score = &score, .hits = s_hit, .hit_count = &hits);
     }
     else
     {
-        // the query's letters in a row anywhere in the path, case aside, the first place they stand
-        for (unsigned int from = 0u; !matched && ((from + args->required) <= letters); from += 1u)
+        // the query's characters in a row anywhere in the path, case aside, the first place they are
+        for (unsigned int from = 0u; !matched && ((from + args->required) <= characters); from += 1u)
         {
             unsigned int same = 0u;
             while ((same < args->required) && (s_lower[from + same] == s_required[same]))
@@ -85,7 +85,7 @@ EMBED_INLINE int ranked_matched(const FilesRankedCtx *args)
                 s_hit[at] = from + at;
             }
             hits = matched ? args->required : 0u;
-            score = matched ? ((double)args->required - ((double)letters * 0.02)) : 0.0;
+            score = matched ? ((double)args->required - ((double)characters * 0.02)) : 0.0;
         }
     }
     if (!matched)
@@ -93,14 +93,14 @@ EMBED_INLINE int ranked_matched(const FilesRankedCtx *args)
         return 0;
     }
     // the name equal to the query, or starting with it, case aside
-    const unsigned int name_letters = letters - name;
+    const unsigned int name_characters = characters - name;
     unsigned int prefix = 0u;
-    while ((prefix < args->required) && (prefix < name_letters) && (s_lower[name + prefix] == s_required[prefix]))
+    while ((prefix < args->required) && (prefix < name_characters) && (s_lower[name + prefix] == s_required[prefix]))
     {
         prefix += 1u;
     }
     const int starts = (args->required != 0u) && (prefix == args->required);
-    const int exact = starts && (name_letters == args->required);
+    const int exact = starts && (name_characters == args->required);
     score += exact ? CLI_FILES_RANKED_EXACT : (starts ? (CLI_FILES_RANKED_EXACT / 2.0) : 0.0);
     int lately = 0;
     for (unsigned int at = 0u; !lately && (at < find->recents); at += 1u)
@@ -118,17 +118,17 @@ int cli_files_ranked_find(const CliFilesRootRowsCfg *args)
     CliFilesRanked *const rows = args->rows;
     g_cli_guard->persistent_buf_release(rows->cell, args->owner);
     *rows = (CliFilesRanked){NULL, 0u, NULL, NULL, 0};
-    const unsigned int most = (args->most < CLI_FILES_RANKED_MOST) ? args->most : CLI_FILES_RANKED_MOST;
+    const unsigned int max = (args->max < CLI_FILES_RANKED_MAX) ? args->max : CLI_FILES_RANKED_MAX;
     const unsigned int required =
-        EMBED_CALL(cli_files_query_letters.want, CliFilesQueryLettersCfg, .query = args->query, .letters = s_required,
-                   .capacity = CLI_FUZZY_LETTERS);
+        EMBED_CALL(cli_files_query_characters.want, CliFilesQueryLettersCfg, .query = args->query, .characters = s_required,
+                   .capacity = CLI_FUZZY_CHARACTERS);
     const int unread =
         (args->root == NULL) || EMBED_CALL(cli_files_root_paths.unread, CliFilesRootPathsCfg, .root = args->root);
     const CliFiles *const files =
         unread ? NULL : EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = args->root);
     const unsigned int candidates = (files != NULL) ? files->count : (unread ? args->recents : 0u);
     unsigned int count = 0u;
-    for (unsigned int at = 0u; (most != 0u) && (at < candidates); at += 1u)
+    for (unsigned int at = 0u; (max != 0u) && (at < candidates); at += 1u)
     {
         const char *const path =
             (files != NULL) ? EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = at) : args->recent[at];
@@ -138,7 +138,7 @@ int cli_files_ranked_find(const CliFilesRootRowsCfg *args)
                        .score_out = &score, .hits_out = &hits))
         {
             count = EMBED_CALL(cli_files_top_internal.put, CliFilesTopCtx, .top = s_top, .at = at, .score = score,
-                               .count = count, .most = most);
+                               .count = count, .max = max);
         }
     }
     // the answer's bytes: the rows, every row's places, and the paths with their ends

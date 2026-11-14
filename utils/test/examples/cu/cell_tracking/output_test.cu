@@ -689,7 +689,7 @@ static int output_test_empty_faces(const char *set)
     return output_test_faces(set, "empty", view, 0ull, NULL, NULL, 0u, FACES_HEADER_WORDS, 0u);
 }
 
-// second's .faces, beside second as it stands: P and Q, at frame 0, carry their places back; at frame 1, the last, R
+// second's .faces, beside second as it is: P and Q, at frame 0, carry their places back; at frame 1, the last, R
 // is carried back to (0, 1, 2), or with `moved` past the high x face, and S below the low x face. R and S have their
 // links in. Neither is a start and neither enters, and no count moves with R
 static int output_test_second_faces(const char *set, int moved)
@@ -852,7 +852,7 @@ typedef struct
 static int output_test_counts(char *expected, size_t capacity, const OutputTestLine lines[3], const char *tail)
 {
     int written = snprintf(expected, capacity, "  %-24s %6s %10s %10s %s\n", "sample", "frames", "nodes", "edges",
-                           "ends (outside the view; most a frame), starts (most a frame); H4");
+                           "ends (outside the view; max a frame), starts (max a frame); H4");
     // a non-negative length is compared whole against the capacity left
     int ok = (written > 0) && ((size_t)written < capacity);
     size_t used = ok ? (size_t)written : 0u;
@@ -1050,9 +1050,9 @@ static void output_test_complete(OutputTestResults *results, const char *set)
                       (expected != NULL) && output_test_report(expected, OUTPUT_TEST_TEXT) &&
                           output_test_same(files.report, expected),
                       "the counts are the hand's: frames, nodes, edges, ends and those outside, starts, and H4");
-    char *const shown = output_test_text(files.report);
-    printf("  the counts the set wrote:\n%s", (shown != NULL) ? shown : "  (they did not read)\n");
-    free(shown);
+    char *const displayed = output_test_text(files.report);
+    printf("  the counts the set wrote:\n%s", (displayed != NULL) ? displayed : "  (they did not read)\n");
+    free(displayed);
     free(expected);
 
     // no nodes and no submission named: the set is checked and counted, and nothing is written
@@ -1110,9 +1110,9 @@ static void output_test_divided(OutputTestResults *results, const char *set)
                           output_test_same(files.report, expected),
                       "the divided counts are the hand's: H4 with each parent counted, and the divisions and moves of"
                       " each .divide");
-    char *const shown = closed_all ? output_test_text(files.report) : NULL;
-    printf("  the counts the divided set wrote:\n%s", (shown != NULL) ? shown : "  (they did not read)\n");
-    free(shown);
+    char *const displayed = closed_all ? output_test_text(files.report) : NULL;
+    printf("  the counts the divided set wrote:\n%s", (displayed != NULL) ? displayed : "  (they did not read)\n");
+    free(displayed);
     free(expected);
 
     const int undivided = output_test_undivided(set);
@@ -1154,9 +1154,9 @@ static void output_test_faced(OutputTestResults *results, const char *set)
                           output_test_same(files.report, expected),
                       "the faced counts are the hand's: the ends that leave the view, the starts that enter it, and"
                       " the points of the first and last frames");
-    char *const shown = closed_all ? output_test_text(files.report) : NULL;
-    printf("  the counts the faced set wrote:\n%s", (shown != NULL) ? shown : "  (they did not read)\n");
-    free(shown);
+    char *const displayed = closed_all ? output_test_text(files.report) : NULL;
+    printf("  the counts the faced set wrote:\n%s", (displayed != NULL) ? displayed : "  (they did not read)\n");
+    free(displayed);
 
     const int divided = output_test_chain_divide(set) && output_test_second_divide(set, "second", OUTPUT_DIVIDE_OK);
     output_test_check(results, divided, "chain's .divide and second's are written beside the faced set");
@@ -1499,7 +1499,7 @@ static void output_test_unwritable(OutputTestResults *results, const char *set)
                printed, flushed, error, closed);
     }
     output_test_check(results, measurement != NULL,
-                      "a file is opened for reading, and what the C library returns is shown");
+                      "a file is opened for reading, and what the C library returns is displayed");
 
     char *const samples[3] = {(char *)"chain", (char *)"empty", (char *)"second"};
     const char *const names[2] = {"the nodes", "the submission"};

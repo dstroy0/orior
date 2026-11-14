@@ -22,7 +22,7 @@ from .locale import LOCALE
 # under, which is backwards: the standard is the tree's, not each repository's.
 #
 # TIER B is FREQUENCY-SCORED VOCABULARY: a word or an idiom, reported with what it costs a human
-# writer where that has been measured. Most of it is the machine-prose vocabulary code-documentation
+# writer where that has been measured. The majority of it is the machine-prose vocabulary code-documentation
 # section 135 through 141 lists by word. The rest is this file's own house style, calibrated on
 # orior's theory research papers and named as such in the report.
 #
@@ -31,7 +31,7 @@ from .locale import LOCALE
 #
 #   `rather` is one token and matches one word. Stage_of calls it a word. Its ban is stated
 #   outright at code-documentation:110 and again at code-comments:200. It is TIER A.
-#   `\bis what (separates|keeps|...)` is a construction by shape and by authority alike, and the
+#   `\bis what (separates|retains|...)` is a construction by shape and by authority alike, and the
 #   verbs this file added to it beyond the standard's ten are TIER A all the same, because the
 #   construction is the thing banned and the verb list is how far it reaches.
 #   The X-not-Y patterns span several words and are TIER A. The superlative-adjective group spans
@@ -55,7 +55,7 @@ from .locale import LOCALE
 AUTHORITY = {
     # Three tokens banned outright by code-comments:200. Two of them, `so a` and `rather`, also
     # carry a documentation ban at code-documentation:110. The third is banned in every form and
-    # on every page, and the define family stands in for it.
+    # on every page, and the define family is in for it.
     r"\brather\b": "code-documentation:110, code-comments:200",
     r"\bso an?\b": "code-documentation:110, code-comments:200",
     # The comma-so consequence clause code-documentation:112 describes, which the so-a token above
@@ -75,7 +75,7 @@ AUTHORITY = {
     r"\bwhat survives\b": "code-documentation:120",
     # The second pass. code-documentation:126 through :131.
     r"\bis what makes\b": "code-documentation:126, code-comments:205",
-    r"\bis what (separates|keeps|tells|puts|says|makes|supplies|gives|decides|holds|stops|lets"
+    r"\bis what (separates|retains|tells|puts|says|makes|supplies|gives|decides|holds|stops|lets"
     r"|carries|costs|reads|buys|pays|spends|earns|wins|prices|slots|books)\b": "code-documentation:126, code-comments:205",
     r"\b(is|was|are|were) an? [\w-]+ and never an? [\w-]+": "code-documentation:127",
     r"\band nothing more\b": "code-documentation:128, code-comments:207",
@@ -83,7 +83,7 @@ AUTHORITY = {
     r"\bthe one (thing|place|case|word|reason|table|file|grain|repair|mistake|addition|column)\b": "code-documentation:129, code-comments:207",
     r"\bthe whole of (the|what|it)\b": "code-documentation:130, code-comments:207",
     r"\bis precisely (what|why|the)\b": "code-documentation:131",
-    r"\b(what|that) matters (is|here|most)\b": "code-documentation:131",
+    r"\b(what|that) matters (is|here|max)\b": "code-documentation:131",
     # No rhetorical sentence shapes. code-documentation:146, code-comments:199.
     r"cost and not a defect": "code-documentation:146",
     r"\b(is|was|are|were) an? [\w-]+ and not an? [\w-]+": "code-documentation:146",
@@ -130,7 +130,7 @@ AUTHORITY = {
 }
 
 # The sections of the style guide, for the plain phrases and the constructions in grammar.py. A pattern
-# a standard above already cites keeps that citation.
+# a standard above already cites retains that citation.
 for _pattern, _cited in GRAMMAR_AUTHORITY.items():
     AUTHORITY.setdefault(_pattern, _cited)
 

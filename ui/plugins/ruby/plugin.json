@@ -2,7 +2,7 @@
   "id": "ruby",
   "name": "Ruby",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "extensions": ["rb","rake","gemspec"],
   "comments": {"line":"#"},
   "pairs": ["()","[]","{}"],

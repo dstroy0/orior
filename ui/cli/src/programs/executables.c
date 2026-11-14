@@ -90,11 +90,11 @@ int cli_executables_output(const CliExecutablesNameCtx *args)
         mmgr_line_put(err_msg, ": ");
         const char *from = started ? args->run_result->err : why;
         const char *to = started ? (args->run_result->err + args->run_result->err_size) : (why + unstarted.at);
-        while ((from < to) && EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .letter = from[0]))
+        while ((from < to) && EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .character = from[0]))
         {
             from += 1;
         }
-        while ((to > from) && EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .letter = to[-1]))
+        while ((to > from) && EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .character = to[-1]))
         {
             to -= 1;
         }
@@ -140,11 +140,11 @@ EMBED_INLINE int cli_cargo_target(const ExecutablesCtx *args)
     {
         const char *from = started ? run_result->err : why;
         const char *to = started ? (run_result->err + run_result->err_size) : (why + unstarted.at);
-        while ((from < to) && EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .letter = from[0]))
+        while ((from < to) && EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .character = from[0]))
         {
             from += 1;
         }
-        while ((to > from) && EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .letter = to[-1]))
+        while ((to > from) && EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .character = to[-1]))
         {
             to -= 1;
         }

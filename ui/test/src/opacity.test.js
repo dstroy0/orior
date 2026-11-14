@@ -5,21 +5,21 @@ import { OPACITY_SETTINGS, STEPS, opacity, setOpacity } from "../../gui/src-js/o
 import { editing, openFile } from "../../gui/src-js/edit.js";
 import { runCommand } from "../../gui/src-js/menubar.js";
 import { showView } from "../../gui/src-js/views.js";
-import { cssVariable, keepingStorage } from "../helpers.js";
+import { cssVariable, retentionStorage } from "../helpers.js";
 
 const { test, assert, ui } = window.__harness;
 
 const KEYS = OPACITY_SETTINGS.map((setting) => setting.key);
 
-test("each setting stands at its fallback where nothing is kept", () =>
-  keepingStorage(KEYS, () => {
+test("each setting is at its fallback where nothing is retained", () =>
+  retentionStorage(KEYS, () => {
     for (const setting of OPACITY_SETTINGS) {
       localStorage.removeItem(setting.key);
       assert.equal(opacity(setting), setting.fallback, setting.label);
     }
   }));
 
-test("the stylesheet stands each part at its setting's fallback, the editor short of whole so the lattice's dots show through it", () => {
+test("the stylesheet is each part at its setting's fallback, the editor short of whole so the lattice's dots show through it", () => {
   const declared = (name) => {
     for (const sheet of document.styleSheets) {
       for (const rule of sheet.cssRules) {
@@ -54,18 +54,18 @@ test("the explorer and the terminal say what they are on the ink at half and hol
   assert.equal(ground(document.getElementById("term-views")), editor, "the terminal's text on the editor's ground");
 });
 
-test("a kept share that is no step reads as the fallback", () =>
-  keepingStorage(KEYS, () => {
+test("a retained share that is no step reads as the fallback", () =>
+  retentionStorage(KEYS, () => {
     const [bar] = OPACITY_SETTINGS;
     for (const wrong of ["35", "-10", "110", "half", ""]) {
       localStorage.setItem(bar.key, wrong);
-      assert.equal(opacity(bar), bar.fallback, `kept ${JSON.stringify(wrong)}`);
+      assert.equal(opacity(bar), bar.fallback, `retained ${JSON.stringify(wrong)}`);
     }
   }));
 
-test("setting a share keeps it and sets its variable on the root", () =>
-  keepingStorage(KEYS, () => {
-    const kept = OPACITY_SETTINGS.map((setting) => [setting, cssVariable(setting.name)]);
+test("setting a share retains it and sets its variable on the root", () =>
+  retentionStorage(KEYS, () => {
+    const retained = OPACITY_SETTINGS.map((setting) => [setting, cssVariable(setting.name)]);
     try {
       for (const setting of OPACITY_SETTINGS) {
         for (const step of [0, 50, 100]) {
@@ -76,7 +76,7 @@ test("setting a share keeps it and sets its variable on the root", () =>
         }
       }
     } finally {
-      for (const [setting, value] of kept) {
+      for (const [setting, value] of retained) {
         document.documentElement.style.setProperty(setting.name, value);
       }
     }
@@ -98,11 +98,11 @@ const alphaOf = (color) => {
   return color === "transparent" ? 0 : Number(found?.[1] ?? 1);
 };
 
-test("each of the panes, the tabs, the editor, the panels and the sheets lays its ground as thick as its own share, and the others stay as they were", async () => {
+test("each of the panes, the tabs, the editor, the panels and the sheets positions its ground as thick as its own share, and the others stay as they were", async () => {
   showView("edit");
   await openFile("hello.py");
   await ui.waitFor(() => editing().editor?.s, 5000);
-  await keepingStorage(KEYS, () => {
+  await retentionStorage(KEYS, () => {
     const sheet = document.body.appendChild(Object.assign(document.createElement("div"), { className: "sheet" }));
     const parts = [
       ["--pane-opacity", document.querySelector(".side")],
@@ -111,7 +111,7 @@ test("each of the panes, the tabs, the editor, the panels and the sheets lays it
       ["--panel-opacity", document.querySelector(".debug")],
       ["--sheet-opacity", sheet],
     ];
-    const kept = OPACITY_SETTINGS.map((setting) => [setting, cssVariable(setting.name)]);
+    const retained = OPACITY_SETTINGS.map((setting) => [setting, cssVariable(setting.name)]);
     try {
       for (const setting of OPACITY_SETTINGS) {
         setOpacity(setting, 100);
@@ -131,7 +131,7 @@ test("each of the panes, the tabs, the editor, the panels and the sheets lays it
       }
     } finally {
       sheet.remove();
-      for (const [setting, value] of kept) {
+      for (const [setting, value] of retained) {
         document.documentElement.style.setProperty(setting.name, value);
       }
     }
@@ -139,8 +139,8 @@ test("each of the panes, the tabs, the editor, the panels and the sheets lays it
 });
 
 test("in Preferences each part's opacity is a slider that moves by the steps, its share said beside it and the window changing as it moves", async () =>
-  keepingStorage(KEYS, async () => {
-    const kept = OPACITY_SETTINGS.map((setting) => [setting, cssVariable(setting.name)]);
+  retentionStorage(KEYS, async () => {
+    const retained = OPACITY_SETTINGS.map((setting) => [setting, cssVariable(setting.name)]);
     runCommand("preferences");
     try {
       await ui.waitFor(() => document.querySelectorAll(".prefs-opacity-slider").length === OPACITY_SETTINGS.length, 5000);
@@ -162,7 +162,7 @@ test("in Preferences each part's opacity is a slider that moves by the steps, it
       assert.equal(said.textContent, "0%");
     } finally {
       document.querySelector("dialog.sheet")?.close();
-      for (const [setting, value] of kept) {
+      for (const [setting, value] of retained) {
         document.documentElement.style.setProperty(setting.name, value);
       }
     }

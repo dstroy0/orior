@@ -1,4 +1,4 @@
-"""Spectral bench: what the reading keeps when the observer moves, and what it only appears to keep.
+"""Spectral bench: what the reading retains when the observer moves, and what it only appears to retain.
 
 A previous framing here separated the per-degree power from the phases and treated them as
 independent - magnitude invariant, phase observer-dependent. That split is clean only on the
@@ -44,7 +44,7 @@ import state_deflection
 
 
 def turn_axis(points, angle):
-    """Rotation about the reading axis: the trivial case, kept as the internal control."""
+    """Rotation about the reading axis: the trivial case, retained as the internal control."""
     around = math.cos(angle), math.sin(angle)
     out = []
     for x, y, z in points:
@@ -67,7 +67,7 @@ def turn_general(points, yaw, pitch, roll):
 
 
 def spectrum(points, live, top):
-    """Per-degree power and the per-order magnitudes it is built from, kept separate."""
+    """Per-degree power and the per-order magnitudes it is built from, retained separate."""
     angles = boundary_read.as_angles(points)
     table = boundary_read.complex_coefficients(angles, live, top)
     power = [0.0] * (top + 1)

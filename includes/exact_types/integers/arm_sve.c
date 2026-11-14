@@ -165,7 +165,7 @@ static int arm_compare(const OriorExactInteger *left, const OriorExactInteger *r
  * @brief Counts agreeing places over a sorted run, through the SVE equality.
  *
  * @param[in] positions Positions, ascending [BORROWS].
- * @param[in] values    The value standing at each position [BORROWS].
+ * @param[in] values    The value located at each position [BORROWS].
  * @param[in] count     How many positions.
  * @param[in] lag       The offset to test [BORROWS].
  * @return              How many positions agree with the place one lag above them.

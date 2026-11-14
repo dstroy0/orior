@@ -91,7 +91,7 @@ on any of them or raised from it. generate_template.py builds it through build_s
     scrollbar-width: thin; scrollbar-color: color-mix(in oklab, var(--blue) 28%, transparent) transparent;
   }
   .box:not(:hover):not(:focus-within), .glass:not(:hover):not(:focus-within) { scrollbar-color: transparent transparent; }
-  .box h4 { margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.01em; color: var(--ink); cursor: move; user-select: none; }
+  .box h4 { margin: 0 0 8px; font-size: 11px; font-weight: 600; character-spacing: 0.01em; color: var(--ink); cursor: move; user-select: none; }
 
   /* A row: its label, its control, and the value the control holds, on the same three columns everywhere. */
   .row { display: grid; grid-template-columns: 92px minmax(0, 1fr) 48px; align-items: center; column-gap: 8px; min-height: 24px; }
@@ -107,7 +107,7 @@ on any of them or raised from it. generate_template.py builds it through build_s
   /* Buttons. */
   button {
     height: 26px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--control-edge); background: var(--control);
-    color: var(--control-ink); font: 500 11.5px/1 var(--font); letter-spacing: 0.005em; cursor: pointer;
+    color: var(--control-ink); font: 500 11.5px/1 var(--font); character-spacing: 0.005em; cursor: pointer;
     transition: border-color 120ms var(--ease), background-color 120ms var(--ease), box-shadow 160ms var(--ease), color 120ms var(--ease);
   }
   button:hover { border-color: color-mix(in oklab, var(--blue) 38%, transparent); background: var(--control-hi); color: var(--ink); }
@@ -190,7 +190,7 @@ on any of them or raised from it. generate_template.py builds it through build_s
   details.section:first-of-type { border-top: 0; }
   details.section > summary {
     list-style: none; display: flex; align-items: center; gap: 8px; height: 30px; cursor: pointer; user-select: none;
-    font-size: 11px; font-weight: 600; letter-spacing: 0.01em; color: var(--ink);
+    font-size: 11px; font-weight: 600; character-spacing: 0.01em; color: var(--ink);
   }
   details.section > summary::-webkit-details-marker { display: none; }
   details.section > summary::after {
@@ -255,10 +255,10 @@ on any of them or raised from it. generate_template.py builds it through build_s
   }
 
   .toolbar-head { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; height: var(--button); }
-  .toolbar-title { font-size: 11px; font-weight: 600; letter-spacing: 0.01em; color: var(--ink); opacity: 0; transition: opacity 160ms var(--ease); }
+  .toolbar-title { font-size: 11px; font-weight: 600; character-spacing: 0.01em; color: var(--ink); opacity: 0; transition: opacity 160ms var(--ease); }
   .toolbar.open .toolbar-title { opacity: 1; transition-delay: 120ms; }
 
-  /* The menu button keeps its own glass: closed, it reads as a whole button. Its three lines turn into a cross. */
+  /* The menu button retains its own glass: closed, it reads as a whole button. Its three lines turn into a cross. */
   .toolbar-button {
     position: relative; flex: 0 0 auto; width: var(--button); height: var(--button); margin: -1px; padding: 0; border-radius: 10px;
     border: 1px solid var(--hair); background: linear-gradient(180deg, var(--glass-top), var(--glass-low)); box-shadow: var(--shadow);
@@ -316,7 +316,7 @@ const EV = {};
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// The floating toolbar emitter. A page hands EV.toolbar a spec and gets back one toolbar in a corner: a menu button
+// The floating toolbar emitter. A page passes EV.toolbar a spec and gets back one toolbar in a corner: a menu button
 // that opens it, and folding sections of rows. Every control is emitted with the id the spec gives it, and the page
 // binds its controls by id as it would hand-written markup. A slider's value shows in an output whose id is the
 // slider's id followed by "Out".
@@ -641,7 +641,7 @@ EV.watchLoop = (label, step, options = {}) => {
 
   return {
     record,
-    // Asks for turns. A loop already awake keeps running, and a stopped loop stays stopped.
+    // Asks for turns. A loop already awake retains running, and a stopped loop stays stopped.
     wake: () => {
       if (stopped || record.awake) {
         return;
@@ -661,8 +661,8 @@ EV.watchLoop = (label, step, options = {}) => {
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// Every setting has a kind and a range, stored in EV.VIEW_SCHEME by name. Applying a view is partial: names
-// it does not carry keep their values. A name the scheme does not have, a fraction, a value of the wrong kind
+// Every setting has a type and a range, stored in EV.VIEW_SCHEME by name. Applying a view is partial: names
+// it does not carry retain their values. A name the scheme does not have, a fraction, a value of the wrong type
 // or one outside its range is reported by name and not applied.
 
 EV.defaultView = () => {
@@ -676,19 +676,19 @@ EV.defaultView = () => {
 // Checks one value against its rule; returns the reason it errors, or null.
 EV.errorValue = (rule, value) => {
   const integer = (one) => Number.isInteger(one) && one >= rule.low && one <= rule.high;
-  if (rule.kind === "integer") {
+  if (rule.type === "integer") {
     return integer(value) ? null : `an integer from ${rule.low} to ${rule.high}`;
   }
-  if (rule.kind === "switch") {
+  if (rule.type === "switch") {
     return typeof value === "boolean" ? null : "true or false";
   }
-  if (rule.kind === "word") {
+  if (rule.type === "word") {
     return rule.words.includes(value) ? null : `one of ${rule.words.join(", ")}`;
   }
-  if (rule.kind === "words") {
+  if (rule.type === "words") {
     return Array.isArray(value) && value.every((one) => rule.words.includes(one)) ? null : `a list of ${rule.words.join(", ")}`;
   }
-  if (rule.kind === "lights") {
+  if (rule.type === "lights") {
     const light = (one) => one && typeof one === "object" && Object.keys(one).every((key) => ["turn", "tilt", "strength"].includes(key))
       && Number.isInteger(one.turn) && one.turn >= 0 && one.turn <= 359
       && Number.isInteger(one.tilt) && one.tilt >= -89 && one.tilt <= 89
@@ -796,7 +796,7 @@ EV.readHead = async (reader, count) => {
   return pending;
 };
 
-// The rest of a stream, its head already read, laid into the landing from a byte place; nothing lands past the limit.
+// The rest of a stream, its head already read, positioned into the landing from a byte place; nothing lands past the limit.
 // Returns the stream's whole length.
 EV.streamInto = async (reader, landing, at, limit, head) => {
   let written = 0;
@@ -875,7 +875,7 @@ EV.multiply = (a, b) => {
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// Two orders that lay a line of cells into a square, each cell's index to its (x, y): Hilbert's, which keeps
+// Two orders that position a line of cells into a square, each cell's index to its (x, y): Hilbert's, which retains
 // neighbors in the line neighbors in the square, and Morton's, which interleaves the index's bits.
 
 /** Hilbert's curve, index to point. Its locality is the reason binary files are read this way:
@@ -906,7 +906,7 @@ EV.hilbertAt = (side, index) => {
   return [x, y];
 };
 
-/** Morton's order, the cheap alternative: interleave the bits. Kept beside Hilbert because the
+/** Morton's order, the cheap alternative: interleave the bits. Retained beside Hilbert because the
   difference between them on the same data is the value of locality. */
 EV.mortonAt = (index) => {
   let x = 0,
@@ -1331,7 +1331,7 @@ EV.SURFACES = [
   {
     key: "shell",
     label: "Seashell",
-    note: "a tube on a logarithmic spiral: growth that keeps its shape",
+    note: "a tube on a logarithmic spiral: growth that retains its shape",
     at: EV.surface((u, v, ctx) => {
       let th = u * EV.TAU * 2.2;
       let grow = Math.pow(1.19, th);
@@ -1439,7 +1439,7 @@ EV.SURFACE_TRANSFORMS = [
   {
     key: "spherize",
     label: "Spherize",
-    note: "every point pushed to one radius: shape gone, sampling kept",
+    note: "every point pushed to one radius: shape gone, sampling retained",
     go: (p, n, ctx) => {
       let u = EV.unit(p);
       return { p: [u[0] * 66, u[1] * 66, u[2] * 66], n: u };
@@ -1638,7 +1638,7 @@ fn surface_vertex(sample: Sample) -> Shaded {
 fn surface_fragment(shaded: Shaded) -> @location(0) vec4<f32> {
   let toward = normalize(frame.eye.xyz - shaded.world);
   // The face under this pixel, from the change in position across it, turned toward the eye. The smooth normal is
-  // flipped only where it disagrees with that face, which keeps a silhouette seen edge-on lit.
+  // flipped only where it disagrees with that face, which retains a silhouette seen edge-on lit.
   var face = normalize(cross(dpdx(shaded.world), dpdy(shaded.world)));
   face = select(-face, face, dot(face, toward) >= 0.0);
   var normal = normalize(shaded.normal);
@@ -1852,21 +1852,21 @@ EV.FIELD = { key: "field", label: "Harmonic field", note: "a sum of real spheric
 EV.SHAPE_KEYS = [...EV.SURFACES.map((one) => one.key), ...EV.CURVES.map((one) => one.key), EV.FIELD.key];
 
 EV.VIEW_SCHEME = {
-  shape: { kind: "word", words: EV.SHAPE_KEYS, fallback: "torus" },
-  transform: { kind: "word", words: EV.SURFACE_TRANSFORMS.map((one) => one.key), fallback: "none" },
-  order: { kind: "integer", low: 3, high: 256, fallback: 12 },
-  detail: { kind: "integer", low: 16, high: 400, fallback: 160 },
-  color: { kind: "word", words: ["field", "height", "normal", "index"], fallback: "field" },
-  degree: { kind: "integer", low: 1, high: 12, fallback: 6 },
-  seed: { kind: "integer", low: 1, high: 65535, fallback: 7 },
-  lift: { kind: "integer", low: 0, high: 60, fallback: 0 },
-  turn: { kind: "integer", low: 0, high: 359, fallback: 30 },
-  tilt: { kind: "integer", low: -89, high: 89, fallback: 24 },
-  zoom: { kind: "integer", low: 40, high: 400, fallback: 100 },
-  spin: { kind: "switch", fallback: true },
-  grid: { kind: "switch", fallback: true },
-  theme: { kind: "word", words: ["dark", "light"], fallback: "dark" },
-  vsync: { kind: "switch", fallback: true },
+  shape: { type: "word", words: EV.SHAPE_KEYS, fallback: "torus" },
+  transform: { type: "word", words: EV.SURFACE_TRANSFORMS.map((one) => one.key), fallback: "none" },
+  order: { type: "integer", low: 3, high: 256, fallback: 12 },
+  detail: { type: "integer", low: 16, high: 400, fallback: 160 },
+  color: { type: "word", words: ["field", "height", "normal", "index"], fallback: "field" },
+  degree: { type: "integer", low: 1, high: 12, fallback: 6 },
+  seed: { type: "integer", low: 1, high: 65535, fallback: 7 },
+  lift: { type: "integer", low: 0, high: 60, fallback: 0 },
+  turn: { type: "integer", low: 0, high: 359, fallback: 30 },
+  tilt: { type: "integer", low: -89, high: 89, fallback: 24 },
+  zoom: { type: "integer", low: 40, high: 400, fallback: 100 },
+  spin: { type: "switch", fallback: true },
+  grid: { type: "switch", fallback: true },
+  theme: { type: "word", words: ["dark", "light"], fallback: "dark" },
+  vsync: { type: "switch", fallback: true },
 };
 
 // Each control by element id: the setting it writes, and how its value reads.
@@ -2013,9 +2013,9 @@ EV.rebuild = (app) => {
 
 EV.showView = (app) => {
   const view = app.view;
-  for (const [id, name, kind] of EV.CONTROLS) {
+  for (const [id, name, type] of EV.CONTROLS) {
     const element = EV.$(id);
-    if (kind === "switch") {
+    if (type === "switch") {
       element.checked = !!view[name];
     } else {
       element.value = String(view[name]);
@@ -2044,10 +2044,10 @@ EV.apply = (app, section) => {
 };
 
 EV.bindControls = (app) => {
-  for (const [id, name, kind] of EV.CONTROLS) {
+  for (const [id, name, type] of EV.CONTROLS) {
     const element = EV.$(id);
     element.addEventListener(element.type === "range" ? "input" : "change", () => {
-      const value = kind === "switch" ? element.checked : kind === "integer" ? Math.trunc(Number(element.value)) : element.value;
+      const value = type === "switch" ? element.checked : type === "integer" ? Math.trunc(Number(element.value)) : element.value;
       if (!EV.errorValue(EV.VIEW_SCHEME[name], value)) {
         app.view[name] = value;
         if (name === "turn") {

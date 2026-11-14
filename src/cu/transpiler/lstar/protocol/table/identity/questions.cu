@@ -20,7 +20,7 @@ std::string run_blob_text(const char *name)
     {
         return std::string();
     }
-    // a blob is at most the buffer's bytes, which a size_t counts
+    // a blob is at max the buffer's bytes, which a size_t counts
     return std::string(reinterpret_cast<const char *>(bytes), static_cast<size_t>(size));
 }
 
@@ -34,7 +34,7 @@ std::string run_file_text(const std::string &path)
     {
         return std::string();
     }
-    // a file read whole is at most what a size_t counts
+    // a file read whole is at max what a size_t counts
     const std::string text(reinterpret_cast<const char *>(bytes), static_cast<size_t>(size));
     return text;
 }
@@ -58,8 +58,8 @@ void run_print(RunWritten *written, const char *format, ...)
     va_end(values);
 }
 
-// `written` handed to the run's writer whole: as the current file at its path, or as a blob named by the path's own
-// name. 1, or 0 where no run's writer runs or it was not handed
+// `written` passed to the run's writer whole: as the current file at its path, or as a blob named by the path's own
+// name. 1, or 0 where no run's writer runs or it was not passed
 int run_closed(const RunWritten *written)
 {
     QryShared *const run = qry_member_run();
@@ -78,7 +78,7 @@ int run_closed(const RunWritten *written)
     return qry_member_append(name.c_str(), written->text.data(), written->text.size(), QRY_ORDINARY) != 0;
 }
 
-// 1 where the link, as written or read as its kind, transfers control or waits, which cubin_safe.h's rule 2 blocks from
+// 1 where the link, as written or read as its type, transfers control or waits, which cubin_safe.h's rule 2 blocks from
 // the part, EXIT alone excepted
 int rule_broken(const std::string &link)
 {
@@ -105,8 +105,8 @@ static std::string numbers_decimal(const std::string &text)
     return decimal;
 }
 
-// an operand with its registers read as their kind and its numbers in decimal
-static std::string operand_kind(std::string text)
+// an operand with its registers read as their type and its numbers in decimal
+static std::string operand_type(std::string text)
 {
     static const std::regex s_reuse("\\.reuse");
     static const std::regex s_uniform("\\bUR[0-9]+\\b");
@@ -176,12 +176,12 @@ int link_read(const std::string &line, Link *link)
     if (text[0] == '@')
     {
         const size_t space = text.find_first_of(" \t");
-        guard = operand_kind(text.substr(0u, space)) + " ";
+        guard = operand_type(text.substr(0u, space)) + " ";
         placeholders_named(text.substr(0u, space), "g", &link->placeholders);
         text = trimmed(text.substr(space));
     }
     const size_t space = text.find_first_of(" \t");
-    std::string kind = guard + text.substr(0u, space);
+    std::string type = guard + text.substr(0u, space);
     if (space != std::string::npos)
     {
         std::stringstream operands(text.substr(space));
@@ -190,11 +190,11 @@ int link_read(const std::string &line, Link *link)
         unsigned int placeholder = 0u;
         while (std::getline(operands, piece, ','))
         {
-            joined += (joined.empty() ? "" : ", ") + operand_kind(trimmed(piece));
+            joined += (joined.empty() ? "" : ", ") + operand_type(trimmed(piece));
             placeholders_named(piece, std::to_string(placeholder), &link->placeholders);
             placeholder += 1u;
         }
-        kind += " " + joined;
+        type += " " + joined;
     }
     text = written;
     // the link with each register a mark and each literal operand another, the registers and the literals in the order
@@ -259,7 +259,7 @@ int link_read(const std::string &line, Link *link)
     link->marked = numbers_decimal(link->marked + shaped.substr(at));
     link->exact = text;
     link->registers = registers_named(text);
-    link->kind = kind;
+    link->type = type;
     link->position = addressed ? address[1].str() : std::string();
     return 1;
 }
@@ -305,7 +305,7 @@ int questions_read(const char *listing, const char *manifest, std::vector<Questi
         ended = ended || (read < 0);
         if (read > 0)
         {
-            // a link written more than once in a listing is recorded at its most basal position
+            // a link written more than once in a listing is recorded at its max basal position
             questions->back().exact[link.exact] += 1u;
             questions->back().links.insert(std::make_pair(link.exact, link));
             questions->back().chain.push_back(link);
@@ -347,7 +347,7 @@ std::string member_context(const Question &question, const std::string &position
                     if (other_placeholder.second == placeholder.second)
                     {
                         entries.insert(std::string((side == 0) ? "before " : "after ") + placeholder.first + " " +
-                                       other_placeholder.first + " " + other.kind);
+                                       other_placeholder.first + " " + other.type);
                         named = 1;
                     }
                 }

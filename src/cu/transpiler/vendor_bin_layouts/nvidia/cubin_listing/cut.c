@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// cut.c: a cubin's listing cut into each kernel's, every label a kernel's lines name put as the offset it stands at
+// cut.c: a cubin's listing cut into each kernel's, every label a kernel's lines name put as the offset it is at
 #include "../cubin_listing.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-// the offset a label carries before the instruction it stands before is read
+// the offset a label carries before the instruction it is before is read
 #define CUBIN_LABEL_UNSET (~0ull)
 
 // one line of a code section the cut retains: where it lies in the listing, and the offset the vendor printed for it
@@ -179,7 +179,7 @@ static const char *cubin_note_end(const char *listing, size_t from, size_t end)
 static int cubin_section_written(const char *listing, CubinSection *section, unsigned int kernel,
                                  CubinListingCut *cut)
 {
-    // a label after the last instruction stands at the end of the code
+    // a label after the last instruction is at the end of the code
     const unsigned long long end_offset =
         (section->line_count != 0u) ? (section->lines[section->line_count - 1u].offset + 16ull) : 0ull;
     for (size_t at = 0u; at < section->label_count; at += 1u)
@@ -198,7 +198,7 @@ static int cubin_section_written(const char *listing, CubinSection *section, uns
             const char *const open = (const char *)memchr(listing + at, '`', end - at);
             size_t mark = (open != NULL) ? (size_t)(open - listing) : end;
             // a note the cubin carries for an instruction, `(*"BRANCH_TARGETS ..."*)`, is the container's and no part
-            // of the instruction: it stands where a raw read prints one space, and the note and the spaces before it
+            // of the instruction: it is where a raw read prints one space, and the note and the spaces before it
             // are put as that space
             const char *const note = (const char *)memchr(listing + at, '(', mark - at);
             const int noted = (note != NULL) && (((size_t)(note - listing) + 1u) < end) && (note[1] == '*');
@@ -324,7 +324,7 @@ int cubin_listing_cut(const char *listing, size_t length, const char *const *nam
                 section.lines[section.line_count] = (CubinLine){at, end, offset};
                 section.line_count += 1u;
             }
-            // every label read since the last instruction stands before this one
+            // every label read since the last instruction is before this one
             for (size_t label = section.label_count; label > 0u; label -= 1u)
             {
                 if (section.labels[label - 1u].offset != CUBIN_LABEL_UNSET)

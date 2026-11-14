@@ -50,9 +50,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # Every inner product multiplies numbers of whatever precision the search is running at. The whole
 # search reduces to that single operation, and it is the operation the engines exist for.
 #
-# What stood here was a `use_engine()` that rebound a module-level PRODUCT. It meant a caller could
+# What was here was a `use_engine()` that rebound a module-level PRODUCT. It meant a caller could
 # change the arithmetic of every other caller in the process, and - worse - it routed through a
-# dispatch that hands operands below 1,024 limbs back to the host, leaving a search at 900 bits to run
+# dispatch that passes operands below 1,024 limbs back to the host, leaving a search at 900 bits to run
 # entirely on the CPU while reporting that the device was engaged. Passing the multiply in makes the
 # machine visible at the call site and impossible to change from anywhere else.
 #

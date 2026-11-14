@@ -1,21 +1,21 @@
 \chapter{Measurements}
 \label{ch:measured}
 
-Three new measurements are reported here: how much of a transition each form of label keeps, how
+Three new measurements are reported here: how much of a transition each form of label retains, how
 the state machine behaves when a fixed scenario is put to a real host many times, and whether the
 side a branch is read from leaves a mark. The transition tables are read directly from the
 language's definition for each measurement, never transcribed.
 
-\section{What a label keeps of its transition}
+\section{What a label retains of its transition}
 \label{sec:labels}
 
 \textbf{Method.} A transition is its pair, the state left and the state reached. A branch that
 reads only the label recovers the pair exactly where the label is reached from one pair, and loses
 information where it is shared. The loss is the conditional entropy
-\(H(\text{pair} \mid \text{label})\) \cite{src:Shannon}, and the label keeps
+\(H(\text{pair} \mid \text{label})\) \cite{src:Shannon}, and the label retains
 \(H(\text{pair}) - H(\text{pair} \mid \text{label})\), the mutual information between the two.
 The 63 named cells of Table~\ref{tab:matrix} are weighted alike, \(H(\text{pair}) = 5.977\) bits.
-Each pair is put through every situation a label is decided in, four kinds of answer at four
+Each pair is put through every situation a label is decided in, four types of answer at four
 costs for each side, against a timeout of 1000 and an edge of 120 units, with every situation
 weighted alike within its pair.
 
@@ -26,7 +26,7 @@ weighted alike within its pair.
 \small
 \begin{tabular}{@{}l r r r@{}}
 \toprule
-form of label & labels & \(H(\text{pair}\mid\text{label})\) & kept \\
+form of label & labels & \(H(\text{pair}\mid\text{label})\) & retained \\
 \midrule
 one name a cell, as the tables print it & 19 & 2.675 & 3.302 \\
 one name, decided in its situation & 26 & 2.129 & 3.848 \\
@@ -34,7 +34,7 @@ sync written as its passage & 41 & 1.121 & 4.856 \\
 gray trips also carrying their state & 53 & 0.498 & 5.480 \\
 \bottomrule
 \end{tabular}
-\caption{Bits of a transition each form of label keeps, of 5.977.}
+\caption{Bits of a transition each form of label retains, of 5.977.}
 \label{tab:labelbits}
 \end{table}
 
@@ -49,8 +49,8 @@ loss entirely.
 
 What remains, 1.121 bits, sits in eight labels: fizz and fuzz into and out of gray, 2.807 bits
 each; drop, 2.539; halt, 2.322; join, tilt, vent and wake, 1.000 each. A gray trip loses what a
-sync passage keeps because its labels carry no state. Letting fuzz into gray carry the state it
-left, and fizz out of gray the state it reaches, raises what a label keeps to 5.480 bits of
+sync passage retains because its labels carry no state. Letting fuzz into gray carry the state it
+left, and fizz out of gray the state it reaches, raises what a label retains to 5.480 bits of
 5.977. The loss left, 0.498 bits, sits in drop, halt, join, tilt, vent and wake. drop and halt
 are the largest: each is a rule, any stable state to void and any state to blok, and a rule
 covering many pairs names none of them.
@@ -92,10 +92,10 @@ cycles read as other than the recorded sides imply & 0 of 400 & 0 of 400 \\
 satisfied asks past the timeout their run derived & 2 of 480 & 0 of 480 \\
 both-satisfied cycles read busy in place of dual & 8 of 160 & 15 of 160 \\
 distinct clocks & 5 & 8 \\
-runs printing the most common clock & 32 of 40 & 28 of 40 \\
+runs printing the usual clock & 32 of 40 & 28 of 40 \\
 derived timeout, least & 72,182 & 79,782 \\
 derived timeout, median & 150,810 & 167,807 \\
-derived timeout, most & 191,351 & 212,558 \\
+derived timeout, max & 191,351 & 212,558 \\
 \bottomrule
 \end{tabular}
 \caption{Two batches of forty runs of the scenario. Timeouts are in counts of the host clock.}
@@ -106,7 +106,7 @@ derived timeout, most & 191,351 & 212,558 \\
 sides imply. Every departure from the scenario is the host's, in timing.
 
 \textbf{Spurious timeouts.} Two satisfied asks of 960, 0.21\%, came in past the timeout their run
-derived: correct answers, late. Both were in batch A, both in the cycle where a satisfied side stands
+derived: correct answers, late. Both were in batch A, both in the cycle where a satisfied side is
 beside an unasked one and the pair reads gray whatever the satisfied side does, and both in runs whose
 derived timeouts were among the lowest, 72,910 and 74,596 against a median of 150,810.
 

@@ -6,7 +6,7 @@
 #include "../text/text.h"
 #include "binary.h"
 
-// the most bytes of a file of the loader's settings
+// the max bytes of a file of the loader's settings
 #define CLI_LD_CONF_BYTES (1u << 16u)
 
 // The files of a folder whose names start with `head` and end with `tail`, in order, read in turn
@@ -56,7 +56,7 @@ typedef struct
     unsigned int depth;
 } BinaryLdCtx;
 // The folders a file of the loader's settings names, those of the files it includes among them, four includes deep at
-// most, put into `folders` after `count`: the count after
+// max, put into `folders` after `count`: the count after
 static unsigned int cli_ld_conf(const BinaryLdCtx *args)
 {
     unsigned int count = args->count;
@@ -64,7 +64,7 @@ static unsigned int cli_ld_conf(const BinaryLdCtx *args)
     static CliIncluded s_included[5];
     char *const text = s_text[args->depth];
     const unsigned long long size = qry_member_file_read(args->path, (unsigned char *)text, CLI_LD_CONF_BYTES - 1u);
-    // QRY_MEMBER_UNREAD stands above every size
+    // QRY_MEMBER_UNREAD is above every size
     if (size >= CLI_LD_CONF_BYTES)
     {
         return count;

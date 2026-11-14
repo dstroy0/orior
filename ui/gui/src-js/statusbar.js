@@ -3,10 +3,10 @@
 
 // The bar along the bottom of the window. On its left the breadcrumbs of the open file, then the runs
 // going and the files still being read, then a word for a moment from what was last done, such as
-// what a formatter said, which the top bar's bell keeps. On its right what orior holds in RAM: its
+// what a formatter said, which the top bar's bell retains. On its right what orior holds in RAM: its
 // own process and the web view's, read again every MEMORY_EVERY while the window shows, marked where
 // the whole with every process it started is over the memory budget, and on the hover that whole and
-// what each part holds and has reserved; then the editor's own line, shown in the edit view only:
+// what each part holds and has reserved; then the editor's own line, displayed in the edit view only:
 // where the cursor is as line:column, what is chosen, the line ends, the encoding, the indent, and
 // the lock. The branch the tree is on, with a star where a file differs from the last commit, is on
 // the top bar beside the tree's name.
@@ -18,7 +18,7 @@ import { still } from "./motion.js";
 const MEMORY_EVERY = 2000;
 
 // The memory budget: the setting's key, and the budget in megabytes where none is set. While the app
-// holds more in RAM than the budget, it is kept to it no more often than HOLD_EVERY.
+// holds more in RAM than the budget, it is retained to it no more often than HOLD_EVERY.
 const BUDGET_KEY = "orior.memory-budget";
 const BUDGET = 2048;
 const HOLD_EVERY = 10000;
@@ -51,8 +51,8 @@ export function onOverBudget(hold) {
 }
 
 // What the app holds in RAM on the bar, and over it the budget, then each program's share: its
-// processes, what it holds in RAM and what it has reserved, which is the most it could come to hold
-// and not what it holds. Over the budget, the reading is marked and the app kept to the budget.
+// processes, what it holds in RAM and what it has reserved, which is the max it could come to hold
+// and not what it holds. Over the budget, the reading is marked and the app retained to the budget.
 async function drawMemory() {
   const node = document.getElementById("status-memory");
   if (still()) {
@@ -77,9 +77,9 @@ async function drawMemory() {
   node.replaceChildren(megabytes(read.orior.working));
   const rows = read.parts.map((part) => `${part.name}${part.processes > 1 ? ` (${part.processes} processes)` : ""}: ${megabytes(part.working)} in RAM, ${megabytes(part.commit)} reserved`);
   // A title written while the pointer rests on the reading closes its tooltip and opens it again: the
-  // tooltip keeps the reading it opened with until the pointer leaves.
+  // tooltip retains the reading it opened with until the pointer leaves.
   if (!node.matches(":hover")) {
-    node.title = [`orior and its web view: ${megabytes(read.orior.working)} in RAM`, `with the tools it started: ${megabytes(read.working)} in RAM of a budget of ${megabytes(budget)}`, ...rows, cellblock, `Reserved is the most a program could come to hold, not what it holds.`].filter(Boolean).join("\n");
+    node.title = [`orior and its web view: ${megabytes(read.orior.working)} in RAM`, `with the tools it started: ${megabytes(read.working)} in RAM of a budget of ${megabytes(budget)}`, ...rows, cellblock, `Reserved is the max a program could come to hold, not what it holds.`].filter(Boolean).join("\n");
   }
   if (over && memory.hold && performance.now() - memory.lastAt > HOLD_EVERY) {
     memory.lastAt = performance.now();
@@ -87,7 +87,7 @@ async function drawMemory() {
   }
 }
 
-export function keepMemory() {
+export function retainMemory() {
   drawMemory();
   window.setInterval(drawMemory, MEMORY_EVERY);
   document.addEventListener("visibilitychange", drawMemory);
@@ -109,7 +109,7 @@ let saidTimer = 0;
 
 // What the bar has said, the newest last, which the top bar's bell lists, and how many of them came
 // since it was last opened.
-const NOTICES_KEPT = 200;
+const NOTICES_RETAINED = 200;
 const notices = [];
 let unseen = 0;
 const noticeListeners = [];
@@ -145,15 +145,15 @@ const REST = 2000;
 const BREAKS = new Set(["file_write", "git_commit", "git_commit_parts"]);
 const breaks = { commanded: -Infinity, input: performance.now(), waiting: [], timer: 0, focus: false, listeners: [] };
 
-// Notices put away for good: each by its type, kept with the reader's settings. A notice of a type
-// put away shows no more and counts as nothing unseen; the bell still keeps it. Preferences brings a
+// Notices put away for good: each by its type, retained with the reader's settings. A notice of a type
+// put away shows no more and counts as nothing unseen; the bell still retains it. Preferences brings a
 // type back.
 const AWAY_KEY = "orior.notices-away";
 
 export function noticesAway() {
   try {
-    const kept = JSON.parse(localStorage.getItem(AWAY_KEY) ?? "[]");
-    return Array.isArray(kept) ? kept.filter((type) => typeof type === "string") : [];
+    const retained = JSON.parse(localStorage.getItem(AWAY_KEY) ?? "[]");
+    return Array.isArray(retained) ? retained.filter((type) => typeof type === "string") : [];
   } catch {
     return [];
   }
@@ -177,11 +177,11 @@ export const typeOf = (text) => String(text).split("\n")[0].replace(/\d+/g, "#")
 // Puts a word on the bar for a moment: its first line, and all of it over it, at once where it
 // answers what the reader did and at the next break where it does not. A press takes it away, and
 // does `act` first where there is one; Silence beside it puts its type away for good. The bell
-// keeps it.
+// retains it.
 export function say(text, { failed = false, act = null, type = null } = {}) {
-  const notice = { text: String(text), failed, act, at: Date.now(), kind: type ?? typeOf(text) };
-  if (noticesAway().includes(notice.kind)) {
-    keepNotice(notice, { seen: true });
+  const notice = { text: String(text), failed, act, at: Date.now(), type: type ?? typeOf(text) };
+  if (noticesAway().includes(notice.type)) {
+    retainNotice(notice, { seen: true });
     return;
   }
   if (breaks.focus || performance.now() - breaks.commanded > ANSWERS) {
@@ -196,13 +196,13 @@ export function say(text, { failed = false, act = null, type = null } = {}) {
 // The notices waiting for a break, for the tests and for Focus's count.
 export const noticesWaiting = () => breaks.waiting;
 
-// Shows the notices waiting, where Focus holds none: each kept by the bell, the last on the bar.
+// Shows the notices waiting, where Focus holds none: each retained by the bell, the last on the bar.
 export function breakTaken() {
   if (breaks.focus || !breaks.waiting.length) {
     return;
   }
   const waiting = breaks.waiting.splice(0);
-  waiting.slice(0, -1).forEach((notice) => keepNotice(notice));
+  waiting.slice(0, -1).forEach((notice) => retainNotice(notice));
   show(waiting.at(-1));
   focusChanged();
 }
@@ -233,7 +233,7 @@ function focusChanged() {
   node.title = "Focus holds every notice until it ends: a press ends it";
 }
 
-// Focus: every notice kept until it ends, and then those kept shown.
+// Focus: every notice retained until it ends, and then those retained displayed.
 export function setFocus(on = !breaks.focus) {
   breaks.focus = on;
   focusChanged();
@@ -275,9 +275,9 @@ export function startNotices() {
   document.getElementById("status-focus")?.addEventListener("click", () => setFocus(false));
 }
 
-function keepNotice(notice, { seen = false } = {}) {
-  notices.push({ text: notice.text, failed: notice.failed, at: notice.at, kind: notice.kind });
-  if (notices.length > NOTICES_KEPT) {
+function retainNotice(notice, { seen = false } = {}) {
+  notices.push({ text: notice.text, failed: notice.failed, at: notice.at, type: notice.type });
+  if (notices.length > NOTICES_RETAINED) {
     notices.shift();
   }
   if (!seen) {
@@ -286,8 +286,8 @@ function keepNotice(notice, { seen = false } = {}) {
   noticeListeners.forEach((listener) => listener());
 }
 
-function show({ text, failed, act, kind: type, ...notice }) {
-  keepNotice({ text, failed, kind: type, ...notice });
+function show({ text, failed, act, type: type, ...notice }) {
+  retainNotice({ text, failed, type: type, ...notice });
   const node = document.getElementById("status-said");
   const away = document.getElementById("status-said-away");
   const hide = () => {

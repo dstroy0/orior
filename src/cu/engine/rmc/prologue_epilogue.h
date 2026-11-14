@@ -5,11 +5,11 @@
 
 #include "instruction_selection.h"
 
-// The lane's own forms, decided after every step from what the steps left in the lane: the most of each bank any step
+// The lane's own forms, decided after every step from what the steps left in the lane: the max of each bank any step
 // took, whether any reads the tables, and which can leave the lane errored. Each is decided in the order the lane
 // writes them, the note, the lane's opening and its declarations, then its opening, its close, and where the body is
 // split, the schedule, then the body's opening and the lane's end, since a construct's scratch goes on from where each
-// bank stands; they are laid out into the text in another order (code_generator.cu)
+// bank is; they are arranged into the text in another order (code_generator.cu)
 
 // the program's note, which the assembly printer writes from the step count it stores and the target
 CODEGEN_CORE void codegen_note(MachineFunction *lane)

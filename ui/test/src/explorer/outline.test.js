@@ -30,7 +30,7 @@ test("the Outline of twenty thousand symbols holds the rows in sight, marks the 
     await ui.waitFor(() => rows().length > 0, 5000);
     assert.ok(rows().length < 200, `rows on the page: ${rows().length} of 20000`);
     assert.equal(name(rows()[0]), "step_0");
-    assert.equal(body.scrollHeight >= 20000 * 22 - 22, true, `the space stands for every row: ${body.scrollHeight}`);
+    assert.equal(body.scrollHeight >= 20000 * 22 - 22, true, `the space is for every row: ${body.scrollHeight}`);
     view.goTo(2 * 15000 + 1, 0);
     await ui.waitFor(() => name(body.querySelector('.sym[aria-current="true"]')) === "step_15000", 3000);
     const lit = body.querySelector('.sym[aria-current="true"]');

@@ -41,11 +41,11 @@ const shortId = (commit) => commit.id.slice(0, 7);
 // is reviewed, whether authors show elsewhere.
 const madeBy = (commit) => `${shortId(commit)}${commit.author ? ` by ${commit.author}` : ""}`;
 
-// A revision of a file beside the file as it stands, or beside another revision, the older left.
+// A revision of a file beside the file as it is, or beside another revision, the older left.
 export async function compareCommit(path, commit, other = null) {
   try {
     if (!other) {
-      compareTexts(path, await invoke("file_at", { path, id: commit.id }), await textNow(path), `${madeBy(commit)}, then as it stands`);
+      compareTexts(path, await invoke("file_at", { path, id: commit.id }), await textNow(path), `${madeBy(commit)}, then as it is`);
       return;
     }
     const [older, newer] = commit.when <= other.when ? [commit, other] : [other, commit];
@@ -64,7 +64,7 @@ export async function openTouched(commit, file) {
   compareTexts(file.path, then, now, `${parent ? parent.slice(0, 7) : "nothing"}, then ${madeBy(commit)}`);
 }
 
-// A review comment's file, open at the line the comment stands at in its text as it is.
+// A review comment's file, open at the line the comment is at in its text as it is.
 export async function openComment(comment) {
   await openFile(comment.path);
   const lines = tabOf(state.active)?.session?.doc.lines ?? [];
@@ -169,21 +169,21 @@ function replaceText(tab, text, why) {
   return true;
 }
 
-// The text of a file as it stands: its open tab's, or the tree's where no tab holds it.
+// The text of a file as it is: its open tab's, or the tree's where no tab holds it.
 export async function textNow(path) {
   const tab = state.tabs.find((one) => one.file === path && !one.commit && one.session && !one.session.window);
   return tab ? tab.session.doc.text() : ((await invoke("file_read", { path }).catch(() => null))?.text ?? "");
 }
 
-// Shows a file's Local History snapshot kept at `at` beside the file as it stands.
+// Shows a file's Local History snapshot retained at `at` beside the file as it is.
 export async function showSnapshot(path, at) {
   const then = await invoke("history_read", { path, at });
   const date = new Date(at);
   const when = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
-  showDiff(document.querySelector("#mode-edit .desk"), path, then, await textNow(path), { sides: `saved ${when}, then as it stands`, same: `No change from the save at ${when}.` });
+  showDiff(document.querySelector("#mode-edit .desk"), path, then, await textNow(path), { sides: `saved ${when}, then as it is`, same: `No change from the save at ${when}.` });
 }
 
-// Takes a file back to its Local History snapshot kept at `at`, in its tab as one step undo takes
+// Takes a file back to its Local History snapshot retained at `at`, in its tab as one step undo takes
 // back, the tab opened for it where none is.
 export async function revertSnapshot(path, at) {
   const then = await invoke("history_read", { path, at });

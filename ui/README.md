@@ -27,7 +27,7 @@ A job's description is the opening comment or docstring of its own file.
 
 The protocol is one job, the course, which runs the passes in order and is the Protocol menu's one entry, the Protocol button of the strip and the one job the Run view lists under protocol; its other commands, a query, a learn pass, a cross, a write or the pairs, are the command line's. A protocol job launched either way shows its run as it goes in the protocol panel, in place of a console tee. The panel reads the run where it is written (the table's run section): the run's buffer in shared memory through `qry_read`, from where its last read stopped, each blob's sequence, time, priority, member, size and name, in the order the writer placed them. The panel is the run's telemetry, for an engineer tuning the protocol.
 
-The panel keeps the job's option fields at the top as the run started with them. Under them the console box holds the run as tabs: the overview and the console. The overview is the run's line: a circle for each step holding its name, the fuse between them burnt behind the step under way and afire at it, part way to the next by how far the step's own pass has come, taken from the run's blobs as each round's questions and answers are placed, and a step the course stopped at in the error's color. The course's steps are read off its console lines, `course: <n> steps: ...` before the first and `course: step <k> of <n>: <name>` at each; a pass run alone shows its own steps, Tools, Run, Carried in, Plan, its rounds, Written and Leave. Under the line one line of words says the step and its round, the answers of the questions, the time gone, and the questions withheld, refused and faulted and the panics where there are any, counted off the console and the run's buffer.
+The panel retains the job's option fields at the top as the run started with them. Under them the console box holds the run as tabs: the overview and the console. The overview is the run's line: a circle for each step holding its name, the fuse between them burnt behind the step under way and afire at it, part way to the next by how far the step's own pass has come, taken from the run's blobs as each round's questions and answers are placed, and a step the course stopped at in the error's color. The course's steps are read off its console lines, `course: <n> steps: ...` before the first and `course: step <k> of <n>: <name>` at each; a pass run alone shows its own steps, Tools, Run, Carried in, Plan, its rounds, Written and Leave. Under the line one line of words says the step and its round, the answers of the questions, the time gone, and the questions withheld, refused and faulted and the panics where there are any, counted off the console and the run's buffer.
 
 A run whose buffer the window cannot read leaves the panel to the console.
 
@@ -42,12 +42,12 @@ Checks: the app's harness holding that the line's nodes are reached from a recor
 ## How a feature is made
 
 1. The feature is built.
-2. Its test goes in `test/`, which mirrors `gui/src-js/` file for file: `gui/src-js/x.js` is tested by `test/src/x.test.js`. A Rust module keeps its unit tests in its own `tests` module, as Rust's convention has it, and a test that spans modules goes in its crate's `tests/` folder.
+2. Its test goes in `test/`, which mirrors `gui/src-js/` file for file: `gui/src-js/x.js` is tested by `test/src/x.test.js`. A Rust module retains its unit tests in its own `tests` module, as Rust's convention has it, and a test that spans modules goes in its crate's `tests/` folder.
 3. A feature of the window is tested through the window's debugging port, every way it can be used: each press, key, menu item, drag, hover and scroll, each state it can be in, and each error it can give, checked for what it shows and what it does.
 4. `python utils/test/harness.py window test` runs the window's tests and names each module of the window with no test of its own. The walker of the menus, `test/walk.py`, and the memory watcher, `test/memory.py`, run over every command.
 5. The feature is committed and pushed once all of it passes.
 
-Every program the tree builds is named orior_<thing>, and `bin_names.tsv` at the top of the tree is the one place the names are kept: a row an id, its name, what it is, where its sources are and where it is built to. A build script, the harness and the window's scripts read a name from there by its id and write none of their own.
+Every program the tree builds is named orior_<thing>, and `bin_names.tsv` at the top of the tree is the one place the names are retained: a row an id, its name, what it is, where its sources are and where it is built to. A build script, the harness and the window's scripts read a name from there by its id and write none of their own.
 
 ## Testing it
 
@@ -118,7 +118,7 @@ for a run.
 | macOS | the Xcode command line tools |
 | Linux | `webkit2gtk-4.1`, `libayatana-appindicator3` and `librsvg2`, by their names in the distribution |
 
-On Windows the window keeps direct composition, which draws the page on the GPU: a fast scroll
+On Windows the window retains direct composition, which draws the page on the GPU: a fast scroll
 through a long file holds the display's own rate, 142 frames a second on a display of 144. Without
 it the page is drawn by the processor, about 15 ms a frame for a window of 2560 by 1440, and the
 same scroll holds 48. The features `tauri.conf.json` turns off are the ones the window turns off
@@ -130,16 +130,16 @@ ones to use.
 
 ## orior's own folder
 
-orior keeps what it carries from one run to the next in a folder of its own: `orior` in `%APPDATA%`
+orior retains what it carries from one run to the next in a folder of its own: `orior` in `%APPDATA%`
 on Windows, in `$XDG_CONFIG_HOME` or `~/.config` elsewhere, or the folder `ORIOR_HOME` names.
 
 | what | where in it |
 | --- | --- |
-| the settings Preferences and the menus set, the macros kept, and whether errors file on their own | `settings.json` |
+| the settings Preferences and the menus set, the macros retained, and whether errors file on their own | `settings.json` |
 | each theme of the reader's | `themes/`, a file each, named for the theme |
 | the reader's plugins | `plugins/`, a folder each |
 | each plugin's own settings | `plugin_settings/`, a file each, named for the plugin |
-| the stylesheet laid over the window's own | `user.css` |
+| the stylesheet positioned over the window's own | `user.css` |
 | the toolchains the reader added | `user_toolchains.json` |
 | the panes, each tree's tabs and the files opened last, the places left in them, bookmarks, breakpoints, watches and the values each job last ran with | `state.json` |
 | the text of each tab with changes not saved | `backups/`, a file each |
@@ -154,13 +154,13 @@ on Windows, in `$XDG_CONFIG_HOME` or `~/.config` elsewhere, or the folder `ORIOR
 as it starts, which takes in an edit made while it was closed; a key taken out goes back to its
 default.
 
-A tree's own settings are in `.orior/settings.json` at its top folder, and stand over the reader's
+A tree's own settings are in `.orior/settings.json` at its top folder, and are over the reader's
 as the tree opens and each time the file changes; Preferences, Settings in force, shows each setting
 a file sets, its value, and the file it comes from. A settings file, the tree's or `settings.json`,
 is JSON with comments and trailing commas, and has keys of its own beside its settings: `takes`, the
 path of another settings file, from the file's folder, whose settings it changes; `windows`, `linux`
 and `macos`, the settings for that system alone; `machine`, in `settings.json`, the settings for
-this machine alone; and `[kind]`, as `[markdown]`, the theme of each
+this machine alone; and `[type]`, as `[markdown]`, the theme of each
 scheme, `theme.dark` and `theme.light`, the editor shows that language's files in. Text in a value
 names another setting's value as `${setting:name}`, a variable of the system's environment as
 `${env:NAME}`, and the home folder, the tree's folder and the system as `${home}`, `${tree}` and
@@ -178,8 +178,8 @@ run programs or name the reader's own.
 ```
 
 A theme's file in `themes/` holds its name, the scheme it is drawn over, and its colors, among them
-one for any kind of token a grammar names, as `--t-string-escape`; and, where it has them, `image`,
-a picture laid behind the editor as a data address with the share of it that shows, and `icons`,
+one for any type of token a grammar names, as `--t-string-escape`; and, where it has them, `image`,
+a picture positioned behind the editor as a data address with the share of it that shows, and `icons`,
 each a pattern of files' names, the mark the explorer shows for them and its color. Preferences,
 Colors, marks each color whose contrast with the color under it is under 4.5:1.
 
@@ -197,14 +197,14 @@ Preferences, Settings on Every Machine, sends `settings.json`, the themes, the p
 one's own settings, `menus.json` and `user.css` to a file or to a folder of the reader's, a
 repository's commits made and pushed, and takes them in from one on another machine. What a taking
 would change shows first, a file at a time and `settings.json` a setting at a time, and nothing is
-written until the reader takes what is chosen; each taking is kept in `carried/` and undone from
+written until the reader takes what is chosen; each taking is retained in `carried/` and undone from
 the list there. `machine`, `signing.`, `environment.`, `memory-budget`, `cores-reserved` and
 `carry.place` stay on the machine that set them.
 
 orior reaches an address off this machine only for what the reader asked of it: a request sent, a
 database connected, a debug adapter joined, a command run over ssh, a repository cloned, pulled or
 pushed, and an error report the reader let file on its own; it sends nothing about the reader. Help,
-Off the Network, kept as `network`, holds it off the network entirely, each reach refused with what
+Off the Network, retained as `network`, holds it off the network entirely, each reach refused with what
 it was for, and a tree's settings file does not set it. Help, Network… lists each address reached,
 when and what for.
 
@@ -214,14 +214,14 @@ setting `language` names, chosen in Preferences, or the system's. A text the fil
 stays in English, and the editor's text, the terminal's and the files' names are never changed. In
 the editor, a line where Hebrew, Arabic or another script that runs right to left meets text that
 runs left to right is drawn in the order it is read, the arrows move by that order, and a press or a
-selection lands where the page draws each character; the word keys count a letter's marks as part of
+selection lands where the page draws each character; the word keys count a character's marks as part of
 its word.
 
 File, Plugins reads a catalog of plugins others publish, at an address the reader names on the web or
 on this machine, and installs a plugin the search finds from its package, a JSON file of its files by
 name, where its hash and its version are those the catalog gives. A script plugin's plugin.json
 says what it reads and writes, as patterns of the tree's files, and the hosts it reaches; it runs
-only once the reader lets it, Install letting it as the catalog showed, and each call is kept to
+only once the reader lets it, Install letting it as the catalog showed, and each call is retained to
 what it asked for. A plugin is updated only by Update, and an update that asks for more waits for
 Let It Run.
 
@@ -231,7 +231,7 @@ Let It Run.
 
 A tree names its deployments in `deploy.json` at its top folder, each a job of Build: its name,
 the folder whose files go, the patterns of the files that stay, the places, and how many releases
-each place keeps.
+each place retains.
 
 ```json
 {"deployments": [{"name": "site", "from": "dist", "exclude": ["*.map", "drafts/"], "to": ["me@web1:/srv/site", "docker:web:/srv/site"], "retain": 5}]}
@@ -241,7 +241,7 @@ A place is an address as File, Open, Folder on Another Machine… takes one, or 
 machine. A machine takes each deployment as a new release under `releases/`, and `current` is
 turned to it once every place holds it; `"inPlace": true` sends the files into the folder itself, as
 a folder on this machine always takes them. The hashes of the files last sent to each place are
-kept in `deployed/` in orior's own folder, to tell a file changed at a place since.
+retained in `deployed/` in orior's own folder, to tell a file changed at a place since.
 
 The programs a tree's builds make are signed where `settings.json` names how: `signing.windows`, a
 certificate's thumbprint in the reader's store or the path of a `.pfx` file, its password taken from

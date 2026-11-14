@@ -20,7 +20,7 @@ SimRational core_radius_plus(SimRational left, SimRational right);
 
 SimRational core_radius_over(SimRational left, SimRational right);
 
-SimRational core_radius_most(SimRational left, SimRational right);
+SimRational core_radius_max(SimRational left, SimRational right);
 
 // sum |c_m| rho^m
 SimRational core_radius_norm(const std::vector<SimRational> &weights, SimRational rho);
@@ -130,7 +130,7 @@ void core_radius_round_up(CoreRadiusWeights *weights, const OriorExactInteger *u
 // device takes every sum modulo primes below 2^31, one thread to a mode, a prime and a sum, and the host reads each
 // back whole by the Chinese remainder theorem, its mixed radix digits by Garner's rule: the sums are at least 0, and
 // below the product of the primes where 2 widest + log2 of the terms' count and weight is below 30 times their
-// number, widest the most bits of any integer put. The rest of each order, linear in its own weights, stays on the
+// number, widest the max bits of any integer put. The rest of each order, linear in its own weights, stays on the
 // host, and the order is the host's to the last bit.
 
 enum
@@ -164,14 +164,14 @@ typedef struct
     int available;
 } CoreRadiusDevice;
 
-// the device's buffers for `orders` orders of at most `modes` weights, modulo `primes_count` primes: stored 0 where no
+// the device's buffers for `orders` orders of at max `modes` weights, modulo `primes_count` primes: stored 0 where no
 // device answers or a buffer does not open
 void core_radius_device_open(CoreRadiusDevice *device, unsigned int orders, unsigned int modes, unsigned int primes_count);
 
 void core_radius_device_close(CoreRadiusDevice *device);
 
-// the weights of `kind` at order k, each a multiple of 1 / unit, put on the device as integers modulo every prime
-void core_radius_device_put(CoreRadiusDevice *device, unsigned int kind, unsigned int k, const CoreRadiusWeights &weights, const OriorExactInteger *unit);
+// the weights of `type` at order k, each a multiple of 1 / unit, put on the device as integers modulo every prime
+void core_radius_device_put(CoreRadiusDevice *device, unsigned int type, unsigned int k, const CoreRadiusWeights &weights, const OriorExactInteger *unit);
 
 // order k's three sums, spin, along and square, each over 2^(2 bits + 1), read back whole
 void core_radius_device_sums(CoreRadiusDevice *device, unsigned int k, const OriorExactInteger *unit, CoreRadiusWeights sums[CORE_RADIUS_SUMS]);

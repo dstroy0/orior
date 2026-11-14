@@ -22,7 +22,7 @@ typedef struct
     unsigned int capacity;
     int folders;
 } CliDefsNames;
-// the most folders or tables a listing contains
+// the max folders or tables a listing contains
 #define CLI_DEFS_NAMES 512u
 
 typedef struct
@@ -32,7 +32,7 @@ typedef struct
     const char *at;
     const char *end;
     const char **stop;
-    char letter;
+    char character;
     const char *from;
     const char *to;
     VerbaLinea *out;
@@ -80,7 +80,7 @@ EMBED_INLINE const char *cli_line(const DefsCtx *args)
 
 EMBED_INLINE int cli_is_space(const DefsCtx *args)
 {
-    return (args->letter == ' ') || ((args->letter >= '\t') && (args->letter <= '\r'));
+    return (args->character == ' ') || ((args->character >= '\t') && (args->character <= '\r'));
 }
 
 // whether a line contains no table: a comment, or blank
@@ -91,7 +91,7 @@ EMBED_INLINE int cli_skip(const DefsCtx *args)
     {
         return 1;
     }
-    while ((from < args->to) && EMBED_CALL(cli_is_space, DefsCtx, .letter = from[0]))
+    while ((from < args->to) && EMBED_CALL(cli_is_space, DefsCtx, .character = from[0]))
     {
         from += 1;
     }

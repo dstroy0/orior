@@ -209,8 +209,8 @@ def start(wanted):
                 up.said.append("the print server's printers did not come up")
                 continue
             up.env.append(("ORIOR_CUPS", address))
-            for kind, printer in zip(("PDF", "PWG", "URF"), printers):
-                up.env.append(("ORIOR_IPP_" + kind, "ipp://127.0.0.1:%d/ipp/print" % printer))
+            for type, printer in zip(("PDF", "PWG", "URF"), printers):
+                up.env.append(("ORIOR_IPP_" + type, "ipp://127.0.0.1:%d/ipp/print" % printer))
             up.env.append(("ORIOR_CUPS_CONTAINER", name))
         elif name.endswith("-ssh"):
             try:
@@ -325,9 +325,9 @@ class Echo(http.server.BaseHTTPRequestHandler):
         else:
             self.answer(404, "text/plain", b"no such path")
 
-    def answer(self, status, kind, content, location=None):
+    def answer(self, status, type, content, location=None):
         self.send_response(status)
-        self.send_header("Content-Type", kind)
+        self.send_header("Content-Type", type)
         self.send_header("Content-Length", str(len(content)))
         if location:
             self.send_header("Location", location)

@@ -2,7 +2,7 @@
 
 **Purpose:** Write out every transform a boundary reading passes through, from the interior state to
 the pixel, with its action on the coefficients, whether it is diagonal in degree, what it leaves
-invariant, and what it costs. Keep the pieces in one table, and a transform already priced is not
+invariant, and what it costs. Retain the pieces in one table, and a transform already priced is not
 priced again while a transform never tried stays visible.
 **Scope:** `examples/00_blob_viz_tools/sphere_field.py`, `examples/00_blob_viz_tools/boundary_read.py`, `examples/00_blob_viz_tools/reading_rank.py`,
 `examples/00_blob_viz_tools/grid_error.py`, `examples/proofing/natural_constants.py`, `examples/00_blob_viz_tools/room_view_template.html`
@@ -25,7 +25,7 @@ Two facts about the vector before any operator touches it.
 
 **Its length is the bound on what a reading can say.** A reading to degree `L` carries `(L+1)^2` real
 numbers about its source, whatever the source is. 256 sources read at degree 8 arrive as 81 numbers;
-175 directions of the source space are absent from the reading. The eight-letter octant alphabet
+175 directions of the source space are absent from the reading. The eight-character octant alphabet
 is rank 8, absent in 248, with 7 free numbers left once the weight is fixed. Measured in
 `reading_rank.py`.
 
@@ -46,7 +46,7 @@ number, without moving power between degrees. Cost is per reading unless stated.
 | T3 | depth, outward carry | source radius `r` in a shell `R` | `a_lm -> (r/R)^l a_lm` | yes | direction of each degree | `O(L^2)` | `sphere_field.kernel` |
 | T4 | conduction, smoothing | time `tau` on the boundary | `a_lm -> exp(-l(l+1) tau) a_lm` | yes | direction of each degree | `O(L^2)` | `sphere_field.kernel` |
 | T5 | pixel prefilter | screen footprint `sigma` | `a_lm -> exp(-l(l+1) sigma^2/2) a_lm` | yes | direction of each degree | `O(L^2)` | not built |
-| T6 | band truncation | ceiling `L` | keep `l <= L`, zero above | yes | every kept coefficient | free | `state.degrees` |
+| T6 | band truncation | ceiling `L` | retain `l <= L`, zero above | yes | every retained coefficient | free | `state.degrees` |
 | T7 | parity, reflection | through the origin | `a_lm -> (-1)^l a_lm` | yes | `P_l` | `O(L^2)` | implicit |
 | T8 | screw, index shift | index `n` in a golden placement | rotation `n gamma`, slide `-2n/N` | yes | `P_l` | `O(L^2)` | `boundary_read.screw_of` |
 | T9 | synthesis | none; leaves coefficient space | `f(n) = sum a_lm Y_lm(n)` | no | none | `O(L^2)` per point | `sphere_field.synthesize` |
@@ -86,7 +86,7 @@ The two smoothing times add. The heat kernel on the sphere is a semigroup:
 `exp(-l(l+1) tau_1) exp(-l(l+1) tau_2) = exp(-l(l+1)(tau_1 + tau_2))`, and smoothing for `tau_1` then
 `tau_2` is smoothing once for the sum. Nothing about that is an approximation.
 
-Two consequences, and they are the reason the table is worth keeping.
+Two consequences, and they are the reason the table is worth retention.
 
 **The whole physical and imaging chain is 11 multiplications.** At `L = 10`, `g` is eleven numbers,
 recomputed when the depth, the smoothing or the ceiling changes and never per pixel. The viewer
@@ -142,7 +142,7 @@ anywhere. Choosing `K` to be the heat kernel of width `sigma` gives T5, and one 
 prefiltered field is the pixel's area average exactly.
 
 So the comparison is not between one scheme and a cheaper scheme. Supersampling approximates a
-quantity this field hands over in one multiplication.
+quantity this field passes over in one multiplication.
 
 ### 5.2 The footprint and the time
 
@@ -254,7 +254,7 @@ the same trade a trilinear filter makes against an anisotropic one.
 **Edges that are not band-limited.** T5 is exact for a band-limited field. The boundary field is
 band-limited by construction, since a reading is a truncated expansion. The room's walls, the
 beam stops and the arms have real corners, and prefiltering those rings. So the split is: the field
-gets the exact prefilter, the geometry keeps conventional coverage antialiasing. Applying T5 to the
+gets the exact prefilter, the geometry retains conventional coverage antialiasing. Applying T5 to the
 geometry would be a Gibbs artifact sold as a feature.
 
 ## 6. Invariants, And The Split They Give
@@ -266,14 +266,14 @@ exactly `-m alpha`.
 Every reading therefore splits exactly:
 
 * **Power per degree is intrinsic.** It is a property of the source, carrying no information about
-  where the reader stands.
+  where the reader is.
 * **Phase is contextual.** It is a property of the source and the reader together, and it moves by a
   known amount under a known rotation.
 
 The split is exact and needs no estimator. The angular power spectrum (`deflection`) and torsion in `boundary_read.py` are
 the two halves.
 
-## 7. The Constants, And Which Kind They Are
+## 7. The Constants, And Which Type They Are
 
 Every constant in the table is a computed number. `natural_constants.py` produces them to any
 requested length by integer arithmetic, verified at 60 places:
@@ -304,7 +304,7 @@ two copies of one mistake.
 from the true golden angle. Over 63 indices the accumulated difference is about 2.8e-14 radians, which
 is negligible and is now a number instead of an assumption.
 
-### 7.1 The other kind of constant
+### 7.1 The other type of constant
 
 The 2022 CODATA adjustment (Mohr et al. 2025) lists each fundamental physical constant with a value
 and an uncertainty. About half read `(exact)`, because the 2019 redefinition of the SI fixed the speed
@@ -313,7 +313,7 @@ by definition. The rest carry an uncertainty no amount of computing will shrink:
 constant at 1.5e-10 relative, the Newtonian constant of gravitation at 2.2e-5, every particle mass at
 its own figure.
 
-**No constant of that kind appears in the reading path.** Confirmed by search across every source
+**No constant of that type appears in the reading path.** Confirmed by search across every source
 file in the tree. The consequence is worth stating plainly: the reading engine carries no
 experimental uncertainty at all. Its only floors are chosen ones, and there are three.
 
@@ -324,7 +324,7 @@ experimental uncertainty at all. Its only floors are chosen ones, and there are 
 | calibrated null | a move that changes nothing, measured | a better null |
 
 The null is the only one of the three that is measured, and it measures this tree's own arithmetic
-and not the world. The power-under-rotation null floor stands at 4.005e-16 from `null_harness.py`.
+and not the world. The power-under-rotation null floor is at 4.005e-16 from `null_harness.py`.
 
 ## 8. Not Settled
 

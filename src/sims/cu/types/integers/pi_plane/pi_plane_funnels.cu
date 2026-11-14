@@ -4,10 +4,10 @@
 #include "pi_plane_internal.h"
 
 // blind pairs: pi's unseen blocks, from block first past
-// the seen bits, each laid out in the rings unrolled beside a shuffle of the same block, which is which decided by a
+// the seen bits, each arranged in the rings unrolled beside a shuffle of the same block, which is which decided by a
 // keyed coin, or where balanced by a keyed deal of pi to A in exactly half the pairs, and written only to
 // blind_answer.txt. The coin is keyed by the block and the deal by the first block. A round from --blind-from deals its
-// own sides; the round from block 0 retains the sides it was shown with
+// own sides; the round from block 0 retains the sides it was displayed with
 int plane_blind(SimResults *results, const std::vector<unsigned long long> &sizes, unsigned long long seen,
                 unsigned int first, unsigned int pairs, int balanced, const std::string &directory)
 {
@@ -40,7 +40,7 @@ int plane_blind(SimResults *results, const std::vector<unsigned long long> &size
         std::swap(sides[pair - 1u], sides[other]);
     }
     std::vector<unsigned char> all;
-    // the bits needed are at most 2^18 or so, far below 2^32
+    // the bits needed are at max 2^18 or so, far below 2^32
     int ok = plane_bits(results, (unsigned int)needed, &all);
     FILE *const answer = ok ? fopen((directory + "/blind_answer.txt").c_str(), "w") : NULL;
     ok = ok && (answer != NULL);
@@ -271,7 +271,7 @@ static int plane_funnel_picture(const std::vector<unsigned long long> &sizes, co
         {
             for (unsigned long long column = 0ull; column < width; column += 1ull)
             {
-                // the share of ones, scaled to 255, is at most 255, and each tint below stays within a byte
+                // the share of ones, scaled to 255, is at max 255, and each tint below stays within a byte
                 const unsigned long long shade = (255ull * ones[(size_t)column]) / counted[(size_t)column];
                 const int red = tinted[(size_t)column] != 0ull;
                 const size_t at = (size_t)(((((ring * PLANE_RING_ROW) + row) * width) + column) * 3ull);
@@ -303,18 +303,18 @@ static void plane_funnel_blocks(SimResults *results, const std::vector<unsigned 
         const size_t at = (size_t)(from + (each * block));
         const std::vector<unsigned char> mine(all.begin() + (ptrdiff_t)at, all.begin() + (ptrdiff_t)(at + block));
         const PlaneFunnelMeasurement measurement = plane_funnel_read(sizes, starts, mine.data());
-        for (unsigned int kind = 0u; kind < PLANE_FUNNEL_READINGS; kind += 1u)
+        for (unsigned int type = 0u; type < PLANE_FUNNEL_READINGS; type += 1u)
         {
-            pi_total.value[kind] += measurement.value[kind];
+            pi_total.value[type] += measurement.value[type];
         }
         for (unsigned int draw = 0u; draw < draws; draw += 1u)
         {
             plane_shuffle(mine, draw, &drawn);
             const PlaneFunnelMeasurement drawn_measurement = plane_funnel_read(sizes, starts, drawn.data());
-            for (unsigned int kind = 0u; kind < PLANE_FUNNEL_READINGS; kind += 1u)
+            for (unsigned int type = 0u; type < PLANE_FUNNEL_READINGS; type += 1u)
             {
-                drawn_total[draw].value[kind] += drawn_measurement.value[kind];
-                reached[kind][each] += (drawn_measurement.value[kind] >= measurement.value[kind]) ? 1ull : 0ull;
+                drawn_total[draw].value[type] += drawn_measurement.value[type];
+                reached[type][each] += (drawn_measurement.value[type] >= measurement.value[type]) ? 1ull : 0ull;
             }
         }
     }
@@ -327,25 +327,25 @@ static void plane_funnel_blocks(SimResults *results, const std::vector<unsigned 
     mmgr_line_put(line, " to ");
     mmgr_line_decimal(line, from + (blocks * block), 1u);
     mmgr_line_ch(line, '\n');
-    for (unsigned int kind = 0u; kind < PLANE_FUNNEL_READINGS; kind += 1u)
+    for (unsigned int type = 0u; type < PLANE_FUNNEL_READINGS; type += 1u)
     {
         std::vector<unsigned long long> band;
         for (unsigned int draw = 0u; draw < draws; draw += 1u)
         {
-            band.push_back(drawn_total[draw].value[kind]);
+            band.push_back(drawn_total[draw].value[type]);
         }
         mmgr_line_put(line, "    ");
-        mmgr_line_put(line, s_plane_funnel_names[kind]);
+        mmgr_line_put(line, s_plane_funnel_names[type]);
         mmgr_line_put(line, ", summed over the blocks: pi's ");
-        mmgr_line_decimal(line, pi_total.value[kind], 1u);
-        plane_band_print(line, band, pi_total.value[kind]);
+        mmgr_line_decimal(line, pi_total.value[type], 1u);
+        plane_band_print(line, band, pi_total.value[type]);
         mmgr_line_put(line, "      each block, the draws of ");
         mmgr_line_decimal(line, draws, 1u);
         mmgr_line_put(line, " reaching pi's:");
         for (unsigned int each = 0u; each < blocks; each += 1u)
         {
             mmgr_line_ch(line, ' ');
-            mmgr_line_decimal(line, reached[kind][each], 1u);
+            mmgr_line_decimal(line, reached[type][each], 1u);
         }
         mmgr_line_ch(line, '\n');
         sim_flush(results);
@@ -353,7 +353,7 @@ static void plane_funnel_blocks(SimResults *results, const std::vector<unsigned 
 }
 
 // the funnels on the six blind blocks the eye picked pi from, then on fresh blocks past them that no picture showed;
-// the first blind pair, pi and the shuffle it was shown beside, drawn with their funnels
+// the first blind pair, pi and the shuffle it was displayed beside, drawn with their funnels
 int plane_funnels(SimResults *results, const std::vector<unsigned long long> &sizes, unsigned long long seen,
                   unsigned int fresh, unsigned int draws, const std::string &directory)
 {
@@ -364,7 +364,7 @@ int plane_funnels(SimResults *results, const std::vector<unsigned long long> &si
     const unsigned long long needed = seen + ((PLANE_BLIND_SCORED + fresh) * block);
     if ((fresh > PLANE_FUNNEL_FRESH_MAX) || (needed + PLANE_GUARD + 64ull > ORIOR_EXACT_BITS))
     {
-        mmgr_line_put(line, "  the funnels read at most ");
+        mmgr_line_put(line, "  the funnels read at max ");
         mmgr_line_decimal(line, PLANE_FUNNEL_FRESH_MAX, 1u);
         mmgr_line_put(line, " fresh blocks and need an exact width of ");
         mmgr_line_decimal(line, needed + PLANE_GUARD + 64ull, 1u);
@@ -373,7 +373,7 @@ int plane_funnels(SimResults *results, const std::vector<unsigned long long> &si
         return 0;
     }
     std::vector<unsigned char> all;
-    // the bits needed are at most 2^18 or so, far below 2^32
+    // the bits needed are at max 2^18 or so, far below 2^32
     int ok = plane_bits(results, (unsigned int)needed, &all);
     if (ok)
     {

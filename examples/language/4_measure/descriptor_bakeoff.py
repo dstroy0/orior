@@ -14,10 +14,10 @@
 # to one on Japanese authorship. So the question is whether there is any task here it wins.
 #
 # Six descriptions of the same texts are run against four questions. The comparison that carries the
-# most here is the marginal: how often each character is used, with nothing about what follows
+# max here is the marginal: how often each character is used, with nothing about what follows
 # what. It is the square with its structure removed. If the marginal matches the square, then the
 # transitions the square exists to hold are worth nothing, and every result in this section rests on
-# letter frequencies.
+# character frequencies.
 #
 # Each question is scored the same way, by holding one text out and asking whether it lands with its own
 # group. Guessing is stated for each, which lets a score be read without knowing how many groups there are.
@@ -93,11 +93,11 @@ def score(rows, groups_of):
         best = None
         picked = None
         for label in labels:
-            kept = [other[1] for position, other in enumerate(rows)
+            retained = [other[1] for position, other in enumerate(rows)
                     if groups_of(other) == label and position != index]
-            if not kept:
+            if not retained:
                 continue
-            distance = float(numpy.linalg.norm(row[1] - numpy.mean(numpy.stack(kept), axis=0)))
+            distance = float(numpy.linalg.norm(row[1] - numpy.mean(numpy.stack(retained), axis=0)))
             if (best is None) or (distance < best):
                 best = distance
                 picked = label
@@ -123,10 +123,10 @@ def german_texts(cut, per_century=45):
         path = os.path.join(CORPORA, "dta_%s.zip" % century)
         if not os.path.isfile(path):
             continue
-        kept = 0
+        retained = 0
         with zipfile.ZipFile(path) as bundle:
             for name in sorted(bundle.namelist()):
-                if kept >= per_century or not name.endswith(".txt"):
+                if retained >= per_century or not name.endswith(".txt"):
                     continue
                 try:
                     text = bundle.read(name).decode("utf-8", errors="replace")
@@ -136,7 +136,7 @@ def german_texts(cut, per_century=45):
                 if len(text) < cut:
                     continue
                 out.append((century, text[:cut]))
-                kept += 1
+                retained += 1
     return out
 
 

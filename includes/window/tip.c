@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tip.c: the tooltip under the button the pointer rests on: a panel box with the button's label in the interface face
-// and its keys after it in the quieter text, shown as the rest on the button ends
+// and its keys after it in the quieter text, displayed as the rest on the button ends
 #include "tip.h"
 
-// the most bytes a tip holds, a label with its keys
+// the max bytes a tip holds, a label with its keys
 #define GUI_TIP_LABEL_MAX 256u
 #include "frame.h"
 #include "cellularum_laboro/cellularum_laboro.h"
@@ -97,7 +97,7 @@ void gui_tip_draw(const GuiTipRasterCfg *args)
                                               .glyphs = args->glyphs, .face = GUI_FACE_HEAD, .size = size,
                                               .text = tip->keys, .length = keys_length)
                                  : 0.0f;
-    // the widths are pixels, a few hundred at most, so the sum rounds up into an int
+    // the widths are pixels, a few hundred at max, so the sum rounds up into an int
     const int text_width = (int)(label_width + ((keys_length != 0ULL) ? ((float)gap + keys_width) : 0.0f) + 0.5f);
     const int line = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PANEL_TEXT_LINE, .scale = scale);
     const int pixel_width = text_width + (2 * pad_x);
@@ -120,7 +120,7 @@ void gui_tip_draw(const GuiTipRasterCfg *args)
     }
     else
     {
-        // the box stands off the button by its own distance, so the anchor it is placed under grows by that less the
+        // the box is off the button by its own distance, so the anchor it is placed under grows by that less the
         // panel's own offset, and centres on the button by backing up half the width the box has over it
         const GuiRect anchor = {tip->anchor.x, tip->anchor.y - (off - GUI_PANEL_OFF), tip->anchor.width,
                                 tip->anchor.height + (2 * (off - GUI_PANEL_OFF))};

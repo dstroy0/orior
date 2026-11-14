@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 title	Henry Davis	title	A Newly Discovered Reduplication Pattern in St’át’imcets and its Implications*	the paper's title, with the footnote marker the page prints on it
 title	Henry Davis	name	Henry Davis	the first author
 title	Gloria Mellesmoen	name	Gloria Mellesmoen	the second author
@@ -33,7 +33,7 @@ fn2	St'át'imcets	notation	(L)	what the paper marks a form specific to Lower St'
 §1	St'át'imcets	cited form	x̌əx̌zúm	'big, plural', a plural adjective with initial C1 reduplication
 §1	St'át'imcets	cited form	kʷəkʷíkʷs	'small, plural', a plural adjective with initial C1 reduplication
 §1	St'át'imcets	cited form	xʷíxʷitən	'whistle continuously', a continuative verb
-§1	St'át'imcets	cited form	(ʔə)státaɬləx	'stand continuously', a continuative verb
+§1	St'át'imcets	cited form	(ʔə)státaɬləx	'are continuously', a continuative verb
 §1	St'át'imcets	cited form	nkəkaɬ(ʔ)ás	'three humans', a numeral with initial C1 reduplication
 §1	St'át'imcets	cited form	nx̌ʷəx̌ʷʔúcin	'four people', a numeral with initial C1 reduplication
 §1	St'át'imcets	cited form	lə́p̓əp̓	'get buried', a verb with final C2 reduplication
@@ -214,7 +214,7 @@ fn8	St'át'imcets	cited form	pəm-ílx	'go fast', the base of pəmí-<m>l̓əx
 (21e)	St'át'imcets	cited form	pá<p>kʷ-ən̓	'cut or slice s.t. up', the pluractional form
 (21f)	St'át'imcets	cited form	q̓íɬil	'run', the base form
 (21f)	St'át'imcets	cited form	q̓í<q̓>ɬil̓	'run around', read off page 20, where the text loses the mark on l
-(21g)	St'át'imcets	cited form	tíx̌-in̓	'lay s.t. out', the base form
+(21g)	St'át'imcets	cited form	tíx̌-in̓	'position s.t. out', the base form
 (21g)	St'át'imcets	cited form	tí<t>x̌-ən̓	'line things up', the pluractional form
 (21h)	St'át'imcets	cited form	ƛ̓úqʷ-un̓	'suck s.t.', the base form
 (21h)	St'át'imcets	cited form	ƛ̓ú<ƛ̓>qʷ-ən̓	'suck s.t. out of s.t.', the pluractional form
@@ -265,7 +265,7 @@ fn12	St'át'imcets	cited form	x̌ʷayt	'die or perish', the base of x̌ʷá<x̌�
 (26c)	St'át'imcets	cited form	q̓áy-ləx	'jump', the base form
 (26c)	St'át'imcets	cited form	q̓əy-q̓ə́<q̓>əy-l̓əx	'jump up and down, plural', a double pluractional
 (26d)	St'át'imcets	cited form	cúɬ-xal	'point', the base form
-(26d)	St'át'imcets	cited form	cəɬ-cə́<c>ɬ-xal	'make all kinds of signs', a double pluractional
+(26d)	St'át'imcets	cited form	cəɬ-cə́<c>ɬ-xal	'make all types of signs', a double pluractional
 §2.2.2	St'át'imcets	cited form	q̓ʷəm-q̓ʷm-í<m>l̓əx	'curl up ready to pounce', a double pluractional with vowel retention
 §2.2.2	St'át'imcets	cited form	n-cəs-cəs-p-á<p>lusəm	'squint, stretch one's eyes', a double pluractional
 (27a)	St'át'imcets	impossible	n-kə<k>əm̓-xál	the diminutive doublet the elicitation failed to produce
@@ -299,7 +299,7 @@ fn12	St'át'imcets	cited form	x̌ʷayt	'die or perish', the base of x̌ʷá<x̌�
 §2.3	St'át'imcets	cited form	cw̓ú<w̓>saʔ	'play soccer', as section 2.3 writes it
 §3.1	St'át'imcets	notation	STEM	the stratum the root sits at
 §3.1	St'át'imcets	notation	WORD	the stratum both stress-aligned infixes apply at
-(32a)	St'át'imcets	cited form	xʷí-xʷitən	'keep whistling', initial C1 reduplication with stress on the initial vowel
+(32a)	St'át'imcets	cited form	xʷí-xʷitən	'retain whistling', initial C1 reduplication with stress on the initial vowel
 (32b)	St'át'imcets	cited form	ná-n̓atxʷ	'morning', initial C1 reduplication
 (32c)	St'át'imcets	cited form	q̓á-q̓aw-am̓	'howl', initial C1 reduplication
 (33a)	St'át'imcets	cited form	qʷə-qʷal̓út	'talk plural, speak all the time', read by symbol_sift from qʷəqʷal̓út
@@ -330,9 +330,9 @@ fn18	St'át'imcets	cited form	s-q̓á<q̓>paʔ	'sand', a lexicalized vowel retai
 (36d)	St'át'imcets	cited form	p̓a-p̓á<p̓>kʷ	'float, plural', initial plus infix
 fn19	St'át'imcets	cited form	qʷəqʷal̓út	'to talk loudly, bawl someone out', van Eijk's meaning
 fn20	St'át'imcets	cited form	p̓á-p̓akʷ	the form with initial but not pluractional reduplication, not yet recorded
-(37a)	St'át'imcets	cited form	ʔəs-táɬ-ləx	'standing up', the base form
-(37a)	St'át'imcets	cited form	ʔəs-tá-taɬ-ləx	'standing up continuously', initial reduplication
-(37a)	St'át'imcets	cited form	ʔəs-təɬ-táɬ-ləx	'standing up, plural', total reduplication
+(37a)	St'át'imcets	cited form	ʔəs-táɬ-ləx	'located up', the base form
+(37a)	St'át'imcets	cited form	ʔəs-tá-taɬ-ləx	'located up continuously', initial reduplication
+(37a)	St'át'imcets	cited form	ʔəs-təɬ-táɬ-ləx	'located up, plural', total reduplication
 (37a)	St'át'imcets	impossible	ʔəs-ta-təɬ-táɬ-ləx	starred: initial and total may not co-occur
 (37a)	St'át'imcets	impossible	ʔəs-təɬ-tá-taɬ-ləx	starred: total and initial may not co-occur
 (37b)	St'át'imcets	cited form	qʷəl̓-qʷal̓út	'speak, plural', total reduplication, read by symbol_sift
@@ -439,4 +439,4 @@ fn15	Henry Davis	name	Bermúdez	the same name, split across a line break by the 
 (54)	St'át'imcets	notation	əh	the other sequence the constraint bans
 §2.1.1	St'át'imcets	fragment	C1ə-	the prefix as footnote 3 writes it, which the check reads as a form
 (5a)	Henry Davis	gloss	jacket’7	'light jacket' with the footnote marker welded on by the extraction
-§3.1.2	St'át'imcets	fragment	ʔ	the glottal stop standing alone where the extraction split a form
+§3.1.2	St'át'imcets	fragment	ʔ	the glottal stop located alone where the extraction split a form

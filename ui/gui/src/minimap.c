@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // minimap.c: the minimap part. The map's rows are the text's lines, two pixels each; the line at its first row follows
 // the view's top through the text where the lines outnumber the rows, and stays put while the view does, so an edit
-// that adds lines leaves the map where it stood
+// that adds lines leaves the map where it was
 #include "minimap.h"
 
 #include "../../../includes/window/frame.h"
 
-// the share of a bar's color laid over the ground, 80%
+// the share of a bar's color positioned over the ground, 80%
 #define MAP_BAR_ALPHA 0xccu
 
 void gui_minimap_clear(const GuiMinimapCfg *args)
@@ -79,19 +79,19 @@ void gui_minimap_on_position(const GuiMinimapPositionCfg *args)
     unsigned long long start = 0ULL;
     if (lines > (unsigned long long)at->fit)
     {
-        const unsigned long long most = lines - (unsigned long long)at->fit;
+        const unsigned long long max = lines - (unsigned long long)at->fit;
         if (args->map->anchored && (args->map->anchor_top == top))
         {
-            // the view has not moved since the map last stood: the map stands where it did beside it
+            // the view has not moved since the map last was: the map is where it did beside it
             const long long saved = (long long)top - args->map->anchor_offset;
             start = (saved > 0LL) ? (unsigned long long)saved : 0ULL;
         }
         else
         {
             const float share = (float)top / at->range;
-            start = (unsigned long long)((((share < 1.0f) ? share : 1.0f) * (float)most) + 0.5f);
+            start = (unsigned long long)((((share < 1.0f) ? share : 1.0f) * (float)max) + 0.5f);
         }
-        start = (start > most) ? most : start;
+        start = (start > max) ? max : start;
     }
     at->start = start;
     args->map->anchored = 1;
@@ -119,7 +119,7 @@ int gui_minimap_span(const GuiMinimapFirstCfg *args)
     return 1;
 }
 
-// the map's pixel row of the text's `line` on the overview side_menu, which stands for the whole text
+// the map's pixel row of the text's `line` on the overview side_menu, which is for the whole text
 EMBED_INLINE int map_strip_y(const MinimapCtx *args)
 {
     const unsigned long long last = (args->lines != 0ULL) ? args->lines - 1ULL : 0ULL;
@@ -177,15 +177,15 @@ void gui_minimap_draw(const GuiMinimapPositionCfg *args)
     const GuiEditor *const painter = args->editor;
     const CliViewFrame *const editor = painter->frame;
     int scale = args->scale;
-    const GuiRect shown =
+    const GuiRect displayed =
         EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->place, .other = args->clip);
-    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = shown))
+    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = displayed))
     {
         return;
     }
-    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster, .rect = shown,
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster, .rect = displayed,
                .color = palette->editor_background);
-    EMBED_CALL(map_fill, MinimapCtx, .raster = args->raster, .clip = shown,
+    EMBED_CALL(map_fill, MinimapCtx, .raster = args->raster, .clip = displayed,
                .place = (GuiRect){args->place.x, args->place.y,
                                   EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale),
                                   args->place.height},
@@ -204,7 +204,7 @@ void gui_minimap_draw(const GuiMinimapPositionCfg *args)
     const int cell = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_MAP_CHAR, .scale = scale);
     const int top_menu_height = ((row_height * 3) / 4 > 0) ? (row_height * 3) / 4 : 1;
     const GuiRect rows = EMBED_CALL(
-        gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = shown,
+        gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = displayed,
         .other = (GuiRect){args->place.x, args->place.y, args->place.width - side_menu_width, args->place.height});
     const unsigned long long first = at->start;
     const unsigned long long reach = at->start + (unsigned long long)at->fit;
@@ -269,20 +269,20 @@ void gui_minimap_draw(const GuiMinimapPositionCfg *args)
                        .color = (color & 0x00ffffffu) | (MAP_BAR_ALPHA << 24u));
         }
     }
-    EMBED_CALL(map_fill, MinimapCtx, .raster = args->raster, .clip = shown,
+    EMBED_CALL(map_fill, MinimapCtx, .raster = args->raster, .clip = displayed,
                .place = (GuiRect){args->place.x, args->place.y + at->slider_top, args->place.width, at->slider_height},
                .color = args->map->dragging ? palette->map_slider_on : palette->map_slider);
     EMBED_CALL(map_strip_draw, MinimapCtx, .raster = args->raster, .palette = palette, .editor = editor,
-               .place = args->place, .clip = shown, .scale = scale);
+               .place = args->place, .clip = displayed, .scale = scale);
 }
 
 int gui_minimap_press(const GuiMinimapPositionScaleCfg *args)
 {
     int scale = args->scale;
     unsigned long long *top = args->top;
-    const GuiRect shown =
+    const GuiRect displayed =
         EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->place, .other = args->clip);
-    if (!EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = shown, .x = args->x, .y = args->y) ||
+    if (!EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = displayed, .x = args->x, .y = args->y) ||
         (args->editor->frame == NULL) || (args->editor->frame->lines == 0ULL))
     {
         return 0;
@@ -295,7 +295,7 @@ int gui_minimap_press(const GuiMinimapPositionScaleCfg *args)
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_MAP_STRIP, .scale = scale);
     if (args->x >= args->place.x + args->place.width - side_menu_width)
     {
-        // the side_menu stands for the whole text: the part pressed is centered in the view
+        // the side_menu is for the whole text: the part pressed is centered in the view
         const float share = (float)local_y / (float)args->place.height;
         *top = EMBED_CALL(map_line_get, MinimapCtx,
                           .value = (share * (float)args->editor->frame->lines) - (args->on_screen / 2.0f),

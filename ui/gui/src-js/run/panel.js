@@ -6,13 +6,13 @@
 
 import { invoke } from "../bridge.js";
 import { courseLine, courseRead, courseStart, panelRead, panelReplanned, panelStart, panelStep, planOf, spanSaid, telemetryRead, telemetryStart, telemetryStep } from "../protocol.js";
-import { PROTOCOL, drawStage, element, shownRun, state } from "../run.js";
+import { PROTOCOL, drawStage, element, displayedRun, state } from "../run.js";
 import { endNode, lineNode } from "./output.js";
 
-// How far the fuse has burnt for the run shown: a protocol run's place along its line, the ruler's head
+// How far the fuse has burnt for the run displayed: a protocol run's place along its line, the ruler's head
 // for any other run.
 export function fusePlace() {
-  const run = shownRun();
+  const run = displayedRun();
   const job = run && state.jobs.find((one) => one.id === run.job);
   return job?.group === PROTOCOL ? lineRead(run).place : state.ruler.headAt();
 }
@@ -21,7 +21,7 @@ export function fusePlace() {
 // node, the fire at the step under way part way by its pass; else the pass's own nodes. Each node has its
 // label and whether it is reached, current or failed.
 function lineRead(run) {
-  const pass = panelRead(run.reading, shownOf(run));
+  const pass = panelRead(run.reading, displayedOf(run));
   if (run.course.steps.length) {
     return courseRead(run.course, pass.place, run.done);
   }
@@ -31,7 +31,7 @@ function lineRead(run) {
 
 // The line of a protocol run: its nodes, each a circle with its label, the fuse between them, which burns
 // from node to node as the run goes. The fuse's canvas is the one fuse of the page, taken from the ruler's
-// box while a protocol run is shown and given back after.
+// box while a protocol run is displayed and given back after.
 let lineBox = null;
 function lineOf(run) {
   if (!lineBox) {
@@ -60,7 +60,7 @@ function nodesOf(run) {
 function statusOf(run) {
   const nowMs = nowOf(run);
   const read = telemetryRead(run.telemetry, { nowMs, plan: run.plan, reading: run.reading, ended: run.done });
-  const pass = panelRead(run.reading, shownOf(run));
+  const pass = panelRead(run.reading, displayedOf(run));
   const parts = [];
   if (run.course.steps.length) {
     const step = run.course.at;
@@ -77,7 +77,7 @@ function statusOf(run) {
   if (errors.length) {
     box.append(element("span", { className: "warn", textContent: errors.map(([name, count]) => `${count} ${name}`).join(" \u00b7 ") }));
   }
-  // each cellblock's two peaks against its pool, a warning where they stand at nine tenths of it or more together
+  // each cellblock's two peaks against its pool, a warning where they are at nine tenths of it or more together
   for (const cellblock of read.cells) {
     const mib = (bytes) => (bytes / 1048576).toFixed(1);
     const close = (cellblock.persistent + cellblock.temporary) * 10 >= cellblock.size * 9;
@@ -87,7 +87,7 @@ function statusOf(run) {
   return box;
 }
 
-// The run's clock: milliseconds since the job started, standing still at the end once the run has ended.
+// The run's clock: milliseconds since the job started, stationary at the end once the run has ended.
 function nowOf(run) {
   return run.done && run.endMs !== null ? run.endMs : performance.now() - run.clock;
 }
@@ -119,15 +119,15 @@ export function tabStrip(run) {
 export function viewBody(run) {
   if (run.view === OVERVIEW) {
     const overview = element("div", { className: "protocol-overview" }, lineOf(run), statusOf(run));
-    // the clock moves, so the line said is drawn again each second while the overview stands; a run that
-    // has ended stands still, drawn once more at its end and then left
+    // the clock moves, so the line said is drawn again each second while the overview is; a run that
+    // has ended is stationary, drawn once more at its end and then left
     const ticker = setInterval(() => {
-      const shown = document.getElementById("protocol-status");
-      if (!shown || !overview.isConnected) {
+      const displayed = document.getElementById("protocol-status");
+      if (!displayed || !overview.isConnected) {
         clearInterval(ticker);
         return;
       }
-      shown.replaceWith(statusOf(run));
+      displayed.replaceWith(statusOf(run));
       if (run.done) {
         clearInterval(ticker);
       }
@@ -142,7 +142,7 @@ export function viewBody(run) {
   return lines;
 }
 
-function shownOf(run) {
+function displayedOf(run) {
   // the tools are built by the time the writer names the run's database, and the run has started once its first blob
   // comes
   return { pass: run.pass, plan: run.plan, tools: run.tools, started: run.telemetry.firstAt !== null, ended: run.done };
@@ -181,8 +181,8 @@ export async function runRead(run) {
   run.readUnderWay = false;
 }
 
-// The panel drawn again in place for the run shown, as a blob or the plan comes: once a frame however
-// many came, and only where what it shows has changed, so that it stands still between changes.
+// The panel drawn again in place for the run displayed, as a blob or the plan comes: once a frame however
+// many came, and only where what it shows has changed, so that it is stationary between changes.
 let panelFrame = 0;
 export function panelRedrawn(run) {
   if (panelFrame) {
@@ -193,7 +193,7 @@ export function panelRedrawn(run) {
     const nodes = document.getElementById("protocol-nodes");
     const status_ = document.getElementById("protocol-status");
     const tabs = document.getElementById("protocol-tabs");
-    if ((nodes || tabs) && state.chosen === run.job && (state.shown.get(run.job) ?? run.run) === run.run) {
+    if ((nodes || tabs) && state.chosen === run.job && (state.displayed.get(run.job) ?? run.run) === run.run) {
       const drawn = nodesOf(run);
       if (nodes && drawn.innerHTML !== nodes.innerHTML) {
         nodes.replaceWith(drawn);
@@ -210,7 +210,7 @@ export function panelRedrawn(run) {
   });
 }
 
-// The plan the teacher says on its console, kept on the run; the course's lines, each step of which is a
+// The plan the teacher says on its console, retained on the run; the course's lines, each step of which is a
 // pass of its own whose reading starts over; and the writer naming its tap, which says the run started.
 export function planNoted(run, line) {
   if (/^\s*course: /.test(line.text)) {

@@ -118,7 +118,7 @@ static long tessera_decided(TesseraClient *client, TesseraTicket *ticket, unsign
         {
             return TESSERA_ERROR;
         }
-        if (frame.kind == TESSERA_NOTICE_GREW)
+        if (frame.type == TESSERA_NOTICE_GREW)
         {
             ticket->grown_to = (frame.measured > ticket->grown_to) ? frame.measured : ticket->grown_to;
             continue;
@@ -126,21 +126,21 @@ static long tessera_decided(TesseraClient *client, TesseraTicket *ticket, unsign
         client->identity = frame.identity;
         ticket->identity = frame.identity;
         ticket->last_peak = frame.measured;
-        if (frame.kind == TESSERA_NOTICE_ADMITTED)
+        if (frame.type == TESSERA_NOTICE_ADMITTED)
         {
             ticket->over_budget = 0u;
             ticket->granted = frame.bytes;
             // the admission names the whole declaration: the bytes the process allocated as it requested, then the
             // job's own
-            ticket->standing = (frame.declared > client->declared) ? (frame.declared - client->declared) : 0ull;
+            ticket->located = (frame.declared > client->declared) ? (frame.declared - client->declared) : 0ull;
             return 0L;
         }
-        if (frame.kind == TESSERA_NOTICE_OVER_BUDGET)
+        if (frame.type == TESSERA_NOTICE_OVER_BUDGET)
         {
             ticket->over_budget = 1u;
             return 0L;
         }
-        if (frame.kind == TESSERA_NOTICE_LOST)
+        if (frame.type == TESSERA_NOTICE_LOST)
         {
             ticket->over_budget = 0u;
             ticket->lost = 1u;
@@ -205,12 +205,12 @@ long tessera_job_submit(const TesseraJobSubmit *submit, TesseraClient **client, 
     frame.sweep_microseconds = submit->sweep_microseconds;
     frame.idle_microseconds = submit->idle_microseconds;
     // where no pid is measured from outside, the process reports the bytes it already has allocated as it requests; a
-    // host job stands on nothing, since the processors it uses are counted only once it runs
-    unsigned long long standing = 0ull;
+    // host job is on nothing, since the processors it uses are counted only once it runs
+    unsigned long long located = 0ull;
     if (!tessera_device_names_host(submit->device) && tessera_self_paravirtual() &&
-        tessera_self_measure(submit->luid, &standing))
+        tessera_self_measure(submit->luid, &located))
     {
-        frame.measured = standing;
+        frame.measured = located;
     }
     const unsigned long long submitted_at = tessera_client_now();
     const unsigned long long deadline =
@@ -269,7 +269,7 @@ long tessera_job_precalc_saved(TesseraClient *client, EngineError *error)
     tessera_frame_start(client, &frame, TESSERA_REQUEST_PRECALC_SAVED);
     const int sent = TESSERA_CHECK(tessera_send(client, &frame), client, error, ENGINE_ERROR_RESOURCE);
     const int answered = sent && TESSERA_CHECK(tessera_receive(client, &frame), client, error, ENGINE_ERROR_RESOURCE) &&
-                         TESSERA_CHECK(frame.kind == TESSERA_NOTICE_RELEASED, &frame, error, ENGINE_ERROR_REQUEST);
+                         TESSERA_CHECK(frame.type == TESSERA_NOTICE_RELEASED, &frame, error, ENGINE_ERROR_REQUEST);
     tessera_client_end(client);
     return answered ? 0L : TESSERA_ERROR;
 }
@@ -303,7 +303,7 @@ long tessera_job_report(TesseraClient *client, TesseraTicket *ticket, unsigned l
     while (tessera_waiting(client))
     {
         if (!TESSERA_CHECK(tessera_receive(client, &frame), client, error, ENGINE_ERROR_RESOURCE) ||
-            !TESSERA_CHECK(frame.kind == TESSERA_NOTICE_GREW, &frame, error, ENGINE_ERROR_REQUEST))
+            !TESSERA_CHECK(frame.type == TESSERA_NOTICE_GREW, &frame, error, ENGINE_ERROR_REQUEST))
         {
             return TESSERA_ERROR;
         }
@@ -321,12 +321,12 @@ long tessera_job_release(TesseraClient *client, TesseraTicket *ticket, EngineErr
     while (ok)
     {
         ok = TESSERA_CHECK(tessera_receive(client, &frame), client, error, ENGINE_ERROR_RESOURCE);
-        if (ok && (frame.kind == TESSERA_NOTICE_GREW))
+        if (ok && (frame.type == TESSERA_NOTICE_GREW))
         {
             ticket->grown_to = (frame.measured > ticket->grown_to) ? frame.measured : ticket->grown_to;
             continue;
         }
-        ok = ok && TESSERA_CHECK(frame.kind == TESSERA_NOTICE_RELEASED, &frame, error, ENGINE_ERROR_REQUEST);
+        ok = ok && TESSERA_CHECK(frame.type == TESSERA_NOTICE_RELEASED, &frame, error, ENGINE_ERROR_REQUEST);
         if (ok)
         {
             ticket->granted = frame.bytes;

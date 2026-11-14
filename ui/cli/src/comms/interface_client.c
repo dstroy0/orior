@@ -1,15 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// door_client.c: a process's end of the door: joined by its key, a thread reading what comes, each message on a channel
+// interface_client.c: a process's end of the interface: joined by its key, a thread reading what comes, each message on a channel
 // it listens on queued and each answer stored for the one waiting on it, and what it requests written a frame at a
-// time, the region a long body is in handed over with its frame
+// time, the region a long body is in passed over with its frame
 #include "../command_line/rings.h"
 #include "../text/text.h"
-#include "door_internal.h"
+#include "interface_internal.h"
 
 // the bytes of an answer stored
 #define CLI_IPC_ANSWER (1u << 16u)
-// An end of the door: the messages that come are queued on a ticket ring, the reader's thread taking a ticket and
+// An end of the interface: the messages that come are queued on a ticket ring, the reader's thread taking a ticket and
 // pushing the entry of its slot, the thread that asks for the next popping them in the order of their tickets
 struct CliIpcClient
 {
@@ -40,11 +40,11 @@ typedef struct
     const CliRegion *region;
     unsigned long long *delivered;
     VerbaLinea *err_msg;
-} DoorClientCtx;
+} InterfaceClientCtx;
 
 // the message of `size` bytes at `message` queued, its body in its entry or a region: a message past the queue's
 // capacity or not whole is passed over
-EMBED_INLINE void client_recv(const DoorClientCtx *args)
+EMBED_INLINE void client_recv(const InterfaceClientCtx *args)
 {
     unsigned long long size = args->size;
     const unsigned long long channel_end = cli_ipc_field_end(args->message, size, 0ULL);
@@ -159,7 +159,7 @@ static void client_read(void *context)
         }
         if ((size != 0ULL) && (client->frame[0] == CLI_IPC_TYPE_MESSAGE))
         {
-            EMBED_CALL(client_recv, DoorClientCtx, .client = client, .message = client->frame + 1, .size = size - 1ULL);
+            EMBED_CALL(client_recv, InterfaceClientCtx, .client = client, .message = client->frame + 1, .size = size - 1ULL);
             continue;
         }
         const unsigned long long pending = (size < CLI_IPC_ANSWER) ? size : 0ULL;
@@ -172,11 +172,11 @@ static void client_read(void *context)
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &client->wake);
 }
 
-// `size` bytes of `request` written, the region handed over with it where one is given, and the answer waited for: ten
+// `size` bytes of `request` written, the region passed over with it where one is given, and the answer waited for: ten
 // seconds, and two more for each mebibyte the region contains, as the container reads it whole first. How many
 // received, where the answer reports, into `delivered`, read while no other request can take the answer's capacity: 1,
 // or 0 with why given, a refusal stating why
-static int client_request(const DoorClientCtx *args)
+static int client_request(const InterfaceClientCtx *args)
 {
     unsigned long long size = args->size;
     const CliRegion *region = args->region;
@@ -185,7 +185,7 @@ static int client_request(const DoorClientCtx *args)
     if (!EMBED_CALL(cli_ipc_end_internal.frame_write, CliIpcEndCtx, .end = &args->client->end, .bytes = args->request,
                     .size = size, .region = region))
     {
-        mmgr_line_put(args->err_msg, "the door's end closed");
+        mmgr_line_put(args->err_msg, "the interface's end closed");
         return 0;
     }
     const unsigned long long wait = 10000ULL + (2000ULL * ((region != NULL) ? (region->length >> 20u) : 0ULL));
@@ -238,10 +238,10 @@ CliIpcClient *cli_ipc_join(const CliIpcErrMsgAddressCfg *args)
     }
     if (client == NULL)
     {
-        mmgr_line_put(args->err_msg, "this process has as many ends of the door as it can");
+        mmgr_line_put(args->err_msg, "this process has as many ends of the interface as it can");
         return NULL;
     }
-    // an end's answer, frame and queued bodies are the reader's thread's buffers, so they stand fixed outside the
+    // an end's answer, frame and queued bodies are the reader's thread's buffers, so they are fixed outside the
     // pool, one set for each end, where they punch no hole in the persistent tier
     static char s_answers[CLI_IPC_CLIENTS][CLI_IPC_ANSWER + CLI_IPC_FRAME + (CLI_IPC_RECV_QUEUE * CLI_IPC_ENTRY_BODY)];
     client->answer = s_answers[client - s_clients];
@@ -254,7 +254,7 @@ CliIpcClient *cli_ipc_join(const CliIpcErrMsgAddressCfg *args)
     memor.set(&(MemoriaCfg){.dst = &client->turnstiles, .val = 0, .bytes = sizeof(client->turnstiles)});
     // the ring's slots, this client's run of the clients' part of the rings block
     EmbedTicketRingSlot *const slots =
-        (EmbedTicketRingSlot *)(void *)(EMBED_CALL(cli_rings.part, CliRingsPartCfg, .part = CLI_RINGS_DOOR_CLIENTS) +
+        (EmbedTicketRingSlot *)(void *)(EMBED_CALL(cli_rings.part, CliRingsPartCfg, .part = CLI_RINGS_INTERFACE_CLIENTS) +
                                         ((unsigned long long)(client - s_clients) * CLI_IPC_RECV_QUEUE *
                                          sizeof(EmbedTicketRingSlot)));
     memor.set(&(MemoriaCfg){
@@ -331,7 +331,7 @@ int cli_ipc_listen(const CliIpcErrMsgCfg *args)
     mmgr_line_ch(&out, CLI_IPC_TYPE_LISTEN);
     mmgr_line_put(&out, args->channel);
     mmgr_line_ch(&out, '\0');
-    return EMBED_CALL(client_request, DoorClientCtx, .client = args->client, .request = out.out, .size = out.at,
+    return EMBED_CALL(client_request, InterfaceClientCtx, .client = args->client, .request = out.out, .size = out.at,
                       .region = NULL, .delivered = NULL, .err_msg = args->err_msg);
 }
 
@@ -363,7 +363,7 @@ int cli_ipc_send(const CliIpcErrMsgCfg *args)
     }
     *delivered = 0ULL;
     request =
-        request && EMBED_CALL(client_request, DoorClientCtx, .client = args->client, .request = out.out, .size = out.at,
+        request && EMBED_CALL(client_request, InterfaceClientCtx, .client = args->client, .request = out.out, .size = out.at,
                               .region = long_body ? &region : NULL, .delivered = delivered, .err_msg = args->err_msg);
     if (long_body)
     {

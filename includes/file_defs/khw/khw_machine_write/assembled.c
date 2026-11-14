@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// assembled.c: the texts the protocol hands, each assembled against the machine file with every stall safe, and handed
+// assembled.c: the texts the protocol passes, each assembled against the machine file with every stall safe, and passed
 // back to the run
 #include "khw_machine_write_internal.h"
 
@@ -10,7 +10,7 @@
 // its end, each sized once
 #define KHW_ASSEMBLED_ROOM                                                                                             \
     (sizeof(unsigned long long) + sizeof(unsigned int) +                                                               \
-     (KHW_ASSEMBLED_TEXTS * (sizeof(unsigned int) + (KHW_INSTRUCTION * KHW_ASSEMBLED_MOST))))
+     (KHW_ASSEMBLED_TEXTS * (sizeof(unsigned int) + (KHW_INSTRUCTION * KHW_ASSEMBLED_MAX))))
 static unsigned char s_assembled[KHW_ASSEMBLED_ROOM];
 static char s_text[KHW_ASSEMBLED_TEXT_BYTES + 1u];
 static char s_reason[QRY_NAME_MAX_LEN + 64u];
@@ -79,7 +79,7 @@ int khw_texts_assembled(const char *path, const char *answers)
         s_text[length] = '\0';
         const unsigned int instructions =
             sass_assemble_lines(&s_machine, s_text, SASS_CONTROL_SAFE, s_assembled + written + sizeof(unsigned int),
-                                KHW_INSTRUCTION * KHW_ASSEMBLED_MOST);
+                                KHW_INSTRUCTION * KHW_ASSEMBLED_MAX);
         memcpy(s_assembled + written, &instructions, sizeof(instructions));
         written += sizeof(instructions) + ((size_t)instructions * KHW_INSTRUCTION);
         taken += 1u;

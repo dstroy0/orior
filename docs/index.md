@@ -81,7 +81,7 @@ sh utils/maint/texbuild/build_theory.sh                             # the resear
 
 ## What is here
 
-Nothing here asks to be believed: every result is traceable, every validated measurement could have failed but did not, and every claim the work took back is kept in its workbook. Most of the parts of this work are old and named as such. Their arrangements being glued together in orior using exact arithmetic with no exceptions even where the original authors allowed them or did not have access to vector calculus is what sets this work apart.
+Nothing here asks to be believed: every result is traceable, every validated measurement could have failed but did not, and every claim the work took back is retained in its workbook. The majority of the parts of this work are old and named as such. Their arrangements being glued together in orior using exact arithmetic with no exceptions even where the original authors allowed them or did not have access to vector calculus is what sets this work apart.
 
 <div class="grid cards" markdown>
 
@@ -97,7 +97,7 @@ Nothing here asks to be believed: every result is traceable, every validated mea
 
     ---
 
-    Keep the same pieces, shuffle their order, and the shuffled copy is the baseline. Whatever the shuffle wipes out is the pattern. A filter built from any part of a pattern never misses a true match, and every match is still checked in full.
+    Retain the same pieces, shuffle their order, and the shuffled copy is the baseline. Whatever the shuffle wipes out is the pattern. A filter built from any part of a pattern never misses a true match, and every match is still checked in full.
 
     [:octicons-arrow-right-24: The algorithm](method.md)
 
@@ -105,7 +105,7 @@ Nothing here asks to be believed: every result is traceable, every validated mea
 
     ---
 
-    The filter keeps one bit for each place a match could start. Its memory doesn't grow with the alphabet or with the number of dimensions, and one formula gives its cost for anything from a line to an eight dimensional cube.
+    The filter retains one bit for each place a match could start. Its memory doesn't grow with the alphabet or with the number of dimensions, and one formula gives its cost for anything from a line to an eight dimensional cube.
 
     [:octicons-arrow-right-24: The sift](sift.md)
 
@@ -173,8 +173,8 @@ Nothing here asks to be believed: every result is traceable, every validated mea
 ## What it does not claim
 
 - It doesn't compute Kolmogorov complexity. It puts an upper limit on the complexity of a file by actually writing the file smaller, using its own categories of noise in the set N\* and lossless compression in exact integers modeled on JPEG 2000.
-- It doesn't claim any weakness in SHA-256. The point of measuring where SHA-256 is uneven is what the deformation of the field shows once the bits that carry the most change are known.
-- It can't hold every quantum state in a few numbers. A state as plain as 100 quantum bits all 0 or all 1 together fits in 792 numbers, and a general state of 100 quantum bits still needs 2^100. What it can do is run an operation on a file that represents the state: a continuous, error-corrected transform over a sliding window, in exact integers of any number of limbs and bits. The file bus is as wide as the machine allows and the maximum register width is respected. A wider register that no hardware has yet is supported by defining the platform and its register width; [`embedded_types`](https://github.com/dstroy0/orior/tree/main/includes/embedded_types) holds every platform switch for types.
+- It doesn't claim any weakness in SHA-256. The point of measuring where SHA-256 is uneven is what the deformation of the field shows once the bits that carry the max change are known.
+- It can't hold every quantum state in a few numbers. A state as plain as 100 quantum bits all 0 or all 1 together fits in 792 numbers, and a general state of 100 quantum bits still needs 2^100. What it can do is run an operation on a file that represents the state: a continuous, error-corrected transform over a sliding window, in exact integers of any number of limbs and bits. The file bus is as wide as the machine allows and the max register width is respected. A wider register that no hardware has yet is supported by defining the platform and its register width; [`embedded_types`](https://github.com/dstroy0/orior/tree/main/includes/embedded_types) holds every platform switch for types.
 - It isn't a model, and nothing in it is trained. The engine is a search algorithm, and the transpiler uses binary relations and several algorithms. There is no neural network and no weighting.
 - Some results were found by other people first. Where we know that, the published work is named. I'm autistic and working this out as I go; I name prior art as I read it, and anyone who sees prior work that isn't cited is asked to point it out so it can be cited.
-- The thought experiments are ideas whose experiment can't be built as written. They are kept apart from the results, and none of them is one.
+- The thought experiments are ideas whose experiment can't be built as written. They are retained apart from the results, and none of them is one.

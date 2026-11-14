@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // schema_bundled.c: the meta-schemas impero bundles, each by its URL with no scheme and no `#`, the text of
-// `schemas/draft-07.json`, `schemas/draft-04.json` and `schemas/2020-12.json` as they stand; draft 6 is read as
+// `schemas/draft-07.json`, `schemas/draft-04.json` and `schemas/2020-12.json` as they are; draft 6 is read as
 // draft 7, and 2019-09 as 2020-12
 #include "schema_internal.h"
 
@@ -56,7 +56,7 @@ static const char s_draft_04[] =
     "\n  },\n  \"type\": \"object\",\n  \"properties\": {\n    \"id\": {\"type\": \"string\"},\n    \"$sc"
     "hema\": {\"type\": \"string\"},\n    \"title\": {\"type\": \"string\"},\n    \"description\": {\"typ"
     "e\": \"string\"},\n    \"default\": {},\n    \"multipleOf\": {\"type\": \"number\", \"minimum\": 0, "
-    "\"exclusiveMinimum\": true},\n    \"maximum\": {\"type\": \"number\"},\n    \"exclusiveMaximum\": {"
+    "\"exclusiveMinimum\": true},\n    \"max\": {\"type\": \"number\"},\n    \"exclusiveMaximum\": {"
     "\"type\": \"boolean\", \"default\": false},\n    \"minimum\": {\"type\": \"number\"},\n    \"exclusi"
     "veMinimum\": {\"type\": \"boolean\", \"default\": false},\n    \"maxLength\": {\"$ref\": \"#/definit"
     "ions/positiveInteger\"},\n    \"minLength\": {\"$ref\": \"#/definitions/positiveIntegerDefault0\"},"
@@ -78,7 +78,7 @@ static const char s_draft_04[] =
     "ypes\"}, \"minItems\": 1, \"uniqueItems\": true}]},\n    \"format\": {\"type\": \"string\"},\n    \""
     "allOf\": {\"$ref\": \"#/definitions/schemaArray\"},\n    \"anyOf\": {\"$ref\": \"#/definitions/schem"
     "aArray\"},\n    \"oneOf\": {\"$ref\": \"#/definitions/schemaArray\"},\n    \"not\": {\"$ref\": \"#\""
-    "}\n  },\n  \"dependencies\": {\"exclusiveMaximum\": [\"maximum\"], \"exclusiveMinimum\": [\"minimum"
+    "}\n  },\n  \"dependencies\": {\"exclusiveMaximum\": [\"max\"], \"exclusiveMinimum\": [\"minimum"
     "\"]},\n  \"default\": {}\n}\n";
 
 static const char s_2020_12[] =
@@ -117,7 +117,7 @@ static const char s_2020_12[] =
     "\"$ref\": \"#/$defs/simpleTypes\"}, {\"type\": \"array\", \"items\": {\"$ref\": \"#/$defs/simpleType"
     "s\"}, \"minItems\": 1, \"uniqueItems\": true}]},\n    \"const\": true,\n    \"enum\": {\"type\": \"a"
     "rray\", \"items\": true},\n    \"multipleOf\": {\"type\": \"number\", \"exclusiveMinimum\": 0},\n   "
-    " \"maximum\": {\"type\": \"number\"},\n    \"exclusiveMaximum\": {\"type\": \"number\"},\n    \"mini"
+    " \"max\": {\"type\": \"number\"},\n    \"exclusiveMaximum\": {\"type\": \"number\"},\n    \"mini"
     "mum\": {\"type\": \"number\"},\n    \"exclusiveMinimum\": {\"type\": \"number\"},\n    \"maxLength\""
     ": {\"$ref\": \"#/$defs/nonNegativeInteger\"},\n    \"minLength\": {\"$ref\": \"#/$defs/nonNegativeIn"
     "tegerDefault0\"},\n    \"pattern\": {\"type\": \"string\", \"format\": \"regex\"},\n    \"maxItems\""

@@ -34,7 +34,7 @@
 # Psi^(j)(p) / j! = r_j / d^(j+1), and r_j comes from the two series by products alone. Every c_k is
 # carried times d^16 pi^10, a multiplier that is never negative, and Z with it: the sign of Z is
 # the sign of the carried product. Where d reads zero at the working places, both series lose their
-# first coefficient and the next one stands in: the numerator vanishes where the denominator does,
+# first coefficient and the next one is in: the numerator vanishes where the denominator does,
 # at p = 1/4 and p = 3/4.
 #
 # THE VERDICTS AT A POINT
@@ -69,7 +69,7 @@
 # close a triangle. c is read as b + delta, delta = int D^2 / (|(D, E)| + |E|) dp. c - b never
 # cancels, and the angle opposite c is cos gamma = (a^2 - 2b delta - delta^2) / 2ab. Where |D| follows
 # |E| across the cell the angle is right, and it is never less: the size of the integral of (|D|, |E|)
-# is at most the integral of its size, which is c. a is small against b and the triangle is a needle,
+# is at max the integral of its size, which is c. a is small against b and the triangle is a needle,
 # and a needle is still a triangle: its angle past right is nonzero, and two sides apart by any
 # nonzero angle part without bound. The shape is the excess kappa = (c^2 - a^2 - b^2) / a^2, and the
 # angle is cos gamma = -kappa a / 2b, each read at the places where it shows. Each integral is the
@@ -335,7 +335,7 @@ def at_least(u, value, digits=40):
     return int(2 * big_u ** 4 * zz.pi(digits) * 10 ** w >= big_v * 10 ** (4 * q + digits))
 
 
-def at_most(u, value, digits=40):
+def at_max(u, value, digits=40):
     """The verdict that 2pi u^4 <= value, by products: 2 U^4 times pi's floor plus one against the value."""
     big_u, q = u
     big_v, w = value
@@ -346,7 +346,7 @@ def holds(lo, h, published):
     """Whether [2pi lo^4, 2pi h^4] meets the published value's own bracket, half a unit in its last place."""
     value = units(published)
     unit = (5, value[1] + 1)
-    return at_most(lo, zz.plus(value, unit)) * at_least(h, zz.minus(value, unit))
+    return at_max(lo, zz.plus(value, unit)) * at_least(h, zz.minus(value, unit))
 
 
 def u_of(height, places=4):
@@ -394,7 +394,7 @@ def _two(value, bits):
 class DeviceTail:
     """Euler-Maclaurin's C at many points at once, one lane a point, swept on the device by exact_zeta_tail.cu.
 
-    The records are laid out here and the program is built there from N and the wrap width W. W is the bits of a
+    The records are arranged here and the program is built there from N and the wrap width W. W is the bits of a
     bound on every tau and on the two turns between them, at the scale S:
     |tau_k| <= |B_2k / (2k)!| (|t| + 1)(|t| + 2) ... (|t| + 2k - 1) / N^(2k - 1), with |t| taken up to the power of
     two above it. The widths then hold across passes, and a program, compiled once, is read from the cache after."""
@@ -1077,7 +1077,7 @@ def main():
         out.write("    g_%d in u [%s, %s]\n" % (n, decimal(lo, 10), decimal(h, 10)))
     ends = [u for n in indices for u in settled[n]]
     short = sum(NOT(riemann.reach[u] - 1) for u in ends)
-    out.write("  %d values of Z asked, %d further cuts, the deepest at %d places, the main sum at most %d terms\n"
+    out.write("  %d values of Z asked, %d further cuts, the deepest at %d places, the main sum at max %d terms\n"
               % (riemann.asked, cuts, riemann.deepest, riemann.widest))
     out.write("  at %d of the %d settled ends Z reads past the last term c_5 u^-11\n" % (short, len(ends)))
     out.write("  the walk, the placing and the signs in %d ms\n" % spent)
@@ -1088,15 +1088,15 @@ def main():
 
     out.write("  Z by Riemann-Siegel less Re e^(i theta) zeta by Euler-Maclaurin, in units of the last place\n")
     out.write("  %-6s %-8s %-30s %s\n" % ("u", "t", "with R, at 2, 4 and 8 places", "R left out, at 2, 4 and 8"))
-    kept, bare = [], []
+    retained, bare = [], []
     for u in POINTS:
         with_r = [gap(u, places) for places in (2, 4, 8)]
         without = [gap(u, places, remainder=0) for places in (2, 4, 8)]
-        kept.append(with_r)
+        retained.append(with_r)
         bare.append(without)
         out.write("  %-6s %-8s %-30s %s\n" % (decimal(u, 1), decimal(time_of(u, 2), 2), with_r, without))
-    narrower = int(all(abs(a[1]) < abs(b[1]) for a, b in zip(kept, bare)))
-    out.write("  at 4 places the gap with R is narrower than without it at every u shown: %s\n\n" % bool(narrower))
+    narrower = int(all(abs(a[1]) < abs(b[1]) for a, b in zip(retained, bare)))
+    out.write("  at 4 places the gap with R is narrower than without it at every u displayed: %s\n\n" % bool(narrower))
     out.flush()
 
     null = Riemann(remainder=0)
@@ -1286,7 +1286,7 @@ def omitted_main(first, last, cut, terms=3, digits=24, m=9):
 # ---- the ball: the main sum's waves as one point on a sphere ----
 #
 # Each wave z_n = e^(i theta) n^-s on the line is one complex coordinate of radius n^(-1/2), and turns
-# at theta'(t) - ln n. Over a cell the point (z_1, ..., z_nu) keeps |z|^2 = H_nu, the harmonic number,
+# at theta'(t) - ln n. Over a cell the point (z_1, ..., z_nu) retains |z|^2 = H_nu, the harmonic number,
 # and moves on a torus inside that sphere. Z = 2 Re sum z_n + R is its shadow on the diagonal.
 
 def theta_prime_route(t, digits, shift, terms):
@@ -1507,7 +1507,7 @@ def sphere_main(first, last, cut=10, m=8, digits=24):
 # ---- the ball's motion against its own permutations ----
 #
 # The identity is the ball as it is: wave n carries e^(-it ln n), and n's direction is its primes'
-# directions added, at every t. Two nulls keep every mass 1/n, every spin theta' - ln n, the sphere
+# directions added, at every t. Two nulls retain every mass 1/n, every spin theta' - ln n, the sphere
 # H_nu, the frame theta and R, and differ only in the directions the waves start the cell at. The
 # locked null permutes the primes' directions among the primes and carries them to every n by its
 # factors. The unlocked null permutes the directions of 2 to nu among themselves, factors ignored.
@@ -1599,8 +1599,8 @@ def budgets(nu, work):
     |R| <= 0.053 t^(-5/4) for t >= 200 (Gabcke; Hiary, (1.4)), at the cell's least t.
 
     M = 2 Re sum z_n + R, R = (-1)^(nu-1) sum over k <= 1 of C_k(z) x^(-k-1/2), z = 1 - 2(x - nu) and
-    x = sqrt(t / 2pi). Each wave is a vector of length n^(-1/2) turning at theta' - ln n, at most
-    ln((nu + 1) / n) + 1 / t^2 in size over the cell, and theta'' is at most 1 / t. |dx/dt| = 1 / (4pi x)
+    x = sqrt(t / 2pi). Each wave is a vector of length n^(-1/2) turning at theta' - ln n, at max
+    ln((nu + 1) / n) + 1 / t^2 in size over the cell, and theta'' is at max 1 / t. |dx/dt| = 1 / (4pi x)
     and |d^2x/dt^2| = 1 / (16pi^2 x^3). Each bound is a sum of magnitudes, every factor raised where read."""
     scale = 10 ** work
     pi_low = Fraction(314159, 100000)
@@ -1627,8 +1627,8 @@ def budgets(nu, work):
 
 def theta_floor(t, n_sum, work):
     """What theta's second route leaves out, whole units at `work`: Stirling's series at w = 1/4 + it/2 + 2N
-    with 2N terms stops short by at most |B_(2K+2)| / ((2K+2)(2K+1) |w|^(2K+1)) sec^(2K+2)(arg w / 2), K = 2N,
-    and arg w < pi/2 makes the secant's power at most 2^(K+1); |w| >= t / 2. Its roundings add 20K + 100."""
+    with 2N terms stops short by at max |B_(2K+2)| / ((2K+2)(2K+1) |w|^(2K+1)) sec^(2K+2)(arg w / 2), K = 2N,
+    and arg w < pi/2 makes the secant's power at max 2^(K+1); |w| >= t / 2. Its roundings add 20K + 100."""
     big_t, q = t
     k = 2 * n_sum
     num, den = zz.bernoulli_over_factorial(k + 1)
@@ -1641,8 +1641,8 @@ def point(nu, j, depth, digits, balls, logs):
     """Every ball at x = nu + j / 2^depth, at digits + GUARD: t, theta, M = 2 Re W + R through C_1 and the
     waves' part of M', -2 Im sum (theta' - ln n) z_n, with the point's budgets E on M and E' on M'.
 
-    E sums magnitudes: each wave's floors over its logarithm, power, cosine and sine and the turn, at most
-    20 t + 1000 units a wave, twice over for 2 Re; the frame's rotation, at most theta's floor times |W| <= nu,
+    E sums magnitudes: each wave's floors over its logarithm, power, cosine and sine and the turn, at max
+    20 t + 1000 units a wave, twice over for 2 Re; the frame's rotation, at max theta's floor times |W| <= nu,
     twice; and R's two terms read at digits, 4 10^GUARD units."""
     work = digits + GUARD
     scale = 10 ** work
@@ -1689,7 +1689,7 @@ def settle(left, right, k, bounds, scale, rho=0):
 
 def certified_cell(nu, bits, digits, draws, deepest=12):
     """The cell [nu, nu + 1] on 2^bits parts, every interval settled by its budgets or halved until it is,
-    for the identity and `draws` nulls of each kind.
+    for the identity and `draws` nulls of each type.
 
     Returns the frame's flips; for each ball its zeros of M and the intervals left unsettled; for the
     identity the intervals where Z itself has at least one zero and those Gabcke's rho leaves open; the
@@ -1820,7 +1820,7 @@ def motion_main(first, last, bits=9, draws=16, digits=20):
 
 class ComputableReal:
     """A member represented as its real and its operator. operator(places) returns the floor at 10^-places and the
-    budget it carries in units of 10^-places; real(places) asks once and keeps the reading."""
+    budget it carries in units of 10^-places; real(places) asks once and retains the reading."""
 
     def __init__(self, name, operator):
         self.name, self.operator, self.readings = name, operator, {}

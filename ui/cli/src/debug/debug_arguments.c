@@ -340,7 +340,7 @@ EMBED_INLINE int arguments_names_path(const DebugArgumentsCtx *args)
     marked = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->one, .at = 0ULL,
                         .size = size, .set = "/\\*.") < size;
     dotted = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->one, .at = 0ULL,
-                        .size = size, .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS | CLI_TEXT_END_ASCII,
+                        .size = size, .classes = CLI_TEXT_CHARACTERS | CLI_TEXT_DIGITS | CLI_TEXT_END_ASCII,
                         .set = "_.") == size;
     return marked && !dotted;
 }

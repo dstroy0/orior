@@ -3,15 +3,15 @@
 
 // A page of HTML, CSS or SVG for the live preview: its elements tied to their lines, a stylesheet's
 // rules and the page made from its selectors, a linked sheet taken from a tab, and a change patched
-// where it changed; and every page shown on white shown with its white turned down.
+// where it changed; and every page displayed on white displayed with its white turned down.
 
 import { annotate, cssPage, cssRules, elementAt, LINE, morph, pageOf, rebase, selectorElements } from "../../gui/src-js/pagepreview.js";
 
 const { test, assert } = window.__harness;
 
-test("every page the window shows on white is shown with its white turned down: the preview's frame, a LaTeX page, a notebook's image and output, the print's paper", () => {
+test("every page the window shows on white is displayed with its white turned down: the preview's frame, a LaTeX page, a notebook's image and output, the print's paper", () => {
   const light = getComputedStyle(document.documentElement).getPropertyValue("--paper-light").trim();
-  assert.ok(Number(light) > 0 && Number(light) < 1, `the light a page is shown in: ${light}`);
+  assert.ok(Number(light) > 0 && Number(light) < 1, `the light a page is displayed in: ${light}`);
   const made = [["iframe", "preview-frame"], ["div", "tex-page"], ["img", "nb-image"], ["iframe", "nb-html"], ["div", "print-paper"]].map(([tag, className]) => {
     const one = document.createElement(tag);
     one.className = className;
@@ -20,7 +20,7 @@ test("every page the window shows on white is shown with its white turned down: 
   });
   try {
     for (const one of made) {
-      assert.equal(getComputedStyle(one).filter, `brightness(${light})`, `${one.className} shown in the page's light`);
+      assert.equal(getComputedStyle(one).filter, `brightness(${light})`, `${one.className} displayed in the page's light`);
     }
   } finally {
     made.forEach((one) => one.remove());
@@ -48,7 +48,7 @@ test("a selector is built as the elements it applies to, the last holding its te
   assert.equal(holder.innerHTML, `<nav><ul><li class="on"></li><li><a href="#x" ${LINE}="4">nav ul &gt; li.on + li a[href='#x']:hover</a></li></ul></nav>`);
   assert.equal(selectorElements(doc, "head meta", 1), null, "an element not seen");
   holder.replaceChildren(selectorElements(doc, "body > p", 2));
-  assert.equal(holder.innerHTML, `<p ${LINE}="2">body &gt; p</p>`, "the page's body stands for itself");
+  assert.equal(holder.innerHTML, `<p ${LINE}="2">body &gt; p</p>`, "the page's body is for itself");
 });
 
 test("a CSS file's page holds the elements of each selector of each rule, in rule order", () => {
@@ -84,7 +84,7 @@ test("a page takes a linked sheet a tab holds in place of the link, and its addr
   assert.equal(css.body.querySelector("p").textContent, "p");
 });
 
-test("a page is patched where it changed, each node of the same kind in the same place kept", () => {
+test("a page is patched where it changed, each node of the same type in the same place retained", () => {
   const live = document.createElement("div");
   live.innerHTML = "<p>one</p><p>two</p><input value='a'>";
   const input = live.querySelector("input");
@@ -92,11 +92,11 @@ test("a page is patched where it changed, each node of the same kind in the same
   fresh.innerHTML = "<p>one</p><p>2</p><input value='a'><b>new</b>";
   const counts = morph(live, fresh);
   assert.equal(live.innerHTML, fresh.innerHTML);
-  assert.equal(live.querySelector("input"), input, "the field kept");
-  assert.deepEqual(counts, { kept: 5, changed: 1, added: 1, removed: 0 });
+  assert.equal(live.querySelector("input"), input, "the field retained");
+  assert.deepEqual(counts, { retained: 5, changed: 1, added: 1, removed: 0 });
   const less = document.createElement("div");
   less.innerHTML = "<p>one</p>";
-  assert.deepEqual(morph(live, less), { kept: 3, changed: 0, added: 0, removed: 3 });
+  assert.deepEqual(morph(live, less), { retained: 3, changed: 0, added: 0, removed: 3 });
 });
 
 test("the element of a line is the innermost drawn tied to it or to the nearest line before it", () => {

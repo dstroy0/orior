@@ -24,7 +24,7 @@ export function sayState(text, failed = false) {
   for (const button of parts.bar.querySelectorAll("button[data-needs]")) {
     const need = button.dataset.needs;
     button.disabled = need === "paused" ? !session?.paused : need === "back" ? !(session?.paused && session.info.step_back) : need === "running" ? !session || Boolean(session.paused) : need === "session" ? !session : !session && !state.last;
-    // The steps backward are shown only for a session that takes them.
+    // The steps backward are displayed only for a session that takes them.
     button.hidden = need === "back" && !session?.info.step_back;
   }
   drawSessions();
@@ -33,13 +33,13 @@ export function sayState(text, failed = false) {
 export function write(text, type = "stdout") {
   const last = parts.out.lastElementChild;
   // A piece of output with no line end runs on into the next.
-  if (last && last.dataset.kind === type && !last.dataset.ended) {
+  if (last && last.dataset.type === type && !last.dataset.ended) {
     last.textContent += text;
   } else {
     parts.out.append(element("div", { className: "debug-line", textContent: text }));
   }
   const line = parts.out.lastElementChild;
-  line.dataset.kind = type;
+  line.dataset.type = type;
   if (text.endsWith("\n")) {
     line.dataset.ended = "true";
     line.textContent = line.textContent.replace(/\n$/, "");
@@ -97,12 +97,12 @@ export async function debugFile() {
   }
   await state.hooks.save(tab);
   const language = s.language?.id ?? "plaintext";
-  state.last = { start: { kind: "file", path: tab.file, language }, name: tab.file };
+  state.last = { start: { type: "file", path: tab.file, language }, name: tab.file };
   await begin(state.last.start, tab.file);
 }
 
 // Run, Record and Debug File: the Python file in the editor run under orior's recorder, every line
-// of the tree's own code it runs kept with its values, and stepped through backward as well as
+// of the tree's own code it runs retained with its values, and stepped through backward as well as
 // forward once the run ends.
 export async function recordFile() {
   const tab = state.hooks.tab();
@@ -116,7 +116,7 @@ export async function recordFile() {
     return;
   }
   await state.hooks.save(tab);
-  state.last = { start: { kind: "record", path: tab.file, language: "python" }, name: tab.file };
+  state.last = { start: { type: "record", path: tab.file, language: "python" }, name: tab.file };
   await begin(state.last.start, tab.file);
 }
 
@@ -169,7 +169,7 @@ export async function debugMixed() {
     return;
   }
   await state.hooks.save(tab);
-  state.last = { start: { kind: "file", path: tab.file, language: "python" }, name: tab.file, mixed: true };
+  state.last = { start: { type: "file", path: tab.file, language: "python" }, name: tab.file, mixed: true };
   await beginMixed();
 }
 
@@ -188,7 +188,7 @@ export async function attachNative(session, thread) {
   if (pid) {
     sayState(`Attaching to the native code of ${session.info.name}…`);
     try {
-      const native = await invoke("debug_start", { start: { kind: "process", pid, language: "c", parent: id }, options: { breakpoints: allBreakpoints(), exceptions: [], stepping: { mine_only: true, skip: [] }, entry: false } });
+      const native = await invoke("debug_start", { start: { type: "process", pid, language: "c", parent: id }, options: { breakpoints: allBreakpoints(), exceptions: [], stepping: { mine_only: true, skip: [] }, entry: false } });
       known(native);
       drawSessions();
       write(`${native.name} is debugged with ${session.info.name}.\n`, "console");
@@ -212,7 +212,7 @@ export async function restartDebug() {
     await invoke("debug_stop", { session: session.info.id }).catch(() => {});
     ended(session.info.id, "Stopped");
   }
-  if (state.last.start.kind === "file" || state.last.start.kind === "record") {
+  if (state.last.start.type === "file" || state.last.start.type === "record") {
     await state.hooks.open(state.last.start.path);
   }
   if (state.last.mixed) {
@@ -226,7 +226,7 @@ export async function restartDebug() {
 // breakpoints set.
 export async function debugTest(id) {
   const language = /\.rs(::|$)/.test(id) ? "rust" : "python";
-  state.last = { start: { kind: "test", id, language }, name: id };
+  state.last = { start: { type: "test", id, language }, name: id };
   await begin(state.last.start, id);
 }
 
@@ -249,7 +249,7 @@ export async function attachProcess() {
 
 async function attachTo(process) {
   const language = /python/i.test(process.name) ? "python" : "c";
-  const start = { kind: "process", pid: process.pid, language };
+  const start = { type: "process", pid: process.pid, language };
   state.last = { start, name: `${process.name} ${process.pid}` };
   await begin(start, state.last.name);
 }
@@ -267,7 +267,7 @@ export async function attachAddress(given) {
     say(`${address} is no address: host:port, such as 127.0.0.1:5678.`, { failed: true });
     return;
   }
-  const start = { kind: "address", host: host || "127.0.0.1", port: Number(port), remote: folder.join(" ") || null, language: "python" };
+  const start = { type: "address", host: host || "127.0.0.1", port: Number(port), remote: folder.join(" ") || null, language: "python" };
   state.last = { start, name: `${start.host}:${start.port}` };
   await begin(start, state.last.name);
 }
@@ -277,7 +277,7 @@ export async function attachAddress(given) {
 // what ends the session once that code has run, or null where it did not start.
 export async function debugNext(host, port, name, first = null) {
   state.once = first && !breakpointsOf(first.path) ? first : null;
-  const info = await begin({ kind: "address", host, port, remote: null, language: "python" }, name);
+  const info = await begin({ type: "address", host, port, remote: null, language: "python" }, name);
   if (!info) {
     state.once = null;
     return null;

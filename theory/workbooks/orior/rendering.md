@@ -93,7 +93,7 @@ Every layout is a permutation of the linear cell index computed in integer arith
 | `ORIOR_CHANNEL_BYTE`        | the corpus byte                                                 | the object raw, with no search applied              |
 | `ORIOR_CHANNEL_PROVEN`      | two valued                                                      | bright where the cell provably holds no occurrence  |
 
-The proof channel differs in kind from the other four. A probe set is a sound filter. It never loses a true occurrence and it does admit alignments that are not one. The negative direction is therefore certain and the positive is not, and a cell where no alignment survived is proven to hold no occurrence.
+The proof channel differs in type from the other four. A probe set is a sound filter. It never loses a true occurrence and it does admit alignments that are not one. The negative direction is therefore certain and the positive is not, and a cell where no alignment survived is proven to hold no occurrence.
 
 It reduces as a conjunction, a cell staying proven only while every alignment under it was refuted. Conjunction is associative and commutative. The channel rides `ORIOR_REDUCE_MIN` with no new reduction rule. It is monotone under refinement, since adding a probe only removes survivors, and a render never retracts a claim. It also inherits the planner's anytime property. Stop the descent anywhere and render, and every proven pixel is still proven. A death level from a half-built plan describes the plan. A proof from a half-built plan describes the object.
 
@@ -103,7 +103,7 @@ Every channel is an integer read off engine state (`src/cu/engine/render/orior_r
 
 ## Reduction, and the constraint on adding one
 
-Several alignments reach one cell whenever the object is larger than the raster. `ORIOR_REDUCE_MIN` keeps the darkest and `ORIOR_REDUCE_MAX` keeps the brightest.
+Several alignments reach one cell whenever the object is larger than the raster. `ORIOR_REDUCE_MIN` retains the darkest and `ORIOR_REDUCE_MAX` retains the brightest.
 
 Both are associative and commutative. That lets the device reduce with `atomicMin` or `atomicMax` in scheduler order and still reach the host's answer. A rule selecting by arrival, such as first or last writer, would make the device result depend on scheduling and could not be graded against the host at all. The header states that as a `@warning` on the enum (`src/cu/engine/render/orior_raster.h`), and it governs anything added to it.
 
@@ -165,7 +165,7 @@ The device arms carry their own copy of the transform and the channel, because t
 
 ## Frame rate, and what the number is
 
-A pixel costs the alignment under it. The renderer costs what the search costs. A steered probe set rejects most alignments on the first read and renders faster for the same reason it searches faster.
+A pixel costs the alignment under it. The renderer costs what the search costs. A steered probe set rejects max alignments on the first read and renders faster for the same reason it searches faster.
 
 Measured over 200 frames each, death level channel, rows layout, same object, on the `/O2` build:
 

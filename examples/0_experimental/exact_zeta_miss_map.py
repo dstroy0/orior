@@ -49,7 +49,7 @@
 # THE BALL
 #
 # Z = 2 Re w + R. w turns with theta, and its size |w| = |F| does not depend on theta at all:
-# |F|^2 = sum over m, n of (m n)^(-1/2) cos(t ln(m / n)), the beats of the rotations n^(-it). The sampler stands at its
+# |F|^2 = sum over m, n of (m n)^(-1/2) cos(t ln(m / n)), the beats of the rotations n^(-it). The sampler is at its
 # last certified coarse point before the miss, the center of a ball of radius |w| there, heading along w's step from
 # the point before. A miss is the fine point between its two zeros where |Z| is largest, the bottom of the dip, placed
 # relative to the center: its direction from the heading, 0 to 360 degrees, and its distance in radii of the ball and
@@ -311,15 +311,15 @@ def draw(misses, radii, folder):
     x0, y0 = 2 * PANEL, PANEL
     out.append('<text x="%d" y="%d" font-size="13">each miss\'s curve over and under the center\'s plane</text>' %
                (x0 + 10, y0 + 18))
-    shown = misses[:200]
-    span = max([max(abs(a), abs(b), abs(c)) for m in shown for a, b, c in m["curve"]] or [1.0])
-    span = min(span, ninety_fifth([max(abs(c) for _, _, c in m["curve"]) for m in shown]) * 3 or span)
+    displayed = misses[:200]
+    span = max([max(abs(a), abs(b), abs(c)) for m in displayed for a, b, c in m["curve"]] or [1.0])
+    span = min(span, ninety_fifth([max(abs(c) for _, _, c in m["curve"]) for m in displayed]) * 3 or span)
     cx, cy, scale = x0 + PANEL / 2, y0 + PANEL / 2 + 20, (PANEL / 2 - MARGIN) / (span or 1.0)
     slant = (math.cos(math.radians(30)) * 0.5, math.sin(math.radians(30)) * 0.5)
     corners = [(-span, -span), (span, -span), (span, span), (-span, span)]
     plane = " ".join("%.1f,%.1f" % (cx + scale * (a + slant[0] * b), cy - scale * (slant[1] * b)) for a, b in corners)
     out.append('<polygon points="%s" fill="#eef" stroke="#99a"/>' % plane)
-    for k, m in enumerate(shown):
+    for k, m in enumerate(displayed):
         points = " ".join("%.1f,%.1f" % (cx + scale * (a + slant[0] * b), cy - scale * (c + slant[1] * b))
                           for a, b, c in m["curve"])
         out.append('<polyline points="%s" fill="none" stroke="hsl(%d,60%%,45%%)" stroke-width="0.7"/>' %
@@ -391,7 +391,7 @@ def median(values):
 
 def fold_cells(binary, constants, nu, count, rate):
     """Cells nu to nu + count - 1, each on a fine lattice, its coarse lattice every k-th fine point with k chosen for
-    `rate` points a zero: the misses, every coarse point's radius and turn, the rate kept, and the zeros."""
+    `rate` points a zero: the misses, every coarse point's radius and turn, the rate retained, and the zeros."""
     misses, radii, turns, rates, zeros, failed = [], [], [], [], 0, 0
     for at in range(nu, nu + count):
         z = tm.rises(at)
@@ -429,8 +429,8 @@ def fold_row(fold):
     # walk reads the field, whatever the heading does
     scatter = sorted(m["residual_steps"] for m in misses)
     # under us: within one step of the arc. A miss past it is read as a curl of the field at a scale the walk has not
-    # reached, and its own radius and turn say where it stands. The far misses' distance over the core's ninetieth
-    # percentile is the separation: it rises as the core tightens under the walk and the far misses stand apart as
+    # reached, and its own radius and turn say where it is. The far misses' distance over the core's ninetieth
+    # percentile is the separation: it rises as the core tightens under the walk and the far misses are apart as
     # single dots
     near = [m for m in misses if m["residual_steps"] <= 1.0]
     far = [m for m in misses if m["residual_steps"] > 1.0]
@@ -553,13 +553,13 @@ def comb_indices(count_fine, step, pattern, shuffle=False, rng=None):
     """Coarse fine-indices whose gaps cycle through `pattern`, the carrier's partial quotients, scaled to mean `step`.
     A uniform lattice is the pattern (1,); {1,1,2} is a period-3 kick. With shuffle the gaps are permuted, the
     carrier's multiset with its order gone, the drawn null. Placement is not part of the proof: every fine point is
-    certified whichever points the coarse lattice keeps."""
+    certified whichever points the coarse lattice retains."""
     scale = step * len(pattern) / sum(pattern)
-    letters = [pattern[i % len(pattern)] for i in range((count_fine // max(1, step) + len(pattern)) * 2 + 8)]
+    characters = [pattern[i % len(pattern)] for i in range((count_fine // max(1, step) + len(pattern)) * 2 + 8)]
     if shuffle and rng is not None:
-        rng.shuffle(letters)
+        rng.shuffle(characters)
     idx, acc = [0], 0.0
-    for length in letters:
+    for length in characters:
         acc += length * scale
         j = int(round(acc))
         if j >= count_fine:
@@ -612,7 +612,7 @@ def extremum_indices(fine):
     """Coarse fine-indices at the turning points of Z, where its step changes sign: the zeros of Z' as the fine lattice
     sees them. Z = 2 |F| cos(phi) with phi = theta + arg F, and Z' = 2 |F| ((ln |F|)' cos(phi) - phi' sin(phi)): the
     antinode moves off Im(w) = 0 by F's own turning, phi' against theta', and by the swell of its size, (ln |F|)'. By
-    Rolle, Z is monotone between consecutive turning points and holds at most one zero there."""
+    Rolle, Z is monotone between consecutive turning points and holds at max one zero there."""
     idx = [0]
     for j in range(1, len(fine) - 1):
         if (fine[j][2] - fine[j - 1][2] > 0.0) != (fine[j + 1][2] - fine[j][2] > 0.0):
@@ -622,7 +622,7 @@ def extremum_indices(fine):
 
 
 def wiggles_of(idx, fine):
-    """Turning points on the wrong side of zero: a positive minimum or a negative maximum of Z. Each is a turn with no
+    """Turning points on the wrong side of zero: a positive minimum or a negative max of Z. Each is a turn with no
     zero across it, a pair of critical points past the one each gap between zeros must hold."""
     count = 0
     for j in idx[1:-1]:
@@ -639,7 +639,7 @@ def uniform_indices(count_fine, points):
 
 
 def misses_on(idx, fine):
-    """Each pair the coarse lattice of fine-indices `idx` hides: the two kept coarse points it lies between and the two
+    """Each pair the coarse lattice of fine-indices `idx` hides: the two retained coarse points it lies between and the two
     fine zeros. The carrier-stepped form of misses_of, with an explicit index list in place of a uniform lift."""
     fine_zeros, _ = zeros_of(fine)
     coarse = [fine[i] for i in idx]
@@ -923,7 +923,7 @@ def main_pulse(binary, base, count, rate):
     by R / (2 |F|), the way left."""
     constants = tm.Constants()
     pulses, misses, inside, covered, total, failed = [], 0, 0, 0, 0, 0
-    ways = {"back": 0, "spin": 0, "neither": 0, "neither_most": 0.0}
+    ways = {"back": 0, "spin": 0, "neither": 0, "neither_max": 0.0}
     for at in range(base, base + count):
         z = tm.rises(at)
         fine_p = math.ceil(math.log2(8 * rate * z))
@@ -951,7 +951,7 @@ def main_pulse(binary, base, count, rate):
                 ways["spin"] += 1
             else:
                 ways["neither"] += 1
-                ways["neither_most"] = max(ways["neither_most"], max(drags))
+                ways["neither_max"] = max(ways["neither_max"], max(drags))
         print("  cell %d done, %d pulses so far" % (at, len(pulses)), flush=True)
 
     def q(key):
@@ -970,8 +970,8 @@ def main_pulse(binary, base, count, rate):
         print("  %-40s %26s" % (label, q(key)))
     print("  misses %d, inside a pulse %d (%.1f%%); the pulses cover %.2f%% of the fine points" % (
         misses, inside, 100.0 * inside / max(1, misses), 100.0 * covered / max(1, total)))
-    print("  each miss across its two zeros: the clock runs back %d, spins past %.2f theta' %d, neither %d (the most "
-          "drag among them %.3f theta')" % (ways["back"], rate, ways["spin"], ways["neither"], ways["neither_most"]))
+    print("  each miss across its two zeros: the clock runs back %d, spins past %.2f theta' %d, neither %d (the max "
+          "drag among them %.3f theta')" % (ways["back"], rate, ways["spin"], ways["neither"], ways["neither_max"]))
     print("  %d host checks failed" % failed)
     return 0 if failed == 0 else 1
 
@@ -1150,7 +1150,7 @@ def main_primes(binary, base, count, rate):
     powers = [k for k in locks if k[4]]
     others = [k for k in locks if not k[4]]
     cut = max(k[3] for k in others)
-    print("  prime powers %d: z least %.1f, median %.1f; others %d: z most %.1f, median %.2f" % (
+    print("  prime powers %d: z least %.1f, median %.1f; others %d: z max %.1f, median %.2f" % (
         len(powers), min(k[3] for k in powers), sorted(k[3] for k in powers)[len(powers) // 2], len(others), cut,
         sorted(k[3] for k in others)[len(others) // 2]))
     print("  prime powers locked past every other n: %d of %d; at 180 +- 30 degrees: %d" % (
@@ -1193,7 +1193,7 @@ def main_primes(binary, base, count, rate):
     print("  every wrong call: %s" % ", ".join("%d (D %.3f, Lambda %.3f)" % (x, reading[x], lam[x]) for x in wrong))
     ratio = sorted(reading[x] / lam[x] for x in range(2, reach + 1) if lam[x] > 0)
     rest = sorted(abs(reading[x]) for x in range(2, reach + 1) if lam[x] == 0)
-    print("  D / Lambda at the prime powers, 1/10/50/90/99: %s; |D| elsewhere, 50/90/99/most: %s" % (
+    print("  D / Lambda at the prime powers, 1/10/50/90/99: %s; |D| elsewhere, 50/90/99/max: %s" % (
         " ".join("%.3f" % ratio[int(f * (len(ratio) - 1))] for f in (0.01, 0.1, 0.5, 0.9, 0.99)),
         " ".join("%.3f" % rest[int(f * (len(rest) - 1))] for f in (0.5, 0.9, 0.99, 1.0))))
     proved = {"prime": 0, "composite": 0, "other": 0}
@@ -1204,10 +1204,10 @@ def main_primes(binary, base, count, rate):
         verdict = proth_verdict(x)
         if verdict is None:
             continue
-        kind = verdict[0] if verdict[0] in proved else "other"
-        proved[kind] += 1
+        type = verdict[0] if verdict[0] in proved else "other"
+        proved[type] += 1
         is_prime = lam[x] > 0 and all(x % p for p in range(2, int(math.isqrt(x)) + 1))
-        if (kind == "prime") != is_prime:
+        if (type == "prime") != is_prime:
             disagree += 1
     print("  calls past N that Proth reaches: %d proved prime, %d proved composite, %d otherwise; "
           "%d against the sieve" % (proved["prime"], proved["composite"], proved["other"], disagree))
@@ -1389,7 +1389,7 @@ def main_twist(binary, base, count, rate):
             dip = max(range(first[1], second[0] + 1), key=lambda j: abs(fine[j][2]))
             drag, swell = ripple_at(fine, x2, dip)
             miss_courses.append(abs(math.degrees(math.atan2(swell, drag))))
-            # the slip: how far past the level the ball goes, |Z| / (2 |F|) at the dip, where cos(phi) stands, and
+            # the slip: how far past the level the ball goes, |Z| / (2 |F|) at the dip, where cos(phi) is, and
             # the drag there; the zeros' distance apart in fine steps
             slips.append((abs(fine[dip][2]) / (2 * abs(fine[dip][3])), fine[dip][3].real / abs(fine[dip][3]), drag,
                           second[0] - first[1], 2 * math.pi * x2[dip],
@@ -1463,7 +1463,7 @@ def main_twist(binary, base, count, rate):
                       min(d[1] for d in drags), max(d[1] for d in drags)), flush=True)
         print("  cell %d done, shift %d, %d misses so far" % (at, shift, misses), flush=True)
     diffs.sort()
-    print("  the device's F'/F against the fine lattice's differences, |difference| / theta', 50/90/99/most: %s" % (
+    print("  the device's F'/F against the fine lattice's differences, |difference| / theta', 50/90/99/max: %s" % (
         " ".join("%.5f" % diffs[int(f * (len(diffs) - 1))] for f in (0.5, 0.9, 0.99, 1.0))))
     print("  %-16s %14s %16s" % ("flag", "steps flagged", "misses caught"))
     for r, rule in enumerate(TWIST_RULES):
@@ -1491,7 +1491,7 @@ def main_twist(binary, base, count, rate):
             patterns[row[2]] = patterns.get(row[2], 0) + 1
         common = sorted(patterns.items(), key=lambda kv: -kv[1])[:4]
         print("  the figure, %s (%d): the track crosses itself, in w %.1f%%, in F %.1f%%, in (Z, Z' / theta') %.1f%%; "
-              "L's signs, the most common: %s" % (label, len(rows), 100.0 * sum(1 for r in rows if r[0] > 0) / n,
+              "L's signs, the usual: %s" % (label, len(rows), 100.0 * sum(1 for r in rows if r[0] > 0) / n,
                                                   100.0 * sum(1 for r in rows if r[1] > 0) / n,
                                                   100.0 * sum(1 for r in rows if r[3] > 0) / n,
                                                   ", ".join("%s %.1f%%" % (k, 100.0 * v / n) for k, v in common)))

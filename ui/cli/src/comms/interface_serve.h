@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// ipc_serve.h: the door's container side: each joined process's place, its end, its key, what it listens on, and the
+// ipc_serve.h: the interface's container side: each joined process's place, its end, its key, what it listens on, and the
 // queue of what it receives (ipc_serve.c, ipc_requests.c)
-#ifndef DOOR_SERVE_H
-#define DOOR_SERVE_H
+#ifndef INTERFACE_SERVE_H
+#define INTERFACE_SERVE_H
 #include "comms.h"
-#include "door_internal.h"
+#include "interface_internal.h"
 #include "embed_dispatch_layout.h"
 #include "embed_ticket_ring.h"
 
@@ -13,17 +13,17 @@ typedef struct CliIpcServeCfg CliIpcServeCfg;
 typedef struct CliIpcServeChannelCfg CliIpcServeChannelCfg;
 typedef struct CliIpcServeErrorCfg CliIpcServeErrorCfg;
 
-// the most processes joined at once; the messages queued for one process, a power of two; the channels one process
+// the max processes joined at once; the messages queued for one process, a power of two; the channels one process
 // listens on; and the bytes of an answer waiting to be written
 #define CLI_IPC_JOINED 16u
 #define CLI_IPC_ENTRIES_SHIFT 7u
 #define CLI_IPC_ENTRIES (1u << CLI_IPC_ENTRIES_SHIFT)
 #define CLI_IPC_LISTENS 32u
 // the bytes the joined processes' rings' slots take, the joined part of the rings block
-#define CLI_DOOR_JOINED_RING_BYTES ((unsigned long long)CLI_IPC_JOINED * CLI_IPC_ENTRIES * sizeof(EmbedTicketRingSlot))
+#define CLI_INTERFACE_JOINED_RING_BYTES ((unsigned long long)CLI_IPC_JOINED * CLI_IPC_ENTRIES * sizeof(EmbedTicketRingSlot))
 #define CLI_IPC_SERVE_ANSWER (CLI_ERR_MSG_MAX_LEN + CLI_NAME_MAX_LEN + 8u)
 
-// A joined process's place, a cell of the cellblock from its join to the end of its last thread: where it stands among
+// A joined process's place, a cell of the cellblock from its join to the end of its last thread: where it is among
 // the places and how many of its two threads go on; its end and the process at the other end; its key; the frame read;
 // the messages queued for it on a ticket ring, any thread taking a ticket and pushing the entry of its slot, the writer
 // of the end popping them in the order of their tickets, the ring's turnstiles and slots, the next ticket taken and the
@@ -57,7 +57,7 @@ typedef struct
     CliThread reporter;
 } CliIpcJoined;
 
-// The door's container side: whether it is open and its address, the thread taking the processes that join, their
+// The interface's container side: whether it is open and its address, the thread taking the processes that join, their
 // places, NULL where none is taken, and the lock they are guarded by
 typedef struct
 {
@@ -67,11 +67,11 @@ typedef struct
     CliIpcJoined *joined[CLI_IPC_JOINED];
 } CliIpcServed;
 
-// the door's container side, and the cells its places and the processes it lists occupy
+// the interface's container side, and the cells its places and the processes it lists occupy
 extern CliIpcServed g_cli_ipc_served;
 
 // `channel` listened on for the joined process: 1, or 0 with why given; a refusal answered, `size` bytes of why; and an
-// answer of `size` bytes handed to the writer of its end: each 1, or 0 where its end is broken (ipc_serve.c)
+// answer of `size` bytes passed to the writer of its end: each 1, or 0 where its end is broken (ipc_serve.c)
 int cli_ipc_listen_request(const CliIpcServeChannelCfg *args);
 int cli_ipc_reject(const CliIpcServeErrorCfg *args);
 int cli_ipc_answer(const CliIpcServeCfg *args);

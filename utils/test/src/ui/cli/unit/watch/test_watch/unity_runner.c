@@ -3,11 +3,14 @@
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
 #include "ui/cli/src/editor/watch_internal.h"
+#include "ui/cli/src/text/patterns.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
+extern void test_a_hidden_folder_removed_marks_the_folder_it_was_in_changed(void);
+extern void test_a_hidden_file_written_is_left_out_whole(void);
 extern void test_a_poll_finds_a_written_file(void);
 extern void test_a_poll_finds_a_new_file(void);
 
@@ -71,8 +74,10 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\watch\\test_watch\\test_watch.c");
-  run_test(test_a_poll_finds_a_written_file, "test_a_poll_finds_a_written_file", 81);
-  run_test(test_a_poll_finds_a_new_file, "test_a_poll_finds_a_new_file", 87);
+  run_test(test_a_hidden_folder_removed_marks_the_folder_it_was_in_changed, "test_a_hidden_folder_removed_marks_the_folder_it_was_in_changed", 116);
+  run_test(test_a_hidden_file_written_is_left_out_whole, "test_a_hidden_file_written_is_left_out_whole", 126);
+  run_test(test_a_poll_finds_a_written_file, "test_a_poll_finds_a_written_file", 133);
+  run_test(test_a_poll_finds_a_new_file, "test_a_poll_finds_a_new_file", 139);
 
   return UNITY_END();
 }

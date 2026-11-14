@@ -184,7 +184,7 @@ unsigned long long qry_member_append(const char *name, const void *blob, unsigne
         memcpy(ring->bytes + place, &wrap, sizeof(wrap));
     }
     unsigned char *const at = ring->bytes + ((tail + left) & (QRY_WRITER_RING_BYTES - 1ULL));
-    // a name is at most QRY_NAME_MAX_LEN bytes, which an unsigned int counts
+    // a name is at max QRY_NAME_MAX_LEN bytes, which an unsigned int counts
     const QryRecord record = {qry_member_clock(), blob_length, (unsigned int)name_length, priority};
     const unsigned long long filled = sizeof(record) + name_length + blob_length;
     memcpy(at, &record, sizeof(record));
@@ -207,7 +207,7 @@ unsigned long long qry_member_settled(void)
     const QryRing *const ring = qry_member_ring();
     while ((ring != NULL) && (atomic_load(&ring->head) < atomic_load(&ring->tail)))
     {
-        // this thread waits for the writer to take what it handed
+        // this thread waits for the writer to take what it passed
     }
     const QryShared *const run = qry_member_run();
     return (run != NULL) ? atomic_load(&run->scheduled) : 0ULL;
@@ -215,7 +215,7 @@ unsigned long long qry_member_settled(void)
 
 unsigned long long qry_member_rings_settled(void)
 {
-    unsigned long long tails[QRY_WRITER_MEMBERS_MOST];
+    unsigned long long tails[QRY_WRITER_MEMBERS_MAX];
     QryShared *const run = qry_member_run();
     if (run == NULL)
     {
@@ -229,7 +229,7 @@ unsigned long long qry_member_rings_settled(void)
     {
         while (atomic_load(&qry_shared_ring(run, place)->head) < tails[place])
         {
-            // each ring waits for the writer to take it as far as its tail stood
+            // each ring waits for the writer to take it as far as its tail was
         }
     }
     return atomic_load(&run->scheduled);
@@ -259,7 +259,7 @@ int qry_member_viewed_read(QryShared *run, unsigned long long *at, const QryReco
 
 int qry_member_read(unsigned long long *at, const QryRecord **record)
 {
-    // a walk begins once what this thread handed is taken into the run, so that it reads what this thread wrote
+    // a walk begins once what this thread passed is taken into the run, so that it reads what this thread wrote
     if (*at == 0ULL)
     {
         qry_member_settled();
@@ -284,7 +284,7 @@ unsigned long long qry_member_viewed_panicked(const QryShared *run)
 
 int qry_member_latest(const char *name, const QryRecord **record, unsigned long long *place)
 {
-    // what this thread handed taken into the run first, so that the latest is what this thread last wrote
+    // what this thread passed taken into the run first, so that the latest is what this thread last wrote
     qry_member_settled();
     QryShared *const run = qry_member_run();
     const size_t length = strlen(name);

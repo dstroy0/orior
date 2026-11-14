@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// structure.h: the Structure tool's side pane table, the Outline: a row each declaration of the file shown, read
-// where the symbols' outline stands (code/symbols.h), the table's mark before each row's name and a guide down each
-// level it stands under; the row of the declaration the cursor stands in is the current one, and a row pressed puts the
+// structure.h: the Structure tool's side pane table, the Outline: a row each declaration of the file displayed, read
+// where the symbols' outline is (code/symbols.h), the table's mark before each row's name and a guide down each
+// level it is under; the row of the declaration the cursor is in is the current one, and a row pressed puts the
 // cursor on its line (structure.c)
 #ifndef GUI_WINDOW_STRUCTURE_H
 #define GUI_WINDOW_STRUCTURE_H

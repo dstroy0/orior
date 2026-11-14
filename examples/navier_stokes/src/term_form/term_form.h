@@ -115,7 +115,7 @@ std::string term_form_key_text(unsigned int term_at, const std::vector<std::stri
 // the entries the form's array contains, its zeros counted
 size_t term_form_entries(const TermForm &form);
 
-// the most bits any entry or the denominator takes
+// the max bits any entry or the denominator takes
 unsigned long long term_form_bits(const TermForm &form);
 
 // 1 where a value in this module outgrew the build's width

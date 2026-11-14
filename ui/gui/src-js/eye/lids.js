@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The eye's opening and its lids: where the eye stands in its canvas, the edge of the opening at an openness, each
+// The eye's opening and its lids: where the eye is in its canvas, the edge of the opening at an openness, each
 // lid's band, and what is drawn under the irises and over them.
 
 import { cssOf } from "../colors.js";

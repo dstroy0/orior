@@ -108,7 +108,7 @@ def measure_x(machine, vertex):
 ROOT_HALF = 1.0 / math.sqrt(2.0)
 
 # The shapes the X composition is graded on. Paths, rings, a star and an asymmetric tree. The
-# grading is not one topology's coincidence. Kept small because the comparison builds real state
+# grading is not one topology's coincidence. Retained small because the comparison builds real state
 # vectors and every bipartition of them.
 GRADED_ON = {
     "path 4": [(0, 1), (1, 2), (2, 3)],
@@ -137,7 +137,7 @@ def _project_x(state, qubits, vertex, plus):
     """Project `vertex` onto |+> or |->, renormalize, and drop that qubit from the register.
 
     THE PAIR IS MIXED AND NOT SELECTED. That alone separates it from a Z measurement. A Z
-    measurement keeps the amplitudes with a chosen bit value; an X measurement adds the pair.
+    measurement retains the amplitudes with a chosen bit value; an X measurement adds the pair.
     """
     sign = 1.0 if plus else -1.0
     small = numpy.zeros(1 << (qubits - 1), dtype=complex)
@@ -175,9 +175,9 @@ def _after(edges, qubits, vertex, which):
     for left, right in edges:
         machine.connect(left, right)
     globals()[which](machine, vertex)
-    keep = [one for one in range(qubits) if one != vertex]
-    small = [[int(machine.edges[left][right]) for right in keep] for left in keep]
-    return _entropies(_graph_vector(small, len(keep)), len(keep))
+    retain = [one for one in range(qubits) if one != vertex]
+    small = [[int(machine.edges[left][right]) for right in retain] for left in retain]
+    return _entropies(_graph_vector(small, len(retain)), len(retain))
 
 
 def x_matches_projection():
@@ -244,7 +244,7 @@ def _report(qubits=12):
     print("  after %d measurements, %d qubit(s) still carry entanglement: %s"
           % (qubits - 1, len(live), live if live else "none"))
     print("")
-    print("  THE FRONTIER IS THE PROPAGATION. Each X measurement removes one site and hands its")
+    print("  THE FRONTIER IS THE PROPAGATION. Each X measurement removes one site and passes its")
     print("  role to the next. The chain shortens by one and the logical state has moved one")
     print("  step. The entropy column is the reading, taken at every step, on the bits alone.")
     return 0
@@ -271,9 +271,9 @@ def _gates():
             # AFTER EVERY STEP THE OBJECT MUST STILL BE A GRAPH STATE. If a measurement rule were
             # wrong the adjacency would stop describing the amplitudes and the two readings would
             # part. This is the control that makes the entropy column above mean anything.
-            keep = max(1, qubits // 2)
-            from_bits = machine.entropy_across(keep)
-            from_state = graph_machine.entropy_from_state(machine.amplitudes(), keep, qubits)
+            retain = max(1, qubits // 2)
+            from_bits = machine.entropy_across(retain)
+            from_state = graph_machine.entropy_from_state(machine.amplitudes(), retain, qubits)
             if abs(from_bits - from_state) > 1e-9:
                 agree = False
                 failed += 1
@@ -302,9 +302,9 @@ def _check():
         for qubits in (4, 6, 8):
             machine = chain(qubits)
             rule(machine, 1)
-            keep = qubits // 2
-            from_bits = machine.entropy_across(keep)
-            from_state = graph_machine.entropy_from_state(machine.amplitudes(), keep, qubits)
+            retain = qubits // 2
+            from_bits = machine.entropy_across(retain)
+            from_state = graph_machine.entropy_from_state(machine.amplitudes(), retain, qubits)
             if abs(from_bits - from_state) > 1e-9:
                 bad += 1
         print("  %s measurement leaves a legal graph state at every width: %s" % (name, bad == 0))

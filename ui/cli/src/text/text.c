@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// text.c: a text of UTF-8 read letter by letter. A byte that starts no letter, or a letter cut short, is read as one
-// letter of its own byte
+// text.c: a text of UTF-8 read character by character. A byte that starts no character, or a character cut short, is read as one
+// character of its own byte
 #include "text.h"
 #include "json_tree.h"
 #include "regexp.h"
@@ -10,48 +10,48 @@
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 
-unsigned int cli_text_letter(const CliTextAtCfg *args)
+unsigned int cli_text_character(const CliTextAtCfg *args)
 {
-    return EMBED_CALL(utf8_at.letter, Utf8AtCfg, .text = args->text, .at = args->at, .size = args->size,
+    return EMBED_CALL(utf8_at.character, Utf8AtCfg, .text = args->text, .at = args->at, .size = args->size,
                       .length = args->length);
 }
 
-unsigned int cli_text_letter_before(const CliTextLengthCfg *args)
+unsigned int cli_text_character_before(const CliTextLengthCfg *args)
 {
-    return EMBED_CALL(utf8_end.letter_before, Utf8EndCfg, .text = args->text, .end = args->end_value,
+    return EMBED_CALL(utf8_end.character_before, Utf8EndCfg, .text = args->text, .end = args->end_value,
                       .length = args->length);
 }
 
 int cli_text_white(const CliTextCfg *args)
 {
-    return (args->letter == ' ') || ((args->letter >= '\t') && (args->letter <= '\r')) || (args->letter == 0x85u) ||
-           (args->letter == 0xA0u) || (args->letter == 0x1680u) ||
-           ((args->letter >= 0x2000u) && (args->letter <= 0x200Au)) || (args->letter == 0x2028u) ||
-           (args->letter == 0x2029u) || (args->letter == 0x202Fu) || (args->letter == 0x205Fu) ||
-           (args->letter == 0x3000u);
+    return (args->character == ' ') || ((args->character >= '\t') && (args->character <= '\r')) || (args->character == 0x85u) ||
+           (args->character == 0xA0u) || (args->character == 0x1680u) ||
+           ((args->character >= 0x2000u) && (args->character <= 0x200Au)) || (args->character == 0x2028u) ||
+           (args->character == 0x2029u) || (args->character == 0x202Fu) || (args->character == 0x205Fu) ||
+           (args->character == 0x3000u);
 }
 
 int cli_text_alphabetic(const CliTextCfg *args)
 {
-    unsigned int letter = args->letter;
-    if (letter < 0x80u)
+    unsigned int character = args->character;
+    if (character < 0x80u)
     {
-        return ((letter >= 'a') && (letter <= 'z')) || ((letter >= 'A') && (letter <= 'Z'));
+        return ((character >= 'a') && (character <= 'z')) || ((character >= 'A') && (character <= 'Z'));
     }
-    return EMBED_CALL(cli_regexp_letter.property, CliRegexpLetterCfg, .property = CLI_REGEXP_LETTER, .letter = letter);
+    return EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg, .property = CLI_REGEXP_CHARACTER, .character = character);
 }
 
 int cli_text_alphanumeric(const CliTextCfg *args)
 {
-    unsigned int letter = args->letter;
-    if (letter < 0x80u)
+    unsigned int character = args->character;
+    if (character < 0x80u)
     {
-        return EMBED_CALL(cli_text_table.alphabetic, CliTextCfg, .letter = letter) ||
-               ((letter >= '0') && (letter <= '9'));
+        return EMBED_CALL(cli_text_table.alphabetic, CliTextCfg, .character = character) ||
+               ((character >= '0') && (character <= '9'));
     }
-    return EMBED_CALL(cli_regexp_letter.property, CliRegexpLetterCfg, .property = CLI_REGEXP_LETTER,
-                      .letter = letter) ||
-           EMBED_CALL(cli_regexp_letter.property, CliRegexpLetterCfg, .property = CLI_REGEXP_NUMBER, .letter = letter);
+    return EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg, .property = CLI_REGEXP_CHARACTER,
+                      .character = character) ||
+           EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg, .property = CLI_REGEXP_NUMBER, .character = character);
 }
 
 typedef struct
@@ -93,7 +93,7 @@ unsigned long long cli_text_back_end(const CliTextAtSizeClassesCfg *args)
 EMBED_INLINE embed_word text_word_of_class(const TextCtx *args)
 {
     embed_word hit = EMBED_CALL(utf8_word.in, Utf8WordCfg, .loaded = args->loaded, .filled = args->filled);
-    if ((args->classes & CLI_TEXT_LETTERS) != 0u)
+    if ((args->classes & CLI_TEXT_CHARACTERS) != 0u)
     {
         hit |= lane.alpha(&(ScrutLaneCfg){.word = args->loaded});
     }
@@ -225,7 +225,7 @@ unsigned long long cli_text_number(const CliTextAtSizeCfg *args)
     return cellul.to_ulong(&(TransfiguroCfg){.src = read});
 }
 
-// The low nibbles of a word's first `count` lanes folded into one number, the first lane in memory the most
+// The low nibbles of a word's first `count` lanes folded into one number, the first lane in memory the max
 // significant: pairs of lanes into sixteen bits, pairs of those into thirty two, then the two halves. The lanes past
 // `count` hold 0 and fall off the low end
 EMBED_INLINE unsigned long long text_nibbles_packed(embed_word valued, unsigned long long count)
@@ -242,7 +242,7 @@ EMBED_INLINE unsigned long long text_nibbles_packed(embed_word valued, unsigned 
     return whole >> (4ULL * (MMGR_SWAR_BYTES - count));
 }
 
-// A word of the text at a time: each lane classed a numeral, a letter a through f in either case or neither, the
+// A word of the text at a time: each lane classed a numeral, a character a through f in either case or neither, the
 // digits' run cut at the first lane that is neither, each digit lane valued with no borrow between lanes, the run's
 // nibbles packed onto the value
 unsigned long long cli_text_hex(const CliTextAtSizeCfg *args)
@@ -260,18 +260,18 @@ unsigned long long cli_text_hex(const CliTextAtSizeCfg *args)
         const embed_word within = mask.lanes_below(&(ScrutMaskCfg){.bytes = bytes});
         const embed_word numerals = lane.ge(&(ScrutLaneCfg){.word = loaded, .byte = '0'}) &
                                     lane.le(&(ScrutLaneCfg){.word = loaded, .byte = '9'}) & within;
-        const embed_word letters = lane.ge(&(ScrutLaneCfg){.word = folded, .byte = 'a'}) &
+        const embed_word characters = lane.ge(&(ScrutLaneCfg){.word = folded, .byte = 'a'}) &
                                    lane.le(&(ScrutLaneCfg){.word = folded, .byte = 'f'}) & within;
-        const embed_word other = within & ~(numerals | letters);
+        const embed_word other = within & ~(numerals | characters);
         const embed_word run = (other == 0u) ? within : mask.before(&(ScrutMaskCfg){.mask = other});
         const unsigned long long count = lane.count(&(ScrutLaneCfg){.mask = run});
         const embed_word numeral_bytes = mask.spread(&(ScrutMaskCfg){.mask = numerals & run});
-        const embed_word letter_bytes = mask.spread(&(ScrutMaskCfg){.mask = letters & run});
-        // Explicit casts repeat each digit class's base into every lane: a numeral is its byte less '0', a letter its
+        const embed_word character_bytes = mask.spread(&(ScrutMaskCfg){.mask = characters & run});
+        // Explicit casts repeat each digit class's base into every lane: a numeral is its byte less '0', a character its
         // lower case byte less 'a' plus ten
         const embed_word valued =
             ((loaded & numeral_bytes) - ((MMGR_SWAR_ONES * (embed_word)'0') & numeral_bytes)) |
-            ((folded & letter_bytes) - ((MMGR_SWAR_ONES * (embed_word)('a' - 10)) & letter_bytes));
+            ((folded & character_bytes) - ((MMGR_SWAR_ONES * (embed_word)('a' - 10)) & character_bytes));
         value = (value << (4ULL * count)) | text_nibbles_packed(valued, count);
         at += count;
         if (count < bytes)
@@ -582,7 +582,7 @@ unsigned long long cli_text_prefix(const CliTextSizeFromU64sCfg *args)
         }
         unsigned long long length = 0ULL;
         if (!EMBED_CALL(cli_text_table.white, CliTextCfg,
-                        .letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->text, .size = args->size,
+                        .character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = args->text, .size = args->size,
                                              .at = at, .length = &length)))
         {
             going = 0;
@@ -608,7 +608,7 @@ unsigned long long cli_text_trimmed_end(const CliTextSizeByteCfg *args)
         }
         unsigned long long length = 0ULL;
         if (!EMBED_CALL(cli_text_table.white, CliTextCfg,
-                        .letter = EMBED_CALL(cli_text_length.letter_before, CliTextLengthCfg, .text = args->text,
+                        .character = EMBED_CALL(cli_text_length.character_before, CliTextLengthCfg, .text = args->text,
                                              .end_value = end, .length = &length)))
         {
             going = 0;
@@ -642,26 +642,26 @@ int cli_text_word(const CliTextSizeLengthCfg *args)
     *word_text = *at;
     while (*at < args->size)
     {
-        unsigned long long letter = 0ULL;
+        unsigned long long character = 0ULL;
         if (EMBED_CALL(cli_text_table.white, CliTextCfg,
-                       .letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->text, .size = args->size,
-                                            .at = *at, .length = &letter)))
+                       .character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = args->text, .size = args->size,
+                                            .at = *at, .length = &character)))
         {
             break;
         }
-        *at += letter;
+        *at += character;
     }
     *length = *at - *word_text;
     return 1;
 }
 
-unsigned long long cli_text_letters(const CliTextSizeByteCfg *args)
+unsigned long long cli_text_characters(const CliTextSizeByteCfg *args)
 {
     unsigned long long count = 0ULL;
     for (unsigned long long at = 0ULL; at < args->size;)
     {
         unsigned long long length = 0ULL;
-        (void)EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->text, .size = args->size, .at = at,
+        (void)EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = args->text, .size = args->size, .at = at,
                          .length = &length);
         at += length;
         count += 1u;
@@ -675,10 +675,10 @@ unsigned long long cli_text_units(const CliTextSizeByteCfg *args)
     for (unsigned long long at = 0ULL; at < args->size;)
     {
         unsigned long long length = 0ULL;
-        const unsigned int letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->text, .size = args->size,
+        const unsigned int character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = args->text, .size = args->size,
                                                .at = at, .length = &length);
         at += length;
-        count += (letter >= 0x10000u) ? 2u : 1u;
+        count += (character >= 0x10000u) ? 2u : 1u;
     }
     return count;
 }
@@ -758,7 +758,7 @@ int cli_text_find_last(const CliTextSizeAtCfg *args)
         return 1;
     }
     // the places the wanted text can start at, its first byte found by the word scan from the last of them back, and
-    // the whole compared only where that byte stands
+    // the whole compared only where that byte is
     unsigned long long positions = args->length_value - args->size + 1ULL;
     for (const char *start = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->text,
                                         .length_value = positions, .byte = args->required[0]);
@@ -822,10 +822,10 @@ int cli_text_utf8_valid(const CliTextSizeTypeCfg *args)
             at += MMGR_SWAR_BYTES;
             continue;
         }
-        unsigned int letter = 0u;
+        unsigned int character = 0u;
         const unsigned long long step =
-            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg, .text_bytes = text,
-                       .length = args->size, .at = at, .letter = &letter);
+            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg, .text_bytes = text,
+                       .length = args->size, .at = at, .character = &character);
         if ((step == 1ULL) && (text[at] >= 0x80u))
         {
             return 0;
@@ -842,7 +842,7 @@ int cli_text_same(const CliTextSizeOneCfg *args)
            (embed_word)args->size;
 }
 
-// a byte with an ASCII capital made its small letter
+// a byte with an ASCII capital made its small character
 EMBED_INLINE char text_folded(char byte)
 {
     return ((byte >= 'A') && (byte <= 'Z')) ? (char)(byte + ('a' - 'A')) : byte;
@@ -898,7 +898,7 @@ unsigned int cli_text_hex_digit(const CliTextByteCfg *args)
     return 16u;
 }
 
-// Walks the aligned words the text stands in from the one containing its first byte, a word at a time: each word tested
+// Walks the aligned words the text is in from the one containing its first byte, a word at a time: each word tested
 // against every byte of the set in every lane at once and the lanes the set contains joined, the lanes before the text
 // masked off, and the first lane that stops the run taken: its terminator, or a byte of the set where `in_set` and
 // one outside it where not. Every load is an aligned word containing a byte of the text, so nothing outside those words
@@ -913,10 +913,10 @@ EMBED_INLINE unsigned long long text_run(const TextCtx *args)
     {
         const embed_word loaded = word.load_al(&(ScrutWordCfg){.at = (const void *)word_at});
         embed_word match_mask = 0u;
-        for (const char *letter = args->set; *letter != '\0'; letter += 1)
+        for (const char *character = args->set; *character != '\0'; character += 1)
         {
             // Explicit cast reads the set's byte as unsigned before it is repeated into every lane
-            match_mask |= lane.eq(&(ScrutLaneCfg){.word = loaded, .byte = (embed_u8)*letter});
+            match_mask |= lane.eq(&(ScrutLaneCfg){.word = loaded, .byte = (embed_u8)*character});
         }
         const embed_word ended = lane.has_zero(&(ScrutLaneCfg){.word = loaded});
         const embed_word stops =
@@ -940,7 +940,7 @@ unsigned long long cli_text_over(const CliTextSetCfg *args)
     return EMBED_CALL(text_run, TextCtx, .text = args->text, .set = args->set, .in_set = 0);
 }
 
-// Walks the aligned words the text stands in, from the one containing its last byte back to the one containing its
+// Walks the aligned words the text is in, from the one containing its last byte back to the one containing its
 // first, a word at a time: each word tested against the byte in every lane at once, its lanes outside the text masked
 // off, and the last lane that contains the byte taken. Every load is an aligned word containing a byte of the text, so
 // nothing outside those words is read

@@ -44,7 +44,7 @@ typedef struct
     CliTestRule *rule;
     const char *value;
     unsigned long long size;
-    char letter;
+    char character;
     const char *raw;
     const char *key;
     unsigned long long key_size;
@@ -91,8 +91,8 @@ const char *cli_test_rule_value(const CliTestingRulesRuleCfg *args)
 // whether a byte is a space of a line
 EMBED_INLINE int testing_space(const TestingCtx *args)
 {
-    return (args->letter == ' ') || (args->letter == '\t') || (args->letter == '\r') || (args->letter == '\n') ||
-           (args->letter == '\f') || (args->letter == '\v');
+    return (args->character == ' ') || (args->character == '\t') || (args->character == '\r') || (args->character == '\n') ||
+           (args->character == '\f') || (args->character == '\v');
 }
 
 // the values `size` bytes of a setting give put on `rule` in place of what it contained
@@ -108,7 +108,7 @@ EMBED_INLINE void testing_values_get(const TestingCtx *args)
                               .at = end - start, .set = "]"));
     for (unsigned long long at = start; at <= end; at += 1u)
     {
-        if ((at < end) && !EMBED_CALL(testing_space, TestingCtx, .letter = args->raw[at]) && (args->raw[at] != ','))
+        if ((at < end) && !EMBED_CALL(testing_space, TestingCtx, .character = args->raw[at]) && (args->raw[at] != ','))
         {
             continue;
         }
@@ -151,11 +151,11 @@ EMBED_INLINE void testing_trim(const TestingCtx *args)
     unsigned long long *to = args->to;
     *from = 0ULL;
     *to = args->size;
-    while ((*from < *to) && EMBED_CALL(testing_space, TestingCtx, .letter = args->text[*from]))
+    while ((*from < *to) && EMBED_CALL(testing_space, TestingCtx, .character = args->text[*from]))
     {
         *from += 1u;
     }
-    while ((*to > *from) && EMBED_CALL(testing_space, TestingCtx, .letter = args->text[*to - 1u]))
+    while ((*to > *from) && EMBED_CALL(testing_space, TestingCtx, .character = args->text[*to - 1u]))
     {
         *to -= 1u;
     }
@@ -274,8 +274,8 @@ void cli_test_rules_get(const CliTestingRulesCfg *args)
     cli_testing_rules.test_rules_own(args);
 }
 
-// the bytes the letter of UTF-8 at `text` takes, of the `size` left
-EMBED_INLINE unsigned long long testing_letter(const TestingCtx *args)
+// the bytes the character of UTF-8 at `text` takes, of the `size` left
+EMBED_INLINE unsigned long long testing_character(const TestingCtx *args)
 {
     const unsigned char lead = (unsigned char)args->text[0];
     unsigned long long want;
@@ -307,19 +307,19 @@ int cli_test_glob(const CliTestingSizeCfg *args)
     unsigned long long mark = 0ULL;
     while (at < args->size)
     {
-        const unsigned long long letter =
-            EMBED_CALL(testing_letter, TestingCtx, .text = args->name + at, .size = args->size - at);
+        const unsigned long long character =
+            EMBED_CALL(testing_character, TestingCtx, .text = args->name + at, .size = args->size - at);
         const unsigned long long own =
             (matched < length)
-                ? EMBED_CALL(testing_letter, TestingCtx, .text = args->pattern + matched, .size = length - matched)
+                ? EMBED_CALL(testing_character, TestingCtx, .text = args->pattern + matched, .size = length - matched)
                 : 0ULL;
         if ((matched < length) && ((args->pattern[matched] == '?') ||
-                                   ((own == letter) && (memor.cmp(&(MemoriaCfg){.src = args->pattern + matched,
+                                   ((own == character) && (memor.cmp(&(MemoriaCfg){.src = args->pattern + matched,
                                                                                 .other = args->name + at,
                                                                                 .bytes = (embed_word)own}) == 0))))
         {
             matched += (args->pattern[matched] == '?') ? 1u : own;
-            at += letter;
+            at += character;
         }
         else if ((matched < length) && (args->pattern[matched] == '*'))
         {
@@ -330,7 +330,7 @@ int cli_test_glob(const CliTestingSizeCfg *args)
         else if (star < length)
         {
             matched = star + 1u;
-            mark += EMBED_CALL(testing_letter, TestingCtx, .text = args->name + mark, .size = args->size - mark);
+            mark += EMBED_CALL(testing_character, TestingCtx, .text = args->name + mark, .size = args->size - mark);
             at = mark;
         }
         else

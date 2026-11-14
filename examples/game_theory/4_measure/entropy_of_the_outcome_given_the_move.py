@@ -12,7 +12,7 @@
 #
 # The instrument returns no answer key here. Nothing in this stage compares against a published
 # value; it reports what the measure says and what it cost. Stage six does the checking. This is the
-# same division the rest of the tree keeps: a measure that also validates itself is two instruments
+# same division the rest of the tree retains: a measure that also validates itself is two instruments
 # in one file and neither can be trusted.
 #
 # THREE NUMBERS, NOT ONE, AND WHY THE THIRD IS THE USEFUL ONE
@@ -161,7 +161,7 @@ def main():
             (card(5, 0), card(5, 1), card(0, 0)), (card(4, 0), card(3, 1), card(2, 0))
         ),
         10,
-        lambda move: poker.show(move) if move else "(keep all)",
+        lambda move: poker.show(move) if move else "(retain all)",
     )
 
     print("")

@@ -258,11 +258,11 @@ def chamfer(rotated, target):
 
 
 def best_alignment(source, target):
-    """The rotation carrying `source` peaks onto `target` peaks most closely, and its score.
+    """The rotation carrying `source` peaks onto `target` peaks max closely, and its score.
 
     Candidates are built from pairs, because two directions fix a rotation. Each source peak is paired
     with its own nearest peak, and that pair is matched to the target pair whose separation is closest
-    to it, in both orders. That keeps the search to a few candidates per peak instead of every pair of
+    to it, in both orders. That retains the search to a few candidates per peak instead of every pair of
     pairs, and no tolerance enters: the score is compared, never thresholded.
     """
     if len(source) < 2 or len(target) < 2:
@@ -321,11 +321,11 @@ def readings(grid, first_flat, second_flat):
 
 
 def drawn_band(values):
-    kept = sorted(value for value in values if value is not None)
-    count = len(kept)
+    retained = sorted(value for value in values if value is not None)
+    count = len(retained)
     if count == 0:
         return None
-    return (kept[int(0.025 * (count - 1))], kept[int(0.5 * (count - 1))], kept[int(0.975 * (count - 1))])
+    return (retained[int(0.025 * (count - 1))], retained[int(0.5 * (count - 1))], retained[int(0.975 * (count - 1))])
 
 
 def verdict(value, band, closer_is_lower):
@@ -383,12 +383,12 @@ def _report(samples, top, draws, word):
         for key, said in (("spacing", spacing_verdict), ("alignment", alignment_verdict), ("delta", delta_verdict)):
             closer[key].append((index, said))
 
-        def shown(value):
+        def displayed(value):
             return "-" if value is None else "%.4f" % value
 
         print("  %5d %11s %9s %10s %9s %11s %9s %8s %9s"
-              % (index + 1, "%d/%d" % found["peaks"], shown(found["spacing"]), spacing_verdict,
-                 shown(found["alignment"]), alignment_verdict, shown(found["delta"]), delta_verdict,
+              % (index + 1, "%d/%d" % found["peaks"], displayed(found["spacing"]), spacing_verdict,
+                 displayed(found["alignment"]), alignment_verdict, displayed(found["delta"]), delta_verdict,
                  "%d/%d" % found["pits"]))
 
     print("")

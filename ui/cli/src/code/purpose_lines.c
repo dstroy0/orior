@@ -12,11 +12,11 @@ CliSpan cli_purpose_trimmed_start(const CliPurposeLinesSpanCfg *args)
     CliSpan span = args->span;
     while (span.length > 0ULL)
     {
-        unsigned int letter = 0u;
-        const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+        unsigned int character = 0u;
+        const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                                                    .text_bytes = (const unsigned char *)span.at, .length = span.length,
-                                                   .at = 0ULL, .letter = &letter);
-        if (!EMBED_CALL(cli_files_letter_internal.fuzzy_white, CliFilesLetterCtx, .letter = letter))
+                                                   .at = 0ULL, .character = &character);
+        if (!EMBED_CALL(cli_files_character_internal.fuzzy_white, CliFilesLetterCtx, .character = character))
         {
             break;
         }
@@ -32,12 +32,12 @@ CliSpan cli_purpose_trim(const CliPurposeLinesSpanCfg *args)
     unsigned long long end = 0ULL;
     for (unsigned long long at = 0ULL; at < span.length;)
     {
-        unsigned int letter = 0u;
-        const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+        unsigned int character = 0u;
+        const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                                                    .text_bytes = (const unsigned char *)span.at, .length = span.length,
-                                                   .at = at, .letter = &letter);
+                                                   .at = at, .character = &character);
         at += step;
-        end = EMBED_CALL(cli_files_letter_internal.fuzzy_white, CliFilesLetterCtx, .letter = letter) ? end : at;
+        end = EMBED_CALL(cli_files_character_internal.fuzzy_white, CliFilesLetterCtx, .character = character) ? end : at;
     }
     return (CliSpan){span.at, end};
 }

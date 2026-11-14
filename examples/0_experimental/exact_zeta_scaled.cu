@@ -6,7 +6,7 @@
 // pi, the main sum, Z's sign, the sign changes, Turing's sums and N, swept on the device as programs of the record
 // machine, one job on the device's tessera daemon. Every value is a mantissa in a register and a binary exponent the
 // program stores: a product multiplies the mantissas and adds the exponents, and a power of two is where a mantissa is
-// laid in the record. No value is stored at a fixed scale. The quotients are reads below and above, outward, at the
+// positioned in the record. No value is stored at a fixed scale. The quotients are reads below and above, outward, at the
 // width the value is read at.
 //
 //   Usage:  exact_zeta_scaled <first> <last> <E> <W> <rate>
@@ -19,7 +19,7 @@
 // rise. From cell 1, cells 1 to 9 run by Euler-Maclaurin, and their sign changes from t = 2 pi to cell 10's point P / 4
 // must number N there. The report goes to stdout.
 //
-// Lane l stands at u = U / 2^b, U = U_0 + l, U_0 the least U with U^2 >= nu 4^b, over every U with U^2 < (nu + 1) 4^b.
+// Lane l is at u = U / 2^b, U = U_0 + l, U_0 the least U with U^2 >= nu 4^b, over every U with U^2 < (nu + 1) 4^b.
 // Then x = u^2 = U^2 / 4^b, s = u^4, z = 1 - 2 (x - nu) = Zt / 4^b with Zt = 4^b - 2 (U^2 - nu 4^b), and
 // x^(-1/2) = 2^b / U, each exact: no root is taken and nothing is divided by 2 pi.
 //
@@ -56,7 +56,7 @@
 // against the next, and the device sums the changes over the cell.
 //
 // The count: the clock stage reads theta / pi at every point at 2^-W below and above, and the Turing stage, one lane a
-// step, lays each step's share of the sums of Turing's method over the window below point P / 4 and the one past
+// step, positions each step's share of the sums of Turing's method over the window below point P / 4 and the one past
 // point 3P / 4, which the device sums over the cell; the count stage computes N at the two points from them.
 //
 // Every stage's records over its first 64 lanes are run again on the host and must equal the device's word for word,
@@ -139,7 +139,7 @@ static unsigned int scaled_constant(ScaledProgram *program, unsigned long long v
                        (unsigned int)(value >> 32u), 0u);
 }
 
-// a field of the shared record, `bits` wide and signed, laid at the record's next bit; the step that reads it is
+// a field of the shared record, `bits` wide and signed, positioned at the record's next bit; the step that reads it is
 // written where it is read, and the register is live only from there to its reader
 static unsigned int scaled_field(ScaledProgram *program, unsigned int bits)
 {
@@ -195,7 +195,7 @@ static unsigned int scaled_lane_below(ScaledProgram *program, unsigned int bits)
     return scaled_step(program, ENGINE_RECORD_AND, counted, scaled_constant(program, (1ull << bits) - 1ull), 0u);
 }
 
-// the lane, at most 2^b
+// the lane, at max 2^b
 static unsigned int scaled_lane(ScaledProgram *program, unsigned int b)
 {
     return scaled_lane_below(program, b + 1u);
@@ -267,7 +267,7 @@ static void scaled_curves_build(ScaledStage *stage, unsigned int b, unsigned int
     for (unsigned int n = 0u; n < curves; n += 1u)
     {
         const unsigned int count = (unsigned int)gamma[n].size();
-        // |z| <= 1: every partial sum is at most the sum of the |g_j|, below 2^(widest + bits of the count) at 2^-E,
+        // |z| <= 1: every partial sum is at max the sum of the |g_j|, below 2^(widest + bits of the count) at 2^-E,
         // and its reads with it, one a step
         unsigned int widest = 0u;
         for (unsigned int j = 0u; j < count; j += 1u)
@@ -314,7 +314,7 @@ static void scaled_curves_build(ScaledStage *stage, unsigned int b, unsigned int
         high = scaled_step(program, ENGINE_RECORD_SUM, scaled_step(program, ENGINE_RECORD_PRODUCT, high, square, 0u),
                            scaled_step(program, ENGINE_RECORD_PRODUCT, c_high, scale, 0u), 0u);
     }
-    // s T: the ends as they stand where s is 1, turned and swapped where it is -1
+    // s T: the ends as they are where s is 1, turned and swapped where it is -1
     const unsigned int sign = scaled_read(program, sign_field);
     const unsigned int positive = scaled_above(program, sign, scaled_constant(program, 0ull));
     const unsigned int first =
@@ -361,15 +361,15 @@ static void scaled_log_build(ScaledStage *stage, unsigned int b, unsigned int y,
     const unsigned int big_d = scaled_step(program, ENGINE_RECORD_SUM, big_u, scaled_read(program, first_field), 0u);
     const unsigned int u = scaled_step(program, ENGINE_RECORD_PRODUCT, lane, lane, 0u);
     const unsigned int v = scaled_step(program, ENGINE_RECORD_PRODUCT, big_d, big_d, 0u);
-    // Horner's rule from c_(L-1) down: the step that adds c_(k-1) turns the sum by l^2 and lays c_(k-1) at D^(2(L - k))
+    // Horner's rule from c_(L-1) down: the step that adds c_(k-1) turns the sum by l^2 and positions c_(k-1) at D^(2(L - k))
     unsigned int acc = scaled_read(program, c[terms - 1u]);
     unsigned int v_power = v;
     for (unsigned int k = terms - 1u; k > 0u; k -= 1u)
     {
         const unsigned int turned = scaled_step(program, ENGINE_RECORD_PRODUCT, acc, u, 0u);
-        const unsigned int laid =
+        const unsigned int positioned =
             scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_read(program, c[k - 1u]), v_power, 0u);
-        acc = scaled_step(program, ENGINE_RECORD_SUM, turned, laid, 0u);
+        acc = scaled_step(program, ENGINE_RECORD_SUM, turned, positioned, 0u);
         if (k > 1u)
         {
             v_power = scaled_step(program, ENGINE_RECORD_PRODUCT, v_power, v, 0u);
@@ -477,7 +477,7 @@ static void scaled_theta_build(ScaledStage *stage, unsigned int b, unsigned int 
 }
 
 // the pole's record, one a body, read through the index as member 0: U_0, then ln n below and above and n^(-1/2)
-// below and above at 2^-W, then B, the bound on cos's rest at 2^-W; every program that reads it lays it alike
+// below and above at 2^-W, then B, the bound on cos's rest at 2^-W; every program that reads it positions it alike
 enum
 {
     SCALED_POLE_FIRST,
@@ -504,10 +504,10 @@ static std::vector<unsigned int> scaled_pole_fields(ScaledProgram *program, cons
 // folded: theta / pi is bounded below and above at 2^-Y by the theta stage's records, member 1 read for the lower end
 // and member 2 for the upper, and u^4 ln n = U^4 Ln 2^(Y - W) / 16^b at 2^-Y, so that over 16^b the phase at 2^-Y is
 // Theta 16^b - 2 U^4 Ln 2^(Y - W), Theta and Ln each below and above; a and c, the quotients by 16^b 2^(Y - W) less 1
-// and more 1, stand below and above phi 2^W. cos is even and of period 2: a's remainder by 2^(W + 1), its magnitude
+// and more 1, are below and above phi 2^W. cos is even and of period 2: a's remainder by 2^(W + 1), its magnitude
 // m, 2^(W + 1) - m where m passes 2^W, and 2^W - m with the sign turned where m passes 2^(W - 1), leave m in
 // [0, 2^(W - 1)] with cos(pi a 2^-W) = s cos(pi m 2^-W). The outputs: y = m^2 at 2^-2W, s, and c - a, which bounds
-// |phi - a 2^-W| by 2^-W times it. Where `fixed` is set, theta / pi's lower end stands for both, a value represented
+// |phi - a 2^-W| by 2^-W times it. Where `fixed` is set, theta / pi's lower end is for both, a value represented
 // exactly: the phase is then theta~ / pi - 2 u^4 ln n, theta~ that end times pi
 static void scaled_phase_build(ScaledStage *stage, unsigned int b, unsigned int w, unsigned long long nu,
                                unsigned int lane_bits, const std::vector<unsigned int> &pole_widths,
@@ -579,7 +579,7 @@ static void scaled_phase_build(ScaledStage *stage, unsigned int b, unsigned int 
 // cos(pi m 2^-W) by its first J terms, sum over j < J of (-1)^j k_j (y 4^-W)^j, k_j = pi^(2j) / (2j)!: each k_j
 // bounded at 2^-W below, its magnitude in the record, and the sum bounded below and above at 2^-X, X = W + 16, by
 // Horner's rule, y never negative, each step's quotient by 4^W read outward. The rest past J terms and the k_j's reads,
-// y 2^-2W at most 1/4, together lie within B 2^-W, B the pole record's. The phase's sign s turns the two ends, s v
+// y 2^-2W at max 1/4, together lie within B 2^-W, B the pole record's. The phase's sign s turns the two ends, s v
 // below and above, and its spread passes on
 static void scaled_cos_build(ScaledStage *stage, const std::vector<unsigned int> &k_bits, unsigned int w,
                              const ScaledStage *phase)
@@ -601,10 +601,10 @@ static void scaled_cos_build(ScaledStage *stage, const std::vector<unsigned int>
     const unsigned int zero = scaled_constant(program, 0ull);
     // the coefficient of y^j at 2^-X, its sign (-1)^j
     auto coefficient = [&](unsigned int j) -> unsigned int {
-        const unsigned int laid = scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_read(program, k[j]), lift, 0u);
-        return (j % 2u == 0u) ? laid : scaled_step(program, ENGINE_RECORD_DIFFERENCE, zero, laid, 0u);
+        const unsigned int positioned = scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_read(program, k[j]), lift, 0u);
+        return (j % 2u == 0u) ? positioned : scaled_step(program, ENGINE_RECORD_DIFFERENCE, zero, positioned, 0u);
     };
-    // every partial sum is at most cosh(pi / 2) < 4 in magnitude, and its reads with it below 2^(X + 3)
+    // every partial sum is at max cosh(pi / 2) < 4 in magnitude, and its reads with it below 2^(X + 3)
     const unsigned int wide = w + 16u + 4u;
     unsigned int low = coefficient(terms - 1u);
     unsigned int high = low;
@@ -673,14 +673,14 @@ static void scaled_term_build(ScaledStage *stage, unsigned int side, unsigned in
                   -(x + (long long)w));
 }
 
-// Z at the point against zero: Z = 2 sum + R and |Z - 2 sum - R| < G + E_r, G = d_K t^(-(2K + 3) / 4) at most
+// Z at the point against zero: Z = 2 sum + R and |Z - 2 sum - R| < G + E_r, G = d_K t^(-(2K + 3) / 4) at max
 // d_K (2 pi nu^2)^(-(2K + 3) / 4) over the cell (Gabcke's thesis, Satz 3.2.2, for t >= 200) and E_r the bound on the
 // curves' coefficient reads, the two together B 2^-W, B the shared record's. With D = U^(2K + 1), R = r 2^least / D,
 // the sums at 2^-S and e the least of -S + 1, least and -W, Z D 2^-e is an integer: 2 sum D 2^(-S + 1 - e) +
 // r 2^(least - e) -+ B D 2^(-W - e). Z > 0 where sum_lo D 2^(-S + 1 - e) > T_lo 2^c, and Z < 0 where
 // T_hi 2^c > sum_hi D 2^(-S + 1 - e), c the lesser of least - e and -W - e, T_lo = B D 2^(-W - e - c) - r 2^(least - e
-// - c) and T_hi = -(B D 2^(-W - e - c) + r 2^(least - e - c)): each side sums before a power of two is laid on, and the
-// verdict lays 2^c on where it compares. The tolerance gives T_lo where `side` is 0, with D, and T_hi where it is 1,
+// - c) and T_hi = -(B D 2^(-W - e - c) + r 2^(least - e - c)): each side sums before a power of two is positioned on, and the
+// verdict positions 2^c on where it compares. The tolerance gives T_lo where `side` is 0, with D, and T_hi where it is 1,
 // from the remainder's records as member 1, r its lower end for T_lo and its upper end for T_hi
 static void scaled_tolerance_build(ScaledStage *stage, unsigned int side, unsigned int bound_bits,
                                    const ScaledStage *curves, long long least_shift, long long bound_shift)
@@ -706,7 +706,7 @@ static void scaled_tolerance_build(ScaledStage *stage, unsigned int side, unsign
 }
 
 // one side of Z's sign at the point: the term sums below and above as member 0, one body a point, `sum_bits` wide each
-// and laid `sum_stride` bits apart, and the tolerance of `side` as member 1, 2^c on it and 2^(-S + 1 - e) on the sum.
+// and positioned `sum_stride` bits apart, and the tolerance of `side` as member 1, 2^c on it and 2^(-S + 1 - e) on the sum.
 // Where `side` is 0 the output is [Z > 0]; where it is 1, member 2 is that side's records and the output is the sign,
 // 1, -1, or 0 where neither is true
 static void scaled_verdict_build(ScaledStage *stage, unsigned int side, unsigned int sum_bits, unsigned int sum_stride,
@@ -838,7 +838,7 @@ static std::vector<unsigned int> scaled_shifted(const std::vector<unsigned int> 
     return out;
 }
 
-// `bits` of a two's complement value, its magnitude's limbs given, laid into the record at `offset`
+// `bits` of a two's complement value, its magnitude's limbs given, positioned into the record at `offset`
 static void scaled_put(unsigned int *record, unsigned int offset, unsigned int bits,
                        const std::vector<unsigned int> &limbs, long long sign)
 {
@@ -866,7 +866,7 @@ static void scaled_put(unsigned int *record, unsigned int offset, unsigned int b
     }
 }
 
-// the record a stage's fields are laid into, sized to them
+// the record a stage's fields are positioned into, sized to them
 static void scaled_open_shared(ScaledStage *stage)
 {
     stage->shared.assign((stage->program.shared_bits + 31u) / 32u + 1u, 0u);
@@ -879,7 +879,7 @@ typedef struct
     long long sign;
 } ScaledWide;
 
-// the poles' records, one a body, laid as scaled_pole_fields lays them in the stage's program, which is laid out: U_0,
+// the poles' records, one a body, positioned as scaled_pole_fields positions them in the stage's program, which is arranged: U_0,
 // four values a pole, and B
 static void scaled_pole_records(ScaledStage *stage, const ScaledWide &first, const ScaledWide &bound,
                                 const std::vector<ScaledWide> &values)
@@ -926,8 +926,8 @@ static unsigned int scaled_members(const ScaledStage *stage)
     return (stage->also != NULL) ? 3u : (stage->before != NULL) ? 2u : 1u;
 }
 
-// imprints and lays out a stage's program, and reports where the imprint stops when it does
-static int scaled_lay(SimResults *job, ScaledStage *stage, EngineError *error)
+// imprints and arranges a stage's program, and reports where the imprint stops when it does
+static int scaled_position(SimResults *job, ScaledStage *stage, EngineError *error)
 {
     ScaledProgram *const program = &stage->program;
     const unsigned int fields = (unsigned int)program->field_bits.size();
@@ -958,10 +958,10 @@ static int scaled_lay(SimResults *job, ScaledStage *stage, EngineError *error)
     sim_check(job, ok, (std::string("keymath imprints the ") + stage->name + " program").c_str());
     stage->shared_limbs = (program->shared_bits + 31u) / 32u;
     unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {stage->shared_limbs, stage->before_limbs, stage->also_limbs};
-    const KeyScheduleRecordRequest lay = {
+    const KeyScheduleRecordRequest position = {
         &stage->key, program->field_offset.data(), fields, in_limbs, 1, &stage->layout, error};
-    const int laid = ok && (key_schedule_record_layout(&lay) != KEY_SCHEDULE_ERROR);
-    if (ok && !laid)
+    const int positioned = ok && (key_schedule_record_layout(&position) != KEY_SCHEDULE_ERROR);
+    if (ok && !positioned)
     {
         const char *const end = (error->evacaddr == (const void *)&stage->key)         ? "the register file"
                                 : (error->evacaddr == (const void *)stage->key.output) ? "the outputs"
@@ -1013,8 +1013,8 @@ static int scaled_lay(SimResults *job, ScaledStage *stage, EngineError *error)
         }
         fprintf(stderr, "\n");
     }
-    ok = laid;
-    sim_check(job, ok, (std::string("the scheduler lays the ") + stage->name + " program out").c_str());
+    ok = positioned;
+    sim_check(job, ok, (std::string("the scheduler positions the ") + stage->name + " program out").c_str());
     if (stage->shared.size() <= stage->shared_limbs + 1u)
     {
         stage->shared.resize(stage->shared_limbs);
@@ -1081,9 +1081,9 @@ static int scaled_sweep(SimResults *job, ScaledStage *stage, unsigned long long 
     if (ok && !ran)
     {
         fprintf(stderr,
-                "  exact_zeta_scaled: the %s program over %llu lanes did not finish on the device: kind %d, status %d, "
+                "  exact_zeta_scaled: the %s program over %llu lanes did not finish on the device: type %d, status %d, "
                 "site %u\n",
-                name.c_str(), lanes, (int)error->kind, error->status, error->site);
+                name.c_str(), lanes, (int)error->type, error->status, error->site);
         ran = cycle_record_run(&run) == (long)lanes;
     }
     ok = ok && ran;
@@ -1243,7 +1243,7 @@ static long long scaled_wide_word(const ScaledWide &value)
     return (value.sign < 0) ? -(long long)low : (long long)low;
 }
 
-// rows of values laid as records, one row a body, each column as wide as its widest value
+// rows of values positioned as records, one row a body, each column as wide as its widest value
 typedef struct
 {
     std::vector<unsigned int> words;
@@ -1307,10 +1307,10 @@ static void scaled_no_shared(ScaledStage *stage)
     scaled_open_shared(stage);
 }
 
-// lays a stage out where it is not yet, and runs `lanes` lanes, the host's first 64 against the device's
+// positions a stage out where it is not yet, and runs `lanes` lanes, the host's first 64 against the device's
 static int scaled_run(SimResults *job, ScaledStage *stage, unsigned long long lanes, EngineError *error)
 {
-    int ok = (stage->layout.steps != 0u) || scaled_lay(job, stage, error);
+    int ok = (stage->layout.steps != 0u) || scaled_position(job, stage, error);
     return ok && scaled_sweep(job, stage, lanes, (lanes < 64ull) ? lanes : 64ull, error);
 }
 
@@ -1357,7 +1357,7 @@ static unsigned int scaled_equal(ScaledProgram *program, unsigned int left, unsi
 
 static unsigned int scaled_bits_of(unsigned long long value);
 
-// floor(x^(1/2)) for 2^least <= x < 2^bits, by Newton's rule from 2^ceil(bits / 2), above the root by at most
+// floor(x^(1/2)) for 2^least <= x < 2^bits, by Newton's rule from 2^ceil(bits / 2), above the root by at max
 // 2^((bits - least + 1) / 2) times: each step takes the lesser of r and (r + x / r) / 2, which about halves r while it
 // is twice the root or more, then doubles the bits it carries, then falls to the root and stays there
 static unsigned int scaled_root_from(ScaledProgram *program, unsigned int x, unsigned int bits, unsigned int least)
@@ -1568,7 +1568,7 @@ static void scaled_ln_build(ScaledStage *stage, unsigned int precision, const Sc
         }
     }
     const unsigned int power = (terms > 1u) ? scaled_step(program, ENGINE_RECORD_PRODUCT, big_c, v_power, 0u) : big_c;
-    // a / c at most 1/3: the sum and its rest are at most ln 2, below 2^P at 2^-P
+    // a / c at max 1/3: the sum and its rest are at max ln 2, below 2^P at 2^-P
     const unsigned int whole = scaled_power(program, precision + 1u);
     const unsigned int low = scaled_narrow(
         program,
@@ -1715,7 +1715,7 @@ static void scaled_theta_constants_build(ScaledStage *stage, const ScaledTable &
         low_power = scaled_step(program, ENGINE_RECORD_PRODUCT, low_power, low_square, 0u);
         high_power = scaled_step(program, ENGINE_RECORD_PRODUCT, high_power, high_square, 0u);
     }
-    // from t = 2 pi: below t = 10, |R_theta| is at most Brent's bound past 1 / (48 t), (7/5760 + pi/960) t^-3 +
+    // from t = 2 pi: below t = 10, |R_theta| is at max Brent's bound past 1 / (48 t), (7/5760 + pi/960) t^-3 +
     // exp(-pi t) / 2 (On asymptotic approximations to the log-Gamma and Riemann-Siegel theta functions, Theorems 5 and
     // 6), with 7 / (5760 t^3) + 31 / (80640 t^5) added, and t^7 times that is below 58 on [2 pi, 10]; with u^28 =
     // (t / 2 pi)^7, |R_theta| / pi times u^28 is below 1 / (2 pi^8), and past t = 10 Gabcke's bound is below it
@@ -1875,7 +1875,7 @@ static void scaled_factorial_build(ScaledStage *stage, unsigned int top)
 }
 
 // C(a, b) = a! / (b! (a - b)!), the factorials' records as all three members, each lane's three read through the index;
-// below 2^a, and a at most `top`
+// below 2^a, and a at max `top`
 static void scaled_binomial_build(ScaledStage *stage, const ScaledStage *factorials, unsigned int top)
 {
     ScaledProgram *const program = &stage->program;
@@ -1986,15 +1986,15 @@ static void scaled_d_build(ScaledStage *stage, const ScaledTable &row_constants,
 // pi^e below and above at 2^-P, lane l for e = l - `least`, by squaring with each product read outward at 2^-P, and
 // for e < 0 the reciprocal of pi^|e| outward; member 0's one record pi below and above
 static void scaled_pi_power_build(ScaledStage *stage, const ScaledTable &pi, unsigned int precision, unsigned int least,
-                                  unsigned int most)
+                                  unsigned int max)
 {
     ScaledProgram *const program = &stage->program;
     const unsigned int low_field = scaled_table_field(program, pi, 0u);
     const unsigned int high_field = scaled_table_field(program, pi, 1u);
     scaled_shared_table(stage, pi);
-    const unsigned int span = (least > most) ? least : most;
+    const unsigned int span = (least > max) ? least : max;
     const unsigned int bits = scaled_bits_of(span);
-    const unsigned int lane = scaled_lane_below(program, scaled_bits_of(least + most) + 1u);
+    const unsigned int lane = scaled_lane_below(program, scaled_bits_of(least + max) + 1u);
     const unsigned int shift = scaled_constant(program, least);
     const unsigned int size = scaled_step(program, ENGINE_RECORD_ABSOLUTE,
                                           scaled_step(program, ENGINE_RECORD_DIFFERENCE, lane, shift, 0u), 0u, 0u);
@@ -2094,7 +2094,7 @@ static void scaled_eighth_build(ScaledStage *stage, unsigned int precision)
 
 // pi^e sin(pi / 8) and pi^e cos(pi / 8) below and above at 2^-P, lane 2e + w, w = 0 for sin and 1 for cos: the power's
 // record as member 0 through the index, and member 1's one record sin below and above and cos below and above; e at
-// most `span`, and each below 2^(P + 2 span)
+// max `span`, and each below 2^(P + 2 span)
 static void scaled_pi_eighth_build(ScaledStage *stage, const ScaledStage *powers, const ScaledTable &eighth,
                                    unsigned int precision, unsigned int lane_bits, unsigned int span)
 {
@@ -2172,7 +2172,7 @@ static void scaled_phi_build(ScaledStage *stage, const ScaledTable &euler, const
                                 scaled_raise(program, scaled_constant(program, 2ull), mp, scaled_bits_of(top) + 1u),
                                 scaled_read_before(program, factorial), 0u),
                     scaled_read(program, even_field), 0u);
-    // each term at most 2 pi^(2j) at 2^-P, |E_2x| <= 2 (2x)!, below 2^(P + 4 top + 2)
+    // each term at max 2 pi^(2j) at 2^-P, |E_2x| <= 2 (2x)!, below 2^(P + 4 top + 2)
     const unsigned int wide = 8u + 4u * top;
     const unsigned int e = scaled_step(program, ENGINE_RECORD_ABSOLUTE, scaled_read(program, e_field), 0u, 0u);
     const unsigned int q_low = scaled_narrow(
@@ -2278,7 +2278,7 @@ static void scaled_spread_build(ScaledStage *stage, const ScaledTable &gammas, u
     stage->summed = {0u};
 }
 
-// the verdict's bound B at 2^-W for cell nu: Gabcke's G = d_K t^(-(2K + 3) / 4) at most d_K (2 pi nu^2)^(-(2K + 3) /
+// the verdict's bound B at 2^-W for cell nu: Gabcke's G = d_K t^(-(2K + 3) / 4) at max d_K (2 pi nu^2)^(-(2K + 3) /
 // 4), its 2^W times above as the ceiling of the fourth root of the ceiling of d_K^4 2^(4W) / (2 pi nu^2)^(2K + 3), pi
 // below read at 2^-40; and E_r, the coefficients' spreads s_n, each gamma within its spread of the one stored, |z| <= 1
 // and x^(-n - 1/2) <= nu^-n / floor(nu^(1/2)): the ceiling of sum over n of s_n nu^(K - n) 2^W / (nu^K floor(nu^(1/2))
@@ -2358,8 +2358,8 @@ static void scaled_bound_build(ScaledStage *stage, const ScaledTable &record, un
 
 // N at points a and e by Turing's method, member 0's one record: the Turing stage's sums below_theta, below_zeros,
 // below_count, past_theta, past_zeros, past_count, U^4 at points 0, a, e and the last, pi below and above at 2^-P and
-// ln 2 above at 2^-P. With D = U_a^4 - U_0^4 and t at most 2 pi U^4 / 16^b, B = 2.067 + 0.059 ln t_2 (Trudgian,
-// Improvements to Turing's method, Theorem 2.2), ln t_2 at most the bits of the ceiling of t_2's bound times ln 2:
+// ln 2 above at 2^-P. With D = U_a^4 - U_0^4 and t at max 2 pi U^4 / 16^b, B = 2.067 + 0.059 ln t_2 (Trudgian,
+// Improvements to Turing's method, Theorem 2.2), ln t_2 at max the bits of the ceiling of t_2's bound times ln 2:
 // N(T_a) D 2^W >= D 2^W + below_theta + (below_zeros - U_0^4 below_count) 2^W - B 16^b 2^W / (2 pi), and
 // N(T_e) D' 2^W <= D' 2^W + B' 16^b 2^W / (2 pi) + past_theta - (U_l^4 past_count - past_zeros) 2^W, D' = U_l^4 -
 // U_e^4. N is whole: the least whole number at or above the first, and the greatest at or below the second
@@ -2446,16 +2446,16 @@ static void scaled_count_build(ScaledStage *stage, const ScaledTable &record, un
 // exactly, and X = Re(exp(i theta~) zeta(1/2 + i t)) is Z cos(theta~ - theta): where theta's bracket is narrower than
 // pi / 2, X has Z's sign. X is the head, the sum over
 // n < N of n^(-1/2) cos(pi phi_n), phi_n = theta~ / pi - 2 u^4 ln n, by the phase, cos and term stages, and
-// T = Re(exp(i theta~) N^(-s) C), and Re(exp(i theta~) R), at most |R|. The head is not doubled, and theta's error
+// T = Re(exp(i theta~) N^(-s) C), and Re(exp(i theta~) R), at max |R|. The head is not doubled, and theta's error
 // enters only through its bracket's width.
 //
 // The Bernoulli numbers are whole times D = (2M + 1)!: B_m's denominator is the product of the primes p with p - 1
-// dividing m (von Staudt and Clausen), each at most m + 1. With I_m = D B_m, I_0 = D and the sum over j <= m of
+// dividing m (von Staudt and Clausen), each at max m + 1. With I_m = D B_m, I_0 = D and the sum over j <= m of
 // C(m + 1, j) B_j = 0 gives I_m = -(sum over j < m of C(m + 1, j) I_j) / (m + 1), an exact quotient.
 
 // the cell's N for Euler-Maclaurin to M terms, the least N with pi^2 N^2 >= (2M - 1/2)^2 + t^2 at the cell's top,
 // t = 2 pi (nu + 1)^2, so that |s + j| <= pi N for every j < 2M across it: N = floor(X^(1/2)) + 1, X above
-// ((4M - 1)^2 4^P + 16 Pi_hi^2 (nu + 1)^4) / (4 Pi_lo^2), pi below and above at 2^-P. Johansson's bound is then at most
+// ((4M - 1)^2 4^P + 16 Pi_hi^2 (nu + 1)^4) / (4 Pi_lo^2), pi below and above at 2^-P. Johansson's bound is then at max
 // 8 N^(1/2) / (4^M (4M - 1)), above at 2^-W as the quotient of 8 (floor(N^(1/2)) + 1) 2^W by 4^M (4M - 1) and one
 // more. Member 0's one record: pi below and above at 2^-P, and nu
 static void scaled_em_n_build(ScaledStage *stage, const ScaledTable &record, unsigned int precision, unsigned int w,
@@ -2593,7 +2593,7 @@ static void scaled_em_c_build(ScaledStage *stage, unsigned int b, unsigned int x
                                        scaled_step(program, ENGINE_RECORD_PRODUCT, v_low, dt, 0u), 0u),
                            0u);
     };
-    auto most = [&](unsigned int v_high) -> unsigned int {
+    auto max = [&](unsigned int v_high) -> unsigned int {
         return scaled_step(program, ENGINE_RECORD_DIFFERENCE,
                            scaled_step(program, ENGINE_RECORD_PRODUCT, v_high, t_high, 0u),
                            scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_above(program, zero, v_high),
@@ -2606,13 +2606,13 @@ static void scaled_em_c_build(ScaledStage *stage, unsigned int b, unsigned int x
             scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_constant(program, 2ull * j + 1ull), half, 0u);
         const unsigned int re_low =
             scaled_step(program, ENGINE_RECORD_DIFFERENCE, scaled_step(program, ENGINE_RECORD_PRODUCT, p_re_low, a, 0u),
-                        most(p_im_high), 0u);
+                        max(p_im_high), 0u);
         const unsigned int re_high =
             scaled_step(program, ENGINE_RECORD_DIFFERENCE,
                         scaled_step(program, ENGINE_RECORD_PRODUCT, p_re_high, a, 0u), least(p_im_low), 0u);
         const unsigned int im_low = scaled_step(program, ENGINE_RECORD_SUM, least(p_re_low),
                                                 scaled_step(program, ENGINE_RECORD_PRODUCT, p_im_low, a, 0u), 0u);
-        const unsigned int im_high = scaled_step(program, ENGINE_RECORD_SUM, most(p_re_high),
+        const unsigned int im_high = scaled_step(program, ENGINE_RECORD_SUM, max(p_re_high),
                                                  scaled_step(program, ENGINE_RECORD_PRODUCT, p_im_high, a, 0u), 0u);
         p_re_low = scaled_wrap(program, scaled_down(program, re_low, divisor), p_bits);
         p_re_high = scaled_wrap(program, scaled_up(program, re_high, divisor), p_bits);
@@ -2627,7 +2627,7 @@ static void scaled_em_c_build(ScaledStage *stage, unsigned int b, unsigned int x
             factor(2ull * k - 1ull);
             factor(2ull * k);
         }
-        // I_2k times P_k's bracket: the ends as they stand where I_2k is positive, swapped where it is negative
+        // I_2k times P_k's bracket: the ends as they are where I_2k is positive, swapped where it is negative
         const unsigned int i = scaled_read(program, number[k]);
         const unsigned int turned = scaled_above(program, zero, i);
         const unsigned int over =
@@ -2765,9 +2765,9 @@ static void scaled_em_tail_build(ScaledStage *stage, unsigned int b, unsigned in
                                               scaled_step(program, ENGINE_RECORD_SUM, past_half, past_half, 0u), 0u);
         const unsigned int v = scaled_step(program, ENGINE_RECORD_PRODUCT, m2, m2, 0u);
         auto coefficient = [&](unsigned int j) -> unsigned int {
-            const unsigned int laid =
+            const unsigned int positioned =
                 scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_read(program, coefficient_field[j]), lift, 0u);
-            return (j % 2u == 0u) ? laid : scaled_step(program, ENGINE_RECORD_DIFFERENCE, zero, laid, 0u);
+            return (j % 2u == 0u) ? positioned : scaled_step(program, ENGINE_RECORD_DIFFERENCE, zero, positioned, 0u);
         };
         const unsigned int wide = cos_x + 4u;
         unsigned int low = coefficient(terms - 1u);
@@ -2856,7 +2856,7 @@ static void scaled_em_tail_build(ScaledStage *stage, unsigned int b, unsigned in
                     scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_above(program, zero, v_high),
                                 scaled_step(program, ENGINE_RECORD_PRODUCT, v_high, span, 0u), 0u),
                     0u);
-    // read at 2^-X outward; |T| is at most |C|, within the bits C's parts are stored in
+    // read at 2^-X outward; |T| is at max |C|, within the bits C's parts are stored in
     const unsigned int coarse = scaled_power(program, cos_x + w);
     const unsigned int t_bits = x + SCALED_NU_BITS + 10u;
     scaled_output(stage, "low", scaled_wrap(program, scaled_down(program, low, coarse), t_bits), -(long long)x);
@@ -2968,7 +2968,7 @@ static void scaled_put_wide(ScaledStage *stage, unsigned int field, const Scaled
                value.sign);
 }
 
-// one cell, every stage laid out and then swept, and Turing's count from the device's sums
+// one cell, every stage arranged and then swept, and Turing's count from the device's sums
 static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *count, EngineError *error)
 {
     const unsigned long long lanes = cell.lanes;
@@ -3020,7 +3020,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     const unsigned int verdict_bits = scaled_wide_width(cell.verdict);
 
     const std::vector<unsigned int> one_limb(1u, 1u);
-    // the remainder: Gabcke's curves, or by Euler-Maclaurin C at every point, its tail laid once theta is computed
+    // the remainder: Gabcke's curves, or by Euler-Maclaurin C at every point, its tail positioned once theta is computed
     ScaledStage curve_stage;
     ScaledStage em_c_stage;
     ScaledStage tail_stage;
@@ -3045,7 +3045,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
                 field += 1u;
             }
         }
-        ok = scaled_lay(job, &curve_stage, error);
+        ok = scaled_position(job, &curve_stage, error);
     }
     else
     {
@@ -3065,7 +3065,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         {
             scaled_put_wide(&em_c_stage, 4u + (unsigned int)at, numbers[at]);
         }
-        ok = scaled_lay(job, &em_c_stage, error);
+        ok = scaled_position(job, &em_c_stage, error);
     }
 
     // theta / pi and A represented at 2^-Y, Y = W + 16; cell.theta's last two are Lambda and 2L + 1, the log stage's
@@ -3083,7 +3083,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         }
         scaled_put_wide(&log_stage, 1u + log_terms, cell.theta[9]);
         scaled_put_wide(&log_stage, 2u + log_terms, cell.theta[10]);
-        ok = scaled_lay(job, &log_stage, error);
+        ok = scaled_position(job, &log_stage, error);
     }
     ScaledStage theta_stage;
     scaled_open_stage(&theta_stage, "theta");
@@ -3098,7 +3098,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         {
             scaled_put_wide(&theta_stage, 1u + k, cell.theta[k]);
         }
-        ok = scaled_lay(job, &theta_stage, error);
+        ok = scaled_position(job, &theta_stage, error);
     }
     if (ok && em)
     {
@@ -3124,7 +3124,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         {
             scaled_put_wide(&tail_stage, 6u + j, (*cell.k_low)[j]);
         }
-        ok = scaled_lay(job, &tail_stage, error);
+        ok = scaled_position(job, &tail_stage, error);
         tail_stage.group = lanes;
         tail_stage.summed = {2u};
     }
@@ -3143,7 +3143,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         phase_stage.before_limbs = theta_stage.layout.out_limbs;
         phase_stage.also = &theta_stage.records;
         phase_stage.also_limbs = theta_stage.layout.out_limbs;
-        ok = scaled_lay(job, &phase_stage, error);
+        ok = scaled_position(job, &phase_stage, error);
     }
     ScaledStage cos_stage;
     scaled_open_stage(&cos_stage, "cos");
@@ -3157,7 +3157,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         {
             scaled_put_wide(&cos_stage, j, (*cell.k_low)[j]);
         }
-        ok = scaled_lay(job, &cos_stage, error);
+        ok = scaled_position(job, &cos_stage, error);
     }
     ScaledStage term_stages[2];
     const char *const term_names[2] = {"term_lower", "term_upper"};
@@ -3172,7 +3172,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         scaled_term_build(stage, side, w, pole_widths, &cos_stage);
         stage->before = &cos_stage.records;
         stage->before_limbs = cos_stage.layout.out_limbs;
-        ok = scaled_lay(job, stage, error);
+        ok = scaled_position(job, stage, error);
         if (ok)
         {
             scaled_pole_records(stage, cell.first, *cell.cos_bound, cell.poles);
@@ -3181,7 +3181,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         stage->summed = {0u};
     }
 
-    // the verdict at every point, its sums record laid by the host from the term sums, each sign-extended to the wider
+    // the verdict at every point, its sums record positioned by the host from the term sums, each sign-extended to the wider
     unsigned int sum_limbs = 0u;
     unsigned int sum_bits = 0u;
     const unsigned int nu_bits = scaled_bits_of(heads);
@@ -3216,7 +3216,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         stage->before_limbs = remainder->layout.out_limbs;
         scaled_open_shared(stage);
         scaled_put_wide(stage, 0u, cell.verdict);
-        ok = scaled_lay(job, stage, error);
+        ok = scaled_position(job, stage, error);
     }
     std::vector<unsigned int> sum_records;
     ScaledStage verdict_stages[2];
@@ -3235,7 +3235,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         stage->before_limbs = tolerance_stages[side].layout.out_limbs;
         stage->also = (side == 1u) ? &verdict_stages[0].records : NULL;
         stage->also_limbs = (side == 1u) ? verdict_stages[0].layout.out_limbs : 0u;
-        ok = scaled_lay(job, stage, error);
+        ok = scaled_position(job, stage, error);
     }
     ScaledStage &verdict_stage = verdict_stages[1];
     // the sign changes between neighboring points, counted by one sum over the cell
@@ -3250,7 +3250,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         change_stage.also = &verdict_stage.records;
         change_stage.also_limbs = verdict_stage.layout.out_limbs;
         scaled_open_shared(&change_stage);
-        ok = scaled_lay(job, &change_stage, error);
+        ok = scaled_position(job, &change_stage, error);
         change_stage.index.assign((size_t)(3ull * steps_between), 0u);
         for (unsigned long long lane = 0ull; lane < steps_between; lane += 1ull)
         {
@@ -3272,7 +3272,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         clock_stage.also_limbs = theta_stage.layout.out_limbs;
         scaled_open_shared(&clock_stage);
         scaled_put_wide(&clock_stage, 0u, cell.first);
-        ok = scaled_lay(job, &clock_stage, error);
+        ok = scaled_position(job, &clock_stage, error);
     }
     const unsigned long long window_low = lanes / 4ull;
     const unsigned long long window_high = 3ull * lanes / 4ull;
@@ -3286,7 +3286,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         turing_stage.before_limbs = clock_stage.layout.out_limbs;
         turing_stage.also = &clock_stage.records;
         turing_stage.also_limbs = clock_stage.layout.out_limbs;
-        ok = scaled_lay(job, &turing_stage, error);
+        ok = scaled_position(job, &turing_stage, error);
         turing_stage.index = change_stage.index;
         for (unsigned long long lane = 0ull; lane < steps_between; lane += 1ull)
         {
@@ -3302,7 +3302,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     // by Euler-Maclaurin, theta's bracket narrower than 1/2 at every point
     const int narrow = !em || (ok && (scaled_wide_word(scaled_wide_sum(&tail_stage, 0u, 0ull)) == (long long)lanes));
     sim_check(job, narrow, "theta's bracket is narrower than 1/2 at every point");
-    // each run's term sums laid into the verdict's sums record, each sign-extended to the wider
+    // each run's term sums positioned into the verdict's sums record, each sign-extended to the wider
     int pairs_same = ok;
     if (ok)
     {
@@ -3450,7 +3450,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
             "for word\n",
             nu, scaled_wide_word(cell.first), lanes, b, log_terms, same ? "equal" : "differ from");
         printf("  Z's sign decided at %llu of %llu points, %lld sign changes between neighbors; Turing's method: N at "
-               "point %llu at least %lld, at point %llu at most %lld\n",
+               "point %llu at least %lld, at point %llu at max %lld\n",
                decided, lanes, changes, count->a, count->low, count->e, count->high);
         printf("  %lld sign changes between them, %lld zeros there: %s\n", count->between, count->high - count->low,
                closed ? "every zero between is on the line and simple" : "the count does not close");
@@ -3543,7 +3543,7 @@ static unsigned int scaled_triangle(unsigned int a, unsigned int b)
     return a * (a + 1u) / 2u + b;
 }
 
-// a table whose columns the program that reads it was laid out for
+// a table whose columns the program that reads it was arranged for
 static int scaled_fixed(SimResults *job, const ScaledTable &table, const std::vector<unsigned int> &bits,
                         const char *what)
 {
@@ -3698,7 +3698,7 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
             }
             ok = scaled_run(job, &binomials, scaled_triangle(factorial_top + 1u, 0u), error);
         }
-        // E_0 to E_2jmax, each |E_2n| at most 2 (2n)!, and one width serves the table
+        // E_0 to E_2jmax, each |E_2n| at max 2 (2n)!, and one width serves the table
         const unsigned int value_bits = ok ? factorials.layout.step_table[factorials.outputs[0]].out_bits + 2u : 0u;
         std::vector<std::vector<ScaledWide>> e_rows(1u, std::vector<ScaledWide>(1u, scaled_wide_small(1)));
         ScaledTable e_table;
@@ -3769,7 +3769,7 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
                 lambda_rows.push_back(std::vector<ScaledWide>(1u, scaled_wide_out(&divide, 0ull, 0u)));
             }
         }
-        // the rows of d to row K, each entry at most (3n + 2)^2 + 1 times the row before's largest, or a lambda
+        // the rows of d to row K, each entry at max (3n + 2)^2 + 1 times the row before's largest, or a lambda
         unsigned int d_bits = 2u + lambda_bits;
         for (unsigned int n = 0u; n < top; n += 1u)
         {
@@ -3996,7 +3996,7 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
 static int scaled_constants(SimResults *job, ScaledConstants *k, EngineError *error)
 {
     int ok = scaled_pi(job, k->precision, &k->pi_low, &k->pi_high, error);
-    // Lambda and the c_k for each logarithm, a / c at most 1/3 and 9^-L below 2^-P, and ln 2 = 2 artanh(1/3)
+    // Lambda and the c_k for each logarithm, a / c at max 1/3 and 9^-L below 2^-P, and ln 2 = 2 artanh(1/3)
     k->log_terms = k->precision / 3u + 4u;
     std::vector<ScaledWide> row;
     ok = ok && scaled_lambda_row(job, k->log_terms, &row, error);
@@ -4316,7 +4316,7 @@ int main(int count, char **arguments)
     memset(&error, 0, sizeof(error));
     int ok = sim_job_submit(&job, "exact_zeta_scaled", count, arguments, SCALED_DECLARED);
     ok = ok && scaled_constants(&job, &constants, &error);
-    // a cell whose count does not close runs again at four times the rate, to round 3 at most
+    // a cell whose count does not close runs again at four times the rate, to round 3 at max
     std::vector<ScaledCount> cells;
     std::vector<unsigned int> rounds;
     unsigned long long refined = 0ull;
@@ -4367,7 +4367,7 @@ int main(int count, char **arguments)
         return got.em ? (before + across_of(at) == ahead.low) : (across_of(at) == ahead.low - got.high);
     };
     // a seam whose changes fall short contains a close pair past one cell's point e or before the next's point a: both
-    // cells run again a round finer, to round 3 at most
+    // cells run again a round finer, to round 3 at max
     for (unsigned int pass = 0u; ok && (pass < SCALED_ROUNDS); pass += 1u)
     {
         std::vector<size_t> short_seams;

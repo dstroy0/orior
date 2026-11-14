@@ -241,7 +241,7 @@ int cli_is_link(const CliPathFileCtx *args)
 
 unsigned long long cli_clock_milliseconds(void)
 {
-    // The tick count moves in steps of the system timer, about 15.6 ms, and a moving part read from it stands still
+    // The tick count moves in steps of the system timer, about 15.6 ms, and a moving part read from it is stationary
     // across whole frames. The performance counter moves each microsecond
     return cli_clock_microseconds() / 1000ull;
 }
@@ -360,7 +360,7 @@ int cli_socket_connect(const CliErrMsgCtx *args)
     }
     const BOOL no_delay = TRUE;
     setsockopt(made, IPPROTO_TCP, TCP_NODELAY, (const char *)&no_delay, sizeof(no_delay));
-    // a socket is a pointer's width, which an unsigned long long stores; one past it so that 0 stands for none
+    // a socket is a pointer's width, which an unsigned long long stores; one past it so that 0 is for none
     args->sock_out->handle = (unsigned long long)made + 1ull;
     return 1;
 }
@@ -371,7 +371,7 @@ int cli_socket_write(const CliBytesSizeCtx *args)
     unsigned long long put = 0ull;
     while (put < args->size)
     {
-        // a piece is at most a gibibyte, which an int counts
+        // a piece is at max a gibibyte, which an int counts
         const int piece = (int)(((args->size - put) < (1ull << 30u)) ? (args->size - put) : (1ull << 30u));
         const int sent = send(handle_at, (const char *)args->bytes + put, piece, 0);
         if (sent <= 0)
@@ -402,7 +402,7 @@ int cli_socket_read(const CliSizeBytesCtx *args)
 
 long long cli_socket_some(const CliCapacityCtx *args)
 {
-    // a piece is at most a gibibyte, which an int counts
+    // a piece is at max a gibibyte, which an int counts
     const int piece = (int)((args->capacity < (1ull << 30u)) ? args->capacity : (1ull << 30u));
     const int read = recv((SOCKET)(args->sock->handle - 1ull), (char *)args->bytes_out, piece, 0);
     if (read > 0)

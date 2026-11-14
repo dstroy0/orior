@@ -55,7 +55,7 @@ for (const [id, run] of Object.entries(PALETTE)) {
       await run();
     } catch (error) {
       logged(`${id}: ${error.message}`);
-      await shown("ask", `<p class="fail">${escaped(error.message)}</p>`);
+      await displayed("ask", `<p class="fail">${escaped(error.message)}</p>`);
     }
   });
 }

@@ -2,7 +2,7 @@
   "id": "powershell",
   "name": "PowerShell",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "extensions": ["ps1","psm1"],
   "comments": {"line":"#","block":["<#","#>"]},
   "pairs": ["()","[]","{}"],

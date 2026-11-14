@@ -523,13 +523,13 @@ EMBED_INLINE int start_reach(const DebugStartCtx *args)
     return 1;
 }
 
-// the spec and the arguments the session starts with made into `to`, a tree of the most they take: 1, or 0 with why
+// the spec and the arguments the session starts with made into `to`, a tree of the max they take: 1, or 0 with why
 // given
 static int plan_made(const CliDebugStartCfg *args, CliJson *const to)
 {
     const CliJson *json = args->json;
     memor.set(&(MemoriaCfg){.dst = args->plan, .val = 0, .bytes = sizeof(*args->plan)});
-    if (!EMBED_CALL(start_field, DebugStartCtx, .json = json, .object = args->start, .name = "kind",
+    if (!EMBED_CALL(start_field, DebugStartCtx, .json = json, .object = args->start, .name = "type",
                     .out = args->plan->type, .capacity = sizeof(args->plan->type), .err_msg = args->err_msg) ||
         !EMBED_CALL(start_adapter, DebugStartCtx, .place = args->place, .to = to, .root = args->root, .json = json,
                     .start = args->start, .plan = args->plan, .err_msg = args->err_msg))

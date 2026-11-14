@@ -301,7 +301,7 @@ EMBED_INLINE void entries_alias(const VersionCatalogEntriesCtx *args)
     {
         EMBED_CALL(cli_version_catalog_field_internal.versions_entry_error, CliVersionCatalogFieldCtx, .check = check,
                    .field = args->entry, .code = "catalog-alias",
-                   .rest = "` is no alias: an alias starts with a lowercase letter and goes on in letters, "
+                   .rest = "` is no alias: an alias starts with a lowercase character and goes on in characters, "
                            "digits, `-`, `_` and `.`");
     }
     const char *const dot = memor.chr(&(MemoriaCfg){.src = named, .val = '.', .bytes = line.at});

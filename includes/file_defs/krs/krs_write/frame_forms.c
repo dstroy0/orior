@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // frame_forms.c: the frame forms of a part's ruleset: the table of names read, a form's line as the schema's form, and the
-// lines written, the ruleset's own line retained where the run hands none
+// lines written, the ruleset's own line retained where the run passes none
 #include "frame_forms.h"
 
 #include "../../../parsers/line_read.h"
@@ -9,13 +9,13 @@
 #include "krs_write_internal.h"
 #include "verba_scribo/verba_scribo.h"
 
-// the most rows the table contains, and the most places a row gives a form's parameters
+// the max rows the table contains, and the max places a row gives a form's parameters
 #define KRS_FRAME_ROWS 32u
 
 #define KRS_FRAME_PLACES 8u
 
-// the most form lines a ruleset gives, and the longest
-#define KRS_FRAME_GIVEN_MOST 256u
+// the max form lines a ruleset gives, and the longest
+#define KRS_FRAME_GIVEN_MAX 256u
 
 #define KRS_FRAME_LINE (KRS_FRAME_TEXT * 2u)
 
@@ -39,7 +39,7 @@ typedef struct
     char line[KRS_FRAME_LINE];
 } KrsFrameGiven;
 
-// the table's path where none is handed: frame_forms.tsv in the folder of this source in the tree it was built from
+// the table's path where none is passed: frame_forms.tsv in the folder of this source in the tree it was built from
 static void frame_table_beside(char *path, size_t room)
 {
     const char *const file = __FILE__;
@@ -234,7 +234,7 @@ int krs_frame_named(const KrsFrameForm *form, const char *named_ruleset, char *l
     return frame_row_named(frame_row_of(form), form, named_ruleset, line, room);
 }
 
-// every `form <name> ...` line the ruleset at `krs_path` gave, into `given`, at most KRS_FRAME_GIVEN_MOST; the count,
+// every `form <name> ...` line the ruleset at `krs_path` gave, into `given`, at max KRS_FRAME_GIVEN_MAX; the count,
 // 0 where there is no path or no file
 static unsigned int frame_given_read(const char *krs_path, KrsFrameGiven *given)
 {
@@ -247,12 +247,12 @@ static unsigned int frame_given_read(const char *krs_path, KrsFrameGiven *given)
         return 0u;
     }
     char line[KRS_FRAME_LINE];
-    while (line_read(file_bytes, file_size, &file_at, line, sizeof(line)) && (count < KRS_FRAME_GIVEN_MOST))
+    while (line_read(file_bytes, file_size, &file_at, line, sizeof(line)) && (count < KRS_FRAME_GIVEN_MAX))
     {
-        char kind[KRS_NAME];
+        char type[KRS_NAME];
         char name[KRS_NAME];
         const char *at = line;
-        if (!line_word(&at, kind, sizeof(kind)) || !line_word(&at, name, sizeof(name)) || (strcmp(kind, "form") != 0))
+        if (!line_word(&at, type, sizeof(type)) || !line_word(&at, name, sizeof(name)) || (strcmp(type, "form") != 0))
         {
             continue;
         }
@@ -314,7 +314,7 @@ static unsigned int frame_form_first(unsigned int at)
 unsigned int krs_frame_written(char *out, size_t cap, size_t *at, const KrsFrameForm *form, unsigned int count,
                                const char *named_ruleset, const char *krs_path, const char *ksc_path)
 {
-    static KrsFrameGiven s_given[KRS_FRAME_GIVEN_MOST];
+    static KrsFrameGiven s_given[KRS_FRAME_GIVEN_MAX];
     const unsigned int givens = frame_given_read(krs_path, s_given);
     // the given lines a written one replaces with another text, stored in the .krf beside the .ksc
     const char *removed[KRS_FRAME_ROWS];

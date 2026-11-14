@@ -1,14 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // plugins_palette.c: a language plugin's palette, the color each of its grammar's token names takes, read from the
-// plugin.json of the plugin that stands under its id and handed out one color at a time
+// plugin.json of the plugin that is under its id and passed out one color at a time
 #include "../command_line/cli_internal.h"
 #include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "plugins.h"
 
-// The plugin sought: its id, where each color goes, and whether a plugin of the id stands with a palette
+// The plugin sought: its id, where each color goes, and whether a plugin of the id is with a palette
 typedef struct
 {
     const char *id;
@@ -18,7 +18,7 @@ typedef struct
 } PaletteNeedle;
 
 // the plugin's palette read where its id is the one sought: each member of the `palette` object whose value is a
-// string handed on as a color, in the order the plugin writes them
+// string passed on as a color, in the order the plugin writes them
 static void cli_palette_each(const CliEachPluginCfg *args)
 {
     PaletteNeedle *const needle = (PaletteNeedle *)args->context;
@@ -122,7 +122,7 @@ EMBED_INLINE unsigned int cli_palette_object(const PaletteCtx *args)
     return palette;
 }
 
-// each plugin with a palette handed on by its id
+// each plugin with a palette passed on by its id
 static void cli_palettes_each(const CliEachPluginCfg *args)
 {
     const CliPluginsEachIdCfg *const asked = (const CliPluginsEachIdCfg *)args->context;
@@ -148,7 +148,7 @@ typedef struct
     int written;
 } PaletteSetNeedle;
 
-// the plugin's JSON written whole under the reader's plugins folder in a folder of the plugin's id, as its file lays
+// the plugin's JSON written whole under the reader's plugins folder in a folder of the plugin's id, as its file positions
 // it out: 1, or 0 where the folder or the file could not be made
 EMBED_INLINE int cli_palette_file_write(const PaletteCtx *args)
 {
@@ -175,7 +175,7 @@ EMBED_INLINE int cli_palette_file_write(const PaletteCtx *args)
     {
         return 0;
     }
-    // the plugin laid out as its file lays it, each value on one line where it fits
+    // the plugin arranged as its file positions it, each value on one line where it fits
     CliGrownLine out;
     cli_grown_begin(&out, CLI_PLUGIN_TEXT_CAPACITY, g_cli_plugins_owner);
     if (out.cell == NULL)
@@ -192,7 +192,7 @@ EMBED_INLINE int cli_palette_file_write(const PaletteCtx *args)
 }
 
 // the color made in the plugin of the id sought and its file written, each plugin of the id in turn so the reader's
-// own stands last
+// own is last
 static void cli_palette_set_each(const CliEachPluginCfg *args)
 {
     PaletteSetNeedle *const needle = (PaletteSetNeedle *)args->context;

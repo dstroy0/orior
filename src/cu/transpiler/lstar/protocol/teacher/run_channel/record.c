@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record.c: the record: a question's identity, the record's answer to it, a question stored in the record, the
-// registers past, the record written, a line of the list, and the round handed
+// registers past, the record written, a line of the list, and the round passed
 #include "run_channel_internal.h"
 
 // a question's identity as R stores it: the hash of its code, its registers, its shape and launches, its count of
@@ -48,8 +48,8 @@ int run_channel_recorded(RunQuestion *question)
     }
     run_channel_identity(question, &identity);
     // a query the gate blocked under a rule of its own is open as a timed-out one is: the part never saw it, the gate
-    // reads it again as its rules stand, and one blocked for an unknown key a conference may admit. The vendor's
-    // verdict on an encoding stands, and a query it blocked stays blocked
+    // reads it again as its rules are, and one blocked for an unknown key a conference may admit. The vendor's
+    // verdict on an encoding is, and a query it blocked stays blocked
     if (!kqr_find(&s_record, &identity, &s_found) || (s_found.answer == KQR_TIMED_OUT) ||
         ((s_found.answer == KQR_CENSORED) && !run_channel_vendor_gated(s_found.refusal)))
     {
@@ -107,11 +107,11 @@ void run_channel_stored(const RunQuestion *question)
         s_sample.identity = identity;
         s_sample.answer = answer;
         s_sample.nanoseconds = question->nanoseconds;
-        s_sample.launched = (question->most != 0ull) ? 1 : 0;
+        s_sample.launched = (question->max != 0ull) ? 1 : 0;
         s_sample.least = question->least;
-        s_sample.most = question->most;
+        s_sample.max = question->max;
         VerbaLinea refusal = {s_sample.refusal, sizeof(s_sample.refusal), 0ull};
-        mmgr_line_put_most(&refusal, question->refused, sizeof(s_sample.refusal) - 1u);
+        mmgr_line_put_max(&refusal, question->refused, sizeof(s_sample.refusal) - 1u);
         mmgr_line_finish(&refusal);
         kqr_sample(&s_record, &s_sample);
         return;
@@ -120,7 +120,7 @@ void run_channel_stored(const RunQuestion *question)
     s_stored.identity = identity;
     s_stored.answer = answer;
     VerbaLinea refusal = {s_stored.refusal, sizeof(s_stored.refusal), 0ull};
-    mmgr_line_put_most(&refusal, question->refused, sizeof(s_stored.refusal) - 1u);
+    mmgr_line_put_max(&refusal, question->refused, sizeof(s_stored.refusal) - 1u);
     mmgr_line_finish(&refusal);
     for (unsigned int place = 0u;
          (question->outcome == RUN_ANSWERED) && (place < question->cases) && (place < KQR_WORDS); place += 1u)
@@ -199,10 +199,10 @@ void run_channel_list_line(unsigned int place, char *line)
 }
 
 // The round about to be carried, the channel's list, appended critical as questions.txt: on disk before the carrier
-// starts; a launch that faults the part leaves the record of what the carrier was handed. The place the run's
-// schedule then contains, every answer of the round standing at it or past it, or 0 where the list could not be put
+// starts; a launch that faults the part leaves the record of what the carrier was passed. The place the run's
+// schedule then contains, every answer of the round located at it or past it, or 0 where the list could not be put
 // on disk, and then the round is not carried
-unsigned long long run_channel_round_handed(void)
+unsigned long long run_channel_round_passed(void)
 {
     return qry_member_append("questions.txt", s_channel_list, s_channel.list_size, QRY_CRITICAL)
                ? qry_member_settled()

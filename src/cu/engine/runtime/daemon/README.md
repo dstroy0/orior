@@ -10,10 +10,10 @@
 
 One daemon runs for each device on a host. Every process that wants the device's memory submits a job to it and
 declares how many bytes the job needs. The daemon measures what the process already holds on the device as it asks,
-its **standing** (its CUDA context, and anything it kept from an earlier job), and counts it beside the declaration.
+its **located** (its CUDA context, and anything it retained from an earlier job), and counts it beside the declaration.
 It admits jobs while the bytes they have yet to find fit the device's measured headroom, and several run at once. It measures each running job's process by pid on every sweep. A job that grows
-past its declaration keeps running, and its client is told what it grew to. When a job is released, its measured
-peak and run time are kept under its **signum**, and the next job with that signum is judged against that peak.
+past its declaration retains running, and its client is told what it grew to. When a job is released, its measured
+peak and run time are retained under its **signum**, and the next job with that signum is judged against that peak.
 
 ## Building
 
@@ -26,11 +26,11 @@ This builds and runs the whole suite, and builds the daemon into the run's build
 
 | test | what it proves | result |
 |---|---|---|
-| `tessera_ledger_test` | the accounting, the standing beside the declaration, backfill with the head kept, the deadline heap | 0 failed (8 standing cases) |
+| `tessera_ledger_test` | the accounting, the located beside the declaration, backfill with the head retained, the deadline heap | 0 failed (8 located cases) |
 | `tessera_frame_test` | the 128-byte frame, round trips and errored corruptions | 0 failed |
 | `tessera_measure_test` | device bytes by pid (the PDH counter under WDDM) | 0 failed |
 | `tessera_job_test` | the client against the built daemon, every path below | 25 checks, 0 failed |
-| `tessera_run_test.sh` | host jobs through `tessera_run` (below): the exit code handed on, the command on the jobs' processors at below normal priority, its processors measured, a job waiting for one that holds them all, two that fit at once, the errors, a command watched by a child (confirmed, a parent killed, on Linux a parent stopped, no launch record) | 14 checks, 0 failed on Windows; 15 on Linux |
+| `tessera_run_test.sh` | host jobs through `tessera_run` (below): the exit code passed on, the command on the jobs' processors at below normal priority, its processors measured, a job waiting for one that holds them all, two that fit at once, the errors, a command watched by a child (confirmed, a parent killed, on Linux a parent stopped, no launch record) | 14 checks, 0 failed on Windows; 15 on Linux |
 
 The endpoint names the device instead of the state: the job test proves the daemon only when no other daemon holds the
 device. `run.sh` gives its tests an endpoint of their own, `TESSERA_RUNTIME`, which Windows reads into the pipe's name
@@ -46,16 +46,16 @@ Tessera builds on a part with no CUDA toolchain too, the Raspberry Pi first: a r
 here. Where `nvcc` is not on the path, `utils/test/src/cu/engine/runtime/daemon/run.sh` compiles obsignatio_*.cu as C++ (its kernels and the calls that
 launch them are left out, and a request for device memory errors) and links with `c++`. It builds and tests the
 ledger, the frame, the daemon and tessera_run, and does not build the measure and job tests, which take device
-memory. On a Raspberry Pi 5 (Linux aarch64, 4 cores, two kept for the desktop and 2 given to jobs):
+memory. On a Raspberry Pi 5 (Linux aarch64, 4 cores, two retained for the desktop and 2 given to jobs):
 every test exited 0, and the tessera_run test gave 15 checks, 0 failed.
 
 ## Two tesseras
 
 There are two tesseras, and they make the same decisions. The ledger's decisions (submit, admit, measure, release,
-the deadlines, the kept peaks) are one source, `tessera_ledger_core.h`, which C11 compiles for the host and nvcc for
+the deadlines, the retained peaks) are one source, `tessera_ledger_core.h`, which C11 compiles for the host and nvcc for
 both the host and the device. The daemon's ledger (`tessera_ledger.c`) grows its rooms and then runs the core. The
 daemon stays as it is: it builds with no CUDA toolchain and makes no CUDA context. The device's tessera
-(`tessera_device.h`, `tessera.cu`) lays a ledger in the device's memory, and one thread makes a list of calls
+(`tessera_device.h`, `tessera.cu`) positions a ledger in the device's memory, and one thread makes a list of calls
 (`TesseraCall`) in order, each answered (`TesseraAnswer`). A call that could add more than the ledger's rooms hold errors before it changes anything; the host grows the rooms on the device, and the run goes on from that call.
 The device's tessera builds only where `nvcc` is.
 
@@ -107,7 +107,7 @@ every byte above it. The daemon adds "precalc saved" to a ticket only when its s
 
 ## Submitting a job
 
-Make the process's CUDA context before asking (`cudaFree(0)`). The daemon then measures it as standing instead of
+Make the process's CUDA context before asking (`cudaFree(0)`). The daemon then measures it as located instead of
 finding it later as growth:
 
 ```c
@@ -136,14 +136,14 @@ if (tessera_job_submit(&ask, &client, &ticket) == TESSERA_ERROR) { /* the error 
 
 | the ticket | what happened | what to do |
 |---|---|---|
-| `asked == 0`, `lost == 0` | **admitted.** `granted` is the bytes reserved for it, and `standing` the bytes its process occupied as it asked, which `granted` includes | run the job, then release it |
+| `asked == 0`, `lost == 0` | **admitted.** `granted` is the bytes reserved for it, and `located` the bytes its process occupied as it asked, which `granted` includes | run the job, then release it |
 | `asked == 1` | **withheld.** It declared more than its signum's last peak (`last_peak`) | override it, or wait |
-| `lost == 1` | **lost.** It was reserved past its grace time | keep its precalc in `lost_path`, then say so |
+| `lost == 1` | **lost.** It was reserved past its grace time | retain its precalc in `lost_path`, then say so |
 
 A job that doesn't fit the headroom yet waits inside the submit until it fits, with no ticket until then. An ask
-with `waiting_microseconds` waits that long at most: past it the submit errs with `ticket.waited` at or past it, its
+with `waiting_microseconds` waits that long at max: past it the submit errs with `ticket.waited` at or past it, its
 connection closes, and the daemon drops the job. A job with a signum never seen before is admitted on its
-declaration over its standing, and measured.
+declaration over its located, and measured.
 
 **Withheld.** If the job means to take more than last time, confirm it with `tessera_job_override(client, &ticket,
 &error)`, which admits it on its declaration. Or wait with `tessera_job_wait(client, &ticket, &error)`: it
@@ -162,13 +162,13 @@ is told. Growth never stops a running job, but nothing new is admitted while the
 ```c
 tessera_job_release(client, &ticket, &error);   // ends the client
 // ticket.granted   the reservation at the end
-// ticket.last_peak the peak measured by its pid, kept under its signum
+// ticket.last_peak the peak measured by its pid, retained under its signum
 // ticket.grown_to  the largest size it was told it grew to (0 if it never outgrew its declaration)
 ```
 
-If `last_peak` is larger than its standing and `declared` together, the job underdeclared. Report it, and the next
+If `last_peak` is larger than its located and `declared` together, the job underdeclared. Report it, and the next
 declaration is right. Don't
-use `grown_to` for that: a job whose reservation is already its kept peak is never told it grew, however far it
+use `grown_to` for that: a job whose reservation is already its retained peak is never told it grew, however far it
 outruns its declaration.
 
 If a process dies without releasing, its connection closes and the daemon sees it at once. The job's reservation
@@ -179,18 +179,18 @@ and a pid reused by a new process is never taken for the old one.
 
 `utils/test/src/cu/engine/runtime/daemon/tessera_job_test.cu` runs every path above against the real daemon, starting it through `daemon_path`:
 
-1. A new signum declaring 64 MiB is admitted with 64 MiB granted over its standing, which was 24,576 bytes: the test
+1. A new signum declaring 64 MiB is admitted with 64 MiB granted over its located, which was 24,576 bytes: the test
    makes no context before it asks. It then takes 256 MiB of device memory, and its release reports that it grew to
    412,254,208 bytes, with a peak of 412,254,208. That is the process's whole dedicated memory, CUDA context
-   included. The test keeps that memory to its end.
-2. The same signum declaring four times that peak is withheld, and the ask names the kept peak. The override
-   admits it on its declaration over its standing, the memory it kept: 412,254,208 bytes.
-3. Declaring exactly the kept peak is admitted at once, over its standing.
+   included. The test retains that memory to its end.
+2. The same signum declaring four times that peak is withheld, and the ask names the retained peak. The override
+   admits it on its declaration over its located, the memory it retained: 412,254,208 bytes.
+3. Declaring exactly the retained peak is admitted at once, over its located.
 4. Declaring four times the peak with no answer is withheld for its 0.4 s holding time, then lost. The ticket names
    its lost and found directory, and the precalc saved releases it. The ticket's seal holds with the note in it.
 5. Once the daemon has ended, the history it left is whole records and a seal. The test damages one byte of it,
    then cuts one byte off, then strips the seal. Each time the submit errors because no daemon starts on it.
-   With the file restored, the daemon starts and the same signum over its peak is asked with the kept peak, and the
+   With the file restored, the daemon starts and the same signum over its peak is asked with the retained peak, and the
    history really was read.
 
 The test runs in its own state directory (`run.sh` sets `TESSERA_STATE` to `<build>/tessera_state`), because
@@ -206,11 +206,11 @@ part 5 damages the history deliberately.
   in 16-bit lanes, rounded to the 2 MiB page, for every part but iapx-prove, which holds none of its own. And, for
   every part that lifts or lowers a lattice (all but schedule and fingerprint), the tower's pool
   (`tower_reserve_bytes`: the coefficients and scratch as ints, 8 bytes a voxel) and compression's chunk pool
-  (`compression_reserve_bytes`), each kept for the largest lattice. The stream, sized by the values, and the seal's
-  passing buffers are left to the kept peak. The lanes come from the source's shape for ingest
+  (`compression_reserve_bytes`), each retained for the largest lattice. The stream, sized by the values, and the seal's
+  passing buffers are left to the retained peak. The lanes come from the source's shape for ingest
   (`engine_source_lanes`, which reads no voxel), and from the `.iapx` head for every other part.
-- **Standing:** the driver makes its context before its first job, and each job stands on it. The admitted line prints
-  the standing, and the release compares the peak against the standing and the declaration together.
+- **Located:** the driver makes its context before its first job, and each job is on it. The admitted line prints
+  the located, and the release compares the peak against the located and the declaration together.
 - **Daemon:** `tessera_daemon` beside the driver, which `build_driver.sh` builds and publishes with it.
 - **Times:** holding 2 s, sweep 20 ms, idle 5 s.
 - **When withheld:** `--override` overrides; otherwise the job waits, is lost, and the part fails.
@@ -226,20 +226,20 @@ Run on one sample (44b6_0113de3b) in a scratch set, with the daemon's real state
 
 The history holds both signa, two records and the seal (128 bytes).
 
-**A job is reserved the larger of its declaration and its signum's kept peak** (`tessera_ledger_wants`). Admission,
-the head's shadow, the backfill's spare and the reservation all use the wanted bytes. A declaration over the kept
-peak is withheld and asked. The ledger test checks it: declaring 100 under a kept peak of 450, the job waits while the
+**A job is reserved the larger of its declaration and its signum's retained peak** (`tessera_ledger_wants`). Admission,
+the head's shadow, the backfill's spare and the reservation all use the wanted bytes. A declaration over the retained
+peak is withheld and asked. The ledger test checks it: declaring 100 under a retained peak of 450, the job waits while the
 headroom is 300, and it is admitted with 450 reserved once the headroom is 500.
 
-**The declaration stands on what the process already holds.** The daemon measures the process as it
-asks (by pid, or from the process's own report under WSL) and the job wants its standing and its declaration
-together, or its kept peak when that is more. The device's measured use already counts the standing. Admission,
-the head's shadow and the backfill weigh only what the job has yet to find: what it wants less its standing. An
-admitted job's use starts at its standing until its first sweep, and the headroom owes the device only those bytes.
-The withholding rule weighs the declaration alone against the kept peak, and that peak is the whole process's.
-The ledger test checks it with a device of 1,000 bytes, 300 in use. A job standing on 200 and declaring 650 wants 850,
+**The declaration is on what the process already holds.** The daemon measures the process as it
+asks (by pid, or from the process's own report under WSL) and the job wants its located and its declaration
+together, or its retained peak when that is more. The device's measured use already counts the located. Admission,
+the head's shadow and the backfill weigh only what the job has yet to find: what it wants less its located. An
+admitted job's use starts at its located until its first sweep, and the headroom owes the device only those bytes.
+The withholding rule weighs the declaration alone against the retained peak, and that peak is the whole process's.
+The ledger test checks it with a device of 1,000 bytes, 300 in use. A job located on 200 and declaring 650 wants 850,
 more than the 700 free. But it has only 650 to find. It is admitted with 850 reserved, and the headroom left is 50.
-Its peak of 900 is kept. The same signum standing on 300 and declaring 650 is not withheld, and wants 950. Declaring 950
+Its peak of 900 is retained. The same signum located on 300 and declaring 650 is not withheld, and wants 950. Declaring 950
 is withheld.
 
 ### The sims
@@ -248,10 +248,10 @@ Every sim that uses the device is one job too (`sims/cu/sim_job.cu`). It calls `
 device allocation, and `sim_close` releases the job:
 
 - **Signum:** the sim's name and its arguments.
-- **Declaration:** the buffers the sim names for itself, on top of its standing: `sim_job_submit` makes the context
-  before it asks, and prints the standing when admitted.
+- **Declaration:** the buffers the sim names for itself, on top of its located: `sim_job_submit` makes the context
+  before it asks, and prints the located when admitted.
 - **Daemon:** `$TESSERA_DAEMON`, else the `tessera_daemon` beside the sim, which `../../../sims/run.sh` builds there.
-- **When withheld:** `TESSERA_OVERRIDE=1` admits a declaration over the kept peak.
+- **When withheld:** `TESSERA_OVERRIDE=1` admits a declaration over the retained peak.
 
 `povm_state` and `ka_psi` never touch the device and submit nothing. Each sim's count includes
 its two tessera checks:
@@ -273,17 +273,17 @@ other caller to submit. `cell_tracking/src/cell_shift.c` runs on orior's engine 
 
 A device of sixteen zero bytes names the host's processors (`tessera_device_names_host`). Its daemon admits processor
 jobs as a device's daemon admits memory jobs, and counts in thousandths of one logical processor
-(`TESSERA_HOST_PROCESSOR`). The ledger is the device's own: admission, backfill, the kept peak per signum, growth and
+(`TESSERA_HOST_PROCESSOR`). The ledger is the device's own: admission, backfill, the retained peak per signum, growth and
 the sealed history are unchanged.
 
-- **Capacity.** Every logical processor but those of the host's last two cores, which are kept for the desktop
+- **Capacity.** Every logical processor but those of the host's last two cores, which are retained for the desktop
   (`tessera_self_host_mask`). `TESSERA_HOST_RESERVED_CORES` changes the two, and one core is always left to jobs. The
   cores are read from `GetLogicalProcessorInformationEx` on Windows and from sysfs `thread_siblings` on Linux. On this
   machine (i7-5960X, 8 cores, 16 logical) that is logical 0 to 11, mask `0xfff`, 12,000 thousandths.
 - **In use.** The running jobs' reports, summed. Nothing else on the host is counted: the desktop's work runs on the
-  kept cores.
+  retained cores.
 - **Measured.** Each job reports its own use (`tessera_job_report`), as a job under WSL reports its device bytes, and
-  the daemon runs in reported mode. A host job stands on nothing. A report's growth is told back, and the next report
+  the daemon runs in reported mode. A host job is on nothing. A report's growth is told back, and the next report
   reads it: no telling waits in the pipe.
 
 **`tessera_run`** (`tessera_run_*.c`) wraps any command in a host job:
@@ -293,8 +293,8 @@ tessera_run --processors <count> [--name <text>] [--child] -- <command> [argumen
 ```
 
 - **Signum:** the name, then every word of the command.
-- **Declaration:** the count times 1,000, with `override_budget` set: a count past the signum's kept peak is not withheld
-  for asking. The job still reserves its kept peak where that is more than the count, as every job does (a build
+- **Declaration:** the count times 1,000, with `override_budget` set: a count past the signum's retained peak is not withheld
+  for asking. The job still reserves its retained peak where that is more than the count, as every job does (a build
   declaring 1 reserved nvcc's measured 3.430 on its next run). Sweep 1 s, idle 30 s. The daemon is
   `$TESSERA_DAEMON`, else the `tessera_daemon` beside it.
 - **The command** starts once the job is admitted, pinned to the mask at below normal priority. On Windows it runs in a
@@ -314,7 +314,7 @@ tessera_run --processors <count> [--name <text>] [--child] -- <command> [argumen
 
 `run.sh` publishes `tessera_run` and its daemon to `build/tessera_host/` once the host test holds. A copy that is
 running is renamed aside first (`.replaced`): Windows lets a running program be renamed but not overwritten, and the
-jobs already under it keep it. What the test printed, with the tracker's and the knee's builds
+jobs already under it retain it. What the test printed, with the tracker's and the knee's builds
 running beside it on the real host daemon:
 
 | run | admitted after | processors reserved | peak |
@@ -342,19 +342,19 @@ ticket is, under the host's state: `<state>/children/<parent pid>-<signum>` then
 4. **No keepalive: the child looks for the parent.** After 10 s with no keepalive (`TESSERA_RUN_SILENT_MS`) it tries to
    open the parent's record for writing. While the parent lives that errors: Windows errors on it by the record's
    sharing, from Windows or from inside WSL, and on Linux the parent holds a lock on it. Once the parent is gone the open
-   succeeds, and the child ends the command at once. A parent that still holds its record but keeps no keepalive for
+   succeeds, and the child ends the command at once. A parent that still holds its record but retains no keepalive for
    60 s (`TESSERA_RUN_UNRESPONSIVE_MS`) is not responding, and the child ends the command then.
 5. **The command ends gracefully, and the log says so.** On Linux the command's tree is sent SIGTERM and given 10 s,
    then SIGKILL for what is left. On Windows a console command has no signal it must heed, and its job is ended at
    once. The child logs the parent's state, the silence, how many processes were ended by force and the command's exit,
-   leaves its record at `orphaned`, and exits 124. The records are kept for whoever relaunches or resumes the job. A
+   leaves its record at `orphaned`, and exits 124. The records are retained for whoever relaunches or resumes the job. A
    clean end removes them.
 
 | run | Windows | Linux (WSL 2) |
 |---|---|---|
 | 2 threads for 1.5 s under a child, exit 5 | confirmed, exit 5, 3.000 s of processor time, peak 1.991 | confirmed, exit 5, 2.990 s, peak 1.950 |
-| the parent killed 3 s into a 60 s burn | gone after 10.056 s with no keepalive; ended by force; records kept | gone after 10.056 s; SIGTERM, exit 143, none by force |
-| the parent stopped (SIGSTOP), limits 1 s and 3 s | not run: Windows has no stop to send it | holds its record at 1.005 s; not responding at 3.017 s; SIGTERM, exit 143; the parent, let go, handed on 124 |
+| the parent killed 3 s into a 60 s burn | gone after 10.056 s with no keepalive; ended by force; records retained | gone after 10.056 s; SIGTERM, exit 143, none by force |
+| the parent stopped (SIGSTOP), limits 1 s and 3 s | not run: Windows has no stop to send it | holds its record at 1.005 s; not responding at 3.017 s; SIGTERM, exit 143; the parent, let go, passed on 124 |
 
 **From WSL** the Windows `tessera_run` holds the ticket in the one budget:
 `tessera_run.exe --processors N -- wsl.exe -e bash /mnt/<path>/script.sh`. Windows does see the VM's processors: the
@@ -378,7 +378,7 @@ child's clock. A child's processor time never falls.
 
 **Linux** (WSL 2, the whole suite carried to ext4): the host test ran 15 checks, 0 failed, with
 the mask read from sysfs as `0xfff` and two threads peaking at 1.989 processors. The same run's job test ran 25
-checks, 0 failed, on a device daemon of its own. A host daemon under WSL keeps a budget apart from the Windows one: a
+checks, 0 failed, on a device daemon of its own. A host daemon under WSL retains a budget apart from the Windows one: a
 job in WSL shares the Windows budget only through the Windows `tessera_run`.
 
 ## Linux
@@ -400,7 +400,7 @@ another it returns `0xC000000D`). So on a paravirtual kernel (`tessera_self_para
 client starts a thread that reads its own process's device bytes through dxcore (`tessera_self_measure` in
 `tessera_self.c`, `libdxcore.so` loaded at run time) and sends them every sweep as a `TESSERA_ASK_MEASURED` frame. It
 sends one last reading before its release. The daemon applies each one exactly as it would a pid measurement:
-growth, the peak kept, the wake. A daemon in reported mode ignores these frames from any job but the sender's own.
+growth, the peak retained, the wake. A daemon in reported mode ignores these frames from any job but the sender's own.
 
 | test | Linux (WSL 2) |
 |---|---|
@@ -418,7 +418,7 @@ it says so and exits. It removes the socket file at idle only if that file is st
 
 ## Service files
 
-**Windows needs none.** The first client starts the daemon, `FILE_FLAG_FIRST_PIPE_INSTANCE` keeps it to one per
+**Windows needs none.** The first client starts the daemon, `FILE_FLAG_FIRST_PIPE_INSTANCE` retains it to one per
 device, and it ends once it has been idle.
 
 **Linux, systemd user units** in `service/`. The instance is the device's UUID as 32 lowercase hex digits:
@@ -431,7 +431,7 @@ systemctl --user enable --now tessera@<uuid>.socket
 ```
 
 - `tessera@.socket` listens on `%t/tessera-%i.sock` (`$XDG_RUNTIME_DIR`), the path the client already looks for.
-- On the first connection systemd starts `tessera@.service`, which hands the socket over as fd 3 (`LISTEN_FDS=1`).
+- On the first connection systemd starts `tessera@.service`, which passes the socket over as fd 3 (`LISTEN_FDS=1`).
   The daemon takes that socket instead of binding its own. When idle it exits without removing the socket, and the
   next connection starts it again.
 - A daemon that errors instead of starting (its history's seal fails, or the device can't be measured) accepts and closes
@@ -444,7 +444,7 @@ Run in WSL 2 (systemd 255), with the socket at
 doesn't exist, and systemd started every daemon, in a scratch `TESSERA_STATE` set through `systemctl --user
 set-environment`. It passed 24 checks, 0 failed, on three runs in a row, each straight after the suite. Every
 errored history made one failed start and one errored client, and the restored history started a daemon that asked
-over the kept peak.
+over the retained peak.
 
 **Docker.** Mount the host's socket into the container and name its folder with `TESSERA_RUNTIME`:
 

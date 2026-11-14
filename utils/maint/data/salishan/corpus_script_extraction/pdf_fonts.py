@@ -48,7 +48,7 @@ def fonts_of(path):
             for key, reference in fonts.get_object().items():
                 font = reference.get_object()
                 name = str(font.get("/BaseFont", "unnamed"))
-                kind = str(font.get("/Subtype", ""))
+                type = str(font.get("/Subtype", ""))
                 encoding = font.get("/Encoding")
                 if hasattr(encoding, "get_object"):
                     encoding = encoding.get_object()
@@ -56,8 +56,8 @@ def fonts_of(path):
                 else:
                     encoding = str(encoding) if encoding else "none"
                 mapped = "/ToUnicode" in font
-                held.setdefault((name, kind, encoding, mapped), 0)
-                held[(name, kind, encoding, mapped)] += 1
+                held.setdefault((name, type, encoding, mapped), 0)
+                held[(name, type, encoding, mapped)] += 1
         except Exception:
             continue
     return held
@@ -85,11 +85,11 @@ def main():
             out.write("    no fonts found on any page\n")
             continue
         out.write("    %-40s %-14s %-22s %s\n"
-                  % ("font", "kind", "encoding", "has a unicode map"))
+                  % ("font", "type", "encoding", "has a unicode map"))
         for key in sorted(held, key=lambda one: -held[one]):
-            name, kind, encoding, mapped = key
+            name, type, encoding, mapped = key
             out.write("    %-40s %-14s %-22s %s\n"
-                      % (name[:40], kind[:14], encoding[:22], "yes" if mapped else "NO"))
+                      % (name[:40], type[:14], encoding[:22], "yes" if mapped else "NO"))
 
     out.write("\n  a font with no unicode map is recoverable by supplying the table it was\n")
     out.write("  designed against. A font with a map that still extracts badly is not the\n")

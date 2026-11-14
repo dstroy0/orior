@@ -20,9 +20,9 @@ static char s_text[1u << 14u];
 static CliCatalog s_catalog;
 static char s_root[CLI_PATH_MAX_LEN];
 
-// the catalog laid: two build jobs, the first with a choice, a choice of many and a required word, a sim job and a
+// the catalog positioned: two build jobs, the first with a choice, a choice of many and a required word, a sim job and a
 // view job without a title; the run job's one step a bash script of the tree, `script`
-static void catalog_laid(const char *script)
+static void catalog_positioned(const char *script)
 {
     EMBED_CALL(cli_catalog_jobs_max.begin, CliCatalogJobsMaxCfg, .catalog = &s_catalog, .jobs = s_jobs, .jobs_max = 16u, .params = s_params, .params_max = 32u, .steps = s_steps, .steps_max = 16u, .request = s_args, .args_max = 32u, .lists = s_lists, .lists_max = 64u, .text_out = s_text, .text_max = sizeof(s_text));
     (void)EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = &s_catalog, .id = "build/alpha", .group = "build", .title = "Alpha build", .file = "src/alpha.sh", .about = "builds the alpha", .opens = "");
@@ -42,7 +42,7 @@ static void catalog_laid(const char *script)
 // the store read from the suite's catalog
 static void store_read(void)
 {
-    catalog_laid("job.sh");
+    catalog_positioned("job.sh");
     EMBED_CALL(cli_job_runs_root.read, CliJobRunsRootCfg, .root = NULL, .catalog = &s_catalog);
 }
 
@@ -83,7 +83,7 @@ static unsigned int row_of(unsigned int type, unsigned int from)
     return count;
 }
 
-// a report of the run `run` handed to the store's sink as its thread hands it
+// a report of the run `run` passed to the store's sink as its thread passes it
 static void reported(unsigned int type, unsigned long long run, const char *job, const char *stream, const char *text, long long code, int stopped)
 {
     const CliRunEvent event = {type, run, job, stream, text, type == CLI_JOB_RUNS_ENDED, code, stopped, NULL, 0u, NULL, 0.0};
@@ -99,7 +99,7 @@ static unsigned int alpha_chosen(void)
     return row_of(CLI_JOB_RUN_PARAM, 0u);
 }
 
-// the store stepped until the run shown ends, at most 30 seconds: 1 where it ended
+// the store stepped until the run displayed ends, at max 30 seconds: 1 where it ended
 static int run_ended(void)
 {
     const unsigned long long until = cli_clock_milliseconds() + 30000ULL;
@@ -148,7 +148,7 @@ void test_read_lists_the_groups_in_the_catalogs_order_each_opened_and_closed(voi
     TEST_ASSERT_EQUAL_UINT(4u, rows());
 }
 
-void test_the_filter_lets_stand_the_jobs_that_contain_it_and_the_counts_follow(void)
+void test_the_filter_lets_are_the_jobs_that_contain_it_and_the_counts_follow(void)
 {
     store_read();
     (void)pressed(0u);
@@ -253,7 +253,7 @@ void test_what_a_run_reports_comes_in_on_the_step_its_lines_plain_with_their_spa
     TEST_ASSERT_FALSE(EMBED_CALL(cli_job_runs_woken.step, CliJobRunsWokenCfg, .woken = NULL));
     const unsigned int run = row_of(CLI_JOB_RUN_RUN, 0u);
     CLI_TEST_ASSERT_TEXT("#901 running", row(run).text, row(run).text_length);
-    TEST_ASSERT_EQUAL_UINT(CLI_JOB_RUN_LIVE | CLI_JOB_RUN_SHOWN, row(run).flags & (CLI_JOB_RUN_LIVE | CLI_JOB_RUN_SHOWN));
+    TEST_ASSERT_EQUAL_UINT(CLI_JOB_RUN_LIVE | CLI_JOB_RUN_DISPLAYED, row(run).flags & (CLI_JOB_RUN_LIVE | CLI_JOB_RUN_DISPLAYED));
     TEST_ASSERT_EQUAL_UINT(CLI_JOB_RUN_LIVE, row(1u).flags & CLI_JOB_RUN_LIVE);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_job_runs_run.live, CliJobRunsRunCfg, .root = "."));
     reported(CLI_JOB_RUNS_LINE, 901ULL, NULL, "command", "bash job.sh", 0LL, 0);
@@ -283,7 +283,7 @@ void test_what_a_run_reports_comes_in_on_the_step_its_lines_plain_with_their_spa
     (void)EMBED_CALL(cli_job_runs_woken.step, CliJobRunsWokenCfg, .woken = NULL);
     const unsigned int second = row_of(CLI_JOB_RUN_RUN, run + 1u);
     CLI_TEST_ASSERT_TEXT("#902 exit 2", row(second).text, row(second).text_length);
-    TEST_ASSERT_EQUAL_UINT(CLI_JOB_RUN_FAILED | CLI_JOB_RUN_SHOWN, row(second).flags & (CLI_JOB_RUN_FAILED | CLI_JOB_RUN_SHOWN));
+    TEST_ASSERT_EQUAL_UINT(CLI_JOB_RUN_FAILED | CLI_JOB_RUN_DISPLAYED, row(second).flags & (CLI_JOB_RUN_FAILED | CLI_JOB_RUN_DISPLAYED));
     TEST_ASSERT_EQUAL_UINT(run + 1u, second);
     TEST_ASSERT_EQUAL_INT(0, pressed(run));
     TEST_ASSERT_EQUAL_UINT(CLI_JOB_RUN_LINE, row(run + 1u).type);
@@ -312,7 +312,7 @@ void test_a_run_past_the_lines_bound_lets_its_oldest_lines_go(void)
     CLI_TEST_ASSERT_TEXT("10", row(run + 1u).text, row(run + 1u).text_length);
 }
 
-void test_the_ended_runs_of_a_job_past_the_bound_let_the_oldest_go_and_a_live_one_stands(void)
+void test_the_ended_runs_of_a_job_past_the_bound_let_the_oldest_go_and_a_live_one_is(void)
 {
     (void)alpha_chosen();
     reported(CLI_JOB_RUNS_STARTED, 700ULL, "build/alpha", NULL, NULL, 0LL, 0);
@@ -333,7 +333,7 @@ void test_the_ended_runs_of_a_job_past_the_bound_let_the_oldest_go_and_a_live_on
     CLI_TEST_ASSERT_TEXT("#3 exit 0", row(first + 1u).text, row(first + 1u).text_length);
 }
 
-void test_follow_brings_the_last_row_into_view_where_the_pane_stood_at_it(void)
+void test_follow_brings_the_last_row_into_view_where_the_pane_was_at_it(void)
 {
     (void)alpha_chosen();
     reported(CLI_JOB_RUNS_STARTED, 904ULL, "build/alpha", NULL, NULL, 0LL, 0);
@@ -353,7 +353,7 @@ void test_a_real_run_starts_reads_its_lines_and_ends(void)
 {
     cli_unity_folder("job_runs_tree", s_root);
     cli_unity_file(s_root, "job.sh", "echo hello\nprintf '\\033[32mgreen\\033[0m\\n'\nexit 3\n");
-    catalog_laid("job.sh");
+    catalog_positioned("job.sh");
     EMBED_CALL(cli_job_runs_root.read, CliJobRunsRootCfg, .root = s_root, .catalog = &s_catalog);
     (void)pressed(0u);
     (void)pressed(1u);
@@ -388,7 +388,7 @@ void test_a_live_run_stopped_ends_stopped(void)
 {
     cli_unity_folder("job_runs_stop", s_root);
     cli_unity_file(s_root, "job.sh", "echo waiting\nsleep 30\n");
-    catalog_laid("job.sh");
+    catalog_positioned("job.sh");
     EMBED_CALL(cli_job_runs_root.read, CliJobRunsRootCfg, .root = s_root, .catalog = &s_catalog);
     (void)pressed(0u);
     (void)pressed(1u);

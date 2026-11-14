@@ -41,18 +41,18 @@ def read_shadows(path):
 
     with open(path, newline="") as handle:
         for row in csv.DictReader(handle):
-            kind = row["kind"]
+            type = row["type"]
             a = int(row["a"])
             b = int(row["b"])
             at = int(row["round"]) - 1
             value = float(row["value"])
-            if kind == "residue":
+            if type == "residue":
                 residue[a][at] = value
-            elif kind == "inbit":
+            elif type == "inbit":
                 inbit[a][at] = value
-            elif kind == "outbit":
+            elif type == "outbit":
                 outbit[a][at] = value
-            elif kind == "word":
+            elif type == "word":
                 word[a][b][at] = value
 
     return residue, inbit, outbit, word

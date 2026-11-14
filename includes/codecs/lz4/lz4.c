@@ -222,7 +222,7 @@ static int lz4_frame(Lz4Frames *frames)
     {
         return 0;
     }
-    const unsigned long long block_maximum = 1ull << (8u + (2u * block_code));
+    const unsigned long long block_max = 1ull << (8u + (2u * block_code));
     const int independent = (flags & 0x20u) != 0u;
     const unsigned long long block_checksum = ((flags & 0x10u) != 0u) ? 4ull : 0ull;
     const int sized = (flags & 8u) != 0u;
@@ -260,7 +260,7 @@ static int lz4_frame(Lz4Frames *frames)
             break;
         }
         const unsigned long long block_size = block_word & ~LZ4_UNCOMPRESSED_BIT;
-        if ((block_size > block_maximum) || ((available - cursor) < (block_size + block_checksum)))
+        if ((block_size > block_max) || ((available - cursor) < (block_size + block_checksum)))
         {
             return 0;
         }
@@ -285,7 +285,7 @@ static int lz4_frame(Lz4Frames *frames)
         {
             const unsigned long long capacity_left = request->out_capacity - frames->written;
             const unsigned long long capacity =
-                frames->written + ((capacity_left < block_maximum) ? capacity_left : block_maximum);
+                frames->written + ((capacity_left < block_max) ? capacity_left : block_max);
             Lz4Walk walk = {
                 block,          block_size, request->out, capacity, independent ? frames->written : frame_start,
                 frames->written};

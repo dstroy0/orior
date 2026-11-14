@@ -59,10 +59,10 @@ static int tessera_device_grow(void **items, unsigned long long *capacity, unsig
     return 1;
 }
 
-// each array of the device's ledger, stored on the host in `ledger`, grown to the most a call of `kind` can add
-static int tessera_device_reserve(TesseraLedger *ledger, TesseraCallKind kind)
+// each array of the device's ledger, stored on the host in `ledger`, grown to the max a call of `type` can add
+static int tessera_device_reserve(TesseraLedger *ledger, TesseraCallKind type)
 {
-    const TesseraCapacity needed = tessera_core_capacity(ledger, kind);
+    const TesseraCapacity needed = tessera_core_capacity(ledger, type);
     return tessera_device_grow((void **)&ledger->jobs, &ledger->job_capacity, ledger->job_count, needed.jobs,
                                sizeof(TesseraJob)) &&
            tessera_device_grow((void **)&ledger->history, &ledger->history_capacity, ledger->history_count,
@@ -128,9 +128,9 @@ int tessera_device_calls(TesseraDevice *device, const TesseraCall *calls, unsign
               cudaSuccess);
         if (ok && (reached < count))
         {
-            // the call at `reached` could add more than the ledger's arrays contain: each is grown to the most it can
+            // the call at `reached` could add more than the ledger's arrays contain: each is grown to the max it can
             // add, and the run goes on from that call, which the ledger then takes
-            ok = tessera_device_reserve(&device->host_ledger, calls[reached].kind) &&
+            ok = tessera_device_reserve(&device->host_ledger, calls[reached].type) &&
                  (cudaMemcpy(device->ledger, &device->host_ledger, sizeof(TesseraLedger), cudaMemcpyHostToDevice) ==
                   cudaSuccess);
         }

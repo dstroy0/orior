@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Hank Nater	title	How Salish is Bella Coola?	page 1
 front	Hank Nater	name	Hank Nater	author
 front	Hank Nater	note	Bella Coola is, structurally considered, a Salish language, affiliated – in terms of certain deictic and phonemic features (grammatical gender (feminine vs. neutral), absence of velar + pharyngeal sonorants and retracted vowels) – closely with Coastal Salish, but differing on other levels profoundly from all non-Bella Coola Salish, in particular where the genetic makeup of its lexicon is concerned. A sixfold partition, based on etymological criteria, of the verbo-nominal portion of the Bella Coola lexicon can be made: 7.4% Coastal Salish, 4.9% Interior Salish, 16.4% proto-Salish, 16.8% non-Salish (mainly North Wakash), 2.7% areal, 51.8% unknown. As such a lexical structure may seem unusual within Salish, it is appropriate to make the data that underlie these numbers available here for further evaluation and comparison.	page 1, the abstract
@@ -39,12 +39,12 @@ front	Hank Nater	language	Bella Coola	the language of the paper, Nuxalk
 §1.1	Hank Nater	language	Athabascan	a northern neighbor
 §1.1	Hank Nater	language	Carrier	Athabascan
 §2	Hank Nater	heading	2 The database	page 2
-§2	Hank Nater	note	The data, copied from an Excel (.xls) file derived from Na90, represent all BC morphemes known to me minus clitics (the majority of which have no known cognates) and affixes (most of which are of PS descent), most allomorphs and derivations, adverbs, personal and geographical names, and loans from Chinook Jargon and English.	page 2
+§2	Hank Nater	note	The data, copied from an Excel (.xls) file derived from Na90, represent all BC morphemes known to me minus clitics (the majority of which have no known cognates) and affixes (the majority of which are of PS descent), max allomorphs and derivations, adverbs, personal and geographical names, and loans from Chinook Jargon and English.	page 2
 §2	Hank Nater	language	Chinook	a southern areal source
 §2	Hank Nater	language	Chinook Jargon	whose loans are left out
 §2	Hank Nater	language	English	the glosses and loans left out
 §2.1	Hank Nater	heading	2.1 Etymological classes, numbering, alphabetical order	page 2
-§2.1	Hank Nater	note	94 items are linked with CS, 63 with IS, 209 with PS, 214 with NS, 34 are areal in nature, and 661 have no known origin. Line numbering is erased where items (certain allomorphs and derivations) are not counted. BC entries are listed in the BC (Na90) alphabetical order, where /ʷ/ is rendered as w (except immediately before u, where it is omitted), /c/ as ts, /ƛ’/ as tl’, /ɬ/ as lh, /x/ as c, /χ/ as x, /’/ is the last “letter” of the alphabet, and /ʔ/ (rendered as 7) is ignored. The Na90 syllabic sonorants m, n, l are not marked as such in this paper.	page 2
+§2.1	Hank Nater	note	94 items are linked with CS, 63 with IS, 209 with PS, 214 with NS, 34 are areal in nature, and 661 have no known origin. Line numbering is erased where items (certain allomorphs and derivations) are not counted. BC entries are listed in the BC (Na90) alphabetical order, where /ʷ/ is rendered as w (except immediately before u, where it is omitted), /c/ as ts, /ƛ’/ as tl’, /ɬ/ as lh, /x/ as c, /χ/ as x, /’/ is the last “character” of the alphabet, and /ʔ/ (rendered as 7) is ignored. The Na90 syllabic sonorants m, n, l are not marked as such in this paper.	page 2
 §2.2	Hank Nater	heading	2.2 Salish, areal and non-Salish etymologies: ecological lexicon	page 2
 §2.2	Hank Nater	note	I list ecological terms (landscape, flora & fauna) separately from non- ecological vocabulary in consideration of the high percentage of NW cognates in this lexical category.	page 2
 §2.2.1	Hank Nater	heading	2.2.1 CS and IS cognates	page 2
@@ -199,7 +199,7 @@ line 32	Bella Coola	transcription	k’ay	page 4, the Bella Coola form
 line 32	Hank Nater	note	*k’ay ‘cold’ (Ku02:43)	page 4, under PS Cognates
 line 33	Hank Nater	note	33	page 4, the line's number
 line 33	Hank Nater	translation	bark of western birch	page 4, the gloss
-line 33	Bella Coola	transcription	k’lay	page 4, the Bella Coola form
+line 33	Bella Coola	transcription	k’position	page 4, the Bella Coola form
 line 33	Hank Nater	note	*k’əl-ay’ ‘treebark’ (Ku02:40)	page 4, under PS Cognates
 line 34	Bella Coola	transcription	’	page 4, the Bella Coola form
 line 34	Hank Nater	note	*k’ʷǝc’-xən ‘twisting-foot’	page 4, under PS Cognates
@@ -468,7 +468,7 @@ line 88	Hank Nater	translation	skunk cabbage	page 7, the gloss
 line 88	Bella Coola	transcription	ʔu:k’ʷuk’	page 7, the Bella Coola form
 line 88	Hank Nater	note	CS *k’ʷuk’ʷ, He k’ʷk’ʷúk’ʷ (Ku02:141)	page 7, under Areal Cognates
 §2.2.4	Hank Nater	heading	2.2.4 NS cognates	page 7
-§2.2.4	Hank Nater	note	There are 93 BC ecological terms that are linked exclusively with NS: 83 with NW, 9 with (pre-)PA, and 1 with Chinook. Ha data are from LR86, other (and common) NW data from LR80, and He data from LR80 and Ra10. The borrowing direction appears to be NS → BC, since (1) the BC forms (with /CVCCV/, /CVCVC/, /CCVCV/, etc. structures) generally have an un-Salish appearance, (2) the NS forms are as a rule phonemically more complex than the BC cognates, (3) most NW forms are analyzable within NW, (4) the (pre-)PA forms are too intrinsically Na-Dene to have been borrowed from BC (while 177 ‘squirrel’ and 178 ‘rabbit’ are widely diffused terms far north of BC).	page 7
+§2.2.4	Hank Nater	note	There are 93 BC ecological terms that are linked exclusively with NS: 83 with NW, 9 with (pre-)PA, and 1 with Chinook. Ha data are from LR86, other (and common) NW data from LR80, and He data from LR80 and Ra10. The borrowing direction appears to be NS → BC, since (1) the BC forms (with /CVCCV/, /CVCVC/, /CCVCV/, etc. structures) generally have an un-Salish appearance, (2) the NS forms are as a rule phonemically more complex than the BC cognates, (3) max NW forms are analyzable within NW, (4) the (pre-)PA forms are too intrinsically Na-Dene to have been borrowed from BC (while 177 ‘squirrel’ and 178 ‘rabbit’ are widely diffused terms far north of BC).	page 7
 §2.2.4	Hank Nater	note	Line	page 7, a column's head
 §2.2.4	Hank Nater	note	Gloss	page 7, a column's head
 §2.2.4	Hank Nater	note	BC	page 7, a column's head
@@ -476,7 +476,7 @@ line 88	Hank Nater	note	CS *k’ʷuk’ʷ, He k’ʷk’ʷúk’ʷ (Ku02:141)	pa
 line 89	Hank Nater	note	89	page 7, the line's number
 line 89	Hank Nater	translation	hooded merganser	page 7, the gloss
 line 89	Bella Coola	transcription	ʔaʔnna	page 7, the Bella Coola form
-line 89	Hank Nater	note	Ha ʔaʔahnà ‘kind of seabird’	page 7, under NW Cognates
+line 89	Hank Nater	note	Ha ʔaʔahnà ‘type of seabird’	page 7, under NW Cognates
 line 90	Hank Nater	note	90	page 7, the line's number
 line 90	Hank Nater	translation	cottonwood	page 7, the gloss
 line 90	Bella Coola	transcription	ʔa:qʼmiiχa-ɬp	page 7, the Bella Coola form
@@ -2426,7 +2426,7 @@ line 581	Hank Nater	note	CS *χʷǝs ‘grease’ (Ku02:156), Kw √χʷs ‘sea
 line 582	Hank Nater	translation	fat	page 27, the gloss, its number erased, a derivation or allomorph not counted
 line 582	Bella Coola	transcription	χs	page 27, the Bella Coola form
 §2.3.4	Hank Nater	heading	2.3.4 NS cognates	page 27
-§2.3.4	Hank Nater	note	There are 121 BC non-ecological terms that are linked exclusively with NS. Of these, 101 are cognate with NW, while 20 are linked mainly with Na- Dene. Ha data are from LR86, other (and common) NW data from LR80, and He data from LR80 and Ra10. Again, the borrowing direction appears to be NS → BC, as (1) the BC forms (with /CVCCV, CVCVC, CCVCV/, etc. structures) generally have an un-Salish appearance, (2) the NS forms are as a rule phonemically more complex than the BC cognates, (3) most NW forms are analyzable within NW, (4) (pre-)PA forms are too intrinsically Na-Dene to have been borrowed from BC.	page 27
+§2.3.4	Hank Nater	note	There are 121 BC non-ecological terms that are linked exclusively with NS. Of these, 101 are cognate with NW, while 20 are linked mainly with Na- Dene. Ha data are from LR86, other (and common) NW data from LR80, and He data from LR80 and Ra10. Again, the borrowing direction appears to be NS → BC, as (1) the BC forms (with /CVCCV, CVCVC, CCVCV/, etc. structures) generally have an un-Salish appearance, (2) the NS forms are as a rule phonemically more complex than the BC cognates, (3) max NW forms are analyzable within NW, (4) (pre-)PA forms are too intrinsically Na-Dene to have been borrowed from BC.	page 27
 §2.3.4	Hank Nater	note	Line	page 27, a column's head
 §2.3.4	Hank Nater	note	Gloss	page 27, a column's head
 §2.3.4	Hank Nater	note	BC	page 27, a column's head
@@ -2955,7 +2955,7 @@ line 711	Hank Nater	note	PA √ɣǝn ‘sing shamanistically’ (Na94:182)	page 
 §2.3.5	Hank Nater	heading	2.3.5 All non-ecology-related cognates	page 32
 §2.3.5	Hank Nater	note	Around 25% of the BC entries listed in 2.3.1-4 above are, contrary to Newman’s claim (“Bella Coola borrowed almost nothing of its basic stock of words from Wakashan, in contrast to its heavy borrowing of ecological terms” (p. 207)), akin to NW.	page 32
 §3	Hank Nater	heading	3 Notes and conclusions	page 32
-§3	Hank Nater	note	As detailed above, my findings challenge those of Kuipers 2002 and Newman as regards the distribution of vocabulary related to CS and IS, resp. vocabulary borrowed from NW. Furthermore, elements shared only with IS are most likely of PS origin. Items 45, 192, 331, 338, 446 and 476 contain pre-BC *-(l-)iwan, *-(l-)iwǝn, *-(l-)ǝwǝn, *-iw ‘system, principle, essence, spirit’ (cf. Sq -iwan ‘spirit, mind’ (Ku69:14)) reduced to BC -iwa (45, 192), -wi (331), -yu (338, 446), -lun (476) (cf. BC -liwa, -liwn-, -lun- ‘… like, … ish’ (Na84:57)).	page 32
+§3	Hank Nater	note	As detailed above, my findings challenge those of Kuipers 2002 and Newman as regards the distribution of vocabulary related to CS and IS, resp. vocabulary borrowed from NW. Furthermore, elements shared only with IS are likely of PS origin. Items 45, 192, 331, 338, 446 and 476 contain pre-BC *-(l-)iwan, *-(l-)iwǝn, *-(l-)ǝwǝn, *-iw ‘system, principle, essence, spirit’ (cf. Sq -iwan ‘spirit, mind’ (Ku69:14)) reduced to BC -iwa (45, 192), -wi (331), -yu (338, 446), -lun (476) (cf. BC -liwa, -liwn-, -lun- ‘… like, … ish’ (Na84:57)).	page 32
 §3	Bella Coola	cited form	*-(l-)iwan, *-(l-)iwǝn, *-(l-)ǝwǝn, *-iw	page 32, in italics, ‘system, principle, essence, spirit’
 §3	Bella Coola	cited form	-iwan	page 32, in italics, ‘spirit, mind’
 §3	Bella Coola	cited form	-iwa	page 32, in italics
@@ -2963,7 +2963,7 @@ line 711	Hank Nater	note	PA √ɣǝn ‘sing shamanistically’ (Na94:182)	page 
 §3	Bella Coola	cited form	-yu	page 32, in italics
 §3	Bella Coola	cited form	-lun	page 32, in italics
 §3	Bella Coola	cited form	-liwa, -liwn-, -lun-	page 32, in italics, ‘… like, … ish’
-§3	Hank Nater	note	BC deictic clitics and lexical suffixes were – like all bound BC morphemes – excluded from this study, but it should be mentioned that here, too, NW influence has been pervasive: nowhere in Salish do we find spatio- temporal deictic systems as elaborate as in BC (Na84, pp. 41-48). As well, lexical suffix stringing plays in BC a more prominent role than in all other Salish, and the rigid PSO syntax of BC is more reminiscent of NW than of other Salish (where word order appears to be less fixed than is the case in BC). While most BC single lexical suffixes are retentions from PS, productive suffix- stringing (Na84, pp. 74-88) is a BC innovation. Another trait more typical of BC than of most other Salish, i.e. post-predicative enclisis and enclitic-stringing (Na84, pp. 125-133, and cf. VE85, pp. 231-252), must have evolved under the influence of this increased use of suffixation. Such growing use of enclisis in turn likely underlies another major difference: where non-BC Salish distinguishes mood via different verbal paradigms, BC uses enclisis. For example, ‘may we say’ and ‘I wonder what they will say’ are rendered in Li vs. BC as follows: Li cút-at (say-1p subjunctive) = BC kaᴗcut-iɬᴗc’akʷ (futureᴗsay- 1pᴗdesiderative); Li ʔinwat-wít-asᴗkɬ (say what-3p-subjunctiveᴗremote future) = BC kaᴗʔinut-awᴗʔlᴗma (futureᴗsay -3pᴗinterrogativeᴗpossibly).	page 32
+§3	Hank Nater	note	BC deictic clitics and lexical suffixes were – like all bound BC morphemes – excluded from this study, but it should be mentioned that here, too, NW influence has been pervasive: nowhere in Salish do we find spatio- temporal deictic systems as elaborate as in BC (Na84, pp. 41-48). As well, lexical suffix stringing plays in BC a more prominent role than in all other Salish, and the rigid PSO syntax of BC is more reminiscent of NW than of other Salish (where word order appears to be less fixed than is the case in BC). While max BC single lexical suffixes are retentions from PS, productive suffix- stringing (Na84, pp. 74-88) is a BC innovation. Another trait more typical of BC than of max other Salish, i.e. post-predicative enclisis and enclitic-stringing (Na84, pp. 125-133, and cf. VE85, pp. 231-252), must have evolved under the influence of this increased use of suffixation. Such growing use of enclisis in turn likely underlies another major difference: where non-BC Salish distinguishes mood via different verbal paradigms, BC uses enclisis. For example, ‘may we say’ and ‘I wonder what they will say’ are rendered in Li vs. BC as follows: Li cút-at (say-1p subjunctive) = BC kaᴗcut-iɬᴗc’akʷ (futureᴗsay- 1pᴗdesiderative); Li ʔinwat-wít-asᴗkɬ (say what-3p-subjunctiveᴗremote future) = BC kaᴗʔinut-awᴗʔlᴗma (futureᴗsay -3pᴗinterrogativeᴗpossibly).	page 32
 §3	Bella Coola	cited form	cút-at	page 33, in italics
 §3	Bella Coola	cited form	kaᴗcut-iɬᴗc’akʷ	page 33, in italics
 §3	Bella Coola	cited form	ʔinwat-wít-asᴗkɬ	page 33, in italics
@@ -3049,7 +3049,7 @@ line 713	Hank Nater	translation	miss, make mistake	page 35, the Na90 gloss
 line 713	Bella Coola	transcription	ʔalatk	page 35, the phonemic notation
 line 714	Hank Nater	note	714	page 35, the line's number
 line 714	Bella Coola	transcription	ALATSICW+IKS	page 35, the Na90 entry in the practical orthography
-line 714	Hank Nater	translation	how/why/what kind?	page 35, the Na90 gloss
+line 714	Hank Nater	translation	how/why/what type?	page 35, the Na90 gloss
 line 714	Bella Coola	transcription	ʔalacixʷᴗiks	page 35, the phonemic notation
 line 715	Hank Nater	note	715	page 35, the line's number
 line 715	Bella Coola	transcription	√ALATS', √AALATS'	page 35, the Na90 entry in the practical orthography
@@ -3712,7 +3712,7 @@ line 885	Hank Nater	translation	remove: clean/leave/quit/stop	page 39, the Na90 
 line 885	Bella Coola	transcription	√ɬl	page 39, the phonemic notation
 line 886	Hank Nater	note	886	page 39, the line's number
 line 886	Bella Coola	transcription	LHM	page 39, the Na90 entry in the practical orthography
-line 886	Hank Nater	translation	stand (up)	page 39, the Na90 gloss
+line 886	Hank Nater	translation	are (up)	page 39, the Na90 gloss
 line 886	Bella Coola	transcription	ɬm	page 39, the phonemic notation
 line 887	Hank Nater	note	887	page 39, the line's number
 line 887	Bella Coola	transcription	LHMK’MLHP	page 39, the Na90 entry in the practical orthography
@@ -4850,7 +4850,7 @@ line 1176	Hank Nater	translation	bridge	page 46, the Na90 gloss
 line 1176	Bella Coola	transcription	scixalt	page 46, the phonemic notation
 line 1177	Hank Nater	note	1177	page 46, the line's number
 line 1177	Bella Coola	transcription	STSLI	page 46, the Na90 entry in the practical orthography
-line 1177	Hank Nater	translation	keep caught fish alive on a line	page 46, the Na90 gloss
+line 1177	Hank Nater	translation	retain caught fish alive on a line	page 46, the Na90 gloss
 line 1177	Bella Coola	transcription	scli	page 46, the phonemic notation
 line 1178	Hank Nater	note	1178	page 46, the line's number
 line 1178	Bella Coola	transcription	STSLTSLI	page 46, the Na90 entry in the practical orthography

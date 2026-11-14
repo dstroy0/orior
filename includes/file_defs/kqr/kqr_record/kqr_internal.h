@@ -19,7 +19,7 @@
 // seven numbers, then the answer
 #define KQR_QUERY_WORDS 8u
 
-// the most letters of a line of the text form read
+// the max characters of a line of the text form read
 #define KQR_LINE (1u << 20u)
 
 int kqr_number_read(const char *text, size_t length, int base, unsigned long long *value);

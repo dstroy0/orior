@@ -18,7 +18,7 @@ extern "C"
 {
 #endif
 
-// the most letters of a type, of a run's name, of a reason and of a row
+// the max characters of a type, of a run's name, of a reason and of a row
 #define KRF_TYPE 16u
 #define KRF_QUERY 64u
 #define KRF_REASON 32u
@@ -40,7 +40,7 @@ extern "C"
     // is no such file; 0 where there was no memory for a line
     int krf_read(KrfFile *file, const char *path);
 
-    // `file` handed to the run's writer as the file at `path`, written by `who` (kfile_lines_write_by): 1, or 0 where it
+    // `file` passed to the run's writer as the file at `path`, written by `who` (kfile_lines_write_by): 1, or 0 where it
     // could not be written
     int krf_write_by(const KrfFile *file, const char *path, Who who);
 
@@ -62,7 +62,7 @@ extern "C"
 
     // `rows`, `count` of them, each let go from a k-file of type `type` for `reason` by this run, stored in the .krf at
     // `path` as the run stores it: the file started with `krf <part>` where there is none, the part the path's own
-    // name; the rows put after its last line under a who line of `who` (kfile_lines_put_by); and the file handed to
+    // name; the rows put after its last line under a who line of `who` (kfile_lines_put_by); and the file passed to
     // the run's writer (kfile_lines_write_by). 1, or 0 where it could not be written
     int krf_removed_by(const char *path, const char *type, const char *reason, const char *const *rows,
                        unsigned int count, Who who);

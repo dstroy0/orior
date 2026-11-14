@@ -10,7 +10,7 @@
 // the line written to the terminal
 static char s_line[1u << 16u];
 
-// What git's progress has written on the terminal's line: the letters of the line shown last, and whether git wrote
+// What git's progress has written on the terminal's line: the characters of the line displayed last, and whether git wrote
 typedef struct
 {
     unsigned long long displayed;
@@ -23,7 +23,7 @@ static void files_clone_line(const CliEachLineEndedCfg *args)
     CliCloneDisplayed *const displayed = args->context;
     displayed->wrote = 1;
     const unsigned long long width =
-        EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = args->line,
+        EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = args->line,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->line, .cap = CLI_POOL_BYTES}));
     VerbaLinea over = {s_line, sizeof(s_line), 0ULL};
     mmgr_line_ch(&over, '\r');

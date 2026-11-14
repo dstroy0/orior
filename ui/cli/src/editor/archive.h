@@ -12,7 +12,7 @@
 // with it, for the window to read in an encoding the reader chooses. Deflate, CRC-32, zip, tar and gzip are read and
 // written here, with nothing from outside.
 //
-// A query run's .qry opens as a folder of its blobs, each name's blobs joined in the order handed into one file, a
+// A query run's .qry opens as a folder of its blobs, each name's blobs joined in the order passed into one file, a
 // name with slashes in folders of its own, as a run names a file it read by its path. A run's .qry is the record of
 // what the run did and is never written back
 #ifndef ARCHIVE_H
@@ -40,8 +40,8 @@ enum
     CLI_ARCHIVE_NONE
 };
 
-// the most bytes a capacity of the archives a path runs through is given; the most members of one archive; the most
-// bytes of their names; and the most children a folder within one lists
+// the max bytes a capacity of the archives a path runs through is given; the max members of one archive; the max
+// bytes of their names; and the max children a folder within one lists
 #define CLI_ARCHIVE_MAX (1ull << 28u)
 
 #define CLI_ARCHIVE_MEMBERS 16384u

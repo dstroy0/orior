@@ -83,7 +83,7 @@ def entanglement_magnitude(machine, qubit):
 def release(machine, qubit):
     """Z measurement: the qubit snaps and leaves, and its entanglement is destroyed.
 
-    Deletes every edge on the qubit, alone. The neighbors keep whatever they had with
+    Deletes every edge on the qubit, alone. The neighbors retain whatever they had with
     each other and inherit nothing.
     """
     machine.edges[qubit, :] = 0
@@ -124,16 +124,16 @@ SPLIT_CAP = 400                  # above this the balanced cuts are sampled, not
 def balanced_splits(qubits, cap=SPLIT_CAP, seed=0):
     """Balanced bipartitions: every one of them when that is cheap, a fixed sample when it is not.
 
-    Qubit 0 is pinned to the kept side. A split and its complement have the same off diagonal block
+    Qubit 0 is pinned to the retained side. A split and its complement have the same off diagonal block
     up to transpose and therefore the same GF(2) rank. Counting both would double every figure
     and change nothing.
 
-    THE CAP KEEPS A LARGE PROBE FROM HANGING THE MACHINE. The full count is C(n-1, n/2-1), which
+    THE CAP RETAINS A LARGE PROBE FROM HANGING THE MACHINE. The full count is C(n-1, n/2-1), which
     is 35 splits at 8 qubits, 462 at 12, 6435 at 16 and 1352078 at 24. Each one costs a GF(2)
     elimination, and twist_profile calls this n+1 times. A 24 qubit probe is tens of millions of
     eliminations.
 
-    Sampling with a FIXED seed keeps the figure reproducible, the only property that
+    Sampling with a FIXED seed retains the figure reproducible, the only property that
     matters for comparing shapes against each other. The caller is told which mode ran, because a
     sampled mean reported as a full one is a different number wearing the same name.
     """
@@ -170,10 +170,10 @@ def total_entanglement(machine):
     if not splits:
         return 0.0
     total = 0
-    for keep in splits:
-        order = list(keep) + [one for one in range(machine.qubits) if one not in keep]
+    for retain in splits:
+        order = list(retain) + [one for one in range(machine.qubits) if one not in retain]
         block = machine.edges[numpy.ix_(order, order)]
-        cut = len(keep)
+        cut = len(retain)
         total += int(graph_machine.gf2_rank(block[:cut, cut:].copy() % 2))
     return total / float(len(splits))
 
@@ -194,7 +194,7 @@ def lc_orbit(machine, cap=20000):
 
     Two states in one orbit are the same state up to local Clifford operations. The orbit is the
     equivalence class and its size is how much of the description is convention and not content.
-    That is the "relabeling is free, computing costs" result this tree keeps finding, in a
+    That is the "relabeling is free, computing costs" result this tree retains finding, in a
     form that can be counted.
 
     Breadth first over local complementation at every vertex. `cap` stops the enumeration and does
@@ -253,7 +253,7 @@ def twist_profile(machine):
     vertex, at any size.
 
     That is not a dead measure to be replaced. It is an exact null, in the same family as the other
-    exact nulls here, and it says the thing this tree keeps finding from new directions:
+    exact nulls here, and it says the thing this tree retains finding from new directions:
     RELABELING IS FREE. A twist moves the description and not the content.
 
     THE TENSION RESPONSE IS NOT ZERO. The edge count is not a local Clifford invariant. Twisting
@@ -277,7 +277,7 @@ def twist_profile(machine):
 def twist_moment(machine):
     """Second moment of the ENTANGLEMENT response. Exactly 0 for every graph, by LC invariance.
 
-    Kept as a function and not deleted because it is the exact null, and a control that is
+    Retained as a function and not deleted because it is the exact null, and a control that is
     computed is worth more than one that is remembered.
     """
     moved, _ = twist_profile(machine)
@@ -317,10 +317,10 @@ def relax(machine, driven=True, seed=0):
 
     THIS ADDS DISSIPATION TO THE MODEL. Local complementation and measurement are both
     unitary-or-projective and closed: nothing in them leaks, and nothing relaxes. Without this the
-    model cannot express dissipation at all, and dissipation cannot stand as an explanation for a
+    model cannot express dissipation at all, and dissipation cannot are as an explanation for a
     table whose real cause is neighborhood parity.
 
-    `driven` picks the qubit under the most neighbor pressure at every step, recomputed each time
+    `driven` picks the qubit under the max neighbor pressure at every step, recomputed each time
     because releasing one qubit changes the pressure on the rest. `driven=False` picks in a fixed
     random order and is the MATCHED CONTROL: same number of releases, same endpoint, no pressure.
 
@@ -578,7 +578,7 @@ def _relax(qubits=10):
     """Dissipation: pressure-driven relaxation against a matched random-order control."""
     print("")
     print("  %d qubits. Qubits are released one at a time until nothing is bound." % qubits)
-    print("  DRIVEN takes the qubit under the most neighbor pressure, recomputed every step.")
+    print("  DRIVEN takes the qubit under the max neighbor pressure, recomputed every step.")
     print("  RANDOM takes a fixed random order: same count of releases, same endpoint, no pressure.")
     print("  If the two curves agree, neighbor pressure is doing nothing and the honest word is")
     print("  decay and not dissipation.")
@@ -610,7 +610,7 @@ def _relax(qubits=10):
             continue
 
         driven = relax(machine, driven=True)
-        # TWENTY SEEDS, NOT FIVE, AND THE RANGE IS KEPT. A mean alone cannot say whether a gap is
+        # TWENTY SEEDS, NOT FIVE, AND THE RANGE IS RETAINED. A mean alone cannot say whether a gap is
         # real: gaps of 0.0457 and -0.0200 against rates near 0.3 say nothing about pressure
         # without the seed to seed variation beside them.
         # The spread of the random orders IS the null here, and it is drawn and not assumed.
@@ -702,9 +702,9 @@ def _check():
     for shape in ("star", "line", "ring", "complete"):
         for qubits in (4, 6, 8):
             machine = shaped(qubits, shape)
-            keep = qubits // 2
-            from_bits = machine.entropy_across(keep)
-            from_state = graph_machine.entropy_from_state(machine.amplitudes(), keep, qubits)
+            retain = qubits // 2
+            from_bits = machine.entropy_across(retain)
+            from_state = graph_machine.entropy_from_state(machine.amplitudes(), retain, qubits)
             if abs(from_bits - from_state) > 1e-9:
                 print("    FAIL %s %d: bits say %d, state vector says %s"
                       % (shape, qubits, from_bits, from_state))
@@ -719,9 +719,9 @@ def _check():
         for operation in (release, switch):
             machine = shaped(8, shape)
             operation(machine, 0)
-            keep = 4
-            from_bits = machine.entropy_across(keep)
-            from_state = graph_machine.entropy_from_state(machine.amplitudes(), keep, 8)
+            retain = 4
+            from_bits = machine.entropy_across(retain)
+            from_state = graph_machine.entropy_from_state(machine.amplitudes(), retain, 8)
             if abs(from_bits - from_state) > 1e-9:
                 print("    FAIL after %s on %s: bits %d, state %s"
                       % (operation.__name__, shape, from_bits, from_state))
@@ -867,7 +867,7 @@ def _check():
         failed += 1
 
     # AND THE POSITIVE CONTROL ON PRESSURE. In a star the center carries every edge. It is under
-    # the most neighbor pressure and driven relaxation must take it first and finish in one step.
+    # the max neighbor pressure and driven relaxation must take it first and finish in one step.
     # If it takes more, pressure() is not ranking what it claims to.
     star = shaped(10, "star")
     curve = relax(star, driven=True)

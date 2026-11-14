@@ -9,7 +9,7 @@ extern void setUp(void);
 extern void tearDown(void);
 extern void test_floor_and_ceiling_cut_at_whole_values(void);
 extern void test_round_takes_a_half_away_from_zero(void);
-extern void test_absolute_value_least_most_and_remainder(void);
+extern void test_absolute_value_least_max_and_remainder(void);
 extern void test_root_squares_back_to_its_value(void);
 extern void test_sine_and_cosine_at_the_axes_and_their_identity(void);
 extern void test_exponential_and_logarithm_invert_each_other(void);
@@ -78,7 +78,7 @@ int main(void)
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\arith\\test_arith\\test_arith.c");
   run_test(test_floor_and_ceiling_cut_at_whole_values, "test_floor_and_ceiling_cut_at_whole_values", 18);
   run_test(test_round_takes_a_half_away_from_zero, "test_round_takes_a_half_away_from_zero", 36);
-  run_test(test_absolute_value_least_most_and_remainder, "test_absolute_value_least_most_and_remainder", 49);
+  run_test(test_absolute_value_least_max_and_remainder, "test_absolute_value_least_max_and_remainder", 49);
   run_test(test_root_squares_back_to_its_value, "test_root_squares_back_to_its_value", 63);
   run_test(test_sine_and_cosine_at_the_axes_and_their_identity, "test_sine_and_cosine_at_the_axes_and_their_identity", 76);
   run_test(test_exponential_and_logarithm_invert_each_other, "test_exponential_and_logarithm_invert_each_other", 100);

@@ -532,7 +532,7 @@ def edge_rule_cases():
     gt, _ = build(line, [("A", "B"), ("B", "C")])
     pred, _ = build(line, [("A", "B"), ("A", "B"), ("B", "C")])
     score = jaccard_of(pred, gt, 1.0)
-    TALLY.true("test_duplicate_edges_cannot_inflate_score: at most 1", score <= 1.0)
+    TALLY.true("test_duplicate_edges_cannot_inflate_score: at max 1", score <= 1.0)
     TALLY.near("test_duplicate_edges_cannot_inflate_score", score, 1.0)
 
     pair = {"A": ORIGIN, "B": xyz(1, 0.0, 0.0, 0.0)}
@@ -634,15 +634,15 @@ def without(graph, nodes=(), edges=()):
     # graph less the nodes and edges named, and less the edges of the nodes named, the rest in their order
     nodes = set(nodes)
     edges = set(edges)
-    kept = score_metric.Graph()
+    retained = score_metric.Graph()
     index = {}
     for node, time in enumerate(graph.times):
         if node not in nodes:
-            index[node] = kept.add_node(time, *graph.places[node])
+            index[node] = retained.add_node(time, *graph.places[node])
     for edge, (source, target) in enumerate(zip(graph.sources, graph.targets)):
         if (edge not in edges) and (source in index) and (target in index):
-            kept.add_edge(index[source], index[target])
-    return kept.join()
+            retained.add_edge(index[source], index[target])
+    return retained.join()
 
 
 def geff_cases():

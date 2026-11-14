@@ -1,7 +1,7 @@
 """Examples the page sets a word over its gloss, one to a line, read off the page again.
 
 A paper that stacks each word of an example on its gloss, tsut over tsut and re=núxwenxw over
-DET=woman, reaches the text layer as one line a word and one a gloss. The engine keeps some of
+DET=woman, reaches the text layer as one line a word and one a gloss. The engine retains some of
 those examples and runs others into the prose after them, in Oliver the words of (2) and its
 translation in the note that opens the next paragraph. The pairs op names the examples to read
 again, and each is rebuilt from the page:
@@ -14,7 +14,7 @@ again, and each is rebuilt from the page:
   b. ...                           the next sub-example, (Nb)
 
 The engine's rows for the example go, and so does the example text it left in a note: the note
-keeps only the prose after the translation, and the cited forms the engine took from the leaked
+retains only the prose after the translation, and the cited forms the engine took from the leaked
 words between the example and that note go with it.
 """
 import os
@@ -25,7 +25,7 @@ import residue
 HERE = os.path.dirname(os.path.abspath(__file__))
 from workdir import PRIVATE  # noqa: E402
 HEAD = re.compile(r"^\((\d{1,3})\)\s+(\S.*)$")
-LETTER = re.compile(r"^([a-h])\.\s+(\S.*)$")
+CHARACTER = re.compile(r"^([a-h])\.\s+(\S.*)$")
 # A translation can carry a judgment before its quote, # ‘I got stolen.’, or name the reading it
 # is, Target: ‘Meat is cooked in this pot.’
 TRANSLATION = re.compile(r"^(?:(?:Intended|Target|Actual):\s*)?(?:[*#?]{1,2}\s*)?[‘“]")
@@ -33,26 +33,26 @@ TRANSLATION = re.compile(r"^(?:(?:Intended|Target|Actual):\s*)?(?:[*#?]{1,2}\s*)
 # source, (sf, vt | RI | 11.21.2023) and (Kuipers 1974:86).
 PUBLISHED = (r"[A-Z][A-Za-z’'-]+(?: (?:and|&) [A-Z][A-Za-z’'-]+)?(?: et al\.)?"
              r" \((?:\d{4}[a-z]?(?::[\d–-]+)?|unpublished|in prep\.)\)")
-# A category in brackets and a cross-reference can stand before the tag, [noun] (sf | EP.2023/02/11)
+# A category in brackets and a cross-reference can are before the tag, [noun] (sf | EP.2023/02/11)
 # and (cf. (14)) (sf | EP.2022/10/29), and go with it. A category alone, [verb], is a tag too; a
 # remark in brackets, [indicating their instruments], stays in the translation.
 SOURCE = re.compile(r"^(.*?[’”.?!])\s*(%s|(?:(?:\[[^\[\]]*\]|\((?:[^()]|\([^()]*\))*\))\s*)*"
                     r"(?:\([^()]*\)|\[[^\[\]\s]*\]))\s*$" % PUBLISHED)
-# What stands after a translation on lines of its own: a comment, a bracketed tag or remark, or a
+# What is after a translation on lines of its own: a comment, a bracketed tag or remark, or a
 # published source, Kuipers (1974:104) under (27).
 AFTER = re.compile(r"^(?:Consultant|Comment|\(|%s$)" % PUBLISHED)
 # Roots set against each other, √səq vs. √səq̓, where the text layer can close the space before vs.
 VERSUS = re.compile(r"\s*vs\.\s+")
 # A list of roots can run past h., (16i) √zənp̓.
-ROOT_LETTER = re.compile(r"^([a-l])\.\s+(\S.*)$")
-# The kinds the engine gives the candidates it takes from an example's words.
+ROOT_CHARACTER = re.compile(r"^([a-l])\.\s+(\S.*)$")
+# The types the engine gives the candidates it takes from an example's words.
 CANDIDATES = ("cited form", "root", "cited affix")
 # A conversation opens each turn on its speaker's initials, (1) KBG: xwúy̓ nke ʔiƛ̓ʔiƛ̓tis.
 TURN = re.compile(r"^[A-Z]{2,3}:\s")
 
 
 def page_lines(stem):
-    """Each page line repaired as every tool here repairs it, with the page it stands on."""
+    """Each page line repaired as every tool here repairs it, with the page it is on."""
     repair = residue.paper_repair(stem)
     with open(os.path.join(PRIVATE, "pagetext", stem + ".txt"), encoding="utf-8") as handle:
         raw = handle.read().split("\n")
@@ -84,7 +84,7 @@ def source_who(source):
 def head_at(lines, number):
     """The page line opening example number, passing over prose that opens on a reference to it,
     (2) to (6), which differ minimally, or (17) refers to a Co-initiator."""
-    # A picture's number can stand alone on its line, (20).
+    # A picture's number can are alone on its line, (20).
     return next((at for at, (page, text) in enumerate(lines)
                  if (HEAD.match(text) and HEAD.match(text).group(1) == str(number)
                      and not re.match(r"^(?:to|and|or|through|refers|shows|illustrates|is|are)\b",
@@ -104,7 +104,7 @@ def blocks(lines, number, start=None, stacked=False, tiers=False):
     out = []
     label = "(%s)" % number
     rest = HEAD.match(lines[start][1]).group(2)
-    lettered = LETTER.match(rest)
+    lettered = CHARACTER.match(rest)
     if lettered:
         label, rest = "(%s%s)" % (number, lettered.group(1)), lettered.group(2)
     current = [label, lines[start][0], [rest], {}]
@@ -131,13 +131,13 @@ def blocks(lines, number, start=None, stacked=False, tiers=False):
         # after Sardinha's (7) is a display of forms and meanings.
         closed = (stacked or tiers) and stage in ("translation", "after") and re.search(r"[’”)\]]\d?$", current[2][-1])
         if closed and (re.match(r"^\d{1,2} \S" if tiers else r"^\d{1,2} [-A-Z]", text) or
-                       (tiers and not LETTER.match(text) and not AFTER.match(text) and goes_on(at))):
+                       (tiers and not CHARACTER.match(text) and not AFTER.match(text) and goes_on(at))):
             footnote_page = page
             continue
         if footnote_page == page:
             continue
-        lettered = LETTER.match(text)
-        # A list can run past h., (73i) to (73k), each letter after the one before it.
+        lettered = CHARACTER.match(text)
+        # A list can run past h., (73i) to (73k), each character after the one before it.
         later = re.match(r"^([i-z])\.\s+(\S.*)$", text)
         if later and current[0][-2:-1] == chr(ord(later.group(1)) - 1):
             lettered = later
@@ -177,7 +177,7 @@ def blocks(lines, number, start=None, stacked=False, tiers=False):
             stage = "translation"
         elif stage == "translation" and not re.search(r"[’”)]\d?$", current[2][-1]):
             # A word the line end broke, com- ing, is one word again.
-            # The engine's note keeps the break, and the text as set is kept to find it by.
+            # The engine's note retains the break, and the text as set is retained to find it by.
             current[3][len(current[2]) - 1] = current[3].get(len(current[2]) - 1, current[2][-1]) + " " + text
             if re.search(r"[a-z]-$", current[2][-1]) and text[:1].islower():
                 current[2][-1] = current[2][-1][:-1] + text
@@ -209,7 +209,7 @@ def blocks(lines, number, start=None, stacked=False, tiers=False):
                     stage = "head"
                     continue
                 # A context over the first sub-example, (60) Context: ... then a. * iʔ siwɬkʷ, opens it.
-                lettered = LETTER.match(text)
+                lettered = CHARACTER.match(text)
                 if lettered and current[0] == "(%s)" % number:
                     current[0], text = "(%s%s)" % (number, lettered.group(1)), lettered.group(2)
                 # A context the pairs follow straight on, with no sentence of its own, (43).
@@ -245,10 +245,10 @@ def rows_of(label, page, lines, context, stacked=False):
     out = []
     at = 0
 
-    def row(who, kind, form, gloss="page %d, pairs" % page, same=False):
+    def row(who, type, form, gloss="page %d, pairs" % page, same=False):
         nonlocal at
         at += 0 if same else 1
-        out.append(["%s line %d" % (label, at), who, kind, form, gloss])
+        out.append(["%s line %d" % (label, at), who, type, form, gloss])
 
     rest = list(lines)
     if rest[0].startswith("Context:") and len(rest) < 2:
@@ -270,7 +270,7 @@ def rows_of(label, page, lines, context, stacked=False):
     elif sentence:
         row(language, "transcription", sentence)
     # A long turn wraps, its sentence, segmentation and gloss set again under the first three, and a
-    # stacked example sets every word so. The stop that ends the sentence can stand on a line of its
+    # stacked example sets every word so. The stop that ends the sentence can are on a line of its
     # own under the last word's gloss, ʔət χaƛ̓ / ʔətᶿ=x̌aƛ̓ / 1sg.poss=desire / . in (37) of
     # Huijsmans: it closes that word.
     if stacked and len(pairs) % 3 == 0 and len(pairs) > 3 and pairs[-1] in (".", "?", "!"):
@@ -336,7 +336,7 @@ def apply(out, context, example_of):
     for spec, guarded, stacked in named:
         built, words, ends = [], set(), []
         # N:K is the Kth (N) where the paper printed the number twice.
-        number, start, kept_pages = nth_head(lines, spec)
+        number, start, retained_pages = nth_head(lines, spec)
         found = blocks(lines, number, start, stacked, getattr(context, "TIERS", False))
         # An example set some other way, a formula over the prose after it, is left as the engine
         # read it: a pair line holding a sentence, or a word with no gloss under it.
@@ -357,8 +357,8 @@ def apply(out, context, example_of):
         # only its rows on the example's pages, and the page after where it runs on, give way, short
         # of the page the number is printed again on.
         pages = (min(one[1] for one in found), max(one[1] for one in found) + 1)
-        if kept_pages:
-            pages = (pages[0], min(pages[1], kept_pages[1]))
+        if retained_pages:
+            pages = (pages[0], min(pages[1], retained_pages[1]))
         replace(out, number, built, words, ends, example_of, pages=pages)
 
 
@@ -366,7 +366,7 @@ def english(out, context, example_of):
     """Rebuild in out, in place, each English example the english op names, one row a sentence.
 
     (4) a. Hazel likes a boy. b. Hazel likes snow. is an English (4a) and (4b), a label at the right,
-    [MASS], kept in the gloss, and a caption before the first letter, (1) Count nouns:, a note.
+    [MASS], retained in the gloss, and a caption before the first character, (1) Count nouns:, a note.
     """
     numbers = getattr(context, "ENGLISH", ())
     if not numbers:
@@ -386,31 +386,31 @@ def english(out, context, example_of):
             if len(taken) > 1 and re.match(r"^\d{1,2} \S", text):
                 footnote_page = other
                 continue
-            # A caption can run over lines before the first letter, (7) Context: ... A asks:.
-            lettered = any(LETTER.match(one) for one in taken[1:]) or \
+            # A caption can run over lines before the first character, (7) Context: ... A asks:.
+            lettered = any(CHARACTER.match(one) for one in taken[1:]) or \
                 re.search(r"(?:^|\s)[a-h]\.\s", HEAD.match(taken[0]).group(2))
             # A sentence closed on its line, (1) Mt. Everest is taller than Mt. Fuji., is the example.
-            if not LETTER.match(text) and (lettered or len(taken) > 3 or re.search(r"[.?!’”)]$", taken[-1])):
+            if not CHARACTER.match(text) and (lettered or len(taken) > 3 or re.search(r"[.?!’”)]$", taken[-1])):
                 break
             taken.append(text)
         joined = " ".join(taken)
         parts = re.split(r"(?:^|\s)([a-h])\.\s+", HEAD.match(joined).group(2))
         built = []
         if parts[0].strip() and len(parts) == 1:
-            # An example of one English sentence and no letters, (1) Mt. Everest is taller than Mt. Fuji.
+            # An example of one English sentence and no characters, (1) Mt. Everest is taller than Mt. Fuji.
             built.append(["(%s) line 1" % number, "English", "transcription", parts[0].strip(),
                           "page %d, English" % page])
         elif parts[0].strip():
             built.append(["(%s) line 1" % number, context.AUTHORS, "note", parts[0].strip(),
                           "page %d, the caption" % page])
-        for letter, item in zip(parts[1::2], parts[2::2]):
+        for character, item in zip(parts[1::2], parts[2::2]):
             # A label at the right, [MASS], or set apart in lower case after the sentence,
             # Somebody ate the last piece of cake. indefinite Initiator.
             labelled = re.match(r"^(.*?)\s*(\[[A-Z]+\])$", item.strip()) or \
                 re.match(r"^(.*?[.!?])\s+([a-z][A-Za-z -]*)$", item.strip())
             said, label = (labelled.group(1), labelled.group(2)) if labelled else (item.strip(), "")
             said = re.sub(r"([.!?])\d{1,2}$", r"\1", said)
-            built.append(["(%s%s) line 1" % (number, letter), "English", "transcription", said,
+            built.append(["(%s%s) line 1" % (number, character), "English", "transcription", said,
                           "page %d, English%s" % (page, ", " + label if label else "")])
         words = set(joined.split()) | {"(%s)" % number}
         replace(out, number, built, words, [(taken[-1], taken[-1])], example_of,
@@ -420,10 +420,10 @@ def english(out, context, example_of):
 def columns(out, context, example_of):
     """Rebuild in out, in place, each example the columns op names, its sub-examples side by side.
 
-    (1) a. SȻOTI  b. TI,TOS  c. SḴÁLEX sets the letters across one line and each tier under them in
+    (1) a. SȻOTI  b. TI,TOS  c. SḴÁLEX sets the characters across one line and each tier under them in
     the same columns, skʷá.ti  tiʔ.tás  sqé.ləx̌ and then ‘crazy, insane’  ‘bucking tide’. A tier
-    parts at its runs of two spaces or more, or at each space where that gives a cell a letter, and
-    a translation tier at each opening quote. The op names the kinds of the tiers above the
+    parts at its runs of two spaces or more, or at each space where that gives a cell a character, and
+    a translation tier at each opening quote. The op names the types of the tiers above the
     translation, in order, and a source on a line of its own after the last group, (Montler 2018),
     is whose each translation is. A group with an empty cell is a picture and stops the example.
     """
@@ -434,8 +434,8 @@ def columns(out, context, example_of):
     repair = residue.paper_repair(context.STEM)
     with open(os.path.join(PRIVATE, "pagetext", context.STEM + ".txt"), encoding="utf-8") as handle:
         raw = [repair(one).strip() for one in handle.read().split("\n")]
-    letters = re.compile(r"(?:^|\s)(\*?[a-h])\.(?:\s+|$)")
-    for kinds, spec in named:
+    characters = re.compile(r"(?:^|\s)(\*?[a-h])\.(?:\s+|$)")
+    for types, spec in named:
         number, start, pages = nth_head(lines, spec)
         page = lines[start][0]
         caption = HEAD.match(lines[start][1]).group(2)
@@ -443,7 +443,7 @@ def columns(out, context, example_of):
         groups, group = [], None
         texts = [(lines[start][0], caption, caption)] + \
             [(page_of, text, raw[at]) for at, (page_of, text) in enumerate(lines) if at > start]
-        if not letters.match(caption):
+        if not characters.match(caption):
             if caption.strip():
                 built.append(["(%s) line 1" % number, context.AUTHORS, "note", caption,
                               "page %d, the caption" % page])
@@ -464,10 +464,10 @@ def columns(out, context, example_of):
                     groups.append(group)
                     group = None
                 continue
-            if letters.match(text):
+            if characters.match(text):
                 if group:
                     groups.append(group)
-                parts = letters.split(text)
+                parts = characters.split(text)
                 labels, cells = parts[1::2], [one.strip() for one in parts[2::2]]
                 # A row of a set whose columns are numbered, (8) a. i. SḴÁLEX ii. SPÁ,W̱EṈ, is (8a.i)
                 # and (8a.ii).
@@ -475,7 +475,7 @@ def columns(out, context, example_of):
                     romans = re.split(r"(?:^|\s)([ivx]+)\.\s+", cells[0])
                     labels = ["%s.%s" % (labels[0], one) for one in romans[1::2]]
                     cells = [one.strip() for one in romans[2::2]]
-                group = {"page": page_of, "letters": labels, "tiers": [cells]}
+                group = {"page": page_of, "characters": labels, "tiers": [cells]}
                 taken.append(text)
                 continue
             if re.match(r"^\([A-Z][^()]*\d{4}[a-z]?(?::[\d–-]+)?\)$", text) and (groups or group):
@@ -484,7 +484,7 @@ def columns(out, context, example_of):
                 break
             if not group:
                 break
-            count = len(group["letters"])
+            count = len(group["characters"])
             if TRANSLATION.match(text):
                 # A source at the right of the last translation, ‘skin’ (Leonard 2007), closes the
                 # example.
@@ -498,7 +498,7 @@ def columns(out, context, example_of):
                 if len(cells) != count:
                     cells = text.split()
             if len(cells) != count:
-                print("columns: (%s) a tier of %d cells under %d letters: %s" % (number, len(cells), count, text))
+                print("columns: (%s) a tier of %d cells under %d characters: %s" % (number, len(cells), count, text))
                 groups.append(group)
                 group = None
                 break
@@ -511,8 +511,8 @@ def columns(out, context, example_of):
             if any(not cell for cell in group["tiers"][0]):
                 print("columns: (%s) a group with an empty cell, a picture, stops the example" % number)
                 break
-            for column, letter in enumerate(group["letters"]):
-                label = "(%s%s)" % (number, letter.lstrip("*"))
+            for column, character in enumerate(group["characters"]):
+                label = "(%s%s)" % (number, character.lstrip("*"))
                 at, form_tier = 0, 0
                 for tier in group["tiers"]:
                     cell = tier[column]
@@ -521,10 +521,10 @@ def columns(out, context, example_of):
                         built.append(["%s line %d" % (label, at), cited or context.AUTHORS, "translation", cell,
                                       "page %d, columns%s" % (group["page"], ", cited " + cited if cited else "")])
                         continue
-                    kind = kinds[min(form_tier, len(kinds) - 1)]
+                    type = types[min(form_tier, len(types) - 1)]
                     form_tier += 1
-                    built.append(["%s line %d" % (label, at), context.LANG, kind,
-                                  ("*" if letter.startswith("*") and form_tier == 1 else "") + cell,
+                    built.append(["%s line %d" % (label, at), context.LANG, type,
+                                  ("*" if character.startswith("*") and form_tier == 1 else "") + cell,
                                   "page %d, columns" % group["page"]])
         if source and built:
             last = re.match(r"^(\(\S+\)) line (\d+)$", built[-1][0])
@@ -536,9 +536,9 @@ def columns(out, context, example_of):
 
 
 def nth_head(lines, spec):
-    """The number, the page line opening it and the pages it may stand on, for a spec of N or N:K,
+    """The number, the page line opening it and the pages it may are on, for a spec of N or N:K,
     the Kth example the page numbers (N) where the paper printed a number twice. A spec of N:K
-    keeps the rebuild to the pages from that head up to the page before the next (N)."""
+    retains the rebuild to the pages from that head up to the page before the next (N)."""
     number, _, nth = spec.partition(":")
     start = head_at(lines, number)
     if start is None:
@@ -558,7 +558,7 @@ def display(out, context, example_of):
     """Rebuild in out, in place, each example the display op names, a line or two set apart.
 
     An OT ranking, (11) WSP >> TROCHEE, a constraint defined, (9) WEIGHT-TO-STRESS (WSP): Assign
-    one violation ..., or a picture with no text layer and at most a caption, (17) HDA foot
+    one violation ..., or a picture with no text layer and at max a caption, (17) HDA foot
     structures in SENĆOŦEN. The engine reads the prose after one of these as the example's
     lines. That prose goes back to the paragraph it opens: into the note after the example where
     that note goes on in lower case, or a note of its own in the section before. A spec of N+K
@@ -569,7 +569,7 @@ def display(out, context, example_of):
     if not named:
         return
     lines = page_lines(context.STEM)
-    for kind, spec in named:
+    for type, spec in named:
         spec, _, taken = spec.partition("+")
         number, start, pages = nth_head(lines, spec)
         page = lines[start][0]
@@ -583,14 +583,14 @@ def display(out, context, example_of):
             if taken or not text or text.isdigit() or HEAD.match(text):
                 break
             # A lettered line, or a ranking under a ranking, (65) one language's ranking a line.
-            if LETTER.match(text) or (kind != "picture" and ">>" in parts[-1] and ">>" in text):
+            if CHARACTER.match(text) or (type != "picture" and ">>" in parts[-1] and ">>" in text):
                 parts.append(text)
-            elif kind != "picture" and ":" in parts[-1] and not parts[-1].endswith("."):
+            elif type != "picture" and ":" in parts[-1] and not parts[-1].endswith("."):
                 parts[-1] += " " + text
             else:
                 break
         built = []
-        if kind == "picture":
+        if type == "picture":
             said = re.sub(r"(?:^|\s)\*?[a-h]\.(?=\s|$)", " ", " ".join(parts)).strip()
             built.append(["(%s)" % number, context.AUTHORS, "note", said or "(%s)" % number,
                           "page %d, %s" % (page, "the caption of a picture with no text layer" if said
@@ -598,24 +598,24 @@ def display(out, context, example_of):
         else:
             counts = {}
             for text in parts:
-                lettered = LETTER.match(text)
+                lettered = CHARACTER.match(text)
                 label = "(%s%s)" % (number, lettered.group(1)) if lettered else "(%s)" % number
                 counts[label] = counts.get(label, 0) + 1
-                built.append(["%s line %d" % (label, counts[label]), context.AUTHORS, kind,
+                built.append(["%s line %d" % (label, counts[label]), context.AUTHORS, type,
                               lettered.group(2) if lettered else text, "page %d, the display" % page])
-        shown = [" ".join(one.split()) for one in parts]
+        displayed = [" ".join(one.split()) for one in parts]
         own = [at for at, one in enumerate(out) if re.match(r"^\(%s[a-z]?\)$" % number, example_of(one[0]))
                and in_pages(one, pages)]
         if not own:
             # The engine ran the display into a note, (10) TROCHEE: ... inside the prose after (9):
-            # the note keeps what stands before it, and what stands after it is a note of its own.
-            opening = "(%s) %s" % (number, shown[0]) if shown[0] else "(%s)" % number
+            # the note retains what is before it, and what is after it is a note of its own.
+            opening = "(%s) %s" % (number, displayed[0]) if displayed[0] else "(%s)" % number
             held = next((at for at, one in enumerate(out) if one[2] == "note" and not example_of(one[0])
                          and opening in " ".join(one[3].split()) and in_pages(one, pages)), None)
-            if held is None and kind == "picture":
-                # A picture the engine dropped whole stands before the note of the prose after it.
+            if held is None and type == "picture":
+                # A picture the engine dropped whole is before the note of the prose after it.
                 following = next((text for other, text in lines[start + 1:]
-                                  if text and not text.isdigit() and not LETTER.match(text)
+                                  if text and not text.isdigit() and not CHARACTER.match(text)
                                   and not re.fullmatch(r"(?:[a-h]\.\s*)+", text)), "")
                 at = next((at for at, one in enumerate(out) if one[2] == "note"
                            and following and one[3].startswith(following[:30])), None)
@@ -626,7 +626,7 @@ def display(out, context, example_of):
             if held is None:
                 raise SystemExit("display: (%s) is in no row and no note" % number)
             before, _, rest = " ".join(out[held][3].split()).partition(opening)
-            rest = strip_shown(rest, shown[1:])
+            rest = strip_displayed(rest, displayed[1:])
             tail = [[out[held][0], out[held][1], "note", rest, out[held][4]]] if rest else []
             out[held + 1:held + 1] = built + tail
             if before.strip():
@@ -636,7 +636,7 @@ def display(out, context, example_of):
             continue
         prose = []
         for at in own:
-            said = strip_shown(" ".join(out[at][3].split()), shown)
+            said = strip_displayed(" ".join(out[at][3].split()), displayed)
             if said and said not in ("(%s)" % number,) and not re.fullmatch(r"(?:[a-h]\.\s*)+", said):
                 prose.append([out[at][0], out[at][1], out[at][2], said, out[at][4]])
         give_back(out, own, prose, built, page, context, example_of)
@@ -652,7 +652,7 @@ def give_back(out, own, prose, built, page, context, example_of):
         return
     said = " ".join(one[3] for one in prose)
     after = own[-1] + 1
-    # The candidates the engine took from the paragraph stand between it and its rest.
+    # The candidates the engine took from the paragraph are between it and its rest.
     while after < len(out) and out[after][2] in ("cited form", "cited affix", "language", "name", "notation") \
             and not example_of(out[after][0]):
         after += 1
@@ -669,8 +669,8 @@ def table(out, context, example_of):
     """Rebuild in out, in place, each example the table op names, a caption, a header and a row a line.
 
     (2) Secondary labialization: over Boas APA pentl’ach gloss and koā'san → qʷasəm qwasem ‘flower’
-    [YP]: each form cell a row of the kind the op names for its column, KIND@WHO where the column is
-    someone's own, the gloss a translation and the source tag a citation. A kind of rule takes the
+    [YP]: each form cell a row of the type the op names for its column, KIND@WHO where the column is
+    someone's own, the gloss a translation and the source tag a citation. A type of rule takes the
     whole line as one rule row, y/ī → y. The cells of a line share its where, (2) line 3, as the
     engine sets a table row. The rows run while a line holds an arrow or a quoted gloss.
     """
@@ -679,7 +679,7 @@ def table(out, context, example_of):
         return
     lines = page_lines(context.STEM)
     tags = getattr(context, "TABLE_TAGS", {})
-    for kinds, spec in named:
+    for types, spec in named:
         number, start, pages = nth_head(lines, spec)
         page = lines[start][0]
         caption = HEAD.match(lines[start][1]).group(2)
@@ -699,7 +699,7 @@ def table(out, context, example_of):
             at += 1
             taken.append(text)
             where = "(%s) line %d" % (number, at)
-            if kinds == ("rule",):
+            if types == ("rule",):
                 built.append([where, context.AUTHORS, "rule", text, "page %d, the table" % other])
                 continue
             tag = re.search(r"\s*\[([A-Z]{1,3})\](\d{0,2})$", text)
@@ -709,13 +709,13 @@ def table(out, context, example_of):
             quote = said.find("‘")
             gloss = said[quote:].strip() if quote >= 0 else ""
             cells = [one for one in said[:quote if quote >= 0 else len(said)].replace("→", " ").split()]
-            if len(cells) != len(kinds):
-                print("table: (%s) a line of %d cells under %d kinds: %s" % (number, len(cells), len(kinds), text))
-                cells = [" ".join(cells)] if len(kinds) == 1 else cells + [""] * (len(kinds) - len(cells))
-            for cell, kind in zip(cells, kinds):
-                kind, _, who = kind.partition("@")
+            if len(cells) != len(types):
+                print("table: (%s) a line of %d cells under %d types: %s" % (number, len(cells), len(types), text))
+                cells = [" ".join(cells)] if len(types) == 1 else cells + [""] * (len(types) - len(cells))
+            for cell, type in zip(cells, types):
+                type, _, who = type.partition("@")
                 if cell:
-                    built.append([where, who or context.LANG, kind, cell, "page %d, the table%s" % (other, note)])
+                    built.append([where, who or context.LANG, type, cell, "page %d, the table%s" % (other, note)])
             if gloss:
                 built.append([where, context.AUTHORS, "translation", gloss, "page %d, the table" % other])
             if tag:
@@ -787,7 +787,7 @@ def roots(out, context, example_of):
         page = lines[start][0]
         rest = HEAD.match(lines[start][1]).group(2)
         items, built, taken = [], [], [lines[start][1]]
-        lettered = ROOT_LETTER.match(rest)
+        lettered = ROOT_CHARACTER.match(rest)
         if lettered:
             items.append(["(%s%s)" % (number, lettered.group(1)), page, lettered.group(2), None])
         elif rest.startswith("√"):
@@ -799,7 +799,7 @@ def roots(out, context, example_of):
                 continue
             if HEAD.match(text):
                 break
-            lettered = ROOT_LETTER.match(text)
+            lettered = ROOT_CHARACTER.match(text)
             if lettered:
                 items.append(["(%s%s)" % (number, lettered.group(1)), other, lettered.group(2), None])
             elif text.startswith("‘") and items and VERSUS.search(items[-1][2]) and items[-1][3] is None:
@@ -846,7 +846,7 @@ def roots(out, context, example_of):
 
 
 # A word of a list, a. dénxisa ‘drag net along shore’, its other definition in brackets before the
-# gloss, n. ciá (ceyá) ‘draw water’. Two forms can stand side by side, ’iála ’eyála.
+# gloss, n. ciá (ceyá) ‘draw water’. Two forms can are side by side, ’iála ’eyála.
 WORD_ITEM = re.compile(r"^(\*?[a-z])\.\s+(\S.*?)(?:\s+\(([^()‘’]+)\))?\s+(‘.*’)$")
 
 
@@ -855,7 +855,7 @@ def words(out, context, example_of):
     line, with a blank line or none between pairs.
 
     The head can name what the list shows, (12) -(l)ás ‘place’, an affix and its gloss, or a
-    caption. The engine can read the list as other kinds and the paragraph after it as the last
+    caption. The engine can read the list as other types and the paragraph after it as the last
     word's lines, (12h) In each of the example pairs above ...; that prose goes back to its
     paragraph, as the display op gives it back.
     """
@@ -874,9 +874,9 @@ def words(out, context, example_of):
         else:
             named_form = re.match(r"^(\S+)\s+(‘.*’)$", head)
             if named_form:
-                kind = "cited affix" if named_form.group(1).startswith("-") or \
+                type = "cited affix" if named_form.group(1).startswith("-") or \
                     named_form.group(1).endswith("-") else "cited form"
-                built.append(["(%s) line 1" % number, context.LANG, kind, named_form.group(1),
+                built.append(["(%s) line 1" % number, context.LANG, type, named_form.group(1),
                               "page %d, what the list shows" % page])
                 built.append(["(%s) line 1" % number, context.AUTHORS, "translation", named_form.group(2),
                               "page %d" % page])
@@ -892,31 +892,31 @@ def words(out, context, example_of):
         if not items:
             raise SystemExit("words: (%s) lists no word" % number)
         for other, text in items:
-            letter, form, spelled, gloss = WORD_ITEM.match(text).groups()
-            label = "(%s%s)" % (number, letter.lstrip("*"))
+            character, form, spelled, gloss = WORD_ITEM.match(text).groups()
+            label = "(%s%s)" % (number, character.lstrip("*"))
             # A caption setting two definitions against each other, (11) Examples of VV́ ~ əRV́, puts
             # the second of each pair beside the first, 'iála 'eyála.
             if "~" in head and len(form.split()) == 2 and not spelled:
                 form, spelled = form.split()
             built.append(["%s line 1" % label, context.LANG, "transcription",
-                          ("*" if letter.startswith("*") else "") + form, "page %d, words" % other])
+                          ("*" if character.startswith("*") else "") + form, "page %d, words" % other])
             if spelled:
                 built.append(["%s line 1" % label, context.LANG, "variant spelling", spelled,
                               "page %d, the other spelling, in brackets" % other])
             built.append(["%s line 1" % label, context.AUTHORS, "translation", gloss, "page %d, words" % other])
-        shown = [head] + [text for other, text in items]
+        displayed = [head] + [text for other, text in items]
         own = [at for at, one in enumerate(out) if re.match(r"^\(%s[a-z]?\)$" % number, example_of(one[0]))
                and in_pages(one, pages)]
         prose = []
         for at in own:
-            said = strip_shown(" ".join(out[at][3].split()), shown)
+            said = strip_displayed(" ".join(out[at][3].split()), displayed)
             if said and said != "(%s)" % number and not re.fullmatch(r"(?:[a-z]\.\s*)+", said) and \
-                    not any(said in " ".join(one.split()) for one in shown):
+                    not any(said in " ".join(one.split()) for one in displayed):
                 prose.append([out[at][0], out[at][1], out[at][2], said, out[at][4]])
         if own:
             give_back(out, own, prose, built, page, context, example_of)
-        taken = {word for one in shown for word in one.split()} | {"%s." % one for one in "abcdefghijklmnopqrstuvwxyz"}
-        replace(out, number, built, taken, [(shown[-1], shown[-1])], example_of, opens="(%s)" % number,
+        taken = {word for one in displayed for word in one.split()} | {"%s." % one for one in "abcdefghijklmnopqrstuvwxyz"}
+        replace(out, number, built, taken, [(displayed[-1], displayed[-1])], example_of, opens="(%s)" % number,
                 pages=pages)
 
 
@@ -994,12 +994,12 @@ def wordlist(out, context, example_of):
         out[:] = rest[:at] + built + rest[at:]
 
 
-def strip_shown(text, shown):
+def strip_displayed(text, displayed):
     """text with the display lines it opens on taken off, in order, a lettered line with or without
-    its letter."""
+    its character."""
     text = text.strip()
-    for one in shown:
-        lettered = LETTER.match(one)
+    for one in displayed:
+        lettered = CHARACTER.match(one)
         for form in (one, lettered.group(2) if lettered else None):
             if form and text.startswith(form):
                 text = text[len(form):].strip()
@@ -1008,7 +1008,7 @@ def strip_shown(text, shown):
 
 
 def in_pages(row, pages):
-    """Whether a row stands on the pages a spec of N:K keeps to, or any page for a spec of N."""
+    """Whether a row is on the pages a spec of N:K retains to, or any page for a spec of N."""
     if pages is None:
         return True
     page = re.search(r"page (\d+)", row[4])
@@ -1020,7 +1020,7 @@ def replace(out, number, built, words, ends, example_of, opens=None, pages=None)
 
     The notes are sought from the example's rows, or the note opening on the example's number where
     the engine gave it none, up to the next example or heading. A note of the example's words alone
-    goes; a note holding the end of a sub-example's last line keeps the prose after it.
+    goes; a note holding the end of a sub-example's last line retains the prose after it.
     """
     own = [at for at, one in enumerate(out)
            if re.match(r"^\(%s[a-z]?\)$" % number, example_of(one[0])) and in_pages(one, pages)]
@@ -1070,7 +1070,7 @@ def replace(out, number, built, words, ends, example_of, opens=None, pages=None)
             print("pairs: (%s) takes %s, leaving: %s" % (number, out[at][0], out[at][3][:60]))
     first = own[0] if own else min(leaked, default=None)
     if first is None:
-        raise SystemExit("pairs: (%s) has no rows and no note to stand at" % number)
+        raise SystemExit("pairs: (%s) has no rows and no note to be at" % number)
     gone = set(own) | {at for at in leaked if not out[at][3]}
     # The cited forms the engine took from the example's words, up to the last note it ran into,
     # or in the run of cited forms straight after its rows.
@@ -1081,6 +1081,6 @@ def replace(out, number, built, words, ends, example_of, opens=None, pages=None)
              and not example_of(out[at][0])
              and any(word == out[at][3] or (len(out[at][3]) > 3 and word.startswith(out[at][3]))
                      for word in words)}
-    kept = [one for at, one in enumerate(out) if at not in gone and at < first]
+    retained = [one for at, one in enumerate(out) if at not in gone and at < first]
     tail = [one for at, one in enumerate(out) if at not in gone and at >= first]
-    out[:] = kept + built + tail
+    out[:] = retained + built + tail

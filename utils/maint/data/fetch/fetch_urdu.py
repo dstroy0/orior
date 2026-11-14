@@ -13,8 +13,8 @@
 # two together separate a script from a family more cleanly than anything else available.
 #
 # The same archive holds many parallel texts and not only the one already used. This asks which of them
-# carry Urdu, prefers whichever is closest in kind to what the other languages were read from, and takes
-# the largest that qualifies. A translation of one work into many languages keeps the content fixed the
+# carry Urdu, prefers whichever is closest in type to what the other languages were read from, and takes
+# the largest that qualifies. A translation of one work into many languages retains the content fixed the
 # way the earlier fetch did. Urdu arrives comparable to the rest instead of as an encyclopedia sample
 # sitting beside a shelf of scripture.
 
@@ -40,7 +40,7 @@ WANT = "ur"
 LEAST = 60000
 PAUSE = 0.6
 
-# Preferred in this order: one work translated many times keeps the content fixed the way the rest of
+# Preferred in this order: one work translated many times retains the content fixed the way the rest of
 # these languages were read, and a pile of software strings or subtitles does not
 FAVOR = ("Tanzil", "bible-uedin", "TED2020", "QED", "GlobalVoices", "Tatoeba", "wikimedia")
 

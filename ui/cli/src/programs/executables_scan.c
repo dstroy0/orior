@@ -37,12 +37,12 @@ unsigned int cli_calls_alloc(const CliExecutablesCodeCommandCtx *args)
 
 int cli_scan_white(const CliExecutablesCtx *args)
 {
-    return (args->letter == ' ') || ((args->letter >= '\t') && (args->letter <= '\r'));
+    return (args->character == ' ') || ((args->character >= '\t') && (args->character <= '\r'));
 }
 
 typedef struct
 {
-    char letter;
+    char character;
     const char *code;
     const char *command;
     unsigned long long length;
@@ -51,10 +51,10 @@ typedef struct
     unsigned int index;
     char *out;
 } ExecutablesScanCtx;
-// whether a letter is one of a word: a letter, a digit, `_`, or a byte of a letter past ASCII
+// whether a character is one of a word: a character, a digit, `_`, or a byte of a character past ASCII
 EMBED_INLINE int cli_wordy(const ExecutablesScanCtx *args)
 {
-    const unsigned char byte = (unsigned char)args->letter;
+    const unsigned char byte = (unsigned char)args->character;
     return ((byte >= 'a') && (byte <= 'z')) || ((byte >= 'A') && (byte <= 'Z')) || ((byte >= '0') && (byte <= '9')) ||
            (byte == '_') || (byte >= 0x80u);
 }
@@ -63,13 +63,13 @@ void cli_scan_trim(const CliExecutablesTextLengthCtx *args)
 {
     const char **text = args->text_pointer;
     unsigned long long *length = args->length_pointer;
-    while ((*length > 0ULL) && EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .letter = (*text)[0]))
+    while ((*length > 0ULL) && EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .character = (*text)[0]))
     {
         *text += 1;
         *length -= 1ULL;
     }
     while ((*length > 0ULL) &&
-           EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .letter = (*text)[*length - 1ULL]))
+           EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .character = (*text)[*length - 1ULL]))
     {
         *length -= 1ULL;
     }
@@ -113,14 +113,14 @@ void cli_uncommented(const CliExecutablesTextCtx *args)
         stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ULL,
                            .size = cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_POOL_BYTES}), .set = "\n");
         const char *const end = ((stop > at) && (stop[-1] == '\r')) ? (stop - 1) : stop;
-        for (const char *letter = at; letter < end; letter += 1)
+        for (const char *character = at; character < end; character += 1)
         {
-            quoted = (letter[0] == args->quote) ? !quoted : quoted;
-            if ((letter[0] == '#') && !quoted)
+            quoted = (character[0] == args->quote) ? !quoted : quoted;
+            if ((character[0] == '#') && !quoted)
             {
                 break;
             }
-            mmgr_line_ch(&line, letter[0]);
+            mmgr_line_ch(&line, character[0]);
         }
         mmgr_line_ch(&line, '\n');
         at = (stop[0] != '\0') ? (stop + 1) : stop;
@@ -170,7 +170,7 @@ unsigned int cli_calls(const CliExecutablesCodeCtx *args)
         }
         from = at + length;
         const int starts_word =
-            (at == 0ULL) || !EMBED_CALL(cli_wordy, ExecutablesScanCtx, .letter = args->code[at - 1ULL]);
+            (at == 0ULL) || !EMBED_CALL(cli_wordy, ExecutablesScanCtx, .character = args->code[at - 1ULL]);
         const unsigned long long gap =
             EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = args->code + from, .at = 0ULL,
                        .size = cellul.len(&(CatenaFinitaCfg){.src = args->code + from, .cap = CLI_POOL_BYTES}),
@@ -205,12 +205,12 @@ EMBED_INLINE int cli_cmake_word(const ExecutablesScanCtx *args)
     unsigned int word_text = 0u;
     while (at < end)
     {
-        while ((at < end) && EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .letter = at[0]))
+        while ((at < end) && EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .character = at[0]))
         {
             at += 1;
         }
         const char *stop = at;
-        while ((stop < end) && !EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .letter = stop[0]))
+        while ((stop < end) && !EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .character = stop[0]))
         {
             stop += 1;
         }

@@ -13,7 +13,7 @@
 # whole, and it has produced confident wrong statements in this work before.
 #
 # Each paper is therefore cut out at its own page boundaries and written as its own file, which can be read
-# from its first line to its last. The page markers are kept in the cut, since an example numbered in the
+# from its first line to its last. The page markers are retained in the cut, since an example numbered in the
 # paper is cited by the page it sits on.
 
 import io

@@ -29,7 +29,7 @@ To ask for an exception for a class or a research project, email dstroy0 (Dougla
 
 Each exception is decided on its own and sets the terms of your use. In particular, it sets how you credit the underlying systems in research or in presentation materials.
 
-If work done under an academic exception turns into a product that can be sold, the license moves to a royalty ladder. The royalty depends on the goodwill shown and on how well students and others were credited. At least part of it goes to your institution, and straight to your department where its rules allow.
+If work done under an academic exception turns into a product that can be sold, the license moves to a royalty ladder. The royalty depends on the goodwill displayed and on how well students and others were credited. At least part of it goes to your institution, and straight to your department where its rules allow.
 
 See [CONTRIBUTING.md](https://github.com/dstroy0/orior/blob/main/CONTRIBUTING.md) and [SECURITY.md](https://github.com/dstroy0/orior/blob/main/SECURITY.md).
 

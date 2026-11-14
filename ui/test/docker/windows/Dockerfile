@@ -6,7 +6,7 @@
 # the SonarQube plugin's toolchain finds it, and what builds the window: the MSVC build tools and Windows SDK cargo
 # links with, LLVM's clang and lld, which build the C side and the page's lattice to wasm, CMake and Ninja, which build
 # MMgr, Python, which runs the harness, and Rust as rustup installs it. The window's suite takes the window built on
-# the machine that runs the container, handed in at C:\host; harness.py container builds it in the container's own
+# the machine that runs the container, passed in at C:\host; harness.py container builds it in the container's own
 # copy of the tree, at C:\top.
 
 FROM mcr.microsoft.com/windows/server:ltsc2022
@@ -28,7 +28,7 @@ RUN Invoke-WebRequest -Uri ('https://github.com/git-for-windows/git/releases/dow
     C:\git\cmd\git.exe config --system commit.gpgsign false
 
 # SonarQube for IDE, as the SonarQube plugin's toolchain finds it: the extension unpacked where VS
-# Code keeps its extensions, with the Java and the analyzers it carries.
+# Code retains its extensions, with the Java and the analyzers it carries.
 ARG SONARLINT=6.1.1
 RUN Invoke-WebRequest -Uri ('https://open-vsx.org/api/SonarSource/sonarlint-vscode/win32-x64/{0}/file/SonarSource.sonarlint-vscode-{0}@win32-x64.vsix' -f $env:SONARLINT) -OutFile C:\sonarlint.zip; \
     Expand-Archive -Path C:\sonarlint.zip -DestinationPath C:\sonarlint; \

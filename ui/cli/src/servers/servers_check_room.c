@@ -22,15 +22,15 @@ int cli_servers_check_work_state_init(const CliServersQueueFilesCtx *args)
         bytes += cellul.len(&(CatenaFinitaCfg){.src = files[at], .cap = CLI_POOL_BYTES}) + 2ULL;
     }
     const unsigned int required = args->count + CLI_SERVERS_POSITIONS_MORE;
-    const unsigned int positions = (required < CLI_SERVERS_FILES_MOST) ? required : CLI_SERVERS_FILES_MOST;
-    if (!queue->laid)
+    const unsigned int positions = (required < CLI_SERVERS_FILES_MAX) ? required : CLI_SERVERS_FILES_MAX;
+    if (!queue->positioned)
     {
         EmbedTicketRingSlot *const slots =
             (EmbedTicketRingSlot *)(void *)EMBED_CALL(cli_rings.part, CliRingsPartCfg, .part = CLI_RINGS_SERVERS_CHECK);
         embed_ticket_ring_begin(&queue->waiting.ring, slots, CLI_SERVERS_CHECK_RING_SHIFT);
         embed_ticket_ring_begin(&queue->first.ring, slots + (1u << CLI_SERVERS_CHECK_RING_SHIFT),
                                 CLI_SERVERS_CHECK_FIRST_SHIFT);
-        queue->laid = 1;
+        queue->positioned = 1;
     }
     if ((queue->files_cell != NULL) && (queue->files_max >= bytes) && (queue->file_at_max >= positions))
     {
@@ -72,7 +72,7 @@ int cli_servers_check_queue_append(const CliServersQueueCtx *args)
 {
     CliServersQueue *const queue = args->queue;
     CliServersCheckRing *const ring = args->front ? &queue->first : &queue->waiting;
-    if (!queue->laid)
+    if (!queue->positioned)
     {
         return 0;
     }

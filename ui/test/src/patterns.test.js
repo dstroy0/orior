@@ -2,33 +2,33 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 import { PATTERN_PARTS, onPatterns, patternsOf, searchSets, setPatterns, setSets, setsText, tellPatterns } from "../../gui/src-js/patterns.js";
-import { callsTo, keepingStorage } from "../helpers.js";
+import { callsTo, retentionStorage } from "../helpers.js";
 
 const { test, assert, calls } = window.__harness;
 
 const KEYS = [...PATTERN_PARTS.map(({ part }) => `orior.patterns.${part}`), "orior.search.sets"];
 
 test("each part has no patterns until some are set", () =>
-  keepingStorage(KEYS, () => {
+  retentionStorage(KEYS, () => {
     for (const { part } of PATTERN_PARTS) {
       localStorage.removeItem(`orior.patterns.${part}`);
       assert.equal(patternsOf(part), "");
     }
   }));
 
-test("setting a part's patterns keeps them, hands them to the Rust a line each, and tells each listener", () =>
-  keepingStorage(KEYS, async () => {
+test("setting a part's patterns retains them, passes them to the Rust a line each, and tells each listener", () =>
+  retentionStorage(KEYS, async () => {
     const told = [];
     onPatterns((part) => told.push(part));
-    await setPatterns("explorer", "*.log\nbuild/\n!keep.log");
-    assert.equal(patternsOf("explorer"), "*.log\nbuild/\n!keep.log");
-    assert.deepEqual(callsTo("patterns_set").at(-1).args, { part: "explorer", lines: ["*.log", "build/", "!keep.log"] });
+    await setPatterns("explorer", "*.log\nbuild/\n!retain.log");
+    assert.equal(patternsOf("explorer"), "*.log\nbuild/\n!retain.log");
+    assert.deepEqual(callsTo("patterns_set").at(-1).args, { part: "explorer", lines: ["*.log", "build/", "!retain.log"] });
     assert.deepEqual(told, ["explorer"]);
     await setPatterns("explorer", "");
   }));
 
-test("patterns the Rust refuses are kept but tell no listener", () =>
-  keepingStorage(KEYS, async () => {
+test("patterns the Rust refuses are retained but tell no listener", () =>
+  retentionStorage(KEYS, async () => {
     const told = [];
     onPatterns((part) => told.push(part));
     calls.answer("patterns_set", () => {
@@ -39,7 +39,7 @@ test("patterns the Rust refuses are kept but tell no listener", () =>
     assert.deepEqual(told, []);
   }));
 
-test("as the window starts every part's patterns are handed over", async () => {
+test("as the window starts every part's patterns are passed over", async () => {
   await tellPatterns();
   assert.deepEqual(
     callsTo("patterns_set").map((one) => one.args.part),
@@ -48,7 +48,7 @@ test("as the window starts every part's patterns are handed over", async () => {
 });
 
 test("the sets of Find in Files are read from their names and patterns", () =>
-  keepingStorage(KEYS, () => {
+  retentionStorage(KEYS, () => {
     const told = [];
     onPatterns((part) => told.push(part));
     setSets("stray line\nsources:\n  src/**\n!src/gen/**\n\ndocs:\n*.md\n:\nempty:\n");

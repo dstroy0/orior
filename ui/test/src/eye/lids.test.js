@@ -1,14 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The eye's opening and its lids: where the eye stands in its canvas, the opening's edge at an openness, each lid
+// The eye's opening and its lids: where the eye is in its canvas, the opening's edge at an openness, each lid
 // with the way out of the opening along it, the lids' bands, and the white drawn under the irises and the lids over.
 
 import { along, drawOver, drawUnder, edges, lidOf, LOWER_BAND, placeOf, sphereOf, tallOf, UPPER_BAND } from "../../../gui/src-js/eye/lids.js";
 
 const { test, assert } = window.__harness;
 
-test("the eye stands above its canvas's middle, its sphere a little wider than its opening", () => {
+test("the eye is above its canvas's middle, its sphere a little wider than its opening", () => {
   const size = placeOf(400, 200);
   assert.deepEqual([size.cx, size.cy, size.a, size.b], [200, 90, 132, 36]);
   const sphere = sphereOf(size.cx, size.cy, size.a, size.b);

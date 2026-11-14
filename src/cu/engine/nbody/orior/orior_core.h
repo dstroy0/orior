@@ -38,7 +38,7 @@ extern "C"
     /** @brief Corpus bytes read by an anchor probe since the last reset. */
     extern uint64_t orior_probes;
 
-    /** @brief Exact compares performed since the last reset, each reading at most needle_len bytes. */
+    /** @brief Exact compares performed since the last reset, each reading at max needle_len bytes. */
     extern uint64_t orior_verifications;
 
     /**
@@ -55,7 +55,7 @@ extern "C"
 #define ORIOR_STEER_SYMBOLS 256u
 
 /**
- * @brief Most probes any planner here will place, defined as ORIOR_ANCHORS so the two cannot
+ * @brief Max probes any planner here will place, defined as ORIOR_ANCHORS so the two cannot
  *        drift.
  *
  * @note THIS CONSTANT IS THE TERMINATION ARGUMENT. Every descent below places one probe per level
@@ -269,7 +269,7 @@ extern "C"
      * @param[in]     needle     Bytes the offsets index [BORROWS].
      * @param[in]     needle_len How many.
      *
-     * @note Insertion sort by descending magnitude. The count is at most ORIOR_ANCHORS, which is
+     * @note Insertion sort by descending magnitude. The count is at max ORIOR_ANCHORS, which is
      *       four. An insertion sort is fewer instructions than setting up anything cleverer and is
      *       the right choice and not a concession.
      * @note STABLE, and that is load bearing and not incidental. Two anchors testing equally rare

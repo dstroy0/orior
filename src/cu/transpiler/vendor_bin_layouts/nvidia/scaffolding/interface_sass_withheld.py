@@ -37,7 +37,7 @@ def container_code(cubin_path):
 
 
 class Reader:
-    """the vendor's disassembler over raw runs of instructions, each run's binary kept in a folder"""
+    """the vendor's disassembler over raw runs of instructions, each run's binary retained in a folder"""
 
     def __init__(self, nvdisasm, architecture, folder):
         self.nvdisasm, self.architecture, self.folder, self.calls, self.reached = nvdisasm, architecture, folder, 0, True

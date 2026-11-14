@@ -98,7 +98,7 @@ unsigned long long query_process_read(const QueryProcessPieceCtx *args)
     {
         return 0ULL;
     }
-    // the descriptor is stored one past itself, so that 0 stands for none
+    // the descriptor is stored one past itself, so that 0 is for none
     const ssize_t got = read((int)(args->process->output - 1ULL), args->piece, (size_t)args->capacity_u64);
     return (got > 0) ? (unsigned long long)got : 0ULL;
 }
@@ -359,7 +359,7 @@ int query_path_full(const QueryCapacityPathCtx *args)
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = resolved, .cap = CLI_POOL_BYTES}) + 1u});
         return args->full[0] != '\0';
     }
-    // a path not there yet is made full against the folder this process stands in
+    // a path not there yet is made full against the folder this process is in
     if (args->path[0] == '/')
     {
         memor.cpy(
@@ -393,8 +393,8 @@ unsigned long long query_terminal_line_read(const QueryCapacityLineCtx *args)
     int going = 1;
     while (going)
     {
-        char letter = '\0';
-        if (read(0, &letter, 1u) != 1)
+        char character = '\0';
+        if (read(0, &character, 1u) != 1)
         {
             if (!read_any)
             {
@@ -404,17 +404,17 @@ unsigned long long query_terminal_line_read(const QueryCapacityLineCtx *args)
             continue;
         }
         read_any = 1;
-        if (letter == '\n')
+        if (character == '\n')
         {
             going = 0;
             continue;
         }
-        if (letter != '\r')
+        if (character != '\r')
         {
             whole += 1ULL;
             if ((length + 1u) < args->capacity)
             {
-                args->line[length] = letter;
+                args->line[length] = character;
                 length += 1u;
             }
         }

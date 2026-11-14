@@ -20,7 +20,7 @@ int plane_rings(SimResults *results, const std::vector<unsigned char> &bits, uns
         return 0;
     }
     std::vector<unsigned char> ring_bits(bits.begin(), bits.begin() + (ptrdiff_t)std::min<size_t>(bits.size(), total));
-    // the bits are unsigned int wide, and the total is at most PLANE_BITS_MAX
+    // the bits are unsigned int wide, and the total is at max PLANE_BITS_MAX
     int ok = (ring_bits.size() == total) || plane_bits(results, (unsigned int)total, &ring_bits);
     mmgr_line_put(line, "  the rings: ring k contains floor(pi 2^k) bits,");
     for (const unsigned long long size : sizes)
@@ -87,7 +87,7 @@ int plane_rings(SimResults *results, const std::vector<unsigned char> &bits, uns
         return 1;
     }
     std::vector<unsigned char> both;
-    // twice the total is at most 2 PLANE_BITS_MAX, below 2^17
+    // twice the total is at max 2 PLANE_BITS_MAX, below 2^17
     const int more = plane_bits(results, (unsigned int)(2ull * total), &both);
     sim_check(results, more, "pi's next block of the rings' size is certified");
     if (more)
@@ -175,7 +175,7 @@ unsigned int plane_number(int count, char **arguments, const char *name, unsigne
     {
         if (strcmp(arguments[argument], name) == 0)
         {
-            // a request past its most errors in its reader. The conversion's range does not matter here
+            // a request past its max errors in its reader. The conversion's range does not matter here
             return (unsigned int)strtoul(arguments[argument + 1], NULL, 10);
         }
     }
@@ -205,7 +205,7 @@ void plane_band_print(VerbaLinea *line, std::vector<unsigned long long> band, un
     mmgr_line_decimal(line, band.front(), 1u);
     mmgr_line_put(line, ", median ");
     mmgr_line_decimal(line, band[band.size() / 2u], 1u);
-    mmgr_line_put(line, ", most ");
+    mmgr_line_put(line, ", max ");
     mmgr_line_decimal(line, band.back(), 1u);
     mmgr_line_put(line, "; ");
     mmgr_line_decimal(line, reached, 1u);

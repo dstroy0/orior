@@ -58,21 +58,21 @@ EV.FIELD = { key: "field", label: "Harmonic field", note: "a sum of real spheric
 EV.SHAPE_KEYS = [...EV.SURFACES.map((one) => one.key), ...EV.CURVES.map((one) => one.key), EV.FIELD.key];
 
 EV.VIEW_SCHEME = {
-  shape: { kind: "word", words: EV.SHAPE_KEYS, fallback: "torus" },
-  transform: { kind: "word", words: EV.SURFACE_TRANSFORMS.map((one) => one.key), fallback: "none" },
-  order: { kind: "integer", low: 3, high: 256, fallback: 12 },
-  detail: { kind: "integer", low: 16, high: 400, fallback: 160 },
-  color: { kind: "word", words: ["field", "height", "normal", "index"], fallback: "field" },
-  degree: { kind: "integer", low: 1, high: 12, fallback: 6 },
-  seed: { kind: "integer", low: 1, high: 65535, fallback: 7 },
-  lift: { kind: "integer", low: 0, high: 60, fallback: 0 },
-  turn: { kind: "integer", low: 0, high: 359, fallback: 30 },
-  tilt: { kind: "integer", low: -89, high: 89, fallback: 24 },
-  zoom: { kind: "integer", low: 40, high: 400, fallback: 100 },
-  spin: { kind: "switch", fallback: true },
-  grid: { kind: "switch", fallback: true },
-  theme: { kind: "word", words: ["dark", "light"], fallback: "dark" },
-  vsync: { kind: "switch", fallback: true },
+  shape: { type: "word", words: EV.SHAPE_KEYS, fallback: "torus" },
+  transform: { type: "word", words: EV.SURFACE_TRANSFORMS.map((one) => one.key), fallback: "none" },
+  order: { type: "integer", low: 3, high: 256, fallback: 12 },
+  detail: { type: "integer", low: 16, high: 400, fallback: 160 },
+  color: { type: "word", words: ["field", "height", "normal", "index"], fallback: "field" },
+  degree: { type: "integer", low: 1, high: 12, fallback: 6 },
+  seed: { type: "integer", low: 1, high: 65535, fallback: 7 },
+  lift: { type: "integer", low: 0, high: 60, fallback: 0 },
+  turn: { type: "integer", low: 0, high: 359, fallback: 30 },
+  tilt: { type: "integer", low: -89, high: 89, fallback: 24 },
+  zoom: { type: "integer", low: 40, high: 400, fallback: 100 },
+  spin: { type: "switch", fallback: true },
+  grid: { type: "switch", fallback: true },
+  theme: { type: "word", words: ["dark", "light"], fallback: "dark" },
+  vsync: { type: "switch", fallback: true },
 };
 
 // Each control by element id: the setting it writes, and how its value reads.
@@ -219,9 +219,9 @@ EV.rebuild = (app) => {
 
 EV.showView = (app) => {
   const view = app.view;
-  for (const [id, name, kind] of EV.CONTROLS) {
+  for (const [id, name, type] of EV.CONTROLS) {
     const element = EV.$(id);
-    if (kind === "switch") {
+    if (type === "switch") {
       element.checked = !!view[name];
     } else {
       element.value = String(view[name]);
@@ -250,10 +250,10 @@ EV.apply = (app, section) => {
 };
 
 EV.bindControls = (app) => {
-  for (const [id, name, kind] of EV.CONTROLS) {
+  for (const [id, name, type] of EV.CONTROLS) {
     const element = EV.$(id);
     element.addEventListener(element.type === "range" ? "input" : "change", () => {
-      const value = kind === "switch" ? element.checked : kind === "integer" ? Math.trunc(Number(element.value)) : element.value;
+      const value = type === "switch" ? element.checked : type === "integer" ? Math.trunc(Number(element.value)) : element.value;
       if (!EV.errorValue(EV.VIEW_SCHEME[name], value)) {
         app.view[name] = value;
         if (name === "turn") {

@@ -429,7 +429,7 @@ def _drift():
     print("  THE REASON: in quantum space the accuracy is weird, and here is the specific")
     print("  mechanism. Every amplitude is a power of 1/sqrt(2), and the square of")
     print("  1/sqrt(2) is one half, which IS exactly representable in decimal. So products of these")
-    print("  amplitudes keep rounding back ONTO exact values, and whether a given circuit does that")
+    print("  amplitudes retain rounding back ONTO exact values, and whether a given circuit does that")
     print("  depends on how its Hadamards happen to pair up and not on how many there are. The")
     print("  error is therefore not monotone in depth and a per-depth floor is the wrong model for")
     print("  it.")
@@ -443,10 +443,10 @@ def _drift():
     print("  machine is slower than float64 by a large factor and always will be, since a Decimal")
     print("  multiply is not a hardware instruction. It buys a residual that means")
     print("  something. An instrument whose own floor is 1e-16 cannot report a 1e-20 effect, and")
-    print("  most published state vector simulators have exactly that floor.")
+    print("  max published state vector simulators have exactly that floor.")
     print("")
     print("  AND IT IS THE SAME ARGUMENT AS EVERY OTHER FLOOR IN THIS TREE. Know the floor in")
-    print("  advance, keep it below the smallest thing the instrument must see, and a departure is")
+    print("  advance, retain it below the smallest thing the instrument must see, and a departure is")
     print("  then a finding and not arithmetic.")
     return 0
 

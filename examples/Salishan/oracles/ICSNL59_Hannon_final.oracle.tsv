@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Ella Hannon	note	Papers for the International Conference on Salish and Neighbouring Languages 59. D. K. E. Reisinger, Laura Griffin, Ella Hannon, Gloria Mellesmoen, Sander Nederveen, Bruce Oliver, Julia Schillo, Lauren Schneider, Bailey Trotter (eds.). Vancouver, BC: UBCWPL, 2024.	page 1
 front	Ella Hannon	language	Nɬeʔképmxcín	Nɬeʔkepmxcín, with the accent of the title
 title	Ella Hannon	title	Connected Speech in Nɬeʔképmxcín:	page 1, the title, its first line
@@ -60,7 +60,7 @@ footnote *	Ella Hannon	note	I would like to acknowledge the Nɬab, Brent Hall, B
 (3) line 8	Ella Hannon	translation	‘I’ll tell a little story, about my imc, my grand-daughter’s partner, who gave me some chokecherries.’	page 2, engine english
 (3) line 8	Ella Hannon	citation	[CMA, Conversation 08/11/23]	the tag or source at the right of the translation
 §1.1	Ella Hannon	note	I claim that ʔé məɬ nés has three main functions in discourse contexts:	page 2
-footnote 1	Ella Hannon	note	1 Glosses used in this paper for the most part follow the Leipzig Glossing Conventions (Comrie, Haspelmath and Bickel 2008). Additional glosses used in this paper are: CNSQ = consequential particle; CTR = control pre- transitivizer; CTR.MID = control middle; DIM = diminutive reduplication; DVL = developmental suffix; EMPH = emphatic particle; EPEN = epenthetic vowel; IMM = immediate suffix; INDEF.OBJ = indefinite object; INDEF.SBJ = indefinite subject; INFER = inferential evidential; INS = instrumental suffix; INT = introductory predicate; INTS = intensifier; MOD = modal particle; RLT = relational pre-transitivizer; SENSE = sensory evidential; WN = weak necessity modal. Most additional glosses come from Thompson & Thompson (1996).	page 2, footnote
+footnote 1	Ella Hannon	note	1 Glosses used in this paper in general follow the Leipzig Glossing Conventions (Comrie, Haspelmath and Bickel 2008). Additional glosses used in this paper are: CNSQ = consequential particle; CTR = control pre- transitivizer; CTR.MID = control middle; DIM = diminutive reduplication; DVL = developmental suffix; EMPH = emphatic particle; EPEN = epenthetic vowel; IMM = immediate suffix; INDEF.OBJ = indefinite object; INDEF.SBJ = indefinite subject; INFER = inferential evidential; INS = instrumental suffix; INT = introductory predicate; INTS = intensifier; MOD = modal particle; RLT = relational pre-transitivizer; SENSE = sensory evidential; WN = weak necessity modal. Max additional glosses come from Thompson & Thompson (1996).	page 2, footnote
 footnote 2	Ella Hannon	note	2 In this four-line gloss, the first line represents a phonemic transcription in the orthography used in Thompson & Thompson (1992, 1996) and Egesdal, Thompson, & Jimmie (2011). The second line is a morpheme-by- morpheme segmentation of the Nɬeʔkepmxcín, using the underlying forms listed in Thompson & Thompson (1992, 1996). The third line is a morpheme-by-morpheme segmentation in English. The fourth line is an English translation. Stress is represented according to Thompson & Thompson (1996).	page 2, footnote
 footnote 3	Ella Hannon	note	3 For each example collected or recorded during conversation sessions by me, the speaker’s initials, the date, and the type of discourse are specified – Story indicates that the data is from a traditional story, Narrative indicates that the data is from a story about a speaker’s own experiences, and Conversation indicates that the data comes from a conversation.	page 2, footnote
 §1.1	nɬeʔkepmxcín	cited form	xéʔ	page 3
@@ -135,7 +135,7 @@ footnote 7	Ella Hannon	note	7 This example has been taken from one of the sptín
 §3.1	nɬeʔkepmxcín	cited form	ʔé	page 5
 §3.1	nɬeʔkepmxcín	cited form	məɬ	page 5
 §3.1	nɬeʔkepmxcín	cited form	nés	page 5
-§3.1	Ella Hannon	note	The most frequent use of ʔé məɬ nés links two propositions, where the event in the second proposition occurs after the event in the first proposition (i.e., e1 > e2, where e1 is the first event mentioned and e2 the second event mentioned, and > indicates that e1 occurred prior to e2). Consider (7), where e1, the speaker and her qeck’s (her older male relative of a similar age, such as an older brother or older male cousin) looking at their fingers, happens prior to e2, i.e., the poking of the little boy (part of a weathervane).	page 5
+§3.1	Ella Hannon	note	The commonest use of ʔé məɬ nés links two propositions, where the event in the second proposition occurs after the event in the first proposition (i.e., e1 > e2, where e1 is the first event mentioned and e2 the second event mentioned, and > indicates that e1 occurred prior to e2). Consider (7), where e1, the speaker and her qeck’s (her older male relative of a similar age, such as an older brother or older male cousin) looking at their fingers, happens prior to e2, i.e., the poking of the little boy (part of a weathervane).	page 5
 (7) line 1	nɬeʔkepmxcín	transcription	k̓ʷén̓tm ʔə cúɬmn ʔé məɬ nés kʷúpetəm ʔə tuʔúʔt.	page 5, engine language
 (7) line 2	nɬeʔkepmxcín	segmentation	k̓ʷén̓[-n]-t-Ø-em ʔə=cúɬ-mn ʔé məɬ nés	page 5, engine language
 (7) line 3	nɬeʔkepmxcín	gloss	look.at-CTR-TR-3OBJ-1PL.ERG DET=point-INS ʔé məɬ nés	page 5, engine english
@@ -158,7 +158,7 @@ footnote 7	Ella Hannon	note	7 This example has been taken from one of the sptín
 (8) line 12	Ella Hannon	citation	[CMA, Conversation 1, 08/11/23]	page 5, engine english
 §3.1	nɬeʔkepmxcín	cited form	yéyeʔ’s	page 5
 §3.1	Ella Hannon	note	Examples (9) and (9b) were uttered in sequence, during a story told by the speaker about a childhood memory. The event in (9), i.e., the speaker’s yéyeʔ’s (her grandmother’s) saying of the imperative, also occurs before the event in (9), i.e., the speaker’s going outside.	page 5
-(9a) line 1	nɬeʔkepmxcín	transcription	‘nésweʔ wə ɬe ʔéyc̓qeʔ k̓ʷén̓ete ʔə tmixʷ’.	page 5, engine language, its quotation marks kept
+(9a) line 1	nɬeʔkepmxcín	transcription	‘nésweʔ wə ɬe ʔéyc̓qeʔ k̓ʷén̓ete ʔə tmixʷ’.	page 5, engine language, its quotation marks retained
 (9a) line 2	nɬeʔkepmxcín	segmentation	nés-weʔ wə=ɬe=ʔéyc̓qeʔ k̓ʷén̓-n-t-Ø-e ʔə=tmíxʷ	page 5, engine language, a morpheme line
 (9a) line 3	nɬeʔkepmxcín	gloss	go-IMP to=DET=outside look.at-CTR-TR-3OBJ-IMP DET=land	page 5, engine english
 (9a) line 4	Ella Hannon	translation	‘Go outside and look at the land!’	page 5, engine english
@@ -190,7 +190,7 @@ footnote 7	Ella Hannon	note	7 This example has been taken from one of the sptín
 (12) line 3	nɬeʔkepmxcín	gloss	go drink-CTR-TR-3OBJ-1SG.ERG DEM ooh OBL=D/C=good=3SBJ	page 6, engine english
 (12) line 4	Ella Hannon	translation	‘And then I drink it, and it is really good.’	page 6, engine english
 (12) line 5	Ella Hannon	citation	[CMA, Conversation, 09/29/23]	page 6, engine english
-§3.1	Ella Hannon	note	ʔé məɬ nés is infelicitous when the event in the second proposition occurs before the event in the first proposition, as shown by (13) and (14). In both cases, the consultant’s comments are particularly insightful.	page 6
+§3.1	Ella Hannon	note	ʔé məɬ nés is infelicitous when the event in the second proposition occurs before the event in the first proposition, as displayed by (13) and (14). In both cases, the consultant’s comments are particularly insightful.	page 6
 footnote 8	Ella Hannon	note	8 KBG does not translate qéck into English when giving translations; given this, and the fact that the translation of ‘older brother’ is not fully accurate (as it can also refer to any male relative that is close in age, e.g. a cousin), I have also chosen to leave it untranslated.	page 6, footnote
 §3.1	nɬeʔkepmxcín	cited form	qéck	page 6
 (13) line 1	Ella Hannon	note	Context: My friend asks me what I did yesterday. I showered, and then I went to the shop. I say:	page 7, engine english
@@ -220,7 +220,7 @@ footnote 8	Ella Hannon	note	8 KBG does not translate qéck into English when giv
 (15a) line 3	nɬeʔkepmxcín	gloss	and always STAT-LOC-close-mouth DET=DEM OBL=DET=room	page 7, engine english
 (15a) line 4	Ella Hannon	translation	‘The door to that room is always closed.’	page 7, engine english
 (15a) line 5	Ella Hannon	citation	[CMA, Conversation, 09/29/23]	page 7, engine english
-footnote 9	Ella Hannon	note	9 SF stands for ‘suggested form’, indicating that I presented the speaker with the Nɬeʔkepmxcín sentence and asked for a judgment.	page 7, footnote
+footnote 9	Ella Hannon	note	9 SF is for ‘suggested form’, indicating that I presented the speaker with the Nɬeʔkepmxcín sentence and asked for a judgment.	page 7, footnote
 §3.2	Ella Hannon	language	Nɬeʔkepmxcín	Nɬeʔkepmxcín, Thompson River Salish
 (15b) line 1	nɬeʔkepmxcín	transcription	ʔé məɬ nés c̓əɬtwíʔx ʔéyɬ.	page 8, engine language
 (15b) line 2	nɬeʔkepmxcín	segmentation	ʔé məɬ nés c̓əɬ-t-wíʔx ʔéyɬ	page 8, engine language
@@ -275,7 +275,7 @@ footnote 9	Ella Hannon	note	9 SF stands for ‘suggested form’, indicating tha
 (20a) line 3	nɬeʔkepmxcín	gloss	yes right-CTR.MID NEG D/C=NMLZ=snow=3POSS yet	page 9, engine english
 (20a) line 4	Ella Hannon	translation	‘It hasn’t snowed yet.’	page 9, engine english
 (20a) line 5	Ella Hannon	citation	[KBG, Conversation, 09/29/23]	page 9, engine english
-footnote 10	Ella Hannon	note	10 VF stands for ‘volunteered form’ i.e., a form that a speaker produced in response to a prompt.	page 9, footnote
+footnote 10	Ella Hannon	note	10 VF is for ‘volunteered form’ i.e., a form that a speaker produced in response to a prompt.	page 9, footnote
 (20b) line 1	nɬeʔkepmxcín	transcription	tətéʔ téy téʔ k sxʷúxʷc ʔíy. ʔé məɬ nés xʷúxʷt us péye us n 1993 ʔé məɬ nés q̓úʔp nʔankle.	page 10, engine language
 (20b) line 2	nɬeʔkepmxcín	segmentation	tətéʔ téy téʔ k=s=xʷúxʷt=s ʔíy ʔé məɬ nés xʷúxʷt=us	page 10, engine language
 (20b) line 3	nɬeʔkepmxcín	gloss	NEG EXCLM DEM D/C=NLMZ=snow=3POSS yet ʔé məɬ nés snow=3SBJV	page 10, engine english

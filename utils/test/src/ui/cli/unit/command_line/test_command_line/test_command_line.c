@@ -7,13 +7,13 @@
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/command_line/commands.h"
 #include "ui/cli/src/comms/comms.h"
-#include "ui/cli/src/comms/door.h"
+#include "ui/cli/src/comms/interface.h"
 #include "ui/cli/src/runs/runner.h"
 #include "ui/cli/src/tests/test_runs.h"
 #include "ui/cli/src/text/text.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-// the most lines and messages a case records
+// the max lines and messages a case records
 #define RECORDED_LINES 64u
 
 // The lines a wrapping wrote
@@ -159,12 +159,12 @@ void test_a_long_usage_wraps_onto_more_than_one_line(void)
     TEST_ASSERT_GREATER_THAN_UINT(1u, s_lines.count);
 }
 
-void test_every_wrapped_line_is_40_letters_at_max(void)
+void test_every_wrapped_line_is_40_characters_at_max(void)
 {
     EMBED_CALL(cli_command_line_text_each_internal.help_wrap, CliCommandLineTextEachCtx, .text = s_usage, .width = 40ull, .indent = 2ull, .each = line_recorded, .context = &s_lines);
     for (unsigned int at = 0u; at < s_lines.count; at += 1u)
     {
-        TEST_ASSERT_LESS_OR_EQUAL_UINT64(40ull, EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = s_lines.line[at], .size = CLI_UNITY_LENGTH(s_lines.line[at])));
+        TEST_ASSERT_LESS_OR_EQUAL_UINT64(40ull, EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = s_lines.line[at], .size = CLI_UNITY_LENGTH(s_lines.line[at])));
     }
 }
 
@@ -209,7 +209,7 @@ void test_every_line_of_the_help_is_within_its_width(void)
         const char *const end = cellul.chr(&(CatenaFinitaCfg){.src = line, .cap = CLI_POOL_BYTES, .byte = '\n'});
         // a line end inside the help, at or past the line's start
         const unsigned long long size = (end != NULL) ? (unsigned long long)(end - line) : CLI_UNITY_LENGTH(line);
-        TEST_ASSERT_LESS_OR_EQUAL_UINT64(CLI_HELP_WIDTH, EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = line, .size = size));
+        TEST_ASSERT_LESS_OR_EQUAL_UINT64(CLI_HELP_WIDTH, EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = line, .size = size));
         line += size + ((end != NULL) ? 1u : 0u);
     }
 }

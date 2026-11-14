@@ -5,7 +5,7 @@
 #include "../../../../../ui/gui/src/xsettings.h"
 #include "../cli/cli_check.h"
 
-// a list written out in one byte order: the head, a string, a color and an integer named `name`, `size` letters
+// a list written out in one byte order: the head, a string, a color and an integer named `name`, `size` characters
 static unsigned long long list_written(unsigned char *out, int high, const char *name, unsigned int size, unsigned int value)
 {
     unsigned long long at = 0ull;
@@ -44,9 +44,9 @@ static unsigned long long list_written(unsigned char *out, int high, const char 
     out[at + 2ull] = high ? 0u : (unsigned char)size;
     out[at + 3ull] = high ? (unsigned char)size : 0u;
     at += 4ull;
-    for (unsigned int letter = 0u; letter < ((size + 3u) & ~3u); letter += 1u)
+    for (unsigned int character = 0u; character < ((size + 3u) & ~3u); character += 1u)
     {
-        out[at] = (letter < size) ? (unsigned char)name[letter] : 0u;
+        out[at] = (character < size) ? (unsigned char)name[character] : 0u;
         at += 1ull;
     }
     for (unsigned int byte = 0u; byte < 4u; byte += 1u)

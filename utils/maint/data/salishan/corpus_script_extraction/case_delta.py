@@ -78,7 +78,7 @@ EDGES = ".,!?;:“”‘’\"'()[]…«»{}"
 
 
 def pure_vocabulary():
-    """Every word form the hand-read corpora hold, kept as written and folded."""
+    """Every word form the hand-read corpora hold, retained as written and folded."""
     exact = set()
     folded = {}
     for path in sorted(glob.glob(os.path.join(CORPORA, "*.pure.txt"))):
@@ -107,7 +107,7 @@ def main():
     )
 
     rows = []
-    shown = []
+    displayed = []
     for path in sorted(glob.glob(os.path.join(SIFTED, "*.sifted.tsv"))):
         right = 0
         wrong = 0
@@ -128,8 +128,8 @@ def main():
                     others = folded.get(plain.casefold())
                     if others:
                         wrong += 1
-                        if len(shown) < 16:
-                            shown.append(
+                        if len(displayed) < 16:
+                            displayed.append(
                                 (plain, sorted(others)[0], os.path.basename(path)[:-11])
                             )
         if right or wrong:
@@ -145,9 +145,9 @@ def main():
         "%d only once case is folded\n"
         % (len(rows), sum(one[1] for one in rows), sum(one[0] for one in rows))
     )
-    if shown:
+    if displayed:
         out.write("\n  what the case match caught\n")
-        for got, want, stem in shown:
+        for got, want, stem in displayed:
             out.write("    %-22s the oracle writes %-22s %s\n" % (got, want, stem[:34]))
     out.flush()
     return 0

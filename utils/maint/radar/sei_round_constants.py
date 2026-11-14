@@ -52,7 +52,7 @@ def load_fold():
     by_round = {}
     with open(SOURCE, newline="") as handle:
         for row in csv.DictReader(handle):
-            if row["kind"] != "residue":
+            if row["type"] != "residue":
                 continue
             by_round.setdefault(int(row["round"]), {})[int(row["a"])] = float(row["value"])
     return by_round
@@ -123,7 +123,7 @@ def main():
         print("  happening. There is no modulation to identify, and the correlations below are")
         print("  being computed on noise. Reported anyway instead of dropped.")
     else:
-        print("\n  The scatter stands above the quiet rounds: there is something to explain.")
+        print("\n  The scatter is above the quiet rounds: there is something to explain.")
 
     # -- does it track anything about K_t? -------------------------------------------------------
     print("\nAgainst properties of the round constant. The decrement from round r to r+1 is")

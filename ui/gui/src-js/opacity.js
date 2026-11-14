@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The opacity of each part of the window, each a share in STEPS: how much of the ink the glass lays
+// The opacity of each part of the window, each a share in STEPS: how much of the ink the glass positions
 // over the lattice on the bar, the strip and the status bar, how much of its own color every menu
-// lays over what stands under it, and how much of its own ground each of the panes, the tabs, the
-// editor, the panels and the sheets lays over the lattice. Each is the reader's to set in Preferences
-// and kept for the next time; early.js sets them before the page's first frame from the same keys.
+// positions over what is under it, and how much of its own ground each of the panes, the tabs, the
+// editor, the panels and the sheets positions over the lattice. Each is the reader's to set in Preferences
+// and retained for the next time; early.js sets them before the page's first frame from the same keys.
 
 export const OPACITY_SETTINGS = [
   { name: "--bar-opacity", label: "Bar opacity", key: "orior.opacity.bar", fallback: 30 },
@@ -19,13 +19,13 @@ export const OPACITY_SETTINGS = [
 
 export const STEPS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 
-// The share a setting stands at, in percent.
+// The share a setting is at, in percent.
 export function opacity(setting) {
-  const kept = localStorage.getItem(setting.key);
-  return STEPS.map(String).includes(kept) ? Number(kept) : setting.fallback;
+  const retained = localStorage.getItem(setting.key);
+  return STEPS.map(String).includes(retained) ? Number(retained) : setting.fallback;
 }
 
-// Shows each share in force without keeping it, as a settings file changes it.
+// Shows each share in force without retention it, as a settings file changes it.
 export function showOpacity() {
   for (const setting of OPACITY_SETTINGS) {
     document.documentElement.style.setProperty(setting.name, `${opacity(setting)}%`);

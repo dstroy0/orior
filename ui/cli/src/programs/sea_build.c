@@ -7,7 +7,7 @@
 #include "../text/text.h"
 #include "sea.h"
 
-// the most bytes of a script read, and the most modules outside Node reported
+// the max bytes of a script read, and the max modules outside Node reported
 #define CLI_SEA_SCRIPT (1u << 22u)
 
 #define CLI_SEA_REQUESTED 64u
@@ -55,7 +55,7 @@ EMBED_INLINE void cli_with_extension(const SeaBuildCtx *args)
     const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
     const unsigned long long name_at = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
                                                   .text = args->path, .at = whole, .set = "/\\");
-    // a dot counts past the name's first letter, so that a name that starts with a dot has no extension for it
+    // a dot counts past the name's first character, so that a name that starts with a dot has no extension for it
     const unsigned long long past_first = (name_at < whole) ? (name_at + 1ULL) : whole;
     const unsigned long long dot_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path + past_first,

@@ -47,7 +47,7 @@ struct CliZmtpSocketCfg
     unsigned char *capacity;
     unsigned long long capacity_bytes;
     CliZmtpFrame *frames_out;
-    unsigned int most;
+    unsigned int max;
 };
 
 struct CliZmtpCfg

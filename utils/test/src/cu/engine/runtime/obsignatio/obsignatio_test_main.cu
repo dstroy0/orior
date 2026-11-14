@@ -12,13 +12,13 @@ static void test_device_error(TestResults *results)
     EngineError error;
     memset(&error, 0, sizeof(error));
     const ObsignatioManyRequest many = {bytes, 1ull, 1ull, 1ull, NULL, OBSIGNATIO_MODE_HASH, signa, &error};
-    test_count(results, (obsignatio_many(&many) == OBSIGNATIO_ERROR) && (error.kind == ENGINE_ERROR_RESOURCE) &&
+    test_count(results, (obsignatio_many(&many) == OBSIGNATIO_ERROR) && (error.type == ENGINE_ERROR_RESOURCE) &&
                             (error.module == ENGINE_MODULE_OBSIGNATIO));
     test_count(results, obsignatio_many(NULL) == OBSIGNATIO_ERROR);
     memset(&error, 0, sizeof(error));
     const unsigned long long offsets[2] = {0ull, 0ull};
     const ObsignatioBitsRequest bits = {NULL, offsets, 1ull, 0ull, NULL, OBSIGNATIO_MODE_HASH, signa, &error};
-    test_count(results, (obsignatio_bits(&bits) == OBSIGNATIO_ERROR) && (error.kind == ENGINE_ERROR_RESOURCE) &&
+    test_count(results, (obsignatio_bits(&bits) == OBSIGNATIO_ERROR) && (error.type == ENGINE_ERROR_RESOURCE) &&
                             (error.module == ENGINE_MODULE_OBSIGNATIO));
     test_count(results, obsignatio_bits(NULL) == OBSIGNATIO_ERROR);
 }

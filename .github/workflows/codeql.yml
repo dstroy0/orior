@@ -41,7 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Each language is read from its sources as they stand, with no build.
+      # Each language is read from its sources as they are, with no build.
       - uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}

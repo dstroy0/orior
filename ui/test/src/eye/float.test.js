@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // How the irises float: the largest divides into two halves, each shrinking to its own size over the split; the
-// irises stay on the eye's sphere, drift to its front, and keep apart; and the front follows a gaze.
+// irises stay on the eye's sphere, drift to its front, and retain apart; and the front follows a gaze.
 
 import { divide, float, frontOf, grow, HALF, irisAt } from "../../../gui/src-js/eye/float.js";
 import { angle, seeded } from "../../../gui/src-js/eye/math.js";

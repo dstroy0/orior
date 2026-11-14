@@ -7,7 +7,7 @@
 #
 #   Usage:  python examples/any_corpus/4_measure/head_and_tail.py corpus.sym [more.sym ...]
 #
-# The boundary detector in the bench returns one symbol, the one whose gaps are most regular, and it
+# The boundary detector in the bench returns one symbol, the one whose gaps are max regular, and it
 # rejects any candidate occurring less often than once in 64 symbols. That rejection can only ever
 # return a frequent symbol. Every result it has produced describes the head of the distribution.
 #

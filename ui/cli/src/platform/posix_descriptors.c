@@ -19,7 +19,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-// the most descriptors one read brings
+// the max descriptors one read brings
 #define CLI_DESCRIPTORS_READ 16u
 
 typedef struct

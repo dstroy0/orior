@@ -23,7 +23,7 @@
 # A varying profile means a walk that knows its position faces a smaller space than one that does not.
 #
 # The direction of that second result is arithmetic and not a finding: the product of ten numbers is at
-# most the tenth power of their average. A varying profile always produces a smaller product than an
+# max the tenth power of their average. A varying profile always produces a smaller product than an
 # even one. Only the size of the gap is measured here, and the even-profile product is printed beside it
 # so the gap is separable from the inequality that guarantees it.
 #
@@ -63,8 +63,8 @@ def read_sentences(path, fold_case=True):
     """Every sentence as its words in order, each with the reading that sentence gave it.
 
     Folding case is the usual move and it costs German the cue its orthography carries, where a
-    capital letter mid-sentence marks a noun and the lowercase word of the same letters is a verb.
-    Pass fold_case False to keep that cue and count what a German reader actually has in front of
+    capital character mid-sentence marks a noun and the lowercase word of the same characters is a verb.
+    Pass fold_case False to retain that cue and count what a German reader actually has in front of
     them.
     """
     sentences = []

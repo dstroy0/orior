@@ -11,7 +11,7 @@
 // their modifiers, and a form that opens another's literal operands. A pair put to no case is open with its count of
 // cases alike, 0. A language's .klm keys each name it gives that the schema names, and names each relation of the map
 // from the language to the bridge on its own line: a name one text with another in the language, which the bridge
-// exists as two keys (breaks), and a name given as another kind than a form (kind). No name of a language collapses
+// exists as two keys (breaks), and a name given as another type than a form (type). No name of a language collapses
 // onto the bridge, which witnesses no two names one text. A name the schema does not name has no key, and is open
 //
 // The bridge's identities between texts and between slices with their verdicts, its primitives and its chains, are no
@@ -39,10 +39,10 @@ struct LanguageSet
     RulesetCoreRelations relations;
 };
 
-// each kind of entry that gives a name, as its line's first word writes it
-static const char *const s_kind_written[] = {"form", "nop", "err", "construct"};
+// each type of entry that gives a name, as its line's first word writes it
+static const char *const s_type_written[] = {"form", "nop", "err", "construct"};
 
-// the language's map and the bridge, each put together here and then handed to the run's writer as its file, and the
+// the language's map and the bridge, each put together here and then passed to the run's writer as its file, and the
 // bytes each contains so far, the room once a write did not fit
 static char s_map_bytes[QRY_WRITER_RING_BYTES / 2ull];
 static size_t s_map_at;
@@ -81,7 +81,7 @@ static std::string entry_name(const LanguageSet *set, unsigned int at)
 static int entry_keyed(const LanguageSet *set, const RulesetSchema *schema, unsigned int at)
 {
     const RulesetCoreEntry *const entry = &set->relations.entries[at];
-    return ruleset_core_relation_gives(entry->kind) &&
+    return ruleset_core_relation_gives(entry->type) &&
            (ruleset_core_relation_giver(&set->relations, entry->name) == at) &&
            (ruleset_find(schema->forms, schema->form_count, entry_name(set, at)) < schema->form_count);
 }
@@ -126,13 +126,13 @@ static int map_write(const std::string &path, const std::string &stem, const Lan
         map_text(name.c_str());
         map_text("\n");
         keys += 1u;
-        const unsigned int kind = set->relations.entries[at].kind;
-        if (kind != RULESET_CORE_ENTRY_FORM)
+        const unsigned int type = set->relations.entries[at].type;
+        if (type != RULESET_CORE_ENTRY_FORM)
         {
-            map_text("kind ");
+            map_text("type ");
             map_text(name.c_str());
             map_text(" ");
-            map_text(s_kind_written[kind]);
+            map_text(s_type_written[type]);
             map_text("\n");
             relations += 1u;
         }
@@ -211,7 +211,7 @@ int main(int argc, char **argv)
         for (unsigned int at = 0u; at < relation_count; at += 1u)
         {
             const RulesetCoreRelation *const relation = &relations->relations[at];
-            if ((relation->kind != RULESET_CORE_RELATION_MODIFIERS) && (relation->kind != RULESET_CORE_RELATION_OPENED))
+            if ((relation->type != RULESET_CORE_RELATION_MODIFIERS) && (relation->type != RULESET_CORE_RELATION_OPENED))
             {
                 continue;
             }
@@ -241,7 +241,7 @@ int main(int argc, char **argv)
     std::string bridge_read;
     if (qry_member_file_blob(path.c_str(), &bridge_bytes, &bridge_size))
     {
-        // a file read whole is at most what a size_t counts
+        // a file read whole is at max what a size_t counts
         bridge_read.assign(reinterpret_cast<const char *>(bridge_bytes), static_cast<size_t>(bridge_size));
     }
     std::istringstream bridge_stream(bridge_read);

@@ -3,9 +3,9 @@
 // base.h: the frame's base, the pixels every frame starts from, composed in one pass: a map of layers over the
 // lattice, each a rectangle, the later over the earlier, nothing, the editor's ground, the side's, the tabs row's
 // surface, the glass sheet about the work or a pane's thinner tint, the sheet and a pane with the grain over them;
-// the map read into bands of rows and each band's runs of one layer as it is laid, each layer at each grain level an
+// the map read into bands of rows and each band's runs of one layer as it is positioned, each layer at each grain level an
 // entry of the ink's lanes and the lattice's rest, and the frame's start one read of the lattice and one write
-// through the runs. The map is laid for a layout and laid again only as the layout, the claim's stage or the
+// through the runs. The map is positioned for a layout and positioned again only as the layout, the claim's stage or the
 // palette changes (base.c)
 #ifndef GUI_BASE_H
 #define GUI_BASE_H
@@ -19,7 +19,7 @@ typedef struct GuiBaseFrameCfg GuiBaseFrameCfg;
 typedef struct GuiBaseCfg GuiBaseCfg;
 typedef struct GuiBaseWidthCfg GuiBaseWidthCfg;
 
-// the grain's levels, 0 to its most alpha; the sixteenths a share is laid in; the layers: nothing over the lattice, the
+// the grain's levels, 0 to its max alpha; the sixteenths a share is positioned in; the layers: nothing over the lattice, the
 // editor's ground, the side's, the tabs row's surface, that surface at each of its sixteenths of its alpha as the claim
 // fades the row, the side's ground at each of its sixteenths as its pane slides and the terminal's panel arrives, the
 // editor's ground at each of its sixteenths as the panel's views arrive, the glass sheet at each grain level, a pane at
@@ -48,13 +48,13 @@ typedef struct
     unsigned int rest;
 } GuiBaseEntry;
 
-// the most rectangles the map is laid in, the most bands of rows their edges cut it into and the most runs a band
-// holds, each a rectangle's edge or the map's at the most
+// the max rectangles the map is positioned in, the max bands of rows their edges cut it into and the max runs a band
+// holds, each a rectangle's edge or the map's at max
 #define GUI_BASE_LAYERS 48u
 #define GUI_BASE_BANDS (2u * GUI_BASE_LAYERS)
 #define GUI_BASE_RUNS (2u * GUI_BASE_LAYERS)
 
-// A rectangle of one layer laid on the map
+// A rectangle of one layer positioned on the map
 typedef struct
 {
     GuiRect rect;
@@ -79,12 +79,12 @@ typedef struct
     const GuiBaseRun *run;
 } GuiBaseMap;
 
-// The base: the size of its map; the entries; the sheet's and a pane's entries laid out as the grain's tile is, one
+// The base: the size of its map; the entries; the sheet's and a pane's entries arranged as the grain's tile is, one
 // for each of the tile's pixels, lane by lane in a cell of their own, the sheet's tile first and the pane's after,
-// which a run of either reads straight along; the rectangles laid, in order; the bands, each the row it starts at,
-// the last's end after them, and where each band's runs start among the runs; the frame and the colors the map was laid
-// for, whether it was laid with the controls' pane standing, and whether it is laid; whether the entries are made for
-// the colors; and how many times it has been laid
+// which a run of either reads straight along; the rectangles positioned, in order; the bands, each the row it starts at,
+// the last's end after them, and where each band's runs start among the runs; the frame and the colors the map was positioned
+// for, whether it was positioned with the controls' pane located, and whether it is positioned; whether the entries are made for
+// the colors; and how many times it has been positioned
 typedef struct
 {
     unsigned int width;
@@ -105,20 +105,20 @@ typedef struct
     GuiColor surface;
     GuiColor glass;
     int controls_steady;
-    int laid;
+    int positioned;
     int painted;
-    unsigned int laid_count;
+    unsigned int positioned_count;
 } GuiBase;
 
-// the base made for a window `width` by `height`, its tile tables in a cell of their own, laid for nothing yet: 1,
+// the base made for a window `width` by `height`, its tile tables in a cell of their own, positioned for nothing yet: 1,
 // or 0 where the cell could not be taken; and its cell given back
 int gui_base_init(const GuiBaseWidthCfg *args);
-// the base's map sized to a window `width` by `height`, its tile tables saved, laid for nothing until it is laid again
+// the base's map sized to a window `width` by `height`, its tile tables saved, positioned for nothing until it is positioned again
 void gui_base_resize(const GuiBaseWidthCfg *args);
-// the map laid for `frame` in `palette`'s colors, the controls' pane laid as a pane where `controls_steady` is set,
-// where the base is not already laid for them: 1 where it was laid, 0 where it stood
+// the map positioned for `frame` in `palette`'s colors, the controls' pane positioned as a pane where `controls_steady` is set,
+// where the base is not already positioned for them: 1 where it was positioned, 0 where it was
 int gui_base_layout(const GuiBaseFrameCfg *args);
-// the layer the map holds at x, y: the last rectangle laid over the pixel, or nothing
+// the layer the map holds at x, y: the last rectangle positioned over the pixel, or nothing
 unsigned int gui_base_layer_at(const GuiBaseCfg *args);
 // the entries made for `palette`'s colors, where they are not already; a map read over them saves its runs
 void gui_base_paint(const GuiBaseFrameCfg *args);

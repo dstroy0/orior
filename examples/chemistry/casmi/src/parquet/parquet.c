@@ -40,22 +40,22 @@ _Static_assert(CASMI_PARQUET_MAGIC_BYTES == (sizeof(CASMI_PARQUET_MAGIC) - 1u),
 #define CASMI_THRIFT_STRUCT 12u
 
 /** The longest a varint may run: ten groups of seven bits cover sixty-four. */
-#define CASMI_THRIFT_VARINT_BYTES_MOST 10u
+#define CASMI_THRIFT_VARINT_BYTES_MAX 10u
 
-_Static_assert((7u * CASMI_THRIFT_VARINT_BYTES_MOST) >= 64u,
-               "CASMI_THRIFT_VARINT_BYTES_MOST: its seven-bit groups must cover a 64-bit value");
-_Static_assert((7u * (CASMI_THRIFT_VARINT_BYTES_MOST - 1u)) < 64u,
-               "CASMI_THRIFT_VARINT_BYTES_MOST: the last group's shift must stay below the 64-bit width");
+_Static_assert((7u * CASMI_THRIFT_VARINT_BYTES_MAX) >= 64u,
+               "CASMI_THRIFT_VARINT_BYTES_MAX: its seven-bit groups must cover a 64-bit value");
+_Static_assert((7u * (CASMI_THRIFT_VARINT_BYTES_MAX - 1u)) < 64u,
+               "CASMI_THRIFT_VARINT_BYTES_MAX: the last group's shift must stay below the 64-bit width");
 
 /**
  * The bits of a varint's last group that land inside sixty-four: 64 - 7 x 9 = 1. The two asserts above
  * limit it to 1 through 7; a last group carrying a bit at or above it encodes more than 2^64 - 1.
  */
-#define CASMI_THRIFT_VARINT_LAST_GROUP_BITS (64u - (7u * (CASMI_THRIFT_VARINT_BYTES_MOST - 1u)))
+#define CASMI_THRIFT_VARINT_LAST_GROUP_BITS (64u - (7u * (CASMI_THRIFT_VARINT_BYTES_MAX - 1u)))
 
-/** A Thrift field id is an i16: the least and the most a field header may carry. */
+/** A Thrift field id is an i16: the least and the max a field header may carry. */
 #define CASMI_THRIFT_FIELD_ID_LEAST (-32768ll)
-#define CASMI_THRIFT_FIELD_ID_MOST 32767ll
+#define CASMI_THRIFT_FIELD_ID_MAX 32767ll
 
 /** Schema repetition types. */
 #define CASMI_PARQUET_REQUIRED 0u
@@ -73,12 +73,12 @@ _Static_assert((7u * (CASMI_THRIFT_VARINT_BYTES_MOST - 1u)) < 64u,
 #define CASMI_PARQUET_RLE_DICTIONARY 8u
 
 /** The widest level or dictionary index the hybrid decoder carries, in bits. */
-#define CASMI_PARQUET_HYBRID_BITS_MOST 32u
+#define CASMI_PARQUET_HYBRID_BITS_MAX 32u
 
-_Static_assert(CASMI_PARQUET_HYBRID_BITS_MOST <= (sizeof(unsigned int) * CHAR_BIT),
-               "CASMI_PARQUET_HYBRID_BITS_MOST: a decoded level or index must fit the unsigned int it is stored in");
-_Static_assert((CASMI_PARQUET_HYBRID_BITS_MOST + 7u) <= 64u,
-               "CASMI_PARQUET_HYBRID_BITS_MOST: a bit-packed value plus its 7-bit offset must fit one 64-bit window");
+_Static_assert(CASMI_PARQUET_HYBRID_BITS_MAX <= (sizeof(unsigned int) * CHAR_BIT),
+               "CASMI_PARQUET_HYBRID_BITS_MAX: a decoded level or index must fit the unsigned int it is stored in");
+_Static_assert((CASMI_PARQUET_HYBRID_BITS_MAX + 7u) <= 64u,
+               "CASMI_PARQUET_HYBRID_BITS_MAX: a bit-packed value plus its 7-bit offset must fit one 64-bit window");
 
 /** A cursor over bytes stored in memory. Any overrun sets broken, and every later read returns zero. */
 typedef struct
@@ -92,10 +92,10 @@ typedef struct
 /** One open container of a Thrift value being skipped: a struct's fields, or a list's or map's values. */
 typedef struct
 {
-    unsigned int container_kind;
+    unsigned int container_type;
     unsigned long long values_left;
-    unsigned int key_kind;
-    unsigned int value_kind;
+    unsigned int key_type;
+    unsigned int value_type;
     long long field_id;
 } ParquetThriftFrame;
 
@@ -103,8 +103,8 @@ typedef struct
 typedef struct
 {
     unsigned long long children_left;
-    unsigned int definition_most;
-    unsigned int repetition_most;
+    unsigned int definition_max;
+    unsigned int repetition_max;
     unsigned long long path_bytes;
 } ParquetSchemaFrame;
 
@@ -177,18 +177,18 @@ CASMI_ALWAYS_INLINE unsigned int parquet_byte_read(ParquetCursor *cursor)
 }
 
 /**
- * An unsigned LEB128 varint of at most sixty-four bits. One that runs past CASMI_THRIFT_VARINT_BYTES_MOST
+ * An unsigned LEB128 varint of at max sixty-four bits. One that runs past CASMI_THRIFT_VARINT_BYTES_MAX
  * bytes, or whose last group carries a bit at or above CASMI_THRIFT_VARINT_LAST_GROUP_BITS, encodes more
  * than 2^64 - 1 and breaks the cursor.
  */
 CASMI_ALWAYS_INLINE unsigned long long parquet_varint_read(ParquetCursor *cursor)
 {
     unsigned long long value = 0ull;
-    for (unsigned int group = 0u; group < CASMI_THRIFT_VARINT_BYTES_MOST; group += 1u)
+    for (unsigned int group = 0u; group < CASMI_THRIFT_VARINT_BYTES_MAX; group += 1u)
     {
         const unsigned int byte = parquet_byte_read(cursor);
         const unsigned int group_bits = byte & 0x7Fu;
-        if ((group == (CASMI_THRIFT_VARINT_BYTES_MOST - 1u)) && ((group_bits >> CASMI_THRIFT_VARINT_LAST_GROUP_BITS) != 0u))
+        if ((group == (CASMI_THRIFT_VARINT_BYTES_MAX - 1u)) && ((group_bits >> CASMI_THRIFT_VARINT_LAST_GROUP_BITS) != 0u))
         {
             cursor->broken = 1u;
             return 0ull;
@@ -210,7 +210,7 @@ CASMI_ALWAYS_INLINE long long parquet_zigzag_read(ParquetCursor *cursor)
 {
     const unsigned long long stored = parquet_varint_read(cursor);
     // The bits above the sign bit are below 2^63; the conversion to long long is exact. The low
-    // bit alone decides the sign: set, the value is -value_bits - 1, which reaches -2^63 at most.
+    // bit alone decides the sign: set, the value is -value_bits - 1, which reaches -2^63 at max.
     const long long value_bits = (long long)(stored >> 1u);
     return ((stored & 1ull) != 0ull) ? (-value_bits - 1ll) : value_bits;
 }
@@ -243,11 +243,11 @@ CASMI_ALWAYS_INLINE const unsigned char *parquet_binary_read(ParquetCursor *curs
     return start;
 }
 
-/** A list or set header: the element count, with the element type through *element_kind. */
-CASMI_ALWAYS_INLINE unsigned long long parquet_list_header_read(ParquetCursor *cursor, unsigned int *element_kind)
+/** A list or set header: the element count, with the element type through *element_type. */
+CASMI_ALWAYS_INLINE unsigned long long parquet_list_header_read(ParquetCursor *cursor, unsigned int *element_type)
 {
     const unsigned int header = parquet_byte_read(cursor);
-    *element_kind = header & 0x0Fu;
+    *element_type = header & 0x0Fu;
     const unsigned long long short_count = header >> 4u;
     return (short_count == 15ull) ? parquet_varint_read(cursor) : short_count;
 }
@@ -256,7 +256,7 @@ CASMI_ALWAYS_INLINE unsigned long long parquet_list_header_read(ParquetCursor *c
  * The next field of a struct: its id through *field_id and its type as the return, where
  * CASMI_THRIFT_STOP ends the struct. A short header carries the id as a delta from the last; a long
  * one carries it whole. Either way the id is an i16: one outside CASMI_THRIFT_FIELD_ID_LEAST through
- * CASMI_THRIFT_FIELD_ID_MOST breaks the cursor, leaves *field_id as it was and ends the struct.
+ * CASMI_THRIFT_FIELD_ID_MAX breaks the cursor, leaves *field_id as it was and ends the struct.
  */
 CASMI_ALWAYS_INLINE unsigned int parquet_field_read(ParquetCursor *cursor, long long *field_id)
 {
@@ -266,10 +266,10 @@ CASMI_ALWAYS_INLINE unsigned int parquet_field_read(ParquetCursor *cursor, long 
         return CASMI_THRIFT_STOP;
     }
     const unsigned int delta = header >> 4u;
-    // A delta is at most 15; its widening to long long is exact. Every caller starts *field_id at
+    // A delta is at max 15; its widening to long long is exact. Every caller starts *field_id at
     // zero and only this function writes it; the last id is an i16 and the sum cannot overflow.
     const long long next_id = (delta == 0u) ? parquet_zigzag_read(cursor) : (*field_id + (long long)delta);
-    if ((next_id < CASMI_THRIFT_FIELD_ID_LEAST) || (next_id > CASMI_THRIFT_FIELD_ID_MOST))
+    if ((next_id < CASMI_THRIFT_FIELD_ID_LEAST) || (next_id > CASMI_THRIFT_FIELD_ID_MAX))
     {
         cursor->broken = 1u;
         return CASMI_THRIFT_STOP;
@@ -278,10 +278,10 @@ CASMI_ALWAYS_INLINE unsigned int parquet_field_read(ParquetCursor *cursor, long 
     return header & 0x0Fu;
 }
 
-/** Skip one value that contains no other value. A kind that is not a scalar breaks the cursor. */
-CASMI_ALWAYS_INLINE void parquet_scalar_skip(ParquetCursor *cursor, unsigned int kind)
+/** Skip one value that contains no other value. A type that is not a scalar breaks the cursor. */
+CASMI_ALWAYS_INLINE void parquet_scalar_skip(ParquetCursor *cursor, unsigned int type)
 {
-    switch (kind)
+    switch (type)
     {
         case CASMI_THRIFT_TRUE:
         case CASMI_THRIFT_FALSE:
@@ -322,23 +322,23 @@ CASMI_ALWAYS_INLINE void parquet_scalar_skip(ParquetCursor *cursor, unsigned int
 }
 
 /**
- * Skip one value of any kind, nested containers included, without recursion: each open struct, list
- * or map is a frame, and a value nested deeper than CASMI_THRIFT_DEPTH_MOST breaks the cursor.
+ * Skip one value of any type, nested containers included, without recursion: each open struct, list
+ * or map is a frame, and a value nested deeper than CASMI_THRIFT_DEPTH_MAX breaks the cursor.
  */
-CASMI_ALWAYS_INLINE void parquet_value_skip(ParquetCursor *cursor, unsigned int kind)
+CASMI_ALWAYS_INLINE void parquet_value_skip(ParquetCursor *cursor, unsigned int type)
 {
-    ParquetThriftFrame frame[CASMI_THRIFT_DEPTH_MOST];
+    ParquetThriftFrame frame[CASMI_THRIFT_DEPTH_MAX];
     unsigned int depth = 0u;
-    unsigned int next_kind = kind;
+    unsigned int next_type = type;
     while (!cursor->broken)
     {
-        const int opens_container = (next_kind == CASMI_THRIFT_STRUCT) || (next_kind == CASMI_THRIFT_LIST) ||
-                                    (next_kind == CASMI_THRIFT_SET) || (next_kind == CASMI_THRIFT_MAP);
+        const int opens_container = (next_type == CASMI_THRIFT_STRUCT) || (next_type == CASMI_THRIFT_LIST) ||
+                                    (next_type == CASMI_THRIFT_SET) || (next_type == CASMI_THRIFT_MAP);
         if (!opens_container)
         {
-            parquet_scalar_skip(cursor, next_kind);
+            parquet_scalar_skip(cursor, next_type);
         }
-        else if (depth == CASMI_THRIFT_DEPTH_MOST)
+        else if (depth == CASMI_THRIFT_DEPTH_MAX)
         {
             cursor->broken = 1u;
             return;
@@ -346,54 +346,54 @@ CASMI_ALWAYS_INLINE void parquet_value_skip(ParquetCursor *cursor, unsigned int 
         else
         {
             ParquetThriftFrame *const opened_frame = &frame[depth];
-            opened_frame->container_kind = (next_kind == CASMI_THRIFT_SET) ? CASMI_THRIFT_LIST : next_kind;
+            opened_frame->container_type = (next_type == CASMI_THRIFT_SET) ? CASMI_THRIFT_LIST : next_type;
             opened_frame->values_left = 0ull;
-            opened_frame->key_kind = 0u;
-            opened_frame->value_kind = 0u;
+            opened_frame->key_type = 0u;
+            opened_frame->value_type = 0u;
             opened_frame->field_id = 0ll;
-            if (opened_frame->container_kind == CASMI_THRIFT_LIST)
+            if (opened_frame->container_type == CASMI_THRIFT_LIST)
             {
-                opened_frame->values_left = parquet_list_header_read(cursor, &opened_frame->value_kind);
-                opened_frame->key_kind = opened_frame->value_kind;
+                opened_frame->values_left = parquet_list_header_read(cursor, &opened_frame->value_type);
+                opened_frame->key_type = opened_frame->value_type;
             }
-            else if (opened_frame->container_kind == CASMI_THRIFT_MAP)
+            else if (opened_frame->container_type == CASMI_THRIFT_MAP)
             {
                 const unsigned long long entry_count = parquet_varint_read(cursor);
-                const unsigned int map_kind_byte = (entry_count != 0ull) ? parquet_byte_read(cursor) : 0u;
+                const unsigned int map_type_byte = (entry_count != 0ull) ? parquet_byte_read(cursor) : 0u;
                 // Every entry takes at least one byte; more entries than bytes left is refused, and
                 // the doubling to count keys and values apart cannot wrap.
                 cursor->broken |= (entry_count > (cursor->byte_count - cursor->position)) ? 1u : 0u;
                 opened_frame->values_left = cursor->broken ? 0ull : (2ull * entry_count);
-                opened_frame->key_kind = map_kind_byte >> 4u;
-                opened_frame->value_kind = map_kind_byte & 0x0Fu;
+                opened_frame->key_type = map_type_byte >> 4u;
+                opened_frame->value_type = map_type_byte & 0x0Fu;
             }
             depth += 1u;
         }
         // The next value to skip is the innermost open container's next one; each container that has
         // none left closes, and when none is open the whole value has been skipped.
-        next_kind = CASMI_THRIFT_STOP;
-        while ((depth != 0u) && (next_kind == CASMI_THRIFT_STOP) && !cursor->broken)
+        next_type = CASMI_THRIFT_STOP;
+        while ((depth != 0u) && (next_type == CASMI_THRIFT_STOP) && !cursor->broken)
         {
             ParquetThriftFrame *const innermost_frame = &frame[depth - 1u];
-            if (innermost_frame->container_kind == CASMI_THRIFT_STRUCT)
+            if (innermost_frame->container_type == CASMI_THRIFT_STRUCT)
             {
-                next_kind = parquet_field_read(cursor, &innermost_frame->field_id);
+                next_type = parquet_field_read(cursor, &innermost_frame->field_id);
             }
             else if (innermost_frame->values_left != 0ull)
             {
                 innermost_frame->values_left -= 1ull;
                 // A map counts down from an even total; an odd count left means a key comes next.
-                next_kind = ((innermost_frame->values_left & 1ull) != 0ull) ? innermost_frame->key_kind : innermost_frame->value_kind;
+                next_type = ((innermost_frame->values_left & 1ull) != 0ull) ? innermost_frame->key_type : innermost_frame->value_type;
                 // A boolean inside a list or map is one byte, not a type code carrying the value.
-                next_kind = ((next_kind == CASMI_THRIFT_TRUE) || (next_kind == CASMI_THRIFT_FALSE)) ? CASMI_THRIFT_BYTE : next_kind;
-                cursor->broken |= (next_kind == CASMI_THRIFT_STOP) ? 1u : 0u;
+                next_type = ((next_type == CASMI_THRIFT_TRUE) || (next_type == CASMI_THRIFT_FALSE)) ? CASMI_THRIFT_BYTE : next_type;
+                cursor->broken |= (next_type == CASMI_THRIFT_STOP) ? 1u : 0u;
             }
-            if ((next_kind == CASMI_THRIFT_STOP) && !cursor->broken)
+            if ((next_type == CASMI_THRIFT_STOP) && !cursor->broken)
             {
                 depth -= 1u;
             }
         }
-        if (next_kind == CASMI_THRIFT_STOP)
+        if (next_type == CASMI_THRIFT_STOP)
         {
             return;
         }
@@ -440,7 +440,7 @@ CASMI_ALWAYS_INLINE long long parquet_file_size_read(const char *path)
     return size;
 }
 
-/** An unsigned integer stored little-endian in count bytes, count at most eight. */
+/** An unsigned integer stored little-endian in count bytes, count at max eight. */
 CASMI_ALWAYS_INLINE unsigned long long parquet_little_endian_read(const unsigned char *bytes, unsigned int count)
 {
     unsigned long long value = 0ull;
@@ -495,32 +495,32 @@ CASMI_ALWAYS_INLINE int parquet_schema_element_read(ParquetCursor *cursor, Casmi
     unsigned long long children = 0ull;
     const unsigned char *name = NULL;
     unsigned long long name_bytes = 0ull;
-    for (unsigned int kind = parquet_field_read(cursor, &field_id); kind != CASMI_THRIFT_STOP;
-         kind = parquet_field_read(cursor, &field_id))
+    for (unsigned int type = parquet_field_read(cursor, &field_id); type != CASMI_THRIFT_STOP;
+         type = parquet_field_read(cursor, &field_id))
     {
-        if ((field_id == 1ll) && (kind == CASMI_THRIFT_I32))
+        if ((field_id == 1ll) && (type == CASMI_THRIFT_I32))
         {
             physical = parquet_nonnegative_integer_read(cursor);
         }
-        else if ((field_id == 2ll) && (kind == CASMI_THRIFT_I32))
+        else if ((field_id == 2ll) && (type == CASMI_THRIFT_I32))
         {
             fixed_bytes = parquet_nonnegative_integer_read(cursor);
         }
-        else if ((field_id == 3ll) && (kind == CASMI_THRIFT_I32))
+        else if ((field_id == 3ll) && (type == CASMI_THRIFT_I32))
         {
             repetition_type = parquet_nonnegative_integer_read(cursor);
         }
-        else if ((field_id == 4ll) && (kind == CASMI_THRIFT_BINARY))
+        else if ((field_id == 4ll) && (type == CASMI_THRIFT_BINARY))
         {
             name = parquet_binary_read(cursor, &name_bytes);
         }
-        else if ((field_id == 5ll) && (kind == CASMI_THRIFT_I32))
+        else if ((field_id == 5ll) && (type == CASMI_THRIFT_I32))
         {
             children = parquet_nonnegative_integer_read(cursor);
         }
         else
         {
-            parquet_value_skip(cursor, kind);
+            parquet_value_skip(cursor, type);
         }
         if (cursor->broken)
         {
@@ -531,8 +531,8 @@ CASMI_ALWAYS_INLINE int parquet_schema_element_read(ParquetCursor *cursor, Casmi
     if (*depth == 0u)
     {
         stack[0].children_left = children;
-        stack[0].definition_most = 0u;
-        stack[0].repetition_most = 0u;
+        stack[0].definition_max = 0u;
+        stack[0].repetition_max = 0u;
         stack[0].path_bytes = 0ull;
         *depth = 1u;
         return children != 0ull;
@@ -543,8 +543,8 @@ CASMI_ALWAYS_INLINE int parquet_schema_element_read(ParquetCursor *cursor, Casmi
         return 0;
     }
     parent->children_left -= 1ull;
-    const unsigned int definition = parent->definition_most + ((repetition_type != CASMI_PARQUET_REQUIRED) ? 1u : 0u);
-    const unsigned int repetition = parent->repetition_most + ((repetition_type == CASMI_PARQUET_REPEATED) ? 1u : 0u);
+    const unsigned int definition = parent->definition_max + ((repetition_type != CASMI_PARQUET_REQUIRED) ? 1u : 0u);
+    const unsigned int repetition = parent->repetition_max + ((repetition_type == CASMI_PARQUET_REPEATED) ? 1u : 0u);
     const unsigned long long separator = (parent->path_bytes == 0ull) ? 0ull : 1ull;
     const unsigned long long path_bytes = parent->path_bytes + separator + name_bytes;
     if ((name == NULL) || (path_bytes >= CASMI_PARQUET_PATH_BYTES))
@@ -559,7 +559,7 @@ CASMI_ALWAYS_INLINE int parquet_schema_element_read(ParquetCursor *cursor, Casmi
     path[path_bytes] = '\0';
     if (children == 0ull)
     {
-        if (footer->leaf_count >= CASMI_PARQUET_LEAVES_MOST)
+        if (footer->leaf_count >= CASMI_PARQUET_LEAVES_MAX)
         {
             return 0;
         }
@@ -570,19 +570,19 @@ CASMI_ALWAYS_INLINE int parquet_schema_element_read(ParquetCursor *cursor, Casmi
         // its column is bounded.
         leaf->physical = (CasmiParquetPhysical)physical;
         leaf->fixed_bytes = (unsigned int)fixed_bytes;
-        leaf->definition_most = definition;
-        leaf->repetition_most = repetition;
+        leaf->definition_max = definition;
+        leaf->repetition_max = repetition;
         footer->leaf_count += 1u;
     }
     else
     {
-        if (*depth >= CASMI_PARQUET_SCHEMA_DEPTH_MOST)
+        if (*depth >= CASMI_PARQUET_SCHEMA_DEPTH_MAX)
         {
             return 0;
         }
         stack[*depth].children_left = children;
-        stack[*depth].definition_most = definition;
-        stack[*depth].repetition_most = repetition;
+        stack[*depth].definition_max = definition;
+        stack[*depth].repetition_max = repetition;
         stack[*depth].path_bytes = path_bytes;
         *depth += 1u;
     }
@@ -596,13 +596,13 @@ CASMI_ALWAYS_INLINE int parquet_schema_element_read(ParquetCursor *cursor, Casmi
 /** Read the schema list into the footer's leaves, each with its dotted path and level ceilings. */
 CASMI_ALWAYS_INLINE int parquet_schema_read(ParquetCursor *cursor, CasmiParquetFooter *footer)
 {
-    unsigned int element_kind = 0u;
-    const unsigned long long count = parquet_list_header_read(cursor, &element_kind);
-    if (element_kind != CASMI_THRIFT_STRUCT)
+    unsigned int element_type = 0u;
+    const unsigned long long count = parquet_list_header_read(cursor, &element_type);
+    if (element_type != CASMI_THRIFT_STRUCT)
     {
         return 0;
     }
-    ParquetSchemaFrame stack[CASMI_PARQUET_SCHEMA_DEPTH_MOST];
+    ParquetSchemaFrame stack[CASMI_PARQUET_SCHEMA_DEPTH_MAX];
     char path[CASMI_PARQUET_PATH_BYTES];
     unsigned int depth = 0u;
     for (unsigned long long element = 0ull; element < count; element += 1ull)
@@ -618,9 +618,9 @@ CASMI_ALWAYS_INLINE int parquet_schema_read(ParquetCursor *cursor, CasmiParquetF
 /** Whether a chunk's path_in_schema list names the same dotted path as leaf_path. */
 CASMI_ALWAYS_INLINE int parquet_path_match(ParquetCursor *cursor, const char *leaf_path)
 {
-    unsigned int element_kind = 0u;
-    const unsigned long long parts = parquet_list_header_read(cursor, &element_kind);
-    if (element_kind != CASMI_THRIFT_BINARY)
+    unsigned int element_type = 0u;
+    const unsigned long long parts = parquet_list_header_read(cursor, &element_type);
+    if (element_type != CASMI_THRIFT_BINARY)
     {
         return 0;
     }
@@ -649,10 +649,10 @@ CASMI_ALWAYS_INLINE int parquet_column_metadata_read(ParquetCursor *cursor, cons
     unsigned long long data_page_offset = 0ull;
     unsigned long long dictionary_page_offset = 0ull;
     int path_seen = 0;
-    for (unsigned int kind = parquet_field_read(cursor, &field_id); kind != CASMI_THRIFT_STOP;
-         kind = parquet_field_read(cursor, &field_id))
+    for (unsigned int type = parquet_field_read(cursor, &field_id); type != CASMI_THRIFT_STOP;
+         type = parquet_field_read(cursor, &field_id))
     {
-        if ((field_id == 3ll) && (kind == CASMI_THRIFT_LIST))
+        if ((field_id == 3ll) && (type == CASMI_THRIFT_LIST))
         {
             if (!parquet_path_match(cursor, leaf->path))
             {
@@ -660,34 +660,34 @@ CASMI_ALWAYS_INLINE int parquet_column_metadata_read(ParquetCursor *cursor, cons
             }
             path_seen = 1;
         }
-        else if ((field_id == 4ll) && (kind == CASMI_THRIFT_I32))
+        else if ((field_id == 4ll) && (type == CASMI_THRIFT_I32))
         {
             // A codec is 0 through 7, stored as i32; an unknown one is refused when a page is decoded.
             chunk->codec = (CasmiParquetCodec)parquet_nonnegative_integer_read(cursor);
         }
-        else if ((field_id == 5ll) && (kind == CASMI_THRIFT_I64))
+        else if ((field_id == 5ll) && (type == CASMI_THRIFT_I64))
         {
             chunk->level_count = parquet_nonnegative_integer_read(cursor);
         }
-        else if ((field_id == 6ll) && (kind == CASMI_THRIFT_I64))
+        else if ((field_id == 6ll) && (type == CASMI_THRIFT_I64))
         {
             chunk->uncompressed_bytes = parquet_nonnegative_integer_read(cursor);
         }
-        else if ((field_id == 7ll) && (kind == CASMI_THRIFT_I64))
+        else if ((field_id == 7ll) && (type == CASMI_THRIFT_I64))
         {
             chunk->compressed_bytes = parquet_nonnegative_integer_read(cursor);
         }
-        else if ((field_id == 9ll) && (kind == CASMI_THRIFT_I64))
+        else if ((field_id == 9ll) && (type == CASMI_THRIFT_I64))
         {
             data_page_offset = parquet_nonnegative_integer_read(cursor);
         }
-        else if ((field_id == 11ll) && (kind == CASMI_THRIFT_I64))
+        else if ((field_id == 11ll) && (type == CASMI_THRIFT_I64))
         {
             dictionary_page_offset = parquet_nonnegative_integer_read(cursor);
         }
         else
         {
-            parquet_value_skip(cursor, kind);
+            parquet_value_skip(cursor, type);
         }
         if (cursor->broken)
         {
@@ -707,10 +707,10 @@ CASMI_ALWAYS_INLINE int parquet_column_chunk_read(ParquetCursor *cursor, const C
 {
     long long field_id = 0ll;
     int metadata_seen = 0;
-    for (unsigned int kind = parquet_field_read(cursor, &field_id); kind != CASMI_THRIFT_STOP;
-         kind = parquet_field_read(cursor, &field_id))
+    for (unsigned int type = parquet_field_read(cursor, &field_id); type != CASMI_THRIFT_STOP;
+         type = parquet_field_read(cursor, &field_id))
     {
-        if ((field_id == 3ll) && (kind == CASMI_THRIFT_STRUCT))
+        if ((field_id == 3ll) && (type == CASMI_THRIFT_STRUCT))
         {
             if (!parquet_column_metadata_read(cursor, leaf, chunk))
             {
@@ -720,7 +720,7 @@ CASMI_ALWAYS_INLINE int parquet_column_chunk_read(ParquetCursor *cursor, const C
         }
         else
         {
-            parquet_value_skip(cursor, kind);
+            parquet_value_skip(cursor, type);
         }
         if (cursor->broken)
         {
@@ -736,14 +736,14 @@ CASMI_ALWAYS_INLINE int parquet_row_group_read(ParquetCursor *cursor, const Casm
 {
     long long field_id = 0ll;
     int columns_seen = 0;
-    for (unsigned int kind = parquet_field_read(cursor, &field_id); kind != CASMI_THRIFT_STOP;
-         kind = parquet_field_read(cursor, &field_id))
+    for (unsigned int type = parquet_field_read(cursor, &field_id); type != CASMI_THRIFT_STOP;
+         type = parquet_field_read(cursor, &field_id))
     {
-        if ((field_id == 1ll) && (kind == CASMI_THRIFT_LIST))
+        if ((field_id == 1ll) && (type == CASMI_THRIFT_LIST))
         {
-            unsigned int element_kind = 0u;
-            const unsigned long long count = parquet_list_header_read(cursor, &element_kind);
-            if ((element_kind != CASMI_THRIFT_STRUCT) || (count != footer->leaf_count))
+            unsigned int element_type = 0u;
+            const unsigned long long count = parquet_list_header_read(cursor, &element_type);
+            if ((element_type != CASMI_THRIFT_STRUCT) || (count != footer->leaf_count))
             {
                 return 0;
             }
@@ -756,13 +756,13 @@ CASMI_ALWAYS_INLINE int parquet_row_group_read(ParquetCursor *cursor, const Casm
             }
             columns_seen = 1;
         }
-        else if ((field_id == 3ll) && (kind == CASMI_THRIFT_I64))
+        else if ((field_id == 3ll) && (type == CASMI_THRIFT_I64))
         {
             row_group->rows = parquet_nonnegative_integer_read(cursor);
         }
         else
         {
-            parquet_value_skip(cursor, kind);
+            parquet_value_skip(cursor, type);
         }
         if (cursor->broken)
         {
@@ -777,10 +777,10 @@ CASMI_ALWAYS_INLINE int parquet_file_metadata_read(ParquetCursor *cursor, CasmiP
 {
     long long field_id = 0ll;
     int schema_seen = 0;
-    for (unsigned int kind = parquet_field_read(cursor, &field_id); kind != CASMI_THRIFT_STOP;
-         kind = parquet_field_read(cursor, &field_id))
+    for (unsigned int type = parquet_field_read(cursor, &field_id); type != CASMI_THRIFT_STOP;
+         type = parquet_field_read(cursor, &field_id))
     {
-        if ((field_id == 2ll) && (kind == CASMI_THRIFT_LIST))
+        if ((field_id == 2ll) && (type == CASMI_THRIFT_LIST))
         {
             if (!parquet_schema_read(cursor, footer))
             {
@@ -788,15 +788,15 @@ CASMI_ALWAYS_INLINE int parquet_file_metadata_read(ParquetCursor *cursor, CasmiP
             }
             schema_seen = 1;
         }
-        else if ((field_id == 3ll) && (kind == CASMI_THRIFT_I64))
+        else if ((field_id == 3ll) && (type == CASMI_THRIFT_I64))
         {
             footer->rows = parquet_nonnegative_integer_read(cursor);
         }
-        else if ((field_id == 4ll) && (kind == CASMI_THRIFT_LIST) && schema_seen)
+        else if ((field_id == 4ll) && (type == CASMI_THRIFT_LIST) && schema_seen)
         {
-            unsigned int element_kind = 0u;
-            const unsigned long long count = parquet_list_header_read(cursor, &element_kind);
-            if ((element_kind != CASMI_THRIFT_STRUCT) || (count > CASMI_PARQUET_ROW_GROUPS_MOST))
+            unsigned int element_type = 0u;
+            const unsigned long long count = parquet_list_header_read(cursor, &element_type);
+            if ((element_type != CASMI_THRIFT_STRUCT) || (count > CASMI_PARQUET_ROW_GROUPS_MAX))
             {
                 return 0;
             }
@@ -807,12 +807,12 @@ CASMI_ALWAYS_INLINE int parquet_file_metadata_read(ParquetCursor *cursor, CasmiP
                     return 0;
                 }
             }
-            // count was bounded by CASMI_PARQUET_ROW_GROUPS_MOST above; it fits unsigned int.
+            // count was bounded by CASMI_PARQUET_ROW_GROUPS_MAX above; it fits unsigned int.
             footer->row_group_count = (unsigned int)count;
         }
         else
         {
-            parquet_value_skip(cursor, kind);
+            parquet_value_skip(cursor, type);
         }
         if (cursor->broken)
         {
@@ -841,7 +841,7 @@ CASMI_ALWAYS_INLINE long long parquet_footer_decode(const CasmiParquetFooterRead
         return ENGINE_BYTES_ERROR;
     }
     const unsigned long long footer_bytes = parquet_little_endian_read(trailer, 4u);
-    if ((footer_bytes > CASMI_PARQUET_FOOTER_BYTES_MOST) ||
+    if ((footer_bytes > CASMI_PARQUET_FOOTER_BYTES_MAX) ||
         (footer_bytes > (file_size - CASMI_PARQUET_MAGIC_BYTES - CASMI_PARQUET_TRAILER_BYTES)))
     {
         return ENGINE_BYTES_ERROR;
@@ -867,7 +867,7 @@ CASMI_ALWAYS_INLINE long long parquet_footer_decode(const CasmiParquetFooterRead
     }
     free(decoded);
     free(footer_text);
-    // leaf_count is at most CASMI_PARQUET_LEAVES_MOST; it fits long long.
+    // leaf_count is at max CASMI_PARQUET_LEAVES_MAX; it fits long long.
     return good ? (long long)args->footer->leaf_count : ENGINE_BYTES_ERROR;
 }
 
@@ -878,7 +878,7 @@ CASMI_ALWAYS_INLINE long long parquet_leaf_search(const CasmiParquetLeafFind *ar
     {
         if (strcmp(args->footer->leaf[leaf].path, args->path_in_schema) == 0)
         {
-            // leaf is below CASMI_PARQUET_LEAVES_MOST; it fits long long.
+            // leaf is below CASMI_PARQUET_LEAVES_MAX; it fits long long.
             return (long long)leaf;
         }
     }
@@ -928,7 +928,7 @@ CASMI_ALWAYS_INLINE long long parquet_column_measure(const CasmiParquetColumnRea
  */
 CASMI_ALWAYS_INLINE int parquet_hybrid_decode(const ParquetHybridRead *read)
 {
-    if (read->bit_width > CASMI_PARQUET_HYBRID_BITS_MOST)
+    if (read->bit_width > CASMI_PARQUET_HYBRID_BITS_MAX)
     {
         return 0;
     }
@@ -958,7 +958,7 @@ CASMI_ALWAYS_INLINE int parquet_hybrid_decode(const ParquetHybridRead *read)
             }
             for (unsigned long long step = 0ull; (step < run) && (written < read->value_count); step += 1ull)
             {
-                // value was checked against a mask of at most 32 bits; it fits unsigned int.
+                // value was checked against a mask of at max 32 bits; it fits unsigned int.
                 read->out[written] = (unsigned int)value;
                 written += 1ull;
             }
@@ -981,7 +981,7 @@ CASMI_ALWAYS_INLINE int parquet_hybrid_decode(const ParquetHybridRead *read)
             const unsigned long long packed_values = groups * 8ull;
             for (unsigned long long step = 0ull; (step < packed_values) && (written < read->value_count); step += 1ull)
             {
-                // A value of at most 32 bits starts within its first byte's low 7 bits; the eight
+                // A value of at max 32 bits starts within its first byte's low 7 bits; the eight
                 // bytes from that byte contain it whole; the window is cut short only at the run's end.
                 const unsigned long long first_bit = step * read->bit_width;
                 const unsigned long long first_byte = cursor.position + (first_bit >> 3u);
@@ -989,7 +989,7 @@ CASMI_ALWAYS_INLINE int parquet_hybrid_decode(const ParquetHybridRead *read)
                 // bytes_left is below 8 on the narrowing arm; it fits unsigned int.
                 const unsigned int window_bytes = (bytes_left < 8ull) ? (unsigned int)bytes_left : 8u;
                 const unsigned long long window = parquet_little_endian_read(cursor.bytes + first_byte, window_bytes);
-                // The masked value contains bit_width bits, at most 32; it fits unsigned int.
+                // The masked value contains bit_width bits, at max 32; it fits unsigned int.
                 read->out[written] = (unsigned int)((window >> (first_bit & 7ull)) & mask);
                 written += 1ull;
             }
@@ -999,43 +999,43 @@ CASMI_ALWAYS_INLINE int parquet_hybrid_decode(const ParquetHybridRead *read)
     return 1;
 }
 
-/** The bit width of a level whose ceiling is most: the fewest bits that represent 0 through most. */
-CASMI_ALWAYS_INLINE unsigned int parquet_level_width_measure(unsigned int most)
+/** The bit width of a level whose ceiling is max: the fewest bits that represent 0 through max. */
+CASMI_ALWAYS_INLINE unsigned int parquet_level_width_measure(unsigned int max)
 {
     unsigned int width = 0u;
-    while ((1ull << width) <= most)
+    while ((1ull << width) <= max)
     {
         width += 1u;
     }
     return width;
 }
 
-/** Read one page header: its type, sizes, level count and encodings, for all three page kinds. */
+/** Read one page header: its type, sizes, level count and encodings, for all three page types. */
 CASMI_ALWAYS_INLINE int parquet_page_header_read(ParquetCursor *cursor, ParquetPageHeader *header)
 {
     long long field_id = 0ll;
     memset(header, 0, sizeof(*header));
     header->values_compressed = 1u;
-    for (unsigned int kind = parquet_field_read(cursor, &field_id); kind != CASMI_THRIFT_STOP;
-         kind = parquet_field_read(cursor, &field_id))
+    for (unsigned int type = parquet_field_read(cursor, &field_id); type != CASMI_THRIFT_STOP;
+         type = parquet_field_read(cursor, &field_id))
     {
-        if ((field_id == 1ll) && (kind == CASMI_THRIFT_I32))
+        if ((field_id == 1ll) && (type == CASMI_THRIFT_I32))
         {
             // A page type is 0 through 3, stored as i32.
             header->page_type = (unsigned int)parquet_nonnegative_integer_read(cursor);
         }
-        else if ((field_id == 2ll) && (kind == CASMI_THRIFT_I32))
+        else if ((field_id == 2ll) && (type == CASMI_THRIFT_I32))
         {
             header->uncompressed_bytes = parquet_nonnegative_integer_read(cursor);
         }
-        else if ((field_id == 3ll) && (kind == CASMI_THRIFT_I32))
+        else if ((field_id == 3ll) && (type == CASMI_THRIFT_I32))
         {
             header->compressed_bytes = parquet_nonnegative_integer_read(cursor);
         }
-        else if (((field_id == 5ll) || (field_id == 7ll) || (field_id == 8ll)) && (kind == CASMI_THRIFT_STRUCT))
+        else if (((field_id == 5ll) || (field_id == 7ll) || (field_id == 8ll)) && (type == CASMI_THRIFT_STRUCT))
         {
             // Field 5 is a V1 data page header, 7 a dictionary page header, 8 a V2 data page header.
-            const long long page_kind = field_id;
+            const long long page_type = field_id;
             long long inner_id = 0ll;
             for (unsigned int inner = parquet_field_read(cursor, &inner_id); inner != CASMI_THRIFT_STOP;
                  inner = parquet_field_read(cursor, &inner_id))
@@ -1046,31 +1046,31 @@ CASMI_ALWAYS_INLINE int parquet_page_header_read(ParquetCursor *cursor, ParquetP
                 {
                     header->level_count = parquet_nonnegative_integer_read(cursor);
                 }
-                else if ((page_kind != 8ll) && (inner_id == 2ll) && (inner == CASMI_THRIFT_I32))
+                else if ((page_type != 8ll) && (inner_id == 2ll) && (inner == CASMI_THRIFT_I32))
                 {
                     header->encoding = (unsigned int)parquet_nonnegative_integer_read(cursor);
                 }
-                else if ((page_kind == 5ll) && (inner_id == 3ll) && (inner == CASMI_THRIFT_I32))
+                else if ((page_type == 5ll) && (inner_id == 3ll) && (inner == CASMI_THRIFT_I32))
                 {
                     header->definition_encoding = (unsigned int)parquet_nonnegative_integer_read(cursor);
                 }
-                else if ((page_kind == 5ll) && (inner_id == 4ll) && (inner == CASMI_THRIFT_I32))
+                else if ((page_type == 5ll) && (inner_id == 4ll) && (inner == CASMI_THRIFT_I32))
                 {
                     header->repetition_encoding = (unsigned int)parquet_nonnegative_integer_read(cursor);
                 }
-                else if ((page_kind == 8ll) && (inner_id == 4ll) && (inner == CASMI_THRIFT_I32))
+                else if ((page_type == 8ll) && (inner_id == 4ll) && (inner == CASMI_THRIFT_I32))
                 {
                     header->encoding = (unsigned int)parquet_nonnegative_integer_read(cursor);
                 }
-                else if ((page_kind == 8ll) && (inner_id == 5ll) && (inner == CASMI_THRIFT_I32))
+                else if ((page_type == 8ll) && (inner_id == 5ll) && (inner == CASMI_THRIFT_I32))
                 {
                     header->definition_bytes = parquet_nonnegative_integer_read(cursor);
                 }
-                else if ((page_kind == 8ll) && (inner_id == 6ll) && (inner == CASMI_THRIFT_I32))
+                else if ((page_type == 8ll) && (inner_id == 6ll) && (inner == CASMI_THRIFT_I32))
                 {
                     header->repetition_bytes = parquet_nonnegative_integer_read(cursor);
                 }
-                else if ((page_kind == 8ll) && (inner_id == 7ll) &&
+                else if ((page_type == 8ll) && (inner_id == 7ll) &&
                          ((inner == CASMI_THRIFT_TRUE) || (inner == CASMI_THRIFT_FALSE)))
                 {
                     header->values_compressed = (inner == CASMI_THRIFT_TRUE) ? 1u : 0u;
@@ -1087,7 +1087,7 @@ CASMI_ALWAYS_INLINE int parquet_page_header_read(ParquetCursor *cursor, ParquetP
         }
         else
         {
-            parquet_value_skip(cursor, kind);
+            parquet_value_skip(cursor, type);
         }
         if (cursor->broken)
         {
@@ -1173,10 +1173,10 @@ CASMI_ALWAYS_INLINE int parquet_dictionary_page_decode(ParquetColumnWalk *walk, 
  * Decode one V1 page's levels at page->position: a 4-byte length, then that many bytes of hybrid run. A
  * level whose ceiling is zero is not stored and decodes to zeros.
  */
-CASMI_ALWAYS_INLINE int parquet_levels_v1_decode(ParquetCursor *page, unsigned int level_most,
+CASMI_ALWAYS_INLINE int parquet_levels_v1_decode(ParquetCursor *page, unsigned int level_max,
                                                  unsigned long long level_count, unsigned int *out)
 {
-    if (level_most == 0u)
+    if (level_max == 0u)
     {
         memset(out, 0, level_count * sizeof(*out));
         return 1;
@@ -1191,7 +1191,7 @@ CASMI_ALWAYS_INLINE int parquet_levels_v1_decode(ParquetCursor *page, unsigned i
     {
         return 0;
     }
-    const ParquetHybridRead read = {page->bytes + page->position, length, parquet_level_width_measure(level_most), level_count, out};
+    const ParquetHybridRead read = {page->bytes + page->position, length, parquet_level_width_measure(level_max), level_count, out};
     page->position += length;
     return parquet_hybrid_decode(&read);
 }
@@ -1294,7 +1294,7 @@ CASMI_ALWAYS_INLINE int parquet_rows_assemble(ParquetColumnWalk *walk, unsigned 
     unsigned long long counted = walk->values_done;
     for (unsigned long long level = 0ull; level < level_count; level += 1ull)
     {
-        if ((walk->leaf->repetition_most == 0u) || (walk->repetition_level[level] == 0u))
+        if ((walk->leaf->repetition_max == 0u) || (walk->repetition_level[level] == 0u))
         {
             if ((walk->rows_done + 1ull) >= column->row_start_room)
             {
@@ -1307,11 +1307,11 @@ CASMI_ALWAYS_INLINE int parquet_rows_assemble(ParquetColumnWalk *walk, unsigned 
         {
             return 0;
         }
-        if (walk->definition_level[level] == walk->leaf->definition_most)
+        if (walk->definition_level[level] == walk->leaf->definition_max)
         {
             counted += 1ull;
         }
-        else if (walk->definition_level[level] > walk->leaf->definition_most)
+        else if (walk->definition_level[level] > walk->leaf->definition_max)
         {
             return 0;
         }
@@ -1333,15 +1333,15 @@ CASMI_ALWAYS_INLINE int parquet_data_page_decode(ParquetColumnWalk *walk, const 
     if (header->page_type == CASMI_PARQUET_DATA_PAGE)
     {
         const EngineBytesRequest request = {body, header->compressed_bytes, walk->page_bytes, header->uncompressed_bytes};
-        if (((walk->leaf->definition_most != 0u) && (header->definition_encoding != CASMI_PARQUET_RLE)) ||
-            ((walk->leaf->repetition_most != 0u) && (header->repetition_encoding != CASMI_PARQUET_RLE)) ||
+        if (((walk->leaf->definition_max != 0u) && (header->definition_encoding != CASMI_PARQUET_RLE)) ||
+            ((walk->leaf->repetition_max != 0u) && (header->repetition_encoding != CASMI_PARQUET_RLE)) ||
             !parquet_body_inflate(&request, walk->chunk->codec))
         {
             return 0;
         }
         ParquetCursor page = {walk->page_bytes, header->uncompressed_bytes, 0ull, 0u};
-        if (!parquet_levels_v1_decode(&page, walk->leaf->repetition_most, header->level_count, walk->repetition_level) ||
-            !parquet_levels_v1_decode(&page, walk->leaf->definition_most, header->level_count, walk->definition_level))
+        if (!parquet_levels_v1_decode(&page, walk->leaf->repetition_max, header->level_count, walk->repetition_level) ||
+            !parquet_levels_v1_decode(&page, walk->leaf->definition_max, header->level_count, walk->definition_level))
         {
             return 0;
         }
@@ -1357,12 +1357,12 @@ CASMI_ALWAYS_INLINE int parquet_data_page_decode(ParquetColumnWalk *walk, const 
         {
             return 0;
         }
-        const ParquetHybridRead repetition = {body, header->repetition_bytes, parquet_level_width_measure(walk->leaf->repetition_most),
+        const ParquetHybridRead repetition = {body, header->repetition_bytes, parquet_level_width_measure(walk->leaf->repetition_max),
                                               header->level_count, walk->repetition_level};
         const ParquetHybridRead definition = {body + header->repetition_bytes, header->definition_bytes,
-                                              parquet_level_width_measure(walk->leaf->definition_most), header->level_count,
+                                              parquet_level_width_measure(walk->leaf->definition_max), header->level_count,
                                               walk->definition_level};
-        if (walk->leaf->repetition_most == 0u)
+        if (walk->leaf->repetition_max == 0u)
         {
             memset(walk->repetition_level, 0, header->level_count * sizeof(*walk->repetition_level));
         }
@@ -1370,7 +1370,7 @@ CASMI_ALWAYS_INLINE int parquet_data_page_decode(ParquetColumnWalk *walk, const 
         {
             return 0;
         }
-        if (walk->leaf->definition_most == 0u)
+        if (walk->leaf->definition_max == 0u)
         {
             memset(walk->definition_level, 0, header->level_count * sizeof(*walk->definition_level));
         }

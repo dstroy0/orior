@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qry_listed.c: the Runs pane's rows. The tree's folders of runs come from one walk of the tree's files, walked again
-// only where the watch lost changes; the watch hands the folder of each run or overseer.txt it sees written through a
+// only where the watch lost changes; the watch passes the folder of each run or overseer.txt it sees written through a
 // ring the window's thread drains, and marks the listing stale. Every listing reads each folder's entries anew, a run
 // that appears in one showing at once, and reads each folder's overseer.txt for its lessons. A run opened in the pane
 // is read through the run's records, its panics' and conferences' texts copied into the pane's own cell, every other
-// record listed by its name and size alone. All of it stands in one cell taken at the first listing
+// record listed by its name and size alone. All of it is in one cell taken at the first listing
 #include "../text/sort.h"
 #include "qry.h"
 
@@ -15,9 +15,9 @@
 #include "../text/text.h"
 #include "embed_atomic.h"
 
-// the most folders of runs, the bytes their paths take, the most runs listed, the most lessons, the bytes the runs'
-// paths and the lessons' words take, the runs opened at once, the most records an opened run lists, the bytes of the
-// texts of its panics and conferences, the most conferences of one run, the most bytes copied of one record's text,
+// the max folders of runs, the bytes their paths take, the max runs listed, the max lessons, the bytes the runs'
+// paths and the lessons' words take, the runs opened at once, the max records an opened run lists, the bytes of the
+// texts of its panics and conferences, the max conferences of one run, the max bytes copied of one record's text,
 // the runs whose first panic was posted, and the folders the watch's ring carries
 #define RUNS_FOLDERS 256u
 #define RUNS_FOLDER_TEXT (64u * 1024u)
@@ -56,7 +56,7 @@ typedef struct
 {
     unsigned int cause;
     unsigned int carrier;
-    unsigned int stand_in;
+    unsigned int are_in;
 } RunsLesson;
 
 // A run: its path's place in the text, its name's place, the bytes of the name without the ending, its bytes on the
@@ -99,7 +99,7 @@ typedef struct
 
 // A run opened in the pane: whether the entry is in use, the run's path from the top of the tree, whether its writer
 // ran as last read, where the next read goes on from, the .qry's bytes after its last whole record, its records, its
-// conferences, and the text each record's name and copied text stand in
+// conferences, and the text each record's name and copied text are in
 typedef struct
 {
     int used;
@@ -124,7 +124,7 @@ typedef struct
 
 // The pane's data: the tree listed, whether its files were walked for the folders of runs and whether a listing has
 // gone, when the runs were listed and the opened runs read on the window's clock, the folders and their text, the runs,
-// the lessons and the text their paths and words stand in, how many runs are live and how many of those panicked, the
+// the lessons and the text their paths and words are in, how many runs are live and how many of those panicked, the
 // runs opened, and the panics posted
 typedef struct
 {
@@ -747,7 +747,7 @@ EMBED_INLINE int runs_any_opened_live(const QryListedCtx *args)
 // taken
 EMBED_INLINE Runs *runs_of(const QryListedCtx *args)
 {
-    // the one record of the runs listed stands fixed outside the pool, where it punches no hole in the persistent tier
+    // the one record of the runs listed is fixed outside the pool, where it punches no hole in the persistent tier
     static Runs s_record;
     if (s_runs == NULL)
     {
@@ -820,7 +820,7 @@ int cli_runs_pane_step(const CliRunsPaneCfg *args)
         EMBED_CALL(runs_list, QryListedCtx, .root = args->root, .now_ms = args->now_ms);
         changed = 1;
     }
-    if (args->shown && EMBED_CALL(runs_any_opened_live, QryListedCtx, .root = args->root) &&
+    if (args->displayed && EMBED_CALL(runs_any_opened_live, QryListedCtx, .root = args->root) &&
         (args->now_ms - runs->read_ms >= CLI_RUNS_READ_LIVE_MS))
     {
         for (unsigned int at = 0u; at < RUNS_OPENED; at += 1u)
@@ -848,7 +848,7 @@ unsigned long long cli_runs_pane_deadline_ms(const CliRunsPaneCfg *args)
     {
         deadline = runs->listed_ms + CLI_RUNS_LIST_LIVE_MS;
     }
-    if (args->shown && EMBED_CALL(runs_any_opened_live, QryListedCtx, .root = args->root))
+    if (args->displayed && EMBED_CALL(runs_any_opened_live, QryListedCtx, .root = args->root))
     {
         const unsigned long long read = runs->read_ms + CLI_RUNS_READ_LIVE_MS;
         deadline = ((deadline == 0ULL) || (read < deadline)) ? read : deadline;
@@ -856,7 +856,7 @@ unsigned long long cli_runs_pane_deadline_ms(const CliRunsPaneCfg *args)
     return deadline;
 }
 
-// a row handed to the walk: the walk's row filled where it is the one asked for: 1 once the row asked for was reached
+// a row passed to the walk: the walk's row filled where it is the one asked for: 1 once the row asked for was reached
 EMBED_INLINE int rows_put(const QryListedCtx *args)
 {
     RowsWalk *const walk = args->walk;
@@ -869,7 +869,7 @@ EMBED_INLINE int rows_put(const QryListedCtx *args)
     return walk->found;
 }
 
-// the rows of an opened run's detail handed to the walk: each panic's head and lines, each conference's question and
+// the rows of an opened run's detail passed to the walk: each panic's head and lines, each conference's question and
 // accounts, the count, and the latest records: 1 once the row asked for was reached
 EMBED_INLINE int rows_detail(const QryListedCtx *args)
 {
@@ -960,7 +960,7 @@ EMBED_INLINE int rows_detail(const QryListedCtx *args)
     {
         return 1;
     }
-    const unsigned int first = (opened->blobs > CLI_RUNS_SHOWN_BLOBS) ? opened->blobs - CLI_RUNS_SHOWN_BLOBS : 0u;
+    const unsigned int first = (opened->blobs > CLI_RUNS_DISPLAYED_BLOBS) ? opened->blobs - CLI_RUNS_DISPLAYED_BLOBS : 0u;
     for (unsigned int at = first; at < opened->blobs; at += 1u)
     {
         const RunsBlob *const blob = &opened->blob[at];
@@ -978,7 +978,7 @@ EMBED_INLINE int rows_detail(const QryListedCtx *args)
     return 0;
 }
 
-// every row handed to the walk in order: no run where none is listed; else each folder's head, its runs each with its
+// every row passed to the walk in order: no run where none is listed; else each folder's head, its runs each with its
 // detail where opened, and its lessons under a head: 1 once the row asked for was reached
 EMBED_INLINE int rows_walk(const QryListedCtx *args)
 {
@@ -1049,9 +1049,9 @@ EMBED_INLINE int rows_walk(const QryListedCtx *args)
                                                 .second = runs->text + lesson->carrier,
                                                 .second_length = cellul.len(&(CatenaFinitaCfg){
                                                     .src = runs->text + lesson->carrier, .cap = RUNS_TEXT}),
-                                                .third = runs->text + lesson->stand_in,
+                                                .third = runs->text + lesson->are_in,
                                                 .third_length = cellul.len(&(CatenaFinitaCfg){
-                                                    .src = runs->text + lesson->stand_in, .cap = RUNS_TEXT})}))
+                                                    .src = runs->text + lesson->are_in, .cap = RUNS_TEXT})}))
             {
                 return 1;
             }

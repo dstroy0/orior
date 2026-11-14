@@ -150,7 +150,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
         const OmegaProgram *const program = &programs[key];
         const unsigned int out_limbs = program->layout.out_limbs;
         // the round's buffers; while the device cannot fit them, the stepping term with the largest reduct is parked
-        // as outgrown and the reducts laid out again without it
+        // as outgrown and the reducts arranged again without it
         const OmegaBufferName round_buffers[19] = {OMEGA_BUFFER_PACKED,          OMEGA_BUFFER_PLANS,
                                                    OMEGA_BUFFER_INDEX,           OMEGA_BUFFER_OUT,
                                                    OMEGA_BUFFER_REDUCTS,         OMEGA_BUFFER_REDUCT_ENDS,
@@ -252,7 +252,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
             omega_pool_place<<<omega_pool_grid(extent.live), OMEGA_POOL_BLOCK>>>(
                 terms, extent.live, tokens, out_bases, OMEGA_BUFFER(buffers, OMEGA_BUFFER_FRAMES, unsigned char),
                 OMEGA_BUFFER(buffers, OMEGA_BUFFER_INNER_FRAMES, unsigned char), widths, plans, index);
-            ok = sim_status_check(results, cudaGetLastError(), "engine: pack and lay out");
+            ok = sim_status_check(results, cudaGetLastError(), "engine: pack and arrange");
             // the sweeps: every token of the pool is member 0, and each sweep's plans member 1 from its first lane
             for (unsigned long long first = 0ull; (ok != 0) && (first < out_total); first += OMEGA_ENGINE_SWEEP)
             {
@@ -355,7 +355,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
         }
         const unsigned long long retain_blocks =
             (extent.live < OMEGA_POOL_GRID_MAX) ? extent.live : OMEGA_POOL_GRID_MAX;
-        // at most OMEGA_POOL_GRID_MAX blocks, which an unsigned int stores
+        // at max OMEGA_POOL_GRID_MAX blocks, which an unsigned int stores
         omega_pool_retain<<<(unsigned int)retain_blocks, 128u>>>(
             terms, extent.live, reducts, OMEGA_BUFFER(buffers, OMEGA_BUFFER_STORED, OmegaToken),
             OMEGA_BUFFER(buffers, OMEGA_BUFFER_ENDS, unsigned long long), place_bases, token_bases, stored_bases,

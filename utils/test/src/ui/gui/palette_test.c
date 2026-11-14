@@ -50,14 +50,14 @@ int main(void)
     cli_check(dark->text_color == GUI_RGB(0x1du, 0x18u, 0x50u), "the dark ink is the stylesheet's --ink");
     cli_check(dark->number == GUI_RGB(0x5eu, 0x5bu, 0x8au), "the line numbers are the stylesheet's --ed-num");
     // a palette the window can change: its colors as the scheme's until they are changed, each named color found by the
-    // stylesheet's name, the ink's tint and the editor's ground laid at their opacities
+    // stylesheet's name, the ink's tint and the editor's ground positioned at their opacities
     static GuiPaletteOwn own;
     EMBED_CALL(gui_palette_scheme.own_init, GuiPaletteCfg, .own = &own, .scheme = GUI_SCHEME_DARK);
-    cli_check((own.colors.glass == dark->glass) && (own.colors.token == own.token) && (own.colors.token_count == 0u), "a palette of its own starts as the scheme's, with no tokens: those come from the shown language's plugin");
+    cli_check((own.colors.glass == dark->glass) && (own.colors.token == own.token) && (own.colors.token_count == 0u), "a palette of its own starts as the scheme's, with no tokens: those come from the displayed language's plugin");
     EMBED_CALL(gui_palette_own_bar_percent.opacity_layout, GuiPaletteOwnBarPercentCfg, .own = &own, .bar_percent = 30u, .editor_percent = 80u);
-    cli_check((own.colors.glass == dark->glass) && (own.colors.editor_background == dark->editor_background), "the opacities the scheme stands at lay the colors the scheme gives");
+    cli_check((own.colors.glass == dark->glass) && (own.colors.editor_background == dark->editor_background), "the opacities the scheme is at position the colors the scheme gives");
     EMBED_CALL(gui_palette_own_bar_percent.opacity_layout, GuiPaletteOwnBarPercentCfg, .own = &own, .bar_percent = 50u, .editor_percent = 100u);
-    cli_check((GUI_ALPHA_OF(own.colors.glass) == 128u) && (GUI_ALPHA_OF(own.colors.editor_background) == 255u), "other opacities lay the alpha");
+    cli_check((GUI_ALPHA_OF(own.colors.glass) == 128u) && (GUI_ALPHA_OF(own.colors.editor_background) == 255u), "other opacities position the alpha");
     cli_check((own.colors.glass & 0x00ffffffu) == (dark->text_color & 0x00ffffffu), "and leave the color");
     char name[32];
     EMBED_CALL(gui_palette_at.name_name, GuiPaletteAtCfg, .palette = &own.colors, .at = 0u, .name = name, .size = sizeof(name));
@@ -82,7 +82,7 @@ int main(void)
     cli_check(named_is(dark, "editor.findMatch", dark->match_on) && named_is(dark, "editor.findMatchHighlight", dark->match), "the current match and the others");
     cli_check(named_is(dark, "minimap.selection", dark->map_selection) && named_is(dark, "minimap.findMatch", dark->map_match) && named_is(dark, "minimap.slider", dark->map_slider) && named_is(dark, "minimap.sliderActive", dark->map_slider_on), "the minimap's");
     cli_check(named_is(dark, "diagnostic.error", dark->error) && named_is(dark, "diagnostic.warning", dark->warning) && named_is(dark, "diagnostic.information", dark->note), "a diagnostic's severities");
-    cli_check(named_is(dark, "tab.activeBackground", dark->tab_background), "the shown tab's ground");
+    cli_check(named_is(dark, "tab.activeBackground", dark->tab_background), "the displayed tab's ground");
     cli_check(named_is(dark, "button.background", dark->button) && named_is(dark, "button.border", dark->button_line), "a button's glass and its lip");
     cli_check(named_is(dark, "fuse.ash", dark->fuse_ash) && named_is(dark, "fuse.burn", dark->fuse_burn) && named_is(dark, "fuse.fire", dark->fuse_fire), "the busy circle's fuse");
     cli_check(named_is(dark, "lattice.inPlace", dark->lattice[0]) && named_is(dark, "lattice.moving", dark->lattice[1]) && named_is(dark, "lattice.displaced", dark->lattice[2]), "a lattice point in place and moved");
@@ -94,7 +94,7 @@ int main(void)
     EMBED_CALL(gui_palette_own_name.token_add, GuiPaletteOwnNameCfg, .own = &own, .name = "comment", .color = GUI_RGB(0x6eu, 0x6bu, 0x99u));
     EMBED_CALL(gui_palette_own_name.token_add, GuiPaletteOwnNameCfg, .own = &own, .name = "operator.memory", .color = GUI_RGB(0xf2u, 0x9bu, 0xb0u));
     EMBED_CALL(gui_palette_own_name.token_add, GuiPaletteOwnNameCfg, .own = &own, .name = "", .color = GUI_RGB(1u, 1u, 1u));
-    cli_check(own.colors.token_count == 3u, "three tokens stand, an empty name left out");
+    cli_check(own.colors.token_count == 3u, "three tokens are, an empty name left out");
     const unsigned int named = EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = &own.colors);
     cli_check(named > own.colors.token_count, "the named colors count the tokens among them");
     EMBED_CALL(gui_palette_at.name_name, GuiPaletteAtCfg, .palette = &own.colors, .at = named - own.colors.token_count, .name = name, .size = sizeof(name));
@@ -103,7 +103,7 @@ int main(void)
     cli_check(own.colors.background_fill == GUI_RGB(1u, 2u, 3u), "a color named is set");
     EMBED_CALL(gui_palette_own.name_set, GuiPaletteOwnCfg, .own = &own, .at = named - 1u, .color = GUI_RGB(4u, 5u, 6u));
     cli_check(own.token[own.colors.token_count - 1u].color == GUI_RGB(4u, 5u, 6u), "and a token");
-    cli_check(dark->background_fill == GUI_RGB(0x13u, 0x13u, 0x31u), "and the scheme's own stands");
+    cli_check(dark->background_fill == GUI_RGB(0x13u, 0x13u, 0x31u), "and the scheme's own is");
     // a value as text and read back
     char value[16];
     EMBED_CALL(gui_palette_size_color.value_text, GuiPaletteSizeColorCfg, .color = GUI_RGB(0x12u, 0xa4u, 0xefu), .text = value, .size = sizeof(value));
@@ -111,7 +111,7 @@ int main(void)
     EMBED_CALL(gui_palette_size_color.value_text, GuiPaletteSizeColorCfg, .color = GUI_RGBA(0x12u, 0xa4u, 0xefu, 0x33u), .text = value, .size = sizeof(value));
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = value, .other = "#12a4ef33", .cap = sizeof(value)}), "a translucent one in eight");
     GuiColor read_color = 0u;
-    cli_check(EMBED_CALL(gui_palette_text.value_read, GuiPaletteTextCfg, .text_read = "#12A4ef", .length = 7ull, .current = GUI_RGBA(0u, 0u, 0u, 0x40u), .color_pointer = &read_color) && (read_color == GUI_RGBA(0x12u, 0xa4u, 0xefu, 0x40u)), "six digits are read under the alpha kept");
+    cli_check(EMBED_CALL(gui_palette_text.value_read, GuiPaletteTextCfg, .text_read = "#12A4ef", .length = 7ull, .current = GUI_RGBA(0u, 0u, 0u, 0x40u), .color_pointer = &read_color) && (read_color == GUI_RGBA(0x12u, 0xa4u, 0xefu, 0x40u)), "six digits are read under the alpha retained");
     cli_check(EMBED_CALL(gui_palette_text.value_read, GuiPaletteTextCfg, .text_read = "12a4ef33", .length = 8ull, .current = 0u, .color_pointer = &read_color) && (read_color == GUI_RGBA(0x12u, 0xa4u, 0xefu, 0x33u)), "eight with their own, with or without the mark");
     cli_check(!EMBED_CALL(gui_palette_text.value_read, GuiPaletteTextCfg, .text_read = "#12a4e", .length = 6ull, .current = 0u, .color_pointer = &read_color) && !EMBED_CALL(gui_palette_text.value_read, GuiPaletteTextCfg, .text_read = "#12a4eg", .length = 7ull, .current = 0u, .color_pointer = &read_color) && !EMBED_CALL(gui_palette_text.value_read, GuiPaletteTextCfg, .text_read = "", .length = 0ull, .current = 0u, .color_pointer = &read_color), "and what is no color is refused");
     // contrast in whole tenths of a ratio, rounded down, as WCAG 2 measures it
@@ -121,8 +121,8 @@ int main(void)
     cli_check(EMBED_CALL(gui_palette_foreground.contrast, GuiPaletteForegroundCfg, .foreground_color = black, .back = white, .background_fill = white) == 210u, "and black on white the same");
     cli_check(EMBED_CALL(gui_palette_foreground.contrast, GuiPaletteForegroundCfg, .foreground_color = black, .back = black, .background_fill = black) == 10u, "a color on itself is 1:1");
     cli_check(EMBED_CALL(gui_palette_foreground.contrast, GuiPaletteForegroundCfg, .foreground_color = GUI_RGB(0x77u, 0x77u, 0x77u), .back = white, .background_fill = white) == 44u, "#777777 on white is 4.47:1, under the least");
-    cli_check(EMBED_CALL(gui_palette_foreground.contrast, GuiPaletteForegroundCfg, .foreground_color = GUI_RGBA(0xffu, 0xffu, 0xffu, 0x80u), .back = black, .background_fill = black) == 53u, "a translucent color is laid over what is under it");
-    cli_check(EMBED_CALL(gui_palette_foreground.contrast, GuiPaletteForegroundCfg, .foreground_color = dark->editor_text, .back = dark->editor_background, .background_fill = dark->background_fill) == 142u, "a translucent ground is laid over the window's");
+    cli_check(EMBED_CALL(gui_palette_foreground.contrast, GuiPaletteForegroundCfg, .foreground_color = GUI_RGBA(0xffu, 0xffu, 0xffu, 0x80u), .back = black, .background_fill = black) == 53u, "a translucent color is positioned over what is under it");
+    cli_check(EMBED_CALL(gui_palette_foreground.contrast, GuiPaletteForegroundCfg, .foreground_color = dark->editor_text, .back = dark->editor_background, .background_fill = dark->background_fill) == 142u, "a translucent ground is positioned over the window's");
     // the colors checked for text, each named with the color under it
     unsigned int tenths = 0u;
     char under[32];
@@ -158,7 +158,7 @@ int main(void)
     EMBED_CALL(gui_palette_size.contrast_text, GuiPaletteSizeCfg, .tenths_value = 28u, .text = ratio, .size = sizeof(ratio));
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = ratio, .other = "2.8:1", .cap = sizeof(ratio)}), "a contrast reads as its ratio");
     EMBED_CALL(gui_palette_size.contrast_text, GuiPaletteSizeCfg, .tenths_value = 210u, .text = ratio, .size = sizeof(ratio));
-    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = ratio, .other = "21.0:1", .cap = sizeof(ratio)}), "and the most");
+    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = ratio, .other = "21.0:1", .cap = sizeof(ratio)}), "and the max");
     cli_check((dark->fuse_ash == GUI_RGB(50u, 18u, 98u)) && (dark->fuse_burn == GUI_RGB(94u, 40u, 166u)) && (dark->fuse_fire == GUI_RGB(148u, 94u, 232u)),
               "a fuse's colors are the stylesheet's --fuse-ash, --fuse-burn and --fuse-fire");
     // the tokens are the plugin's: the scheme itself colors none
@@ -180,9 +180,9 @@ int main(void)
     cli_check(GUI_ALPHA_OF(dark->line) < 0xffu, "the line color is translucent");
     cli_check((dark->lattice[0] == GUI_RGB(0x6fu, 0xdcu, 0xb4u)) && (dark->lattice[2] == GUI_RGB(0xb4u, 0x9cu, 0xffu)),
               "the lattice's colors are the stylesheet's --lattice-1 to --lattice-3");
-    cli_check(dark->open_text == GUI_RGB(0xd7u, 0xd6u, 0xdfu), "the large name stands on the ladder's rung of 86, under the text's 91");
-    cli_check(dark->top_menu_text == GUI_RGB(0xd7u, 0xd6u, 0xdfu), "the bar's resting text stands on the rung of 86, under the text's 91");
-    cli_check(dark->top_menu_bright == GUI_RGB(0xe5u, 0xe4u, 0xedu), "what the pointer lights stands on the rung of 91, under the operators' 100");
+    cli_check(dark->open_text == GUI_RGB(0xd7u, 0xd6u, 0xdfu), "the large name is on the ladder's rung of 86, under the text's 91");
+    cli_check(dark->top_menu_text == GUI_RGB(0xd7u, 0xd6u, 0xdfu), "the bar's resting text is on the rung of 86, under the text's 91");
+    cli_check(dark->top_menu_bright == GUI_RGB(0xe5u, 0xe4u, 0xedu), "what the pointer lights is on the rung of 91, under the operators' 100");
     cli_check(dark->top_menu_mark == GUI_RGB(0xdfu, 0xe0u, 0xf0u), "the eye in the bar is the stylesheet's --bar-mark");
     cli_check(dark->lifted == GUI_RGBA(0x08u, 0x06u, 0x1eu, 0x73u), "the shade is the stylesheet's --lifted");
     cli_check(dark->incised == GUI_RGB(0x11u, 0x10u, 0x2bu), "the cuts are --deep at 80% with black, its lightness by 1.15");

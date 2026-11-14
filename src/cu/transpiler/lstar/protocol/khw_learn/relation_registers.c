@@ -24,7 +24,7 @@ unsigned int khw_run_settings(const KhwAnswered *form, unsigned int stage, unsig
         settings[1] = KHW_SECOND_REGISTER;
         return (stage == 0u) ? 2u : 0u;
     }
-    if ((stage == 0u) || (form->kind[run] == KHW_KIND_ADDRESS))
+    if ((stage == 0u) || (form->type[run] == KHW_KIND_ADDRESS))
     {
         return 0u;
     }
@@ -142,7 +142,7 @@ void khw_ladder_registers_read(KhwAnswered *ladder_form, unsigned int at, const 
             ladder_form->first[ladder_form->runs] = ladder_form->first[run];
             ladder_form->last[ladder_form->runs] = ladder_form->last[run];
             ladder_form->place[ladder_form->runs] = place;
-            ladder_form->kind[ladder_form->runs] = KHW_KIND_REGISTER;
+            ladder_form->type[ladder_form->runs] = KHW_KIND_REGISTER;
             ladder_form->runs += 1u;
         }
     }
@@ -186,7 +186,7 @@ void khw_frame_addresses_read(KhwAnswered *form, unsigned int at, const KhwStage
                 copy.first[copy.runs] = first[field];
                 copy.last[copy.runs] = last;
                 copy.place[copy.runs] = frame_place_address(form->frame);
-                copy.kind[copy.runs] = KHW_KIND_ADDRESS;
+                copy.type[copy.runs] = KHW_KIND_ADDRESS;
                 copy.runs += 1u;
                 placed = 1;
             }
@@ -197,7 +197,7 @@ void khw_frame_addresses_read(KhwAnswered *form, unsigned int at, const KhwStage
             copy.first[copy.runs] = form->first[run];
             copy.last[copy.runs] = form->last[run];
             copy.place[copy.runs] = form->place[run];
-            copy.kind[copy.runs] = form->kind[run];
+            copy.type[copy.runs] = form->type[run];
             copy.runs += 1u;
         }
         if (!placed && (copy.runs < KHW_RUNS))
@@ -205,14 +205,14 @@ void khw_frame_addresses_read(KhwAnswered *form, unsigned int at, const KhwStage
             copy.first[copy.runs] = first[field];
             copy.last[copy.runs] = last;
             copy.place[copy.runs] = frame_place_address(form->frame);
-            copy.kind[copy.runs] = KHW_KIND_ADDRESS;
+            copy.type[copy.runs] = KHW_KIND_ADDRESS;
             copy.runs += 1u;
         }
         *form = copy;
     }
 }
 
-// 1 where a run of `form` stands at every place of its relation's tuple, exit's guard apart, since an exit with no
+// 1 where a run of `form` is at every place of its relation's tuple, exit's guard apart, since an exit with no
 // guard contains no run; a frame form containing no run at a place answered no relation it contains a field of
 static int khw_frame_whole(const KhwAnswered *form)
 {
@@ -243,7 +243,7 @@ static int khw_frame_whole(const KhwAnswered *form)
 // guard, since P0 is false at the probe place and PT is every lane, exit's guard a place of its tuple and any other
 // relation's a predicate with none; the register a store stores where the relation is store and that register answers
 // the relation; and an operand with no place where the two answer apart, its bits retained as seen. Each retained with
-// its kind, and the phase classified, or void where a place of the tuple contains no run
+// its type, and the phase classified, or void where a place of the tuple contains no run
 void khw_frame_registers_read(KhwAnswered *form, unsigned int at, const KhwStaged *stage)
 {
     const unsigned int runs = form->runs;
@@ -255,7 +255,7 @@ void khw_frame_registers_read(KhwAnswered *form, unsigned int at, const KhwStage
     for (unsigned int run = 0u; run < runs; run += 1u)
     {
         unsigned int place = form->place[run];
-        unsigned int kind = form->kind[run];
+        unsigned int type = form->type[run];
         unsigned int settings[KHW_SETTINGS];
         const unsigned int probes = khw_run_settings(form, 1u, run, settings);
         if (probes != 0u)
@@ -272,25 +272,25 @@ void khw_frame_registers_read(KhwAnswered *form, unsigned int at, const KhwStage
             const int both = answered[0] && answered[1];
             const int immediate = (settings[1] == KHW_OFFSET_WORD);
             place = KHW_PLACE_NONE;
-            kind = KHW_KIND_REGISTER;
+            type = KHW_KIND_REGISTER;
             if (immediate && (form->frame == FRAME_NUMBER) && both && (answer[0] == 0ull) &&
                 (answer[1] == KHW_OFFSET_WORD))
             {
                 place = frame_place_number(form->frame);
-                kind = KHW_KIND_IMMEDIATE;
+                type = KHW_KIND_IMMEDIATE;
             }
             else if (immediate && (form->frame != FRAME_NUMBER) &&
                      (frame_place_number(form->frame) != FRAME_PLACE_NONE) && both && (answer[0] != answer[1]))
             {
                 // a parameter's place is the offset of the constant bank's operand it reads, the operand retained whole
                 place = frame_place_number(form->frame);
-                kind = (form->frame == FRAME_PARAMETER) ? KHW_KIND_CONSTANT : KHW_KIND_IMMEDIATE;
+                type = (form->frame == FRAME_PARAMETER) ? KHW_KIND_CONSTANT : KHW_KIND_IMMEDIATE;
             }
             else if (immediate && (form->frame == FRAME_DIM) && both && (answer[0] != answer[1]))
             {
                 // the constant bank's operand: its offset read from the bank answers the block size at 0 and the
                 // bank's next word past it, a run the form contains and no parameter takes
-                kind = KHW_KIND_CONSTANT;
+                type = KHW_KIND_CONSTANT;
             }
             else if (!immediate && both && (answer[0] == nothing) && (answer[1] == expected))
             {
@@ -305,7 +305,7 @@ void khw_frame_registers_read(KhwAnswered *form, unsigned int at, const KhwStage
                 place = (form->frame == FRAME_EXIT) ? frame_place_guard(form->frame)
                         : in_guard                  ? KHW_PLACE_NONE
                                                     : frame_place_destination(form->frame);
-                kind = ((form->frame == FRAME_EXIT) || in_guard) ? KHW_KIND_PREDICATE : KHW_KIND_REGISTER;
+                type = ((form->frame == FRAME_EXIT) || in_guard) ? KHW_KIND_PREDICATE : KHW_KIND_REGISTER;
             }
             else if (!immediate && (form->frame == FRAME_STORE) && both && (answer[1] == expected) &&
                      (answer[0] != answer[1]))
@@ -321,17 +321,17 @@ void khw_frame_registers_read(KhwAnswered *form, unsigned int at, const KhwStage
             // for a predicate read the other way
             unsigned int guard_first = 0u;
             unsigned int guard_bits = 0u;
-            kind = ((place == KHW_PLACE_NONE) && khw_field_read("guard", &guard_first, &guard_bits) &&
+            type = ((place == KHW_PLACE_NONE) && khw_field_read("guard", &guard_first, &guard_bits) &&
                     (form->first[run] <= (guard_first + guard_bits - 1u)) && (form->last[run] >= guard_first))
                        ? KHW_KIND_PREDICATE
-                       : kind;
+                       : type;
         }
         if (copy.runs < KHW_RUNS)
         {
             copy.first[copy.runs] = form->first[run];
             copy.last[copy.runs] = form->last[run];
             copy.place[copy.runs] = place;
-            copy.kind[copy.runs] = kind;
+            copy.type[copy.runs] = type;
             copy.runs += 1u;
         }
     }
@@ -339,5 +339,5 @@ void khw_frame_registers_read(KhwAnswered *form, unsigned int at, const KhwStage
     form->phase = khw_frame_whole(form) ? KHW_PHASE_CLASSIFIED : KHW_PHASE_VOID;
 }
 
-// the register-runs of `form` read off the round `stage_number` carried, as its relation's kind reads them: a ladder
+// the register-runs of `form` read off the round `stage_number` carried, as its relation's type reads them: a ladder
 // form's in the first stage, a frame form's addresses in the first and the rest in the second

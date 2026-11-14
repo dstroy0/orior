@@ -12,7 +12,7 @@ import { editingHello, GAP, mark, markAt, markSaid, middle, paneAt, paneSaid, re
 
 const { test, assert, ui } = window.__harness;
 
-test("the work takes the bar, the toolbar, the strip and the status bar while the editor holds the keys, a gap kept on every side", async () => {
+test("the work takes the bar, the toolbar, the strip and the status bar while the editor holds the keys, a gap retained on every side", async () => {
   await editingHello();
   const work = document.querySelector(".work").getBoundingClientRect();
   assert.ok(work.top >= GAP - 1 && work.top <= GAP + 1, `the work's top at ${work.top}`);
@@ -36,19 +36,19 @@ test("a rest in the gap at the left brings the strip in as a pane under the word
   await ui.waitFor(() => revealed() === "", 3000, "the reveal let go");
 });
 
-test("a slide's numbers stay on the parts that move, none of them kept by what the parts hold", async () => {
+test("a slide's numbers stay on the parts that move, none of them retained by what the parts hold", async () => {
   await editingHello();
   await restedAt(middle().x, 4, "top");
   const inside = document.querySelector("#mode-edit .ed");
   for (const name of ["--claim", "--reveal-top", "--reveal-down"]) {
-    assert.equal(getComputedStyle(inside).getPropertyValue(name).trim(), "0", `${name} not kept inside the work`);
+    assert.equal(getComputedStyle(inside).getPropertyValue(name).trim(), "0", `${name} not retained inside the work`);
   }
   assert.equal(getComputedStyle(document.querySelector("header.bar")).getPropertyValue("--reveal-top").trim(), "1", "the bar holds its own");
   await ui.hover(middle());
   await ui.waitFor(() => revealed() === "", 3000, "the reveal let go");
 });
 
-test("as the bar comes back under the controls' tab and goes again, the controls stand still under it and nothing in the bar moves along it", async () => {
+test("as the bar comes back under the controls' tab and goes again, the controls are still under it and nothing in the bar moves along it", async () => {
   await editingHello();
   await restedAt(window.innerWidth - 40, 4, "controls");
   const controls = document.getElementById("window-controls");
@@ -58,7 +58,7 @@ test("as the bar comes back under the controls' tab and goes again, the controls
   await restedAt(middle().x, 4, "top");
   const came = coming();
   const spread = (column) => Math.max(...came.map((row) => row[column])) - Math.min(...came.map((row) => row[column]));
-  assert.ok(spread(0) < 0.5, `the controls stood still as the bar came, moving ${spread(0)}`);
+  assert.ok(spread(0) < 0.5, `the controls was still as the bar came, moving ${spread(0)}`);
   assert.ok(spread(1) < 0.5 && spread(2) < 0.5, `the bar's tools moved ${spread(1)} and its menus ${spread(2)} along it`);
   const going = sampled(() => [tools.getBoundingClientRect().left, menus.getBoundingClientRect().left]);
   await ui.hover(middle());
@@ -171,7 +171,7 @@ test("a rest at another edge while one edge's part is out sends that part away f
   await ui.waitFor(() => revealed() === "", 3000, "the reveal let go");
 });
 
-// The desk's row of tabs, the editor that holds the keys and its minimap, each as it stands.
+// The desk's row of tabs, the editor that holds the keys and its minimap, each as it is.
 const tabsRow = () => document.querySelector('#mode-edit .desk[data-tabs="row"] > .tabs');
 
 const deskBox = () => document.querySelector("#mode-edit .desk").getBoundingClientRect();
@@ -193,7 +193,7 @@ test("while the claim holds the tabs row and the minimap are away, the editor's 
   assert.match(corners, /calc\(100% \+ 8px\) 0%/,`the minimap's corners gone past the editor's right edge with it: ${corners}`);
 });
 
-test("a rest in the gap at the head brings the tabs row back with the bar, the pointer on it keeps it, and it goes as they go", async () => {
+test("a rest in the gap at the head brings the tabs row back with the bar, the pointer on it retains it, and it goes as they go", async () => {
   await editingHello();
   await restedAt(middle().x, 4, "top");
   const row = tabsRow().getBoundingClientRect();
@@ -209,7 +209,7 @@ test("a rest in the gap at the head brings the tabs row back with the bar, the p
   assert.ok(tabsRow().getBoundingClientRect().bottom <= deskBox().top + 0.5, "the tabs row away again");
 });
 
-test("a rest in the gap at the right brings the minimap back at the editor's right edge, the pointer on it keeps it, and it goes after", async () => {
+test("a rest in the gap at the right brings the minimap back at the editor's right edge, the pointer on it retains it, and it goes after", async () => {
   await editingHello();
   assert.equal(zoneAt(window.innerWidth - 4, middle().y), "right");
   assert.equal(zoneAt(window.innerWidth - 4, 4), "controls", "the controls' corner still the controls'");

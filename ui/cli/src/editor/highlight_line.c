@@ -6,13 +6,13 @@
 #include "../text/text.h"
 #include "highlight_internal.h"
 
-// One line's work: its letters, how many are colored, its runs, the states stacked, each stacked state's place among
+// One line's work: its characters, how many are colored, its runs, the states stacked, each stacked state's place among
 // the grammar's states, found once as it is stacked, and root's place; each stacked state's indent, that of the
 // statement it was entered in; the indent of the statement under way; and the runs before the last mark put, which no
 // run put at a mark's column takes the place of
 typedef struct
 {
-    unsigned long long letters;
+    unsigned long long characters;
     unsigned int runs;
     unsigned int depth;
     unsigned int root;
@@ -21,7 +21,7 @@ typedef struct
     unsigned long long statement;
     unsigned int marked;
 } CliColoring;
-// the work state the coloring under way on this thread works in, the one the store handed it, that of a coloring it was
+// the work state the coloring under way on this thread works in, the one the store passed it, that of a coloring it was
 // begun within put back as it ends
 static _Thread_local CliHighlightWorkState *t_work_state;
 
@@ -46,32 +46,32 @@ typedef struct
     const CliRegexpSpan *found_read;
     const char *line;
     VerbaLinea *line_verba_linea_pointer;
-    const char **from_letters;
+    const char **from_characters;
     const char *state;
     const CliHighlightList *rules;
     const CliHighlightList **rules_pointer;
     unsigned long long *at_pointer;
     unsigned int *stalled_pointer;
 } HighlightLineCtx;
-// the letters from `from` to `to` written in UTF-8 into `out`, sized for four bytes a letter, lower case where
+// the characters from `from` to `to` written in UTF-8 into `out`, sized for four bytes a character, lower case where
 // `lower` is 1: their length
 EMBED_INLINE unsigned long long cli_text_get(const HighlightLineCtx *args)
 {
-    VerbaLinea line = {args->out, (4ULL * t_work_state->most) + 1ULL, 0ULL};
+    VerbaLinea line = {args->out, (4ULL * t_work_state->max) + 1ULL, 0ULL};
     for (unsigned long long at = args->from; at < args->to; at += 1ULL)
     {
-        const unsigned int letter =
-            args->lower ? EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = t_work_state->letters[at])
-                        : t_work_state->letters[at];
-        // an ASCII letter is its own byte; the rest take the UTF-8 writer
-        if ((letter < 128u) && (line.at < line.capacity))
+        const unsigned int character =
+            args->lower ? EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = t_work_state->characters[at])
+                        : t_work_state->characters[at];
+        // an ASCII character is its own byte; the rest take the UTF-8 writer
+        if ((character < 128u) && (line.at < line.capacity))
         {
-            line.out[line.at] = (char)letter;
+            line.out[line.at] = (char)character;
             line.at += 1ULL;
         }
         else
         {
-            EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line, .letter = letter);
+            EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line, .character = character);
         }
     }
     return mmgr_line_finish(&line);
@@ -132,7 +132,7 @@ static unsigned int cli_resolve(const HighlightLineCtx *args)
                       .to = args->to);
 }
 
-// a run put at letter `at` with `name`: each token a run of its own, but plain text, which joins the plain run before
+// a run put at character `at` with `name`: each token a run of its own, but plain text, which joins the plain run before
 // it, and the run before taken off where it starts at the same column, a mark never
 EMBED_INLINE void cli_push(const HighlightLineCtx *args)
 {
@@ -155,7 +155,7 @@ EMBED_INLINE void cli_push(const HighlightLineCtx *args)
     args->coloring->runs += 1u;
 }
 
-// a mark put at the column `col` with `name`, a run of no letters that no run put after it at its column takes the
+// a mark put at the column `col` with `name`, a run of no characters that no run put after it at its column takes the
 // place of
 EMBED_INLINE void cli_mark(const HighlightLineCtx *args)
 {
@@ -248,12 +248,12 @@ EMBED_INLINE int cli_try(const HighlightLineCtx *args)
     EMBED_CALL(cli_highlight_internal.pattern, CliHighlightCtx, .grammar = grammar, .rule = &grammar->rule[rule],
                .pattern = &pattern);
     return EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = &pattern,
-                      .text_u32s = t_work_state->letters, .length = args->coloring_read->letters, .at = at,
+                      .text_u32s = t_work_state->characters, .length = args->coloring_read->characters, .at = at,
                       .groups = args->found);
 }
 
-// the match of a rule taken at `at`: each group's token put where its group stands, or the whole match's token; the
-// letters it took
+// the match of a rule taken at `at`: each group's token put where its group is, or the whole match's token; the
+// characters it took
 EMBED_INLINE unsigned long long cli_on_alloc(const HighlightLineCtx *args)
 {
     const unsigned long long start = args->found_read[0].set ? args->found_read[0].from : args->at;
@@ -273,7 +273,7 @@ EMBED_INLINE unsigned long long cli_on_alloc(const HighlightLineCtx *args)
                 matched ? (args->found_read[index + 1u].to - args->found_read[index + 1u].from) : 0ULL;
             if (part > 0ULL)
             {
-                const unsigned long long put = (place < args->coloring->letters) ? place : args->coloring->letters;
+                const unsigned long long put = (place < args->coloring->characters) ? place : args->coloring->characters;
                 EMBED_CALL(cli_push, HighlightLineCtx, .coloring = args->coloring, .at = put,
                            .name = EMBED_CALL(cli_resolve, HighlightLineCtx, .grammar = args->grammar,
                                               .token = args->grammar->cases[token->first + index].token,
@@ -308,10 +308,10 @@ EMBED_INLINE void cli_line_indent(const HighlightLineCtx *args)
     }
     unsigned long long indent = 0ULL;
     for (unsigned long long at = 0ULL;
-         (at < args->coloring->letters) && ((t_work_state->letters[at] == ' ') || (t_work_state->letters[at] == '\t'));
+         (at < args->coloring->characters) && ((t_work_state->characters[at] == ' ') || (t_work_state->characters[at] == '\t'));
          at += 1ULL)
     {
-        indent = (t_work_state->letters[at] == '\t') ? (((indent / args->grammar->tab) + 1ULL) * args->grammar->tab)
+        indent = (t_work_state->characters[at] == '\t') ? (((indent / args->grammar->tab) + 1ULL) * args->grammar->tab)
                                                      : (indent + 1ULL);
     }
     while ((args->coloring->depth > 1u) &&
@@ -332,8 +332,8 @@ EMBED_INLINE void cli_line_indent(const HighlightLineCtx *args)
     }
 }
 
-// the end of the run of plain letters from `at` to before `to` that no rule of `rules` can start at, each an ASCII
-// letter the state's table names no rule for: `at` where none is plain there, or where a rule starts at a letter
+// the end of the run of plain characters from `at` to before `to` that no rule of `rules` can start at, each an ASCII
+// character the state's table names no rule for: `at` where none is plain there, or where a rule starts at a character
 // outside ASCII or takes nothing
 EMBED_INLINE unsigned long long cli_plain_stride(const HighlightLineCtx *args)
 {
@@ -342,10 +342,10 @@ EMBED_INLINE unsigned long long cli_plain_stride(const HighlightLineCtx *args)
     {
         return args->at;
     }
-    const unsigned int *const letters = t_work_state->letters;
+    const unsigned int *const characters = t_work_state->characters;
     const unsigned char *const starts_at = rules->starts_at;
     unsigned long long stride = args->at;
-    while ((stride < args->to) && (letters[stride] < 128u) && (starts_at[letters[stride]] == 0u))
+    while ((stride < args->to) && (characters[stride] < 128u) && (starts_at[characters[stride]] == 0u))
     {
         stride += 1ULL;
     }
@@ -354,12 +354,12 @@ EMBED_INLINE unsigned long long cli_plain_stride(const HighlightLineCtx *args)
 
 // the first rule of `*rules_pointer` that matches at `*at_pointer` taken: its tokens put, `*at_pointer` moved past
 // what it matched, and the state it steps to entered, its rules into `*rules_pointer`; a rule that cannot start at the
-// letter is passed over before its pattern is made, and one that matches nothing is taken only where it steps and the
+// character is passed over before its pattern is made, and one that matches nothing is taken only where it steps and the
 // line has not stalled on such rules. Whether one is taken
 EMBED_INLINE int cli_rule_taken(const HighlightLineCtx *args)
 {
     const CliHighlightList *const rules = *args->rules_pointer;
-    const unsigned int *const letters = t_work_state->letters;
+    const unsigned int *const characters = t_work_state->characters;
     const unsigned long long at = *args->at_pointer;
     CliRegexpSpan *const found = args->found;
     for (unsigned int each = 0u; (rules != NULL) && (each < rules->count); each += 1u)
@@ -368,7 +368,7 @@ EMBED_INLINE int cli_rule_taken(const HighlightLineCtx *args)
         const CliHighlightRule *const rule = &args->grammar->rule[index];
         if ((rule->anchored && (at != 0ULL)) ||
             (!rule->first.empty &&
-             !EMBED_CALL(cli_regexp.allows, CliRegexpCfg, .first = &rule->first, .letter = letters[at])) ||
+             !EMBED_CALL(cli_regexp.allows, CliRegexpCfg, .first = &rule->first, .character = characters[at])) ||
             !EMBED_CALL(cli_try, HighlightLineCtx, .grammar = args->grammar, .rule = index,
                         .coloring_read = args->coloring, .at = at, .found = found))
         {
@@ -408,10 +408,10 @@ EMBED_INLINE void cli_line_ending(const HighlightLineCtx *args)
         const CliHighlightRule *const rule = &args->grammar->rule[index];
         const unsigned int name =
             EMBED_CALL(cli_resolve, HighlightLineCtx, .grammar = args->grammar, .token = rule->token,
-                       .from = args->coloring->letters, .to = args->coloring->letters);
+                       .from = args->coloring->characters, .to = args->coloring->characters);
         if (((rule->next == CLI_HIGHLIGHT_NONE) && (name == 0u)) ||
             !EMBED_CALL(cli_try, HighlightLineCtx, .grammar = args->grammar, .rule = index,
-                        .coloring_read = args->coloring, .at = args->coloring->letters, .found = found) ||
+                        .coloring_read = args->coloring, .at = args->coloring->characters, .found = found) ||
             !found[0].set || (found[0].from != found[0].to))
         {
             continue;
@@ -419,7 +419,7 @@ EMBED_INLINE void cli_line_ending(const HighlightLineCtx *args)
         if (name != 0u)
         {
             EMBED_CALL(cli_mark, HighlightLineCtx, .coloring = args->coloring,
-                       .col = t_work_state->cols[args->coloring->letters], .name = name);
+                       .col = t_work_state->cols[args->coloring->characters], .name = name);
         }
         if (rule->next != CLI_HIGHLIGHT_NONE)
         {
@@ -433,21 +433,21 @@ EMBED_INLINE void cli_line_ending(const HighlightLineCtx *args)
 // One line colored: its runs and the stack it ends with in the coloring
 static void cli_line(const HighlightLineCtx *args)
 {
-    args->coloring->letters =
-        EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->line,
+    args->coloring->characters =
+        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = args->line,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->line, .cap = CLI_POOL_BYTES}),
-                   .letters = t_work_state->letters, .capacity_u64 = t_work_state->most);
+                   .characters = t_work_state->characters, .capacity_u64 = t_work_state->max);
     args->coloring->runs = 0u;
     args->coloring->marked = 0u;
     unsigned int col = 0u;
-    for (unsigned long long at = 0ULL; at < args->coloring->letters; at += 1ULL)
+    for (unsigned long long at = 0ULL; at < args->coloring->characters; at += 1ULL)
     {
         t_work_state->cols[at] = col;
-        col += (t_work_state->letters[at] >= 0x10000u) ? 2u : 1u;
+        col += (t_work_state->characters[at] >= 0x10000u) ? 2u : 1u;
     }
-    t_work_state->cols[args->coloring->letters] = col;
-    // the line colored whole, left to right, so the state it ends in is the one its last letter leaves
-    const unsigned long long length = args->coloring->letters;
+    t_work_state->cols[args->coloring->characters] = col;
+    // the line colored whole, left to right, so the state it ends in is the one its last character leaves
+    const unsigned long long length = args->coloring->characters;
     if (args->grammar->indents)
     {
         cli_line_indent(args);
@@ -459,9 +459,9 @@ static void cli_line(const HighlightLineCtx *args)
     unsigned int stalled = 0u;
     while (at < length)
     {
-        // the letters no rule of the state can start at are plain, taken in one stride, the state's table read once a
-        // letter and no rule tried at any of them; where a rule starts at a letter outside ASCII, or takes nothing,
-        // every letter is tried
+        // the characters no rule of the state can start at are plain, taken in one stride, the state's table read once a
+        // character and no rule tried at any of them; where a rule starts at a character outside ASCII, or takes nothing,
+        // every character is tried
         const unsigned long long stride =
             EMBED_CALL(cli_plain_stride, HighlightLineCtx, .rules = rules, .at = at, .to = length);
         if (stride > at)
@@ -515,7 +515,7 @@ EMBED_INLINE void cli_state_write(const HighlightLineCtx *args)
 // the number the digits from `*from` write, `*from` moved past them
 EMBED_INLINE unsigned long long cli_digits_read(const HighlightLineCtx *args)
 {
-    const char **from = args->from_letters;
+    const char **from = args->from_characters;
     unsigned long long value = 0ULL;
     unsigned long long end = 0ULL;
     value = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = *from, .at = 0ULL,
@@ -529,7 +529,7 @@ EMBED_INLINE unsigned long long cli_digits_read(const HighlightLineCtx *args)
 static void cli_stack(const HighlightLineCtx *args)
 {
     const CliGrammar *grammar = args->grammar;
-    args->coloring->letters = 0ULL;
+    args->coloring->characters = 0ULL;
     args->coloring->runs = 0u;
     args->coloring->marked = 0u;
     args->coloring->depth = 0u;
@@ -540,7 +540,7 @@ static void cli_stack(const HighlightLineCtx *args)
     const char *const bar = cellul.chr(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES, .byte = '|'});
     if (bar != NULL)
     {
-        args->coloring->statement = EMBED_CALL(cli_digits_read, HighlightLineCtx, .from_letters = &from);
+        args->coloring->statement = EMBED_CALL(cli_digits_read, HighlightLineCtx, .from_characters = &from);
         from = bar + 1;
     }
     for (;;)
@@ -549,7 +549,7 @@ static void cli_stack(const HighlightLineCtx *args)
         const unsigned long long whole = (slash != NULL)
                                              ? (unsigned long long)(slash - from)
                                              : cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES});
-        // the name to its `:`, where one stands within it
+        // the name to its `:`, where one is within it
         unsigned long long length = 0ULL;
         length = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = from, .at = length,
                             .size = whole, .set = ":");
@@ -563,7 +563,7 @@ static void cli_stack(const HighlightLineCtx *args)
                            .length = length);
             const char *indent = from + length + ((length < whole) ? 1u : 0u);
             args->coloring->indent_at[args->coloring->depth] =
-                (length < whole) ? EMBED_CALL(cli_digits_read, HighlightLineCtx, .from_letters = &indent) : 0ULL;
+                (length < whole) ? EMBED_CALL(cli_digits_read, HighlightLineCtx, .from_characters = &indent) : 0ULL;
             args->coloring->depth += 1u;
         }
         if (slash == NULL)
@@ -605,7 +605,7 @@ void cli_highlight_leaves_get(const CliHighlightWorkStateStateCtx *args)
         if (args->ends && ((line + 1u) == args->count))
         {
             EMBED_CALL(cli_close, HighlightLineCtx, .grammar = args->grammar, .coloring = &coloring,
-                       .col = t_work_state->cols[coloring.letters]);
+                       .col = t_work_state->cols[coloring.characters]);
         }
         char inner_state[CLI_HIGHLIGHT_STACK * 4u];
         VerbaLinea state_line = {inner_state, sizeof(inner_state), 0ULL};
@@ -615,7 +615,7 @@ void cli_highlight_leaves_get(const CliHighlightWorkStateStateCtx *args)
         const char *const inner_ended = (mmgr_line_finish(&state_line) != 0ULL) ? inner_state : "root";
         const CliLeaves leaves = {
             args->lines[line],   coloring.runs,       t_work_state->run_col, t_work_state->run_name,
-            args->grammar->name, args->grammar->text, inner_ended,           t_work_state->cols[coloring.letters]};
+            args->grammar->name, args->grammar->text, inner_ended,           t_work_state->cols[coloring.characters]};
         EMBED_CALL(args->each, CliLeavesEachCfg, .context = args->context, .leaves = &leaves);
     }
     EMBED_CALL(cli_state_write, HighlightLineCtx, .grammar = args->grammar, .coloring_read = &coloring,

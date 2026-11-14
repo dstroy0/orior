@@ -3,7 +3,7 @@
 
 // The explorer's Outline over a file of twenty thousand symbols: only the rows in sight on the page,
 // the symbol the cursor is in marked and scrolled to, and a press on a row going to its line; and
-// each file's mark standing on the line its name stands on; and a folder of twenty thousand files
+// each file's mark located on the line its name is on; and a folder of twenty thousand files
 // opened, scrolled fast and stepped through by the keys, with only the rows in sight on the page.
 
 import { showPane } from "../../gui/src-js/explorer.js";
@@ -36,9 +36,9 @@ const rowOf = (path) => treeRowShown(path);
 
 const LAST = `generated/part_${String(BIG - 1).padStart(5, "0")}.py`;
 
-// A folder of BIG generated files written into the run's tree and shown in the explorer, `work` run with the calls
+// A folder of BIG generated files written into the run's tree and displayed in the explorer, `work` run with the calls
 // the window made as they were written and a moment after, and the folder taken away after whatever `work` did.
-// Generated files, as a build's output is, are left out by git: shown in the tree, and not checked.
+// Generated files, as a build's output is, are left out by git: displayed in the tree, and not checked.
 async function withGenerated(work) {
   const tree = window.__harness.servers.ORIOR_TEST_TREE.replace(/\\/g, "/");
   const ignoredBefore = await invoke("file_read", { path: ".gitignore" }).then((read) => read.text).catch(() => null);
@@ -74,7 +74,7 @@ async function withGenerated(work) {
 test("a folder of twenty thousand generated files opens at once with only the rows in sight on the page, and its rows step by the keys", async () => {
   await withGenerated(async ({ asked, files }) => {
     const parsed = asked.filter((name) => name === "parse_colors").length;
-    assert.ok(parsed <= 1, `files written elsewhere have the file open parsed again at most once: ${parsed} times`);
+    assert.ok(parsed <= 1, `files written elsewhere have the file open parsed again at max once: ${parsed} times`);
     const pressed = performance.now();
     const opening = framesOver(1500);
     await ui.click(rowOf("generated"));
@@ -100,7 +100,7 @@ test("a folder of twenty thousand generated files opens at once with only the ro
     assert.equal(focused(), files.rowModel.key(files.rowModel.count - 1), "End to the tree's last row");
     rowOf("generated/part_00000.py").focus();
     await ui.type("part_12345");
-    assert.equal(focused(), "generated/part_12345.py", "letters typed find a row far below");
+    assert.equal(focused(), "generated/part_12345.py", "characters typed find a row far below");
     await ui.key("Escape");
     await ui.key("ArrowLeft");
     assert.equal(focused(), "generated", "Left out to the folder that holds it");
@@ -130,7 +130,7 @@ test("a folder of twenty thousand generated files scrolls fast at the display's 
     const rate = gaps.length / ((times.at(-1) - times[0]) / 1000);
     const said = `scrolled to ${files.scrollTop} at ${rate.toFixed(1)} frames a second of the display's ${display.toFixed(1)}, the longest wait ${Math.max(...gaps).toFixed(1)} ms, ${files.querySelectorAll(".node").length} rows on the page`;
     assert.ok(files.scrollTop > box.height * 20, `the tree scrolled far: ${said}`);
-    assert.ok(rate >= display * 0.8, `the display's rate kept: ${said}`);
+    assert.ok(rate >= display * 0.8, `the display's rate retained: ${said}`);
     assert.ok(Math.max(...gaps) < 100, `no frame delayed as it scrolled: ${said}`);
     assert.ok(files.querySelectorAll(".node").length < 200, `only the rows in sight and ahead on the page: ${said}`);
   });

@@ -57,7 +57,7 @@ typedef struct
     unsigned int unread;
 } OmegaRoundTotals;
 
-// the round's widths, from which the reduct program is encoded and the records are laid out
+// the round's widths, from which the reduct program is encoded and the records are arranged
 typedef struct
 {
     unsigned int token_bits;

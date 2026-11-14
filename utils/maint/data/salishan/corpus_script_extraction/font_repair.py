@@ -6,7 +6,7 @@
 #
 #   Usage:  from font_repair import REPAIR, repaired, repaired_prose
 #
-# Both papers' PDFs wrote plain letters in place of the orthography. The text arrives as
+# Both papers' PDFs wrote plain characters in place of the orthography. The text arrives as
 # iP naPì ʼqwQaylqs where it should read iʔ naʔɬ ʼqwʕaylqs. The mapping was tested and not
 # assumed: font_substitution.py applies it to the damaged tokens and counts how many become forms
 # attested in Lyon's later papers on the same language. Before the mapping, 1 token of 3599 was
@@ -32,7 +32,7 @@
 from salish_marking import CAPS_RUN, bare_token, tagged_spans
 
 # The mapping, in order. The caron entries go first because this font writes the caron as its own
-# character ahead of the letter it belongs to. X̌ arrives as ˇx. Replacing the bare letters first
+# character ahead of the character it belongs to. X̌ arrives as ˇx. Replacing the bare characters first
 # would consume them and strand the caron.
 REPAIR = (("ˇx", "x̌"), ("ˇc", "č"), ("ˇs", "š"),
           ("@", "ə"), ("P", "ʔ"), ("ì", "ɬ"), ("Q", "ʕ"))
@@ -104,14 +104,14 @@ def language_line(text, floor=1):
     One token is enough, and the test above has to be the sharp one because of it. These stories wrap
     across the page and leave lines as short as sámaP. and t@mxwúlaPxw., and asking for two threw
     forty-nine of them out of one paper's running text. Asking for one, on a test that a capital at
-    the front of an English word cannot satisfy, keeps them and still errors on an acknowledgment
+    the front of an English word cannot satisfy, retains them and still errors on an acknowledgment
     about the American Philosophical Society.
     """
     return sum(1 for token in text.split() if carries_orthography(token)) >= floor
 
 
 def repaired_line(text):
-    """One line repaired a span at a time, English kept and the language restored.
+    """One line repaired a span at a time, English retained and the language restored.
 
     For anywhere the reader has no column to go on: a footnote, a reference, a line of front matter,
     a leftover after a free translation, a block whose cycle slipped. A whole-line choice is not
@@ -120,10 +120,10 @@ def repaired_line(text):
 
     A line carrying the language is therefore cut into its English and target spans, and each span
     takes its own repair. The span rule already requires two English-looking tokens in a row before it
-    opens an English span, which keeps a lone Paks among target words on the target side of the cut.
+    opens an English span, which retains a lone Paks among target words on the target side of the cut.
 
     A line carrying none of the language is not cut at all. The span rule counts a word of under
-    three letters as not English. At, an, in and BC break an English sentence into single words
+    three characters as not English. At, an, in and BC break an English sentence into single words
     and leave Quilchena as a lone token joining a target span that is not there. Asking first
     whether the line is the language at all settles that, and twenty-eight occurrences with it.
     """
@@ -143,10 +143,10 @@ def english_word_shape(token):
     name to be repaired inside a translation that had already been called English.
     """
     plain = bare_token(token)
-    letters = [one for one in plain if one.isalpha()]
-    if (len(letters) < 3) or not plain.isascii():
+    characters = [one for one in plain if one.isalpha()]
+    if (len(characters) < 3) or not plain.isascii():
         return False
-    return letters[0].isupper() and all(one.islower() for one in letters[1:])
+    return characters[0].isupper() and all(one.islower() for one in characters[1:])
 
 
 def repaired_english(text):
@@ -171,7 +171,7 @@ def repaired_prose(text):
     """One line that is not a language column, with the ambiguous substitutions withheld.
 
     For a gloss, a translation, a commentary, or any of Lyon's own writing. A gloss label and an
-    address keep every character they arrived with. Everything else is repaired, since a word of
+    address retain every character they arrived with. Everything else is repaired, since a word of
     the language cited inside an English sentence still needs its characters back.
 
     What this does not save is an English word in ordinary case: Pierre and Quilchena are repaired

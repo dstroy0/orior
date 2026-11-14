@@ -17,9 +17,9 @@ static long noise_moments_sample(const unsigned short *volume, const unsigned lo
     const unsigned long long square = NOISE_MOMENT_RANGE * NOISE_MOMENT_RANGE;
     const unsigned long long fourth = square * square;
     const unsigned long long spread = ((voxels != 0ull) && (frames <= (~0ull / voxels))) ? (frames * voxels) : ~0ull;
-    // a block's |S1| is at most half its frames and each power at most its frames times the range to that power:
-    // S4 bounds every product the cells sum but S2^2, which they sum wide; sumS4 is at most the sample's voxel-frames
-    // times the range to the fourth, and the values at most the voxel-frames times the lane's top; the quiet mask
+    // a block's |S1| is at max half its frames and each power at max its frames times the range to that power:
+    // S4 bounds every product the cells sum but S2^2, which they sum wide; sumS4 is at max the sample's voxel-frames
+    // times the range to the fourth, and the values at max the voxel-frames times the lane's top; the quiet mask
     // stores to 65536 frames
     const int bounded = (blocks != 0ull) && (frames <= 65536ull) && (voxels != 0ull) && (spread != ~0ull) &&
                         (spread <= (NOISE_SIGNED_TOP / fourth)) && (spread <= (NOISE_SIGNED_TOP / NOISE_LANE_TOP));
@@ -105,7 +105,7 @@ static long noise_moments_sample(const unsigned short *volume, const unsigned lo
             cell->s1_cubed += s1 * s1 * s1;
             cell->s1_fourth += s1_squared * s1_squared;
             cell->s2 += s2;
-            // S2 is at most a block's frames times the range squared, far below 2^63. It re-signs to long long
+            // S2 is at max a block's frames times the range squared, far below 2^63. It re-signs to long long
             // exactly
             cell->s1_s2 += s1 * (long long)s2;
             cell->s1_squared_s2 += s1_squared * s2;

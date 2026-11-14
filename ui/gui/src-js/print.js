@@ -15,10 +15,10 @@ import { partsOf } from "./editor/tokens.js";
 import { say } from "./statusbar.js";
 
 const ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" };
-const escape = (text) => text.replace(/[&<>"]/g, (letter) => ESCAPES[letter]);
+const escape = (text) => text.replace(/[&<>"]/g, (character) => ESCAPES[character]);
 
 
-const KEPT = "orior.print";
+const RETAINED = "orior.print";
 
 function element(tag, props = {}, ...children) {
   const made = Object.assign(document.createElement(tag), props);
@@ -76,9 +76,9 @@ body { margin: 0; background: #fff; color: ${ink}; font: 9.5pt/1.45 ${font}; tab
 </style></head><body>${rows.join("")}</body></html>`;
 }
 
-function keptSettings() {
+function retainedSettings() {
   try {
-    return JSON.parse(localStorage.getItem(KEPT) ?? "{}") ?? {};
+    return JSON.parse(localStorage.getItem(RETAINED) ?? "{}") ?? {};
   } catch {
     return {};
   }
@@ -98,18 +98,18 @@ export async function printText(s, title, sheet) {
     say(`Printing did not start: ${found.error ?? "the window gave no printers"}. File, Print opens again once it can.`, { failed: true, act: () => printText(s, title, sheet) });
     return;
   }
-  const kept = keptSettings();
+  const retained = retainedSettings();
   const pdfChoice = "\u0000pdf";
   const printer = element(
     "select",
     { className: "report-field" },
-    ...found.printers.map((one) => element("option", { value: one.name, textContent: one.default ? `${one.name} (the system's own)` : one.name, selected: kept.printer ? kept.printer === one.name : one.default })),
-    element("option", { value: pdfChoice, textContent: "Save as PDF", selected: kept.printer === pdfChoice }),
+    ...found.printers.map((one) => element("option", { value: one.name, textContent: one.default ? `${one.name} (the system's own)` : one.name, selected: retained.printer ? retained.printer === one.name : one.default })),
+    element("option", { value: pdfChoice, textContent: "Save as PDF", selected: retained.printer === pdfChoice }),
   );
-  const copies = element("input", { className: "report-field", type: "number", min: 1, max: 99, value: kept.copies ?? 1 });
+  const copies = element("input", { className: "report-field", type: "number", min: 1, max: 99, value: retained.copies ?? 1 });
   const pages = element("input", { className: "report-field", type: "text", placeholder: "every page, or as 1-3, 5", value: "" });
-  const landscape = element("input", { type: "checkbox", checked: Boolean(kept.landscape) });
-  const gray = element("input", { type: "checkbox", checked: Boolean(kept.gray) });
+  const landscape = element("input", { type: "checkbox", checked: Boolean(retained.landscape) });
+  const gray = element("input", { type: "checkbox", checked: Boolean(retained.gray) });
   const tree = (document.getElementById("tree-path")?.textContent ?? "").replace(/[\\/]+$/, "");
   const base = (title || "printed").replace(/^.*[\\/]/, "").replace(/\.[^.]+$/, "");
   const pdf = element("input", { className: "report-field", type: "text", value: `${base}.pdf`, spellcheck: false });
@@ -121,7 +121,7 @@ export async function printText(s, title, sheet) {
   const preview = element("iframe", { className: "print-preview", sandbox: "", title: "The page as it prints", srcdoc: html });
   const paper = element("div", { className: "print-paper" }, preview);
   const go = element("button", { className: "primary", type: "submit", textContent: "Print" });
-  const shown = () => {
+  const displayed = () => {
     const toFile = printer.value === pdfChoice;
     pdfRow.hidden = !toFile;
     copiesRow.hidden = toFile;
@@ -129,7 +129,7 @@ export async function printText(s, title, sheet) {
     paper.classList.toggle("landscape", landscape.checked);
     paper.classList.toggle("gray", gray.checked);
   };
-  [printer, landscape, gray].forEach((one) => one.addEventListener("change", shown));
+  [printer, landscape, gray].forEach((one) => one.addEventListener("change", displayed));
   const form = element(
     "form",
     { className: "sheet-ask print-sheet" },
@@ -141,7 +141,7 @@ export async function printText(s, title, sheet) {
       element("div", { className: "print-settings" }, row("Printer", printer), copiesRow, pdfRow, row("Pages", pages), check(landscape, "Landscape"), check(gray, "Gray"), said, element("div", { className: "commit-buttons" }, go)),
     ),
   );
-  shown();
+  displayed();
   const dialog = sheet(form);
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -154,7 +154,7 @@ export async function printText(s, title, sheet) {
       gray: gray.checked,
       pdf: toFile ? (/^([A-Za-z]:)?[\\/]/.test(pdf.value) ? pdf.value : `${tree}/${pdf.value}`) : null,
     };
-    localStorage.setItem(KEPT, JSON.stringify({ printer: printer.value, copies: settings.copies, landscape: settings.landscape, gray: settings.gray }));
+    localStorage.setItem(RETAINED, JSON.stringify({ printer: printer.value, copies: settings.copies, landscape: settings.landscape, gray: settings.gray }));
     // The page goes to the printer behind the sheet, and the window is the reader's again at once.
     dialog.close();
     say(toFile ? `Writing ${pdf.value}…` : `Sending ${title || "the page"} to ${settings.printer}…`);

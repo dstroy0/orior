@@ -9,7 +9,7 @@
 # A recipe is procedure written informally for a reader whose assumed knowledge has been lost. Instruction
 # written for a ruler is the same register at another scale: how to hold a province, what a campaign
 # needs, how many days of grain a march carries, what an army is fed on and by whom. Vegetius counts
-# rations, Xenophon lays out the running of an estate, and the advice books written for princes across
+# rations, Xenophon arranges the running of an estate, and the advice books written for princes across
 # several centuries teach government as a practice with the reasons left unstated because the reader was
 # assumed to hold them.
 #
@@ -20,7 +20,7 @@
 # worth copying for a thousand years and a cookbook usually was not.
 #
 # Stored apart from the cookery, since these differ from it in subject as well as in period and the two
-# should not be able to stand in for each other in any reading.
+# should not be able to be in for each other in any reading.
 
 import io
 import json
@@ -99,8 +99,8 @@ def main():
                 continue
 
             link = None
-            for kind, address in entry.get("formats", {}).items():
-                if kind.startswith("text/plain") and not address.endswith(".zip"):
+            for type, address in entry.get("formats", {}).items():
+                if type.startswith("text/plain") and not address.endswith(".zip"):
                     link = address
                     break
             if not link:

@@ -23,7 +23,7 @@ construction. The full population shows no band.
 
 **Three noise floors derived instead of drawn.** A shuffle of hour LABELS that returned identical
 counts every draw and printed a standard deviation of 0.00. A per-pool phase bar set at two Poisson
-floors when the statistic was a maximum minus a minimum over twenty-four bins, which spans three and
+floors when the statistic was a max minus a minimum over twenty-four bins, which spans three and
 a half to four and a half by construction - so every pool cleared a bar that sat below chance, and
 twenty hours of random trough hours read as geography. And a window-scatter floor from chi-square's
 variance carried through a logarithm, giving 0.0582 where shuffling gives 0.1015.
@@ -41,7 +41,7 @@ reflecting a point set negates every longitude, which conjugates every coefficie
 every phase, for any data whatever. The result was fixed before the data was consulted and came back
 at 1e-16, which is float64's floor.
 
-**A scalar standing in for a structure.** Per-degree power is invariant under all of SO(3), and
+**A scalar located in for a structure.** Per-degree power is invariant under all of SO(3), and
 reporting it alone implies that magnitude and phase separate cleanly. They separate only on rotations
 about the reading axis. Under a general rotation the coefficients mix, magnitude redistributes across
 orders inside a degree, and the summed power is preserved because that mixing cancels - not because
@@ -53,7 +53,7 @@ nothing moved. Summing over orders makes the mixing invisible.
 genuinely distinct headers, the output bits are individually unbiased to about four parts in a
 million and carry no co-variation a permutation null cannot produce. Walsh-Hadamard over all
 262144 input masks per output bit finds no linear approximation that survives on nonces it did not
-see; every in-sample maximum sits below the null's own expected maximum. The algebraic degree in the
+see; every in-sample max sits below the null's own expected max. The algebraic degree in the
 nonce bits saturates by round eight, and no transform has fewer coefficients than points to ride.
 Reversing every rotation gives a function statistically identical to the standard one - avalanche
 means differ by a third of a standard error and both reach half the output at round eighteen - so
@@ -123,7 +123,7 @@ three inputs either. So the nonlinear functions absorb the first arrival and pas
 second input has been reached. A digest sums all six paths into one number and cannot say which
 carried what.
 
-## The rules, which are a different kind of statement
+## The rules, which are a different type of statement
 
 Everything above is a frequency, and a frequency needs a null, a bar and an argument. The support
 does not. For a single-bit input difference, an output position either moves or it never does, and a
@@ -143,7 +143,7 @@ that is consistent with the avalanche independently reaching 126 bits moved by r
 function spends roughly its first thirty rounds before every input can reach every output, and its
 remaining thirty-four past the point where the support constrains anything.
 
-This is the sharpest result here and the only one that needs no statistics to stand up. Its limit is
+This is the sharpest result here and the only one that needs no statistics to be up. Its limit is
 equally sharp: forbidden transitions prune trajectory SEARCHES, the work differential
 cryptanalysis does. Mining evaluates forward and searches no trajectories, and the grammar does not
 help there.
@@ -154,7 +154,7 @@ Recorded because the faults are the same shape as the others and both were caugh
 
 **Susceptibility reported "clears" and did not.** The loudest cell of the real 512 by 256 table read
 -4.33 standard errors against a null table's loudest of -4.11, and the code called that a clearance.
-A maximum over 131072 cells is itself a random variable with real spread, and one draw of it is not a
+A max over 131072 cells is itself a random variable with real spread, and one draw of it is not a
 bar. The seventh derived threshold in this work, again too low.
 
 **The pair response has no power at all.** Flipping two input bits and comparing against the
@@ -174,7 +174,7 @@ artifact, and no signal remains.
     tools/audit/compressibility.py   the pi arm, permanently: no null here escapes it
     tools/audit/walsh_bias.py        every input mask by transform, not a sampled few
     tools/audit/handedness.py        SHA-256 against its mirror, rotations reversed
-    tools/audit/spectral_bench.py    invariance shown alongside the mixing it cancels
+    tools/audit/spectral_bench.py    invariance displayed alongside the mixing it cancels
     tools/audit/comb_arms.py         pooled depth and sign agreement, separated
     tools/audit/agglomerate.py       co-variation, which every other test here is blind to
     tools/audit/chirality.py         a placement validator, as it turned out to be

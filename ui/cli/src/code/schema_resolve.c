@@ -168,7 +168,7 @@ static unsigned int resolve_anchor(const SchemaResolveCtx *args)
     return CLI_JSON_NONE;
 }
 
-// `target` read from `base` into `out`, sized for CLI_PATH_MAX_LEN: a URL as it stands, and otherwise beside the
+// `target` read from `base` into `out`, sized for CLI_PATH_MAX_LEN: a URL as it is, and otherwise beside the
 // base, a URL's or a file's, its `.` and `..` read
 static void resolve_join(const SchemaResolveCtx *args)
 {

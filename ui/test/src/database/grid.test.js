@@ -10,7 +10,7 @@ const { test, assert } = window.__harness;
 
 test("the Database tree's menu, from the command line: a table's first rows, a name copied, and a level read again", async () => {
   asFound();
-  calls.answer("db_list", () => [{ connection: { name: "made", kind: "postgres" }, open: true }]);
+  calls.answer("db_list", () => [{ connection: { name: "made", type: "postgres" }, open: true }]);
   calls.answer("db_run", () => ({ done: "SELECT 0", ms: 1 }));
   calls.answer("db_connect", () => ({ version: "the test's" }));
   await press("db-first-rows", "public", "things", "made");

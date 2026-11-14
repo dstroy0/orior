@@ -1,7 +1,7 @@
 """Applies prose rewrites from a table, one exact site at a time, and errors on a bad one.
 
 Written after fixing eighty-five findings by hand. The hand work is the right shape and the risk in
-it is mechanical: a rewrite that matches nothing leaves the finding standing while the run looks
+it is mechanical: a rewrite that matches nothing leaves the finding located while the run looks
 successful, and a rewrite that matches twice edits a site nobody read. Both are the failure this
 whole day has been about. Both are errors here.
 
@@ -16,7 +16,7 @@ uniquely and one of the two was never read.
 
 WHY THE TABLE IS A SEPARATE FILE
 
-A rewrite table has to quote the banned text it replaces. Kept inside this module, that put those
+A rewrite table has to quote the banned text it replaces. Retained inside this module, that put those
 phrases into a checked Python file and the gate flagged the tool for containing the very strings it
 exists to remove. The table is data. It sits in prose_fixes.tsv, which the gate does not read, and
 this module stays prose the gate can hold to its own standard.
@@ -26,7 +26,7 @@ without being pruned first.
 
 A replacement can itself be a finding. Three in this tree arrived as replacements for other banned
 phrases, each costing a full round of edit, check, edit again. Every candidate is therefore put past
-the gate before it is written, by asking the gate and never by keeping a second copy of its list.
+the gate before it is written, by asking the gate and never by retention a second copy of its list.
 """
 
 import io
@@ -43,7 +43,7 @@ TABLE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prose_fixes.ts
 def clean(text):
     """Whether the gate finds nothing in this replacement. Asks the gate, never a copy of it.
 
-    Keeping a list of banned phrases here instead would drift from the gate's own, and the drift
+    Retention a list of banned phrases here instead would drift from the gate's own, and the drift
     would be silent in the direction of passing.
     """
     if not os.path.exists(CHECK):

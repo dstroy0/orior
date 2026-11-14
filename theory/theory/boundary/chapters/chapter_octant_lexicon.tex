@@ -1,18 +1,18 @@
 \chapter{The octant lexicon}
 
-This chapter records what an eight-letter reading of a lit set does and, at greater length, what it cannot do, with SHA-256 compressing one block as the instance.
+This chapter records what an eight-character reading of a lit set does and, at greater length, what it cannot do, with SHA-256 compressing one block as the instance.
 
-Eight regions, one letter each, and a word that a computation defines as it runs. The alphabet is general. It reads a lit set on a boundary and knows nothing about what lit it. The same eight letters serve any object that can be placed on a sphere.
+Eight regions, one character each, and a word that a computation defines as it runs. The alphabet is general. It reads a lit set on a boundary and knows nothing about what lit it. The same eight characters serve any object that can be placed on a sphere.
 
 The central limit comes first: the alphabet carries eight numbers about a source with \(256\) degrees of freedom, and the result that looks like a success is close to free. Neither of those is a defect in the method. They are the size of the instrument, counted.
 
 \section{The alphabet}
 
-Choose some regions. A state writes one letter per region, the letter being the share of the lit set sitting inside it. A step of the computation rewrites every letter at once, and the numbers tracked across the steps are the word it defines.
+Choose some regions. A state writes one character per region, the character being the share of the lit set sitting inside it. A step of the computation rewrites every character at once, and the numbers tracked across the steps are the word it defines.
 
-\textbf{The regions are free.} They may sit at any origin, inside the object or outside it, they may overlap each other and anything else, and they may take any shape. On a placement a region reads through its membership vector, the set of points it holds: eight regions holding the same points read rank \(1\), every letter equal. Geometry enters the reading exactly through membership, and a region's shape counts as far as it decides which points fall inside.
+\textbf{The regions are free.} They may sit at any origin, inside the object or outside it, they may overlap each other and anything else, and they may take any shape. On a placement a region reads through its membership vector, the set of points it holds: eight regions holding the same points read rank \(1\), every character equal. Geometry enters the reading exactly through membership, and a region's shape counts as far as it decides which points fall inside.
 
-Two properties follow from choices, and they are kept apart from the reading itself. Regions tiling without gap or overlap force the letters to add to one, which costs one degree of freedom. Regions that overlap carry no such constraint and can therefore hold one number each.
+Two properties follow from choices, and they are retained apart from the reading itself. Regions tiling without gap or overlap force the characters to add to one, which costs one degree of freedom. Regions that overlap carry no such constraint and can therefore hold one number each.
 
 \section{The instance this chapter uses}
 
@@ -42,7 +42,7 @@ degree & coefficients & rank & blind & least singular value \\
 
 Against a 256-bit lit set, a reading to degree eight recovers \(81\) directions and is blind in \(175\). The map reaches the rank its coefficient count allows at every degree below the source count. The shortfall in coefficients accounts for the blindness on its own. Neither sample size, precision nor the number of beams changes it.
 
-The eight-letter alphabet here is rank \(8\), seven free numbers once the weight is fixed, blind in \(248\) of \(256\) directions.
+The eight-character alphabet here is rank \(8\), seven free numbers once the weight is fixed, blind in \(248\) of \(256\) directions.
 
 Degree fifteen is the floor, where \((L+1)^2\) first reaches \(256\). Reaching the floor is not reaching a usable reading: the least singular value collapses to \(3.5 \times 10^{-3}\) there and recovers to \(1.5 \times 10^{-1}\) at sixteen. One degree of headroom is worth \(44\) times in conditioning. A reading degree picked by counting coefficients alone lands on fifteen and reports success.
 
@@ -56,7 +56,7 @@ The measurement counts which object it has instead of trusting the caller. A rou
 
 \section{The placement under it}
 
-The \(256\) state bits go onto a golden placement~\cite{src:Vogel-1979,src:Swinbank-and-Purser-2006}. One index of shift on that placement is a rigid screw: turn \(2.399963\) radians, axial slide \(-0.007812\), pitch \(-0.003255258\). The pitch holds for every amount. One helix carries them all, and where a shifted bit lands is fixed once the amount is known. The shift is rigid in height and longitude, the coordinates the pitch is read in, and it keeps area by Archimedes' hat-box theorem; it is not an isometry of the sphere, because the axial radius \(\sqrt{1 - y^2}\) changes under the slide.
+The \(256\) state bits go onto a golden placement~\cite{src:Vogel-1979,src:Swinbank-and-Purser-2006}. One index of shift on that placement is a rigid screw: turn \(2.399963\) radians, axial slide \(-0.007812\), pitch \(-0.003255258\). The pitch holds for every amount. One helix carries them all, and where a shifted bit lands is fixed once the amount is known. The shift is rigid in height and longitude, the coordinates the pitch is read in, and it retains area by Archimedes' hat-box theorem; it is not an isometry of the sphere, because the axial radius \(\sqrt{1 - y^2}\) changes under the slide.
 
 \section{The word}
 
@@ -113,7 +113,7 @@ Naming the move is not part of the measurement. A move carrying mass from octant
 
 \section{How much of each change the alphabet could see}
 
-The delta says the reading moved. It does not say how much of the change the reading was able to move for, and those are different questions. A reading is a linear map, two states give the same letters exactly when their difference lies in its kernel, and the part of a change lying there is invisible however large it is.
+The delta says the reading moved. It does not say how much of the change the reading was able to move for, and those are different questions. A reading is a linear map, two states give the same characters exactly when their difference lies in its kernel, and the part of a change lying there is invisible however large it is.
 
 The visible fraction answers the second question: \(\| P d \|^2 / \| d \|^2\), the squared share of a difference \(d\) lying in the row space~\cite{src:Golub-and-Van-Loan-2013} of the reading, which for eight indicator arms holds the per-octant totals of the change and discards the rest.
 
@@ -139,15 +139,15 @@ The control arm licenses reading any of this. Differences with no structure in t
 
 \section{Reading the digest instead of the working state}
 
-The digest is the wrong object, and reading it gives a different and wrong account of the alphabet. A digest adds the initial values back into the working state, and that feed-forward is a mixing step applied after the round, hiding the round's own structure. Read on the digest sequence, the delta sits at the redraw level from round one, leaving no room to show mixing take hold, and the arrangement appears to move at a constant rate from the first round to the last. Eight letters then look too coarse for the question.
+The digest is the wrong object, and reading it gives a different and wrong account of the alphabet. A digest adds the initial values back into the working state, and that feed-forward is a mixing step applied after the round, hiding the round's own structure. Read on the digest sequence, the delta sits at the redraw level from round one, leaving no room to show mixing take hold, and the arrangement appears to move at a constant rate from the first round to the last. Eight characters then look too coarse for the question.
 
 On the working state the delta does neither: it falls, and it crosses the floor on the way down. The saturation is a property of the digest sequence and not of the alphabet. The count of carried words separates the two objects, all \(378\) surviving on the working state and none on the digest, and the measurement asserts that count before it reports anything. The limit that holds whatever object is read is the counting statement in the size of the instrument.
 
 \section{The distinctness result is close to free}
 
-Sixty-four rounds write sixty-four distinct signatures, a coherence of \(100\%\), with no collisions. This is not evidence that the letters carry meaning.
+Sixty-four rounds write sixty-four distinct signatures, a coherence of \(100\%\), with no collisions. This is not evidence that the characters carry meaning.
 
-A signature is eight counts over one weight, and distinctness follows from the counts. At half weight each octant's count of about \(32\) points is hypergeometric with variance about \(7.0\), \(32 \cdot \tfrac14 \cdot 224/255\). Two independent counts agree with probability about \(0.106\), seven free letters agree with probability about \(1.5 \times 10^{-7}\), and the \(2{,}016\) pairs among \(64\) signatures expect about \(3 \times 10^{-4}\) collisions~\cite{src:Feller-1968}. Seven free numbers separate sixty-four arbitrary states nearly always, whether the seven carry anything about the source, and any count of distinct signatures quoted without the rank beside it is quoting that arithmetic.
+A signature is eight counts over one weight, and distinctness follows from the counts. At half weight each octant's count of about \(32\) points is hypergeometric with variance about \(7.0\), \(32 \cdot \tfrac14 \cdot 224/255\). Two independent counts agree with probability about \(0.106\), seven free characters agree with probability about \(1.5 \times 10^{-7}\), and the \(2{,}016\) pairs among \(64\) signatures expect about \(3 \times 10^{-4}\) collisions~\cite{src:Feller-1968}. Seven free numbers separate sixty-four arbitrary states nearly always, whether the seven carry anything about the source, and any count of distinct signatures quoted without the rank beside it is quoting that arithmetic.
 
 It is computed because the complement would have been informative. A collision is a null permutation, a move this reading cannot see. None occurs, which rules that out and establishes nothing beyond it.
 
@@ -157,10 +157,10 @@ What would be evidence: a signature that predicts the round it came from.
 
 Torsion is the reading that does carry position, and it does not bin anything. A phase recovers a true rotation to \(1.8 \times 10^{-13}\) radians while a magnitude reads a rotation as nothing at all.
 
-The turn recovery assumes the second state is a rotation of the first. Rounds \(1\) and \(64\) are not, and the value it returns between them, \(4.715210\) radians, depends on which coefficient is read first. That twist is a reading at most. It also sits under the same rank bound as everything else here: a phase recovers the turn it is given and does not add coefficients to the reading.
+The turn recovery assumes the second state is a rotation of the first. Rounds \(1\) and \(64\) are not, and the value it returns between them, \(4.715210\) radians, depends on which coefficient is read first. That twist is a reading at max. It also sits under the same rank bound as everything else here: a phase recovers the turn it is given and does not add coefficients to the reading.
 
 \section{What a finer alphabet would need}
 
 Refining the cells raises the coefficient count, and the counting table above is the bar it has to clear. A subdivision leaving more cells than there are points to write into them has bought dead symbols, and one reaching the rank floor has bought a reading whose conditioning collapses.
 
-The trace is checked against the published digest, the eight letters to a sum of one, and the delta to clearing the floor early and falling across the run, and the measurement counts the carried words to confirm which object it reads.
+The trace is checked against the published digest, the eight characters to a sum of one, and the delta to clearing the floor early and falling across the run, and the measurement counts the carried words to confirm which object it reads.

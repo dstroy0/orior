@@ -10,7 +10,7 @@ WHY LOCAL
 
 Every global reading of the nonce came back flat: correlation, self-delta, ring position, support, all
 max entropy over the whole field. That is the wave canceling over the whole system. It does not mean
-the field is featureless. A field can be maximum entropy globally and carry massive disturbances
+the field is featureless. A field can be max entropy globally and carry massive disturbances
 locally, a run of agreeing bits in one neighborhood balanced by a run of disagreeing bits in another.
 The two sum to nothing and a global statistic sees nothing. The disturbance is real and only a
 local reading finds it.
@@ -144,7 +144,7 @@ def _check():
     cells = neighborhoods(vectors, 8)
 
     # A SOLID FIELD IS PURE LOCAL ORDER, a balanced checkerboard-like field is not. All ones gives the
-    # maximum local order, WIDTH, since every neighborhood is a solid run. A field drawn at weight 128
+    # max local order, WIDTH, since every neighborhood is a solid run. A field drawn at weight 128
     # sits far below it. If they do not separate, the statistic is not reading local order.
     solid = local_order([1] * WIDTH, cells)
     generator = random.Random(5)
@@ -158,7 +158,7 @@ def _check():
         say("    FAIL the statistic does not separate a solid field from a balanced one")
         failed += 1
     if abs(solid - WIDTH) > 1e-6:
-        say("    FAIL an all-ones field is not maximum local order")
+        say("    FAIL an all-ones field is not max local order")
         failed += 1
 
     # THE WEIGHT-MATCHED NULL CONTAINS A RANDOM FIELD OF THAT WEIGHT. A field drawn at weight 128 sits

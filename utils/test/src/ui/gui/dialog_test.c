@@ -50,10 +50,10 @@ int main(void)
     const GuiRect first = EMBED_CALL(gui_dialog_read.button_rect, GuiDialogReadCfg, .dialog_read = &dialog, .at = 0u);
     const GuiRect second = EMBED_CALL(gui_dialog_read.button_rect, GuiDialogReadCfg, .dialog_read = &dialog, .at = 1u);
     const GuiRect last = EMBED_CALL(gui_dialog_read.button_rect, GuiDialogReadCfg, .dialog_read = &dialog, .at = 2u);
-    cli_check((close.x + close.width <= (int)width) && (close.y + close.height <= head.height), "the close mark stands in the head band");
-    cli_check((body.y >= head.height) && (body.height == 2 * GUI_DIALOG_LINE), "the body's two lines stand under the head band");
-    cli_check((first.y >= body.y + body.height) && (last.y + last.height <= (int)height), "the buttons stand under the body");
-    cli_check((first.x + first.width < second.x) && (second.x + second.width < last.x), "the buttons stand in their order");
+    cli_check((close.x + close.width <= (int)width) && (close.y + close.height <= head.height), "the close mark is in the head band");
+    cli_check((body.y >= head.height) && (body.height == 2 * GUI_DIALOG_LINE), "the body's two lines are under the head band");
+    cli_check((first.y >= body.y + body.height) && (last.y + last.height <= (int)height), "the buttons are under the body");
+    cli_check((first.x + first.width < second.x) && (second.x + second.width < last.x), "the buttons are in their order");
     cli_check(last.x + last.width == (int)width - (GUI_DIALOG_MAT + GUI_DIALOG_PAD), "and end at the foot's right edge");
     cli_check(first.width >= GUI_DIALOG_BUTTON_MIN, "a button is no narrower than its least");
     cli_check(EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = EMBED_CALL(gui_dialog_read.button_rect, GuiDialogReadCfg, .dialog_read = &dialog, .at = 3u)), "a button past the count has no place");
@@ -98,7 +98,7 @@ int main(void)
     cli_check((change.type == GUI_DIALOG_CLOSED) && !dialog.displayed, "a press and a release on the close mark closes it");
 
     // the grounds as drawn: the body on the editor's ground, the head band on the tabs row's surface, the margin on
-    // the glass, and the preferred button on the shown tab's ground
+    // the glass, and the preferred button on the displayed tab's ground
     (void)EMBED_CALL(gui_dialog_asking.ask, GuiDialogAskCfg, .dialog = &dialog, .title = "Close engine.md", .body = "engine.md has changes that are not saved.\nSave them before it closes?", .labels = labels, .count = 3u, .preferred = 0u);
     GuiRaster raster;
     cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = width, .height = height), "a raster to draw on");
@@ -108,12 +108,12 @@ int main(void)
     const GuiColor body_pixel = raster.pixels[((unsigned int)(body.y + body.height + 2) * raster.width) + (unsigned int)body.x + 2u];
     const GuiColor head_pixel = raster.pixels[((unsigned int)(head.height - 6) * raster.width) + (unsigned int)body.x + 2u];
     const GuiColor margin_pixel = raster.pixels[((unsigned int)(height / 2u) * raster.width) + 3u];
-    cli_check(body_pixel == editor, "the body stands on the editor's ground");
-    cli_check(head_pixel == surface, "the head band stands on the tabs row's surface");
-    cli_check((margin_pixel != body_pixel) && (brightness(margin_pixel) > brightness(palette->deep)), "the margin stands on the glass, brighter than the bare ground");
+    cli_check(body_pixel == editor, "the body is on the editor's ground");
+    cli_check(head_pixel == surface, "the head band is on the tabs row's surface");
+    cli_check((margin_pixel != body_pixel) && (brightness(margin_pixel) > brightness(palette->deep)), "the margin is on the glass, brighter than the bare ground");
     const GuiColor preferred_pixel = raster.pixels[((unsigned int)(first.y + 3) * raster.width) + (unsigned int)first.x + 4u];
     const GuiColor other_pixel = raster.pixels[((unsigned int)(second.y + 3) * raster.width) + (unsigned int)second.x + 4u];
-    cli_check(brightness(preferred_pixel) > brightness(other_pixel), "the preferred button stands out from the others");
+    cli_check(brightness(preferred_pixel) > brightness(other_pixel), "the preferred button is out from the others");
 
     // the focus border: the signal for a question, the error color for an error, the widget's line without the focus
     const unsigned int border_at = width / 2u;

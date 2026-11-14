@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// tessera_ledger_test_scenarios.c: standing, idle, head, shadow, scenarios, backfill and main
+// tessera_ledger_test_scenarios.c: located, idle, head, shadow, scenarios, backfill and main
 #include "tessera_ledger_test_internal.h"
 
 // a process occupying bytes as it requests is reserved them beside its declaration, and admitted on what it has yet to
 // find, since the device's measured use already counts what it occupies; the over-budget rule weighs the declaration
 // alone against the recorded peak
-static void test_standing(TestResults *results)
+static void test_located(TestResults *results)
 {
     TesseraLedger ledger;
     tessera_ledger_open(&ledger);
@@ -14,10 +14,10 @@ static void test_standing(TestResults *results)
     TesseraEvent event;
     TesseraEvent events[TEST_EVENTS];
     TesseraJobRequest request = test_request(11ull, 650ull);
-    request.standing = 200ull;
+    request.located = 200ull;
     unsigned long long first = 0ull;
     test_check(results, tessera_ledger_submit(&ledger, &request, 0ull, &first, &event) &&
-                            (event.kind == TESSERA_EVENT_NONE) &&
+                            (event.type == TESSERA_EVENT_NONE) &&
                             (tessera_ledger_wants(&ledger, tessera_ledger_job(&ledger, first)) == 850ull));
     // its whole 850 passes the 700 free, but the 650 it has yet to find fits
     test_check(results, (tessera_ledger_admit(&ledger, 0ull, events, TEST_EVENTS) == 1ull) &&
@@ -27,21 +27,21 @@ static void test_standing(TestResults *results)
     const TesseraJobRequest after = test_request(12ull, 100ull);
     test_check(results, tessera_ledger_submit(&ledger, &after, 0ull, &second, &event) &&
                             (tessera_ledger_admit(&ledger, 0ull, events, TEST_EVENTS) == 0ull));
-    test_check(results, tessera_ledger_measure(&ledger, first, 900ull, &event) && (event.kind == TESSERA_EVENT_GREW) &&
+    test_check(results, tessera_ledger_measure(&ledger, first, 900ull, &event) && (event.type == TESSERA_EVENT_GREW) &&
                             (tessera_ledger_job(&ledger, first)->reservation == 900ull));
     test_check(results, tessera_ledger_release(&ledger, first, 50ull, 1) &&
                             (tessera_ledger_history(&ledger, &request.signum)->peak == 900ull));
-    // standing on 300 and declaring 650 under the recorded 900 is not over budget, and is reserved its whole 950
-    request.standing = 300ull;
+    // located on 300 and declaring 650 under the recorded 900 is not over budget, and is reserved its whole 950
+    request.located = 300ull;
     unsigned long long third = 0ull;
     test_check(results, tessera_ledger_submit(&ledger, &request, 60ull, &third, &event) &&
-                            (event.kind == TESSERA_EVENT_NONE) &&
+                            (event.type == TESSERA_EVENT_NONE) &&
                             (tessera_ledger_wants(&ledger, tessera_ledger_job(&ledger, third)) == 950ull));
-    // declaring 950 over the recorded 900 is over budget, whatever its process stands on
+    // declaring 950 over the recorded 900 is over budget, whatever its process is on
     const TesseraJobRequest greedy = test_request(11ull, 950ull);
     unsigned long long fourth = 0ull;
     test_check(results, tessera_ledger_submit(&ledger, &greedy, 70ull, &fourth, &event) &&
-                            (event.kind == TESSERA_EVENT_OVER_BUDGET));
+                            (event.type == TESSERA_EVENT_OVER_BUDGET));
     tessera_ledger_close(&ledger);
 }
 
@@ -51,7 +51,7 @@ static int test_idle_fired(TesseraLedger *ledger, unsigned long long now)
     int idle = 0;
     while (tessera_ledger_fire(ledger, now, &event))
     {
-        idle = idle || (event.kind == TESSERA_EVENT_IDLE);
+        idle = idle || (event.type == TESSERA_EVENT_IDLE);
     }
     return idle;
 }
@@ -244,24 +244,24 @@ int main(void)
     TestResults headroom = {"headroom identity", 0ull, 0ull};
     TestResults heap = {"deadlines in order", 0ull, 0ull};
     TestResults budget = {"budget, over-budget, override, lost", 0ull, 0ull};
-    TestResults standing = {"standing beside the declaration", 0ull, 0ull};
+    TestResults located = {"located beside the declaration", 0ull, 0ull};
     TestResults idle = {"idle teardown", 0ull, 0ull};
     TestResults head_results = {"backfill preserves the head", 0ull, 0ull};
     TestResults finished = {"every scenario finishes", 0ull, 0ull};
     test_headroom(&headroom);
     test_heap_order(&heap);
     test_budget(&budget);
-    test_standing(&standing);
+    test_located(&located);
     test_idle(&idle);
     test_backfill(&head_results, &finished);
     test_report(&headroom);
     test_report(&heap);
     test_report(&budget);
-    test_report(&standing);
+    test_report(&located);
     test_report(&idle);
     test_report(&head_results);
     test_report(&finished);
-    const unsigned long long failed = headroom.failed + heap.failed + budget.failed + standing.failed + idle.failed +
+    const unsigned long long failed = headroom.failed + heap.failed + budget.failed + located.failed + idle.failed +
                                       head_results.failed + finished.failed;
     printf("  tessera ledger: %llu failed\n", failed);
     return (failed == 0ull) ? 0 : 1;

@@ -79,7 +79,7 @@ unsigned int sass_text_read(const char *output, const char *kernel, char *text, 
     return at;
 }
 
-// the most instructions one check decodes at a time
+// the max instructions one check decodes at a time
 #define SASS_CHECK_BLOCK 400u
 
 static unsigned long long s_check_low[SASS_CHECK_BLOCK];
@@ -118,7 +118,7 @@ unsigned int sass_machine_check(const SassMachine *machine, const SassListing *l
             tally->checked += 1u;
             unsigned long long low = 0ull;
             unsigned long long high = 0ull;
-            // a branch counts its target from itself, and a listing's own branch names where it stands
+            // a branch counts its target from itself, and a listing's own branch names where it is
             if (!sass_assemble(machine, instruction->text, instruction->address, instruction->address,
                                SASS_CONTROL_BASE, &low, &high))
             {
@@ -136,10 +136,10 @@ unsigned int sass_machine_check(const SassMachine *machine, const SassListing *l
             int by_bytes = 0;
             for (unsigned int place = 0u; place < parts.operands; place += 1u)
             {
-                by_bytes = by_bytes || (parts.kind[place] == SASS_OPERAND_LABEL) ||
-                           (parts.kind[place] == SASS_OPERAND_UNKNOWN);
+                by_bytes = by_bytes || (parts.type[place] == SASS_OPERAND_LABEL) ||
+                           (parts.type[place] == SASS_OPERAND_UNKNOWN);
             }
-            // a branch counts its target from where it stands, and a relocated operand is not in the instruction at
+            // a branch counts its target from where it is, and a relocated operand is not in the instruction at
             // all: the loader puts it there, and the listing prints what the ELF specifies it will be. Neither reads
             // back from the bytes alone. For those the bytes are all that can be filled to the listing
             if (by_bytes)

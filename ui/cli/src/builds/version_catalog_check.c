@@ -38,11 +38,11 @@ int cli_versions_names_get(const CliVersionCatalogNameCtx *args)
             bytes += g_cli_versions.field[entry].key_size;
         }
     }
-    // each is under its most, so it fits an unsigned int
-    args->names_out->most = (unsigned int)((count < CLI_VERSIONS_NAMES) ? count : CLI_VERSIONS_NAMES);
+    // each is under its max, so it fits an unsigned int
+    args->names_out->max = (unsigned int)((count < CLI_VERSIONS_NAMES) ? count : CLI_VERSIONS_NAMES);
     args->names_out->capacity =
         (unsigned int)((bytes < CLI_VERSIONS_NAMES_TEXT) ? bytes : CLI_VERSIONS_NAMES_TEXT) + 1u;
-    args->names_out->at = g_cli_guard->temporary_buf_alloc(2ULL * (args->names_out->most + 1ULL) * sizeof(unsigned int),
+    args->names_out->at = g_cli_guard->temporary_buf_alloc(2ULL * (args->names_out->max + 1ULL) * sizeof(unsigned int),
                                                            g_cli_versions_owner);
     args->names_out->text = g_cli_guard->temporary_buf_alloc(args->names_out->capacity, g_cli_versions_owner);
     if ((args->names_out->at == NULL) || (args->names_out->text == NULL))
@@ -52,11 +52,11 @@ int cli_versions_names_get(const CliVersionCatalogNameCtx *args)
         args->names_out->at = NULL;
         args->names_out->size = NULL;
         args->names_out->text = NULL;
-        args->names_out->most = 0u;
+        args->names_out->max = 0u;
         args->names_out->capacity = 0u;
         return 0;
     }
-    args->names_out->size = args->names_out->at + args->names_out->most + 1u;
+    args->names_out->size = args->names_out->at + args->names_out->max + 1u;
     for (unsigned int at = 0u; at < g_cli_versions.sections; at += 1u)
     {
         const CliVersionsSection *const section = &g_cli_versions.section[at];
@@ -76,7 +76,7 @@ int cli_versions_names_get(const CliVersionCatalogNameCtx *args)
                        .alias = EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx,
                                            .at = field->key_at),
                        .size = field->key_size, .out = &line);
-            if ((args->names_out->count < args->names_out->most) && mmgr_line_ok(&line))
+            if ((args->names_out->count < args->names_out->max) && mmgr_line_ok(&line))
             {
                 args->names_out->at[args->names_out->count] = args->names_out->used;
                 args->names_out->size[args->names_out->count] = (unsigned int)line.at;

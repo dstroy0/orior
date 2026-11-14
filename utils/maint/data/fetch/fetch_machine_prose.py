@@ -16,7 +16,7 @@
 # WHAT IS FETCHED, AND WHAT THAT IS NOT
 #
 # Published datasets of generated output, all ungated, all plain JSON or JSONL. Only the
-# generated turns are kept: the human turns in them were written by people and belong to the other
+# generated turns are retained: the human turns in them were written by people and belong to the other
 # pole. Fenced code blocks come out, because the thing being measured is prose and a file full of
 # Python would otherwise match on its Python.
 #
@@ -36,7 +36,7 @@
 # What comes back is multilingual and carries markup, transliteration and tables. A pole for an
 # English register that holds Mandarin, JSON and LaTeX would measure those instead. Every turn is
 # scored on the bench that already measures English, english_sift.surprise, against the reference
-# english_sift.english_reference builds, and a turn is kept when it looks like writing at all and
+# english_sift.english_reference builds, and a turn is retained when it looks like writing at all and
 # scores inside the cut calibrated from that reference. The rest is dropped without being read.
 #
 # Nothing here is committed. The corpus lands in build/corpora, which is not tracked.

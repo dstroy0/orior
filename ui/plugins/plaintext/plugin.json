@@ -2,7 +2,7 @@
   "id": "plaintext",
   "name": "Plain Text",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "extensions": ["txt","log"],
   "comments": {},
   "pairs": [],

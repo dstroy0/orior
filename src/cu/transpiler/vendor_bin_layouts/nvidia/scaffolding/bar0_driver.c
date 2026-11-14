@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// bar0_driver.c: a read-only kernel driver that maps the GPU's BAR0 register aperture and hands its 32-bit registers
-// back to the userspace reader by IOCTL (mmio.h, mmio_read.c). It is the kernel half of the most direct listen the run
+// bar0_driver.c: a read-only kernel driver that maps the GPU's BAR0 register aperture and passes its 32-bit registers
+// back to the userspace reader by IOCTL (mmio.h, mmio_read.c). It is the kernel half of the max direct listen the run
 // channel has on the part: where NVML's Xid stamp and the System log report a fault second-hand and late, BAR0 records
 // the part's own state first, the PGRAPH exception registers an out-of-range register warp exception among them.
 //
@@ -25,9 +25,9 @@ static PVOID s_bar0 = NULL;
 static ULONG64 s_base = 0ull;
 static ULONG64 s_size = 0ull;
 
-// the most the aperture may be, a wrong service value mapping nothing absurd: BAR0 is 16 MiB on this part, and no
+// the max the aperture may be, a wrong service value mapping nothing absurd: BAR0 is 16 MiB on this part, and no
 // register aperture of the family is near this
-#define BAR0_SIZE_MOST 0x10000000ull
+#define BAR0_SIZE_MAX 0x10000000ull
 #define BAR0_POOL_TAG '0RAB'
 
 // One named value under the opened `key` read as an unsigned number into `out`, a 32-bit or a 64-bit value taken as
@@ -71,8 +71,8 @@ static NTSTATUS bar0_extent_read(PUNICODE_STRING registry_path)
     UNICODE_STRING params;
     params.Length = 0u;
     // the service key, a backslash and Parameters, and a terminator past them
-    params.MaximumLength = (USHORT)(registry_path->Length + suffix.Length + sizeof(WCHAR));
-    params.Buffer = (PWCH)ExAllocatePool2(POOL_FLAG_PAGED, params.MaximumLength, BAR0_POOL_TAG);
+    params.MaxLength = (USHORT)(registry_path->Length + suffix.Length + sizeof(WCHAR));
+    params.Buffer = (PWCH)ExAllocatePool2(POOL_FLAG_PAGED, params.MaxLength, BAR0_POOL_TAG);
     if (params.Buffer == NULL)
     {
         return STATUS_INSUFFICIENT_RESOURCES;
@@ -146,7 +146,7 @@ static NTSTATUS bar0_control(PDEVICE_OBJECT device, PIRP irp)
         {
             const MmioRead request = *(const MmioRead *)buffer;
             const ULONG64 span = (ULONG64)request.words * sizeof(ULONG);
-            if ((request.words == 0u) || (request.words > MMIO_READ_WORDS_MOST))
+            if ((request.words == 0u) || (request.words > MMIO_READ_WORDS_MAX))
             {
                 status = STATUS_INVALID_PARAMETER;
             }
@@ -214,7 +214,7 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT driver, PUNICODE_STRING registry_path)
     {
         return status;
     }
-    if ((s_size == 0ull) || (s_size > BAR0_SIZE_MOST))
+    if ((s_size == 0ull) || (s_size > BAR0_SIZE_MAX))
     {
         return STATUS_INVALID_PARAMETER;
     }

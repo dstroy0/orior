@@ -3,13 +3,13 @@
 // main.c: the window's program, a pump and a blit. The command line is run on the words the program was started with;
 // where it leaves a window to open, the view begins on a thread of the command line's and the window opens on the
 // system at the place saved for the tree, else in the middle of the main monitor. Every event the system gives goes to
-// the view's ring, each order the view writes back is done, and a raster an order hands over is shown; the loop runs
+// the view's ring, each order the view writes back is done, and a raster an order passes over is displayed; the loop runs
 // until the window closes, its place saved as it does
 #include "../../cli/src/command_line/callback_cfg.h"
 #include "../../cli/src/command_line/command_line.h"
 #include "system.h"
 
-// the window's size where none is saved, in the system's pixels; and the monitors read at the most
+// the window's size where none is saved, in the system's pixels; and the monitors read at max
 #define GUI_FIRST_WIDTH 1440u
 #define GUI_FIRST_HEIGHT 920u
 #define GUI_MONITORS 16u
@@ -55,7 +55,7 @@ static unsigned int main_hit(const GuiEachInputCfg *args)
     return cli_view_hit(*(const unsigned int *)args->context, args->input->x, args->input->y);
 }
 
-// Preferences' window closed where it stands open, a window owned going before its owner does
+// Preferences' window closed where it is open, a window owned going before its owner does
 static void main_preferences_close(void)
 {
     if (s_preferences != NULL)
@@ -66,7 +66,7 @@ static void main_preferences_close(void)
     }
 }
 
-// the dialog's window closed where it stands open, its owner taking input again as it goes
+// the dialog's window closed where it is open, its owner taking input again as it goes
 static void main_dialog_close(void)
 {
     if (s_dialog != NULL)
@@ -131,7 +131,7 @@ static void main_motion(void *context)
 }
 
 // Preferences' window opened in the middle of the main window at the size asked, no taller than the main window; its
-// size handed to the view with the scale it stands at, or the view told it was refused
+// size passed to the view with the scale it is at, or the view told it was refused
 static void main_preferences_open(const CliViewOrder *order)
 {
     static const GuiSystemEvents s_events = {main_sized,
@@ -168,7 +168,7 @@ static void main_preferences_open(const CliViewOrder *order)
 }
 
 // The dialog's window opened modal in the middle of the window that owns it, at the size asked and no larger than the
-// owner. Its size goes to the view with the scale it stands at, or the view hears that the system refused it
+// owner. Its size goes to the view with the scale it is at, or the view hears that the system refused it
 static void main_dialog_open(const CliViewOrder *order)
 {
     static const GuiSystemEvents s_events = {main_sized,
@@ -207,7 +207,7 @@ static void main_dialog_open(const CliViewOrder *order)
     cli_view_event(&sized);
 }
 
-// the system that shows `surface`, NULL where its window no longer stands
+// the system that shows `surface`, NULL where its window no longer is
 static GuiSystem *main_system_of(unsigned int surface)
 {
     if (surface == CLI_VIEW_PREFERENCES)
@@ -217,7 +217,7 @@ static GuiSystem *main_system_of(unsigned int surface)
     return (surface == CLI_VIEW_DIALOG) ? s_dialog : s_system;
 }
 
-// a raster shown on its surface, the view told once it has been; a surface no longer standing has nothing to show it on
+// a raster displayed on its surface, the view told once it has been; a surface no longer located has nothing to show it on
 static void main_present(const CliViewOrder *order)
 {
     GuiSystem *const system = main_system_of(order->surface);
@@ -230,8 +230,8 @@ static void main_present(const CliViewOrder *order)
         EMBED_CALL(gui_system_raster.present_part, GuiSystemRasterCfg, .system = system, .raster = &order->raster,
                    .part = order->part);
     }
-    const CliViewEvent shown = {.type = CLI_VIEW_EVENT_PRESENTED, .surface = order->surface};
-    cli_view_event(&shown);
+    const CliViewEvent displayed = {.type = CLI_VIEW_EVENT_PRESENTED, .surface = order->surface};
+    cli_view_event(&displayed);
 }
 
 // every order waiting done, until the window closes under one
@@ -308,7 +308,7 @@ int main(void)
     }
     CliWindowArea areas[GUI_MONITORS];
     const unsigned int count =
-        EMBED_CALL(cli_system_areas.areas, GuiSystemAreasCfg, .areas = areas, .most = GUI_MONITORS);
+        EMBED_CALL(cli_system_areas.areas, GuiSystemAreasCfg, .areas = areas, .max = GUI_MONITORS);
     CliWindowPosition place;
     if (!cli_view_place_saved(cli_command_line_root(), areas, count, &place))
     {
@@ -332,7 +332,7 @@ int main(void)
         return 1;
     }
     main_motion(NULL);
-    // the orders written before the window stood, whose wakes went nowhere
+    // the orders written before the window was, whose wakes went nowhere
     main_woken(NULL);
     // the record saved here for the giving after the loop, since closing the window inside the loop lets go of
     // s_system and leaves the record for the loop to read until it returns

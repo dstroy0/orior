@@ -13,8 +13,8 @@ static int s_created[CLI_PARTS];
 
 typedef struct
 {
-    unsigned int letter;
-    char letter_letter;
+    unsigned int character;
+    char character_character;
     const unsigned int *pattern_u32s;
     unsigned long long pattern_length;
     const unsigned int *path;
@@ -29,7 +29,7 @@ typedef struct
     const char *line;
     unsigned long long size;
     const char *path_text;
-    unsigned int *letters;
+    unsigned int *characters;
     const char *magic;
     CliWords *words;
     const CliPatterns *one;
@@ -38,24 +38,24 @@ typedef struct
     const CliPattern *other_list;
     unsigned int count;
 } PatternsCtx;
-// A letter as a pattern compares it: whatever its case on Windows, as it is elsewhere
+// A character as a pattern compares it: whatever its case on Windows, as it is elsewhere
 EMBED_INLINE unsigned int cli_fold(const PatternsCtx *args)
 {
-    unsigned int letter = args->letter;
+    unsigned int character = args->character;
 #if defined(_WIN32)
-    return EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = letter);
+    return EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = character);
 #else
-    return letter;
+    return character;
 #endif
 }
 
 // whether a byte is one of ASCII's spaces
 EMBED_INLINE int cli_is_space(const PatternsCtx *args)
 {
-    return (args->letter_letter == ' ') || ((args->letter_letter >= '\t') && (args->letter_letter <= '\r'));
+    return (args->character_character == ' ') || ((args->character_character >= '\t') && (args->character_character <= '\r'));
 }
 
-// whether the glob names the path from its first letter to its last
+// whether the glob names the path from its first character to its last
 static int cli_glob(const PatternsCtx *args)
 {
     if (args->pattern_length == 0ULL)
@@ -125,10 +125,10 @@ static int cli_glob(const PatternsCtx *args)
                       .length = args->length - 1ULL);
 }
 
-// whether the pattern names the path, or a folder it is in; the path's letters folded as a pattern compares them
+// whether the pattern names the path, or a folder it is in; the path's characters folded as a pattern compares them
 EMBED_INLINE int cli_hits(const PatternsCtx *args)
 {
-    const unsigned int *const glob = args->patterns->letters + args->pattern->first;
+    const unsigned int *const glob = args->patterns->characters + args->pattern->first;
     for (unsigned long long end = 0ULL; end < args->length; end += 1ULL)
     {
         if ((args->path[end] == '/') &&
@@ -149,11 +149,11 @@ EMBED_INLINE void cli_pattern_read(const PatternsCtx *args)
 {
     const char *from = args->from;
     const char *to = args->to;
-    while ((from < to) && EMBED_CALL(cli_is_space, PatternsCtx, .letter_letter = from[0]))
+    while ((from < to) && EMBED_CALL(cli_is_space, PatternsCtx, .character_character = from[0]))
     {
         from += 1;
     }
-    while ((to > from) && EMBED_CALL(cli_is_space, PatternsCtx, .letter_letter = to[-1]))
+    while ((to > from) && EMBED_CALL(cli_is_space, PatternsCtx, .character_character = to[-1]))
     {
         to -= 1;
     }
@@ -174,28 +174,28 @@ EMBED_INLINE void cli_pattern_read(const PatternsCtx *args)
     unsigned int *const count = args->include ? &args->patterns_out->includes : &args->patterns_out->hides;
     CliPattern *const list = args->include ? args->patterns_out->include : args->patterns_out->hide;
     const unsigned int first = args->patterns_out->used;
-    const unsigned long long capacity = CLI_PATTERN_LETTERS - first;
+    const unsigned long long capacity = CLI_PATTERN_CHARACTERS - first;
     unsigned long long length = 0ULL;
     static const unsigned int s_anywhere[3] = {'*', '*', '/'};
     if (!slashed && (capacity >= 3ULL))
     {
         memor.cpy(
-            &(MemoriaCfg){.dst = args->patterns_out->letters + first, .src = s_anywhere, .bytes = sizeof(s_anywhere)});
+            &(MemoriaCfg){.dst = args->patterns_out->characters + first, .src = s_anywhere, .bytes = sizeof(s_anywhere)});
         length = 3ULL;
     }
     length +=
-        EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = from, .size = (unsigned long long)(to - from),
-                   .letters = args->patterns_out->letters + first + length, .capacity_u64 = capacity - length);
+        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = from, .size = (unsigned long long)(to - from),
+                   .characters = args->patterns_out->characters + first + length, .capacity_u64 = capacity - length);
     if ((*count >= CLI_PATTERNS_MAX) || (capacity < 3ULL))
     {
         return;
     }
     for (unsigned long long at = 0ULL; at < length; at += 1ULL)
     {
-        args->patterns_out->letters[first + at] =
-            EMBED_CALL(cli_fold, PatternsCtx, .letter = args->patterns_out->letters[first + at]);
+        args->patterns_out->characters[first + at] =
+            EMBED_CALL(cli_fold, PatternsCtx, .character = args->patterns_out->characters[first + at]);
     }
-    // the length is below CLI_PATTERN_LETTERS, which an unsigned int counts
+    // the length is below CLI_PATTERN_CHARACTERS, which an unsigned int counts
     const CliPattern pattern = {first, (unsigned int)length, folders};
     list[*count] = pattern;
     *count += 1u;
@@ -208,11 +208,11 @@ EMBED_INLINE void cli_line_read(const PatternsCtx *args)
 {
     const char *from = args->line;
     const char *to = args->line + args->size;
-    while ((from < to) && EMBED_CALL(cli_is_space, PatternsCtx, .letter_letter = from[0]))
+    while ((from < to) && EMBED_CALL(cli_is_space, PatternsCtx, .character_character = from[0]))
     {
         from += 1;
     }
-    while ((to > from) && EMBED_CALL(cli_is_space, PatternsCtx, .letter_letter = to[-1]))
+    while ((to > from) && EMBED_CALL(cli_is_space, PatternsCtx, .character_character = to[-1]))
     {
         to -= 1;
     }
@@ -243,11 +243,11 @@ EMBED_INLINE void cli_set_line_read(const PatternsCtx *args)
 {
     const char *from = args->line;
     const char *to = args->line + args->size;
-    while ((from < to) && EMBED_CALL(cli_is_space, PatternsCtx, .letter_letter = from[0]))
+    while ((from < to) && EMBED_CALL(cli_is_space, PatternsCtx, .character_character = from[0]))
     {
         from += 1;
     }
-    while ((to > from) && EMBED_CALL(cli_is_space, PatternsCtx, .letter_letter = to[-1]))
+    while ((to > from) && EMBED_CALL(cli_is_space, PatternsCtx, .character_character = to[-1]))
     {
         to -= 1;
     }
@@ -307,30 +307,30 @@ int cli_patterns_include_only(const CliPatternsCfg *args)
     return args->patterns->includes != 0u;
 }
 
-// the path's letters, each folded as a pattern compares it, into `letters`, sized for CLI_PATH_MAX_LEN: their count
-EMBED_INLINE unsigned long long cli_path_letters(const PatternsCtx *args)
+// the path's characters, each folded as a pattern compares it, into `characters`, sized for CLI_PATH_MAX_LEN: their count
+EMBED_INLINE unsigned long long cli_path_characters(const PatternsCtx *args)
 {
-    unsigned int *letters = args->letters;
+    unsigned int *characters = args->characters;
     const unsigned long long length =
-        EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->path_text,
+        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = args->path_text,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->path_text, .cap = CLI_POOL_BYTES}),
-                   .letters = letters, .capacity_u64 = CLI_PATH_MAX_LEN);
+                   .characters = characters, .capacity_u64 = CLI_PATH_MAX_LEN);
     for (unsigned long long at = 0ULL; at < length; at += 1ULL)
     {
-        letters[at] = EMBED_CALL(cli_fold, PatternsCtx, .letter = letters[at]);
+        characters[at] = EMBED_CALL(cli_fold, PatternsCtx, .character = characters[at]);
     }
     return length;
 }
 
 int cli_patterns_hides(const CliPatternsPathCfg *args)
 {
-    unsigned int letters[CLI_PATH_MAX_LEN];
+    unsigned int characters[CLI_PATH_MAX_LEN];
     const unsigned long long length =
-        EMBED_CALL(cli_path_letters, PatternsCtx, .path_text = args->path, .letters = letters);
+        EMBED_CALL(cli_path_characters, PatternsCtx, .path_text = args->path, .characters = characters);
     for (unsigned int at = 0u; at < args->patterns->hides; at += 1u)
     {
         if (EMBED_CALL(cli_hits, PatternsCtx, .patterns = args->patterns, .pattern = &args->patterns->hide[at],
-                       .path = letters, .length = length, .dir = args->dir))
+                       .path = characters, .length = length, .dir = args->dir))
         {
             return 1;
         }
@@ -342,7 +342,7 @@ int cli_patterns_hides(const CliPatternsPathCfg *args)
     for (unsigned int at = 0u; at < args->patterns->includes; at += 1u)
     {
         if (EMBED_CALL(cli_hits, PatternsCtx, .patterns = args->patterns, .pattern = &args->patterns->include[at],
-                       .path = letters, .length = length, .dir = 0))
+                       .path = characters, .length = length, .dir = 0))
         {
             return 0;
         }
@@ -352,13 +352,13 @@ int cli_patterns_hides(const CliPatternsPathCfg *args)
 
 int cli_patterns_include_folder(const CliPatternsPathCfg *args)
 {
-    unsigned int letters[CLI_PATH_MAX_LEN];
+    unsigned int characters[CLI_PATH_MAX_LEN];
     const unsigned long long length =
-        EMBED_CALL(cli_path_letters, PatternsCtx, .path_text = args->path, .letters = letters);
+        EMBED_CALL(cli_path_characters, PatternsCtx, .path_text = args->path, .characters = characters);
     for (unsigned int at = 0u; at < args->patterns->includes; at += 1u)
     {
         if (EMBED_CALL(cli_hits, PatternsCtx, .patterns = args->patterns, .pattern = &args->patterns->include[at],
-                       .path = letters, .length = length, .dir = 1))
+                       .path = characters, .length = length, .dir = 1))
         {
             return 1;
         }
@@ -371,9 +371,9 @@ EMBED_INLINE void cli_pattern_specs(const PatternsCtx *args)
 {
     CliWords *words = args->words;
 #if defined(_WIN32)
-    const char *const letter_case = ",icase";
+    const char *const character_case = ",icase";
 #else
-    const char *const letter_case = "";
+    const char *const character_case = "";
 #endif
     char spec[CLI_PATH_MAX_LEN];
     for (int inside = args->pattern->folders ? 1 : 0; inside < 2; inside += 1)
@@ -382,12 +382,12 @@ EMBED_INLINE void cli_pattern_specs(const PatternsCtx *args)
         mmgr_line_put(&line, ":(");
         mmgr_line_put(&line, args->magic);
         mmgr_line_put(&line, "glob");
-        mmgr_line_put(&line, letter_case);
+        mmgr_line_put(&line, character_case);
         mmgr_line_ch(&line, ')');
         for (unsigned int at = 0u; at < args->pattern->length; at += 1u)
         {
-            EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line,
-                       .letter = args->patterns->letters[args->pattern->first + at]);
+            EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line,
+                       .character = args->patterns->characters[args->pattern->first + at]);
         }
         if (inside)
         {
@@ -437,8 +437,8 @@ EMBED_INLINE int cli_same_list(const PatternsCtx *args)
     {
         if ((args->list[at].folders != args->other_list[at].folders) ||
             (args->list[at].length != args->other_list[at].length) ||
-            (memor.cmp(&(MemoriaCfg){.src = args->one->letters + args->list[at].first,
-                                     .other = other->letters + args->other_list[at].first,
+            (memor.cmp(&(MemoriaCfg){.src = args->one->characters + args->list[at].first,
+                                     .other = other->characters + args->other_list[at].first,
                                      .bytes = args->list[at].length * sizeof(unsigned int)}) != 0))
         {
             return 0;

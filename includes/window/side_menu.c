@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// side_menu.c: the tool side_menu and the frame's gap down the right, each tinted with the ink; the top group's buttons stand
-// down from the side_menu's head and the foot group's up from its foot, each as the page's side_menu lays them out
+// side_menu.c: the tool side_menu and the frame's gap down the right, each tinted with the ink; the top group's buttons are
+// down from the side_menu's head and the foot group's up from its foot, each as the page's side_menu positions them out
 #include "side_menu.h"
 
 #include "cellularum_laboro/cellularum_laboro.h"
@@ -70,7 +70,7 @@ GuiRect gui_side_menu_button(const GuiSideMenuCfg *args)
     const int pitch =
         side + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SIDE_MENU_BUTTON_GAP, .scale = scale);
     const int pad = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SIDE_MENU_PAD, .scale = scale);
-    // the strip the button is laid in: the one handed in, else the frame's
+    // the strip the button is positioned in: the one passed in, else the frame's
     const GuiRect strip = (args->strip != NULL) ? *args->strip : args->frame->side_menu;
     const int x = strip.x + ((strip.width - side) / 2);
     const GuiTool *const tool = &g_gui_tools[(args->at < g_gui_tools_count) ? args->at : 0u];
@@ -154,7 +154,7 @@ void gui_side_menu_release(const GuiSideMenuFrameXCfg *args)
 void gui_side_menu_draw(const GuiSideMenuFrameRasterCfg *args)
 {
     GuiIcons *icons = args->icons;
-    // the side_menu's pane is the slat its edge shows, whole outside the claim, laid by the frame's base; the tools stand
+    // the side_menu's pane is the slat its edge shows, whole outside the claim, positioned by the frame's base; the tools are
     // in the slat
     const GuiRect pane = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->frame->side_menu_band,
                                     .other = args->frame->side_menu);
@@ -162,7 +162,7 @@ void gui_side_menu_draw(const GuiSideMenuFrameRasterCfg *args)
     const unsigned int icon =
         (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SIDE_MENU_ICON, .scale = scale);
     const float stroke = GUI_SIDE_MENU_STROKE * (float)icon / GUI_ICON_UNITS;
-    // the beads' atlas laid out for the buttons' size, each button's cell at its resting place and the window's lights,
+    // the beads' atlas arranged for the buttons' size, each button's cell at its resting place and the window's lights,
     // so the strip's slide moves the beads without baking them again: a button's frames bake the first time it is drawn
     const unsigned int side =
         (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SIDE_MENU_BUTTON, .scale = scale);

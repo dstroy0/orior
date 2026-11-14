@@ -21,7 +21,7 @@ static const char *const s_not_searched[10] = {"venv",        ".venv", "env",  "
 #define CLI_TESTS_NONE 0xffffffffu
 
 // A search's work state, under the tests' lock: the rules and the Rust tests; and a file's part, one cell sized to the
-// file by a walk that counts its facts and given back as the file's tests are handed on: the facts, its lines' starts,
+// file by a walk that counts its facts and given back as the file's tests are passed on: the facts, its lines' starts,
 // each class's body's last line, and its tests, each its function and its class, CLI_TESTS_NONE where it has none
 typedef struct
 {
@@ -334,7 +334,7 @@ EMBED_INLINE unsigned int found_tests(const TestingFoundCtx *args)
     return count;
 }
 
-// the tests of `file`, its `size` bytes of `text`, each handed to `each`, in a part taken for the file and given
+// the tests of `file`, its `size` bytes of `text`, each passed to `each`, in a part taken for the file and given
 // back after
 static void found_in(const TestingFoundCtx *args)
 {

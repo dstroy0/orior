@@ -8,7 +8,7 @@
 #include "../editor/document_internal.h"
 #include "../servers/servers_internal.h"
 
-// the most bytes of the file as the last commit has it a read takes
+// the max bytes of the file as the last commit has it a read takes
 #define GIT_HEAD_MAX (1ULL << 20u)
 
 // A read lined up for a worker: the tree's root, the file's path and the key its text is stored under

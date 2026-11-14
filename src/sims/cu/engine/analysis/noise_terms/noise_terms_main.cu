@@ -126,7 +126,7 @@ int main(void)
         sim_flush(&results);
     }
     // each shot law read at 16 electrons by the moment pass, then its null's tails at the scene's 100, and the render's
-    // time there, where the laws' draws differ most
+    // time there, where the laws' draws differ max
     const unsigned long long laws[2] = {SIM_SHOT_SYMMETRIC, SIM_SHOT_POISSON};
     const char *const law_names[2] = {
         "  the symmetric shot, Binomial(4S, 1/2) - S\n",

@@ -17,7 +17,7 @@
 // folder on Windows takes them.
 //
 // Before a file goes, the copy the place has is compared with the copy last sent there: a copy changed there since
-// is shown with its differences, to retain or to replace. The files a place has that the tree no longer does are
+// is displayed with its differences, to retain or to replace. The files a place has that the tree no longer does are
 // listed, to retain or to delete (deploy_read.c, deploy_gather.c, deploy_walk.c, deploy_tar.c, deploy_there.c,
 // deploy_existing.c, deploy_run.c, deploy_send.c, deploy_jobs.c)
 #ifndef DEPLOY_H

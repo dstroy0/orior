@@ -16,7 +16,7 @@
 # Those settings are a fact about the language whether anyone treated them as one. An
 # agglutinative language with long words needs longer runs to reach a morpheme than an isolating one
 # does. A logographic script needs shorter ones because a single character already carries what an
-# alphabet defines. If the settings across many papers line up with what kind of language each is
+# alphabet defines. If the settings across many papers line up with what type of language each is
 # about, that is a constant nobody set out to publish.
 #
 # This asks only what the archives serve and how they may be queried. Nothing is downloaded and no claim
@@ -51,7 +51,7 @@ def main():
             request = urllib.request.Request(url, headers=AGENT)
             with urllib.request.urlopen(request, timeout=120) as response:
                 blob = response.read(200000)
-                kind = response.headers.get("Content-Type", "")
+                type = response.headers.get("Content-Type", "")
         except urllib.error.HTTPError as error:
             out.write("      errored with %s\n\n" % error.code)
             continue
@@ -59,9 +59,9 @@ def main():
             out.write("      failed: %s\n\n" % str(trouble)[:80])
             continue
 
-        out.write("      answered %d bytes, %s\n" % (len(blob), kind[:40]))
+        out.write("      answered %d bytes, %s\n" % (len(blob), type[:40]))
         text = blob.decode("utf-8", errors="replace")
-        if "json" in kind:
+        if "json" in type:
             try:
                 payload = json.loads(text)
                 found = payload.get("data", payload if isinstance(payload, list) else [])

@@ -12,7 +12,7 @@ there. So the grid covers powers two and three, which are far less swept, and co
 
 WHAT A HIT WOULD AND WOULD NOT BE
 
-A believable relation here is a CANDIDATE formula instead of a discovery. Most of the space is either
+A believable relation here is a CANDIDATE formula instead of a discovery. The majority of the space is either
 empty or already in Bailey's compendium, and anything that survives the screen has to be checked
 against it before it is called new. The screen guarantees only that the relation is not an
 artifact of finite precision, the part that is easy to get wrong and hard to notice.
@@ -80,13 +80,13 @@ def main():
     given = parser.parse_args()
     places = given.places
 
-    # THE ENGINE IS AN IMPORT INSTEAD OF A SWITCH. What stood here called `device_only.engage()`, which
+    # THE ENGINE IS AN IMPORT INSTEAD OF A SWITCH. What was here called `device_only.engage()`, which
     # reached into another module and rebound its multiply for the whole process - a monkeypatch,
-    # and one that lied twice over. It routed through the DISPATCHING multiply, which hands operands
+    # and one that lied twice over. It routed through the DISPATCHING multiply, which passes operands
     # below 1,024 limbs back to the host; 1,024 limbs is 32,768 bits, leaving a sweep at the default
     # 1,100 places printed "routing every multiply to the device" and then ran entirely on the CPU.
     #
-    # Now the module is named once, here, and handed down as a plain function. There is nothing to
+    # Now the module is named once, here, and passed down as a plain function. There is nothing to
     # engage and nothing that can be rebound from elsewhere.
     #
     # A word on what the card is worth at a given width, since the honest answer is not "always".
@@ -122,7 +122,7 @@ def main():
         print("    %-9s %d.%012d" % (name, whole, frac))
 
     # THE CONTROL FIRST. Pi at base sixteen, power one, stride eight is where the 1996 formula
-    # lives. A sweep that cannot find a formula it is standing on cannot be believed when it
+    # lives. A sweep that cannot find a formula it is located on cannot be believed when it
     # reports empty cells, and reporting 240 empty cells without having run this is the exact
     # fault this work spent a session learning to avoid.
     print()
@@ -193,7 +193,7 @@ def main():
             print("      residual %s" % format(abs(residual), ","))
         print()
         print("    Each is a CANDIDATE and none is a discovery until it is checked against")
-        print("    Bailey's compendium: most of this space is already mapped, and the screen")
+        print("    Bailey's compendium: the majority of this space is already mapped, and the screen")
         print("    only certifies that a relation is not a precision artifact.")
     return 0
 

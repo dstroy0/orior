@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 import { pos } from "../document.js";
-import { BRACKETS_KEY, COLUMN_KEY, COMMENTS_KEY, CONTINUATION_KEY, DECLARES, DOC_MARGIN_KEY, FLICK_KEY, HINT_KEYS, LINE, MARKS_KEY, OPERATOR_KEY, PAD, PAGED_PAD, PAST_KEY, RTL, runsRightToLeft, SHOWN, smoothScrolling, STICKY_KEY, WRAP_KEY } from "../view.js";
+import { BRACKETS_KEY, COLUMN_KEY, COMMENTS_KEY, CONTINUATION_KEY, DECLARES, DOC_MARGIN_KEY, FLICK_KEY, HINT_KEYS, LINE, MARKS_KEY, OPERATOR_KEY, PAD, PAGED_PAD, PAST_KEY, RTL, runsRightToLeft, DISPLAYED, smoothScrolling, STICKY_KEY, WRAP_KEY } from "../view.js";
 
 // Sizes the scrolling space to every row and the widest line.
 export function size() {
   const rows = this.rows();
   // A file stored as pages is scrolled as the whole file: the lines above the window and below it
-  // stand as padding, and the scroll and the scrollbar stay where they are as the window slides.
-  // The space stands for the file's lines from the window's anchor, twice PAGED_PAD of them at the
-  // most: the window moving within it moves no line on the screen, and the anchor moves only where
-  // the window leaves the space, about the window, the view kept on its line.
+  // are as padding, and the scroll and the scrollbar stay where they are as the window slides.
+  // The space is for the file's lines from the window's anchor, twice PAGED_PAD of them at the
+  // max: the window moving within it moves no line on the screen, and the anchor moves only where
+  // the window leaves the space, about the window, the view retained on its line.
   const s = this.s;
   if (s?.window?.paged) {
     const total = s.base + s.doc.count + s.window.after;
@@ -31,7 +31,7 @@ export function size() {
   const lineWidth = PAD + (this.widest() + 4) * this.cw;
   this.spaceWidth = this.wrapOn ? view.width : Math.max(view.width, lineWidth);
   this.space.style.height = `${this.spaceHeight}px`;
-  // the space as wide as the widest line and no wider, the stylesheet keeping it as wide as the view:
+  // the space as wide as the widest line and no wider, the stylesheet retention it as wide as the view:
   // a view narrowing takes the space with it in the same frame, so lines shorter than it never scroll
   this.space.style.width = this.wrapOn ? "" : `${lineWidth}px`;
   this.sheet.style.width = `${view.width}px`;
@@ -39,8 +39,8 @@ export function size() {
 }
 
 // The scroller's inner size, as the resize observer last gave it. A size read from the page
-// after a change to it lays the whole page out first, and a frame that reads one after each
-// change it makes lays it out again and again.
+// after a change to it positions the whole page out first, and a frame that reads one after each
+// change it makes positions it out again and again.
 export function viewSize() {
   this.viewKept ??= { width: this.scroller.clientWidth, height: this.scroller.clientHeight };
   return this.viewKept;
@@ -52,7 +52,7 @@ export function scrollY() {
 }
 
 // How far the view is scrolled from the first row read, as the last scroll event read it: no read of the page's
-// layout, so a frame's work that asks it after the page was drawn lays nothing out again.
+// layout, so a frame's work that asks it after the page was drawn positions nothing out again.
 export function scrollYKnown() {
   return (this.lastTop ?? this.scroller.scrollTop) - this.pad;
 }
@@ -70,7 +70,7 @@ export function pastWindow(top = this.scroller.scrollTop) {
   return (first < 0 && s.base > 0) || (last > this.rows().size - 1 && s.window.after > 0);
 }
 
-// How many rows the scrolling space stands for: those read, and while a file is still being
+// How many rows the scrolling space is for: those read, and while a file is still being
 // read, those above and below them.
 export function allRows() {
   return (this.pad + this.below) / LINE + this.rows().size;
@@ -85,7 +85,7 @@ export function follow(top = this.scroller.scrollTop, left = this.scroller.scrol
   const code = this.s?.margin ?? null;
   const width = this.marginShown ? code : null;
   const at = width ? PAD + width * this.cw - left : null;
-  const says = width ? `${this.s.marginBy ?? "The formatter"} keeps lines to ${width} columns` : "";
+  const says = width ? `${this.s.marginBy ?? "The formatter"} retains lines to ${width} columns` : "";
   if (says !== this.marginSays.textContent) {
     this.marginSays.textContent = says;
   }
@@ -128,7 +128,7 @@ export function setDocMargin(columns) {
 }
 
 // The continuation indent of a new line inside the bracket at `at` of `line`: as the reader set it
-// for the place the bracket stands, a declaration's parameters, a call's arguments or any other
+// for the place the bracket is, a declaration's parameters, a call's arguments or any other
 // bracket, and one step of the indent where none is set.
 export function continuationAt(line, at) {
   const before = this.doc.line(line).slice(0, at).trimEnd();
@@ -191,7 +191,7 @@ export function charBox(node, col) {
   return box.width || box.height ? box : null;
 }
 
-// Where the caret before col `col` of the line `line` stands as the page draws the line, in the
+// Where the caret before col `col` of the line `line` is as the page draws the line, in the
 // space's own pixels: at the edge of the character at `col` that comes first in the order it is
 // read, its right edge where it runs right to left, and past the last character at the line's end.
 // Null where the line is not drawn.
@@ -223,7 +223,7 @@ export function measuredCol(line, x) {
   }
   const right = runsRightToLeft(text);
   let best = null;
-  for (let at = 0; at < Math.min(text.length, SHOWN); at += 1) {
+  for (let at = 0; at < Math.min(text.length, DISPLAYED); at += 1) {
     const box = this.charBox(node, at);
     if (!box) {
       continue;
@@ -312,7 +312,7 @@ export function takeSettings() {
   this.schedule();
 }
 
-// The colors the session shown is drawn in where its type of file has a theme of its own, as
+// The colors the session displayed is drawn in where its type of file has a theme of its own, as
 // `themeOf` gives them, set on the editor in place of those set before; the window's where it has
 // none.
 export function drawTheme() {

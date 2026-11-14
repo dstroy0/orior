@@ -95,39 +95,39 @@ int unprinted_query(const UnprintedQuestion *question, unsigned int number, FILE
     return printed;
 }
 
-// One operand of a form filled for the forms question, from its form's own operand `base` of `kind` at `place`, into
+// One operand of a form filled for the forms question, from its form's own operand `base` of `type` at `place`, into
 // `operand`. The first operand is the result: R8, P0 or UR6. A register read is R0 and R6 in turn, which contain 0xb
 // and 0x7, a predicate read P1, which is true, and a uniform register read UR4, which contains the memory descriptor.
 // RZ, PT, URZ, a number and a constant past bank 0 are retained, and a constant in bank 0 reads c[0x0][0x0], which
-// every run contains alike. A register retains what follows its name, a half or a width. 1, or 0 where the kind is one
+// every run contains alike. A register retains what follows its name, a half or a width. 1, or 0 where the type is one
 // this question does not fill
-static int unprinted_operand(const char *base, unsigned int kind, unsigned int mark, unsigned int place,
+static int unprinted_operand(const char *base, unsigned int type, unsigned int mark, unsigned int place,
                              unsigned int *reads, char *operand, size_t room)
 {
     static const char *const s_marks[] = {"", "-", "~", "!"};
-    const char *const shown = (mark < (sizeof(s_marks) / sizeof(s_marks[0]))) ? s_marks[mark] : "";
+    const char *const displayed = (mark < (sizeof(s_marks) / sizeof(s_marks[0]))) ? s_marks[mark] : "";
     const char *const dot = strchr(base, '.');
     const char *const after = (dot != NULL) ? dot : "";
-    switch (kind)
+    switch (type)
     {
     case SASS_OPERAND_REGISTER:
         if ((place != 0u) && (strncmp(base, "RZ", 2u) == 0))
         {
-            return snprintf(operand, room, "%s%s", shown, base) < (int)room;
+            return snprintf(operand, room, "%s%s", displayed, base) < (int)room;
         }
         *reads += (place != 0u) ? 1u : 0u;
-        return snprintf(operand, room, "%s%s%s", shown, (place == 0u) ? "R8" : (((*reads % 2u) == 1u) ? "R0" : "R6"),
+        return snprintf(operand, room, "%s%s%s", displayed, (place == 0u) ? "R8" : (((*reads % 2u) == 1u) ? "R0" : "R6"),
                         after) < (int)room;
     case SASS_OPERAND_PREDICATE:
-        return snprintf(operand, room, "%s%s", shown,
+        return snprintf(operand, room, "%s%s", displayed,
                         (place == 0u) ? "P0" : ((strcmp(base, "PT") == 0) ? "PT" : "P1")) < (int)room;
     case SASS_OPERAND_UNIFORM:
-        return snprintf(operand, room, "%s%s", shown,
+        return snprintf(operand, room, "%s%s", displayed,
                         (place == 0u) ? "UR6" : ((strcmp(base, "URZ") == 0) ? "URZ" : "UR4")) < (int)room;
     case SASS_OPERAND_IMMEDIATE:
-        return (place != 0u) && (snprintf(operand, room, "%s%s", shown, base) < (int)room);
+        return (place != 0u) && (snprintf(operand, room, "%s%s", displayed, base) < (int)room);
     case SASS_OPERAND_CONSTANT:
-        return (place != 0u) && (snprintf(operand, room, "%s%s", shown,
+        return (place != 0u) && (snprintf(operand, room, "%s%s", displayed,
                                           (strncmp(base, "c[0x0]", 6u) == 0) ? "c[0x0][0x0]" : base) < (int)room);
     default:
         return 0;
@@ -135,12 +135,12 @@ static int unprinted_operand(const char *base, unsigned int kind, unsigned int m
 }
 
 // `form` written with its operands filled (unprinted_operand) into `text`: 1, or 0 with the reason in `why`, where its
-// result is no register, predicate or uniform register, or an operand is a kind the question does not fill
+// result is no register, predicate or uniform register, or an operand is a type the question does not fill
 static int unprinted_form_text(const SassForm *form, char *text, size_t room, const char **why)
 {
     const int result = (form->operands != 0u) &&
-                       ((form->kind[0] == SASS_OPERAND_REGISTER) || (form->kind[0] == SASS_OPERAND_PREDICATE) ||
-                        (form->kind[0] == SASS_OPERAND_UNIFORM));
+                       ((form->type[0] == SASS_OPERAND_REGISTER) || (form->type[0] == SASS_OPERAND_PREDICATE) ||
+                        (form->type[0] == SASS_OPERAND_UNIFORM));
     if (!result)
     {
         *why = "its first operand is no register, predicate or uniform register to read an answer from";
@@ -153,10 +153,10 @@ static int unprinted_form_text(const SassForm *form, char *text, size_t room, co
     for (unsigned int place = 0u; place < form->operands; place += 1u)
     {
         char operand[SASS_MACHINE_TOKEN + 8u];
-        if (!unprinted_operand(base.operand[place], form->kind[place], form->mark[place], place, &reads, operand,
+        if (!unprinted_operand(base.operand[place], form->type[place], form->mark[place], place, &reads, operand,
                                sizeof(operand)))
         {
-            *why = "an operand is an address, a label or a kind the question does not fill";
+            *why = "an operand is an address, a label or a type the question does not fill";
             return 0;
         }
         at += (size_t)snprintf(text + at, (at < room) ? (room - at) : 0u, "%s%s", (place == 0u) ? " " : ", ",
@@ -197,7 +197,7 @@ static int unprinted_form_addresses(const SassForm *form)
     int addresses = 0;
     for (unsigned int place = 0u; place < form->operands; place += 1u)
     {
-        addresses = addresses || (form->kind[place] == SASS_OPERAND_ADDRESS);
+        addresses = addresses || (form->type[place] == SASS_OPERAND_ADDRESS);
     }
     return addresses;
 }
@@ -205,7 +205,7 @@ static int unprinted_form_addresses(const SassForm *form)
 // `form`, which takes an address, written for the memory question into `text`: a predicate P0, or PT where it contains
 // PT; a register before the address R10, the one an atomic writes the word it found into; the address the answer's
 // third word, R4 with 0x8 added, 64 bits wide where the form's own is; and a register after it R0 and R6 in turn,
-// which contain 0xb and 0x7. 1, or 0 with the reason in `why` where an operand is a kind the question does not fill
+// which contain 0xb and 0x7. 1, or 0 with the reason in `why` where an operand is a type the question does not fill
 static int unprinted_memory_text(const SassForm *form, char *text, size_t room, const char **why)
 {
     SassInstructionParts base;
@@ -216,7 +216,7 @@ static int unprinted_memory_text(const SassForm *form, char *text, size_t room, 
     for (unsigned int place = 0u; place < form->operands; place += 1u)
     {
         char operand[SASS_MACHINE_TOKEN + 8u];
-        switch (form->kind[place])
+        switch (form->type[place])
         {
         case SASS_OPERAND_PREDICATE:
             snprintf(operand, sizeof(operand), "%s", (strcmp(base.operand[place], "PT") == 0) ? "PT" : "P0");
@@ -230,7 +230,7 @@ static int unprinted_memory_text(const SassForm *form, char *text, size_t room, 
             snprintf(operand, sizeof(operand), "%s", !after ? "R10" : (((reads % 2u) == 1u) ? "R0" : "R6"));
             break;
         default:
-            *why = "an operand beside its address is a kind the memory question does not fill";
+            *why = "an operand beside its address is a type the memory question does not fill";
             return 0;
         }
         at += (size_t)snprintf(text + at, (at < room) ? (room - at) : 0u, "%s%s", (place == 0u) ? " " : ", ",
@@ -260,13 +260,13 @@ static void unprinted_tally_otherwise(UnprintedTally *tally, unsigned long long 
     snprintf(&tally->otherwise[at], sizeof(tally->otherwise) - at, "%s%s %s", (at == 0u) ? "" : "; ", digits, reading);
 }
 
-// The values probed in one run: every one where the run is UNPRINTED_FIELD_MOST bits or fewer, else the form's own
+// The values probed in one run: every one where the run is UNPRINTED_FIELD_MAX bits or fewer, else the form's own
 // value with each bit turned in turn. Value `index` of them, or the count where `index` is past them
 static unsigned long long unprinted_value(unsigned int bits, unsigned long long own, unsigned long long index,
                                           unsigned long long *count)
 {
-    *count = (bits <= UNPRINTED_FIELD_MOST) ? (1ull << bits) : (unsigned long long)bits;
-    return (bits <= UNPRINTED_FIELD_MOST) ? index : (own ^ (1ull << index));
+    *count = (bits <= UNPRINTED_FIELD_MAX) ? (1ull << bits) : (unsigned long long)bits;
+    return (bits <= UNPRINTED_FIELD_MAX) ? index : (own ^ (1ull << index));
 }
 
 // One unprinted run of a form probed at its values, `copies` at a run, against `own`, what the form's own bits
@@ -351,7 +351,7 @@ void unprinted_forms(FILE *record)
             "question.\n\n"
             "| form | probed as | bits | the form contains | its own bits answer | values alike | values "
             "otherwise |\n|---|---|---|---|---|---|---|\n",
-            UNPRINTED_REGISTERS, UNPRINTED_FIELD_MOST);
+            UNPRINTED_REGISTERS, UNPRINTED_FIELD_MAX);
     unsigned int forms = 0u;
     unsigned int queried = 0u;
     unsigned int unread = 0u;
@@ -381,7 +381,7 @@ void unprinted_forms(FILE *record)
         const int written = memory ? unprinted_memory_text(form, instruction, sizeof(instruction), &why)
                                    : unprinted_form_text(form, instruction, sizeof(instruction), &why);
         const int lined = written && (memory ? unprinted_memory_lines(instruction, s_lines, sizeof(s_lines))
-                                             : unprinted_form_lines(instruction, form->kind[0], s_lines,
+                                             : unprinted_form_lines(instruction, form->type[0], s_lines,
                                                                     sizeof(s_lines)));
         const unsigned int count =
             (lined && unprinted_text(s_kernel_text, s_lines, s_query_text, sizeof(s_query_text)))

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// crumbs.c: the crumbs laid along the status bar's left, each crumb's text from the CLI's rows, the mark between them,
-// as far as the right edge leaves whole crumbs; the rectangles laid stand for the press that follows
+// crumbs.c: the crumbs positioned along the status bar's left, each crumb's text from the CLI's rows, the mark between them,
+// as far as the right edge leaves whole crumbs; the rectangles positioned are for the press that follows
 #include "crumbs.h"
 
 #include "../../../includes/window/frame.h"
@@ -9,10 +9,10 @@
 // the crumbs' mark between a crumb and the one it holds
 static const char s_crumb_mark[] = "\xe2\x80\xba";
 
-// The crumbs as last laid: each one's rectangle, in the order of x, and how many
+// The crumbs as last positioned: each one's rectangle, in the order of x, and how many
 typedef struct
 {
-    GuiRect rect[CLI_CRUMBS_MOST];
+    GuiRect rect[CLI_CRUMBS_MAX];
     unsigned int count;
 } CrumbsPlaces;
 
@@ -55,7 +55,7 @@ float gui_crumbs_draw(const GuiCrumbsCfg *args)
     const float right = (float)(args->clip.x + args->clip.width);
     const unsigned int rows = EMBED_CALL(cli_crumbs.rows, CliCrumbsCfg, .at = 0u);
     float x = args->x_f32;
-    for (unsigned int at = 0u; (at < rows) && (at < CLI_CRUMBS_MOST); at += 1u)
+    for (unsigned int at = 0u; (at < rows) && (at < CLI_CRUMBS_MAX); at += 1u)
     {
         CliCrumbRow row;
         if (!EMBED_CALL(cli_crumbs.row, CliCrumbsCfg, .at = at, .row = &row))
@@ -82,7 +82,7 @@ float gui_crumbs_draw(const GuiCrumbsCfg *args)
         color = (row.type == CLI_CRUMB_SYMBOL) ? palette->link : color;
         x = EMBED_CALL(crumbs_text, CrumbsCtx, .crumbs = args, .x = start, .text = row.text, .length = row.length,
                        .color = color);
-        // a crumb stands inside the bar, its pixels far inside an int
+        // a crumb is inside the bar, its pixels far inside an int
         s_places.rect[s_places.count] = (GuiRect){(int)start, args->clip.y, (int)(x - start + 0.5f), args->clip.height};
         s_places.count += 1u;
     }
@@ -102,7 +102,7 @@ GuiRect gui_crumbs_place(const GuiCrumbsCfg *args)
 
 int gui_crumbs_hit(const GuiCrumbsCfg *args)
 {
-    // the last crumb whose left is at most x, by halving over the lefts, which stand in order
+    // the last crumb whose left is at max x, by halving over the lefts, which are in order
     unsigned int low = 0u;
     unsigned int high = s_places.count;
     while (low < high)

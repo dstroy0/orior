@@ -1,6 +1,6 @@
 # The `.g` parser
 
-**Purpose:** What a parser of gnascor's high order face (`.g`) wants. `.g` takes C's syntax style and is not C: no rule of C's binds it past that, reserved identifiers included. Each want is stated in the terms of C11 (ISO/IEC 9899:2011), the section of the standard it follows, the language table its words come from, and what stands open between it and a parser that reads it.
+**Purpose:** What a parser of gnascor's high order face (`.g`) wants. `.g` takes C's syntax style and is not C: no rule of C's binds it past that, reserved identifiers included. Each want is stated in the terms of C11 (ISO/IEC 9899:2011), the section of the standard it follows, the language table its words come from, and what is open between it and a parser that reads it.
 **Scope:** `.g` source as [../cu/transpiler/gnascor.md](../cu/transpiler/gnascor.md) describes it: semantic plain language plus the shortcut operators, the query protocol's syntax, and the switch into `.gsm`. The `.gsm` parser is [transpiler_gsm_parser.md](transpiler_gsm_parser.md). The words are rows of [transpiler_lng.tsv](transpiler_lng.tsv) and [gnascor_hol_lng.tsv](gnascor_hol_lng.tsv), checked by [lng_check.c](lng_check.c).
 **Status:** Every row is a want. No `.g` parser is built.
 
@@ -8,7 +8,7 @@
 
 ## Translation phases and the preprocessor (C11 §5.1.1.2, §6.10)
 
-| want | C form | where its words are | what stands open |
+| want | C form | where its words are | what is open |
 | --- | --- | --- | --- |
 | a line continued onto the next | phase 2, `\` then a newline, the two deleted | plain C | none |
 | comments, each read as one space | phase 3; `//` to the end of the line, `/* */` across lines and not nested (§6.4.9) | `//` is the column `note` marks | none |
@@ -21,12 +21,12 @@
 
 ## Tokens (C11 §6.4)
 
-| want | C form | where its words are | what stands open |
+| want | C form | where its words are | what is open |
 | --- | --- | --- | --- |
-| the five kinds of token: keyword, identifier, constant, string literal, punctuator | §6.4 | the punctuators are the operator columns of both language tables | none: `@` opens an address and `$` a cost bound, below |
+| the five types of token: keyword, identifier, constant, string literal, punctuator | §6.4 | the punctuators are the operator columns of both language tables | none: `@` opens an address and `$` a cost bound, below |
 | character constants and string literals | §6.4.4.4, §6.4.5 | plain C | none |
 | the digraphs | §6.4.6, `<:`, `:>`, `<%`, `%>`, `%:`, `%:%:` | plain C | none |
-| identifiers | §6.4.2, a letter or `_`, then letters, digits and `_` | none: an identifier names a value, not a word of the language | `is identical to` holds spaces and is no single token of C |
+| identifiers | §6.4.2, a character or `_`, then characters, digits and `_` | none: an identifier names a value, not a word of the language | `is identical to` holds spaces and is no single token of C |
 | the integer types, any power-of-two width with no ceiling | identifiers of the form `i<n>_t` and `u<n>_t`, the shape of `<stdint.h>`'s `int32_t` (§7.20.1.1) | the `type` rows of [gnascor_hol_lng.tsv](gnascor_hol_lng.tsv); widths as `exact_integer_widths.h` holds them | a width past 64 has no transpiler thing word; it is a chain of 32-bit limbs no form writes yet |
 | the exact float types | identifiers `efloat<n>` and `edouble<n>` | the `type` rows of [gnascor_hol_lng.tsv](gnascor_hol_lng.tsv); fields as `double_fields` holds them | no row says which widths `n` takes, nor how many of `n` bits the exponent holds |
 | integer constants, exact | §6.4.4.1, decimal, octal and hexadecimal | none | C's suffixes `u`, `l` and `ll` fix a width; an exact constant takes the width that holds it, and no suffix is named for that |
@@ -34,7 +34,7 @@
 
 ## Expressions (C11 §6.5, by precedence)
 
-| want | C form | where its words are | what stands open |
+| want | C form | where its words are | what is open |
 | --- | --- | --- | --- |
 | a primary expression: an identifier, a constant, a parenthesized expression | §6.5.1 | none | none |
 | a generic selection | §6.5.1.1, `_Generic` | plain C | none |
@@ -45,7 +45,7 @@
 | a compound literal | §6.5.2.5, `(T){...}` | plain C | none |
 | address and indirection | §6.5.3.2, `&x` and `*p` | plain C | none |
 | sizes and alignments | §6.5.3.4, `sizeof` and `_Alignof` | plain C | the size of `i<n>_t` past 64 bits is the limbs that hold it, and no row says so |
-| negation and complement | §6.5.3.3, `-x`, `~x`, `!x` | `neg`, `not` | Rust's `not` is both `~` and `!`; C keeps them apart, and the parser has to tell them by the operand's type |
+| negation and complement | §6.5.3.3, `-x`, `~x`, `!x` | `neg`, `not` | Rust's `not` is both `~` and `!`; C retains them apart, and the parser has to tell them by the operand's type |
 | a cast | §6.5.4, `(T)` | written as C writes it | none |
 | multiplicative | §6.5.5, `*`, `/`, `%` | `mul`, `div`, `rem` | no form writes `%` yet |
 | additive | §6.5.6, `+`, `-` | `add`, `sub` | none |
@@ -60,7 +60,7 @@
 
 ## Declarations and statements (C11 §6.7, §6.8)
 
-| want | C form | where its words are | what stands open |
+| want | C form | where its words are | what is open |
 | --- | --- | --- | --- |
 | a declaration | §6.7, `T x = e;` | the `type` rows for `T` | the plain face, `a equals something;`, declares no type; where the type comes from is open |
 | storage classes and `typedef` | §6.7.1, `static`, `extern`, `_Thread_local`, `typedef` | plain C | none |
@@ -79,7 +79,7 @@
 
 ## The query protocol and the two faces
 
-| want | C form | where its words are | what stands open |
+| want | C form | where its words are | what is open |
 | --- | --- | --- | --- |
 | an address | `@` then a dotted name, `@system.auth` | gnascor's protocol components | none |
 | a qualifier, called at the address | `?` then an identifier, `@db.user_session?is_valid` | gnascor's protocol components | none: `?` is the call, as `x = func(val)` calls `func` |
@@ -87,12 +87,12 @@
 | a pair of branches | `[left, right]` | gnascor's syntax architecture | none: a pair is asm, written only inside `__gsm__(...)__gsm__` and read by [transpiler_gsm_parser.md](transpiler_gsm_parser.md) |
 | resolution to a mnemonic | `output -> evaluate(...)` | gnascor's syntax architecture | resolution to a mnemonic is asm, written only inside `__gsm__(...)__gsm__`, and `->` outside it is member access through a pointer |
 | the face a block is written in | none given | gnascor: a block declares which face it is written in | none: `__gsm__(...)__gsm__` is the only switch, and everything outside it is the high order face |
-| the switch into `.gsm` | `__gsm__(...)__gsm__` | gnascor's two faces | none: the text inside, or the `.gsm` file it names, is handed to [transpiler_gsm_parser.md](transpiler_gsm_parser.md) |
+| the switch into `.gsm` | `__gsm__(...)__gsm__` | gnascor's two faces | none: the text inside, or the `.gsm` file it names, is passed to [transpiler_gsm_parser.md](transpiler_gsm_parser.md) |
 | the plain face and the shortcut face bound to one meaning | `a equals something;` against `a=0;` | `equals`, `evaluate`, `is identical to` | both faces compile to 2 reads, 1 target and 1 store; the parser's two trees for them being one tree is the check, and it is not written |
 
-## What the parser hands to the transpiler
+## What the parser passes to the transpiler
 
-| want | C form | where its words are | what stands open |
+| want | C form | where its words are | what is open |
 | --- | --- | --- | --- |
 | each node named as a form is named: the thing it writes, then what is done to it | the operand's type and the operator | the `transpiler` column of [gnascor_hol_lng.tsv](gnascor_hol_lng.tsv): `u32_t` to `word`, `i64_t` to `signed_wide`; the operator's core op name | none past 64 bits, above |
 | a sign the operator ignores dropped from the name | `+` on `u32_t` and on `i32_t` | `wide_add` takes no sign | none |

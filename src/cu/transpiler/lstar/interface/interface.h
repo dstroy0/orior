@@ -56,7 +56,7 @@ extern "C"
     // a probe: its command, NULL-ended, the program first and found along PATH where it names no folder; the file its
     // output and its errors are written to, together, as they are written (the interface makes it anew), or NULL where
     // they come back through a pipe straight into the answer, read as they are written so the probe never waits on
-    // them, and no file is made; and the most time it is given, 0 for no limit. Its input is empty
+    // them, and no file is made; and the max time it is given, 0 for no limit. Its input is empty
     typedef struct
     {
         char *const *command;
@@ -83,7 +83,7 @@ extern "C"
     // error raised in module ENGINE_MODULE_INTERFACE
     long interface_probe_run(const InterfaceProbe *probe, InterfaceAnswer *answer, EngineError *error);
 
-    // The launch queue, shared by every process on the host that starts a child through the interface: at most
+    // The launch queue, shared by every process on the host that starts a child through the interface: at max
     // INTERFACE_LAUNCHES_AT_ONCE children run at once, and INTERFACE_LAUNCH_SPACING_MILLISECONDS pass between one
     // start and the next. interface_probe_run takes a place before it starts a probe, signals the start is made once it
     // is, which delays the next start off for the spacing, and gives the place back when the probe has ended. A

@@ -98,12 +98,12 @@ def main():
         if last_spent and last_spent > 0 and spent > 0:
             import math
             exponent = math.log(spent / last_spent) / math.log(float(places) / last_places)
-            shown = "%.2f" % exponent
+            displayed = "%.2f" % exponent
         else:
-            shown = "-"
+            displayed = "-"
         print("  %8s %10.2f %12s %14s %12s %10s"
               % (format(places, ","), spent, format(counted.calls, ","),
-                 format(mean, ","), format(counted.widest, ","), shown))
+                 format(mean, ","), format(counted.widest, ","), displayed))
         last_places, last_spent = places, spent
 
     print()

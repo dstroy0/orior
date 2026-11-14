@@ -31,7 +31,7 @@ test("the window shows in the language a file gives, and the files' names and th
   assert.equal(document.documentElement.lang, "qps-ploc");
   await ui.waitFor(() => titled("[File]") && titled("[Edit]"), 3000);
   assert.ok(!titled("File"), "the menu's title is in the language's words");
-  assert.equal([...document.querySelectorAll(".bar-title")].find((one) => one.textContent === "[File]").querySelector("u")?.textContent, "F", "its key's letter still underlined");
+  assert.equal([...document.querySelectorAll(".bar-title")].find((one) => one.textContent === "[File]").querySelector("u")?.textContent, "F", "its key's character still underlined");
   assert.equal(editing().editor.s.doc.line(0), "File", "the editor's text is the reader's");
   assert.ok([...document.querySelectorAll("#files .name, .tab")].some((one) => one.textContent.includes("Edit") && !one.textContent.includes("[Edit]")), "a file's name is its own");
   runCommand("preferences");

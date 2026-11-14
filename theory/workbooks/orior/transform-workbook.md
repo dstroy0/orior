@@ -26,7 +26,7 @@ worth
 running when its bits can be read more cheaply than the full test. Every hypothesis below is an
 attempt to find a projection where that holds.
 
-## 2. Standing Constraint
+## 2. Located Constraint
 
 The cost saving in a byte corpus comes from reading one byte instead of comparing a needle. In the
 digest domain there is no corpus in memory: `D(n)` does not exist until it is computed, and
@@ -175,13 +175,13 @@ linear in exactly one of them.
 | xor a constant | 100.00% | 0.21% |
 | add a constant | 0.02% | 100.00% |
 
-**Verdict.** **Supported exactly.** This corrects the table in §4 as it stood before: modular
+**Verdict.** **Supported exactly.** This corrects the table in §4 as it was before: modular
 addition is not "nonlinear", it is linear in the other structure. A projection that diagonalizes one
 structure necessarily fails on the other, and a round applies both.
 
 ### H10 - The carry is the lift, and it is biased
 
-**Claim.** `z_i = x_i xor y_i xor c_i` keeps the exclusive or in the GF(2) basis, and
+**Claim.** `z_i = x_i xor y_i xor c_i` retains the exclusive or in the GF(2) basis, and
 `c_{i+1} = MAJ(x_i, y_i, c_i)` is the part that leaves it, recursing upward through every lower bit.
 That recursion should show as a measurable bias.
 **Method.** `bench_basis.cpp:measure_carry_structure`. 4,000,000 random pairs, counting the carry
@@ -241,7 +241,7 @@ the same collapse by round 8.
 
 ### H13 - A vector walk to the answer
 
-**Claim.** Walk a vector toward the answer using the approximate representation. The most probable
+**Claim.** Walk a vector toward the answer using the approximate representation. The max probable
 next step carries larger magnitude than the rest, and following it converges.
 **Method.** `bench_walk.cpp`. Fitness is leading zero bits of the doubled digest, the same
 quantity the target tests. Three measurements: correlation between `f(current)` and `f(neighbor)`;
@@ -321,7 +321,7 @@ Within one fixed job and one fixed extranonce2, the frontier is:
 | round 3 onward | needs W[3] |
 | hash two's message | is hash one's output and needs all of it |
 
-Forward frontier: 3 rounds of 128, and only with extranonce2 and version kept fixed. Moving either
+Forward frontier: 3 rounds of 128, and only with extranonce2 and version retained fixed. Moving either
 of those changes the midstate, and those 3 rounds have to be recomputed too. Backward frontier: 0
 rounds, because inverting round t needs `W[t]` and every schedule word past 15 is generated from the
 words being solved for.
@@ -331,7 +331,7 @@ dimension. The extranonce2 dimension passes through strictly more hashing on its
  - a coinbase double hash plus a merkle fold per branch entry, 12 or 13 of them on the live jobs seen
 here - before it reaches the same compression. There is no reason to expect less mixing there, but
 it
-has not been measured, and saying so is not the same as having shown it.
+has not been measured, and saying so is not the same as having displayed it.
 **Verdict.** The obstruction is named exactly, and it is not loss of information. It is circularity.
 The inverse needs the message; the problem asks for the message. Invertible given the input is not
 the same as solvable for the input.
@@ -345,7 +345,7 @@ the same seam.
 **Claim.** H13 measured only the nonce. The extranonce2 dimension was asserted to behave the same
 and
 never measured, and the workbook said so.
-**Method.** `bench_extranonce.cpp`, using a real `mining.notify` captured from solo.ckpool.org kept
+**Method.** `bench_extranonce.cpp`, using a real `mining.notify` captured from solo.ckpool.org retained
 verbatim, and that makes the coinbase layout and the 12-entry branch the ones a pool actually sends. A step here
 rebuilds the coinbase, its double hash, every merkle fold, the merkle root, and therefore the
 midstate.
@@ -435,7 +435,7 @@ digest
 for a position that gives something away.
 **Method.** `cuda_miner.cu:keyhole_scan`. For a fixed input salt, count how often each of the 256
 output difference bits is set. Under a flat field every counter sits at half the sample. 15 salts,
-most read off the algorithm instead of chosen arbitrarily: the Sigma0 rotation set {2,13,22}, the
+max read off the algorithm instead of chosen arbitrarily: the Sigma0 rotation set {2,13,22}, the
 Sigma1 set {6,11,25}, the sigma0 and sigma1 sets with their shifts, differences of rotation pairs,
 round constant K[0], initial value word 0, and a golden-ratio constant the algorithm never uses as a
 control.
@@ -450,15 +450,15 @@ sample. A real bias grows as sqrt(N), and 5.47 sigma should therefore have becom
 | 2^26 pairs | 169 | +3.338e-04 | +5.47 |
 | 2^32 pairs | **252** | +3.198e-05 | **+4.19** |
 
-The worst position moved to a different bit entirely, the maximum fell instead of rose, and the bias
+The worst position moved to a different bit entirely, the max fell instead of rose, and the bias
 shrank by a factor of ten, the 1/sqrt(N) collapse of a bias whose true value is zero.
 **Verdict.** Keyhole closed. It was an artifact of testing 3840 positions at once, and it is
 recorded
-here in full and not deleted, because a workbook that only keeps the rows that survived is not a
+here in full and not deleted, because a workbook that only retains the rows that survived is not a
 record of what was tried.
 **Note.** This is the fourth instrument or interpretation error caught by a control in this
 document.
-It is also the one that would have been most tempting to report.
+It is also the one that would have been max tempting to report.
 
 ### H20 - Co-arm salts as a survivor divider
 
@@ -467,7 +467,7 @@ themselves. The error tail falls toward zero.
 **Method.** `bench_cosalt.cpp`. Six salts, five read off the algorithm's own rotation sets. For each
 candidate, the leading difference bit under each salt is one arm's response. Four measurements: does
 the cascade tail fall as 2^-k; are the arms independent of each other; is any joint response pattern
-preferred; and the one that decides it, does the sieve keep winners.
+preferred; and the one that decides it, does the sieve retain winners.
 **Result, the tail.** It falls exactly as predicted, 4,194,304 candidates:
 
 | arms | predicted | measured | ratio |
@@ -487,7 +487,7 @@ part that could have failed.
 
 **Result, and this is the thing that matters.** Whether the sieve is worth running depends on
 whether
-what it keeps is enriched in winners. Measured against a 12-leading-zero-bit target:
+what it retains is enriched in winners. Measured against a 12-leading-zero-bit target:
 
 | arms | survivors | winners | winner rate | enrichment |
 |---|---|---|---|---|
@@ -509,7 +509,7 @@ candidates, not a condition the target places on one. The theorem therefore does
 the measurement shows what happens without that cover: winners are lost in proportion.
 
 **What would change this.** Enrichment rising with depth. That is a sound anchor does by
-construction, and what a salt response would have to be shown to do by measurement. It is a single
+construction, and what a salt response would have to be displayed to do by measurement. It is a single
 column in the table above and it is flat.
 
 ### H21 - n dimensions at their intersections: algebraic degree
@@ -630,7 +630,7 @@ conditioning.
 | power spectrum, 499 bins | peak/mean **5.961** against 12.429 expected |
 
 **Verdict.** No long-range structure at this sample size.
-**Correction made in producing it, and the most spectacular-looking of the program.** The first
+**Correction made in producing it, and the max spectacular-looking of the program.** The first
 version modeled the overshoot as geometric in nibbles, predicted 58.6 blocks at 80 leading zeros,
 measured 426, and reported a **7.27x excess**. The target is not at a nibble boundary: nbits
 `0x1702355e` puts it near 2^177.14, and P(clearing 80 bits) is 2^176/2^177.14 = 0.454 instead of
@@ -798,7 +798,7 @@ survivors, and every depth carries the same statistical weight:
 
 It holds at 1.2x to 2.1x over twelve rounds instead of decaying to 1.0. Surviving selects states
 that
-keep surviving. **The posit is confirmed.**
+retain surviving. **The posit is confirmed.**
 **Pull two, the signature. Supported.** Every predictor among 288 input bits is **bit 31**, the wrap
 position for frame 31, at up to **+238 sigma**. Message bit 31 is set in only 10.03% of survivors
 against a 50% base.
@@ -807,10 +807,10 @@ survival
 from 2.23% to **21.25%**, a 9.5x per-round gain; setting it drives survival to zero. Against the
 real
 constants, **0.000000% across every construction** at 2,000,000 trials each.
-**Pull four, keeping the delta. Supported.** Rotational-XOR: instead of demanding the delta be zero,
+**Pull four, retention the delta. Supported.** Rotational-XOR: instead of demanding the delta be zero,
 which the constants defeat, track it. Against the real constant, 580,180 distinct deltas in
 4,000,000
-trials, the most common at **0.01805%** against 2.33e-08% uniform, a concentration of **775,000 over
+trials, the usual at **0.01805%** against 2.33e-08% uniform, a concentration of **775,000 over
 uniform**. Real information where exact equality had none.
 **Verdict.** Five of seven sub-questions positive, and 162 orders of magnitude short: the RX
 characteristic is 2^-12.4 per round where 2^-4 is needed to match brute force over 64.
@@ -864,7 +864,7 @@ shifts of the input, trivially rotational on output, and they outvoted the two r
 **Resolution floor.** At 300,000 pairs the smallest measurable probability is 3.33e-06, and the
 chained rounds sat at 6.67e-06, which is two occurrences. Those rounds are at the floor, and the
 compound is an upper bound on a quantity that may be smaller instead of a measurement of it.
-**Standing.** This is a lower bound on what is reachable, not an upper bound on what exists. A
+**Located.** This is a lower bound on what is reachable, not an upper bound on what exists. A
 better
 trajectory may sit in the 99.9999999% never visited and nothing here rules that out.
 
@@ -882,7 +882,7 @@ statistic `M`, the residual is
 
 A permutation null cannot be derived wrongly, because it preserves the carrier's own counts by
 construction and not by arithmetic.
-**Method.** `bench_deltanull.cpp`. `M` is the concentration of the most common rotational-XOR delta,
+**Method.** `bench_deltanull.cpp`. `M` is the concentration of the usual rotational-XOR delta,
 the statistic H29 reported as the program's strongest positive. `pi` re-pairs the two members
 while
 leaving both output multisets exactly as measured. If the concentration lives in the *pairing* it is
@@ -900,14 +900,14 @@ vanishes.
 **Verdict, and it is a correction to this workbook's own headline.** H29 reported the RX
 concentration as **775,000 times uniform**. That compared a max-statistic against a per-bin uniform
 probability, the wrong reference: drawing 2,000,000 samples into 2^32 bins gives an expected
-maximum count of two or three by chance alone. That is the 0.0001% the permutation null
+max count of two or three by chance alone. That is the 0.0001% the permutation null
 returns. **The correct figure is 184.5x, not 775,000x.** The headline was inflated by about 4,200.
 **What remains.** The residual is real. All twelve null draws returned the same value: the null
 has nearly no variance at this resolution and 184.5x sits far outside it. The rotational pairing
 does carry structure the marginals do not.
 **What does not change.** The 234-orders-short conclusion in H30 was computed from the probability
-1.845e-04, not from the concentration ratio, and it stands untouched. Only the framing was wrong.
-**Standing recommendation.** Every statistic in this workbook that was compared against a
+1.845e-04, not from the concentration ratio, and it is untouched. Only the framing was wrong.
+**Located recommendation.** Every statistic in this workbook that was compared against a
 hand-derived
 null should be re-run against `Pi_Sigma`. The ones with an outside reference - the 1000 real solves,
 the FIPS vectors, the published rotational-probability formula - do not need it. The ones without,
@@ -974,7 +974,7 @@ is H22's rotational coherence:
 | unseen mass, `f1/n` | 0.093500 |
 
 The ordering `H_inf < H_2 < H_1/2` is monotone in the right direction, the internal
-consistency check. **The 15.497 bits is the collision advantage. The search advantage is at most
+consistency check. **The 15.497 bits is the collision advantage. The search advantage is at max
 that and is smaller.**
 **What cannot be said, and why it matters.** Order one half is not estimable from a sparse sample.
 The plug-in is `2 log2 sum sqrt(p)`, and where every observed delta is a singleton that sum is
@@ -1017,7 +1017,7 @@ Three moved, and all three are ratios of measured throughputs instead of propert
 
 **Verdict.** No statistical or topological result in this workbook depends on the optimizer. The
 three that do are performance claims, and each states as a fact about the algorithm something that
-is a fact about the build. `bench_schedule` matters most of the three: the rolling-window expansion
+is a fact about the build. `bench_schedule` matters the majority of the three: the rolling-window expansion
 this tree has been carrying as a pending fix measures **0.395x at `-O2`, meaning two and a half
 times
 slower**, and the `-O0` figure of 0.932x that made it look near-neutral is the thing that is not
@@ -1039,7 +1039,7 @@ holds: no" when the nonce had not arrived. This is failure mode one in `docs/fai
 it
 has produced more defects here than any other.
 **The instrument.** `bench_reach.cpp`. Computed, not sampled - the circuit is a fixed graph;
-reachability is decidable and "no path exists" is a constraint of a different kind from "no effect
+reachability is decidable and "no path exists" is a constraint of a different type from "no effect
 observed". Every state bit carries the set of input bits that can reach it, over all 768 inputs of
 one
 compression call (512 message, 256 chaining), propagated through the real operations: rotation
@@ -1083,7 +1083,7 @@ since the first revision, where it was listed as unbuilt.
 
 **Claim.** Every number this workbook has produced about the digest distribution is a function of
 the count multiset alone, and that makes all of them permutation invariant and none can see *where* the
-holes sit. From `orior`'s ledger: histogram quantities describe the maximum entropy case and
+holes sit. From `orior`'s ledger: histogram quantities describe the max entropy case and
 are free; the arrangement remains. Nothing here had ever asked about it.
 **The instrument.** `bench_renyi.cpp` and `bench_renyi_cuda.cu`. All `2^32` nonces of block 125552's
 header enumerated on the device, whole SHA256d, and the 32-bit window at digest bytes 0–3 counted
@@ -1104,8 +1104,8 @@ identical treatment.
 
 The complete pass is a Walsh–Hadamard transform of the hole indicator over the whole `2^32` space,
 16 GB of signed 32-bit, threaded, about three minutes. The tail counts are the informative part
-instead of the maximum: **2510 coefficients beyond 5σ against 2462.3 expected, and 8 beyond 6σ
-against 8.47.** A maximum at 6.81 has a 4% chance under the null and the two tail counts match it to
+instead of the max: **2510 coefficients beyond 5σ against 2462.3 expected, and 8 beyond 6σ
+against 8.47.** A max at 6.81 has a 4% chance under the null and the two tail counts match it to
 within 2% and 6%.
 **Non-linear readings, which a Walsh coefficient cannot see.** Gaps between consecutive holes match
 geometric across six buckets at ratios 1.000008, 1.000005, 0.999953, 1.000086, 1.001881, 0.953921.
@@ -1220,7 +1220,7 @@ is audibly different from the other two and they are not tellable apart.
 
 **Claim.** `bench_closeness` measured the premise on the whole function, found nothing, and this
 workbook read that as the premise being false. That was too strong. The premise has a **depth**: it
-does not fail, it expires. The question is therefore not whether to keep it but where to spend it,
+does not fail, it expires. The question is therefore not whether to retain it but where to spend it,
 and that is a number nothing here had asked for.
 **The instrument.** `bench_depth.cpp`. A difference is placed on the chaining value instead of the
 message, because a message difference does not reach the state until four rounds have run and would
@@ -1244,8 +1244,8 @@ multiple correlation of the input distance on both at once.
 | 5 | 0.0011 | 0.0299 | 0.0299 | 0.00013 | −0.0040 |
 | 6 and beyond | at control | at control | | 0 | ~0 |
 
-**There is no interior maximum.** Bits per round falls about five-fold per round, and the shallowest
-depth is always the most efficient and there is no clever depth to steer to on the pooled curve.
+**There is no interior max.** Bits per round falls about five-fold per round, and the shallowest
+depth is always the max efficient and there is no clever depth to steer to on the pooled curve.
 **Three things fell out of that table.** The co-arm gain is real but small - the joint exceeds the
 better single arm at every depth, by one to three percent: the two arms do carry slightly
 different parts. `state[4]` holds correlation about ten times longer than `state[0]`, which is
@@ -1300,7 +1300,7 @@ what this axis has left to give.
 
 **Verdict.** The corpus has one average best stride and there are localities inside it. Low-weight
 differences are where the premise survives, by about a factor of two in depth, and steering there
-keeps the premise instead of rejecting it. This is not a departure from what SHA-256 should
+retains the premise instead of rejecting it. This is not a departure from what SHA-256 should
 do - fewer active bits diffuse more slowly, and published differential cryptanalysis already
 steers toward low-weight differences. It is a locality that every pooled measurement in
 this workbook averaged away.
@@ -1341,7 +1341,7 @@ H11 then asks whether committing to either structure buys anything, and answers 
 introduced in either basis dies at round 9 of 128.
 
 H1 through H4 then say the output of that composition is indistinguishable from a flat memoryless
-source at the sample sizes reached. `orior.md` §2.4 calls maximum entropy the base case for
+source at the sample sizes reached. `orior.md` §2.4 calls max entropy the base case for
 the
 anchor construction; the digest domain sits on it to six decimal places. That is the case
 where an informed anchor measure buys nothing over an uninformed one, because there is nothing to be
@@ -1375,7 +1375,7 @@ and the message schedule (H23). What remains:
 - **Periodic disturbance on co-arms.** From `orior/docs/research/hourly_supposition.md` item 1:
   introducing a periodic disturbance is reported to move joint error toward zero by several orders
   of
-  magnitude on an undisturbed co-arm. Nothing in this tree has tested that, and it is the most
+  magnitude on an undisturbed co-arm. Nothing in this tree has tested that, and it is the max
   concrete untested claim available. It would apply here as a structured perturbation on one arm of
   an RX pair with the residual read on the other.
 
@@ -1413,7 +1413,7 @@ SHA-256 implementation itself is validated against FIPS 180-4 vectors, the genes
 125552 in `kat_validation.cpp`.
 
 **Nine defects were found and corrected while producing this document.** All are recorded because a
-workbook that hides them is not a record, and because the pattern across them is the most useful
+workbook that hides them is not a record, and because the pattern across them is the max useful
 thing in the file: **every single one produced a result that looked better than the truth.** Not one
 erred toward a weaker finding.
 

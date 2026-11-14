@@ -1,11 +1,11 @@
-"""Puts the measured SHA-256 dependency field inside the room, as a solid you stand within.
+"""Puts the measured SHA-256 dependency field inside the room, as a solid you are within.
 
     python tools/view/build_sha_room_view.py
     python tools/view/build_sha_room_view.py --field inbit --every 16
     python tools/view/build_sha_room_view.py --glow random --shell dodecahedron
 
   --field     which cut of the field: outbit, inbit, residue, word. Default outbit.
-  --every     keep one direction in this many, to hold the body count down. Default 8.
+  --every     retain one direction in this many, to hold the body count down. Default 8.
   --rounds    how many of the 64 rounds are carried out from the center. Default 64.
   --glow      luminosity: measured, random, or flat. Default measured.
   --seed      the draw behind --glow random. Default 4.
@@ -18,7 +18,7 @@ WHAT THE OBJECT IS
 
 The voxel view already builds this field as a solid: a terrain with the rounds along one axis, the
 cut along the other, and the deviation as height. It is read from outside, the way a terrain is.
-This is the same measured numbers under a different transform, one that has no outside to stand at.
+This is the same measured numbers under a different transform, one that has no outside to be at.
 
 Every cell of the field becomes a body hanging in the room:
 
@@ -33,7 +33,7 @@ Putting the round on the radius makes the shape worth walking into. In the terra
 causal cone is a staircase along an edge. Here it is a ball: a cell outside the cone is pinned
 because the input has not reached it yet, and every direction reaches its cone edge at the same
 round. The pinned region closes into a bright solid with a sharp surface at that radius. That
-surface is the thing to look at, and you can stand inside it or outside it.
+surface is the thing to look at, and you can are inside it or outside it.
 
 WHY THE DEFAULT ENERGY IS THE READING
 
@@ -88,7 +88,7 @@ SHELLS = ("sphere", "cube", "hexagon", "octahedron", "dodecahedron")
 CORES = ("sphere", "cube", "octahedron", "cone")
 GLOWS = ("measured", "random", "flat")
 
-# The band the template divides bodies among is taken from the radius, over this drawn range. Kept
+# The band the template divides bodies among is taken from the radius, over this drawn range. Retained
 # here so the rounds fill the range exactly instead of landing inside part of it, which would leave
 # an empty middle and an empty rim that mean nothing.
 INNER = 0.12
@@ -111,7 +111,7 @@ def draw(seed):
 def read_field(path, want):
     """Reads one cut of the bench dump into a dense table indexed [row][round].
 
-    The dump carries every cut in one file and names each row by kind. The whole file is walked
+    The dump carries every cut in one file and names each row by type. The whole file is walked
     once and the rows that are not wanted are dropped as they arrive. A round is stored one-based in
     the dump and zero-based here.
     """
@@ -120,7 +120,7 @@ def read_field(path, want):
 
     with io.open(path, newline="", encoding="utf-8") as handle:
         for row in csv.DictReader(handle):
-            if row["kind"] != want:
+            if row["type"] != want:
                 continue
             first = int(row["a"])
             second = int(row["b"])

@@ -3,28 +3,28 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: LNG-4-004
 #
-# Separate the grammar a capital letter carries from the arithmetic of splitting a vocabulary, for
+# Separate the grammar a capital character carries from the arithmetic of splitting a vocabulary, for
 # Section 4.13 of theory/workbooks/orior.
 #
 #   Usage:  python examples/language/4_measure/case_or_splitting.py
 #
-# Keeping letter case lowers the readings per word in all eight languages. That looks like eight
+# Retention character case lowers the readings per word in all eight languages. That looks like eight
 # languages using capitals grammatically, and it is not evidence of that. Giving a word two keys
 # instead of one divides its readings between them whatever decides the division, and the count falls for
 # arithmetic reasons that have nothing to do with what the language marks.
 #
-# The null here removes the arithmetic. Every word that letter case actually splits keeps the same two
+# The null here removes the arithmetic. Every word that character case actually splits retains the same two
 # keys and the same number of occurrences in each, and the occurrences are dealt out at random instead of
 # by how they were written. The vocabulary ends up the same size with the same key frequencies, and the
 # only thing destroyed is the correspondence between the capital and the reading. A drop that survives
 # against this null is the language marking something. A drop that matches it was the split alone.
 #
 # The treatment also fixes the first word. Two different things wear a
-# capital letter in these languages: German marks a noun mid-sentence, and every language capitalizes the
-# first word of a sentence whether it is a noun or not. Folding both throws away the grammar. Keeping both
+# capital character in these languages: German marks a noun mid-sentence, and every language capitalizes the
+# first word of a sentence whether it is a noun or not. Folding both throws away the grammar. Retention both
 # starves the first place, because a form seen only at the start of a sentence gets a key of its own and
 # has been met in too few contexts to carry many readings. So the first word is folded and every word
-# after it keeps what it was written with, which keeps the cue the language encodes and drops the
+# after it retains what it was written with, which retains the cue the language encodes and drops the
 # convention it does not.
 #
 # Counts are taken from the second word on, since the first word's key is folded by construction and
@@ -58,13 +58,13 @@ SEED = 0x4A21
 
 
 def keyed_folded(sentences):
-    """One key per word with letter case thrown away everywhere."""
+    """One key per word with character case thrown away everywhere."""
     return [[(folded, reading) for folded, written, reading in sentence]
             for sentence in sentences]
 
 
 def keyed_written(sentences):
-    """The first word of a sentence folded, every word after it kept as written."""
+    """The first word of a sentence folded, every word after it retained as written."""
     keyed = []
     for sentence in sentences:
         row = []
@@ -146,11 +146,11 @@ def main():
         out.write("  %-12s %-9.1f %-9.4f %-9.4f %-9.4f %-9.4f %+.4f\n"
                   % (language, grew, folded, written, null, scatter, beats))
 
-    out.write("\n  keys up is how much bigger the vocabulary gets when case is kept\n")
+    out.write("\n  keys up is how much bigger the vocabulary gets when case is retained\n")
     out.write("  folded, written and null are readings per word from the second word on\n")
     out.write("  spread is the scatter across %d draws of the null\n" % DRAWS)
     out.write("  left over is the null minus the written count, negative where\n")
-    out.write("  keeping the capitals bought nothing a random split would not\n")
+    out.write("  retention the capitals bought nothing a random split would not\n")
 
     out.write("\n  every corpus cut to %d tokens, on whole sentences\n" % TOKEN_CAP)
     for language, used in sorted(short):

@@ -12,7 +12,7 @@ So this runs two stages and reports which one fired, because they see disjoint c
                 names the angular SCALE of what it found. That makes it a target and not
                 just an alarm.
     algebraic   parity correlations over sparse masks. Sees exactly what the first cannot, and
-                names the mask, which is a target of a different kind.
+                names the mask, which is a target of a different type.
 
 EVERY BAR IS DRAWN AND EVERY NULL IS WEIGHT-MATCHED
 
@@ -24,7 +24,7 @@ and calls it structure.
 IT VALIDATES ITSELF BEFORE IT IS BELIEVED
 
 --validate plants one structure of each class and requires the matching stage to fire and the other
-to stay quiet. A sniffer that has never been shown detecting anything cannot be trusted when it
+to stay quiet. A sniffer that has never been displayed detecting anything cannot be trusted when it
 reports nothing. That is the lesson every instrument in this tree learned the hard way.
 
     python utils/maint/audit/sniffer.py --validate
@@ -104,7 +104,7 @@ class Sniffer(object):
     def draw_bars(self, weight, trials, rounds=40):
         """The bar each stage must clear, DRAWN from flat data instead of derived.
 
-        The first version used root(2 ln N). That is the EXPECTED maximum of N standard normals -
+        The first version used root(2 ln N). That is the EXPECTED max of N standard normals -
         so about half of all nulls exceed it and the floor fired on its own validation. That is the
         sixth derived threshold in this work to come in too low, always in the same direction,
         because deriving a bar means enumerating the variance sources and the ones left out only
@@ -128,7 +128,7 @@ class Sniffer(object):
 
     def sniff(self, sets, label):
         # THE DRAWN BAR, AND NO SILENT FALLBACK TO THE DERIVED ONE. `spatial` and `algebraic` each
-        # hand back root(2 ln N) as a third value. That is the EXPECTED maximum of N standard
+        # hand back root(2 ln N) as a third value. That is the EXPECTED max of N standard
         # normals - half of all nulls exceed it. It fires on flat data about half the time.
         #
         # An earlier fix computed the drawn bars in `draw_bars` and then left this line reading the
@@ -158,18 +158,18 @@ class Sniffer(object):
         return spatial_hit, algebraic_hit, degree, mask
 
 
-def plant(kind, weight, rng):
-    """One lit set carrying a known kind of structure, for the validation gate."""
+def plant(type, weight, rng):
+    """One lit set carrying a known type of structure, for the validation gate."""
     places = boundary_read.golden_place(POINTS)
-    if kind == "flat":
+    if type == "flat":
         return sorted(rng.sample(range(POINTS), weight))
-    if kind == "shape":
+    if type == "shape":
         ordered = sorted(range(POINTS), key=lambda i: places[i][1])
         head = ordered[: POINTS // 3]
         rest = [i for i in range(POINTS) if i not in set(head)]
         take = min(len(head), int(weight * 0.62))
         return sorted(rng.sample(head, take) + rng.sample(rest, weight - take))
-    if kind == "algebra":
+    if type == "algebra":
         chosen = rng.sample(range(POINTS), weight)
         mask = [3, 47, 91, 150, 203]
         if sum(1 for i in chosen if i in mask) % 2 == 1:
@@ -180,7 +180,7 @@ def plant(kind, weight, rng):
                     chosen.append(rng.choice(spare))
                     break
         return sorted(chosen)
-    raise ValueError(kind)
+    raise ValueError(type)
 
 
 def validate(trials=300, weight=110):
@@ -199,9 +199,9 @@ def validate(trials=300, weight=110):
              math.sqrt(2.0 * math.log(len(sniffer.masks)))))
     print()
     outcomes = {}
-    for kind in ("flat", "shape", "algebra"):
-        sets = [plant(kind, weight, rng) for _ in range(trials)]
-        outcomes[kind] = sniffer.sniff(sets, kind)
+    for type in ("flat", "shape", "algebra"):
+        sets = [plant(type, weight, rng) for _ in range(trials)]
+        outcomes[type] = sniffer.sniff(sets, type)
 
     print()
     flat_s, flat_a = outcomes["flat"][0], outcomes["flat"][1]

@@ -4,7 +4,7 @@
 // through the interface; the identity contains no machine file and assembles nothing itself
 #include "identity_internal.h"
 
-// the blob the texts are handed in and the blob the vendor's writer hands their code back in
+// the blob the texts are passed in and the blob the vendor's writer passes their code back in
 #define ASSEMBLE_TEXTS "assemble.txt"
 
 #define ASSEMBLE_CODE "assembled.bin"
@@ -30,12 +30,12 @@ std::vector<std::vector<unsigned char>> vendor_assembled(const char *machine, co
     s_writer.layout[sizeof(s_writer.layout) - 1u] = '\0';
     s_writer.mnemonics[sizeof(s_writer.mnemonics) - 1u] = '\0';
     s_call += 1ull;
-    std::string handed = "call " + std::to_string(s_call) + "\n";
+    std::string passed = "call " + std::to_string(s_call) + "\n";
     for (const std::string &text : texts)
     {
-        handed += text + "\f\n";
+        passed += text + "\f\n";
     }
-    if (qry_member_append(ASSEMBLE_TEXTS, handed.data(), handed.size(), QRY_ORDINARY) == 0ull)
+    if (qry_member_append(ASSEMBLE_TEXTS, passed.data(), passed.size(), QRY_ORDINARY) == 0ull)
     {
         return codes;
     }
@@ -48,7 +48,7 @@ std::vector<std::vector<unsigned char>> vendor_assembled(const char *machine, co
     answer.output = s_writer_output;
     answer.output_capacity = sizeof(s_writer_output);
     EngineError error = {};
-    // what this process handed moved into the run before the writer reads it, and what the writer handed once it ends
+    // what this process passed moved into the run before the writer reads it, and what the writer passed once it ends
     qry_member_settled();
     const long ran = interface_probe_run(&probe, &answer, &error);
     qry_member_rings_settled();
@@ -69,7 +69,7 @@ std::vector<std::vector<unsigned char>> vendor_assembled(const char *machine, co
     memcpy(&count, bytes + sizeof(call), sizeof(count));
     if ((call != s_call) || (count != texts.size()))
     {
-        printf("orior_klq_identity: the vendor's writer handed call %llu of %u texts for call %llu of %zu\n", call, count,
+        printf("orior_klq_identity: the vendor's writer passed call %llu of %u texts for call %llu of %zu\n", call, count,
                s_call, texts.size());
         return codes;
     }

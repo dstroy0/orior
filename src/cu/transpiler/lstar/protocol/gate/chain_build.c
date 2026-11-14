@@ -50,7 +50,7 @@ static int chain_node_value(const ChainWork *work, unsigned int at, unsigned int
     return precept_value(work->building.node, at + 1u, &work->given[which], answered);
 }
 
-// the word child `child` stands for in case `which`, through `answered`. 1, or 0 where it is a node whose own walk
+// the word child `child` is for in case `which`, through `answered`. 1, or 0 where it is a node whose own walk
 // refused
 static int chain_child_value(const ChainWork *work, unsigned char child, unsigned int which, unsigned int *answered)
 {
@@ -78,13 +78,13 @@ static int chain_node_idle(const ChainWork *work, unsigned int at)
         for (unsigned int at_case = 0u; (at_case < work->count) && (idle != 0u); at_case += 1u)
         {
             unsigned int node_value = 0u;
-            unsigned int stood = 0u;
+            unsigned int was = 0u;
             if ((chain_node_value(work, at, at_case, &node_value) == 0) ||
-                (chain_child_value(work, child[which], at_case, &stood) == 0))
+                (chain_child_value(work, child[which], at_case, &was) == 0))
             {
                 return 1;
             }
-            idle = (node_value == stood) ? 1u : 0u;
+            idle = (node_value == was) ? 1u : 0u;
         }
         if (idle != 0u)
         {
@@ -115,7 +115,7 @@ static int chain_whole(const Chain *chain)
     return 1;
 }
 
-// whether the chain as it stands answers every case
+// whether the chain as it is answers every case
 static int chain_answers(const ChainWork *work)
 {
     for (unsigned int at = 0u; at < work->count; at += 1u)
@@ -165,7 +165,7 @@ static int chain_swept(const ChainWork *work)
     return 1;
 }
 
-// the chain as it stands put into the set, where it fits together and answers and there is room
+// the chain as it is put into the set, where it fits together and answers and there is room
 static void chain_retain(ChainWork *work)
 {
     work->set->tried += 1u;
@@ -189,7 +189,7 @@ static void chain_retain(ChainWork *work)
     {
         return;
     }
-    if (work->set->chains == CHAIN_MOST)
+    if (work->set->chains == CHAIN_MAX)
     {
         work->set->over += 1u;
         return;
@@ -337,6 +337,6 @@ unsigned int chain_text(const Chain *chain, char *text, unsigned int room)
     }
     VerbaLinea line = {text, room, 0ull};
     chain_child_text(chain, (unsigned char)(chain->nodes - 1u), &line);
-    // a text is at most its room, which an unsigned int represents
+    // a text is at max its room, which an unsigned int represents
     return (unsigned int)mmgr_line_finish(&line);
 }

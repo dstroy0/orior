@@ -2,7 +2,7 @@
   "id": "html",
   "name": "HTML and XML",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "extensions": ["html","htm","svg","xml"],
   "comments": {"block":["<!--","-->"]},
   "pairs": ["()","[]","{}"],

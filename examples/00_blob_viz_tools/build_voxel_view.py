@@ -43,18 +43,18 @@ def read_shadows(path):
 
     with open(path, newline="") as handle:
         for row in csv.DictReader(handle):
-            kind = row["kind"]
+            type = row["type"]
             a = int(row["a"])
             b = int(row["b"])
             at = int(row["round"]) - 1
             value = float(row["value"])
-            if kind == "residue":
+            if type == "residue":
                 residue[a][at] = value
-            elif kind == "inbit":
+            elif type == "inbit":
                 inbit[a][at] = value
-            elif kind == "outbit":
+            elif type == "outbit":
                 outbit[a][at] = value
-            elif kind == "word":
+            elif type == "word":
                 word[a][b][at] = value
 
     return residue, inbit, outbit, word
@@ -91,7 +91,7 @@ def main():
                   "deviation in standard errors. The cliff is the light cone - below it a message "
                   "word has not entered yet and flipping its bits changes nothing at all."),
         "noteTitle": "What the shapes are",
-        "note": ("The long flat terrace at maximum height is not signal. It is "
+        "note": ("The long flat terrace at max height is not signal. It is "
                  "the region outside the causal cone, where every cell sits pinned at exactly minus "
                  "root n because the input cannot reach the output yet. Its edge is the message "
                  "schedule: word w cannot touch the state before round w+1, which draws the "

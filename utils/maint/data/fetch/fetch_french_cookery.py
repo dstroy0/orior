@@ -92,8 +92,8 @@ def main():
                 continue
 
             link = None
-            for kind, address in entry.get("formats", {}).items():
-                if kind.startswith("text/plain") and not address.endswith(".zip"):
+            for type, address in entry.get("formats", {}).items():
+                if type.startswith("text/plain") and not address.endswith(".zip"):
                     link = address
                     break
             if not link:

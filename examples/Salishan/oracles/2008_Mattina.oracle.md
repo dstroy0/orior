@@ -4,10 +4,10 @@ Extraction of How I Interlinearize “Invaluable Stories” and Other Texts by T
 
 Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
-pure corpus, then against this paper's own English laid over that reference. What the paper's
+pure corpus, then against this paper's own English positioned over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
 from the characters that sit outside that English, and word_web.web() built 367 edges over the
-language forms. A person then matched the context: who, kind and gloss for each row, the names,
+language forms. A person then matched the context: who, type and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
 someone reads the paper again and says otherwise.
@@ -18,9 +18,9 @@ The Colville-Okanagan forms are from the texts of the DeSautel anthology, the ro
 12 and 13 naming the text and line each is found in; footnote 1 quotes Harry Robinson's interview
 with Wickwire, tape recorded in 1977.
 
-THE LETTERS
+THE CHARACTERS
 
-Outside the paper's English the engine found these letters and marks: à á è é ì í ó ú č ŋ š ƛ ə ɛ ɬ
+Outside the paper's English the engine found these characters and marks: à á è é ì í ó ú č ŋ š ƛ ə ɛ ɬ
 ɱ ʔ ʷ ̀ ́ ̌ ̓ ̕. The forms are as the paper prints them in Lucida Sans Unicode, with the comma above
 right, k̕ and l̕, the comma above, m̓ and y̓, and the raised ʷ; the font draws the schwa ə and the
 turned e ǝ alike, and the table gives ə. Table 6 and page 8 write English in the IPA.
@@ -28,11 +28,11 @@ turned e ǝ alike, and the table gives ə. Table 6 and page 8 write English in t
 THE PAGE AND THE TEXT LAYER
 
 The forms are in NFC, and the check puts the page text, read from the glyph positions, through the
-same repair: a mark the text sets after a space is put back on its letter, then NFC, then 5
+same repair: a mark the text sets after a space is put back on its character, then NFC, then 5
 page-read corrections. The fonts are CID TrueType subsets with no ToUnicode map; their glyphs are
 named by outline, and the paper is read by glyph rows, its ruled tables cell by cell. Table 7 sets
 two grids side by side whose rows do not line up; the left grid's rows are written first. The stop
-closing the paragraph before Table 4 stands on a line of its own, and the note keeps it a space
+closing the paragraph before Table 4 is on a line of its own, and the note retains it a space
 after Table 4.
 
 orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
@@ -45,7 +45,7 @@ where    the paper's locator: the title, the front matter, a section, a footnote
 who      the language for an example tier and a cited form; the work cited on an example's
          line, or the speaker for a volunteered translation, for its English; the authors for
          the prose, the tables and the notes
-kind     transcription  an example tier in the orthography
+type     transcription  an example tier in the orthography
          segmentation   an example tier broken into morphemes
          gloss          the morpheme gloss tier of an example
          translation    the English of an example

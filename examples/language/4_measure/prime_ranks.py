@@ -32,7 +32,7 @@ WORD = re.compile(r"[^\W\d_]+", re.UNICODE)
 # The 65 primes, by the group the chart puts them in
 PRIMES = (
     ("substantives", ("i", "you", "someone", "people", "something", "thing", "body")),
-    ("relational", ("kind", "part")),
+    ("relational", ("type", "part")),
     ("determiners", ("this", "same", "other", "else", "another")),
     ("quantifiers", ("one", "two", "some", "all", "much", "many", "little", "few")),
     ("evaluators", ("good", "bad")),
@@ -62,7 +62,7 @@ def main():
             continue
         with open(path, encoding="utf-8", errors="replace") as handle:
             counts = collections.Counter(WORD.findall(handle.read().lower()))
-        order = {word: rank for rank, (word, _) in enumerate(counts.most_common(), start=1)}
+        order = {word: rank for rank, (word, _) in enumerate(counts.max_common(), start=1)}
         total = len(order)
 
         out.write("%s, %d distinct words\n" % (os.path.basename(path)[:-4], total))

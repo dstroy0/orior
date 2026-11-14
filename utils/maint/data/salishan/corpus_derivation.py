@@ -164,10 +164,10 @@ def bound(failures, trials):
 MARGIN = 2.0
 
 # The archive the extraction is drawing from. The lifetime projection scales the sound papers to
-# this, the most counting can ever supply here.
+# this, the max counting can ever supply here.
 ARCHIVE_PAPERS = 993
 
-# How many of the most recent papers have to agree on a digit before it counts as settled. Three is
+# How many of the latest papers have to agree on a digit before it counts as settled. Three is
 # the fewest that can show a trend instead of a coincidence between two adjacent values.
 STEADY = 3
 
@@ -269,7 +269,7 @@ def anchor_resolution(pure):
         profiles[name] = profile
 
     # Each dialect against the rest of the corpus pooled. This is the question the sift is actually
-    # asked, and it is the harder one: a dialect has to stand off everything else at once, not beat
+    # asked, and it is the harder one: a dialect has to be off everything else at once, not beat
     # one other language at a time. Pooling is also the leave-one-out measurement, with the corpus
     # as its own reference corpus. A dialect that will not separate shows up here.
     separations = {}
@@ -317,7 +317,7 @@ def corpus_at(readers):
 
 
 def placeable(held, separations, growth):
-    """What fraction of the dialects stand off the rest of the corpus, with every corpus grown by
+    """What fraction of the dialects are off the rest of the corpus, with every corpus grown by
     this.
 
     This is the algorithm's accuracy, asked the way `reading` asks it: a dialect is placed when its
@@ -421,8 +421,8 @@ def figure_of(papers, readers, path):
     # Growth multiplies every corpus at once, from a hundredth of what is on disk to ten thousand
     # times it, and the axis is the total that growth puts in the corpus.
     growths = [10.0 ** (-2.0 + (4.0 * step / 240.0)) for step in range(241)]
-    standing = sum(one[0] for one in bare[0].values())
-    sizes = [standing * one for one in growths]
+    located = sum(one[0] for one in bare[0].values())
+    sizes = [located * one for one in growths]
 
     # A person's accuracy on a page does not improve because some other paper was read. The
     # reader arm does not climb with corpus size. Its scatter is the point: a reader is written for
@@ -488,10 +488,10 @@ def figure_of(papers, readers, path):
             color="#333333",
         )
 
-    right.axvspan(min(sizes), standing, color="#1f5f8b", alpha=0.07, zorder=0)
+    right.axvspan(min(sizes), located, color="#1f5f8b", alpha=0.07, zorder=0)
     right.annotate(
         "corpus stored",
-        (standing, 0.94),
+        (located, 0.94),
         textcoords="offset points",
         xytext=(-76, 0),
         fontsize=8,
@@ -509,9 +509,9 @@ def figure_of(papers, readers, path):
     figure.tight_layout()
     # The format is the target's own extension, with a ".new" the caller draws beside it set aside.
     # The PDF carries no creation date. The same picture is then the same bytes on every run.
-    kind = os.path.splitext(path[:-4] if path.endswith(".new") else path)[1].lstrip(".") or "svg"
-    metadata = {"CreationDate": None} if kind == "pdf" else None
-    figure.savefig(path, format=kind, dpi=150, metadata=metadata)
+    type = os.path.splitext(path[:-4] if path.endswith(".new") else path)[1].lstrip(".") or "svg"
+    metadata = {"CreationDate": None} if type == "pdf" else None
+    figure.savefig(path, format=type, dpi=150, metadata=metadata)
     plot.close(figure)
     return bare, applied, reader, crossing
 
@@ -529,13 +529,13 @@ def reported(module):
     # that would otherwise error on them. The capture has to offer a buffer of its own.
     # This one declines to close because the wrapper the check builds around that buffer closes it
     # when it is collected, and a closed BytesIO will not hand its value back.
-    class Kept(io.BytesIO):
+    class Retained(io.BytesIO):
         def close(self):
             pass
 
     class Captured(object):
         def __init__(self):
-            self.buffer = Kept()
+            self.buffer = Retained()
 
     held = Captured()
     stdout = sys.stdout
@@ -619,7 +619,7 @@ def measured():
         pieces = oracle.PIECES if stem in NOT_FAITHFUL else 2
         _, printed, _ = oracle.source_forms(source, repair, pieces)
         written = set()
-        for where, dialect, kind, form, gloss in rows:
+        for where, dialect, type, form, gloss in rows:
             written |= oracle.pieces(form)
         tokens = sum(1 for one in printed if is_language_token(one, marks))
         held.append(
@@ -679,7 +679,7 @@ def settled(papers, carried):
         unfound = sum(one["unfound"] for one in ahead)
         tokens = sum(one["tokens"] for one in ahead)
         missed = sum(one["missed"] for one in ahead)
-        # The coverage channel is not per paper in the same order. That channel is kept at what it
+        # The coverage channel is not per paper in the same order. That channel is retained at what it
         # is and the two directions carry the movement. Mixing a fixed term into a running one
         # would flatten the curve and report a settling that did not happen.
         held = sum(one["tokens"] for one in carried)
@@ -717,7 +717,7 @@ def border_result():
     grouped, marks = border.by_language()
     if not all(one in grouped for one in border.BORDER):
         return None
-    north, south, standing = border.shared_concepts(grouped, marks)
+    north, south, located = border.shared_concepts(grouped, marks)
     held = []
     exact = 0.0
     for width in border.RADIX_WIDTHS:
@@ -756,7 +756,7 @@ def border_result():
     return {
         "north": len(north),
         "south": len(south),
-        "concepts": standing,
+        "concepts": located,
         "widths": held,
         "inverse": exact,
     }
@@ -797,7 +797,7 @@ def main():
 
     sound = [one for one in papers if one["sound"]]
     # The left panel plots unfound plus missed. Its zero line holds every paper both directions
-    # cleared. Counting it here keeps the prose beside the picture true as papers are added.
+    # cleared. Counting it here retains the prose beside the picture true as papers are added.
     on_zero = len([one for one in papers if (one["unfound"] + one["missed"]) == 0])
     forms = sum(one["forms"] for one in sound)
     unfound = sum(one["unfound"] for one in sound)
@@ -832,10 +832,10 @@ def main():
         os.replace(drawn, FIGURE)
     else:
         os.remove(drawn)
-    standing = border_result()
+    located = border_result()
     running, stable = settled(sound, carried)
 
-    # Built in memory, then handed to the converter that produced every other chapter. The document
+    # Built in memory, then passed to the converter that produced every other chapter. The document
     # is written as markdown here because these 69 lines already say it, and converting
     # once at the end is cheaper than restating all of them in LaTeX.
     with io.StringIO() as handle:
@@ -897,7 +897,7 @@ def main():
             "and byte pairs with the dialect's own alphabet applied first. Setting an "
             "algorithm given nothing beside a person given a page is not a fair "
             "comparison, and the alphabet is the first part of what the extraction "
-            "already knows that it can be handed.\n\n" % (crossing or 0.0)
+            "already knows that it can be passed.\n\n" % (crossing or 0.0)
         )
         handle.write(
             "| Paper | Rows | Forms checked | Not in paper | Tokens checked | "
@@ -1030,7 +1030,7 @@ def main():
             "The independence is the weak part and it is weak in three named places.\n\n"
         )
         handle.write(
-            "* **One person read every table.** The three channels catch different kinds "
+            "* **One person read every table.** The three channels catch different types "
             "of mistake but they do not catch a systematic misreading of one "
             "orthography, because the same reading produced the row and the expectation. "
             "This is the largest unmodeled term and no amount of trials touches it.\n"
@@ -1050,7 +1050,7 @@ def main():
         handle.write(
             "What would move the number honestly is a second person reading a table that "
             "has already been read. That is the addition that fails for a reason none "
-            "of the three share, and until it exists the first bullet stands above every "
+            "of the three share, and until it exists the first bullet is above every "
             "number in this chapter.\n\n"
         )
 
@@ -1088,7 +1088,7 @@ def main():
         handle.write("## 6. The word web\n\n")
         handle.write(
             "The word web joins every form in the hand extractions to the forms it is "
-            "related to, and groups them. The web has three kinds of edge, each measured off "
+            "related to, and groups them. The web has three types of edge, each measured off "
             "the extraction and none of them listed by hand.\n\n"
         )
         handle.write(
@@ -1134,30 +1134,30 @@ def main():
             "that route would need: about 2.9 times the labeled Lushootseed now "
             "stored.\n\n"
         )
-        if standing:
+        if located:
             handle.write(
                 "Asking for one term at a time does work, and it is the same move the "
                 "sound work uses. Because both varieties are one language, nearly all of "
                 "what a distribution over their runs measures is what they have in "
                 "common, and at this size that shared mass swamps the difference. "
-                "Flattening the pooled counts to maximum entropy takes it out: a run is "
+                "Flattening the pooled counts to max entropy takes it out: a run is "
                 "weighed against where the pooled total alone would put it. A run "
                 "carrying no border information then contributes nothing however common "
                 "it is. Each run is its own test, and a run needs enough of "
                 "itself instead of enough of the language.\n\n"
             )
             handle.write(
-                "The concept is kept fixed while this is asked, over the %d concepts both "
+                "The concept is retained fixed while this is asked, over the %d concepts both "
                 "varieties name, using the word web's gloss edge. Without that control a "
                 "run can separate the two sets because the varieties differ or because "
                 "different words were cited, and those are not the same finding.\n\n"
-                % standing["concepts"]
+                % located["concepts"]
             )
             handle.write(
                 "| Run width | Runs tested | Terms found | Expected by chance | "
                 "Random borders that matched it |\n|---|---|---|---|---|\n"
             )
-            for one in standing["widths"]:
+            for one in located["widths"]:
                 handle.write(
                     "| %d | %d | %d | %.2f | %d of %d |\n"
                     % (
@@ -1169,7 +1169,7 @@ def main():
                         one["trials"],
                     )
                 )
-            best = [one for one in standing["widths"] if one["found"]]
+            best = [one for one in located["widths"] if one["found"]]
             if best:
                 handle.write("\n")
                 handle.write(
@@ -1197,7 +1197,7 @@ def main():
                     "southern: 45 of them to 6 in the north over the same concepts. "
                     "The paper those labels came from is Mellesmoen and Kye's comparative "
                     "analysis of stress in northern and southern Lushootseed. The "
-                    "algorithm was shown the forms and never the labels, and what it "
+                    "algorithm was displayed the forms and never the labels, and what it "
                     "returned is what the paper is about.\n\n"
                 )
 
@@ -1206,7 +1206,7 @@ def main():
     # The chapter title comes from the manifest in markdown_to_latex. The research paper reads the same
     # whether a chapter was converted once by hand or is rewritten by this every run.
     body = markdown_to_latex.convert(written, "How wrong it could be")
-    # The heading the markdown opens with is now the chapter title, and keeping both would print it
+    # The heading the markdown opens with is now the chapter title, and retention both would print it
     # twice on the page.
     body = body.replace("\\section{Corpus derivation}\n\n", "", 1)
     # A citation is written as a marker the converter leaves alone and turned into \cite after it,

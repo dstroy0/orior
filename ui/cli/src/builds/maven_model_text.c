@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// maven_model_text.c: what a Maven model contains, stored in one cell taken at its most: its properties' lists, its
+// maven_model_text.c: what a Maven model contains, stored in one cell taken at its max: its properties' lists, its
 // managed dependencies' lists and its texts, and the cell given back
 #include "maven_internal.h"
 

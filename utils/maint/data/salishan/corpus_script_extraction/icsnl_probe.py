@@ -19,7 +19,7 @@
 # communities that hold it. Description written for publication is the right source and the only one
 # taken here.
 #
-# The volumes run to several megabytes and are born digital. The text comes out with pypdf and is kept
+# The volumes run to several megabytes and are born digital. The text comes out with pypdf and is retained
 # beside the file. The keyword pass afterward is a locator: it says which pages to open,
 # and nothing is concluded from a matched line until the page around it has been read.
 
@@ -46,7 +46,7 @@ WANTED = ("reduplicat", "lexical suffix", "affix", "paradigm", "morphem", "trans
 
 
 def download(url, target):
-    """The file at a URL, kept on disk, skipped where it is already present."""
+    """The file at a URL, retained on disk, skipped where it is already present."""
     if os.path.isfile(target) and (os.path.getsize(target) > 100000):
         return os.path.getsize(target), "already held"
     request = urllib.request.Request(url, headers=AGENT)
@@ -58,7 +58,7 @@ def download(url, target):
 
 
 def extract(source, target):
-    """Every page's text, kept one page to a block with the page number on it."""
+    """Every page's text, retained one page to a block with the page number on it."""
     import pypdf
 
     reader = pypdf.PdfReader(source)
@@ -93,7 +93,7 @@ def main():
     out.write("  text at %s\n" % target)
 
     if empty > (len(pages) / 2):
-        out.write("\n  most pages carry no text. This volume is a scan and the keyword\n")
+        out.write("\n  max pages carry no text. This volume is a scan and the keyword\n")
         out.write("  pass below has nothing to work on\n")
         out.flush()
         return 0

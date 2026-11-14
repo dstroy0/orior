@@ -18,7 +18,7 @@ What is preserved:
   - the leading copyright / SPDX block, which states a license instead of describing code
   - a #! line opening a script, which the kernel reads to choose the interpreter
   - string and character literals, including escapes. "http://x" is not read as a comment
-  - the line count of C block comments, which keeps a compiler error pointing at the right line
+  - the line count of C block comments, which retains a compiler error pointing at the right line
 
 Every Python and shell result is checked before it is written. A Python file has to parse to the
 same syntax tree it had with its string statements taken out, compared by ast.dump. A shell file has
@@ -30,7 +30,7 @@ Usage:
     python utils/maint/source/strip_comments.py PATH --go            # rewrite in place
 
     --ext .c,.h     which suffixes to visit (default .c,.h)
-    --keep-header   keep the leading copyright / SPDX block (default on)
+    --retain-header   retain the leading copyright / SPDX block (default on)
     --no-header     strip that block too
     --exclude PAT   skip any path containing PAT (repeatable)
 
@@ -90,7 +90,7 @@ def strip(text):
 
 
 def string_statement(statement):
-    """Whether a statement is a string literal standing alone, the shape a docstring takes."""
+    """Whether a statement is a string literal located alone, the shape a docstring takes."""
     return (isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Constant)
             and isinstance(statement.value.value, str))
 
@@ -111,10 +111,10 @@ def without_string_statements(tree):
     never from the stripped text.
     """
     for held in statement_lists(tree):
-        kept = [one for one in held if not string_statement(one)]
-        if not kept:
-            kept = [ast.Pass()]
-        held[:] = kept
+        retained = [one for one in held if not string_statement(one)]
+        if not retained:
+            retained = [ast.Pass()]
+        held[:] = retained
     return tree
 
 
@@ -123,7 +123,7 @@ def strip_python(text):
 
     Returns the stripped text, or raises ValueError naming why the file cannot be stripped safely.
     A string statement sharing a line with other code errors, since cutting it would cut code.
-    A body left holding nothing but string statements keeps one pass in the place of the first.
+    A body left holding nothing but string statements retains one pass in the place of the first.
     """
     # One line ending throughout. ast counts \r\n and a lone \r as line breaks, and str.splitlines
     # also breaks at form feeds and other separators that ast does not count. Neither matches the
@@ -176,10 +176,10 @@ def strip_python(text):
             out.append(replaced[number])
             continue
         if number in cut_from:
-            kept = line[:cut_from[number]].rstrip()
-            if not kept.strip():
+            retained = line[:cut_from[number]].rstrip()
+            if not retained.strip():
                 continue
-            out.append(kept + "\n")
+            out.append(retained + "\n")
             continue
         out.append(line)
     stripped = "".join(out)
@@ -223,7 +223,7 @@ def strip_shell(text):
     """Remove # comments from a shell script. A # opens a comment only as the first byte of a word.
 
     Quotes are followed across lines, a backslash escapes the next byte outside single quotes, and
-    a heredoc body is copied as it stands. A #! first line stays.
+    a heredoc body is copied as it is. A #! first line stays.
     """
     out_lines = []
     lines = text.split("\n")
@@ -245,48 +245,48 @@ def strip_shell(text):
             out_lines.append(line)
             continue
 
-        kept = []
+        retained = []
         at = 0
         while at < len(line):
             one = line[at]
             if quote == "'":
-                kept.append(one)
+                retained.append(one)
                 if one == "'":
                     quote = None
                 at += 1
                 continue
             if quote == '"':
                 if one == "\\" and at + 1 < len(line):
-                    kept.append(line[at:at + 2])
+                    retained.append(line[at:at + 2])
                     at += 2
                     continue
-                kept.append(one)
+                retained.append(one)
                 if one == '"':
                     quote = None
                 at += 1
                 continue
             if one == "\\" and at + 1 < len(line):
-                kept.append(line[at:at + 2])
+                retained.append(line[at:at + 2])
                 at += 2
                 continue
             if one in "'\"":
                 quote = one
-                kept.append(one)
+                retained.append(one)
                 at += 1
                 continue
             if one == "<" and line.startswith("<<", at):
                 word, strip_tabs = heredoc_word(line, at)
                 if word is not None:
                     heredocs.append((word, strip_tabs))
-                kept.append(line[at:at + 2])
+                retained.append(line[at:at + 2])
                 at += 2
                 continue
             if one == "#" and (at == 0 or line[at - 1] in " \t;&|()<>"):
                 break
-            kept.append(one)
+            retained.append(one)
             at += 1
 
-        joined = "".join(kept)
+        joined = "".join(retained)
         if quote is None and not joined.strip() and line.strip():
             continue
         out_lines.append(joined.rstrip() if quote is None else joined)
@@ -337,7 +337,7 @@ def collapse(text):
     return "\n".join(out).lstrip("\n")
 
 
-def rewrite(text, keep_header, suffix=".c"):
+def rewrite(text, retain_header, suffix=".c"):
     """The file's text with its comments gone. Raises ValueError where a check errors on the result."""
     if suffix in PYTHON_SUFFIXES:
         marker, strip_body = "#", strip_python
@@ -347,8 +347,8 @@ def rewrite(text, keep_header, suffix=".c"):
         marker, strip_body = "//", strip
 
     # Without the header, a #! first line stays in the body, and strip_python and strip_shell each
-    # keep it where they meet it on line 1.
-    head = header_of(text, marker) if keep_header else []
+    # retain it where they meet it on line 1.
+    head = header_of(text, marker) if retain_header else []
     body = "\n".join(text.split("\n")[len(head) :]) if head else text
     body = strip_body(body)
     new = ("\n".join(head) + "\n" if head else "") + collapse(body)
@@ -385,7 +385,7 @@ def main():
     ap.add_argument("paths", nargs="+")
     ap.add_argument("--go", action="store_true", help="rewrite in place")
     ap.add_argument("--ext", default=".c,.h")
-    ap.add_argument("--no-header", dest="keep_header", action="store_false")
+    ap.add_argument("--no-header", dest="retain_header", action="store_false")
     ap.add_argument("--exclude", action="append", default=["__pycache__", ".pio", "unity_runner.c"])
     a = ap.parse_args()
 
@@ -401,7 +401,7 @@ def main():
         files += 1
         t = io.open(p, encoding="utf-8", errors="replace", newline="").read()
         try:
-            new = rewrite(t, a.keep_header, os.path.splitext(p)[1])
+            new = rewrite(t, a.retain_header, os.path.splitext(p)[1])
         except (ValueError, SyntaxError) as why:
             error.append((p, str(why)))
             continue

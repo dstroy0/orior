@@ -106,11 +106,11 @@ int group_objects(TreeFrame *frame, const TreeFrame *previous, const TreeFrame *
                 break;
             }
         }
-        unsigned char *const stands = (unsigned char *)malloc((size_t)count + 1u);
+        unsigned char *const is = (unsigned char *)malloc((size_t)count + 1u);
         unsigned int *const leans_on = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
-        if ((stands == NULL) || (leans_on == NULL))
+        if ((is == NULL) || (leans_on == NULL))
         {
-            free(stands);
+            free(is);
             free(leans_on);
             free(parent);
             return 0;
@@ -123,7 +123,7 @@ int group_objects(TreeFrame *frame, const TreeFrame *previous, const TreeFrame *
                 const unsigned int drawn = frame->null_final_score[((size_t)draw * ((size_t)count + 1u)) + leaf];
                 reached += (unsigned int)(drawn >= frame->forward_final_score[leaf]);
             }
-            stands[leaf] = (unsigned char)((measured != 0u) ? (reached == 0u) : (frame->sizes[leaf] >= center));
+            is[leaf] = (unsigned char)((measured != 0u) ? (reached == 0u) : (frame->sizes[leaf] >= center));
             leans_on[leaf] = leaf;
         }
         for (unsigned int pass = 0u; pass < 2u; pass += 1u)
@@ -132,8 +132,8 @@ int group_objects(TreeFrame *frame, const TreeFrame *previous, const TreeFrame *
             {
                 const unsigned int left = frame->joined[2u * pair];
                 const unsigned int right = frame->joined[2u * pair + 1u];
-                const unsigned int left_eligible = (unsigned int)((pass != 0u) || (stands[left] != 0u));
-                const unsigned int right_eligible = (unsigned int)((pass != 0u) || (stands[right] != 0u));
+                const unsigned int left_eligible = (unsigned int)((pass != 0u) || (is[left] != 0u));
+                const unsigned int right_eligible = (unsigned int)((pass != 0u) || (is[right] != 0u));
                 const unsigned int left_settled = (unsigned int)((pass != 0u) && (leans_on[right] != right));
                 const unsigned int right_settled = (unsigned int)((pass != 0u) && (leans_on[left] != left));
                 const unsigned int by_band = (unsigned int)rules->mass_band;
@@ -150,12 +150,12 @@ int group_objects(TreeFrame *frame, const TreeFrame *previous, const TreeFrame *
         for (unsigned int leaf = 0u; leaf < count; leaf += 1u)
         {
             const unsigned int leans =
-                (unsigned int)((stands[leaf] == 0u) && (leans_on[leaf] != leaf) &&
+                (unsigned int)((is[leaf] == 0u) && (leans_on[leaf] != leaf) &&
                                (band_or_count((unsigned int)rules->mass_band, frame->sizes[leans_on[leaf]]) >
                                 band_or_count((unsigned int)rules->mass_band, frame->sizes[leaf])));
             parent[leaf] = (leans != 0u) ? leans_on[leaf] : leaf;
         }
-        free(stands);
+        free(is);
         free(leans_on);
     }
     if (((rules->cohere != 0) || (rules->accrue != 0)) && (frame->forward_lag != NULL) && (frame->joined_count != 0u))

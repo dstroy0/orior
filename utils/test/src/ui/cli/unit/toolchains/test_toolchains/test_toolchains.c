@@ -158,9 +158,9 @@ void test_a_read_the_cells_refuse_reports_no_chosen_folder(void)
 {
     enum
     {
-        FILLS_MOST = 4096
+        FILLS_MAX = 4096
     };
-    static void *s_fills[FILLS_MOST];
+    static void *s_fills[FILLS_MAX];
     static const unsigned long long s_fill_sizes[] = {1ull << 20u, 4096ull, 8ull};
     unsigned int reported = 0u;
     unsigned int fills = 0u;
@@ -168,7 +168,7 @@ void test_a_read_the_cells_refuse_reports_no_chosen_folder(void)
     for (unsigned int size = 0u; size < 3u; size += 1u)
     {
         void *cell = g_cli_guard->persistent_buf_alloc((size_t)s_fill_sizes[size], g_checks_owner);
-        while ((cell != NULL) && (fills < FILLS_MOST))
+        while ((cell != NULL) && (fills < FILLS_MAX))
         {
             s_fills[fills] = cell;
             fills += 1u;
@@ -282,7 +282,7 @@ void test_a_check_stores_what_each_search_found_in_oriors_folder(void)
     TEST_ASSERT_TRUE(EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = found_file));
 }
 
-// the login shell's PATH read, within its patience and a margin: the folders a search reads stand still after it
+// the login shell's PATH read, within its patience and a margin: the folders a search reads are still after it
 static void shell_path_read(void)
 {
     const unsigned long long last_ms = cli_clock_milliseconds() + 12000ULL;

@@ -40,7 +40,7 @@
 // a question's limit, and the shorter one the probe that hangs is given
 #define INTERFACE_TEST_LIMIT 30000000ull
 #define INTERFACE_TEST_HANG_LIMIT 500000ull
-// the most past its limit a probe that hangs may take to be ended and reaped
+// the max past its limit a probe that hangs may take to be ended and reaped
 #define INTERFACE_TEST_HANG_SLACK 5000000ull
 
 // the bytes the flood question writes, more than a pipe buffers on any host

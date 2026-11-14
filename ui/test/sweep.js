@@ -4,12 +4,12 @@
 // The sweep's eyes inside the window, put into the page by sweep.py beside monitor.js. It lists every
 // control the window shows: each button, link, field, check, choice, slider, tab, menu item, option,
 // tree item and focusable part, by a key that names it the same from one listing to the next, and a
-// count where two read the same. A link that would take the page somewhere else is kept from going
+// count where two read the same. A link that would take the page somewhere else is retained from going
 // and named instead.
 
 (() => {
   if (window.__sweep) {
-    return "kept";
+    return "retained";
   }
   const SELECTOR = [
     "button", "a[href]", "input", "select", "textarea", "summary", "[contenteditable='']", "[contenteditable='true']",
@@ -83,7 +83,7 @@
     }
     return "button";
   };
-  const shown = (element) => {
+  const displayed = (element) => {
     const box = element.getBoundingClientRect();
     if (box.width < 1 || box.height < 1 || box.bottom < 0 || box.right < 0 || box.top > innerHeight || box.left > innerWidth) {
       return false;
@@ -92,7 +92,7 @@
     return style.visibility !== "hidden" && style.display !== "none" && Number(style.opacity) > 0 && !element.closest("[inert], [aria-hidden='true']");
   };
 
-  // Every control shown, each once: a control inside another, as a button's own label, is the
+  // Every control displayed, each once: a control inside another, as a button's own label, is the
   // outer one's
   sweep.list = () => {
     const out = [];
@@ -101,7 +101,7 @@
     for (const element of document.querySelectorAll(SELECTOR)) {
       const outer = element.parentElement?.closest(SELECTOR);
       const native = element.matches("button, a[href], input, select, textarea");
-      if (!shown(element) || (outer && !native && type(element) === "button")) {
+      if (!displayed(element) || (outer && !native && type(element) === "button")) {
         continue;
       }
       let key = keyOf(element);
@@ -115,7 +115,7 @@
       out.push({
         key,
         index: sweep.found.length,
-        kind: type(element),
+        type: type(element),
         label: label(element),
         disabled: Boolean(element.disabled) || element.getAttribute("aria-disabled") === "true",
         x: Math.round(x),
@@ -168,7 +168,7 @@
     return true;
   };
 
-  // A slider's least and most, for it to be set to each
+  // A slider's least and max, for it to be set to each
   sweep.bounds = (index) => {
     const element = sweep.found[index];
     return element ? [element.min ?? element.getAttribute("aria-valuemin") ?? "0", element.max ?? element.getAttribute("aria-valuemax") ?? "100"] : null;

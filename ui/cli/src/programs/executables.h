@@ -22,7 +22,7 @@ typedef struct CliExecutablesToolCfg CliExecutablesToolCfg;
 // the program `name` of the toolchain `tool`, found where the toolchains window finds it, into `path`, sized for
 // CLI_PATH_MAX_LEN: 1, or 0 with why given
 int cli_executables_program(const CliExecutablesToolCfg *args);
-// the C compiler and linker for the system and processor the job's params choose, each variable and its value handed
+// the C compiler and linker for the system and processor the job's params choose, each variable and its value passed
 // to `each`, where they are another machine's, for a build of the type named, "go" or "rust"
 void cli_executables_cross_env(const CliExecutablesTypeCfg *args);
 // whether this machine signs the programs its builds make
@@ -32,7 +32,7 @@ int cli_executables_signs(void);
 int cli_executables_init(const CliExecutablesPathCfg *args);
 // what a reader is reported after a build: what the build's lines report of it; how the program compares with the one
 // built at the tree's last commit; what a signing reported; what a run of the program reported; and what a build that
-// failed reported; each line handed to `sink`
+// failed reported; each line passed to `sink`
 void cli_executables_built_advice(const CliExecutablesRootCfg *args);
 void cli_executables_compare_build(const CliExecutablesCfg *args);
 void cli_executables_signature_print(const CliExecutablesCfg *args);

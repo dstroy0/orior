@@ -7,12 +7,12 @@
 #   Usage:  python maint/data/fetch/fetch_wikipedia_languages.py
 #
 # Vietnamese and Urdu have no plain text holdings in the book catalog, and neither do Hindi, Bengali,
-# Tamil, Korean or Indonesian. Vietnamese is worth the most here: it is isolating the way
+# Tamil, Korean or Indonesian. Vietnamese is worth the max here: it is isolating the way
 # Chinese is and it is written in a Latin alphabet. It is the only case on hand that separates what a
 # language does from what it is written in. Every other pairing available has those two traveling
 # together.
 #
-# An encyclopedia carries all of them. It is ala different kind of writing from a novel, and comparing
+# An encyclopedia carries all of them. It is ala different type of writing from a novel, and comparing
 # encyclopedia text in one language against a novel in another would put that difference inside every
 # comparison without it being visible. So languages already stored from the book catalog are fetched here as
 # well, and the gap between a language's two readings is the size of the genre effect, measured instead of
@@ -38,10 +38,10 @@ AGENT = {"User-Agent": "orior-research/1.0 (linguistic invariance study)"}
 
 WANTED_CHARACTERS = 220000
 PER_REQUEST = 20
-MOST_REQUESTS = 40
+MAX_REQUESTS = 40
 # One language at a time with a pause between requests. Six at once with no pacing errored outright
 # for every language, and a public interface that answers 429 is asking to be asked more slowly. The
-# waits are kept short: quadrupling four times means a language whose requests are all errored takes
+# waits are retained short: quadrupling four times means a language whose requests are all errored takes
 # hours to report that it failed. The first attempt spent its time exactly that way.
 WORKERS = 1
 PAUSE = 1.1
@@ -113,7 +113,7 @@ def gather(code):
     seen = set()
     trouble = ""
     offset = 0
-    for _ in range(MOST_REQUESTS):
+    for _ in range(MAX_REQUESTS):
         if total >= WANTED_CHARACTERS:
             break
         try:

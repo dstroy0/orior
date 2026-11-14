@@ -6,7 +6,7 @@
 #include "../../../cli/src/text/text.h"
 #include "../query_internal.h"
 
-// what the walk for MSVC's host compiler records: the folder it stands in, a level's names, and the newest cl found
+// what the walk for MSVC's host compiler records: the folder it is in, a level's names, and the newest cl found
 typedef struct
 {
     char folder[QUERY_PATH_MAX_LEN];
@@ -109,7 +109,7 @@ EMBED_INLINE int query_on_path_find(const ProgramsCtx *args)
 
 static void query_cl_walk(const CliEachNameIsFolderCfg *args);
 
-// the folder `walk` stands in joined with `name`, walked one level down at `depth`, and stood back from
+// the folder `walk` is in joined with `name`, walked one level down at `depth`, and was back from
 EMBED_INLINE void query_cl_enter(const ProgramsCtx *args)
 {
     unsigned int depth = args->depth;

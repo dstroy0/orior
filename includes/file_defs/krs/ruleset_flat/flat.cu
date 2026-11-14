@@ -17,13 +17,13 @@ int ruleset_relations_read(const std::string *paths, unsigned int count, const R
             *error = paths[file];
             return 0;
         }
-        // a set of files is bounded under RULESET_FILE_MAX letters, which 32 bits count
+        // a set of files is bounded under RULESET_FILE_MAX characters, which 32 bits count
         memory->files.push_back(RulesetCoreSpan{(unsigned int)memory->text.size(), (unsigned int)read.size()});
         memory->text.insert(memory->text.end(), read.begin(), read.end());
         memory->labels.push_back(paths[file].substr(paths[file].find_last_of("/\\") + 1u));
-        for (const char letter : read)
+        for (const char character : read)
         {
-            lines += (letter == '\n') ? 1u : 0u;
+            lines += (character == '\n') ? 1u : 0u;
         }
     }
     const RulesetCoreSchema none = {NULL, NULL, NULL, 0u, NULL, 0u, NULL, 0u};
@@ -65,15 +65,15 @@ int ruleset_file(Ruleset *rules, const std::string &path, std::string *text)
     return ruleset_text(schema, path, text, &rules->error);
 }
 
-// `names` taken on into the flattened schema's letters, each name's span into `spans`
+// `names` taken on into the flattened schema's characters, each name's span into `spans`
 static void ruleset_flat_names(const RulesetName *names, unsigned int count, RulesetFlat *flat,
                                std::vector<RulesetCoreSpan> *spans)
 {
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        // a schema's names are a few words each, a few thousand letters in all
-        const RulesetCoreSpan span = {(unsigned int)flat->letters.size(), (unsigned int)strlen(names[at].text)};
-        flat->letters.insert(flat->letters.end(), names[at].text, names[at].text + span.length);
+        // a schema's names are a few words each, a few thousand characters in all
+        const RulesetCoreSpan span = {(unsigned int)flat->characters.size(), (unsigned int)strlen(names[at].text)};
+        flat->characters.insert(flat->characters.end(), names[at].text, names[at].text + span.length);
         spans->push_back(span);
     }
 }
@@ -89,12 +89,12 @@ void ruleset_flat_schema(const RulesetSchema *schema, RulesetFlat *flat)
         flat->form_parameters.push_back(schema->forms[form].parameters);
     }
     // a vector's data is NULL where it is empty
-    flat->letters.push_back(0u);
+    flat->characters.push_back(0u);
     flat->forms.push_back(RulesetCoreSpan{0u, 0u});
     flat->form_parameters.push_back(0u);
     flat->banks.push_back(RulesetCoreSpan{0u, 0u});
     flat->fixed.push_back(RulesetCoreSpan{0u, 0u});
-    flat->schema.letters = flat->letters.data();
+    flat->schema.characters = flat->characters.data();
     flat->schema.forms = flat->forms.data();
     flat->schema.form_parameters = flat->form_parameters.data();
     flat->schema.form_count = schema->form_count;
@@ -106,11 +106,11 @@ void ruleset_flat_schema(const RulesetSchema *schema, RulesetFlat *flat)
 
 void ruleset_capacities(unsigned int text_length, RulesetCoreRead *read)
 {
-    // every letter written is one of the file's or stands for an escape of two; every piece begins a text or follows a
-    // placeholder, each at least three letters of the file, and every text is at least a line's; every word is at least
-    // a letter and a space, and a head's parameters are its words a form's fixed registers are folded into its text
-    // past the letters read, at most once each
-    read->letter_capacity = (2u * text_length) + 2u;
+    // every character written is one of the file's or is for an escape of two; every piece begins a text or follows a
+    // placeholder, each at least three characters of the file, and every text is at least a line's; every word is at least
+    // a character and a space, and a head's parameters are its words a form's fixed registers are folded into its text
+    // past the characters read, at max once each
+    read->character_capacity = (2u * text_length) + 2u;
     read->piece_capacity = (2u * text_length) + 2u;
     read->word_capacity = text_length + 2u;
 }
@@ -119,7 +119,7 @@ void ruleset_memory_size(RulesetMemory *memory, RulesetCoreRead *read)
 {
     const RulesetCoreSchema *const schema = &read->schema;
     // an empty vector's data is NULL, and every list is given at least one entry
-    memory->letters.assign((size_t)read->letter_capacity, 0u);
+    memory->characters.assign((size_t)read->character_capacity, 0u);
     memory->pieces.assign((size_t)read->piece_capacity, RulesetCoreSpan{});
     memory->placeholders.assign((size_t)read->piece_capacity, 0u);
     memory->words.assign((size_t)read->word_capacity, RulesetCoreSpan{});
@@ -133,7 +133,7 @@ void ruleset_memory_size(RulesetMemory *memory, RulesetCoreRead *read)
     memory->fixed_given.assign((size_t)schema->fixed_count + 1u, 0u);
     memory->form_given.assign((size_t)schema->form_count + 1u, 0u);
     memory->building_parameters.assign((size_t)read->word_capacity, RulesetCoreSpan{});
-    read->letters = memory->letters.data();
+    read->characters = memory->characters.data();
     read->pieces = memory->pieces.data();
     read->placeholders = memory->placeholders.data();
     read->words = memory->words.data();
@@ -162,7 +162,7 @@ static InstrTemplate ruleset_flat_template(const RulesetCoreRead *read, const Ru
     for (unsigned int piece = 0u; piece < form->piece_count; piece += 1u)
     {
         const RulesetCoreSpan span = read->pieces[form->piece_first + piece];
-        made.pieces.push_back(std::string((const char *)&read->letters[span.first], span.length));
+        made.pieces.push_back(std::string((const char *)&read->characters[span.first], span.length));
     }
     for (unsigned int at = 0u; (at + 1u) < form->piece_count; at += 1u)
     {
@@ -195,7 +195,7 @@ static std::string ruleset_flat_why(const RulesetCoreRead *read, const std::stri
                " is not a form the code generator writes, takes other parameters, or is given "
                "twice";
     case RULESET_CORE_NO_KIND:
-        return "no entry is of the kind " + word;
+        return "no entry is of the type " + word;
     case RULESET_CORE_NO_LINES:
         return "the construct " + building + " has no lines";
     case RULESET_CORE_LINE_FORM:
@@ -226,7 +226,7 @@ void ruleset_store(const RulesetCoreRead *read, const std::string &text, Ruleset
     for (unsigned int fixed = 0u; fixed < schema->fixed_count; fixed += 1u)
     {
         const RulesetCoreSpan span = read->fixed[fixed];
-        rules->fixed[fixed] = std::string((const char *)&read->letters[span.first], span.length);
+        rules->fixed[fixed] = std::string((const char *)&read->characters[span.first], span.length);
         rules->fixed_given[fixed] = read->fixed_given[fixed];
     }
     for (unsigned int form = 0u; form < schema->form_count; form += 1u)
@@ -243,7 +243,7 @@ void ruleset_store(const RulesetCoreRead *read, const std::string &text, Ruleset
             for (unsigned int given = 0u; given < read_line->argument_count; given += 1u)
             {
                 const RulesetCoreArgument *const argument = &read->arguments[read_line->argument_first + given];
-                const PseudoOperand operand = {(PseudoOperandKind)argument->kind, argument->placeholder,
+                const PseudoOperand operand = {(PseudoOperandKind)argument->type, argument->placeholder,
                                                argument->number, ruleset_flat_text(text, argument->text)};
                 made.arguments.push_back(operand);
             }
@@ -287,7 +287,7 @@ void ruleset_flat_constructs(const Ruleset *rules, RulesetFlatConstructs *flat)
             flat->lines.push_back(flat_line);
             for (const PseudoOperand &given : line.arguments)
             {
-                const RulesetCoreArgument argument = {(unsigned int)given.kind, given.placeholder, given.number,
+                const RulesetCoreArgument argument = {(unsigned int)given.type, given.placeholder, given.number,
                                                       RulesetCoreSpan{0u, 0u}};
                 flat->arguments.push_back(argument);
             }

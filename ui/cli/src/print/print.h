@@ -1,15 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// print.h: orior's own printing, with no dialog of the system's: a listing laid out in pages (page.c), written as a PDF
+// print.h: orior's own printing, with no dialog of the system's: a listing arranged in pages (page.c), written as a PDF
 // (pdf.c) or drawn as pixels by impero itself (font.c, font_outline.c, raster.c, raster_write.c), and sent from
 // orior's own queue to a printer on the network by IPP (ipp.c, ipp_jobs.c) or its raw port, to a printer of the
 // system's through its driver or CUPS, or to a PDF file.
 //
-// A listing prints as its lines, each a run of colored text, laid on pages of a paper size, upright or on its side, in
+// A listing prints as its lines, each a run of colored text, positioned on pages of a paper size, upright or on its side, in
 // columns of a monospace face 9.5 points tall, each line with its number and a long line going on under itself. The
-// PDF and the raster both draw the pages laid out here, the one as text and the other as pixels.
+// PDF and the raster both draw the pages arranged here, the one as text and the other as pixels.
 //
-// Every call that lays a listing out works on the one layout page.c stores, and is made with the print lock acquired
+// Every call that positions a listing out works on the one layout page.c stores, and is made with the print lock acquired
 // (cli_print_alloc, cli_print_release)
 #ifndef PRINT_H
 #define PRINT_H
@@ -36,14 +36,14 @@ typedef struct CliPrintPageCfg CliPrintPageCfg;
 
 #define CLI_PRINT_MARGIN (14.0f * 72.0f / 25.4f)
 
-// the most lines, runs and bytes of text a listing contains; the most rows and pieces a layout contains, and the bytes
-// of their text; the most pages a layout contains
+// the max lines, runs and bytes of text a listing contains; the max rows and pieces a layout contains, and the bytes
+// of their text; the max pages a layout contains
 #define CLI_PRINT_LINES (1u << 18u)
 
 #define CLI_PRINT_RUNS (1u << 19u)
 
 #define CLI_PRINT_TEXT (1u << 23u)
-#define CLI_PRINT_LETTERS (CLI_PRINT_TEXT / 4u)
+#define CLI_PRINT_CHARACTERS (CLI_PRINT_TEXT / 4u)
 
 #define CLI_PRINT_ROWS (1u << 19u)
 
@@ -88,7 +88,7 @@ typedef struct
     unsigned long long tab;
 } CliPrintListing;
 
-// How a page prints: a4 or letter, on its side, in gray, the pages printed as 1-3,5 (every page where none are named),
+// How a page prints: a4 or character, on its side, in gray, the pages printed as 1-3,5 (every page where none are named),
 // and the copies
 typedef struct
 {
@@ -120,7 +120,7 @@ typedef struct
     unsigned int pieces;
 } CliPrintRow;
 
-// The pages laid out: the rows, a page `rows_per_page` of them, the pieces and their text, and the columns the numbers
+// The pages arranged: the rows, a page `rows_per_page` of them, the pieces and their text, and the columns the numbers
 // take, in the capacity's cell, up to CLI_PRINT_ROWS rows, CLI_PRINT_PIECES pieces and CLI_PRINT_TEXT bytes of text
 typedef struct
 {
@@ -152,7 +152,7 @@ typedef struct
 // cannot meet it, a listing read with the lock acquired is refused (page.c)
 void cli_print_alloc(void);
 void cli_print_release(void);
-// the listing the window hands as JSON, `{title, lines: [{number, runs: [{text, color, bold, italic}]}], tab}`, read
+// the listing the window passes as JSON, `{title, lines: [{number, runs: [{text, color, bold, italic}]}], tab}`, read
 // into the one listing; and a layout's JSON, `{paper, landscape, gray, pages, copies}`, each left out its default:
 // 1, or 0 with why given
 int cli_print_listing_read(const CliPrintJsonCfg *args);
@@ -166,13 +166,13 @@ int cli_print_prints(const CliPrintCfg *args);
 unsigned int cli_print_ranges(const CliPrintLayoutLowCfg *args);
 // a color #rrggbb, `length` bytes, as its three bytes, made gray by its lightness where `gray` is set
 void cli_print_color(const CliPrintTextCfg *args);
-// the listing laid out in pages as `layout` specifies, into the one layout
-const CliPrintLaid *cli_print_lay_out(const CliPrintLayoutListingOutCfg *args);
+// the listing arranged in pages as `layout` specifies, into the one layout
+const CliPrintLaid *cli_print_position_out(const CliPrintLayoutListingOutCfg *args);
 
 // the listing as a PDF, as the layout specifies, into `out`, the count of pages written into `pages` (pdf.c)
 void cli_print_pdf(const CliPrintLayoutListingOutCfg *args);
 
-// the system's monospace faces read: 1, or 0 with why given; and each page the layout prints drawn at `dpi`, handed to
+// the system's monospace faces read: 1, or 0 with why given; and each page the layout prints drawn at `dpi`, passed to
 // `each` with its place among those printed and their count (raster.c)
 int cli_print_faces(const CliPrintJsonCfg *args);
 typedef struct
@@ -346,13 +346,13 @@ EMBED_TABLE_STORAGE CliPrintTextNs cli_print_text EMBED_UNUSED = {
 
 typedef struct
 {
-    const CliPrintLaid *(*lay_out)(const CliPrintLayoutListingOutCfg *args);
+    const CliPrintLaid *(*position_out)(const CliPrintLayoutListingOutCfg *args);
     void (*pdf)(const CliPrintLayoutListingOutCfg *args);
     void (*pwg_begin)(const CliPrintLayoutListingOutCfg *args);
 } CliPrintLayoutListingOutNs;
-EMBED_TABLE_LAYOUT(CliPrintLayoutListingOutNs, lay_out, pdf, pwg_begin);
+EMBED_TABLE_LAYOUT(CliPrintLayoutListingOutNs, position_out, pdf, pwg_begin);
 EMBED_TABLE_STORAGE CliPrintLayoutListingOutNs cli_print_layout_listing_out EMBED_UNUSED = {
-    .lay_out = cli_print_lay_out,
+    .position_out = cli_print_position_out,
     .pdf = cli_print_pdf,
     .pwg_begin = cli_print_pwg_begin,
 };

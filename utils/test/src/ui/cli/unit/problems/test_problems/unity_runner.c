@@ -74,10 +74,10 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\problems\\test_problems\\test_problems.c");
-  run_test(test_a_report_shows_at_the_next_step_worst_first_with_each_message_cut_to_its_first_line, "test_a_report_shows_at_the_next_step_worst_first_with_each_message_cut_to_its_first_line", 76);
-  run_test(test_a_files_next_report_replaces_it_at_the_end_and_one_with_none_takes_it_out, "test_a_files_next_report_replaces_it_at_the_end_and_one_with_none_takes_it_out", 103);
-  run_test(test_a_press_on_a_files_row_closes_its_rows_and_one_on_a_diagnostic_names_its_place, "test_a_press_on_a_files_row_closes_its_rows_and_one_on_a_diagnostic_names_its_place", 130);
-  run_test(test_threads_publishing_while_a_reader_steps_and_reads_every_row_leave_each_files_last_report, "test_threads_publishing_while_a_reader_steps_and_reads_every_row_leave_each_files_last_report", 162);
+  run_test(test_a_report_shows_at_the_next_step_worst_first_with_each_message_cut_to_its_first_line, "test_a_report_shows_at_the_next_step_worst_first_with_each_message_cut_to_its_first_line", 74);
+  run_test(test_a_files_next_report_replaces_it_at_the_end_and_one_with_none_takes_it_out, "test_a_files_next_report_replaces_it_at_the_end_and_one_with_none_takes_it_out", 101);
+  run_test(test_a_press_on_a_files_row_closes_its_rows_and_one_on_a_diagnostic_names_its_place, "test_a_press_on_a_files_row_closes_its_rows_and_one_on_a_diagnostic_names_its_place", 128);
+  run_test(test_threads_publishing_while_a_reader_steps_and_reads_every_row_leave_each_files_last_report, "test_threads_publishing_while_a_reader_steps_and_reads_every_row_leave_each_files_last_report", 160);
 
   return UNITY_END();
 }

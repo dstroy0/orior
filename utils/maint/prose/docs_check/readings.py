@@ -140,7 +140,7 @@ def without(argv, flag):
 def as_argv(entry, flag):
     """Run a reading that parses the command line itself, with its own flag taken out first.
 
-    Two of the instruments read sys.argv through argparse. Handed the flag that selected them they
+    Two of the instruments read sys.argv through argparse. Passed the flag that selected them they
     stop on an unrecognised option, so it comes out before they look and goes back afterward.
     """
     held = sys.argv

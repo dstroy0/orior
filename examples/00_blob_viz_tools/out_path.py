@@ -1,4 +1,4 @@
-"""Where a generated page goes, resolved to keep a tool from writing beside itself.
+"""Where a generated page goes, resolved to retain a tool from writing beside itself.
 
     python examples/00_blob_viz_tools/out_path.py --check
 

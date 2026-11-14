@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // Language servers, as servers.rs in the command line's crate runs them: a tab whose language has
-// one in the toolchain manifest is handed to it when it opens, told of each change a moment after
+// one in the toolchain manifest is passed to it when it opens, told of each change a moment after
 // typing rests, and let go when it closes. Its hovers, completions and definitions come from the
 // server, and the server's diagnostics are drawn under the text they are about. A tab of a language
-// orior's own inspections read is handed over, told of its changes and let go the same way where no
+// orior's own inspections read is passed over, told of its changes and let go the same way where no
 // server serves it, and hears the inspections' findings.
 
 import { asked, invoke, listen } from "./bridge.js";
@@ -18,7 +18,7 @@ let painted = () => {};
 
 // The view a served tab rests on, told once the view rests, before its parse and its hints are asked
 // for: its first and last lines, and the branch on orior's side the tab mirrors, whose regions give the
-// lines opening those its first stands inside. A server given the tab's file as the tree's slice for its
+// lines opening those its first is inside. A server given the tab's file as the tree's slice for its
 // view is given the slice of this one, and a parse and hints read of the last are asked for again.
 async function viewed(tab, from, to) {
   const s = tab.session;
@@ -43,7 +43,7 @@ async function viewed(tab, from, to) {
 }
 
 // Inlay hints: the types and the parameter names a server writes in a served tab's text, asked for
-// the lines shown and HINTS_AROUND on each side, once typing and scrolling rest, and again after the
+// the lines displayed and HINTS_AROUND on each side, once typing and scrolling rest, and again after the
 // text changes or the view moves past them.
 const HINTS_AROUND = 60;
 const HINTS_REST = 250;
@@ -79,19 +79,19 @@ export function hintsShown(tab, from, to) {
       if (!byLine.has(line)) {
         byLine.set(line, []);
       }
-      byLine.get(line).push({ col: hint.col, label: hint.label, kind: hint.kind, left: hint.left, right: hint.right, width });
+      byLine.get(line).push({ col: hint.col, label: hint.label, type: hint.type, left: hint.left, right: hint.right, width });
     }
     for (const hints of byLine.values()) {
-      hints.sort((a, b) => a.col - b.col || (a.kind === 2) - (b.kind === 2));
+      hints.sort((a, b) => a.col - b.col || (a.type === 2) - (b.type === 2));
     }
     s.hints = { byLine, from: low, to: high, stale: false };
     s.view?.schedule();
   }, HINTS_REST);
 }
 
-// The parse of a served or an inspected tab, orior's own or its server's, asked for the lines shown
-// and PARSE_AROUND on each side once typing and scrolling rest, its spans laid over the colors the
-// language's patterns give and its folds standing in for those the indentation gives.
+// The parse of a served or an inspected tab, orior's own or its server's, asked for the lines displayed
+// and PARSE_AROUND on each side once typing and scrolling rest, its spans positioned over the colors the
+// language's patterns give and its folds located in for those the indentation gives.
 const PARSE_AROUND = 120;
 const PARSE_REST = 150;
 const PARSE_AGAIN = 2000;
@@ -127,7 +127,7 @@ export function parseShown(tab, from, to) {
   }, PARSE_REST);
 }
 
-// The parse of `tab`'s lines `from` to `to` and those around them, asked for now and laid over its colors.
+// The parse of `tab`'s lines `from` to `to` and those around them, asked for now and positioned over its colors.
 async function parseNow(tab, from, to) {
   const s = tab.session;
   await flush(tab);
@@ -151,10 +151,10 @@ async function parseNow(tab, from, to) {
     tab.unparsed = version;
     return;
   }
-  const kept = s.highlight.parse;
-  const byLine = kept && !kept.stale ? kept.byLine : new Map();
+  const retained = s.highlight.parse;
+  const byLine = retained && !retained.stale ? retained.byLine : new Map();
   found.lines.forEach((spans, index) => byLine.set(found.from + index, spans));
-  const span = kept && !kept.stale ? [Math.min(kept.from, found.from), Math.max(kept.to, found.from + found.lines.length - 1)] : [found.from, found.from + found.lines.length - 1];
+  const span = retained && !retained.stale ? [Math.min(retained.from, found.from), Math.max(retained.to, found.from + found.lines.length - 1)] : [found.from, found.from + found.lines.length - 1];
   s.highlight.parse = { byLine, names: classNames, whole: found.whole, from: span[0], to: span[1], folds: new Map(found.folds), stale: false };
   s.view?.schedule();
 }
@@ -178,7 +178,7 @@ export async function spansOf(tab, from, to) {
 // The bracket pair at `head` in a tab's text, read on orior's side off the branch the tab mirrors or the paged file's,
 // by the roles its grammar names, once every change sent before is written: the bracket that ends at the cursor, else
 // the one that starts at it, and the one it pairs with, each by its line in the file; null where no bracket of a pair
-// stands there.
+// is there.
 export async function pairOf(tab, head) {
   const s = tab?.session;
   const mirrored = s?.doc.mirrored ?? s?.window?.paged;
@@ -191,7 +191,7 @@ export async function pairOf(tab, head) {
   return (s.doc.mirrored ? along(mirrored, ask) : after(mirrored, ask)).catch(() => null);
 }
 
-// The checkers the reader names, as checkers.rs in the command line's crate runs them, kept by
+// The checkers the reader names, as checkers.rs in the command line's crate runs them, retained by
 // their names, a comma between each.
 const CHECKERS_KEY = "orior.checkers";
 
@@ -264,7 +264,7 @@ export function startServers({ tabs, paint }) {
   });
 }
 
-// The tree's check, started once in the tree open: every file of the tree no tab holds is handed to
+// The tree's check, started once in the tree open: every file of the tree no tab holds is passed to
 // its language's server, as servers.rs checks the tree, and is checked again as it changes.
 export function checkTree() {
   if (!checked) {
@@ -292,8 +292,8 @@ export function forgetProblems() {
   checked = false;
 }
 
-// Hands a tab to its language's server where there is one. A file read a window at a time, or
-// as a commit left it, is not handed over.
+// Passes a tab to its language's server where there is one. A file read a window at a time, or
+// as a commit left it, is not passed over.
 export async function serve(tab) {
   const s = tab.session;
   if (!s || s.window || tab.commit || tab.served !== undefined) {
@@ -337,7 +337,7 @@ export async function serve(tab) {
   }
 }
 
-// Hands every open tab to its language's server again, the servers having ended, as they do with the
+// Passes every open tab to its language's server again, the servers having ended, as they do with the
 // link to the tree's machine.
 export function serveAgain() {
   for (const tab of tabsOf()) {
@@ -354,15 +354,15 @@ export function serveAgain() {
 // set again, as a plugin read again sets it, is given them again.
 // What the tree's declarations say of a word: each declaration of that name, its type and
 // where it is, as a hover's parts; none where the word is not declared in the tree.
-const TREE_HOVER_MOST = 6;
+const TREE_HOVER_MAX = 6;
 async function treeHover(word) {
   if (!word) {
     return [];
   }
   const found = await invoke("symbols_find", { query: word.text }).catch(() => null);
-  const same = (found?.symbols ?? []).filter((one) => one.name === word.text).slice(0, TREE_HOVER_MOST);
+  const same = (found?.symbols ?? []).filter((one) => one.name === word.text).slice(0, TREE_HOVER_MAX);
   // the declaration's own line first, as code, then what it is and where
-  return same.map((one) => `${one.text ? "```\n" + one.text + "\n```\n\n" : ""}${one.kind} \`${one.path}:${one.line + 1}\``);
+  return same.map((one) => `${one.text ? "```\n" + one.text + "\n```\n\n" : ""}${one.type} \`${one.path}:${one.line + 1}\``);
 }
 
 export function wrap(tab) {
@@ -403,7 +403,7 @@ export function wrap(tab) {
 }
 
 // Tells the server of a change to a served tab, or the inspections of one to an inspected tab, as
-// soon as the frame that draws it has been drawn, with no wait of the window's own: the letter shows
+// soon as the frame that draws it has been drawn, with no wait of the window's own: the character shows
 // first, and the server's marks follow as soon as it has them. Keys typed while a change is on its
 // way are told together once it has been taken.
 export function changed(tab) {
@@ -433,7 +433,7 @@ export function stopTelling(tab) {
 }
 
 // Tells the server of a change to a served tab now, where one is waiting for typing to rest, so
-// that what is asked next is asked of the text as it stands.
+// that what is asked next is asked of the text as it is.
 //
 // The server holds the text of the version it was last told, `toldDoc`; a tab whose version has
 // moved since is told its text, whether the edit has said it changed yet, and one whose version has
@@ -482,7 +482,7 @@ export function stopServing(tab) {
 // asked of that text in place of the tab's, and told the tab's own again after. A server still
 // reading a change, which answers that the content was modified or answers nothing, is asked again a
 // moment later, up to ASKS times for the one and a few for the other; where `named`, a name is known
-// to stand at the place, and an answer of nothing is asked again ASKS times too, as a server still
+// to be at the place, and an answer of nothing is asked again ASKS times too, as a server still
 // reading the tree gives.
 const ASKS = 20;
 export async function hoverAt(tab, p, text = null, named = false) {

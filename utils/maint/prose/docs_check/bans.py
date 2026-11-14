@@ -21,7 +21,7 @@ from .locale import LOCALE
 # LOCALE is spliced in and is the single copy of the British patterns. The order of the groups is
 # the order a hit is reported through: where two patterns overlap a site, whichever group BANNED
 # reaches first names it. Reordering these changes which pattern a finding is attributed to. GRAMMAR
-# comes last, and a site an older group already names keeps that name.
+# comes last, and a site an older group already names retains that name.
 BANNED = OUTRIGHT + WORDS + LOCALE + REGISTER + SHAPES + PROBE + DETECTED + GRAMMAR
 
 
@@ -79,7 +79,7 @@ WITHDRAWN = {
     "cost": "say the number and its units. The instruction is right and the ban is not: a cost "
     "is what a number measures.",
     "buy": 'the transaction metaphor. code-documentation:85 writes "buys nothing the reader '
-    'asked for" and code-comments:178 writes "The letter buys explicitness".',
+    'asked for" and code-comments:178 writes "The character buys explicitness".',
     "pay": "the same metaphor, one verb over, and the word has a plain use a bare ban cannot see.",
     "spend": 'the same again. code-documentation:84 writes "it spends a reader\'s trust".',
     "earn": 'the same again. code-documentation:114 writes "each one earned its place by '

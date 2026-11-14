@@ -7,10 +7,10 @@
 #   build/tessera_host/tessera_run --processors 1 --name voice_web -- \
 #       python utils/maint/prose/voice_web.py
 #
-# Reads the text voice_pdftotext.sh wrote to build/voice/text/ and the words voice_count.py kept in
+# Reads the text voice_pdftotext.sh wrote to build/voice/text/ and the words voice_count.py retained in
 # voice.tsv, and writes three tables to utils/maint/prose/. Each holds counts only.
 #
-#   voice_alphabet.tsv         every character the voice uses, with its count, most frequent first.
+#   voice_alphabet.tsv         every character the voice uses, with its count, commonest first.
 #                              The rank is the position the engine's web gives it.
 #   voice_character_web.tsv    which of the commonest 64 characters follows which, as counts. This
 #                              is measure/web.py's web() over the same text with the shares left
@@ -24,7 +24,7 @@
 #
 # A pair is never counted across something dropped. In the character web a character past rank 64
 # ends the run, as it does in web(). In the word web a word that voice_count.py pulled for review
-# ends it. Two words are also a pair only when nothing stands between them but spaces, commas,
+# ends it. Two words are also a pair only when nothing is between them but spaces, commas,
 # quotes, brackets and dashes. A period, a question mark, a colon, a semicolon, a digit or a symbol
 # from an equation ends the run, because the words on either side of one were not written as a pair.
 
@@ -44,15 +44,15 @@ ALPHABET = os.path.join(ROOT, "utils", "maint", "prose", "voice_alphabet.tsv")
 CHARACTER_WEB = os.path.join(ROOT, "utils", "maint", "prose", "voice_character_web.tsv")
 WORD_WEB = os.path.join(ROOT, "utils", "maint", "prose", "voice_word_web.tsv")
 
-# The commonest characters the web keeps, as deeper_web.py and the language examples read it.
+# The commonest characters the web retains, as deeper_web.py and the language examples read it.
 RANKS = 64
 
 SPACES = re.compile(r"\s+")
-# Between two words, the gap that keeps them a pair: spaces, commas, quotes, dashes and brackets.
+# Between two words, the gap that retains them a pair: spaces, commas, quotes, dashes and brackets.
 JOINING_GAP = re.compile(r"[\s,\"'()\[\]\-–]*")
 
 
-def shown(symbol):
+def displayed(symbol):
     """A character as a TSV cell: itself where it prints, its code point where it does not."""
     if symbol.isprintable() and not symbol.isspace():
         return symbol
@@ -68,14 +68,14 @@ def texts():
             yield SPACES.sub(" ", voice_count.normalized(handle.read()))
 
 
-def kept_words():
+def retained_words():
     with io.open(voice_count.OUT, encoding="utf-8") as handle:
         next(handle)
         return {line.split("\t", 1)[0] for line in handle}
 
 
 def main():
-    kept = kept_words()
+    retained = retained_words()
     characters = collections.Counter()
     bodies = []
     for body in texts():
@@ -98,7 +98,7 @@ def main():
         last_end = 0
         for match in voice_count.WORD.finditer(body):
             word = match.group(0).lower()
-            if word not in kept:
+            if word not in retained:
                 last = None
                 continue
             if (last is not None) and JOINING_GAP.fullmatch(body, last_end, match.start()):
@@ -109,11 +109,11 @@ def main():
     with io.open(ALPHABET, "w", encoding="utf-8", newline="\n") as handle:
         handle.write("rank\tsymbol\tcode\tcount\n")
         for place, symbol in enumerate(ordered):
-            handle.write("%d\t%s\tU+%04X\t%d\n" % (place, shown(symbol), ord(symbol), characters[symbol]))
+            handle.write("%d\t%s\tU+%04X\t%d\n" % (place, displayed(symbol), ord(symbol), characters[symbol]))
     with io.open(CHARACTER_WEB, "w", encoding="utf-8", newline="\n") as handle:
         handle.write("from_rank\tto_rank\tfrom\tto\tcount\n")
         for (first, second), count in sorted(character_pairs.items(), key=lambda item: (-item[1], item[0])):
-            handle.write("%d\t%d\t%s\t%s\t%d\n" % (first, second, shown(ordered[first]), shown(ordered[second]), count))
+            handle.write("%d\t%d\t%s\t%s\t%d\n" % (first, second, displayed(ordered[first]), displayed(ordered[second]), count))
     with io.open(WORD_WEB, "w", encoding="utf-8", newline="\n") as handle:
         handle.write("first\tsecond\tcount\n")
         for (first, second), count in sorted(word_pairs.items(), key=lambda item: (-item[1], item[0])):

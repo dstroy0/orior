@@ -3,7 +3,7 @@
 // query_interface_check.c: walks of queries put from inside the interface, checked against addresses whose answers are
 // known
 //
-//     query_interface_check <query_walk>, run inside a run whose records the walk hands its lines to
+//     query_interface_check <query_walk>, run inside a run whose records the walk passes its lines to
 //
 // Address 0 is mapped in no process: a read there ends the asker on every host, and the walk reads that ending as
 // the address's answer and goes on. On Windows the kernel maps a page at 0x7FFE0000 that every process reads and
@@ -52,7 +52,7 @@ int main(int count_of_words, char **words)
     for (unsigned int number = 0u; number < 3u; number += 1u)
     {
         const Query *const answer = &s_answers[number];
-        nothing_ended += ((answer->kind == QUERY_ENDED) && (answer->fault == INTERFACE_FAULT_ADDRESS)) ? 1u : 0u;
+        nothing_ended += ((answer->type == QUERY_ENDED) && (answer->fault == INTERFACE_FAULT_ADDRESS)) ? 1u : 0u;
     }
     check_that(nothing_ended == 3u, "a read at address 0 and the words after it ends the asker on an address fault");
 
@@ -68,7 +68,7 @@ int main(int count_of_words, char **words)
     unsigned int reads_answered = 0u;
     for (unsigned int number = 0u; number < 64u; number += 1u)
     {
-        reads_answered += (s_answers[number].kind != QUERY_ENDED) ? 1u : 0u;
+        reads_answered += (s_answers[number].type != QUERY_ENDED) ? 1u : 0u;
     }
     check_that((reads_children == 1ull) && (reads_answered == 64u), "the shared page answers 64 reads in one probe");
 
@@ -82,7 +82,7 @@ int main(int count_of_words, char **words)
     for (unsigned int number = 0u; number < 4u; number += 1u)
     {
         const Query *const answer = &s_answers[number];
-        puts_ended += ((answer->kind == QUERY_ENDED) && (answer->fault == INTERFACE_FAULT_ADDRESS)) ? 1u : 0u;
+        puts_ended += ((answer->type == QUERY_ENDED) && (answer->fault == INTERFACE_FAULT_ADDRESS)) ? 1u : 0u;
     }
     check_that((puts_children == 4ull) && (puts_ended == 4u), "a put on the shared page ends the asker at each word");
 

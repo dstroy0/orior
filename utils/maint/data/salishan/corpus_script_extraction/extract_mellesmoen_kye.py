@@ -219,7 +219,7 @@ LAYER = {
     UNCLASSIFIED: DERIVED,
 }
 
-# The kinds that are words of Lushootseed. Everything else in the record is an abstraction, a
+# The types that are words of Lushootseed. Everything else in the record is an abstraction, a
 # rejected hypothesis, a form of another language, or English.
 PURE = ("citation", "surface", "transcription")
 
@@ -247,7 +247,7 @@ TABLE_CAPTION = re.compile(r"^Table (A?\d+)[:.]")
 
 # How a table knows one of its rows has ended, which is not the same question in every table.
 #
-# Most rows are one line and hold one form. Counting forms works. Tables 8 and 9 put a note after
+# Max rows are one line and hold one form. Counting forms works. Tables 8 and 9 put a note after
 # the Southern form saying how its /a/ surfaces, and the note wraps across as many as three lines.
 # Those rows end when two forms have been seen outside the note. Table A2 is where counting
 # cannot work at all: its rows carry lab ‘see’, sbadil ‘mountain’, ti and ta, none of which
@@ -346,7 +346,7 @@ def table_rows(lines, at, columns, ending):
 
 
 def from_table(number, rows):
-    """One table's rows as items, each a locator, dialect, kind, form and gloss.
+    """One table's rows as items, each a locator, dialect, type, form and gloss.
 
     The forms are the last tokens of the row and the gloss is everything before them, the only
     reading that survives Table A2. Four of its Southern and Northern forms, lab, sbadil, ti and
@@ -400,8 +400,8 @@ def from_comparison(lines):
         found = FORM_GLOSS.search(trimmed)
         if not found:
             continue
-        letter = trimmed.split(".")[0].strip()
-        where = "(18%s)" % letter if (len(letter) == 1) else "(18)"
+        character = trimmed.split(".")[0].strip()
+        where = "(18%s)" % character if (len(character) == 1) else "(18)"
         tokens = trimmed[: found.start(2) - 1].split()
         forms = [one for one in tokens if language_token(one)]
         for dialect, form in zip((SOUTHERN, NORTHERN), forms[-2:]):
@@ -431,9 +431,9 @@ def from_tableau(number, dialect, title, lines):
             " ".join(trimmed.split()) if trimmed.startswith(" ") else trimmed
         )
         if seen:
-            kind = "winner" if seen.group(2) else "candidate"
+            type = "winner" if seen.group(2) else "candidate"
             held.append(
-                ("(%d%s)" % (number, seen.group(1)), dialect, kind, seen.group(3), "")
+                ("(%d%s)" % (number, seen.group(1)), dialect, type, seen.group(3), "")
             )
     return held
 
@@ -503,7 +503,7 @@ def is_morpheme(token):
     English compounds. Post -alveolar, non -moraic and left -aligned all arrive looking like
     bound morphemes. What separates them is length and case: the morphemes this paper cites bare are
     -il, -ac, -al, -d, -ši and dxʷ-, and an English word broken off a compound is longer than four
-    letters or carries a capital.
+    characters or carries a capital.
     """
     stem = token.strip("-=")
     if (token == stem) or (not stem) or (len(stem) > 4):
@@ -514,9 +514,9 @@ def is_morpheme(token):
 def is_form(token):
     """Whether a token cited in prose is a form of a language and not an English word.
 
-    Two tests, because two kinds of form are printed here. Most carry a character of the alphabet.
+    Two tests, because two types of form are printed here. Max carry a character of the alphabet.
     The bound morphemes do not: -ac ‘tree’, -yalus ‘edge’, -il, -d ‘TR’ and dxʷ- are written in
-    plain letters, and only the boundary mark on them says they are morphemes and not English.
+    plain characters, and only the boundary mark on them says they are morphemes and not English.
     """
     return bool(token) and (
         carries_language(token)
@@ -530,7 +530,7 @@ def from_prose(where, text, other="", fallback=""):
     A form with its gloss in quotes is the common case. A cognate is named by the language it is
     from, čəwaš ‘wife’ in Squamish, and so is a form printed with no gloss at all, ǰəšən in
     ʔayʔaǰuθəm. A dialect's own name for itself arrives parenthesized after the English name of it.
-    Anything else carrying the alphabet is kept as a mention, which holds it in the record without
+    Anything else carrying the alphabet is retained as a mention, which holds it in the record without
     claiming the paper presented it as a form.
 
     The dialect is taken from the passage where it names one, and otherwise from the section it
@@ -567,7 +567,7 @@ def from_prose(where, text, other="", fallback=""):
 
     for found in PARENTHESIZED.finditer(text):
         inside = found.group(1)
-        # A bibliographic parenthesis carries a year and names no form, and that keeps Bianco
+        # A bibliographic parenthesis carries a year and names no form, and that retains Bianco
         # and Kuipers out of a corpus of the language. A long parenthesis is a sentence. §6 has a
         # twelve-word aside that happens to mention ʔayʔaǰuθəm.
         if YEAR.search(inside) or (len(inside.split()) > 4):
@@ -630,7 +630,7 @@ def read_paper(lines):
     A single walk. Each structure is opened by something the paper prints for a reader to see: a
     table by its caption, a tableau by a title naming a dialect and a glossed word, one of Annie
     Jack's sentences by a numbered condition ending in a colon, a phonotactic bullet by its mark.
-    Anything else is prose, and prose is kept whole as well as mined for the forms it cites.
+    Anything else is prose, and prose is retained whole as well as mined for the forms it cites.
     """
     items = []
     essay = []
@@ -701,7 +701,7 @@ def read_paper(lines):
             )
             for one in range(at + 1, moved):
                 taken.add(one)
-                # The row's own line is kept beside the forms taken out of it. Table A2 prints two
+                # The row's own line is retained beside the forms taken out of it. Table A2 prints two
                 # Northern alternants for ‘year’ in one cell, dᶻəlč̓/ǰəlč̓, and the forms come out
                 # separately. Without the line as printed the cell reads as never extracted.
                 if " ".join(lines[one].split()):
@@ -812,7 +812,7 @@ def read_paper(lines):
         where = "References" if section.startswith("References") else section
         if paragraph and (paragraph[0][0] != where):
             flush()
-        # Prose is mined a paragraph at a time and kept a line at a time. The paper breaks a
+        # Prose is mined a paragraph at a time and retained a line at a time. The paper breaks a
         # citation across a line as readily as anything else: the root čə́bid ends one line and its
         # gloss ‘douglas fir’ opens the next, sčəbíd-ac is hyphenated across the break in both
         # Figure 7 captions, and Figure 5's caption names Southern on one line and Northern on the
@@ -844,14 +844,14 @@ def joined(paragraph):
     return where, out
 
 
-def marked(kind, dialect, text):
-    """One item written in the T and N convention, as language.layer.kind:{text}.
+def marked(type, dialect, text):
+    """One item written in the T and N convention, as language.layer.type:{text}.
 
     T is Lushootseed. A cognate from Squamish, Twana, Sechelt or ʔayʔaǰuθəm is language and is not
-    this language. It is N, and that keeps čalaš out of a Lushootseed corpus.
+    this language. It is N, and that retains čalaš out of a Lushootseed corpus.
     """
     mark = "T" if (dialect in (SOUTHERN, NORTHERN)) else "N"
-    return "%s.%s.%s:{%s}" % (mark, LAYER.get(kind, DERIVED), kind, text)
+    return "%s.%s.%s:{%s}" % (mark, LAYER.get(type, DERIVED), type, text)
 
 
 def switches_in(text):
@@ -875,10 +875,10 @@ def main():
     items, essay = read_paper(lines)
 
     rows = []
-    for number, (where, dialect, kind, form, gloss) in enumerate(items, 1):
-        rows.append((number, where, dialect, kind, form, gloss))
-    for at, where, kind, text in essay:
-        rows.append((0, where, "", kind, text, ""))
+    for number, (where, dialect, type, form, gloss) in enumerate(items, 1):
+        rows.append((number, where, dialect, type, form, gloss))
+    for at, where, type, text in essay:
+        rows.append((0, where, "", type, text, ""))
 
     missed = unreached(lines, covered_tokens(one[4] for one in rows))
     for page, where, reason, missing, text in missed:
@@ -896,14 +896,14 @@ def main():
             "# Recordings of Martha Lamont, Northern, and Annie Jack, Southern, made by\n"
         )
         handle.write(
-            "# Leon Metcalf in the 1950s and kept by the Burke Museum, with forms also\n"
+            "# Leon Metcalf in the 1950s and retained by the Burke Museum, with forms also\n"
         )
         handle.write(
             "# from Bates, Hess and Hilbert 1994, Hess 1977 and Bianco 1995.\n"
         )
         handle.write("#\n")
         handle.write(
-            "# Mark is language.layer.kind. T is Lushootseed, N is anything else, and a\n"
+            "# Mark is language.layer.type. T is Lushootseed, N is anything else, and a\n"
         )
         handle.write(
             "# cognate cited from Squamish, Twana, Sechelt or ʔayʔaǰuθəm is N.\n"
@@ -938,21 +938,21 @@ def main():
         handle.write(
             "# print the same gloss twice with a different form under each dialect.\n"
         )
-        handle.write("line\twhere\tdialect\tkind\tswitches\tcontent\n")
-        for number, where, dialect, kind, text, gloss in rows:
-            content = marked(kind, dialect, text)
+        handle.write("line\twhere\tdialect\ttype\tswitches\tcontent\n")
+        for number, where, dialect, type, text, gloss in rows:
+            content = marked(type, dialect, text)
             handle.write(
                 "line#${%d}\t%s\t%s\t%s\t%d\t%s\n"
-                % (number, where, dialect, kind, switches_in(text), content)
+                % (number, where, dialect, type, switches_in(text), content)
             )
 
     pure = TARGET[:-4] + ".pure.txt"
     by_dialect = {SOUTHERN: [], NORTHERN: []}
-    kept = 0
+    retained = 0
     already = set()
     with open(pure, "w", encoding="utf-8", newline="") as handle:
-        for number, where, dialect, kind, text, gloss in rows:
-            if (kind not in PURE) or (dialect not in by_dialect):
+        for number, where, dialect, type, text, gloss in rows:
+            if (type not in PURE) or (dialect not in by_dialect):
                 continue
             key = " ".join(text.split())
             # A bound morpheme is a citation and is not a word. -ac ‘tree’, -yalus ‘edge’, -il and
@@ -965,7 +965,7 @@ def main():
             already.add(key)
             by_dialect[dialect].append(key)
             handle.write("%s\n" % key)
-            kept += 1
+            retained += 1
 
     for dialect, held in by_dialect.items():
         with open(
@@ -994,11 +994,11 @@ def main():
     stuck_count = write_unsorted(stuck, "Mellesmoen and Kye, ICSNL 61", flagged)
 
     counted = {}
-    for number, where, dialect, kind, text, gloss in rows:
-        counted[kind] = counted.get(kind, 0) + 1
+    for number, where, dialect, type, text, gloss in rows:
+        counted[type] = counted.get(type, 0) + 1
     out.write("  %d lines written to\n  %s\n" % (len(rows), os.path.basename(TARGET)))
     out.write(
-        "  %d target-language forms written to\n  %s\n" % (kept, os.path.basename(pure))
+        "  %d target-language forms written to\n  %s\n" % (retained, os.path.basename(pure))
     )
     out.write(
         "    %d Southern, %d Northern\n"
@@ -1009,7 +1009,7 @@ def main():
         % (stuck_count, os.path.basename(stuck))
     )
     out.write(
-        "\n  by kind: %s\n"
+        "\n  by type: %s\n"
         % ", ".join("%s %d" % (one, counted[one]) for one in sorted(counted))
     )
     out.flush()

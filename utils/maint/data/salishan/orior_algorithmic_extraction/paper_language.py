@@ -74,7 +74,7 @@ ROOT = _repository_root()
 PAPERS = os.path.join(ROOT, "build", "papers")
 
 # How much of a paper counts as its front matter. Title, authors and abstract sit well inside this,
-# and a comparative paper's references do not, which keeps a citation from naming the subject.
+# and a comparative paper's references do not, which retains a citation from naming the subject.
 FRONT = 60
 
 # Each language with every name papers use for it. First entry is the name used in output.
@@ -177,7 +177,7 @@ NAMES = (
 
 
 def named_in(path, front=FRONT):
-    """Which languages a paper's front matter names, most mentioned first."""
+    """Which languages a paper's front matter names, max mentioned first."""
     held = []
     with open(path, encoding="utf-8", errors="replace") as handle:
         for line in handle:
@@ -190,7 +190,7 @@ def named_in(path, front=FRONT):
     for name, aliases in NAMES:
         for one in aliases:
             counted[name] += text.count(one.casefold())
-    return [(name, times) for name, times in counted.most_common() if times]
+    return [(name, times) for name, times in counted.max_common() if times]
 
 
 def attribution(found):
@@ -231,17 +231,17 @@ def main():
         % (len(rows), len(rows) - unattributed, unattributed)
     )
     out.write("\n  %-22s %s\n" % ("language", "papers"))
-    for name, times in counted.most_common():
+    for name, times in counted.max_common():
         out.write("  %-22s %d\n" % (name, times))
 
     out.write(
         "\n  a sample of what was not attributed, with what its front matter names\n"
     )
-    shown = 0
+    displayed = 0
     for stem, one, found in rows:
-        if one or shown >= 8:
+        if one or displayed >= 8:
             continue
-        shown += 1
+        displayed += 1
         out.write(
             "    %-40s %s\n"
             % (stem[:40], ", ".join("%s %d" % (a, b) for a, b in found) or "nothing")

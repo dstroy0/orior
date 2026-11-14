@@ -79,7 +79,7 @@ EMBED_INLINE void cli_sha256_block(const DigestCtx *args)
         const unsigned int sum_a = EMBED_CALL(cli_right, DigestCtx, .word_text = a, .count = 2u) ^
                                    EMBED_CALL(cli_right, DigestCtx, .word_text = a, .count = 13u) ^
                                    EMBED_CALL(cli_right, DigestCtx, .word_text = a, .count = 22u);
-        const unsigned int most = (a & b) ^ (a & c) ^ (b & c);
+        const unsigned int max = (a & b) ^ (a & c) ^ (b & c);
         h = g;
         g = f;
         f = e;
@@ -87,7 +87,7 @@ EMBED_INLINE void cli_sha256_block(const DigestCtx *args)
         d = c;
         c = b;
         b = a;
-        a = first + sum_a + most;
+        a = first + sum_a + max;
     }
     args->state[0] += a;
     args->state[1] += b;

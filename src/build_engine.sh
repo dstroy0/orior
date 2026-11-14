@@ -102,7 +102,7 @@ for module in "${MODULES[@]}"; do
         [ -f "$source" ] && MODULE_SOURCES+=("$source")
     done
 done
-# Each source compiles to an object of its own, kept between builds in a folder named for the flags it is built with,
+# Each source compiles to an object of its own, retained between builds in a folder named for the flags it is built with,
 # and compiles again only where its object is missing, or its source or a header of the engine's is newer. As many
 # compile at once as the host has processors, ENGINE_JOBS where it is set, and the library is linked once from the
 # objects.
@@ -130,7 +130,7 @@ stale() {
 }
 
 # the source `$2` compiled to the object `$1` by the words after them: written beside it and put in its place once it
-# is whole, and where it does not compile, listed in FAILED with the compiler's words kept beside the object
+# is whole, and where it does not compile, listed in FAILED with the compiler's words retained beside the object
 compiled() {
     local object="$1" source="$2" part="${1%.*}.part.$SUFFIX"
     shift 2
@@ -166,7 +166,7 @@ CU_WORDS=(nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 -fmad=false "${GENCODE[@]}" "${
 OBJECTS=()
 COMPILED=0
 BEGAN=$(date +%s)
-# each source with the words it compiles by, its object named by its path under src, every object kept for the link
+# each source with the words it compiles by, its object named by its path under src, every object retained for the link
 # and the stale ones compiled
 listed() {
     local source="$1" relative="${1#"$TOP/src/"}" object

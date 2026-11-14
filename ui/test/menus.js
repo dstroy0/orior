@@ -16,7 +16,7 @@ import { noticesWaiting, noticesSaid } from "../gui/src-js/statusbar.js";
 import { zoom } from "../gui/src-js/zoom.js";
 import { closePeek } from "../gui/src-js/peek.js";
 import { closeBoard } from "../gui/src-js/gather.js";
-import { panesNow, putPanes, showGroup, shownGroup } from "../gui/src-js/explorer.js";
+import { panesNow, putPanes, showGroup, displayedGroup } from "../gui/src-js/explorer.js";
 import { debugging, toggleDebugPanel } from "../gui/src-js/debug.js";
 
 const { assert, ui } = window.__harness;
@@ -25,7 +25,7 @@ const { assert, ui } = window.__harness;
 export const STORED = Object.entries(localStorage);
 
 // The explorer's group and panes as the file found them, put back by its last test.
-export const FOUND = { group: shownGroup(), panes: panesNow() };
+export const FOUND = { group: displayedGroup(), panes: panesNow() };
 
 export const wait = (ms) => new Promise((done) => setTimeout(done, ms));
 
@@ -284,9 +284,9 @@ export async function served() {
 
 ["create-file", "create-folder", "create-repository", "create-project", "open-file", "open-folder", "open-repository", "open-workspace", "open-remote", "add-folder", "add-file", "new-window", "open-folder-window"].forEach((command) => COVERED.add(command));
 
-["dev-container", "clone", "keep-template", "trust-tree", "save", "save-all", "print", "close-editor", "close-all", "preferences", "user-css", "reader-menus", "plugins", "new-plugin", "reload-plugins", "environment", "maven-settings", "toolchains", "exit"].forEach((command) => COVERED.add(command));
+["dev-container", "clone", "retain-template", "trust-tree", "save", "save-all", "print", "close-editor", "close-all", "preferences", "user-css", "reader-menus", "plugins", "new-plugin", "reload-plugins", "environment", "maven-settings", "toolchains", "exit"].forEach((command) => COVERED.add(command));
 
-["undo-history", "cut", "copy", "paste", "compare-clipboard", "macro-record", "macro-play", "macro-keep", "search", "shape-search", "format", "docstring", "docstring-form", "sort-methods", "fill-paragraph", "continuation", "doc-margin"].forEach((command) => COVERED.add(command));
+["undo-history", "cut", "copy", "paste", "compare-clipboard", "macro-record", "macro-play", "macro-retain", "search", "shape-search", "format", "docstring", "docstring-form", "sort-methods", "fill-paragraph", "continuation", "doc-margin"].forEach((command) => COVERED.add(command));
 
 ["rename", "extract-variable", "extract-constant", "extract-function", "inline-variable", "change-signature", "move-declaration", "quick-fix", "parameter-info", "quick-doc"].forEach((command) => COVERED.add(command));
 
@@ -333,7 +333,7 @@ export async function endSessions() {
 
 // What the tests above made in the tree, each taken out by the last test.
 export const MADE = [
-  GIVEN, "peek.c", "served.c", "src/sliced_*", "src/renamed_*", "src/checked_*", "src/kept_*", "src/hello*.py", "src/made_cut.txt", "made_cut.txt", "notebook_cells.py", "notebook_*.ipynb", "compared_*.txt", "history_file.txt", "vars.py", "grouped_*.txt", "debugged.py", "looped.py", "listened.py", "mem.*", "profiled.py", "profiled_calls.py", "test_menus.py", "asked.http", "http-client.private.env.json", ".gitignore", ".orior/settings.json",
+  GIVEN, "peek.c", "served.c", "src/sliced_*", "src/renamed_*", "src/checked_*", "src/retained_*", "src/hello*.py", "src/made_cut.txt", "made_cut.txt", "notebook_cells.py", "notebook_*.ipynb", "compared_*.txt", "history_file.txt", "vars.py", "grouped_*.txt", "debugged.py", "looped.py", "listened.py", "mem.*", "profiled.py", "profiled_calls.py", "test_menus.py", "asked.http", "http-client.private.env.json", ".gitignore", ".orior/settings.json",
   "made_by_command.txt", "made_by_command", "made.code-workspace", "marked_*.txt", "src/build_quick.sh", "src/build_slow.sh", "__pycache__", ".pytest_cache", "build",
 ];
 
@@ -352,7 +352,7 @@ export function asFound() {
   putPanes(FOUND.panes);
 }
 
-// Every item of a menu shown, its own items' items among them: each with the command it runs.
+// Every item of a menu displayed, its own items' items among them: each with the command it runs.
 export const itemsOfMenu = () => [...document.querySelectorAll("body > .menu .menu-item")].map((button) => button.item).filter(Boolean);
 
 export const itemsUnder = (items) => items.flatMap((item) => (item === "-" ? [] : item.items ? itemsUnder(typeof item.items === "function" ? [] : item.items) : [item]));
@@ -392,11 +392,11 @@ export const tabOfName = (path) => [...document.querySelectorAll("#tabs .tab")].
 
 ["terminal-copy", "terminal-paste", "terminal-close", "status-show", "status-move", "status-reset"].forEach((command) => COVERED.add(command));
 
-["containers-kind", "containers-read", "container-logs", "container-run", "container-terminal", "container-open", "container-start", "container-stop", "container-restart"].forEach((command) => COVERED.add(command));
+["containers-type", "containers-read", "container-logs", "container-run", "container-terminal", "container-open", "container-start", "container-stop", "container-restart"].forEach((command) => COVERED.add(command));
 
 ["db-first-rows", "db-copy-name", "db-read-again", "remote-rejoin", "remote-copy-address"].forEach((command) => COVERED.add(command));
 
-["breakpoint-edit", "breakpoint-message", "breakpoint-remove", "debug-exception", "frame-code", "variable-keep", "variable-compare", "variable-watch", "variable-memory", "variable-history"].forEach((command) => COVERED.add(command));
+["breakpoint-edit", "breakpoint-message", "breakpoint-remove", "debug-exception", "frame-code", "variable-retain", "variable-compare", "variable-watch", "variable-memory", "variable-history"].forEach((command) => COVERED.add(command));
 
 export const VARS = "vars.py";
 
@@ -410,7 +410,7 @@ export const VARS = "vars.py";
 
 ["theme-choose", "theme-new", "theme-delete", "theme-rename", "theme-export", "theme-import", "theme-color", "theme-image", "theme-image-share", "theme-image-remove", "theme-icon", "theme-icon-remove"].forEach((command) => COVERED.add(command));
 
-["keys-from", "keys-letter", "key-set", "key-off", "key-reset", "notice-show-again", "settings-own", "settings-tree", "carry-place", "carry-send", "carry-take", "carry-undo"].forEach((command) => COVERED.add(command));
+["keys-from", "keys-character", "key-set", "key-off", "key-reset", "notice-show-again", "settings-own", "settings-tree", "carry-place", "carry-send", "carry-take", "carry-undo"].forEach((command) => COVERED.add(command));
 
 export const prefsField = (label) => document.querySelector(`dialog[open] .sheet-prefs [aria-label="${label}"]`);
 
@@ -425,7 +425,7 @@ export async function putBackAsFound() {
     await invoke("tree_unmount", { name: mounted.name }).catch(() => {});
   }
   asFound();
-  // Key by key, as tabvla keeps each change in its own folder through the page's own setItem and
+  // Key by key, as tabvla retains each change in its own folder through the page's own setItem and
   // removeItem.
   const stored = new Map(STORED);
   for (const key of Object.keys(localStorage).filter((one) => !stored.has(one))) {
@@ -435,6 +435,6 @@ export async function putBackAsFound() {
     localStorage.setItem(key, value);
   }
   assert.deepEqual(Object.entries(localStorage).sort(), [...STORED].sort());
-  // tabvla keeps the settings in its own folder once they rest, which the next page reads.
+  // tabvla retains the settings in its own folder once they rest, which the next page reads.
   await ui.rest(1500);
 }

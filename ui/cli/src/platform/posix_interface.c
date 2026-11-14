@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// posix_ipc.c: the door on Linux and macOS: a socket in a folder only the reader can open, the process at the other
+// posix_ipc.c: the interface on Linux and macOS: a socket in a folder only the reader can open, the process at the other
 // end of each connection as the system reports it, and each descriptor that comes with the bytes read queued for the
 // frame that names it
 #if !defined(_WIN32)
@@ -12,7 +12,7 @@
 #define _DARWIN_C_SOURCE
 #endif
 #endif
-#include "../comms/door_internal.h"
+#include "../comms/interface_internal.h"
 
 #if !defined(_WIN32)
 #include <errno.h>
@@ -33,10 +33,10 @@ typedef struct
     int fd;
     unsigned int *peer;
 #endif
-} PosixDoorCtx;
+} PosixInterfaceCtx;
 
 // what the system reported of the last call that failed, after `what`
-EMBED_INLINE void ipc_fail(const PosixDoorCtx *args)
+EMBED_INLINE void ipc_fail(const PosixInterfaceCtx *args)
 {
     const int error = errno;
     mmgr_line_put(args->err_msg, args->what);
@@ -45,7 +45,7 @@ EMBED_INLINE void ipc_fail(const PosixDoorCtx *args)
 }
 
 // the socket address of the path `path` into `address`: 1, or 0 where the path is longer than a socket's name fits
-EMBED_INLINE int ipc_address(const PosixDoorCtx *args)
+EMBED_INLINE int ipc_address(const PosixInterfaceCtx *args)
 {
     memor.set(&(MemoriaCfg){.dst = args->address, .val = 0, .bytes = sizeof(*args->address)});
     args->address->sun_family = AF_UNIX;
@@ -60,7 +60,7 @@ EMBED_INLINE int ipc_address(const PosixDoorCtx *args)
 }
 
 // an end made of the socket `fd`, marked to close as a program starts
-EMBED_INLINE void ipc_end_init(const PosixDoorCtx *args)
+EMBED_INLINE void ipc_end_init(const PosixInterfaceCtx *args)
 {
     (void)fcntl(args->fd, F_SETFD, FD_CLOEXEC);
 #if defined(__APPLE__)
@@ -98,12 +98,12 @@ int cli_ipc_listening(const CliIpcListenerAddressCtx *args)
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = temporary, .relative = name, .joined = folder);
     if (mkdir(folder, 0700) != 0)
     {
-        EMBED_CALL(ipc_fail, PosixDoorCtx, .err_msg = args->err_msg, .what = folder);
+        EMBED_CALL(ipc_fail, PosixInterfaceCtx, .err_msg = args->err_msg, .what = folder);
         return 0;
     }
-    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "door", .joined = args->address);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "interface", .joined = args->address);
     struct sockaddr_un bound;
-    if (!EMBED_CALL(ipc_address, PosixDoorCtx, .path = args->address, .address = &bound))
+    if (!EMBED_CALL(ipc_address, PosixInterfaceCtx, .path = args->address, .address = &bound))
     {
         mmgr_line_put(args->err_msg, args->address);
         mmgr_line_put(args->err_msg, ": the path is longer than a socket's name fits");
@@ -112,13 +112,13 @@ int cli_ipc_listening(const CliIpcListenerAddressCtx *args)
     const int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0)
     {
-        EMBED_CALL(ipc_fail, PosixDoorCtx, .err_msg = args->err_msg, .what = args->address);
+        EMBED_CALL(ipc_fail, PosixInterfaceCtx, .err_msg = args->err_msg, .what = args->address);
         return 0;
     }
     (void)fcntl(fd, F_SETFD, FD_CLOEXEC);
     if ((bind(fd, (const struct sockaddr *)&bound, sizeof(bound)) != 0) || (listen(fd, 128) != 0))
     {
-        EMBED_CALL(ipc_fail, PosixDoorCtx, .err_msg = args->err_msg, .what = args->address);
+        EMBED_CALL(ipc_fail, PosixInterfaceCtx, .err_msg = args->err_msg, .what = args->address);
         close(fd);
         return 0;
     }
@@ -128,7 +128,7 @@ int cli_ipc_listening(const CliIpcListenerAddressCtx *args)
 }
 
 // the process at the other end of the socket `fd`, as the system reports: 1 with it into `peer`, or 0 where it does not
-EMBED_INLINE int ipc_peer(const PosixDoorCtx *args)
+EMBED_INLINE int ipc_peer(const PosixInterfaceCtx *args)
 {
     unsigned int *peer = args->peer;
 #if defined(__linux__)
@@ -162,18 +162,18 @@ int cli_ipc_accept(const CliIpcListenerCtx *args)
     } while ((fd < 0) && (errno == EINTR));
     if (fd < 0)
     {
-        EMBED_CALL(ipc_fail, PosixDoorCtx, .err_msg = args->err_msg, .what = "no process joined");
+        EMBED_CALL(ipc_fail, PosixInterfaceCtx, .err_msg = args->err_msg, .what = "no process joined");
         return 0;
     }
-    EMBED_CALL(ipc_end_init, PosixDoorCtx, .end = args->end, .fd = fd);
-    *has_peer = EMBED_CALL(ipc_peer, PosixDoorCtx, .fd = fd, .peer = args->peer);
+    EMBED_CALL(ipc_end_init, PosixInterfaceCtx, .end = args->end, .fd = fd);
+    *has_peer = EMBED_CALL(ipc_peer, PosixInterfaceCtx, .fd = fd, .peer = args->peer);
     return 1;
 }
 
 int cli_ipc_connect(const CliIpcCtx *args)
 {
     struct sockaddr_un joined;
-    if (!EMBED_CALL(ipc_address, PosixDoorCtx, .path = args->address_read, .address = &joined))
+    if (!EMBED_CALL(ipc_address, PosixInterfaceCtx, .path = args->address_read, .address = &joined))
     {
         mmgr_line_put(args->err_msg, args->address_read);
         mmgr_line_put(args->err_msg, ": the path is longer than a socket's name fits");
@@ -182,16 +182,16 @@ int cli_ipc_connect(const CliIpcCtx *args)
     const int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0)
     {
-        EMBED_CALL(ipc_fail, PosixDoorCtx, .err_msg = args->err_msg, .what = args->address_read);
+        EMBED_CALL(ipc_fail, PosixInterfaceCtx, .err_msg = args->err_msg, .what = args->address_read);
         return 0;
     }
     if (connect(fd, (const struct sockaddr *)&joined, sizeof(joined)) != 0)
     {
-        EMBED_CALL(ipc_fail, PosixDoorCtx, .err_msg = args->err_msg, .what = args->address_read);
+        EMBED_CALL(ipc_fail, PosixInterfaceCtx, .err_msg = args->err_msg, .what = args->address_read);
         close(fd);
         return 0;
     }
-    EMBED_CALL(ipc_end_init, PosixDoorCtx, .end = args->end, .fd = fd);
+    EMBED_CALL(ipc_end_init, PosixInterfaceCtx, .end = args->end, .fd = fd);
     return 1;
 }
 

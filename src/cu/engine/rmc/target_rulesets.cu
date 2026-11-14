@@ -22,7 +22,7 @@ static int ruleset_read(Ruleset *rules, const std::string &path)
     RulesetCoreRead read{};
     read.schema = flat.schema;
     read.text = (const unsigned char *)ruleset_text.data();
-    // ruleset_file contains a ruleset below RULESET_FILE_MAX letters
+    // ruleset_file contains a ruleset below RULESET_FILE_MAX characters
     read.text_length = (unsigned int)ruleset_text.size();
     ruleset_capacities(read.text_length, &read);
     RulesetMemory memory;
@@ -37,9 +37,9 @@ static std::vector<std::string> ruleset_words(const std::string &line)
 {
     std::vector<std::string> words;
     std::string word;
-    for (const char letter : line + " ")
+    for (const char character : line + " ")
     {
-        if ((letter == ' ') || (letter == '\t') || (letter == '\r') || (letter == '\n'))
+        if ((character == ' ') || (character == '\t') || (character == '\r') || (character == '\n'))
         {
             if (!word.empty())
             {
@@ -48,7 +48,7 @@ static std::vector<std::string> ruleset_words(const std::string &line)
             word.clear();
             continue;
         }
-        word += letter;
+        word += character;
     }
     return words;
 }
@@ -101,15 +101,15 @@ void ruleset_folds_read(Ruleset *rules)
         line_at = line_end + 1u;
         const std::string fold = ruleset_words(text).empty() ? std::string() : text;
         const size_t colon = fold.find(system);
-        const size_t kind_end = fold.find(put, colon + system.size());
+        const size_t type_end = fold.find(put, colon + system.size());
         if ((fold.compare(0u, folds.size(), folds) != 0) || (colon == std::string::npos) ||
-            (kind_end == std::string::npos))
+            (type_end == std::string::npos))
         {
             continue;
         }
         const std::vector<std::string> head = ruleset_words(fold.substr(0u, colon));
-        const std::string kind = fold.substr(colon + system.size(), kind_end - colon - system.size());
-        const std::vector<std::string> role = ruleset_words(fold.substr(kind_end + put.size()));
+        const std::string type = fold.substr(colon + system.size(), type_end - colon - system.size());
+        const std::vector<std::string> role = ruleset_words(fold.substr(type_end + put.size()));
         const RulesetSchema *const schema = rules->schema;
         const unsigned int form = (head.size() == 4u) ? ruleset_find(schema->forms, schema->form_count, head[3])
                                                        : schema->form_count;
@@ -122,7 +122,7 @@ void ruleset_folds_read(Ruleset *rules)
         {
             if (names[at] == role[0])
             {
-                rules->folds.push_back(RulesetFold{form, kind, at});
+                rules->folds.push_back(RulesetFold{form, type, at});
             }
         }
     }
@@ -255,11 +255,11 @@ static void ruleset_opcode_text(const Ruleset *rules, std::string &text, unsigne
         for (const PseudoOperand &given : line.arguments)
         {
             size_t found = scratch_taken.size();
-            for (size_t at = 0u; (given.kind == PSEUDO_SCRATCH) && (at < scratch_taken.size()); at += 1u)
+            for (size_t at = 0u; (given.type == PSEUDO_SCRATCH) && (at < scratch_taken.size()); at += 1u)
             {
                 found = ((scratch_bank[at] == given.placeholder) && (scratch_number[at] == given.number)) ? at : found;
             }
-            if ((given.kind == PSEUDO_SCRATCH) && (found == scratch_taken.size()))
+            if ((given.type == PSEUDO_SCRATCH) && (found == scratch_taken.size()))
             {
                 const std::string taken = scratch(given.placeholder);
                 *broken = *broken || taken.empty();
@@ -267,8 +267,8 @@ static void ruleset_opcode_text(const Ruleset *rules, std::string &text, unsigne
                 scratch_number.push_back(given.number);
                 scratch_taken.push_back(taken);
             }
-            arguments.push_back((given.kind == PSEUDO_TEXT)        ? given.text
-                                : (given.kind == PSEUDO_PARAMETER) ? argument[given.placeholder]
+            arguments.push_back((given.type == PSEUDO_TEXT)        ? given.text
+                                : (given.type == PSEUDO_PARAMETER) ? argument[given.placeholder]
                                                                    : scratch_taken[found]);
         }
         ruleset_opcode_text(rules, text, line.form, arguments.data(), scratch, broken);
@@ -315,7 +315,7 @@ void ruleset_write_list(const Ruleset *rules, std::string &text, unsigned int na
 
 void ruleset_scratch(const Ruleset *rules, const unsigned int *banks, std::vector<unsigned int> *scratch)
 {
-    // laid out by the core (ruleset_core_scratch.h) the device runs as well
+    // arranged by the core (ruleset_core_scratch.h) the device runs as well
     const unsigned int forms = rules->schema->form_count;
     RulesetFlatConstructs flat;
     ruleset_flat_constructs(rules, &flat);
@@ -324,22 +324,22 @@ void ruleset_scratch(const Ruleset *rules, const unsigned int *banks, std::vecto
     std::vector<unsigned int> taken_bank(flat.arguments.size(), 0u);
     std::vector<unsigned int> taken_number(flat.arguments.size(), 0u);
     scratch->assign((4u * (size_t)forms) + 1u, 0u);
-    RulesetCoreScratch laid_out{};
-    laid_out.constructs = flat.constructs.data();
-    laid_out.lines = flat.lines.data();
-    laid_out.arguments = flat.arguments.data();
-    laid_out.form_placeholder_first = flat.form_placeholder_first.data();
-    laid_out.form_placeholders = flat.form_placeholders.data();
-    laid_out.form_count = forms;
-    laid_out.banks[0] = banks[0];
-    laid_out.banks[1] = banks[1];
-    laid_out.banks[2] = banks[2];
-    laid_out.scratch = scratch->data();
-    laid_out.counted = counted.data();
-    laid_out.frames = frames.data();
-    laid_out.taken_bank = taken_bank.data();
-    laid_out.taken_number = taken_number.data();
-    ruleset_core_scratch(&laid_out);
+    RulesetCoreScratch arranged{};
+    arranged.constructs = flat.constructs.data();
+    arranged.lines = flat.lines.data();
+    arranged.arguments = flat.arguments.data();
+    arranged.form_placeholder_first = flat.form_placeholder_first.data();
+    arranged.form_placeholders = flat.form_placeholders.data();
+    arranged.form_count = forms;
+    arranged.banks[0] = banks[0];
+    arranged.banks[1] = banks[1];
+    arranged.banks[2] = banks[2];
+    arranged.scratch = scratch->data();
+    arranged.counted = counted.data();
+    arranged.frames = frames.data();
+    arranged.taken_bank = taken_bank.data();
+    arranged.taken_number = taken_number.data();
+    ruleset_core_scratch(&arranged);
     scratch->resize(4u * (size_t)forms);
 }
 

@@ -27,20 +27,20 @@ test("a peek shows a place over the editor under the cursor's line, and no tab o
   editing().editor.goTo(1, 6);
   peekPlaces("Definition of helper", [{ path: "peek_lib.py", line: 40, col: 4, text: "def helper():" }]);
   await ui.waitFor(() => peekShown()?.editor?.s?.doc.line(40) === "def helper():", 3000);
-  const shown = peekShown();
+  const displayed = peekShown();
   assert.equal(tabs().length, before, "no tab opened");
-  assert.equal(shown.editor.head().line, 40);
-  assert.equal(shown.editor.s.readOnly, true, "a file no tab holds shows as it was read");
+  assert.equal(displayed.editor.head().line, 40);
+  assert.equal(displayed.editor.s.readOnly, true, "a file no tab holds shows as it was read");
   const line = editing().editor.rectOf({ line: 1, col: 0 });
-  assert.ok(Math.abs(shown.panel.getBoundingClientRect().top - line.bottom) < 2, "under the cursor's line");
-  assert.match(shown.panel.querySelector(".code-peek-where").textContent, /^peek_lib\.py:41$/);
-  const corners = getComputedStyle(shown.panel.querySelector(".code-peek-editor"), "::after").backgroundPosition;
+  assert.ok(Math.abs(displayed.panel.getBoundingClientRect().top - line.bottom) < 2, "under the cursor's line");
+  assert.match(displayed.panel.querySelector(".code-peek-where").textContent, /^peek_lib\.py:41$/);
+  const corners = getComputedStyle(displayed.panel.querySelector(".code-peek-editor"), "::after").backgroundPosition;
   assert.match(corners, /calc\(100% \+ 8px\) 0%/,`the peek's editor, which holds no minimap, draws no corners of one: ${corners}`);
   await ui.key("Escape");
   assert.equal(peekShown(), null, "Escape closes it");
 });
 
-test("several places stand in a list the arrows go through, and a file a tab holds shows live and takes edits", async () => {
+test("several places are in a list the arrows go through, and a file a tab holds shows live and takes edits", async () => {
   await openFile("peek_lib.py");
   await openFile("peek_main.py");
   await ui.waitFor(() => editing().active === "peek_main.py", 5000);
@@ -49,12 +49,12 @@ test("several places stand in a list the arrows go through, and a file a tab hol
     { path: "peek_main.py", line: 1, col: 4, text: "    helper()" },
     { path: "peek_lib.py", line: 40, col: 4, text: "def helper():" },
   ]);
-  await ui.waitFor(() => peekShown()?.shown === 0 && peekShown().editor.s?.doc.line(1) === "    helper()", 3000);
+  await ui.waitFor(() => peekShown()?.displayed === 0 && peekShown().editor.s?.doc.line(1) === "    helper()", 3000);
   const rows = peekShown().panel.querySelectorAll(".code-peek-place");
   assert.equal(rows.length, 2);
   assert.equal(document.activeElement, rows[0], "the first place has the keys");
   await ui.key("Down");
-  await ui.waitFor(() => peekShown().shown === 1 && peekShown().editor.head().line === 40, 3000);
+  await ui.waitFor(() => peekShown().displayed === 1 && peekShown().editor.head().line === 40, 3000);
   assert.equal(document.activeElement, rows[1]);
   const view = peekShown().editor;
   assert.equal(view.s.readOnly, false, "the tab's own text");
@@ -67,7 +67,7 @@ test("several places stand in a list the arrows go through, and a file a tab hol
   closePeek();
 });
 
-test("Open takes the place to a preview tab, the next preview takes its place, and an edit keeps it", async () => {
+test("Open takes the place to a preview tab, the next preview takes its place, and an edit retains it", async () => {
   await invoke("file_write", { path: "peek_a.py", text: "a = 1\n" });
   await invoke("file_write", { path: "peek_b.py", text: "b = 2\n" });
   peekPlaces("Usages of a", [{ path: "peek_a.py", line: 0, col: 0, text: "a = 1" }]);
@@ -87,7 +87,7 @@ test("Open takes the place to a preview tab, the next preview takes its place, a
   await ui.waitFor(() => !tabNamed("peek_b.py").classList.contains("preview"), 2000);
   await openFile("peek_a.py", { preview: true });
   await ui.waitFor(() => tabNamed("peek_a.py")?.classList.contains("preview"), 2000);
-  assert.ok(tabNamed("peek_b.py"), "an edited tab is kept when the next preview opens");
+  assert.ok(tabNamed("peek_b.py"), "an edited tab is retained when the next preview opens");
   await ui.double(tabNamed("peek_a.py"));
   await ui.waitFor(() => !tabNamed("peek_a.py").classList.contains("preview"), 2000);
 });

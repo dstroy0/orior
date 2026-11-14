@@ -37,8 +37,8 @@ void cli_dos(const CliArchiveBytesSizeCfg *args)
 {
     for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
-        EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = args->out_verba_linea_pointer,
-                   .letter = (args->bytes[at] < 128u) ? args->bytes[at] : s_dos[args->bytes[at] - 128u]);
+        EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = args->out_verba_linea_pointer,
+                   .character = (args->bytes[at] < 128u) ? args->bytes[at] : s_dos[args->bytes[at] - 128u]);
     }
 }
 
@@ -249,13 +249,13 @@ int cli_zip_members(const CliArchiveBytesSizeErrMsgCtx *args)
         }
         const unsigned long long length = mmgr_line_finish(&line);
         int ascii = 1;
-        for (unsigned long long letter = 0ULL; ascii && (letter < record.name_length); letter += 1ULL)
+        for (unsigned long long character = 0ULL; ascii && (character < record.name_length); character += 1ULL)
         {
-            ascii = record.name[letter] < 0x80u;
+            ascii = record.name[character] < 0x80u;
         }
-        for (unsigned long long letter = 0ULL; letter < length; letter += 1ULL)
+        for (unsigned long long character = 0ULL; character < length; character += 1ULL)
         {
-            text[letter] = (text[letter] == '\\') ? '/' : text[letter];
+            text[character] = (text[character] == '\\') ? '/' : text[character];
         }
         const int dir = (length > 0ULL) && (text[length - 1ULL] == '/');
         const int plain = utf8 || ascii;

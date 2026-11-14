@@ -14,7 +14,7 @@ static_assert(MARGINAL_TARGETS_MAX <= 64u, "marginal: the targets taken must fit
 static_assert(sizeof(unsigned int) == 4u, "marginal: unsigned int must be 32 bits, a limb");
 
 static_assert(MARGINAL_ARRANGEMENTS_MAX <= (1ull << 32u),
-              "marginal: a sum of arrangements must grow by one limb at most");
+              "marginal: a sum of arrangements must grow by one limb at max");
 
 typedef struct
 {

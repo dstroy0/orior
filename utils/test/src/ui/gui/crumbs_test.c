@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// crumbs_test.c: the status bar's crumbs: a view on src/code/a.py with the cursor inside a method lays the folders, the
-// file and the declarations it stands in, in that order, with the CLI's texts; their rectangles stand in the order of
+// crumbs_test.c: the status bar's crumbs: a view on src/code/a.py with the cursor inside a method positions the folders, the
+// file and the declarations it is in, in that order, with the CLI's texts; their rectangles are in the order of
 // x, a press finds the crumb under it and none in a gap; the row cut short leaves out the crumbs that do not fit
 // whole; a folder's crumb lists its entries, each opening its path, and a declaration's its neighbors, each going to
-// its line; and with the setting off nothing is laid
+// its line; and with the setting off nothing is positioned
 #include "../../../../../includes/window/block.h"
 #include "../../../../../ui/cli/src/command_line/commands.h"
 #include "../../../../../includes/window/frame.h"
@@ -73,11 +73,11 @@ int main(void)
               "the text is stored");
     EMBED_CALL(cli_crumbs.begin, CliCrumbsCfg, .entries = NULL);
     EMBED_CALL(cli_crumbs.read, CliCrumbsCfg, .key = s_key, .path = s_path, .line = 4ULL);
-    cli_check(EMBED_CALL(cli_crumbs.rows, CliCrumbsCfg, .at = 0u) == 5u, "five crumbs stand");
+    cli_check(EMBED_CALL(cli_crumbs.rows, CliCrumbsCfg, .at = 0u) == 5u, "five crumbs are");
     cli_check(crumb_is(0u, CLI_CRUMB_FOLDER, "src") && crumb_is(1u, CLI_CRUMB_FOLDER, "code") &&
                   crumb_is(2u, CLI_CRUMB_FILE, "a.py") && crumb_is(3u, CLI_CRUMB_SYMBOL, "Box") &&
                   crumb_is(4u, CLI_CRUMB_SYMBOL, "put"),
-              "the folders, the file and the declarations stand in order with the CLI's texts");
+              "the folders, the file and the declarations are in order with the CLI's texts");
 
     GuiRaster raster;
     cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 900u, .height = 40u),
@@ -89,7 +89,7 @@ int main(void)
                                    .palette = palette, .size = size, .x_f32 = 10.0f, .baseline = 26, .clip = wide,
                                    .scale = 100);
     cli_check((EMBED_CALL(gui_crumbs.count, GuiCrumbsCfg, .index = 0u) == 5u) && (after > 10.0f),
-              "every crumb is laid in a wide row");
+              "every crumb is positioned in a wide row");
     int ordered = 1;
     for (unsigned int at = 1u; at < 5u; at += 1u)
     {
@@ -97,7 +97,7 @@ int main(void)
         const GuiRect each = EMBED_CALL(gui_crumbs.place, GuiCrumbsCfg, .index = at);
         ordered = ordered && (each.x > before.x + before.width);
     }
-    cli_check(ordered, "the crumbs' rectangles stand in the order of x with a gap between each");
+    cli_check(ordered, "the crumbs' rectangles are in the order of x with a gap between each");
     const GuiRect file = EMBED_CALL(gui_crumbs.place, GuiCrumbsCfg, .index = 2u);
     unsigned int index = 99u;
     cli_check(EMBED_CALL(gui_crumbs.hit, GuiCrumbsCfg, .x = file.x + 2, .y = 20, .index_out = &index) && (index == 2u),
@@ -117,7 +117,7 @@ int main(void)
                   (last.x + last.width <= narrow.x + narrow.width),
               "a crumb that does not fit whole is left out");
 
-    // what stands beside a folder and a declaration
+    // what is beside a folder and a declaration
     unsigned int count = 0u;
     const CliItem *rows = NULL;
     cli_check(EMBED_CALL(cli_crumbs.menu, CliCrumbsCfg, .at = 1u, .root = s_root) &&
@@ -140,15 +140,15 @@ int main(void)
                   cellul.eq(&(CatenaFinitaCfg){.src = rows[1].args, .cap = CLI_POOL_BYTES, .other = "6", .other_cap = 2u}),
               "a declaration's crumb lists those beside it, each going to its line");
 
-    // the setting off: nothing laid and the row's x unmoved
-    EMBED_CALL(cli_crumbs.shown_set, CliCrumbsCfg, .on = 0);
+    // the setting off: nothing positioned and the row's x unmoved
+    EMBED_CALL(cli_crumbs.displayed_set, CliCrumbsCfg, .on = 0);
     const float bare = EMBED_CALL(gui_crumbs.draw, GuiCrumbsCfg, .raster = &raster, .glyphs = &glyphs,
                                   .palette = palette, .size = size, .x_f32 = 10.0f, .baseline = 26, .clip = wide,
                                   .scale = 100);
     cli_check((EMBED_CALL(gui_crumbs.count, GuiCrumbsCfg, .index = 0u) == 0u) && (bare == 10.0f) &&
                   (EMBED_CALL(cli_crumbs.rows, CliCrumbsCfg, .at = 0u) == 0u),
-              "with the setting off no crumb is laid");
-    EMBED_CALL(cli_crumbs.shown_set, CliCrumbsCfg, .on = 1);
+              "with the setting off no crumb is positioned");
+    EMBED_CALL(cli_crumbs.displayed_set, CliCrumbsCfg, .on = 1);
     EMBED_CALL(cli_crumbs.read, CliCrumbsCfg, .path = NULL);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
     EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);

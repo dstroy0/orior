@@ -21,7 +21,7 @@ struct RulesetName
     unsigned int parameters;
 };
 
-#define OPCODE_WRITTEN(name_, text_, parameters_, kind_) {text_, parameters_},
+#define OPCODE_WRITTEN(name_, text_, parameters_, type_) {text_, parameters_},
 #define REGCLASS_WRITTEN(name_, text_) {text_, 1u},
 #define PHYSREG_WRITTEN(name_, text_) {text_, 0u},
 
@@ -48,7 +48,7 @@ struct InstrTemplate
     std::vector<unsigned int> placeholders;
 };
 
-// what one argument of a construct's line is: text written as it stands, the construct's own parameter at a
+// what one argument of a construct's line is: text written as it is, the construct's own parameter at a
 // placeholder, or a scratch register of a bank, `number` naming it within one writing of the construct
 enum PseudoOperandKind
 {
@@ -59,7 +59,7 @@ enum PseudoOperandKind
 
 struct PseudoOperand
 {
-    PseudoOperandKind kind;
+    PseudoOperandKind type;
     unsigned int placeholder;
     unsigned int number;
     std::string text;
@@ -89,7 +89,7 @@ typedef std::function<std::string(unsigned int bank)> ScratchRegisters;
 struct RulesetFold
 {
     unsigned int form;
-    std::string kind;
+    std::string type;
     unsigned int parameter;
 };
 
@@ -126,7 +126,7 @@ struct Ruleset
 };
 
 // the folds of the .ksc of `rules`' name beside its file read into rules->folds in place of those it contained: each
-// line `compile folds <word> <form>: the system folds the <kind> put for <parameter>`, the parameter found by its name
+// line `compile folds <word> <form>: the system folds the <type> put for <parameter>`, the parameter found by its name
 // in the ruleset's own line for the form. A line naming a form or parameter the ruleset does not give is passed over
 void ruleset_folds_read(Ruleset *rules);
 

@@ -100,7 +100,7 @@ int query_process_start(const QueryStartedCtx *args)
         {
             return 0;
         }
-        // the end this process reads is not handed to the child
+        // the end this process reads is not passed to the child
         SetHandleInformation(read_end, HANDLE_FLAG_INHERIT, 0u);
     }
     else if (output == QUERY_OUTPUT_NONE)
@@ -169,10 +169,10 @@ unsigned long long query_process_read(const QueryProcessPieceCtx *args)
     {
         return 0ull;
     }
-    // a piece is at most a gibibyte, which a DWORD counts
-    const DWORD most = (DWORD)((args->capacity_u64 < (1ull << 30u)) ? args->capacity_u64 : (1ull << 30u));
+    // a piece is at max a gibibyte, which a DWORD counts
+    const DWORD max = (DWORD)((args->capacity_u64 < (1ull << 30u)) ? args->capacity_u64 : (1ull << 30u));
     DWORD got = 0u;
-    if (!ReadFile((HANDLE)(uintptr_t)args->process->output, args->piece, most, &got, NULL))
+    if (!ReadFile((HANDLE)(uintptr_t)args->process->output, args->piece, max, &got, NULL))
     {
         return 0ull;
     }
@@ -201,7 +201,7 @@ long long query_process_wait(const QueryProcessCtx *args)
     return read ? (long long)code : -1ll;
 }
 
-// the most letters of a variable's name or value in Windows' wide letters, its zero among them
+// the max characters of a variable's name or value in Windows' wide characters, its zero among them
 #define QUERY_ENVIRONMENT_WIDE 32768u
 
 int query_environment_set(const QueryNameCtx *args)
@@ -358,7 +358,7 @@ int query_file_write(const QueryPathBytesSizeCtx *args)
     int whole = 1;
     while (whole && (put < args->size))
     {
-        // a piece is at most a gibibyte, which a DWORD counts
+        // a piece is at max a gibibyte, which a DWORD counts
         const DWORD piece = (DWORD)(((args->size - put) < (1ull << 30u)) ? (args->size - put) : (1ull << 30u));
         DWORD wrote = 0u;
         whole = WriteFile(file, (const unsigned char *)args->bytes + put, piece, &wrote, NULL) && (wrote == piece);
@@ -459,9 +459,9 @@ unsigned long long query_terminal_line_read(const QueryCapacityLineCtx *args)
     int read_any = 0;
     for (;;)
     {
-        char letter = '\0';
+        char character = '\0';
         DWORD got = 0u;
-        if (!ReadFile(input, &letter, 1u, &got, NULL) || (got == 0u))
+        if (!ReadFile(input, &character, 1u, &got, NULL) || (got == 0u))
         {
             if (!read_any)
             {
@@ -470,16 +470,16 @@ unsigned long long query_terminal_line_read(const QueryCapacityLineCtx *args)
             break;
         }
         read_any = 1;
-        if (letter == '\n')
+        if (character == '\n')
         {
             break;
         }
-        if (letter != '\r')
+        if (character != '\r')
         {
             whole += 1ull;
             if ((length + 1u) < args->capacity)
             {
-                args->line[length] = letter;
+                args->line[length] = character;
                 length += 1u;
             }
         }
@@ -494,7 +494,7 @@ void query_terminal_write(const QueryErrorsCtx *args)
     unsigned long long put = 0ull;
     while (put < args->length)
     {
-        // a piece is at most a gibibyte, which a DWORD counts
+        // a piece is at max a gibibyte, which a DWORD counts
         const DWORD piece = (DWORD)(((args->length - put) < (1ull << 30u)) ? (args->length - put) : (1ull << 30u));
         DWORD wrote = 0u;
         if (!WriteFile(output, args->text + put, piece, &wrote, NULL) || (wrote == 0u))

@@ -17,11 +17,11 @@
 #include "../../../../engine/rmc/precept_value.h"
 #include "../counterexample/ladder.h"
 
-// the most nodes a chain contains. One node is the target having the operator outright, two and three are the
+// the max nodes a chain contains. One node is the target having the operator outright, two and three are the
 // arrangements worth weighing against one another
 #define CHAIN_NODES 3u
-// the most chains retained for one relation
-#define CHAIN_MOST 2048u
+// the max chains retained for one relation
+#define CHAIN_MAX 2048u
 // how many words past the cases an arrangement is put with before it is retained
 #define CHAIN_SWEEP 512u
 
@@ -33,7 +33,7 @@ typedef struct
 
 typedef struct
 {
-    Chain chain[CHAIN_MOST];
+    Chain chain[CHAIN_MAX];
     unsigned int chains;
     // arrangements that answered every case and had nowhere to go
     unsigned int over;
@@ -43,7 +43,7 @@ typedef struct
     unsigned int fitted;
 } ChainSet;
 
-// Every chain of at most CHAIN_NODES nodes that answers `cases` and the relation they belong to, into `set`. The
+// Every chain of at max CHAIN_NODES nodes that answers `cases` and the relation they belong to, into `set`. The
 // count retained. Shorter chains are found first: a set that fills contains the shortest arrangements there are
 unsigned int chain_build(ChainSet *set, const LadderQuestion *cases, unsigned int count);
 

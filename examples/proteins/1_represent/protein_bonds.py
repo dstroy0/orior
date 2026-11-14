@@ -10,7 +10,7 @@
 #
 # Two representations have failed here and both failed by discarding something. Laying every atom into a
 # grid discarded the order, leaving a scatter of points in a box that is mostly empty. Taking the step
-# from one alpha carbon to the next kept the order and discarded the bonds, since an alpha carbon is
+# from one alpha carbon to the next retained the order and discarded the bonds, since an alpha carbon is
 # already a summary of a residue and the step between two of them is not a bond at all.
 #
 # The bonds are the connections and the chain is assembled in one direction. The representation is the
@@ -21,7 +21,7 @@
 # That gives this test something the earlier ones lacked, which is an answer known before the measurement
 # and not supplied by the measurement. The bond lengths must cycle with a period of three, at those three
 # values, in every protein ever deposited. So the period is checked against chemistry first, and only then
-# is the same series handed to the reader that has been failing, to see whether it recovers a period that
+# is the same series passed to the reader that has been failing, to see whether it recovers a period that
 # is known to be there.
 
 import io

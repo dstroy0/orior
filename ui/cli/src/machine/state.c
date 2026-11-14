@@ -246,8 +246,8 @@ int cli_state_read(const CliStateOutCfg *args)
     EMBED_CALL(cli_state_folder_internal.json_files, CliStateFolderCtx, .folder = themes_folder,
                .files = &themes_files);
     EMBED_CALL(cli_state_folder_internal.json_files, CliStateFolderCtx, .folder = backups, .files = &backup_files);
-    // every entry read is a key and a text of the files read: the entries' tree contains at most as many nodes as
-    // their bytes, and at most twice them in text, a value written back in place of its text
+    // every entry read is a key and a text of the files read: the entries' tree contains at max as many nodes as
+    // their bytes, and at max twice them in text, a value written back in place of its text
     unsigned long long bytes =
         EMBED_CALL(cli_state_files_size, StateCtx, .folder = themes_folder, .files = &themes_files) +
         EMBED_CALL(cli_state_files_size, StateCtx, .folder = backups, .files = &backup_files);
@@ -278,7 +278,7 @@ int cli_state_read(const CliStateOutCfg *args)
         EMBED_CALL(cli_in, StateCtx, .folder = args->folder, .name = s_files[file], .out = path);
         const unsigned int read = EMBED_CALL(cli_state_json_internal.map_read, CliStateJsonCtx, .json = &map,
                                              .path = path, .nodes_more = 0u, .text_more = 0ULL);
-        // the one cell each member of the file is written back in, of the most the file's tree writes to
+        // the one cell each member of the file is written back in, of the max the file's tree writes to
         const unsigned long long capacity =
             EMBED_CALL(cli_json_tree_node_out.json_write_capacity, CliJsonTreeNodeOutCfg, .json_read = &map);
         char *const value_text = g_cli_guard->temporary_buf_alloc(capacity, g_cli_state_owner);
@@ -301,8 +301,8 @@ int cli_state_read(const CliStateOutCfg *args)
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&map),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     }
-    // the themes, each file's object, as one JSON array in a cell of the most they write to: a tree written on one line
-    // is at most the bytes of the file it reads, each with the array's mark before it
+    // the themes, each file's object, as one JSON array in a cell of the max they write to: a tree written on one line
+    // is at max the bytes of the file it reads, each with the array's mark before it
     const unsigned long long themes_capacity =
         (EMBED_CALL(cli_state_files_size, StateCtx, .folder = themes_folder, .files = &themes_files) * 2ULL) +
         (themes_files.count * 2ULL) + 16ULL;
@@ -383,7 +383,7 @@ int cli_state_read(const CliStateOutCfg *args)
     return 1;
 }
 
-// the most bytes the entries of orior's folder grow to as they are read
+// the max bytes the entries of orior's folder grow to as they are read
 #define CLI_STATE_ENTRIES_TEXT (6ULL << 20u)
 
 CliStateEntries cli_state_entries_alloc(const CliStateEntriesCfg *args)
@@ -562,7 +562,7 @@ int cli_state_value_save(const CliStateValueCfg *args)
 {
     const unsigned long long key_size = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES});
     const unsigned long long value_size = cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = CLI_POOL_BYTES});
-    // each byte escaped to six at the most, and the marks about them
+    // each byte escaped to six at max, and the marks about them
     const unsigned long long capacity = ((key_size + value_size) * 6ULL) + 16ULL;
     char *const changes_cell = g_cli_guard->temporary_buf_alloc(capacity, g_cli_state_owner);
     VerbaLinea changes = mmgr_line_over(changes_cell, capacity);

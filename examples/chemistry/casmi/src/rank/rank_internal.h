@@ -32,7 +32,7 @@
 // an absent entry of a list of record numbers
 #define RANK_ABSENT 0xFFFFFFFFu
 
-// the most device bytes a piece of a sweep occupies: the records its lanes read, its index and the records it writes
+// the max device bytes a piece of a sweep occupies: the records its lanes read, its index and the records it writes
 #define RANK_SWEEP_BYTES (1ull << 30u)
 
 // one double column as the file stores it: each value's 64 bits, and row r's values from row_start[r] up to
@@ -104,7 +104,7 @@ int rank_sweep(SimResults *results, const char *name, const RankMachine *machine
                const unsigned long long *bodies, const unsigned int *index, unsigned long long lanes, unsigned int *out,
                unsigned long long *microseconds);
 
-// the match's buffers on the device, each grown to the most a chunk has requested: the envelopes, a query's peaks, a
+// the match's buffers on the device, each grown to the max a chunk has requested: the envelopes, a query's peaks, a
 // chunk's reference peaks and its spectra's first lanes, first peaks and peak counts, and its lanes' index, records,
 // order and retained records
 typedef struct

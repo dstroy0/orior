@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// The unit sweep's planes (engine/analysis/unit_sweep): the residual of readings of any width, handed in as limb planes
+// The unit sweep's planes (engine/analysis/unit_sweep): the residual of readings of any width, passed in as limb planes
 // with their width declared. A reading built from 16-bit parts at chosen shifts has, the residual being linear, the
 // residual of its parts shifted and added; each part's residual is the 16-bit volume path's, proved against the key.
 // So every lane of the planes path is checked against those sums, at 16, 34, 64 and 116 bits of input, on extents that
@@ -35,7 +35,7 @@
 
 #define PLANES_TEST_KINDS 4ull
 
-// the most the test puts on the device at once: the sweep's narrow and wide planes, the residual, the input planes
+// the max the test puts on the device at once: the sweep's narrow and wide planes, the residual, the input planes
 // and the 16-bit volume
 #define PLANES_TEST_DECLARED                                                                                           \
     ((unsigned long long)PLANES_TEST_VOXELS_MAX *                                                                      \
@@ -178,10 +178,10 @@ static void planes_test_parts(const PlanesTestCase *test_case, const PlanesTestW
         for (unsigned int voxel = 0u; voxel < voxels; voxel += 1u)
         {
             const unsigned long long draw = sim_draw(key, ((unsigned long long)voxel * PLANES_TEST_PARTS_MAX) + part);
-            // a remainder below the kinds' count fits unsigned int
-            const unsigned int kind = (unsigned int)(draw % PLANES_TEST_KINDS);
-            // the draw's bits past the kind, masked to the part's bits, fit unsigned int
-            const unsigned int value = (kind == 0u) ? 0u : ((kind == 1u) ? mask : ((unsigned int)(draw >> 8u) & mask));
+            // a remainder below the types' count fits unsigned int
+            const unsigned int type = (unsigned int)(draw % PLANES_TEST_KINDS);
+            // the draw's bits past the type, masked to the part's bits, fit unsigned int
+            const unsigned int value = (type == 0u) ? 0u : ((type == 1u) ? mask : ((unsigned int)(draw >> 8u) & mask));
             // a part is masked to 16 bits or fewer: it narrows to unsigned short exactly
             host->parts[((size_t)part * voxels) + voxel] = (unsigned short)value;
             host->planes[((size_t)limb * voxels) + voxel] |= value << place;
@@ -273,7 +273,7 @@ static void planes_test_case(SimResults *results, const PlanesTestCase *test_cas
         1u << (test_case->input_bits % 32u);
     const long over_limit =
         planes_test_sweep(test_case, device, NULL, host->altered_planes, host->repeat_residual, &error);
-    const int errored = (over_limit == UNIT_SWEEP_ERROR) && (error.kind == ENGINE_ERROR_REQUEST) &&
+    const int errored = (over_limit == UNIT_SWEEP_ERROR) && (error.type == ENGINE_ERROR_REQUEST) &&
                         (error.module == ENGINE_MODULE_UNIT_SWEEP);
     sim_check(results, errored, "a bit past the declared width errors as a request error from the unit sweep");
     counts->over_width_requested += 1ull;
@@ -413,7 +413,7 @@ static void planes_test_widths(SimResults *results, const PlanesTestDevice *devi
 
 static int planes_test_error(const UnitSweepRequest *request, const EngineError *error)
 {
-    return (unit_sweep_residual(request) == UNIT_SWEEP_ERROR) && (error->kind == ENGINE_ERROR_REQUEST) &&
+    return (unit_sweep_residual(request) == UNIT_SWEEP_ERROR) && (error->type == ENGINE_ERROR_REQUEST) &&
            (error->module == ENGINE_MODULE_UNIT_SWEEP);
 }
 

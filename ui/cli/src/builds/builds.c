@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // builds.c: a build file's type by its name, and its check, its completion, the names SCons gives it and the line that
-// updates every snapshot dependency of its build, each handed to the reader of its type. One check runs at a time, its
+// updates every snapshot dependency of its build, each passed to the reader of its type. One check runs at a time, its
 // findings stored in their own capacity
 #include "../text/text.h"
 #include "gradle_internal.h"

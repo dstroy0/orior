@@ -8,10 +8,10 @@
 #
 #   Usage:  python examples/0_experimental/exact_identities_spread_precision.py
 #
-# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working instead of a stage
+# This reads no corpus. It sits in 0_experimental: an arithmetic result displayed working instead of a stage
 # reading. It is the mechanism behind a goal to raise the accuracy the engine holds by a large factor.
 # A constant computed once to N places by its own series is expensive. An exact identity that ties it
-# to another constant hands that other constant the same N places for the cost of one multiply. A small
+# to another constant passes that other constant the same N places for the cost of one multiply. A small
 # seed of directly computed constants then generates a large set of derived ones at the same precision,
 # and the ratio of derived to seed is the accuracy multiplier.
 #
@@ -158,7 +158,7 @@ def count_smooth(primes, bound, budget):
     """How many integers in [1, bound] have all prime factors among `primes`, counted exactly.
 
     A depth-first walk with an explicit stack, and a chain like 2^k does not recurse to a depth the
-    interpreter errors. The stack holds only the unexplored siblings along the current path, at most
+    interpreter errors. The stack holds only the unexplored siblings along the current path, at max
     the path depth times the prime count. `budget` caps the work and the count reports whether it was
     reached. The count is the size of the set the seed roots generate at `bound`.
     """
@@ -265,7 +265,7 @@ def report_null(out, root_of, pi_value):
 
 
 def report_multiplier(out):
-    """The accuracy multiplier: derived constants per seed, counted, and shown to pass one million."""
+    """The accuracy multiplier: derived constants per seed, counted, and displayed to pass one million."""
     out.write("  multiplier: exactly known constants per seed, counted over the seed primes\n")
     out.write("  %-8s %-16s %-16s %s\n" % ("seeds", "bound", "generated", "per seed"))
 
@@ -302,7 +302,7 @@ def main():
     per_seed = report_multiplier(out)
 
     out.write("\n  scope: this multiplier is unbounded only for constants DEFINED by exact operations.\n")
-    out.write("  a measured quantity (a crystal edge, a physical constant) keeps its upstream\n")
+    out.write("  a measured quantity (a crystal edge, a physical constant) retains its upstream\n")
     out.write("  measurement floor, and no identity here raises it past that floor. what an identity\n")
     out.write("  buys in a measured domain is a floor-free RATIO, where the measured constant cancels.\n")
     out.flush()

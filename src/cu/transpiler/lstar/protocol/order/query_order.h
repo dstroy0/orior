@@ -31,12 +31,12 @@ typedef struct
 // a known order of queries over links that are queries
 typedef struct
 {
-    // the links, `links` of them, a count a known order supports; each is put as it stands, its bound left unread
+    // the links, `links` of them, a count a known order supports; each is put as it is, its bound left unread
     const Query *link;
     unsigned int links;
     // the address of a counter found by QUERY_ADVANCES, read before and after every query of the order
     unsigned long long clock;
-    // the most reads one wait for the clock's turn may take, as QUERY_ADVANCES takes its `turns`: a clock that does
+    // the max reads one wait for the clock's turn may take, as QUERY_ADVANCES takes its `turns`: a clock that does
     // not turn inside them refuses the order
     unsigned long long turns;
     // how many times each covered link is put inside one query of the order

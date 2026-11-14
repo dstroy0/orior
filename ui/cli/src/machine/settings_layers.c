@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// settings_layers.c: the settings in force from the reader's chain and the tree's, each part of a file standing over
+// settings_layers.c: the settings in force from the reader's chain and the tree's, each part of a file located over
 // the parts before it, each `${name}` read, and every problem reported once
 #include "../command_line/callback_cfg.h"
 #include "settings_internal.h"
 #include "state.h"
 
-// A setting as every part sets it, the last standing: its key, and the chain and the node of its value
+// A setting as every part sets it, the last located: its key, and the chain and the node of its value
 typedef struct
 {
     const char *key;
@@ -39,8 +39,8 @@ static char s_value[CLI_LAYER_VALUE];
 unsigned int cli_settings_text_store(const CliSettingsTextLengthCtx *args)
 {
     const char *text = args->text;
-    const unsigned long long most = args->layers->used + args->length + 1ULL;
-    if (most > CLI_SETTINGS_TEXT)
+    const unsigned long long max = args->layers->used + args->length + 1ULL;
+    if (max > CLI_SETTINGS_TEXT)
     {
         return 0u;
     }
@@ -354,7 +354,7 @@ EMBED_INLINE void cli_layers_begun(const SettingsLayersCtx *args)
     }
 }
 
-// every setting the first `parts` of the parts set, each as its part sets it, the last standing, for
+// every setting the first `parts` of the parts set, each as its part sets it, the last located, for
 // `${setting:name}`
 EMBED_INLINE void cli_raws_put(const SettingsLayersCtx *args)
 {
@@ -376,7 +376,7 @@ EMBED_INLINE void cli_value_ranked(const SettingsLayersCtx *args)
 {
     CliLayers *const layers = args->layers;
     const CliPart *const part = args->part_at;
-    // a value of the reader's own that names another stands over the files it takes
+    // a value of the reader's own that names another is over the files it takes
     char raw[CLI_LAYER_VALUE];
     VerbaLinea back = {raw, sizeof(raw), 0ULL};
     EMBED_CALL(cli_state_json.read_back, CliStateJsonCfg, .json = &part->chain->json, .value = args->value,
@@ -445,7 +445,7 @@ EMBED_INLINE void cli_type_member_read(const SettingsLayersCtx *args)
         mmgr_line_put(&line, set->key);
         mmgr_line_put(&line, " sets ");
         mmgr_line_put(&line, key);
-        mmgr_line_put(&line, ", and a kind of file sets its theme alone: theme.dark and theme.light");
+        mmgr_line_put(&line, ", and a type of file sets its theme alone: theme.dark and theme.light");
         mmgr_line_finish(&line);
         EMBED_CALL(cli_settings_layers_problem_internal.problem, CliSettingsLayersProblemCtx, .layers = layers,
                    .problem = problem);
@@ -526,7 +526,7 @@ void cli_settings_layers(const CliSettingsRootCfg *args)
                            .chain = chain, .file = file, .of_tree = of_tree, .own = !of_tree && (file == last),
                            .parts_u32 = parts, .values_u32s = &values, .types_u32s = &types);
     }
-    // every setting as the parts set it, the last standing, for `${setting:name}`
+    // every setting as the parts set it, the last located, for `${setting:name}`
     s_names.raws = 0u;
     s_names.root = root;
     s_names.system = args->layers->system;

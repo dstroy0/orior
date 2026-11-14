@@ -88,7 +88,7 @@ void cli_jupyter_free(const CliJupyterErrMsgKernelFileCfg *args)
      (2ULL * CLI_KERNEL_LINE * 8ULL))
 
 // a free kernel place taken, referenced once and made empty: the kernel, or NULL where every place is taken. The
-// places and their wire buffers stand fixed, outside the pool, where they punch no hole in the persistent tier
+// places and their wire buffers are fixed, outside the pool, where they punch no hole in the persistent tier
 static CliKernel *jupyter_position_alloc(void)
 {
     static CliKernel s_kernels[CLI_KERNELS_MAX];
@@ -148,7 +148,7 @@ EMBED_INLINE void jupyter_status_write(const JupyterCtx *args)
     mmgr_line_decimal_signed(args->err_msg, args->code);
 }
 
-// a socket of the kernel's connected, tried again while the kernel starts and its process stands: 1, or 0 with why
+// a socket of the kernel's connected, tried again while the kernel starts and its process is: 1, or 0 with why
 // reported where the process ended or the time ran out
 static int jupyter_connected_while(const JupyterCtx *args)
 {

@@ -16,7 +16,7 @@
 # this subject carries a declared ply count, and the reason is measured here: the node count is
 # exponential in the ply count with a base the game sets. A bound is not a convenience, it is the
 # difference between a number and no number at all. Reporting the bound beside every result is the
-# only thing that keeps two readings of the same position comparable.
+# only thing that retains two readings of the same position comparable.
 
 import os
 import sys
@@ -89,7 +89,7 @@ def main():
     card = poker.card
     game = poker.Poker(ranks=6, suits=2, hand=3)
     sweep(
-        "POKER on a twelve card deck, both hands dealt",
+        "POKER on a twelve card deck, both passes dealt",
         game,
         game.deal(
             (card(5, 0), card(5, 1), card(0, 0)), (card(4, 0), card(3, 1), card(2, 0))

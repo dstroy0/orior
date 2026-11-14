@@ -58,7 +58,7 @@ int cli_text_read(const CliExecutablesCapacityCtx *args)
 {
     const unsigned long long size =
         qry_member_file_read(args->path, (unsigned char *)args->bytes, args->capacity - 1ULL);
-    // QRY_MEMBER_UNREAD stands above every size
+    // QRY_MEMBER_UNREAD is above every size
     if (size >= args->capacity)
     {
         args->bytes[0] = '\0';

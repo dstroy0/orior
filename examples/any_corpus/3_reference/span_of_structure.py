@@ -10,7 +10,7 @@
 # The null used everywhere else shuffles single symbols, which preserves how often each symbol
 # occurs and destroys every arrangement at once. That cannot say which span the structure lives at.
 #
-# Cutting the corpus into blocks of B symbols and shuffling the blocks keeps every arrangement
+# Cutting the corpus into blocks of B symbols and shuffling the blocks retains every arrangement
 # shorter than B and destroys every arrangement longer than it. Varying B says where the signal
 # sits. A word boundary recurs every few symbols and should return at a small B. A rare symbol
 # clusters because a passage is about the thing it names, which is an arrangement spanning a
@@ -49,7 +49,7 @@ def main():
             seats = bytearray(handle.read())
 
         out.write("%s\n" % os.path.basename(path))
-        out.write("  %-10s %-10s %-10s %s\n" % ("block", "head", "tail", "keeps"))
+        out.write("  %-10s %-10s %-10s %s\n" % ("block", "head", "tail", "retains"))
         for span in SPANS:
             null = dispersion_by_symbol(block_shuffled(seats, span))
             head, tail = halves(seats, null)

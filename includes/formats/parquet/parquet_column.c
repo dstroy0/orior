@@ -15,12 +15,12 @@
 #define PARQUET_RLE_DICTIONARY 8u
 
 // the widest level or dictionary index the hybrid decoder carries, in bits
-#define PARQUET_HYBRID_BITS_MOST 32u
+#define PARQUET_HYBRID_BITS_MAX 32u
 
-_Static_assert(PARQUET_HYBRID_BITS_MOST <= (sizeof(unsigned int) * CHAR_BIT),
-               "PARQUET_HYBRID_BITS_MOST: a decoded level or index must fit the unsigned int it is stored in");
-_Static_assert((PARQUET_HYBRID_BITS_MOST + 7u) <= 64u,
-               "PARQUET_HYBRID_BITS_MOST: a bit-packed value and its 7-bit offset must fit one 64-bit window");
+_Static_assert(PARQUET_HYBRID_BITS_MAX <= (sizeof(unsigned int) * CHAR_BIT),
+               "PARQUET_HYBRID_BITS_MAX: a decoded level or index must fit the unsigned int it is stored in");
+_Static_assert((PARQUET_HYBRID_BITS_MAX + 7u) <= 64u,
+               "PARQUET_HYBRID_BITS_MAX: a bit-packed value and its 7-bit offset must fit one 64-bit window");
 
 // every field a page header carries that this reader reads
 typedef struct
@@ -86,11 +86,11 @@ static unsigned int parquet_value_width(const ParquetLeaf *leaf)
     }
 }
 
-// the bit width of a level whose ceiling is `most`: the fewest bits that represent 0 through most
-static unsigned int parquet_level_width(unsigned int most)
+// the bit width of a level whose ceiling is `max`: the fewest bits that represent 0 through max
+static unsigned int parquet_level_width(unsigned int max)
 {
     unsigned int width = 0u;
-    while ((1ull << width) <= most)
+    while ((1ull << width) <= max)
     {
         width += 1u;
     }
@@ -101,7 +101,7 @@ static unsigned int parquet_level_width(unsigned int most)
 // are read least significant bit first
 static int parquet_hybrid_decode(const ParquetHybridRead *read)
 {
-    if (read->bit_width > PARQUET_HYBRID_BITS_MOST)
+    if (read->bit_width > PARQUET_HYBRID_BITS_MAX)
     {
         return 0;
     }
@@ -131,7 +131,7 @@ static int parquet_hybrid_decode(const ParquetHybridRead *read)
             }
             for (unsigned long long step = 0ull; (step < run) && (written < read->value_count); step += 1ull)
             {
-                // the value was limited to a mask of at most 32 bits and fits an unsigned int
+                // the value was limited to a mask of at max 32 bits and fits an unsigned int
                 read->out[written] = (unsigned int)value;
                 written += 1ull;
             }
@@ -154,7 +154,7 @@ static int parquet_hybrid_decode(const ParquetHybridRead *read)
             const unsigned long long packed_values = groups * 8ull;
             for (unsigned long long step = 0ull; (step < packed_values) && (written < read->value_count); step += 1ull)
             {
-                // a value of at most 32 bits starts within its first byte's low 7 bits; the eight bytes from that
+                // a value of at max 32 bits starts within its first byte's low 7 bits; the eight bytes from that
                 // byte contain it whole; the window is cut short only at the run's end
                 const unsigned long long first_bit = step * read->bit_width;
                 const unsigned long long first_byte = cursor.position + (first_bit >> 3u);
@@ -162,7 +162,7 @@ static int parquet_hybrid_decode(const ParquetHybridRead *read)
                 // bytes_left is below 8 on the narrowing arm and fits an unsigned int
                 const unsigned int window_bytes = (bytes_left < 8ull) ? (unsigned int)bytes_left : 8u;
                 const unsigned long long window = parquet_little(cursor.bytes + first_byte, window_bytes);
-                // the masked value contains bit_width bits, at most 32, and fits an unsigned int
+                // the masked value contains bit_width bits, at max 32, and fits an unsigned int
                 read->out[written] = (unsigned int)((window >> (first_bit & 7ull)) & mask);
                 written += 1ull;
             }
@@ -172,42 +172,42 @@ static int parquet_hybrid_decode(const ParquetHybridRead *read)
     return 1;
 }
 
-// one page header: its type, sizes, level count and encodings, for all three page kinds
+// one page header: its type, sizes, level count and encodings, for all three page types
 static int parquet_page_header_read(ParquetCursor *cursor, ParquetPageHeader *header)
 {
     long long field_id = 0ll;
     memset(header, 0, sizeof(*header));
     header->values_compressed = 1u;
-    for (unsigned int kind = parquet_field_read(cursor, &field_id); kind != PARQUET_THRIFT_STOP;
-         kind = parquet_field_read(cursor, &field_id))
+    for (unsigned int type = parquet_field_read(cursor, &field_id); type != PARQUET_THRIFT_STOP;
+         type = parquet_field_read(cursor, &field_id))
     {
-        if ((field_id == 1ll) && (kind == PARQUET_THRIFT_I32))
+        if ((field_id == 1ll) && (type == PARQUET_THRIFT_I32))
         {
             // a page type is 0 through 3, stored as i32; one past an unsigned int is no page this reader carries
             const unsigned long long page_type = parquet_nonnegative_read(cursor);
             header->page_type = (page_type <= UINT_MAX) ? (unsigned int)page_type : UINT_MAX;
         }
-        else if ((field_id == 2ll) && (kind == PARQUET_THRIFT_I32))
+        else if ((field_id == 2ll) && (type == PARQUET_THRIFT_I32))
         {
             header->uncompressed_bytes = parquet_nonnegative_read(cursor);
         }
-        else if ((field_id == 3ll) && (kind == PARQUET_THRIFT_I32))
+        else if ((field_id == 3ll) && (type == PARQUET_THRIFT_I32))
         {
             header->compressed_bytes = parquet_nonnegative_read(cursor);
         }
-        else if (((field_id == 5ll) || (field_id == 7ll) || (field_id == 8ll)) && (kind == PARQUET_THRIFT_STRUCT))
+        else if (((field_id == 5ll) || (field_id == 7ll) || (field_id == 8ll)) && (type == PARQUET_THRIFT_STRUCT))
         {
             // field 5 is a V1 data page header, 7 a dictionary page header, 8 a V2 data page header
-            const long long page_kind = field_id;
+            const long long page_type = field_id;
             long long inner_id = 0ll;
             for (unsigned int inner = parquet_field_read(cursor, &inner_id); inner != PARQUET_THRIFT_STOP;
                  inner = parquet_field_read(cursor, &inner_id))
             {
                 // encodings are 0 through 9, stored as i32; one past an unsigned int is no encoding this reader
                 // carries
-                const int encoding_field = ((page_kind != 8ll) && (inner_id == 2ll)) ||
-                                           ((page_kind == 5ll) && ((inner_id == 3ll) || (inner_id == 4ll))) ||
-                                           ((page_kind == 8ll) && (inner_id == 4ll));
+                const int encoding_field = ((page_type != 8ll) && (inner_id == 2ll)) ||
+                                           ((page_type == 5ll) && ((inner_id == 3ll) || (inner_id == 4ll))) ||
+                                           ((page_type == 8ll) && (inner_id == 4ll));
                 if ((inner_id == 1ll) && (inner == PARQUET_THRIFT_I32))
                 {
                     header->level_count = parquet_nonnegative_read(cursor);
@@ -216,11 +216,11 @@ static int parquet_page_header_read(ParquetCursor *cursor, ParquetPageHeader *he
                 {
                     const unsigned long long read = parquet_nonnegative_read(cursor);
                     const unsigned int encoding = (read <= UINT_MAX) ? (unsigned int)read : UINT_MAX;
-                    if ((page_kind == 5ll) && (inner_id == 3ll))
+                    if ((page_type == 5ll) && (inner_id == 3ll))
                     {
                         header->definition_encoding = encoding;
                     }
-                    else if ((page_kind == 5ll) && (inner_id == 4ll))
+                    else if ((page_type == 5ll) && (inner_id == 4ll))
                     {
                         header->repetition_encoding = encoding;
                     }
@@ -229,15 +229,15 @@ static int parquet_page_header_read(ParquetCursor *cursor, ParquetPageHeader *he
                         header->encoding = encoding;
                     }
                 }
-                else if ((page_kind == 8ll) && (inner_id == 5ll) && (inner == PARQUET_THRIFT_I32))
+                else if ((page_type == 8ll) && (inner_id == 5ll) && (inner == PARQUET_THRIFT_I32))
                 {
                     header->definition_bytes = parquet_nonnegative_read(cursor);
                 }
-                else if ((page_kind == 8ll) && (inner_id == 6ll) && (inner == PARQUET_THRIFT_I32))
+                else if ((page_type == 8ll) && (inner_id == 6ll) && (inner == PARQUET_THRIFT_I32))
                 {
                     header->repetition_bytes = parquet_nonnegative_read(cursor);
                 }
-                else if ((page_kind == 8ll) && (inner_id == 7ll) &&
+                else if ((page_type == 8ll) && (inner_id == 7ll) &&
                          ((inner == PARQUET_THRIFT_TRUE) || (inner == PARQUET_THRIFT_FALSE)))
                 {
                     header->values_compressed = (inner == PARQUET_THRIFT_TRUE) ? 1u : 0u;
@@ -254,7 +254,7 @@ static int parquet_page_header_read(ParquetCursor *cursor, ParquetPageHeader *he
         }
         else
         {
-            parquet_value_skip(cursor, kind);
+            parquet_value_skip(cursor, type);
         }
         if (cursor->broken != 0u)
         {
@@ -345,11 +345,11 @@ static int parquet_dictionary_page_decode(ParquetColumnWalk *walk, const Parquet
 
 // one page's levels, decoded into the scratch and stored in `levels` at levels_done, each a byte. A level whose ceiling
 // is zero is not stored and decodes to zeros; one past its ceiling is refused
-static int parquet_levels_store(ParquetColumnWalk *walk, const ParquetHybridRead *read, unsigned int most,
+static int parquet_levels_store(ParquetColumnWalk *walk, const ParquetHybridRead *read, unsigned int max,
                                 unsigned char *levels)
 {
     unsigned char *const into = levels + walk->levels_done;
-    if (most == 0u)
+    if (max == 0u)
     {
         memset(into, 0, (size_t)read->value_count);
         return 1;
@@ -360,22 +360,22 @@ static int parquet_levels_store(ParquetColumnWalk *walk, const ParquetHybridRead
     }
     for (unsigned long long level = 0ull; level < read->value_count; level += 1ull)
     {
-        if (walk->scratch[level] > most)
+        if (walk->scratch[level] > max)
         {
             return 0;
         }
-        // a level at most its ceiling, which the schema's depth limits to a byte (parquet_internal.h)
+        // a level at max its ceiling, which the schema's depth limits to a byte (parquet_internal.h)
         into[level] = (unsigned char)walk->scratch[level];
     }
     return 1;
 }
 
 // one V1 page's levels at page->position: a four-byte length, then that many bytes of hybrid run
-static int parquet_levels_v1_store(ParquetColumnWalk *walk, ParquetCursor *page, unsigned int most,
+static int parquet_levels_v1_store(ParquetColumnWalk *walk, ParquetCursor *page, unsigned int max,
                                    unsigned long long level_count, unsigned char *levels)
 {
-    ParquetHybridRead read = {page->bytes, 0ull, parquet_level_width(most), level_count, walk->scratch};
-    if (most != 0u)
+    ParquetHybridRead read = {page->bytes, 0ull, parquet_level_width(max), level_count, walk->scratch};
+    if (max != 0u)
     {
         if ((page->byte_count - page->position) < 4ull)
         {
@@ -391,7 +391,7 @@ static int parquet_levels_v1_store(ParquetColumnWalk *walk, ParquetCursor *page,
         read.byte_count = length;
         page->position += length;
     }
-    return parquet_levels_store(walk, &read, most, levels);
+    return parquet_levels_store(walk, &read, max, levels);
 }
 
 // one value's bytes after the ones stored, and a BYTE_ARRAY value's length after the lengths stored
@@ -453,7 +453,7 @@ static int parquet_values_decode(ParquetColumnWalk *walk, unsigned int encoding,
     }
     if (width != 0u)
     {
-        // present is at most the chunk's level count, which the page's bytes bound before the product is formed
+        // present is at max the chunk's level count, which the page's bytes bound before the product is formed
         return (present <= (values->byte_count / width)) &&
                parquet_bytes_append(&walk->column->values, values->bytes, present * width);
     }
@@ -498,7 +498,7 @@ static int parquet_rows_count(ParquetColumnWalk *walk, unsigned long long level_
         {
             return 0;
         }
-        counted += (definition[level] == walk->leaf->definition_most) ? 1ull : 0ull;
+        counted += (definition[level] == walk->leaf->definition_max) ? 1ull : 0ull;
     }
     *present = counted;
     return 1;
@@ -518,16 +518,16 @@ static int parquet_data_page_decode(ParquetColumnWalk *walk, const ParquetPageHe
     {
         const EngineBytesRequest request = {body, header->compressed_bytes, walk->page_bytes,
                                             header->uncompressed_bytes};
-        if (((walk->leaf->definition_most != 0u) && (header->definition_encoding != PARQUET_RLE)) ||
-            ((walk->leaf->repetition_most != 0u) && (header->repetition_encoding != PARQUET_RLE)) ||
+        if (((walk->leaf->definition_max != 0u) && (header->definition_encoding != PARQUET_RLE)) ||
+            ((walk->leaf->repetition_max != 0u) && (header->repetition_encoding != PARQUET_RLE)) ||
             !parquet_body_inflate(walk->tools, &request, walk->chunk->codec))
         {
             return 0;
         }
         ParquetCursor page = {walk->page_bytes, header->uncompressed_bytes, 0ull, 0u};
-        if (!parquet_levels_v1_store(walk, &page, walk->leaf->repetition_most, header->level_count,
+        if (!parquet_levels_v1_store(walk, &page, walk->leaf->repetition_max, header->level_count,
                                      column->repetition) ||
-            !parquet_levels_v1_store(walk, &page, walk->leaf->definition_most, header->level_count, column->definition))
+            !parquet_levels_v1_store(walk, &page, walk->leaf->definition_max, header->level_count, column->definition))
         {
             return 0;
         }
@@ -546,13 +546,13 @@ static int parquet_data_page_decode(ParquetColumnWalk *walk, const ParquetPageHe
             return 0;
         }
         const ParquetHybridRead repetition = {body, header->repetition_bytes,
-                                              parquet_level_width(walk->leaf->repetition_most), header->level_count,
+                                              parquet_level_width(walk->leaf->repetition_max), header->level_count,
                                               walk->scratch};
         const ParquetHybridRead definition = {body + header->repetition_bytes, header->definition_bytes,
-                                              parquet_level_width(walk->leaf->definition_most), header->level_count,
+                                              parquet_level_width(walk->leaf->definition_max), header->level_count,
                                               walk->scratch};
-        if (!parquet_levels_store(walk, &repetition, walk->leaf->repetition_most, column->repetition) ||
-            !parquet_levels_store(walk, &definition, walk->leaf->definition_most, column->definition))
+        if (!parquet_levels_store(walk, &repetition, walk->leaf->repetition_max, column->repetition) ||
+            !parquet_levels_store(walk, &definition, walk->leaf->definition_max, column->definition))
         {
             return 0;
         }

@@ -8,13 +8,13 @@ import { classOf, compile, tokenKinds: tokenTypes } from "../../../gui/src-js/ed
 
 const { test, assert } = window.__harness;
 
-test("a token's classes name it and each kind above it, as number.cost is t-number and t-number-cost", () => {
+test("a token's classes name it and each type above it, as number.cost is t-number and t-number-cost", () => {
   assert.equal(classOf("number.cost"), "t-number t-number-cost");
   assert.equal(classOf("keyword"), "t-keyword");
   assert.equal(classOf(""), "");
 });
 
-test("a token named with the depth its pair stands at takes t-depth and the depth's own class, and no other name does", () => {
+test("a token named with the depth its pair is at takes t-depth and the depth's own class, and no other name does", () => {
   assert.equal(
     classOf("delimiter.bracket.depth.open.3"),
     "t-delimiter t-delimiter-bracket t-delimiter-bracket-depth t-delimiter-bracket-depth-open t-delimiter-bracket-depth-open-3 t-depth t-depth-3",
@@ -23,7 +23,7 @@ test("a token named with the depth its pair stands at takes t-depth and the dept
   assert.equal(classOf("number.3"), "t-number t-number-3");
 });
 
-test("every kind of token a grammar's rules name is noted for the themes, a bracket's among them", () => {
+test("every type of token a grammar's rules name is noted for the themes, a bracket's among them", () => {
   const grammar = compile({
     keywords: ["let"],
     perLine: true,
@@ -36,6 +36,6 @@ test("every kind of token a grammar's rules name is noted for the themes, a brac
       comment: [[/\*\//, { token: "comment.block", next: "@pop" }]],
     },
   });
-  assert.ok(grammar.perLine, "the grammar's own settings are kept");
-  assert.ok(["comment.block", "delimiter.bracket", "identifier.plain", "keyword.flow"].every((type) => tokenTypes().includes(type)), "each kind compiled is named for the themes");
+  assert.ok(grammar.perLine, "the grammar's own settings are retained");
+  assert.ok(["comment.block", "delimiter.bracket", "identifier.plain", "keyword.flow"].every((type) => tokenTypes().includes(type)), "each type compiled is named for the themes");
 });

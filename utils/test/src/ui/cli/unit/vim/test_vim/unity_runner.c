@@ -10,10 +10,10 @@
 extern void setUp(void);
 extern void tearDown(void);
 extern void test_the_motions_move_over_words_blanks_punctuation_and_line_ends_with_counts(void);
-extern void test_f_F_t_T_go_to_a_letter_on_the_line_and_semicolon_and_comma_go_again(void);
+extern void test_f_F_t_T_go_to_a_character_on_the_line_and_semicolon_and_comma_go_again(void);
 extern void test_percent_goes_to_the_pairing_bracket_and_braces_to_the_empty_lines(void);
 extern void test_the_operators_act_on_motions_objects_and_lines_with_counts_and_registers(void);
-extern void test_the_letter_commands_act_with_counts_and_put_as_the_register_took(void);
+extern void test_the_character_commands_act_with_counts_and_put_as_the_register_took(void);
 extern void test_u_and_ctrl_r_undo_and_redo_with_the_cursor_at_the_edit(void);
 extern void test_i_a_I_A_o_O_enter_insert_mode_and_escape_returns_one_column_back(void);
 extern void test_the_dot_does_the_last_change_again_with_the_text_typed_after_it(void);
@@ -84,10 +84,10 @@ int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\vim\\test_vim\\test_vim.c");
   run_test(test_the_motions_move_over_words_blanks_punctuation_and_line_ends_with_counts, "test_the_motions_move_over_words_blanks_punctuation_and_line_ends_with_counts", 102);
-  run_test(test_f_F_t_T_go_to_a_letter_on_the_line_and_semicolon_and_comma_go_again, "test_f_F_t_T_go_to_a_letter_on_the_line_and_semicolon_and_comma_go_again", 149);
+  run_test(test_f_F_t_T_go_to_a_character_on_the_line_and_semicolon_and_comma_go_again, "test_f_F_t_T_go_to_a_character_on_the_line_and_semicolon_and_comma_go_again", 149);
   run_test(test_percent_goes_to_the_pairing_bracket_and_braces_to_the_empty_lines, "test_percent_goes_to_the_pairing_bracket_and_braces_to_the_empty_lines", 168);
   run_test(test_the_operators_act_on_motions_objects_and_lines_with_counts_and_registers, "test_the_operators_act_on_motions_objects_and_lines_with_counts_and_registers", 183);
-  run_test(test_the_letter_commands_act_with_counts_and_put_as_the_register_took, "test_the_letter_commands_act_with_counts_and_put_as_the_register_took", 237);
+  run_test(test_the_character_commands_act_with_counts_and_put_as_the_register_took, "test_the_character_commands_act_with_counts_and_put_as_the_register_took", 237);
   run_test(test_u_and_ctrl_r_undo_and_redo_with_the_cursor_at_the_edit, "test_u_and_ctrl_r_undo_and_redo_with_the_cursor_at_the_edit", 293);
   run_test(test_i_a_I_A_o_O_enter_insert_mode_and_escape_returns_one_column_back, "test_i_a_I_A_o_O_enter_insert_mode_and_escape_returns_one_column_back", 305);
   run_test(test_the_dot_does_the_last_change_again_with_the_text_typed_after_it, "test_the_dot_does_the_last_change_again_with_the_text_typed_after_it", 334);

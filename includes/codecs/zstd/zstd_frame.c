@@ -32,13 +32,13 @@ static const unsigned int zstd_match_length_extra[ZSTD_MATCH_LENGTH_SYMBOLS] = {
     0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u,  0u,  0u,  0u,  0u,  0u,  0u, 0u,
     0u, 0u, 0u, 0u, 0u, 1u, 1u, 1u, 1u, 2u, 2u, 3u, 3u, 4u, 4u, 5u, 7u, 8u, 9u, 10u, 11u, 12u, 13u, 14u, 15u, 16u};
 
-static const ZstdTableKind zstd_literal_length_kind = {zstd_literal_length_predefined, ZSTD_LITERAL_LENGTH_SYMBOLS, 6u,
+static const ZstdTableKind zstd_literal_length_type = {zstd_literal_length_predefined, ZSTD_LITERAL_LENGTH_SYMBOLS, 6u,
                                                        ZSTD_LITERAL_LENGTH_SYMBOLS, 9u};
 
-static const ZstdTableKind zstd_match_length_kind = {zstd_match_length_predefined, ZSTD_MATCH_LENGTH_SYMBOLS, 6u,
+static const ZstdTableKind zstd_match_length_type = {zstd_match_length_predefined, ZSTD_MATCH_LENGTH_SYMBOLS, 6u,
                                                      ZSTD_MATCH_LENGTH_SYMBOLS, 9u};
 
-static const ZstdTableKind zstd_offset_kind = {zstd_offset_predefined, ZSTD_OFFSET_PREDEFINED_SYMBOLS, 5u,
+static const ZstdTableKind zstd_offset_type = {zstd_offset_predefined, ZSTD_OFFSET_PREDEFINED_SYMBOLS, 5u,
                                                ZSTD_OFFSET_SYMBOLS, 8u};
 
 static const unsigned int zstd_dictionary_widths[4u] = {0u, 1u, 2u, 4u};
@@ -73,9 +73,9 @@ static int zstd_sequences(ZstdDecoder *decoder, ZstdSpan *input)
     const unsigned int modes = input->bytes[0u];
     zstd_advance(input, 1ull);
     if (((modes & 3u) != 0u) ||
-        !zstd_table_prepare(input, modes >> 6u, &zstd_literal_length_kind, &decoder->literal_lengths) ||
-        !zstd_table_prepare(input, (modes >> 4u) & 3u, &zstd_offset_kind, &decoder->offsets) ||
-        !zstd_table_prepare(input, (modes >> 2u) & 3u, &zstd_match_length_kind, &decoder->match_lengths))
+        !zstd_table_prepare(input, modes >> 6u, &zstd_literal_length_type, &decoder->literal_lengths) ||
+        !zstd_table_prepare(input, (modes >> 4u) & 3u, &zstd_offset_type, &decoder->offsets) ||
+        !zstd_table_prepare(input, (modes >> 2u) & 3u, &zstd_match_length_type, &decoder->match_lengths))
     {
         return 0;
     }
@@ -189,16 +189,16 @@ static int zstd_block(ZstdDecoder *decoder, ZstdSpan *input, int *last)
         return 0;
     }
     const unsigned long long header = zstd_little_endian(input->bytes, 3u);
-    const unsigned int kind = (unsigned int)((header >> 1u) & 3ull);
+    const unsigned int type = (unsigned int)((header >> 1u) & 3ull);
     const unsigned long long size = header >> 3u;
     zstd_advance(input, 3ull);
     *last = (int)(header & 1ull);
     decoder->block_start = decoder->written;
-    if ((kind == 3u) || (size > decoder->block_maximum))
+    if ((type == 3u) || (size > decoder->block_max))
     {
         return 0;
     }
-    if (kind == 1u)
+    if (type == 1u)
     {
         if ((input->length == 0ull) || !zstd_output_fits(decoder, size))
         {
@@ -215,7 +215,7 @@ static int zstd_block(ZstdDecoder *decoder, ZstdSpan *input, int *last)
     }
     ZstdSpan content = {input->bytes, size};
     zstd_advance(input, size);
-    if (kind == 0u)
+    if (type == 0u)
     {
         if (!zstd_output_fits(decoder, size))
         {
@@ -256,7 +256,7 @@ static int zstd_frame(ZstdDecoder *decoder, ZstdSpan *input)
         return 0;
     }
     decoder->window = (single != 0u) ? content : (window_base + ((window_base >> 3u) * (window_byte & 7u)));
-    decoder->block_maximum = (decoder->window < ZSTD_BLOCK_MAXIMUM) ? decoder->window : ZSTD_BLOCK_MAXIMUM;
+    decoder->block_max = (decoder->window < ZSTD_BLOCK_MAXIMUM) ? decoder->window : ZSTD_BLOCK_MAXIMUM;
     decoder->frame_start = decoder->written;
     decoder->huffman_ready = 0;
     decoder->literal_lengths.ready = 0;

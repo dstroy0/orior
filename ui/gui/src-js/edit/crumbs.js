@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-import { drawProblems, iconOf, paneOpen, shownGroup } from "../explorer.js";
+import { drawProblems, iconOf, paneOpen, displayedGroup } from "../explorer.js";
 import { symbolsOf } from "../outline.js";
 import { checkTree, definition, knownProblems, treeChecking } from "../servers.js";
 import { showMenu } from "../menu.js";
@@ -14,16 +14,16 @@ import { tabName, tabOf } from "./tabs.js";
 import { childrenOf } from "./tree.js";
 
 // Every file's diagnostics, a file at a time, for the Problems pane: the open files' first, as the
-// tabs stand, then the rest of the tree's by path.
+// tabs are, then the rest of the tree's by path.
 export function problemFiles() {
   const open = state.tabs.filter((tab) => !tab.commit && tab.session);
-  const shown = new Set(open.map((tab) => tab.file));
-  const rest = [...knownProblems()].filter(([path]) => !shown.has(path)).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  const displayed = new Set(open.map((tab) => tab.file));
+  const rest = [...knownProblems()].filter(([path]) => !displayed.has(path)).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
   return open.filter((tab) => tab.session.diagnostics?.length).map((tab) => ({ path: tab.file, items: tab.session.diagnostics, open: true })).concat(rest.map(([path, items]) => ({ path, items, open: false })));
 }
 
 // Draws the Problems pane again, and tells the tool strip how many errors and warnings there are; at
-// most once each PROBLEMS_REST, or each CHECKING_REST while the tree's check brings a file's
+// max once each PROBLEMS_REST, or each CHECKING_REST while the tree's check brings a file's
 // diagnostics at a time.
 const PROBLEMS_REST = 120;
 const CHECKING_REST = 400;
@@ -37,7 +37,7 @@ export function problemsChanged() {
 
 // Starts the tree's check where Problems shows.
 export function checkShown() {
-  if (paneOpen("problems") && shownGroup() === "problems") {
+  if (paneOpen("problems") && displayedGroup() === "problems") {
     checkTree();
   }
 }
@@ -80,9 +80,9 @@ export function tidy(tab) {
   if (saving("trim") && !/\.(?:md|markdown)$/i.test(tab.file)) {
     for (let line = 0; line < doc.count; line += 1) {
       const text = doc.line(line);
-      const kept = text.replace(/[ \t]+$/, "").length;
-      if (kept !== text.length) {
-        edits.push({ from: { line, col: kept }, to: { line, col: text.length }, text: "" });
+      const retained = text.replace(/[ \t]+$/, "").length;
+      if (retained !== text.length) {
+        edits.push({ from: { line, col: retained }, to: { line, col: text.length }, text: "" });
       }
     }
   }
@@ -107,9 +107,9 @@ export function tidy(tab) {
 
 const CRUMBS_KEY = "orior.crumbs";
 
-// How long a text's symbols are kept for the breadcrumbs after an edit before they are read again,
+// How long a text's symbols are retained for the breadcrumbs after an edit before they are read again,
 // in milliseconds.
-const CRUMB_SYMBOLS_KEPT = 500;
+const CRUMB_SYMBOLS_RETAINED = 500;
 
 export function crumbsShown() {
   return localStorage.getItem(CRUMBS_KEY) !== "false";
@@ -122,14 +122,14 @@ export function setCrumbs(on = !crumbsShown()) {
 
 function crumbSymbols(s) {
   const now = performance.now();
-  if (!s.crumbs || (s.crumbs.id !== s.doc.id && now - s.crumbs.at > CRUMB_SYMBOLS_KEPT)) {
+  if (!s.crumbs || (s.crumbs.id !== s.doc.id && now - s.crumbs.at > CRUMB_SYMBOLS_RETAINED)) {
     s.crumbs = { id: s.doc.id, at: now, symbols: symbolsOf(s.language?.id, s.doc) };
   }
   return s.crumbs.symbols;
 }
 
 // The symbols the cursor's line is inside: the last at each depth that starts at or above it, where
-// the region it opens reaches the line or it stands on the line itself.
+// the region it opens reaches the line or it is on the line itself.
 function symbolsAround(s, line) {
   const stack = [];
   for (const symbol of crumbSymbols(s)) {
@@ -177,8 +177,8 @@ function openFromCrumb(crumb, items, label) {
   own?.scrollIntoView({ block: "nearest" });
 }
 
-// The breadcrumbs of the file shown: its folders, it, and the symbols the cursor is in. A press on a
-// folder or the file opens the list of what stands beside it, and on a symbol the symbols beside it.
+// The breadcrumbs of the file displayed: its folders, it, and the symbols the cursor is in. A press on a
+// folder or the file opens the list of what is beside it, and on a symbol the symbols beside it.
 export function drawCrumbs() {
   const bar = document.getElementById("crumbs");
   const tab = tabOf(state.active);

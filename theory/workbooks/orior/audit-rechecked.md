@@ -8,7 +8,7 @@ It asks four questions. Is a retracted claim still asserted anywhere? Do the res
 the same numbers as the ledgers? Do the instruments behind the largest claims have the controls
 this tree requires of every other instrument? Can a reader tell which claims a document answers for?
 
-Each section states one finding and its standing, in one of three words. **Repaired** means the
+Each section states one finding and its located, in one of three words. **Repaired** means the
 defect is gone and the section cites where. **Owed** means it is still in the tree. **Not checked**
 means the evidence the finding rests on is no longer in any tree this record can read, and the
 number is repeated.
@@ -30,7 +30,7 @@ twenty places it was looked for, matching the hypothesis table.
 ## Broken sentences from a deletion sweep
 
 **Repaired.** The sentences a deletion sweep left ungrammatical read as whole sentences again;
-`theory/workbooks/orior/failure-modes.md` reads *Mode 15 arrived last and deserves the most
+`theory/workbooks/orior/failure-modes.md` reads *Mode 15 arrived last and deserves the max
 weight*. The class is still open: `maint/prose/docs_check` matches tokens and has no grammar check,
 and a sweep that deletes a banned token can break the next sentence, which then carries no banned
 token for the checker to report.

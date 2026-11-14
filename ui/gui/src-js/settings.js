@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Settings by file. The reader's own settings are the page's entries, kept in settings.json in
-// orior's own folder (early.js). The files settings.json takes stand under them; its part for the
-// system tabvla runs on, a tree's .orior/settings.json and the files that one takes stand over them,
+// Settings by file. The reader's own settings are the page's entries, retained in settings.json in
+// orior's own folder (early.js). The files settings.json takes are under them; its part for the
+// system tabvla runs on, a tree's .orior/settings.json and the files that one takes are over them,
 // as settings.rs in the command line's crate reads them. The page's storage gives each setting as
 // the files put it in force: each part of the page that reads a setting reads the files' with the
-// reader's own. A setting the reader changes where a file stands over it keeps the file's value,
+// reader's own. A setting the reader changes where a file is over it retains the file's value,
 // and the status bar says which file holds it. The tree's settings are read as it opens and again
 // as one of the tree's settings files changes.
 
@@ -15,7 +15,7 @@ import { say } from "./statusbar.js";
 
 export const TREE_FILE = ".orior/settings.json";
 
-const EMPTY = { over: {}, under: {}, own: [], from: {}, kinds: {}, files: [], problems: [], system: "" };
+const EMPTY = { over: {}, under: {}, own: [], from: {}, types: {}, files: [], problems: [], system: "" };
 let layers = EMPTY;
 let root = "";
 const listeners = [];
@@ -49,13 +49,13 @@ Storage.prototype.setItem = function (key, text) {
   if (!said.has(setting)) {
     said.add(setting);
     const [from] = layers.from[setting] ?? [];
-    say(`${setting} stays as ${from?.file ?? "a settings file"}${from?.part ? ` sets it for ${from.part}` : " sets it"}, which stands over your own.`);
+    say(`${setting} stays as ${from?.file ?? "a settings file"}${from?.part ? ` sets it for ${from.part}` : " sets it"}, which is over your own.`);
   }
   // The part of the page that took the reader's change shows the file's value again.
   queueMicrotask(() => listeners.forEach((listener) => listener(new Set([setting]))));
 };
 
-// The reader's own entry of `key`, as the page keeps it, whatever a file stands over it with.
+// The reader's own entry of `key`, as the page retains it, whatever a file is over it with.
 export const ownItem = (key) => getItem.call(window.localStorage, key);
 
 // Tells each listener the settings of `keys`, each without `orior.`, changed in the page's own
@@ -79,14 +79,14 @@ export function settingsInForce() {
 
 // The setting `key` of the files of the language `type`, or null.
 export function typeSetting(type, key) {
-  return layers.kinds[type]?.[key] ?? null;
+  return layers.types[type]?.[key] ?? null;
 }
 
 const textsOf = (read) => [...Object.keys(read.over), ...Object.keys(read.under)];
-const typeKeys = (read) => Object.entries(read.kinds).flatMap(([type, set]) => Object.keys(set).map((key) => `[${type}] ${key}`));
+const typeKeys = (read) => Object.entries(read.types).flatMap(([type, set]) => Object.keys(set).map((key) => `[${type}] ${key}`));
 const typeText = (read, name) => {
   const [, type, key] = name.match(/^\[(.*)\] (.*)$/);
-  return read.kinds[type]?.[key] ?? null;
+  return read.types[type]?.[key] ?? null;
 };
 
 // Reads the settings in force for the tree at `at` again, and tells each listener those that changed.
@@ -96,8 +96,8 @@ export async function readSettings(at = root) {
   const read = await invoke("settings_layers", { tree, root }).catch((error) => ({ ...EMPTY, problems: [String(error)] }));
   const keys = new Set([...textsOf(layers), ...textsOf(read)]);
   const before = new Map([...keys].map((key) => [key, localStorage.getItem(`orior.${key}`)]));
-  const types = new Set([...kindKeys(layers), ...kindKeys(read)]);
-  const typesBefore = new Map([...kinds].map((name) => [name, typeText(layers, name)]));
+  const types = new Set([...typeKeys(layers), ...typeKeys(read)]);
+  const typesBefore = new Map([...types].map((name) => [name, typeText(layers, name)]));
   layers = { ...EMPTY, ...read };
   said.clear();
   const changed = new Set([...keys].filter((key) => localStorage.getItem(`orior.${key}`) !== before.get(key)));

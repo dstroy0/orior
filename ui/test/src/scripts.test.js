@@ -20,7 +20,7 @@ const DRAWS = `orior.on("open", async ({ path }) => {
   if (!path.endsWith("drawn.py")) {
     return;
   }
-  await orior.marks.set(path, [{ line: 1, text: "two words", kind: "warn", title: "a note" }]);
+  await orior.marks.set(path, [{ line: 1, text: "two words", type: "warn", title: "a note" }]);
   await orior.tabs.label(path, "checked");
   await orior.panels.show("main", { title: "Drawn", html: "<p id='said'>from the plugin</p>" });
   await orior.overlays.show("first", { path, line: 0, text: "over the first line" });
@@ -51,7 +51,7 @@ const installed = new Set();
 async function plugin(id, name, code, asks = {}) {
   installed.add(id);
   const home = await invoke("home_folder");
-  await invoke("file_write_any", { path: `${home}/plugins/${id}/plugin.json`, text: JSON.stringify({ id, name, version: "1.0.0", kind: "script", api: 1, ...asks }) });
+  await invoke("file_write_any", { path: `${home}/plugins/${id}/plugin.json`, text: JSON.stringify({ id, name, version: "1.0.0", type: "script", api: 1, ...asks }) });
   await invoke("file_write_any", { path: `${home}/plugins/${id}/plugin.js`, text: code });
 }
 
@@ -70,7 +70,7 @@ test("a plugin draws marks, a tab's label, a panel, an overlay and the chrome th
   await ui.waitFor(() => document.querySelector(".ed-plugin-text"), 5000, "the plugin's mark");
   // The plugin's calls come one after another, the overlay the last of what it draws.
   await ui.waitFor(() => document.querySelector(".plugin-overlay"), 5000, "the plugin's overlay");
-  assert.ok(document.querySelector(".ed-plugin.warn"), "a mark in the gutter in the color of its kind");
+  assert.ok(document.querySelector(".ed-plugin.warn"), "a mark in the gutter in the color of its type");
   assert.equal(document.querySelector(".ed-plugin-text").textContent, "two words");
   assert.equal(document.querySelector(".plugin-overlay").textContent, "over the first line");
   const panel = document.querySelector(".plugin-panel");
@@ -97,7 +97,7 @@ test("a plugin that stops answering is named with how long and stopped, and the 
   editor.goTo(0, 3);
   editor.focus();
   await ui.type(" two");
-  assert.equal(editor.s.doc.line(0), "one two", "the keys are not kept up");
+  assert.equal(editor.s.doc.line(0), "one two", "the keys are not retained up");
   await ui.click(document.querySelector(".status-plugin-stop"));
   await ui.waitFor(() => !running().has("stuck") && document.getElementById("status-plugin").hidden, 3000);
   assert.ok(running().has("draws"), "the others run on");
@@ -139,7 +139,7 @@ test("plugins start once the frame being drawn is drawn, each on its own and non
   for (const id of ["first_quiet", "second_quiet"]) {
     stopPlugin(id);
   }
-  // Each plugin's code is kept a while as it is read.
+  // Each plugin's code is retained a while as it is read.
   watchCalls((name, args, send) => (name === "plugin_code" ? new Promise((done) => setTimeout(() => done(calls.watcher(name, args, send)), 400)) : calls.watcher(name, args, send)));
   try {
     const began = performance.now();

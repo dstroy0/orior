@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // structure_test.c: the Outline pane's check: a C text stored under a key reads as rows of declarations in the order of
 // their lines, each with its table, its name, its line and its depth; the pane's table draws them on the side under the
-// Structure group's title, a row its number of rows under the pane's head, the row of the declaration the cursor stands
+// Structure group's title, a row its number of rows under the pane's head, the row of the declaration the cursor is
 // in on the idle selection's ground and the row pointed on a ground of its own; a press lands on a row and on no row
 // over the group's title; the head offers no action; and a key with no text under it leaves no rows
 #include "../../../../../includes/window/block.h"
@@ -74,8 +74,8 @@ int main(void)
     CliOutlineRow second;
     cli_check(EMBED_CALL(cli_outline.row, CliOutlineCfg, .at = 0u, .row = &first) &&
                   EMBED_CALL(cli_outline.row, CliOutlineCfg, .at = 1u, .row = &second) && (first.line <= second.line),
-              "the rows stand in the order of their lines");
-    cli_check(!EMBED_CALL(cli_outline.row, CliOutlineCfg, .at = rows, .row = &first), "no row stands past the last");
+              "the rows are in the order of their lines");
+    cli_check(!EMBED_CALL(cli_outline.row, CliOutlineCfg, .at = rows, .row = &first), "no row is past the last");
 
     const GuiPaneTable *const table = &gui_structure_table;
     cli_check(EMBED_CALL(gui_pane.table_of, GuiPaneCfg, .tool = "structure") == table, "the Structure tool has the table");
@@ -89,9 +89,9 @@ int main(void)
         main_row = (first.line == entry.line) ? at : main_row;
     }
     cli_check(EMBED_CALL(table->current, GuiPaneCfg, .cursor_line = 7ULL) == (int)main_row,
-              "the cursor inside main stands in main's row");
+              "the cursor inside main is in main's row");
     cli_check(EMBED_CALL(table->current, GuiPaneCfg, .cursor_line = 0ULL) <= 0,
-              "the cursor on the first line stands in the first row or none");
+              "the cursor on the first line is in the first row or none");
 
     GuiRaster raster;
     cli_check(
@@ -111,7 +111,7 @@ int main(void)
     cli_check(on_main != on_other, "the cursor's row is drawn on a ground of its own");
     cli_check(main_rect.y == EMBED_CALL(gui_pane.rows_top, GuiPaneCfg, .table = table, .frame = &frame) +
                                  ((int)main_row * GUI_PANE_ROW),
-              "a row stands its number of rows under the pane's head");
+              "a row is its number of rows under the pane's head");
 
     unsigned int hit_row = 0u;
     cli_check(EMBED_CALL(gui_pane.hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
@@ -137,7 +137,7 @@ int main(void)
               "the Outline's head offers no action");
     GuiPaneOpen open = {NULL, {0ULL, 0ULL}, 0};
     cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = main_row, .open_out = &open),
-              "a row pressed with no view shown opens nothing");
+              "a row pressed with no view displayed opens nothing");
 
     EMBED_CALL(cli_outline.read, CliOutlineCfg, .key = "check:none", .path = "none.c");
     cli_check(EMBED_CALL(cli_outline.rows, CliOutlineCfg, .at = 0u) == 0u, "no text under a key leaves no rows");

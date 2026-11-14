@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // schema_values.c: a schema's values read: its members, strings, booleans and numbers; two values compared as JSON's
-// values are, a number by its value; values shown in a message as serde_json writes them, an object's keys in order,
-// cut short past forty letters; a pattern matched as ECMAScript reads one; and a number and a string checked against
+// values are, a number by its value; values displayed in a message as serde_json writes them, an object's keys in order,
+// cut short past forty characters; a pattern matched as ECMAScript reads one; and a number and a string checked against
 // the keywords that bound them
 #include "../../../../includes/arith/arith.h"
 #include "../text/regexp.h"
@@ -10,7 +10,7 @@
 
 #include "../text/text.h"
 
-// the most letters of a string a pattern is matched against, the most bytes of a pattern, and the bytes a value is
+// the max characters of a string a pattern is matched against, the max bytes of a pattern, and the bytes a value is
 // written in before it is cut short
 #define CLI_SCHEMA_MATCHED (1u << 20u)
 #define CLI_SCHEMA_PATTERN (1u << 14u)
@@ -311,20 +311,20 @@ int cli_schema_same_values(const CliSchemaReadOneCtx *args)
     return 1;
 }
 
-// `size` bytes of a value written between backticks, cut short past forty letters
+// `size` bytes of a value written between backticks, cut short past forty characters
 EMBED_INLINE void values_cut(const SchemaValuesCtx *args)
 {
     const char *text = args->text;
     unsigned long long size = args->size;
     mmgr_line_ch(args->out, '`');
-    unsigned long long letters = 0ULL;
+    unsigned long long characters = 0ULL;
     unsigned long long at = 0ULL;
-    while ((at < size) && (letters < 40u))
+    while ((at < size) && (characters < 40u))
     {
         unsigned long long length = 0ULL;
-        (void)EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = size, .at = at, .length = &length);
+        (void)EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = text, .size = size, .at = at, .length = &length);
         at += length;
-        letters += 1u;
+        characters += 1u;
     }
     mmgr_line_put_n(args->out, text, at);
     mmgr_line_put(args->out, (at < size) ? "\xe2\x80\xa6`" : "`");
@@ -483,13 +483,13 @@ int cli_schema_matches(const CliSchemaTextCtx *args)
     {
         return -1;
     }
-    // the string's letters, each at least one of its bytes, and the pattern with a terminator after it
+    // the string's characters, each at least one of its bytes, and the pattern with a terminator after it
     const unsigned long long capacity = (args->size < CLI_SCHEMA_MATCHED) ? args->size : CLI_SCHEMA_MATCHED;
-    unsigned int *const letters =
-        g_cli_guard->temporary_buf_alloc((capacity + 1ULL) * sizeof(*letters), g_cli_schema_owner);
+    unsigned int *const characters =
+        g_cli_guard->temporary_buf_alloc((capacity + 1ULL) * sizeof(*characters), g_cli_schema_owner);
     char *const source = g_cli_guard->temporary_buf_alloc(args->pattern_size + 1ULL, g_cli_schema_owner);
     int found = -1;
-    if ((letters != NULL) && (source != NULL))
+    if ((characters != NULL) && (source != NULL))
     {
         memor.cpy(&(MemoriaCfg){.dst = source, .src = args->pattern, .bytes = (embed_word)args->pattern_size});
         source[args->pattern_size] = '\0';
@@ -500,19 +500,19 @@ int cli_schema_matches(const CliSchemaTextCtx *args)
                        .flags = "u", .err_msg = &err_msg))
         {
             const unsigned long long length =
-                EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->text, .size = args->size,
-                           .letters = letters, .capacity_u64 = capacity);
+                EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = args->text, .size = args->size,
+                           .characters = characters, .capacity_u64 = capacity);
             found = 0;
             unsigned long long at = 0ULL;
             while (!found && (at <= length))
             {
                 found = EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = &s_regexp,
-                                   .text_u32s = letters, .length = length, .at = at, .groups = s_groups);
+                                   .text_u32s = characters, .length = length, .at = at, .groups = s_groups);
                 at += 1u;
             }
         }
     }
     g_cli_guard->persistent_buf_release(source, g_cli_schema_owner);
-    g_cli_guard->persistent_buf_release(letters, g_cli_schema_owner);
+    g_cli_guard->persistent_buf_release(characters, g_cli_schema_owner);
     return found;
 }

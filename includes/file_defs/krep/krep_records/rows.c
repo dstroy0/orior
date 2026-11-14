@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// rows.c: the rows: a number's halves, a number read, put and added, the hash, a row handed to the run with its who, a
+// rows.c: the rows: a number's halves, a number read, put and added, the hash, a row passed to the run with its who, a
 // record's row and a text's, the text slots grown, and a text taken
 #include "../../../parsers/who.h"
 #include "krep_records_internal.h"
@@ -27,7 +27,7 @@ int krep_number_read(const unsigned char *bytes, unsigned long long size, unsign
                      unsigned long long *value)
 {
     *value = 0ull;
-    for (unsigned int taken = 0u; (taken < KREP_NUMBER_MOST) && (*at < size); taken += 1u)
+    for (unsigned int taken = 0u; (taken < KREP_NUMBER_MAX) && (*at < size); taken += 1u)
     {
         const unsigned char byte = bytes[*at];
         *at += 1ull;
@@ -40,7 +40,7 @@ int krep_number_read(const unsigned char *bytes, unsigned long long size, unsign
     return 0;
 }
 
-// `value` written into `bytes`, which has room for KREP_NUMBER_MOST, seven bits a byte: the bytes it took
+// `value` written into `bytes`, which has room for KREP_NUMBER_MAX, seven bits a byte: the bytes it took
 static unsigned int krep_number_put(unsigned char *bytes, unsigned long long value)
 {
     unsigned int taken = 0u;
@@ -58,7 +58,7 @@ static unsigned int krep_number_put(unsigned char *bytes, unsigned long long val
 // it did not fit
 size_t krep_number_added(char *out, size_t cap, size_t at, unsigned long long value)
 {
-    unsigned char bytes[KREP_NUMBER_MOST];
+    unsigned char bytes[KREP_NUMBER_MAX];
     const unsigned int taken = krep_number_put(bytes, value);
     return verba_textus.put_n(
         &(VerbaTextusCfg){.out = out, .cap = cap, .at = at, .text = (const char *)bytes, .text_len = taken});
@@ -76,10 +76,10 @@ static unsigned long long krep_hash(const char *bytes, unsigned long long length
 }
 
 // A row of `file`'s table of the key `key`, of the who two words `who` carry and of the change `change`: its `count`
-// numbers from `numbers`, then `size` bytes at `bytes` filled out to a whole word with zeros, handed at `priority`.
-// Its sequence where it is critical, 1 where it is ordinary, or 0 where it could not be handed, and the file then no
+// numbers from `numbers`, then `size` bytes at `bytes` filled out to a whole word with zeros, passed at `priority`.
+// Its sequence where it is critical, 1 where it is ordinary, or 0 where it could not be passed, and the file then no
 // table's
-unsigned long long krep_row_handed(KrepFile *file, unsigned long long key, const unsigned long long *who,
+unsigned long long krep_row_passed(KrepFile *file, unsigned long long key, const unsigned long long *who,
                                    unsigned int change, const unsigned long long *numbers, unsigned int count,
                                    const void *bytes, unsigned long long size, unsigned int priority)
 {
@@ -132,21 +132,21 @@ void krep_who_words_at(const KrepFile *file, unsigned int at, unsigned long long
     }
 }
 
-// the row of the record at `at` of `file`, put there, of the who two words `who` carry, handed to its table
+// the row of the record at `at` of `file`, put there, of the who two words `who` carry, passed to its table
 void krep_record_row(KrepFile *file, unsigned int at, const unsigned long long *who)
 {
     const KrepRecord *const entry = &file->record[at];
     const unsigned long long numbers[3] = {at, entry->code, entry->count};
-    krep_row_handed(file, file->key, who, KREP_ROW_PUT, numbers, 3u, entry->word,
+    krep_row_passed(file, file->key, who, KREP_ROW_PUT, numbers, 3u, entry->word,
                     (unsigned long long)entry->count * sizeof(unsigned long long), QRY_ORDINARY);
 }
 
-// the row of the text of the number `number` of `file`, of no who, handed to its table
+// the row of the text of the number `number` of `file`, of no who, passed to its table
 void krep_text_row(KrepFile *file, unsigned int number)
 {
     static const unsigned long long s_none[2] = {0ull, 0ull};
     const unsigned long long numbers[2] = {number, file->text_length[number - 1u]};
-    krep_row_handed(file, file->key, s_none, KREP_ROW_TEXT, numbers, 2u, file->text[number - 1u],
+    krep_row_passed(file, file->key, s_none, KREP_ROW_TEXT, numbers, 2u, file->text[number - 1u],
                     file->text_length[number - 1u], QRY_ORDINARY);
 }
 
@@ -220,7 +220,7 @@ unsigned long long krep_text_taken(KrepFile *file, const char *bytes, unsigned l
         file->text_length = lengths;
         file->text_room = grown;
     }
-    // a text is at most the bytes of a file read whole, which a size_t counts
+    // a text is at max the bytes of a file read whole, which a size_t counts
     char *const copy = (char *)malloc((size_t)length + 1u);
     if (copy == NULL)
     {

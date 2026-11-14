@@ -43,7 +43,7 @@ sphere and the covering radius falls with depth.
 
 DENSE IS STILL NOT ALL, AND THAT DISTINCTION IS THE WHOLE HONEST ANSWER. A finite gate set applied
 finitely many times reaches a countable set of points, and the sphere is uncountable, a measure
-zero subset is the most any gate set reaches. The claim that survives is: arbitrarily close to any
+zero subset is the max any gate set reaches. The claim that survives is: arbitrarily close to any
 point, exactly, with the error falling as depth grows and each gate costing nothing to apply.
 """
 
@@ -102,7 +102,7 @@ def reachable_with_t(depth, samples=4000, seed=3):
     root = 1.0 / math.sqrt(2.0)
 
     # THE SET IS CUMULATIVE AND STARTS FROM THE SIX STABILIZER POINTS, and it has to be. Reaching
-    # something with AT MOST d T gates is a superset of reaching it with at most d-1, because the
+    # something with AT MAX d T gates is a superset of reaching it with at max d-1, because the
     # extra gate can always be declined. The covering radius cannot rise with depth.
     #
     # Words with EXACTLY d T gates exclude the six octahedron vertices, and read 119.76 degrees at
@@ -137,7 +137,7 @@ def covering_radius(points, probes=20000, seed=17):
     """
     generator = numpy.random.default_rng(seed)
     cosines = 2.0 * generator.random(probes) - 1.0
-    sines = numpy.sqrt(numpy.maximum(0.0, 1.0 - cosines * cosines))
+    sines = numpy.sqrt(numpy.max(0.0, 1.0 - cosines * cosines))
     angles = 2.0 * math.pi * generator.random(probes)
     probe = numpy.stack([sines * numpy.cos(angles), sines * numpy.sin(angles), cosines], axis=1)
 
@@ -261,9 +261,9 @@ def _check():
         failed += 1
 
     # THE MONOTONE CONTROL, WHICH EXISTS BECAUSE THE FIRST VERSION VIOLATED IT. Reaching with at
-    # most d T gates is a superset of reaching with at most d-1. The covering radius can only
+    # max d T gates is a superset of reaching with at max d-1. The covering radius can only
     # fall. A rise means the sampled set is not cumulative and the depth table is comparing
-    # different kinds of set to each other instead of measuring an improvement.
+    # different types of set to each other instead of measuring an improvement.
     ladder = [covering_radius(reachable_with_t(depth, samples=1500))
               for depth in (0, 1, 2, 3, 4, 6)]
     rises = [at for at in range(1, len(ladder)) if ladder[at] > ladder[at - 1] + 1e-9]

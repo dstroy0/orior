@@ -4,7 +4,7 @@
 #
 # Shows the display the window draws on in memory to a browser on the machine that runs the
 # container, then runs the command it is given: x11vnc serves the display over VNC, and noVNC, behind
-# websockify, serves that at http://localhost:6080/vnc.html. It is shown and never driven: no press
+# websockify, serves that at http://localhost:6080/vnc.html. It is displayed and never driven: no press
 # or key in the browser reaches the window the tests drive. Neither asks a password; the harness
 # publishes the port on the machine's loopback alone.
 

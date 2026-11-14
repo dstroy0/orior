@@ -17,8 +17,8 @@ typedef struct
     CliGrownLine line;
     unsigned long long lines;
 } CliTestLines;
-// the most files and settings one import takes; the most bytes of the lines a run's failed tests or its coverage print;
-// and the most bytes of what is synced written as its differences or as an import
+// the max files and settings one import takes; the max bytes of the lines a run's failed tests or its coverage print;
+// and the max bytes of what is synced written as its differences or as an import
 #define CLI_AT_TERMINAL_ALLOCATED 4096u
 #define CLI_AT_TERMINAL_LINES (1u << 20u)
 #define CLI_AT_TERMINAL_TRANSFERRED (8ULL << 20u)
@@ -46,7 +46,7 @@ typedef struct
     CliJson *json_out;
     CliGrownLine *grown;
 } AtTerminalTestsCtx;
-// `size` bytes of `text` put after the lines buffered, a line of its own, a line past the most the lines contain left
+// `size` bytes of `text` put after the lines buffered, a line of its own, a line past the max the lines contain left
 // out
 EMBED_INLINE void tests_line_append(const AtTerminalTestsCtx *args)
 {
@@ -60,7 +60,7 @@ EMBED_INLINE void tests_line_append(const AtTerminalTestsCtx *args)
     lines->lines += 1ULL;
 }
 
-// the line of the lines buffered begun, grown to them up to the most they hold
+// the line of the lines buffered begun, grown to them up to the max they hold
 EMBED_INLINE void tests_lines_begin(const AtTerminalTestsCtx *args)
 {
     CliTestLines *lines = args->lines;
@@ -174,7 +174,7 @@ static void tests_event(const CliEachJsonSizeCfg *args)
     const char *const type =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
-                                      .object = root, .name = "kind"),
+                                      .object = root, .name = "type"),
                    .length_pointer = NULL);
     const char *const what = (type != NULL) ? type : "";
     if (cellul.eq(&(CatenaFinitaCfg){.src = what, .other = "result", .cap = CLI_POOL_BYTES}))

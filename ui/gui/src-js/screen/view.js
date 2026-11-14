@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // A screen drawn into its view: a new size, the focus, the lines drawn as they change, the view's scroll, and the lines
-// kept as they scroll off, in the tail and the head and read back from the store. Each is a method of Screen
+// retained as they scroll off, in the tail and the head and read back from the store. Each is a method of Screen
 // (screen.js), `this` the screen it runs for.
 
 import { PLAIN, blank, lineHtml, lineOf } from "./cells.js";
 
-const KEPT = 5000;
-// The most screens of lines the head holds.
+const RETAINED = 5000;
+// The max screens of lines the head holds.
 const HEAD_SCREENS = 4;
 // How long the view rests, in milliseconds, before the lines come into sight are read.
 const SETTLES = 50;
 
 // Gives the screen a new size. Lines are cut or filled out to the new width; a shorter main
-// screen keeps the lines that leave its top, and the cursor stays on the line it was on.
+// screen retains the lines that leave its top, and the cursor stays on the line it was on.
 // The screen the cursor is not on loses lines from its foot.
 export function resize(cols, rows) {
   if (cols === this.cols && rows === this.rowCount) {
@@ -36,7 +36,7 @@ export function resize(cols, rows) {
         const row = buffer.rows.shift();
         row.innerHTML = lineHtml(gone, -1);
         if (buffer === this.main) {
-          this.keepRow(row);
+          this.retainRow(row);
         } else {
           row.remove();
         }
@@ -114,13 +114,13 @@ export function place(top) {
   }
 }
 
-// Keeps a row that scrolled off the top of the main screen. With a store its line goes there and
+// Retains a row that scrolled off the top of the main screen. With a store its line goes there and
 // its row to the tail, whose first row goes on into the head where the head runs on to the tail and
 // the reader is not being read for, and otherwise out of the page, its height into the gap.
-export function keepRow(row) {
+export function retainRow(row) {
   if (!this.store) {
     this.tail.appendChild(row);
-    if (this.tail.childElementCount > KEPT) {
+    if (this.tail.childElementCount > RETAINED) {
       this.tail.firstElementChild.remove();
     }
     return;
@@ -134,7 +134,7 @@ export function keepRow(row) {
 
 // Lets the tail's first rows go past the tail's size, into the head or out of the page.
 export function trimTail() {
-  const size = this.store ? 2 * this.inView() : KEPT;
+  const size = this.store ? 2 * this.inView() : RETAINED;
   while (this.tail.childElementCount > size) {
     const first = this.tail.firstElementChild;
     const headEmpty = this.headFrom === this.headTo;
@@ -154,12 +154,12 @@ export function trimTail() {
 }
 
 // Sends the lines on their way to the store, in order. A store that fails is let go, and from
-// then on the page holds the last KEPT itself.
+// then on the page holds the last RETAINED itself.
 export function flushSoon() {
   this.flushing ??= Promise.resolve().then(async () => {
     try {
       while (this.outgoing.length && this.store) {
-        await this.store.keep(this.outgoing.splice(0));
+        await this.store.retain(this.outgoing.splice(0));
       }
     } catch {
       this.store = null;
@@ -197,8 +197,8 @@ export function inView() {
   return Math.max(this.rowCount, tall ? Math.ceil(this.view.clientHeight / tall) : 0);
 }
 
-// Gives each line of the store not kept its row's height, above the head and between the head
-// and the tail. The view then scrolls over every line kept, and the screen stays under the last
+// Gives each line of the store not retained its row's height, above the head and between the head
+// and the tail. The view then scrolls over every line retained, and the screen stays under the last
 // of it.
 export function sizeGaps() {
   const tall = this.store ? this.rowHeight() : 0;
@@ -246,11 +246,11 @@ export async function fill() {
   if (from <= this.headTo && to >= this.headFrom && this.headFrom !== this.headTo) {
     from = Math.min(from, this.headFrom);
     to = Math.max(to, this.headTo);
-    const most = HEAD_SCREENS * screenful;
-    if (to - from > most) {
-      from = clamp(Math.round((first + last) / 2) - Math.floor(most / 2));
-      to = clamp(from + most);
-      from = clamp(to - most);
+    const max = HEAD_SCREENS * screenful;
+    if (to - from > max) {
+      from = clamp(Math.round((first + last) / 2) - Math.floor(max / 2));
+      to = clamp(from + max);
+      from = clamp(to - max);
     }
   }
   if (from === this.headFrom && to === this.headTo) {
@@ -266,7 +266,7 @@ export async function fill() {
   requestAnimationFrame(() => this.fill());
 }
 
-// Makes the head the lines of the store from `from` up to `to`, reading only those not kept.
+// Makes the head the lines of the store from `from` up to `to`, reading only those not retained.
 export async function hold(from, to) {
   if (from >= this.headTo || to <= this.headFrom) {
     const lines = await this.readBack(from, to - from);

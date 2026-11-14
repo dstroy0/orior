@@ -98,7 +98,7 @@ int main(void)
     record_appended(&run, "conference_why_it_failed", "alpha: because\n\noverseer: ruled so\n", QRY_ORDINARY);
     record_appended(&run, "panic", "boom\nline two\n", QRY_PANIC);
     file_written(s_root, "runs/a.qry", qry, run.at);
-    const char *const lessons = "lesson cause_a * stand_a\nnot a lesson\nlesson cause_b carrier_b stand_b\n";
+    const char *const lessons = "lesson cause_a * are_a\nnot a lesson\nlesson cause_b carrier_b are_b\n";
     file_written(s_root, "runs/overseer.txt", lessons,
                  cellul.len(&(CatenaFinitaCfg){.src = lessons, .cap = CLI_POOL_BYTES}));
 
@@ -106,7 +106,7 @@ int main(void)
     cli_check(EMBED_CALL(gui_pane.table_of, GuiPaneCfg, .tool = "runs") == table, "the Runs tool has the table");
     EMBED_CALL(cli_runs_pane.begin, CliRunsPaneCfg, .woken = NULL);
     cli_check(EMBED_CALL(cli_runs_pane.rows, CliRunsPaneCfg, .at = 0u) == 0u, "nothing is listed before a step");
-    cli_check(EMBED_CALL(cli_runs_pane.step, CliRunsPaneCfg, .root = s_root, .now_ms = 1000ULL, .shown = 1),
+    cli_check(EMBED_CALL(cli_runs_pane.step, CliRunsPaneCfg, .root = s_root, .now_ms = 1000ULL, .displayed = 1),
               "the first step lists the tree's runs");
     cli_check(EMBED_CALL(cli_runs_pane.rows, CliRunsPaneCfg, .at = 0u) == 5u,
               "a folder, its run, the lessons' head and two lessons are five rows");
@@ -121,18 +121,18 @@ int main(void)
     cli_check(row_is(2u, CLI_RUNS_ROW_LESSONS, NULL, &row), "the lessons' head follows the runs");
     cli_check(row_is(3u, CLI_RUNS_ROW_LESSON, "cause_a", &row) && second_is(&row, "*") &&
                   (row.third_length == 7ULL) &&
-                  (memor.cmp(&(MemoriaCfg){.src = row.third, .other = "stand_a", .bytes = 7u}) == 0),
+                  (memor.cmp(&(MemoriaCfg){.src = row.third, .other = "are_a", .bytes = 7u}) == 0),
               "a lesson's row carries its cause, its carrier and its stand-in");
     cli_check(row_is(4u, CLI_RUNS_ROW_LESSON, "cause_b", &row) && second_is(&row, "carrier_b"),
               "a line that is no lesson is passed over and the next lesson follows");
-    cli_check(!EMBED_CALL(cli_runs_pane.row, CliRunsPaneCfg, .at = 5u, .row = &row), "no row stands past the last");
+    cli_check(!EMBED_CALL(cli_runs_pane.row, CliRunsPaneCfg, .at = 5u, .row = &row), "no row is past the last");
     unsigned int live = 9u;
     unsigned int panicked = 9u;
     EMBED_CALL(cli_runs_pane.marks, CliRunsPaneCfg, .live_out = &live, .panicked_out = &panicked);
     cli_check((live == 0u) && (panicked == 0u), "no run is live and none has panicked");
-    cli_check(!EMBED_CALL(cli_runs_pane.step, CliRunsPaneCfg, .root = s_root, .now_ms = 3000ULL, .shown = 1),
+    cli_check(!EMBED_CALL(cli_runs_pane.step, CliRunsPaneCfg, .root = s_root, .now_ms = 3000ULL, .displayed = 1),
               "with no run live a later step lists nothing again");
-    cli_check(EMBED_CALL(cli_runs_pane.deadline_ms, CliRunsPaneCfg, .root = s_root, .shown = 1) == 0ULL,
+    cli_check(EMBED_CALL(cli_runs_pane.deadline_ms, CliRunsPaneCfg, .root = s_root, .displayed = 1) == 0ULL,
               "with no run live no beat is awaited");
 
     char other[512];
@@ -141,7 +141,7 @@ int main(void)
     file_written(s_root, "runs/b.qry", other, second_run.at);
     EMBED_CALL(cli_qry_path_root.run_write, CliQryPathRootCfg, .root = s_root, .path = "runs/b.qry",
                .length = sizeof("runs/b.qry") - 1u);
-    cli_check(EMBED_CALL(cli_runs_pane.step, CliRunsPaneCfg, .root = s_root, .now_ms = 3100ULL, .shown = 1),
+    cli_check(EMBED_CALL(cli_runs_pane.step, CliRunsPaneCfg, .root = s_root, .now_ms = 3100ULL, .displayed = 1),
               "a run the watch saw written has the runs listed again");
     cli_check((EMBED_CALL(cli_runs_pane.rows, CliRunsPaneCfg, .at = 0u) == 6u) &&
                   row_is(2u, CLI_RUNS_ROW_RUN, "b", &row) && (row.size == second_run.at),
@@ -151,7 +151,7 @@ int main(void)
     cli_check(EMBED_CALL(cli_runs_pane.rows, CliRunsPaneCfg, .at = 0u) == 16u,
               "the run opened adds its panic's head and two lines, the question and two accounts, the count and three "
               "records");
-    cli_check(row_is(1u, CLI_RUNS_ROW_RUN, "a", &row) && row.open, "the run's row stands opened");
+    cli_check(row_is(1u, CLI_RUNS_ROW_RUN, "a", &row) && row.open, "the run's row is opened");
     cli_check(row_is(2u, CLI_RUNS_ROW_PANIC, NULL, &row) && (row.number == 2ULL), "the panic's head carries its sequence");
     cli_check(row_is(3u, CLI_RUNS_ROW_PANIC_LINE, "boom", &row) && row_is(4u, CLI_RUNS_ROW_PANIC_LINE, "line two", &row),
               "the panic's text takes a row a line");
@@ -181,7 +181,7 @@ int main(void)
         "the raster is taken");
     const int rows_top = EMBED_CALL(gui_pane.rows_top, GuiPaneCfg, .table = table, .frame = &frame);
     cli_check(rows_top == frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD,
-              "the rows stand under the pane's head alone");
+              "the rows are under the pane's head alone");
     const GuiRect first =
         EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .table = table, .frame = &frame, .pane_read = &pane, .row = 0u);
     unsigned int hit_row = 0u;
@@ -199,13 +199,13 @@ int main(void)
                   (EMBED_CALL(cli_runs_pane.rows, CliRunsPaneCfg, .at = 0u) == 6u),
               "a folder's row pressed changes nothing");
 
-    cli_check(EMBED_CALL(cli_runs_pane.step, CliRunsPaneCfg, .root = s_empty, .now_ms = 4000ULL, .shown = 1) &&
+    cli_check(EMBED_CALL(cli_runs_pane.step, CliRunsPaneCfg, .root = s_empty, .now_ms = 4000ULL, .displayed = 1) &&
                   (EMBED_CALL(cli_runs_pane.rows, CliRunsPaneCfg, .at = 0u) == 1u) &&
                   row_is(0u, CLI_RUNS_ROW_EMPTY, NULL, &row),
               "another tree with no run lists one row that reads so");
     EMBED_CALL(gui_pane.draw, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame, .raster = &raster,
                .glyphs = &glyphs, .palette = palette, .title = "Runs", .tree = "");
-    cli_check(EMBED_CALL(cli_runs_pane.step, CliRunsPaneCfg, .root = NULL, .now_ms = 5000ULL, .shown = 0) &&
+    cli_check(EMBED_CALL(cli_runs_pane.step, CliRunsPaneCfg, .root = NULL, .now_ms = 5000ULL, .displayed = 0) &&
                   (EMBED_CALL(cli_runs_pane.rows, CliRunsPaneCfg, .at = 0u) == 0u),
               "no tree leaves no rows");
 

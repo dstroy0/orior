@@ -103,7 +103,7 @@ void test_a_position_counts_its_column_in_utf16(void)
     static const char s_text[] = "ab\nx\xC3\xA9\xF0\x9F\x98\x80z\n";
     static unsigned int s_starts[8];
     CliBuildLines lines;
-    EMBED_CALL(cli_builds_text_size.build_lines_get, CliBuildsTextSizeCfg, .text = s_text, .size = sizeof(s_text) - 1u, .starts = s_starts, .most = 8u, .lines_out = &lines);
+    EMBED_CALL(cli_builds_text_size.build_lines_get, CliBuildsTextSizeCfg, .text = s_text, .size = sizeof(s_text) - 1u, .starts = s_starts, .max = 8u, .lines_out = &lines);
     const char *const z = cellul.chr(&(CatenaFinitaCfg){.src = s_text, .cap = CLI_POOL_BYTES, .byte = 'z'});
     TEST_ASSERT_NOT_NULL(z);
     // `z` lies in the text, past its start

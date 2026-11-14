@@ -22,9 +22,9 @@ typedef struct GuiThemeOutCfg GuiThemeOutCfg;
 typedef struct GuiThemeTextCfg GuiThemeTextCfg;
 typedef struct GuiThemeNameCfg GuiThemeNameCfg;
 
-// the most themes kept; the most bytes a theme's name takes with its end; the most colors a theme sets, the palette's
-// named colors and a plugin's tokens; the most icons a theme gives; the most bytes of an icon's pattern, of its mark,
-// three letters of four bytes each, and of its color's text; and the scheme's own name
+// the max themes retained; the max bytes a theme's name takes with its end; the max colors a theme sets, the palette's
+// named colors and a plugin's tokens; the max icons a theme gives; the max bytes of an icon's pattern, of its mark,
+// three characters of four bytes each, and of its color's text; and the scheme's own name
 #define GUI_THEMES_MAX 24u
 #define GUI_THEME_NAME 64u
 #define GUI_THEME_COLORS 192u
@@ -41,8 +41,8 @@ typedef struct
     GuiColor color;
 } GuiThemeColor;
 
-// One icon a theme gives: the pattern of the file names it covers, `*` for any letters and `?` for one; the mark, a
-// letter or a few; and its color, one of the palette's by name or a color's hex value, empty for the quieter mark
+// One icon a theme gives: the pattern of the file names it covers, `*` for any characters and `?` for one; the mark, a
+// character or a few; and its color, one of the palette's by name or a color's hex value, empty for the quieter mark
 typedef struct
 {
     char pattern[GUI_THEME_PATTERN];
@@ -60,7 +60,7 @@ typedef struct
     unsigned int icons;
 } GuiTheme;
 
-// The themes kept, in the order of the entry: `count` records of GuiTheme in one movable cell their holder owns, each
+// The themes retained, in the order of the entry: `count` records of GuiTheme in one movable cell their holder owns, each
 // at its place times the record's bytes, read into a record of the call that reads it
 typedef struct
 {
@@ -98,7 +98,7 @@ int gui_theme_color_get(const GuiThemesAtColorCfg *args);
 // `pattern` taken off
 void gui_theme_icon_set(const GuiThemesAtIconCfg *args);
 void gui_theme_icon_remove(const GuiThemesAtIconCfg *args);
-// the first icon of `theme` whose pattern covers the file name `name`, `length` bytes, letters compared without case:
+// the first icon of `theme` whose pattern covers the file name `name`, `length` bytes, characters compared without case:
 // the icon, or NULL where none does
 const GuiThemeIcon *gui_theme_icon_match(const GuiThemeNameCfg *args);
 // `theme` written into `out` as text to share, one member a line; and a theme read from `size` bytes of `text` into

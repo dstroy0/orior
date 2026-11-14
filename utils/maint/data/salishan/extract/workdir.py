@@ -1,4 +1,4 @@
-"""Where the extraction tools find what they read and keep what they make.
+"""Where the extraction tools find what they read and retain what they make.
 
 The tools are in the public tree. The published papers, and every text read off their pages, stay
 in the closed corpus, and the tools read them there:

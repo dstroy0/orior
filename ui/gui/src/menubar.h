@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // menubar.h: the menu bar's titles across the bar and the menus open under them, or at the place a part's menu was
-// asked for, as the command line's menus stand open (commands.h): those titles the window's width has capacity for, the
-// rest folded into a last title, which the window hands to the menus. Where each stands and which pixel stands on what
+// asked for, as the command line's menus are open (commands.h): those titles the window's width has capacity for, the
+// rest folded into a last title, which the window passes to the menus. Where each is and which pixel is on what
 // is worked out here; every press and key means what the menus take it to mean (menubar.c)
 #ifndef GUI_WINDOW_MENUBAR_H
 #define GUI_WINDOW_MENUBAR_H
@@ -20,15 +20,15 @@ typedef struct GuiMenubarFrameCfg GuiMenubarFrameCfg;
 typedef struct GuiMenubarXCfg GuiMenubarXCfg;
 typedef struct GuiMenubarCfg GuiMenubarCfg;
 
-// the titles the bar holds at the most and the menus open at once at the most, one under another; and the sizes in
+// the titles the bar holds at max and the menus open at once at max, one under another; and the sizes in
 // the page's pixels: a title's padding each side and its margins across and along, its corner radius, how far the
 // titles start after the bar's left edge, the bar's padding of 16 less the eye's negative margin of 4.4, the capacity
 // the eye takes before them while the claim does not hold, its width and the gap of .7rem after it, the capacity saved
 // at the bar's right for the tree's name, a menu's least width, its padding and corner radius, an item's padding
-// across, its padding at its left in a menu with rows on or off and where the mark of one that is on stands from its
+// across, its padding at its left in a menu with rows on or off and where the mark of one that is on is from its
 // left, its height, the least gap between a label and its keys, a line's height with its margins, how far a menu opens
 // below its title, how far a menu of items opens beside and above its item, how far a menu saves from the window's
-// edges, and the keys' size; how far short of the window's height a menu stands at its tallest, 3.5rem, its rows
+// edges, and the keys' size; how far short of the window's height a menu is at its tallest, 3.5rem, its rows
 // scrolling inside it past that; and how far a notch of the wheel, three of its rows, scrolls a menu, as a browser on
 // Windows scrolls a box
 #define GUI_MENUBAR_TITLES 40u
@@ -66,8 +66,8 @@ typedef struct
     GuiRect rect;
 } GuiTitle;
 
-// The menu bar: the titles laid, how many, and the place among the titles from which they are folded into the last; the
-// title the pointer stands on, -1 for none; where each menu open stands; and each menu's rows as they scroll: the
+// The menu bar: the titles positioned, how many, and the place among the titles from which they are folded into the last; the
+// title the pointer is on, -1 for none; where each menu open is; and each menu's rows as they scroll: the
 // pixels scrolled off its top, the height all its rows take, the serial of the menu they are scrolled in and the row
 // last marked in it, which was scrolled into view
 typedef struct
@@ -85,20 +85,20 @@ typedef struct
 
 // a menu bar holding no menus
 void gui_menubar_init(const GuiMenubarCfg *args);
-// the titles laid across the frame's bar, as many as the window's width shows, the rest folded into the last, the menus
-// open following them; the titles as a stage of the claim's movement laid them, `count` of them, the titles from
+// the titles positioned across the frame's bar, as many as the window's width shows, the rest folded into the last, the menus
+// open following them; the titles as a stage of the claim's movement positioned them, `count` of them, the titles from
 // `folded_from` on folded, the menus open following the same way; and the menus open placed under their titles, or the
 // first at the place it was asked for, and beside their items
 void gui_menubar_titles_layout(const GuiMenubarBarCfg *args);
 void gui_menubar_titles_alloc(const GuiMenubarFrameCfg *args);
 void gui_menubar_menus_layout(const GuiMenubarBarCfg *args);
-// whether the pixel at x, y stands on a title or an open menu; and what it stands on, a title's place into `index`, or
-// a menu's level into `level` and its row into `index`, the rows' count where it stands on none of them: CLI_HIT_NONE,
+// whether the pixel at x, y is on a title or an open menu; and what it is on, a title's place into `index`, or
+// a menu's level into `level` and its row into `index`, the rows' count where it is on none of them: CLI_HIT_NONE,
 // CLI_HIT_MENU_TITLE or CLI_HIT_MENU_ROW
 int gui_menubar_holds(const GuiMenubarXCfg *args);
 unsigned int gui_menubar_hit(const GuiMenubarXCfg *args);
-// the pointer moved to x, y: the title it stands on marked: 1 where that changed; and the wheel turned `rows` rows at
-// x, y, down where positive: the menu open there scrolled, no further than its ends: 1 where the pixel stands on an
+// the pointer moved to x, y: the title it is on marked: 1 where that changed; and the wheel turned `rows` rows at
+// x, y, down where positive: the menu open there scrolled, no further than its ends: 1 where the pixel is on an
 // open menu, the wheel then the menu's
 int gui_menubar_move(const GuiMenubarGlyphsFrameXCfg *args);
 int gui_menubar_wheel(const GuiMenubarGlyphsFrameXCfg *args);

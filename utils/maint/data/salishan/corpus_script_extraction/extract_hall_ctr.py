@@ -113,7 +113,7 @@ TARGET = os.path.join(
     "_HallLuntzlaraMellesmoenReid_Salish_nlekepmxcin_2026_mixed.txt",
 )
 
-# Kept in step with HALL_CTR in hand_extraction/papers.py. The dot below is this paper's rounded
+# Retained in step with HALL_CTR in hand_extraction/papers.py. The dot below is this paper's rounded
 # uvular, in x̣íɬ and sóx̣ʷest. The length mark is deliberately absent: all five in the paper are a
 # typo for a colon, in English, and carrying it would make verbsː a word of the language.
 MARKS = "ʔʕɬłƛəχ7̓̔̕ʷ˽" + "̣" + "áéíóúè" + "́" + "ǰθ"
@@ -126,7 +126,7 @@ TARGET_LANGUAGE = "nɬeʔkepmxcín"
 # thing in the paper is a gloss label inside one, which carries no character of the language.
 SURFACE = re.compile(r"\[([^\[\]\s]+)\]")
 
-# An underlying form. Slashes with no space between them, which keeps this off the lone
+# An underlying form. Slashes with no space between them, which retains this off the lone
 # slash in {nxʷ1, exʷ2} / …{n, n̓, h, ʔ} and off and/or.
 UNDERLYING = re.compile(r"/([^/\s]+)/")
 
@@ -152,13 +152,13 @@ ELSEWHERE = {
     "ʔayʔaǰuθəm": "Comox",
 }
 
-# The syllable boundary, which is notation and not a letter. The paper prints [kícne] in one place
+# The syllable boundary, which is notation and not a character. The paper prints [kícne] in one place
 # and [kíc.ne] in another for the same word. Leaving the dots in would put two definitions of it in
 # the corpus. They come out on the way to the pure file and stay in the record.
 SYLLABLE = "."
 
 
-def kind_of(form):
+def type_of(form):
     """What a bracketed form is: a word of the language, or one the analysis rules out."""
     return "impossible" if (STAR in form) else "cited form"
 
@@ -170,14 +170,14 @@ def spoken_form(form):
 
 def leftover(text, taken):
     """What is left of a line once the spans already read out of it are cut, by position."""
-    kept = []
+    retained = []
     at = 0
     for start, end in sorted(taken):
         if start > at:
-            kept.append(text[at:start])
+            retained.append(text[at:start])
         at = max(at, end)
-    kept.append(text[at:])
-    return " ".join(" ".join(kept).split())
+    retained.append(text[at:])
+    return " ".join(" ".join(retained).split())
 
 
 def main():
@@ -220,7 +220,7 @@ def main():
         for found in SURFACE.finditer(trimmed):
             inner = found.group(1)
             rows.append(
-                (where, ELSEWHERE.get(inner, who), kind_of(inner), found.group(0))
+                (where, ELSEWHERE.get(inner, who), type_of(inner), found.group(0))
             )
             taken.append(found.span(0))
 
@@ -275,32 +275,32 @@ def main():
             "# reading her own story, and the sentence kʷaɬtèzetkʷ introduces herself with\n"
         )
         handle.write("# in the acknowledgement footnote.\n")
-        handle.write("line\twho\tkind\tswitches\tcontent\n")
-        for at, (spot, who, kind, text) in enumerate(rows, 1):
-            spoken = (kind in ("cited form", "running speech")) and (who != "")
+        handle.write("line\twho\ttype\tswitches\tcontent\n")
+        for at, (spot, who, type, text) in enumerate(rows, 1):
+            spoken = (type in ("cited form", "running speech")) and (who != "")
             spoken = spoken and (
                 ELSEWHERE.get(text, TARGET_LANGUAGE) == TARGET_LANGUAGE
             )
             layer = SPOKEN if spoken else DERIVED
-            if kind == UNCLASSIFIED:
-                content = "N.%s.%s:{%s}" % (layer, kind, text)
+            if type == UNCLASSIFIED:
+                content = "N.%s.%s:{%s}" % (layer, type, text)
                 crossings = 0
             else:
-                content = rendered(text, layer, kind, MARKS)
+                content = rendered(text, layer, type, MARKS)
                 crossings = switches(text, MARKS)
             handle.write(
                 "line#${%d}\t%s\t%s\t%d\t%s\n"
-                % (at, who or spot, kind, crossings, content)
+                % (at, who or spot, type, crossings, content)
             )
 
-    # The words alone. The underlying forms are excluded by their kind, the starred ones by theirs,
+    # The words alone. The underlying forms are excluded by their type, the starred ones by theirs,
     # and ʔayʔaǰuθəm and its suffix by the who column.
     pure = TARGET[:-4] + ".pure.txt"
-    kept = 0
+    retained = 0
     already = set()
     with open(pure, "w", encoding="utf-8", newline="") as handle:
-        for spot, who, kind, text in rows:
-            if kind not in ("cited form", "running speech"):
+        for spot, who, type, text in rows:
+            if type not in ("cited form", "running speech"):
                 continue
             if who not in (TARGET_LANGUAGE, "Bev Phillips", "kʷaɬtèzetkʷ"):
                 continue
@@ -312,32 +312,32 @@ def main():
                     continue
                 already.add(key)
                 handle.write("%s\n" % key)
-                kept += 1
+                retained += 1
 
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
         (0, spot, UNKNOWN_KIND, "", text)
-        for spot, who, kind, text in rows
-        if (kind == UNCLASSIFIED) and not spot.startswith("not reached")
+        for spot, who, type, text in rows
+        if (type == UNCLASSIFIED) and not spot.startswith("not reached")
     ]
     flagged.extend(missed)
     stuck_count = write_unsorted(stuck, "Ctrl-Alt-Delete", flagged)
 
     out.write("  %d lines written to\n  %s\n" % (len(rows), os.path.basename(TARGET)))
     out.write(
-        "  %d nɬeʔkepmxcín words written to\n  %s\n" % (kept, os.path.basename(pure))
+        "  %d nɬeʔkepmxcín words written to\n  %s\n" % (retained, os.path.basename(pure))
     )
     out.write(
         "  %d lines the tool could not sort written to\n  %s\n"
         % (stuck_count, os.path.basename(stuck))
     )
 
-    kinds = {}
-    for spot, who, kind, text in rows:
-        kinds[kind] = kinds.get(kind, 0) + 1
+    types = {}
+    for spot, who, type, text in rows:
+        types[type] = types.get(type, 0) + 1
     out.write(
-        "\n  by kind: %s\n"
-        % ", ".join("%s %d" % (one, kinds[one]) for one in sorted(kinds))
+        "\n  by type: %s\n"
+        % ", ".join("%s %d" % (one, types[one]) for one in sorted(types))
     )
     out.flush()
     return 0

@@ -162,10 +162,10 @@ void cli_unity_server(const char *name, unsigned int port, char *host, unsigned 
     const char *const colon = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = named, .length_value = CLI_UNITY_LENGTH(named), .byte = ':');
     unsigned long long number = 0ull;
     int digits = (colon != NULL) && (colon[1] != '\0');
-    for (const char *letter = (colon != NULL) ? colon + 1 : ""; digits && (letter[0] != '\0'); letter += 1)
+    for (const char *character = (colon != NULL) ? colon + 1 : ""; digits && (character[0] != '\0'); character += 1)
     {
-        digits = (letter[0] >= '0') && (letter[0] <= '9') && (number < 65536ull);
-        number = (number * 10ull) + (unsigned long long)(letter[0] - '0');
+        digits = (character[0] >= '0') && (character[0] <= '9') && (number < 65536ull);
+        number = (number * 10ull) + (unsigned long long)(character[0] - '0');
     }
     if (digits && (number < 65536ull))
     {

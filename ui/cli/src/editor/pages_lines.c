@@ -9,13 +9,13 @@ typedef struct
 {
     unsigned long long lines_max;
     unsigned long long required;
-    unsigned long long most;
+    unsigned long long max;
     CliPageLines *lines;
     unsigned char *cell;
     unsigned long long text_max;
 } PagesLinesCtx;
 
-// the bytes the starts and the lengths of `lines_max` lines take ahead of the text; and `required` bounded by `most`
+// the bytes the starts and the lengths of `lines_max` lines take ahead of the text; and `required` bounded by `max`
 EMBED_INLINE unsigned long long lines_heads(const PagesLinesCtx *args)
 {
     return 2ULL * args->lines_max * sizeof(unsigned long long);
@@ -23,10 +23,10 @@ EMBED_INLINE unsigned long long lines_heads(const PagesLinesCtx *args)
 
 EMBED_INLINE unsigned long long lines_bound(const PagesLinesCtx *args)
 {
-    return (args->required < args->most) ? args->required : args->most;
+    return (args->required < args->max) ? args->required : args->max;
 }
 
-// `lines` laid over `cell`, sized for `lines_max` lines' starts and lengths and `text_max` bytes of text
+// `lines` positioned over `cell`, sized for `lines_max` lines' starts and lengths and `text_max` bytes of text
 EMBED_INLINE void lines_layout(const PagesLinesCtx *args)
 {
     unsigned char *cell = args->cell;
@@ -45,11 +45,11 @@ int cli_page_lines_reserve(const CliPagesLinesLinesFirstCtx *args)
     const unsigned long long lines_max =
         (args->lines_first < 1ULL)
             ? 1ULL
-            : EMBED_CALL(lines_bound, PagesLinesCtx, .required = args->lines_first, .most = CLI_PAGE_READ_LINES);
+            : EMBED_CALL(lines_bound, PagesLinesCtx, .required = args->lines_first, .max = CLI_PAGE_READ_LINES);
     const unsigned long long text_max =
         (args->text_first < 1ULL)
             ? 1ULL
-            : EMBED_CALL(lines_bound, PagesLinesCtx, .required = args->text_first, .most = CLI_PAGE_READ_TEXT);
+            : EMBED_CALL(lines_bound, PagesLinesCtx, .required = args->text_first, .max = CLI_PAGE_READ_TEXT);
     unsigned char *const cell = g_cli_guard->temporary_buf_alloc(
         EMBED_CALL(lines_heads, PagesLinesCtx, .lines_max = lines_max) + text_max, g_cli_editor_owner);
     if (cell == NULL)

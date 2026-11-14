@@ -4,10 +4,10 @@ Extraction of Gitksan modals by Lisa Matthewson, University of British Columbia,
 
 Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
-pure corpus, then against this paper's own English laid over that reference. What the paper's
+pure corpus, then against this paper's own English positioned over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
 from the characters that sit outside that English, and word_web.web() built 1015 edges over the
-language forms. A person then matched the context: who, kind and gloss for each row, the names,
+language forms. A person then matched the context: who, type and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
 someone reads the paper again and says otherwise.
@@ -19,16 +19,16 @@ Sennott (BS) and Vincent Gogag (VG), unless otherwise noted (page 9); an example
 source, (Peterson 2010:154), is that source’s, and the St’át’imcets and Javanese examples are
 Rullmann et al.’s and Vander Klok’s.
 
-THE LETTERS
+THE CHARACTERS
 
-Outside the paper's English the engine found these letters and marks: á é í ú ̱. Data are presented
+Outside the paper's English the engine found these characters and marks: á é í ú ̱. Data are presented
 in the orthography developed by Hindle and Rigsby (1973) (page 9), set beside its IPA in Appendix A;
 the uvulars are underlined, ḵ, g̱, x̱, the underline set as the macron below.
 
 THE PAGE AND THE TEXT LAYER
 
 The forms are in NFC, and the check puts the page text, read from the glyph positions, through the
-same repair: a mark the text sets after a space is put back on its letter, then NFC, then 6
+same repair: a mark the text sets after a space is put back on its character, then NFC, then 6
 page-read corrections. The paper is read by glyph rows. The bold of the modals and the small
 capitals of the glosses are not recorded.
 
@@ -42,7 +42,7 @@ where    the paper's locator: the title, the front matter, a section, a footnote
 who      the language for an example tier and a cited form; the work cited on an example's
          line, or the speaker for a volunteered translation, for its English; the authors for
          the prose, the tables and the notes
-kind     transcription  an example tier in the orthography
+type     transcription  an example tier in the orthography
          segmentation   an example tier broken into morphemes
          gloss          the morpheme gloss tier of an example
          translation    the English of an example

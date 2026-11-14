@@ -9,7 +9,7 @@ import { invoke, listen } from "./bridge.js";
 import { makeFuse } from "./fuse.js";
 import { telemetryLine, valuesOfWords } from "./protocol.js";
 import { makeRuler } from "./ruler.js";
-import { focusedKey, keepListKeys, refocus } from "./lists.js";
+import { focusedKey, retainListKeys, refocus } from "./lists.js";
 import { copyText, menuOn } from "./menu.js";
 import { field, remember, remembered, valuesFrom } from "./run/form.js";
 import { chosenIn, console_, lineNode, outputItems } from "./run/output.js";
@@ -21,12 +21,12 @@ import { showView } from "./views.js";
 // The groups in the order the engine's own steps run, and then what reads its results.
 export const ORDER = ["build", "executable", "deploy", "protocol", "ingest", "run", "render", "sim", "view", "pipeline", "stage", "test"];
 
-// The lines a run keeps. Past this the oldest go. A run that prints without end cannot fill memory.
-const KEPT_LINES = 20000;
+// The lines a run retains. Past this the oldest go. A run that prints without end cannot fill memory.
+const RETAINED_LINES = 20000;
 
-// The runs a job keeps, the newest. Past this the oldest that have ended go, lines and all. A job
+// The runs a job retains, the newest. Past this the oldest that have ended go, lines and all. A job
 // run again and again cannot fill memory either.
-const KEPT_RUNS = 10;
+const RETAINED_RUNS = 10;
 
 export const state = {
   jobs: [],
@@ -34,16 +34,16 @@ export const state = {
   // The one group of jobs the list shows, chosen from the strip; null before any is.
   category: null,
   runs: new Map(),
-  shown: new Map(),
+  displayed: new Map(),
   openFile: () => {},
-  // The fuse at the foot of the output, kept from one drawing of the stage to the next: a protocol
+  // The fuse at the foot of the output, retained from one drawing of the stage to the next: a protocol
   // run burns from objective to objective, every other run by the ruler.
   fuse: makeFuse(() => fusePlace()),
   // Which groups of the list the reader opened or closed, by key.
   opened: new Map(),
 };
 
-// The time ruler under the fuse, kept as the fuse is.
+// The time ruler under the fuse, retained as the fuse is.
 state.ruler = makeRuler(state.fuse.canvas);
 
 // The protocol jobs, whose runs show in the panel.
@@ -73,11 +73,11 @@ function liveOf(id) {
 
 // The run on the stage: the one the reader chose of the chosen job's runs, else its newest, or null
 // where no job is chosen or it has not run.
-export function shownRun() {
+export function displayedRun() {
   if (state.chosen === null) {
     return null;
   }
-  const chosen = state.shown.get(state.chosen);
+  const chosen = state.displayed.get(state.chosen);
   const run = chosen !== undefined ? state.runs.get(chosen) : undefined;
   return run ?? runsOf(state.chosen).at(-1) ?? null;
 }
@@ -122,7 +122,7 @@ export function showCategory(group) {
 }
 
 // The group the list shows now, for the strip to mark.
-export function shownCategory() {
+export function displayedCategory() {
   return state.category;
 }
 
@@ -130,13 +130,13 @@ function drawList() {
   const list = document.getElementById("jobs");
   const focused = focusedKey(list);
   const query = document.getElementById("job-filter").value.trim().toLowerCase();
-  const kept = state.jobs.filter((job) => !query || `${job.id} ${job.about}`.toLowerCase().includes(query));
+  const retained = state.jobs.filter((job) => !query || `${job.id} ${job.about}`.toLowerCase().includes(query));
   list.replaceChildren();
   for (const group of ORDER) {
     if (state.category && group !== state.category && !query) {
       continue;
     }
-    const jobs = kept.filter((job) => listed(group).includes(job));
+    const jobs = retained.filter((job) => listed(group).includes(job));
     if (!jobs.length) {
       continue;
     }
@@ -175,7 +175,7 @@ export function drawStage() {
   const stage = document.getElementById("job-stage");
   const job = state.jobs.find((one) => one.id === state.chosen);
   if (!job) {
-    // An empty stage drawn again stays as it is, its name not shown a second time.
+    // An empty stage drawn again stays as it is, its name not displayed a second time.
     if (stage.querySelector(":scope > .empty")) {
       return;
     }
@@ -216,7 +216,7 @@ export function drawStage() {
     }
   });
   stop.addEventListener("click", () => {
-    const run = state.shown.get(job.id);
+    const run = state.displayed.get(job.id);
     if (run !== undefined) {
       invoke("job_stop", { run }).catch((error) => (said.textContent = String(error)));
     }
@@ -230,19 +230,19 @@ export function drawStage() {
 // The groups whose jobs build.
 const BUILDS = new Set(["build", "executable"]);
 
-// Starts a job and keeps its run, from the Start button or from anywhere else in the app. The run
+// Starts a job and retains its run, from the Start button or from anywhere else in the app. The run
 // shows in the job's console and in the status block either way, and a build's in the build window:
 // the run view, its job chosen, wherever it was started from.
 export async function startJob(id, values) {
   const run = await invoke("job_start", { job: id, values });
-  // the run's start was said before this answer came, and its record stands; one is made here where it was not
+  // the run's start was said before this answer came, and its record is; one is made here where it was not
   onStart({ payload: { run, job: id } });
-  const kept = runsOf(id);
-  for (const old of kept.filter((one) => one.done).slice(0, Math.max(0, kept.length - KEPT_RUNS))) {
+  const retained = runsOf(id);
+  for (const old of retained.filter((one) => one.done).slice(0, Math.max(0, retained.length - RETAINED_RUNS))) {
     state.runs.delete(old.run);
   }
   write("runs", [run, { job: id }]);
-  state.shown.set(id, run);
+  state.displayed.set(id, run);
   if (BUILDS.has(state.jobs.find((job) => job.id === id)?.group)) {
     showView("run");
     if (state.chosen !== id) {
@@ -271,17 +271,17 @@ function onLine({ payload }) {
     run.started += 1;
     run.steps.push(payload.ms);
   }
-  if (run.lines.length > KEPT_LINES) {
-    run.lines.splice(0, run.lines.length - KEPT_LINES);
+  if (run.lines.length > RETAINED_LINES) {
+    run.lines.splice(0, run.lines.length - RETAINED_LINES);
   }
-  if (state.chosen === run.job && (state.shown.get(run.job) ?? run.run) === run.run) {
+  if (state.chosen === run.job && (state.displayed.get(run.job) ?? run.run) === run.run) {
     state.fuse.flare();
     state.ruler.wake();
     const lines = document.getElementById("lines");
     if (lines && run.view === CONSOLE) {
       const atEnd = lines.scrollHeight - lines.scrollTop - lines.clientHeight < 40;
       lines.append(lineNode(payload));
-      if (lines.childNodes.length > KEPT_LINES) {
+      if (lines.childNodes.length > RETAINED_LINES) {
         lines.firstChild.remove();
       }
       if (atEnd) {
@@ -358,7 +358,7 @@ export async function startRun(openFile) {
   await listen("run-lines", ({ payload }) => payload.forEach((said) => onLine({ payload: said })));
   await listen("run-end", onEnd);
   document.getElementById("job-filter").addEventListener("input", drawList);
-  keepListKeys(document.getElementById("jobs"), document.getElementById("job-filter"));
+  retainListKeys(document.getElementById("jobs"), document.getElementById("job-filter"));
   menuOn(document.getElementById("jobs"), jobItems);
   menuOn(document.getElementById("job-stage"), outputItems);
 }
@@ -378,7 +378,7 @@ function jobItems(event) {
 // The jobs' menu and their output's as commands, by the names commands.json gives them, each run
 // from the menus or from the command line with a job's id.
 const jobNamed = (id) => state.jobs.find((one) => one.id === id) ?? null;
-const shownLines = () => document.getElementById("lines");
+const displayedLines = () => document.getElementById("lines");
 
 export const runCommands = {
   "job-start": ([id]) => {
@@ -392,7 +392,7 @@ export const runCommands = {
   "job-edit": ([id]) => jobNamed(id) && state.openFile(jobNamed(id).file),
   "job-copy-path": ([id]) => jobNamed(id) && copyText(jobNamed(id).file),
   "output-copy": () => {
-    const chosen = chosenIn(shownLines());
+    const chosen = chosenIn(displayedLines());
     return chosen && copyText(chosen);
   },
   "output-copy-all": ([id]) => {
@@ -400,29 +400,29 @@ export const runCommands = {
       showView("run");
       choose(id);
     }
-    return shownLines() && copyText(shownLines().textContent);
+    return displayedLines() && copyText(displayedLines().textContent);
   },
-  "output-select-all": () => shownLines() && window.getSelection().selectAllChildren(shownLines()),
+  "output-select-all": () => displayedLines() && window.getSelection().selectAllChildren(displayedLines()),
 };
 
-// Reads again, from its first line, each run kept on the tree's machine that this window has not
+// Reads again, from its first line, each run retained on the tree's machine that this window has not
 // seen end: a run going there when the window opened, and one whose lines stopped coming when the
-// link to the machine dropped. A tree on this machine keeps none.
+// link to the machine dropped. A tree on this machine retains none.
 export async function readRunsAgain() {
-  const kept = await invoke("runs_detached").catch(() => []);
-  for (const one of kept) {
+  const retained = await invoke("runs_detached").catch(() => []);
+  for (const one of retained) {
     const known = state.runs.get(one.run);
     if (known?.done || (!known && one.ended)) {
       continue;
     }
     state.runs.set(one.run, runRecord(one.run, one.job, [], [], performance.now()));
-    if (!state.shown.has(one.job)) {
-      state.shown.set(one.job, one.run);
+    if (!state.displayed.has(one.job)) {
+      state.displayed.set(one.job, one.run);
     }
     write("runs", [one.run, { job: one.job }]);
     await invoke("run_follow", { run: one.run }).catch(() => {});
   }
-  if (kept.length) {
+  if (retained.length) {
     drawList();
     drawStage();
   }
@@ -439,7 +439,7 @@ export async function loadRun() {
 }
 
 // A job started from a command line's words, `tab protocol learn costs --leave all` as the window hears it: the words
-// read into the job's values as its fields would hold them, the job shown and started.
+// read into the job's values as its fields would hold them, the job displayed and started.
 export async function startJobWords(id, words) {
   const job = state.jobs.find((one) => one.id === id);
   if (!job) {

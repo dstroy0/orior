@@ -15,11 +15,11 @@ typedef struct
     unsigned long long pad;
     VerbaLinea *out;
 } CliHelpCreated;
-// the widest a usage in the help's left column is; a wider one stands on lines of its own, its label under it in the
+// the widest a usage in the help's left column is; a wider one is on lines of its own, its label under it in the
 // column
 #define CLI_HELP_COLUMN 44ULL
 
-// the most groups one menu of jobs names
+// the max groups one menu of jobs names
 #define CLI_HELP_GROUPS 64u
 
 // the longest row of the help, its usage or what it describes
@@ -27,7 +27,7 @@ typedef struct
 
 static CliItem s_items[CLI_ITEMS_MAX];
 
-// A row's lines as wrapped makes them: the row's usage, written to the left of its first, where it does not stand
+// A row's lines as wrapped makes them: the row's usage, written to the left of its first, where it does not are
 // alone; and the help made
 typedef struct
 {
@@ -42,7 +42,7 @@ void cli_help_wrap(const CliCommandLineTextEachCtx *args)
     const char *text = args->text;
     static char s_line[CLI_HELP_ROW * 2u];
     VerbaLinea line = {s_line, sizeof(s_line), 0ULL};
-    unsigned long long letters = 0ULL;
+    unsigned long long characters = 0ULL;
     int any = 0;
     const char *word_text = text;
     for (;;)
@@ -52,9 +52,9 @@ void cli_help_wrap(const CliCommandLineTextEachCtx *args)
                                             ? (unsigned long long)(space - word_text)
                                             : cellul.len(&(CatenaFinitaCfg){.src = word_text, .cap = CLI_POOL_BYTES});
         const unsigned long long length =
-            EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = word_text, .size = size);
+            EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = word_text, .size = size);
         const unsigned long long lead = any ? args->indent : 0ULL;
-        if ((line.at > 0ULL) && (lead + letters + 1ULL + length > args->width))
+        if ((line.at > 0ULL) && (lead + characters + 1ULL + length > args->width))
         {
             char out[CLI_HELP_ROW * 2u + 128u];
             VerbaLinea led = {out, sizeof(out), 0ULL};
@@ -67,15 +67,15 @@ void cli_help_wrap(const CliCommandLineTextEachCtx *args)
                        .size = mmgr_line_ok(&led) ? led.at : 0ULL);
             any = 1;
             line.at = 0ULL;
-            letters = 0ULL;
+            characters = 0ULL;
         }
         if (line.at > 0ULL)
         {
             mmgr_line_ch(&line, ' ');
-            letters += 1ULL;
+            characters += 1ULL;
         }
         mmgr_line_put_n(&line, word_text, size);
-        letters += length;
+        characters += length;
         if (space == NULL)
         {
             break;
@@ -93,7 +93,7 @@ void cli_help_wrap(const CliCommandLineTextEachCtx *args)
                .size = mmgr_line_ok(&led) ? led.at : 0ULL);
 }
 
-// a line of a usage that stands alone, written led by two spaces
+// a line of a usage that is alone, written led by two spaces
 static void help_alone(const CliEachLineSizeCfg *args)
 {
     VerbaLinea *const out = args->context;
@@ -102,7 +102,7 @@ static void help_alone(const CliEachLineSizeCfg *args)
     mmgr_line_ch(out, '\n');
 }
 
-// a line of what a row describes, the row's usage to its left on its first where it does not stand alone
+// a line of what a row describes, the row's usage to its left on its first where it does not are alone
 static void help_adjacent(const CliEachLineSizeCfg *args)
 {
     unsigned long long size = args->size;
@@ -110,7 +110,7 @@ static void help_adjacent(const CliEachLineSizeCfg *args)
     const char *const left = ((lines->count == 0u) && (lines->left != NULL)) ? lines->left : "";
     mmgr_line_put(lines->out, "  ");
     mmgr_line_put(lines->out, left);
-    for (unsigned long long at = EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = left,
+    for (unsigned long long at = EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = left,
                                             .size = cellul.len(&(CatenaFinitaCfg){.src = left, .cap = CLI_POOL_BYTES}));
          at < lines->pad; at += 1ULL)
     {
@@ -133,18 +133,18 @@ typedef struct
 // a row of the help: where `made->out` is NULL its usage counted toward the left column's width, else written
 EMBED_INLINE void help_row(const CommandLineHelpCtx *args)
 {
-    const unsigned long long letters =
-        EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = args->usage,
+    const unsigned long long characters =
+        EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = args->usage,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->usage, .cap = CLI_POOL_BYTES}));
     if (args->made->out == NULL)
     {
-        if ((letters <= CLI_HELP_COLUMN) && (letters > args->made->pad))
+        if ((characters <= CLI_HELP_COLUMN) && (characters > args->made->pad))
         {
-            args->made->pad = letters;
+            args->made->pad = characters;
         }
         return;
     }
-    const int alone = letters > args->made->pad;
+    const int alone = characters > args->made->pad;
     if (alone)
     {
         EMBED_CALL(cli_command_line_text_each_internal.help_wrap, CliCommandLineTextEachCtx, .text = args->usage,
@@ -156,7 +156,7 @@ EMBED_INLINE void help_row(const CommandLineHelpCtx *args)
                .context = &lines);
 }
 
-// every row of the help, each handed to help_row
+// every row of the help, each passed to help_row
 static void help_rows(const CommandLineHelpCtx *args)
 {
     static char s_usage[CLI_HELP_ROW];
@@ -257,10 +257,10 @@ void cli_keys(void)
         {
             if (s_items[at].keys[0] != '\0')
             {
-                const unsigned long long letters =
-                    EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = s_items[at].label,
+                const unsigned long long characters =
+                    EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = s_items[at].label,
                                .size = cellul.len(&(CatenaFinitaCfg){.src = s_items[at].label, .cap = CLI_POOL_BYTES}));
-                pad = (letters > pad) ? letters : pad;
+                pad = (characters > pad) ? characters : pad;
                 count += 1u;
             }
         }
@@ -281,10 +281,10 @@ void cli_keys(void)
             VerbaLinea row = {line, sizeof(line), 0ULL};
             mmgr_line_put(&row, "  ");
             mmgr_line_put(&row, s_items[at].label);
-            for (unsigned long long letters = EMBED_CALL(
-                     cli_text_size_byte.letters, CliTextSizeByteCfg, .text = s_items[at].label,
+            for (unsigned long long characters = EMBED_CALL(
+                     cli_text_size_byte.characters, CliTextSizeByteCfg, .text = s_items[at].label,
                      .size = cellul.len(&(CatenaFinitaCfg){.src = s_items[at].label, .cap = CLI_POOL_BYTES}));
-                 letters < pad; letters += 1ULL)
+                 characters < pad; characters += 1ULL)
             {
                 mmgr_line_ch(&row, ' ');
             }

@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-// The text is stored whole at its own length and the tokens at one per byte at most; no size is written in. A
+// The text is stored whole at its own length and the tokens at one per byte at max; no size is written in. A
 // decimal value is a JSON string, "0.0010016", read exactly as a rational; a count is a JSON number.
 typedef struct
 {

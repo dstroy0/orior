@@ -27,20 +27,20 @@ int layout_device_agrees(const LayoutRequest *request, EngineRecordLayout *layou
     std::string error;
     if (layout_device(request, &device_layout, &error) == 0)
     {
-        fprintf(stderr, "  codegen: the device did not lay out a program of %u steps (%s)\n", layout->steps,
+        fprintf(stderr, "  codegen: the device did not arrange a program of %u steps (%s)\n", layout->steps,
                 error.c_str());
         return 0;
     }
     if (layout_same(&device_layout, layout) == 0)
     {
-        fprintf(stderr, "  codegen: the device laid out a program of %u steps apart from the host's\n", layout->steps);
+        fprintf(stderr, "  codegen: the device arranged a program of %u steps apart from the host's\n", layout->steps);
         key_schedule_record_release(&device_layout);
         return 0;
     }
     if (report != 0)
     {
         fprintf(stderr,
-                "  codegen: the device laid out a program of %u steps, %u limbs of file, word for word the host's\n",
+                "  codegen: the device arranged a program of %u steps, %u limbs of file, word for word the host's\n",
                 device_layout.steps, device_layout.file_limbs);
     }
     key_schedule_record_release(layout);
@@ -97,7 +97,7 @@ __global__ void codegen_device_unlaid(unsigned int *put_first, const unsigned in
 }
 
 // each step's forms counted, a thread a step, from the loop number it begins at, and what it leaves for the lane's own
-// forms gathered: the most of each bank, the tables, a broken form or a step the lane does not support, and the last
+// forms gathered: the max of each bank, the tables, a broken form or a step the lane does not support, and the last
 // step's banks
 __global__ void codegen_device_count(IrProgram program, const unsigned int *loop_first, unsigned long long *counts,
                                      unsigned int *errors, unsigned int *summary)
@@ -147,7 +147,7 @@ __global__ void codegen_device_write(IrProgram program, const unsigned int *loop
     (void)codegen_step(&lane, at);
 }
 
-// the lane as the steps left it for its own forms: the last step's banks, the most of each any step took, whether any
+// the lane as the steps left it for its own forms: the last step's banks, the max of each any step took, whether any
 // reads the tables, and the loops the steps wrote
 __global__ void codegen_device_left(const unsigned int *summary, unsigned int loops, MachineFunction *lane_out)
 {
@@ -169,8 +169,8 @@ __global__ void codegen_device_left(const unsigned int *summary, unsigned int lo
 
 // the lane's own forms in the order they are decided, the note, the lane's first form, the declarations, the opening,
 // the close, then, after the schedule where the body is split, the body's opening and the end, since a construct's
-// scratch goes on from where each bank stands: those from `first` to `last` of that order, in one thread, going on from
-// the lane as `lane_out` contains it. Counted where `items` is NULL, each part's count laid out in `parts`; else
+// scratch goes on from where each bank is: those from `first` to `last` of that order, in one thread, going on from
+// the lane as `lane_out` contains it. Counted where `items` is NULL, each part's count arranged in `parts`; else
 // written from `items` where `parts` puts each, with the header's item, which the assembly printer takes whole, where
 // the note is written, and the lane left in `lane_out` for the forms decided after. `states` is the states the body was
 // split into, 0 where it is not split
@@ -252,7 +252,7 @@ __global__ void codegen_prologue_epilogue(IrProgram program, const unsigned int 
 }
 
 // The body split into states, in one thread, going on from the lane as `lane_out` contains it: the body's forms,
-// `body_count` of them from `body` in the order they run (the opening, the steps and the close), laid out into the
+// `body_count` of them from `body` in the order they run (the opening, the steps and the close), arranged into the
 // schedule (codegen_schedule_instr), as the host's lane splits them. Counted where `items` is NULL; else written there
 // and the lane left in `lane_out` for the forms decided after. How it was split in `ended`
 __global__ void codegen_schedule(IrProgram program, unsigned int *summary, MachineFunction *lane_out, Schedule schedule,
@@ -277,7 +277,7 @@ __global__ void codegen_schedule(IrProgram program, unsigned int *summary, Machi
     codegen_schedule_close(&lane, &schedule);
     ended->count = lane.count;
     ended->states = schedule.state;
-    ended->maximum = schedule.maximum;
+    ended->max = schedule.max;
     ended->over = schedule.over;
     if (items != NULL)
     {
@@ -309,7 +309,7 @@ __global__ void codegen_device_record_counts(AsmPrinterLists forms, const Machin
     record_counts[at] = (formed != 0) ? asm_printer_record_count(&forms, &items[at]) : 1ull;
 }
 
-// each item's records laid out, a thread an item (asm_printer_records)
+// each item's records arranged, a thread an item (asm_printer_records)
 __global__ void codegen_device_records(AsmPrinterLists forms, const MachineInstr *items, unsigned long long item_count,
                                        const unsigned long long *record_first, unsigned int *records,
                                        unsigned long long *record_lanes)
@@ -321,7 +321,7 @@ __global__ void codegen_device_records(AsmPrinterLists forms, const MachineInstr
     }
 }
 
-// each record's first lane laid out, and the index that gives each of its lanes the record, a thread a record
+// each record's first lane arranged, and the index that gives each of its lanes the record, a thread a record
 __global__ void codegen_device_index(unsigned int *records, unsigned long long record_count,
                                      const unsigned long long *lane_first, const unsigned long long *record_lanes,
                                      unsigned int *index)

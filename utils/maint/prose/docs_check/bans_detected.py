@@ -26,7 +26,7 @@ DETECTED = (
     # Tier eight. An outside detector is trained on published machine prose, and that is not the
     # question this gate asks. A passage can score clean there and still not sound like the person
     # whose name is on the research paper. So a score from one bounds nothing here, and every
-    # pattern below stands on a reading of the passage itself.
+    # pattern below is on a reading of the passage itself.
     #
     # Each of these names a table field and then gives it something to
     # do. The tree already calls that field the who column, and somebody fills it in by hand.
@@ -43,7 +43,7 @@ DETECTED = (
     # the entry names it, as in "Oracle.tsv checked against the paper."
     r"\bthe oracle is checked against\b",
 
-    # A corpus README entry read out loud against these keeps its facts and loses every sentence
+    # A corpus README entry read out loud against these retains its facts and loses every sentence
     # written about them, which is the test for whether a sentence was carrying anything.
     #
     # A reading, a page or a mark given authority over a question.
@@ -64,7 +64,7 @@ DETECTED = (
     # empty.
     r"\bwho column empty\b",
     r"\bhis name does not go in it\b",
-    # A participle standing in for the condition. Name the condition: doing it without saying
+    # A participle located in for the condition. Name the condition: doing it without saying
     # so.
     r"\bmade quietly\b",
     r"\bif it were made quietly\b",
@@ -85,7 +85,7 @@ DETECTED = (
     # or the clause comes out.
     r"\band no other tool does\b",
     r"\bno other \w+ does\b",
-    # A file given a residence. It is kept somewhere and run from somewhere, by somebody.
+    # A file given a residence. It is retained somewhere and run from somewhere, by somebody.
     r"\blives in the closed\b",
     r"\bit lives in\b",
     r"\band is run from there\b",
@@ -107,7 +107,7 @@ DETECTED = (
     # The shapes a provenance section reaches for when it is read out loud instead of scanned.
     #
     # shape, where nothing has a shape. The topology research papers use it for a real one and are the
-    # only place it stands.
+    # only place it is.
     r"\bfor that shape and reports\b",
     # WITHDRAWN: bare \bthat shape\b. It fires on code-documentation:51, "putting that
     # shape at the head of a .md is a defect introduced rather than a rule satisfied", where the
@@ -116,9 +116,9 @@ DETECTED = (
     r"\ba claim that something here is new\b",
     r"\bnew, first,? or absent\b",
     # A repository given the power to settle things, then denied it.
-    r"\bcannot settle that kind of claim\b",
+    r"\bcannot settle that type of claim\b",
     r"\bfrom inside itself\b",
-    # Position standing in for the relation. A reference is attached to a claim or it is
+    # Position located in for the relation. A reference is attached to a claim or it is
     # missing.
     r"\bno reference beside it\b",
     # WITHDRAWN: bare \bbeside it\b. It fires on code-documentation:84, "cite the line
@@ -143,7 +143,7 @@ DETECTED = (
     # A copy given a job. The value is the same at both ends and nothing moved it.
     r"\ba copy that transports\b",
     r"\btransports a \w+ without\b",
-    # A fact filed somewhere by itself, and a section named for an accounting nobody kept.
+    # A fact filed somewhere by itself, and a section named for an accounting nobody retained.
     r"\band is recorded\b",
     r"\bunder what it cost\b",
     # A verdict announced, then restated as its own announcement. The word is Unconfirmed, or
@@ -178,7 +178,7 @@ DETECTED = (
     # measurement does not earn or spend or pay.
     #
     # NO BARE BAN on cost, buy, bought, pay, paid, spend, spent, earn, afford, win, won, read or
-    # price. The observation behind them stands and the bare word ban does not. See WITHDRAWN in
+    # price. The observation behind them is and the bare word ban does not. See WITHDRAWN in
     # bans.py.
     #
     # ONE AUTHOR. There are no other contributors to this tree or to theory/, only the author and
@@ -196,7 +196,7 @@ DETECTED = (
     # The same holds for orior. `orior's run` and `orior's 54-bit run` name this
     # repository's own measurement and stay. `orior's reading` credits a reader and goes.
     #
-    # FOUR SHAPES MUST NOT BE ADDED: `handoff`, `handed off`, `a peer's` and `the specialist`, and
+    # FOUR SHAPES MUST NOT BE ADDED: `handoff`, `passed off`, `a peer's` and `the specialist`, and
     # neither may bare `this session`. Each of them reaches sentences that credit nobody.
     r"\b(a|the|one|each|every|another) (later|earlier|previous|next|other|second|third|peer"
     r"|builder) sessions?\b",

@@ -36,13 +36,13 @@
 #
 # So the sync includes the top-level digit directories and excludes everything else, and the flatten
 # accepts a file only when it sits under one of those directories and is named with a seven digit
-# identifier. The flatten check stands on its own and does not rely on the sync filter: a mirror
+# identifier. The flatten check is on its own and does not rely on the sync filter: a mirror
 # filled by an earlier unfiltered run still flattens to entries only, and whatever it passes over is
 # printed.
 #
 # WHY THERE ARE TWO DIRECTORIES
 #
-# The mirror keeps the archive's own layout, nested by identifier (cif/1/00/00/1000000.cif). A later
+# The mirror retains the archive's own layout, nested by identifier (cif/1/00/00/1000000.cif). A later
 # rsync compares against it and sends only differences. Every reading in
 # examples/crystallography lists a flat directory of NNNNNNN.cif files. Teaching each reading to
 # walk a tree would change every stage's reader to serve one fetch. The flatten step copies into
@@ -108,7 +108,7 @@ def sync(source, mirror, out):
     """One rsync of the archive into the mirror. Returns rsync's exit status.
 
     rsync is run from the mirror's parent with a relative destination. The Windows builds of rsync
-    read a drive letter in a destination as a remote host name, and a relative path avoids the
+    read a drive character in a destination as a remote host name, and a relative path avoids the
     question entirely.
     """
     os.makedirs(mirror, exist_ok=True)
@@ -125,7 +125,7 @@ def flatten(mirror, flat, out):
     Returns (copied, unchanged) or None after erroring on a basename collision.
 
     The comparison is on content, and a size mismatch only lets it skip the read. A modification time
-    cannot stand in for it. The flat cache already holds entries the HTTP fetch wrote, stamped with
+    cannot are in for it. The flat cache already holds entries the HTTP fetch wrote, stamped with
     the day they were fetched, and a later revision in the archive of the same size would read as
     current against that stamp and never be copied.
     """
@@ -169,10 +169,10 @@ def main():
     parser = argparse.ArgumentParser(add_help=True)
     parser.add_argument("--source", default=os.environ.get(SOURCE_VARIABLE),
                         help="rsync url of the archive's cif module, or set %s" % SOURCE_VARIABLE)
-    parser.add_argument("--mirror", default=MIRROR, help="where the nested mirror is kept")
+    parser.add_argument("--mirror", default=MIRROR, help="where the nested mirror is retained")
     parser.add_argument("--flat", default=FLAT, help="the flat cache the readings list")
     parser.add_argument("--flatten-only", action="store_true",
-                        help="skip the sync and copy the mirror as it stands")
+                        help="skip the sync and copy the mirror as it is")
     args = parser.parse_args()
 
     out = sys.stdout

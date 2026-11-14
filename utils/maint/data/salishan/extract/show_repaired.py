@@ -1,4 +1,4 @@
-"""Print lines of a paper's text layer as they stand after the residue check's repair.
+"""Print lines of a paper's text layer as they are after the residue check's repair.
 
 usage: python show_repaired.py <stem> <line> [line ...]
 """

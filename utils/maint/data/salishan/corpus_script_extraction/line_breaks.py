@@ -12,10 +12,10 @@
 #
 # Two shapes have to be told apart, and the leading whitespace of the line under the fragment
 # separates them. A word the extraction cut in half continues at column 0. It closes up: ma above
-# ximal is maximal. A column that wrapped is indented to its own column. It keeps the space that
+# ximal is maximal. A column that wrapped is indented to its own column. It retains the space that
 # was between the two words: oh above four spaces and then EP is oh EP.
 #
-# The alphabet tables are where a join would be wrong. Chinuk pipa's letter names wa, wi and waw sit
+# The alphabet tables are where a join would be wrong. Chinuk pipa's character names wa, wi and waw sit
 # one to a line and joining them invents words nobody wrote. They error in length: the line
 # under a fragment has to carry something before the join is taken.
 #
@@ -33,7 +33,7 @@ PAGE = re.compile(r"^===== page \d+ =====$")
 
 # How short a run has to be before it reads as half of a broken word. Every fragment these breaks
 # leave in the paper is five characters or fewer.
-FRAGMENT_LETTERS = 5
+FRAGMENT_CHARACTERS = 5
 
 # How much the line under a fragment has to carry before the join is taken. The alphabet tables set
 # wa above wi above yu, and four characters separate those from gr above eet -?.
@@ -44,11 +44,11 @@ def fragment(trimmed):
     """Whether a line is half of something the extraction broke across a line break.
 
     Two shapes. A bare stanza number, as Text 2 sets stanza 1: the 1 is alone and patah is
-    under it. And a short run with a letter in it, with any stanza number stepped over first, as
+    under it. And a short run with a character in it, with any stanza number stepped over first, as
     Text 1 sets the same stanza: 1 o above l ha l kukpi.
 
-    Letters alone is too narrow for the second one. The morphemic row opens a root with a slash and
-    stanza 5's broke at /té above km w -s, and a fragment required to be all letters leaves it.
+    Characters alone is too narrow for the second one. The morphemic row opens a root with a slash and
+    stanza 5's broke at /té above km w -s, and a fragment required to be all characters leaves it.
     """
     if trimmed.isdigit():
         return True
@@ -56,7 +56,7 @@ def fragment(trimmed):
     found = NUMBERED.match(trimmed)
     if found:
         body = found.group(2)
-    return (bool(body) and (len(body) <= FRAGMENT_LETTERS)
+    return (bool(body) and (len(body) <= FRAGMENT_CHARACTERS)
             and not any(one.isspace() for one in body)
             and any(one.isalpha() for one in body))
 

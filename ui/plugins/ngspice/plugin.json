@@ -2,7 +2,7 @@
   "id": "ngspice",
   "name": "ngspice",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "extensions": ["cir","sp","spice","spi","ckt"],
   "comments": {"line":"*"},
   "pairs": ["()","{}"],

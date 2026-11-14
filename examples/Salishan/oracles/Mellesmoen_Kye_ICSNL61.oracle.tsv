@@ -1,4 +1,4 @@
-where	dialect	kind	form	gloss
+where	dialect	type	form	gloss
 §2.1	northern	citation	dxʷləšucid	Northern Lushootseed
 §2.1	southern	citation	xʷəlšucid	Southern Lushootseed
 §2.1	southern	citation	txʷəlšucid	Southern Lushootseed
@@ -135,9 +135,9 @@ Table 7	southern	citation	šúbalìʔ	annihilated
 Table 7	southern	citation	qʷúʔqʷaʔdìd	drink it (TR)
 Table 7	southern	citation	túc̓ilìč	became dark within
 Table 7	southern	citation	húyucìd	finish eating
-§4.1	southern	citation	c̓ágʷačiʔb	wash hands
+§4.1	southern	citation	c̓ágʷačiʔb	wash passes
 §4.1	southern	citation	č̓íq̓ʷilac	rotten stick
-Figure 3	southern	citation	c̓ágʷačiʔb	wash hands
+Figure 3	southern	citation	c̓ágʷačiʔb	wash passes
 Figure 3	southern	citation	č̓íq̓ʷilac	rotten stick
 §4.1	southern	citation	ʔáx̌ʷuʔ-ìluɬ	go to dig clams
 Figure 4	southern	citation	ʔáx̌ʷuʔ-ìluɬ	go to dig clams
@@ -338,8 +338,8 @@ App A (6)	none	translation	‘And he ran on the road a long ways’ (AJ Fly: 204
 App A	southern	citation	-il	INCH
 Table A1	southern	citation	čə́gʷəš	wife
 Table A1	northern	citation	čəgʷás	wife
-Table A1	southern	citation	čáləš	hands
-Table A1	northern	citation	čáləs	hands
+Table A1	southern	citation	čáləš	passes
+Table A1	northern	citation	čáləs	passes
 Table A1	southern	citation	č̓áləš	bracken fern
 Table A1	northern	citation	č̓áləs	bracken fern
 Table A1	southern	citation	č̓ə́bəš	sister-in-law
@@ -452,7 +452,7 @@ App B (12)	unstated	citation	c̓əq̓c	spear
 §3.2.2	none	notation	CəCμCμ	a syllable with a schwa and two moraic consonants
 §4.1	none	notation	OəO	an obstruent, a schwa and an obstruent
 §4.2.2.2	none	notation	Cə	a weightless syllable
-§6	ayajuthem	mention	ʔayʔaǰuθəm-style	fixed stress of the kind ʔayʔaǰuθəm has
+§6	ayajuthem	mention	ʔayʔaǰuθəm-style	fixed stress of the type ʔayʔaǰuθəm has
 References	squamish	reference	kwxwú7mesh	Skwxwú7mesh, in the title of Bar-El and Watt 1998
 §3.2.1	none	reference	Bermúdez	a surname whose accented vowel the alphabet also holds
 References	none	reference	Bermúdez-Otero	the same surname in the reference list

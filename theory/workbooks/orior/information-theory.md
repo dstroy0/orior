@@ -164,7 +164,7 @@ measured imbalance is the imbalance any function drawn at random would show, to 
 figures.** The paper says the balance is high. The sharper statement available from the same table
 is that the deficit is exactly generic, and that is a much stronger claim about SHA-1 than "high".
 
-It is also the methodological point this tree keeps relearning: the interesting quantity is never
+It is also the methodological point this tree retains relearning: the interesting quantity is never
 the measurement, it is the measurement divided by what a random function would have given.
 
 ### 3.3 Sigma counts should be divergences
@@ -211,7 +211,7 @@ suggested it. Three of them bear directly here and one of them reframes this ent
 
 From the ledger:
 
-> Histogram quantities are permutation invariant. They describe the maximum entropy case and are
+> Histogram quantities are permutation invariant. They describe the max entropy case and are
 > free. The arrangement remains after that.
 
 **Every number `bench_renyi` produces is a histogram quantity.** All seven Rényi orders, the
@@ -221,7 +221,7 @@ one of them exactly unchanged.
 
 So the headline result - that SHA256d's output histogram over an completely enumerated `2^32`
 nonce domain is that of a random function to six significant figures - is, in the ledger's own
-terms, **entailed instead of discovered**. It is the maximum-entropy case, and it was always going
+terms, **entailed instead of discovered**. It is the max-entropy case, and it was always going
 to be the answer. That is worth having as a measured fact instead of an assumption, but it is not a
 finding about SHA-256's arrangement, because no permutation-invariant quantity can be.
 
@@ -238,7 +238,7 @@ and anything off it refutes the posit.
 
 The permutation null over arrangements of a fixed multiset satisfies this exactly for the question
 asked here: it preserves every count and destroys every position. It deletes the arrangement and
-keeps the
+retains the
 counts. The ledger's reason it cannot be wrong is worth quoting because it is stronger than
 "we chose a sensible baseline":
 
@@ -292,7 +292,7 @@ and it is not closed.
 `proof_corpus_audit.py` records that nine problems in that work were found by reading output and
 none
 by a statistic going out of range. This tree prints statistics almost exclusively. The exception is
-recent and it earned its keep immediately: extending the leading-zero table past 44 bits showed that
+recent and it earned its retain immediately: extending the leading-zero table past 44 bits showed that
 the single deep nonce is block 125552's own solved nonce, rediscovered by the enumeration, the
 strongest external check available here and had been sitting one row below the cut.
 
@@ -309,7 +309,7 @@ Widening the search for structure in the hole arrangement, one step at a time:
 Each step multiplies the cost by orders of magnitude and returns the same answer. That pattern is
 not an accident of this particular search, and the ledger already names why:
 
-> Histogram quantities are permutation invariant. They describe the maximum entropy case and are
+> Histogram quantities are permutation invariant. They describe the max entropy case and are
 > free. The arrangement remains after that, and Proposition 2 states that no knowledge of a
 > domain removes the exact compare. The cost of an arrangement is made of checks that have to be
 > performed. Deriving it would be obtaining the irreducible half without paying for it, the
@@ -332,7 +332,7 @@ the cost.
 The cost does not merely grow. It floors, with a knee, and the position of the knee is derivable
 instead of a matter of opinion.
 
-Checking `N` directions means taking a maximum over `N` statistics, and the threshold a real signal
+Checking `N` directions means taking a max over `N` statistics, and the threshold a real signal
 has to clear is the expected largest of `N` nulls:
 
     reach   R(N) = sqrt(2 ln N)  minus a slowly varying correction

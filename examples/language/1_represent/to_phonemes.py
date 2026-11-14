@@ -18,11 +18,11 @@
 # can produce it.
 #
 # What is still needed is the shared alphabet, and that is a mapping instead of a lookup. Each language's
-# definition is turned into the sounds it stands for. A Hungarian s and a Polish sz become the same
+# definition is turned into the sounds it is for. A Hungarian s and a Polish sz become the same
 # symbol when they are the same consonant and different symbols when they are not.
 #
 # These mappings are mine. They follow the standard descriptions of each orthography, they are applied
-# longest definition first so digraphs are read before their letters, and they ignore length, stress and the
+# longest definition first so digraphs are read before their characters, and they ignore length, stress and the
 # assimilations that happen across word boundaries. Any error in them is an error in the result, the
 # price of not asking a service twelve hundred times.
 
@@ -146,7 +146,7 @@ SOUNDS = {
 
 
 def spoken(word, language):
-    """The word written in sounds instead of in that language's letters."""
+    """The word written in sounds instead of in that language's characters."""
     lowered = word.lower()
     parts = lowered.split()
     # A leading call particle is not the sound word, and Polish files many of these that way
@@ -165,7 +165,7 @@ def spoken(word, language):
                 break
         else:
             symbol = lowered[index]
-            # Anything not defined specially keeps its letter, with length marks dropped
+            # Anything not defined specially retains its character, with length marks dropped
             flat = "".join(
                 one
                 for one in unicodedata.normalize("NFD", symbol)
@@ -198,14 +198,14 @@ def main():
             for word in sorted(said):
                 handle.write("%s\t%s\n" % (word, said[word]))
 
-        shown = sorted(said)[:2]
+        displayed = sorted(said)[:2]
         out.write(
             "  %-12s %-8d %-9d %s\n"
             % (
                 language,
                 len(words),
                 len({said[word] for word in said}),
-                "  ".join("%s to %s" % (word, said[word]) for word in shown),
+                "  ".join("%s to %s" % (word, said[word]) for word in displayed),
             )
         )
 

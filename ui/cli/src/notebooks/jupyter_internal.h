@@ -21,9 +21,9 @@ typedef struct CliJupyterSpecCtx CliJupyterSpecCtx;
 typedef struct CliJupyterCtx CliJupyterCtx;
 typedef struct CliJupyterKeyCtx CliJupyterKeyCtx;
 
-// the most requests that wait on replies at once, the bytes a reader of published messages and a reader of replies
+// the max requests that wait on replies at once, the bytes a reader of published messages and a reader of replies
 // each contains, half for the frames read and half for the message written, the longest line a kernel writes of itself,
-// the most frames a message has, and the most nodes and bytes of a header read
+// the max frames a message has, and the max nodes and bytes of a header read
 #define CLI_KERNEL_WAITERS 16u
 #define CLI_KERNEL_IOPUB_CAPACITY (1u << 22u)
 #define CLI_KERNEL_REPLY_CAPACITY (1u << 19u)
@@ -34,7 +34,7 @@ typedef struct CliJupyterKeyCtx CliJupyterKeyCtx;
 #define CLI_KERNEL_HEADER_NODES 512u
 #define CLI_KERNEL_HEADER_TEXT (1u << 14u)
 
-// the most bytes of content a request impero makes carries, and how long a kernel's readers are waited for as it is
+// the max bytes of content a request impero makes carries, and how long a kernel's readers are waited for as it is
 // let go, in milliseconds
 #define CLI_KERNEL_CONTENT (1u << 20u)
 #define CLI_KERNEL_READERS_WAIT 5000ull
@@ -121,7 +121,7 @@ struct CliKernel
 // a text of a spec by its place, "" for none (jupyter_specs.c)
 const char *cli_kernel_text(const CliJupyterSpecCtx *args);
 
-// the most folders Jupyter's data is read from and Pythons found
+// the max folders Jupyter's data is read from and Pythons found
 #define CLI_KERNEL_FOLDERS 64u
 #define CLI_KERNEL_PYTHONS 8u
 

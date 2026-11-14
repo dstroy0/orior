@@ -9,7 +9,7 @@ would do.
 This computes, exactly, which bit positions can possibly differ within such a batch. It does not
 sample. Taint runs forward through the schedule and the compression, over-approximating at every
 step: a path may carry no influence, but the absence of a path is exact, and a guaranteed-invariant
-bit is the only kind hardware can spend.
+bit is the only type hardware can spend.
 
     python utils/maint/hardware/batch_invariant.py
 
@@ -19,9 +19,9 @@ WHAT THE ADDER MODEL DECIDES, AND WHAT IT DOES NOT
 
 A first version assumed resolved adders and found the sharing dead at round 3, because a settled
 carry chain lets a change at bit zero reach bit thirty-one. That is not how SHA-2 hardware is built:
-the inner loop keeps sum and carry apart and never propagates during the rounds, as
+the inner loop retains sum and carry apart and never propagates during the rounds, as
 shortens the critical path. Under carry-save a 3:2 compressor moves influence up exactly one bit.
-The answer changes - round 3 keeps twenty free bits and the total rises by about a third.
+The answer changes - round 3 retains twenty free bits and the total rises by about a third.
 
 It then dies at round 4 anyway, and the reason is worth stating because it is not the adder.
 Sigma1 is ROTR6 xor ROTR11 xor ROTR25. One tainted bit becomes three at separated positions every
@@ -46,7 +46,7 @@ def rotr(value, by):
 #   resolved   a ripple or fast carry-propagate adder settles the whole word. A change at bit
 #              zero can reach bit thirty-one whenever the bits between it happen to carry. Taint
 #              smears to the top of the word in one addition.
-#   carrysave  the inner loop keeps sum and carry apart and never propagates during the rounds,
+#   carrysave  the inner loop retains sum and carry apart and never propagates during the rounds,
 #              as SHA-2 hardware actually does to shorten the critical path. A 3:2
 #              compressor moves influence up exactly one bit. Taint grows a level at a time.
 #
@@ -75,8 +75,8 @@ def climb(taint, levels):
     return out
 
 
-def add_taint(*parts, **kind):
-    levels = kind.get("levels", LEVELS_FIVE)
+def add_taint(*parts, **type):
+    levels = type.get("levels", LEVELS_FIVE)
     together = 0
     for one in parts:
         together |= one

@@ -4,7 +4,7 @@
 // keys `required` requires; what `dependencies`, `dependentRequired` and `dependentSchemas` require of a key it
 // contains; each key against `propertyNames`; and each member's value against `properties` and `patternProperties`, and
 // where neither gives it, against `additionalProperties`, `false` allowing none and offering the keys near it. A key's
-// own value is checked as a string that stands where the key does
+// own value is checked as a string that is where the key does
 #include "schema_internal.h"
 
 typedef struct
@@ -218,7 +218,7 @@ EMBED_INLINE void object_additional(const SchemaObjectCtx *args)
     }
 }
 
-// a key checked against `propertyNames`, as a string standing where the key does
+// a key checked against `propertyNames`, as a string located where the key does
 EMBED_INLINE void object_name(const SchemaObjectCtx *args)
 {
     CliSchemaCheck *check = args->check;

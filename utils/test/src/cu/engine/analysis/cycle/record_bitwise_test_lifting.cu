@@ -63,7 +63,7 @@ static void bitwise_stack(BitwiseResults *results)
     int loads = keymath_record_encode(&encode_request) != KEYMATH_ERROR;
     loads = loads && (key_schedule_record_layout(&layout_request) != KEY_SCHEDULE_ERROR);
     loads = loads && (cycle_record_load(&loaded.layout, &loaded.record, &loaded.error) != CYCLE_ERROR);
-    bitwise_check(results, loads, "a stack of 4204 steps encodes, lays out with reuse and loads");
+    bitwise_check(results, loads, "a stack of 4204 steps encodes, arranges with reuse and loads");
     if (loads == 0)
     {
         free(steps);

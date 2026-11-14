@@ -64,7 +64,7 @@ $arms = @(
 )
 
 # kat_validation is included deliberately. It is the correctness gate every other result rests on.
-# A compiler-dependent answer there would be the most expensive one to miss.
+# A compiler-dependent answer there would be the max expensive one to miss.
 $benches = @(Get-ChildItem -Path $benchDirectory -Filter "bench_*.cpp" |
     Where-Object { $_.Name -notin @("bench_cuda.cpp", "bench_keyhole.cpp") }) +
     @(Get-ChildItem -Path $testDirectory -Filter "kat_validation.cpp")
@@ -97,7 +97,7 @@ foreach ($arm in $arms)
 }
 
 # Running is the slow part and the benches are independent. Run them concurrently. One core is
-# left for the machine. That is the standing rule for this tree.
+# left for the machine. That is the located rule for this tree.
 $parallel = [Math]::Max(1, [int]$env:NUMBER_OF_PROCESSORS - 1)
 Write-Host "[*] running, $parallel at a time" -ForegroundColor Cyan
 

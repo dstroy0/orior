@@ -11,7 +11,7 @@ static const char s_schema[] = "{\n  \"$schema\": \"http://json-schema.org/draft
                                "\"How loud\"}},\n  \"properties\": {\n    \"$schema\": {\"type\": \"string\"},\n"
                                "    \"name\": {\"type\": \"string\", \"minLength\": 2, \"description\": \"The name\"},\n"
                                "    \"version\": {\"type\": \"string\", \"pattern\": \"^\\\\d+\\\\.\\\\d+\\\\.\\\\d+$\"},\n"
-                               "    \"count\": {\"type\": \"integer\", \"minimum\": 1, \"maximum\": 10},\n"
+                               "    \"count\": {\"type\": \"integer\", \"minimum\": 1, \"max\": 10},\n"
                                "    \"level\": {\"$ref\": \"#/definitions/level\"},\n"
                                "    \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}, \"uniqueItems\": true},\n"
                                "    \"old\": {\"type\": \"boolean\", \"deprecated\": true},\n"
@@ -188,7 +188,7 @@ void test_a_file_is_checked_against_the_schema_it_names(void)
 {
     static const char *const s_faults[9][2] = {{"schema-length", "shorter than the 2"},
                                                {"schema-pattern", "pattern"},
-                                               {"schema-range", "12 is above the most the schema allows, 10"},
+                                               {"schema-range", "12 is above the max the schema allows, 10"},
                                                {"schema-enum", "`\"loud\"`"},
                                                {"schema-unique", "above it"},
                                                {"schema-deprecated", "\"old\" is deprecated"},

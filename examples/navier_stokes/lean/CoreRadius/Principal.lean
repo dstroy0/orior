@@ -81,7 +81,7 @@ lemma ge_zero_value {f f' : ℝ → ℝ} {x : ℝ} (hx : 0 ≤ x) (hf : Continuo
   exact mono ⟨le_rfl, hx⟩ ⟨hx, le_rfl⟩ hx
 
 /-- The comparison. With p = Y y', V' = y and p' = mu / 2 (s y + c - c U' V), where s - c Y max(U', 0) >= s0 > 0,
-and z, p_z of the same form with p_z' at most mu / 2 (s0 z + c) and p_z at least 0, y stays above theta z on
+and z, p_z of the same form with p_z' at max mu / 2 (s0 z + c) and p_z at least 0, y stays above theta z on
 `[0, T]` for every theta in `[0, 1)`. -/
 theorem principal_comparison {T μ c s0 θ : ℝ} {y p V z pz s slope rz : ℝ → ℝ}
     (hμ : 0 < μ) (hc : 0 < c) (hs0 : 0 ≤ s0) (hθ0 : 0 ≤ θ) (hθ : θ < 1)
@@ -97,7 +97,7 @@ theorem principal_comparison {T μ c s0 θ : ℝ} {y p V z pz s slope rz : ℝ �
     (h_least : ∀ t ∈ Icc 0 T, s0 ≤ s t - c * t * max (slope t) 0) :
     ∀ t ∈ Icc 0 T, θ * z t ≤ y t := by
   set q : ℝ → ℝ := fun t => p t - θ * pz t with hq
-  -- once q is at least 0 on [0, x]: y and V at least 0, V at most x y, and y at least theta z
+  -- once q is at least 0 on [0, x]: y and V at least 0, V at max x y, and y at least theta z
   have facts : ∀ x ∈ Icc 0 T, (∀ τ ∈ Icc 0 x, 0 ≤ q τ) →
       0 ≤ y x ∧ 0 ≤ V x ∧ V x ≤ x * y x ∧ θ * z x ≤ y x := by
     intro x hx h_q_x

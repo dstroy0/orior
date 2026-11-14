@@ -21,7 +21,7 @@ typedef struct
     unsigned int folds;
     unsigned int ranges;
 } CliServersParseHead;
-// the most token types a server's legend names
+// the max token types a server's legend names
 #define CLI_SERVERS_LEGEND 256u
 
 // The parse's storage, each part in a cell of its count, given back with the parsing lock: the runs, each line's first

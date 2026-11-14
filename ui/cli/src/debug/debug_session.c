@@ -82,7 +82,7 @@ CliDebugSession *cli_debug_position(void)
             session->adapter_ended = 0;
             session->users = 1u;
             session->dap = NULL;
-            // the two lists in movable cells at their most, both or neither
+            // the two lists in movable cells at their max, both or neither
             session->positioned_cell = g_cli_guard->movable_buf_alloc(
                 (unsigned long long)CLI_DEBUG_POSITIONED * sizeof(long long), g_cli_debug_owner);
             session->data_cell = (session->positioned_cell != NULL)

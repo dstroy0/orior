@@ -24,7 +24,7 @@
 # on 96, and a combination on the remaining 43.
 #
 # Reversi is in the first group because nothing repeats along a Reversi row. That is a property of
-# the corpus and not of the reader, and a reader handed a grid with structure on both axes has no
+# the corpus and not of the reader, and a reader passed a grid with structure on both axes has no
 # way to know which number it returned. The rule that comes out is to read the axes separately where
 # the caller knows there are two, and to treat a single flattened period as ambiguous where it does
 # not.
@@ -48,7 +48,7 @@ from representation.game.board import (ARMS, SIDE, play, scattered, seats_column
                                        seats_row_major)
 from representation.game.combinatorial import grundy_subtraction, subtraction_period
 
-# Widths the two-heap grids are laid out at.
+# Widths the two-heap grids are arranged at.
 WIDTHS = (12, 16, 20, 24, 32)
 
 
@@ -80,7 +80,7 @@ def main():
             out.write("  %-7s %-16s period %-5s margin %s\n"
                       % (arm, label, period, "none" if margin is None else "%.4f" % margin))
 
-    out.write("\ntwo-heap subtraction grids, laid out at a known width\n")
+    out.write("\ntwo-heap subtraction grids, arranged at a known width\n")
     games_swept = [moves for count in range(1, 4)
                    for moves in itertools.combinations(range(1, 8), count)]
     tally = Counter()
@@ -97,7 +97,7 @@ def main():
             else:
                 tally["a combination of the two"] += 1
     total = sum(tally.values())
-    for label, count in tally.most_common():
+    for label, count in tally.max_common():
         out.write("  %-46s %3d of %d\n" % (label, count, total))
 
     hits = 0

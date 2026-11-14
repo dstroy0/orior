@@ -10,7 +10,7 @@
 
 #include "../text/text.h"
 
-// the most folders of the local repository offered, and the bytes their names take
+// the max folders of the local repository offered, and the bytes their names take
 #define CLI_MAVEN_FOLDERS 4096u
 #define CLI_MAVEN_FOLDERS_TEXT (1u << 20u)
 
@@ -21,11 +21,11 @@ static CliMavenModel s_model;
 static const char *const s_maven_input[6] = {
     "basedir", "maven.build.timestamp", "env.", "settings.localRepository", "java.version", "user.home"};
 
-// whether a letter goes in an element's name, and in a word
-static int complete_name_letter(const CliEachLetterCfg *args)
+// whether a character goes in an element's name, and in a word
+static int complete_name_character(const CliEachLetterCfg *args)
 {
-    unsigned int letter = args->letter;
-    return EMBED_CALL(cli_maven_internal.xml_name_letter, CliMavenCtx, .letter = letter);
+    unsigned int character = args->character;
+    return EMBED_CALL(cli_maven_internal.xml_name_character, CliMavenCtx, .character = character);
 }
 
 typedef struct
@@ -133,7 +133,7 @@ EMBED_INLINE void complete_elements(const MavenCompleteCtx *args)
         mmgr_line_ch(&detail, '>');
     }
     const unsigned long long base = EMBED_CALL(cli_builds_text_at.build_run_before, CliBuildsTextAtCfg, .text = token,
-                                               .at = token_size, .of = cli_build_word_letter);
+                                               .at = token_size, .of = cli_build_word_character);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const unsigned int first = items->count;
@@ -362,7 +362,7 @@ EMBED_INLINE int complete_values(const MavenCompleteCtx *args)
 void cli_maven_complete(const CliMavenTextSizeCtx *args)
 {
     const unsigned long long token = EMBED_CALL(cli_builds_text_at.build_run_before, CliBuildsTextAtCfg,
-                                                .text = args->text, .at = args->at_u64, .of = complete_name_letter);
+                                                .text = args->text, .at = args->at_u64, .of = complete_name_character);
     unsigned long long line_start = token;
     line_start = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->text,
                             .at = line_start, .set = "\n");
@@ -417,8 +417,8 @@ void cli_maven_complete(const CliMavenTextSizeCtx *args)
             {
                 unsigned long long length = 0ULL;
                 lettered =
-                    EMBED_CALL(cli_maven_internal.xml_name_letter, CliMavenCtx,
-                               .letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = lead,
+                    EMBED_CALL(cli_maven_internal.xml_name_character, CliMavenCtx,
+                               .character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = lead,
                                                     .size = comment_prefix_size, .at = name_end, .length = &length));
                 name_end += lettered ? length : 0ULL;
             }

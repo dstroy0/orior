@@ -41,7 +41,7 @@ static EngineError s_engine_error;
 
 void engine_error_latch(const EngineError *error)
 {
-    if ((error->kind != ENGINE_ERROR_NONE) && (s_engine_error.kind == ENGINE_ERROR_NONE))
+    if ((error->type != ENGINE_ERROR_NONE) && (s_engine_error.type == ENGINE_ERROR_NONE))
     {
         s_engine_error = *error;
     }
@@ -91,7 +91,7 @@ extern "C" void engine_key_release(CycleKey *key)
     cycle_key_release(key);
 }
 
-// The program laid out on the device (layout_device_agrees, codegen_device.h), keymath's encoding and key_schedule's
+// The program arranged on the device (layout_device_agrees, codegen_device.h), keymath's encoding and key_schedule's
 // layout each in one thread, the path every program takes, and checked against the host's layout word for word: 1 and
 // the device's layout in `layout` where the two agree, else 0 with the reason on stderr, the host's layout left in
 // `layout`

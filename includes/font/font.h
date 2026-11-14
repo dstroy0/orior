@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // font.h: a TrueType font read and drawn (font.c reads it, font_outline.c outlines and draws a glyph): its tables
 // read from a .ttf or the first font of a .ttc, a character found by its cmap, a glyph's outline read from glyf,
-// simple or made of other glyphs, its quadratic curves cut into short lines, and the lines handed to the one
+// simple or made of other glyphs, its quadratic curves cut into short lines, and the lines passed to the one
 // rasterizer (../coverage/coverage.h) for each pixel's share of the glyph. The font's bytes and the ranges of its
 // character map are the caller's: a font is read over the file the caller holds
 #ifndef FONT_H
@@ -16,7 +16,7 @@ typedef struct FontDataCfg FontDataCfg;
 typedef struct FontCfg FontCfg;
 typedef struct FontAtCfg FontAtCfg;
 
-// the most bytes of a font file, tables of a font, character ranges of its cmap, points of a glyph's outline and
+// the max bytes of a font file, tables of a font, character ranges of its cmap, points of a glyph's outline and
 // contours of it
 #define FONT_BYTES (1u << 23u)
 
@@ -58,7 +58,7 @@ typedef struct
     unsigned int contours;
 } FontContours;
 
-// A glyph drawn as coverage: its width and height in pixels, where its top left stands from the pen on the baseline,
+// A glyph drawn as coverage: its width and height in pixels, where its top left is from the pen on the baseline,
 // and each pixel's share of it, from 0 to 1
 typedef struct
 {
@@ -72,10 +72,10 @@ typedef struct
 // the font in `size` bytes of `data`, a TrueType font or the first of a collection, its ranges stored in `ranges`,
 // which sized for FONT_RANGES: 1, or 0 where it reads as none
 int font_read(const FontDataCfg *args);
-// the glyph that draws `letter`, 0 where the font has none; how far a glyph moves the pen, in font units
+// the glyph that draws `character`, 0 where the font has none; how far a glyph moves the pen, in font units
 unsigned int font_glyph(const FontCfg *args);
 float font_advance(const FontGlyphCfg *args);
-// where a glyph's outline stands in glyf, `from` and `to`: 1, or 0 where it has none
+// where a glyph's outline is in glyf, `from` and `to`: 1, or 0 where it has none
 int font_glyph_range(const FontGlyphCfg *args);
 unsigned int font_u16(const FontAtCfg *args);
 int font_i16(const FontAtCfg *args);
@@ -83,7 +83,7 @@ int font_i16(const FontAtCfg *args);
 // y' = b x + d y + f (font_outline.c)
 void font_outline(const FontGlyphMatrixCfg *args);
 // `contours`, in pixels with y going up from the baseline, drawn as coverage into `mask`, its cover in `cover`, which
-// sized for `capacity`, its edges laid in `scratch` of `scratch_bytes`, as `font_rasterize_bytes` counts them for the
+// sized for `capacity`, its edges positioned in `scratch` of `scratch_bytes`, as `font_rasterize_bytes` counts them for the
 // contours; a mask too large for the capacity drawn as none; and with `cover` NULL the mask measured alone, its size
 // and place set and nothing drawn, so a cover of `width` by `height` and four more can be taken for it
 void font_rasterize(const FontContoursCfg *args);
@@ -127,7 +127,7 @@ struct FontDataCfg
 struct FontCfg
 {
     const Font *font;
-    unsigned int letter;
+    unsigned int character;
 };
 
 struct FontAtCfg
@@ -150,7 +150,7 @@ typedef struct
     unsigned int (*glyph)(const FontCfg *args);
 } FontLetterNs;
 EMBED_TABLE_LAYOUT(FontLetterNs, glyph);
-EMBED_TABLE_STORAGE FontLetterNs font_letter EMBED_UNUSED = {
+EMBED_TABLE_STORAGE FontLetterNs font_character EMBED_UNUSED = {
     .glyph = font_glyph,
 };
 

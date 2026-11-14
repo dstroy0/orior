@@ -5,7 +5,7 @@
 # Catalog: PRO-VIEW
 #
 # Render the object under exam: a deposited backbone and the one a vector walk rebuilds from a
-# magnitude table and the Ramachandran cell each residue sits in, laid on the same axes so the
+# magnitude table and the Ramachandran cell each residue sits in, positioned on the same axes so the
 # disagreement is read where it enters.
 #
 #   Usage:  python examples/proteins/build_protein_view.py 1UBQ
@@ -62,7 +62,7 @@ def bin_two_degrees(radians):
 def kabsch(mobile, target):
     """Superpose `mobile` onto `target` by the optimal rigid motion, and return the moved points.
 
-    Kabsch 1976 (Acta Cryst A32:922), the SVD form with the determinant-sign correction that keeps
+    Kabsch 1976 (Acta Cryst A32:922), the SVD form with the determinant-sign correction that retains
     the motion a rotation and errors on the reflection a raw SVD would take when the two are of
     opposite hand.
     """
@@ -79,10 +79,10 @@ def kabsch(mobile, target):
 def compressed_rebuild(run):
     """The backbone the walk rebuilds from the magnitude table and the two-degree Ramachandran cell.
 
-    Bond lengths, bond angles and the peptide torsion are kept from the deposit; phi and psi, the two
+    Bond lengths, bond angles and the peptide torsion are retained from the deposit; phi and psi, the two
     torsions the fold lives in, are quantized to the reference grid. In walk order the dihedral that
     places atom i is psi at i%3==0, omega at i%3==1 and phi at i%3==2. Only the omega positions
-    keep their measured direction and every other torsion is told to the walk as a grid cell.
+    retain their measured direction and every other torsion is told to the walk as a grid cell.
     """
     bond, angle, dih = internal_coords(run)
     steered = dih.copy()

@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// typed.c: the bytes typed into a box, in one movable cell taken once at the box's most, the bytes and their end
+// typed.c: the bytes typed into a box, in one movable cell taken once at the box's max, the bytes and their end
 // written in place as they change
 #include "typed.h"
 
 #include "../command_line/cli_internal.h"
 
-// the most bytes a letter takes, which an erase reads back over
-#define TYPED_LETTER_MAX 4ULL
+// the max bytes a character takes, which an erase reads back over
+#define TYPED_CHARACTER_MAX 4ULL
 
 void cli_typed_put(const CliTypedCfg *args)
 {
@@ -19,13 +19,13 @@ void cli_typed_put(const CliTypedCfg *args)
         size = ((unsigned char)args->text[at] < 0x20u) ? at : size;
     }
     const unsigned long long length = typed->length;
-    if ((size == 0ULL) || (length + size + 1ULL > args->most))
+    if ((size == 0ULL) || (length + size + 1ULL > args->max))
     {
         return;
     }
     if (typed->cell == NULL)
     {
-        typed->cell = g_cli_guard->movable_buf_alloc(args->most, args->owner);
+        typed->cell = g_cli_guard->movable_buf_alloc(args->max, args->owner);
         if (typed->cell == NULL)
         {
             return;
@@ -47,9 +47,9 @@ void cli_typed_erase(const CliTypedCfg *args)
     {
         return;
     }
-    // the last letter's bytes read back: a continuation byte each until its lead byte
-    const unsigned long long from = (length > TYPED_LETTER_MAX) ? length - TYPED_LETTER_MAX : 0ULL;
-    unsigned char tail[TYPED_LETTER_MAX];
+    // the last character's bytes read back: a continuation byte each until its lead byte
+    const unsigned long long from = (length > TYPED_CHARACTER_MAX) ? length - TYPED_CHARACTER_MAX : 0ULL;
+    unsigned char tail[TYPED_CHARACTER_MAX];
     (void)g_cli_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = typed->cell, .offset = from, .dst = tail, .bytes = length - from});
     while (length > from)

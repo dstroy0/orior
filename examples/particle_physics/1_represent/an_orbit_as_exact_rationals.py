@@ -17,7 +17,7 @@
 #
 # The arithmetic here is integer rationals done by hand, add, subtract, multiply and compare, the host
 # stand-in for the fixed-width limb integers in no_rounding on the device arm. No float and no bignum
-# library sits in the path, the same discipline representation/exact.py keeps for decimal coordinates.
+# library sits in the path, the same discipline representation/exact.py retains for decimal coordinates.
 #
 # Everything is carried in the natural units, the Bohr radius and the Rydberg. No measured constant
 # enters and no digit is approximate. The absolute size of an orbit in meters, and any comparison to a
@@ -60,7 +60,7 @@ def greatest_common_divisor(left, right):
 
 
 def rational(numerator, denominator):
-    """An exact rational reduced to lowest terms, denominator kept positive. Raises on a zero one."""
+    """An exact rational reduced to lowest terms, denominator retained positive. Raises on a zero one."""
     if denominator == 0:
         raise ValueError("a rational with denominator zero")
     if denominator < 0:

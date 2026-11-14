@@ -3,7 +3,7 @@
 
 // The Profile panel: a Python run measured as it goes, on this machine or on another one reached by
 // ssh, its time and its memory by function drawn as a flame graph that grows as the counts come in.
-// Each function is a bar as wide as its share of the run's samples, or of the memory kept, its
+// Each function is a bar as wide as its share of the run's samples, or of the memory retained, its
 // callers above it and what it called under it. The pointer on a bar says what it is, how much it
 // took and where it is written; a press opens the function there; the panel's menu zooms to a bar
 // and back. Run, Profile File profiles the file in the editor here, and Profile File on Another
@@ -25,7 +25,7 @@ function element(tag, props = {}, ...children) {
   return made;
 }
 
-// The stacks of the view shown, as a tree of frames: each its function's name, its file, the line
+// The stacks of the view displayed, as a tree of frames: each its function's name, its file, the line
 // it starts at, how much it and what it called took, and what it called.
 function treeOf(stacks) {
   const root = { name: "all", file: "", line: 0, key: "", value: 0, children: new Map() };
@@ -203,7 +203,7 @@ function graphMenu(event) {
   ]);
 }
 
-// The function of the profile shown named `name`, the first the graph holds from where it is zoomed.
+// The function of the profile displayed named `name`, the first the graph holds from where it is zoomed.
 function nodeNamed(name) {
   const root = state.counts && zoomed(treeOf(state.view === "time" ? state.counts.time : state.counts.memory));
   const find = (node) => (node.name === name && node.file ? node : [...node.children.values()].map(find).find(Boolean) ?? null);
@@ -212,11 +212,11 @@ function nodeNamed(name) {
 
 // The profile's menu as commands, by the names commands.json gives them, each a function by its name.
 export const profileCommands = {
-  "profile-open": ([name]) => (nodeNamed(name) ? openFunction(nodeNamed(name)) : state.hooks.say(`The profile shown holds no function ${name}.`)),
+  "profile-open": ([name]) => (nodeNamed(name) ? openFunction(nodeNamed(name)) : state.hooks.say(`The profile displayed holds no function ${name}.`)),
   "profile-zoom": ([name]) => {
     const node = nodeNamed(name);
     if (!node) {
-      state.hooks.say(`The profile shown holds no function ${name}.`);
+      state.hooks.say(`The profile displayed holds no function ${name}.`);
       return;
     }
     state.zoom = [...state.zoom, ...pathTo(node)];
@@ -226,7 +226,7 @@ export const profileCommands = {
   "profile-whole": () => ((state.zoom = []), draw()),
 };
 
-// How far the profile shown is zoomed in, by the functions it is zoomed through, for the tests.
+// How far the profile displayed is zoomed in, by the functions it is zoomed through, for the tests.
 export const profileZoom = () => [...state.zoom];
 
 function drawBar() {
@@ -239,7 +239,7 @@ function drawBar() {
   const counts = state.counts;
   const retained = counts?.memory ? Object.values(counts.memory).reduce((sum, one) => sum + one, 0) : 0;
   const where = state.remote ? ` on ${state.remote.split(":")[0]}` : "";
-  const measured = counts ? `${counts.seconds.toFixed(1)} s, ${counts.samples} samples, ${(retained / 1048576).toFixed(1)} MB kept` : "";
+  const measured = counts ? `${counts.seconds.toFixed(1)} s, ${counts.samples} samples, ${(retained / 1048576).toFixed(1)} MB retained` : "";
   parts.said.textContent = state.running ? `Profiling ${state.file}${where}${measured ? `: ${measured}` : ""}` : state.file ? `${state.said} ${state.file}${where}${measured ? `: ${measured}` : ""}` : "Run, Profile File profiles the file in the editor.";
 }
 
@@ -260,7 +260,7 @@ export function toggleProfile(open = parts.panel.hidden) {
 
 export const profiling = () => state.running;
 
-// The bars drawn, each its function, its file and line, its share, and where it stands on the graph.
+// The bars drawn, each its function, its file and line, its share, and where it is on the graph.
 export const profileBars = () => state.hits.map((hit) => ({ name: hit.node.name, file: hit.node.file, line: hit.node.line, share: hit.share, x: hit.x, y: hit.y, w: hit.w }));
 
 // Run, Profile File, and on Another Machine: the Python file in the editor profiled here, or where
@@ -359,14 +359,14 @@ export async function startProfile(hooks) {
   });
   new ResizeObserver(() => !parts.panel.hidden && requestAnimationFrame(draw)).observe(parts.body);
   await listen("profile", ({ payload }) => {
-    if (payload.kind === "counts") {
+    if (payload.type === "counts") {
       state.counts = payload.counts;
       if (!parts.panel.hidden) {
         draw();
       }
-    } else if (payload.kind === "output") {
+    } else if (payload.type === "output") {
       write(payload.text, payload.error);
-    } else if (payload.kind === "done") {
+    } else if (payload.type === "done") {
       state.running = false;
       state.said = payload.code === 0 ? "Profiled" : payload.code === null ? "Stopped profiling" : `Profiled, exit code ${payload.code},`;
     }

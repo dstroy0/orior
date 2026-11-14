@@ -138,7 +138,7 @@ void test_heap_order(TestResults *results)
             TesseraEvent event;
             if (tessera_ledger_fire(&ledger, root.when, &event))
             {
-                ordered = ordered && (root.when >= last) && (event.kind == TESSERA_EVENT_SWEEP);
+                ordered = ordered && (root.when >= last) && (event.type == TESSERA_EVENT_SWEEP);
                 last = root.when;
                 fired += 1ull;
             }
@@ -158,11 +158,11 @@ void test_budget(TestResults *results)
     TesseraEvent events[TEST_EVENTS];
     const TesseraJobRequest request = test_request(7ull, 400ull);
     test_check(results,
-               tessera_ledger_submit(&ledger, &request, 0ull, &first, &event) && (event.kind == TESSERA_EVENT_NONE));
+               tessera_ledger_submit(&ledger, &request, 0ull, &first, &event) && (event.type == TESSERA_EVENT_NONE));
     test_check(results, (tessera_ledger_admit(&ledger, 0ull, events, TEST_EVENTS) == 1ull) &&
-                            (events[0].kind == TESSERA_EVENT_ADMITTED));
-    test_check(results, tessera_ledger_measure(&ledger, first, 250ull, &event) && (event.kind == TESSERA_EVENT_NONE));
-    test_check(results, tessera_ledger_measure(&ledger, first, 450ull, &event) && (event.kind == TESSERA_EVENT_GREW) &&
+                            (events[0].type == TESSERA_EVENT_ADMITTED));
+    test_check(results, tessera_ledger_measure(&ledger, first, 250ull, &event) && (event.type == TESSERA_EVENT_NONE));
+    test_check(results, tessera_ledger_measure(&ledger, first, 450ull, &event) && (event.type == TESSERA_EVENT_GREW) &&
                             (tessera_ledger_job(&ledger, first)->reservation == 450ull) && (event.measured == 450ull));
     test_check(results, tessera_ledger_measure(&ledger, first, 300ull, &event) &&
                             (tessera_ledger_job(&ledger, first)->reservation == 450ull));
@@ -173,16 +173,16 @@ void test_budget(TestResults *results)
     unsigned long long second = 0ull;
     const TesseraJobRequest greedy = test_request(7ull, 600ull);
     test_check(results, tessera_ledger_submit(&ledger, &greedy, 100ull, &second, &event) &&
-                            (event.kind == TESSERA_EVENT_OVER_BUDGET) && (event.measured == 450ull) &&
+                            (event.type == TESSERA_EVENT_OVER_BUDGET) && (event.measured == 450ull) &&
                             (tessera_ledger_job(&ledger, second)->state == TESSERA_JOB_OVER_BUDGET));
     test_check(results, tessera_ledger_admit(&ledger, 100ull, events, TEST_EVENTS) == 0ull);
     test_check(results, !tessera_ledger_fire(&ledger, 100ull + 999ull, &event));
-    test_check(results, tessera_ledger_fire(&ledger, 100ull + 1000ull, &event) && (event.kind == TESSERA_EVENT_LOST) &&
+    test_check(results, tessera_ledger_fire(&ledger, 100ull + 1000ull, &event) && (event.type == TESSERA_EVENT_LOST) &&
                             (event.identity == second) && (tessera_ledger_job(&ledger, second) == NULL));
 
     unsigned long long third = 0ull;
     test_check(results, tessera_ledger_submit(&ledger, &greedy, 2000ull, &third, &event) &&
-                            (event.kind == TESSERA_EVENT_OVER_BUDGET));
+                            (event.type == TESSERA_EVENT_OVER_BUDGET));
     test_check(results, tessera_ledger_override(&ledger, third, 2500ull) &&
                             (tessera_ledger_job(&ledger, third)->state == TESSERA_JOB_WAITING));
     test_check(results,
@@ -190,7 +190,7 @@ void test_budget(TestResults *results)
     int lost_after_override = 0;
     while (tessera_ledger_fire(&ledger, 3000ull, &event))
     {
-        lost_after_override = lost_after_override || (event.kind == TESSERA_EVENT_LOST);
+        lost_after_override = lost_after_override || (event.type == TESSERA_EVENT_LOST);
     }
     test_check(results, lost_after_override == 0);
     test_check(results, tessera_ledger_release(&ledger, third, 3100ull, 0) &&
@@ -214,7 +214,7 @@ void test_budget(TestResults *results)
     unsigned long long modest = 0ull;
     const TesseraJobRequest under = test_request(7ull, 100ull);
     test_check(results, tessera_ledger_submit(&saved, &under, 7000ull, &modest, &event) &&
-                            (event.kind == TESSERA_EVENT_NONE) &&
+                            (event.type == TESSERA_EVENT_NONE) &&
                             (tessera_ledger_wants(&saved, tessera_ledger_job(&saved, modest)) == 450ull));
     test_check(results, tessera_ledger_admit(&saved, 7000ull, events, TEST_EVENTS) == 0ull);
     tessera_ledger_device(&saved, 1000ull, 500ull);

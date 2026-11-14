@@ -1,6 +1,6 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-"""The report of a motion recording, written into its folder: report.md with the findings ranked, the most first,
+"""The report of a motion recording, written into its folder: report.md with the findings ranked, the max first,
 each with a picture under pictures/; every motion found; and the long animation frames with their scripts.
 
 A finding on one motion is pictured as its progress over its own time from 0 to 1, a dot each frame, beside CSS's
@@ -17,7 +17,7 @@ import motion_read
 WIDTH = 560
 HEIGHT = 280
 MARGIN = 40
-# The most findings pictured.
+# The max findings pictured.
 PICTURED = 60
 GROUND = (18, 20, 36)
 GRID = (52, 56, 84)
@@ -64,8 +64,8 @@ def own_places(motion):
 
 def pictured(finding, path):
     """The picture of one finding, written to `path`."""
-    picture, draw, font, point = plane("%s: %s, %s" % (finding.kind, finding.part, finding.step))
-    if finding.kind == "starts mid-way":
+    picture, draw, font, point = plane("%s: %s, %s" % (finding.type, finding.part, finding.step))
+    if finding.type == "starts mid-way":
         first = min(one.start for one in finding.motions)
         length = (max(one.end for one in finding.motions) - first) or 1.0
         for index, motion in enumerate(finding.motions):
@@ -73,7 +73,7 @@ def pictured(finding, path):
             curve(draw, point, places, COLORS[index % len(COLORS)])
             draw.text((MARGIN + 4, MARGIN + 4 + 12 * index), "%s, from %.0f ms" % (motion.key, motion.start - first), fill=COLORS[index % len(COLORS)], font=font)
         draw.text((WIDTH - 150, HEIGHT - 14), "0 to %.0f ms" % length, fill=TEXT, font=font)
-    elif finding.kind in PAIRED:
+    elif finding.type in PAIRED:
         for index, motion in enumerate(finding.motions):
             curve(draw, point, own_places(motion), COLORS[index % len(COLORS)])
             draw.text((MARGIN + 4, MARGIN + 4 + 12 * index), "%s %s, %.0f ms" % (motion.key, motion.step, motion.duration), fill=COLORS[index % len(COLORS)], font=font)
@@ -101,27 +101,27 @@ def written(reading, recording, folder):
     frames = recording.get("frames", [])
     first = frames[0]["t"] if frames else 0.0
     size = recording.get("size", {})
-    kinds = {}
+    types = {}
     for one in reading.findings:
-        kinds[one.kind] = kinds.get(one.kind, 0) + 1
+        types[one.type] = types.get(one.type, 0) + 1
     lines = [
         "# Motion",
         "",
         "%d frames at %.1f ms a frame, the page %sx%s at %s device pixels to one; %d motions, %d findings%s."
-        % (len(frames), reading.frame_ms, size.get("width", "?"), size.get("height", "?"), size.get("scale", "?"), len(reading.motions), len(reading.findings), (": " + ", ".join("%d %s" % (count, kind) for kind, count in sorted(kinds.items(), key=lambda one: -one[1]))) if kinds else ""),
+        % (len(frames), reading.frame_ms, size.get("width", "?"), size.get("height", "?"), size.get("scale", "?"), len(reading.motions), len(reading.findings), (": " + ", ".join("%d %s" % (count, type) for type, count in sorted(types.items(), key=lambda one: -one[1]))) if types else ""),
         "",
     ]
     if recording.get("lateRead") is False:
-        lines += ["The page keeps no long animation frames: the window's web view does not give them.", ""]
-    lines += ["## Findings, the most first", "", "| # | kind | part | step | at ms | measure | what | tracks | picture |", "| ---: | --- | --- | --- | ---: | ---: | --- | --- | --- |"]
+        lines += ["The page retains no long animation frames: the window's web view does not give them.", ""]
+    lines += ["## Findings, the max first", "", "| # | type | part | step | at ms | measure | what | tracks | picture |", "| ---: | --- | --- | --- | ---: | ---: | --- | --- | --- |"]
     for rank, one in enumerate(reading.findings, 1):
         picture = ""
         if rank <= PICTURED:
-            name = "%03d_%s_%s.png" % (rank, one.kind.replace(" ", "_").replace("-", "_"), one.part)
+            name = "%03d_%s_%s.png" % (rank, one.type.replace(" ", "_").replace("-", "_"), one.part)
             pictured(one, os.path.join(pictures, name))
             picture = "[picture](pictures/%s)" % name
         tracks = ", ".join(one.keys[:4]) + (" and %d more" % (len(one.keys) - 4) if len(one.keys) > 4 else "")
-        lines.append("| %d | %s | %s | %s | %.0f | %.2f | %s | %s | %s |" % (rank, one.kind, cell(one.part), cell(one.step), one.start - first, one.measure, cell(one.said), cell(tracks), picture))
+        lines.append("| %d | %s | %s | %s | %.0f | %.2f | %s | %s | %s |" % (rank, one.type, cell(one.part), cell(one.step), one.start - first, one.measure, cell(one.said), cell(tracks), picture))
     if not reading.findings:
         lines.append("| | nothing found | | | | | | | |")
     lines += ["", "## Motions", "", "| track | step | from ms | ms | frames | from | to |", "| --- | --- | ---: | ---: | ---: | ---: | ---: |"]

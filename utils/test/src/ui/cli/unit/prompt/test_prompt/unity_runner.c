@@ -9,14 +9,14 @@ extern void setUp(void);
 extern void tearDown(void);
 extern void test_a_confirm_has_the_sentence_the_statement_and_the_buttons_in_order(void);
 extern void test_an_ask_for_a_line_has_the_sentence_the_field_and_the_buttons(void);
-extern void test_text_typed_goes_at_the_fields_end_and_backspace_takes_one_letter(void);
+extern void test_text_typed_goes_at_the_fields_end_and_backspace_takes_one_character(void);
 extern void test_enter_answers_the_first_button_with_the_fields_text(void);
 extern void test_escape_closes_the_ask_with_no_answer(void);
-extern void test_a_password_row_carries_the_count_of_its_letters_only(void);
+extern void test_a_password_row_carries_the_count_of_its_characters_only(void);
 extern void test_an_answer_calls_the_continuation_once_and_gives_the_cells_back(void);
 extern void test_a_button_past_the_last_is_no_answer(void);
 extern void test_a_continuation_may_open_the_next_ask(void);
-extern void test_a_statement_is_cut_to_its_most(void);
+extern void test_a_statement_is_cut_to_its_max(void);
 
 
 /*=======Mock Management=====*/
@@ -80,14 +80,14 @@ int main(void)
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\prompt\\test_prompt\\test_prompt.c");
   run_test(test_a_confirm_has_the_sentence_the_statement_and_the_buttons_in_order, "test_a_confirm_has_the_sentence_the_statement_and_the_buttons_in_order", 80);
   run_test(test_an_ask_for_a_line_has_the_sentence_the_field_and_the_buttons, "test_an_ask_for_a_line_has_the_sentence_the_field_and_the_buttons", 98);
-  run_test(test_text_typed_goes_at_the_fields_end_and_backspace_takes_one_letter, "test_text_typed_goes_at_the_fields_end_and_backspace_takes_one_letter", 110);
+  run_test(test_text_typed_goes_at_the_fields_end_and_backspace_takes_one_character, "test_text_typed_goes_at_the_fields_end_and_backspace_takes_one_character", 110);
   run_test(test_enter_answers_the_first_button_with_the_fields_text, "test_enter_answers_the_first_button_with_the_fields_text", 125);
   run_test(test_escape_closes_the_ask_with_no_answer, "test_escape_closes_the_ask_with_no_answer", 138);
-  run_test(test_a_password_row_carries_the_count_of_its_letters_only, "test_a_password_row_carries_the_count_of_its_letters_only", 151);
+  run_test(test_a_password_row_carries_the_count_of_its_characters_only, "test_a_password_row_carries_the_count_of_its_characters_only", 151);
   run_test(test_an_answer_calls_the_continuation_once_and_gives_the_cells_back, "test_an_answer_calls_the_continuation_once_and_gives_the_cells_back", 166);
   run_test(test_a_button_past_the_last_is_no_answer, "test_a_button_past_the_last_is_no_answer", 181);
   run_test(test_a_continuation_may_open_the_next_ask, "test_a_continuation_may_open_the_next_ask", 190);
-  run_test(test_a_statement_is_cut_to_its_most, "test_a_statement_is_cut_to_its_most", 201);
+  run_test(test_a_statement_is_cut_to_its_max, "test_a_statement_is_cut_to_its_max", 201);
 
   return UNITY_END();
 }

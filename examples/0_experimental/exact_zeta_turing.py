@@ -36,7 +36,7 @@
 # u_h / P = sum over k of q_k / (z_h - w_k), a sum of nu poles on the unit circle at the P roots of unity z_h, which a
 # tree of multipole and local expansions of order ORDER over leaves of 2^BETA frequencies evaluates, with each leaf's
 # near poles taken whole through the Dirichlet kernel; the main sum's half is Re(exp(i theta) F). Its lanes a cell
-# grow as P instead of nu P. With both, the device runs the two and writes the most their Z differ by over the cell.
+# grow as P instead of nu P. With both, the device runs the two and writes the max their Z differ by over the cell.
 #
 # THE BOUND ON Z
 #
@@ -47,7 +47,7 @@
 # 7/(5760 t^3) + 31/(80640 t^5) + E_theta, |E_theta| < 1 / (3322 t^7) for t >= 10 (the same thesis, introduction,
 # (4) and (5)); below t = 10, Brent's bound past 1/(48 t), (7/5760 + pi/960) t^(-3) + exp(-pi t) / 2 (On asymptotic
 # approximations to the log-Gamma and Riemann-Siegel theta functions, Theorems 5 and 6), with the two terms after it.
-# An error in theta moves Z by at most 2 sum of m^(-1/2) <= 4 nu^(1/2) times it. The device's own error, a unit of
+# An error in theta moves Z by at max 2 sum of m^(-1/2) <= 4 nu^(1/2) times it. The device's own error, a unit of
 # 2^-62 a division and a unit a constant, is bounded step by step in `arithmetic`, and the multiple evaluation's, its
 # truncation with it, in `transform_error`. A sign of Z is certified where |Z| exceeds the sum of the three.
 #
@@ -66,7 +66,7 @@
 # Two certified points of opposite sign, with no certified point between, hold a zero of Z between them: a zero of
 # zeta on the line. N(t) = theta(t) / pi + 1 + S(t) off the ordinates, and for t_2 > t_1 > 168 pi,
 # |integral of S from t_1 to t_2| <= 2.067 + 0.059 log t_2 (Trudgian, Improvements to Turing's method, Theorem 2.2).
-# On a lattice step [t_i, t_(i+1)], theta lies between its ends, and the zeros certified past T are at most
+# On a lattice step [t_i, t_(i+1)], theta lies between its ends, and the zeros certified past T are at max
 # N(t) - N(T). Over a window after T, N(T) <= 1 + B / (2 pi D) + sum of d_i (Theta_(i+1) - c_i) / D, and over one
 # before it N(T) >= 1 + sum of d_i (k_(i+1) + Theta_i) / D - B / (2 pi D), with d_i the steps of x^2, D their sum,
 # c_i the zeros certified in (T, t_i] and k_(i+1) those in (t_(i+1), T]. N is a whole number.
@@ -85,7 +85,7 @@
 #
 # With refine, each cell runs by the multiple evaluation with F', and Z' = 2 Re(exp(i theta) F (i theta' + F'/F)) at
 # every point. The device calls a step clean where the cubic through Z and Z' at its ends clears the margin, the
-# bound in `margin` on how far the cubic can stand from Z over the step: a clean step holds no zero. A run of one sign
+# bound in `margin` on how far the cubic can are from Z over the step: a clean step holds no zero. A run of one sign
 # between two certified points holding a step that is not clean is certified again at 2^REFINE_BITS times the points,
 # by pairs at the points listed with their own Z' (the device's method 4), and again inside it where a fine step is
 # not clean, to REFINE_DEPTH times. With check, a step whose ends change sign closes only where the cubic's slope
@@ -202,8 +202,8 @@ def newton_error(v):
     """The device's error on w^(-1/2), 1 <= w <= v, in units of 2^-62, after NEWTON_STEPS of Newton's rule from
     2^(-g - 1), 4^g < w <= 4^(g + 1), which is below the root and above half of it.
 
-    With R = 2^62 w^(-1/2), a step's floors take y below y (3 - w y^2) / 2 by at most 1.5 units, and the floors of
-    y^2 and of w y^2 put it above by at most y (w + 2) / 2^63, below (w + 2)^(1/2) units. r = y / R then stays above
+    With R = 2^62 w^(-1/2), a step's floors take y below y (3 - w y^2) / 2 by at max 1.5 units, and the floors of
+    y^2 and of w y^2 put it above by at max y (w + 2) / 2^63, below (w + 2)^(1/2) units. r = y / R then stays above
     the sequence rho' = min(g(rho), g(1 + up / R)) - 1.5 / R, g(r) = r (3 - r^2) / 2, from rho = 1/2, taken here at
     2^256 and rounded down. g rises on [0, 1], and the start at 1/2 is the worst."""
     scale = 1 << 256
@@ -285,33 +285,33 @@ def transform_error(nu, p, e_theta, e_held, weighted=False):
     """The multiple evaluation's error on Z over cell nu at P = 2^p points, in units of 2^-62.
 
     Its main sum's half is Re(exp(i theta) F), F_j = sum over h of (u_h / P) exp(-2 pi i j h / P), and u_h / P is
-    the sum over k of q_k / (z_h - w_k), each pole's charge q_k = -a_k (1 - exp(-2 pi i pos_k)) w_k / P at most
+    the sum over k of q_k / (z_h - w_k), each pole's charge q_k = -a_k (1 - exp(-2 pi i pos_k)) w_k / P at max
     2 k^(-1/2) / P in size. The poles as the device holds them, pos_k and a_k each within its error, are poles of the
-    same kind: F over them is F over the true poles within the sum over k of e_a + 2 pi k^(-1/2) (2 nu + 1) e_ln, and
-    what follows is the error on F over the poles kept.
+    same type: F over them is F over the true poles within the sum over k of e_a + 2 pi k^(-1/2) (2 nu + 1) e_ln, and
+    what follows is the error on F over the poles retained.
 
     Truncation: a pole of a source box S at level l, carried to a target box T of its interaction list, |T - S| >= 3
     boxes, is 1 / (z - w) = (1 / (sigma_S D)) sum of binom(m + n, n) x^n y^m, |x|, |y| <= rho / |D|, rho = pi / 2^l,
-    |D| = 2 sin(|Delta| pi / 2^l) >= 2 sin(3 pi / 2^l); the terms left out, those with m >= N or n >= N, sum to at most
-    c^N / ((1 - c) |D|), c = 2 rho / |D|, at each of the P / 2^l points of T. Each source box is in at most six lists,
-    and the charges sum to at most 4 nu^(1/2) / P: over all the points, the sum over l of
+    |D| = 2 sin(|Delta| pi / 2^l) >= 2 sin(3 pi / 2^l); the terms left out, those with m >= N or n >= N, sum to at max
+    c^N / ((1 - c) |D|), c = 2 rho / |D|, at each of the P / 2^l points of T. Each source box is in at max six lists,
+    and the charges sum to at max 4 nu^(1/2) / P: over all the points, the sum over l of
     24 nu^(1/2) c_l^N / ((1 - c_l) 2^l |D_l|).
 
     Arithmetic, each expansion's error in the norm sum over m of w^m |e_m|, w = 1/2: a pole's leaf terms
-    (q / sigma) eta^m carry e_q + 2 (m + 1). The shift to a parent multiplies the norm by at most 4/3, M_c,j's weight
+    (q / sigma) eta^m carry e_q + 2 (m + 1). The shift to a parent multiplies the norm by at max 4/3, M_c,j's weight
     in M_p,m being binom(m, j) |s|^(m - j) |r|^j with |s|, |r| <= 1/2, and adds N + 6 a child for its roundings. The
     shift across, L_n = (1 / D) sum of binom(m + n, n) c^n d^m M_m with |c|, |d| = rho / |D| <= 0.22, takes the norm to
-    a plain sum over n of at most 1.27 / |D| times it, and adds (4 N + 2) / |D| + 2 N. The shift down keeps the plain
+    a plain sum over n of at max 1.27 / |D| times it, and adds (4 N + 2) / |D| + 2 N. The shift down retains the plain
     sum, L_p,n's weights binom(n, j) |s|^(n - j) |r|^j summing over j to (|s| + |r|)^n <= 1, and adds 8 N. Summed
-    over the points as the truncation is, a level's errors reach the P / 2^l points of each of at most six targets. A
-    point adds its leaf's Horner's rule, 2 N, and its near field, five leaves of at most W / 2 + 1 poles, each
+    over the points as the truncation is, a level's errors reach the P / 2^l points of each of at max six targets. A
+    point adds its leaf's Horner's rule, 2 N, and its near field, five leaves of at max W / 2 + 1 poles, each
     e_cos + 40. The transform's p stages each add 2 + A e_w at each of the 2^(p - s) values feeding an output, A the
-    sum over h of |u_h / P|, at most 2 nu^(1/2) (ln P + 3) by the Dirichlet kernel's Lebesgue constant, and e_w the
+    sum over h of |u_h / P|, at max 2 nu^(1/2) (ln P + 3) by the Dirichlet kernel's Lebesgue constant, and e_w the
     twiddle's error. cos theta and sin theta carry e_cos + pi e_theta against |F| <= 2 nu^(1/2), and
     Z = 2 Re(exp(i theta) F) + the remainder term.
 
-    `weighted`, the poles times -i ln k / 2^shift, F' / 2^shift: g = ln k / 2^shift is at most 1 and within e_ln + 1,
-    and each a and charge, at most 1, gains e_ln + 2 from the product; every charge is at most F's, which leaves the
+    `weighted`, the poles times -i ln k / 2^shift, F' / 2^shift: g = ln k / 2^shift is at max 1 and within e_ln + 1,
+    and each a and charge, at max 1, gains e_ln + 2 from the product; every charge is at max F's, which leaves the
     truncation and the transform's spread as they are."""
     e_ln, e_cos = unit_errors()
     order, top, width = ORDER, p - BETA, 1 << BETA
@@ -327,7 +327,7 @@ def transform_error(nu, p, e_theta, e_held, weighted=False):
     truncation = Fraction(0)
     arithmetic_sum = Fraction(0)
     leaf_norm = 2 * (e_q + 2) + 4 * sum(Fraction(m, 2 ** m) for m in range(order))
-    # the poles lie in pos within [0, (2 nu + 1) ln nu], and at level l in at most this many boxes
+    # the poles lie in pos within [0, (2 nu + 1) ln nu], and at level l in at max this many boxes
     reach = (2 * nu + 1) * ln_high(nu)
 
     def holding(level):
@@ -383,8 +383,8 @@ def em_bounds(nu, heads, terms):
     Johansson, arXiv:1309.2877, Theorem 1, at a = 1 with no derivative. It holds at every t, and |(s)_2M| rises with t: the cell's top bounds it.
 
     theta's error delta, theta_error's, is one angle at a point, common to every term: the sum is
-    Re(exp(i (theta + delta)) (zeta - R)), exp(i theta) zeta is Z and real, and the sum is Z cos(delta) less at most
-    |R|. delta moves it by |Z| (1 - cos(delta)) <= |Z| delta^2 / 2, |Z| at most the sum of n^(-1/2), |C| and |R|,
+    Re(exp(i (theta + delta)) (zeta - R)), exp(i theta) zeta is Z and real, and the sum is Z cos(delta) less at max
+    |R|. delta moves it by |Z| (1 - cos(delta)) <= |Z| delta^2 / 2, |Z| at max the sum of n^(-1/2), |C| and |R|,
     and the remainder's bound
     charges R. The device's own error is carried step by step: each term of the pair
     stage as in `arithmetic`, and through the Euler-Maclaurin stage, t = 2 pi S / 2^p, 1 / (s - 1), and each tau_k
@@ -442,7 +442,7 @@ def em_bounds(nu, heads, terms):
 
 
 def theta_error(t_low):
-    """The most theta stands from the device's five terms, through 31 / (80640 t^5), at t >= t_low: Gabcke's
+    """The max theta is from the device's five terms, through 31 / (80640 t^5), at t >= t_low: Gabcke's
     1 / (3322 t^7) from t = 10 (his thesis, introduction, (4) and (5)), and below it Brent's bound on theta past
     1 / (48 t) with the two terms after it added."""
     if t_low >= 10:
@@ -526,7 +526,7 @@ class Control:
     hide between the same two points, and with the spacing of the GUE, small gaps g at density (pi^2 / 3) g^2, the zeros
     missed number mu = c Z / r^3, c = pi^2 / 18. A cell missing one is run again, and the cost of closing it from p is
     C(p) = T(p) + (1 - exp(-mu(p))) C(q), q the next lattice up, T(p) the time a run at 2^p points takes. The points
-    cost T, the misses cost the run they force, and p is the least C, moved at most one a cell.
+    cost T, the misses cost the run they force, and p is the least C, moved at max one a cell.
 
     c is taken as the ratio of the zeros missed to the sum of Z / r^3 over the cells measured, starting from the GUE's
     value with the weight of PRIOR cells' worth of misses; a cell's misses are the shortfall N holds it to.
@@ -601,7 +601,7 @@ def serve(binary):
     """The binary's one process, started with `serve` where it is not running."""
     served = SERVED.get(binary)
     if served is None or served.poll() is not None:
-        # the multiple evaluation's longest programs hold frames past the device's stack limit, and are kept as PTX:
+        # the multiple evaluation's longest programs hold frames past the device's stack limit, and are retained as PTX:
         # built again as C source, they go to NVRTC, which compiles a program of their length far slower than the run
         served = subprocess.Popen([binary, "serve"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True,
                                   env=dict(os.environ, CYCLE_RECORD_RETAIN_PTX="1"))
@@ -646,7 +646,7 @@ def device(binary, given, taken, what):
 
 def run_cell(binary, constants, nu, p, method, level=0, listing=0):
     """Cell nu at 2^p points from the device, its main sum by `method`; by Euler-Maclaurin at widening `level`; with
-    `listing`, every point's sign, S, Z and w written out beside the sums, at the path the cell keeps, and with
+    `listing`, every point's sign, S, Z and w written out beside the sums, at the path the cell retains, and with
     `listing` 2 and the multiple evaluation, each point's exp(i theta) F' / 2^shift beside them and the shift."""
     terms = em_terms(level) if method == "em" else 0
     heads = em_heads(nu, terms) if method == "em" else 0
@@ -720,7 +720,7 @@ REFINE_BITS = 3
 
 def ln_upper(q):
     """An upper bound on ln q for a rational q >= 1: m ln 2 + 2 artanh(y), q / 2^m in [1, 2), y = (q - 1) / (q + 1)
-    at most 1/3, the series cut after 12 terms and its tail bounded by a geometric sum."""
+    at max 1/3, the series cut after 12 terms and its tail bounded by a geometric sum."""
     q, m = Fraction(q), 0
     while q >= 2:
         q, m = q / 2, m + 1
@@ -743,7 +743,7 @@ FOURTH = {}
 def fourth_bound(nu):
     """max |M''''| over cell nu, bounded above by 2 sum over n <= nu of n^(-1/2) (A^4 + 6 A^2 theta2 + 4 A theta3 +
     3 theta2^2 + theta4), A = ln((nu + 1) / n), each term rounded up to a whole number of 2^-FOURTH_BITS; it depends
-    on nu alone and is kept for each nu."""
+    on nu alone and is retained for each nu."""
     if nu not in FOURTH:
         t_low = 2 * PI_LOW * nu * nu
         theta2 = 1 / (2 * t_low) + 1 / (24 * t_low ** 3)
@@ -770,21 +770,21 @@ def margin(nu, p, constants, bound, method="transform"):
     - (h / 4) e_D, Z''s error e_D at the ends weighted by s (1 - s) <= 1/4, the cubic's slope terms;
     - h^4 / 384 max |M''''|, the cubic's remainder through M's values and slopes, and
       |M''''| <= 2 sum of n^(-1/2) (A^4 + 6 A^2 theta2 + 4 A theta3 + 3 theta2^2 + theta4), A = ln((nu + 1) / n) at
-      most |theta~' - ln n|, theta2, theta3, theta4 the sizes of theta~'s next derivatives at the cell's foot;
+      max |theta~' - ln n|, theta2, theta3, theta4 the sizes of theta~'s next derivatives at the cell's foot;
     - h max |R'|, R's values entering C through weights that sum to 1;
-    - the error of the hull's two inner points from h / 3 held at 2^62, at most |Z'| a unit each, and their roundings.
+    - the error of the hull's two inner points from h / 3 held at 2^62, at max |Z'| a unit each, and their roundings.
     Z' = 2 (Re(exp(i theta) F') - theta' Im w), theta' = ln s / 2 against theta~' = ln s / 2 - 1 / (48 t^2): e_D is
     twice theta''s error times |w| <= 2 nu^(1/2), theta' times w's error, 2^shift times the error of
     exp(i theta) F' / 2^shift, and the roundings, the errors on w and F' / 2^shift being the multiple evaluation's
     over the poles and the weighted poles. By pairs, Z' = 2 (sum of k^(-1/2) ln k sin(phi) - theta' sum of
     k^(-1/2) sin(phi)): the same with the first sum's error nu e_term, each sine term within a cosine term's error,
-    and the second's nu (e_term ln(nu + 1) + e_ln + 2), each term at most 1 and ln k within e_ln.
+    and the second's nu (e_term ln(nu + 1) + e_ln + 2), each term at max 1 and ln k within e_ln.
 
     The steepness C' must hold over a step whose ends change sign, the way Z crosses, for Zh to cross once. With
     e = M - C_M, C_M the cubic through M's values and slopes, e' is 0 at both ends and, by Rolle's theorem on e, once
     between: e' is a function with three zeros in the step whose third derivative is M'''', and
-    |e'| <= max |M''''| / 6 times the most |(t - t0)(t - c)(t - t1)| reaches, 4 h^3 / 27: (2 / 81) h^3 max |M''''|.
-    The device's C' stands from C_M' + R' within e_D, the slopes' weights summing to at most 1, and 3 e_Z / h from
+    |e'| <= max |M''''| / 6 times the max |(t - t0)(t - c)(t - t1)| reaches, 4 h^3 / 27: (2 / 81) h^3 max |M''''|.
+    The device's C' is from C_M' + R' within e_D, the slopes' weights summing to at max 1, and 3 e_Z / h from
     the values, e_Z the bound on Z, their weight 6 s (1 - s) / h; R enters by its values at the ends and its slope,
     within 5/2 max |R'|. The steepness is their sum with the hull's roundings, and where C' clears it, Zh' holds one
     sign over the step and Zh is monotone across it.
@@ -826,7 +826,7 @@ def flagged_spans(cell, check=False):
     certified points, past F, holding a step the device flags, a step neither clean nor a single crossing; runs
     whose ends change sign only with `check`, which proves each crossing single. Each span carries its ends' signs
     and S and the zeros the device's count already holds in it: one where the signs change and the points are at
-    most two apart, the count stage's reach, else none. The flags choose where to look again; the count certifies
+    max two apart, the count stage's reach, else none. The flags choose where to look again; the count certifies
     whatever they choose."""
     rows = []
     with open(cell.path) as handle:
@@ -853,7 +853,7 @@ def refine(binary, constants, cell, spans, check=False):
     with `check` where Z crosses it once; a span closes where all its steps do. Each zero lies between two certified fine points, and the sums
     take the earlier point's S rounded down to the cell's lattice and the later one's rounded up: a later point than
     the zero's makes N's upper bound looser and an earlier one its lower bound, both still bounds. A zero the device's
-    count already holds in a span, certified at the span's coarse ends, stands for the first found in it. A span still open
+    count already holds in a span, certified at the span's coarse ends, is for the first found in it. A span still open
     after the last lattice gives the zero its ends' signs certify, where they change. Returns the points listed, the
     zeros added, the spans still open and the host checks that failed."""
     listed, added, failed = 0, 0, 0
@@ -926,7 +926,7 @@ def below(cell, back):
 
 
 def above(cell, ahead):
-    """N at cell's F is at most this, over the window on to ahead's F, or to the cell's last point where none is."""
+    """N at cell's F is at max this, over the window on to ahead's F, or to the cell's last point where none is."""
     s, start = cell.sums, cell.x2("first")
     end = ahead.x2("first") if ahead else cell.end_x2()
     weight = end - start
@@ -987,7 +987,7 @@ def main_em(binary, first, last, rate):
     certified sign. Where the count falls short, a cell with a mark of two uncertified points, or every cell where
     none has one, widens its search, four times the points and ten Bernoulli terms more with N to match, until the
     count closes or the rounds run out. If the certified sign changes in (t at cell `first`'s F, T_a] reach N(T_a),
-    each is a zero on the line and simple, and none lies below: the count is at most N(T_a) less N at the start."""
+    each is a zero on the line and simple, and none lies below: the count is at max N(T_a) less N at the start."""
     sys.stdout.reconfigure(line_buffering=True)
     constants = Constants()
     above_cells = {}
@@ -1101,7 +1101,7 @@ def main():
             print("    %d spans flagged, %d points listed, %d zeros found in them, %d spans still open; "
                   "%d crossings proven single on the coarse lattice, of %d zeros past F" % cells[nu].refined)
         if cells[nu].apart:
-            print("    the transform's Z and the pairs' differ by %.3e at most, at point %d" %
+            print("    the transform's Z and the pairs' differ by %.3e at max, at point %d" %
                   (cells[nu].apart[0] / 2 ** SCALE_BITS, cells[nu].apart[1]))
     for round_ in range(ROUNDS + 1):
         held = {}

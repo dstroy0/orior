@@ -7,7 +7,7 @@
 #include "../text/text.h"
 #include "compile_db_internal.h"
 
-// the most folders a search below a build tracks to look in
+// the max folders a search below a build tracks to look in
 #define CLI_COMPILE_PENDING 4096u
 
 int cli_compile_stamp(const CliCompileDbPathStampedCtx *args)
@@ -70,7 +70,7 @@ typedef struct
     CliFoundFolders *found;
     const char *path;
 } CompileDbCtx;
-// the folders below `top` walked, each handed to `each` with its depth: whether to look below it
+// the folders below `top` walked, each passed to `each` with its depth: whether to look below it
 EMBED_INLINE void cli_walked_below(const CompileDbCtx *args)
 {
     CliBelow below = {NULL, 0u, CLI_COMPILE_PENDING, NULL, 0u};
@@ -215,7 +215,7 @@ int cli_compile_newest_index(const CliCompileDbReplyCtx *args)
 
 int cli_compile_white(const CliCompileDbCtx *args)
 {
-    return (args->letter == ' ') || ((args->letter >= '\t') && (args->letter <= '\r'));
+    return (args->character == ' ') || ((args->character >= '\t') && (args->character <= '\r'));
 }
 
 void cli_compile_words_each(const CliCompileDbTextCtx *args)
@@ -226,13 +226,13 @@ void cli_compile_words_each(const CliCompileDbTextCtx *args)
     int any = 0;
     for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
-        const char letter = args->text[at];
-        if (letter == '"')
+        const char character = args->text[at];
+        if (character == '"')
         {
             quoted = !quoted;
             any = 1;
         }
-        else if (EMBED_CALL(cli_compile_db_internal.compile_white, CliCompileDbCtx, .letter = letter) && !quoted)
+        else if (EMBED_CALL(cli_compile_db_internal.compile_white, CliCompileDbCtx, .character = character) && !quoted)
         {
             if (any)
             {
@@ -245,7 +245,7 @@ void cli_compile_words_each(const CliCompileDbTextCtx *args)
         {
             if (size < (sizeof(s_word) - 1ULL))
             {
-                s_word[size] = letter;
+                s_word[size] = character;
                 size += 1ULL;
             }
             any = 1;

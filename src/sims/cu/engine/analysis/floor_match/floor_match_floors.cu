@@ -35,7 +35,7 @@ static long long match_lifted(const long long *from, unsigned long long line, un
 }
 
 // the host's floor 2: two levels of the 5/3 lifting, each along z, then y, then x over the active corner, every
-// axis pass reading the coefficients as they stood before it, as the engine's kernels do
+// axis pass reading the coefficients as they was before it, as the engine's kernels do
 void match_floor_host(const unsigned short *lanes, long long *work, long long *before, long long *floor_values)
 {
     const unsigned long long stride[SIM_AXES] = {MATCH_SIDE * MATCH_SIDE, MATCH_SIDE, 1ull};
@@ -98,7 +98,7 @@ int match_floor_engine(SimResults *results, const unsigned short *device_lanes, 
     lift.scratch = &scratch;
     lift.floors = &floors;
     lift.error = &error;
-    int ok = (tower_lift(&lift) == 0L) && (error.kind == ENGINE_ERROR_NONE);
+    int ok = (tower_lift(&lift) == 0L) && (error.type == ENGINE_ERROR_NONE);
     sim_check(results, ok, "the engine's tower lifts the frame");
     ok = ok &&
          sim_status_check(
@@ -131,7 +131,7 @@ int match_floor_engine(SimResults *results, const unsigned short *device_lanes, 
     lower.device_rebuilt = &device_rebuilt;
     lower.rebuilt = floor_values;
     lower.error = &error;
-    ok = ok && (tower_lower(&lower) == 0L) && (error.kind == ENGINE_ERROR_NONE);
+    ok = ok && (tower_lower(&lower) == 0L) && (error.type == ENGINE_ERROR_NONE);
     sim_check(results, ok, "the crystal's 16^3 corner lowers as its own tower, every value inside the 16-bit lane");
     return ok;
 }
@@ -172,7 +172,7 @@ __global__ void match_query_kernel(const unsigned int *planes, const unsigned in
         mask &= (((target >> bit) & 1u) != 0u) ? plane : ~plane;
     }
     matches[index] = mask;
-    // at most MATCH_BITS reads, far below a byte's range
+    // at max MATCH_BITS reads, far below a byte's range
     reads[index] = (unsigned char)taken;
 }
 
@@ -188,9 +188,9 @@ void match_print_side(VerbaLinea *line, const char *name, const MatchSide *side)
     sim_fraction_print(line, side->found, MATCH_QUERIES_EACH, 2u);
     mmgr_line_put(line, " on average, ");
     mmgr_line_decimal(line, side->found_max, 1u);
-    mmgr_line_put(line, " at most; plane words read a query ");
+    mmgr_line_put(line, " at max; plane words read a query ");
     sim_fraction_print(line, side->total, MATCH_QUERIES_EACH, 2u);
     mmgr_line_put(line, " on average, ");
-    mmgr_line_decimal(line, side->maximum, 1u);
-    mmgr_line_put(line, " at most\n");
+    mmgr_line_decimal(line, side->max, 1u);
+    mmgr_line_put(line, " at max\n");
 }

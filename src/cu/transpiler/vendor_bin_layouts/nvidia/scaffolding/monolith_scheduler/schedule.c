@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// schedule.c: the schedule: what is waited on, the same operation, what stands behind later or earlier, an instruction followed, the container read, the stalls, the operations by count, and the record written
+// schedule.c: the schedule: what is waited on, the same operation, what is behind later or earlier, an instruction followed, the container read, the stalls, the operations by count, and the record written
 #include "scheduler_internal.h"
 
 // 1 where an instruction of the section from `first` to `last` waits on barrier `barrier`
@@ -73,7 +73,7 @@ static unsigned int scheduler_behind_earlier(unsigned int writer, unsigned int r
 }
 
 // each instruction of a section that writes a register, followed to the first instruction that reads it: where the
-// writer sets a write barrier, whether a wait on it stands between them; where it sets none, whether it is blocked
+// writer sets a write barrier, whether a wait on it is between them; where it sets none, whether it is blocked
 // behind a later one's barrier, and otherwise the cycles between them. The look stops at an instruction that leaves the
 // straight line, one that writes the register again, and past SCHEDULER_REACH instructions
 static void scheduler_follow(unsigned int count)
@@ -165,11 +165,11 @@ int scheduler_cubin(unsigned long long size)
     return 1;
 }
 
-// the stalls an operation was given, as the least, the most and the one given most often
+// the stalls an operation was given, as the least, the max and the one given usually
 static void scheduler_stalls(const SchedulerOperation *operation, char *text, size_t room)
 {
     unsigned int least = 16u;
-    unsigned int most = 0u;
+    unsigned int max = 0u;
     unsigned int often = 0u;
     for (unsigned int stall = 0u; stall < 16u; stall += 1u)
     {
@@ -178,10 +178,10 @@ static void scheduler_stalls(const SchedulerOperation *operation, char *text, si
             continue;
         }
         least = (stall < least) ? stall : least;
-        most = stall;
+        max = stall;
         often = (operation->stalls[stall] > operation->stalls[often]) ? stall : often;
     }
-    snprintf(text, room, "%u to %u, most often %u", least, most, often);
+    snprintf(text, room, "%u to %u, usually %u", least, max, often);
 }
 
 static int scheduler_by_count(const void *left, const void *right)
@@ -210,7 +210,7 @@ int scheduler_record(const char *path)
     fprintf(out, "An operation's soonest read is the fewest cycles, its stalls summed, between it and the first "
                  "instruction that reads the register it writes, over every place it sets no write barrier and no "
                  "later one blocks it. Readers waiting count the first readers of a register it writes with a write "
-                 "barrier where a wait on that barrier stands between the two, at the reader or before it, against "
+                 "barrier where a wait on that barrier is between the two, at the reader or before it, against "
                  "those where none does. A barrier counts its producers, and a wait on it blocks until all of them are "
                  "back. Behind a later one counts the first readers of a register it writes with no barrier where a "
                  "later instruction of the same operation sets one, waited on before the read. Behind an earlier one "

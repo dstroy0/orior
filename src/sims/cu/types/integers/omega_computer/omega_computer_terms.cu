@@ -14,10 +14,10 @@ unsigned long long omega_computer_count(const OmegaComputerCounts *counts, unsig
     return counts->count[length][range];
 }
 
-void omega_computer_count_all(OmegaComputerCounts *counts, unsigned int maximum)
+void omega_computer_count_all(OmegaComputerCounts *counts, unsigned int max)
 {
     memset(counts->count, 0, sizeof(counts->count));
-    for (unsigned int length = 2u; length <= maximum; length += 1u)
+    for (unsigned int length = 2u; length <= max; length += 1u)
     {
         for (unsigned int depth = 0u; depth < length; depth += 1u)
         {
@@ -42,7 +42,7 @@ void omega_computer_unrank(const OmegaComputerCounts *counts, unsigned int lengt
     {
         if (index == 0ull)
         {
-            // an index below the length, which is at most 40
+            // an index below the length, which is at max 40
             term.push_back((int)(length - 1u));
             return;
         }
@@ -120,7 +120,7 @@ std::string omega_computer_code(const std::vector<int> &term)
         }
         else
         {
-            // an index from 1, at most the lambdas above it
+            // an index from 1, at max the lambdas above it
             code.append((size_t)term[at], '1');
             code += '0';
         }

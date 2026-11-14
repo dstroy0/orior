@@ -4,7 +4,7 @@
 #
 # field	<name>	<first>	<bits>	a place in the instruction word, in bits
 #
-# A constant's offset, an address's offset and a memory operand's descriptor carry a scale or a shown bit this row has
+# A constant's offset, an address's offset and a memory operand's descriptor carry a scale or a displayed bit this row has
 # no column for, and sit in sass_assemble.c.
 #
 # the guard predicate: three bits its number, and the bit above them its negation

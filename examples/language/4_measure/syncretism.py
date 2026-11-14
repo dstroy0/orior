@@ -11,11 +11,11 @@
 # Polish humor turns on using a word correctly to use it incorrectly, and the reason is that
 # Polish forms are shared between grammatical cells. That is countable where the grammar of every word is
 # written beside it, and these treebanks write it: each token carries its lemma and the case, number,
-# gender and person it stands in. The readings sharing one surface form can be counted instead of
+# gender and person it is in. The readings sharing one surface form can be counted instead of
 # guessed at.
 #
 # It answers a question left open by the earlier work here, where a reading over a growing window
-# kept climbing and would not settle. If the average written word carries more than one reading, then
+# retained climbing and would not settle. If the average written word carries more than one reading, then
 # taking a second word multiplies the readings instead of settling the first, and the possibilities over a
 # sentence grow as a product. Below one they cannot grow. A walk either explodes or collapses on
 # that threshold, and where it falls is a property of a language and not of any parser.
@@ -106,11 +106,11 @@ def main():
         out.write("\n  every language here carries more than one reading per word. The\n")
         out.write("  possibilities grow with every word taken and none of them collapse\n")
         least = min(rows, key=lambda row: row[2])
-        most = max(rows, key=lambda row: row[2])
+        max = max(rows, key=lambda row: row[2])
         out.write("  the flattest is %s at %.4f, which is %.0f over ten words\n"
                   % (least[0], least[2], least[2] ** 10))
         out.write("  the steepest is %s at %.4f, which is %.0f over ten words\n"
-                  % (most[0], most[2], most[2] ** 10))
+                  % (max[0], max[2], max[2] ** 10))
         out.write("  and the corpora differ in size by %.1f times, which moves these counts\n"
                   % (max(row[1] for row in rows) / float(min(row[1] for row in rows))))
 

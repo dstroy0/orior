@@ -17,7 +17,7 @@
     "description": {"type": "string"},
     "default": {},
     "multipleOf": {"type": "number", "minimum": 0, "exclusiveMinimum": true},
-    "maximum": {"type": "number"},
+    "max": {"type": "number"},
     "exclusiveMaximum": {"type": "boolean", "default": false},
     "minimum": {"type": "number"},
     "exclusiveMinimum": {"type": "boolean", "default": false},
@@ -45,6 +45,6 @@
     "oneOf": {"$ref": "#/definitions/schemaArray"},
     "not": {"$ref": "#"}
   },
-  "dependencies": {"exclusiveMaximum": ["maximum"], "exclusiveMinimum": ["minimum"]},
+  "dependencies": {"exclusiveMaximum": ["max"], "exclusiveMinimum": ["minimum"]},
   "default": {}
 }

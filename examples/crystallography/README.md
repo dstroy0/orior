@@ -5,7 +5,7 @@
 
 | stage         | script                                  | what it answers                                             |
 | ------------- | --------------------------------------- | ----------------------------------------------------------- |
-| `1_represent` | `a_cell_as_exact_points.py`             | what the reader keeps and what it threw away                |
+| `1_represent` | `a_cell_as_exact_points.py`             | what the reader retains and what it threw away                |
 | `2_partition` | `what_a_grid_costs.py`                  | what the voxel cost and what the scale recovered            |
 | `3_reference` | `what_a_grid_invents.py`                | how much of a reading a shuffle also reaches                |
 | `4_measure`   | `period_from_the_difference_set.py`     | what the instrument returns, with no answer key             |
@@ -33,7 +33,7 @@ The same property makes a reader's own error visible here and nowhere else. Ever
 
 The previous reading of the same corpus recovered 453 of 453 axes _inside one voxel_ at a mean absolute error of 0.0124 angstroms and a worst of 0.0554. None of that error was in the deposit or in the detector. Stage two isolates it: over 111 axes the grid reading lands inside one voxel every time and lands **on** the published edge zero times.
 
-Stage two also sweeps the scale the exact reading is carried at. Every scale from 16 digits to 4096 returns the same 111 of 111 axes, because this path multiplies a coordinate by an edge once and the decimal places of the two operands simply add. At 8 digits one entry will not fit and at 4 digits twenty seven will not. Those raise instead of rounding, which keeps the loss from ever being quiet. How many digits a path needs is a property of its arithmetic and not of its source, and one multiplication is the cheapest case there is.
+Stage two also sweeps the scale the exact reading is carried at. Every scale from 16 digits to 4096 returns the same 111 of 111 axes, because this path multiplies a coordinate by an edge once and the decimal places of the two operands simply add. At 8 digits one entry will not fit and at 4 digits twenty seven will not. Those raise instead of rounding, which retains the loss from ever being quiet. How many digits a path needs is a property of its arithmetic and not of its source, and one multiplication is the cheapest case there is.
 
 Stage three gives the background. Scattered points and shuffled elements both return exactly zero against a live count of 6. The whole of an exact lattice reading is therefore the lattice. The grid returns 0.79 live, 0.003 scattered and 0.39 with the elements shuffled. A cell holds two or three elements, and a permutation of them agrees at about one in k by counting alone, leaving about half of what the grid reported as a number a shuffle also reaches. That floor was never subtracted from any grid result here.
 
@@ -113,7 +113,7 @@ or the deposit. Every one inspected has been the deposit. COD 1011256, from 1933
     Si1 Si4+ 8 d 0.25 0.25 0.875 1.
     Al1 Al3+ 8 d 0.25 0.25 0.875 1.
 
-Identical coordinates, identical Wyckoff letter, both at full occupancy: sixteen atoms on eight
+Identical coordinates, identical Wyckoff character, both at full occupancy: sixteen atoms on eight
 places. It is how an older deposit describes a disordered site, naming both partners without
 normalizing. The coordinates matching character for character is what rules out the reading and
 leaves the deposit.
@@ -131,7 +131,7 @@ the time. A detector that called every occupancy under 1 a dopant would be wrong
 
 What the substitutions are is not something the measure was told. Folding charge and case together,
 the corpus is led by Al/Si at 1838, then Ca/Na at 403, Fe/Mg at 368, Al/Fe/Mg at 184 and Al/Fe/Mg/Ti
-at 146. Al/Si with Ca/Na is the plagioclase coupled substitution, which is to say the most common
+at 146. Al/Si with Ca/Na is the plagioclase coupled substitution, which is to say the usual
 substitution in the crust came out on top of a reading that knows no chemistry and never looked at a
 cell.
 
@@ -201,8 +201,8 @@ impossibility is the only thing that announced it: no consistency check and no s
 `crystal.site_table` drops `dum` rows now.
 
 Dropping them changed what every exact reading in this subject ingests. Both published figures
-were re-read with `dum` kept and dropped over all six entries that carry one. No recovered period
-moved and no agreement with a published edge flipped: **453 of 453 and 1455 of 1455 both stand.**
+were re-read with `dum` retained and dropped over all six entries that carry one. No recovered period
+moved and no agreement with a published edge flipped: **453 of 453 and 1455 of 1455 both are.**
 A spurious atom at the origin is tiled into every copy of the cell. It shifts every plane the same
 way and leaves the agreeing lags unchanged. A period is a statement about repetition and a defect
 that repeats perfectly does not disturb it. A count, a density or any distance would have moved.
@@ -222,7 +222,7 @@ The first version of the doping measure went through `crystal.exact_points`, and
 dependency it had no use for. `exact_points` errors on any cell that is not right angled, and the
 minerals that carry doping are overwhelmingly monoclinic and triclinic. 498 of 697 entries came
 back unreadable. The measure looked like it was failing on three quarters of the corpus. It was
-being handed three quarters less corpus. Reaching for the smallest reading that answers the
+being passed three quarters less corpus. Reaching for the smallest reading that answers the
 question fixed it, and the same run then read every entry.
 
 ### The lesson was applied to stages four and six and not to stage five

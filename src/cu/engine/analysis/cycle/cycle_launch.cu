@@ -178,16 +178,16 @@ extern "C" long cycle_run(const CycleRunRequest *request)
             return CYCLE_ERROR;
         }
     }
-    const unsigned long long maximum = 0xFFFFFFFFFFFFFFFFull;
-    if (!CYCLE_CHECK((extent->height <= (maximum / extent->width)) &&
-                         (extent->depth <= (maximum / (extent->height * extent->width))),
+    const unsigned long long max = 0xFFFFFFFFFFFFFFFFull;
+    if (!CYCLE_CHECK((extent->height <= (max / extent->width)) &&
+                         (extent->depth <= (max / (extent->height * extent->width))),
                      extent, error, ENGINE_ERROR_REQUEST))
     {
         return CYCLE_ERROR;
     }
     const unsigned long long voxels = extent->depth * extent->height * extent->width;
-    if (!CYCLE_CHECK((request->count <= (maximum / voxels)) &&
-                         ((request->count * voxels) <= (maximum / 4ull / (request->key->planes + 1u))),
+    if (!CYCLE_CHECK((request->count <= (max / voxels)) &&
+                         ((request->count * voxels) <= (max / 4ull / (request->key->planes + 1u))),
                      &request->count, error, ENGINE_ERROR_REQUEST))
     {
         return CYCLE_ERROR;

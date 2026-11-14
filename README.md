@@ -11,7 +11,7 @@ An IDE, a transpiler and a search engine, written in C and CUDA. Every number in
 ### 1. IDE (C)
 
 - **impero** ([`ui/cli/`](ui/cli)) is the command-line IDE and the library the GUI links. It is standalone and vectorized, and targets Windows, macOS, Linux and other POSIX systems, including AArch64 with NEON. Memory and CPU use: measurement pending.
-- **tabvla** ([`ui/gui/src/`](ui/gui/src)) is the GUI: a native window in C on Windows and on Linux under X11. Its program hands the system's events to impero, does what impero orders and shows the frames impero hands it. The CLI holds every command, all state and all memory and draws each frame on a thread of its own ([`ui/cli/src/view/`](ui/cli/src/view)), so the GUI is optional and all development can be done from the CLI. The editor is the center of the window. The Rust and JavaScript under [`ui/gui/`](ui/gui) stay until tabvla matches them 1:1.
+- **tabvla** ([`ui/gui/src/`](ui/gui/src)) is the GUI: a native window in C on Windows and on Linux under X11, with impero built in. It is standalone and is driven by the same commands as impero, which it also shows the user as menu actions. impero holds every command, all state and all memory and draws each frame on a thread of its own ([`ui/cli/src/view/`](ui/cli/src/view)). The editor is the center of the window. The Rust and JavaScript under [`ui/gui/`](ui/gui) stay until tabvla matches them 1:1.
 
 Build and verification:
 
@@ -64,7 +64,7 @@ Depends on impero.
 
 **Search**: the [sift](docs/sift.md), the [permutation null](docs/method.md) and shift agreement.
 
-The engine measures the structure in an object against a permutation null: it keeps the object's counts, shuffles their order, and measures what the shuffle destroyed, with nothing rounded, estimated or trained. The transpiler compiles a program written in [gnascor](docs/gnascor.md) into each target language. Angluin's L\*, with U\*, the overseer and the conference, works out the definitions of a target that nobody has described.
+The engine measures the structure in an object against a permutation null: it retains the object's counts, shuffles their order, and measures what the shuffle destroyed, with nothing rounded, estimated or trained. The transpiler compiles a program written in [gnascor](docs/gnascor.md) into each target language. Angluin's L\*, with U\*, the overseer and the conference, works out the definitions of a target that nobody has described.
 
 What the work claims, what it does not claim, and the results are on the [home page of the docs](docs/index.md). [Areas of research](docs/research.md) has every result, including the ones that failed, and [Where to start reading](docs/research_papers.md) lists the twenty-four research papers.
 

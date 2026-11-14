@@ -65,9 +65,9 @@ void cli_latex_job_get(const CliLatexFileCtx *args)
     unsigned long long at = start;
     while (plain && (at < start + size))
     {
-        const char letter = args->file_read[at];
-        plain = ((letter >= 'a') && (letter <= 'z')) || ((letter >= 'A') && (letter <= 'Z')) ||
-                ((letter >= '0') && (letter <= '9')) || (letter == '-') || (letter == '_');
+        const char character = args->file_read[at];
+        plain = ((character >= 'a') && (character <= 'z')) || ((character >= 'A') && (character <= 'Z')) ||
+                ((character >= '0') && (character <= '9')) || (character == '-') || (character == '_');
         at += 1ULL;
     }
     if (!plain)

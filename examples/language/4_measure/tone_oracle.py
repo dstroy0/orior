@@ -19,7 +19,7 @@
 # language here allows, and what the reading loses is what tone was worth to it.
 #
 # That matters because a syllable in Vietnamese carries six meanings under six tones. Removing the
-# marks collapses six words into one and destroys a great deal of the language while leaving every letter
+# marks collapses six words into one and destroys a great deal of the language while leaving every character
 # in place. If the reading barely moves, it was never reading anything that tone carries.
 #
 # Every other language is stripped of its own marks the same way, as a control. Losing the accents of
@@ -68,8 +68,8 @@ HELD = (
 def strip_marks(text, wanted):
     """The text with certain combining marks removed and every other mark left alone."""
     opened = unicodedata.normalize("NFD", text)
-    kept = "".join(symbol for symbol in opened if symbol not in wanted)
-    return unicodedata.normalize("NFC", kept)
+    retained = "".join(symbol for symbol in opened if symbol not in wanted)
+    return unicodedata.normalize("NFC", retained)
 
 
 def main():
@@ -97,7 +97,7 @@ def main():
 
         opened = unicodedata.normalize("NFD", text)
         carried = sum(1 for symbol in opened if symbol in wanted)
-        letters = sum(1 for symbol in text if symbol.isalpha())
+        characters = sum(1 for symbol in text if symbol.isalpha())
 
         before = web(text, RANKS)
         after = web(stripped, RANKS)
@@ -105,11 +105,11 @@ def main():
             continue
         moved = float(numpy.linalg.norm(before - after))
         out.write("  %-12s %-30s %-9.3f %-9d %.4f\n"
-                  % (label, note, carried / float(max(letters, 1)),
+                  % (label, note, carried / float(max(characters, 1)),
                      len(set(text)) - len(set(stripped)), moved))
         out.flush()
 
-    out.write("\n  the marks column is how many marks there are per letter\n")
+    out.write("\n  the marks column is how many marks there are per character\n")
     out.write("  the distinct column is how many characters the language loses\n")
     out.write("  vietnamese is stripped of its tone only, every other language of all its marks\n")
 

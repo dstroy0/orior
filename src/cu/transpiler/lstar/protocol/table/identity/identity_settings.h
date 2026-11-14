@@ -11,7 +11,7 @@
 // the path of the ruleset the identity writes forms in, from the top of the tree, its bytes without an end
 #define IDENTITY_RULESET "identity.ruleset"
 
-// the vendor's writer the identity hands texts to, an IdentityWriter
+// the vendor's writer the identity passes texts to, an IdentityWriter
 #define IDENTITY_WRITER "identity.writer"
 
 // the longest path a setting names, and the longest part

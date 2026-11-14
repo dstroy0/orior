@@ -11,12 +11,12 @@ only records what is.
 ## The lead finding: every builder writes through one generator
 
 Every template holds its data in one placeholder, `var DATA = /*DATA*/ null;`, and every builder with a
-template hands its data to `generate_template.py`, which writes it into that placeholder as JSON. A template
+template passes its data to `generate_template.py`, which writes it into that placeholder as JSON. A template
 with no placeholder, with two, or with a script element left open is refused, and no page is written.
 
 | outcome | what happens | builders |
 |---|---|---|
-| builds | the builder hands its data to the generator, which writes the page | every builder with a template |
+| builds | the builder passes its data to the generator, which writes the page | every builder with a template |
 | holds its page | the builder writes its page from its own source and has no template | `build_beam_view.py`, `build_illuminate_view.py`, `build_pool_view.py` |
 
 Twenty-five builders build through the generator, over seventeen templates. Three hold their page in
@@ -31,15 +31,15 @@ builders read is not in the tree. No built page sits beside the tools.
 ## The engine viewer: the option model the bar generalizes
 
 The viewer under `view/engine_view/` already carries the discipline the bar needs. `cfg.js` holds
-`EV.VIEW_SCHEME`, one entry per option, each with a kind, a range, and a fallback. `EV.errorValue`
-reports a value of the wrong kind or out of range by name, and `EV.applyView` applies a partial view
+`EV.VIEW_SCHEME`, one entry per option, each with a type, a range, and a fallback. `EV.errorValue`
+reports a value of the wrong type or out of range by name, and `EV.applyView` applies a partial view
 and returns what it took and what it refused, each by name. An absent option takes its fallback; a
 wrong one is named, never dropped. Nothing here goes silently inert. The template controls above do
 the opposite, and the bar carries this shape to every unit.
 
 Each option reads the view section of the page's `.cfg` under its own name.
 
-| option | kind | range or words | fallback |
+| option | type | range or words | fallback |
 |---|---|---|---|
 | face | word | human, machine | human |
 | frame | integer | 0 to 65535 | 0 |
@@ -93,7 +93,7 @@ Each option reads the view section of the page's `.cfg` under its own name.
 ## Each builder: its options, its template, its payload
 
 The command options a builder exposes, the template it writes, and the top-level keys its payload
-carries. Keys read statically from the payload the builder hands `json.dumps`, the literal and any
+carries. Keys read statically from the payload the builder passes `json.dumps`, the literal and any
 key added to it; the two sphere builders assemble theirs in a helper, and those keys are read from
 its returned dict.
 
@@ -102,7 +102,7 @@ its returned dict.
 | build_blind_view | blind | --degree --count --check | degree, count, width, rank, blind, floor, rows, columns, seats, arrows, spectrum |
 | build_blob_view | voxel | none | depth, depthLabel, valueLabel, eyebrow, title, blurb, noteTitle, note, settings, schema, fields |
 | build_block_view | block | --out | height, id, bytes, fields, values, windowShares, constants |
-| build_chart_view | chart | none | title, xLabel, kind, blurb, series |
+| build_chart_view | chart | none | title, xLabel, type, blurb, series |
 | build_earth_view | earth | --corpus --out | total, days, hours, weekdays, intervals, chi, nullMean, null95, p, regions |
 | build_field_view | voxel | --value --depth --field --title --out | depth, depthLabel, valueLabel, eyebrow, title, blurb, note, settings, schema, fields |
 | build_orrery_view | orrery | --bodies --frames --mode --degrees --tau --seed --out | mode, degrees, tau, span, frames, bodies, profiles, curve, watched, found, attenuation, settings |
@@ -135,7 +135,7 @@ to fail. The analysis is `data_check`'s own, and a key reads the same here and a
 |---|---|---|
 | blind | arrows, rank | blind, columns, count, degree, floor, rows, seats, spectrum, width |
 | block | none | bytes, constants, fields, height, values, windowShares |
-| chart | blurb, kind, title | series, xLabel |
+| chart | blurb, type, title | series, xLabel |
 | earth | none | chi, days, hours, intervals, null95, p, regions, total |
 | orrery | found, settings | attenuation, bodies, curve, mode, profiles, span |
 | pairs | none | digest, frames, pairs |

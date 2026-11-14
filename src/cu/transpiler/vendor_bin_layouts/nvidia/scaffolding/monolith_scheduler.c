@@ -13,9 +13,9 @@
 // - where the operation sets no write barrier, the fewest cycles NVIDIA leaves between it and the first instruction
 //   that reads the register it writes, the stalls between them summed. That count is the soonest NVIDIA lets the result
 //   be read, and applies to the operation wherever it is written
-// - where the operation sets a write barrier, how often a wait on that barrier stands between it and the first
+// - where the operation sets a write barrier, how often a wait on that barrier is between it and the first
 //   instruction that reads its register, against how often none does. A barrier counts its producers, and a wait on it
-//   blocks until every one of them is back: the wait may stand at the reader or at any instruction before it
+//   blocks until every one of them is back: the wait may are at the reader or at any instruction before it
 // - where the operation sets none and a later instruction of the same operation sets one, waited on before the read:
 //   the earlier result is blocked behind the later one's barrier, the two coming back in the order they were put
 // - where the operation sets none, no later one blocks it, and an earlier instruction of the same operation sets one,

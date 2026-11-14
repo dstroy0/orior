@@ -6,7 +6,7 @@
 // The forms are taken into a machine of their own, and their fields found by the probe's own reading: each form's 128
 // bits turned over one at a time and decoded, the runs of bits that change one printed operand recorded as that
 // operand's (sass_machine_fields). Each is then put into the machine file with those runs and the file written again. A
-// form the machine file already contains is left as it stands, its fields and its encoding untouched.
+// form the machine file already contains is left as it is, its fields and its encoding untouched.
 //
 //     interface_sass_probe_take <listing> <machine file> <architecture> <folder>
 //     interface_sass_probe_take --fields <machine file> <architecture> <folder>

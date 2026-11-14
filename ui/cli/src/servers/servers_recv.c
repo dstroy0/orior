@@ -15,7 +15,7 @@
 #include "../toolchains/toolchains.h"
 #include "servers_internal.h"
 
-// the most folders the analysis is given
+// the max folders the analysis is given
 #define CLI_SERVERS_EXTRA_PATHS 256u
 
 // what is received read, under the reading's lock
@@ -75,7 +75,7 @@ EMBED_INLINE void recv_diagnostics(const ServersRecvCtx *args)
     {
         return;
     }
-    // a sliced file's diagnostics are of its slice, and stand on the file's own lines once moved there
+    // a sliced file's diagnostics are of its slice, and are on the file's own lines once moved there
     const unsigned long long uri_size = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_POOL_BYTES});
     char path[CLI_PATH_MAX_LEN];
     const int sliced =
@@ -170,7 +170,7 @@ EMBED_INLINE void recv_analysis(const ServersRecvCtx *args)
         EMBED_CALL(cli_lsp_length_uri.path_get, CliLspLengthUriCfg, .uri = scope, .length = length, .path_out = root))
     {
         (void)EMBED_CALL(cli_python_paths_table.python_paths, CliPythonPathsCfg, .root = root,
-                         .most = CLI_SERVERS_EXTRA_PATHS, .each = recv_path, .context = &paths);
+                         .max = CLI_SERVERS_EXTRA_PATHS, .each = recv_path, .context = &paths);
     }
     mmgr_line_put(args->answer, "],\"useLibraryCodeForTypes\":true}");
 }

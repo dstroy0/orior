@@ -9,7 +9,7 @@
 extern void setUp(void);
 extern void tearDown(void);
 extern void test_a_parts_name_for_the_vendors_reader(void);
-extern void test_a_parts_name_with_a_letter_after_it(void);
+extern void test_a_parts_name_with_a_character_after_it(void);
 extern void test_the_queues_target_is_the_stick(void);
 extern void test_the_pairs_targets_are_the_bridge_and_the_machine_file(void);
 extern void test_targets_use_forward_slashes_on_every_platform(void);
@@ -94,7 +94,7 @@ int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\query_pairs\\test_query_pairs\\test_query_pairs.c");
   run_test(test_a_parts_name_for_the_vendors_reader, "test_a_parts_name_for_the_vendors_reader", 70);
-  run_test(test_a_parts_name_with_a_letter_after_it, "test_a_parts_name_with_a_letter_after_it", 77);
+  run_test(test_a_parts_name_with_a_character_after_it, "test_a_parts_name_with_a_character_after_it", 77);
   run_test(test_the_queues_target_is_the_stick, "test_the_queues_target_is_the_stick", 84);
   run_test(test_the_pairs_targets_are_the_bridge_and_the_machine_file, "test_the_pairs_targets_are_the_bridge_and_the_machine_file", 89);
   run_test(test_targets_use_forward_slashes_on_every_platform, "test_targets_use_forward_slashes_on_every_platform", 94);

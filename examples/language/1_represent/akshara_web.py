@@ -9,23 +9,23 @@
 #   Usage:  python examples/language/1_represent/akshara_web.py
 #
 # Read as codepoints, four Dravidian languages come out further from each other than from Indo Aryan, and
-# the pair that separated most recently reads as the widest distance in the matrix. Aligning the scripts
+# the pair that separated max recently reads as the widest distance in the matrix. Aligning the scripts
 # changed nothing, and it could not have: the reading ranks characters by how often they occur inside each
 # text. Which codepoints a script uses never entered it.
 #
-# The assumption underneath is about the unit. A letter sequence works for an alphabet because that is
-# where an alphabet keeps its context: letters run together into morphemes and the statistics of letter
-# pairs carry that. An abugida keeps its context somewhere else. A consonant carries a vowel already, a
+# The assumption underneath is about the unit. A character sequence works for an alphabet because that is
+# where an alphabet retains its context: characters run together into morphemes and the statistics of character
+# pairs carry that. An abugida retains its context somewhere else. A consonant carries a vowel already, a
 # dependent sign changes which vowel, and a virama binds one consonant to the next. The unit that
 # means something is the whole cluster and a codepoint is a piece of one. Counting the pieces counts how a
 # script decomposes, and two close languages decompose differently.
 #
 # So the text is cut into clusters instead: a base character with every mark that modifies it, and with
 # what follows a virama, the akshara that writing system is built on. Alphabetic text is
-# unaffected, since a Latin letter carries no marks and the cluster is the letter.
+# unaffected, since a Latin character carries no marks and the cluster is the character.
 #
 # If the family comes out at this unit and not at the other, the reading was never wrong about language,
-# it was being asked at a unit that only suits one kind of writing.
+# it was being asked at a unit that only suits one type of writing.
 
 import io
 import os

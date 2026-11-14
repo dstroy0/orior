@@ -10,18 +10,18 @@
 // green and blue, switch to the second screen full-screen programs draw on, and ask the terminal
 // where its cursor is and what it is. What the screen cannot do it reads past.
 //
-// The main screen keeps what scrolls off its top, and the second screen keeps nothing. A line is one
+// The main screen retains what scrolls off its top, and the second screen retains nothing. A line is one
 // row of the page, drawn again only when something in it has changed, and a line that scrolls off
-// the top of the main screen takes its row with it into what is kept.
+// the top of the main screen takes its row with it into what is retained.
 //
-// The lines kept are kept as a large file is. Each line that scrolls off goes to a store on disk, and
+// The lines retained are retained as a large file is. Each line that scrolls off goes to a store on disk, and
 // the page holds two runs of them: the tail, the two screens of lines just above the screen, which
 // grows at the speed of the output and lets its oldest go; and the head, the lines in sight and a
 // screen either side where the reader has scrolled back past the tail, read from the store as they
-// come into sight. Every line kept in neither stands as its height in a gap, above the head or
-// between the head and the tail. A reader sitting still keeps their place while the output runs
-// on below, and the screen always sits under the last line kept however fast the view is scrolled.
-// With no store, the page holds the last KEPT in the tail itself.
+// come into sight. Every line retained in neither is as its height in a gap, above the head or
+// between the head and the tail. A reader sitting still retains their place while the output runs
+// on below, and the screen always sits under the last line retained however fast the view is scrolled.
+// With no store, the page holds the last RETAINED in the tail itself.
 
 import { bufferOf, PLAIN } from "./screen/cells.js";
 import * as region from "./screen/region.js";
@@ -31,13 +31,13 @@ export { coloredHtml, coloredLines } from "./screen/cells.js";
 
 const TAB = 8;
 
-// The longest operating-system command the screen keeps to read.
+// The longest operating-system command the screen retains to read.
 const OSC_LONGEST = 4096;
 
 export class Screen {
   // `view` is the scrolling element the screen is drawn in, `answer` what the screen says back to
   // the shell, as when it is asked where its cursor is, and `store` where the lines that scroll off
-  // go: { keep(lines), read(from, count) }, each answering with a promise.
+  // go: { retain(lines), read(from, count) }, each answering with a promise.
   constructor(view, cols, rows, answer, store = null) {
     this.view = view;
     this.answer = answer;
@@ -69,9 +69,9 @@ export class Screen {
     this.cols = cols;
     this.rowCount = rows;
     this.above = view.appendChild(Object.assign(document.createElement("div"), { className: "term-gap" }));
-    this.head = view.appendChild(Object.assign(document.createElement("div"), { className: "term-kept" }));
+    this.head = view.appendChild(Object.assign(document.createElement("div"), { className: "term-retained" }));
     this.between = view.appendChild(Object.assign(document.createElement("div"), { className: "term-gap" }));
-    this.tail = view.appendChild(Object.assign(document.createElement("div"), { className: "term-kept" }));
+    this.tail = view.appendChild(Object.assign(document.createElement("div"), { className: "term-retained" }));
     this.mainHost = view.appendChild(Object.assign(document.createElement("div"), { className: "term-rows" }));
     this.altHost = view.appendChild(Object.assign(document.createElement("div"), { className: "term-rows", hidden: true }));
     this.main = bufferOf(cols, rows, this.mainHost);
@@ -96,7 +96,7 @@ export class Screen {
     this.modes = { appCursor: false, wrap: true, cursor: true, paste: false, insert: false };
   }
 
-  // An operating-system command the shell sent: OSC 7, the folder it stands in as a file URL, goes
+  // An operating-system command the shell sent: OSC 7, the folder it is in as a file URL, goes
   // to `onPlace`; any other is read past.
   osc(text) {
     const cut = text.indexOf(";");
@@ -291,7 +291,7 @@ export class Screen {
 
 }
 
-// The escape sequences' work and the drawing into the view, kept in screen/ and put on the class as its own methods
+// The escape sequences' work and the drawing into the view, retained in screen/ and put on the class as its own methods
 // are: not counted among an object's keys.
 for (const part of [region, view]) {
   for (const [name, method] of Object.entries(part)) {

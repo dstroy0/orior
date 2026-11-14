@@ -42,12 +42,12 @@ static size_t steer_descend(size_t *offsets, size_t count, const uint8_t *corpus
 
     const size_t stride = (sample_stride == 0u) ? 1u : sample_stride;
 
-    // Every alignment starts standing and a probe can only ever take one down. That direction
+    // Every alignment starts located and a probe can only ever take one down. That direction
     // makes the descent safe to stop at any level: the set shrinks and never grows back.
     //
     // ON RESUME THE SURVIVORS ARE THE INPUT AND ARE NOT RESET. A caller composes a recursive spawn by
     // running one descent, then running the next over the survivors the last one left. The child
-    // reads only what the parent left standing and its cost is the survivor count and not the whole
+    // reads only what the parent left located and its cost is the survivor count and not the whole
     // field. The engine cannot check that an incoming survivor set is a valid superset of the true
     // occurrences; that obligation is the caller's, and it is satisfied when the set came from an earlier
     // descent on this field. A lone survivor is still not an answer: it has passed only the probes
@@ -64,7 +64,7 @@ static size_t steer_descend(size_t *offsets, size_t count, const uint8_t *corpus
     size_t chosen[ORIOR_STEER_ANCHORS];
     size_t placed = 0u;
 
-    // THE BOUNDED DESCENT. One coarm per level, at most `count` levels, which the guard above bounds
+    // THE BOUNDED DESCENT. One coarm per level, at max `count` levels, which the guard above bounds
     // at or under ORIOR_STEER_ANCHORS. The corpus picks a level's offset and, through the destroy
     // rule below, can end the descent early unless `force_full_depth` is set. The ceiling is decided
     // before the program starts and this loop terminates for the same reason a for loop over a fixed
@@ -72,7 +72,7 @@ static size_t steer_descend(size_t *offsets, size_t count, const uint8_t *corpus
     while (placed < count)
     {
         size_t best_offset = 0u;
-        size_t best_standing = (size_t)-1;
+        size_t best_located = (size_t)-1;
         int found = 0;
 
         const size_t candidates = spawning ? needle_len : count;
@@ -98,13 +98,13 @@ static size_t steer_descend(size_t *offsets, size_t count, const uint8_t *corpus
                 continue;
             }
 
-            const size_t standing =
+            const size_t located =
                 steer_truthy_after(corpus, corpus_len, needle, needle_len, survivors, offset, stride, any);
             // Strictly fewer survivors wins. A tie retains the earlier candidate, and
             // the descent is therefore deterministic on identical input.
-            if ((found == 0) || (standing < best_standing))
+            if ((found == 0) || (located < best_located))
             {
-                best_standing = standing;
+                best_located = located;
                 best_offset = offset;
                 found = 1;
             }
@@ -119,14 +119,14 @@ static size_t steer_descend(size_t *offsets, size_t count, const uint8_t *corpus
         // found it rejects nothing an earlier probe had not already rejected. Placing it would read
         // a byte per alignment and buy none. The descent stops instead, and every level below it is
         // destroyed with it. `placed` is returned. The caller learns how many probes survived
-        // and is never handed dead ones to evaluate.
+        // and is never passed dead ones to evaluate.
         //
         // This is the general form of what orior_anchors_for does in one special case. That
         // function returns a single anchor on a periodic corpus, because at a period every anchor
         // tests the same congruence and the ones after the first are pure cost. Here the judgment
         // is MEASURED per level against the field instead of inferred from a period, which also
         // catches fields whose redundancy no period search would name.
-        if ((force_full_depth == 0) && (best_standing >= steer_truthy_total(survivors, alignments, stride)))
+        if ((force_full_depth == 0) && (best_located >= steer_truthy_total(survivors, alignments, stride)))
         {
             break;
         }
@@ -218,7 +218,7 @@ size_t steer_truthy_after_probe(const uint8_t *corpus, size_t corpus_len, const 
                                 const uint8_t *alive, const OriorProbe *probe, size_t stride)
 {
     const size_t alignments = (corpus_len - needle_len) + 1u;
-    size_t standing = 0u;
+    size_t located = 0u;
 
     for (size_t at = 0u; at < alignments; at += stride)
     {
@@ -228,10 +228,10 @@ size_t steer_truthy_after_probe(const uint8_t *corpus, size_t corpus_len, const 
         }
         if (steer_probe_agrees(corpus, needle, probe, at) != 0)
         {
-            standing += 1u;
+            located += 1u;
         }
     }
-    return standing;
+    return located;
 }
 
 /** @brief Turns falsy every alignment a probe rejects, over the whole population. */

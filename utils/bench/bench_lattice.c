@@ -401,10 +401,10 @@ static void build_shuffled(size_t count)
     for (size_t slot = count - 1u; slot > 0u; slot--)
     {
         const size_t pick = (size_t)(next_random(&state) % (uint64_t)(slot + 1u));
-        const size_t kept = s_shuffled_bases[slot];
+        const size_t retained = s_shuffled_bases[slot];
 
         s_shuffled_bases[slot] = s_shuffled_bases[pick];
-        s_shuffled_bases[pick] = kept;
+        s_shuffled_bases[pick] = retained;
     }
 }
 

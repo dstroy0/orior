@@ -237,7 +237,7 @@ Hdf5Walk hdf5_object_space(Hdf5File *file, Hdf5Object *object, Hdf5Cursor *curso
     }
     for (unsigned int axis = 0u; axis < rank; axis += 1u)
     {
-        object->maximum[axis] = ((flags & 1u) != 0u) ? hdf5_take(cursor, file->length_bytes) : object->extent[axis];
+        object->max[axis] = ((flags & 1u) != 0u) ? hdf5_take(cursor, file->length_bytes) : object->extent[axis];
     }
     return cursor->broken ? hdf5_walk_error(file, "a malformed dataspace message") : HDF5_WALK_ON;
 }
@@ -247,10 +247,10 @@ Hdf5Walk hdf5_object_type(Hdf5File *file, Hdf5Object *object, Hdf5Cursor *cursor
     const unsigned int head = (unsigned int)hdf5_take(cursor, 1u);
     const unsigned int bits = (unsigned int)hdf5_take(cursor, 3u);
     const unsigned long long size = hdf5_take(cursor, 4u);
-    const unsigned int kind = head & 0x0Fu;
+    const unsigned int type = head & 0x0Fu;
     const unsigned int version = head >> 4u;
-    const unsigned int offset = (kind <= 1u) ? (unsigned int)hdf5_take(cursor, 2u) : 0u;
-    const unsigned int precision = (kind <= 1u) ? (unsigned int)hdf5_take(cursor, 2u) : 0u;
+    const unsigned int offset = (type <= 1u) ? (unsigned int)hdf5_take(cursor, 2u) : 0u;
+    const unsigned int precision = (type <= 1u) ? (unsigned int)hdf5_take(cursor, 2u) : 0u;
     if (cursor->broken)
     {
         return hdf5_walk_error(file, "a malformed datatype message");
@@ -263,11 +263,11 @@ Hdf5Walk hdf5_object_type(Hdf5File *file, Hdf5Object *object, Hdf5Cursor *cursor
     {
         hdf5_object_unsupported(object, "datatype message version", version);
     }
-    else if ((kind != 0u) && (kind != 1u))
+    else if ((type != 0u) && (type != 1u))
     {
-        hdf5_object_unsupported(object, "datatype class", kind);
+        hdf5_object_unsupported(object, "datatype class", type);
     }
-    else if (!sized || ((kind == 1u) && (size == 1ull)))
+    else if (!sized || ((type == 1u) && (size == 1ull)))
     {
         hdf5_object_unsupported(object, "an element of byte size", size);
     }
@@ -275,14 +275,14 @@ Hdf5Walk hdf5_object_type(Hdf5File *file, Hdf5Object *object, Hdf5Cursor *cursor
     {
         hdf5_object_unsupported(object, "an element with padding bits; precision", precision);
     }
-    else if ((kind == 1u) && (order > 1u))
+    else if ((type == 1u) && (order > 1u))
     {
         hdf5_object_unsupported(object, "a floating-point byte order (VAX or reserved), code", order);
     }
     object->element_bytes = (unsigned int)size;
     object->big_endian = (order & 1u) != 0u;
-    object->element_kind =
-        (kind == 1u) ? ENGINE_ELEMENT_FLOAT : (((bits & 8u) != 0u) ? ENGINE_ELEMENT_SIGNED : ENGINE_ELEMENT_UNSIGNED);
+    object->element_type =
+        (type == 1u) ? ENGINE_ELEMENT_FLOAT : (((bits & 8u) != 0u) ? ENGINE_ELEMENT_SIGNED : ENGINE_ELEMENT_UNSIGNED);
     return HDF5_WALK_ON;
 }
 

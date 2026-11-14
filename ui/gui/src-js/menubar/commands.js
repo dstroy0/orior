@@ -52,7 +52,7 @@ import { showView } from "../views.js";
 import { reportForm } from "../reports.js";
 import { fuzzyFiles, onOff, protocolJob, runCommand, setFuzzyFiles, state } from "../menubar.js";
 import { clipOut, create, createRepository, findInFiles, goToBridge, goToFile, openAnyFile, openWorkspace, pasted, searchJobs } from "./files.js";
-import { CHECKS, keepLast, playBack, recordMacro } from "./checks.js";
+import { CHECKS, retainLast, playBack, recordMacro } from "./checks.js";
 import { branchDo, cherryPick, gitSays, newBranch, removeBranch, renameBranch, resolveConflicts, showBranches, showStashes, stashChanges, stashDo } from "./git.js";
 import { askBudget, askCheckers, askContinuation, askDocMargin, askMavenSettings, chooseEnvironment, showTests, updateSnapshots } from "./settings.js";
 import { askFor, askKeys, askYes, sheet, showAbout, showChanges, showShortcuts } from "./sheets.js";
@@ -90,11 +90,11 @@ export const COMMANDS = {
   "create-folder": (args) => create(true, args[0]),
   "create-repository": (args) => createRepository(args[0] ?? null),
   "create-project": (args) => showProject(sheet, { given: args[0] ?? null, made: (folder) => state.openFolder(folder) }),
-  "keep-template": async (args) => {
-    const name = args[0] || (await askFor("A name for the template the tree is kept as", ""));
+  "retain-template": async (args) => {
+    const name = args[0] || (await askFor("A name for the template the tree is retained as", ""));
     if (name) {
       invoke("template_save", { name })
-        .then((folder) => say(`The tree is kept as the template ${name}, in ${folder}.`))
+        .then((folder) => say(`The tree is retained as the template ${name}, in ${folder}.`))
         .catch((error) => say(String(error), { failed: true }));
     }
   },
@@ -337,8 +337,8 @@ export const COMMANDS = {
   "cherry-pick": (args) => cherryPick(args[0]),
   "macro-record": () => recordMacro(),
   "macro-play": (args) => playBack(Number.parseInt(args[0], 10) || 1, args.slice(1).join(" ")),
-  "macro-keep": (args) => keepLast(args.join(" ")),
-  // A kept macro's keys, as given or as pressed, empty taking its keys away.
+  "macro-retain": (args) => retainLast(args.join(" ")),
+  // A retained macro's keys, as given or as pressed, empty taking its keys away.
   "macro-keys": async ([name, keys]) => {
     const pressed = keys ?? (await askKeys(`Keys for ${name}`));
     if (pressed !== null) {
@@ -380,7 +380,7 @@ export const COMMANDS = {
   "recent-files": () => openPalette(""),
   line: (args) => inEditor((e) => (args[0] ? e.goTo(Math.max(0, Number(args[0]) - 1)) : e.goto.open()))(),
   bracket: inEditor((e) => e.jumpBracket()),
-  jump: inEditor((e) => (e.startJump(), say("Jump: type the letter or two where the cursor is to go, then the mark there."))),
+  jump: inEditor((e) => (e.startJump(), say("Jump: type the character or two where the cursor is to go, then the mark there."))),
   bridge: goToBridge,
   definition: inEditor(() => editing().definition()),
   "peek-definition": inEditor(() => peekHere("definition")),
@@ -447,7 +447,7 @@ export const COMMANDS = {
   "disasm-verify": () => editing().verifyDisassembly(),
   list: (args) => searchJobs(args[0]),
   show: (args) => searchJobs(args[0]),
-  // The protocol: its one job, the course, shown and with words from the command line started, the run
+  // The protocol: its one job, the course, displayed and with words from the command line started, the run
   // in the protocol panel; and its other commands, which the command line says and the menu does not list.
   course: protocolJob("protocol/course"),
   tables: protocolJob("protocol/tables"),

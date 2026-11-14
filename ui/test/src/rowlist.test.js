@@ -27,8 +27,8 @@ test("ten thousand rows take the height they would and put on the page only thos
     rows.set(ROWS);
     assert.equal(rows.count, 10000);
     assert.equal(list.querySelector(".row-list-size").style.height, "200000px");
-    const shown = list.querySelectorAll(".row").length;
-    assert.ok(shown >= 10 && shown < 200, `${shown} rows on the page`);
+    const displayed = list.querySelectorAll(".row").length;
+    assert.ok(displayed >= 10 && displayed < 200, `${displayed} rows on the page`);
     assert.deepEqual([rows.key(5), rows.depth(5), rows.name(5), rows.open(5)], ["row-5", 2, "name 5", false]);
     assert.equal(rows.indexOf("row-77"), 77);
     assert.equal(rows.indexOf("none"), -1);
@@ -42,12 +42,12 @@ test("a row brought into sight by its key is put on the page at its place, scrol
     assert.equal(far.textContent, "name 5000");
     assert.equal(far.style.top, "100000px");
     assert.ok(list.scrollTop + list.clientHeight >= 100020 && list.scrollTop <= 100000, "in sight");
-    assert.equal(rows.shownAt(5000), far);
+    assert.equal(rows.displayedAt(5000), far);
     assert.equal(rows.reveal("none"), null);
   });
 });
 
-test("a gap above one row stands every row past it lower", async () => {
+test("a gap above one row is every row past it lower", async () => {
   await withList((rows, list) => {
     rows.set(ROWS, 10);
     assert.deepEqual([rows.topOf(9), rows.topOf(10), rows.topOf(11)], [180, 230, 250]);

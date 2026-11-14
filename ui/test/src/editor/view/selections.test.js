@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The editor's selections: set in order with those that overlap merged, the primary kept, copied apart from the
-// editor's own, and moved by a letter, a pair of surrogates whole, a word, and with the anchor kept.
+// The editor's selections: set in order with those that overlap merged, the primary retained, copied apart from the
+// editor's own, and moved by a character, a pair of surrogates whole, a word, and with the anchor retained.
 
 import { given, marked, putBackAsFound } from "../../../menus.js";
 
@@ -23,7 +23,7 @@ test("selections are set in order, those that overlap or touch merged, and the o
   assert.equal(marked(), "abcdefgh|", "a place past the line's end is clamped to it");
 });
 
-test("a letter left and right steps over a pair of surrogates whole and across line ends", async () => {
+test("a character left and right steps over a pair of surrogates whole and across line ends", async () => {
   const view = await given("a😀b\nc");
   assert.deepEqual(view.charRight({ line: 0, col: 1 }), { line: 0, col: 3 });
   assert.deepEqual(view.charLeft({ line: 0, col: 3 }), { line: 0, col: 1 });
@@ -41,7 +41,7 @@ test("a word left and right stops at the ends of words and of runs of signs, pas
   assert.deepEqual(view.wordLeft({ line: 0, col: 10 }), { line: 0, col: 5 });
 });
 
-test("moving every selection by a step, the anchor kept where the move extends", async () => {
+test("moving every selection by a step, the anchor retained where the move extends", async () => {
   const view = await given("|one two\n|three four");
   view.moveBy((sel) => view.wordRight(sel.head), false);
   assert.equal(marked(), "one| two\nthree| four");

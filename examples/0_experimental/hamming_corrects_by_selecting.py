@@ -7,10 +7,10 @@
 #
 #   Usage:  python examples/0_experimental/hamming_corrects_by_selecting.py
 #
-# This reads no corpus. It sits in 0_experimental: an algorithm shown working, a coding-theory filter
+# This reads no corpus. It sits in 0_experimental: an algorithm displayed working, a coding-theory filter
 # beside the signal ones. The channel flips bits; the code rejects the flip by choosing, of the sixteen
 # codewords, the one within a single flip of what arrived. It corrects by selecting the candidate the
-# necessary conditions leave standing, the sift's move carried into coding theory.
+# necessary conditions leave located, the sift's move carried into coding theory.
 #
 # Two decoders are run: the syndrome, which reads the failed parity checks as the flipped position, and
 # the nearest codeword, which reads no parity at all. Hamming(7,4) is a perfect code. The two are the

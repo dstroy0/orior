@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // notebook_edit.c: an open notebook's cells edited: the cell that has the keys and its view, the notebook's keys, the
-// cells laid anew as one is added or deleted and their outputs moved with them as one is moved, and a cell's menu
+// cells positioned anew as one is added or deleted and their outputs moved with them as one is moved, and a cell's menu
 #include "notebook_edit.h"
 
 #include "../command_line/commands.h"
@@ -23,7 +23,7 @@ EMBED_INLINE void view_sized(const NotebookEditCtx *args)
     char key[CLI_PATH_MAX_LEN + CLI_NOTEBOOK_KEY_MORE];
     EMBED_CALL(cli_notebook_model_internal.key, CliNotebookModelCtx, .model = args->model, .cell = args->cell,
                .output = CLI_NOTEBOOK_NONE, .out = key);
-    // a cell's lines stand far below the 32-bit place no count reaches
+    // a cell's lines are far below the 32-bit place no count reaches
     const CliViewInput sized = {
         .type = CLI_VIEW_SIZE, .rows = (unsigned int)args->rows, .columns = CLI_NOTEBOOK_EDIT_COLUMNS};
     char why[CLI_ERR_MSG_MAX_LEN];
@@ -199,7 +199,7 @@ int cli_notebook_cell_add(const CliNotebookEditCellCfg *args)
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     EMBED_CALL(cli_notebook_edit_focus.blur, CliNotebookEditFocusCfg, .key = args->key, .err_msg = &err_msg);
     const unsigned int place = (args->cell < model->cells) ? (args->cell + 1u) : model->cells;
-    if (!EMBED_CALL(cli_notebook_model_internal.cells_laid, CliNotebookModelCtx, .model = model,
+    if (!EMBED_CALL(cli_notebook_model_internal.cells_positioned, CliNotebookModelCtx, .model = model,
                     .count = model->cells + 1u, .cell = place))
     {
         return 0;
@@ -272,11 +272,11 @@ int cli_notebook_cell_move(const CliNotebookEditCellCfg *args)
     {
         return 0;
     }
-    // the target stands among the cells, which an unsigned int counts
+    // the target is among the cells, which an unsigned int counts
     const unsigned int other = (unsigned int)target;
     const unsigned int upper = (other < args->cell) ? other : args->cell;
     const unsigned int lower = upper + 1u;
-    // the two cells' outputs swapped with them, the outputs standing in the order of their cells, through a cell of
+    // the two cells' outputs swapped with them, the outputs located in the order of their cells, through a cell of
     // this call read out of the outputs and written back swapped
     CliNotebookCell up_cell = EMBED_CALL(cell_of, NotebookEditCtx, .model = model, .cell = upper);
     CliNotebookCell down_cell = EMBED_CALL(cell_of, NotebookEditCtx, .model = model, .cell = lower);
@@ -393,7 +393,7 @@ int cli_notebook_cell_remove(const CliNotebookEditCellCfg *args)
     EMBED_CALL(cli_notebook_model_internal.key, CliNotebookModelCtx, .model = model, .cell = args->cell,
                .output = CLI_NOTEBOOK_NONE, .out = key);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = key);
-    if (!EMBED_CALL(cli_notebook_model_internal.cells_laid, CliNotebookModelCtx, .model = model,
+    if (!EMBED_CALL(cli_notebook_model_internal.cells_positioned, CliNotebookModelCtx, .model = model,
                     .count = model->cells - 1u, .cell = args->cell))
     {
         return 0;
@@ -415,7 +415,7 @@ int cli_notebook_cell_menu(const CliNotebookEditMenuCfg *args)
     }
     model->menu_cell = args->cell;
     const int code = EMBED_CALL(cell_of, NotebookEditCtx, .model = model, .cell = args->cell).type == CLI_NOTEBOOK_CODE;
-    // the rows run with the notebook's key, which stands in its model while the menu is open
+    // the rows run with the notebook's key, which is in its model while the menu is open
     cli_menus_own_begin();
     cli_menus_own_row(&(CliItem){"Run", "notebook-run", "Shift+Enter", model->key, "", "", 0, 0, 0, 0, 0u});
     cli_menus_own_row(&(CliItem){"Debug", "notebook-debug", "", model->key, "never", "", 0, 0, 0, 0, 0u});

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// ksg_seal.c: a file's seal made as its bytes are written, as ksg.h lays it out: each line a leaf handed on as it ends,
-// the leaves joined two by two as they come, at most KSG_DEPTH nodes waiting, and the root over the size, the most
+// ksg_seal.c: a file's seal made as its bytes are written, as ksg.h positions it out: each line a leaf passed on as it ends,
+// the leaves joined two by two as they come, at max KSG_DEPTH nodes waiting, and the root over the size, the max
 // bytes of a leaf and the top node
 #include "ksg.h"
 
@@ -35,7 +35,7 @@ static void ksg_word(unsigned long long value, unsigned char *out)
     }
 }
 
-// the line carried sealed as a leaf, handed on and joined with those before it, the line emptied: 1, or 0 where it
+// the line carried sealed as a leaf, passed on and joined with those before it, the line emptied: 1, or 0 where it
 // could not be
 static int ksg_line_sealed(KsgSeal *seal)
 {
@@ -81,7 +81,7 @@ int ksg_seal_bytes(KsgSeal *seal, const void *bytes, unsigned long long size)
         seal->line[seal->carried] = from[at];
         seal->carried += 1u;
         const int line_ended = (from[at] == '\n');
-        if (line_ended || (seal->carried == KSG_LINE_MOST))
+        if (line_ended || (seal->carried == KSG_LINE_MAX))
         {
             (void)ksg_line_sealed(seal);
             seal->lines += line_ended ? 1ULL : 0ULL;
@@ -109,20 +109,20 @@ int ksg_seal_ended(KsgSeal *seal, unsigned char *root, unsigned char *trailer)
     }
     unsigned char rooted[16u + KSG_SIGNUM_BYTES];
     ksg_word(seal->size, rooted);
-    ksg_word(KSG_LINE_MOST, rooted + 8u);
+    ksg_word(KSG_LINE_MAX, rooted + 8u);
     memcpy(rooted + 16u, top, KSG_SIGNUM_BYTES);
     if (!ksg_signed(seal->file_key, rooted, sizeof(rooted), root))
     {
         return 0;
     }
     ksg_word(seal->size, trailer);
-    ksg_word(KSG_LINE_MOST, trailer + 8u);
+    ksg_word(KSG_LINE_MAX, trailer + 8u);
     ksg_word(seal->leaves, trailer + 16u);
     memcpy(trailer + 24u, root, KSG_SIGNUM_BYTES);
     return 1;
 }
 
-int ksg_kind_sealed(const char *path)
+int ksg_type_sealed(const char *path)
 {
     const char *const dot = strrchr(path, '.');
     const char *const slash = strrchr(path, '/');
@@ -143,10 +143,10 @@ int ksg_kind_sealed(const char *path)
             return 0;
         }
     }
-    const size_t letters = strlen(dot + 1);
-    int lower = (dot[1] == 'k') && (letters >= 3u) && (letters <= 6u);
+    const size_t characters = strlen(dot + 1);
+    int lower = (dot[1] == 'k') && (characters >= 3u) && (characters <= 6u);
     size_t at = 1u;
-    while (lower && (at <= letters))
+    while (lower && (at <= characters))
     {
         lower = (dot[at] >= 'a') && (dot[at] <= 'z');
         at += 1u;

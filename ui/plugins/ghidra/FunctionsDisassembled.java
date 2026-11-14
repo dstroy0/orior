@@ -12,7 +12,7 @@
 // disassembler reads a symbol up to the next, the gaps its flow left within the body and the bytes
 // after it among them: an instruction Ghidra disassembled as "address length MNEMONIC", and every
 // run of bytes Ghidra left undefined or took as data, which its flow never reached, raw as
-// "address length ? hexbytes", at most BYTES_A_RUN bytes a line, so that the reader reads those bytes
+// "address length ? hexbytes", at max BYTES_A_RUN bytes a line, so that the reader reads those bytes
 // itself. A function Ghidra did not find is written as "== name" with no units.
 
 import ghidra.app.script.GhidraScript;

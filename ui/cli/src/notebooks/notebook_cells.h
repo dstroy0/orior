@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // notebook_cells.h: a notebook open in the window as cells: the notebook a file's text reads as, a Jupyter notebook's
-// JSON or a percent script, laid out as a model under the key its view stands under. Each cell's source is a text of
+// JSON or a percent script, arranged as a model under the key its view is under. Each cell's source is a text of
 // the document store under `<key>#<id>`, colored by the kernel language's grammar or the markdown grammar, and each
 // output's text one under `<key>#<id>.<output>`, colored by the xterm grammar. The model lists the cells in order,
-// each with its type, its run count, its outputs, whether it runs, failed or stands on cells changed since it ran,
+// each with its type, its run count, its outputs, whether it runs, failed or is on cells changed since it ran,
 // and the rows it takes in the work: a row each line of its source, one for a markdown cell not being edited, a row
 // each line of its outputs, an output of more than twice CLI_NOTEBOOK_CUT_LINES lines cut to its first and last
-// lines with a row between them, and the row that adds a cell after it. The row each cell starts at stands in one
+// lines with a row between them, and the row that adds a cell after it. The row each cell starts at is in one
 // cell of the model, sorted, and a row is found among them by a binary search. A kernel's messages reach the model
 // through a ring the receiver fills on the kernel's thread and the step drains on the view's (notebook_cells.c,
 // notebook_cells_rows.c)
@@ -37,7 +37,7 @@ typedef struct CliNotebookCellsTextCfg CliNotebookCellsTextCfg;
 #define CLI_NOTEBOOK_CUT_LINES 40u
 
 // A row's types: the row that adds a cell after its cell, a line of a cell's source, a markdown cell not being edited
-// laid as one row, a line of an output, and the row standing for the lines of a cut output not shown
+// positioned as one row, a line of an output, and the row located for the lines of a cut output not displayed
 #define CLI_NOTEBOOK_ROW_ADD 0u
 #define CLI_NOTEBOOK_ROW_SOURCE 1u
 #define CLI_NOTEBOOK_ROW_MARKDOWN 2u
@@ -56,7 +56,7 @@ typedef struct CliNotebookCellsTextCfg CliNotebookCellsTextCfg;
 #define CLI_NOTEBOOK_FLAG_STDERR 128u
 
 // The sentences the rows show: a code cell's count, `[3]`, `[*]` while it runs, `[ ]` before it ran; the kernel's
-// state, `<display>: <state>` or `no kernel`; why a cell is out of date, the cells it stands on; the line of a cut
+// state, `<display>: <state>` or `no kernel`; why a cell is out of date, the cells it is on; the line of a cut
 // output, `... N lines ...`; its button, `Show all N lines`; and the line an empty markdown cell shows
 #define CLI_NOTEBOOK_TEXT_COUNT 0u
 #define CLI_NOTEBOOK_TEXT_STATE 1u
@@ -65,7 +65,7 @@ typedef struct CliNotebookCellsTextCfg CliNotebookCellsTextCfg;
 #define CLI_NOTEBOOK_TEXT_MORE 4u
 #define CLI_NOTEBOOK_TEXT_PLACEHOLDER 5u
 
-// A row: its type, its cell, the line of its source or of its output, the output it stands in, CLI_NOTEBOOK_NONE for
+// A row: its type, its cell, the line of its source or of its output, the output it is in, CLI_NOTEBOOK_NONE for
 // a row of none, and its flags
 typedef struct
 {
@@ -76,7 +76,7 @@ typedef struct
     unsigned int flags;
 } CliNotebookRow;
 
-// A cell as the map lays it: the row it starts at, the rows it takes, its type, and whether it is out of date, failed
+// A cell as the map positions it: the row it starts at, the rows it takes, its type, and whether it is out of date, failed
 // or runs
 typedef struct
 {
@@ -90,7 +90,7 @@ typedef struct
 
 // A row of a frame: the row; its text among the frame's bytes and its bytes, a line of a source or an output as UTF-8;
 // the sentence it shows among the bytes, the count of a cell's first code row, the line of a cut row, the placeholder
-// of an empty markdown row, of no bytes for every other; and the part its runs stand in with its place among the
+// of an empty markdown row, of no bytes for every other; and the part its runs are in with its place among the
 // part's lines, CLI_NOTEBOOK_NONE for a row of none
 typedef struct
 {
@@ -103,7 +103,7 @@ typedef struct
     unsigned int part_line;
 } CliNotebookFrameRow;
 
-// A run of rows laid from the lines of one text: their runs, as the walk saved them, and the labels the runs' tokens
+// A run of rows positioned from the lines of one text: their runs, as the walk saved them, and the labels the runs' tokens
 // take, each in a cell of the open notebooks' owner, NULL where the text is not colored
 typedef struct
 {
@@ -111,9 +111,9 @@ typedef struct
     CliDocumentNames *labels;
 } CliNotebookFramePart;
 
-// A notebook's frame, every count and pointer the window draws from, immutable once laid: the model's top row, the
-// rows laid from it, the rows of the notebook, the cell being edited, CLI_NOTEBOOK_NONE for none, and its view's frame,
-// NULL for none; the rows; the parts; and the bytes the rows' texts and sentences stand in
+// A notebook's frame, every count and pointer the window draws from, immutable once positioned: the model's top row, the
+// rows positioned from it, the rows of the notebook, the cell being edited, CLI_NOTEBOOK_NONE for none, and its view's frame,
+// NULL for none; the rows; the parts; and the bytes the rows' texts and sentences are in
 typedef struct
 {
     unsigned long long top;
@@ -134,13 +134,13 @@ typedef struct
 int cli_notebook_model_open(const CliNotebookCellsOpenCfg *args);
 void cli_notebook_model_close(const CliNotebookCellsOpenCfg *args);
 // the model under `key` written to the file at `full` as the notebook it was read as, each cell's source, outputs and
-// run count as they stand, the kernel picked in its metadata, the model marked saved: 1, or 0 with why written; and 1
+// run count as they are, the kernel picked in its metadata, the model marked saved: 1, or 0 with why written; and 1
 // where a cell's source changed since it was read or saved, or a cell was added, moved, changed in type, cleared or
 // deleted, or a kernel picked
 int cli_notebook_model_save(const CliNotebookCellsSaveCfg *args);
 int cli_notebook_model_dirty(const CliNotebookCellsSaveCfg *args);
 // the models begun: `woken` wakes the view's thread as a kernel's message reaches a model's ring; and every ring
-// drained, each message applied to the cell whose run it answers, a message whose run is not yet bound standing in
+// drained, each message applied to the cell whose run it answers, a message whose run is not yet bound located in
 // the ring until it is: 1 where a model changed
 void cli_notebook_model_begin(const CliNotebookCellsStepCfg *args);
 int cli_notebook_model_step(const CliNotebookCellsStepCfg *args);
@@ -149,7 +149,7 @@ int cli_notebook_model_step(const CliNotebookCellsStepCfg *args);
 unsigned int cli_notebook_model_rows(const CliNotebookCellsRowCfg *args);
 int cli_notebook_model_row(const CliNotebookCellsRowCfg *args);
 int cli_notebook_model_block(const CliNotebookCellsRowCfg *args);
-// `count` rows of the notebook under `key` laid from its top row into a frame in one cell, the rows the work shows
+// `count` rows of the notebook under `key` positioned from its top row into a frame in one cell, the rows the work shows
 // recorded for the scroll, through `frame_out`: 1, or 0 with NULL where no notebook is open under the key or the cells
 // cannot meet it; and the frame through `frame_out` released, NULL after
 int cli_notebook_model_frame_alloc(const CliNotebookCellsFrameCfg *args);
@@ -159,8 +159,8 @@ void cli_notebook_model_frame_release(const CliNotebookCellsFrameCfg *args);
 void cli_notebook_model_scroll(const CliNotebookCellsScrollCfg *args);
 void cli_notebook_model_to(const CliNotebookCellsScrollCfg *args);
 // the sentence `which` of the notebook under `key`, of its cell `cell` and output `output` where it is one's, in a
-// cell of the model sized to it, standing until the next sentence is asked, its bytes into `length_out`: the empty
-// text where no notebook is open under the key or no such cell or output stands
+// cell of the model sized to it, located until the next sentence is asked, its bytes into `length_out`: the empty
+// text where no notebook is open under the key or no such cell or output is
 const char *cli_notebook_model_text(const CliNotebookCellsTextCfg *args);
 
 struct CliNotebookCellsOpenCfg

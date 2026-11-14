@@ -133,7 +133,7 @@ vmovdqa %ymm0,-0x20(%rbp)   rbp = 0x5fe0b0, target 0x5fe090, which is 16 mod 32
 
 The resolution is that the \texttt{-O0} arm drops \texttt{-mavx2}. The hashing core gates its vector arm on \texttt{\_\_AVX2\_\_} and the \texttt{\#else} arm defers to the scalar reference. The unoptimized build is therefore the reference arm, the arm a fold audit wants, since it is the arm whose arithmetic the statistics read. The known-answer test then runs \texttt{-O0} clean: \textbf{24 run, 0 failed.}
 
-\textbf{And what that costs.} For the two measurements exercising the vector arm, the \texttt{-O0} column tests different code from the other two columns. Agreement there is evidence about the reference arm and not about the vector arm. The vector arm is covered instead by the known-answer test asserting it equal to the reference on the FIPS 180-4 vectors~\cite{src:FIPS-180-4}, the genesis block, block 125552 and \(1000\) consecutive real headers. That is a strong check, and it is a different check, and reading the audit table as though all three columns meant the same thing for those two rows would be the kind of substitution this sieve exists to catch.
+\textbf{And what that costs.} For the two measurements exercising the vector arm, the \texttt{-O0} column tests different code from the other two columns. Agreement there is evidence about the reference arm and not about the vector arm. The vector arm is covered instead by the known-answer test asserting it equal to the reference on the FIPS 180-4 vectors~\cite{src:FIPS-180-4}, the genesis block, block 125552 and \(1000\) consecutive real headers. That is a strong check, and it is a different check, and reading the audit table as though all three columns meant the same thing for those two rows would be the type of substitution this sieve exists to catch.
 
 \section{Prose contradicting its own table (open)}
 
@@ -147,7 +147,7 @@ The resolution is that the \texttt{-O0} arm drops \texttt{-mavx2}. The hashing c
 
 \textbf{The subtraction.} Naming discipline. Two quantities that differ get two names, and the name records which one is meant.
 
-\section{Partial standing in for the whole (partial)}
+\section{Partial located in for the whole (partial)}
 
 \textbf{Instances.} Reduced rounds in five measurements, one output word of eight, a 64-bit prefix of a 256-bit digest, one frame, one constant, chunk two without the header, sampling in place of enumeration. Every one of these is a projection reported as the thing.
 
@@ -159,13 +159,13 @@ Reporting the largest of many bins against the expectation for one bin.
 
 \textbf{Instance.} The \(775{,}000\times\) above, which the permutation null puts at \(184.5\times\).
 
-\textbf{The subtraction.} The permutation null over the maximum itself~\cite{src:Westfall-and-Young-1993}, or an extreme-value reference. Drawing \(n\) samples into \(r\) bins gives an expected maximum well above \(n/r\), and that expectation is the reference.
+\textbf{The subtraction.} The permutation null over the max itself~\cite{src:Westfall-and-Young-1993}, or an extreme-value reference. Drawing \(n\) samples into \(r\) bins gives an expected max well above \(n/r\), and that expectation is the reference.
 
 \section{Argmax over a tied set (partial)}
 
-Selecting \emph{the most common} value where many values share the top count. The sort's tiebreak selects, and the data does not.
+Selecting \emph{the usual} value where many values share the top count. The sort's tiebreak selects, and the data does not.
 
-\textbf{Instance.} A walk through delta space steered by the most common outgoing delta. Counting how many share that maximum:
+\textbf{Instance.} A walk through delta space steered by the usual outgoing delta. Counting how many share that max:
 
 \begin{center}
 \begin{tabular}{@{}lrrrrrrr@{}}
@@ -177,9 +177,9 @@ deltas tied at the peak & 1 & \textbf{12} & \textbf{21} & \textbf{19} & \textbf{
 \end{tabular}
 \end{center}
 
-From round one onward there is no single most common delta. Between twelve and twenty-nine of them share a top count of two occurrences in \(400{,}000\) draws, and the walk follows whichever has the largest numeric value. \textbf{A comparison between peak-steered and tail-steered walks is a comparison between two tiebreaks from round one on.}
+From round one onward there is no single usual delta. Between twelve and twenty-nine of them share a top count of two occurrences in \(400{,}000\) draws, and the walk follows whichever has the largest numeric value. \textbf{A comparison between peak-steered and tail-steered walks is a comparison between two tiebreaks from round one on.}
 
-\textbf{What remains.} The peak \emph{value} is unaffected, since a tie does not change the height of the maximum, only which delta carries it. The compound figure stands. The strategy comparison does not.
+\textbf{What remains.} The peak \emph{value} is unaffected, since a tie does not change the height of the max, only which delta carries it. The compound figure is. The strategy comparison does not.
 
 \textbf{The subtraction.} Count the ties at the argmax and print the count beside it.
 
@@ -197,7 +197,7 @@ Two copies of one statistic, differing in a case one of them handles and the oth
 
 \textbf{Instance, in the sieve's own instrument.} Three copies of the Rényi deficit sum: the general one over bins, an inline one over the count histogram, and a third inside the Arikan block. The empty-bin rule is opposite at order one and at every other order. A bin holding nothing contributes exactly \(-1\) at a positive order and exactly \(0\) at order one, since the count in front of the logarithm goes to zero faster than the logarithm goes to minus infinity. The general copy knows both rules. The histogram copy applies the first rule to order one and puts \textbf{0.2965 in a table where 0.8272 belongs}, on the headline full-domain run.
 
-\textbf{A second instance, one layer out.} A Poisson prediction at order one missing a \(-\log_2(\mathrm{mean})\) term. That term is exactly zero when the mean count is one, the full-domain case. The wrong formula \textbf{agrees perfectly at the only point it is read at} and disagrees everywhere else. A defect that hides at the operating point is the worst kind, and only a run at a smaller domain exposes it.
+\textbf{A second instance, one layer out.} A Poisson prediction at order one missing a \(-\log_2(\mathrm{mean})\) term. That term is exactly zero when the mean count is one, the full-domain case. The wrong formula \textbf{agrees perfectly at the only point it is read at} and disagrees everywhere else. A defect that hides at the operating point is the worst type, and only a run at a smaller domain exposes it.
 
 \textbf{The subtraction.} One function that knows the empty-bin rule for every order, with every path going through it. Not a check on the copies: the removal of the copies.
 
@@ -227,4 +227,4 @@ mode & detector & status & what it removes \\
 
 Five modes are closed, five are partial, five have no detector. Of the open modes, mode 3 (the swap test) and mode 5 (printing the detection floor before the result) are both mechanical. Modes 9 and 10 are discipline instead of instrumentation and will not yield to a tool.
 
-Mode 15 deserves the most weight, because it occurs inside the instrument built to catch the others. The sieve does not exempt itself. Both of its instances are exposed by running the same code at a domain it was not designed around, the cheapest detector on this whole list: \textbf{run every measurement at a second scale, and compare the shape instead of the number.} A statistic that is a property of the function scales predictably; one that is a property of the apparatus does not.
+Mode 15 deserves the max weight, because it occurs inside the instrument built to catch the others. The sieve does not exempt itself. Both of its instances are exposed by running the same code at a domain it was not designed around, the cheapest detector on this whole list: \textbf{run every measurement at a second scale, and compare the shape instead of the number.} A statistic that is a property of the function scales predictably; one that is a property of the apparatus does not.

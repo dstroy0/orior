@@ -7,7 +7,7 @@
 // began. The lines are gathered in the trace's own buffer, and while the window is joined to a run,
 // the one QRY names as the window starts or one it is joined to, they are queued to the backend's
 // primary channel every HAND_EVERY ms as the blob `window.trace`, and the window goes on at once: the
-// backend hands them to the run's buffer and the run's writer writes them. While the window is joined
+// backend passes them to the run's buffer and the run's writer writes them. While the window is joined
 // to no run nothing is gathered, and a traced function costs one test.
 
 import { invoke } from "./bridge.js";
@@ -61,7 +61,7 @@ export function traceTime() {
   return performance.now() - state.began;
 }
 
-// The lines gathered handed to the run: settled once the backend has queued them.
+// The lines gathered passed to the run: settled once the backend has queued them.
 function hand() {
   const lines = traceLines();
   if (!lines) {
@@ -70,7 +70,7 @@ function hand() {
   return invoke("qry_append", { name: TRACE_BLOB, text: lines, channel: "primary" }).catch(() => {});
 }
 
-// The trace turned on or off: off, the lines gathered are handed first, and the promise settles once
+// The trace turned on or off: off, the lines gathered are passed first, and the promise settles once
 // they are queued.
 function turned(on) {
   if (on === state.on) {
@@ -87,7 +87,7 @@ function turned(on) {
 }
 
 // The window joined to the run at `path`, from the top of the tree or whole, or to none where it is
-// null: what was gathered for the run before is handed to it before the window parts from it.
+// null: what was gathered for the run before is passed to it before the window parts from it.
 export async function joinRun(path) {
   await turned(false);
   const joined = await invoke("qry_join", { path });
@@ -95,7 +95,7 @@ export async function joinRun(path) {
   return joined;
 }
 
-// What the trace's queue has done: the run joined, and the blobs handed, dumped and failed.
+// What the trace's queue has done: the run joined, and the blobs passed, dumped and failed.
 export function traceJoined() {
   return invoke("qry_window");
 }

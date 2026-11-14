@@ -39,11 +39,11 @@ test("View, Checkers runs the checkers named, and says a name none answers to", 
 
 test("File, Tree Environment and Maven Settings", async () => {
   await press("environment", "none");
-  assert.ok(made("env_use").some((one) => one.args.kind === null), "the toolchains' own Python used");
+  assert.ok(made("env_use").some((one) => one.args.type === null), "the toolchains' own Python used");
   calls.answer("maven_settings", () => [{ group: "pom", label: "Java Release", value: "17", settable: true, key: "release", file: "pom.xml" }]);
   await press("maven-settings");
-  const shown = await sheetShown(".sheet-maven");
-  assert.ok(shown.textContent.includes("Java Release"));
+  const displayed = await sheetShown(".sheet-maven");
+  assert.ok(displayed.textContent.includes("Java Release"));
 });
 
 test("Edit, Fill Paragraph fills a paragraph to the margin, and Continuation Indent and Documentation Margin take their columns", async () => {
@@ -53,7 +53,7 @@ test("Edit, Fill Paragraph fills a paragraph to the margin, and Continuation Ind
   await ui.waitFor(() => editing().editor.doc.count > 3, 5000, "the paragraph filled");
   const width = editing().docMargin() ?? editing().editor.s.margin ?? 79;
   assert.ok(editing().editor.doc.lines.every((line) => line.length <= width), `filled to ${width}: ${editing().editor.doc.text()}`);
-  assert.equal(editing().editor.doc.text().replace(/\s*#\s*/g, " ").trim(), words, "every word kept, in order");
+  assert.equal(editing().editor.doc.text().replace(/\s*#\s*/g, " ").trim(), words, "every word retained, in order");
   const continued = editing().continuation();
   const margin = editing().docMargin();
   try {

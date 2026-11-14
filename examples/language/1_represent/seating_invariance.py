@@ -12,8 +12,8 @@
 # dimension assigned per domain, a ceiling chosen for a sweep with no bound, and now the number each
 # symbol is given. The bit volume Gray codes those numbers so that two values one apart differ in one
 # bit, which is only meaningful where being one apart already meant something. A grayscale level, a sound
-# amplitude and an ASCII code all carry that order. A number handed out in order of first appearance does
-# not, and neither does one handed out by a re-slice.
+# amplitude and an ASCII code all carry that order. A number passed out in order of first appearance does
+# not, and neither does one passed out by a re-slice.
 #
 # The corpora that read strongest are exactly the ones whose bytes carry a real order, and the ones that
 # read near zero are the ones numbered here. This checks for exactly that. Each corpus is measured under its
@@ -21,7 +21,7 @@
 # every position untouched and change only which number each symbol was given.
 #
 # If the reading holds across renumbering, the numbering was not what was being measured, and the earlier
-# result stands for the corpora numbered here. If the reading collapses, the volume is reading an
+# result is for the corpora numbered here. If the reading collapses, the volume is reading an
 # ordering that was invented, and no cross corpus row from it means anything.
 
 import io
@@ -46,7 +46,7 @@ from representation.bit_volume import (
 
 CORPORA = os.path.join(ROOT, "build", "corpora")
 
-# Symbols read from any one corpus, and the window widths the volume is swept over. Kept here
+# Symbols read from any one corpus, and the window widths the volume is swept over. Retained here
 # because they are a property of this comparison and not of the primitive.
 CAP = 120000
 WIDTHS = tuple(range(2, 65))

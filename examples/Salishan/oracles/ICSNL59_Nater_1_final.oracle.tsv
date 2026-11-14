@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Hank Nater	note	Papers for the International Conference on Salish and Neighbouring Languages 59. D. K. E. Reisinger, Laura Griffin, Ella Hannon, Gloria Mellesmoen, Sander Nederveen, Bruce Oliver, Julia Schillo, Lauren Schneider, Bailey Trotter (eds.). Vancouver, BC: UBCWPL, 2024.	page 1
 front	Nuxalk	cited form	Sackʷ	page 1
 front	Hank Nater	language	Nuχalk	Nuxalk, Bella Coola
@@ -61,7 +61,7 @@ front	Hank Nater	note	Abstract: A Sackʷ tale (Wawalis) is examined in this pape
 §1	Hank Nater	notation	ẹm	page 2
 §1	Hank Nater	note	[ χ a ʔ n j o· s ə m ε· ԍ a ] → [ s n ọç ẹm a· χ ] Figure 2: Phonetic and structural tweaking of copied name	page 2
 §2	Hank Nater	heading	2 Original text and translation	page 2
-footnote 1	Hank Nater	note	1 See the appendix for the translation of this text. This name (χan̓iusm̩iԍa, as per J ohn C. Rath, personal communication) may be analyzable as /√χhn3/ ‘naked, without titles’ + /-%yws/ ‘to keep on, always engaged in’ + /-%m/ (diverse glosses) + /-#yґh/ ‘woman, animate, creature’ (Rath 2021:251, Rath 2024:191,29,231).	page 2, footnote
+footnote 1	Hank Nater	note	1 See the appendix for the translation of this text. This name (χan̓iusm̩iԍa, as per J ohn C. Rath, personal communication) may be analyzable as /√χhn3/ ‘naked, without titles’ + /-%yws/ ‘to retain on, always engaged in’ + /-%m/ (diverse glosses) + /-#yґh/ ‘woman, animate, creature’ (Rath 2021:251, Rath 2024:191,29,231).	page 2, footnote
 §2	Nuxalk	cited form	χan̓iusm̩iԍa	page 2
 §2	Hank Nater	notation	/√χhn3/	page 2, ‘naked, without titles’
 §2	Hank Nater	notation	/-#yґh/	page 2, ‘woman, animate, creature’
@@ -111,7 +111,7 @@ footnote 1	Hank Nater	note	1 See the appendix for the translation of this text. 
 (11) line 3	Nuxalk	gloss	3SG.OBJ-3SG.SUBJ ARTˬwand-3SG.POSSˬART.DEF PREPˬARTˬvillageˬART.DEF /	page 10, engine english
 (11) line 4	Hank Nater	translation	Wawalis swung his cane towards the village, and he swung it hard.	page 10, engine english
 (12) line 1	Nuxalk	segmentation	citum-lx-sˬkʷˬtuu taˬ՚apsułˬtχʷ / ՚aχcˬkʷˬkʷ՚u taˬsatix-s Wawalis	page 10, engine language
-(12) line 2	Nuxalk	gloss	sleep-INCH-3SG.SUBJˬENCS ARTˬvillageˬART.DEF / lay downˬENCS ARTˬpartner-	page 10, engine english
+(12) line 2	Nuxalk	gloss	sleep-INCH-3SG.SUBJˬENCS ARTˬvillageˬART.DEF / position downˬENCS ARTˬpartner-	page 10, engine english
 (12) line 3	Nuxalk	gloss	3SG.POSS Wasalis	page 10, engine english
 (12) line 4	Hank Nater	translation	The whole village fell asleep. Wawalis’ partner always slept	page 10
 (13) line 1	Nuxalk	segmentation	՚ałˬtaˬsuł-s taˬman-sˬtχ / ƛ՚ap-sˬkʷˬtuu tχ Wawalis ՚ułˬtuˬkʷułiiχʷ-s	page 10, engine language
@@ -289,7 +289,7 @@ footnote 1	Hank Nater	note	1 See the appendix for the translation of this text. 
 (57) line 1	Nuxalk	segmentation	՚ał-՚ał՚ay-uc / “cay-nu ՚ał՚ay-uc(-ł)-nu, qama-y-c!” / nu-k՚x-alχi-mˬkʷ	page 15, engine language
 (57) line 2	Nuxalk	gloss	REP-be thus-mouth / stop-2SG.SUBJ be thus-mouth(-late)-2SG.SUBJ, dear-DIM/VOC-1SG	page 15, engine english
 (57) line 3	Nuxalk	gloss	.POSS / within-see-nape-APPLˬQUOT	page 15, engine english
-(57) line 4	Hank Nater	translation	he kept saying this. And she said: “Stop talking, dear!” He looked back,	page 15
+(57) line 4	Hank Nater	translation	he retained saying this. And she said: “Stop talking, dear!” He looked back,	page 15
 (58) line 1	Nuxalk	segmentation	taˬ՚ałqʷ՚alayxalx / “c՚χł-uc-nu / ƛ՚msta tiˬ՚ałiˬtx ałˬ՚inu” /	page 15, engine language
 (58) line 2	Nuxalk	gloss	ARTˬmature / true-speech-2SG.SUBJ / person ARTˬbe thereˬART.DEF PREPˬPRO.2SG /	page 15, engine english
 (58) line 3	Hank Nater	translation	the old man did. Then she said: “You were right. There is a man near you.”	page 15
@@ -361,7 +361,7 @@ footnote 1	Hank Nater	note	1 See the appendix for the translation of this text. 
 (75) line 1	Nuxalk	segmentation	ƛ՚ap-ak-m-ti-sˬkʷˬtuu Wawalis s-kaˬnut՚aχʷ-ti-s / wlχłaˬkʷˬkʷ՚u tiˬ	page 17, engine language
 (75) line 2	Nuxalk	gloss	start-hand-APPL-3PL.OBJ-3SG.SUBJˬENCS Wawalis NMZ-HYP.POTˬbathe-3PL.OBJ-3SG	page 17, engine english
 (75) line 3	Nuxalk	gloss	.SUBJ / lameˬENCS ARTˬ	page 17, engine english
-(75) line 4	Hank Nater	translation	Wawalis laid his hands on them and bathed them. One of them had a limp.	page 17
+(75) line 4	Hank Nater	translation	Wawalis positioned his passes on them and bathed them. One of them had a limp.	page 17
 (76) line 1	Nuxalk	segmentation	numaw / pacał-ak-m-i-sˬkʷˬluˬc՚ Wawalis taˬsnaaχ-sˬtχ s-nut՚aχʷ-i-s /	page 17, engine language
 (76) line 2	Nuxalk	gloss	human.one / first-hand-APPL-3SG.OBJ-3SG.SUBJˬENCS Wawalis ARTˬslave-3SG.POSS	page 17, engine english
 (76) line 3	Nuxalk	gloss	ˬART.DEF NMZ-bathe-3SG.OBJ-3SG.SUBJ /	page 17, engine english
@@ -392,7 +392,7 @@ footnote 1	Hank Nater	note	1 See the appendix for the translation of this text. 
 (83) line 1	Nuxalk	segmentation	tuˬ՚asxʷˬtχʷ s-cay-sˬkʷˬluˬkʷ՚ waˬsn.knix-i-s ՚iłˬxnas-s Wawalis /	page 18, engine language
 (83) line 2	Nuxalk	gloss	ARTˬsealˬART.DEF NMZ-all-3SG.SUBJˬENCS ARTˬNMZ.RDP-eat-3SG.OBJ-3SG.SUBJ ARTˬ	page 18, engine english
 (83) line 3	Nuxalk	gloss	wife-3SG.POSS Wawalis /	page 18, engine english
-(83) line 4	Hank Nater	translation	a few seals. That is the only kind of food that Wawalis’ wife ate.	page 18
+(83) line 4	Hank Nater	translation	a few seals. That is the only type of food that Wawalis’ wife ate.	page 18
 (84) line 1	Nuxalk	segmentation	puƛ՚-aˬkʷˬtuu tuˬsyutˬtχʷ s-kaˬ՚isut-aw / nmp-imˬkʷˬtuu ՚iłˬ	page 18, engine language
 (84) line 2	Nuxalk	gloss	come-3PL.SUBJˬENCS ARTˬkiller whaleˬART.DEF NMZ-HYP.POTˬpaddle-3PL.SUBJ / take	page 18, engine english
 (84) line 3	Nuxalk	gloss	aboard-3SG.PASSˬENCS ARTˬ	page 18, engine english
@@ -468,9 +468,9 @@ footnote 1	Hank Nater	note	1 See the appendix for the translation of this text. 
 (102) line 3	Nuxalk	gloss	partitionˬART.DEF NMZ-HYP.POTˬ	page 20, engine english
 (102) line 4	Hank Nater	translation	in the chief’s house. I will probably be located behind the partition,	page 20, engine english
 (103) line 1	Nuxalk	segmentation	՚ał՚iłm-c / wixˬ՚iˬc՚iˬka c s-kaˬwlaaχ-i-c waˬqlaˬc /	page 20, engine language
-(103) line 2	Nuxalk	gloss	standing-1SG.SUBJ / be thenˬENCS DEM NMZ-HYP.POTˬpour liquid-3SG.OBJ-1SG.SUBJ	page 20, engine english
+(103) line 2	Nuxalk	gloss	located-1SG.SUBJ / be thenˬENCS DEM NMZ-HYP.POTˬpour liquid-3SG.OBJ-1SG.SUBJ	page 20, engine english
 (103) line 3	Nuxalk	gloss	ARTˬwaterˬART.DEF /	page 20, engine english
-(103) line 4	Hank Nater	translation	standing up. That’s when I’ll be pouring out the water (to extinguish the fire).	page 20
+(103) line 4	Hank Nater	translation	located up. That’s when I’ll be pouring out the water (to extinguish the fire).	page 20
 (104) line 1	Nuxalk	segmentation	wixˬ՚iˬc՚iˬka c s-kaˬƛ՚ap-nu s-kaˬ՚ip՚-i-xʷ ciˬxnas-nuˬcx” / ƛ՚ap-sˬkʷˬtuu	page 20, engine language
 (104) line 2	Nuxalk	gloss	be thenˬENCS DEM NMZ-HYP.POTˬgo-2SG.SUBJ NMZ-HYP.POTˬgrab-3SG.OBJ-2SG.SUBJ	page 20, engine english
 (104) line 3	Nuxalk	gloss	ARTˬwife-2SG.POSSˬART.DEF / go-3SG.SUBJˬENCS	page 20, engine english
@@ -502,7 +502,7 @@ footnote 1	Hank Nater	note	1 See the appendix for the translation of this text. 
 (111) line 1	Nuxalk	segmentation	cap-łˬkʷˬtuˬya taˬsnax.naaχ-i-s Wawalis / ƛ՚ap-ak-m-i-sˬkʷˬtuu Wawalis	page 21, engine language
 (111) line 2	Nuxalk	gloss	bone-separatedˬENCS ACTˬslave.RDP-DIM-3SG.POSS Wawalis / go-hand-APPL-3SG.OBJ-	page 21, engine english
 (111) line 3	Nuxalk	gloss	3SG.SUBJˬENCS Wawalis	page 21, engine english
-(111) line 4	Hank Nater	translation	The bones of his young slave (were there). Wawalis put his hands	page 21
+(111) line 4	Hank Nater	translation	The bones of his young slave (were there). Wawalis put his passes	page 21
 (112) line 1	Nuxalk	segmentation	s-kaˬnicm-tu-Ø-s taˬsnax.naaχ-i-sˬtχ / ƛ՚ap-sˬkʷˬtuu Wawalis s-kaˬ	page 21, engine language
 (112) line 2	Nuxalk	gloss	NMZ-HYP.POTˬalive-caus-3sg.obj-3sg.subj artˬslave.RDP-DIM-3SG.POSSˬART.DEF / start-	page 21, engine english
 (112) line 3	Nuxalk	gloss	3SG.SUBJ ˬENCS Wawalis NMZ-HYP.POTˬ	page 21, engine english

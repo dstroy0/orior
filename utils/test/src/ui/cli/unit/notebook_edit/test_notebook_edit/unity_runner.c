@@ -10,7 +10,7 @@
 extern void setUp(void);
 extern void tearDown(void);
 extern void test_one_cell_at_a_time_has_a_view(void);
-extern void test_a_line_put_in_grows_the_cells_rows_and_a_letter_typed_does_not(void);
+extern void test_a_line_put_in_grows_the_cells_rows_and_a_character_typed_does_not(void);
 extern void test_the_notebooks_keys_are_taken_and_others_are_not(void);
 extern void test_cells_added_changed_moved_cleared_and_deleted(void);
 extern void test_the_cell_menu_refuses_a_move_past_either_end(void);
@@ -76,7 +76,7 @@ int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\notebook_edit\\test_notebook_edit\\test_notebook_edit.c");
   run_test(test_one_cell_at_a_time_has_a_view, "test_one_cell_at_a_time_has_a_view", 73);
-  run_test(test_a_line_put_in_grows_the_cells_rows_and_a_letter_typed_does_not, "test_a_line_put_in_grows_the_cells_rows_and_a_letter_typed_does_not", 89);
+  run_test(test_a_line_put_in_grows_the_cells_rows_and_a_character_typed_does_not, "test_a_line_put_in_grows_the_cells_rows_and_a_character_typed_does_not", 89);
   run_test(test_the_notebooks_keys_are_taken_and_others_are_not, "test_the_notebooks_keys_are_taken_and_others_are_not", 107);
   run_test(test_cells_added_changed_moved_cleared_and_deleted, "test_cells_added_changed_moved_cleared_and_deleted", 129);
   run_test(test_the_cell_menu_refuses_a_move_past_either_end, "test_the_cell_menu_refuses_a_move_past_either_end", 174);

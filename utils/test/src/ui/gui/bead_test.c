@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// bead_test.c: the bead's check: the atlas lays out for a size over the pixels its caller hands it and keeps a
+// bead_test.c: the bead's check: the atlas arranges for a size over the pixels its caller passes it and retains a
 // button's frames for the same size, place, lights and colors; the idle frame's center reads itself, its inner edge
 // reads toward the center, the ground just outside it is frosted, the cell's corner is untouched, the glint and the
-// shadow are lit; the pressed frame refracts less than the idle one and its glint stands elsewhere, as a button at
+// shadow are lit; the pressed frame refracts less than the idle one and its glint is elsewhere, as a button at
 // the window's foot has its glint elsewhere than one at its head; the frames of the press shares; and the blit leaves
-// untouched pixels alone, lights the glint, shifts a line inside the bead away from the center, lays nothing at no
+// untouched pixels alone, lights the glint, shifts a line inside the bead away from the center, positions nothing at no
 // opacity and nothing outside its clip
 #include "../../../../../includes/window/block.h"
 #include "../../../../../includes/window/frame.h"
@@ -52,7 +52,7 @@ static unsigned int glint_at(const GuiBeadAtlas *atlas, unsigned int tool, unsig
     return where;
 }
 
-// the most any pixel of `frame` reads away across, and how far every pixel of it reads away across, summed
+// the max any pixel of `frame` reads away across, and how far every pixel of it reads away across, summed
 static int reach_max(const GuiBeadAtlas *atlas, unsigned int frame)
 {
     int max = 0;
@@ -96,7 +96,7 @@ int main(void)
     const unsigned int light_count = EMBED_CALL(gui_lights_table.lights, GuiLightsCfg, .lights = lights, .frame = &frame);
     GuiBeadAtlas atlas_store;
     EMBED_CALL(gui_bead_bake_table.init, GuiBeadBakeCfg, .atlas = &atlas_store);
-    cli_check(!atlas_store.made && (atlas_store.tools == 0u), "an atlas starts with nothing laid out or baked");
+    cli_check(!atlas_store.made && (atlas_store.tools == 0u), "an atlas starts with nothing arranged or baked");
     // the atlas's pixels are the block's bead part, as many bytes as the sizes take, and its colors the palette's
     const GuiColor colors[GUI_BEAD_COLORS] = {palette->bead_glint, palette->bead_caustic, palette->bead_rim,
                                               palette->bead_shadow};
@@ -106,7 +106,7 @@ int main(void)
     cli_check(bytes > 0ULL, "the sizes take bytes");
     GuiColor *const pixels_span = (GuiColor *)(void *)EMBED_CALL(gui_block_part.span, GuiBlockPartCfg,
                                                                   .part = GUI_BLOCK_BEAD, .segment = 0u, .bytes = bytes);
-    cli_check(pixels_span != NULL, "the block hands the atlas its pixels");
+    cli_check(pixels_span != NULL, "the block passes the atlas its pixels");
     cli_check(!EMBED_CALL(gui_bead_bake_table.bake, GuiBeadBakeCfg, .atlas = &atlas_store, .colors = colors,
                           .width = BEAD_TEST_SIDE, .height = BEAD_TEST_SIDE, .pad = BEAD_TEST_PAD, .reach = BEAD_TEST_REACH, .tools = 2u,
                           .lights = lights, .light_count = light_count),
@@ -117,7 +117,7 @@ int main(void)
                          .width = BEAD_TEST_SIDE, .height = BEAD_TEST_SIDE, .pad = BEAD_TEST_PAD,
                          .reach = BEAD_TEST_REACH, .cells = cells, .tools = 2u, .lights = lights,
                          .light_count = light_count),
-              "the atlas lays out for the side_menu's buttons");
+              "the atlas arranges for the side_menu's buttons");
     const GuiBeadAtlas *const atlas = &atlas_store;
     cli_check(atlas->made && (atlas->baked == 0u) && (atlas->tools == 2u) &&
                   (atlas->cell_width == BEAD_TEST_SIDE + (2u * BEAD_TEST_PAD)) &&
@@ -132,13 +132,13 @@ int main(void)
                          .reach = BEAD_TEST_REACH, .cells = cells, .tools = 2u, .lights = lights,
                          .light_count = light_count) &&
                   (atlas->cells.pixels == pixels) && (atlas->baked == 1u),
-              "an atlas laid out again for the same sizes, places and lights keeps its baked frames");
+              "an atlas arranged again for the same sizes, places and lights retains its baked frames");
     const GuiRect moved[2] = {{18, 60, 0, 0}, {18, 700, 0, 0}};
     (void)EMBED_CALL(gui_bead_bake_table.bake, GuiBeadBakeCfg, .atlas = &atlas_store, .pixels = pixels_span, .colors = colors,
                      .width = BEAD_TEST_SIDE, .height = BEAD_TEST_SIDE, .pad = BEAD_TEST_PAD, .reach = BEAD_TEST_REACH,
                      .cells = moved, .tools = 2u, .lights = lights, .light_count = light_count);
-    cli_check(atlas->baked == 1u, "a button moved unbakes its own frames, the others kept");
-    // a button of its own width in the cell: its bead laid from the cell's top left inside the margin, the cell's
+    cli_check(atlas->baked == 1u, "a button moved unbakes its own frames, the others retained");
+    // a button of its own width in the cell: its bead positioned from the cell's top left inside the margin, the cell's
     // right side past it untouched
     const GuiRect narrow[2] = {{18, 60, 0, 0}, {18, 700, (int)BEAD_TEST_SIDE / 2, (int)BEAD_TEST_SIDE}};
     (void)EMBED_CALL(gui_bead_bake_table.bake, GuiBeadBakeCfg, .atlas = &atlas_store, .pixels = pixels_span, .colors = colors,
@@ -202,7 +202,7 @@ int main(void)
 
     cli_check(EMBED_CALL(gui_bead.frame, GuiBeadCfg, .press = BEAD_TEST_ONE, .one = BEAD_TEST_ONE) == GUI_BEAD_FRAMES - 1u, "the press whole is the last frame");
     cli_check(EMBED_CALL(gui_bead.frame, GuiBeadCfg, .press = -BEAD_TEST_ONE, .one = BEAD_TEST_ONE) == 0u, "a wobble past the first frame is the first frame");
-    cli_check((idle > 0u) && (idle < GUI_BEAD_FRAMES / 2u), "rest stands near the first frames, the wobble before it");
+    cli_check((idle > 0u) && (idle < GUI_BEAD_FRAMES / 2u), "rest is near the first frames, the wobble before it");
 
     // the blit over a flat ground with one bright line inside the bead
     GuiRaster raster;
@@ -212,7 +212,7 @@ int main(void)
     const GuiColor bright = GUI_RGB(0xffu, 0xffu, 0xffu);
     const int at_x = 40;
     const int at_y = 30;
-    // the line stands near the bead's left edge, where the low dome bends the read the most
+    // the line is near the bead's left edge, where the low dome bends the read the max
     const int line = at_x + (int)center - 12;
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 120, 120}, .color = ground);
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){line, 0, 1, 120}, .color = bright);
@@ -221,7 +221,7 @@ int main(void)
     const unsigned int row = (unsigned int)(at_y + (int)center);
     cli_check(raster.pixels[((unsigned int)at_y * 120u) + (unsigned int)at_x + atlas->cell_width - 1u] == ground,
               "the cell's untouched corner stays the ground");
-    cli_check(raster.pixels[((unsigned int)(at_y - 1) * 120u) + (unsigned int)line] == bright, "the line above the cell stands");
+    cli_check(raster.pixels[((unsigned int)(at_y - 1) * 120u) + (unsigned int)line] == bright, "the line above the cell is");
     // the dome magnifies: a pixel between the line and the edge reads the line, and the line's own pixel reads
     // nearer the center
     // the light over the read leaves the line's white near white
@@ -238,13 +238,13 @@ int main(void)
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 120, 120}, .color = ground);
     EMBED_CALL(gui_bead_blit_table.blit, GuiBeadBlitCfg, .atlas = &atlas_store, .raster = &raster, .x = at_x, .y = at_y,
                .frame = idle, .opacity = 0u);
-    cli_check(raster.pixels[(glint_row * 120u) + glint_x] == ground, "a blit at no opacity lays nothing");
+    cli_check(raster.pixels[(glint_row * 120u) + glint_x] == ground, "a blit at no opacity positions nothing");
     EMBED_CALL(gui_bead_blit_table.blit, GuiBeadBlitCfg, .atlas = &atlas_store, .raster = &raster, .x = at_x, .y = at_y,
                .frame = idle, .opacity = 255u, .clip = (GuiRect){0, 0, 10, 10});
-    cli_check(raster.pixels[(glint_row * 120u) + glint_x] == ground, "a blit lays nothing outside its clip");
+    cli_check(raster.pixels[(glint_row * 120u) + glint_x] == ground, "a blit positions nothing outside its clip");
     EMBED_CALL(gui_bead_blit_table.blit, GuiBeadBlitCfg, .atlas = &atlas_store, .raster = &raster, .x = -20, .y = -20,
                .frame = idle, .opacity = 255u);
-    cli_check(raster.pixels[0] != 0u, "a blit past the raster's corner lays what lands on it");
+    cli_check(raster.pixels[0] != 0u, "a blit past the raster's corner positions what lands on it");
 
     EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();

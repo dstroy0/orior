@@ -20,7 +20,7 @@ static const char s_meson_build[] = "project('me', 'c')\n# executable('commented
 static const char s_dotnet_project[] = "app/Hello.csproj";
 
 static CliNames s_names;
-// the lines' rings over bytes of the suite's own, as the runner lays its rings over its span of the rings block
+// the lines' rings over bytes of the suite's own, as the runner positions its rings over its span of the rings block
 static CliRunLines s_lines;
 static embed_u8 s_lines_text[CLI_LINES_TEXT];
 static CliRunnerLine s_lines_records[CLI_LINES_MAX];
@@ -32,7 +32,7 @@ static unsigned int s_lists[4096];
 static char s_text[1u << 18u];
 static CliCatalog s_catalog;
 static CliValues s_values;
-static char s_shown[8][1024];
+static char s_displayed[8][1024];
 static unsigned int s_count;
 static char s_dir[CLI_PATH_MAX_LEN];
 
@@ -105,7 +105,7 @@ static void line_recorded(const CliEachDisplayedCfg *args)
 {
     if (s_count < 8u)
     {
-        memor.cpy(&(MemoriaCfg){.dst = s_shown[s_count], .src = args->displayed, .bytes = CLI_UNITY_LENGTH(args->displayed) + 1u});
+        memor.cpy(&(MemoriaCfg){.dst = s_displayed[s_count], .src = args->displayed, .bytes = CLI_UNITY_LENGTH(args->displayed) + 1u});
         s_count += 1u;
     }
 }
@@ -120,7 +120,7 @@ static int job_displayed(const char *dir, const char *id)
     return (job != CLI_CATALOG_NONE) && EMBED_CALL(cli_runner_err_msg_root.show, CliRunnerErrMsgRootCfg, .root = dir, .catalog = &s_catalog, .job = job, .values = &s_values, .each = line_recorded, .context = NULL, .err_msg = &err_msg);
 }
 
-// the lines of `id` shown, the case ignored where its tool is not on this machine
+// the lines of `id` displayed, the case ignored where its tool is not on this machine
 static void displayed_or_ignored(const char *id, unsigned int min)
 {
     if (!job_displayed(s_dir, id) || (s_count < min))
@@ -172,7 +172,7 @@ void setUp(void)
     s_lines.text_bytes = s_lines_text;
     s_lines.line_bytes = s_lines_records;
     cli_unity_begun();
-    // the suite's folders are inside the tree's repository, whose commit would date every step; a date already sent is retained: the steps are shown
+    // the suite's folders are inside the tree's repository, whose commit would date every step; a date already sent is retained: the steps are displayed
     // as they are outside any repository
     (void)EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "SOURCE_DATE_EPOCH", .value = "0");
     s_names.count = 0u;
@@ -388,9 +388,9 @@ void test_the_compilers_are_queried_from_cmake_before_it_configures_and_builds(v
     EMBED_CALL(cli_catalog_key_values.values_begin, CliCatalogKeyValuesCfg, .values_out = &s_values);
     EMBED_CALL(cli_catalog_key_values.values_append, CliCatalogKeyValuesCfg, .values_out = &s_values, .key = "config", .value = "Release");
     displayed_or_ignored("executable/c/CMakeLists.txt:cli", 5u);
-    TEST_ASSERT_EQUAL_STRING("cmake -E touch build/cmake/c/Release/.cmake/api/v1/query/toolchains-v1", s_shown[2]);
-    TEST_ASSERT_EQUAL_STRING("cmake -S c -B build/cmake/c/Release -DCMAKE_BUILD_TYPE=Release", s_shown[3]);
-    TEST_ASSERT_EQUAL_STRING("cmake --build build/cmake/c/Release --target cli --config Release", s_shown[4]);
+    TEST_ASSERT_EQUAL_STRING("cmake -E touch build/cmake/c/Release/.cmake/api/v1/query/toolchains-v1", s_displayed[2]);
+    TEST_ASSERT_EQUAL_STRING("cmake -S c -B build/cmake/c/Release -DCMAKE_BUILD_TYPE=Release", s_displayed[3]);
+    TEST_ASSERT_EQUAL_STRING("cmake --build build/cmake/c/Release --target cli --config Release", s_displayed[4]);
 }
 
 void test_each_builds_trace_is_verbose_by_default(void)
@@ -417,11 +417,11 @@ void test_cargo_is_vv_where_verbose_and_not_where_quiet(void)
     traced_tree_written();
     trace_values(CLI_TRACE_VERBOSE, "profile", "dev");
     displayed_or_ignored("executable/Cargo.toml:tool", 1u);
-    memor.cpy(&(MemoriaCfg){.dst = first, .src = s_shown[0], .bytes = CLI_UNITY_LENGTH(s_shown[0]) + 1u});
+    memor.cpy(&(MemoriaCfg){.dst = first, .src = s_displayed[0], .bytes = CLI_UNITY_LENGTH(s_displayed[0]) + 1u});
     trace_values(CLI_TRACE_QUIET, "profile", "dev");
     displayed_or_ignored("executable/Cargo.toml:tool", 1u);
     CLI_TEST_ASSERT_CONTAINS(" -vv", first);
-    CLI_TEST_ASSERT_NOT_CONTAINS(" -vv", s_shown[0]);
+    CLI_TEST_ASSERT_NOT_CONTAINS(" -vv", s_displayed[0]);
 }
 
 void test_cmake_configures_and_builds_verbose(void)
@@ -429,8 +429,8 @@ void test_cmake_configures_and_builds_verbose(void)
     traced_tree_written();
     trace_values(CLI_TRACE_VERBOSE, "config", "Release");
     displayed_or_ignored("executable/c/CMakeLists.txt:cli", 5u);
-    TEST_ASSERT_EQUAL_STRING("cmake -S c -B build/cmake/c/Release -DCMAKE_BUILD_TYPE=Release --log-level=VERBOSE", s_shown[3]);
-    TEST_ASSERT_EQUAL_STRING("cmake --build build/cmake/c/Release --target cli --config Release --verbose", s_shown[4]);
+    TEST_ASSERT_EQUAL_STRING("cmake -S c -B build/cmake/c/Release -DCMAKE_BUILD_TYPE=Release --log-level=VERBOSE", s_displayed[3]);
+    TEST_ASSERT_EQUAL_STRING("cmake --build build/cmake/c/Release --target cli --config Release --verbose", s_displayed[4]);
 }
 
 void test_cmake_builds_quiet_where_requested(void)
@@ -438,7 +438,7 @@ void test_cmake_builds_quiet_where_requested(void)
     traced_tree_written();
     trace_values(CLI_TRACE_QUIET, "config", "Release");
     displayed_or_ignored("executable/c/CMakeLists.txt:cli", 5u);
-    TEST_ASSERT_EQUAL_STRING("cmake --build build/cmake/c/Release --target cli --config Release", s_shown[4]);
+    TEST_ASSERT_EQUAL_STRING("cmake --build build/cmake/c/Release --target cli --config Release", s_displayed[4]);
 }
 
 void test_go_is_v_x_where_verbose(void)
@@ -446,5 +446,5 @@ void test_go_is_v_x_where_verbose(void)
     traced_tree_written();
     trace_values(CLI_TRACE_VERBOSE, NULL, NULL);
     displayed_or_ignored("executable/g/go.mod:g", 1u);
-    CLI_TEST_ASSERT_CONTAINS(" -trimpath -v -x -o ", s_shown[0]);
+    CLI_TEST_ASSERT_CONTAINS(" -trimpath -v -x -o ", s_displayed[0]);
 }

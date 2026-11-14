@@ -32,7 +32,7 @@ int main(void)
     cli_check((at(line, 8u, 5u) == 0u) && (at(line, 8u, 10u) == 0u), "the rows away from it are clear");
     cli_check((at(line, 0u, 7u) == 0u) && (at(line, 15u, 7u) == 0u), "the pixels past its round ends are clear");
     cli_check((at(line, 2u, 7u) > 60u) && (at(line, 2u, 7u) < 200u), "its round end covers the pixel it ends in by a share");
-    cli_check(EMBED_CALL(gui_icons.icon, GuiIconsCfg, .icons = &icons, .name = "minimize", .size = 16u, .stroke = 2.0f) == line, "the icon asked again is the one kept");
+    cli_check(EMBED_CALL(gui_icons.icon, GuiIconsCfg, .icons = &icons, .name = "minimize", .size = 16u, .stroke = 2.0f) == line, "the icon asked again is the one retained");
     cli_check(EMBED_CALL(gui_icons.icon, GuiIconsCfg, .icons = &icons, .name = "minimize", .size = 32u, .stroke = 2.0f) != line, "the icon at another size is drawn anew");
 
     const GuiMask *const square = EMBED_CALL(gui_icons.icon, GuiIconsCfg, .icons = &icons, .name = "maximize", .size = 16u, .stroke = 2.0f);
@@ -67,7 +67,7 @@ int main(void)
 
     const GuiMask *const cog = EMBED_CALL(gui_icons.icon, GuiIconsCfg, .icons = &icons, .name = "gear", .size = 16u, .stroke = 2.0f);
     cli_check((at(cog, 14u, 8u) > 200u) && (at(cog, 8u, 8u) < 40u) && (at(cog, 0u, 0u) == 0u),
-              "the cog's tooth stands at its rim, its hub about its middle, and its corner is clear");
+              "the cog's tooth is at its rim, its hub about its middle, and its corner is clear");
 
     const GuiMask *const large = EMBED_CALL(gui_icons.icon, GuiIconsCfg, .icons = &icons, .name = "folder", .size = 29u, .stroke = 2.0f);
     cli_check((large != NULL) && (large->width == 29u) && (at(large, 14u, 23u) > 200u) && (at(large, 14u, 2u) == 0u),

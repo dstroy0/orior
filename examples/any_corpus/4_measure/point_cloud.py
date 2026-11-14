@@ -65,7 +65,7 @@ def load_text(path):
     """A text file as points on a line holding characters, the only width Chinese survives."""
     with open(path, encoding="utf-8", errors="replace") as handle:
         text = handle.read(CAP)
-    # Line endings folded, as everywhere here, to keep a publisher's wrapping out of the measurement
+    # Line endings folded, as everywhere here, to retain a publisher's wrapping out of the measurement
     text = text.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
     seating = {}
     for character in text:

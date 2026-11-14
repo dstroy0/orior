@@ -3,16 +3,16 @@
 
 // The panes that take the editor's room: the job list, the explorer and the definitions. A moment
 // after the app loads, after its view shows, or after the pointer leaves one, it collapses, giving
-// its width back and sliding up and toward the edge it stands at, and the pointer resting on that edge
+// its width back and sliding up and toward the edge it is at, and the pointer resting on that edge
 // of the window for a moment brings it back, where one passing over the edge brings nothing; one
 // brought back that the pointer never comes onto goes again a moment later. A pane that holds the pointer, that is being typed in, or that a menu is open over,
 // or a left pane with the pointer on the tool strip beside it,
-// stays until all have left it, as every pane does while the window's frame is kept, and is looked
+// stays until all have left it, as every pane does while the window's frame is retained, and is looked
 // at again every REST while it stays. A pane is being typed in from a key pressed in it until the
-// next press of the pointer anywhere: what a click leaves the keys on does not keep it. A pane that
-// collapses holding the keys hands them to the editor beside it. A pane shown for the reader to look
+// next press of the pointer anywhere: what a click leaves the keys on does not retain it. A pane that
+// collapses holding the keys passes them to the editor beside it. A pane displayed for the reader to look
 // at, as Find Usages shows the explorer, stays until the pointer has come onto it and left. Whether
-// panes collapse on their own is the reader's to set, and kept; Ctrl+B shows or collapses the view's
+// panes collapse on their own is the reader's to set, and retained; Ctrl+B shows or collapses the view's
 // own pane either way.
 
 import { menuOpen } from "./menu.js";
@@ -39,7 +39,7 @@ const reduced = { get matches() { return motionReduced(); } };
 const panes = [];
 
 // What the pointer is over, or null once it has left the window: the window's own record of where
-// the pointer is, which a pointer gone out of the window over a pane does not leave standing.
+// the pointer is, which a pointer gone out of the window over a pane does not leave located.
 let pointerAt = null;
 document.addEventListener("pointerover", (event) => (pointerAt = event.target), true);
 document.addEventListener("pointermove", (event) => (pointerAt = event.target), true);
@@ -61,18 +61,18 @@ export function autoCollapse() {
 }
 
 // Shows a pane or collapses it. A pane collapsing holds its room while it slides away whole, its ground
-// and its inside together, and gives the room back in one step after; one shown takes its room at once
+// and its inside together, and gives the room back in one step after; one displayed takes its room at once
 // and slides in whole.
-function setShown(pane, shown) {
+function setShown(pane, displayed) {
   const { node } = pane;
   window.clearTimeout(pane.slide);
-  if (shown === node.classList.contains("collapsed") && !reduced.matches) {
+  if (displayed === node.classList.contains("collapsed") && !reduced.matches) {
     preempt(SLIDE + 60);
   }
-  if (!shown && !node.classList.contains("collapsed") && !reduced.matches) {
+  if (!displayed && !node.classList.contains("collapsed") && !reduced.matches) {
     const box = node.getBoundingClientRect();
     node.style.setProperty("--reserved", `${node.classList.contains("toward-bottom") ? box.height : box.width}px`);
-    // a pane still arriving stands where it collapses to; the slide away starts from the pane shown, so the arrival
+    // a pane still arriving is where it collapses to; the slide away starts from the pane displayed, so the arrival
     // is over as it begins
     node.classList.remove("arriving");
     node.classList.add("sliding");
@@ -80,7 +80,7 @@ function setShown(pane, shown) {
       node.classList.remove("sliding");
       node.style.removeProperty("--reserved");
     }, SLIDE);
-  } else if (shown) {
+  } else if (displayed) {
     node.classList.remove("sliding");
     node.style.removeProperty("--reserved");
     // The frame the editor gives its room back in redraws the whole window; the inside starts to
@@ -90,9 +90,9 @@ function setShown(pane, shown) {
       requestAnimationFrame(() => requestAnimationFrame(() => node.classList.remove("arriving")));
     }
   }
-  node.classList.toggle("collapsed", !shown);
-  node.inert = !shown;
-  pane.edge.hidden = shown;
+  node.classList.toggle("collapsed", !displayed);
+  node.inert = !displayed;
+  pane.edge.hidden = displayed;
 }
 
 function collapseLater(pane) {
@@ -106,10 +106,10 @@ function tryCollapse(pane) {
     return;
   }
   const typing = pane.keyed && node.contains(document.activeElement);
-  if (pane.keptOpen) {
+  if (pane.retainedOpen) {
     return;
   }
-  // The tool strip beside a left pane is a part of it: the pointer on the strip keeps it.
+  // The tool strip beside a left pane is a part of it: the pointer on the strip retains it.
   const onStrip = node.classList.contains("toward-left") && holdsPointer(document.getElementById("strip"));
   if (holdsPointer(node) || onStrip || typing || pane.pinned || menuOpen() || still()) {
     collapseLater(pane);
@@ -124,7 +124,7 @@ function tryCollapse(pane) {
 
 // Makes `node` a pane that collapses toward `side`, left, right or bottom, with its edge in the
 // view; `own` marks the view's own pane, the one Ctrl+B shows and collapses.
-export function keepPane(node, side, { own = false } = {}) {
+export function retainPane(node, side, { own = false } = {}) {
   const edge = Object.assign(document.createElement("div"), { className: `pane-edge pane-edge-${side}`, hidden: true });
   edge.setAttribute("aria-hidden", "true");
   node.closest(".mode").append(edge);
@@ -172,7 +172,7 @@ export function settlePanes() {
   panes.forEach(collapseLater);
 }
 
-// A press of the pointer anywhere ends the typing that keeps a pane.
+// A press of the pointer anywhere ends the typing that retains a pane.
 window.addEventListener(
   "pointerdown",
   () => {
@@ -183,14 +183,14 @@ window.addEventListener(
   true,
 );
 
-// Holds the pane at `node` shown, as a window that shows it alone does, or lets it go again.
-export function holdPane(node, keptOpen) {
+// Holds the pane at `node` displayed, as a window that shows it alone does, or lets it go again.
+export function holdPane(node, retainedOpen) {
   const pane = panes.find((one) => one.node === node);
   if (!pane) {
     return;
   }
-  pane.keptOpen = keptOpen;
-  if (keptOpen) {
+  pane.retainedOpen = retainedOpen;
+  if (retainedOpen) {
     setShown(pane, true);
   } else {
     collapseLater(pane);
@@ -208,7 +208,7 @@ export function movePane(node, side) {
   pane.edge.className = `pane-edge pane-edge-${side}`;
 }
 
-// The view's own pane, wherever it stands.
+// The view's own pane, wherever it is.
 function leftPane() {
   return panes.find((pane) => pane.own && pane.node.offsetParent !== null);
 }
@@ -218,23 +218,23 @@ export function paneShown() {
   return Boolean(pane && !pane.node.classList.contains("collapsed"));
 }
 
-// Shows the view's own pane or collapses it. A pane shown from the keys takes them, and stays while
-// it holds them; one shown with `take` off leaves the keys where they are and stays until the pointer
+// Shows the view's own pane or collapses it. A pane displayed from the keys takes them, and stays while
+// it holds them; one displayed with `take` off leaves the keys where they are and stays until the pointer
 // has been on it, or, with `pin` off as well, as the strip shows it, only while the pointer is on
 // the pane or on the strip.
-export function togglePane(shown = !paneShown(), { take = true, pin = true } = {}) {
+export function togglePane(displayed = !paneShown(), { take = true, pin = true } = {}) {
   const pane = leftPane();
   if (!pane) {
     return;
   }
-  setShown(pane, shown);
-  if (shown && take) {
+  setShown(pane, displayed);
+  if (displayed && take) {
     pane.keyed = true;
     pane.node.querySelector("input, button")?.focus();
-  } else if (shown) {
+  } else if (displayed) {
     pane.pinned = pin;
   }
-  if (shown) {
+  if (displayed) {
     collapseLater(pane);
   }
 }
@@ -244,15 +244,15 @@ export function paneNodeShown(node) {
   return !node.hidden && !node.classList.contains("collapsed");
 }
 
-// Shows the pane at `node` or collapses it, a pane shown this way staying until the pointer has been
+// Shows the pane at `node` or collapses it, a pane displayed this way staying until the pointer has been
 // on it, or with `pin` off only while the pointer is on it or on the strip.
-export function togglePaneNode(node, shown = !paneNodeShown(node), { pin = true } = {}) {
+export function togglePaneNode(node, displayed = !paneNodeShown(node), { pin = true } = {}) {
   const pane = panes.find((one) => one.node === node);
   if (!pane) {
     return;
   }
-  setShown(pane, shown);
-  if (shown) {
+  setShown(pane, displayed);
+  if (displayed) {
     pane.pinned = pin;
     collapseLater(pane);
   }

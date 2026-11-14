@@ -32,7 +32,7 @@ EMBED_INLINE int keys_name_is(const KeysCtx *args)
     return (at == args->name_size) && (args->other[at] == '\0');
 }
 
-// a cursor key: ESC [ 1 ; mods+1 letter with modifiers, else ESC O letter in the application mode and ESC [ letter
+// a cursor key: ESC [ 1 ; mods+1 character with modifiers, else ESC O character in the application mode and ESC [ character
 // out of it: 1, or 0 where the key is none of them
 EMBED_INLINE int keys_cursor(const KeysCtx *args)
 {
@@ -82,8 +82,8 @@ EMBED_INLINE int keys_special(const KeysCtx *args)
     return 0;
 }
 
-// a key whose name is one letter or sign, or Space, with Control or Alt down: Control's control letter, or Alt's escape
-// and the letter, a letter in its upper case only with Shift: 1, or 0 where it sends nothing
+// a key whose name is one character or sign, or Space, with Control or Alt down: Control's control character, or Alt's escape
+// and the character, a character in its upper case only with Shift: 1, or 0 where it sends nothing
 EMBED_INLINE int keys_modified(const KeysCtx *args)
 {
     const int space =
@@ -96,12 +96,12 @@ EMBED_INLINE int keys_modified(const KeysCtx *args)
     const int control = (args->mods & CLI_TERMINAL_MOD_CONTROL) != 0u;
     const int alt = (args->mods & CLI_TERMINAL_MOD_ALT) != 0u;
     const int shift = (args->mods & CLI_TERMINAL_MOD_SHIFT) != 0u;
-    const int letter = (key >= 'A') && (key <= 'Z');
+    const int character = (key >= 'A') && (key <= 'Z');
     if (control && !alt)
     {
-        // a letter or one of @ [ \ ] ^ _ is its code less 64; Space, / and ? have control letters of their own
+        // a character or one of @ [ \ ] ^ _ is its code less 64; Space, / and ? have control characters of their own
         const int lettered =
-            letter || (key == '@') || (key == '[') || (key == '\\') || (key == ']') || (key == '^') || (key == '_');
+            character || (key == '@') || (key == '[') || (key == '\\') || (key == ']') || (key == '^') || (key == '_');
         const int sends = lettered || (key == ' ') || (key == '/');
         const char sent = lettered                  ? (char)(key - '@')
                           : (key == ' ')            ? '\0'
@@ -116,7 +116,7 @@ EMBED_INLINE int keys_modified(const KeysCtx *args)
     if (alt && !control)
     {
         mmgr_line_ch(args->out, '\x1b');
-        mmgr_line_ch(args->out, (letter && !shift) ? (char)(key + ('a' - 'A')) : key);
+        mmgr_line_ch(args->out, (character && !shift) ? (char)(key + ('a' - 'A')) : key);
         return 1;
     }
     return 0;

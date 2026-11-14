@@ -220,7 +220,7 @@ unsigned int sass_cubin_prefers(SassProbe *probe, const SassMachine *machine, un
         for (unsigned int side = 0u; written_ok && (side < 2u); side += 1u)
         {
             const char *const coding = (side == 0u) ? prefer->one : prefer->other;
-            double most = 0.0;
+            double max = 0.0;
             for (unsigned int take = 0u; written_ok && (take < SASS_PREFER_TAKES); take += 1u)
             {
                 char answer[256];
@@ -237,9 +237,9 @@ unsigned int sass_cubin_prefers(SassProbe *probe, const SassMachine *machine, un
                     continue;
                 }
                 least[side] = ((least[side] == 0.0) || (taken < least[side])) ? taken : least[side];
-                most = (taken > most) ? taken : most;
+                max = (taken > max) ? taken : max;
             }
-            spread = ((most - least[side]) > spread) ? (most - least[side]) : spread;
+            spread = ((max - least[side]) > spread) ? (max - least[side]) : spread;
         }
         if (written_ok == 0)
         {
@@ -251,8 +251,8 @@ unsigned int sass_cubin_prefers(SassProbe *probe, const SassMachine *machine, un
         read += 1u;
         const double apart = (least[0] > least[1]) ? (least[0] - least[1]) : (least[1] - least[0]);
         const double each = apart / (double)SASS_PREFER_TURNS;
-        // A reading the part gave, or a pair it ran and distinguished nothing on: the two stood closer together than
-        // the same coding stood to itself across its own runs, a question queried with no answer in it.
+        // A reading the part gave, or a pair it ran and distinguished nothing on: the two was closer together than
+        // the same coding was to itself across its own runs, a question queried with no answer in it.
         //
         // The word stored is 0 and never the time. How long a coding took is a cost and belongs in the .kdm; what
         // belongs here is whether the question got an answer at all. Writing the time would also put a number that

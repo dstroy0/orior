@@ -96,7 +96,7 @@
     border-bottom: 1px solid var(--rule);
     font-family: "IBM Plex Mono", monospace;
     font-size: 9px;
-    letter-spacing: 0.14em;
+    character-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--muted);
   }
@@ -148,7 +148,7 @@
   .pick label {
     font-family: "IBM Plex Mono", monospace;
     font-size: 9px;
-    letter-spacing: 0.08em;
+    character-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--muted);
     flex: 0 0 auto;
@@ -297,7 +297,7 @@
     font-family: "IBM Plex Mono", monospace;
     font-size: 9px;
     font-weight: 600;
-    letter-spacing: 0.12em;
+    character-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--ink);
     margin: 0 0 6px;
@@ -318,8 +318,8 @@
       </div>
       <div class="panel-body">
         <div class="pick">
-          <label for="kind">Draw as</label>
-          <select id="kind">
+          <label for="type">Draw as</label>
+          <select id="type">
             <option value="line">line</option>
             <option value="scatter">scatter</option>
             <option value="step">step</option>
@@ -392,7 +392,7 @@
       };
     });
 
-    var kind = "line";
+    var type = "line";
     var dotSize = 0;
     var lineWide = 2;
     var logY = false;
@@ -562,7 +562,7 @@
         ctx.lineJoin = "round";
 
         var started = false;
-        if (kind === "line" || kind === "step" || kind === "area") {
+        if (type === "line" || type === "step" || type === "area") {
           ctx.beginPath();
           var lastX = 0,
             lastY = 0;
@@ -579,7 +579,7 @@
             if (!started) {
               ctx.moveTo(px, py);
               started = true;
-            } else if (kind === "step") {
+            } else if (type === "step") {
               ctx.lineTo(px, lastY);
               ctx.lineTo(px, py);
             } else {
@@ -588,7 +588,7 @@
             lastX = px;
             lastY = py;
           }
-          if (kind === "area" && started) {
+          if (type === "area" && started) {
             ctx.lineTo(lastX, pad.top + down);
             ctx.lineTo(toX(Math.max(box.xLow, zoom ? zoom.from : box.xLow)), pad.top + down);
             ctx.closePath();
@@ -599,7 +599,7 @@
           ctx.stroke();
         }
 
-        if (kind === "bar") {
+        if (type === "bar") {
           var seen = one.xs.filter(function (x) {
             return !zoom || (x >= zoom.from && x <= zoom.to);
           });
@@ -618,7 +618,7 @@
           }
         }
 
-        var radius = kind === "scatter" ? Math.max(1.5, dotSize || 2.5) : dotSize;
+        var radius = type === "scatter" ? Math.max(1.5, dotSize || 2.5) : dotSize;
         if (radius > 0) {
           for (var d = 0; d < one.xs.length; d += 1) {
             if (zoom && (one.xs[d] < zoom.from || one.xs[d] > zoom.to)) {
@@ -744,8 +744,8 @@
 
     // -- the controls --------------------------------------------------------------------------
 
-    document.getElementById("kind").addEventListener("change", function () {
-      kind = this.value;
+    document.getElementById("type").addEventListener("change", function () {
+      type = this.value;
       repaint();
     });
     document.getElementById("dot").addEventListener("input", function () {
@@ -866,9 +866,9 @@
       }
     }
 
-    if (DATA.kind) {
-      kind = DATA.kind;
-      document.getElementById("kind").value = DATA.kind;
+    if (DATA.type) {
+      type = DATA.type;
+      document.getElementById("type").value = DATA.type;
     }
     repaint();
   })();

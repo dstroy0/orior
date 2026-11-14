@@ -76,7 +76,7 @@ def by_rows(rows, rows_per_page):
 
 
 def by_row_bytes(rows, kb_per_page):
-    """Chunks holding at most kb_per_page kilobytes, split only between rows."""
+    """Chunks holding at max kb_per_page kilobytes, split only between rows."""
     limit = kb_per_page * 1024
     used = 0
     chunk = []

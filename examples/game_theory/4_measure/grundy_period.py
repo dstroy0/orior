@@ -6,7 +6,7 @@
 # Ask the period detector for a subtraction game's Grundy period, on every move set in a sweep, with
 # the answer to each row computed separately and exactly.
 #
-#   Usage:  python examples/game_theory/4_measure/grundy_period.py [largest move] [most moves]
+#   Usage:  python examples/game_theory/4_measure/grundy_period.py [largest move] [max moves]
 #
 # This exists to close a hole the workbook names in its own words. Every reach claim in this work is
 # empirical, quantified over a set nobody has enumerated, and the workbook states that getting from
@@ -20,7 +20,7 @@
 # detector being tested. This subject is for that.
 #
 # The detector is `measure.periodicity.sequence_period` and the crystallography chapter
-# uses it on cell edges. It knows nothing about games. It is handed a list of small integers.
+# uses it on cell edges. It knows nothing about games. It is passed a list of small integers.
 #
 # One rule has to be respected and it is the detector's own. A period is scored against its
 # multiples. A period beyond half the window has a family of one inside the window and is the
@@ -66,7 +66,7 @@ def read(values, longest):
 def floor_from_shuffles(values, longest, draws=DRAWS):
     """The tallest margin a shuffle of the same values reaches at this window.
 
-    The shuffle keeps every Grundy value and destroys which position carries it. Whatever it
+    The shuffle retains every Grundy value and destroys which position carries it. Whatever it
     reaches is what the detector reads off the histogram alone.
     """
     best = 0.0
@@ -81,11 +81,11 @@ def floor_from_shuffles(values, longest, draws=DRAWS):
 
 def main():
     largest = int(sys.argv[1]) if len(sys.argv) > 1 else 10
-    most = int(sys.argv[2]) if len(sys.argv) > 2 else 4
+    max = int(sys.argv[2]) if len(sys.argv) > 2 else 4
     out = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", newline="")
 
     games = []
-    for count in range(1, most + 1):
+    for count in range(1, max + 1):
         games.extend(itertools.combinations(range(1, largest + 1), count))
 
     rows = []

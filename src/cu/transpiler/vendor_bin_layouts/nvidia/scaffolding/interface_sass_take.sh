@@ -9,7 +9,7 @@
 #
 # The second form gives every form the machine file holds its fields again and writes the file. It is one query run,
 # query<n>-<datetime>.qry in build/interface_sass_take/qry (qry_run.sh), whose writer writes the machine file in its
-# place, which therefore stands in the tree.
+# place, which therefore is in the tree.
 set -u
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../../.." && pwd)"

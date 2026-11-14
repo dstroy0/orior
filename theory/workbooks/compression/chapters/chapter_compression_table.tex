@@ -81,11 +81,11 @@ A stream of B bits a voxel sits (B − F4) / 16 of raw above the noise floor, an
 
 \subsection{\texorpdfstring{C10. No combination of frames goes below their draws (F4)}{C10. No combination of frames goes below their draws (F4)}}
 
-N frames of independent k-bit draws have 2\textasciicircum{}(N·k) possible values. A k-bit summary (an AND, an OR, an XOR, a sum) names only 2\textasciicircum{}k of them. A lossless code keeps the other (N − 1)·k bits somewhere. What every frame shares is read once: ∧\_\allowbreak{}t I\_\allowbreak{}t gives the bits set in every frame, and ∧\_\allowbreak{}t ¬I\_\allowbreak{}t the bits clear in every frame. Those are the bits constant across frames, the engine's anchor bits.
+N frames of independent k-bit draws have 2\textasciicircum{}(N·k) possible values. A k-bit summary (an AND, an OR, an XOR, a sum) names only 2\textasciicircum{}k of them. A lossless code retains the other (N − 1)·k bits somewhere. What every frame shares is read once: ∧\_\allowbreak{}t I\_\allowbreak{}t gives the bits set in every frame, and ∧\_\allowbreak{}t ¬I\_\allowbreak{}t the bits clear in every frame. Those are the bits constant across frames, the engine's anchor bits.
 
 \subsection{\texorpdfstring{C11. A reversible computation conserves bits (F4, the compressed file)}{C11. A reversible computation conserves bits (F4, the compressed file)}}
 
-Every lifting step is an integer bijection (A8). Running the scheduler's log backward or forward maps each state to exactly one state and keeps its bit count. The log holds the operations (few bits) and the random draw (V·F4 a frame). It shrinks to the operations alone only when the draw came from a program, as in the synthetic test, where the draws recovered to a 64-bit xorshift seed.
+Every lifting step is an integer bijection (A8). Running the scheduler's log backward or forward maps each state to exactly one state and retains its bit count. The log holds the operations (few bits) and the random draw (V·F4 a frame). It shrinks to the operations alone only when the draw came from a program, as in the synthetic test, where the draws recovered to a 64-bit xorshift seed.
 
 \subsection{\texorpdfstring{C12. Linear complexity (the low planes)}{C12. Linear complexity (the low planes)}}
 
@@ -93,7 +93,7 @@ A random sequence of n bits has linear complexity L near n/2, and L ≤ n/2 − 
 
 \subsection{\texorpdfstring{C13. The coder against the count (F5)}{C13. The coder against the count (F5)}}
 
-Exact arithmetic coding spends at most ⌈Σ −log₂ p⌉ + 1 bits over a whole stream, within 2 bits of the model's length. Enumerative coding (C0) spends exactly the count. A fixed-width range coder rounds each interval and loses a sliver per symbol.
+Exact arithmetic coding spends at max ⌈Σ −log₂ p⌉ + 1 bits over a whole stream, within 2 bits of the model's length. Enumerative coding (C0) spends exactly the count. A fixed-width range coder rounds each interval and loses a sliver per symbol.
 
 \subsection{\texorpdfstring{C14. Charge before the gain sits on the photon transfer line (F4; rows 2 to 6)}{C14. Charge before the gain sits on the photon transfer line (F4; rows 2 to 6)}}
 
@@ -117,9 +117,9 @@ s₃ ≥ s₂²,  s₂·s₄ ≥ s₃²,
 
 each an equality only where every electron gives the same X. Both are cross-multiplied comparisons of fitted slopes, with no root or quotient formed. A set of slopes that breaks either is not one gained Poisson count plus symmetric signal-independent noise. The slope s₂ alone never splits g from F²; s₂ and s₃ together split them only once the single electron's law is named.
 
-\subsection{\texorpdfstring{C16. Thinning keeps a Poisson count Poisson (rows 13, 14 and 16)}{C16. Thinning keeps a Poisson count Poisson (rows 13, 14 and 16)}}
+\subsection{\texorpdfstring{C16. Thinning retains a Poisson count Poisson (rows 13, 14 and 16)}{C16. Thinning retains a Poisson count Poisson (rows 13, 14 and 16)}}
 
-If N is Poisson with mean λ and each of its events is kept independently with probability q, the kept count is Poisson with mean q·λ, and the kept and lost counts are independent: the generating function exp(λ·(z − 1)), taken at 1 − q + q·z, is exp(q·λ·(z − 1)). Quantum efficiency (row 14) and partition (row 13) thin the light. On Poisson light they only rescale its mean, and no reading of the frames names Q\_\allowbreak{}e or a partition apart from the light's own rate. For any count with Fano factor f = var(N) / E[N], the thinned count's is
+If N is Poisson with mean λ and each of its events is retained independently with probability q, the retained count is Poisson with mean q·λ, and the retained and lost counts are independent: the generating function exp(λ·(z − 1)), taken at 1 − q + q·z, is exp(q·λ·(z − 1)). Quantum efficiency (row 14) and partition (row 13) thin the light. On Poisson light they only rescale its mean, and no reading of the frames names Q\_\allowbreak{}e or a partition apart from the light's own rate. For any count with Fano factor f = var(N) / E[N], the thinned count's is
 
 f′ = 1 + q·(f − 1),
 
@@ -248,7 +248,7 @@ variance / level & 1.15 & 1.35 & 1.26 & 1.24 & 1.25 & 1.28 & 1.55 & 1.98 & 3.17 
 \end{longtable}
 }
 
-From level 24 to 104 the ratio holds at 1.15 to 1.35 and both estimators agree: shot noise. Above 120 the change is present in most frames. The median cannot remove it, and the ratio climbs to a plateau near 170,000. A single line fitted over every bin (138.4 × level − 23,437) is not a photon transfer curve; the steep bins dominate it, and its noise floor (4.97 bits) is discarded.
+From level 24 to 104 the ratio holds at 1.15 to 1.35 and both estimators agree: shot noise. Above 120 the change is present in max frames. The median cannot remove it, and the ratio climbs to a plateau near 170,000. A single line fitted over every bin (138.4 × level − 23,437) is not a photon transfer curve; the steep bins dominate it, and its noise floor (4.97 bits) is discarded.
 
 \textbf{The same, motion removed by neighbor differencing (C5, C6, C7).} Whether the bright excess is noise or structure is read from space: white noise does not correlate with its neighbor, moving structure does. The frame difference d is correlated with its x, y and z neighbors, per level, over 10 frame pairs of whole frames (41,943,040 voxel-frames); subtracting the neighbor cancels the smooth structure, and var(d − d\_\allowbreak{}neighbour) / 4 is the white noise per frame that remains, an upper bound. The script is scratch (\texttt{coherence.\allowbreak{}py}).
 
@@ -333,10 +333,10 @@ sample & gain & intercept & white / level, 40 to 200 & corr x of d at level 40 &
 \textbf{What it says.}
 
 \begin{itemize}
-\item \textbf{One sensor noise model across the dataset.} The gain runs 0.821 to 1.162, mean 0.986: about one count a photon, with the offset near zero on most samples. The noise floor varies by sample (31.8\% to 43.6\%) because the samples sit at different signal levels, not because the noise law changes.
+\item \textbf{One sensor noise model across the dataset.} The gain runs 0.821 to 1.162, mean 0.986: about one count a photon, with the offset near zero on max samples. The noise floor varies by sample (31.8\% to 43.6\%) because the samples sit at different signal levels, not because the noise law changes.
 \item \textbf{The dataset's noise floor is 38.9\% of raw.} Each sample is the same size, and the dataset's F4 is the mean. The compressed files hold the 25 samples at 42.0\% (6.721 bits a voxel), 0.492 bits a voxel above the noise floor: 3.1 points of raw, about 645 MB of the 8.81 GB (C9).
 \item \textbf{Constant regions go below the photon transfer line.} On 44b6\_\allowbreak{}0db75fae, 267148e4 and 5740d24b the neighbor bound (32.9\%, 32.6\%, 36.9\%) falls under the shot-only noise floor (34.5\%, 35.6\%, 38.4\%). All three are samples the engine's ledger found holding a constant region: voxels that never change cost nothing, and the photon transfer line does not know them. The fixed-pattern functional takes that part, and F4 on those samples is the lower of the two.
-\item \textbf{A spatially correlated category.} On most samples the dim differences are nearly white (corr x at level 40 below 0.11 on 21 of the 25). 44b6\_\allowbreak{}267148e4 (0.761), 668e0cc7 (0.354) and 5740d24b (0.150) are not: something moves whole neighborhoods together at the dimmest levels, frame to frame. It is a category the functionals must write (the spatially correlated row of the plan), and it is not yet identified.
+\item \textbf{A spatially correlated category.} On max samples the dim differences are nearly white (corr x at level 40 below 0.11 on 21 of the 25). 44b6\_\allowbreak{}267148e4 (0.761), 668e0cc7 (0.354) and 5740d24b (0.150) are not: something moves whole neighborhoods together at the dimmest levels, frame to frame. It is a category the functionals must write (the spatially correlated row of the plan), and it is not yet identified.
 \item \textbf{Two fits to check.} 44b6\_\allowbreak{}12dfb391 fits a negative intercept (−11.74), and 53f95252 an intercept of 21.08 with the lowest gain (0.821). Both lines bend inside 40 to 200. A straight line is not quite their law.
 \end{itemize}
 
@@ -344,7 +344,7 @@ sample & gain & intercept & white / level, 40 to 200 & corr x of d at level 40 &
 
 There is much more room to claim, by refining the spatial noise terms and the search. The algorithm can reach the theoretical lower bound universally if noise departure is treated carefully, with functionals. Once the real categories of noise are known, each gets its functional, and all of them are integrated.
 
-\textbf{The claim, stated exactly.} K(x) is not computable: no algorithm reaches it on every input. What a coder can reach is the entropy of the source's true noise: Shannon's bound~\cite{src:Shannon}, the most any coder takes on average. A coder whose per-voxel counts come from functionals that describe the real noise reaches that bound, to within a constant, on every dataset those categories cover. “Universal” means exactly that: universal over the datasets whose noise the category functionals describe. When a dataset needs a category the functionals lack, the gap to F5 names it.
+\textbf{The claim, stated exactly.} K(x) is not computable: no algorithm reaches it on every input. What a coder can reach is the entropy of the source's true noise: Shannon's bound~\cite{src:Shannon}, the max any coder takes on average. A coder whose per-voxel counts come from functionals that describe the real noise reaches that bound, to within a constant, on every dataset those categories cover. “Universal” means exactly that: universal over the datasets whose noise the category functionals describe. When a dataset needs a category the functionals lack, the gap to F5 names it.
 
 \textbf{The categories to write functionals for.} The four noise vectors (noise\_\allowbreak{}sieve\_\allowbreak{}tower.md §16), each a deterministic functional of the sample, read and never assumed. Each is a sum of exact integers, with no float:
 
@@ -421,7 +421,7 @@ All on 44b6\_\allowbreak{}0113de3b, against the 340,189,016-byte stream, each va
 
 {\small
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.3011\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2651\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.4338\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.3011\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2652\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.4337\linewidth-2\tabcolsep\relax}}
 \toprule
 what & stream change & status \\
 \midrule
@@ -431,7 +431,7 @@ the same along y & +6.4, +11.3, +12.1 MB & refuted \\
 the same along t & +1.35, +2.10, +0.18 MB & refuted: real temporal structure, but the pivot shear costs more than it takes \\
 each level's subbands row by row & −1,157,533 bytes & measured: grouping by level helps; not built into the coder \\
 shells of squared radius, each swept by angle & +658,073 bytes & refuted for the angle sweep only; the golden order (k(φ − 1) mod 1, \texttt{cell\_\allowbreak{}tracking/\allowbreak{}maint/\allowbreak{}emit\_\allowbreak{}spiral\_\allowbreak{}table.\allowbreak{}py}) is untested \\
-2 along t, each level apart & −1,987,962 bytes & measured on this sample; hurts on most others (the e − 1 rows below) \\
+2 along t, each level apart & −1,987,962 bytes & measured on this sample; hurts on max others (the e − 1 rows below) \\
 2, 4, 8 along t, rotated onto each level's line & −1.88, −1.63, −1.47 MB & refuted: worse than no rotation at every n \\
 pairs along t over rectangles, the savings ratio & 1.7174 here, then −8.29, 0.44, −73.2, −1.60 on four more samples & refuted: a coincidence \\
 \bottomrule

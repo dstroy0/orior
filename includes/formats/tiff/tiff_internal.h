@@ -68,7 +68,7 @@ typedef struct
     unsigned long long height;
     unsigned long long page_bytes;
     unsigned int element_bytes;
-    EngineElementKind element_kind;
+    EngineElementKind element_type;
     unsigned long long compression;
     unsigned long long predictor;
     unsigned long long chunk_width;

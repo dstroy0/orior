@@ -31,24 +31,24 @@ typedef struct
     int crlf;
 } CliStoredLines;
 
-// the line past the last of a text read whole whose runs are handed on: every line's
+// the line past the last of a text read whole whose runs are passed on: every line's
 #define CLI_DOC_CACHED_ALL 0xffffffffu
 
-// the most colorings of one text whose lines are claimed at once; a coloring past them claims none, its lines colored
+// the max colorings of one text whose lines are claimed at once; a coloring past them claims none, its lines colored
 // again by any that comes to them
 #define CLI_DOC_CLAIMS 16u
 
-// the most texts stored at once
-#define CLI_STORED_MOST 1024u
+// the max texts stored at once
+#define CLI_STORED_MAX 1024u
 
 // the words a saved change takes: the newer lines' from and to, the older lines' from and to
 #define CLI_DOC_HUNK_WORDS 4u
 
 // a line's regions as the walk records them, read off its leaves by the roles its grammar's names give them: the
 // regions it opens and leaves open, in the low bits; above them those opened above it that it closes; above those how
-// many of them it closes before any leaf stands on it, each count no more than CLI_DOC_REGION_COUNT; whether it holds
-// a leaf, a run its grammar names of one letter or more; whether every leaf on it closes a pair, ends a statement or
-// parts one; and whether a mark of no letters closes the first region it closes
+// many of them it closes before any leaf is on it, each count no more than CLI_DOC_REGION_COUNT; whether it holds
+// a leaf, a run its grammar names of one character or more; whether every leaf on it closes a pair, ends a statement or
+// parts one; and whether a mark of no characters closes the first region it closes
 #define CLI_DOC_REGION_COUNT 0x1ffu
 #define CLI_DOC_REGION_CLOSES_AT 9u
 #define CLI_DOC_REGION_UNLED_AT 18u
@@ -60,26 +60,26 @@ typedef struct
 // cells meet: the next stored, its key, its lines in movable cells sized to them, whether the last commit's file is
 // known and whether the commit stores one, and that file's lines the same way; the changes between that file and its
 // lines as the diff last found them, CLI_DOC_HUNK_WORDS words a change in a movable cell sized to them, how many, and
-// the serial they were found at, read back while the serial stands and found anew as it moves; and as it is colored,
+// the serial they were found at, read back while the serial is and found anew as it moves; and as it is colored,
 // the key of the
 // grammar it is colored by, empty for none, and how many names that grammar's tokens take; the states its lines are
 // colored from and end in, each written once and ended by a NUL, in a movable cell sized to them, a line's state the
 // place its text starts at, each state found again by its hash in an index of CLI_DOC_INDEX_POSITIONS places in a
 // movable cell, each place its state's place plus 1, 0 for none, with how many states there are and the place found
 // last; the line the walk works out from, whether the cells refused its colors, the changes written to it since it was
-// stored, which its colors are handed on with, and whether the names its grammar's tokens take were handed on since it
+// stored, which its colors are passed on with, and whether the names its grammar's tokens take were passed on since it
 // was colored by the grammar; and the lines from `cached_from` to before `cached_to`, those the page holds about its
-// view, the only lines whose runs are handed on, every line until the page names them; and the letters of each line
-// whose runs are handed on, as far as the view draws, 0 for every letter, each line colored whole and the next entered
+// view, the only lines whose runs are passed on, every line until the page names them; and the characters of each line
+// whose runs are passed on, as far as the view draws, 0 for every character, each line colored whole and the next entered
 // in the state it ends in; the roles of the names its grammar's tokens take, each by its name's place,
 // CLI_DOC_ROLES_KNOWN with the roles once read and 0 before, and above them from CLI_DOC_RANK_AT one more than how many
 // names before it count the depth of a pair, 0 before it is read, in a movable cell of one word a name; whether its
-// lines' regions moved since its folds were handed on; and the runs the walk found on its lines, saved as it colors
+// lines' regions moved since its folds were passed on; and the runs the walk found on its lines, saved as it colors
 // them, each line's how many, then their columns, then their names as the walk names them, a line's place among them in
 // its runs word, in a movable cell sized to the words saved, retaken at the words a batch adds, and how many words are
 // written. A paged text saves the runs of the lines the page holds alone. Its lines are colored with the lock given
 // back: a coloring claims lines under the lock, colors them with no lock taken and puts what it found in under the lock
-// again. For that the text saves the serial its lines and states stand at, a number no text took before, taken anew
+// again. For that the text saves the serial its lines and states are at, a number no text took before, taken anew
 // each time they are stored again, edited or colored by another grammar, so a coloring that finds it moved puts nothing
 // in; how many colorings and walks pin it across the lock let go, and whether it was let go while one did, its cells
 // released as the last ends; whether a walker walks it, one at a time, and whether the walk found nothing to color on
@@ -135,7 +135,7 @@ typedef struct CliStoredText
 } CliStoredText;
 
 // a name's roles read and saved among a text's roles; where its rank among the names that count the depth of a pair is
-// saved above them, and the most ranks saved
+// saved above them, and the max ranks saved
 #define CLI_DOC_ROLES_KNOWN 0x8000u
 #define CLI_DOC_RANK_AT 16u
 #define CLI_DOC_RANKS 0xfffeu

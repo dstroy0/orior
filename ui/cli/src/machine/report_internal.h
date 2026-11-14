@@ -8,8 +8,8 @@
 
 typedef struct CliReportCtx CliReportCtx;
 
-// a report's category as the template's dropdown names it, "unknown" for any other; and the issue's body, laid out
-// as the template's form lays out what is entered in it, its fingerprint `print` last, into `out` (report_page.c)
+// a report's category as the template's dropdown names it, "unknown" for any other; and the issue's body, arranged
+// as the template's form arranges what is entered in it, its fingerprint `print` last, into `out` (report_page.c)
 const char *cli_report_category_get(const CliReportCtx *args);
 void cli_report_body(const CliReportCtx *args);
 

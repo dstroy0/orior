@@ -12,7 +12,7 @@
 # bytes: it cannot see that cítxʷ and citxw are the same word written twice, and it cannot see that
 # a Nuxalk word and a Lushootseed word mean the same thing.
 #
-# The web carries that. It has three kinds of edge and each is measured off the extraction
+# The web carries that. It has three types of edge and each is measured off the extraction
 # instead of listed by hand:
 #
 #   concept    two forms whose glosses share a content word. This is the edge that crosses
@@ -182,7 +182,7 @@ def tables():
     """Every hand extraction on disk, as (stem, marks, rows).
 
     papers.py is the table saying which extraction goes with which paper and what that paper
-    writes its language with. Reading it here keeps the web on the same list the checks grade
+    writes its language with. Reading it here retains the web on the same list the checks grade
     against, and a paper cannot be in the web and outside the checks.
     """
     held = []
@@ -198,7 +198,7 @@ def tables():
                 if not line.strip():
                     continue
                 # A row whose gloss is empty is written with no trailing tab. It arrives as four
-                # fields. That is most of them: 1401 of Lyon's 1417. Requiring five dropped every
+                # fields. That is the majority of them: 1401 of Lyon's 1417. Requiring five dropped every
                 # one and left the web reading sixteen rows of that paper.
                 parts = line.rstrip("\n").split("\t")
                 if len(parts) == 4:
@@ -215,7 +215,7 @@ def concepts(gloss):
     for one in (
         gloss.lower().replace("/", " ").replace(",", " ").replace(";", " ").split()
     ):
-        word = "".join(letter for letter in one if letter.isalpha())
+        word = "".join(character for character in one if character.isalpha())
         if word and (word not in EMPTY) and (len(word) > 2):
             held.add(word)
     return held
@@ -232,12 +232,12 @@ def shapes(form):
 
 
 def web(rows, marks, language):
-    """One language's web: its forms, and the three kinds of edge joining them.
+    """One language's web: its forms, and the three types of edge joining them.
 
     Returns (forms, edges). forms is the distinct language forms, edges is a Counter keyed by the
-    joined pair and the kind of edge, the thing a distribution gets taken over.
+    joined pair and the type of edge, the thing a distribution gets taken over.
 
-    A row's form is kept only where it is language under this paper's alphabet. The kind column is
+    A row's form is retained only where it is language under this paper's alphabet. The type column is
     not consulted: a title and a transcription are told apart by whether the marks are in them,
     the same test the checks use. The web cannot drift from what the checks call
     language.
@@ -246,7 +246,7 @@ def web(rows, marks, language):
     by_concept = collections.defaultdict(set)
     by_shape = collections.defaultdict(set)
     by_context = collections.defaultdict(set)
-    for where, who, kind, form, gloss in rows:
+    for where, who, type, form, gloss in rows:
         pieces = [one for one in form.split() if is_language_token(one, marks)]
         if not pieces:
             continue
@@ -259,7 +259,7 @@ def web(rows, marks, language):
         by_context[(where, who)].add(whole)
 
     edges = collections.Counter()
-    for kind, table in (
+    for type, table in (
         ("concept", by_concept),
         ("shape", by_shape),
         ("context", by_context),
@@ -267,27 +267,27 @@ def web(rows, marks, language):
         for key, members in table.items():
             held = sorted(members)
             # A group of n forms is n*(n-1)/2 edges, and one section of a story can hold a hundred
-            # forms. The context groups are capped, which keeps a single long section from
+            # forms. The context groups are capped, which retains a single long section from
             # outweighing every concept edge in the language.
-            if (kind == "context") and (len(held) > 24):
+            if (type == "context") and (len(held) > 24):
                 continue
             for first in range(len(held)):
                 for second in range(first + 1, len(held)):
-                    edges[(held[first], held[second], kind)] += 1
+                    edges[(held[first], held[second], type)] += 1
     return sorted(set(forms)), edges
 
 
 def concept_profile(edges):
-    """The web as a distribution, which the sift can be handed in place of byte pairs.
+    """The web as a distribution, which the sift can be passed in place of byte pairs.
 
     Keyed on the concept and shape edges only. The context edges are a fact about one paper's
     sections and do not transfer to a page nobody has read. They are in the web for reading and
     out of the profile for matching.
     """
     counts = collections.Counter()
-    for (first, second, kind), seen in edges.items():
-        if kind in ("concept", "shape"):
-            counts[(first, second, kind)] += seen
+    for (first, second, type), seen in edges.items():
+        if type in ("concept", "shape"):
+            counts[(first, second, type)] += seen
     total = sum(counts.values())
     if not total:
         return {}, 0
@@ -305,13 +305,13 @@ def by_language():
     held = collections.defaultdict(list)
     marks = {}
     for stem, sheet, rows in tables():
-        for where, who, kind, form, gloss in rows:
+        for where, who, type, form, gloss in rows:
             name = who.strip().lower()
             if name in ("northern", "southern"):
                 name = "Lushootseed %s" % name
             else:
                 name = stem
-            held[name].append((where, who, kind, form, gloss))
+            held[name].append((where, who, type, form, gloss))
             marks[name] = sheet
     return held, marks
 
@@ -335,7 +335,7 @@ def main():
         forms, edges = web(rows, marks[name], name)
         if not forms:
             continue
-        counted = collections.Counter(kind for (_, _, kind) in edges.elements())
+        counted = collections.Counter(type for (_, _, type) in edges.elements())
         out.write(
             "  %-34s %-8d %-9d %-9d %-9d %d\n"
             % (
@@ -354,9 +354,9 @@ def main():
             CORPORA, "%s.web.tsv" % name.replace(" ", "_").replace("/", "_")
         )
         with open(path, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write("first\tsecond\tkind\tseen\n")
-            for (first, second, kind), seen in sorted(edges.items()):
-                handle.write("%s\t%s\t%s\t%d\n" % (first, second, kind, seen))
+            handle.write("first\tsecond\ttype\tseen\n")
+            for (first, second, type), seen in sorted(edges.items()):
+                handle.write("%s\t%s\t%s\t%d\n" % (first, second, type, seen))
 
     out.write(
         "\n  %d forms, %d edges, written to %s\n"

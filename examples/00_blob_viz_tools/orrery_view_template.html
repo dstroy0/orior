@@ -72,7 +72,7 @@
     margin: 0 0 7px;
     font-size: 10px;
     font-weight: 600;
-    letter-spacing: 0.09em;
+    character-spacing: 0.09em;
     text-transform: uppercase;
     color: var(--dim);
     cursor: move;
@@ -218,7 +218,7 @@
     <label>interior</label>
     <select id="truth">
       <option value="hide">hidden</option>
-      <option value="show">shown</option>
+      <option value="show">displayed</option>
     </select>
   </div>
   <div class="row">
@@ -263,9 +263,9 @@
 
   // What is seen at a point of the boundary is what arrived at that point from inside. Light leaves
   // there; it does not carry on across the interior and out the far side. The near hemisphere
-  // stands in front of the far one and hides it. Front faces, ordinary blending, depth written.
+  // is in front of the far one and hides it. Front faces, ordinary blending, depth written.
   //
-  // Adding both faces together was tried and is wrong for that reason: it laid the far side's spots
+  // Adding both faces together was tried and is wrong for that reason: it positioned the far side's spots
   // over the near side's and showed two places at once, which is a picture of a surface light passes
   // straight through and not of one it leaves from. The value at a point is still flux and not paint,
   //, a point that receives nothing goes dark on its own without anything being painted black.
@@ -324,7 +324,7 @@
     );
   }
 
-  // The observer. Offset plus an up vector, axes re-derived from where it stands. A drag means
+  // The observer. Offset plus an up vector, axes re-derived from where it is. A drag means
   // the same thing to the hand at every attitude and nothing inverts over the pole.
   var target = new THREE.Vector3(0, 0, 0);
   var offset = new THREE.Vector3(0, 6, 32);
@@ -391,7 +391,7 @@
 
     // Through-going. The probe crosses the ball and the boundary without much caring about either.
     // What it carries out is the column of matter it passed through: the length of its chord that
-    // lay inside a body, summed over the bodies. Any surface is opaque to a neutron most of the time
+    // position inside a body, summed over the bodies. Any surface is opaque to a neutron the majority of the time
     // and to a neutrino almost never, and it is that almost that makes this readable. The attenuation
     // is small. The deficit is close to proportional to the column, and a column is a line integral
     // through the interior and not a picture of its surface.
@@ -529,7 +529,7 @@
   function drawFound() {
     var html = "<tr><th>period</th><th>radius</th><th>built</th><th>off by</th></tr>";
     if (!DATA.found.length) {
-      html += "<tr><td colspan=4 style='color:var(--faint)'>nothing stood above the noise</td></tr>";
+      html += "<tr><td colspan=4 style='color:var(--faint)'>nothing was above the noise</td></tr>";
     }
     for (var i = 0; i < DATA.found.length; i++) {
       var one = DATA.found[i];
@@ -752,7 +752,7 @@
     "sharp as the bodies, and a body that emits nothing blocks just as well as one that blazes. " +
     "The two limits fail in opposite directions: one loses where, the other loses what.</p>" +
     "<p><b>The boundary never moves.</b> The bodies do, and that is the clock. Hold the observer " +
-    "still and whatever keeps changing is time; whatever stops was you.</p>" +
+    "still and whatever retains changing is time; whatever stops was you.</p>" +
     "<p>One patch watched over the whole run gives the curve below. Each crossing prints a dip, the " +
     "dips repeat on that body's period, and Kepler turns a period into a radius. The table compares " +
     "those radii against the ones the scene was built from, which the recovery never reads.</p>";

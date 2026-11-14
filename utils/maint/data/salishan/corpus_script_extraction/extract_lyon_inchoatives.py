@@ -13,17 +13,17 @@
 #
 # A STAR IS NOT A WORD
 #
-# Most cells of both tables are starred: *piq-p, *x̌aq̓-t, *ʔilxʷ•əxʷ. A starred form is one the
+# Max cells of both tables are starred: *piq-p, *x̌aq̓-t, *ʔilxʷ•əxʷ. A starred form is one the
 # linguist built and the speakers rejected, and nobody has ever said one. Putting them in a pure
 # corpus would seed it with words the language does not have, which is worse than leaving them out,
-# because the whole point of the corpus is to say what the language looks like. They are kept in the
+# because the whole point of the corpus is to say what the language looks like. They are retained in the
 # record marked "impossible" and excluded from the pure stream. The same goes for the marginal forms
 # the paper marks with a question mark.
 #
 # WHAT IS NOT NSYILXCN
 #
 # Section 4 cites cognates from Spokane, Secwepemctsín, Lillooet, nxaʔamxčín, Thompson and Coeur
-# d'Alene, each behind a two-letter tag. Those are Salish and they are not Nsyilxcn. The who
+# d'Alene, each behind a two-character tag. Those are Salish and they are not Nsyilxcn. The who
 # column carries the language and the pure stream takes the Nsyilxcn alone.
 
 import io
@@ -109,7 +109,7 @@ TARGET = os.path.join(
     "AcrossRootTypes_Lyon_Salish_nsyilxcen_2025_mixed.txt",
 )
 
-# Kept in step with LYON_INCH in hand_extraction/papers.py. The square root sign is in the set
+# Retained in step with LYON_INCH in hand_extraction/papers.py. The square root sign is in the set
 # because it is the only thing that makes √piq, √nir, √mir, √yus and √tar visible at all: those carry no other
 # character of the shared orthography.
 MARKS = "ʔʕɬłƛəχ7̓̔̕ʷ˽" + "̌́" + "áíúé" + "ɣš√"
@@ -137,7 +137,7 @@ REJECTED = "*"
 MARGINAL = "?"
 
 
-def kind_of(token):
+def type_of(token):
     """What a token of the tables is: a form the speakers accepted, rejected, or found marginal."""
     if token.startswith(REJECTED):
         return "impossible"
@@ -147,7 +147,7 @@ def kind_of(token):
 
 
 def language_of(tokens, at):
-    """Whose form this is, from the nearest cognate tag standing in front of it on the line.
+    """Whose form this is, from the nearest cognate tag located in front of it on the line.
 
     Section 4 sets a cognate as Sp √p̓ax̌ or Th xʷ[ʔ]úl. The tag is the token before. Without this
     the Spokane and Thompson forms arrive in a corpus labeled Nsyilxcn, the mistake this paper's
@@ -187,16 +187,16 @@ def main():
             trimmed = found.group(2)
 
         tokens = trimmed.split()
-        kept = []
+        retained = []
         for at, token in enumerate(tokens):
             plain = token.strip(".,;:()[]“”")
             if not is_language_token(plain, MARKS):
                 continue
-            kept.append((language_of(tokens, at), kind_of(plain), plain))
-        if not kept:
+            retained.append((language_of(tokens, at), type_of(plain), plain))
+        if not retained:
             continue
-        for named, kind, plain in kept:
-            rows.append((where, named, kind, plain))
+        for named, type, plain in retained:
+            rows.append((where, named, type, plain))
 
     missed = unreached(lines, covered_tokens(one[3] for one in rows), marks=MARKS)
     for page, spot, reason, missing, text in missed:
@@ -228,27 +228,27 @@ def main():
         handle.write(
             "# anybody said. Both are derived and neither reaches the pure stream.\n"
         )
-        handle.write("line\twho\tkind\tswitches\tcontent\n")
-        for at, (spot, named, kind, text) in enumerate(rows, 1):
-            spoken = (kind == "cited form") and (named == TARGET_LANGUAGE)
+        handle.write("line\twho\ttype\tswitches\tcontent\n")
+        for at, (spot, named, type, text) in enumerate(rows, 1):
+            spoken = (type == "cited form") and (named == TARGET_LANGUAGE)
             layer = SPOKEN if spoken else DERIVED
-            if kind == UNCLASSIFIED:
-                content = "N.%s.%s:{%s}" % (layer, kind, text)
+            if type == UNCLASSIFIED:
+                content = "N.%s.%s:{%s}" % (layer, type, text)
                 crossings = 0
             else:
-                content = rendered(text, layer, kind, MARKS)
+                content = rendered(text, layer, type, MARKS)
                 crossings = switches(text, MARKS)
             handle.write(
                 "line#${%d}\t%s\t%s\t%d\t%s\n"
-                % (at, named or spot, kind, crossings, content)
+                % (at, named or spot, type, crossings, content)
             )
 
     pure = TARGET[:-4] + ".pure.txt"
-    kept_count = 0
+    retained_count = 0
     already = set()
     with open(pure, "w", encoding="utf-8", newline="") as handle:
-        for spot, named, kind, text in rows:
-            if (kind != "cited form") or (named != TARGET_LANGUAGE):
+        for spot, named, type, text in rows:
+            if (type != "cited form") or (named != TARGET_LANGUAGE):
                 continue
             for span, run in tagged_spans(text, MARKS):
                 if (span != "T") or not run.strip():
@@ -258,20 +258,20 @@ def main():
                     continue
                 already.add(key)
                 handle.write("%s\n" % key)
-                kept_count += 1
+                retained_count += 1
 
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
         (0, spot, UNKNOWN_KIND, "", text)
-        for spot, named, kind, text in rows
-        if (kind == UNCLASSIFIED) and not spot.startswith("not reached")
+        for spot, named, type, text in rows
+        if (type == UNCLASSIFIED) and not spot.startswith("not reached")
     ]
     flagged.extend(missed)
     stuck_count = write_unsorted(stuck, "Nsyilxcn Inchoatives", flagged)
 
     out.write("  %d lines written to\n  %s\n" % (len(rows), os.path.basename(TARGET)))
     out.write(
-        "  %d Nsyilxcn forms written to\n  %s\n" % (kept_count, os.path.basename(pure))
+        "  %d Nsyilxcn forms written to\n  %s\n" % (retained_count, os.path.basename(pure))
     )
     out.write(
         "  %d lines the tool could not sort written to\n  %s\n"
@@ -279,15 +279,15 @@ def main():
     )
 
     counted = {}
-    for spot, named, kind, text in rows:
-        counted[kind] = counted.get(kind, 0) + 1
+    for spot, named, type, text in rows:
+        counted[type] = counted.get(type, 0) + 1
     out.write(
-        "\n  by kind: %s\n"
+        "\n  by type: %s\n"
         % ", ".join("%s %d" % (one, counted[one]) for one in sorted(counted))
     )
     languages = {}
-    for spot, named, kind, text in rows:
-        if kind == "cited form":
+    for spot, named, type, text in rows:
+        if type == "cited form":
             languages[named] = languages.get(named, 0) + 1
     out.write(
         "  by language: %s\n"

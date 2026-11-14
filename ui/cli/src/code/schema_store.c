@@ -9,7 +9,7 @@
 
 #include "../text/text.h"
 
-// the most bytes of a schema read, and the most tokens it is read in
+// the max bytes of a schema read, and the max tokens it is read in
 #define CLI_SCHEMA_DOCUMENT_TEXT (1u << 22u)
 #define CLI_SCHEMA_TOKENS (1u << 18u)
 
@@ -61,11 +61,11 @@ int cli_schema_cache_path(const CliSchemaUrlCtx *args)
     for (unsigned long long at = 0ULL; at < line.at;)
     {
         unsigned long long length = 0ULL;
-        const unsigned int letter =
-            EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = key, .size = line.at, .at = at, .length = &length);
-        const int allowed = ((letter >= 'a') && (letter <= 'z')) || ((letter >= 'A') && (letter <= 'Z')) ||
-                            ((letter >= '0') && (letter <= '9')) || (letter == '.') || (letter == '-');
-        mmgr_line_ch(&named, allowed ? (char)letter : '_');
+        const unsigned int character =
+            EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = key, .size = line.at, .at = at, .length = &length);
+        const int allowed = ((character >= 'a') && (character <= 'z')) || ((character >= 'A') && (character <= 'Z')) ||
+                            ((character >= '0') && (character <= '9')) || (character == '.') || (character == '-');
+        mmgr_line_ch(&named, allowed ? (char)character : '_');
         at += length;
     }
     mmgr_line_put(&named, ".json");

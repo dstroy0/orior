@@ -289,7 +289,7 @@ static void floor_transfer(SimResults *results, const SimScene *scene, const Sim
              sim_exact_product(&fit[0].intercept, &fit[0].intercept, &apart_square) &&
              sim_exact_scaled(&intercept_spread, FLOOR_ERROR_RANGE_SQUARED, &bound) &&
              (orior_exact_compare(&apart_square, &bound) >= 0);
-        sim_check(results, ok, "the truth route's intercept stands at least 5 SE_a above 0: the read noise is there");
+        sim_check(results, ok, "the truth route's intercept is at least 5 SE_a above 0: the read noise is there");
 
         mmgr_line_put(line, "  the neighbor coherence of d (x against x + 1)\n");
         floor_print_correlation(line, "    truth-static pairs: ", coherence.neighbor_product, coherence.square_here);

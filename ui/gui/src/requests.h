@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// requests.h: the Requests view of the Comms pane, the table the Comms table hands its head, rows and presses to
-// while the Requests view is shown. Its head is two rows of choices the CLI answers (requests/requests.h): Send and
+// requests.h: the Requests view of the Comms pane, the table the Comms table passes its head, rows and presses to
+// while the Requests view is displayed. Its head is two rows of choices the CLI answers (requests/requests.h): Send and
 // Copy as curl, then the environments, the one chosen lit. Its rows are the CLI's: the status in the tone of its
 // class, the times, the groups with their arrows, the headers and what was sent in the code face one guide in, the
 // body in the code face, the rows that read why the body is not drawn quieter, each answer with its box, and a

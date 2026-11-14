@@ -24,8 +24,8 @@ TREES = ("src", "includes", os.path.join("utils", "test"), os.path.join("utils",
 SKIPPED = {"python", "build", "node_modules", ".git"}
 INCLUDE = re.compile(r'^[ \t]*#[ \t]*include[ \t]*"([^"]+)"', re.MULTILINE)
 OUT = os.path.join(ROOT, "build", "compile_commands.json")
-# MMgr and the embedded types under it keep a library's own layout, each include named from its include and src
-# folders, where two headers may share a name: their headers stand outside the union and are read as C, and every
+# MMgr and the embedded types under it retain a library's own layout, each include named from its include and src
+# folders, where two headers may share a name: their headers are outside the union and are read as C, and every
 # entry is given the folders and settings file_defs.sh gives a program that links MMgr (FILE_DEFS_MMGR_FLAGS)
 LIBRARIES = tuple(os.path.join(ROOT, "includes", name) for name in ("mmgr", "embedded_types"))
 FILE_DEFS = os.path.join(ROOT, "includes", "file_defs", "file_defs.sh")
@@ -53,7 +53,7 @@ def in_library(path):
 
 
 # FILE_DEFS_MMGR_FLAGS as file_defs.sh writes it, each variable it names given as that file assigns it, its own
-# folder standing for FILE_DEFS_SOURCE
+# folder located for FILE_DEFS_SOURCE
 def library_flags():
     with open(FILE_DEFS, encoding="utf-8") as script:
         text = script.read()
@@ -155,16 +155,16 @@ def main():
     cuda_flags = ["clang++", "-xcuda", "--cuda-gpu-arch=" + architecture, "-Wno-unknown-cuda-version", "-std=c++17"]
     if cuda:
         cuda_flags.insert(2, "--cuda-path=" + cuda)
-    # CUDA 13 keeps cub, thrust and libcu++ under include/cccl, which nvcc puts on the path itself and clang does not
+    # CUDA 13 retains cub, thrust and libcu++ under include/cccl, which nvcc puts on the path itself and clang does not
     if cuda and os.path.isdir(cuda + "/include/cccl"):
         cuda_flags += ["-isystem", cuda + "/include/cccl"]
     c_flags = ["clang", "-xc", "-std=c11"]
     entries = []
     counts = {"cuda": 0, "c": 0}
     for path in files:
-        kind = "c" if (path.endswith(".c") or (path in reached) or in_library(path)) else "cuda"
-        counts[kind] += 1
-        flags = c_flags if kind == "c" else cuda_flags
+        type = "c" if (path.endswith(".c") or (path in reached) or in_library(path)) else "cuda"
+        counts[type] += 1
+        flags = c_flags if type == "c" else cuda_flags
         scoped = folders.get(scope_of(path), []) if scope_of(path) else []
         entries.append({"directory": slashed(ROOT), "file": path,
                         "arguments": flags + host + scoped + includes + ["-c", path]})

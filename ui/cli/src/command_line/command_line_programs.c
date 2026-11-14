@@ -125,15 +125,15 @@ EMBED_INLINE int programs_libraries(const CommandLineProgramsCtx *args)
 #else
     const char between = ':';
 #endif
-    // the PATH's folders in a cell of the most it names, one for each mark between them and one more
-    unsigned int most = 1u;
-    most += (unsigned int)EMBED_CALL(
+    // the PATH's folders in a cell of the max it names, one for each mark between them and one more
+    unsigned int max = 1u;
+    max += (unsigned int)EMBED_CALL(
         cli_text_size_byte.count, CliTextSizeByteCfg, .text = read_state->path,
         .size = cellul.len(&(CatenaFinitaCfg){.src = read_state->path, .cap = CLI_POOL_BYTES}), .byte = between);
     char (*const folder)[CLI_PATH_MAX_LEN] =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)most * CLI_PATH_MAX_LEN, g_cli_command_line_owner);
+        g_cli_guard->temporary_buf_alloc((unsigned long long)max * CLI_PATH_MAX_LEN, g_cli_command_line_owner);
     unsigned int folders = 0u;
-    for (const char *part = read_state->path; (folder != NULL) && (part != NULL) && (folders < most);)
+    for (const char *part = read_state->path; (folder != NULL) && (part != NULL) && (folders < max);)
     {
         const char *const end = cellul.chr(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES, .byte = between});
         const embed_word size = (end != NULL) ? (embed_word)(end - part)

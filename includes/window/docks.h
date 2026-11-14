@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // docks.h: a tool window coming in from the edge it docks at as it shows, as the page's do: the terminal's panel
 // starts GUI_TERMINAL_ARRIVES page's pixels below its place at the work's foot and comes up to it over
-// GUI_DOCKS_ARRIVING_MS on the page's ease-out, its opacity rising from none to whole with it. A panel standing as the
-// window starts stands at once, and so does one shown while less motion is asked for. The frame lays the panel where
-// it stands for the share of its way left, and the stages lay every moment of it with the claim's slides (docks.c)
+// GUI_DOCKS_ARRIVING_MS on the page's ease-out, its opacity rising from none to whole with it. A panel located as the
+// window starts is at once, and so does one displayed while less motion is asked for. The frame positions the panel where
+// it is for the share of its way left, and the stages position every moment of it with the claim's slides (docks.c)
 #ifndef GUI_DOCKS_H
 #define GUI_DOCKS_H
 #include "claim.h"
@@ -24,7 +24,7 @@ typedef struct
 
 // no arrival
 void gui_docks_init(const GuiDocksCfg *args);
-// the panel shown at `time_ms`: its arrival begun, or none where motion is `still`
+// the panel displayed at `time_ms`: its arrival begun, or none where motion is `still`
 void gui_docks_show(const GuiDocksCfg *args);
 // the share of its way the panel has left at `time_ms`, GUI_FIXED_ONE as it begins and 0 arrived; and when the arrival
 // ends, 0 where none runs at `time_ms`

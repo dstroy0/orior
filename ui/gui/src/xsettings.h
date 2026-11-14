@@ -1,7 +1,7 @@
 #include "embed_dispatch_layout.h"
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// xsettings.h: the X settings list as its manager lays it out, read for the setting a desktop asks for less motion by
+// xsettings.h: the X settings list as its manager positions it out, read for the setting a desktop asks for less motion by
 // (xsettings.c)
 #ifndef GUI_XSETTINGS_H
 #define GUI_XSETTINGS_H

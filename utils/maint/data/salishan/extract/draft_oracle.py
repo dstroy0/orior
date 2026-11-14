@@ -3,8 +3,8 @@
 usage: python draft_oracle.py <stem> <authors> <language> [out.tsv]
 
 Every line of the text layer lands in some row. Prose is grouped into paragraph rows, each line of a
-numbered example block is its own row with a guessed kind, each numbered heading is a heading row,
-each reference entry a reference row, and every token carrying a letter outside ASCII is offered
+numbered example block is its own row with a guessed type, each numbered heading is a heading row,
+each reference entry a reference row, and every token carrying a character outside ASCII is offered
 again as a cited form candidate under the section it sits in. The repair is the residue check's: the
 space closed after a stacked mark, then NFC. Nothing here is read; every row is a candidate.
 """
@@ -32,7 +32,7 @@ TAG = re.compile(r"\b(?:[123](?:SG|PL)|SG|PL|DET|POSS|SBJ|OBJ|CTR|NCTR|PST|FUT|S
 QUOTE_EDGES = "‘’“”\"'()[]{},.;:!?"
 
 
-def kind_of_example_line(text):
+def type_of_example_line(text):
     stripped = text.strip()
     if stripped.startswith(("‘", "“", "'")):
         return "translation"
@@ -76,8 +76,8 @@ def main():
         nonlocal paragraph
         if paragraph:
             text = " ".join(paragraph)
-            kind = "reference" if in_references else "note"
-            rows.append((paragraph_where, authors, kind, text, "page %d" % page))
+            type = "reference" if in_references else "note"
+            rows.append((paragraph_where, authors, type, text, "page %d" % page))
             paragraph = []
 
     def offer_tokens(where, text):
@@ -121,14 +121,14 @@ def main():
             if body:
                 number += 1
                 rows.append(("%s line %d" % (example, number), language,
-                             kind_of_example_line(body), body, "page %d" % page))
+                             type_of_example_line(body), body, "page %d" % page))
                 offer_tokens(example, body)
             continue
         if example is not None:
             number += 1
             sub = SUBEXAMPLE.match(text)
             where = "%s line %d" % (example, number)
-            rows.append((where, language, kind_of_example_line(sub.group(2) if sub else text),
+            rows.append((where, language, type_of_example_line(sub.group(2) if sub else text),
                          text, "page %d" % page))
             offer_tokens(example, text)
             continue
@@ -147,7 +147,7 @@ def main():
     flush()
 
     with open(target, "w", encoding="utf-8", newline="") as handle:
-        handle.write("where\twho\tkind\tform\tgloss\n")
+        handle.write("where\twho\ttype\tform\tgloss\n")
         for row in rows:
             handle.write("\t".join(" ".join(str(one).split()) for one in row) + "\n")
     print("%d rows to %s" % (len(rows), target))

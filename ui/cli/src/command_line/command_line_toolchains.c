@@ -16,7 +16,7 @@
 // the toolchains found, read as a tree sized to them while they are listed
 static CliJson s_json;
 
-// the most bytes of a line of the listing or a tool's setup line, and of the toolchains found as JSON
+// the max bytes of a line of the listing or a tool's setup line, and of the toolchains found as JSON
 #define CLI_TOOLCHAINS_LINE (CLI_PATH_MAX_LEN * 4u)
 #define CLI_TOOLCHAINS_FOUND (1u << 20u)
 
@@ -83,17 +83,17 @@ EMBED_INLINE void toolchains_print(const CommandLineToolchainsCtx *args)
     const char *const named = (id != NULL) ? id : "";
     mmgr_line_put(&line, "  ");
     mmgr_line_put(&line, named);
-    for (unsigned long long letters =
-             EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = named,
+    for (unsigned long long characters =
+             EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = named,
                         .size = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_POOL_BYTES}));
-         letters < args->pixel_width; letters += 1ULL)
+         characters < args->pixel_width; characters += 1ULL)
     {
         mmgr_line_ch(&line, ' ');
     }
     mmgr_line_put(&line, "  ");
     mmgr_line_put(&line, displayed);
-    for (unsigned long long letters = cellul.len(&(CatenaFinitaCfg){.src = displayed, .cap = CLI_POOL_BYTES});
-         letters < 11ULL; letters += 1ULL)
+    for (unsigned long long characters = cellul.len(&(CatenaFinitaCfg){.src = displayed, .cap = CLI_POOL_BYTES});
+         characters < 11ULL; characters += 1ULL)
     {
         mmgr_line_ch(&line, ' ');
     }

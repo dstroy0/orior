@@ -9,13 +9,13 @@ unsigned int gate_survivors(const unsigned char fails[][GATE_CASES], unsigned in
     unsigned int count = 0u;
     for (unsigned int candidate = 0u; candidate < candidates; candidate += 1u)
     {
-        unsigned char stands = 1u;
-        for (unsigned int at = 0u; (at < cases) && (stands != 0u); at += 1u)
+        unsigned char is = 1u;
+        for (unsigned int at = 0u; (at < cases) && (is != 0u); at += 1u)
         {
-            stands = (fails[candidate][at] != 0u) ? 0u : 1u;
+            is = (fails[candidate][at] != 0u) ? 0u : 1u;
         }
-        survives[candidate] = stands;
-        count += stands;
+        survives[candidate] = is;
+        count += is;
     }
     return count;
 }
@@ -39,11 +39,11 @@ unsigned long long gate_price(const unsigned char fails[][GATE_CASES], unsigned 
 unsigned long long gate_descent(const unsigned char fails[][GATE_CASES], unsigned int candidates, unsigned int cases,
                                 unsigned int *order)
 {
-    unsigned char standing[GATE_CANDIDATES];
+    unsigned char located[GATE_CANDIDATES];
     unsigned char placed[GATE_CASES];
     for (unsigned int candidate = 0u; candidate < candidates; candidate += 1u)
     {
-        standing[candidate] = 1u;
+        located[candidate] = 1u;
     }
     for (unsigned int at = 0u; at < cases; at += 1u)
     {
@@ -62,7 +62,7 @@ unsigned long long gate_descent(const unsigned char fails[][GATE_CASES], unsigne
             unsigned int failing = 0u;
             for (unsigned int candidate = 0u; candidate < candidates; candidate += 1u)
             {
-                failing += ((standing[candidate] != 0u) && (fails[candidate][at] != 0u)) ? 1u : 0u;
+                failing += ((located[candidate] != 0u) && (fails[candidate][at] != 0u)) ? 1u : 0u;
             }
             if ((best == cases) || (failing > best_failing))
             {
@@ -74,7 +74,7 @@ unsigned long long gate_descent(const unsigned char fails[][GATE_CASES], unsigne
         placed[best] = 1u;
         for (unsigned int candidate = 0u; candidate < candidates; candidate += 1u)
         {
-            standing[candidate] = (fails[candidate][best] != 0u) ? 0u : standing[candidate];
+            located[candidate] = (fails[candidate][best] != 0u) ? 0u : located[candidate];
         }
     }
     return gate_price(fails, candidates, cases, order);

@@ -24,12 +24,12 @@ typedef struct CliBinaryErrMsgBytesCfg CliBinaryErrMsgBytesCfg;
 typedef struct CliBinaryReportCfg CliBinaryReportCfg;
 typedef struct CliBinaryCfg CliBinaryCfg;
 
-// the most libraries a report contains, and the most run paths of the machine that built the program
+// the max libraries a report contains, and the max run paths of the machine that built the program
 #define CLI_BINARY_LIBRARIES 512u
 
 #define CLI_BINARY_BUILD_PATHS 32u
 
-// the most folders the Linux loader looks in after a program's own run paths
+// the max folders the Linux loader looks in after a program's own run paths
 #define CLI_BINARY_LINUX_FOLDERS 256u
 
 // Where a library a program loads is found: in the program's own folder or by a run path from it; in the system's own
@@ -76,12 +76,12 @@ typedef struct
 // where the program is opened on its own, and then, where it is not found so, through `orior_path`, `count` folders
 // orior's jobs have on their PATH: 1, or 0 with why given
 int cli_binary_read(const CliBinaryPathOriorPathCfg *args);
-// what a report reports of the program, each line handed to `sink`: each library found other than beside it or in the
+// what a report reports of the program, each line passed to `sink`: each library found other than beside it or in the
 // system's own folders, each run path of the machine that built it, and the newest glibc it requires
 void cli_binary_report_print(const CliBinaryReportCfg *args);
 // the program at `path` read and what it loads reported line by line to `sink`: 1, or 0 where it could not be read
 int cli_binary_print(const CliBinaryPathOriorPathCountCfg *args);
-// each library the program loads through a PATH, this machine's or orior's, copied beside it, each name handed to
+// each library the program loads through a PATH, this machine's or orior's, copied beside it, each name passed to
 // `copied`: 1, or 0 with why given
 int cli_binary_copy_adjacent(const CliBinaryPathCfg *args);
 

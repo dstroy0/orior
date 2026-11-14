@@ -7,13 +7,13 @@
 
 #include "ksa.h"
 
-// the most approvers one check requires
-#define KSG_APPROVERS_MOST 16u
+// the max approvers one check requires
+#define KSG_APPROVERS_MAX 16u
 
 // `path` with `suffix` after it into `out`, which has room for KSG_PATH_MAX_LEN: 1, or 0 where it does not fit
 int ksg_path_with(const char *path, const char *suffix, char *out);
 // the trailer of the seal stored beside `path` into `trailer`, which has room for KSG_TRAILER_BYTES: 1, or 0 where
-// there is no seal of ksg's kind beside it
+// there is no seal of ksg's type beside it
 int ksg_trailer_read(const char *path, unsigned char *trailer);
 
 // The program's report, gathered in ksg.c and written to the standard output: `text` written after what it contains,

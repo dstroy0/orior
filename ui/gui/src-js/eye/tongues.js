@@ -9,9 +9,9 @@ import { LOWER_BAND, UPPER_BAND, along, lidOf } from "./lids.js";
 import { mix, smooth } from "./math.js";
 
 // The plasma's tongues, drawn from a seed once: ABOVE along the upper lid and BELOW along the lower,
-// spread evenly from corner to corner with a little jitter. A tongue stands at x along its lid, from
+// spread evenly from corner to corner with a little jitter. A tongue is at x along its lid, from
 // -1 to 1. It is `length` long and `width` wide at its widest, both parts of the eye's half height,
-// and longest over the middle; those of the upper lid are shorter, which keeps them inside the
+// and longest over the middle; those of the upper lid are shorter, which retains them inside the
 // canvas. It flickers longer and shorter on two waves, `rates` and `phases`, and wavers side to side
 // on two more, `waves`. `color` is its outer glow, `heart` the light inside that, and the core is
 // white hot.
@@ -154,7 +154,7 @@ export function drawPlasma(size, lid, state, grown) {
     const upper = lidOf(lid.upper, size, 1);
     const lower = lidOf(lid.lower, size, -1);
     const rim = rimOf(upper, lower, b);
-    // The rim, breathing a little: its glow pushed out from it by most of its width, and the
+    // The rim, breathing a little: its glow pushed out from it by the majority of its width, and the
     // bright line on it.
     const breath = grown * (0.8 + 0.2 * Math.sin(seconds * 3.1) * Math.sin(seconds * 1.7 + 1));
     addRim(corners, rim, b * RIM_GLOW * 0.6, b * RIM_GLOW, dusk(), 0.5 * breath);

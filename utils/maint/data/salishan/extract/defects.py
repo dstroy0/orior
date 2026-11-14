@@ -3,9 +3,9 @@
 Each tool rewrites its own rows for a paper on every run, and a rerun replaces what it wrote
 before and the table holds one current row per repair:
 
-    paper   page   kind   raw   repaired   tool
+    paper   page   type   raw   repaired   tool
 
-The kinds are counted across papers with python defects.py, which prints how often each kind
+The types are counted across papers with python defects.py, which prints how often each type
 has turned up and in how many papers.
 """
 import collections
@@ -16,7 +16,7 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 from workdir import PRIVATE  # noqa: E402
 TABLE = os.path.join(PRIVATE, "defects.tsv")
-HEAD = "paper\tpage\tkind\traw\trepaired\ttool\n"
+HEAD = "paper\tpage\ttype\traw\trepaired\ttool\n"
 
 
 def read():
@@ -27,7 +27,7 @@ def read():
 
 
 def write(stem, tool, entries):
-    """Replace this tool's rows for this paper with entries, each (page, kind, raw, repaired).
+    """Replace this tool's rows for this paper with entries, each (page, type, raw, repaired).
     Sessions extracting different papers write at once, and the read and the rewrite hold a lock
     file, and the table is replaced whole from a finished copy."""
     lock = TABLE + ".lock"
@@ -46,13 +46,13 @@ def write(stem, tool, entries):
     else:
         raise RuntimeError("defects.tsv stayed locked; remove %s if no tool is running" % lock)
     try:
-        kept = [one for one in read() if not (one[0] == stem and one[5] == tool)]
-        for page, kind, raw, repaired in entries:
-            kept.append([stem, str(page), kind, " ".join(str(raw).split()),
+        retained = [one for one in read() if not (one[0] == stem and one[5] == tool)]
+        for page, type, raw, repaired in entries:
+            retained.append([stem, str(page), type, " ".join(str(raw).split()),
                          " ".join(str(repaired).split()), tool])
         with open(TABLE + ".new", "w", encoding="utf-8", newline="") as handle:
             handle.write(HEAD)
-            for one in kept:
+            for one in retained:
                 handle.write("\t".join(one) + "\n")
         os.replace(TABLE + ".new", TABLE)
     finally:
@@ -65,8 +65,8 @@ def main():
     papers = collections.defaultdict(set)
     for one in rows:
         papers[one[2]].add(one[0])
-    for kind, seen in count.most_common():
-        print("%5d  %3d papers  %s" % (seen, len(papers[kind]), kind))
+    for type, seen in count.max_common():
+        print("%5d  %3d papers  %s" % (seen, len(papers[type]), type))
     if len(sys.argv) > 1:
         for one in rows:
             if one[2] == sys.argv[1]:

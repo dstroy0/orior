@@ -36,7 +36,7 @@ in it rendered.
 src/bench/bench_sac.exe <trial_bits> <first_round> <last_round> [arm]
 ```
 
-`trial_bits` is the log-2 of message pairs per cell; most results here use 18, and the ratio tests
+`trial_bits` is the log-2 of message pairs per cell; max results here use 18, and the ratio tests
 use 20 or 22. With no arm it runs the strict-avalanche sweep between `first_round` and `last_round`.
 
 | arm           | what it measures                                                                | writes                  |
@@ -78,7 +78,7 @@ use 20 or 22. With no arm it runs the strict-avalanche sweep between `first_roun
 | conditioning on Choose's selector finds nothing                     | `bench_sac.exe 18 45 64 conditional`, then 20 for the ratio test                                                                                               |
 | the register chains a-b-c-d and e-f-g-h at equal delay              | `python tools/check/check_word_pairs.py`                                                                                                                       |
 | the miner's SHARED_ROUNDS 3 and SHARED_SCHEDULE 18 are tight        | `bench_sac.exe 18 45 64 miner`                                                                                                                                 |
-| **a refuted claim, kept**: no deep periodic structure per input bit | `python tools/check/check_tilt.py`. This test cannot see a diagonal and is retained because it was the wrong instrument, which `check_slant.py` then corrected |
+| **a refuted claim, retained**: no deep periodic structure per input bit | `python tools/check/check_tilt.py`. This test cannot see a diagonal and is retained because it was the wrong instrument, which `check_slant.py` then corrected |
 
 ## Figures
 
@@ -101,7 +101,7 @@ theory:
 - `bench_sac.exe 18 45 64 waves` carries an injected wave of known amplitude, faded until the
   readout loses it. That fixes the sensitivity of every residue reading by measurement.
 - The `psrand` source in `sources` is binomial by construction and reads an rms deviation of exactly
-  1.000. If it does not, the harness is broken and no other number in this research paper stands.
+  1.000. If it does not, the harness is broken and no other number in this research paper is.
 - `tools/radar/radar_assay.py` checks predictions written into `bench_sac.cu` before the run. The
   ablation results cannot have been fitted afterwards.
 

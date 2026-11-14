@@ -43,7 +43,7 @@ def linear_peak(bins, total):
     return math.log2(1.0 + peak)
 
 
-def poisson_deficit(bins, total, alpha, kind):
+def poisson_deficit(bins, total, alpha, type):
     """The prediction where the mean count is near one and the counts go Poisson."""
     mean = total / bins
     weight = math.exp(-mean)
@@ -59,18 +59,18 @@ def poisson_deficit(bins, total, alpha, kind):
         if above * bins >= 1.0:
             peak = count
         above -= weight
-        if kind == "peak" or count == 0:
+        if type == "peak" or count == 0:
             continue
-        if kind == "shannon":
+        if type == "shannon":
             moment += weight * count * math.log(count)
-        elif kind == "power":
+        elif type == "power":
             moment += weight * (count ** alpha)
 
-    if kind == "support":
+    if type == "support":
         return -math.log(occupied) / LN2
-    if kind == "peak":
+    if type == "peak":
         return math.log2(peak / mean)
-    if kind == "shannon":
+    if type == "shannon":
         # E[c log2 c] / mean, less log2 of the mean. The second term vanishes at mean one, the
         # full-domain case, and a version without it therefore agrees exactly where it is used
         # and nowhere else.
@@ -141,8 +141,8 @@ def main():
         sparse = mean < 8.0
 
         if sparse:
-            kind = {"0": "support", "inf": "peak", "1": "shannon"}.get(tag, "power")
-            mine = poisson_deficit(bins, total, alpha, kind)
+            type = {"0": "support", "inf": "peak", "1": "shannon"}.get(tag, "power")
+            mine = poisson_deficit(bins, total, alpha, type)
         elif tag == "0":
             mine = linear_support(bins, total)
         elif tag == "inf":

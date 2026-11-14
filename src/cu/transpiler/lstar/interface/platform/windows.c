@@ -106,7 +106,7 @@ static char *interface_command_line(const char *program, char *const *words, cha
 // a program named with no folder, found along PATH; the program as named where PATH does not contain it
 static const char *interface_program_found(const char *program, char *found, size_t capacity)
 {
-    // the system's PATH, read through its own call, at most what an environment variable allows
+    // the system's PATH, read through its own call, at max what an environment variable allows
     static char s_path[32768];
     const DWORD length_path = GetEnvironmentVariableA("PATH", s_path, (DWORD)sizeof(s_path));
     const char *const path = ((length_path != 0u) && (length_path < sizeof(s_path))) ? s_path : NULL;
@@ -231,7 +231,7 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     }
     else
     {
-        // the probe is handed the pipe's write end, and the interface retains the read end to itself
+        // the probe is passed the pipe's write end, and the interface retains the read end to itself
         if (!INTERFACE_CHECK(CreatePipe(&pipe_read, &output, &inherited, 0u), probe, error, ENGINE_ERROR_RESOURCE))
         {
             ReleaseSRWLockExclusive(&s_interface_starting);

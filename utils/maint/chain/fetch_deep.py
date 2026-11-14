@@ -14,7 +14,7 @@ Twenty thousand blocks is twenty times the count. A real effect grows by the squ
 twenty, about 4.5, and a spurious one does not. The design is the same statistic, more
 of it, and two outcomes that are not alike.
 
-Read only, and self-verifying: every header field is kept so that a block can be rebuilt and hashed
+Read only, and self-verifying: every header field is retained so that a block can be rebuilt and hashed
 against its own recorded id without trusting the source.
 
     python utils/maint/chain/fetch_deep.py
@@ -34,7 +34,7 @@ API = "https://blockstream.info/api"
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "blocks_deep.json")
 
-KEEP = ("height", "id", "version", "previousblockhash", "merkle_root",
+RETAIN = ("height", "id", "version", "previousblockhash", "merkle_root",
         "timestamp", "bits", "nonce", "difficulty", "mediantime")
 
 
@@ -106,7 +106,7 @@ def main():
             break
 
         for block in batch:
-            collected[block["height"]] = {key: block.get(key) for key in KEEP}
+            collected[block["height"]] = {key: block.get(key) for key in RETAIN}
 
         lowest = min(block["height"] for block in batch)
         height = lowest - 1

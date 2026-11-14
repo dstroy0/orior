@@ -198,7 +198,7 @@ int cli_cmake_artifact(const CliExecutablesNameOutCtx *args)
         cli_found_in, ExecutablesCmakeCtx, .reply_read = &reply,
         .array = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = &reply,
                             .object = EMBED_CALL(cli_reply.root, CliReplyCfg, .reply = &reply), .key = "objects"),
-        .match = "kind", .required = "codemodel", .key = "jsonFile", .out = file);
+        .match = "type", .required = "codemodel", .key = "jsonFile", .out = file);
     EMBED_CALL(cli_reply_path.let_go, CliReplyPathCfg, .reply_out = &reply);
     if (!modelled)
     {
@@ -276,7 +276,7 @@ int cli_meson_artifact(const CliExecutablesNameOutCtx *args)
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return 0;
     }
-    // the program's output read where it stands
+    // the program's output read where it is
     const CliReply reply = {run_result->out, run_result->out_size};
     const unsigned long long targets = EMBED_CALL(cli_reply.root, CliReplyCfg, .reply = &reply);
     int found = 0;

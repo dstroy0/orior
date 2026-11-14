@@ -271,7 +271,7 @@ def _check():
         lines.append("    FAIL 4096 qubits did not fit in 64 KB")
         failed += 1
 
-    # THE NEGATIVE CONTROL, which keeps the file honest. The representation must
+    # THE NEGATIVE CONTROL, which retains the file honest. The representation must
     # NOT be able to express an entangled state, or its cheapness would be free advantage.
     import bloch_cost
     hard = bloch_cost.entangling_pairs(1.0, 6)

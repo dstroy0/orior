@@ -34,11 +34,11 @@ export function progressBar() {
   bar.setAttribute("aria-valuemax", "100");
   bar.append(done);
   done.style.transition = `transform ${STEADY}ms linear`;
-  let shown = 0;
+  let displayed = 0;
   bar.set = (share) => {
-    shown = Math.max(shown, Math.min(1, Math.max(0, share)));
-    bar.setAttribute("aria-valuenow", String(Math.round(shown * 100)));
-    done.style.transform = `scaleX(${drawnShare(shown)})`;
+    displayed = Math.max(displayed, Math.min(1, Math.max(0, share)));
+    bar.setAttribute("aria-valuenow", String(Math.round(displayed * 100)));
+    done.style.transform = `scaleX(${drawnShare(displayed)})`;
   };
   bar.set(0);
   return bar;

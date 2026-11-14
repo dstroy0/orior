@@ -1,10 +1,10 @@
 \chapter{The spectral reading}
 
-This chapter reads the dependency matrix with every cell and not its largest. That finds a law the maximum cannot see, and then confirms the null harder than the maximum can.
+This chapter reads the dependency matrix with every cell and not its largest. That finds a law the max cannot see, and then confirms the null harder than the max can.
 
-\section{Why a maximum is the wrong reading}
+\section{Why a max is the wrong reading}
 
-Every strict avalanche reading in the literature takes the largest of \(131{,}072\) cells and discards the other \(131{,}071\). Discarding them pins the peak at \(\sqrt{2 \ln N}\) whatever the function does. A structure spread thinly across many cells is invisible to a maximum and plain to a sum.
+Every strict avalanche reading in the literature takes the largest of \(131{,}072\) cells and discards the other \(131{,}071\). Discarding them pins the peak at \(\sqrt{2 \ln N}\) whatever the function does. A structure spread thinly across many cells is invisible to a max and plain to a sum.
 
 SHA-256 is built from rotations, and a rotation makes bit \(j\) depend on bit \(j - r\). If any of that survives into the dependency matrix it appears as a function of \((\text{input bit} - \text{output bit}) \bmod 32\), spread over every word pair and concentrated nowhere. Folding the cells onto that residue puts \(4096\) of them behind each number instead of one.
 
@@ -13,7 +13,7 @@ The fold is signed and not absolute, deliberately. Taking magnitudes first would
 \section{What all thirty-two classes share}
 \label{sec:commonmode}
 
-Two things put a large offset into \emph{every} class at once. The avalanche is incomplete at these depths, and most cells sit far from one half. And the message schedule imposes a light cone: round \(t\) consumes \(W_t\). Message word \(w\) cannot affect the state before round \(w+1\), and until then flipping any of its bits changes nothing at all, a cell pinned at \(-\sqrt{n}\) exactly. Neither of those depends on the output bit. Both spread evenly over all thirty-two residues and concentrate in none of them.
+Two things put a large offset into \emph{every} class at once. The avalanche is incomplete at these depths, and max cells sit far from one half. And the message schedule imposes a light cone: round \(t\) consumes \(W_t\). Message word \(w\) cannot affect the state before round \(w+1\), and until then flipping any of its bits changes nothing at all, a cell pinned at \(-\sqrt{n}\) exactly. Neither of those depends on the output bit. Both spread evenly over all thirty-two residues and concentrate in none of them.
 
 The fold therefore has two components, and the class mean at each depth separates them: a common mode every class shares, and a class pattern measured from that mean.
 
@@ -114,7 +114,7 @@ This also explains why majority measures as contributing nothing on four separat
 
 \section{The strongest null in this work}
 
-Past round twenty-three the fold reads \(2.09\), \(2.07\) and \(2.04\) against a null peak of \(2.63\), at three depths, with \(4096\) cells behind each number and not one. That is roughly sixty-four times the sensitivity the maximum has, finding nothing.
+Past round twenty-three the fold reads \(2.09\), \(2.07\) and \(2.04\) against a null peak of \(2.63\), at three depths, with \(4096\) cells behind each number and not one. That is roughly sixty-four times the sensitivity the max has, finding nothing.
 
 The harmonic sweep agrees. The round-twenty-three profile wanders within two sigmas with no visible pattern, and its discrete transform peaks at \(f_{13}\) with magnitude \(1.80\) against a null peak of \(2.35\): no repeating trend, no harmonics, no side lobes.
 
@@ -124,4 +124,4 @@ The harmonic sweep agrees. The round-twenty-three profile wanders within two sig
 
 \textbf{The class pattern is fixed}: the diagonal, \(\Sigma_1\)'s three amounts and the carry, ranked identically from round six to nineteen.
 
-\textbf{Both are gone by round twenty-three}, at sixty-four times the sensitivity of a maximum.
+\textbf{Both are gone by round twenty-three}, at sixty-four times the sensitivity of a max.

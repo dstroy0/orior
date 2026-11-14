@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 """The browser's own trace of the window's frames, for what the page's own trace cannot see: the style, layout, paint,
 raster and compositing each frame takes after its script, and the collector's pauses. A test starts it, and ends it
-handing it to a query run, each thread's events summed by name a line each, the most time first:
-`<thread> <name> <count> <total ms> <most ms>`."""
+handing it to a query run, each thread's events summed by name a line each, the max time first:
+`<thread> <name> <count> <total ms> <max ms>`."""
 
 import collections
 import subprocess
@@ -12,7 +12,7 @@ import time
 
 # the categories traced: the timeline of each frame, its frames, and the collector
 CATEGORIES = "devtools.timeline,disabled-by-default-devtools.timeline.frame,disabled-by-default-devtools.timeline.stack,v8.gc,cc,viz"
-# the lines of the summary handed: the threads' busiest events, and the style passes and layouts scripts forced
+# the lines of the summary passed: the threads' busiest events, and the style passes and layouts scripts forced
 LINES = 40
 FORCED_LINES = 10
 
@@ -42,7 +42,7 @@ class Frames:
         conn.call("Tracing.start", timeout=10, categories=CATEGORIES, transferMode="ReportEvents")
 
     def end(self, conn, writer, qry, name):
-        """The trace ended and its summary handed to the run at `qry` as the file `name` by `writer`."""
+        """The trace ended and its summary passed to the run at `qry` as the file `name` by `writer`."""
         conn.call("Tracing.end", timeout=10)
         until = time.monotonic() + 60
         while True:
@@ -61,7 +61,7 @@ class Frames:
 
 
 def summary(events):
-    """Each thread's complete events summed by name, the most time first, then the style passes and layouts a script
+    """Each thread's complete events summed by name, the max time first, then the style passes and layouts a script
     forced, summed by the call that forced them."""
     threads = {}
     for event in events:
@@ -77,8 +77,8 @@ def summary(events):
         ms = float(event.get("dur") or 0) / 1000.0
         args = event.get("args") or {}
         touched = args.get("elementCount") or (args.get("beginData") or {}).get("dirtyObjects") or 0
-        count, total, most, touched_all = sums.get((thread, name), (0, 0.0, 0.0, 0))
-        sums[(thread, name)] = (count + 1, total + ms, max(most, ms), touched_all + int(touched))
+        count, total, max, touched_all = sums.get((thread, name), (0, 0.0, 0.0, 0))
+        sums[(thread, name)] = (count + 1, total + ms, max(max, ms), touched_all + int(touched))
         if name in ("UpdateLayoutTree", "Layout"):
             stack = (args.get("beginData") or {}).get("stackTrace") or []
             if stack:
@@ -87,8 +87,8 @@ def summary(events):
                 count_forced, total_forced = forced.get(at, (0, 0.0))
                 forced[at] = (count_forced + 1, total_forced + ms)
     lines = []
-    for (thread, name), (count, total, most, touched) in sorted(sums.items(), key=lambda one: -one[1][1])[:LINES]:
-        lines.append("%s %s %d %.1f %.1f touched %d" % (thread, name, count, total, most, touched) if touched else "%s %s %d %.1f %.1f" % (thread, name, count, total, most))
+    for (thread, name), (count, total, max, touched) in sorted(sums.items(), key=lambda one: -one[1][1])[:LINES]:
+        lines.append("%s %s %d %.1f %.1f touched %d" % (thread, name, count, total, max, touched) if touched else "%s %s %d %.1f %.1f" % (thread, name, count, total, max))
     for at, (count, total) in sorted(forced.items(), key=lambda one: -one[1][1])[:FORCED_LINES]:
         lines.append("forced %s %d %.1f" % (at, count, total))
     return "".join(line + "\n" for line in lines)

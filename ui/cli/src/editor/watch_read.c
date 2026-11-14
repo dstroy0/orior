@@ -23,7 +23,7 @@ typedef struct
     CliWatchChangeFn emit;
     void *context;
 } WatchReadCtx;
-// git's index and HEAD read, each that moved handed to `emit` where it is given
+// git's index and HEAD read, each that moved passed to `emit` where it is given
 EMBED_INLINE void cli_git_stamp(const WatchReadCtx *args)
 {
     const char *root = args->root;

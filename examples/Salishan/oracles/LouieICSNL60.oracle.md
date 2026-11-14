@@ -8,10 +8,10 @@ Reisinger, University of British Columbia; Bailey Trotter, University of British
 
 Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
-pure corpus, then against this paper's own English laid over that reference. What the paper's
+pure corpus, then against this paper's own English positioned over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
 from the characters that sit outside that English, and word_web.web() built 1457 edges over the
-language forms. A person then matched the context: who, kind and gloss for each row, the names,
+language forms. A person then matched the context: who, type and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
 someone reads the paper again and says otherwise.
@@ -23,14 +23,14 @@ told by Freddie Louie of the Tla’amin Nation on May 17, 2016, with Elsie Paul,
 transcribed, translated and glossed by the seven authors, Freddie Louie first among them.
 
 A turn as said, in Section 2.1, and the words of a line as said, in Section 2.3, are the speaker's:
-Freddie Louie for F and Elsie Paul for E, with the English they switch into kept in place. A line of
+Freddie Louie for F and Elsie Paul for E, with the English they switch into retained in place. A line of
 Section 2.3 said in English only is the speaker's too. The segmentation and gloss lines carry
 ʔayʔaǰuθəm, and the English of Section 2.2 and of each glossed line is the authors' translation. The
 cited words of Section 1, the prose, the headings and the footnotes carry the authors.
 
-THE LETTERS
+THE CHARACTERS
 
-Outside the paper's English the engine found these letters and marks: æ í č š ƛ ǰ ə ɛ ɩ ɬ ʊ ʔ ʷ ́ ̌
+Outside the paper's English the engine found these characters and marks: æ í č š ƛ ǰ ə ɛ ɩ ɬ ʊ ʔ ʷ ́ ̌
 ̓ θ χ ᶿ. The line as said is in a practical orthography that writes what Freddie and Elsie say: ɛ,
 ɩ, ʊ and æ for lowered and centralized vowels, o, χ for the uvular fricative, ǰ, č, θ, ɬ, ƛ̓ and the
 superscript ᶿ of t̓ᶿ. The segmentation writes the underlying forms in a phonemic orthography, i, ə,
@@ -41,7 +41,7 @@ təq-ipa[n]-t-əm=k̓ʷa.
 THE PAGE AND THE TEXT LAYER
 
 The forms are in NFC, and the check puts the page text, read from the glyph positions, through the
-same repair: a mark the text sets after a space is put back on its letter, then NFC, then 13
+same repair: a mark the text sets after a space is put back on its character, then NFC, then 13
 page-read corrections. The glossed lines set each word over its segmentation and gloss, read here by
 glyph rows at a 0.112 em word space; the text layer, which sets each column on lines of its own,
 settled the tokens the rows read differently, cedar.shakes, NEG ???, <STAT>, and the ‘ of ‘And,
@@ -59,7 +59,7 @@ where    the paper's locator: the title, the front matter, a section, a footnote
 who      the language for an example tier and a cited form; the work cited on an example's
          line, or the speaker for a volunteered translation, for its English; the authors for
          the prose, the tables and the notes
-kind     transcription  an example tier in the orthography
+type     transcription  an example tier in the orthography
          segmentation   an example tier broken into morphemes
          gloss          the morpheme gloss tier of an example
          translation    the English of an example

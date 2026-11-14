@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The app's icons: each a shape drawn on a 16-unit square, its filled parts as dots, and a letter in its place where
+// The app's icons: each a shape drawn on a 16-unit square, its filled parts as dots, and a character in its place where
 // the name is one character.
 
 import { icon } from "../../gui/src-js/icons.js";
@@ -23,9 +23,9 @@ test("a shape's filled parts are dots, and a name with no shape draws nothing", 
   assert.equal(icon("no-such-icon").childElementCount, 0);
 });
 
-test("a one-letter name is the letter itself", () => {
-  const letter = icon("m");
-  assert.equal(letter.tagName, "SPAN");
-  assert.equal(letter.className, "icon-letter");
-  assert.equal(letter.textContent, "m");
+test("a one-character name is the character itself", () => {
+  const character = icon("m");
+  assert.equal(character.tagName, "SPAN");
+  assert.equal(character.className, "icon-character");
+  assert.equal(character.textContent, "m");
 });

@@ -5,7 +5,7 @@
 // scripts. An element of a panel that names a command in `data-command`, pressed, and Enter in a
 // field of a form that holds one, is heard by the plugin as `panel`: `{ panel, command, value,
 // fields }`, the panel's id, the element's `data-command` and `data-value`, and the fields of the form
-// it stands in, by their names. A link pressed in a panel is heard the same, its command `link` and
+// it is in, by their names. A link pressed in a panel is heard the same, its command `link` and
 // its value its address.
 
 import { motionReduced } from "./motion.js";
@@ -14,7 +14,7 @@ import { onScheme, scheme } from "./scheme.js";
 // What a plugin's panel is drawn with where less motion is asked for.
 const STILL_PANEL = "<style>*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}</style>";
 
-// What a plugin's panel is drawn on before its own HTML: the window's scheme, so its document lays no ground of its
+// What a plugin's panel is drawn on before its own HTML: the window's scheme, so its document positions no ground of its
 // own over the panel's, and the window's text color and face, each of which the panel's own styles still set over.
 function panelGround() {
   const root = getComputedStyle(document.documentElement);
@@ -31,7 +31,7 @@ function element(tag, props = {}, ...children) {
   return made;
 }
 
-// The fields of the form `form` stands in, by their names: a check's whether it is checked.
+// The fields of the form `form` is in, by their names: a check's whether it is checked.
 function fieldsOf(form) {
   const fields = {};
   for (const field of form?.querySelectorAll("input[name], select[name], textarea[name]") ?? []) {
@@ -70,17 +70,17 @@ function heardIn(one, id, frame) {
   page.documentElement.dataset.heard = "";
 }
 
-// The panels of the plugins `running` drawn, each kept as it was where its HTML is the same.
+// The panels of the plugins `running` drawn, each retained as it was where its HTML is the same.
 export function drawPanels(running) {
   drawnFrom = running;
   const host = document.getElementById("plugin-panels");
-  const shown = [...running.values()].flatMap((one) => [...one.panels].map(([id, panel]) => ({ one, id, panel })));
-  host.hidden = !shown.length;
-  const kept = new Map([...host.children].map((node) => [node.dataset.key, node]));
+  const displayed = [...running.values()].flatMap((one) => [...one.panels].map(([id, panel]) => ({ one, id, panel })));
+  host.hidden = !displayed.length;
+  const retained = new Map([...host.children].map((node) => [node.dataset.key, node]));
   host.replaceChildren(
-    ...shown.map(({ one, id, panel }) => {
+    ...displayed.map(({ one, id, panel }) => {
       const key = `${one.id}/${id}`;
-      const made = kept.get(key) ?? element("section", { className: "plugin-panel", ariaLabel: String(panel.title ?? id) });
+      const made = retained.get(key) ?? element("section", { className: "plugin-panel", ariaLabel: String(panel.title ?? id) });
       made.dataset.key = key;
       const close = element("button", { type: "button", className: "plugin-panel-close", textContent: "×", title: "Close" });
       close.addEventListener("click", () => {

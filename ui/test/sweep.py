@@ -6,12 +6,12 @@
 # link, tab, menu item, option and tree item pressed, each field typed into and its Enter pressed,
 # each check turned and turned back, each choice set to each of its options and put back, and each
 # slider set to its ends and put back, all as real input through the window's debugging port. What a
-# press shows that was not shown before, a menu, a submenu, a sheet, a prompt, a view, is swept in
+# press shows that was not displayed before, a menu, a submenu, a sheet, a prompt, a view, is swept in
 # its turn, reached again from the edit view by the presses that showed it; a tree item and a tab
 # are pressed with the right button too, for the menu that shows. Each control is swept once, by the
 # key sweep.js names it by.
 #
-# monitor.js keeps every call inside the window as walk.py's does. A control's record says what it
+# monitor.js retains every call inside the window as walk.py's does. A control's record says what it
 # was, what was done, and each error the page threw, each call that failed, each link it would have
 # followed and how many controls it showed. A control after which the page stops answering or the
 # window closes is recorded so, the window is started again on its home and tree, and the sweep goes
@@ -25,9 +25,9 @@
 #   Usage:  python -I ui/test/sweep.py [--display \\.\DISPLAY3] [--windows 4] [--depth 4] [--settle 3]
 #                                      [--limit N] [--reach 10]
 #
-# Each run is kept in the top's build/ui_test/sweep/<time>/: sweep.md and sweep.json, and each window's
+# Each run is retained in the top's build/ui_test/sweep/<time>/: sweep.md and sweep.json, and each window's
 # own run, its records, window.log, home and tree, in window_<n>/ beside its output in window_<n>.txt.
-# A run with --limit is one window's, kept in the run's folder itself.
+# A run with --limit is one window's, retained in the run's folder itself.
 
 import argparse
 import collections
@@ -77,7 +77,7 @@ class Sweeper:
 
     def connect(self):
         """A connection to the window's page, its dialogs answered; and, where it is a window started again,
-        monitor.js and sweep.js put in it and the edit view shown."""
+        monitor.js and sweep.js put in it and the edit view displayed."""
         again = self.conn is not None
         if again:
             self.conn.close()
@@ -192,7 +192,7 @@ class Sweeper:
 
     def act(self, control):
         """What is done to a control by its type, and the state put back after; says what was done."""
-        type = control["kind"]
+        type = control["type"]
         before = self.js(f"window.__sweep.state({control['index']})")
         if type in ("button", "tab", "item", "tree"):
             self.click(control["x"], control["y"])
@@ -226,22 +226,22 @@ class Sweeper:
             self.js(f"window.__sweep.set({control['index']}, {json.dumps(before)})")
             return f"set to each of {control['options']} options, put back"
         if type == "range":
-            least, most = self.js(f"window.__sweep.bounds({control['index']})")
-            for value in (least, most):
+            least, max = self.js(f"window.__sweep.bounds({control['index']})")
+            for value in (least, max):
                 self.js(f"window.__sweep.set({control['index']}, {json.dumps(value)})")
                 self.settle(self.options.settle)
             self.js(f"window.__sweep.set({control['index']}, {json.dumps(before)})")
             return "set to its ends, put back"
         return "not pressed"
 
-    def sweep_control(self, surface, control, shown):
+    def sweep_control(self, surface, control, displayed):
         """One control swept: its record, and a surface of what it showed queued, and of the menu its
         right button shows for a tree item or a tab."""
-        record = {"surface": surface["name"], "key": control["key"], "kind": control["kind"], "label": control["label"], "covered": control["covered"]}
+        record = {"surface": surface["name"], "key": control["key"], "type": control["type"], "label": control["label"], "covered": control["covered"]}
         if control["disabled"]:
-            record["did"] = "not pressed: shown as not to be pressed"
+            record["did"] = "not pressed: displayed as not to be pressed"
             return record
-        if control["kind"] == "file":
+        if control["type"] == "file":
             record["did"] = "not pressed: it opens the system's picker"
             return record
         self.js("window.__walk.begin(); window.__sweep.navigations = []; 1")
@@ -253,21 +253,21 @@ class Sweeper:
         record["failed"] = [f"{one['name']}: {one.get('error', '')[:200]}" for one in report["calls"] if not one["ok"] and BLOCKED not in one.get("error", "")]
         record["blocked"] = sorted({one["name"] for one in report["blocked"]})
         record["navigations"] = self.js("window.__sweep.navigations")
-        record["revealed"] = self.queue(surface, control, "left", shown)
-        if control["kind"] in ("tree", "tab"):
+        record["revealed"] = self.queue(surface, control, "left", displayed)
+        if control["type"] in ("tree", "tab"):
             self.js("window.__walk.clear()")
             again = self.reach(surface, control["key"])
             if again is not None:
                 self.click(again["x"], again["y"], "right")
                 self.settle(self.options.settle)
-                record["revealed"] += self.queue(surface, control, "right", shown)
+                record["revealed"] += self.queue(surface, control, "right", displayed)
         self.js("window.__walk.clear()")
         return record
 
-    def queue(self, surface, control, button, shown):
-        """The controls a press showed that were not shown before nor swept, queued as a surface of
+    def queue(self, surface, control, button, displayed):
+        """The controls a press showed that were not displayed before nor swept, queued as a surface of
         their own reached by the surface's presses and this one: how many."""
-        fresh = [one["key"] for one in self.listing() if one["key"] not in shown and one["key"] not in self.done and one["key"] not in self.queued]
+        fresh = [one["key"] for one in self.listing() if one["key"] not in displayed and one["key"] not in self.done and one["key"] not in self.queued]
         if not fresh or len(surface["steps"]) >= self.options.depth:
             return len(fresh)
         self.queued.update(fresh)
@@ -300,7 +300,7 @@ class Sweeper:
                     if self.options.limit and swept >= self.options.limit:
                         return
                     self.done.add(key)
-                    control = {"key": key, "kind": "", "label": key.split(" | ")[-1]}
+                    control = {"key": key, "type": "", "label": key.split(" | ")[-1]}
                     began = time.time()
                     try:
                         found = self.reach(surface, key)
@@ -308,14 +308,14 @@ class Sweeper:
                             self.unreached.append({"surface": surface["name"], "keys": [key], "seconds": round(time.time() - began, 2)})
                             continue
                         control = found
-                        shown = {one["key"] for one in self.listing()}
-                        record = self.sweep_control(surface, found, shown)
+                        displayed = {one["key"] for one in self.listing()}
+                        record = self.sweep_control(surface, found, displayed)
                     except (Hung, RuntimeError, TimeoutError, ConnectionError, OSError) as error:
                         # a page that stopped answering, or a window that closed, is a finding: the window is started
                         # again on its home and tree and the sweep goes on from the next control
                         code = self.window.restarted()
                         ended = "the window ended" + (f", its exit {code:#x}" if code is not None else " as the sweep ended it")
-                        record = {"surface": surface["name"], "key": key, "kind": control["kind"], "label": control["label"], "did": "hung the page" if isinstance(error, Hung) else "the window closed", "errors": [f"{str(error)[:240]}; {ended}"]}
+                        record = {"surface": surface["name"], "key": key, "type": control["type"], "label": control["label"], "did": "hung the page" if isinstance(error, Hung) else "the window closed", "errors": [f"{str(error)[:240]}; {ended}"]}
                         self.connect()
                         print(f"  {control['label'][:40]!r}: {record['did']}; {ended}; the window is started again")
                     record["seconds"] = round(time.time() - began, 2)
@@ -333,9 +333,9 @@ class Sweeper:
 
 
 def written(out, stamp, records, unreached, dialogs):
-    """The sweep's records kept in sweep.json and told in sweep.md under `out`."""
+    """The sweep's records retained in sweep.json and told in sweep.md under `out`."""
     (out / "sweep.json").write_text(json.dumps({"records": records, "unreached": unreached, "dialogs": dialogs}, indent=1), encoding="utf-8")
-    types = collections.Counter(one["kind"] for one in records)
+    types = collections.Counter(one["type"] for one in records)
     stopped = [one for one in records if one.get("did") in ("hung the page", "the window closed")]
     threw = [one for one in records if one.get("errors") and one not in stopped]
     failed = [one for one in records if one.get("failed") and not one.get("errors")]
@@ -388,25 +388,25 @@ def swept_in_windows(options):
     for into, process, told in shares:
         process.wait()
         told.close()
-        kept = json.loads((into / "sweep.json").read_text(encoding="utf-8")) if (into / "sweep.json").is_file() else {"records": [], "unreached": [], "dialogs": []}
-        for one in kept["records"]:
+        retained = json.loads((into / "sweep.json").read_text(encoding="utf-8")) if (into / "sweep.json").is_file() else {"records": [], "unreached": [], "dialogs": []}
+        for one in retained["records"]:
             if one["key"] not in seen:
                 seen.add(one["key"])
                 records.append(one)
-        unreached += kept["unreached"]
-        dialogs += kept["dialogs"]
+        unreached += retained["unreached"]
+        dialogs += retained["dialogs"]
     unreached = [{"surface": one["surface"], "keys": [key for key in one["keys"] if key not in seen], "seconds": one.get("seconds", 0)} for one in unreached]
     written(out, stamp, records, [one for one in unreached if one["keys"]], dialogs)
 
 
 def main():
-    # each line said as it is printed, a run's output read as it goes where it is kept in a file
+    # each line said as it is printed, a run's output read as it goes where it is retained in a file
     sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
     parser = argparse.ArgumentParser(description="Sweep every control of orior's window in a window of the sweep's own.")
     parser.add_argument("--display", default="\\\\.\\DISPLAY3", help="the display the window is put on")
-    parser.add_argument("--depth", type=int, default=4, help="the most presses a surface is reached by")
+    parser.add_argument("--depth", type=int, default=4, help="the max presses a surface is reached by")
     parser.add_argument("--settle", type=float, default=3.0, help="seconds a press is given to come to rest")
-    parser.add_argument("--limit", type=int, default=0, help="the most controls swept, none where 0")
+    parser.add_argument("--limit", type=int, default=0, help="the max controls swept, none where 0")
     parser.add_argument("--reach", type=float, default=10.0, help="seconds a control reached again is looked for")
     parser.add_argument("--windows", type=int, default=4, help="the windows swept at once, each a share of the controls")
     parser.add_argument("--of", type=int, default=1, help=argparse.SUPPRESS)

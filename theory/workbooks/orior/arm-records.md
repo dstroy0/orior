@@ -1,6 +1,6 @@
 # What an arm is
 
-An arm is a region that a reading takes one letter from. This page defines the record, giving a
+An arm is a region that a reading takes one character from. This page defines the record, giving a
 viewer that draws arms and a reader that measures with them one definition instead of two.
 
 The eight sign octants used elsewhere in this tree are one arm set among many. They were chosen for
@@ -10,33 +10,33 @@ being easy to state, easy to draw and cheap to compute, and nothing about the re
 
 | field | required | what it holds |
 |---|---|---|
-| `name` | yes | a label, by which the letters of a reading can be named |
+| `name` | yes | a label, by which the characters of a reading can be named |
 | `origin` | yes | where the arm sits, as a point. Inside the object, outside it, anywhere |
 | `orientation` | yes | the frame the arm is stated in |
 | `weight` | yes | a real value per placement point, the arm's response to a point being lit |
-| `extent` | no | a shape that generates `weight`, kept when a shape is how the arm is stated |
+| `extent` | no | a shape that generates `weight`, retained when a shape is how the arm is stated |
 
 `weight` is the arm. Everything else is either bookkeeping or a convenience for producing it.
 
 ## Reading with a set of arms
 
-Given arms `A` and a lit set `S`, the letter of arm `a` is the sum of `a.weight(p)` over the lit
-points `p`, divided by the count of lit points. The letters together are the reading.
+Given arms `A` and a lit set `S`, the character of arm `a` is the sum of `a.weight(p)` over the lit
+points `p`, divided by the count of lit points. The characters together are the reading.
 
 Writing the arms as rows of a matrix `W`, one row per arm and one column per placement point, the
 reading is `W s` for the lit indicator `s`, up to that division. Every property below is a property
 of `W`.
 
-## Three kinds of arm, and one rule covering them
+## Three types of arm, and one rule covering them
 
-| kind | weights | example |
+| type | weights | example |
 |---|---|---|
 | indicator | 0 or 1 | a sign octant. The point is in the region or it is not |
 | signed | -1, 0 or 1 | the difference of two overlapping arms |
 | graded | any real | an arm matched to a spherical harmonic |
 
 The indicator arm is the special case where a membership test supplies the entire weight. Nothing in
-the reading distinguishes the three kinds, and a tool that handles graded arms handles all of them
+the reading distinguishes the three types, and a tool that handles graded arms handles all of them
 while a tool assuming membership handles only the first.
 
 ## What is free, and what is required
@@ -92,22 +92,22 @@ that is a defect in the reading. This is a null in the sense the harness uses: a
 change the answer, whose measured residual is the reading's own grain. It is built, it holds, and
 the next section reports it.
 
-Drawing one thing several ways and keeping the reading that holds is already the discipline in this
+Drawing one thing several ways and retention the reading that holds is already the discipline in this
 work. Free arms extend it, because the reader can now be varied as well as the picture.
 
 ## The redraw, measured
 
 `examples/00_blob_viz_tools/arm_draw.py` draws one arm set four ways and reads the same lit set with each. The set
 is the eight sign octants and one graded arm carrying the height coordinate, over the 256-point
-golden placement at a lit weight of 153, where one point changing arm moves a letter by 6.536e-3.
+golden placement at a lit weight of 153, where one point changing arm moves a character by 6.536e-3.
 The floor it produces is reported by `null_harness` beside the other six.
 
-A letter is a sum, and a sum hides a pair of moves that cancel inside it. Two points swapping arms
-leaves both letters where they were while the arms are no longer the arms. So the comparison runs
+A character is a sum, and a sum hides a pair of moves that cancel inside it. Two points swapping arms
+leaves both characters where they were while the arms are no longer the arms. So the comparison runs
 at three levels: the weight of each arm at each point, the count of points that changed arm, and
-the letter a caller reads.
+the character a caller reads.
 
-| redraw | worst weight move | points reassigned | worst letter move |
+| redraw | worst weight move | points reassigned | worst character move |
 |---|---|---|---|
 | point cloud, record round trip | 0 | 0 of 256 | 0 |
 | dwell on a line | 0 | 0 of 256 | 0 |
@@ -117,11 +117,11 @@ the letter a caller reads.
 The dwell arm is the case this section was written for. Its support is the golden spiral taken as a
 curve, its dwell at each place along the curve is the weight there, and its sampling rule is
 incidence at integer parameter. A one-dimensional arm reading a three-dimensional object, returning
-the same letters bit for bit. The curve is written with different arithmetic from the placement, and
+the same characters bit for bit. The curve is written with different arithmetic from the placement, and
 the agreement is not two calls to one piece of code.
 
-Recombination is listed with no arm because it declines to measure one: each octant's letter comes
-back as the letter of the two-octant arm holding it minus the letter of its sibling, from two arms
+Recombination is listed with no arm because it declines to measure one: each octant's character comes
+back as the character of the two-octant arm holding it minus the character of its sibling, from two arms
 neither of which is that octant.
 
 The floor is 2.220e-16, thirteen decades under a single point crossing, and no redraw moved the
@@ -137,8 +137,8 @@ measuring it. Clearance at or under the rounding means the sign convention decid
 On this placement the clearance is exactly zero. Index 0 has longitude `0 * GOLDEN`, the sine of
 exactly zero is exactly zero, and its third coordinate is exactly zero at 64, 128, 256, 512, 1024
 and 4096 points alike. Under the rotated frame its carried dot product against that face came back
-at +3.123e-17: it kept its arm by the sign of a rounding residual. The default lit set leaves
-index 0 dark, and the letters could not have moved for it whatever the drawings did, and the check
+at +3.123e-17: it retained its arm by the sign of a rounding residual. The default lit set leaves
+index 0 dark, and the characters could not have moved for it whatever the drawings did, and the check
 now runs the redraws a second time with the on-face points forced lit. They agree there too.
 
 So the reading is independent of its drawing for 255 points by measurement and for 1 by convention,
@@ -147,14 +147,14 @@ claim. The pre-check is the engine's, arrived at from the arithmetic floor of a 
 measured at eight precisions, where the residual falls 0.9861 decades per digit against a prediction
 of 1.0000.
 
-This also refuted a claim standing in `boundary_read.octant_share`, which said a face is measure
-zero on a placement of this kind. A face is measure zero for a placement drawn at random. The golden
+This also refuted a claim located in `boundary_read.octant_share`, which said a face is measure
+zero on a placement of this type. A face is measure zero for a placement drawn at random. The golden
 spiral is not drawn at random, and it puts a point on a face at every size.
 
 **Four drawings that are not redraws are checked against the measurement first**, since a check that
 has never caught anything has not been tested. Each is an implementation somebody would write.
 
-| drawing that is not a redraw | points reassigned | worst letter move |
+| drawing that is not a redraw | points reassigned | worst character move |
 |---|---|---|
 | orientation dropped | 199 of 256 | 1.961e-2 |
 | normalized by the arm | 0 of 256 | 5.437e-1 |
@@ -165,13 +165,13 @@ Two of those rows say something past the pass they record.
 
 **Dropping the frame moves four fifths of the points and a few percent of the reading.** Stating the
 arms in a rotated frame while reading the object in the original one sends 199 of 256 points to a
-different arm, and the eight letters move by 3.92 percent in the units `octant_delta` reports. The
+different arm, and the eight characters move by 3.92 percent in the units `octant_delta` reports. The
 reading moves in 8 directions of 256 and a turn of the frame is mostly a move in the other 248. The
 fault is caught with room to spare here, and a reading with a coarser floor would have to count the
 reassigned points to catch it at all. This is the rank bound arriving as a practical hazard.
 
 **A shortened record costs nothing on indicator arms and something on graded ones.** Writing the
-weights at six significant figures cannot touch a 0 or a 1, and it moves the graded letter by
+weights at six significant figures cannot touch a 0 or a 1, and it moves the graded character by
 3.268e-9. An arm set of indicators alone would have passed that row while learning nothing from it,
 and a graded arm is in the set for this reason.
 
@@ -209,8 +209,8 @@ measured baselines are what a proposal is scored against.
 
 ## Algebraic recombination
 
-Overlapping arms combine. Where arm `A` contains arm `B`, the letter of `A` minus the letter of `B`
-is the letter of the region `A` without `B`, computed and never measured again. Any region in the
+Overlapping arms combine. Where arm `A` contains arm `B`, the character of `A` minus the character of `B`
+is the character of the region `A` without `B`, computed and never measured again. Any region in the
 Boolean algebra the arms generate is reachable this way, and so is any linear combination of arms.
 
 Recombination is valid only when the overlap structure is known, and knowing the overlap structure
@@ -223,10 +223,10 @@ The reading is a projection onto the span of the arm rows, and the count of dire
 the rank of `W` and no other quantity. Three consequences, each of which has caught somebody here.
 
 **Rank is the count of independent arms.** Not the count of arms. Adding an arm that is a
-combination of arms already present adds a letter and no information.
+combination of arms already present adds a character and no information.
 
 **Tiling costs exactly one degree of freedom, and only tiling does.** Arms that are disjoint and
-cover the space force the letters to sum to one, leaving a set of `M` such arms carrying `M - 1`
+cover the space force the characters to sum to one, leaving a set of `M` such arms carrying `M - 1`
 free numbers at fixed weight. Overlapping arms carry no such constraint and hold `M`. The
 seven-free-numbers figure quoted for the eight octants comes from their tiling and is not a property
 of eight arms.
@@ -239,7 +239,7 @@ it.
 
 | quantity | why it is asked for |
 |---|---|
-| count of arms | the ceiling on letters |
+| count of arms | the ceiling on characters |
 | rank of `W` | the ceiling on information, and the binding one |
 | least singular value | what an inversion of the reading costs |
 | whether the set tiles | decides whether one degree of freedom is spent on the sum |

@@ -44,12 +44,12 @@ static Hdf5Walk hdf5_find_link(Hdf5File *file, void *state, const unsigned char 
 static void hdf5_print_candidate(const char *path, const Hdf5Object *object)
 {
     fprintf(stderr, "hdf5: candidate %s extent (", path);
-    const unsigned int shown = (object->rank > ENGINE_ARRAY_RANK) ? 0u : object->rank;
-    for (unsigned int axis = 0u; axis < shown; axis += 1u)
+    const unsigned int displayed = (object->rank > ENGINE_ARRAY_RANK) ? 0u : object->rank;
+    for (unsigned int axis = 0u; axis < displayed; axis += 1u)
     {
         fprintf(stderr, "%s%llu", (axis == 0u) ? "" : ", ", object->extent[axis]);
     }
-    if (shown == 0u)
+    if (displayed == 0u)
     {
         fprintf(stderr, "rank %u", object->rank);
     }
@@ -246,11 +246,11 @@ static int hdf5_chunking_check(Hdf5File *file, const Hdf5Object *object)
     unsigned long long range = 1ull;
     for (unsigned int axis = 0u; axis < rank; axis += 1u)
     {
-        const int bounded = (object->maximum[axis] != hdf5_all_ones(file->length_bytes)) &&
-                            (object->maximum[axis] >= object->extent[axis]);
+        const int bounded = (object->max[axis] != hdf5_all_ones(file->length_bytes)) &&
+                            (object->max[axis] >= object->extent[axis]);
         const unsigned long long cells = bounded
-                                             ? ((object->maximum[axis] / object->chunk[axis]) +
-                                                (((object->maximum[axis] % object->chunk[axis]) != 0ull) ? 1ull : 0ull))
+                                             ? ((object->max[axis] / object->chunk[axis]) +
+                                                (((object->max[axis] % object->chunk[axis]) != 0ull) ? 1ull : 0ull))
                                              : 1ull;
         if (((object->chunk_index == HDF5_INDEX_FIXED) || (object->chunk_index == HDF5_INDEX_IMPLICIT)) &&
             (!bounded || ((cells != 0ull) && (range > (~0ull / cells)))))

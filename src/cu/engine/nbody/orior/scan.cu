@@ -11,9 +11,9 @@
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
  * THE SAME QUESTION EVERY SCAN ARM ANSWERS, MAPPED OVER THE DEVICE. Fixed at one needle offset, count
- * the alignments still standing whose corpus byte equals the needle byte. The vector arms widen one
+ * the alignments still located whose corpus byte equals the needle byte. The vector arms widen one
  * compare; this one gives one alignment to each thread and adds a one where that alignment agrees and
- * stands. The reduction is a single atomic increment per agreeing thread, what the exact
+ * is. The reduction is a single atomic increment per agreeing thread, what the exact
  * device arm does and needs no tuning at this size.
  *
  * WHAT THIS ARM IS NOT ALLOWED TO DO. It returns the portable arm's count or it has a defect. The
@@ -43,17 +43,17 @@
 #define ORIOR_STEER_GPU_BLOCK 256u
 
 /**
- * @brief One thread per alignment: add one where it stands and its corpus byte is the wanted one.
+ * @brief One thread per alignment: add one where it is and its corpus byte is the wanted one.
  *
  * @param[in]     corpus     Bytes under examination [BORROWS].
  * @param[in]     alignments How many alignments the object has.
- * @param[in]     alive      One flag per alignment, non-zero where still standing [BORROWS].
+ * @param[in]     alive      One flag per alignment, non-zero where still located [BORROWS].
  * @param[in]     wanted     The needle byte being tested.
  * @param[in]     offset     Needle offset the probe sits at.
- * @param[in,out] standing   Where the count is accumulated [BORROWS].
+ * @param[in,out] located   Where the count is accumulated [BORROWS].
  */
 __global__ static void scan_kernel(const unsigned char *corpus, size_t alignments, const unsigned char *alive,
-                                   unsigned char wanted, size_t offset, unsigned int *standing)
+                                   unsigned char wanted, size_t offset, unsigned int *located)
 {
     const size_t at = (size_t)blockIdx.x * (size_t)blockDim.x + (size_t)threadIdx.x;
     if (at >= alignments)
@@ -66,7 +66,7 @@ __global__ static void scan_kernel(const unsigned char *corpus, size_t alignment
     }
     if (corpus[at + offset] == wanted)
     {
-        atomicAdd(standing, 1u);
+        atomicAdd(located, 1u);
     }
 }
 
@@ -107,7 +107,7 @@ extern "C" int orior_steer_cuda_describe(char *text, size_t capacity)
 static size_t scan_host_fallback(const unsigned char *corpus, size_t alignments, const unsigned char *alive,
                                  unsigned char wanted, size_t offset)
 {
-    size_t standing = 0u;
+    size_t located = 0u;
     for (size_t at = 0u; at < alignments; at += 1u)
     {
         if (alive[at] == 0u)
@@ -116,10 +116,10 @@ static size_t scan_host_fallback(const unsigned char *corpus, size_t alignments,
         }
         if (corpus[at + offset] == wanted)
         {
-            standing += 1u;
+            located += 1u;
         }
     }
-    return standing;
+    return located;
 }
 
 extern "C" size_t orior_steer_truthy_after_cuda(const uint8_t *corpus, size_t alignments, const uint8_t *alive,
@@ -141,19 +141,19 @@ extern "C" size_t orior_steer_truthy_after_cuda(const uint8_t *corpus, size_t al
 
     unsigned char *device_corpus = NULL;
     unsigned char *device_alive = NULL;
-    unsigned int *device_standing = NULL;
+    unsigned int *device_located = NULL;
     size_t answer = (size_t)-1;
 
     if ((cudaMalloc((void **)&device_corpus, corpus_bytes) != cudaSuccess) ||
         (cudaMalloc((void **)&device_alive, alignments) != cudaSuccess) ||
-        (cudaMalloc((void **)&device_standing, sizeof(unsigned int)) != cudaSuccess))
+        (cudaMalloc((void **)&device_located, sizeof(unsigned int)) != cudaSuccess))
     {
         goto done;
     }
 
     if ((cudaMemcpy(device_corpus, host_corpus, corpus_bytes, cudaMemcpyHostToDevice) != cudaSuccess) ||
         (cudaMemcpy(device_alive, host_alive, alignments, cudaMemcpyHostToDevice) != cudaSuccess) ||
-        (cudaMemset(device_standing, 0, sizeof(unsigned int)) != cudaSuccess))
+        (cudaMemset(device_located, 0, sizeof(unsigned int)) != cudaSuccess))
     {
         goto done;
     }
@@ -162,7 +162,7 @@ extern "C" size_t orior_steer_truthy_after_cuda(const uint8_t *corpus, size_t al
         const unsigned int blocks =
             (unsigned int)((alignments + (size_t)ORIOR_STEER_GPU_BLOCK - 1u) / (size_t)ORIOR_STEER_GPU_BLOCK);
         scan_kernel<<<blocks, ORIOR_STEER_GPU_BLOCK>>>(device_corpus, alignments, device_alive, (unsigned char)wanted,
-                                                        offset, device_standing);
+                                                        offset, device_located);
         if ((cudaGetLastError() != cudaSuccess) || (cudaDeviceSynchronize() != cudaSuccess))
         {
             goto done;
@@ -171,7 +171,7 @@ extern "C" size_t orior_steer_truthy_after_cuda(const uint8_t *corpus, size_t al
 
     {
         unsigned int host_count = 0u;
-        if (cudaMemcpy(&host_count, device_standing, sizeof(unsigned int), cudaMemcpyDeviceToHost) != cudaSuccess)
+        if (cudaMemcpy(&host_count, device_located, sizeof(unsigned int), cudaMemcpyDeviceToHost) != cudaSuccess)
         {
             goto done;
         }
@@ -181,7 +181,7 @@ extern "C" size_t orior_steer_truthy_after_cuda(const uint8_t *corpus, size_t al
 done:
     cudaFree(device_corpus);
     cudaFree(device_alive);
-    cudaFree(device_standing);
+    cudaFree(device_located);
 
     if (answer == (size_t)-1)
     {

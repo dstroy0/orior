@@ -42,20 +42,20 @@ test("joined to a run, each traced call reaches the run as a line of window.trac
     const [entered, spent] = [Number(read[0][3]), Number(read[0][4])];
     assert.ok(Number(read[1][3]) >= entered && Number(read[1][3]) + Number(read[1][4]) <= entered + spent + 0.001, "an inner call runs inside its outer one");
 
-    traced("handed", () => {});
-    await ui.waitFor(async () => (await invoke("qry_joined", { path: relative, name: TRACE_BLOB })).includes("handed "), 5000);
+    traced("passed", () => {});
+    await ui.waitFor(async () => (await invoke("qry_joined", { path: relative, name: TRACE_BLOB })).includes("passed "), 5000);
     const joined = await traceJoined();
     assert.ok(joined.path.replaceAll("\\", "/").endsWith(relative), `the window's run: ${joined.path}`);
-    assert.ok(joined.queued.handed > 0, "the backend handed the trace");
+    assert.ok(joined.queued.passed > 0, "the backend passed the trace");
 
     traced("last", () => {});
     await joinRun(null);
     assert.equal(tracing(), false, "joined to none, the trace stops");
     await ui.waitFor(async () => (await invoke("qry_joined", { path: relative, name: TRACE_BLOB })).includes("last "), 5000);
     await invoke("qry_stop", { path: qry });
-    const kept = await invoke("qry_joined", { path: relative, name: TRACE_BLOB });
-    assert.ok(kept.includes("handed ") && kept.includes("last "), "the run's file keeps every line handed");
-    assert.ok(kept.split("\n").filter(Boolean).every((line) => LINE.test(line)), "every line of the trace reads as a call");
+    const retained = await invoke("qry_joined", { path: relative, name: TRACE_BLOB });
+    assert.ok(retained.includes("passed ") && retained.includes("last "), "the run's file retains every line passed");
+    assert.ok(retained.split("\n").filter(Boolean).every((line) => LINE.test(line)), "every line of the trace reads as a call");
   } finally {
     await joinRun(null);
     await invoke("qry_stop", { path: qry }).catch(() => {});

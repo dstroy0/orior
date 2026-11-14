@@ -8,7 +8,7 @@
 #include "binary.h"
 
 // A library to look for: its name, the file that loads it, that file's folder, and the run paths that file names,
-// joined by `:`, and whether they are its RUNPATH, which stands before its RPATH where it has one
+// joined by `:`, and whether they are its RUNPATH, which is before its RPATH where it has one
 typedef struct
 {
     char name[CLI_NAME_MAX_LEN];
@@ -17,7 +17,7 @@ typedef struct
     char paths[CLI_PATH_MAX_LEN * 2u];
 } CliElfQueued;
 // A reading of a program's libraries, one cell for the call: the program's dynamic section and a library's, and the
-// folders the loader's settings name; and the libraries queued, a cell of `capacity` at their most
+// folders the loader's settings name; and the libraries queued, a cell of `capacity` at their max
 typedef struct
 {
     CliDynamic *dynamic;
@@ -520,7 +520,7 @@ EMBED_INLINE void cli_library_found(const BinaryElfCtx *args)
 }
 
 // the library at `library`'s path read: its glibc version taken where it is newer than the report's, and the libraries
-// it needs queued after the `queued` before them, with the folder it stands in as their origin; how many are queued
+// it needs queued after the `queued` before them, with the folder it is in as their origin; how many are queued
 EMBED_INLINE unsigned int cli_library_loaded(const BinaryElfCtx *args)
 {
     const CliLibrary *const library = args->library;

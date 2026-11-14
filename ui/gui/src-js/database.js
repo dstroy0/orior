@@ -7,15 +7,15 @@
 // statement gives, a page at a time as the grid scrolls, the server holding them and the grid only
 // those in view.
 //
-// A statement runs from a .sql file of the tree: Run Statement takes the statement the cursor stands
-// in, or the text selected, and runs nothing where the cursor stands in no statement; Run File runs
+// A statement runs from a .sql file of the tree: Run Statement takes the statement the cursor is
+// in, or the text selected, and runs nothing where the cursor is in no statement; Run File runs
 // each statement of the file in turn and stops at the first that fails. Each file runs on the
-// connection chosen for it, kept by its path, or on the one the window has chosen. A statement the
+// connection chosen for it, retained by its path, or on the one the window has chosen. A statement the
 // server says is wrong puts the cursor where the server says. A write that would reach every row of
 // what it names, and a write on a connection that matters set to ask, asks first, with the count of
 // rows. A statement that makes, changes or drops an object reads again the level that holds it.
 //
-// The status bar names the connection of the file shown, the zone its session reads times in, and
+// The status bar names the connection of the file displayed, the zone its session reads times in, and
 // a transaction open, which it commits or rolls back from its menu.
 
 import { invoke } from "./bridge.js";
@@ -66,7 +66,7 @@ function drawBar() {
   const open = state.open.get(name);
   parts.pick.replaceChildren(
     element("option", { value: "", textContent: state.connections.length ? "Connection…" : "No connection: New makes one" }),
-    ...state.connections.map((one) => element("option", { value: one.connection.name, textContent: `${one.connection.name} (${one.connection.kind})${one.open ? " ●" : ""}`, selected: one.connection.name === name })),
+    ...state.connections.map((one) => element("option", { value: one.connection.name, textContent: `${one.connection.name} (${one.connection.type})${one.open ? " ●" : ""}`, selected: one.connection.name === name })),
   );
   parts.connect.textContent = open ? "Disconnect" : "Connect";
   parts.connect.disabled = !name;
@@ -80,7 +80,7 @@ function drawBar() {
   parts.history.disabled = !open;
 }
 
-// The status bar's item: the connection of the file shown, its zone and an open transaction.
+// The status bar's item: the connection of the file displayed, its zone and an open transaction.
 export function drawStatus() {
   const item = document.getElementById("status-database");
   if (!item) {
@@ -118,7 +118,7 @@ async function finish(name, statement) {
 
 const signInFailed = (text) => /28P01|1045|password|authentication/i.test(text);
 
-// Connects to `name`, asking for its password where the server refuses the one kept.
+// Connects to `name`, asking for its password where the server refuses the one retained.
 export async function connect(name) {
   try {
     const said = await invoke("db_connect", { name });
@@ -133,7 +133,7 @@ export async function connect(name) {
       return false;
     }
     try {
-      const said = await invoke("db_connect", { name, password: given.password, save: given.keep });
+      const said = await invoke("db_connect", { name, password: given.password, save: given.retain });
       say(`Connected to ${name}: ${said.version}`);
     } catch (again) {
       say(String(again), { failed: true });
@@ -154,7 +154,7 @@ async function disconnect(name) {
   drawTree();
 }
 
-// The schema's level under `path`, read once and kept until it is read again.
+// The schema's level under `path`, read once and retained until it is read again.
 async function level(path) {
   const key = keyOf(path);
   if (!state.levels.has(key)) {
@@ -163,7 +163,7 @@ async function level(path) {
     try {
       state.levels.set(key, await invoke("db_children", { name: chosen(), path }));
     } catch (error) {
-      state.levels.set(key, [{ label: String(error).split("\n")[0], kind: "failed", detail: "", leaf: true, path: [] }]);
+      state.levels.set(key, [{ label: String(error).split("\n")[0], type: "failed", detail: "", leaf: true, path: [] }]);
     } finally {
       state.reading -= 1;
       drawBar();
@@ -172,7 +172,7 @@ async function level(path) {
   return state.levels.get(key);
 }
 
-// Reads again the level `path` stands in and draws the tree.
+// Reads again the level `path` is in and draws the tree.
 async function readAgain(path) {
   state.levels.delete(keyOf(path));
   drawTree();
@@ -181,10 +181,10 @@ async function readAgain(path) {
 function nodeRow(node, depth) {
   const open = state.opened.has(keyOf(node.path));
   const twisty = element("span", { className: "db-twisty", textContent: node.leaf ? "" : open ? "▾" : "▸" });
-  const row = element("button", { className: `db-node db-${node.kind.replace(/\s+/g, "-")}`, type: "button", title: node.detail || node.label }, twisty, element("span", { className: "name", textContent: node.label }), element("span", { className: "detail", textContent: node.kind === "column" ? node.detail : node.leaf ? node.kind : "" }));
+  const row = element("button", { className: `db-node db-${node.type.replace(/\s+/g, "-")}`, type: "button", title: node.detail || node.label }, twisty, element("span", { className: "name", textContent: node.label }), element("span", { className: "detail", textContent: node.type === "column" ? node.detail : node.leaf ? node.type : "" }));
   row.style.paddingLeft = `${0.4 + depth * 0.9}rem`;
   row.dataset.path = JSON.stringify(node.path);
-  row.dataset.kind = node.kind;
+  row.dataset.type = node.type;
   row.dataset.label = node.label;
   if (!node.leaf) {
     row.addEventListener("click", () => {
@@ -237,7 +237,7 @@ function treeItems(event) {
   const path = JSON.parse(row.dataset.path || "[]");
   const connection = connectionOf(chosen());
   const items = [{ label: "Copy Name", command: "db-copy-name", args: [row.dataset.label], run: () => copyText(row.dataset.label) }];
-  if (path.length === 3 && ["table", "view", "materialized view", "foreign table"].includes(row.dataset.kind)) {
+  if (path.length === 3 && ["table", "view", "materialized view", "foreign table"].includes(row.dataset.type)) {
     items.unshift({ label: "Show Its First Rows", command: "db-first-rows", args: [path[0], path[2]], run: () => databaseCommands["db-first-rows"]([path[0], path[2]]) });
   }
   items.push({ label: "Read Again", command: "db-read-again", args: path, run: () => readAgain(path.length ? path : []) });
@@ -249,7 +249,7 @@ function treeItems(event) {
 // named after them, a name copied, and a level of the tree read again by its path.
 export const databaseCommands = {
   "db-first-rows": ([schema, table, name = chosen()]) => {
-    const type = connectionOf(name)?.kind;
+    const type = connectionOf(name)?.type;
     return runOn(name, `SELECT * FROM ${quoteName(schema, type)}.${quoteName(table, type)} LIMIT ${PAGE}`);
   },
   "db-copy-name": ([name]) => copyText(name),
@@ -263,13 +263,13 @@ function askToRun(name, statement, ask) {
     const text = ask.why === "every row" ? `This ${first} reaches every row of what it names on ${name}: ${ask.count ?? "an unknown count of"} rows.` : `${name} is a connection that matters, and this statement writes.`;
     let answer = false;
     const run = element("button", { className: "primary", type: "button", textContent: "Run It" });
-    const keep = element("button", { type: "button", textContent: "Do Not Run It" });
-    const body = element("div", { className: "sheet-ask database-ask" }, element("p", { textContent: text }), element("pre", { className: "database-statement", textContent: statement.slice(0, 600) }), element("div", { className: "commit-buttons" }, keep, run));
+    const retain = element("button", { type: "button", textContent: "Do Not Run It" });
+    const body = element("div", { className: "sheet-ask database-ask" }, element("p", { textContent: text }), element("pre", { className: "database-statement", textContent: statement.slice(0, 600) }), element("div", { className: "commit-buttons" }, retain, run));
     const dialog = state.hooks.sheet(body);
     run.addEventListener("click", () => ((answer = true), dialog.close()));
-    keep.addEventListener("click", () => dialog.close());
+    retain.addEventListener("click", () => dialog.close());
     dialog.addEventListener("close", () => done(answer));
-    keep.focus();
+    retain.focus();
   });
 }
 
@@ -328,7 +328,7 @@ export async function runOn(name, statement, { answered = false } = {}) {
   return said;
 }
 
-// `hooks` gives the editor, the file shown, a sheet over the window, and a line asked for.
+// `hooks` gives the editor, the file displayed, a sheet over the window, and a line asked for.
 export function startDatabase(hooks) {
   state.hooks = hooks;
   parts.panel = document.getElementById("database");

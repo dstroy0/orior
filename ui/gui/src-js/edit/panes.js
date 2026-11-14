@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 import { invoke, listen } from "../bridge.js";
-import { inBridge, keepBridge, loadBridge } from "../bridge_panel.js";
-import { drawGit, drawLocalHistory, drawReview, drawTodo, drawOutline, drawProblems, drawTimeline, drawUndo, paneOpen, shownGroup, startExplorer } from "../explorer.js";
+import { inBridge, retainBridge, loadBridge } from "../bridge_panel.js";
+import { drawGit, drawLocalHistory, drawReview, drawTodo, drawOutline, drawProblems, drawTimeline, drawUndo, paneOpen, displayedGroup, startExplorer } from "../explorer.js";
 import { drawCommit, startCommit } from "../commit.js";
 import { changed, startServers, treeChecking } from "../servers.js";
 import { startIntel } from "../intel.js";
 import { startDebug } from "../debug.js";
-import { keepListKeys } from "../lists.js";
+import { retainListKeys } from "../lists.js";
 import { menuOn } from "../menu.js";
 import { onPatterns, tellPatterns } from "../patterns.js";
 import { notebookOfCellFile, repaintNotebook, showCellLine } from "../notebook.js";
@@ -31,7 +31,7 @@ import { drawTree, loadChanges, repoName, repoOf, repoOpen } from "./tree.js";
 
 export function startPanes() {
   startCommit({
-    shown: () => paneOpen("changes") && shownGroup() === "commit",
+    displayed: () => paneOpen("changes") && displayedGroup() === "commit",
     saveAll: () => editing().saveAll(),
     reload: (paths) => reloadFromDisk(paths),
     refresh: async () => {
@@ -164,7 +164,7 @@ export function startPanes() {
 }
 
 export async function bindPage() {
-  keepListKeys(document.getElementById("panes"), document.getElementById("file-filter"));
+  retainListKeys(document.getElementById("panes"), document.getElementById("file-filter"));
   // A link in a hover, a diagnostic or a document opens in the browser, and the window stays.
   document.addEventListener(
     "click",
@@ -177,7 +177,7 @@ export async function bindPage() {
     },
     true,
   );
-  // The peek goes with Escape, a press outside it, a scroll of the text, or another file shown.
+  // The peek goes with Escape, a press outside it, a scroll of the text, or another file displayed.
   window.addEventListener(
     "keydown",
     (event) => {
@@ -220,7 +220,7 @@ export async function bindPage() {
   document.getElementById("editor").hidden = true;
   drawEmpty(true);
   loadBridge();
-  keepBridge(() => inBridge(state.active) && drawDefs());
+  retainBridge(() => inBridge(state.active) && drawDefs());
   listen("tree-changed", treeChanged);
   // The explorer drawn again as its patterns change.
   onPatterns((part) => {

@@ -21,7 +21,7 @@
 # articles and translated works mixed together.
 #
 # Ancient Malagasy is not reachable and is worth naming as absent. What is left of it is Sorabe, written
-# in Arabic script, kept in manuscript and not published as text. What is measured here is the modern
+# in Arabic script, retained in manuscript and not published as text. What is measured here is the modern
 # language only.
 
 import gzip

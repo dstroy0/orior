@@ -28,7 +28,7 @@ Three outcomes, and the difference between the first two is the whole design:
   differs    the words themselves are not the RFC's. Either the quotation is a paraphrase wearing
              quotation marks, or it is quoted accurately from a different RFC than the one named.
 
-Getting the first two apart from the third is most of the work, and every normalization here was
+Getting the first two apart from the third is the majority of the work, and every normalization here was
 put in after a correct quotation was reported as an invention:
 
   - Page furniture goes line by line. Taking the line either side of the form feed as well ate the
@@ -37,7 +37,7 @@ put in after a correct quotation was reported as an invention:
   - A hyphen at the wrap is ambiguous and the text cannot settle it. RFC 8200 breaks
     "first-arriving" where the hyphen IS the wrap; RFC 9293 breaks "option-length" where it belongs
     to the word. Both readings are built and either may match. Reading every break as a wrap loses
-    the second kind.
+    the second type.
   - A run of // lines is one comment. code_mask marks the newline ending a // comment as code.
     Reading the mask alone gives one block per line and truncates
     every quotation spanning two of them. That was hiding 591 quotations - two fifths of the total
@@ -50,7 +50,7 @@ put in after a correct quotation was reported as an invention:
   at, and the report says which. With an odd count every candidate after the stray mark is the gap
   BETWEEN two quotations, and each would be reported as an invented sentence.
 
-WHAT THIS DOES NOT SETTLE. An RFC figure, state table or pseudo-code block is laid out in columns
+WHAT THIS DOES NOT SETTLE. An RFC figure, state table or pseudo-code block is arranged in columns
 with rules through it, and a phrase quoted out of one does not appear as running text: RFC 2236's
 "send report, set flag, start timer" is three table cells. Those come back as differing and are not
 wrong. Neither is a quoted phrase that was never the RFC's - the title of another work, a field
@@ -109,7 +109,7 @@ def words(s):
 
 
 def corpus(num):
-    """((wrap-joined, wrap-kept), words) for an RFC, or None when it is not vendored."""
+    """((wrap-joined, wrap-retained), words) for an RFC, or None when it is not vendored."""
     if num in _corpus:
         return _corpus[num]
     path = os.path.join(RFC_DIR, "rfc{}.txt".format(num))
@@ -122,8 +122,8 @@ def corpus(num):
         for line in raw.split("\n")
         if "\f" not in line and not FOOTER.search(line) and not HEADER.match(line)
     )
-    kept = norm(WRAP.sub("-", body))
-    _corpus[num] = ((norm(WRAP.sub("", body)), kept), words(kept))
+    retained = norm(WRAP.sub("-", body))
+    _corpus[num] = ((norm(WRAP.sub("", body)), retained), words(retained))
     return _corpus[num]
 
 
@@ -141,7 +141,7 @@ def comment_blocks(text):
 
     A run of // lines is ONE comment and has to be returned as one. code_mask marks the newline
     that ends a // comment as code. Scanning the mask alone yields
-    one block per line and cuts every quotation that spans two of them - which is most of the long
+    one block per line and cuts every quotation that spans two of them - the majority of the long
     ones. Adjacent // blocks are merged back together here.
     """
     mask = code_mask(text)

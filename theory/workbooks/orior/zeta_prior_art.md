@@ -1,7 +1,7 @@
 # Prior art for the zeta rail: the zeros against a known reference
 
-**Purpose:** a notes section on the outside work the orior zeta entries sit beside, kept apart from
-the entries to keep a claim here from leaking into one there. Each note says what the work states, where it
+**Purpose:** a notes section on the outside work the orior zeta entries sit beside, retained apart from
+the entries to retain a claim here from leaking into one there. Each note says what the work states, where it
 touches the engine's exact-arithmetic zeta rail
 ([analytic_number_theory_workbook.md](analytic_number_theory_workbook.md)), and how closely it was
 read. **Scope:** the papers pulled for the resonance reading and the known-carrier reading, and the
@@ -96,7 +96,7 @@ Nothing here is a result of the engine. The engine's own runs are the entries.
   zeros are a one-dimensional quasicrystal whose transform sits on the logarithms of the prime powers
   (he cites Odlyzko's transform of the zeros). His plan: enumerate and classify the one-dimensional
   quasicrystals, far richer than the higher-dimensional ones and not tied to any rotational symmetry,
-  and a unique one stands for every Pisot-Vijayaraghavan number. If one of them matches the zeta
+  and a unique one is for every Pisot-Vijayaraghavan number. If one of them matches the zeta
   zeros, RH is proved.
   - **Derived here, elementary algebra.** The `1, 1, 2` carrier of the workbook's posit (6) has period
     matrix `[[1,1],[1,0]]^2 [[2,1],[1,0]] = [[5,2],[3,1]]`, trace 6 and determinant -1, with
@@ -110,7 +110,7 @@ Nothing here is a result of the engine. The engine's own runs are the entries.
     silver ratio `1 + sqrt(2)`, a root of `x^2 - 2 x - 1`, convergents the Pell numbers, conjugate
     `1 - sqrt(2)` of size below 1: a Pisot unit. Both are metallic means, `x^2 = n x + 1` at `n = 1`
     and `n = 2`. `phi` is the worst-approximable number (Hurwitz, the `sqrt(5)` bound): a carrier
-    stepped by it spreads the most evenly of any quadratic irrational, the flattest known reference.
+    stepped by it spreads the max evenly of any quadratic irrational, the flattest known reference.
     The `1, 1, 2` carrier is golden on each run of two 1s and departs on the 2, a period-3 kick (the
     golden-helix reading of [two_crystals.md](../engine/two_crystals.md)); overlaid on `phi` the two
     agree on the 1, 1 and beat at the 2.
@@ -134,7 +134,7 @@ Nothing here is a result of the engine. The engine's own runs are the entries.
   on it. It claims a proof of RH, that the Fourier self-duality of the prime quasicrystal,
   `F[F[chi]] = chi(-.)`, forces every coefficient to be of order 1 and so `beta = 1/2`. Reported
   status: an arXiv preprint claiming to settle RH; the construction was read here, the proof was not
-  checked, and a claimed proof of this kind stands only once it is refereed. The mechanism, a peak
+  checked, and a claimed proof of this type is only once it is refereed. The mechanism, a peak
   that would grow off the line set against a self-duality that forbids it, is the tuned-and-opposed
   shape in the literature.
   - **Remmen** and **Baez** are cited there for the same amplitude and quasicrystal pictures.

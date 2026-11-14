@@ -63,16 +63,16 @@ def product_state(angles):
     return state
 
 
-def reduced(state, keep, qubits=QUBITS):
-    kept = 1 << keep
-    rest = 1 << (qubits - keep)
-    block = state.reshape(kept, rest)
+def reduced(state, retain, qubits=QUBITS):
+    retained = 1 << retain
+    rest = 1 << (qubits - retain)
+    block = state.reshape(retained, rest)
     return block.dot(block.conj().T)
 
 
-def entropy_of(state, keep, qubits=QUBITS):
+def entropy_of(state, retain, qubits=QUBITS):
     """Entanglement entropy across the split, in bits. Zero for a product state."""
-    values = numpy.linalg.eigvalsh(reduced(state, keep, qubits))
+    values = numpy.linalg.eigvalsh(reduced(state, retain, qubits))
     return -sum(float(one) * math.log2(float(one)) for one in values if one > 1e-14)
 
 
@@ -161,7 +161,7 @@ def _report():
     print("")
     print("  WHAT IT COSTS TO GO PART WAY, since this is the useful axis. A matrix product state")
     print("  with bond dimension chi needs about 2 n chi^2 numbers and represents exactly the")
-    print("  states whose entanglement entropy is at most log2(chi) across every split:")
+    print("  states whose entanglement entropy is at max log2(chi) across every split:")
     print("")
     print("  %10s %16s %22s" % ("chi", "entropy it holds", "numbers for 4096 qubits"))
     for chi in (1, 2, 4, 16, 256, 65536):
@@ -202,9 +202,9 @@ def _terms():
         # approximated here.
         full = (1 << (qubits + 1)) - 2
         covers = "yes" if 4 * qubits >= full else "no"
-        shown = "%d" % full if full < 10 ** 12 else "1e%.0f" % (math.log10(2.0) * (qubits + 1))
+        displayed = "%d" % full if full < 10 ** 12 else "1e%.0f" % (math.log10(2.0) * (qubits + 1))
         print("  %5d %10d %12d %14d %16s %10s"
-              % (qubits, 2 * qubits, 4 * qubits, qubits * qubits, shown, covers))
+              % (qubits, 2 * qubits, 4 * qubits, qubits * qubits, displayed, covers))
 
     print("")
     print("  FOUR TERMS PER QUBIT COVERS TWO QUBITS EXACTLY AND FAILS FROM THREE. At two qubits the")
@@ -246,8 +246,8 @@ def _terms():
     print("  %8s %24s" % ("qubits", "terms needed per qubit"))
     for qubits in (2, 3, 4, 8, 16, 32, 64, 128):
         needed = ((1 << (qubits + 1)) - 2 + qubits - 1) // qubits
-        shown = "%d" % needed if needed < 10 ** 9 else "1e%.0f" % math.log10(needed)
-        print("  %8d %24s" % (qubits, shown))
+        displayed = "%d" % needed if needed < 10 ** 9 else "1e%.0f" % math.log10(needed)
+        print("  %8d %24s" % (qubits, displayed))
 
     print("")
     print("  And read the other way, the useful direction:")
@@ -271,7 +271,7 @@ def _terms():
     print("  by a longer road. 'Several or more vectors and magnitudes' is exactly right as a")
     print("  DESCRIPTION of a qubit and it does not change what the collection costs.")
     print("")
-    print("  WHAT IS TRUE AND WORTH KEEPING. A qubit IS a vector and a magnitude, the Bloch form is")
+    print("  WHAT IS TRUE AND WORTH RETAINING. A qubit IS a vector and a magnitude, the Bloch form is")
     print("  exact, and a product state of any size is 2n reals with no approximation anywhere. The")
     print("  thing no per-qubit budget fixes is the COUNT of qubits that can be correlated at once,")
     print("  because that count is what the exponent is counting.")

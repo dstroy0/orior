@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // gradle_build.c: a Gradle build around a script: whether a word is a configuration Gradle or the script declares, the
-// folder of the build a file belongs to, the program that runs it, and the catalogs of its `gradle` folder, at most
+// folder of the build a file belongs to, the program that runs it, and the catalogs of its `gradle` folder, at max
 // CLI_GRADLE_CATALOGS of them
 #include "../command_line/callback_cfg.h"
 #include "../text/sort.h"

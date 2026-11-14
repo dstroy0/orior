@@ -428,7 +428,7 @@ void entry_seal_failure(VerbaLinea *line, const EngineSampleRecord *record)
 {
     if (record->crystal_read == 0ull)
     {
-        mmgr_line_put(line, "the file did not read as a crystal (missing, short, or laid out otherwise than its head "
+        mmgr_line_put(line, "the file did not read as a crystal (missing, short, or arranged otherwise than its head "
                              "describes), so no node was compared");
         return;
     }

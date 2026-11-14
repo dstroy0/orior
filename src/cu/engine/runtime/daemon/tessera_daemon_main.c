@@ -67,7 +67,7 @@ int main(int count, char **arguments)
     {
         return 0;
     }
-    g_daemon.socket_activated = daemon_socket_handed();
+    g_daemon.socket_activated = daemon_socket_passed();
     int listening = 3;
     if (!g_daemon.socket_activated)
     {

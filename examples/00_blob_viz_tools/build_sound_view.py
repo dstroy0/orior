@@ -13,9 +13,9 @@
   --pad K      zero-pad factor. The transform is fft times this. Default 4.
   --hop H      samples between frames. Default fft/4, which is 75 percent overlap.
   --window W   rect, hann, hamming, blackman or flattop. Default hann.
-  --frames M   most frames to keep. Default 256.
+  --frames M   max frames to retain. Default 256.
   --top HZ     highest frequency drawn. Default 8000.
-  --seconds S  most seconds of audio to read. Default 20.
+  --seconds S  max seconds of audio to read. Default 20.
   --synth      use a generated signal instead of a file: two tones beating at 3 Hz, a sweep from
                1 kHz to 3 kHz, a quiet 7 kHz tone and white noise under all of it.
   --out FILE   where to write.
@@ -70,8 +70,8 @@ def main():
     frames_max = number("--frames", 256)
     top_hz = number("--top", 8000)
     seconds = number("--seconds", 20)
-    kind = text("--window") or "hann"
-    if kind not in dsp.WINDOWS:
+    type = text("--window") or "hann"
+    if type not in dsp.WINDOWS:
         sys.stderr.write("--window must be one of %s\n" % ", ".join(dsp.WINDOWS))
         return 1
 
@@ -97,16 +97,16 @@ def main():
         return 1
 
     pad_to = dsp.next_power(fft_size * pad)
-    win = dsp.window(kind, fft_size)
+    win = dsp.window(type, fft_size)
 
     starts = list(range(0, len(values) - fft_size + 1, hop))
     if len(starts) > frames_max:
-        # Spread the kept frames across the whole signal and never take the first of them.
+        # Spread the retained frames across the whole signal and never take the first of them.
         # The picture is of the recording and not of its opening second.
         step = len(starts) / float(frames_max)
         starts = [starts[int(i * step)] for i in range(frames_max)]
 
-    # Only the bins under --top are kept. The rest is transform we paid for and do not draw, which
+    # Only the bins under --top are retained. The rest is transform we paid for and do not draw, which
     # is unavoidable: the fast transform has no way to compute part of a spectrum.
     bins_all = pad_to // 2
     hz_per_bin = rate / float(pad_to)
@@ -172,7 +172,7 @@ def main():
                 fft_size,
                 pad_to,
                 pad,
-                kind,
+                type,
                 hop,
                 bins,
                 int(bins * hz_per_bin),
@@ -226,7 +226,7 @@ def main():
     print("wrote %s (%.1f KB)" % (target, os.path.getsize(target) / 1024.0))
     print(
         "  %d frames of %d, transform %d (%dx pad), %s window"
-        % (len(columns), fft_size, pad_to, pad, kind)
+        % (len(columns), fft_size, pad_to, pad, type)
     )
     print(
         "  %d bins to %d Hz, %.2f Hz per bin"

@@ -10,7 +10,7 @@
 // the sizes the file holds, the system's own from the list's smallest to the largest it shows
 static const unsigned int s_sizes[] = {16u, 24u, 32u, 48u, 64u, 128u, 256u};
 #define ICON_SIZES (sizeof(s_sizes) / sizeof(s_sizes[0]))
-// the file's head and one image's entry, and a bitmap's header, in bytes as the format lays them
+// the file's head and one image's entry, and a bitmap's header, in bytes as the format positions them
 #define ICON_HEAD 6u
 #define ICON_ENTRY 16u
 #define ICON_BITMAP_HEADER 40u

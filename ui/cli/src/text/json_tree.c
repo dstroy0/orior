@@ -431,15 +431,15 @@ static unsigned int cli_convert(const JsonTreeCtx *args)
     const char *text = args->text;
     const CfgJsonToken *const at = &args->tokens[args->token];
     const unsigned int made =
-        EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = json, .type = at->kind);
+        EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = json, .type = at->type);
     if (made == CLI_JSON_NONE)
     {
         return made;
     }
-    switch (at->kind)
+    switch (at->type)
     {
     case CFG_JSON_STRING: {
-        // a string's letters as stored are at most its letters as written
+        // a string's characters as stored are at max its characters as written
         if (!EMBED_CALL(cli_json_tree_nodes.json_capacity, CliJsonTreeNodesCfg, .json = json, .nodes = 0u,
                         .text_u64 = (unsigned long long)(at->end - at->start) + 1ULL))
         {
@@ -476,7 +476,7 @@ static unsigned int cli_convert(const JsonTreeCtx *args)
             {
                 return CLI_JSON_NONE;
             }
-            // the key's node stands for its text alone, and is let go of
+            // the key's node is for its text alone, and is let go of
             EMBED_CALL(cli_append_key, JsonTreeCtx, .json = json, .object = made, .key = json->node[named].text,
                        .value = value);
             json->nodes -= (named == (json->nodes - 1u)) ? 1u : 0u;

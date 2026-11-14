@@ -21,7 +21,7 @@ That is all you need for the measure, the reference, and every example that read
 | `soundfile`  | the sound representation, which reads recordings                  |
 | `Pillow`     | reading an image as a byte sequence                               |
 
-Install a package when a tool asks for it. A tool that is missing a package names the package and gives you the install line, and the rest of the tree keeps working.
+Install a package when a tool asks for it. A tool that is missing a package names the package and gives you the install line, and the rest of the tree retains working.
 
 ## The C engine
 

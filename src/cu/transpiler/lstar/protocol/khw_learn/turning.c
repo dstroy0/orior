@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // turning.c: the turning case of a ladder form: the first case of its relation whose readings in the register pass
-// stand apart
+// are apart
 #include "khw_learn_internal.h"
 
 // The turning case of the relation `anchor`, read swapped where `swapped`, into `word`, with the relation's answer to
@@ -171,7 +171,7 @@ unsigned int khw_runs_gathered(const int *turned, unsigned int fields, const uns
         form->first[form->runs] = bit;
         form->last[form->runs] = end;
         form->place[form->runs] = KHW_PLACE_NONE;
-        form->kind[form->runs] = KHW_KIND_REGISTER;
+        form->type[form->runs] = KHW_KIND_REGISTER;
         form->runs += 1u;
         bit = end;
     }

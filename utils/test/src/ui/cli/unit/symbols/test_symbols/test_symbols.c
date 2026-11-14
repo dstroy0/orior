@@ -147,14 +147,14 @@ void test_scores_rank_the_name_itself_first(void)
     const long long begins = score_of("paint", "paintStrip");
     const long long contains = score_of("paint", "repaint");
     const long long initials = score_of("gtf", "go_to_file");
-    const long long letters = score_of("pnt", "paint");
+    const long long characters = score_of("pnt", "paint");
     TEST_ASSERT_GREATER_THAN_INT64(begins, exact);
     TEST_ASSERT_GREATER_THAN_INT64(contains, begins);
     TEST_ASSERT_GREATER_THAN_INT64(initials, contains);
-    TEST_ASSERT_GREATER_THAN_INT64(letters, initials);
+    TEST_ASSERT_GREATER_THAN_INT64(characters, initials);
 }
 
-void test_a_words_start_ranks_over_letters(void)
+void test_a_words_start_ranks_over_characters(void)
 {
     TEST_ASSERT_GREATER_THAN_INT64(score_of("pnt", "paint"), score_of("gtf", "goToFile"));
 }

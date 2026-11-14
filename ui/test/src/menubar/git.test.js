@@ -46,9 +46,9 @@ test("every item of the lists the window's commands show runs a command the comm
   showView("edit");
   await openFile("hello.py");
   calls.answer("git_branches", () => [{ name: "main", current: true, remote: false }, { name: "other", current: false, remote: false }, { name: "origin/other", current: false, remote: true }]);
-  calls.answer("git_stashes", () => [{ name: "stash@{0}", subject: "kept by the test" }]);
+  calls.answer("git_stashes", () => [{ name: "stash@{0}", subject: "retained by the test" }]);
   calls.answer("git_elsewhere", () => [{ id: "abc1234def5678", subject: "made elsewhere" }]);
-  calls.answer("envs_found", () => [{ kind: "venv", place: "", requires: [] }]);
+  calls.answer("envs_found", () => [{ type: "venv", place: "", requires: [] }]);
   const named = new Set(allCommands().map((item) => item.command));
   const wrong = [];
   for (const command of ["branches", "stashes", "cherry-pick", "environment", "docstring-form"]) {
@@ -82,7 +82,7 @@ test("a branch's menu, from the command line: switched to, merged, rebased onto,
 test("a stash's menu, from the command line: applied, popped, and dropped once the reader says yes", async () => {
   asFound();
   calls.answer("git_stash", ({ act, name }) => `${act} ${name} by the test`);
-  calls.answer("git_stashes", () => [{ name: "stash@{0}", subject: "kept by the test" }]);
+  calls.answer("git_stashes", () => [{ name: "stash@{0}", subject: "retained by the test" }]);
   const asked = () => made("git_stash").map(({ args }) => [args.act, args.name]);
   await press("stash-apply", "stash@{0}");
   await press("stash-pop", "stash@{0}");

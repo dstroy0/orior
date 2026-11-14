@@ -75,7 +75,7 @@
     margin: 0 0 7px;
     font-size: 10px;
     font-weight: 600;
-    letter-spacing: 0.09em;
+    character-spacing: 0.09em;
     text-transform: uppercase;
     color: var(--dim);
     cursor: move;
@@ -439,7 +439,7 @@ EV.watchLoop = (label, step, options = {}) => {
 
   return {
     record,
-    // Asks for turns. A loop already awake keeps running, and a stopped loop stays stopped.
+    // Asks for turns. A loop already awake retains running, and a stopped loop stays stopped.
     wake: () => {
       if (stopped || record.awake) {
         return;
@@ -771,7 +771,7 @@ EV.watchLoop = (label, step, options = {}) => {
     relief: 0.38,
     seed: "first",
   };
-  var shown = { index: 0, fraction: 0, keptBend: 1, keptFade: 1, peak: 0 };
+  var displayed = { index: 0, fraction: 0, retainedBend: 1, retainedFade: 1, peak: 0 };
 
   function redraw() {
     var instant = fieldAtInstant(state.clock, state.mode);
@@ -806,15 +806,15 @@ EV.watchLoop = (label, step, options = {}) => {
     colors.needsUpdate = true;
     geometry.computeVertexNormals();
 
-    shown.index = instant.index;
-    shown.fraction = instant.fraction;
-    shown.peak = peak;
-    var kept = reliefKept(instant.index, instant.fraction);
-    shown.keptBend = kept.bend;
-    shown.keptFade = kept.fade;
+    displayed.index = instant.index;
+    displayed.fraction = instant.fraction;
+    displayed.peak = peak;
+    var retained = reliefKept(instant.index, instant.fraction);
+    displayed.retainedBend = retained.bend;
+    displayed.retainedFade = retained.fade;
   }
 
-  // How much relief the instant keeps, for both transitions, against what the two ends set.
+  // How much relief the instant retains, for both transitions, against what the two ends set.
   //
   // THE REFERENCE IS EACH DEGREE'S GEOMETRIC MEAN OF ITS TWO END NORMS, not a straight line between
   // the two rounds' total sizes. The first readout used the straight line, and it read 0.844 in bend
@@ -879,16 +879,16 @@ EV.watchLoop = (label, step, options = {}) => {
   }
 
   function drawReadout() {
-    var angle = DATA.same[shown.index];
+    var angle = DATA.same[displayed.index];
     var rows = [
       ["round", (state.clock + 1).toFixed(2)],
-      ["transition", shown.index + 1 + " to " + (shown.index + 2)],
+      ["transition", displayed.index + 1 + " to " + (displayed.index + 2)],
       [
         "bend angle, same seed",
         angle === null ? "no length" : angle.toFixed(2) + "°",
       ],
-      ["relief kept, bend", shown.keptBend.toFixed(3)],
-      ["relief kept, fade", shown.keptFade.toFixed(3)],
+      ["relief retained, bend", displayed.retainedBend.toFixed(3)],
+      ["relief retained, fade", displayed.retainedFade.toFixed(3)],
       ["shape energy here", energyHere()],
       [
         "repeat A against B",
@@ -1181,9 +1181,9 @@ EV.watchLoop = (label, step, options = {}) => {
     return {
       round: state.clock + 1,
       mode: state.mode,
-      bendAngle: DATA.same[shown.index],
-      keptBend: shown.keptBend,
-      keptFade: shown.keptFade,
+      bendAngle: DATA.same[displayed.index],
+      retainedBend: displayed.retainedBend,
+      retainedFade: displayed.retainedFade,
     };
   };
 

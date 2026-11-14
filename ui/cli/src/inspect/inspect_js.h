@@ -36,7 +36,7 @@ typedef struct CliInspectJsCfg CliInspectJsCfg;
 // no token
 #define CLI_JS_NO 0xffffffffu
 
-// the bracket each bracket matches, what each brace opens, and the brace each token stands directly inside, each by
+// the bracket each bracket matches, what each brace opens, and the brace each token is directly inside, each by
 // the token's index, CLI_JS_NO where there is none (inspect_js_lex.c)
 extern unsigned int *g_cli_js_pair;
 extern unsigned char *g_cli_js_brace;
@@ -47,7 +47,7 @@ extern unsigned int *g_cli_js_within;
 extern const char *const g_cli_js_keywords[35];
 extern const char *const g_cli_js_control[7];
 
-// `size` bytes of `src` read into the reading's tokens, their pairs, braces and the braces they stand in, and the
+// `size` bytes of `src` read into the reading's tokens, their pairs, braces and the braces they are in, and the
 // spans of its comments; whether the token at `at` is `word`, CLI_JS_NO never; whether it is one of `count` words;
 // whether the name at `at` is read: no keyword, no property after a dot, no key of an object and no method's name in an
 // object or a class's body; and how many brackets the tokens from `from` up to `to` leave open (inspect_js_lex.c)

@@ -16,19 +16,19 @@ static int qasm_declare(QasmParser *parser, int quantum)
     QasmRegister *const registers = (quantum != 0) ? parser->qregs : parser->cregs;
     unsigned int *const count = (quantum != 0) ? &parser->qreg_count : &parser->creg_count;
     unsigned int *const total = (quantum != 0) ? &parser->circuit->qubits : &parser->circuit->clbits;
-    const unsigned int maximum = (quantum != 0) ? QASM_QUBITS_MAX : QASM_CLBITS_MAX;
+    const unsigned int max = (quantum != 0) ? QASM_QUBITS_MAX : QASM_CLBITS_MAX;
     if ((qasm_register(parser->qregs, parser->qreg_count, name) != NULL) ||
         (qasm_register(parser->cregs, parser->creg_count, name) != NULL))
     {
         qasm_error(parser, token, "the register '%s' is declared twice", name);
         return 0;
     }
-    if ((size == 0u) || (*count == QASM_REGISTERS_MAX) || ((*total + size) > maximum))
+    if ((size == 0u) || (*count == QASM_REGISTERS_MAX) || ((*total + size) > max))
     {
         qasm_error(parser, token,
                     (quantum != 0) ? "past %u qubits: the index names a record by 32 bits"
                                    : "past %u clbits: an outcome is one 64-bit word",
-                    maximum);
+                    max);
         return 0;
     }
     snprintf(registers[*count].name, QASM_NAME_CAPACITY, "%s", name);
@@ -72,7 +72,7 @@ static int qasm_define(QasmParser *parser)
         {
             if (definition->params == QASM_GATE_PARAMS_MAX)
             {
-                qasm_error(parser, qasm_peek(parser), "a gate takes at most %u parameters", QASM_GATE_PARAMS_MAX);
+                qasm_error(parser, qasm_peek(parser), "a gate takes at max %u parameters", QASM_GATE_PARAMS_MAX);
                 return 0;
             }
             if (!qasm_expect_ident(parser, NULL, &definition->param_token[definition->params]))
@@ -90,7 +90,7 @@ static int qasm_define(QasmParser *parser)
     {
         if (definition->args == QASM_GATE_ARGS_MAX)
         {
-            qasm_error(parser, qasm_peek(parser), "a gate takes at most %u qubits", QASM_GATE_ARGS_MAX);
+            qasm_error(parser, qasm_peek(parser), "a gate takes at max %u qubits", QASM_GATE_ARGS_MAX);
             return 0;
         }
         if (!qasm_expect_ident(parser, NULL, &definition->arg_token[definition->args]))
@@ -104,7 +104,7 @@ static int qasm_define(QasmParser *parser)
         return 0;
     }
     definition->body_start = parser->at;
-    while ((qasm_peek(parser)->kind != QASM_TOKEN_END) && !qasm_token_is(parser, qasm_peek(parser), "}"))
+    while ((qasm_peek(parser)->type != QASM_TOKEN_END) && !qasm_token_is(parser, qasm_peek(parser), "}"))
     {
         parser->at += 1u;
     }
@@ -121,10 +121,10 @@ static int qasm_define(QasmParser *parser)
 int qasm_statements(QasmParser *parser, const QasmScope *scope, unsigned int end)
 {
     const int top = (scope == NULL) || (scope->definition == NULL);
-    while ((parser->failed == 0) && (parser->at < end) && (qasm_peek(parser)->kind != QASM_TOKEN_END))
+    while ((parser->failed == 0) && (parser->at < end) && (qasm_peek(parser)->type != QASM_TOKEN_END))
     {
         const QasmToken *const token = qasm_peek(parser);
-        if (token->kind != QASM_TOKEN_IDENT)
+        if (token->type != QASM_TOKEN_IDENT)
         {
             qasm_error(parser, token, "a statement was expected here");
             return 0;
@@ -132,7 +132,7 @@ int qasm_statements(QasmParser *parser, const QasmScope *scope, unsigned int end
         if (qasm_token_is(parser, token, "barrier"))
         {
             parser->at += 1u;
-            while ((qasm_peek(parser)->kind != QASM_TOKEN_END) && !qasm_accept(parser, ";"))
+            while ((qasm_peek(parser)->type != QASM_TOKEN_END) && !qasm_accept(parser, ";"))
             {
                 parser->at += 1u;
             }
@@ -142,7 +142,7 @@ int qasm_statements(QasmParser *parser, const QasmScope *scope, unsigned int end
         {
             parser->at += 1u;
             const QasmToken *const file = qasm_peek(parser);
-            if ((file->kind != QASM_TOKEN_STRING) || !qasm_token_is(parser, file, "\"qelib1.inc\""))
+            if ((file->type != QASM_TOKEN_STRING) || !qasm_token_is(parser, file, "\"qelib1.inc\""))
             {
                 qasm_error(parser, file, "only \"qelib1.inc\" is included: its gates are built in");
                 return 0;
@@ -213,7 +213,7 @@ static int qasm_header(QasmParser *parser)
     }
     parser->at += 1u;
     const QasmToken *const version = qasm_peek(parser);
-    if ((version->kind != QASM_TOKEN_NUMBER) ||
+    if ((version->type != QASM_TOKEN_NUMBER) ||
         !(qasm_token_is(parser, version, "2.0") || qasm_token_is(parser, version, "2")))
     {
         qasm_error(parser, version, "only OpenQASM 2.0 is read");

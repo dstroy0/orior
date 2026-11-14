@@ -27,7 +27,7 @@ function declared(type, name) {
   return /[*&]$/.test(type) ? `${type}${name}` : `${type} ${name}`;
 }
 
-// The selection's own characters at `line` that stand outside strings and comments and match
+// The selection's own characters at `line` that are outside strings and comments and match
 // `pattern`.
 function codeMatches(s, line, text, pattern) {
   return [...text.matchAll(pattern)].filter((found) => !/t-string|t-comment/.test(s.highlight.classAt(line, found.index + found[0].length - 1)));
@@ -42,12 +42,12 @@ export async function extractTyped(editor, tab, id, lang, read) {
     return;
   }
   if (head < 0) {
-    say("The selection stands in no function. Extract Function takes lines or an expression inside one.");
+    say("The selection is in no function. Extract Function takes lines or an expression inside one.");
     return;
   }
-  const handsUp = selected.some((text, at) => codeMatches(s, first + at, text, /[\w)\]>]\?/g).some((found) => !expression || (found.index >= from.col && found.index < to.col)));
-  if (id === "rust" && handsUp) {
-    say("The selection hands an error up with ?, which returns from its function. Extract Function takes lines that run through to their end.");
+  const passesUp = selected.some((text, at) => codeMatches(s, first + at, text, /[\w)\]>]\?/g).some((found) => !expression || (found.index >= from.col && found.index < to.col)));
+  if (id === "rust" && passesUp) {
+    say("The selection passes an error up with ?, which returns from its function. Extract Function takes lines that run through to their end.");
     return;
   }
   const original = doc.text();
@@ -81,14 +81,14 @@ export async function extractTyped(editor, tab, id, lang, read) {
       return;
     }
     if (type) {
-      taken.push({ name, ...kind });
+      taken.push({ name, ...type });
     }
   }
   // In a method defined outside its class, a field the selection reads is reached through the
   // object the method is called on, which the new function has not.
   if (id === "c" && !headIndent && /::/.test(headText)) {
     for (const one of inside) {
-      if (!lang.keeps.has(one.name) && !one.called && !setsInside.has(one.name) && !takes.includes(one.name)) {
+      if (!lang.retains.has(one.name) && !one.called && !setsInside.has(one.name) && !takes.includes(one.name)) {
         if ((await ask(one.name, one.line, one.col))?.field) {
           say(`The selection reads ${one.name}, a field, which a function outside the class does not reach.`);
           return;
@@ -105,11 +105,11 @@ export async function extractTyped(editor, tab, id, lang, read) {
       say(`The language server gives no type for ${name}, which the selection sets and its function reads after it.`);
       return;
     }
-    given.push({ name, ...kind, declared: id === "rust" ? new RegExp(`^\\s*let\\s+(?:mut\\s+)?(?:\\([^)]*\\b)?${name}\\b`).test(doc.line(line)) : lang.sets(doc.line(line))[0] === name && !new RegExp(`^\\s*${name}\\b`).test(doc.line(line)) });
+    given.push({ name, ...type, declared: id === "rust" ? new RegExp(`^\\s*let\\s+(?:mut\\s+)?(?:\\([^)]*\\b)?${name}\\b`).test(doc.line(line)) : lang.sets(doc.line(line))[0] === name && !new RegExp(`^\\s*${name}\\b`).test(doc.line(line)) });
   }
   const name = freshName(original);
 
-  // An expression's type: the server is shown the text with the expression bound to the new name
+  // An expression's type: the server is displayed the text with the expression bound to the new name
   // above the statement that holds it, inferred, and asked of that name.
   let valueType = null;
   if (expression) {

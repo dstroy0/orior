@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// windows_ipc.c: the door on Windows: a named pipe of the container's own, which takes no one from another machine,
+// windows_ipc.c: the interface on Windows: a named pipe of the container's own, which takes no one from another machine,
 // opened for overlapped work so that a read and a write go on at once on one end, each waited for alone. An instance
 // waits from the start, and the next is made as each is joined: a process that joins finds one ready
-#include "../comms/door_internal.h"
+#include "../comms/interface_internal.h"
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -27,9 +27,9 @@ typedef struct
     DWORD *moved;
     CliIpcEnd *end;
 #endif
-} WindowsDoorCtx;
+} WindowsInterfaceCtx;
 // an instance of the listener's pipe made, the first where `first`: INVALID_HANDLE_VALUE where none was
-EMBED_INLINE HANDLE ipc_instance(const WindowsDoorCtx *args)
+EMBED_INLINE HANDLE ipc_instance(const WindowsInterfaceCtx *args)
 {
     const DWORD mode = PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED | (args->first ? FILE_FLAG_FIRST_PIPE_INSTANCE : 0u);
     return CreateNamedPipeW(args->listener->name, mode,
@@ -39,7 +39,7 @@ EMBED_INLINE HANDLE ipc_instance(const WindowsDoorCtx *args)
 
 // one overlapped operation on `handle`, begun by `type` (0 a read, 1 a write, 2 a join waited for) and waited for: the
 // bytes it moved into `moved`: 1, or 0 where it failed
-static int ipc_overlap(const WindowsDoorCtx *args)
+static int ipc_overlap(const WindowsInterfaceCtx *args)
 {
     void *bytes = args->bytes;
     DWORD *moved = args->moved;
@@ -102,7 +102,7 @@ static int ipc_overlap(const WindowsDoorCtx *args)
 }
 
 // an end opened on `handle`, with the event it is shut by: 1, or 0 where Windows gave no event, the handle closed
-EMBED_INLINE int ipc_end_open(const WindowsDoorCtx *args)
+EMBED_INLINE int ipc_end_open(const WindowsInterfaceCtx *args)
 {
     HANDLE handle = args->handle;
     const HANDLE shut = CreateEventW(NULL, TRUE, FALSE, NULL);
@@ -136,12 +136,12 @@ int cli_ipc_listening(const CliIpcListenerAddressCtx *args)
     }
     mmgr_line_finish(&named);
     (void)MultiByteToWideChar(CP_UTF8, 0u, args->address, -1, args->listener->name, CLI_PATH_MAX_LEN);
-    const HANDLE waiting = EMBED_CALL(ipc_instance, WindowsDoorCtx, .listener = args->listener, .first = 1);
+    const HANDLE waiting = EMBED_CALL(ipc_instance, WindowsInterfaceCtx, .listener = args->listener, .first = 1);
     const DWORD error = GetLastError();
     args->listener->waiting = (unsigned long long)(embed_word)waiting;
     if (waiting == INVALID_HANDLE_VALUE)
     {
-        mmgr_line_put(args->err_msg, "the door's pipe was not made: Windows reported ");
+        mmgr_line_put(args->err_msg, "the interface's pipe was not made: Windows reported ");
         mmgr_line_decimal(args->err_msg, error, 1u);
         return 0;
     }
@@ -155,11 +155,11 @@ int cli_ipc_accept(const CliIpcListenerCtx *args)
     // the waiting instance's handle was a pointer's width when it was stored
     const HANDLE joined = (HANDLE)(embed_word)args->listener->waiting;
     DWORD moved = 0u;
-    const int joining = EMBED_CALL(ipc_overlap, WindowsDoorCtx, .handle = joined, .shut = NULL, .type = 2,
+    const int joining = EMBED_CALL(ipc_overlap, WindowsInterfaceCtx, .handle = joined, .shut = NULL, .type = 2,
                                    .bytes = NULL, .size = 0u, .moved = &moved);
     const DWORD error = GetLastError();
     // the next instance waits for the process after, whether this one was joined or not
-    args->listener->waiting = (unsigned long long)(embed_word)EMBED_CALL(ipc_instance, WindowsDoorCtx,
+    args->listener->waiting = (unsigned long long)(embed_word)EMBED_CALL(ipc_instance, WindowsInterfaceCtx,
                                                                          .listener = args->listener, .first = 0);
     if (!joining)
     {
@@ -171,7 +171,7 @@ int cli_ipc_accept(const CliIpcListenerCtx *args)
     ULONG id = 0u;
     *has_peer = (GetNamedPipeClientProcessId(joined, &id) != FALSE);
     *peer = (unsigned int)id;
-    if (!EMBED_CALL(ipc_end_open, WindowsDoorCtx, .end = args->end, .handle = joined))
+    if (!EMBED_CALL(ipc_end_open, WindowsInterfaceCtx, .end = args->end, .handle = joined))
     {
         mmgr_line_put(args->err_msg, "Windows gave no event for the end");
         return 0;
@@ -190,7 +190,7 @@ int cli_ipc_connect(const CliIpcCtx *args)
             CreateFileW(name, GENERIC_READ | GENERIC_WRITE, 0u, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
         if (handle != INVALID_HANDLE_VALUE)
         {
-            if (!EMBED_CALL(ipc_end_open, WindowsDoorCtx, .end = args->end, .handle = handle))
+            if (!EMBED_CALL(ipc_end_open, WindowsInterfaceCtx, .end = args->end, .handle = handle))
             {
                 mmgr_line_put(args->err_msg, "Windows gave no event for the end");
                 return 0;
@@ -216,9 +216,9 @@ int cli_ipc_read(const CliIpcEndBytesCtx *args)
     {
         DWORD moved = 0u;
         const unsigned long long left = args->size - at;
-        // a piece is at most what a DWORD counts
+        // a piece is at max what a DWORD counts
         const DWORD piece = (left > 0x7fffffffull) ? 0x7fffffffu : (DWORD)left;
-        if (!EMBED_CALL(ipc_overlap, WindowsDoorCtx, .handle = (HANDLE)(embed_word)args->end->handle,
+        if (!EMBED_CALL(ipc_overlap, WindowsInterfaceCtx, .handle = (HANDLE)(embed_word)args->end->handle,
                         .shut = (HANDLE)(embed_word)args->end->shut, .type = 0, .bytes = into + at, .size = piece,
                         .moved = &moved) ||
             (moved == 0u))
@@ -240,7 +240,7 @@ int cli_ipc_write(const CliIpcEndSizeCtx *args)
         const unsigned long long left = args->size - at;
         const DWORD piece = (left > 0x7fffffffull) ? 0x7fffffffu : (DWORD)left;
         // the bytes are only read, as WriteFile takes them
-        if (!EMBED_CALL(ipc_overlap, WindowsDoorCtx, .handle = (HANDLE)(embed_word)args->end->handle,
+        if (!EMBED_CALL(ipc_overlap, WindowsInterfaceCtx, .handle = (HANDLE)(embed_word)args->end->handle,
                         .shut = (HANDLE)(embed_word)args->end->shut, .type = 1,
                         .bytes = (void *)(embed_word)(from + at), .size = piece, .moved = &moved) ||
             (moved == 0u))

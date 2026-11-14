@@ -54,7 +54,7 @@ def inline(value):
     # (?<!\\) was written for raw text and, run here, it never matched once. A _title_ reached the
     # page as \_title\_ and typeset as two literal underscores around the words.
     #
-    # Word boundaries on both ends keep an identifier out of it. Read_me_first stays whole.
+    # Word boundaries on both ends retain an identifier out of it. Read_me_first stays whole.
     value = re.sub(
         r"(?<![A-Za-z0-9])\\_(\S(?:(?!\\_).)*?)\\_(?![A-Za-z0-9])", r"\\emph{\1}", value
     )

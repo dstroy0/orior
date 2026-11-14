@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // explorer.h: the explorer's side pane table: the pane of the tree's files headed by the tree's name, its rows the
-// folders and files, a folder at a time as each is opened, read where the explorer's listing stands
+// folders and files, a folder at a time as each is opened, read where the explorer's listing is
 // (editor/files.h); a row is a line down from each folder above it, the folder's arrow, the folder's icon or the
 // file's mark, and the name; a folder's row pressed opens or closes it and a file's opens the file. The mark of a
 // file's name, which the other panes draw before a file, is read here too (explorer.c)
@@ -15,7 +15,7 @@
 typedef struct GuiExplorerMarkCfg GuiExplorerMarkCfg;
 
 // the sizes in the page's pixels: the arrow's box, the icon's box and the gap after it, a mark's text size, the gap
-// before a file's folder and the folder's text size; and the most bytes of a file's mark text with its end, and of the
+// before a file's folder and the folder's text size; and the max bytes of a file's mark text with its end, and of the
 // name it is read from
 #define GUI_EXPLORER_TWISTY 16
 #define GUI_EXPLORER_ICON 16
@@ -70,7 +70,7 @@ struct GuiExplorerMarkCfg
     GuiColor *color_out;
 };
 
-// the theme whose icons the marks consult first, NULL for none; it stands until the next call
+// the theme whose icons the marks consult first, NULL for none; it is until the next call
 typedef struct
 {
     const GuiTheme *theme_read;

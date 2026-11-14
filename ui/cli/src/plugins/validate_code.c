@@ -5,7 +5,7 @@
 #include "../text/text.h"
 #include "validate_internal.h"
 
-// the most namespaces and sections open at once
+// the max namespaces and sections open at once
 #define CLI_VALIDATE_SPACES 256u
 
 int cli_validate_code_get(const CliValidateTextCtx *args)
@@ -16,17 +16,17 @@ int cli_validate_code_get(const CliValidateTextCtx *args)
     unsigned long long depth = 0ULL;
     int in_string = 0;
     int in_line = 0;
-    // each letter is retained whole or blanked as one byte, so the code is never longer than the text
+    // each character is retained whole or blanked as one byte, so the code is never longer than the text
     if (args->size > CLI_VALIDATE_CODE)
     {
         return 0;
     }
     while (at < args->size)
     {
-        unsigned int letter = 0u;
-        const unsigned long long reserved = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+        unsigned int character = 0u;
+        const unsigned long long reserved = EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                                                        .text_bytes = (const unsigned char *)args->text,
-                                                       .length = args->size, .at = at, .letter = &letter);
+                                                       .length = args->size, .at = at, .character = &character);
         const char c = args->text[at];
         const char next = (at + reserved < args->size) ? args->text[at + reserved] : '\0';
         const char blank = (c == '\n') ? '\n' : ' ';
@@ -56,9 +56,9 @@ int cli_validate_code_get(const CliValidateTextCtx *args)
             const int escapes = at + 1ULL < args->size;
             unsigned int escaped = 0u;
             const unsigned long long skipped =
-                escapes ? EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                escapes ? EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                                      .text_bytes = (const unsigned char *)args->text, .length = args->size,
-                                     .at = at + 1ULL, .letter = &escaped)
+                                     .at = at + 1ULL, .character = &escaped)
                         : 0ULL;
             if (escapes)
             {
@@ -107,7 +107,7 @@ int cli_validate_code_get(const CliValidateTextCtx *args)
 
 typedef struct
 {
-    unsigned int letter;
+    unsigned int character;
     const CliCodeWord *word_text;
     const char *with;
     const char *bare;
@@ -115,29 +115,29 @@ typedef struct
     const char *one;
     unsigned long long length;
 } ValidateCodeCtx;
-// whether a letter is whitespace, as Unicode has it
+// whether a character is whitespace, as Unicode has it
 EMBED_INLINE int code_white(const ValidateCodeCtx *args)
 {
-    return ((args->letter >= 0x09u) && (args->letter <= 0x0du)) || (args->letter == 0x20u) || (args->letter == 0x85u) ||
-           (args->letter == 0xa0u) || (args->letter == 0x1680u) ||
-           ((args->letter >= 0x2000u) && (args->letter <= 0x200au)) || (args->letter == 0x2028u) ||
-           (args->letter == 0x2029u) || (args->letter == 0x202fu) || (args->letter == 0x205fu) ||
-           (args->letter == 0x3000u);
+    return ((args->character >= 0x09u) && (args->character <= 0x0du)) || (args->character == 0x20u) || (args->character == 0x85u) ||
+           (args->character == 0xa0u) || (args->character == 0x1680u) ||
+           ((args->character >= 0x2000u) && (args->character <= 0x200au)) || (args->character == 0x2028u) ||
+           (args->character == 0x2029u) || (args->character == 0x202fu) || (args->character == 0x205fu) ||
+           (args->character == 0x3000u);
 }
 
-// whether a letter is one a word contains: an ASCII letter or digit, one of `_.'#!?`, or a letter past ASCII that is no
+// whether a character is one a word contains: an ASCII character or digit, one of `_.'#!?`, or a character past ASCII that is no
 // whitespace and no angle bracket
-EMBED_INLINE int code_word_letter(const ValidateCodeCtx *args)
+EMBED_INLINE int code_word_character(const ValidateCodeCtx *args)
 {
-    if (args->letter < 0x80u)
+    if (args->character < 0x80u)
     {
-        return ((args->letter >= 'a') && (args->letter <= 'z')) || ((args->letter >= 'A') && (args->letter <= 'Z')) ||
-               ((args->letter >= '0') && (args->letter <= '9')) ||
-               ((args->letter != 0u) && (args->letter < 0x80u) &&
+        return ((args->character >= 'a') && (args->character <= 'z')) || ((args->character >= 'A') && (args->character <= 'Z')) ||
+               ((args->character >= '0') && (args->character <= '9')) ||
+               ((args->character != 0u) && (args->character < 0x80u) &&
                 (cellul.chr(&(CatenaFinitaCfg){
-                     .src = "_.'#!?", .cap = CLI_POOL_BYTES, .byte = (unsigned char)args->letter}) != NULL));
+                     .src = "_.'#!?", .cap = CLI_POOL_BYTES, .byte = (unsigned char)args->character}) != NULL));
     }
-    return !code_white(args) && (args->letter != 0x27e8u) && (args->letter != 0x27e9u);
+    return !code_white(args) && (args->character != 0x27e8u) && (args->character != 0x27e9u);
 }
 
 void cli_validate_words_get(void)
@@ -157,11 +157,11 @@ void cli_validate_words_get(void)
             at += 1ULL;
             continue;
         }
-        unsigned int letter = 0u;
+        unsigned int character = 0u;
         unsigned long long reserved =
-            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                       .text_bytes = (const unsigned char *)code, .length = size, .at = at, .letter = &letter);
-        if (!EMBED_CALL(code_word_letter, ValidateCodeCtx, .letter = letter))
+            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                       .text_bytes = (const unsigned char *)code, .length = size, .at = at, .character = &character);
+        if (!EMBED_CALL(code_word_character, ValidateCodeCtx, .character = character))
         {
             col += 1u;
             at += reserved;
@@ -169,13 +169,13 @@ void cli_validate_words_get(void)
         }
         const unsigned long long start = at;
         const unsigned int start_col = col;
-        while ((at < size) && EMBED_CALL(code_word_letter, ValidateCodeCtx, .letter = letter))
+        while ((at < size) && EMBED_CALL(code_word_character, ValidateCodeCtx, .character = character))
         {
             at += reserved;
             col += 1u;
-            reserved = (at < size) ? EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+            reserved = (at < size) ? EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                                                 .text_bytes = (const unsigned char *)code, .length = size, .at = at,
-                                                .letter = &letter)
+                                                .character = &character)
                                    : 0ULL;
         }
         if (g_cli_validate->word_count < CLI_VALIDATE_WORDS)
@@ -324,7 +324,7 @@ void cli_validate_flags_in(void)
             const CliFinding finding = {word_text->line,
                                         word_text->col,
                                         word_text->line,
-                                        word_text->col + word_text->letters,
+                                        word_text->col + word_text->characters,
                                         flagged->severity,
                                         "flag",
                                         -1,

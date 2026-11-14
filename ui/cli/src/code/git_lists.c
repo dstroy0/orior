@@ -73,7 +73,7 @@ typedef struct
 
 static CliElsewhere s_elsewhere;
 
-// the records `id\x1fwhen\x1fauthor\x1fat\x1fmessage\x1e` of what git wrote handed to `each` with the commit's id, its
+// the records `id\x1fwhen\x1fauthor\x1fat\x1fmessage\x1e` of what git wrote passed to `each` with the commit's id, its
 // time, and its author, the time the author made it and its message joined by `\x1f`, the message's end trimmed
 EMBED_INLINE void cli_records(const GitListsCtx *args)
 {

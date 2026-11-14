@@ -2,7 +2,7 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# Fetch the words each language keeps for sounds, for Section 4.13 of theory/workbooks/orior.
+# Fetch the words each language retains for sounds, for Section 4.13 of theory/workbooks/orior.
 #
 #   Usage:  python maint/data/fetch/fetch_onomatopoeia.py
 #
@@ -60,11 +60,11 @@ WANTED = (
 )
 
 
-def members(category, keep=600):
+def members(category, retain=600):
     """Every page a dictionary files under one category."""
     found = []
     onward = ""
-    while len(found) < keep:
+    while len(found) < retain:
         query = {
             "action": "query",
             "format": "json",

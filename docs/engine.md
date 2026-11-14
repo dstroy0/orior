@@ -97,7 +97,7 @@ The engine can read zarr v2/v3/N5 with every codec, TIFF, HDF5, npy/npz, NRRD, N
 
 ## Compression
 
-The true floor for a set of data is its Kolmogorov complexity, K(x): the length of the shortest program that prints it. K can't be computed, and it can't be measured directly. What can be measured is a ladder of bounds. Each one is exact for a named kind of coder, and each is lower than the one before because the coder is allowed to see more. [compression_table.md](https://github.com/dstroy0/orior/blob/main/theory/workbooks/compression/compression_table.md) gives the ladder for each set.
+The true floor for a set of data is its Kolmogorov complexity, K(x): the length of the shortest program that prints it. K can't be computed, and it can't be measured directly. What can be measured is a ladder of bounds. Each one is exact for a named type of coder, and each is lower than the one before because the coder is allowed to see more. [compression_table.md](https://github.com/dstroy0/orior/blob/main/theory/workbooks/compression/compression_table.md) gives the ladder for each set.
 
 | rung | the bound                        | exact for                                                                   |
 | ---- | -------------------------------- | --------------------------------------------------------------------------- |
@@ -136,7 +136,7 @@ The engine has a large set of transforms. A transform turns the object into a di
 
 - A file stored row by row goes back into the flat image it came from, given its width.
 - Re-seating renumbers the alphabet so its values are spread as little as any numbering allows.
-- Exact decimal input keeps every digit the source wrote, as a pair of whole numbers, and never forms a floating-point number.
+- Exact decimal input retains every digit the source wrote, as a pair of whole numbers, and never forms a floating-point number.
 - A Gray-coded embedding places any body of text as points in a binary volume, with one bit changing between neighbors.
 
 **Exact codes.**
@@ -144,7 +144,7 @@ The engine has a large set of transforms. A transform turns the object into a di
 - A redundant residue number system stores a whole number as its residues over moduli that share no factors. The Chinese remainder theorem reconstructs it, and the extra moduli let it detect errors.
 - Hamming(7,4) stores four data bits as seven and corrects any single flipped bit.
 
-**Reference backgrounds.** A maximum-entropy background is built by a transform that removes one property.
+**Reference backgrounds.** A max-entropy background is built by a transform that removes one property.
 
 - A permutation or a block shuffle draws the baseline the whole engine measures against.
 - A phase fold groups positions that match modulo a period, and puts them back together.
@@ -152,6 +152,6 @@ The engine has a large set of transforms. A transform turns the object into a di
 
 **The image transform program.** [`theory/theory/image_transforms`](https://github.com/dstroy0/orior/tree/main/theory/theory/image_transforms) is a research paper on exact image transforms: translation, rotation with scale and perspective, observed motion, and waves on a surface. Translation is built, and it is the number-theoretic transform above. The others are described in the research paper but not yet built, and the paper says which is which.
 
-The full set lives one per file under `archive/src/python/` and in the C renderer. The workbook records what each one has been shown to do. A fair count is eleven families of transforms that can be reversed, or seventeen if each render layout is counted on its own, along with several one-way maps.
+The full set lives one per file under `archive/src/python/` and in the C renderer. The workbook records what each one has been displayed to do. A fair count is eleven families of transforms that can be reversed, or seventeen if each render layout is counted on its own, along with several one-way maps.
 
 **Author:** dstroy0 (Douglas Quigg) <dquigg123@gmail.com>

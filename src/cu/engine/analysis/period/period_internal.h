@@ -22,8 +22,8 @@ static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success"
 #define PERIOD_STATUS_CHECK(call_, evacaddr_, error_)                                                                  \
     engine_status_check((int)(call_), ENGINE_MODULE_PERIOD, (unsigned int)__LINE__, (const void *)(evacaddr_), (error_))
 
-#define PERIOD_CHECK(condition_, evacaddr_, error_, kind_)                                                             \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_PERIOD, (unsigned int)__LINE__, (const void *)(evacaddr_), \
+#define PERIOD_CHECK(condition_, evacaddr_, error_, type_)                                                             \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_PERIOD, (unsigned int)__LINE__, (const void *)(evacaddr_), \
                        (error_))
 
 #define PERIOD_THREADS 256u
@@ -90,7 +90,7 @@ typedef struct
 } PeriodPass;
 
 // the histogram, the agreement and the shuffled lanes are slices of one pool, retained after the call and sized for the
-// most voxels and the most agreement entries requested so far
+// max voxels and the max agreement entries requested so far
 typedef struct
 {
     DevicePool pool;

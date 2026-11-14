@@ -6,7 +6,7 @@
 // part's registers, widths, loads and stores in a block of the ruleset's language, `__krs__(` to `)__krs__` (klang.h),
 // which the ruleset reader reads, its pipes, and their comments.
 //
-// A program that writes the rows writes the whole section, after a who line of its own; the tail stands as the file
+// A program that writes the rows writes the whole section, after a who line of its own; the tail is as the file
 // stored it, the who that was in force over it written again before it. A program that writes the pipes writes them at
 // the end of the tail, after a who line of its own, and the pipes before them are let go.
 #ifndef KDM_H
@@ -25,7 +25,7 @@ extern "C"
 // the head of the rows, the last line of the section before them
 #define KDM_ROWS_HEAD "# operator\tnodes\tchain\tcost\truns"
 
-// the most letters of a row's operator, of its chain and of its cost
+// the max characters of a row's operator, of its chain and of its cost
 #define KDM_OPERATOR 64u
 #define KDM_CHAIN 512u
 #define KDM_COST 128u
@@ -34,7 +34,7 @@ extern "C"
     typedef KfileLines KdmFile;
 
     // one row: the operator, the count of nodes, the chain, its cost as the row writes it, the runs it was timed over,
-    // and where a descent wrote a sixth field, its verdict, 1 standing and 0 out; -1 where the row has no sixth
+    // and where a descent wrote a sixth field, its verdict, 1 located and 0 out; -1 where the row has no sixth
     typedef struct
     {
         char operation[KDM_OPERATOR];
@@ -49,7 +49,7 @@ extern "C"
     // is no such file; 0 where there was no memory for a line
     int kdm_read(KdmFile *file, const char *path);
 
-    // `file` handed to the run's writer as the file at `path`, written by `who` (kfile_lines_write_by): 1, or 0 where it
+    // `file` passed to the run's writer as the file at `path`, written by `who` (kfile_lines_write_by): 1, or 0 where it
     // could not be written
     int kdm_write_by(const KdmFile *file, const char *path, Who who);
 

@@ -47,7 +47,7 @@ static int power_read(SimResults *results, const unsigned short *lanes, const un
     request.measurement = measurement;
     request.error = &error;
     const long long status = period_read(&request);
-    sim_check(results, (status == 0ll) && (error.kind == ENGINE_ERROR_NONE), "period_read accepted the volume");
+    sim_check(results, (status == 0ll) && (error.type == ENGINE_ERROR_NONE), "period_read accepted the volume");
     return status == 0ll;
 }
 
@@ -139,14 +139,14 @@ int main(void)
             const unsigned long long scaled = (draws + 1ull) * result.false_other_axes;
             const unsigned long long excess = (scaled > axes) ? (scaled - axes) : 0ull;
             sim_check(&results, (excess * excess) <= (POWER_RANGE_SQUARED * axes * (draws + 1ull)),
-                      "the unplanted axes' false periods exceed n/(draws + 1) by at most 5 sqrt(n p)");
+                      "the unplanted axes' false periods exceed n/(draws + 1) by at max 5 sqrt(n p)");
             if (amplitude[level] == 0ull)
             {
                 const unsigned long long scaled_x =
                     (draws + 1ull) * (result.found + result.found_multiple + result.found_elsewhere);
                 const unsigned long long excess_x = (scaled_x > POWER_VOLUMES) ? (scaled_x - POWER_VOLUMES) : 0ull;
                 sim_check(&results, (excess_x * excess_x) <= (POWER_RANGE_SQUARED * POWER_VOLUMES * (draws + 1ull)),
-                          "with nothing planted, x's false periods exceed n/(draws + 1) by at most 5 sqrt(n p)");
+                          "with nothing planted, x's false periods exceed n/(draws + 1) by at max 5 sqrt(n p)");
             }
             if (level + 1u == POWER_AMPLITUDES)
             {

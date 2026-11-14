@@ -66,7 +66,7 @@ EMBED_INLINE GuiRect search_field_rect(const SearchCtx *args)
     return EMBED_CALL(gui_pane_field.field_rect, GuiPaneFieldCfg, .pane = args->pane, .y = args->pane->rect.y);
 }
 
-// the rectangle of the choice `which` inside the field, the choices standing from the field's right edge inward in
+// the rectangle of the choice `which` inside the field, the choices located from the field's right edge inward in
 // their order, each its label's width with its padding
 EMBED_INLINE GuiRect search_option_rect(const SearchCtx *args)
 {
@@ -168,7 +168,7 @@ static void search_head_draw(const GuiPaneCfg *args)
     }
 }
 
-// the action at x, y: a choice where the pixel stands in one, else the field where it stands in it, else the set
+// the action at x, y: a choice where the pixel is in one, else the field where it is in it, else the set
 static unsigned int search_head_hit(const GuiPaneCfg *args)
 {
     for (unsigned int at = 0u; at < sizeof(s_options) / sizeof(s_options[0]); at += 1u)
@@ -281,7 +281,7 @@ static void search_row_draw(const GuiPaneCfg *args)
     }
     const int x = EMBED_CALL(gui_pane.guides, GuiPaneCfg, .raster = raster, .palette = palette, .frame = frame,
                              .rect = rect, .clip = args->clip, .depth = 1u);
-    // the line from a little before the match where the match stands past the lead, its blanks before the lead
+    // the line from a little before the match where the match is past the lead, its blanks before the lead
     // passed over, the match in signal, and what follows the match
     unsigned long long from = (row.match_at > GUI_SEARCH_LEAD_PAST) ? row.match_at - GUI_SEARCH_LEAD : 0ULL;
     while ((from < row.match_at) && ((row.text[from] == ' ') || (row.text[from] == '\t')))

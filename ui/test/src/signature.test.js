@@ -39,7 +39,7 @@ test("a call's arguments follow their parameters: moved, taken out, added with t
   assert.deepEqual(argumentsFor(["1"], [{ from: 0, text: "a" }, { from: 1, text: "b" }, { from: null, text: "c", value: "9" }], { language: "rust" }), ["1"], "a gap Rust cannot fill ends the arguments");
 });
 
-test("Python's keyword arguments keep their places and take a parameter's new name, and a method's receiver stays first", () => {
+test("Python's keyword arguments retain their places and take a parameter's new name, and a method's receiver stays first", () => {
   assert.deepEqual(argumentsFor(["1", "b=2"], [{ from: 0, text: "a", oldName: "a" }, { from: 1, text: "bee", oldName: "b" }], { language: "python", keywords: true }), ["1", "bee=2"]);
   assert.deepEqual(argumentsFor(["1", "2"], [{ from: 0, text: "self" }, { from: 2, text: "y" }, { from: 1, text: "x" }], { language: "python", receiver: true }), ["2", "1"]);
 });

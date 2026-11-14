@@ -17,8 +17,8 @@ That turns the problem around, onto the half that is well resourced. Nobody has 
 \begin{enumerate}
 \item Build a gold standard corpus for each language from the hand extractions.
 \item Build an English reference corpus from the translations the hand extractions mark.
-\item Screen each paper against the reference corpus, and keep what English does not account for.
-\item Measure what was kept against each language's profile, and admit it only where the measurement says it can be read (Section 3).
+\item Screen each paper against the reference corpus, and retain what English does not account for.
+\item Measure what was retained against each language's profile, and admit it only where the measurement says it can be read (Section 3).
 \end{enumerate}
 
 \subsection{The components}
@@ -37,7 +37,7 @@ These results are over \HandExtractions{} hand extractions. Of these, \Extractor
 \item \GoldLanguageLines{} lines of gold standard target language, across \GoldLanguages{} languages.
 \end{itemize}
 
-The \NoExtractor{} with no extractor, Hilbert and Hess \cite{src:Hilbert-and-Hess-1975} among them, are read by hand, and they are kept ungraded and not counted. The \GoldLanguages{} languages are the ones with a gold standard corpus.
+The \NoExtractor{} with no extractor, Hilbert and Hess \cite{src:Hilbert-and-Hess-1975} among them, are read by hand, and they are retained ungraded and not counted. The \GoldLanguages{} languages are the ones with a gold standard corpus.
 
 There are \GoldProfiles{} profiles: \GoldLanguages{} languages and English. Of the \GoldPairs{} pairs, \GoldPairsReadMidpoint{} are readable, at distances \GoldPairLeast{} to \GoldPairMost{} against split-half distances of \GoldSplitLeast{} to \GoldSplitMost{}. The pair that does not read is \GoldUnreadLeft{} against \GoldUnreadRight{}, \GoldUnreadDistance{} apart with the \GoldUnreadWider{} profile's own split-half distance at \GoldUnreadSplit{}.
 
@@ -74,7 +74,7 @@ Language & Gold standard & Candidates & Admitted & Split-half before & after & S
 
 Lushootseed took all \AdmitNamedCandidates{}, and its split-half distance fell from \AdmitNamedBefore{} to \AdmitNamedAfter{}. The admission rule is only a ceiling, and a corpus sitting above the band it belongs in admits whatever pulls it down. Here \AdmitNamedBefore{} is two dialects on opposite sides of the midpoint cut, and \AdmitNamedCandidates{} candidates added between them dilute that split without adding anything to the profile. A falling split-half distance can be a boundary being blurred and not a corpus improving.
 
-Candidates are kept for \CandidateOnlyCount{} languages that have no hand-read corpus to grow: \CandidateOnlyList.
+Candidates are retained for \CandidateOnlyCount{} languages that have no hand-read corpus to grow: \CandidateOnlyList.
 
 \subsection{What it cannot do}
 
@@ -84,6 +84,6 @@ The screening finds candidates. It does not read them. The corpus is still hand 
 
 Growing the Lushootseed profile does not reach the \GoldPapersNotRead{} papers. The \GoldPapersUnread{} that are large enough to ask fail because a paper's residual text sits almost the same distance from all \GoldLanguages{} language profiles: the median gap between the nearest and the runner-up is \GoldMedianGap{}, and the median paper split-half distance is \GoldMedianSplit{}. Nothing about the profiles' own sizes moves those two numbers past each other.
 
-What the \GoldPapersUnread{} need is a measure that separates the profiles as seen from a mixed residual, which the byte-pair histogram does not. The dialect border section of the chapter \emph{How wrong it could be} gives the first one that does: holding a concept fixed with the word web's gloss edge, flattening the pooled counts to maximum entropy, and testing one run at a time. That recovers a published dialect border inside Lushootseed at a corpus size where the whole-distribution comparison needs \BorderNeeds{} times more text. It has not been applied to the \GoldPapersUnread{}.
+What the \GoldPapersUnread{} need is a measure that separates the profiles as seen from a mixed residual, which the byte-pair histogram does not. The dialect border section of the chapter \emph{How wrong it could be} gives the first one that does: holding a concept fixed with the word web's gloss edge, flattening the pooled counts to max entropy, and testing one run at a time. That recovers a published dialect border inside Lushootseed at a corpus size where the whole-distribution comparison needs \BorderNeeds{} times more text. It has not been applied to the \GoldPapersUnread{}.
 
 Two dialects pooled into one profile are still worth splitting, because pooling inflated the split-half distance from \GoldUnreadAlternating{} to \GoldUnreadSplit{}, and it is the same defect in every corpus that holds more than one paper. Splitting them corrects the profiles; it is not a route to the \GoldPapersUnread{}.

@@ -15,11 +15,11 @@ extern "C"
 {
 #endif
 
-// the pool every program stands on: the most bytes its two ends occupy at once, as the cellblock's own peaks read
+// the pool every program is on: the max bytes its two ends occupy at once, as the cellblock's own peaks read
 // them, rounded up to the next 32 MiB
 #define CLI_POOL_BYTES ((256ull << 20u) + (32ull << 20u))
 
-// the most movable cells the pool names at once
+// the max movable cells the pool names at once
 #define CLI_POOL_MOVABLE (131072u + 1u)
 
     // The cellblock's guard, MMgr's: a cell is taken with persistent_buf_alloc(bytes, owner) and given back with
@@ -38,23 +38,23 @@ extern "C"
     // effect past the first
     void cli_pool_movable_ready(void);
 
-    // A line written into one cell of the temporary tier taken once at `most` bytes: its text stands whole in `cell`,
-    // and past `most` the line fills as a line with no flush fills. `line.out` is where the next
+    // A line written into one cell of the temporary tier taken once at `max` bytes: its text is whole in `cell`,
+    // and past `max` the line fills as a line with no flush fills. `line.out` is where the next
     // write goes, inside `cell`; the text is read at `cell` for cli_grown_size bytes, terminated. Written through the
     // line's own entries, as any line; begun before its first write and ended after its last read
     typedef struct
     {
         char *cell;
         unsigned long long capacity;
-        unsigned long long most;
+        unsigned long long max;
         const CellOwner *owner;
         VerbaLinea line;
     } CliGrownLine;
 
-    void cli_grown_begin(CliGrownLine *grown, unsigned long long most, const CellOwner *owner);
+    void cli_grown_begin(CliGrownLine *grown, unsigned long long max, const CellOwner *owner);
     // the bytes the text holds, what fit where a write did not; mmgr_line_ok over `line` says whether every write fit
     unsigned long long cli_grown_size(const CliGrownLine *grown);
-    // the line begun over again at its cell's start, the cell kept at the size it grew to
+    // the line begun over again at its cell's start, the cell retained at the size it grew to
     void cli_grown_reset(CliGrownLine *grown);
     void cli_grown_end(CliGrownLine *grown);
 
@@ -65,7 +65,7 @@ extern "C"
     // `<pool's bytes> <its peak> 0`
     void cli_pool_usage_write(VerbaLinea *out);
     void cli_pool_owner_usage_write(const CellOwner *owner, VerbaLinea *out);
-    // every owner of the table, a line each, its name, the bytes it has in use and the most it has had, a tab between
+    // every owner of the table, a line each, its name, the bytes it has in use and the max it has had, a tab between
     // them, in the table's order: the audit of who owns what in the cellblock
     void cli_pool_owners_write(VerbaLinea *out);
     // a report appended as the record `cells/<name>` to the run this process is a member of, and nothing where it is a

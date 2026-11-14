@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The debugger's menus, the tool windows' and the strip's, a tab group's, the marked files', the memory reading's
-// and a kept macro's, each item from the command line.
+// and a retained macro's, each item from the command line.
 
 import { runCommand } from "../../../gui/src-js/menubar.js";
 import { invoke } from "../../../gui/src-js/bridge.js";
@@ -16,7 +16,7 @@ import { asFound, closeSheets, endSessions, made, press, putBackAsFound, sheetSh
 
 const { test, assert, ui } = window.__harness;
 
-test("the debugger's menus, from the command line: breakpoints edited, an exception, a frame's code, and a variable kept, compared, watched and read", async () => {
+test("the debugger's menus, from the command line: breakpoints edited, an exception, a frame's code, and a variable retained, compared, watched and read", async () => {
   asFound();
   await invoke("file_write", { path: VARS, text: 'data = {"a": 1}\ncount = 3\ncount = 4\nprint(count)\n' });
   showView("edit");
@@ -40,10 +40,10 @@ test("the debugger's menus, from the command line: breakpoints edited, an except
     assert.deepEqual(made("debug_exceptions").at(-1)?.args.on, ["uncaught"], "and uncaught ones again");
     await press("frame-code", "0");
     assert.match((await sheetShown("h2")).textContent, /^Bytecode of /);
-    await press("variable-keep", "count");
-    await ui.waitFor(() => told(/count is kept as it stands/), 5000, "count kept");
+    await press("variable-retain", "count");
+    await ui.waitFor(() => told(/count is retained as it is/), 5000, "count retained");
     await press("variable-compare", "count");
-    assert.ok((await sheetShown(".debug-compare")).textContent.includes("3"), "the kept value beside the one now");
+    assert.ok((await sheetShown(".debug-compare")).textContent.includes("3"), "the retained value beside the one now");
     await press("variable-memory", "count");
     await ui.waitFor(() => told(/gives count no place in memory|Memory at count/) || document.querySelector("dialog[open] pre.debug-memory"), 5000, "count's memory, or the debugger's word that it gives none");
     closeSheets();
@@ -81,7 +81,7 @@ test("the tool windows' menus and the strip's, from the command line: a tool win
   assert.ok(!iconRemoved("profile"), "and on it again");
   await press("pane-open", "timeline");
   assert.equal(document.body.dataset.view, "edit");
-  assert.ok(paneOpen("timeline"), "the Timeline shown");
+  assert.ok(paneOpen("timeline"), "the Timeline displayed");
   asFound();
 });
 

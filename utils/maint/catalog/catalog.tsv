@@ -121,7 +121,7 @@ LNG-4-004	live	examples/language/4_measure/case_or_splitting.py
 LNG-4-005	live	examples/language/4_measure/category_or_inflection.py
 LNG-4-006	live	examples/language/4_measure/chicago_bibliography.py
 LNG-4-007	live	examples/language/4_measure/clean_dravidian.py
-LNG-4-008	live	examples/language/4_measure/click_letters.py
+LNG-4-008	live	examples/language/4_measure/click_characters.py
 LNG-4-009	live	examples/language/4_measure/cluster_branch.py
 LNG-4-010	live	examples/language/4_measure/cluster_profiles.py
 LNG-4-011	live	examples/language/4_measure/cross_corpus.py

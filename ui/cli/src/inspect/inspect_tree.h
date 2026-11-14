@@ -25,10 +25,10 @@ void cli_inspect_tree_remove(const CliInspectTreePathLineCfg *args);
 void cli_inspect_tree_clear(void);
 int cli_inspect_tree_contains(const CliInspectTreePathLineCfg *args);
 
-// each file of the tree handed to `each`
+// each file of the tree passed to `each`
 void cli_inspect_tree_paths(const CliInspectTreeEachCfg *args);
 
-// the function of the file at `path` that contains `line` most closely, and the one whose name starts on `line`, into
+// the function of the file at `path` that contains `line` max closely, and the one whose name starts on `line`, into
 // `at`, its place among the file's functions: 1, or 0 where it has none
 int cli_inspect_tree_function_at(const CliInspectTreePathLineCfg *args);
 int cli_inspect_tree_function_on(const CliInspectTreePathLineCfg *args);
@@ -44,25 +44,25 @@ typedef struct
 } CliInspectReachedCfg;
 
 // A function the call hierarchy reaches: the path of its file, that file's facts cell and its place among their
-// functions, and the spans of the calls that lead there, `count` of them. The path and the facts stand for the call
+// functions, and the spans of the calls that lead there, `count` of them. The path and the facts are for the call
 typedef void (*CliInspectReached)(const CliInspectReachedCfg *args);
 
-// the function at `at` of the file at `path` handed to `each` with no calls, under the tree's lock: 1, or 0 where the
+// the function at `at` of the file at `path` passed to `each` with no calls, under the tree's lock: 1, or 0 where the
 // tree has none there
 int cli_inspect_tree_function(const CliInspectTreePathCfg *args);
 
 // the functions the function at `at` of the file at `path` calls, each with the spans of its calls there; and the
-// functions that call it, each with the spans of its calls of it; each handed to `each` under the tree's lock
+// functions that call it, each with the spans of its calls of it; each passed to `each` under the tree's lock
 void cli_inspect_tree_callees(const CliInspectTreePathCfg *args);
 void cli_inspect_tree_callers(const CliInspectTreePathCfg *args);
 
-// every finding in every file: each file's path handed to `each` with no finding first, then each of its findings
+// every finding in every file: each file's path passed to `each` with no finding first, then each of its findings
 // written as the protocol's diagnostic, what the file shows alone and then what the tree shows
 typedef void (*CliInspectFound)(const CliInspectFoundCfg *args);
 void cli_inspect_tree_findings(const CliInspectTreeCfg *args);
 
 // what each Python class's family sets, by its file and its name: what it, the classes it comes from, the classes that
-// come from it and the classes those come from set, each attribute handed to `each`
+// come from it and the classes those come from set, each attribute passed to `each`
 typedef void (*CliInspectSupplied)(const CliInspectSuppliedCfg *args);
 void cli_inspect_tree_supplied(const CliInspectTreeContextEachSuppliedCfg *args);
 

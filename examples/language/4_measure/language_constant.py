@@ -84,7 +84,7 @@ def main():
             continue
         language = name[5:].rsplit("_", 1)[0]
         with open(os.path.join(CORPORA, name), encoding="utf-8", errors="replace") as handle:
-            # Line endings folded, as everywhere here, to keep a publisher's wrapping out of it
+            # Line endings folded, as everywhere here, to retain a publisher's wrapping out of it
             text = handle.read().replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
         if len(text) < 80000:
             continue

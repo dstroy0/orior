@@ -27,9 +27,9 @@ The edges are mirrored. Undoing it runs the same two moves backwards, with the s
     x_(2i)   = l_i − ⌊(h_(i−1) + h_i + 2) / 4⌋
     x_(2j+1) = h_j + ⌊(x_(2j) + x_(2j+2)) / 2⌋
 
-**Why the floors do not break exactness.** Each move adds to one half a function of the *other* half only. The inverse has that other half in hand, computes the very same function, floor and all, and subtracts it. It does not matter that ⌊·/2⌋ throws a bit away. The bit it throws away is thrown away identically going up and coming down, and it is never part of what is stored. This is a lifting step, and any function at all could stand in the floors' place: the pair of moves is still an exact integer map with an exact integer inverse. The 5/3 functions are chosen because a smooth line leaves high-pass coefficients near zero.
+**Why the floors do not break exactness.** Each move adds to one half a function of the *other* half only. The inverse has that other half in hand, computes the very same function, floor and all, and subtracts it. It does not matter that ⌊·/2⌋ throws a bit away. The bit it throws away is thrown away identically going up and coming down, and it is never part of what is stored. This is a lifting step, and any function at all could are in the floors' place: the pair of moves is still an exact integer map with an exact integer inverse. The 5/3 functions are chosen because a smooth line leaves high-pass coefficients near zero.
 
-The high-pass coefficient predicts each odd lane from its two even neighbors and keeps only the miss. The low-pass coefficient then carries the line's local mean up to the next floor. What the prediction gets right is gone from the high-pass coefficients: the program generates it. What it misses stays: that is the residue.
+The high-pass coefficient predicts each odd lane from its two even neighbors and retains only the miss. The low-pass coefficient then carries the line's local mean up to the next floor. What the prediction gets right is gone from the high-pass coefficients: the program generates it. What it misses stays: that is the residue.
 
 ### 1.2 The recursion: floors until the whole sample is one coefficient
 
@@ -55,7 +55,7 @@ z stops after floor 6, t after floor 7, and y and x reach one at floor 8. The dr
 
 **What the recursion costs.** While all four axes are still longer than one, each floor's block is about a sixteenth of the one before it: every axis halves, rounded up. The blocks in the table sum to 419,430,400 + 26,214,400 + 1,638,400 + 106,496 + 7,168 + 512 + 32 + 4 = 447,397,412 lanes, 1,066 per mille of the sample. So depth is paid in blocks that shrink, not in passes over the whole: the seven floors above the first add 27,967,012 lanes to the first floor's 419,430,400.
 
-**What the tower holds.** Every floor's high-pass coefficients, and the one coefficient at the top. There are exactly as many coefficients as voxels (419,430,400 for a 44b6 sample), and the tower is a one-to-one map of the sample onto them. Nothing is merged, averaged or dropped. The coefficients can be wider than sixteen bits, and they are kept below ENGINE_COEFFICIENT_LIMIT, 2^30 in magnitude (§2.4).
+**What the tower holds.** Every floor's high-pass coefficients, and the one coefficient at the top. There are exactly as many coefficients as voxels (419,430,400 for a 44b6 sample), and the tower is a one-to-one map of the sample onto them. Nothing is merged, averaged or dropped. The coefficients can be wider than sixteen bits, and they are retained below ENGINE_COEFFICIENT_LIMIT, 2^30 in magnitude (§2.4).
 
 **Read back down.** `tower_lower` undoes the floors from the top, each floor's axes in the reverse of the order they were lifted. The sample comes back voxel for voxel.
 
@@ -78,7 +78,7 @@ z stops after floor 6, t after floor 7, and y and x reach one at floor 8. The dr
 
 ## 2. Compression: writing the residue down, reading it back
 
-The tower hands its coefficients on the device to whatever writes them, and it writes no stream itself. The entry hands them to the compression step. Most coefficients are small, because the prediction took what the program generates and left only the misses. The compression step writes each one in about as many bits as it needs, and every one comes back exactly.
+The tower passes its coefficients on the device to whatever writes them, and it writes no stream itself. The entry passes them to the compression step. Max coefficients are small, because the prediction took what the program generates and left only the misses. The compression step writes each one in about as many bits as it needs, and every one comes back exactly.
 
 ### 2.1 Zigzag: signed to natural, exactly
 
@@ -122,7 +122,7 @@ A Rice stream is serial as written: where value i + 1 starts depends on the leng
 - **Write.** Each chunk is written from its first bit on its own thread. No chunk waits on another, because the scan has already said where each one starts.
 - **Read.** Decoding is the same: each chunk from its stored first bit, on its own thread.
 
-The stream is limbs of 32 bits, bit b at bit b mod 32 of limb b / 32. The first bit of every chunk is kept beside it, 8 bytes a chunk. So any chunk, and with it any floor's coefficients at their known offsets, is reached without decoding anything before it. That is the fluidic draft's elevator (fluidic_2; noise_sieve_tower §9 and §17): E(f, t) reads floor f at time t directly, and the clock takes you to any floor as fast as you can press the buttons.
+The stream is limbs of 32 bits, bit b at bit b mod 32 of limb b / 32. The first bit of every chunk is retained beside it, 8 bytes a chunk. So any chunk, and with it any floor's coefficients at their known offsets, is reached without decoding anything before it. That is the fluidic draft's elevator (fluidic_2; noise_sieve_tower §9 and §17): E(f, t) reads floor f at time t directly, and the clock takes you to any floor as fast as you can press the buttons.
 
 The reader returns an error for a stream whose chunk count is not its coefficient count's, or whose chunks do not start inside it in order: that stream is not this data's.
 
@@ -142,7 +142,7 @@ Raw, the sample is 838,860,800 bytes. The file is 406 per mille of raw, and the 
 
 ### 2.7 What the compression does not claim
 
-It is not the floor of the data. Grouping each floor's coefficients row by row made the stream of 44b6_0113de3b 1,157,533 bytes smaller, and coding pairs along t apart for each floor made it 1,987,962 bytes smaller, though pairing along t hurt on most other samples (ledger). The stream as written is not the smallest one possible. What does bound it from below is the floor of §1.3. A bit plane at maximum entropy carries a full bit for every place it covers, and no exact coder writes it in fewer. That bound is standard ([Shannon's](#src:Shannon)). Whether the tower's high-pass coefficients inherit the floor's planes, plane for plane, has not been measured in this stream, and here the bound is theory.
+It is not the floor of the data. Grouping each floor's coefficients row by row made the stream of 44b6_0113de3b 1,157,533 bytes smaller, and coding pairs along t apart for each floor made it 1,987,962 bytes smaller, though pairing along t hurt on max other samples (ledger). The stream as written is not the smallest one possible. What does bound it from below is the floor of §1.3. A bit plane at max entropy carries a full bit for every place it covers, and no exact coder writes it in fewer. That bound is standard ([Shannon's](#src:Shannon)). Whether the tower's high-pass coefficients inherit the floor's planes, plane for plane, has not been measured in this stream, and here the bound is theory.
 
 | claim | status |
 |---|---|
@@ -164,7 +164,7 @@ The tower has to widen the sample's sixteen bit voxels into 32 bit coefficients 
 - **The widen** takes the CRC of the sample, each voxel its low byte and then its high byte, the way a .stack holds it.
 - **The narrow** takes the CRC of the rebuilt sample the same way, and flags any value outside sixteen bits, which no sample holds.
 
-Neither is a pass of its own. This is the first standing rule, key:transform->product, 1 cycle (keys_explained §5): the transform and the check are one product, taken at the same moment over the same voxels.
+Neither is a pass of its own. This is the first located rule, key:transform->product, 1 cycle (keys_explained §5): the transform and the check are one product, taken at the same moment over the same voxels.
 
 ### 3.2 Segments, joined pairwise by GF(2) advance operators
 
@@ -191,12 +191,12 @@ Two samples with equal CRCs are equal pixel for pixel, short of a chance of 2^�
 | every .kcr rebuilt and checked against its CRC from the file alone | proved: 25 of 25, set CRC 091daa41e1aceb7e |
 | one sample re-ingested gives a byte identical .kcr | proved: `maint/prove_codec.sh` on 44b6_0113de3b, run by the session that split the codec (ledger) |
 | 23 join levels for a 44b6 sample; any message below 2^48 bytes in reach of the key | by the code's arithmetic: 6,553,600 segments; operators 2^7 to 2^29; the key's last operator is 2^47 |
-| a fold keeps its accumulator one size | proved for the CRC-64: 64 bits over every sample and over the set |
+| a fold retains its accumulator one size | proved for the CRC-64: 64 bits over every sample and over the set |
 | folding shrinks the work itself | not so: every voxel is still read once; the fold bounds the check |
 
 ## 4. How the three compose
 
-Lift, encode, write; read, decode, lower. Each is exact and closed, and each hands the next a plain value: coefficients as a vector of exact integers, then an `EngineStream`. They are composed only in the entry (keys_explained §9). The codec is therefore one chain, and it composes transitively:
+Lift, encode, write; read, decode, lower. Each is exact and closed, and each passes the next a plain value: coefficients as a vector of exact integers, then an `EngineStream`. They are composed only in the entry (keys_explained §9). The codec is therefore one chain, and it composes transitively:
 
     lower ∘ decode ∘ read ∘ write ∘ encode ∘ lift  =  identity on the sample
 

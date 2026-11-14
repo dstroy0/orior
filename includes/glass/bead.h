@@ -16,13 +16,13 @@ typedef struct GuiBeadBlitCfg GuiBeadBlitCfg;
 
 // The frames of the atlas. The first frame is the bead's wobble past rest, GUI_BEAD_LOW of the press, which a
 // release's overshoot of about 5 percent reaches as its own frame. The last frame is the bead pressed whole, 1.0 of
-// the press. The idle frame stands at 0.0
+// the press. The idle frame is at 0.0
 #define GUI_BEAD_FRAMES 12u
 #define GUI_BEAD_LOW (-0.08)
-// the most buttons an atlas holds frames for, and the most lights
+// the max buttons an atlas holds frames for, and the max lights
 #define GUI_BEAD_TOOLS_MAX 32u
 #define GUI_LIGHTS_MAX 4u
-// The cell's margin round the button in pixels, for the shadow and the frost. The reach is the most a pixel reads
+// The cell's margin round the button in pixels, for the shadow and the frost. The reach is the max a pixel reads
 // away from itself, in pixels, for the refraction
 #define GUI_BEAD_PAD 7
 #define GUI_BEAD_REACH 6
@@ -69,7 +69,7 @@ typedef struct
 // and its reach, each in pixels; the beads' shape and, for tabs, their top corners' radius in pixels; the cell's
 // width and height; the row stride of every plane; how many buttons it
 // holds frames for, each button's cell top left in the caller's pixels with the button's own width and height, 0 for
-// the largest's, its bead laid from the cell's top left corner inside the margin; the lights and the bead's four
+// the largest's, its bead positioned from the cell's top left corner inside the margin; the lights and the bead's four
 // colors they are lit with; and a bit a button, set once its frames are baked. The raster's rows hold, in order: each
 // button's frames, each frame's plane A then plane B; three patches with the reach as a margin; and three planes of
 // float work for the bake. The patches are the blit's own scratch. A button's frames bake the first time the bead is
@@ -95,19 +95,19 @@ typedef struct
     unsigned int baked;
 } GuiBeadAtlas;
 
-// an atlas with nothing laid out or baked
+// an atlas with nothing arranged or baked
 void gui_bead_init(const GuiBeadBakeCfg *args);
 // the bytes the atlas's raster takes for `tools` buttons `width` by `height` pixels with the margin `pad` and the
 // reach `reach`, 0 where the sizes are refused as the bake refuses them
 unsigned long long gui_bead_bytes(const GuiBeadBakeCfg *args);
-// the atlas laid out for `tools` buttons `width` by `height` pixels at the most, the margin `pad` round each and the
+// the atlas arranged for `tools` buttons `width` by `height` pixels at max, the margin `pad` round each and the
 // reach `reach`, their beads of `shape` with the corner `radius`, over `pixels`, which hold `gui_bead_bytes` of the
-// same sizes; their cells' top lefts `cells` with each button's own width and height, 0 for the most, lit by
+// same sizes; their cells' top lefts `cells` with each button's own width and height, 0 for the max, lit by
 // `light_count` of `lights` in `colors`, GUI_BEAD_COLORS of them: 1, or 0 where there are no pixels, a size is 0,
-// the cell is too tall, the reach is below 3 or there are too many tools. A button whose frames stand baked for the
-// same sizes, shape, place, lights and colors keeps them; any other bakes again when the bead is next drawn on it
+// the cell is too tall, the reach is below 3 or there are too many tools. A button whose frames are baked for the
+// same sizes, shape, place, lights and colors retains them; any other bakes again when the bead is next drawn on it
 int gui_bead_bake(const GuiBeadBakeCfg *args);
-// the frames of the button `tool` baked where they are not: 1, or 0 where the atlas is not laid out
+// the frames of the button `tool` baked where they are not: 1, or 0 where the atlas is not arranged
 int gui_bead_tool_bake(const GuiBeadBlitCfg *args);
 // the frame of the press share `press`, in `one` from rest: 0 at rest, `one` pressed whole, below 0 in the wobble
 unsigned int gui_bead_frame(const GuiBeadCfg *args);

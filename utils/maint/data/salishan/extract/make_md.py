@@ -2,7 +2,7 @@
 
 usage: python make_md.py <stem>
 
-The per-paper sections, whose words these are, the letters and the page against the text layer, come
+The per-paper sections, whose words these are, the characters and the page against the text layer, come
 from the closed corpus's finish/<stem>.py, where a person wrote them off the page. The counts come from running
 residue.py and reading the table, and nothing in them is typed by hand.
 """
@@ -65,7 +65,7 @@ def main():
     table = os.path.join(ORACLES, stem + ".oracle.tsv")
     with open(table, encoding="utf-8") as handle:
         rows = [line.rstrip("\n").split("\t") for line in handle][1:]
-    kinds = collections.Counter(one[2] for one in rows)
+    types = collections.Counter(one[2] for one in rows)
 
     report = subprocess.run([sys.executable, os.path.join(HERE, "residue.py"), stem],
                             capture_output=True, text=True, encoding="utf-8",
@@ -78,7 +78,7 @@ def main():
     with open(os.path.join(WORK, stem + ".alphabet.txt"), encoding="utf-8") as handle:
         for line in list(handle)[1:]:
             symbol, point, outside, inside, share, role, name = line.rstrip("\n").split("\t")
-            if role == "letter" and int(outside) > 0:
+            if role == "character" and int(outside) > 0:
                 alphabet.append(symbol)
     web = sum(1 for _ in open(os.path.join(WORK, stem + ".web.tsv"), encoding="utf-8")) - 1
 
@@ -94,11 +94,11 @@ def main():
         wrapped(
             "Drafted by the orior-engine engine and read against the page by a person. The engine "
             "sorted every line of the text layer with english_sift.sorted_into, first against its "
-            "English reference and the pure corpus, then against this paper's own English laid "
+            "English reference and the pure corpus, then against this paper's own English positioned "
             "over that reference. What the paper's English did not account for became the example "
             "tiers and the cited forms. The alphabet was taken from the characters that sit outside "
             "that English, and word_web.web() built %d edges over the language forms. A person then "
-            "matched the context: who, kind and gloss for each row, the names, places and languages, "
+            "matched the context: who, type and gloss for each row, the names, places and languages, "
             "and the notations, read off the page. This file is the control. The reader in "
             "corpus_script_extraction is checked against it, and where they disagree the reader is "
             "wrong until someone reads the paper again and says otherwise." % web),
@@ -107,10 +107,10 @@ def main():
         "",
         wrapped(context.WHOSE),
         "",
-        "THE LETTERS",
+        "THE CHARACTERS",
         "",
-        wrapped("Outside the paper's English the engine found these letters and marks: %s. %s"
-                % (" ".join(alphabet), context.LETTERS)),
+        wrapped("Outside the paper's English the engine found these characters and marks: %s. %s"
+                % (" ".join(alphabet), context.CHARACTERS)),
         "",
         "THE PAGE AND THE TEXT LAYER",
         "",
@@ -120,7 +120,7 @@ def main():
              "transcribed from the scan, a line for each printed line. %s" % context.PAGE_NOTES)
             if getattr(__import__("tables").of(stem), "TRANSCRIBED_FROM_SCAN", False) else
             "The forms are in NFC, and the check puts the page text, read from the glyph positions, "
-            "through the same repair: a mark the text sets after a space is put back on its letter, "
+            "through the same repair: a mark the text sets after a space is put back on its character, "
             "then NFC%s. %s"
             % (", then %d page-read correction%s" % (len(corrections), "" if len(corrections) == 1 else "s")
                if corrections else "", context.PAGE_NOTES)
@@ -145,9 +145,9 @@ def main():
         "         the prose, the tables and the notes",
     ]
     first = True
-    for kind, meaning in KINDS:
-        if kinds.get(kind):
-            parts.append("%s %-14s %s" % ("kind    " if first else "        ", kind, meaning))
+    for type, meaning in KINDS:
+        if types.get(type):
+            parts.append("%s %-14s %s" % ("type    " if first else "        ", type, meaning))
             first = False
     parts += [
         "form     as printed, joined where the text layer breaks a word, with no footnote digits",

@@ -8,7 +8,7 @@
 #include "sql.h"
 
 // The writing of one level: where it goes, how many nodes are written, how a row is written, the type its rows are,
-// NULL where each row names its own, the schema an object stands under, and whether the database is SQLite, whose
+// NULL where each row names its own, the schema an object is under, and whether the database is SQLite, whose
 // objects are never leaves
 typedef struct
 {
@@ -76,7 +76,7 @@ typedef struct
     const char *label;
     const char *detail_text;
     int leaf;
-    const char *const *at_letters;
+    const char *const *at_characters;
     CliDbLevel *level;
     CliDbLink *link;
     const VerbaLinea *query_read;
@@ -144,7 +144,7 @@ EMBED_INLINE void children_node(const DbChildrenCtx *args)
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
                .text_bytes = (const unsigned char *)args->label,
                .length = cellul.len(&(CatenaFinitaCfg){.src = args->label, .cap = CLI_POOL_BYTES}));
-    mmgr_line_put(out, ",\"kind\":");
+    mmgr_line_put(out, ",\"type\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
                .text_bytes = (const unsigned char *)args->type,
                .length = cellul.len(&(CatenaFinitaCfg){.src = args->type, .cap = CLI_POOL_BYTES}));
@@ -157,8 +157,8 @@ EMBED_INLINE void children_node(const DbChildrenCtx *args)
     {
         mmgr_line_put(out, (one > 0u) ? "," : "");
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
-                   .text_bytes = (const unsigned char *)args->at_letters[one],
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->at_letters[one], .cap = CLI_POOL_BYTES}));
+                   .text_bytes = (const unsigned char *)args->at_characters[one],
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->at_characters[one], .cap = CLI_POOL_BYTES}));
     }
     mmgr_line_put(out, "]}");
     args->children->written += 1u;
@@ -185,7 +185,7 @@ static int children_row(const CliDbRowCfg *args)
     {
         const char *const at[1] = {first};
         EMBED_CALL(children_node, DbChildrenCtx, .children = children, .label = first, .type = children->type,
-                   .detail_text = "", .leaf = 0, .at_letters = at, .count = 1u);
+                   .detail_text = "", .leaf = 0, .at_characters = at, .count = 1u);
         return 1;
     }
     if (how == CHILDREN_OBJECT)
@@ -194,7 +194,7 @@ static int children_row(const CliDbRowCfg *args)
         EMBED_CALL(children_node, DbChildrenCtx, .children = children, .label = first, .type = second,
                    .detail_text = "",
                    .leaf = !children->lite && !EMBED_CALL(children_has_parts, DbChildrenCtx, .type = second),
-                   .at_letters = at, .count = 3u);
+                   .at_characters = at, .count = 3u);
         return 1;
     }
     if ((how == CHILDREN_PART) || (how == CHILDREN_LITE_KEY))
@@ -235,7 +235,7 @@ static int children_row(const CliDbRowCfg *args)
             type = second;
         }
         EMBED_CALL(children_node, DbChildrenCtx, .children = children, .label = first, .type = type,
-                   .detail_text = detail, .leaf = 1, .at_letters = NULL, .count = 0u);
+                   .detail_text = detail, .leaf = 1, .at_characters = NULL, .count = 0u);
         return 1;
     }
     // a column: its type, whether it may not be NULL, its default, and what else its database reports of it
@@ -284,7 +284,7 @@ static int children_row(const CliDbRowCfg *args)
     }
     mmgr_line_finish(&detail_line);
     EMBED_CALL(children_node, DbChildrenCtx, .children = children, .label = first, .type = "column",
-               .detail_text = detail, .leaf = 1, .at_letters = NULL, .count = 0u);
+               .detail_text = detail, .leaf = 1, .at_characters = NULL, .count = 0u);
     return 1;
 }
 
@@ -336,9 +336,9 @@ EMBED_INLINE int children_postgres(const DbChildrenCtx *args)
         EMBED_CALL(
             children_question, DbChildrenCtx, .query = args->query, .dialect = dialect,
             .before =
-                "SELECT name, kind FROM (SELECT c.relname AS name, CASE c.relkind WHEN 'r' THEN 'table' WHEN 'p' THEN "
+                "SELECT name, type FROM (SELECT c.relname AS name, CASE c.relkind WHEN 'r' THEN 'table' WHEN 'p' THEN "
                 "'table' WHEN 'v' THEN 'view' WHEN 'm' THEN 'materialized view' WHEN 'f' THEN 'foreign table' ELSE "
-                "'sequence' END AS kind FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname "
+                "'sequence' END AS type FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname "
                 "= ",
             .first = schema,
             .between =
@@ -346,7 +346,7 @@ EMBED_INLINE int children_postgres(const DbChildrenCtx *args)
                 "'(' || "
                 "pg_get_function_identity_arguments(p.oid) || ')', CASE p.prokind WHEN 'p' THEN 'procedure' ELSE "
                 "'function' END FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = ",
-            .second = schema, .after = ") o ORDER BY kind, name");
+            .second = schema, .after = ") o ORDER BY type, name");
         return EMBED_CALL(children_query, DbChildrenCtx, .level = args->level, .link = args->link,
                           .query_read = args->query, .how = CHILDREN_OBJECT, .type = NULL, .failure = args->failure);
     }
@@ -409,12 +409,12 @@ EMBED_INLINE int children_mysql(const DbChildrenCtx *args)
     {
         EMBED_CALL(
             children_question, DbChildrenCtx, .query = args->query, .dialect = dialect,
-            .before = "SELECT name, kind FROM (SELECT TABLE_NAME AS name, IF(TABLE_TYPE = 'VIEW', 'view', 'table') "
-                      "AS kind FROM information_schema.TABLES WHERE TABLE_SCHEMA = ",
+            .before = "SELECT name, type FROM (SELECT TABLE_NAME AS name, IF(TABLE_TYPE = 'VIEW', 'view', 'table') "
+                      "AS type FROM information_schema.TABLES WHERE TABLE_SCHEMA = ",
             .first = schema,
             .between = " UNION ALL SELECT ROUTINE_NAME, LOWER(ROUTINE_TYPE) FROM information_schema.ROUTINES WHERE "
                        "ROUTINE_SCHEMA = ",
-            .second = schema, .after = ") o ORDER BY kind, name");
+            .second = schema, .after = ") o ORDER BY type, name");
         return EMBED_CALL(children_query, DbChildrenCtx, .level = args->level, .link = args->link,
                           .query_read = args->query, .how = CHILDREN_OBJECT, .type = NULL, .failure = args->failure);
     }

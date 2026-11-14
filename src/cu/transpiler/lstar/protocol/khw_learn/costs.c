@@ -9,13 +9,13 @@
 static unsigned char s_cost_code[(KHW_PLACES + KHW_COST_COPIES) * KHW_INSTRUCTION];
 
 // A form timed on the timer register: the costs question of `copies` copies put over `count` cases from `word`
-// at the position, KHW_LAUNCHES launches, the least and the most launch's advance of the clock into `least` and `most`,
+// at the position, KHW_LAUNCHES launches, the least and the max launch's advance of the clock into `least` and `max`,
 // and `clock_address` the timer register's address where the launches were timed on it, 0 where on the driver's event
 // timer. 1 where the
 // part answered, 0 where it refused, the gate stopped it or nothing carried it
 static int khw_cost_timed(unsigned int copies, unsigned long long low, unsigned long long high,
                           const unsigned int word[][2], unsigned int count, unsigned long long *least,
-                          unsigned long long *most, unsigned int *clock_address)
+                          unsigned long long *max, unsigned int *clock_address)
 {
     static RunQuestion s_cost_question;
     const unsigned int after = s_kernel_places - s_probe_place - 1u;
@@ -50,9 +50,9 @@ static int khw_cost_timed(unsigned int copies, unsigned long long low, unsigned 
     const int answered = run_channel_put(&s_cost_question);
     khw_round_printed(1u, before);
     *least = s_cost_question.least;
-    *most = s_cost_question.most;
+    *max = s_cost_question.max;
     *clock_address = s_cost_question.clock_address;
-    return answered && (s_cost_question.most != 0ull);
+    return answered && (s_cost_question.max != 0ull);
 }
 
 // The cost of every form the machine file names, queried (P6): each classified form whose runs carry every place of its
@@ -60,9 +60,9 @@ static int khw_cost_timed(unsigned int copies, unsigned long long low, unsigned 
 // KHW_COST_COPIES times over from the position on in a question of its own, over its relation's cases, and timed over
 // KHW_LAUNCHES launches on the timer register, read through the BAR0 driver around each launch (the carrier's clock.c);
 // the kernel alone is timed the same way first, the reference every form is read against. A form's cost is the
-// least launch's advance less the kernel's own, in the clock's count over the copies, and its spread the most launch's
+// least launch's advance less the kernel's own, in the clock's count over the copies, and its spread the max launch's
 // advance less the least. Each is a row of the part's .ksc at `path`, every cost row the file retained before let go to
-// the .krf beside it, since one reading stands for every form. Where the launches were timed on the driver's clock,
+// the .krf beside it, since one reading is for every form. Where the launches were timed on the driver's clock,
 // the part having named no clock, nothing is stored: the clock is queried first (learn clock). The count timed
 unsigned int khw_costs_queried(const char *path)
 {
@@ -70,13 +70,13 @@ unsigned int khw_costs_queried(const char *path)
     static unsigned long long s_high[KHW_FORMS];
     static unsigned long long s_least[KHW_FORMS];
     static unsigned long long s_spread[KHW_FORMS];
-    static unsigned int s_word[RUN_CASES_MOST][2];
-    static unsigned int s_plain[RUN_CASES_MOST];
-    static unsigned int s_signed[RUN_CASES_MOST];
+    static unsigned int s_word[RUN_CASES_MAX][2];
+    static unsigned int s_plain[RUN_CASES_MAX];
+    static unsigned int s_signed[RUN_CASES_MAX];
     static unsigned int s_to_time[KHW_FORMS];
     unsigned int timed = 0u;
     // the machine file as the run carried it in, the first blob of its name: the file as the run stores it now is
-    // the gate's for the costs questions, the kernel's places laid out as forms before the forms the part answered
+    // the gate's for the costs questions, the kernel's places arranged as forms before the forms the part answered
     // for, and the forms a word is written by are the carried-in file's alone
     const unsigned char *machine = NULL;
     unsigned long long machine_size = 0ull;
@@ -110,17 +110,17 @@ unsigned int khw_costs_queried(const char *path)
             to_time += 1u;
         }
     }
-    khw_plan_handed("costs", (unsigned long long)to_time + 1ull);
+    khw_plan_passed("costs", (unsigned long long)to_time + 1ull);
     // the kernel alone, the reference, over the kernel's own relation's cases
     const unsigned int kernel_count =
         (s_names != 0u)
             ? khw_anchor_cases(s_named[s_to_time[0]].anchor, s_named[s_to_time[0]].swapped, s_word, s_plain, s_signed)
             : 0u;
     unsigned long long kernel_least = 0ull;
-    unsigned long long kernel_most = 0ull;
+    unsigned long long kernel_max = 0ull;
     unsigned int clock_address = 0u;
     if ((to_time == 0u) ||
-        !khw_cost_timed(0u, 0ull, 0ull, s_word, kernel_count, &kernel_least, &kernel_most, &clock_address))
+        !khw_cost_timed(0u, 0ull, 0ull, s_word, kernel_count, &kernel_least, &kernel_max, &clock_address))
     {
         printf("  costs: the kernel alone could not be timed, and no form is\n");
         return 0u;
@@ -132,8 +132,8 @@ unsigned int khw_costs_queried(const char *path)
             "(learn clock), and no cost is stored\n");
         return 0u;
     }
-    printf("  costs: the kernel alone, the least launch %llu and the most %llu on the timer register\n", kernel_least,
-           kernel_most);
+    printf("  costs: the kernel alone, the least launch %llu and the max %llu on the timer register\n", kernel_least,
+           kernel_max);
     for (unsigned int each = 0u; each < to_time; each += 1u)
     {
         const KhwAnswered *const form = &s_named[s_to_time[each]];
@@ -143,8 +143,8 @@ unsigned int khw_costs_queried(const char *path)
         }
         const unsigned int count = khw_anchor_cases(form->anchor, form->swapped, s_word, s_plain, s_signed);
         unsigned long long least = 0ull;
-        unsigned long long most = 0ull;
-        if (!khw_cost_timed(KHW_COST_COPIES, form->low, form->high, s_word, count, &least, &most, &clock_address) ||
+        unsigned long long max = 0ull;
+        if (!khw_cost_timed(KHW_COST_COPIES, form->low, form->high, s_word, count, &least, &max, &clock_address) ||
             (clock_address == 0u))
         {
             continue;
@@ -152,12 +152,12 @@ unsigned int khw_costs_queried(const char *path)
         s_low[timed] = form->low;
         s_high[timed] = form->high;
         s_least[timed] = (least > kernel_least) ? (least - kernel_least) : 0ull;
-        s_spread[timed] = most - least;
+        s_spread[timed] = max - least;
         printf("  cost: %016llx %016llx, %llu over %u copies above the kernel alone, the spread %llu\n", form->low,
                form->high, s_least[timed], KHW_COST_COPIES, s_spread[timed]);
         timed += 1u;
     }
-    // the .ksc as the run stores it, every cost row before let go and the rows timed now put, handed to the run's
+    // the .ksc as the run stores it, every cost row before let go and the rows timed now put, passed to the run's
     // writer whole (ksc.h); the rows let go recorded in the part's .krf beside it (krf.h)
     static KscFile s_file;
     static KfileLines s_removed;
@@ -194,7 +194,7 @@ unsigned int khw_costs_queried(const char *path)
 // The part's operand fields written to the part's .ksc at `path` as `field <name> <first> <bits>`, where the register
 // walk and the predicate walk read them (orior_klq_identity): every field row of the instruction word's layout table
 // `s_fields` (sass_nvidia.tsv, container_layout.h), the places the assembler fills. Every `field` line the file
-// contained is let go, the rest retained, and the file handed to the run's writer whole (ksc.h). A table that does not
+// contained is let go, the rest retained, and the file passed to the run's writer whole (ksc.h). A table that does not
 // read leaves the file as it is
 void khw_fields_written(const char *path)
 {
@@ -218,7 +218,7 @@ void khw_fields_written(const char *path)
     ksc_free(&s_read);
     for (unsigned int at = 0u; at < s_table.rows; at += 1u)
     {
-        if (s_table.row[at].kind != LAYOUT_FIELD)
+        if (s_table.row[at].type != LAYOUT_FIELD)
         {
             continue;
         }

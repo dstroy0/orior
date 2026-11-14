@@ -5,10 +5,10 @@ and Jesse Recalma, Qualicum First Nation, and Suzanne Urbanczyk, University of V
 
 Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
-pure corpus, then against this paper's own English laid over that reference. What the paper's
+pure corpus, then against this paper's own English positioned over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
 from the characters that sit outside that English, and word_web.web() built 130 edges over the
-language forms. A person then matched the context: who, kind and gloss for each row, the names,
+language forms. A person then matched the context: who, type and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
 someone reads the paper again and says otherwise.
@@ -21,9 +21,9 @@ forms from FirstVoices and shashishalhem forms from Beaumont 2011. Each cell of 
 given to the language of its row. The consonant charts, Tables 6 to 9, set phonemes, which are
 notation rows of the authors, and the prose and the notes are the authors'.
 
-THE LETTERS
+THE CHARACTERS
 
-Outside the paper's English the engine found these letters and marks: á ç í ú ā ē ě ī ō ū ƛ ǰ ə ɛ ɬ
+Outside the paper's English the engine found these characters and marks: á ç í ú ā ē ě ī ō ū ƛ ǰ ə ɛ ɬ
 ʔ ʷ ̓ θ ᶿ. Boas wrote ç and ¢ for the sound in question, ē and ō with macrons, ě, E and the
 apostrophe after a stressed vowel; lv for a lateral. The modern forms write ɬ, ƛ̓, k̓ʷ and xʷ, and
 shashishalhem its practical orthography, lh and tl’. The phonemes are in slashes, the phonetic
@@ -47,7 +47,7 @@ where    the paper's locator: the title, the front matter, a section, a footnote
 who      the language for an example tier and a cited form; the work cited on an example's
          line, or the speaker for a volunteered translation, for its English; the authors for
          the prose, the tables and the notes
-kind     cited form     a word of the language named in the prose, a note or a table
+type     cited form     a word of the language named in the prose, a note or a table
          language       a language name
          name           a person or a proper name
          note           a paragraph, a context, a table, a footnote or a word that is not the language

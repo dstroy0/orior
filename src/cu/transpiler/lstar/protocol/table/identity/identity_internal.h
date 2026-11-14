@@ -66,13 +66,13 @@ static const unsigned long long s_values[] = {
 
 #define IDENTITY_CASES (IDENTITY_VALUES * IDENTITY_VALUES * IDENTITY_THIRDS)
 
-// the blob of the run the host's answers are handed as, host_questions' output, one chain a line
+// the blob of the run the host's answers are passed as, host_questions' output, one chain a line
 #define IDENTITY_HOST_ANSWERS "host_answers.txt"
 
 // the environment's variable naming the vendor's writer and its words but the machine file and a mode's, apart by
 // tabs: the program, the part, the layout and the vendor's table, which the query crate sets
 
-// What a mode writes, stored in memory until it is handed to the run's writer whole, the only thing that writes a file:
+// What a mode writes, stored in memory until it is passed to the run's writer whole, the only thing that writes a file:
 // where it goes, and its bytes so far. `filed` 1 where it is a current file of the tree, which the writer writes in its
 // place (qry_member_filed), and 0 where it is a table of the run's own, a blob of the run named by the path's own name
 struct RunWritten
@@ -82,14 +82,14 @@ struct RunWritten
     std::string text;
 };
 
-// a link of a listing: as nvcc wrote it, its registers as written, with its registers read as their kind, and its
+// a link of a listing: as nvcc wrote it, its registers as written, with its registers read as their type, and its
 // position in the chain, the address nvcc wrote beside it, and each register it names with the placeholder it names it
 // in: g for the guard, and each operand by its count from 0
 struct Link
 {
     std::string exact;
     std::string registers;
-    std::string kind;
+    std::string type;
     std::string position;
     std::vector<std::pair<std::string, std::string>> placeholders;
     std::string marked;
@@ -144,7 +144,7 @@ struct Carrier
 };
 
 // a question the permutations put: the window it is queried in at its first occurrence, how often it arises, the link
-// put in and the link it stands for
+// put in and the link it is for
 struct Permuted
 {
     unsigned int question;
@@ -156,7 +156,7 @@ struct Permuted
 };
 
 // what one form's writing came to over the questions nvcc makes in fewer steps: the questions, and its links of ours
-// alone there, of a kind nvcc writes nothing of in the question
+// alone there, of a type nvcc writes nothing of in the question
 struct FormFolded
 {
     std::set<std::string> questions;
@@ -198,15 +198,15 @@ struct QueryRecorded
 // ksc_answers_written, the who the code that calls it
 #define ksc_answers_write(ksc_, queried_, rows_) ksc_answers_written((ksc_), (queried_), (rows_), WHO_HERE)
 
-// A log the query writes, stored in memory until it is handed whole to the run as a blob of its .qry
-// (qry_member.h): the name its blobs are written under and the bytes not yet handed
+// A log the query writes, stored in memory until it is passed whole to the run as a blob of its .qry
+// (qry_member.h): the name its blobs are written under and the bytes not yet passed
 struct QueryLog
 {
     const char *name;
     std::string bytes;
 };
 
-// One query a pair's thread hands to the round, 1 where it is dangerous: its stand-in reads or writes memory through an
+// One query a pair's thread passes to the round, 1 where it is dangerous: its stand-in reads or writes memory through an
 // address, or sends control elsewhere, and it is carried in a process of its own
 struct CarriedQuery
 {
@@ -225,8 +225,8 @@ struct IdentityOrder
     }
 };
 
-// the most questions one process carries, for the memory each uses while it is put
-#define STALL_CARRIED_MOST 1024u
+// the max questions one process carries, for the memory each uses while it is put
+#define STALL_CARRIED_MAX 1024u
 
 // one question of the stall walk: the pair it queries, the chain whose host answers it is checked against, and the
 // stall
@@ -279,7 +279,7 @@ struct RegisterProbe
 };
 
 // the threads every point of a curve launches in all, and the launches its time is taken over; the queries in a row the
-// band of the fewest registers' times sustains without widening before it is taken as sustained, and the most queries
+// band of the fewest registers' times sustains without widening before it is taken as sustained, and the max queries
 // one band or one point's bounces is given
 #define CURVE_THREADS (1u << 20u)
 
@@ -287,9 +287,9 @@ struct RegisterProbe
 
 #define CURVE_SUSTAIN 5u
 
-#define CURVE_QUERIES_MOST 64u
+#define CURVE_QUERIES_MAX 64u
 
-// the times a launch of one point takes over every query of it: the least and the most
+// the times a launch of one point takes over every query of it: the least and the max
 struct CurveBand
 {
     unsigned long long low;
@@ -306,7 +306,7 @@ struct Carriers
     std::map<std::string, std::pair<unsigned int, unsigned int>> magnitudes;
 };
 
-// each link a form stands at, in each carrier, with its vector: the carrier's delta before the form, the links
+// each link a form is at, in each carrier, with its vector: the carrier's delta before the form, the links
 // between a case's load and the form, then the carrier's magnitude
 struct FoundLink
 {
@@ -360,7 +360,7 @@ extern std::mutex s_turn_lock;
 extern std::condition_variable s_turn_changed;
 extern int s_turn;
 extern std::vector<std::vector<CarriedQuery>> s_round_queries;
-extern unsigned long long s_round_handed;
+extern unsigned long long s_round_passed;
 extern unsigned long long s_round_recalled;
 extern unsigned long long s_round_processes;
 extern thread_local int t_turned;
@@ -389,7 +389,7 @@ std::unordered_map<unsigned long long, Occurrence> windows_counted(const std::ve
 int slice_found(const Question &one, const Question &other, const Link **left, const Link **right);
 int identity_slice(const char *listing, const char *manifest, const char *stick_path, const std::string &folder, const std::string &ours);
 int forms_read(int count, char **files, std::vector<std::pair<std::string, std::vector<std::regex>>> *forms);
-std::string forms_writing(const std::vector<std::pair<std::string, std::vector<std::regex>>> &forms, const std::string &kind);
+std::string forms_writing(const std::vector<std::pair<std::string, std::vector<std::regex>>> &forms, const std::string &type);
 int identity_read(const std::string &folder, const std::string &klq, int count, char **files);
 std::vector<std::string> candidate_paths(const std::vector<std::string> &given);
 void candidates_read(const std::string &path, std::vector<Question> *candidates);
@@ -411,7 +411,7 @@ void cuts_queried(const std::vector<std::vector<unsigned char>> &codes, const st
                   unsigned int mark, std::vector<RunQuestion> *questions);
 void record_close(void);
 void record_open(const char *ksc, const char *mode);
-void query_log_handed(QueryLog *log);
+void query_log_passed(QueryLog *log);
 void query_logs_opened(void);
 void query_log_flushed(QueryLog *log);
 std::string case_text(unsigned int at);
@@ -430,7 +430,7 @@ int ksc_answers_written(const char *ksc, const std::string &queried, const std::
 void arrangement_probes(const char *engine, const std::map<std::string, std::vector<std::string>> &host,
                         const std::string &kdm, const Ruleset *sass, const char *machine_path, const StallField &stall,
                         unsigned long long longest, const std::set<std::pair<std::string, std::string>> &excluded_pairs,
-                        size_t most, std::vector<StallQuery> *queries, std::vector<std::vector<unsigned char>> *codes);
+                        size_t max, std::vector<StallQuery> *queries, std::vector<std::vector<unsigned char>> *codes);
 int identity_stall(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *machine_path, const char *const *carrier);
 long long walk_step(const std::function<int(long long)> &predicate, long long from, long long step, long long end);
 long long walk_halved(const std::function<int(long long)> &predicate, long long truthy, long long falsy);
@@ -448,7 +448,7 @@ int identity_text(const char *engine, const char *answers, const char *ksc, cons
 int vector_alike(const std::vector<unsigned char> &code, const std::vector<std::string> &host,
                  const std::vector<unsigned int> &places, RunQuestion *question, unsigned long long *queries,
                  unsigned int mark);
-std::string carrier_cut_at_read(const std::vector<CarrierLink> &links, long cases_defined, const std::string &text, long link_at, long form_lines, const std::string &read, const std::string &standing = std::string(), int wide = 0);
+std::string carrier_cut_at_read(const std::vector<CarrierLink> &links, long cases_defined, const std::string &text, long link_at, long form_lines, const std::string &read, const std::string &located = std::string(), int wide = 0);
 std::string read_shape(const std::vector<CarrierLink> &links, const std::vector<std::string> &lines, long cases_defined, const std::string &form_text, long at);
 std::vector<std::string> form_tokens(const std::string &text);
 int form_unified(const Ruleset *sass, const std::string &to_text, const std::string &from_text, std::map<char, std::string> *bound, std::map<char, std::string> *fixed);
@@ -474,7 +474,7 @@ void cuts_queried(const std::vector<std::vector<unsigned char>> &codes, const st
 std::string pair_categories(const Ruleset *sass, const std::string &first, const std::string &second);
 std::vector<std::string> pair_beneath(const std::vector<std::string> &bridge, const std::string &first, const std::string &second);
 std::string pair_verdicts_joined(const std::string &one_way, const std::string &other_way);
-void pair_row_handed(const std::string &first, const std::string &second, int read, unsigned long long reads, const std::string &verdict);
+void pair_row_passed(const std::string &first, const std::string &second, int read, unsigned long long reads, const std::string &verdict);
 int identity_pair(const char *engine, const char *answers, const char *ksc, const char *klq, const char *machine_path, const char *const *carrier);
 const Word *word_produced(const std::vector<PreceptNode> &nodes);
 std::string arrangement_written(const Ruleset *sass, const std::vector<PreceptNode> &nodes, const std::vector<std::string> &operands, const std::string &ones, const std::string &to, unsigned int next);

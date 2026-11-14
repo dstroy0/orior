@@ -1,6 +1,6 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 line 1	kdm_write	kdm	kdm <part>	the part this map is of
-body	kdm_write	arrangement	<operator>\t<nodes>\t<chain>\t<cost>\t<runs>[\t<verdict>]	an arrangement of primitives that produces an operator, and what it costs this part; a cost is an exact rational, numerator/denominator in the part's clock count, and a cost of - over 0 runs has not been timed on anything; where a descent wrote a sixth field, its verdict, 1 standing and 0 out
+body	kdm_write	arrangement	<operator>\t<nodes>\t<chain>\t<cost>\t<runs>[\t<verdict>]	an arrangement of primitives that produces an operator, and what it costs this part; a cost is an exact rational, numerator/denominator in the part's clock count, and a cost of - over 0 runs has not been timed on anything; where a descent wrote a sixth field, its verdict, 1 located and 0 out
 tail	-	krs block	__krs__( ... )__krs__	a block of the ruleset's language (klang.h): its lines are read by the ruleset reader after sass.krs and its part's .krs, and by the rules of .krs
 krs block	-	fixed	fixed <name> = <text>	a line of the ruleset read after sass.krs and its part's .krs
 krs block	-	form	form <name> <parameter>... = <text>	a line of the ruleset read after sass.krs and its part's .krs

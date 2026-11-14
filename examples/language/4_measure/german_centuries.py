@@ -10,7 +10,7 @@
 #
 # The same question was asked of fourteen cookery books and could not be answered. They were dated by the
 # first four digit number printed in each, which put a 1919 book in 1600. Dated again by author lifetimes
-# they covered 1588 to 1858 with most inside one century, one medieval text was dated to its eighteenth
+# they covered 1588 to 1858 with max inside one century, one medieval text was dated to its eighteenth
 # century editor, and the periods were split at 1810 because that put five books on one side.
 #
 # This archive fixes every one of those faults. It is one language, prepared to one standard, each text
@@ -128,15 +128,15 @@ def main():
         best = None
         picked = None
         for other in centuries:
-            kept = [
+            retained = [
                 row[3]
                 for position, row in enumerate(rows)
                 if row[1] == other and position != index
             ]
-            if not kept:
+            if not retained:
                 continue
             distance = float(
-                numpy.linalg.norm(values - numpy.mean(numpy.stack(kept), axis=0))
+                numpy.linalg.norm(values - numpy.mean(numpy.stack(retained), axis=0))
             )
             if (best is None) or (distance < best):
                 best = distance

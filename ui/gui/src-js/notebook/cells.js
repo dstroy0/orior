@@ -42,7 +42,7 @@ export function cellNode(book, cell) {
     }
   });
   const main = element("div", { className: "nb-main" }, source, element("div", { className: "nb-forms" }), element("div", { className: "nb-outputs", hidden: true }));
-  cell.node = element("div", { className: `nb-cell ${cell.kind}` }, gutter, main, menu);
+  cell.node = element("div", { className: `nb-cell ${cell.type}` }, gutter, main, menu);
   cell.node.dataset.id = cell.id;
   return cell.node;
 }
@@ -51,7 +51,7 @@ function cellMenu(book, cell, event) {
   const items = [
     { label: "Run", run: () => runCell(book, cell) },
     { label: "Debug", disabled: !cellFile(book, cell), run: () => debugCell(book, cell) },
-    { label: cell.kind === "code" ? "Change to Markdown" : "Change to Code", run: () => changeType(book, cell) },
+    { label: cell.type === "code" ? "Change to Markdown" : "Change to Code", run: () => changeType(book, cell) },
     { label: "Move Up", disabled: book.cells.indexOf(cell) === 0, run: () => moveCell(book, cell, -1) },
     { label: "Move Down", disabled: book.cells.indexOf(cell) === book.cells.length - 1, run: () => moveCell(book, cell, 1) },
     { label: "Clear Outputs", run: () => clearOutputs(book, cell) },
@@ -64,8 +64,8 @@ function changeType(book, cell) {
   if (book.focused === cell) {
     blurCell(book);
   }
-  cell.kind = cell.kind === "code" ? "markdown" : "code";
-  cell.session.setLanguage(cell.kind === "code" ? book.language : state.hooks.languageOf("cell.md"));
+  cell.type = cell.type === "code" ? "markdown" : "code";
+  cell.session.setLanguage(cell.type === "code" ? book.language : state.hooks.languageOf("cell.md"));
   cell.outputs = [];
   book.changed = true;
   state.hooks.changed();

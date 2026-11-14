@@ -1,9 +1,9 @@
 """Fetch block headers WITH the pool that mined them, as a labeled KAT corpus.
 
-`fetch_blocks.py` keeps the header fields and drops everything else, which is right for verifying
+`fetch_blocks.py` retains the header fields and drops everything else, which is right for verifying
 hashes and wrong for asking who produced them. Pool attribution is not in the header at all: it
 sits in the coinbase transaction's tag, in plaintext, and the explorer resolves that tag against a
-public list of known pool signatures. This keeps the resolved name alongside the header.
+public list of known pool signatures. This retains the resolved name alongside the header.
 
 The distinction matters for what the corpus can answer. Without labels, an emitter has to be
 inferred from the header itself, and an inference that fails leaves you unable to say whether the
@@ -11,7 +11,7 @@ signature is absent or whether the inference was bad. With labels the question i
 the pool, do named pools separate on header fields at all?
 
 Read only. Hits mempool.space's public API, which needs no key and carries no account data. The
-header fields are kept so the corpus stays self-verifying: every block can still be rebuilt and
+header fields are retained so the corpus stays self-verifying: every block can still be rebuilt and
 hashed against its recorded id without trusting the explorer.
 
 Note that the label is the explorer's attribution, not a fact carried by the chain. A pool that

@@ -11,9 +11,9 @@ balloon - can be pointed at anything with the shape
 
     one value, measured over one depth axis, for each of many series
 
-which is most measured data. Long format, one row per cell:
+which is max measured data. Long format, one row per cell:
 
-    kind,a,b,round,value
+    type,a,b,round,value
     residue,0,0,1,-31744.0
     residue,0,0,2,-30195.7
 
@@ -28,7 +28,7 @@ and in the general case, naming the columns yourself:
   --value   the column holding the number to draw. Default: "value", else the last numeric column.
   --depth   the column that runs left to right. Default: the first of round, step, t, time, frame,
             depth, index that is present.
-  --field   a column whose distinct values become the selectable fields. Default: "kind" if there
+  --field   a column whose distinct values become the selectable fields. Default: "type" if there
             is one, otherwise every row is one field.
   --title   heading for the page. Default: the file's name.
   --out     where to write. Default: <csv name>_view.html beside the CSV.
@@ -83,8 +83,8 @@ def pick_columns(header, rows, want_value, want_depth, want_field):
     if want_depth is None or want_depth not in header:
         raise SystemExit("no depth column: name one with --depth, from %s" % ", ".join(header))
 
-    if want_field is None and "kind" in header:
-        want_field = "kind"
+    if want_field is None and "type" in header:
+        want_field = "type"
     if want_field is not None and want_field not in header:
         raise SystemExit("no column named %s, from %s" % (want_field, ", ".join(header)))
 

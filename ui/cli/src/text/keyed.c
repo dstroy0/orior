@@ -109,7 +109,7 @@ EMBED_INLINE void keyed_pages_release(const KeyedCtx *args)
     }
 }
 
-// the entries that contain one moved down together, in the order they stand, the pages they leave given back
+// the entries that contain one moved down together, in the order they are, the pages they leave given back
 EMBED_INLINE void keyed_compact(const KeyedCtx *args)
 {
     CliKeyed *keyed = args->keyed_out;

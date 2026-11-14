@@ -1,22 +1,22 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // schema_offer.c: what completes the word before the cursor in a JSON file, from the schemas that apply where it
-// stands: at a key, each key they give the object that it does not contain yet, inside a string the rest of its name
+// is: at a key, each key they give the object that it does not contain yet, inside a string the rest of its name
 // and outside one its name written with what its type opens; at a value, each value their `enum`, `const`, `default`
 // and `examples` allow and the booleans and null their types take, inside a string only the strings
 #include "../command_line/callback_cfg.h"
 #include "schema_internal.h"
 
-// the most keys and values offered, and the bytes they take
+// the max keys and values offered, and the bytes they take
 #define CLI_SCHEMA_OFFERED 4096u
 #define CLI_SCHEMA_OFFERED_TEXT (1u << 20u)
 
-// whether a letter goes in the word the cursor completes
-static int offer_letter(const CliEachLetterCfg *args)
+// whether a character goes in the word the cursor completes
+static int offer_character(const CliEachLetterCfg *args)
 {
-    unsigned int letter = args->letter;
-    return EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .letter = letter) || (letter == '_') ||
-           (letter == '$') || (letter == '-') || (letter == '.') || (letter == '@') || (letter == '/');
+    unsigned int character = args->character;
+    return EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .character = character) || (character == '_') ||
+           (character == '$') || (character == '-') || (character == '.') || (character == '@') || (character == '/');
 }
 
 typedef struct
@@ -61,7 +61,7 @@ EMBED_INLINE void offer_keys(const SchemaOfferCtx *args)
     const CliJson *const json = &g_cli_schema_store->json;
     const unsigned long long base =
         EMBED_CALL(cli_builds_text_at.build_run_before, CliBuildsTextAtCfg, .text = text + args->token,
-                   .at = args->at - args->token, .of = cli_build_word_letter) +
+                   .at = args->at - args->token, .of = cli_build_word_character) +
         args->token;
     static const char *s_offered[CLI_SCHEMA_OFFERED];
     unsigned int offered = 0u;
@@ -130,10 +130,10 @@ EMBED_INLINE void offer_keys(const SchemaOfferCtx *args)
                        .length = size);
             static char s_insert[1u << 14u];
             VerbaLinea insert = {s_insert, sizeof(s_insert), 0ULL};
-            for (unsigned long long letter = 0ULL; letter < quoted.at; letter += 1u)
+            for (unsigned long long character = 0ULL; character < quoted.at; character += 1u)
             {
-                const int dollar = s_quoted[letter] == '$';
-                mmgr_line_put_n(&insert, dollar ? "\\$" : (s_quoted + letter), dollar ? 2u : 1u);
+                const int dollar = s_quoted[character] == '$';
+                mmgr_line_put_n(&insert, dollar ? "\\$" : (s_quoted + character), dollar ? 2u : 1u);
             }
             mmgr_line_put(&insert, ": ");
             mmgr_line_put(&insert, shape);
@@ -158,7 +158,7 @@ typedef struct
 
 static CliSchemaOffered s_values;
 
-// a value offered, a string's letters inside a string and its JSON outside one, with `detail`, where it is not offered
+// a value offered, a string's characters inside a string and its JSON outside one, with `detail`, where it is not offered
 static void offer_value(const SchemaOfferCtx *args)
 {
     const CliJson *json = args->json;
@@ -345,7 +345,7 @@ void cli_schema_complete(const CliSchemaLineCfg *args)
         if (schema != CLI_SCHEMA_NONE)
         {
             const unsigned long long token = EMBED_CALL(cli_builds_text_at.build_run_before, CliBuildsTextAtCfg,
-                                                        .text = text, .at = at, .of = offer_letter);
+                                                        .text = text, .at = at, .of = offer_character);
             EMBED_CALL(cli_schema_text_base_internal.reached_get, CliSchemaTextBaseCtx, .text = text, .schema = schema,
                        .base = key);
             if (g_cli_schema_spot.at_key)

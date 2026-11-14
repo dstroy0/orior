@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_problems.c: the problems read where the servers' reports stand: a report published shows at the reading
+// test_problems.c: the problems read where the servers' reports are: a report published shows at the reading
 // thread's next step, worst first with each message's first line; a file's next report replaces it at the end; a report
 // with none takes the file out; a press closes a file's rows; and threads publishing while a reader steps and reads
 // every row leave the table with each file's last report
@@ -29,9 +29,9 @@ void tearDown(void)
 }
 
 // a report of `count` diagnostics for `path`, each with `message`, its severity 2 then 1 by turns and its line its place,
-// the path and the message laid in the report's cell after its diagnostics, as the servers lay a report: NULL where the
+// the path and the message positioned in the report's cell after its diagnostics, as the servers position a report: NULL where the
 // cell could not be taken, which the counts then fail on, since a writer's thread cannot fail a test itself
-static const CarcerMovableEntry *report_laid(const char *path, unsigned int count, const char *message)
+static const CarcerMovableEntry *report_positioned(const char *path, unsigned int count, const char *message)
 {
     const size_t path_bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}) + 1u;
     const size_t message_bytes = cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_POOL_BYTES}) + 1u;
@@ -54,11 +54,11 @@ static const CarcerMovableEntry *report_laid(const char *path, unsigned int coun
     return report;
 }
 
-// the report of `count` diagnostics for `path` handed to the problems' sink as the servers hand one
+// the report of `count` diagnostics for `path` passed to the problems' sink as the servers hand one
 static void reported(const char *path, unsigned int count, const char *message)
 {
     const CliServersSink sink = cli_servers_problems_sink("");
-    const CarcerMovableEntry *const report = report_laid(path, count, message);
+    const CarcerMovableEntry *const report = report_positioned(path, count, message);
     if (report == NULL)
     {
         return;
@@ -107,7 +107,7 @@ void test_a_files_next_report_replaces_it_at_the_end_and_one_with_none_takes_it_
     TEST_ASSERT_EQUAL_INT(1, cli_servers_problems_row(0u, &row));
     TEST_ASSERT_EQUAL_STRING("src/one.c", row.path);
     reported("src/one.c", 3u, "again");
-    // the rows read before the next step stand as they were
+    // the rows read before the next step are as they were
     TEST_ASSERT_EQUAL_INT(1, cli_servers_problems_row(0u, &row));
     TEST_ASSERT_EQUAL_STRING("src/one.c", row.path);
     TEST_ASSERT_EQUAL_UINT(1u, row.count);

@@ -39,7 +39,7 @@ EMBED_INLINE unsigned long long reply_dark(const ReplyCtx *args)
 }
 
 // the closing quote of the string whose opening quote is at `at`: its place, the size where it has none. Each quote
-// found is the end unless an odd run of backslashes stands before it
+// found is the end unless an odd run of backslashes is before it
 EMBED_INLINE unsigned long long reply_string_end(const ReplyCtx *args)
 {
     unsigned long long at = args->at;
@@ -84,15 +84,15 @@ unsigned long long cli_reply_value_end(const CliReplyAtCfg *args)
         unsigned long long depth = 1ULL;
         for (at += 1ULL; at < args->reply->size; at += 1ULL)
         {
-            const char letter = args->reply->text[at];
-            const int closes = (letter == '}') || (letter == ']');
-            depth += ((letter == '{') || (letter == '[')) ? 1ULL : 0ULL;
+            const char character = args->reply->text[at];
+            const int closes = (character == '}') || (character == ']');
+            depth += ((character == '{') || (character == '[')) ? 1ULL : 0ULL;
             depth -= closes ? 1ULL : 0ULL;
             if (closes && (depth == 0ULL))
             {
                 return at + 1ULL;
             }
-            if (letter == '"')
+            if (character == '"')
             {
                 at = EMBED_CALL(reply_string_end, ReplyCtx, .reply = args->reply, .at = at);
             }

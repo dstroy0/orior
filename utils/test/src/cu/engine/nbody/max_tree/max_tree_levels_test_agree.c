@@ -57,11 +57,11 @@ static void levels_overlap_agree(LevelsResults *results, unsigned int case_numbe
                 {
                     continue;
                 }
-                // coordinates of a voxel inside a volume of at most 7 on a side, moved by a lag of at most 1
+                // coordinates of a voxel inside a volume of at max 7 on a side, moved by a lag of at max 1
                 const int z = (int)(voxel / plane) + lag[0];
                 const int y = (int)((voxel % plane) / earlier->width) + lag[1];
                 const int x = (int)((voxel % plane) % earlier->width) + lag[2];
-                // each extent is at most 7 and compares as an int
+                // each extent is at max 7 and compares as an int
                 if ((z < 0) || (z >= (int)earlier->depth) || (y < 0) || (y >= (int)earlier->height) || (x < 0) ||
                     (x >= (int)earlier->width))
                 {
@@ -209,7 +209,7 @@ static void levels_errors(LevelsResults *results, const LevelsVolume *volume)
     unsigned int joined[2];
     const MaxTreeProbeRequest outside = {&nodes, probe_voxels, 2u, sorted, own_level, joined, &error};
     levels_check(results,
-                 (max_tree_probe_levels(&outside) == MAX_TREE_ERROR) && (error.kind == ENGINE_ERROR_REQUEST) &&
+                 (max_tree_probe_levels(&outside) == MAX_TREE_ERROR) && (error.type == ENGINE_ERROR_REQUEST) &&
                      (error.module == ENGINE_MODULE_MAX_TREE),
                  "a probe past the volume errors, a request error from max_tree", 0u, 0u);
     memset(&error, 0, sizeof(error));
@@ -217,7 +217,7 @@ static void levels_errors(LevelsResults *results, const LevelsVolume *volume)
     other_nodes.width = nodes.width + 1u;
     const MaxTreePairsRequest mismatched = {&nodes, &other_nodes, {0, 0, 0}, &pairs, &error};
     levels_check(results,
-                 (max_tree_pairs(&mismatched) == MAX_TREE_ERROR) && (error.kind == ENGINE_ERROR_REQUEST) &&
+                 (max_tree_pairs(&mismatched) == MAX_TREE_ERROR) && (error.type == ENGINE_ERROR_REQUEST) &&
                      (pairs.count == 0u) && (pairs.earlier == NULL),
                  "two frames of different extents error on the pair table", 0u, 0u);
     memset(&error, 0, sizeof(error));
@@ -229,7 +229,7 @@ static void levels_errors(LevelsResults *results, const LevelsVolume *volume)
     const MaxTreeOverlapSumsRequest beyond = {&nodes, &nodes, &pairs, &end, &first, 1u, &sum, &error};
     levels_check(results,
                  (entries >= 0L) && (max_tree_overlap_sums(&beyond) == MAX_TREE_ERROR) &&
-                     (error.kind == ENGINE_ERROR_REQUEST),
+                     (error.type == ENGINE_ERROR_REQUEST),
                  "a node past the tree errors on the overlap sums", 0u, 0u);
     max_tree_pairs_release(&pairs);
     max_tree_nodes_release(&nodes);
@@ -245,11 +245,11 @@ int main(void)
     unsigned int case_number = 0u;
     // many ties and plateaus, then more levels, then values that cross the limb boundary
     const long long least[3] = {-2ll, -40ll, -9ll};
-    const long long maximum[3] = {5ll, 60ll, 9ll};
+    const long long max[3] = {5ll, 60ll, 9ll};
     const unsigned int cases[3] = {60u, 30u, 20u};
-    for (unsigned int kind = 0u; kind < 3u; kind += 1u)
+    for (unsigned int type = 0u; type < 3u; type += 1u)
     {
-        for (unsigned int drawn = 0u; drawn < cases[kind]; drawn += 1u)
+        for (unsigned int drawn = 0u; drawn < cases[type]; drawn += 1u)
         {
             // each extent is drawn from 1 to 7, and the lag from -1 to 1 on each axis
             const unsigned int depth = 1u + (unsigned int)(levels_draw(&state) % 3ull);
@@ -257,8 +257,8 @@ int main(void)
             const unsigned int width = 1u + (unsigned int)(levels_draw(&state) % LEVELS_TEST_EXTENT_MAX);
             const int lag[3] = {(int)(levels_draw(&state) % 3ull) - 1, (int)(levels_draw(&state) % 3ull) - 1,
                                 (int)(levels_draw(&state) % 3ull) - 1};
-            levels_fill(&earlier, &state, depth, height, width, least[kind], maximum[kind], kind == 2u);
-            levels_fill(&later, &state, depth, height, width, least[kind], maximum[kind], kind == 2u);
+            levels_fill(&earlier, &state, depth, height, width, least[type], max[type], type == 2u);
+            levels_fill(&later, &state, depth, height, width, least[type], max[type], type == 2u);
             levels_case(&results, case_number, &earlier, &later, lag, &state);
             case_number += 1u;
         }

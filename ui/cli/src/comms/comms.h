@@ -32,7 +32,7 @@ typedef struct CliCommsPaneCfg CliCommsPaneCfg;
 typedef struct CliCommsCommandCfg CliCommsCommandCfg;
 typedef struct CliCommsListenerCfg CliCommsListenerCfg;
 
-// the bytes of a key written, its 32 bytes in hex and a 0 after; the most grants a part has to listen and to send
+// the bytes of a key written, its 32 bytes in hex and a 0 after; the max grants a part has to listen and to send
 #define CLI_COMMS_KEY 65u
 #define CLI_COMMS_GRANTS 16u
 
@@ -48,14 +48,14 @@ int cli_comms_within(const CliCommsInnerCfg *args);
 
 // a part named `name` registered, granted the channels `listen`, `listens` of them, and `send_grant`, `send_grants` of
 // them, by the container, its key into `key`, sized for CLI_COMMS_KEY: given to the process `process` where
-// `has_process`, else one of the container's own, whose key the door never takes; the same, its key taken by the door
+// `has_process`, else one of the container's own, whose key the interface never takes; the same, its key taken by the interface
 // from any process that owns it, as the key is stored where only the reader can read it; and a part the part of
 // `parent` starts, granted channels of the parent's own alone. Each 1, or 0 with why given
 int cli_comms_register(const CliCommsNameCfg *args);
 int cli_comms_register_persistent(const CliCommsNameCfg *args);
 int cli_comms_register_under(const CliCommsNameCfg *args);
 
-// whether the door takes the key of `key`'s part from any process that owns it; the part of `key` given the process
+// whether the interface takes the key of `key`'s part from any process that owns it; the part of `key` given the process
 // `process`, once it has started; the part of `key` taken away, with every channel it listened on; the process it was
 // registered for into `process`, and its name into `name`, sized for CLI_NAME_MAX_LEN: each 1, or 0 where the key is
 // no part's or it was given none
@@ -66,7 +66,7 @@ int cli_comms_process_get(const CliCommsKeyProcessCfg *args);
 int cli_comms_name_get(const CliCommsKeyCfg *args);
 
 // `key`'s part listening on `channel`, a channel or a grant its key must name, each message sent there from now on
-// handed to `recv`: where `queued`, in the sender's call while the container owns its lock, so that it must neither
+// passed to `recv`: where `queued`, in the sender's call while the container owns its lock, so that it must neither
 // wait nor send, as a queue a reader drains is filled; else once the container has let go of its lock, in the
 // sender's thread, which preserves the order of what one thread sends. The listener's number into `listener`: 1, or 0
 // with why given; and the listener let go
@@ -165,7 +165,7 @@ struct CliCommsInnerCfg
 #define CLI_COMMS_VIEW_REPORT 3u
 #define CLI_COMMS_VIEWS 4u
 // the head's actions: the view `at` chosen, CLI_COMMS_CHOOSE and on; the layer listed again; and an action of the view
-// shown, CLI_COMMS_FORWARD and on; and the milliseconds between two listings while the Channels view is in sight
+// displayed, CLI_COMMS_FORWARD and on; and the milliseconds between two listings while the Channels view is in sight
 #define CLI_COMMS_CHOOSE 1u
 #define CLI_COMMS_READ 5u
 #define CLI_COMMS_FORWARD 64u
@@ -175,7 +175,7 @@ struct CliCommsInnerCfg
 #define CLI_COMMS_ROW_PART 1u
 #define CLI_COMMS_ROW_CHANNEL 2u
 #define CLI_COMMS_ROW_MESSAGE 3u
-// the most bytes of a row's text with its end
+// the max bytes of a row's text with its end
 #define CLI_COMMS_ROW_TEXT 4096u
 // A row: its type; its name, status and detail with their bytes, each copied into the row's own bytes; whether it was
 // refused, whether a channel's is open and whether it is the current one
@@ -197,11 +197,11 @@ typedef struct
 } CliCommsRow;
 
 // the pane begun, `woken` waking the view's thread as the Requests view's answer comes in; and while the pane is
-// `shown`, the Channels view listed again where the layer's stamp moved or where `force`, and the view shown stepped
+// `displayed`, the Channels view listed again where the layer's stamp moved or where `force`, and the view displayed stepped
 // on at `now_ms`: 1 where either changed what the pane draws
 void cli_comms_pane_begin(const CliCommsPaneCfg *args);
 int cli_comms_pane_step(const CliCommsPaneCfg *args);
-// the millisecond the Channels view next looks at the layer while `shown`, 0 for none
+// the millisecond the Channels view next looks at the layer while `displayed`, 0 for none
 unsigned long long cli_comms_pane_deadline_ms(const CliCommsPaneCfg *args);
 // how many rows the Channels view has; the row `at` into `row`: 1, or 0 past the last; the channel of the row `at`
 // opened under it, or closed where it is open; and the row of the channel last opened or closed, -1 for none
@@ -209,7 +209,7 @@ unsigned int cli_comms_pane_rows(const CliCommsPaneCfg *args);
 int cli_comms_pane_row(const CliCommsPaneCfg *args);
 void cli_comms_pane_toggle(const CliCommsPaneCfg *args);
 int cli_comms_pane_current(const CliCommsPaneCfg *args);
-// the view shown; the view `view` chosen; the count of parts and channels as a sentence; and the text of the head's
+// the view displayed; the view `view` chosen; the count of parts and channels as a sentence; and the text of the head's
 // action `at`, a view's choice or the layer's read again, each with its bytes into `length_out`
 unsigned int cli_comms_pane_view(const CliCommsPaneCfg *args);
 void cli_comms_pane_choose(const CliCommsPaneCfg *args);
@@ -221,7 +221,7 @@ struct CliCommsPaneCfg
     const char *root;
     unsigned int at;
     CliCommsRow *row;
-    int shown;
+    int displayed;
     int force;
     unsigned long long now_ms;
     unsigned int view;
@@ -229,8 +229,8 @@ struct CliCommsPaneCfg
 };
 
 // The Comms commands of the catalog run (comms_command.c): send-request, copy-as-curl and private-environment on the
-// request the shown view's cursor stands in, network, network-off, report, remote-rejoin and remote-copy-address. A
-// command that shows a view of the pane chooses it and answers 1 in `shown_out`; one whose text goes to the system's
+// request the displayed view's cursor is in, network, network-off, report, remote-rejoin and remote-copy-address. A
+// command that shows a view of the pane chooses it and answers 1 in `displayed_out`; one whose text goes to the system's
 // clipboard writes it into `clipboard`; one that opens a file writes its path in the tree into `open_out`. The run
 // answers 1 where `name` is one of them, else 0 and nothing written
 int cli_comms_command_run(const CliCommsCommandCfg *args);
@@ -246,7 +246,7 @@ struct CliCommsCommandCfg
     unsigned int count;
     VerbaLinea *clipboard;
     VerbaLinea *open_out;
-    int *shown_out;
+    int *displayed_out;
 };
 
 struct CliCommsListenerCfg

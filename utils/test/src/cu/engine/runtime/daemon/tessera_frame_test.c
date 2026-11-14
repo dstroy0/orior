@@ -19,7 +19,7 @@ static unsigned long long frame_test_next(FrameTestStream *stream)
     return mixed ^ (mixed >> 31u);
 }
 
-static const unsigned int s_frame_kinds[11] = {1u, 2u, 3u, 4u, 5u, 16u, 17u, 18u, 19u, 20u, 21u};
+static const unsigned int s_frame_types[11] = {1u, 2u, 3u, 4u, 5u, 16u, 17u, 18u, 19u, 20u, 21u};
 
 static void frame_test_fill(FrameTestStream *stream, TesseraFrame *frame)
 {
@@ -27,7 +27,7 @@ static void frame_test_fill(FrameTestStream *stream, TesseraFrame *frame)
     frame->magic = TESSERA_MAGIC;
     frame->version = TESSERA_VERSION;
     // the draw is reduced below ten before it indexes the table
-    frame->kind = s_frame_kinds[(unsigned int)(frame_test_next(stream) % 11ull)];
+    frame->type = s_frame_types[(unsigned int)(frame_test_next(stream) % 11ull)];
     // the draw is reduced to one bit
     frame->override_budget = (unsigned int)(frame_test_next(stream) & 1ull);
     for (unsigned int byte = 0u; byte < TESSERA_DEVICE_BYTES; byte += 1u)
@@ -52,7 +52,7 @@ static void frame_test_fill(FrameTestStream *stream, TesseraFrame *frame)
 
 static int frame_test_same(const TesseraFrame *left, const TesseraFrame *right)
 {
-    return (left->magic == right->magic) && (left->version == right->version) && (left->kind == right->kind) &&
+    return (left->magic == right->magic) && (left->version == right->version) && (left->type == right->type) &&
            (left->override_budget == right->override_budget) &&
            (memcmp(left->device, right->device, TESSERA_DEVICE_BYTES) == 0) &&
            (memcmp(left->signum.bytes, right->signum.bytes, ENGINE_SIGNUM_BYTES) == 0) &&
@@ -88,7 +88,7 @@ static unsigned long long frame_test_layout(unsigned long long *failed)
     memset(&frame, 0, sizeof(frame));
     frame.magic = TESSERA_MAGIC;
     frame.version = TESSERA_VERSION;
-    frame.kind = TESSERA_REQUEST_SUBMIT;
+    frame.type = TESSERA_REQUEST_SUBMIT;
     frame.declared = 0x0807060504030201ull;
     frame.luid = 0x1817161514131211ull;
     frame.device[0] = 0xA5u;
@@ -131,20 +131,20 @@ static unsigned long long frame_test_error(unsigned long long *failed)
             // one bit of the head flipped
             broken[byte] = (unsigned char)(broken[byte] ^ (1u << bit));
             TesseraFrame read;
-            const unsigned int kind_after =
-                (byte >= 8u) && (byte < 12u) ? (frame.kind ^ ((1u << bit) << (8u * (byte - 8u)))) : frame.kind;
-            const int kind_legal =
-                ((kind_after >= 1u) && (kind_after <= 5u)) || ((kind_after >= 16u) && (kind_after <= 21u));
+            const unsigned int type_after =
+                (byte >= 8u) && (byte < 12u) ? (frame.type ^ ((1u << bit) << (8u * (byte - 8u)))) : frame.type;
+            const int type_legal =
+                ((type_after >= 1u) && (type_after <= 5u)) || ((type_after >= 16u) && (type_after <= 21u));
             const int override_legal = !((byte >= 12u) && (byte < 16u)) ||
                                        (((frame.override_budget ^ ((1u << bit) << (8u * (byte - 12u))))) <= 1u);
-            const int expect = ((byte >= 8u) && (byte < 12u) && kind_legal) || ((byte >= 12u) && override_legal);
+            const int expect = ((byte >= 8u) && (byte < 12u) && type_legal) || ((byte >= 12u) && override_legal);
             const int unpacked = tessera_frame_unpack(broken, &read);
             *failed += (unpacked == expect) ? 0ull : 1ull;
             cases += 1ull;
         }
     }
     TesseraFrame wrong = frame;
-    wrong.kind = 6u;
+    wrong.type = 6u;
     *failed += tessera_frame_pack(&wrong, bytes) ? 1ull : 0ull;
     cases += 1ull;
     wrong = frame;

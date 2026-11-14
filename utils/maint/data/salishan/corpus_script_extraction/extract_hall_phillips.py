@@ -7,7 +7,7 @@
 #
 #   Usage:  python maint/data/salishan/corpus_script_extraction/extract_hall_phillips.py
 #
-# Written for one paper. This one is laid out differently from the Garcia narratives: it has no inline
+# Written for one paper. This one is arranged differently from the Garcia narratives: it has no inline
 # sentence numbering and no per-story subsections. Section 2 is the story in nɬeʔkepmxcín with a timestamp
 # above each sentence, section 3 is a running English translation, and section 4 is a four-line interlinear
 # gloss under the same timestamps.
@@ -235,7 +235,7 @@ def three_line_parts(block):
     transcription of the same words differ only by the morpheme boundaries written into one.
 
     A slipped count is caught, not repaired, on the test every reader here uses: a run of capitals
-    is a gloss label and cannot stand in a spoken sentence or its segmentation.
+    is a gloss label and cannot are in a spoken sentence or its segmentation.
 
     Returns the parts, the free translation, any line left over, and whether the cycle slipped.
     """
@@ -358,15 +358,15 @@ def main():
             "# Gloss categories are the paper's own, from its footnote 3, unchanged.\n"
         )
         handle.write("line\ttime\tsection\tswitches\tcontent\n")
-        for tag, number, when, section, kind, text in rows:
+        for tag, number, when, section, type, text in rows:
             layer = (
-                DERIVED if kind in ("segmentation", "gloss", UNCLASSIFIED) else SPOKEN
+                DERIVED if type in ("segmentation", "gloss", UNCLASSIFIED) else SPOKEN
             )
             if tag == "T":
-                content = rendered(text, layer, kind)
+                content = rendered(text, layer, type)
                 crossings = switches(text)
             else:
-                content = "N.%s.%s:{%s}" % (layer, kind, text)
+                content = "N.%s.%s:{%s}" % (layer, type, text)
                 crossings = 0
             handle.write(
                 "line#${%d}\t%s\t%s\t%d\t%s\n"
@@ -380,12 +380,12 @@ def main():
     # into the stream twice. A span already written is not written again and the count skipped is
     # reported, since a large skip means the two printings agree and a small one means they differ.
     pure = TARGET[:-4] + ".pure.txt"
-    kept = 0
+    retained = 0
     repeated = 0
     already = set()
     with open(pure, "w", encoding="utf-8", newline="") as handle:
-        for tag, number, when, section, kind, text in rows:
-            if (tag != "T") or (kind != "transcription"):
+        for tag, number, when, section, type, text in rows:
+            if (tag != "T") or (type != "transcription"):
                 continue
             for mark, run in tagged_spans(text):
                 if (mark != "T") or (not run.strip()):
@@ -396,23 +396,23 @@ def main():
                     continue
                 already.add(key)
                 handle.write("%s\n" % run)
-                kept += 1
+                retained += 1
 
-    # A file of its own for what the tool could not sort. Two kinds go in it: a gloss-block line
+    # A file of its own for what the tool could not sort. Two types go in it: a gloss-block line
     # none of the tests above typed, and a line no section reached, which for this paper is
     # section 1 and the front matter, since sections() is told to hold only 2, 3 and 4.
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
         (0, "%s block %d" % (section, number), UNKNOWN_KIND, "", text)
-        for tag, number, when, section, kind, text in rows
-        if (kind == UNCLASSIFIED) and (section != "not reached")
+        for tag, number, when, section, type, text in rows
+        if (type == UNCLASSIFIED) and (section != "not reached")
     ]
     flagged.extend(missed)
     stuck_count = write_unsorted(stuck, "When Old One Created the Earth", flagged)
 
     out.write("  %d lines written to\n  %s\n" % (len(rows), os.path.basename(TARGET)))
     out.write(
-        "  %d target-language spans written to\n  %s\n" % (kept, os.path.basename(pure))
+        "  %d target-language spans written to\n  %s\n" % (retained, os.path.basename(pure))
     )
     out.write(
         "  %d spans skipped as already written, sections 2 and 4 print the same story\n"
@@ -422,18 +422,18 @@ def main():
         "  %d lines the tool could not sort written to\n  %s\n"
         % (stuck_count, os.path.basename(stuck))
     )
-    out.write("\n  %-10s %-18s %s\n" % ("section", "kind", "lines"))
+    out.write("\n  %-10s %-18s %s\n" % ("section", "type", "lines"))
     counted = {}
-    for tag, number, when, section, kind, text in rows:
-        counted[(section, kind)] = counted.get((section, kind), 0) + 1
+    for tag, number, when, section, type, text in rows:
+        counted[(section, type)] = counted.get((section, type), 0) + 1
     for key in sorted(counted):
         out.write("  %-10s %-18s %d\n" % (key[0], key[1], counted[key]))
 
     marks = {}
-    for tag, number, when, section, kind, text in rows:
+    for tag, number, when, section, type, text in rows:
         marks[tag] = marks.get(tag, 0) + 1
     # Counted over spoken lines only. A segmentation line is target-language material full of
-    # plain-letter underlying forms. The span test fires on it and calling that a switch would
+    # plain-character underlying forms. The span test fires on it and calling that a switch would
     # report code-switching that was not done.
     mixed = sum(
         1

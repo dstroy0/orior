@@ -1,11 +1,11 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Ryan Denzer-King	title	A preliminary look at restricted counting in Proto-Salish	page 1
 front	Ryan Denzer-King	name	Ryan Denzer-King	author
 front	Ryan Denzer-King	note	Rutgers, the State University of New Jersey	page 1, under Ryan Denzer-King
 front	Ryan Denzer-King	note	This paper examines the hypothesis that Proto-Salish had a restricted counting system ending at four, as suggested by the disparity of Salishan numerals above four, as well as the general analyzability of higher numerals. Besides these overall trends in numerals, evidence for count ending at four include a reconstructed Proto-Salish root with the meaning ‘ready/completed’, and a subtractive Bella Coola form for 3 incorporating the root for 4. The limitation of the system to the numeral four may have its root in preverbal cognitive processes, which seem to be limited to discrete quantities of four or less. If Proto-Salish had a restricted numeral system ending at four, the disparity and analyzability of higher numerals is expected.	page 1, the abstract
 front	Ryan Denzer-King	language	Proto-Salish	the protolanguage whose counting system the paper reconstructs
 §1	Ryan Denzer-King	heading	1 Introduction	page 1
-§1	Ryan Denzer-King	note	The Salishan family of languages presents an interesting case study in numeral divergence, in that though the languages all display numerous features of close relatedness, the numeral systems of these languages are quite disparate. Numerals in the Salishan languages vary widely across the family, primarily in numerals greater than four. Some of this disparity can be explained by borrowing (e.g., Columbian naqs and Nez Perce naaqc, ‘1’, see Aoki 1975), but many higher numerals are analyzable in their respective languages, meaning that they most likely arose through language-internal means. Because of this, it is necessary to posit an underlying reason why Salishan languages differ so widely in counting forms. This paper takes a preliminary look at the hypothesis that Proto-Salish had a restricted counting system ending at four. Evidence for this is provided by four compelling facts:	page 1
+§1	Ryan Denzer-King	note	The Salishan family of languages presents an interesting case study in numeral divergence, in that though the languages all display numerous features of close relatedness, the numeral systems of these languages are quite disparate. Numerals in the Salishan languages vary widely across the family, primarily in numerals greater than four. Some of this disparity can be explained by borrowing (e.g., Columbian naqs and Nez Perce naaqc, ‘1’, see Aoki 1975), but many higher numerals are analyzable in their respective languages, meaning that they likely arose through language-internal means. Because of this, it is necessary to posit an underlying reason why Salishan languages differ so widely in counting forms. This paper takes a preliminary look at the hypothesis that Proto-Salish had a restricted counting system ending at four. Evidence for this is provided by four compelling facts:	page 1
 §1	Columbian	cited form	naqs	page 1, in italics
 §1	Nez Perce	cited form	naaqc	page 1, in italics
 §1	Ryan Denzer-King	name	Aoki	Haruo Aoki, Nez Perce Dictionary (1994) and The East Plateau Linguistic Diffusion Area (1975)
@@ -152,56 +152,56 @@ footnote 4	Ryan Denzer-King	name	Eels	W. C. Eells, Number Systems of the North A
 §3	Ryan Denzer-King	language	Chinookan	the source of Nez Perce 9 and perhaps of the Columbian 4
 §3	Ryan Denzer-King	note	The following subsections look at four pieces of evidence for a restricted count in Proto-Salish ending at four. § 3.1 presents data on the disparity of higher numerals in modern Salishan languages, in contrast to the unity of cognates across languages for numerals 1-4. § 3.2 further looks at the analyzability of these higher numerals, ruling out an analysis of extensive borrowing from neighboring languages to explain the diversity of forms for higher numerals. § 3.3 looks at Kuipers’ (2002:123) suggestion that the forms for 4 in several Salishan languages (Squamish, Halkomelem, and Lillooet) derive from a Proto-Salish root for ‘ready/completed’. § 3.4 presents a small but perhaps crucial piece of evidence for a proto-system ending at 4: a subtractive form in Bella Coola for 3 that incorporate the root for 4.	page 5
 §3.1	Ryan Denzer-King	heading	3.1 Disparity of higher numerals	page 6
-§3.1	Ryan Denzer-King	note	As mentioned above, the Salishan languages display startling variety in their higher numerals, given the relatedness of the family as a whole. While lower numerals tend to be cognate across most or all branches of the family, higher numerals often differ even within smaller sub-branches. (2) gives a summary of the similarity of Salishan numerals across the entire family (PS = Proto-Salish, PCS = Proto-Coast-Salish).	page 6
+§3.1	Ryan Denzer-King	note	As mentioned above, the Salishan languages display startling variety in their higher numerals, given the relatedness of the family as a whole. While lower numerals tend to be cognate across max or all branches of the family, higher numerals often differ even within smaller sub-branches. (2) gives a summary of the similarity of Salishan numerals across the entire family (PS = Proto-Salish, PCS = Proto-Coast-Salish).	page 6
 (2)	Ryan Denzer-King	note	Similarity in Salishan numerals	page 6, the table's title
-(2)	Ryan Denzer-King	note	Most common root Percentage of languages	page 6, the table's column heads
+(2)	Ryan Denzer-King	note	Usual root Percentage of languages	page 6, the table's column heads
 (2)	Ryan Denzer-King	note	1	page 6, the row's numeral
 (2)	Ryan Denzer-King	note	PS	page 6, the protolanguage of the root for 1
-(2)	Proto-Salish	cited form	*n(a)k’uʔ	page 6, the most common root for 1
+(2)	Proto-Salish	cited form	*n(a)k’uʔ	page 6, the usual root for 1
 (2)	Ryan Denzer-King	note	50%	page 6, the percentage of languages with a reflex of *n(a)k’uʔ
 (2)	Ryan Denzer-King	note	2	page 6, the row's numeral
 (2)	Ryan Denzer-King	note	PS	page 6, the protolanguage of the root for 2
-(2)	Proto-Salish	cited form	*ʔəsal(i/a)	page 6, the most common root for 2
+(2)	Proto-Salish	cited form	*ʔəsal(i/a)	page 6, the usual root for 2
 (2)	Ryan Denzer-King	note	68%	page 6, the percentage of languages with a reflex of *ʔəsal(i/a)
 (2)	Ryan Denzer-King	note	3	page 6, the row's numeral
 (2)	Ryan Denzer-King	note	PS	page 6, the protolanguage of the root for 3
-(2)	Proto-Salish	cited form	*kaʔłas	page 6, the most common root for 3
+(2)	Proto-Salish	cited form	*kaʔłas	page 6, the usual root for 3
 (2)	Ryan Denzer-King	note	73%	page 6, the percentage of languages with a reflex of *kaʔłas
 (2)	Ryan Denzer-King	note	4	page 6, the row's numeral
 (2)	Ryan Denzer-King	note	PS	page 6, the protolanguage of the root for 4
-(2)	Proto-Salish	cited form	*mus	page 6, the most common root for 4
+(2)	Proto-Salish	cited form	*mus	page 6, the usual root for 4
 (2)	Ryan Denzer-King	note	86%	page 6, the percentage of languages with a reflex of *mus
 (2)	Ryan Denzer-King	note	5	page 6, the row's numeral
 (2)	Ryan Denzer-King	note	PS	page 6, the protolanguage of the root for 5
-(2)	Proto-Salish	cited form	*cil(-ak-is(t))	page 6, the most common root for 5
+(2)	Proto-Salish	cited form	*cil(-ak-is(t))	page 6, the usual root for 5
 (2)	Ryan Denzer-King	note	68%	page 6, the percentage of languages with a reflex of *cil(-ak-is(t))
 (2)	Ryan Denzer-King	note	6	page 6, the row's numeral
 (2)	Ryan Denzer-King	note	PS	page 6, the protolanguage of the root for 6
-(2)	Proto-Salish	cited form	*t’əx̌	page 6, the most common root for 6
+(2)	Proto-Salish	cited form	*t’əx̌	page 6, the usual root for 6
 (2)	Ryan Denzer-King	note	40%	page 6, the percentage of languages with a reflex of *t’əx̌
 (2)	Ryan Denzer-King	note	7	page 6, the row's numeral
 (2)	Ryan Denzer-King	note	PCS	page 6, the protolanguage of the root for 7
-(2)	Proto-Coast-Salish	cited form	*c’uʔ	page 6, the most common root for 7
+(2)	Proto-Coast-Salish	cited form	*c’uʔ	page 6, the usual root for 7
 (2)	Ryan Denzer-King	note	45%	page 6, the percentage of languages with a reflex of *c’uʔ
 (2)	Ryan Denzer-King	note	8	page 6, the row's numeral
 (2)	Ryan Denzer-King	note	PCS	page 6, the protolanguage of the root for 8
-(2)	Proto-Coast-Salish	cited form	*tqačiʔ	page 6, the most common root for 8
+(2)	Proto-Coast-Salish	cited form	*tqačiʔ	page 6, the usual root for 8
 (2)	Ryan Denzer-King	note	27%	page 6, the percentage of languages with a reflex of *tqačiʔ
 (2)	Ryan Denzer-King	note	9	page 6, the row's numeral
 (2)	Ryan Denzer-King	note	PCS	page 6, the protolanguage of the root for 9
-(2)	Proto-Coast-Salish	cited form	*tə́wixʷ	page 6, the most common root for 9
+(2)	Proto-Coast-Salish	cited form	*tə́wixʷ	page 6, the usual root for 9
 (2)	Ryan Denzer-King	note	45%	page 6, the percentage of languages with a reflex of *tə́wixʷ
 (2)	Ryan Denzer-King	note	10	page 6, the row's numeral
 (2)	Ryan Denzer-King	note	PS	page 6, the protolanguage of the root for 10
-(2)	Proto-Salish	cited form	*(ʔu)pan	page 6, the most common root for 10
+(2)	Proto-Salish	cited form	*(ʔu)pan	page 6, the usual root for 10
 (2)	Ryan Denzer-King	note	86%	page 6, the percentage of languages with a reflex of *(ʔu)pan
-§3.1	Ryan Denzer-King	note	(2) shows that lower numerals are much more consistent across Salishan languages than are higher numerals. The percentage of languages sharing the most common root peaks at 4, with 86% of modern Salishan languages having a reflex of Proto-Salish *mus. This percentage drops somewhat for 5, and then more precipitously for 6, reaching a low for the numeral 8, for which the languages show eight different roots, and the most common root, *tqačiʔ, is only found in six languages. (3) presents this graphically.	page 6
+§3.1	Ryan Denzer-King	note	(2) shows that lower numerals are much more consistent across Salishan languages than are higher numerals. The percentage of languages sharing the usual root peaks at 4, with 86% of modern Salishan languages having a reflex of Proto-Salish *mus. This percentage drops somewhat for 5, and then more precipitously for 6, reaching a low for the numeral 8, for which the languages show eight different roots, and the usual root, *tqačiʔ, is only found in six languages. (3) presents this graphically.	page 6
 §3.1	Proto-Salish	cited form	*mus	page 6, in italics
 §3.1	Proto-Salish	cited form	*tqačiʔ	page 6, in italics
-(3)	Ryan Denzer-King	note	Percentage of cognates for most common numeral roots	page 7, the chart's title
+(3)	Ryan Denzer-King	note	Percentage of cognates for usual numeral roots	page 7, the chart's title
 (3)	Ryan Denzer-King	note	100% 90% 80% 70% 60% 50% 40% 30% 20% 10% 0%	page 7, the percentages up the chart's side
 (3)	Ryan Denzer-King	note	1 2 3 4 5 6 7 8 9 10	page 7, the numerals along the chart's foot, a bar over each
-§3.1	Ryan Denzer-King	note	It is noteworthy that Kuipers (2002) gives no reconstructed Proto-Salish roots for seven, eight, or nine. Anderson (1999) mentions that reduplicated people- counting forms for 7, 8, and 9 are not reconstructible for Proto-Salish. The reconstructed roots for 7-9 in (2) are Proto-Coast-Salish roots not shared with the interior languages, and while *t’əx̌ is in fact a Proto-Salish root, the interior languages do not use this root for 6. Anderson (1999) suggests that the lack of reduplicated roots for 7-9 may be the result of a taboo; however, this could also be due to the lack of basic forms for 7, 8, and 9. The main problem in using this as evidence of a restricted numeral system is that the word for 10 is easily reconstructible for Proto-Salish, with only three languages lacking a reflex of PS *(ʔu)pan. However, a priori it seems possible for a numeral system to be restricted and yet still have a numeral signifying the number of fingers, since counting tends to be digital in nature (Eells 1913:264). More importantly, this evidence does not necessarily suggest that the Proto-Salish system ended at 4. While 4 has the most cognates of any numeral except for 10, the most precipitous drop occurs between 5 and 6, meaning that any argument for a restricted count based on the percentage of cognates lends itself almost as strongly to positing 5 as the highest number. The next section looks at the issue of analyzability in higher numerals, which further supports a system ending at four rather than five.	page 7
+§3.1	Ryan Denzer-King	note	It is noteworthy that Kuipers (2002) gives no reconstructed Proto-Salish roots for seven, eight, or nine. Anderson (1999) mentions that reduplicated people- counting forms for 7, 8, and 9 are not reconstructible for Proto-Salish. The reconstructed roots for 7-9 in (2) are Proto-Coast-Salish roots not shared with the interior languages, and while *t’əx̌ is in fact a Proto-Salish root, the interior languages do not use this root for 6. Anderson (1999) suggests that the lack of reduplicated roots for 7-9 may be the result of a taboo; however, this could also be due to the lack of basic forms for 7, 8, and 9. The main problem in using this as evidence of a restricted numeral system is that the word for 10 is easily reconstructible for Proto-Salish, with only three languages lacking a reflex of PS *(ʔu)pan. However, a priori it seems possible for a numeral system to be restricted and yet still have a numeral signifying the number of fingers, since counting tends to be digital in nature (Eells 1913:264). More importantly, this evidence does not necessarily suggest that the Proto-Salish system ended at 4. While 4 has the max cognates of any numeral except for 10, the max precipitous drop occurs between 5 and 6, meaning that any argument for a restricted count based on the percentage of cognates lends itself almost as strongly to positing 5 as the highest number. The next section looks at the issue of analyzability in higher numerals, which further supports a system ending at four rather than five.	page 7
 §3.1	Proto-Salish	cited form	*(ʔu)pan	page 7, in italics
 §3.1	Ryan Denzer-King	name	Eells	W. C. Eells, Number Systems of the North American Indians (1913)
 §3.2	Ryan Denzer-King	heading	3.2 Analyzability of higher numerals	page 8
@@ -225,7 +225,7 @@ footnote 4	Ryan Denzer-King	name	Eels	W. C. Eells, Number Systems of the North A
 (4)	Ryan Denzer-King	note	Percentage of Salishan numerals consisting of multiple morphemes.	page 9, the chart's title
 (4)	Ryan Denzer-King	note	100% 90% 80% 70% 60% 50% 40% 30% 20% 10% 0%	page 9, the percentages up the chart's side
 (4)	Ryan Denzer-King	note	1 2 3 4 5 6 7 8 9 10	page 9, the numerals along the chart's foot, a bar over each
-§3.2	Ryan Denzer-King	note	As shown in (4), numerals 5-8, and to a lesser degree 9 are much more often composed of multiple morphemes. Only Bella Coola has multimorphemic forms for 1-3 (and 10), whereas every language has an analyzable form for 6 (typically from PS *t’əx̌, ‘open up, branch out’ or *t’aq’, ‘cross over’). While we might expect analyzability to increase for higher numerals, the sharp increase in multi-morphemic forms between 4 and 5 requires some explanation. However, if Proto-Salish only had terms for the numerals one through four, the analyzability and diversity of numerals over four becomes expected.	page 9
+§3.2	Ryan Denzer-King	note	As displayed in (4), numerals 5-8, and to a lesser degree 9 are much more often composed of multiple morphemes. Only Bella Coola has multimorphemic forms for 1-3 (and 10), whereas every language has an analyzable form for 6 (typically from PS *t’əx̌, ‘open up, branch out’ or *t’aq’, ‘cross over’). While we might expect analyzability to increase for higher numerals, the sharp increase in multi-morphemic forms between 4 and 5 requires some explanation. However, if Proto-Salish only had terms for the numerals one through four, the analyzability and diversity of numerals over four becomes expected.	page 9
 §3.2	Proto-Salish	cited form	*t’əx̌	page 9, in italics
 §3.3	Ryan Denzer-King	heading	3.3 Forms for 4 from Proto-Salish *x̌əc, ‘ready/completed’	page 9
 §3.3	Ryan Denzer-King	note	Counting systems often have analyzable forms for the number on which their system is based, e.g., a morpheme for ‘full’, ‘completed’, or ‘all’ in the base numeral or any system, or the word for ‘hand’ as 5 in a quinary system. This is not the case for the current Salishan decimal system, in which all modern languages but Bella Coola have a reflex of the Proto-Salish root *(ʔu)pan, which is both monomorphemic and unanalyzable. Interestingly, the only other Proto- Salish root with as widely distributed reflexes is the root for 4, posited here to have been the highest numeral in the original Proto-Salish counting system. If we look through forms for 4, we find that there is evidence of a root for ‘ready/completed’. Kuipers (2002) lists *x̌əc as ‘ready/completed’, and its derivative *x̌əʔuc as “complete count: four” (p. 123). This root has three modern reflexes: Squamish x̌aʔúcn, Halkomelem x̌əʔáθəl, and Lillooet x̌ʷʔúcin. Unless *x̌əʔuc is actually unrelated to *x̌əc, the use of the morpheme for ‘completed’ seems strong evidence for the hypothesis that the Proto-Salish counting system ended at four. It is tempting to suggest that Columbian x̌ʷcmákst contains this root, the second element of which could be from Chinookan makʷšt, ‘2’, but this seems a stretch without a more careful morphological analysis of the Columbian form, which more likely contains the lexical suffix -akst, ‘hand/arm’.	page 9
@@ -255,7 +255,7 @@ footnote 4	Ryan Denzer-King	name	Eels	W. C. Eells, Number Systems of the North A
 §4	Ryan Denzer-King	language	Proto-Sahaptian	a possible source of the decimal system
 §4	Ryan Denzer-King	language	Sahaptian	neighbors of the Salishan languages
 §4	Ryan Denzer-King	language	Blackfoot	Algonquian, decimal
-§4	Ryan Denzer-King	note	Another question still remaining is the possibility of a quaternary system rather than a restricted numeral system. If Proto-Salish originally had a restricted count ending at four, it may have transitioned to a quaternary system before being replaced by a decimal system borrowed from Sahaptian. However, most of the arguments for a restricted numeral system ending at four do not transfer to a base four system. One exception is the subtractive form for ‘3’ in Bella Coola, which seems to fit better with a quaternary system. However, in a quaternary system, we should expect to find numerals above four regularly containing lower numeral roots corresponding to the difference between the higher numerals and four, e.g., ‘7’ should contain the root for ‘3’ (or possibly ‘1’ in the case of a subtractive form). By way of example, (5) compares the numerals 1-7 for Barbareño Chumash, Upper Chehalis (Tsamosan) and Okanagan (Southern Interior).	page 11
+§4	Ryan Denzer-King	note	Another question still remaining is the possibility of a quaternary system rather than a restricted numeral system. If Proto-Salish originally had a restricted count ending at four, it may have transitioned to a quaternary system before being replaced by a decimal system borrowed from Sahaptian. However, the majority of the arguments for a restricted numeral system ending at four do not transfer to a base four system. One exception is the subtractive form for ‘3’ in Bella Coola, which seems to fit better with a quaternary system. However, in a quaternary system, we should expect to find numerals above four regularly containing lower numeral roots corresponding to the difference between the higher numerals and four, e.g., ‘7’ should contain the root for ‘3’ (or possibly ‘1’ in the case of a subtractive form). By way of example, (5) compares the numerals 1-7 for Barbareño Chumash, Upper Chehalis (Tsamosan) and Okanagan (Southern Interior).	page 11
 §4	Ryan Denzer-King	language	Barbareño	Chumash, a column of (5)
 (5)	Ryan Denzer-King	note	Numerals 1-8 in Barbareño, Okanagan, and Upper Chehalis	page 12, the table's title
 (5)	Ryan Denzer-King	note	Barbareño Okanagan Upper Chehalis	page 12, the table's column heads, a numeral's form in each language
@@ -291,7 +291,7 @@ footnote 4	Ryan Denzer-King	name	Eels	W. C. Eells, Number Systems of the North A
 (5)	Barbareño	cited form	malawa	page 12, Barbareño 8
 (5)	Okanagan	cited form	timł	page 12, Okanagan 8
 (5)	Upper Chehalis	cited form	cámus	page 12, Upper Chehalis 8
-§4	Ryan Denzer-King	note	In Barbareño, the numerals 5-7 contain the roots for 1-3, because Barbareño had a quaternary system in which lower roots were added to four to form higher numerals. Okanagan, on the other hand, shows no such base four evidence. Rather than being based on four, higher numerals are simply generally analyzable, which points to a former restricted count rather than a base four count. Upper Chehalis does have a form for ‘8’ based on ‘4’, but as shown in (5), this is not necessarily a feature of a quaternary system: Barbareño has a unique term for ‘8’ (and ‘16’) despite having a solidly quaternary system, and many quinary and decimal languages utilize a pairing schema for ‘6’ and ‘8’, using the roots for ‘3’ and ‘4’ to form these numerals. Thus the evidence points to a restricted count ending at four for Proto-Salish, rather than a former quaternary system.	page 12
+§4	Ryan Denzer-King	note	In Barbareño, the numerals 5-7 contain the roots for 1-3, because Barbareño had a quaternary system in which lower roots were added to four to form higher numerals. Okanagan, on the other hand, shows no such base four evidence. Rather than being based on four, higher numerals are simply generally analyzable, which points to a former restricted count rather than a base four count. Upper Chehalis does have a form for ‘8’ based on ‘4’, but as displayed in (5), this is not necessarily a feature of a quaternary system: Barbareño has a unique term for ‘8’ (and ‘16’) despite having a solidly quaternary system, and many quinary and decimal languages utilize a pairing schema for ‘6’ and ‘8’, using the roots for ‘3’ and ‘4’ to form these numerals. Thus the evidence points to a restricted count ending at four for Proto-Salish, rather than a former quaternary system.	page 12
 §5	Ryan Denzer-King	heading	5 Conclusions	page 12
 §5	Ryan Denzer-King	note	This section summarizes the main claims put forth in this paper, and outlines some directions for future research.	page 12
 §5.1	Ryan Denzer-King	heading	5.1 Summary	page 12

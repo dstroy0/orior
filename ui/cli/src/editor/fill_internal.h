@@ -16,7 +16,7 @@ typedef struct CliFillSizeCtx CliFillSizeCtx;
 typedef struct CliFillFilledSizeCtx CliFillFilledSizeCtx;
 typedef struct CliFillCtx CliFillCtx;
 
-// the most texts whose words one fill takes
+// the max texts whose words one fill takes
 #define CLI_FILL_SLICES (1u << 20u)
 
 // A line of the text, split at each "\n": where it starts, where it ends, and its place among the lines
@@ -54,7 +54,7 @@ const char *cli_filled_last(const CliFillFilledSizeCtx *args);
 void cli_filled_line(const CliFillSizeCtx *args);
 void cli_filled_drop(const CliFillTextCtx *args);
 
-// the words of the texts `slice` to `slice` and `count`, filled into lines no wider than `width` letters, the first
+// the words of the texts `slice` to `slice` and `count`, filled into lines no wider than `width` characters, the first
 // starting with `first` and each after it with `rest`, each line's whitespace at its end taken off (fill.c)
 void cli_fill_words(const CliFillFilledCtx *args);
 
@@ -68,7 +68,7 @@ void cli_fill_comment_release(void);
 
 // the paragraph of the Python docstring around `at`, up to a blank line or a line of the closing quotes alone, the
 // opening quotes placed at the head of its first line and the closing quotes at the end of its last: 1 with its edit,
-// or 0 where `at` stands in none (fill_docstring.c)
+// or 0 where `at` is in none (fill_docstring.c)
 int cli_fill_docstring(const CliFillTextCtx *args);
 
 struct CliFillFilledCtx

@@ -20,7 +20,7 @@ extern "C" const EngineProgramBlock *cycle_record_block(const CycleRecord *recor
     return (record != NULL) ? record->block : NULL;
 }
 
-// the compiled program's registers laid out in shared memory: a thread's places a word each and the file's signs a byte
+// the compiled program's registers arranged in shared memory: a thread's places a word each and the file's signs a byte
 // each, for as many threads as one thread block's shared memory fits beside the kernel's own, a whole number of warps
 // up to CYCLE_BLOCK where a warp fits. A program written as PTX that calls nothing allocates its registers itself and
 // takes no places, and runs CYCLE_BLOCK threads a thread block. The kernel is let take that much and prefers shared
@@ -29,10 +29,10 @@ extern "C" const EngineProgramBlock *cycle_record_block(const CycleRecord *recor
 static int cycle_record_share(CycleRecord *record, size_t kernel_bytes)
 {
     int device = 0;
-    int maximum = 0;
+    int max = 0;
     int processors = 0;
     if ((cudaGetDevice(&device) != cudaSuccess) ||
-        (cudaDeviceGetAttribute(&maximum, cudaDevAttrMaxSharedMemoryPerBlockOptin, device) != cudaSuccess) ||
+        (cudaDeviceGetAttribute(&max, cudaDevAttrMaxSharedMemoryPerBlockOptin, device) != cudaSuccess) ||
         (cudaDeviceGetAttribute(&processors, cudaDevAttrMultiProcessorCount, device) != cudaSuccess))
     {
         return 0;
@@ -41,7 +41,7 @@ static int cycle_record_share(CycleRecord *record, size_t kernel_bytes)
         (record->places != 0u) ? ((4ull * record->places) + record->file_limbs) : 0ull;
     // a device's shared memory a thread block is never negative
     const unsigned long long capacity =
-        ((unsigned long long)maximum > kernel_bytes) ? ((unsigned long long)maximum - kernel_bytes) : 0ull;
+        ((unsigned long long)max > kernel_bytes) ? ((unsigned long long)max - kernel_bytes) : 0ull;
     const unsigned long long fit = (thread_bytes != 0ull) ? (capacity / thread_bytes) : CYCLE_BLOCK;
     const unsigned long long block_threads = (fit < CYCLE_BLOCK) ? fit : CYCLE_BLOCK;
     const unsigned long long threads =
@@ -50,7 +50,7 @@ static int cycle_record_share(CycleRecord *record, size_t kernel_bytes)
     {
         return 0;
     }
-    // at most CYCLE_BLOCK threads, and at most the device's shared memory a thread block, both far under 2^31
+    // at max CYCLE_BLOCK threads, and at max the device's shared memory a thread block, both far under 2^31
     record->threads = (unsigned int)threads;
     record->thread_bytes = thread_bytes;
     // a count of processors is positive where the runtime gave it

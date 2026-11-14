@@ -23,7 +23,7 @@ WHAT IS REPORTED, AND WHY THREE NUMBERS AND NOT ONE
                   octants' null space, a set that only re-reads what the octants already had
                   scores near zero however high its own rank
 
-Rank alone is not enough and the reason is the failure this tree keeps meeting. An arm set of rank 8
+Rank alone is not enough and the reason is the failure this tree retains meeting. An arm set of rank 8
 that spans the SAME subspace as the octants has the same rank and recovers nothing, and a rank
 number on its own cannot tell those apart. The stacked rank can, and the angle says how much of the
 old kernel the new arms actually reach into.
@@ -95,7 +95,7 @@ def dwell_arms(points, centers, radians=CAP_RADIANS):
     floor = math.cos(radians)
     for at, axis in enumerate(axes):
         dots = unit.dot(axis)
-        inside = numpy.maximum(0.0, dots - floor) / max(1e-12, 1.0 - floor)
+        inside = numpy.max(0.0, dots - floor) / max(1e-12, 1.0 - floor)
         out[at] = inside
     return out
 
@@ -213,7 +213,7 @@ def _agglomerate():
     Memory therefore looks like no constraint at all, and the natural conclusion is that arms can be
     piled up without limit and the reading grows with them.
 
-    It does not. An arm set is a matrix of a rows over N placement points, and its rank is at most
+    It does not. An arm set is a matrix of a rows over N placement points, and its rank is at max
     min(a, N). The placement has N degrees of freedom. Once the arms span that space another arm
     adds nothing, whatever it costs and however many there are. The ceiling is the OBJECT'S
     dimension and not the machine's.
@@ -234,7 +234,7 @@ def _agglomerate():
 
     generator = numpy.random.default_rng(11)
     stack = [octant_arms(points)]
-    shown = set()
+    displayed = set()
     for sets in (1, 2, 4, 8, 16, 32, 64, 128):
         while len(stack) < sets:
             centers = generator.normal(size=(ARMS, 3))
@@ -245,10 +245,10 @@ def _agglomerate():
         memory = arms * COUNT * 8
         print("  %8d %10d %8d %10d  %.1f KB"
               % (sets, arms, rank, COUNT - rank, memory / 1024.0))
-        shown.add(rank)
+        displayed.add(rank)
 
     print("")
-    print("  The rank stops at %d and the arms keep costing memory. Past that point every further" % COUNT)
+    print("  The rank stops at %d and the arms retain costing memory. Past that point every further" % COUNT)
     print("  arm is a weight vector the reading cannot use, because the placement has only %d" % COUNT)
     print("  independent directions to be read at all.")
     print("")
@@ -267,7 +267,7 @@ def _efficiency():
     could not see" is true and says less than it sounds: at eight arms rank 8 is the ceiling, and the
     octants already reach it. A different arrangement buys DIFFERENT directions instead of more.
 
-    The quantity that actually varies is INDEPENDENCE. An arm set of k arms has rank at most
+    The quantity that actually varies is INDEPENDENCE. An arm set of k arms has rank at max
     min(k, N), and whether it attains that is a property of where the arms sit. The agglomeration
     sweep already showed it failing: 128 random cap arms came back at rank 126 and 256 at rank 250.
     Independence starts going before the state space is full.

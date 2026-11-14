@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // turning_check.c: the turning case of a ladder form checked: the first case of its relation whose three readings in
-// the register pass stand apart, so that no run is placed by a coincidence
+// the register pass are apart, so that no run is placed by a coincidence
 //
 //   apart    for every relation that has one, the case's words differ, the answer differs from both, and the relation
 //            over each word twice differs from the second word and from the answer
 //   up       the shift up's case is (3, 4): (1, 2) is passed over, 1 shifted by 1 being the second word, which would
-//            read the amount's run as the destination; read swapped, (2, 1) stands
+//            read the amount's run as the destination; read swapped, (2, 1) is
 //   none     a relation with no such case gives none
 //   predicate  a predicate form's turning cases are every case of its relation, in both orders, whose words differ
 //            and over which it is true in the form's reading, one of them with a first word above 0
@@ -47,7 +47,7 @@ int main(void)
         const int read = ladder_answer(anchor, first_twice, 2u, &first_answer) &&
                          ladder_answer(anchor, second_twice, 2u, &second_answer);
         char what[160];
-        snprintf(what, sizeof(what), "relation %u: the words (%u, %u) and the answer %u stand apart", anchor, word[0],
+        snprintf(what, sizeof(what), "relation %u: the words (%u, %u) and the answer %u are apart", anchor, word[0],
                  word[1], expected);
         check_that((word[0] != word[1]) && (expected != word[0]) && (expected != word[1]), what);
         snprintf(what, sizeof(what),
@@ -67,32 +67,32 @@ int main(void)
                    (swapped[1] == 1u) && (shifted == 4u),
                "the shift up's turning case read swapped is (2, 1): 2 shifted by 2 and 1 by 1 are apart from 1 and 4");
     // a predicate form's turning cases: every case of its relation, in both orders, whose words differ and over
-    // which the relation is true in the form's reading; at most, read plain, is true over (0, 1), (1, 2), (3, 7) and
+    // which the relation is true in the form's reading; at max, read plain, is true over (0, 1), (1, 2), (3, 7) and
     // (0, 0xffffffff), and a case whose first word is above 0 is among them, so that the second word moved to a
     // register containing 0 breaks the relation as the first word moved to one containing more than the second does
-    const unsigned int at_most[4][2] = {{0u, 1u}, {1u, 2u}, {3u, 7u}, {0u, 0xffffffffu}};
+    const unsigned int at_max[4][2] = {{0u, 1u}, {1u, 2u}, {3u, 7u}, {0u, 0xffffffffu}};
     unsigned int cases = 0u;
     int every = 1;
     int raised = 0;
     unsigned int pair[2] = {0u, 0u};
-    while (khw_predicate_words((unsigned int)LADDER_AT_MOST, 0, 0, cases, pair))
+    while (khw_predicate_words((unsigned int)LADDER_AT_MAX, 0, 0, cases, pair))
     {
-        every = every && (cases < 4u) && (pair[0] == at_most[cases][0]) && (pair[1] == at_most[cases][1]);
+        every = every && (cases < 4u) && (pair[0] == at_max[cases][0]) && (pair[1] == at_max[cases][1]);
         raised = raised || (pair[0] != 0u);
         cases += 1u;
     }
     check_that(every && (cases == 4u) && raised,
-               "predicate: at most read plain turns over (0, 1), (1, 2), (3, 7) and (0, 0xffffffff), one first word "
+               "predicate: at max read plain turns over (0, 1), (1, 2), (3, 7) and (0, 0xffffffff), one first word "
                "above 0");
     unsigned int swapped_cases = 0u;
     int swapped_matches = 1;
-    while (khw_predicate_words((unsigned int)LADDER_AT_MOST, 1, 0, swapped_cases, pair))
+    while (khw_predicate_words((unsigned int)LADDER_AT_MAX, 1, 0, swapped_cases, pair))
     {
         swapped_matches = swapped_matches && (pair[1] <= pair[0]) && (pair[0] != pair[1]);
         swapped_cases += 1u;
     }
     check_that((swapped_cases == 4u) && swapped_matches,
-               "predicate: at most read swapped turns over the four cases with the words the other way round");
+               "predicate: at max read swapped turns over the four cases with the words the other way round");
     unsigned int same_cases = 0u;
     while (khw_predicate_words((unsigned int)LADDER_SAME, 0, 0, same_cases, pair))
     {
@@ -131,9 +131,9 @@ int main(void)
                    (cut.first[0] == 12u) && (cut.last[0] == 14u) && (cut.first[1] == 15u) && (cut.last[1] == 15u) &&
                    (cut.first[2] == 16u) && (cut.last[2] == 16u) && (cut.first[3] == 24u) && (cut.last[3] == 27u),
                "cut: turned bits 12 to 16 under the guard and destination fields are three runs, and 24 to 27 one");
-    check_that((cut.place[0] == KHW_PLACE_NONE) && (cut.kind[0] == KHW_KIND_REGISTER) &&
-                   (cut.place[2] == KHW_PLACE_NONE) && (cut.kind[2] == KHW_KIND_REGISTER),
-               "cut: each run gathered has no place yet and a register's kind");
+    check_that((cut.place[0] == KHW_PLACE_NONE) && (cut.type[0] == KHW_KIND_REGISTER) &&
+                   (cut.place[2] == KHW_PLACE_NONE) && (cut.type[2] == KHW_KIND_REGISTER),
+               "cut: each run gathered has no place yet and a register's type");
     KhwAnswered uncut;
     memset(&uncut, 0, sizeof(uncut));
     check_that((khw_runs_gathered(turned, 0u, field_first, field_bits, &uncut) == 2u) && (uncut.first[0] == 12u) &&

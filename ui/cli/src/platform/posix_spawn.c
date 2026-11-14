@@ -48,7 +48,7 @@ typedef struct
 #endif
 } PosixSpawnCtx;
 
-// the entries a child's environment holds at most, and the bytes its settings' pairs take at most
+// the entries a child's environment holds at max, and the bytes its settings' pairs take at max
 #define CLI_SPAWN_ENVIRONMENT 4096u
 #define CLI_SPAWN_PAIRS (64u << 10u)
 
@@ -225,7 +225,7 @@ static int cli_spawn_with(const PosixSpawnCtx *args)
     {
         close(in[0]);
     }
-    // a process number and descriptors are not negative here, stored one past so 0 stands for none
+    // a process number and descriptors are not negative here, stored one past so 0 is for none
     args->spawned->process = (unsigned long long)child;
     args->spawned->id = (unsigned long long)child;
     args->spawned->out = (unsigned long long)out[0] + 1ULL;
@@ -268,7 +268,7 @@ int cli_spawn_piped_as(const CliWordsErrMsgCtx *args)
 // a terminal's columns or rows as the system counts them, two at the fewest
 EMBED_INLINE unsigned short cli_terminal_extent(const PosixSpawnCtx *args)
 {
-    // a count saved between 2 and the most a short counts is what an unsigned short stores
+    // a count saved between 2 and the max a short counts is what an unsigned short stores
     const unsigned int bounded = (args->count > 0x7fffu) ? 0x7fffu : args->count;
     return (unsigned short)((args->count < 2u) ? 2u : bounded);
 }
@@ -323,7 +323,7 @@ int cli_spawn_terminal(const CliWordsErrMsgSpawnedCtx *args)
     }
     // the follower is the child's alone: a leader read sees its end once every holder of the follower ends
     close(follower);
-    // a process number and descriptors are not negative here, stored one past so 0 stands for none
+    // a process number and descriptors are not negative here, stored one past so 0 is for none
     args->spawned->process = (unsigned long long)child;
     args->spawned->id = (unsigned long long)child;
     args->spawned->out = (unsigned long long)leader + 1ULL;
@@ -389,7 +389,7 @@ unsigned long long cli_spawn_read(const CliCapacityPipeHandleCtx *args)
     return (read_count > 0) ? (unsigned long long)read_count : 0ULL;
 }
 
-// the count answered where the system's byte count stands at 0 and a read still returns at once: a pseudo-terminal
+// the count answered where the system's byte count is at 0 and a read still returns at once: a pseudo-terminal
 // leader on macOS counts no waiting bytes, and the read answers how many there are
 #define CLI_SPAWN_READ_READY 65536ULL
 
@@ -444,7 +444,7 @@ int cli_spawn_poll(const CliSpawnedCtx *args)
     return 1;
 }
 
-// the children let go of before they ended, each waited on once it ends so that none is left a zombie: the most let
+// the children let go of before they ended, each waited on once it ends so that none is left a zombie: the max let
 // go of at once
 #define CLI_SPAWN_LET_GO_MAX 256u
 static pid_t s_let_go[CLI_SPAWN_LET_GO_MAX];

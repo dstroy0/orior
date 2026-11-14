@@ -9,12 +9,12 @@
 extern void setUp(void);
 extern void tearDown(void);
 extern void test_a_push_puts_the_newest_first(void);
-extern void test_a_repeat_moves_to_the_front_and_stands_once(void);
-extern void test_the_list_stops_at_its_most(void);
-extern void test_the_files_and_the_commands_stand_apart(void);
+extern void test_a_repeat_moves_to_the_front_and_is_once(void);
+extern void test_the_list_stops_at_its_max(void);
+extern void test_the_files_and_the_commands_are_apart(void);
 extern void test_an_empty_entry_or_one_with_a_line_end_changes_nothing(void);
 extern void test_a_list_asked_for_fewer_answers_its_newest(void);
-extern void test_each_list_stands_in_orior_folder_a_line_an_entry(void);
+extern void test_each_list_is_in_orior_folder_a_line_an_entry(void);
 
 
 /*=======Mock Management=====*/
@@ -77,12 +77,12 @@ int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\recent\\test_recent\\test_recent.c");
   run_test(test_a_push_puts_the_newest_first, "test_a_push_puts_the_newest_first", 39);
-  run_test(test_a_repeat_moves_to_the_front_and_stands_once, "test_a_repeat_moves_to_the_front_and_stands_once", 50);
-  run_test(test_the_list_stops_at_its_most, "test_the_list_stops_at_its_most", 68);
-  run_test(test_the_files_and_the_commands_stand_apart, "test_the_files_and_the_commands_stand_apart", 85);
+  run_test(test_a_repeat_moves_to_the_front_and_is_once, "test_a_repeat_moves_to_the_front_and_is_once", 50);
+  run_test(test_the_list_stops_at_its_max, "test_the_list_stops_at_its_max", 68);
+  run_test(test_the_files_and_the_commands_are_apart, "test_the_files_and_the_commands_are_apart", 85);
   run_test(test_an_empty_entry_or_one_with_a_line_end_changes_nothing, "test_an_empty_entry_or_one_with_a_line_end_changes_nothing", 107);
   run_test(test_a_list_asked_for_fewer_answers_its_newest, "test_a_list_asked_for_fewer_answers_its_newest", 126);
-  run_test(test_each_list_stands_in_orior_folder_a_line_an_entry, "test_each_list_stands_in_orior_folder_a_line_an_entry", 137);
+  run_test(test_each_list_is_in_orior_folder_a_line_an_entry, "test_each_list_is_in_orior_folder_a_line_an_entry", 137);
 
   return UNITY_END();
 }

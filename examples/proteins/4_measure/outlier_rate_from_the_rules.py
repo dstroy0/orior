@@ -8,7 +8,7 @@
 #   Usage:  python examples/proteins/4_measure/outlier_rate_from_the_rules.py
 #
 # Nothing here is compared against a deposit's own published outlier rate. That is stage six, and
-# keeping them apart is the point of the split: this stage says what the instrument returns and what
+# retention them apart is the point of the split: this stage says what the instrument returns and what
 # it read to get there, and the oracle says whether it was right.
 #
 # The instrument is the Ramachandran rules. A residue's two backbone torsions place it on the

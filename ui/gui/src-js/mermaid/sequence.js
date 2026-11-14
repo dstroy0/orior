@@ -88,7 +88,7 @@ export function sequenceSvg(text) {
       parts.push(`<rect class="mm-note" x="${middle - w / 2}" y="${y - 8}" width="${w}" height="${h}" />${textAt(middle, y - 8 + h / 2, step.note)}`);
       y += h + 14;
     } else if (step.open) {
-      frames.push({ kind: step.open, label: step.label, top: y - 14, divides: [] });
+      frames.push({ type: step.open, label: step.label, top: y - 14, divides: [] });
       y += 26;
     } else if (step.divide !== undefined && frames.length) {
       frames.at(-1).divides.push({ y: y - 10, label: step.divide });
@@ -98,9 +98,9 @@ export function sequenceSvg(text) {
       const left = 8;
       const right = x - GAP + 12;
       parts.push(`<rect class="mm-frame" x="${left}" y="${frame.top}" width="${right - left}" height="${y - frame.top}" />`);
-      parts.push(`<rect class="mm-frame-tab" x="${left}" y="${frame.top}" width="${width(frame.kind) + 16}" height="20" />${textAt(left + 8, frame.top + 10, frame.kind, "start", "mm-text strong")}`);
+      parts.push(`<rect class="mm-frame-tab" x="${left}" y="${frame.top}" width="${width(frame.type) + 16}" height="20" />${textAt(left + 8, frame.top + 10, frame.type, "start", "mm-text strong")}`);
       if (frame.label) {
-        parts.push(textAt(left + width(frame.kind) + 24, frame.top + 10, `[${frame.label}]`, "start"));
+        parts.push(textAt(left + width(frame.type) + 24, frame.top + 10, `[${frame.label}]`, "start"));
       }
       for (const divide of frame.divides) {
         parts.push(`<line class="mm-edge dotted" x1="${left}" y1="${divide.y}" x2="${right}" y2="${divide.y}" />${divide.label ? textAt(left + 8, divide.y + 10, `[${divide.label}]`, "start") : ""}`);

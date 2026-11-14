@@ -952,15 +952,15 @@ $L__BB0_58:
 	ret;
 
 }
-	// .globl	_Z13clear_of_keptPKfiS0_iifPi
-.visible .entry _Z13clear_of_keptPKfiS0_iifPi(
-	.param .u64 _Z13clear_of_keptPKfiS0_iifPi_param_0,
-	.param .u32 _Z13clear_of_keptPKfiS0_iifPi_param_1,
-	.param .u64 _Z13clear_of_keptPKfiS0_iifPi_param_2,
-	.param .u32 _Z13clear_of_keptPKfiS0_iifPi_param_3,
-	.param .u32 _Z13clear_of_keptPKfiS0_iifPi_param_4,
-	.param .f32 _Z13clear_of_keptPKfiS0_iifPi_param_5,
-	.param .u64 _Z13clear_of_keptPKfiS0_iifPi_param_6
+	// .globl	_Z13clear_of_retainedPKfiS0_iifPi
+.visible .entry _Z13clear_of_retainedPKfiS0_iifPi(
+	.param .u64 _Z13clear_of_retainedPKfiS0_iifPi_param_0,
+	.param .u32 _Z13clear_of_retainedPKfiS0_iifPi_param_1,
+	.param .u64 _Z13clear_of_retainedPKfiS0_iifPi_param_2,
+	.param .u32 _Z13clear_of_retainedPKfiS0_iifPi_param_3,
+	.param .u32 _Z13clear_of_retainedPKfiS0_iifPi_param_4,
+	.param .f32 _Z13clear_of_retainedPKfiS0_iifPi_param_5,
+	.param .u64 _Z13clear_of_retainedPKfiS0_iifPi_param_6
 )
 {
 	.reg .pred 	%p<17>;
@@ -969,13 +969,13 @@ $L__BB0_58:
 	.reg .b64 	%rd<21>;
 
 
-	ld.param.u64 	%rd7, [_Z13clear_of_keptPKfiS0_iifPi_param_0];
-	ld.param.u32 	%r8, [_Z13clear_of_keptPKfiS0_iifPi_param_1];
-	ld.param.u64 	%rd8, [_Z13clear_of_keptPKfiS0_iifPi_param_2];
-	ld.param.u32 	%r10, [_Z13clear_of_keptPKfiS0_iifPi_param_3];
-	ld.param.u32 	%r9, [_Z13clear_of_keptPKfiS0_iifPi_param_4];
-	ld.param.f32 	%f3, [_Z13clear_of_keptPKfiS0_iifPi_param_5];
-	ld.param.u64 	%rd9, [_Z13clear_of_keptPKfiS0_iifPi_param_6];
+	ld.param.u64 	%rd7, [_Z13clear_of_retainedPKfiS0_iifPi_param_0];
+	ld.param.u32 	%r8, [_Z13clear_of_retainedPKfiS0_iifPi_param_1];
+	ld.param.u64 	%rd8, [_Z13clear_of_retainedPKfiS0_iifPi_param_2];
+	ld.param.u32 	%r10, [_Z13clear_of_retainedPKfiS0_iifPi_param_3];
+	ld.param.u32 	%r9, [_Z13clear_of_retainedPKfiS0_iifPi_param_4];
+	ld.param.f32 	%f3, [_Z13clear_of_retainedPKfiS0_iifPi_param_5];
+	ld.param.u64 	%rd9, [_Z13clear_of_retainedPKfiS0_iifPi_param_6];
 	mov.u32 	%r11, %ntid.x;
 	mov.u32 	%r12, %ctaid.x;
 	mov.u32 	%r13, %tid.x;

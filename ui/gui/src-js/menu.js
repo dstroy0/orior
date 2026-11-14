@@ -10,9 +10,9 @@
 // it does, with "-" for a line between items. An item with items of its own, a list or a function
 // that gives one, opens them beside it, as the pointer rests on it or as Right, Enter or Space is
 // pressed on it, and Left or Escape closes them again. An item that cannot act now is drawn but
-// cannot be chosen. Up and Down step through the items, Home and End go to the ends, a letter goes to
-// the next item it begins, Enter or Space chooses, and Escape or Tab closes. A choice closes every open menu and hands the keys back to what
-// kept them before the first opened, then acts. A command for the editor or the terminal finds it as
+// cannot be chosen. Up and Down step through the items, Home and End go to the ends, a character goes to
+// the next item it begins, Enter or Space chooses, and Escape or Tab closes. A choice closes every open menu and passes the keys back to what
+// retained them before the first opened, then acts. A command for the editor or the terminal finds it as
 // it was. A menu too long for the window scrolls.
 
 import { invoke } from "./bridge.js";
@@ -21,9 +21,9 @@ import { moves } from "./motion.js";
 const parts = [];
 // `stack` holds the open menus, the first one and then each opened from an item of the one before.
 // `side` is told of Left and Right in the first menu, which the menu bar uses to step between its
-// menus, and a pointer pressed in `keep` leaves the menus to it. `opening` is the item whose items
+// menus, and a pointer pressed in `retain` leaves the menus to it. `opening` is the item whose items
 // are being given.
-const state = { stack: [], back: null, anchor: null, side: null, keep: null, onClose: null, rest: 0, opening: null };
+const state = { stack: [], back: null, anchor: null, side: null, retain: null, onClose: null, rest: 0, opening: null };
 
 // How long the pointer rests on an item before the items under it open.
 const REST = 180;
@@ -57,7 +57,7 @@ export function closeMenu(refocus = true) {
   delete state.anchor?.dataset.menu;
   state.anchor = null;
   state.side = null;
-  state.keep = null;
+  state.retain = null;
   const onClose = state.onClose;
   state.onClose = null;
   onClose?.();
@@ -109,7 +109,7 @@ function place(menu, x, y, beside = null) {
 }
 
 // How long a menu takes to grow out of the point it opened from, in milliseconds: within the tenth of
-// a second an answer to a press keeps to.
+// a second an answer to a press retains to.
 export const GROWS = 100;
 
 // Grows `menu` out of the point `x`, `y` within it where it was opened from: a press's point, or
@@ -226,9 +226,9 @@ function build(items, level) {
     } else if (event.key.length === 1 && /\S/.test(event.key) && !event.ctrlKey && !event.altKey) {
       const items = enabledIn(menu);
       const at = items.indexOf(focused);
-      const letter = event.key.toLowerCase();
+      const character = event.key.toLowerCase();
       const ordered = [...items.slice(at + 1), ...items.slice(0, at + 1)];
-      ordered.find((one) => one.textContent.toLowerCase().startsWith(letter))?.focus();
+      ordered.find((one) => one.textContent.toLowerCase().startsWith(character))?.focus();
     } else {
       return;
     }
@@ -241,15 +241,15 @@ function build(items, level) {
 }
 
 // Shows a menu with its top left corner at x, y, turned in from the window's edges. `anchor` is the
-// row it was opened on, which stays marked while it is open; `side`, `keep` and `onClose`, told when
+// row it was opened on, which stays marked while it is open; `side`, `retain` and `onClose`, told when
 // the menus close, are the menu bar's.
-export function showMenu(x, y, items, { anchor = null, side = null, keep = null, onClose = null, focusFirst = true } = {}) {
+export function showMenu(x, y, items, { anchor = null, side = null, retain = null, onClose = null, focusFirst = true } = {}) {
   const back = state.stack.length ? state.back : document.activeElement;
   closeMenu(false);
   state.back = back;
   state.anchor = anchor;
   state.side = side;
-  state.keep = keep;
+  state.retain = retain;
   state.onClose = onClose;
   if (anchor) {
     anchor.dataset.menu = "open";
@@ -301,7 +301,7 @@ export function startMenus() {
     if (inMenus(target)) {
       return;
     }
-    // A menu opened from the keyboard has no pointer to stand at, and stands at the part instead.
+    // A menu opened from the keyboard has no pointer to be at, and is at the part instead.
     let { clientX: x, clientY: y } = event;
     if (event.button !== 2 || (!x && !y)) {
       const box = target.getBoundingClientRect();
@@ -325,7 +325,7 @@ export function startMenus() {
     closeMenu();
   });
   const outside = (event) => {
-    if (state.stack.length && !inMenus(event.target) && !state.keep?.contains(event.target)) {
+    if (state.stack.length && !inMenus(event.target) && !state.retain?.contains(event.target)) {
       closeMenu(false);
     }
   };

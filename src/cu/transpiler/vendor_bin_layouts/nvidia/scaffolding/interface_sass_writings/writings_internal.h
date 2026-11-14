@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the most bytes a cubin, its code and a text take, the most exits a code contains, and the registers every cubin
+// the max bytes a cubin, its code and a text take, the max exits a code contains, and the registers every cubin
 // declares a thread
 #define WRITINGS_CUBIN_BYTES 262144u
 
@@ -39,7 +39,7 @@
 
 #define WRITINGS_RESULT "R8"
 
-// the most cases put at once, one thread each, the most relations a form is read against, and the longest line read
+// the max cases put at once, one thread each, the max relations a form is read against, and the longest line read
 // back
 #define WRITINGS_CASES 256u
 
@@ -79,7 +79,7 @@ typedef struct
 } WritingsRelation;
 
 // the forms a search wrote, the answers the part gave them, and which relations each form satisfies
-#define WRITINGS_FORMS_MOST 16384u
+#define WRITINGS_FORMS_MAX 16384u
 
 // the register each node of a chain writes its word to, the root's being WRITINGS_RESULT, and the register a word of
 // ones is set in for a chain that reads one
@@ -89,10 +89,10 @@ typedef struct
 
 #define WRITINGS_CHAIN_HEAD "IMAD.MOV.U32 R24, RZ, RZ, 4294967295\n"
 
-// the most nodes a chain is written with, and the most chains of a .kdm written
+// the max nodes a chain is written with, and the max chains of a .kdm written
 #define WRITINGS_CHAIN_NODES 8u
 
-#define WRITINGS_CHAINS_MOST 8192u
+#define WRITINGS_CHAINS_MAX 8192u
 
 extern SassMachine s_machine;
 extern unsigned char s_pattern[WRITINGS_CUBIN_BYTES];
@@ -105,10 +105,10 @@ extern unsigned int s_case[WRITINGS_CASES][2];
 extern unsigned int s_cases;
 extern WritingsRelation s_relation[WRITINGS_RELATIONS];
 extern unsigned int s_relations;
-extern char s_forms[WRITINGS_FORMS_MOST][256];
+extern char s_forms[WRITINGS_FORMS_MAX][256];
 extern unsigned int s_form_count;
-extern unsigned char s_ran[WRITINGS_FORMS_MOST];
-extern unsigned char s_relation_agreed[WRITINGS_FORMS_MOST][WRITINGS_RELATIONS];
+extern unsigned char s_ran[WRITINGS_FORMS_MAX];
+extern unsigned char s_relation_agreed[WRITINGS_FORMS_MAX][WRITINGS_RELATIONS];
 
 unsigned long long writings_file_read(const char *path, unsigned char *bytes, unsigned long long room);
 void writings_relations(void);

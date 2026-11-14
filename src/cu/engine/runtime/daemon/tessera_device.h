@@ -3,7 +3,7 @@
 #ifndef TESSERA_DEVICE_H
 #define TESSERA_DEVICE_H
 
-// The device's tessera: a ledger laid out in the device's memory, whose decisions the device makes. One thread runs a
+// The device's tessera: a ledger arranged in the device's memory, whose decisions the device makes. One thread runs a
 // list of calls in order, each tessera_ledger_core.h's decision, the one the host daemon's ledger makes. A call the
 // ledger's arrays cannot take stops the run with nothing changed; the host grows the arrays on the device, copying
 // what they allocate, and the run goes on from that call. The host daemon stays: it builds with no CUDA toolchain and
@@ -24,7 +24,7 @@ extern "C"
         TesseraLedger host_ledger;
     } TesseraDevice;
 
-    // a ledger laid out on the device with `capacity` jobs, tracked peaks and deadlines to start; 0 where the device
+    // a ledger arranged on the device with `capacity` jobs, tracked peaks and deadlines to start; 0 where the device
     // errors on it
     int tessera_device_open(TesseraDevice *device, unsigned long long capacity);
 

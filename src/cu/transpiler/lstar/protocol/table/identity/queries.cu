@@ -16,7 +16,7 @@ thread_local QueryLog *s_trace_log = NULL;
 // makes at a link as `choice <flags> <link>`, the flags of the trace's table ORed into one word, `-` for the link where
 // the choice is the put's own (includes/file_defs/klq/query_trace.tsv). NULL where nothing is traced. The trace
 // and the log of the thread that carries the queries are the two below; a pair put in a thread of its own writes its
-// trace and its log into logs of its own, each handed whole once the pair is put, so that every put stands in one piece
+// trace and its log into logs of its own, each passed whole once the pair is put, so that every put is in one piece
 thread_local QueryLog *s_query_log = NULL;
 
 QueryLog s_trace_whole = {"trace", std::string()};
@@ -48,11 +48,11 @@ void query_log_print(QueryLog *log, const char *format, ...)
     va_end(values);
 }
 
-// the run the trace and the log are handed to, NULL while nothing is traced
+// the run the trace and the log are passed to, NULL while nothing is traced
 QryShared *s_query_run = NULL;
 
-// `log`'s bytes handed to the run as an ordinary blob of its name, and let go
-void query_log_handed(QueryLog *log)
+// `log`'s bytes passed to the run as an ordinary blob of its name, and let go
+void query_log_passed(QueryLog *log)
 {
     if ((s_query_run != NULL) && !log->bytes.empty())
     {
@@ -61,15 +61,15 @@ void query_log_handed(QueryLog *log)
     log->bytes.clear();
 }
 
-// what the thread that carries the queries wrote and has not handed, handed as the run ends
+// what the thread that carries the queries wrote and has not passed, passed as the run ends
 static void query_logs_closed(void)
 {
-    query_log_handed(&s_trace_whole);
-    query_log_handed(&s_log_whole);
+    query_log_passed(&s_trace_whole);
+    query_log_passed(&s_log_whole);
 }
 
 // the trace and the log of the thread that carries the queries opened into the run, the .qry QRY names
-// (qry_member.h), as every path's trace is, and handed the rest as the run ends
+// (qry_member.h), as every path's trace is, and passed the rest as the run ends
 void query_logs_opened(void)
 {
     if (s_query_run != NULL)
@@ -88,13 +88,13 @@ void query_logs_opened(void)
     atexit(query_logs_closed);
 }
 
-// `log` handed to the run where every query is to reach it as it is written: on the thread that carries the
-// queries, and not from a pair's own logs, which are handed whole once the pair is put
+// `log` passed to the run where every query is to reach it as it is written: on the thread that carries the
+// queries, and not from a pair's own logs, which are passed whole once the pair is put
 void query_log_flushed(QueryLog *log)
 {
     if (t_pair < 0)
     {
-        query_log_handed(log);
+        query_log_passed(log);
     }
 }
 
@@ -104,7 +104,7 @@ std::string case_text(unsigned int at);
 thread_local unsigned int s_apart_at = 0xffffffffu;
 
 // The round: each pair put in a thread of its own runs while it is its turn, one at a time in the order of the bridge,
-// until it queries or is put. Every query a pair hands over waits for the round, and once every pair left has queried,
+// until it queries or is put. Every query a pair passes over waits for the round, and once every pair left has queried,
 // the round's queries are carried together: the mundane in one process, each dangerous one in a process of its own. No
 // query waits on another query of the same round, since a pair queries its next only once its last is answered.
 // `s_turn` is the pair that runs, and -1 the thread that carries the queries
@@ -116,9 +116,9 @@ int s_turn = -1;
 
 std::vector<std::vector<CarriedQuery>> s_round_queries;
 
-// what the rounds queried: the queries handed over, those answered from what was stored, and the processes that carried
+// what the rounds queried: the queries passed over, those answered from what was stored, and the processes that carried
 // the rest
-unsigned long long s_round_handed = 0ull;
+unsigned long long s_round_passed = 0ull;
 
 unsigned long long s_round_recalled = 0ull;
 
@@ -161,7 +161,7 @@ static void answer_given(RunQuestion *question, const KqrQuery &stored)
                             ? (unsigned int)RUN_GATED
                             : (unsigned int)RUN_NOTHING;
     snprintf(question->refused, sizeof(question->refused), "%s", stored.refusal);
-    for (unsigned int place = 0u; (place < stored.words) && (place < RUN_CASES_MOST); place += 1u)
+    for (unsigned int place = 0u; (place < stored.words) && (place < RUN_CASES_MAX); place += 1u)
     {
         question->answered[place] = stored.word[place];
     }
@@ -223,7 +223,7 @@ void queries_answered(const std::vector<CarriedQuery> &carried)
     {
         RunQuestion *const question = carried[at].question;
         identities[at] = question_numbered(question);
-        s_round_handed += 1ull;
+        s_round_passed += 1ull;
         const auto censored = timed_censored.find(identities[at]);
         if ((question->launches != 0u) && (censored != timed_censored.end()))
         {
@@ -261,7 +261,7 @@ void queries_answered(const std::vector<CarriedQuery> &carried)
         ((carried[at].dangerous != 0) || shaped ? alone : mundane).push_back(question);
         waiting[question] = 1u;
     }
-    // the query that settles the most entries first: the one the most pairs of the round wait on, in the order handed
+    // the query that settles the max entries first: the one the max pairs of the round wait on, in the order passed
     // where two settle as many
     const auto settles_more = [&waiting](RunQuestion *left, RunQuestion *right) {
         return waiting[left] > waiting[right];
@@ -308,9 +308,9 @@ void queries_answered(const std::vector<CarriedQuery> &carried)
             s_sample.identity = question_numbered(question);
             s_sample.answer = answer;
             s_sample.nanoseconds = question->nanoseconds;
-            s_sample.launched = (question->most != 0ull) ? 1 : 0;
+            s_sample.launched = (question->max != 0ull) ? 1 : 0;
             s_sample.least = question->least;
-            s_sample.most = question->most;
+            s_sample.max = question->max;
             snprintf(s_sample.refusal, sizeof(s_sample.refusal), "%s",
                      (answer == KQR_ANSWERS) ? "" : question->refused);
             kqr_sample(&s_query_record, &s_sample);
@@ -352,7 +352,7 @@ void queries_answered(const std::vector<CarriedQuery> &carried)
 }
 
 // The queries `questions`, `count` of them, each dangerous where `dangerous` specifies, answered through the query
-// record: on a pair's own thread handed to the round and waited on, and on the thread that carries the queries answered
+// record: on a pair's own thread passed to the round and waited on, and on the thread that carries the queries answered
 // at once. A timed query, the only one a mode means to query again, is put every time
 void queries_carried(RunQuestion *const *questions, const int *dangerous, unsigned int count)
 {

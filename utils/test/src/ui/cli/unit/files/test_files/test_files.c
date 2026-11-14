@@ -182,7 +182,7 @@ void test_a_search_finds_every_line_in_cells_grown_end_their_first_capacity_each
     TEST_ASSERT_GREATER_THAN_UINT64(64ull * sizeof(CliSearchHit), mmgr_owner_hw(g_cli_search_owner));
 }
 
-// the tree `s_root` written with `files` files named f00.txt, f01.txt and on, each of `lines` lines the needle stands in
+// the tree `s_root` written with `files` files named f00.txt, f01.txt and on, each of `lines` lines the needle is in
 static void needle_files_written(unsigned int files, unsigned int lines)
 {
     VerbaLinea text = {s_needles, sizeof(s_needles), 0ull};

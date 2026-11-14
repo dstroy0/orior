@@ -57,20 +57,20 @@ int fields_read(const char *machine_path, const char *instructions, const char *
     while (fgets(line, sizeof(line), in) != NULL)
     {
         unsigned int number = 0u;
-        char kind[64];
+        char type[64];
         char word[64];
         const char *read = line;
         word[0] = '\0';
-        if (!line_unsigned(&read, &number) || !line_word(&read, kind, sizeof(kind)))
+        if (!line_unsigned(&read, &number) || !line_word(&read, type, sizeof(type)))
         {
             continue;
         }
-        // the word after the kind, where the line contains one
+        // the word after the type, where the line contains one
         line_word(&read, word, sizeof(word));
         if (number == 0u)
         {
             const char *base = word;
-            have_baseline = (strcmp(kind, "answered") == 0) && line_number(&base, 1, &baseline);
+            have_baseline = (strcmp(type, "answered") == 0) && line_number(&base, 1, &baseline);
             continue;
         }
         const unsigned int bit = number - 1u;
@@ -86,12 +86,12 @@ int fields_read(const char *machine_path, const char *instructions, const char *
             snprintf(place, sizeof(place), "-");
         }
         const char *part = NULL;
-        if ((strcmp(kind, "refused") == 0) || (strcmp(kind, "hung") == 0) || (strcmp(kind, "skipped") == 0))
+        if ((strcmp(type, "refused") == 0) || (strcmp(type, "hung") == 0) || (strcmp(type, "skipped") == 0))
         {
             // a bit the part refused, one it ran too long on, and one blocked from the part as unsafe to run are each
             // no operand field; they share the first column and the row specifies which
             refused += 1u;
-            part = (kind[0] == 'h') ? "hung" : ((kind[0] == 's') ? "skipped" : "refused");
+            part = (type[0] == 'h') ? "hung" : ((type[0] == 's') ? "skipped" : "refused");
         }
         else
         {
@@ -129,7 +129,7 @@ int fields_read(const char *machine_path, const char *instructions, const char *
 }
 
 // 1 where the operation writes its first register operand, which the redirect may move to the observed register. A
-// return, a register branch or a call reads its first register instead and leaves it where it stands; a store, a branch
+// return, a register branch or a call reads its first register instead and leaves it where it is; a store, a branch
 // to a label and a predicate setter carry no register first operand and never reach here
 static int fields_writes_first(const char *operation)
 {
@@ -180,7 +180,7 @@ static void fields_swap(const char *operand, const char *put, char *out, size_t 
 
 // `operand`, an address, written to `out` with the register its address is read from replaced by `put`: the register
 // after the last `[`. A descriptor's uniform register before it is retained, and an address whose last `[` contains no
-// register is copied as it stands. 1, or 0 where `out` will not contain it
+// register is copied as it is. 1, or 0 where `out` will not contain it
 static int fields_address_swap(const char *operand, const char *put, char *out, size_t room)
 {
     const char *const open = strrchr(operand, '[');
@@ -199,7 +199,7 @@ static int fields_address_swap(const char *operand, const char *put, char *out, 
 // words and not memory no thread uses. A first operand that is a register moves to R8, the register the kernel stores
 // as the answer. A first operand that is a predicate moves to P0, and `observe` takes the line that turns P0 into a
 // value in R8; it is left empty otherwise. A form whose first operand is neither, or is one the operation reads, is
-// copied as it stands, since nothing of it would be observed through R8. 1, or 0 where `redirected` or `observe` will
+// copied as it is, since nothing of it would be observed through R8. 1, or 0 where `redirected` or `observe` will
 // not contain it
 int fields_redirect(const char *instruction, char *redirected, size_t room, char *observe, size_t observe_room)
 {
@@ -207,8 +207,8 @@ int fields_redirect(const char *instruction, char *redirected, size_t room, char
     SassInstructionParts parts;
     sass_instruction_read(instruction, &parts);
     observe[0] = '\0';
-    const int writes_register = (parts.operands != 0u) && (parts.kind[0] == SASS_OPERAND_REGISTER);
-    const int writes_predicate = (parts.operands != 0u) && (parts.kind[0] == SASS_OPERAND_PREDICATE);
+    const int writes_register = (parts.operands != 0u) && (parts.type[0] == SASS_OPERAND_REGISTER);
+    const int writes_predicate = (parts.operands != 0u) && (parts.type[0] == SASS_OPERAND_PREDICATE);
     if ((!writes_register && !writes_predicate) || !fields_writes_first(parts.operation))
     {
         return snprintf(redirected, room, "%s", instruction) < (int)room;
@@ -228,7 +228,7 @@ int fields_redirect(const char *instruction, char *redirected, size_t room, char
     {
         char text[SASS_MACHINE_TOKEN];
         const char *put = NULL;
-        if (parts.kind[operand] == SASS_OPERAND_REGISTER)
+        if (parts.type[operand] == SASS_OPERAND_REGISTER)
         {
             if (operand == 0u)
             {
@@ -248,7 +248,7 @@ int fields_redirect(const char *instruction, char *redirected, size_t room, char
         {
             fields_swap(parts.operand[operand], put, text, sizeof(text));
         }
-        else if ((parts.kind[operand] == SASS_OPERAND_ADDRESS) && (strncmp(parts.operation, "LDG", 3u) == 0))
+        else if ((parts.type[operand] == SASS_OPERAND_ADDRESS) && (strncmp(parts.operation, "LDG", 3u) == 0))
         {
             if (!fields_address_swap(parts.operand[operand], FIELDS_LOAD_ADDRESS, text, sizeof(text)))
             {

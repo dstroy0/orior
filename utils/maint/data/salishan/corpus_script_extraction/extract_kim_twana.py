@@ -13,7 +13,7 @@
 # THE FIRST EXAMPLE IS NOT TWANA
 #
 # Example (1) sits where the data usually starts and it is Tillamook, in Edel's 1939 transcription,
-# with its own vowel letters A, E, U and its own stress mark. Examples (19) and (20) are Thompson
+# with its own vowel characters A, E, U and its own stress mark. Examples (19) and (20) are Thompson
 # and Lillooet, and footnote 9 carries Puget Sound Salish, Moses-Columbian and a row of English
 # phonetics. A reader that took every numbered example as Twana would seed a Twana corpus with five
 # other languages and some English.
@@ -104,7 +104,7 @@ TARGET = os.path.join(
     CORPORA, "unstated_TheTruncatedReduplicationInTwana_Kim_Salish_twana_2017_mixed.txt"
 )
 
-# Kept in step with KIM in hand_extraction/papers.py. ɫ is this paper's lateral fricative, a third
+# Retained in step with KIM in hand_extraction/papers.py. ɫ is this paper's lateral fricative, a third
 # character for it after ɬ and ł, and ˀ is its rule-derived glottal stop against phonemic ʔ.
 MARKS = "ʔʕɬłƛəχ7̓̔̕ʷ˽" + "ɫˀščóéɔ" + "̦́ʹ"
 
@@ -127,7 +127,7 @@ UNDERLYING = "*"
 INCORRECT = "¢"
 
 
-def kind_of(token):
+def type_of(token):
     """What a token is: a form the paper attests, one it reconstructs, or one it rejects."""
     if token.startswith(UNDERLYING):
         return "underlying"
@@ -178,7 +178,7 @@ def main():
             if footnote == MIXED_FOOTNOTE:
                 rows.append((where, "", UNCLASSIFIED, plain))
                 continue
-            rows.append((where, named, kind_of(plain), plain))
+            rows.append((where, named, type_of(plain), plain))
 
     missed = unreached(lines, covered_tokens(one[3] for one in rows), marks=MARKS)
     for page, spot, reason, missing, text in missed:
@@ -210,27 +210,27 @@ def main():
         handle.write(
             "# column says which, and the footnote is left unclassified for a person.\n"
         )
-        handle.write("line\twho\tkind\tswitches\tcontent\n")
-        for at, (spot, who, kind, text) in enumerate(rows, 1):
-            spoken = (kind == "cited form") and (who == TARGET_LANGUAGE)
+        handle.write("line\twho\ttype\tswitches\tcontent\n")
+        for at, (spot, who, type, text) in enumerate(rows, 1):
+            spoken = (type == "cited form") and (who == TARGET_LANGUAGE)
             layer = SPOKEN if spoken else DERIVED
-            if kind == UNCLASSIFIED:
-                content = "N.%s.%s:{%s}" % (layer, kind, text)
+            if type == UNCLASSIFIED:
+                content = "N.%s.%s:{%s}" % (layer, type, text)
                 crossings = 0
             else:
-                content = rendered(text, layer, kind, MARKS)
+                content = rendered(text, layer, type, MARKS)
                 crossings = switches(text, MARKS)
             handle.write(
                 "line#${%d}\t%s\t%s\t%d\t%s\n"
-                % (at, who or spot, kind, crossings, content)
+                % (at, who or spot, type, crossings, content)
             )
 
     pure = TARGET[:-4] + ".pure.txt"
-    kept = 0
+    retained = 0
     already = set()
     with open(pure, "w", encoding="utf-8", newline="") as handle:
-        for spot, who, kind, text in rows:
-            if (kind != "cited form") or (who != TARGET_LANGUAGE):
+        for spot, who, type, text in rows:
+            if (type != "cited form") or (who != TARGET_LANGUAGE):
                 continue
             for span, run in tagged_spans(text, MARKS):
                 if (span != "T") or not run.strip():
@@ -240,27 +240,27 @@ def main():
                     continue
                 already.add(key)
                 handle.write("%s\n" % key)
-                kept += 1
+                retained += 1
 
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
         (0, spot, UNKNOWN_KIND, "", text)
-        for spot, who, kind, text in rows
-        if (kind == UNCLASSIFIED) and not spot.startswith("not reached")
+        for spot, who, type, text in rows
+        if (type == UNCLASSIFIED) and not spot.startswith("not reached")
     ]
     flagged.extend(missed)
     stuck_count = write_unsorted(stuck, "The truncated reduplication in Twana", flagged)
 
     out.write("  %d lines written to\n  %s\n" % (len(rows), os.path.basename(TARGET)))
-    out.write("  %d Twana forms written to\n  %s\n" % (kept, os.path.basename(pure)))
+    out.write("  %d Twana forms written to\n  %s\n" % (retained, os.path.basename(pure)))
     out.write(
         "  %d lines the tool could not sort written to\n  %s\n"
         % (stuck_count, os.path.basename(stuck))
     )
 
     languages = {}
-    for spot, who, kind, text in rows:
-        if kind == "cited form":
+    for spot, who, type, text in rows:
+        if type == "cited form":
             languages[who] = languages.get(who, 0) + 1
     out.write(
         "\n  by language: %s\n"

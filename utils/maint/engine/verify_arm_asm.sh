@@ -19,7 +19,7 @@
 # portable arm, and a logic error inside the vector loop would pass this check untouched.
 #
 # A row here reads "emits" and never "agrees". Only a run against portable earns "agrees", and
-# the two words are kept apart.
+# the two words are retained apart.
 
 set -u
 

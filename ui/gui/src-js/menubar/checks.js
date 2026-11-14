@@ -6,7 +6,7 @@ import { focusOn, say } from "../statusbar.js";
 import { canStepBack, debugging, isPaused } from "../debug.js";
 import { authorsShown } from "../authors.js";
 import { bindReaderKeys, crumbsShown, editing, saving, marginLine } from "../edit.js";
-import { forgetMacro, keepMacro, keptMacros, lastMacro, playMacro, recording, toggleRecording } from "../macros.js";
+import { forgetMacro, retainMacro, retainedMacros, lastMacro, playMacro, recording, toggleRecording } from "../macros.js";
 import { testsParallel } from "../tests.js";
 import { offNetwork } from "../network.js";
 import { chosenJob, chosenLive } from "../run.js";
@@ -91,7 +91,7 @@ export const NEEDS = {
 };
 
 // Edit, Macros: recording starts in the editor and stops on a second press, and the last macro
-// recorded plays back, or is kept under a name. Each kept macro is listed under them, to play once or
+// recorded plays back, or is retained under a name. Each retained macro is listed under them, to play once or
 // many times, to bind keys to, or to forget.
 export function recordMacro() {
   const { editor } = editing();
@@ -103,9 +103,9 @@ export function recordMacro() {
 }
 
 export async function playBack(times, name) {
-  const steps = name ? keptMacros().find((one) => one.name === name)?.steps : lastMacro();
+  const steps = name ? retainedMacros().find((one) => one.name === name)?.steps : lastMacro();
   if (!steps) {
-    say(name ? `No macro is kept as ${name}.` : "No macro is recorded yet.", { failed: true });
+    say(name ? `No macro is retained as ${name}.` : "No macro is recorded yet.", { failed: true });
     return;
   }
   showView("edit");
@@ -113,17 +113,17 @@ export async function playBack(times, name) {
   await playMacro(editing().editor, steps, times);
 }
 
-export async function keepLast(given) {
-  const name = given || (await askFor("Keep the last macro as", ""));
+export async function retainLast(given) {
+  const name = given || (await askFor("Retain the last macro as", ""));
   if (name) {
-    keepMacro(name);
-    say(`Kept the last macro as ${name}.`);
+    retainMacro(name);
+    say(`Retained the last macro as ${name}.`);
   }
 }
 
-// The kept macros as items of Edit, Macros, under a line.
+// The retained macros as items of Edit, Macros, under a line.
 function macroItems() {
-  const items = keptMacros().map((one) => ({
+  const items = retainedMacros().map((one) => ({
     label: one.name,
     items: [
       { label: "Play", keys: one.keys || undefined, command: "macro-play", args: ["1", one.name], run: () => playBack(1, one.name) },
@@ -145,9 +145,9 @@ function macroItems() {
   return items.length ? ["-", ...items] : [];
 }
 
-// Binds each kept macro's keys in the editor, to play it where they are pressed.
+// Binds each retained macro's keys in the editor, to play it where they are pressed.
 export function bindMacros() {
-  bindReaderKeys(keptMacros().filter((one) => one.keys).map((one) => ({ keys: one.keys, run: (editor) => playMacro(editor, one.steps) })));
+  bindReaderKeys(retainedMacros().filter((one) => one.keys).map((one) => ({ keys: one.keys, run: (editor) => playMacro(editor, one.steps) })));
 }
 
 // The items commands.json names to be filled in as their menu opens.

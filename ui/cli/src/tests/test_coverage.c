@@ -18,7 +18,7 @@ typedef struct
     unsigned long long numbers;
     unsigned long long bytes;
 } CliCoverCounts;
-// A reading of one coverage file: its text, its size and where it stands
+// A reading of one coverage file: its text, its size and where it is
 typedef struct
 {
     const char *text;
@@ -136,9 +136,9 @@ EMBED_INLINE void cover_count(const TestCoverageCtx *args)
     int in_digits = 0;
     for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
-        const char letter = args->text[at];
-        const int digit = (letter >= '0') && (letter <= '9');
-        args->counts->quotes += (letter == '"') ? 1ULL : 0ULL;
+        const char character = args->text[at];
+        const int digit = (character >= '0') && (character <= '9');
+        args->counts->quotes += (character == '"') ? 1ULL : 0ULL;
         args->counts->numbers += (digit && !in_digits) ? 1ULL : 0ULL;
         in_digits = digit;
     }
@@ -189,7 +189,7 @@ EMBED_INLINE void cover_white(const TestCoverageCtx *args)
     }
 }
 
-// a JSON string at the reading, read into `out` as its letters: 1, or 0 where it is none
+// a JSON string at the reading, read into `out` as its characters: 1, or 0 where it is none
 static int cover_string(const TestCoverageCtx *args)
 {
     cover_white(args);
@@ -217,10 +217,10 @@ static int cover_string(const TestCoverageCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = quoted, .src = args->read->text + start, .bytes = length});
     CliJsonNode node[1];
     CfgJsonToken token[1];
-    char letters[CLI_PATH_MAX_LEN + 2u];
+    char characters[CLI_PATH_MAX_LEN + 2u];
     CliJson json;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
-               .node_json_node_pointer = node, .nodes_max = 1u, .text_out = letters, .text_max = sizeof(letters));
+               .node_json_node_pointer = node, .nodes_max = 1u, .text_out = characters, .text_max = sizeof(characters));
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ULL};
     const unsigned int root =
@@ -237,7 +237,7 @@ static int cover_string(const TestCoverageCtx *args)
     return 1;
 }
 
-// the place of a file's name among those covered, put where it is new: the most files where none is left
+// the place of a file's name among those covered, put where it is new: the max files where none is left
 EMBED_INLINE unsigned int cover_file(const TestCoverageCtx *args)
 {
     for (unsigned int at = 0u; at < s_cover->files; at += 1u)
@@ -556,7 +556,7 @@ void cli_test_coverage_emit(const CliTestRunsRunTextCtx *args)
         EMBED_CALL(cli_test_runs_text_worker_internal.test_file_let_go, CliTestRunsTextWorkerCtx, .text = text,
                    .size = size);
     }
-    // a name's byte is escaped to at most 6, a line's number takes at most 11 and its comma, and a file's words are few
+    // a name's byte is escaped to at max 6, a line's number takes at max 11 and its comma, and a file's words are few
     const unsigned long long out_capacity = (s_cover->used * 6ULL) + ((unsigned long long)s_cover->files * 64ULL) +
                                             ((unsigned long long)s_cover->line_count * 12ULL) + 64ULL;
     char *const out_cell =
@@ -572,7 +572,7 @@ void cli_test_coverage_emit(const CliTestRunsRunTextCtx *args)
         }
         EMBED_CALL(cli_sort, CliSortCfg, .base = s_cover->order, .count = s_cover->files,
                    .size = sizeof(s_cover->order[0]), .order = cover_file_order);
-        mmgr_line_put(&out, "{\"kind\":\"coverage\",\"run\":");
+        mmgr_line_put(&out, "{\"type\":\"coverage\",\"run\":");
         mmgr_line_decimal(&out, args->run->number, 1u);
         mmgr_line_put(&out, ",\"files\":[");
         for (unsigned int at = 0u; at < s_cover->files; at += 1u)

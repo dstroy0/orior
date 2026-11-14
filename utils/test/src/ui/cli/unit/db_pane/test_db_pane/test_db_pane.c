@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_db_pane.c: the Database pane over a tree of the suite's own with a SQLite connection: the connections read with
-// none chosen stand as one sentence; the one chosen is not connected until Connect opens it and its schema's top
+// none chosen are as one sentence; the one chosen is not connected until Connect opens it and its schema's top
 // level is the rows; a node pressed reads its level once and a second press closes it; Commit and Roll Back act only
 // while a transaction is open; a DELETE of every row asks first with its count and runs only on Run It; a refused
-// connection stands as its failure; a node's menu and the pane's own are the catalog's commands; the form adds a
-// connection to databases.json and removes it; and Show Its First Rows hands its rows to the grid. The cases need the
+// connection is as its failure; a node's menu and the pane's own are the catalog's commands; the form adds a
+// connection to databases.json and removes it; and Show Its First Rows passes its rows to the grid. The cases need the
 // tree's Python, which runs SQLite, and are ignored on a machine with none
 #include "ui/cli/src/databases/db_grid.h"
 #include "ui/cli/src/databases/db_internal.h"
@@ -14,7 +14,7 @@
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 static char s_root[CLI_PATH_MAX_LEN];
-static int s_tree_laid;
+static int s_tree_positioned;
 
 // the connection `name` of SQLite at `file`, the rest empty, saved in the suite's tree
 static void lite_saved(const char *name, const char *file)
@@ -30,7 +30,7 @@ static void lite_saved(const char *name, const char *file)
                                 .was = NULL, .err_msg = &err_msg));
 }
 
-// the tree laid once for the process, the case ignored with no Python
+// the tree positioned once for the process, the case ignored with no Python
 static void tree_ready(void)
 {
     char python[CLI_PATH_MAX_LEN];
@@ -38,9 +38,9 @@ static void tree_ready(void)
     {
         TEST_IGNORE_MESSAGE("no Python on this machine: SQLite is not opened");
     }
-    if (!s_tree_laid)
+    if (!s_tree_positioned)
     {
-        s_tree_laid = 1;
+        s_tree_positioned = 1;
         cli_unity_folder("db_pane_tree", s_root);
         lite_saved("lite", "app.db");
         lite_saved("broken", "no/such/folder/app.db");
@@ -71,7 +71,7 @@ static void ran(const char *statement)
     TEST_ASSERT_TRUE(run_ended());
 }
 
-// the row `at` read into the one row kept here, whose texts stand in its own bytes: the row
+// the row `at` read into the one row retained here, whose texts are in its own bytes: the row
 static CliDbPaneRow s_row;
 static const CliDbPaneRow *row_at(unsigned int at)
 {
@@ -130,7 +130,7 @@ void tearDown(void)
 {
 }
 
-void test_the_connections_read_with_none_chosen_stand_as_one_sentence(void)
+void test_the_connections_read_with_none_chosen_are_as_one_sentence(void)
 {
     tree_ready();
     TEST_ASSERT_EQUAL_UINT(1u, EMBED_CALL(cli_db_pane.rows, CliDbPaneCfg, .at = 0u));
@@ -182,7 +182,7 @@ void test_a_node_pressed_reads_its_level_once_and_a_second_press_closes_it(void)
     CLI_TEST_ASSERT_CONTAINS("TEXT", column->detail);
     TEST_ASSERT_FALSE(column->opens);
     const unsigned int open_rows = EMBED_CALL(cli_db_pane.rows, CliDbPaneCfg, .at = 0u);
-    // the level stands stored: opened again it is read from the store, no cell taken for it, the owner's bytes in use
+    // the level is stored: opened again it is read from the store, no cell taken for it, the owner's bytes in use
     // back where the first open left them
     const unsigned long long open_use = mmgr_owner_in_use(g_cli_db_pane_owner);
     (void)EMBED_CALL(cli_db_pane_tree.press, CliDbPaneTreeCfg, .at = table_row, .root = s_root);
@@ -234,7 +234,7 @@ void test_a_delete_of_every_row_asks_first_and_runs_only_on_run_it(void)
     ran("INSERT INTO t (n, name) VALUES (1, 'one'), (2, 'two'), (3, NULL)");
 }
 
-void test_a_refused_connection_stands_as_its_failure(void)
+void test_a_refused_connection_is_as_its_failure(void)
 {
     tree_ready();
     chosen("broken");
@@ -273,7 +273,7 @@ void test_a_nodes_menu_and_the_panes_own_are_the_catalogs_commands(void)
     TEST_ASSERT_TRUE(cli_menus_named("db-first-rows", &item));
 }
 
-void test_show_its_first_rows_hands_the_tables_rows_to_the_grid(void)
+void test_show_its_first_rows_passes_the_tables_rows_to_the_grid(void)
 {
     tree_ready();
     TEST_ASSERT_TRUE(EMBED_CALL(cli_db_pane_tree.menu, CliDbPaneTreeCfg, .at = row_of("t")));

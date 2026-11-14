@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// jupyter_readers.c: a kernel's readers, each on a thread of its own: its sockets' messages, each a reply handed to
+// jupyter_readers.c: a kernel's readers, each on a thread of its own: its sockets' messages, each a reply passed to
 // the request waiting on it or received by whoever started the kernel, and the lines its process writes of itself
 #include "../command_line/callback_cfg.h"
 #include "jupyter_internal.h"
@@ -22,7 +22,7 @@ EMBED_INLINE void jupyter_reader_end(const JupyterReadersCtx *args)
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &args->kernel->wake);
 }
 
-// a message received: a reply on the shell ending the request in flight there, a reply handed to the request waiting on
+// a message received: a reply on the shell ending the request in flight there, a reply passed to the request waiting on
 // it where one waits, and any other to whoever started the kernel
 EMBED_INLINE void jupyter_recv(const JupyterReadersCtx *args)
 {
@@ -64,7 +64,7 @@ static void jupyter_socket_read(void *context)
     {
         const unsigned int count = EMBED_CALL(cli_zmtp_socket.receive, CliZmtpSocketCfg, .socket = reader->socket,
                                               .capacity = reader->capacity, .capacity_bytes = half,
-                                              .frames_out = frames, .most = CLI_KERNEL_FRAMES);
+                                              .frames_out = frames, .max = CLI_KERNEL_FRAMES);
         if (count == 0u)
         {
             break;

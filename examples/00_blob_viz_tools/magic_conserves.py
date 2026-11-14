@@ -23,7 +23,7 @@ and not in the abstract:
     F(psi) = max over the six stabilizer states of |<s|psi>|^2
 
 The six are the Pauli eigenstates, the octahedron vertices recorded in bloch_reach.py. The
-single-qubit Clifford group has 24 elements and PERMUTES those six. The maximum over them is
+single-qubit Clifford group has 24 elements and PERMUTES those six. The max over them is
 taken over the same set before and after. F is therefore EXACTLY invariant under Clifford, not
 approximately, and that is the null this file is built on.
 
@@ -66,7 +66,7 @@ HALF_ROOT = 1.0 / ROOT_TWO
 def stabilizer_fidelity(alpha, beta):
     """F(psi), the largest squared overlap with any of the six stabilizer states.
 
-    Computed as a maximum over the six amplitude pairs and not from the Bloch vector. The
+    Computed as a max over the six amplitude pairs and not from the Bloch vector. The
     quantity graded is the overlap itself and not a geometric restatement of it.
     """
     best = 0.0
@@ -213,7 +213,7 @@ def _check():
     floor = 1e-14
 
     # THE EXACT NULL. Every free gate must leave the magic unchanged, from every starting state.
-    # Clifford permutes the six stabilizer states. The maximum over them is over the same set.
+    # Clifford permutes the six stabilizer states. The max over them is over the same set.
     worst = 0.0
     generator = numpy.random.default_rng(5)
     starts = [magic_state(), (1 + 0j, 0 + 0j), (HALF_ROOT + 0j, HALF_ROOT + 0j)]

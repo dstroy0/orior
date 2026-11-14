@@ -82,7 +82,7 @@ void cli_print_compress(const CliPrintLayoutCfg *args)
         {
             repeat += 1ULL;
         }
-        // a count of at most 256 written less one as a byte
+        // a count of at max 256 written less one as a byte
         mmgr_line_ch(args->out, (char)(unsigned char)(repeat - 1ULL));
         EMBED_CALL(cli_row_compress, RasterWriteCtx, .row = row, .pixel = pixel, .width = args->page->width,
                    .out = args->out);

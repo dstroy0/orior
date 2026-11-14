@@ -11,7 +11,7 @@
 extern void setUp(void);
 extern void tearDown(void);
 extern void test_an_answer_adopted_stores_its_columns_its_first_page_and_its_end(void);
-extern void test_each_width_is_the_longest_of_its_label_and_first_rows_cut_to_the_most(void);
+extern void test_each_width_is_the_longest_of_its_label_and_first_rows_cut_to_the_max(void);
 extern void test_the_step_reads_what_the_view_heads_into_and_lets_go_the_rows_behind(void);
 extern void test_the_reach_stores_two_numbers_and_takes_no_cell(void);
 extern void test_a_null_cell_has_its_flag_and_a_numbers_column_its_own(void);
@@ -80,7 +80,7 @@ int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\db_grid\\test_db_grid\\test_db_grid.c");
   run_test(test_an_answer_adopted_stores_its_columns_its_first_page_and_its_end, "test_an_answer_adopted_stores_its_columns_its_first_page_and_its_end", 95);
-  run_test(test_each_width_is_the_longest_of_its_label_and_first_rows_cut_to_the_most, "test_each_width_is_the_longest_of_its_label_and_first_rows_cut_to_the_most", 114);
+  run_test(test_each_width_is_the_longest_of_its_label_and_first_rows_cut_to_the_max, "test_each_width_is_the_longest_of_its_label_and_first_rows_cut_to_the_max", 114);
   run_test(test_the_step_reads_what_the_view_heads_into_and_lets_go_the_rows_behind, "test_the_step_reads_what_the_view_heads_into_and_lets_go_the_rows_behind", 129);
   run_test(test_the_reach_stores_two_numbers_and_takes_no_cell, "test_the_reach_stores_two_numbers_and_takes_no_cell", 153);
   run_test(test_a_null_cell_has_its_flag_and_a_numbers_column_its_own, "test_a_null_cell_has_its_flag_and_a_numbers_column_its_own", 162);

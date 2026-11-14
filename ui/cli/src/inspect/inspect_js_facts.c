@@ -6,7 +6,7 @@
 #include "../text/text.h"
 #include "inspect_js.h"
 
-// the most names one function declares that are recorded
+// the max names one function declares that are recorded
 #define CLI_JS_DECLARED 16384u
 
 static unsigned int s_declared[CLI_JS_DECLARED];
@@ -45,7 +45,7 @@ EMBED_INLINE unsigned int facts_end(const InspectJsFactsCtx *args)
     return ((close != CLI_JS_NO) && (close > at) && opens) ? (close + 1u) : (at + 1u);
 }
 
-// the span of the lines from the line of token `from` to the line of token `to` whole, where nothing else stands on
+// the span of the lines from the line of token `from` to the line of token `to` whole, where nothing else is on
 // them: 1, or 0 where something does
 EMBED_INLINE int facts_full_line_span(const InspectJsFactsCtx *args)
 {
@@ -235,7 +235,7 @@ EMBED_INLINE void facts_unread(const InspectJsFactsCtx *args)
     }
 }
 
-// code after a return, a throw, a break or a continue that stands directly in the block opening at `open`, up to the
+// code after a return, a throw, a break or a continue that is directly in the block opening at `open`, up to the
 // block's end or its switch's next label; a function declared there is left out, as it is made before the block runs
 static void facts_unreachable(const InspectJsFactsCtx *args)
 {

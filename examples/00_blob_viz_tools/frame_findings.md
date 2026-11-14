@@ -3,7 +3,7 @@
 Raw record. Every finding from one session on the boundary reading and the viewer that draws it,
 written for transcription into the documents and the research paper instead of as a document itself.
 
-Ordered by kind and not by importance. Each entry carries what was measured, what it means, and
+Ordered by type and not by importance. Each entry carries what was measured, what it means, and
 where the number came from, leaving every claim checkable against the thing that produced it.
 
 Sections:
@@ -55,12 +55,12 @@ noticing the version above it did not.
 `layoutRail()` sorts labels by their target's screen position, and that position was written during
 placement, which runs *after* the sort.
 
-**Why one frame matters:** the rail's entire claim to being crossing-free is that it lays labels out
+**Why one frame matters:** the rail's entire claim to being crossing-free is that it positions labels out
 in the same left-to-right order as their targets. A stale order is a different order. On a
 turning view the rail therefore produced exactly the crossings it exists to prevent, and it did so
 while its own comment explained why it could not.
 
-**Fixed** by projecting every target before the sort: project, lay out, place, untangle, draw.
+**Fixed** by projecting every target before the sort: project, arrange, place, untangle, draw.
 
 ### 1.4 A panel narrower than its own row contract
 
@@ -85,7 +85,7 @@ picture showed no arms.
 Worth recording as its own entry because the diagnostic path was long and every instrument along it
 reported success. The fault was not in any of the things being checked.
 
-**Fixed** with normal blending, and the depth test turned off because an arm is a frame standing
+**Fixed** with normal blending, and the depth test turned off because an arm is a frame located
 around a body.
 
 ### 1.6 Allocation on the per-frame path, five sites
@@ -140,7 +140,7 @@ page would open a couple of percent away from its own reading with nothing sayin
 
 Recorded because each one costs a reader the same time to clear, and clearing it twice is waste.
 
-**`markMesh.count = mark`** is bounded. `layMark` returns early at `mark >= MARK_MAX`. The count
+**`markMesh.count = mark`** is bounded. `positionMark` returns early at `mark >= MARK_MAX`. The count
 can never exceed the buffer. This is the site that *did* fail once, at a buffer of sixty against a
 bundle wanting more. It reads as suspicious and is now correct.
 
@@ -207,7 +207,7 @@ It gates `docs`, `theory`, `README.md` and the prose. It does not gate `tools` o
 **A reading to degree L carries exactly (L+1)^2 real numbers about its source, whatever the source
 is.** The lit set has 256 degrees of freedom.
 
-| degree | coefficients | rank | blind | least kept |
+| degree | coefficients | rank | blind | least retained |
 |---|---|---|---|---|
 | 4 | 25 | 25 | 231 | 4.495 |
 | 8 | 81 | 81 | 175 | 4.365 |
@@ -215,7 +215,7 @@ is.** The lit set has 256 degrees of freedom.
 | 15 | 256 | 256 | 0 | 3.474e-3 |
 | 16 | 289 | 256 | 0 | 1.524e-1 |
 
-Measured at full depth and no conduction, the most favorable case: both kernels sit below one and
+Measured at full depth and no conduction, the max favorable case: both kernels sit below one and
 both are diagonal. Either can only shrink a singular value. The map reaches the rank its
 coefficient count allows at every degree below the source count, leaving the shortfall in coefficients as the
 entire cause of the blindness.
@@ -230,7 +230,7 @@ Three consequences, each a number:
   3.5e-3 at fifteen and recovers to 1.5e-1 at sixteen. One degree of headroom is worth 44x in
   conditioning.
 
-**The eight-letter alphabet is rank 8**, seven free numbers at fixed weight, blind in 248 of 256
+**The eight-character alphabet is rank 8**, seven free numbers at fixed weight, blind in 248 of 256
 directions.
 
 ### 4.2 The basis, and what does not limit it
@@ -309,7 +309,7 @@ was wrong and the reading degree is a choice instead of a precision limit.**
 rank says seven free numbers, and seven reals separate sixty-four arbitrary states whether
 the seven carry meaning. **The separation was free and I reported it as a result.**
 
-**On the octant delta.** Three assertions withdrawn before the fourth stood, each asserting a
+**On the octant delta.** Three assertions withdrawn before the fourth was, each asserting a
 *level* -- a ramp, a stationary value, a floor -- for a quantity that has a *trend*.
 
 **On saturation.** Overturned by the object instead of the statistic: every version of that measurement
@@ -320,7 +320,7 @@ read the finalized digest.
 ## 6. Open, not fixed
 
 **The room clipping at distance, with a named suspect and the toggle that settles it.** Straight
-edges cut the room's sphere when the observer stands well outside it. Ruled out by measurement, and
+edges cut the room's sphere when the observer is well outside it. Ruled out by measurement, and
 each of these stays ruled out: frustum culling, since the room is in the frustum at every distance
 from 7.1 to 312; the camera's far plane, at 432 against 1200; back-face culling, since `wallStuff`
 is already `DoubleSide`; and the light's falloff distance at 192.
@@ -379,7 +379,7 @@ and the harness exists for that reason.
 directions as though they were visible. The rank work says exactly which directions those are.
 The measurement is now well posed: decompose each state-to-state difference into the part lying in
 the reading's row space and the part lying in its null space, and report the visible fraction. For
-the eight-letter alphabet the row space is the span of the eight octant indicators. The visible
+the eight-character alphabet the row space is the span of the eight octant indicators. The visible
 part of a difference is its per-octant means, and no other component of it. A difference drawn at random would
 put about 8 of 256 of its energy there.
 

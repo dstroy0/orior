@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Clarissa Forbes	title	The Structure of Transitivity in Gitksan	page 1, carries footnote *
 front	Clarissa Forbes	name	Clarissa Forbes	author
 front	Clarissa Forbes	note	University of Arizona	page 1, under Clarissa Forbes
@@ -80,7 +80,7 @@ Table 1	Clarissa Forbes	note	‘make (s.o.) do’	page 2, Table 1, the English o
 §2	Clarissa Forbes	name	Peterson	Tyler Peterson (2006, 2007, 2012, 2019)
 §2	Clarissa Forbes	name	Belvin	Robert S. Belvin, the causation hierarchy in Nisgha (1997)
 §2.1	Clarissa Forbes	heading	2.1 Transitive inflection	page 2
-§2.1	Clarissa Forbes	note	Gitksan is a morphologically ergative language: transitive clauses can be identified by the fact that transitive subjects receive special agreement. However, this special agreement differs between the two possible clause types in the language. Dependent clauses1 are introduced by subordinators of all kinds, including the clausal coordi- nator ii, complementizers and subordinating verbs, aspectual markers, negation, irrealis, and moods such as the imperative. In dependent clauses, exemplified in (1), transitive subjects receive pre- verbal ‘Series I’ agreement (1b), while absolutive arguments typically receive suffixal ‘Series II’ agreement.2	page 2
+§2.1	Clarissa Forbes	note	Gitksan is a morphologically ergative language: transitive clauses can be identified by the fact that transitive subjects receive special agreement. However, this special agreement differs between the two possible clause types in the language. Dependent clauses1 are introduced by subordinators of all types, including the clausal coordi- nator ii, complementizers and subordinating verbs, aspectual markers, negation, irrealis, and moods such as the imperative. In dependent clauses, exemplified in (1), transitive subjects receive pre- verbal ‘Series I’ agreement (1b), while absolutive arguments typically receive suffixal ‘Series II’ agreement.2	page 2
 footnote 1	Clarissa Forbes	note	This terminology (independent/dependent) originates from Rigsby (1986). I adopt it here for its theory- neutral character.	page 2, footnote 1
 footnote 2	Clarissa Forbes	note	Abbreviations used in examples are as follows: 1 = first person, 2 = second person, 3 = third person, acc = accusative, antip = antipassive, assoc = associative, attr = attributive, ax = agent extraction, caus = causative, cn = common noun determiner, com = comitative, comp = complementizer, compl = completive, dem = demonstrative, distr = distributive, dn = determinate noun determiner, epis = epistemic, erg = ergative, foc = focus, i = series I agreement, ii = series II agreement, iii = series III pronoun, ins = instrumental, ipfv = imperfective, loc = locative, manr = manner, nact = non-active voice, neg = negative, nmlz = nominaliz- er, obl = oblique, pfv = perfective, pl = plural, prep = preposition, prosp = prospective, prox = proximal, q = question particle, qudd = question under discussion downdate, sg = singular, spt = spatiotemporal, tr = tran- sitive, ver = verum focus.	page 3, footnote 2
 §2.1	Gitksan	cited form	ii	page 3, in italics
@@ -103,14 +103,14 @@ footnote 2	Clarissa Forbes	note	Abbreviations used in examples are as follows: 1
 (2b) line 3	Gitksan	gloss	chase-tr-3.ii 1sg.iii	page 3
 (2b) line 4	Clarissa Forbes	translation	‘She chased me.’	page 3
 (2b) line 5	Clarissa Forbes	citation	(VG)	page 3, the tag or source at the right of the translation
-§2.1	Clarissa Forbes	note	All sources note that the transitive vowel (/-ə-/, realized as [-i-] or [-yi-]) is restricted to indepen- dent clauses. It was originally interpreted by Rigsby (1986) as an allomorph of the -T- morpheme, a transitivizer that I will discuss in the next subsection. The two were differentiated in Tarpent’s (1987) description of Nisg̲a’a, where she referred to the transitive vowel as ‘grammatical control’.3 Hunt (1993:230) builds on this and proposes that the transitive vowel was not a transitivizer, but rather an inflectional marker of transitivity.4 It does not actually transitivize a verb; if that were the case, it would be expected to appear on the verb root regardless of clause type. Both authors argue that its apparent complementarity with some other true transitivizing suffixes is phonolog- ically conditioned; most notably, the vowel is deleted after the sonorant-final -in causative (Hunt 1993:230).	page 3
+§2.1	Clarissa Forbes	note	All sources note that the transitive vowel (/-ə-/, realized as [-i-] or [-yi-]) is restricted to indepen- dent clauses. It was originally interpreted by Rigsby (1986) as an allomorph of the -T- morpheme, a transitivizer that I will discuss in the next subsection. The two were differentiated in Tarpent’s (1987) description of Nisg̲a’a, where she referred to the transitive vowel as ‘grammatical control’.3 Hunt (1993:230) builds on this and proposes that the transitive vowel was not a transitivizer, but rather an inflectional marker of transitivity.4 It does not actually transitivize a verb; if that were the case, it would be expected to appear on the verb root regardless of clause type. Both authors argue that its apparent complementarity with some other true transitivizing suffixes is phonolog- ically conditioned; in particular, the vowel is deleted after the sonorant-final -in causative (Hunt 1993:230).	page 3
 footnote 3	Clarissa Forbes	note	Later work in Tarpent (1991) proposes that this vowel is an object-relativizer, and that independent clauses are derived via relativization. Hunt (1993) presents a strong argument against this analysis.	page 3, footnote 3
 footnote 4	Clarissa Forbes	note	Specifically, Hunt (1993) proposes that the transitive vowel realizes the [+transitive] head of an inflectional Transitive Phrase (TrP). This is essentially the analysis I adopt in §4, though rather than ‘TransitiveP’ I use VoiceP (Hale and Keyser 1993a). See also footnote 12.	page 4, footnote 4
 §2.1	Clarissa Forbes	note	In sum, grammatically transitive clauses can always be differentiated from grammatically in- transitive ones in principle, even where there are not two obvious DPs. If a clause is dependent, it can be identified as transitive if there is ergative preverbal agreement with the subject. If a clause is independent, then suffixal agreement will be with the subject, rather than the object; furthermore, there is often an additional vowel (the transitive vowel) preceding the agreement suffix.	page 4
 §2.2	Clarissa Forbes	heading	2.2 Transitivizers	page 4
 §2.2	Clarissa Forbes	note	In contrast to the transitive vowel, the following transitivizing morphemes appear on verb stems regardless of the clause type of the overall construction. I begin with multi-purpose morphemes that are commonly used in both intransitive and transitive contexts, then move to morphemes that are more strictly transitive.	page 4
 §2.2.1	Clarissa Forbes	heading	2.2.1 si-	page 4
-§2.2.1	Clarissa Forbes	note	The morphemes si- and -xw are both most frequently used in constructions that produce intransitive predicates, but can also be used to form transitive predicates. The better attested of these is si-, a highly productive morpheme which commonly operates on nouns to produce a ‘create, procure, or process N’ meaning (Rigsby 1986:350–351).	page 4
+§2.2.1	Clarissa Forbes	note	The morphemes si- and -xw are both max frequently used in constructions that produce intransitive predicates, but can also be used to form transitive predicates. The better attested of these is si-, a highly productive morpheme which commonly operates on nouns to produce a ‘create, procure, or process N’ meaning (Rigsby 1986:350–351).	page 4
 §2.2.1	Gitksan	cited form	-xw	page 4, in italics
 (3) line 1	Gitksan	transcription	Hlishl si’anaaxi’y hiihluxw tun.	page 4
 (3) line 2	Gitksan	segmentation	hlis=hl si-anaax-’y hiihluxw t=xwin	page 4
@@ -269,7 +269,7 @@ footnote 8 (ib) line 2	Gitksan	segmentation	mahl-i-t=s Mark dim wil saa daa’wh
 footnote 8 (ib) line 3	Gitksan	gloss	tell-T-tr-3.ii=dn Mark prosp comp away leave-3.ii	page 8
 footnote 8 (ib) line 4	Clarissa Forbes	translation	‘Mark said he would leave...’	page 8
 footnote 8 (ib) line 5	Clarissa Forbes	citation	(Peterson 2019:5)	page 8, the tag or source at the right of the translation
-footnote 8	Clarissa Forbes	note	However, I have been unable to replicate this alternation with the speakers I work with; as illustrated in (9a), the morpheme -T is used regardless of the presence of an oblique. It is possible this indicates a divergence or development in the meaning or usage of -T; in §5.2 I suggest that -T contributes some kind of complexity in the structure of events with respect to a figure/ground relation, even if it does not directly act as an applicative by introducing an argument or oblique.	page 8, footnote 8
+footnote 8	Clarissa Forbes	note	However, I have been unable to replicate this alternation with the speakers I work with; as illustrated in (9a), the morpheme -T is used regardless of the presence of an oblique. It is possible this indicates a divergence or development in the meaning or usage of -T; in §5.2 I suggest that -T contributes some type of complexity in the structure of events with respect to a figure/ground relation, even if it does not directly act as an applicative by introducing an argument or oblique.	page 8, footnote 8
 §2.2.4	Clarissa Forbes	heading	2.2.4 -in	page 9
 §2.2.4	Clarissa Forbes	note	The morpheme -in is strictly a causative; Belvin (1997) reports that it contributes event causation. This morpheme is used both with roots that appear bare as intransitives (12), and with roots that take the -xw morpheme in order to surface as intransitives (12).	page 9
 (12a) line 1	Gitksan	transcription	Buxwhl maaxws lax̲ sg̲a’nist.	page 9
@@ -291,7 +291,7 @@ footnote 8	Clarissa Forbes	note	However, I have been unable to replicate this al
 (13b) line 1	Gitksan	transcription	G̲aniwilat luu midinhl ts’ak’t.	page 9
 (13b) line 2	Gitksan	segmentation	g̲ani-wila=t luu mit-in-t=hl ts’ak’-t	page 9
 (13b) line 3	Gitksan	gloss	continually-manr=3.i in fill-caus-3.ii=cn bowl-3.ii	page 9
-(13b) line 4	Clarissa Forbes	translation	‘And he kept refilling his bowl.’	page 9
+(13b) line 4	Clarissa Forbes	translation	‘And he retained refilling his bowl.’	page 9
 (13b) line 5	Clarissa Forbes	citation	(BS)	page 9, the tag or source at the right of the translation
 §2.2.4	Clarissa Forbes	note	Although Rigsby (1986:341) reports that this morpheme conveys causation “by one’s own hand or action”, it has a secondary use as a causative which derives experiencer predicates from adjectives (Belvin 1997; Tarpent 1987). These cases, illustrated in (14), do not involve direct action, but instead describe a mental state of the external argument.	page 9
 (14a) line 1	Gitksan	transcription	Asgihl sg̲abihlee’ediit.	page 9
@@ -306,7 +306,7 @@ footnote 8	Clarissa Forbes	note	However, I have been unable to replicate this al
 (14b) line 6	Clarissa Forbes	citation	(HH)	page 9, the tag or source at the right of the translation
 §2.2.4	Clarissa Forbes	note	It is unclear whether these two uses should be treated distinctly, or if an analysis of -in can derive both with the same semantics.	page 9
 §2.2.5	Clarissa Forbes	heading	2.2.5 di-	page 9
-§2.2.5	Clarissa Forbes	note	This prefix is a relatively productive transitivizer. It is most frequently used with verbs that convey directional events. Most verbs of motion are able to use it to form a comitative transitive construc- tion, as illustrated in (15), where the external argument accompanies an internal argument in the moving event.	page 9
+§2.2.5	Clarissa Forbes	note	This prefix is a relatively productive transitivizer. It is max frequently used with verbs that convey directional events. Max verbs of motion are able to use it to form a comitative transitive construc- tion, as illustrated in (15), where the external argument accompanies an internal argument in the moving event.	page 9
 (15a) line 1	Gitksan	transcription	Dim yeet g̲a’ahl Gitsegukla.	page 10
 (15a) line 2	Gitksan	segmentation	dim yee-t g̲a’a-t=hl Gitsegukla	page 10
 (15a) line 3	Gitksan	gloss	prosp go-3.ii loc-3.ii=cn Gitsegukla	page 10
@@ -371,15 +371,15 @@ footnote 9	Clarissa Forbes	note	Another speaker (HH) translates these constructi
 (21a) line 3	Gitksan	gloss	write-tr-3.ii=dn Bill=cn ins-on-read-nact caus-name-T-tr-3.ii=cn	page 11
 (21a) line 4	Clarissa Forbes	translation	‘Bill was writing a book called ...’	page 11
 (21a) line 5	Clarissa Forbes	citation	(VG)	page 11, the tag or source at the right of the translation
-(21b) line 1	Gitksan	transcription	Gun t’amdi’yhl letter aloos Barbara.	page 12
-(21b) line 2	Gitksan	segmentation	gun t’am-T-i-’y=hl letter a-loo-t=s Barbara	page 12
-(21b) line 3	Gitksan	gloss	caus write-T-tr-1sg.ii=cn letter prep-obl-3.ii=dn Barbara	page 12
-(21b) line 4	Clarissa Forbes	translation	‘I told Barbara to write a letter.’	page 12
-(21b) line 5	Clarissa Forbes	translation	‘I had Barbara write a letter.’	page 12
+(21b) line 1	Gitksan	transcription	Gun t’amdi’yhl character aloos Barbara.	page 12
+(21b) line 2	Gitksan	segmentation	gun t’am-T-i-’y=hl character a-loo-t=s Barbara	page 12
+(21b) line 3	Gitksan	gloss	caus write-T-tr-1sg.ii=cn character prep-obl-3.ii=dn Barbara	page 12
+(21b) line 4	Clarissa Forbes	translation	‘I told Barbara to write a character.’	page 12
+(21b) line 5	Clarissa Forbes	translation	‘I had Barbara write a character.’	page 12
 (21b) line 6	Clarissa Forbes	citation	(Rigsby 1986:349)	page 12, the tag or source at the right of the translation
 §2.2.7	Clarissa Forbes	note	This morpheme is quite productive, and may combine with any predicate where the existing subject acts with volition. It may combine with transitive and unergative predicates, but not unac- cusative predicates, which lack volitional subjects.	page 12
 §2.2.8	Clarissa Forbes	heading	2.2.8 Labile alternations	page 12
-§2.2.8	Clarissa Forbes	note	Finally, as in most languages of the world, Gitksan has a number of labile roots which can appear morphologically bare either as intransitives or transitives. No affixes are required for either inter- pretation, as demonstrated in (22).	page 12
+§2.2.8	Clarissa Forbes	note	Finally, as in max languages of the world, Gitksan has a number of labile roots which can appear morphologically bare either as intransitives or transitives. No affixes are required for either inter- pretation, as demonstrated in (22).	page 12
 (22a) line 1	Gitksan	transcription	Duxwt’akwhl anlip’insxwi’y.	page 12
 (22a) line 2	Gitksan	segmentation	CVC∼t’akw=hl an-lip-in-asxw-’y	page 12
 (22a) line 3	Gitksan	gloss	pl∼twist=cn nmlz-sew-caus-antip-1sg.ii	page 12
@@ -519,10 +519,10 @@ footnote 12	Clarissa Forbes	note	Hunt (1993) proposed a TransitiveP (TrP) to hos
 §4	Clarissa Forbes	name	Forbes	Clarissa Forbes, the author (2018)
 §4	Clarissa Forbes	note	To summarize, I have proposed that morphological transitivity in Gitksan is distributed across two projections: v, for verbalization and semantic causation; and Voice, for external argument merge and grammatical transitivity including ergative agreement. Below both of these projections is the lexical Root. Having attributed the transitive vowel morpheme from §2.1 to Voice, it follows that all other ‘transitivizers’ discussed in §2.2 should be located at the level of vP. The next section examines this result in greater detail.	page 17
 §5	Clarissa Forbes	heading	5 On the vP-level	page 18
-§5	Clarissa Forbes	note	If the previously described transitivizing morphemes (si-, -xw, -T, -in, di-, sil, gun) are inserted at the vP level, what are their underlying morphosyntactic representations? Are some of these morphemes semantically and syntactically distinct, in which case they should be modeled as distinct flavors of v, or are some of these morphemes semantically identical, standing in an allomorphic relation with one another? Below, I argue that all the transitivizing morphemes I discuss are distinct flavors of v associated with different semantics or argument structure; none are allomorphs of the same head conditioned by specific Roots. However, this does not mean their semantic contributions can be easily pinned down. In §5.1 I point out some areas where use of the transitivizers triggers distinct interpretive effects for the same root. In §5.2 I discuss constructions where multiple transitivizers are used at one time, sometimes to no obvious semantic effect.	page 18
+§5	Clarissa Forbes	note	If the previously described transitivizing morphemes (si-, -xw, -T, -in, di-, sil, gun) are inserted at the vP level, what are their underlying morphosyntactic representations? Are some of these morphemes semantically and syntactically distinct, in which case they should be modeled as distinct flavors of v, or are some of these morphemes semantically identical, located in an allomorphic relation with one another? Below, I argue that all the transitivizing morphemes I discuss are distinct flavors of v associated with different semantics or argument structure; none are allomorphs of the same head conditioned by specific Roots. However, this does not mean their semantic contributions can be easily pinned down. In §5.1 I point out some areas where use of the transitivizers triggers distinct interpretive effects for the same root. In §5.2 I discuss constructions where multiple transitivizers are used at one time, sometimes to no obvious semantic effect.	page 18
 §5.1	Clarissa Forbes	heading	5.1 Distinct semantic flavors and argument structure	page 18
 §5.1	Clarissa Forbes	note	The semantic contrast between the three causatives si-, -in, and gun has already been established (Belvin 1997; Peterson 2006): si- selects states while the other two select events, and only gun requires a volitional complement. In addition, si- seems to place some sort of restriction on possible causers; as illustrated in (34), books are unable to cause someone to sleep if the verb si-wok̲ ‘make sleep’ is used (34a), but this is perfectly acceptable with the verb wog̲-an ‘make sleep’ (34b). 13	page 18
-footnote 13	Clarissa Forbes	note	This restriction is not simply an animacy restriction; as shown in (i), cold air is a possible causer when something is made to freeze with si-daw.	page 18, footnote 13
+footnote 13	Clarissa Forbes	note	This restriction is not simply an animacy restriction; as displayed in (i), cold air is a possible causer when something is made to freeze with si-daw.	page 18, footnote 13
 footnote 13	Gitksan	cited form	si-daw	page 18, in italics
 footnote 13 (i) line 1	Gitksan	transcription	Sidawihl sag̲am bahasxwhl majag̲alee.	page 18
 footnote 13 (i) line 2	Gitksan	segmentation	si-daw-i-t=hl sak̲-m bax̲-asxw=hl majag̲alee	page 18

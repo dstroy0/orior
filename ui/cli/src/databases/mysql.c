@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // mysql.c: a MySQL connection's packets, read off the socket through a capacity of their own and sent in pieces of at
-// most 16 MiB; and the handshake and sign-in, by mysql_native_password, caching_sha2_password, or the password sealed
+// max 16 MiB; and the handshake and sign-in, by mysql_native_password, caching_sha2_password, or the password sealed
 // by the server's RSA key where caching_sha2_password requests it whole
 #include "../text/digest.h"
 #include "../text/json_tree.h"

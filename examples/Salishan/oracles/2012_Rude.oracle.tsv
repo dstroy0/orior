@@ -1,8 +1,8 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Noel Rude	title	Reconstructing Proto-Sahaptian Sounds	page 1
 front	Noel Rude	name	Noel Rude	author
 front	Noel Rude	note	Confederated Tribes of the Umatilla Indian Reservation	page 1, under Noel Rude
-front	Noel Rude	note	Sahaptin and the mutually unintelligible Nez Perce comprise the Sahaptian language family. This paper attempts to reconstruct the sound system of the parent language of that family. There is little dialect variation in the available data for Nez Perce, whereas Sahaptin divides into three definable dialect clusters: Columbia River (Umatilla, Tenino, Celilo, etc.); Northwest (Klickitat, Upper Cowlitz, Yakima, etc.); Northeast (Priest Rapids, Walla Walla, Palouse, etc.). Various features distinguish the dialects, e.g., long vowels derived from certain VCV sequences are more common in the Northern dialects and in Nez Perce, the Northeast dialects and Nez Perce are more likely to preserve the glottal stop, and the palatalization of *k is most extensive in the Columbia River dialects. The reconstructions proposed here are, as always, more or less tentative. Unless otherwise indicated the examples labeled Sahaptin (S) are from Umatilla.1	page 1, the abstract, set under the affiliation with no label
+front	Noel Rude	note	Sahaptin and the mutually unintelligible Nez Perce comprise the Sahaptian language family. This paper attempts to reconstruct the sound system of the parent language of that family. There is little dialect variation in the available data for Nez Perce, whereas Sahaptin divides into three definable dialect clusters: Columbia River (Umatilla, Tenino, Celilo, etc.); Northwest (Klickitat, Upper Cowlitz, Yakima, etc.); Northeast (Priest Rapids, Walla Walla, Palouse, etc.). Various features distinguish the dialects, e.g., long vowels derived from certain VCV sequences are more common in the Northern dialects and in Nez Perce, the Northeast dialects and Nez Perce are more likely to preserve the glottal stop, and the palatalization of *k is max extensive in the Columbia River dialects. The reconstructions proposed here are, as always, more or less tentative. Unless otherwise indicated the examples labeled Sahaptin (S) are from Umatilla.1	page 1, the abstract, set under the affiliation with no label
 front	Noel Rude	language	Tenino	Columbia River Sahaptin
 front	Noel Rude	language	Celilo	Columbia River Sahaptin
 front	Noel Rude	language	Klickitat	Northwest Sahaptin
@@ -152,7 +152,7 @@ Table 1	Proto-Sahaptian	cited form	α	page 2, low back
 (16)	Nez Perce	cited form	peepúʔ	page 3, example (16), ‘we shall eat’
 (16)	Nez Perce	phonemic	/pe-hp-úʔ/	page 3, example (16), ‘we shall eat’
 §1.2.3	Noel Rude	heading	1.2.3 Loss of medial consonant	page 3
-§1.2.3	Noel Rude	note	Proto-Sahaptian *ewe becomes /uu/ in NP and sporadically so in Sahaptin (least common in CR and most commonly in NE). In Nez Perce *awa becomes /oo/.	page 3
+§1.2.3	Noel Rude	note	Proto-Sahaptian *ewe becomes /uu/ in NP and sporadically so in Sahaptin (least common in CR and max commonly in NE). In Nez Perce *awa becomes /oo/.	page 3
 §1.2.3	Proto-Sahaptian	cited form	*ewe	page 3, set upright
 §1.2.3	Nez Perce	phonemic	/uu/	page 3, set upright
 §1.2.3	Proto-Sahaptian	cited form	*awa	page 3, set upright
@@ -289,7 +289,7 @@ Table 2	Sahaptin	cited form	k̓úul	page 5, uu-ablaut, the long vowel column, �
 Table 2	Sahaptin	cited form	mɨ́ł	page 5, uu-ablaut, the zero column, ‘how many/much?’
 Table 2	Sahaptin	cited form	múuł	page 5, uu-ablaut, the long vowel column, ‘a little, a few’
 §1.2.4	Noel Rude	heading	1.2.4 Ablaut	page 5
-§1.2.4	Noel Rude	note	A long vowel might be inserted between consonants (or in substitution for *i) as a derivational process. In Sahaptin the long vowel is /aa/, /ii/, or /uu/, as in Table 2. The process is fairly productive, the rarest being the uu-ablaut and probably the most frequent the aa-ablaut. The uu-ablaut seems to occur only next to a labiovelar or /m/. Often the zero form is a verb and the ablaut form has an adverbial or adjectival force. There are instances, however, where verbs are derived by ablaut (such as kúułn ‘be full, satiated’). The oblique forms of the independent pronouns variously fit these ablaut patterns—see Table 4 for examples with the distal demonstrative (the absolute singular is a suppletive k̓ʷá ‘that’). An earlier *úk has been reanalyzed as /ɨ́kʷ/ in order to derive the first example below (see §3.4). The second example provides an instance where /á/ has been reconceived as /í/.	page 5
+§1.2.4	Noel Rude	note	A long vowel might be inserted between consonants (or in substitution for *i) as a derivational process. In Sahaptin the long vowel is /aa/, /ii/, or /uu/, as in Table 2. The process is fairly productive, the rarest being the uu-ablaut and probably the commonest the aa-ablaut. The uu-ablaut seems to occur only next to a labiovelar or /m/. Often the zero form is a verb and the ablaut form has an adverbial or adjectival force. There are instances, however, where verbs are derived by ablaut (such as kúułn ‘be full, satiated’). The oblique forms of the independent pronouns variously fit these ablaut patterns—see Table 4 for examples with the distal demonstrative (the absolute singular is a suppletive k̓ʷá ‘that’). An earlier *úk has been reanalyzed as /ɨ́kʷ/ in order to derive the first example below (see §3.4). The second example provides an instance where /á/ has been reconceived as /í/.	page 5
 §1.2.4	Sahaptin	phonemic	/m/	page 5, set upright
 §1.2.4	Sahaptin	cited form	kúułn	page 5, set upright, ‘be full, satiated’
 §1.2.4	Sahaptin	cited form	k̓ʷá	page 5, set upright, ‘that’
@@ -353,8 +353,8 @@ Table 3	Noel Rude	note	ee-ablaut	page 6, the heading of the rows under it
 Table 3	Noel Rude	note	/ʔnp/ ‘get, take, hold’ (Aoki 1994:1045); cf. S nɨ́p (bound)	page 6, ee-ablaut, zero, the cell as printed
 Table 3	Nez Perce	phonemic	/ʔnp/	page 6, ee-ablaut, zero, ‘get, take, hold’
 Table 3	Sahaptin	cited form	nɨ́p	page 6, ee-ablaut, zero
-Table 3	Noel Rude	note	/ʔnéepten/ ‘hold, keep, dominate’ (Aoki 1994:1032)	page 6, ee-ablaut, long vowel, the cell as printed
-Table 3	Nez Perce	phonemic	/ʔnéepten/	page 6, ee-ablaut, long vowel, ‘hold, keep, dominate’
+Table 3	Noel Rude	note	/ʔnéepten/ ‘hold, retain, dominate’ (Aoki 1994:1032)	page 6, ee-ablaut, long vowel, the cell as printed
+Table 3	Nez Perce	phonemic	/ʔnéepten/	page 6, ee-ablaut, long vowel, ‘hold, retain, dominate’
 Table 3	Noel Rude	note	ii-ablaut	page 6, the heading of the rows under it
 Table 3	Noel Rude	note	/tlqn/ ‘stop’ (Aoki 1994:673) (Aoki 1994:673)	page 6, ii-ablaut, zero, the cell as printed
 Table 3	Nez Perce	phonemic	/tlqn/	page 6, ii-ablaut, zero, ‘stop’, underlined, a strong morpheme
@@ -511,7 +511,7 @@ Table 5	Nez Perce	cited form	a	page 8, the strong set, underlined
 (45)	Nez Perce	cited form	himc̓íyoʔ	page 8, example (45), ‘he will hear’
 (45)	Nez Perce	phonemic	/hi-mc̓i-uʔ/	page 8, example (45), ‘he will hear’, mc̓i underlined, a strong morpheme
 §1.3	Noel Rude	note	Vowel harmony is related to the sound symbolism common to both languages. The following two examples share the same sounds except for the palatalization in the one and the switch of /n/ to /l/ the other. The one where palatalization was blocked is an example of diminutive sound symbolism.2	page 8
-footnote 2	Noel Rude	note	The Sahaptian m ~ w contrast is not very productive. Most examples are cross dialectal, e.g., CR & NW ámtk̓ʷin ‘overtake’ versus NE áwtk̓ʷin and NP /hewtk̓ʷi/ (Aoki 1994:123); WS & Y tamaláw ‘gravel’ over against U & NE tamalám (NP /tamalam/) ‘rocky bar in river’; Nez Perce méeywi ~ méeymi ‘morning’ and wéetmet ~ méetmet ‘do not’; NP wíitel̓uu and NE mítalu ‘mourning dove, Zenaida macroura’; NP cemíitx ‘huckleberry, Vaccinium membranaceum’ and the NP diminutive cawíitx ‘Indian carrot, Perideridia gairdneri’. The NP cognate of S amúyn ‘wave’ is /héw̓yn/ (hehéw̓iine ‘it was a wave’ - Aoki 1994:124), cf. also NP ham̓óoyham̓oy ‘flexible’ (Aoki 1994:95). And then there is the Nez Perce exclusive núun ‘we’ which suggests *newen < *nemen (cf. CR & NE náma; NW namák). The Nez Perce gentilic -puu suggests earlier *-pewe < *-peme (cf. N -pam).	page 8, footnote 2
+footnote 2	Noel Rude	note	The Sahaptian m ~ w contrast is not very productive. Max examples are cross dialectal, e.g., CR & NW ámtk̓ʷin ‘overtake’ versus NE áwtk̓ʷin and NP /hewtk̓ʷi/ (Aoki 1994:123); WS & Y tamaláw ‘gravel’ over against U & NE tamalám (NP /tamalam/) ‘rocky bar in river’; Nez Perce méeywi ~ méeymi ‘morning’ and wéetmet ~ méetmet ‘do not’; NP wíitel̓uu and NE mítalu ‘mourning dove, Zenaida macroura’; NP cemíitx ‘huckleberry, Vaccinium membranaceum’ and the NP diminutive cawíitx ‘Indian carrot, Perideridia gairdneri’. The NP cognate of S amúyn ‘wave’ is /héw̓yn/ (hehéw̓iine ‘it was a wave’ - Aoki 1994:124), cf. also NP ham̓óoyham̓oy ‘flexible’ (Aoki 1994:95). And then there is the Nez Perce exclusive núun ‘we’ which suggests *newen < *nemen (cf. CR & NE náma; NW namák). The Nez Perce gentilic -puu suggests earlier *-pewe < *-peme (cf. N -pam).	page 8, footnote 2
 footnote 2	Sahaptian	cited form	m	page 8, set upright
 footnote 2	Sahaptian	cited form	w	page 8, set upright
 footnote 2	Columbia River Sahaptin	cited form	ámtk̓ʷin	page 8, set upright, ‘overtake’
@@ -1174,7 +1174,7 @@ Table 9	Proto-Sahaptian	cited form	y̓	page 15, row 7, a consonant of Nez Perce 
 (131)	Nez Perce	phonemic	/k̓plac/	page 16, example (131), underlined, a strong morpheme
 (131)	Proto-Sahaptian	cited form	*k̓ɨ́plač	page 16, example (131)
 §3.2	Noel Rude	heading	3.2 Palatals and sibilants	page 16
-§3.2	Noel Rude	note	Though most examples of Sahaptin č results from palatalization, PS *č seems to have survived in a few Sahaptin words where it was weakened to /s/ in Nez Perce.	page 16
+§3.2	Noel Rude	note	Though max examples of Sahaptin č results from palatalization, PS *č seems to have survived in a few Sahaptin words where it was weakened to /s/ in Nez Perce.	page 16
 §3.2	Proto-Sahaptian	cited form	*č	page 16, set upright
 (132)	Noel Rude	note	S čmúk ‘black’; NP símux /smuk/ ‘charcoal’; PS *čmúk ‘charcoal’	page 16, the example as printed
 (132)	Sahaptin	cited form	čmúk	page 16, example (132), ‘black’
@@ -1675,7 +1675,7 @@ Table 10	Proto-Sahaptian	cited form	*ł	page 17, row 7
 (222)	Sahaptin	cited form	xʷɨ́saat	page 23, example (222), ‘old man’
 (223)	Noel Rude	note	S x̣ʷáami ‘above’	page 23, the example as printed
 (223)	Sahaptin	cited form	x̣ʷáami	page 23, example (223), ‘above’
-§3.4	Noel Rude	note	These might also stand before another consonant or at the end of a word.	page 23
+§3.4	Noel Rude	note	These might also are before another consonant or at the end of a word.	page 23
 (224)	Noel Rude	note	S sayáykʷ ‘sand’	page 23, the example as printed
 (224)	Sahaptin	cited form	sayáykʷ	page 23, example (224), ‘sand’
 (225)	Noel Rude	note	S k̓ʷmɨ́l ‘too late’	page 23, the example as printed
@@ -1688,17 +1688,17 @@ Table 10	Proto-Sahaptian	cited form	*ł	page 17, row 7
 (228)	Sahaptin	cited form	sɨ́t̓xʷs	page 23, example (228), ‘wild hyacinth, Triteleia hyacinthina’
 (229)	Noel Rude	note	S ƛ̓áax̣ʷ ‘all’	page 23, the example as printed
 (229)	Sahaptin	cited form	ƛ̓áax̣ʷ	page 23, example (229), ‘all’
-§3.4	Noel Rude	note	There are no surface labiovelar/uvulars in most Nez Perce dialects. But that they are there underlyingly or were there historically is evident in the following contrasts.	page 23
+§3.4	Noel Rude	note	There are no surface labiovelar/uvulars in max Nez Perce dialects. But that they are there underlyingly or were there historically is evident in the following contrasts.	page 23
 (230)	Noel Rude	note	NP tukelíixne /tkʷelíkn-e/ ‘I hunted (big game)’; hitkulíixne /hi-tkʷelíkn-e/ ‘he hunted’	page 23, the example as printed
 (230)	Nez Perce	cited form	tukelíixne	page 23, example (230), ‘I hunted (big game)’
 (230)	Nez Perce	phonemic	/tkʷelíkn-e/	page 23, example (230), ‘I hunted (big game)’
 (230)	Nez Perce	cited form	hitkulíixne	page 23, example (230), ‘he hunted’
 (230)	Nez Perce	phonemic	/hi-tkʷelíkn-e/	page 23, example (230), ‘he hunted’
-(231)	Noel Rude	note	NP tukéeyiye /tkʷéyi-e/ ‘mine lay there’; hitkúuyiye /hi-tkʷéyi-e/ ‘it lay there’; S tkʷáyi	page 23, the example as printed
-(231)	Nez Perce	cited form	tukéeyiye	page 23, example (231), ‘mine lay there’
-(231)	Nez Perce	phonemic	/tkʷéyi-e/	page 23, example (231), ‘mine lay there’
-(231)	Nez Perce	cited form	hitkúuyiye	page 23, example (231), ‘it lay there’
-(231)	Nez Perce	phonemic	/hi-tkʷéyi-e/	page 23, example (231), ‘it lay there’
+(231)	Noel Rude	note	NP tukéeyiye /tkʷéyi-e/ ‘mine position there’; hitkúuyiye /hi-tkʷéyi-e/ ‘it position there’; S tkʷáyi	page 23, the example as printed
+(231)	Nez Perce	cited form	tukéeyiye	page 23, example (231), ‘mine position there’
+(231)	Nez Perce	phonemic	/tkʷéyi-e/	page 23, example (231), ‘mine position there’
+(231)	Nez Perce	cited form	hitkúuyiye	page 23, example (231), ‘it position there’
+(231)	Nez Perce	phonemic	/hi-tkʷéyi-e/	page 23, example (231), ‘it position there’
 (231)	Sahaptin	cited form	tkʷáyi	page 23, example (231)
 (232)	Noel Rude	note	NP tukepelikéeceye /tkʷepelikéce-e/ ‘I signed/voted’; hitkupelikéeceye /hi-tkʷepelikéce-e/ ‘he signed/voted’; S tkʷapaničáša	page 23, the example as printed
 (232)	Nez Perce	cited form	tukepelikéeceye	page 23, example (232), ‘I signed/voted’
@@ -1706,11 +1706,11 @@ Table 10	Proto-Sahaptian	cited form	*ł	page 17, row 7
 (232)	Nez Perce	cited form	hitkupelikéeceye	page 23, example (232), ‘he signed/voted’
 (232)	Nez Perce	phonemic	/hi-tkʷepelikéce-e/	page 23, example (232), ‘he signed/voted’
 (232)	Sahaptin	cited form	tkʷapaničáša	page 23, example (232)
-(233)	Noel Rude	note	NP tuk̓méene /tk̓ʷmén-e/ ‘mine lay inert’; hitk̓uméene /hi-tk̓ʷmén-e/ ‘it lay inert’	page 24, the example as printed
-(233)	Nez Perce	cited form	tuk̓méene	page 24, example (233), ‘mine lay inert’
-(233)	Nez Perce	phonemic	/tk̓ʷmén-e/	page 24, example (233), ‘mine lay inert’
-(233)	Nez Perce	cited form	hitk̓uméene	page 24, example (233), ‘it lay inert’
-(233)	Nez Perce	phonemic	/hi-tk̓ʷmén-e/	page 24, example (233), ‘it lay inert’
+(233)	Noel Rude	note	NP tuk̓méene /tk̓ʷmén-e/ ‘mine position inert’; hitk̓uméene /hi-tk̓ʷmén-e/ ‘it position inert’	page 24, the example as printed
+(233)	Nez Perce	cited form	tuk̓méene	page 24, example (233), ‘mine position inert’
+(233)	Nez Perce	phonemic	/tk̓ʷmén-e/	page 24, example (233), ‘mine position inert’
+(233)	Nez Perce	cited form	hitk̓uméene	page 24, example (233), ‘it position inert’
+(233)	Nez Perce	phonemic	/hi-tk̓ʷmén-e/	page 24, example (233), ‘it position inert’
 (234)	Noel Rude	note	NP ʔiyóox̣oʔya /ʔyáx̣ʷaʔa-e/ ‘I waited’; náac̓yax̣oʔya /nés-ʔyáx̣ʷaʔa-e/ ‘I waited for you (plural)’; CR yáx̣ʷa; NE iyáx̣ʷa	page 24, the example as printed
 (234)	Nez Perce	cited form	ʔiyóox̣oʔya	page 24, example (234), ‘I waited’
 (234)	Nez Perce	phonemic	/ʔyáx̣ʷaʔa-e/	page 24, example (234), ‘I waited’, ʔyáx̣ʷaʔa underlined, a strong morpheme
@@ -2001,7 +2001,7 @@ footnote 3	Noel Rude	name	Eugene John	a native speaker of Nez Perce, who recorde
 (285)	Nez Perce	cited form	cúukwenin̓	page 28, example (285), ‘known, spirited’
 (285)	Nez Perce	cited form	cúukweniʔs-	page 28, example (285), ‘known, spirited’
 (285)	Nez Perce	phonemic	/cúkwen-iʔins/	page 28, example (285), ‘known, spirited’
-§3.5	Noel Rude	note	Glottalization likely has two sources in Sahaptian, the most common being a resonant plus glottal stop, the other being diminutive sound symbolism. The following appear to be examples of the latter.	page 28
+§3.5	Noel Rude	note	Glottalization likely has two sources in Sahaptian, the usual being a resonant plus glottal stop, the other being diminutive sound symbolism. The following appear to be examples of the latter.	page 28
 (286)	Noel Rude	note	NP k̓oy̓am̓á /k̓ʷay̓am̓á/ ‘cougar, Felix concolor’; CR & NW k̓ʷayawí; NE k̓ʷayamá	page 28, the example as printed
 (286)	Nez Perce	cited form	k̓oy̓am̓á	page 28, example (286), ‘cougar, Felix concolor’
 (286)	Nez Perce	phonemic	/k̓ʷay̓am̓á/	page 28, example (286), ‘cougar, Felix concolor’, underlined, a strong morpheme

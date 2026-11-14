@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_search_hits.h: the lines a search's workers find, each worker's in a store only it writes until it ends, and
 // the stores read back as one list in the order of the files and of the lines in each (files_search_hits.c). A worker
-// takes its files in their order and reads each from its start, so the lines in its store stand in that order, and no
-// file's lines stand in two stores
+// takes its files in their order and reads each from its start, so the lines in its store are in that order, and no
+// file's lines are in two stores
 #ifndef FILES_SEARCH_HITS_H
 #define FILES_SEARCH_HITS_H
 #include "embed_dispatch_layout.h"
@@ -11,10 +11,10 @@
 
 typedef struct CliFilesSearchHitsCfg CliFilesSearchHitsCfg;
 
-// the bytes of each cell a store takes, which fits many lines of the most bytes one takes
+// the bytes of each cell a store takes, which fits many lines of the max bytes one takes
 #define CLI_HIT_CELL_BYTES (64ULL * 1024ULL)
 
-// A line found, stored until the search ends: the line its worker stored after it, the bytes of its text, which stand
+// A line found, stored until the search ends: the line its worker stored after it, the bytes of its text, which are
 // in the cell directly after it, the line and column, its file's place, and its text's size
 typedef struct CliSearchHit CliSearchHit;
 struct CliSearchHit
@@ -27,7 +27,7 @@ struct CliSearchHit
     unsigned int size;
 };
 
-// A cell of lines, which stand directly after this: the cell its store took after it and the cell's bytes in use
+// A cell of lines, which are directly after this: the cell its store took after it and the cell's bytes in use
 typedef struct CliHitCell CliHitCell;
 struct CliHitCell
 {
@@ -35,7 +35,7 @@ struct CliHitCell
     unsigned long long used;
 };
 
-// One worker's lines: the first still to be read back, the last stored, how many were stored, and the cells they stand
+// One worker's lines: the first still to be read back, the last stored, how many were stored, and the cells they are
 // in, first and last. All zero is an empty store
 typedef struct
 {
@@ -46,7 +46,7 @@ typedef struct
     CliHitCell *cell_last;
 } CliSearchHits;
 
-// A line standing after a search, a record of the standing lines' movable cell: its line and column counted from 1,
+// A line located after a search, a record of the located lines' movable cell: its line and column counted from 1,
 // its file's place among the files searched, its text's bytes and the text's place in the cell
 typedef struct
 {
@@ -75,19 +75,19 @@ struct CliFilesSearchHitsCfg
     unsigned long long size;
 };
 
-// the lines the last search left standing, where it was asked to, in one movable cell (files_search.c): how many; the
-// line `at`, in the order of the files and of the lines in each, read into `line_out`: 1, or 0 where none stands there;
-// a standing line's text copied into `out` of `capacity` bytes with its end, cut to the capacity: the bytes copied;
+// the lines the last search left located, where it was asked to, in one movable cell (files_search.c): how many; the
+// line `at`, in the order of the files and of the lines in each, read into `line_out`: 1, or 0 where none is there;
+// a located line's text copied into `out` of `capacity` bytes with its end, cut to the capacity: the bytes copied;
 // how many files the lines were found in, and the first line of the file `file` among them, the count where `file` is
 // past the last; the file `file`'s path from the tree's top; and the lines let go with the files they were found in,
 // their cell released
-unsigned int cli_search_standing_count(void);
-int cli_search_standing_line(unsigned int at, CliStandingLine *line_out);
-unsigned long long cli_search_standing_text(const CliStandingLine *line, char *out, unsigned long long capacity);
-unsigned int cli_search_standing_files(void);
-unsigned int cli_search_standing_file_first(unsigned int file);
-const char *cli_search_standing_path(unsigned int file, char *path_out);
-void cli_search_standing_free(void);
+unsigned int cli_search_located_count(void);
+int cli_search_located_line(unsigned int at, CliStandingLine *line_out);
+unsigned long long cli_search_located_text(const CliStandingLine *line, char *out, unsigned long long capacity);
+unsigned int cli_search_located_files(void);
+unsigned int cli_search_located_file_first(unsigned int file);
+const char *cli_search_located_path(unsigned int file, char *path_out);
+void cli_search_located_free(void);
 
 typedef struct
 {

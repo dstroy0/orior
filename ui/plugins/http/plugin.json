@@ -2,7 +2,7 @@
   "id": "http",
   "name": "HTTP Requests",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "extensions": ["http","rest"],
   "comments": {"line":"#"},
   "pairs": ["()","[]","{}"],

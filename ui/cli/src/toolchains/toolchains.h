@@ -21,10 +21,10 @@
 //
 // The reader adds toolchains and groups of their own, stored in user_toolchains.json in orior's own folder as
 // { "groups": [...], "tools": [...] }, each tool written as toolchains.json writes one. They come after orior's own in
-// every list, each group after the groups orior's tools are in, and a group may stand empty until a tool is added to
+// every list, each group after the groups orior's tools are in, and a group may are empty until a tool is added to
 // it. Only what the reader added can be taken out.
 //
-// The manifest is read into a JSON tree its caller hands, each tool an object of toolchains.json's own keys, which the
+// The manifest is read into a JSON tree its caller passes, each tool an object of toolchains.json's own keys, which the
 // modules that start a tool's server, debugger, checker or formatter read by name
 #ifndef TOOLCHAINS_H
 #define TOOLCHAINS_H
@@ -63,12 +63,12 @@ typedef struct CliToolchainsRootCfg CliToolchainsRootCfg;
 extern const unsigned char g_cli_toolchains_json[];
 extern const unsigned long long g_cli_toolchains_json_size;
 
-// the most folders a PATH contains as impero reads it, and the most bytes of a PATH
+// the max folders a PATH contains as impero reads it, and the max bytes of a PATH
 #define CLI_PATH_FOLDERS 512u
 
 #define CLI_PATH_TEXT QUERY_ENVIRONMENT_MAX_LEN
 
-// the most folders a tree's environment puts first on the PATH
+// the max folders a tree's environment puts first on the PATH
 #define CLI_ENVIRONMENT_BINS 16u
 
 // The tree's own environment, as envs finds one: the folders it puts first on the PATH, its Python where it has one,
@@ -107,7 +107,7 @@ unsigned int cli_toolchains_for_system(const CliToolchainsJsonMapCfg *args);
 // CLI_PATH_MAX_LEN: 1, or 0 where it contains none; the same of a tool's `programs`
 int cli_toolchains_program_in(const CliToolchainsDirCfg *args);
 int cli_toolchains_tool_program_in(const CliToolchainsJsonDirCfg *args);
-// the folders a pattern of toolchains.json names, newest first where a * stands for a version, each that is a folder
+// the folders a pattern of toolchains.json names, newest first where a * is for a version, each that is a folder
 // into `folders` from `count`, sized for `capacity`: the count after
 unsigned int cli_toolchains_folders_get(const CliToolchainsCountCfg *args);
 // a folder as PATH entries are compared into `key`, sized for CLI_PATH_MAX_LEN: without a trailing separator, and
@@ -115,7 +115,7 @@ unsigned int cli_toolchains_folders_get(const CliToolchainsCountCfg *args);
 void cli_toolchains_key_get(const CliToolchainsDirKeyCfg *args);
 
 // every group, in the order the sheet and the command line list them, those of orior's tools as they first come, then
-// those the reader added, each handed to `each` (toolchains_added.c)
+// those the reader added, each passed to `each` (toolchains_added.c)
 void cli_toolchains_groups(const CliToolchainsEachCfg *args);
 // the reader's toolchain made of the JSON object at `tool` added, its id made from its name where it has none, and its
 // group with it where the group is new, its id into `id`, sized for CLI_NAME_MAX_LEN; an empty group of the reader's
@@ -131,14 +131,14 @@ int cli_toolchains_remove_group(const CliToolchainsErrMsgNameCfg *args);
 int cli_toolchains_on_choose(const CliToolchainsIdFolderCfg *args);
 int cli_toolchains_choose(const CliToolchainsIdCfg *args);
 int cli_toolchains_forget(const CliToolchainsIdErrMsgCfg *args);
-// each folder the reader gave, by tool, handed to `each`
+// each folder the reader gave, by tool, passed to `each`
 void cli_toolchains_chosen_each(const CliToolchainsContextCfg *args);
 // whether the reader added the tool `id`
 int cli_toolchains_on_add(const CliToolchainsIdFolderCfg *args);
 // the program impero runs for tool `id` where the reader gave a folder for it, into `path`: 1, or 0 where none
 int cli_toolchains_chosen_program(const CliToolchainsIdPathCfg *args);
 
-// the most folders of the tree's own tools
+// the max folders of the tree's own tools
 #define CLI_TREE_TOOLS 2u
 
 // `root` made the tree whose own tools come first on the PATH; the tree's own tools' folders that are there,
@@ -153,7 +153,7 @@ int cli_toolchains_environment(const CliToolchainsCfg *args);
 // folders, then on Windows the system's and the reader's as the registry stores them now, then the PATH impero
 // started with, then the folders the login shell's PATH adds, once it has been read
 unsigned int cli_toolchains_path_folders(const CliToolchainsCountCfg *args);
-// the PATH's folders as cli_toolchains_path_folders reads them, in a cell counted to `owner` sized to the most their
+// the PATH's folders as cli_toolchains_path_folders reads them, in a cell counted to `owner` sized to the max their
 // texts name, which persistent_buf_release gives back: the folders, their count into `count`, or NULL with 0 where the
 // cell cannot be taken
 char (*cli_toolchains_path_allocated(unsigned int *count, const CellOwner *owner))[CLI_PATH_MAX_LEN];

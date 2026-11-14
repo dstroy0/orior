@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_reach.c: a command line finds the window on its tree and the window answers, a closed window is forgotten by the first command
-// line to find its door closed, and on POSIX the stored file is readable only by its owner
+// line to find its interface closed, and on POSIX the stored file is readable only by its owner
 #include "ui/cli/src/comms/comms.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
-#include "ui/cli/src/comms/door.h"
+#include "ui/cli/src/comms/interface.h"
 #include "ui/cli/src/machine/reach.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
@@ -70,7 +70,7 @@ static unsigned int stored_windows(void)
     return count;
 }
 
-// the door opened and the window and the command line registered, once for the process
+// the interface opened and the window and the command line registered, once for the process
 static void ipc_opened(void)
 {
     static const char *const s_command[1] = {"command"};
@@ -92,7 +92,7 @@ static void window_answering(void)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_comms_channel.listen, CliCommsChannelCfg, .key = s_window, .channel = "command", .queued = 0, .recv = command_answered, .context = NULL, .listener = &s_listener, .err_msg = &s_err_msg));
 }
 
-// a window on the tree stored behind a closed door
+// a window on the tree stored behind a closed interface
 static void window_closed(void)
 {
     char closed[CLI_PATH_MAX_LEN];
@@ -100,7 +100,7 @@ static void window_closed(void)
     static const char s_pipe[] = "\\\\.\\pipe\\orior-comms-gone-0";
     memor.cpy(&(MemoriaCfg){.dst = closed, .src = s_pipe, .bytes = sizeof(s_pipe)});
 #else
-    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_home, .relative = "door", .joined = closed);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_home, .relative = "interface", .joined = closed);
 #endif
     (void)EMBED_CALL(cli_reach.store_in, CliReachCfg, .home = s_home, .process = 2u, .root = s_tree, .address = closed, .key = "00", .err_msg = &s_err_msg);
 }

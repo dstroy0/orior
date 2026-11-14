@@ -11,7 +11,7 @@
 #
 #   Usage:  python examples/0_experimental/exact_navier_stokes_cascade.py
 #
-# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working instead of a stage
+# This reads no corpus. It sits in 0_experimental: an arithmetic result displayed working instead of a stage
 # reading. It imports the ring, the recurrence and Parseval from exact_navier_stokes_on_torus.py so one
 # representation carries both files, and it adds no arithmetic of its own beyond a product of two exact
 # quantities. Python integers are the bignum, representation.exact reads the viscosity, and the rest is
@@ -182,7 +182,7 @@ def report_energy(out):
                     if not energy_in_shell(generic_velocity[step], shell).is_zero()]
         out.write("    order %d: %s\n" % (step, carrying))
 
-    # the null: the ABC datum keeps all its energy in |k|^2 = 1 at every order
+    # the null: the ABC datum retains all its energy in |k|^2 = 1 at every order
     abc_only_base = True
     for step in range(DEPTH + 1):
         carrying = [shell for shell in energy_shells(abc_velocity[step])

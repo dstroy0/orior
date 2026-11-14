@@ -247,7 +247,7 @@ static int rows_head(const MysqlRowsCtx *args)
     return EMBED_CALL(rows_columns, MysqlRowsCtx, .mysql = mysql, .count = count, .failure = failure);
 }
 
-// COM_QUERY and the statement sent as one payload, in packets of at most 16 MiB, each piece written from the
+// COM_QUERY and the statement sent as one payload, in packets of at max 16 MiB, each piece written from the
 // statement where it lies: 1, or 0 with the failure given
 EMBED_INLINE int rows_query_send(const MysqlRowsCtx *args)
 {

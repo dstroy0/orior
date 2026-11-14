@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // claim.c: the claim's timers and slides. A timer is a deadline, 0 while disarmed, run once the clock passes it. A
-// slide is sent to a number from wherever it stands, as a style transition is, and a inset's slide waits one slide
+// slide is sent to a number from wherever it is, as a style transition is, and a inset's slide waits one slide
 // before it runs where its edge's part is coming in, so the work takes the part's inset once the part spans its edge
 #include "claim.h"
 
@@ -95,7 +95,7 @@ int gui_ease_table_read(const GuiAutohideShareCfg *args)
     {
         required = args->share;
     }
-    // a step of the table is GUI_FIXED_ONE over the steps, 1024; the way between two entries is laid straight
+    // a step of the table is GUI_FIXED_ONE over the steps, 1024; the way between two entries is positioned straight
     const int step = required / (GUI_FIXED_ONE / (int)GUI_EASE_STEPS);
     const int within = required % (GUI_FIXED_ONE / (int)GUI_EASE_STEPS);
     if (step >= (int)GUI_EASE_STEPS)
@@ -168,7 +168,7 @@ static void claim_bead_step(double along, double step, double start, double *dis
 static void claim_bead_offset(double along, double start, double speed, double *distance, double *pace)
 {
     const double step = 1.0 / (double)CLAIM_BEAD_STEPS;
-    // the whole steps before `along`, at most every step
+    // the whole steps before `along`, at max every step
     const double steps_before = arith_floor(along * (double)CLAIM_BEAD_STEPS);
     const unsigned int reached =
         (steps_before >= (double)CLAIM_BEAD_STEPS) ? CLAIM_BEAD_STEPS : (unsigned int)steps_before;
@@ -200,7 +200,7 @@ static void claim_bead_offset(double along, double start, double speed, double *
 // The spring is linear in where it starts and how fast: its distance and speed at a share of the length are the start
 // times a path from a start of one at rest, plus the speed times a path from a start of none at a speed of one. The
 // four paths are made once, CLAIM_BEAD_STEPS and one entries each by GUI_FIXED_ONE, as the ease curves' tables are;
-// a frame reads them and lays the way between two entries straight
+// a frame reads them and positions the way between two entries straight
 static int s_bead_start_distance[CLAIM_BEAD_STEPS + 1u];
 static int s_bead_start_pace[CLAIM_BEAD_STEPS + 1u];
 static int s_bead_speed_distance[CLAIM_BEAD_STEPS + 1u];
@@ -226,7 +226,7 @@ static void claim_bead_paths_make(void)
     s_bead_made = 1;
 }
 
-// a path's number at the share `share` of the length, a share by GUI_FIXED_ONE, laid straight between two entries
+// a path's number at the share `share` of the length, a share by GUI_FIXED_ONE, positioned straight between two entries
 static long long claim_bead_path_read(const int *path, unsigned long long share)
 {
     const unsigned long long width = (unsigned long long)GUI_FIXED_ONE / CLAIM_BEAD_STEPS;
@@ -301,7 +301,7 @@ void gui_slide_to(const GuiAutohideTargetCfg *args)
     const unsigned long long now_ms = args->time_ms;
     GuiSlide *const slide = args->slide_out;
     const unsigned long long lasts_ms = (args->lasts_ms != 0ULL) ? args->lasts_ms : GUI_AUTOHIDE_ANIMATION_MS;
-    // A bead sent on from mid-way keeps its number and its speed, so its path has no corner. Every other slide, and a
+    // A bead sent on from mid-way retains its number and its speed, so its path has no corner. Every other slide, and a
     // bead at rest, starts again from rest
     if ((slide->curve == GUI_CURVE_BEAD) && (now_ms > slide->start_ms) && (now_ms < slide->start_ms + lasts_ms) &&
         ((slide->from != slide->to) || (slide->velocity != 0)))
@@ -340,7 +340,7 @@ void gui_autohide_init(const GuiAutohideStillCfg *args)
     memor.set(&(MemoriaCfg){.dst = args->claim, .val = 0, .bytes = sizeof(*args->claim)});
     args->claim->controls_alpha.from = GUI_FIXED_ONE;
     args->claim->controls_alpha.to = GUI_FIXED_ONE;
-    // the parts' reveals and the work's insets move as a bead does; the claim and the controls' opacity keep the ease
+    // the parts' reveals and the work's insets move as a bead does; the claim and the controls' opacity retain the ease
     args->claim->reveal_top.curve = GUI_CURVE_BEAD;
     args->claim->reveal_bottom.curve = GUI_CURVE_BEAD;
     args->claim->reveal_left.curve = GUI_CURVE_BEAD;
@@ -357,14 +357,14 @@ void gui_autohide_init(const GuiAutohideStillCfg *args)
     args->claim->pulled_bottom = -1;
 }
 
-// whether a zone is the head's or the controls', which stand together: the one comes as the other goes
+// whether a zone is the head's or the controls', which are together: the one comes as the other goes
 EMBED_INLINE int autohide_together(const ClaimCtx *args)
 {
     return ((args->one == GUI_AUTOHIDE_TOP) || (args->one == GUI_AUTOHIDE_CONTROLS)) &&
            ((args->other == GUI_AUTOHIDE_TOP) || (args->other == GUI_AUTOHIDE_CONTROLS));
 }
 
-// a slide of the claim's sent to `to`: counted where that is somewhere new, and standing there at once with less motion
+// a slide of the claim's sent to `to`: counted where that is somewhere new, and located there at once with less motion
 // asked for
 EMBED_INLINE void autohide_send(const ClaimCtx *args)
 {
@@ -396,8 +396,11 @@ EMBED_INLINE void autohide_targets(const ClaimCtx *args)
                .to = (displayed == GUI_AUTOHIDE_RIGHT) ? GUI_FIXED_ONE : 0, .delay_ms = 0ULL, .time_ms = args->time_ms);
     EMBED_CALL(autohide_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->reveal_down,
                .to = head ? GUI_FIXED_ONE : 0, .delay_ms = 0ULL, .time_ms = args->time_ms);
+    // the tabs row's reveal is a claim of its own: it comes with a rest in the tabs' band and not with the bar
+    EMBED_CALL(autohide_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->reveal_tabs,
+               .to = (displayed == GUI_AUTOHIDE_TABS) ? GUI_FIXED_ONE : 0, .delay_ms = 0ULL, .time_ms = args->time_ms);
     // An inset moves with its reveal, on the same curve and from the same moment. The work gives way as the part comes
-    // in, so the text never stands under the part, and the two go together
+    // in, so the text never is under the part, and the two go together
     EMBED_CALL(autohide_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->inset_top,
                .to = (displayed == GUI_AUTOHIDE_TOP) ? GUI_FIXED_ONE : 0, .delay_ms = 0ULL, .time_ms = args->time_ms);
     EMBED_CALL(autohide_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->inset_left,
@@ -408,7 +411,7 @@ EMBED_INLINE void autohide_targets(const ClaimCtx *args)
                .to = GUI_FIXED_ONE, .delay_ms = 0ULL, .time_ms = args->time_ms);
 }
 
-// `zone`'s part shown, its slat pulled from where the pointer stands, or none
+// `zone`'s part displayed, its slat pulled from where the pointer is, or none
 EMBED_INLINE void autohide_show(const ClaimCtx *args)
 {
     if (args->zone == GUI_AUTOHIDE_TOP)
@@ -427,7 +430,7 @@ EMBED_INLINE void autohide_show(const ClaimCtx *args)
     autohide_targets(args);
 }
 
-// `zone`'s part shown, or none: another edge's part shown goes first, over its slide, and `zone`'s comes once it has
+// `zone`'s part displayed, or none: another edge's part displayed goes first, over its slide, and `zone`'s comes once it has
 // gone
 EMBED_INLINE void autohide_reveal(const ClaimCtx *args)
 {
@@ -440,7 +443,7 @@ EMBED_INLINE void autohide_reveal(const ClaimCtx *args)
     {
         EMBED_CALL(autohide_show, ClaimCtx, .claim = args->claim, .zone = GUI_AUTOHIDE_NONE, .time_ms = now_ms);
         args->claim->waiting = args->zone;
-        // the part shown goes over a slide, or at once with less motion asked for
+        // the part displayed goes over a slide, or at once with less motion asked for
         args->claim->pending_show_deadline_ms = now_ms + (args->claim->still ? 1ULL : GUI_AUTOHIDE_ANIMATION_MS);
         return;
     }
@@ -492,6 +495,12 @@ unsigned int gui_autohide_zone(const GuiAutohideWidthCfg *args)
     if (args->x > pixel_width - band)
     {
         return GUI_AUTOHIDE_RIGHT;
+    }
+    // the band under the head's, a tabs row deep, is the tabs row's: a rest in it brings the row, a claim of its own
+    const int tabs = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TABS_HEIGHT, .scale = args->scale);
+    if (args->y < band + tabs)
+    {
+        return GUI_AUTOHIDE_TABS;
     }
     return GUI_AUTOHIDE_NONE;
 }
@@ -547,7 +556,7 @@ void gui_autohide_move(const GuiAutohidePointerCfg *args)
     }
     args->claim->pointer_x = args->x;
     args->claim->pointer_y = args->y;
-    // A menu open holds the claim: the pointer works in the menu, so the part shown stands and no part comes. The
+    // A menu open holds the claim: the pointer works in the menu, so the part displayed is and no part comes. The
     // linger to hide begins again at each move, and runs out only after the menu closes
     if (args->menu_open)
     {
@@ -614,11 +623,12 @@ void gui_autohide_show_now(const GuiAutohidePointerCfg *args)
     claim->pending_show_deadline_ms = 0ULL;
     claim->waiting = GUI_AUTOHIDE_NONE;
     EMBED_CALL(autohide_show, ClaimCtx, .claim = claim, .zone = args->zone, .time_ms = args->now_ms);
-    // every slide stands at its target now, as with less motion asked for
-    GuiSlide *const slides[10] = {
-        &claim->claim,       &claim->reveal_top, &claim->reveal_bottom, &claim->reveal_left,  &claim->reveal_right,
-        &claim->reveal_down, &claim->inset_top,  &claim->inset_left,    &claim->inset_bottom, &claim->controls_alpha};
-    for (unsigned int at = 0u; at < 10u; at += 1u)
+    // every slide is at its target now, as with less motion asked for
+    GuiSlide *const slides[11] = {&claim->claim,        &claim->reveal_top,   &claim->reveal_bottom,
+                                  &claim->reveal_left,  &claim->reveal_right, &claim->reveal_tabs,
+                                  &claim->reveal_down,  &claim->inset_top,    &claim->inset_left,
+                                  &claim->inset_bottom, &claim->controls_alpha};
+    for (unsigned int at = 0u; at < 11u; at += 1u)
     {
         slides[at]->from = slides[at]->to;
         slides[at]->velocity = 0;
@@ -666,7 +676,7 @@ int gui_autohide_step(const GuiAutohideStateCfg *args)
     }
     if ((args->claim->hide_deadline_ms != 0ULL) && (now_ms >= args->claim->hide_deadline_ms))
     {
-        // the part stays while the pointer stands over it or a menu is open, looked at again a linger later
+        // the part stays while the pointer is over it or a menu is open, looked at again a linger later
         if (args->claim->over_parts || args->menu_open)
         {
             args->claim->hide_deadline_ms = now_ms + GUI_AUTOHIDE_HIDE_DELAY_MS;
@@ -697,12 +707,13 @@ void gui_autohide_still(const GuiAutohideStillCfg *args)
     args->claim->still = still;
     if (still)
     {
-        GuiSlide *const slides[10] = {&args->claim->claim,         &args->claim->reveal_top,
+        GuiSlide *const slides[11] = {&args->claim->claim,         &args->claim->reveal_top,
                                       &args->claim->reveal_bottom, &args->claim->reveal_left,
-                                      &args->claim->reveal_right,  &args->claim->reveal_down,
-                                      &args->claim->inset_top,     &args->claim->inset_left,
-                                      &args->claim->inset_bottom,  &args->claim->controls_alpha};
-        for (unsigned int at = 0u; at < 10u; at += 1u)
+                                      &args->claim->reveal_right,  &args->claim->reveal_tabs,
+                                      &args->claim->reveal_down,   &args->claim->inset_top,
+                                      &args->claim->inset_left,    &args->claim->inset_bottom,
+                                      &args->claim->controls_alpha};
+        for (unsigned int at = 0u; at < 11u; at += 1u)
         {
             slides[at]->from = slides[at]->to;
         }
@@ -730,6 +741,8 @@ unsigned long long gui_autohide_animation_end_ms(const GuiAutohideCfg *args)
     end_ms = EMBED_CALL(autohide_later, ClaimCtx, .end_ms = end_ms, .slide_read = &args->autohide_read->reveal_left,
                         .time_ms = args->time_ms);
     end_ms = EMBED_CALL(autohide_later, ClaimCtx, .end_ms = end_ms, .slide_read = &args->autohide_read->reveal_right,
+                        .time_ms = args->time_ms);
+    end_ms = EMBED_CALL(autohide_later, ClaimCtx, .end_ms = end_ms, .slide_read = &args->autohide_read->reveal_tabs,
                         .time_ms = args->time_ms);
     end_ms = EMBED_CALL(autohide_later, ClaimCtx, .end_ms = end_ms, .slide_read = &args->autohide_read->reveal_down,
                         .time_ms = args->time_ms);
@@ -765,6 +778,8 @@ int gui_autohide_moving(const GuiAutohideCfg *args)
                       .time_ms = args->time_ms) ||
            EMBED_CALL(gui_autohide_slide.slide_running, GuiAutohideSlideCfg,
                       .slide = &args->autohide_read->reveal_right, .time_ms = args->time_ms) ||
+           EMBED_CALL(gui_autohide_slide.slide_running, GuiAutohideSlideCfg, .slide = &args->autohide_read->reveal_tabs,
+                      .time_ms = args->time_ms) ||
            EMBED_CALL(gui_autohide_slide.slide_running, GuiAutohideSlideCfg, .slide = &args->autohide_read->reveal_down,
                       .time_ms = args->time_ms) ||
            EMBED_CALL(gui_autohide_slide.slide_running, GuiAutohideSlideCfg, .slide = &args->autohide_read->inset_top,
@@ -793,7 +808,7 @@ unsigned long long gui_autohide_next_deadline_ms(const GuiAutohideCfg *args)
                                      .second_ms = args->autohide_read->preview_deadline_ms));
 }
 
-// a slat's grown share: coming in, it grows with its reveal; going, it stands as long as it grew; outside the claim it
+// a slat's grown share: coming in, it grows with its reveal; going, it is as long as it grew; outside the claim it
 // is whole
 EMBED_INLINE int autohide_grow(const ClaimCtx *args)
 {
@@ -805,7 +820,7 @@ EMBED_INLINE int autohide_grow(const ClaimCtx *args)
     }
     else if ((args->reveal > *last) || (args->reveal >= GUI_FIXED_ONE))
     {
-        // a bead's reveal goes past whole and settles back to it: the slat follows it there, and stands as it grew
+        // a bead's reveal goes past whole and settles back to it: the slat follows it there, and is as it grew
         // only once the reveal goes below whole
         grown = args->reveal;
     }
@@ -830,6 +845,8 @@ void gui_autohide_numbers(const GuiAutohideStateCfg *args)
                                             .slide = &claim->reveal_left, .time_ms = args->time_ms);
     args->numbers->reveal_right = EMBED_CALL(gui_autohide_slide.slide_at, GuiAutohideSlideCfg,
                                              .slide = &claim->reveal_right, .time_ms = args->time_ms);
+    args->numbers->reveal_tabs = EMBED_CALL(gui_autohide_slide.slide_at, GuiAutohideSlideCfg,
+                                            .slide = &claim->reveal_tabs, .time_ms = args->time_ms);
     args->numbers->reveal_down = EMBED_CALL(gui_autohide_slide.slide_at, GuiAutohideSlideCfg,
                                             .slide = &claim->reveal_down, .time_ms = args->time_ms);
     args->numbers->inset_top = EMBED_CALL(gui_autohide_slide.slide_at, GuiAutohideSlideCfg, .slide = &claim->inset_top,

@@ -8,10 +8,10 @@
 #
 #   Usage:  python examples/proteins/1_represent/protein_chain.py
 #
-# The previous attempt laid every atom into a grid and smoothed it, which threw away the property that
+# The previous attempt positioned every atom into a grid and smoothed it, which threw away the property that
 # makes a protein a protein. A chain has an order and a step from each residue to the next, and a grid
-# keeps neither. What was measured was a scatter of unrelated points in a box that is mostly empty, and
-# the reading failed because most of a line through it crosses vacuum, where no axis differs from another.
+# retains neither. What was measured was a scatter of unrelated points in a box that is mostly empty, and
+# the reading failed because the majority of a line through it crosses vacuum, where no axis differs from another.
 #
 # The chain gives its own vectors and they need no grid. Consecutive alpha carbons sit a nearly fixed
 # distance apart. The magnitude is close to constant along the whole backbone and the structure lives
@@ -21,8 +21,8 @@
 # Three things are measured on that series. The step length and its spread say whether the chain was read
 # in the right order, since a jump between chains or a gap in the model breaks it and shows up at once.
 # The exponent of each component says how the directions are arranged along the chain. The dimension count
-# is then read from the three components laid one after another, and that reading is checked against a
-# control that keeps the same three components and destroys the order, since a period of three can be
+# is then read from the three components positioned one after another, and that reading is checked against a
+# control that retains the same three components and destroys the order, since a period of three can be
 # found in any three series taken in turn and the interleaving must not be what is being detected.
 
 import io
@@ -75,7 +75,7 @@ def main():
         columns = [to_levels(joined[:, axis]) for axis in range(3)]
         if any(column is None for column in columns):
             continue
-        # The three components laid one after another, the chain's own interleaving
+        # The three components positioned one after another, the chain's own interleaving
         woven = numpy.stack(columns, axis=1).reshape(-1)
         found, score, _ = best_count(roughness(woven), rng)
 

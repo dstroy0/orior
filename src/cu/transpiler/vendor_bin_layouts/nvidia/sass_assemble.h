@@ -6,7 +6,7 @@
 
 // The assembler takes the encoding of the instruction's form (sass_machine.h) as its base and writes the
 // instruction's own operands into it. Where each operand sits is not assumed: the base carries its own operands, and
-// the fields are found by giving each operand the first field of its kind whose value in the base is the value the
+// the fields are found by giving each operand the first field of its type whose value in the base is the value the
 // base printed there. A form whose operands cannot all be placed that way assembles nothing and reports so, and so does
 // an operand the assembler cannot turn into a number, which must then be the one the base carries.
 //

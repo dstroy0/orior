@@ -11,7 +11,7 @@ import { tabOf } from "./tabs.js";
 
 export const PEEK_SETTLES = 400;
 
-// The change a line of the text stands in, or for lines taken out, the one above the line.
+// The change a line of the text is in, or for lines taken out, the one above the line.
 export function hunkAt(s, line) {
   return s.changes?.hunks.find((hunk) => (hunk.now[0] === hunk.now[1] ? hunk.now[0] === line : line >= hunk.now[0] && line < hunk.now[1])) ?? null;
 }

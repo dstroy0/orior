@@ -14,16 +14,16 @@
 # by no one to compare against.
 #
 # The generated corpora are that comparison and they were made for it: a chain over an alphabet, at three
-# sizes, with uniform and geometric weightings and one weighted to English letter frequencies, at three
+# sizes, with uniform and geometric weightings and one weighted to English character frequencies, at three
 # depths. They have a distribution and no meaning. If the web reads something human then every one of them
 # should sit outside every language, and if they mix in then it reads a distribution that writing happens
 # to have and generated text can have too.
 #
-# The English weighted chain is the sharpest of them, since it was given a real language's letter
+# The English weighted chain is the sharpest of them, since it was given a real language's character
 # frequencies. If the web is fooled by anything it should be fooled by that one, and it is
 # reported separately for that reason.
 #
-# Source code is included as a third kind: written by people, and not a natural language.
+# Source code is included as a third type: written by people, and not a natural language.
 
 import io
 import os
@@ -64,14 +64,14 @@ def main():
         sys.stdout.buffer, encoding="utf-8", errors="replace", newline=""
     )
 
-    kinds = {}
+    types = {}
     for name in sorted(os.listdir(CORPORA)):
         if name.startswith("lang_") and name.endswith(".txt"):
-            kind, label = "language", name[5:].rsplit("_", 1)[0]
+            type, label = "language", name[5:].rsplit("_", 1)[0]
         elif name.startswith("monkey_") and name.endswith(".txt"):
-            kind, label = "generated", name[7:-4]
+            type, label = "generated", name[7:-4]
         elif name.startswith("csource_") and name.endswith(".sym"):
-            kind, label = "source", name[:-4]
+            type, label = "source", name[:-4]
         else:
             continue
         text = load(name)
@@ -79,42 +79,42 @@ def main():
             continue
         values = web(text, RANKS)
         if values is not None:
-            kinds.setdefault((kind, label), []).append(values)
+            types.setdefault((type, label), []).append(values)
 
     entries = [
-        (kind, label, numpy.mean(numpy.stack(values), axis=0))
-        for (kind, label), values in sorted(kinds.items())
+        (type, label, numpy.mean(numpy.stack(values), axis=0))
+        for (type, label), values in sorted(types.items())
     ]
     languages = [row for row in entries if row[0] == "language"]
     if (len(languages) < 8) or (len(entries) - len(languages) < 2):
-        out.write("  not enough of one kind to compare\n")
+        out.write("  not enough of one type to compare\n")
         out.flush()
         return 0
 
     out.write(
         "  %-30s %-11s %-16s %-11s %s\n"
-        % ("corpus", "kind", "nearest", "distance", "nearest is")
+        % ("corpus", "type", "nearest", "distance", "nearest is")
     )
     crossings = 0
-    for kind, label, values in entries:
+    for type, label, values in entries:
         marks = []
-        for other_kind, other_label, other in entries:
+        for other_type, other_label, other in entries:
             if other_label == label:
                 continue
             marks.append(
-                (float(numpy.linalg.norm(values - other)), other_kind, other_label)
+                (float(numpy.linalg.norm(values - other)), other_type, other_label)
             )
         marks.sort()
-        distance, near_kind, near_label = marks[0]
-        if kind != near_kind:
+        distance, near_type, near_label = marks[0]
+        if type != near_type:
             crossings += 1
-        if kind != "language":
+        if type != "language":
             out.write(
                 "  %-30s %-11s %-16s %-11.5f %s\n"
-                % (label, kind, near_label, distance, near_kind)
+                % (label, type, near_label, distance, near_type)
             )
 
-    # How far the two kinds sit from each other against how far each sits from its own
+    # How far the two types sit from each other against how far each sits from its own
     def spread(left, right):
         return numpy.mean(
             [
@@ -132,10 +132,10 @@ def main():
     )
     out.write("  mean distance among the generated      %.5f\n" % spread(made, made))
     out.write(
-        "  mean distance between the two kinds    %.5f\n" % spread(languages, made)
+        "  mean distance between the two types    %.5f\n" % spread(languages, made)
     )
     out.write(
-        "\n  %d of %d corpora have their nearest neighbor in another kind\n"
+        "\n  %d of %d corpora have their nearest neighbor in another type\n"
         % (crossings, len(entries))
     )
 
@@ -147,7 +147,7 @@ def main():
             if row[1] != english[0][1]
         )
         out.write(
-            "  the chain given English letter frequencies is nearest %s, which is %s\n"
+            "  the chain given English character frequencies is nearest %s, which is %s\n"
             % (marks[0][2], marks[0][1])
         )
 

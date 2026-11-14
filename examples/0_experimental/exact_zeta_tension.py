@@ -19,7 +19,7 @@
 #   of sin(r t ln p) / (r p^(r / 2)), whose correlation at a lag tau in t, the phases taken as independent, is the sum
 #   of cos(r tau ln p) / (r^2 p^r) over the sum of 1 / (r^2 p^r);
 # - the number variance of the zeros over windows of L, against GUE's (1 / pi^2)(ln 2 pi L + gamma + 1 - pi^2 / 8),
-#   Poisson's L and the same spacings shuffled, which keep every gap and drop how the gaps hold to one another.
+#   Poisson's L and the same spacings shuffled, which retain every gap and drop how the gaps hold to one another.
 #
 # The statistics are the host's, in floating point, over the device's Z. It sits in 0_experimental and is an entry
 # in the analytic number theory workbook, on its rail. It proves nothing; it reads how the zeros hold to one another.
@@ -36,7 +36,7 @@ import exact_zeta_turing as tm  # noqa: E402
 
 UNIT = float(1 << tm.SCALE_BITS)
 EULER = 0.5772156649015329
-# the dips listed again: each 2^FINER times finer, at most DIPS of them, the deepest first
+# the dips listed again: each 2^FINER times finer, at max DIPS of them, the deepest first
 FINER = 6
 DIPS = 200
 LAGS = 60
@@ -184,7 +184,7 @@ def analyse(zeros, n_start, start_nu, end_nu):
     S = [n_start + k + 1 - 0.5 * (u[k] + u[k + 1]) for k in range(len(u) - 1)]
     mean = sum(S) / len(S)
     variance = sum((v - mean) ** 2 for v in S) / len(S)
-    print("  S between zeros: mean %.4f, variance %.4f, least %.3f, most %.3f; Selberg's leading term %.4f" %
+    print("  S between zeros: mean %.4f, variance %.4f, least %.3f, max %.3f; Selberg's leading term %.4f" %
           (mean, variance, min(S), max(S), math.log(math.log(0.5 * (s_low + s_high))) / (2 * math.pi ** 2)))
 
     random.seed(20261004)

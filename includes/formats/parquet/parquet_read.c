@@ -7,9 +7,9 @@
 
 // the side leaves of a member, in the order they are stored: a footer has the first alone, a fixed-width leaf the first
 // three, a BYTE_ARRAY leaf all four
-#define PARQUET_SIDE_LEAVES_MOST 4u
+#define PARQUET_SIDE_LEAVES_MAX 4u
 
-static const char *const PARQUET_SIDE_NAMES[PARQUET_SIDE_LEAVES_MOST] = {"bytes", "definition", "repetition",
+static const char *const PARQUET_SIDE_NAMES[PARQUET_SIDE_LEAVES_MAX] = {"bytes", "definition", "repetition",
                                                                          "lengths"};
 
 // the member cached decoded, its file and name, and the footer it was found through. A footer member contains the
@@ -148,7 +148,7 @@ static void parquet_extent(EngineArrayExtent *extent)
     extent->sizes[0] = parquet_lanes();
     extent->axes[0] = 'x';
     extent->element_bytes = 2u;
-    extent->element_kind = ENGINE_ELEMENT_UNSIGNED;
+    extent->element_type = ENGINE_ELEMENT_UNSIGNED;
 }
 
 long parquet_describe(const EngineDescribeRequest *request)
@@ -191,9 +191,9 @@ static int parquet_side_fill(EngineSideBytes *side, EngineError *error)
         // one byte of the member's byte count is taken whole
         count[place] = (unsigned char)((column->values.count >> (8u * place)) & 0xFFull);
     }
-    const unsigned char *const parts[PARQUET_SIDE_LEAVES_MOST] = {count, column->definition, column->repetition,
+    const unsigned char *const parts[PARQUET_SIDE_LEAVES_MAX] = {count, column->definition, column->repetition,
                                                                   column->lengths.bytes};
-    const unsigned long long sizes[PARQUET_SIDE_LEAVES_MOST] = {8ull, column->levels, column->levels,
+    const unsigned long long sizes[PARQUET_SIDE_LEAVES_MAX] = {8ull, column->levels, column->levels,
                                                                 column->lengths.count};
     const int byte_array =
         (resident->leafed != 0) && (resident->footer->leaf[resident->leaf].physical == PARQUET_BYTE_ARRAY);
@@ -262,7 +262,7 @@ long long parquet_read(const EngineArrayRead *request)
     const unsigned long long total = 2ull * found.sizes[0];
     const int agrees = (found.rank == request->extent->rank) && (found.sizes[0] == request->extent->sizes[0]) &&
                        (found.element_bytes == request->extent->element_bytes) &&
-                       (found.element_kind == request->extent->element_kind) && (request->first == 0ull) &&
+                       (found.element_type == request->extent->element_type) && (request->first == 0ull) &&
                        (request->end == found.sizes[0]) && (total <= request->out_capacity);
     if (!PARQUET_CHECK(agrees, request->extent, error, ENGINE_ERROR_REQUEST))
     {
@@ -292,7 +292,7 @@ unsigned int parquet_members(const EngineIngestTools *tools, const char *path, c
         free(footer);
         return 0u;
     }
-    // at most 256 row groups of 64 leaves each and the footer, a count far below an unsigned int's ceiling
+    // at max 256 row groups of 64 leaves each and the footer, a count far below an unsigned int's ceiling
     const unsigned int count = 1u + (footer->row_group_count * footer->leaf_count);
     char **const listed = (char **)calloc((size_t)count + 1u, sizeof(char *));
     int ok = (listed != NULL);

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_query_learn.c: the learn's passes and the measuring stick: files are handed with forward slashes, the carrier's words, the steps'
+// test_query_learn.c: the learn's passes and the measuring stick: files are passed with forward slashes, the carrier's words, the steps'
 // words are read, the part's files are beside the bridge, paths given to the vendor are native on Windows and on Linux, and the stick is
 // compiled again only where its text changed
 #include "ui/query/src/learn/learn_internal.h"

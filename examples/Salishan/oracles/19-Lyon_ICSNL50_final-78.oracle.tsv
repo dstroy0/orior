@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 title	John Lyon	title	Three Okanagan stories about priests	the paper's title
 abstract	John Lyon	language	Nsyílxcən	Okanagan, a southern Interior Salish language
 abstract	John Lyon	language	Nqílxʷcən	another name for the same language
@@ -78,9 +78,9 @@ footnote 2	John Lyon	note	What is transcribed as kʷaʔ in (7) may be concealing
 1.2 14	George Lezard	surface	cun “iʔ sct̓ak̓ʷs iʔ k̓ʷl̓ncutn axáʔ iʔ l təmxʷúlaʔxʷ, naqs sx̌əlx̌ʕált, uɬ naqs x̌yáɬnəx̌ʷ, uɬ nqspintk, way̓ t̓i ixíʔ t̓i kaʔɬís iʔ sct̓ak̓ʷs”.
 1.2 14	John Lyon	parse	√cun-nt-n iʔ s-c-√t̓ak̓ʷ-s iʔ √k̓ʷl̓-ncut+tn axáʔ iʔ l √tmxʷ=úlaʔxʷ naqs s+x̌l•√x̌ʕál+t uɬ naqs x̌yáɬnx̌ʷ uɬ √nqs+√pintk way̓ t̓i ixíʔ t̓i kaʔɬís iʔ s-c-√t̓ak̓ʷ-s
 1.2 14	John Lyon	gloss	say-DIR-1SG.ERG DET NMLZ-CUST-put.down-3POSS DET make-REFL+INS DEM DET LOC land=land one NMLZ+C1C2.CHAR•clear+STAT CONJ one moon CONJ one+year yes EMPH DEM EMPH three DET NMLZ-CUST-put.down-3POSS
-1.2 14	John Lyon	word gloss	I.told.him the something.laid.down the creator this the on land one sun[?] and one moon and one.year yes just those three the something.laid.down
-1.2 14	John Lyon	translation	‘I told him, “What the creator laid down on this land is one sun, and one moon, and one year, those are the three things he laid down.” ’
-footnote 3	John Lyon	note	The translation of sx̌əlx̌ʕált as ‘sun’ rather than its usual translation as ‘day’ is in keeping with the translation of x̌yáɬnəx̌ʷ as ‘moon’, rather than ‘sun’. The correct interpretation of the sentence may be “What the creator laid down on this land was one day, and one sun, and one year”, but I’m following my consultant’s translation in this case.
+1.2 14	John Lyon	word gloss	I.told.him the something.positioned.down the creator this the on land one sun[?] and one moon and one.year yes just those three the something.positioned.down
+1.2 14	John Lyon	translation	‘I told him, “What the creator positioned down on this land is one sun, and one moon, and one year, those are the three things he positioned down.” ’
+footnote 3	John Lyon	note	The translation of sx̌əlx̌ʕált as ‘sun’ rather than its usual translation as ‘day’ is in retention with the translation of x̌yáɬnəx̌ʷ as ‘moon’, rather than ‘sun’. The correct interpretation of the sentence may be “What the creator positioned down on this land was one day, and one sun, and one year”, but I’m following my consultant’s translation in this case.
 1.2 15	George Lezard	surface	cun, “anwí kʷ sámaʔ, mat way̓ ixíʔ xʷic̓ɬts yaʕyáʕt iʔ kʷu scuɬtxʷ.”
 1.2 15	John Lyon	parse	√cun-nt-n anwí kʷ sámaʔ mat way̓ ixíʔ √xʷic̓-ɬt-s yaʕ•√yáʕt iʔ kʷu s-cun-ɬt-xʷ
 1.2 15	John Lyon	gloss	say-DIR-1SG.ERG 2SG.INDEP 2SG.ABS white.person EPIS yes DEM give-APPL.POSS-3ERG C1C2.PL•all DET 1SG.ABS NMLZ-say-APPL.POSS-2SG.ERG
@@ -143,7 +143,7 @@ footnote 6	John Lyon	note	This is an interesting case of code-switching between 
 1.2 26	John Lyon	parse	ixíʔ ks-√k̓ʷúl̓-aʔx-lx uɬ √xʷaʔt+wíl̓x iʔ s+√qilxʷ
 1.2 26	John Lyon	gloss	DEM FUT-make-INCEPT-PL CONJ many+DEV DET NMLZ+native.person
 1.2 26	John Lyon	word gloss	he will.make.them and become.more the native.people
-1.2 26	John Lyon	translation	‘ “He will keep on making them, and the People will increase.” ’
+1.2 26	John Lyon	translation	‘ “He will retain on making them, and the People will increase.” ’
 1.2 27	George Lezard	surface	“ksq̓ʷíc̓tsəlx iʔ təmxʷúlaʔxʷ iʔ t cwílxʷ.”
 1.2 27	John Lyon	parse	ks-√q̓ʷíc̓+t-slx iʔ √tmxʷ=úlaʔxʷ iʔ t √cw=ílxʷ.
 1.2 27	John Lyon	gloss	FUT-full+STAT-3PL.POSS DET land=land DET LOC put.there=person
@@ -207,7 +207,7 @@ footnote 9	John Lyon	note	The protoganist seems to reinterpret the priest’s in
 §2	John Lyon	name	Lynne Jorgesen	who assisted with the English transcriptions, translations and place names
 2.1	Nellie Guitterez	surface	t̓i kmax iʔ sámaʔ iʔ cawts, iʔ ncəw̓caw̓cíntəm. k̓im axáʔ ʕapnáʔ iʔ sámaʔ ɬaʔ kɬcawt iʔ p iksm̓ay̓ɬtín, iʔ q̓ʷʕáylqs. tl Merritt q̓sápi kʷaʔ itíʔ mat four or five houses in Merritt. uɬ axáʔ iʔ settlers atláʔ uɬ k̓l Aspen Grove k̓aʔɬáʔms. ixíʔ cxʷúyəms tiʔ q̓ʷʕaylqs, iʔ Saturday məɬ xʷuy məɬ k̓ʕaxts iʔ səmsámaʔ. ixíʔ sxʷuys tl Merritt kʷukʷ k̓l Courtney Lake. wiks iʔ citxʷ, kʷukʷ acp̓əp̓áʔxʷ. cut kʷukʷ “atáʔ way̓ myaɬ nkʷkʷʔac, way̓ c̓ʔuy. way̓ aláʔ iksíwəm axáʔ iʔ sámaʔ uc kn kspúlxaʔx.” ixíʔ sxʷuys, kʷukʷ ʕac̓əntís iʔ nməlk̓ʷápaʔst iʔ skʷinpəlaʔsqáx̌aʔs. caʕcʕálxs sic xʷuy k̓l citxʷ, k̓ɬnpuwáps iʔ sámaʔ. cúntəm kʷukʷ “Come in!” lut t̓ cnʔuɬxʷs. np̓əlk̓, npuwápəm, cúntəm kʷukʷ “Come in!” ixíʔ sctíɬxs uɬ xʷuy k̓l doors, k̓ɬnwəlq̓íps iʔ door uɬ axáʔ iʔ q̓ʷʕaylqs. cus kʷukʷ “sxʔkinx, q̓ʷʕaylqs? nkʷkʷʔac uɬ kʷ cxʷylwis?” cut “kʷ[aʔ] mat cíx̌cəx̌t.” cúntəm kʷukʷ “o, mat lut t̓i kʷ t̓a cʔíɬən.” cut kʷukʷ “lut. inx̌mínk inkəwáp kʷu aksʔamɬtím, tanm̓ús incá lut kʷu ʔamɬtíxʷ. ikskʕacálqʷəm aláʔ mi kʷu ʔamɬtixʷ, ɬkʷkʷʕast mi ik̓líʔ kn xʷuy. . . k̓l nGarcia kn ksxʷúyaʔx, k̓l Johnny Garcia uɬ l Merritt, late way̓.” cúntəm kʷukʷ “sure. xʷuyx, xʷuyskʷ ankəwáp k̓l stockyard mi ʔamntíxʷ.” ilíʔ xʷuysts iʔ kəwáps, ʔamntís. nʔuɬxʷ kʷukʷ uɬ way̓ ccíxɬtəm iʔ kscʔíɬəns, iʔ. . . Smokey Tisəm iʔ skʷists iʔ ƛ̓əx̌ƛ̓x̌áp iʔ sámaʔ. cúntəm kʷukʷ “way̓ kʷ ksʔíɬənaʔx, way̓ cʔíx axáʔ iʔ. . . iʔ cíxɬtəmən akscʔíɬən.” cus kʷukʷ “cakʷ lut aks-bother, way̓ n̓ín̓w̓iʔs kn ʔíɬən, kʷu akskʷúkʷstəm.” ixíʔ sʔíɬəns iʔ q̓ʷʕaylqs, wiʔcín. cúntəm kʷukʷ atáʔ iʔ t settler ilíʔ mat “uc kʷu ksmaʔmscútaʔx?”
 2.1	Nellie Guitterez	surface	cúntəm kʷukʷ iʔ t q̓ʷʕaylqs, “way̓, we’ll pass the. . . we’ll pass the time. ” cúntəm kʷukʷ “way̓ x̌ast.” ixíʔ smaʔmscúts. cúntəm kʷukʷ “mat kʷ ksʔítx, way̓.” cut kʷukʷ atáʔ Smokey Tisem “way̓ kn ksʔitx, mat nixʷ anwí kʷ ksʔitx.” ixíʔ cus, cus kʷukʷ “way̓ ilíʔ mi kʷ ɬq̓ilx məɬ aláʔ incákn. Not too close apart. ”cus kʷukʷ “Alright. ” ixíʔ scus iʔ sámaʔ, “Who’s going to put the light out?”uɬ candle kʷaʔ iʔ ʔasəsʔáwst, ʕác̓ənt, iʔ candle iʔ c̓ík̓ʷsxəns. cúntəm kʷukʷ atáʔ t. . . iʔ t akɬowner iʔ t citxʷs “swit úɬiʔ ksƛ̓əwntís iʔ c̓ík̓ʷsxən?” cúntəm kʷukʷ aʔ cnk̓ʷəɬsámaʔs “incá kn n̓ín̓w̓iʔs kʷ ɬaʔ nstilsx kəm̓ anwí kʷ ɬaʔ nstilsx, wtntixʷ, ƛ̓əwntíxʷ.” cut kʷukʷ “way̓ mi ƛ̓əwntín, if you are ready, you just say so!”
-2.1	Nellie Guitterez	english closing	He said “Yes, I’m ready. ” The priest said “Yes, I’m ready. ” He took his pistol and he shot the candle, and the light went out! He got so scared he never hardly moved. He laid there and listened to him, if he snored, finally he heard him snoring and he got up and he sneaked out. He moved from there to Johnny Garcia’s house. And Johnny Garcia told him when he got there “What’s the matter with you, Father? What did you come so late for?” “Well, ” he said “It was still kind of daylight when I come to this next place here and I asked him if I could camp there. And he said to me “alright”, he was good to me, until we was going to bed, and he asked me “Who’s gonna put the light out?” So I told him, I said “You can put it out, I’m ready now. ” He said “You sure?” He said “Yes. ” Smokey took his pistol and he shot the light and it went out! That’s all!
+2.1	Nellie Guitterez	english closing	He said “Yes, I’m ready. ” The priest said “Yes, I’m ready. ” He took his pistol and he shot the candle, and the light went out! He got so scared he never hardly moved. He positioned there and listened to him, if he snored, finally he heard him snoring and he got up and he sneaked out. He moved from there to Johnny Garcia’s house. And Johnny Garcia told him when he got there “What’s the matter with you, Father? What did you come so late for?” “Well, ” he said “It was still type of daylight when I come to this next place here and I asked him if I could camp there. And he said to me “alright”, he was good to me, until we was going to bed, and he asked me “Who’s gonna put the light out?” So I told him, I said “You can put it out, I’m ready now. ” He said “You sure?” He said “Yes. ” Smokey took his pistol and he shot the light and it went out! That’s all!
 2.2 1	Nellie Guitterez	surface	t̓i kmax iʔ sámaʔ iʔ cawts, iʔ ncəw̓caw̓cíntəm.
 2.2 1	John Lyon	parse	t̓i kmax iʔ sámaʔ iʔ √cawt-s iʔ n+cw̓•√caw̓=cín-nt-m
 2.2 1	John Lyon	gloss	EMPH only DET white.person DET doings-3POSS DET LOC+RED•repeat=language-DIR-PASS
@@ -277,9 +277,9 @@ footnote 11	John Lyon	note	Courtney Lake is right off the highway, between Aspen
 2.2 13	John Lyon	translation	‘The priest turned and was knocking, and the settler told him “Come in!” ’
 2.2 14	Nellie Guitterez	surface	ixíʔ sctíɬxs uɬ xʷuy k̓l doors, k̓ɬnwəlq̓íps iʔ door uɬ axáʔ iʔ q̓ʷʕaylqs.
 2.2 14	John Lyon	parse	ixíʔ s-c-√tíɬ-x-s uɬ xʷuy k̓l door-s k̓ɬ+n+√wlq̓=íp-s iʔ door uɬ axáʔ iʔ √q̓ʷʕay=lqs
-2.2 14	John Lyon	gloss	DEM NMLZ-CUST-stand-INTR-3POSS CONJ go LOC door-3POSS DRV+LOC+open=door-3POSS DET door CONJ DEM DET black=robe
-2.2 14	John Lyon	word gloss	then he.was.standing and he.went to his.door he.opened.the.door the door and this the priest
-2.2 14	John Lyon	translation	‘The settler stood up and went to his door, he opened the door and there was this priest.’
+2.2 14	John Lyon	gloss	DEM NMLZ-CUST-are-INTR-3POSS CONJ go LOC door-3POSS DRV+LOC+open=door-3POSS DET door CONJ DEM DET black=robe
+2.2 14	John Lyon	word gloss	then he.was.located and he.went to his.door he.opened.the.door the door and this the priest
+2.2 14	John Lyon	translation	‘The settler was up and went to his door, he opened the door and there was this priest.’
 2.2 15	Nellie Guitterez	surface	cus kʷukʷ “sxʔkinx, q̓ʷʕaylqs? nkʷkʷʔac uɬ kʷ cxʷylwis?”
 2.2 15	John Lyon	parse	√cun-nt-s kʷukʷ s-x+√ʔkin-x √q̓ʷʕay=lqs n+kʷ(•)√kʷʔac uɬ kʷ c-√xʷy+lwis
 2.2 15	John Lyon	gloss	say-DIR-3ERG EVID NMLZ-DRV+do.what-INTR black=robe LOC+late CONJ 2SG.ABS CUST-go+here.and.there
@@ -371,9 +371,9 @@ footnote 15	John Lyon	note	The surname Tisem is unusual, and its correct spellin
 2.2 31	John Lyon	translation	‘Then Smokey Tisem said “Yes, I’m sleepy, you must be sleepy too.” ’
 2.2 32	Nellie Guitterez	surface	ixíʔ cus, cus kʷukʷ “way̓ ilíʔ mi kʷ ɬq̓ilx məɬ aláʔ incákn.”
 2.2 32	John Lyon	parse	ixíʔ √cun-nt-s √cun-nt-s kʷukʷ way̓ ilíʔ mi kʷ √ɬq̓+ilx mɬ aláʔ incá-kn
-2.2 32	John Lyon	gloss	DEM say-DIR-3ERG say-DIR-3ERG EVID yes DEM FUT.COMP 2SG.ABS lay.down+AUT CONJ DEM 1SG.INDEP-1SG.ABS
-2.2 32	John Lyon	word gloss	then he.told.him he.told.him they.say yes there will you lay.down and.then here I
-2.2 32	John Lyon	translation	‘Smokey told the priest “You lay down over there and I’ll lay down here.” ’
+2.2 32	John Lyon	gloss	DEM say-DIR-3ERG say-DIR-3ERG EVID yes DEM FUT.COMP 2SG.ABS position.down+AUT CONJ DEM 1SG.INDEP-1SG.ABS
+2.2 32	John Lyon	word gloss	then he.told.him he.told.him they.say yes there will you position.down and.then here I
+2.2 32	John Lyon	translation	‘Smokey told the priest “You position down over there and I’ll position down here.” ’
 2.2 33	Nellie Guitterez	surface	“Not too close apart. ” cus kʷukʷ “Alright. ”
 2.2 33	John Lyon	parse	not too close apart √cun-nt-s kʷukʷ alright
 2.2 33	John Lyon	gloss	not too close apart say-DIR-3ERG EVID alright
@@ -401,7 +401,7 @@ footnote 16	John Lyon	note	I am unsure about the etymology and correct transcrip
 2.2 37	John Lyon	word gloss	he.said they.say yes will I.put.it.out if you are ready you just say so
 2.2 37	John Lyon	translation	‘The priest said “Yes, I will put it out, if you are ready, just say so!” ’
 footnote 17	John Lyon	note	Nellie Guitterez switches to English for the rest of the narrative.
-2.2	Nellie Guitterez	english closing	He said “Yes, I’m ready.” The priest said “Yes, I’m ready.” He took his pistol and he shot the candle, and the light went out! He got so scared he never hardly moved. He laid there and listened to him, if he snored, finally he heard him snoring and he got up and he sneaked out. He moved from there to Johnny Garcia’s house. And Johnny Garcia told him when he got there “What’s the matter with you, Father? What did you come so late for?” “Well,” he said “It was still kind of daylight when I come to this next place here and I asked him if I could camp there. And he said to me “Alright”, he was good to me, until we was going to bed, and he asked me “Who’s gonna put the light out?” So I told him, I said “You can put it out, I’m ready now.” He said “You sure?” He said “Yes.” Smokey took his pistol and he shot the light and it went out! That’s all!
+2.2	Nellie Guitterez	english closing	He said “Yes, I’m ready.” The priest said “Yes, I’m ready.” He took his pistol and he shot the candle, and the light went out! He got so scared he never hardly moved. He positioned there and listened to him, if he snored, finally he heard him snoring and he got up and he sneaked out. He moved from there to Johnny Garcia’s house. And Johnny Garcia told him when he got there “What’s the matter with you, Father? What did you come so late for?” “Well,” he said “It was still type of daylight when I come to this next place here and I asked him if I could camp there. And he said to me “Alright”, he was good to me, until we was going to bed, and he asked me “Who’s gonna put the light out?” So I told him, I said “You can put it out, I’m ready now.” He said “You sure?” He said “Yes.” Smokey took his pistol and he shot the light and it went out! That’s all!
 §3	John Lyon	title	The four brothers story (kmúsməs iʔ sncʔiws smiʔmáy)	the section heading, with the story's Okanagan name
 §3	John Lyon	name	Kiláwnaʔ	the speaker, Andrew McGinnis of the Penticton Indian Reserve, recorded 9 October 2014
 §3	John Lyon	name	Sʔímlaʔxʷ	Michele K. Johnson, who transcribed and translated it with John Lyon
@@ -681,12 +681,12 @@ footnote 17	John Lyon	note	Nellie Guitterez switches to English for the rest of 
 3.2 48	John Lyon	translation	‘When he went back, oh, he was just bent over his horse, he whipped his horse.’
 3.2 49	Kiláwnaʔ	surface	c̓əlsqáx̌aʔ, iʔ kəwáps tx̌ʷúsəsc̓aʔ, taɬt ʔáyx̌ʷt iʔ kəwáps.
 3.2 49	John Lyon	parse	√c̓l+s+√qáx̌aʔ iʔ √kwáp-s t+√x̌ʷús•s=c̓aʔ, √taɬ+t ʔáyx̌ʷt iʔ √kwáp-s
-3.2 49	John Lyon	gloss	stand+NMLZ+horse DET horse-3POSS RES+foam•C2.LC=skin straight+STAT tired DET horse-3POSS
+3.2 49	John Lyon	gloss	are+NMLZ+horse DET horse-3POSS RES+foam•C2.LC=skin straight+STAT tired DET horse-3POSS
 3.2 49	John Lyon	word gloss	he.stopped.the.horse the his.horse its.skin.was.foaming sure tired the his.horse
 3.2 49	John Lyon	translation	‘He stopped his horse, its skin was foaming like soap, his horse got really tired.’
 3.2 50	Kiláwnaʔ	surface	xʷuy k̓l sənt̓əwstsqáx̌aʔtən, tliʔ kiʔ skʷums iʔ nc̓əlqʷiʔsqáx̌aʔtəns.
 3.2 50	John Lyon	parse	xʷuy k̓l s+n+√t̓wst+s+√qáx̌aʔ+tn itlíʔ kiʔ s-√kʷum-s iʔ n+√c̓lqʷ+iʔ+s+√qáx̌aʔ+tn-s
-3.2 50	John Lyon	gloss	go LOC NMLZ+LOC+stand.in.line+NMLZ+horse+INS DEM COMP.OBL NMLZ-store-3POSS DET LOC+place.on[?]+DRV+NMLZ+horse+INS-3POSS
+3.2 50	John Lyon	gloss	go LOC NMLZ+LOC+are.in.line+NMLZ+horse+INS DEM COMP.OBL NMLZ-store-3POSS DET LOC+place.on[?]+DRV+NMLZ+horse+INS-3POSS
 3.2 50	John Lyon	word gloss	he.went to barn from.there that he.stored.it the his.saddle
 3.2 50	John Lyon	translation	‘He went to the barn, from there that he hung up his saddle.’
 3.2 51	Kiláwnaʔ	surface	nʔuɬxʷ.
@@ -834,11 +834,11 @@ footnote 19	John Lyon	note	There is no question marker ha in this sentence, but 
 3.2 79	Kiláwnaʔ	surface	cut, “way̓ x̌ast, t̓əxʷ way̓, taʔlíʔ q̓ilt ispuʔús.”
 3.2 79	John Lyon	parse	cut way̓ √x̌as+t t̓xʷ way̓ taʔlíʔ √q̓il+t in-s+√puʔ(=)ús
 3.2 79	John Lyon	gloss	say yes good+STAT EVID yes very sick+STAT 1SG.POSS-NMLZ+heart
-3.2 79	John Lyon	word gloss	he.said yes thats.good kind.of yes very sore my.heart
-3.2 79	John Lyon	translation	‘The chief said “Well good, I kind of feel sorry.” ’
+3.2 79	John Lyon	word gloss	he.said yes thats.good type.of yes very sore my.heart
+3.2 79	John Lyon	translation	‘The chief said “Well good, I type of feel sorry.” ’
 3.2 80	Kiláwnaʔ	surface	“inkəwáp iʔ sƛ̓əx̌sqáx̌aʔs, cnʕac iʔ t nt̓əw̓stsqáx̌aʔtən. ixíʔ aksnáq̓ʷəminəm l nkʷkʷʔac.”
 3.2 80	John Lyon	parse	in-√kʷáp iʔ s+√ƛ̓x̌+s+√qáx̌aʔ-s c-n+√ʕac iʔ t n+√t̓w̓st+s+√qáx̌aʔ+tn ixíʔ an-ks-√náq̓ʷ-min-m l n(+)kʷ(•)kʷʔac
-3.2 80	John Lyon	gloss	1SG.POSS-horse DET NMLZ+fast+NMLZ+horse-3POSS STAT-LOC+tied DET OBL LOC+stand.in.line+NMLZ+horse+INS DEM 2SG.POSS-FUT-steal-APPL-MID LOC night
+3.2 80	John Lyon	gloss	1SG.POSS-horse DET NMLZ+fast+NMLZ+horse-3POSS STAT-LOC+tied DET OBL LOC+are.in.line+NMLZ+horse+INS DEM 2SG.POSS-FUT-steal-APPL-MID LOC night
 3.2 80	John Lyon	word gloss	my.horse the fast.horse is.tied.up the barn that you.will.steal.it at tonight
 3.2 80	John Lyon	translation	‘ “My race horse it is tied up at the barn. You’re going to steal it tonight.” ’
 3.2 81	Kiláwnaʔ	surface	“lut t̓ náq̓ʷəməntxʷ, x̌lap kʷ ikʕácíw̓səm.”
@@ -853,7 +853,7 @@ footnote 19	John Lyon	note	There is no question marker ha in this sentence, but 
 3.2 82	John Lyon	translation	‘The boy said “Yes, okay, I will steal it.” ’
 3.2 83	Kiláwnaʔ	surface	nkʷkʷʔac iʔ ylmíxʷəm iʔ səxʷk̓ʷəl̓k̓ʷúl̓əms, xʷʔit aɬíʔ xʷúyləx iʔ l sənt̓əwstsqáx̌aʔtən uɬ xəlxlákəkəlx.
 3.2 83	John Lyon	parse	n(+)kʷ(•)kʷʔac iʔ ylmíxʷm iʔ sxʷ+k̓ʷl̓•√k̓ʷúl̓-m-s xʷʔit aɬíʔ √xʷúy-lx iʔ l s+n+√t̓wst+s+√qáx̌aʔ+tn uɬ xl•√xlák•k-lx
-3.2 83	John Lyon	gloss	night DET chief DET OCC+C1C2.PL•work-MID-3POSS many COMP go-3PL DET LOC NMLZ+LOC+stand.in.line+NMLZ+horse+INS CONJ C1C2.PL•whirl•C2.LC-3PL
+3.2 83	John Lyon	gloss	night DET chief DET OCC+C1C2.PL•work-MID-3POSS many COMP go-3PL DET LOC NMLZ+LOC+are.in.line+NMLZ+horse+INS CONJ C1C2.PL•whirl•C2.LC-3PL
 3.2 83	John Lyon	word gloss	night the chief the his.workers many they.went the in barn and they.all.sat.around
 3.2 83	John Lyon	translation	‘At night, the chief’s workers were there, there’s a lot of them, they went in the barn and they all sat around.’
 footnote 20	John Lyon	note	The form xəlxlákəkəlx literally means “they were turning around”, but several speakers I have consulted say it can also mean ‘sitting around in a circle’, in cases where a room is full.
@@ -899,7 +899,7 @@ footnote 20	John Lyon	note	The form xəlxlákəkəlx literally means “they wer
 3.2 91	John Lyon	translation	‘There was a barrel of wine that the chief made.’
 3.2 92	Kiláwnaʔ	surface	ixíʔ kʷí····lk̓s uɬ k̓l sənt̓əwstsqáx̌aʔtən, k̓aʔítət.
 3.2 92	John Lyon	parse	ixíʔ √kʷílk̓-nt-s uɬ k̓l s+n+√t̓wst+s+√qáx̌aʔ+tn √k̓aʔít•t
-3.2 92	John Lyon	gloss	DEM roll-DIR-3ERG CONJ LOC NMLZ+LOC+stand.in.line+NMLZ+horse+INS near•C2.LC
+3.2 92	John Lyon	gloss	DEM roll-DIR-3ERG CONJ LOC NMLZ+LOC+are.in.line+NMLZ+horse+INS near•C2.LC
 3.2 92	John Lyon	word gloss	then he.rolled.it until to barn he.approached
 3.2 92	John Lyon	translation	‘He rolled the barrel until he got near the barn.’
 3.2 93	Kiláwnaʔ	surface	nc̓xʷám, ixiʔ sk̓ɬƛ̓əqƛ̓áqəlqs.
@@ -909,7 +909,7 @@ footnote 20	John Lyon	note	The form xəlxlákəkəlx literally means “they wer
 3.2 93	John Lyon	translation	‘He poured some (into two bottles) and stuck them under his shirt.’
 3.2 94	Kiláwnaʔ	surface	xʷuy iʔ tətwít, nʔuɬxʷ k̓l sənt̓əwstsqáx̌aʔtən.
 3.2 94	John Lyon	parse	xʷuy iʔ t(•)wít n+√ʔuɬxʷ k̓l s+n+√t̓wst+s+√qáx̌aʔ+tn
-3.2 94	John Lyon	gloss	go DET boy LOC+enter LOC NMLZ+LOC+stand.in.line+NMLZ+horse+INS
+3.2 94	John Lyon	gloss	go DET boy LOC+enter LOC NMLZ+LOC+are.in.line+NMLZ+horse+INS
 3.2 94	John Lyon	word gloss	he.went the boy he.went.in to barn
 3.2 94	John Lyon	translation	‘The boy went, and entered into the barn.’
 3.2 95	Kiláwnaʔ	surface	cúsəlx, “kʷ səxʔkínaʔx?”
@@ -1008,7 +1008,7 @@ footnote 22	John Lyon	note	Nearly all of the form n+√xƛ̓=íks-nt-islx ‘the
 3.2 113	John Lyon	parse	k̓ɬ(+)√x̌ʷil iʔ wíne-slx saʔ+√síws-nt-isəlx saʔ+√síws-nt-isəlx
 3.2 113	John Lyon	gloss	much DET wine-3PL.POSS DRV+drink-DIR-3PL.ERG DRV+drink-DIR-3PL.ERG
 3.2 113	John Lyon	word gloss	much the their.wine they.drank.it they.drank.it
-3.2 113	John Lyon	translation	‘They had a lot of wine. They kept drinking and drinking it.’
+3.2 113	John Lyon	translation	‘They had a lot of wine. They retained drinking and drinking it.’
 3.2 114	Kiláwnaʔ	surface	x̌ast iʔ spuʔúsəlx. qʷaʕqʷáʕləx.
 3.2 114	John Lyon	parse	√x̌as+t iʔ s+√puʔús-slx qʷaʕ•√qʷáʕ-lx
 3.2 114	John Lyon	gloss	good+STAT DET NMLZ+heart-3PL.POSS C1C2.PL•drunk-3PL
@@ -1026,7 +1026,7 @@ footnote 22	John Lyon	note	Nearly all of the form n+√xƛ̓=íks-nt-islx ‘the
 3.2 116	John Lyon	translation	‘The one who was on the horse fell off his horse.’
 3.2 117	Kiláwnaʔ	surface	aʔ ckʷənkʷínpsts, ilíʔ uɬ scəqaqínk.
 3.2 117	John Lyon	parse	aʔ c-kʷn•√kʷín=ps-st-s ilíʔ uɬ s-√cəq•aq=ínk
-3.2 117	John Lyon	gloss	DET CUST-C1C2.PL•take=tail-CAUS-3ERG DEM CONJ NMLZ-lay•C2.LC=back
+3.2 117	John Lyon	gloss	DET CUST-C1C2.PL•take=tail-CAUS-3ERG DEM CONJ NMLZ-position•C2.LC=back
 3.2 117	John Lyon	word gloss	the one.holding.the.tail there and he.fell.off.backwards
 3.2 117	John Lyon	translation	‘The one following behind, he fell off backwards.’
 3.2 118	Kiláwnaʔ	surface	uɬ axáʔ tkʷənkʷínplaʔs, ixíʔ nixʷ axáʔ yaxʷt.
@@ -1051,9 +1051,9 @@ footnote 22	John Lyon	note	Nearly all of the form n+√xƛ̓=íks-nt-islx ‘the
 3.2 121	John Lyon	translation	‘He went and moved it, it was in the brush that he tied it up.’
 3.2 122	Kiláwnaʔ	surface	ixíʔ kiʔ xʷuy uɬ ɬq̓íləx.
 3.2 122	John Lyon	parse	ixíʔ kiʔ xʷuy uɬ √ɬq̓+ílx
-3.2 122	John Lyon	gloss	DEM COMP.OBL go CONJ lay.down+AUT
-3.2 122	John Lyon	word gloss	that’s.when that he.went and he.laid.down
-3.2 122	John Lyon	translation	‘That’s when he went and laid down.’
+3.2 122	John Lyon	gloss	DEM COMP.OBL go CONJ position.down+AUT
+3.2 122	John Lyon	word gloss	that’s.when that he.went and he.positioned.down
+3.2 122	John Lyon	translation	‘That’s when he went and positioned down.’
 3.2 123	Kiláwnaʔ	surface	kʷkʷʕast. ixíʔ ylmíxʷəm kʔawsʕác̓s iʔ kəwáps.
 3.2 123	John Lyon	parse	ɬ(+)kʷ(•)√kʷʕas(+)t ixíʔ ylmíxʷm k+ʔaws+√ʕác̓-nt-s iʔ √kwáp-s
 3.2 123	John Lyon	gloss	morning DEM chief RES+go+look-DIR-3ERG DET horse-3POSS
@@ -1122,8 +1122,8 @@ footnote 23	John Lyon	note	My analysis of the first word in this stanza is tenta
 3.2 135	John Lyon	translation	‘ “Oh, yes, I’ll steal them from you, no problem,” the boy said.’
 3.2 136	Kiláwnaʔ	surface	naʔɬ tkɬmilxʷs ɬq̓əlílxəlx.
 3.2 136	John Lyon	parse	naʔɬ √tkɬmilxʷ-s √ɬq̓-l•ílx-lx
-3.2 136	John Lyon	gloss	CONJ woman-3POSS lay.down-C1.PL•AUT-3PL
-3.2 136	John Lyon	word gloss	with his.wife they.lay.down
+3.2 136	John Lyon	gloss	CONJ woman-3POSS position.down-C1.PL•AUT-3PL
+3.2 136	John Lyon	word gloss	with his.wife they.position.down
 3.2 136	John Lyon	translation	‘With his wife, they went to bed.’
 3.2 137	Kiláwnaʔ	surface	“t̓i kʷaʔ scxʔkínx mi kʷu náq̓ʷəms axáʔ ink̓ɬyxʷtíc̓aʔ?”
 3.2 137	John Lyon	parse	t̓i kʷaʔ s-c-x+√ʔkín-x mi kʷu √náq̓ʷ-m-nt-s axáʔ in-k̓ɬ+√yxʷ+t=íc̓aʔ
@@ -1132,9 +1132,9 @@ footnote 23	John Lyon	note	My analysis of the first word in this stanza is tenta
 3.2 137	John Lyon	translation	‘The chief said “How is he going to steal my bottom sheets from under me?” ’
 3.2 138	Kiláwnaʔ	surface	“ilíʔ kn ɬq̓íləx, nkʷkʷʔác.”
 3.2 138	John Lyon	parse	ilíʔ kn √ɬq̓+ílx n(+)kʷ(•)√kʷʔác
-3.2 138	John Lyon	gloss	DEM 1SG.ABS lay.down+AUT night
-3.2 138	John Lyon	word gloss	there I am.laying.down tonight
-3.2 138	John Lyon	translation	‘ “I’ll be laying there, tonight,” he said.
+3.2 138	John Lyon	gloss	DEM 1SG.ABS position.down+AUT night
+3.2 138	John Lyon	word gloss	there I am.positioning.down tonight
+3.2 138	John Lyon	translation	‘ “I’ll be positioning there, tonight,” he said.
 3.2 139	Kiláwnaʔ	surface	nkʷkʷʔac ixíʔ i·····ʔ mat scxʔkínx?
 3.2 139	John Lyon	parse	n(+)kʷ(•)√kʷʔac ixíʔ iʔ mat s-c-x+√ʔkín-x?
 3.2 139	John Lyon	gloss	night DEM DET EPIS NMLZ-CUST-DRV+do.what-INTR
@@ -1163,8 +1163,8 @@ footnote 24	John Lyon	note	There is no 3rd person possessive -s pronounced on tk
 3.2 143	John Lyon	translation	‘He pulled away the bottom sheets and went outside.’
 3.2 144	Kiláwnaʔ	surface	ixíʔ cnʔuɬxʷ iʔ ylmíxʷəm, ksɬq̓ílxaʔx.
 3.2 144	John Lyon	parse	ixíʔ c+n+√ʔuɬxʷ iʔ ylmíxʷm ks-√ɬq̓+ílx-aʔx
-3.2 144	John Lyon	gloss	DEM CISL+LOC+enter DET chief FUT-lay.down+AUT-INCEPT
-3.2 144	John Lyon	word gloss	then he.went.inside the chief he.was.going.to.lay.down
+3.2 144	John Lyon	gloss	DEM CISL+LOC+enter DET chief FUT-position.down+AUT-INCEPT
+3.2 144	John Lyon	word gloss	then he.went.inside the chief he.was.going.to.position.down
 3.2 144	John Lyon	translation	‘Then the chief went back inside, and he was going to go to bed.’
 3.2 145	Kiláwnaʔ	surface	“xʔkínəm ik̓ɬyxʷtíc̓aʔ?”
 3.2 145	John Lyon	parse	x+√ʔkín-m in-k̓ɬ+√yxʷ+t=íc̓aʔ
@@ -1188,8 +1188,8 @@ footnote 24	John Lyon	note	There is no 3rd person possessive -s pronounced on tk
 3.2 148	John Lyon	translation	‘He was disgusted, because the boy stole the bottoms sheets.’
 3.2 149	Kiláwnaʔ	surface	ixíʔ ɬq̓ílx uɬ ʔitx.
 3.2 149	John Lyon	parse	ixíʔ √ɬq̓+ílx uɬ ʔitx.
-3.2 149	John Lyon	gloss	DEM lay.down+AUT CONJ sleep
-3.2 149	John Lyon	word gloss	then he.lay.down and he.slept
+3.2 149	John Lyon	gloss	DEM position.down+AUT CONJ sleep
+3.2 149	John Lyon	word gloss	then he.position.down and he.slept
 3.2 149	John Lyon	translation	‘Then he went to bed and slept.’
 3.2 150	Kiláwnaʔ	surface	x̌lap ʔəɬʔíɬənləx, iʔ tətwít ʔíɬən, t̓i sal̓.
 3.2 150	John Lyon	parse	x̌lap ʔɬ•√ʔíɬn-lx iʔ t(•)√twít ʔíɬn t̓i sal̓
@@ -1228,8 +1228,8 @@ footnote 24	John Lyon	note	There is no 3rd person possessive -s pronounced on tk
 3.2 156	John Lyon	translation	‘The boy said “Okay.” ’
 3.2 157	Kiláwnaʔ	surface	n̓ín̓w̓iʔs ixíʔ k̓laxʷ, iʔ. . . xʷuy uɬ ɬq̓íləx. . .
 3.2 157	John Lyon	parse	n̓ín̓w̓iʔs ixíʔ k̓laxʷ ixíʔ xʷuy uɬ √ɬq̓+ílx
-3.2 157	John Lyon	gloss	in.a.while DEM evening DEM go CONJ lay.down+AUT
-3.2 157	John Lyon	word gloss	yes in.a.while it.was.evening then he.went and he.laid.down
+3.2 157	John Lyon	gloss	in.a.while DEM evening DEM go CONJ position.down+AUT
+3.2 157	John Lyon	word gloss	yes in.a.while it.was.evening then he.went and he.positioned.down
 3.2 157	John Lyon	translation	‘After a little while it was evening, and he went to bed.’
 3.2 158	Kiláwnaʔ	surface	nkʷkʷʔac [kax. . . ] mat way̓ l ʔásil iʔ sx̌laps, iʔ sənk̓áʕmən lut lkʷut.
 3.2 158	John Lyon	parse	n(+)kʷ(•)kʷʔac mat way̓ l ʔásil iʔ s-x̌lap-s, iʔ s+n+√k̓áʕ+mn lut √lkʷ=ut
@@ -1285,7 +1285,7 @@ footnote 24	John Lyon	note	There is no 3rd person possessive -s pronounced on tk
 3.2 168	John Lyon	parse	ixíʔ uɬ √k̓ʕa-m iʔ t(•)√twít
 3.2 168	John Lyon	gloss	DEM CONJ pray-MID DET boy
 3.2 168	John Lyon	word gloss	then and he.was.praying the boy
-3.2 168	John Lyon	translation	‘And the boy just kept on praying.’
+3.2 168	John Lyon	translation	‘And the boy just retained on praying.’
 3.2 169	Kiláwnaʔ	surface	ʔáx̌əlməncut, cus iʔ q̓ʷʕaylqs “cxʷuyx aláʔ!”
 3.2 169	John Lyon	parse	√ʔáx̌l-m-ncut √cun-nt-s iʔ √q̓ʷʕay=lqs c+√xʷuy-x aláʔ
 3.2 169	John Lyon	gloss	turn.around-APPL-REFL say-DIR-3ERG DET black=robe CISL+go-IMP DEM
@@ -1343,8 +1343,8 @@ footnote 24	John Lyon	note	There is no 3rd person possessive -s pronounced on tk
 3.2 179	John Lyon	translation	‘The boy carried the priest on his back to the chicken house, and he hung him up.’
 3.2 180	Kiláwnaʔ	surface	ixíʔ uɬ xʷuy ɬq̓íləx.
 3.2 180	John Lyon	parse	ixíʔ uɬ xʷuy √ɬq̓+ílx
-3.2 180	John Lyon	gloss	DEM CONJ go lay.down+AUT
-3.2 180	John Lyon	word gloss	then and he.went he.laid.down
+3.2 180	John Lyon	gloss	DEM CONJ go position.down+AUT
+3.2 180	John Lyon	word gloss	then and he.went he.positioned.down
 3.2 180	John Lyon	translation	‘And then the boy went home and went to bed.’
 3.2 181	Kiláwnaʔ	surface	ɬkʷkʷʕast, ixíʔ iʔ likók qʷəlqʷílt.
 3.2 181	John Lyon	parse	ɬ(+)kʷ•√kʷʕas(+)t ixíʔ iʔ likók qʷl•√qʷíl+t
@@ -1379,9 +1379,9 @@ footnote 25	John Lyon	note	A.M. says to take out kʷu.
 3.2 186	John Lyon	translation	‘The chief went there, and the priest was there hung up inside the chickenhouse.’
 3.2 187	Kiláwnaʔ	surface	tk̓ʷəƛ̓ntis [ehʔ], t̓iɬx iʔ q̓ʷʕaylqs, “ha kʷu yaʕp?”
 3.2 187	John Lyon	parse	t+√k̓ʷƛ̓-nt-is √t̓iɬ-x iʔ √q̓ʷʕay=lqs ha kʷu √yaʕ+p
-3.2 187	John Lyon	gloss	RES+take.something.out-DIR-3ERG stand-INTR DET black=robe Q 1PL.ABS gather+INCH
-3.2 187	John Lyon	word gloss	he.took.him.off he.stood.up the priest have we arrived
-3.2 187	John Lyon	translation	‘The chief took him off from where he was hanging, and the priest stood up and asked “Have we arrived?” ’
+3.2 187	John Lyon	gloss	RES+take.something.out-DIR-3ERG are-INTR DET black=robe Q 1PL.ABS gather+INCH
+3.2 187	John Lyon	word gloss	he.took.him.off he.was.up the priest have we arrived
+3.2 187	John Lyon	translation	‘The chief took him off from where he was hanging, and the priest was up and asked “Have we arrived?” ’
 3.2 188	Kiláwnaʔ	surface	“kʷu yaʕp! kiw̓, isqʷsíʔaʔ ckʔx̌ilməstəms!”
 3.2 188	John Lyon	parse	kʷu √yaʕ+p kiw̓ in-s+√qʷsíʔ+aʔ c-k+√ʔx̌il-m-st-m-s
 3.2 188	John Lyon	gloss	1PL.ABS gather+INCH yes 1SG.POSS-NMLZ+son+DRV CUST-RES+do.like-APPL-CAUS-2SG.OBJ-3ERG

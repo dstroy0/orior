@@ -8,7 +8,7 @@
 // listing prints them. Then the word our compiler writes the block's precept with (word_web.h) is written through
 // sass.krs with NVIDIA's own registers, assembled, and set beside NVIDIA's instruction. A precept no word implements is
 // reported with the tree the alphabet web writes it as (precepts.h). sass.krs, the machine file and the word web are
-// read as they stand.
+// read as they are.
 //
 //     monolith_emit <listing> <block> [machine file]
 //     monolith_emit <listing> all <record> [machine file]
@@ -187,7 +187,7 @@ static std::string emit_alphabet(unsigned int precept)
 }
 
 // Whether NVIDIA's block contains the passage: the register its load writes is the register its store reads, and
-// nothing past the parameters' moves stands between them. The two registers through `loaded` and `stored`, the reading
+// nothing past the parameters' moves is between them. The two registers through `loaded` and `stored`, the reading
 // printed
 static int emit_passage(const std::vector<EmitLine> &passage, std::string *loaded, std::string *stored)
 {
@@ -505,15 +505,15 @@ static std::string emit_our_text(const std::string &text, const SassMachine *mac
     std::string ours = text;
     for (unsigned int place = 0u; (form != nullptr) && (place < parts.operands); place += 1u)
     {
-        int shown = 0;
+        int displayed = 0;
         for (unsigned int number = 0u; number < form->runs; number += 1u)
         {
-            shown = shown || ((form->run[number].operand == place) && (form->run[number].first == 101u) &&
+            displayed = displayed || ((form->run[number].operand == place) && (form->run[number].first == 101u) &&
                               (form->run[number].last == 101u));
         }
         const std::string operand = parts.operand[place];
         const size_t at = ours.find(operand);
-        if ((parts.kind[place] == SASS_OPERAND_ADDRESS) && shown && (operand[0] == '[') && (at != std::string::npos))
+        if ((parts.type[place] == SASS_OPERAND_ADDRESS) && displayed && (operand[0] == '[') && (at != std::string::npos))
         {
             ours.insert(at, "term[" + s_descriptor + "]");
         }
@@ -554,7 +554,7 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         char text[256];
         const int read = sass_encoding_read(machine, line.low, line.high, line.address, text, sizeof(text));
         const std::string ours = read ? emit_plain(text) : std::string();
-        // whether the machine file contains a form for the instruction's text, its operation and the kinds of its
+        // whether the machine file contains a form for the instruction's text, its operation and the types of its
         // operands, apart from whether that form matches these bits
         SassInstructionParts parts;
         sass_instruction_read(line.text.c_str(), &parts);
@@ -685,7 +685,7 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         return;
     }
 
-    // ERR has two candidates and the part's clock chooses between them, and this code does not: a trap where it stands, the way
+    // ERR has two candidates and the part's clock chooses between them, and this code does not: a trap where it is, the way
     // NVIDIA writes it, a branch past the trap on the flag; and a branch to a handler, the error word (word_web.h),
     // written through sass.krs on NVIDIA's predicate and landing on the label label_error writes
     if (precept == PRECEPT_ERR)
@@ -792,7 +792,7 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
                                       ? emit_plain(text)
                                       : std::string("(unread)");
         // the jump's guard and operation checked against NVIDIA's, its target apart: the label here lands where
-        // label_loop stands and NVIDIA's lands past its block
+        // label_loop is and NVIDIA's lands past its block
         const unsigned long long guard_bits = 0xf000ull;
         const unsigned long long operation_bits = 0xfffull;
         const int same_guard = (assembled != 0u) && ((low & guard_bits) == (guard->low & guard_bits));

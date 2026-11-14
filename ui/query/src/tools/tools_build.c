@@ -7,7 +7,7 @@
 #include "../../../cli/src/text/text.h"
 #include "tools_internal.h"
 
-// the most include folders a tool names, MMgr's among them, and the most words one compile is given: the compiler,
+// the max include folders a tool names, MMgr's among them, and the max words one compile is given: the compiler,
 // its flags, MMgr's settings, the includes and the source and object
 #define QUERY_INCLUDES_MAX 32u
 #define QUERY_COMPILE_WORDS (8u + 4u + QUERY_INCLUDES_MAX + 8u)
@@ -18,7 +18,7 @@ typedef struct
     const char *source;
 } QueryCompile;
 
-// the most of what a compiler or the linker printed retained to explain why a build failed, and the bytes it is taken
+// the max of what a compiler or the linker printed retained to explain why a build failed, and the bytes it is taken
 // to be stored in
 #define QUERY_BUILD_OUTPUT_MAX_LEN 65536u
 
@@ -48,7 +48,7 @@ typedef struct
     const char *c_compiler;
     char *cxx_compiler;
 } ToolsBuildCtx;
-// the output of `process` read to its end, QUERY_BUILD_OUTPUT_MAX_LEN bytes of it at the most, into `output`, a line,
+// the output of `process` read to its end, QUERY_BUILD_OUTPUT_MAX_LEN bytes of it at max, into `output`, a line,
 // its trailing blank lines left off and closed, and the process waited on: its exit code
 EMBED_INLINE long long query_build_read(const ToolsBuildCtx *args)
 {

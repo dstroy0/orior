@@ -138,13 +138,13 @@ void test_nothing_of_the_list_remains_after_it(void)
 
 void test_the_tree_is_listing_as_it_opens(void)
 {
-    repository_listing("trunk_stands");
+    repository_listing("trunk_is");
     TEST_ASSERT_NOT_EQUAL(0ull, s_listing_at);
 }
 
 void test_the_tree_is_not_listing_again_for_the_time_that_passed(void)
 {
-    repository_listing("trunk_stands");
+    repository_listing("trunk_is");
     EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 4200u);
     EMBED_CALL(cli_files.let, CliFilesCfg, .files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = s_root));
     EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 500u);
@@ -336,17 +336,17 @@ void test_a_changed_branch_walked_releases_no_cell_it_did_not_take(void)
     static const char *const s_changed[1] = {"src/a.c"};
     const unsigned long long words = 1ull << 22u;
     repository_listing("trunk_walked");
-    void *const standing = g_cli_guard->persistent_buf_alloc(64u, g_cli_code_owner);
-    TEST_ASSERT_NOT_NULL(standing);
+    void *const located = g_cli_guard->persistent_buf_alloc(64u, g_cli_code_owner);
+    TEST_ASSERT_NOT_NULL(located);
     void **const stale = g_cli_guard->temporary_buf_alloc(words * sizeof(*stale), g_cli_code_owner);
     TEST_ASSERT_NOT_NULL(stale);
     for (unsigned long long at = 0ull; at < words; at += 1ull)
     {
-        stale[at] = standing;
+        stale[at] = located;
     }
     g_cli_guard->persistent_buf_release(stale, g_cli_code_owner);
     EMBED_CALL(cli_symbols_root.tree_branches_walk, CliSymbolsRootCfg, .root = s_root, .paths = s_changed, .count = 1u);
-    TEST_ASSERT_EQUAL_PTR(g_cli_code_owner, mmgr_owner_of_buf(cli_pool_series_cellularum(), standing));
-    g_cli_guard->persistent_buf_release(standing, g_cli_code_owner);
+    TEST_ASSERT_EQUAL_PTR(g_cli_code_owner, mmgr_owner_of_buf(cli_pool_series_cellularum(), located));
+    g_cli_guard->persistent_buf_release(located, g_cli_code_owner);
 }
 

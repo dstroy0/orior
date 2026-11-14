@@ -10,7 +10,7 @@ import { asFound, calls, press, putBackAsFound, TREE } from "../../menus.js";
 
 const { test, assert, ui } = window.__harness;
 
-test("the commits' menus, from the command line: a revision opened, compared, its id and message copied, its files and changes shown", async () => {
+test("the commits' menus, from the command line: a revision opened, compared, its id and message copied, its files and changes displayed", async () => {
   asFound();
   const tree = TREE();
   const git = (...words) => ui.run("git", ["-C", tree, "-c", "user.name=orior", "-c", "user.email=orior@localhost", ...words]);
@@ -38,7 +38,7 @@ test("the commits' menus, from the command line: a revision opened, compared, it
     assert.deepEqual(copied, [newest.id, "a second revision of hello"]);
     await press("commit-files", newest.id.slice(0, 7));
     const row = () => [...document.querySelectorAll(".git-commit")].find((one) => one.dataset.key === newest.id);
-    await ui.waitFor(() => row()?.getAttribute("aria-expanded") === "true", 5000, "the commit's files shown");
+    await ui.waitFor(() => row()?.getAttribute("aria-expanded") === "true", 5000, "the commit's files displayed");
     await press("commit-file-changes", newest.id.slice(0, 7), "hello.py");
     await ui.waitFor(() => document.querySelector("#mode-edit .desk .diff-button"), 5000, "the commit's change to hello.py");
     closeDiff();

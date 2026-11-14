@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// hover.c: the hover panel, its box laid under its word as the panels over the editor carry it
+// hover.c: the hover panel, its box positioned under its word as the panels over the editor carry it
 #include "hover.h"
 
 #include "../../../includes/window/frame.h"
@@ -35,8 +35,8 @@ void gui_hover_draw(const GuiHoverRasterCfg *args)
                    .palette = args->palette, .text = panel->text, .length = panel->length, .x = 0, .y = 0,
                    .pixel_width = inner, .scale = scale, .clip = args->bounds);
     int pixel_height = measured + (2 * pad_y);
-    const int most = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_HOVER_HEIGHT, .scale = scale);
-    pixel_height = (pixel_height > most) ? most : pixel_height;
+    const int max = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_HOVER_HEIGHT, .scale = scale);
+    pixel_height = (pixel_height > max) ? max : pixel_height;
     args->hover->rect =
         EMBED_CALL(gui_panel_width.place, GuiPanelWidthCfg, .anchor = args->anchor, .pixel_width = pixel_width,
                    .pixel_height = pixel_height, .back = 0, .bounds = args->bounds, .above = 0, .scale = scale);

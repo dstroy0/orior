@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // highlight.h: the editor's colors, worked out here: a text a line at a time from a grammar, as the page's tokens.js
 // reads one (highlight.c reads and stores a grammar, highlight_line.c colors lines by it). A grammar is the page's own,
-// handed over as JSON with each pattern as its source and flags, and is stored under a key for the lines requested of
+// passed over as JSON with each pattern as its source and flags, and is stored under a key for the lines requested of
 // it after.
 //
 // A grammar is `{ tokenizer: { root: rules, <state>: rules, ... }, <name>: [words], ... }`. Each rule is tried in
@@ -11,14 +11,14 @@
 // each group of the match a token of its own; or `{ include: "@state" }`, the rules of another state. A token is a
 // name, or `{ cases: { "@<name>": token, "<word>": token, "@default": token } }`, which picks by the matched text, and
 // `@brackets` is a bracket's, named by the grammar's `bracketToken`, `delimiter.bracket` where it gives none, with
-// `.open` for the first letter of one of its `brackets` and `.close` for the second. A next of `@<state>` enters a
+// `.open` for the first character of one of its `brackets` and `.close` for the second. A next of `@<state>` enters a
 // state, `@pop` leaves the one entered last, `@pop@<state>` leaves it and enters `<state>` in its place, and `@popall`
 // returns to root. A grammar whose `perLine` is set starts every line in root; any other carries its states from the
 // end of one line to the start of the next, written as their names joined by `/`.
 //
-// A rule that matches nothing at a line's end and names a token puts a mark there, a token of no letters. A grammar's
+// A rule that matches nothing at a line's end and names a token puts a mark there, a token of no characters. A grammar's
 // `indent`, `{ states: { <state>: <token>, ... }, tab, skip, begins: [<state>, ...] }`, runs the states it names by
-// indent, each line's indent its spaces and tabs before its first other letter, a tab to the next multiple of `tab`,
+// indent, each line's indent its spaces and tabs before its first other character, a tab to the next multiple of `tab`,
 // one column where it gives none. A line `skip` matches is passed over. Any other line begun with a state of `begins`
 // on top makes its indent the statement's, and a rule entering a state of `states` saves the statement's indent with
 // it; the line, on such a state on top of the stack whose indent is as deep as its own or deeper, leaves it, a mark of
@@ -44,7 +44,7 @@ int cli_highlight_store(const CliHighlightKeyJsonCfg *args);
 // the one before it ends in, written into `out` as `{"names": [every name a token can take, the empty name first],
 // "runs": [[[column, name], ...] for each line], "states": [the state each line ends in]}`: 1, or 0 with why given
 int cli_highlight_color(const CliHighlightKeyErrMsgCfg *args);
-// One line's leaves as the colorer hands them over: the line, and its runs, each the column it starts at in UTF-16
+// One line's leaves as the colorer passes them over: the line, and its runs, each the column it starts at in UTF-16
 // units and its token's name, running to the next run's column or the column the colored line ends at, `end`; a run's
 // name is `text` from `name_at[name[run]]`, the empty name, the first, where the grammar gives none; and the state the
 // line ends in, as `states` writes it
@@ -66,22 +66,22 @@ typedef struct
     const CliLeaves *leaves;
 } CliLeavesEachCfg;
 
-// what each line's leaves are handed to, in turn
+// what each line's leaves are passed to, in turn
 typedef void (*CliLeavesEach)(const CliLeavesEachCfg *args);
 
 // `count` lines colored with the grammar stored under `key`, the first starting in `state` and each after in the state
-// the one before it ends in, the last ending the text where `ends` is 1, each line's leaves handed to `each`, and the
+// the one before it ends in, the last ending the text where `ends` is 1, each line's leaves passed to `each`, and the
 // state the last ends in written into `ended`: 1, or 0 with why given. The lines are colored and `each` runs with no
 // lock taken, on the calling thread, as many colorings at once as threads call for them
 int cli_highlight_leaves(const CliHighlightKeyCfg *args);
 // every name a token of the grammar stored under `key` can take, the empty name first, written into `out` as a JSON
-// array: 1, or 0 where no grammar is stored under `key`; each of those names handed to `each` with its place, in turn,
+// array: 1, or 0 where no grammar is stored under `key`; each of those names passed to `each` with its place, in turn,
 // under the lock the grammars are stored under: how many, 0 where no grammar is stored under `key`; and one line's
 // runs written into `out` as `[column, name, column, name, ...]`, as the page reads a line's colors
 typedef void (*CliNameEach)(const CliNameEachCfg *args);
 unsigned int cli_highlight_names_each(const CliHighlightKeyContextCfg *args);
 void cli_highlight_runs_write(const CliHighlightCfg *args);
-// the grammars' own report, `<pool's bytes> <their mark> 0`, the most the grammars and their capacities occupied of the
+// the grammars' own report, `<pool's bytes> <their mark> 0`, the max the grammars and their capacities occupied of the
 // cellblock at once, written into `out` (highlight_store.c)
 void cli_highlight_cells_usage_write(const CliHighlightCfg *args);
 

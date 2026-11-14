@@ -6,11 +6,11 @@
 
 //
 // pi in the plane. pi's bits after the point, certified by
-// Machin's bracket on the exact integer, are laid out as shapes; each shape is drawn as a PNG and read for its longest
-// straight line of equal bits, against keyed shuffles of the same bits laid out the same way.
+// Machin's bracket on the exact integer, are arranged as shapes; each shape is drawn as a PNG and read for its longest
+// straight line of equal bits, against keyed shuffles of the same bits arranged the same way.
 //
 // 1. The bits: floor((pi - 3) 2^N) is one integer at both ends of Machin's bracket, and it begins 0x243F6A8885A308D3.
-// 2. Every width at once: laid out in rows of width W, a line of step (dy, dx) is the progression of difference dy W +
+// 2. Every width at once: arranged in rows of width W, a line of step (dy, dx) is the progression of difference dy W +
 // dx
 //    along the bits. The longest run of equal bits at every difference L below N reads every line in every width,
 //    a line that wraps a row's end included. The device reads it, one thread a difference, and the host reads it again
@@ -18,8 +18,8 @@
 // 3. The shapes: rows of width 7, 16, 32, 64, 106, 113, 128 and 256 (7, 106 and 113 are the denominators of pi's
 //    convergents 22/7, 333/106 and 355/113; its floors, the partial quotients, are 3, 7, 15, 1, 292); the tower whose
 //    row k contains k bits; a disc filled by horizontal lines and the same disc filled ring by ring; the square spiral;
-//    and the twindragon, bit n at the Gaussian integer that n's binary digits name in base -1 + i. Each lays out every
-//    bit on its own pixel. A shape's line is read along every step (dy, dx) with coprime parts of at most 6.
+//    and the twindragon, bit n at the Gaussian integer that n's binary digits name in base -1 + i. Each arranges every
+//    bit on its own pixel. A shape's line is read along every step (dy, dx) with coprime parts of at max 6.
 // 4. Against chance: every reading is taken again on keyed Fisher-Yates shuffles of the bits, which preserve the count
 // of
 //    ones, and pi's is ranked among them.
@@ -48,7 +48,7 @@
 // the widest part of a line's step on a shape
 #define PLANE_STEP_MAX 6ll
 
-// a picture's longer side is scaled up to at most this many pixels
+// a picture's longer side is scaled up to at max this many pixels
 #define PLANE_PICTURE_MAX 1024ull
 
 // the shade of a pixel no bit lands on, midway. A one and a zero are equally far from it
@@ -187,7 +187,7 @@ int plane_picture(const PlaneExtent &extent, const unsigned char *bits, const st
 int plane_sparse_picture(const PlaneExtent &extent, const unsigned char *bits, const PlaneLine &found,
                          const std::string &path);
 
-std::vector<unsigned long long> plane_ring_sizes(const std::vector<unsigned char> &bits, unsigned long long maximum);
+std::vector<unsigned long long> plane_ring_sizes(const std::vector<unsigned char> &bits, unsigned long long max);
 
 unsigned long long plane_ring_total(const std::vector<unsigned long long> &sizes);
 

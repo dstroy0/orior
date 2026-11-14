@@ -127,7 +127,7 @@ static void cli_of_entries(const CompileDbGatherCtx *args)
 }
 
 // The tree's own database sifted for its compilers: the database, the piece of the file read, its bytes, and the
-// place past which a hit stands too near the piece's end for its value to be whole
+// place past which a hit is too near the piece's end for its value to be whole
 typedef struct
 {
     CliDatabase *database;

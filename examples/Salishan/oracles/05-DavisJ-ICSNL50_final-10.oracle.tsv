@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	John Hamilton Davis	title	A Trio of Phonetic Details in Homalco	page 1
 front	John Hamilton Davis	name	John Hamilton Davis	author
 front	John Hamilton Davis	note	Bellingham, Washington	page 1, under John Hamilton Davis
@@ -18,7 +18,7 @@ front	John Hamilton Davis	language	Homalco	the northernmost dialect of Mainland 
 §1	John Hamilton Davis	language	Comox	Mainland and Island Comox
 §1	John Hamilton Davis	language	Sliammon	a dialect of Mainland Comox
 §2	John Hamilton Davis	heading	2 First history	page 1
-§2	John Hamilton Davis	note	The first field notes that I’ve been able to obtain are from Franz Boas, written onto file slips around 1887. Boas worked with the Island Comox dialect and not with one of the three Mainland Comox dialects. These slips are in the Smithsonian Anthropological Archives as Document 711–b. Although this document gives much phonetic data, fine phonetic detail is not discernable. For example, although the letter ç uniquely represents the sound [θ], the letter q represents any one of the three sounds [çʷ], [χ], [χʷ].	page 1
+§2	John Hamilton Davis	note	The first field notes that I’ve been able to obtain are from Franz Boas, written onto file slips around 1887. Boas worked with the Island Comox dialect and not with one of the three Mainland Comox dialects. These slips are in the Smithsonian Anthropological Archives as Document 711–b. Although this document gives much phonetic data, fine phonetic detail is not discernable. For example, although the character ç uniquely represents the sound [θ], the character q represents any one of the three sounds [çʷ], [χ], [χʷ].	page 1
 §2	Homalco	cited form	ç	page 2, in italics
 §2	John Hamilton Davis	name	Franz Boas	the Island Comox file slips, around 1887
 §2	John Hamilton Davis	language	Island Comox	Boas's dialect
@@ -61,7 +61,7 @@ front	John Hamilton Davis	language	Homalco	the northernmost dialect of Mainland 
 (3)	Homalco	transcription	thamshîa’	page 3, written for learners
 (3)	John Hamilton Davis	translation	‘twenty’	page 3
 §3	John Hamilton Davis	note	These examples illustrate the pedagogical orthography that I am using to transcribe my field notes and the texts which have been told to me.	page 3
-§3	John Hamilton Davis	note	Parallel with the offglide from a palatal stop being heard before an /a/, most instances of a palatal stop followed by the vowel /u/ also have an audible offglide — an exception is the word for ‘child’ /čuy̕/ [čuyʔ]. Some examples of the audible offglide are:	page 3
+§3	John Hamilton Davis	note	Parallel with the offglide from a palatal stop being heard before an /a/, max instances of a palatal stop followed by the vowel /u/ also have an audible offglide — an exception is the word for ‘child’ /čuy̕/ [čuyʔ]. Some examples of the audible offglide are:	page 3
 (4)	Homalco	phonemic	/č’umən/	page 3
 (4)	Homalco	phonetic	[č’íumɪn]	page 3
 (4)	Homalco	transcription	ch’îumen	page 3, written for learners
@@ -89,13 +89,13 @@ front	John Hamilton Davis	language	Homalco	the northernmost dialect of Mainland 
 (8)	Homalco	transcription	wha’	page 3, written for learners
 (8)	John Hamilton Davis	translation	‘no!’	page 3
 §3	John Hamilton Davis	note	Here the initial segment is pronounced not as its own syllable (or mora) but is phonetically a syllable initial consonant.	page 3
-§3	John Hamilton Davis	note	One instance of this emphatic denial came during a conversation with Tommy Paul, when I asked him what sasquatch may’al’alh [mayʔᴧlʔᴧɬ] eats. His response was “Tam qigath, tam majath” [tam qegᴧθ, tam mᴧǰᴧθ] ‘any kind of deer, any kind of meat’ — then when I asked “pileq ?” [pεləq] ‘mushrooms’ his answer was an emphatic “NO!”	page 3
+§3	John Hamilton Davis	note	One instance of this emphatic denial came during a conversation with Tommy Paul, when I asked him what sasquatch may’al’alh [mayʔᴧlʔᴧɬ] eats. His response was “Tam qigath, tam majath” [tam qegᴧθ, tam mᴧǰᴧθ] ‘any type of deer, any type of meat’ — then when I asked “pileq ?” [pεləq] ‘mushrooms’ his answer was an emphatic “NO!”	page 3
 §3	John Hamilton Davis	name	Tommy Paul	asked about sasquatch
 §4	John Hamilton Davis	heading	4 Stød as another source of Sapir’s “rearticulated vowels”	page 4
 §4	John Hamilton Davis	note	In the spring of 1970, Jimi Wilson visited me in Victoria. Jimi was a member of the Homalco band, raised in Church House. He visited the University of Victoria campus and classrooms and attended a number of social events. One of these was a cookout on the beach near Sooke. At that cookout, Jim Hoard asked Jimi to pronounce several words. When Jimi said the word for “mussel” Jim immediately identified the pronunciation as being an instance of stød with the same pronunciation as it would have if it were a word in Danish.	page 4
 §4	John Hamilton Davis	name	Jim Hoard	James Hoard, Syllabification (1978)
 §4	John Hamilton Davis	language	Danish	stød
-§4	John Hamilton Davis	note	Wikipedia defines stød [sdøð] as “a suprasegmental unit of Danish phonology, which in its most common form is a kind of creaky voice (laryngealization), but may also be realized as a glottal stop, above all in emphatic pronunciation.” The article goes on to say that the IPA character for glottal stop is used to transcribe stød. This description from Wikipedia also describes the situation in Homalco. I described this alternation in my M.A. thesis (pp. 24-27). Mary George pronounced a glottal stop where Noel George Harry and Bill Galligos regularly pronounced a rearticulated vowel, a dragged out vowel, with creaky voice and lower pitch.	page 4
+§4	John Hamilton Davis	note	Wikipedia defines stød [sdøð] as “a suprasegmental unit of Danish phonology, which in its usual form is a type of creaky voice (laryngealization), but may also be realized as a glottal stop, above all in emphatic pronunciation.” The article goes on to say that the IPA character for glottal stop is used to transcribe stød. This description from Wikipedia also describes the situation in Homalco. I described this alternation in my M.A. thesis (pp. 24-27). Mary George pronounced a glottal stop where Noel George Harry and Bill Galligos regularly pronounced a rearticulated vowel, a dragged out vowel, with creaky voice and lower pitch.	page 4
 §4	John Hamilton Davis	note	The Comox word for ‘mussel’ which Jimi told Jim is /sam̕a/ [saᴧmᴧ] or [saᵃmᴧ] (alternative notations for the same phenomenon) with creaky voice. In his 1915 publication, Edward Sapir wrote the word for ‘mussel’ as sāᵃ’ba‘ (p. 30). This pronunciation of [b] for /m/ is not unexpected. For example, Noel George Harry sometimes said /maǰaθ/ as [bᴧǰᴧθ] ‘meat’ and /ǰənəs/ as [ǰɪdɪs] ‘tooth’ in allegro speech.	page 4
 §4	John Hamilton Davis	note	One alternation which occurs in all dialects of Comox is /w/ ~ /g/ and /y/ ~ /ǰ/. One example is the formation of the word ‘puppy’	page 4
 (9)	Homalco	phonemic	/č̕anəw/	page 4
@@ -147,7 +147,7 @@ front	John Hamilton Davis	language	Homalco	the northernmost dialect of Mainland 
 (16)	John Hamilton Davis	translation	‘sea cucumber’	page 5
 §4	John Hamilton Davis	note	Together with the words which Bill Galligos called “two and a half” syllables, this rearticulated, or echo, vowel phenomenon suggests that Homalco and its related dialects are mora-timed.	page 5
 §5	John Hamilton Davis	heading	5 Studies of Other Languages	page 5
-§5	John Hamilton Davis	note	Sonya Bird of the University of Victoria has done extensive analysis of laryngealized resonants in St’at’imcets, most recently in 2011. In that publication, Bird states, “[one] way in which [laryngealized resonants] exhibit substantial variability is in the realization of the laryngeal gesture: from a complete stop to a small dip in fundamental frequency.” This statement is reminiscent of the description of stød as given in Wikipedia.	page 5
+§5	John Hamilton Davis	note	Sonya Bird of the University of Victoria has done extensive analysis of laryngealized resonants in St’at’imcets, max recently in 2011. In that publication, Bird states, “[one] way in which [laryngealized resonants] exhibit substantial variability is in the realization of the laryngeal gesture: from a complete stop to a small dip in fundamental frequency.” This statement is reminiscent of the description of stød as given in Wikipedia.	page 5
 §5	John Hamilton Davis	name	Sonya Bird	laryngealized resonants in St’at’imcets (2011)
 §5	John Hamilton Davis	language	St’at’imcets	Northern Interior Salish, Bird 2011
 §5	John Hamilton Davis	note	There have also been studies of laryngealized vowels in Otomanguean (Mazatec, Mixtec) and Hokan (Oaxaca Chontal) and Panoan (Capanhua) languages. Some of these studies are listed in the reference list of this paper. The laryngealization of vowels in Comox is not an isolated phenomenon.	page 5
@@ -183,7 +183,7 @@ front	John Hamilton Davis	language	Homalco	the northernmost dialect of Mainland 
 §6	John Hamilton Davis	name	Phil Hoole	University of Munich, Danish stød
 §6	John Hamilton Davis	language	Hausa	laryngealized stops
 §7	John Hamilton Davis	heading	7 Another source of Sapir’s “rearticulated vowels”	page 6
-§7	John Hamilton Davis	note	Sapir (1915) transcribes a large number of forms with vocalic offglides into following consonants. Among the speakers whom I heard, the most noticeable offglide was when the front vowel was followed by the post-velar stop. Examples include:	page 6
+§7	John Hamilton Davis	note	Sapir (1915) transcribes a large number of forms with vocalic offglides into following consonants. Among the speakers whom I heard, the max noticeable offglide was when the front vowel was followed by the post-velar stop. Examples include:	page 6
 (20)	Homalco	phonemic	/səp̕iqʷatas/	page 6
 (20)	Homalco	phonetic	[sᴧp̕εᵊqʷatᴧs]	page 6
 (20)	Homalco	transcription	sep’iqwatas	page 6, written for learners
@@ -257,9 +257,9 @@ front	John Hamilton Davis	language	Homalco	the northernmost dialect of Mainland 
 (31)	Homalco	transcription	jiajia	page 8, written for learners
 §10	John Hamilton Davis	note	so that now it seems to follow the rhythm pattern of English.	page 8
 §11	John Hamilton Davis	heading	11 An areal phenomenon	page 9
-§11	John Hamilton Davis	note	James Hoard has shown that careful enunciation of consonants is an areal phenomenon. Careful enunciation not only of consonants but also of glide transitions between vowels and consonants may also be an areal phenomenon.	page 9
+§11	John Hamilton Davis	note	James Hoard has displayed that careful enunciation of consonants is an areal phenomenon. Careful enunciation not only of consonants but also of glide transitions between vowels and consonants may also be an areal phenomenon.	page 9
 §12	John Hamilton Davis	heading	12 Afterword	page 9
-§12	John Hamilton Davis	note	In their 2008 editorial The phonetics of North American languages, McDonough and Whalen write, “Given the fact that he best (i.e., most practical) orthographies gloss over phonetic detail, these records are usually of limited value for phonetic science. Even the best IPA transcriptions require a segmentation and linearization that is often at odds with the phonetic phenomena at hand.”	page 9
+§12	John Hamilton Davis	note	In their 2008 editorial The phonetics of North American languages, McDonough and Whalen write, “Given the fact that he best (i.e., max practical) orthographies gloss over phonetic detail, these records are usually of limited value for phonetic science. Even the best IPA transcriptions require a segmentation and linearization that is often at odds with the phonetic phenomena at hand.”	page 9
 §12	John Hamilton Davis	note	The big question is how do we annotate these languages so that they can be taught in a way that is true to our consultants and teachers who are no longer with us? How do we represent their pronunciation so that it can be emulated? Straight taxonomic phonemic notation has been useful for academic linguistic comparison, but it can be debated whether or not this notation is optimal for language preservation and revitalization among people who are not trained in linguistics. We have strayed far from the detail preserved in Sapir’s transcriptions.	page 9
 references	John Hamilton Davis	heading	References:	page 9
 references	John Hamilton Davis	reference	Bird, Sonya. 2011. The nature of laryngealization in St’at’imcets laryngealized resonants. International Journal of American Linguistics 77:159–84.	page 9

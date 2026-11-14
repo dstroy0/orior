@@ -37,11 +37,11 @@ def read():
                 at = int(row["round"]) - 1
                 if not (0 <= at < ROUNDS):
                     continue
-                kind = row["kind"]
-                if kind not in SHAPES:
+                type = row["type"]
+                if type not in SHAPES:
                     continue
                 plane = packed.setdefault(row["source"], {}).setdefault(
-                    kind, [[0.0] * ROUNDS for _ in range(SHAPES[kind])])
+                    type, [[0.0] * ROUNDS for _ in range(SHAPES[type])])
                 plane[int(row["a"])][at] = float(row["value"])
             except (TypeError, ValueError, IndexError):
                 continue
@@ -65,8 +65,8 @@ def main():
     payload = {"rounds": ROUNDS, "sources": {}}
     for name, planes in packed.items():
         payload["sources"][name] = {
-            kind: trimmed(rows, 2 if kind == "residue" else 1)
-            for kind, rows in planes.items()
+            type: trimmed(rows, 2 if type == "residue" else 1)
+            for type, rows in planes.items()
         }
     payload["order"] = [n for n in ["sha256", "psrand", "no_addition", "no_sigma1"]
                         if n in payload["sources"]]

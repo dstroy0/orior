@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the most forms the vendor's writer hands back, the longest line read, the most parameters a ruleset names a form
+// the max forms the vendor's writer passes back, the longest line read, the max parameters a ruleset names a form
 // with, and the longest parameter name
 #define KRS_FORMS 16384u
 
@@ -30,19 +30,19 @@
 // the words of the web
 #define KRS_WORDS ((unsigned int)(sizeof(s_word_web) / sizeof(s_word_web[0])))
 
-// the names a form's relation is handed back under, as khw_write writes them: a ladder relation's, and a frame
+// the names a form's relation is passed back under, as khw_write writes them: a ladder relation's, and a frame
 // relation's (Open 6.4)
 #define KRS_READS_LADDER "ladder."
 
 #define KRS_READS_FRAME "frame."
 
-// the most frame forms the vendor's writer hands back
+// the max frame forms the vendor's writer passes back
 #define KRS_FRAME_FORMS 64u
 
 // the blob of the run the vendor's writer appends what it printed in; the forms it appends are FORMS_BLOB_NAME
 #define KRS_MACHINE_NAME "machine.txt"
 
-// one form the part answered for, as the vendor's writer hands it back: the relation's anchor, whether the answers
+// one form the part answered for, as the vendor's writer passes it back: the relation's anchor, whether the answers
 // read a word signed, the encoding it was first seen with, and its text with each operand of the relation's tuple
 // written as {<place>}
 typedef struct
@@ -70,7 +70,7 @@ unsigned int krs_ranked(const unsigned int *writer, unsigned int writers);
 unsigned int krs_fewest_operands(const unsigned int *writer, unsigned int writers);
 unsigned int krs_parameters_named(const char *path, const char *name, char parameter[][KRS_NAME]);
 
-// the place `{<place>}` at `walk` into `place`, its letters, braces too, into `length`: 1, or 0 where `walk` contains
+// the place `{<place>}` at `walk` into `place`, its characters, braces too, into `length`: 1, or 0 where `walk` contains
 // none or a place an unsigned int does not represent
 int krs_place_read(const char *walk, unsigned int *place, int *length);
 int krs_word_written(const Word *word, const KrsForm *form, unsigned int *order);

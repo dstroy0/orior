@@ -6,8 +6,8 @@
 // `still()` before each frame; while it is still the loop ends, and `whenMoving` starts it again once
 // motion comes back. The page's own animations pause with the root's `still` class.
 //
-// Animation keeps its time on `clock()`, which stands still while motion is stopped: an animation
-// that comes back takes up where it stood, and none of the stopped time passes in it.
+// Animation retains its time on `clock()`, which is stationary while motion is stopped: an animation
+// that comes back takes up where it was, and none of the stopped time passes in it.
 //
 // The lowest work, a lattice placed on the page's own thread for a 2D canvas, runs only in a frame
 // nothing else wants: `idle()` says so
@@ -55,7 +55,7 @@ export function idle(now) {
 
 export const still = () => state.hidden;
 
-// Reduced motion: asked for by the reader's system, or by orior's own View, Reduce Motion, kept under
+// Reduced motion: asked for by the reader's system, or by orior's own View, Reduce Motion, retained under
 // REDUCE_KEY. Either stills every animation of the window: the page's own, which the root's
 // `data-reduced-motion` stills, its drawing, which reads `motionReduced()`, and plugins' panels.
 const REDUCE_KEY = "orior.reduce-motion";
@@ -95,17 +95,17 @@ function moved(element, pseudo, from, to) {
   const width = pseudo ? parseFloat(style.width) || 0 : element.offsetWidth ?? element.getBoundingClientRect().width;
   const height = pseudo ? parseFloat(style.height) || 0 : element.offsetHeight ?? element.getBoundingClientRect().height;
   const [originX, originY] = style.transformOrigin.split(" ").map(parseFloat);
-  let most = 0;
+  let max = 0;
   for (const [x, y] of [[0, 0], [width, 0], [0, height], [width, height]]) {
     const corner = new DOMPoint(x - originX, y - originY);
     const was = start.transformPoint(corner);
     const is = end.transformPoint(corner);
-    most = Math.max(most, Math.hypot(is.x - was.x, is.y - was.y));
+    max = Math.max(max, Math.hypot(is.x - was.x, is.y - was.y));
   }
-  return most;
+  return max;
 }
 
-// The most a channel of a color changes between `from` and `to`, as the page writes colors,
+// The max a channel of a color changes between `from` and `to`, as the page writes colors,
 // rgb() or rgba(), in levels of 255, or null where either is another form.
 function recolored(from, to) {
   const channels = (text) => text.match(/^rgba?\(([^)]*)\)$/)?.[1].split(/[,\s/]+/).filter(Boolean).map(Number);
@@ -126,7 +126,7 @@ export function changeOf(animation) {
   if (keyframes.length < 2 || !property) {
     return null;
   }
-  const key = property.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+  const key = property.replace(/-([a-z])/g, (_, character) => character.toUpperCase());
   const from = keyframes[0][key];
   const to = keyframes[keyframes.length - 1][key];
   if (from === undefined || to === undefined) {
@@ -137,8 +137,8 @@ export function changeOf(animation) {
     return Math.abs(Number(to) - Number(from)) * 255;
   }
   if (property === "transform") {
-    const most = moved(animation.effect.target, animation.effect.pseudoElement, from, to);
-    return most === null ? null : most * scale;
+    const max = moved(animation.effect.target, animation.effect.pseudoElement, from, to);
+    return max === null ? null : max * scale;
   }
   if (property.endsWith("color")) {
     return recolored(from, to);
@@ -149,8 +149,8 @@ export function changeOf(animation) {
   return null;
 }
 
-// Ends, steps or keeps the transition `animation` as what can be seen of it asks, and says which:
-// "ended", "stepped" or "kept".
+// Ends, steps or retains the transition `animation` as what can be seen of it asks, and says which:
+// "ended", "stepped" or "retained".
 export function judge(animation) {
   const frames = animation.effect.getComputedTiming().duration / state.frame;
   const change = changeOf(animation);
@@ -162,7 +162,7 @@ export function judge(animation) {
     animation.effect.updateTiming({ easing: `steps(${Math.ceil(change)}, jump-end)` });
     return "stepped";
   }
-  return "kept";
+  return "retained";
 }
 
 // Judges the transition `event` says has begun, of an element or of one of its pseudo-elements.
@@ -177,16 +177,16 @@ function judgeTransitions(event) {
 }
 
 // The animation's time in milliseconds: `now`, on the page's clock, less all the time motion has
-// stood still, and while it stands still, the moment it stopped.
+// was still, and while it is stationary, the moment it stopped.
 export const clock = (now = performance.now()) => (state.stoppedAt ?? now) - state.lost;
 
-// Runs `start` once, as soon as motion may have come back: the page shown again, or less motion asked for or
-// no longer asked for. A start that finds motion still kept waits again.
+// Runs `start` once, as soon as motion may have come back: the page displayed again, or less motion asked for or
+// no longer asked for. A start that finds motion still retained waits again.
 export function whenMoving(start) {
   state.waiting.add(start);
 }
 
-// Every start waiting on motion run, where the page is shown.
+// Every start waiting on motion run, where the page is displayed.
 function released() {
   if (!still()) {
     const starts = [...state.waiting];

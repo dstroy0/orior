@@ -3,7 +3,7 @@
 usage: python finish.py <stem>
 
 Reads <stem>.draft.tsv, written by paper_sift.py, and the closed corpus's finish/<stem>.py, the context a person read
-off the page: who and kind for the names, places and languages the draft calls cited forms, rows to
+off the page: who and type for the names, places and languages the draft calls cited forms, rows to
 add (title, names, notations, symbol notes), and text to replace where the text layer broke a row.
 
 Generic steps, the same for every paper, after the rules a context file sets (WHO_RULES for whose a
@@ -12,7 +12,7 @@ row is, KIND_RULES for what it is):
   - a note opening with a footnote number moves to where "footnote N"
   - a translation ending in a citation, a speaker tag or a bracketed label is split in two
   - reference section notes become one reference row per entry
-  - cited form candidates are kept once per section
+  - cited form candidates are retained once per section
 """
 import importlib.util
 import os
@@ -26,9 +26,9 @@ from workdir import FINISH, ORACLES, WORK  # noqa: E402
 # What can close a translation's line: a source with its year, a speaker tag, a bracketed label,
 # or the text and lines a sentence comes from, (Sandro Botticelli: Primavera, lines 3–4), or the
 # code of a story and its line, (WSa.GE.357) or (MJJ 68), with a footnote mark after it.
-# A work in preparation stands for its year, (Forbes et al. in prep.:HH: Before the people die).
+# A work in preparation is for its year, (Forbes et al. in prep.:HH: Before the people die).
 # A tag can open on what the speaker did, (volunteered HH) or (volunteered HH; accepted BS, JH) in
-# Hill and Matthewson. A disc recording and its time stands for a source, (694 side 2,
+# Hill and Matthewson. A disc recording and its time is for a source, (694 side 2,
 # 00:04:44.902 – 00:04:46.274) in the Joe Peter Chinook Transcription Project. A translation can
 # close on a straight quote, really full now.' (SF | KBG 15 Jun 2026) in Steiner and Matthewson.
 TRAILER = re.compile(r"^(.*?[’”.?!̓'])\s*((?:\[[^\]]*\]\s*)?\((?:vt|vf|sf|volunteered\b|accepted\b"
@@ -43,7 +43,7 @@ ENTRY = re.compile(r"(?<=[.)/]) (?=[A-Z][A-Za-z’'\-]+(?:,| \([A-Z])[ A-Z.,&]{0
 
 
 def load_context(stem):
-    # finish/<stem>.py when a paper has one, with ops/<stem>.ops laid over it, the one-line ops
+    # finish/<stem>.py when a paper has one, with ops/<stem>.ops positioned over it, the one-line ops
     # oracle.py takes on stdin.
     import ops
     path = os.path.join(FINISH, stem + ".py")
@@ -60,21 +60,21 @@ def main():
     context = load_context(stem)
     with open(os.path.join(WORK, stem + ".draft.tsv"), encoding="utf-8") as handle:
         rows = [line.rstrip("\n").split("\t") for line in handle][1:]
-    # A context that reads the rest of the paper off the page again keeps the draft rows before
+    # A context that reads the rest of the paper off the page again retains the draft rows before
     # that point, in Zenk the rows before §4, whose examples the text layer ran into the prose.
     if getattr(context, "DRAFT_UNTIL", None) is not None:
         rows = rows[:context.DRAFT_UNTIL]
 
     printed = {}
-    for where, who, kind, form, gloss in rows:
-        if kind == "note" and form.isdigit():
+    for where, who, type, form, gloss in rows:
+        if type == "note" and form.isdigit():
             page = int(re.search(r"page (\d+)", gloss).group(1))
             printed[page] = form
     offsets = {int(form) - page for page, form in printed.items()}
-    footnotes = {re.match(r"^(\d{1,2}) ", form).group(1) for where, who, kind, form, gloss in rows
-                 if kind == "note" and re.match(r"^\d{1,2} [A-Z]", form)}
-    digit_letters = any(re.search(r"\d[^\W\d_]", form) for where, who, kind, form, gloss in rows
-                        if kind == "transcription")
+    footnotes = {re.match(r"^(\d{1,2}) ", form).group(1) for where, who, type, form, gloss in rows
+                 if type == "note" and re.match(r"^\d{1,2} [A-Z]", form)}
+    digit_characters = any(re.search(r"\d[^\W\d_]", form) for where, who, type, form, gloss in rows
+                        if type == "transcription")
 
     out = []
     seen_forms = set()
@@ -86,23 +86,23 @@ def main():
         at_example = re.match(r"^((?:§\S+ |footnote \S+ )?\([^)\s]+\))", where)
         return at_example.group(1) if at_example else ""
 
-    # Whose each example is, from its tag wherever it stands, before or after a comment: (Name | VF)
+    # Whose each example is, from its tag wherever it is, before or after a comment: (Name | VF)
     # names the speaker first, and (SF | BP 22 May 2025) puts the elicitation code first and the
     # speaker's initials after it.
     tag_names = {}
-    for where, who, kind, form, gloss in rows:
+    for where, who, type, form, gloss in rows:
         example = example_of(where)
         tagged = re.search(r"\(([^|()]+)\|\s*([^|()]*)\)?", form) \
-            if kind in ("translation", "citation", "speaker comment") else None
+            if type in ("translation", "citation", "speaker comment") else None
         if tagged and example and example not in tag_names:
             first = tagged.group(1).strip()
             if re.fullmatch(r"[A-Z]{2}(?:, ?[A-Z]{2})*", first) and tagged.group(2).split():
                 tag_names[example] = tagged.group(2).split()[0].rstrip(";,")
-            elif kind != "speaker comment":
+            elif type != "speaker comment":
                 tag_names[example] = first
-    for where, who, kind, form, gloss in rows:
+    for where, who, type, form, gloss in rows:
         example = example_of(where)
-        if kind == "speaker comment":
+        if type == "speaker comment":
             if who in ("Comment", "Comments", "Consultant’s", "Consultant's"):
                 # A comment closing each quote on its speaker's initials, "It'd be weird." (RJ), is
                 # theirs; otherwise it is the tagged speaker's.
@@ -118,38 +118,38 @@ def main():
             form = form.replace(old, new)
         # The language labels of a comparative table, Th /=kʷ/, written out.
         who = getattr(context, "WHO", {}).get(who, who)
-        # A who the engine took from a speaker tag, SF | BP 22 May 2025, names the person it stands for.
-        for who_rule, kind_rule, new_who, rule_gloss in getattr(context, "WHO_MATCH", ()):
-            if re.search(who_rule, who) and re.search(kind_rule, kind):
+        # A who the engine took from a speaker tag, SF | BP 22 May 2025, names the person it is for.
+        for who_rule, type_rule, new_who, rule_gloss in getattr(context, "WHO_MATCH", ()):
+            if re.search(who_rule, who) and re.search(type_rule, type):
                 who = new_who
                 gloss = "%s, %s" % (gloss, rule_gloss) if rule_gloss else gloss
                 break
         # A paper whose examples set a practical orthography over a phonemic line: the row holding
-        # a letter only the phonemic alphabet has is the segmentation, and the row with none of
+        # a character only the phonemic alphabet has is the segmentation, and the row with none of
         # them is the orthography, whatever the engine called it.
         script = getattr(context, "TIER_SCRIPT", "")
         if script and where.startswith(("(", "§", "Table")) and " line " in where and \
-                kind in ("transcription", "segmentation"):
-            kind = "segmentation" if any(one in script for one in form) else "transcription"
+                type in ("transcription", "segmentation"):
+            type = "segmentation" if any(one in script for one in form) else "transcription"
         # A rule a person read off the page: the forms of these examples that match are this
         # language's, the Salish analysis set beside a Dene word.
-        for where_rule, kind_rule, form_rule, rule_who, rule_gloss in getattr(context, "WHO_RULES", ()):
-            if re.search(where_rule, where) and kind == kind_rule and re.search(form_rule, form):
+        for where_rule, type_rule, form_rule, rule_who, rule_gloss in getattr(context, "WHO_RULES", ()):
+            if re.search(where_rule, where) and type == type_rule and re.search(form_rule, form):
                 who = rule_who
                 gloss = "%s, %s" % (gloss, rule_gloss) if rule_gloss else gloss
                 break
         # A rule a person read off the page for what a row is: the lines of an example that hold a
         # formula, λ⃗v.⃗v ∈ σ(α), are the author's denotation and not a tier of the language.
-        for where_rule, kind_rule, form_rule, new_kind, new_who, rule_gloss in \
+        for where_rule, type_rule, form_rule, new_type, new_who, rule_gloss in \
                 getattr(context, "KIND_RULES", ()):
-            if re.search(where_rule, where) and re.search(kind_rule, kind) and \
+            if re.search(where_rule, where) and re.search(type_rule, type) and \
                     re.search(form_rule, form):
-                kind, who = new_kind, new_who
+                type, who = new_type, new_who
                 gloss = "%s, %s" % (gloss, rule_gloss) if rule_gloss else gloss
                 break
         page_match = re.search(r"page (\d+)", gloss)
         page = int(page_match.group(1)) if page_match else 0
-        if kind == "note":
+        if type == "note":
             if form.isdigit() and (int(form) - page) in offsets | {int(form) - page + 1}:
                 continue
             lead = re.match(r"^(\d{1,4}) (.*)$", form)
@@ -160,7 +160,7 @@ def main():
                 (re.match(r"^(\d{1,2}|\*)(?=[A-Z][a-z])", form) if "footnote" in gloss else None)
             if footnote and not example and where not in ("appendix", "references"):
                 where = "footnote %s" % footnote.group(1)
-        if kind in ("transcription", "segmentation", "gloss", "phonemic"):
+        if type in ("transcription", "segmentation", "gloss", "phonemic"):
             marker = re.match(r"^(.*[.,;:!?])(\d{1,2})$", form)
             if marker:
                 form = marker.group(1)
@@ -168,10 +168,10 @@ def main():
         # A tier word can carry the footnote mark itself, Indigenous-people7 or x̣ʷóx̣ʷstms8, where the
         # paper has a footnote of that number. A gloss label puts its digits first, 3SG, and is left
         # alone, and so is every orthography tier of a paper whose alphabet has a digit, Sḵwx̱wú7mesh.
-        # A tier whose own words write a digit as a letter, s=7áts̓x or nká7=as in St’át’imcets, keeps
+        # A tier whose own words write a digit as a character, s=7áts̓x or nká7=as in St’át’imcets, retains
         # every digit it has, láti7 with them.
         own_digits = re.search(r"\d[^\W\d_]|[^\W\d_]\d[=\-]", form)
-        if kind == "gloss" or (kind in ("transcription", "segmentation") and not digit_letters
+        if type == "gloss" or (type in ("transcription", "segmentation") and not digit_characters
                                and not own_digits):
             # A cell can hold two forms with a mark each, tsedutní15, dune16.
             # A gloss can close on an infix label, 3SUBJ-CS-LCRF<IPFV>2.
@@ -185,11 +185,11 @@ def main():
                 gloss = "%s, carries footnote %s, written here without its digit" % (
                     gloss, " and ".join(one.group(1) for one in marks))
         # Where the paper says one person gave every translation, the translation is theirs.
-        if kind == "translation" and getattr(context, "TRANSLATION_WHO", None) and \
+        if type == "translation" and getattr(context, "TRANSLATION_WHO", None) and \
                 who == context.AUTHORS:
             who = context.TRANSLATION_WHO
             gloss = "%s, volunteered by the speaker" % gloss
-        if kind == "translation":
+        if type == "translation":
             split = TRAILER.match(form)
             if split:
                 # A volunteered translation is the speaker's own English.
@@ -201,18 +201,18 @@ def main():
                 if tagged and "VG" in tagged.group(2):
                     who = tagged.group(1).strip()
                     gloss = "%s, volunteered by the speaker" % gloss
-                out.append([where, who, kind, split.group(1), gloss])
+                out.append([where, who, type, split.group(1), gloss])
                 out.append([where, context.AUTHORS, "citation", split.group(2), "the tag or source at the right of the translation"])
                 continue
-        # A section that is itself one kind of row, the English of a story set as paragraphs.
-        if kind == "note" and where in getattr(context, "SECTIONS", {}) and "footnote" not in gloss:
-            kind, who, gloss = context.SECTIONS[where]
+        # A section that is itself one type of row, the English of a story set as paragraphs.
+        if type == "note" and where in getattr(context, "SECTIONS", {}) and "footnote" not in gloss:
+            type, who, gloss = context.SECTIONS[where]
             marks = re.findall(r"(?<=[.?!’”])(\d{1,2})(?=\s|$)", form)
             form = re.sub(r"(?<=[.?!’”])\d{1,2}(?=\s|$)", "", form)
             if marks:
                 gloss = "%s, carries footnote %s, written here without its digit" % (
                     gloss, " and ".join(marks))
-        if where == "references" and kind == "note":
+        if where == "references" and type == "note":
             # A line break inside an entry can end a note, Fieldwork DRAWL. URL: above its URL, and
             # the URL joins the entry above it. So does a line saying where the work is found,
             # Accessed via the Kinkade Collection under Kinkade 1989 in Davis and Nederveen.
@@ -230,7 +230,7 @@ def main():
                     continue
                 out.append([where, context.AUTHORS, "reference", entry.strip(), ""])
             continue
-        if kind == "cited form":
+        if type == "cited form":
             if form in context.DROP:
                 continue
             key = (where, form)
@@ -238,16 +238,16 @@ def main():
                 continue
             seen_forms.add(key)
             if form in context.FORMS:
-                kind, who, gloss = context.FORMS[form]
+                type, who, gloss = context.FORMS[form]
             else:
                 gloss = gloss.replace("candidate, ", "")
                 # A root marked √ and an affix with its hyphen are named on their own.
                 if form.startswith("√"):
-                    kind = "root"
+                    type = "root"
                 # An optional segment can open one, (ʔa)kɬ-.
                 elif re.match(r"^-\S*[^\W\d_]$|^\(?[^\W\d_]\S*-$", form) and " " not in form:
-                    kind = "cited affix"
-        out.append([where, who, kind, form, gloss])
+                    type = "cited affix"
+        out.append([where, who, type, form, gloss])
 
     # A row the text layer ran two things into, a display and the prose after it, [DepP DEP2 …] →
     # monoclausal The second process..., is cut before the words that open the second. head and
@@ -265,16 +265,16 @@ def main():
     pairs.roots(out, context, example_of)
     pairs.words(out, context, example_of)
     pairs.wordlist(out, context, example_of)
-    # The rows read off the page again keep the footnote marks the page set on them, ‘Maybe.’8,
+    # The rows read off the page again retain the footnote marks the page set on them, ‘Maybe.’8,
     # EXCM19 or ♪ súwle ke teteʔ eʔsnúk̓ʷeʔ ♪11. The digit of a footnote the paper has comes off
-    # a word or a closing mark, and off a translation only at its end. A gloss label of one letter
-    # and a digit, =D3 or =V2 in Kwak̕wala, keeps it.
+    # a word or a closing mark, and off a translation only at its end. A gloss label of one character
+    # and a digit, =D3 or =V2 in Kwak̕wala, retains it.
     for one in out:
         if not re.search(r"\bpairs\b", one[4]) or one[2] not in (
                 "transcription", "segmentation", "gloss", "translation"):
             continue
         if one[2] in ("transcription", "segmentation") and (
-                digit_letters or re.search(r"\d[^\W\d_]|[^\W\d_]\d[=\-]", one[3])):
+                digit_characters or re.search(r"\d[^\W\d_]|[^\W\d_]\d[=\-]", one[3])):
             continue
         pattern = r"(?<=[’”])(\d{1,2})$" if one[2] == "translation" else \
             r"(?:(?<=[^\W\d_]{2})|(?<=[A-Z]>)|(?<=[?.!♪’”)\]]))(\d{1,2})(?=[\s,;]|$)"
@@ -287,7 +287,7 @@ def main():
     # A comparative paper whose examples open on a code from its language key, (1) a. Lo čənúkʷ,
     # b. Up čanúkʷ: the code names the language of the sub-example's form and gloss rows and is no
     # part of the form, and the source the key gives the code is whose the translation is. A
-    # sub-example with no code of its own, (7a) ii., keeps the language of the one before it.
+    # sub-example with no code of its own, (7a) ii., retains the language of the one before it.
     codes = getattr(context, "CODES", {})
     if codes:
         pattern = re.compile(r"^((?:[ivx]+\.\s+)?)(%s)\s+(\S.*)$" % "|".join(
@@ -318,16 +318,16 @@ def main():
             elif language and one[2] not in ("translation", "citation", "note", "speaker comment"):
                 one[2] = "gloss"
                 one[1] = language
-    # Rows a pattern names, where, kind and form each a regex, as the words of a story the engine
+    # Rows a pattern names, where, type and form each a regex, as the words of a story the engine
     # offered one by one where a row holds the whole passage.
-    for where_rule, kind_rule, form_rule in getattr(context, "REMOVE_IF", ()):
-        out = [one for one in out if not (re.search(where_rule, one[0]) and re.search(kind_rule, one[2])
+    for where_rule, type_rule, form_rule in getattr(context, "REMOVE_IF", ()):
+        out = [one for one in out if not (re.search(where_rule, one[0]) and re.search(type_rule, one[2])
                                           and re.search(form_rule, one[3]))]
     # Rows moved to another where by pattern, the notes of a references section the engine did not
     # know by its heading.
-    for where_rule, kind_rule, new_where in getattr(context, "REWHERE", ()):
+    for where_rule, type_rule, new_where in getattr(context, "REWHERE", ()):
         for one in out:
-            if re.search(where_rule, one[0]) and re.search(kind_rule, one[2]):
+            if re.search(where_rule, one[0]) and re.search(type_rule, one[2]):
                 one[0] = new_where
     # A run of rows moved to another where, from the row holding the first form to the row holding
     # the last: the cells of a table the engine offered as the section's cited forms.
@@ -349,7 +349,7 @@ def main():
                     "cited form", "cited affix"):
                 one[1] = language
     # A who that is the initials of the speakers and the tag of the session, BP/KBG | sf | 09.29.2022,
-    # written out as the speakers' names, the tag kept in the gloss.
+    # written out as the speakers' names, the tag retained in the gloss.
     initials = getattr(context, "INITIALS", {})
     for one in out:
         tagged = re.match(r"^([A-Z]{2,3}(?:/[A-Z]{2,3})*)(\s*\|.*)?$", one[1])
@@ -410,7 +410,7 @@ def main():
                     and example_of(one[0]) in named:
                 one[1] = named[example_of(one[0])]
     # An example whose source tag names its speakers by initials, (vf | RI | 4.4.2024) or
-    # (vf | JoF 2019-02-14), has its translation and the comments on it from them. The tag stands in
+    # (vf | JoF 2019-02-14), has its translation and the comments on it from them. The tag is in
     # a citation row, or in the translation or comment the engine did not part it from.
     if getattr(context, "TAG_WHO", False):
         speakers = {}
@@ -464,20 +464,20 @@ def main():
                 one[1] = current
     # A note of the prose that follows an example row straight on is that example's next line: the
     # English of an interlinear text whose free translation the engine left in the section.
-    for where_rule, new_kind in getattr(context, "ABSORB", ()):
+    for where_rule, new_type in getattr(context, "ABSORB", ()):
         for at in range(1, len(out)):
             one, before = out[at], out[at - 1]
             line = re.match(r"^(\(\S+\)) line (\d+)$", before[0])
             if line and one[2] == "note" and re.search(where_rule, one[0]):
                 one[0] = "%s line %d" % (line.group(1), int(line.group(2)) + 1)
-                one[2] = new_kind
-    # A kind given by pattern after the moves above, the phonemic cells of a table so moved, and a
+                one[2] = new_type
+    # A type given by pattern after the moves above, the phonemic cells of a table so moved, and a
     # who with it where the rule names one.
     for rule in getattr(context, "REKIND", ()):
-        where_rule, kind_rule, form_rule, new_kind = rule[:4]
+        where_rule, type_rule, form_rule, new_type = rule[:4]
         for one in out:
-            if re.search(where_rule, one[0]) and re.search(kind_rule, one[2]) and re.search(form_rule, one[3]):
-                one[2] = new_kind
+            if re.search(where_rule, one[0]) and re.search(type_rule, one[2]) and re.search(form_rule, one[3]):
+                one[2] = new_type
                 if len(rule) > 4 and rule[4]:
                     one[1] = rule[4]
     for where, marker, head, tail in getattr(context, "SPLIT", ()):
@@ -491,7 +491,7 @@ def main():
                     half = list(one)
                     half[3] = text
                     for field, value in change.items():
-                        half[("where", "who", "kind", "form", "gloss").index(field)] = value
+                        half[("where", "who", "type", "form", "gloss").index(field)] = value
                     halves.append(half)
                 out[index:index + 1] = halves
                 break
@@ -543,11 +543,11 @@ def main():
                 (where_form[1].endswith("...") and one[3].startswith(where_form[1][:-3]))
             if same and where_form[0] in (None, one[0]):
                 for field, value in change.items():
-                    one[("where", "who", "kind", "form", "gloss").index(field)] = value
+                    one[("where", "who", "type", "form", "gloss").index(field)] = value
 
     target = os.path.join(ORACLES, stem + ".oracle.tsv")
     with open(target, "w", encoding="utf-8", newline="") as handle:
-        handle.write("where\twho\tkind\tform\tgloss\n")
+        handle.write("where\twho\ttype\tform\tgloss\n")
         for one in out:
             handle.write("\t".join(" ".join(str(field).split()) for field in one) + "\n")
     print("%d rows to %s" % (len(out), target))

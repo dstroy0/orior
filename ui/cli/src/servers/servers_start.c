@@ -342,7 +342,7 @@ EMBED_INLINE int start_again(const ServersStartCtx *args)
         mmgr_line_put(&line, args->tool);
         (void)mmgr_line_finish(&line);
         EMBED_CALL(cli_container_restarts.restarts_init, CliContainerRestartsCfg,
-                   .restarts = &g_cli_servers.restarts[at], .most = CLI_SERVERS_RESTARTS,
+                   .restarts = &g_cli_servers.restarts[at], .max = CLI_SERVERS_RESTARTS,
                    .within = CLI_SERVERS_RESTARTS_WITHIN);
         g_cli_servers.restarted += 1u;
     }

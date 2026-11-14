@@ -10,14 +10,14 @@
 #
 # Four explanations were offered for why the family came out inverted. The scripts were aligned and it
 # moved nothing. The unit was changed to whole clusters and it got worse. The stop rows were folded to the
-# distinctions Tamil keeps and it got worse again. Then the files were looked at.
+# distinctions Tamil retains and it got worse again. Then the files were looked at.
 #
 # They are unevenly full of English. Telugu is 30.0 percent Latin characters and only 47.8 percent Telugu.
 # Hindi is 14.8 percent Latin. Tamil is 2.1 and Marathi 1.8. These are subtitles from educational video
 # and the untranslated parts sit in them in whatever amount each translator left. So Telugu's nearest
 # neighbor was Bengali because a third of Telugu's file is not Telugu.
 #
-# There was a tool for this already, written earlier to catch a Greek to English lexicon standing in a
+# There was a tool for this already, written earlier to catch a Greek to English lexicon located in a
 # Greek corpus, and it was not run on any of these. Three explanations were built and tested before the
 # first check that should have been made.
 #
@@ -70,8 +70,8 @@ def judge(out, source, label):
                   % ("yes" if not found["strays"] else "no, %s leaves" % ", ".join(found["strays"])))
 
 
-def keep_own(text, script):
-    """The text with everything outside its own writing taken out, spaces kept as separators."""
+def retain_own(text, script):
+    """The text with everything outside its own writing taken out, spaces retained as separators."""
     out = []
     for symbol in text:
         if symbol.isspace():
@@ -100,14 +100,14 @@ def main():
         with open(path, encoding="utf-8", errors="replace") as handle:
             text = handle.read(READ)
         text = text.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
-        kept = keep_own(text, script)
-        if (len(text) < SAME_LENGTH) or (len(kept) < SAME_LENGTH):
+        retained = retain_own(text, script)
+        if (len(text) < SAME_LENGTH) or (len(retained) < SAME_LENGTH):
             out.write("  %-12s holds %d characters, %d of its own, and is left out\n"
-                      % (language, len(text), len(kept)))
+                      % (language, len(text), len(retained)))
             continue
-        sizes[language] = (len(set(text[:SAME_LENGTH])), len(set(kept[:SAME_LENGTH])))
+        sizes[language] = (len(set(text[:SAME_LENGTH])), len(set(retained[:SAME_LENGTH])))
         first = web(text[:SAME_LENGTH], RANKS)
-        second = web(kept[:SAME_LENGTH], RANKS)
+        second = web(retained[:SAME_LENGTH], RANKS)
         if (first is not None) and (second is not None):
             dirty[language] = first
             clean[language] = second

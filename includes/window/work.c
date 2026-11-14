@@ -14,15 +14,15 @@ typedef struct
 } WorkCtx;
 
 // the hooks' arguments: the call's own, the rectangle the frame's editor
-EMBED_INLINE GuiWorkCfg work_laid(const WorkCtx *args)
+EMBED_INLINE GuiWorkCfg work_positioned(const WorkCtx *args)
 {
-    GuiWorkCfg laid = *args->work;
-    laid.rect = args->work->frame->editor;
-    laid.table = (args->work->work != NULL) ? args->work->work->open : args->work->work_read->open;
-    return laid;
+    GuiWorkCfg positioned = *args->work;
+    positioned.rect = args->work->frame->editor;
+    positioned.table = (args->work->work != NULL) ? args->work->work->open : args->work->work_read->open;
+    return positioned;
 }
 
-// whether the pixel at x, y stands on the frame's editor or its map
+// whether the pixel at x, y is on the frame's editor or its map
 EMBED_INLINE int work_over(const WorkCtx *args)
 {
     const GuiWorkCfg *const work = args->work;
@@ -50,7 +50,7 @@ void gui_work_init(const GuiWorkCfg *args)
 
 void gui_work_open(const GuiWorkCfg *args)
 {
-    // another view open goes; the same view opened again stands on what its table opened anew
+    // another view open goes; the same view opened again is on what its table opened anew
     if (args->work->open != args->table)
     {
         gui_work_close(args);
@@ -59,7 +59,7 @@ void gui_work_open(const GuiWorkCfg *args)
     args->work->scroll = 0u;
     if ((args->table != NULL) && (args->table->wheel != NULL))
     {
-        GuiWorkCfg turned = EMBED_CALL(work_laid, WorkCtx, .work = args);
+        GuiWorkCfg turned = EMBED_CALL(work_positioned, WorkCtx, .work = args);
         turned.rows = 0;
         (void)args->table->wheel(&turned);
     }
@@ -89,8 +89,8 @@ void gui_work_draw(const GuiWorkCfg *args)
     {
         return;
     }
-    const GuiWorkCfg laid = EMBED_CALL(work_laid, WorkCtx, .work = args);
-    args->work_read->open->draw(&laid);
+    const GuiWorkCfg positioned = EMBED_CALL(work_positioned, WorkCtx, .work = args);
+    args->work_read->open->draw(&positioned);
 }
 
 unsigned int gui_work_hit(const GuiWorkCfg *args)
@@ -100,9 +100,9 @@ unsigned int gui_work_hit(const GuiWorkCfg *args)
         return GUI_WORK_OUTSIDE;
     }
     unsigned int index = GUI_WORK_NOTHING;
-    GuiWorkCfg laid = EMBED_CALL(work_laid, WorkCtx, .work = args);
-    laid.index_out = &index;
-    const int found = (args->work_read->open->hit != NULL) && args->work_read->open->hit(&laid);
+    GuiWorkCfg positioned = EMBED_CALL(work_positioned, WorkCtx, .work = args);
+    positioned.index_out = &index;
+    const int found = (args->work_read->open->hit != NULL) && args->work_read->open->hit(&positioned);
     return found ? index : GUI_WORK_NOTHING;
 }
 
@@ -117,8 +117,8 @@ int gui_work_press(const GuiWorkCfg *args)
     {
         return 1;
     }
-    const GuiWorkCfg laid = EMBED_CALL(work_laid, WorkCtx, .work = args);
-    return EMBED_CALL(work_answered, WorkCtx, .work = args, .answer = open->press(&laid));
+    const GuiWorkCfg positioned = EMBED_CALL(work_positioned, WorkCtx, .work = args);
+    return EMBED_CALL(work_answered, WorkCtx, .work = args, .answer = open->press(&positioned));
 }
 
 int gui_work_wheel(const GuiWorkCfg *args)
@@ -132,8 +132,8 @@ int gui_work_wheel(const GuiWorkCfg *args)
     {
         return 1;
     }
-    const GuiWorkCfg laid = EMBED_CALL(work_laid, WorkCtx, .work = args);
-    return EMBED_CALL(work_answered, WorkCtx, .work = args, .answer = open->wheel(&laid));
+    const GuiWorkCfg positioned = EMBED_CALL(work_positioned, WorkCtx, .work = args);
+    return EMBED_CALL(work_answered, WorkCtx, .work = args, .answer = open->wheel(&positioned));
 }
 
 int gui_work_key(const GuiWorkCfg *args)
@@ -152,8 +152,8 @@ int gui_work_key(const GuiWorkCfg *args)
     {
         return 0;
     }
-    const GuiWorkCfg laid = EMBED_CALL(work_laid, WorkCtx, .work = args);
-    return EMBED_CALL(work_answered, WorkCtx, .work = args, .answer = open->key(&laid));
+    const GuiWorkCfg positioned = EMBED_CALL(work_positioned, WorkCtx, .work = args);
+    return EMBED_CALL(work_answered, WorkCtx, .work = args, .answer = open->key(&positioned));
 }
 
 int gui_work_text(const GuiWorkCfg *args)
@@ -167,8 +167,8 @@ int gui_work_text(const GuiWorkCfg *args)
     {
         return 1;
     }
-    const GuiWorkCfg laid = EMBED_CALL(work_laid, WorkCtx, .work = args);
-    return EMBED_CALL(work_answered, WorkCtx, .work = args, .answer = open->text(&laid));
+    const GuiWorkCfg positioned = EMBED_CALL(work_positioned, WorkCtx, .work = args);
+    return EMBED_CALL(work_answered, WorkCtx, .work = args, .answer = open->text(&positioned));
 }
 
 int gui_work_menu(const GuiWorkCfg *args)
@@ -178,6 +178,6 @@ int gui_work_menu(const GuiWorkCfg *args)
     {
         return 0;
     }
-    const GuiWorkCfg laid = EMBED_CALL(work_laid, WorkCtx, .work = args);
-    return open->menu(&laid);
+    const GuiWorkCfg positioned = EMBED_CALL(work_positioned, WorkCtx, .work = args);
+    return open->menu(&positioned);
 }

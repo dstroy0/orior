@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// foot_test.c: the check of a foot table's pane: a table marked `foot` stands in the frame's terminal panel and a side
+// foot_test.c: the check of a foot table's pane: a table marked `foot` is in the frame's terminal panel and a side
 // table in the side; its rows are drawn inside the panel and nowhere in the side; a pixel in the panel hits its row and
 // one in the side does not; the wheel scrolls its rows no further than the last fills the panel; and its text is faded
 // by the panel's share
@@ -52,7 +52,7 @@ static int rect_touched(const GuiRaster *raster, GuiRect rect, GuiColor ground)
     {
         for (int x = rect.x; x < rect.x + rect.width; x += 1)
         {
-            // the rectangle stands inside the raster
+            // the rectangle is inside the raster
             if (raster->pixels[((unsigned int)y * raster->width) + (unsigned int)x] != ground)
             {
                 return 1;

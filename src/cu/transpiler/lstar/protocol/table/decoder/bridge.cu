@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // bridge.cu: the bridge read from the run, each pair's concept folded, each pair closed with what it is read
-// into written beneath it, the bridge handed back to the run's writer, and the decoding printed
+// into written beneath it, the bridge passed back to the run's writer, and the decoding printed
 #include "decoder_internal.h"
 
 // 1 where a line of the bridge is a set's name alone, `<set>_coherence`
@@ -22,7 +22,7 @@ int Decoding::bridge_read(const char *klq)
         printf("orior_klq_decoder: %s could not be read\n", klq);
         return 1;
     }
-    // a file read whole is at most what a size_t counts
+    // a file read whole is at max what a size_t counts
     std::istringstream bridge_stream(std::string((const char *)bridge_bytes, (size_t)bridge_size));
     while (std::getline(bridge_stream, line))
     {
@@ -37,10 +37,10 @@ int Decoding::bridge_read(const char *klq)
         if (entry.rfind("pair ", 0u) == 0u)
         {
             std::stringstream words(entry);
-            std::string kind;
+            std::string type;
             std::string first;
             std::string second;
-            words >> kind >> first >> second;
+            words >> type >> first >> second;
             concept_pair = pair_key(first, second);
         }
         else if (!concept_pair.empty() && (entry.rfind("concept_coherence ", 0u) == 0u) &&
@@ -214,19 +214,19 @@ void Decoding::bridge_folded()
         if (entry.rfind("pair ", 0u) == 0u)
         {
             std::stringstream words(entry);
-            std::string kind;
+            std::string type;
             std::string first;
             std::string second;
-            words >> kind >> first >> second;
+            words >> type >> first >> second;
             pair_beneath = pair_key(first, second);
         }
     }
     pair_closed();
 }
 
-int Decoding::bridge_handed(const char *klq)
+int Decoding::bridge_passed(const char *klq)
 {
-    // the bridge handed to the run's writer, which writes it in the file's place (qry_member_filed)
+    // the bridge passed to the run's writer, which writes it in the file's place (qry_member_filed)
     std::string bridge_text;
     for (const std::string &line : written)
     {

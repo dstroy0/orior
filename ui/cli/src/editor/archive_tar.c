@@ -43,7 +43,7 @@ EMBED_INLINE unsigned long long cli_tar_size(const ArchiveTarCtx *args)
     return digits ? size : 0ULL;
 }
 
-// a tar header's text field up to its first 0, read as UTF-8 with what is no letter as U+FFFD, after `out`
+// a tar header's text field up to its first 0, read as UTF-8 with what is no character as U+FFFD, after `out`
 EMBED_INLINE void cli_tar_text(const ArchiveTarCtx *args)
 {
     unsigned int length = args->length;

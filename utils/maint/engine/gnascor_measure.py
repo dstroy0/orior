@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-"""Two readings of the gnascor state machine: what a label keeps of its transition, and what repeats on the host.
+"""Two readings of the gnascor state machine: what a label retains of its transition, and what repeats on the host.
 
     python utils/maint/engine/gnascor_measure.py --labels
     python utils/maint/engine/gnascor_measure.py --repeat <runs>
@@ -16,7 +16,7 @@ reading is the conditional entropy of the pair given what a branch reads, H(pair
     the clock's label    the same, with a sync passage written as its fuzz+ and fizz+ labels
     a gray trip's state  the same, with fuzz into gray carrying the state left and fizz out of it the state reached
 
-H(pair) less H(pair | label) is the part of the transition the label keeps.
+H(pair) less H(pair | label) is the part of the transition the label retains.
 
 --repeat puts gnascor_scenario.txt to the host as real asks the given number of times, through the
 gnascor_trace program utils/maint/engine/chain_check.sh builds, and reads every trace back. It reports how many
@@ -46,9 +46,9 @@ TOP = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 SCENARIO = os.path.join(HERE, "gnascor_scenario.txt")
 BUILT = os.path.join(TOP, "build", "engine")
 
-# the situations gnascor_read.py's own check decides every pair in: each kind at each cost, against a bound of
+# the situations gnascor_read.py's own check decides every pair in: each type at each cost, against a bound of
 # 1000 and an edge of 120
-SITUATIONS = [(kind, cost) for kind in KINDS for cost in (0, 100, 1050, 5000)]
+SITUATIONS = [(type, cost) for type in KINDS for cost in (0, 100, 1050, 5000)]
 BOUND = 1000
 EDGE = 120
 
@@ -94,11 +94,11 @@ def situated(clock_form, gray_form=False):
 
 
 def labels():
-    """Print what each reading keeps of a transition."""
+    """Print what each reading retains of a transition."""
     first = tables_alone()
     count = sum(len(pairs) for pairs in first.values())
     lost = entropy_given(first)
-    print("  the tables alone: %d cells, %d names, H(pair) %.3f bits, H(pair | name) %.3f, kept %.3f"
+    print("  the tables alone: %d cells, %d names, H(pair) %.3f bits, H(pair | name) %.3f, retained %.3f"
           % (count, len(first), math.log2(count), lost, math.log2(count) - lost))
     shared(first)
     pairs = len(candidates_of())
@@ -107,7 +107,7 @@ def labels():
     for title, clock_form, gray_form in readings:
         weights = situated(clock_form, gray_form)
         lost = entropy_given(weights)
-        print("  %s: %d pairs, %d labels, H(pair) %.3f bits, H(pair | label) %.3f, kept %.3f"
+        print("  %s: %d pairs, %d labels, H(pair) %.3f bits, H(pair | label) %.3f, retained %.3f"
               % (title, pairs, len(weights), math.log2(pairs), lost, math.log2(pairs) - lost))
         shared(weights)
     return 0
@@ -177,9 +177,9 @@ def repeat(runs):
     share = sides_over / (2.0 * pairs)
     print("  %d of %d sides of those cycles past the edge, a share of %.4f; both at once %d, where sides apart from"
           " each other give %.2f" % (sides_over, 2 * pairs, share, both_over, pairs * share * share))
-    print("  %d distinct coherence clocks; the most common printed by %d of %d runs"
+    print("  %d distinct coherence clocks; the usual printed by %d of %d runs"
           % (len(clocks), max(clocks.values()), runs))
-    print("  bound in clock counts: least %d, median %d, most %d"
+    print("  bound in clock counts: least %d, median %d, max %d"
           % (bounds[0], bounds[len(bounds) // 2], bounds[-1]))
     return 0
 

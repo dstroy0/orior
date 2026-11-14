@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The debugger as simple as print: Print Here sets a message breakpoint that writes the line's values
-// with the file unchanged, and the prints a change added stand in the Commit window and are taken out
+// with the file unchanged, and the prints a change added are in the Commit window and are taken out
 // in one step, from a tab that holds the file and from a file no tab holds.
 
 import { invoke } from "../../gui/src-js/bridge.js";
@@ -35,13 +35,13 @@ test("Print Here sets a message breakpoint on the line, the file unchanged", asy
   assert.equal(editing().editor.s.doc.text(), before, "the file is unchanged");
 });
 
-test("the prints a change added stand in the Commit window and are taken out in one step", async () => {
+test("the prints a change added are in the Commit window and are taken out in one step", async () => {
   const root = await invoke("root_get");
   await invoke("folder_create", { path: "printing" }).catch(() => {});
   await invoke("repo_init", { folder: `${root}/printing` });
-  await invoke("file_write", { path: "printing/a.py", text: "def f(x):\n    print(\"kept\")\n    return x\n" });
+  await invoke("file_write", { path: "printing/a.py", text: "def f(x):\n    print(\"retained\")\n    return x\n" });
   await invoke("git_commit", { message: "first", paths: ["printing/a.py"] });
-  await invoke("file_write", { path: "printing/a.py", text: "def f(x):\n    print(\"kept\")\n    print(x)\n    return x\n" });
+  await invoke("file_write", { path: "printing/a.py", text: "def f(x):\n    print(\"retained\")\n    print(x)\n    return x\n" });
   await invoke("file_write", { path: "printing/b.js", text: "const a = 1;\nconsole.log(a);\nexport { a };\n" });
   const found = await addedPrints();
   assert.deepEqual(found.map((one) => [one.path, one.line, one.text]), [["printing/a.py", 2, "    print(x)"], ["printing/b.js", 1, "console.log(a);"]], "a print already committed is not one the change added");
@@ -53,7 +53,7 @@ test("the prints a change added stand in the Commit window and are taken out in 
   assert.equal(document.querySelector(".commit-prints-head").textContent, "2 prints added since the last commit");
   await ui.click([...document.querySelectorAll(".commit-prints button")].find((one) => one.textContent === "Take Them Out"));
   await ui.waitFor(() => !editing().sessionOf("printing/a.py").doc.text().includes("print(x)"), 5000);
-  assert.equal(editing().sessionOf("printing/a.py").doc.text(), "def f(x):\n    print(\"kept\")\n    return x\n", "the tab's own text, one edit undo takes back");
+  assert.equal(editing().sessionOf("printing/a.py").doc.text(), "def f(x):\n    print(\"retained\")\n    return x\n", "the tab's own text, one edit undo takes back");
   assert.equal((await invoke("file_read", { path: "printing/b.js" })).text, "const a = 1;\nexport { a };\n", "the file no tab holds, as it is written");
   // The side shows the tree's files again for the tests after this one.
   showGroup("explorer");

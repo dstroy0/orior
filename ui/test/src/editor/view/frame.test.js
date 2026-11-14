@@ -44,7 +44,7 @@ async function scrolledThrough(path, seconds) {
     assert.ok(await invoke("qry_ready", { path: `${root}/${relative}` }), "the run's writer came ready");
     await joinRun(relative);
     await ui.browserTrace();
-    // Each frame as it begins: where the view stands in the file, the window a paged file holds moving under it
+    // Each frame as it begins: where the view is in the file, the window a paged file holds moving under it
     // without moving it, the rows the text layer has written, and, for a few lines on screen, whether each is drawn
     // with a color.
     let sampling = true;
@@ -108,12 +108,12 @@ async function judged(name, path) {
       }
     }
     assert.equal(plain.length, 0, `lines drawn without the colors they have at rest: ${plain.length}, the first ${plain.slice(0, 8).join(" ")}: ${said}`);
-    // The text stands a moment after the wheel stops, and no row is written again once it stands.
+    // The text is a moment after the wheel stops, and no row is written again once it is.
     const moved = frames.filter((frame, index) => index > 0 && frame.y !== frames[index - 1].y).map((frame) => frame.at);
-    const stood = Math.max(stopped, ...moved);
-    assert.ok(stood - stopped <= 400, `the text stood ${(stood - stopped).toFixed(0)} ms after the last wheel step: ${said}`);
-    const written = frames.filter((frame) => frame.at >= stood);
-    assert.equal(written.at(-1).writes - written[0].writes, 0, `rows written again after the text stood: ${said}`);
+    const was = Math.max(stopped, ...moved);
+    assert.ok(was - stopped <= 400, `the text was ${(was - stopped).toFixed(0)} ms after the last wheel step: ${said}`);
+    const written = frames.filter((frame) => frame.at >= was);
+    assert.equal(written.at(-1).writes - written[0].writes, 0, `rows written again after the text was: ${said}`);
 }
 
 for (const [name, keywords] of [["checker.ts", true], ["sqlite3.c", true], ["large-file.json", false]]) {
@@ -123,7 +123,7 @@ for (const [name, keywords] of [["checker.ts", true], ["sqlite3.c", true], ["lar
   }, { timeout: 120000 });
 }
 
-test("our own container files scroll the same way: a file read from a run's .qry, and a scroll's own trace read from the run it was handed to", async () => {
+test("our own container files scroll the same way: a file read from a run's .qry, and a scroll's own trace read from the run it was passed to", async () => {
   assert.ok(BENCH, "the harness fetched the files people report slow");
   const writer = window.__harness.servers.ORIOR_TEST_QRY_WRITER;
   const root = (await invoke("root_get")).replaceAll("\\", "/");
@@ -132,11 +132,11 @@ test("our own container files scroll the same way: a file read from a run's .qry
   await ui.run(writer, [`${root}/${container}`, root], { wait: false });
   try {
     assert.ok(await invoke("qry_ready", { path: `${root}/${container}` }), "the run's writer came ready");
-    const before = (await invoke("qry_window")).queued.handed;
+    const before = (await invoke("qry_window")).queued.passed;
     for (const name of ["checker.ts", "sqlite3.c", "large-file.json"]) {
       await invoke("qry_append_file", { path: container, file: `${BENCH}/${name}` });
     }
-    await ui.waitFor(async () => (await invoke("qry_window")).queued.handed >= before + 3, 30000);
+    await ui.waitFor(async () => (await invoke("qry_window")).queued.passed >= before + 3, 30000);
   } finally {
     await invoke("qry_stop", { path: `${root}/${container}` });
   }

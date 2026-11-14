@@ -11,12 +11,12 @@
 # The claim of the representation is that a backbone is its bond-length magnitudes and its torsions,
 # and nothing about where the molecule sits or how it is turned. The walk is the test of that claim.
 # A backbone is read as a run of points; internal_coords reads off each point's bond length, turn
-# angle and dihedral; rebuild walks them back. Handed a run's own terms, the walk returns the run to
+# angle and dihedral; rebuild walks them back. Passed a run's own terms, the walk returns the run to
 # the digit it was written to, the positive control printed first: the transform loses
 # nothing.
 #
 # Compressing the direction leaves the reading. Bond lengths, bond angles and the peptide
-# torsion are kept; the two torsions the fold lives in, phi and psi, are quantized to the Richardson
+# torsion are retained; the two torsions the fold lives in, phi and psi, are quantized to the Richardson
 # two-degree grid, the reference's own quantum and the same grid ramachandran_rules scores against.
 # So the stored backbone is a magnitude table plus, per residue, which grid cell it fell in. The gap
 # between that rebuild and the deposit is read as a whole and then split by constituent. It says
@@ -70,10 +70,10 @@ def kabsch(mobile, target):
 
 
 def steered(run):
-    """Rebuild a run keeping magnitudes and the peptide torsion, quantizing phi and psi to the grid.
+    """Rebuild a run retention magnitudes and the peptide torsion, quantizing phi and psi to the grid.
 
     In walk order the dihedral that places atom i is psi at i%3==0, omega at i%3==1 and phi at
-    i%3==2. The peptide torsion omega keeps its measured value and the two fold torsions are told
+    i%3==2. The peptide torsion omega retains its measured value and the two fold torsions are told
     to the walk as a grid cell.
     """
     bond, angle, dih = internal_coords(run)
@@ -118,7 +118,7 @@ def main():
         "  The magnitude table is the bond lengths and angles; the direction is phi and psi,\n"
     )
     out.write(
-        "  each quantized to the Richardson %g-degree grid. omega keeps its measured value.\n\n"
+        "  each quantized to the Richardson %g-degree grid. omega retains its measured value.\n\n"
         % GRID_DEGREES
     )
 
@@ -163,7 +163,7 @@ def main():
 
     gaps = numpy.array(gaps)
     out.write(
-        "  positive control: the walk handed a run's own terms rebuilds it to within\n"
+        "  positive control: the walk passed a run's own terms rebuilds it to within\n"
     )
     out.write(
         "  %.2e A over %d proteins, %d runs. The transform loses nothing.\n\n"

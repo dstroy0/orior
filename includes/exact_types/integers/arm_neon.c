@@ -77,7 +77,7 @@ static int neon_magnitude_equal(const uint32_t *left, const uint32_t *right)
  * @param[in] right Second magnitude [BORROWS].
  * @return          -1 where left is smaller, 1 where it is larger, 0 where they are equal.
  * @note The vector reports a block differs and not which limb differs first. The block containing the
- *       highest difference is walked backward one limb at a time. That runs at most four scalar
+ *       highest difference is walked backward one limb at a time. That runs at max four scalar
  *       steps, once per comparison.
  */
 static int neon_magnitude_compare(const uint32_t *left, const uint32_t *right)
@@ -154,7 +154,7 @@ static int arm_compare(const OriorExactInteger *left, const OriorExactInteger *r
  * @brief Counts agreeing places over a sorted run, using the NEON comparison throughout.
  *
  * @param[in] positions Positions, ascending [BORROWS].
- * @param[in] values    The value standing at each position [BORROWS].
+ * @param[in] values    The value located at each position [BORROWS].
  * @param[in] count     How many positions.
  * @param[in] lag       The offset to test [BORROWS].
  * @return              How many positions agree with the place one lag above them.

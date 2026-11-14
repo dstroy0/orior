@@ -5,18 +5,18 @@
 // F7 and Shift+F7 stepping from change to change, Escape closing it, and white space set aside.
 
 import { closeDiff, showDiff } from "../../gui/src-js/diffview.js";
-import { keepingStorage } from "../helpers.js";
+import { retentionStorage } from "../helpers.js";
 
 const { test, assert } = window.__harness;
 
-// Runs `work` with a host on the page for the view, the view's choices kept, and the view closed after it.
+// Runs `work` with a host on the page for the view, the view's choices retained, and the view closed after it.
 async function withHost(work) {
   const host = document.createElement("div");
   document.body.append(host);
   try {
-    await keepingStorage(["orior.diff-space", "orior.diff-structure"], async () => {
+    await retentionStorage(["orior.diff-space", "orior.diff-structure"], async () => {
       localStorage.removeItem("orior.diff-structure");
-      localStorage.setItem("orior.diff-space", "shown");
+      localStorage.setItem("orior.diff-space", "displayed");
       await work(host);
     });
   } finally {
@@ -32,7 +32,7 @@ test("the two texts side by side, the lines they share level, a line changed and
   await withHost(async (host) => {
     await showDiff(host, "a.txt", "one\ntwo\nthree", "one\n2\nthree\nfour");
     assert.equal(host.querySelector(".diff-name").textContent, "a.txt");
-    assert.equal(host.querySelector(".diff-sides").textContent, "last commit, then as it stands");
+    assert.equal(host.querySelector(".diff-sides").textContent, "last commit, then as it is");
     assert.deepEqual(rowsOf(host), [["same", "one", "one"], ["changed", "two", "2"], ["same", "three", "three"], ["added", "", "four"]]);
     assert.equal(host.querySelector(".diff-where").textContent, "change 1 of 2");
     key(host, "F7");
@@ -56,7 +56,7 @@ test("a file the last commit does not hold is all added, and two texts that do n
   });
 });
 
-test("with white space set aside, lines that differ only in it stand level as the same, and the choice is kept", async () => {
+test("with white space set aside, lines that differ only in it are level as the same, and the choice is retained", async () => {
   await withHost(async (host) => {
     await showDiff(host, "spaced.txt", "a  b\nc", "a b\nc");
     assert.deepEqual(rowsOf(host).map(([type]) => type), ["changed", "same"]);

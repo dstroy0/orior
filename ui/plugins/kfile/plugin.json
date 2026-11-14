@@ -2,7 +2,7 @@
   "id": "kfile",
   "name": "k-file",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "each": {
     "folder": "includes/file_defs",
     "table": "{name}/{name}.oracle.tsv",
@@ -30,7 +30,7 @@
     },
     "commentMarks": {
       "table": "includes/file_defs/{name}/{name}.oracle.tsv", "columns": ["form"],
-      "rows": {"column": "kind", "match": "^comment$"}, "match": "^#"
+      "rows": {"column": "type", "match": "^comment$"}, "match": "^#"
     },
     "tokenizer": {
       "root": [

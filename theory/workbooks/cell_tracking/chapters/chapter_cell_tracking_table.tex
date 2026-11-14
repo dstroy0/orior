@@ -17,20 +17,20 @@ The score pays for three things: nodes matched to ground-truth nodes within 7 µ
 
 \section{\texorpdfstring{The driver: scan everything, sort at the end}{The driver: scan everything, sort at the end}}
 
-“you scan everything and then you sort stuff. You don't need to sort it before you scan in all of the samples.” The current driver partitions every frame as it reads it: the cut at ℓ* (row 1) fixes each voxel's body from one frame before the sample's other 99 frames are seen. That is the moment deciding membership, which row 1's and row 9's physics forbid. The score reads only node positions (within 7 µm) and edges, never regions. So the new driver first scans every frame of every sample into points and fields that bound nothing. Only then does it sort: link, keep, divide, and grade.
+“you scan everything and then you sort stuff. You don't need to sort it before you scan in all of the samples.” The current driver partitions every frame as it reads it: the cut at ℓ* (row 1) fixes each voxel's body from one frame before the sample's other 99 frames are seen. That is the moment deciding membership, which row 1's and row 9's physics forbid. The score reads only node positions (within 7 µm) and edges, never regions. So the new driver first scans every frame of every sample into points and fields that bound nothing. Only then does it sort: link, retain, divide, and grade.
 
 A peak here is a point: a positive voxel of the residual that no one of its 26 neighbors exceeds. Nothing is assigned to it. The regions around peaks (the watershed's catchment regions, found by tobogganing, each voxel following its steepest neighbor) bound the set, and the driver does not form them. A body's shape is read from the field at its peak instead of from a region: the residual's exact second differences there are the ℓ = 2 of its local field, with its long axis and aspect. Everything in this table is tracking and lives in \texttt{cell\_\allowbreak{}tracking/\allowbreak{}}. The engine is called only for math: the residual, the drift, the entropy history, and one-to-one matching. Every run and every test is a job on the tessera schedule; nothing touches the device outside it.
 
-“The whole point of the tracker is to track cells. If you can't walk back something you did you built it wrong.” Every stage keeps what it came from, and every decision keeps what it replaced:
+“The whole point of the tracker is to track cells. If you can't walk back something you did you built it wrong.” Every stage retains what it came from, and every decision retains what it replaced:
 
 \begin{itemize}
-\item a point keeps its frame, voxel and exact level;
-\item a transform keeps its exact inverse;
-\item a link keeps its two points and its evidence;
-\item a choice in the sort keeps the options it passed over, with their weights.
+\item a point retains its frame, voxel and exact level;
+\item a transform retains its exact inverse;
+\item a link retains its two points and its evidence;
+\item a choice in the sort retains the options it passed over, with their weights.
 \end{itemize}
 
-Nothing is deleted. What the sort does not keep is marked, and every mark can be walked back to the readings. A map that sends two readings to one (a clip, a rounding, a bin) cannot be walked back and is not built.
+Nothing is deleted. What the sort does not retain is marked, and every mark can be walked back to the readings. A map that sends two readings to one (a clip, a rounding, a bin) cannot be walked back and is not built.
 
 The organism physics each stage answers to is the thought experiments' (the harmonics source, \texttt{proposal.\allowbreak{}md}, and the two fluidic ones), row by row in the table below:
 
@@ -44,7 +44,7 @@ The organism physics each stage answers to is the thought experiments' (the harm
 \item a lysis is a bump that rises into the floor and does not settle;
 \item mitosis and lysis change the fluidics for a great distance around them: a disturbance runs out through the tissue, overlapping disturbances are told apart by their harmonics, and each is traced back to its origin;
 \item oblate bodies deforming, snapping or throwing a pseudopod shed predictable dipole waves along their axis;
-\item what decays to maximum entropy is the floor; what holds low and moves is a body;
+\item what decays to max entropy is the floor; what holds low and moves is a body;
 \item every event is judged over the whole sample, never in the moment.
 \end{itemize}
 
@@ -60,8 +60,8 @@ The organism physics each stage answers to is the thought experiments' (the harm
 
 \tablerecord{\textbf{S1. Peaks}}
 \begin{description}
-\item[{what it does}] every positive local maximum of the residual, as a point (t, z, y, x) with its exact level and the faces that cut its 26-neighborhood (O1, O4)
-\item[{organism physics (row)}] a body stands above the medium (1); the medium is subtracted whole (3)
+\item[{what it does}] every positive local the majority of the residual, as a point (t, z, y, x) with its exact level and the faces that cut its 26-neighborhood (O1, O4)
+\item[{organism physics (row)}] a body is above the medium (1); the medium is subtracted whole (3)
 \item[{over}] each frame, as it is read
 \item[{reads}] \texttt{engine\_\allowbreak{}residual\_\allowbreak{}planes} (E1): S0's contrast as planes of its width, with the residual's width returned
 \item[{lives in}] \texttt{cell\_\allowbreak{}tracking/\allowbreak{}src/\allowbreak{}peaks/\allowbreak{}}, run by \texttt{cell\_\allowbreak{}tracking/\allowbreak{}src/\allowbreak{}scan/\allowbreak{}}
@@ -101,7 +101,7 @@ The organism physics each stage answers to is the thought experiments' (the harm
 \tablerecord{\textbf{S4. The set and the null}}
 \begin{description}
 \item[{what it does}] each sample's peaks in its null frames (row 8's draws), and what the set's samples say together, read before any sample is sorted
-\item[{organism physics (row)}] a body is real where it stands above the field-noise reading (8)
+\item[{organism physics (row)}] a body is real where it is above the field-noise reading (8)
 \item[{over}] every sample
 \item[{reads}] S1 to S3
 \item[{lives in}] \texttt{cell\_\allowbreak{}tracking/\allowbreak{}src/\allowbreak{}}
@@ -110,17 +110,17 @@ The organism physics each stage answers to is the thought experiments' (the harm
 
 \tablerecord{\textbf{S5. Motion, then links}}
 \begin{description}
-\item[{what it does}] each point's next place is predicted first: the drift, plus its own velocity (its last link's displacement, the dipole's time derivative), plus the local flow (its neighbors' departures from the drift, weighted by level). Its candidates are the gate (O6): its nearest point of t+1, and every point of t+1 whose nearest prediction it is, with ties kept. The cost is the weighted squared distance from the prediction, ‖·‖²\_\allowbreak{}w with w = σ∘σ, weighed by the sample's own count of first-rank links at that distance (O7), plus the distance between the two shapes (S1b, O8), the shape taken from the chain's last point to keep a fate change from breaking the chain (H2). The first pass is one to one by \texttt{heaviest\_\allowbreak{}matching} on exact integers. Two neighbors' links may not cross: the sign of (c\_\allowbreak{}A − c\_\allowbreak{}B)·(c\_\allowbreak{}A′ − c\_\allowbreak{}B′) is kept
+\item[{what it does}] each point's next place is predicted first: the drift, plus its own velocity (its last link's displacement, the dipole's time derivative), plus the local flow (its neighbors' departures from the drift, weighted by level). Its candidates are the gate (O6): its nearest point of t+1, and every point of t+1 whose nearest prediction it is, with ties retained. The cost is the weighted squared distance from the prediction, ‖·‖²\_\allowbreak{}w with w = σ∘σ, weighed by the sample's own count of first-rank links at that distance (O7), plus the distance between the two shapes (S1b, O8), the shape taken from the chain's last point to retain a fate change from breaking the chain (H2). The first pass is one to one by \texttt{heaviest\_\allowbreak{}matching} on exact integers. Two neighbors' links may not cross: the sign of (c\_\allowbreak{}A − c\_\allowbreak{}B)·(c\_\allowbreak{}A′ − c\_\allowbreak{}B′) is retained
 \item[{organism physics (row)}] motion (5); local flow (4); identity by harmonics (2, 7); membranes do not cross (6)
 \item[{over}] the whole sample, after its scan
 \item[{reads}] S1, S1b, S2; the engine's matching (M7)
 \item[{lives in}] \texttt{cell\_\allowbreak{}tracking/\allowbreak{}src/\allowbreak{}}
-\item[{status}] built in part (\texttt{cell\_\allowbreak{}tracking/\allowbreak{}src/\allowbreak{}sort/\allowbreak{}}, \texttt{-\allowbreak{}-\allowbreak{}run sort}): the prediction is the point's place, the drift and its own motion (its chosen link's, less the drift then); the gate is O6's; the cost is the weighted squared distance alone (the shape term is clear, and O7's weighting and the local flow are not built); the pass is one to one by \texttt{heaviest\_\allowbreak{}matching}; crossings are counted instead of refused. Its links on 44b6\_\allowbreak{}0113de3b, 44b6\_\allowbreak{}0b24845f and 44b6\_\allowbreak{}0c582fdc: 646,179, scored 0.063648 with every point kept (S11). \texttt{cell\_\allowbreak{}tracking/\allowbreak{}test/\allowbreak{}sort\_\allowbreak{}test.\allowbreak{}sh} holds its checks; its result is not recorded
+\item[{status}] built in part (\texttt{cell\_\allowbreak{}tracking/\allowbreak{}src/\allowbreak{}sort/\allowbreak{}}, \texttt{-\allowbreak{}-\allowbreak{}run sort}): the prediction is the point's place, the drift and its own motion (its chosen link's, less the drift then); the gate is O6's; the cost is the weighted squared distance alone (the shape term is clear, and O7's weighting and the local flow are not built); the pass is one to one by \texttt{heaviest\_\allowbreak{}matching}; crossings are counted instead of refused. Its links on 44b6\_\allowbreak{}0113de3b, 44b6\_\allowbreak{}0b24845f and 44b6\_\allowbreak{}0c582fdc: 646,179, scored 0.063648 with every point retained (S11). \texttt{cell\_\allowbreak{}tracking/\allowbreak{}test/\allowbreak{}sort\_\allowbreak{}test.\allowbreak{}sh} holds its checks; its result is not recorded
 \end{description}
 
 \tablerecord{\textbf{S6. Chains and identity}}
 \begin{description}
-\item[{what it does}] Linked points form chains, solved once over the whole sample as a min-cost flow (O10). Every cost is an exact integer on one footing: links from O7; “no link” from the null draw; appearance free at a face or the first frame. The local moves (O12), repeated to a fixed point, check the solve. A chain is kept where it stands above the same chains in the null frames, over the whole sample, with no length chosen (O17). A chain that ends and one that starts at its predicted place, any number of frames on, are one chain: the gap is bridged (O14). Chains that part and rejoin, or a point ending beside one starting, are one body with two tops (O5, O13, O15). Each link's marginal is taken over its support component (O18), and each source keeps its heaviest outcome (O19)
+\item[{what it does}] Linked points form chains, solved once over the whole sample as a min-cost flow (O10). Every cost is an exact integer on one footing: links from O7; “no link” from the null draw; appearance free at a face or the first frame. The local moves (O12), repeated to a fixed point, check the solve. A chain is retained where it is above the same chains in the null frames, over the whole sample, with no length chosen (O17). A chain that ends and one that starts at its predicted place, any number of frames on, are one chain: the gap is bridged (O14). Chains that part and rejoin, or a point ending beside one starting, are one body with two tops (O5, O13, O15). Each link's marginal is taken over its support component (O18), and each source retains its heaviest outcome (O19)
 \item[{organism physics (row)}] identity is coherence (7); the null (8)
 \item[{over}] the whole sample
 \item[{reads}] S5, S4
@@ -130,7 +130,7 @@ The organism physics each stage answers to is the thought experiments' (the harm
 
 \tablerecord{\textbf{S7. Division}}
 \begin{description}
-\item[{what it does}] A chain goes on as two: two points in t+1 whose nearest prediction is the parent's (O6), parting along the parent's long axis (S1b), with the history bumping at t and settling (S3). This is the evidence O9 learns. The daughters need not be alike: mass is conserved on their sum, and each takes its own harmonics (H1). The split sits at the frame of the strongest evidence along the chain, and a daughter chain that does not stand above the null is no daughter (O16). The neighbors' departures from the drift in the frames after point back to it
+\item[{what it does}] A chain goes on as two: two points in t+1 whose nearest prediction is the parent's (O6), parting along the parent's long axis (S1b), with the history bumping at t and settling (S3). This is the evidence O9 learns. The daughters need not be alike: mass is conserved on their sum, and each takes its own harmonics (H1). The split sits at the frame of the strongest evidence along the chain, and a daughter chain that does not are above the null is no daughter (O16). The neighbors' departures from the drift in the frames after point back to it
 \item[{organism physics (row)}] a split is a discontinuity; mass and axis; the bump that settles; the disturbance (9, 4)
 \item[{over}] the whole sample
 \item[{reads}] S5, S6, S1b, S3
@@ -168,7 +168,7 @@ The organism physics each stage answers to is the thought experiments' (the harm
 \item[{status}] theory
 \end{description}
 
-Order of building: S0 (O2's norm, once the set is ingested); S1 (with O4's faces), S1b and S2 in the scan; then S5 with O6's gate, and S11 with every point kept (the first scored run); then O7's weights, S4, and S6 as O10's one solve with O12 to O15; then S7, S8 and S9 (O9, O16, O11); then S10 with O21's flow. O18 and O20 come in beside S6 and S11.
+Order of building: S0 (O2's norm, once the set is ingested); S1 (with O4's faces), S1b and S2 in the scan; then S5 with O6's gate, and S11 with every point retained (the first scored run); then O7's weights, S4, and S6 as O10's one solve with O12 to O15; then S7, S8 and S9 (O9, O16, O11); then S10 with O21's flow. O18 and O20 come in beside S6 and S11.
 
 \subsection{\texorpdfstring{OrganoidTracker's techniques, into the driver}{OrganoidTracker's techniques, into the driver}}
 
@@ -188,7 +188,7 @@ Each technique is listed with its chosen numbers, then our form of it: exact, no
 \tablerecord{\textbf{O1. Peak calling}}
 \begin{description}
 \item[{OrganoidTracker (where)}] \texttt{position\_\allowbreak{}predictor.\allowbreak{}py} (\texttt{peak\_\allowbreak{}local\_\allowbreak{}max}); \texttt{loss\_\allowbreak{}functions.\allowbreak{}peak\_\allowbreak{}finding}
-\item[{what it does there}] A voxel is a peak where it equals the maximum over a (3, 13, 13) box and exceeds 0.1 of the range. At inference: min\_\allowbreak{}distance 6 px and threshold 0.1, after interpolating 5 layers between z planes (\texttt{reconstruct\_\allowbreak{}volume}). The peaks are called on a near-isotropic grid. Every voxel that ties its box maximum is a peak.
+\item[{what it does there}] A voxel is a peak where it equals the max over a (3, 13, 13) box and exceeds 0.1 of the range. At inference: min\_\allowbreak{}distance 6 px and threshold 0.1, after interpolating 5 layers between z planes (\texttt{reconstruct\_\allowbreak{}volume}). The peaks are called on a near-isotropic grid. Every voxel that ties its box max is a peak.
 \item[{ours: exact, nothing chosen}] S1 as built: the 26 neighbors, no box, and no threshold past > 0. The z anisotropy enters the sort's norm, w = σ∘σ instead of interpolated planes. A tie goes to the lower index.
 \item[{stage}] S1
 \item[{status}] built
@@ -197,7 +197,7 @@ Each technique is listed with its chosen numbers, then our form of it: exact, no
 \tablerecord{\textbf{O2. Intensity normalization}}
 \begin{description}
 \item[{OrganoidTracker (where)}] \texttt{position\_\allowbreak{}predictor.\allowbreak{}\_\allowbreak{}split\_\allowbreak{}into\_\allowbreak{}patches} (the division and link predictors do the same)
-\item[{what it does there}] Per frame, the readings are mapped onto [0, 1] between the 1\% and 99\% quantiles taken over the network's time window, then clipped. An optional top-hat (a Gaussian blur, then a minimum and a maximum filter of \texttt{tophat\_\allowbreak{}mask}) is subtracted.
+\item[{what it does there}] Per frame, the readings are mapped onto [0, 1] between the 1\% and 99\% quantiles taken over the network's time window, then clipped. An optional top-hat (a Gaussian blur, then a minimum and a max filter of \texttt{tophat\_\allowbreak{}mask}) is subtracted.
 \item[{ours: exact, nothing chosen}] Taken, for contrast, once the set is ingested. Every sample is read once, and the set's readings are counted into one exact histogram, one count per 16-bit value. The bounds lo and hi are its quantiles: each is the least value whose cumulative count reaches its share of the set, exactly. Their clip is not built, because it cannot be walked back: every reading past a bound becomes the bound. What is built comes in two parts, both walked back exactly. (a) \textbf{The footing:} each sample's own affine map, (reading − lo) over (hi − lo), is stored as that pair and never divided. E1 is linear and cancels a constant, and this map moves no peak. It puts samples of different brightness on one footing for the set's readings (S4). The pairs are per sample. One pair for the whole set would change nothing, since every sample already shares the raw scale. They are read once the set is ingested. (b) \textbf{The contrast:} the set's cumulative count, v ↦ \#\{readings of the set ≤ v\}, is exact histogram equalization. It rises strictly on every value the set holds, and its inverse is the table of those values. It needs no levels, and it changes the scan's peaks the way the clip meant to. It carries the contrast (“cumulative count sound like more information”). For (a), the levels are not written in (“we can let the numbers converge on them”). They start at theirs, 1\% and 99\%, and iterate to a fixed point on the set. The rule (built; 6 to 16 steps on the 25) is that each bound is the two-means split of its half of the set: the readings below the median for lo, and those above it for hi. Each is iterated from its seed until it stops moving. The class sums and counts are exact integers, a reading is compared against the midpoint by cross-multiplying, and a one-dimensional two-means stops in finitely many steps. The top-hat is not taken: the residual subtracts the medium (E1).
 \item[{stage}] S0
 \item[{status}] built
@@ -207,7 +207,7 @@ Each technique is listed with its chosen numbers, then our form of it: exact, no
 \begin{description}
 \item[{OrganoidTracker (where)}] the position, division and link networks
 \item[{what it does there}] Each network sees frames t + dt over its window, a stack of frames.
-\item[{ours: exact, nothing chosen}] The scan reads one frame at a time and keeps everything. Every judgement that needs other frames is made in the sort (S4 to S10), over the whole sample, with no window.
+\item[{ours: exact, nothing chosen}] The scan reads one frame at a time and retains everything. Every judgement that needs other frames is made in the sort (S4 to S10), over the whole sample, with no window.
 \item[{stage}] S4 to S10
 \item[{status}] the design
 \end{description}
@@ -233,10 +233,10 @@ Each technique is listed with its chosen numbers, then our form of it: exact, no
 \tablerecord{\textbf{O6. The candidate gate}}
 \begin{description}
 \item[{OrganoidTracker (where)}] \texttt{nearest\_\allowbreak{}neighbor\_\allowbreak{}linker.\allowbreak{}nearest\_\allowbreak{}neighbor}
-\item[{what it does there}] Each point of t+1 goes to the points of t within tolerance × its nearest distance, at most 5 of them; each point of t goes to t+1 the same way; the candidates are the union. The link network uses tolerance 2. A point whose place in the other frame is outside the image is skipped.
-\item[{ours: exact, nothing chosen}] From each point's prediction (S5): its nearest point of t+1 under ‖·‖²\_\allowbreak{}w. From each point of t+1: its nearest prediction. The gate is the union, with ties kept. Two points of t+1 whose nearest prediction is the same point are that point's division candidates (S7). A prediction outside Ω is a leaving (S9). No tolerance and no count.
+\item[{what it does there}] Each point of t+1 goes to the points of t within tolerance × its nearest distance, at max 5 of them; each point of t goes to t+1 the same way; the candidates are the union. The link network uses tolerance 2. A point whose place in the other frame is outside the image is skipped.
+\item[{ours: exact, nothing chosen}] From each point's prediction (S5): its nearest point of t+1 under ‖·‖²\_\allowbreak{}w. From each point of t+1: its nearest prediction. The gate is the union, with ties retained. Two points of t+1 whose nearest prediction is the same point are that point's division candidates (S7). A prediction outside Ω is a leaving (S9). No tolerance and no count.
 \item[{stage}] S5
-\item[{status}] built in S5's gate (\texttt{cell\_\allowbreak{}tracking/\allowbreak{}src/\allowbreak{}sort/\allowbreak{}sort\_\allowbreak{}link.\allowbreak{}cu}): forward and backward, each the least weighted length with ties kept, and their union; a prediction outside the view is kept and flagged. The division candidates (S7) and the leaving (S9) are not built
+\item[{status}] built in S5's gate (\texttt{cell\_\allowbreak{}tracking/\allowbreak{}src/\allowbreak{}sort/\allowbreak{}sort\_\allowbreak{}link.\allowbreak{}cu}): forward and backward, each the least weighted length with ties retained, and their union; a prediction outside the view is retained and flagged. The division candidates (S7) and the leaving (S9) are not built
 \end{description}
 
 \tablerecord{\textbf{O7. The link's weight, learned without ground truth}}
@@ -260,7 +260,7 @@ Each technique is listed with its chosen numbers, then our form of it: exact, no
 \tablerecord{\textbf{O9. The division network}}
 \begin{description}
 \item[{OrganoidTracker (where)}] \texttt{division\_\allowbreak{}predictor}
-\item[{what it does there}] Gives each point a probability from a patch over its window, Platt-scaled; the penalty is −log₁₀ of the odds. It is trained on the mother's last frame (or 3 frames before to 2 after the split), with dying cells shown more often.
+\item[{what it does there}] Gives each point a probability from a patch over its window, Platt-scaled; the penalty is −log₁₀ of the odds. It is trained on the mother's last frame (or 3 frames before to 2 after the split), with dying cells displayed more often.
 \item[{ours: exact, nothing chosen}] The evidence is read from the data: the shape's aspect along its long axis (S1b), the history's bump (S3), and two t+1 points sharing one nearest prediction (O6). The frames around a split are where the bump rises and settles, read from S3 instead of a window.
 \item[{stage}] S7
 \item[{status}] theory
@@ -297,7 +297,7 @@ Each technique is listed with its chosen numbers, then our form of it: exact, no
 \begin{description}
 \item[{OrganoidTracker (where)}] \texttt{links\_\allowbreak{}postprocessor.\allowbreak{}connect\_\allowbreak{}loose\_\allowbreak{}ends}
 \item[{what it does there}] A track ends and another starts within 4 frames. If the link + 2 < disappearance + appearance, they are joined and the points between are deleted (---===--- → ---------).
-\item[{ours: exact, nothing chosen}] A chain that parts and rejoins is one body with two tops over that stretch, whatever its length (E9's reconvergence). The null decides whether it is kept, and no penalty enters.
+\item[{ours: exact, nothing chosen}] A chain that parts and rejoins is one body with two tops over that stretch, whatever its length (E9's reconvergence). The null decides whether it is retained, and no penalty enters.
 \item[{stage}] S6
 \item[{status}] theory
 \end{description}
@@ -324,7 +324,7 @@ Each technique is listed with its chosen numbers, then our form of it: exact, no
 \begin{description}
 \item[{OrganoidTracker (where)}] \texttt{links\_\allowbreak{}postprocessor.\allowbreak{}pinpoint\_\allowbreak{}divisions}, \texttt{remove\_\allowbreak{}spurs\_\allowbreak{}division}
 \item[{what it does there}] A division moves one frame later when a daughter's division penalty is at least 1 below the mother's. A daughter that ends at once is deleted when the mother's division penalty is positive.
-\item[{ours: exact, nothing chosen}] S7 puts the split at the frame of the strongest evidence along the chain. A daughter chain that does not stand above the null is no daughter.
+\item[{ours: exact, nothing chosen}] S7 puts the split at the frame of the strongest evidence along the chain. A daughter chain that does not are above the null is no daughter.
 \item[{stage}] S7
 \item[{status}] theory
 \end{description}
@@ -333,7 +333,7 @@ Each technique is listed with its chosen numbers, then our form of it: exact, no
 \begin{description}
 \item[{OrganoidTracker (where)}] \texttt{remove\_\allowbreak{}tracks\_\allowbreak{}too\_\allowbreak{}deep} (both ends past z = 25), \texttt{remove\_\allowbreak{}tracks\_\allowbreak{}too\_\allowbreak{}short} (6 points or fewer, not reaching the last frame), \texttt{remove\_\allowbreak{}single\_\allowbreak{}positions}
 \item[{what it does there}] Removes the tracks and points so described.
-\item[{ours: exact, nothing chosen}] Not taken as written: every length, depth and margin there is chosen. A chain is kept where it stands above its null (S4, S6).
+\item[{ours: exact, nothing chosen}] Not taken as written: every length, depth and margin there is chosen. A chain is retained where it is above its null (S4, S6).
 \item[{stage}] S6
 \item[{status}] not taken
 \end{description}
@@ -351,7 +351,7 @@ Each technique is listed with its chosen numbers, then our form of it: exact, no
 \begin{description}
 \item[{OrganoidTracker (where)}] \texttt{organoid\_\allowbreak{}tracker\_\allowbreak{}marginalization.\allowbreak{}py}
 \item[{what it does there}] A link with a marginal under 0.99 is dropped, and with it every out-link of a mother. Where the division score is high and no division was made, a second daughter is added at (x + 1, y + 1).
-\item[{ours: exact, nothing chosen}] Each source keeps its heaviest outcome in its marginal (an argmax, no threshold). No point is invented.
+\item[{ours: exact, nothing chosen}] Each source retains its heaviest outcome in its marginal (an argmax, no threshold). No point is invented.
 \item[{stage}] S6, S11
 \item[{status}] theory
 \end{description}
@@ -377,7 +377,7 @@ Each technique is listed with its chosen numbers, then our form of it: exact, no
 \tablerecord{\textbf{O22. Image offsets}}
 \begin{description}
 \item[{OrganoidTracker (where)}] \texttt{core/\allowbreak{}images.\allowbreak{}Image\allowbreak{}Offsets}, set by hand in the offset editor; \texttt{is\_\allowbreak{}inside\_\allowbreak{}image}
-\item[{what it does there}] A per-frame offset of the image. Positions are kept in its frame, and in-view tests read it.
+\item[{what it does there}] A per-frame offset of the image. Positions are retained in its frame, and in-view tests read it.
 \item[{ours: exact, nothing chosen}] S2's drift is the offset, read from the data per frame pair (E3).
 \item[{stage}] S2, S9
 \item[{status}] built in the engine
@@ -409,17 +409,17 @@ What it gives the tracker is physics, with none of its numbers written in:
 
 {\footnotesize
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.1243\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2778\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.4840\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.1138\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.1243\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2779\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.4840\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.1138\linewidth-2\tabcolsep\relax}}
 \toprule
 \# & the physics & what it changes in the driver & stage \\
 \midrule
 \endhead
 \textbf{H1} & Asymmetric division: the two daughters are different cells. & A division does not need its daughters alike. Mass is conserved on their sum (row 9's D\_\allowbreak{}mass already reads β(m\_\allowbreak{}c + m\_\allowbreak{}s) = β(m\_\allowbreak{}p)), and they part along the parent's axis. Their shapes (S1b) and levels may differ, and from then on each daughter's chain carries its own harmonics. & S7 \\
 \textbf{H2} & A fate change without division: a cell changes what it is without dividing. & A chain goes on through a change of shape or level with no split, because identity is coherence (row 7), not a constant look. S5 weighs a shape against the chain's last point, never its first. A gradual change does not break the chain. A change of harmonics with no second point in the gate is a fate change instead of a new body. & S5, S6 \\
-\textbf{H3} & Death is near zero in the early pronephros (Caspase-3 about 0 in PST and DE at 20 hpf), and a few percent of cells are in G2/M at a time. & This agrees with S8: a chain that ends away from a face, with no bump, is a missed detection instead of a death. Divisions are rare against continuations, as the ground truth shows (87 of 199 samples hold any division, at most 5). The rates are read from each sample's own counts after the sort, never written in. & S8, S7 \\
+\textbf{H3} & Death is near zero in the early pronephros (Caspase-3 about 0 in PST and DE at 20 hpf), and a few percent of cells are in G2/M at a time. & This agrees with S8: a chain that ends away from a face, with no bump, is a missed detection instead of a death. Divisions are rare against continuations, as the ground truth shows (87 of 199 samples hold any division, at max 5). The rates are read from each sample's own counts after the sort, never written in. & S8, S7 \\
 \textbf{H4} & The population balances: its change is births minus deaths plus arrivals. & On any output with in-degree ≤ 1 and out-degree ≤ 2, N(t+1) − N(t) = D(t) − E(t) + S(t+1) exactly. D counts the two-daughter points of t, E the points of t with no future, and S the points of t+1 with no past. The physics says every end is a death, a leaving or the last frame, and every start is an entering or the first frame. The ends and starts left unexplained are the verdict, counted per frame and per sample. & S11 \\
 \textbf{H5} & Each process's rate varies in time and peaks once (their Gaussian K(t)). & The sample's division count per frame is read as a curve over the whole sample after the sort: a set-wide reading beside S4's, with no shape fitted to it. & S4, S7 \\
-\textbf{H6} & Hypotheses are compared by likelihood ratio (AIC, LRT). & Ours is the null (S4). Each event (a division, two tops, a missed frame) is kept where its exact count stands above the same count in the null frames. No χ² and no parameter penalty. & S4, S6 \\
+\textbf{H6} & Hypotheses are compared by likelihood ratio (AIC, LRT). & Ours is the null (S4). Each event (a division, two tops, a missed frame) is retained where its exact count is above the same count in the null frames. No χ² and no parameter penalty. & S4, S6 \\
 \bottomrule
 \end{longtable}
 }
@@ -428,10 +428,10 @@ What it gives the tracker is physics, with none of its numbers written in:
 
 \tablerecord{\textbf{1. The bodies}}
 \begin{description}
-\item[{the physics we hold it to}] A body stands above the medium, whole; the field carves its boundary, and no gradient is tuned.
-\item[{does}] The program takes the machine's component tree (M3) and one cut: the level with the most components, proved against the forest's count. \texttt{grow\_\allowbreak{}leaves} makes the leaves. \texttt{group\_\allowbreak{}objects} joins leaves into objects by touch in one frame, transitively; on the current bodies nothing touches, and every object is one body (row 6). Since the split, the slide and the overlap are machine operators over probes and probe links (M3). The program turns ground-truth cells and divisions into probes and links and grades the census itself, in \texttt{cell\_\allowbreak{}tracking/\allowbreak{}src/\allowbreak{}slide/\allowbreak{}slide\_\allowbreak{}score.\allowbreak{}cu}. That file is rewritten to the probe interface and is \textbf{not yet compiled or hooked in}: it hooks into score\_\allowbreak{}sample's frame loop, and score\_\allowbreak{}sample has to move to cell\_\allowbreak{}tracking first.
+\item[{the physics we hold it to}] A body is above the medium, whole; the field carves its boundary, and no gradient is tuned.
+\item[{does}] The program takes the machine's component tree (M3) and one cut: the level with the max components, proved against the forest's count. \texttt{grow\_\allowbreak{}leaves} makes the leaves. \texttt{group\_\allowbreak{}objects} joins leaves into objects by touch in one frame, transitively; on the current bodies nothing touches, and every object is one body (row 6). Since the split, the slide and the overlap are machine operators over probes and probe links (M3). The program turns ground-truth cells and divisions into probes and links and grades the census itself, in \texttt{cell\_\allowbreak{}tracking/\allowbreak{}src/\allowbreak{}slide/\allowbreak{}slide\_\allowbreak{}score.\allowbreak{}cu}. That file is rewritten to the probe interface and is \textbf{not yet compiled or hooked in}: it hooks into score\_\allowbreak{}sample's frame loop, and score\_\allowbreak{}sample has to move to cell\_\allowbreak{}tracking first.
 \item[{wants}] One node per cell. 44b6 is estimated at about 260 cells a frame and 6bba at about 700; the tree gives far more pieces.
-\item[{tried, and what it gave}] Every node: \textbf{measured}, 5.8 M nodes against 880,906 estimated, score 0.279. The 400 largest a frame: \textbf{measured}, 0.661 on the 25 44b6. \texttt{stands}: \textbf{measured}, 0.12 on the older dump (38,114 nodes kept). \texttt{merge\_\allowbreak{}split}: on by default, no A/B. \texttt{dish}, \texttt{cohere}, \texttt{accrue}, \texttt{agree}: no run in the ledger. The slide (\texttt{-\allowbreak{}-\allowbreak{}slide}, before the split), \textbf{measured}. Every level where the ground-truth cells' sharing changes is found by bisection over the levels. Each probe's component count is proved against the tree's count at that level: 0 of 26,454 differ. On 6bba\_\allowbreak{}48816121, the cut holds 931 of 935 ground-truth cells, and 50 are alone on their leaf. At each frame's best single level, 903 are alone; at some level of their own chain, 925. The most-components level sits low in the tree: many small pieces, with the cells merged into a few giant blobs. Frame 0: the cut is at level 84,314 of 1,135,213; all 4 ground-truth cells are alone from 1,045,988 (204 components) down to 463,871. The overlap at the same residual (\texttt{-\allowbreak{}-\allowbreak{}overlap}), \textbf{measured}. Frames t and t+1 are cut at the same exact residual r. At the drift, each component's distinct partners are counted from the exact (earlier root, later root) pairs; mutual is the AND, both ends with exactly one. The sampled r values are each frame's ground-truth partition events and its cut. On 6bba\_\allowbreak{}48816121 (99 pairs, 3,615 cuts), the earlier frame's cut has 61,679 components, of which 15,979 overlap exactly one and 6,688 are mutual (11\%). The best mutual over each pair's cuts sums to 13,783. Mutual peaks high in the tree, at 150 to 200 components a frame with 70–80\% of them mutual. Frame 0→1 at level 1,045,988: 204 components and 144 mutual; at the cut: 329 and 29. On 44b6\_\allowbreak{}0113de3b, the cut has 39,507 components and 7,962 mutual (20\%). The event census, \textbf{measured}. It classes every component: 1→1 move, 1→2, 2→1, 1→0 and 0→1. Mutual counted from either side agrees on every cut. On 6bba\_\allowbreak{}48816121 at the cut, about 70\% of the components have no partner at all. Of the ground truth's 5 divisions, 0 are parted at the most-components cut. At each pair's best sampled cut, 5 are present, 3 have their daughters apart, 2 are parted (the parent's component overlaps both daughters' components) and 1 is caught as 1→2. Daughters separate only where the parent is gone, and one global drift misses daughters that move apart. Ground-truth cells per leaf (\texttt{-\allowbreak{}-\allowbreak{}box-\allowbreak{}history}), \textbf{measured}. On 6bba\_\allowbreak{}48816121, 881 of the 931 ground-truth nodes that land on a leaf share it with another ground-truth node, on 110 leaves. Up to 13 ground-truth cells sit on one leaf of 779,789 voxels, and every ground-truth division's parent sits on a leaf of 652,575 to 1,004,159 voxels whose box is the whole 64×256×256 view. On 44b6\_\allowbreak{}0113de3b, 0 of 52 share. So ℓ* cuts 6bba into a few giant components that hold many cells each. The 6bba edge scores (856/918 on this sample) count leaf-to-leaf links, and most of those leaves hold many cells. They do not measure per-cell tracking.
+\item[{tried, and what it gave}] Every node: \textbf{measured}, 5.8 M nodes against 880,906 estimated, score 0.279. The 400 largest a frame: \textbf{measured}, 0.661 on the 25 44b6. \texttt{is}: \textbf{measured}, 0.12 on the older dump (38,114 nodes retained). \texttt{merge\_\allowbreak{}split}: on by default, no A/B. \texttt{dish}, \texttt{cohere}, \texttt{accrue}, \texttt{agree}: no run in the ledger. The slide (\texttt{-\allowbreak{}-\allowbreak{}slide}, before the split), \textbf{measured}. Every level where the ground-truth cells' sharing changes is found by bisection over the levels. Each probe's component count is proved against the tree's count at that level: 0 of 26,454 differ. On 6bba\_\allowbreak{}48816121, the cut holds 931 of 935 ground-truth cells, and 50 are alone on their leaf. At each frame's best single level, 903 are alone; at some level of their own chain, 925. The max-components level sits low in the tree: many small pieces, with the cells merged into a few giant blobs. Frame 0: the cut is at level 84,314 of 1,135,213; all 4 ground-truth cells are alone from 1,045,988 (204 components) down to 463,871. The overlap at the same residual (\texttt{-\allowbreak{}-\allowbreak{}overlap}), \textbf{measured}. Frames t and t+1 are cut at the same exact residual r. At the drift, each component's distinct partners are counted from the exact (earlier root, later root) pairs; mutual is the AND, both ends with exactly one. The sampled r values are each frame's ground-truth partition events and its cut. On 6bba\_\allowbreak{}48816121 (99 pairs, 3,615 cuts), the earlier frame's cut has 61,679 components, of which 15,979 overlap exactly one and 6,688 are mutual (11\%). The best mutual over each pair's cuts sums to 13,783. Mutual peaks high in the tree, at 150 to 200 components a frame with 70–80\% of them mutual. Frame 0→1 at level 1,045,988: 204 components and 144 mutual; at the cut: 329 and 29. On 44b6\_\allowbreak{}0113de3b, the cut has 39,507 components and 7,962 mutual (20\%). The event census, \textbf{measured}. It classes every component: 1→1 move, 1→2, 2→1, 1→0 and 0→1. Mutual counted from either side agrees on every cut. On 6bba\_\allowbreak{}48816121 at the cut, about 70\% of the components have no partner at all. Of the ground truth's 5 divisions, 0 are parted at max-components cut. At each pair's best sampled cut, 5 are present, 3 have their daughters apart, 2 are parted (the parent's component overlaps both daughters' components) and 1 is caught as 1→2. Daughters separate only where the parent is gone, and one global drift misses daughters that move apart. Ground-truth cells per leaf (\texttt{-\allowbreak{}-\allowbreak{}box-\allowbreak{}history}), \textbf{measured}. On 6bba\_\allowbreak{}48816121, 881 of the 931 ground-truth nodes that land on a leaf share it with another ground-truth node, on 110 leaves. Up to 13 ground-truth cells sit on one leaf of 779,789 voxels, and every ground-truth division's parent sits on a leaf of 652,575 to 1,004,159 voxels whose box is the whole 64×256×256 view. On 44b6\_\allowbreak{}0113de3b, 0 of 52 share. So ℓ* cuts 6bba into a few giant components that hold many cells each. The 6bba edge scores (856/918 on this sample) count leaf-to-leaf links, and the majority of those leaves hold many cells. They do not measure per-cell tracking.
 \item[{status}] built; the node count is the score's lever; on 6bba the cut holds many cells a leaf
 \item[{next}] Bodies, not pieces, as the nodes: row 2's fingerprint and row 9's entropy decide membership. Hook \texttt{slide\_\allowbreak{}score.\allowbreak{}cu} in once score\_\allowbreak{}sample moves. The machine's LCA identity (M3, theory) gives every level where two ground-truth cells part without bisection: one query per neighboring pair of ground-truth cells.
 \end{description}
@@ -449,7 +449,7 @@ What it gives the tracker is physics, with none of its numbers written in:
 \tablerecord{\textbf{3. The medium: the fluid the bodies sit in}}
 \begin{description}
 \item[{the physics we hold it to}] The wide term is the medium's scattering, its turbidity, the fluid's mean entropic flux. It is noise to us and is subtracted whole, in exact two's complement, and the medium resolves to zero (phase cancellation).
-\item[{does}] The program hands the machine's residual (M2) one smooth order and one background order per axis, \{2, 34, 34\} and \{6, 96, 96\} (\texttt{SMOOTH\_\allowbreak{}ORDERS}, \texttt{BACKGROUND\_\allowbreak{}ORDERS}, track.h). \textbf{They are a debt}: they came from \texttt{n = 4(σ/\allowbreak{}v)²} rounded to even, with two chosen scales, σ = 6/5 µm (smooth) and 2 µm (background) (\texttt{for\_\allowbreak{}orior/\allowbreak{}stripped/\allowbreak{}src/\allowbreak{}exact\_\allowbreak{}track.\allowbreak{}py}). The rounding and the chosen σ both break the rules.
+\item[{does}] The program passes the machine's residual (M2) one smooth order and one background order per axis, \{2, 34, 34\} and \{6, 96, 96\} (\texttt{SMOOTH\_\allowbreak{}ORDERS}, \texttt{BACKGROUND\_\allowbreak{}ORDERS}, track.h). \textbf{They are a debt}: they came from \texttt{n = 4(σ/\allowbreak{}v)²} rounded to even, with two chosen scales, σ = 6/5 µm (smooth) and 2 µm (background) (\texttt{for\_\allowbreak{}orior/\allowbreak{}stripped/\allowbreak{}src/\allowbreak{}exact\_\allowbreak{}track.\allowbreak{}py}). The rounding and the chosen σ both break the rules.
 \item[{wants}] Orders read from the data, per sample, with nothing rounded. Doug's rulings, the per-axis coherence reading gives an exact integer period P in voxel steps, and \textbf{order = period} (n = P). Flatten takes a smooth and background pair per sample (not built). The medium's physics now has an exact form (M2's heat identity): the residual is 4\textasciicircum{}m times what m explicit heat steps of the medium remove from the smoothed field. “The medium's mean entropic flux” is literally the subtracted term.
 \item[{tried, and what it gave}] The key against the passes, and the unit sweeps: see M2 (proved exact; the sweeps 2× faster), with its numbers on the samples in \hyperref[chap:on-the-engine]{on\_\allowbreak{}the\_\allowbreak{}engine.md}.
 \item[{status}] orders chosen and rounded (debt)
@@ -471,7 +471,7 @@ What it gives the tracker is physics, with none of its numbers written in:
 \item[{the physics we hold it to}] A body's velocity is the time derivative of its dipole. Its next place is predicted from that before any overlap is counted, and the dipole axis points back to where the motion started: v\_\allowbreak{}origin = −∇(∂C₁ₘ/∂t).
 \item[{does}] The climb (M5, \texttt{climb\_\allowbreak{}machine}): each body climbs from the drift to its own lag, one step in 26 directions at a time, by how many of its voxels agree, until no step helps. \texttt{-\allowbreak{}-\allowbreak{}velocity} writes the dipole's change per body as a record beside the climb (see the verdicts). \textbf{\texttt{Engine\allowbreak{}Body.\allowbreak{}velocity} exists and nothing writes it; the linker does not read the velocity record.}
 \item[{wants}] Velocity from the dipole's change across frames, used to predict each landing, and checked against the climb.
-\item[{tried, and what it gave}] \texttt{sticky}, \texttt{mass} (land where most of the body lands), \texttt{spiral} (golden spiral offsets beyond the climbed lag), \texttt{arms} (the same climb at gaps 2 to n, by which time bodies too close one frame on have parted): all built, no run in the ledger. \texttt{-\allowbreak{}-\allowbreak{}velocity} (the \texttt{velocity} record program): the dipole's change is written per body as an exact rational, (S′m − Sm′)/(m·m′) per axis, beside a truthy verdict that the climbed lag stands on a lattice point next to it. \textbf{Measured} on 44b6\_\allowbreak{}0113de3b, device equal to the host on every lane: of 35,755 bodies with a climbed forward, the climb and the dipole agree on all three axes for 8,720 (z 22,660, y 13,227, x 13,306); the last change predicts the next climb for 752 of 35,966. On 6bba\_\allowbreak{}48816121, 6bba\_\allowbreak{}09961292 and 6bba\_\allowbreak{}cdcfe533, \textbf{measured}: the check agrees on all axes for 2,144 of 21,366, 22,027 of 60,714 and 5,466 of 29,252; the prediction for 201 of 21,724, 2,666 of 58,840 and 497 of 28,743; 0 differ from the host.
+\item[{tried, and what it gave}] \texttt{sticky}, \texttt{mass} (land where the majority of the body lands), \texttt{spiral} (golden spiral offsets beyond the climbed lag), \texttt{arms} (the same climb at gaps 2 to n, by which time bodies too close one frame on have parted): all built, no run in the ledger. \texttt{-\allowbreak{}-\allowbreak{}velocity} (the \texttt{velocity} record program): the dipole's change is written per body as an exact rational, (S′m − Sm′)/(m·m′) per axis, beside a truthy verdict that the climbed lag is on a lattice point next to it. \textbf{Measured} on 44b6\_\allowbreak{}0113de3b, device equal to the host on every lane: of 35,755 bodies with a climbed forward, the climb and the dipole agree on all three axes for 8,720 (z 22,660, y 13,227, x 13,306); the last change predicts the next climb for 752 of 35,966. On 6bba\_\allowbreak{}48816121, 6bba\_\allowbreak{}09961292 and 6bba\_\allowbreak{}cdcfe533, \textbf{measured}: the check agrees on all axes for 2,144 of 21,366, 22,027 of 60,714 and 5,466 of 29,252; the prediction for 201 of 21,724, 2,666 of 58,840 and 497 of 28,743; 0 differ from the host.
 \item[{status}] climb built; dipole velocity built and measured on four samples
 \item[{next}] The leaves are pieces (818 a frame against about 260 cells), and a piece's dipole moves with the cut instead of the cell: measure the same on bodies, and on the 25.
 \end{description}
@@ -489,9 +489,9 @@ What it gives the tracker is physics, with none of its numbers written in:
 \tablerecord{\textbf{7. Correspondence: which body it is next frame}}
 \begin{description}
 \item[{the physics we hold it to}] Identity is the limit of coherence: a body is who it is because its coherence carries on, and a tag plays no part. One-to-one where bodies are one-to-one.
-\item[{does}] The overlap triples (M5, \texttt{body\_\allowbreak{}overlap}) count shared positive voxels per pair at the drift. \texttt{pick} keeps the branch sharing the most, \texttt{unbound} takes the nearest center by the swept vector (the jitter step it meets at over its magnitude), and \texttt{resolve} rejoins reconverging branches by union-find. The machine's one-to-one matching (M7, \texttt{heaviest\_\allowbreak{}matching}) is wired in by \texttt{-\allowbreak{}-\allowbreak{}print-\allowbreak{}match}: the \texttt{print\_\allowbreak{}pair} record program weighs every candidate (the overlap triples and the climbed forward) by how far its seven-band print lies from the body's, and the heaviest one-to-one set rewrites the forwards. \texttt{-\allowbreak{}-\allowbreak{}marginal} writes each body's exact context-aware probability P(b → b′ | G) = Z\_\allowbreak{}\{b→b′\}/Z over its local set, with the machine's marginal (M6) and the program's weights (see the verdicts). It reads the triples and the null, and the linker does not read it yet. \textbf{Measured} (internal count): 98.4\% of 6,358 edges on the 25 44b6, 97.0\% of 3,873 on five 6bba.
+\item[{does}] The overlap triples (M5, \texttt{body\_\allowbreak{}overlap}) count shared positive voxels per pair at the drift. \texttt{pick} retains the branch sharing the max, \texttt{unbound} takes the nearest center by the swept vector (the jitter step it meets at over its magnitude), and \texttt{resolve} rejoins reconverging branches by union-find. The machine's one-to-one matching (M7, \texttt{heaviest\_\allowbreak{}matching}) is wired in by \texttt{-\allowbreak{}-\allowbreak{}print-\allowbreak{}match}: the \texttt{print\_\allowbreak{}pair} record program weighs every candidate (the overlap triples and the climbed forward) by how far its seven-band print lies from the body's, and the heaviest one-to-one set rewrites the forwards. \texttt{-\allowbreak{}-\allowbreak{}marginal} writes each body's exact context-aware probability P(b → b′ | G) = Z\_\allowbreak{}\{b→b′\}/Z over its local set, with the machine's marginal (M6) and the program's weights (see the verdicts). It reads the triples and the null, and the linker does not read it yet. \textbf{Measured} (internal count): 98.4\% of 6,358 edges on the 25 44b6, 97.0\% of 3,873 on five 6bba.
 \item[{wants}] Link each body to the one whose fingerprint agrees (row 2), one-to-one by \texttt{heaviest\_\allowbreak{}matching} on fingerprint cost.
-\item[{tried, and what it gave}] Under the metric: \textbf{measured}, 87.1\% hit on 44b6 (10.9\% land on a neighbor, 5.75 µm) and 78.5\% on 6bba (19.6\%, 6.7 µm). \texttt{-\allowbreak{}-\allowbreak{}print-\allowbreak{}match} on 44b6\_\allowbreak{}0113de3b: \textbf{measured}, 56,927 pairs swept at once in 217 to 245 us, 31,130 of 80,697 leaves matched one to one, 19,113 forwards changed, edges unchanged at 38/12 of 50, because base.cfg's \texttt{unbound} linker picks by overlap weight and center cost and reads the forward only as one more candidate. \texttt{-\allowbreak{}-\allowbreak{}marginal} on 44b6\_\allowbreak{}0113de3b (with the floor's null): \textbf{measured}, 34,297 bodies asked in 50 to 58 ms (30,444 in their context, 3,853 alone, 8 too wide), 123,538 options, device equal to the host. Of 49 ground-truth edges asked, the most probable in context is the truth for 16 and “no link” for 27. The heaviest candidate alone is the truth for 38, and the climb's forward for 35. Where a target wins, it is the truth 16 times of 22. The null's weight dominates: it is the null climb's held count, which the climb maximizes, while T is counted at the drift. Putting the two on one footing is Doug's to set. With Doug's transform (\texttt{-\allowbreak{}-\allowbreak{}box -\allowbreak{}-\allowbreak{}marginal}, the links weighed by T*, C at each body's own climbed lag): \textbf{measured}, 51,214 bodies asked in 240 ms, 195,658 options, device equal to the host. Of 49 ground-truth edges, the most probable in context is the truth for 19 and “no link” for 24; the heaviest candidate alone gets 37 and the climb's forward 35. “No link” is weighed by the best of the floor's null draws (max\_\allowbreak{}k h⁰\_\allowbreak{}k). Whether “the null draw's fraction” means the best draw, each draw as its own outcome, or something else is Doug's. No run in the ledger for \texttt{share}, \texttt{cast}, \texttt{parallax}, \texttt{arc}, \texttt{settle}, \texttt{damp}, \texttt{vote}, \texttt{mutual}, \texttt{forest}, \texttt{merge\_\allowbreak{}target}, \texttt{forward\_\allowbreak{}only}, \texttt{focus} or \texttt{tower}.
+\item[{tried, and what it gave}] Under the metric: \textbf{measured}, 87.1\% hit on 44b6 (10.9\% land on a neighbor, 5.75 µm) and 78.5\% on 6bba (19.6\%, 6.7 µm). \texttt{-\allowbreak{}-\allowbreak{}print-\allowbreak{}match} on 44b6\_\allowbreak{}0113de3b: \textbf{measured}, 56,927 pairs swept at once in 217 to 245 us, 31,130 of 80,697 leaves matched one to one, 19,113 forwards changed, edges unchanged at 38/12 of 50, because base.cfg's \texttt{unbound} linker picks by overlap weight and center cost and reads the forward only as one more candidate. \texttt{-\allowbreak{}-\allowbreak{}marginal} on 44b6\_\allowbreak{}0113de3b (with the floor's null): \textbf{measured}, 34,297 bodies asked in 50 to 58 ms (30,444 in their context, 3,853 alone, 8 too wide), 123,538 options, device equal to the host. Of 49 ground-truth edges asked, the max probable in context is the truth for 16 and “no link” for 27. The heaviest candidate alone is the truth for 38, and the climb's forward for 35. Where a target wins, it is the truth 16 times of 22. The null's weight dominates: it is the null climb's held count, which the climb maximizes, while T is counted at the drift. Putting the two on one footing is Doug's to set. With Doug's transform (\texttt{-\allowbreak{}-\allowbreak{}box -\allowbreak{}-\allowbreak{}marginal}, the links weighed by T*, C at each body's own climbed lag): \textbf{measured}, 51,214 bodies asked in 240 ms, 195,658 options, device equal to the host. Of 49 ground-truth edges, the max probable in context is the truth for 19 and “no link” for 24; the heaviest candidate alone gets 37 and the climb's forward 35. “No link” is weighed by the best of the floor's null draws (max\_\allowbreak{}k h⁰\_\allowbreak{}k). Whether “the null draw's fraction” means the best draw, each draw as its own outcome, or something else is Doug's. No run in the ledger for \texttt{share}, \texttt{cast}, \texttt{parallax}, \texttt{arc}, \texttt{settle}, \texttt{damp}, \texttt{vote}, \texttt{mutual}, \texttt{forest}, \texttt{merge\_\allowbreak{}target}, \texttt{forward\_\allowbreak{}only}, \texttt{focus} or \texttt{tower}.
 \item[{status}] built; losses are neighbors
 \item[{next}] Row 2's test. The marginal's local set G is one hop (the sources competing for b's candidates, and their candidates). M6's factorization says the exact marginal over the whole frame equals the marginal over b's connected component of the support graph, and over nothing smaller: take G as that component, and the probability is the global one exactly (theory).
 \end{description}
@@ -501,7 +501,7 @@ What it gives the tracker is physics, with none of its numbers written in:
 \item[{the physics we hold it to}] A split is a boundary discontinuity, judged over the whole sample and not the moment. One body's fingerprint becomes two whose masses add to it and whose dipoles part along the parent's quadrupole axis. The local entropy bumps and settles into two lows.
 \item[{does}] \texttt{assign\_\allowbreak{}bodies} (only when node rows are asked for) marks a body SPLIT when nothing lands on it and its back landing is a body that went elsewhere, and gives it that body's id as parent. \texttt{-\allowbreak{}-\allowbreak{}division} writes the mass and axis verdicts for every parent and two pieces whose backward climbs land on it (the \texttt{division} record, 100 steps). \texttt{assign\_\allowbreak{}bodies} does not read them yet, and there is no entropy check.
 \item[{wants}] Two linked children confirmed by mass conservation, the parent's ℓ = 2 axis, and an entropy bump that settles.
-\item[{tried, and what it gave}] Divisions matched: \textbf{measured}, 0 on the older dump. The division term earns 0. \texttt{-\allowbreak{}-\allowbreak{}division} on 44b6\_\allowbreak{}0113de3b: \textbf{measured}, 142,649 triples in 13.8 ms, mass conserved on 3,356, split along the long axis on 99,155, both on 2,452, 0 differ from the host. That sample's ground truth holds no division. Of the 199 samples' ground truth, 87 hold any division, at most 5 (6bba\_\allowbreak{}48816121). On 6bba\_\allowbreak{}48816121, 6bba\_\allowbreak{}09961292 and 6bba\_\allowbreak{}cdcfe533: \textbf{measured}, 326,836, 85,146 and 99,724 triples, each in 1 to 3 ms, 0 differ from the host. The three samples' ground truth holds 13 divisions. Only 3 put the parent and both children on three separate leaves, and 2 of those are among the triples. Mass holds on 1 of the 2, the axis on 2, both on 1. Why the rest are lost, \textbf{measured}: 10 of the 13 have both children on one leaf. One frame after the split, the cut at ℓ* has not separated the daughters. On 6bba\_\allowbreak{}48816121 (\texttt{-\allowbreak{}-\allowbreak{}box-\allowbreak{}history}), the parent and daughters of all 5 of its divisions are on leaves of 0.65 to 1.0 M voxels whose box is the whole view (row 1). None has a node off every leaf, and none falls outside consecutive tracked frames. On the 3 with three separate leaves, 4 of the 6 children climb back to their parent. So the loss lies in the cut (row 1), and the climb holds.
+\item[{tried, and what it gave}] Divisions matched: \textbf{measured}, 0 on the older dump. The division term earns 0. \texttt{-\allowbreak{}-\allowbreak{}division} on 44b6\_\allowbreak{}0113de3b: \textbf{measured}, 142,649 triples in 13.8 ms, mass conserved on 3,356, split along the long axis on 99,155, both on 2,452, 0 differ from the host. That sample's ground truth holds no division. Of the 199 samples' ground truth, 87 hold any division, at max 5 (6bba\_\allowbreak{}48816121). On 6bba\_\allowbreak{}48816121, 6bba\_\allowbreak{}09961292 and 6bba\_\allowbreak{}cdcfe533: \textbf{measured}, 326,836, 85,146 and 99,724 triples, each in 1 to 3 ms, 0 differ from the host. The three samples' ground truth holds 13 divisions. Only 3 put the parent and both children on three separate leaves, and 2 of those are among the triples. Mass holds on 1 of the 2, the axis on 2, both on 1. Why the rest are lost, \textbf{measured}: 10 of the 13 have both children on one leaf. One frame after the split, the cut at ℓ* has not separated the daughters. On 6bba\_\allowbreak{}48816121 (\texttt{-\allowbreak{}-\allowbreak{}box-\allowbreak{}history}), the parent and daughters of all 5 of its divisions are on leaves of 0.65 to 1.0 M voxels whose box is the whole view (row 1). None has a node off every leaf, and none falls outside consecutive tracked frames. On the 3 with three separate leaves, 4 of the 6 children climb back to their parent. So the loss lies in the cut (row 1), and the climb holds.
 \item[{status}] fate built; mass and axis verdicts built and measured
 \item[{next}] The daughters inside one leaf are likely separate components higher in the same component tree. One cut level for the whole frame cannot hold both a just-divided pair and everything else. That is row 1's selection (Ultrack's~\cite{src:Ultrack} one node per nested chain; build plan, Waiting on Doug 5). The census's 1→2 class (M3) equals the set of sources a division arrangement would add to the marginal (row 7). Then build plan C2 (the entropy bump).
 \end{description}
@@ -528,8 +528,8 @@ What it gives the tracker is physics, with none of its numbers written in:
 
 \tablerecord{\textbf{12. The noise floor: what is not a body}}
 \begin{description}
-\item[{the physics we hold it to}] The noise is deterministic, constant and unique per sample: shot, thermal and read, fixed pattern, quantization. It is read, never modeled. Entropy separates it: what decays to maximum entropy is floor −4, and what holds low and moves is a body.
-\item[{does}] The machine's entropy history (M8) with its window-overlap cloud; the \texttt{.\allowbreak{}cfg}'s \texttt{floor} lays it down first.
+\item[{the physics we hold it to}] The noise is deterministic, constant and unique per sample: shot, thermal and read, fixed pattern, quantization. It is read, never modeled. Entropy separates it: what decays to max entropy is floor −4, and what holds low and moves is a body.
+\item[{does}] The machine's entropy history (M8) with its window-overlap cloud; the \texttt{.\allowbreak{}cfg}'s \texttt{floor} positions it down first.
 \item[{wants}] Every departure from the floor placed, and only those places asked about (the demon's waveform collapsing onto U | U). The four noise keys imprinted and stamped over the set in one cycle.
 \item[{tried, and what it gave}] Anchors: \textbf{measured}, bits 0 to 4 in about 46\% of frames everywhere, anchors in bits 6 to 11, none common to every sample. History: \textbf{measured}, bits 0 to 3 at 499 to 500 per mille in 19 of 25. A constant region in 6 samples: measured, cause unknown. Direction: measured, each sample's own.
 \item[{status}] measured
@@ -543,7 +543,7 @@ What it gives the tracker is physics, with none of its numbers written in:
 \item[{wants}] Every boundary voxel scrubbed under the sweep, leaving a body's edge and mass its own and not one frame's cut.
 \item[{tried, and what it gave}] The core per width on 44b6\_\allowbreak{}0113de3b, \textbf{measured}. Proof: the width-0 core mass equals C at the climbed lag on 35,755 of 35,755 forward climbers. Of 161,708 climbers (both sides, adjacent frames), 72,186 reach width 0, 33,827 width 1, 22,884 width 2, 10,230 width 3, 606 width 4 and 2 width 5. Core mass is 90,205,526 / 36,098,925 / 6,542,528 / 307,434 / 4,956 / 2. Which axis ends each core is not yet measured. Mutual pairs whose core displacement lies within half a voxel of the climbed lag on every axis: 10,003 of 16,176 at w=0, 4,409/10,410 at w=1, 2,578/8,727 at w=2, 456/3,413 at w=3, 15/117 at w=4. The deeper the core, the less its motion is the lag's. 49.6 s, with D3 sharing the GPU.
 \item[{status}] core built and measured
-\item[{next}] Build plan C1 (every width, kept per width, between frames): a voxel of a body stays at width w when every offset in the box of half-width w around the climbed lag lands it inside the match. Mass, sums and moments re-summed per width, and the print summed over the edge that stays.
+\item[{next}] Build plan C1 (every width, retained per width, between frames): a voxel of a body stays at width w when every offset in the box of half-width w around the climbed lag lands it inside the match. Mass, sums and moments re-summed per width, and the print summed over the edge that stays.
 \end{description}
 
 \tablerecord{\textbf{14. Size: growth and division by ratio}}
@@ -560,7 +560,7 @@ What it gives the tracker is physics, with none of its numbers written in:
 \begin{description}
 \item[{the physics we hold it to}] The field's state is a set of bodies at every time, and one exact file holds all of it.
 \item[{does}] The machine holds the field (M9: \texttt{.\allowbreak{}kcr}, \texttt{.\allowbreak{}knf}, \texttt{flatten}, \texttt{.\allowbreak{}bapx}). No file holds the bodies' fingerprints.
-\item[{wants}] A file kind for the bodies and their ℓ ≤ 2 fingerprints, written once, for linking to read bodies and not voxels.
+\item[{wants}] A file type for the bodies and their ℓ ≤ 2 fingerprints, written once, for linking to read bodies and not voxels.
 \item[{tried, and what it gave}] See M9, and \texttt{flatten}'s numbers on 44b6\_\allowbreak{}0113de3b in \hyperref[chap:on-the-engine]{on\_\allowbreak{}the\_\allowbreak{}engine.md}.
 \item[{status}] field stored by the machine; bodies' prints not stored
 \item[{next}] With row 2.
@@ -586,7 +586,7 @@ R\_\allowbreak{}t = 2\textasciicircum{}g · (B\_\allowbreak{}s ∗ I\_\allowbrea
 \subsection{\texorpdfstring{E2. The bodies (row 1): the machine's A2 and A3, then \texttt{grow\_\allowbreak{}leaves}}{E2. The bodies (row 1): the machine's A2 and A3, then grow\_leaves}}
 
 \begin{itemize}
-\item The cut is ℓ*\_\allowbreak{}t = min \{ ℓ : C\_\allowbreak{}t(ℓ) = max C\_\allowbreak{}t \}, the lowest level with the most components (A2). The choice of one level for the whole frame is the program's.
+\item The cut is ℓ*\_\allowbreak{}t = min \{ ℓ : C\_\allowbreak{}t(ℓ) = max C\_\allowbreak{}t \}, the lowest level with the max components (A2). The choice of one level for the whole frame is the program's.
 \item The bodies B\_\allowbreak{}t are the components at ℓ*\_\allowbreak{}t, with mass m\_\allowbreak{}b, index sums S\_\allowbreak{}b, second moments M\_\allowbreak{}b, peak p\_\allowbreak{}b and touches (A3). The centroid is carried as the pair (S\_\allowbreak{}b, m\_\allowbreak{}b) and never divided.
 \end{itemize}
 
@@ -606,11 +606,11 @@ For each body b of frame t, A\_\allowbreak{}b(v) = Σ\_\allowbreak{}\{x∈b\} P\
 
 \subsection{\texorpdfstring{E5. The null (row 8): the same climb toward a frame where no correspondence exists}{E5. The null (row 8): the same climb toward a frame where no correspondence exists}}
 
-h⁰\_\allowbreak{}k(b) = A\_\allowbreak{}b\textasciicircum{}\{(t → t\_\allowbreak{}k)\}(v*),  one draw k per floor on the identity line when a floor is laid down
+h⁰\_\allowbreak{}k(b) = A\_\allowbreak{}b\textasciicircum{}\{(t → t\_\allowbreak{}k)\}(v*),  one draw k per floor on the identity line when a floor is positioned down
 
 \subsection{\texorpdfstring{E6. The overlap triples (row 7): A4, \texttt{body\_\allowbreak{}overlap}}{E6. The overlap triples (row 7): A4, body\_overlap}}
 
-T(b, b′) = |\{ x : L\_\allowbreak{}t(x) = b, L\_\allowbreak{}\{t+1\}(x + d\_\allowbreak{}t) = b′ \}|,  kept where T > 0
+T(b, b′) = |\{ x : L\_\allowbreak{}t(x) = b, L\_\allowbreak{}\{t+1\}(x + d\_\allowbreak{}t) = b′ \}|,  retained where T > 0
 
 \subsection{\texorpdfstring{E7. The objects (row 6): \texttt{group\_\allowbreak{}objects} (\texttt{merge\_\allowbreak{}split})}{E7. The objects (row 6): group\_objects (merge\_split)}}
 
@@ -661,7 +661,7 @@ These are written for every body, pair or triple in one sweep each, device equal
 \begin{itemize}
 \item Δ\_\allowbreak{}a = (S′\_\allowbreak{}a m − S\_\allowbreak{}a m′) / (m m′), stored as the pair (numerator, m m′)
 \item R\_\allowbreak{}a = L\_\allowbreak{}a · m m′ − (S′\_\allowbreak{}a m − S\_\allowbreak{}a m′)
-\item c\_\allowbreak{}a = COMPARE(m m′, |R\_\allowbreak{}a|), and the verdict V\_\allowbreak{}a = c\_\allowbreak{}a (c\_\allowbreak{}a + 1). It is nonzero exactly when |Δ\_\allowbreak{}a − L\_\allowbreak{}a| < 1, the climbed lag standing on a lattice point beside the dipole's change.
+\item c\_\allowbreak{}a = COMPARE(m m′, |R\_\allowbreak{}a|), and the verdict V\_\allowbreak{}a = c\_\allowbreak{}a (c\_\allowbreak{}a + 1). It is nonzero exactly when |Δ\_\allowbreak{}a − L\_\allowbreak{}a| < 1, the climbed lag located on a lattice point beside the dipole's change.
 \item V = V\_\allowbreak{}z V\_\allowbreak{}y V\_\allowbreak{}x.
 \end{itemize}
 \item \textbf{Division} (row 9, \texttt{division}), per parent p and two pieces c, s whose backward climbs land on p:
@@ -676,10 +676,10 @@ These are written for every body, pair or triple in one sweep each, device equal
 \begin{itemize}
 \item pass 1: N = σ ∘ (S\_\allowbreak{}A m\_\allowbreak{}B − S\_\allowbreak{}B m\_\allowbreak{}A) per pair, where σ\_\allowbreak{}a = voxel\_\allowbreak{}pm\_\allowbreak{}a / gcd(voxel\_\allowbreak{}pm);
 \item pass 2 reads two pass-1 records: dot = N · N′, c = COMPARE(dot + 1, 1) = sign(dot);
-\item kept = c (c + 1) and crossed = c (c − 1).
+\item retained = c (c + 1) and crossed = c (c − 1).
 \end{itemize}
 
-dot is (c\_\allowbreak{}A − c\_\allowbreak{}B)·(c\_\allowbreak{}A′ − c\_\allowbreak{}B′) in physical space times the positive m\_\allowbreak{}A m\_\allowbreak{}B m\_\allowbreak{}A′ m\_\allowbreak{}B′ / gcd², and its sign is exact. Two membranes cannot pass through one another, and a real pair keeps its side. dot = 0 includes A′ = B′, the pair landing on one body.
+dot is (c\_\allowbreak{}A − c\_\allowbreak{}B)·(c\_\allowbreak{}A′ − c\_\allowbreak{}B′) in physical space times the positive m\_\allowbreak{}A m\_\allowbreak{}B m\_\allowbreak{}A′ m\_\allowbreak{}B′ / gcd², and its sign is exact. Two membranes cannot pass through one another, and a real pair retains its side. dot = 0 includes A′ = B′, the pair landing on one body.
 \item \textbf{The marginal} (rows 7 and 8), the machine's A5 with the program's weights: ω(b″, b′) = T(b″, b′) (or T*, below) and ω(b″, none) = max\_\allowbreak{}k h⁰\_\allowbreak{}k(b″). P(b → b′ | G) = Z\_\allowbreak{}\{b→b′\} / Z. Every source's weights share its own mass as denominator. The masses cancel, and Z and every Z\_\allowbreak{}\{b→·\} are exact integers compared by cross-multiplying, without temperature, energy or calibration. OrganoidTracker 2.0's P(A | G) is the same sum over exp(−E/T) of calibrated network energies.
 \end{itemize}
 
@@ -707,14 +707,14 @@ Almost every stage above is the machine's correlation C (A4) followed by a diffe
 
 {\small
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.3557\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.6443\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.3562\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.6438\linewidth-2\tabcolsep\relax}}
 \toprule
 stage & the read of C \\
 \midrule
 \endhead
 E2 moments m, S, M & \texttt{C\_\allowbreak{}\{t,t\}[a, a](0)} weighted by 1, x, x xᵀ \\
 E3 drift d & argmax\_\allowbreak{}v Σ\_\allowbreak{}\{a,b\} \texttt{C\_\allowbreak{}\{t,t+1\}[a, b](v)} \\
-E4 climb A\_\allowbreak{}b(v) & Σ\_\allowbreak{}\{b′ ∪ ∅\} \texttt{C\_\allowbreak{}\{t,t+1\}[b, b′](v)}, climbed to a local maximum v*\_\allowbreak{}b from d \\
+E4 climb A\_\allowbreak{}b(v) & Σ\_\allowbreak{}\{b′ ∪ ∅\} \texttt{C\_\allowbreak{}\{t,t+1\}[b, b′](v)}, climbed to a local max v*\_\allowbreak{}b from d \\
 E4 landing by mass & argmax\_\allowbreak{}\{b′\} \texttt{C\_\allowbreak{}\{t,t+1\}[b, b′](v*\_\allowbreak{}b)} \\
 the backward climb & the same box transposed: \texttt{C\_\allowbreak{}\{t+1,t\}[b′, b](−v)} = \texttt{C\_\allowbreak{}\{t,t+1\}[b, b′](v)} \\
 E5 null h⁰ & Σ\_\allowbreak{}\{b′ ∪ ∅\} \texttt{C\_\allowbreak{}\{t,t\_\allowbreak{}k\}[b, b′](v*)}, in a null frame \\
@@ -741,7 +741,7 @@ T*(b, b′) = |\{ x ∈ b : P\_\allowbreak{}\{t+1\}(x + v*\_\allowbreak{}b) ∧ 
 where ∅ is a positive voxel in no body (R > 0 below the cut). In the marginal, ω(b, b′) = T*(b, b′) and ω(b, none) = max\_\allowbreak{}k h⁰\_\allowbreak{}k(b). Both are counts of the same body's voxels under the same operator, and the masses still cancel.
 \item \textbf{Contact} (row 6). Each body has an assigned boundary. At width w, κ\_\allowbreak{}w(A, B) = |\{ x : d\_\allowbreak{}A(x) ≤ w ∧ d\_\allowbreak{}B(x) ≤ w \}|, where d\_\allowbreak{}A(x) = min\_\allowbreak{}\{y∈A\} ‖x − y‖∞. It is nonzero exactly where the two boundaries overlap at w: the truthy contact, its size the magnitude.
 \item \textbf{The jitter core} (C1, rows 13 and 6). The match b′ = f(b) has D\_\allowbreak{}\{b′\}(y) = min\_\allowbreak{}\{z∉b′\} ‖y − z‖∞. A voxel x of b stays at width w when D\_\allowbreak{}\{b′\}(x + v*\_\allowbreak{}b) > w. Built and proved: the width-0 core is Cb, b′, exactly, on every forward climber of 44b6\_\allowbreak{}0113de3b. The widths end at 5 there; the data sets where they end, and the view bounds them at (shortest extent + 1)/2.
-\item \textbf{The cut} (row 1). ℓ* slides through every level of the component tree, to the top, and each nested chain keeps the node that stays coherent between frames. One level for the whole frame is replaced by one node per chain.
+\item \textbf{The cut} (row 1). ℓ* slides through every level of the component tree, to the top, and each nested chain retains the node that stays coherent between frames. One level for the whole frame is replaced by one node per chain.
 \end{itemize}
 
 \subsection{\texorpdfstring{Low fruit in the tracker's algebra (23 September)}{Low fruit in the tracker's algebra (23 September)}}
@@ -750,8 +750,8 @@ Each item is algebra on the equation above, exact, \textbf{theory until built}. 
 
 \begin{enumerate}
 \item \textbf{One scale vector.} w = σ∘σ with σ = voxel\_\allowbreak{}pm / gcd(voxel\_\allowbreak{}pm): the link's norm (E4, E8), the print's scale and the contact side's σ are the same vector. \texttt{AXIS\_\allowbreak{}WEIGHTS} becomes derived, not written in, and any geometry (another microscope, the MRI's 0.3 mm against 3.5 mm) gets its weights exactly: the machine's \texttt{decimal\_\allowbreak{}double} (A0) turns a spacing's decimal string into an exact integer, and the gcd makes them coprime integers. Replaces the constant \texttt{\{16, 1, 1\}}.
-\item \textbf{The marginal over the component.} The exact frame-wide marginal factors over the connected components of the support graph (A5). b's probability is exact when G is b's whole component, and the current one-hop G is exact only when the component is one hop wide. Replaces the one-hop set; the “too wide” bodies (8 on 44b6\_\allowbreak{}0113de3b) are the components past \texttt{MARGINAL\_\allowbreak{}ARRANGEMENTS\_\allowbreak{}MOST}, which the machine's permanent on the component (A5) measures instead of guessing.
-\item \textbf{Divisions as arrangements.} A division is a source that takes two targets. The census's 1→2 class (A2) is exactly where that arrangement is needed. The marginal gains a two-target outcome only on those sources, and the rest keeps the current injective sum.
+\item \textbf{The marginal over the component.} The exact frame-wide marginal factors over the connected components of the support graph (A5). b's probability is exact when G is b's whole component, and the current one-hop G is exact only when the component is one hop wide. Replaces the one-hop set; the “too wide” bodies (8 on 44b6\_\allowbreak{}0113de3b) are the components past \texttt{MARGINAL\_\allowbreak{}ARRANGEMENTS\_\allowbreak{}MAX}, which the machine's permanent on the component (A5) measures instead of guessing.
+\item \textbf{Divisions as arrangements.} A division is a source that takes two targets. The census's 1→2 class (A2) is exactly where that arrangement is needed. The marginal gains a two-target outcome only on those sources, and the rest retains the current injective sum.
 \item \textbf{The slide by LCA.} Two ground-truth cells share a component at level r exactly when r ≤ level(LCA). Ordered by the tree's DFS order, k ground-truth cells need k − 1 LCA levels to give their partition at every level at once (A2). Replaces the bisection over levels.
 \item \textbf{The overlap at every level from one count.} The census at every sampled cut is one own-node pair table summed over DFS ranges (A2). Replaces a recount per cut.
 \item \textbf{Contact is an LCA level.} Row 6's “where two bodies first join” is level(LCA(A, B)), exact, with no gap to choose.
@@ -761,7 +761,7 @@ Each item is algebra on the equation above, exact, \textbf{theory until built}. 
 
 {\small
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.2077\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.4545\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.3378\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.2077\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.4547\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.3376\linewidth-2\tabcolsep\relax}}
 \toprule
 where & what & in code \\
 \midrule
@@ -769,12 +769,12 @@ where & what & in code \\
 the residual's orders & \{2, 34, 34\} and \{6, 96, 96\} come from two chosen scales (6/5 µm, 2 µm) and n = 4(σ/v)² \textbf{rounded to even}. no rounding, anywhere; order = period from the per-axis coherence reading, per sample & \texttt{SMOOTH\_\allowbreak{}ORDERS}, \texttt{BACKGROUND\_\allowbreak{}ORDERS}, track.h; \texttt{exact\_\allowbreak{}track.\allowbreak{}py} \\
 w = (16, 1, 1) & equals σ∘σ with σ = voxel\_\allowbreak{}pm / gcd(voxel\_\allowbreak{}pm) = (4, 1, 1) exactly, but it is written in as a constant, not derived from \texttt{voxel\_\allowbreak{}pm} & \texttt{AXIS\_\allowbreak{}WEIGHTS}, track.h \\
 κ's lead & (mine ± behind/2) / behind rounds by truncating division when frames are more than one apart; it is exact on consecutive frames (behind = 1), which is every frame & \texttt{leaf\_\allowbreak{}disagreement}, relate\_\allowbreak{}frames.cu \\
-κ's magnitude & kept mod 2⁴⁰; it wraps silently above 2⁴⁰ & \texttt{LINK\_\allowbreak{}MAGNITUDE\_\allowbreak{}BITS} 40 \\
+κ's magnitude & retained mod 2⁴⁰; it wraps silently above 2⁴⁰ & \texttt{LINK\_\allowbreak{}MAGNITUDE\_\allowbreak{}BITS} 40 \\
 s & the jitter steps stop at 12, a chosen number & \texttt{LINK\_\allowbreak{}SWEEP\_\allowbreak{}STEPS} 12 \\
-the marginal's set & one frame step and one hop; the exact marginal needs the whole support component (low fruit 2). Every target is taken once. A division is not an arrangement yet (low fruit 3). The bound of 2¹⁶ arrangements is OrganoidTracker's, not measured here & \texttt{MARGINAL\_\allowbreak{}ARRANGEMENTS\_\allowbreak{}MOST} \\
+the marginal's set & one frame step and one hop; the exact marginal needs the whole support component (low fruit 2). Every target is taken once. A division is not an arrangement yet (low fruit 3). The bound of 2¹⁶ arrangements is OrganoidTracker's, not measured here & \texttt{MARGINAL\_\allowbreak{}ARRANGEMENTS\_\allowbreak{}MAX} \\
 the null in the marginal & ω(b, none) is the best null draw's retained count, a count of the body's voxels like T, but T is counted at the drift and h⁰ at the climbed null lag & \texttt{score\_\allowbreak{}best\_\allowbreak{}null}, score\_\allowbreak{}sample.cu \\
 \texttt{cohere} (off in base.cfg) & a mean motion is divided by truncating division & group\_\allowbreak{}objects.cu \\
-the cut & one level (the most components) for the whole frame & \texttt{max\_\allowbreak{}tree\_\allowbreak{}objects} as the program calls it \\
+the cut & one level (the max components) for the whole frame & \texttt{max\_\allowbreak{}tree\_\allowbreak{}objects} as the program calls it \\
 \bottomrule
 \end{longtable}
 }

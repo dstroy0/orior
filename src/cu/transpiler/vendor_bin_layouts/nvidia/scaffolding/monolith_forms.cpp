@@ -19,7 +19,7 @@
 // word selected from a predicate to be stored, is the predicate. What is left in the block is the form, written with
 // each register named by its argument. A register or predicate that is no argument is scratch: the first word is
 // R237 and the first predicate P6, sm_86.kdm's own, and a block needing more is reported and not written. A number
-// argument is named where the number stands once. Each form read is compared with the ruleset's own and written to the
+// argument is named where the number is once. Each form read is compared with the ruleset's own and written to the
 // record whole, and with apply each form every question of which reads whole and alike is written into the ruleset in
 // place (read_adopted defines what whole is).
 #include "../../../../../../utils/test/src/cu/engine/analysis/cycle/record_programs.h"
@@ -53,11 +53,11 @@ extern "C"
 extern "C" const char __ehdr_start = 0;
 #endif
 
-// the tags a question's loads and stores stand behind, past its own tag, which the form's region stands behind
+// the tags a question's loads and stores are behind, past its own tag, which the form's region is behind
 #define MONOLITH_FORMS_LOADS 0x4000u
 #define MONOLITH_FORMS_STORES 0x8000u
 
-#define FORM_NAME(name_, text_, parameters_, kind_) text_,
+#define FORM_NAME(name_, text_, parameters_, type_) text_,
 static const char *const s_form_names[OPCODE_COUNT] = {OPCODES(FORM_NAME)};
 #undef FORM_NAME
 #define BANK_NAME(name_, text_) text_,
@@ -189,7 +189,7 @@ static int identifier_character(char character)
            ((character >= '0') && (character <= '9')) || (character == '_');
 }
 
-// 1 where `name` stands in `text` as a whole identifier
+// 1 where `name` is in `text` as a whole identifier
 static int text_names(const std::string &text, const std::string &name)
 {
     size_t at = text.find(name);
@@ -313,7 +313,7 @@ static std::string c_bank_type(const Krs &c, const std::string &bank)
 // one argument of a decided form, as a question puts it: a register of a bank, a fixed register or a number
 struct Argument
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int which;
     unsigned int number;
 };
@@ -332,11 +332,11 @@ static std::string lane_form_key(const LaneForm &lane_form)
     for (const Argument &argument : lane_form.arguments)
     {
         char part[32];
-        if (argument.kind == OPERAND_REGISTER)
+        if (argument.type == OPERAND_REGISTER)
         {
             snprintf(part, sizeof(part), " r%u", argument.which);
         }
-        else if (argument.kind == OPERAND_PHYSREG)
+        else if (argument.type == OPERAND_PHYSREG)
         {
             snprintf(part, sizeof(part), " f%u", argument.which);
         }
@@ -404,8 +404,8 @@ static void gather_number(std::vector<LaneForm> &merged, const std::vector<LaneF
         {
             Argument &argument_ref = merged[one].arguments[at];
             const unsigned int now = seen[one].arguments[at].number;
-            const int number = (argument_ref.kind == OPERAND_NUMBER) || (argument_ref.kind == OPERAND_SIGNED) ||
-                               ((argument_ref.kind == OPERAND_REGISTER) && (argument_ref.which == REGCLASS_IMMEDIATE));
+            const int number = (argument_ref.type == OPERAND_NUMBER) || (argument_ref.type == OPERAND_SIGNED) ||
+                               ((argument_ref.type == OPERAND_REGISTER) && (argument_ref.which == REGCLASS_IMMEDIATE));
             // a number of 0 or 1 is the likeliest to be met by a constant the compiler writes of its own
             if (number && (argument_ref.number < 2u) && (now >= 2u))
             {
@@ -459,7 +459,7 @@ static void gather_lane(const Krs &c, const HostProgram *program, int reuse, Gat
     HostLoaded loaded;
     if (host_load(program, reuse, &loaded) == 0)
     {
-        printf("  %s: not laid out\n", program->name);
+        printf("  %s: not arranged\n", program->name);
         return;
     }
     std::vector<MachineInstr> items;
@@ -482,7 +482,7 @@ static void gather_lane(const Krs &c, const HostProgram *program, int reuse, Gat
         for (unsigned int at = 0u; at < codegen_operand_count(item.form); at += 1u)
         {
             lane_form.arguments.push_back(
-                {item.arguments[at].kind, item.arguments[at].which, item.arguments[at].number});
+                {item.arguments[at].type, item.arguments[at].which, item.arguments[at].number});
         }
         int reads = 0;
         const int writes = form_carries(c, s_form_names[item.form], &reads);
@@ -597,7 +597,7 @@ struct Writer
     unsigned int out_words;
 };
 
-// the tag a question put in ptx.krs's own text stands behind is past this; below it a question put in c.krs's
+// the tag a question put in ptx.krs's own text is behind is past this; below it a question put in c.krs's
 #define MONOLITH_FORMS_PTX 0x1000u
 
 static unsigned int writer_take(unsigned int *words, const std::string &type)
@@ -662,11 +662,11 @@ static std::string writer_store(const std::string &type, unsigned int at, const 
 static std::string writer_type(Writer *writer, const Argument &argument, std::string *variable)
 {
     variable->clear();
-    if ((argument.kind == OPERAND_REGISTER) && (argument.which != REGCLASS_IMMEDIATE))
+    if ((argument.type == OPERAND_REGISTER) && (argument.which != REGCLASS_IMMEDIATE))
     {
         return c_bank_type(*writer->c, s_bank_names[argument.which]);
     }
-    if (argument.kind == OPERAND_PHYSREG)
+    if (argument.type == OPERAND_PHYSREG)
     {
         const auto fixed = writer->c->fixed.find(s_fixed_names[argument.which]);
         *variable = (fixed == writer->c->fixed.end()) ? std::string() : fixed->second;
@@ -696,8 +696,8 @@ static int question_numbered(const std::vector<LaneForm> &question)
     {
         for (const Argument &argument : lane_form.arguments)
         {
-            if ((argument.kind == OPERAND_NUMBER) || (argument.kind == OPERAND_SIGNED) ||
-                ((argument.kind == OPERAND_REGISTER) && (argument.which == REGCLASS_IMMEDIATE)))
+            if ((argument.type == OPERAND_NUMBER) || (argument.type == OPERAND_SIGNED) ||
+                ((argument.type == OPERAND_REGISTER) && (argument.which == REGCLASS_IMMEDIATE)))
             {
                 return 1;
             }
@@ -732,10 +732,10 @@ static void writer_question(Writer *writer, const std::vector<LaneForm> &questio
             const std::string type = writer_type(writer, argument, &variable);
             if (type.empty())
             {
-                const int immediate = (argument.kind == OPERAND_REGISTER);
+                const int immediate = (argument.type == OPERAND_REGISTER);
                 const unsigned int value = alternate ? number_alternate(argument.number) : argument.number;
                 const std::string number =
-                    (argument.kind == OPERAND_SIGNED) ? std::to_string((int)value) : std::to_string(value);
+                    (argument.type == OPERAND_SIGNED) ? std::to_string((int)value) : std::to_string(value);
                 text = text_fill(text, parameter, immediate ? (number + "u") : number);
                 row += "\t" + parameter + "=number:" + number;
                 continue;
@@ -985,11 +985,11 @@ static void writer_ptx_question(Writer *writer, const LaneForm &lane_form, int a
         const std::string &parameter = form.parameters[at];
         const Argument &argument = lane_form.arguments[at];
         std::string type;
-        if ((argument.kind == OPERAND_REGISTER) && (argument.which != REGCLASS_IMMEDIATE))
+        if ((argument.type == OPERAND_REGISTER) && (argument.which != REGCLASS_IMMEDIATE))
         {
             type = ptx_bank_type(writer, s_bank_names[argument.which]);
         }
-        else if (argument.kind == OPERAND_PHYSREG)
+        else if (argument.type == OPERAND_PHYSREG)
         {
             const auto fixed = writer->ptx->fixed.find(s_fixed_names[argument.which]);
             const auto declared = (fixed == writer->ptx->fixed.end()) ? writer->ptx_types.end()
@@ -1020,7 +1020,7 @@ static void writer_ptx_question(Writer *writer, const LaneForm &lane_form, int a
             // not read
             const unsigned long long whole =
                 wide ? (((unsigned long long)number_alternate(value) << 32u) | value) : value;
-            const std::string number = ((argument.kind == OPERAND_SIGNED) && !wide) ? std::to_string((int)value)
+            const std::string number = ((argument.type == OPERAND_SIGNED) && !wide) ? std::to_string((int)value)
                                                                                     : std::to_string(whole);
             if ((alternate == 2) && !line_of.empty() && !addressed)
             {
@@ -1252,7 +1252,7 @@ struct RegisterContent
 struct Role
 {
     std::string name;
-    std::string kind;
+    std::string type;
     unsigned int word;
     std::string type;
     std::string number;
@@ -1302,10 +1302,10 @@ static std::vector<Question> questions_read(const char *path)
             role.fixed = (parts[at][0] == '!');
             role.name = parts[at].substr(role.fixed ? 1u : 0u, equals - (role.fixed ? 1u : 0u));
             const std::vector<std::string> fields = line_split(parts[at].substr(equals + 1u), ':');
-            role.kind = fields[0];
+            role.type = fields[0];
             role.word = (fields.size() > 1u) ? (unsigned int)strtoul(fields[1].c_str(), NULL, 10) : 0u;
             role.type = (fields.size() > 2u) ? fields[2] : std::string();
-            role.number = (role.kind == "number") ? fields[1] : std::string();
+            role.number = (role.type == "number") ? fields[1] : std::string();
             role.opaque = (fields.size() > 4u) && (fields[3] == "number");
             role.number = role.opaque ? fields[4] : role.number;
             question.roles.push_back(role);
@@ -1428,7 +1428,7 @@ static unsigned int token_number(const std::string &token)
     return (unsigned int)strtoul(token.c_str() + 1, NULL, 10);
 }
 
-// the operands an instruction writes: its first, and every predicate standing straight after it, where it writes
+// the operands an instruction writes: its first, and every predicate located straight after it, where it writes
 // any; none for a store, a reduction, a branch and the rest that write nothing of a register's
 static unsigned int sass_written(const Instruction &instruction)
 {
@@ -1515,7 +1515,7 @@ static int number_named(std::string *named, const std::string &number, const std
         }
         if (places.size() > 1u)
         {
-            *why += "the number " + number + " stands " + std::to_string(places.size()) + " times; ";
+            *why += "the number " + number + " is " + std::to_string(places.size()) + " times; ";
             return 0;
         }
     }
@@ -1523,13 +1523,13 @@ static int number_named(std::string *named, const std::string &number, const std
 }
 
 // `text` with each number argument named where its number is a whole token exactly once. A number past 32 bits that
-// does not stand whole stands as its two words, the low named as the number and the high as its .hi
+// does not are whole is as its two words, the low named as the number and the high as its .hi
 static std::string numbers_named(const std::string &text, const Question &question, std::string *why)
 {
     std::string named = text;
     for (const Role &role : question.roles)
     {
-        if (role.kind != "number")
+        if (role.type != "number")
         {
             continue;
         }
@@ -1544,8 +1544,8 @@ static std::string numbers_named(const std::string &text, const Question &questi
     return named;
 }
 
-// 1 where `text`, a reading, carries `role`'s number: named where it stood once, or standing as its own token where it
-// stood more than one time. 0 where it is nowhere in the answer, the system having folded it into a form of its own
+// 1 where `text`, a reading, carries `role`'s number: named where it was once, or located as its own token where it
+// was more than one time. 0 where it is nowhere in the answer, the system having folded it into a form of its own
 static int number_carried(const std::string &text, const Role &role)
 {
     // the bare name is the low word; the name followed by .hi is the high half alone, which does not carry the low word
@@ -1602,7 +1602,7 @@ static std::string as_unsigned(const std::string &token)
 }
 
 // whether `read` is `now` with nothing changed but the signedness of one or more operations. Both are walked a
-// whitespace-separated word at a time: a word that matches stands, a word that matches only once its signedness is
+// whitespace-separated word at a time: a word that matches is, a word that matches only once its signedness is
 // written unsigned is an operation the system writes either way and is added to `alike`, and a word differing any other
 // way, or a word with no partner, indicates the two are not one form written two ways. The soundness is not here: that
 // the system compiles both to the same machine code is what the caller verifies before it reads this, and this only
@@ -1661,10 +1661,10 @@ static Read sass_read(const Question &question, const std::vector<std::string> &
     };
     std::vector<Retained> retained;
     unsigned int loads = 0u;
-    auto role_at = [&](const std::string &kind, unsigned int word, unsigned int *half) -> const Role * {
+    auto role_at = [&](const std::string &type, unsigned int word, unsigned int *half) -> const Role * {
         for (const Role &role : question.roles)
         {
-            if ((role.kind == kind) && ((role.word == word) || ((role.type == "u64") && ((role.word + 1u) == word))))
+            if ((role.type == type) && ((role.word == word) || ((role.type == "u64") && ((role.word + 1u) == word))))
             {
                 *half = word - role.word;
                 return &role;
@@ -2093,7 +2093,7 @@ static Read ptx_read(const Question &question, const std::vector<std::string> &l
             const Role *role = NULL;
             for (const Role &one : question.roles)
             {
-                role = ((base == bases->in) && (one.kind == "in") && (one.word * 4u == offset)) ? &one : role;
+                role = ((base == bases->in) && (one.type == "in") && (one.word * 4u == offset)) ? &one : role;
             }
             if (role != NULL)
             {
@@ -2108,7 +2108,7 @@ static Read ptx_read(const Question &question, const std::vector<std::string> &l
             const Role *role = NULL;
             for (const Role &one : question.roles)
             {
-                role = ((base == bases->out) && (one.kind == "out") && (one.word * 4u == offset)) ? &one : role;
+                role = ((base == bases->out) && (one.type == "out") && (one.word * 4u == offset)) ? &one : role;
             }
             if (role != NULL)
             {
@@ -2313,8 +2313,8 @@ static int sass_assembles(const std::string &text, const Question &question)
             continue;
         }
         // a number's .hi is its high word and the number itself its low word, each the hexadecimal immediate the
-        // assembler reads: a bare decimal it would take for a register number, which tests the wrong operand kind
-        if ((role.kind == "number") || role.opaque)
+        // assembler reads: a bare decimal it would take for a register number, which tests the wrong operand type
+        if ((role.type == "number") || role.opaque)
         {
             const unsigned long long word = (role.number[0] == '-') ? 0ull : strtoull(role.number.c_str(), NULL, 10);
             const std::string high = "{" + role.name + "}.hi";
@@ -2370,7 +2370,7 @@ static int text_spaced(const std::string &text, int sass)
 // each fixed register it names is one the ruleset names, it contains no register of the compiler's own past the scratch
 // the ruleset reserves, and the reading left nothing unsettled. It contains no branch, whose target is the monolith's
 // own address. Where the ruleset's form reaches memory through a named space and the reading does not, the question
-// named none: c.krs writes an address as a plain pointer. Of two correct writings the one of fewer instructions stands:
+// named none: c.krs writes an address as a plain pointer. Of two correct writings the one of fewer instructions is:
 // a reading longer than the ruleset's form is not written. The text it is written as, or empty with the reason through
 // `why`
 static std::string read_adopted(const Read &read, const Krs &rules, const Question &question, int sass,
@@ -2504,7 +2504,7 @@ static int krs_apply(const char *path, const std::map<std::string, std::string> 
     {
         return -1;
     }
-    // a ruleset read whole is at most what a size_t counts
+    // a ruleset read whole is at max what a size_t counts
     std::string whole((const char *)bytes, (size_t)size);
     int written = 0;
     std::string out;
@@ -2580,7 +2580,7 @@ static int forms_read(const char *questions_path, const char *listing, const cha
         "into the form it is, its registers named by the arguments they contain. A fixed register is named in angle "
         "brackets, and the ruleset names it. A form every question of which reads whole and alike is the "
         "ruleset's form, written into it by `monolith_forms.sh apply`; any other retains the ruleset's text, "
-        "and the reason stands beside it.\n\n");
+        "and the reason is beside it.\n\n");
     fprintf(out, "| tag | form | banks | read off | read | note |\n|---|---|---|---|---|---|\n");
     // each form's readings: the text every question gave where all gave one whole, else empty with the reason
     struct Verdict
@@ -2607,7 +2607,7 @@ static int forms_read(const char *questions_path, const char *listing, const cha
     };
     // A question submitted in ptx.krs's text is read for sass.krs off the listing; one submitted in c.krs's for ptx.krs
     // off the PTX. The questions that load their numbers settle a form of their own with the questions that contain
-    // none, and it stands where the questions that write their numbers in do not settle one
+    // none, and it is where the questions that write their numbers in do not settle one
     std::map<std::string, Verdict> loaded_verdicts;
     // the readings each form's written-in questions gave, and the questions, for a form they read apart
     std::map<std::string, std::vector<std::string>> readings;
@@ -2639,15 +2639,15 @@ static int forms_read(const char *questions_path, const char *listing, const cha
         for (const Role &role : question.roles)
         {
             loaded = loaded || role.opaque;
-            numbered = numbered || (role.kind == "number");
-            if ((role.kind == "number") && !number_carried(read.text, role))
+            numbered = numbered || (role.type == "number");
+            if ((role.type == "number") && !number_carried(read.text, role))
             {
                 folded = "the system folds the number put for " + role.name;
             }
         }
         for (const Role &role : question.roles)
         {
-            const int put = !role.fixed && ((role.kind == "in") || (role.kind == "out"));
+            const int put = !role.fixed && ((role.type == "in") || (role.type == "out"));
             if (folded.empty() && put && (read.text.find("{" + role.name + "}") == std::string::npos))
             {
                 folded = "the system folds the register put for " + role.name;
@@ -2694,8 +2694,8 @@ static int forms_read(const char *questions_path, const char *listing, const cha
     }
     // Where the written-in questions read apart, each whole and the two numbers of one set of banks alike, the compiler
     // chose an instruction by the banks: a register added as IMAD.IADD and a number as IADD3. A reading that assembles
-    // for every question's banks does what each requested, and stands: the ruleset's own where it is one, else the
-    // shortest. Two numbers of one set of banks read apart are a number folded, and no reading of theirs stands
+    // for every question's banks does what each requested, and is: the ruleset's own where it is one, else the
+    // shortest. Two numbers of one set of banks read apart are a number folded, and no reading of theirs is
     for (auto &entry : sass_verdicts)
     {
         const std::vector<std::string> &read_texts = readings[entry.first];
@@ -2742,7 +2742,7 @@ static int forms_read(const char *questions_path, const char *listing, const cha
         {
             continue;
         }
-        // the loaded reading places the form's numbers in registers; it stands only where it also assembles for every
+        // the loaded reading places the form's numbers in registers; it is only where it also assembles for every
         // written-in number the form was tested with, or it is a form only for operands the written-in questions never
         // used
         int everywhere = 1;
@@ -2755,7 +2755,7 @@ static int forms_read(const char *questions_path, const char *listing, const cha
             entry.second = loaded->second;
         }
     }
-    // A verdict stands only where it assembles for every operand the form was tested with, folded probes included: a
+    // A verdict is only where it assembles for every operand the form was tested with, folded probes included: a
     // reading settled from register operands alone is no form of the operator where a literal was tested in a position
     // it cannot encode, however every register question agreed on it
     for (auto &entry : sass_verdicts)
@@ -2863,8 +2863,8 @@ static int forms_read(const char *questions_path, const char *listing, const cha
     {
         for (const Role &role : question.roles)
         {
-            const int put = !role.fixed && ((role.kind == "in") || (role.kind == "out"));
-            if (role.kind == "number")
+            const int put = !role.fixed && ((role.type == "in") || (role.type == "out"));
+            if (role.type == "number")
             {
                 sass_class_drop(SASS_CHANNEL_COMPILE, SASS_CLASS_FOLDS,
                                 (question.form + ": the system folds the number put for " + role.name).c_str());

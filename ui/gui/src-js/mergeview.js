@@ -129,8 +129,8 @@ function draw() {
     for (let row = 0; row < rows; row += 1) {
       const mine = part.ours[row];
       const theirs = part.theirs[row];
-      const kept = taken?.[row];
-      const centre = taken ? (kept === undefined ? cell(null, "", "middle") : cell(middle++, kept, "middle taken")) : '<span class="diff-num"></span><span class="diff-text middle merge-open"></span>';
+      const retained = taken?.[row];
+      const centre = taken ? (retained === undefined ? cell(null, "", "middle") : cell(middle++, retained, "middle taken")) : '<span class="diff-num"></span><span class="diff-text middle merge-open"></span>';
       html += `<div class="merge-row conflict">${mine === undefined ? cell(null, "", "left") : cell(left++, mine, "left ours")}${centre}${theirs === undefined ? cell(null, "", "right") : cell(right++, theirs, "right theirs")}</div>`;
     }
   }
@@ -156,7 +156,7 @@ function step(direction) {
   heads[state.at].scrollIntoView({ block: "center" });
 }
 
-// Shows the conflicts of `path`, whose text as it stands is `text`, over `host`. `resolved` is given
+// Shows the conflicts of `path`, whose current text is `text`, over `host`. `resolved` is given
 // the result once Mark Resolved is pressed, and the window closes once it is done.
 export function showMerge(host, path, text, { resolved }) {
   closeMerge();

@@ -62,7 +62,7 @@ extern "C" long noise_halves_volume(const unsigned short *volume, const unsigned
     const unsigned long long depth = extent[1];
     const unsigned long long pixels = extent[2] * extent[3];
     const unsigned long long voxels = depth * pixels;
-    // sum lo and sum hi are at most the voxel-frames times 65535, below 2^64; sum lo hi is at most that times one
+    // sum lo and sum hi are at max the voxel-frames times 65535, below 2^64; sum lo hi is at max that times one
     // pixel's frames and planes times 65535, below 2^128 with it
     const int bounded = (depth >= 2ull) && (frames != 0ull) && (pixels != 0ull) && (frames <= (~0ull / voxels)) &&
                         ((frames * voxels) <= (~0ull / 65535ull));

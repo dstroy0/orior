@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Emily Blamire	title	The ordering of preverb strings in Ktunaxa	page 1
 front	Emily Blamire	name	Emily Blamire	author
 front	Emily Blamire	note	University of British Columbia	page 1, under Emily Blamire
@@ -11,7 +11,7 @@ footnote 1	Emily Blamire	note	There are at least several dozen preverbs in Ktuna
 §1	Emily Blamire	language	English	its adverbs roughly comparable to Ktunaxa preverbs
 §1	Emily Blamire	note	If preverbs are present they always appear directly before the verb base, regardless of what other morphemes may be present in the verbal com- plex. Dryer (2002) asserts that the position of preverbs is fifth in the verbal complex, directly before the verb base:	page 1
 §1	Emily Blamire	note	V.C.= (Early Particles) + (Subord) + (Pro) + (Indic Proclitic) + (Preverbs)* + Verb (Dryer 2002; 1)	page 1, set as a display
-§1	Emily Blamire	note	Most preverbs are made from a verbal stem plus the preverb suffix -iɬ. qa (‘not’) is a notable exception.	page 1
+§1	Emily Blamire	note	Max preverbs are made from a verbal stem plus the preverb suffix -iɬ. qa (‘not’) is a notable exception.	page 1
 §1	Ktunaxa	cited form	-iɬ	page 1, in italics
 §1	Emily Blamire	note	Dryer (2002) classified preverbs into several semantic categories based on their meanings and functions. So far, data collected tentatively shows that preverbs may pattern with their semantic class, though little data of this type has been collected.	page 1
 §2	Emily Blamire	heading	2 The issue	page 2
@@ -82,7 +82,7 @@ footnote 1	Emily Blamire	note	There are at least several dozen preverbs in Ktuna
 §4	Emily Blamire	name	Rice	Karen Rice, morpheme order and semantic scope in the Athapaskan verb (2000)
 §4	Emily Blamire	language	Athabaskan	Rice's scope system for its verbs
 §4	Emily Blamire	note	Structurally, these scopal relationships are represented by a morpheme with greater scope c-commanding the morphemes in its scope. A morpheme able to have scope over others will be further away from the verb base than the morpheme within its scope (Rice 2000).	page 4
-§4	Emily Blamire	note	Based on this, 2-PRVB strings with fixed order would have the right- most preverb within the scope of the leftmost preverb. 2-PRVB strings that do have variable order would be composed of preverbs that are immune to the scope of each other.	page 4
+§4	Emily Blamire	note	Based on this, 2-PRVB strings with fixed order would have the right- max preverb within the scope of the leftmost preverb. 2-PRVB strings that do have variable order would be composed of preverbs that are immune to the scope of each other.	page 4
 §4	Emily Blamire	note	Based on the scopal relationships present in 2-PRVB strings, the scopal relationships and thus possible orders of 3-PRVB strings should be predictable. Consider (11) and (12) below (repeated from (3) and (4).) Given that tsxaɬ and qa are in variation there should be at least two possible orders to preverb strings containing them.	page 4
 (tsxaɬ ~ qa)	Emily Blamire	note	(tsxaɬ ~ qa)	page 5, the label over the pair of examples under it, the preverbs they order
 (11) line 1	Ktunaxa	transcription	Qapsqaqapsi qa tsxaɬ hanan kiniʔni	page 5
@@ -138,7 +138,7 @@ Table 1 line 1	Ktunaxa	transcription	hutsxaɬ qa saniɬ qumnini.	page 6
 Table 1 line 2	Ktunaxa	segmentation	hu-tsxa-ɬ qa san-iɬ qumni-ni.	page 6
 Table 1 line 3	Ktunaxa	gloss	1.sg-FUT-PRVB not(PRVB) bad-PRVB sleep-IND	page 6
 Table 1 line 4	Emily Blamire	translation	‘I will not sleep badly.’	page 6
-§4	Emily Blamire	note	However, the order of Ktunaxa preverbs is not always quite so straight forward. Consider the preverbs tsxaɬ, isiɬ (‘very’), and saniɬ. As already shown in (15) and (16) tsxaɬ and saniɬ do not have variable order, and (17) and (18) below show that tsxal and isiɬ also do not have variable order, nor do isiɬ and saniɬ as shown by (19) and (20). This means there is only one expected order: tsxaɬ isiɬ saniɬ. Table 2 shows that this was not the only order accepted, though. Instead, the language consultant also accepted the order: isiɬ tsxaɬ saniɬ.	page 6
+§4	Emily Blamire	note	However, the order of Ktunaxa preverbs is not always quite so straight forward. Consider the preverbs tsxaɬ, isiɬ (‘very’), and saniɬ. As already displayed in (15) and (16) tsxaɬ and saniɬ do not have variable order, and (17) and (18) below show that tsxal and isiɬ also do not have variable order, nor do isiɬ and saniɬ as displayed by (19) and (20). This means there is only one expected order: tsxaɬ isiɬ saniɬ. Table 2 shows that this was not the only order accepted, though. Instead, the language consultant also accepted the order: isiɬ tsxaɬ saniɬ.	page 6
 §4	Ktunaxa	cited form	isiɬ	page 6, in italics, ‘very’
 §4	Ktunaxa	cited form	tsxaɬ isiɬ saniɬ	page 6, in italics
 §4	Ktunaxa	cited form	isiɬ tsxaɬ saniɬ	page 6, in italics
@@ -190,7 +190,7 @@ Figure 1	Emily Blamire	note	Figure 1. Revised analysis of 3-PRVB strings.	page 7
 Figure 2	Emily Blamire	note	Figure 2. Constituents of preverb string: isiɬ tsxaɬ saniɬ	page 8, the figure's caption; the figure is a tree drawing
 §5	Emily Blamire	heading	5 Further complications	page 8
 §5	Emily Blamire	note	This may still not be the whole story. The presence or absence of pro- nominal clitic markers may also have an effect on which preverb orders are allowed in a string. The reason for this is not yet known, but may be caused by prosody. When asked, the language consultant asserted that the rhythm of the preverb string often affected whether or not the string sounded acceptable to her. If you refer back to table 1 and table 2, notice that both of the 3-PRVB string sentences begin with the pronominal clitic hu- (first person singular), but when there is no pronominal clitic with a 3-PRVB string, different results seem to arise.	page 8
-§5	Emily Blamire	note	Consider the preverbs tsxaɬ, isiɬ, and ts’iɬ (‘rapidly’). As shown above in (17) and (18) tsxaɬ must precede isiɬ and cannot appear in the opposite order. (21) and (22) below show that tsxaɬ must precede ts’iɬ, and (23) and (24) (re- peated from (5) and (6)) show that isiɬ must also precede ts’iɬ. This leads to one expected order: tsxaɬ isiɬ ts’iɬ.	page 8
+§5	Emily Blamire	note	Consider the preverbs tsxaɬ, isiɬ, and ts’iɬ (‘rapidly’). As displayed above in (17) and (18) tsxaɬ must precede isiɬ and cannot appear in the opposite order. (21) and (22) below show that tsxaɬ must precede ts’iɬ, and (23) and (24) (re- peated from (5) and (6)) show that isiɬ must also precede ts’iɬ. This leads to one expected order: tsxaɬ isiɬ ts’iɬ.	page 8
 §5	Ktunaxa	cited form	ts’iɬ	page 8, in italics
 §5	Ktunaxa	cited form	tsxaɬ isiɬ ts’iɬ	page 8, in italics
 (21) line 1	Ktunaxa	transcription	tsxaɬ ts’iɬ tsxani	page 8

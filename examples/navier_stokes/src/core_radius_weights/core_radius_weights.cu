@@ -25,7 +25,7 @@ SimRational core_radius_over(SimRational left, SimRational right)
     return sim_rational_product(left, sim_rational_reciprocal(right));
 }
 
-SimRational core_radius_most(SimRational left, SimRational right)
+SimRational core_radius_max(SimRational left, SimRational right)
 {
     return (sim_rational_sign(sim_rational_difference(left, right)) >= 0) ? left : right;
 }
@@ -313,25 +313,25 @@ __global__ static void core_radius_device_kernel(const uint32_t *residues, const
     for (unsigned int i = 0u; i <= k; i += 1u)
     {
         const unsigned int j = k - i;
-        unsigned int left_kind[2] = {CORE_RADIUS_SPIN_WEIGHTS, CORE_RADIUS_SPIN_WEIGHTS};
-        unsigned int right_kind[2] = {CORE_RADIUS_SPIN_WEIGHTS, CORE_RADIUS_SPIN_WEIGHTS};
+        unsigned int left_type[2] = {CORE_RADIUS_SPIN_WEIGHTS, CORE_RADIUS_SPIN_WEIGHTS};
+        unsigned int right_type[2] = {CORE_RADIUS_SPIN_WEIGHTS, CORE_RADIUS_SPIN_WEIGHTS};
         unsigned long long weight[2] = {1ull, 0ull};
         if (sum == 0u)
         {
-            left_kind[0] = CORE_RADIUS_INFLOW_WEIGHTS;
-            right_kind[0] = CORE_RADIUS_SPIN_WEIGHTS;
+            left_type[0] = CORE_RADIUS_INFLOW_WEIGHTS;
+            right_type[0] = CORE_RADIUS_SPIN_WEIGHTS;
             weight[0] = (unsigned long long)j + 1ull;
-            left_kind[1] = CORE_RADIUS_ALONG_WEIGHTS;
-            right_kind[1] = CORE_RADIUS_ANGULAR_TURNED;
+            left_type[1] = CORE_RADIUS_ALONG_WEIGHTS;
+            right_type[1] = CORE_RADIUS_ANGULAR_TURNED;
             weight[1] = 1ull;
         }
         else if (sum == 1u)
         {
-            left_kind[0] = CORE_RADIUS_INFLOW_WEIGHTS;
-            right_kind[0] = CORE_RADIUS_ALONG_WEIGHTS;
+            left_type[0] = CORE_RADIUS_INFLOW_WEIGHTS;
+            right_type[0] = CORE_RADIUS_ALONG_WEIGHTS;
             weight[0] = (unsigned long long)j;
-            left_kind[1] = CORE_RADIUS_ALONG_WEIGHTS;
-            right_kind[1] = CORE_RADIUS_ALONG_TURNED;
+            left_type[1] = CORE_RADIUS_ALONG_WEIGHTS;
+            right_type[1] = CORE_RADIUS_ALONG_TURNED;
             weight[1] = 1ull;
         }
         for (unsigned int part = 0u; part < 2u; part += 1u)
@@ -340,8 +340,8 @@ __global__ static void core_radius_device_kernel(const uint32_t *residues, const
             {
                 continue;
             }
-            const unsigned int left = left_kind[part] * orders + i;
-            const unsigned int right = right_kind[part] * orders + j;
+            const unsigned int left = left_type[part] * orders + i;
+            const unsigned int right = right_type[part] * orders + j;
             const uint32_t *const x = residues + ((size_t)left * primes_count + t) * modes;
             const uint32_t *const y = residues + ((size_t)right * primes_count + t) * modes;
             const unsigned long long pair = core_radius_device_pair(x, lengths[left], y, lengths[right], n, p);
@@ -447,7 +447,7 @@ void core_radius_device_close(CoreRadiusDevice *device)
     cudaFree(device->sums);
 }
 
-void core_radius_device_put(CoreRadiusDevice *device, unsigned int kind, unsigned int k, const CoreRadiusWeights &weights, const OriorExactInteger *unit)
+void core_radius_device_put(CoreRadiusDevice *device, unsigned int type, unsigned int k, const CoreRadiusWeights &weights, const OriorExactInteger *unit)
 {
     if (!device->available)
     {
@@ -489,8 +489,8 @@ void core_radius_device_put(CoreRadiusDevice *device, unsigned int kind, unsigne
             residues[(size_t)t * device->modes + m] = (uint32_t)residue;
         }
     }
-    const size_t at = (size_t)kind * device->orders + k;
-    // a length is at most the device's modes, which fit 32 bits
+    const size_t at = (size_t)type * device->orders + k;
+    // a length is at max the device's modes, which fit 32 bits
     device->lengths[at] = (uint32_t)weights.size();
     device->available = (cudaMemcpy(device->residues + at * device->primes_count * device->modes, residues.data(),
                                     residues.size() * sizeof(uint32_t), cudaMemcpyHostToDevice) == cudaSuccess) &&
@@ -508,7 +508,7 @@ void core_radius_device_sums(CoreRadiusDevice *device, unsigned int k, const Ori
     {
         return;
     }
-    // every sum is at most (k + 2) times the count of its products times 2^(2 widest); the lengths bound the count
+    // every sum is at max (k + 2) times the count of its products times 2^(2 widest); the lengths bound the count
     unsigned long long count = 0ull;
     unsigned int modes = 0u;
     const unsigned int pairs[CORE_RADIUS_SUMS][2][2] = {{{CORE_RADIUS_INFLOW_WEIGHTS, CORE_RADIUS_SPIN_WEIGHTS}, {CORE_RADIUS_ALONG_WEIGHTS, CORE_RADIUS_ANGULAR_TURNED}},

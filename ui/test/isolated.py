@@ -21,7 +21,7 @@ TOP = HERE.parents[1]
 GUI = Path(harness_window.program())
 
 # The seconds the window is given to show its frame once started
-SHOWN_S = 120
+DISPLAYED_S = 120
 
 
 class Window:
@@ -47,7 +47,7 @@ class Window:
             return
         import harness_win32 as win
 
-        until = time.time() + SHOWN_S
+        until = time.time() + DISPLAYED_S
         self.handle = None
         while time.time() < until and not self.handle:
             if self.process.poll() is not None:
@@ -56,7 +56,7 @@ class Window:
             time.sleep(0.2)
         if not self.handle:
             self.close()
-            raise SystemExit(f"the window showed no frame in {SHOWN_S} s; its log is {self.run / 'window.log'}")
+            raise SystemExit(f"the window showed no frame in {DISPLAYED_S} s; its log is {self.run / 'window.log'}")
         harness_window.window_placed(self.process.pid, self.display)
         self.handle, _ = win.main_window(self.process.pid)
 

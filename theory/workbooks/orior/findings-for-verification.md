@@ -3,7 +3,7 @@
 **Purpose:** Check every claim the engine work produced against where it is recorded and the exact command or argument that settles it, without taking any of it on trust.
 **Scope:** `src/engine/c/`, `test/engine/`, `maint/engine/`, `docs/steering.md`, `theory/workbooks/orior/chapters/chapter_orior_workbook.tex`, and the engine workbook chapter staged for upstream.
 
-Every claim below is in one of three states. **Holds** means checked and standing. **Retracted** means it was published here and is now withdrawn, with the reason. **Open** means it is not settled and is not to be quoted as though it were.
+Every claim below is in one of three states. **Holds** means checked and located. **Retracted** means it was published here and is now withdrawn, with the reason. **Open** means it is not settled and is not to be quoted as though it were.
 
 Builds referenced are MSVC 19.44 x64 Release and MinGW gcc, both exercised. Run everything from the repository root.
 
@@ -44,7 +44,7 @@ Two things one field could not show. Steering pays nothing on a uniform field, w
 
 An engine deciding each alignment using only reads taken at that alignment performs at least one read per alignment. An alignment decided on zero reads is decided by a function whose domain is the empty tuple. Its range holds one value and it answers identically whatever the corpus holds there. An adversary edits the corpus at that alignment, flips whether it is an occurrence, and the engine observes nothing different. One of the two answers is wrong.
 
-It binds this class only. A skipping search decides ranges from one read and never visits most alignments. Its reads per alignment are taken over a sparse subset of the alignment set. Same name, different denominator.
+It binds this class only. A skipping search decides ranges from one read and never visits max alignments. Its reads per alignment are taken over a sparse subset of the alignment set. Same name, different denominator.
 
 **Check:** `test_steer` asserts total reads at or above the alignment count on every route and every field, and asserts the empty probe set takes exactly zero probe reads and exactly one compare per alignment.
 
@@ -90,7 +90,7 @@ Recorded as "around one percent of the cycles the worst rule gives up". Measured
 
 **And 0.035 does not reproduce either.** The same bench under gcc gives 41 of 42 at 86511 cycles, share 0.000. A hundredfold gap in cycles, not rounding, and both are real runs. The figure belongs to the toolchain that produced it and must be quoted with one. A rule scored by row count is fragile precisely where two engines sit within noise of each other. That is the argument the bench's own closing note makes for scoring by cycles given up.
 
-**The needle length term is dead weight on this data, which R1 never mentioned.** Flatness alone ties the kernel exactly, same rows and same cycles on the gcc run. The length term changes no answer across 42 rows. "Flatness then length, as documented" scores strictly worse than the flatness it contains, and the shipped rule of length alone is worse than both. So the document is beaten by the kernel it documents and the kernel is behaviorally the simpler rule. The sweep's own text already supports it: a structured corpus takes the free order engine at every length, and the ceiling of 16 it used to carry survives at no value. A tunable with no reader is an integration point, never deleted and never called unimplemented. It is named and kept until a row is found where it pays.
+**The needle length term is dead weight on this data, which R1 never mentioned.** Flatness alone ties the kernel exactly, same rows and same cycles on the gcc run. The length term changes no answer across 42 rows. "Flatness then length, as documented" scores strictly worse than the flatness it contains, and the shipped rule of length alone is worse than both. So the document is beaten by the kernel it documents and the kernel is behaviorally the simpler rule. The sweep's own text already supports it: a structured corpus takes the free order engine at every length, and the ceiling of 16 it used to carry survives at no value. A tunable with no reader is an integration point, never deleted and never called unimplemented. It is named and retained until a row is found where it pays.
 
 ### R2. The steering figure from one corpus
 
@@ -112,7 +112,7 @@ Submodularity bounds the gain of a **fixed** candidate as the placed set grows. 
 
 ### R5. The read floor's attainment, and a row in the wrong units
 
-I wrote that the empty probe set attains the floor at exactly `N`. A full compare is not one read; it reads up to `m` bytes and exactly one only when the first byte differs. The test charges one byte per compare, the empty probe set attains the floor **in floor units**, and in real bytes it is the most expensive route there is, since every alignment takes a full compare.
+I wrote that the empty probe set attains the floor at exactly `N`. A full compare is not one read; it reads up to `m` bytes and exactly one only when the first byte differs. The test charges one byte per compare, the empty probe set attains the floor **in floor units**, and in real bytes it is the max expensive route there is, since every alignment takes a full compare.
 
 That row was also briefly printed inside the route table, whose column counts probe reads only. Read down one column it invited the conclusion that not steering matches the best steering. It is reported outside the table now.
 
@@ -170,7 +170,7 @@ Two fields with the same frequency multiset and opposite arrangements, 256 class
 
 **The natural arrangement is the harmful one.** A class occurring once has one chance to arrive early; a class occurring nine times has nine. Rare classes therefore arrive late and the overflow ate exactly them, at mean occupancy 1.06. The rarest class is the best probe the steering has. The degradation spent the thing the projection exists to find.
 
-**Fixed by refusing.** A field holding more classes than a byte rank can name now returns 0 with `distinct` set to 0, instead of degrading silently. That also enforces the standing advice for fields of this shape: do not project, hand the oracle to a descent, which needs neither ranks, closure nor table. Tested: 400 distinct classes refused, `distinct` reporting 0.
+**Fixed by refusing.** A field holding more classes than a byte rank can name now returns 0 with `distinct` set to 0, instead of degrading silently. That also enforces the located advice for fields of this shape: do not project, hand the oracle to a descent, which needs neither ranks, closure nor table. Tested: 400 distinct classes refused, `distinct` reporting 0.
 
 The alternative fix, labeling with a separate `uint32_t` array of `length` entries so the component count runs unbounded and the clamp applies at relabel time, would make the original sentence true. It needs a caller supplied label array, because the kernel allocates nothing, and it is not taken here. Refusing is smaller and it is the honest answer for a byte ranked output.
 
@@ -204,15 +204,15 @@ Found in published code, verified, and fixed.
 
 ### F15. O1 settled: one descent is bounded above by a constant, and depth IS data dependent
 
-**The conclusion stands on a replaced premise.**
+**The conclusion is on a replaced premise.**
 
 `src/engine/c/portable/orior.h` is corrected where it said "Nothing in the descent lets corpus content change the DEPTH, only the choice made at a level". **That line is false on the default path**, and this entry does not use it.
 
-`steer_descend` breaks on `(force_full_depth == 0) && (best_standing >= steer_truthy_total(...))` (`src/engine/c/engine/orior.c`). `best_standing` is returned by `steer_truthy_after`, which reads the corpus. `force_full_depth` is zero unless a caller names it, and an omitted member is zero. **on the default path corpus content decides the depth**. The existence of `force_full_depth` is the proof by itself: there would be nothing for it to override if depth were always `wanted`.
+`steer_descend` breaks on `(force_full_depth == 0) && (best_located >= steer_truthy_total(...))` (`src/engine/c/engine/orior.c`). `best_located` is returned by `steer_truthy_after`, which reads the corpus. `force_full_depth` is zero unless a caller names it, and an omitted member is zero. **on the default path corpus content decides the depth**. The existence of `force_full_depth` is the proof by itself: there would be nothing for it to override if depth were always `wanted`.
 
 **The counterevidence was in F14 the whole time.** The `placed` column reads 2 at sigma 2^8 and 2^12 and 1 from 2^16 up, with `wanted` fixed at 4 on every row, and F14 explains it as the destroy rule firing because a larger alphabet lets the first probe cut far enough. That is a description of corpus content changing the depth, sitting in this document, above a claim that corpus content cannot change the depth.
 
-**What is actually true, and the emphasis was exactly backwards.** Depth is data dependent DOWNWARD ONLY. The destroy rule can cut the descent short; nothing can extend it, because `while (placed < count)` caps it and `count` is at most `ORIOR_STEER_ANCHORS`.
+**What is actually true, and the emphasis was exactly backwards.** Depth is data dependent DOWNWARD ONLY. The destroy rule can cut the descent short; nothing can extend it, because `while (placed < count)` caps it and `count` is at max `ORIOR_STEER_ANCHORS`.
 
 **So the cap is load bearing and data independence is not available.** The earlier entry said the reverse in both directions: that data independence was structural, that the cap was incidental, and that at four billion the classification would not shift. Withdrawn. The bound from above is the only thing doing the work, and it is a constant.
 
@@ -230,7 +230,7 @@ Found in published code, verified, and fixed.
 
 Found while writing `docs/inspection-points.md`, and sharper now than it would have been this morning.
 
-The engine computes `best_standing` at every level of the descent and compares it against `steer_truthy_total` to decide whether to stop. Then it discards it. `placed` reports the depth reached, and the raster's `DEATH_LEVEL` channel reports which probe killed each alignment, and **nothing between those two reports the survivor count at each level**, the number the decision actually turned on.
+The engine computes `best_located` at every level of the descent and compares it against `steer_truthy_total` to decide whether to stop. Then it discards it. `placed` reports the depth reached, and the raster's `DEATH_LEVEL` channel reports which probe killed each alignment, and **nothing between those two reports the survivor count at each level**, the number the decision actually turned on.
 
 A caller who wants it runs the descent twice with `force_full_depth` flipped and subtracts. That recovers the fact that the destroy rule fired and what its firing cost. It does not recover the reason.
 
@@ -246,7 +246,7 @@ The shape would be a caller supplied array of `count` entries, filled with the s
 
 **Why that is sufficient and not merely necessary**, the part that was missing. Unbounded READ alone does not buy universality: a finite automaton over an infinite read-only input is still a finite automaton, because nothing it computes can come back to it. But a reader is a callback the CALLER backs, and a caller can back it with a store that the previous descent's results extend. The write lives in the caller's loop, the engine stays `const`, and the engine still ends up reading what it itself produced. No write primitive enters the engine at all.
 
-**What it composes into, and why it is cheap to keep.** Growth happens only BETWEEN descents, on the refuse branch: the "ask another slightly different question" shape. Inside a descent survivors still only shrink. Soundness, the anytime property and termination are all intact at the inner level, since all three follow from that one monotonicity. The result is a Turing complete outer machine whose every inner step is a sound, terminating, interruptible filter. The universality lives in the composition and the inner loop does not change.
+**What it composes into, and why it is cheap to retain.** Growth happens only BETWEEN descents, on the refuse branch: the "ask another slightly different question" shape. Inside a descent survivors still only shrink. Soundness, the anytime property and termination are all intact at the inner level, since all three follow from that one monotonicity. The result is a Turing complete outer machine whose every inner step is a sound, terminating, interruptible filter. The universality lives in the composition and the inner loop does not change.
 
 **The reduction target is named. Nobody owes a universality proof.** Read a window, act on what was read, append, continue is a tag system. Post introduced them in 1943, Minsky proved 2-tag systems universal in 1961, Cocke and Minsky tightened it in 1964. What would be owed is an encoding into that shape instead of a proof from scratch.
 
@@ -275,7 +275,7 @@ The oracle column is flat across a 65536 fold increase in sigma, with no trend. 
 
 **Corpus grows, alphabet fixed at 2^16:** table 0.014, 0.033, 0.110, 0.216 ms against oracle 0.053, 0.201, 0.789, 1.605 at 4096, 16384, 65536 and 131072 positions. **Both linear in corpus and the table 7.4 times faster on every row.** That is the constant factor the oracle pays: the table's per symbol work is one array increment and the oracle's is an indirect call. The oracle buys independence from sigma and pays per corpus symbol for it.
 
-**The crossover is at roughly six times the corpus length.** Fitting the table above 2^20 gives about `0.16 + 1.78e-6 * sigma` ms, meeting the oracle's 1.6 ms near sigma 809000 against a corpus of 131072. Table wins below it, oracle wins above and keeps winning.
+**The crossover is at roughly six times the corpus length.** Fitting the table above 2^20 gives about `0.16 + 1.78e-6 * sigma` ms, meeting the oracle's 1.6 ms near sigma 809000 against a corpus of 131072. Table wins below it, oracle wins above and retains winning.
 
 **The durable claim is about memory.** Sigma 2^32 is not measured and was not allocated: 16.0 GB of counters at four bytes a counter. The timing carries a caveat, and that caveat is the reason to prefer the memory claim. The table route in the bench callocs and frees its counters every iteration, and a real caller searching many needles against one fixed corpus builds the census once and amortizes it, which widens the table's time advantage and means the time column overstates the oracle's case. Memory does not amortize. 16 GB is 16 GB whether it is paid once or a thousand times.
 
@@ -321,6 +321,6 @@ Sources: [arXiv:1106.4412](https://arxiv.org/abs/1106.4412) for the lower bounds
 
 ## What to verify next
 
-Transcribe the holds and the retractions into the workbooks, verified and not copied. The three most worth attacking are F5, because the domain and range argument is short enough to be wrong quickly; F8, because F7's bound depends on the enumeration being complete and completeness is asserted from reading the loops and not from a test; and O1, which two arguments split before F15 settled it.
+Transcribe the holds and the retractions into the workbooks, verified and not copied. The three max worth attacking are F5, because the domain and range argument is short enough to be wrong quickly; F8, because F7's bound depends on the enumeration being complete and completeness is asserted from reading the loops and not from a test; and O1, which two arguments split before F15 settled it.
 
 **Author:** dstroy0 (Douglas Quigg) <dquigg123@gmail.com>

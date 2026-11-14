@@ -47,8 +47,8 @@ int max_tree_equal(const MaxTree *left, const MaxTree *right);
 
 void max_tree_release(MaxTree *tree);
 
-#define MAX_TREE_HOST_CHECK(condition_, evacaddr_, error_, kind_)                                                      \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_MAX_TREE, (unsigned int)__LINE__,                          \
+#define MAX_TREE_HOST_CHECK(condition_, evacaddr_, error_, type_)                                                      \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_MAX_TREE, (unsigned int)__LINE__,                          \
                        (const void *)(evacaddr_), (error_))
 
 int max_tree_key_compare(const void *left, const void *right);

@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // preview.c: the preview's state, one for the window: the mode, the view it is bound to with its path in a cell sized
-// to the two, the text last laid out in a cell of its own, the items laid from it, the width they were laid for and the
+// to the two, the text last arranged in a cell of its own, the items positioned from it, the width they were positioned for and the
 // rectangle's height, the scroll top, when the text was last looked at, the view's top and cursor's line last seen, and
-// the block marked. A look reads the view's text through the document store and lays it out again only where it
-// differs from the text last laid; blocks are found by a binary search over their starts, sorted by top and by line as
-// the layout lays them in the source's order
+// the block marked. A look reads the view's text through the document store and positions it out again only where it
+// differs from the text last positioned; blocks are found by a binary search over their starts, sorted by top and by line as
+// the layout positions them in the source's order
 #include "preview.h"
 
 #include "../editor/document.h"
@@ -39,8 +39,8 @@ static const PreviewEnding s_endings[] = {
 static const char *const s_mode_words[3] = {"off", "beside", "alone"};
 
 // The preview: its mode; the type of the view bound; whether a view is bound, with its key and its path; the text last
-// laid with its bytes, in a movable cell of its own, NULL where it has no bytes; the items laid from it; whether they
-// stand for it; the width they were laid for and the rectangle's height, in the page's pixels; the scroll top; the
+// positioned with its bytes, in a movable cell of its own, NULL where it has no bytes; the items positioned from it; whether they
+// are for it; the width they were positioned for and the rectangle's height, in the page's pixels; the scroll top; the
 // millisecond the text was last looked at; the view's top last seen; whether the cursor's line was seen and which it
 // was; and the block marked, PREVIEW_NONE_AT for none
 typedef struct
@@ -53,7 +53,7 @@ typedef struct
     const CarcerMovableEntry *source_cell;
     unsigned long long source_length;
     CliPreviewItems items;
-    int laid;
+    int positioned;
     int width_px;
     int height_px;
     int top_px;
@@ -91,7 +91,7 @@ EMBED_INLINE void cell_released(const PreviewCtx *args)
     }
 }
 
-// the items let go with the text they were laid from, none laid and none marked
+// the items let go with the text they were positioned from, none positioned and none marked
 EMBED_INLINE void items_released(const PreviewCtx *args)
 {
     (void)args;
@@ -101,7 +101,7 @@ EMBED_INLINE void items_released(const PreviewCtx *args)
     EMBED_CALL(cell_released, PreviewCtx, .cell = s_preview.source_cell);
     s_preview.source_cell = NULL;
     s_preview.source_length = 0ULL;
-    s_preview.laid = 0;
+    s_preview.positioned = 0;
     s_preview.marked = PREVIEW_NONE_AT;
 }
 
@@ -137,8 +137,8 @@ EMBED_INLINE void item_written(const PreviewCtx *args)
 // `top_px` no higher than the first item and no lower than the last fills the rectangle
 EMBED_INLINE int top_clamped(const PreviewCtx *args)
 {
-    const int most = s_preview.items.height - s_preview.height_px;
-    const int lowest = (most > 0) ? most : 0;
+    const int max = s_preview.items.height - s_preview.height_px;
+    const int lowest = (max > 0) ? max : 0;
     if (args->top_px < 0)
     {
         return 0;
@@ -146,7 +146,7 @@ EMBED_INLINE int top_clamped(const PreviewCtx *args)
     return (args->top_px > lowest) ? lowest : args->top_px;
 }
 
-// the last block whose top is at most `top_px`, PREVIEW_NONE_AT where none is
+// the last block whose top is at max `top_px`, PREVIEW_NONE_AT where none is
 EMBED_INLINE unsigned int block_by_top(const PreviewCtx *args)
 {
     const unsigned int count = s_preview.items.blocks;
@@ -171,7 +171,7 @@ EMBED_INLINE unsigned int block_by_top(const PreviewCtx *args)
     return low;
 }
 
-// the last block whose line is at most `line`, PREVIEW_NONE_AT where none is
+// the last block whose line is at max `line`, PREVIEW_NONE_AT where none is
 EMBED_INLINE unsigned int block_by_line(const PreviewCtx *args)
 {
     const unsigned int count = s_preview.items.blocks;
@@ -196,7 +196,7 @@ EMBED_INLINE unsigned int block_by_line(const PreviewCtx *args)
     return low;
 }
 
-// the top put at `top_px`, bounded, and in the beside mode the source line at it handed to the bound view as its
+// the top put at `top_px`, bounded, and in the beside mode the source line at it passed to the bound view as its
 // scroll, the view's top read back so the follow leads nothing
 EMBED_INLINE void top_led(const PreviewCtx *args)
 {
@@ -215,9 +215,9 @@ EMBED_INLINE void top_led(const PreviewCtx *args)
     s_preview.editor_top = cli_view_top(s_preview.key);
 }
 
-// the slug of the letter `at` of a heading's text as GitHub writes an anchor, a letter or digit lowered, a space a
-// dash, a dash or an underscore itself: the slug's letter, 0 where it has none
-EMBED_INLINE unsigned char slug_letter(const PreviewCtx *args)
+// the slug of the character `at` of a heading's text as GitHub writes an anchor, a character or digit lowered, a space a
+// dash, a dash or an underscore itself: the slug's character, 0 where it has none
+EMBED_INLINE unsigned char slug_character(const PreviewCtx *args)
 {
     const unsigned char one = (unsigned char)args->text[args->at];
     if ((one >= 'A') && (one <= 'Z'))
@@ -264,10 +264,10 @@ EMBED_INLINE unsigned int heading_of(const PreviewCtx *args)
         for (unsigned int at = here.item + 1u; same && (at < end); at += 1u)
         {
             const CliPreviewItem item = EMBED_CALL(item_read, PreviewCtx, .at = at);
-            for (unsigned int letter = 0u; same && (item.type == CLI_PREVIEW_ITEM_TEXT) && (letter < item.length);
-                 letter += 1u)
+            for (unsigned int character = 0u; same && (item.type == CLI_PREVIEW_ITEM_TEXT) && (character < item.length);
+                 character += 1u)
             {
-                const unsigned char slug = EMBED_CALL(slug_letter, PreviewCtx, .text = text + item.text, .at = letter);
+                const unsigned char slug = EMBED_CALL(slug_character, PreviewCtx, .text = text + item.text, .at = character);
                 if (slug == 0u)
                 {
                     continue;
@@ -282,7 +282,7 @@ EMBED_INLINE unsigned int heading_of(const PreviewCtx *args)
     return found;
 }
 
-// whether the address `text`, `length` bytes, leaves the tree: a scheme, letters then a colon, or `//` at its start
+// whether the address `text`, `length` bytes, leaves the tree: a scheme, characters then a colon, or `//` at its start
 EMBED_INLINE int address_out(const PreviewCtx *args)
 {
     if ((args->length >= 2u) && (args->text[0] == '/') && (args->text[1] == '/'))
@@ -548,22 +548,22 @@ int cli_preview_step(const CliPreviewCfg *args)
     if (width != s_preview.width_px)
     {
         s_preview.width_px = width;
-        s_preview.laid = 0;
+        s_preview.positioned = 0;
     }
     if (width <= 0)
     {
         return redrawn;
     }
-    if (!s_preview.laid || (args->now_ms >= s_preview.looked_ms + CLI_PREVIEW_LOOK_MS))
+    if (!s_preview.positioned || (args->now_ms >= s_preview.looked_ms + CLI_PREVIEW_LOOK_MS))
     {
         s_preview.looked_ms = args->now_ms;
         unsigned long long size = 0ULL;
         char *const text = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = s_preview.key,
                                       .size_pointer = &size, .owner = g_cli_preview_owner);
-        const int same = (text != NULL) && s_preview.laid && (size == s_preview.source_length) &&
+        const int same = (text != NULL) && s_preview.positioned && (size == s_preview.source_length) &&
                          ((size == 0ULL) || (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
                                                  .cell = s_preview.source_cell, .src = text, .bytes = size}) == 0));
-        // the text kept in a movable cell of its own for the next look's compare, the laid items in theirs
+        // the text retained in a movable cell of its own for the next look's compare, the positioned items in theirs
         const CarcerMovableEntry *const source = ((text != NULL) && !same && (size != 0ULL))
                                                      ? g_cli_guard->movable_buf_alloc(size, g_cli_preview_owner)
                                                      : NULL;
@@ -581,7 +581,7 @@ int cli_preview_step(const CliPreviewCfg *args)
             s_preview.items = fresh;
             s_preview.source_cell = source;
             s_preview.source_length = size;
-            s_preview.laid = 1;
+            s_preview.positioned = 1;
             s_preview.cursor_seen = 0;
             s_preview.top_px = EMBED_CALL(top_clamped, PreviewCtx, .top_px = s_preview.top_px);
             redrawn = 1;
@@ -629,7 +629,7 @@ unsigned int cli_preview_item_count(const CliPreviewItemCfg *args)
 
 const CliPreviewItem *cli_preview_item_row(const CliPreviewItemCfg *args)
 {
-    // the row handed out and its text, copied out of the cells, the text cut to the row's bytes
+    // the row passed out and its text, copied out of the cells, the text cut to the row's bytes
     static CliPreviewItem s_row;
     static char s_row_text[CLI_PREVIEW_ROW_TEXT];
     if (args->at >= s_preview.items.items)

@@ -3,10 +3,10 @@
 // qasm_gates.c: gate entries and the lowering of named gates
 #include "qasm_internal.h"
 
-static void qasm_gate_start(QasmGate *gate, unsigned int kind, unsigned int pattern, const QasmToken *token)
+static void qasm_gate_start(QasmGate *gate, unsigned int type, unsigned int pattern, const QasmToken *token)
 {
     memset(gate, 0, sizeof(*gate));
-    gate->kind = kind;
+    gate->type = type;
     gate->pattern = pattern;
     gate->line = token->line;
     gate->column = token->column;

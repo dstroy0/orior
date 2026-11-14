@@ -118,7 +118,7 @@ EMBED_INLINE int tests_action_enabled(const TestsCtx *args)
     return 1;
 }
 
-// the bar drawn: each action a bordered button on the editor's ground, its label centered, lit where the pointer stands
+// the bar drawn: each action a bordered button on the editor's ground, its label centered, lit where the pointer is
 // on it and dim where it cannot be taken; the Parallel choice its box, filled where on, and its label; and under the
 // bar the summary, in the error's color where the run's end counted a failure
 static void tests_head_draw(const GuiPaneCfg *args)
@@ -194,7 +194,7 @@ static void tests_head_draw(const GuiPaneCfg *args)
     }
 }
 
-// the action whose button or box the pixel at x, y stands in, where it can be taken
+// the action whose button or box the pixel at x, y is in, where it can be taken
 static unsigned int tests_head_hit(const GuiPaneCfg *args)
 {
     for (unsigned int which = CLI_TESTS_RUN; which <= CLI_TESTS_PARALLEL; which += 1u)
@@ -525,7 +525,7 @@ static int tests_press(const GuiPaneCfg *args)
 // the tree's tests read as the pane first shows
 static void tests_read(const GuiPaneCfg *args)
 {
-    if ((args->event == GUI_PANE_SHOWN) && !EMBED_CALL(cli_tests_pane.loaded, CliTestsPaneCfg, .at = 0u))
+    if ((args->event == GUI_PANE_DISPLAYED) && !EMBED_CALL(cli_tests_pane.loaded, CliTestsPaneCfg, .at = 0u))
     {
         EMBED_CALL(cli_tests_pane.read, CliTestsPaneCfg, .root = args->root);
     }

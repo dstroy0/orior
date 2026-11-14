@@ -4,8 +4,8 @@
 // prints a cubin of two kernels
 //
 //   lines     a kernel's listing is its code section's instruction lines in order, with no other line
-//   labels    a label the code names is put as the offset of the instruction it stands before, forward and back
-//   end       a label after the last instruction stands at the end of the code
+//   labels    a label the code names is put as the offset of the instruction it is before, forward and back
+//   end       a label after the last instruction is at the end of the code
 //   unset     a mark naming a label the section does not set is retained as printed
 //   apart     a section no kernel is named for, and a kernel no section contains, are left out
 //   info      a section's `.sectioninfo` and `.sectionflags` lines open no section of their own
@@ -104,7 +104,7 @@ int main(void)
     const char *const ending[1] = {"k_end"};
     check_that(cubin_listing_cut(s_ending, sizeof(s_ending) - 1u, ending, 1u, &cut) &&
                    cut_reads(&cut, 0u, "        /*0000*/                   BRA 0x10;\n"),
-               "end: a label after the last instruction stands at the end of the code, and a listing with no last "
+               "end: a label after the last instruction is at the end of the code, and a listing with no last "
                "newline ends its section");
     cubin_listing_cut_freed(&cut);
     printf("cubin_listing_check: %u checks, %u failed\n", s_checks, s_failed);

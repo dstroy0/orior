@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // command_line_jobs.c: the tree's jobs at the command line: listed, each about written to the terminal's width and
-// whole anywhere else; shown, its values and the line each step runs; run here, its steps sharing the terminal, its
+// whole anywhere else; displayed, its values and the line each step runs; run here, its steps sharing the terminal, its
 // output streaming as it comes, and reported to the window where a terminal of the window's started this, on a channel
 // of its own under runs; and the tree's tests listed, a Python test as pytest names it, each with its line, or as JSON
-#include "../comms/door.h"
+#include "../comms/interface.h"
 #include "../runs/runner.h"
 #include "../tests/testing.h"
 #include "../text/json_tree.h"
@@ -129,10 +129,10 @@ int cli_jobs_list(const CliCommandLineWordCtx *args)
         }
         s_list_result[count] = at;
         count += 1u;
-        const unsigned long long letters =
-            EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = id,
+        const unsigned long long characters =
+            EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = id,
                        .size = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_POOL_BYTES}));
-        pad = (letters > pad) ? letters : pad;
+        pad = (characters > pad) ? characters : pad;
     }
     if (count == 0u)
     {
@@ -154,10 +154,10 @@ int cli_jobs_list(const CliCommandLineWordCtx *args)
         static char s_line[1u << 16u];
         VerbaLinea line = {s_line, sizeof(s_line), 0ULL};
         mmgr_line_put(&line, id);
-        for (unsigned long long letters =
-                 EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = id,
+        for (unsigned long long characters =
+                 EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = id,
                             .size = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_POOL_BYTES}));
-             letters < pad; letters += 1ULL)
+             characters < pad; characters += 1ULL)
         {
             mmgr_line_ch(&line, ' ');
         }
@@ -169,7 +169,7 @@ int cli_jobs_list(const CliCommandLineWordCtx *args)
         else if (capacity >= 20ULL)
         {
             EMBED_CALL(cli_command_line_text_size_internal.cut, CliCommandLineTextSizeCtx, .text = about,
-                       .size = cellul.len(&(CatenaFinitaCfg){.src = about, .cap = CLI_POOL_BYTES}), .most = capacity,
+                       .size = cellul.len(&(CatenaFinitaCfg){.src = about, .cap = CLI_POOL_BYTES}), .max = capacity,
                        .out = &line);
         }
         const unsigned long long size = mmgr_line_ok(&line) ? line.at : 0ULL;
@@ -180,7 +180,7 @@ int cli_jobs_list(const CliCommandLineWordCtx *args)
     return 0;
 }
 
-// a line of a shown job written
+// a line of a displayed job written
 static void jobs_line_out(const CliEachLineSizeCfg *args)
 {
     unsigned long long size = args->size;
@@ -203,7 +203,7 @@ void cli_job_show(const CliCommandLineRootCtx *args)
 {
     const CliCatalog *catalog = args->catalog;
     const CliJob *const one = &catalog->job[args->job];
-    const unsigned int most = cli_width();
+    const unsigned int max = cli_width();
     static char s_line[1u << 16u];
     EMBED_CALL(
         cli_command_line_internal.out, CliCommandLineCtx,
@@ -227,7 +227,7 @@ void cli_job_show(const CliCommandLineRootCtx *args)
         EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = "");
         EMBED_CALL(cli_command_line_text_internal.wrap, CliCommandLineTextCtx, .text = about,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = about, .cap = CLI_POOL_BYTES}), .lead = "  ",
-                   .most = most, .each = jobs_line_out, .context = NULL);
+                   .max = max, .each = jobs_line_out, .context = NULL);
     }
     if (one->params > 0u)
     {
@@ -266,7 +266,7 @@ void cli_job_show(const CliCommandLineRootCtx *args)
                                          .text_u32 = catalog->list[param->first + choice]));
             }
             EMBED_CALL(cli_command_line_text_internal.wrap, CliCommandLineTextCtx, .text = s_choices,
-                       .size = mmgr_line_ok(&choices) ? choices.at : 0ULL, .lead = "      ", .most = most,
+                       .size = mmgr_line_ok(&choices) ? choices.at : 0ULL, .lead = "      ", .max = max,
                        .each = jobs_line_out, .context = NULL);
         }
     }
@@ -277,7 +277,7 @@ void cli_job_show(const CliCommandLineRootCtx *args)
     CliValues *const values = g_cli_guard->temporary_buf_alloc(sizeof(*values), g_cli_command_line_owner);
     if (values == NULL)
     {
-        mmgr_line_put(&err_msg, "the cells cannot meet the values a job is shown with");
+        mmgr_line_put(&err_msg, "the cells cannot meet the values a job is displayed with");
     }
     const int displayed =
         (values != NULL) &&

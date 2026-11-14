@@ -4,9 +4,9 @@
 // A tree on another machine. File, Open Folder on Another Machine opens a window on a tree reached
 // over ssh, in a running container or in a WSL distribution, and File, Open in Dev Container on the
 // tree's own container, built and started from its .devcontainer as it says. The status bar names the
-// machine and how the link to it stands: joined, joining, or dropped and joining again. Once it is
+// machine and how the link to it is: joined, joining, or dropped and joining again. Once it is
 // joined again, the runs it has not seen end are read again from their first line, and each open tab
-// is handed to its server again, the servers having ended with the link.
+// is passed to its server again, the servers having ended with the link.
 
 import { invoke, listen } from "./bridge.js";
 import { copyText, menuOn } from "./menu.js";
@@ -14,7 +14,7 @@ import { copyText, menuOn } from "./menu.js";
 const RECENT = "orior.remote.recent";
 
 // How many addresses File, Open Folder on Another Machine offers again.
-const RECENT_MOST = 8;
+const RECENT_MAX = 8;
 
 const state = { remote: null, link: "", said: "", dropped: false, hooks: {} };
 
@@ -50,8 +50,8 @@ function recent() {
   }
 }
 
-function keepRecent(address) {
-  localStorage.setItem(RECENT, JSON.stringify([address, ...recent().filter((one) => one !== address)].slice(0, RECENT_MOST)));
+function retainRecent(address) {
+  localStorage.setItem(RECENT, JSON.stringify([address, ...recent().filter((one) => one !== address)].slice(0, RECENT_MAX)));
 }
 
 // Opens a window on the tree at `address`, user@host:folder, docker:container:folder or
@@ -63,7 +63,7 @@ export async function openRemote(given) {
     return;
   }
   await invoke("window_open", { remote: address, words: [] });
-  keepRecent(address);
+  retainRecent(address);
 }
 
 const LABELS = {

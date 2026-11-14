@@ -37,8 +37,8 @@ flat torus and on no other shape here, and a cube has to be packed, and packing 
 goes. A run stays honest only while the gap is well under the typical distance between two points on
 the surface. Past that the count stops being what the geometry allows and becomes how many unusually
 distant pairs the draw happened to contain. Holding to that limit at nineteen dimensions needs
-candidates in the hundreds of millions against a kept set in the hundreds of thousands, and greedy
-packing compares every candidate against every kept point. A spatial index would change the cost
+candidates in the hundreds of millions against a retained set in the hundreds of thousands, and greedy
+packing compares every candidate against every retained point. A spatial index would change the cost
 from a product into something nearer a sum. That is the work that would settle it.
 
 **Anisotropic interiors.** The boundary map on an anisotropic medium is invariant under any
@@ -77,7 +77,7 @@ envelope falls, and requiring each radius to beat the one before it fails on a c
 0.0902, 0.1736, 0.0028, 0.0256 percent. Taken over a band of radii instead of at a point, the
 envelope comes down by a factor of forty-eight.
 
-## A fourth defect: the wrong quantity kept small
+## A fourth defect: the wrong quantity retained small
 
 The packing gap has to be small against the shape's own geometry. It was instead bounded by a fraction
 of the typical distance between two points on the surface, and in high dimensions those are not the
@@ -95,7 +95,7 @@ under every radius in play, the same three shapes give 0.664, 0.644 and 0.650 at
 0.660, 0.619 and 0.640 at four, and 0.689, 0.627 and 0.658 at five. Spread 1.03, 1.07 and 1.10.
 
 The shape half of the claim is verified there. It is also the end of what packing reaches: five
-dimensions took ten million candidates for twenty thousand kept points, and the count needed to stay
+dimensions took ten million candidates for twenty thousand retained points, and the count needed to stay
 in the flat regime grows the way a packing number does. No card makes that cheap at nineteen
 dimensions. It is a structural limit and never a compute budget, and the exact routes on a sphere
 and on a flat torus are what reach up there.
@@ -185,7 +185,7 @@ The bill above is priced in precision, and precision is not the first term. It i
 **The basis decides how many directions come back, before precision enters.** A reading to degree
 `L` carries exactly `(L+1)^2` real numbers about its source. Against a source with 256 degrees of
 freedom, a demon reading to degree eight recovers 81 directions and has nullity 175, and it is blind
-in those directions at any precision whatsoever. This is a counting shortfall of the same kind as the `R/x`
+in those directions at any precision whatsoever. This is a counting shortfall of the same type as the `R/x`
 deficit and not a rounding one, and no arithmetic buys it back either. The measurement is in the
 established table above: the map reaches the rank its coefficient count allows at every degree below
 the source count, leaving the shortfall in coefficients to account for the blindness on its own.
@@ -236,7 +236,7 @@ to be seen, and drawing it anyway would be inventing detail no boundary holds. T
 stopping where resolution stops is the area law applied to the picture instead of stated about it.
 
 Upward it stops at whatever the observer is inside. There is no vantage point outside everything,
-since standing outside one boundary places the observer inside the next, and the viewer puts the
+since located outside one boundary places the observer inside the next, and the viewer puts the
 reader inside for that reason. Stepping back from a wall does not escape a
 boundary. It changes which boundary is being read.
 
@@ -287,7 +287,7 @@ when the quantity has to survive being turned.
 ### The alphabet is bounded by counting, not by statistics
 
 Splitting the boundary into eight octants and reading the share of the lit set in each gives an
-alphabet of eight letters. How much such a reading can carry is settled before any measurement: a
+alphabet of eight characters. How much such a reading can carry is settled before any measurement: a
 reading to degree `L` carries exactly `(L+1)^2` real numbers about its source, whatever the source
 is.
 
@@ -300,7 +300,7 @@ is.
 
 The map reaches the rank its coefficient count allows at every degree below the source count, and the
 shortfall in coefficients accounts for the blindness on its own. No sample size and no precision
-changes it. The eight-letter alphabet is rank 8, seven free numbers once the weight is fixed, nullity
+changes it. The eight-character alphabet is rank 8, seven free numbers once the weight is fixed, nullity
 248 of 256 directions.
 
 Degree fifteen is the floor, where `(L+1)^2` first reaches 256, and reaching the floor is not
@@ -349,7 +349,7 @@ full.
 ### How much of each change the reading could see
 
 The delta says the reading moved. It does not say how much of the change the reading was able to
-move for. Two states give the same letters exactly when their difference lies in the kernel of the
+move for. Two states give the same characters exactly when their difference lies in the kernel of the
 map, and a change lying there is invisible however large it is.
 
 | | visible fraction | against an unstructured draw |
@@ -415,7 +415,7 @@ The interior is hidden by default, since it is the answer sheet the recovery is 
 Recovery is a harmonic-sum periodogram across six patches, and a period is believed where three
 independent axes agree on it: five of six bodies, no false positives.
 
-`build_room_view.py` is the dimensional viewer. The reader stands inside a dark room holding a shell
+`build_room_view.py` is the dimensional viewer. The reader is inside a dark room holding a shell
 holding a cloud of confined lights, because the outside of one shell is the inside of the next and
 there is no vantage point that is not inside something. The shell can be a sphere, a cube, an
 octahedron or a cone, swapped under the cloud while it moves so the same population carries on
@@ -439,7 +439,7 @@ it is turned back:
 | six, the chosen value | 14.45 |
 | returned to zero | 6.993 |
 
-The dip at low gain is the part worth keeping. Two fields on one boundary add, and adding can
+The dip at low gain is the part worth retention. Two fields on one boundary add, and adding can
 subtract, and a beam can hide part of an object as readily as show it. A reading that got brighter is
 not thereby a reading that got better. The control returning the span exactly turns that into an
 answerable question instead of a matter of opinion.

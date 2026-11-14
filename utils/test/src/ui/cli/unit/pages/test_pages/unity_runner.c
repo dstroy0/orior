@@ -9,7 +9,7 @@
 extern void setUp(void);
 extern void tearDown(void);
 extern void test_a_file_ending_in_a_newline_has_an_empty_line_last(void);
-extern void test_find_reaches_the_first_line_of_a_block_of_letters_of_one_byte_each(void);
+extern void test_find_reaches_the_first_line_of_a_block_of_characters_of_one_byte_each(void);
 extern void test_a_file_of_long_lines_has_its_lines_counted(void);
 extern void test_a_wrapping_view_at_remainder_is_positioned_the_lines_its_rows_need(void);
 extern void test_a_wrapping_view_whose_lines_are_held_is_positioned_the_step_below_them(void);
@@ -83,7 +83,7 @@ int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\pages\\test_pages\\test_pages.c");
   run_test(test_a_file_ending_in_a_newline_has_an_empty_line_last, "test_a_file_ending_in_a_newline_has_an_empty_line_last", 295);
-  run_test(test_find_reaches_the_first_line_of_a_block_of_letters_of_one_byte_each, "test_find_reaches_the_first_line_of_a_block_of_letters_of_one_byte_each", 303);
+  run_test(test_find_reaches_the_first_line_of_a_block_of_characters_of_one_byte_each, "test_find_reaches_the_first_line_of_a_block_of_characters_of_one_byte_each", 303);
   run_test(test_a_file_of_long_lines_has_its_lines_counted, "test_a_file_of_long_lines_has_its_lines_counted", 314);
   run_test(test_a_wrapping_view_at_remainder_is_positioned_the_lines_its_rows_need, "test_a_wrapping_view_at_remainder_is_positioned_the_lines_its_rows_need", 322);
   run_test(test_a_wrapping_view_whose_lines_are_held_is_positioned_the_step_below_them, "test_a_wrapping_view_whose_lines_are_held_is_positioned_the_step_below_them", 328);

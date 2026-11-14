@@ -3,23 +3,23 @@
 
 // The walker's watch inside the window, put into the page by walk.py as a script of its own.
 //
-// Every call the page makes goes through the watch bridge.js keeps, which this sets: each is timed,
+// Every call the page makes goes through the watch bridge.js retains, which this sets: each is timed,
 // and a call that would leave the window is answered here and never made: one that quits or moves
 // the window, opens another window, the system's picker, the browser or a folder on the desktop,
-// sends to the network, files a report, installs a tool, keeps a template or a plugin in orior's own
+// sends to the network, files a report, installs a tool, retains a template or a plugin in orior's own
 // folder, starts, stops or runs in a container of the machine, or reaches a plugin of the system's
 // other than its events. The picker answers as the
 // reader would who closed it, and every other such call fails with BLOCKED in its message, which the
-// walker does not count as a fault. walker_probe is kept too, for the walker to see the watch hold
+// walker does not count as a fault. walker_probe is retained too, for the walker to see the watch hold
 // before it presses anything. The page's print and its window.open do nothing.
 //
-// Each frame's time is kept, and where every element an animation runs on stands, as a series per
+// Each frame's time is retained, and where every element an animation runs on is, as a series per
 // element, an animation that loops without end, as the caret's blink, left out; each layout shift with the elements it moved and from where to where; each long animation
 // frame with the scripts it ran; and each error the page throws, rejects or writes to the console.
 
 (() => {
   if (window.__walk) {
-    return "kept";
+    return "retained";
   }
   const BLOCKED = "blocked by the walker";
   const REFUSED = new Set([
@@ -95,7 +95,7 @@
   window.print = () => walk.blocked.push({ t: performance.now(), name: "print" });
   window.open = () => (walk.blocked.push({ t: performance.now(), name: "window.open" }), null);
 
-  // Each frame, and where each element an animation runs on stands in it.
+  // Each frame, and where each element an animation runs on is in it.
   const frame = (now) => {
     walk.frames.push(now);
     if (walk.frames.length > 6000) {
@@ -151,7 +151,7 @@
     walk.loafs = null;
   }
 
-  const fault = (type, text) => walk.errors.push({ t: performance.now(), kind: type, text: String(text).slice(0, 600) });
+  const fault = (type, text) => walk.errors.push({ t: performance.now(), type: type, text: String(text).slice(0, 600) });
   window.addEventListener("error", (event) => fault("error", event.error?.stack || event.message));
   window.addEventListener("unhandledrejection", (event) => fault("rejection", event.reason?.stack || event.reason));
   const written = console.error;
@@ -176,8 +176,8 @@
   // How long since anything moved: an animation ran, the layout shifted or a call came back; none
   // while a call is out.
   walk.quiet = () => (walk.out > 0 ? 0 : Math.round(performance.now() - Math.max(walk.lastMotion, walk.since)));
-  // The same, a call out kept against it only where it was made since `begin`: what the window does on its own, as a
-  // toolchain's version asked, does not keep a press from coming to rest.
+  // The same, a call out retained against it only where it was made since `begin`: what the window does on its own, as a
+  // toolchain's version asked, does not retain a press from coming to rest.
   walk.quietOwn = () => (walk.outAt.some((at) => at >= walk.since) ? 0 : Math.round(performance.now() - Math.max(walk.lastMotion, walk.since)));
 
   // Runs a command of the menus as a press of its item does, and says how long its own work took
@@ -210,15 +210,15 @@
 
   // What the window shows over its views: open sheets, menus, the palette, a diff or merge, a prompt.
   walk.overlays = () => {
-    const shown = [];
-    document.querySelectorAll("dialog[open]").forEach((one) => shown.push(`dialog${one.className ? `.${one.className}` : ""}: ${(one.innerText || "").trim().split("\n")[0].slice(0, 60)}`));
-    document.querySelectorAll(".menu").forEach((one) => one.offsetParent !== null && shown.push("menu"));
-    document.querySelectorAll(".diff-view, .merge-view").forEach((one) => shown.push(describe(one)));
+    const displayed = [];
+    document.querySelectorAll("dialog[open]").forEach((one) => displayed.push(`dialog${one.className ? `.${one.className}` : ""}: ${(one.innerText || "").trim().split("\n")[0].slice(0, 60)}`));
+    document.querySelectorAll(".menu").forEach((one) => one.offsetParent !== null && displayed.push("menu"));
+    document.querySelectorAll(".diff-view, .merge-view").forEach((one) => displayed.push(describe(one)));
     const palette = document.querySelector(".palette");
     if (palette && palette.offsetParent !== null) {
-      shown.push("palette");
+      displayed.push("palette");
     }
-    return shown;
+    return displayed;
   };
 
   // Answers an open prompt with `text`, or closes it where `text` is null. Says whether one was open.

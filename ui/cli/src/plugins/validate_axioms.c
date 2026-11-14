@@ -215,7 +215,7 @@ EMBED_INLINE int report_axioms_listed(const ValidateAxiomsCtx *args)
     return others;
 }
 
-// whether a proof failed between the line `line` and before `ends`: a proof that does not check stands on a gap the
+// whether a proof failed between the line `line` and before `ends`: a proof that does not check is on a gap the
 // prover put there, which the error reports
 EMBED_INLINE int report_failed(const ValidateAxiomsCtx *args)
 {
@@ -263,17 +263,17 @@ void cli_validate_axioms_report(const CliValidateAnswersCtx *args)
         mmgr_line_put(args->untrusted, (args->untrusted->at > 0ULL) ? ", " : "");
         mmgr_line_put_n(args->untrusted, name, size);
         const unsigned long long cut = EMBED_CALL(report_short, ValidateAxiomsCtx, .name = name, .size = size);
-        unsigned int letters = 0u;
+        unsigned int characters = 0u;
         for (unsigned long long byte = cut; byte < size; byte += 1ULL)
         {
-            letters += (((unsigned char)name[byte] & 0xc0u) != 0x80u) ? 1u : 0u;
+            characters += (((unsigned char)name[byte] & 0xc0u) != 0x80u) ? 1u : 0u;
         }
         char message[20480];
         VerbaLinea message_line = {message, sizeof(message), 0ULL};
         mmgr_line_put_n(&message_line, name, size);
         mmgr_line_put(&message_line, " rests on ");
         mmgr_line_put_n(&message_line, msg_buf, msg.at);
-        const CliFinding finding = {line, col, line, col + letters, any_gap ? 1u : 2u, "axiom", -1, 0ULL, 0ULL};
+        const CliFinding finding = {line, col, line, col + characters, any_gap ? 1u : 2u, "axiom", -1, 0ULL, 0ULL};
         EMBED_CALL(cli_validate_length_internal.finding_append, CliValidateLengthCtx, .finding = &finding,
                    .message_text = message, .length = message_line.at, .lifted = NULL);
     }

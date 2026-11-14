@@ -8,7 +8,7 @@ static const unsigned int s_track_deltas[TRACK_DELTAS] = {0u, 4u, 8u, 16u, 32u, 
 
 static const unsigned int s_track_patch_cells[TRACK_PATCHES] = {1u, TRACK_PATCH_MAX};
 
-// one scene: render its frames, take every frame's floor 2 from the engine and copy it to the host, lay out the planes,
+// one scene: render its frames, take every frame's floor 2 from the engine and copy it to the host, arrange the planes,
 // build a query for every body, step of `stride` frames, patch and tolerance, run them, and grade them by the
 // bodies' paths
 static int track_scene(SimResults *results, const char *name, const SimScene *scene, const SimCamera *camera,
@@ -41,7 +41,7 @@ static int track_scene(SimResults *results, const char *name, const SimScene *sc
     sim_check(results, ok && (equal == (frames * TRACK_FLOOR_VALUES)),
               "every frame's floor 2 equals the host's two-level lifting at every coefficient");
 
-    // the planes of every frame, laid out once
+    // the planes of every frame, arranged once
     ok = ok && sim_status_check(results,
                                 cudaMemcpy(device->floors, host->floors,
                                            (size_t)(frames * TRACK_FLOOR_VALUES) * sizeof(unsigned short),
@@ -234,13 +234,13 @@ static int track_scene(SimResults *results, const char *name, const SimScene *sc
             mmgr_line_decimal(line, setting->alone, 1u);
             mmgr_line_put(line, "; candidates a query ");
             sim_fraction_print(line, setting->candidates, setting->queries, 2u);
-            mmgr_line_put(line, " (most ");
+            mmgr_line_put(line, " (max ");
             mmgr_line_decimal(line, setting->candidates_max, 1u);
             mmgr_line_put(line, "), in the gate ");
             sim_fraction_print(line, setting->gated, setting->queries, 2u);
             mmgr_line_put(line, "; plane words read ");
             sim_fraction_print(line, setting->reads, setting->queries, 1u);
-            mmgr_line_put(line, " (most ");
+            mmgr_line_put(line, " (max ");
             mmgr_line_decimal(line, setting->reads_max, 1u);
             mmgr_line_put(line, ", ");
             mmgr_line_decimal(line, 4ull * setting->reads_max, 1u);
@@ -401,34 +401,34 @@ int main(int count, char **arguments)
                   (sparse_quiet_settings[0][0].clear_hits == sparse_quiet_settings[0][0].clear) &&
                   (sparse_quiet_settings[1][0].clear_hits == sparse_quiet_settings[1][0].clear),
               "at floor 2's time step every clear step is found at d = 0, by its own cell and by its 27");
-    unsigned long long maximum = 0ull;
+    unsigned long long max = 0ull;
     for (unsigned int patch = 0u; patch < TRACK_PATCHES; patch += 1u)
     {
         for (unsigned int delta = 0u; delta < TRACK_DELTAS; delta += 1u)
         {
-            maximum =
-                (camera_settings[patch][delta].reads_max > maximum) ? camera_settings[patch][delta].reads_max : maximum;
-            maximum = (floor_step_settings[patch][delta].reads_max > maximum)
+            max =
+                (camera_settings[patch][delta].reads_max > max) ? camera_settings[patch][delta].reads_max : max;
+            max = (floor_step_settings[patch][delta].reads_max > max)
                           ? floor_step_settings[patch][delta].reads_max
-                          : maximum;
-            maximum =
-                (quiet_settings[patch][delta].reads_max > maximum) ? quiet_settings[patch][delta].reads_max : maximum;
-            maximum =
-                (sparse_settings[patch][delta].reads_max > maximum) ? sparse_settings[patch][delta].reads_max : maximum;
+                          : max;
+            max =
+                (quiet_settings[patch][delta].reads_max > max) ? quiet_settings[patch][delta].reads_max : max;
+            max =
+                (sparse_settings[patch][delta].reads_max > max) ? sparse_settings[patch][delta].reads_max : max;
             const unsigned long long quiet_max = sparse_quiet_settings[patch][delta].reads_max;
-            maximum = (quiet_max > maximum) ? quiet_max : maximum;
+            max = (quiet_max > max) ? quiet_max : max;
         }
     }
-    maximum = (control_settings[1][0].reads_max > maximum) ? control_settings[1][0].reads_max : maximum;
-    mmgr_line_put(&results.line, "  the most plane words any query read: ");
-    mmgr_line_decimal(&results.line, maximum, 1u);
+    max = (control_settings[1][0].reads_max > max) ? control_settings[1][0].reads_max : max;
+    mmgr_line_put(&results.line, "  the max plane words any query read: ");
+    mmgr_line_decimal(&results.line, max, 1u);
     mmgr_line_put(&results.line, ", ");
-    mmgr_line_decimal(&results.line, 4ull * maximum, 1u);
+    mmgr_line_decimal(&results.line, 4ull * max, 1u);
     mmgr_line_put(&results.line, " bytes, against half of a frame, ");
     mmgr_line_decimal(&results.line, TRACK_SAMPLES, 1u);
     mmgr_line_put(&results.line, " bytes\n");
     // a plane word is 4 bytes and a sample 2. Half of a frame's samples is TRACK_SAMPLES bytes
-    sim_check(&results, ok && ((4ull * maximum) < TRACK_SAMPLES),
+    sim_check(&results, ok && ((4ull * max) < TRACK_SAMPLES),
               "no query reads as many bytes of planes as half of a frame contains");
 
     cudaFree(device.reads);

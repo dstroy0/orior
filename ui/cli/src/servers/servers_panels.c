@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// servers_panels.c: the panels over the editor and the language server of the view shown, on the window's thread. The
+// servers_panels.c: the panels over the editor and the language server of the view displayed, on the window's thread. The
 // hover rests on the pointer's cell, the tree answering first and the server after; the completion ranks the file's
 // words at once and the server's items after; the signature waits on a bracket or a comma, the tree's first and the
-// server's over it. Where each panel stands on the screen is the window's: these carry what each panel shows
+// server's over it. Where each panel is on the screen is the window's: these carry what each panel shows
 #include "../text/sort.h"
 #include "servers.h"
 
@@ -20,9 +20,9 @@
 #define CLI_PANELS_HOVER_LINGER_MS 300ULL
 #define CLI_PANELS_SIGNATURE_WAIT_MS 120ULL
 #define CLI_PANELS_VIEW_REST_MS 250ULL
-// the most declarations the tree is asked for and the most of them a hover shows; the bytes a word takes; the lines
+// the max declarations the tree is asked for and the max of them a hover shows; the bytes a word takes; the lines
 // above the cursor a signature is read from; the bytes of the state they are entered in; and the regions a view's first
-// line is told as standing inside
+// line is told as located inside
 #define CLI_PANELS_DECLARATIONS 200u
 #define CLI_PANELS_HOVER_DECLARATIONS 6u
 #define CLI_PANELS_WORD 256u
@@ -32,8 +32,8 @@
 // what sets the parts of a hover apart
 #define CLI_PANELS_HOVER_BETWEEN "\n---\n"
 
-// the most items the completion's list holds, the bytes of its texts, and the most bytes of an item's label, type,
-// detail and insert kept, each with its end; and the most bytes of the hover's Markdown with its end
+// the max items the completion's list holds, the bytes of its texts, and the max bytes of an item's label, type,
+// detail and insert retained, each with its end; and the max bytes of the hover's Markdown with its end
 #define CLI_PANELS_ITEMS_MAX 2048u
 #define CLI_PANELS_TEXT_MAX (256u << 10u)
 #define CLI_PANELS_LABEL_MAX 256u
@@ -42,7 +42,7 @@
 #define CLI_PANELS_INSERT_MAX 4096u
 #define CLI_PANELS_HOVER_MAX (16u << 10u)
 
-// One completion item: the places among the list's text of its label, the label in small letters, its type, what it
+// One completion item: the places among the list's text of its label, the label in small characters, its type, what it
 // states of itself and what it inserts, the bytes of each but the lowered label, and how it scores against the prefix
 typedef struct
 {
@@ -58,8 +58,8 @@ typedef struct
     unsigned int score;
 } PanelsItem;
 
-// The head of the completion's list: the items; those the prefix answers; the row chosen and the first row shown; the
-// prefix, as typed and in small letters, its bytes and where it stands; and the bytes of the list's text in use
+// The head of the completion's list: the items; those the prefix answers; the row chosen and the first row displayed; the
+// prefix, as typed and in small characters, its bytes and where it is; and the bytes of the list's text in use
 typedef struct
 {
     unsigned int items;
@@ -74,8 +74,8 @@ typedef struct
     unsigned long long text_used;
 } PanelsListHead;
 
-// The completion's list, one movable cell taken once at its most as the panels begin: its head, the items, those the
-// prefix answers in rank order, and the text every item's bytes stand in with their ends. A change reads the list whole
+// The completion's list, one movable cell taken once at its max as the panels begin: its head, the items, those the
+// prefix answers in rank order, and the text every item's bytes are in with their ends. A change reads the list whole
 // into a cell of the call's own and writes it back; a reader of the rows copies their texts out
 typedef struct
 {
@@ -86,7 +86,7 @@ typedef struct
 } PanelsCompletion;
 
 // The panels: the pointer's cell over the editor's text; when the hover is asked for and when it goes, 0 for neither;
-// the ask whose answer stands; the hover's Markdown in the panels' own bytes, whether it shows, and the word's place;
+// the ask whose answer is; the hover's Markdown in the panels' own bytes, whether it shows, and the word's place;
 // the list's cell and whether a list is open in it; whether a list is wanted as the next frame places the cursor and
 // whether it was forced open; the signature's store and whether it shows, when it is asked for, the place it was asked
 // at and whether it is being asked for; the cursor; whether the text changed since the server last took it; when the
@@ -101,7 +101,7 @@ typedef struct
     unsigned long long hover_hide_ms;
     unsigned long long hover_ask;
     char hover_text[CLI_PANELS_HOVER_MAX];
-    int hover_shown;
+    int hover_displayed;
     unsigned long long hover_length;
     unsigned long long hover_line;
     unsigned long long hover_from;
@@ -111,7 +111,7 @@ typedef struct
     int completion_wanted;
     int completion_forced;
     CliSignatureStore signature;
-    int signature_shown;
+    int signature_displayed;
     unsigned long long signature_due_ms;
     CliPosition signature_position;
     int signature_asking;
@@ -147,7 +147,7 @@ typedef struct
     char path[CLI_PATH_MAX_LEN];
 } PanelsHoverAsk;
 
-// the most lines above the pointer's a parameter or a local is sought in, and the lines read at once
+// the max lines above the pointer's a parameter or a local is sought in, and the lines read at once
 #define CLI_PANELS_LOCAL_LINES 512ULL
 #define CLI_PANELS_LOCAL_CHUNK 64ULL
 
@@ -189,14 +189,14 @@ typedef struct
     PanelsHoverAsk *hover_ask;
 } PanelsCtx;
 
-// the key of the view shown, else NULL
+// the key of the view displayed, else NULL
 EMBED_INLINE const char *panels_viewed_key(const PanelsCtx *args)
 {
     (void)args;
-    const int shown = cli_view_shown();
+    const int displayed = cli_view_displayed();
     // a view's place is not negative past the test; the key is copied into the panels' own buffer
     static char s_viewed_key[CLI_NAME_MAX_LEN];
-    return ((shown >= 0) && cli_view_key((unsigned int)shown, s_viewed_key)) ? s_viewed_key : NULL;
+    return ((displayed >= 0) && cli_view_key((unsigned int)displayed, s_viewed_key)) ? s_viewed_key : NULL;
 }
 
 // a byte a word holds
@@ -211,12 +211,12 @@ EMBED_INLINE int panels_word_byte(const PanelsCtx *args)
 EMBED_INLINE void panels_hover_hide(const PanelsCtx *args)
 {
     (void)args;
-    s_panels.hover_shown = 0;
+    s_panels.hover_displayed = 0;
     s_panels.hover_length = 0ULL;
     s_panels.hover_hide_ms = 0ULL;
 }
 
-// the list closed, and nothing forced open; its cell stands for the next
+// the list closed, and nothing forced open; its cell is for the next
 EMBED_INLINE void panels_completion_close(const PanelsCtx *args)
 {
     (void)args;
@@ -228,7 +228,7 @@ EMBED_INLINE void panels_completion_close(const PanelsCtx *args)
 EMBED_INLINE void panels_signature_hide(const PanelsCtx *args)
 {
     (void)args;
-    s_panels.signature_shown = 0;
+    s_panels.signature_displayed = 0;
     s_panels.signature_due_ms = 0ULL;
 }
 
@@ -260,14 +260,14 @@ void cli_servers_panels_hide(void)
     s_panels.view_sent = 0;
 }
 
-// whether the pointer stands on the hover's word, a unit either side
+// whether the pointer is on the hover's word, a unit either side
 EMBED_INLINE int panels_pointer_on_word(const PanelsCtx *args)
 {
     (void)args;
     const char *const key = EMBED_CALL(panels_viewed_key, PanelsCtx, .at = 0u);
     unsigned long long line = 0ULL;
     unsigned long long col = 0ULL;
-    return s_panels.pointer_in_text && s_panels.hover_shown && (key != NULL) &&
+    return s_panels.pointer_in_text && s_panels.hover_displayed && (key != NULL) &&
            EMBED_CALL(cli_view_row.position_at, CliViewRowCfg, .key = key, .row = s_panels.pointer_row,
                       .column = s_panels.pointer_column, .line = &line, .col = &col) &&
            (line == s_panels.hover_line) && ((col + 1ULL) >= s_panels.hover_from) && (col <= s_panels.hover_to);
@@ -298,7 +298,7 @@ void cli_servers_panels_pointer(const CliServersPanelsPointerCfg *args)
     s_panels.pointer_in_text = in_text;
     s_panels.pointer_row = in_text ? args->row : s_panels.pointer_row;
     s_panels.pointer_column = in_text ? args->column : s_panels.pointer_column;
-    if (!s_panels.hover_shown)
+    if (!s_panels.hover_displayed)
     {
         return;
     }
@@ -344,11 +344,11 @@ EMBED_INLINE unsigned int panels_name_place(const PanelsCtx *args)
     return names->count;
 }
 
-// The hover's word as a parameter or a local of the function the pointer stands in, off the runs the walk saved: the
+// The hover's word as a parameter or a local of the function the pointer is in, off the runs the walk saved: the
 // lines above the pointer's read upward to the line the grammar marks identifier.declaration.function, that line's
 // own parameters read too, and the topmost run the grammar names identifier.parameter or identifier.local whose text
 // is the word is its declaration, as the walk names every later use of a declared name the same. The declaration's
-// line written as the tree's are, with its kind and place: 1, or 0 where none stands
+// line written as the tree's are, with its type and place: 1, or 0 where none is
 EMBED_INLINE int panels_hover_local_run(const PanelsCtx *args)
 {
     PanelsHoverAsk *const ask = args->hover_ask;
@@ -367,7 +367,7 @@ EMBED_INLINE int panels_hover_local_run(const PanelsCtx *args)
     const unsigned long long low = (ask->line > CLI_PANELS_LOCAL_LINES) ? (ask->line - CLI_PANELS_LOCAL_LINES) : 0ULL;
     unsigned long long end = ask->line + 1ULL;
     unsigned long long found_line = 0ULL;
-    const char *kind = NULL;
+    const char *type = NULL;
     int ended = 0;
     while (!ended && (end > low))
     {
@@ -425,7 +425,7 @@ EMBED_INLINE int panels_hover_local_run(const PanelsCtx *args)
                 if ((mmgr_line_finish(&out) != 0ULL) &&
                     cellul.eq(&(CatenaFinitaCfg){.src = text, .other = ask->word_text, .cap = sizeof(text)}))
                 {
-                    kind = is_parameter ? "parameter" : "local";
+                    type = is_parameter ? "parameter" : "local";
                     found_line = line;
                 }
             }
@@ -434,7 +434,7 @@ EMBED_INLINE int panels_hover_local_run(const PanelsCtx *args)
         g_cli_guard->persistent_buf_release(runs, g_cli_servers_owner);
         end = first;
     }
-    if (kind == NULL)
+    if (type == NULL)
     {
         return 0;
     }
@@ -455,7 +455,7 @@ EMBED_INLINE int panels_hover_local_run(const PanelsCtx *args)
     VerbaLinea joined = mmgr_line_over(cell, bytes);
     if (cell != NULL)
     {
-        const CliFoundDeclaration one = {ask->word_text, kind, ask->path, (unsigned int)found_line, ""};
+        const CliFoundDeclaration one = {ask->word_text, type, ask->path, (unsigned int)found_line, ""};
         mmgr_line_put(&joined, "```\n");
         mmgr_line_put_n(&joined, line_text + start, size - start);
         mmgr_line_put(&joined, "\n```\n\n");
@@ -472,7 +472,7 @@ EMBED_INLINE int panels_hover_local_run(const PanelsCtx *args)
     return 1;
 }
 
-// the tree's declarations of the word laid as Markdown in a cell sized to them, those of files that open in the
+// the tree's declarations of the word positioned as Markdown in a cell sized to them, those of files that open in the
 // hovered file's language plugin alone
 static void panels_hover_tree_run(void *context)
 {
@@ -484,7 +484,7 @@ static void panels_hover_tree_run(void *context)
     EMBED_CALL(cli_symbols_root.tree_walk, CliSymbolsRootCfg, .root = ask->root);
     CliFoundDeclarations *const found =
         EMBED_CALL(cli_symbols_query_max.tree_declarations_alloc, CliSymbolsQueryMaxCfg, .query = ask->word_text,
-                   .most = CLI_PANELS_DECLARATIONS, .owner = g_cli_servers_owner);
+                   .max = CLI_PANELS_DECLARATIONS, .owner = g_cli_servers_owner);
     if (found == NULL)
     {
         return;
@@ -533,7 +533,7 @@ static void panels_hover_tree_run(void *context)
     ask->length = joined.at;
 }
 
-// the tree's answer: it stands as the hover, its Markdown copied into the hover's own bytes, cut to them, and the ask's
+// the tree's answer: it is as the hover, its Markdown copied into the hover's own bytes, cut to them, and the ask's
 // cell given back
 static void panels_hover_tree_done(void *context)
 {
@@ -541,15 +541,15 @@ static void panels_hover_tree_done(void *context)
     EMBED_CALL(panels_hover_hide, PanelsCtx, .at = 0u);
     if (ask->text != NULL)
     {
-        const unsigned long long kept =
+        const unsigned long long retained =
             (ask->length < CLI_PANELS_HOVER_MAX) ? ask->length : CLI_PANELS_HOVER_MAX - 1ULL;
-        if (kept != 0ULL)
+        if (retained != 0ULL)
         {
-            memor.cpy(&(MemoriaCfg){.dst = s_panels.hover_text, .src = ask->text, .bytes = kept});
+            memor.cpy(&(MemoriaCfg){.dst = s_panels.hover_text, .src = ask->text, .bytes = retained});
         }
-        s_panels.hover_text[kept] = '\0';
-        s_panels.hover_length = kept;
-        s_panels.hover_shown = 1;
+        s_panels.hover_text[retained] = '\0';
+        s_panels.hover_length = retained;
+        s_panels.hover_displayed = 1;
         g_cli_guard->persistent_buf_release(ask->text, g_cli_servers_owner);
         ask->text = NULL;
     }
@@ -558,8 +558,8 @@ static void panels_hover_tree_done(void *context)
     s_panels.hover_to = ask->to;
 }
 
-// the hover asked for at the pointer's cell: a pointer resting on the word shown does not ask again, and a place no
-// word stands at lets the hover shown go unless the pointer stands on it
+// the hover asked for at the pointer's cell: a pointer resting on the word displayed does not ask again, and a place no
+// word is at lets the hover displayed go unless the pointer is on it
 EMBED_INLINE void panels_hover_ask(const PanelsCtx *args)
 {
     (void)args;
@@ -599,7 +599,7 @@ EMBED_INLINE void panels_hover_ask(const PanelsCtx *args)
 }
 
 // how the item scores against the prefix: 5 its label starts with it, 4 starts with it case aside, 3 holds it case
-// aside, 2 holds its letters in order case aside, 1 for no prefix, 0 for no answer
+// aside, 2 holds its characters in order case aside, 1 for no prefix, 0 for no answer
 EMBED_INLINE unsigned int panels_item_score(const PanelsCtx *args)
 {
     const PanelsItem *const item = args->item;
@@ -635,9 +635,9 @@ EMBED_INLINE unsigned int panels_item_score(const PanelsCtx *args)
         }
     }
     unsigned long long at = 0ULL;
-    for (unsigned long long letter = 0ULL; letter < want; letter += 1ULL)
+    for (unsigned long long character = 0ULL; character < want; character += 1ULL)
     {
-        first[0] = args->prefix_lowered[letter];
+        first[0] = args->prefix_lowered[character];
         at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = lowered, .at = at,
                         .size = item->label_length, .set = first);
         if (at >= item->label_length)
@@ -674,7 +674,7 @@ static int panels_item_order(const void *one, const void *other)
     return (order < 0) ? -1 : 1;
 }
 
-// the items the prefix answers ranked in `list`, the row chosen saved on the item it was on where it is still shown
+// the items the prefix answers ranked in `list`, the row chosen saved on the item it was on where it is still displayed
 EMBED_INLINE void panels_completion_rank(PanelsCompletion *list)
 {
     PanelsListHead *const head = &list->head;
@@ -706,7 +706,7 @@ EMBED_INLINE void panels_completion_rank(PanelsCompletion *list)
     }
 }
 
-// the first row shown moved as far as it must to show the row chosen
+// the first row displayed moved as far as it must to show the row chosen
 EMBED_INLINE void panels_completion_scrolled(PanelsListHead *head)
 {
     if (head->chosen < head->first)
@@ -717,8 +717,8 @@ EMBED_INLINE void panels_completion_scrolled(PanelsListHead *head)
     {
         head->first = head->chosen - CLI_COMPLETION_ROWS + 1u;
     }
-    const unsigned int most = (head->count > CLI_COMPLETION_ROWS) ? (head->count - CLI_COMPLETION_ROWS) : 0u;
-    head->first = (head->first > most) ? most : head->first;
+    const unsigned int max = (head->count > CLI_COMPLETION_ROWS) ? (head->count - CLI_COMPLETION_ROWS) : 0u;
+    head->first = (head->first > max) ? max : head->first;
 }
 
 // the placeholder of a tab stop, from `from` in `length` bytes of `text`, written to `out` up to the brace that closes
@@ -767,7 +767,7 @@ EMBED_INLINE unsigned long long panels_placeholder_write(const PanelsCtx *args)
     return each;
 }
 
-// the tab stop whose `$` stands just before `from` in `length` bytes of `text` written to `out` as the text it
+// the tab stop whose `$` is just before `from` in `length` bytes of `text` written to `out` as the text it
 // inserts: `$n` and `${n}` as nothing, `${n:text}` as its placeholder and `${n|a,b|}` as its first choice: the place
 // past it
 EMBED_INLINE unsigned long long panels_stop_write(const PanelsCtx *args)
@@ -830,33 +830,33 @@ EMBED_INLINE void panels_snippet_write(const PanelsCtx *args)
     }
 }
 
-// `length` bytes of `text` copied into the list's text after what it holds, cut to `most` with their end: the copy's
-// place among the text, its bytes kept into `length_out`; CLI_PANELS_TEXT_MAX where the text has no room
+// `length` bytes of `text` copied into the list's text after what it holds, cut to `max` with their end: the copy's
+// place among the text, its bytes retained into `length_out`; CLI_PANELS_TEXT_MAX where the text has no room
 static unsigned int panels_text_put(PanelsCompletion *list, const char *text, unsigned long long length,
-                                    unsigned long long most, unsigned int *length_out)
+                                    unsigned long long max, unsigned int *length_out)
 {
     PanelsListHead *const head = &list->head;
-    const unsigned long long kept = (length < most) ? length : most - 1ULL;
-    if (head->text_used + kept + 1ULL > CLI_PANELS_TEXT_MAX)
+    const unsigned long long retained = (length < max) ? length : max - 1ULL;
+    if (head->text_used + retained + 1ULL > CLI_PANELS_TEXT_MAX)
     {
         *length_out = 0u;
         return CLI_PANELS_TEXT_MAX;
     }
-    // the text in use is below CLI_PANELS_TEXT_MAX, inside an unsigned int, as is a text cut to its most
+    // the text in use is below CLI_PANELS_TEXT_MAX, inside an unsigned int, as is a text cut to its max
     const unsigned int at = (unsigned int)head->text_used;
-    if (kept != 0ULL)
+    if (retained != 0ULL)
     {
-        memor.cpy(&(MemoriaCfg){.dst = list->text + at, .src = text, .bytes = kept});
+        memor.cpy(&(MemoriaCfg){.dst = list->text + at, .src = text, .bytes = retained});
     }
-    list->text[at + kept] = '\0';
-    head->text_used += kept + 1ULL;
-    *length_out = (unsigned int)kept;
+    list->text[at + retained] = '\0';
+    head->text_used += retained + 1ULL;
+    *length_out = (unsigned int)retained;
     return at;
 }
 
 // an item put after the list's, its label of `length` bytes at `text`, its type, its detail and its insert of
 // `insert_length` bytes copied into the list's text and the label lowered once: 1, or 0 where the items or the text are
-// full, the text as it stood
+// full, the text as it was
 EMBED_INLINE int panels_item_put(const PanelsCtx *args)
 {
     PanelsCompletion *const list = args->list;
@@ -891,10 +891,10 @@ EMBED_INLINE int panels_item_put(const PanelsCtx *args)
     return 1;
 }
 
-// the list laid in `list`, a cell of the call's own, from the server's items and the file's words, a word the server
+// the list positioned in `list`, a cell of the call's own, from the server's items and the file's words, a word the server
 // gave left out, the labels lowered once and each snippet flattened once, every text copied into the list's own, the
 // items ending where the items or the text are full
-EMBED_INLINE void panels_completion_laid(const PanelsCtx *args)
+EMBED_INLINE void panels_completion_positioned(const PanelsCtx *args)
 {
     PanelsCompletion *const list = args->list;
     PanelsListHead *const head = &list->head;
@@ -926,7 +926,7 @@ EMBED_INLINE void panels_completion_laid(const PanelsCtx *args)
             cellul.len(&(CatenaFinitaCfg){.src = one->insert, .cap = CLI_POOL_BYTES});
         const char *const insert = (insert_length != 0ULL) ? one->insert : one->label;
         const unsigned long long inserted = (insert_length != 0ULL) ? insert_length : label_length;
-        // a snippet flattened to what it inserts, in a buffer of the insert's most; one past it inserts its label
+        // a snippet flattened to what it inserts, in a buffer of the insert's max; one past it inserts its label
         char flat_text[CLI_PANELS_INSERT_MAX];
         VerbaLinea flat = {flat_text, sizeof(flat_text), 0ULL};
         if (one->snippet)
@@ -961,30 +961,30 @@ EMBED_INLINE void panels_completion_laid(const PanelsCtx *args)
     }
 }
 
-// the list `list` made the one shown in place of the one that stood, the row chosen saved on its item: closed where
+// the list `list` made the one displayed in place of the one that was, the row chosen saved on its item: closed where
 // nothing answers, where the one answer is what is typed and nothing forced it, or where nothing is typed and no list
-// stood or forced it open; else written into the cell as the open list
-EMBED_INLINE void panels_completion_stand(PanelsCompletion *list)
+// was or forced it open; else written into the cell as the open list
+EMBED_INLINE void panels_completion_are(PanelsCompletion *list)
 {
     PanelsListHead *const head = &list->head;
-    // the list that stood: its first row and its row chosen's label, read out of the cell before it is written over
-    PanelsListHead was = {0};
-    const int stood = s_panels.completion_open && (s_panels.completion != NULL);
-    if (stood)
+    // the list that was: its first row and its row chosen's label, read out of the cell before it is written over
+    PanelsListHead previous = {0};
+    const int was = s_panels.completion_open && (s_panels.completion != NULL);
+    if (was)
     {
         (void)g_cli_guard->movable_buf_read(
-            &(CarcerMovableCfg){.cell = s_panels.completion, .offset = 0ULL, .dst = &was, .bytes = sizeof(was)});
+            &(CarcerMovableCfg){.cell = s_panels.completion, .offset = 0ULL, .dst = &previous, .bytes = sizeof(previous)});
     }
     char was_label[CLI_PANELS_LABEL_MAX] = "";
     unsigned int was_label_length = 0u;
-    if (stood && (was.count > 0u))
+    if (was && (previous.count > 0u))
     {
         PanelsItem chosen;
         {
             unsigned int ranked_at = 0u;
             (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = s_panels.completion,
-                .offset = offsetof(PanelsCompletion, ranked) + ((unsigned long long)was.chosen * sizeof(ranked_at)),
+                .offset = offsetof(PanelsCompletion, ranked) + ((unsigned long long)previous.chosen * sizeof(ranked_at)),
                 .dst = &ranked_at,
                 .bytes = sizeof(ranked_at)});
             (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
@@ -1005,7 +1005,7 @@ EMBED_INLINE void panels_completion_stand(PanelsCompletion *list)
         was_label[chosen.label_length] = '\0';
     }
     panels_completion_rank(list);
-    if (stood && (was.count > 0u))
+    if (was && (previous.count > 0u))
     {
         for (unsigned int at = 0u; at < head->count; at += 1u)
         {
@@ -1018,13 +1018,13 @@ EMBED_INLINE void panels_completion_stand(PanelsCompletion *list)
                 break;
             }
         }
-        head->first = was.first;
+        head->first = previous.first;
     }
     const PanelsItem *const only = (head->count == 1u) ? &list->item[list->ranked[0]] : NULL;
     const int alone = (only != NULL) && (only->label_length == head->prefix_length) &&
                       (memor.cmp(&(MemoriaCfg){
                            .src = list->text + only->label, .other = head->prefix, .bytes = head->prefix_length}) == 0);
-    const int empty = (head->prefix_length == 0ULL) && !s_panels.completion_forced && !stood;
+    const int empty = (head->prefix_length == 0ULL) && !s_panels.completion_forced && !was;
     if ((head->count == 0u) || (alone && !s_panels.completion_forced) || empty)
     {
         EMBED_CALL(panels_completion_close, PanelsCtx, .at = 0u);
@@ -1057,19 +1057,19 @@ EMBED_INLINE void panels_completion_ask(const PanelsCtx *args)
     {
         return;
     }
-    // the list laid in a cell of the call's own from the file's words, which go once their texts are copied
+    // the list positioned in a cell of the call's own from the file's words, which go once their texts are copied
     PanelsCompletion *const list = g_cli_guard->temporary_buf_alloc(sizeof(*list), g_cli_servers_owner);
     CliDocumentWords *const words = cli_view_words_alloc(key);
     if (list != NULL)
     {
-        EMBED_CALL(panels_completion_laid, PanelsCtx, .list = list, .server = NULL, .words = words, .line = cursor.line,
+        EMBED_CALL(panels_completion_positioned, PanelsCtx, .list = list, .server = NULL, .words = words, .line = cursor.line,
                    .from = from, .prefix = prefix,
                    .length = cellul.len(&(CatenaFinitaCfg){.src = prefix, .cap = sizeof(prefix)}));
     }
     cli_view_words_release(words);
     if (list != NULL)
     {
-        panels_completion_stand(list);
+        panels_completion_are(list);
         g_cli_guard->persistent_buf_release(list, g_cli_servers_owner);
     }
 }
@@ -1203,7 +1203,7 @@ void cli_servers_panels_wheel(int rows)
     {
         return;
     }
-    const unsigned int most = head.count - CLI_COMPLETION_ROWS;
+    const unsigned int max = head.count - CLI_COMPLETION_ROWS;
     if (rows < 0)
     {
         // the rows turned up, a count far inside what an unsigned int represents
@@ -1214,7 +1214,7 @@ void cli_servers_panels_wheel(int rows)
     {
         // the rows turned are not negative
         head.first += (unsigned int)rows;
-        head.first = (head.first > most) ? most : head.first;
+        head.first = (head.first > max) ? max : head.first;
     }
     (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = s_panels.completion, .offset = 0ULL, .src = &head, .bytes = sizeof(PanelsListHead)});
@@ -1281,7 +1281,7 @@ int cli_servers_panels_key(const char *name)
         return 1;
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "Escape", .cap = 64ULL}) &&
-        (s_panels.signature_shown || s_panels.hover_shown))
+        (s_panels.signature_displayed || s_panels.hover_displayed))
     {
         cli_servers_panels_hide();
         return 1;
@@ -1293,7 +1293,7 @@ int cli_servers_panels_key(const char *name)
         return 1;
     }
     EMBED_CALL(panels_hover_hide, PanelsCtx, .at = 0u);
-    // a key that takes letters out saves the list open on the prefix left; any other key closes it
+    // a key that takes characters out saves the list open on the prefix left; any other key closes it
     if (s_panels.completion_open)
     {
         const int edits = cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "Backspace", .cap = 64ULL}) ||
@@ -1382,12 +1382,12 @@ static void panels_signature_tree_run(void *context)
     g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
 }
 
-// the tree's answer stands, where one was written into the store
+// the tree's answer is, where one was written into the store
 static void panels_signature_tree_done(void *context)
 {
     PanelsSignatureAsk *const ask = (PanelsSignatureAsk *)context;
     EMBED_CALL(panels_signature_hide, PanelsCtx, .at = 0u);
-    s_panels.signature_shown = ask->found;
+    s_panels.signature_displayed = ask->found;
     ask->found = 0;
     s_panels.signature_asking = 0;
 }
@@ -1443,26 +1443,26 @@ static void panels_serve_job(const CliServersJobCfg *args)
     }
 }
 
-// the serve job `job` with `size` bytes of `text` after it laid in a cell of this call's own and handed to a thread of
+// the serve job `job` with `size` bytes of `text` after it positioned in a cell of this call's own and passed to a thread of
 // the servers in a cell of theirs: 1, or 0 where the cells cannot meet it
 static int panels_serve_later(const PanelsServeJob *job, const char *text, unsigned long long size)
 {
-    char *const laid = g_cli_guard->temporary_buf_alloc(sizeof(*job) + size, g_cli_servers_owner);
-    if (laid == NULL)
+    char *const positioned = g_cli_guard->temporary_buf_alloc(sizeof(*job) + size, g_cli_servers_owner);
+    if (positioned == NULL)
     {
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = laid, .src = job, .bytes = sizeof(*job)});
-    ((PanelsServeJob *)(void *)laid)->size = size;
+    memor.cpy(&(MemoriaCfg){.dst = positioned, .src = job, .bytes = sizeof(*job)});
+    ((PanelsServeJob *)(void *)positioned)->size = size;
     if (size != 0ULL)
     {
         // a text the editor holds fits a embed_word
-        memor.cpy(&(MemoriaCfg){.dst = laid + sizeof(*job), .src = text, .bytes = (embed_word)size});
+        memor.cpy(&(MemoriaCfg){.dst = positioned + sizeof(*job), .src = text, .bytes = (embed_word)size});
     }
-    const int handed = EMBED_CALL(cli_servers_run_internal.later, CliServersRunCtx, .run = panels_serve_job,
-                                  .job = laid, .size = sizeof(*job) + size);
-    g_cli_guard->persistent_buf_release(laid, g_cli_servers_owner);
-    return handed;
+    const int passed = EMBED_CALL(cli_servers_run_internal.later, CliServersRunCtx, .run = panels_serve_job,
+                                  .job = positioned, .size = sizeof(*job) + size);
+    g_cli_guard->persistent_buf_release(positioned, g_cli_servers_owner);
+    return passed;
 }
 
 // the view under `key` opened in its language's server: the open lined up for a thread of the servers with the view's
@@ -1505,7 +1505,7 @@ static void panels_open_send(const char *key)
     }
 }
 
-// the view under `key`, about to close, let go of its server, the server closed where no view stands served at its file
+// the view under `key`, about to close, let go of its server, the server closed where no view is served at its file
 static void panels_closing(const char *key)
 {
     char full[CLI_PATH_MAX_LEN];
@@ -1550,7 +1550,7 @@ static void panels_sync_post(const PanelsCtx *args)
     }
 }
 
-// where the view of the tab shown rests sent to the server on a thread of the servers, the view opened in its server
+// where the view of the tab displayed rests sent to the server on a thread of the servers, the view opened in its server
 // first where it is not served yet
 EMBED_INLINE void panels_view_send(const PanelsCtx *args)
 {
@@ -1591,7 +1591,7 @@ EMBED_INLINE void panels_view_send(const PanelsCtx *args)
     }
 }
 
-// a frame laid of a view: where it is the view shown's, its cursor, its top line of its lines and its rows taken as the
+// a frame positioned of a view: where it is the view displayed's, its cursor, its top line of its lines and its rows taken as the
 // panels follow them, the server asked again where the cursor or the view moved
 static void panels_drawn(const CliViewDrawn *args)
 {
@@ -1618,7 +1618,7 @@ static void panels_drawn(const CliViewDrawn *args)
     }
     const int moved = (args->cursor.line != s_panels.signature_position.line) ||
                       (args->cursor.col != s_panels.signature_position.col);
-    if (s_panels.signature_shown && !s_panels.signature_asking && moved)
+    if (s_panels.signature_displayed && !s_panels.signature_asking && moved)
     {
         EMBED_CALL(panels_signature_ask, PanelsCtx, .at = 0u);
     }
@@ -1666,14 +1666,14 @@ int cli_servers_panels_step(void)
     return did;
 }
 
-// the views' moments the panels take: each frame laid and each view about to close. A view is opened in its server as
+// the views' moments the panels take: each frame positioned and each view about to close. A view is opened in its server as
 // it first rests, not as it opens
 static const CliViewWatcher s_panels_watcher = {panels_drawn, NULL, panels_closing};
 
 void cli_servers_panels_begin(const char *root)
 {
     s_panels.root = root;
-    // the list's cell taken once at its most
+    // the list's cell taken once at its max
     if (s_panels.completion == NULL)
     {
         s_panels.completion = g_cli_guard->movable_buf_alloc(sizeof(PanelsCompletion), g_cli_servers_owner);
@@ -1692,7 +1692,7 @@ void cli_servers_panels_end(void)
 
 int cli_servers_panels_hover(CliHoverPanel *panel)
 {
-    if (!s_panels.hover_shown)
+    if (!s_panels.hover_displayed)
     {
         return 0;
     }
@@ -1725,7 +1725,7 @@ int cli_servers_panels_completion(CliCompletionPanel *panel)
 
 int cli_servers_panels_completion_row(unsigned int row, CliCompletionRow *out)
 {
-    // a row's texts copied out of the cell into the rows' own bytes, one set a row shown, which the caller reads
+    // a row's texts copied out of the cell into the rows' own bytes, one set a row displayed, which the caller reads
     // before the list changes
     static char s_label[CLI_COMPLETION_ROWS][CLI_PANELS_LABEL_MAX];
     static char s_type[CLI_COMPLETION_ROWS][CLI_PANELS_TYPE_MAX];
@@ -1793,5 +1793,5 @@ int cli_servers_panels_completion_row(unsigned int row, CliCompletionRow *out)
 
 const CliSignaturePanel *cli_servers_panels_signature(void)
 {
-    return s_panels.signature_shown ? &s_panels.signature.panel : NULL;
+    return s_panels.signature_displayed ? &s_panels.signature.panel : NULL;
 }

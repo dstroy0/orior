@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// The device pool (engine/runtime/device_pool): a job's device buffers as slices of one allocation. A plan lays out
+// The device pool (engine/runtime/device_pool): a job's device buffers as slices of one allocation. A plan arranges
 // each slice at the running sum rounded up to 256 bytes, and the pool is the sum rounded up to the 2 MiB page once:
-// a job knows the bytes it declares before any device work. Eight slices of none to 1,000 bytes are laid out at offsets
+// a job knows the bytes it declares before any device work. Eight slices of none to 1,000 bytes are arranged at offsets
 // worked by hand; single slices on either side of a page round as worked by hand; a plan that would pass 2^62 bytes
 // is spoiled and names no pool, and its reserve errors. The pool is reserved as one allocation: each take in the plan's
-// order returns the slice the plan laid out, a kernel writes each slice and another reads it back with nothing landing
+// order returns the slice the plan arranged, a kernel writes each slice and another reads it back with nothing landing
 // between slices, a take past the pool errors and leaves the pool as it was, and a return gives every slice back.
 // The pool's cost is read through the counter tessera's daemon reads, for the tower's four buffers as one pool and as
 // four allocations. The test is one job on the device's tessera daemon, submitted before its first device work.
@@ -57,7 +57,7 @@ static const unsigned long long s_device_pool_test_paged[DEVICE_POOL_TEST_PAGING
 
 #define DEVICE_POOL_TEST_TOWER_BUFFERS 4u
 
-// the most the test allocates at once is the tower's four buffers as four allocations, each page-rounded: 6, 6 and 2
+// the max the test allocates at once is the tower's four buffers as four allocations, each page-rounded: 6, 6 and 2
 // MiB for the two small ones sharing a page
 #define DEVICE_POOL_TEST_DECLARED (16ull << 20u)
 
@@ -92,7 +92,7 @@ __global__ static void device_pool_test_count(const unsigned char *slice, unsign
 // an error the pool raised as a request it cannot meet
 static int device_pool_test_error(long result, const EngineError *error)
 {
-    return (result == DEVICE_POOL_ERROR) && (error->kind == ENGINE_ERROR_REQUEST) &&
+    return (result == DEVICE_POOL_ERROR) && (error->type == ENGINE_ERROR_REQUEST) &&
            (error->module == ENGINE_MODULE_DEVICE_POOL);
 }
 
@@ -106,10 +106,10 @@ static void device_pool_test_plan(SimResults *results)
         offsets_ok = offsets_ok && (offset == s_device_pool_test_offset[at]);
     }
     sim_check(results, offsets_ok,
-              "each slice is laid out at the offset worked by hand, the running sum rounded up to 256 bytes");
+              "each slice is arranged at the offset worked by hand, the running sum rounded up to 256 bytes");
     sim_check(results,
               (plan.bytes == DEVICE_POOL_TEST_SUM) && (plan.slices == DEVICE_POOL_TEST_SLICES) && (plan.spoiled == 0),
-              "the plan's sum is its last slice's end, over every slice laid out");
+              "the plan's sum is its last slice's end, over every slice arranged");
     sim_check(results, device_pool_plan_bytes(&plan) == 2097152ull, "the plan's 2,568 bytes are a pool of one page");
     int paged = 1;
     for (unsigned int at = 0u; at < DEVICE_POOL_TEST_PAGINGS; at += 1u)
@@ -120,14 +120,14 @@ static void device_pool_test_plan(SimResults *results)
     }
     sim_check(results, paged,
               "a pool is its plan's sum rounded up to the 2 MiB page once, and a plan of nothing no pool");
-    DevicePoolPlan maximum = {0ull, 0ull, 0};
-    device_pool_plan_slice(&maximum, 1ull << 62u);
-    sim_check(results, (maximum.spoiled == 0) && (device_pool_plan_bytes(&maximum) == (1ull << 62u)),
+    DevicePoolPlan max = {0ull, 0ull, 0};
+    device_pool_plan_slice(&max, 1ull << 62u);
+    sim_check(results, (max.spoiled == 0) && (device_pool_plan_bytes(&max) == (1ull << 62u)),
               "a plan of 2^62 bytes is valid, and is its own pool");
-    device_pool_plan_slice(&maximum, 1ull);
+    device_pool_plan_slice(&max, 1ull);
     sim_check(results,
-              (maximum.spoiled != 0) && (maximum.bytes == (1ull << 62u)) && (maximum.slices == 1ull) &&
-                  (device_pool_plan_bytes(&maximum) == 0ull),
+              (max.spoiled != 0) && (max.bytes == (1ull << 62u)) && (max.slices == 1ull) &&
+                  (device_pool_plan_bytes(&max) == 0ull),
               "a byte past 2^62 spoils the plan, its sum and count left as they were, and it names no pool");
     DevicePoolPlan wide = {0ull, 0ull, 0};
     device_pool_plan_slice(&wide, 1ull);
@@ -135,7 +135,7 @@ static void device_pool_test_plan(SimResults *results)
     device_pool_plan_slice(&wide, 1ull);
     sim_check(
         results, (wide.spoiled != 0) && (wide.bytes == 1ull) && (wide.slices == 1ull),
-        "a slice of 2^64 - 1 bytes spoils the plan without wrapping its sum, and a spoiled plan lays out nothing more");
+        "a slice of 2^64 - 1 bytes spoils the plan without wrapping its sum, and a spoiled plan arranges nothing more");
 }
 
 static void device_pool_test_reserve(SimResults *results)
@@ -163,7 +163,7 @@ static void device_pool_test_reserve(SimResults *results)
     const DevicePoolReserveRequest from_empty = {&empty, &pool, &error};
     sim_check(results,
               (device_pool_reserve(&from_empty) == 0L) && (pool.base == NULL) && (pool.bytes == 0ull) &&
-                  (pool.used == 0ull) && (error.kind == ENGINE_ERROR_NONE),
+                  (pool.used == 0ull) && (error.type == ENGINE_ERROR_NONE),
               "a plan of nothing reserves an empty pool and allocates nothing");
     device_pool_release(&pool);
 }
@@ -232,7 +232,7 @@ static void device_pool_test_slices(SimResults *results)
         slice[at] = (unsigned char *)slice_base;
     }
     sim_check(results, taken && (pool.used == DEVICE_POOL_TEST_SUM),
-              "each take in the plan's order returns the slice the plan laid out");
+              "each take in the plan's order returns the slice the plan arranged");
     // the pool is one page, 2 MiB
     int ran = taken && sim_status_check(results, cudaMemset(pool.base, 0, (size_t)pool.bytes), "the pool is zeroed");
     // the last slice, 8 bytes on a 256-byte boundary, stores the kernels' count

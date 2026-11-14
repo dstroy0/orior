@@ -201,7 +201,7 @@ def main():
         print("    agree on where the trough is.")
         print()
         print("    So the trough hour is not a stable property of this corpus, and the geography")
-        print("    reading built on it is not supported. The AMPLITUDE result stands - it was drawn")
+        print("    reading built on it is not supported. The AMPLITUDE result is - it was drawn")
         print("    against a proper null and correctly called marginal - but a chi-square is")
         print("    invariant to relabeling the bins: it never spoke to the phase at all.")
         print()
@@ -215,7 +215,7 @@ def main():
             print("    The time-split halves do NOT agree (p = %.3f). Since the interleaved split" % time_p)
             print("    rules out noise, a real phase that MOVED between the halves is the reading")
             print("    that survives - what the migration claim predicts, and it is now")
-            print("    evidence for it, not an interpretation laid over it.")
+            print("    evidence for it, not an interpretation positioned over it.")
         else:
             span_days = (blocks[-1]["timestamp"] - blocks[0]["timestamp"]) / 86400.0
             print("    The time-split halves agree too (p = %.3f): the phase is stable across"

@@ -8,7 +8,7 @@
 #include "../text/json_tree.h"
 #include "../text/text.h"
 
-// the most addresses logged, and the bytes an address's line written is taken with past the file
+// the max addresses logged, and the bytes an address's line written is taken with past the file
 #define CLI_NET_LOG_MAX_LINES 1000u
 
 #define CLI_NET_LINE_MORE (4ULL << 10u)

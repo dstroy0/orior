@@ -2,7 +2,7 @@
   "id": "zig",
   "name": "Zig",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "extensions": ["zig","zon"],
   "comments": {"line":"//"},
   "pairs": ["()","[]","{}"],

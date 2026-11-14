@@ -207,7 +207,7 @@ int psi_value_compare(const PsiValue *left, const PsiValue *right, unsigned long
     return psi_value_sign(&difference, base);
 }
 
-// the exact rational a sparse value stands for, when every exponent is small enough to expand
+// the exact rational a sparse value is for, when every exponent is small enough to expand
 SimRational psi_value_expand(const PsiValue *value, unsigned long long base)
 {
     SimRational total = sim_rational(0ll, 1ll);

@@ -17,7 +17,7 @@
 #
 # The treatment matches the one given to pictures: quantize the values, read the sequence, and let the
 # measure see a domain and not a recording. Audio is decoded to 8 kHz mono at one byte a sample,
-# consecutive samples are far enough apart in time that the waveform's own smoothness does not stand for
+# consecutive samples are far enough apart in time that the waveform's own smoothness does not are for
 # all of the structure.
 
 import os
@@ -103,7 +103,7 @@ def to_samples(blob, scratch):
         return None, "no audio frames"
     blocks = numpy.concatenate(pieces).astype("float32") / 32768.0
 
-    # Scaled to the range actually used, which keeps a quiet recording out of a handful of levels
+    # Scaled to the range actually used, which retains a quiet recording out of a handful of levels
     span = float(max(abs(blocks.max()), abs(blocks.min())) or 1.0)
     scaled = numpy.clip(((blocks / span) * 127.0 + 128.0), 1, 255).astype("uint8")
     return scaled.tobytes(), ""

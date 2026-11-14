@@ -4,7 +4,7 @@
 // tessera end to end: the client against the built daemon on this device. The client starts the daemon when no
 // daemon answers. Every job is reserved its declaration over the bytes its process already occupied as it requested,
 // which the daemon measures and reports on admission; the test retains its first job's memory: every later job's
-// process stands on it. A job declaring less than it then occupies is admitted on its declaration and informed it grew;
+// process is on it. A job declaring less than it then occupies is admitted on its declaration and informed it grew;
 // its peak is recorded under its signum. The same signum declaring four times that peak is prompted, and admitted on
 // the override. Declaring within the peak it is admitted at once. Declaring over it again with no answer, it is
 // reserved past its grace time and lost, its ticket naming the lost and found place; the precalc saved there releases
@@ -222,9 +222,9 @@ int main(int count, char **arguments)
     TesseraTicket ticket;
     long answer = tessera_job_submit(&submit, &client, &ticket);
     job_check((answer == 0L) && (ticket.over_budget == 0u) && (ticket.lost == 0u) &&
-                  (ticket.granted == (ticket.standing + JOB_TEST_DECLARED)),
+                  (ticket.granted == (ticket.located + JOB_TEST_DECLARED)),
               "a job never seen is admitted on its declaration over what its process occupied");
-    printf("  its process occupied %llu bytes as it requested\n", ticket.standing);
+    printf("  its process occupied %llu bytes as it requested\n", ticket.located);
     void *device_memory = NULL;
     job_check(cudaMalloc(&device_memory, JOB_TEST_BYTES) == cudaSuccess, "the job takes device memory");
     job_check(cudaMemset(device_memory, 1, JOB_TEST_BYTES) == cudaSuccess, "the job touches it");
@@ -243,18 +243,18 @@ int main(int count, char **arguments)
     job_check((answer == 0L) && (ticket.over_budget != 0u), "declaring four times the recorded peak is prompted");
     job_check((answer == 0L) && (ticket.last_peak == peak), "the prompt names the recorded peak");
     answer = (answer == 0L) ? tessera_job_override(client, &ticket, &error) : -1L;
-    job_check((answer == 0L) && (ticket.over_budget == 0u) && (ticket.granted == (ticket.standing + (4ull * peak))),
+    job_check((answer == 0L) && (ticket.over_budget == 0u) && (ticket.granted == (ticket.located + (4ull * peak))),
               "the override admits it on its declaration over what its process occupied");
-    job_check((answer == 0L) && (ticket.standing >= JOB_TEST_BYTES),
-              "the memory its process retained from the first job is measured as standing");
-    printf("  standing on the first job's memory: %llu bytes\n", ticket.standing);
+    job_check((answer == 0L) && (ticket.located >= JOB_TEST_BYTES),
+              "the memory its process retained from the first job is measured as located");
+    printf("  located on the first job's memory: %llu bytes\n", ticket.located);
     answer = (answer == 0L) ? tessera_job_release(client, &ticket, &error) : -1L;
     job_check(answer == 0L, "the overridden job releases");
 
     // 3: within its peak it is admitted at once
     submit.declared = peak;
     answer = tessera_job_submit(&submit, &client, &ticket);
-    job_check((answer == 0L) && (ticket.over_budget == 0u) && (ticket.granted == (ticket.standing + peak)),
+    job_check((answer == 0L) && (ticket.over_budget == 0u) && (ticket.granted == (ticket.located + peak)),
               "declaring the recorded peak is admitted, over what its process occupied");
     answer = (answer == 0L) ? tessera_job_release(client, &ticket, &error) : -1L;
     job_check(answer == 0L, "that job releases");

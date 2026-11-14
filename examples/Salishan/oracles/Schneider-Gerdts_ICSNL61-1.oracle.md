@@ -5,10 +5,10 @@ Gerdts, Simon Fraser University, ICSNL 61.
 
 Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
-pure corpus, then against this paper's own English laid over that reference. What the paper's
+pure corpus, then against this paper's own English positioned over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
 from the characters that sit outside that English, and word_web.web() built 173 edges over the
-language forms. A person then matched the context: who, kind and gloss for each row, the names,
+language forms. A person then matched the context: who, type and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
 someone reads the paper again and says otherwise.
@@ -24,10 +24,10 @@ The who for each line of an example and each cell of a table is Hul’q’umi’
 translations were made by the research team that edited the stories, and carry the authors. The
 prose, the notes and the references carry the authors.
 
-THE LETTERS
+THE CHARACTERS
 
-Outside the paper's English the engine found these letters and marks: č ł š ƛ ǝ ə ɬ ʔ ʷ ː ̌ ̓ θ ᶿ.
-The first line of an example is the Hul’q’umi’num’ practical orthography, plain letters with ’ for
+Outside the paper's English the engine found these characters and marks: č ł š ƛ ǝ ə ɬ ʔ ʷ ː ̌ ̓ θ ᶿ.
+The first line of an example is the Hul’q’umi’num’ practical orthography, plain characters with ’ for
 glottalization and the glottal stop, and periods inside a word for rhetorical lengthening,
 swa.a.aw’lus. The second is the phonemic line, with ə, ʔ, ł, š, č, ƛ̓, x̌, the raised theta of tᶿ
 (U+1DBF), ʷ and ̓. √ marks a root.
@@ -36,7 +36,7 @@ THE PAGE AND THE TEXT LAYER
 
 The forms are in NFC, and the check puts the text layer through the same repair: the space the PDF
 sets after a stacked mark is closed, except before an opening quote, then NFC. The engine reads the
-practical orthography as English, since it has no letter outside English, and a line with glottal
+practical orthography as English, since it has no character outside English, and a line with glottal
 apostrophes and a tier or translation below it is read as a first line. The tables are set one cell
 to a line, and each row is rebuilt under its line label.
 
@@ -50,7 +50,7 @@ where    the paper's locator: the title, the front matter, a section, a footnote
 who      the language for an example tier and a cited form; the work cited on an example's
          line, or the speaker for a volunteered translation, for its English; the authors for
          the prose, the tables and the notes
-kind     transcription  an example tier in the orthography
+type     transcription  an example tier in the orthography
          segmentation   an example tier broken into morphemes
          gloss          the morpheme gloss tier of an example
          translation    the English of an example

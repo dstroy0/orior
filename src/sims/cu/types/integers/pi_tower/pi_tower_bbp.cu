@@ -183,7 +183,7 @@ PiWide pi_tower_depth_position(const PiWide &depth, unsigned int *window)
     const PiWide range = pi_tower_unsigned(64ull);
     if (pi_tower_compare(depth, range) <= 0)
     {
-        // at most 64
+        // at max 64
         *window = (unsigned int)pi_tower_word(depth);
         return pi_tower_unsigned(0ull);
     }
@@ -289,7 +289,7 @@ void pi_tower_segment_request(SimResults *results, int count, char **arguments, 
     const unsigned long long lanes = pi_tower_bbp_lanes();
     unsigned long long declared = 0ull;
     const int planned = (lanes != 0ull) && pi_tower_segment_declared(position, digits, lanes, &declared, &error);
-    sim_check(results, planned, "engine: keymath encodes and the scheduler lays out the term, tail and pair programs");
+    sim_check(results, planned, "engine: keymath encodes and the scheduler arranges the term, tail and pair programs");
     if ((planned == 0) || !sim_job_submit(results, "pi_tower", count, arguments, declared))
     {
         return;

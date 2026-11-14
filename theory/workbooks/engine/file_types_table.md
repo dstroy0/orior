@@ -7,10 +7,10 @@ proposed, it is checked against this table and against the whole biohub tree, or
 
 | Extension | What it is | Named by |
 |---|---|---|
-| `.kcr` | Kolmogorov information crystal: its own compression format. It reads every source format, takes each format's own compression out, and can rebuild the data into any format (Doug). krep kind "KCR\0", version 1. The only crystal format. | Doug |
+| `.kcr` | Kolmogorov information crystal: its own compression format. It reads every source format, takes each format's own compression out, and can rebuild the data into any format (Doug). krep type "KCR\0", version 1. The only crystal format. | Doug |
 | `.krs` | Kolmogorov information ruleset: one language's forms (`ptx.krs`, `c.krs`, `vhdl.krs`). | Doug |
-| `.kcs` | Kolmogorov information construction set: what reconstructs information. A target's forms and their costs are its construction set. krep kind "KCS\0". | Doug |
-| `.knf` | Kolmogorov noise floor. A sample's floor is its entropy history. krep kind "KNF\0". | Doug |
+| `.kcs` | Kolmogorov information construction set: what reconstructs information. A target's forms and their costs are its construction set. krep type "KCS\0". | Doug |
+| `.knf` | Kolmogorov noise floor. A sample's floor is its entropy history. krep type "KNF\0". | Doug |
 | `.kdm` | Kolmogorov device map: the hardware map. | Doug |
 | `.ksc` | Kolmogorov system classification: the language map. | Doug |
 | `.kqr` | Kolmogorov query record: every ask put to a member and what came back, then the paths read off those asks (`includes/file_defs/kqr`). | Doug |

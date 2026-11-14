@@ -46,7 +46,7 @@ void test_round_takes_a_half_away_from_zero(void)
     TEST_ASSERT_EQUAL_FLOAT(13.0F, arith_round_f32(12.5F));
 }
 
-void test_absolute_value_least_most_and_remainder(void)
+void test_absolute_value_least_max_and_remainder(void)
 {
     TEST_ASSERT_EQUAL_DOUBLE(2.5, arith_abs(-2.5));
     TEST_ASSERT_EQUAL_DOUBLE(2.5, arith_abs(2.5));

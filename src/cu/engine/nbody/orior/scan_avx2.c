@@ -18,10 +18,10 @@
  *
  * The survivor mask enters the same way. An alignment already refuted contributes nothing. The
  * count is a population count over the AND of two masks: where the corpus agrees, and where the
- * alignment was still standing.
+ * alignment was still located.
  *
  * WHAT THIS ARM IS NOT ALLOWED TO DO. It returns the portable arm's count or it has a defect. There
- * is no tolerance, no reordering that changes an answer, and no fast path that is right most of the
+ * is no tolerance, no reordering that changes an answer, and no fast path that is right the majority of the
  * time: the value is an integer count of alignments and the two arms agree exactly or one is wrong.
  * That is the contract includes/exact_types/integers/arm.h states for the exact arms and it is retained here for the
  * same reason.
@@ -111,7 +111,7 @@ size_t orior_steer_truthy_after_avx2(const uint8_t *corpus, size_t alignments, c
 
     const __m256i broadcast = _mm256_set1_epi8((char)wanted);
     const __m256i zero = _mm256_setzero_si256();
-    size_t standing = 0u;
+    size_t located = 0u;
     size_t at = 0u;
 
     for (; (at + ORIOR_STEER_LANES) <= alignments; at += ORIOR_STEER_LANES)
@@ -119,18 +119,18 @@ size_t orior_steer_truthy_after_avx2(const uint8_t *corpus, size_t alignments, c
         /* Unaligned loads. The corpus window starts at an arbitrary offset and forcing
          * alignment would mean copying, which costs more than the load does. */
         const __m256i window = _mm256_loadu_si256((const __m256i *)(corpus + at + offset));
-        const __m256i standing_bytes = _mm256_loadu_si256((const __m256i *)(alive + at));
+        const __m256i located_bytes = _mm256_loadu_si256((const __m256i *)(alive + at));
 
         const __m256i agrees = _mm256_cmpeq_epi8(window, broadcast);
 
-        /* An alive flag is zero or non-zero. The mask of alignments still standing is the
+        /* An alive flag is zero or non-zero. The mask of alignments still located is the
          * complement of "equals zero". Testing against zero and complementing instead of testing
          * against one retains this correct if a caller ever stores a flag other than one. */
-        const __m256i refuted = _mm256_cmpeq_epi8(standing_bytes, zero);
+        const __m256i refuted = _mm256_cmpeq_epi8(located_bytes, zero);
         const __m256i alive_mask = _mm256_andnot_si256(refuted, _mm256_set1_epi8((char)0xFF));
 
         const unsigned int bits = (unsigned int)_mm256_movemask_epi8(_mm256_and_si256(agrees, alive_mask));
-        standing += steer_popcount(bits);
+        located += steer_popcount(bits);
     }
 
     for (; at < alignments; at += 1u)
@@ -141,10 +141,10 @@ size_t orior_steer_truthy_after_avx2(const uint8_t *corpus, size_t alignments, c
         }
         if (corpus[at + offset] == wanted)
         {
-            standing += 1u;
+            located += 1u;
         }
     }
-    return standing;
+    return located;
 }
 
 const OriorSteerEngine *orior_steer_avx2_engine(void)

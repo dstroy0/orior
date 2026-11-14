@@ -41,12 +41,12 @@ test("orior's server and the window are parts of orior's own, each with the chan
   await openWindow();
   await ui.waitFor(() => named("window").length > 0);
   const [server] = named("orior");
-  const [shown] = named("window");
+  const [displayed] = named("window");
   assert.ok(server && /in orior/.test(server.detail) && /speaks on \*/.test(server.detail), JSON.stringify(commsShown().parts));
-  assert.ok(/listens on \*/.test(shown.detail) && /speaks on nothing/.test(shown.detail), shown.detail);
+  assert.ok(/listens on \*/.test(displayed.detail) && /speaks on nothing/.test(displayed.detail), displayed.detail);
 });
 
-test("what the server tells the window goes over channels the window counts, each one's last messages shown when pressed", async () => {
+test("what the server tells the window goes over channels the window counts, each one's last messages displayed when pressed", async () => {
   await openWindow();
   // A file written outside the editor: the tree's watch tells the window of it.
   await invoke("file_write", { path: "comms_told.txt", text: String(Date.now()) });
@@ -89,7 +89,7 @@ test("a terminal is a part while its shell runs, and a run tabvla starts in it i
   assert.equal(started.file, "hello.py");
   assert.equal(ended.state, "ended");
   assert.equal(ended.code, 0, "the run ended well");
-  // The panel keeps a shell ready once its last one is closed: the closed shell's part leaves, and
+  // The panel retains a shell ready once its last one is closed: the closed shell's part leaves, and
   // the ready shell's joins.
   killTerminal();
   await openWindow();

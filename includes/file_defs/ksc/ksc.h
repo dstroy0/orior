@@ -17,7 +17,7 @@ extern "C"
 {
 #endif
 
-// the most letters of a channel, of an answer, of a word and of a question
+// the max characters of a channel, of an answer, of a word and of a question
 #define KSC_CHANNEL 16u
 #define KSC_ANSWER 16u
 #define KSC_WORD 32u
@@ -41,7 +41,7 @@ extern "C"
     // is no such file; 0 where there was no memory for a line
     int ksc_read(KscFile *file, const char *path);
 
-    // `file` handed to the run's writer as the file at `path`, written by `who` (kfile_lines_write_by): 1, or 0 where it
+    // `file` passed to the run's writer as the file at `path`, written by `who` (kfile_lines_write_by): 1, or 0 where it
     // could not be written
     int ksc_write_by(const KscFile *file, const char *path, Who who);
 
@@ -60,7 +60,7 @@ extern "C"
     int ksc_field_read(const char *line, char *name, size_t room, unsigned int *from, unsigned int *width);
 
     // Every row of `channel` whose question begins with the words `question_prefix` let go, whatever came back, and
-    // `rows`, `count` of them, put by `who` where the first row of the question stood, so that a row put again retains
+    // `rows`, `count` of them, put by `who` where the first row of the question was, so that a row put again retains
     // its place; where the file contains none of the question, after the last row of the channel it retains, or after
     // its last line where it retains none of the channel (kfile_lines_put_by). Each count of the channel, `count
     // <channel> <answer> <number>`, is taken again over the rows it then contains, and every who line left over no line

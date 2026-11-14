@@ -18,7 +18,7 @@
 # unvoiced or mark aspiration; Malayalam writes with a large one that does both. Nothing about the reading
 # can see past that, because the characters are all it has.
 #
-# The scripts are alignable, and not by hand. Unicode lays the Indic blocks out in parallel by design:
+# The scripts are alignable, and not by hand. Unicode positions the Indic blocks out in parallel by design:
 # each occupies 128 positions and the same sound sits at the same offset in every one of them. A
 # character's position inside its own block is a statement about the sound and never about the script. That
 # is a transliteration with no judgement in it and no losses chosen by me.
@@ -83,8 +83,8 @@ def main():
             continue
         cut = text[:SAME_LENGTH]
         first = web(cut, RANKS)
-        # Every distinction any of the scripts records is kept; only which script wrote it goes
-        second = web(collapsed(cut, keep_aspiration=True), RANKS)
+        # Every distinction any of the scripts records is retained; only which script wrote it goes
+        second = web(collapsed(cut, retain_aspiration=True), RANKS)
         if (first is not None) and (second is not None):
             plain[language] = first
             held[language] = second

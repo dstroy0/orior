@@ -18,7 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the most bytes a container takes, the most places its code contains, the bytes of one instruction, and the most
+// the max bytes a container takes, the max places its code contains, the bytes of one instruction, and the max
 // endings the container records
 #define KHW_PATTERN_BYTES 262144u
 
@@ -28,7 +28,7 @@
 
 #define KHW_EXITS 64u
 
-// the most pieces the vendor's table contains, and the longest piece and the longest column of reads in it
+// the max pieces the vendor's table contains, and the longest piece and the longest column of reads in it
 #define KHW_PIECES 128u
 
 #define KHW_PIECE 32u
@@ -49,7 +49,7 @@
 #define KHW_PIECE_SIGNED "S32"
 
 // what a run's operand is, as the protocol answered it beside its place: a register, a pair of registers an address
-// is read through, a number, or a predicate; and the letter each is written as after the place in the answers
+// is read through, a number, or a predicate; and the character each is written as after the place in the answers
 #define KHW_KIND_REGISTER 0u
 
 #define KHW_KIND_ADDRESS 1u
@@ -60,7 +60,7 @@
 // a run of the constant bank's operand: the offset read from the bank, and the bank, where the walks found a run of it
 #define KHW_KIND_CONSTANT 4u
 
-#define KHW_KIND_LETTERS "ranpc"
+#define KHW_KIND_CHARACTERS "ranpc"
 
 // What the protocol answered of one form, read from the answers file: the relation every case of it answered, whether
 // the answers read a word signed and whether a case of the relation let the part answer so, the encoding, and the
@@ -76,7 +76,7 @@ typedef struct
     unsigned int first[SASS_MACHINE_RUNS];
     unsigned int last[SASS_MACHINE_RUNS];
     unsigned int place[SASS_MACHINE_RUNS];
-    unsigned int kind[SASS_MACHINE_RUNS];
+    unsigned int type[SASS_MACHINE_RUNS];
 } KhwForm;
 
 extern unsigned char s_pattern[KHW_PATTERN_BYTES];
@@ -89,7 +89,7 @@ extern SassMachine s_machine;
 
 unsigned long long khw_word_read(const unsigned char *instruction, unsigned int byte);
 int khw_pieces_read(const char *path);
-const char *khw_piece_reading(const char *kind, const char *word);
+const char *khw_piece_reading(const char *type, const char *word);
 // the field the part's .ksc names the guard, `first` and `bits`: a predicate run inside it prints as the guard, and
 // one outside it as an operand in its order; with none set, every predicate run is the guard
 void khw_guard_field_set(unsigned int first, unsigned int bits);
@@ -98,12 +98,12 @@ int khw_form_store(SassMachine *machine, const KhwForm *form, const char *text);
 int khw_kernel_read(const char *path);
 unsigned int khw_kernel_forms_store(void);
 unsigned int khw_answers_read(const char *answers, KhwForm *form, unsigned int room);
-// the blob the texts the protocol hands are handed back in, assembled, and the most instructions a text contains
+// the blob the texts the protocol passes are passed back in, assembled, and the max instructions a text contains
 #define KHW_ASSEMBLED "assembled.bin"
 
-#define KHW_ASSEMBLED_MOST 4096u
+#define KHW_ASSEMBLED_MAX 4096u
 
-// the most texts one call assembles, the most bytes one text contains, and the blob the reason goes in where a call's
+// the max texts one call assembles, the max bytes one text contains, and the blob the reason goes in where a call's
 // texts were not assembled
 #define KHW_ASSEMBLED_TEXTS 256u
 #define KHW_ASSEMBLED_TEXT_BYTES (1u << 20u)

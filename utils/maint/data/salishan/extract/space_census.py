@@ -1,9 +1,9 @@
 """Count, for one paper, the text layer lines the glyph positions space more and the ones they space
-less, among lines holding the same letters.
+less, among lines holding the same characters.
 
 usage: python space_census.py <stem> [examples]
 
-A paper whose text layer drops spaces, Thispaperreexamines, has many lines of the first kind. One
+A paper whose text layer drops spaces, Thispaperreexamines, has many lines of the first type. One
 whose text layer puts a space at every font change, n ɬeʔkepmxcín, has many of the second.
 """
 import os
@@ -18,15 +18,15 @@ def main():
     stem = sys.argv[1]
     show = int(sys.argv[2]) if len(sys.argv) > 2 else 0
     document = pdfium.PdfDocument(os.path.join(CORPUS, "papers", stem + ".pdf"))
-    by_letters = {}
+    by_characters = {}
     for one in gap_lines(document):
-        by_letters.setdefault("".join(one.split()), one)
+        by_characters.setdefault("".join(one.split()), one)
     with open(os.path.join(CORPUS, "papers", stem + ".txt"), encoding="utf-8") as handle:
         layer = [line.rstrip() for line in handle.read().split("\n")]
     more = fewer = same = unmatched = 0
-    shown = []
+    displayed = []
     for line in layer:
-        spaced = by_letters.get("".join(line.split()))
+        spaced = by_characters.get("".join(line.split()))
         if spaced is None:
             unmatched += 1
             continue
@@ -35,13 +35,13 @@ def main():
             more += 1
         elif theirs < own:
             fewer += 1
-            if len(shown) < show:
-                shown.append((line, spaced))
+            if len(displayed) < show:
+                displayed.append((line, spaced))
         else:
             same += 1
     print("%s: glyph positions space %d lines more, %d less, %d the same, %d without a match"
           % (stem, more, fewer, same, unmatched))
-    for line, spaced in shown:
+    for line, spaced in displayed:
         print("  layer: %s\n  glyph: %s" % (line, spaced))
 
 

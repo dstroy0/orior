@@ -116,7 +116,7 @@ extern "C"
         unsigned char bytes[ENGINE_SIGNUM_BYTES];
     } EngineSignum;
 
-    // A program resident on the device maintains a block: what it is, what the scheduler sends it, where it stands and
+    // A program resident on the device maintains a block: what it is, what the scheduler sends it, where it is and
     // how it left. The program runs on its own, checks in to its block as it goes, and yields before its time to live
     // runs out, leaving in the block all a launch needs to resume it. The scheduler writes only the command; the
     // program writes the rest while a launch references the block, and the checksum seals the block whenever none does.
@@ -128,7 +128,7 @@ extern "C"
         ENGINE_PROGRAM_STOP = 2
     } EngineProgramCommand;
 
-    // where a program stands: running, yielded to be resumed, waiting for its grant, or one of its exits. A question's
+    // where a program is: running, yielded to be resumed, waiting for its grant, or one of its exits. A question's
     // exits are true, false, malformed (it built no lattice) and answered (the answer table contained it); a sweep's is
     // done, its records written. A waiting program's grant is more than the scheduler has free, and it runs once the
     // space frees
@@ -147,12 +147,12 @@ extern "C"
         ENGINE_PROGRAM_WAITING = 10
     } EngineProgramState;
 
-// the blocks one program reads from and is read by, at most
+// the blocks one program reads from and is read by, at max
 #define ENGINE_PROGRAM_LINKS 4u
 
     typedef struct
     {
-        // what it is: its signum, the run it was laid out for, and the launch that runs it
+        // what it is: its signum, the run it was arranged for, and the launch that runs it
         EngineSignum signature;
         unsigned long long generation;
         unsigned long long owner;
@@ -164,7 +164,7 @@ extern "C"
         unsigned long long grant_threads;
         unsigned long long grant_bytes;
         unsigned long long grant_shared;
-        // where it stands (EngineProgramState): the next lane it runs (execaddr), the step it left inside a lane
+        // where it is (EngineProgramState): the next lane it runs (execaddr), the step it left inside a lane
         // (evacaddr, 0 where it leaves between lanes), the register map's limbs, and the registers it saved there
         unsigned long long state;
         unsigned long long offset;
@@ -304,7 +304,7 @@ extern "C"
     // it is not set), and returns 1 where every item is done. Once an item fails no item is started after it
     typedef int (*EngineEach)(unsigned long long items, EngineEachWork work, void *context);
 
-    // `each` may be NULL, and a module that is handed none runs its items one at a time
+    // `each` may be NULL, and a module that is passed none runs its items one at a time
     typedef struct
     {
         EngineBytesDecode decode[ENGINE_CODECS];
@@ -328,7 +328,7 @@ extern "C"
         unsigned long long sizes[ENGINE_ARRAY_RANK];
         char axes[ENGINE_ARRAY_RANK];
         unsigned int element_bytes;
-        EngineElementKind element_kind;
+        EngineElementKind element_type;
     } EngineArrayExtent;
 
     typedef struct

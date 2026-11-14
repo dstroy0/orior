@@ -58,7 +58,7 @@ static void codegen_rules_memory(DeviceArena *memory, AsmPrinterCoreBuild *build
 {
     build->word_start = codegen_device_take<unsigned int>(memory, (unsigned long long)build->word_capacity + 1ull);
     build->word_length = codegen_device_take<unsigned int>(memory, (unsigned long long)build->word_capacity + 1ull);
-    build->word_letters = codegen_device_take<unsigned char>(memory, (unsigned long long)build->letter_capacity + 1ull);
+    build->word_characters = codegen_device_take<unsigned char>(memory, (unsigned long long)build->character_capacity + 1ull);
     build->part_pieces = codegen_device_take<unsigned int>(
         memory, ((unsigned long long)build->part_capacity * ASM_PRINTER_PIECES) + 1ull);
     build->part_lanes = codegen_device_take<unsigned int>(memory, (unsigned long long)build->part_capacity + 1ull);
@@ -72,7 +72,7 @@ static void codegen_rules_memory(DeviceArena *memory, AsmPrinterCoreBuild *build
     }
 }
 
-// what the device's build laid out, read back into `memory`, and `host` pointed at it with the build's counts
+// what the device's build arranged, read back into `memory`, and `host` pointed at it with the build's counts
 static void codegen_rules_read(DeviceArena *device_arena, const AsmPrinterCoreBuild *ended, AsmPrinterMemory *memory,
                                AsmPrinterCoreBuild *host)
 {
@@ -80,7 +80,7 @@ static void codegen_rules_read(DeviceArena *device_arena, const AsmPrinterCoreBu
     asm_printer_memory_size(memory, host);
     codegen_device_read(device_arena, host->word_start, ended->word_start, ended->words);
     codegen_device_read(device_arena, host->word_length, ended->word_length, ended->words);
-    codegen_device_read(device_arena, host->word_letters, ended->word_letters, ended->letters);
+    codegen_device_read(device_arena, host->word_characters, ended->word_characters, ended->characters);
     codegen_device_read(device_arena, host->part_pieces, ended->part_pieces,
                         (unsigned long long)ended->parts * ASM_PRINTER_PIECES);
     codegen_device_read(device_arena, host->part_lanes, ended->part_lanes, ended->parts);
@@ -117,7 +117,7 @@ int asm_printer_ruleset_device(const Ruleset *rules, const TargetInfo *target, c
     rules_arena.ok = 1;
     AsmPrinterCoreBuild build{};
     build.rules = flat.rules;
-    build.rules.letters = codegen_device_copy(&rules_arena, flat.letters.data(), flat.letters.size());
+    build.rules.characters = codegen_device_copy(&rules_arena, flat.characters.data(), flat.characters.size());
     build.rules.texts = codegen_device_copy(&rules_arena, flat.texts.data(), flat.texts.size());
     build.rules.placeholders = codegen_device_copy(&rules_arena, flat.placeholders.data(), flat.placeholders.size());
     unsigned int step_capacity = ASM_PRINTER_STEP_CAPACITY;
@@ -165,7 +165,7 @@ int asm_printer_ruleset_device(const Ruleset *rules, const TargetInfo *target, c
         return 0;
     }
     asm_printer_store(&host, text_rules);
-    // the program laid out by the device as well; the host's key is not retained, and the output it names is the
+    // the program arranged by the device as well; the host's key is not retained, and the output it names is the
     // program's
     return asm_printer_program_device(&text_rules->program, &text_rules->program.layout, error);
 }

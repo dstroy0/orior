@@ -64,7 +64,7 @@ int cli_toolchains_file_save(const CliToolchainsPathCtx *args)
     {
         EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder);
     }
-    // the text handed to the file as it is written, a piece at a time
+    // the text passed to the file as it is written, a piece at a time
     CliFileWriting file;
     char piece[4096];
     const int begun =
@@ -181,7 +181,7 @@ EMBED_INLINE unsigned int cli_on_bundle(const ToolchainsAddedCtx *args)
                       .name = "tools");
 }
 
-// each group handed on once, in order: those of orior's tools, of the reader's tools, then the reader's own
+// each group passed on once, in order: those of orior's tools, of the reader's tools, then the reader's own
 EMBED_INLINE void cli_groups_get(const ToolchainsAddedCtx *args)
 {
     const CliJson *json = args->json_read;
@@ -264,7 +264,7 @@ void cli_toolchains_groups(const CliToolchainsEachCfg *args)
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
-// whether a group is among those listed: retained while each is handed
+// whether a group is among those listed: retained while each is passed
 typedef struct
 {
     const char *group;
@@ -292,7 +292,7 @@ void cli_toolchains_trim(const CliToolchainsTextCtx *args)
     mmgr_line_finish(&line);
 }
 
-// An id made from a name: its letters and digits in lower case, each run of anything else a dash
+// An id made from a name: its characters and digits in lower case, each run of anything else a dash
 EMBED_INLINE void cli_id_get(const ToolchainsAddedCtx *args)
 {
     unsigned long long length = 0ULL;
@@ -301,7 +301,7 @@ EMBED_INLINE void cli_id_get(const ToolchainsAddedCtx *args)
     {
         const unsigned long long stop =
             EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->name, .at = at,
-                       .size = whole, .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, .set = "");
+                       .size = whole, .classes = CLI_TEXT_CHARACTERS | CLI_TEXT_DIGITS, .set = "");
         const unsigned long long fits = CLI_NAME_MAX_LEN - 1ULL - length;
         const unsigned long long take = ((stop - at) < fits) ? (stop - at) : fits;
         memor.cpy(&(MemoriaCfg){.dst = args->id + length, .src = args->name + at, .bytes = (embed_word)take});

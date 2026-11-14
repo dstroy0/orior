@@ -37,7 +37,7 @@ extern "C"
 
     // The record at `*at` of the capture `bytes`, `size` long, read into `record` and `*at` moved past it: a line
     // `<dst src size>`, the addresses in hex and the count in decimal, then the count's bytes. 1, or 0 at the end
-    // of the capture or where no record stands at `*at`
+    // of the capture or where no record is at `*at`
     int tables_record_read(const unsigned char *bytes, size_t size, size_t *at, TablesRecord *record);
 
     // 1 where `bytes`, `size` long, is an archive: its first word its own byte count, its second 0, and then

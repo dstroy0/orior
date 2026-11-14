@@ -18,13 +18,13 @@ the compiler and the linker's tools.
     harness.py source static-sizes <list>     each object's .bss and .data bytes, the largest last
     harness.py source static-symbols <name>...  the zero-filled statics of a CLI object, largest first
     harness.py source format                  clang-format over ui/gui/src, ui/cli/src and ui/query/src, the files changed listed
-    harness.py source repeats [folder] [lines]  the runs of C lines standing in two or more places under the folder,
+    harness.py source repeats [folder] [lines]  the runs of C lines located in two or more places under the folder,
                                               blank and comment lines dropped, the longest first
     harness.py source page-names <file>...    the page's modules named, each parsed as a module and read for the
                                               names they share: each import the module it names exports and the
                                               importer uses, and each top-level name of one of them that another uses
                                               imported there
-    harness.py source cells [folder]          every persistent take under the folder, with the function it stands in,
+    harness.py source cells [folder]          every persistent take under the folder, with the function it is in,
                                               what it is assigned to, where the function releases it and its escape
                                               class, as build/harness/out/cells.tsv, the classes counted
 
@@ -57,13 +57,13 @@ MIB = 1048576.0
 
 
 def tail(path, count):
-    with open(path, encoding="utf-8", errors="replace") as kept:
-        return "".join(kept.readlines()[-count:])
+    with open(path, encoding="utf-8", errors="replace") as retained:
+        return "".join(retained.readlines()[-count:])
 
 
 def grep(path, pattern, count):
-    with open(path, encoding="utf-8", errors="replace") as kept:
-        return [line.rstrip("\n") for line in kept if re.search(pattern, line)][:count]
+    with open(path, encoding="utf-8", errors="replace") as retained:
+        return [line.rstrip("\n") for line in retained if re.search(pattern, line)][:count]
 
 
 def cmd_build_gui(a):
@@ -172,8 +172,8 @@ def cmd_source_analyze(a):
             text=True,
             errors="replace",
         )
-        kinds = r"warning|error|note" if a.notes else r"warning|error"
-        return [line for line in (said.stdout + said.stderr).splitlines() if re.search(r":\d+:\d+: (%s):" % kinds, line)]
+        types = r"warning|error|note" if a.notes else r"warning|error"
+        return [line for line in (said.stdout + said.stderr).splitlines() if re.search(r":\d+:\d+: (%s):" % types, line)]
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=FRAME_JOBS) as pool:
         written = [line for lines in pool.map(findings_of, sources) for line in lines]
@@ -281,8 +281,8 @@ def section_bytes(path):
 def cmd_source_static_sizes(a):
     os.makedirs(OUT, exist_ok=True)
     listed = os.path.join(OUT, "static_sizes.txt")
-    with open(a.list, encoding="utf-8") as kept:
-        objects = [line.strip() for line in kept if line.strip()]
+    with open(a.list, encoding="utf-8") as retained:
+        objects = [line.strip() for line in retained if line.strip()]
     sized = sorted((section_bytes(path), path) for path in objects)
     with open(listed, "w", encoding="utf-8", newline="\n") as out:
         out.write("".join("%d %s\n" % pair for pair in sized))
@@ -307,8 +307,8 @@ def cmd_source_static_symbols(a):
 
 
 def digest(path):
-    with open(path, "rb") as kept:
-        return hashlib.md5(kept.read()).hexdigest()
+    with open(path, "rb") as retained:
+        return hashlib.md5(retained.read()).hexdigest()
 
 
 FORMAT_BATCH = 200
@@ -316,7 +316,7 @@ FORMAT_BATCH = 200
 
 def cmd_source_format(a):
     os.makedirs(OUT, exist_ok=True)
-    # the lattice stays as it stands until the window's own computing replaces it
+    # the lattice stays as it is until the window's own computing replaces it
     files = sorted(os.path.join(folder, name) for top in ("ui/gui/src", "ui/cli/src", "ui/query/src") for folder, _, names in os.walk(os.path.join(ROOT, *top.split("/"))) for name in names if name.endswith((".c", ".h")) and name not in ("lattice.c", "lattice.h"))
     before = {path: digest(path) for path in files}
     # a few at a time, since every file on one command line passes the length Windows takes
@@ -344,8 +344,8 @@ def source_lines(path):
 
 
 def cmd_source_repeats(a):
-    """The runs of a.lines or more folded lines that stand in two or more places under a.folder, each run grown while
-    every place continues alike, the longest first with where each stands."""
+    """The runs of a.lines or more folded lines that are in two or more places under a.folder, each run grown while
+    every place continues alike, the longest first with where each is."""
     window = a.lines
     files = sorted(os.path.join(folder, name) for folder, _, names in os.walk(os.path.join(ROOT, *a.folder.split("/"))) for name in names if name.endswith(".c"))
     per_file = {path: source_lines(path) for path in files}
@@ -395,7 +395,7 @@ REGEX_AFTER_WORDS = ("return", "typeof", "case", "of", "in", "delete", "void", "
 
 def page_code(text):
     """A page module's text with its comments, its strings, its regular expressions and the literal parts of its
-    templates blanked, each to spaces, so that only its code's names are left where they stood."""
+    templates blanked, each to spaces, so that only its code's names are left where they was."""
     out = list(text)
     at = 0
     braces = []
@@ -409,11 +409,11 @@ def page_code(text):
     def template(start):
         place = start
         while place < len(text):
-            letter = text[place]
-            if letter == "\\":
+            character = text[place]
+            if character == "\\":
                 place += 2
                 continue
-            if letter == "`":
+            if character == "`":
                 blank(start, place)
                 return place + 1, None
             if text.startswith("${", place):
@@ -424,7 +424,7 @@ def page_code(text):
         return len(text), None
 
     while at < len(text):
-        letter = text[at]
+        character = text[at]
         if text.startswith("//", at):
             end = text.find("\n", at)
             end = len(text) if end < 0 else end
@@ -435,19 +435,19 @@ def page_code(text):
             end = len(text) if end < 0 else end + 2
             blank(at, end)
             at = end
-        elif letter in "'\"":
+        elif character in "'\"":
             place = at + 1
-            while place < len(text) and text[place] != letter and text[place] != "\n":
+            while place < len(text) and text[place] != character and text[place] != "\n":
                 place += 2 if text[place] == "\\" else 1
             blank(at, place + 1)
             at = place + 1
             last = "a"
-        elif letter == "`":
+        elif character == "`":
             at, opened = template(at + 1)
             if opened:
                 braces.append("`")
             last = "a"
-        elif letter == "/" and (last in REGEX_AFTER or last == "" or last.endswith(REGEX_AFTER_WORDS)):
+        elif character == "/" and (last in REGEX_AFTER or last == "" or last.endswith(REGEX_AFTER_WORDS)):
             place = at + 1
             within = False
             while place < len(text) and text[place] != "\n":
@@ -464,11 +464,11 @@ def page_code(text):
             blank(at, place + 1)
             at = place + 1
             last = "a"
-        elif letter == "{":
+        elif character == "{":
             braces.append("{")
-            last = letter
+            last = character
             at += 1
-        elif letter == "}":
+        elif character == "}":
             opener = braces.pop() if braces else "{"
             at += 1
             if opener == "`":
@@ -477,13 +477,13 @@ def page_code(text):
                     braces.append("`")
             last = "a"
         else:
-            if not letter.isspace():
+            if not character.isspace():
                 word = re.match(r"[A-Za-z_$][\w$]*", text[at:])
                 if word:
                     last = word.group(0)
                     at += len(last)
                     continue
-                last = letter
+                last = character
             at += 1
     return "".join(out)
 
@@ -502,9 +502,9 @@ def page_imports(text):
 
 @functools.lru_cache(maxsize=None)
 def page_exports(path):
-    """The names a module of the page exports, its own and those it hands on from another."""
-    with open(path, encoding="utf-8") as kept:
-        code = page_code(kept.read())
+    """The names a module of the page exports, its own and those it passes on from another."""
+    with open(path, encoding="utf-8") as retained:
+        code = page_code(retained.read())
     names = set(re.findall(r"^export\s+(?:async\s+)?(?:function\*?|const|let|var|class)\s+([A-Za-z_$][\w$]*)", code, re.M))
     for listed in re.findall(r"^export\s*\{([^}]*)\}", code, re.M):
         names |= {one.split(" as ")[-1].strip() for one in listed.split(",") if one.strip()}
@@ -588,7 +588,7 @@ def cell_target(lines, at):
     return words[-1].strip("*") if words else ""
 
 
-def cell_kind(body, target):
+def cell_type(body, target):
     """The escape class of a take's cell in its function, in escape analysis's terms: `local` where the function
     releases the same name and passes it to no callee, `local argument` where it releases it after passing it to a
     callee, `stored` where the target is a member or a file-scope variable, `returned` where the name is returned or
@@ -608,7 +608,7 @@ def cell_kind(body, target):
     returned = any(re.search(r"return\s+\(?\s*" + name + r"\b", text) or store.search(text) or re.search(r"EXCHANGE\w*\(.*\b" + name + r"\s*\)", text) for text in others)
     if returned:
         return "returned"
-    # the name passed to a callee, as a designated argument or a plain one: the callee may keep it
+    # the name passed to a callee, as a designated argument or a plain one: the callee may retain it
     argument = any(re.search(r"(?:\.\w+\s*=\s*|[(,]\s*)\(?(?:\([^()]*\)\s*)?" + name + r"\s*[,)]", text) for text in others)
     if released:
         return "local" if not argument else "local argument"
@@ -633,7 +633,7 @@ def cmd_source_cells(a):
             target = cell_target(lines, at)
             owner = CELL_OWNER.search(" ".join(lines[at:at + 3]))
             releases = [str(function[1] + offset + 1) for offset, line in enumerate(body) if any(match.group(1) == target for match in CELL_RELEASE.finditer(line))]
-            rows.append((os.path.relpath(path, ROOT).replace("\\", "/"), at + 1, function[0], owner.group(1) if owner else "", target, cell_kind(body, target), " ".join(releases)))
+            rows.append((os.path.relpath(path, ROOT).replace("\\", "/"), at + 1, function[0], owner.group(1) if owner else "", target, cell_type(body, target), " ".join(releases)))
     os.makedirs(OUT, exist_ok=True)
     listed = os.path.join(OUT, "cells.tsv")
     with open(listed, "w", encoding="utf-8", newline="\n") as out:
@@ -664,8 +664,8 @@ def cmd_source_page_names(a):
     tops = {}
     made = {}
     for path in files:
-        with open(path, encoding="utf-8") as kept:
-            texts[path] = kept.read()
+        with open(path, encoding="utf-8") as retained:
+            texts[path] = retained.read()
         codes[path] = page_code(texts[path])
         tops[path] = set(re.findall(r"^(?:export\s+)?(?:async\s+)?(?:function\*?|const|let|var|class)\s+([A-Za-z_$][\w$]*)", codes[path], re.M))
         # a name a module declares anywhere, a local of its own or a parameter that shares another module's top-level
@@ -677,7 +677,7 @@ def cmd_source_page_names(a):
         for listed in re.findall(r"\b(?:const|let|var)\s*[{\[]([^}\]]*)[}\]]", codes[path]):
             made[path] |= bound_names(listed)
         # a class's or an object's method, `write(text) {` at the head of its line, and its parameters
-        # (an `if (...) {`, a `for (...) {` and their kind have the same shape and are neither, nor what they test)
+        # (an `if (...) {`, a `for (...) {` and their type have the same shape and are neither, nor what they test)
         methods = [one for one in re.findall(r"^\s+(?:(?:async|static|get|set)\s+)*([A-Za-z_$][\w$]*)\s*\(([^()]*)\)\s*\{", codes[path], re.M) if one[0] not in {"if", "for", "while", "switch", "catch", "function", "return"}]
         made[path] |= {name for name, _ in methods}
         for _, listed in methods:
@@ -696,7 +696,7 @@ def cmd_source_page_names(a):
         counted = {}
         for word in words:
             counted[word] = counted.get(word, 0) + 1
-        # a module imported as the code runs is there, its path read from where this module stands
+        # a module imported as the code runs is there, its path read from where this module is
         for module in re.findall(r"\bimport\(\s*[\"'](\.[^\"']+)[\"']\s*\)", texts[path]):
             if not os.path.isfile(os.path.normpath(os.path.join(os.path.dirname(path), module))):
                 print("%s: imports %s as it runs, which is not there" % (here, module))
@@ -756,7 +756,7 @@ def register(sub):
     p.set_defaults(fn=cmd_source_static_symbols)
     p = source.add_parser("format", help="clang-format over ui/gui/src, ui/cli/src and ui/query/src, the files changed listed")
     p.set_defaults(fn=cmd_source_format)
-    p = source.add_parser("repeats", help="the runs of C lines standing in two or more places under the folder, the longest first")
+    p = source.add_parser("repeats", help="the runs of C lines located in two or more places under the folder, the longest first")
     p.add_argument("folder", nargs="?", default="includes/window", help="the folder read, from the top of the tree")
     p.add_argument("lines", nargs="?", type=int, default=6, help="the fewest folded lines a run has")
     p.set_defaults(fn=cmd_source_repeats)

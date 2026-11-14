@@ -3,7 +3,7 @@
 Chi-square answers whether a distribution departs from uniform. It does not say how much that
 departure is worth, and it is not comparable across measurements with different bin counts. A
 chi-square of 17723 over sixteen bins and one of 36.62 over twenty-four cannot be read against each
-other as they stand.
+other as they are.
 
 Collision entropy is the same statement in a unit that is comparable and that means something.
 For counts over n bins drawn from N samples,

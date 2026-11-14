@@ -12,7 +12,7 @@
 # offset repeats with a period of exactly one frame. It is the coherent-addend case the sound
 # denoiser handles, on a signal that happens to be pictures. Nothing here is ported from that file and
 # nothing needs to be: reference.periodic and measure.periodic_energy read points carrying values and
-# cannot tell a frame stack from a waveform. This is the README's one instrument, shown reading the
+# cannot tell a frame stack from a waveform. This is the README's one instrument, displayed reading the
 # second medium.
 #
 # The period is the frame size, the file's geometry and a declared input instead of a fitted one.
@@ -26,7 +26,7 @@
 # WHAT MAKES THE READING EVIDENCE, AND THE FLOOR
 #
 # Two routes build the per-pixel mean, batch and incremental, and a deliberately broken third is run
-# beside them so their agreeing is shown to be a property the wrong one lacks. The null is drawn: the
+# beside them so their agreeing is displayed to be a property the wrong one lacks. The null is drawn: the
 # stack is shuffled, the frame period is gone, and removing at a wrong period takes nothing real.
 #
 # The floor is the honest limit of fixed-pattern correction and it is worth stating plainly, because
@@ -66,7 +66,7 @@ FRAMES = 48
 SWING = 20           # the moving scene's amplitude at a pixel
 PATTERN = 40         # the fixed pattern's amplitude, zero-mean across the frame
 PEDESTAL = 128       # shifts the signed stack into the byte range for the detector's shuffle only
-DRAWS = 8            # shuffles drawn to set the null band a real frame period must stand above
+DRAWS = 8            # shuffles drawn to set the null band a real frame period must are above
 SEED = 0xF17A
 
 
@@ -210,11 +210,11 @@ def main():
     out.write("  %-24s %-12s %-12s %s\n" % ("case", "live ratio", "above band", "outcome"))
 
     no_pattern = list(scene)                                       # a moving scene, no fixed pattern
-    wrong_kind = with_impulses(scene, len(scene) // 12, SWING, SEED)   # impulses, the wrong kind
+    wrong_type = with_impulses(scene, len(scene) // 12, SWING, SEED)   # impulses, the wrong type
     for label, arm, has_noise in (
             ("matched pattern", stack, True),
             ("no pattern", no_pattern, False),
-            ("wrong kind (impulses)", wrong_kind, True)):
+            ("wrong type (impulses)", wrong_type, True)):
         arm_bytes = [value + PEDESTAL for value in arm]
         seen, live, _ = recover_period(arm_bytes, frame)
         present = (live is not None) and (boundary is not None) and (compare(live, boundary) > 0)
@@ -242,7 +242,7 @@ def main():
         out.write("  %-10d %-14.4f %s\n" % (depth, to_float(floor_nrr) * 100.0, note))
 
     out.write("\n  depth zero is the full rejection: the scene moves everywhere, the pattern is fixed,\n")
-    out.write("  so the pattern is removed to the bit and the scene is kept. every row below it is the\n")
+    out.write("  so the pattern is removed to the bit and the scene is retained. every row below it is the\n")
     out.write("  reason a fixed-pattern correction needs a dark frame or motion: a thing that never\n")
     out.write("  moves is signal wearing the noise's exact shape, and no instrument separates those.\n")
     out.flush()

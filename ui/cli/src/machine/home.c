@@ -1,24 +1,24 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // home.c: orior's own folder, for what it stores between runs and what a reader adds to it: the settings, the reader's
-// plugins under `plugins/`, the stylesheet `user.css` the window lays over its own, and `menus.json`, the reader's
+// plugins under `plugins/`, the stylesheet `user.css` the window positions over its own, and `menus.json`, the reader's
 // menus and toolbar. It is `orior` in the system's folder for settings, %APPDATA% on Windows and $XDG_CONFIG_HOME or
 // ~/.config elsewhere, or the folder ORIOR_HOME names
 #include "../command_line/cli_internal.h"
 #include "../text/text.h"
 
-// what menus.json contains when impero makes it: a note on what each part is for, and nothing laid out
+// what menus.json contains when impero makes it: a note on what each part is for, and nothing arranged
 #define CLI_MENUS                                                                                                      \
     "{\n  \"about\": \"Each item is a command's name, as imp <menu> <command> names it, or { \\\"command\\\": "        \
     "name, "                                                                                                           \
     "\\\"label\\\": text, \\\"icon\\\": name }, or \\\"-\\\" for a line; { \\\"label\\\": text, \\\"items\\\": [...] " \
     "} "                                                                                                               \
-    "contains more. A menu named as one of orior's stands in its place, the others stand before Help, and hide takes " \
+    "contains more. A menu named as one of orior's is in its place, the others are before Help, and hide takes " \
     "orior's away by name.\",\n  \"menus\": [],\n  \"hide\": [],\n  \"toolbar\": []\n}\n"
 
 // what user.css contains when impero makes it: a note on what it is for
 #define CLI_USER_CSS                                                                                                   \
-    "/* impero lays this stylesheet over its own, last, and reads it again each time the window\n"                     \
+    "/* impero positions this stylesheet over its own, last, and reads it again each time the window\n"                     \
     "   comes back to the front. Every color and font the app uses is a variable, named as\n"                          \
     "   Preferences lists them. This rule sets two of them for both schemes:\n\n"                                      \
     "   :root[data-scheme] { --fuse-fire: #ff7a1a; --code: \"Fira Code\", monospace; }\n\n"                            \

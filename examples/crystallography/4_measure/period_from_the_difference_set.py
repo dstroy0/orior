@@ -7,7 +7,7 @@
 #
 #   Usage:  python examples/crystallography/4_measure/period_from_the_difference_set.py [entries]
 #
-# Nothing here is compared against a published edge. That is stage six, and keeping the two apart is
+# Nothing here is compared against a published edge. That is stage six, and retention the two apart is
 # the point of the split: this stage says what the instrument returns and how it got there, and the
 # oracle says whether it was right.
 #
@@ -19,7 +19,7 @@
 #
 # The family rule stays, and it is the single correction this measure needed. A set with period P agrees
 # with itself at 2P and 3P. The tallest lag alone reports a harmonic. Scoring a candidate as the
-# mean over itself and its multiples fixes that, and capping the family at two members keeps a short
+# mean over itself and its multiples fixes that, and capping the family at two members retains a short
 # wrong candidate from winning by holding more multiples and catching one good lag among them.
 #
 # Read along an axis, a coordinate carries the whole arrangement sitting at it. Two coordinates

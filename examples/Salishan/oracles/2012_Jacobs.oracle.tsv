@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Peter Jacobs	title	Vowel harmony and schwa strengthening in Sḵwx̱wu7mesh	page 1
 front	Peter Jacobs	name	Peter Jacobs	author
 front	Peter Jacobs	note	University of Victoria1	page 1, under Peter Jacobs
@@ -20,7 +20,7 @@ footnote 2	Peter Jacobs	note	The following are the abbreviations used in this pa
 (1c) line 2	Sḵwx̱wu7mesh	gloss	RL fix-V-DIR-TR-3SUBJ DET car	page 2
 (1c) line 3	Peter Jacobs	translation	‘He fixed the car.’	page 2
 (1d) line 1	Sḵwx̱wu7mesh	transcription	x̱its-ḵ-á-n chen eḵ’ ta stseḵ	page 2
-(1d) line 2	Sḵwx̱wu7mesh	gloss	lay-bottom-V-DIR 1S.SUB FUT DET tree	page 2
+(1d) line 2	Sḵwx̱wu7mesh	gloss	position-bottom-V-DIR 1S.SUB FUT DET tree	page 2
 (1d) line 3	Peter Jacobs	translation	‘I’m going to fell a tree.’	page 2
 §1	Peter Jacobs	note	In this paper I provide further argumentation for my analysis in Jacobs (2011), wherein this vowel is an epenthetic schwa. I will argue that each of its different realizations can be derived from more general phonological properties in the language. This analysis will include a phonological account for V’s realization as a copy vowel (cf. Dyck 2004) and for its realization as a stressed /á/. For the copy vowel I will argue that this realization is derived from a more general vowel harmony process in Sḵwx̱wu7mesh (cf. Dyck 2004). For the stressed /á/ realization I will appeal to a phenomena which I will call schwa strengthening.	page 2
 §1	Peter Jacobs	name	Dyck	Ruth Anne Dyck, Squamish stress assignment and the directive's copy vowel (2004)
@@ -82,11 +82,11 @@ footnote 2	Peter Jacobs	note	The following are the abbreviations used in this pa
 footnote 3	Peter Jacobs	note	Stress shifts because of the following subject clitic.	page 5, footnote 3
 (6a) line 1	Sḵwx̱wu7mesh	transcription	chen x̱íts-ḵ-e-n-(t)-Ø4 ta stseḵ	page 5
 footnote 4	Peter Jacobs	note	The transitivizer –t gets deleted when it is word final following another transitivizer that ends in a consonant. In this case, it is following the consonantal DIR –n.	page 5, footnote 4
-(6a) line 2	Sḵwx̱wu7mesh	gloss	1S.SUB lay-bottom-V- DIR-TR-3OBJ DET tree	page 5
+(6a) line 2	Sḵwx̱wu7mesh	gloss	1S.SUB position-bottom-V- DIR-TR-3OBJ DET tree	page 5
 (6a) line 3	Peter Jacobs	translation	‘I fell a tree.’	page 5
 (6a) line 4	Peter Jacobs	citation	(Kuipers 1967: 369)	page 5, the tag or source at the right of the translation
 (6b) line 1	Sḵwx̱wu7mesh	transcription	x̱its-ḵ-á-n̓-(t)-Ø chen kwetsi stseḵ	page 5
-(6b) line 2	Sḵwx̱wu7mesh	gloss	lay-bottom-V-DIR-TR-3OBJ 1S.SUB DEM tree	page 5
+(6b) line 2	Sḵwx̱wu7mesh	gloss	position-bottom-V-DIR-TR-3OBJ 1S.SUB DEM tree	page 5
 (6b) line 3	Peter Jacobs	translation	‘I’m going to fell a tree.’	page 5
 (6b) line 4	Peter Jacobs	citation	(Kuipers 1967: 369)5	page 5, the tag or source at the right of the translation
 footnote 5	Peter Jacobs	note	The DIR is glottalized in this example. I leave a phonological account for this glottalization for future research. Dyck (2004) does provide an account for resonant glottalization in Sḵwx̱wu7mesh, however does not extend it to these cases.	page 5, footnote 5
@@ -204,10 +204,10 @@ footnote 5	Peter Jacobs	note	The DIR is glottalized in this example. I leave a p
 (17) line 1	Sḵwx̱wu7mesh	transcription	√wa7	page 10
 §3.1.2.2	Peter Jacobs	note	When it occurs as an intransitive predicate it seems to exhibit a type of reduplication.	page 10
 (18a) line 1	Sḵwx̱wu7mesh	transcription	wá7-ew	page 10
-(18a) line 2	Peter Jacobs	translation	‘to continue on with; to keep’	page 10
+(18a) line 2	Peter Jacobs	translation	‘to continue on with; to retain’	page 10
 (18b) line 1	Sḵwx̱wu7mesh	transcription	na men wá7ew lháḵw’-a-n-t-s-as	page 10
 (18b) line 2	Sḵwx̱wu7mesh	gloss	RL just continue slap-V-DIR-TR-1S.OBJ-3SUBJ	page 10
-(18b) line 3	Peter Jacobs	translation	‘She kept slapping me.’	page 10
+(18b) line 3	Peter Jacobs	translation	‘She retained slapping me.’	page 10
 §3.1.2.2	Peter Jacobs	note	Importantly for our discussion here, when this root occurs as an interjection, it has a copy vowel of the root vowel.	page 11
 (19) line 1	Sḵwx̱wu7mesh	transcription	wá7a!	page 11
 (19) line 2	Peter Jacobs	translation	‘(interjection indicating exasperation), good heavens!’	page 11
@@ -489,7 +489,7 @@ footnote 8 line 3	Peter Jacobs	translation	‘I think that he left.’	page 16
 (37c) line 1	Sḵwx̱wu7mesh	transcription	[c’é·c’ɛq] [c’ɛ́·c’ɛq]	page 19
 (37c) line 1	Sḵwx̱wu7mesh	phonetic	[c’é·c’eq]	page 19
 §3.2.2	Peter Jacobs	note	In the first set of phonetic realization in (37b-c), the two vowels surface as expected given the above description in the previous section. The first vowel is realized by the mid-front allophone [e] and the second vowel, due to the immediately following uvular, is realized as the low front allophone [ɛ]. In the second set of phonetic realizations in (37a-c) the first vowel harmonizes to the second vowel’s allophonic realization as [ɛ], instead of its expected realization as [e]. In the third set of phonetic realizations in (37a-c), the second vowel harmonizes to the first vowel’s allophonic realization as [e], instead of its expected realization as [ɛ].	page 19
-§3.2.2	Peter Jacobs	note	Allophonic vowel harmony with these cases occurs in a CVCV environment similar to most of our cases of phonemic vowel harmony. Unlike most previous examples, though, vowel harmony appears to spread either rightward or leftward with no apparent preference.	page 20
+§3.2.2	Peter Jacobs	note	Allophonic vowel harmony with these cases occurs in a CVCV environment similar to the majority of our cases of phonemic vowel harmony. Unlike max previous examples, though, vowel harmony appears to spread either rightward or leftward with no apparent preference.	page 20
 §3.2.3	Peter Jacobs	heading	3.2.3 Allophonic vowel harmony with nouns	page 20
 §3.2.3	Peter Jacobs	note	As with phonemic vowel harmony in the nominal domain, allophonic vowel harmonization does not appear to be active in the nominal domain. I have one possible case with the adverbial DP ti stsi7s	page 20
 §3.2.3	Peter Jacobs	note	‘today’ in which the noun’s vowel appears to be harmonizing with the vowel quality of the determiner. Both vowels are phonemically /i/. For some speakers, they can both be realized by the high front vowel [i]. This allophone is normally reserved for some unstressed environments, such as the determiner. The vowel of the head of the phrase, stsi7s, is expected to be realized as a stressed [é], since in Sḵwx̱wu7mesh every phrase has to have at least one vowel with stress, and this is normally the head noun in the DP.	page 20
@@ -524,7 +524,7 @@ footnote 8 line 3	Peter Jacobs	translation	‘I think that he left.’	page 16
 (40b) line 1	Sḵwx̱wu7mesh	transcription	ti stsi7s	page 21
 (40b) line 2	Peter Jacobs	note	Dyck (2004) only examines vowel harmony for the DIR and for the VDIR	page 21
 (40b) line 3	Peter Jacobs	note	constructions. The data provided in this section demonstrates that vowel	page 21
-(40b) line 4	Peter Jacobs	note	harmony occurs in a wider range of constructions. In most cases vowel	page 21
+(40b) line 4	Peter Jacobs	note	harmony occurs in a wider range of constructions. In general vowel	page 21
 (40b) line 5	Peter Jacobs	note	harmony occurs in a CVCV environment. Only the diminutives, the one	page 21
 (40b) line 6	Peter Jacobs	note	possible noun ḵwu7úp and the CV- forms appear to optionally have	page 21
 (40b) line 7	Peter Jacobs	note	vowel harmony spreading leftward from the second vowel. The paucity	page 21
@@ -669,7 +669,7 @@ footnote 9	Peter Jacobs	note	The root appears to be lheḵ’el the l-form of th
 §4.1	Peter Jacobs	note	i. the vowel of the reduplicant is normally an unstressed schwa, regardless of whether the base has a full vowel or schwa, as in (41)0 and (42).	page 25
 §4.1	Peter Jacobs	note	ii. in some forms, though, the vowel of the reduplicant is realized as the low vowel /a/ instead of the expected /e/, as in (43) and (44).	page 25
 §4.1	Peter Jacobs	note	iii. furthermore, this low vowel seems to correlate with secondary stress /à/, as in (45) and (46)	page 25
-§4.1	Peter Jacobs	note	iv. for most of these forms, the root that the reduplicated forms is derived from is schwa-based (43), except for the two examples in (44).	page 25
+§4.1	Peter Jacobs	note	iv. for the majority of these forms, the root that the reduplicated forms is derived from is schwa-based (43), except for the two examples in (44).	page 25
 §4.1	Peter Jacobs	note	v. at least for one form, it appears that the these /á/ forms can alternatively surface with an unstressed schwa (47)0.	page 25
 §4.2	Peter Jacobs	heading	4.2 Schwa-/á/ alternations with –m	page 26
 §4.2	Peter Jacobs	note	The vowel before the intransitivizer –m also surfaces with a stressed /á/ before it in some cases and a schwa in other cases. This pattern is reminiscent of the pattern of stressed /á/ before the DIR –n. I will, therefore, call this vowel V. In all the following examples, stress has shifted because of the subject clitic following the verb.	page 26
@@ -688,11 +688,11 @@ footnote 9	Peter Jacobs	note	The root appears to be lheḵ’el the l-form of th
 (49b) line 3	Peter Jacobs	translation	‘I washed my feet.	page 26
 §4.2	Peter Jacobs	note	Compare the above examples in (48) and (49), with the lexical suffix present, to the following examples in (50a-b). Recall that V with the DIR also surfaced either as a stressed /á/ or as an unstressed schwa (§2.3), depending on where stress falls (examples (6a-b) repeated here as (50a-b)). If stress falls on the root, then V is realized as schwa (50a). If stress falls on the syllable with the Directive, then V is realized as /á/ (50b).	page 26
 (50a) line 1	Sḵwx̱wu7mesh	transcription	chen x̱íts-ḵ-e-n-(t)-Ø ta stseḵ	page 26
-(50a) line 2	Sḵwx̱wu7mesh	gloss	1S.SUB lay-bottom-V- DIR-TR-3OBJ DET tree	page 26
+(50a) line 2	Sḵwx̱wu7mesh	gloss	1S.SUB position-bottom-V- DIR-TR-3OBJ DET tree	page 26
 (50a) line 3	Peter Jacobs	translation	‘I fell a tree.’	page 26
 (50a) line 4	Peter Jacobs	citation	(Kuipers 1967:369)	page 26, the tag or source at the right of the translation
 (50b) line 1	Sḵwx̱wu7mesh	transcription	x̱its-ḵ-á-n̓-(t)-Ø chen kwetsi stseḵ	page 27
-(50b) line 2	Sḵwx̱wu7mesh	gloss	lay-bottom-V-DIR-TR-3OBJ 1S.SUB DEM tree	page 27
+(50b) line 2	Sḵwx̱wu7mesh	gloss	position-bottom-V-DIR-TR-3OBJ 1S.SUB DEM tree	page 27
 (50b) line 3	Peter Jacobs	translation	‘I’m going to fell a tree.’	page 27
 (50b) line 4	Peter Jacobs	citation	(Kuipers 1967:369)	page 27, the tag or source at the right of the translation
 §4.2	Peter Jacobs	note	In summary, the V before the intransitivizer -m, like V before the DIR, can surface as either /á/ or schwa. This distribution is determined by factors of stress in the sentence for the intransitivizer –m, just as it is for the Directive -n. If we include the roots from §3.1.2.1, where the vowel before the intransitivizer -m harmonizes with the root’s vowel, then we have the exact same distribution for V with the intransitivizer -m as we do for V before the Directive transitivizer -n.	page 27
@@ -704,7 +704,7 @@ footnote 9	Peter Jacobs	note	The root appears to be lheḵ’el the l-form of th
 §4.2	Peter Jacobs	note	As with the CVC reduplicant, the realization of V as a stressed /á/ is determined by stress patterns. When stress is required on V, then it is realized as /á/, otherwise it surfaces as schwa, except when it is contiguous to a CVC root, then it harmonizes with the root vowel.	page 27
 §4.3	Peter Jacobs	heading	4.3 Schwa-/a/ alternations with person clitics	page 27
 §4.3	Peter Jacobs	note	Sḵwx̱wu7mesh has schwa-/á/ alternations with subject clitics and in one case with one possessive suffix.	page 27
-§4.3	Peter Jacobs	note	In matrix clauses, Sḵwx̱wu7mesh has subject clitics for first and second person, both singular and plural. Except for second person plural, these clitics have both a schwa form and a form with /á/. The /á/ form surfaces with a sentence level stress while the schwa forms do not.10 The second person plural forms, however, can surface with sentence level stress or not. Singular Plural 1st chen chet chán chát 2nd chexw cháxw cháp, cháyap Table 2: Subject clitics in Sḵwx̱wu7mesh Kuipers (1967:86,§125) analyzes these subject clitics as consisting of a clitic ch- ‘to do’ followed by the subject suffix.11 For Kuipers, the subject suffix underlyingly has the full vowel /a/ but this vowel is reduced when it is unstressed. One reason to consider that the difference between the two types of subject clitics is not just stress-related is their different distributions. The two types of clitics are not freely interchangeable in most environments.	page 27
+§4.3	Peter Jacobs	note	In matrix clauses, Sḵwx̱wu7mesh has subject clitics for first and second person, both singular and plural. Except for second person plural, these clitics have both a schwa form and a form with /á/. The /á/ form surfaces with a sentence level stress while the schwa forms do not.10 The second person plural forms, however, can surface with sentence level stress or not. Singular Plural 1st chen chet chán chát 2nd chexw cháxw cháp, cháyap Table 2: Subject clitics in Sḵwx̱wu7mesh Kuipers (1967:86,§125) analyzes these subject clitics as consisting of a clitic ch- ‘to do’ followed by the subject suffix.11 For Kuipers, the subject suffix underlyingly has the full vowel /a/ but this vowel is reduced when it is unstressed. One reason to consider that the difference between the two types of subject clitics is not just stress-related is their different distributions. The two types of clitics are not freely interchangeable in max environments.	page 27
 footnote 10	Peter Jacobs	note	Sentence level stress is not normally indicated in Sḵwx̱wu7mesh orthography, but I indicate it here for sake of the discussion in this section.	page 27, footnote 10
 footnote 11	Peter Jacobs	note	Other forms with this root include:	page 28, footnote 11
 footnote 11 (i) line 1	Sḵwx̱wu7mesh	transcription	chá-nem	page 28
@@ -735,7 +735,7 @@ footnote 11 (v) line 3	Sḵwx̱wu7mesh	gloss	(do-TR)	page 28
 (51c) line 2	Sḵwx̱wu7mesh	gloss	1S.SUB	page 28
 (51c) line 3	Peter Jacobs	translation	‘I did.’	page 28
 §4.3	Peter Jacobs	note	A yes/no question can also be answered affirmatively with the unstressed subject clitic, but normally only if the realis clitic na is also present (52a), not if na is absent (52b).12	page 29
-footnote 12	Peter Jacobs	note	This is true for most speakers. I recently found a recording of one speaker who appears to allow chen by itself in answer to a yes/no question.	page 29, footnote 12
+footnote 12	Peter Jacobs	note	This is true for max speakers. I recently found a recording of one speaker who appears to allow chen by itself in answer to a yes/no question.	page 29, footnote 12
 (52a) line 1	Sḵwx̱wu7mesh	transcription	na chen	page 29
 (52a) line 2	Sḵwx̱wu7mesh	gloss	RL 1S.SUB	page 29
 (52a) line 3	Peter Jacobs	translation	‘I did.’	page 29
@@ -776,7 +776,7 @@ footnote 12	Peter Jacobs	note	This is true for most speakers. I recently found a
 §4.3	Peter Jacobs	note	In summary, for Sḵwx̱wu7mesh person markers:	page 31
 §4.3	Peter Jacobs	note	i. the subject clitics can surface with either schwa or a stressed /á/ (Table 2),	page 31
 §4.3	Peter Jacobs	note	ii. one of the possessives, which normally surfaces with schwa, can surface with á/ (in a nominalized clause) (55),	page 31
-§4.3	Peter Jacobs	note	iii. for the subject clitics, this alternation appears to be conditioned by factors other than just phonological stress (i.e. semantics, syntax, discourse/pragmatics) as shown in (51) to (54),	page 31
+§4.3	Peter Jacobs	note	iii. for the subject clitics, this alternation appears to be conditioned by factors other than just phonological stress (i.e. semantics, syntax, discourse/pragmatics) as displayed in (51) to (54),	page 31
 §4.3	Peter Jacobs	note	iv. for the one possessive clitic, this alternation appears to be conditioned solely by factors relating to stress. Its underlying vowel is schwa and it changes to stressed /á/ only when under stress (55).	page 31
 §4.4	Peter Jacobs	heading	4.4 Summary of schwa-/á/ alternations	page 31
 §4.4	Peter Jacobs	note	In this section four different types of schwa-/á/ alternations were examined. The following table provides a summary of the findings. Alternation Example Conditioning Factor for /á/ a. some CVC- shay̓- Stress (secondary) Reduplicants sheych’ántsut b. V before -m mikw’-shn-á-m̓ Stress (primary) míkw’-shn-e-m c. subject clitics chen chán Semantics, syntax, discourse-pragmatics d. possessive suffix -chet -chát Stress (primary) Table 3: Schwa-/á/ alternations Of the four instances of schwa-/á/ alternations, three of them (CVC- reduplicants, V before -m, first person plural possessive) appear to be solely conditioned by phonological factors relating to stress. The distribution of the subject clitics, however, appears to be determined by semantic, syntactic or discourse/pragmatic factors. That is, stress and vowel quality for the subject clitics appear to be controlled by these other factors.	page 31
@@ -1032,7 +1032,7 @@ footnote 15	Peter Jacobs	note	The following proposals from Dyck (2004) are relev
 §5.2.2	Peter Jacobs	note	Before discussing these forms, I further provide parsing into feet for these two forms. Examples (84a-b) provide the parsing for (83a-b), respectively. The intransitivizer -m is glottalized in the penultimate syllable of (84a), indicating that it is at the edge of a foot, leaving the subject clitic either unparsed even though it is part of the parsing of this sentence.	page 46
 (84a) line 1	Sḵwx̱wu7mesh	parse	(mikw’)(shnám̓)chexw	page 46
 (84b) line 1	Sḵwx̱wu7mesh	parse	chen(míkw’)(shnem)	page 46
-§5.2.2	Peter Jacobs	note	Firstly, the presence of the stressed /á/ in the example (85b) results in its syllable having one mora via the full vowel. Without the stressed /á/, this syllable would be moraless since neither stressed schwa nor a glottalized resonant can receive a mora, as shown in (85b). Thus the second foot of the word would be moraless and the last syllable (the subject clitic) would also be moraless.	page 46
+§5.2.2	Peter Jacobs	note	Firstly, the presence of the stressed /á/ in the example (85b) results in its syllable having one mora via the full vowel. Without the stressed /á/, this syllable would be moraless since neither stressed schwa nor a glottalized resonant can receive a mora, as displayed in (85b). Thus the second foot of the word would be moraless and the last syllable (the subject clitic) would also be moraless.	page 46
 (85a) line 1	Sḵwx̱wu7mesh	parse	✓(mikw’)(shnám̓)chexw	page 46
 (85b) line 1	Sḵwx̱wu7mesh	parse	✗(mikw’)(shném̓)chexw	page 46
 §5.2.2	Peter Jacobs	note	As for a possible alternative hypothesis, if the underlying vowel for V here were /a/, then we might expect a form such as in (86a) to surface instead of (86b). The last syllable with the intransitivizer would be expected to compete for stress and win every time, since the rightmost stress dominates. This is clearly not the case, though. If we assume that V in this example is an epenthetic schwa, then we can derive the stress for this word straightforwardly. The only fully form foot is the (ch’ay.ya) foot.	page 46
@@ -1052,8 +1052,8 @@ footnote 15	Peter Jacobs	note	The following proposals from Dyck (2004) are relev
 §5.2.3	Peter Jacobs	note	Again, we find that stressed /á/ is occurring where stressed schwa is expected to occur. In example (88b), stress appears to be alternating over feet. This pattern, then, requires that the first person possessive clitic, -chet, which is normally realized with a schwa, to bear (primary?) stress. This requirement for stress in turn results in its vowel being changed to a stressed /á/. I offer that this is another case of schwa strengthening. Schwa has been strengthened to /á/ to help its syllable meet the requirements of prosody.	page 47
 §5.2.3	Sḵwx̱wu7mesh	cited form	-chet	page 47, in italics
 §6	Peter Jacobs	heading	6 Conclusion	page 47
-§6	Peter Jacobs	note	In this paper we examined data in Squamish on both vowel harmony and schwa alternating with stressed /á/. Vowel harmony occurs most often between vowels in what appears to be the same (CVCV) foot. I also described, certain cases of schwa alternating with /a/ as schwa strengthening. I hypothesized that schwa strengthening may be taking place in order to satisfy moraic requirements relating to stress since stressed /á/ in these cases appears to carry either primary or secondary stress. It is yet to be determined, though, what the exact conditions are for when schwa strengthening takes place and when it does not for all cases that we have examined. Nevertheless, we have seen that schwa strengthening is an available phonological strategy available in Sḵwx̱wu7mesh.	page 47
-§6	Peter Jacobs	note	I further propose that, given that we have shown about vowel harmony and schwa alternating with /á/, it is a reasonable hypothesis that the various properties of V are derivable from the general properties of vowel harmony and schwa strengthening. That is, V's properties can be derived independently from more general phonological processes in the language, instead of being lexically specified. If V is simply an epenthetic schwa as Jacobs (2011) proposes, then such a pattern is fully expected from its various realizations as schwa. Schwa in Squamish, and in Salish in general, derives its specific features from the surrounding context. If this account is on the right track, then this context also includes: i) foot structure, e.g. its can get its features as a copy vowel when foot internal to the root or ii) stress properties, e.g. it can surface as stressed schwa or as stressed /á/.	page 48
+§6	Peter Jacobs	note	In this paper we examined data in Squamish on both vowel harmony and schwa alternating with stressed /á/. Vowel harmony occurs usually between vowels in what appears to be the same (CVCV) foot. I also described, certain cases of schwa alternating with /a/ as schwa strengthening. I hypothesized that schwa strengthening may be taking place in order to satisfy moraic requirements relating to stress since stressed /á/ in these cases appears to carry either primary or secondary stress. It is yet to be determined, though, what the exact conditions are for when schwa strengthening takes place and when it does not for all cases that we have examined. Nevertheless, we have seen that schwa strengthening is an available phonological strategy available in Sḵwx̱wu7mesh.	page 47
+§6	Peter Jacobs	note	I further propose that, given that we have displayed about vowel harmony and schwa alternating with /á/, it is a reasonable hypothesis that the various properties of V are derivable from the general properties of vowel harmony and schwa strengthening. That is, V's properties can be derived independently from more general phonological processes in the language, instead of being lexically specified. If V is simply an epenthetic schwa as Jacobs (2011) proposes, then such a pattern is fully expected from its various realizations as schwa. Schwa in Squamish, and in Salish in general, derives its specific features from the surrounding context. If this account is on the right track, then this context also includes: i) foot structure, e.g. its can get its features as a copy vowel when foot internal to the root or ii) stress properties, e.g. it can surface as stressed schwa or as stressed /á/.	page 48
 references	Peter Jacobs	heading	References	page 48
 references	Peter Jacobs	reference	Demers, Richard A. and George M. Horn. 1978. Stress assignment in Squamish. IJAL 44:180-191.	page 48
 references	Peter Jacobs	reference	Dyck, Ruth Anne. 2004. Prosodic and Morphological Factors in Squamish (Skwxwu7mesh) Stress Assignment. Unpublished PhD dissertation, UVic, Canada.	page 48

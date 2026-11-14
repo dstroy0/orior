@@ -30,7 +30,7 @@
 # applies to this header as much as to anything else.
 #
 # WHAT THIS TOOL IS TO THE REST OF THE TREE. Both writing standards name it by path and hand it the
-# list: code-documentation section 145 and code-comments section 208. Where it is kept is not what
+# list: code-documentation section 145 and code-comments section 208. Where it is retained is not what
 # it governs. The table is the standard for every .md page, every .py, .c and .h comment and every
 # .tex body in every repository here.
 #
@@ -39,7 +39,7 @@
 # with no opt-in. TIER B is vocabulary, scored against what it costs a human writer where that has
 # been measured. Neither fails a build, in any repository, --strict included.
 #
-# THE FAULT THIS TABLE KEEPS MAKING runs in both directions and is a transcription failure rather
+# THE FAULT THIS TABLE RETAINS MAKING runs in both directions and is a transcription failure rather
 # than a judgement one. A rule is read for its EXAMPLES and coded as a list, or read for one
 # INSTANCE and coded as a bare word. Against the first, code-documentation:143 states the escape:
 # "a word that reads as a tic in one construction only is bounded to that construction." Against
@@ -47,7 +47,7 @@
 # names. Transcribe the sentence, not the illustration beside it.
 #
 # A RULE TABLE DUPLICATED INTO THE TABLE THAT ENFORCES IT DRIFTS WITH NO SIGNAL AT ALL. LOCALE is
-# spliced into BANNED and there is one copy. Keep it that way.
+# spliced into BANNED and there is one copy. Retain it that way.
 #
 # Cite the sentence and not only the number: a number moves when a document is edited and the
 # sentence is the rule.
@@ -69,7 +69,7 @@ from .human_rate import HUMAN_RATE, stage_of  # noqa: F401
 from .tier import AUTHORITY, COMMENT_ONLY, _ORPHANS, tier_of  # noqa: F401
 from .quoting import EM_DASH, NAMED_IN_MARKDOWN, NAMED_SPAN, QUIET_CLOSE, QUIET_OPEN, QUOTED, quieted  # noqa: F401
 from .ledger import Ledger  # noqa: F401
-from .files import BUILD_NAMES, BUILD_SUFFIXES, CHECKED, HOOK_NAMES, SKIP_DIRS, build_file, checked_file, generated_chapter, kept_dirs, walk_markdown  # noqa: F401
+from .files import BUILD_NAMES, BUILD_SUFFIXES, CHECKED, HOOK_NAMES, SKIP_DIRS, build_file, checked_file, generated_chapter, retained_dirs, walk_markdown  # noqa: F401
 from .verbatim import VERBATIM_MARKER, VERBATIM_ROOTS, _VERBATIM_CACHE, _VERBATIM_CEILING, verbatim_root  # noqa: F401
 from .manifest import MANIFEST_NAMES, SIGNATURE_SUFFIX, _MANIFEST_CEILING, _MANIFEST_DIRS, _MANIFEST_INDEX, manifest_home, manifest_index, manifest_listed, reconcile_command  # noqa: F401
 from .legal import COMMENT_FORMS, LEGAL, comment_blocks, comment_form, form_closes, legal_blank  # noqa: F401
@@ -83,7 +83,7 @@ from .index import PASSAGE, _ATOMIC, _COMPILED, _CONST, _FOLDS, _INDEX, _PARSER,
 from .scan import CORPUS, MARKER, attributed, banned_hits, banned_tokens, em_dashes, measured, runs  # noqa: F401
 from .prose import CONTINUATION, SENTENCE_END, STRING_SPAN, comment_prose, hash_tail, marker_edges, near_marker, prose_only, tex_prose  # noqa: F401
 from .ratchet import DEFAULT_RATCHET, RATCHET_HEADER, ratchet_read, ratchet_slack, ratchet_write, staged_paths  # noqa: F401
-from .oracle import PLAIN_TABLE, SHORTEST, SHOWN, TABLES, WEB_TABLE, WORD, WORD_TABLE, adjacent, between, counted, offlist, oracle_roots, pick, plain_for  # noqa: F401
+from .oracle import PLAIN_TABLE, SHORTEST, DISPLAYED, TABLES, WEB_TABLE, WORD, WORD_TABLE, adjacent, between, counted, offlist, oracle_roots, pick, plain_for  # noqa: F401
 from .holes import HOLE, diff_holes  # noqa: F401
 from .printed import REPORTING, printed_hits, printed_strings  # noqa: F401
 from .punctuation import SUSPECT, smart_quotes  # noqa: F401

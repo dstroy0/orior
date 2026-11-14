@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 line 1	interface_sass_probe_class	ksc	ksc <system>	the system this file classifies
 body	interface_sass_probe_class	channel	channel <channel> <text>	the channels this system answers on
 body	interface_sass_probe_class	class	class <answer> <text>	what an answer can be
@@ -10,7 +10,7 @@ body	-	register past	run answers <past> register past	how many registers past th
 body	orior_klq_identity	register last	run answers <last> register last	the highest register a question's code can name, walked down from the top of the register field as the part answers it (P11 Step 9); R255 is RZ and excepted, every number through R<last> the code's to name (sass_machine.h)
 body	orior_klq_identity	predicate last	run answers <last> predicate last	the highest predicate a question's code can name, walked down the predicate field the same way as the register as the part answers it (P11 Step 9); P7 is PT, always true and excepted, every predicate through P<last> the code's to name
 body	interface_sass_probe_class	equal	equal <writing> <writing>	writings the system answers alike: an operation written where the ruleset holds the other, each giving the same machine code
-body	interface_sass_probe_class	compile	compile folds <word> <form>: the system folds the <kind> put for <parameter>	a form the system folds into one instruction of its own
+body	interface_sass_probe_class	compile	compile folds <word> <form>: the system folds the <type> put for <parameter>	a form the system folds into one instruction of its own
 body	interface_sass_probe_class	krs block	__krs__( ... )__krs__	a block of the ruleset's language (klang.h): its lines are read by the ruleset reader and by the rules of .krs
 krs block	interface_sass_probe_class	form	form <name> <parameter>... = <text>	a fold as the ruleset beside this file reads it after its own lines and its part's
 any	-	comment	# <text>	a comment

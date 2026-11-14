@@ -70,7 +70,7 @@ static int run_part_host(RunPart part)
 }
 
 // the parse errors on a part named twice, and the floor the .cfg sets is added only when it is not named. The parts
-// are distinct and at most RUN_PARTS
+// are distinct and at max RUN_PARTS
 static RunPart s_parts[RUN_PARTS];
 
 static unsigned int s_part_count = 0u;
@@ -130,9 +130,9 @@ static unsigned long long run_job_declared(const RunInputs *inputs, const char *
 {
     // the largest sample's holdings; the daemon measures the rest and tracks the peak under the signum. A part that
     // drifts (`drift`) also allocates what shift_agreement retains for a sample's frame, its extents in the order the
-    // drift passes them; those bytes step with the padded lengths and not the voxels. The most over the samples is
-    // taken. A part that gates (`gate`) allocates the gate's pool for the most points a frame over the samples' .points
-    unsigned long long maximum = 0ull;
+    // drift passes them; those bytes step with the padded lengths and not the voxels. The max over the samples is
+    // taken. A part that gates (`gate`) allocates the gate's pool for the max points a frame over the samples' .points
+    unsigned long long max = 0ull;
     unsigned long long retained = 0ull;
     for (unsigned int at = 0u; at < inputs->count; at += 1u)
     {
@@ -161,13 +161,13 @@ static unsigned long long run_job_declared(const RunInputs *inputs, const char *
                 (drift != 0) ? shift_agreement_reserve_bytes(ENGINE_AXES, extents) : 0ull;
             retained = (reserve_bytes > retained) ? reserve_bytes : retained;
         }
-        maximum = (lanes > maximum) ? lanes : maximum;
+        max = (lanes > max) ? lanes : max;
     }
-    const unsigned long long lattice_bytes = run_job_lattice_bytes(maximum, lattice, tower);
+    const unsigned long long lattice_bytes = run_job_lattice_bytes(max, lattice, tower);
     unsigned int points = 0u;
     if ((gate != 0) && (sort_points_max(inputs->set, inputs->samples, inputs->count, &points) == 0))
     {
-        fprintf(stderr, "  tessera: %s: the most points a frame could not be read\n", name);
+        fprintf(stderr, "  tessera: %s: the max points a frame could not be read\n", name);
         return 0ull;
     }
     const unsigned long long gated = (gate != 0) ? sort_reserve_bytes(points) : 0ull;
@@ -264,10 +264,10 @@ static int run_job_submit(const char *name, const CfgText *effective, const RunI
             return 0;
         }
     }
-    job->total = job->declared + job->ticket.standing;
+    job->total = job->declared + job->ticket.located;
     printf("  tessera: %s admitted, %llu bytes reserved; it declared %llu over the %llu its process allocated as it "
            "requested\n",
-           name, job->ticket.granted, job->declared, job->ticket.standing);
+           name, job->ticket.granted, job->declared, job->ticket.located);
     return 1;
 }
 
@@ -1597,7 +1597,7 @@ int main(int argc, char **argv)
     {
         inputs.floor_entropy = true;
     }
-    // the floor is not among the parts named here, and they are distinct. With it they are at most RUN_PARTS
+    // the floor is not among the parts named here, and they are distinct. With it they are at max RUN_PARTS
     if ((s_ingest == 0u) && inputs.floor_entropy && (run_part_named_already(RUN_FLOOR) == 0))
     {
         memmove(&s_parts[1], &s_parts[0], (size_t)s_part_count * sizeof(s_parts[0]));
@@ -1776,7 +1776,7 @@ int main(int argc, char **argv)
             memcpy(scan.voxel_pm, inputs.voxel_pm, sizeof(scan.voxel_pm));
             scan.error = &error;
             failures = (scan_set(&scan) == 0L) ? 0 : 1;
-            if (error.kind != ENGINE_ERROR_NONE)
+            if (error.type != ENGINE_ERROR_NONE)
             {
                 track_error_report("scan", &error);
             }
@@ -1861,7 +1861,7 @@ int main(int argc, char **argv)
             links.still = gate_still;
             links.first = cost_first;
             failures = (sort_link_set(&links) == 0L) ? 0 : 1;
-            if (error.kind != ENGINE_ERROR_NONE)
+            if (error.type != ENGINE_ERROR_NONE)
             {
                 track_error_report("sort", &error);
             }

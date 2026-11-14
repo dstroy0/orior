@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// schema_bounds.c: a number checked against `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` and
+// schema_bounds.c: a number checked against `minimum`, `max`, `exclusiveMinimum`, `exclusiveMaximum` and
 // `multipleOf`, draft 4's boolean exclusive bounds read beside them, the last bound it passes reported; and a string
-// against `minLength`, `maxLength`, counted in letters, and `pattern`
+// against `minLength`, `maxLength`, counted in characters, and `pattern`
 #include "../../../../includes/arith/arith.h"
 #include "schema_internal.h"
 
@@ -50,12 +50,12 @@ void cli_schema_number_check(const CliSchemaBaseMapCtx *args)
     }
     if (EMBED_CALL(cli_schema_json_node_internal.number, CliSchemaJsonNodeCtx, .json = json,
                    .node = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = args->map,
-                                      .name = "maximum"),
+                                      .name = "max"),
                    .value_f64s = &bound) &&
         ((number > bound) || (draft4_max && (number == bound))))
     {
         EMBED_CALL(bounds_msg_write, SchemaBoundsCtx, .msg = &msg, .number = number,
-                   .between = " is above the most the schema allows, ", .bound = bound,
+                   .between = " is above the max the schema allows, ", .bound = bound,
                    .after = draft4_max ? ", itself left out" : "");
     }
     if (EMBED_CALL(cli_schema_json_node_internal.number, CliSchemaJsonNodeCtx, .json = json,
@@ -104,7 +104,7 @@ void cli_schema_text_check(const CliSchemaBaseMapCtx *args)
     const char *const text =
         EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx, .read = args->check->read, .at = one->text_at);
     const unsigned long long length =
-        EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = text, .size = one->text_size);
+        EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = text, .size = one->text_size);
     unsigned long long bound = 0ULL;
     if (EMBED_CALL(cli_schema_json_node_value_u_64s_internal.u64, CliSchemaJsonNodeValueU64sCtx, .json = json,
                    .node = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = args->map,

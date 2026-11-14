@@ -2,7 +2,7 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # The prose findings in the files a commit raised above their ceiling, and only those. docs_check
-# reads the whole tree and prints every finding in it; this keeps the ones a hand has to fix now
+# reads the whole tree and prints every finding in it; this retains the ones a hand has to fix now
 #
 #     utils/maint/engine/prose_mine.sh
 set -u

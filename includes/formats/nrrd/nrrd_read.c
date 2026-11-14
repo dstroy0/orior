@@ -78,9 +78,9 @@ static unsigned int nrrd_field(NrrdSpan line, NrrdFields *fields)
     {
         return nrrd_sizes(value, fields);
     }
-    if (nrrd_equals(key, "kinds"))
+    if (nrrd_equals(key, "types"))
     {
-        return nrrd_kinds(value, fields);
+        return nrrd_types(value, fields);
     }
     if (nrrd_equals(key, "space directions"))
     {
@@ -165,7 +165,7 @@ static unsigned int nrrd_extent(const NrrdFields *fields, EngineArrayExtent *ext
     const int complete = fields->typed && (fields->dimension > 0u) && (fields->sizes_count == fields->dimension) &&
                          (fields->encoding != NRRD_ENCODING_UNSET) &&
                          ((fields->endian != NRRD_UNSET) || (fields->element_bytes == 1u)) &&
-                         ((fields->kinds_count == 0u) || (fields->kinds_count == fields->dimension)) &&
+                         ((fields->types_count == 0u) || (fields->types_count == fields->dimension)) &&
                          ((fields->directions_count == 0u) || (fields->directions_count == fields->dimension));
     if (!complete)
     {
@@ -176,11 +176,11 @@ static unsigned int nrrd_extent(const NrrdFields *fields, EngineArrayExtent *ext
     unsigned int timed = 0u;
     for (unsigned int axis = 0u; axis < fields->dimension; axis += 1u)
     {
-        const NrrdKind kind = (fields->kinds_count != 0u) ? fields->kinds[axis] : NRRD_KIND_OTHER;
+        const NrrdKind type = (fields->types_count != 0u) ? fields->types[axis] : NRRD_KIND_OTHER;
         const int directed = fields->spaced && !fields->space_timed && (fields->directions_count != 0u) &&
                              (fields->directions[axis] != 0u);
-        const int time_axis = (kind == NRRD_KIND_TIME) && (timed == 0u);
-        const int space_axis = (kind == NRRD_KIND_SPACE) || ((kind != NRRD_KIND_TIME) && directed);
+        const int time_axis = (type == NRRD_KIND_TIME) && (timed == 0u);
+        const int space_axis = (type == NRRD_KIND_SPACE) || ((type != NRRD_KIND_TIME) && directed);
         labels[axis] = time_axis                         ? 't'
                        : (space_axis && (spatial == 0u)) ? 'x'
                        : (space_axis && (spatial == 1u)) ? 'y'
@@ -192,7 +192,7 @@ static unsigned int nrrd_extent(const NrrdFields *fields, EngineArrayExtent *ext
     EngineArrayExtent built = nrrd_empty_layout.extent;
     built.rank = fields->dimension;
     built.element_bytes = fields->element_bytes;
-    built.element_kind = fields->element_kind;
+    built.element_type = fields->element_type;
     for (unsigned int axis = 0u; axis < fields->dimension; axis += 1u)
     {
         built.sizes[axis] = fields->sizes[fields->dimension - 1u - axis];
@@ -364,7 +364,7 @@ static unsigned int nrrd_layout(const char *path, const char *member, const Engi
 static unsigned int nrrd_same_extent(const EngineArrayExtent *found, const EngineArrayExtent *given)
 {
     int same = (found->rank == given->rank) && (found->element_bytes == given->element_bytes) &&
-               (found->element_kind == given->element_kind);
+               (found->element_type == given->element_type);
     for (unsigned int axis = 0u; same && (axis < found->rank); axis += 1u)
     {
         same = (found->sizes[axis] == given->sizes[axis]) && (found->axes[axis] == given->axes[axis]);

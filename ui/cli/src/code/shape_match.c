@@ -3,12 +3,12 @@
 // shape_match.c: the match of a pattern's parts against the code's tokens. A word matches a token of its type and its
 // text, a statement's end any statement's end; a placeholder bound already matches the same tokens again, and one not
 // bound tries each end it may reach, in order, until the rest matches, its brackets and its statements' ends read by
-// the roles the tokens' grammar names. A match from one place takes at most
+// the roles the tokens' grammar names. A match from one place takes at max
 // CLI_SHAPE_STEPS steps before it is given up. The ends tried are stored on the matcher's stack, CLI_SHAPE_ENDS at the
-// most, those past it not tried
+// max, those past it not tried
 #include "shape_internal.h"
 
-// the most steps a match from one place may take, the most ends stored to be tried at once, and the ends the stack is
+// the max steps a match from one place may take, the max ends stored to be tried at once, and the ends the stack is
 // taken with
 #define CLI_SHAPE_STEPS 20000u
 #define CLI_SHAPE_ENDS (1u << 20u)
@@ -48,7 +48,7 @@ EMBED_INLINE int match_depth_get(const ShapeMatchCtx *args)
     return 0;
 }
 
-// whether the code's token at `at` ends a statement where it stands outside brackets
+// whether the code's token at `at` ends a statement where it is outside brackets
 EMBED_INLINE int match_ends_statement(const ShapeMatchCtx *args)
 {
     return (args->matcher->tokens->type[args->at] == CLI_SHAPE_BREAK) ||
@@ -56,7 +56,7 @@ EMBED_INLINE int match_ends_statement(const ShapeMatchCtx *args)
 }
 
 // an end put on the stack where it fits: the stack one cell, taken as its first end is put, of a token's end for each
-// part of the pattern at the most, the end not put where it is full or the cellblock cannot meet it
+// part of the pattern at max, the end not put where it is full or the cellblock cannot meet it
 EMBED_INLINE void match_end_append(const ShapeMatchCtx *args)
 {
     if (args->matcher_out->ends_capacity == 0u)

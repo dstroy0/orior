@@ -26,7 +26,7 @@ typedef struct
     unsigned long long stem;
     const char *language;
 } CliFilling;
-// the most toolchains that name a way to run a file
+// the max toolchains that name a way to run a file
 #define CLI_RUN_NAMED 64u
 
 void cli_run_file_quote(const CliRunFileCfg *args)

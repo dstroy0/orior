@@ -89,7 +89,7 @@ void cli_db_zone(const CliDbOutCountCfg *args);
 // `size` bytes of `statement` run, confirming first where it must and the reader has not `answered`, its first `page`
 // rows or what it did written into `out`; the rows buffered from `from`, `count` of them, read from the run where they
 // are not buffered yet; and the rows buffered, then the rest the run gives, written to `path` as csv, tsv or json
-// lines, `progress` handed how many it has written after each 4096 it reads on. Each 1, or 0 with the failure into
+// lines, `progress` passed how many it has written after each 4096 it reads on. Each 1, or 0 with the failure into
 // `failure` (db_run.c, db_results.c)
 int cli_db_run(const CliDbOutFailureCfg *args);
 int cli_db_rows(const CliDbOutFailureOpenCfg *args);
@@ -106,7 +106,7 @@ int cli_db_children(const CliDbOutCountCfg *args);
 
 // the statements run on the connection, the newest first, written into `out`; the span of the statement `size` bytes
 // of `text` occupy at `offset`, counted in characters, as the editor counts them, as [start, end], null where the place
-// stands in no statement; and each statement of `text` by its span in characters (db_history.c)
+// is in no statement; and each statement of `text` by its span in characters (db_history.c)
 void cli_db_history(const CliDbOutCountCfg *args);
 void cli_db_statement_at(const CliDbOutSizeCfg *args);
 void cli_db_statements(const CliDbOutSizeCfg *args);

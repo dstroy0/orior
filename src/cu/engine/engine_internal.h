@@ -68,8 +68,8 @@
 
 void engine_error_latch(const EngineError *error);
 
-#define ENGINE_CHECK(condition_, evacaddr_, error_, kind_)                                                             \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_ENGINE, (unsigned int)__LINE__, (const void *)(evacaddr_), \
+#define ENGINE_CHECK(condition_, evacaddr_, error_, type_)                                                             \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_ENGINE, (unsigned int)__LINE__, (const void *)(evacaddr_), \
                        (error_))
 
 // cudaError_t enumerates non-negative codes below INT_MAX. The status converts to int exactly
@@ -180,7 +180,7 @@ enum EntrySourceKind
 
 struct EntrySource
 {
-    EntrySourceKind kind;
+    EntrySourceKind type;
     char path[ENTRY_PATH_CAPACITY];
     const char *member;
     ZarrLayout layout;

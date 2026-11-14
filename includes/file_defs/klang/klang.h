@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // klang.h: a block of another language in a file, `__<lang>__(` its text `)__<lang>__` (klang.oracle.tsv). A file is
-// read in the language its extension names; a block hands the text inside it to the parser of the language it names,
+// read in the language its extension names; a block passes the text inside it to the parser of the language it names,
 // and that language's rules govern everything inside it. `)__<lang>__` has no other use than to end the block, so the
 // block's end is found by it alone, whatever the text inside contains; a block of a language inside a block of the same
 // language is counted, each `__<lang>__(` against each `)__<lang>__`. Plain C, every function inline, so that every
@@ -12,7 +12,7 @@
 #include <stddef.h>
 #include <string.h>
 
-// the most letters of a language's name
+// the max characters of a language's name
 #define KLANG_NAME 32u
 
 // One block found: where its opener starts and where its text starts, where its text ends and where its closer ends,
@@ -25,13 +25,13 @@ typedef struct
     size_t closed;
 } KlangBlock;
 
-// 1 where the `length` letters at `at` are `token`, the `token_length` of them
+// 1 where the `length` characters at `at` are `token`, the `token_length` of them
 static inline int klang_token_at(const char *text, size_t length, size_t at, const char *token, size_t token_length)
 {
     return ((at + token_length) <= length) && (memcmp(&text[at], token, token_length) == 0);
 }
 
-// The first block of `lang` in the `length` letters at `text` from `from` on into `block`: 1, or 0 where none opens or
+// The first block of `lang` in the `length` characters at `text` from `from` on into `block`: 1, or 0 where none opens or
 // the one that opens is never closed
 static inline int klang_block_find(const char *text, size_t length, size_t from, const char *lang, KlangBlock *block)
 {

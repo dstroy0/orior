@@ -7,10 +7,10 @@
 #include "../text/text.h"
 #include "checkers_internal.h"
 
-// the most bytes of a finding's fixes
+// the max bytes of a finding's fixes
 #define CLI_CHECK_FIXES (1u << 16u)
 
-// A check being read, under the reading's lock: the checker's name, the tree, the file `-` stands for, the findings,
+// A check being read, under the reading's lock: the checker's name, the tree, the file `-` is for, the findings,
 // and the tree a checker's JSON is read into, in a cell sized to that JSON and given back as the reading ends
 typedef struct
 {

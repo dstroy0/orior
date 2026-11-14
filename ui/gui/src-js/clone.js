@@ -20,7 +20,7 @@ function element(tag, props = {}, ...children) {
 // How long a clone made flashes before the sheet closes, in milliseconds.
 const FLASHED = 900;
 
-// Where the folder the last clone was made in is kept, which the next clone starts from.
+// Where the folder the last clone was made in is retained, which the next clone starts from.
 const PARENT = "orior.clone.parent";
 
 // Each stage git writes its progress for, and the stretch of the fuse it burns: the server counting
@@ -75,7 +75,7 @@ export async function showClone(sheet, openFolder, given = [], { open = false } 
   // The folder that holds the open tree, which a clone beside it goes in.
   const root = open ? null : await invoke("root_get").catch(() => null);
   const beside = root ? root.replace(/[\\/][^\\/]*[\\/]?$/, "") : null;
-  const kept = open ? await invoke("repos_folder").catch(() => "") : "";
+  const retained = open ? await invoke("repos_folder").catch(() => "") : "";
   const url = element("input", { className: "report-field", type: "text", spellcheck: false, value: given[0] ?? (open ? "" : start.url), ariaLabel: "Repository" });
   const parent = element("input", { className: "report-field", type: "text", spellcheck: false, value: given[1] ?? localStorage.getItem(PARENT) ?? start.parent, ariaLabel: "Folder" });
   const choose = element("button", { className: "prefs-button", type: "button", textContent: "Choose Folder…" });
@@ -86,7 +86,7 @@ export async function showClone(sheet, openFolder, given = [], { open = false } 
   let run = null;
   const fuse = makeFuse(() => run?.part ?? 0);
   const label = (text, ...fields) => element("label", { className: "report-row" }, element("span", { textContent: text }), ...fields);
-  const chosen = () => (open ? kept : nextTo.checked ? beside : parent.value.trim());
+  const chosen = () => (open ? retained : nextTo.checked ? beside : parent.value.trim());
   const where = () => {
     const name = nameOf(url.value);
     const base = (chosen() ?? "").replace(/[\\/]+$/, "");

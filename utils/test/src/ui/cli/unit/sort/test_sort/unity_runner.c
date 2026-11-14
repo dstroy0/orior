@@ -7,10 +7,10 @@
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_no_records_and_one_record_stand(void);
+extern void test_no_records_and_one_record_are(void);
 extern void test_two_records_swap(void);
 extern void test_a_short_run_is_put_in_order(void);
-extern void test_a_long_run_is_put_in_order_and_keeps_every_record(void);
+extern void test_a_long_run_is_put_in_order_and_retains_every_record(void);
 extern void test_a_run_already_in_order_and_one_reversed_are_put_in_order(void);
 extern void test_a_run_of_one_value_and_of_few_values_is_put_in_order(void);
 extern void test_records_of_an_odd_size_move_whole(void);
@@ -76,10 +76,10 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\sort\\test_sort\\test_sort.c");
-  run_test(test_no_records_and_one_record_stand, "test_no_records_and_one_record_stand", 75);
+  run_test(test_no_records_and_one_record_are, "test_no_records_and_one_record_are", 75);
   run_test(test_two_records_swap, "test_two_records_swap", 83);
   run_test(test_a_short_run_is_put_in_order, "test_a_short_run_is_put_in_order", 92);
-  run_test(test_a_long_run_is_put_in_order_and_keeps_every_record, "test_a_long_run_is_put_in_order_and_keeps_every_record", 99);
+  run_test(test_a_long_run_is_put_in_order_and_retains_every_record, "test_a_long_run_is_put_in_order_and_retains_every_record", 99);
   run_test(test_a_run_already_in_order_and_one_reversed_are_put_in_order, "test_a_run_already_in_order_and_one_reversed_are_put_in_order", 118);
   run_test(test_a_run_of_one_value_and_of_few_values_is_put_in_order, "test_a_run_of_one_value_and_of_few_values_is_put_in_order", 138);
   run_test(test_records_of_an_odd_size_move_whole, "test_records_of_an_odd_size_move_whole", 158);

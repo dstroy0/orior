@@ -3,8 +3,8 @@
 // qry_queue.c: the backend's channels to a run. Each party of the window stores what it gathers in its own buffer and
 // queues it here at once; each channel's thread appends each record to the run in the order queued. A record waits for
 // capacity in its channel's ring, never behind the records of another channel, and one larger than half a ring, a whole
-// file as a rule, is appended to the run as it is queued, the party waiting on it. A channel's ring stands fixed
-// outside the pool, laid as the channel is first queued to and retained while its thread runs, so a channel never
+// file as a rule, is appended to the run as it is queued, the party waiting on it. A channel's ring is fixed
+// outside the pool, positioned as the channel is first queued to and retained while its thread runs, so a channel never
 // queued to contains nothing
 #include "../text/json_tree.h"
 #include "qry.h"
@@ -70,7 +70,7 @@ static void cli_channel_run(void *context)
         const CliQueued *const item = (const CliQueued *)(const void *)at;
         if (((CLI_QUEUE_BYTES - channel->tail) < CLI_QUEUE_HEAD) || (item->total == 0ULL))
         {
-            // the ring's end, past which no item stands: the next is at its start
+            // the ring's end, past which no item is: the next is at its start
             channel->used -= CLI_QUEUE_BYTES - channel->tail;
             channel->tail = 0ULL;
             continue;
@@ -126,7 +126,7 @@ void cli_qry_queue(const CliQryPathNameCfg *args)
         }
         return;
     }
-    // each channel's ring stands fixed, outside the pool, where it punches no hole in the persistent tier
+    // each channel's ring is fixed, outside the pool, where it punches no hole in the persistent tier
     static unsigned long long s_rings[CLI_CHANNELS][CLI_QUEUE_BYTES / sizeof(unsigned long long)];
     channel->ring = s_rings[channel - s_channels];
     if (!channel->started)

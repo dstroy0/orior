@@ -181,7 +181,7 @@ int cli_private_file_write(const CliPathBytesCtx *args)
 }
 
 #if defined(__linux__)
-// the most bytes of /proc/stat and of a session's id read
+// the max bytes of /proc/stat and of a session's id read
 #define CLI_SYSTEM_STAT_MAX 65536u
 
 // the file at `path` read into `out`, sized for `capacity`, a 0 after what was read: the bytes read, 0 where it cannot

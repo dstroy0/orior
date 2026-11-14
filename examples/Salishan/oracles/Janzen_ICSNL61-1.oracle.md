@@ -25,29 +25,29 @@ tables and the notes on the page carry Jonathan Janzen.
 
 Every example is set in three columns: the local orthography, which marks stress with a grave,
 then the Wakashan Meta Alphabet, which marks it with an acute and sets the stressed syllable in bold,
-then the English. The kind of the first is transcription and of the second phonemic.
+then the English. The type of the first is transcription and of the second phonemic.
 
-THE LETTERS
+THE CHARACTERS
 
-The text layer writes glottalization as U+0313 COMBINING COMMA ABOVE on every letter but one: the y
+The text layer writes glottalization as U+0313 COMBINING COMMA ABOVE on every character but one: the y
 of y̕ak̓ in §3.2 carries U+0315 COMBINING COMMA ABOVE RIGHT, and the page draws that comma over the
-a. The uvular fricative is written two ways. ꭓ, U+AB53 LATIN SMALL LETTER CHI, is in the WMA of (2)
-and (3) and in §3.2. χ, U+03C7 GREEK SMALL LETTER CHI, is in Table 1, (6), (8) and §3.3. The page
+a. The uvular fricative is written two ways. ꭓ, U+AB53 LATIN SMALL CHARACTER CHI, is in the WMA of (2)
+and (3) and in §3.2. χ, U+03C7 GREEK SMALL CHARACTER CHI, is in Table 1, (6), (8) and §3.3. The page
 draws the two alike, and the table follows the text layer. The WMA of (5) line 2 has ć, U+0107,
 where the orthography has c̓. (8) line 5 marks stress in the orthography with an acute, where every
 other orthography line has a grave. The glottal stop of the orthography is ’, U+2019, and ‘,
 U+2018, at the start of (2).
 
 In Table 1 the commas of k̓ and k̓ʷ are drawn under the ɡ and ɡʷ of the row above, and between the
-rows of (1), (3), (4), (7) and (8) short dashes, dots and commas sit on no letter. Read at 600 dpi.
-The text layer holds U+0313 on the letters the table gives and nothing for the stray marks, and the
+rows of (1), (3), (4), (7) and (8) short dashes, dots and commas sit on no character. Read at 600 dpi.
+The text layer holds U+0313 on the characters the table gives and nothing for the stray marks, and the
 table follows the text layer. Symbol note rows give each of these.
 
 THE PAGE AND THE TEXT LAYER
 
 The forms are in NFC, as every table in the corpus is, and the reader normalizes the text layer to
 NFC before it compares. The text layer holds the proceedings line of page 1 ahead of the title. It
-sets a space after most combining commas, as in p̓ ùn̓ akvəla and Kwak̓ wala, and spaces inside some
+sets a space after max combining commas, as in p̓ ùn̓ akvəla and Kwak̓ wala, and spaces inside some
 words, as in Kwakiut l, conduct ed and V oices. The form column joins each word as the page prints
 it.
 
@@ -73,7 +73,7 @@ where    the paper's locator: the title, the footer, the abstract, a section, a 
 who      the language for a form; the work cited on an example's line for its English, and
          otherwise Jonathan Janzen; Lincoln and Rath for the block quotation of §3; Jonathan Janzen
          for the prose, the tables and the notes on the page
-kind     transcription  an example word or sentence in the local orthography, or an orthography form
+type     transcription  an example word or sentence in the local orthography, or an orthography form
                         in the prose
          phonemic       an example word or sentence in the WMA, or a WMA form in the prose
          translation    the English of an example line

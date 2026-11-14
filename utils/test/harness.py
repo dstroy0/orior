@@ -5,7 +5,7 @@
 harness.py - the one entry point for orior's test suites.
 
 utils/test/test_matrix.json is the source of truth: one env per suite, each naming the script that
-builds and runs it. Every build and run is a tessera job: `run` hands each suite's script to
+builds and runs it. Every build and run is a tessera job: `run` passes each suite's script to
 tessera_run, which admits it on the device's daemon, and the daemon decides what runs beside what.
 
     harness.py run                        every suite in the matrix
@@ -27,7 +27,7 @@ tessera_run, which admits it on the device's daemon, and the daemon decides what
     harness.py wsl ...                    the ext4 test volume under WSL, the tree copied onto it, commands run there (harness_wsl.py)
 
 Every invocation is a line of build/harness/harness.log, when it began, the command line, its exit code, its
-seconds and its output's file, and its output is kept whole under build/harness/log/.
+seconds and its output's file, and its output is retained whole under build/harness/log/.
 
 --at exports the commit once, with git archive, to build/trees/<commit>
 (fetching it from origin where this clone does not hold it) and runs that tree's matrix there; its
@@ -185,7 +185,7 @@ def splice_replace(text, name, entry):
     """Replace an env's whole `"name": {...}` in place, rendered at the indent it already sits at.
 
     The same render as splice_after: an updated env and a new one are indented identically. The
-    leading pad is dropped because the text kept ahead of key_start already carries it.
+    leading pad is dropped because the text retained ahead of key_start already carries it.
     """
     pad, key_start, close = env_span(text, name)
     block = json.dumps({name: entry}, indent=2)[1:-1].rstrip()
@@ -386,9 +386,9 @@ def cmd_env_remove(a):
         if len(envs) - len(set(a.name)) < 1:
             print("erroring, not emptying the table")
             return 1
-        kept = {n: e for n, e in envs.items() if n not in set(a.name)}
+        retained = {n: e for n, e in envs.items() if n not in set(a.name)}
         still_run = set()
-        for e in kept.values():
+        for e in retained.values():
             still_run.update(e.get("tests") or [])
         orphaned = []
         for n in set(a.name):
@@ -403,7 +403,7 @@ def cmd_env_remove(a):
         if a.verbose:
             # Where each test folder still runs once these envs are gone
             covers = {}
-            for n, e in kept.items():
+            for n, e in retained.items():
                 for t in e.get("tests") or []:
                     covers.setdefault(t, []).append(n)
             for n in sorted(set(a.name)):
@@ -450,7 +450,7 @@ SCRIPT_BUILD = os.path.join(ROOT, "build", "harness")
 # a suite admitted and silent this long is hung
 IDLE_SECONDS = 1800
 # the processors a suite reserves where its env names none: a suite that links cached objects peaks near one, and
-# the daemon still holds a suite's kept peak where that is more
+# the daemon still holds a suite's retained peak where that is more
 PROCESSORS = 2
 
 
@@ -639,7 +639,7 @@ def cmd_run(a):
             return 1
         script_build = os.path.join(SCRIPT_BUILD, "at_" + os.path.basename(root)[:12])
         print("pinned: %s" % root)
-    # A pinned tree keeps its own commit's layout, and that layout can hold the matrix at test/.
+    # A pinned tree retains its own commit's layout, and that layout can hold the matrix at test/.
     matrix = os.path.join(root, "utils", "test", "test_matrix.json")
     if not os.path.isfile(matrix):
         matrix = os.path.join(root, "test", "test_matrix.json")
@@ -795,21 +795,21 @@ LOG_DIR = os.path.join(SCRIPT_BUILD, "log")
 class Teed:
     """A stream written to the console and to the invocation's log alike."""
 
-    def __init__(self, console, kept):
+    def __init__(self, console, retained):
         self.console = console
-        self.kept = kept
+        self.retained = retained
 
     def write(self, text):
         self.console.write(text)
-        self.kept.write(text)
+        self.retained.write(text)
 
     def flush(self):
         self.console.flush()
-        self.kept.flush()
+        self.retained.flush()
 
 
 def main():
-    """The command run, its output kept under build/harness/log and the invocation a line of build/harness/harness.log:
+    """The command run, its output retained under build/harness/log and the invocation a line of build/harness/harness.log:
     when it began, the command line, its exit code, its seconds and its output's file."""
     ap = build_parser()
     a, extra = ap.parse_known_args()
@@ -824,9 +824,9 @@ def main():
     words = " ".join(sys.argv[1:])
     console_out, console_err = sys.stdout, sys.stderr
     code = 1
-    with open(path, "w", encoding="utf-8", errors="replace") as kept:
-        kept.write("$ harness.py %s\n" % words)
-        sys.stdout, sys.stderr = Teed(console_out, kept), Teed(console_err, kept)
+    with open(path, "w", encoding="utf-8", errors="replace") as retained:
+        retained.write("$ harness.py %s\n" % words)
+        sys.stdout, sys.stderr = Teed(console_out, retained), Teed(console_err, retained)
         try:
             code = a.fn(a) or 0
         except BaseException:

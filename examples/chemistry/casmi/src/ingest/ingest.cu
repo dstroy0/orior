@@ -32,7 +32,7 @@ static void ingest_error_line(SimResults *results, const char *what, const Engin
     mmgr_line_put(&results->line, what);
     ingest_line_decimal(results, ": module ", (unsigned long long)error->module);
     ingest_line_decimal(results, ", site ", (unsigned long long)error->site);
-    ingest_line_decimal(results, ", kind ", (unsigned long long)error->kind);
+    ingest_line_decimal(results, ", type ", (unsigned long long)error->type);
     ingest_line_decimal(results, ", status ", (unsigned long long)(unsigned int)error->status);
     ingest_line_end(results);
 }

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// carried.c: the round carried: one question or many handed critical, carried by the carrier and answered
+// carried.c: the round carried: one question or many passed critical, carried by the carrier and answered
 #include "run_channel_internal.h"
 
 #include <time.h>
@@ -67,11 +67,11 @@ int run_channel_carried(RunQuestion *question)
     if (!run_channel_write(question, code_name, cases_name))
     {
         question->outcome = RUN_NO_CHANNEL;
-        run_channel_refused(question, "the question could not be handed to the run");
+        run_channel_refused(question, "the question could not be passed to the run");
         return 0;
     }
     // the round, this one question, checked before the part and fixed where a count of registers fixes it, then its
-    // line handed critical before the carrier starts
+    // line passed critical before the carrier starts
     RunQuestion *const one[1] = {question};
     const int listed = run_channel_relisted(one, 0u, 1u, 1);
     const unsigned long long airlock_began = run_channel_now();
@@ -82,10 +82,10 @@ int run_channel_carried(RunQuestion *question)
         question->outcome = RUN_NO_CHANNEL;
         return 0;
     }
-    // the count of registers the check left the question, which the carrier is handed
+    // the count of registers the check left the question, which the carrier is passed
     run_channel_list_line(0u, line);
     run_channel_counted(registers, sizeof(registers), question->registers);
-    const unsigned long long after = listed ? run_channel_round_handed() : 0ull;
+    const unsigned long long after = listed ? run_channel_round_passed() : 0ull;
     if (after == 0ull)
     {
         question->outcome = RUN_NO_CHANNEL;
@@ -126,14 +126,14 @@ int run_channel_carried(RunQuestion *question)
     answer.output = s_carrier_output;
     answer.output_capacity = sizeof(s_carrier_output);
     EngineError error = {0};
-    // what this process handed moved into the run before the carrier reads it, and what it handed once it ends
+    // what this process passed moved into the run before the carrier reads it, and what it passed once it ends
     qry_member_settled();
     const unsigned long long carrier_began = run_channel_now();
     const long ran = interface_probe_run(&probe, &answer, &error);
     s_channel.carried_nanoseconds += run_channel_now() - carrier_began;
     qry_member_rings_settled();
-    run_channel_output_handed(&answer);
-    // a panic on the line, the carrier's or its ending's: the teacher's account handed
+    run_channel_output_passed(&answer);
+    // a panic on the line, the carrier's or its ending's: the teacher's account passed
     run_channel_panic_written(1u, after, &answer, 0u, line);
     if ((ran != 0L) || (answer.ending == INTERFACE_ENDING_NOT_STARTED))
     {
@@ -159,12 +159,12 @@ int run_channel_carried(RunQuestion *question)
     return question->outcome == RUN_ANSWERED;
 }
 
-// The questions of `questions`, `count` of them and at most RUN_QUESTIONS_MOST, queried as run_channel_put_many queries
+// The questions of `questions`, `count` of them and at max RUN_QUESTIONS_MAX, queried as run_channel_put_many queries
 // them
 static unsigned int run_channel_put_some(RunQuestion *const *questions, unsigned int count)
 {
     // the questions R answers taken first, and only the rest carried, each stored in R once it comes back
-    static RunQuestion *s_left[RUN_QUESTIONS_MOST];
+    static RunQuestion *s_left[RUN_QUESTIONS_MAX];
     RunQuestion **const left = s_left;
     // a stopped run carries nothing and answers nothing from R: every question is blocked with the stop's reason
     if (run_channel_panic_ruled())
@@ -199,9 +199,9 @@ static unsigned int run_channel_put_some(RunQuestion *const *questions, unsigned
 unsigned int run_channel_put_many(RunQuestion *const *questions, unsigned int count)
 {
     unsigned int answered = 0u;
-    for (unsigned int first = 0u; first < count; first += RUN_QUESTIONS_MOST)
+    for (unsigned int first = 0u; first < count; first += RUN_QUESTIONS_MAX)
     {
-        const unsigned int some = ((count - first) < RUN_QUESTIONS_MOST) ? (count - first) : RUN_QUESTIONS_MOST;
+        const unsigned int some = ((count - first) < RUN_QUESTIONS_MAX) ? (count - first) : RUN_QUESTIONS_MAX;
         answered += run_channel_put_some(questions + first, some);
     }
     return answered;
@@ -222,7 +222,7 @@ unsigned int run_channel_carried_many(RunQuestion *const *questions, unsigned in
     }
     char list_name[] = "questions.txt";
     // each process carries the questions from `first` on, and the next carries those after the first it left
-    // unanswered. The airlock reads the whole round once, before the first process: the gated list it hands covers
+    // unanswered. The airlock reads the whole round once, before the first process: the gated list it passes covers
     // every process after, each carrying questions it read
     unsigned int first = 0u;
     int airlocked = 0;
@@ -275,8 +275,8 @@ unsigned int run_channel_carried_many(RunQuestion *const *questions, unsigned in
             s_channel.dry_written += count - first;
             return answered;
         }
-        // the round handed critical, on disk before its carrier starts
-        const unsigned long long after = written ? run_channel_round_handed() : 0ull;
+        // the round passed critical, on disk before its carrier starts
+        const unsigned long long after = written ? run_channel_round_passed() : 0ull;
         if (after == 0ull)
         {
             for (unsigned int at = first; at < count; at += 1u)
@@ -303,13 +303,13 @@ unsigned int run_channel_carried_many(RunQuestion *const *questions, unsigned in
         answer.output = s_carrier_output;
         answer.output_capacity = sizeof(s_carrier_output);
         EngineError error = {0};
-        // what this process handed moved into the run before the carrier reads it, and what it handed once it ends
+        // what this process passed moved into the run before the carrier reads it, and what it passed once it ends
         qry_member_settled();
         const unsigned long long carrier_began = run_channel_now();
         const long ran = interface_probe_run(&probe, &answer, &error);
         s_channel.carried_nanoseconds += run_channel_now() - carrier_began;
         qry_member_rings_settled();
-        run_channel_output_handed(&answer);
+        run_channel_output_passed(&answer);
         if ((ran != 0L) || (answer.ending == INTERFACE_ENDING_NOT_STARTED))
         {
             for (unsigned int at = first; at < count; at += 1u)
@@ -320,7 +320,7 @@ unsigned int run_channel_carried_many(RunQuestion *const *questions, unsigned in
             return answered;
         }
         // every question the process answered, in order, up to the first it left unanswered: an answer is one the
-        // carrier handed after the round
+        // carrier passed after the round
         unsigned int at = first;
         const unsigned int answered_before = answered;
         for (; at < count; at += 1u)
@@ -357,7 +357,7 @@ unsigned int run_channel_carried_many(RunQuestion *const *questions, unsigned in
             }
             at += 1u;
         }
-        // a panic on the line, or one ruled on as the answers were read: the teacher's account handed where the line is
+        // a panic on the line, or one ruled on as the answers were read: the teacher's account passed where the line is
         // open, the question the carrier was carrying the one its ending answered or, where it ended clean, the last
         // it answered, its refusal; and no question is put after it
         if ((run_channel_on_line() != 0ull) || run_channel_panic_ruled())

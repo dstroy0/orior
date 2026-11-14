@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// owners.h: the owners every module's cells count to, the program's one list, as data: pool.c lays MMgr's owner
+// owners.h: the owners every module's cells count to, the program's one list, as data: pool.c positions MMgr's owner
 // table from it with MMGR_OWNERS, and each owner here is a const pointer into that table the linker resolves, which
 // its module names on every take, give and growth. Each line is the owner's identity and the name a reader prints,
 // unique in the table. A module that takes cells is one line here
@@ -29,7 +29,7 @@
     owner_(g_cli_deploy_owner, "cli_deploy")                             \
     owner_(g_cli_devcontainer_owner, "cli_devcontainer")                 \
     owner_(g_cli_diff_view_owner, "cli_diff_view")                       \
-    owner_(g_cli_ipc_owner, "cli_door")                                  \
+    owner_(g_cli_ipc_owner, "cli_interface")                                  \
     owner_(g_cli_editor_owner, "cli_editor")                             \
     owner_(g_cli_envs_owner, "cli_envs")                                 \
     owner_(g_cli_executables_owner, "cli_executables")                   \

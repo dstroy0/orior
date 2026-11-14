@@ -5,7 +5,7 @@
 // Variables: each watch evaluated in the chosen frame, then the chosen frame's scopes, the first open until closed and
 // the rest closed until opened, the variables of each open one, and under each open variable its own, to
 // CLI_DEBUG_DEPTH levels, read again whole as a frame is chosen or a row opens or closes; a row's key is its path of
-// labels, and the open set stores the keys whose rows stand the reverse of how they first stand, sorted by their bytes
+// labels, and the open set stores the keys whose rows are the reverse of how they first are, sorted by their bytes
 // and found by halving. Console: a ring of lines over one movable text cell, a piece of output with no line end running
 // on into the last line of its type, the oldest line going past CLI_DEBUG_CONSOLE_LINES and its bytes with the next
 // compaction. Every entry and text is read out of its cell by copy where it is used
@@ -14,7 +14,7 @@
 
 #include "../command_line/rings.h"
 
-// the bytes of a scratch a session's answer is written into, the most bytes of a row's key, the cell the console's
+// the bytes of a scratch a session's answer is written into, the max bytes of a row's key, the cell the console's
 // text is first taken at, and the notices of the views with no rows of their own
 #define ROWS_ANSWER (1ULL << 20u)
 #define ROWS_KEY 4096u
@@ -153,7 +153,7 @@ EMBED_INLINE unsigned int rows_key_place(const DebugPaneRowsCtx *args)
     return low;
 }
 
-// whether the key of `length` bytes of `text` stands in the open set
+// whether the key of `length` bytes of `text` is in the open set
 EMBED_INLINE int rows_flipped(const DebugPaneRowsCtx *args)
 {
     const unsigned int place = EMBED_CALL(rows_key_place, DebugPaneRowsCtx, .text = args->text, .length = args->length);
@@ -201,9 +201,9 @@ EMBED_INLINE void rows_flip(const DebugPaneRowsCtx *args)
             char key[ROWS_KEY];
             EMBED_CALL(cli_debug_pane_internal.text_read, CliDebugPaneCtx, .store = flipped, .offset = entry.text,
                        .length = entry.text_length, .text_out = key, .capacity = sizeof(key));
-            CliDebugPaneEntry kept;
+            CliDebugPaneEntry retained;
             if (EMBED_CALL(rows_entry, DebugPaneRowsCtx, .store = &left, .text = key, .length = entry.text_length,
-                           .entry_out = &kept) == CLI_DEBUG_PANE_NO_ENTRY)
+                           .entry_out = &retained) == CLI_DEBUG_PANE_NO_ENTRY)
             {
                 break;
             }
@@ -280,7 +280,7 @@ EMBED_INLINE void rows_variables_under(const DebugPaneRowsCtx *args)
                                             .length_out = &name_length);
         const char *const value = EMBED_CALL(rows_member, DebugPaneRowsCtx, .json = &json, .node = one, .name = "value",
                                              .length_out = &value_length);
-        const char *const type = EMBED_CALL(rows_member, DebugPaneRowsCtx, .json = &json, .node = one, .name = "kind",
+        const char *const type = EMBED_CALL(rows_member, DebugPaneRowsCtx, .json = &json, .node = one, .name = "type",
                                             .length_out = &type_length);
         (void)EMBED_CALL(rows_number, DebugPaneRowsCtx, .json = &json, .node = one, .name = "reference",
                          .value = &reference);
@@ -371,7 +371,7 @@ EMBED_INLINE void rows_watch(const DebugPaneRowsCtx *args)
                                   : NULL;
     const char *const type = (root != CLI_JSON_NONE)
                                  ? EMBED_CALL(rows_member, DebugPaneRowsCtx, .json = &json, .node = root,
-                                              .name = "kind", .length_out = &type_length)
+                                              .name = "type", .length_out = &type_length)
                                  : NULL;
     const int failed = value == NULL;
     const unsigned long long refused = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL;
@@ -428,8 +428,8 @@ EMBED_INLINE void rows_scopes(const DebugPaneRowsCtx *args)
         mmgr_line_put(&key_line, "scope:");
         mmgr_line_put_n(&key_line, (name != NULL) ? name : "", name_length);
         const int keyed = mmgr_line_ok(&key_line);
-        // the first scope, a frame's own variables, stands open until closed; the rest, and one the adapter reports
-        // is slow to read, stand closed until opened
+        // the first scope, a frame's own variables, is open until closed; the rest, and one the adapter reports
+        // is slow to read, are closed until opened
         const int first = (at == 0u) && !expensive;
         const int flipped = keyed && EMBED_CALL(rows_flipped, DebugPaneRowsCtx, .text = key, .length = key_line.at);
         const int opens = reference != 0LL;
@@ -674,7 +674,7 @@ EMBED_INLINE int rows_console_fit(const DebugPaneRowsCtx *args)
     return 1;
 }
 
-// a line put after the console's last, the ring laid over its segments at the first line and past
+// a line put after the console's last, the ring positioned over its segments at the first line and past
 // CLI_DEBUG_CONSOLE_LINES the oldest line released: the line, NULL where the cells cannot meet it
 EMBED_INLINE CliDebugPaneEntry *rows_console_line(const DebugPaneRowsCtx *args)
 {
@@ -682,7 +682,7 @@ EMBED_INLINE CliDebugPaneEntry *rows_console_line(const DebugPaneRowsCtx *args)
     CliDebugPaneStore *const console = &g_cli_debug_pane.console;
     if (console->ring_entry == NULL)
     {
-        // the ring borrows its bytes, so they stand fixed, outside the pool, where they punch no hole in the
+        // the ring borrows its bytes, so they are fixed, outside the pool, where they punch no hole in the
         // persistent tier
         // the entries lie in the console's part of the rings block
         console->ring_entry =
@@ -703,7 +703,7 @@ EMBED_INLINE CliDebugPaneEntry *rows_console_line(const DebugPaneRowsCtx *args)
     CliDebugPaneEntry *const line = &console->ring_entry[segment];
     *line = (CliDebugPaneEntry){0};
     anularis.seg_publish(&(AnularisCfg){.ring = &console->ring});
-    // the lines in flight are at most CLI_DEBUG_CONSOLE_LINES, inside an unsigned int
+    // the lines in flight are at max CLI_DEBUG_CONSOLE_LINES, inside an unsigned int
     console->count = (unsigned int)anularis.seg_inflight(&(AnularisCfg){.ring = &console->ring});
     return line;
 }
@@ -727,7 +727,7 @@ void cli_debug_pane_line_write(const CliDebugPaneCtx *args)
         const int runs_on = (last != NULL) && (last->line_type == args->type) && !last->ended;
         if (runs_on)
         {
-            // the last line's text stands at the end of the cell, its end the cell's last byte used
+            // the last line's text is at the end of the cell, its end the cell's last byte used
             if (!EMBED_CALL(rows_console_fit, DebugPaneRowsCtx, .extra = piece))
             {
                 return;
@@ -774,7 +774,7 @@ void cli_debug_pane_line_write(const CliDebugPaneCtx *args)
     }
 }
 
-// the store a view's rows stand in
+// the store a view's rows are in
 EMBED_INLINE CliDebugPaneStore *rows_store(const DebugPaneRowsCtx *args)
 {
     switch (args->at)
@@ -794,8 +794,8 @@ unsigned int cli_debug_pane_rows(const CliDebugPaneViewCfg *args)
     return ((store->count == 0u) && (args->view != CLI_DEBUG_VIEW_CONSOLE)) ? 1u : store->count;
 }
 
-// the entry of a store laid into the row: its texts copied out of the store's text cell into the row's own bytes
-EMBED_INLINE void rows_laid(const DebugPaneRowsCtx *args)
+// the entry of a store positioned into the row: its texts copied out of the store's text cell into the row's own bytes
+EMBED_INLINE void rows_positioned(const DebugPaneRowsCtx *args)
 {
     const CliDebugPaneEntry *const entry = args->entry_out;
     CliDebugPaneRow *const row = args->row;
@@ -851,7 +851,7 @@ int cli_debug_pane_row(const CliDebugPaneViewCfg *args)
     {
         EMBED_CALL(rows_entry_read, DebugPaneRowsCtx, .store = store, .at = args->at, .entry_out = &entry);
     }
-    EMBED_CALL(rows_laid, DebugPaneRowsCtx, .store = store, .entry_out = &entry, .row = row);
+    EMBED_CALL(rows_positioned, DebugPaneRowsCtx, .store = store, .entry_out = &entry, .row = row);
     row->current = (args->view == CLI_DEBUG_VIEW_FRAMES) && (args->at == g_cli_debug_pane.frame_at);
     return 1;
 }
@@ -867,7 +867,7 @@ int cli_debug_pane_toggle(const CliDebugPaneViewCfg *args)
     EMBED_CALL(rows_entry_read, DebugPaneRowsCtx, .store = variables, .at = args->at, .entry_out = &entry);
     if (entry.type == CLI_DEBUG_ROW_WATCH)
     {
-        // the watches stand first, the row's place the watch's
+        // the watches are first, the row's place the watch's
         CliDebugPaneStore *const watches = &g_cli_debug_pane.watches;
         CliDebugPaneStore left = {0};
         for (unsigned int at = 0u; at < watches->count; at += 1u)
@@ -881,10 +881,10 @@ int cli_debug_pane_toggle(const CliDebugPaneViewCfg *args)
             char expression[CLI_DEBUG_FIELD_MAX];
             EMBED_CALL(cli_debug_pane_internal.text_read, CliDebugPaneCtx, .store = watches, .offset = watch.text,
                        .length = watch.text_length, .text_out = expression, .capacity = sizeof(expression));
-            CliDebugPaneEntry kept;
+            CliDebugPaneEntry retained;
             (void)EMBED_CALL(rows_entry, DebugPaneRowsCtx, .store = &left, .text = expression,
                              .length = cellul.len(&(CatenaFinitaCfg){.src = expression, .cap = sizeof(expression)}),
-                             .entry_out = &kept);
+                             .entry_out = &retained);
         }
         EMBED_CALL(cli_debug_pane_internal.store_empty, CliDebugPaneCtx, .store = watches);
         *watches = left;

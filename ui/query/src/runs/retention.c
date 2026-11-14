@@ -59,7 +59,7 @@ typedef struct
     const QueryWriter *own;
     const char *displayed;
 } RetentionCtx;
-// `line` printed through the context and handed to the run as the stores' console
+// `line` printed through the context and passed to the run as the stores' console
 EMBED_INLINE void query_retention_print(const RetentionCtx *args)
 {
     QueryContext *context = args->context;
@@ -304,11 +304,11 @@ EMBED_INLINE void query_writers_read(const RetentionCtx *args)
 }
 
 // One folder of runs retained: left as it is where its newest run's writer runs; else its writers' accounts read, its
-// runs stored as crystals where `crystal` is given, and only the newest `most` retained
+// runs stored as crystals where `crystal` is given, and only the newest `max` retained
 void query_retention_folder(const QueryRetentionContextOwnCtx *args)
 {
     const char *folder = args->folder;
-    unsigned int most = args->most;
+    unsigned int max = args->max;
     char displayed[QUERY_PATH_MAX_LEN];
     EMBED_CALL(query_capacity_path_name_internal.by_name, QueryCapacityPathNameCtx, .top = args->context->root,
                .path = folder, .name_out = displayed, .capacity = sizeof(displayed));
@@ -354,7 +354,7 @@ void query_retention_folder(const QueryRetentionContextOwnCtx *args)
                    .own = args->own, .folder = folder, .crystal = args->crystal);
     }
     const unsigned int before = EMBED_CALL(query_folder_max_internal.runs_count, QueryFolderMaxCtx, .folder = folder);
-    EMBED_CALL(query_folder_max_internal.runs_prune, QueryFolderMaxCtx, .folder = folder, .most = most);
+    EMBED_CALL(query_folder_max_internal.runs_prune, QueryFolderMaxCtx, .folder = folder, .max = max);
     const unsigned int runs = EMBED_CALL(query_folder_max_internal.runs_count, QueryFolderMaxCtx, .folder = folder);
     line.at = 0ULL;
     mmgr_line_put(&line, "  ");
@@ -431,7 +431,7 @@ int query_retention_run(const QueryLoopCfg *args)
     for (unsigned int at = 0u; at < folders; at += 1u)
     {
         EMBED_CALL(query_retention_context_own_internal.folder, QueryRetentionContextOwnCtx, .context = context,
-                   .folder = folders_found[at], .crystal = built ? s_crystal : NULL, .most = query_retain_max(),
+                   .folder = folders_found[at], .crystal = built ? s_crystal : NULL, .max = query_retain_max(),
                    .own = &s_own.writer);
     }
     g_cli_guard->persistent_buf_release(folders_found, g_query_owner);

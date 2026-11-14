@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // The host daemon's ledger: each decision is tessera_ledger_core.h's, the source the device's tessera runs too. Before
-// a decision that can add a job, a tracked peak or a deadline, the ledger grows each array to the most the decision can
+// a decision that can add a job, a tracked peak or a deadline, the ledger grows each array to the max the decision can
 // add. An array that does not grow is left to the core, which errors where it needs the array.
 #include "tessera_ledger.h"
 #include "tessera_ledger_core.h"
@@ -32,10 +32,10 @@ static int tessera_grow(void **items, unsigned long long *capacity, unsigned lon
     return 1;
 }
 
-// each of the ledger's arrays grown to the most a call of `kind` can add
-static int tessera_reserve(TesseraLedger *ledger, TesseraCallKind kind)
+// each of the ledger's arrays grown to the max a call of `type` can add
+static int tessera_reserve(TesseraLedger *ledger, TesseraCallKind type)
 {
-    const TesseraCapacity needed = tessera_core_capacity(ledger, kind);
+    const TesseraCapacity needed = tessera_core_capacity(ledger, type);
     const int jobs = tessera_grow((void **)&ledger->jobs, &ledger->job_capacity, needed.jobs, sizeof(TesseraJob));
     const int history =
         tessera_grow((void **)&ledger->history, &ledger->history_capacity, needed.history, sizeof(TesseraHistory));
@@ -138,6 +138,6 @@ int tessera_ledger_fire(TesseraLedger *ledger, unsigned long long now, TesseraEv
 
 void tessera_ledger_call(TesseraLedger *ledger, const TesseraCall *call, TesseraAnswer *answer)
 {
-    (void)tessera_reserve(ledger, call->kind);
+    (void)tessera_reserve(ledger, call->type);
     tessera_core_call(ledger, call, answer);
 }

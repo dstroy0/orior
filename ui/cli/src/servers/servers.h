@@ -11,7 +11,7 @@
 // requesting, as each file's spans and their new text. A quick fix goes to the editor whole, as the server gave it, and
 // comes back to be carried out.
 //
-// The tree's check hands every file of the tree the editor does not have open to its language's server, six at a
+// The tree's check passes every file of the tree the editor does not have open to its language's server, six at a
 // time, as the editor would open it, and lets it go once the server has reported what is wrong in it, the server's
 // clearing of a file it lets go not passed on. A server that checks its projects as a whole, as rust-analyzer does with
 // cargo check, is instructed to check them all in place of that. A file is checked again when it changes on the disk,
@@ -22,12 +22,12 @@
 // whole checks the tree. A file's diagnostics contain each checker's findings, a checker's fixes offered as quick
 // fixes.
 //
-// The inspections read every Python and JavaScript file of the tree once a file of the tree is handed over, on a thread
+// The inspections read every Python and JavaScript file of the tree once a file of the tree is passed over, on a thread
 // of their own, and each file again as the editor changes it, as it changes on the disk, and as the editor closes it. A
 // file's diagnostics go to the editor whole: its server's, then the inspections'. A finding's fix is offered with the
 // server's quick fixes.
 //
-// Every answer is written as JSON into the line handed for it; a path in it is written as it stands in the tree where a
+// Every answer is written as JSON into the line passed for it; a path in it is written as it is in the tree where a
 // tree is given, and whole otherwise (servers_*.c)
 #ifndef SERVERS_H
 #define SERVERS_H
@@ -55,7 +55,7 @@ typedef struct CliServersPathSizeTypeCfg CliServersPathSizeTypeCfg;
 
 // One diagnostic of a file: its span's first place and the place after it, each a line and a column in units, its
 // severity, 1 an error, 2 a warning, 3 and 4 notes, and its message, `message_length` bytes in the texts of the report
-// it stands in
+// it is in
 typedef struct
 {
     unsigned long long from_line;
@@ -88,12 +88,12 @@ typedef struct
     unsigned long long message_length;
 } CliServerStoredDiagnostic;
 
-// where the diagnostic `at_` of a report stands in its cell
+// where the diagnostic `at_` of a report is in its cell
 #define CLI_SERVER_REPORT_ITEM_AT(at_)                                                                                 \
     (sizeof(CliServerReportHead) + ((unsigned long long)(at_) * sizeof(CliServerStoredDiagnostic)))
 
-// A file's diagnostics handed to the sink's function, in place of those it stood with, on the thread that found
-// them: its path, its diagnostics, which stand for the call, and the token of the report cell they are stored in, NULL
+// A file's diagnostics passed to the sink's function, in place of those it was with, on the thread that found
+// them: its path, its diagnostics, which are for the call, and the token of the report cell they are stored in, NULL
 // with none. A sink that reads the report after the call returns sets `*taken` to 1 and releases the report itself; the
 // report of any other sink is released as the call returns
 typedef struct
@@ -138,7 +138,7 @@ typedef struct
     unsigned long long to;
 } CliHoverPanel;
 
-// the rows of the completion's list shown at once
+// the rows of the completion's list displayed at once
 #define CLI_COMPLETION_ROWS 10u
 
 // One row of the completion: its label and how long, its type, its detail and how long, and how many bytes of the label
@@ -153,8 +153,8 @@ typedef struct
     unsigned int marked;
 } CliCompletionRow;
 
-// The completion: the line and the first unit the prefix stands at; the prefix; how many items answer it; where the
-// first row shown stands among them; the rows shown; and where the row chosen stands among the items
+// The completion: the line and the first unit the prefix is at; the prefix; how many items answer it; where the
+// first row displayed is among them; the rows displayed; and where the row chosen is among the items
 typedef struct
 {
     unsigned long long line;
@@ -166,8 +166,8 @@ typedef struct
     unsigned int chosen;
 } CliCompletionPanel;
 
-// The pointer moved: whether it stands on the editor's text, at the row `row` from the view's top and the cell
-// `column`, and whether it stands on the hover's box
+// The pointer moved: whether it is on the editor's text, at the row `row` from the view's top and the cell
+// `column`, and whether it is on the hover's box
 typedef struct
 {
     int in_text;
@@ -177,11 +177,11 @@ typedef struct
 } CliServersPanelsPointerCfg;
 
 // the panels over the editor of the tree `root`, on the window's thread (servers_panels.c): begun, watching the views,
-// each view opened on a file handed to its language's server, each about to close let go of it, and each frame of the
-// view shown followed, and ended; every panel hidden; the pointer moved; text typed, `length` bytes; a key's effect on
+// each view opened on a file passed to its language's server, each about to close let go of it, and each frame of the
+// view displayed followed, and ended; every panel hidden; the pointer moved; text typed, `length` bytes; a key's effect on
 // the panels, 1 where the key was theirs; the completion's row `at` accepted; the completion's rows turned by the
 // wheel; their timers taken, 1 where any came, and the clock's reading of the next, 0 for none; and what they show: the
-// hover, the completion and its row `row` shown, each 1 where it stands, else 0, and the signature, NULL for none
+// hover, the completion and its row `row` displayed, each 1 where it is, else 0, and the signature, NULL for none
 void cli_servers_panels_begin(const char *root);
 void cli_servers_panels_end(void);
 void cli_servers_panels_hide(void);
@@ -199,7 +199,7 @@ const CliSignaturePanel *cli_servers_panels_signature(void);
 
 // One row of the problems: a file's, with its path, its name and how many bytes of its path its folder takes, its
 // diagnostics' count and whether they are closed; or a diagnostic's, with its severity, its message and the bytes of
-// its first line, and its place. Each text lies in the file's report and stands until the reading thread's next step
+// its first line, and its place. Each text lies in the file's report and is until the reading thread's next step
 typedef struct
 {
     int is_file;
@@ -226,7 +226,7 @@ typedef struct
 } CliProblemSpan;
 
 // The problems counted: the files, the diagnostics and the errors; the check's files done and total, the total 0 where
-// none runs; and the rows shown
+// none runs; and the rows displayed
 typedef struct
 {
     unsigned int files;
@@ -257,21 +257,21 @@ int cli_servers_problems_span(const char *path, unsigned int at, CliProblemSpan 
 int cli_servers_problems_press(unsigned int at, CliProblemRow *row);
 void cli_servers_problems_check(const char *root);
 
-// the file at `path` handed to its language's server, started at `root` where it is not running, and its text to the
+// the file at `path` passed to its language's server, started at `root` where it is not running, and its text to the
 // inspections and the checkers: `true` or `false` written as a server took it; its new text given; and the file let go
 // as the editor closes it, read again as the disk stores it. Each 1, or 0 with why given (servers_files.c)
 int cli_servers_open(const CliServersRootCfg *args);
 int cli_servers_change(const CliServersRootCfg *args);
 int cli_servers_close(const CliServersPathOutErrMsgFromToCfg *args);
 // the view of `path` the page rests on, its lines `first` to `last` and the lines `opener`, `openers` of them, opening
-// each region its first line stands inside, outermost first: where its server is given the tree's slice in place of
+// each region its first line is inside, outermost first: where its server is given the tree's slice in place of
 // the file and was given another view's, the slice cut for this view and given as the file's next version, its parse
 // forgotten, `true` written, and `false` where nothing changed. 1, or 0 with why given (servers_slice.c)
 int cli_servers_view(const CliServersPathOutErrMsgCfg *args);
 
 // the language server the script plugin `id` brings, as its plugin.json's `server` names it, started at `root` with
 // `length` bytes of JSON `options` as the options it starts with and the `firsts` arguments `first` before those its
-// plugin.json names, what it sends going where `emit` sends it, and handed every file of its languages the editor has
+// plugin.json names, what it sends going where `emit` sends it, and passed every file of its languages the editor has
 // open: 1, or 0 with why given; and the plugin's server stopped, where it runs. A request sent to it, its answer waited
 // for up to `wait` milliseconds into `result`; a notification sent to it; and a request it sent, of the id `request`
 // the window was given, answered with `length` bytes of JSON `result`. Each 1, or 0 with why given (servers_plugins.c)
@@ -349,14 +349,14 @@ void cli_servers_stop_all(void);
 void cli_servers_let_go(void);
 
 // the tree's check started over `files`, `count` of them, each by its path in the tree at `root`: how many files wait;
-// the check stopped where it stands, the files waiting let go and the check reported done, on for the files that change
+// the check stopped where it is, the files waiting let go and the check reported done, on for the files that change
 // after; whether it has files waiting or being checked; and a batch of `count` files changed on the disk, each by its
 // path in the tree, checked again with the files whose includes or imports name one of them, a file gone losing its
 // diagnostics (servers_check.c, servers_changed.c)
 unsigned int cli_servers_check_tree(const CliServersRootSinkCountCfg *args);
 void cli_servers_stop_check(void);
-// the jobs ring laid over its slots, its part of the rings block, as the pool is made (servers_jobs.c)
-void cli_servers_jobs_laid(void);
+// the jobs ring positioned over its slots, its part of the rings block, as the pool is made (servers_jobs.c)
+void cli_servers_jobs_positioned(void);
 int cli_servers_checking(void);
 void cli_servers_on_change(const CliServersRootSinkCountCfg *args);
 
@@ -380,7 +380,7 @@ struct CliServersRootSinkCfg
     const char *id;
     const char *options;
     unsigned long long length;
-    const char *const *first_letters;
+    const char *const *first_characters;
     unsigned int firsts;
 };
 
@@ -496,7 +496,7 @@ struct CliServersOutCfg
 {
     VerbaLinea *out;
     unsigned int count;
-    const char *const *tools_letters;
+    const char *const *tools_characters;
 };
 
 struct CliServersCfg

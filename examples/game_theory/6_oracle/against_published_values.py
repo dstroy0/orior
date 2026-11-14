@@ -17,7 +17,7 @@
 #                         promotion bugs that the opening position does not exercise
 #   checkers opening      seven legal moves, a fact about the rules
 #   dealer bust rate      how often a blackjack dealer showing a ten busts
-#   basic strategy        hit or stand on sixteen against a ten, a published decision
+#   basic strategy        hit or are on sixteen against a ten, a published decision
 #   the hand ranking      that a flush beats a straight, which nothing here decided
 #
 # A negative control sits at the end. An instrument that passes every positive check and cannot fail
@@ -57,11 +57,11 @@ RANKING = (
     "high card",
     "pair",
     "two pair",
-    "three of a kind",
+    "three of a type",
     "straight",
     "flush",
     "full house",
-    "four of a kind",
+    "four of a type",
     "straight flush",
 )
 
@@ -144,28 +144,28 @@ def main():
         7,
     )
 
-    # Standing on sixteen wins only where the dealer busts. The win probability under STAND is the
+    # Located on sixteen wins only where the dealer busts. The win probability under STAND is the
     # dealer's bust rate for a ten upcard. The published figure is quoted for an infinite deck; this
     # is one deck with three cards already removed. The two differ by composition and the window
     # says by how much the check will allow.
     black = blackjack.Blackjack(decks=1)
     sixteen = blackjack.position(1, (10, 6), 10)
-    stand = black.apply(sixteen, blackjack.STAND)
-    stand_distribution = rules.outcome_distribution(
-        black, stand, rules.Budget(plies=24, nodes=400000), rules.ADVERSARY
+    are = black.apply(sixteen, blackjack.STAND)
+    are_distribution = rules.outcome_distribution(
+        black, are, rules.Budget(plies=24, nodes=400000), rules.ADVERSARY
     )
     near(
         "blackjack dealer bust rate, ten showing",
-        float(stand_distribution[rules.WIN]),
+        float(are_distribution[rules.WIN]),
         0.2120,
         0.0100,
         "single deck, three cards removed",
     )
     check(
-        "blackjack: standing on 16 can never draw",
-        float(stand_distribution[rules.DRAW]),
+        "blackjack: located on 16 can never draw",
+        float(are_distribution[rules.DRAW]),
         0.0,
-        "a dealer standing on 17 or more cannot tie 16",
+        "a dealer located on 17 or more cannot tie 16",
     )
 
     chosen, _ = rules.best_moves(

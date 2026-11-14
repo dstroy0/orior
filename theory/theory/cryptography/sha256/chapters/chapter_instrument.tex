@@ -6,9 +6,9 @@ This chapter states the measurement discipline before any result, because every 
 
 \textbf{Measure the null under the same conditions as the effect.} Every claim refuted here, two of them from the published literature, breaks that rule in one of three ways.
 
-\subsection{A maximum is not a test}
+\subsection{A max is not a test}
 
-The largest of \(N\) draws from a standard normal sits near \(\sqrt{2 \ln N}\) whether anything is there. That is a property of taking a maximum and it cannot be tuned away. Compared against a threshold built for a single test, a maximum manufactures signal.
+The largest of \(N\) draws from a standard normal sits near \(\sqrt{2 \ln N}\) whether anything is there. That is a property of taking a max and it cannot be tuned away. Compared against a threshold built for a single test, a max manufactures signal.
 
 The figure is not small. A \(512 \times 256\) dependency matrix holds \(131{,}072\) cells and its largest deviation peaks at \(4.85\) standard errors under the null. A Bonferroni threshold at \(99\%\) confidence over the same matrix sits at \(5.327\). The alarm and the null are half a standard error apart. At that separation a fluctuation crosses it now and then and reads as a discovery.
 
@@ -32,7 +32,7 @@ The throughput figures in this work use best-of-seven with the arms alternating,
 
 \section{An analytic null}
 
-Every null above is statistical: a distribution the measurement is checked against. One better kind is available and is worth more than any of them, because no sample size rescues a wrong one.
+Every null above is statistical: a distribution the measurement is checked against. One better type is available and is worth more than any of them, because no sample size rescues a wrong one.
 
 Strip SHA-256 to rotations, exclusive-or and constants and it is \(\mathrm{GF}(2)\)-linear. A one-bit input difference then produces a \emph{deterministic} output difference, the same one for every message. Every cell of the dependency matrix is exactly \(0\) or exactly \(1\) and never one half. The deviation is pinned at \(0.5\) at every round, forever, by algebra and not by measurement.
 

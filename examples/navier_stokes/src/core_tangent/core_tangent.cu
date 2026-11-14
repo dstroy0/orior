@@ -404,7 +404,7 @@ static CoreRadiusSequence core_tangent_series_derivative(const CoreRadiusSequenc
     CoreRadiusSequence derivative;
     for (unsigned int power = 0u; power <= reach; power += 1u)
     {
-        // the power is at most the cfg's order, far inside a long long
+        // the power is at max the cfg's order, far inside a long long
         derivative.push_back(core_radius_times(core_radius_number((long long)power + 1ll, 1ll), series[power + 1u]));
     }
     return derivative;
@@ -445,11 +445,11 @@ static CoreRadiusSequence core_tangent_series_exponential(const CoreRadiusSequen
         SimRational sum = core_radius_number(0ll, 1ll);
         for (unsigned int first = 0u; first <= power; first += 1u)
         {
-            // the power is at most the cfg's order, far inside a long long
+            // the power is at max the cfg's order, far inside a long long
             const SimRational weight = core_radius_times(core_radius_number((long long)first + 1ll, 1ll), series[first + 1u]);
             sum = core_radius_plus(sum, core_radius_times(weight, exponential[power - first]));
         }
-        // the power is at most the cfg's order, far inside a long long
+        // the power is at max the cfg's order, far inside a long long
         exponential.push_back(core_radius_over(sum, core_radius_number((long long)power + 1ll, 1ll)));
     }
     return exponential;
@@ -911,14 +911,14 @@ int main(int count, char **arguments)
             const SimRational square_gap = sim_rational_difference(core_tangent_cauchy(root, root, power), core_radius_over(transport[power], transport[0]));
             const SimRational product_gap = sim_rational_difference(core_tangent_cauchy(root, quotient, power), transport_eta[power]);
             multiplied = multiplied && (sim_rational_sign(square_gap) == 0) && (sim_rational_sign(product_gap) == 0);
-            // the power is at most the cfg's order, far inside a long long
+            // the power is at max the cfg's order, far inside a long long
             phi_eta.push_back(core_radius_over(quotient[power], core_radius_number(2ll * (long long)power + 1ll, 1ll)));
         }
         sim_check(&results, multiplied, "the root squared is s / s_0 and the root times the quotient is s_eta at every order");
         CoreRadiusSequence phi_slope = {core_radius_number(0ll, 1ll)};
         for (unsigned int power = 1u; power <= reach; power += 1u)
         {
-            // the power is at most the cfg's order, far inside a long long
+            // the power is at max the cfg's order, far inside a long long
             phi_slope.push_back(core_radius_over(core_tangent_cauchy(root, phi_eta, power - 1u), core_radius_number(4ll * (long long)power, 1ll)));
         }
         // The amplitude past Phi_1. With y = e^(sqrt(mu) Phi) (A_0 + A_1 / sqrt(mu) + ...), the terms of order 1 / mu give
@@ -944,7 +944,7 @@ int main(int count, char **arguments)
         CoreRadiusSequence phi_eta_eta;
         for (unsigned int power = 0u; power <= span; power += 1u)
         {
-            // the power is at most the cfg's order, far inside a long long
+            // the power is at max the cfg's order, far inside a long long
             phi_eta_eta.push_back(core_radius_over(quotient_eta[power], core_radius_number(2ll * (long long)power + 1ll, 1ll)));
         }
         // P_eta = (E_eta H + E H_eta) / 2
@@ -978,7 +978,7 @@ int main(int count, char **arguments)
         CoreRadiusSequence amplitude_eta = {amplitude_origin_eta};
         for (unsigned int power = 1u; power <= reach; power += 1u)
         {
-            // the power is at most the cfg's order, far inside a long long
+            // the power is at max the cfg's order, far inside a long long
             amplitude_eta.push_back(core_radius_over(core_radius_times(minus, amplitude_rate_eta[power - 1u]), core_radius_number((long long)power, 1ll)));
         }
         // r_n = -(2n + 1) H_n / 4 - (Y E H^2)_n / 8 + s_0 (E (ln A_0)_eta)_n, and the amplitude's coefficient r_n / (2n + 1)
@@ -987,7 +987,7 @@ int main(int count, char **arguments)
         CoreRadiusSequence amplitude_slope;
         for (unsigned int power = 0u; power <= reach; power += 1u)
         {
-            // the power is at most the cfg's order, far inside a long long
+            // the power is at max the cfg's order, far inside a long long
             const SimRational odd = core_radius_number(2ll * (long long)power + 1ll, 1ll);
             SimRational source = core_radius_plus(core_radius_times(core_radius_times(minus, quarter), core_radius_times(odd, phi_eta[power])), amplitude_part[power]);
             if (power > 0u)
@@ -1022,7 +1022,7 @@ int main(int count, char **arguments)
         CoreRadiusSequence inflow_exponent_eta = {zero};
         for (unsigned int power = 1u; power <= span; power += 1u)
         {
-            // the power is at most the cfg's order, far inside a long long
+            // the power is at max the cfg's order, far inside a long long
             const SimRational order_power = core_radius_number((long long)power, 1ll);
             inflow_exponent.push_back(core_radius_over(core_radius_times(minus, inflow_rate[power - 1u]), order_power));
             inflow_exponent_eta.push_back(core_radius_over(core_radius_times(minus, inflow_rate_eta[power - 1u]), order_power));
@@ -1033,7 +1033,7 @@ int main(int count, char **arguments)
         CoreRadiusSequence swirl_eta_y_prime;
         for (unsigned int power = 0u; power <= span; power += 1u)
         {
-            // the power is at most the cfg's order, far inside a long long
+            // the power is at max the cfg's order, far inside a long long
             const SimRational next = core_radius_number((long long)power + 1ll, 1ll);
             swirl_y_prime.push_back(core_radius_times(next, swirl_series[power]));
             swirl_eta_y_prime.push_back(core_radius_times(next, swirl_eta_series[power]));
@@ -1053,7 +1053,7 @@ int main(int count, char **arguments)
         CoreRadiusSequence swirl_integral_eta;
         for (unsigned int power = 0u; power <= span; power += 1u)
         {
-            // the power is at most the cfg's order, far inside a long long
+            // the power is at max the cfg's order, far inside a long long
             const SimRational odd = core_radius_number(2ll * (long long)power + 1ll, 1ll);
             swirl_integral.push_back(core_radius_over(core_radius_times(two, swirl_carried[power]), odd));
             swirl_integral_eta.push_back(core_radius_over(core_radius_times(two, swirl_carried_eta[power]), odd));
@@ -1076,7 +1076,7 @@ int main(int count, char **arguments)
         CoreRadiusSequence swirl_moment_prime = core_tangent_series_product(swirl_ratio, amplitude_log_rate, reach);
         for (unsigned int power = 0u; power <= reach; power += 1u)
         {
-            // the power is at most the cfg's order, far inside a long long
+            // the power is at max the cfg's order, far inside a long long
             swirl_moment_prime[power] = core_radius_plus(swirl_moment_prime[power], core_radius_times(core_radius_number((long long)power + 1ll, 1ll), swirl_ratio[power]));
         }
         const CoreRadiusSequence ratio_growth = core_tangent_series_product(
@@ -1097,7 +1097,7 @@ int main(int count, char **arguments)
         CoreRadiusSequence source_integral;
         for (unsigned int power = 0u; power <= reach; power += 1u)
         {
-            // the power is at most the cfg's order, far inside a long long
+            // the power is at max the cfg's order, far inside a long long
             source_integral.push_back(core_radius_over(source_carried[power], core_radius_number((long long)power + 1ll, 1ll)));
         }
         const SimRational ratio_zero = swirl_ratio[0];

@@ -46,7 +46,7 @@ def printed_strings(path, lines):
     are held. By POSITION and not by value: two identical sentences on two lines are two findings.
 
     Returns nothing for a file that does not parse. An unparseable .py is a Python error and this
-    stage has no standing to report one; the interpreter says it better.
+    stage has no located to report one; the interpreter says it better.
     """
     try:
         tree = ast.parse("\n".join(lines), path)

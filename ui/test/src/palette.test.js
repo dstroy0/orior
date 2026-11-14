@@ -45,22 +45,22 @@ test("Go to File answers from the files opened lately while the tree's files are
 });
 
 test("with Fuzzy Matching off, Go to File answers only the files whose paths hold the text as typed", async () => {
-  const kept = fuzzyFiles();
+  const retained = fuzzyFiles();
   try {
     runCommand("fuzzy-files", ["on"]);
     openPalette("hlo");
-    await ui.waitFor(() => labels().includes("hello.py"), 5000, "hello.py for the letters in order");
+    await ui.waitFor(() => labels().includes("hello.py"), 5000, "hello.py for the characters in order");
     await ui.key("Escape");
     runCommand("fuzzy-files", ["off"]);
     assert.equal(fuzzyFiles(), false);
     openPalette("hlo");
-    await ui.waitFor(() => labels().length > 0 && !labels().includes("hello.py"), 5000, `not hello.py for letters apart: ${labels().join(", ")}`);
+    await ui.waitFor(() => labels().length > 0 && !labels().includes("hello.py"), 5000, `not hello.py for characters apart: ${labels().join(", ")}`);
     await ui.key("Escape");
     openPalette("ello");
     await ui.waitFor(() => labels().includes("hello.py"), 5000, "hello.py for the text as typed");
     await ui.key("Escape");
   } finally {
-    runCommand("fuzzy-files", [kept ? "on" : "off"]);
+    runCommand("fuzzy-files", [retained ? "on" : "off"]);
   }
 });
 
@@ -74,7 +74,7 @@ test("a list of no rows, stored on the window's side, says it holds none", async
   }
 });
 
-test("a list of thirty thousand rows, stored on the window's side, answers each letter typed fast with its best rows and no frame delayed", async () => {
+test("a list of thirty thousand rows, stored on the window's side, answers each character typed fast with its best rows and no frame delayed", async () => {
   const many = Array.from({ length: 30000 }, (_, at) => ({ name: `test_case_${at}_${(at * 7919) % 30000}`, file: `tests/test_part_${at % 300}.py` }));
   // The row the page's own matcher ranks first for what is typed, which the window's side ranks first too.
   let best = null;
@@ -100,7 +100,7 @@ test("a list of thirty thousand rows, stored on the window's side, answers each 
     });
   try {
     await ui.waitFor(() => document.querySelectorAll("#quick-list .quick-row").length > 0, 10000, "the rows");
-    // The list kept, and what its opening made let go, before the letters come.
+    // The list retained, and what its opening made let go, before the characters come.
     await frames(1500);
     const counting = frames(1500);
     const began = performance.now();
@@ -109,7 +109,7 @@ test("a list of thirty thousand rows, stored on the window's side, answers each 
     const settled = performance.now() - began;
     const times = await counting;
     const gaps = times.slice(1).map((time, at) => time - times[at]);
-    const said = `${document.querySelectorAll("#quick-list .quick-row").length} rows on the page, settled ${settled.toFixed(0)} ms after the first letter, the longest frame ${Math.max(...gaps).toFixed(1)} ms`;
+    const said = `${document.querySelectorAll("#quick-list .quick-row").length} rows on the page, settled ${settled.toFixed(0)} ms after the first character, the longest frame ${Math.max(...gaps).toFixed(1)} ms`;
     assert.ok(document.querySelectorAll("#quick-list .quick-row").length <= 200, `the best rows alone on the page: ${said}`);
     assert.ok(Math.max(...gaps) < 50, `no frame delayed: ${said}`);
     assert.ok(settled < 1000, `the rows for what was typed within a second: ${said}`);

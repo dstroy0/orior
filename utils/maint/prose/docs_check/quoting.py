@@ -19,7 +19,7 @@ QUOTED = (
     re.compile(r"neighbouring languages", re.IGNORECASE),
     # The same title, wrapped across two comment lines by half the extraction headers.
     re.compile(r"salish and neighbouring", re.IGNORECASE),
-    # A bibliography entry, which tex_prose hands over as its src: key and then the entry's text. The
+    # A bibliography entry, which tex_prose passes over as its src: key and then the entry's text. The
     # authors and the title are the cited work's own, in its own definitions. Anchored to the start
     # of the run, because an entry opens its paragraph and a citation inside running prose does not.
     re.compile(r"\A\s*src:[\w-]+\s.{0,800}"),
@@ -79,16 +79,16 @@ QUIET_CLOSE = "docs-check: end quoting"
 
 def quieted(lines):
     """The same lines with anything between the two markers blanked, line numbers preserved."""
-    kept = []
+    retained = []
     quiet = False
     for line in lines:
         if QUIET_OPEN in line:
             quiet = True
-            kept.append("")
+            retained.append("")
             continue
         if QUIET_CLOSE in line:
             quiet = False
-            kept.append("")
+            retained.append("")
             continue
-        kept.append("" if quiet else line)
-    return kept
+        retained.append("" if quiet else line)
+    return retained

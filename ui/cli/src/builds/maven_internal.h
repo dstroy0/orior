@@ -30,7 +30,7 @@ typedef struct CliMavenCheckCtx CliMavenCheckCtx;
 typedef struct CliMavenXmlAtCtx CliMavenXmlAtCtx;
 typedef struct CliMavenCtx CliMavenCtx;
 
-// the most elements of an XML file, comments, and things that prevented it from reading, and no element
+// the max elements of an XML file, comments, and things that prevented it from reading, and no element
 #define CLI_XML_ELEMENTS 16384u
 #define CLI_XML_COMMENTS 4096u
 #define CLI_XML_ERRORS 1024u
@@ -77,7 +77,7 @@ typedef struct
 
 // An XML file as read: its text, its elements, its comments' spans, what prevented it from reading, and the elements
 // its text leaves open, the outermost first; each list's capacity in one cell sized to the tags the text can contain,
-// no more than its most, released through persistent_buf_release
+// no more than its max, released through persistent_buf_release
 typedef struct
 {
     const char *text;
@@ -104,7 +104,7 @@ typedef struct
 // where it has none; whether an element is named `name`; the text an element contains where it contains no elements,
 // its entities read, into `out`: 1, or 0 where it contains elements or is not closed; the text of the child `name` of
 // `of`; the element at the end of `path`, `count` names, under `of`, each step the first child of its name; whether an
-// element stands inside a `configuration` or `properties`, whose children its plugin or its reader makes of it
+// element is inside a `configuration` or `properties`, whose children its plugin or its reader makes of it
 // (maven_xml.c); and the children the schema lets an element of `size` bytes of `name` contain, into `count`: NULL
 // where it gives none (maven_schema.c)
 void cli_xml_parse(const CliMavenXmlTextCtx *args);
@@ -118,11 +118,11 @@ unsigned int cli_xml_at_path(const CliMavenXmlCtx *args);
 int cli_xml_inside_free(const CliMavenXmlAtCtx *args);
 const char *const *cli_maven_schema(const CliMavenSizeNameCtx *args);
 
-// whether a letter goes in an element's name
-int cli_xml_name_letter(const CliMavenCtx *args);
+// whether a character goes in an element's name
+int cli_xml_name_character(const CliMavenCtx *args);
 
 // the scopes a dependency takes, the phases of Maven's lifecycles, the packagings and types, the booleans, the
-// properties a POM's `<properties>` most often sets, the first words of the properties Maven, Java and the system give
+// properties a POM's `<properties>` usually sets, the first words of the properties Maven, Java and the system give
 // a POM, and those it can name of its project (maven_schema.c)
 extern const char *const g_cli_maven_scopes[6];
 extern const char *const g_cli_maven_phases[29];
@@ -133,7 +133,7 @@ extern const char *const g_cli_maven_common_properties[6];
 extern const char *const g_cli_maven_input_heads[16];
 extern const char *const g_cli_maven_project_properties[11];
 
-// the most properties of a POM and its parents, the most dependencies their management gives a version, and the bytes
+// the max properties of a POM and its parents, the max dependencies their management gives a version, and the bytes
 // they take
 #define CLI_MAVEN_PROPERTIES 4096u
 #define CLI_MAVEN_MANAGED 4096u
@@ -141,7 +141,7 @@ extern const char *const g_cli_maven_project_properties[11];
 
 // What a POM gives its children: its properties, each a name and a value, the dependencies its management gives a
 // version, by `group:artifact`, and whether it and each parent above it were read and one of its managed dependencies
-// imports a POM, each a text of the model's. Its lists and its texts stand in one cell taken at their most as it is
+// imports a POM, each a text of the model's. Its lists and its texts are in one cell taken at their max as it is
 // read, released through persistent_buf_release
 typedef struct
 {
@@ -170,7 +170,7 @@ unsigned int cli_maven_model_text_store(const CliMavenSizeModelCtx *args);
 
 // what the POM at `path`, `size` bytes of its text, gives its children, its parents read up to eight above it, into
 // `model`; the value of the property `name` the model sets, NULL where it sets none; `value` with each property it
-// names given, as far as the model gives them, eight at most, into `out`; whether Maven, Java or the system give a
+// names given, as far as the model gives them, eight at max, into `out`; whether Maven, Java or the system give a
 // property of `size` bytes of `name`; the local repository, the one the user's settings name or `~/.m2/repository`,
 // into `out`, sized for CLI_PATH_MAX_LEN: 1, or 0 where no home folder is known; the user's `settings.xml`, the same;
 // and the program that runs the Maven build at `folder` of the tree at `root`, its wrapper, the nearest above it in the
@@ -345,7 +345,7 @@ struct CliMavenXmlAtCtx
 
 struct CliMavenCtx
 {
-    unsigned int letter;
+    unsigned int character;
 };
 
 typedef struct
@@ -430,11 +430,11 @@ EMBED_TABLE_STORAGE CliMavenSizeNameNs cli_maven_size_name_internal EMBED_UNUSED
 
 typedef struct
 {
-    int (*xml_name_letter)(const CliMavenCtx *args);
+    int (*xml_name_character)(const CliMavenCtx *args);
 } CliMavenNsTable;
-EMBED_TABLE_LAYOUT(CliMavenNsTable, xml_name_letter);
+EMBED_TABLE_LAYOUT(CliMavenNsTable, xml_name_character);
 EMBED_TABLE_STORAGE CliMavenNsTable cli_maven_internal EMBED_UNUSED = {
-    .xml_name_letter = cli_xml_name_letter,
+    .xml_name_character = cli_xml_name_character,
 };
 
 typedef struct

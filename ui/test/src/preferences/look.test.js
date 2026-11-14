@@ -13,7 +13,7 @@ const { test, assert, ui } = window.__harness;
 test("Preferences marks each color whose contrast with the color under it is too low for text", async () => {
   assert.ok(Math.abs(contrastOf("#000000", "#ffffff") - 21) < 0.01);
   assert.ok(Math.abs(contrastOf("#777777", "#777777") - 1) < 0.01);
-  assert.ok(contrastOf("rgba(0, 0, 0, 0)", "#ffffff") < 1.01, "a color with alpha laid over the one under it");
+  assert.ok(contrastOf("rgba(0, 0, 0, 0)", "#ffffff") < 1.01, "a color with alpha positioned over the one under it");
   const under = paletteOf(scheme()).get("--ed-bg");
   useTheme("Faint for Themes", { colors: { "--t-comment": under } });
   runCommand("preferences");

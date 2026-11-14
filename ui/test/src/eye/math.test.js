@@ -35,7 +35,7 @@ test("the vectors: dot, cross, sum, scale, unit length and the angle between two
   assert.ok(Math.abs(angle([1, 0, 0], [0, 1, 0]) - Math.PI / 2) < 1e-9);
 });
 
-test("a vector laid flat on the sphere loses its part out from it, and the way from one point to another is as long as their angle", () => {
+test("a vector positioned flat on the sphere loses its part out from it, and the way from one point to another is as long as their angle", () => {
   assert.ok(near(flat([1, 1, 0], [0, 1, 0]), [1, 0, 0]));
   const way = toward([0, 0, 1], [1, 0, 0]);
   assert.ok(near(unit(way), [1, 0, 0]), "along the sphere toward the other point");

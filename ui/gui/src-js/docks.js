@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // Tool windows anywhere. Each tool window docks at the left, the right or the foot of the place it
-// stands in: Debug and Terminal in the work, beside the views or under them; the explorer and the
+// is in: Debug and Terminal in the work, beside the views or under them; the explorer and the
 // definitions in the edit view, beside the editor or under it; the jobs in the run view, beside the
 // stage or under it. Each place is a grid, its content in the middle, the tool windows docked at
-// each side in the order they were docked there, and a tool window keeps the width or the height it
+// each side in the order they were docked there, and a tool window retains the width or the height it
 // was dragged to at each side it docked at. Its icon on the tool strip dragged over its place shows
 // where it can dock, and its menu, the icon's or View, Tool Windows, moves it. An icon the reader
 // has no use for is taken off the strip, and its window closed, until Tool Windows brings it back.
@@ -17,8 +17,8 @@ import { openWindow, tell, windowId } from "./windows.js";
 
 const KEY = "orior.docks";
 
-// Each tool window: its node, the place it stands in and the content in the middle of it, the side
-// it docks at first, the custom property its width is kept in where it has one, its sizes at first,
+// Each tool window: its node, the place it is in and the content in the middle of it, the side
+// it docks at first, the custom property its width is retained in where it has one, its sizes at first,
 // and its label.
 const TOOLS = {
   explorer: { node: "explorer", place: "mode-edit", middle: ".desk", side: "left", width: "--side", sizes: { left: 304, right: 304, bottom: 260 }, label: "Explorer" },
@@ -55,14 +55,14 @@ const ICONS = {
 
 const ICON_LABELS = { explorer: "Explorer", search: "Search", structure: "Structure", commit: "Commit", problems: "Problems", tests: "Tests", git: "Git", run: "Run", debug: "Debug", terminal: "Terminal", profile: "Profile", containers: "Containers", database: "Database", comms: "Comms", definitions: "Definitions" };
 
-// The smallest a docked window is made, and the share of its place it can take at most.
+// The smallest a docked window is made, and the share of its place it can take at max.
 const LEAST = 120;
-const MOST = 0.75;
+const MAX = 0.75;
 
 // How far the pointer moves with an icon pressed before the icon is being dragged.
 const DRAG = 8;
 
-const state = { kept: { tools: {}, removed: [] }, hooks: null, drag: null };
+const state = { retained: { tools: {}, removed: [] }, hooks: null, drag: null };
 
 function element(tag, props = {}, ...children) {
   const made = Object.assign(document.createElement(tag), props);
@@ -72,28 +72,28 @@ function element(tag, props = {}, ...children) {
 
 function load() {
   try {
-    const kept = JSON.parse(localStorage.getItem(KEY) ?? "null");
-    state.kept = { tools: kept?.tools ?? {}, removed: kept?.removed ?? [] };
+    const retained = JSON.parse(localStorage.getItem(KEY) ?? "null");
+    state.retained = { tools: retained?.tools ?? {}, removed: retained?.removed ?? [] };
   } catch {
-    state.kept = { tools: {}, removed: [] };
+    state.retained = { tools: {}, removed: [] };
   }
 }
 
-function keep() {
-  localStorage.setItem(KEY, JSON.stringify(state.kept));
+function retain() {
+  localStorage.setItem(KEY, JSON.stringify(state.retained));
 }
 
-const kept = (name) => (state.kept.tools[name] ??= {});
+const retained = (name) => (state.retained.tools[name] ??= {});
 
 export function sideOf(name) {
-  const side = kept(name).side;
+  const side = retained(name).side;
   return SIDES.includes(side) ? side : TOOLS[name].side;
 }
 
-// The size a tool window was left at a side: the one kept, or for a panel at the foot the height it
+// The size a tool window was left at a side: the one retained, or for a panel at the foot the height it
 // was dragged to before it docked anywhere else, or its first.
 function sizeOf(name, side) {
-  const size = kept(name).sizes?.[side];
+  const size = retained(name).sizes?.[side];
   if (Number.isFinite(size)) {
     return size;
   }
@@ -112,7 +112,7 @@ function placeOf(name) {
   return tool.place === "work" ? document.querySelector(".work") : document.getElementById(tool.place);
 }
 
-// Gives a tool window its size at the side it stands at.
+// Gives a tool window its size at the side it is at.
 function size(name) {
   const tool = TOOLS[name];
   const node = document.getElementById(tool.node);
@@ -135,7 +135,7 @@ function size(name) {
 function layout(place) {
   const names = Object.keys(TOOLS).filter((name) => TOOLS[name].place === place);
   const host = placeOf(names[0]);
-  const at = (side) => names.filter((name) => sideOf(name) === side).sort((a, b) => (kept(a).order ?? 0) - (kept(b).order ?? 0));
+  const at = (side) => names.filter((name) => sideOf(name) === side).sort((a, b) => (retained(a).order ?? 0) - (retained(b).order ?? 0));
   const [left, right, bottom] = SIDES.map(at);
   host.style.gridTemplateColumns = [...left.map(() => "auto"), "minmax(0, 1fr)", ...right.map(() => "auto")].join(" ");
   host.style.gridTemplateRows = ["minmax(0, 1fr)", ...bottom.map(() => "auto")].join(" ");
@@ -161,10 +161,10 @@ export function dock(name, side) {
   if (!TOOLS[name] || !SIDES.includes(side)) {
     return;
   }
-  const entry = kept(name);
+  const entry = retained(name);
   entry.side = side;
   entry.order = Date.now();
-  keep();
+  retain();
   const tool = TOOLS[name];
   const node = document.getElementById(tool.node);
   if (node.classList.contains("collapsible")) {
@@ -189,16 +189,16 @@ function sash(name) {
     const side = sideOf(name);
     const box = node.getBoundingClientRect();
     const room = placeOf(name).getBoundingClientRect();
-    const most = (side === "bottom" ? room.height : room.width) * MOST;
+    const max = (side === "bottom" ? room.height : room.width) * MAX;
     const move = (moved) => {
       const wanted = side === "left" ? moved.clientX - box.left : side === "right" ? box.right - moved.clientX : box.bottom - moved.clientY;
-      const entry = kept(name);
-      entry.sizes = { ...(entry.sizes ?? {}), [side]: Math.max(LEAST, Math.min(most, wanted)) };
+      const entry = retained(name);
+      entry.sizes = { ...(entry.sizes ?? {}), [side]: Math.max(LEAST, Math.min(max, wanted)) };
       size(name);
     };
     const end = () => {
       grip.removeEventListener("pointermove", move);
-      keep();
+      retain();
     };
     grip.addEventListener("pointermove", move);
     grip.addEventListener("pointerup", end, { once: true });
@@ -207,15 +207,15 @@ function sash(name) {
 
 // Taking an icon off the strip, and bringing it back.
 
-export const iconRemoved = (icon) => state.kept.removed.includes(icon);
+export const iconRemoved = (icon) => state.retained.removed.includes(icon);
 
 export function setIconRemoved(icon, removed) {
-  state.kept.removed = state.kept.removed.filter((one) => one !== icon);
+  state.retained.removed = state.retained.removed.filter((one) => one !== icon);
   if (removed) {
-    state.kept.removed.push(icon);
+    state.retained.removed.push(icon);
     state.hooks?.close(icon);
   }
-  keep();
+  retain();
   state.hooks?.changed();
 }
 
@@ -367,7 +367,7 @@ export const floatItems = (run) => Object.entries(FLOATING).map(([name, label]) 
 
 // View, Show Only a Tool Window: this window shows the tool window alone, filling it, and a file
 // opened from it opens in the window `from` names, where one is named. With none named, or the one
-// shown alone named again, the window shows everything again.
+// displayed alone named again, the window shows everything again.
 export function solo(name, from = null) {
   const was = document.body.dataset.solo;
   if (was) {
@@ -400,7 +400,7 @@ export const iconNames = () => Object.keys(ICONS);
 
 // `hooks` closes the window of an icon taken off the strip, draws the strip again as the docks
 // change, shows and closes a tool window, and sends the files opened in this window to another, or
-// with null keeps them here.
+// with null retains them here.
 // How far a tool window comes in from the edge it docks at as it shows, in pixels, and how long it
 // takes, in milliseconds.
 const ARRIVES = 14;
@@ -425,11 +425,11 @@ export function startDocks(hooks) {
       movePane(node, sideOf(name));
     } else {
       // A window that shows comes in from its edge; the collapsible panes slide on their own.
-      let shown = !node.hidden;
+      let displayed = !node.hidden;
       new MutationObserver(() => {
-        if (shown !== !node.hidden) {
-          shown = !node.hidden;
-          if (shown) {
+        if (displayed !== !node.hidden) {
+          displayed = !node.hidden;
+          if (displayed) {
             arrive(name, node);
           }
         }

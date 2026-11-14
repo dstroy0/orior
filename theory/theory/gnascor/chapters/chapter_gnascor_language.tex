@@ -32,7 +32,7 @@ nothing crosses between faces unmarked.
 
 \section{The data model}
 
-The language keeps what it learns in files grouped by stem. Files sharing a stem describe one
+The language retains what it learns in files grouped by stem. Files sharing a stem describe one
 member, a part or a set, and the suffix says which view of the member a file holds. A member
 carries only the views it has answers for. Table~\ref{tab:kfiles} gives each view beside the
 field's nearest term.
@@ -60,7 +60,7 @@ suffix & holds & field term \\
 A hardware map holds a general block, valid for any part of a class, and under it a block
 specific enough to be best on one part and no other. A driver written by hand is the general
 block only, since a person writes it once. Here neither block is written: both are read off the
-part, and keeping the specific one costs nothing.
+part, and retention the specific one costs nothing.
 
 The query record, \texttt{.kqr}, holds every question put to a member and every answer, with costs,
 refusals and censored samples marked, and the best path per problem read from those same answers. In
@@ -77,7 +77,7 @@ costs and carries nothing; information aligns and carries.
 The length of a shortest description cannot be computed. Friction can be measured, in time,
 compute and latency, on any host that answers at all, and the language takes it as its reading of
 information content. This is the minimum description length principle read from the side of the
-machine \cite{src:Rissanen}: the best model of data describes it most briefly, and the best
+machine \cite{src:Rissanen}: the best model of data describes it max briefly, and the best
 arrangement of a computation runs on the host with least friction.
 Chapter~\ref{ch:hypotheses} asks what the measured friction tracks, and finds it closer to
 Bennett's logical depth \cite{src:Bennett} than to description length.
@@ -88,7 +88,7 @@ rebuilds information from its primitives.
 
 \section{Keywords}
 
-The language's keywords are four-letter mnemonics. They name the states of a branch pair and the
+The language's keywords are four-character mnemonics. They name the states of a branch pair and the
 transitions between them, and each maps to a concept the field already has a word for.
 Table~\ref{tab:mnemonics} gives the map; Chapter~\ref{ch:states} gives the machine, and
 Chapter~\ref{ch:terms} the sources.

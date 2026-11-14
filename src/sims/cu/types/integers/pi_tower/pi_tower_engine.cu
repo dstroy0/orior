@@ -24,7 +24,7 @@ void pi_tower_engine(SimResults *results, int count, char **arguments, const PiT
         const unsigned long long bytes = (planned != 0) ? pi_tower_bbp_bytes(&plans[at]) : 0ull;
         declared = (bytes > declared) ? bytes : declared;
     }
-    sim_check(results, planned, "engine: keymath encodes and the scheduler lays out the term, tail and pair programs");
+    sim_check(results, planned, "engine: keymath encodes and the scheduler arranges the term, tail and pair programs");
     if ((planned == 0) || !sim_job_submit(results, "pi_tower", count, arguments, declared))
     {
         for (size_t at = 0u; at < plans.size(); at += 1u)
@@ -45,7 +45,7 @@ void pi_tower_engine(SimResults *results, int count, char **arguments, const PiT
         pi_tower_bbp_print(results, &plans[at], &run, certified);
         const std::string expected = s_pi_tower_published[at].digits;
         finished = finished && ran && run.finished;
-        // a published string is at most 23 digits. Its length fits an unsigned int
+        // a published string is at max 23 digits. Its length fits an unsigned int
         published = published && ran && run.finished && ((4u * expected.size()) <= certified) &&
                     (pi_tower_bbp_hex(&plans[at], run.sum, (unsigned int)expected.size()) == expected);
     }
@@ -112,7 +112,7 @@ void pi_tower_deep(SimResults *results, int count, char **arguments, const PiWid
     PiTowerBbp bbp;
     const unsigned long long lanes = pi_tower_bbp_lanes();
     const int planned = (lanes != 0ull) && pi_tower_bbp_plan(&bbp, position, lanes, &error);
-    sim_check(results, planned, "engine: keymath encodes and the scheduler lays out the term, tail and pair programs");
+    sim_check(results, planned, "engine: keymath encodes and the scheduler arranges the term, tail and pair programs");
     if (planned == 0)
     {
         return;
@@ -216,7 +216,7 @@ int pi_tower_resolution(const char *text, unsigned int *bits)
     {
         return 0;
     }
-    // at most 2^20. An unsigned int stores it
+    // at max 2^20. An unsigned int stores it
     *bits = (unsigned int)pi_tower_word(value);
     return 1;
 }

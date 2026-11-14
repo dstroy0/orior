@@ -100,7 +100,7 @@ int cli_socket_listening(const CliErrMsgPortCtx *args)
         return 0;
     }
     *port = ntohs(address.sin_port);
-    // a socket is a pointer's width, which an unsigned long long stores; one past it so that 0 stands for none
+    // a socket is a pointer's width, which an unsigned long long stores; one past it so that 0 is for none
     args->listener->handle = (unsigned long long)made + 1ull;
     return 1;
 }
@@ -115,7 +115,7 @@ int cli_socket_accept(const CliListenerCtx *args)
     {
         return 0;
     }
-    // a socket is a pointer's width, which an unsigned long long stores; one past it so that 0 stands for none
+    // a socket is a pointer's width, which an unsigned long long stores; one past it so that 0 is for none
     args->peer->handle = (unsigned long long)made + 1ull;
     return 1;
 }
@@ -164,7 +164,7 @@ int cli_socket_connected_time(const CliErrMsgCtx *args)
     }
     const BOOL no_delay = TRUE;
     setsockopt(made, IPPROTO_TCP, TCP_NODELAY, (const char *)&no_delay, sizeof(no_delay));
-    // a socket is a pointer's width, which an unsigned long long stores; one past it so that 0 stands for none
+    // a socket is a pointer's width, which an unsigned long long stores; one past it so that 0 is for none
     args->sock_out->handle = (unsigned long long)made + 1ull;
     return 1;
 }

@@ -12,7 +12,7 @@ extern void test_no_menu_lists_a_command_twice(void);
 extern void test_every_command_is_one_word(void);
 extern void test_no_command_of_a_job_menu_is_a_job_path(void);
 extern void test_an_item_that_is_on_or_off_reads_the_name_of_its_state_and_every_other_none(void);
-extern void test_a_menu_opened_anew_takes_a_new_serial_and_keeps_it_while_it_stands_open(void);
+extern void test_a_menu_opened_anew_takes_a_new_serial_and_retains_it_while_it_is_open(void);
 extern void test_arguments_outside_brackets_are_required(void);
 extern void test_arguments_inside_brackets_are_optional(void);
 extern void test_a_choice_counts_as_one_argument(void);
@@ -84,7 +84,7 @@ int main(void)
   run_test(test_every_command_is_one_word, "test_every_command_is_one_word", 59);
   run_test(test_no_command_of_a_job_menu_is_a_job_path, "test_no_command_of_a_job_menu_is_a_job_path", 71);
   run_test(test_an_item_that_is_on_or_off_reads_the_name_of_its_state_and_every_other_none, "test_an_item_that_is_on_or_off_reads_the_name_of_its_state_and_every_other_none", 88);
-  run_test(test_a_menu_opened_anew_takes_a_new_serial_and_keeps_it_while_it_stands_open, "test_a_menu_opened_anew_takes_a_new_serial_and_keeps_it_while_it_stands_open", 123);
+  run_test(test_a_menu_opened_anew_takes_a_new_serial_and_retains_it_while_it_is_open, "test_a_menu_opened_anew_takes_a_new_serial_and_retains_it_while_it_is_open", 123);
   run_test(test_arguments_outside_brackets_are_required, "test_arguments_outside_brackets_are_required", 142);
   run_test(test_arguments_inside_brackets_are_optional, "test_arguments_inside_brackets_are_optional", 147);
   run_test(test_a_choice_counts_as_one_argument, "test_a_choice_counts_as_one_argument", 152);

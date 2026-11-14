@@ -15,7 +15,7 @@
 // A commit runs git's hooks and signing as the tree has them, and saves the open files first. What
 // git says when it refuses shows under the buttons.
 //
-// Where the tree holds more than one repository, each one's files stand under a row that names it and
+// Where the tree holds more than one repository, each one's files are under a row that names it and
 // its branch, a commit goes to each repository that holds a file taken, Commit and Push pushes each of
 // them, and the bar's pull and push act on the repository open.
 
@@ -31,14 +31,14 @@ import { addedPrints, takeOutPrints } from "./prints.js";
 const MARKS = { M: "modified", A: "added", D: "deleted", R: "renamed", U: "new", C: "conflicted" };
 
 // `open` holds the files whose changes show under them, and `parts` each one's two texts, its
-// changes, and the lines left out, `-n` a line of the last commit's text kept and `+n` a line of the
+// changes, and the lines left out, `-n` a line of the last commit's text retained and `+n` a line of the
 // file's left out.
 const state = { hooks: null, changes: new Map(), left: new Set(), busy: false, rolling: false, message: "", said: "", sync: null, open: new Set(), parts: new Map() };
 
 // The marks of a file whose changes open under it.
 const PARTED = new Set(["M", "A", "U"]);
 
-// Where the reader's choice to leave notebooks' outputs out of a commit is kept.
+// Where the reader's choice to leave notebooks' outputs out of a commit is retained.
 const OUTPUTS_KEY = "orior.commit.outputs";
 
 const outputsLeft = () => localStorage.getItem(OUTPUTS_KEY) === "out";
@@ -137,7 +137,7 @@ async function commit(andPush) {
     }
     const parts = parted.map((path) => ({ path, text: partText(state.parts.get(path)) }));
     // A notebook goes into the commit without its outputs and run counts where the reader says so,
-    // and keeps them in its file.
+    // and retains them in its file.
     if (outputsLeft()) {
       for (const path of paths.filter((one) => /\.ipynb$/i.test(one) && !parted.includes(one))) {
         parts.push({ path, text: await invoke("notebook_without_outputs", { path }) });
@@ -307,7 +307,7 @@ function printsNote() {
 export function drawCommit(changes = state.changes) {
   state.changes = changes;
   const body = document.getElementById("changes");
-  if (!body || !state.hooks?.shown()) {
+  if (!body || !state.hooks?.displayed()) {
     return;
   }
   const paths = [...changes.keys()].sort();

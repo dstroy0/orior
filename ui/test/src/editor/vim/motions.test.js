@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Vim's motions and text objects in the editor: by word, by line, to a letter, to a bracket's pair, by paragraph, and
+// Vim's motions and text objects in the editor: by word, by line, to a character, to a bracket's pair, by paragraph, and
 // the objects an operator takes.
 
 import { given, putBackAsFound } from "../../../menus.js";
@@ -15,7 +15,7 @@ async function vimOn(marked) {
   return view;
 }
 
-// Each key as Vim takes it: a string's letters one by one, or a list's keys as named.
+// Each key as Vim takes it: a string's characters one by one, or a list's keys as named.
 const keys = (view, typed) => (Array.isArray(typed) ? typed : [...typed]).forEach((key) => view.vim.take(key));
 const at = (view) => [view.primary().head.line, view.primary().head.col];
 
@@ -38,14 +38,14 @@ test("w, b and e step by word, a count taking as many steps, and 0, ^ and $ go a
   view.setVim(false);
 });
 
-test("gg and G go to the first and last line, f and t to a letter on the line, and ; again", async () => {
+test("gg and G go to the first and last line, f and t to a character on the line, and ; again", async () => {
   const view = await vimOn("a line\n|banana bread\nlast");
   keys(view, "fa");
   assert.deepEqual(at(view), [1, 1]);
   keys(view, ";");
   assert.deepEqual(at(view), [1, 3]);
   keys(view, "tb");
-  assert.deepEqual(at(view), [1, 6], "before the letter");
+  assert.deepEqual(at(view), [1, 6], "before the character");
   keys(view, "G");
   assert.deepEqual(at(view), [2, 0]);
   keys(view, "gg");

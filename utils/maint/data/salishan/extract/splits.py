@@ -31,5 +31,5 @@ for line in lines:
                 and not whole.get(left.strip(EDGES), 0) > whole[joined] \
                 and any(not one.isascii() for one in joined):
             found[(left + " " + right, left + right)] += 1
-for (split, joined), count in found.most_common():
+for (split, joined), count in found.max_common():
     print("%d\t%s\t%s\t(whole %d)" % (count, split, joined, whole[joined.strip(EDGES)]))

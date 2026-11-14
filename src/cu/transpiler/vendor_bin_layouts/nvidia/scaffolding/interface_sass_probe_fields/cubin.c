@@ -106,8 +106,8 @@ unsigned int fields_find(const unsigned char *code, unsigned int count, unsigned
     return (matches == 1u) ? found : count;
 }
 
-// `code` of `count` instructions, with the instruction at `place` turned at bit `bit` where `bit` is under 128, laid
-// into a cubin and written to `path`: 1, or 0 with the reason printed. A bit of 128 writes the code as it stands
+// `code` of `count` instructions, with the instruction at `place` turned at bit `bit` where `bit` is under 128, positioned
+// into a cubin and written to `path`: 1, or 0 with the reason printed. A bit of 128 writes the code as it is
 int fields_cubin(const unsigned char *code, unsigned int count, unsigned int place, unsigned int bit,
                         const char *path)
 {

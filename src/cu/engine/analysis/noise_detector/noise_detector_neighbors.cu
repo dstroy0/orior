@@ -5,7 +5,7 @@
 
 static const char *const NOISE_RANGE_NAMES[NOISE_NEIGHBOR_RADII] = {"z", "y", "x", "z2", "z4", "z8", "z16", "z32"};
 
-static const unsigned int NOISE_NEIGHBORS_SHOWN_BINS[NOISE_NEIGHBORS_SHOWN] = {3u, 5u, 9u, 13u, 25u};
+static const unsigned int NOISE_NEIGHBORS_DISPLAYED_BINS[NOISE_NEIGHBORS_DISPLAYED] = {3u, 5u, 9u, 13u, 25u};
 
 __device__ static void noise_neighbors_flush(unsigned long long *cells, unsigned int radius, unsigned int level_bin,
                                              unsigned long long run[NOISE_NEIGHBORS_SUMS])
@@ -97,7 +97,7 @@ long noise_neighbors_sample(const unsigned short *volume, const unsigned long lo
 {
     const unsigned long long frames = extent[0];
     const unsigned long long voxels = extent[1] * extent[2] * extent[3];
-    // every sum is at most one sample's pairs times the widest product, 65535 squared
+    // every sum is at max one sample's pairs times the widest product, 65535 squared
     const int bounded = (frames >= 2ull) && (voxels != 0ull) && (frames <= (~0ull / voxels)) &&
                         ((frames * voxels) <= (~0ull / (65535ull * 65535ull)));
     if (!NOISE_DETECTOR_CHECK(bounded, extent, error, ENGINE_ERROR_REQUEST))
@@ -153,7 +153,7 @@ int noise_neighbors_per_mille(const unsigned long long cell[NOISE_NEIGHBORS_SUMS
     {
         ok = quotient.limb[limb] == 0u;
     }
-    // the magnitude is at most 2000, one limb; the sign is stored apart
+    // the magnitude is at max 2000, one limb; the sign is stored apart
     *per_mille = ok ? ((long long)quotient.limb[0] * (long long)quotient.sign) : 0ll;
     return ok;
 }
@@ -170,9 +170,9 @@ static void noise_neighbors_summary(const char *name, const unsigned long long s
         {
             printf("  %-24s %-3s", "", NOISE_RANGE_NAMES[radius]);
         }
-        for (unsigned int shown = 0u; shown < NOISE_NEIGHBORS_SHOWN; shown += 1u)
+        for (unsigned int displayed = 0u; displayed < NOISE_NEIGHBORS_DISPLAYED; displayed += 1u)
         {
-            const unsigned int level_bin = NOISE_NEIGHBORS_SHOWN_BINS[shown];
+            const unsigned int level_bin = NOISE_NEIGHBORS_DISPLAYED_BINS[displayed];
             long long per_mille = 0ll;
             if (noise_neighbors_per_mille(&sums[((radius * NOISE_LEVEL_BINS) + level_bin) * NOISE_NEIGHBORS_SUMS],
                                           &per_mille))
@@ -233,9 +233,9 @@ extern "C" long noise_neighbors_set(const NoiseSetRequest *request)
            " on along z (z2 to z32), in bins of 8 by the pair's mean\n");
     printf("  2000 (raised - lowered) / (squares + next squares), signed per mille (independent noise gives 0):\n");
     printf("  %-24s  ", "mean");
-    for (unsigned int shown = 0u; shown < NOISE_NEIGHBORS_SHOWN; shown += 1u)
+    for (unsigned int displayed = 0u; displayed < NOISE_NEIGHBORS_DISPLAYED; displayed += 1u)
     {
-        printf(" %7u", NOISE_NEIGHBORS_SHOWN_BINS[shown] << (NOISE_LEVEL_BIN_SHIFT - 1u));
+        printf(" %7u", NOISE_NEIGHBORS_DISPLAYED_BINS[displayed] << (NOISE_LEVEL_BIN_SHIFT - 1u));
     }
     printf("\n");
     unsigned long long *const sums =

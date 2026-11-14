@@ -23,7 +23,7 @@
   /* Tracking, as three values.
    Uppercase needs opening out, because capitals were drawn to sit apart and setting them at the
    spacing of lowercase jams them together. Small uppercase needs more of it again, since the same
-   optical gap is a larger fraction of a smaller letter. Everything else takes the tracking the face
+   optical gap is a larger fraction of a smaller character. Everything else takes the tracking the face
    was drawn with, and adding any is a decoration that costs legibility at these sizes. */
   :root {
     --track-caps: 0.09em; /* uppercase eyebrows and tags */
@@ -84,7 +84,7 @@
     margin: 0 0 7px;
     font-size: 10px;
     font-weight: 600;
-    letter-spacing: var(--track-caps);
+    character-spacing: var(--track-caps);
     text-transform: uppercase;
     color: var(--dim);
     cursor: move;
@@ -93,7 +93,7 @@
     margin: 9px 0 3px;
     font-size: 9.5px;
     font-weight: 600;
-    letter-spacing: var(--track-small);
+    character-spacing: var(--track-small);
     text-transform: uppercase;
     color: var(--faint);
   }
@@ -159,7 +159,7 @@
     font-family: "Cascadia Mono", "Consolas", ui-monospace, monospace;
     font-size: 11px;
     color: var(--ink);
-    letter-spacing: var(--track-text);
+    character-spacing: var(--track-text);
     padding: 3px 0;
     text-align: center;
   }
@@ -176,7 +176,7 @@
   .arm-key code {
     font-family: "Cascadia Mono", "Consolas", ui-monospace, monospace;
     font-size: 11px;
-    letter-spacing: 0.08em;
+    character-spacing: 0.08em;
     color: var(--ink);
   }
   .formula sub,
@@ -263,7 +263,7 @@
     border-color: var(--edge);
     color: var(--dim);
   }
-  /* The ramp the boundary is painted with, shown as the strip it is and not described in words.
+  /* The ramp the boundary is painted with, displayed as the strip it is and not described in words.
    The gradient is written from the same two colors paintSurface interpolates between. */
   .ramp-strip {
     height: 10px;
@@ -276,7 +276,7 @@
     justify-content: space-between;
     margin: 3px 0 9px;
     font-size: 9px;
-    letter-spacing: var(--track-small);
+    character-spacing: var(--track-small);
     text-transform: uppercase;
     color: var(--faint);
   }
@@ -294,7 +294,7 @@
     gap: 1px;
     text-align: center;
     font-size: 9.5px;
-    letter-spacing: var(--track-text);
+    character-spacing: var(--track-text);
     color: var(--faint);
   }
   #rights span {
@@ -350,7 +350,7 @@
     bottom: 16px;
     font-size: 11px;
     color: var(--faint);
-    letter-spacing: var(--track-text);
+    character-spacing: var(--track-text);
     pointer-events: none;
   }
   #rate {
@@ -360,7 +360,7 @@
     font-size: 10.5px;
     color: var(--faint);
     font-variant-numeric: tabular-nums;
-    letter-spacing: var(--track-text);
+    character-spacing: var(--track-text);
     pointer-events: none;
     z-index: 22;
   }
@@ -389,7 +389,7 @@
     font: inherit;
     font-size: 10.5px;
     cursor: pointer;
-    letter-spacing: var(--track-small);
+    character-spacing: var(--track-small);
     text-transform: uppercase;
   }
   #menu button:hover {
@@ -443,7 +443,7 @@
     font: inherit;
     font-size: 10.5px;
     cursor: pointer;
-    letter-spacing: var(--track-small);
+    character-spacing: var(--track-small);
     text-transform: uppercase;
   }
   #configRow button:hover,
@@ -478,7 +478,7 @@
     backdrop-filter: blur(3px);
     font-size: 10.5px;
     color: var(--dim);
-    letter-spacing: var(--track-text);
+    character-spacing: var(--track-text);
   }
   #transport button {
     background: var(--ground);
@@ -601,7 +601,7 @@
     border: 1px solid #b91c1c;
     border-top: none;
     font-size: 11.5px;
-    letter-spacing: var(--track-text);
+    character-spacing: var(--track-text);
     box-shadow: 0 2px 20px rgba(0, 0, 0, 0.6);
   }
   /* The label rides its target. Pinned to a screen corner it says the right words about the wrong
@@ -612,7 +612,7 @@
     pointer-events: none;
     white-space: nowrap;
     font-size: 10px;
-    letter-spacing: var(--track-caps);
+    character-spacing: var(--track-caps);
     text-transform: uppercase;
     padding: 3px 7px;
     border-radius: 3px;
@@ -681,7 +681,7 @@
 </div>
 
 <!-- Every control, as one JSON object, read and written.
-     The settings are not a second description of the page kept alongside the controls. They are
+     The settings are not a second description of the page retained alongside the controls. They are
      the controls, collected by id, so nothing can drift between what a config says and what the
      page is doing. -->
 <div class="box" id="configBox" style="display: none">
@@ -1016,7 +1016,7 @@
   <div class="legend" id="keyList"></div>
 </div>
 
-<!-- The eight arms, with the two transforms that name each one and the letter it is currently
+<!-- The eight arms, with the two transforms that name each one and the character it is currently
      reading. Hidden until the arms are drawn, because a table of frames with nothing on screen to
      attach them to is a table of numbers. -->
 <div
@@ -1089,7 +1089,7 @@
   // cannot drift the next time the room changes.
   // ---------------------------------------------------------------------------------------------
 
-  var ROOM = 120; // the wall you stand inside
+  var ROOM = 120; // the wall you are inside
   var BANDS = 3; // nested boundaries within it, innermost first
   var SHELL = ROOM * 0.27; // the outermost of those, and the reach of the cloud
   var LIGHT_HALO = 3.4; // a halo, as a multiple of the body that casts it
@@ -1097,14 +1097,14 @@
   var LAMP_SIZE = SHELL * 0.055; // a source, against the shells it lights
   var SMEAR_OUT = 1.012; // the trace sits outside the surface it landed on
 
-  // The observer's travel. Stored as a ratio between the nearest and furthest standing points so the
+  // The observer's travel. Stored as a ratio between the nearest and furthest located points so the
   // slider is geometric and not linear: at even spacing the interior is a sliver of the travel
   // and the empty room beyond the wall takes half of it.
   var NEAREST = SHELL * 0.22;
   var FURTHEST = ROOM * 2.6;
   var OPENING = SHELL * 2.5; // frames the outer shell, with the room legible around it
 
-  function standAt(part) {
+  function areAt(part) {
     return (
       NEAREST * Math.pow(FURTHEST / NEAREST, Math.max(0, Math.min(1, part)))
     );
@@ -1129,17 +1129,17 @@
     opacity: 1.0,
   });
 
-  function shellGeometry(kind) {
-    if (kind === "cube") {
+  function shellGeometry(type) {
+    if (type === "cube") {
       return new THREE.BoxGeometry(ROOM * 1.5, ROOM * 1.5, ROOM * 1.5);
     }
-    if (kind === "hexagon") {
+    if (type === "hexagon") {
       return new THREE.CylinderGeometry(ROOM, ROOM, ROOM * 1.6, 6, 1);
     }
-    if (kind === "octahedron") {
+    if (type === "octahedron") {
       return new THREE.OctahedronGeometry(ROOM * 1.25, 0);
     }
-    if (kind === "dodecahedron") {
+    if (type === "dodecahedron") {
       return new THREE.DodecahedronGeometry(ROOM * 1.1, 0);
     }
     return new THREE.SphereGeometry(ROOM, 72, 48);
@@ -1149,9 +1149,9 @@
   room.receiveShadow = true;
   scene.add(room);
 
-  function setShell(kind) {
+  function setShell(type) {
     room.geometry.dispose();
-    room.geometry = shellGeometry(kind);
+    room.geometry = shellGeometry(type);
   }
   document.getElementById("shell").value = DATA.shell;
 
@@ -1159,7 +1159,7 @@
   // The nested boundaries.
   //
   // There is not one shell but several, one inside the next, and each of them is a closed surface
-  // that can be stood inside of and read from outside. That is the claim the page exists to make. A
+  // that can be was inside of and read from outside. That is the claim the page exists to make. A
   // single shell can always be explained away as the special case. The outside of one boundary is the inside of the next, and the reader
   // walking out through all of them and finding the same arrangement each time is the argument.
   //
@@ -1171,7 +1171,7 @@
 
   // The boundaries cascade: each one is the same factor larger than the one inside it, and the
   // outermost lands on the shell. Spaced evenly instead, at a third, two thirds and the whole, the
-  // innermost surface comes out large enough to swallow most of the interior and the gaps between the
+  // innermost surface comes out large enough to swallow the majority of the interior and the gaps between the
   // three read as one thickness repeated. A constant ratio makes the nesting a growth: the size a
   // boundary starts at is the size of the one within it times a fixed number, the shape of
   // anything that contains what contains something else.
@@ -1185,12 +1185,12 @@
   // The engine arms: the eight octants, drawn.
   // ---------------------------------------------------------------------------------------------
   //
-  // The alphabet this work reads a boundary with has eight letters, one per sign octant of space.
+  // The alphabet this work reads a boundary with has eight characters, one per sign octant of space.
   // Every octant is an infinite cone with a trilateral right-angle corner; all eight corners meet at
   // the single point at the center; and on the boundary the same split cuts eight congruent spherical
   // triangles of three right angles each, area pi/2 by Girard, eight of them coming to 4pi exactly.
   //
-  // Drawn a reader can see which letter a part of the surface belongs to instead of taking the
+  // Drawn a reader can see which character a part of the surface belongs to instead of taking the
   // share table on trust. Each octant's three edges are one color, and they grow from the center
   // outward.
   //
@@ -1226,7 +1226,7 @@
   var armSigns = []; // the sign triple when a direction is a cube diagonal, else null
 
   // The eight cube diagonals, in the order the octant index has always used: x is the four bit, y the
-  // two, z the one. An index into the arms is an index into the letters, unchanged.
+  // two, z the one. An index into the arms is an index into the characters, unchanged.
   function cubeDiagonalArms() {
     var out = [],
       signs = [],
@@ -1273,23 +1273,23 @@
 
   setArms(ARM_COUNT);
 
-  // Each octant carries two transforms worth naming, and they are different kinds of thing.
+  // Each octant carries two transforms worth naming, and they are different types of thing.
   //
   //   spatial       the reflection diag(sx, sy, sz), the map that carries the first octant onto this
   //                 one. Three signs, and it is where the arm points.
   //   dimensional   its determinant, the product sx*sy*sz. Four octants come out +1 and four come out
   //                 -1. The eight split evenly between frames that are a rotation of the first and
-  //                 frames that are a rotation composed with a mirror. A right-handed reading and a
-  //                 left-handed one are not interchangeable, and this sign is where that is recorded.
+  //                 frames that are a rotation composed with a mirror. A right-passed reading and a
+  //                 left-passed one are not interchangeable, and this sign is where that is recorded.
   //                 It is also the sign torsion reports. The two agree by construction.
   // How far out a corner sits, against how long its edges are, both as fractions of the shell radius.
   //
   // The ratio between them decides whether the picture says eight or says three. At a small
-  // offset and long edges the eight corners sit near the origin with their arms running most of the
+  // offset and long edges the eight corners sit near the origin with their arms running the majority of the
   // way across the shell, and since four octants share each axis direction the edges lie along one
   // another: the result is an axis-aligned cage, which is a true drawing of three axes and a false
   // drawing of eight frames. Pushing the corner out past the object and shortening the edges to about
-  // half the offset separates them, and each octant reads as its own right-angle corner standing off
+  // half the offset separates them, and each octant reads as its own right-angle corner located off
   // in its own eighth of space.
   var ARM_OFF = 0.62; // corner distance from the center, along its own diagonal
   var ARM_LEN = 0.34; // edge length, about half the offset. No two arms overlap
@@ -1316,12 +1316,12 @@
   // with it and their projections sit 120 degrees apart. The converse is the construction above.
   // The three rays come out mutually perpendicular whatever direction they are built around.
   //
-  // Measured over the eight cube diagonals and a golden placement: edge length off unit by at most
+  // Measured over the eight cube diagonals and a golden placement: edge length off unit by at max
   // 2.2e-16, every edge 54.7356 degrees from its direction, and every pair of edges 90.000 degrees
   // apart. a general arm is a true right-angle trilateral corner and the octant is the case where
   // that frame happens to be the coordinate axes.
   //
-  // The sign path is kept anyway, because for the octants those axes are the cell's own edges, and
+  // The sign path is retained anyway, because for the octants those axes are the cell's own edges, and
   // drawing the true thing where it is available is worth one branch.
   function armEdges(index, out) {
     var dir = armDirs[index];
@@ -1379,7 +1379,7 @@
 
     for (var o = 0; o < count; o++) {
       var dir = armDirs[o];
-      // One hue per arm, spaced around the wheel so no two adjacent letters read as one color.
+      // One hue per arm, spaced around the wheel so no two adjacent characters read as one color.
       // Saturated and light, because these are read against a pale shell interior and a mid-tone
       // line on a mid-tone ground is a line nobody can follow to its corner.
       tone.setHSL(o / count, 0.78, 0.66);
@@ -1447,24 +1447,24 @@
   buildArms();
 
   // Which arm a point belongs to: the nearest direction, by the largest dot product. The same order
-  // the arms were built in, an index here is the index of an arm and of a letter.
+  // the arms were built in, an index here is the index of an arm and of a character.
   //
   // AT EIGHT CUBE DIAGONALS THIS IS THE SIGN TEST, EXACTLY. The dot with (sx, sy, sz)/sqrt(3) is
   // (x sx + y sy + z sz)/sqrt(3), maximal precisely when every sign matches, which is |x|+|y|+|z|.
   // So the general rule and the old `((x >= 0) ? 4 : 0) + ...` name the same region and the same
-  // index. The sign form is kept as the fast path because it is a handful of comparisons against a
+  // index. The sign form is retained as the fast path because it is a handful of comparisons against a
   // loop over every arm, and it runs per placement point on every repaint.
   function armOf(x, y, z) {
     if (armSigns.length === 8 && armSigns[0]) {
       return (x >= 0 ? 4 : 0) + (y >= 0 ? 2 : 0) + (z >= 0 ? 1 : 0);
     }
     var best = 0,
-      most = -Infinity;
+      max = -Infinity;
     for (var a = 0; a < armDirs.length; a++) {
       var dir = armDirs[a];
       var dot = x * dir.x + y * dir.y + z * dir.z;
-      if (dot > most) {
-        most = dot;
+      if (dot > max) {
+        max = dot;
         best = a;
       }
     }
@@ -1480,7 +1480,7 @@
   // ---------------------------------------------------------------------------------------------
   //
   // `armOf` returns one index, which can only ever express an indicator arm: the point is in the
-  // region or it is not. `docs/arm-records.md` asks for three kinds and the other two do not fit
+  // region or it is not. `docs/arm-records.md` asks for three types and the other two do not fit
   // through an index at all.
   //
   //   indicator   0 or 1        a sign octant
@@ -1488,8 +1488,8 @@
   //   graded      any real      an arm matched to a harmonic
   //
   // A table of weights holds all three the same way, and the reading is then the matrix product the
-  // record already defines: the letter of arm a is the sum of W[a][k] over the lit points k. Nothing
-  // downstream has to know which kind it was handed.
+  // record already defines: the character of arm a is the sum of W[a][k] over the lit points k. Nothing
+  // downstream has to know which type it was passed.
   //
   // WHY THE ROW IS PADDED TO A POWER OF TWO. The row start is then a shift instead of a multiply.
   // An index is `(arm << armShift) + point` and the inner loop of the reading carries no integer
@@ -1549,7 +1549,7 @@
   // Translucent and opaque are two materials and not one material at two opacities. Additive
   // blending can only ever brighten. It cannot occlude however far its opacity is driven, and an
   // unlit surface at full opacity is a flat silhouette with no topology to read. So the faint case
-  // keeps the additive window and the solid case takes a lit material that writes depth.
+  // retains the additive window and the solid case takes a lit material that writes depth.
   function glassMaterial() {
     return new THREE.MeshBasicMaterial({
       color: 0x5f86b0,
@@ -1574,14 +1574,14 @@
     });
   }
 
-  function coreGeometry(kind, reach) {
-    if (kind === "cube") {
+  function coreGeometry(type, reach) {
+    if (type === "cube") {
       return new THREE.BoxGeometry(reach * 2, reach * 2, reach * 2);
     }
-    if (kind === "octahedron") {
+    if (type === "octahedron") {
       return new THREE.OctahedronGeometry(reach, 0);
     }
-    if (kind === "cone") {
+    if (type === "cone") {
       return new THREE.ConeGeometry(reach, reach * 2, 56, 1, false);
     }
     return new THREE.SphereGeometry(reach, 64, 40);
@@ -1612,10 +1612,10 @@
     });
   }
 
-  function setCore(kind) {
+  function setCore(type) {
     for (var s = 0; s < shells.length; s++) {
       shells[s].mesh.geometry.dispose();
-      shells[s].mesh.geometry = coreGeometry(kind, shells[s].reach);
+      shells[s].mesh.geometry = coreGeometry(type, shells[s].reach);
     }
   }
 
@@ -1856,7 +1856,7 @@
   // was put and leaks away from there. What a moving source leaves is a tail that fades, and the
   // length of that tail is the dwell time and not a decoration on it.
   //
-  // Each light keeps its last few places in a ring, oldest overwritten. Brightness falls off with how
+  // Each light retains its last few places in a ring, oldest overwritten. Brightness falls off with how
   // long ago a place was visited, at no dwell only the head is lit and the cloud reads as points,
   // and at full dwell each light drags a lit wire behind it. Nothing here is a blur applied to the
   // picture afterwards. It is the same light, still being counted from where it used to be.
@@ -1927,7 +1927,7 @@
     }
   }
 
-  function layTrail() {
+  function positionTrail() {
     var slot = trailHead;
     for (var k = 0; k < COUNT; k++) {
       var at = (k * TRAIL + slot) * 3;
@@ -2020,11 +2020,11 @@
   scene.add(dusk);
 
   // Scaled to the room, and to how close a source is carried. A source brought in among the bodies
-  // sits where the medium is densest. The softening, the room's area, keeps the near field finite
+  // sits where the medium is densest. The softening, the room's area, retains the near field finite
   // when the source is inside the cloud.
   var DUST_GAIN = ROOM * ROOM * 0.006;
   var DUST_SOFT = ROOM * ROOM * 0.05;
-  var DUST_MOST = 0.14;
+  var DUST_MAX = 0.14;
 
   function lightTheDusk() {
     for (var k = 0; k < MOTES; k++) {
@@ -2040,8 +2040,8 @@
           best = lit;
         }
       }
-      if (best > DUST_MOST) {
-        best = DUST_MOST;
+      if (best > DUST_MAX) {
+        best = DUST_MAX;
       }
       duskLit[k * 3] = best;
       duskLit[k * 3 + 1] = best * 0.86;
@@ -2074,7 +2074,7 @@
   // linear in the distance and still strong at the far end of it, a reach set to the whole room
   // lit the wall almost evenly and lifted the room off black. Two sources doing that at once is what
   // turned the picture into a flat wash. Set to the region a source is meant to light, the near field
-  // keeps the strength the magnified shadows need and the wall goes back to being dark.
+  // retains the strength the magnified shadows need and the wall goes back to being dark.
   var BEAM_REACH = ROOM * 1.6;
 
   // THE STAIRCASE ACROSS THE SHADOW LOBES IS THIS NUMBER, AND THE PARABOLAS ARE THE REAL EDGE.
@@ -2170,9 +2170,9 @@
   //
   // COLOR CARRIES THE INTENSITY
   //
-  // Saturation falls as intensity rises. The pole reads close to white and the wings keep the blue.
+  // Saturation falls as intensity rises. The pole reads close to white and the wings retain the blue.
   // That is how a real emitter renders: the hottest part of it is the least colored part. The
-  // lightness is kept nearly flat across the range. Taking the color out of the middle does not
+  // lightness is retained nearly flat across the range. Taking the color out of the middle does not
   // also brighten it.
   (function () {
     var seed = 20260101;
@@ -2193,7 +2193,7 @@
     // The intensity across the beam. One great beam on the axis, and an even number of sidebands
     // around it, a cut through the middle always crosses an odd count: a ring, the center, the
     // same ring again. UMAX of four pi puts three rings around the pole, so that cut shows seven
-    // lobes, and any UMAX of two pi or more keeps the count odd and at least three.
+    // lobes, and any UMAX of two pi or more retains the count odd and at least three.
     //
     // The pole carries the magnitude. In the squared sinc the first sideband is a few percent of the
     // center and each one after that a fraction of the last, and holding that ratio makes the pattern
@@ -2245,11 +2245,11 @@
       // at all and the structure worth showing is where those rings are. The floor is low and the
       // curve gentle. The pole stays about three times the first ring and reads as the one great
       // beam it is. Lifted higher, every ring came out near enough the center to compete with it.
-      var shown = 0.18 + 0.82 * Math.pow(lit, 0.5);
-      tint.setHSL(0.542, 0.44 - 0.3 * shown, 0.62 + 0.16 * shown);
-      sprayR[i] = tint.r * shown;
-      sprayG[i] = tint.g * shown;
-      sprayB[i] = tint.b * shown;
+      var displayed = 0.18 + 0.82 * Math.pow(lit, 0.5);
+      tint.setHSL(0.542, 0.44 - 0.3 * displayed, 0.62 + 0.16 * displayed);
+      sprayR[i] = tint.r * displayed;
+      sprayG[i] = tint.g * displayed;
+      sprayB[i] = tint.b * displayed;
     }
   })();
   var CONE_POS = new Float32Array(SPRAY_N * 2 * 3);
@@ -2294,14 +2294,14 @@
   //
   // What it scatters from is the part worth stating carefully. The interior is not a bag of separate
   // bits: a bit and its antipode are one object joined by a diameter, and that pair is what a beam can
-  // interact with coherently. So the scatterer is the pair whose diameter runs most nearly along the
+  // interact with coherently. So the scatterer is the pair whose diameter runs max nearly along the
   // warped beam, the dimensionally coherent opposite of the direction the beam arrived from. It is
   // found by taking the largest absolute dot product of the beam against the 128 pair axes, and the
   // pair it lands on changes as the beam is steered, as the state turns, and as the warp moves it.
   // ---------------------------------------------------------------------------------------------
 
   // A beam is a population. The trace casts a bundle from each source and gives
-  // every member of it a fate. The budget below is the reading: most of what goes in never comes out.
+  // every member of it a fate. The budget below is the reading: the majority of what goes in never comes out.
   //
   //   absorbed         stopped at the surface it met, and this is the common outcome
   //   surface scatter  turned hard at the boundary and lost soon after
@@ -2311,7 +2311,7 @@
   //
   // The shares are stated once, in order, and each fate is drawn differently so the population can be
   // read off the picture instead of taken from a caption. Rolled from a hash of the source and the ray
-  // index and not a live generator, a ray keeps its fate from frame to frame and the picture
+  // index and not a live generator, a ray retains its fate from frame to frame and the picture
   // holds still while the reader looks at it.
   var RAYS_PER = 34;
   var FATE_ABSORBED = 0.6;
@@ -2321,7 +2321,7 @@
   var CURVE_STEPS = 5;
 
   var PIERCE_MAX = 12 * RAYS_PER * (CURVE_STEPS + 4); // sources times rays times path pieces
-  var piercePos = new Float32Array(PIERCE_MAX * 2 * 3); // laid out as segments
+  var piercePos = new Float32Array(PIERCE_MAX * 2 * 3); // arranged as segments
   var pierceLit = new Float32Array(PIERCE_MAX * 2 * 3);
   var pierceGeo = new THREE.BufferGeometry();
   pierceGeo.setAttribute("position", new THREE.BufferAttribute(piercePos, 3));
@@ -2342,7 +2342,7 @@
 
   // A mark at every crossing, a brighter one where the scattering happens, and the particles a
   // survivor is drawn as. Sized for the whole bundle: every ray can leave a mark at its crossing and
-  // a survivor lays a short track of them. The ceiling is the ray count times the track length.
+  // a survivor positions a short track of them. The ceiling is the ray count times the track length.
   //
   // Writing past the end of an instanced buffer is dropped without complaint.
   var MARK_MAX = 12 * RAYS_PER * 4;
@@ -2383,7 +2383,7 @@
   var beamCoef = null;
   var beamOne = null;
 
-  function layDeposit(at, where, weight) {
+  function positionDeposit(at, where, weight) {
     if (at >= DEPOSIT_MAX) {
       return at;
     }
@@ -2479,7 +2479,7 @@
     return true;
   }
 
-  // A fixed roll per source and ray, a member of the bundle keeps its fate while the reader looks.
+  // A fixed roll per source and ray, a member of the bundle retains its fate while the reader looks.
   function roll(source, ray, salt) {
     var x = (source * 73856093) ^ (ray * 19349663) ^ (salt * 83492791);
     x = (x ^ (x >>> 13)) * 1274126177;
@@ -2487,7 +2487,7 @@
     return ((x >>> 0) % 100000) / 100000;
   }
 
-  // The pair whose diameter lies most nearly along a direction: the dimensionally coherent opposite.
+  // The pair whose diameter lies max nearly along a direction: the dimensionally coherent opposite.
   function coherentPair(dx, dy, dz) {
     var best = -1,
       bestDot = -1;
@@ -2582,13 +2582,13 @@
         rayNext.copy(rayFrom).addScaledVector(rayDir, step);
 
         // The run in, drawn faintly for every member of the bundle.
-        seg = layPierce(seg, rayFrom, rayNext, PIERCE_TINT, 0.16);
+        seg = positionPierce(seg, rayFrom, rayNext, PIERCE_TINT, 0.16);
 
         if (fate < FATE_ABSORBED) {
-          // Stopped at the surface, and this is most of the beam.
+          // Stopped at the surface, and this is the majority of the beam.
           // All of its energy lands here, absorption is the heaviest deposit of the five.
-          mark = layMark(mark, rayNext, rad[0] * 0.5, ABSORB_TINT);
-          depCount = layDeposit(depCount, rayNext, 1.0);
+          mark = positionMark(mark, rayNext, rad[0] * 0.5, ABSORB_TINT);
+          depCount = positionDeposit(depCount, rayNext, 1.0);
           continue;
         }
 
@@ -2603,10 +2603,10 @@
             .reflect(rayNorm)
             .multiplyScalar(SHELL * 0.1)
             .add(rayFrom);
-          seg = layPierce(seg, rayFrom, rayNext, SURFACE_TINT, 0.45);
-          mark = layMark(mark, rayFrom, rad[0] * 0.7, SURFACE_TINT);
-          // Turned at the surface and lost. Most of it stays where it turned.
-          depCount = layDeposit(depCount, rayFrom, 0.7);
+          seg = positionPierce(seg, rayFrom, rayNext, SURFACE_TINT, 0.45);
+          mark = positionMark(mark, rayFrom, rad[0] * 0.7, SURFACE_TINT);
+          // Turned at the surface and lost. The majority of it stays where it turned.
+          depCount = positionDeposit(depCount, rayFrom, 0.7);
           continue;
         }
 
@@ -2615,7 +2615,7 @@
         var sens = litOf[hit.index] ? litOf[hit.index].sens : 0.001;
         var index = 1 + Math.min(0.45, sens * 40);
         if (!refract(rayDir, rayNorm, 1 / index, rayNext)) {
-          mark = layMark(mark, rayFrom, rad[0] * 0.6, SURFACE_TINT);
+          mark = positionMark(mark, rayFrom, rad[0] * 0.6, SURFACE_TINT);
           continue;
         }
         rayDir.copy(rayNext);
@@ -2629,7 +2629,7 @@
             rayNext
               .copy(rayFrom)
               .addScaledVector(rayDir, (reach * 2) / CURVE_STEPS);
-            seg = layPierce(seg, rayFrom, rayNext, LENSED_TINT, lit);
+            seg = positionPierce(seg, rayFrom, rayNext, LENSED_TINT, lit);
             rayFrom.copy(rayNext);
             // A small turn each piece, the lensing by what it passes without touching.
             rayDir.applyAxisAngle(rayNorm, curl / CURVE_STEPS).normalize();
@@ -2638,7 +2638,7 @@
         }
 
         // The two fates that reach the interior object. Both scatter off the pair whose diameter runs
-        // most nearly along the arriving beam, because a bit and its antipode are one object and that
+        // max nearly along the arriving beam, because a bit and its antipode are one object and that
         // pair is what a beam interacts with coherently.
         var pair = coherentPair(rayDir.x, rayDir.y, rayDir.z);
         if (pair < 0) {
@@ -2663,14 +2663,14 @@
 
         // The run to the scatterer is always a line, since that stretch is the beam arriving and not
         // an axis of the object.
-        seg = layPierce(seg, rayFrom, rayNext, tint, lit);
-        mark = layMark(mark, rayNext, rad[0] * (ballistic ? 1.9 : 1.2), tint);
+        seg = positionPierce(seg, rayFrom, rayNext, tint, lit);
+        mark = positionMark(mark, rayNext, rad[0] * (ballistic ? 1.9 : 1.2), tint);
 
         // The scattering itself deposits, and this is the deposit that carries the interior. It sits
         // at the pair's own radius and not at the boundary. The depth kernel widens it on the
         // way out and it arrives as a broad faint cap. A ballistic member gives up little, since it
         // leaves with its direction intact, and one that arrives off direction gave up more.
-        depCount = layDeposit(depCount, rayNext, ballistic ? 0.25 : 0.6);
+        depCount = positionDeposit(depCount, rayNext, ballistic ? 0.25 : 0.6);
         rayFrom.copy(rayNext);
 
         if (ballistic) {
@@ -2697,10 +2697,10 @@
         // carry the same fate and the same color. Switching between them changes what is in the
         // way and never what is being reported.
         if (showAxes) {
-          seg = layPierce(seg, rayFrom, rayNext, tint, lit);
-          mark = layMark(mark, rayNext, rad[0] * 1.5, tint);
+          seg = positionPierce(seg, rayFrom, rayNext, tint, lit);
+          mark = positionMark(mark, rayNext, rad[0] * 1.5, tint);
         } else {
-          mark = layTrack(
+          mark = positionTrack(
             mark,
             rayFrom,
             rayNext,
@@ -2720,7 +2720,7 @@
     if (markMesh.instanceColor) {
       markMesh.instanceColor.needsUpdate = true;
     }
-    // A retrace lays a new set of deposits, any stored boundary reading that summed the old ones is
+    // A retrace positions a new set of deposits, any stored boundary reading that summed the old ones is
     // out of date. The counter says so without the key having to name every deposit.
     transportGen++;
   }
@@ -2738,7 +2738,7 @@
   var pathLit = false;
   var PATH_DIM = 0.09;
 
-  function layPierce(seg, from, to, tint, lit) {
+  function positionPierce(seg, from, to, tint, lit) {
     if (seg >= PIERCE_MAX) {
       return seg;
     }
@@ -2759,7 +2759,7 @@
     return seg + 1;
   }
 
-  function layMark(mark, at, size, tint) {
+  function positionMark(mark, at, size, tint) {
     if (mark >= MARK_MAX) {
       return mark;
     }
@@ -2779,13 +2779,13 @@
   // are the usual rendering and the axes are a thing to switch on when the geometry is the question.
   var trackAt = new THREE.Vector3();
 
-  function layTrack(mark, from, to, count, size, tint) {
+  function positionTrack(mark, from, to, count, size, tint) {
     for (var n = 1; n <= count; n++) {
       if (mark >= MARK_MAX) {
         return mark;
       }
       trackAt.copy(from).lerp(to, n / (count + 1));
-      mark = layMark(mark, trackAt, size, tint);
+      mark = positionMark(mark, trackAt, size, tint);
     }
     return mark;
   }
@@ -2841,7 +2841,7 @@
     var light = new THREE.PointLight(hue, 0, BEAM_REACH, 1.0);
     light.castShadow = true;
     // Sized against the count this source brings the total to, adding a twelfth source does not
-    // ask for a gigabyte of depth texture. Each light keeps whatever size it was built with.
+    // ask for a gigabyte of depth texture. Each light retains whatever size it was built with.
     SHADOW_MAP = shadowSizeFor(sources.length + 1);
     light.shadow.mapSize.width = SHADOW_MAP;
     light.shadow.mapSize.height = SHADOW_MAP;
@@ -2934,7 +2934,7 @@
   }
 
   // ---------------------------------------------------------------------------------------------
-  // Standing somewhere. The reader is always inside something: the distance runs from within the
+  // Located somewhere. The reader is always inside something: the distance runs from within the
   // innermost boundary out to well past the wall, and crossing a shell is a thing that happens on the
   // way and not a mode that gets switched.
   // ---------------------------------------------------------------------------------------------
@@ -2968,7 +2968,7 @@
     tickRate: 0,
     degrees: 0,
     hold: DATA.clock ? DATA.clock.hold : 0.62,
-    // The second dwell axis: how long the boundary keeps what it recorded, the surface's own
+    // The second dwell axis: how long the boundary retains what it recorded, the surface's own
     // time and not the particle's.
     linger: 0.0,
     // The conduction time.
@@ -3014,8 +3014,8 @@
     one.fill.position.copy(one.at);
 
     // Aim the spray cone from the point in toward the object. Its apex sits on the source and it opens
-    // along the line to the middle, reaching most of the way there. The unit cone is scaled to that
-    // length. Its base radius keeps the same spray angle whatever the source distance.
+    // along the line to the middle, reaching the majority of the way there. The unit cone is scaled to that
+    // length. Its base radius retains the same spray angle whatever the source distance.
     if (one.cone) {
       var h = one.at.length() * 0.9 || 1;
       coneAxis.copy(one.at).normalize();
@@ -3159,7 +3159,7 @@
             ? "outside the room"
             : "in the room",
       ],
-      ["standing at", here.toFixed(1)],
+      ["located at", here.toFixed(1)],
       ["", ""],
       ["sources", sources.length],
       ["magnifying", magnified()],
@@ -3219,8 +3219,8 @@
   // unless one of those two says it does.
   //
   // Time is the radius. The state sits small near the middle at the first operation and reaches the
-  // shell at the last one traced. The run is laid out along the one axis the reader can walk. A
-  // reader standing still has the computation arrive at them and pass, and where they stand decides
+  // shell at the last one traced. The run is arranged along the one axis the reader can walk. A
+  // reader stationary has the computation arrive at them and pass, and where they are decides
   // which part of the run they are inside of.
   //
   // The band follows the radius instead of being fixed when the page opens. The state deposits on
@@ -3245,7 +3245,7 @@
   // So colatitude advances across the whole index while longitude wraps every thirty-two, which winds
   // a single continuous curve eight times around the sphere. Each word is still one turn of it, a
   // rotation still spins its own bits and nothing about the spin changes. The acos spaces the turns
-  // by equal area, which keeps the winding even instead of crowding the poles.
+  // by equal area, which retains the winding even instead of crowding the poles.
   if (CLOCK) {
     for (var c0 = 0; c0 < COUNT; c0++) {
       wordOf[c0] = Math.floor(c0 / CLOCK.width);
@@ -3268,7 +3268,7 @@
   // write operations further down the round, where the bits change and not move.
   // Nothing in the object moves instantly. Information takes time to cross it, a bit leaves its
   // old place at rest, gathers speed, and arrives at rest, the way anything else carrying momentum
-  // does. Kept linear, the motion starts and stops on a corner, which reads as a jump with a slide in
+  // does. Retained linear, the motion starts and stops on a corner, which reads as a jump with a slide in
   // the middle; eased, it reads as a thing being carried. A smoothstep has zero slope at both ends.
   // The acceleration and the deceleration are both in it and neither has to be written twice.
   function ease(t) {
@@ -3323,7 +3323,7 @@
   // the honest way to hold that field is the basis the surface actually has: the real spherical
   // harmonics. So the state is expanded on the sphere, carried outward through the kernel, and
   // evaluated again on a grid to recover a radius for every direction. The result is a closed genus
-  // zero surface, the same kind of object the state was, arrived at without ever having
+  // zero surface, the same type of object the state was, arrived at without ever having
   // seen it.
   //
   // The kernel makes this a reading. Depth enters as (r/R)^l and
@@ -3370,12 +3370,12 @@
   // arrived at that latitude. They stay bands deliberately, because a banded quantity is what a curve
   // gets derived from, and smoothing them for the sake of the picture would throw that away.
   //
-  // The picture needs something different. A real scarcity gradient puts most of its range near zero
+  // The picture needs something different. A real scarcity gradient puts the majority of its range near zero
   // and a long faint tail above it, a linear map to color spends the whole visible range on the
   // peak and draws the tail as nothing. A saturating transfer lifts the faint end and lets the bright
   // end clip, as a physical detector does.
   //
-  // So there are two quantities and they are kept apart in the code and not merely used differently:
+  // So there are two quantities and they are retained apart in the code and not merely used differently:
   // one.averaged is linear and is the measurement, and this runs on the way to the color buffer and
   // nowhere else. Anything deriving a curve must read one.averaged. Nothing should ever derive one from a
   // value that has been through here.
@@ -3527,7 +3527,7 @@
     surface.receiveShadow = false;
     scene.add(surface);
 
-    // A spherical mesh laid on the boundary: a coarse net of latitude and longitude lines so the
+    // A spherical mesh positioned on the boundary: a coarse net of latitude and longitude lines so the
     // deformity can be read off the cells. On a flat field the cells are even and the net is a plain
     // sphere; where the field pushes the surface out or pulls it in, the cells there stretch and
     // shear, and the amount they distort is the deformity. It shares the surface's own vertex buffer
@@ -3614,9 +3614,9 @@
     }
 
     // The same budget rule the sources are under, for the same reason. Additive surfaces stack, and
-    // each of these is drawn on both faces. Three boundaries at full strength lay six lit layers
+    // each of these is drawn on both faces. Three boundaries at full strength position six lit layers
     // over each other and the whole nest saturates to white before anything can be read off it.
-    // Sharing the brightness keeps the sum in range and makes the cost of another boundary visible.
+    // Sharing the brightness retains the sum in range and makes the cost of another boundary visible.
     var share = 1 / (litOf.length * 2);
     for (var s3 = 0; s3 < litOf.length; s3++) {
       litOf[s3].mesh.material.opacity = share;
@@ -3664,7 +3664,7 @@
   // Scratch the surface sum reuses instead of allocating fresh every tick. A few megabytes of garbage
   // a second climbs and collects in a sawtooth that
   // reads as a leak in the task manager and stutters the frame when the collector runs. Every element
-  // each of these carries is written before it is read, a buffer kept from the last tick carries
+  // each of these carries is written before it is read, a buffer retained from the last tick carries
   // no stale value, and one is reallocated only when the ceiling the reader set changes its length.
   var scratchGain = null;
   var scratchField = null;
@@ -3802,7 +3802,7 @@
     //
     // R is the boundary doing the reading. The ratio is the state's radius over that boundary's.
     // Measuring it against the outermost depth the room allows instead makes the state look four times
-    // further from its surface than it is, and (r/R)^l with r/R at 0.27 leaves degree one standing
+    // further from its surface than it is, and (r/R)^l with r/R at 0.27 leaves degree one located
     // and nothing above it. A lone degree one term is a dipole, and a dipole drawn as a radius is an
     // egg: the surface reports the offset of the state and no part of its shape.
     var ratio = (reach * SHELL) / bandOuter(bandFor(reach));
@@ -3859,7 +3859,7 @@
     var span = high - low;
 
     // The envelope lives between the state and the boundary it is read on, and the range is built
-    // from those two radii instead of from a swing about a center. A swing can always be handed a
+    // from those two radii instead of from a swing about a center. A swing can always be passed a
     // radius that carries it through the surface above it; a range cannot, because both ends of it
     // are the walls. So the innermost fold clears the outermost bit and the outermost fold stops
     // short of the boundary, at every depth the reader can set, by construction.
@@ -3889,7 +3889,7 @@
     // Every boundary, each reading the same interior from its own radius and its own sensitivity.
     //
     // The retention is the surface's own time and takes its own control.
-    var keep = Math.exp(-1 / Math.max(0.35, state.linger * 26));
+    var retain = Math.exp(-1 / Math.max(0.35, state.linger * 26));
     var stateAt = reach * SHELL;
 
     for (var b2 = 0; b2 < litOf.length; b2++) {
@@ -3913,7 +3913,7 @@
 
       // Read as a departure from the mean and never as an amount. What lands on a boundary is not a
       // quantity of light with a floor at nothing: it is a field with a mean, and the structure is
-      // where it stands above and below that mean. Scaled from its own minimum instead, every map
+      // where it is above and below that mean. Scaled from its own minimum instead, every map
       // comes out as brightness rising from a dark side and the cold half of the sky is drawn as
       // absence. There are hot spots and there are cold spots, and both are something.
       //
@@ -3955,8 +3955,8 @@
       // own memory settling and it moves under a frozen field too. One pass, no coefficient loop.
       for (var v = 0; v < points; v++) {
         var lean = one.lean[v];
-        one.averaged[v] = one.averaged[v] * keep + lean * (1 - keep);
-        var shown = Math.max(-1, Math.min(1, one.averaged[v])) * litGain;
+        one.averaged[v] = one.averaged[v] * retain + lean * (1 - retain);
+        var displayed = Math.max(-1, Math.min(1, one.averaged[v])) * litGain;
 
         // The ordinary boundaries paint color on a sphere at a fixed radius. The inverse boundary
         // DEFORMS instead, the same way the anisotropic envelope does: its radius is pushed out where
@@ -3981,10 +3981,10 @@
           one.at[v * 3 + 2] = surfaceUnit[v * 3 + 2] * rHere;
         }
 
-        var toward = shown >= 0 ? HOT_SPOT : COLD_SPOT;
+        var toward = displayed >= 0 ? HOT_SPOT : COLD_SPOT;
         // The measurement is one.averaged and it stays linear. This is the display value, and it is
-        // deliberately a second number and not the same one shown differently.
-        var pull = saturated(Math.abs(shown));
+        // deliberately a second number and not the same one displayed differently.
+        var pull = saturated(Math.abs(displayed));
         one.tone[v * 3] = MID_SPOT.r + (toward.r - MID_SPOT.r) * pull;
         one.tone[v * 3 + 1] = MID_SPOT.g + (toward.g - MID_SPOT.g) * pull;
         one.tone[v * 3 + 2] = MID_SPOT.b + (toward.b - MID_SPOT.b) * pull;
@@ -4019,7 +4019,7 @@
   // to handle the next event.
   //
   // Marking instead of doing collapses a burst of events into one redraw at the moment the redraw can
-  // actually be shown. The frame loop clears it.
+  // actually be displayed. The frame loop clears it.
   var tickWanted = false;
   function wantTick() {
     tickWanted = true;
@@ -4053,7 +4053,7 @@
 
       // Two ways to get from one place to the next, and both are offered because the reading differs.
       //
-      // On the curve a bit keeps its radius the whole way and rides the surface it lives on. The
+      // On the curve a bit retains its radius the whole way and rides the surface it lives on. The
       // path is the arc the operation traces and the object never breathes. On the line it goes
       // straight from where it was to where it is going, which cuts inside the radius and dips the
       // whole ring toward the middle as it turns. The arc is the truer picture of a rotation and the
@@ -4117,10 +4117,10 @@
 
   // Power per harmonic degree of the current state, read on the same boundary the envelope is, drawn
   // as bars. Degree zero is the isotropic part, the average over the whole sphere; every bar above it
-  // is structure that points somewhere. The row of bars is the anisotropy laid out by dimension.
-  // A state that left only degree one standing draws one tall bar and an egg for an envelope; a lumpy
-  // envelope is bars standing at many degrees. Computed from the same coefficients and the same depth
-  // and conduction gain paintSurface uses. The bars and the shape are one reading shown two ways.
+  // is structure that points somewhere. The row of bars is the anisotropy arranged by dimension.
+  // A state that left only degree one located draws one tall bar and an egg for an envelope; a lumpy
+  // envelope is bars located at many degrees. Computed from the same coefficients and the same depth
+  // and conduction gain paintSurface uses. The bars and the shape are one reading displayed two ways.
   var barPen = null;
   var barPower = null;
   var barGain = null;
@@ -4140,7 +4140,7 @@
 
     // This runs on every frame the clock advances. A fresh array per frame fails nothing; the heap just
     // climbs until a collection
-    // stalls a frame. The gains are kept alongside so the box below can print the ones being used
+    // stalls a frame. The gains are retained alongside so the box below can print the ones being used
     // instead of recomputing them and risking a second, disagreeing answer.
     barPower = sized(barPower, ceiling + 1);
     barGain = sized(barGain, ceiling + 1);
@@ -4304,9 +4304,9 @@
     var input = document.getElementById(id);
     var out = document.getElementById(outId);
     function run() {
-      var shown = apply(Number(input.value));
+      var displayed = apply(Number(input.value));
       if (out) {
-        out.textContent = format ? format(shown) : shown;
+        out.textContent = format ? format(displayed) : displayed;
       }
     }
     input.addEventListener("input", run);
@@ -4442,7 +4442,7 @@
   // ---------------------------------------------------------------------------------------------
   //
   // THE SETTINGS ARE THE CONTROLS AND NOT A DESCRIPTION OF THEM. There is no second table naming what
-  // a page can be told, no schema to keep in step, and no list that goes stale when a control is
+  // a page can be told, no schema to retain in step, and no list that goes stale when a control is
   // added. The object is collected from the controls themselves by their own ids, a control that
   // exists is configurable and a control that is removed stops being mentioned, both without anybody
   // maintaining anything.
@@ -4453,7 +4453,7 @@
   // implementation of every handler and would drift from the first one the day it was written.
   //
   // An unknown name is reported and never guessed at. Silently dropping it would let a typed config
-  // look applied while doing nothing, the failure this tree keeps meeting: the quantity
+  // look applied while doing nothing, the failure this tree retains meeting: the quantity
   // reported was not the quantity intended.
   var CONFIG_SKIP = { configFile: 1, configText: 1 };
 
@@ -4621,11 +4621,11 @@
       event.target.value = "";
     });
 
-  // The eight letters, read off the state showing now, beside the two transforms that name each arm.
+  // The eight characters, read off the state showing now, beside the two transforms that name each arm.
   //
-  // The share is the letter. The signs are the spatial transform, the reflection carrying the first
+  // The share is the character. The signs are the spatial transform, the reflection carrying the first
   // octant onto this one. The determinant is the dimensional one: four arms are a rotation of the
-  // first and four are a rotation with a mirror in it, and no amount of turning takes one kind into
+  // first and four are a rotation with a mirror in it, and no amount of turning takes one type into
   // the other. That sign is the handedness torsion reports. The column and the phase reading agree
   // by construction instead of by coincidence.
   var armRows = null;
@@ -4647,7 +4647,7 @@
     // A frame is a string of "0" and "1". The test is on the character code and never on the
     // character. Every non-empty string is truthy in this language, "0" included, and a bare
     // truthiness test here counts every clear bit as set without complaining about it.
-    // Read through the weight table, the product the record defines: the letter of arm a is
+    // Read through the weight table, the product the record defines: the character of arm a is
     // the sum of W[a][k] over the lit points. An indicator set gives the same answer a membership test
     // would, and a graded set gives an answer a membership test cannot express at all.
     buildArmWeights();
@@ -4666,7 +4666,7 @@
     }
 
     var html = "";
-    var hands = 0;
+    var passes = 0;
     var count = armDirs.length;
     for (var o = 0; o < count; o++) {
       var sign = armSigns[o];
@@ -4675,12 +4675,12 @@
       if (sign) {
         // The spatial transform is the reflection diag(sx, sy, sz) carrying the first octant onto this
         // one, and the dimensional transform is its determinant. Four arms come out a rotation of the
-        // first and four a rotation with a mirror in it, and no amount of turning takes one kind into
+        // first and four a rotation with a mirror in it, and no amount of turning takes one type into
         // the other. That sign is the handedness torsion reports. The column and the phase reading
         // agree by construction instead of by coincidence.
         var det = sign[0] * sign[1] * sign[2];
         if (det > 0) {
-          hands += 1;
+          passes += 1;
         }
         name =
           (sign[0] > 0 ? "+" : "−") +
@@ -4695,7 +4695,7 @@
         name =
           dir.x.toFixed(2) + " " + dir.y.toFixed(2) + " " + dir.z.toFixed(2);
         hand = "+1";
-        hands += 1;
+        passes += 1;
       }
       html +=
         "<tr><td><span class='arm-key'>" +
@@ -4714,16 +4714,16 @@
     armRows.innerHTML = html;
 
     // What the set carries, said in the terms docs/arm-records.md asks a proposed arm set to report.
-    // The count is the ceiling on letters. The regions tile for any placement, since every direction
+    // The count is the ceiling on characters. The regions tile for any placement, since every direction
     // on the sphere has a nearest arm. The shares total one and one degree of freedom is spent on
     // that sum: a set of N arms leaves N-1 free numbers at fixed weight.
     var note;
     if (count === 8 && armSigns[0]) {
       note =
         "<b>" +
-        hands +
-        " right handed, " +
-        (count - hands) +
+        passes +
+        " right passed, " +
+        (count - passes) +
         " left.</b> " +
         "Each arm is a trilateral right-angle corner and cuts a spherical triangle of three " +
         "right angles, area &pi;/2. Eight of those come to 4&pi;, so the eight shares total one " +
@@ -4732,7 +4732,7 @@
       note =
         "<b>" +
         count +
-        " arms, all right handed.</b> " +
+        " arms, all right passed.</b> " +
         "Directions on the golden spiral, each arm the set of points nearest its own. They tile " +
         "the sphere for any count, so the shares total one and " +
         (count - 1) +
@@ -4768,7 +4768,7 @@
 
   // The colors, named. A body is orange when its bit is set and blue-gray when it is clear, and
   // without the key those read as two populations and not two values of one. Built from the same
-  // numbers the bodies are tinted with. The swatch cannot drift away from what it stands for.
+  // numbers the bodies are tinted with. The swatch cannot drift away from what it is for.
   function paintKeys() {
     if (!CLOCK) {
       return;
@@ -4820,7 +4820,7 @@
     "dist",
     "distOut",
     function (raw) {
-      lookFrom.setLength(standAt(raw / 100));
+      lookFrom.setLength(areAt(raw / 100));
       return lookFrom.length();
     },
     function (v) {
@@ -5114,7 +5114,7 @@
   // Translucent looks through to the bulk; opaque reads the surface. Crossing between them swaps the
   // material, because one blend cannot do both: additive brightens and never occludes, and a lit
   // surface that writes depth cannot also be a faint window. Nothing about the interior is skipped
-  // while a boundary is closed. The bodies keep stepping, keep being confined and keep depositing,
+  // while a boundary is closed. The bodies retain stepping, retain being confined and retain depositing,
   // and what they deposited is on the outside of the surface now being read, the claim.
   var SOLID_FROM = 0.34;
 
@@ -5418,7 +5418,7 @@
   var ask = document.getElementById("ask");
   var tile = document.getElementById("tile");
   tile.innerHTML =
-    "<p>You are standing inside a dark room. Inside it are " +
+    "<p>You are located inside a dark room. Inside it are " +
     shells.length +
     " closed boundaries, " +
     "one within the next, holding " +
@@ -5465,8 +5465,8 @@
   fit();
 
   // Opening appearance through the shared control bar's model. The schema is the build's one settings
-  // source: a value of the wrong kind or out of range is named in the report below and never applied,
-  // and a key the build leaves out keeps the page default. The bar governs the chrome the room can
+  // source: a value of the wrong type or out of range is named in the report below and never applied,
+  // and a key the build leaves out retains the page default. The bar governs the chrome the room can
   // honor, the theme and how present the boxes are, and the opacity opens on the panel's own slider.
   // The backdrop is the renderer's own black, a color this page neither takes nor offers.
   (function () {
@@ -5521,9 +5521,9 @@
   var norm = new THREE.Vector3();
   var mat = new THREE.Matrix4();
 
-  function measure(kind, x, y, z, a, b, out) {
+  function measure(type, x, y, z, a, b, out) {
     var rho, allowed, ax, ay, az, q;
-    if (kind === "cube") {
+    if (type === "cube") {
       ax = Math.abs(x) / a;
       ay = Math.abs(y) / b;
       az = Math.abs(z) / a;
@@ -5537,14 +5537,14 @@
       }
       return q;
     }
-    if (kind === "octahedron") {
+    if (type === "octahedron") {
       q = Math.abs(x) / a + Math.abs(y) / b + Math.abs(z) / a;
       out
         .set((x < 0 ? -1 : 1) / a, (y < 0 ? -1 : 1) / b, (z < 0 ? -1 : 1) / a)
         .normalize();
       return q;
     }
-    if (kind === "cone") {
+    if (type === "cone") {
       // Apex up, base down. The room allowed at a height closes to nothing at the point, a light
       // heading for the tip runs out of room instead of reaching it.
       rho = Math.sqrt(x * x + z * z);
@@ -5572,10 +5572,10 @@
 
   // A body turned back at a surface, whichever side of it the body is on. Outward is the direction
   // the measure grows in. The boundary below a band is the same test with the sign flipped: a body
-  // in the second band is kept off the first from the outside exactly as it is kept inside the
+  // in the second band is retained off the first from the outside exactly as it is retained inside the
   // second, and one routine does both.
-  function turnBack(k, kind, a, b, fromInside) {
-    var reach = measure(kind, atX[k], atY[k], atZ[k], a, b, norm);
+  function turnBack(k, type, a, b, fromInside) {
+    var reach = measure(type, atX[k], atY[k], atZ[k], a, b, norm);
     var over = fromInside ? reach > 1 : reach < 1;
     if (!over) {
       return;
@@ -5602,8 +5602,8 @@
       atZ[k] *= back;
     }
     if (
-      kind === "cone" &&
-      measure(kind, atX[k], atY[k], atZ[k], a, b, norm) > 1
+      type === "cone" &&
+      measure(type, atX[k], atY[k], atZ[k], a, b, norm) > 1
     ) {
       atY[k] = Math.max(-b, Math.min(b * 0.98, atY[k]));
       var space = Math.max(1e-4, (a * (b - atY[k])) / (2 * b));
@@ -5616,7 +5616,7 @@
   }
 
   function step(gap) {
-    var kind = state.core;
+    var type = state.core;
     var squash = state.flat;
     var move = gap * state.rate * 6.0 * SHELL * 0.1;
     var running = state.rate > 0.005;
@@ -5633,10 +5633,10 @@
         atY[k] += vY[k] * move;
         atZ[k] += vZ[k] * move;
 
-        turnBack(k, kind, a, b, true);
+        turnBack(k, type, a, b, true);
         if (band[k] > 0) {
           var under = bandOuter(band[k] - 1);
-          turnBack(k, kind, under + rad[k], under * squash + rad[k], false);
+          turnBack(k, type, under + rad[k], under * squash + rad[k], false);
         }
       }
 
@@ -5654,7 +5654,7 @@
       // left, measured the same way the wall is.
       var slack = Math.max(
         0,
-        1 - measure(kind, atX[k], atY[k], atZ[k], mine, mine * squash, norm),
+        1 - measure(type, atX[k], atY[k], atZ[k], mine, mine * squash, norm),
       );
       haloAt[k * 3] = atX[k];
       haloAt[k * 3 + 1] = atY[k];
@@ -5694,10 +5694,10 @@
   var callouts = [];
   var labelsRide = false;
 
-  // The rail along the top, laid out once per render pass, left to right in the order the targets
-  // stand across the window.
+  // The rail along the top, arranged once per render pass, left to right in the order the targets
+  // are across the window.
   //
-  // Ordering by the target and not by creation keeps the leaders from crossing. Two leaders
+  // Ordering by the target and not by creation retains the leaders from crossing. Two leaders
   // cross exactly when one label sits left of another while its target sits right of the other's.
   // Laying the labels out in the same left-to-right order as the things they point at makes a crossing
   // impossible. The cost is that the order can change as the view turns. Holding the creation order
@@ -5773,7 +5773,7 @@
   }
 
   // How large the arrangement is on screen right now, against how large it is at the opening
-  // distance. One number. Every label closes in together and the group keeps its shape.
+  // distance. One number. Every label closes in together and the group retains its shape.
   function apparentPull() {
     var here = Math.max(NEAREST * 0.5, lookFrom.length());
     return Math.max(0.2, Math.min(1.75, OPENING / here));
@@ -5823,7 +5823,7 @@
   }
 
   // A callout owns three nodes across two parents. Dropping one means taking all three out. Left
-  // behind, the tag keeps its last position and the leader goes on pointing into empty space at a
+  // behind, the tag retains its last position and the leader goes on pointing into empty space at a
   // source that is no longer in the room.
   function dropCallouts(owner) {
     for (var c4 = callouts.length - 1; c4 >= 0; c4--) {
@@ -5844,13 +5844,13 @@
     }
   }
 
-  // Kept off the two panels. A label that lands under one is unreadable and a leader that runs
+  // Retained off the two panels. A label that lands under one is unreadable and a leader that runs
   // beneath one points at nothing. The label is pushed to whichever side has room for it.
-  var keepOff = [];
+  var retainOff = [];
 
   function clearOfPanels(left, top, wide, high) {
-    for (var r = 0; r < keepOff.length; r++) {
-      var box = keepOff[r];
+    for (var r = 0; r < retainOff.length; r++) {
+      var box = retainOff[r];
       if (
         left + wide < box.left ||
         left > box.right ||
@@ -5875,15 +5875,15 @@
   // Where the target is on screen, for every label, before any of them is placed.
   //
   // Separated out because the rail sorts on this, and placement runs after the sort. One frame of lag
-  // sounds harmless and is not. The rail's whole claim to being crossing-free is that it lays labels
+  // sounds harmless and is not. The rail's whole claim to being crossing-free is that it positions labels
   // out in the same order as their targets, and a stale order is a different order. On a turning view
   // it produces exactly the crossings the rail exists to prevent. Projecting first makes the sort
   // current.
   function project(one) {
     one.aim(one.at);
     flatPoint.copy(one.at).project(camera);
-    one.shown = !(flatPoint.z > 1 || flatPoint.z < -1);
-    if (!one.shown) {
+    one.displayed = !(flatPoint.z > 1 || flatPoint.z < -1);
+    if (!one.displayed) {
       one.tag.hidden = true;
       one.lead.setAttribute("stroke-opacity", "0");
       one.dot.setAttribute("stroke-opacity", "0");
@@ -5898,7 +5898,7 @@
   }
 
   function callout(one) {
-    if (!one.shown) {
+    if (!one.displayed) {
       return;
     }
     var tag = one.tag;
@@ -5915,11 +5915,11 @@
     // Riding its target, a label goes where the object went. That is right for reading one thing and
     // wrong for reading a page: on a fresh render the labels land wherever the objects happen to be,
     // in whatever order the projection puts them, overlapping each other and the panels, and the
-    // reader has to hunt for the name of the thing they are looking at. Laid out in a row along the
+    // reader has to hunt for the name of the thing they are looking at. Arranged in a row along the
     // top they are in the order they were made, always in the same place, and the leaders do the work
     // of saying which is which.
     //
-    // The checkbox hands the labels back to their objects for anyone who wants them there.
+    // The checkbox passes the labels back to their objects for anyone who wants them there.
     if (labelsRide) {
       left = toX + one.offX * pull - wide / 2;
       top = toY + one.offY * pull - high / 2;
@@ -5946,7 +5946,7 @@
   }
 
   function drawCallout(one) {
-    if (!one.shown) {
+    if (!one.displayed) {
       return;
     }
     var left = one.left,
@@ -5983,14 +5983,14 @@
 
   // Undoing a crossing by moving a label sideways, without moving it up or down.
   //
-  // The rail already makes crossings impossible among the labels it lays out, by sorting them into the
+  // The rail already makes crossings impossible among the labels it arranges, by sorting them into the
   // same left-to-right order as their targets. Three things get past that: a label the reader has
   // dragged, which the rail is not allowed to touch; a label pushed sideways to clear a panel; and
   // ride mode, where every label goes where its object went and the rail does not run at all.
   //
   // Two leaders cross when the labels are in one horizontal order and their targets are in the other.
   // Exchanging the two labels' horizontal positions therefore removes that crossing exactly, and
-  // because only the horizontal moves, each label keeps the row it was on and the reader's own
+  // because only the horizontal moves, each label retains the row it was on and the reader's own
   // vertical choice survives. Where the exchange would put a label off screen or into a panel it is
   // declined and the crossing stays, the honest outcome: there is no lateral position that
   // undoes it.
@@ -6046,7 +6046,7 @@
     var live = untangleLive;
     live.length = 0;
     for (var i = 0; i < callouts.length; i++) {
-      if (callouts[i].shown) {
+      if (callouts[i].displayed) {
         live.push(callouts[i]);
       }
     }
@@ -6064,7 +6064,7 @@
             continue;
           }
 
-          // The exchange keeps the pair inside the span it already occupies. No third label has to
+          // The exchange retains the pair inside the span it already occupies. No third label has to
           // move to make room and no label leaves the row it is on.
           //
           // Swapping the two x values outright is wrong whenever the labels are different widths and
@@ -6119,7 +6119,7 @@
     }
   }
 
-  // A drag sets the offset the label keeps from its target, in the same apparent scale the offset is
+  // A drag sets the offset the label retains from its target, in the same apparent scale the offset is
   // read back in, a label the reader put somewhere stays there relative to the thing and not
   // relative to the window.
   function draggableTag(one) {
@@ -6139,7 +6139,7 @@
         wasX = one.offX;
         wasY = one.offY;
       } else {
-        // Riding, a drag sets the offset the label keeps from its target. On the rail there is no
+        // Riding, a drag sets the offset the label retains from its target. On the rail there is no
         // offset to set: the layout owns the position and rewrites it every pass, a drag there has
         // no effect at all. Pinning is what a drag means on the rail, and the grab starts from
         // wherever the layout last put it. The label does not jump on the first pixel of movement.
@@ -6166,7 +6166,7 @@
     window.addEventListener("mouseup", function () {
       holding = false;
     });
-    // A double click hands the label back to the rail, since a pin with no way out is a position the
+    // A double click passes the label back to the rail, since a pin with no way out is a position the
     // reader can set once and never undo.
     tag.addEventListener("dblclick", function (event) {
       one.pinned = false;
@@ -6259,13 +6259,13 @@
 
     step(gap);
 
-    // The trace is laid on its own clock and not once a frame. Tied to the frame rate the tail gets
+    // The trace is positioned on its own clock and not once a frame. Tied to the frame rate the tail gets
     // shorter on a fast machine and longer on a slow one, and the dwell time becomes a property of
     // the hardware and not of the medium.
     sinceTrail += gap;
     if (sinceTrail > 0.045) {
       sinceTrail = 0;
-      layTrail();
+      positionTrail();
     }
 
     // The spray runs on the frame clock. A streak carries a direction only while it is moving.
@@ -6286,7 +6286,7 @@
       }
     }
 
-    // Project, lay out, place, untangle, draw. Five passes and not one, and each split earned its
+    // Project, arrange, place, untangle, draw. Five passes and not one, and each split earned its
     // own: the rail cannot sort on an order it has not measured yet, and a crossing is a property of
     // a pair that cannot be seen while the first of the pair is still being positioned.
     for (var c2 = 0; c2 < callouts.length; c2++) {
@@ -6303,8 +6303,8 @@
 
     // Step outside the room and the room's own wall becomes the thing being read. It goes part way to
     // transparent so what is inside registers on it, the same reading one shell out: the
-    // surface of a thing is where what is inside it is legible from. Standing outside is not a
-    // different kind of looking, it is the same looking against a bigger boundary.
+    // surface of a thing is where what is inside it is legible from. Located outside is not a
+    // different type of looking, it is the same looking against a bigger boundary.
     var here = lookFrom.length();
     var beyond = Math.max(0, Math.min(1, (here - ROOM) / (ROOM * 0.5)));
     wallStuff.opacity = 1 - 0.72 * beyond;
@@ -6314,7 +6314,7 @@
     camera.up.copy(upVec);
     camera.lookAt(target);
 
-    // The single place the shadow is paid for. Kept down while nothing moves, the difference
+    // The single place the shadow is paid for. Retained down while nothing moves, the difference
     // between twelve scene renders every frame and twelve when the reader does something.
     if (shadowStale) {
       renderer.shadowMap.needsUpdate = true;
@@ -6366,7 +6366,7 @@
     all: ["counts", "sums", "bars", "armBox", "keys"],
   };
 
-  // A panel is only shown if the thing it reports on exists. The bars and the sum need the harmonic
+  // A panel is only displayed if the thing it reports on exists. The bars and the sum need the harmonic
   // reading, and the arms need to be drawn. The menu cannot conjure a panel of empty rows.
   function panelReady(id) {
     if (id === "sums" || id === "bars") {
@@ -6378,10 +6378,10 @@
     return true;
   }
 
-  var shownGroup = "counts";
+  var displayedGroup = "counts";
 
   function showGroup(which) {
-    shownGroup = which;
+    displayedGroup = which;
     var wanted = PANEL_GROUPS[which] || [];
     for (var name in PANEL_GROUPS) {
       if (name === "all") {
@@ -6464,7 +6464,7 @@
     }
   });
 
-  // The transport. The sliders each box shadows are kept in step so the two never disagree about what
+  // The transport. The sliders each box shadows are retained in step so the two never disagree about what
   // the clock is doing.
   var runStop = document.getElementById("runStop");
   var opBox = document.getElementById("opBox");
@@ -6584,7 +6584,7 @@
   var SHA_H0 = [
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
   ];
-  var SHA_MOST = 55;
+  var SHA_MAX = 55;
 
   function shaRotate(value, by) {
     return ((value >>> by) | (value << (32 - by))) >>> 0;
@@ -6592,7 +6592,7 @@
 
   // The one-block padding. Null when the message does not fit, and never truncated.
   function shaPadded(bytes) {
-    if (bytes.length > SHA_MOST) {
+    if (bytes.length > SHA_MAX) {
       return null;
     }
     var data = new Uint8Array(64);
@@ -6632,7 +6632,7 @@
     return out;
   }
 
-  // The state after every operation, serialized as STEPS in the builder lays the round out.
+  // The state after every operation, serialized as STEPS in the builder positions the round out.
   function shaRun(block, rounds) {
     var words = shaSchedule(block);
     var held = SHA_H0.slice();
@@ -6798,9 +6798,9 @@
     var bytes = new TextEncoder().encode(shaMessage.value);
     var block = shaPadded(bytes);
     var said = document.getElementById("messageOut");
-    said.textContent = bytes.length + "/" + SHA_MOST;
+    said.textContent = bytes.length + "/" + SHA_MAX;
     shaMessage.classList.toggle("refused", !block);
-    shaMessage.title = block ? "" : "one block holds " + SHA_MOST + " bytes at most";
+    shaMessage.title = block ? "" : "one block holds " + SHA_MAX + " bytes at max";
     var seed = Number(shaSeed.value);
     var drawable = shaSeed.value !== "" && Number.isInteger(seed);
     shaSeed.classList.toggle("refused", !drawable);
@@ -6810,16 +6810,16 @@
 
     var rounds = Math.max(1, Math.min(64, Math.round(Number(shaRounds.value))));
     var run = shaRun(block, rounds);
-    var kept = shaDistinct(run.frames);
+    var retained = shaDistinct(run.frames);
     CLOCK.rounds = rounds;
     CLOCK.ticks = run.frames.length;
-    CLOCK.states = kept.order;
-    CLOCK.index = kept.index;
+    CLOCK.states = retained.order;
+    CLOCK.index = retained.index;
     CLOCK.digest = run.digest;
     CLOCK.message = shaMessage.value;
     CLOCK.seed = seed;
     if (CLOCK.harmonics) {
-      CLOCK.harmonics = shaExpand(kept.order, CLOCK.degrees);
+      CLOCK.harmonics = shaExpand(retained.order, CLOCK.degrees);
     }
     if (CLOCK.glow === "random") {
       var next = shaDraw(seed);
@@ -6865,7 +6865,7 @@
     shaSeed.value = String(CLOCK.seed);
     document.getElementById("roundsOut").textContent = String(CLOCK.rounds);
     document.getElementById("messageOut").textContent =
-      new TextEncoder().encode(shaMessage.value).length + "/" + SHA_MOST;
+      new TextEncoder().encode(shaMessage.value).length + "/" + SHA_MAX;
     // The seed draws the random luminosity. Under any other luminosity it would
     // be a control that is present and inert.
     document.getElementById("seedRow").style.display = CLOCK.glow === "random" ? "" : "none";
@@ -6878,10 +6878,10 @@
   showGroup("counts");
 
   setInterval(function () {
-    keepOff = [];
+    retainOff = [];
     var boxes = document.querySelectorAll(".box");
     for (var w = 0; w < boxes.length; w++) {
-      keepOff.push(boxes[w].getBoundingClientRect());
+      retainOff.push(boxes[w].getBoundingClientRect());
     }
     drawCounts(applyEnergy());
     showTransport();

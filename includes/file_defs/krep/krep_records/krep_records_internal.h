@@ -14,14 +14,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the most bytes a number takes, seven bits a byte
-#define KREP_NUMBER_MOST 10u
+// the max bytes a number takes, seven bits a byte
+#define KREP_NUMBER_MAX 10u
 
 // the words of a row of a file's table before the change's own numbers: the file's key, the who's two words and the
 // change
 #define KREP_ROW_OPENING 4u
 
-// the words of a head row before its name: the opening, then the kind, the version and the name's length
+// the words of a head row before its name: the opening, then the type, the version and the name's length
 #define KREP_HEAD_WORDS (KREP_ROW_OPENING + 3u)
 
 unsigned int krep_half_of(const unsigned char *bytes);
@@ -29,7 +29,7 @@ void krep_half_put(unsigned char *bytes, unsigned int half);
 int krep_number_read(const unsigned char *bytes, unsigned long long size, unsigned long long *at,
                      unsigned long long *value);
 size_t krep_number_added(char *out, size_t cap, size_t at, unsigned long long value);
-unsigned long long krep_row_handed(KrepFile *file, unsigned long long key, const unsigned long long *who,
+unsigned long long krep_row_passed(KrepFile *file, unsigned long long key, const unsigned long long *who,
                                    unsigned int change, const unsigned long long *numbers, unsigned int count,
                                    const void *bytes, unsigned long long size, unsigned int priority);
 void krep_who_words_at(const KrepFile *file, unsigned int at, unsigned long long *words);

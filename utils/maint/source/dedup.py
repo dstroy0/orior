@@ -19,7 +19,7 @@ Three renaming strengths, because they answer different questions:
 
   --rename all     every identifier goes, types and callees included. Answers "is this the same
                    shape", and it found one idiom written out forty-eight times.
-  --rename vars    an identifier immediately followed by `(` keeps its name, and so does anything
+  --rename vars    an identifier immediately followed by `(` retains its name, and so does anything
                    in ALL_CAPS, which in this tree is a macro. Answers "is this the same algorithm
                    over different data" - the calls and the widths still have to line up. Default.
   --rename none    nothing is renamed. Exact clones only, and the baseline the other two are read
@@ -69,16 +69,16 @@ TOKEN = re.compile(
 
 
 def tokenize(text, first_line=1):
-    """The code as (kind, text, line) triples. Comments are gone; whitespace never survives.
+    """The code as (type, text, line) triples. Comments are gone; whitespace never survives.
 
     The line travels with the token, which lets a hit be reported where it is instead of only as a
     shape. Nothing downstream reads past the second element, and a shape does not see it.
     """
     out = []
     for m in TOKEN.finditer(text):
-        kind = m.lastgroup
-        if kind in ("id", "num", "str", "op"):
-            out.append((kind, m.group(), first_line + text.count("\n", 0, m.start())))
+        type = m.lastgroup
+        if type in ("id", "num", "str", "op"):
+            out.append((type, m.group(), first_line + text.count("\n", 0, m.start())))
     return out
 
 
@@ -87,7 +87,7 @@ def mask_comments(text):
 
     readclean's `rewrite` deletes comment lines outright, which is right for reading and wrong for
     reporting: a hit at token line 137 of the stripped text is not line 137 of the file, and the two
-    drift further apart the more prose a file carries. Blanking in place keeps every offset, and a
+    drift further apart the more prose a file carries. Blanking in place retains every offset, and a
     line number is the line number. Literals survive. "http://x" is still one token and not a
     comment, and readclean skips a regex for the same reason.
     """
@@ -128,7 +128,7 @@ def mask_comments(text):
 
 
 def split_pp(text):
-    """Separate the preprocessor directives from the code, keeping each directive whole.
+    """Separate the preprocessor directives from the code, retention each directive whole.
 
     A directive is not a statement and its parenthesis is not a call: walking back from a `{` over
     `#define ORIOR_PROBED_N(count_) ...` finds a name that belongs to a macro and reads the struct behind
@@ -139,21 +139,21 @@ def split_pp(text):
     lines belong to it too.
     """
     lines = text.split("\n")
-    directives, keep, i = [], [], 0
+    directives, retain, i = [], [], 0
     while i < len(lines):
         if lines[i].lstrip().startswith("#"):
             body, first = [], i
             while i < len(lines):
                 body.append(lines[i])
-                keep.append("")
+                retain.append("")
                 if not lines[i].rstrip().endswith("\\"):
                     break
                 i += 1
             directives.append((first + 1, "\n".join(body).replace("\\\n", " ")))
         else:
-            keep.append(lines[i])
+            retain.append(lines[i])
         i += 1
-    return "\n".join(keep), directives
+    return "\n".join(retain), directives
 
 
 def canon(tokens, rename, fold_nums):
@@ -167,8 +167,8 @@ def canon(tokens, rename, fold_nums):
     seen = {}
     out = []
     for i, tok in enumerate(tokens):
-        kind, txt = tok[0], tok[1]
-        if kind == "id":
+        type, txt = tok[0], tok[1]
+        if type == "id":
             if txt in KEYWORDS or rename == "none":
                 out.append(txt)
                 continue
@@ -179,9 +179,9 @@ def canon(tokens, rename, fold_nums):
                     out.append(txt)
                     continue
             out.append("I%d" % seen.setdefault(txt, len(seen)))
-        elif kind == "num":
+        elif type == "num":
             out.append("N" if fold_nums else txt)
-        elif kind == "str":
+        elif type == "str":
             out.append("S")
         else:
             out.append(txt)
@@ -299,7 +299,7 @@ def sources(paths, excludes):
 
 
 def load(p):
-    """A file, comments off, tokenized, with the directives kept apart from the code.
+    """A file, comments off, tokenized, with the directives retained apart from the code.
 
     This is readclean's `code` view, taken as tokens instead of as lines.
     """
@@ -408,7 +408,7 @@ def report(units, mode, top, as_json):
         rows.append(
             {
                 "id": h,
-                "kind": "copy",
+                "type": "copy",
                 "sites": len(sites),
                 "tokens": sites[0]["tokens"],
                 "saving": sites[0]["tokens"] * (len(sites) - 1),
@@ -429,7 +429,7 @@ def report(units, mode, top, as_json):
         rows.append(
             {
                 "id": h,
-                "kind": "reorder",
+                "type": "reorder",
                 "sites": len(sites),
                 "tokens": sites[0]["tokens"],
                 "saving": sites[0]["tokens"] * (len(sites) - 1),
@@ -449,14 +449,14 @@ def report(units, mode, top, as_json):
         print("no group of two or more shares a shape at this threshold")
         return
 
-    print("%-14s %-8s %5s %7s %8s  %s" % ("shape", "kind", "sites", "tokens", "saving", "first site"))
+    print("%-14s %-8s %5s %7s %8s  %s" % ("shape", "type", "sites", "tokens", "saving", "first site"))
     print("-" * 100)
     for r in rows:
         print(
             "%-14s %-8s %5d %7d %8d  %s :: %s"
             % (
                 r["id"],
-                r["kind"],
+                r["type"],
                 r["sites"],
                 r["tokens"],
                 r["saving"],
@@ -473,7 +473,7 @@ def report(units, mode, top, as_json):
     if mode == "shape":
         for r in rows[:top]:
             print("\n" + "=" * 100)
-            print("### %s  %s  %d sites, %d tokens each" % (r["id"], r["kind"], r["sites"], r["tokens"]))
+            print("### %s  %s  %d sites, %d tokens each" % (r["id"], r["type"], r["sites"], r["tokens"]))
             print("=" * 100)
             for w in r["where"]:
                 print("    %s :: %s" % (w["file"], w["name"]))

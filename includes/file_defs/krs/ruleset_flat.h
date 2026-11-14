@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// ruleset_flat.h: the schema, a file and a read ruleset laid out for the .krs reader's core (ruleset_core.h), and what
+// ruleset_flat.h: the schema, a file and a read ruleset arranged for the .krs reader's core (ruleset_core.h), and what
 // the core read stored as the host's Ruleset, which the host's reader and the device's share
 #ifndef RULESET_FLAT_H
 #define RULESET_FLAT_H
@@ -11,11 +11,11 @@
 #include <string>
 #include <vector>
 
-// the schema as the core reads it, in host memory: every name's letters end to end, each form's, bank's and fixed
+// the schema as the core reads it, in host memory: every name's characters end to end, each form's, bank's and fixed
 // register's name among them, each form's count of parameters, and the core's view of them, which points into them
 struct RulesetFlat
 {
-    std::vector<unsigned char> letters;
+    std::vector<unsigned char> characters;
     std::vector<RulesetCoreSpan> forms;
     std::vector<unsigned int> form_parameters;
     std::vector<RulesetCoreSpan> banks;
@@ -26,7 +26,7 @@ struct RulesetFlat
 // the memory of a read in host memory, each list sized to its capacity
 struct RulesetMemory
 {
-    std::vector<unsigned char> letters;
+    std::vector<unsigned char> characters;
     std::vector<RulesetCoreSpan> pieces;
     std::vector<unsigned int> placeholders;
     std::vector<RulesetCoreSpan> words;
@@ -52,7 +52,7 @@ struct RulesetFlatConstructs
     std::vector<unsigned int> form_placeholders;
 };
 
-// the memory of a relation read in host memory: the files' letters end to end, each file's span and the name a report
+// the memory of a relation read in host memory: the files' characters end to end, each file's span and the name a report
 // knows it by, and the entries, the walk's marks and stack and the relations, sized from the files' lines
 struct RulesetRelationMemory
 {
@@ -71,21 +71,21 @@ struct RulesetRelationMemory
 int ruleset_relations_read(const std::string *paths, unsigned int count, const RulesetCoreSchema *schema,
                            RulesetRelationMemory *memory, RulesetCoreRelations *relations, std::string *error);
 
-// what a relation of kind `kind` states of its entry, as a report writes it after the entry
-const char *ruleset_relation_text(unsigned int kind);
+// what a relation of type `type` states of its entry, as a report writes it after the entry
+const char *ruleset_relation_text(unsigned int type);
 
-// what a relation of a map of kind `kind` states of its entry, as a report writes it after the entry
-const char *ruleset_map_text(unsigned int kind);
+// what a relation of a map of type `type` states of its entry, as a report writes it after the entry
+const char *ruleset_map_text(unsigned int type);
 
-// the most letters a ruleset's file contains, which limits the reader's capacities in 32 bits
+// the max characters a ruleset's file contains, which limits the reader's capacities in 32 bits
 #define RULESET_FILE_MAX (1u << 30u)
 
-// the most files a ruleset is read from: its own, its part's .krs and .kdm, and the .ksc beside it
+// the max files a ruleset is read from: its own, its part's .krs and .kdm, and the .ksc beside it
 #define RULESET_PATHS_MAX 4u
 
 // The file at `path` read whole onto the end of `text` as the run stores it, where the program is of a run and the run
 // stores it (qry_member_file), and from the disk where it is not: 1, or 0 where neither is there. A program built
-// without the run reads every file from the disk. The text stops once it reaches RULESET_FILE_MAX letters, which the
+// without the run reads every file from the disk. The text stops once it reaches RULESET_FILE_MAX characters, which the
 // caller refuses
 int ruleset_bytes_read(const std::string &path, std::string *text);
 
@@ -106,7 +106,7 @@ int ruleset_file(Ruleset *rules, const std::string &path, std::string *text);
 
 void ruleset_flat_schema(const RulesetSchema *schema, RulesetFlat *flat);
 
-// `read`'s capacities for a file of `text_length` letters: no read of the file passes them
+// `read`'s capacities for a file of `text_length` characters: no read of the file passes them
 void ruleset_capacities(unsigned int text_length, RulesetCoreRead *read);
 
 // `memory` sized to `read`'s capacities and the schema's counts, and `read` pointed at it
@@ -116,7 +116,7 @@ void ruleset_memory_size(RulesetMemory *memory, RulesetCoreRead *read);
 // where it did not read the file
 void ruleset_store(const RulesetCoreRead *read, const std::string &text, Ruleset *rules);
 
-// `rules`' constructs laid out for the core's scratch, each argument's text left out, which the scratch does not read
+// `rules`' constructs arranged for the core's scratch, each argument's text left out, which the scratch does not read
 void ruleset_flat_constructs(const Ruleset *rules, RulesetFlatConstructs *flat);
 
 #endif

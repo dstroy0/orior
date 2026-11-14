@@ -13,7 +13,7 @@
 #
 # The extremes have to come from painters whose work is out of copyright, and the test is unharmed by
 # that, since what it needs is a range of abruptness and not any particular canvas. Hard edged flat
-# regions and a pointillist surface stand in at the abrupt end, and an atmospheric painting stands in at
+# regions and a pointillist surface are in at the abrupt end, and an atmospheric painting is in at
 # the smooth end. Each search prints what the repository actually holds, which lets a real title be
 # copied from a result instead of guessed at again.
 

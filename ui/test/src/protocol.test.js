@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-import { HISTORY_SECONDS, PANIC, RATE_WINDOW_MS, ROUND_MOST, ROUNDS_SHOWN, blobsOfNode, courseLine, courseRead, courseStart, nodesOf, panelOf, panelReplanned, panelStart, panelStep, planOf, roundsOf, spanSaid, telemetryHistory, telemetryLine, telemetryRead, telemetryStart, telemetryStep, valuesOfWords } from "../../gui/src-js/protocol.js";
+import { HISTORY_SECONDS, PANIC, RATE_WINDOW_MS, ROUND_MAX, ROUNDS_DISPLAYED, blobsOfNode, courseLine, courseRead, courseStart, nodesOf, panelOf, panelReplanned, panelStart, panelStep, planOf, roundsOf, spanSaid, telemetryHistory, telemetryLine, telemetryRead, telemetryStart, telemetryStep, valuesOfWords } from "../../gui/src-js/protocol.js";
 
 const { test, assert } = window.__harness;
 
@@ -26,7 +26,7 @@ function pass() {
   ];
 }
 
-const plan = { pass: "turns", questions: 2 * ROUND_MOST };
+const plan = { pass: "turns", questions: 2 * ROUND_MAX };
 
 test("the plan is read off its line, from the blob or the console", () => {
   assert.deepEqual(planOf("turns 437304\n"), { pass: "turns", questions: 437304 });
@@ -41,14 +41,14 @@ test("the line is whole before the run starts, and the plan divides the rounds",
   const costs = nodesOf("costs", { pass: "costs", questions: 24 }).filter((node) => node.round);
   assert.equal(costs.length, 1);
   assert.equal(costs[0].rounds, 24);
-  assert.equal(nodesOf("costs", { pass: "costs", questions: ROUNDS_SHOWN }).filter((node) => node.round).length, ROUNDS_SHOWN);
+  assert.equal(nodesOf("costs", { pass: "costs", questions: ROUNDS_DISPLAYED }).filter((node) => node.round).length, ROUNDS_DISPLAYED);
   assert.equal(nodesOf("turns", { pass: "turns", questions: 1 }).filter((node) => node.round).length, 1);
 });
 
 test("a plan of many rounds is one stretch of the line, named for the round under way", () => {
-  const long = { pass: "turns", questions: 20 * ROUND_MOST };
+  const long = { pass: "turns", questions: 20 * ROUND_MAX };
   assert.equal(roundsOf(long), 20);
-  assert.ok(20 > ROUNDS_SHOWN);
+  assert.ok(20 > ROUNDS_DISPLAYED);
   assert.deepEqual(nodesOf("turns", long).map((node) => node.label), ["Tools", "Run", "Carried in", "Plan", "Round 1 of 20", "Written", "Leave"]);
   assert.deepEqual(nodesOf("turns", long, 7).map((node) => node.label), ["Tools", "Run", "Carried in", "Plan", "Round 7 of 20", "Written", "Leave"]);
   assert.equal(nodesOf("turns", long, 99)[4].label, "Round 20 of 20");
@@ -56,13 +56,13 @@ test("a plan of many rounds is one stretch of the line, named for the round unde
   assert.equal(read.nodes[4].label, "Round 3 of 20");
   assert.equal(read.nodes[4].reached, true);
   assert.equal(read.at, 4);
-  // two rounds done and the third half answered, over twenty: the fire stands that far along the stretch
+  // two rounds done and the third half answered, over twenty: the fire is that far along the stretch
   assert.ok(Math.abs(read.place - (4 + 2.5 / 20) / 6) < 1e-9);
   assert.equal(read.nodes[4].blobs, 2);
 });
 
 test("the reading folded again once the plan comes reads the earlier rounds as rounds", () => {
-  const late = pass().reduce((kept, one) => panelStep(kept, one, { plan: null }), panelStart());
+  const late = pass().reduce((retained, one) => panelStep(retained, one, { plan: null }), panelStart());
   assert.equal(late.rounds, 3);
   assert.equal(blobsOfNode(late, "rounds").count, 8);
   const again = panelReplanned(late, plan);
@@ -73,7 +73,7 @@ test("the reading folded again once the plan comes reads the earlier rounds as r
   assert.equal(blobsOfNode(again, "carried").count, 3);
 });
 
-test("the nodes are reached in order and the fire stands at the furthest", () => {
+test("the nodes are reached in order and the fire is at the furthest", () => {
   const nothing = panelOf([], { pass: "turns" });
   assert.equal(nothing.at, -1);
   assert.equal(nothing.place, 0);
@@ -98,8 +98,8 @@ test("the rounds are counted after the plan, and the round under way burns towar
   assert.equal(halfway.at, 5);
 });
 
-test("each node keeps the blobs placed while it was under way", () => {
-  const reading = pass().reduce((kept, one) => panelStep(kept, one, { plan }), panelStart());
+test("each node retains the blobs placed while it was under way", () => {
+  const reading = pass().reduce((retained, one) => panelStep(retained, one, { plan }), panelStart());
   assert.deepEqual(blobsOfNode(reading, "carried").list.map((one) => one.name), ["forms_work.txt", "faulted.txt", "overseer.txt"]);
   assert.deepEqual(blobsOfNode(reading, "round1").list.map((one) => one.name), ["questions.txt", "answers0.txt"]);
   assert.equal(blobsOfNode(reading, "round2").count, 4);
@@ -136,7 +136,7 @@ test("the written files and the end reach the last nodes", () => {
   assert.equal(ended.nodes.at(-1).reached, true);
 });
 
-test("a panic is kept as the first one", () => {
+test("a panic is retained as the first one", () => {
   const blobs = pass();
   blobs.splice(8, 0, blob("conference_q7", 400, PANIC), blob("conference_q7_again", 400, PANIC));
   assert.equal(panelOf(blobs, { pass: "turns" }).panic.name, "conference_q7");
@@ -161,7 +161,7 @@ test("the rate is the answers over the last window, and the history counts them 
   assert.equal(telemetryRead(telemetry, { nowMs: 10000, reading }).gone, 10000);
 });
 
-test("each cellblock's report is its name, its pool's bytes and its two peaks, the latest kept", () => {
+test("each cellblock's report is its name, its pool's bytes and its two peaks, the latest retained", () => {
   const telemetry = telemetryStart();
   telemetryStep(telemetry, { ...blob("cells/cli_cells", 28), text: "301989888 104857600 0" }, 100);
   telemetryStep(telemetry, { ...blob("cells/highlight", 24), text: "33554432 1048576 524288" }, 200);
@@ -176,7 +176,7 @@ test("each cellblock's report is its name, its pool's bytes and its two peaks, t
 test("the time left is the rounds left at the last rounds' spacing", () => {
   const telemetry = telemetryStart();
   const reading = panelStart();
-  const long = { pass: "turns", questions: 10 * ROUND_MOST };
+  const long = { pass: "turns", questions: 10 * ROUND_MAX };
   [0, 3000, 6000].forEach((at) => {
     telemetryStep(telemetry, blob("questions.txt", 64), at);
     panelStep(reading, blob("questions.txt", 64 * 2), { plan: long });
@@ -211,19 +211,19 @@ test("a span is said in the unit that fits", () => {
 
 test("a protocol command's words read into a job's values", () => {
   const learn = [
-    { key: "step", kind: "choice", choices: ["discover", "seed", "turns", "registers", "costs", "rounds", "dry", "enumerate"] },
-    { key: "word", kind: "word" },
-    { key: "base", kind: "word" },
-    { key: "leave", kind: "choice", choices: ["all", "none"] },
+    { key: "step", type: "choice", choices: ["discover", "seed", "turns", "registers", "costs", "rounds", "dry", "enumerate"] },
+    { key: "word", type: "word" },
+    { key: "base", type: "word" },
+    { key: "leave", type: "choice", choices: ["all", "none"] },
   ];
   assert.deepEqual(valuesOfWords(learn, ["costs", "--leave", "all"]), { step: ["costs"], leave: ["all"] });
   assert.deepEqual(valuesOfWords(learn, ["seed", "build/stick.sass", "--leave", "none"]), { step: ["seed"], word: ["build/stick.sass"], leave: ["none"] });
   assert.deepEqual(valuesOfWords(learn, ["dry", "1"]), { step: ["dry"], word: ["1"] });
   const query = [
-    { key: "from", kind: "choice", choices: ["cu", "openqasm2_0", "sass"] },
-    { key: "to", kind: "choice", choices: ["cu", "openqasm2_0", "sass"] },
-    { key: "part", kind: "choice", choices: ["sm_86"] },
-    { key: "dry", kind: "choice", choices: ["dry"] },
+    { key: "from", type: "choice", choices: ["cu", "openqasm2_0", "sass"] },
+    { key: "to", type: "choice", choices: ["cu", "openqasm2_0", "sass"] },
+    { key: "part", type: "choice", choices: ["sm_86"] },
+    { key: "dry", type: "choice", choices: ["dry"] },
   ];
   assert.deepEqual(valuesOfWords(query, ["--cu", "--sass", "--sm_86", "--dry"]), { from: ["cu"], to: ["sass"], part: ["sm_86"], dry: ["dry"] });
   assert.deepEqual(valuesOfWords(query, ["--from", "cu", "--to", "sass"]), { from: ["cu"], to: ["sass"] });
@@ -231,7 +231,7 @@ test("a protocol command's words read into a job's values", () => {
 });
 
 // The course of the protocol, one line of steps, read off the lines the course says: its steps before the first,
-// the step under way, the step it stopped at and its end. The fire stands at the step under way, part way to the
+// the step under way, the step it stopped at and its end. The fire is at the step under way, part way to the
 // next by how far that step's own pass has come.
 test("the course's steps are read off its first line, and the step under way off each step's line", () => {
   let course = courseStart();
@@ -248,7 +248,7 @@ test("the course's steps are read off its first line, and the step under way off
   assert.equal(course.ended, false);
 });
 
-test("the fire stands at the step under way, part way to the next by its pass's own place", () => {
+test("the fire is at the step under way, part way to the next by its pass's own place", () => {
   let course = courseStart();
   course = courseLine(course, "course: 3 steps: discover, turns, registers");
   let read = courseRead(course, 0, false);
@@ -269,7 +269,7 @@ test("the fire stands at the step under way, part way to the next by its pass's 
   assert.ok(read.nodes.every((node) => node.reached) && read.nodes.every((node) => !node.current));
 });
 
-test("a course stopped at a step marks it failed and the fire stands there", () => {
+test("a course stopped at a step marks it failed and the fire is there", () => {
   let course = courseStart();
   course = courseLine(course, "course: 3 steps: discover, turns, registers");
   course = courseLine(course, "course: step 2 of 3: turns");

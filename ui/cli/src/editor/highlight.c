@@ -4,19 +4,19 @@
 #include "../text/text.h"
 #include "highlight_internal.h"
 
-// the most states an include reads through
+// the max states an include reads through
 #define CLI_GRAMMAR_DEPTH 64u
 
 // an own entry that is an include and not a rule: the top bit set on its name's text
 #define CLI_INCLUDE_MARK 0x80000000u
 
-// the work state the grammar under way is read into, the one the store handed the read
+// the work state the grammar under way is read into, the one the store passed the read
 static CliGrammarWorkState *s_read;
 
 // 1 where what is read does not fit the work state
 static int s_full;
 
-// the grammar's brackets, each pair two letters, the one that opens and the one that closes; none where it has none;
+// the grammar's brackets, each pair two characters, the one that opens and the one that closes; none where it has none;
 // and the name the grammar's `bracketToken` gives a bracket's token, `delimiter.bracket` where it gives none
 static unsigned int s_brackets;
 static char s_bracket_name[CLI_NAME_MAX_LEN];
@@ -70,9 +70,9 @@ EMBED_INLINE void cli_bracket_by_name(const HighlightCtx *args)
 EMBED_INLINE unsigned int cli_text(const HighlightCtx *args)
 {
     const char *text = args->text;
-    unsigned int letters[CLI_NAME_MAX_LEN];
+    unsigned int characters[CLI_NAME_MAX_LEN];
     const unsigned long long count =
-        EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text, .size = args->length, .letters = letters,
+        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = text, .size = args->length, .characters = characters,
                    .capacity_u64 = CLI_NAME_MAX_LEN);
     VerbaLinea line = {args->grammar->text + args->grammar->text_size, s_read->text_max - args->grammar->text_size,
                        0ULL};
@@ -80,8 +80,8 @@ EMBED_INLINE unsigned int cli_text(const HighlightCtx *args)
     {
         for (unsigned long long at = 0ULL; at < count; at += 1ULL)
         {
-            EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line,
-                       .letter = EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = letters[at]));
+            EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line,
+                       .character = EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = characters[at]));
         }
     }
     else
@@ -149,9 +149,9 @@ EMBED_INLINE void cli_case_append(const HighlightCtx *args)
     args->grammar->cases[args->place] = entry;
 }
 
-// the pair at `item` of the grammar's brackets, `*pair`, and the bytes its first letter takes, `*first`, and its
+// the pair at `item` of the grammar's brackets, `*pair`, and the bytes its first character takes, `*first`, and its
 // second,
-// `*second`: 1 where it is two letters that differ, else 0
+// `*second`: 1 where it is two characters that differ, else 0
 EMBED_INLINE int cli_pair_split(const HighlightCtx *args)
 {
     const CliJson *json = args->json;
@@ -164,19 +164,19 @@ EMBED_INLINE int cli_pair_split(const HighlightCtx *args)
     unsigned int opens = 0u;
     unsigned int closes = 0u;
     *first = (*pair != NULL)
-                 ? EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                              .text_bytes = (const unsigned char *)*pair, .length = size, .at = 0ULL, .letter = &opens)
+                 ? EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                              .text_bytes = (const unsigned char *)*pair, .length = size, .at = 0ULL, .character = &opens)
                  : 0ULL;
-    *second = (*first < size) ? EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+    *second = (*first < size) ? EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                                            .text_bytes = (const unsigned char *)*pair, .length = size, .at = *first,
-                                           .letter = &closes)
+                                           .character = &closes)
                               : 0ULL;
     return ((*first + *second) == size) && (*second != 0ULL) && (opens != closes);
 }
 
-// the token `@brackets` names: a bracket the grammar's brackets give as a pair's first letter the grammar's bracket
+// the token `@brackets` names: a bracket the grammar's brackets give as a pair's first character the grammar's bracket
 // name with `.open`, one they give as its second that name with `.close`, and any other that name, the name alone
-// where no pair of two letters of its own gives one
+// where no pair of two characters of its own gives one
 EMBED_INLINE unsigned int cli_brackets_token(const HighlightCtx *args)
 {
     const CliJson *json = args->json;
@@ -793,9 +793,9 @@ int cli_highlight_read(const CliHighlightJsonCtx *args)
                    .depth = 1u);
         args->grammar_out->state[state].count =
             args->grammar_out->listing_count - args->grammar_out->state[state].first;
-        // the letters a rule of the state that colors or changes the state starts at, each such rule's first letters
+        // the characters a rule of the state that colors or changes the state starts at, each such rule's first characters
         // joined, and whether any takes nothing; a rule with the plain token and no next is a skip, which a stride over
-        // its letters as plain is the same as, and it joins nothing
+        // its characters as plain is the same as, and it joins nothing
         CliRegexpFirst *const starts = &args->grammar_out->state[state].starts;
         starts->ascii[0] = 0ULL;
         starts->ascii[1] = 0ULL;
@@ -817,7 +817,7 @@ int cli_highlight_read(const CliHighlightJsonCtx *args)
             starts->other |= rule->first.other;
             starts->empty |= rule->first.empty;
         }
-        // the ASCII letters among them as the table the colorer's stride reads, one byte a letter
+        // the ASCII characters among them as the table the colorer's stride reads, one byte a character
         for (unsigned int byte = 0u; byte < 128u; byte += 1u)
         {
             args->grammar_out->state[state].starts_at[byte] =

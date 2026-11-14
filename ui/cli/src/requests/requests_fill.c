@@ -20,7 +20,7 @@ typedef struct
     const CliRequestsValues *values;
     unsigned int depth;
 } RequestsFillCtx;
-// where `needle`, two bytes, first stands in `size` bytes of `text` from `at`: its place, or `size` where it does not
+// where `needle`, two bytes, first is in `size` bytes of `text` from `at`: its place, or `size` where it does not
 EMBED_INLINE unsigned long long fill_find(const RequestsFillCtx *args)
 {
     unsigned long long at = args->at;

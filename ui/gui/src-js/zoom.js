@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The window's zoom, a step at a time through STEPS and kept for the next time. Away from 100% the
+// The window's zoom, a step at a time through STEPS and retained for the next time. Away from 100% the
 // status bar shows it, and a click there sets it back.
 
 import { invoke } from "./bridge.js";
@@ -10,8 +10,8 @@ const KEY = "orior.zoom";
 export const STEPS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
 
 export function zoom() {
-  const kept = Number(localStorage.getItem(KEY));
-  return STEPS.includes(kept) ? kept : 1;
+  const retained = Number(localStorage.getItem(KEY));
+  return STEPS.includes(retained) ? retained : 1;
 }
 
 function drawZoom(factor) {
@@ -36,13 +36,13 @@ export function zoomBy(by) {
   setZoom(STEPS[Math.max(0, Math.min(STEPS.length - 1, at + by))]);
 }
 
-// Shows the zoom in force without keeping it, as a settings file changes it.
+// Shows the zoom in force without retention it, as a settings file changes it.
 export function showZoom() {
   invoke("zoom_set", { factor: zoom() }).catch(() => {});
   drawZoom(zoom());
 }
 
-export function keepZoom() {
+export function retainZoom() {
   const node = document.getElementById("status-zoom");
   node.title = "Reset Zoom";
   node.addEventListener("click", () => setZoom(1));

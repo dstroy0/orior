@@ -36,7 +36,7 @@ typedef struct
     unsigned int *order;
     CliRequired required;
 } CliEnvSearch;
-// how many folders below the top a search for environments goes, the most folders it queues to look in, and the most
+// how many folders below the top a search for environments goes, the max folders it queues to look in, and the max
 // environments found; and the folders and the environments their capacities are taken with
 #define CLI_ENVS_DEPTH 5u
 #define CLI_ENVS_PENDING 4096u

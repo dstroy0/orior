@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_files_rank.c: quick open and the editor's windows: a name as typed ranks above every looser match and above recently opened files, with
 // fuzzy matching off only the text as typed answers, a quick open answers from the recent files until the tree is read, and a typed name
-// matches its letters in the name
+// matches its characters in the name
 #include "ui/cli/src/code/symbols.h"
 #include "ui/cli/src/editor/files.h"
 #include "ui/cli/src/text/text.h"
@@ -10,11 +10,11 @@
 
 static const char *const s_typed[3] = {"src/review.rs", "src/vim_ew.rs", "src/view.rs"};
 
-static char s_shown[1u << 16u];
+static char s_displayed[1u << 16u];
 static char s_requested[128];
 static char s_error[1024];
 static VerbaLinea s_err_msg;
-static unsigned int s_hits[CLI_FUZZY_LETTERS];
+static unsigned int s_hits[CLI_FUZZY_CHARACTERS];
 
 // `query` matches `text` past `from` with the hits `required`
 static void assert_hits(const char *required, const char *query, const char *text, unsigned long long from)
@@ -60,12 +60,12 @@ void tearDown(void)
 {
 }
 
-void test_a_typed_name_matches_its_letters_in_the_name(void)
+void test_a_typed_name_matches_its_characters_in_the_name(void)
 {
     assert_hits("11,12,13,14", "edit", "src/ui/src/edit.js", 11ull);
 }
 
-void test_a_name_without_the_letters_does_not_match(void)
+void test_a_name_without_the_characters_does_not_match(void)
 {
     assert_no_fuzzy_match("xyz", "src/ui/src/edit.js", 11ull);
 }
@@ -107,13 +107,13 @@ static void tree_file(const char *folder, const char *name)
     cli_unity_file(s_tree, name, "x");
 }
 
-// the tree of the ranked finds laid and listed the first time it is asked
+// the tree of the ranked finds positioned and listed the first time it is asked
 static void tree_listed(void)
 {
     if (s_tree[0] == '\0')
     {
         cli_unity_folder("build/harness/files_rank_tree", s_tree);
-        // a repository of its own, so that git lists its files and not the ignored folder it stands in
+        // a repository of its own, so that git lists its files and not the ignored folder it is in
         const char *const init[2] = {"init", "-q"};
         cli_unity_git(s_tree, init, 2u);
         tree_file("src", "src/view.rs");
@@ -130,7 +130,7 @@ static unsigned int ranked(const char *root, const char *query, int fuzzy, const
                            unsigned int recents)
 {
     TEST_ASSERT_TRUE(EMBED_CALL(cli_files_root_rows.ranked_find, CliFilesRootRowsCfg, .root = root, .rows = &s_ranked,
-                                .query = query, .recent = recent, .recents = recents, .most = 10u, .fuzzy = fuzzy,
+                                .query = query, .recent = recent, .recents = recents, .max = 10u, .fuzzy = fuzzy,
                                 .owner = g_cli_files_views_owner));
     return s_ranked.count;
 }
@@ -145,7 +145,7 @@ void test_a_name_as_typed_outranks_one_that_starts_with_it_which_outranks_a_long
     TEST_ASSERT_TRUE(s_ranked.row[0].score > s_ranked.row[1].score);
     TEST_ASSERT_TRUE(s_ranked.row[1].score > s_ranked.row[2].score);
     TEST_ASSERT_FALSE(s_ranked.reading);
-    // the name's letters the match took, counted in the path's letters
+    // the name's characters the match took, counted in the path's characters
     TEST_ASSERT_EQUAL_UINT(4u, s_ranked.row[0].hit_count);
     TEST_ASSERT_EQUAL_UINT(4u, s_ranked.hit[s_ranked.row[0].hit_first]);
     TEST_ASSERT_EQUAL_UINT(7u, s_ranked.hit[s_ranked.row[0].hit_first + 3u]);

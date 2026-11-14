@@ -17,11 +17,11 @@
 # the page saying how much did not.
 #
 # The cache this runs against makes that worse and not better. utils/maint/data/fetch/fetch_cod_doped.py
-# fetched solid solution formers and says so in its header: most of them are monoclinic
+# fetched solid solution formers and says so in its header: the majority of them are monoclinic
 # or triclinic, and the right angle restriction is deliberately not applied at fetch time. So the
 # corpus was built to contain exactly the cells the reading gate turns away.
 #
-# A run that skips most of its input and prints a confident median is a check whose failure looks
+# A run that skips the majority of its input and prints a confident median is a check whose failure looks
 # like its answer, and zero findings over a root that vanished counts as a defect. This tool exists
 # so the denominator can be quoted beside the result.
 #
@@ -46,7 +46,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 # Walks up to the repository instead of counting directories to it. Counting is what broke every
-# path in this tree the last time anything moved. The dirname guard keeps a missing sentinel
+# path in this tree the last time anything moved. The dirname guard retains a missing sentinel
 # from climbing off the top of the drive and resolving every root to the filesystem root. That is
 # the failure recorded against the prose checker.
 while (ROOT != os.path.dirname(ROOT)) and not os.path.isdir(os.path.join(ROOT, "src", "cu", "engine")):

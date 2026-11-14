@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// problems.c: the problems pane's rows as the servers' reports stand, and the editor's underlines of the shown file's
+// problems.c: the problems pane's rows as the servers' reports are, and the editor's underlines of the displayed file's
 // spans
 #include "problems.h"
 
@@ -265,10 +265,10 @@ void gui_problems_underlined(const GuiProblemsPathRasterCfg *args)
     GuiRect place = args->place;
     float cell = args->cell;
     int scale = args->scale;
-    // the spans of the file the editor shows, its path the shown view's; a view's place is far inside an int
-    const int shown = cli_view_shown();
-    char shown_path[CLI_PATH_MAX_LEN];
-    const char *const path = ((shown >= 0) && cli_view_path_at((unsigned int)shown, shown_path)) ? shown_path : NULL;
+    // the spans of the file the editor shows, its path the displayed view's; a view's place is far inside an int
+    const int displayed = cli_view_displayed();
+    char displayed_path[CLI_PATH_MAX_LEN];
+    const char *const path = ((displayed >= 0) && cli_view_path_at((unsigned int)displayed, displayed_path)) ? displayed_path : NULL;
     const int thick = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale);
     const int up = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 2, .scale = scale);
     CliProblemSpan span;

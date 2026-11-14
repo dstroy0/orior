@@ -6,7 +6,7 @@
 
 // Finding x on a's floor 2 for less than half of a. a is one camera-law frame of n samples. The engine's tower lifts
 // it, and floor 2 is the approximation after two levels: the 16^3 corner, m = n / 64 values, read from the engine by
-// lowering that corner as its own tower and checked against the host's own two-level lifting. Floor 2's values are laid
+// lowering that corner as its own tower and checked against the host's own two-level lifting. Floor 2's values are positioned
 // out once as 16 bit planes. A query x then reads no value at all: the positions containing x are the and, over the
 // planes, of each plane where x's bit is 1 and its complement where it is 0, 32 positions a word, and a word stops
 // being read once its mask is empty. Every match set is checked against the host's scan of floor 2, for values on floor
@@ -46,7 +46,7 @@
 
 #define MATCH_FOUNDERS 6u
 
-// queries of each kind: values on floor 2, drawn at keyed positions, and values not on it
+// queries of each type: values on floor 2, drawn at keyed positions, and values not on it
 #define MATCH_QUERIES_EACH 1024u
 
 #define MATCH_QUERIES (2u * MATCH_QUERIES_EACH)
@@ -78,7 +78,7 @@ __global__ void match_query_kernel(const unsigned int *planes, const unsigned in
 typedef struct
 {
     unsigned long long total;
-    unsigned long long maximum;
+    unsigned long long max;
     unsigned long long found;
     unsigned long long found_max;
     unsigned long long matched;

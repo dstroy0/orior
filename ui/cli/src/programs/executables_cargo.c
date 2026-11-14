@@ -5,7 +5,7 @@
 #include "../text/text.h"
 #include "executables_internal.h"
 
-// the most [[bin]] tables a Cargo.toml is read for
+// the max [[bin]] tables a Cargo.toml is read for
 #define CLI_SCAN_BINS 256u
 
 void cli_toml_value(const CliExecutablesLengthValueCtx *args)
@@ -85,9 +85,9 @@ static void cli_bin_each(const CliEachNameIsFolderCfg *args)
     }
 }
 
-// A Cargo.toml read for its binaries: its [[bin]] tables; the table a line stands in, the package's name and whether
+// A Cargo.toml read for its binaries: its [[bin]] tables; the table a line is in, the package's name and whether
 // one is given, and whether Cargo finds binaries itself; a line, `length` bytes from `from`; the folder the manifest
-// stands in; the names found, those Cargo finds itself, and the place of one of src/bin's binaries
+// is in; the names found, those Cargo finds itself, and the place of one of src/bin's binaries
 typedef struct
 {
     CliBins *bins;
@@ -102,7 +102,7 @@ typedef struct
     unsigned int place;
 } ExecutablesCargoCtx;
 
-// a line of the manifest that opens a table: the table's name, the lines after it stand in, and a [[bin]] put after
+// a line of the manifest that opens a table: the table's name, the lines after it are in, and a [[bin]] put after
 // those before it; 1, or 0 where the line opens none
 EMBED_INLINE int cargo_table_opened(const ExecutablesCargoCtx *args)
 {
@@ -131,7 +131,7 @@ EMBED_INLINE int cargo_table_opened(const ExecutablesCargoCtx *args)
     return 1;
 }
 
-// a line of the manifest that gives a key its value, read in the table it stands in: the package's name and whether
+// a line of the manifest that gives a key its value, read in the table it is in: the package's name and whether
 // Cargo finds binaries itself, and a [[bin]]'s name and path
 EMBED_INLINE void cargo_key_read(const ExecutablesCargoCtx *args)
 {

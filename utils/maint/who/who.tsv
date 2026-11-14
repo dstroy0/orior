@@ -1036,7 +1036,7 @@ number	source
 0x040d	src/cu/transpiler/lstar/protocol/khw_learn/relation_fields.c
 0x040e	src/cu/transpiler/lstar/protocol/khw_learn/relation_registers.c
 0x040f	src/cu/transpiler/lstar/protocol/khw_learn/relation_turns.c
-0x0410	src/cu/transpiler/lstar/protocol/khw_learn/standing.c
+0x0410	src/cu/transpiler/lstar/protocol/khw_learn/located.c
 0x0411	src/cu/transpiler/lstar/protocol/khw_learn/turning.c
 0x0412	src/cu/transpiler/lstar/protocol/table/identity/assembled.cu
 0x0413	src/cu/transpiler/lstar/protocol/table/identity/identity_settings.h
@@ -1062,7 +1062,7 @@ number	source
 0x0427	utils/test/includes/file_defs/ksg/ksg_check.c
 0x0428	utils/test/src/cu/transpiler/lstar/interface/launch_queue_check.c
 0x0429	utils/test/src/cu/transpiler/lstar/parser/frame_relation_check.c
-0x042a	utils/test/src/cu/transpiler/lstar/parser/standing_check.c
+0x042a	utils/test/src/cu/transpiler/lstar/parser/located_check.c
 0x042b	utils/test/src/cu/transpiler/lstar/parser/turning_check.c
 0x042c	utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/constant_check.c
 0x042d	utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_listing_check.c
@@ -1107,7 +1107,7 @@ number	source
 0x0454	utils/test/src/ui/cli/diff_test.c
 0x0455	utils/test/src/ui/cli/digest_test.c
 0x0456	utils/test/src/ui/cli/document_test.c
-0x0457	utils/test/src/ui/cli/door_test.c
+0x0457	utils/test/src/ui/cli/interface_test.c
 0x0458	utils/test/src/ui/cli/editorconfig_test.c
 0x0459	utils/test/src/ui/cli/envs_test.c
 0x045a	utils/test/src/ui/cli/executables_test.c
@@ -1415,8 +1415,8 @@ number	source
 0x0588	utils/test/src/ui/cli/unit/disasm_verify/test_disasm_verify/unity_runner.c
 0x0589	utils/test/src/ui/cli/unit/document/test_document/test_document.c
 0x058a	utils/test/src/ui/cli/unit/document/test_document/unity_runner.c
-0x058b	utils/test/src/ui/cli/unit/door/test_door/test_door.c
-0x058c	utils/test/src/ui/cli/unit/door/test_door/unity_runner.c
+0x058b	utils/test/src/ui/cli/unit/interface/test_interface/test_interface.c
+0x058c	utils/test/src/ui/cli/unit/interface/test_interface/unity_runner.c
 0x058d	utils/test/src/ui/cli/unit/editorconfig/test_editorconfig/test_editorconfig.c
 0x058e	utils/test/src/ui/cli/unit/editorconfig/test_editorconfig/unity_runner.c
 0x058f	utils/test/src/ui/cli/unit/executables/test_executables/test_executables.c

@@ -10,9 +10,9 @@
 # WHAT IT MEASURES
 #
 # examples/crystallography/6_oracle/proof_positive_control.py asks sixty four mineral names of the
-# archive, keeps at most three entries per name, and checks each axis's recovered period against the
+# archive, retains at max three entries per name, and checks each axis's recovered period against the
 # published cell edge by integer equality. Its measurement, `measure_entry`, reads one structure at
-# a time. Its selection is the name list. This keeps the measurement and replaces the
+# a time. Its selection is the name list. This retains the measurement and replaces the
 # selection with the cache. The same question is put to every crystal fetched.
 #
 # `measure_entry` is imported, never copied. A second copy of a reader is one edit away from
@@ -65,7 +65,7 @@ from representation import exact  # noqa: E402
 
 CACHE = os.path.join(ROOT, "build", "cod")
 
-# Row kinds in an output file. One file is one shard, and the header line is what the summary checks.
+# Row types in an output file. One file is one shard, and the header line is what the summary checks.
 HEADER = "#shard"
 AXIS = "axis"
 TOO_WIDE = "too_wide"

@@ -5,10 +5,10 @@ ICSNL 60.
 
 Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
-pure corpus, then against this paper's own English laid over that reference. What the paper's
+pure corpus, then against this paper's own English positioned over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
 from the characters that sit outside that English, and word_web.web() built 1998 edges over the
-language forms. A person then matched the context: who, kind and gloss for each row, the names,
+language forms. A person then matched the context: who, type and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
 someone reads the paper again and says otherwise.
@@ -28,9 +28,9 @@ line of the paragraph after (30), (38) and (44) name their speaker. Bernice Garc
 footnote * and its English are hers. The prose, the headings, the denotations and the notes carry
 Ella Hannon.
 
-THE LETTERS
+THE CHARACTERS
 
-Outside the paper's English the engine found these letters and marks: Ø á è é í ó ú ƛ ɬ ʔ ʕ ʷ ́ ̓ ̣
+Outside the paper's English the engine found these characters and marks: Ø á è é í ó ú ƛ ɬ ʔ ʕ ʷ ́ ̓ ̣
 ә ṣ ∅. The forms are in the orthography of Thompson and Thompson (1992; 1996). The segmentation
 marks a clitic boundary with =, an affix with -, reduplication with ∼ and an infix with angle
 brackets, cú<ʔi>et; square brackets hold the segments of a morpheme the surface form does not
@@ -40,13 +40,13 @@ Leipzig conventions and footnote 2 lists the others; from Section 3 on xʷúy̓ 
 THE PAGE AND THE TEXT LAYER
 
 The forms are in NFC, and the check puts the page text, read from the glyph positions, through the
-same repair: a mark the text sets after a space is put back on its letter, then NFC, then 12
+same repair: a mark the text sets after a space is put back on its character, then NFC, then 12
 page-read corrections. The page text was read by glyph rows, with the word spaces pdfium sets on
-tight justified lines kept (of the, Section 2 presents). The text layer types the null sign as 0/,
+tight justified lines retained (of the, Section 2 presents). The text layer types the null sign as 0/,
 repaired to ∅, and the denotation brackets of (22) and (49) as J and K, repaired to ⟦ and ⟧, read at
 300 dpi. The superscript g and the subscript type <l,st> of a denotation are set on the line. (20),
-(21), (23), (24), (29) and (30) print the letter Ø for the null sign, kept as printed. The page
-prints the(in)felicity and anlysis in footnote 4 and theroetically in footnote 5, kept. Example (28)
+(21), (23), (24), (29) and (30) print the character Ø for the null sign, retained as printed. The page
+prints the(in)felicity and anlysis in footnote 4 and theroetically in footnote 5, retained. Example (28)
 sets its context with no Context: label.
 
 orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
@@ -59,7 +59,7 @@ where    the paper's locator: the title, the front matter, a section, a footnote
 who      the language for an example tier and a cited form; the work cited on an example's
          line, or the speaker for a volunteered translation, for its English; the authors for
          the prose, the tables and the notes
-kind     transcription  an example tier in the orthography
+type     transcription  an example tier in the orthography
          segmentation   an example tier broken into morphemes
          gloss          the morpheme gloss tier of an example
          translation    the English of an example

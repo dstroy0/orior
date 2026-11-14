@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// An iris: its plasma torus and its pupil, drawn as one picture that each iris lays down turned and squeezed.
+// An iris: its plasma torus and its pupil, drawn as one picture that each iris positions down turned and squeezed.
 
 import { cssOf, rgbOf, withAlpha } from "../colors.js";
 import { mix, smooth } from "./math.js";
@@ -14,7 +14,7 @@ import { mix, smooth } from "./math.js";
 // PIECES pieces a turn.
 //
 // The fire is drawn once into BURNS pictures over a loop of LOOP seconds, each the first time it is
-// shown, and from then on each frame lays down the picture for its moment in the loop. Each strand
+// displayed, and from then on each frame positions down the picture for its moment in the loop. Each strand
 // flows a whole number of turns in a loop, which joins the loop's end to its start.
 const TORUS = 0.6;
 const TUBE = 0.17;
@@ -49,7 +49,7 @@ const GROUND = [
   [0.65, "--eye-iris-3"],
   [1, "--eye-iris-4"],
 ];
-// The torus `seconds` into the fire, in an iris of radius r, laid over what is under it: the ring's
+// The torus `seconds` into the fire, in an iris of radius r, positioned over what is under it: the ring's
 // body, a soft band strongest along its middle, then each strand piece by piece.
 function drawTorus(pen, filaments, r, seconds) {
   const ring = TORUS * r;
@@ -124,7 +124,7 @@ export function lavaOf(draw) {
   return [body(0.06, 0.3), body(0.3, 0.13 + draw() * 0.05), body(0.32, 0.12 + draw() * 0.05), body(0.26, 0.11 + draw() * 0.04)];
 }
 
-// Every iris is one picture at the size of a whole iris, laid down for each iris turned by its own
+// Every iris is one picture at the size of a whole iris, positioned down for each iris turned by its own
 // angle, squeezed and scaled. A divided eye costs a frame what one iris costs, however many irises
 // it holds.
 export function irisPicture(draw) {

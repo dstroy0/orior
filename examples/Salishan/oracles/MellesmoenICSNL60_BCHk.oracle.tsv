@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Gloria Mellesmoen	note	In Proceedings of the International Conference on Salish and Neighbouring Languages 60, Ella Hannon, Brian Diep, Laura Griffin, Mila Loginova, Bruce Oliver, Lauren Schneider, Reed Steiner, and Bailey Trotter (eds.). Vancouver, BC: UBCWPL, 2025.	page 1
 front	Gloria Mellesmoen	language	Halq̓eméylem	Upriver Halkomelem, whose imperfectives the paper analyses in Section 4
 front	Gloria Mellesmoen	notation	/ʔ/	the glottal stop phoneme
@@ -41,10 +41,10 @@ footnote 1	Gloria Mellesmoen	note	1 I cite Urbanczyk (1996) throughout this pape
 (4c) line 2	St’át’imcets	gloss	NMLZ-buckskin-outer.cover<DIM>	page 3, engine english, a St’át’imcets example
 (4c) line 3	Davis & Mellesmoen, 2023: 15	translation	‘small item of buckskin clothing’	page 3, engine english, cited Davis & Mellesmoen, 2023: 15
 (4c) line 3	Gloria Mellesmoen	citation	(Davis & Mellesmoen, 2023: 15)	the tag or source at the right of the translation
-§2.1	Gloria Mellesmoen	note	While schwas can be stressed in St’át’imcets when a word has no non-[ə] vowels (i.e., no moraic vowels to host stress), it is always the first schwa of the word that will be stressed.2 Diminutive reduplication yields stressed schwa in words with non-schwa vowels, as shown in (Van Eijk 1997: 14). The stressed schwa in diminutive words also is not limited to the first schwa in the word, as shown in (4c). The stressed schwa in diminutive reduplication is therefore more marked than stressed schwas elsewhere in the language; the stressed schwa in diminutive reduplication is not predicted by the Generalised Template Theory/Base-Reduplicant Correspondence Theory approach.	page 3
-§2.1	Gloria Mellesmoen	note	There is also a triplication pattern in St’át’imcets that results in stress on the final syllable, shown in (5). This pattern is marked for St’át’imcets, which typically avoids word-final stress (Roberts 1993: 300). Stress only falls on the final syllable if the word is monomorphemic, the only full vowel is in the final syllable, or if the word ends in a lexical suffix of the shape -VCC (e.g., Van Eijk 1997: 15).	page 3
+§2.1	Gloria Mellesmoen	note	While schwas can be stressed in St’át’imcets when a word has no non-[ə] vowels (i.e., no moraic vowels to host stress), it is always the first schwa of the word that will be stressed.2 Diminutive reduplication yields stressed schwa in words with non-schwa vowels, as displayed in (Van Eijk 1997: 14). The stressed schwa in diminutive words also is not limited to the first schwa in the word, as displayed in (4c). The stressed schwa in diminutive reduplication is therefore more marked than stressed schwas elsewhere in the language; the stressed schwa in diminutive reduplication is not predicted by the Generalised Template Theory/Base-Reduplicant Correspondence Theory approach.	page 3
+§2.1	Gloria Mellesmoen	note	There is also a triplication pattern in St’át’imcets that results in stress on the final syllable, displayed in (5). This pattern is marked for St’át’imcets, which typically avoids word-final stress (Roberts 1993: 300). Stress only falls on the final syllable if the word is monomorphemic, the only full vowel is in the final syllable, or if the word ends in a lexical suffix of the shape -VCC (e.g., Van Eijk 1997: 15).	page 3
 (5a) line 1	St’át’imcets	segmentation	ɬəpɬəp~ɬə́p	page 4, a St’át’imcets example
-(5a) line 1	Van Eijk 1997: 57	translation	‘to keep blinking’	page 4
+(5a) line 1	Van Eijk 1997: 57	translation	‘to retain blinking’	page 4
 (5a) line 1	Gloria Mellesmoen	citation	(Van Eijk 1997: 57)	the tag or source at the right of the translation
 (5b) line 1	St’át’imcets	segmentation	ka-ʕʷəlʕʷəl~ʕʷə́l-a	page 4, a St’át’imcets example
 (5b) line 1	Davis et al. in prep	translation	‘flash repeatedly’	page 4
@@ -56,7 +56,7 @@ footnote 1	Gloria Mellesmoen	note	1 I cite Urbanczyk (1996) throughout this pape
 (5d) line 1	Davis et al. in prep	translation	‘be flickering or blinking’	page 4
 (5d) line 1	Gloria Mellesmoen	citation	(Davis et al. in prep)	the tag or source at the right of the translation
 (5e) line 1	St’át’imcets	segmentation	ƛ̓<əɬəɬ>ə́ɬ	page 4, a St’át’imcets example
-(5e) line 1	Van Eijk 1997: 56	translation	‘to keep shivering’	page 4
+(5e) line 1	Van Eijk 1997: 56	translation	‘to retain shivering’	page 4
 (5e) line 1	Gloria Mellesmoen	citation	(Van Eijk 1997: 56)	the tag or source at the right of the translation
 §2.1	Gloria Mellesmoen	note	Within the Generalised Template Theory approach, triplication would minimally require the same morphological classification as roots and/or lexical suffixes. However, the stress pattern associated with triplication is still more marked than with other morphemes because it applies in words which would otherwise not meet the criteria for word-final stress. The words with triplication therefore allow word-final stress where it would not otherwise be tolerated for other morphemes in the language. This pattern challenges the prediction that reduplicative morphemes can only be as marked as other morphemes in the language.	page 4
 footnote 2	Gloria Mellesmoen	note	2 There are two other exceptions tied to specific morphemes: the circumstantial and passive morphemes (see Caldecott 2009: fn 19).	page 3, footnote
@@ -72,7 +72,7 @@ footnote 3	Gloria Mellesmoen	note	3 There are two forms recorded of this word: o
 §3	Gloria Mellesmoen	note	In Nuxalk (Bella Coola), vowel lengthening is one of three exponents that can mark diminutivity. I propose that vowel length is derived from a coda [ʔ] in an intermediate form, which results from an underlying constricted glottis ([c.g.]) feature associated with the diminutive morpheme. Compensatory lengthening occurs to retain a mora when the coda [ʔ] is lost; coda glottal stops never surface in the language.	page 5
 §3.1	Gloria Mellesmoen	heading	3.1 Data: Vowel Lengthening in Nuxalk Diminutives	page 5
 §3.1	Gloria Mellesmoen	notation	ə	schwa
-§3.1	Gloria Mellesmoen	note	Diminutives in Nuxalk involve three features: reduplication, a suffix -i, and vowel lengthening. Diminutive reduplication in Nuxalk is expressed by either C1 or C1C2 reduplication, which surface as -C(V)- or -CC-, respectively.4 The suffix -i may be realised as -y or -yi following a vowel. All three exponents of the diminutive may occur in the same word, as shown in examples with C1C2 reduplication in (6) and with C1 reduplication in (7). The stop becomes a fricative in (7a), as well as in (8) below, because stops are not moraic in Nuxalk (see Mellesmoen 2021). I mark syllabic sonorants in (6b–c) following Bagemihl (1991); however, these may also be realised as sequences of a schwa and sonorant (see, e.g., discussion of predictable [ə] in Nater 2024).	page 5
+§3.1	Gloria Mellesmoen	note	Diminutives in Nuxalk involve three features: reduplication, a suffix -i, and vowel lengthening. Diminutive reduplication in Nuxalk is expressed by either C1 or C1C2 reduplication, which surface as -C(V)- or -CC-, respectively.4 The suffix -i may be realised as -y or -yi following a vowel. All three exponents of the diminutive may occur in the same word, as displayed in examples with C1C2 reduplication in (6) and with C1 reduplication in (7). The stop becomes a fricative in (7a), as well as in (8) below, because stops are not moraic in Nuxalk (see Mellesmoen 2021). I mark syllabic sonorants in (6b–c) following Bagemihl (1991); however, these may also be realised as sequences of a schwa and sonorant (see, e.g., discussion of predictable [ə] in Nater 2024).	page 5
 (6a) line 1	Nuxalk	segmentation	s-xʷpa<p>ni<ː>ɬ-i (cf. sxʷpaniɬ ‘deer’)	page 5, engine language
 (6a) line 2	Nuxalk	gloss	NMLZ-deer<DIM><DIM>-DIM	page 5, engine english
 (6a) line 3	Nater 1990: 107	translation	‘small deer’	page 5, engine english, cited Nater 1990: 107
@@ -94,7 +94,7 @@ footnote 4	Gloria Mellesmoen	note	4 Though C1C2 reduplication can mark either di
 (7b) line 2	Nuxalk	gloss	NMLZ-deer<DIM><DIM>-DIM	page 6
 (7b) line 3	Nater 1990: 107	translation	`small deer'	page 6
 (7b) line 3	Gloria Mellesmoen	citation	(Nater 1990: 107)	the tag or source at the right of the translation
-§3.1	Gloria Mellesmoen	note	The three exponents of the diminutive morpheme do not always occur simultaneously (i.e., in the same word). For example, the diminutive suffix -i is not present if the word already ends in an /i/ or /y/, as shown in (8); reduplication is absent if the word is lexically reduplicated (i.e., the simplex form of a word is already reduplicated), as shown in (9).5	page 6
+§3.1	Gloria Mellesmoen	note	The three exponents of the diminutive morpheme do not always occur simultaneously (i.e., in the same word). For example, the diminutive suffix -i is not present if the word already ends in an /i/ or /y/, as displayed in (8); reduplication is absent if the word is lexically reduplicated (i.e., the simplex form of a word is already reduplicated), as displayed in (9).5	page 6
 (8) line 1	Nuxalk	segmentation	yax~ya<ː>ki (cf. yaki ‘mountain goat’)	page 6, engine residue
 (8) line 2	Nuxalk	gloss	DIM~mountain.goat<DIM>	page 6, engine english
 (8) line 3	Nater 1978: 2	translation	‘mountain goat (dim.)’	page 6, engine english, cited Nater 1978: 2
@@ -175,8 +175,8 @@ footnote 8	Gloria Mellesmoen	note	8 I use DEP-ONSET to avoid epenthesis of a glo
 (17d) line 1	Gloria Mellesmoen	note	*! *! *	page 9, the violation marks of the candidate, * a violation and *! a fatal one, under the columns of the header
 (17e) line 1	Nuxalk	transcription	qp̓ap̓ayi [c.g.]	page 9, engine english
 (17e) line 1	Gloria Mellesmoen	note	*! *	page 9, the violation marks of the candidate, * a violation and *! a fatal one, under the columns of the header
-§3.2	Gloria Mellesmoen	note	The reranking of *ʔ]σ and MAX-[C.G.] between the first and second stratum accounts for compensatory lengthening from an input [c.g.] feature, by route of epenthetic [ʔ]. An alternative analysis within a Parallel OT framework would require vowel length to occur in a single step; the most straightforward analysis of vowel length in parallel is affixation of a mora. However, this analysis is complicated by the fact that there is already a mora present in the underlying form of the diminutive morpheme, which results in reduplication. Both moras associated with the diminutive morpheme would be subject to the same constraints; if the grammar allows reduplication as a repair, then there is no explanation for why the grammar would lengthen, rather than reduplicate an additional segment to fill the affixed mora.10 Additionally, vowel lengthening is absent more often than reduplication. Examples with just reduplication and the suffix are given in (18).	page 9
-footnote 9	Gloria Mellesmoen	note	9 I do not include a candidate where the mora is kept and shifted elsewhere; I assume a MAX-LINK constraint that penalises the loss of any association line between a mora and syllable in the output, which ensures that a mora associated with a given syllable in the input remains part of the same syllable in the output.	page 9, footnote
+§3.2	Gloria Mellesmoen	note	The reranking of *ʔ]σ and MAX-[C.G.] between the first and second stratum accounts for compensatory lengthening from an input [c.g.] feature, by route of epenthetic [ʔ]. An alternative analysis within a Parallel OT framework would require vowel length to occur in a single step; the max straightforward analysis of vowel length in parallel is affixation of a mora. However, this analysis is complicated by the fact that there is already a mora present in the underlying form of the diminutive morpheme, which results in reduplication. Both moras associated with the diminutive morpheme would be subject to the same constraints; if the grammar allows reduplication as a repair, then there is no explanation for why the grammar would lengthen, rather than reduplicate an additional segment to fill the affixed mora.10 Additionally, vowel lengthening is absent more often than reduplication. Examples with just reduplication and the suffix are given in (18).	page 9
+footnote 9	Gloria Mellesmoen	note	9 I do not include a candidate where the mora is retained and shifted elsewhere; I assume a MAX-LINK constraint that penalises the loss of any association line between a mora and syllable in the output, which ensures that a mora associated with a given syllable in the input remains part of the same syllable in the output.	page 9, footnote
 footnote 10	Gloria Mellesmoen	note	10 In a full analysis, the ranking of the constraint WT-IDENT-IO, defined in (25) in Section 4.2, is also relevant. Reduplication occurs at the first stratum; WT-IDENT-IO must be ranked low enough at the following stratum to allow for compensatory lengthening to occur.	page 9, footnote
 (18a) line 1	Nuxalk	transcription	qa<qa>yt-i (cf. qayt ‘hat’)	page 10, engine residue
 (18a) line 2	Nuxalk	gloss	hat<DIM>-DIM	page 10, engine english
@@ -203,7 +203,7 @@ footnote 10	Gloria Mellesmoen	note	10 In a full analysis, the ranking of the con
 §4.1	Gloria Mellesmoen	heading	4.1 Data: Halq̓eméylem Imperfective Vowel Lengthening	page 10
 §4.1	Gloria Mellesmoen	notation	/ʔ/	the glottal stop phoneme
 §4.1	Gloria Mellesmoen	language	Halq̓eméylem	Upriver Halkomelem, whose imperfectives the paper analyses in Section 4
-§4.1	Gloria Mellesmoen	note	Vowel length marks the imperfective form of roots that begin with /ʔ/ or /h/ in Halq̓eméylem (Upriver Halkomelem), as shown in (19). The initial vowel of the root is lengthened; ablaut accompanies vowel lengthening if the first vowel would be schwa, as shown in (19a–b).	page 10
+§4.1	Gloria Mellesmoen	note	Vowel length marks the imperfective form of roots that begin with /ʔ/ or /h/ in Halq̓eméylem (Upriver Halkomelem), as displayed in (19). The initial vowel of the root is lengthened; ablaut accompanies vowel lengthening if the first vowel would be schwa, as displayed in (19a–b).	page 10
 (19) line 1	Gloria Mellesmoen	note	Imperfectives of ʔ- and h-initial Roots in Halq̓eméylem	page 10, engine english, the caption
 (19a) line 1	Halq̓eméylem	segmentation	ʔí<ː>ɬtəl (cf. ʔə́ ɬtəl ‘eat a meal’)	page 10, engine language, carries footnote 11, written here without its digit
 (19a) line 2	Halq̓eméylem	gloss	eat<IPFV>	page 10, engine english, a Halq̓eméylem example
@@ -230,7 +230,7 @@ footnote 11	Gloria Mellesmoen	note	11 Galloway (2009: 10) notes variation in the
 (19e) line 3	Galloway 2009: 106	translation	‘smelling something’	page 11, engine english, cited Galloway 2009: 106
 (19e) line 3	Gloria Mellesmoen	citation	(Galloway 2009: 106)	the tag or source at the right of the translation
 §4.1	Gloria Mellesmoen	notation	əʔ	the sequence hən̓q̓əmin̓əm̓ ablaut avoids in a syllable
-§4.1	Gloria Mellesmoen	note	Imperfective forms marked with vowel length in Halq̓eméylem correspond to imperfectives marked with an infixed glottal stop in the other two dialects unless the second consonant is a sonorant. Examples with an infixed glottal stop from hən̓q̓əmin̓əm̓ (Downriver Halkomelem) are given in (20). There is an additional ablaut process in (20a–b), as in Halq̓eméylem in (19a–b). Ablaut in hən̓q̓əmin̓əm̓ avoids the sequence [əʔ] in a syllable. Note that sonorants may also be glottalised in reduplication in hən̓q̓əmin̓əm̓, as shown in (20b).13	page 11
+§4.1	Gloria Mellesmoen	note	Imperfective forms marked with vowel length in Halq̓eméylem correspond to imperfectives marked with an infixed glottal stop in the other two dialects unless the second consonant is a sonorant. Examples with an infixed glottal stop from hən̓q̓əmin̓əm̓ (Downriver Halkomelem) are given in (20). There is an additional ablaut process in (20a–b), as in Halq̓eméylem in (19a–b). Ablaut in hən̓q̓əmin̓əm̓ avoids the sequence [əʔ] in a syllable. Note that sonorants may also be glottalised in reduplication in hən̓q̓əmin̓əm̓, as displayed in (20b).13	page 11
 (20) line 1	Gloria Mellesmoen	note	Imperfectives of ʔ- and h-initial Roots in hən̓q̓əmin̓əm̓	page 11, the caption
 (20a) line 1	hən̓q̓əmin̓əm̓	transcription	ʔí<ʔ>ɬtən	page 11, the orthography, a hən̓q̓əmin̓əm̓ example
 (20a) line 1	Gloria Mellesmoen	note	(cf. ʔə́ ɬtən ‘eat’)	page 11
@@ -253,14 +253,14 @@ footnote 11	Gloria Mellesmoen	note	11 Galloway (2009: 10) notes variation in the
 (20d) line 3	Suttles 2004: 147	translation	‘be remembering’	page 11
 (20d) line 3	Gloria Mellesmoen	citation	(Suttles 2004: 147)	page 11, the source at the right of the translation
 footnote 12	Gloria Mellesmoen	note	12 Galloway (2009) transcribes [x] as [xʸ], which corresponds to a more surface-true pronunciation. I choose to use [x] here for ease of comparison across varieties.	page 11, footnote
-§4.1	Gloria Mellesmoen	notation	xʸ	Galloway 2009's letter for [x], footnote 12
+§4.1	Gloria Mellesmoen	notation	xʸ	Galloway 2009's character for [x], footnote 12
 footnote 13	Gloria Mellesmoen	note	13 Halq̓eméylem has lost coda glottal stops and glottalised sonorants (Elmendorf & Suttles 1960; Thompson 2005).	page 11, footnote
 (20e) line 1	hən̓q̓əmin̓əm̓	transcription	há<ʔ>qʷ-ət	page 12, the orthography, a hən̓q̓əmin̓əm̓ example
 (20e) line 1	Gloria Mellesmoen	note	(cf. háqʷət ‘smell it’)	page 12
 (20e) line 2	hən̓q̓əmin̓əm̓	gloss	smell<IPFV>-TR	page 12, engine english, a hən̓q̓əmin̓əm̓ example
 (20e) line 3	Suttles 2004: 147	translation	‘be smelling it’	page 12
 (20e) line 3	Gloria Mellesmoen	citation	(Suttles 2004: 147)	page 12, the source at the right of the translation
-§4.1	Gloria Mellesmoen	note	If a hən̓q̓əmin̓əm̓ root starts with /h/ or /ʔ/ and has a sonorant as the second consonant, the imperfective is formed with vowel length and glottalisation of a sonorant, as shown in (21); in these cases, the imperfective marking is consistent with the Halq̓eméylem examples in (22), aside from the glottalisation of a sonorant in (21b). Lengthening a vowel in hən̓q̓əmin̓əm̓ instead of infixing a glottal stop avoids a coda glottal stop followed by a glottalised sonorant.	page 12
+§4.1	Gloria Mellesmoen	note	If a hən̓q̓əmin̓əm̓ root starts with /h/ or /ʔ/ and has a sonorant as the second consonant, the imperfective is formed with vowel length and glottalisation of a sonorant, as displayed in (21); in these cases, the imperfective marking is consistent with the Halq̓eméylem examples in (22), aside from the glottalisation of a sonorant in (21b). Lengthening a vowel in hən̓q̓əmin̓əm̓ instead of infixing a glottal stop avoids a coda glottal stop followed by a glottalised sonorant.	page 12
 (21) line 1	Gloria Mellesmoen	note	Imperfectives of ʔ- and h-initial Roots with Sonorant C2 in hən̓q̓əmin̓əm̓	page 12, the caption
 (21a) line 1	hən̓q̓əmin̓əm̓	transcription	hé<ː>y̓	page 12, the orthography, a hən̓q̓əmin̓əm̓ example
 (21a) line 1	Gloria Mellesmoen	note	(cf. héy̓ ‘make a canoe’)	page 12
@@ -335,7 +335,7 @@ footnote 14	Gloria Mellesmoen	note	14 I include this example here to correct a L
 (26d) line 1	Gloria Mellesmoen	note	*! *	page 14, the violation marks of the candidate, * a violation and *! a fatal one, under the columns of the header
 (26e) line 1	Halq̓eméylem	transcription	ʔiːk̓ʷ	page 14, engine language, the winning candidate, marked on the page with a pointing hand
 (26e) line 1	Gloria Mellesmoen	note	* *	page 14, the violation marks of the candidate, * a violation and *! a fatal one, under the columns of the header
-§4.2	Gloria Mellesmoen	note	In hən̓q̓əmin̓əm̓, MAX must be ranked above *ʔ]σ in hən̓q̓əmin̓əm̓ for glottal stops to be retained in codas, as shown in (27).	page 14
+§4.2	Gloria Mellesmoen	note	In hən̓q̓əmin̓əm̓, MAX must be ranked above *ʔ]σ in hən̓q̓əmin̓əm̓ for glottal stops to be retained in codas, as displayed in (27).	page 14
 (27) line 1	Gloria Mellesmoen	note	Stratum 2 in hən̓q̓əmin̓əm̓: ʔiʔk̓ʷət ‘be throwing it away’	page 14, engine language, the caption of the tableau
 (27) line 2	Gloria Mellesmoen	note	/ʔiʔk̓ʷət/ *MAX-μ *FLOAT MAX DEP IDENT-WT *ʔ]σ	page 14, engine english, the input and the constraint columns of the tableau
 (27a) line 1	hən̓q̓əmin̓əm̓	transcription	ʔiʔk̓ʷət	page 14, engine language, the winning candidate, marked on the page with a pointing hand
@@ -378,7 +378,7 @@ footnote 15	Gloria Mellesmoen	note	15 This constraint is likely more narrow than
 §4.2	Halq̓eméylem	cited form	ʔiːməx	page 15, ‘walking’, Zimmermann 2017
 §4.2	Gloria Mellesmoen	notation	ʔə	Zimmermann 2017's constraint *ʔə, against a syllable [ʔə]
 §5	Gloria Mellesmoen	heading	5 Discussion	page 15
-§5	Gloria Mellesmoen	note	In this paper, I have shown that:	page 15
+§5	Gloria Mellesmoen	note	In this paper, I have displayed that:	page 15
 footnote 16	Gloria Mellesmoen	note	16 I do not include *ʔ]σS̓ and IDENT-[C.G.] in the Halq̓eméylem ranking because their ranking is not crucial because higher ranked constraints rule out glottalised sonorants in the language; these constraints could have the same ranking as in hən̓q̓əmin̓əm̓.	page 15, footnote
 §5	Gloria Mellesmoen	notation	ʔ]σS̓	the constraint *ʔ]σS̓, defined in (28)
 §5	Gloria Mellesmoen	language	Halq̓eméylem	Upriver Halkomelem, whose imperfectives the paper analyses in Section 4

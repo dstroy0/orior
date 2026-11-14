@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// ksg_writing.h: a file written whole, and sealed as it is written where it is of a kind ksg seals: the file and its
+// ksg_writing.h: a file written whole, and sealed as it is written where it is of a type ksg seals: the file and its
 // seal each written beside its place under a name of the writer's, made durable, and put in its place, the file first
 // and then its seal, so a write that fails leaves the file and the seal it would have replaced as they were, and one
 // cut between the two leaves a file its old seal does not match (ksg_writing.c)
@@ -31,7 +31,7 @@ extern "C"
     } KsgWriting;
 
     // the file `path` begun, written at its path with `beside` after it, and its seal begun the same way where the
-    // file is of a kind ksg seals: 1, or 0 where one could not be made
+    // file is of a type ksg seals: 1, or 0 where one could not be made
     int ksg_writing_begun(KsgWriting *writing, const char *path, const char *beside);
     // `size` bytes written after those before, and sealed where the file is, the shape of a line's flush: 1, or 0
     // where they did not go

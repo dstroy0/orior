@@ -25,8 +25,8 @@
 # named by the run that declined to read it.
 #
 # EVERY EXCLUSION STATES ITS REASON IN THE SOURCE AND NOT ONLY ITS RULE. A bare list of paths is the
-# kind of thing a later maintainer deletes as overcautious, and they are right to: a rule nobody can
-# check is a rule nobody can keep. A list saying why survives.
+# type of thing a later maintainer deletes as overcautious, and they are right to: a rule nobody can
+# check is a rule nobody can retain. A list saying why survives.
 #
 # EVERY RULE HERE IS A FIRST-CLASS RULE AND NOT A SPECIAL CASE. Each one has a name, a reason, a
 # measured cost and a test. A special case is a rule with none of those, and it is the thing the
@@ -34,10 +34,10 @@
 
 
 class Ledger(object):
-    """What a run excluded and why, kept so the run can say so.
+    """What a run excluded and why, retained so the run can say so.
 
     Held in first-appearance order, because the order an exclusion first fires is the order a reader
-    meets the tree. Sites are kept whole and not only counted: the question after a surprising count
+    meets the tree. Sites are retained whole and not only counted: the question after a surprising count
     is always which ones, and a ledger that cannot answer it sends a reader back to the source.
 
     A caller passing no ledger still gets the exclusion. Recording is the optional part, never the
@@ -60,14 +60,14 @@ class Ledger(object):
     def total(self):
         return sum(len(one) for one in self.held.values())
 
-    def report(self, shown=8):
+    def report(self, displayed=8):
         """Printable lines naming each rule, its reason, its count and the sites it fired on."""
         out = []
         for key in self.order:
             sites = self.held[key]
             out.append("    %s: %d, %s" % (key[0], len(sites), key[1]))
-            for one in sites[:shown]:
+            for one in sites[:displayed]:
                 out.append("      %s" % one)
-            if len(sites) > shown:
-                out.append("      ... and %d more" % (len(sites) - shown))
+            if len(sites) > displayed:
+                out.append("      ... and %d more" % (len(sites) - displayed))
         return out

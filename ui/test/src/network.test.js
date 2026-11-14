@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The network: Off the Network refusing each reach, saying what it was for; Network listing each
-// address reached with when and what for; and this machine's own addresses neither kept nor listed.
+// address reached with when and what for; and this machine's own addresses neither retained nor listed.
 
 import { invoke } from "../../gui/src-js/bridge.js";
 import { runCommand } from "../../gui/src-js/menubar.js";
@@ -31,7 +31,7 @@ test("Off the Network refuses each reach, saying what it was for, and lets this 
 
 test("Network lists each address reached, with when and what for, and turns Off the Network on and off", async () => {
   const before = Date.now();
-  // The address answers no one; its reach is kept as it starts, before the wait for an answer.
+  // The address answers no one; its reach is retained as it starts, before the wait for an answer.
   send(AWAY).catch(() => {});
   await ui.waitFor(async () => (await invoke("network_reached")).some((one) => one.address === AWAY && one.at >= before - 1000), 5000);
   const reached = (await invoke("network_reached")).find((one) => one.address === AWAY);
@@ -44,7 +44,7 @@ test("Network lists each address reached, with when and what for, and turns Off 
   const box = document.querySelector(".sheet-network input[type=checkbox]");
   assert.equal(box.checked, false);
   await ui.click(box);
-  await ui.waitFor(() => offNetwork() && /kept off the network/.test(document.querySelector(".network-said").textContent), 2000);
+  await ui.waitFor(() => offNetwork() && /retained off the network/.test(document.querySelector(".network-said").textContent), 2000);
   document.querySelector("dialog.sheet")?.close();
   runCommand("network-off", ["off"]);
   await ui.waitFor(() => !offNetwork(), 2000);

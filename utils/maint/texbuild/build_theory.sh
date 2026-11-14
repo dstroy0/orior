@@ -5,7 +5,7 @@
 #
 # Two passes, because the table of contents is written on the first and read on the second. The
 # engine is xelatex and not pdflatex: these research papers quote Salishan orthography, IPA and Greek, and
-# pdflatex stops with a fatal error on the first Greek letter it meets. It is xelatex and not
+# pdflatex stops with a fatal error on the first Greek character it meets. It is xelatex and not
 # lualatex because arXiv runs xelatex and does not run lualatex, and a local build on a different
 # engine from the archive's proves nothing about the archive's.
 #
@@ -14,12 +14,12 @@
 # theory/theory/delta_null is theory/theory/delta_null/delta_null.pdf. A paper that fails, or that
 # drops a glyph, leaves the PDF beside its source as it was. A paper with a generate.sh beside its
 # main.tex has it run first, and the files it generates are written where it puts them. With
-# THEORY_GENERATE=0 no generate.sh runs and the paper is set from its files as they stand. The
+# THEORY_GENERATE=0 no generate.sh runs and the paper is set from its files as they are. The
 # pre-commit hook calls this with THEORY_GENERATE=0.
 #
 # A missing glyph is reported by the engine as "Missing character" and is otherwise silent: the
-# letter is dropped from the PDF and the run still succeeds. This script counts them and fails when
-# any research paper drops one, because a research paper about a language that drops a letter of it is wrong.
+# character is dropped from the PDF and the run still succeeds. This script counts them and fails when
+# any research paper drops one, because a research paper about a language that drops a character of it is wrong.
 
 set -e
 
@@ -36,9 +36,9 @@ if [ $# -gt 0 ]; then
     RESEARCH_PAPERS=$*
 else
     # Two depths, because a research paper sits on a shelf and may sit under a subject directory too:
-    # theory/<shelf>/<research_paper>/ as most do, and theory/theory/<subject>/<research_paper>/ as the cryptography
+    # theory/<shelf>/<research_paper>/ as max do, and theory/theory/<subject>/<research_paper>/ as the cryptography
     # one does. The shelves are theory/, workbooks/ and thought_experiments/. The path below
-    # theory/ is kept, and not the basename, since the loop below joins that back onto
+    # theory/ is retained, and not the basename, since the loop below joins that back onto
     # $ROOT.
     RESEARCH_PAPERS=$(for one in "$ROOT"/theory/*/*/main.tex "$ROOT"/theory/*/*/*/main.tex; do
         [ -f "$one" ] || continue
@@ -76,7 +76,7 @@ for research_paper in $RESEARCH_PAPERS; do
     fi
     # A paper whose figures are measured carries a generate.sh beside its main.tex, and it runs before
     # the paper is set. The paper is then built from what the checks measure now. A generator prints
-    # "  wrote <path>" for each file it rewrites, shown here. A generator that fails fails its paper.
+    # "  wrote <path>" for each file it rewrites, displayed here. A generator that fails fails its paper.
     if [ -f "$src/generate.sh" ] && [ "${THEORY_GENERATE:-1}" != 0 ]; then
         if ! bash "$src/generate.sh" > "$out/generate.log" 2>&1; then
             echo "  $research_paper: generate.sh failed, see $out/generate.log"
@@ -105,7 +105,7 @@ for research_paper in $RESEARCH_PAPERS; do
     fi
 
     # grep -c exits 1 when it counts nothing. The count is taken with the exit ignored. Piping
-    # through wc keeps a single number even when the log is absent.
+    # through wc retains a single number even when the log is absent.
     dropped=$(grep -c "^Missing character" "$out/main.log" 2>/dev/null | head -n 1)
     dropped=${dropped:-0}
     bytes=$(wc -c < "$out/main.pdf")

@@ -8,7 +8,7 @@
 #
 #   Usage:  python examples/0_experimental/exact_check_ladder.py
 #
-# This reads no corpus. It sits in 0_experimental: arithmetic results shown working instead of a stage
+# This reads no corpus. It sits in 0_experimental: arithmetic results displayed working instead of a stage
 # reading. It takes four checks the coding-theory and arithmetic fields already use and runs them one
 # above the other. Each has a floor, a fault it cannot see, and the next check up the ladder sees that
 # fault. The point of the ladder is the same as the point of the whole engine: a necessary condition
@@ -24,7 +24,7 @@
 #                       naming its position. Floor: two bit errors defeat it, the reason the residue
 #                       code beside this file adds redundancy for more.
 #
-# Positive control: clean data passes every check. Drawn null: each check is shown the exact fault it
+# Positive control: clean data passes every check. Drawn null: each check is displayed the exact fault it
 # catches and the exact fault it misses. No bounding: every check is an integer or bit comparison, and
 # the faults are constructed. None is sampled for a threshold.
 

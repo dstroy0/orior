@@ -29,7 +29,7 @@ const span = (line, from, to) => ({ from: pos(line, from), to: pos(line, to) });
 // A row of an oracle table as the hover and the definitions list show it.
 export function rowOf(table, row) {
   const at = (name) => row[column(table, name)] ?? "";
-  return { where: at("where"), who: at("who"), kind: at("kind"), form: at("form"), gloss: at("gloss") };
+  return { where: at("where"), who: at("who"), type: at("type"), form: at("form"), gloss: at("gloss") };
 }
 
 // The word a form opens with, where it opens with one: `form <name> ... = <text>` gives form, and
@@ -48,7 +48,7 @@ function hoverText(rows, table) {
   return rows.map((row) => {
     const said = rowOf(table, row);
     const by = said.who && said.who !== "-" ? `, ${table.columns[1]} ${said.who}` : "";
-    return `**${said.kind}**\n\n\`${said.form}\`\n\n${said.gloss}\n\n_${table.columns[0]} ${said.where}${by}_`;
+    return `**${said.type}**\n\n\`${said.form}\`\n\n${said.gloss}\n\n_${table.columns[0]} ${said.where}${by}_`;
   });
 }
 
@@ -65,7 +65,7 @@ function snippet(form) {
 function lineLanguage(type) {
   const table = type.table;
   const rows = table.rows.map((row) => rowOf(table, row));
-  const commented = rows.some((row) => row.kind === "comment" && row.form.startsWith("#"));
+  const commented = rows.some((row) => row.type === "comment" && row.form.startsWith("#"));
   return {
     id: `kfile:${type.ext}`,
     grammar: null,
@@ -99,7 +99,7 @@ function lineLanguage(type) {
           continue;
         }
         seen.add(row.form);
-        items.push({ label: key, kind: "keyword", detail: row.form, doc: row.gloss, insert: snippet(row.form), snippet: true });
+        items.push({ label: key, type: "keyword", detail: row.form, doc: row.gloss, insert: snippet(row.form), snippet: true });
       }
       return items;
     },
@@ -122,9 +122,9 @@ function gsmHover(gsmType, asm, words, doc, at) {
   const table = gsmType?.table;
   if (word && words.mnemonics.includes(word.text)) {
     const cell = (row, name) => row[column(asm, name)] ?? "";
-    const kept = asm.rows.filter((row) => cell(row, "mnemonic") === word.text);
-    const lines = kept.map((row) => `${cell(row, "table")}: \`${cell(row, "past")} ${cell(row, "arrow") || ""} ${cell(row, "present")}\``);
-    const mnemonicRows = table ? table.rows.filter((row) => rowOf(table, row).kind === "mnemonic") : [];
+    const retained = asm.rows.filter((row) => cell(row, "mnemonic") === word.text);
+    const lines = retained.map((row) => `${cell(row, "table")}: \`${cell(row, "past")} ${cell(row, "arrow") || ""} ${cell(row, "present")}\``);
+    const mnemonicRows = table ? table.rows.filter((row) => rowOf(table, row).type === "mnemonic") : [];
     return { from: word.from, to: word.to, parts: [`**${word.text}**`, lines.join("\n\n"), ...(table ? hoverText(mnemonicRows, table) : [])] };
   }
   if (!table) {
@@ -134,14 +134,14 @@ function gsmHover(gsmType, asm, words, doc, at) {
   for (const arrow of [...words.arrows, "|"]) {
     for (let from = line.indexOf(arrow); from >= 0; from = line.indexOf(arrow, from + 1)) {
       if (at.col >= from && at.col < from + arrow.length) {
-        const kept = table.rows.filter((row) => rowOf(table, row).form.includes(arrow));
-        return { ...span(at.line, from, from + arrow.length), parts: hoverText(kept, table) };
+        const retained = table.rows.filter((row) => rowOf(table, row).form.includes(arrow));
+        return { ...span(at.line, from, from + arrow.length), parts: hoverText(retained, table) };
       }
     }
   }
   if (word && words.states.includes(word.text)) {
-    const kept = table.rows.filter((row) => rowOf(table, row).kind === "pair");
-    return { from: word.from, to: word.to, parts: [`**${word.text}**`, ...hoverText(kept, table)] };
+    const retained = table.rows.filter((row) => rowOf(table, row).type === "pair");
+    return { from: word.from, to: word.to, parts: [`**${word.text}**`, ...hoverText(retained, table)] };
   }
   return null;
 }
@@ -160,8 +160,8 @@ function gsmLanguage(gsmType, asm) {
       hover: (doc, at) => gsmHover(gsmType, asm, words, doc, at),
       complete() {
         return [
-          ...words.mnemonics.map((label) => ({ label, kind: "keyword", insert: label })),
-          ...words.states.map((label) => ({ label, kind: "state", insert: label })),
+          ...words.mnemonics.map((label) => ({ label, type: "keyword", insert: label })),
+          ...words.states.map((label) => ({ label, type: "state", insert: label })),
         ];
       },
     },
@@ -171,11 +171,11 @@ function gsmLanguage(gsmType, asm) {
 function gLanguage(gType, gsmType, hol, asm, gsm) {
   const cell = (row, name) => row[column(hol, name)] ?? "";
   const single = (row) => /^[A-Za-z_]\w*$/.test(cell(row, "word"));
-  const typeWords = unique(hol.rows.filter((r) => single(r) && cell(r, "kind") === "type").map((r) => cell(r, "word")));
-  const opWords = unique(hol.rows.filter((r) => single(r) && cell(r, "kind") === "core op").map((r) => cell(r, "word")));
-  const plainWords = unique(hol.rows.filter((r) => single(r) && !["type", "core op"].includes(cell(r, "kind"))).map((r) => cell(r, "word")));
+  const typeWords = unique(hol.rows.filter((r) => single(r) && cell(r, "type") === "type").map((r) => cell(r, "word")));
+  const opWords = unique(hol.rows.filter((r) => single(r) && cell(r, "type") === "core op").map((r) => cell(r, "word")));
+  const plainWords = unique(hol.rows.filter((r) => single(r) && !["type", "core op"].includes(cell(r, "type"))).map((r) => cell(r, "word")));
   const gTable = gType?.table;
-  const byType = (type) => (gTable ? gTable.rows.filter((row) => rowOf(gTable, row).kind === type) : []);
+  const byType = (type) => (gTable ? gTable.rows.filter((row) => rowOf(gTable, row).type === type) : []);
   return {
     id: "g",
     grammar: null,
@@ -223,7 +223,7 @@ function gLanguage(gType, gsmType, hol, asm, gsm) {
       if (!wordBefore(doc, at).text) {
         return [];
       }
-      const make = (label, type, detail) => ({ label, kind: type, detail, insert: label });
+      const make = (label, type, detail) => ({ label, type: type, detail, insert: label });
       return [
         ...typeWords.map((w) => make(w, "type", "type")),
         ...opWords.map((w) => make(w, "operator", "core op")),

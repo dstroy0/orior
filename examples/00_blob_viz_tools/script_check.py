@@ -13,7 +13,7 @@ that is a person opening the page, and nobody looks once the builder has said it
 
 WHAT IT DOES
 
-Pulls the inline script bodies out of the page and hands each to node --check, which parses without
+Pulls the inline script bodies out of the page and passes each to node --check, which parses without
 executing. Nothing runs, nothing is fetched, and the browser globals the script wants are never
 touched; a parse does not need them.
 
@@ -52,7 +52,7 @@ def filled(source):
     template reported as failing for that reason hides any real syntax error elsewhere in it.
 
     Substituting `null` gives the parser the shape the built page has. A marker that already carries
-    its own `null`, as `/*DATA*/ null` does, parses as it stands and is left alone. A placeholder
+    its own `null`, as `/*DATA*/ null` does, parses as it is and is left alone. A placeholder
     inside a string or a comment is substituted too. That can only turn a passing template into a
     failing one, which shows up loudly, and never hides a failure.
     """
@@ -134,14 +134,14 @@ def collisions(source):
 # wiring is the part a refactor drops without a sound.
 #
 # The runtime half is the toolbox's core/watch: it counts turns, catches and names a throw instead of
-# letting it kill the scheduler, fails a loop that turns fewer than twice, and keeps
+# letting it kill the scheduler, fails a loop that turns fewer than twice, and retains
 # window.__loopHealth for a harness to read in one call. Two turns and not one, because one turn is
 # what a dead loop produces: setup draws a frame, the first turn throws, and the result is a
 # complete, correct still picture that passes every other check in this file.
 #
 # A loop is found by what it does and never by its name. The page's own code schedules a frame with
-# requestAnimationFrame or EV.nextTurn, or hands a step to EV.watchLoop. A page's loops are watched
-# when its own code never schedules a frame itself, hands each loop to EV.watchLoop, and the page
+# requestAnimationFrame or EV.nextTurn, or passes a step to EV.watchLoop. A page's loops are watched
+# when its own code never schedules a frame itself, passes each loop to EV.watchLoop, and the page
 # carries core/watch: through a TOOL line in a template, or under its toolbox label in a built page.
 # The toolbox's own pieces are not the page's code. The watch schedules frames, and frames are
 # scheduled there and nowhere else.
@@ -153,17 +153,17 @@ PIECE = re.compile(r"^// ---- (.+?) ----$", re.MULTILINE)
 
 def own_code(source):
     """The script with every toolbox piece a build inlined taken out: the page's own code."""
-    kept = []
+    retained = []
     at = 0
     label = None
     for found in PIECE.finditer(source):
         if label is None or not label.startswith("toolbox/"):
-            kept.append(source[at:found.start()])
+            retained.append(source[at:found.start()])
         label = found.group(1)
         at = found.end()
     if label is None or not label.startswith("toolbox/"):
-        kept.append(source[at:])
-    return "".join(kept)
+        retained.append(source[at:])
+    return "".join(retained)
 
 
 def page_tools(text):

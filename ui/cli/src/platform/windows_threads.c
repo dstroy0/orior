@@ -76,7 +76,7 @@ void cli_wake_all(const CliWakeCtx *args)
 
 static DWORD WINAPI cli_thread_entry(LPVOID supplied)
 {
-    // the thread is handed what it runs, which its starter retains for as long as the thread lives
+    // the thread is passed what it runs, which its starter retains for as long as the thread lives
     const CliThread *const thread = (const CliThread *)supplied;
     EMBED_CALL(cli_words_err_msg_internal.priority_own, CliWordsErrMsgCtx, .priority = thread->priority);
     thread->run(thread->context);

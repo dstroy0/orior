@@ -55,11 +55,11 @@ void cli_inspect_paint_begin(const CliInspectSizeSrcParsedCtx *args)
             at += 1u;
             continue;
         }
-        unsigned int letter = 0u;
-        at += EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+        unsigned int character = 0u;
+        at += EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                          .text_bytes = (const unsigned char *)args->src, .length = args->size, .at = at,
-                         .letter = &letter);
-        width += (letter >= 0x10000u) ? 2u : 1u;
+                         .character = &character);
+        width += (character >= 0x10000u) ? 2u : 1u;
     }
     memor.set(&(MemoriaCfg){.dst = s_column,
                             .val = 0,
@@ -99,7 +99,7 @@ void cli_inspect_paint_runs(const CliInspectSizeSrcParsedCtx *args)
 {
     args->parsed->runs = 0u;
     args->parsed->lines = 0u;
-    // a parse handed no storage for its lines counts the runs and lines it would contain
+    // a parse passed no storage for its lines counts the runs and lines it would contain
     const int has_lines = (args->parsed->line_first != NULL);
     for (unsigned int line = 0u; line < s_lines; line += 1u)
     {
@@ -121,7 +121,7 @@ void cli_inspect_paint_runs(const CliInspectSizeSrcParsedCtx *args)
             const int extends = has_run && (class_of == columns[col]);
             if (extends && has_lines)
             {
-                // a column of a line stored is at most 16M, which a run's ends count
+                // a column of a line stored is at max 16M, which a run's ends count
                 args->parsed->run[args->parsed->runs - 1u].to = (unsigned int)col + 1u;
             }
             if (extends)
@@ -226,7 +226,7 @@ unsigned int cli_inspect_folds_get(const CliInspectCountCfg *args)
 
 void cli_inspect_folds_finish(const CliInspectSizeSrcParsedCtx *args)
 {
-    // a parse that counts records the folds put as the most it contains
+    // a parse that counts records the folds put as the max it contains
     if (args->parsed->fold_first != NULL)
     {
         args->parsed->folds =
@@ -240,7 +240,7 @@ typedef struct
     CliInspectPosition one;
     CliInspectPosition other;
 } InspectPaintCtx;
-// whether `one` stands at or before `other`
+// whether `one` is at or before `other`
 EMBED_INLINE int paint_before(const InspectPaintCtx *args)
 {
     return (args->one.line < args->other.line) ||
@@ -266,7 +266,7 @@ static int paint_range_order(const void *one, const void *other)
 unsigned int cli_inspect_ranges_at(const CliInspectRangesCfg *args)
 {
     unsigned int range_count = 0u;
-    for (unsigned int at = 0u; (at < args->count) && (range_count < args->most); at += 1u)
+    for (unsigned int at = 0u; (at < args->count) && (range_count < args->max); at += 1u)
     {
         const CliInspectSpan span = args->ranges_read[at];
         const int same = (span.from.line == args->from.line) && (span.from.col == args->from.col) &&

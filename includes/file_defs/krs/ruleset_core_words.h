@@ -55,17 +55,17 @@ enum RulesetCoreEnd
     RULESET_CORE_UNNAMED = 15
 };
 
-// a string as the reader stores it: where its letters begin, and how many
+// a string as the reader stores it: where its characters begin, and how many
 struct RulesetCoreSpan
 {
     unsigned int first;
     unsigned int length;
 };
 
-// the schema as the reader takes it: each name's letters in `letters`, and each form's count of parameters
+// the schema as the reader takes it: each name's characters in `characters`, and each form's count of parameters
 struct RulesetCoreSchema
 {
-    const unsigned char *letters;
+    const unsigned char *characters;
     const RulesetCoreSpan *forms;
     const unsigned int *form_parameters;
     unsigned int form_count;
@@ -86,7 +86,7 @@ struct RulesetCoreTemplate
 // a PseudoOperand, its text a span of the file
 struct RulesetCoreArgument
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int placeholder;
     unsigned int number;
     RulesetCoreSpan text;
@@ -114,11 +114,11 @@ struct RulesetCoreRead
     RulesetCoreSchema schema;
     const unsigned char *text;
     unsigned int text_length;
-    unsigned int letter_capacity;
+    unsigned int character_capacity;
     unsigned int piece_capacity;
     unsigned int word_capacity;
-    unsigned char *letters;
-    unsigned int letter_count;
+    unsigned char *characters;
+    unsigned int character_count;
     RulesetCoreSpan *pieces;
     unsigned int piece_count;
     unsigned int *placeholders;
@@ -167,7 +167,7 @@ struct RulesetCoreRead
 #define RULESET_CORE_IS_SCRATCH(placeholder_)                                                                          \
     (((placeholder_) >= RULESET_CORE_SCRATCH_PLACE) && ((placeholder_) < RULESET_CORE_FIXED_PLACE))
 
-// 1 where the `length` letters at `left` are the `other` letters at `right`, as std::string's == gives it
+// 1 where the `length` characters at `left` are the `other` characters at `right`, as std::string's == gives it
 CODEGEN_CORE int ruleset_core_equal(const unsigned char *left, unsigned int length, const unsigned char *right,
                                     unsigned int other)
 {
@@ -190,20 +190,20 @@ CODEGEN_CORE int ruleset_core_is(const RulesetCoreRead *read, RulesetCoreSpan wo
     return ruleset_core_equal(&read->text[word.first], word.length, (const unsigned char *)literal, length);
 }
 
-// the place of `letter` in the file's span `within` from `from` on, or its length where it is not there, as
-// std::string::find gives it and the length stands for npos
-CODEGEN_CORE unsigned int ruleset_core_find_letter(const RulesetCoreRead *read, RulesetCoreSpan within,
-                                                   unsigned char letter, unsigned int from)
+// the place of `character` in the file's span `within` from `from` on, or its length where it is not there, as
+// std::string::find gives it and the length is for npos
+CODEGEN_CORE unsigned int ruleset_core_find_character(const RulesetCoreRead *read, RulesetCoreSpan within,
+                                                   unsigned char character, unsigned int from)
 {
     unsigned int found = within.length;
     for (unsigned int at = from; (found == within.length) && (at < within.length); at += 1u)
     {
-        found = (read->text[within.first + at] == letter) ? at : found;
+        found = (read->text[within.first + at] == character) ? at : found;
     }
     return found;
 }
 
-// the file's span `word` from `at`, `length` letters long, as std::string::substr gives it
+// the file's span `word` from `at`, `length` characters long, as std::string::substr gives it
 CODEGEN_CORE RulesetCoreSpan ruleset_core_part(RulesetCoreSpan word, unsigned int at, unsigned int length)
 {
     const unsigned int part_length = (length < (word.length - at)) ? length : (word.length - at);
@@ -218,7 +218,7 @@ CODEGEN_CORE unsigned int ruleset_core_find(const RulesetCoreRead *read, const R
     unsigned int found = count;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        found = ruleset_core_equal(&read->text[word.first], word.length, &read->schema.letters[names[at].first],
+        found = ruleset_core_equal(&read->text[word.first], word.length, &read->schema.characters[names[at].first],
                                    names[at].length)
                     ? at
                     : found;
@@ -233,7 +233,7 @@ CODEGEN_CORE unsigned int ruleset_core_words(RulesetCoreRead *read, RulesetCoreS
     unsigned int at = 0u;
     while (at < head.length)
     {
-        const unsigned int end = ruleset_core_find_letter(read, head, (unsigned char)' ', at);
+        const unsigned int end = ruleset_core_find_character(read, head, (unsigned char)' ', at);
         if (end > at)
         {
             const RulesetCoreSpan word = {head.first + at, end - at};
@@ -248,21 +248,21 @@ CODEGEN_CORE unsigned int ruleset_core_words(RulesetCoreRead *read, RulesetCoreS
 // a piece begun after the pieces written, empty
 CODEGEN_CORE void ruleset_core_piece(RulesetCoreRead *read)
 {
-    const RulesetCoreSpan piece = {read->letter_count, 0u};
+    const RulesetCoreSpan piece = {read->character_count, 0u};
     read->pieces[read->piece_count] = piece;
     read->piece_count += 1u;
 }
 
-// `letter` written onto the last piece, which the letters written end with
-CODEGEN_CORE void ruleset_core_letter(RulesetCoreRead *read, unsigned char letter)
+// `character` written onto the last piece, which the characters written end with
+CODEGEN_CORE void ruleset_core_character(RulesetCoreRead *read, unsigned char character)
 {
-    read->letters[read->letter_count] = letter;
-    read->letter_count += 1u;
+    read->characters[read->character_count] = character;
+    read->character_count += 1u;
     read->pieces[read->piece_count - 1u].length += 1u;
 }
 
 // the span `inner` of the file read as a scratch register, `bank:digits`: the bank one of the schema's, by its place,
-// into `bank`, and the number, five digits at most and below 65536, into `number`. 1 where it is one, else 0
+// into `bank`, and the number, five digits at max and below 65536, into `number`. 1 where it is one, else 0
 CODEGEN_CORE int ruleset_core_scratch_word(const RulesetCoreRead *read, RulesetCoreSpan inner, unsigned int *bank,
                                            unsigned int *number)
 {
@@ -280,7 +280,7 @@ CODEGEN_CORE int ruleset_core_scratch_word(const RulesetCoreRead *read, RulesetC
     for (unsigned int named = 0u; named < read->schema.bank_count; named += 1u)
     {
         *bank =
-            ruleset_core_equal(&read->text[inner.first], colon, &read->schema.letters[read->schema.banks[named].first],
+            ruleset_core_equal(&read->text[inner.first], colon, &read->schema.characters[read->schema.banks[named].first],
                                read->schema.banks[named].length)
                 ? named
                 : *bank;
@@ -289,20 +289,20 @@ CODEGEN_CORE int ruleset_core_scratch_word(const RulesetCoreRead *read, RulesetC
     int counted = (*bank != read->schema.bank_count);
     for (unsigned int at = colon + 1u; at < inner.length; at += 1u)
     {
-        const unsigned char letter = read->text[inner.first + at];
-        counted = counted && (letter >= '0') && (letter <= '9');
-        value = (value * 10u) + (unsigned int)(letter - '0');
+        const unsigned char character = read->text[inner.first + at];
+        counted = counted && (character >= '0') && (character <= '9');
+        value = (value * 10u) + (unsigned int)(character - '0');
     }
     *number = value;
     return counted && (value < 0x10000u);
 }
 
 // the file's span `text` cut at its parameters into `form`: \t, \n and \\ are a tab, a line's end and a backslash,
-// and {p} is parameter p's argument where p is one of the `count` `parameters`, each a span of `parameter_letters`.
+// and {p} is parameter p's argument where p is one of the `count` `parameters`, each a span of `parameter_characters`.
 // With `fixed_places`, {r} where r names a fixed register of the schema is that register, its placeholder marked past
 // RULESET_CORE_FIXED_PLACE, and {b:n} where b is a bank of the schema is scratch register n of it, taken by the
 // writing (RULESET_CORE_SCRATCH_PLACEHOLDER). 0 where a backslash begins no escape the format knows
-CODEGEN_CORE int ruleset_core_split(RulesetCoreRead *read, RulesetCoreSpan text, const unsigned char *parameter_letters,
+CODEGEN_CORE int ruleset_core_split(RulesetCoreRead *read, RulesetCoreSpan text, const unsigned char *parameter_characters,
                                     const RulesetCoreSpan *parameters, unsigned int count, int fixed_places,
                                     RulesetCoreTemplate *form)
 {
@@ -315,12 +315,12 @@ CODEGEN_CORE int ruleset_core_split(RulesetCoreRead *read, RulesetCoreSpan text,
         const unsigned char character = read->text[text.first + at];
         const unsigned char next = ((at + 1u) < text.length) ? read->text[text.first + at + 1u] : (unsigned char)'\0';
         const unsigned int close =
-            (character == '{') ? ruleset_core_find_letter(read, text, (unsigned char)'}', at + 1u) : text.length;
+            (character == '{') ? ruleset_core_find_character(read, text, (unsigned char)'}', at + 1u) : text.length;
         unsigned int place = count;
         for (unsigned int parameter = 0u; (close != text.length) && (parameter < count); parameter += 1u)
         {
             place = ruleset_core_equal(&read->text[text.first + at + 1u], close - (at + 1u),
-                                       &parameter_letters[parameters[parameter].first], parameters[parameter].length)
+                                       &parameter_characters[parameters[parameter].first], parameters[parameter].length)
                         ? parameter
                         : place;
         }
@@ -329,7 +329,7 @@ CODEGEN_CORE int ruleset_core_split(RulesetCoreRead *read, RulesetCoreSpan text,
              fixed += 1u)
         {
             place = ruleset_core_equal(&read->text[text.first + at + 1u], close - (at + 1u),
-                                       &read->schema.letters[read->schema.fixed[fixed].first],
+                                       &read->schema.characters[read->schema.fixed[fixed].first],
                                        read->schema.fixed[fixed].length)
                         ? (RULESET_CORE_FIXED_PLACE + fixed)
                         : place;
@@ -349,7 +349,7 @@ CODEGEN_CORE int ruleset_core_split(RulesetCoreRead *read, RulesetCoreSpan text,
         }
         if (character == '\\')
         {
-            ruleset_core_letter(read, (next == 't') ? (unsigned char)'\t'
+            ruleset_core_character(read, (next == 't') ? (unsigned char)'\t'
                                                     : ((next == 'n') ? (unsigned char)'\n' : (unsigned char)'\\'));
             at += 2u;
         }
@@ -362,7 +362,7 @@ CODEGEN_CORE int ruleset_core_split(RulesetCoreRead *read, RulesetCoreSpan text,
         }
         else
         {
-            ruleset_core_letter(read, character);
+            ruleset_core_character(read, character);
             at += 1u;
         }
     }

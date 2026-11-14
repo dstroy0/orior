@@ -13,7 +13,7 @@ arm_rank.py reads the wall from the wrong side: 1024 cap arms at two megabytes s
 256, the source count. More arms buy nothing past that. It does not ask how FEW arms reach it, and that question only becomes answerable once the kernel is known in advance.
 
 null_first.py supplies exactly that. A degree-8 harmonic reading has rank 81 over 256 sources.
-It is blind in 175 dimensions, and an SVD hands over an explicit basis for them before any arm is
+It is blind in 175 dimensions, and an SVD passes over an explicit basis for them before any arm is
 placed. An arm's center, radius and weighting are all free. So the arms can be pointed AT the
 blindness and not sprinkled and hoped over.
 
@@ -75,7 +75,7 @@ def rank_of(matrix):
 
 
 def aimed_centers(points, basis, count):
-    """One center per kernel direction: the source where that direction weighs most."""
+    """One center per kernel direction: the source where that direction weighs max."""
     unit = arm_rank.as_unit(points)
     out = []
     for at in range(min(count, basis.shape[0])):

@@ -33,7 +33,7 @@ typedef struct
     const char *under;
     const char *name;
     char *path;
-    char letter;
+    char character;
     const char *variable;
     char *text_out;
     embed_word capacity;
@@ -114,18 +114,18 @@ void cli_lines_clear(CliRunLines *lines)
                                        .segment_bytes = sizeof(CliRunnerLine)});
     lines->text_put = 0u;
     lines->text_taken = 0u;
-    lines->laid = 1;
+    lines->positioned = 1;
 }
 
 void cli_lines_append(const CliRunnerLinesCfg *args)
 {
     CliRunLines *const lines = args->lines;
-    // the text ring keeps one byte back, so a line fills it less that byte at the most
+    // the text ring retains one byte back, so a line fills it less that byte at max
     if (args->length >= CLI_LINES_TEXT)
     {
         return;
     }
-    if (!lines->laid)
+    if (!lines->positioned)
     {
         cli_lines_clear(lines);
     }
@@ -154,9 +154,9 @@ void cli_lines_append(const CliRunnerLinesCfg *args)
 
 unsigned int cli_lines_count(const CliRunnerLinesIndexCfg *args)
 {
-    // the lines in flight are at most CLI_LINES_MAX, inside an unsigned int; the ring's entries take the ring's
+    // the lines in flight are at max CLI_LINES_MAX, inside an unsigned int; the ring's entries take the ring's
     // address unqualified, and a count moves nothing
-    return args->lines_read->laid
+    return args->lines_read->positioned
                ? (unsigned int)anularis.seg_inflight(&(AnularisCfg){.ring = &((CliRunLines *)args->lines_read)->line})
                : 0u;
 }
@@ -242,7 +242,7 @@ int cli_runner_bash(const CliRunnerNameCfg *args)
         {
             continue;
         }
-        // the folder above the one git stands in
+        // the folder above the one git is in
         char *cut = EMBED_CALL(
             cli_text_byte.last, CliTextByteCfg, .text = s_folders[at],
             .length_value = cellul.len(&(CatenaFinitaCfg){.src = s_folders[at], .cap = CLI_POOL_BYTES}), .byte = '\\');
@@ -325,7 +325,7 @@ int cli_runner_build(const CliRunnerNameCfg *args)
 
 EMBED_INLINE int cli_space(const RunnerCtx *args)
 {
-    return (args->letter == ' ') || ((args->letter >= '\t') && (args->letter <= '\r'));
+    return (args->character == ' ') || ((args->character >= '\t') && (args->character <= '\r'));
 }
 
 int cli_runner_shell_words(const CliRunnerTextCfg *args)
@@ -337,12 +337,12 @@ int cli_runner_shell_words(const CliRunnerTextCfg *args)
     const char *at = args->text;
     while (at[0] != '\0')
     {
-        const char letter = at[0];
-        if ((quote != '\0') && (letter == quote))
+        const char character = at[0];
+        if ((quote != '\0') && (character == quote))
         {
             quote = '\0';
         }
-        else if ((quote == '"') && (letter == '\\'))
+        else if ((quote == '"') && (character == '\\'))
         {
             s_word[length] = (at[1] != '\0') ? at[1] : '\\';
             length += (length + 1u < sizeof(s_word)) ? 1ULL : 0ULL;
@@ -350,15 +350,15 @@ int cli_runner_shell_words(const CliRunnerTextCfg *args)
         }
         else if (quote != '\0')
         {
-            s_word[length] = letter;
+            s_word[length] = character;
             length += (length + 1u < sizeof(s_word)) ? 1ULL : 0ULL;
         }
-        else if ((letter == '\'') || (letter == '"'))
+        else if ((character == '\'') || (character == '"'))
         {
-            quote = letter;
+            quote = character;
             started = 1;
         }
-        else if (EMBED_CALL(cli_space, RunnerCtx, .letter = letter))
+        else if (EMBED_CALL(cli_space, RunnerCtx, .character = character))
         {
             if (started)
             {
@@ -371,7 +371,7 @@ int cli_runner_shell_words(const CliRunnerTextCfg *args)
         }
         else
         {
-            s_word[length] = letter;
+            s_word[length] = character;
             length += (length + 1u < sizeof(s_word)) ? 1ULL : 0ULL;
             started = 1;
         }
@@ -416,11 +416,11 @@ EMBED_INLINE int cli_runner_text_words(const RunnerCtx *args)
     }
     const char *from = text;
     char *to = text + cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES});
-    while ((from < to) && EMBED_CALL(cli_space, RunnerCtx, .letter = from[0]))
+    while ((from < to) && EMBED_CALL(cli_space, RunnerCtx, .character = from[0]))
     {
         from += 1;
     }
-    while ((to > from) && EMBED_CALL(cli_space, RunnerCtx, .letter = to[-1]))
+    while ((to > from) && EMBED_CALL(cli_space, RunnerCtx, .character = to[-1]))
     {
         to -= 1;
     }

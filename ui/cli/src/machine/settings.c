@@ -9,7 +9,7 @@
 #include "../text/text.h"
 #include "settings_internal.h"
 
-// A file of a chain as the chain is walked: the path it is shown by, its text with its comments taken out, in a cell
+// A file of a chain as the chain is walked: the path it is displayed by, its text with its comments taken out, in a cell
 // no larger than the file, that text's bytes, and the nodes it is read into, its tokens and one over
 typedef struct
 {
@@ -33,7 +33,7 @@ static const char s_machine[] = "machine";
 
 static const char *const s_systems[3] = {"windows", "linux", "macos"};
 
-// the most bytes of a settings file read
+// the max bytes of a settings file read
 #define CLI_SETTINGS_FILE (1u << 20u)
 
 const char *cli_settings_system(void)
@@ -262,16 +262,16 @@ EMBED_INLINE void cli_show(const SettingsCtx *args)
 }
 
 // the files walked read into the chain's tree in the order walked, the tree in a cell of their nodes and bytes, the
-// tokens in a cell of the most one file contains; a problem where the cells are refused
+// tokens in a cell of the max one file contains; a problem where the cells are refused
 EMBED_INLINE void cli_chain_read(const SettingsCtx *args)
 {
     unsigned int nodes = 0u;
-    unsigned int most = 0u;
+    unsigned int max = 0u;
     unsigned long long text = 0ULL;
     for (unsigned int at = 0u; at < args->walk->count; at += 1u)
     {
         nodes += args->walk->file[at].nodes;
-        most = (args->walk->file[at].nodes > most) ? args->walk->file[at].nodes : most;
+        max = (args->walk->file[at].nodes > max) ? args->walk->file[at].nodes : max;
         text += args->walk->file[at].size;
     }
     if (args->walk->count == 0u)
@@ -279,7 +279,7 @@ EMBED_INLINE void cli_chain_read(const SettingsCtx *args)
         return;
     }
     CfgJsonToken *const tokens =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)most * sizeof(CfgJsonToken), g_cli_settings_owner);
+        g_cli_guard->temporary_buf_alloc((unsigned long long)max * sizeof(CfgJsonToken), g_cli_settings_owner);
     if ((tokens == NULL) || !EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg,
                                         .json = &args->chain->json, .nodes_max = nodes, .text_max = text,
                                         .what = "a chain of settings files", .owner = g_cli_settings_owner))
@@ -296,7 +296,7 @@ EMBED_INLINE void cli_chain_read(const SettingsCtx *args)
         VerbaLinea reason = {why, sizeof(why), 0ULL};
         const unsigned int values = EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg,
                                                .json = &args->chain->json, .text = file->plain, .size = file->size,
-                                               .tokens = tokens, .tokens_max = most, .err_msg = &reason);
+                                               .tokens = tokens, .tokens_max = max, .err_msg = &reason);
         if (values == CLI_JSON_NONE)
         {
             break;
@@ -347,7 +347,7 @@ EMBED_INLINE void cli_takes_followed(const SettingsCtx *args)
     EMBED_CALL(cli_tidy, SettingsCtx, .path = joined, .out = args->out);
 }
 
-// one file of a chain walked: the file at `next`, shown from `root`, read with its comments taken out and put on
+// one file of a chain walked: the file at `next`, displayed from `root`, read with its comments taken out and put on
 // `walking` where it is an object of settings, and `next` put as the file it takes; a problem told to `chain` where it
 // cannot be, the `first` file let be missing: 1 where the walk goes on, else 0
 EMBED_INLINE int cli_chain_step(const SettingsCtx *args)
@@ -394,7 +394,7 @@ EMBED_INLINE int cli_chain_step(const SettingsCtx *args)
         return 0;
     }
     *args->first = 0;
-    // a file's text with its comments taken out is no longer than the file; it stands for the walk's one call, as the
+    // a file's text with its comments taken out is no longer than the file; it is for the walk's one call, as the
     // walk does
     char *const plain_text = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_settings_owner);
     VerbaLinea plain = mmgr_line_over(plain_text, size + 1ULL);

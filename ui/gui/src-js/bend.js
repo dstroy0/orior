@@ -3,10 +3,10 @@
 
 // The work gives way to a part that comes onto it, as oil does to water: its outline goes round each part
 // on it with the frame's gap clear of the part, and its line bends round the part's side and foot, each
-// turn on the work's own corner curve, the rest of its edges standing where they stood. Each frame while a
+// turn on the work's own corner curve, the rest of its edges located where they was. Each frame while a
 // part moves, the boxes the parts show are read, the work's outline is worked out from them, set as the
 // work's clip and drawn as its line, each stretch of the line in the color and width of the work's edge it
-// bends from. With nothing on the work, the work's own rounded box and its line stand.
+// bends from. With nothing on the work, the work's own rounded box and its line are.
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -25,7 +25,7 @@ export function showsOnWork(box, edge) {
   shows.push({ box, edge });
 }
 
-// What sets the parts as they stand on each frame, before the work's outline is read from them.
+// What sets the parts as they are on each frame, before the work's outline is read from them.
 const before = [];
 
 export function beforeBend(set) {
@@ -33,8 +33,8 @@ export function beforeBend(set) {
 }
 
 // The parts' boxes on the work, each grown by the claim's share of the gap, in the work's own pixels: a
-// part standing beside the work the gap away from it takes nothing of it. A part come within two gaps of
-// one of the work's edges takes the work to that edge, so no sliver of the work too thin to round stands
+// part located beside the work the gap away from it takes nothing of it. A part come within two gaps of
+// one of the work's edges takes the work to that edge, so no sliver of the work too thin to round is
 // between the two as a tail.
 function holesIn(work) {
   const room = work.getBoundingClientRect();
@@ -74,7 +74,7 @@ function cornersOf(width, height, holes) {
     const y = (ys[row] + ys[row + 1]) / 2;
     return !holes.some((hole) => x > hole.left && x < hole.right && y > hole.top && y < hole.bottom);
   };
-  // Each stretch of the outline from one grid point to the next, clockwise round the region, kept by the
+  // Each stretch of the outline from one grid point to the next, clockwise round the region, retained by the
   // point it starts at.
   const next = new Map();
   const at = (x, y) => `${x},${y}`;
@@ -204,7 +204,7 @@ function drawn(corners, width, height, holes) {
   return { clip: `${clip}Z`, lines };
 }
 
-// The work's outline and line as the parts on it stand now.
+// The work's outline and line as the parts on it are now.
 export function bendWork() {
   const work = document.querySelector(".work");
   const line = work?.querySelector(":scope > .work-line");
@@ -234,8 +234,8 @@ export function bendWork() {
   }
 }
 
-// The transitions under way on the parts and the work, each kept by what runs it, and the frame drawn next. An element
-// taken out of the page while it moves hears no end of its transition, so it is let go once it stands outside the page.
+// The transitions under way on the parts and the work, each retained by what runs it, and the frame drawn next. An element
+// taken out of the page while it moves hears no end of its transition, so it is let go once it is outside the page.
 const moving = new Map();
 let frame = 0;
 

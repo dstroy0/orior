@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_diff_view.c: two texts of a file side by side: the file against the last commit lays a row each line, a line
+// test_diff_view.c: two texts of a file side by side: the file against the last commit positions a row each line, a line
 // changed on both sides, a line put in across from a gap, the lines both share level, with the bar's sentences and the
 // steps wrapping at the ends and found by the row in view; a file the last commit lacks puts every line in; a file
-// that does not differ lays no row and answers its sentence; a commit against the file, two commits the older first, a
+// that does not differ positions no row and answers its sentence; a commit against the file, two commits the older first, a
 // commit against its first parent, the clipboard against the file and two files each pair their texts and sentences;
-// a snapshot not stored is refused with why; white space set aside lays lines that differ only in it level, its box
+// a snapshot not stored is refused with why; white space set aside positions lines that differ only in it level, its box
 // pressed off while structure is on, the setting saved in orior's folder; and texts too far apart answer their sentence
 #include "ui/cli/src/code/diff_view.h"
 #include "ui/cli/src/code/git.h"
@@ -141,7 +141,7 @@ static unsigned int stepped(int direction, unsigned int at)
     return EMBED_CALL(cli_diff_view_at_row_length.step, CliDiffViewAtRowLengthCfg, .direction = direction, .at = at);
 }
 
-// the sides sentence of commit `older` against commit `newer`, or against the file as it stands for NULL, into `into`,
+// the sides sentence of commit `older` against commit `newer`, or against the file as it is for NULL, into `into`,
 // sized for 256 bytes
 static void commit_sides(char *into, const char *older, const char *newer)
 {
@@ -155,12 +155,12 @@ static void commit_sides(char *into, const char *older, const char *newer)
     }
     else
     {
-        mmgr_line_put(&line, "as it stands");
+        mmgr_line_put(&line, "as it is");
     }
     (void)mmgr_line_finish(&line);
 }
 
-void test_the_file_against_the_last_commit_lays_a_row_each_line(void)
+void test_the_file_against_the_last_commit_positions_a_row_each_line(void)
 {
     repository_created("diff_view_head", "one\ntwo\nthree\nfour\nfive\n");
     cli_unity_file(s_root, "a.txt", "one\nTWO\nthree\nfour\nFIVE\nsix\n");
@@ -175,7 +175,7 @@ void test_the_file_against_the_last_commit_lays_a_row_each_line(void)
     CliDiffViewRow past;
     TEST_ASSERT_FALSE(EMBED_CALL(cli_diff_view_at_row_length.row, CliDiffViewAtRowLengthCfg, .at = 7u, .row = &past));
     bar_is(CLI_DIFF_VIEW_BAR_LABEL, "a.txt");
-    bar_is(CLI_DIFF_VIEW_BAR_SIDES, "last commit, then as it stands");
+    bar_is(CLI_DIFF_VIEW_BAR_SIDES, "last commit, then as it is");
     bar_is(CLI_DIFF_VIEW_BAR_SPACE, "Set white space aside");
     bar_is(CLI_DIFF_VIEW_BAR_STRUCTURE, "Compare by structure");
     where_is("change 1 of 2");
@@ -215,7 +215,7 @@ void test_a_file_the_last_commit_lacks_puts_every_line_in(void)
     where_is("change 1 of 1");
 }
 
-void test_a_file_that_does_not_differ_lays_no_row(void)
+void test_a_file_that_does_not_differ_positions_no_row(void)
 {
     repository_created("diff_view_same", "one\ntwo\n");
     TEST_ASSERT_TRUE(opened(CLI_DIFF_VIEW_HEAD, "a.txt", NULL, NULL, NULL));
@@ -275,7 +275,7 @@ void test_commits_parents_the_clipboard_and_files_pair_their_texts(void)
     TEST_ASSERT_EQUAL_UINT(0u, rows());
 }
 
-void test_white_space_set_aside_lays_lines_level_and_saves_its_setting(void)
+void test_white_space_set_aside_positions_lines_level_and_saves_its_setting(void)
 {
     cli_unity_folder("diff_view_home", s_home);
     TEST_ASSERT_TRUE(EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME",
@@ -342,6 +342,6 @@ void test_no_file_is_refused(void)
     TEST_ASSERT_FALSE(EMBED_CALL(cli_diff_view_source_err_msg.open, CliDiffViewSourceErrMsgCfg, .root = NULL,
                                  .source = CLI_DIFF_VIEW_HEAD, .err_msg = &err_msg));
     (void)mmgr_line_finish(&err_msg);
-    TEST_ASSERT_EQUAL_STRING("No file is shown to compare.", s_error);
+    TEST_ASSERT_EQUAL_STRING("No file is displayed to compare.", s_error);
     bar_is(CLI_DIFF_VIEW_BAR_LABEL, "");
 }

@@ -35,7 +35,7 @@ typedef struct
 // not one; and MiB written a second, 0 where no time was spent writing
 int query_account_read(const QueryRetentionBlobCtx *args);
 double query_account_rate(const QueryRetentionCtx *args);
-// whether the part is free: no process of the tree on it, and its use at most QRY_PART_USED percent, 10 where it is
+// whether the part is free: no process of the tree on it, and its use at max QRY_PART_USED percent, 10 where it is
 // not set, over five readings a second apart; why not written into `err_msg`
 int query_part_free(const QueryRetentionContextErrMsgCtx *args);
 // the crystal's program, built against the engine in `build/qry_crystal/engine` where nvcc is found, into `binary`
@@ -76,7 +76,7 @@ struct QueryRetentionContextOwnCtx
     const QueryWriter *own;
     const char *folder;
     const char *crystal;
-    unsigned int most;
+    unsigned int max;
 };
 
 struct QueryRetentionContextFreePartCtx

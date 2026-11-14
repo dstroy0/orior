@@ -28,7 +28,7 @@ which it observes from outside without disturbing what it observes.
 
 THE HONEST PRIOR, STATED BEFORE THE RUN
 
-Null. The standing constraint in PARTITION.tsv is that no projection over the digest reduces the
+Null. The located constraint in PARTITION.tsv is that no projection over the digest reduces the
 number of evaluations, the transform workbook graded twenty hypotheses to null, and nonce_period.py
 found no period across 75 tests. Nothing here contradicts that and this tool is not expected to.
 
@@ -282,7 +282,7 @@ def _report(nonces=NONCES):
         print("  not clear its own null bar (%.4f against %.4f). Every other row above is therefore"
               % (control[0], control[1]))
         print("  uninterpretable: a null from an instrument that cannot see a signal it is being")
-        print("  handed directly is not evidence of absence. Fix this before reading anything else.")
+        print("  passed directly is not evidence of absence. Fix this before reading anything else.")
         return 1
 
     # THE FREE EXACT NULL, CHECKED AND NOT ASSUMED. Every round before the nonce enters must read
@@ -313,8 +313,8 @@ def _report(nonces=NONCES):
 
     # THE ONE POSITIVE RESULT, AND IT IS NOT ABOUT MINING. At round 64 there IS information, and the
     # two instruments do not read the same amount of it. The ratio is the measurement that supports
-    # the claim the beams were built on: a line integral keeps directional information that a region
-    # integral averages away. It says nothing about early rounds, where there is nothing to keep.
+    # the claim the beams were built on: a line integral retains directional information that a region
+    # integral averages away. It says nothing about early rounds, where there is nothing to retain.
     beam_at_64 = fired.get((64, "beam"), (0.0, 0.0, ""))[0]
     harmonic_at_64 = fired.get((64, "harmonic"), (0.0, 0.0, ""))[0]
     if harmonic_at_64 > 0.0:
@@ -384,7 +384,7 @@ def _check():
     bar = null_bar(features, carrier, shuffles=60, seed=5)
     print("  reading against one of its own columns: %.4f against a bar of %.4f" % (value, bar))
     if value <= bar:
-        print("    FAIL the instrument cannot see a signal handed to it directly")
+        print("    FAIL the instrument cannot see a signal passed to it directly")
         failed += 1
 
     # THE SAMPLE COUNT MUST NOT CHANGE THE ANSWER FOR A CONSTANT COLUMN, and the cases here

@@ -56,7 +56,7 @@ OUTRIGHT = (
     # Banned outright by code-comments section 200, which names three tokens and bounds them in
     # the same sentence: "none has a legitimate use in a comment here". `so a` and `rather` are
     # banned for documentation as well by code-documentation section 110. The third is banned
-    # in every form, in a comment and on every page alike, and the define family stands in for it.
+    # in every form, in a comment and on every page alike, and the define family is in for it.
     r"\b(?:mis)?spell(?:s|ed|ing|ings)?\b",
     r"load-bearing",
 )

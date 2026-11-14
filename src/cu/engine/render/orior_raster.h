@@ -12,7 +12,7 @@
  *
  * THE OBJECT UNDER EXAMINATION IS THE FIELD AND WHAT THE ENGINE SAW OF IT. A search over a corpus
  * produces one outcome per alignment: some probe rejected it, or every probe agreed and the full
- * compare decided it. That outcome sequence is already an image. One value per alignment, laid out
+ * compare decided it. That outcome sequence is already an image. One value per alignment, arranged
  * in corpus order, is a direct render of where the engine pruned and where it had to look harder.
  *
  * DIRECT, meaning the raster is built from the same state the search runs on, with no export step
@@ -59,7 +59,7 @@ extern "C"
      *
      * A transform is a choice about the object's shape on the page, and it changes what a reader can
      * see without changing anything measured. Run length shows in one, locality shows in another, and
-     * periodicity that a row layout smears across a scanline stands up as a column stripe.
+     * periodicity that a row layout smears across a scanline is up as a column stripe.
      *
      * @note Every transform here is a bijection on the cell index computed in integer arithmetic.
      *       The device reproduces it exactly and no transform can drop or duplicate an alignment.
@@ -69,7 +69,7 @@ extern "C"
         ORIOR_LAYOUT_ROWS = 0,       /**< Row major. Corpus order runs left to right, top to bottom. */
         ORIOR_LAYOUT_SERPENTINE = 1, /**< Row major with odd rows reversed. Neighbors stay adjacent
                                        *   across a row boundary. */
-        ORIOR_LAYOUT_COLUMNS = 2,    /**< Column major. A period near the width stands up as a stripe. */
+        ORIOR_LAYOUT_COLUMNS = 2,    /**< Column major. A period near the width is up as a stripe. */
         ORIOR_LAYOUT_DIAGONAL = 3    /**< Diagonal striping, which breaks up both axis alignments. */
     } OriorRasterLayout;
 

@@ -86,7 +86,7 @@ extern "C" long noise_crosstalk_volume(const unsigned short *volume, const unsig
     }
     const unsigned long long frames = extent[0];
     const unsigned long long voxels = extent[1] * extent[2] * extent[3];
-    // every sum is at most one sample's pairs times the widest product, 65535 squared
+    // every sum is at max one sample's pairs times the widest product, 65535 squared
     const int bounded = (frames >= 2ull) && (voxels != 0ull) && (frames <= (~0ull / voxels)) &&
                         ((frames * voxels) <= (~0ull / (65535ull * 65535ull)));
     if (!NOISE_DETECTOR_CHECK(bounded, extent, error, ENGINE_ERROR_REQUEST))
@@ -233,7 +233,7 @@ extern "C" long noise_charge_series(const unsigned short *bias, const unsigned s
     }
     const unsigned long long frames = extent[0];
     const unsigned long long voxels = extent[1] * extent[2] * extent[3];
-    // every sum is at most a series' voxel-frames times the widest square, 65535 squared, and twice the frame
+    // every sum is at max a series' voxel-frames times the widest square, 65535 squared, and twice the frame
     // differences is below 2^64 with it
     const int bounded = (frames >= 2ull) && (voxels != 0ull) && (frames <= (~0ull / voxels)) &&
                         ((frames * voxels) <= (~0ull / (65535ull * 65535ull)));

@@ -13,7 +13,7 @@ import { drawMarks, drawOutputs } from "./draw.js";
 
 // Runs a code cell on the notebook's kernel, starting the kernel where none runs.
 export async function runCell(book, cell) {
-  if (cell.kind !== "code") {
+  if (cell.type !== "code") {
     if (book.focused === cell) {
       blurCell(book);
     }
@@ -30,9 +30,9 @@ export async function runCell(book, cell) {
   try {
     const id = await invoke("kernel_execute", { key: book.path, code: cell.session.doc.text() });
     book.waiting.set(id, cell);
-    const kept = book.early.get(id) ?? [];
+    const retained = book.early.get(id) ?? [];
     book.early.delete(id);
-    kept.forEach((message) => heard(book, message));
+    retained.forEach((message) => heard(book, message));
   } catch (error) {
     cell.running = false;
     say(String(error), { failed: true });
@@ -136,7 +136,7 @@ async function ensureKernel(book) {
   const specs = await kernelSpecs();
   const spec = specs.find((one) => one.name === book.kernelName) ?? specs.find((one) => one.language.toLowerCase() === book.languageName && !one.install) ?? specs.find((one) => one.language.toLowerCase() === book.languageName);
   if (!spec) {
-    say(`The machine has no kernel for ${book.languageName}: Jupyter's kernels for it are found where Jupyter keeps them`, { failed: true });
+    say(`The machine has no kernel for ${book.languageName}: Jupyter's kernels for it are found where Jupyter retains them`, { failed: true });
     return false;
   }
   return startKernel(book, spec);
@@ -227,14 +227,14 @@ export async function checkFromTop(book) {
   try {
     await invoke("kernel_start", { key, name: spec.name });
     const finished = new Promise((resolve) => (book.check.done = resolve));
-    const code = book.cells.filter((cell) => cell.kind === "code" && cell.session.doc.text().trim());
+    const code = book.cells.filter((cell) => cell.type === "code" && cell.session.doc.text().trim());
     book.check.left = code.length;
     for (const cell of code) {
       const id = await invoke("kernel_execute", { key, code: cell.session.doc.text() });
       book.check.cells.set(id, cell);
-      const kept = book.check.early.get(id) ?? [];
+      const retained = book.check.early.get(id) ?? [];
       book.check.early.delete(id);
-      kept.forEach((message) => heardCheck(book, message));
+      retained.forEach((message) => heardCheck(book, message));
     }
     if (code.length === 0) {
       book.check.done();

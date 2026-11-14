@@ -6,12 +6,12 @@
 #include "../editor/document.h"
 #include "diff_view.h"
 
-// no line on a row's side, and the most bytes of the where sentence with its end
+// no line on a row's side, and the max bytes of the where sentence with its end
 #define CLI_DIFF_VIEW_NONE 0xffffffffu
 #define CLI_DIFF_VIEW_WHERE_MAX 48u
 
-// A row as the view lays it: the left line's number and the right's, CLI_DIFF_VIEW_NONE where the side has none, what
-// it is, and how many right lines stand above it, which rises with the rows, for a binary search by the right side
+// A row as the view positions it: the left line's number and the right's, CLI_DIFF_VIEW_NONE where the side has none, what
+// it is, and how many right lines are above it, which rises with the rows, for a binary search by the right side
 typedef struct
 {
     unsigned int left;
@@ -20,13 +20,13 @@ typedef struct
     unsigned int right_at;
 } CliDiffViewLaid;
 
-// the most bytes of the bar's label, of the sides sentence and of the sentence for two texts that do not differ, each
+// the max bytes of the bar's label, of the sides sentence and of the sentence for two texts that do not differ, each
 // with its end
 #define CLI_DIFF_VIEW_LABEL_MAX ((2u * CLI_PATH_MAX_LEN) + 8u)
 #define CLI_DIFF_VIEW_SIDES_MAX ((2u * CLI_PATH_MAX_LEN) + (2u * CLI_NAME_MAX_LEN) + 64u)
 #define CLI_DIFF_VIEW_SAME_MAX 128u
 
-// One side's lines as the view keeps them: the places of its starts, its lengths and its units in the lines cell, how
+// One side's lines as the view retains them: the places of its starts, its lengths and its units in the lines cell, how
 // many lines and how many units
 typedef struct
 {
@@ -42,7 +42,7 @@ typedef struct
 // label, the sides sentence and the sentence for two texts that do not differ in the view's own bytes. The two texts'
 // lines in one movable cell, each side's starts and lengths then its units, read by copy. The rows in one movable cell,
 // with the changes' first rows after them, sorted, read by copy. Beside the cells: how many rows and changes, the
-// change the view stands at, whether a view is open, whether the two texts were too far apart, the two options, and
+// change the view is at, whether a view is open, whether the two texts were too far apart, the two options, and
 // the where sentence with its bytes
 typedef struct
 {
@@ -85,7 +85,7 @@ typedef struct
 
 extern CliDiffView g_cli_diff_view;
 
-// the where sentence written for the change the view stands at, empty while none differ (diff_view.c)
+// the where sentence written for the change the view is at, empty while none differ (diff_view.c)
 void cli_diff_view_where_written(const CliDiffViewAtRowLengthCfg *args);
 
 #endif

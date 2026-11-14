@@ -8,7 +8,7 @@
 #
 # A candidate does not have to look like a member. The corpus at this n has not seen its own
 # alphabet: support is still climbing on every one of these languages. Resembling what is
-# already there is the wrong test and would keep the corpus small forever.
+# already there is the wrong test and would retain the corpus small forever.
 #
 # What can be asked is whether the corpus stays on its curve. A pure corpus growing on more of the
 # same language adds support slowly and holds its split-half distance roughly level. Tipping in the
@@ -18,7 +18,7 @@
 #
 # So candidates are sorted by distance to the corpus and admitted in batches while D_self stays
 # inside the band the corpus was already in. Admission stops at the first batch that leaves it.
-# Admitted rows are written out. The rest is kept, with the batch number that rejected it. The
+# Admitted rows are written out. The rest is retained, with the batch number that rejected it. The
 # boundary is then visible and not left implied.
 
 import collections

@@ -68,7 +68,7 @@
 .md-tabs__link {
   font-family: var(--orior-head-font);
   font-weight: 500;
-  letter-spacing: 0.01em;
+  character-spacing: 0.01em;
   opacity: 0.72;
 }
 
@@ -85,7 +85,7 @@
 .md-header__title {
   font-family: var(--orior-head-font);
   font-weight: 700;
-  letter-spacing: -0.02em;
+  character-spacing: -0.02em;
 }
 
 .md-search__form {
@@ -93,7 +93,7 @@
 }
 
 /* Where the page links show as a row, they sit in the header row itself, centered on the page, and
- * the bar is one line. The page title in the header gives up its place to them and keeps its width,
+ * the bar is one line. The page title in the header gives up its place to them and retains its width,
  * which holds the search at the right, and the repository link there is its mark alone. */
 @media screen and (min-width: 76.25em) {
   .md-header {
@@ -213,7 +213,7 @@
   font-size: 2.1em;
   font-weight: 700;
   line-height: 1.15;
-  letter-spacing: -0.025em;
+  character-spacing: -0.025em;
   text-wrap: balance;
 }
 
@@ -221,7 +221,7 @@
   margin-top: 2.2em;
   font-size: 1.45em;
   font-weight: 650;
-  letter-spacing: -0.015em;
+  character-spacing: -0.015em;
   text-wrap: balance;
 }
 
@@ -238,7 +238,7 @@
 .md-typeset h3 {
   font-size: 1.12em;
   font-weight: 650;
-  letter-spacing: -0.01em;
+  character-spacing: -0.01em;
 }
 
 .md-typeset a {
@@ -387,7 +387,7 @@
   margin: 0 0 1.1rem;
 }
 
-/* While the line beside the name comes together, each letter is its own box, and the beam is a thin
+/* While the line beside the name comes together, each character is its own box, and the beam is a thin
  * rule brightest at its head. orior.js adds both and takes both away when the line is home. */
 .orior-word {
   white-space: nowrap;
@@ -411,8 +411,8 @@
   animation: orior-hold 0s linear 1.6s both;
 }
 
-/* A letter in its own box is set without the kerning or the ligatures of the text around it, so the
- * line is set the same way throughout: the letters land where the plain text puts them. */
+/* A character in its own box is set without the kerning or the ligatures of the text around it, so the
+ * line is set the same way throughout: the characters land where the plain text puts them. */
 .md-typeset .orior-title .orior-lede {
   font-kerning: none;
   font-variant-ligatures: none;
@@ -456,7 +456,7 @@
   font-size: 4.2rem;
   font-weight: 700;
   line-height: 1;
-  letter-spacing: -0.055em;
+  character-spacing: -0.055em;
   color: #ffffff;
 }
 
@@ -474,7 +474,7 @@
   font-size: 1.2rem;
   font-weight: 500;
   line-height: 1.4;
-  letter-spacing: -0.005em;
+  character-spacing: -0.005em;
   color: #e8e6f7;
 }
 
@@ -538,7 +538,7 @@
   font-size: 1.6rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums lining-nums;
-  letter-spacing: -0.03em;
+  character-spacing: -0.03em;
   line-height: 1.1;
   color: var(--md-default-fg-color);
 }
@@ -627,7 +627,7 @@
 .md-typeset .grid.cards strong {
   font-family: var(--orior-head-font);
   font-weight: 650;
-  letter-spacing: -0.01em;
+  character-spacing: -0.01em;
 }
 
 .md-typeset .grid.cards .lg {

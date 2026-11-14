@@ -26,14 +26,14 @@ def load():
     by_round = {}
     with open(SOURCE, newline="") as handle:
         for row in csv.DictReader(handle):
-            if row["kind"] != "residue":
+            if row["type"] != "residue":
                 continue
             by_round.setdefault(int(row["round"]), {})[int(row["a"])] = float(row["value"])
     return by_round
 
 
 def ranked(values):
-    """Classes ordered by deviation from the class mean, most positive first."""
+    """Classes ordered by deviation from the class mean, max positive first."""
     mean = sum(values) / len(values)
     order = sorted(range(len(values)), key=lambda k: values[k] - mean, reverse=True)
     return order, mean
@@ -46,7 +46,7 @@ def main():
 
     by_round = load()
 
-    print("Top six residue classes by deviation from the class mean, most positive first.")
+    print("Top six residue classes by deviation from the class mean, max positive first.")
     print("Sigma0 rotates by %s, Sigma1 by %s.\n" % (SIGMA0, SIGMA1))
     print("%6s   %s" % ("round", "ranking"))
     print("%6s   %s" % ("------", "-" * 46))

@@ -8,42 +8,42 @@
 
 typedef struct
 {
-    unsigned int letter;
+    unsigned int character;
     const CliRequestsAnswer *answer;
-    unsigned long long most;
+    unsigned long long max;
     VerbaLinea *out;
     const CliRequestsSent *sent;
     const CliRequestsTimes *times;
 } RequestsAnswerCtx;
 
-// the bytes of a UTF-8 letter
-EMBED_INLINE unsigned long long answer_letter_size(const RequestsAnswerCtx *args)
+// the bytes of a UTF-8 character
+EMBED_INLINE unsigned long long answer_character_size(const RequestsAnswerCtx *args)
 {
-    if (args->letter < 0x80u)
+    if (args->character < 0x80u)
     {
         return 1u;
     }
-    if (args->letter < 0x800u)
+    if (args->character < 0x800u)
     {
         return 2u;
     }
-    if (args->letter < 0x10000u)
+    if (args->character < 0x10000u)
     {
         return 3u;
     }
     return 4u;
 }
 
-// the body written as a JSON string, its text cut to `most` bytes at a letter's start: 1 where it was cut
+// the body written as a JSON string, its text cut to `max` bytes at a character's start: 1 where it was cut
 EMBED_INLINE int answer_body(const RequestsAnswerCtx *args)
 {
     VerbaLinea *out = args->out;
     if (args->answer->binary)
     {
         const unsigned long long whole = ((args->answer->size + 2u) / 3u) * 4u;
-        const unsigned long long letters = (whole < args->most) ? whole : args->most;
-        const unsigned long long groups = letters / 4u;
-        const unsigned long long rest = letters % 4u;
+        const unsigned long long characters = (whole < args->max) ? whole : args->max;
+        const unsigned long long groups = characters / 4u;
+        const unsigned long long rest = characters % 4u;
         mmgr_line_ch(out, '"');
         EMBED_CALL(cli_base64_table.base64, CliBase64Cfg, .out = out, .bytes = args->answer->body, .size = groups * 3u);
         if (rest > 0u)
@@ -56,21 +56,21 @@ EMBED_INLINE int answer_body(const RequestsAnswerCtx *args)
             mmgr_line_put_n(out, last, rest);
         }
         mmgr_line_ch(out, '"');
-        return letters < whole;
+        return characters < whole;
     }
     unsigned long long bytes = 0ULL;
     unsigned long long text = 0ULL;
     while (bytes < args->answer->size)
     {
-        unsigned int letter = 0u;
+        unsigned int character = 0u;
         const unsigned long long reserved =
-            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg, .text_bytes = args->answer->body,
-                       .length = args->answer->size, .at = bytes, .letter = &letter);
-        if (text + EMBED_CALL(answer_letter_size, RequestsAnswerCtx, .letter = letter) > args->most)
+            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg, .text_bytes = args->answer->body,
+                       .length = args->answer->size, .at = bytes, .character = &character);
+        if (text + EMBED_CALL(answer_character_size, RequestsAnswerCtx, .character = character) > args->max)
         {
             break;
         }
-        text += EMBED_CALL(answer_letter_size, RequestsAnswerCtx, .letter = letter);
+        text += EMBED_CALL(answer_character_size, RequestsAnswerCtx, .character = character);
         bytes += reserved;
     }
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
@@ -171,7 +171,7 @@ void cli_requests_answer_write(const CliRequestsOutCtx *args)
     EMBED_CALL(answer_headers, RequestsAnswerCtx, .answer = args->answer, .out = args->out);
     mmgr_line_put(args->out, ",\"body\":");
     const int cut =
-        EMBED_CALL(answer_body, RequestsAnswerCtx, .answer = args->answer, .most = args->most, .out = args->out);
+        EMBED_CALL(answer_body, RequestsAnswerCtx, .answer = args->answer, .max = args->max, .out = args->out);
     mmgr_line_put(args->out, args->answer->binary ? ",\"binary\":true,\"size\":" : ",\"binary\":false,\"size\":");
     mmgr_line_decimal(args->out, args->answer->size, 1u);
     mmgr_line_put(args->out, (args->answer->cut || cut) ? ",\"cut\":true,\"times\":" : ",\"cut\":false,\"times\":");

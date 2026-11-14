@@ -10,7 +10,7 @@
 typedef struct CliDbWireCfg CliDbWireCfg;
 typedef struct CliDbWireOutCfg CliDbWireOutCfg;
 
-// the bytes of each field of a failure; the most columns a result has, as PostgreSQL's 1664 targets; the bytes of a
+// the bytes of each field of a failure; the max columns a result has, as PostgreSQL's 1664 targets; the bytes of a
 // column's type name; and of the tag a statement ended with
 #define CLI_DB_FIELD 2048u
 #define CLI_DB_COLUMNS 1664u
@@ -60,7 +60,7 @@ typedef struct
     unsigned int count;
 } CliDbRowCfg;
 
-// a row read, `count` values of it, handed on: 1 to read on, 0 to stop
+// a row read, `count` values of it, passed on: 1 to read on, 0 to stop
 typedef int (*CliDbRowFn)(const CliDbRowCfg *args);
 
 // a failure of nothing but `message`; and a failure written as the reader reads it: its message, its code after it,

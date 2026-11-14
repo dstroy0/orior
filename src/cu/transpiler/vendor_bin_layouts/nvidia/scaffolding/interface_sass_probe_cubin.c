@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // interface_sass_probe_cubin.c: a cubin written from text. The probe learns what the part contains by reading its
 // tools; this is the other direction, putting instructions of the interface's own into a cubin the part will load and
-// run, with a cubin the toolchain built standing as the pattern for everything an ELF carries that no instruction
+// run, with a cubin the toolchain built located as the pattern for everything an ELF carries that no instruction
 // states
 #include "interface_sass_probe.h"
 #include "../cubin_write.h"
@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <string.h>
 
-// the most bytes a cubin, its code and its text take
+// the max bytes a cubin, its code and its text take
 #define SASS_CUBIN_BYTES 262144u
 #define SASS_CODE_BYTES 65536u
 #define SASS_TEXT_BYTES 262144u

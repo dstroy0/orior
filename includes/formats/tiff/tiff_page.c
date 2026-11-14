@@ -68,7 +68,7 @@ static int tiff_page_extent(TiffFile *file, TiffPage *page, const TiffEntry *fou
         return tiff_fail_number(file, "FillOrder", fill_order, "is not supported");
     }
     page->element_bytes = (unsigned int)(bits / 8ull);
-    page->element_kind = (sample_format == 1ull)   ? ENGINE_ELEMENT_UNSIGNED
+    page->element_type = (sample_format == 1ull)   ? ENGINE_ELEMENT_UNSIGNED
                          : (sample_format == 2ull) ? ENGINE_ELEMENT_SIGNED
                                                    : ENGINE_ELEMENT_FLOAT;
     unsigned long long samples_per_page = 0ull;
@@ -184,7 +184,7 @@ int tiff_page(TiffFile *file, unsigned long long ifd, TiffPage *page)
 int tiff_page_same(const TiffPage *first, const TiffPage *page)
 {
     return (first->width == page->width) && (first->height == page->height) &&
-           (first->element_bytes == page->element_bytes) && (first->element_kind == page->element_kind);
+           (first->element_bytes == page->element_bytes) && (first->element_type == page->element_type);
 }
 
 int tiff_page_chunks(TiffFile *file, const TiffPage *page, unsigned long long **offsets, unsigned long long **counts)

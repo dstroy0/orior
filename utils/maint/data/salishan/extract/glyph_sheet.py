@@ -131,7 +131,7 @@ def draw(cells, out, zoom):
                 current = []
         if current:
             contours.append(current)
-        # Even-odd fill through a mask keeps counters open, the bowl of a and the eye of e.
+        # Even-odd fill through a mask retains counters open, the bowl of a and the eye of e.
         mask = Image.new("1", sheet.size, 0)
         painter = ImageDraw.Draw(mask)
         for contour in contours:

@@ -35,7 +35,7 @@ void cli_unity_begun(void);
 void cli_unity_folder(const char *name, char *full);
 // the file `name` under the folder `root` written with the string `text`
 void cli_unity_file(const char *root, const char *name, const char *text);
-// git run in `root` with `count` words, at most 6, the test failed unless it exits with 0
+// git run in `root` with `count` words, at max 6, the test failed unless it exits with 0
 void cli_unity_git(const char *root, const char *const *words, unsigned int count);
 // `size` bytes of JSON parsed into a tree shared by the suite, replacing the last one: the tree, its root in `*root`,
 // CLI_JSON_NONE where the text is not JSON

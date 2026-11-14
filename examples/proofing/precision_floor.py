@@ -98,7 +98,7 @@ def pi_at(digits):
 def cosine_of(angle, pi):
     """Cosine by Taylor series, after folding the argument to the nearest multiple of two pi.
 
-    Folding first keeps the series argument under pi in magnitude. The terms fall quickly and the
+    Folding first retains the series argument under pi in magnitude. The terms fall quickly and the
     alternating cancellation stays bounded by the first term.
     """
     two_pi = 2 * pi
@@ -141,29 +141,29 @@ def legendre_column(top, order, x, one, four_pi):
     The same climb-the-diagonal recurrence `sphere_field.legendre_column` uses, with every square
     root taken at the working precision instead of in a double.
     """
-    kind = type(x)
-    out = [kind(0)] * (top + 1)
+    type = type(x)
+    out = [type(0)] * (top + 1)
     sine = (one - x * x)
     sine = sine.sqrt() if hasattr(sine, "sqrt") else math.sqrt(sine)
     value = (one / four_pi).sqrt() if hasattr(one, "sqrt") else math.sqrt(1.0 / four_pi)
     for s in range(1, order + 1):
-        ratio = kind(2 * s + 1) / kind(2 * s)
+        ratio = type(2 * s + 1) / type(2 * s)
         value *= (ratio.sqrt() if hasattr(ratio, "sqrt") else math.sqrt(ratio)) * sine
     if order <= top:
         out[order] = value
     if order + 1 <= top:
-        root = kind(2 * order + 3)
+        root = type(2 * order + 3)
         out[order + 1] = (root.sqrt() if hasattr(root, "sqrt") else math.sqrt(root)) * x * value
     for d in range(order + 2, top + 1):
-        lead = kind(4 * d * d - 1) / kind(d * d - order * order)
-        trail = kind((d - 1) * (d - 1) - order * order) / kind(4 * (d - 1) * (d - 1) - 1)
+        lead = type(4 * d * d - 1) / type(d * d - order * order)
+        trail = type((d - 1) * (d - 1) - order * order) / type(4 * (d - 1) * (d - 1) - 1)
         lead = lead.sqrt() if hasattr(lead, "sqrt") else math.sqrt(lead)
         trail = trail.sqrt() if hasattr(trail, "sqrt") else math.sqrt(trail)
         out[d] = lead * (x * out[d - 1] - trail * out[d - 2])
     return out
 
 
-def power_per_degree(live, top, columns, cosines, sines, kind, root_two):
+def power_per_degree(live, top, columns, cosines, sines, type, root_two):
     """`P_l` of the lit set, summed over orders, in the caller's arithmetic.
 
     The basis is real. Each order above zero carries a cosine part and a sine part. Under a
@@ -171,7 +171,7 @@ def power_per_degree(live, top, columns, cosines, sines, kind, root_two):
     and that rigidity is the invariance under test.
     """
     width = (top + 1) * (top + 1)
-    total = [kind(0)] * width
+    total = [type(0)] * width
     for at in live:
         ring, step = at // WIDTH, at % WIDTH
         column = columns[ring]
@@ -188,7 +188,7 @@ def power_per_degree(live, top, columns, cosines, sines, kind, root_two):
                 total[d * d + d - order] += here[d] * gain_sin
     out = []
     for d in range(top + 1):
-        got = kind(0)
+        got = type(0)
         for slot in range(d * d, (d + 1) * (d + 1)):
             got += total[slot] * total[slot]
         out.append(got)
@@ -203,37 +203,37 @@ def residual_at(digits):
     somewhere other than in their precision.
     """
     if digits is None:
-        kind = float
+        type = float
         pi = math.pi
         one, four_pi, root_two = 1.0, 4.0 * math.pi, math.sqrt(2.0)
         cos_of, sin_of = (lambda a, _p: math.cos(a)), (lambda a, _p: math.sin(a))
     else:
         decimal.getcontext().prec = digits + GUARD
-        kind = decimal.Decimal
+        type = decimal.Decimal
         pi = pi_at(digits + GUARD)
-        one, four_pi, root_two = kind(1), 4 * pi, kind(2).sqrt()
+        one, four_pi, root_two = type(1), 4 * pi, type(2).sqrt()
         cos_of, sin_of = cosine_of, sine_of
 
     # One Legendre column set per ring, since every point on a ring shares its colatitude. This is
     # the whole reason the run finishes at fifty digits.
     columns = []
     for ring in range(RINGS):
-        colatitude = pi * kind(2 * ring + 1) / kind(2 * RINGS)
+        colatitude = pi * type(2 * ring + 1) / type(2 * RINGS)
         x = cos_of(colatitude, pi)
         columns.append([legendre_column(TOP, order, x, one, four_pi) for order in range(TOP + 1)])
 
     cosines, sines = [], []
     for step in range(WIDTH):
-        longitude = 2 * pi * kind(step) / kind(WIDTH)
+        longitude = 2 * pi * type(step) / type(WIDTH)
         cosines.append([cos_of(longitude * order, pi) for order in range(TOP + 1)])
         sines.append([sin_of(longitude * order, pi) for order in range(TOP + 1)])
 
     live = lit_set(RINGS * WIDTH)
-    base = power_per_degree(live, TOP, columns, cosines, sines, kind, root_two)
+    base = power_per_degree(live, TOP, columns, cosines, sines, type, root_two)
 
-    worst = kind(0)
+    worst = type(0)
     for steps in STEPS:
-        moved = power_per_degree(turned(live, steps), TOP, columns, cosines, sines, kind, root_two)
+        moved = power_per_degree(turned(live, steps), TOP, columns, cosines, sines, type, root_two)
         for before, after in zip(base, moved):
             scale = abs(before) if abs(before) > 0 else one
             gap = abs(after - before) / scale

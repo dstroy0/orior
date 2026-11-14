@@ -8,7 +8,7 @@
 #   Usage:  python maint/data/salishan/corpus_script_extraction/icsnl_index.py [page url]
 #
 # The conference has met every year since 1966 and the University of British Columbia posts the whole run,
-# with the volumes from 1966 to 1999 kept as the Kinkade Collection and the rest published since. That is
+# with the volumes from 1966 to 1999 retained as the Kinkade Collection and the rest published since. That is
 # fifty and more volumes of description of a family with no annotated corpus anywhere, and that makes the
 # archive the corpus.
 #
@@ -75,7 +75,7 @@ def main():
 
     target = os.path.join(PAPERS, "icsnl_index.tsv")
     with open(target, "w", encoding="utf-8", newline="") as handle:
-        handle.write("kind\tyear\turl\tlabel\n")
+        handle.write("type\tyear\turl\tlabel\n")
         for address, words in pdfs:
             season = YEAR.search(words) or YEAR.search(address)
             handle.write("pdf\t%s\t%s\t%s\n"

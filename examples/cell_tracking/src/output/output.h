@@ -41,7 +41,7 @@ extern "C"
 
     // reads each sample's .points, .links, and its .faces and .divide when it has them, and checks its graph whole
     // first (the .faces and the .divide each made from these .links, by their CRC-64, and every .faces verdict the one
-    // the .links' own links and predictions give; O20: at most one link in to each point, and one out of each but a
+    // the .links' own links and predictions give; O20: at max one link in to each point, and one out of each but a
     // division's parent, which has two; H4 on each frame pair), counting its ends and starts frame by frame; then
     // writes every sample's rows. A sample with neither file is written as the sort's links alone, every state 0. A
     // sample that breaks writes no sample's rows, and the set errors

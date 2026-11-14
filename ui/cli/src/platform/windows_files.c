@@ -65,7 +65,7 @@ EMBED_INLINE void file_read_from(const WindowsFilesCtx *args)
         // the offset's low and high words, each what a DWORD stores
         at.Offset = (DWORD)((args->from + *got) & 0xffffffffull);
         at.OffsetHigh = (DWORD)((args->from + *got) >> 32u);
-        // one read takes at most what a DWORD counts
+        // one read takes at max what a DWORD counts
         const DWORD chunk = (DWORD)(((args->count - *got) < 0x40000000ull) ? (args->count - *got) : 0x40000000ull);
         DWORD read = 0u;
         const BOOL done = ReadFile(args->file, bytes + *got, chunk, &read, &at);
@@ -157,7 +157,7 @@ int cli_file_append(const CliPathBytesCtx *args)
     int written = 1;
     while (written && (left > 0ull))
     {
-        // a piece is at most a gibibyte, which a DWORD counts
+        // a piece is at max a gibibyte, which a DWORD counts
         const DWORD chunk = (DWORD)((left < (1ull << 30u)) ? left : (1ull << 30u));
         DWORD done = 0u;
         written = WriteFile(file, at, chunk, &done, NULL) && (done == chunk);
@@ -191,7 +191,7 @@ int cli_resource_add(const CliPathErrMsgCtx *args)
         mmgr_line_decimal(args->err_msg, GetLastError(), 1u);
         return 0;
     }
-    // the blob's size is below 4 GB, as checked above, which a DWORD counts; the RCDATA type's number stands for a
+    // the blob's size is below 4 GB, as checked above, which a DWORD counts; the RCDATA type's number is for a
     // name, as Windows takes it
     if (!UpdateResourceW(update, MAKEINTRESOURCEW(10u), named, 0u, (LPVOID)(embed_word)args->data, (DWORD)args->size))
     {
@@ -261,7 +261,7 @@ int cli_temporary_file_write(const CliBytesCtx *args)
         // the offset's low and high words, each what a DWORD stores
         place.Offset = (DWORD)((args->at + done) & 0xffffffffull);
         place.OffsetHigh = (DWORD)((args->at + done) >> 32u);
-        // a piece is at most a gibibyte, which a DWORD counts
+        // a piece is at max a gibibyte, which a DWORD counts
         const DWORD chunk = (DWORD)(((args->size - done) < (1ull << 30u)) ? (args->size - done) : (1ull << 30u));
         DWORD wrote = 0u;
         written = WriteFile(handle, from + done, chunk, &wrote, &place) && (wrote == chunk);

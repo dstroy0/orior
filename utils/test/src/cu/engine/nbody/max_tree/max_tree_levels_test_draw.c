@@ -25,7 +25,7 @@ unsigned long long levels_draw(unsigned long long *state)
     return mixed ^ (mixed >> 31u);
 }
 
-// each value in `ENGINE_RESIDUAL_LIMBS` limbs of two's complement, as the residual lays it out
+// each value in `ENGINE_RESIDUAL_LIMBS` limbs of two's complement, as the residual positions it out
 static void levels_volume_fill(LevelsVolume *volume)
 {
     for (unsigned int voxel = 0u; voxel < volume->voxels; voxel += 1u)
@@ -66,14 +66,14 @@ static void levels_rank(LevelsVolume *volume)
 }
 
 void levels_fill(LevelsVolume *volume, unsigned long long *state, unsigned int depth, unsigned int height,
-                 unsigned int width, long long least, long long maximum, int wide)
+                 unsigned int width, long long least, long long max, int wide)
 {
     volume->depth = depth;
     volume->height = height;
     volume->width = width;
     volume->voxels = depth * height * width;
     // the span of values is small and positive, and fits the draw's modulus
-    const unsigned long long span = (unsigned long long)(maximum - least) + 1ull;
+    const unsigned long long span = (unsigned long long)(max - least) + 1ull;
     for (unsigned int voxel = 0u; voxel < volume->voxels; voxel += 1u)
     {
         // a draw below the span is below 2^63
@@ -113,7 +113,7 @@ unsigned int levels_flood(const LevelsVolume *volume, unsigned int level, unsign
         {
             wanted -= 1u;
             const unsigned int voxel = waiting[wanted];
-            // coordinates of a voxel inside a volume of at most 7 on a side
+            // coordinates of a voxel inside a volume of at max 7 on a side
             const int z = (int)(voxel / plane);
             const int y = (int)((voxel % plane) / volume->width);
             const int x = (int)((voxel % plane) % volume->width);
@@ -123,7 +123,7 @@ unsigned int levels_flood(const LevelsVolume *volume, unsigned int level, unsign
                 const int near_z = z + steps[step][0];
                 const int near_y = y + steps[step][1];
                 const int near_x = x + steps[step][2];
-                // each extent is at most 7 and compares as an int
+                // each extent is at max 7 and compares as an int
                 if ((near_z < 0) || (near_z >= (int)volume->depth) || (near_y < 0) || (near_y >= (int)volume->height) ||
                     (near_x < 0) || (near_x >= (int)volume->width))
                 {

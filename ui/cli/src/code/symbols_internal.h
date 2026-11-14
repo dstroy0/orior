@@ -29,10 +29,10 @@ typedef struct CliSymbolsCtx CliSymbolsCtx;
 typedef struct CliSymbolsReadLanguagesCtx CliSymbolsReadLanguagesCtx;
 typedef struct CliSymbolsArgumentCtx CliSymbolsArgumentCtx;
 
-// the most languages a reading holds whose plugins have a grammar
+// the max languages a reading holds whose plugins have a grammar
 #define CLI_SYMBOLS_GRAMMARS 64u
 
-// the most bytes of a language's directive mark
+// the max bytes of a language's directive mark
 #define CLI_SYMBOLS_MARK_MAX 16u
 
 // One language whose plugin has a grammar: its id, the key its grammar is stored under, whether it is stored, 1,
@@ -57,11 +57,11 @@ struct CliSymbolsLanguages
 };
 
 // whether the file at `path` is read by the languages for its declarations, its grammar naming one; its declarations
-// read by them, each handed to `each` with its type, a text that stands while `each` runs; the leaves of `size` bytes
+// read by them, each passed to `each` with its type, a text that is while `each` runs; the leaves of `size` bytes
 // of `text` read by them, in the language of the file at `path` or in the language `id`, the first line starting in
-// `state`, each line's handed to `each` from a copy of the text in a cell whose lines stand at the text's own bytes,
+// `state`, each line's passed to `each` from a copy of the text in a cell whose lines are at the text's own bytes,
 // each line ended by a NUL: 1, or 0 where the language is none read here or the cells cannot meet the copy; and the
-// byte of `line`, `size` bytes, the column `col` stands at in UTF-16 units, walked on from `*byte` at column `*at`
+// byte of `line`, `size` bytes, the column `col` is at in UTF-16 units, walked on from `*byte` at column `*at`
 // (symbols_read.c)
 int cli_symbols_reads_in(const CliSymbolsReadLanguagesCtx *args);
 // the grammar of the file at `path`: the mark its plugin names a directive's line by, and the mark that ends a
@@ -125,7 +125,7 @@ unsigned long long cli_symbols_byte_at(const CliSymbolsSizeCtx *args);
 // whose pair encloses a region of statements; `statement`, the mark that ends a statement; `separator`, the mark
 // between the items of a list; `call`, a name a call names; `assign`, the operator that gives a name its value;
 // `function`, with `declaration`, the name a function is declared by; and `depth`, a token whose `open` or `close`
-// counts the depth its pair stands at
+// counts the depth its pair is at
 #define CLI_LEAF_OPEN 0x200000000ull
 #define CLI_LEAF_CLOSE 0x400000000ull
 #define CLI_LEAF_REGION 0x800000000ull
@@ -176,7 +176,7 @@ typedef struct
     unsigned char does;
 } CliLeaf;
 
-// A text's leaves saved: the text, its leaves in a cell at their most, how many, the capacity, the lines read, whether
+// A text's leaves saved: the text, its leaves in a cell at their max, how many, the capacity, the lines read, whether
 // the cells refused a leaf, and where each declaration a leaf names goes as it is saved, NULL for nowhere; and whether
 // the leaves' first cell is taken on the lane the thread is on, for a read given back before the lane is rewound
 typedef struct
@@ -196,7 +196,7 @@ typedef struct
 
 // the leaves of `size` bytes of `text` read in the language of the file at `path`, the first line starting in
 // `state`, saved in `read`: 1, or 0 where the language is none read here or the cells refused a leaf; the same read in
-// the language `id`, the first line starting at the grammar's root; the same with each declaration a leaf names handed
+// the language `id`, the first line starting at the grammar's root; the same with each declaration a leaf names passed
 // to `each` as it is saved; a saved leaf's text and its length; whether a leaf plays every role of `roles`, CLI_LEAF_
 // bits its grammar names, and is neither a string nor a comment; and the leaves' cell given back (symbols_leaves.c)
 int cli_symbols_leaves_save(const CliSymbolsPathCtx *args);
@@ -211,8 +211,8 @@ const char *cli_symbols_declares(const CliSymbolsNameCtx *args);
 const char *cli_leaf_text(const CliSymbolsReadLeafCtx *args);
 int cli_leaf_has(const CliSymbolsReadCtx *args);
 
-// the most bytes of a type's text, of a head's label, the most parameters a head is read with, the most declarations
-// of a name read, and the most lines a head is read across
+// the max bytes of a type's text, of a head's label, the max parameters a head is read with, the max declarations
+// of a name read, and the max lines a head is read across
 #define CLI_SYMBOLS_TYPE 96u
 #define CLI_SYMBOLS_LABEL 512u
 #define CLI_SYMBOLS_PARAMS 32u
@@ -228,7 +228,7 @@ typedef struct
     unsigned long long is;
 } CliSymbolType;
 
-// One declaration's head: where it stands in the tree, its label from its first letter to the bracket that closes its
+// One declaration's head: where it is in the tree, its label from its first character to the bracket that closes its
 // parameters, each parameter's span in the label in UTF-16 units, its name's span there, empty where it has no name,
 // and its type, how many, whether more are taken after them, and how the call's arguments fit it: the arguments that
 // differ, how many, and whether their count fits
@@ -257,8 +257,8 @@ void cli_symbols_type_get(const CliSymbolsReadLeafTypeCtx *args);
 int cli_symbols_type_fits(const CliSymbolsArgumentCtx *args);
 int cli_symbols_head_read(const CliSymbolsLanguagesCtx *args);
 
-// the most conditions open at once and the most includes deep a walk goes, the most lines one directive runs across,
-// the most declarations of the name sought read from one branch, the most macros deep a condition's value is read
+// the max conditions open at once and the max includes deep a walk goes, the max lines one directive runs across,
+// the max declarations of the name sought read from one branch, the max macros deep a condition's value is read
 // through, and the line of a define the compilation database gives
 #define CLI_EFFECT_DEPTH 64u
 #define CLI_EFFECT_DIRECTIVE_LINES 64u
@@ -330,7 +330,7 @@ typedef struct
 } CliEffectBranchRead;
 
 // One thing a slice's walk met in an active region, in the order it met them: what it is, a CLI_SEEN_ one; the branch
-// it stands in, a place among the branches read whole; its line; its first leaf, its line's first, and for a directive
+// it is in, a place among the branches read whole; its line; its first leaf, its line's first, and for a directive
 // the leaf after its last; and for a declaration, the name it declares and its type, places among the walk's texts, and
 // the name's length
 typedef struct
@@ -354,12 +354,12 @@ typedef struct
     unsigned int line;
 } CliEffectNotedCfg;
 
-// one leaf of the branch a walk starts from that names the name sought, in an active region, handed on as the walk
+// one leaf of the branch a walk starts from that names the name sought, in an active region, passed on as the walk
 // passes its line: the branch's leaves and the leaf, and the definition of the name in effect there as a usage knows
 // it, the define in effect, else the first declaration of it the walk met: its branch's path as the tree holds it and
 // its line, CLI_EFFECT_INPUT for a define the database gives, the path NULL for none
 typedef void (*CliEffectNoted)(const CliEffectNotedCfg *args);
-// the most names a sifted walk sifts for, and the most lines a statement the sift found is read across
+// the max names a sifted walk sifts for, and the max lines a statement the sift found is read across
 #define CLI_EFFECT_SIFT_NAMES 4096u
 #define CLI_EFFECT_STATEMENT_LINES 4096u
 typedef struct
@@ -371,15 +371,15 @@ typedef struct
 } CliEffectReachedCfg;
 
 // a line of the branch a walk starts from reached, before the walk reads it: the branch's leaves, the line's first leaf
-// and whether the line stands in an active region: 1 to read on, 0 to end the walk there
+// and whether the line is in an active region: 1 to read on, 0 to end the walk there
 typedef int (*CliEffectReached)(const CliEffectReachedCfg *args);
 
 // A walk from a branch's first line to a line of it: the languages, the tree's top, the branch it starts from and its
-// text where the editor's stands in for the disk's, NULL where none does, and how many bytes, its texts a line, the
-// macros met with the leaves of their values and the branches walked, each in a cell at their most, the name sought,
+// text where the editor's is in for the disk's, NULL where none does, and how many bytes, its texts a line, the
+// macros met with the leaves of their values and the branches walked, each in a cell at their max, the name sought,
 // the last declaration of it the walk reached in an active region, its branch and its line's text places among the
 // texts, its line, and whether one was reached, and the first, its branch and its line, and whether one was; whether it
-// is a slice's walk, and if so each branch it read whole and what it met, each in a cell at their most; where each leaf
+// is a slice's walk, and if so each branch it read whole and what it met, each in a cell at their max; where each leaf
 // of the name in the branch it starts from goes, NULL for nowhere; where each line of that branch goes as the walk
 // reaches it, NULL for nowhere; and whether the cells refused it
 typedef struct
@@ -435,7 +435,7 @@ typedef struct
 const char *cli_effect_text(const CliSymbolsCtx *args);
 unsigned int cli_effect_macro(const CliSymbolsNameCtx *args);
 unsigned int cli_effect_append(const CliSymbolsTextLengthCtx *args);
-// the most entries a walk's list takes, and its values' and one branch's declarations'
+// the max entries a walk's list takes, and its values' and one branch's declarations'
 #define CLI_EFFECT_LIST_MAX (1u << 15u)
 #define CLI_EFFECT_VALUES_MAX (1u << 17u)
 #define CLI_EFFECT_DECLARED_MAX 4096u
@@ -452,7 +452,7 @@ void cli_effect_input_back(const CliSymbolsTextLengthCtx *args);
 // name is defined; and a name as the value of the macro it names, the leaves of the value its definition read, a macro
 // called with arguments its value with each parameter's name made the leaves of the argument at its place, a leaf
 // named `rest` the arguments past its parameters, one named `join` joining the leaves about it and one named `quote`
-// making the leaf after it a string; CLI_EFFECT_THROUGH macros deep at most, and a name of no macro 0; 0 where the
+// making the leaf after it a string; CLI_EFFECT_THROUGH macros deep at max, and a name of no macro 0; 0 where the
 // leaves give no integer. A bracket and a comma are known by their text (symbols_effect_value.c)
 long long cli_effect_value(const CliSymbolsEffectCtx *args);
 

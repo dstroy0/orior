@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Settings by file: a tree's .orior/settings.json standing over the reader's own, read again as it
+// Settings by file: a tree's .orior/settings.json located over the reader's own, read again as it
 // changes, a part for one system alone, a file that takes another's, values that name other values
 // and the system's, a theme for a type of file, and Preferences showing each setting's value and the
 // file it comes from.
@@ -32,9 +32,9 @@ async function opened(path, text) {
 
 const told = (start) => [...noticesSaid(), ...noticesWaiting()].some((one) => one.text.startsWith(start));
 
-test("a tree's settings file stands over the reader's own as it is saved, and Preferences shows each setting's value and its file", async () => {
+test("a tree's settings file is over the reader's own as it is saved, and Preferences shows each setting's value and its file", async () => {
   runCommand("whitespace", ["off"]);
-  // The reader's own is kept in settings.json before the files are read.
+  // The reader's own is retained in settings.json before the files are read.
   await new Promise((done) => setTimeout(done, 600));
   const editor = await opened("settings_a.txt", "one two\n");
   assert.equal(editor.marksOn, false);
@@ -81,7 +81,7 @@ test("a file takes another's and changes some of it, a part sets one system's al
   const read = await readSettings();
   const editor = await opened("settings_b.txt", "text\n");
   assert.equal(editor.stickyOn, false, "the file taken sets it");
-  assert.equal(editor.docMargin, 88, "the file's own stands over the one it takes, and names another value");
+  assert.equal(editor.docMargin, 88, "the file's own is over the one it takes, and names another value");
   assert.deepEqual(read.from["doc-margin"].map((one) => one.file), [TREE_FILE, ".orior/base.json"]);
   assert.match(localStorage.getItem("orior.made"), new RegExp(`^${read.system} \\S`), "the system and a variable of its environment");
   assert.equal(localStorage.getItem("orior.mark"), { windows: "w", linux: "l", macos: "m" }[read.system]);
@@ -92,7 +92,7 @@ test("a file takes another's and changes some of it, a part sets one system's al
   assert.equal(localStorage.getItem("orior.made"), null);
 });
 
-test("a kind of file is shown in a theme of its own while the rest keep the window's", async () => {
+test("a type of file is displayed in a theme of its own while the rest retain the window's", async () => {
   saveTheme({ name: "Paper for Settings", base: "light", colors: { "--ed-bg": "#fdf6e3" } });
   await treeSettings('{ "[markdown]": { "theme.dark": "Paper for Settings", "theme.light": "Paper for Settings" } }');
   await readSettings();

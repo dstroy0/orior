@@ -29,7 +29,7 @@ EMBED_INLINE unsigned long long rows_number(const PgRowsCtx *args)
     return value;
 }
 
-// the type name of the types a result most often contains, by their oid, and whether they are numbers: "" where orior
+// the type name of the types a result usually contains, by their oid, and whether they are numbers: "" where orior
 // names it by its oid
 EMBED_INLINE const char *rows_type_name(const PgRowsCtx *args)
 {

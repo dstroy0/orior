@@ -44,9 +44,9 @@ CliPg *cli_pg_connect(const CliPgHostCfg *args);
 void cli_pg_close(const CliPgFailureSqlCfg *args);
 
 // `size` bytes of `sql` sent as one query and read until it gives rows or ends, how it began recorded as the
-// connection's head; up to `count` rows more of the statement running each handed to `each_row`, its tag into `tag`,
+// connection's head; up to `count` rows more of the statement running each passed to `each_row`, its tag into `tag`,
 // sized for CLI_DB_TAG, and `done` set once it has none left; the rows the statement running has left read past, its
-// tag into `tag`; and every row `sql` gives handed to `each_row`, for a question that gives few. Each 1, or 0 with the
+// tag into `tag`; and every row `sql` gives passed to `each_row`, for a question that gives few. Each 1, or 0 with the
 // failure into `failure`
 int cli_pg_start(const CliPgFailureSqlCfg *args);
 int cli_pg_rows(const CliPgFailureCfg *args);

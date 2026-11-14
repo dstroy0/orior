@@ -11,7 +11,7 @@
 // answered apart on and the carrier it was put in. A case word decides the cases apart where two cases apart in that
 // word alone answer one alike and the other apart. Each operand of the link is followed back through the carrier to
 // the case words it reads (carrier_flow.h). A pair apart where a case word decides it that a flag only the form it
-// stood as names reads, and no other operand of the link, is a qualifier's. A pair whose forms name the same operands,
+// was as names reads, and no other operand of the link, is a qualifier's. A pair whose forms name the same operands,
 // apart where a case word the link reads decides it, is a modifier's, and a statement's where it is alike on every case
 // whose values, as the part stores them at the link, every statement reads as themselves. A pair of forms of a flag
 // that name the same operands, apart whatever the link reads, is a negation's: the two members of one node. A pair
@@ -47,7 +47,7 @@ int main(int argc, char **argv)
         return 1;
     }
     decoding.bridge_folded();
-    if (decoding.bridge_handed(argv[3]) != 0)
+    if (decoding.bridge_passed(argv[3]) != 0)
     {
         return 1;
     }

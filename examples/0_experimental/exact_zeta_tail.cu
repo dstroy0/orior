@@ -184,9 +184,9 @@ int main(int count, char **arguments)
     sim_check(&job, ok, "keymath imprints the tail program");
     EngineRecordLayout layout;
     memset(&layout, 0, sizeof(layout));
-    const KeyScheduleRecordRequest lay = {&key, field_offset.data(), fields, in_limbs, 1, &layout, &error};
-    ok = ok && (key_schedule_record_layout(&lay) != KEY_SCHEDULE_ERROR);
-    sim_check(&job, ok, "the scheduler lays the tail program out");
+    const KeyScheduleRecordRequest position = {&key, field_offset.data(), fields, in_limbs, 1, &layout, &error};
+    ok = ok && (key_schedule_record_layout(&position) != KEY_SCHEDULE_ERROR);
+    sim_check(&job, ok, "the scheduler positions the tail program out");
     const unsigned int out_limbs = ok ? layout.out_limbs : 0u;
     const unsigned long long declared =
         points * (2ull * in_limbs[0] + 2ull + 2ull * out_limbs) * sizeof(unsigned int) +

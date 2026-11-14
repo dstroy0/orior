@@ -12,7 +12,7 @@ extern void test_a_name_hides_itself_and_what_is_in_it_at_any_depth(void);
 extern void test_a_glob_hides_the_names_it_matches(void);
 extern void test_a_folders_path_hides_that_folder_only(void);
 extern void test_a_double_star_matches_any_depth(void);
-extern void test_a_question_mark_matches_one_letter(void);
+extern void test_a_question_mark_matches_one_character(void);
 extern void test_a_comment_hides_nothing(void);
 extern void test_a_bang_pattern_includes_only_what_it_names(void);
 extern void test_what_a_bang_pattern_names_stays(void);
@@ -89,7 +89,7 @@ int main(void)
   run_test(test_a_glob_hides_the_names_it_matches, "test_a_glob_hides_the_names_it_matches", 45);
   run_test(test_a_folders_path_hides_that_folder_only, "test_a_folders_path_hides_that_folder_only", 53);
   run_test(test_a_double_star_matches_any_depth, "test_a_double_star_matches_any_depth", 62);
-  run_test(test_a_question_mark_matches_one_letter, "test_a_question_mark_matches_one_letter", 70);
+  run_test(test_a_question_mark_matches_one_character, "test_a_question_mark_matches_one_character", 70);
   run_test(test_a_comment_hides_nothing, "test_a_comment_hides_nothing", 77);
   run_test(test_a_bang_pattern_includes_only_what_it_names, "test_a_bang_pattern_includes_only_what_it_names", 82);
   run_test(test_what_a_bang_pattern_names_stays, "test_what_a_bang_pattern_names_stays", 87);

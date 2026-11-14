@@ -44,7 +44,7 @@ AGENT = {"User-Agent": "orior-research/1.0 (linguistic invariance study)"}
 
 WANTED_CHARACTERS = 200000
 PER_REQUEST = 20
-MOST_REQUESTS = 150
+MAX_REQUESTS = 150
 PAUSE = 1.1
 RETRIES = 2
 
@@ -60,7 +60,7 @@ VARIETIES = (
 
 
 def pull(code, offset):
-    # Listed and not searched. The search was given the letter a as its query, which is a reasonable term
+    # Listed and not searched. The search was given the character a as its query, which is a reasonable term
     # in a Latin encyclopedia and almost absent from one written in Chinese characters. Every one of
     # these varieties came back with nothing and looked like an empty encyclopedia.
     #
@@ -120,7 +120,7 @@ def gather(code, name):
     total = 0
     offset = ""
     trouble = ""
-    for _ in range(MOST_REQUESTS):
+    for _ in range(MAX_REQUESTS):
         if total >= WANTED_CHARACTERS:
             break
         try:

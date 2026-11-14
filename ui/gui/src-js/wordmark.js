@@ -99,7 +99,7 @@ function under() {
   return span;
 }
 
-// How long the name stands on an empty view before it goes to the bar, and how long it takes, in
+// How long the name is on an empty view before it goes to the bar, and how long it takes, in
 // milliseconds.
 const STANDS = 1400;
 const FLIES = 900;
@@ -111,19 +111,19 @@ const HOLDS = 500;
 const FADES = 360;
 
 // The share of the flight over which the funnel forms, before the name starts up it, and the height
-// a row keeps at the funnel's tip.
+// a row retains at the funnel's tip.
 const FORMS = 0.35;
 const TIP_ROW = 0.25;
 
 const flights = new Map();
 const genies = new Map();
 
-// The names standing or flying to the bar. Where none is, the eye in the bar shows: a name that never
-// stood, as where the tabs the window kept come back over the empty view, and a name taken out of
+// The names located or flying to the bar. Where none is, the eye in the bar shows: a name that never
+// was, as where the tabs the window retained come back over the empty view, and a name taken out of
 // sight before it reached the bar, as a load cut short leaves it, each leave the eye to show at once.
 const going = new Set();
 
-// Whether the large name has shown on this page, gone to the bar or as tabula faded: it shows once a page.
+// Whether the large name has displayed on this page, gone to the bar or as tabula faded: it shows once a page.
 let nameShown = false;
 
 function landed() {
@@ -159,7 +159,7 @@ const around = (one, other) => {
   return { left, top, right, bottom, width: right - left, height: bottom - top };
 };
 
-// orior and the eye drawn as they stand in `node`, onto a canvas `scale` times `box`, the box round
+// orior and the eye drawn as they are in `node`, onto a canvas `scale` times `box`, the box round
 // them: the word on the baseline the page sets it on, the eye's strokes and iris, each in the name's
 // color, and nothing else of the view.
 function drawRising(node, word, part, box, scale) {
@@ -174,7 +174,7 @@ function drawRising(node, word, part, box, scale) {
   const wordStyle = getComputedStyle(word);
   const wordBox = word.getBoundingClientRect();
   pen.font = wordStyle.font;
-  pen.letterSpacing = wordStyle.letterSpacing;
+  pen.characterSpacing = wordStyle.characterSpacing;
   const metrics = pen.measureText(word.textContent);
   const ascent = metrics.fontBoundingBoxAscent;
   const baseline = wordBox.top - box.top + (wordBox.height - ascent - metrics.fontBoundingBoxDescent) / 2 + ascent;
@@ -194,14 +194,14 @@ function drawRising(node, word, part, box, scale) {
   return canvas;
 }
 
-// The name large on an empty view: it stands a moment, then orior and its eye go to the bar as a
+// The name large on an empty view: it is a moment, then orior and its eye go to the bar as a
 // genie does. A funnel forms between them and the point on the bar's bottom edge under the eye in the
 // bar, its sides bending sideways from the one's ends to the other's as they rise, and they pour up it
-// a row of pixels at a time, every row level, each as wide as the funnel where it stands and shorter
+// a row of pixels at a time, every row level, each as wide as the funnel where it is and shorter
 // the nearer the tip, until the bar's edge takes the last of them. The funnel is drawn over the whole
 // window: no pane or strip it crosses cuts it short. Over the same flight tabula slides up to the
-// name's middle, where the eye stood, and fades out. The eye in the bar then shows and stays. The name
-// stands and goes once as the app loads; an empty view shown after it has reached the bar holds the
+// name's middle, where the eye was, and fades out. The eye in the bar then shows and stays. The name
+// is and goes once as the app loads; an empty view displayed after it has reached the bar holds the
 // lattice alone.
 function fly(node) {
   const home = document.getElementById("bar-mark");
@@ -210,8 +210,8 @@ function fly(node) {
   waits.delete(node);
   settle(node);
   node.getAnimations({ subtree: true }).forEach((one) => one.cancel());
-  // a flight cut short gives the name back as it stood: on the loading pane where it was lifted off it,
-  // orior and the eye shown again
+  // a flight cut short gives the name back as it was: on the loading pane where it was lifted off it,
+  // orior and the eye displayed again
   lifts.get(node)?.();
   node.querySelectorAll(".wordmark-name, .eye-mark").forEach((part) => (part.style.visibility = ""));
   const pane = document.getElementById("loading");
@@ -226,13 +226,13 @@ function fly(node) {
     node.style.visibility = "hidden";
     return;
   }
-  // Another name standing or on its way to the bar is the one that goes, and this one stays hidden.
+  // Another name located or on its way to the bar is the one that goes, and this one stays hidden.
   if (!own && [...going].some((other) => other !== node)) {
     going.delete(node);
     node.style.visibility = "hidden";
     return;
   }
-  // The loading pane lies over the view while a tree is read: a view's name stands once the pane has
+  // The loading pane lies over the view while a tree is read: a view's name is once the pane has
   // gone, and not under it.
   if (!own && pane && !pane.hidden) {
     going.add(node);
@@ -246,10 +246,10 @@ function fly(node) {
     return;
   }
   node.style.visibility = "";
-  node.dataset.standing = "";
+  node.dataset.located = "";
   going.add(node);
-  // The loading pane's own name stands the whole while the tree is read and goes as the pane begins to
-  // leave; a view's stands STANDS first.
+  // The loading pane's own name is the whole while the tree is read and goes as the pane begins to
+  // leave; a view's is STANDS first.
   if (own) {
     waitOn(node, pane, () => leaving(pane), () => go(node, home));
   } else {
@@ -259,12 +259,12 @@ function fly(node) {
 
 const leaving = (pane) => pane.hidden || pane.dataset.leaving === "true";
 
-// The one watch the loading pane's name keeps on the pane: for it to leave while the name stands, and
-// for it to be shown again while the name goes.
+// The one watch the loading pane's name retains on the pane: for it to leave while the name is, and
+// for it to be displayed again while the name goes.
 const waits = new Map();
 
 // Calls `then` once `when` holds of `pane`, or at once where it already does, in place of the watch
-// `node` kept before.
+// `node` retained before.
 function waitOn(node, pane, when, then) {
   waits.get(node)?.disconnect();
   waits.delete(node);
@@ -283,7 +283,7 @@ function waitOn(node, pane, when, then) {
   waits.set(node, watcher);
 }
 
-// A name standing on the loading pane lifted off it, into a holder of the same type over the window at
+// A name located on the loading pane lifted off it, into a holder of the same type over the window at
 // the same place, so the pane fading and going under it takes nothing of the name with it: what gives
 // the name back to the pane.
 function lifted(node) {
@@ -308,8 +308,8 @@ function lifted(node) {
 // What gives each name lifted off the loading pane back to it.
 const lifts = new Map();
 
-// tabula alone where the eye stands in `node`, orior and the eye hidden, kept there whole for HOLDS and faded; the
-// name cleared and put back as it stood once it has.
+// tabula alone where the eye is in `node`, orior and the eye hidden, retained there whole for HOLDS and faded; the
+// name cleared and put back as it was once it has.
 function fadeTabula(node) {
   nameShown = true;
   const word = node.querySelector(".wordmark-name");
@@ -323,7 +323,7 @@ function fadeTabula(node) {
   word.style.visibility = "hidden";
   symbol.style.visibility = "hidden";
   node.style.visibility = "";
-  node.dataset.standing = "";
+  node.dataset.located = "";
   const middle = (box) => box.top + box.height / 2;
   const there = `translateY(${middle(symbol.getBoundingClientRect()) - middle(under.getBoundingClientRect())}px)`;
   const length = HOLDS + FADES;
@@ -338,7 +338,7 @@ function fadeTabula(node) {
     )
     .finished.then(() => {
       node.style.visibility = "hidden";
-      delete node.dataset.standing;
+      delete node.dataset.located;
       word.style.visibility = "";
       symbol.style.visibility = "";
       under.getAnimations().forEach((one) => one.cancel());
@@ -350,30 +350,30 @@ function fadeTabula(node) {
 function go(node, home) {
   nameShown = true;
   const pane = document.getElementById("loading");
-  // the loading pane shown again before the name has gone stands the name on it again
+  // the loading pane displayed again before the name has gone is the name on it again
   if (pane?.contains(node)) {
     waitOn(node, pane, () => !leaving(pane), () => fly(node));
   }
   const given = lifted(node);
-  // orior and the eye go up the funnel together; tabula stays below and fades where they stood.
+  // orior and the eye go up the funnel together; tabula stays below and fades where they was.
   const word = node.querySelector(".wordmark-name");
   const symbol = node.querySelector(".eye-mark");
   const under = node.querySelector(".wordmark-under");
   const from = around(word.getBoundingClientRect(), symbol.getBoundingClientRect());
   // The mark's place whole, however far it has shrunk: it shrinks toward its own top left, which stays
   // where its place is.
-  const shown = home.getBoundingClientRect();
-  const to = { left: shown.left, right: shown.left + home.offsetWidth, width: home.offsetWidth };
+  const displayed = home.getBoundingClientRect();
+  const to = { left: displayed.left, right: displayed.left + home.offsetWidth, width: home.offsetWidth };
   const row = home.closest(".bar");
-  // orior and the eye landed: the funnel taken away and the eye in the bar shown
+  // orior and the eye landed: the funnel taken away and the eye in the bar displayed
   const landing = () => {
     settle(node);
     landed();
   };
-  // tabula gone too: the large name cleared and put back as it stood
+  // tabula gone too: the large name cleared and put back as it was
   const cleared = () => {
     node.style.visibility = "hidden";
-    delete node.dataset.standing;
+    delete node.dataset.located;
     word.style.visibility = "";
     symbol.style.visibility = "";
     under.getAnimations().forEach((one) => one.cancel());
@@ -391,7 +391,7 @@ function go(node, home) {
   const name = drawRising(node, word, symbol, from, scale);
   const middle = (box) => box.top + box.height / 2;
   // tabula slides up to the name's middle as orior and the eye pour up, holds there whole for HOLDS, the
-  // window's own name shown on its own, and fades; the large name is cleared once it has
+  // window's own name displayed on its own, and fades; the large name is cleared once it has
   const rise = `translateY(${middle(symbol.getBoundingClientRect()) - middle(under.getBoundingClientRect())}px)`;
   const length = SLIDES + HOLDS + FADES;
   under
@@ -414,8 +414,8 @@ function go(node, home) {
   document.body.append(canvas);
   const pen = canvas.getContext("2d");
   // The window's own pixels, moved down so the funnel's tip, at the foot of the bar's row where the
-  // eye stands, is at 0; no row is drawn above it.
-  const tipY = shown.top - home.offsetTop + row.offsetHeight;
+  // eye is, is at 0; no row is drawn above it.
+  const tipY = displayed.top - home.offsetTop + row.offsetHeight;
   pen.setTransform(scale, 0, 0, scale, 0, tipY * scale);
   const left = from.left;
   const right = from.right;
@@ -426,7 +426,7 @@ function go(node, home) {
   // How far above the name the funnel narrows, and where rows start to shorten toward the tip.
   const reach = Math.max(1, foot);
   const shortens = Math.max(1, foot - high);
-  // Where a row that would stand `depth` below the tip stands once rows shorten near the tip.
+  // Where a row that would are `depth` below the tip is once rows shorten near the tip.
   const placed = (depth) => (depth >= shortens ? depth - shortens * (1 - TIP_ROW) / 2 : depth * (TIP_ROW + ((1 - TIP_ROW) * depth) / (2 * shortens)));
   const offset = shortens * (1 - TIP_ROW) / 2;
   const began = performance.now();
@@ -466,8 +466,8 @@ function go(node, home) {
 // The large name each watched holder holds, found by its holder even while the name is lifted off it.
 const holders = new WeakMap();
 
-// What shows a large name is watched, and not the name: gone to the bar, the name stands outside the
-// view that clips it, and never reads as shown again.
+// What shows a large name is watched, and not the name: gone to the bar, the name is outside the
+// view that clips it, and never reads as displayed again.
 const seen = new IntersectionObserver((entries) => {
   for (const entry of entries) {
     const node = holders.get(entry.target);
@@ -488,7 +488,7 @@ const seen = new IntersectionObserver((entries) => {
   }
 });
 
-// Watches what holds `node`, once it is kept.
+// Watches what holds `node`, once it is retained.
 function watch(node) {
   requestAnimationFrame(() => {
     const holder = node.parentElement;

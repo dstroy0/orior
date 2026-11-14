@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Colin Brown	note	Abstract: Gitksan, like all Tsimshianic languages, distinguishes between independent and dependent clauses, a contrast that broadly corresponds to the matrix/embedded clause distinction. However, cer- tain matrix clauses — those introduced by dependent markers such as negation or aspectual markers — exhibit the morphosyntactic profile of dependent clauses. I present novel evidence from clitic lin- earization, linear ordering paradoxes, aspectual and irrealis doubling, and other reflexes, arguing that a subset of these clauses is biclausal. I propose a more fine-grained distinction between two types of dependent clause trigger: those that appear within dependent clauses (including complementiz- ers, subordinators, and coordinators) and those that select dependent clause complements (including negation and aspectual markers).	page 1
 front	Colin Brown	note	Keywords: clause typing, linearization, aspect, negation, clitics, Tsimshianic	page 1
 §1	Colin Brown	heading	1 Introduction	page 1
@@ -29,11 +29,11 @@ front	Colin Brown	note	In Proceedings of the International Conference on Salish 
 §1	Colin Brown	note	The linearization paradox is as follows:	page 2
 §1	Colin Brown	note	1. dim precedes wil, 2. wil precedes yukw, but 3. yukw precedes dim	page 2, the paradox, three numbered lines
 §1	Colin Brown	note	In the discussion that follows, I show that this paradox falls out from the interaction of two inde- pendent grammatical processes. The first concerns the Tsimshianic-internal clause type distinction between independent and dependent clauses (Rigsby 1986). While independent clauses function as matrix clauses, dependent clauses may function as matrix or embedded clauses and are typically associated with a closed class of elements, which includes both progressive yukw and the comple- mentizer wil, known in the Tsimshianic literature as dependent markers (Rigsby 1986). I propose that these markers fall into two distinct types. Type 1 dependent markers (DEP1), which include pro- gressive yukw, introduce a biclausal structure by selecting a dependent clause complement. Type 2 dependent markers (DEP2), which include the complementizer wil, appear internal to the dependent clause and yield a monoclausal structure.	page 2
-(4) line 1	Colin Brown	note	Two kinds of dependent marker	page 2, the caption
-(4a) line 1	Colin Brown	note	Type 1 (e.g. yukw) selects dependent clause complement:	page 2, the first kind
-(4a) line 2	Colin Brown	notation	[DEP1 [DepP …]] → biclausal	page 2, the bracketing of the first kind
-(4b) line 1	Colin Brown	note	Type 2 (e.g. wil) restricted to occurring within dependent clause:	page 2, the second kind
-(4b) line 2	Colin Brown	notation	[DepP DEP2 …] → monoclausal	page 2, the bracketing of the second kind
+(4) line 1	Colin Brown	note	Two types of dependent marker	page 2, the caption
+(4a) line 1	Colin Brown	note	Type 1 (e.g. yukw) selects dependent clause complement:	page 2, the first type
+(4a) line 2	Colin Brown	notation	[DEP1 [DepP …]] → biclausal	page 2, the bracketing of the first type
+(4b) line 1	Colin Brown	note	Type 2 (e.g. wil) restricted to occurring within dependent clause:	page 2, the second type
+(4b) line 2	Colin Brown	notation	[DepP DEP2 …] → monoclausal	page 2, the bracketing of the second type
 §1	Colin Brown	note	The second process involves the behaviour of a class of clitics (CL), including dim, that prepose to the clause-initial position, but whose movement is clause-bounded.	page 2
 footnote 2	Colin Brown	note	2 E.g., head nouns precede relative clause complements, determiners precede NPs, the presence of preposi- tions (rather than postpositions), declarative VO ordering, etc.	page 2, footnote
 (5a) line 1	Colin Brown	note	CL movement: CL (e.g., dim) base generated below α, but linearly precedes it.	page 3, the first ingredient
@@ -102,11 +102,11 @@ Table 1	Colin Brown	note	Other nee ‘NEG, Q’, ii, ‘and/then, CCNJ’	page 5
 Table 1	Colin Brown	note	Syntactically determined embedding, imperatives, focus	page 5, a row of Table 1, its type and then its examples
 Table 1 line 1	Colin Brown	note	Dependent clause triggers (Rigsby 1986; Tarpent 1987; Brown et al. 2020)	page 5, the caption
 §2.1	Colin Brown	note	The next section argues that some dependent markers select clausal complements, while others are restricted to appearing within dependent clauses.	page 5
-§2.2	Colin Brown	heading	2.2 Two kinds of dependent marker	page 5
+§2.2	Colin Brown	heading	2.2 Two types of dependent marker	page 5
 §2.2	Colin Brown	note	This section examines four preverbal dependent markers in Gitksan — yukw ‘PROG’, nee ‘NEG’, wil/win (henceforth wil) ‘COMP’, and the clausal coordinator ii ‘and/then/so, CCNJ’ — and argues for a fundamental split in their syntactic behaviour.7 I propose, building upon intuitions in Rigsby (1986:273), that yukw and nee are predicative elements that select dependent-clause complements.8 Supporting evidence for this analysis comes from the fact that these markers are synchronically de- rived from intransitive predicates, and retain core predicative properties in their grammaticalized forms.9 Yukw and nee contrast with wil and ii, which lack such predicative properties and are better analyzed as clause-internal elements. For expository purposes, I refer to yukw and nee as Type 1 markers and wil and ii as Type 2 markers. The core syntactic distinction between Type 1 and Type 2 markers is given in (11).	page 5
-(11) line 1	Colin Brown	note	Two kinds of dependent marker:	page 5, the caption
-(11a) line 1	Colin Brown	notation	Type 1 selects dependent clause complement: [yukw/nee [Dep …]]	page 5, the first kind, with its bracketing
-(11b) line 1	Colin Brown	notation	Type 2 restricted to occurring within dependent clause: [Dep wil/ii …]	page 5, the second kind, with its bracketing
+(11) line 1	Colin Brown	note	Two types of dependent marker:	page 5, the caption
+(11a) line 1	Colin Brown	notation	Type 1 selects dependent clause complement: [yukw/nee [Dep …]]	page 5, the first type, with its bracketing
+(11b) line 1	Colin Brown	notation	Type 2 restricted to occurring within dependent clause: [Dep wil/ii …]	page 5, the second type, with its bracketing
 footnote 7	Colin Brown	note	7 See (Schwan 2019) and Matthewson et al. (2022) for analysis of the semantics of yukw.	page 5, footnote
 footnote 8	Colin Brown	note	8 Rigsby (1986:273), in his descriptive grammar of Gitksan, asserts that yukw and nee are intransitive predi- cates that select sentential complements. This intuition is considered and ultimately rejected in later theoretical work; see footnote 9.	page 5, footnote
 footnote 9	Colin Brown	note	9 Hunt (1993) and Forbes (2018) both note the similarities between clauses with dependent markers such as yukw and clear-cut clausal embedding contexts. However, both ultimately opt for monoclausal analyses of these matrix dependent clause constructions.	page 5, footnote
@@ -145,7 +145,7 @@ footnote 9	Colin Brown	note	9 Hunt (1993) and Forbes (2018) both note the simila
 (16) line 6	Hunt 1993:148	translation	lit. ‘It is good that you will sit down.’	page 6, engine english, cited Hunt 1993:148; Gitksan; Tarpent 1987:219; Nisga’a, the example is Hunt's, 1993:148, with its Nisga’a counterpart in Tarpent 1987:219
 (16) line 6	Colin Brown	citation	(Hunt 1993:148; Gitksan; Tarpent 1987:219; Nisga’a)	the tag or source at the right of the translation
 footnote 10	Colin Brown	note	10 In embedding contexts, the connective only surfaces with intransitive complements; with transitive comple- ments the connective is replaced by a Series I ergative clitic (Rigsby 1986; Tarpent 1987; Hunt 1993).	page 6, footnote
-§2.2	Colin Brown	note	Type 2 elements do not select complements headed by the connective =hl, as shown in (17), where the variation with the complementizer co-occuring with the connective =hl was rejected:	page 6
+§2.2	Colin Brown	note	Type 2 elements do not select complements headed by the connective =hl, as displayed in (17), where the variation with the complementizer co-occuring with the connective =hl was rejected:	page 6
 (17) line 1	Colin Brown	note	Wil does not introduce complement headed by =hl	page 7, engine english
 (17) line 2	Gitksan	transcription	Luu aam goodi’y win(*hl) wis.	page 7, engine english
 (17) line 3	Gitksan	segmentation	luu aam goot-’y wil (*=hl) wis	page 7, engine english
@@ -469,13 +469,13 @@ footnote 18	Colin Brown	note	18 Irrealis ji does not seem to co-occur with the c
 (62) line 4	Colin Brown	translation	‘After we’ve fixed the car, we’ll visit Lisa.’	page 18, engine english
 (62) line 4	Colin Brown	citation	(VG)	the tag or source at the right of the translation
 §5	Gitksan	cited form	k’ay	‘still, just’, a predicative particle in Rigsby (1986:273), with hlaa ‘now, inceptive aspect’
-§5	Colin Brown	note	Another subgroup of dependent markers, including hlaa ‘now, inceptive aspect’ and k’ay ‘still, just’ (referred to as predicative particles in Rigsby (1986:273)) are more adverbial in nature, and require further investigation to determine whether they can also be unified with Type 1. While they lack the intransitive-verb-like properties of markers like yukw and nee (see Section 3), like yukw and nee, they consistently precede prospective dim, as shown in (63). This behaviour suggests, if the analyses presented here are correct, that hlaa, like, yukw and nee, triggers a biclausal structure.	page 19
+§5	Colin Brown	note	Another subgroup of dependent markers, including hlaa ‘now, inceptive aspect’ and k’ay ‘still, just’ (referred to as predicative particles in Rigsby (1986:273)) are more adverbial in nature, and require further investigation to determine whether they can also be unified with Type 1. While they lack the intransitive-verb-like properties of markers like yukw and nee (see Section 3), like yukw and nee, they consistently precede prospective dim, as displayed in (63). This behaviour suggests, if the analyses presented here are correct, that hlaa, like, yukw and nee, triggers a biclausal structure.	page 19
 (63) line 1	Gitksan	transcription	Hlaa dim maadim.	page 19, engine english
 (63) line 2	Gitksan	segmentation	hlaa [dim maadim]	page 19, engine english
 (63) line 3	Gitksan	gloss	INCEP PROSP snow	page 19, engine english
 (63) line 4	Rigsby 1986:276	translation	‘It’s going to snow soon.’	page 19, engine english, cited Rigsby 1986:276; bracketing my own, the bracketing of the segmentation is Brown's
 (63) line 4	Colin Brown	citation	(Rigsby 1986:276; bracketing my own)	the tag or source at the right of the translation
-§5	Colin Brown	note	While this work is preliminary and ongoing, the analysis presented here supports the view that most, if not all, matrix dependent clauses can be analyzed as involving subordination.	page 19
+§5	Colin Brown	note	While this work is preliminary and ongoing, the analysis presented here supports the view that max, if not all, matrix dependent clauses can be analyzed as involving subordination.	page 19
 references	Colin Brown	heading	References	page 19
 references	Colin Brown	reference	Aonuki, Yurika. 2021. Relative pronominal tense: Evidence from Gitksan, Japanese, and English. Master’s thesis, University of British Columbia.	
 references	Colin Brown	reference	Brown, Colin. 2016. Extraction restrictions in Gitksan. Master’s thesis, McGill University.	
@@ -530,4 +530,4 @@ footnote 15 (ii)	Colin Brown	cited title	Siipxum Hloxs	the story (ii) comes from
 (59)	Colin Brown	name	’Niigyemks	a person in the story of (59), glossed as a proper noun
 all	Colin Brown	notation	@	the transitive vowel and the schwa of the extraction suffix -@t are written @ in the segmentations, t’is-@-’y
 all	Colin Brown	notation	bold	the page sets the extraction morphology of (21) and (22) in bold, and the table does not mark it
-all	Colin Brown	notation	gloss labels	the page draws the gloss labels as small capitals, and the text layer holds them as ASCII capitals, PROSP. The table keeps the text layer
+all	Colin Brown	notation	gloss labels	the page draws the gloss labels as small capitals, and the text layer holds them as ASCII capitals, PROSP. The table retains the text layer

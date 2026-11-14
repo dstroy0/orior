@@ -15,7 +15,7 @@
 # What that agreement is worth, stated before the numbers. A family tree is a reconstruction argued
 # from cognates and sound correspondences. This is agreement with a scholarly consensus and not a
 # check against a fact, and where the two disagree nothing here can say which is wrong. Published
-# cell edges are the other kind. Those are an oracle. This is a strong prior.
+# cell edges are the other type. Those are an oracle. This is a strong prior.
 #
 # The alphabet is removed as a second arm. A milder version of that test moves fourteen of twenty
 # languages to a different nearest neighbor and reads as the family signal being definition.
@@ -84,12 +84,12 @@ def main():
         "  %d texts over %d languages\n\n"
         % (len(loaded), len({row[0] for row in loaded}))
     )
-    out.write("  %-34s %-9s %-14s %s\n" % ("reading", "letters", "found", "share"))
+    out.write("  %-34s %-9s %-14s %s\n" % ("reading", "characters", "found", "share"))
 
     readings = {}
     for label, ranks, prepare in (
         ("every character it actually uses", RANKS, None),
-        ("the same twenty six bare letters", BARE_RANKS, to_bare),
+        ("the same twenty six bare characters", BARE_RANKS, to_bare),
     ):
         rows = []
         for language, name, text in loaded:

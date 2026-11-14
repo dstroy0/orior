@@ -11,7 +11,7 @@
 # satisfies every anchor and correctness cannot turn on which anchors were chosen. The choice
 # moves how many false candidates survive, and the usual estimate of that is the product of the
 # anchors' own rates: three anchors on elements occurring at half the sites each should leave an
-# eighth of the positions standing.
+# eighth of the positions located.
 #
 # That estimate assumes the anchors are positioned independently. A lattice is the arrangement where
 # they are least independent of anything in nature. It is the sharpest available test of how far
@@ -50,7 +50,7 @@ CACHE = os.path.join(ROOT, "build", "cod")
 ANCHORS = 3
 TRIALS = 40
 
-# Fixed, which keeps a rerun reporting the same draw.
+# Fixed, which retains a rerun reporting the same draw.
 SEED = 0xC0FFEE
 
 
@@ -71,7 +71,7 @@ def cascade(points, draw):
     total = float(len(keys))
 
     # Displacements are drawn from points inside this reach of the seed, measured on the widest
-    # axis, keeping a needle a local shape instead of spanning the whole tiling.
+    # axis, retention a needle a local shape instead of spanning the whole tiling.
     lows = [min(key[axis] for key in keys) for axis in range(3)]
     highs = [max(key[axis] for key in keys) for axis in range(3)]
     reach = max(highs[axis] - lows[axis] for axis in range(3)) // 3
@@ -111,7 +111,7 @@ def cascade(points, draw):
                     break
             else:
                 survivors += 1
-        # The seed itself always survives. Only what stands beyond it is evidence.
+        # The seed itself always survives. Only what is beyond it is evidence.
         ratios.append(max(survivors - 1, 0) / predicted)
     return ratios
 

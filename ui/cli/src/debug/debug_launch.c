@@ -7,7 +7,7 @@
 #include "debug_start.h"
 #include "recording.h"
 
-// the most words an adapter is started with, and the folders its spec puts on its PATH
+// the max words an adapter is started with, and the folders its spec puts on its PATH
 #define CLI_DEBUG_ADAPTER_WORDS 64u
 #define CLI_DEBUG_ADAPTER_FOLDERS 64u
 

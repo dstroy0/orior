@@ -14,7 +14,7 @@
 #define KERNEL_PATIENCE 60000ULL
 #define KERNEL_PAUSE 20u
 
-// a notebook of a code cell that prints, a markdown cell and a code cell whose value is shown, recording Python 3;
+// a notebook of a code cell that prints, a markdown cell and a code cell whose value is displayed, recording Python 3;
 // and a notebook of markdown alone
 static const char s_notebook[] =
     "{\"cells\":[{\"cell_type\":\"code\",\"execution_count\":null,\"metadata\":{},\"outputs\":[],\"source\":["

@@ -37,7 +37,7 @@ static unsigned int order_wrap_step(OrderStack *stack, unsigned int value)
     return order_append(stack, ENGINE_RECORD_WRAP, value, 32u);
 }
 
-// encode, lay out with reuse, and load one program of a single member
+// encode, arrange with reuse, and load one program of a single member
 int order_load(const OrderStack *stack, const unsigned int *field_bits, const unsigned int *field_offset,
                unsigned int fields, unsigned int in_limbs, const unsigned int *outputs, unsigned int output_count,
                const EngineRecordTable *tables, unsigned int table_count, OrderLoaded *loaded)
@@ -104,7 +104,7 @@ void order_run(OrderLoaded *loaded, const unsigned int *atoms, unsigned int coun
     *device_ran = ok;
 }
 
-// one written output, `bits` of two's complement at `offset`, its top bit the sign; every output here is at most
+// one written output, `bits` of two's complement at `offset`, its top bit the sign; every output here is at max
 // 33 bits. It fits a long long
 static long long order_read(const unsigned int *record, unsigned int offset, unsigned int bits)
 {
@@ -184,12 +184,12 @@ static void order_floor_inverse(OrderStack *stack, unsigned int *word, unsigned 
     word[0] = order_wrap_step(stack, order_append(stack, ENGINE_RECORD_DIFFERENCE, word[0], product));
 }
 
-// one 32-bit field in an edge case: random bits, zero, -1, the most negative, the most positive, or one
+// one 32-bit field in an edge case: random bits, zero, -1, the max negative, the max positive, or one
 static unsigned int order_edge_word(void)
 {
-    const unsigned int kind = order_random() % 6u;
+    const unsigned int type = order_random() % 6u;
     const unsigned int extents[5] = {0u, 0xFFFFFFFFu, 0x80000000u, 0x7FFFFFFFu, 1u};
-    return (kind == 0u) ? order_random() : extents[kind - 1u];
+    return (type == 0u) ? order_random() : extents[type - 1u];
 }
 
 // a 32-bit field's two's complement read signed: 2^32 comes off where its top bit is set
@@ -253,7 +253,7 @@ void order_both_ways(OrderResults *results)
     OrderLoaded loaded;
     const int loads = order_load(&stack, field_bits, field_offset, ORDER_TEST_WORDS, ORDER_TEST_WORDS, outputs,
                                  output_count, NULL, 0u, &loaded);
-    order_check(results, loads, "the orders' stack encodes, lays out with reuse and loads");
+    order_check(results, loads, "the orders' stack encodes, arranges with reuse and loads");
     if (loads == 0)
     {
         free(stack.steps);

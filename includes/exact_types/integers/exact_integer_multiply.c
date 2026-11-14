@@ -316,7 +316,7 @@ static OriorExactStatus exact_multiply_by(const OriorExactInteger *left, const O
     {
         return ORIOR_EXACT_WILL_NOT_FIT;
     }
-    // The product is below 2^(32 * range) and occupies at most `range` limbs, at most one past the
+    // The product is below 2^(32 * range) and occupies at max `range` limbs, at max one past the
     // width. An overrun shows in that extra limb, and the accumulator retains it instead of wrapping
     // it away.
     EXACT_SCRATCH(wide, EXACT_LIMBS + 1u);

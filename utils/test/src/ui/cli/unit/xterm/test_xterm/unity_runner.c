@@ -11,7 +11,7 @@ extern void test_a_line_without_a_sequence_is_its_text_with_no_span(void);
 extern void test_a_color_and_its_reset_are_one_span_without_the_escape_bytes(void);
 extern void test_bold_a_bright_color_and_a_change_of_color_are_a_span_each(void);
 extern void test_a_wide_or_direct_color_is_plain(void);
-extern void test_a_line_is_cut_at_the_plain_bytes_handed_in(void);
+extern void test_a_line_is_cut_at_the_plain_bytes_passed_in(void);
 
 
 /*=======Mock Management=====*/
@@ -77,7 +77,7 @@ int main(void)
   run_test(test_a_color_and_its_reset_are_one_span_without_the_escape_bytes, "test_a_color_and_its_reset_are_one_span_without_the_escape_bytes", 49);
   run_test(test_bold_a_bright_color_and_a_change_of_color_are_a_span_each, "test_bold_a_bright_color_and_a_change_of_color_are_a_span_each", 57);
   run_test(test_a_wide_or_direct_color_is_plain, "test_a_wide_or_direct_color_is_plain", 67);
-  run_test(test_a_line_is_cut_at_the_plain_bytes_handed_in, "test_a_line_is_cut_at_the_plain_bytes_handed_in", 74);
+  run_test(test_a_line_is_cut_at_the_plain_bytes_passed_in, "test_a_line_is_cut_at_the_plain_bytes_passed_in", 74);
 
   return UNITY_END();
 }

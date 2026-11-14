@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// leaves.c: what a run leaves compared with what the tree has, shown and confirmed before the writer writes it in
+// leaves.c: what a run leaves compared with what the tree has, displayed and confirmed before the writer writes it in
 // place: a text file apart a line diff, a record file its byte counts; `y`, `n`, `all` or `none` at the terminal, or
-// `--leave` where no one is there. A refused file is handed back as the tree has it with the writer's `file` word,
+// `--leave` where no one is there. A refused file is passed back as the tree has it with the writer's `file` word,
 // so that the one writer still writes every current file and the tree's copy comes out unchanged. Nothing here
 // touches the disk
 #include "../../../cli/src/command_line/callback_cfg.h"
@@ -28,7 +28,7 @@ typedef struct
     const char **change_line;
     unsigned int *change_length;
 } QueryDiff;
-// the most bytes shown of a file, and the most a byte of a file shows as: an empty line is 1 byte, its lead and its
+// the max bytes displayed of a file, and the max a byte of a file shows as: an empty line is 1 byte, its lead and its
 // break 2, and a fold of the lines beside it its own line
 #define QUERY_DISPLAYED_MAX (8ULL << 20u)
 #define QUERY_DISPLAYED_WIDER 16ULL
@@ -155,7 +155,7 @@ EMBED_INLINE int query_line_same(const LeavesCtx *args)
            (memor.cmp(&(MemoriaCfg){.src = args->a, .other = args->b, .bytes = args->a_length}) == 0);
 }
 
-// the most edits a diff walks: past them a text file is shown by its byte counts
+// the max edits a diff walks: past them a text file is displayed by its byte counts
 #define QUERY_DIFF_EDITS 2048u
 
 #define QUERY_REACH(diff_, k_) (diff_)->reach[(k_) + (diff_)->reach_middle]
@@ -215,10 +215,10 @@ EMBED_INLINE int query_diff_steps(const LeavesCtx *args)
     // the counts of two texts' lines, which an int represents
     const int lines_before = (int)args->diff->n;
     const int lines_after = (int)args->diff->m;
-    const int most = lines_before + lines_after;
+    const int max = lines_before + lines_after;
     memor.set(&(MemoriaCfg){
         .dst = args->diff->reach, .val = 0, .bytes = ((2u * (size_t)args->diff->reach_middle) + 1u) * sizeof(int)});
-    for (int d = 0; (d <= most) && (d <= (int)QUERY_DIFF_EDITS); d += 1)
+    for (int d = 0; (d <= max) && (d <= (int)QUERY_DIFF_EDITS); d += 1)
     {
         for (int k = -d; (args->diff->band != NULL) && (k <= d); k += 1)
         {
@@ -456,9 +456,9 @@ EMBED_INLINE int query_named_before(const LeavesCtx *args)
     return 0;
 }
 
-// the file `what` as the run leaves it, the `after_size` bytes at `after`, shown against the `before_size` bytes at
-// `before` the tree has, NULL where it has none, and printed to `context`: what is shown is in a cell of the most it
-// writes to, up to the most shown, a line that fills it holding what fit and its 0
+// the file `what` as the run leaves it, the `after_size` bytes at `after`, displayed against the `before_size` bytes at
+// `before` the tree has, NULL where it has none, and printed to `context`: what is displayed is in a cell of the max it
+// writes to, up to the max displayed, a line that fills it holding what fit and its 0
 EMBED_INLINE void query_leaf_printed(const LeavesCtx *args)
 {
     const unsigned long long required =
@@ -501,7 +501,7 @@ EMBED_INLINE QueryLeave query_leave_after(const LeavesCtx *args)
     return (args->answer == QUERY_ANSWER_NONE) ? QUERY_LEAVE_NONE : args->leave;
 }
 
-// the file `what` handed back to the writer of `run_read` as the tree has it, the `before_size` bytes at `before`, NULL
+// the file `what` passed back to the writer of `run_read` as the tree has it, the `before_size` bytes at `before`, NULL
 // where it has none, and told to `context`; 1, or 0 with why given
 EMBED_INLINE int query_leaf_refused(const LeavesCtx *args)
 {

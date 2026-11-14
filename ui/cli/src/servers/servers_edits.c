@@ -26,7 +26,7 @@ typedef struct
     unsigned int files;
     unsigned int file_capacity;
 } CliServersEditing;
-// the most files one workspace edit changes
+// the max files one workspace edit changes
 #define CLI_SERVERS_EDITED 1024u
 
 typedef struct
@@ -42,7 +42,7 @@ typedef struct
     CliTextPosition other;
     unsigned int edit;
 } ServersEditsCtx;
-// the edits of an array, CLI_TEXT_EDITS at the most counted with those before
+// the edits of an array, CLI_TEXT_EDITS at max counted with those before
 EMBED_INLINE unsigned int edits_on_count(const ServersEditsCtx *args)
 {
     const CliJson *json = args->json;
@@ -117,7 +117,7 @@ static void edits_add(const ServersEditsCtx *args)
             EMBED_CALL(cli_servers_json_node_otherwise_internal.place, CliServersJsonNodeOtherwiseCtx, .json = json,
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                           .object = range, .name = "end"));
-        // an edit of a slice is an edit of the file its lines came from, a span's lines standing together in both
+        // an edit of a slice is an edit of the file its lines came from, a span's lines located together in both
         char moved[CLI_PATH_MAX_LEN];
         const unsigned int rows = (to.line > from.line) ? (to.line - from.line) : 0u;
         const int where = EMBED_CALL(cli_servers_path_line_from_internal.slice_out, CliServersPathLineFromCtx,
@@ -138,7 +138,7 @@ static void edits_add(const ServersEditsCtx *args)
     }
 }
 
-// two places in the order they stand in a text
+// two places in the order they are in a text
 EMBED_INLINE int edits_position_order(const ServersEditsCtx *args)
 {
     if (args->one.line != args->other.line)
@@ -179,7 +179,7 @@ static int edits_order(const void *one, const void *other)
 }
 
 // the capacity the edits of `edits` for the file of `uri`, `length` bytes, take counted with that before: one file, and
-// in a file given its server as a slice a file more for each edit, as each may stand on a line of another file
+// in a file given its server as a slice a file more for each edit, as each may are on a line of another file
 EMBED_INLINE void edits_capacity_count(const ServersEditsCtx *args)
 {
     const char *uri = args->uri;

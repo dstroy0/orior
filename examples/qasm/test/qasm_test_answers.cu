@@ -53,8 +53,8 @@ int run(const QasmCircuit *circuit, int on_host, QasmOutcome *outcome, unsigned 
     const QasmRunRequest request = {circuit, on_host, state, &error};
     if (qasm_run(&request, outcome) == QASM_ERROR)
     {
-        printf("  run errored on the %s: error kind %d, module %d, site %u, status %d\n", on_host ? "host" : "device",
-               (int)error.kind, (int)error.module, error.site, error.status);
+        printf("  run errored on the %s: error type %d, module %d, site %u, status %d\n", on_host ? "host" : "device",
+               (int)error.type, (int)error.module, error.site, error.status);
         return 0;
     }
     return 1;

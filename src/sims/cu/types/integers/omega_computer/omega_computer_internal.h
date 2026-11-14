@@ -12,7 +12,7 @@
 // Tromp's universal machine U is itself such a term, of 190 bits (J. Tromp, the AIT repository, ait/uni.lam, with the
 // improvements by 50_ft_lock and Sean Palmer; the bits are those of Tromp's `blc blc`, whose size optimizer was
 // reproduced to read them off). uni.lam gives uni's text and its size, 190 bits, and not its
-// bits: no translation of that text that only inlines its lets or lays them out as redexes comes to fewer than 209
+// bits: no translation of that text that only inlines its lets or positions them out as redexes comes to fewer than 209
 // bits, since the optimizer also reduces. The bits here are checked by Tromp's test below and not against a published
 // string. Given the bits of a closed M and then the rest of its input, U reduces to M applied to
 // the rest. A machine made of the machine is therefore U reading code(M), and the nesting d deep is U reading d - 1
@@ -40,12 +40,12 @@
 #include <string>
 #include <vector>
 
-// the longest program read when the request names none, and the most it may name
+// the longest program read when the request names none, and the max it may name
 #define OMEGA_COMPUTER_LENGTH_DEFAULT 20u
 
 #define OMEGA_COMPUTER_LENGTH_MAX 40u
 
-// the machines deep when the request names none, and the most it may name
+// the machines deep when the request names none, and the max it may name
 #define OMEGA_COMPUTER_DEPTH_DEFAULT 3u
 
 #define OMEGA_COMPUTER_DEPTH_MAX 8u
@@ -65,7 +65,7 @@
 // the lazy machine's cells a run: thunks, environment cells and spine cells together
 #define OMEGA_COMPUTER_CELLS_MAX (1ull << 27u)
 
-// the most tokens a normal form is read back to
+// the max tokens a normal form is read back to
 #define OMEGA_COMPUTER_TOKENS_MAX 65536u
 
 // tokens of a term in the order its code is read: a lambda, an application, or a variable's index from 1
@@ -98,7 +98,7 @@ typedef enum
 
 typedef struct
 {
-    int kind;
+    int type;
     // the body, the function, or the variable's index from 1
     int left;
     // the argument
@@ -157,7 +157,7 @@ typedef struct
 
 unsigned long long omega_computer_count(const OmegaComputerCounts *counts, unsigned int length, unsigned int depth);
 
-void omega_computer_count_all(OmegaComputerCounts *counts, unsigned int maximum);
+void omega_computer_count_all(OmegaComputerCounts *counts, unsigned int max);
 
 void omega_computer_unrank(const OmegaComputerCounts *counts, unsigned int length, unsigned int depth,
                            unsigned long long index, std::vector<int> &term);

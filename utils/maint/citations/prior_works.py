@@ -16,8 +16,8 @@
 #
 #   1. A PRIORITY CLAIM WITH NOTHING BEHIND IT. A sentence saying something here is new, first,
 #      unprecedented, or absent from the literature is a claim about everybody else's work. This
-#      tree cannot check that kind of claim on its own, because the evidence for it
-#      sits in journals nobody here has read. Either a reference stands near it, or the sentence
+#      tree cannot check that type of claim on its own, because the evidence for it
+#      sits in journals nobody here has read. Either a reference is near it, or the sentence
 #      says plainly that nobody here has read it.
 #
 #   2. A QUOTED PASSAGE WITH NO ATTRIBUTION. Somebody else's sentences, set in quotation marks,
@@ -160,7 +160,7 @@ DISCLAIMERS = (
 )
 
 # What a reference looks like in these research papers: a LaTeX citation, a bracketed key, or a surname
-# standing against a year.
+# located against a year.
 REFERENCES = (
     r"\\(cite|citep|citet|footcite|autocite)\w*\s*[\[{]",
     r"\\ref\s*\{",
@@ -270,15 +270,15 @@ def main():
     for path in held:
         with io.open(path, encoding="utf-8", errors="replace") as handle:
             lines = handle.read().splitlines()
-        shown = os.path.relpath(path, ROOT).replace("\\", "/")
+        displayed = os.path.relpath(path, ROOT).replace("\\", "/")
 
         if not quotes_only:
             for at, what in priority_claims(path, lines):
-                out.write("  CLAIM %s:%d: %s\n" % (shown, at, what))
+                out.write("  CLAIM %s:%d: %s\n" % (displayed, at, what))
                 claims += 1
         if not claims_only:
             for at, what in quotations(path, lines):
-                out.write("  QUOTE %s:%d: %s\n" % (shown, at, what))
+                out.write("  QUOTE %s:%d: %s\n" % (displayed, at, what))
                 quoted += 1
 
     out.write(

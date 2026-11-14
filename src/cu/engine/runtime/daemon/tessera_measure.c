@@ -134,7 +134,7 @@ TesseraMeasure *tessera_measure_open(const unsigned char device[TESSERA_DEVICE_B
         const unsigned long long mask = tessera_self_host_mask();
         measure->host = 1;
         measure->reported = 1;
-        // a processor count is at most sixty-four. It converts exactly
+        // a processor count is at max sixty-four. It converts exactly
         measure->host_capacity = (unsigned long long)engine_word_population(mask) * TESSERA_HOST_PROCESSOR;
         if (mask == 0ull)
         {
@@ -264,7 +264,7 @@ static int tessera_instance_luid(const char *name, unsigned long long *luid)
 int tessera_measure_process(TesseraMeasure *measure, unsigned long long pid, unsigned long long *used)
 {
     *used = 0ull;
-    // a reported measure reads no pid from outside: that process's own report stands for it
+    // a reported measure reads no pid from outside: that process's own report is for it
     if (measure->reported)
     {
         return 0;

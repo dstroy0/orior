@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 any	-	continued line	\ then a newline	a line continued onto the next, the two deleted
 any	-	comment	// to the end of the line, /* */ across lines	read as one space
 any	-	preprocessor	#include, #define, #undef, #if, #ifdef, #ifndef, #elif, #else, #endif, #line, #error, #pragma	the preprocessor

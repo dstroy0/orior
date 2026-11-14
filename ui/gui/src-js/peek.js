@@ -5,8 +5,8 @@
 // and Peek Callers show, over the editor under the cursor's line, the lines the language server
 // finds, in an editor of their own: a file a tab holds shows as the tab has it, changes not saved and
 // all, and takes edits as the tab does; one no tab holds shows as it was read, and takes none. No tab
-// opens. Where there is more than one place, they stand in a list beside the lines, and the arrows go
-// from one to the next. Enter, or Open, opens the place shown in a tab that is a preview until it is
+// opens. Where there is more than one place, they are in a list beside the lines, and the arrows go
+// from one to the next. Enter, or Open, opens the place displayed in a tab that is a preview until it is
 // edited, and Escape, or the cursor's file changing, closes the peek.
 
 import { editing, onShown, openAt, viewEditor, viewSession } from "./edit.js";
@@ -15,7 +15,7 @@ import { say } from "./statusbar.js";
 
 const TITLES = { definition: "Definition of", usages: "Usages of", callers: "Callers of" };
 
-const state = { panel: null, editor: null, sessions: new Map(), places: [], shown: -1, title: "" };
+const state = { panel: null, editor: null, sessions: new Map(), places: [], displayed: -1, title: "" };
 
 function element(tag, props = {}, ...children) {
   const made = Object.assign(document.createElement(tag), props);
@@ -29,11 +29,11 @@ const where = (place) => `${place.path}:${place.line + 1}`;
 export function closePeek() {
   state.panel?.remove();
   state.sessions.forEach((session) => session.drop());
-  Object.assign(state, { panel: null, editor: null, sessions: new Map(), places: [], shown: -1 });
+  Object.assign(state, { panel: null, editor: null, sessions: new Map(), places: [], displayed: -1 });
 }
 
-// What the peek shows, for the tests: its title, its places, the one shown and the editor showing it.
-export const peekShown = () => (state.panel ? { title: state.title, places: state.places, shown: state.shown, editor: state.editor, panel: state.panel } : null);
+// What the peek shows, for the tests: its title, its places, the one displayed and the editor showing it.
+export const peekShown = () => (state.panel ? { title: state.title, places: state.places, displayed: state.displayed, editor: state.editor, panel: state.panel } : null);
 
 // Shows the place at `index` in the peek's editor, the place's line near its top.
 export async function showPlace(index) {
@@ -41,7 +41,7 @@ export async function showPlace(index) {
   if (!place || !state.editor) {
     return;
   }
-  state.shown = index;
+  state.displayed = index;
   state.panel.querySelectorAll(".code-peek-place").forEach((one, at) => one.setAttribute("aria-selected", String(at === index)));
   state.panel.querySelector(".code-peek-where").textContent = where(place);
   let session = state.sessions.get(place.path);
@@ -57,7 +57,7 @@ export async function showPlace(index) {
     }
     state.sessions.set(place.path, session);
   }
-  if (state.shown !== index) {
+  if (state.displayed !== index) {
     return;
   }
   state.editor.show(session);
@@ -66,9 +66,9 @@ export async function showPlace(index) {
   state.editor.place(Math.max(0, line - 2) * state.editor.lineHeight);
 }
 
-// Opens the place shown in a preview tab, and closes the peek.
+// Opens the place displayed in a preview tab, and closes the peek.
 export async function openShown() {
-  const place = state.places[state.shown];
+  const place = state.places[state.displayed];
   if (!place) {
     return;
   }
@@ -78,14 +78,14 @@ export async function openShown() {
 
 function step(by) {
   if (state.places.length > 1) {
-    const next = (state.shown + by + state.places.length) % state.places.length;
+    const next = (state.displayed + by + state.places.length) % state.places.length;
     showPlace(next);
     state.panel.querySelectorAll(".code-peek-place")[next]?.focus();
   }
 }
 
 // Shows the places `places` under the title `title` in a peek over the editor under the line the
-// cursor stands on, the first of them shown.
+// cursor is on, the first of them displayed.
 export function peekPlaces(title, places) {
   closePeek();
   const main = editing().editor;
@@ -130,7 +130,7 @@ export function peekPlaces(title, places) {
   });
   const host = document.getElementById("editor");
   host.append(panel);
-  Object.assign(state, { panel, places, title, editor: viewEditor(view), shown: -1 });
+  Object.assign(state, { panel, places, title, editor: viewEditor(view), displayed: -1 });
   const box = host.getBoundingClientRect();
   const line = main.head()?.line ?? 0;
   const below = main.rectOf({ line, col: 0 }).bottom - box.top;
@@ -142,7 +142,7 @@ export function peekPlaces(title, places) {
 }
 
 // Peek Definition, Peek Usages and Peek Callers: the places the language server finds for the symbol
-// at the cursor, as `type` asks, shown in a peek.
+// at the cursor, as `type` asks, displayed in a peek.
 export async function peekHere(type) {
   let found;
   try {

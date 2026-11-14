@@ -1,18 +1,18 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// bus_enum_walk.c: the classify walk run over a span in probes the interface can lose, the kinds collected and the
+// bus_enum_walk.c: the classify walk run over a span in probes the interface can lose, the types collected and the
 // enumeration region read from them. An address that ends its probe answered nothing, and the walk goes on from the
 // next address in a fresh probe.
 #include "bus_enum_walk.h"
 
 #include <stdlib.h>
 
-// the kinds classify_walk wrote, read into `answers`, the kinds, from `next` on. How many it answered in order; a
-// line out of order, past the addresses it was given, or not three numbers ends the read where it stands
+// the types classify_walk wrote, read into `answers`, the types, from `next` on. How many it answered in order; a
+// line out of order, past the addresses it was given, or not three numbers ends the read where it is
 static unsigned long long bus_enum_walk_read(const QueryWalk *walk, const char *lines, unsigned long long next,
                                              unsigned long long given, void *answers)
 {
-    unsigned int *const kinds = (unsigned int *)answers;
+    unsigned int *const types = (unsigned int *)answers;
     unsigned long long read = 0ull;
     const char *at = lines;
     while (read < given)
@@ -24,7 +24,7 @@ static unsigned long long bus_enum_walk_read(const QueryWalk *walk, const char *
             break;
         }
         at = end;
-        const unsigned long kind = strtoul(at, &end, 16);
+        const unsigned long type = strtoul(at, &end, 16);
         if (end == at)
         {
             break;
@@ -41,8 +41,8 @@ static unsigned long long bus_enum_walk_read(const QueryWalk *walk, const char *
         {
             break;
         }
-        // a kind is one of the few HostKind values, which an unsigned int represents
-        kinds[next + read] = (unsigned int)kind;
+        // a type is one of the few HostKind values, which an unsigned int represents
+        types[next + read] = (unsigned int)type;
         read += 1ull;
     }
     return read;
@@ -56,14 +56,14 @@ static void bus_enum_walk_ended(const QueryWalk *walk, unsigned long long next, 
     ((unsigned int *)answers)[next] = HOST_NOTHING;
 }
 
-int bus_enum_walk(const QueryWalk *walk, unsigned int *kinds, unsigned long long *base, unsigned long long *stride_out,
+int bus_enum_walk(const QueryWalk *walk, unsigned int *types, unsigned long long *base, unsigned long long *stride_out,
                   unsigned long long *records, EngineError *error)
 {
-    const QueryInterfaceDriver driver = {0, bus_enum_walk_read, bus_enum_walk_ended, kinds};
+    const QueryInterfaceDriver driver = {0, bus_enum_walk_read, bus_enum_walk_ended, types};
     unsigned long long probes = 0ull;
     if (query_interface_run(walk, &driver, &probes, error) == 0)
     {
         return -1;
     }
-    return bus_enum_find(kinds, walk->count, base, stride_out, records);
+    return bus_enum_find(types, walk->count, base, stride_out, records);
 }

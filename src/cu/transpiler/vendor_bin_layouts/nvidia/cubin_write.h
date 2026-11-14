@@ -11,7 +11,7 @@
 // constant bank they lie in, its notes, its symbols and its relocations. The cell's probes found that between two
 // cubins of one kernel only its code, the size of the code, the count of registers it uses and the offsets of its
 // exits differ (engine_plan.md, the SASS findings). A cubin is therefore written by taking one the toolchain made
-// for a kernel that takes the same parameters and putting new code in it, in place of laying an ELF out from
+// for a kernel that takes the same parameters and putting new code in it, in place of positioning an ELF out from
 // nothing: everything the writer does not understand is carried over, never invented.
 //
 // The writer is container_write.h's emitter, given a cubin and the cubin's layout file elf64_nvidia.tsv beside it.
@@ -52,7 +52,7 @@ typedef struct
     unsigned int kernel_count;
 } CubinKernels;
 
-// the cubin written with every kernel of `args` put in at one laying out, into `written`, which has room for `room`
+// the cubin written with every kernel of `args` put in at one arranging, into `written`, which has room for `room`
 // bytes, and its size through `size`. 1, or 0 with the reason printed, having written nothing
 int cubin_kernels_write(const CubinKernels *args, unsigned char *written, unsigned long long room,
                         unsigned long long *size);

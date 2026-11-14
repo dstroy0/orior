@@ -47,7 +47,7 @@ unsigned int run_cfg_find(const RunCfg *cfg, const char *path)
             length += 1u;
         }
         part[length] = '\0';
-        if ((cfg->tokens[at].kind != CFG_JSON_OBJECT) ||
+        if ((cfg->tokens[at].type != CFG_JSON_OBJECT) ||
             ((at = cfg_json_member(cfg->text.data(), cfg->tokens.data(), at, part)) == 0u))
         {
             return 0u;
@@ -65,7 +65,7 @@ unsigned int run_cfg_find(const RunCfg *cfg, const char *path)
 static int run_cfg_decimal(const RunCfg *cfg, unsigned int at, SimRational *value)
 {
     const CfgJsonToken *const token = &cfg->tokens[at];
-    if (token->kind != CFG_JSON_STRING)
+    if (token->type != CFG_JSON_STRING)
     {
         return 0;
     }
@@ -98,7 +98,7 @@ int run_cfg_count(const RunCfg *cfg, const char *path, unsigned long long *value
 int run_cfg_rationals(const RunCfg *cfg, const char *path, std::vector<SimRational> *values)
 {
     const unsigned int at = run_cfg_find(cfg, path);
-    if ((at == 0u) || (cfg->tokens[at].kind != CFG_JSON_ARRAY) || (cfg->tokens[at].count == 0u))
+    if ((at == 0u) || (cfg->tokens[at].type != CFG_JSON_ARRAY) || (cfg->tokens[at].count == 0u))
     {
         return 0;
     }
@@ -120,7 +120,7 @@ int run_cfg_rationals(const RunCfg *cfg, const char *path, std::vector<SimRation
 int run_cfg_counts(const RunCfg *cfg, const char *path, std::vector<unsigned long long> *values)
 {
     const unsigned int at = run_cfg_find(cfg, path);
-    if ((at == 0u) || (cfg->tokens[at].kind != CFG_JSON_ARRAY) || (cfg->tokens[at].count == 0u))
+    if ((at == 0u) || (cfg->tokens[at].type != CFG_JSON_ARRAY) || (cfg->tokens[at].count == 0u))
     {
         return 0;
     }
@@ -142,7 +142,7 @@ int run_cfg_counts(const RunCfg *cfg, const char *path, std::vector<unsigned lon
 int run_cfg_text(const RunCfg *cfg, const char *path, std::string *value)
 {
     const unsigned int at = run_cfg_find(cfg, path);
-    if ((at == 0u) || (cfg->tokens[at].kind != CFG_JSON_STRING) || (cfg->tokens[at].end == cfg->tokens[at].start))
+    if ((at == 0u) || (cfg->tokens[at].type != CFG_JSON_STRING) || (cfg->tokens[at].end == cfg->tokens[at].start))
     {
         return 0;
     }

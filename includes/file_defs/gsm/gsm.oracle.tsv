@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 any	-	case	1,1->2	a case asked of the part: the operands, then the answer the relation holds
 any	-	pair	[left, right]	a pair resolved to its state
 any	-	cross	lead x> rite, 1,0 x> 0,1	a transition where both sides flip

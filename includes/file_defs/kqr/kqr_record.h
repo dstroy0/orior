@@ -20,7 +20,7 @@ extern "C"
 #endif
 
     // A member's record. A record starts as zeros, and kqr_read opens it. Its records, the member's first; the record
-    // each identity's query stands at, plus one, 0 for an entry that contains none; the record of each sample; the
+    // each identity's query is at, plus one, 0 for an entry that contains none; the record of each sample; the
     // record the pairs start at, the who before them where it is theirs; and the marks pending, each its code and its
     // two words, a cycle's first its mode's text, numbered as it is written
     typedef struct
@@ -69,12 +69,12 @@ extern "C"
     // `record` made a view of the table KQR_TABLE of the run `buffer`, as the file at `path`, by `who`
     // (krep_tabled_by): every record it contains a row of the table, every record retained after a row as it is
     // retained, and the record written as its rows put it together. 1, or 0 where it is not open, no run is given or a
-    // row could not be handed, and the record is written as it is stored
+    // row could not be passed, and the record is written as it is stored
     int kqr_tabled_by(KqrRecord *record, QryShared *buffer, const char *path, Who who);
 
-    // `record` handed to the run's writer as the file at `path` (qry_member_filed), written by `who`, the record its
+    // `record` passed to the run's writer as the file at `path` (qry_member_filed), written by `who`, the record its
     // rows put together where it is a view of the run's table (kqr_tabled_by): 1, or 0 where no run's writer runs, the
-    // path stands outside the tree, or it could not be written
+    // path is outside the tree, or it could not be written
     int kqr_write_by(const KqrRecord *record, const char *path, Who who);
 
     // everything `record` contains let go, and the record zeros again

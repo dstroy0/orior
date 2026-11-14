@@ -21,7 +21,7 @@ async function boundTo(connectionId, projectKey) {
 async function drawBinding(connectionId, message) {
   const all = connections();
   if (!all.length) {
-    await shown("binding", `<h1>Binding</h1><p>No connection is made yet.</p>${button("Connect to SonarQube Server", "connection-new", "server")}${button("Connect to SonarQube Cloud", "connection-new", "cloud")}`);
+    await displayed("binding", `<h1>Binding</h1><p>No connection is made yet.</p>${button("Connect to SonarQube Server", "connection-new", "server")}${button("Connect to SonarQube Cloud", "connection-new", "cloud")}`);
     return;
   }
   const chosenId = connectionId ?? sonar.settings.connectedMode.project?.connectionId ?? all[0].connectionId;
@@ -37,7 +37,7 @@ async function drawBinding(connectionId, message) {
       .map(([key, name]) => `<tr><td>${escaped(name)}<br><span class="quiet">${escaped(key)}</span></td><td>${button("Bind", "binding-project", `${chosenId}\n${key}`)}</td></tr>`)
       .join("");
   }
-  await shown(
+  await displayed(
     "binding",
     `<h1>Bind the tree to a project</h1>${message ? `<p class="fail">${escaped(message)}</p>` : ""}<div class="row">${pick}</div><form class="row"><input name="key" placeholder="Project key" size="40">${button("Bind by Key", "binding-key", chosenId)}</form>${projects ? `<table>${projects}</table>` : '<p class="quiet">No projects were found for this connection.</p>'}`,
   );
@@ -74,13 +74,13 @@ onPressed("binding-remove", async () => {
 async function suggestionsOffered(suggestions) {
   const all = Object.values(suggestions ?? {}).flat();
   if (!all.length) {
-    await shown("ask", "<p>No binding suggestions were found for the tree.</p>");
+    await displayed("ask", "<p>No binding suggestions were found for the tree.</p>");
     return;
   }
   const rows = all
     .map((one) => `<tr><td>${escaped(one.sonarProjectName || one.sonarProjectKey)}<br><span class="quiet">${escaped(one.sonarProjectKey)} | ${escaped(one.connectionId)}</span></td><td>${button("Bind", "binding-project", `${one.connectionId}\n${one.sonarProjectKey}`)}</td></tr>`)
     .join("");
-  await shown("binding", `<h1>Suggested bindings</h1><table>${rows}</table>${button("Choose Manually", "binding-edit")}`);
+  await displayed("binding", `<h1>Suggested bindings</h1><table>${rows}</table>${button("Choose Manually", "binding-edit")}`);
 }
 
 orior.server.on("sonarlint/suggestBinding", ({ suggestions }) => {
@@ -151,7 +151,7 @@ onPressed("binding-share", async () => {
     return null;
   });
   if (!answer?.jsonFileContent) {
-    await shown("ask", '<p class="fail">Failed to create SonarQube for IDE Connected Mode configuration file.</p>');
+    await displayed("ask", '<p class="fail">Failed to create SonarQube for IDE Connected Mode configuration file.</p>');
     return;
   }
   const solutions = (await orior.tree.files().catch(() => [])).filter((path) => path.endsWith(".sln")).map((path) => path.split("/").pop().replace(/\.sln$/, ""));
@@ -160,7 +160,7 @@ onPressed("binding-share", async () => {
     return;
   }
   await orior.files.write(`.sonarlint/${name}`, answer.jsonFileContent);
-  await shown("ask", "<p>SonarQube for IDE Connected Mode configuration file was created.</p>");
+  await displayed("ask", "<p>SonarQube for IDE Connected Mode configuration file was created.</p>");
 });
 
 orior.server.on("sonarlint/submitNewCodeDefinition", (definition) => {

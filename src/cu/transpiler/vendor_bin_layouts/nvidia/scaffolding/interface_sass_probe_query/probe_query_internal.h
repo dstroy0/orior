@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the most bytes a cubin read for cubin_safe takes
+// the max bytes a cubin read for cubin_safe takes
 #define SASS_SAFE_CUBIN 1048576u
 
 // The count a coding is turned over to lift its cost out of the harness. A run costs about 497 us of
@@ -68,15 +68,15 @@
 static const unsigned int s_loop_live[] = {0u, 2u, 3u, 4u, 5u, 7u};
 
 // the first words the loop is tested over. 2 is tested first, since coming back answers 2 and falling through 1, and
-// it prunes the most; the forms that answer it are tested on the rest. At 1 the loop is left after one turn either way
+// it prunes the max; the forms that answer it are tested on the rest. At 1 the loop is left after one turn either way
 static const unsigned int s_loop_counts[] = {2u, 1u, 3u, 5u, 0x40u};
 
-// the first word a form that comes back on every count is timed over: enough turns that a turn's cost stands well
+// the first word a form that comes back on every count is timed over: enough turns that a turn's cost is well
 // above the launch each run pays
 #define SASS_LOOP_TIMED 0x100000u
 
-// the most forms retained as coming back
-#define SASS_LOOPS_MOST 64u
+// the max forms retained as coming back
+#define SASS_LOOPS_MAX 64u
 
 int sass_cubin_answer_first(SassProbe *probe, const char *path, unsigned int first, char *answered, size_t room);
 void sass_environment(const char *name, const char *value);

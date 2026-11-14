@@ -50,7 +50,7 @@ void psi_all_scales(SimResults *results, const PsiCase *psi_case, const PsiScale
     {
         power *= base;
     }
-    // gamma^n is at most 1000 here, far inside a word
+    // gamma^n is at max 1000 here, far inside a word
     const SimRational constant =
         sim_rational_sum(sim_rational(1ll, 2ll * signed_base),
                          sim_rational((signed_base - 2ll) * (long long)power, (long long)power - 2ll));
@@ -314,7 +314,7 @@ void psi_separate(SimResults *results, const PsiCase *psi_case, const PsiScale *
             rest /= side;
         }
         images[index].value = sum;
-        // count is at most 10^6
+        // count is at max 10^6
         images[index].index = (unsigned int)index;
     }
     qsort(images, (size_t)count, sizeof(PsiImage), psi_image_order);
@@ -329,7 +329,7 @@ void psi_separate(SimResults *results, const PsiCase *psi_case, const PsiScale *
             least_at = at;
         }
     }
-    // the dropped alpha tails move each image up by less than sum_p 2 gamma^-beyond_p, psi being at most 1
+    // the dropped alpha tails move each image up by less than sum_p 2 gamma^-beyond_p, psi being at max 1
     unsigned long long tail = 0ull;
     for (unsigned int coordinate = 1u; coordinate < dimension; coordinate += 1u)
     {

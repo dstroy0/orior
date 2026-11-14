@@ -4,8 +4,8 @@
 // gives a command within CLI_NOTICES_ANSWERS_MS, shows at once; any other needs nothing done and waits for a break in
 // the work: a save, or the keys at rest CLI_NOTICES_REST_MS, where every one waiting but the last goes to the list and
 // the last shows. Focus stops every notice until it ends. A notice's type is its first line with each run of digits
-// read as any count; a type put away shows no more, the list still taking it. Every notice shown or set aside stands
-// in the list the bell opens, the newest last, CLI_NOTICES_LISTED at the most. A notice's text and the types put away
+// read as any count; a type put away shows no more, the list still taking it. Every notice displayed or set aside is
+// in the list the bell opens, the newest last, CLI_NOTICES_LISTED at max. A notice's text and the types put away
 // are movable cells, each read by a copy into a temporary cell; the two rings are MMgr's, each in one fixed cell
 #include "command_line.h"
 
@@ -17,7 +17,7 @@
 #include "pool.h"
 #include "rings.h"
 
-// the key of orior's folder the types put away stand under, a line each
+// the key of orior's folder the types put away are under, a line each
 #define CLI_NOTICES_AWAY_KEY "notices-away"
 
 // A ring of notices, MMgr's: the ring over its segments, a notice each, the notices the rings block's
@@ -28,7 +28,7 @@ typedef struct
 } CliNoticesRing;
 
 // The notices: the list, a ring, NULL until the first notice, and how many came since the bell was opened; those
-// waiting for a break, a ring, NULL until the first; the notice shown, its cell in the list, NULL for none, its first
+// waiting for a break, a ring, NULL until the first; the notice displayed, its cell in the list, NULL for none, its first
 // line and its type copied out, and whether it is a failure's; when it goes; whether Focus is on and how many wait on
 // it; when the reader last commanded and last gave any input; and the types put away, a line each: in a movable cell
 // of the notices' own with its bytes where `away_owned` is 1, else read in place where orior's folder was read, NULL
@@ -38,11 +38,11 @@ typedef struct
     CliNoticesRing *list;
     unsigned int unseen;
     CliNoticesRing *waiting;
-    const CarcerMovableEntry *shown;
-    char shown_text[CLI_PATH_MAX_LEN];
-    char shown_type[CLI_PATH_MAX_LEN];
-    int shown_failed;
-    unsigned long long shown_until_ms;
+    const CarcerMovableEntry *displayed;
+    char displayed_text[CLI_PATH_MAX_LEN];
+    char displayed_type[CLI_PATH_MAX_LEN];
+    int displayed_failed;
+    unsigned long long displayed_until_ms;
     int focus;
     unsigned int focus_waiting;
     unsigned long long commanded_ms;
@@ -68,7 +68,7 @@ typedef struct
     unsigned int at;
 } CliNoticesCtx;
 
-// the ring `at` laid where none stands: the list's ring at 0 and the waiting ring at 1, each ring's notices its
+// the ring `at` positioned where none is: the list's ring at 0 and the waiting ring at 1, each ring's notices its
 // own CLI_NOTICES_RING_BYTES of the rings block's part, so neither punches a hole in the persistent tier
 EMBED_INLINE CliNoticesRing *notices_ring_taken(const CliNoticesCtx *args)
 {
@@ -91,7 +91,7 @@ EMBED_INLINE CliNoticesRing *notices_ring_taken(const CliNoticesCtx *args)
 // the notices a ring holds, 0 for a ring not yet taken
 EMBED_INLINE unsigned int notices_count(const CliNoticesCtx *args)
 {
-    // the segments in flight are at most CLI_NOTICES_LISTED, inside an unsigned int
+    // the segments in flight are at max CLI_NOTICES_LISTED, inside an unsigned int
     return (args->ring != NULL) ? (unsigned int)anularis.seg_inflight(&(AnularisCfg){.ring = &args->ring->ring}) : 0u;
 }
 
@@ -170,19 +170,19 @@ EMBED_INLINE int notices_built(const CliNoticesCtx *args)
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     const unsigned long long first = EMBED_CALL(notices_first_line, CliNoticesCtx, .text = args->text);
     const unsigned long long bytes = size + first + 2ULL;
-    char *const laid = g_cli_guard->temporary_buf_alloc(bytes, g_cli_command_line_owner);
+    char *const positioned = g_cli_guard->temporary_buf_alloc(bytes, g_cli_command_line_owner);
     const CarcerMovableEntry *const cell =
-        (laid != NULL) ? g_cli_guard->movable_buf_alloc(bytes, g_cli_command_line_owner) : NULL;
+        (positioned != NULL) ? g_cli_guard->movable_buf_alloc(bytes, g_cli_command_line_owner) : NULL;
     if (cell == NULL)
     {
-        g_cli_guard->persistent_buf_release(laid, g_cli_command_line_owner);
+        g_cli_guard->persistent_buf_release(positioned, g_cli_command_line_owner);
         return 0;
     }
-    // the newline that ends the first line becomes its NUL, the lines after it standing where they stood
-    memor.cpy(&(MemoriaCfg){.dst = laid, .src = args->text, .bytes = size + 1ULL});
-    laid[first] = '\0';
+    // the newline that ends the first line becomes its NUL, the lines after it located where they was
+    memor.cpy(&(MemoriaCfg){.dst = positioned, .src = args->text, .bytes = size + 1ULL});
+    positioned[first] = '\0';
     const unsigned long long rest_at = (first < size) ? first + 1ULL : first;
-    VerbaLinea type = {laid + size + 1ULL, first + 1ULL, 0ULL};
+    VerbaLinea type = {positioned + size + 1ULL, first + 1ULL, 0ULL};
     for (unsigned long long at = 0ULL; at < first;)
     {
         const unsigned long long digit =
@@ -194,26 +194,26 @@ EMBED_INLINE int notices_built(const CliNoticesCtx *args)
         mmgr_line_put(&type, (digit < first) ? "#" : "");
     }
     (void)mmgr_line_finish(&type);
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = laid, .bytes = bytes});
-    g_cli_guard->persistent_buf_release(laid, g_cli_command_line_owner);
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = positioned, .bytes = bytes});
+    g_cli_guard->persistent_buf_release(positioned, g_cli_command_line_owner);
     *args->notice = (CliNotice){cell, bytes, rest_at, size + 1ULL, args->failed, cli_clock_milliseconds()};
     return 1;
 }
 
-// the notice shown taken off the status bar, its cell standing in the list
+// the notice displayed taken off the status bar, its cell located in the list
 EMBED_INLINE void notices_hidden(const CliNoticesCtx *args)
 {
     (void)args;
-    s_notices.shown = NULL;
-    s_notices.shown_text[0] = '\0';
-    s_notices.shown_type[0] = '\0';
-    s_notices.shown_failed = 0;
+    s_notices.displayed = NULL;
+    s_notices.displayed_text[0] = '\0';
+    s_notices.displayed_type[0] = '\0';
+    s_notices.displayed_failed = 0;
 }
 
-// a notice's cell let go, the notice shown taken off the status bar first where it is that one
+// a notice's cell let go, the notice displayed taken off the status bar first where it is that one
 EMBED_INLINE void notices_released(const CliNoticesCtx *args)
 {
-    if (args->notice_read->cell == s_notices.shown)
+    if (args->notice_read->cell == s_notices.displayed)
     {
         EMBED_CALL(notices_hidden, CliNoticesCtx, .seen = 0);
     }
@@ -241,9 +241,9 @@ EMBED_INLINE int notices_listed(const CliNoticesCtx *args)
     return 1;
 }
 
-// the notice put in the list and shown on the status bar, its first line and its type copied out of its cell, standing
+// the notice put in the list and displayed on the status bar, its first line and its type copied out of its cell, located
 // until its time is out
-EMBED_INLINE void notices_shown(const CliNoticesCtx *args)
+EMBED_INLINE void notices_displayed(const CliNoticesCtx *args)
 {
     const CliNotice notice = *args->notice_read;
     if (!EMBED_CALL(notices_listed, CliNoticesCtx, .notice_read = &notice, .seen = 0))
@@ -255,17 +255,17 @@ EMBED_INLINE void notices_shown(const CliNoticesCtx *args)
     {
         return;
     }
-    VerbaLinea line = {s_notices.shown_text, sizeof(s_notices.shown_text), 0ULL};
+    VerbaLinea line = {s_notices.displayed_text, sizeof(s_notices.displayed_text), 0ULL};
     mmgr_line_put(&line, text);
     (void)mmgr_line_finish(&line);
-    VerbaLinea type = {s_notices.shown_type, sizeof(s_notices.shown_type), 0ULL};
+    VerbaLinea type = {s_notices.displayed_type, sizeof(s_notices.displayed_type), 0ULL};
     mmgr_line_put(&type, text + notice.type_at);
     (void)mmgr_line_finish(&type);
     g_cli_guard->persistent_buf_release(text, g_cli_command_line_owner);
-    s_notices.shown = notice.cell;
-    s_notices.shown_failed = notice.failed;
-    s_notices.shown_until_ms =
-        cli_clock_milliseconds() + (notice.failed ? CLI_NOTICES_FAILED_MS : CLI_NOTICES_SHOWN_MS);
+    s_notices.displayed = notice.cell;
+    s_notices.displayed_failed = notice.failed;
+    s_notices.displayed_until_ms =
+        cli_clock_milliseconds() + (notice.failed ? CLI_NOTICES_FAILED_MS : CLI_NOTICES_DISPLAYED_MS);
 }
 
 // whether the type `type` is put away
@@ -315,7 +315,7 @@ EMBED_INLINE void notices_away_set(const CliNoticesCtx *args)
     }
 }
 
-// the notices waiting for a break taken: every one but the last into the list, the last shown; none while Focus is on
+// the notices waiting for a break taken: every one but the last into the list, the last displayed; none while Focus is on
 EMBED_INLINE void notices_break(const CliNoticesCtx *args)
 {
     (void)args;
@@ -336,7 +336,7 @@ EMBED_INLINE void notices_break(const CliNoticesCtx *args)
         anularis.seg_release(&(AnularisCfg){.ring = &s_notices.waiting->ring});
     }
     s_notices.focus_waiting = 0u;
-    EMBED_CALL(notices_shown, CliNoticesCtx, .notice_read = &last);
+    EMBED_CALL(notices_displayed, CliNoticesCtx, .notice_read = &last);
 }
 
 void cli_notice_post(const char *text, int failed)
@@ -357,7 +357,7 @@ void cli_notice_post(const char *text, int failed)
     const unsigned long long now = cli_clock_milliseconds();
     if (!s_notices.focus && ((now - s_notices.commanded_ms) <= CLI_NOTICES_ANSWERS_MS))
     {
-        EMBED_CALL(notices_shown, CliNoticesCtx, .notice_read = &notice);
+        EMBED_CALL(notices_displayed, CliNoticesCtx, .notice_read = &notice);
         return;
     }
     s_notices.waiting = EMBED_CALL(notices_ring_taken, CliNoticesCtx, .ring = s_notices.waiting, .at = 1u);
@@ -424,7 +424,7 @@ void cli_notices_press(unsigned int part)
         cli_notices_focus(0);
         return;
     }
-    const char *const type = (s_notices.shown != NULL) ? s_notices.shown_type : NULL;
+    const char *const type = (s_notices.displayed != NULL) ? s_notices.displayed_type : NULL;
     if ((part == CLI_NOTICES_PRESS_SILENCE) && (type != NULL) && !EMBED_CALL(notices_away, CliNoticesCtx, .type = type))
     {
         char *const away = EMBED_CALL(notices_away_copy, CliNoticesCtx, .seen = 0);
@@ -510,7 +510,7 @@ int cli_notices_step(void)
 {
     const unsigned long long now = cli_clock_milliseconds();
     int did = 0;
-    if ((s_notices.shown != NULL) && (now >= s_notices.shown_until_ms))
+    if ((s_notices.displayed != NULL) && (now >= s_notices.displayed_until_ms))
     {
         EMBED_CALL(notices_hidden, CliNoticesCtx, .seen = 0);
         did = 1;
@@ -526,16 +526,16 @@ int cli_notices_step(void)
 
 unsigned long long cli_notices_due_ms(void)
 {
-    const unsigned long long shown = (s_notices.shown != NULL) ? s_notices.shown_until_ms : 0ULL;
+    const unsigned long long displayed = (s_notices.displayed != NULL) ? s_notices.displayed_until_ms : 0ULL;
     const unsigned long long rest =
         (!s_notices.focus && (EMBED_CALL(notices_count, CliNoticesCtx, .ring = s_notices.waiting) != 0u))
             ? (s_notices.input_ms + CLI_NOTICES_REST_MS)
             : 0ULL;
-    if ((shown == 0ULL) || ((rest != 0ULL) && (rest < shown)))
+    if ((displayed == 0ULL) || ((rest != 0ULL) && (rest < displayed)))
     {
         return rest;
     }
-    return shown;
+    return displayed;
 }
 
 void cli_notices_restore(const CliStateEntries *entries)
@@ -589,14 +589,14 @@ void cli_notices_end(void)
     s_notices = (CliNotices){0};
 }
 
-const char *cli_notice_shown(void)
+const char *cli_notice_displayed(void)
 {
-    return (s_notices.shown != NULL) ? s_notices.shown_text : NULL;
+    return (s_notices.displayed != NULL) ? s_notices.displayed_text : NULL;
 }
 
 int cli_notice_failed(void)
 {
-    return s_notices.shown_failed;
+    return s_notices.displayed_failed;
 }
 
 int cli_notices_focused(void)

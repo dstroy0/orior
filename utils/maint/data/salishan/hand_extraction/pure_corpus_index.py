@@ -6,7 +6,7 @@
 #
 #   Usage:  python utils/maint/data/salishan/hand_extraction/pure_corpus_index.py
 #
-# The list of who is in this corpus was kept by hand in refs.md and in the tables both, and two copies
+# The list of who is in this corpus was retained by hand in refs.md and in the tables both, and two copies
 # of a list drift. The names come from paper_config.py and the row counts from the tables. Neither
 # is typed twice and refs.md points here instead of restating it.
 #

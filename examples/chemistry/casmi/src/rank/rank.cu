@@ -34,7 +34,7 @@
 
 #include <algorithm>
 
-#define RANK_LIST_MOST 25u
+#define RANK_LIST_MAX 25u
 #define RANK_MODES 2u
 #define RANK_ENVELOPE_FIELDS 4u
 #define RANK_ENVELOPE_LIMBS 8u
@@ -42,10 +42,10 @@
 #define RANK_LOW_N 1u
 #define RANK_HIGH_D 2u
 #define RANK_HIGH_N 3u
-#define RANK_TOKENS_MOST 1024u
+#define RANK_TOKENS_MAX 1024u
 #define RANK_PATH_BYTES 1024u
-#define RANK_TERMS_MOST (2u * CASMI_FORMULA_ELEMENTS_MOST)
-#define RANK_ADDUCTS_MOST 64u
+#define RANK_TERMS_MAX (2u * CASMI_FORMULA_ELEMENTS_MAX)
+#define RANK_ADDUCTS_MAX 64u
 
 // 10^-16 Da in one dalton, the ion's unit
 #define RANK_PER_DALTON 10000000000000000ull
@@ -53,11 +53,11 @@
 // the device bytes the job declares: the widest sweep's records, members and index
 #define RANK_DECLARED (2ull << 30u)
 
-// the most a chunk of match lanes stores: on the device its index, records and order, 52 bytes a lane at the match's
+// the max a chunk of match lanes stores: on the device its index, records and order, 52 bytes a lane at the match's
 // record of 8 limbs
 #define RANK_CHUNK_LANES (1ull << 24u)
 
-// a double's fields as IEEE 754 binary64 lays them, and the exponent its integer mantissa stands at: x = m 2^(E -
+// a double's fields as IEEE 754 binary64 positions them, and the exponent its integer mantissa is at: x = m 2^(E -
 // 1075), E the stored exponent, 1 for a subnormal, and m its fraction with the leading 1 where E is stored above 0. A
 // record stores E in RANK_EXPONENT_BITS bits
 #define RANK_MANTISSA_BITS 52u
@@ -297,7 +297,7 @@ typedef struct
 // ---- groups on the device ----
 
 // The sum program: three records' one field, summed
-static int rank_sum_lay(SimResults *results, RankField value, unsigned int limbs, RankMachine *machine)
+static int rank_sum_position(SimResults *results, RankField value, unsigned int limbs, RankMachine *machine)
 {
     ExactRecordProgram program;
     exact_record_open(&program);
@@ -312,7 +312,7 @@ static int rank_sum_lay(SimResults *results, RankField value, unsigned int limbs
 }
 
 // Sums each group's records on the device, three to a lane, pass after pass, until each group is one record; every
-// group takes every pass, zero records filling a short lane; every sum ends in one layout. A pass lays its lanes'
+// group takes every pass, zero records filling a short lane; every sum ends in one layout. A pass positions its lanes'
 // records as three planes, lane l's three records record l of each: the sweep reads them with no index. *summed
 // stores group g's sum at g, then a zero record
 static int rank_group_sum(SimResults *results, const char *name, RankField value, unsigned int value_limbs,
@@ -353,7 +353,7 @@ static int rank_group_sum(SimResults *results, const char *name, RankField value
             lanes += (group_lanes == 0ull) ? 1ull : group_lanes;
         }
         RankMachine sum;
-        if (!rank_sum_lay(results, field, limbs, &sum))
+        if (!rank_sum_position(results, field, limbs, &sum))
         {
             return 0;
         }
@@ -477,7 +477,7 @@ static int rank_group_best(SimResults *results, const char *name, const RankMach
 }
 
 // the value order program: COMPARE(v_a, v_b), one field read from two records
-static int rank_value_order_lay(SimResults *results, RankField value, unsigned int limbs, RankMachine *machine)
+static int rank_value_order_position(SimResults *results, RankField value, unsigned int limbs, RankMachine *machine)
 {
     ExactRecordProgram program;
     exact_record_open(&program);
@@ -491,7 +491,7 @@ static int rank_value_order_lay(SimResults *results, RankField value, unsigned i
 }
 
 // the ratio order program: COMPARE(n_a d_b, n_b d_a), the pair (n, d) read from two records
-static int rank_ratio_order_lay(SimResults *results, RankField numerator, RankField denominator, unsigned int limbs,
+static int rank_ratio_order_position(SimResults *results, RankField numerator, RankField denominator, unsigned int limbs,
                                 RankMachine *machine)
 {
     ExactRecordProgram program;
@@ -552,9 +552,9 @@ int rank_run(SimResults *results, int count, char **arguments)
     {
         fclose(cfg_file);
     }
-    static CfgJsonToken tokens[RANK_TOKENS_MOST];
+    static CfgJsonToken tokens[RANK_TOKENS_MAX];
     CfgJsonParse parse;
-    if ((cfg_length == 0u) || !cfg_json_parse(cfg_text, cfg_length, tokens, RANK_TOKENS_MOST, &parse))
+    if ((cfg_length == 0u) || !cfg_json_parse(cfg_text, cfg_length, tokens, RANK_TOKENS_MAX, &parse))
     {
         mmgr_line_put(&results->line, "  the cfg did not read: ");
         mmgr_line_put(&results->line, cfg_path);
@@ -633,10 +633,10 @@ int rank_run(SimResults *results, int count, char **arguments)
     mmgr_line_put(&results->line, " us of the run");
     rank_line_end(results);
 
-    // The bounds the programs are laid out by, from the stored bits: the most 1075 - E a precursor or an m/z takes, and
-    // each row's least intensity exponent and the most any intensity stands above its row's. Every value is above 0 or
+    // The bounds the programs are arranged by, from the stored bits: the max 1075 - E a precursor or an m/z takes, and
+    // each row's least intensity exponent and the max any intensity is above its row's. Every value is above 0 or
     // 0, and below 2^53
-    unsigned int two_most = 0u;
+    unsigned int two_max = 0u;
     int signs_agree = 1;
     for (int column = 0; column < 2; column += 1)
     {
@@ -647,11 +647,11 @@ int rank_run(SimResults *results, int count, char **arguments)
             unsigned int exponent = 0u;
             rank_double(bits[value], &mantissa, &exponent);
             signs_agree = signs_agree && ((bits[value] >> RANK_SIGN_BIT) == 0ull) && (exponent <= RANK_UNIT_EXPONENT);
-            two_most = std::max(two_most, RANK_UNIT_EXPONENT - std::min(exponent, RANK_UNIT_EXPONENT));
+            two_max = std::max(two_max, RANK_UNIT_EXPONENT - std::min(exponent, RANK_UNIT_EXPONENT));
         }
     }
     std::vector<unsigned int> intensity_floor((size_t)spectra + 1u, RANK_UNIT_EXPONENT);
-    unsigned int shift_most = 0u;
+    unsigned int shift_max = 0u;
     for (unsigned long long spectrum = 0ull; spectrum < spectra; spectrum += 1ull)
     {
         unsigned int highest = 0u;
@@ -668,12 +668,12 @@ int rank_run(SimResults *results, int count, char **arguments)
                 highest = std::max(highest, exponent);
             }
         }
-        shift_most = std::max(shift_most, (highest > intensity_floor[spectrum]) ? (highest - intensity_floor[spectrum]) : 0u);
+        shift_max = std::max(shift_max, (highest > intensity_floor[spectrum]) ? (highest - intensity_floor[spectrum]) : 0u);
     }
-    const unsigned int two_bits = std::max(1u, exact_record_bits_of(two_most));
-    const unsigned int shift_bits = std::max(1u, exact_record_bits_of(shift_most));
-    rank_line_decimal(results, "  bounds: 1075 - E at most ", two_most);
-    rank_line_decimal(results, ", an intensity's exponent above its row's least at most ", shift_most);
+    const unsigned int two_bits = std::max(1u, exact_record_bits_of(two_max));
+    const unsigned int shift_bits = std::max(1u, exact_record_bits_of(shift_max));
+    rank_line_decimal(results, "  bounds: 1075 - E at max ", two_max);
+    rank_line_decimal(results, ", an intensity's exponent above its row's least at max ", shift_max);
     rank_line_end(results);
     if (!signs_agree)
     {
@@ -805,7 +805,7 @@ int rank_run(SimResults *results, int count, char **arguments)
         {
             position += 1u;
         }
-        if ((position == adduct_name.size()) && (name != RANK_ABSENT) && (position < RANK_ADDUCTS_MOST))
+        if ((position == adduct_name.size()) && (name != RANK_ABSENT) && (position < RANK_ADDUCTS_MAX))
         {
             CasmiAdduct read;
             memset(&read, 0, sizeof(read));
@@ -914,7 +914,7 @@ int rank_run(SimResults *results, int count, char **arguments)
     // ---- ion ----
     unsigned int isotope_count = 0u;
     const CasmiIsotope *const isotope = casmi_isotope_table(&isotope_count);
-    unsigned int terms_most = 0u;
+    unsigned int terms_max = 0u;
     unsigned int molecules_bits = 1u;
     unsigned int charge_bits = 1u;
     unsigned int formula_bits = 1u;
@@ -930,9 +930,9 @@ int rank_run(SimResults *results, int count, char **arguments)
         charge_bits = std::max(charge_bits, rank_magnitude_bits(adduct[position].charge));
         for (unsigned long long each = 0ull; each < formula_count; each += 1ull)
         {
-            RankTerm term[RANK_TERMS_MOST];
+            RankTerm term[RANK_TERMS_MAX];
             const unsigned int terms = rank_terms_merge(&formula[each], &adduct[position], term);
-            terms_most = std::max(terms_most, terms);
+            terms_max = std::max(terms_max, terms);
             for (unsigned int entry = 0u; entry < terms; entry += 1u)
             {
                 mass_bits = std::max(mass_bits, rank_magnitude_bits(isotope[term[entry].isotope].mass));
@@ -943,7 +943,7 @@ int rank_run(SimResults *results, int count, char **arguments)
     }
     // the ion record: molecules, charge, then each term's formula count, adduct count and mass, each signed
     const unsigned int ion_term_bits = (formula_bits + 1u) + (adduct_bits + 1u) + (mass_bits + 1u);
-    const unsigned int ion_atom_bits = (molecules_bits + 1u) + (charge_bits + 1u) + (terms_most * ion_term_bits);
+    const unsigned int ion_atom_bits = (molecules_bits + 1u) + (charge_bits + 1u) + (terms_max * ion_term_bits);
     const unsigned int ion_atom_limbs = (ion_atom_bits + 31u) / 32u;
     RankMachine ion;
     {
@@ -956,7 +956,7 @@ int rank_run(SimResults *results, int count, char **arguments)
         at += charge_bits + 1u;
         const unsigned int molecules = exact_record_read(&program, molecules_field, 0u);
         unsigned int sum = exact_record_constant(&program, 0ull);
-        for (unsigned int term = 0u; term < terms_most; term += 1u)
+        for (unsigned int term = 0u; term < terms_max; term += 1u)
         {
             const unsigned int formula_field = exact_record_member_field(&program, formula_bits + 1u, at);
             at += formula_bits + 1u;
@@ -1048,7 +1048,7 @@ int rank_run(SimResults *results, int count, char **arguments)
         for (unsigned long long each = 0ull; each < formula_count; each += 1ull)
         {
             unsigned int *const atom = &ion_atoms[each * ion_atom_limbs];
-            RankTerm term[RANK_TERMS_MOST];
+            RankTerm term[RANK_TERMS_MAX];
             const unsigned int terms = rank_terms_merge(&formula[each], &adduct[position], term);
             OriorExactInteger value;
             unsigned int at = 0u;
@@ -1091,12 +1091,12 @@ int rank_run(SimResults *results, int count, char **arguments)
         }
         // the queries of this adduct against every formula, as many at a time as fill a chunk
         unsigned long long each = 0ull;
-        const unsigned long long queries_most = (RANK_CHUNK_LANES / (formula_count + 1ull)) + 1ull;
+        const unsigned long long queries_max = (RANK_CHUNK_LANES / (formula_count + 1ull)) + 1ull;
         while (ok && (each < query_count))
         {
             std::vector<unsigned int> query_atoms;
             std::vector<unsigned int> window_query;
-            while ((each < query_count) && (window_query.size() < queries_most))
+            while ((each < query_count) && (window_query.size() < queries_max))
             {
                 if (query_adduct[each] == position)
                 {
@@ -1414,7 +1414,7 @@ int rank_run(SimResults *results, int count, char **arguments)
 
     // peak: each (pair, query peak) group's heaviest weight
     RankMachine value_order;
-    ok = rank_value_order_lay(results, weight_field, match_limbs, &value_order);
+    ok = rank_value_order_position(results, weight_field, match_limbs, &value_order);
     std::vector<unsigned long long> peak_first((size_t)peak_group_count + 1u);
     std::vector<unsigned long long> peak_count((size_t)peak_group_count + 1u);
     std::vector<unsigned int> matched_entry((size_t)matched_count + 1u);
@@ -1569,7 +1569,7 @@ int rank_run(SimResults *results, int count, char **arguments)
     rank_machine_release(&score);
     rank_tally_line(results, "score", &score_tally);
     RankMachine ratio_order;
-    ok = ok && rank_ratio_order_lay(results, score_numerator, score_denominator, score_limbs, &ratio_order);
+    ok = ok && rank_ratio_order_position(results, score_numerator, score_denominator, score_limbs, &ratio_order);
     if (!ok)
     {
         return 0;
@@ -1653,7 +1653,7 @@ int rank_run(SimResults *results, int count, char **arguments)
     std::vector<unsigned int> list_entry((size_t)group_count + 1u);
     std::vector<unsigned int> list_group((size_t)group_count + 1u);
     std::vector<unsigned int> list_winner((size_t)molecule_count + 1u);
-    std::vector<unsigned int> chosen((size_t)(molecule_count * RANK_LIST_MOST) + 1u);
+    std::vector<unsigned int> chosen((size_t)(molecule_count * RANK_LIST_MAX) + 1u);
     std::vector<unsigned int> chosen_count((size_t)molecule_count + 1u, 0u);
     for (unsigned long long molecule = 0ull; molecule < molecule_count; molecule += 1ull)
     {
@@ -1667,7 +1667,7 @@ int rank_run(SimResults *results, int count, char **arguments)
         }
     }
     RankTally list_tally = {0ull, 0ull};
-    for (unsigned int pick = 0u; ok && (pick < RANK_LIST_MOST); pick += 1u)
+    for (unsigned int pick = 0u; ok && (pick < RANK_LIST_MAX); pick += 1u)
     {
         const RankGroups list_groups = {list_first.data(), list_count.data(), list_entry.data(), molecule_count};
         ok = rank_group_best(results, "list", &ratio_order, order_sign, scores.data(), pair_count, &list_groups,
@@ -1684,7 +1684,7 @@ int rank_run(SimResults *results, int count, char **arguments)
             {
                 at += 1ull;
             }
-            chosen[(molecule * RANK_LIST_MOST) + chosen_count[molecule]] = list_group[base + at];
+            chosen[(molecule * RANK_LIST_MAX) + chosen_count[molecule]] = list_group[base + at];
             chosen_count[molecule] += 1u;
             for (unsigned long long move = at; (move + 1ull) < list_count[molecule]; move += 1ull)
             {
@@ -1729,7 +1729,7 @@ int rank_run(SimResults *results, int count, char **arguments)
     }
     unsigned long long given_none = 0ull;
     std::vector<unsigned char> structure_mark((size_t)structures + 1u, 0u);
-    unsigned long long rank_counts[RANK_LIST_MOST + 1u];
+    unsigned long long rank_counts[RANK_LIST_MAX + 1u];
     memset(rank_counts, 0, sizeof(rank_counts));
     unsigned long long truth_no_reference = 0ull;
     unsigned long long truth_outside = 0ull;
@@ -1757,11 +1757,11 @@ int rank_run(SimResults *results, int count, char **arguments)
             }
         }
         std::sort(candidate.begin(), candidate.end());
-        unsigned int list[RANK_LIST_MOST];
+        unsigned int list[RANK_LIST_MAX];
         unsigned int listed = 0u;
         for (unsigned int place = 0u; place < chosen_count[molecule]; place += 1u)
         {
-            const unsigned int structure = group_structure[chosen[(molecule * RANK_LIST_MOST) + place]];
+            const unsigned int structure = group_structure[chosen[(molecule * RANK_LIST_MAX) + place]];
             list[listed] = structure;
             listed += 1u;
             structure_mark[structure] = 2u;
@@ -1771,7 +1771,7 @@ int rank_run(SimResults *results, int count, char **arguments)
         {
             structure_mark[group_structure[group]] = 2u;
         }
-        for (size_t each = 0u; (each < candidate.size()) && (listed < RANK_LIST_MOST); each += 1u)
+        for (size_t each = 0u; (each < candidate.size()) && (listed < RANK_LIST_MAX); each += 1u)
         {
             if (structure_mark[candidate[each]] == 1u)
             {
@@ -1844,7 +1844,7 @@ int rank_run(SimResults *results, int count, char **arguments)
                                                                 : "outranked");
                 if (chosen_count[molecule] != 0u)
                 {
-                    const unsigned int first_group = chosen[(molecule * RANK_LIST_MOST)];
+                    const unsigned int first_group = chosen[(molecule * RANK_LIST_MAX)];
                     const unsigned int first = group_structure[first_group];
                     const int same_formula = formula_text_of_structure[first] == formula_text_of_structure[truth];
                     mmgr_line_put(&results->line, "; first ");
@@ -1906,7 +1906,7 @@ int rank_run(SimResults *results, int count, char **arguments)
     rank_line_decimal(results, "; scored and outranked by a structure of its formula ", truth_isomer);
     rank_line_end(results);
     mmgr_line_put(&results->line, "  answers at each place, 1 to 25, then not listed:");
-    for (unsigned int place = 1u; place <= RANK_LIST_MOST; place += 1u)
+    for (unsigned int place = 1u; place <= RANK_LIST_MAX; place += 1u)
     {
         rank_line_decimal(results, " ", rank_counts[place]);
     }
@@ -1916,7 +1916,7 @@ int rank_run(SimResults *results, int count, char **arguments)
     // molecules, read in parts per million
     unsigned long long numerator = 0ull;
     unsigned long long common = 1ull;
-    for (unsigned int place = 1u; place <= RANK_LIST_MOST; place += 1u)
+    for (unsigned int place = 1u; place <= RANK_LIST_MAX; place += 1u)
     {
         unsigned long long a = common;
         unsigned long long b = place;
@@ -1928,7 +1928,7 @@ int rank_run(SimResults *results, int count, char **arguments)
         }
         common = (common / a) * place;
     }
-    for (unsigned int place = 1u; place <= RANK_LIST_MOST; place += 1u)
+    for (unsigned int place = 1u; place <= RANK_LIST_MAX; place += 1u)
     {
         numerator += rank_counts[place] * (common / place);
     }

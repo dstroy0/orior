@@ -4,12 +4,12 @@
 #
 # Words this writing does not use, each banned in every form, in a comment and on a page alike. The
 # ban names no word to use in a banned one's place: the word is chosen at each site by whoever
-# writes it. The ratchet holds each file's count where it stands until a rewrite lowers it.
+# writes it. The ratchet holds each file's count where it is until a rewrite lowers it.
 #
 
 WORDS = (
     r"\bheld\b",
-    # slot stands only in an accepted engineering context. Every one is reported, and a person
+    # slot is only in an accepted engineering context. Every one is reported, and a person
     # decides the site.
     r"\bslots?\b",
     r"\brelay(?:s|ed|ing)?\b",

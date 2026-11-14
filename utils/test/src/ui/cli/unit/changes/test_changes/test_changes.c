@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_changes.c: the changes of a text against its last commit's file, answered off the store's diff and saved until the text moves: a line put in,
-// one taken out and one changed are each one change with its mark; the change a line stands in is found, and for lines
+// one taken out and one changed are each one change with its mark; the change a line is in is found, and for lines
 // taken out the line above them; the marks of a run of lines; stepping from a line and from a change wraps both ways;
 // and the revert of each type leaves the text the last commit's
 #include "ui/cli/src/editor/document_changes.h"
@@ -61,7 +61,7 @@ static void mark_is(unsigned long long line, unsigned int at, unsigned int mark)
     TEST_ASSERT_EQUAL_UINT(mark, EMBED_CALL(cli_document_change.mark, CliChangeCfg, .change = &change));
 }
 
-// how many changes stand
+// how many changes are
 static unsigned int count_is(void)
 {
     unsigned int count = 0u;
@@ -190,7 +190,7 @@ void test_a_revert_of_lines_at_the_end_leaves_the_last_commits_text(void)
     text_is(s_head);
 }
 
-void test_the_changes_read_again_stand_until_the_text_moves(void)
+void test_the_changes_read_again_are_until_the_text_moves(void)
 {
     stored_against("one\nTWO\nthree\nfour\n");
     TEST_ASSERT_EQUAL_UINT(1u, count_is());

@@ -7,7 +7,7 @@
 
 // The exact integer's arithmetic on the device, as steps of a record program. A program is built here on the host and
 // every value it names is a register the device allocates for a lane: each call writes the steps of one operation and
-// returns the step that contains its result. Nothing here computes a lane's value on the host; the host lays out
+// returns the step that contains its result. Nothing here computes a lane's value on the host; the host arranges
 // constants, fields and tables.
 //
 // Every value is exact. A quotient rounds toward zero, and down and up give the integers below and above it whatever
@@ -33,7 +33,7 @@ extern "C"
         unsigned int *field_offset;
         unsigned int fields;
         unsigned int field_room;
-        // the shared record's next free bit, where exact_record_field lays a field
+        // the shared record's next free bit, where exact_record_field positions a field
         unsigned int shared_bits;
         EngineRecordTable *tables;
         unsigned int **table_values;
@@ -72,7 +72,7 @@ extern "C"
 
     // ---- fields ----
 
-    // a field `bits` wide laid at the shared record's next bit
+    // a field `bits` wide positioned at the shared record's next bit
     unsigned int exact_record_field(ExactRecordProgram *program, unsigned int bits);
 
     // a field `bits` wide at bit `offset` of a member's records
@@ -163,7 +163,7 @@ extern "C"
                                        unsigned int exponent_bits);
 
     // 2^exponent, the exponent a register known in [0, 2^exponent_bits): the product over its bits j of 2^(2^j) where
-    // bit j is set, its register 2^exponent_bits and twice exponent_bits bits wide at most, where power_of's table
+    // bit j is set, its register 2^exponent_bits and twice exponent_bits bits wide at max, where power_of's table
     // rows make it wider
     unsigned int exact_record_two_to(ExactRecordProgram *program, unsigned int exponent, unsigned int exponent_bits);
 

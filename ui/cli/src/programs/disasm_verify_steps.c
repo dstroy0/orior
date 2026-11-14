@@ -84,7 +84,7 @@ EMBED_INLINE CliRunResult *verify_run(const DisasmVerifyStepsCtx *args)
 
 int cli_disasm_adjacent(const CliDisasmVerifyPathCfg *args)
 {
-    const char *const *names = args->names_letters;
+    const char *const *names = args->names_characters;
     char *path = args->path;
     char folder[CLI_PATH_MAX_LEN];
     unsigned int count = 0u;

@@ -15,14 +15,14 @@ projection.
 
 The candidates are real. `k * 2^n + 1` with `k` small and odd is the exact form the record hunts
 use, and the same form every NTT modulus has. The search is the same one anyone runs; the only
-difference is the multiply it stands on.
+difference is the multiply it is on.
 
 WHAT IT IS NOT
 
 It is not a record attempt. The record Proth primes are millions of digits and take a native GPU
 exponentiation days to weeks; this engine still marshals each product through the host between
 device calls. It reaches far less. That gap is the honest state of the tool, and the number this
-prints is where it actually stands today.
+prints is where it actually is today.
 """
 
 import argparse

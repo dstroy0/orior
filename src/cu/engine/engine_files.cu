@@ -123,7 +123,7 @@ static long long entry_raw_decode(const EngineBytesRequest *request)
 
 static EngineIngestTools s_ingest_tools;
 
-// the workers a run of items takes: the whole processors tessera_run handed on ($TESSERA_RUN_PROCESSORS), 1 where it
+// the workers a run of items takes: the whole processors tessera_run passed on ($TESSERA_RUN_PROCESSORS), 1 where it
 // names none, and never more than the items
 static unsigned long long entry_each_workers(unsigned long long items)
 {
@@ -303,7 +303,7 @@ extern "C" long engine_source_prefetch(const char *source, const char *sample, E
         return ENGINE_ERROR;
     }
     // the members' span, from the first local header to past the last member's data: its local header is 30 bytes,
-    // and its name and extra field at most 65,535 bytes each
+    // and its name and extra field at max 65,535 bytes each
     unsigned long long begin = ~0ull;
     unsigned long long end = 0ull;
     for (unsigned long long at = first; at < (first + count); at += 1ull)
@@ -437,7 +437,7 @@ int entry_json_load(const char *path, EntryJson *json)
     memset(&parse, 0, sizeof(parse));
     const int ok = (json->tokens != NULL) &&
                    cfg_json_parse_metadata(json->text, json->length, json->tokens, capacity, &parse) &&
-                   (json->tokens[0].kind == CFG_JSON_OBJECT);
+                   (json->tokens[0].type == CFG_JSON_OBJECT);
     if (ok == 0)
     {
         fprintf(stderr, "  %s: %s\n", path, (parse.reason != NULL) ? parse.reason : "not one JSON object");
@@ -450,13 +450,13 @@ int entry_json_load(const char *path, EntryJson *json)
 
 unsigned int entry_json_at(const EntryJson *json, unsigned int object, const char *name)
 {
-    const int ok = (object < json->count) && (json->tokens[object].kind == CFG_JSON_OBJECT);
+    const int ok = (object < json->count) && (json->tokens[object].type == CFG_JSON_OBJECT);
     return (ok != 0) ? cfg_json_member(json->text, json->tokens, object, name) : 0u;
 }
 
 unsigned int entry_json_element(const EntryJson *json, unsigned int array, unsigned int index)
 {
-    if ((array == 0u) || (array >= json->count) || (json->tokens[array].kind != CFG_JSON_ARRAY) ||
+    if ((array == 0u) || (array >= json->count) || (json->tokens[array].type != CFG_JSON_ARRAY) ||
         (index >= json->tokens[array].count))
     {
         return 0u;
@@ -477,7 +477,7 @@ int entry_json_text(const EntryJson *json, unsigned int token, char *out, size_t
 int entry_json_list(const EntryJson *json, unsigned int array, unsigned long long *values, unsigned int *count,
                     unsigned int capacity)
 {
-    if ((array == 0u) || (json->tokens[array].kind != CFG_JSON_ARRAY) || (json->tokens[array].count > capacity))
+    if ((array == 0u) || (json->tokens[array].type != CFG_JSON_ARRAY) || (json->tokens[array].count > capacity))
     {
         return 0;
     }
@@ -504,23 +504,23 @@ int entry_element_named(const char *name, EngineArrayExtent *extent, unsigned in
         if (strcmp(name, NAMES[at]) == 0)
         {
             extent->element_bytes = BYTES[at];
-            extent->element_kind = KINDS[at];
+            extent->element_type = KINDS[at];
             return 1;
         }
     }
     const size_t length = strlen(name);
     const int ordered =
         (length >= 3u) && ((name[0] == '<') || (name[0] == '>') || (name[0] == '|') || (name[0] == '='));
-    const char kind = ordered ? name[1] : '\0';
+    const char type = ordered ? name[1] : '\0';
     const unsigned long width = ordered ? strtoul(&name[2], NULL, 10) : 0ul;
-    if ((ordered == 0) || ((kind != 'u') && (kind != 'i') && (kind != 'f')) ||
+    if ((ordered == 0) || ((type != 'u') && (type != 'i') && (type != 'f')) ||
         ((width != 1ul) && (width != 2ul) && (width != 4ul) && (width != 8ul)))
     {
         return 0;
     }
     extent->element_bytes = (unsigned int)width;
-    extent->element_kind = (kind == 'u')   ? ENGINE_ELEMENT_UNSIGNED
-                           : (kind == 'i') ? ENGINE_ELEMENT_SIGNED
+    extent->element_type = (type == 'u')   ? ENGINE_ELEMENT_UNSIGNED
+                           : (type == 'i') ? ENGINE_ELEMENT_SIGNED
                                            : ENGINE_ELEMENT_FLOAT;
     *big_endian = (name[0] == '>') ? 1u : 0u;
     return 1;
@@ -578,13 +578,13 @@ int entry_ome(const EntryJson *json, unsigned int attributes, EntryOme *ome)
     }
     const unsigned int axes = entry_json_at(json, first, "axes");
     const unsigned int named =
-        ((axes != 0u) && (json->tokens[axes].kind == CFG_JSON_ARRAY)) ? json->tokens[axes].count : 0u;
+        ((axes != 0u) && (json->tokens[axes].type == CFG_JSON_ARRAY)) ? json->tokens[axes].count : 0u;
     ome->rank = (named <= ENGINE_ARRAY_RANK) ? named : 0u;
     for (unsigned int at = 0u; at < ome->rank; at += 1u)
     {
         const unsigned int axis = entry_json_element(json, axes, at);
         const unsigned int name_token =
-            (json->tokens[axis].kind == CFG_JSON_OBJECT) ? entry_json_at(json, axis, "name") : axis;
+            (json->tokens[axis].type == CFG_JSON_OBJECT) ? entry_json_at(json, axis, "name") : axis;
         char name[32];
         ome->axes[at] = entry_json_text(json, name_token, name, sizeof(name)) ? entry_axis_named(name) : '\0';
     }

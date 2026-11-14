@@ -77,7 +77,7 @@ void gui_background_free(const GuiBackgroundCfg *args)
         &(MemoriaCfg){.dst = &args->background_fill->raster, .val = 0, .bytes = sizeof(args->background_fill->raster)});
     lattice_given(args->background_fill->lattice_index);
     s_lattice_allocated &= ~(1u << args->background_fill->lattice_index);
-    args->background_fill->laid = 0;
+    args->background_fill->positioned = 0;
 }
 
 void gui_background_pause(const GuiBackgroundCfg *args)
@@ -104,7 +104,7 @@ unsigned long long gui_background_elapsed_ms(const GuiBackgroundClockCfg *args)
 
 unsigned long long gui_background_next_deadline_ms(const GuiBackgroundClockCfg *args)
 {
-    if (!args->background_fill->laid || (args->background_fill->paused_ms != 0ULL))
+    if (!args->background_fill->positioned || (args->background_fill->paused_ms != 0ULL))
     {
         return 0ULL;
     }
@@ -119,11 +119,11 @@ int gui_background_layout(const GuiBackgroundRasterCfg *args)
     args->background_fill->height = args->height;
     args->background_fill->scale = args->scale;
     EMBED_CALL(background_shade, GroundCtx, .background_fill = args->background_fill, .palette = args->palette);
-    args->background_fill->laid =
-        lattice_lay(args->background_fill->lattice_index, ((double)args->width * GUI_SCALE_ONE) / (double)args->scale,
+    args->background_fill->positioned =
+        lattice_position(args->background_fill->lattice_index, ((double)args->width * GUI_SCALE_ONE) / (double)args->scale,
                     ((double)args->height * GUI_SCALE_ONE) / (double)args->scale) != 0u;
     gui_background_raster.draw(args);
-    return args->background_fill->laid;
+    return args->background_fill->positioned;
 }
 
 void gui_background_draw(const GuiBackgroundRasterCfg *args)
@@ -147,9 +147,9 @@ void gui_background_draw(const GuiBackgroundRasterCfg *args)
                .rect = (GuiRect){0, 0, (int)raster->width, (int)raster->height}, .color = args->palette->deep);
     // a moment within one loop of the lattice, in whole milliseconds of the window's clock, fits
     background_fill->next_draw_ms =
-        (unsigned long long)(lattice_shown_after(seconds, seconds) * 1000.0 * GUI_LATTICE_SLOWING);
+        (unsigned long long)(lattice_displayed_after(seconds, seconds) * 1000.0 * GUI_LATTICE_SLOWING);
     background_fill->frames += 1u;
-    if (!background_fill->laid)
+    if (!background_fill->positioned)
     {
         return;
     }
@@ -174,7 +174,7 @@ void gui_background_draw(const GuiBackgroundRasterCfg *args)
 
 int gui_background_tick(const GuiBackgroundRasterCfg *args)
 {
-    if (!args->background_fill->laid || (args->background_fill->paused_ms != 0ULL))
+    if (!args->background_fill->positioned || (args->background_fill->paused_ms != 0ULL))
     {
         return 0;
     }

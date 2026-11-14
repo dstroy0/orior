@@ -127,7 +127,7 @@ EMBED_INLINE int query_list_carried(const CrossCtx *args)
         }
         else if (!whole)
         {
-            mmgr_line_put_most(args->err_msg, carried + 2, transferred_line.at - 2u);
+            mmgr_line_put_max(args->err_msg, carried + 2, transferred_line.at - 2u);
         }
     }
     g_cli_guard->persistent_buf_release(names_text, g_query_owner);
@@ -262,7 +262,7 @@ int query_cross_run(const QueryLoopCfg *args)
     }
     const char *const read[3] = {s_files.machine, s_files.layout, base};
     whole = whole && EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_here,
-                                .paths_letters = read, .count = (base != NULL) ? 3u : 2u, .err_msg = err_msg);
+                                .paths_characters = read, .count = (base != NULL) ? 3u : 2u, .err_msg = err_msg);
     long long code = -1LL;
     whole = whole && EMBED_CALL(query_cross_steps, CrossCtx, .context = context, .base = base, .code = &code,
                                 .err_msg = err_msg);

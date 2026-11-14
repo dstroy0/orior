@@ -187,16 +187,16 @@ static int hdf5_heap_object(Hdf5File *file, Hdf5Heap *heap, const unsigned char 
         return hdf5_error(file, "an empty fractal heap identifier");
     }
     const unsigned int flags = identifier[0u];
-    const unsigned int kind = (flags >> 4u) & 3u;
+    const unsigned int type = (flags >> 4u) & 3u;
     if ((flags >> 6u) != 0u)
     {
         return hdf5_error(file, "a fractal heap identifier of an unknown version");
     }
-    if (kind == 1u)
+    if (type == 1u)
     {
         return hdf5_error(file, "a huge object in a fractal heap");
     }
-    if (kind == 2u)
+    if (type == 2u)
     {
         const int extended = (identifier_bytes > 18u);
         const size_t head = extended ? 2u : 1u;
@@ -210,7 +210,7 @@ static int hdf5_heap_object(Hdf5File *file, Hdf5Heap *heap, const unsigned char 
         *object_bytes = length;
         return 1;
     }
-    if ((kind != 0u) || (identifier_bytes < (1u + (size_t)heap->position_bytes + heap->size_bytes)))
+    if ((type != 0u) || (identifier_bytes < (1u + (size_t)heap->position_bytes + heap->size_bytes)))
     {
         return hdf5_error(file, "a malformed fractal heap identifier");
     }
@@ -264,7 +264,7 @@ static int hdf5_tree2_ordered(Hdf5Tree2 *tree, const unsigned char *record)
 static Hdf5Walk hdf5_tree2_node(Hdf5File *file, Hdf5Tree2 *tree, unsigned long long address, unsigned long long records,
                                 unsigned int level, int root)
 {
-    if ((records > tree->maximum[level]) || (!root && (records == 0ull)))
+    if ((records > tree->max[level]) || (!root && (records == 0ull)))
     {
         return hdf5_walk_error(file,
                                "a version 2 B-tree node with more records than it can contain, or none below the root");
@@ -358,20 +358,20 @@ static Hdf5Walk hdf5_tree2_walk(Hdf5File *file, unsigned long long address, unsi
     {
         return hdf5_walk_error(file, "a version 2 B-tree of an impossible shape");
     }
-    tree.maximum[0u] = (tree.node_bytes - 10u) / tree.record_bytes;
-    tree.count_bytes = (hdf5_log2(tree.maximum[0u]) / 8u) + 1u;
-    unsigned long long cumulative = tree.maximum[0u];
+    tree.max[0u] = (tree.node_bytes - 10u) / tree.record_bytes;
+    tree.count_bytes = (hdf5_log2(tree.max[0u]) / 8u) + 1u;
+    unsigned long long cumulative = tree.max[0u];
     for (unsigned int level = 1u; level <= tree.depth; level += 1u)
     {
         const unsigned int pointer =
             file->offset_bytes + tree.count_bytes + ((level > 1u) ? tree.total_bytes[level - 1u] : 0u);
-        tree.maximum[level] = (tree.node_bytes - 10u) / (tree.record_bytes + pointer);
-        const unsigned long long fanout = tree.maximum[level] + 1ull;
-        if ((tree.maximum[level] == 0ull) || (cumulative > ((~0ull - tree.maximum[level]) / fanout)))
+        tree.max[level] = (tree.node_bytes - 10u) / (tree.record_bytes + pointer);
+        const unsigned long long fanout = tree.max[level] + 1ull;
+        if ((tree.max[level] == 0ull) || (cumulative > ((~0ull - tree.max[level]) / fanout)))
         {
             return hdf5_walk_error(file, "a version 2 B-tree of an impossible shape");
         }
-        cumulative = (fanout * cumulative) + tree.maximum[level];
+        cumulative = (fanout * cumulative) + tree.max[level];
         tree.total_bytes[level] = (hdf5_log2(cumulative) / 8u) + 1u;
     }
     return hdf5_undefined(file, root) ? HDF5_WALK_ON : hdf5_tree2_node(file, &tree, root, root_records, tree.depth, 1);

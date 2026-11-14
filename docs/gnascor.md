@@ -22,25 +22,25 @@ Every question the engine asks takes the same form, and working out a language i
 
 - **The address** names the target. It can be a memory address, a URI, an API endpoint, an LLM context key, a register, or a key of `Lstar.klq`. `Lstar.klq` is the bridge between languages: it is keyed by the schema's form names and read through each language's `.klm`.
 - **The qualifier** is a yes or no question asked at that address. It always asks the target to confirm a state and never asks it for data.
-- **The cost bound** is the most the target may spend to answer. Nobody writes this field by hand. A question asked with no bound gets back the cost instead of a bit. The spread of those costs becomes the baseline, and every later bound is set against it.
+- **The cost bound** is the max the target may spend to answer. Nobody writes this field by hand. A question asked with no bound gets back the cost instead of a bit. The spread of those costs becomes the baseline, and every later bound is set against it.
 
 **Gate first, then rank. Never one combined score.** A relation either holds or it doesn't, and that answer has no noise in it. A cost is measured, and every measured cost has noise. The gate decides which candidates are allowed, and the rank puts the survivors in order. The two are never added together. [query_protocol_table.md](https://github.com/dstroy0/orior/blob/main/theory/workbooks/Lstar_protocol/query_protocol_table.md) walks through the protocol step by step.
 
-Two branches combine into a pair, and each pair has a four-letter name:
+Two branches combine into a pair, and each pair has a four-character name:
 
 | left branch | right branch | pair state | mnemonic | meaning                                                     |
 | ----------- | ------------ | ---------- | -------- | ----------------------------------------------------------- |
 | lead (1)    | void (0)     | 1, 0       | core     | The primary intent persists; the secondary path dissolved.  |
 | rite (0)    | lead (1)     | 0, 1       | shift    | Focus has migrated from the left domain to the right.       |
 | dual (2)    | void (0)     | 2, 0       | echo     | An amplified state is sustained without new external input. |
-| dual (2)    | dual (2)     | 2, 2       | nexus    | Maximum systemic coherence; both major systems are aligned. |
+| dual (2)    | dual (2)     | 2, 2       | nexus    | Max systemic coherence; both major systems are aligned. |
 
 ## The transpiler
 
 The transpiler has two jobs. It writes the record machine's programs for a particular part, and it asks the questions that teach the engine about that part.
 
 - `keymath` writes the record programs.
-- `key_schedule` lays them out.
+- `key_schedule` positions them out.
 - `cycle` runs them on the device and checks them against a reference run on the host.
 
 The code generator writes each program's lane from a ruleset, with one `.krs` file per language. Every lane the device writes is checked word for word against the host's.

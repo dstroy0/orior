@@ -6,7 +6,7 @@
 
 #include <stddef.h>
 
-// A form is an operation with its modifiers and, for each printed operand, what kind of thing it is and the mark it
+// A form is an operation with its modifiers and, for each printed operand, what type of thing it is and the mark it
 // carries (- or ~ on a register, ! on a predicate). Two instructions of one form differ only in the values their
 // operand fields contain, and the encoding a form was first seen with is the base every instruction of that form is
 // assembled from (sass_assemble.h).
@@ -19,27 +19,27 @@
 // A part's own file is <part>.khw beside its rulesets (includes/file_defs/khw). Its first line is `forms 2`,
 // then `part <name>`, then a line a form:
 //
-//     form <operation> <kind><mark>,... <low> <high> <operand>:<first>-<last>:<place>;... <relation> <signed>
+//     form <operation> <type><mark>,... <low> <high> <operand>:<first>-<last>:<place>;... <relation> <signed>
 //          <the instruction it was seen as>
 //
 // on one line, where <low> and <high> are the instruction's two 64-bit words in hex, low first, as a listing prints
 // them, and the runs are the bits that change each operand, by the operand's place in the printed text. A run's
-// <place> is where its operand stands in the relation's tuple, the words in their order and then the answer, as
+// <place> is where its operand is in the relation's tuple, the words in their order and then the answer, as
 // 1,1 -> 2 satisfies them (ladder.h), and - where the part answered it none. <relation> is the relation every case of
 // the form answered and <signed> 1 where the answers read a word signed, both - where the form was queried no relation.
 // A file at `forms 1` contains no place, relation or signedness, and reads as - in each.
 
-// the longest instruction text stored, the longest operation or operand, and the most operands an instruction carries
+// the longest instruction text stored, the longest operation or operand, and the max operands an instruction carries
 #define SASS_MACHINE_TEXT 192u
 #define SASS_MACHINE_TOKEN 64u
 #define SASS_MACHINE_OPERANDS 8u
-// the most runs of bits one form's operands take between them, and the most forms a machine file contains. The sweep
+// the max runs of bits one form's operands take between them, and the max forms a machine file contains. The sweep
 // puts every operation key to the disassembler from each of several carriers and found 1001 forms on sm_86 at
 // 1024, close enough to the ceiling that another carrier or another part would have run into it, and a machine
 // that fills up retains the forms it has and counts the rest in `refused`.
 //
 // Widening repeats over what it finds for a bounded number of rounds. The count then follows how many operations
-// and operand kinds lie that far from what a compiler wrote, and not how many the compiler wrote. Run to its own end
+// and operand types lie that far from what a compiler wrote, and not how many the compiler wrote. Run to its own end
 // instead it does not close: the count climbs past what a machine contains. A form is 736
 // bytes, which puts this ceiling at 12 MB of a machine, and a run that reaches it reports so in `refused` in place of
 // dropping forms quietly
@@ -80,11 +80,11 @@ typedef struct
     char operation[SASS_MACHINE_TOKEN];
     unsigned int operands;
     char operand[SASS_MACHINE_OPERANDS][SASS_MACHINE_TOKEN];
-    unsigned int kind[SASS_MACHINE_OPERANDS];
+    unsigned int type[SASS_MACHINE_OPERANDS];
     unsigned int mark[SASS_MACHINE_OPERANDS];
 } SassInstructionParts;
 
-// the place of a run whose operand stands nowhere in the relation's tuple, and the text it is written under
+// the place of a run whose operand is nowhere in the relation's tuple, and the text it is written under
 #define SASS_RUN_NO_PLACE 0xffffffffu
 #define SASS_RUN_NO_PLACE_TEXT "-"
 
@@ -104,7 +104,7 @@ typedef struct
 {
     char operation[SASS_MACHINE_TOKEN];
     unsigned int operands;
-    unsigned int kind[SASS_MACHINE_OPERANDS];
+    unsigned int type[SASS_MACHINE_OPERANDS];
     unsigned int mark[SASS_MACHINE_OPERANDS];
     unsigned long long low;
     unsigned long long high;
@@ -115,11 +115,11 @@ typedef struct
     char text[SASS_MACHINE_TEXT];
 } SassForm;
 
-// the most operations the part has answered a soonest read for
+// the max operations the part has answered a soonest read for
 #define SASS_MACHINE_SOONEST 256u
 
 // one operation's soonest read as the part answered it: the fewest cycles between it and an instruction that reads
-// its result, the most any reader required of it needed
+// its result, the max any reader required of it needed
 typedef struct
 {
     char operation[SASS_MACHINE_TOKEN];
@@ -149,7 +149,7 @@ typedef struct
     void *places_built;
 } SassMachine;
 
-// `text` read into its parts, whatever it contains: an operand the reader does not know is stored with the kind
+// `text` read into its parts, whatever it contains: an operand the reader does not know is stored with the type
 // SASS_OPERAND_UNKNOWN, and the guard is empty where the instruction carries none
 // 1 where `text` ends in the .hi a ruleset writes for the second register of a 64-bit pair (sass.krs)
 int sass_high_half(const char *text);
@@ -179,7 +179,7 @@ unsigned long long sass_exit_encoding(const SassMachine *machine);
 // the longest stall the four bits of the stall field represent, and the wait field set to every one of the six barriers
 #define SASS_STALL_MAX_LEN 15u
 #define SASS_WAIT_EVERY 0x3fu
-// the bits of the low word that name an operation and its operands' kinds, its operation key
+// the bits of the low word that name an operation and its operands' types, its operation key
 #define SASS_OPERATION_MASK 0xfffull
 
 // 1 where `operation` transfers control or waits, which run on the part can loop or stall it: a branch, a call, a

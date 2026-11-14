@@ -7,13 +7,13 @@
 #   Usage:  from whitespace import closed_after_marks, closed_after_bracket, stacked_but_not, any_of
 #
 # A typesetter setting a combining mark leaves room after it, and the extraction reads that room as a
-# space. It is the most common single kind of damage in this archive, and every reader has to undo
+# space. It is the usual single type of damage in this archive, and every reader has to undo
 # it before anything downstream sees a word.
 #
 # ONE LONE SPACE IS INSERTED, TWO ARE A BOUNDARY
 #
 # Where a real word or column boundary follows a stacked mark, these extractions print two spaces.
-# That keeps the two columns of Table A1 apart at č̓ ə́šay̓  č̓ əsáy̓, and keeps
+# That retains the two columns of Table A1 apart at č̓ ə́šay̓  č̓ əsáy̓, and retains
 # lə́ x̌ ləx̌  ‘intelligent’ from swallowing its own gloss. Only a lone space closes, and one of a
 # pair survives. Every paper here that prints a two-column table depends on it.
 #
@@ -26,9 +26,9 @@
 # which a paper needs when its own layout makes closing after an accent safe, and the double-space
 # rule above makes it safe.
 #
-# ʷ is in neither test and is not a stacked mark. It is a spacing modifier letter on the baseline and
+# ʷ is in neither test and is not a stacked mark. It is a spacing modifier character on the baseline and
 # the typesetter never has to make room after one. Every space following a ʷ is a real boundary:
-# bəlkʷ ‘return’, wix̌ʷ x̌il, sčədadxʷ sʔuladxʷ. Reading the combining class keeps it out without
+# bəlkʷ ‘return’, wix̌ʷ x̌il, sčədadxʷ sʔuladxʷ. Reading the combining class retains it out without
 # anyone having to remember to exclude it.
 
 import unicodedata
@@ -69,9 +69,9 @@ def closed_after_bracket():
 def stacked_but_not(exclude):
     """Every stacked mark except the named ones, read off the Unicode combining class.
 
-    Reading the class instead of a list keeps this current. The papers between them leave a
+    Reading the class instead of a list retains this current. The papers between them leave a
     space after the comma above, the comma above right, the caron, the dot below and the hook above,
-    and a hand-kept list of those went stale the first time a new paper arrived.
+    and a hand-retained list of those went stale the first time a new paper arrived.
     """
     def holds_open(symbol):
         return bool(unicodedata.combining(symbol)) and (symbol not in exclude)

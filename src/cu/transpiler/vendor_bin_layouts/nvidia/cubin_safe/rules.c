@@ -36,7 +36,7 @@ static int cubin_register_out_of_range(const SassMachine *machine, const SassFor
     for (unsigned int run = 0u; run < form->runs; run += 1u)
     {
         const unsigned int operand = form->run[run].operand;
-        if ((operand >= form->operands) || (form->kind[operand] != SASS_OPERAND_REGISTER))
+        if ((operand >= form->operands) || (form->type[operand] != SASS_OPERAND_REGISTER))
         {
             continue;
         }
@@ -187,7 +187,7 @@ unsigned int cubin_safe(const SassMachine *machine, const unsigned char *code, u
                 return CUBIN_SAFE_STALL;
             }
             // an encoding a conference admitted is put past the key alone, exactly as the lesson gives it, and
-            // counts as one a form matches: the cross read it, and the airlock's own word stands for a form's
+            // counts as one a form matches: the cross read it, and the airlock's own word is for a form's
             const int admitted = cubin_safe_admitted(low, high);
             if (!cubin_key_straight(machine, low) && !admitted)
             {
@@ -254,7 +254,7 @@ unsigned int cubin_safe_image(const SassMachine *machine, const unsigned char *i
     unsigned long long bank_offsets[CUBIN_SAFE_SECTIONS];
     unsigned long long bank_sizes[CUBIN_SAFE_SECTIONS];
     const unsigned int sections = cubin_code_sections(image, size, offsets, sizes, CUBIN_SAFE_SECTIONS);
-    // the constant bank's sections stand in the code sections' order, one a kernel; a container with fewer leaves the
+    // the constant bank's sections are in the code sections' order, one a kernel; a container with fewer leaves the
     // bank's size unknown for the code sections past them
     const unsigned int banks = cubin_constant_sections(image, size, bank_offsets, bank_sizes, CUBIN_SAFE_SECTIONS);
     *at = 0ull;

@@ -9,7 +9,7 @@
 #include "notebook_cells_internal.h"
 #include "notebook_internal.h"
 
-// the nodes and text bytes a notebook's tree has past what its text counts, the most times a read is tried again in a
+// the nodes and text bytes a notebook's tree has past what its text counts, the max times a read is tried again in a
 // tree twice as large, the milliseconds a kernel has to stop as its notebook closes, and the nodes and bytes a
 // message's tree has for its output's type put into it
 #define CELLS_NODES_MORE 64u
@@ -20,7 +20,7 @@
 #define CELLS_MESSAGE_NODES 8u
 #define CELLS_MESSAGE_TEXT 64ULL
 
-// the models open, a pointer each in one movable cell taken once at their most, and what wakes the view's thread
+// the models open, a pointer each in one movable cell taken once at their max, and what wakes the view's thread
 static const CarcerMovableEntry *s_model_cell;
 static unsigned int s_models;
 static void (*s_woken)(void);
@@ -53,7 +53,7 @@ EMBED_INLINE unsigned int member_of(const NotebookCellsCtx *args)
                       .object = args->node, .name = args->name);
 }
 
-// the letters of the string member `name` of the node `node`, the empty text where it is none, its bytes into
+// the characters of the string member `name` of the node `node`, the empty text where it is none, its bytes into
 // `length_pointer` where that is not NULL
 EMBED_INLINE const char *string_of(const NotebookCellsCtx *args)
 {
@@ -102,7 +102,7 @@ EMBED_INLINE void ring_locked(const NotebookCellsCtx *args)
 }
 
 // the ring's movable cell taken anew at `capacity` bytes, the messages pending carried into it through a cell of
-// this call and the cell they stood in given back: 1, or 0 where the cells cannot meet it, the ring as it was
+// this call and the cell they was in given back: 1, or 0 where the cells cannot meet it, the ring as it was
 EMBED_INLINE int ring_grown(const NotebookCellsCtx *args)
 {
     CliNotebookModel *const model = args->model;
@@ -360,27 +360,27 @@ void cli_notebook_model_lines_read(const CliNotebookModelCtx *args)
                .cell_read = &cell);
 }
 
-int cli_notebook_model_cells_laid(const CliNotebookModelCtx *args)
+int cli_notebook_model_cells_positioned(const CliNotebookModelCtx *args)
 {
     CliNotebookModel *const model = args->model;
     const unsigned int count = args->count;
     const unsigned long long cell_bytes = CLI_NOTEBOOK_CELL_AT(count);
     const unsigned long long bytes = cell_bytes + ((count + 1ULL) * sizeof(unsigned int));
-    // the cells laid in a cell of this call, the cells before and after the change read out of the cell they stand in,
+    // the cells positioned in a cell of this call, the cells before and after the change read out of the cell they are in,
     // then written once into a movable cell sized to them with the rows' starts after them
-    unsigned char *const laid = g_cli_guard->temporary_buf_alloc(bytes, g_cli_notebook_open_owner);
-    if (laid == NULL)
+    unsigned char *const positioned = g_cli_guard->temporary_buf_alloc(bytes, g_cli_notebook_open_owner);
+    if (positioned == NULL)
     {
         return 0;
     }
-    memor.set(&(MemoriaCfg){.dst = laid, .val = 0, .bytes = bytes});
+    memor.set(&(MemoriaCfg){.dst = positioned, .val = 0, .bytes = bytes});
     const unsigned int before = (args->cell < model->cells) ? args->cell : model->cells;
     if (before != 0u)
     {
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = model->cells_cell, .offset = 0ULL, .dst = laid, .bytes = CLI_NOTEBOOK_CELL_AT(before)});
+            .cell = model->cells_cell, .offset = 0ULL, .dst = positioned, .bytes = CLI_NOTEBOOK_CELL_AT(before)});
     }
-    // one more: a cell of none at `cell`; one fewer: the cell at `cell` left out; as many: every cell as it stands
+    // one more: a cell of none at `cell`; one fewer: the cell at `cell` left out; as many: every cell as it is
     const unsigned int skipped = (count < model->cells) ? 1u : 0u;
     const unsigned int opened = (count > model->cells) ? 1u : 0u;
     const unsigned int after = model->cells - before - ((skipped && (before < model->cells)) ? 1u : 0u);
@@ -388,14 +388,14 @@ int cli_notebook_model_cells_laid(const CliNotebookModelCtx *args)
     {
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
                                                                 .offset = CLI_NOTEBOOK_CELL_AT(before + skipped),
-                                                                .dst = laid + CLI_NOTEBOOK_CELL_AT(before + opened),
+                                                                .dst = positioned + CLI_NOTEBOOK_CELL_AT(before + opened),
                                                                 .bytes = CLI_NOTEBOOK_CELL_AT(after)});
     }
     const CarcerMovableEntry *const cells_cell = g_cli_guard->movable_buf_alloc(bytes, g_cli_notebook_open_owner);
     if (cells_cell != NULL)
     {
         (void)g_cli_guard->movable_buf_write(
-            &(CarcerMovableCfg){.cell = cells_cell, .offset = 0ULL, .src = laid, .bytes = bytes});
+            &(CarcerMovableCfg){.cell = cells_cell, .offset = 0ULL, .src = positioned, .bytes = bytes});
         if (model->cells_cell != NULL)
         {
             (void)g_cli_guard->movable_buf_release(model->cells_cell, g_cli_notebook_open_owner);
@@ -404,7 +404,7 @@ int cli_notebook_model_cells_laid(const CliNotebookModelCtx *args)
         model->first_row_at = cell_bytes;
         model->cells = count;
     }
-    g_cli_guard->persistent_buf_release(laid, g_cli_notebook_open_owner);
+    g_cli_guard->persistent_buf_release(positioned, g_cli_notebook_open_owner);
     return cells_cell != NULL;
 }
 
@@ -420,15 +420,15 @@ void cli_notebook_model_bound(const CliNotebookModelCtx *args)
                .cell_read = &cell);
 }
 
-// the output texts laid anew in a movable cell sized to them, the output `output` taking `json_size` bytes of
-// `json_text` in place of its own, every other output's standing, each output's place in them written: 1, or 0 where
+// the output texts positioned anew in a movable cell sized to them, the output `output` taking `json_size` bytes of
+// `json_text` in place of its own, every other output's located, each output's place in them written: 1, or 0 where
 // the cells cannot meet it, the texts as they were
-EMBED_INLINE int texts_laid(const NotebookCellsCtx *args)
+EMBED_INLINE int texts_positioned(const NotebookCellsCtx *args)
 {
     CliNotebookModel *const model = args->model;
     const unsigned long long records = CLI_NOTEBOOK_OUTPUT_AT(model->outputs);
     unsigned long long bytes = 0ULL;
-    // the outputs read into a cell of this call, their places moved as the texts are laid, then written back whole
+    // the outputs read into a cell of this call, their places moved as the texts are positioned, then written back whole
     CliNotebookOutput *const output =
         (model->outputs != 0u) ? g_cli_guard->temporary_buf_alloc(records, g_cli_notebook_open_owner) : NULL;
     if ((model->outputs != 0u) && (output == NULL))
@@ -444,16 +444,16 @@ EMBED_INLINE int texts_laid(const NotebookCellsCtx *args)
     {
         bytes += (at == args->output) ? args->json_size : output[at].json_length;
     }
-    char *const laid = (bytes != 0ULL) ? g_cli_guard->temporary_buf_alloc(bytes, g_cli_notebook_open_owner) : NULL;
+    char *const positioned = (bytes != 0ULL) ? g_cli_guard->temporary_buf_alloc(bytes, g_cli_notebook_open_owner) : NULL;
     const CarcerMovableEntry *const text_cell =
         (bytes != 0ULL) ? g_cli_guard->movable_buf_alloc(bytes, g_cli_notebook_open_owner) : NULL;
-    if ((bytes != 0ULL) && ((laid == NULL) || (text_cell == NULL)))
+    if ((bytes != 0ULL) && ((positioned == NULL) || (text_cell == NULL)))
     {
         if (text_cell != NULL)
         {
             (void)g_cli_guard->movable_buf_release(text_cell, g_cli_notebook_open_owner);
         }
-        g_cli_guard->persistent_buf_release(laid, g_cli_notebook_open_owner);
+        g_cli_guard->persistent_buf_release(positioned, g_cli_notebook_open_owner);
         g_cli_guard->persistent_buf_release(output, g_cli_notebook_open_owner);
         return 0;
     }
@@ -463,12 +463,12 @@ EMBED_INLINE int texts_laid(const NotebookCellsCtx *args)
         const unsigned long long length = (at == args->output) ? args->json_size : output[at].json_length;
         if ((length != 0ULL) && (at == args->output))
         {
-            memor.cpy(&(MemoriaCfg){.dst = laid + used, .src = args->json_text, .bytes = length});
+            memor.cpy(&(MemoriaCfg){.dst = positioned + used, .src = args->json_text, .bytes = length});
         }
         else if (length != 0ULL)
         {
             (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-                .cell = model->text_cell, .offset = output[at].json, .dst = laid + used, .bytes = length});
+                .cell = model->text_cell, .offset = output[at].json, .dst = positioned + used, .bytes = length});
         }
         output[at].json = used;
         output[at].json_length = length;
@@ -477,7 +477,7 @@ EMBED_INLINE int texts_laid(const NotebookCellsCtx *args)
     if (bytes != 0ULL)
     {
         (void)g_cli_guard->movable_buf_write(
-            &(CarcerMovableCfg){.cell = text_cell, .offset = 0ULL, .src = laid, .bytes = bytes});
+            &(CarcerMovableCfg){.cell = text_cell, .offset = 0ULL, .src = positioned, .bytes = bytes});
     }
     if (output != NULL)
     {
@@ -490,7 +490,7 @@ EMBED_INLINE int texts_laid(const NotebookCellsCtx *args)
     }
     model->text_cell = text_cell;
     model->output_used = used;
-    g_cli_guard->persistent_buf_release(laid, g_cli_notebook_open_owner);
+    g_cli_guard->persistent_buf_release(positioned, g_cli_notebook_open_owner);
     g_cli_guard->persistent_buf_release(output, g_cli_notebook_open_owner);
     return 1;
 }
@@ -562,10 +562,10 @@ EMBED_INLINE int output_text_stored(const NotebookCellsCtx *args)
     return 1;
 }
 
-// the outputs laid anew in a movable cell of `tokens` records, the records before the place `output` as they stand,
+// the outputs positioned anew in a movable cell of `tokens` records, the records before the place `output` as they are,
 // `node` records at the place left out and the records after them following, after a gap of the records the
 // change puts in: 1, or 0 where the cells cannot meet it, the outputs as they were
-EMBED_INLINE int outputs_laid(const NotebookCellsCtx *args)
+EMBED_INLINE int outputs_positioned(const NotebookCellsCtx *args)
 {
     CliNotebookModel *const model = args->model;
     const unsigned long long bytes = CLI_NOTEBOOK_OUTPUT_AT(args->tokens);
@@ -574,37 +574,37 @@ EMBED_INLINE int outputs_laid(const NotebookCellsCtx *args)
     const unsigned int opened = args->tokens - before - after;
     const CarcerMovableEntry *const grown =
         (args->tokens != 0u) ? g_cli_guard->movable_buf_alloc(bytes, g_cli_notebook_open_owner) : NULL;
-    unsigned char *const laid =
+    unsigned char *const positioned =
         (args->tokens != 0u) ? g_cli_guard->temporary_buf_alloc(bytes, g_cli_notebook_open_owner) : NULL;
-    if ((args->tokens != 0u) && ((grown == NULL) || (laid == NULL)))
+    if ((args->tokens != 0u) && ((grown == NULL) || (positioned == NULL)))
     {
         if (grown != NULL)
         {
             (void)g_cli_guard->movable_buf_release(grown, g_cli_notebook_open_owner);
         }
-        g_cli_guard->persistent_buf_release(laid, g_cli_notebook_open_owner);
+        g_cli_guard->persistent_buf_release(positioned, g_cli_notebook_open_owner);
         return 0;
     }
-    if (laid != NULL)
+    if (positioned != NULL)
     {
-        memor.set(&(MemoriaCfg){.dst = laid, .val = 0, .bytes = bytes});
+        memor.set(&(MemoriaCfg){.dst = positioned, .val = 0, .bytes = bytes});
     }
     if (before != 0u)
     {
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = model->outputs_cell, .offset = 0ULL, .dst = laid, .bytes = CLI_NOTEBOOK_OUTPUT_AT(before)});
+            .cell = model->outputs_cell, .offset = 0ULL, .dst = positioned, .bytes = CLI_NOTEBOOK_OUTPUT_AT(before)});
     }
     if (after != 0u)
     {
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->outputs_cell,
                                                                 .offset = CLI_NOTEBOOK_OUTPUT_AT(before + args->node),
-                                                                .dst = laid + CLI_NOTEBOOK_OUTPUT_AT(before + opened),
+                                                                .dst = positioned + CLI_NOTEBOOK_OUTPUT_AT(before + opened),
                                                                 .bytes = CLI_NOTEBOOK_OUTPUT_AT(after)});
     }
-    if (laid != NULL)
+    if (positioned != NULL)
     {
         (void)g_cli_guard->movable_buf_write(
-            &(CarcerMovableCfg){.cell = grown, .offset = 0ULL, .src = laid, .bytes = bytes});
+            &(CarcerMovableCfg){.cell = grown, .offset = 0ULL, .src = positioned, .bytes = bytes});
     }
     if (model->outputs_cell != NULL)
     {
@@ -612,7 +612,7 @@ EMBED_INLINE int outputs_laid(const NotebookCellsCtx *args)
     }
     model->outputs_cell = grown;
     model->outputs = args->tokens;
-    g_cli_guard->persistent_buf_release(laid, g_cli_notebook_open_owner);
+    g_cli_guard->persistent_buf_release(positioned, g_cli_notebook_open_owner);
     return 1;
 }
 
@@ -625,7 +625,7 @@ EMBED_INLINE int output_put(const NotebookCellsCtx *args)
     EMBED_CALL(cli_notebook_model_internal.cell_read, CliNotebookModelCtx, .model = model, .cell = args->cell,
                .cell_out = &cell);
     const unsigned int place = cell.output_first + cell.outputs;
-    if (!EMBED_CALL(outputs_laid, NotebookCellsCtx, .model = model, .output = place, .node = 0u,
+    if (!EMBED_CALL(outputs_positioned, NotebookCellsCtx, .model = model, .output = place, .node = 0u,
                     .tokens = model->outputs + 1u))
     {
         return 0;
@@ -639,7 +639,7 @@ EMBED_INLINE int output_put(const NotebookCellsCtx *args)
     EMBED_CALL(cli_notebook_model_internal.cell_written, CliNotebookModelCtx, .model = model, .cell = args->cell,
                .cell_read = &cell);
     EMBED_CALL(outputs_shifted, NotebookCellsCtx, .model = model, .cell = args->cell + 1u, .tokens = 1u, .type = 1u);
-    (void)EMBED_CALL(texts_laid, NotebookCellsCtx, .model = model, .output = place, .json_text = args->json_text,
+    (void)EMBED_CALL(texts_positioned, NotebookCellsCtx, .model = model, .output = place, .json_text = args->json_text,
                      .json_size = args->json_size);
     (void)EMBED_CALL(output_text_stored, NotebookCellsCtx, .model = model, .cell = args->cell, .output = place,
                      .text = args->text, .size = args->size);
@@ -663,7 +663,7 @@ void cli_notebook_model_outputs_released(const CliNotebookModelCtx *args)
     const unsigned int gone = cell.outputs;
     if (gone != 0u)
     {
-        (void)EMBED_CALL(outputs_laid, NotebookCellsCtx, .model = model, .output = cell.output_first, .node = gone,
+        (void)EMBED_CALL(outputs_positioned, NotebookCellsCtx, .model = model, .output = cell.output_first, .node = gone,
                          .tokens = model->outputs - gone);
     }
     EMBED_CALL(outputs_shifted, NotebookCellsCtx, .model = model, .cell = args->cell + 1u, .tokens = gone, .type = 0u);
@@ -672,7 +672,7 @@ void cli_notebook_model_outputs_released(const CliNotebookModelCtx *args)
     cell.failed = 0;
     EMBED_CALL(cli_notebook_model_internal.cell_written, CliNotebookModelCtx, .model = model, .cell = args->cell,
                .cell_read = &cell);
-    (void)EMBED_CALL(texts_laid, NotebookCellsCtx, .model = model, .output = CLI_NOTEBOOK_NONE);
+    (void)EMBED_CALL(texts_positioned, NotebookCellsCtx, .model = model, .output = CLI_NOTEBOOK_NONE);
 }
 
 // the JSON of the stream `name` of `size` bytes of `text`, as a notebook stores one, written into `out`
@@ -707,35 +707,35 @@ EMBED_INLINE int stream_put(const NotebookCellsCtx *args)
                        (last_output.stderr_stream == stderr_stream);
     char key[CLI_PATH_MAX_LEN + CLI_NOTEBOOK_KEY_MORE];
     unsigned long long before = 0ULL;
-    char *standing = NULL;
+    char *located = NULL;
     if (joined)
     {
         EMBED_CALL(cli_notebook_model_internal.key, CliNotebookModelCtx, .model = model, .cell = args->cell,
                    .output = last, .out = key);
-        standing = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = key, .size_pointer = &before,
+        located = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = key, .size_pointer = &before,
                               .owner = g_cli_notebook_open_owner);
     }
     // the stream's text: its last line end, where the store left one off, put back before the text joined to it
-    const int line_ended = (standing != NULL) && last_output.line_ended;
-    const unsigned long long ended = (standing != NULL) ? (before + (line_ended ? 1ULL : 0ULL)) : 0ULL;
+    const int line_ended = (located != NULL) && last_output.line_ended;
+    const unsigned long long ended = (located != NULL) ? (before + (line_ended ? 1ULL : 0ULL)) : 0ULL;
     const unsigned long long bytes = ended + args->size;
     const unsigned long long json_capacity = (6ULL * bytes) + CELLS_MESSAGE_TEXT;
     char *const scratch = g_cli_guard->temporary_buf_alloc(bytes + json_capacity + 1ULL, g_cli_notebook_open_owner);
     if (scratch == NULL)
     {
-        g_cli_guard->persistent_buf_release(standing, g_cli_notebook_open_owner);
+        g_cli_guard->persistent_buf_release(located, g_cli_notebook_open_owner);
         return 0;
     }
-    if (standing != NULL)
+    if (located != NULL)
     {
-        memor.cpy(&(MemoriaCfg){.dst = scratch, .src = standing, .bytes = before});
+        memor.cpy(&(MemoriaCfg){.dst = scratch, .src = located, .bytes = before});
     }
     if (line_ended)
     {
         scratch[before] = '\n';
     }
     memor.cpy(&(MemoriaCfg){.dst = scratch + ended, .src = args->text, .bytes = args->size});
-    g_cli_guard->persistent_buf_release(standing, g_cli_notebook_open_owner);
+    g_cli_guard->persistent_buf_release(located, g_cli_notebook_open_owner);
     VerbaLinea json = {scratch + bytes, json_capacity, 0ULL};
     EMBED_CALL(stream_json_written, NotebookCellsCtx, .out = &json, .name = args->name, .text = scratch, .size = bytes);
     int put = 0;
@@ -747,7 +747,7 @@ EMBED_INLINE int stream_put(const NotebookCellsCtx *args)
     }
     else
     {
-        put = EMBED_CALL(texts_laid, NotebookCellsCtx, .model = model, .output = last, .json_text = json.out,
+        put = EMBED_CALL(texts_positioned, NotebookCellsCtx, .model = model, .output = last, .json_text = json.out,
                          .json_size = json.at) &&
               EMBED_CALL(output_text_stored, NotebookCellsCtx, .model = model, .cell = args->cell, .output = last,
                          .text = scratch, .size = bytes);
@@ -775,33 +775,33 @@ EMBED_INLINE int node_output_put(const NotebookCellsCtx *args)
         return EMBED_CALL(stream_put, NotebookCellsCtx, .model = args->model, .cell = args->cell,
                           .name = (name[0] != '\0') ? name : "stdout", .text = text, .size = size);
     }
-    // the shown text: the traceback's lines joined, or the data's text/plain
+    // the displayed text: the traceback's lines joined, or the data's text/plain
     const unsigned int traceback =
         EMBED_CALL(member_of, NotebookCellsCtx, .json_read = json, .node = node, .name = "traceback");
-    unsigned long long shown = 0ULL;
+    unsigned long long displayed = 0ULL;
     for (unsigned int line = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
                                         .node = traceback, .type = CFG_JSON_ARRAY)
                                  ? json->node[traceback].first
                                  : CLI_JSON_NONE;
          line != CLI_JSON_NONE; line = json->node[line].next)
     {
-        shown += json->node[line].length + 1ULL;
+        displayed += json->node[line].length + 1ULL;
     }
     unsigned long long plain = 0ULL;
     const char *const plain_text =
         EMBED_CALL(string_of, NotebookCellsCtx, .json_read = json,
                    .node = EMBED_CALL(member_of, NotebookCellsCtx, .json_read = json, .node = node, .name = "data"),
                    .name = "text/plain", .length_pointer = &plain);
-    shown += (args->type == CLI_NOTEBOOK_ERROR) ? 0ULL : plain;
+    displayed += (args->type == CLI_NOTEBOOK_ERROR) ? 0ULL : plain;
     const unsigned long long json_capacity =
         EMBED_CALL(cli_json_tree_node_out.json_write_capacity, CliJsonTreeNodeOutCfg, .json_read = json, .node = node,
                    .out = NULL, .indent = 0u, .sorted = 0);
-    char *const scratch = g_cli_guard->temporary_buf_alloc(shown + json_capacity + 1ULL, g_cli_notebook_open_owner);
+    char *const scratch = g_cli_guard->temporary_buf_alloc(displayed + json_capacity + 1ULL, g_cli_notebook_open_owner);
     if (scratch == NULL)
     {
         return 0;
     }
-    VerbaLinea text = {scratch, shown + 1ULL, 0ULL};
+    VerbaLinea text = {scratch, displayed + 1ULL, 0ULL};
     if (args->type == CLI_NOTEBOOK_ERROR)
     {
         for (unsigned int line = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
@@ -821,7 +821,7 @@ EMBED_INLINE int node_output_put(const NotebookCellsCtx *args)
     {
         mmgr_line_put_n(&text, plain_text, plain);
     }
-    VerbaLinea written = {scratch + shown + 1ULL, json_capacity, 0ULL};
+    VerbaLinea written = {scratch + displayed + 1ULL, json_capacity, 0ULL};
     EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = node,
                .out = &written, .indent = 0u, .sorted = 0);
     const int put = EMBED_CALL(output_put, NotebookCellsCtx, .model = args->model, .cell = args->cell,
@@ -831,7 +831,7 @@ EMBED_INLINE int node_output_put(const NotebookCellsCtx *args)
     return put;
 }
 
-// the type an output's type `name` stands for, CLI_NOTEBOOK_NONE for none
+// the type an output's type `name` is for, CLI_NOTEBOOK_NONE for none
 EMBED_INLINE unsigned int output_type(const NotebookCellsCtx *args)
 {
     static const char *const s_types[] = {"stream", "execute_result", "display_data", "error"};
@@ -845,7 +845,7 @@ EMBED_INLINE unsigned int output_type(const NotebookCellsCtx *args)
     return CLI_NOTEBOOK_NONE;
 }
 
-int cli_notebook_model_kernel_laid(const CliNotebookModelCtx *args)
+int cli_notebook_model_kernel_positioned(const CliNotebookModelCtx *args)
 {
     CliNotebookModel *const model = args->model;
     // the three texts, each ended by a 0, copied into the model's own bytes in turn, each cut to its bytes
@@ -892,17 +892,17 @@ EMBED_INLINE int kernel_read(const NotebookCellsCtx *args)
                                                                 : "python";
     char text[3u * CLI_NAME_MAX_LEN];
     VerbaLinea line = {text, sizeof(text), 0ULL};
-    mmgr_line_put_most(&line, name, CLI_NAME_MAX_LEN - 1u);
+    mmgr_line_put_max(&line, name, CLI_NAME_MAX_LEN - 1u);
     mmgr_line_ch(&line, '\0');
-    mmgr_line_put_most(&line, display, CLI_NAME_MAX_LEN - 1u);
+    mmgr_line_put_max(&line, display, CLI_NAME_MAX_LEN - 1u);
     mmgr_line_ch(&line, '\0');
-    mmgr_line_put_most(&line, language, CLI_NAME_MAX_LEN - 1u);
+    mmgr_line_put_max(&line, language, CLI_NAME_MAX_LEN - 1u);
     mmgr_line_ch(&line, '\0');
-    return EMBED_CALL(cli_notebook_model_internal.kernel_laid, CliNotebookModelCtx, .model = args->model, .text = text,
+    return EMBED_CALL(cli_notebook_model_internal.kernel_positioned, CliNotebookModelCtx, .model = args->model, .text = text,
                       .size = line.at);
 }
 
-// the cells of the tree read laid into the model, each source stored and colored, each output put: 1, or 0 where the
+// the cells of the tree read positioned into the model, each source stored and colored, each output put: 1, or 0 where the
 // cells cannot meet them
 EMBED_INLINE int cells_read(const NotebookCellsCtx *args)
 {
@@ -911,7 +911,7 @@ EMBED_INLINE int cells_read(const NotebookCellsCtx *args)
     const unsigned int cells =
         EMBED_CALL(member_of, NotebookCellsCtx, .json_read = json, .node = model->root, .name = "cells");
     const unsigned int count = json->node[cells].count;
-    if (!EMBED_CALL(cli_notebook_model_internal.cells_laid, CliNotebookModelCtx, .model = model, .count = count,
+    if (!EMBED_CALL(cli_notebook_model_internal.cells_positioned, CliNotebookModelCtx, .model = model, .count = count,
                     .cell = 0u))
     {
         return 0;
@@ -1079,24 +1079,24 @@ int cli_notebook_model_open(const CliNotebookCellsOpenCfg *args)
         cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
     const unsigned long long path_bytes =
         cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
-    if (s_models == CLI_NOTEBOOK_MODELS_MOST)
+    if (s_models == CLI_NOTEBOOK_MODELS_MAX)
     {
         mmgr_line_put(args->err_msg, args->path);
         mmgr_line_put(args->err_msg, ": no more notebooks are open at once");
         return 0;
     }
-    // a model holds the lock its kernel's ring is read and written under, so the models stand fixed outside the pool,
+    // a model holds the lock its kernel's ring is read and written under, so the models are fixed outside the pool,
     // one place for each notebook open at once, where they punch no hole in the persistent tier
-    static CliNotebookModel s_places[CLI_NOTEBOOK_MODELS_MOST];
+    static CliNotebookModel s_places[CLI_NOTEBOOK_MODELS_MAX];
     CliNotebookModel *model = NULL;
-    for (unsigned int at = 0u; (model == NULL) && (at < CLI_NOTEBOOK_MODELS_MOST); at += 1u)
+    for (unsigned int at = 0u; (model == NULL) && (at < CLI_NOTEBOOK_MODELS_MAX); at += 1u)
     {
         model = (s_places[at].reserved == 0) ? &s_places[at] : NULL;
     }
     if ((model != NULL) && (s_model_cell == NULL))
     {
         s_model_cell =
-            g_cli_guard->movable_buf_alloc(CLI_NOTEBOOK_MODEL_AT(CLI_NOTEBOOK_MODELS_MOST), g_cli_notebook_open_owner);
+            g_cli_guard->movable_buf_alloc(CLI_NOTEBOOK_MODEL_AT(CLI_NOTEBOOK_MODELS_MAX), g_cli_notebook_open_owner);
     }
     if ((model == NULL) || (s_model_cell == NULL) || (key_bytes > sizeof(model->key_text)) ||
         (path_bytes > sizeof(model->path_text)))
@@ -1288,7 +1288,7 @@ int cli_notebook_model_save(const CliNotebookCellsSaveCfg *args)
         return 0;
     }
     // the outputs' texts copied out of their cell for the save, and the save's tree sized to the tree read, the sources
-    // as they stand and the outputs' texts
+    // as they are and the outputs' texts
     char *const texts = g_cli_guard->temporary_buf_alloc(model->output_used + 1ULL, g_cli_notebook_open_owner);
     if (texts == NULL)
     {
@@ -1450,7 +1450,7 @@ EMBED_INLINE void status_read(const NotebookCellsCtx *args)
 }
 
 // one message of `size` bytes of `text` applied to the model: 1 where it changed it, 0 where it is of no run or of no
-// type a cell takes, and 2 where the run it answers is not yet bound, the message to stand in the ring
+// type a cell takes, and 2 where the run it answers is not yet bound, the message to be in the ring
 EMBED_INLINE unsigned int message_applied(const NotebookCellsCtx *args)
 {
     CliNotebookModel *const model = args->model;

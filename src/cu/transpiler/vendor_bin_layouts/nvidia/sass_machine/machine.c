@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// machine.c: the machine file: a form of the machine, the exit encoding, the operations that transfer control or wait, the barrier and the schedule, the machine taken from text, the runs, kinds and answers written and read, and the file written and read
+// machine.c: the machine file: a form of the machine, the exit encoding, the operations that transfer control or wait, the barrier and the schedule, the machine taken from text, the runs, types and answers written and read, and the file written and read
 #include "sass_machine_internal.h"
 #include "../../../../../../includes/parsers/line_read.h"
 #include "verba_scribo/verba_linea.h"
@@ -101,7 +101,7 @@ int sass_machine_take(SassMachine *machine, const char *text, unsigned long long
     form->operands = parts.operands;
     for (unsigned int place = 0u; place < parts.operands; place += 1u)
     {
-        form->kind[place] = parts.kind[place];
+        form->type[place] = parts.type[place];
         form->mark[place] = parts.mark[place];
     }
     form->low = low;
@@ -138,7 +138,7 @@ int sass_machine_take_related(SassMachine *machine, const char *text, unsigned l
     form->operands = parts.operands;
     for (unsigned int place = 0u; place < parts.operands; place += 1u)
     {
-        form->kind[place] = parts.kind[place];
+        form->type[place] = parts.type[place];
         form->mark[place] = parts.mark[place];
     }
     form->low = low;
@@ -187,7 +187,7 @@ int sass_text_placed(const SassForm *form, char *written, size_t room)
         const char *const text = parts.operand[operand];
         // a placed address retains its brackets and what follows its register inside them, `[{<place>}.64]`, so that
         // the operand reads as an address where the place is filled
-        const int address = (parts.kind[operand] == SASS_OPERAND_ADDRESS) && (text[0] == '[');
+        const int address = (parts.type[operand] == SASS_OPERAND_ADDRESS) && (text[0] == '[');
         const size_t inner = address ? (1u + strcspn(text + 1, ".+]")) : 0u;
         printed = (place == SASS_RUN_NO_PLACE) ? snprintf(written + at, room - at, "%s%s%s", between, mark, text)
                   : address ? snprintf(written + at, room - at, "%s%s[{%u}%s", between, mark, place, text + inner)
@@ -216,7 +216,7 @@ static void sass_runs_write(const SassForm *form, char *written, size_t room)
         }
         const int printed = snprintf(written + at, room - at, "%s%u:%u-%u:%s", (number == 0u) ? "" : ";", run->operand,
                                      run->first, run->last, place);
-        // snprintf gives the letters it would have written, which the room below bounds
+        // snprintf gives the characters it would have written, which the room below bounds
         at += ((printed > 0) && ((size_t)printed < (room - at))) ? (size_t)printed : 0u;
     }
     if (form->runs == 0u)
@@ -251,7 +251,7 @@ static int sass_runs_read(SassForm *form, const char *column)
         {
             return 0;
         }
-        // a run's letters are within its column, which an int counts
+        // a run's characters are within its column, which an int counts
         const int read = (int)(walk - at);
         unsigned int place = SASS_RUN_NO_PLACE;
         if ((at[read] == ':') && (strncmp(&at[read + 1], SASS_RUN_NO_PLACE_TEXT, strlen(SASS_RUN_NO_PLACE_TEXT)) != 0))
@@ -269,16 +269,16 @@ static int sass_runs_read(SassForm *form, const char *column)
     return 1;
 }
 
-// the kinds and marks of `form` written into `written` as one column, "none" where it takes no operand
-static void sass_kinds_write(const SassForm *form, char *written, size_t room)
+// the types and marks of `form` written into `written` as one column, "none" where it takes no operand
+static void sass_types_write(const SassForm *form, char *written, size_t room)
 {
     size_t at = 0u;
     written[0] = '\0';
     for (unsigned int place = 0u; place < form->operands; place += 1u)
     {
         const int printed = snprintf(written + at, room - at, "%s%s%s", (place == 0u) ? "" : ",",
-                                     s_kind_names[form->kind[place]], s_mark_names[form->mark[place]]);
-        // snprintf gives the letters it would have written, which the room below bounds
+                                     s_type_names[form->type[place]], s_mark_names[form->mark[place]]);
+        // snprintf gives the characters it would have written, which the room below bounds
         at += ((printed > 0) && ((size_t)printed < (room - at))) ? (size_t)printed : 0u;
     }
     if (form->operands == 0u)
@@ -295,7 +295,7 @@ int sass_machine_write(const SassMachine *machine, const char *path)
     mmgr_line_put(&file,
                      "# The part's instructions as the cell's probes read them back: one line a form, an operation "
                      "and" SASS_LINE_END
-                     "# the kind and mark of each printed operand, with the encoding the form was first seen with "
+                     "# the type and mark of each printed operand, with the encoding the form was first seen with "
                      "and" SASS_LINE_END "# the instruction it was seen as. The format is the comment at the head of "
                      "sass_machine.h." SASS_LINE_END);
     mmgr_line_put(&file, "part ");
@@ -304,15 +304,15 @@ int sass_machine_write(const SassMachine *machine, const char *path)
     for (unsigned int number = 0u; number < machine->forms; number += 1u)
     {
         const SassForm *const form = &machine->form[number];
-        char kinds[SASS_MACHINE_TOKEN * SASS_MACHINE_OPERANDS];
+        char types[SASS_MACHINE_TOKEN * SASS_MACHINE_OPERANDS];
         char runs[SASS_MACHINE_RUNS * 16u];
-        sass_kinds_write(form, kinds, sizeof(kinds));
+        sass_types_write(form, types, sizeof(types));
         sass_runs_write(form, runs, sizeof(runs));
         const int related = (form->relation[0] != '\0');
         mmgr_line_put(&file, "form ");
         mmgr_line_put(&file, form->operation);
         mmgr_line_put(&file, " ");
-        mmgr_line_put(&file, kinds);
+        mmgr_line_put(&file, types);
         mmgr_line_put(&file, " 0x");
         mmgr_line_hex(&file, form->low, 16u);
         mmgr_line_put(&file, " 0x");
@@ -327,10 +327,10 @@ int sass_machine_write(const SassMachine *machine, const char *path)
         mmgr_line_put(&file, form->text);
         mmgr_line_put(&file, SASS_LINE_END);
     }
-    // handed to the run's writer whole, which writes it in the file's place (qry_member_filed)
+    // passed to the run's writer whole, which writes it in the file's place (qry_member_filed)
     if (!mmgr_line_ok(&file) || !qry_member_filed(path, file.out, file.at))
     {
-        printf("  sass_machine: %s could not be written: no run's writer runs, or it stands outside the tree\n", path);
+        printf("  sass_machine: %s could not be written: no run's writer runs, or it is outside the tree\n", path);
         return 0;
     }
     return 1;
@@ -347,8 +347,8 @@ static unsigned int sass_name_place(const char *const *names, unsigned int count
     return found;
 }
 
-// one form's kinds column read into `form`: 1, or 0 where a kind or a mark is none the writer names
-static int sass_kinds_read(SassForm *form, const char *column)
+// one form's types column read into `form`: 1, or 0 where a type or a mark is none the writer names
+static int sass_types_read(SassForm *form, const char *column)
 {
     form->operands = 0u;
     if (strcmp(column, "none") == 0)
@@ -359,22 +359,22 @@ static int sass_kinds_read(SassForm *form, const char *column)
     while (*at != '\0')
     {
         const size_t length = strcspn(at, ",");
-        // the mark is the last letter where it is one, and the kind the rest
+        // the mark is the last character where it is one, and the type the rest
         const size_t mark_length = ((length != 0u) && (sass_name_place(s_mark_names, (unsigned int)SASS_MARK_COUNT,
                                                                       at + length - 1u, 1u) != SASS_MARK_COUNT))
                                        ? 1u
                                        : 0u;
-        const unsigned int kind =
-            sass_name_place(s_kind_names, (unsigned int)SASS_KIND_COUNT, at, length - mark_length);
+        const unsigned int type =
+            sass_name_place(s_type_names, (unsigned int)SASS_KIND_COUNT, at, length - mark_length);
         const unsigned int mark =
             (mark_length == 0u)
                 ? (unsigned int)SASS_MARK_NONE
                 : sass_name_place(s_mark_names, (unsigned int)SASS_MARK_COUNT, at + length - 1u, 1u);
-        if ((kind == SASS_KIND_COUNT) || (form->operands == SASS_MACHINE_OPERANDS))
+        if ((type == SASS_KIND_COUNT) || (form->operands == SASS_MACHINE_OPERANDS))
         {
             return 0;
         }
-        form->kind[form->operands] = kind;
+        form->type[form->operands] = type;
         form->mark[form->operands] = mark;
         form->operands += 1u;
         at += length + ((at[length] == ',') ? 1u : 0u);
@@ -406,7 +406,7 @@ static void sass_answers_read(SassMachine *machine, const char *path)
         {
             continue;
         }
-        // a stall and a register are each at most eight hex digits, which an unsigned int represents
+        // a stall and a register are each at max eight hex digits, which an unsigned int represents
         const unsigned int answered = (unsigned int)s_row.value;
         if (strncmp(s_row.question, "register last", 13u) == 0)
         {
@@ -419,7 +419,7 @@ static void sass_answers_read(SassMachine *machine, const char *path)
             continue;
         }
         const char *question = s_row.question;
-        if (!line_letters(&question, "stall ") || !line_word(&question, writer, sizeof(writer)) ||
+        if (!line_characters(&question, "stall ") || !line_word(&question, writer, sizeof(writer)) ||
             !line_word(&question, reader, sizeof(reader)))
         {
             continue;
@@ -484,7 +484,7 @@ int sass_machine_read(SassMachine *machine, const char *path)
             continue;
         }
         char operation[SASS_MACHINE_TOKEN];
-        char kinds[SASS_MACHINE_TOKEN * SASS_MACHINE_OPERANDS];
+        char types[SASS_MACHINE_TOKEN * SASS_MACHINE_OPERANDS];
         char runs[SASS_MACHINE_RUNS * 16u];
         char relation[SASS_MACHINE_TOKEN] = "";
         char signed_read[SASS_MACHINE_TOKEN] = "";
@@ -493,7 +493,7 @@ int sass_machine_read(SassMachine *machine, const char *path)
         // the text past the runs, and at forms 2 past the relation and the signedness, is the instruction the form was
         // seen as, and contains spaces
         const char *seen = line + 5;
-        int read = line_word(&seen, operation, sizeof(operation)) && line_word(&seen, kinds, sizeof(kinds)) &&
+        int read = line_word(&seen, operation, sizeof(operation)) && line_word(&seen, types, sizeof(types)) &&
                    line_number(&seen, 1, &low) && line_number(&seen, 1, &high) && line_word(&seen, runs, sizeof(runs));
         read = read && ((version != 2u) || (line_word(&seen, relation, sizeof(relation)) &&
                                             line_word(&seen, signed_read, sizeof(signed_read))));
@@ -522,7 +522,7 @@ int sass_machine_read(SassMachine *machine, const char *path)
             snprintf(form->relation, sizeof(form->relation), "%s", relation);
             form->signed_read = (strcmp(signed_read, "1") == 0) ? 1 : 0;
         }
-        broken = sass_kinds_read(form, kinds) ? broken : 1;
+        broken = sass_types_read(form, types) ? broken : 1;
         broken = sass_runs_read(form, runs) ? broken : 1;
         machine->forms += 1u;
     }

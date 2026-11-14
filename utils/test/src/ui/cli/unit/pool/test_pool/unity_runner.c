@@ -13,7 +13,7 @@
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_a_pool_emptied_for_a_request_stands_idle_with_no_cell_allocated(void);
+extern void test_a_pool_emptied_for_a_request_is_idle_with_no_cell_allocated(void);
 extern void test_a_request_past_the_pool_declared_is_refused(void);
 extern void test_a_cell_is_allocated_from_a_pool_emptied_for_a_request(void);
 extern void test_the_pool_is_not_emptied_while_a_cell_is_allocated(void);
@@ -23,7 +23,6 @@ extern void test_the_owner_table_holds_every_owner_declared_at_its_place(void);
 extern void test_a_walk_finds_the_folders_files(void);
 extern void test_a_walks_paths_stay_out_of_the_persistent_tier(void);
 extern void test_a_walks_paths_are_in_the_temporary_tier(void);
-extern void test_a_list_is_in_the_persistent_tier(void);
 extern void test_a_list_is_sorted_and_its_reserve_list_stays_out_of_the_persistent_tier(void);
 extern void test_the_languages_for_a_call_stay_out_of_the_persistent_tier(void);
 extern void test_the_languages_a_walk_or_a_batch_holds_stay_out_of_the_persistent_tier(void);
@@ -37,7 +36,7 @@ extern void test_a_take_past_the_pool_is_refused_and_counts_nothing(void);
 extern void test_a_file_of_one_page_ends_where_the_file_ends(void);
 extern void test_a_file_of_two_pages_ends_where_the_file_ends(void);
 extern void test_a_grown_line_holds_a_long_text_whole(void);
-extern void test_a_grown_line_fills_at_the_most_it_is_given(void);
+extern void test_a_grown_line_fills_at_the_max_it_is_given(void);
 extern void test_a_movable_cell_moves_at_a_quiet_time_with_its_bytes(void);
 
 
@@ -100,7 +99,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\pool\\test_pool\\test_pool.c");
-  run_test(test_a_pool_emptied_for_a_request_stands_idle_with_no_cell_allocated, "test_a_pool_emptied_for_a_request_stands_idle_with_no_cell_allocated", 75);
+  run_test(test_a_pool_emptied_for_a_request_is_idle_with_no_cell_allocated, "test_a_pool_emptied_for_a_request_is_idle_with_no_cell_allocated", 75);
   run_test(test_a_request_past_the_pool_declared_is_refused, "test_a_request_past_the_pool_declared_is_refused", 81);
   run_test(test_a_cell_is_allocated_from_a_pool_emptied_for_a_request, "test_a_cell_is_allocated_from_a_pool_emptied_for_a_request", 86);
   run_test(test_the_pool_is_not_emptied_while_a_cell_is_allocated, "test_the_pool_is_not_emptied_while_a_cell_is_allocated", 94);
@@ -110,22 +109,21 @@ int main(void)
   run_test(test_a_walk_finds_the_folders_files, "test_a_walk_finds_the_folders_files", 126);
   run_test(test_a_walks_paths_stay_out_of_the_persistent_tier, "test_a_walks_paths_stay_out_of_the_persistent_tier", 133);
   run_test(test_a_walks_paths_are_in_the_temporary_tier, "test_a_walks_paths_are_in_the_temporary_tier", 142);
-  run_test(test_a_list_is_in_the_persistent_tier, "test_a_list_is_in_the_persistent_tier", 151);
-  run_test(test_a_list_is_sorted_and_its_reserve_list_stays_out_of_the_persistent_tier, "test_a_list_is_sorted_and_its_reserve_list_stays_out_of_the_persistent_tier", 163);
-  run_test(test_the_languages_for_a_call_stay_out_of_the_persistent_tier, "test_the_languages_for_a_call_stay_out_of_the_persistent_tier", 181);
-  run_test(test_the_languages_a_walk_or_a_batch_holds_stay_out_of_the_persistent_tier, "test_the_languages_a_walk_or_a_batch_holds_stay_out_of_the_persistent_tier", 194);
-  run_test(test_the_languages_a_call_reads_stay_out_of_the_persistent_tier, "test_the_languages_a_call_reads_stay_out_of_the_persistent_tier", 207);
-  run_test(test_the_walks_and_the_lists_cells_are_released, "test_the_walks_and_the_lists_cells_are_released", 222);
-  run_test(test_a_take_is_counted_to_its_owner, "test_a_take_is_counted_to_its_owner", 229);
-  run_test(test_the_audit_lists_the_owner_with_its_bytes, "test_the_audit_lists_the_owner_with_its_bytes", 263);
-  run_test(test_a_released_cell_comes_off_its_owner, "test_a_released_cell_comes_off_its_owner", 276);
-  run_test(test_a_cell_answers_the_owner_it_counts_to, "test_a_cell_answers_the_owner_it_counts_to", 283);
-  run_test(test_a_take_past_the_pool_is_refused_and_counts_nothing, "test_a_take_past_the_pool_is_refused_and_counts_nothing", 291);
-  run_test(test_a_file_of_one_page_ends_where_the_file_ends, "test_a_file_of_one_page_ends_where_the_file_ends", 298);
-  run_test(test_a_file_of_two_pages_ends_where_the_file_ends, "test_a_file_of_two_pages_ends_where_the_file_ends", 303);
-  run_test(test_a_grown_line_holds_a_long_text_whole, "test_a_grown_line_holds_a_long_text_whole", 308);
-  run_test(test_a_grown_line_fills_at_the_most_it_is_given, "test_a_grown_line_fills_at_the_most_it_is_given", 338);
-  run_test(test_a_movable_cell_moves_at_a_quiet_time_with_its_bytes, "test_a_movable_cell_moves_at_a_quiet_time_with_its_bytes", 358);
+  run_test(test_a_list_is_sorted_and_its_reserve_list_stays_out_of_the_persistent_tier, "test_a_list_is_sorted_and_its_reserve_list_stays_out_of_the_persistent_tier", 151);
+  run_test(test_the_languages_for_a_call_stay_out_of_the_persistent_tier, "test_the_languages_for_a_call_stay_out_of_the_persistent_tier", 169);
+  run_test(test_the_languages_a_walk_or_a_batch_holds_stay_out_of_the_persistent_tier, "test_the_languages_a_walk_or_a_batch_holds_stay_out_of_the_persistent_tier", 182);
+  run_test(test_the_languages_a_call_reads_stay_out_of_the_persistent_tier, "test_the_languages_a_call_reads_stay_out_of_the_persistent_tier", 195);
+  run_test(test_the_walks_and_the_lists_cells_are_released, "test_the_walks_and_the_lists_cells_are_released", 210);
+  run_test(test_a_take_is_counted_to_its_owner, "test_a_take_is_counted_to_its_owner", 217);
+  run_test(test_the_audit_lists_the_owner_with_its_bytes, "test_the_audit_lists_the_owner_with_its_bytes", 251);
+  run_test(test_a_released_cell_comes_off_its_owner, "test_a_released_cell_comes_off_its_owner", 264);
+  run_test(test_a_cell_answers_the_owner_it_counts_to, "test_a_cell_answers_the_owner_it_counts_to", 271);
+  run_test(test_a_take_past_the_pool_is_refused_and_counts_nothing, "test_a_take_past_the_pool_is_refused_and_counts_nothing", 279);
+  run_test(test_a_file_of_one_page_ends_where_the_file_ends, "test_a_file_of_one_page_ends_where_the_file_ends", 286);
+  run_test(test_a_file_of_two_pages_ends_where_the_file_ends, "test_a_file_of_two_pages_ends_where_the_file_ends", 291);
+  run_test(test_a_grown_line_holds_a_long_text_whole, "test_a_grown_line_holds_a_long_text_whole", 296);
+  run_test(test_a_grown_line_fills_at_the_max_it_is_given, "test_a_grown_line_fills_at_the_max_it_is_given", 326);
+  run_test(test_a_movable_cell_moves_at_a_quiet_time_with_its_bytes, "test_a_movable_cell_moves_at_a_quiet_time_with_its_bytes", 346);
 
   return UNITY_END();
 }

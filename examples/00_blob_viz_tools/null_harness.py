@@ -22,8 +22,8 @@ Every caller picks one. A floor picked by a caller is a result picked by a calle
 THE RULE THIS APPLIES TO ITSELF
 
 A checker that has never caught its own defect is a checker nobody has tested. So before any floor
-here is offered, the harness is handed a move that is not a null while being told it is one, and it
-has to catch it, and it is handed a genuine null and has to stay quiet. Both run first under
+here is offered, the harness is passed a move that is not a null while being told it is one, and it
+has to catch it, and it is passed a genuine null and has to stay quiet. Both run first under
 `--check` and the floors error if either misbehaves.
 
 WHAT EACH NULL RESTS ON
@@ -40,7 +40,7 @@ WHAT EACH NULL RESTS ON
                                   Stated in `sphere_field.power`, untested until here.
     a redraw of the arms          an arm is identified by its topology and its weight, and a shape
                                   is one realization of that. Redrawing the arms as different
-                                  shapes carrying the same weight cannot move a letter. Stated in
+                                  shapes carrying the same weight cannot move a character. Stated in
                                   `theory/workbooks/orior/arm-records.md`, measured in
                                   `arm_draw`.
 
@@ -139,7 +139,7 @@ def relabeled_within_octants(points, live):
 def moved_across_octants(points, live, how_many):
     """A move that is NOT a null: lit points sent to unlit points in a different octant.
 
-    Kept here deliberately. It is the known positive the harness is tested against, and it has to be
+    Retained here deliberately. It is the known positive the harness is tested against, and it has to be
     a move of the same shape as the real null so that catching it means something.
     """
     def octant_of(at):
@@ -230,7 +230,7 @@ def null_pitch_across_amounts():
 
 
 def null_spectrum_power_under_rotation():
-    """The floor `live_modes` should be handed, measured instead of guessed."""
+    """The floor `live_modes` should be passed, measured instead of guessed."""
     sources = [
         (1.0, 0.30, 0.7, 0.4),
         (0.6, 0.55, 1.9, 2.7),
@@ -248,9 +248,9 @@ def null_spectrum_power_under_rotation():
 def null_reading_under_a_redraw():
     """The arms drawn four ways, including one of a different dimension. Measured in `arm_draw`.
 
-    A point cloud, a rotated frame, a letter built by subtracting two other arms, and a line with a
+    A point cloud, a rotated frame, a character built by subtracting two other arms, and a line with a
     dwell particle on it. Every one carries the same topology and the same weight as the sign test
-    the reading normally uses. No letter can move. `arm_draw --check` reports the levels
+    the reading normally uses. No character can move. `arm_draw --check` reports the levels
     separately and holds four faults against itself first.
     """
     points = boundary_read.golden_place(COUNT)
@@ -329,7 +329,7 @@ def _check():
         failed += 1
     if failed:
         say("")
-        say("  floors withheld, since the harness has not shown it works")
+        say("  floors withheld, since the harness has not displayed it works")
         sys.stdout.write("\n".join(lines) + "\n\n%d check(s) failed\n" % failed)
         return failed
 
@@ -348,7 +348,7 @@ def _check():
         say("  FAIL the redraw null missed a drawing that is not a redraw")
         failed += 1
         say("")
-        say("  floors withheld, since the harness has not shown it works")
+        say("  floors withheld, since the harness has not displayed it works")
         sys.stdout.write("\n".join(lines) + "\n\n%d check(s) failed\n" % failed)
         return failed
     say("")

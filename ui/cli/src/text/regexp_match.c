@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// regexp_match.c: a pattern matched at one place by backtracking. Each node takes the text where it can and hands the
+// regexp_match.c: a pattern matched at one place by backtracking. Each node takes the text where it can and passes the
 // place it stops at to what comes after it, a chain of frames on the stack: the rest of a sequence, a group's end, a
 // lookahead's true, a repetition's next pass, or the match's end. A repeat over what takes the text one way at a place
 // or not at all steps along without going deeper, its passes' ends stored in the match's own arena, on its stack until
@@ -13,7 +13,7 @@ typedef struct
 {
     CliRegexpRun *run;
     const CliRegexpItem *item;
-    unsigned int letter;
+    unsigned int character;
     const CliRegexp *regexp;
     const CliRegexpNode *node;
     unsigned int node_u32;
@@ -22,15 +22,15 @@ typedef struct
     const CliRegexpThen *then;
 } RegexpMatchCtx;
 
-// capacity for one more end in the run's ends, moved once into a cell at their most where they fill the match's own
-// stack: 1, or 0 where they contain the most or the cellblock cannot meet the cell
+// capacity for one more end in the run's ends, moved once into a cell at their max where they fill the match's own
+// stack: 1, or 0 where they contain the max or the cellblock cannot meet the cell
 EMBED_INLINE int match_end_capacity(const RegexpMatchCtx *args)
 {
     if (args->run->ends_top < args->run->ends_capacity)
     {
         return 1;
     }
-    // the caller's storage full, the stack goes once into a cell of the most it stands at
+    // the caller's storage full, the stack goes once into a cell of the max it is at
     unsigned int *const cell =
         args->run->ends_reserved
             ? NULL
@@ -49,8 +49,8 @@ EMBED_INLINE int match_end_capacity(const RegexpMatchCtx *args)
 
 int cli_regexp_word(const CliRegexpMatchCtx *args)
 {
-    return ((args->letter >= 'a') && (args->letter <= 'z')) || ((args->letter >= 'A') && (args->letter <= 'Z')) ||
-           ((args->letter >= '0') && (args->letter <= '9')) || (args->letter == '_');
+    return ((args->character >= 'a') && (args->character <= 'z')) || ((args->character >= 'A') && (args->character <= 'Z')) ||
+           ((args->character >= '0') && (args->character <= '9')) || (args->character == '_');
 }
 
 int cli_regexp_space(const CliRegexpMatchCtx *args)
@@ -59,61 +59,61 @@ int cli_regexp_space(const CliRegexpMatchCtx *args)
                                             0x1680u, 0x2028u, 0x2029u, 0x202fu, 0x205fu, 0x3000u, 0xfeffu};
     for (unsigned int at = 0u; at < (sizeof(s_spaces) / sizeof(s_spaces[0])); at += 1u)
     {
-        if (args->letter == s_spaces[at])
+        if (args->character == s_spaces[at])
         {
             return 1;
         }
     }
-    return (args->letter >= 0x2000u) && (args->letter <= 0x200au);
+    return (args->character >= 0x2000u) && (args->character <= 0x200au);
 }
 
 int cli_regexp_ends_line(const CliRegexpMatchCtx *args)
 {
-    return (args->letter == '\n') || (args->letter == '\r') || (args->letter == 0x2028u) || (args->letter == 0x2029u);
+    return (args->character == '\n') || (args->character == '\r') || (args->character == 0x2028u) || (args->character == 0x2029u);
 }
 
 int cli_regexp_same(const CliRegexpMatchACtx *args)
 {
     return (args->a == args->b) ||
-           (args->regexp->fold && (EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = args->a) ==
-                                   EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = args->b)));
+           (args->regexp->fold && (EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = args->a) ==
+                                   EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = args->b)));
 }
 
-// whether one item of a class matches `letter`
+// whether one item of a class matches `character`
 EMBED_INLINE int cli_item_matches(const RegexpMatchCtx *args)
 {
-    unsigned int letter = args->letter;
+    unsigned int character = args->character;
     switch (args->item->type)
     {
     case CLI_REGEXP_RANGE:
-        return (letter >= args->item->low) && (letter <= args->item->high);
+        return (character >= args->item->low) && (character <= args->item->high);
     case CLI_REGEXP_DIGIT:
-        return ((letter >= '0') && (letter <= '9')) != args->item->negated;
+        return ((character >= '0') && (character <= '9')) != args->item->negated;
     case CLI_REGEXP_WORD:
-        return EMBED_CALL(cli_regexp_match_internal.regexp_word, CliRegexpMatchCtx, .letter = letter) !=
+        return EMBED_CALL(cli_regexp_match_internal.regexp_word, CliRegexpMatchCtx, .character = character) !=
                args->item->negated;
     case CLI_REGEXP_SPACE:
-        return EMBED_CALL(cli_regexp_match_internal.regexp_space, CliRegexpMatchCtx, .letter = letter) !=
+        return EMBED_CALL(cli_regexp_match_internal.regexp_space, CliRegexpMatchCtx, .character = character) !=
                args->item->negated;
     default:
-        return EMBED_CALL(cli_regexp_letter.property, CliRegexpLetterCfg, .property = args->item->low,
-                          .letter = letter) != args->item->negated;
+        return EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg, .property = args->item->low,
+                          .character = character) != args->item->negated;
     }
 }
 
-// whether the class node `node` matches `letter`: any item matches it, or under `i` of its lower or upper case
+// whether the class node `node` matches `character`: any item matches it, or under `i` of its lower or upper case
 EMBED_INLINE int cli_class_matches(const RegexpMatchCtx *args)
 {
-    unsigned int letter = args->letter;
-    const unsigned int tried[3] = {letter, EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = letter),
-                                   EMBED_CALL(cli_regexp_letter.upper, CliRegexpLetterCfg, .letter = letter)};
+    unsigned int character = args->character;
+    const unsigned int tried[3] = {character, EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = character),
+                                   EMBED_CALL(cli_regexp_character.upper, CliRegexpLetterCfg, .character = character)};
     int found = 0;
     for (unsigned int each = 0u; !found && (each < (args->regexp->fold ? 3u : 1u)); each += 1u)
     {
         for (unsigned int at = 0u; !found && (at < args->node->count); at += 1u)
         {
             found = EMBED_CALL(cli_item_matches, RegexpMatchCtx, .item = &args->regexp->item[args->node->first + at],
-                               .letter = tried[each]);
+                               .character = tried[each]);
         }
     }
     return found != args->node->negated;
@@ -122,20 +122,20 @@ EMBED_INLINE int cli_class_matches(const RegexpMatchCtx *args)
 int cli_regexp_one(const CliRegexpMatchCtx *args)
 {
     const CliRegexpNode *const node = &args->regexp->node[args->index];
-    if (node->ascii_known && (args->letter < 128u))
+    if (node->ascii_known && (args->character < 128u))
     {
-        return (int)((node->ascii[args->letter / 64u] >> (args->letter % 64u)) & 1ULL);
+        return (int)((node->ascii[args->character / 64u] >> (args->character % 64u)) & 1ULL);
     }
     switch (node->type)
     {
     case CLI_REGEXP_CHAR:
         return EMBED_CALL(cli_regexp_match_a_internal.regexp_same, CliRegexpMatchACtx, .regexp = args->regexp,
-                          .a = node->letter, .b = args->letter);
+                          .a = node->character, .b = args->character);
     case CLI_REGEXP_ANY:
         return !cli_regexp_match_internal.regexp_ends_line(args);
     case CLI_REGEXP_CLASS:
         return EMBED_CALL(cli_class_matches, RegexpMatchCtx, .regexp = args->regexp, .node = node,
-                          .letter = args->letter);
+                          .character = args->character);
     default:
         return -1;
     }
@@ -143,11 +143,11 @@ int cli_regexp_one(const CliRegexpMatchCtx *args)
 
 int cli_regexp_allows(const CliRegexpCfg *args)
 {
-    return (args->letter < 128u) ? (int)((args->first->ascii[args->letter / 64u] >> (args->letter % 64u)) & 1ULL)
+    return (args->character < 128u) ? (int)((args->first->ascii[args->character / 64u] >> (args->character % 64u)) & 1ULL)
                                  : args->first->other;
 }
 
-// the parts of a sequence from `index` taken in turn, the rest handed to `then`
+// the parts of a sequence from `index` taken in turn, the rest passed to `then`
 int cli_regexp_chain(const CliRegexpMatchIndexCtx *args)
 {
     const CliRegexpNode *const concat = &args->regexp->node[args->node];
@@ -187,7 +187,7 @@ EMBED_INLINE int cli_again(const RegexpMatchCtx *args)
                       .index = repeat->child, .at = at, .run = run, .then = &frame);
 }
 
-// a repetition at its `count`th pass: greedy tries one more pass before handing on, lazy hands on first
+// a repetition at its `count`th pass: greedy tries one more pass before handing on, lazy passes on first
 int cli_regexp_repeat(const CliRegexpMatchIndexCtx *args)
 {
     const CliRegexpNode *const repeat = &args->regexp->node[args->node];
@@ -244,7 +244,7 @@ int cli_regexp_then(const CliRegexpMatchIndexCtx *args)
     }
 }
 
-// a repeat over one character: counts how far the run goes, then hands on from the longest to the shortest, or the
+// a repeat over one character: counts how far the run goes, then passes on from the longest to the shortest, or the
 // other way where lazy
 int cli_regexp_count(const CliRegexpMatchThenCtx *args)
 {
@@ -252,7 +252,7 @@ int cli_regexp_count(const CliRegexpMatchThenCtx *args)
     while (((args->repeat->max == CLI_REGEXP_UNBOUNDED) || (reach < args->repeat->max)) &&
            ((args->at + reach) < args->run->length) &&
            (EMBED_CALL(cli_regexp_match_internal.regexp_one, CliRegexpMatchCtx, .regexp = args->regexp,
-                       .index = args->repeat->child, .letter = args->run->text[args->at + reach]) == 1))
+                       .index = args->repeat->child, .character = args->run->text[args->at + reach]) == 1))
     {
         reach += 1ULL;
     }
@@ -272,8 +272,8 @@ int cli_regexp_count(const CliRegexpMatchThenCtx *args)
     return 0;
 }
 
-// a repeat whose pass takes the text one way or none: counts the passes, each where the one before ended, and hands
-// on from the most to the fewest, or the other way where lazy
+// a repeat whose pass takes the text one way or none: counts the passes, each where the one before ended, and passes
+// on from the max to the fewest, or the other way where lazy
 int cli_regexp_on_pass(const CliRegexpMatchThenCtx *args)
 {
     const unsigned long long begun = args->run->ends_top;

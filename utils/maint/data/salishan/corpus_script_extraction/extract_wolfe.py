@@ -8,13 +8,13 @@
 #
 # Written for one paper, and this one is a different shape from every other paper here. The others
 # are a story told by one speaker in one language. This is a comparative reconstruction: every form
-# in it is a lexical suffix cited from a published dictionary of one of eighteen languages, laid out
-# in columns under a two-letter abbreviation for the language it came from.
+# in it is a lexical suffix cited from a published dictionary of one of eighteen languages, arranged
+# in columns under a two-character abbreviation for the language it came from.
 #
 # THERE IS NO SINGLE PURE STREAM FOR THIS PAPER
 #
 # Every other reader writes a .pure.txt holding one language. Pouring these forms into one file
-# would build a corpus of Sliammon, Sechelt, Squamish, three kinds of Halkomelem, three kinds of
+# would build a corpus of Sliammon, Sechelt, Squamish, three types of Halkomelem, three types of
 # Straits, Klallam, Lushootseed, Twana, Tillamook, Quinault and two Tsamosan languages together,
 # which is a corpus of no language at all. The language is what the orior is trying to measure.
 # Mixing eighteen of them into the thing it measures against is the mistake that cannot be
@@ -32,7 +32,7 @@
 #
 # Predicted reflexes. Tables 6 and 8 give, for each language, the form expected if the reconstruction
 # was stressed, the form expected if it was not, and the form actually attested. The extraction does
-# not keep the columns apart reliably. Every cell of those two tables is excluded. Nothing is lost:
+# not retain the columns apart reliably. Every cell of those two tables is excluded. Nothing is lost:
 # the attested forms of both tables are also printed in examples (1) and (6), where the columns are
 # unambiguous.
 
@@ -120,14 +120,14 @@ TARGET = os.path.join(
     "_Salish_centralsalish_2025_mixed.txt",
 )
 
-# This paper's inventory. Kept in step with WOLFE in hand_extraction/papers.py: the two files ask
+# This paper's inventory. Retained in step with WOLFE in hand_extraction/papers.py: the two files ask
 # the same question of the same paper and a difference between them is a hole one of them cannot see.
 MARKS = "ʔʕɬłƛəχ7̓̔̕ʷ˽" + "ʸːɛεέŋᶿθǰčšĺ" + "áéíóú" + "̌́"
 
 PAGE = re.compile(r"^===== page \d+ =====$")
 
 # What the paper calls each language, expanded to what the who column of the hand extraction says.
-# Two letters at the head of a line is the entire layout: everything after it belongs to that
+# Two characters at the head of a line is the entire layout: everything after it belongs to that
 # language until the next one arrives.
 LANGUAGES = {
     "Sl": "Sliammon",
@@ -245,19 +245,19 @@ def main():
 
         if language is None:
             # A form on a line no language opened. Prose citing a suffix does this, and so does a
-            # correspondence table whose rows are single letters. Neither is per-language data.
+            # correspondence table whose rows are single characters. Neither is per-language data.
             rows.append((where, "", UNCLASSIFIED, " ".join(pieces)))
             continue
 
-        # The kind says what the row is, and the who column says whose it is. A reconstruction is a
+        # The type column says what the row is, and the who column says whose it is. A reconstruction is a
         # cited affix like any other here, because several of them are cited from Kuipers, Kinkade
-        # or Pincott by name; what keeps it out of a language corpus is that PCS and PS are not
+        # or Pincott by name; what retains it out of a language corpus is that PCS and PS are not
         # languages anybody speaks, which the who column already says. Resting the purity filter on
-        # that column instead of on the kind is what this paper is for.
-        kind = "predicted" if (where in PREDICTED_TABLES) else "cited affix"
+        # that column instead of on the type is what this paper is for.
+        type = "predicted" if (where in PREDICTED_TABLES) else "cited affix"
         named = LANGUAGES.get(language, language)
         for one in pieces:
-            rows.append((where, named, kind, one))
+            rows.append((where, named, type, one))
 
     # Every line of the paper no branch above reached. The marked record holds every token of the
     # language the paper printed and the coverage check has something to find.
@@ -290,38 +290,38 @@ def main():
         )
         handle.write("#\n")
         handle.write(
-            "# Mark is language.layer.kind. A reconstruction is derived because nobody\n"
+            "# Mark is language.layer.type. A reconstruction is derived because nobody\n"
         )
         handle.write(
             "# ever said one, and the predicted reflexes of Tables 6 and 8 are excluded\n"
         )
         handle.write("# for the same reason.\n")
-        handle.write("line\twho\tkind\tswitches\tcontent\n")
-        for at, (spot, named, kind, text) in enumerate(rows, 1):
+        handle.write("line\twho\ttype\tswitches\tcontent\n")
+        for at, (spot, named, type, text) in enumerate(rows, 1):
             # Spoken only where a real language wrote it down. A PCS or PS row is worked out, and a
             # predicted reflex is worked out twice over.
             layer = (
-                SPOKEN if ((kind == "cited affix") and (named in SPEAKERS)) else DERIVED
+                SPOKEN if ((type == "cited affix") and (named in SPEAKERS)) else DERIVED
             )
-            if kind == UNCLASSIFIED:
-                content = "N.%s.%s:{%s}" % (layer, kind, text)
+            if type == UNCLASSIFIED:
+                content = "N.%s.%s:{%s}" % (layer, type, text)
                 crossings = 0
             else:
-                content = rendered(text, layer, kind, MARKS)
+                content = rendered(text, layer, type, MARKS)
                 crossings = switches(text, MARKS)
             handle.write(
                 "line#${%d}\t%s\t%s\t%d\t%s\n"
-                % (at, named or spot, kind, crossings, content)
+                % (at, named or spot, type, crossings, content)
             )
 
     # The per-language data, which a flat pure file cannot carry for this paper.
     pure = TARGET[:-4] + ".pure.tsv"
-    kept = 0
+    retained = 0
     already = set()
     with open(pure, "w", encoding="utf-8", newline="") as handle:
         handle.write("who\tform\n")
-        for spot, named, kind, text in rows:
-            if (kind != "cited affix") or (named not in SPEAKERS):
+        for spot, named, type, text in rows:
+            if (type != "cited affix") or (named not in SPEAKERS):
                 continue
             for span, run in tagged_spans(text, MARKS):
                 if (span != "T") or not run.strip():
@@ -331,13 +331,13 @@ def main():
                     continue
                 already.add(key)
                 handle.write("%s\t%s\n" % key)
-                kept += 1
+                retained += 1
 
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
         (0, spot, UNKNOWN_KIND, "", text)
-        for spot, named, kind, text in rows
-        if (kind == UNCLASSIFIED) and not spot.startswith("not reached")
+        for spot, named, type, text in rows
+        if (type == UNCLASSIFIED) and not spot.startswith("not reached")
     ]
     flagged.extend(missed)
     stuck_count = write_unsorted(
@@ -346,7 +346,7 @@ def main():
 
     out.write("  %d lines written to\n  %s\n" % (len(rows), os.path.basename(TARGET)))
     out.write(
-        "  %d per-language forms written to\n  %s\n" % (kept, os.path.basename(pure))
+        "  %d per-language forms written to\n  %s\n" % (retained, os.path.basename(pure))
     )
     out.write(
         "  %d lines the tool could not sort written to\n  %s\n"
@@ -354,8 +354,8 @@ def main():
     )
 
     counted = {}
-    for spot, named, kind, text in rows:
-        if kind == "cited affix":
+    for spot, named, type, text in rows:
+        if type == "cited affix":
             counted[named] = counted.get(named, 0) + 1
     out.write(
         "\n  by language: %s\n"

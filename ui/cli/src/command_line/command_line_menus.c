@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // command_line_menus.c: a menu at the command line: its commands, each marked where it acts in the window, and the
 // jobs of a menu of jobs, or their subjects where it splits them; and a job of a menu of jobs, named after its subject
-// where the menu splits them, shown as the window shows it on choosing
+// where the menu splits them, displayed as the window shows it on choosing
 #include "../text/text.h"
 #include "command_line_internal.h"
 #include "commands.h"
 
-// the most groups one menu of jobs names
+// the max groups one menu of jobs names
 #define CLI_MENU_GROUPS 64u
 
 unsigned int cli_menu_jobs(const CliCommandLineCatalogMenuCtx *args)
@@ -56,7 +56,7 @@ EMBED_INLINE void menus_subjects(const CommandLineMenusCtx *args)
     }
 }
 
-// the depth of the tree of commands a menu's chains are written to at the most
+// the depth of the tree of commands a menu's chains are written to at max
 #define CLI_MENU_CHAIN_DEPTH 8u
 
 typedef struct

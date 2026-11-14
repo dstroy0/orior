@@ -33,7 +33,7 @@ typedef struct
     unsigned int head;
     unsigned char *matched;
 } CliSide;
-// the least share of a piece's lines a move retains to count as one, in hundredths, and the most declarations of a
+// the least share of a piece's lines a move retains to count as one, in hundredths, and the max declarations of a
 // file's text
 #define CLI_MOVE_MIN_SHARE 60ULL
 #define CLI_REVIEW_DECLS 16384u
@@ -114,7 +114,7 @@ EMBED_INLINE void *cli_side_part(const ReviewCompareCtx *args)
     return part;
 }
 
-// a side's parts set into a cell from `*at` for `lines` lines, its declarations at most CLI_REVIEW_DECLS of them
+// a side's parts set into a cell from `*at` for `lines` lines, its declarations at max CLI_REVIEW_DECLS of them
 EMBED_INLINE void cli_side_set(const ReviewCompareCtx *args)
 {
     const unsigned int decls = (args->lines < CLI_REVIEW_DECLS) ? args->lines : CLI_REVIEW_DECLS;
@@ -480,7 +480,7 @@ static void cli_pieces_sort(void)
     }
 }
 
-// a piece taken out matched to one added of its name and type that retains the most of its lines, a move
+// a piece taken out matched to one added of its name and type that retains the max of its lines, a move
 static void cli_moves(void)
 {
     for (unsigned int index = 0u; index < s_compare->removeds; index += 1u)
@@ -545,7 +545,7 @@ static void cli_moves(void)
     }
 }
 
-// capacity made for one call more: 1, or 0 where the review contains the most or the cell is refused
+// capacity made for one call more: 1, or 0 where the review contains the max or the cell is refused
 static int compare_call_capacity(void)
 {
     return g_cli_review.calls < CLI_REVIEW_CALLS;

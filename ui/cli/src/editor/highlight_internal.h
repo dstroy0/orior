@@ -17,7 +17,7 @@ typedef struct CliHighlightNameCtx CliHighlightNameCtx;
 // none: no token, no next, no state
 #define CLI_HIGHLIGHT_NONE 0xffffffffu
 
-// the most of each part one grammar contains as it is read
+// the max of each part one grammar contains as it is read
 #define CLI_GRAMMAR_NODES (1u << 16u)
 
 #define CLI_GRAMMAR_ITEMS (1u << 15u)
@@ -40,11 +40,11 @@ typedef struct CliHighlightNameCtx CliHighlightNameCtx;
 
 #define CLI_GRAMMAR_TEXT (1u << 19u)
 
-// the most rules one state contains, its includes read in
+// the max rules one state contains, its includes read in
 #define CLI_GRAMMAR_OWN 16384u
 
-// the most letters of a line read, the most states stacked, and the most bytes the states each line ends in take
-#define CLI_HIGHLIGHT_LETTERS (1u << 19u)
+// the max characters of a line read, the max states stacked, and the max bytes the states each line ends in take
+#define CLI_HIGHLIGHT_CHARACTERS (1u << 19u)
 
 #define CLI_HIGHLIGHT_STACK 256u
 
@@ -95,9 +95,9 @@ typedef struct
 } CliHighlightRule;
 
 // A state, or a list of words: its name's text, and its rules or its words, `count` of the list from `first`; for a
-// state, the letters any of its rules that colors or changes the state can start a match at, every such rule's first
-// letters joined, and a table of the ASCII ones, 1 at each byte such a rule starts at, by which the colorer strides
-// over the letters no rule takes in one lookup a letter; for a state the grammar's `indent` runs, the place among the
+// state, the characters any of its rules that colors or changes the state can start a match at, every such rule's first
+// characters joined, and a table of the ASCII ones, 1 at each byte such a rule starts at, by which the colorer strides
+// over the characters no rule takes in one lookup a character; for a state the grammar's `indent` runs, the place among the
 // names of the name its close takes, none for any other; and whether a line begun with it on top begins a statement
 typedef struct
 {
@@ -110,7 +110,7 @@ typedef struct
     int begins;
 } CliHighlightList;
 
-// A grammar's parts, wherever they are stored: the patterns' nodes, items, child places and their first letters; the
+// A grammar's parts, wherever they are stored: the patterns' nodes, items, child places and their first characters; the
 // rules, tokens and cases; the rules of each state in turn, and the states; the words, each list's in order, and the
 // lists; the names; and the texts, each ended by a NUL. Each count is how many it contains; whether the grammar starts
 // each line in root and sets case aside; and of its `indent`, whether it has one, the columns a tab reaches to the
@@ -190,13 +190,13 @@ typedef struct
 #define CLI_HIGHLIGHT_ENDING 256ull
 
 // The coloring work state, its parts placed in one cell the store takes once and retains, at twice the sizes the
-// largest coloring requested so far, taken again only where a larger one comes: a line's letters, `most` of them for
+// largest coloring requested so far, taken again only where a larger one comes: a line's characters, `max` of them for
 // the longest line; where each starts in UTF-16 units and the line's end last; its runs; the states stacked; the text a
-// case is picked by, four bytes a letter; and the state each of `count` lines ends in, the endings occupying
+// case is picked by, four bytes a character; and the state each of `count` lines ends in, the endings occupying
 // `endings_size` bytes
 typedef struct
 {
-    unsigned int *letters;
+    unsigned int *characters;
     unsigned int *cols;
     unsigned int *run_col;
     unsigned int *run_name;
@@ -204,7 +204,7 @@ typedef struct
     char *picked;
     char *key;
     char *endings;
-    unsigned long long most;
+    unsigned long long max;
     unsigned long long count;
     unsigned long long endings_size;
 } CliHighlightWorkState;
@@ -218,7 +218,7 @@ void cli_highlight_pattern(const CliHighlightCtx *args);
 unsigned int cli_highlight_state(const CliHighlightNameCtx *args);
 int cli_highlight_has_word(const CliHighlightLengthCtx *args);
 // `count` lines colored with a grammar in `capacity`, written as cli_highlight_color writes them; and the same lines'
-// leaves handed to `each` as cli_highlight_leaves hands them (highlight_line.c)
+// leaves passed to `each` as cli_highlight_leaves passes them (highlight_line.c)
 void cli_highlight_lines(const CliHighlightWorkStateCtx *args);
 void cli_highlight_leaves_get(const CliHighlightWorkStateStateCtx *args);
 

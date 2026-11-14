@@ -132,10 +132,10 @@ __global__ void max_tree_overlap_census_kernel(const unsigned char *ranges, cons
     }
     const unsigned int many = partners[voxel];
     const unsigned int all_back = (unsigned int)(backs[voxel] == many);
-    const unsigned int kind = (many == 0u) ? 0u : ((((many == 1u) || (many == 2u)) && (all_back != 0u)) ? many : 3u);
-    if (kind < 3u)
+    const unsigned int type = (many == 0u) ? 0u : ((((many == 1u) || (many == 2u)) && (all_back != 0u)) ? many : 3u);
+    if (type < 3u)
     {
-        atomicAdd(&census[kind], 1u);
+        atomicAdd(&census[type], 1u);
     }
 }
 

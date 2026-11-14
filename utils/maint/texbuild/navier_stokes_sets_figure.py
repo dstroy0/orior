@@ -19,7 +19,7 @@
 # WHAT THE LEFT PANEL SHOWS, AND WHAT IT DOES NOT CLAIM
 #
 # The base is the plane of pairs (datum, force) with the datum along the front edge and the force
-# running back. Over every point stands a stalk, the solution set for that pair. The alternatives (A)
+# running back. Over every point is a stalk, the solution set for that pair. The alternatives (A)
 # and (B) speak only of the front edge, force zero: no stalk there is empty. The alternatives (C) and
 # (D) speak of the whole plane: some stalk somewhere is empty. The front edge lies inside the plane,
 # an empty stalk on the edge would refute (A) or (B) and establish (C) or (D), and an empty stalk off the
@@ -69,7 +69,7 @@ def pdf_string(text):
 
 
 def coordinate(value):
-    """A coordinate written short. Integers stay integers; the rest keep two places."""
+    """A coordinate written short. Integers stay integers; the rest retain two places."""
     if float(value) == int(value):
         return str(int(value))
     return "%.2f" % value
@@ -239,7 +239,7 @@ def build_pdf(canvas, title, producer):
 
 
 def measure_horizon(order):
-    """The horizon numbers from the example itself: modes kept, outside two boxes, and the reach."""
+    """The horizon numbers from the example itself: modes retained, outside two boxes, and the reach."""
     datum = torus.generic_field()
     velocities, _ = torus.taylor_velocity(datum, torus.VISCOSITY, order)
     return [
@@ -443,7 +443,7 @@ def main():
         % "  ".join("%4d" % step for step in range(order + 1))
     )
     out.write(
-        "    modes kept:           %s\n" % "  ".join("%4d" % row[0] for row in rows)
+        "    modes retained:           %s\n" % "  ".join("%4d" % row[0] for row in rows)
     )
     out.write(
         "    outside |k|_inf <= 1: %s\n" % "  ".join("%4d" % row[1] for row in rows)

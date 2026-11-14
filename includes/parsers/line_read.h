@@ -20,7 +20,7 @@ extern "C"
     int line_word(const char **at, char *word, size_t room);
 
     // the text at `*at` up to the next `end` or the line's end, into `text`, which has room for `room`, and `*at` moved
-    // to the `end` it stopped at: 1, or 0 where no letter is there or it does not fit
+    // to the `end` it stopped at: 1, or 0 where no character is there or it does not fit
     int line_until(const char **at, char end, char *text, size_t room);
 
     // the number at `*at`, past the spaces and tabs before it, in decimal or, with `hex`, in hex with or without a
@@ -35,9 +35,9 @@ extern "C"
     // `*at` moved past it: 1, or 0 where no digit is there or an int does not represent it
     int line_signed(const char **at, int *value);
 
-    // the letters `text` at `*at`, past the spaces and tabs before them, and `*at` moved past them: 1, or 0 where they
+    // the characters `text` at `*at`, past the spaces and tabs before them, and `*at` moved past them: 1, or 0 where they
     // are not there
-    int line_letters(const char **at, const char *text);
+    int line_characters(const char **at, const char *text);
 
 #ifdef __cplusplus
 }

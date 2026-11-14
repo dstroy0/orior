@@ -66,7 +66,7 @@ static double two_to_the(double exponent)
 
 int main(void)
 {
-    const size_t kind_count = sizeof KINDS / sizeof KINDS[0];
+    const size_t type_count = sizeof KINDS / sizeof KINDS[0];
     uint8_t *const corpus = (uint8_t *)malloc(CORPUS_BYTES);
     uint8_t *const absent = (uint8_t *)malloc(NEEDLE_BYTES * NEEDLES_PER_ROW);
 
@@ -88,7 +88,7 @@ int main(void)
     double independent[3];
     BenchPeriod periods[3];
 
-    for (size_t which = 0u; which < kind_count; which += 1u)
+    for (size_t which = 0u; which < type_count; which += 1u)
     {
         bench_build_bytes(corpus, CORPUS_BYTES, KINDS[which], CORPUS_SEED);
 
@@ -124,7 +124,7 @@ int main(void)
 
     int disagreed = 0;
 
-    for (size_t which = 0u; which < kind_count; which += 1u)
+    for (size_t which = 0u; which < type_count; which += 1u)
     {
         bench_build_bytes(corpus, CORPUS_BYTES, KINDS[which], CORPUS_SEED);
         bench_build_bytes(absent, NEEDLE_BYTES * NEEDLES_PER_ROW, KINDS[which], ABSENT_SEED);
@@ -179,7 +179,7 @@ int main(void)
     printf("  %-12s %-9s %-15s %-15s %-9s %s\n", "corpus", "anchors", "probes/align 4",
            "probes/align k", "saved", "survivors move");
 
-    for (size_t which = 0u; which < kind_count; which += 1u)
+    for (size_t which = 0u; which < type_count; which += 1u)
     {
         bench_build_bytes(corpus, CORPUS_BYTES, KINDS[which], CORPUS_SEED);
         bench_build_bytes(absent, NEEDLE_BYTES * NEEDLES_PER_ROW, KINDS[which], ABSENT_SEED);

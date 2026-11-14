@@ -38,7 +38,7 @@ import subgrouping_check  # noqa: E402
 TARGET = os.path.join(ROOT, "build", "salishan_gold", "subgrouping.in")
 
 # subgrouping_check.py's own settings: its default shuffle count is 200 and P0 was read at 2000, a
-# pair is compared on 15 or more shared meanings, a language is kept with 40 or more, and an outside
+# pair is compared on 15 or more shared meanings, a language is retained with 40 or more, and an outside
 # pair fails criterion (d) below a shuffle p of 1/100. It seeds its shuffles with SEED.
 PERMUTATIONS = 2000
 SEED = 61

@@ -9,7 +9,7 @@ Every script lives at:
 examples/<subject>/<stage>/<file>.py
 ```
 
-The subject says what kind of corpus it reads. The stage says which step of the reading it does. So `language/4_measure/cross_corpus.py` measures text.
+The subject says what type of corpus it reads. The stage says which step of the reading it does. So `language/4_measure/cross_corpus.py` measures text.
 
 Every script sits at that depth, and not one counts parent directories to locate the repository. They start at their own directory and walk up until they find `archive/src/python`. Counting parent directories breaks when a file moves: its distance from the root changes, its imports fail, and the breakage does not show up until somebody runs the script.
 
@@ -21,7 +21,7 @@ A corpus goes through these in order.
 | ------------- | -------------------------------------------------------------- |
 | `1_represent` | turns the corpus into points that carry values                 |
 | `2_partition` | picks the unit and the scale to read those points at           |
-| `3_reference` | builds the maximum entropy background out of the corpus itself |
+| `3_reference` | builds the max entropy background out of the corpus itself |
 | `4_measure`   | reads how far the corpus sits from that background             |
 | `5_sift`      | filters candidates using the necessary condition               |
 | `6_oracle`    | compares the result against an answer published elsewhere      |
@@ -51,7 +51,7 @@ Five directories sit outside the subject and stage layout. `0_experimental` hold
 
 The proofs of the posits the ledger cites are not under `examples/`. They are in `evidence/proofs/posits/`.
 
-## Failures are kept
+## Failures are retained
 
 A reading that was tried and did not work stays in its subject, next to whatever came after it. Reading Dravidian languages at the codepoint put the family further apart than unrelated languages, and that script is still in `language/4_measure` beside the two that repaired it. Anyone who finds only the repair cannot tell what it repaired.
 
@@ -72,6 +72,6 @@ python examples/any_corpus/4_measure/collision_entropy.py
 python examples/crystallography/6_oracle/proof_positive_control.py
 ```
 
-Most need corpora under `build/`, which comes to about 1.9 GB and is not in git. `utils/maint/data/fetch/` fetches them.
+Max need corpora under `build/`, which comes to about 1.9 GB and is not in git. `utils/maint/data/fetch/` fetches them.
 
 **Author:** dstroy0 (Douglas Quigg) <dquigg123@gmail.com>

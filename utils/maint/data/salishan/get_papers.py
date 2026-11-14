@@ -17,7 +17,7 @@
 #
 # pdftotext writes Latin-1 unless told otherwise, and Latin-1 has neither ʔ, ə nor ɬ. A paper
 # converted that way still opens, still looks like a paper, and has had the language taken out of
-# it. Given -enc UTF-8 it keeps the characters and reorders the page: it lays text out by position,
+# it. Given -enc UTF-8 it retains the characters and reorders the page: it positions text out by position,
 # and a running header then prints before the title it sits above while a two-column table comes out
 # interleaved.
 #
@@ -29,7 +29,7 @@
 # WHERE THE ADDRESSES COME FROM
 #
 # One page lists every ICSNL paper ever published, 993 of them, each as a direct link. So there is
-# no list of addresses to keep here and none to go stale: the page is read and the paper is found on
+# no list of addresses to retain here and none to go stale: the page is read and the paper is found on
 # it by name. The name is the PDF's own filename, which is also what build/papers/ calls it.
 
 import argparse
@@ -149,9 +149,9 @@ def fetch(session, address, path):
     """
     answer = session.get(address, timeout=120, stream=True)
     answer.raise_for_status()
-    kind = answer.headers.get("content-type", "")
-    if "pdf" not in kind.lower():
-        raise ValueError("answered with %s, not a PDF" % (kind or "nothing"))
+    type = answer.headers.get("content-type", "")
+    if "pdf" not in type.lower():
+        raise ValueError("answered with %s, not a PDF" % (type or "nothing"))
     part = path + ".part"
     with open(part, "wb") as handle:
         for block in answer.iter_content(65536):
@@ -169,9 +169,9 @@ def unmapped_fonts(source):
     A PDF stores glyph codes. ToUnicode is where it says which character each code is, and an
     /Encoding with /Differences is where it renumbers codes to suit one font. Carrying the second
     without the first leaves the codes meaning whatever that font decided, and what an extractor
-    hands back is then the encoding. 19-Lyon_ICSNL50 and 2013_Lindley_Lyon come out that way: the
+    passes back is then the encoding. 19-Lyon_ICSNL50 and 2013_Lindley_Lyon come out that way: the
     page prints cítxʷsəlx uɬ ti nyʕip and the text holds cítxws@lx uì ’ti ny ’Qip, with the ejective
-    mark in front of its letter instead of over it.
+    mark in front of its character instead of over it.
 
     Missing ToUnicode on its own is not the fault, and testing for that alone calls nearly every
     paper unreadable. Arial and Times omit it constantly, because a standard encoding already says

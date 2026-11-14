@@ -356,7 +356,7 @@ int export_object(const EngineBuffers *buffers, const CoherenceInputs *inputs, c
 
     // The object is the pair the engine view draws: the .vbo contains the header, frames, leaves, cells, runs and the
     // .cfg padded to a word, and the .ibo contains its own four-word header, the links and the edges. A run is two
-    // words, its first voxel in the frame and its length. The view lays the .ibo straight after the .vbo in one
+    // words, its first voxel in the frame and its length. The view positions the .ibo straight after the .vbo in one
     // buffer; every offset it reads into the .ibo starts at the .vbo's word count.
     FILE *const out = ok ? fopen(path, "wb") : NULL;
     ok = ok && out;

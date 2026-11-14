@@ -22,7 +22,7 @@ int cli_history_save(const CliHistoryBeforeCfg *args);
 // the text of the snapshot stored at `at` put into `out`: 1, or 0 with why given
 int cli_history_read(const CliHistoryCfg *args);
 // the stamps of the snapshots of the file at `path` under the tree at `root`, the oldest first, into `stamps_out`,
-// `capacity` of them at most: how many were written, 0 where the file has none
+// `capacity` of them at max: how many were written, 0 where the file has none
 typedef struct
 {
     const char *root;

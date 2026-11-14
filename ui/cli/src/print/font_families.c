@@ -66,7 +66,7 @@ static void cli_walk_each(const CliEachNameIsFolderCfg *args)
 }
 
 // The font file `name` found in the folders: in one of them, or, off Windows, under one to a depth of four, as the
-// fonts of Linux distributions stand in folders of their own under the fonts folder
+// fonts of Linux distributions are in folders of their own under the fonts folder
 EMBED_INLINE int cli_find(const FamiliesCtx *args)
 {
     args->found[0] = '\0';

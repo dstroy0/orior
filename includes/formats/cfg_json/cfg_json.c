@@ -29,7 +29,7 @@ static void cfg_json_space(CfgJsonWalk *walk)
     }
 }
 
-static unsigned int cfg_json_token(CfgJsonWalk *walk, CfgJsonKind kind, size_t start, size_t end)
+static unsigned int cfg_json_token(CfgJsonWalk *walk, CfgJsonKind type, size_t start, size_t end)
 {
     if ((walk->count == walk->capacity) || (walk->tokens == NULL))
     {
@@ -37,7 +37,7 @@ static unsigned int cfg_json_token(CfgJsonWalk *walk, CfgJsonKind kind, size_t s
         return 0u;
     }
     const unsigned int at = walk->count;
-    walk->tokens[at].kind = kind;
+    walk->tokens[at].type = type;
     walk->tokens[at].start = start;
     walk->tokens[at].end = end;
     walk->tokens[at].count = 0u;
@@ -46,12 +46,12 @@ static unsigned int cfg_json_token(CfgJsonWalk *walk, CfgJsonKind kind, size_t s
     return at + 1u;
 }
 
-static int cfg_json_literal(CfgJsonWalk *walk, const char *defined, CfgJsonKind kind)
+static int cfg_json_literal(CfgJsonWalk *walk, const char *defined, CfgJsonKind type)
 {
     const size_t size = strlen(defined);
     const int matches = ((walk->length - walk->at) >= size) && (memcmp(&walk->text[walk->at], defined, size) == 0);
     walk->reason = matches ? walk->reason : "a value the scheme does not know";
-    const unsigned int made = matches ? cfg_json_token(walk, kind, walk->at, walk->at + size) : 0u;
+    const unsigned int made = matches ? cfg_json_token(walk, type, walk->at, walk->at + size) : 0u;
     walk->at += matches ? size : 0u;
     return made != 0u;
 }
@@ -80,7 +80,7 @@ static int cfg_json_quoted(CfgJsonWalk *walk)
     return made != 0u;
 }
 
-// whether the letter at the walk's place is a digit
+// whether the character at the walk's place is a digit
 static int cfg_json_digit_at(const CfgJsonWalk *walk)
 {
     return (walk->at < walk->length) && (walk->text[walk->at] >= '0') && (walk->text[walk->at] <= '9');
@@ -158,7 +158,7 @@ static void cfg_json_after(CfgJsonWalk *walk)
     if (walk->text[walk->at] == ',')
     {
         walk->at += 1u;
-        walk->expect_key = (walk->tokens[walk->open[walk->depth - 1u]].kind == CFG_JSON_OBJECT);
+        walk->expect_key = (walk->tokens[walk->open[walk->depth - 1u]].type == CFG_JSON_OBJECT);
     }
     else if ((walk->text[walk->at] != '}') && (walk->text[walk->at] != ']'))
     {
@@ -250,26 +250,26 @@ static int cfg_json_value(CfgJsonWalk *walk, char byte)
     return 0;
 }
 
-// one step of the walk at its place, which holds a byte: the close of what stands open, a member's name, an opening or
+// one step of the walk at its place, which holds a byte: the close of what is open, a member's name, an opening or
 // a value; why it fails into `reason`
 static void cfg_json_step(CfgJsonWalk *walk)
 {
     const char byte = walk->text[walk->at];
     const CfgJsonToken *const parent = (walk->depth > 0u) ? &walk->tokens[walk->open[walk->depth - 1u]] : NULL;
-    const int closes = (parent != NULL) && (((byte == '}') && (parent->kind == CFG_JSON_OBJECT)) ||
-                                            ((byte == ']') && (parent->kind == CFG_JSON_ARRAY)));
+    const int closes = (parent != NULL) && (((byte == '}') && (parent->type == CFG_JSON_OBJECT)) ||
+                                            ((byte == ']') && (parent->type == CFG_JSON_ARRAY)));
     if (closes)
     {
         cfg_json_closed(walk);
         return;
     }
     if (walk->expect_key ||
-        ((parent != NULL) && (parent->kind == CFG_JSON_OBJECT) && (walk->count == walk->open[walk->depth - 1u] + 1u)))
+        ((parent != NULL) && (parent->type == CFG_JSON_OBJECT) && (walk->count == walk->open[walk->depth - 1u] + 1u)))
     {
         cfg_json_named(walk, byte);
         return;
     }
-    if ((parent != NULL) && (parent->kind == CFG_JSON_ARRAY))
+    if ((parent != NULL) && (parent->type == CFG_JSON_ARRAY))
     {
         walk->tokens[walk->open[walk->depth - 1u]].count += 1u;
     }
@@ -335,14 +335,14 @@ int cfg_json_parse_metadata(const char *text, size_t length, CfgJsonToken *token
 int cfg_json_names(const char *text, const CfgJsonToken *token, const char *name)
 {
     const size_t size = strlen(name);
-    return (token->kind == CFG_JSON_STRING) && ((token->end - token->start) == size) &&
+    return (token->type == CFG_JSON_STRING) && ((token->end - token->start) == size) &&
            (memcmp(&text[token->start], name, size) == 0);
 }
 
 int cfg_json_unsigned(const char *text, const CfgJsonToken *token, unsigned long long *value)
 {
     unsigned long long total = 0ULL;
-    int fits = (token->kind == CFG_JSON_NUMBER) && (text[token->start] != '-');
+    int fits = (token->type == CFG_JSON_NUMBER) && (text[token->start] != '-');
     for (size_t at = token->start; fits && (at < token->end); at += 1u)
     {
         const unsigned long long digit = (unsigned long long)(text[at] - '0');
@@ -353,8 +353,8 @@ int cfg_json_unsigned(const char *text, const CfgJsonToken *token, unsigned long
     return fits;
 }
 
-// the four hex digits at `at` before `end`: their value, or CFG_JSON_NO_LETTER where they are not four hex digits
-#define CFG_JSON_NO_LETTER 0x110000u
+// the four hex digits at `at` before `end`: their value, or CFG_JSON_NO_CHARACTER where they are not four hex digits
+#define CFG_JSON_NO_CHARACTER 0x110000u
 
 // a hex digit's value; 16 where `digit` is none
 static unsigned int cfg_json_nibble(char digit)
@@ -383,15 +383,15 @@ static unsigned int cfg_json_hex4(const char *text, size_t at, size_t end)
         const unsigned int nibble = cfg_json_nibble(digit);
         if (nibble == 16u)
         {
-            return CFG_JSON_NO_LETTER;
+            return CFG_JSON_NO_CHARACTER;
         }
         value = (value << 4u) | nibble;
     }
     return value;
 }
 
-// the escape at `at`, its backslash first: the letter it writes, and its length into `step`; CFG_JSON_NO_LETTER where
-// it is not one JSON writes. A high surrogate followed by an escaped low one is the single letter the two write
+// the escape at `at`, its backslash first: the character it writes, and its length into `step`; CFG_JSON_NO_CHARACTER where
+// it is not one JSON writes. A high surrogate followed by an escaped low one is the single character the two write
 static unsigned int cfg_json_escape(const char *text, size_t at, size_t end, size_t *step)
 {
     const char next = (at + 1u < end) ? text[at + 1u] : '\0';
@@ -415,44 +415,44 @@ static unsigned int cfg_json_escape(const char *text, size_t at, size_t end, siz
     case 'u': {
         *step = 6u;
         const unsigned int first = cfg_json_hex4(text, at + 2u, end);
-        if ((first < 0xd800u) || (first > 0xdfffu) || (first == CFG_JSON_NO_LETTER))
+        if ((first < 0xd800u) || (first > 0xdfffu) || (first == CFG_JSON_NO_CHARACTER))
         {
             return first;
         }
         const unsigned int second =
             ((first <= 0xdbffu) && (at + 7u < end) && (text[at + 6u] == '\\') && (text[at + 7u] == 'u'))
                 ? cfg_json_hex4(text, at + 8u, end)
-                : CFG_JSON_NO_LETTER;
+                : CFG_JSON_NO_CHARACTER;
         if ((second < 0xdc00u) || (second > 0xdfffu))
         {
-            return CFG_JSON_NO_LETTER;
+            return CFG_JSON_NO_CHARACTER;
         }
         *step = 12u;
         return 0x10000u + ((first - 0xd800u) << 10u) + (second - 0xdc00u);
     }
     default:
-        return CFG_JSON_NO_LETTER;
+        return CFG_JSON_NO_CHARACTER;
     }
 }
 
-// the bytes a letter takes in UTF-8: one below 0x80, two below 0x800, three below 0x10000, four past
-static size_t cfg_json_utf8_bytes(unsigned int letter)
+// the bytes a character takes in UTF-8: one below 0x80, two below 0x800, three below 0x10000, four past
+static size_t cfg_json_utf8_bytes(unsigned int character)
 {
-    if (letter < 0x80u)
+    if (character < 0x80u)
     {
         return 1u;
     }
-    if (letter < 0x800u)
+    if (character < 0x800u)
     {
         return 2u;
     }
-    return (letter < 0x10000u) ? 3u : 4u;
+    return (character < 0x10000u) ? 3u : 4u;
 }
 
 int cfg_json_string(const char *text, const CfgJsonToken *token, char *out, size_t capacity)
 {
     size_t written = 0u;
-    int ok = (token->kind == CFG_JSON_STRING) && (capacity > 0u);
+    int ok = (token->type == CFG_JSON_STRING) && (capacity > 0u);
     size_t at = token->start;
     while (ok && (at < token->end))
     {
@@ -465,18 +465,18 @@ int cfg_json_string(const char *text, const CfgJsonToken *token, char *out, size
             continue;
         }
         size_t step = 0u;
-        const unsigned int letter = cfg_json_escape(text, at, token->end, &step);
-        const size_t bytes = cfg_json_utf8_bytes(letter);
-        ok = (letter != 0u) && (letter != CFG_JSON_NO_LETTER) && (written + bytes < capacity);
+        const unsigned int character = cfg_json_escape(text, at, token->end, &step);
+        const size_t bytes = cfg_json_utf8_bytes(character);
+        ok = (character != 0u) && (character != CFG_JSON_NO_CHARACTER) && (written + bytes < capacity);
         if (ok)
         {
-            // each byte is the letter's bits in turn under its UTF-8 mark, which a char represents
+            // each byte is the character's bits in turn under its UTF-8 mark, which a char represents
             static const unsigned int s_marks[5] = {0x00u, 0x00u, 0xc0u, 0xe0u, 0xf0u};
             for (size_t place = bytes; place > 1u; place -= 1u)
             {
-                out[written + place - 1u] = (char)(0x80u | ((letter >> (6u * (bytes - place))) & 0x3fu));
+                out[written + place - 1u] = (char)(0x80u | ((character >> (6u * (bytes - place))) & 0x3fu));
             }
-            out[written] = (char)(s_marks[bytes] | (letter >> (6u * (bytes - 1u))));
+            out[written] = (char)(s_marks[bytes] | (character >> (6u * (bytes - 1u))));
             written += bytes;
         }
         at += step;
@@ -489,7 +489,7 @@ unsigned int cfg_json_member(const char *text, const CfgJsonToken *tokens, unsig
 {
     unsigned int found = 0u;
     unsigned int key = object + 1u;
-    for (unsigned int member = 0u; (tokens[object].kind == CFG_JSON_OBJECT) && (member < tokens[object].count);
+    for (unsigned int member = 0u; (tokens[object].type == CFG_JSON_OBJECT) && (member < tokens[object].count);
          member += 1u)
     {
         const unsigned int value = key + 1u;

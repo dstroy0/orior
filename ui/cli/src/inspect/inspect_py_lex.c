@@ -5,7 +5,7 @@
 // with its prefix, is one token, and the names an f-string's or a t-string's fields read are tokens after it
 #include "inspect_py.h"
 
-// the most names one string's fields read that are recorded
+// the max names one string's fields read that are recorded
 #define CLI_PY_FIELD_NAMES 4096u
 
 CliPyLine *g_cli_py_line;
@@ -38,7 +38,7 @@ static CliInspectTok s_field_names[CLI_PY_FIELD_NAMES];
 
 typedef struct
 {
-    unsigned int letter;
+    unsigned int character;
     const char *src;
     unsigned long long start;
     unsigned long long end;
@@ -58,14 +58,14 @@ typedef struct
 } InspectPyLexCtx;
 EMBED_INLINE int lex_name_start(const InspectPyLexCtx *args)
 {
-    unsigned int letter = args->letter;
-    return (letter == '_') || EMBED_CALL(cli_inspect_internal.alphabetic, CliInspectCtx, .letter = letter);
+    unsigned int character = args->character;
+    return (character == '_') || EMBED_CALL(cli_inspect_internal.alphabetic, CliInspectCtx, .character = character);
 }
 
 EMBED_INLINE int lex_name(const InspectPyLexCtx *args)
 {
-    unsigned int letter = args->letter;
-    return (letter == '_') || EMBED_CALL(cli_inspect_internal.alphanumeric, CliInspectCtx, .letter = letter);
+    unsigned int character = args->character;
+    return (character == '_') || EMBED_CALL(cli_inspect_internal.alphanumeric, CliInspectCtx, .character = character);
 }
 
 // whether the bytes from `start` to `end` of `src` are a prefix a string may have, case aside
@@ -92,7 +92,7 @@ EMBED_INLINE int lex_prefix(const InspectPyLexCtx *args)
     return 0;
 }
 
-// `count` letters passed over from where the scan stands
+// `count` characters passed over from where the scan is
 EMBED_INLINE void lex_passed(const InspectPyLexCtx *args)
 {
     for (unsigned int at = 0u; at < args->count; at += 1u)
@@ -101,19 +101,19 @@ EMBED_INLINE void lex_passed(const InspectPyLexCtx *args)
     }
 }
 
-// whether `letter`, where the scan stands, closes a string opened by `quote`: the quote alone, or for a `triple`
+// whether `character`, where the scan is, closes a string opened by `quote`: the quote alone, or for a `triple`
 // string the quote three times
 EMBED_INLINE int lex_quote_closes(const InspectPyLexCtx *args)
 {
-    return (args->letter == args->quote) &&
+    return (args->character == args->quote) &&
            (!args->triple || ((EMBED_CALL(cli_inspect_scan_ahead_internal.peek_at, CliInspectScanAheadCtx,
                                           .scan = args->scan, .ahead = 1u) == args->quote) &&
                               (EMBED_CALL(cli_inspect_scan_ahead_internal.peek_at, CliInspectScanAheadCtx,
                                           .scan = args->scan, .ahead = 2u) == args->quote)));
 }
 
-// the name a field reads, where the scan stands, read to its end, and recorded after the `names` recorded before it
-// where no dot or digit stands before it and they number fewer than CLI_PY_FIELD_NAMES
+// the name a field reads, where the scan is, read to its end, and recorded after the `names` recorded before it
+// where no dot or digit is before it and they number fewer than CLI_PY_FIELD_NAMES
 EMBED_INLINE void lex_field_name(const InspectPyLexCtx *args)
 {
     CliInspectScan *scan = args->scan;
@@ -123,13 +123,13 @@ EMBED_INLINE void lex_field_name(const InspectPyLexCtx *args)
     const unsigned long long name_start = scan->pos;
     const CliInspectPosition name_from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
     while (EMBED_CALL(lex_name, InspectPyLexCtx,
-                      .letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan)))
+                      .character = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan)))
     {
         (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
     }
     if (!after_dot && !after_digit && (*args->names < CLI_PY_FIELD_NAMES))
     {
-        // a text read is at most 4 GiB, which a token's bytes count
+        // a text read is at max 4 GiB, which a token's bytes count
         s_field_names[*args->names] =
             (CliInspectTok){CLI_PY_NAME,
                             1u,
@@ -141,44 +141,44 @@ EMBED_INLINE void lex_field_name(const InspectPyLexCtx *args)
     }
 }
 
-// one step of a string's body from `letter`, where the scan stands, in a string opened by `quote`, `triple` or not,
+// one step of a string's body from `character`, where the scan is, in a string opened by `quote`, `triple` or not,
 // whose `fields` are read or not: an escape passed over, the closing quote passed over, a doubled brace passed over,
-// a field's brace counted into `braces`, a name a field reads recorded in `names`, else the letter passed over; 0
+// a field's brace counted into `braces`, a name a field reads recorded in `names`, else the character passed over; 0
 // where the string ends there, else 1
 EMBED_INLINE int lex_string_step(const InspectPyLexCtx *args)
 {
-    const unsigned int letter = args->letter;
-    if (letter == '\\')
+    const unsigned int character = args->character;
+    if (character == '\\')
     {
         EMBED_CALL(lex_passed, InspectPyLexCtx, .scan = args->scan, .count = 2u);
         return 1;
     }
-    if (EMBED_CALL(lex_quote_closes, InspectPyLexCtx, .scan = args->scan, .letter = letter, .quote = args->quote,
+    if (EMBED_CALL(lex_quote_closes, InspectPyLexCtx, .scan = args->scan, .character = character, .quote = args->quote,
                    .triple = args->triple))
     {
         EMBED_CALL(lex_passed, InspectPyLexCtx, .scan = args->scan, .count = args->triple ? 3u : 1u);
         return 0;
     }
-    if ((letter == '\n') && !args->triple)
+    if ((character == '\n') && !args->triple)
     {
         return 0;
     }
-    if (args->fields && (letter == '{') && (*args->braces == 0u) &&
+    if (args->fields && (character == '{') && (*args->braces == 0u) &&
         (EMBED_CALL(cli_inspect_scan_ahead_internal.peek_at, CliInspectScanAheadCtx, .scan = args->scan, .ahead = 1u) ==
          '{'))
     {
         EMBED_CALL(lex_passed, InspectPyLexCtx, .scan = args->scan, .count = 2u);
         return 1;
     }
-    if (args->fields && (letter == '{'))
+    if (args->fields && (character == '{'))
     {
         *args->braces += 1u;
     }
-    else if (args->fields && (letter == '}') && (*args->braces > 0u))
+    else if (args->fields && (character == '}') && (*args->braces > 0u))
     {
         *args->braces -= 1u;
     }
-    else if ((*args->braces > 0u) && EMBED_CALL(lex_name_start, InspectPyLexCtx, .letter = letter))
+    else if ((*args->braces > 0u) && EMBED_CALL(lex_name_start, InspectPyLexCtx, .character = character))
     {
         EMBED_CALL(lex_field_name, InspectPyLexCtx, .scan = args->scan, .names = args->names);
         return 1;
@@ -209,13 +209,13 @@ static void lex_string(const InspectPyLexCtx *args)
     EMBED_CALL(lex_passed, InspectPyLexCtx, .scan = scan, .count = triple ? 3u : 1u);
     unsigned int names = 0u;
     unsigned int braces = 0u;
-    unsigned int letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
+    unsigned int character = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
     int going = 1;
-    while (going && (letter != CLI_INSPECT_END))
+    while (going && (character != CLI_INSPECT_END))
     {
-        going = EMBED_CALL(lex_string_step, InspectPyLexCtx, .scan = scan, .letter = letter, .quote = quote,
+        going = EMBED_CALL(lex_string_step, InspectPyLexCtx, .scan = scan, .character = character, .quote = quote,
                            .triple = triple, .fields = fields, .braces = &braces, .names = &names);
-        letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
+        character = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
     }
     EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .type = CLI_PY_STR,
                .start = start, .from = from, .field = 0);
@@ -250,21 +250,21 @@ EMBED_INLINE void lex_line_append(const InspectPyLexCtx *args)
     *first = g_cli_inspect_toks;
 }
 
-// a number from where the scan stands
+// a number from where the scan is
 EMBED_INLINE void lex_number(const InspectPyLexCtx *args)
 {
     CliInspectScan *scan = args->scan;
     const unsigned long long start = scan->pos;
     const CliInspectPosition from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
-    for (unsigned int letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
-         (letter != CLI_INSPECT_END) &&
-         (EMBED_CALL(cli_inspect_internal.alphanumeric, CliInspectCtx, .letter = letter) || (letter == '_') ||
-          (letter == '.'));
-         letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan))
+    for (unsigned int character = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
+         (character != CLI_INSPECT_END) &&
+         (EMBED_CALL(cli_inspect_internal.alphanumeric, CliInspectCtx, .character = character) || (character == '_') ||
+          (character == '.'));
+         character = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan))
     {
         const int hex = (scan->pos - start >= 2u) && (scan->src[start] == '0') &&
                         ((scan->src[start + 1u] == 'x') || (scan->src[start + 1u] == 'X'));
-        const int exponent = ((letter == 'e') || (letter == 'E')) && !hex;
+        const int exponent = ((character == 'e') || (character == 'E')) && !hex;
         (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
         if (exponent &&
             ((EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan) == '+') ||
@@ -277,7 +277,7 @@ EMBED_INLINE void lex_number(const InspectPyLexCtx *args)
                .start = start, .from = from, .field = 0);
 }
 
-// an operator, the longest that matches, else the one letter, from where the scan stands, the brackets' depth tracked
+// an operator, the longest that matches, else the one character, from where the scan is, the brackets' depth tracked
 EMBED_INLINE void lex_operator(const InspectPyLexCtx *args)
 {
     CliInspectScan *scan = args->scan;
@@ -325,36 +325,36 @@ EMBED_INLINE int lex_line_start(const InspectPyLexCtx *args)
     for (;;)
     {
         unsigned int width = 0u;
-        for (unsigned int letter =
+        for (unsigned int character =
                  EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
-             ; letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan))
+             ; character = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan))
         {
-            if (letter == ' ')
+            if (character == ' ')
             {
                 width += 1u;
             }
-            else if (letter == '\t')
+            else if (character == '\t')
             {
                 width = ((width / 8u) + 1u) * 8u;
             }
-            else if ((letter != 0x0cu) && (letter != '\r'))
+            else if ((character != 0x0cu) && (character != '\r'))
             {
                 break;
             }
             (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
         }
-        const unsigned int letter =
+        const unsigned int character =
             EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
-        if (letter == CLI_INSPECT_END)
+        if (character == CLI_INSPECT_END)
         {
             return 0;
         }
-        if (letter == '\n')
+        if (character == '\n')
         {
             (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
             continue;
         }
-        if (letter == '#')
+        if (character == '#')
         {
             EMBED_CALL(cli_inspect_size_scan_internal.skip_line, CliInspectSizeScanCtx, .scan_out = scan);
             continue;
@@ -391,16 +391,16 @@ void cli_py_read(const CliInspectPySrcSizeCfg *args)
             }
             at_start = 0;
         }
-        const unsigned int letter =
+        const unsigned int character =
             EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = &scan);
-        if (letter == CLI_INSPECT_END)
+        if (character == CLI_INSPECT_END)
         {
             going = 0;
             continue;
         }
         const unsigned long long start = scan.pos;
         const CliInspectPosition from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = &scan);
-        if (letter == '\n')
+        if (character == '\n')
         {
             (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = &scan);
             if (depth == 0)
@@ -409,15 +409,15 @@ void cli_py_read(const CliInspectPySrcSizeCfg *args)
                 at_start = 1;
             }
         }
-        else if ((letter == ' ') || (letter == '\t') || (letter == '\r') || (letter == 0x0cu))
+        else if ((character == ' ') || (character == '\t') || (character == '\r') || (character == 0x0cu))
         {
             (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = &scan);
         }
-        else if (letter == '#')
+        else if (character == '#')
         {
             EMBED_CALL(cli_inspect_size_scan_internal.skip_line, CliInspectSizeScanCtx, .scan_out = &scan);
         }
-        else if (letter == '\\')
+        else if (character == '\\')
         {
             (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = &scan);
             if (EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = &scan) == '\r')
@@ -429,15 +429,15 @@ void cli_py_read(const CliInspectPySrcSizeCfg *args)
                 (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = &scan);
             }
         }
-        else if ((letter == '\'') || (letter == '"'))
+        else if ((character == '\'') || (character == '"'))
         {
             EMBED_CALL(lex_string, InspectPyLexCtx, .scan = &scan, .start = start, .from = from, .prefix_size = 0ull);
         }
-        else if (EMBED_CALL(lex_name_start, InspectPyLexCtx, .letter = letter))
+        else if (EMBED_CALL(lex_name_start, InspectPyLexCtx, .character = character))
         {
             while (EMBED_CALL(
                 lex_name, InspectPyLexCtx,
-                .letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = &scan)))
+                .character = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = &scan)))
             {
                 (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = &scan);
             }
@@ -455,8 +455,8 @@ void cli_py_read(const CliInspectPySrcSizeCfg *args)
                            .start = start, .from = from, .field = 0);
             }
         }
-        else if (((letter >= '0') && (letter <= '9')) ||
-                 ((letter == '.') &&
+        else if (((character >= '0') && (character <= '9')) ||
+                 ((character == '.') &&
                   (EMBED_CALL(cli_inspect_scan_ahead_internal.peek_at, CliInspectScanAheadCtx, .scan = &scan,
                               .ahead = 1u) >= '0') &&
                   (EMBED_CALL(cli_inspect_scan_ahead_internal.peek_at, CliInspectScanAheadCtx, .scan = &scan,

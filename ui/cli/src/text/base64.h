@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// base64.h: bytes as base64 and back, the standard letters with `=` to pad, as a file's bytes go in JSON over a link
+// base64.h: bytes as base64 and back, the standard characters with `=` to pad, as a file's bytes go in JSON over a link
 // (base64.c)
 #ifndef BASE64_H
 #define BASE64_H

@@ -19,8 +19,8 @@ static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success"
     engine_status_check((int)(call_), ENGINE_MODULE_COMPRESSION, (unsigned int)__LINE__, (const void *)(evacaddr_),    \
                         (error_))
 
-#define COMPRESSION_CHECK(condition_, evacaddr_, error_, kind_)                                                        \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_COMPRESSION, (unsigned int)__LINE__,                       \
+#define COMPRESSION_CHECK(condition_, evacaddr_, error_, type_)                                                        \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_COMPRESSION, (unsigned int)__LINE__,                       \
                        (const void *)(evacaddr_), (error_))
 
 #define COMPRESSION_THREADS 256u
@@ -213,7 +213,7 @@ static unsigned int compression_blocks(unsigned long long count)
     return (unsigned int)((needed < 65536ull) ? ((needed == 0ull) ? 1ull : needed) : 65536ull);
 }
 
-// each chunk's bits, each chunk's offset and the scan's scratch are slices of one pool, sized for the most chunks
+// each chunk's bits, each chunk's offset and the scan's scratch are slices of one pool, sized for the max chunks
 // requested so far; the stream is sized by the values themselves, known only once they are measured, and is a pool of
 // its own
 struct CompressionResident
@@ -249,8 +249,8 @@ extern "C" void compression_resident_release(void)
 
 #define COMPRESSION_CHUNK_SLICES 3u
 
-// the chunk pool's slices for `chunks`, in the order they are laid out and taken: each chunk's bits, each chunk's
-// offset, and the scan's scratch of `scan_bytes`; the plan is laid out from them, and a pool reserved from it takes
+// the chunk pool's slices for `chunks`, in the order they are arranged and taken: each chunk's bits, each chunk's
+// offset, and the scan's scratch of `scan_bytes`; the plan is arranged from them, and a pool reserved from it takes
 // them
 static DevicePoolPlan compression_chunk_plan(size_t chunks, size_t scan_bytes, EngineError *error,
                                              DevicePoolTakeRequest takes[COMPRESSION_CHUNK_SLICES])
@@ -292,7 +292,7 @@ static int compression_reserve_chunks(size_t chunks, EngineError *error)
     const DevicePoolPlan plan = compression_chunk_plan(chunks, scan_bytes, error, takes);
     const DevicePoolReserveRequest reserve = {&plan, &resident->chunk_pool, error};
     ok = ok && (device_pool_reserve(&reserve) == 0L);
-    // the slices are taken in the plan's order. Each lands where the plan laid it out and none errors
+    // the slices are taken in the plan's order. Each lands where the plan positioned it out and none errors
     for (unsigned int at = 0u; (ok != 0) && (at < COMPRESSION_CHUNK_SLICES); at += 1u)
     {
         ok = device_pool_take(&takes[at]) == 0L;

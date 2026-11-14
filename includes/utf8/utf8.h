@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// utf8.h: a text of UTF-8 read letter by letter, and walked by a set of bytes: the letter at a place and the letter
-// before a place, each with the bytes it takes, a byte that starts no letter or a letter cut short read as one letter
+// utf8.h: a text of UTF-8 read character by character, and walked by a set of bytes: the character at a place and the character
+// before a place, each with the bytes it takes, a byte that starts no character or a character cut short read as one character
 // of its own byte; and the first place from a place whose byte a set holds, or does not hold, and the place past the
 // last such byte before a place, each the widest lane the build has, then a word at a time (utf8.c)
 #ifndef UTF8_H
@@ -15,7 +15,7 @@ typedef struct Utf8SetCfg Utf8SetCfg;
 typedef struct Utf8SetFillCfg Utf8SetFillCfg;
 typedef struct Utf8WordCfg Utf8WordCfg;
 
-// the most bytes of a set a walk tests for
+// the max bytes of a set a walk tests for
 #define UTF8_SET_MAX 16u
 
 // A set's bytes each filled across a word, and across the target's lane
@@ -26,13 +26,13 @@ typedef struct
     embed_lane lane_at[UTF8_SET_MAX];
 } Utf8Set;
 
-// the letter at `at` of `size` bytes of `text` and the bytes it takes into `length`; and the letter that ends before
+// the character at `at` of `size` bytes of `text` and the bytes it takes into `length`; and the character that ends before
 // `end` and the bytes it takes
-unsigned int utf8_letter(const Utf8AtCfg *args);
-unsigned int utf8_letter_before(const Utf8EndCfg *args);
+unsigned int utf8_character(const Utf8AtCfg *args);
+unsigned int utf8_character_before(const Utf8EndCfg *args);
 // the first place from `at` below `size` whose byte the set `set` holds, `size` where none is; the first whose byte it
 // does not hold; the place past the last byte before `at` the set holds, and the place past the last it does not hold,
-// 0 where none is. A set is at most UTF8_SET_MAX bytes, and no walk reads a byte past the bounds it is given
+// 0 where none is. A set is at max UTF8_SET_MAX bytes, and no walk reads a byte past the bounds it is given
 unsigned long long utf8_to_any(const Utf8SetCfg *args);
 unsigned long long utf8_end_any(const Utf8SetCfg *args);
 unsigned long long utf8_back_any(const Utf8SetCfg *args);
@@ -79,20 +79,20 @@ struct Utf8WordCfg
 
 typedef struct
 {
-    unsigned int (*letter)(const Utf8AtCfg *args);
+    unsigned int (*character)(const Utf8AtCfg *args);
 } Utf8AtNs;
-EMBED_TABLE_LAYOUT(Utf8AtNs, letter);
+EMBED_TABLE_LAYOUT(Utf8AtNs, character);
 EMBED_TABLE_STORAGE Utf8AtNs utf8_at EMBED_UNUSED = {
-    .letter = utf8_letter,
+    .character = utf8_character,
 };
 
 typedef struct
 {
-    unsigned int (*letter_before)(const Utf8EndCfg *args);
+    unsigned int (*character_before)(const Utf8EndCfg *args);
 } Utf8EndNs;
-EMBED_TABLE_LAYOUT(Utf8EndNs, letter_before);
+EMBED_TABLE_LAYOUT(Utf8EndNs, character_before);
 EMBED_TABLE_STORAGE Utf8EndNs utf8_end EMBED_UNUSED = {
-    .letter_before = utf8_letter_before,
+    .character_before = utf8_character_before,
 };
 
 typedef struct

@@ -154,7 +154,7 @@ static unsigned int npy_description(const unsigned char *defined, unsigned long 
         return 0u;
     }
     const unsigned char order = defined[0u];
-    const unsigned char kind = defined[1u];
+    const unsigned char type = defined[1u];
     const unsigned char digit = defined[2u];
     if ((digit < '1') || (digit > '8'))
     {
@@ -163,16 +163,16 @@ static unsigned int npy_description(const unsigned char *defined, unsigned long 
     const unsigned int bytes = (unsigned int)(digit - '0');
     const int sized = (bytes == 1u) || (bytes == 2u) || (bytes == 4u) || (bytes == 8u);
     const int ordered = (order == '<') || (order == '>') || ((order == '|') && (bytes == 1u));
-    const int unsigned_kind = (kind == 'u') || ((kind == 'b') && (bytes == 1u));
-    const int signed_kind = (kind == 'i');
-    const int float_kind = (kind == 'f') && (bytes >= 2u);
-    if (!sized || !ordered || !(unsigned_kind || signed_kind || float_kind))
+    const int unsigned_type = (type == 'u') || ((type == 'b') && (bytes == 1u));
+    const int signed_type = (type == 'i');
+    const int float_type = (type == 'f') && (bytes >= 2u);
+    if (!sized || !ordered || !(unsigned_type || signed_type || float_type))
     {
         return 0u;
     }
     layout->extent.element_bytes = bytes;
-    layout->extent.element_kind = unsigned_kind ? ENGINE_ELEMENT_UNSIGNED
-                                  : signed_kind ? ENGINE_ELEMENT_SIGNED
+    layout->extent.element_type = unsigned_type ? ENGINE_ELEMENT_UNSIGNED
+                                  : signed_type ? ENGINE_ELEMENT_SIGNED
                                                 : ENGINE_ELEMENT_FLOAT;
     layout->big_endian = ((order == '>') && (bytes > 1u)) ? 1u : 0u;
     return 1u;

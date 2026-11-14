@@ -20,8 +20,8 @@ static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success"
     engine_status_check((int)(call_), ENGINE_MODULE_FLATTEN, (unsigned int)__LINE__, (const void *)(evacaddr_),        \
                         (error_))
 
-#define FLATTEN_CHECK(condition_, evacaddr_, error_, kind_)                                                            \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_FLATTEN, (unsigned int)__LINE__,                           \
+#define FLATTEN_CHECK(condition_, evacaddr_, error_, type_)                                                            \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_FLATTEN, (unsigned int)__LINE__,                           \
                        (const void *)(evacaddr_), (error_))
 
 #define FLATTEN_IO(condition_, evacaddr_, error_)                                                                      \
@@ -270,7 +270,7 @@ int flatten_set(const FlattenSetRequest *request)
     printf("  one vector magnitude per body: %u bits, %u limbs\n", layout.total_bits, layout.limbs);
 
     const size_t max_voxels = (size_t)largest[0] * largest[1] * largest[2];
-    // one frame's packed bodies on the device, its capacity grown to the most any frame finds, and the set's gathered
+    // one frame's packed bodies on the device, its capacity grown to the max any frame finds, and the set's gathered
     // on the host as each frame is packed
     unsigned int *magnitudes = NULL;
     size_t device_capacity = 0u;
@@ -391,7 +391,7 @@ int flatten_set(const FlattenSetRequest *request)
            (frames_done != 0ull) ? (bodies / frames_done) : 0ull);
     printf(
         "  gathered on the host: %llu bytes, %llu MiB, for the whole set; the device stored one frame's bodies, %llu "
-        "at most\n",
+        "at max\n",
         bytes, bytes >> 20u, (device_capacity != 0u) ? (unsigned long long)(device_capacity - 1u) : 0ull);
     printf("  component counts proved on %llu of %llu frames; round trip lost %llu bits\n", proofs, frames_done,
            lost_bits);

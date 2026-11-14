@@ -109,7 +109,7 @@ int main(void)
                   (row.match_at == 0ULL) && (row.match_length == 5ULL),
               "the first line found carries its line, column and the match's place and bytes");
     cli_check(row_is(2u, CLI_SEARCH_ROW_HIT, "gamma alpha", &row) && (row.line == 2ULL) && (row.match_at == 6ULL),
-              "the second line found stands under the same file");
+              "the second line found is under the same file");
     cli_check(row_is(3u, CLI_SEARCH_ROW_FILE, "b.txt", &row) && (row.folder_length == 3ULL) &&
                   cellul.starts(&(CatenaFinitaCfg){
                       .src = row.path, .cap = CLI_POOL_BYTES, .other = "sub", .other_cap = 4u}) &&
@@ -117,7 +117,7 @@ int main(void)
               "the second file's row carries its folder");
     cli_check(row_is(4u, CLI_SEARCH_ROW_HIT, "Alpha", &row), "a line of another case is found while case is off");
     cli_check(report_is("3 results in 2 files"), "the report counts the results and files");
-    cli_check(!EMBED_CALL(cli_search_pane.row, CliSearchPaneCfg, .at = 5u, .row = &row), "no row stands past the last");
+    cli_check(!EMBED_CALL(cli_search_pane.row, CliSearchPaneCfg, .at = 5u, .row = &row), "no row is past the last");
 
     EMBED_CALL(cli_search_pane.option, CliSearchPaneCfg, .which = CLI_SEARCH_CASE, .now_ms = 2000ULL);
     cli_check(EMBED_CALL(cli_search_pane.on, CliSearchPaneCfg, .which = CLI_SEARCH_CASE) &&
@@ -168,7 +168,7 @@ int main(void)
     const int rows_top = EMBED_CALL(gui_pane.rows_top, GuiPaneCfg, .table = table, .frame = &frame);
     cli_check(rows_top == frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + GUI_PANE_BOX +
                               GUI_SEARCH_REPORT,
-              "the rows stand under the pane's head, the field and the report, no set listed");
+              "the rows are under the pane's head, the field and the report, no set listed");
     const int field_y = frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + (GUI_PANE_BOX / 2);
     cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
                          .glyphs = &glyphs, .x = frame.side.x + GUI_PANE_PAD_LEFT + 20, .y = field_y) == CLI_SEARCH_FIELD,

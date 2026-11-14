@@ -12,7 +12,7 @@
 //   u32 magic 0x31445250, u32 mode (0 period_read, 1 period_draw), u32 rank, u32 has_null_top,
 //   u64 extent[8], u64 draws (period_draw's draw number in mode 1), u8 content[32],
 //   u64 null_top[8][2] (numerator, denominator), u64 lane count, u16 lanes[lane count].
-// A lane count of 0 still hands the engine one device lane, since a request in error reads none.
+// A lane count of 0 still passes the engine one device lane, since a request in error reads none.
 //
 // The probe is a job on the device's tessera daemon (sims/cu/sim_job.cu). It reads the file once to size its
 // declaration, submits the job, and then runs the records.
@@ -234,7 +234,7 @@ static int probe_run(const ProbeRecord *record, const unsigned short *lanes, uns
     }
     else
     {
-        printf("error kind %d module %d site %u status %d\n", (int)error.kind, (int)error.module, error.site,
+        printf("error type %d module %d site %u status %d\n", (int)error.type, (int)error.module, error.site,
                (int)error.status);
     }
     printf("end\n");

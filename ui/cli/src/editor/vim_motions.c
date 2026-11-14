@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// vim_motions.c: the text as Vim reads it through the view, a letter a unit, and where each motion goes from a place:
-// whether it takes the letter it ends on and whether it takes whole lines. A line's units are read through the view one
-// line at a time and stand until the next line is read, so no two lines' units are held at once
+// vim_motions.c: the text as Vim reads it through the view, a character a unit, and where each motion goes from a place:
+// whether it takes the character it ends on and whether it takes whole lines. A line's units are read through the view one
+// line at a time and are until the next line is read, so no two lines' units are held at once
 #include "vim_internal.h"
 
 #include "../text/text.h"
@@ -36,15 +36,15 @@ EMBED_INLINE unsigned long long motions_length(const CliVimCtx *args)
     return length;
 }
 
-unsigned int cli_vim_letter_at(const CliVimCtx *args)
+unsigned int cli_vim_character_at(const CliVimCtx *args)
 {
     unsigned long long length = 0ULL;
     const unsigned short *const units = EMBED_CALL(cli_vim_motions_internal.line, CliVimCtx, .key = args->key,
                                                    .line = args->place.line, .length_out = &length);
-    const unsigned int letter =
+    const unsigned int character =
         ((units != NULL) && (args->place.col < length)) ? units[args->place.col] : CLI_VIM_LINE_END;
     EMBED_CALL(cli_vim_motions_internal.line_end, CliVimCtx, .units = units);
-    return letter;
+    return character;
 }
 
 int cli_vim_forward(const CliVimCtx *args)
@@ -80,17 +80,17 @@ int cli_vim_backward(const CliVimCtx *args)
 
 unsigned int cli_vim_type(const CliVimCtx *args)
 {
-    if ((args->letter == CLI_VIM_LINE_END) || EMBED_CALL(cli_text_table.white, CliTextCfg, .letter = args->letter))
+    if ((args->character == CLI_VIM_LINE_END) || EMBED_CALL(cli_text_table.white, CliTextCfg, .character = args->character))
     {
         return 0u;
     }
-    return (args->big || (args->letter == '_') ||
-            EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .letter = args->letter))
+    return (args->big || (args->character == '_') ||
+            EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .character = args->character))
                ? 1u
                : 2u;
 }
 
-unsigned long long cli_vim_first_letter(const CliVimCtx *args)
+unsigned long long cli_vim_first_character(const CliVimCtx *args)
 {
     unsigned long long length = 0ULL;
     const unsigned short *const units = EMBED_CALL(cli_vim_motions_internal.line, CliVimCtx, .key = args->key,
@@ -99,7 +99,7 @@ unsigned long long cli_vim_first_letter(const CliVimCtx *args)
     int found = 0;
     for (unsigned long long col = 0ULL; !found && (units != NULL) && (col < length); col += 1ULL)
     {
-        found = !EMBED_CALL(cli_text_table.white, CliTextCfg, .letter = units[col]);
+        found = !EMBED_CALL(cli_text_table.white, CliTextCfg, .character = units[col]);
         first = found ? col : first;
     }
     EMBED_CALL(cli_vim_motions_internal.line_end, CliVimCtx, .units = units);
@@ -143,8 +143,8 @@ void cli_vim_put(const CliVimCtx *args)
     const unsigned long long last = (lines > 0ULL) ? lines - 1ULL : 0ULL;
     const unsigned long long line = (args->place.line < last) ? args->place.line : last;
     const unsigned long long length = EMBED_CALL(motions_length, CliVimCtx, .key = args->key, .line = line);
-    const unsigned long long most = (view.mode == CLI_VIM_INSERT) ? length : ((length > 0ULL) ? length - 1ULL : 0ULL);
-    const CliPosition place = {line, (args->place.col < most) ? args->place.col : most};
+    const unsigned long long max = (view.mode == CLI_VIM_INSERT) ? length : ((length > 0ULL) ? length - 1ULL : 0ULL);
+    const CliPosition place = {line, (args->place.col < max) ? args->place.col : max};
     if (!args->goal_stays)
     {
         (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
@@ -156,15 +156,15 @@ void cli_vim_put(const CliVimCtx *args)
     EMBED_CALL(cli_view_vim.place, CliViewVimCfg, .key = args->key, .cursor = place, .anchor = place);
 }
 
-// the place a word starts after `place`, a `big` word with every letter but a blank; an empty line stops it
+// the place a word starts after `place`, a `big` word with every character but a blank; an empty line stops it
 EMBED_INLINE CliPosition motions_word_start(const CliVimCtx *args)
 {
     CliPosition at = args->place;
     const unsigned int start =
         EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .big = args->big,
-                   .letter = EMBED_CALL(cli_vim_motions_internal.letter_at, CliVimCtx, .key = args->key, .place = at));
+                   .character = EMBED_CALL(cli_vim_motions_internal.character_at, CliVimCtx, .key = args->key, .place = at));
     while ((start != 0u) && (EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .big = args->big,
-                                        .letter = EMBED_CALL(cli_vim_motions_internal.letter_at, CliVimCtx,
+                                        .character = EMBED_CALL(cli_vim_motions_internal.character_at, CliVimCtx,
                                                              .key = args->key, .place = at)) == start))
     {
         if (!EMBED_CALL(cli_vim_motions_internal.forward, CliVimCtx, .key = args->key, .place = at, .place_out = &at))
@@ -173,7 +173,7 @@ EMBED_INLINE CliPosition motions_word_start(const CliVimCtx *args)
         }
     }
     while (EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .big = args->big,
-                      .letter = EMBED_CALL(cli_vim_motions_internal.letter_at, CliVimCtx, .key = args->key,
+                      .character = EMBED_CALL(cli_vim_motions_internal.character_at, CliVimCtx, .key = args->key,
                                            .place = at)) == 0u)
     {
         CliPosition next = at;
@@ -190,14 +190,14 @@ EMBED_INLINE CliPosition motions_word_start(const CliVimCtx *args)
     return at;
 }
 
-// the last letter of the word that ends after `place`
+// the last character of the word that ends after `place`
 EMBED_INLINE CliPosition motions_word_end(const CliVimCtx *args)
 {
     CliPosition at = args->place;
     int more = EMBED_CALL(cli_vim_motions_internal.forward, CliVimCtx, .key = args->key, .place = args->place,
                           .place_out = &at);
     while (more && (EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .big = args->big,
-                               .letter = EMBED_CALL(cli_vim_motions_internal.letter_at, CliVimCtx, .key = args->key,
+                               .character = EMBED_CALL(cli_vim_motions_internal.character_at, CliVimCtx, .key = args->key,
                                                     .place = at)) == 0u))
     {
         more = EMBED_CALL(cli_vim_motions_internal.forward, CliVimCtx, .key = args->key, .place = at, .place_out = &at);
@@ -208,11 +208,11 @@ EMBED_INLINE CliPosition motions_word_end(const CliVimCtx *args)
     }
     const unsigned int type =
         EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .big = args->big,
-                   .letter = EMBED_CALL(cli_vim_motions_internal.letter_at, CliVimCtx, .key = args->key, .place = at));
+                   .character = EMBED_CALL(cli_vim_motions_internal.character_at, CliVimCtx, .key = args->key, .place = at));
     CliPosition next = at;
     while (EMBED_CALL(cli_vim_motions_internal.forward, CliVimCtx, .key = args->key, .place = at, .place_out = &next) &&
            (EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .big = args->big,
-                       .letter = EMBED_CALL(cli_vim_motions_internal.letter_at, CliVimCtx, .key = args->key,
+                       .character = EMBED_CALL(cli_vim_motions_internal.character_at, CliVimCtx, .key = args->key,
                                             .place = next)) == type))
     {
         at = next;
@@ -220,7 +220,7 @@ EMBED_INLINE CliPosition motions_word_end(const CliVimCtx *args)
     return at;
 }
 
-// the first letter of the word that starts before `place`, an empty line stopping it
+// the first character of the word that starts before `place`, an empty line stopping it
 EMBED_INLINE CliPosition motions_word_back(const CliVimCtx *args)
 {
     CliPosition at = args->place;
@@ -228,7 +228,7 @@ EMBED_INLINE CliPosition motions_word_back(const CliVimCtx *args)
                           .place_out = &at);
     while (more &&
            (EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .big = args->big,
-                       .letter = EMBED_CALL(cli_vim_motions_internal.letter_at, CliVimCtx, .key = args->key,
+                       .character = EMBED_CALL(cli_vim_motions_internal.character_at, CliVimCtx, .key = args->key,
                                             .place = at)) == 0u) &&
            !((at.col == 0ULL) && (EMBED_CALL(motions_length, CliVimCtx, .key = args->key, .line = at.line) == 0ULL)))
     {
@@ -241,14 +241,14 @@ EMBED_INLINE CliPosition motions_word_back(const CliVimCtx *args)
     }
     const unsigned int type =
         EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .big = args->big,
-                   .letter = EMBED_CALL(cli_vim_motions_internal.letter_at, CliVimCtx, .key = args->key, .place = at));
+                   .character = EMBED_CALL(cli_vim_motions_internal.character_at, CliVimCtx, .key = args->key, .place = at));
     CliPosition back = at;
     while (
         (type != 0u) &&
         EMBED_CALL(cli_vim_motions_internal.backward, CliVimCtx, .key = args->key, .place = at, .place_out = &back) &&
         (back.line == at.line) &&
         (EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .big = args->big,
-                    .letter = EMBED_CALL(cli_vim_motions_internal.letter_at, CliVimCtx, .key = args->key,
+                    .character = EMBED_CALL(cli_vim_motions_internal.character_at, CliVimCtx, .key = args->key,
                                          .place = back)) == type))
     {
         at = back;
@@ -256,9 +256,9 @@ EMBED_INLINE CliPosition motions_word_back(const CliVimCtx *args)
     return at;
 }
 
-// the letter `letter` on the line of `from`, `count` times over, after it for f and t and before it for F and T, on
-// it for f and F and a letter short of it for t and T, into `found`
-EMBED_INLINE void motions_to_letter(const CliVimCtx *args)
+// the character `character` on the line of `from`, `count` times over, after it for f and t and before it for F and T, on
+// it for f and F and a character short of it for t and T, into `found`
+EMBED_INLINE void motions_to_character(const CliVimCtx *args)
 {
     unsigned long long length = 0ULL;
     const unsigned short *const units = EMBED_CALL(cli_vim_motions_internal.line, CliVimCtx, .key = args->key,
@@ -274,7 +274,7 @@ EMBED_INLINE void motions_to_letter(const CliVimCtx *args)
         {
             for (unsigned long long at = col + 1ULL + short_of; (units != NULL) && (at < length); at += 1ULL)
             {
-                if (units[at] == args->letter)
+                if (units[at] == args->character)
                 {
                     col = at - short_of;
                     seen = 1;
@@ -286,7 +286,7 @@ EMBED_INLINE void motions_to_letter(const CliVimCtx *args)
         {
             for (unsigned long long at = col; (units != NULL) && (at > short_of); at -= 1ULL)
             {
-                if (units[at - 1ULL - short_of] == args->letter)
+                if (units[at - 1ULL - short_of] == args->character)
                 {
                     col = at - 1ULL;
                     seen = 1;
@@ -330,7 +330,7 @@ EMBED_INLINE void motions_pair_of(const CliVimCtx *args)
         return;
     }
     // a bracket of the six and the one it pairs with, a byte of the basic Latin each
-    const unsigned int letter = (unsigned int)(unsigned char)s_brackets[at_bracket];
+    const unsigned int character = (unsigned int)(unsigned char)s_brackets[at_bracket];
     const unsigned int pair = (unsigned int)(unsigned char)s_brackets[at_bracket ^ 1u];
     const int opens = (at_bracket & 1u) == 0u;
     unsigned long long depth = 0ULL;
@@ -338,8 +338,8 @@ EMBED_INLINE void motions_pair_of(const CliVimCtx *args)
     for (int more = 1; more;)
     {
         const unsigned int here =
-            EMBED_CALL(cli_vim_motions_internal.letter_at, CliVimCtx, .key = args->key, .place = at);
-        if (here == letter)
+            EMBED_CALL(cli_vim_motions_internal.character_at, CliVimCtx, .key = args->key, .place = at);
+        if (here == character)
         {
             depth += 1ULL;
         }
@@ -514,7 +514,7 @@ void cli_vim_motion(const CliVimCtx *args)
     }
     else if (name == '^')
     {
-        found->to = (CliPosition){from.line, EMBED_CALL(cli_vim_motions_internal.first_letter, CliVimCtx,
+        found->to = (CliPosition){from.line, EMBED_CALL(cli_vim_motions_internal.first_character, CliVimCtx,
                                                         .key = args->key, .line = from.line)};
     }
     else if (name == '$')
@@ -535,7 +535,7 @@ void cli_vim_motion(const CliVimCtx *args)
             line = (args->count - 1ULL < last_line) ? args->count - 1ULL : last_line;
         }
         found->to = (CliPosition){
-            line, EMBED_CALL(cli_vim_motions_internal.first_letter, CliVimCtx, .key = args->key, .line = line)};
+            line, EMBED_CALL(cli_vim_motions_internal.first_character, CliVimCtx, .key = args->key, .line = line)};
         found->linewise = 1;
     }
     else if ((name == 'f') || (name == 'F') || (name == 't') || (name == 'T'))
@@ -547,10 +547,10 @@ void cli_vim_motion(const CliVimCtx *args)
             .bytes = sizeof(unsigned int)});
         (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = g_cli_vim_state.view,
-            .offset = ((unsigned long long)(args->at) * sizeof(CliVimView)) + offsetof(CliVimView, found_letter),
-            .src = &(unsigned int){args->letter},
+            .offset = ((unsigned long long)(args->at) * sizeof(CliVimView)) + offsetof(CliVimView, found_character),
+            .src = &(unsigned int){args->character},
             .bytes = sizeof(unsigned int)});
-        EMBED_CALL(motions_to_letter, CliVimCtx, .key = args->key, .from = from, .how = name, .letter = args->letter,
+        EMBED_CALL(motions_to_character, CliVimCtx, .key = args->key, .from = from, .how = name, .character = args->character,
                    .count = times, .found = found);
     }
     else if ((name == ';') || (name == ','))
@@ -563,8 +563,8 @@ void cli_vim_motion(const CliVimCtx *args)
         found->found = 0;
         if (how != 0u)
         {
-            EMBED_CALL(motions_to_letter, CliVimCtx, .key = args->key, .from = from, .how = how,
-                       .letter = view->found_letter, .count = times, .found = found);
+            EMBED_CALL(motions_to_character, CliVimCtx, .key = args->key, .from = from, .how = how,
+                       .character = view->found_character, .count = times, .found = found);
         }
     }
     else if (name == '%')
@@ -599,7 +599,7 @@ void cli_vim_move_by(const CliVimCtx *args)
 {
     CliVimFound found;
     EMBED_CALL(cli_vim_motions_internal.motion, CliVimCtx, .at = args->at, .key = args->key, .name = args->name,
-               .letter = args->letter, .count = args->count, .counted = args->counted,
+               .character = args->character, .count = args->count, .counted = args->counted,
                .from = EMBED_CALL(cli_vim_motions_internal.head, CliVimCtx, .at = args->at, .key = args->key),
                .found = &found);
     if (!found.found)

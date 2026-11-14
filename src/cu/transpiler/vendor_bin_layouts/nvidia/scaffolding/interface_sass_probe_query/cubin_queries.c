@@ -160,7 +160,7 @@ unsigned int sass_cubin_queries(SassProbe *probe, const SassMachine *machine, un
         snprintf(path, sizeof(path), "%s/queried.cubin", probe->folder);
         if (!sass_cubin_answer(probe, path, answered, sizeof(answered)))
         {
-            // the part was handed the question and would not run it: illegal on its own, however it assembled
+            // the part was passed the question and would not run it: illegal on its own, however it assembled
             sass_class_take(SASS_CHANNEL_RUN, SASS_CLASS_ILLEGAL, s_queries[number].instruction, 0u);
             continue;
         }

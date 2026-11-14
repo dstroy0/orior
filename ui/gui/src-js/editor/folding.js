@@ -21,8 +21,8 @@ export function indentOf(text, size) {
 
 // The rows a text shows once some regions are folded and its long lines are wrapped: which line each
 // row shows and the col it starts at, and which row shows each line first. A line inside a folded
-// region has the row of the line that opens it, and a line hidden before every line shown has the
-// first row. `breaksOf`, where given, gives a line shown the cols its rows after the first start
+// region has the row of the line that opens it, and a line hidden before every line displayed has the
+// first row. `breaksOf`, where given, gives a line displayed the cols its rows after the first start
 // at, in order, or null where it takes one row.
 export class Rows {
   constructor(count, hidden, breaksOf = null) {
@@ -34,7 +34,7 @@ export class Rows {
       return;
     }
     const rows = new Int32Array(count);
-    const shown = [];
+    const displayed = [];
     let size = 0;
     let at = 0;
     for (let line = 0; line < count; line += 1) {
@@ -48,17 +48,17 @@ export class Rows {
       }
       const breaks = breaksOf?.(line) ?? null;
       rows[line] = size;
-      shown.push(line, breaks);
+      displayed.push(line, breaks);
       size += 1 + (breaks?.length ?? 0);
     }
     const lines = new Int32Array(size);
     const starts = new Int32Array(size);
     let row = 0;
-    for (let index = 0; index < shown.length; index += 2) {
-      const line = shown[index];
+    for (let index = 0; index < displayed.length; index += 2) {
+      const line = displayed[index];
       lines[row] = line;
       row += 1;
-      for (const col of shown[index + 1] ?? []) {
+      for (const col of displayed[index + 1] ?? []) {
         lines[row] = line;
         starts[row] = col;
         row += 1;

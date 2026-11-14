@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // servers_plugins.c: the language servers script plugins bring. A plugin's `server` in its plugin.json names its
 // `program`, found by the toolchain `toolchain` names, the `args` it starts with, `{folder}` in one and in the options
-// standing for the folder the program was found in, the `languages` it serves, `*` every one, and, in `ids`, the
+// located for the folder the program was found in, the `languages` it serves, `*` every one, and, in `ids`, the
 // protocol's name of a language where it is not orior's. The window starts one as it starts its plugin, at the tree's
-// top, with the options the plugin gives, and stops it as it stops the plugin. It is handed every file of its languages
+// top, with the options the plugin gives, and stops it as it stops the plugin. It is passed every file of its languages
 // the editor has open as it starts, and each the editor opens, changes and closes after; its diagnostics are stored as
 // a checker's findings under the plugin's id; and what else it sends goes to the window as the event `plugin-server`,
 // `{plugin, method, params, request}`, `request` the id of a request pending until the plugin answers it, null for a
@@ -36,7 +36,7 @@ typedef struct
     unsigned long long size;
     int closes;
 } CliPluginsChange;
-// the most plugins whose servers run at once
+// the max plugins whose servers run at once
 #define CLI_SERVERS_PLUGINS 8u
 
 static CliPluginServer s_plugin[CLI_SERVERS_PLUGINS];

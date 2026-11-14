@@ -5,7 +5,7 @@
 //
 //   conjunction  a candidate survives only where it fails no case, and the relation itself always does
 //   order        every order of the cases leaves the same survivors
-//   descent      the descent puts first a case the most candidates fail, and its price is what the price of that
+//   descent      the descent puts first a case the max candidates fail, and its price is what the price of that
 //                order counts
 //   no worse     the descent's price is no more than the price of the cases in the order the ladder lists them
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/counterexample/ladder.h"
@@ -95,7 +95,7 @@ int main(void)
         unsigned int order[GATE_CASES];
         const unsigned long long price = gate_descent(s_fails, candidates, cases, order);
         check_that(price == gate_price(s_fails, candidates, cases, order), "the descent's price is its order's");
-        unsigned int most = 0u;
+        unsigned int max = 0u;
         unsigned int first = 0u;
         for (unsigned int at = 0u; at < cases; at += 1u)
         {
@@ -104,10 +104,10 @@ int main(void)
             {
                 failing += s_fails[candidate][at];
             }
-            most = (failing > most) ? failing : most;
+            max = (failing > max) ? failing : max;
             first = (at == order[0]) ? failing : first;
         }
-        check_that(first == most, "the descent puts first a case the most candidates fail");
+        check_that(first == max, "the descent puts first a case the max candidates fail");
         unsigned int stored_order[GATE_CASES];
         for (unsigned int at = 0u; at < cases; at += 1u)
         {

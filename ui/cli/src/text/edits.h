@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // edits.h: a span of a text and what is written over it, and the completion items, as the language servers, the build
 // files' and the schemas' readers and the fills give them: a place's line from 0 and its column in UTF-16 units from 0,
-// as the protocol counts them. Edits are written over a text each placed against the text as it stood before any, the
+// as the protocol counts them. Edits are written over a text each placed against the text as it was before any, the
 // first in the text first; a line ends at its "\n", and a "\r" before that stays the line's end (edits.c,
 // completions.c)
 #ifndef EDITS_H
@@ -17,7 +17,7 @@ typedef struct CliEditsLineCfg CliEditsLineCfg;
 typedef struct CliEditsCfg CliEditsCfg;
 typedef struct CliEditsPositionCfg CliEditsPositionCfg;
 
-// the most edits written over a text at once
+// the max edits written over a text at once
 #define CLI_TEXT_EDITS 65536u
 
 // A place in a text: its line and its column in UTF-16 units, each from 0
@@ -70,7 +70,7 @@ typedef struct
     unsigned long long doc_length;
 } CliSignaturePanel;
 
-// the most parameters a signature's store holds, the most bytes of its label with its end, and of its documentation
+// the max parameters a signature's store holds, the max bytes of its label with its end, and of its documentation
 #define CLI_SIGNATURE_PARAMETERS 64u
 #define CLI_SIGNATURE_LABEL 4096u
 #define CLI_SIGNATURE_DOC (1u << 16u)
@@ -86,7 +86,7 @@ typedef struct
     char doc[CLI_SIGNATURE_DOC];
 } CliSignatureStore;
 
-// the most completion items one request gives, and the bytes their texts take
+// the max completion items one request gives, and the bytes their texts take
 #define CLI_COMPLETIONS_MAX 4096u
 #define CLI_COMPLETIONS_TEXT (1u << 20u)
 

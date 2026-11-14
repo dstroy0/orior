@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Gloria Mellesmoen	title	A one (morpheme) by one (morpheme) approach to paʔapyaʔ: -Vʔ- as a temporal pluractional infix in Comox-Sliammon	page 1, carries footnote *
 front	Gloria Mellesmoen	name	Gloria Mellesmoen	author
 front	Gloria Mellesmoen	note	University of British Columbia	page 1, under Gloria Mellesmoen
@@ -133,7 +133,7 @@ footnote 3	Gloria Mellesmoen	note	Determiners are often elided in Comox-Sliammon
 (13a) line 3	Gloria Mellesmoen	translation	‘one’	page 7, in columns
 (13b) line 3	Gloria Mellesmoen	translation	‘just/only one’	page 7, in columns
 (13c) line 3	Gloria Mellesmoen	translation	‘one by one’	page 7, in columns
-§3	Gloria Mellesmoen	note	Forms that correspond to paʔa in (13) are provided in (14) for saʔa ‘two’ and čalas ‘three’ are provided in (14). As shown in Table 1, this regularity is found in other Central Salish languages, which also have ‘X by X’ constructions formed by reduplication, as shown in Table 1.4	page 7
+§3	Gloria Mellesmoen	note	Forms that correspond to paʔa in (13) are provided in (14) for saʔa ‘two’ and čalas ‘three’ are provided in (14). As displayed in Table 1, this regularity is found in other Central Salish languages, which also have ‘X by X’ constructions formed by reduplication, as displayed in Table 1.4	page 7
 footnote 4	Gloria Mellesmoen	note	Data in Table 1 comes from: Beaumont (2011) – Sechelt; Drachman (1969) – Twana; Bates, Hess, and Hilbert (1994) and Anderson (1999) – Lushootseed, Montler (2012) – Klallam; Montler (1986) – Saanich; and Suttles (2004) – Musqueam.	page 7, footnote 4
 footnote 4	Gloria Mellesmoen	language	Lushootseed	Central Salish, Table 1
 footnote 4	Gloria Mellesmoen	language	Klallam	Central Salish, Table 1
@@ -222,7 +222,7 @@ footnote 11	Gloria Mellesmoen	note	Watanabe (2003:383–384) reports that there 
 (19a) line 1	Comox-Sliammon	transcription	yə•yč-it=čxʷ paʔa k̓ʷaʔsta	page 10
 (19a) line 2	Comox-Sliammon	gloss	PL•fill-STV=2SG.IND one cup	page 10
 (19a) line 3	Gloria Mellesmoen	translation	‘You are pouring them into one cup.’	page 10
-(19a) line 4	Gloria Mellesmoen	note	Context: I have two cups that I am pouring together (with both hands) into a different cup.	page 10, a context
+(19a) line 4	Gloria Mellesmoen	note	Context: I have two cups that I am pouring together (with both passes) into a different cup.	page 10, a context
 (19a) line 5	Gloria Mellesmoen	citation	FL	page 10, the speaker's initials, Freddie Louie
 (19b) line 1	Comox-Sliammon	transcription	saʔa χʷaχʷit yəq̓-aš-an	page 10
 (19b) line 2	Comox-Sliammon	gloss	two 1SG.ERG use-TR-1SG.ERG	page 10
@@ -238,7 +238,7 @@ footnote 11	Gloria Mellesmoen	note	Watanabe (2003:383–384) reports that there 
 §4	Gloria Mellesmoen	name	Krifka	M. Krifka, numbers with alternatives (1999)
 (21a) line 1	Gloria Mellesmoen	note	⟦one⟧ = 𝜆𝑃𝜆𝑥 [1(𝑥) & 𝑃(𝑥)]	page 11, a denotation, a formula
 (21b) line 1	Gloria Mellesmoen	note	⟦one⟧ A = {𝜆𝑃𝜆𝑥 [𝑛(𝑥) & 𝑃(𝑥)] | 𝑛 ∈ 𝑁}	page 11, a denotation, a formula
-§4	Gloria Mellesmoen	note	The standard interpretation, or meaning, of the lexical item one is given in (21a). In (21a), ⟦one⟧ requires that 𝑥 refer to exactly one of something. However, the set of alternatives, represented by the denotation in (21b), allows for the inclusion of ‘at least’ and ‘at most’ readings. This reflects the fact that one can be used in situations where the amount is either greater or less than one, context- permitting. Examples of this in English are given in (22), where I weigh 51 kilograms can have an ‘at most’ or ‘at least’ reading if the context allows it. These represent alternatives to the standard interpretation. However, the alternatives are only available if they are appropriate in the context. Otherwise, the only permissible reading would be the standard interpretation.	page 11
+§4	Gloria Mellesmoen	note	The standard interpretation, or meaning, of the lexical item one is given in (21a). In (21a), ⟦one⟧ requires that 𝑥 refer to exactly one of something. However, the set of alternatives, represented by the denotation in (21b), allows for the inclusion of ‘at least’ and ‘at max’ readings. This reflects the fact that one can be used in situations where the amount is either greater or less than one, context- permitting. Examples of this in English are given in (22), where I weigh 51 kilograms can have an ‘at max’ or ‘at least’ reading if the context allows it. These represent alternatives to the standard interpretation. However, the alternatives are only available if they are appropriate in the context. Otherwise, the only permissible reading would be the standard interpretation.	page 11
 (22) line 1	Gloria Mellesmoen	note	I weigh 51 kilograms.	page 11, an English sentence
 (22) line 2	Gloria Mellesmoen	note	Context: I have qualified to compete in the 51kg weight class in a wrestling tournament, where I must be under 51 kilograms at the time of the weigh-in to compete. I weigh 50 kilograms.	page 11, a context
 (22) line 3	Gloria Mellesmoen	note	Context: I want to compete in the 54kg weight class in a tournament. My coach says I must be at least 51 kilograms. I weigh 52 kilograms.	page 11, a context
@@ -255,7 +255,7 @@ footnote 11	Gloria Mellesmoen	note	Watanabe (2003:383–384) reports that there 
 (25) line 1	Gloria Mellesmoen	note	⟦paʔapyaʔ⟧ = 𝜆𝑥𝜆𝑅⟨𝑒,𝑠𝑡⟩𝜆𝑒’ [∃ 𝑒1 … ∃ 𝑒𝑛 [𝑒’ = 𝑒1 + … + 𝑒𝑛 & ∀𝑒𝑛∃𝑦 [𝑦 < 𝑥 & | 𝑦 | = 1 & 𝑅 (𝑦) (𝑒𝑛)] & ∀𝑒𝑛, 𝑒𝑚 [¬𝜏 (𝑒𝑛) ∘ 𝜏 (𝑒𝑚)]]]	page 12, the lexical entry, a formula; its subscripts set inline
 (26) line 1	Gloria Mellesmoen	note	⟦saʔasyaʔ⟧ = 𝜆𝑥𝜆𝑅⟨𝑒,𝑠𝑡⟩𝜆𝑒’ [∃ 𝑒1 … ∃ 𝑒𝑛 [𝑒’ = 𝑒1 + … + 𝑒𝑛 & ∀𝑒𝑛∃𝑦 [𝑦 < 𝑥 & | 𝑦 | = 2 & 𝑅 (𝑦) (𝑒𝑛)] & ∀𝑒𝑛, 𝑒𝑚 [¬𝜏 (𝑒𝑛) ∘ 𝜏 (𝑒𝑚)]]]	page 12, the lexical entry, a formula; its subscripts set inline
 §4	Gloria Mellesmoen	note	The denotation in (25) states that a sentence containing paʔapyaʔ will be true of a plural individual 𝑥, a predicate 𝑅, and an event 𝑒’ if and only if 𝑒’ is made up of subevents that do not overlap in running time. For each subevent, there needs to be a plural individual 𝑥, and for each subevent there must be a subpart of 𝑥 which has a cardinality of one. The denotation in (26) has the same conditions, except the sum of the subparts involved in each subevent must equal two.	page 12
-§4	Gloria Mellesmoen	note	The analysis laid out here suggests the -Vʔ- affix is responsible for the temporal pluractionality associated with paʔapyaʔ. Neither ⟦papyaʔ⟧ nor ⟦paʔa⟧ refer to plurality or temporal distribution. However, ⟦paʔapyaʔ⟧ has the semantics given in (25) and requires that an event be comprised of a sum of subevents that do not overlap in time. This suggests that the pluractional component of the formulae in (25) and (26) must be attributed to the -Vʔ- affix.	page 12
+§4	Gloria Mellesmoen	note	The analysis arranged here suggests the -Vʔ- affix is responsible for the temporal pluractionality associated with paʔapyaʔ. Neither ⟦papyaʔ⟧ nor ⟦paʔa⟧ refer to plurality or temporal distribution. However, ⟦paʔapyaʔ⟧ has the semantics given in (25) and requires that an event be comprised of a sum of subevents that do not overlap in time. This suggests that the pluractional component of the formulae in (25) and (26) must be attributed to the -Vʔ- affix.	page 12
 §4	Comox-Sliammon	cited form	-Vʔ-	page 12, in italics
 §4	Gloria Mellesmoen	note	The denotation for ⟦-Vʔ-⟧ is given in (27). The crucial difference from Matthewson’s (2000) analysis of pəlpálaʔ/pipálaʔ is that the semantics of the reduplicated number have been incorporated. Formally, this involves substituting | 𝑦| = 𝑛 for the atomic condition.	page 12
 (27) line 1	Gloria Mellesmoen	note	⟦-Vʔ-⟧ = 𝜆𝑆⟨𝑒,𝑡⟩ 𝜆𝑥𝜆𝑅⟨𝑒,𝑠𝑡⟩ 𝜆𝑒’ [∃ 𝑒1 . . . ∃ 𝑒𝑛 [𝑒’ = 𝑒1 + . . . + 𝑒𝑛 & ∀𝑒𝑛∃𝑦[𝑦 < 𝑥 & 𝑆(𝑦) & 𝑅 (𝑦) (𝑒𝑛)] & ∀𝑒𝑛, 𝑒𝑚 [¬𝜏 (𝑒𝑛) ∘ 𝜏 (𝑒𝑚)]]]	page 12, the lexical entry, a formula; its subscripts set inline
@@ -269,7 +269,7 @@ footnote 11	Gloria Mellesmoen	note	Watanabe (2003:383–384) reports that there 
 (28) line 3	Gloria Mellesmoen	translation	‘She is (repeatedly) nudging him.’	page 13
 (28) line 4	Gloria Mellesmoen	citation	EP	page 13, the speaker's initials, Elsie Paul
 §5	Gloria Mellesmoen	note	Treating the -Vʔ- affix as a temporal pluractional marker leads to the prediction that verbs with it should be subject to the same requirement for temporal distribution as paʔapyaʔ, but number should be irrelevant. This follows from the proposal to treat paʔapyaʔ compositionally, where the denotation of root paʔa ‘one’ contributes to the overall meaning of the word. Without paʔa ‘one’, there should be no numerical limit on the distribution of the event across individuals.	page 13
-§5	Gloria Mellesmoen	note	This prediction turns out to be valid, as shown in (29), where the same verb is shown with and without the -Vʔ- affix. In (29a), the affix is absent and the sentence describes a group of children who are all sick. In (29b), with the affix, the sentence refers to children who got sick in sequence. The “getting sick” event is temporally distributed across individual children.	page 13
+§5	Gloria Mellesmoen	note	This prediction turns out to be valid, as displayed in (29), where the same verb is displayed with and without the -Vʔ- affix. In (29a), the affix is absent and the sentence describes a group of children who are all sick. In (29b), with the affix, the sentence refers to children who got sick in sequence. The “getting sick” event is temporally distributed across individual children.	page 13
 (29a) line 1	Comox-Sliammon	transcription	ʔuk̓ʷ kʷə•kʷt-im čəy•čuy	page 13
 (29a) line 2	Comox-Sliammon	gloss	all PL•sick-MDL PL•child	page 13
 (29a) line 3	Gloria Mellesmoen	translation	‘All the children got sick (at the same time).’	page 13
@@ -303,7 +303,7 @@ footnote 11	Gloria Mellesmoen	note	Watanabe (2003:383–384) reports that there 
 (33) line 5	Gloria Mellesmoen	citation	FL	page 14, the speaker's initials, Freddie Louie
 (34) line 1	Comox-Sliammon	transcription	tih-mut=č p<iʔ>i•pč-əm snat-uɬ	page 14
 (34) line 2	Comox-Sliammon	gloss	big-very=1SG.IND RED<PL>•wake-MDL tonight-PST	page 14
-(34) line 3	Gloria Mellesmoen	translation	‘I kept waking up last night.’	page 14
+(34) line 3	Gloria Mellesmoen	translation	‘I retained waking up last night.’	page 14
 (34) line 4	Gloria Mellesmoen	citation	JF	page 14, the speaker's initials, Joanne Francis
 (35) line 1	Comox-Sliammon	transcription	paya p<iʔ>i•pč-əm čuy	page 14
 (35) line 2	Comox-Sliammon	gloss	always RED<PL>•awake-MDL child	page 14
@@ -325,10 +325,10 @@ footnote 12	Gloria Mellesmoen	note	The form in (37) was translated as ‘plantin
 (37) line 3	Gloria Mellesmoen	translation	‘digging slowly’	page 15
 (37) line 4	Gloria Mellesmoen	citation	JF	page 15, the speaker's initials, Joanne Francis
 §5	Gloria Mellesmoen	note	The slow rate associated with (37) may come from the semantic contribution of CV reduplication, rather than the -Vʔ- infix. As mentioned in Section 3, plural and diminutive reduplication are homophonous in Comox-Sliammon. It is not clear whether (37) should be analysed as having a diminutive or plural reduplicant. However, it is possible that the reduced rate in (37) can be attributed to the function of the diminutive.	page 15
-§5	Gloria Mellesmoen	note	A final prediction is that the pluractional -Vʔ- affix might be incompatible with individual-level predicates, as it requires a kind of repetition or temporal distribution that is not typical of this type of lexical item. However, (38) shows that the -Vʔ- affix can occur in individual-level predicates, with eye colour.	page 15
+§5	Gloria Mellesmoen	note	A final prediction is that the pluractional -Vʔ- affix might be incompatible with individual-level predicates, as it requires a type of repetition or temporal distribution that is not typical of this type of lexical item. However, (38) shows that the -Vʔ- affix can occur in individual-level predicates, with eye colour.	page 15
 (38) line 1	Comox-Sliammon	transcription	kʷ<iʔ>i•kʷsim+awus	page 15
 (38) line 2	Comox-Sliammon	gloss	RED<PL>•blue+eye	page 15
-(38) line 3	Gloria Mellesmoen	translation	‘Eyes keep changing.’	page 15
+(38) line 3	Gloria Mellesmoen	translation	‘Eyes retain changing.’	page 15
 (38) line 4	Gloria Mellesmoen	note	Context: Colour contacts are put in and taken out, changing my eye colour from blue to brown to blue to brown, etc.	page 15, a context
 (38) line 5	Gloria Mellesmoen	citation	JF	page 15, the speaker's initials, Joanne Francis
 §5	Gloria Mellesmoen	note	The form in (38) is typical of aspectual coercion, where event plurality is applied to an individual-level predicate. Forms like this are only accepted with very specific (and generally odd) contexts.13 Given the limited data available right now, I conclude that -Vʔ- is only marginally acceptable with individual- level predicates. In many cases, attempts to add the -Vʔ- affix to an individual- level predicate were rejected or corrected, as in (39).	page 15
@@ -351,9 +351,9 @@ footnote 13	Gloria Mellesmoen	note	Their acceptability may relate to the amount 
 (40a) line 3	Gloria Mellesmoen	translation	‘small rabbits’	page 16, in columns
 (40b) line 3	Gloria Mellesmoen	translation	‘small carrots’	page 16, in columns
 (40) line 4	Gloria Mellesmoen	citation	(Watanabe 2003:401–402)	page 16, the source of both parts
-§6	Gloria Mellesmoen	note	The data in (40) is not necessarily problematic for the present analysis though, as this construction occurs with relatively few lexical items. The diminutive plural can also be formed by combining CV diminutive and CVC plural reduplication or by using titul ‘small’ or qəχ ‘lots’. Phrases with titul ‘small’ and qəχ ‘lots’ are most commonly produced. The diminutive plural with -Vʔ- may be highly lexicalized. The degree to which it challenges this analysis is unclear.	page 16
+§6	Gloria Mellesmoen	note	The data in (40) is not necessarily problematic for the present analysis though, as this construction occurs with relatively few lexical items. The diminutive plural can also be formed by combining CV diminutive and CVC plural reduplication or by using titul ‘small’ or qəχ ‘lots’. Phrases with titul ‘small’ and qəχ ‘lots’ are max commonly produced. The diminutive plural with -Vʔ- may be highly lexicalized. The degree to which it challenges this analysis is unclear.	page 16
 §6	Comox-Sliammon	cited form	qəχ	page 16, in italics, ‘lots’
-§6	Gloria Mellesmoen	note	Finally, the formal analysis laid out in Section 4 accounts for the DP- internal use of paʔapyaʔ, leaving the DP-external cases for future work. Though the interpretation of paʔapyaʔ appears to be constant across syntactic environments, a compositional analysis will need further adjustment to account for the fact that paʔapyaʔ can take either a subordinate clause or relative clause.	page 16
+§6	Gloria Mellesmoen	note	Finally, the formal analysis arranged in Section 4 accounts for the DP- internal use of paʔapyaʔ, leaving the DP-external cases for future work. Though the interpretation of paʔapyaʔ appears to be constant across syntactic environments, a compositional analysis will need further adjustment to account for the fact that paʔapyaʔ can take either a subordinate clause or relative clause.	page 16
 §7	Gloria Mellesmoen	heading	7 Conclusion	page 16
 §7	Gloria Mellesmoen	note	In this paper, I have argued that paʔapyaʔ is very similar to the corresponding Lillooet lexical item pəlpálaʔ/pipálaʔ, described by Matthewson (2000). Though this cross-linguistic comparison served as the foundation for a formal analysis, paʔapyaʔ in Comox-Sliammon can be analysed as the combination of a diminutive and pluractional morpheme operating on a numeral. The requirement for the event to be a sum of subevents with non-overlapping running times is attributed to the semantic contribution of a temporal pluractional marker -Vʔ-, rather than paʔapyaʔ itself. This analysis has the benefit of being able to account for other ‘X by X’ constructions, like saʔasyaʔ ‘two by two’, and verbs that take the affix with a similar iterative interpretation. The data presented in this paper provide evidence that -Vʔ- functions as a temporal pluractional marker.	page 16
 references	Gloria Mellesmoen	heading	References	page 17

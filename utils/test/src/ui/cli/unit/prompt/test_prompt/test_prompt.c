@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_prompt.c: the one ask's rows are the sentence, the statement, the field and the buttons in order; text typed is
-// put at the field's end and Backspace takes one letter off it; Enter answers the first button and Escape closes the ask
-// with no answer; a password row carries its letters' count and no text; an answer calls the continuation once with the
-// field's text and gives the ask's cells back; a continuation may open the next ask; and a statement is cut to its most
+// put at the field's end and Backspace takes one character off it; Enter answers the first button and Escape closes the ask
+// with no answer; a password row carries its characters' count and no text; an answer calls the continuation once with the
+// field's text and gives the ask's cells back; a continuation may open the next ask; and a statement is cut to its max
 #include "ui/cli/src/command_line/prompt.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
@@ -31,7 +31,7 @@ void tearDown(void)
     EMBED_CALL(cli_prompt.close, CliPromptCfg, .at = 0u);
 }
 
-// the continuation: what it was handed, counted
+// the continuation: what it was passed, counted
 static void answered(const CliPromptCfg *args)
 {
     s_answers += 1u;
@@ -107,7 +107,7 @@ void test_an_ask_for_a_line_has_the_sentence_the_field_and_the_buttons(void)
     CLI_TEST_ASSERT_TEXT("rows.csv", row.text, row.length);
 }
 
-void test_text_typed_goes_at_the_fields_end_and_backspace_takes_one_letter(void)
+void test_text_typed_goes_at_the_fields_end_and_backspace_takes_one_character(void)
 {
     TEST_ASSERT_TRUE(EMBED_CALL(cli_prompt.open, CliPromptCfg, .mode = CLI_PROMPT_ASK_LINE, .sentence = "The file",
                                 .choices = s_connect_choices, .count = 1u, .then = answered));
@@ -115,7 +115,7 @@ void test_text_typed_goes_at_the_fields_end_and_backspace_takes_one_letter(void)
     EMBED_CALL(cli_prompt_input.type, CliPromptInputCfg, .text = "\xC3\xA9", .size = 2ULL);
     CliPromptRow row = field_row();
     CLI_TEST_ASSERT_TEXT("ab\xC3\xA9", row.text, row.length);
-    TEST_ASSERT_EQUAL_UINT64(3ULL, row.letters);
+    TEST_ASSERT_EQUAL_UINT64(3ULL, row.characters);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_prompt_input.key, CliPromptInputCfg, .name = "Backspace"));
     row = field_row();
     CLI_TEST_ASSERT_TEXT("ab", row.text, row.length);
@@ -148,7 +148,7 @@ void test_escape_closes_the_ask_with_no_answer(void)
     TEST_ASSERT_FALSE(EMBED_CALL(cli_prompt_input.key, CliPromptInputCfg, .name = "Enter"));
 }
 
-void test_a_password_row_carries_the_count_of_its_letters_only(void)
+void test_a_password_row_carries_the_count_of_its_characters_only(void)
 {
     TEST_ASSERT_TRUE(EMBED_CALL(cli_prompt.open, CliPromptCfg, .mode = CLI_PROMPT_PASSWORD,
                                 .sentence = "The server refused the password", .choices = s_connect_choices,
@@ -158,7 +158,7 @@ void test_a_password_row_carries_the_count_of_its_letters_only(void)
     TEST_ASSERT_TRUE(row.secret);
     TEST_ASSERT_NULL(row.text);
     TEST_ASSERT_EQUAL_UINT64(0ULL, row.length);
-    TEST_ASSERT_EQUAL_UINT64(6ULL, row.letters);
+    TEST_ASSERT_EQUAL_UINT64(6ULL, row.characters);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_prompt.answer, CliPromptCfg, .at = 0u));
     TEST_ASSERT_EQUAL_STRING("s3cr\xC3\xA9t", s_answered_text);
 }
@@ -198,7 +198,7 @@ void test_a_continuation_may_open_the_next_ask(void)
     CLI_TEST_ASSERT_TEXT("Again", row.text, row.length);
 }
 
-void test_a_statement_is_cut_to_its_most(void)
+void test_a_statement_is_cut_to_its_max(void)
 {
     static char s_long[1000];
     memor.set(&(MemoriaCfg){.dst = s_long, .val = 'x', .bytes = sizeof(s_long) - 1u});

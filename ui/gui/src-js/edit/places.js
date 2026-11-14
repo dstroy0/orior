@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-import { BACKUP_MOST, PLACES, RECENT, show, state } from "../edit.js";
+import { BACKUP_MAX, PLACES, RECENT, show, state } from "../edit.js";
 import { load, makeSplit, openFile, showInSplit, splittable } from "./open.js";
 import { dirty, mainTabs, tabOf } from "./tabs.js";
 
-// Places: where the cursor stands, kept before each jump for Back and Forward.
+// Places: where the cursor is, retained before each jump for Back and Forward.
 
 function here() {
   const tab = tabOf(state.active);
@@ -16,7 +16,7 @@ function here() {
   return { path: tab.path, line: tab.session.base + head.line, col: head.col };
 }
 
-// Keeps the place the cursor stands at for Back, unless it is the last one kept or next to it.
+// Retains the place the cursor is at for Back, unless it is the last one retained or next to it.
 export function markPlace() {
   const place = here();
   const last = state.back.at(-1);
@@ -28,7 +28,7 @@ export function markPlace() {
   state.forward = [];
 }
 
-// Goes to a line of the file shown, keeping the place it leaves for Back.
+// Goes to a line of the file displayed, retention the place it leaves for Back.
 export function jumpTo(line, col = 0) {
   if (!state.editor?.s) {
     return;
@@ -57,7 +57,7 @@ async function goPlace(place) {
   return true;
 }
 
-// Steps back, by -1, or forward, by 1, through the places kept.
+// Steps back, by -1, or forward, by 1, through the places retained.
 export async function step(by) {
   const [from, to] = by < 0 ? [state.back, state.forward] : [state.forward, state.back];
   while (from.length) {
@@ -72,8 +72,8 @@ export async function step(by) {
   }
 }
 
-// Last Editor: each press while Ctrl is pressed steps one tab further back in when each was shown, and
-// letting Ctrl go keeps the tab it stopped on as the one shown last.
+// Last Editor: each press while Ctrl is pressed steps one tab further back in when each was displayed, and
+// letting Ctrl go retains the tab it stopped on as the one displayed last.
 export function lastEditor() {
   const order = state.used.filter(tabOf);
   if (order.length < 2) {
@@ -96,7 +96,7 @@ export function endCycle() {
   }
 }
 
-// What each tree keeps: its tabs and the one shown, the files opened last, and the text of each file
+// What each tree retains: its tabs and the one displayed, the files opened last, and the text of each file
 // with changes not saved.
 
 export const treeKey = () => document.getElementById("tree-path").textContent;
@@ -112,7 +112,7 @@ export function readKept(key, fallback) {
   }
 }
 
-export function keepSession() {
+export function retainSession() {
   if (!state.restored) {
     return;
   }
@@ -123,7 +123,7 @@ export function keepSession() {
   localStorage.setItem(sessionKey(), JSON.stringify({ tabs, main, active: tabOf(state.active)?.commit ? null : state.active, split, groups }));
 }
 
-export function keepRecent(path) {
+export function retainRecent(path) {
   localStorage.setItem(recentKey(), JSON.stringify([path, ...readKept(recentKey(), []).filter((one) => one !== path)].slice(0, RECENT)));
 }
 
@@ -136,8 +136,8 @@ export function forgetBackup(path) {
   localStorage.removeItem(backupKey(path));
 }
 
-// Keeps the text of each tab with changes not saved, and lets go of each without.
-export function keepBackups() {
+// Retains the text of each tab with changes not saved, and lets go of each without.
+export function retainBackups() {
   for (const tab of state.tabs) {
     if (!tab.session || tab.readOnly || tab.session.window) {
       continue;
@@ -147,7 +147,7 @@ export function keepBackups() {
       continue;
     }
     const text = tab.session.doc.text();
-    if (text.length > BACKUP_MOST) {
+    if (text.length > BACKUP_MAX) {
       continue;
     }
     try {
@@ -170,37 +170,37 @@ export async function restoreSession() {
 }
 
 async function putSessionBack() {
-  const kept = readKept(sessionKey(), { tabs: [], active: null });
-  for (const path of kept.tabs ?? []) {
+  const retained = readKept(sessionKey(), { tabs: [], active: null });
+  for (const path of retained.tabs ?? []) {
     await load(path).catch(() => {});
   }
   // The groups of tabs as they were.
-  state.groups = (Array.isArray(kept.groups) ? kept.groups : [])
+  state.groups = (Array.isArray(retained.groups) ? retained.groups : [])
     .filter((group) => typeof group?.name === "string" && Array.isArray(group.paths))
     .map((group) => ({ name: group.name, paths: group.paths.filter((path) => tabOf(path)), folded: Boolean(group.folded) }))
     .filter((group) => group.paths.length);
   state.restored = true;
   // The split as it was, with its tabs, and the tabs of the first side.
-  const split = (kept.split?.paths ?? (kept.split?.path ? [kept.split.path] : [])).filter((path) => splittable(tabOf(path)));
-  if (split.length && ["right", "down"].includes(kept.split.direction)) {
-    makeSplit(kept.split.direction);
+  const split = (retained.split?.paths ?? (retained.split?.path ? [retained.split.path] : [])).filter((path) => splittable(tabOf(path)));
+  if (split.length && ["right", "down"].includes(retained.split.direction)) {
+    makeSplit(retained.split.direction);
     for (const path of split) {
       showInSplit(path);
     }
-    showInSplit(split.includes(kept.split.active) ? kept.split.active : split.at(-1));
+    showInSplit(split.includes(retained.split.active) ? retained.split.active : split.at(-1));
     for (const tab of state.tabs) {
-      if (kept.main && !kept.main.includes(tab.path) && split.includes(tab.path)) {
+      if (retained.main && !retained.main.includes(tab.path) && split.includes(tab.path)) {
         tab.inMain = false;
       }
     }
   }
-  const shown = tabOf(kept.active)?.inMain !== false && tabOf(kept.active) ? kept.active : mainTabs().at(-1)?.path;
-  if (shown) {
+  const displayed = tabOf(retained.active)?.inMain !== false && tabOf(retained.active) ? retained.active : mainTabs().at(-1)?.path;
+  if (displayed) {
     state.moving = true;
-    show(shown);
+    show(displayed);
     state.moving = false;
   } else {
-    keepSession();
+    retainSession();
   }
 }
 

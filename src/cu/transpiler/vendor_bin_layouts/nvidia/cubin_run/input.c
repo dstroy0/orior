@@ -12,12 +12,12 @@ unsigned char s_pattern[CUBIN_RUN_BYTES];
 unsigned char s_code[CUBIN_RUN_BYTES];
 unsigned char s_container[CUBIN_RUN_BYTES];
 unsigned int s_exits[CUBIN_RUN_EXITS];
-unsigned int s_cases[CUBIN_RUN_THREADS_MOST][CUBIN_RUN_IN_WORDS];
+unsigned int s_cases[CUBIN_RUN_THREADS_MAX][CUBIN_RUN_IN_WORDS];
 unsigned int s_case_count;
-unsigned int s_answers[CUBIN_RUN_THREADS_MOST][CUBIN_RUN_OUT_WORDS];
+unsigned int s_answers[CUBIN_RUN_THREADS_MAX][CUBIN_RUN_OUT_WORDS];
 
 // The run's buffer (qry_member.h): every channel input the carrier is named is a blob of it, the latest of that name,
-// and every answer, dry line and container it gives is handed to it: no file of the channel is written but by the
+// and every answer, dry line and container it gives is passed to it: no file of the channel is written but by the
 // run's writer. The carrier carries nothing where it is NULL (main)
 QryShared *s_run = NULL;
 
@@ -67,11 +67,11 @@ void cubin_run_verdict_row(unsigned long long query_key, unsigned int verdict, u
 // a launch of the query `query_key`, its outcome `outcome` and what the carrier reported of it, `message`, empty where
 // it answered, a row of the run's table of launches with its timed launches' count and times
 void cubin_run_launch_row(unsigned long long query_key, unsigned int outcome, unsigned int launches,
-                          unsigned long long nanoseconds, unsigned long long least, unsigned long long most,
+                          unsigned long long nanoseconds, unsigned long long least, unsigned long long max,
                           const char *message)
 {
     unsigned long long row[2u + 7] = {
-        0ull, 0ull, query_key, outcome, launches, nanoseconds, least, most, table_text(message, strlen(message))};
+        0ull, 0ull, query_key, outcome, launches, nanoseconds, least, max, table_text(message, strlen(message))};
     who_words(WHO_HERE, row);
     qry_member_append(CUBIN_RUN_LAUNCHES, row, sizeof(row), QRY_ORDINARY);
 }
@@ -134,7 +134,7 @@ int cubin_run_cases(const char *name)
         {
             continue;
         }
-        fits = (count < CUBIN_RUN_THREADS_MOST);
+        fits = (count < CUBIN_RUN_THREADS_MAX);
         if (fits)
         {
             memcpy(s_cases[count], words, sizeof(words));
@@ -146,7 +146,7 @@ int cubin_run_cases(const char *name)
     return fits && (count != 0u);
 }
 
-// the rooms the carrier's answer, its dry record and its call are gathered in, each at most what a record contains
+// the rooms the carrier's answer, its dry record and its call are gathered in, each at max what a record contains
 static char s_answer_bytes[QRY_WRITER_RING_BYTES / 2ull];
 static char s_dry_bytes[QRY_WRITER_RING_BYTES / 2ull];
 static char s_call_bytes[QRY_WRITER_RING_BYTES / 2ull];
@@ -154,7 +154,7 @@ VerbaLinea s_answers_line = {s_answer_bytes, sizeof(s_answer_bytes), 0ull};
 VerbaLinea s_dry_line = {s_dry_bytes, sizeof(s_dry_bytes), 0ull};
 VerbaLinea s_call_line = {s_call_bytes, sizeof(s_call_bytes), 0ull};
 
-// What `line` contains given whole as `name`: handed to the run at `priority`, a blob of its own after any of
+// What `line` contains given whole as `name`: passed to the run at `priority`, a blob of its own after any of
 // the name before it. `carried` where it was given, 2 where it was not, and what was written let go either way
 int cubin_run_member_written(VerbaLinea *line, const char *name, unsigned int priority, int carried)
 {

@@ -11,12 +11,12 @@ const { test, assert } = window.__harness;
 
 // Runs `work` with the intel's hooks giving `editor` and `tab`, and the window's own hooks put back after it.
 async function hookedTo(editor, tab, work) {
-  const kept = state.hooks;
-  state.hooks = { ...kept, editor: () => editor, tab: () => tab };
+  const retained = state.hooks;
+  state.hooks = { ...retained, editor: () => editor, tab: () => tab };
   try {
     return await work();
   } finally {
-    state.hooks = kept;
+    state.hooks = retained;
   }
 }
 

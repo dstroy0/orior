@@ -102,7 +102,7 @@ test("an animation that loops without end leaves the frames free", async () => {
   }
 });
 
-test("the page shown, motion runs and its clock goes on", async () => {
+test("the page displayed, motion runs and its clock goes on", async () => {
   assert.equal(still(), false);
   const before = clock();
   await ui.rest(50);
@@ -110,22 +110,22 @@ test("the page shown, motion runs and its clock goes on", async () => {
   assert.ok(!document.documentElement.classList.contains("still"));
 });
 
-// The page hidden and shown again, as the system hides it when the window is minimized.
+// The page hidden and displayed again, as the system hides it when the window is minimized.
 function setHidden(hidden) {
   Object.defineProperty(document, "hidden", { configurable: true, get: () => hidden });
   document.dispatchEvent(new Event("visibilitychange"));
 }
 
-test("the page hidden, motion stops, its clock stands, and a waiting start runs once it shows", async () => {
+test("the page hidden, motion stops, its clock is, and a waiting start runs once it shows", async () => {
   let started = 0;
   try {
     setHidden(true);
     assert.equal(still(), true);
     assert.ok(document.documentElement.classList.contains("still"), "the root has the still class");
-    const stood = clock();
+    const was = clock();
     whenMoving(() => (started += 1));
     await ui.rest(80);
-    assert.equal(clock(), stood, "the clock stands while hidden");
+    assert.equal(clock(), was, "the clock is while hidden");
     assert.equal(started, 0, "nothing starts while hidden");
   } finally {
     setHidden(false);
@@ -190,7 +190,7 @@ test("a move of fewer pixels than frames is drawn a whole pixel at a time", asyn
 test("a move the eye follows runs as it is written", async () => {
   const { box, animation } = await transition("transform", 300, "translateX(0px)", "translateX(300px)");
   try {
-    assert.equal(judge(animation), "kept");
+    assert.equal(judge(animation), "retained");
     assert.equal(animation.effect.getComputedTiming().easing, "ease");
   } finally {
     box.remove();
@@ -203,7 +203,7 @@ test("a fade or a color is measured in levels: too faint a change ends at once, 
   const tint = await transition("background-color", 300, "rgb(0, 0, 0)", "rgb(0, 0, 1)");
   try {
     assert.equal(judge(faint.animation), "ended");
-    assert.equal(judge(whole.animation), "kept");
+    assert.equal(judge(whole.animation), "retained");
     assert.equal(judge(tint.animation), "stepped", "one level over many frames is drawn once");
   } finally {
     [faint, whole, tint].forEach((one) => one.box.remove());
@@ -245,7 +245,7 @@ test("a twisty's turn, on a pseudo-element, is judged as it starts", async () =>
 });
 
 test("View, Reduce Motion stills every motion of the window as the system's reduced motion does", async () => {
-  const kept = localStorage.getItem("orior.reduce-motion");
+  const retained = localStorage.getItem("orior.reduce-motion");
   const smooth = localStorage.getItem("orior.smooth-scroll");
   const moving = document.createElement("div");
   moving.style.cssText = "transition: opacity 2s linear; animation: 2s linear infinite both spin-for-test";
@@ -258,7 +258,7 @@ test("View, Reduce Motion stills every motion of the window as the system's redu
     const style = getComputedStyle(moving);
     assert.equal(style.transitionDuration, "0s", "transitions end where they start");
     assert.equal(style.animationDuration, "0s", "animations too");
-    assert.equal(moves(), false, "the window's own drawing stands still");
+    assert.equal(moves(), false, "the window's own drawing is stationary");
     assert.equal(smoothScrolling(), false, "the editor scrolls without a glide unless the reader chose one");
     setReduceMotion(false);
     if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -267,10 +267,10 @@ test("View, Reduce Motion stills every motion of the window as the system's redu
     }
   } finally {
     moving.remove();
-    if (kept === null) {
+    if (retained === null) {
       localStorage.removeItem("orior.reduce-motion");
     } else {
-      localStorage.setItem("orior.reduce-motion", kept);
+      localStorage.setItem("orior.reduce-motion", retained);
     }
     if (smooth !== null) {
       localStorage.setItem("orior.smooth-scroll", smooth);

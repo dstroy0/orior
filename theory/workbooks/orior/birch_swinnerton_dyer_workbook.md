@@ -21,7 +21,7 @@ instrument. The refined conjecture is an exact numerical identity, and the quest
 number lands on an integer is precision-bound, where the other Millennium problems match the apparatus
 only in subject. That chapter also drew the honest bound: the arithmetic imposes no floor, and the honest
 report is the precision of the weakest input, the L-value, the period and the regulator instead of the
-precision of the multiply. This workbook keeps to the exact side and leaves that computed side as the
+precision of the multiply. This workbook retains to the exact side and leaves that computed side as the
 stated floor.
 
 ## The problem, stated fully
@@ -97,7 +97,7 @@ floor.
 
 ## What they knew, what they wanted, what we know
 
-Three lists, kept apart. The first two are Wiles's statement, read; the third is the two files, run.
+Three lists, retained apart. The first two are Wiles's statement, read; the third is the two files, run.
 
 **What they knew**, as the statement records it, in his attributions:
 
@@ -172,9 +172,9 @@ this work does not touch, and `Sha` sits behind a finiteness that is itself open
 ## Their sets against the boundary function
 
 The boundary function of the precision document (`proof_domain_boundaries.py`, and the self-defining
-probe form in `proof_boundary_inheritance.py`) names each set's boundary kind.
+probe form in `proof_boundary_inheritance.py`) names each set's boundary type.
 
-| Fefferman's, here Wiles's, set | what the ring does with it | kind |
+| Fefferman's, here Wiles's, set | what the ring does with it | type |
 |---|---|---|
 | `E(Q)` under the group law | exact on every point | none on the algebra |
 | `E(Q)_tors` | exact order and Nagell-Lutz test | none |
@@ -245,7 +245,7 @@ quotient is `Sha[phihat]`, of dimension 2, and its nontrivial classes are `2, 17
 Each of `2, 17, 34` is a torsor the refute-only probe certifies locally soluble at every place, in the
 Selmer group, yet it comes from no rational point, because the rank is 0 and every rational point is
 accounted for by the torsion. Those are exhibited nontrivial elements of the Tate-Shafarevich group,
-exact and unconditional, and they are the exact obstruction that keeps the first descent from pinning the
+exact and unconditional, and they are the exact obstruction that retains the first descent from pinning the
 rank of `E_17`. Positive control: where the descent is tight, at `n = 5, 6, 7`, `bound - rank = 0`, and
 the 2-isogeny part of Sha is trivial. This claims only the exhibited Sha and the rank upper bound, and
 nothing about BSD.

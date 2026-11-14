@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// engine_source.cu: zip names, the source's kind, its description and its bytes
+// engine_source.cu: zip names, the source's type, its description and its bytes
 #include "engine_internal.h"
 
 int entry_ends(const char *path, const char *suffix)
@@ -44,7 +44,7 @@ static int entry_zip_names(const char *path, const char *member)
     return named;
 }
 
-static EntrySourceKind entry_source_kind(const char *path, const char *member)
+static EntrySourceKind entry_source_type(const char *path, const char *member)
 {
     char probe[ENTRY_PATH_CAPACITY];
     static const char *const MARKS[4] = {"zarr.json", ".zarray", ".zgroup", "attributes.json"};
@@ -137,7 +137,7 @@ static EntrySourceKind entry_source_kind(const char *path, const char *member)
 static int entry_source_describe(const char *path, const char *member, EntrySource *source, EngineError *error)
 {
     memset(source, 0, sizeof(*source));
-    source->kind = entry_source_kind(path, member);
+    source->type = entry_source_type(path, member);
     source->member = member;
     const EngineIngestTools *const tools = entry_ingest_tools();
     EngineDescribeRequest describe;
@@ -147,7 +147,7 @@ static int entry_source_describe(const char *path, const char *member, EntrySour
     describe.extent = &source->extent;
     describe.error = error;
     snprintf(source->path, sizeof(source->path), "%s", path);
-    switch (source->kind)
+    switch (source->type)
     {
     case ENTRY_SOURCE_ZARR: {
         const int ok = entry_zarr_describe(path, member, &source->layout, source->path, sizeof(source->path));
@@ -183,7 +183,7 @@ static int entry_source_describe(const char *path, const char *member, EntrySour
             source->extent.axes[axis] = "tzyx"[axis];
         }
         source->extent.element_bytes = 2u;
-        source->extent.element_kind = ENGINE_ELEMENT_UNSIGNED;
+        source->extent.element_type = ENGINE_ELEMENT_UNSIGNED;
         return 1;
     }
     case ENTRY_SOURCE_NO_MEMBER:
@@ -210,7 +210,7 @@ static long long entry_source_bytes(const EntrySource *source, unsigned char *ou
     read.out_capacity = capacity;
     read.side = side;
     read.error = error;
-    switch (source->kind)
+    switch (source->type)
     {
     case ENTRY_SOURCE_ZARR: {
         ZarrReadRequest zarr;
@@ -265,7 +265,7 @@ extern "C" long engine_source_read(const EngineSourceRequest *request, unsigned 
     char axes[ENGINE_ARRAY_RANK];
     const size_t stated = (request->axes != NULL) ? strlen(request->axes) : 0u;
     int ok = (rank != 0u) && ((request->axes == NULL) || (stated == rank));
-    // a c axis, at most one, gives its lanes at the channel requested; every other axis is one of t z y x
+    // a c axis, at max one, gives its lanes at the channel requested; every other axis is one of t z y x
     int channel_axis = -1;
     for (unsigned int axis = 0u; ok && (axis < rank); axis += 1u)
     {
@@ -285,14 +285,14 @@ extern "C" long engine_source_read(const EngineSourceRequest *request, unsigned 
         return ENGINE_ERROR;
     }
     const int one_channel = (channel_axis < 0) || (array_extent->sizes[channel_axis] == 1ull);
-    if ((array_extent->element_kind == ENGINE_ELEMENT_FLOAT) ||
+    if ((array_extent->element_type == ENGINE_ELEMENT_FLOAT) ||
         ((array_extent->element_bytes != 1u) && (array_extent->element_bytes != 2u)))
     {
         fprintf(stderr, "  %s: %u byte %s elements are not supported; the engine takes 8 and 16 bit integer samples\n",
                 request->path, array_extent->element_bytes,
-                (array_extent->element_kind == ENGINE_ELEMENT_FLOAT)
+                (array_extent->element_type == ENGINE_ELEMENT_FLOAT)
                     ? "float"
-                    : ((array_extent->element_kind == ENGINE_ELEMENT_SIGNED) ? "signed" : "unsigned"));
+                    : ((array_extent->element_type == ENGINE_ELEMENT_SIGNED) ? "signed" : "unsigned"));
         free(source);
         return ENGINE_ERROR;
     }
@@ -330,7 +330,7 @@ extern "C" long engine_source_read(const EngineSourceRequest *request, unsigned 
         free(source);
         return ENGINE_ERROR;
     }
-    const int signed_lanes = (array_extent->element_kind == ENGINE_ELEMENT_SIGNED);
+    const int signed_lanes = (array_extent->element_type == ENGINE_ELEMENT_SIGNED);
     const unsigned int lane_offset = signed_lanes ? 0x8000u : 0u;
     if (request->lane_offset != NULL)
     {

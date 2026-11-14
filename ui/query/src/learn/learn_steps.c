@@ -74,7 +74,7 @@ EMBED_INLINE int query_learn_clock(const LearnStepsCtx *args)
     const char *const words[6] = {s_clock, args->files->costs, args->step->word_text, args->step->base, "10", NULL};
     long long code = -1LL;
     const int run_result = EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run,
-                                      .paths_letters = read, .count = 1u, .err_msg = err_msg) &&
+                                      .paths_characters = read, .count = 1u, .err_msg = err_msg) &&
                            EMBED_CALL(query_loops_context_err_msg_name_run.context_teed,
                                       QueryLoopsContextErrMsgNameRunCfg, .context = context, .run = &s_run,
                                       .name = "orior_bus_clock", .words = words, .code = &code, .err_msg = err_msg);
@@ -125,7 +125,7 @@ EMBED_INLINE int query_learn_pass(const LearnStepsCtx *args)
     int whole = EMBED_CALL(query_learn_err_msg_internal.files_add, QueryLearnErrMsgCtx, .context = context,
                            .run_out = &s_run, .lessons = 1, .err_msg = err_msg) &&
                 EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run,
-                           .paths_letters = read, .count = reads, .err_msg = err_msg);
+                           .paths_characters = read, .count = reads, .err_msg = err_msg);
     if (whole && (args->step->type == QUERY_LEARN_SEED))
     {
         static char s_seeds[QUERY_PATH_MAX_LEN];
@@ -139,7 +139,7 @@ EMBED_INLINE int query_learn_pass(const LearnStepsCtx *args)
                        .err_msg = err_msg);
         if (whole && (seeded != 0LL))
         {
-            mmgr_line_put(err_msg, "the seeds were not handed");
+            mmgr_line_put(err_msg, "the seeds were not passed");
             whole = 0;
         }
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
@@ -290,7 +290,7 @@ EMBED_INLINE int query_dry_carried(const LearnStepsCtx *args)
     const QueryFiles *const files = args->files;
     char line[QUERY_PATH_MAX_LEN + 128u];
     VerbaLinea print_line = {line, sizeof(line), 0ULL};
-    // the gate reads the list against the tree's machine file, whose forms stand whatever the dry pass wrote
+    // the gate reads the list against the tree's machine file, whose forms are whatever the dry pass wrote
     mmgr_line_put(&print_line, "  the protocol put ");
     mmgr_line_decimal(&print_line, args->questions, 0u);
     mmgr_line_put(&print_line, " questions; each checked by cubin_safe with the part taken out:");
@@ -392,7 +392,7 @@ EMBED_INLINE int query_learn_offline(const LearnStepsCtx *args)
     int whole = EMBED_CALL(query_learn_err_msg_internal.files_add, QueryLearnErrMsgCtx, .context = context,
                            .run_out = &s_run, .lessons = 0, .err_msg = err_msg) &&
                 EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run,
-                           .paths_letters = read, .count = 6u, .err_msg = err_msg);
+                           .paths_characters = read, .count = 6u, .err_msg = err_msg);
     static QueryWords s_words;
     memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
     EMBED_CALL(query_learn_words_words_internal.teacher_words, QueryLearnWordsWordsCtx, .words_words_pointer = &s_words,

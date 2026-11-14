@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // db_pane.h: the Database tool's left column as the window reads it. The connections the tree's databases.json lists,
 // the one chosen and the ones open; under the chosen one, when it is open, its schema as rows, a node a row, each
-// level read from the connection's schema link as its node first opens and standing until it is read again; the
+// level read from the connection's schema link as its node first opens and located until it is read again; the
 // connection form in place of the schema while it is open; and the one ask in place of either while the pane asks.
 // Over the rows the head: the connection the pane works on and the bar of tools with their labels and whether each can
-// act. A statement runs on a thread of its own, its answer handed to the view's thread through a wake and adopted by
+// act. A statement runs on a thread of its own, its answer passed to the view's thread through a wake and adopted by
 // the grid as the step collects it (db_pane.c, db_pane_tree.c, db_pane_act.c, db_form.c)
 #ifndef DB_PANE_H
 #define DB_PANE_H
@@ -19,14 +19,14 @@ typedef struct CliDbPaneHeadCfg CliDbPaneHeadCfg;
 typedef struct CliDbPaneTreeCfg CliDbPaneTreeCfg;
 typedef struct CliDbPaneInputCfg CliDbPaneInputCfg;
 
-// no place; the most names of a node's path; the rows of a page a statement's first answer and each later read
-// carry; and the most bytes of one statement's answer
+// no place; the max names of a node's path; the rows of a page a statement's first answer and each later read
+// carry; and the max bytes of one statement's answer
 #define CLI_DB_PANE_NONE 0xFFFFFFFFu
 #define CLI_DB_PANE_PATH 3u
 #define CLI_DB_PANE_PAGE 200ULL
 #define CLI_DB_PANE_ANSWER (1ULL << 22u)
 
-// the most bytes of one statement the pane runs
+// the max bytes of one statement the pane runs
 #define CLI_DB_PANE_STATEMENT (1ULL << 16u)
 
 // the rows' types: a sentence, a node of the schema, a field of the form, a choice of the form stepped by a press, a
@@ -39,7 +39,7 @@ typedef struct CliDbPaneInputCfg CliDbPaneInputCfg;
 #define CLI_DB_PANE_ROW_BUTTONS 5u
 #define CLI_DB_PANE_ROW_PROMPT 6u
 
-// the head's rows; and its actions, 0 standing for none: the connection the pane works on, stepped on to the next,
+// the head's rows; and its actions, 0 located for none: the connection the pane works on, stepped on to the next,
 // then the bar's tools from the left, Connect or Disconnect, New, Edit, Read Again, Stop Reading, Stop, Commit and
 // Roll Back
 #define CLI_DB_PANE_HEAD_ROWS 2u
@@ -55,13 +55,13 @@ typedef struct CliDbPaneInputCfg CliDbPaneInputCfg;
 #define CLI_DB_PANE_FIRST_TOOL CLI_DB_PANE_CONNECT
 #define CLI_DB_PANE_LAST_TOOL CLI_DB_PANE_ROLLBACK
 
-// the most bytes of a node row's text or detail with its end
+// the max bytes of a node row's text or detail with its end
 #define CLI_DB_PANE_ROW_TEXT 2048u
 
 // A row of the pane: its type and its depth in the schema; its text and its bytes, a node's label, a sentence, or a
 // form row's label; its detail and its bytes, a node's type or column type, a field's text, NULL for a password's, or
 // a choice's word; whether a node opens and whether it is open, whether a sentence or a level is a failure, whether a
-// field has the keys, whether a box is on, how many letters a password's field carries, an ask's row or the form's
+// field has the keys, whether a box is on, how many characters a password's field carries, an ask's row or the form's
 // buttons; and the row's own bytes a node's text and detail are copied into
 typedef struct
 {
@@ -77,14 +77,14 @@ typedef struct
     int focused;
     int on;
     int secret;
-    unsigned long long letters;
+    unsigned long long characters;
     CliPromptRow prompt;
     char text_copied[CLI_DB_PANE_ROW_TEXT];
     char detail_copied[CLI_DB_PANE_ROW_TEXT];
 } CliDbPaneRow;
 
 // the pane begun, `woken` waking the view's thread as a run on its own thread ends; the connections of the tree at
-// `root` read, each with whether it is open, the one chosen standing where the tree still lists it; the pane's title,
+// `root` read, each with whether it is open, the one chosen located where the tree still lists it; the pane's title,
 // the connection it works on with its open mark, with its bytes into `length_out`; how many rows the pane has, a
 // number that changes as its data does; the row `at` into `row`: 1, or 0 past the last; and the step at `now_ms`: a
 // run its thread ended adopted into the grid, its transaction's state read, its ask opened where it confirms first: 1
@@ -97,7 +97,7 @@ int cli_db_pane_row(const CliDbPaneCfg *args);
 int cli_db_pane_step(const CliDbPaneCfg *args);
 // a statement of `size` bytes of `statement` run on the chosen connection on a thread of its own, connecting first
 // where it is not open, `answered` where its ask was answered already: 1 where it started, 0 where no connection is
-// open or a run stands; and whether a run stands
+// open or a run is; and whether a run is
 int cli_db_pane_run(const CliDbPaneCfg *args);
 int cli_db_pane_running(const CliDbPaneCfg *args);
 struct CliDbPaneCfg
@@ -201,7 +201,7 @@ EMBED_TABLE_STORAGE CliDbPaneTreeNs cli_db_pane_tree EMBED_UNUSED = {
 
 // `size` bytes of `text` typed, a UTF-8 run, into the ask while the pane asks, else into the form's field that has
 // the keys; and the key `name` pressed, the ask's keys while it asks, else the form's: Backspace erases the field's
-// last letter, Tab hands the keys to the next field, Enter saves the form, Escape closes it: 1 where it was taken
+// last character, Tab passes the keys to the next field, Enter saves the form, Escape closes it: 1 where it was taken
 void cli_db_pane_type(const CliDbPaneInputCfg *args);
 int cli_db_pane_key(const CliDbPaneInputCfg *args);
 struct CliDbPaneInputCfg

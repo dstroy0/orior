@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // The record machine's host oracle on any part (engine_table.md item 11(f) 6, a second target). Programs over every
-// record operation are encoded (keymath), laid out (key_schedule) and run by cycle_record_run_host, the exact integer
+// record operation are encoded (keymath), arranged (key_schedule) and run by cycle_record_run_host, the exact integer
 // library's own steps, with no device and no CUDA toolchain. Each program's inputs come from one xorshift stream:
 // every host draws the same atoms, and the test prints a digest of the inputs and of every output word: two parts
 // whose lines match run the record machine word for word alike. The device's record tests check the device against this
-// same oracle on the x86 host. A part that matches x86 here matches the device too. It also checks that a laid-out
+// same oracle on the x86 host. A part that matches x86 here matches the device too. It also checks that a positioned-out
 // program with its registers reused writes the records the unreused one does, and that a zero divisor and an inexact
 // division error on the run.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
@@ -33,7 +33,7 @@ static void host_check(HostResults *results, int passed, const char *what)
     printf("  %s %s\n", passed ? "ok  " : "FAIL", what);
 }
 
-// the program laid out and run over its members' atoms, with the index where one is given; its records' digest printed.
+// the program arranged and run over its members' atoms, with the index where one is given; its records' digest printed.
 // 1 where it ran every lane, the records left in *records for the caller to free
 static int host_run(HostResults *results, const HostProgram *program, int reuse, unsigned int *const *atoms,
                     const unsigned long long *bodies, const unsigned int *index, unsigned int **records)
@@ -42,7 +42,7 @@ static int host_run(HostResults *results, const HostProgram *program, int reuse,
     HostLoaded loaded;
     if (host_load(program, reuse, &loaded) == 0)
     {
-        printf("  %s: not laid out, module %d site %u\n", program->name, (int)loaded.error.module, loaded.error.site);
+        printf("  %s: not arranged, module %d site %u\n", program->name, (int)loaded.error.module, loaded.error.site);
         host_check(results, 0, program->name);
         return 0;
     }
@@ -96,7 +96,7 @@ static void host_error(HostResults *results, const HostProgram *program, const u
         request.out = out;
         request.error = &loaded.error;
         ok = (out != NULL) && (cycle_record_run_host(&request) == CYCLE_ERROR) &&
-             (loaded.error.kind == ENGINE_ERROR_REQUEST) && (loaded.error.module == ENGINE_MODULE_CYCLE);
+             (loaded.error.type == ENGINE_ERROR_REQUEST) && (loaded.error.module == ENGINE_MODULE_CYCLE);
         host_free(&loaded);
     }
     free(out);

@@ -17,7 +17,7 @@ static unsigned int s_lists[2048];
 static char s_text[1u << 17u];
 static CliCatalog s_catalog;
 static CliValues s_values;
-static char s_shown[4][1024];
+static char s_displayed[4][1024];
 static unsigned int s_displayed_count;
 static char s_root[CLI_PATH_MAX_LEN];
 
@@ -26,7 +26,7 @@ static void line_recorded(const CliEachDisplayedCfg *args)
 {
     if (s_displayed_count < 4u)
     {
-        memor.cpy(&(MemoriaCfg){.dst = s_shown[s_displayed_count], .src = args->displayed, .bytes = CLI_UNITY_LENGTH(args->displayed) + 1ull});
+        memor.cpy(&(MemoriaCfg){.dst = s_displayed[s_displayed_count], .src = args->displayed, .bytes = CLI_UNITY_LENGTH(args->displayed) + 1ull});
         s_displayed_count += 1u;
     }
 }
@@ -56,10 +56,10 @@ static unsigned int lines_displayed(unsigned int job, const char *const *pairs, 
 static void assert_displayed_ends(const char *end, unsigned int job, const char *const *pairs, unsigned int count)
 {
     TEST_ASSERT_GREATER_THAN_UINT(0u, lines_displayed(job, pairs, count));
-    const unsigned long long size = CLI_UNITY_LENGTH(s_shown[0]);
+    const unsigned long long size = CLI_UNITY_LENGTH(s_displayed[0]);
     const unsigned long long end_size = CLI_UNITY_LENGTH(end);
     TEST_ASSERT_GREATER_OR_EQUAL_UINT64(end_size, size);
-    TEST_ASSERT_EQUAL_STRING(end, s_shown[0] + size - end_size);
+    TEST_ASSERT_EQUAL_STRING(end, s_displayed[0] + size - end_size);
 }
 
 // a choice of a param, the empty string past its last

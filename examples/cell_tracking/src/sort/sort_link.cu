@@ -30,11 +30,11 @@
 
 #define SORT_SLICES (SORT_SLICES_A_DIRECTION * SORT_DIRECTIONS)
 
-// a tie list stores twice the capacity, and pass 2 fills it a batch of items at a time; one item's ties are at most the
-// other frame's points, at most the capacity. Every batch takes at least one item
+// a tie list stores twice the capacity, and pass 2 fills it a batch of items at a time; one item's ties are at max the
+// other frame's points, at max the capacity. Every batch takes at least one item
 #define SORT_LIST_CAPACITY(capacity_) (2ull * (unsigned long long)(capacity_))
 
-// the weighted sum of the squared spans is at most 2^63 - 1, and so is every gate length and every crossing dot
+// the weighted sum of the squared spans is at max 2^63 - 1, and so is every gate length and every crossing dot
 #define SORT_LENGTH_MAX 0x7FFFFFFFFFFFFFFFull
 
 #define SORT_NONE 0xFFFFFFFFu
@@ -65,8 +65,8 @@ typedef struct
 
 static SortResident s_sort_resident;
 
-// the weighted squared length between two places. Each difference is at most its axis's span. Once the span check
-// has passed every term and their sum are at most 2^63 - 1
+// the weighted squared length between two places. Each difference is at max its axis's span. Once the span check
+// has passed every term and their sum are at max 2^63 - 1
 __host__ __device__ static unsigned long long sort_length(const int *one, const int *other, SortWeights weights)
 {
     unsigned long long length = 0ull;
@@ -155,7 +155,7 @@ __global__ static void sort_ties_kernel(const int *from, unsigned int first, uns
     }
 }
 
-// the pool's slices for frames of `capacity` points, in the order they are laid out and taken: each direction's places,
+// the pool's slices for frames of `capacity` points, in the order they are arranged and taken: each direction's places,
 // least lengths, tie counts, offsets and tie list
 static DevicePoolPlan sort_plan(unsigned long long capacity, EngineError *error,
                                 DevicePoolTakeRequest takes[SORT_SLICES])
@@ -199,7 +199,7 @@ static int sort_reserve(unsigned int capacity)
     const DevicePoolPlan plan = sort_plan(capacity, &error, takes);
     const DevicePoolReserveRequest reserve = {&plan, &resident->pool, &error};
     int ok = device_pool_reserve(&reserve) == 0L;
-    // the slices are taken in the plan's order, and each lands where the plan laid it out with none errored
+    // the slices are taken in the plan's order, and each lands where the plan positioned it out with none errored
     for (unsigned int at = 0u; (ok != 0) && (at < SORT_SLICES); at += 1u)
     {
         ok = device_pool_take(&takes[at]) == 0L;
@@ -214,11 +214,11 @@ static int sort_reserve(unsigned int capacity)
     return 1;
 }
 
-extern "C" unsigned long long sort_reserve_bytes(unsigned int maximum)
+extern "C" unsigned long long sort_reserve_bytes(unsigned int max)
 {
     // a frame past the matching's bound errors and stores nothing
     DevicePoolTakeRequest takes[SORT_SLICES];
-    const DevicePoolPlan plan = sort_plan((maximum <= SORT_COUNT_MAX) ? maximum : 0u, NULL, takes);
+    const DevicePoolPlan plan = sort_plan((max <= SORT_COUNT_MAX) ? max : 0u, NULL, takes);
     return device_pool_plan_bytes(&plan);
 }
 
@@ -310,8 +310,8 @@ static void sort_scratch_free(SortScratch *scratch)
 }
 
 // the places' span on each axis over the sources, the predictions, the still places when there are any, and the
-// targets together. Every gate length and every crossing dot is at most the weighted sum of the squared spans, which
-// must be at most 2^63 - 1
+// targets together. Every gate length and every crossing dot is at max the weighted sum of the squared spans, which
+// must be at max 2^63 - 1
 static int sort_span_fits(const SortPairRequest *request)
 {
     unsigned long long remaining = SORT_LENGTH_MAX;
@@ -319,30 +319,30 @@ static int sort_span_fits(const SortPairRequest *request)
     for (unsigned int axis = 0u; fits && (axis < ENGINE_AXES); axis += 1u)
     {
         long long least = request->target_places[axis];
-        long long maximum = least;
+        long long max = least;
         for (unsigned int source = 0u; source < request->sources; source += 1u)
         {
             const long long place = request->source_places[(ENGINE_AXES * (size_t)source) + axis];
             const long long predicted = request->predictions[(ENGINE_AXES * (size_t)source) + axis];
             least = (place < least) ? place : least;
-            maximum = (place > maximum) ? place : maximum;
+            max = (place > max) ? place : max;
             least = (predicted < least) ? predicted : least;
-            maximum = (predicted > maximum) ? predicted : maximum;
+            max = (predicted > max) ? predicted : max;
             if (request->stills != NULL)
             {
                 const long long stilled = request->stills[(ENGINE_AXES * (size_t)source) + axis];
                 least = (stilled < least) ? stilled : least;
-                maximum = (stilled > maximum) ? stilled : maximum;
+                max = (stilled > max) ? stilled : max;
             }
         }
         for (unsigned int target = 0u; target < request->targets; target += 1u)
         {
             const long long place = request->target_places[(ENGINE_AXES * (size_t)target) + axis];
             least = (place < least) ? place : least;
-            maximum = (place > maximum) ? place : maximum;
+            max = (place > max) ? place : max;
         }
         // two 32-bit places differ by below 2^32. The span re-signs exactly and squares below 2^64
-        const unsigned long long span = (unsigned long long)(maximum - least);
+        const unsigned long long span = (unsigned long long)(max - least);
         const unsigned long long square = span * span;
         fits = (square == 0ull) || (request->weights[axis] <= (remaining / square));
         remaining -= fits ? ((unsigned long long)request->weights[axis] * square) : 0ull;
@@ -367,7 +367,7 @@ static int sort_gate_still(const SortPairRequest *request, SortWeights weights, 
                          cudaMemcpyHostToDevice) == cudaSuccess);
     if (ok != 0)
     {
-        // the sources are at most 2^30. The blocks fit unsigned int
+        // the sources are at max 2^30. The blocks fit unsigned int
         const unsigned int blocks = (sources + SORT_THREADS - 1u) / SORT_THREADS;
         sort_least_kernel<<<blocks, SORT_THREADS>>>(resident->places[0], sources, resident->places[1], targets, weights,
                                                     resident->least[0], resident->ties[0]);
@@ -387,7 +387,7 @@ static int sort_gate_still(const SortPairRequest *request, SortWeights weights, 
     for (unsigned int item = 0u; item < sources; item += 1u)
     {
         scratch->still_offsets[item] = running;
-        // the running sum is at most the total, below 2^30
+        // the running sum is at max the total, below 2^30
         running += scratch->still_ties[item];
     }
     scratch->still_list = (unsigned int *)malloc(((size_t)*total + 1u) * sizeof(unsigned int));
@@ -438,7 +438,7 @@ static int sort_gate(const SortPairRequest *request, SortLinks *links, SortScrat
     for (unsigned int direction = 0u; (ok != 0) && (direction < SORT_DIRECTIONS); direction += 1u)
     {
         const unsigned int other = 1u - direction;
-        // the counts are at most 2^30. The blocks fit unsigned int
+        // the counts are at max 2^30. The blocks fit unsigned int
         const unsigned int blocks = (counts[direction] + SORT_THREADS - 1u) / SORT_THREADS;
         sort_least_kernel<<<blocks, SORT_THREADS>>>(resident->places[direction], counts[direction],
                                                     resident->places[other], counts[other], weights,
@@ -452,7 +452,7 @@ static int sort_gate(const SortPairRequest *request, SortLinks *links, SortScrat
         links->why = SORT_WHY_DEVICE;
         return 0;
     }
-    // the gate is at most both tie lists, which the matching bounds
+    // the gate is at max both tie lists, which the matching bounds
     unsigned long long totals[SORT_DIRECTIONS] = {0ull, 0ull};
     for (unsigned int direction = 0u; direction < SORT_DIRECTIONS; direction += 1u)
     {
@@ -472,7 +472,7 @@ static int sort_gate(const SortPairRequest *request, SortLinks *links, SortScrat
         for (unsigned int item = 0u; item < counts[direction]; item += 1u)
         {
             scratch->offsets[direction][item] = running;
-            // the running sum is at most the total, below 2^30
+            // the running sum is at max the total, below 2^30
             running += scratch->ties[direction][item];
         }
         scratch->list[direction] = (unsigned int *)malloc(((size_t)totals[direction] + 1u) * sizeof(unsigned int));
@@ -517,7 +517,7 @@ static int sort_gate(const SortPairRequest *request, SortLinks *links, SortScrat
     const unsigned int sources = counts[0];
     scratch->back_start = (ok != 0) ? (unsigned int *)calloc((size_t)sources + 2u, sizeof(unsigned int)) : NULL;
     scratch->back_list = (ok != 0) ? (unsigned int *)malloc(((size_t)totals[1] + 1u) * sizeof(unsigned int)) : NULL;
-    // the gate's pairs are at most the three totals, below 2^30
+    // the gate's pairs are at max the three totals, below 2^30
     ok = ok && (scratch->back_start != NULL) && (scratch->back_list != NULL) &&
          sort_links_reserve(links, (unsigned int)(totals[0] + totals[1] + still_total));
     if (ok == 0)
@@ -602,7 +602,7 @@ static int sort_gate(const SortPairRequest *request, SortLinks *links, SortScrat
 static int sort_weigh(const SortPairRequest *request, SortLinks *links, SortScratch *scratch)
 {
     const unsigned int sources = request->sources;
-    // the sources and targets are at most 2^30 each. Their nodes fit unsigned int
+    // the sources and targets are at max 2^30 each. Their nodes fit unsigned int
     const unsigned int nodes = sources + request->targets;
     scratch->parent = (unsigned int *)malloc(((size_t)nodes + 1u) * sizeof(unsigned int));
     scratch->label = (unsigned int *)malloc(((size_t)nodes + 1u) * sizeof(unsigned int));
@@ -668,7 +668,7 @@ static int sort_weigh(const SortPairRequest *request, SortLinks *links, SortScra
     }
     for (unsigned int pair = 0u; pair < links->pairs; pair += 1u)
     {
-        // K is at most 2^32 - 1 and past every cost in its component. K - cost is 1 or more and fits unsigned int
+        // K is at max 2^32 - 1 and past every cost in its component. K - cost is 1 or more and fits unsigned int
         links->weight[pair] = (unsigned int)(scratch->need[links->component[pair]] - links->cost[pair]);
     }
     return 1;
@@ -694,14 +694,14 @@ static int sort_match(const SortPairRequest *request, SortLinks *links, SortScra
     {
         links->flags[pair] |= (scratch->chosen[pair] != 0u) ? SORT_GATE_CHOSEN : 0u;
     }
-    // the chosen links are at most the gate's pairs, below 2^30. They narrow to unsigned int exactly
+    // the chosen links are at max the gate's pairs, below 2^30. They narrow to unsigned int exactly
     links->chosen = (unsigned int)picked;
     return 1;
 }
 
 // every two chosen links A -> A' and B -> B' in one component: their sources' difference dotted with their targets',
-// each axis weighted. Positive preserves their order, zero is level, negative crosses. Each difference is at most its
-// axis's span. Every term and the dot are at most 2^63 - 1 in size
+// each axis weighted. Positive preserves their order, zero is level, negative crosses. Each difference is at max its
+// axis's span. Every term and the dot are at max 2^63 - 1 in size
 static int sort_cross(const SortPairRequest *request, SortLinks *links, SortScratch *scratch)
 {
     scratch->group_start = (unsigned int *)calloc((size_t)links->components + 2u, sizeof(unsigned int));
@@ -882,7 +882,7 @@ extern "C" int sort_first_pool(SortFirstCount *counts, unsigned long long count,
     {
         return 0;
     }
-    // every block's sums are at most the pairs' total, which must fit 64 bits
+    // every block's sums are at max the pairs' total, which must fit 64 bits
     unsigned long long total = 0ull;
     int ok = 1;
     for (unsigned long long at = 0ull; ok && (at < count); at += 1ull)
@@ -955,9 +955,9 @@ static unsigned long long sort_frame_bytes(unsigned long long count, unsigned lo
     return ((count != 0ull) && (words > ((0x7FFFFFFFFFFFFFFFull / 4ull) / count))) ? ~0ull : (count * words * 4ull);
 }
 
-extern "C" int sort_points_max(const char *set, char *const *samples, unsigned int count, unsigned int *maximum)
+extern "C" int sort_points_max(const char *set, char *const *samples, unsigned int count, unsigned int *max)
 {
-    if ((set == NULL) || (samples == NULL) || (maximum == NULL))
+    if ((set == NULL) || (samples == NULL) || (max == NULL))
     {
         return 0;
     }
@@ -984,11 +984,11 @@ extern "C" int sort_points_max(const char *set, char *const *samples, unsigned i
         }
         if (ok == 0)
         {
-            fprintf(stderr, "  sort: %s: its .points in %s did not read for the most points a frame\n", samples[at],
+            fprintf(stderr, "  sort: %s: its .points in %s did not read for the max points a frame\n", samples[at],
                     set);
         }
     }
-    *maximum = ok ? found : 0u;
+    *max = ok ? found : 0u;
     return ok;
 }
 
@@ -1098,7 +1098,7 @@ static int sort_words_reserve(SortWalk *walk, size_t words)
 }
 
 // O7: the pair's gate retained for the sample's count, each pair as its distance doubled, plus 1 when it is first-rank.
-// Every distance is at most 2^63 - 1. Doubled it fits 64 bits
+// Every distance is at max 2^63 - 1. Doubled it fits 64 bits
 static int sort_first_retain(SortWalk *walk)
 {
     const SortLinks *const links = &walk->links;
@@ -1665,7 +1665,7 @@ extern "C" long sort_link_set(const SortRequest *request)
     {
         printf("  O7's first term: once a sample's first pass is written, each gate pair's cost is its distance's level"
                " in the sample's share of first-rank pairs at that distance, pooled by pool-adjacent-violators until it"
-               " never rises with the distance, the most first; each frame pair is weighed and matched again on those"
+               " never rises with the distance, the max first; each frame pair is weighed and matched again on those"
                " costs, its predictions the first pass's\n");
     }
     printf("  %-24s %6s %10s %s\n", "sample", "frames", "chosen",

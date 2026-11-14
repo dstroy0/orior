@@ -1,4 +1,4 @@
-kind	name	key	code	key_code	text	shifted
+type	name	key	code	key_code	text	shifted
 mark	`	`	Backquote	192	`	~
 mark	-	-	Minus	189	-	_
 mark	=	=	Equal	187	=	+

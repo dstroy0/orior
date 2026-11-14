@@ -2,7 +2,7 @@
   "id": "kotlin",
   "name": "Kotlin",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "extensions": ["kt","kts"],
   "comments": {"line":"//","block":["/*","*/"]},
   "pairs": ["()","[]","{}"],

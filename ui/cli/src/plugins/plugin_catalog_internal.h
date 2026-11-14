@@ -12,7 +12,7 @@ typedef struct CliPluginCatalogWhereCtx CliPluginCatalogWhereCtx;
 typedef struct CliPluginCatalogAddressCtx CliPluginCatalogAddressCtx;
 typedef struct CliPluginCatalogCtx CliPluginCatalogCtx;
 
-// the most bytes a catalog or a package read takes
+// the max bytes a catalog or a package read takes
 #define CLI_CATALOG_BYTES (32u << 20u)
 
 // A catalog's work state, taken with the lock and emptied with it: the bytes read, in a cell of their size, and the

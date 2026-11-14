@@ -25,7 +25,7 @@ export function operate(command) {
     ({ start, end } = span);
   } else {
     let motion = command.motion;
-    if (command.name === "c" && (motion.name === "w" || motion.name === "W") && this.kind(this.charAt(from), motion.name === "W")) {
+    if (command.name === "c" && (motion.name === "w" || motion.name === "W") && this.type(this.charAt(from), motion.name === "W")) {
       motion = { name: motion.name === "w" ? "e" : "E" };
     }
     const found = this.motion(motion, command.count, from);
@@ -49,16 +49,16 @@ export function operate(command) {
 }
 
 export function store(register, text, lines, yanked) {
-  const kept = { text, lines };
+  const retained = { text, lines };
   if (register && /^[a-z]$/.test(register)) {
-    this.registers.set(register, kept);
+    this.registers.set(register, retained);
   } else if (register && /^[A-Z]$/.test(register)) {
     const before = this.registers.get(register.toLowerCase());
-    this.registers.set(register.toLowerCase(), before ? { text: `${before.text}${lines || before.lines ? "\n" : ""}${text}`, lines: lines || before.lines } : kept);
+    this.registers.set(register.toLowerCase(), before ? { text: `${before.text}${lines || before.lines ? "\n" : ""}${text}`, lines: lines || before.lines } : retained);
   }
-  this.registers.set('"', kept);
+  this.registers.set('"', retained);
   if (yanked) {
-    this.registers.set("0", kept);
+    this.registers.set("0", retained);
   }
 }
 
@@ -118,14 +118,14 @@ export function leaveInsert() {
 }
 
 export function paste(command, before) {
-  const kept = this.registers.get(command.register ?? '"');
-  if (!kept) {
+  const retained = this.registers.get(command.register ?? '"');
+  if (!retained) {
     return;
   }
   const times = command.count ?? 1;
-  const text = Array.from({ length: times }, () => kept.text).join(kept.lines ? "\n" : "");
+  const text = Array.from({ length: times }, () => retained.text).join(retained.lines ? "\n" : "");
   const at = this.head();
-  if (kept.lines) {
+  if (retained.lines) {
     const line = before ? at.line : at.line + 1;
     const where = before ? pos(at.line, 0) : pos(at.line, this.line(at.line).length);
     this.editor.change([{ from: where, to: where, text: before ? `${text}\n` : `\n${text}` }], null);
@@ -157,7 +157,7 @@ export function join(first, count) {
 
 export function toggleCase(start, end) {
   const text = this.doc.slice(start, end);
-  const turned = [...text].map((letter) => (letter === letter.toLowerCase() ? letter.toUpperCase() : letter.toLowerCase())).join("");
+  const turned = [...text].map((character) => (character === character.toLowerCase() ? character.toUpperCase() : character.toLowerCase())).join("");
   this.editor.change([{ from: start, to: end, text: turned }], null);
 }
 
@@ -196,7 +196,7 @@ export function openPrompt(back) {
 }
 
 // Looks for the text, as a regular expression where it reads as one, and goes to the next place it
-// stands, or the last for `back`; `whole` looks for it as a whole word.
+// is, or the last for `back`; `whole` looks for it as a whole word.
 export function searchFor(text, back, whole) {
   const plain = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   let pattern;
@@ -254,7 +254,7 @@ export function runCommand(command) {
       break;
     case "r":
       if (head.col + times <= text.length) {
-        this.editor.change([{ from: head, to: pos(head.line, head.col + times), text: command.letter.repeat(times) }], null);
+        this.editor.change([{ from: head, to: pos(head.line, head.col + times), text: command.character.repeat(times) }], null);
         this.put(pos(head.line, head.col + times - 1));
       }
       break;
@@ -338,7 +338,7 @@ export async function repeat() {
 
 // Visual mode.
 
-// The selection visual mode has made: whole lines in visual line mode, and from one end's letter
+// The selection visual mode has made: whole lines in visual line mode, and from one end's character
 // to the other's, both taken, in visual mode.
 export function span() {
   const { anchor, head } = this.visual;
@@ -387,10 +387,10 @@ export function runChosen(command) {
   } else if (name === "J") {
     this.join(start.line, Math.max(2, end.line - start.line + 1));
   } else if (name === "p" || name === "P") {
-    const kept = this.registers.get(command.register ?? '"');
-    if (kept) {
+    const retained = this.registers.get(command.register ?? '"');
+    if (retained) {
       this.store(null, this.doc.slice(start, end), lines, false);
-      this.editor.change([{ from: start, to: end, text: kept.text }], null);
+      this.editor.change([{ from: start, to: end, text: retained.text }], null);
       this.put(start);
     }
   }

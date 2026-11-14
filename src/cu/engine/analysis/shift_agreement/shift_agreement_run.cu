@@ -67,7 +67,7 @@ static int agreement_layout(unsigned int axes, const unsigned int *extents, cons
         {
             power <<= 1u;
         }
-        // the extent is at most 2^22, and its power at most 2^23
+        // the extent is at max 2^22, and its power at max 2^23
         layout->padded[axis] = (unsigned int)power;
         padded_total *= power;
         if ((voxels >= (unsigned long long)SHIFT_AGREEMENT_PRIME) || (padded_total > 0x7FFFFFFFull))
@@ -75,7 +75,7 @@ static int agreement_layout(unsigned int axes, const unsigned int *extents, cons
             return 0;
         }
     }
-    // the voxel count is below the prime, under 2^30, and the padded total at most 2^31 - 1
+    // the voxel count is below the prime, under 2^30, and the padded total at max 2^31 - 1
     layout->voxels = (unsigned int)voxels;
     layout->total = (unsigned int)padded_total;
     unsigned int stride = layout->total;
@@ -96,8 +96,8 @@ static VolumesResident s_volumes_resident;
 
 #define SHIFT_AGREEMENT_SLICES (2u + SHIFT_AGREEMENT_VOLUMES)
 
-// the pool's slices for `total` padded elements and `words` bit words, in the order they are laid out and taken: the
-// before and after words, then the four volumes; the plan is laid out from them, and a pool reserved from it takes them
+// the pool's slices for `total` padded elements and `words` bit words, in the order they are arranged and taken: the
+// before and after words, then the four volumes; the plan is arranged from them, and a pool reserved from it takes them
 static DevicePoolPlan plan_volumes(size_t total, size_t words, EngineError *error,
                                    DevicePoolTakeRequest takes[SHIFT_AGREEMENT_SLICES])
 {
@@ -136,7 +136,7 @@ static int reserve_volumes(size_t total, size_t words)
     const DevicePoolPlan plan = plan_volumes(total, words, &error, takes);
     const DevicePoolReserveRequest reserve = {&plan, &resident->pool, &error};
     int ok = device_pool_reserve(&reserve) == 0L;
-    // the slices are taken in the plan's order, and each lands where the plan laid it out with none errored
+    // the slices are taken in the plan's order, and each lands where the plan positioned it out with none errored
     for (unsigned int at = 0u; (ok != 0) && (at < SHIFT_AGREEMENT_SLICES); at += 1u)
     {
         ok = device_pool_take(&takes[at]) == 0L;

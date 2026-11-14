@@ -42,7 +42,7 @@ static void event_recorded(const CliEachEventJsonSizeCfg *args)
     }
 }
 
-// a file's diagnostics handed on, how many counted after those handed on before, a comma between
+// a file's diagnostics passed on, how many counted after those passed on before, a comma between
 static void diagnostics_counted(const CliServerDiagnosticsCfg *args)
 {
     VerbaLinea line = {s_passed_on, sizeof(s_passed_on), s_passed_on_at};
@@ -337,7 +337,7 @@ void test_zig_mojo_ansible_rust_and_python_each_have_a_server(void)
 
 void test_a_hover_of_markdown_reads_as_markdown(void)
 {
-    const unsigned int read = text_parsed("{\"kind\":\"markdown\",\"value\":\"**x**\"}");
+    const unsigned int read = text_parsed("{\"type\":\"markdown\",\"value\":\"**x**\"}");
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     EMBED_CALL(cli_servers_json_out_internal.markdown_get, CliServersJsonOutCtx, .json = s_json, .contents = read, .out = &out);
     CLI_TEST_ASSERT_TEXT("**x**", s_out, out.at);
@@ -378,7 +378,7 @@ void test_a_workspace_edits_document_changes_read_a_file_created_not_among_them(
     mmgr_line_put(&line, uri);
     mmgr_line_put(&line, "\",\"version\":2},\"edits\":[");
     edit_written(&line, 0u, "c");
-    mmgr_line_put(&line, "]},{\"kind\":\"create\",\"uri\":\"file:///t/b.c\"}]}");
+    mmgr_line_put(&line, "]},{\"type\":\"create\",\"uri\":\"file:///t/b.c\"}]}");
     (void)mmgr_line_finish(&line);
     TEST_ASSERT_EQUAL_STRING(":c", files_edited(s_edit));
 }
@@ -416,7 +416,7 @@ void test_edits_are_written_by_utf16_columns_the_line_ends_preserved(void)
 
 void test_a_completion_is_named_by_what_it_inserts(void)
 {
-    const unsigned int read = text_parsed("{\"label\":\" printf(const char *, ...)\",\"kind\":3,\"detail\":\"int\",\"filterText\":"
+    const unsigned int read = text_parsed("{\"label\":\" printf(const char *, ...)\",\"type\":3,\"detail\":\"int\",\"filterText\":"
                                           "\"printf\",\"insertText\":\"printf\"}");
     EMBED_CALL(cli_edits_items.completions_begin, CliEditsItemsCfg, .items = &s_items);
     EMBED_CALL(cli_servers_json_one_internal.item_get, CliServersJsonOneCtx, .json = s_json, .one = read, .items = &s_items);
@@ -528,7 +528,7 @@ void test_another_report_names_no_attribute(void)
     TEST_ASSERT_FALSE(EMBED_CALL(cli_servers_length_internal.attribute_get, CliServersLengthCtx, .message = s_other, .length = sizeof(s_other) - 1u, .name_pointer = &name, .name_size = &name_size, .class_name = &class_name, .class_size = &class_size));
 }
 
-// the jobs handed over: how many ran with their bytes, how many ran with none, and each value's count of runs
+// the jobs passed over: how many ran with their bytes, how many ran with none, and each value's count of runs
 #define JOBS_THREADS 4u
 #define JOBS_EACH 64u
 static _Atomic unsigned int s_jobs_run;
@@ -551,33 +551,33 @@ static void jobs_counted(const CliServersJobCfg *args)
     (void)atomic_fetch_add(&s_jobs_run, 1u);
 }
 
-// a thread that hands JOBS_EACH jobs over, each a value of its own, and counts the hand-overs refused. The four threads
+// a thread that passes JOBS_EACH jobs over, each a value of its own, and counts the hand-overs refused. The four threads
 // hand as many jobs as the ring holds: a ring full answers a hand-over with a refusal until the runner takes one. The
 // hand-over goes again after a yield, and counts as refused only where ten seconds pass without room
-static void jobs_handed(void *context)
+static void jobs_passed(void *context)
 {
     const unsigned int first = *(const unsigned int *)context;
     for (unsigned int at = 0u; at < JOBS_EACH; at += 1u)
     {
         unsigned int value = first + at;
         const unsigned long long until = cli_clock_milliseconds() + 10000ull;
-        int handed = 0;
-        while (!handed && (cli_clock_milliseconds() < until))
+        int passed = 0;
+        while (!passed && (cli_clock_milliseconds() < until))
         {
-            handed = EMBED_CALL(cli_servers_run_internal.later, CliServersRunCtx, .run = jobs_counted, .job = &value, .size = sizeof(value));
-            if (!handed)
+            passed = EMBED_CALL(cli_servers_run_internal.later, CliServersRunCtx, .run = jobs_counted, .job = &value, .size = sizeof(value));
+            if (!passed)
             {
                 cli_thread_yield();
             }
         }
-        if (!handed)
+        if (!passed)
         {
             (void)atomic_fetch_add(&s_jobs_refused, 1u);
         }
     }
 }
 
-void test_jobs_handed_over_from_four_threads_each_run_once_with_their_bytes(void)
+void test_jobs_passed_over_from_four_threads_each_run_once_with_their_bytes(void)
 {
     atomic_store(&s_jobs_run, 0u);
     atomic_store(&s_jobs_empty, 0u);
@@ -589,7 +589,7 @@ void test_jobs_handed_over_from_four_threads_each_run_once_with_their_bytes(void
     for (unsigned int at = 0u; at < JOBS_THREADS; at += 1u)
     {
         s_jobs_first[at] = at * JOBS_EACH;
-        s_jobs_thread[at] = (CliThread){jobs_handed, &s_jobs_first[at], CLI_PRIORITY_WORK};
+        s_jobs_thread[at] = (CliThread){jobs_passed, &s_jobs_first[at], CLI_PRIORITY_WORK};
         TEST_ASSERT_TRUE(EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_jobs_thread[at]));
     }
     const unsigned long long until = cli_clock_milliseconds() + 10000ull;

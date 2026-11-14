@@ -9,7 +9,7 @@
 // made of `__file__`, strings, the names the script set before it, `os.path`'s `dirname`, `abspath`, `realpath`,
 // `normpath` and `join`, `pathlib.Path` with `parent`, `parents`, `resolve`, `/` and `joinpath`, `str`, `os.fspath`,
 // and a string's `rsplit(sep, 1)[0]`. A name set again from itself, as a loop walks up a folder at a time until a
-// folder is there, stands for each folder above its first value; a name a `for` takes from a tuple or a list stands
+// folder is there, is for each folder above its first value; a name a `for` takes from a tuple or a list is
 // for each of them, and one it takes from `os.scandir`, `os.listdir` or `iterdir` for each folder in that folder. Of
 // what an expression may be, the folders that are there in the tree are retained (python_paths.c, python_paths_parse.c,
 // python_paths_eval.c)
@@ -22,14 +22,14 @@
 typedef struct CliPythonPathsCfg CliPythonPathsCfg;
 
 // the folders the Python scripts of the tree at `root` put on `sys.path`, each a folder there in the tree other than
-// its top, the most used first, the first `most` of them each handed to `each`: their count. A tree's reading stands
+// its top, the max used first, the first `max` of them each passed to `each`: their count. A tree's reading is
 // thirty seconds before it is read again
 unsigned int cli_python_paths(const CliPythonPathsCfg *args);
 
 struct CliPythonPathsCfg
 {
     const char *root;
-    unsigned int most;
+    unsigned int max;
     void (*each)(const CliEachPathCfg *args);
     void *context;
 };

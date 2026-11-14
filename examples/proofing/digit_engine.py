@@ -41,7 +41,7 @@ card, over three moduli that each carry a Proth certificate and a proved twiddle
 19.3 s through the card, and both routes end on the same ten digits.
 
 The gain is smaller than the multiply's own, and the reason is worth stating plainly. A
-million digit run does most of its work in the LOWER levels of the splitting tree, where the
+million digit run does the majority of its work in the LOWER levels of the splitting tree, where the
 operands are small and the native multiply is the faster route; only the top few levels are large
 enough for the transform to pay for its own setup. So the speedup grows with the digit count as
 more levels cross that line, and quoting the multiply's ratio as the series' ratio would be
@@ -94,7 +94,7 @@ def product(left, right):
     the other half. Neither imports the other's multiply, and nothing at runtime moves work between
     them. A tool's import line is the only record of which machine it ran on.
 
-    What stood here before was a `use_device()` that rebound this name to the card's multiply. Any
+    What was here before was a `use_device()` that rebound this name to the card's multiply. Any
     tool that called it changed the arithmetic of every other tool in the same process, from
     anywhere, with no trace in the result. A run could not then be described without knowing the
     call order, and a sweep that read as a device tool spent a whole night on the host without ever
@@ -174,7 +174,7 @@ def golden_angle(digits, guard=24):
     """Pi times three less the root of five, to `digits` places, on the fast series.
 
     The same quantity `natural_constants.golden_angle` computes, with the series underneath
-    replaced. Kept here instead of edited into that module so the two can be run against each other
+    replaced. Retained here instead of edited into that module so the two can be run against each other
     at any size, and that comparison is what `--check` runs.
     """
     work = digits + guard
@@ -190,9 +190,9 @@ def harmonic_unit(digits, guard=24):
     return math.isqrt(inner) // 10 ** guard
 
 
-def shown(value, digits, whole=1):
+def displayed(value, digits, whole=1):
     """An integer holding `digits` places, written out with its point in place."""
-    return nc.shown(value, digits, whole)
+    return nc.displayed(value, digits, whole)
 
 
 def _check():

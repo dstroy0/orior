@@ -9,7 +9,7 @@
 typedef struct CliEnvsCtx CliEnvsCtx;
 typedef struct CliEnvsOutCtx CliEnvsOutCtx;
 
-// the most names one folder requires and the bytes of them, and the names and the bytes their capacities are taken with
+// the max names one folder requires and the bytes of them, and the names and the bytes their capacities are taken with
 #define CLI_ENVS_NAMES 1024u
 #define CLI_ENVS_TEXT (1u << 20u)
 
@@ -20,7 +20,7 @@ typedef struct
     unsigned int length;
 } CliRequiredName;
 
-// The names a folder requires and their texts, each in a cell at their most, released through persistent_buf_release
+// The names a folder requires and their texts, each in a cell at their max, released through persistent_buf_release
 typedef struct
 {
     CliRequiredName *name;

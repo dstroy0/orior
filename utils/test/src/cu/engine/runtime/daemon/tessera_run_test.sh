@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-# tessera_run against the host's daemon: the command's exit code handed on, the processors and the priority set on it,
+# tessera_run against the host's daemon: the command's exit code passed on, the processors and the priority set on it,
 # its processors measured, a job that does not fit waiting for the one before it, two that fit running at once, the
 # errors, and a command watched by a child tessera_run (as a WSL command always is): its pid confirmed against the
 # parent's record, and a parent killed or stopped found so by the child, which ends the command and logs it. Takes
-# tessera_run, tessera_burn and a scratch directory, and reads $TESSERA_STATE, where the records are kept.
+# tessera_run, tessera_burn and a scratch directory, and reads $TESSERA_STATE, where the records are retained.
 set -u
 
 RUN="$1"
@@ -107,7 +107,7 @@ WAITED="$(thousandths "admitted after" s "$SCRATCH/after.err")"
 check "a job of 1 processor waited for one holding all $GIVEN ($WAITED ms)" $?
 
 # 3: two jobs of 2 processors each, together; of 1 each where the host gives jobs fewer than 4 (a Pi's four cores,
-# two kept for the desktop, give 2)
+# two retained for the desktop, give 2)
 PAIR=2
 [ "$GIVEN" -lt 4 ] && PAIR=1
 "$RUN" --processors "$PAIR" --name burn_pair_first -- "$BURN" 1 2000 0 > "$SCRATCH/first.out" 2> "$SCRATCH/first.err" &
@@ -135,7 +135,7 @@ cat "$SCRATCH/absent.err"
 [ "$STATUS" -eq 127 ] && grep -q "released after" "$SCRATCH/absent.err"
 check "a command that does not start exits 127 ($STATUS), and its job is released" $?
 
-# 5: a command watched by a child tessera_run: the child confirmed, the exit handed on, the tree measured, and the
+# 5: a command watched by a child tessera_run: the child confirmed, the exit passed on, the tree measured, and the
 # records gone after a clean end
 rm -rf "$CHILDREN"
 "$RUN" --processors 2 --name burn_child --child -- "$BURN" 2 1500 5 > "$SCRATCH/child.out" 2> "$SCRATCH/child.err"
@@ -144,7 +144,7 @@ cat "$SCRATCH/child.err" "$SCRATCH/child.out"
 PEAK="$(thousandths peak processors "$SCRATCH/child.err")"
 [ "$STATUS" -eq 5 ] && grep -q "reports it lives; its pid is recorded" "$SCRATCH/child.err" \
     && grep -q "its pid confirmed against the parent's record" "$SCRATCH/child.err"
-check "a watched command's child said it lives, was recorded and confirmed, and exit 5 was handed on ($STATUS)" $?
+check "a watched command's child said it lives, was recorded and confirmed, and exit 5 was passed on ($STATUS)" $?
 [ "$PEAK" -ge 1000 ] && [ "$PEAK" -le 2100 ]
 check "a watched command's two threads peaked between 1.000 and 2.100 processors ($PEAK thousandths)" $?
 [ -z "$(ls -A "$CHILDREN" 2> /dev/null)" ]
@@ -163,10 +163,10 @@ cat "$SCRATCH/orphan.err"
 cat "$CHILDREN"/*.log 2> /dev/null
 [ "$FOUND" -eq 0 ] && grep -qs "its parent is gone" "$CHILDREN"/*.log && grep -qs "^orphaned " "$CHILDREN"/*.child \
     && burn_ended 60000
-check "the child of a killed parent found it gone, ended the command, logged it, and its records are kept" $?
+check "the child of a killed parent found it gone, ended the command, logged it, and its records are retained" $?
 
-# 7: the parent stopped (Linux): it holds its record but keeps no keepalive, and its child ends the command once the
-# unresponsive time passes; the stopped parent, let go again, hands on the child's exit
+# 7: the parent stopped (Linux): it holds its record but retains no keepalive, and its child ends the command once the
+# unresponsive time passes; the stopped parent, let go again, passes on the child's exit
 if [ "$WINDOWS" -eq 0 ]; then
     rm -rf "$CHILDREN"
     TESSERA_RUN_SILENT_MS=1000 TESSERA_RUN_UNRESPONSIVE_MS=3000 \
@@ -184,7 +184,7 @@ if [ "$WINDOWS" -eq 0 ]; then
     [ "$FOUND" -eq 0 ] && grep -qs "the parent still locks its record" "$CHILDREN"/*.log \
         && grep -qs "locks its record but is not responding" "$CHILDREN"/*.log && [ "$STATUS" -eq 124 ] \
         && burn_ended 60001
-    check "the child of a stopped parent waited out the unresponsive time, ended the command, and 124 was handed on ($STATUS)" $?
+    check "the child of a stopped parent waited out the unresponsive time, ended the command, and 124 was passed on ($STATUS)" $?
 fi
 
 # 8: a child with no launch record runs nothing

@@ -131,15 +131,15 @@ int identity_known(const char *listing, const char *manifest, const std::string 
     return 0;
 }
 
-// the root of `kind` among the categories, each kind joined to the kinds it was found in a slice with
-static std::string category_root(std::map<std::string, std::string> *parent, const std::string &kind)
+// the root of `type` among the categories, each type joined to the types it was found in a slice with
+static std::string category_root(std::map<std::string, std::string> *parent, const std::string &type)
 {
-    std::string root = kind;
+    std::string root = type;
     while ((*parent)[root] != root)
     {
         root = (*parent)[root];
     }
-    for (std::string walk = kind; walk != root;)
+    for (std::string walk = type; walk != root;)
     {
         const std::string next = (*parent)[walk];
         (*parent)[walk] = root;
@@ -149,8 +149,8 @@ static std::string category_root(std::map<std::string, std::string> *parent, con
 }
 
 // The parts of nvcc's chains put together by their categories, no part's meaning read: two links a slice sets apart
-// stand for each other, and each link joined to another so, at any remove, is of its category. Each link of each chain
-// is stood for by every other of its category naming as many registers, the registers of the link it stands for given
+// are for each other, and each link joined to another so, at any remove, is of its category. Each link of each chain
+// is was for by every other of its category naming as many registers, the registers of the link it is for given
 // to it, and queried in the window of the link before it and the link after: a window nvcc writes somewhere is known,
 // and one it never writes is a question, recorded at the first address it arises at with its count. A link put in that
 // rule 2 blocks from the part is marked with the rule. The run's blob permutations.txt contains the categories, each
@@ -163,16 +163,16 @@ int identity_permute(const char *listing, const char *manifest, const std::strin
         return 1;
     }
     const std::unordered_map<unsigned long long, Occurrence> windows = windows_counted(questions);
-    // the first occurrence of every kind of link, and each kind its own category before any slice joins it
-    std::map<std::string, std::pair<unsigned int, unsigned int>> first_kind;
+    // the first occurrence of every type of link, and each type its own category before any slice joins it
+    std::map<std::string, std::pair<unsigned int, unsigned int>> first_type;
     std::map<std::string, std::string> parent;
     for (unsigned int question = 0u; question < questions.size(); question += 1u)
     {
         for (unsigned int link = 0u; link < questions[question].chain.size(); link += 1u)
         {
-            const std::string &kind = questions[question].chain[link].kind;
-            first_kind.insert(std::make_pair(kind, std::make_pair(question, link)));
-            parent.insert(std::make_pair(kind, kind));
+            const std::string &type = questions[question].chain[link].type;
+            first_type.insert(std::make_pair(type, std::make_pair(question, link)));
+            parent.insert(std::make_pair(type, type));
         }
     }
     for (size_t one = 0u; one < questions.size(); one += 1u)
@@ -183,29 +183,29 @@ int identity_permute(const char *listing, const char *manifest, const std::strin
             const Link *right = nullptr;
             if (slice_found(questions[one], questions[other], &left, &right))
             {
-                const std::string left_root = category_root(&parent, left->kind);
-                const std::string right_root = category_root(&parent, right->kind);
+                const std::string left_root = category_root(&parent, left->type);
+                const std::string right_root = category_root(&parent, right->type);
                 parent[left_root] = right_root;
             }
         }
     }
     // each category's members in the order of their first occurrence
     std::vector<std::pair<std::pair<unsigned int, unsigned int>, std::string>> ordered;
-    for (const auto &kind : first_kind)
+    for (const auto &type : first_type)
     {
-        ordered.push_back(std::make_pair(kind.second, kind.first));
+        ordered.push_back(std::make_pair(type.second, type.first));
     }
     std::sort(ordered.begin(), ordered.end());
     std::map<std::string, std::vector<std::string>> categories;
     std::vector<std::string> roots;
-    for (const auto &kind : ordered)
+    for (const auto &type : ordered)
     {
-        const std::string root = category_root(&parent, kind.second);
+        const std::string root = category_root(&parent, type.second);
         if (categories[root].empty())
         {
             roots.push_back(root);
         }
-        categories[root].push_back(kind.second);
+        categories[root].push_back(type.second);
     }
     std::unordered_map<unsigned long long, Permuted> permuted;
     std::vector<unsigned long long> permuted_order;
@@ -216,12 +216,12 @@ int identity_permute(const char *listing, const char *manifest, const std::strin
         const std::vector<Link> &chain = questions[question].chain;
         for (unsigned int link = 0u; link < chain.size(); link += 1u)
         {
-            const std::vector<std::string> &members = categories[category_root(&parent, chain[link].kind)];
+            const std::vector<std::string> &members = categories[category_root(&parent, chain[link].type)];
             for (const std::string &member : members)
             {
-                const std::pair<unsigned int, unsigned int> &at = first_kind.at(member);
+                const std::pair<unsigned int, unsigned int> &at = first_type.at(member);
                 const Link &source = questions[at.first].chain[at.second];
-                if ((member == chain[link].kind) || (source.named.size() != chain[link].named.size()))
+                if ((member == chain[link].type) || (source.named.size() != chain[link].named.size()))
                 {
                     continue;
                 }
@@ -247,7 +247,7 @@ int identity_permute(const char *listing, const char *manifest, const std::strin
                     continue;
                 }
                 const auto inserted = permuted.insert(
-                    std::make_pair(identity, Permuted{question, link, 0u, rendered, chain[link].kind, member}));
+                    std::make_pair(identity, Permuted{question, link, 0u, rendered, chain[link].type, member}));
                 if (inserted.second)
                 {
                     permuted_order.push_back(identity);
@@ -267,12 +267,12 @@ int identity_permute(const char *listing, const char *manifest, const std::strin
             continue;
         }
         joined += 1u;
-        const std::pair<unsigned int, unsigned int> &first = first_kind.at(members[0]);
+        const std::pair<unsigned int, unsigned int> &first = first_type.at(members[0]);
         run_print(&file, "category %s %u\n", address_text(questions, first.first, first.second).c_str(),
                   (unsigned int)members.size());
         for (const std::string &member : members)
         {
-            const std::pair<unsigned int, unsigned int> &at = first_kind.at(member);
+            const std::pair<unsigned int, unsigned int> &at = first_type.at(member);
             run_print(&file, "member %s %s\n", address_text(questions, at.first, at.second).c_str(), member.c_str());
         }
     }
@@ -297,9 +297,9 @@ int identity_permute(const char *listing, const char *manifest, const std::strin
         printf("  %s could not be written\n", path.c_str());
         return 1;
     }
-    printf("  %s: %u kinds of link in %u categories of more than one, %llu windows put, %llu of them nvcc writes, "
+    printf("  %s: %u types of link in %u categories of more than one, %llu windows put, %llu of them nvcc writes, "
            "%u questions, %u of them blocked from the part by rule 2\n",
-           path.c_str(), (unsigned int)first_kind.size(), joined, put, known, (unsigned int)permuted_order.size(),
+           path.c_str(), (unsigned int)first_type.size(), joined, put, known, (unsigned int)permuted_order.size(),
            flagged);
     return 0;
 }

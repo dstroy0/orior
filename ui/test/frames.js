@@ -7,7 +7,7 @@
 // A line of the window's trace: its indent, the call's name, when it was entered and how long it ran.
 export const TRACED = /^( *)([\w.]+) (\d+\.\d{3}) (\d+\.\d{3})$/;
 
-// Where the view stood at its last scroll event, read without laying the page out as a read of the
+// Where the view was at its last scroll event, read without positioning the page out as a read of the
 // scroller would in a frame the page has changed.
 export const seen = (view) => (view.lastTop ?? view.scroller.scrollTop) - view.pad;
 

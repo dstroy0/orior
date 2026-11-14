@@ -76,31 +76,31 @@ static void fill_periodic(uint8_t *bytes, size_t length)
     }
 }
 
-void bench_build_bytes(uint8_t *bytes, size_t length, CorpusKind kind, uint64_t seed)
+void bench_build_bytes(uint8_t *bytes, size_t length, CorpusKind type, uint64_t seed)
 {
-    if (kind == CORPUS_PERIODIC)
+    if (type == CORPUS_PERIODIC)
     {
         fill_periodic(bytes, length);
         return;
     }
     fill_uniform(bytes, length, seed);
-    if (kind == CORPUS_SKEWED)
+    if (type == CORPUS_SKEWED)
     {
         map_skewed(bytes, length);
     }
 }
 
-const char *bench_corpus_name(CorpusKind kind)
+const char *bench_corpus_name(CorpusKind type)
 {
-    if (kind == CORPUS_UNIFORM)
+    if (type == CORPUS_UNIFORM)
     {
         return "uniform";
     }
-    if (kind == CORPUS_SKEWED)
+    if (type == CORPUS_SKEWED)
     {
         return "skewed";
     }
-    if (kind == CORPUS_PERIODIC)
+    if (type == CORPUS_PERIODIC)
     {
         return "periodic16";
     }

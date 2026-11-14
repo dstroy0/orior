@@ -276,7 +276,7 @@ static void check_registers(void)
             const unsigned int operand = s_machine.form[at].run[run].operand;
             const unsigned int first = s_machine.form[at].run[run].first;
             if ((operand >= s_machine.form[at].operands) ||
-                (s_machine.form[at].kind[operand] != SASS_OPERAND_REGISTER))
+                (s_machine.form[at].type[operand] != SASS_OPERAND_REGISTER))
             {
                 continue;
             }

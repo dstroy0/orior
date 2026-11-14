@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // khw_write.h: the .khw written: the bounds of a form, how far it has been queried, its places and the
-// kinds of its operands, the names the forms are handed under, what the part answered of one form, and
-// the forms read and written for the vendor's writer to lay out
+// types of its operands, the names the forms are passed under, what the part answered of one form, and
+// the forms read and written for the vendor's writer to arrange
 #ifndef KHW_WRITE_H
 #define KHW_WRITE_H
 
@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the most runs a form's operands sit in, and the most forms the part answers for
+// the max runs a form's operands sit in, and the max forms the part answers for
 #define KHW_RUNS 32u
 
 #define KHW_FORMS 16384u
@@ -32,7 +32,7 @@
 #define KHW_PHASE_CLASSIFIED 2u
 
 // a frame form whose register-runs contain no run at a place of its relation's tuple answered no relation it contains a
-// field of: void, which no pass queries again and the vendor lays out nowhere, retained in the working set so that it
+// field of: void, which no pass queries again and the vendor arranges nowhere, retained in the working set so that it
 // is not put again
 #define KHW_PHASE_VOID 3u
 
@@ -42,7 +42,7 @@
 #define KHW_PLACE_NONE_TEXT "-"
 
 // what a run's operand is, stored beside its place: a register, a pair of registers an address is read through, a
-// number, or a predicate; and the letter each is written as after the place in the answers and the working set
+// number, or a predicate; and the character each is written as after the place in the answers and the working set
 #define KHW_KIND_REGISTER 0u
 
 #define KHW_KIND_ADDRESS 1u
@@ -53,7 +53,7 @@
 // a run of the constant bank's operand: the offset read from the bank, and the bank, where the walks found a run of it
 #define KHW_KIND_CONSTANT 4u
 
-#define KHW_KIND_LETTERS "ranpc"
+#define KHW_KIND_CHARACTERS "ranpc"
 
 // the name a form's relation is written under in the answers file, for the vendor's writer to name it from
 #define KHW_READS_LADDER "ladder."
@@ -63,7 +63,7 @@
 #define KHW_MACHINE_NAME "machine.txt"
 
 // the blobs of the run the forms are stored in: the forms the part answered for, which the vendor's writer
-// names and lays out, and the working set the passes of the split hand each other
+// names and arranges, and the working set the passes of the split hand each other
 #define KHW_FORMS_NAME "forms.txt"
 
 #define KHW_WORK_NAME "forms_work.txt"
@@ -86,7 +86,7 @@ typedef struct
     // the part answered it none
     unsigned int place[KHW_RUNS];
     // what each run's operand is, one of KHW_KIND_*
-    unsigned int kind[KHW_RUNS];
+    unsigned int type[KHW_RUNS];
     // the frame relation the form answered, FRAME_RELATION_COUNT where it answered the ladder's `anchor`, and the
     // relation's reading: the word a load reads, the register's word a store stores, a number's constant
     unsigned int frame;

@@ -7,21 +7,21 @@
 #
 #   Usage:  python examples/proteins/3_reference/what_a_shuffle_reaches.py
 #
-# A reference is the most a structure reaches once the thing being looked for is removed from it,
+# A reference is the max a structure reaches once the thing being looked for is removed from it,
 # and made out of the structure alone so it borrows nothing. What stage four reads is the favored
 # fraction. The question here is how much of that fraction survives when what carries it is taken
 # away, and the answer names what carries it.
 #
-# Two deletions, each keeping something and destroying something.
+# Two deletions, each retention something and destroying something.
 #
-# Shuffling psi against phi keeps both marginal angle distributions exactly and destroys only which
-# psi stood with which phi. If the favored fraction were a property of the two angles separately it
+# Shuffling psi against phi retains both marginal angle distributions exactly and destroys only which
+# psi was with which phi. If the favored fraction were a property of the two angles separately it
 # would survive this untouched. It does not, because the favored regions are diagonal ridges on the
 # plane and not a rectangle: a helix is one narrow place and a sheet another, and a phi from the
 # helix put beside a psi from the sheet lands between them where the reference is thin. The pairing
 # is the secondary structure, and this deletion shows it.
 #
-# Drawing angles uniformly keeps nothing. It is the flat background, the fraction of the whole plane
+# Drawing angles uniformly retains nothing. It is the flat background, the fraction of the whole plane
 # the favored regions cover, and it says how much a reading would get from a structure that had no
 # preference at all. The favored regions are a small part of the plane. This floor is low.
 #
@@ -59,7 +59,7 @@ def favored_fraction(contours, angles):
 
     One contour is used for every residue here, the general one, because a shuffle has already
     broken the residue identity that would pick a class. The question is about the plane instead of the
-    per-class bookkeeping, and holding the contour fixed keeps the three columns comparing like with
+    per-class bookkeeping, and holding the contour fixed retains the three columns comparing like with
     like.
     """
     grid, favored, _ = contours["general"]

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Dark and light. Dark is the scheme the app opens in, a reader's choice is kept for the next time,
+// Dark and light. Dark is the scheme the app opens in, a reader's choice is retained for the next time,
 // and where the reader follows the system the scheme is the system's, changing as it does. View,
 // Light or Dark, Preferences and the command palette choose it.
 
@@ -43,7 +43,7 @@ export function toggleScheme() {
   setScheme(scheme() === "dark" ? "light" : "dark");
 }
 
-// Follows the system's scheme, or keeps the one shown as the reader's own.
+// Follows the system's scheme, or retains the one displayed as the reader's own.
 export function setFollowSystem(on = !followsSystem()) {
   if (on) {
     localStorage.setItem(KEY, SYSTEM);
@@ -53,13 +53,13 @@ export function setFollowSystem(on = !followsSystem()) {
   }
 }
 
-// Shows the scheme in force without keeping it, as a settings file changes it.
+// Shows the scheme in force without retention it, as a settings file changes it.
 export function showKeptScheme() {
-  const kept = localStorage.getItem(KEY);
-  show(kept === SYSTEM ? (dark.matches ? "dark" : "light") : kept === "light" ? "light" : "dark");
+  const retained = localStorage.getItem(KEY);
+  show(retained === SYSTEM ? (dark.matches ? "dark" : "light") : retained === "light" ? "light" : "dark");
 }
 
-export function keepScheme() {
+export function retainScheme() {
   showKeptScheme();
   dark.addEventListener("change", () => followsSystem() && show(dark.matches ? "dark" : "light"));
 }

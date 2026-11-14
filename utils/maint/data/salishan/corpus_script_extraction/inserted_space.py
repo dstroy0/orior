@@ -11,7 +11,7 @@
 # the counts are not small: 996 in Hall and Phillips, 943 in Garcia, 478 in LaFontaine and Janzen,
 # 298 in Mellesmoen and Kye, 169 in Matthewson and Redan, 159 in Mary George.
 #
-# The mechanism moved to repairs.py, where it sits beside the other kinds of damage these extractions
+# The mechanism moved to repairs.py, where it sits beside the other types of damage these extractions
 # do. What stays here is this grain's own evidence and the one decision it turns on, because both are
 # facts about these papers and not about the mechanism.
 #
@@ -27,11 +27,11 @@
 #
 # ʷ IS NOT A STACKED MARK
 #
-# It is a spacing modifier letter on the baseline, and the typesetter never has to make room after
+# It is a spacing modifier character on the baseline, and the typesetter never has to make room after
 # one. Every space following a ʷ is a real word boundary: bəlkʷ ‘return’, wix̌ʷ x̌il, sčədadxʷ
 # sʔuladxʷ, tíləxʷ ʔəsxʷák̓ʷilbids. Closing those welded thirteen pairs of words in one paper alone,
 # among them the first two words of Annie Jack's opening sentence. Reading the Unicode combining
-# class keeps it out without anyone having to remember to exclude it.
+# class retains it out without anyone having to remember to exclude it.
 
 from whitespace import closed_after_marks, stacked_but_not
 

@@ -10,7 +10,7 @@
 #include "embed_atomic.h"
 #include "memoria_anularis/memoria_anularis.h"
 
-// the most parts, listeners and channels, and the places each of their tables is first taken with; how many of each
+// the max parts, listeners and channels, and the places each of their tables is first taken with; how many of each
 // channel's last messages are stored, the segments of the ring that stores them, a power of two over that, and the
 // bytes past which a body stored among them is given by its size
 #define CLI_COMMS_PARTS 256u
@@ -22,7 +22,7 @@
 EMBED_STATIC_ASSERT(MMGR_RING_POW2(CLI_COMMS_STORED_RING) && (CLI_COMMS_STORED_RING >= CLI_COMMS_STORED_MAX),
                     "a channel's stored ring has a power of two of segments over the messages stored");
 
-// A part: whether the place is taken, its key, its name, the process it was given, whether the door takes its key
+// A part: whether the place is taken, its key, its name, the process it was given, whether the interface takes its key
 // from any process, its grants to listen and to send, both in one movable cell of their count, the grants to listen
 // first and those to send after them, each CLI_NAME_MAX_LEN bytes, and how many messages it sent and had refused
 typedef struct
@@ -41,7 +41,7 @@ typedef struct
 } CliCommsPart;
 
 // A listener: whether the place is taken, the part it is of, the channel or grant it listens on, whether it is
-// handed each message under the lock, and where messages go
+// passed each message under the lock, and where messages go
 typedef struct
 {
     int reserved;
@@ -64,7 +64,7 @@ typedef struct
 } CliCommsStoredMsg;
 
 // A channel's traffic: its name, how many messages and bytes it carried, the bytes that went through the transfer
-// layer, and how many messages it refused; its last messages stand in the stored ring at the traffic's place
+// layer, and how many messages it refused; its last messages are in the stored ring at the traffic's place
 typedef struct
 {
     char name[CLI_NAME_MAX_LEN];
@@ -85,8 +85,8 @@ typedef struct
 #define CLI_COMMS_RING_BYTES ((unsigned long long)CLI_COMMS_CHANNELS * CLI_COMMS_STORED_BYTES)
 
 // The comms layer: its parts, listeners and channels, the three tables in one movable cell of `*_capacity` places at
-// their most, NULL until the first is needed; each channel's stored ring, CLI_COMMS_CHANNELS of them fixed outside the
-// pool and emptied with the tables, a ring laid as its channel's traffic is made; and the change stamp, moved on by
+// their max, NULL until the first is needed; each channel's stored ring, CLI_COMMS_CHANNELS of them fixed outside the
+// pool and emptied with the tables, a ring positioned as its channel's traffic is made; and the change stamp, moved on by
 // every register, bind, leave, listen, unlisten, send and transfer, which the view compares with the stamp it last read
 // so that it lists the layer again only where the layer moved
 typedef struct

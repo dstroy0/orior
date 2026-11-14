@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_transfer.c: shared regions: a region handed over contains what was written, a region declared larger than it is is refused,
+// test_transfer.c: shared regions: a region passed over contains what was written, a region declared larger than it is is refused,
 // a region shared on Windows reads and cannot be written, and a region on Linux is sealed against every change
 #if !defined(_WIN32)
 #define _POSIX_C_SOURCE 200809L

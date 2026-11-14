@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // system_windows.c: the window on Windows. A popup window with a sizing frame whose non-client area is nothing, so the
 // client is the whole window and the system still drags, snaps and resizes it by what the window answers to the
-// hit test, the compositor rounding its corners and drawing its one-pixel border; the raster it is handed flipped
+// hit test, the compositor rounding its corners and drawing its one-pixel border; the raster it is passed flipped
 // through the graphics device or blitted into the client as a top-down 32-bit bitmap; the thread woken by a message
 // posted to the window, inside the system's own drag loop too; the scale and the refresh rate read from the window's
-// monitor. The records of the three windows that stand at once are this file's own
+// monitor. The records of the three windows that are at once are this file's own
 #define _WIN32_WINNT 0x0A00
 #define UNICODE
 #define _UNICODE
@@ -23,7 +23,7 @@
 #include <dwmapi.h>
 #include <windowsx.h>
 
-// The graphics device the frames are flipped through: whether it stands ready; the device, its queue, the allocator
+// The graphics device the frames are flipped through: whether it is ready; the device, its queue, the allocator
 // and list a copy is recorded in, the fence a copy is waited on through and its event and last value; the swapchain,
 // its two buffers and their size; and the heap opened over the framebuffers' pages, those pages, and a buffer placed
 // over each framebuffer with where in the pages it lies
@@ -63,9 +63,9 @@ struct GuiSystem
     int owner;
     int min_width;
     int min_height;
-    // the window a modal window disables while it stands, NULL for a window that is not modal
+    // the window a modal window disables while it is, NULL for a window that is not modal
     HWND modal_owner;
-    // the wheel's units turned down that add up to no whole notch yet, kept for the next turn's count of rows
+    // the wheel's units turned down that add up to no whole notch yet, retained for the next turn's count of rows
     int wheel_rest;
     // the pointer's shape over the client, NULL for the class's arrow
     HCURSOR cursor;
@@ -74,7 +74,7 @@ struct GuiSystem
 #define GUI_WAKE_MESSAGE (WM_APP + 1u)
 // the rows one notch of the wheel scrolls
 #define GUI_WHEEL_ROWS 3
-// the windows that stand at once: the main one, Preferences' and the dialog's
+// the windows that are at once: the main one, Preferences' and the dialog's
 #define SYSTEM_WINDOWS 3u
 
 static GuiSystem s_systems[SYSTEM_WINDOWS];
@@ -173,7 +173,7 @@ EMBED_INLINE void system_device_release(const SystemWindowsCtx *args)
 
 // the device made for `window`: its queue, its copy's allocator and list, its fence, and a flip swapchain of two
 // buffers over the window; first a heap opened over `pages`, which a device that cannot read pages where they lie
-// refuses before any swapchain stands over the window: 1, or 0 with nothing made
+// refuses before any swapchain is over the window: 1, or 0 with nothing made
 EMBED_INLINE int system_device_init(const SystemWindowsCtx *args)
 {
     memor.set(&(MemoriaCfg){.dst = args->device, .val = 0, .bytes = sizeof(*args->device)});
@@ -276,7 +276,7 @@ EMBED_INLINE int system_back_resize(const SystemWindowsCtx *args)
 }
 
 // the buffer placed over `raster`'s pixels in the heap over its pages, the heap opened over the pages where the one
-// open stands over others: the buffer, or NULL where the device refuses it
+// open is over others: the buffer, or NULL where the device refuses it
 EMBED_INLINE ID3D12Resource *system_position(const SystemWindowsCtx *args)
 {
     if (args->device->heap_pages != args->raster->pages)
@@ -488,7 +488,7 @@ EMBED_INLINE int system_key_by_name(const SystemWindowsCtx *args)
     }
     if (((key >= 'A') && (key <= 'Z')) || ((key >= '0') && (key <= '9')))
     {
-        // a letter's or a digit's virtual key is its own character
+        // a character's or a digit's virtual key is its own character
         mmgr_line_ch(&line, (char)key);
         return mmgr_line_finish(&line) != 0ull;
     }
@@ -521,7 +521,7 @@ EMBED_INLINE void system_key_press(const SystemWindowsCtx *args)
                .input = GUI_KEY_INPUT(named));
 }
 
-// a character typed handed to the window as UTF-8, a surrogate pair joined across its two messages; a control
+// a character typed passed to the window as UTF-8, a surrogate pair joined across its two messages; a control
 // character and one typed with the control key down are keys, not text
 EMBED_INLINE void system_char_type(const SystemWindowsCtx *args)
 {
@@ -529,7 +529,7 @@ EMBED_INLINE void system_char_type(const SystemWindowsCtx *args)
     {
         return;
     }
-    unsigned int letter = (unsigned int)args->unit;
+    unsigned int character = (unsigned int)args->unit;
     if ((args->unit >= 0xd800u) && (args->unit <= 0xdbffu))
     {
         // the high surrogate waits for its low one
@@ -542,13 +542,13 @@ EMBED_INLINE void system_char_type(const SystemWindowsCtx *args)
         {
             return;
         }
-        letter = 0x10000u + (((unsigned int)args->system->high_surrogate - 0xd800u) << 10u) +
+        character = 0x10000u + (((unsigned int)args->system->high_surrogate - 0xd800u) << 10u) +
                  ((unsigned int)args->unit - 0xdc00u);
         args->system->high_surrogate = 0u;
     }
     char text[8];
     VerbaLinea line = {text, sizeof(text), 0ull};
-    EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line, .letter = letter);
+    EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line, .character = character);
     EMBED_CALL(args->system->events->input, GuiEachInputCfg, .context = args->system->context,
                .input = GUI_TEXT_INPUT(text, line.at));
 }
@@ -569,7 +569,7 @@ EMBED_INLINE int system_frame_get(const SystemWindowsCtx *args)
     return GetSystemMetricsForDpi(SM_CXFRAME, dots) + GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dots);
 }
 
-// the raster shown blitted into `context`, its `rows` rows from the row `from`, as a bitmap of those rows alone
+// the raster displayed blitted into `context`, its `rows` rows from the row `from`, as a bitmap of those rows alone
 EMBED_INLINE void system_blit(const SystemWindowsCtx *args)
 {
     const GuiRaster *const raster = &args->system->displayed;
@@ -581,7 +581,7 @@ EMBED_INLINE void system_blit(const SystemWindowsCtx *args)
     BITMAPINFO info;
     memor.set(&(MemoriaCfg){.dst = &info, .val = 0, .bytes = sizeof(info)});
     info.bmiHeader.biSize = sizeof(info.bmiHeader);
-    // a raster's sides are far inside what a LONG represents; a negative height lays the rows top down
+    // a raster's sides are far inside what a LONG represents; a negative height positions the rows top down
     info.bmiHeader.biWidth = (LONG)raster->width;
     info.bmiHeader.biHeight = -(LONG)count;
     info.bmiHeader.biPlanes = 1;
@@ -603,7 +603,7 @@ EMBED_INLINE void system_leave_watch(const SystemWindowsCtx *args)
     }
 }
 
-// the pointer gone from the client or the frame: the window told where it stands off the window altogether, as a move
+// the pointer gone from the client or the frame: the window told where it is off the window altogether, as a move
 // from the client onto the frame is no leave
 EMBED_INLINE void system_pointer_leave(const SystemWindowsCtx *args)
 {
@@ -658,7 +658,7 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
     switch (message)
     {
     case WM_SETCURSOR:
-        // the shape the window asked for stands over the client; the system's own stands over the frame
+        // the shape the window asked for is over the client; the system's own is over the frame
         if ((LOWORD(low) == HTCLIENT) && (system->cursor != NULL))
         {
             SetCursor(system->cursor);
@@ -670,7 +670,7 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
         {
             return DefWindowProcW(window, message, pixel_width, low);
         }
-        // the client is the whole window; a maximized window's frame stands past the monitor's edges, which the client
+        // the client is the whole window; a maximized window's frame is past the monitor's edges, which the client
         // leaves out
         if (IsZoomed(window))
         {
@@ -881,7 +881,7 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
     case WM_KEYDOWN:
     case WM_SYSKEYDOWN:
         // Alt+F4 is the system's, as a browser leaves it to the system: it closes the window as it closes any, and no
-        // part of the window is handed it
+        // part of the window is passed it
         if ((message == WM_SYSKEYDOWN) && (pixel_width == VK_F4))
         {
             return DefWindowProcW(window, message, pixel_width, low);
@@ -948,7 +948,7 @@ static BOOL CALLBACK system_monitor_visit(HMONITOR monitor, HDC context, LPRECT 
     unsigned int *const count = asked->count_out;
     MONITORINFO info;
     info.cbSize = sizeof(info);
-    if (!GetMonitorInfoW(monitor, &info) || (count[0] >= asked->most))
+    if (!GetMonitorInfoW(monitor, &info) || (count[0] >= asked->max))
     {
         return TRUE;
     }
@@ -969,12 +969,12 @@ static BOOL CALLBACK system_monitor_visit(HMONITOR monitor, HDC context, LPRECT 
     return TRUE;
 }
 
-// the monitor's whole size saved in the two words handed on, where it has more pixels than those seen
+// the monitor's whole size saved in the two words passed on, where it has more pixels than those seen
 static BOOL CALLBACK system_monitor_measure(HMONITOR monitor, HDC context, LPRECT rect, LPARAM data)
 {
     (void)context;
     (void)rect;
-    unsigned int *const most = (unsigned int *)data;
+    unsigned int *const max = (unsigned int *)data;
     MONITORINFO info;
     info.cbSize = sizeof(info);
     if (GetMonitorInfoW(monitor, &info))
@@ -982,10 +982,10 @@ static BOOL CALLBACK system_monitor_measure(HMONITOR monitor, HDC context, LPREC
         // a monitor's sides are not negative
         const unsigned int width = (unsigned int)(info.rcMonitor.right - info.rcMonitor.left);
         const unsigned int height = (unsigned int)(info.rcMonitor.bottom - info.rcMonitor.top);
-        if (((unsigned long long)width * height) > ((unsigned long long)most[0] * most[1]))
+        if (((unsigned long long)width * height) > ((unsigned long long)max[0] * max[1]))
         {
-            most[0] = width;
-            most[1] = height;
+            max[0] = width;
+            max[1] = height;
         }
     }
     return TRUE;
@@ -997,16 +997,16 @@ void gui_system_display_max(const GuiSystemWidthCfg *args)
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     unsigned int *width = args->width;
     unsigned int *height = args->height;
-    unsigned int most[2] = {0u, 0u};
-    EnumDisplayMonitors(NULL, NULL, system_monitor_measure, (LPARAM)most);
-    *width = most[0];
-    *height = most[1];
+    unsigned int max[2] = {0u, 0u};
+    EnumDisplayMonitors(NULL, NULL, system_monitor_measure, (LPARAM)max);
+    *width = max[0];
+    *height = max[1];
 }
 
 unsigned int gui_system_areas(const GuiSystemAreasCfg *args)
 {
     unsigned int count = 0u;
-    const GuiSystemAreasCfg counted = {args->areas, args->most, &count};
+    const GuiSystemAreasCfg counted = {args->areas, args->max, &count};
     EnumDisplayMonitors(NULL, NULL, system_monitor_visit, (LPARAM)&counted);
     return count;
 }
@@ -1024,7 +1024,7 @@ static GuiSystem *system_window_init(const SystemWindowsCtx *args)
     }
     if (system == NULL)
     {
-        mmgr_line_put(args->err_msg, "the program's three windows already stand");
+        mmgr_line_put(args->err_msg, "the program's three windows already are");
         return NULL;
     }
     memor.set(&(MemoriaCfg){.dst = system, .val = 0, .bytes = sizeof(*system)});
@@ -1214,7 +1214,7 @@ EMBED_INLINE HICON system_icon_init(const SystemWindowsCtx *args)
     BITMAPV5HEADER header;
     memor.set(&(MemoriaCfg){.dst = &header, .val = 0, .bytes = sizeof(header)});
     header.bV5Size = sizeof(header);
-    // a raster's sides are far inside what a LONG represents; a negative height lays the rows top down
+    // a raster's sides are far inside what a LONG represents; a negative height positions the rows top down
     header.bV5Width = (LONG)args->raster->width;
     header.bV5Height = -(LONG)args->raster->height;
     header.bV5Planes = 1;

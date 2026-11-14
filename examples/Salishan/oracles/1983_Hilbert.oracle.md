@@ -26,7 +26,7 @@ essay around them is hers. The corpus record used to carry her name in the speak
 
 where    the paper's own number, or the section a cited form sits in
 who      who said it, and where the paper says it was recorded
-kind     transcription a numbered example in Lushootseed
+type     transcription a numbered example in Lushootseed
 translation   the English printed under it, Hilbert's
 citation      a form cited in her prose with a gloss
 name          a personal or place name written in the language

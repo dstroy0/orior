@@ -43,11 +43,11 @@
 // reads.
 //
 // Checks:
-//   1. each program imprints and lays out;
+//   1. each program imprints and arranges;
 //   2. each program loads onto the device and every lane runs it;
 //   3. the host's records of each program equal the device's word for word;
 //   4. the device's sum of each comparison's run equals the host's;
-//   5. every distance lies in [0, 1], its numerator at most its denominator;
+//   5. every distance lies in [0, 1], its numerator at max its denominator;
 //   6. the records are written out.
 
 #include "../../../src/cu/engine/analysis/cycle/cycle.h"
@@ -73,7 +73,7 @@
 #define GOLD_CELLS 65536u
 
 // the widest total a field stores, so that 2 A B fits 64 bits
-#define GOLD_TOTAL_BITS_MOST 31u
+#define GOLD_TOTAL_BITS_MAX 31u
 
 
 typedef struct
@@ -153,11 +153,11 @@ static GoldTable gold_squash(const std::vector<std::string> &lines, const std::v
 }
 
 
-static int gold_block(const std::vector<std::string> &lines, size_t *at, const char *kind, int with_language,
+static int gold_block(const std::vector<std::string> &lines, size_t *at, const char *type, int with_language,
                       GoldText *text)
 {
     const std::string &head = lines[*at];
-    const std::string opening = std::string(kind) + " ";
+    const std::string opening = std::string(type) + " ";
     if (head.compare(0u, opening.size(), opening) != 0)
     {
         return 0;
@@ -352,8 +352,8 @@ int main(int count, char **arguments)
         papers.push_back(paper);
     }
 
-    unsigned int most_count = 0u;
-    unsigned long long most_total = 0ull;
+    unsigned int max_count = 0u;
+    unsigned long long max_total = 0ull;
     size_t run = 1u;
     int whole = 1;
     std::vector<std::vector<unsigned int>> cells(comparisons.size());
@@ -366,18 +366,18 @@ int main(int count, char **arguments)
             if ((left.counts[cell] != 0u) || (right.counts[cell] != 0u))
             {
                 cells[at].push_back(cell);
-                most_count = std::max(most_count, std::max(left.counts[cell], right.counts[cell]));
+                max_count = std::max(max_count, std::max(left.counts[cell], right.counts[cell]));
             }
         }
         run = std::max(run, cells[at].size());
-        most_total = std::max(most_total, std::max(left.total, right.total));
+        max_total = std::max(max_total, std::max(left.total, right.total));
         whole = whole && (left.total > 0ull) && (right.total > 0ull);
     }
-    const unsigned int count_bits = stage_bits(stage_whole(most_count));
-    const unsigned int total_bits = stage_bits(stage_whole(most_total));
-    if (!whole || (total_bits > GOLD_TOTAL_BITS_MOST))
+    const unsigned int count_bits = stage_bits(stage_whole(max_count));
+    const unsigned int total_bits = stage_bits(stage_whole(max_total));
+    if (!whole || (total_bits > GOLD_TOTAL_BITS_MAX))
     {
-        fprintf(stderr, "  gold_readings: a table is empty or contains more than 2^%u pairs\n", GOLD_TOTAL_BITS_MOST);
+        fprintf(stderr, "  gold_readings: a table is empty or contains more than 2^%u pairs\n", GOLD_TOTAL_BITS_MAX);
         return 2;
     }
 
@@ -410,8 +410,8 @@ int main(int count, char **arguments)
         }
     }
 
-    int ok = stage_lay(&job, &distance_stage, &error);
-    // the buffers the program names for itself: the distance stage's records in and out, the most it stores at once
+    int ok = stage_position(&job, &distance_stage, &error);
+    // the buffers the program names for itself: the distance stage's records in and out, the max it stores at once
     const unsigned long long declared =
         lanes * ((unsigned long long)in_limbs + distance_stage.layout.out_limbs) * sizeof(unsigned int);
     ok = ok && sim_job_submit(&job, "gold_readings", count, arguments, declared);
@@ -489,13 +489,13 @@ int main(int count, char **arguments)
     std::vector<int> margined;
     for (size_t at = 0u; at < pairs; at += 1u)
     {
-        for (size_t kind = 0u; kind < 2u; kind += 1u)
+        for (size_t type = 0u; type < 2u; type += 1u)
         {
             const size_t sides[2] = {comparisons[at].left, comparisons[at].right};
             for (size_t side = 0u; side < 2u; side += 1u)
             {
                 xs.push_back(comparisons[at].distance);
-                ys.push_back(comparisons[pairs + (kind * named) + sides[side]].distance);
+                ys.push_back(comparisons[pairs + (type * named) + sides[side]].distance);
                 margined.push_back(1);
             }
         }
@@ -727,12 +727,12 @@ int main(int count, char **arguments)
     std::vector<int> pair_reads(pairs * 2u, 0);
     for (size_t at = 0u; ok && (at < pairs); at += 1u)
     {
-        for (size_t kind = 0u; kind < 2u; kind += 1u)
+        for (size_t type = 0u; type < 2u; type += 1u)
         {
-            const int reads = (first_signs[(at * 4u) + (kind * 2u)] == 1) &&
-                              (first_signs[(at * 4u) + (kind * 2u) + 1u] == 1);
-            pair_reads[(at * 2u) + kind] = reads;
-            pairs_read[kind] += (unsigned int)reads;
+            const int reads = (first_signs[(at * 4u) + (type * 2u)] == 1) &&
+                              (first_signs[(at * 4u) + (type * 2u) + 1u] == 1);
+            pair_reads[(at * 2u) + type] = reads;
+            pairs_read[type] += (unsigned int)reads;
         }
     }
     unsigned int small = 0u;
@@ -846,14 +846,14 @@ int main(int count, char **arguments)
         if (figures != NULL)
         {
             const std::string *least_pair = &decimal[pair_order.sorted.front()];
-            const std::string *most_pair = &decimal[pair_order.sorted.back()];
+            const std::string *max_pair = &decimal[pair_order.sorted.back()];
             fprintf(figures, "\\newcommand{\\GoldProfiles}{%zu}\n", named);
             fprintf(figures, "\\newcommand{\\GoldLanguages}{%zu}\n", anchors.size());
             fprintf(figures, "\\newcommand{\\GoldPairs}{%zu}\n", pairs);
             fprintf(figures, "\\newcommand{\\GoldPairsReadMidpoint}{%u}\n", pairs_read[0]);
             fprintf(figures, "\\newcommand{\\GoldPairsReadAlternating}{%u}\n", pairs_read[1]);
             fprintf(figures, "\\newcommand{\\GoldPairLeast}{%.5s}\n", least_pair->c_str());
-            fprintf(figures, "\\newcommand{\\GoldPairMost}{%.5s}\n", most_pair->c_str());
+            fprintf(figures, "\\newcommand{\\GoldPairMost}{%.5s}\n", max_pair->c_str());
             fprintf(figures, "\\newcommand{\\GoldSplitLeast}{%.5s}\n",
                     decimal[pairs + midpoint_order.sorted.front()].c_str());
             fprintf(figures, "\\newcommand{\\GoldSplitMost}{%.5s}\n",

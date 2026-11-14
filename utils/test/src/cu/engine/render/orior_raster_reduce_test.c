@@ -24,8 +24,8 @@ static void reduce_check(int passed, const char *what, unsigned int first, unsig
 
 int main(void)
 {
-    // Eight alignments of a 2-byte needle over nine bytes. Laid in rows over two cells, cell 0 takes the bytes 0, 9,
-    // 7, 5 and cell 1 takes 0, 3, 4, 6, a 0 arriving first in each. Laid in slabs over two voxels, voxel 0 takes 0, 7,
+    // Eight alignments of a 2-byte needle over nine bytes. Positioned in rows over two cells, cell 0 takes the bytes 0, 9,
+    // 7, 5 and cell 1 takes 0, 3, 4, 6, a 0 arriving first in each. Positioned in slabs over two voxels, voxel 0 takes 0, 7,
     // 0, 4 and voxel 1 takes 9, 5, 3, 6
     const uint8_t corpus[9] = {0u, 9u, 7u, 5u, 0u, 3u, 4u, 6u, 1u};
     const uint8_t needle[2] = {1u, 1u};
@@ -37,7 +37,7 @@ int main(void)
     config.reduce = ORIOR_REDUCE_MAX;
     rendered = orior_raster_host(pixels, &config, corpus, 9u, needle, 2u, NULL, 0u);
     reduce_check((rendered != 0) && (pixels[0] == 9u) && (pixels[1] == 6u),
-                 "the raster's maximum over the same bytes is 9 and 6", pixels[0], pixels[1]);
+                 "the raster's max over the same bytes is 9 and 6", pixels[0], pixels[1]);
     OriorVolumeConfig volume = {2u, 1u, 1u, ORIOR_VOLUME_SLABS, ORIOR_CHANNEL_BYTE, ORIOR_REDUCE_MIN, 1u};
     uint8_t voxels[2] = {0u, 0u};
     rendered = orior_volume_render_host(voxels, &volume, corpus, 9u, needle, 2u, NULL, 0u, NULL);

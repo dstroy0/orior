@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	John A. Dunn	title	Tsimshian syllable devolution1	page 1
 front	John A. Dunn	name	John A. Dunn	author
 front	John A. Dunn	note	Professor Emeritus, University of Oklahoma	page 1, under John A. Dunn
@@ -348,7 +348,7 @@ Figure 5	John A. Dunn	note	Figure 5 [+lat] > [-lat], [s] derived from[ɬ]	page 6
 footnote 4	John A. Dunn	note	Boas (1912:68) said the Tsimshian [s] is lateral.	page 7, footnote 4
 §5.2	John A. Dunn	language	English	its [s] against the Tsimshian [s]
 §6	John A. Dunn	heading	6 Devolution initiators, a natural class	page 7
-§6	John A. Dunn	note	The coda elements that most frequently copy to onset are [ʔ], [h], [r], [l], and post vocalic or glide [j] and [w]. These form a natural class of devolution initiators. They are approximant sonorants.5 The Tsimshian laryngeal [ʔ] is very soft in comparison to glottal stops in the neighboring languages, and often becomes a suprasegmental as something approximating very soft creaky voice.	page 7
+§6	John A. Dunn	note	The coda elements that max frequently copy to onset are [ʔ], [h], [r], [l], and post vocalic or glide [j] and [w]. These form a natural class of devolution initiators. They are approximant sonorants.5 The Tsimshian laryngeal [ʔ] is very soft in comparison to glottal stops in the neighboring languages, and often becomes a suprasegmental as something approximating very soft creaky voice.	page 7
 footnote 5	John A. Dunn	note	There is considerable disagreement as to whether the laryngeals [ʔ] and [h] are sonorant or approximant. In Tsimshian, the laryngeals behave like the other sonorant approximants, or rather, the sonorant approximants behave like the laryngeals.	page 7, footnote 5
 §6	Coast Tsimshian	cited form	ʔ	page 7, in italics
 §6.1	John A. Dunn	heading	6.1 Glottal approximant [ʔ]	page 7
@@ -487,7 +487,7 @@ footnote 5	John A. Dunn	note	There is considerable disagreement as to whether th
 (21) line 5	John A. Dunn	translation	‘dead, to die, plural agreement’	page 9
 (21) line 6	John A. Dunn	citation	(D244)	page 9, the source
 (21) line 7	Coast Tsimshian	transcription	doo	page 9
-(21) line 8	John A. Dunn	translation	‘to put down, lay down’	page 9
+(21) line 8	John A. Dunn	translation	‘to put down, position down’	page 9
 (21) line 9	John A. Dunn	citation	(D1686)	page 9, the source
 (21) line 10	NisGa'a	transcription	daxʷ	page 9
 (21) line 11	John A. Dunn	translation	‘die, plural’	page 9
@@ -513,24 +513,24 @@ footnote 5	John A. Dunn	note	There is considerable disagreement as to whether th
 (23) line 5	Coast Tsimshian	transcription	sgüü	page 9
 (23) line 6	John A. Dunn	translation	‘be lying on, put down, place’	page 9
 (23) line 7	John A. Dunn	citation	(D1681, 1686)	page 9, the source
-§6.3	John A. Dunn	note	In ɬErdEr ‘keep, preserve’ the [r] in the second syllalble colors and lengthens the vowel as above. But the [r] in the first syllable behaves like, becomes [ʔ]: ɬEr > ɬuˀə > ɬuH > ɬū.	page 9
-§6.3	Coast Tsimshian	cited form	ɬErdEr	page 9, in italics, ‘keep, preserve’
+§6.3	John A. Dunn	note	In ɬErdEr ‘retain, preserve’ the [r] in the second syllalble colors and lengthens the vowel as above. But the [r] in the first syllable behaves like, becomes [ʔ]: ɬEr > ɬuˀə > ɬuH > ɬū.	page 9
+§6.3	Coast Tsimshian	cited form	ɬErdEr	page 9, in italics, ‘retain, preserve’
 §6.3	Coast Tsimshian	cited form	ɬEr	page 9, in italics
 §6.3	Coast Tsimshian	cited form	ɬuˀə	page 9, in italics
 §6.3	Coast Tsimshian	cited form	ɬuH	page 9, in italics
 §6.3	Coast Tsimshian	cited form	ɬū	page 9, in italics
 (24) line 1	Coast Tsimshian	transcription	ɬErdEr	page 9
-(24) line 2	John A. Dunn	translation	‘keep, preserve’	page 9
+(24) line 2	John A. Dunn	translation	‘retain, preserve’	page 9
 (24) line 3	John A. Dunn	citation	(B283)	page 9, the source
 (24) line 4	Coast Tsimshian	transcription	ɬuˀədüü	page 9
-(24) line 5	John A. Dunn	translation	‘keep, preserve, i.e., keep hidden’	page 9
+(24) line 5	John A. Dunn	translation	‘retain, preserve, i.e., retain hidden’	page 9
 (24) line 6	John A. Dunn	citation	(D1347)	page 9, the source
 (24) line 7	Coast Tsimshian	transcription	n-ɬuHt	page 9
 (24) line 8	John A. Dunn	translation	‘be under’	page 9
 (24) line 9	John A. Dunn	citation	(D1551)	page 9, the source
 (24) line 10	Coast Tsimshian	transcription	ɬuudk	page 9
 (24) line 11	Coast Tsimshian	transcription	ɬut'ak	page 9
-(24) line 12	John A. Dunn	translation	‘keep, look after, treasure, prize’	page 9
+(24) line 12	John A. Dunn	translation	‘retain, look after, treasure, prize’	page 9
 (24) line 13	John A. Dunn	citation	(L137)	page 9, the source
 (24) line 14	NisGa'a	transcription	ɬuut'uxw	page 9
 (24) line 15	John A. Dunn	translation	‘cherish, treasure, value’	page 9
@@ -611,15 +611,15 @@ footnote 5	John A. Dunn	note	There is considerable disagreement as to whether th
 §6.5	John A. Dunn	heading	6.5 [j]-glide	page 10
 §6.5	John A. Dunn	note	The [j]-glide is not strictly speaking a coda element, but it follows the peak vowel and behaves in the same way as the coda sources of devolution. The [j]-glide behaves like or becomes [ʔ].	page 10
 (29) line 1	Coast Tsimshian	transcription	hëtk	page 10
-(29) line 2	John A. Dunn	translation	‘to stand’	page 10
+(29) line 2	John A. Dunn	translation	‘to be’	page 10
 (29) line 3	John A. Dunn	citation	(B261)6	page 10, the source, carries footnote 6
 footnote 6	John A. Dunn	note	Boas’ [ë] is [aj] (Boas 1912:67).	page 10, footnote 6
 (29) line 4	Coast Tsimshian	transcription	hai-tk	page 10
 (29) line 5	Coast Tsimshian	transcription	haai-tk	page 10
-(29) line 6	John A. Dunn	translation	‘stand up (intransitive)’	page 10
+(29) line 6	John A. Dunn	translation	‘are up (intransitive)’	page 10
 (29) line 7	John A. Dunn	citation	(D659)	page 10, the source
 (29) line 8	Southern Tsimshian	transcription	hāi-tgi	page 10
-(29) line 9	John A. Dunn	translation	‘stand up (intransitive)’	page 10
+(29) line 9	John A. Dunn	translation	‘are up (intransitive)’	page 10
 (29) line 10	John A. Dunn	citation	(S9/20/79)	page 10, the source
 (29) line 11	Coast Tsimshian	transcription	haaɁi-ti-sk	page 10
 (29) line 12	John A. Dunn	translation	‘house posts’	page 10
@@ -803,7 +803,7 @@ Figure 6	John A. Dunn	note	Figure 6 Gaj > Gaˀaj > qˀaj > qˀāxʸ	page 11, the
 (37) staging	Coast Tsimshian	cited form	sqā	page 12, in italics
 §6.6	John A. Dunn	note	The sonorant approximants can readily become laryngealized by a simple merging rule, i.e., {[r],[l],[j],[w]} > {[Ɂr],[Ɂl],[Ɂj],[Ɂw]} > [Ɂ], but deriving the various sonorant approximants from the laryngeal, e.g., [Ɂ] > {[r].[l],[j],[w], is problematic, as there is no way to predict which sonorant approximant the laryngeal will become.	page 12
 §7	John A. Dunn	heading	7 Summary and conclusions	page 12
-§7	John A. Dunn	note	Tsimshian syllable devolution is an elegant phenomenon, a simple paradigm, accounting for much if not all lexical root/stem variations. The coda/post-vocalic devolution initiators spread some of their phonetic properties to syllable onset and peak and lose or degrade those same and other properties in their original coda position. What counts for coda weakening or degradation is not clear when one tries to characterize it in terms of the traditional phonological/phonetic feature systems. The Tsimshian postvocalic sonorant approximants {[r], [l], [j], [w]} function as devolution initiators and behave like the laryngeal devolution initiators {[ʔ], [h]}. Indeed in the devolution process they become laryngeals. In a sense the laryngeals are the skeletal remains of the sonorant approximants after they have lost all or most of their other features, absolute devolution. The important question is this: at some systematic level are all the devolution initiators laryngeals?	page 12
+§7	John A. Dunn	note	Tsimshian syllable devolution is an elegant phenomenon, a simple paradigm, accounting for much if not all lexical root/stem variations. The coda/post-vocalic devolution initiators spread some of their phonetic properties to syllable onset and peak and lose or degrade those same and other properties in their original coda position. What counts for coda weakening or degradation is not clear when one tries to characterize it in terms of the traditional phonological/phonetic feature systems. The Tsimshian postvocalic sonorant approximants {[r], [l], [j], [w]} function as devolution initiators and behave like the laryngeal devolution initiators {[ʔ], [h]}. Indeed in the devolution process they become laryngeals. In a sense the laryngeals are the skeletal remains of the sonorant approximants after they have lost all or the majority of their other features, absolute devolution. The important question is this: at some systematic level are all the devolution initiators laryngeals?	page 12
 references	John A. Dunn	heading	References	page 13
 references	John A. Dunn	reference	Anderson, Margaret et al. (2013). Sm'algyax living legacy. http://smalgyax.unbc.ca/	page 13
 references	John A. Dunn	reference	Boas, Franz. (1911). “Tsimshian,” in Handbook of American Indian languages. Part 1. Smithsonian Institution Bureau of American Ethnology. Bulletin 40.	page 13

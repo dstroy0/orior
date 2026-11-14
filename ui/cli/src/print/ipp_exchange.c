@@ -5,7 +5,7 @@
 #include "../text/text.h"
 #include "ipp.h"
 
-// the most bytes of a printer's answer, its HTTP head and its body together; the bytes an answer and an encoded request
+// the max bytes of a printer's answer, its HTTP head and its body together; the bytes an answer and an encoded request
 // are written in; and the capacity made for each read of the answer
 #define CLI_IPP_ANSWER (1u << 22u)
 
@@ -74,7 +74,7 @@ EMBED_INLINE int cli_port(const IppExchangeCtx *args)
             return 0;
         }
     }
-    // checked against the most 16 bits represent above
+    // checked against the max 16 bits represent above
     *port = (unsigned int)value;
     return 1;
 }
@@ -429,7 +429,7 @@ int cli_ipp_exchange(const CliIppSizeCfg *args)
     const int done =
         EMBED_CALL(cli_exchange, IppExchangeCtx, .uri = args->uri, .request = args->request, .document = args->document,
                    .size = args->size, .answer = args->answer, .err_msg = args->err_msg);
-    // the answer's own texts are in its bytes; a document after them lay in the answer read, which is given back
+    // the answer's own texts are in its bytes; a document after them position in the answer read, which is given back
     args->answer->data = NULL;
     args->answer->data_length = 0ULL;
     g_cli_guard->persistent_buf_release(s_answer, g_cli_print_owner);

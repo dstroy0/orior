@@ -45,18 +45,18 @@ static void noise_lines_summary(const char *name, const NoiseLineCell cells[NOIS
 {
     printf("  %-24s", name);
     unsigned long long counted[NOISE_LINE_KINDS];
-    for (unsigned int kind = 0u; kind < NOISE_LINE_KINDS; kind += 1u)
+    for (unsigned int type = 0u; type < NOISE_LINE_KINDS; type += 1u)
     {
         NoiseLineCell pooled;
         memset(&pooled, 0, sizeof(pooled));
         for (unsigned int level_bin = NOISE_SUMMARY_FIRST_BIN; level_bin <= NOISE_SUMMARY_LAST_BIN; level_bin += 1u)
         {
-            const NoiseLineCell *const cell = &cells[(kind * NOISE_LEVEL_BINS) + level_bin];
+            const NoiseLineCell *const cell = &cells[(type * NOISE_LEVEL_BINS) + level_bin];
             pooled.lines += cell->lines;
             pooled.member_squares += cell->member_squares;
             noise_wide_add(&pooled.line_squares, cell->line_squares.low, cell->line_squares.high);
         }
-        counted[kind] = pooled.lines;
+        counted[type] = pooled.lines;
         unsigned long long per_mille = 0ull;
         if (noise_line_per_mille(&pooled.line_squares, pooled.member_squares, &per_mille))
         {
@@ -159,7 +159,7 @@ static void noise_planes_summary(const NoisePlanePool *pool)
 }
 
 // The static layout's three shared variances against the independent part s, per mille and signed (each 0 where
-// nothing is shared), then s in thousandths of a lane unit squared. With each kind's excess A its squared sums less T,
+// nothing is shared), then s in thousandths of a lane unit squared. With each type's excess A its squared sums less T,
 // D_plane = K_plane - K_row - K_column: var_plane = (A_plane - A_row - A_column) / D_plane, var_row = A_row / K_row -
 // var_plane, var_column = A_column / K_column - var_plane, and s = T / M - var_row - var_column - var_plane, each
 // carried over the common denominator L = M K_row K_column D_plane so nothing is rounded before the last division.
@@ -251,16 +251,16 @@ static void noise_static_summary(const NoiseStaticPool *still)
 static int noise_lines_rows(FILE *table, const char *name, const NoiseLineCell cells[NOISE_LINE_CELLS])
 {
     int ok = 1;
-    for (unsigned int kind = 0u; ok && (kind < NOISE_LINE_KINDS); kind += 1u)
+    for (unsigned int type = 0u; ok && (type < NOISE_LINE_KINDS); type += 1u)
     {
         for (unsigned int level_bin = 0u; ok && (level_bin < NOISE_LEVEL_BINS); level_bin += 1u)
         {
-            const NoiseLineCell *const cell = &cells[(kind * NOISE_LEVEL_BINS) + level_bin];
+            const NoiseLineCell *const cell = &cells[(type * NOISE_LEVEL_BINS) + level_bin];
             if (cell->lines == 0ull)
             {
                 continue;
             }
-            ok = fprintf(table, "%s\t%s\t%u\t%llu\t%llu\t%llu\t%llu\t%llu\n", name, NOISE_LINE_NAMES[kind],
+            ok = fprintf(table, "%s\t%s\t%u\t%llu\t%llu\t%llu\t%llu\t%llu\n", name, NOISE_LINE_NAMES[type],
                          level_bin << (NOISE_LEVEL_BIN_SHIFT - 1u), cell->lines, cell->members, cell->member_squares,
                          cell->line_squares.high, cell->line_squares.low) > 0;
         }

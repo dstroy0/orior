@@ -102,7 +102,7 @@ CliDbOpen *cli_db_connect(const CliDbRootCfg *args)
     {
         entry_at += 1u;
     }
-    // a connection's record holds its link and its password, so the records stand fixed outside the pool, one for each
+    // a connection's record holds its link and its password, so the records are fixed outside the pool, one for each
     // connection open at once, where they punch no hole in the persistent tier
     static CliDbOpen s_places[CLI_DB_OPENS];
     if (entry_at < CLI_DB_OPENS)
@@ -199,7 +199,7 @@ void cli_db_close(const CliDbErrMsgCfg *args)
     mmgr_zero_buf(args->open, sizeof(*args->open));
 }
 
-// a link acquired and handed to `work`, made first where it is none, and let go where its connection broke, the next
+// a link acquired and passed to `work`, made first where it is none, and let go where its connection broke, the next
 // statement connecting again
 static int open_with(const DbOpenCtx *args)
 {

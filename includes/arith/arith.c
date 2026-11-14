@@ -173,7 +173,7 @@ EMBED_INLINE CliArithQuadrant arith_quadrant(double angle)
     // Explicit cast reads the quarters, whole and within the angle's bound, as the integer whose low bits name the
     // quadrant
     const long long count = (long long)quarters;
-    // Explicit cast keeps the two low bits of the count, the same for a negative count in two's complement
+    // Explicit cast retains the two low bits of the count, the same for a negative count in two's complement
     return (CliArithQuadrant){left, (unsigned int)((unsigned long long)count & 3ULL)};
 }
 

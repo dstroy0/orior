@@ -71,7 +71,7 @@ function markdown(doc) {
     }
     const heading = !fenced && text.match(/^(#{1,6})\s+(.+?)\s*#*\s*$/);
     if (heading) {
-      found.push({ name: heading[2], kind: "heading", line, depth: heading[1].length - 1 });
+      found.push({ name: heading[2], type: "heading", line, depth: heading[1].length - 1 });
     }
   }
   const top = Math.min(...found.map((symbol) => symbol.depth));
@@ -83,7 +83,7 @@ function tex(doc) {
   for (let line = 0; line < doc.count; line += 1) {
     const match = doc.line(line).match(TEX);
     if (match) {
-      found.push({ name: match[2], kind: "heading", line, depth: TEX_LEVELS.indexOf(match[1]) });
+      found.push({ name: match[2], type: "heading", line, depth: TEX_LEVELS.indexOf(match[1]) });
     }
   }
   const top = Math.min(...found.map((symbol) => symbol.depth));
@@ -100,7 +100,7 @@ function byRules(doc, rules) {
     for (const [pattern, type] of rules) {
       const match = text.match(pattern);
       if (match) {
-        found.push({ name: match[2].trim(), kind: type, line, indent: columns(match[1]) });
+        found.push({ name: match[2].trim(), type: type, line, indent: columns(match[1]) });
         break;
       }
     }
@@ -114,7 +114,7 @@ function byRules(doc, rules) {
 // `#pragma region Name` and HTML's `<!-- #region Name -->` write them.
 const REGION_OPENS = /^\s*(?:#|\/\/|--|%|;|<!--)?\s*#?\s*(?:pragma\s+)?region\b[\s:]*(.*?)\s*(?:-->)?\s*$/i;
 const REGION_CLOSES = /^\s*(?:#|\/\/|--|%|;|<!--)?\s*#?\s*(?:pragma\s+)?end\s*region\b/i;
-// What stands before the word on such a line, spaces taken out: a comment's mark, `#` or `#pragma`.
+// What is before the word on such a line, spaces taken out: a comment's mark, `#` or `#pragma`.
 const REGION_MARKS = /^(?:#|\/\/#?|--|%|;|<!--#?|#pragma)$/i;
 
 // The regions a file's comments mark: each its name, its first line, its last, and how deep its
@@ -165,9 +165,9 @@ export function structureOf(language, doc) {
   const holding = (line, depth) => placed.filter((region) => region.line < line && line <= region.end && region.base <= depth).length;
   const out = symbols.map((symbol) => ({ ...symbol, depth: symbol.depth + holding(symbol.line, symbol.depth) }));
   for (const region of placed) {
-    out.push({ name: region.name, kind: "region", line: region.line, end: region.end, depth: region.base + holding(region.line, region.base) });
+    out.push({ name: region.name, type: "region", line: region.line, end: region.end, depth: region.base + holding(region.line, region.base) });
   }
-  return out.sort((a, b) => a.line - b.line || (a.kind === "region" ? -1 : 1));
+  return out.sort((a, b) => a.line - b.line || (a.type === "region" ? -1 : 1));
 }
 
 export function symbolsOf(language, doc) {
@@ -188,11 +188,11 @@ export function symbolsOf(language, doc) {
 }
 
 // The symbols of a language a plugin gives: its headings, each as deep as its level, and what its
-// rules find, each a step deeper than the heading it stands under and as deep again as its indent.
+// rules find, each a step deeper than the heading it is under and as deep again as its indent.
 function byPlugin(doc, own) {
   const headings = own.sections?.headings ? headingsOf(doc, own.sections) : [];
   const top = Math.min(...headings.map((one) => one.level));
-  const marked = headings.map((one) => ({ name: one.name, kind: "heading", line: one.line, depth: Math.min(DEEPEST, one.level - top) }));
+  const marked = headings.map((one) => ({ name: one.name, type: "heading", line: one.line, depth: Math.min(DEEPEST, one.level - top) }));
   const ruled = own.outline?.length ? byRules(doc, own.outline) : [];
   for (const symbol of ruled) {
     const under = [...marked].reverse().find((one) => one.line < symbol.line);

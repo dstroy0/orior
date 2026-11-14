@@ -2,7 +2,7 @@
   "id": "yaml",
   "name": "YAML",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "extensions": ["yml","yaml"],
   "comments": {"line":"#"},
   "pairs": ["()","[]","{}"],

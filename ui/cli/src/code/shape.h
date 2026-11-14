@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // shape.h: structural search and replace: code found by its shape, and each match written again from a template.
 //
-// A pattern is code of the file's language with placeholders in it: `$x$` stands for an expression, `$x:name$` for one
+// A pattern is code of the file's language with placeholders in it: `$x$` is for an expression, `$x:name$` for one
 // name, and `$x:stmt$` for one statement or more. The pattern and the code are each read as tokens, the leaves the
-// language's grammar reads them into, past spaces and comments: a match does not hang on how the code is laid out. A
+// language's grammar reads them into, past spaces and comments: a match does not hang on how the code is arranged. A
 // statement ends where the grammar names a statement's end and at a region's closing bracket, and, in a language whose
 // plugin says so, at a line's end outside brackets. An expression is a run of tokens whose brackets close inside it and
 // that ends no statement; it takes as few tokens as let the rest of the pattern match, and, last in the pattern, the
@@ -42,12 +42,12 @@ typedef struct
     const CliShapeFound *found;
 } CliShapeEachCfg;
 
-// A match found, handed on with its texts retained while the call lasts
+// A match found, passed on with its texts retained while the call lasts
 typedef void (*CliShapeEach)(const CliShapeEachCfg *args);
 
-// every match of `pattern` in `size` bytes of `src`, a file of `language`, both read by `languages`, each handed to
+// every match of `pattern` in `size` bytes of `src`, a file of `language`, both read by `languages`, each passed to
 // `each` under the search's lock with what `template_text` writes in its place, where it is not NULL; a match whose
-// written text does not fit 1 MiB is handed on without it. A language none of `languages` reads has no match
+// written text does not fit 1 MiB is passed on without it. A language none of `languages` reads has no match
 void cli_shape_search(const CliShapeLanguagesCfg *args);
 
 struct CliShapeLanguagesCfg

@@ -11,13 +11,13 @@
 #
 # How writing changes over centuries was asked of fourteen cookery books dated by the first four digit
 # number printed in each, which put a 1919 book in 1600. Dated again by author lifetimes, they covered
-# 1588 to 1858 with most of them in one century, and the one medieval text was dated to its eighteenth
+# 1588 to 1858 with the majority of them in one century, and the one medieval text was dated to its eighteenth
 # century editor.
 #
 # Whether a writer has a mark of their own was asked of books scraped from a catalog by name, which gave
 # seven writers of the ten wanted, in editions prepared differently from each other.
 #
-# This archive answers both. It is one language, prepared consistently, cataloged by people who kept
+# This archive answers both. It is one language, prepared consistently, cataloged by people who retained
 # careful records, split by century by the archive itself, and licensed for use with attribution. The
 # split is theirs and not mine, which matters: every century boundary drawn in this work so far was drawn
 # by me and one of them was drawn at 1810 to make five books fall on one side.

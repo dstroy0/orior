@@ -5,7 +5,7 @@
 #include "../text/text.h"
 #include "inspect_py.h"
 
-// the most attributes one class sets and reads that are recorded, and the bytes of the base being read
+// the max attributes one class sets and reads that are recorded, and the bytes of the base being read
 #define CLI_PY_ATTRIBUTES 16384u
 #define CLI_PY_BASE (4u * CLI_NAME_MAX_LEN)
 
@@ -70,7 +70,7 @@ EMBED_INLINE void classes_has(const InspectPyClassesCtx *args)
     }
 }
 
-// whether `self.name` at `offset` of a line's tokens stands before the line's assignment, as one of its targets:
+// whether `self.name` at `offset` of a line's tokens is before the line's assignment, as one of its targets:
 // before its last `=` outside brackets, as each of a chain's targets does, or before an operator that sets it from
 // itself, or before the colon of its annotation
 EMBED_INLINE int classes_setting_target(const InspectPyClassesCtx *args)

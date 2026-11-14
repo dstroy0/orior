@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// The floating toolbar emitter. A page hands EV.toolbar a spec and gets back one toolbar in a corner: a menu button
+// The floating toolbar emitter. A page passes EV.toolbar a spec and gets back one toolbar in a corner: a menu button
 // that opens it, and folding sections of rows. Every control is emitted with the id the spec gives it, and the page
 // binds its controls by id as it would hand-written markup. A slider's value shows in an output whose id is the
 // slider's id followed by "Out".

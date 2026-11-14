@@ -30,17 +30,17 @@ int query_pairs_read(const QueryPairsErrMsgCtx *args)
     {
         known =
             known ||
-            (cellul.eq(&(CatenaFinitaCfg){.src = args->words_letters[0], .other = s_modes[at], .cap = CLI_POOL_BYTES}));
+            (cellul.eq(&(CatenaFinitaCfg){.src = args->words_characters[0], .other = s_modes[at], .cap = CLI_POOL_BYTES}));
     }
     if (!known)
     {
         mmgr_line_put(args->err_msg, s_usage);
         return 0;
     }
-    mode->mode = args->words_letters[0];
+    mode->mode = args->words_characters[0];
     for (unsigned int at = 1u; at < args->count; at += 1u)
     {
-        const char *const word_text = args->words_letters[at];
+        const char *const word_text = args->words_characters[at];
         const char **field;
         if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--part", .cap = CLI_POOL_BYTES}))
         {
@@ -74,7 +74,7 @@ int query_pairs_read(const QueryPairsErrMsgCtx *args)
                 mmgr_line_put(args->err_msg, " takes a value");
                 return 0;
             }
-            *field = args->words_letters[at + 1u];
+            *field = args->words_characters[at + 1u];
             at += 1u;
         }
         else if (mode->word_count < QUERY_WORDS_MAX)
@@ -231,7 +231,7 @@ int query_pairs_configs(const QueryPairsPartContextCtx *args)
     {
         s_read[at] = s_paths[at];
     }
-    return EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = run, .paths_letters = s_read,
+    return EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = run, .paths_characters = s_read,
                       .count = 7u, .err_msg = err_msg);
 }
 
@@ -494,7 +494,7 @@ int query_pairs_run(const QueryLoopCfg *args)
     unsigned int count = args->count;
     VerbaLinea *err_msg = args->err_msg;
     static QueryPairsMode s_mode;
-    if (!EMBED_CALL(query_pairs_err_msg_internal.read, QueryPairsErrMsgCtx, .words_letters = words, .count = count,
+    if (!EMBED_CALL(query_pairs_err_msg_internal.read, QueryPairsErrMsgCtx, .words_characters = words, .count = count,
                     .mode_out = &s_mode, .err_msg = err_msg))
     {
         return -1;

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pool.c: the CLI's memory: MMgr's prison site, one cellblock over the pool declared here at CLI_POOL_BYTES, emptied
-// for a program's request while no cell is allocated; and the program's owner table, laid here from owners.h as data,
+// for a program's request while no cell is allocated; and the program's owner table, positioned here from owners.h as data,
 // each module's owner a const pointer into it. Every take and release goes through the cellblock's guard and carries
 // the owner. MMgr's report of a release carrying the wrong owner is logged. The reports read the cellblock's peaks and
 // the owner table off their atomic words, and are written at a command's end
@@ -12,7 +12,7 @@
 
 // The pool: bytes of the program's own image, declared at CLI_POOL_BYTES, the cellblock's record beside them, both
 // settled by the linker; emptied for a program's request while no cell is allocated. Minimum security: a cell is left
-// as it is when released and handed out unzeroed, so that a release costs no bytes it did not use and no page it did
+// as it is when released and passed out unzeroed, so that a release costs no bytes it did not use and no page it did
 // not touch; a capacity writes what it reads
 ParsMemoriaeInternae(cli_pool, CLI_POOL_BYTES);
 LocusCarcerum(cli_pool_site, MMGR_MINIMUM_SECURITY(cli_pool));
@@ -86,16 +86,16 @@ void mmgr_carcer_hw_misnamed(const CellOwner *named, const CellOwner *cell_owner
 
 // the turnstiles the option's storage has capacity for, which the machine's processors are bounded to, and the rows of
 // touches per thread it saves
-#define POOL_WIDTH_MOST 256u
+#define POOL_WIDTH_MAX 256u
 #define POOL_TOUCH_ROWS 64u
 
 // What MMgr's movable option is given: storage whose address the linker settles, and the thread its mover runs on,
 // saved at idle between moves and raised across each, since a reader waits on the copy
-ParsMemoriaeInternae(cli_pool_movable, MMGR_MOVABLE_STORAGE_BYTES(CLI_POOL_MOVABLE, POOL_WIDTH_MOST, POOL_TOUCH_ROWS));
+ParsMemoriaeInternae(cli_pool_movable, MMGR_MOVABLE_STORAGE_BYTES(CLI_POOL_MOVABLE, POOL_WIDTH_MAX, POOL_TOUCH_ROWS));
 static CliThread s_mover;
 static CliWake s_mover_wake = CLI_WAKE_INIT;
 
-// The mover as MMgr hands it to the thread: what it runs and on what, and whether the pool asks it to end, which its
+// The mover as MMgr passes it to the thread: what it runs and on what, and whether the pool asks it to end, which its
 // next wait answers, and whether it has ended, which the pool waits on before it empties the cellblock again
 static void (*s_mover_run)(void *context);
 static void *s_mover_context;
@@ -179,7 +179,7 @@ void cli_pool_movable_ready(void)
         &(CarcerMovableInitCfg){.storage = mmgr_pars_storage_cli_pool_movable,
                                 .storage_bytes = cli_pool_movable_bytes,
                                 .cells = CLI_POOL_MOVABLE,
-                                .width = (processors < POOL_WIDTH_MOST) ? processors : POOL_WIDTH_MOST,
+                                .width = (processors < POOL_WIDTH_MAX) ? processors : POOL_WIDTH_MAX,
                                 .rows = POOL_TOUCH_ROWS,
                                 .thread_started = pool_mover_started,
                                 .thread_id = pool_thread_id,
@@ -254,22 +254,22 @@ int cli_pool_made(unsigned long long bytes)
         // the mover's thread starts with the pool, so the cellblock is sorted in every quiet past the fragmentation
         // threshold, whether or not a module stores movable cells
         cli_pool_movable_ready();
-        // the rings' records laid over their parts of the rings block, with the pool, before any ticket is taken
-        cli_rings.laid();
+        // the rings' records positioned over their parts of the rings block, with the pool, before any ticket is taken
+        cli_rings.positioned();
     }
     return idle && fits;
 }
 
 // The line's flush as its cell fills: a cell of twice the capacity taken, the text so far copied into it, the cell
 // given back, and the line's `out` set past the copied text. 1, or 0 where the cells cannot meet the next cell or it
-// would pass `most`, which fills the line
+// would pass `max`, which fills the line
 static int grown_flush(void *context, const char *bytes, size_t size)
 {
     CliGrownLine *const grown = context;
     (void)bytes;
     const unsigned long long held = grown->line.flushed + size;
     const unsigned long long doubled = grown->capacity * 2ULL;
-    const unsigned long long capacity = (doubled < grown->most) ? doubled : grown->most;
+    const unsigned long long capacity = (doubled < grown->max) ? doubled : grown->max;
     if (capacity <= grown->capacity)
     {
         return 0;
@@ -288,13 +288,13 @@ static int grown_flush(void *context, const char *bytes, size_t size)
     return 1;
 }
 
-void cli_grown_begin(CliGrownLine *grown, unsigned long long most, const CellOwner *owner)
+void cli_grown_begin(CliGrownLine *grown, unsigned long long max, const CellOwner *owner)
 {
-    // the line's cell is taken once at its most
-    const unsigned long long first = most;
+    // the line's cell is taken once at its max
+    const unsigned long long first = max;
     grown->cell = g_cli_guard->temporary_buf_alloc(first, owner);
     grown->capacity = (grown->cell != NULL) ? first : 0ULL;
-    grown->most = most;
+    grown->max = max;
     grown->owner = owner;
     grown->line = mmgr_line_over(grown->cell, first);
     grown->line.flush = grown_flush;
@@ -407,7 +407,7 @@ void cli_pool_telemetry_log(void)
     {
         EMBED_CALL(pool_log, PoolCtx, .type = "telemetry", .line = &line);
     }
-    // the sorts the mover has run, with the persistent end and the fragmentation as they stand
+    // the sorts the mover has run, with the persistent end and the fragmentation as they are
     line.at = 0ULL;
     mmgr_line_decimal(&line, EMBED_ATOMIC_LOAD(&s_mover_sorts), 1u);
     mmgr_line_put(&line, " end ");

@@ -42,10 +42,10 @@ import corpus_rows
 DIGRAPHS = (("tl'", "ƛ"), ("tl’", "ƛ"), ("lh", "ɬ"), ("ch", "č"), ("sh", "š"), ("tth", "θ"), ("th", "θ"),
             ("hw", "x"), ("kw", "k"), ("qw", "q"), ("xw", "x"), ("gw", "g"), ("ts", "c"), ("tz", "c"))
 CLASSES = {}
-for letters, name in (("pbfφ", "P"), ("tdθð", "T"), ("szcčšžǰʃʒj", "S"), ("kgqxχɣ", "K"), ("ɬƛłλ", "L"),
+for characters, name in (("pbfφ", "P"), ("tdθð", "T"), ("szcčšžǰʃʒj", "S"), ("kgqxχɣ", "K"), ("ɬƛłλ", "L"),
                       ("rl", "R"), ("m", "M"), ("nŋ", "N"), ("w", "W"), ("y", "J")):
-    for letter in letters:
-        CLASSES[letter] = name
+    for character in characters:
+        CLASSES[character] = name
 
 
 def classes(form):
@@ -95,7 +95,7 @@ def vocabulary(everything):
     for row in everything:
         if row.language is None or row.placed != "who":
             continue
-        if row.kind in ("cited form", "root", "transcription", "phonemic") and " " not in row.form.strip():
+        if row.type in ("cited form", "root", "transcription", "phonemic") and " " not in row.form.strip():
             if re.search(r"[=~√*<>…]", row.form) or row.form.count("-") > 1:
                 continue
             meaning = concept(row.gloss)

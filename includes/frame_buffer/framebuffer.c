@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // framebuffer.c: a window's rasters: the two framebuffers, the two segments of the frames ring, one drawn while the
-// other is shown; and the ground's raster, the one segment of the background ring. A ring saves its state beside its
-// bytes, so that nothing but pixels lies in the segments, and each segment starts where its caller laid it
+// other is displayed; and the ground's raster, the one segment of the background ring. A ring saves its state beside its
+// bytes, so that nothing but pixels lies in the segments, and each segment starts where its caller positioned it
 #include "framebuffer.h"
 
 #include "memoria_operor/memoria_operor.h"
@@ -16,7 +16,7 @@ typedef struct
     unsigned long long pages_bytes;
 } FramebufferCtx;
 
-// a raster laid over a ring's segment, the pages it lies in and how far into them
+// a raster positioned over a ring's segment, the pages it lies in and how far into them
 EMBED_INLINE void framebuffer_raster_layout(const FramebufferCtx *args)
 {
     embed_u8 *const pixels = anularis.seg_at(&(AnularisCfg){.ring = args->ring, .index = args->segment});

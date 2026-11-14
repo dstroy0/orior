@@ -39,7 +39,7 @@ typedef struct CliRunnerErrMsgRunNumberCfg CliRunnerErrMsgRunNumberCfg;
 // would otherwise reach a window open on the tree
 #define CLI_RUN_VARIABLE "ORIOR_RUN"
 
-// the most settings, and the bytes of their texts, a command contains
+// the max settings, and the bytes of their texts, a command contains
 #define CLI_COMMAND_SETTINGS 64u
 
 #define CLI_COMMAND_TEXT (1u << 16u)
@@ -57,7 +57,7 @@ typedef struct
     unsigned int used;
 } CliCommand;
 
-// the most runs open at once; the most lines and bytes of them a run retains of what its steps wrote; the bytes one
+// the max runs open at once; the max lines and bytes of them a run retains of what its steps wrote; the bytes one
 // run's rings take in the rings block, its text then its line records each on the block's boundary; and the bytes
 // every run's take, the runner's part of the block
 #define CLI_RUNS_MAX 16u
@@ -74,7 +74,7 @@ typedef struct
 
 // The lines a run's steps wrote, in MMgr's rings over the run's span of the rings block: the text, a byte ring; the
 // line records, a segment ring with a record a segment; the text bytes ever put and ever consumed, whose difference
-// places a line's bytes ahead of the text ring's tail; whether the rings are laid; and the bytes each ring streams.
+// places a line's bytes ahead of the text ring's tail; whether the rings are positioned; and the bytes each ring streams.
 // The oldest lines are let go as a new one needs the room
 typedef struct
 {
@@ -82,7 +82,7 @@ typedef struct
     mmgr_ring line;
     unsigned int text_put;
     unsigned int text_taken;
-    int laid;
+    int positioned;
     embed_u8 *text_bytes;
     CliRunnerLine *line_bytes;
 } CliRunLines;
@@ -92,7 +92,7 @@ typedef struct
     (CLI_RUN_LINES_LINE_AT + CLI_RINGS_ALIGNED((unsigned long long)CLI_LINES_MAX * sizeof(CliRunnerLine)))
 #define CLI_RUNNER_LINES_RING_BYTES ((unsigned long long)CLI_RUNS_MAX * CLI_RUN_LINES_SET_BYTES)
 
-// the ring lays its byte stream and its segments only over counts of two's powers
+// the ring positions its byte stream and its segments only over counts of two's powers
 EMBED_STATIC_ASSERT(MMGR_RING_POW2(CLI_LINES_TEXT), "the lines' text ring's bytes are a power of two");
 EMBED_STATIC_ASSERT(MMGR_RING_POW2(CLI_LINES_MAX), "the lines' record ring's segments are a power of two");
 
@@ -104,7 +104,7 @@ enum
     CLI_RUN_EVENT_END
 };
 
-// the most pages a run's end names
+// the max pages a run's end names
 #define CLI_VIEWS_MAX 256u
 
 // What a run reports: its type and number; for its start, its job; for a line, its stream, "stdout", "stderr" or
@@ -148,8 +148,8 @@ void cli_command_set(const CliRunnerCommandNameCfg *args);
 int cli_command_sets(const CliRunnerNameCommandCfg *args);
 void cli_command_folder(const CliRunnerCommandFolderCfg *args);
 
-// a line put after the lines, the rings laid where they are not yet and the oldest lines let go for the room; the
-// lines emptied; how many lines stand; the bytes of the longest; and the line at `index` copied into `out`, cut to
+// a line put after the lines, the rings positioned where they are not yet and the oldest lines let go for the room; the
+// lines emptied; how many lines are; the bytes of the longest; and the line at `index` copied into `out`, cut to
 // `capacity` with its 0, where `out` is set: its bytes
 void cli_lines_append(const CliRunnerLinesCfg *args);
 void cli_lines_clear(CliRunLines *lines);
@@ -171,7 +171,7 @@ int cli_runner_program_words(const CliRunnerVariableCfg *args);
 // `text` split into words the way a shell does for plain words, single quotes and double quotes: 1, or 0 with why given
 int cli_runner_shell_words(const CliRunnerTextCfg *args);
 // why `values` do not do for the job: a value it needs not given, or one given that is not among a choice's values;
-// 1 where they do. And the line each step the job runs with these values shows, handed to `each`: 1, or 0 with why
+// 1 where they do. And the line each step the job runs with these values shows, passed to `each`: 1, or 0 with why
 // given
 int cli_runner_check(const CliRunnerErrMsgCfg *args);
 int cli_runner_show(const CliRunnerErrMsgRootCfg *args);

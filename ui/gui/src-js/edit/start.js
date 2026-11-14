@@ -15,7 +15,7 @@ import { startTrace } from "../trace.js";
 import { coverageOf, startTests, testMenu, testsOf } from "../tests.js";
 import { showMenu } from "../menu.js";
 import { cellFileOf, notebookEditor, startNotebooks } from "../notebook.js";
-import { kindColors: typeColors } from "../themes.js";
+import { typeColors: typeColors } from "../themes.js";
 import { onFonts } from "../fonts.js";
 import { writeWithCare } from "../rights.js";
 import { marksOf, startScripts, syncPlugins, tell } from "../scripts.js";
@@ -25,9 +25,9 @@ import { drawCrumbs, goToDefinition, problemsChanged } from "./crumbs.js";
 import { light } from "./defs.js";
 import { markChanges, mirror, openLineCommit } from "./mirror.js";
 import { marginLine, vimKeys } from "./menus.js";
-import { keepPlace, splitFocused } from "./open.js";
+import { retainPlace, splitFocused } from "./open.js";
 import { closePeek, hunkAt, showPeek } from "./peek.js";
-import { endCycle, keepBackups } from "./places.js";
+import { endCycle, retainBackups } from "./places.js";
 import { undoGroup } from "./refactor.js";
 import { AUTO_SAVE_REST, openAt, saving } from "./save.js";
 import { drawTabs, markSaved, tabOf, tabOfSession } from "./tabs.js";
@@ -38,7 +38,7 @@ const fileOfSession = (s) => state.tabs.find((tab) => tab.session === (s?.of ?? 
 
 export function hookEditor() {
   let lighting = 0;
-  let keeping = 0;
+  let retention = 0;
   let outlining = 0;
   let backing = 0;
   let marking = 0;
@@ -51,7 +51,7 @@ export function hookEditor() {
     onHistory: openLineCommit,
     onGroup: undoGroup,
     onShown: (s, from, to) => {
-      s.highlight.shown(from, to, s.view?.reach?.() ?? Infinity);
+      s.highlight.displayed(from, to, s.view?.reach?.() ?? Infinity);
       const tab = tabOfSession(s.of ?? s);
       if (tab) {
         hintsShown(tab, from, to);
@@ -94,8 +94,8 @@ export function hookEditor() {
         drawCrumbs();
         lightOutline(cursorLine());
       });
-      window.clearTimeout(keeping);
-      keeping = window.setTimeout(keepPlace, 500);
+      window.clearTimeout(retention);
+      retention = window.setTimeout(retainPlace, 500);
     },
     onChange: (session) => {
       const tab = state.tabs.find((one) => one.session === session);
@@ -111,7 +111,7 @@ export function hookEditor() {
         }
       }
       window.clearTimeout(backing);
-      backing = window.setTimeout(keepBackups, 800);
+      backing = window.setTimeout(retainBackups, 800);
       window.clearTimeout(marking);
       marking = window.setTimeout(() => markChanges(tabOf(state.active)), 400);
       window.clearTimeout(autoSaving);
@@ -293,7 +293,7 @@ export function startEditor() {
       say("A file as a commit left it is read-only.");
       return;
     }
-    // A text shown in its colors goes back to its codes as written, to be edited.
+    // A text displayed in its colors goes back to its codes as written, to be edited.
     if (tab.colored !== undefined) {
       const raw = tab.colored;
       delete tab.colored;

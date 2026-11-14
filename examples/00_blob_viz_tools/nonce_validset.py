@@ -8,7 +8,7 @@
 
 REVERSING THE TOPOLOGY
 
-The forward question, does a nonce win, kept coming back flat. The reverse question is what the whole
+The forward question, does a nonce win, retained coming back flat. The reverse question is what the whole
 SET of winning nonces looks like: not the one that got mined, which mining habits skew, but every
 nonce whose hash falls below the target. That set is the preimage of the valid region, and its shape
 is a property of the hash, alone, because it is not one draw but all of them.
@@ -23,7 +23,7 @@ the bin counts against those two nulls, both of which a uniform valid set produc
 
 WHY THIS IS CLEAN
 
-Every nonce in the range is hashed and every valid one is kept. No search order and no mining
+Every nonce in the range is hashed and every valid one is retained. No search order and no mining
 habit enters. The valid set is the hash's own, and a departure from Poisson is the hash's own too.
 
 WHAT IS WITHHELD

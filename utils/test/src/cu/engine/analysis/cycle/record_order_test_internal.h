@@ -55,7 +55,7 @@
 
 #define ORDER_TEST_HALTS 48u
 
-// the most the test puts on the device at once: the orders' lanes, their four words in and every floor's four words
+// the max the test puts on the device at once: the orders' lanes, their four words in and every floor's four words
 // out at no more than 33 bits each
 #define ORDER_TEST_DECLARED                                                                                            \
     ((unsigned long long)ORDER_TEST_LANES *                                                                            \

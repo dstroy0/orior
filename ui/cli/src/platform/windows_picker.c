@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // windows_picker.c: the system's picker on Windows, its common item dialog: a file to open, a folder, or a file to
-// save, shown on a thread of its own in a single-threaded apartment, as the dialog must be, while the caller waits
+// save, displayed on a thread of its own in a single-threaded apartment, as the dialog must be, while the caller waits
 #include "../command_line/cli_internal.h"
 
 #if defined(_WIN32)
@@ -33,7 +33,7 @@ typedef struct
     CliPick *pick;
 #endif
 } WindowsPickerCtx;
-// the dialog shown and what was chosen written into the pick's path as UTF-8
+// the dialog displayed and what was chosen written into the pick's path as UTF-8
 EMBED_INLINE void picker_show(const WindowsPickerCtx *args)
 {
     const int saving = args->pick->type == CLI_PICK_SAVE;
@@ -65,7 +65,7 @@ EMBED_INLINE void picker_show(const WindowsPickerCtx *args)
     IFileDialog_Release(dialog);
 }
 
-// a pick's thread: its apartment entered, the dialog shown, and the caller woken
+// a pick's thread: its apartment entered, the dialog displayed, and the caller woken
 static void picker_run(void *context)
 {
     CliPick *const pick = context;

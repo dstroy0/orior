@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // block.h: the window's block: one span of the system's pages, reserved once as the window starts at the size the
 // largest monitor takes and given back whole as it ends. Every ring of pixels the window draws is a part of it: a ring
-// of MMgr's whose record the linker settles, laid over its span of the block on a GUI_BLOCK_POSITION boundary, where
+// of MMgr's whose record the linker settles, positioned over its span of the block on a GUI_BLOCK_POSITION boundary, where
 // the system's graphics device can place a buffer, its pages committed as far as the part is first drawn. Nothing of
 // the window's pixels comes from the shared cells (block.c)
 #ifndef GUI_BLOCK_H
@@ -24,7 +24,7 @@ typedef struct GuiBlockFramebufferCfg GuiBlockFramebufferCfg;
 // The parts, each named with its segments; a segment holds one raster of the largest monitor. The rasters hold one
 // each; the glyph cells, the busy indicator and the faces span theirs; the lattice has a segment a slot and the faces one
 // a face; the work parts hold the float coverage a glyph, an icon or the wordmark's cut is drawn in before its bytes,
-// and the row counts a polygon fill keeps; the bead part holds the toolkit's own three groups of beads, the side menu's,
+// and the row counts a polygon fill retains; the bead part holds the toolkit's own three groups of beads, the side menu's,
 // the top menu's and the controls', a segment each. A program adds parts of its own after them through
 // GUI_BLOCK_PARTS_OWN, which its build defines as part_(NAME, segments) lines, none where it defines none
 #ifndef GUI_BLOCK_PARTS_OWN
@@ -37,7 +37,7 @@ typedef struct GuiBlockFramebufferCfg GuiBlockFramebufferCfg;
     part_(PREFERENCES_GROUND, 1u)                                                                                      \
     part_(DIALOG, 1u)                                                                                                  \
     part_(DIALOG_GROUND, 1u)                                                                                           \
-    part_(BASE_KEPT, 1u)                                                                                               \
+    part_(BASE_RETAINED, 1u)                                                                                               \
     part_(WORDMARK_UNDER, 1u)                                                                                          \
     part_(WORDMARK_NAME, 1u)                                                                                           \
     part_(WORDMARK_FLIGHT, 1u)                                                                                         \
@@ -63,7 +63,7 @@ enum
 {
     GUI_BLOCK_PARTS(GUI_BLOCK_PART_NAMED) GUI_BLOCK_COUNT
 };
-// the most segments a part has
+// the max segments a part has
 #define GUI_BLOCK_SEGMENTS_MAX 8u
 
 // the block reserved for a monitor `width` by `height`, nothing of it committed: 1, or 0 where there is no size or the
@@ -72,9 +72,9 @@ enum
 int gui_block_init(const GuiBlockSizeCfg *args);
 void gui_block_free(const GuiBlockSizeCfg *args);
 unsigned long long gui_block_raster_bytes(const GuiBlockSizeCfg *args);
-// the ring of part `part` laid anew over the part's span, its segments the part's, each segment's pages committed as
+// the ring of part `part` positioned anew over the part's span, its segments the part's, each segment's pages committed as
 // far as `bytes` reach: the ring, or NULL where the block has no pages or `bytes` pass a segment; the ring as it
-// stands, NULL where the block has no pages; `bytes` from the start of segment `segment` of part `part`, committed:
+// is, NULL where the block has no pages; `bytes` from the start of segment `segment` of part `part`, committed:
 // the span, or NULL where the block has no pages or `bytes` pass a segment; and `bytes` taken at `*cursor` from the
 // start of part `part`, across its segments, committed, the cursor moved past them to a word's boundary: the span, or
 // NULL where the block has no pages or the take passes the part, the cursor as it was
@@ -85,14 +85,14 @@ unsigned char *gui_block_take(const GuiBlockPartCfg *args);
 // a raster of `width` by `height` made clear over segment `segment` of part `part`, its pixels committed: 1, or 0
 // where the block has no pages or the raster passes the segment
 int gui_block_raster_init(const GuiBlockRasterCfg *args);
-// the framebuffers laid over the frames and background parts for a window `width` by `height`, a segment's capacity
+// the framebuffers positioned over the frames and background parts for a window `width` by `height`, a segment's capacity
 // one raster of the largest monitor: 1, or 0 where the block has no pages or the window passes the capacity; and the
 // framebuffers sized to a window `width` by `height`, each segment's pages committed as far as the window draws: 1, or
 // 0 with nothing changed where the window passes the capacity
 int gui_block_framebuffer_init(const GuiBlockFramebufferCfg *args);
 int gui_block_framebuffer_fit(const GuiBlockFramebufferCfg *args);
 
-// The system's pages the block lays in, as the caller's system does them: `bytes` of pages reserved, NULL where the
+// The system's pages the block positions in, as the caller's system does them: `bytes` of pages reserved, NULL where the
 // system gives none; `bytes` of pages at `at` committed, 1 or 0; and `bytes` of pages at `at` given back
 typedef struct
 {

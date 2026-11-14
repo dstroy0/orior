@@ -44,20 +44,20 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
             break;
         }
         const unsigned long long began = engine_clock_microseconds();
-        EngineStream standing;
-        EngineSignum standing_root;
+        EngineStream located;
+        EngineSignum located_root;
         EngineError probe;
         memset(&probe, 0, sizeof(probe));
-        if ((request->reuse != 0u) && krep_crystal_head(iapx_path, &standing, &standing_root, &probe))
+        if ((request->reuse != 0u) && krep_crystal_head(iapx_path, &located, &located_root, &probe))
         {
             EngineHistory stored_history;
             const int read_back = krep_history_read(path, &stored_history, 1u, &probe);
-            const int same = read_back && entry_signum_same(&stored_history.sample, &standing_root);
+            const int same = read_back && entry_signum_same(&stored_history.sample, &located_root);
             krep_history_release(&stored_history);
             if (same)
             {
-                printf("  %-24s laid down already: read back whole, projected from the " ENTRY_CRYSTAL_SUFFIX
-                       " as it stands, in %llu ms\n",
+                printf("  %-24s positioned down already: read back whole, projected from the " ENTRY_CRYSTAL_SUFFIX
+                       " as it is, in %llu ms\n",
                        name, (engine_clock_microseconds() - began) / 1000ull);
                 fflush(stdout);
                 continue;

@@ -3,7 +3,7 @@
 // maven_schema.c: what a POM's elements may contain, and the words its values take: the children each element may
 // contain, an element inside a `configuration` or a `properties` being its plugin's or its reader's and not checked;
 // the scopes a dependency takes; the phases of Maven's lifecycles; the packagings and types; the properties a POM's
-// `<properties>` most often sets; the first words of the properties Maven, Java and the system give a POM; and those it
+// `<properties>` usually sets; the first words of the properties Maven, Java and the system give a POM; and those it
 // can name of its project
 #include "maven_internal.h"
 

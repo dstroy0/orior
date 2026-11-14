@@ -105,7 +105,7 @@ def main():
             os.path.join(CORPORA, name), encoding="utf-8", errors="replace"
         ) as handle:
             text = handle.read(CAP)
-        # Line endings folded, as everywhere here, to keep a publisher's wrapping out of it
+        # Line endings folded, as everywhere here, to retain a publisher's wrapping out of it
         text = text.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
         if len(text) < LEAST:
             continue

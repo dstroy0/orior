@@ -47,7 +47,7 @@ extern "C"
     {
         unsigned int magic;
         unsigned int version;
-        unsigned int kind;
+        unsigned int type;
         unsigned int override_budget;
         unsigned char device[TESSERA_DEVICE_BYTES];
         EngineSignum signum;
@@ -106,7 +106,7 @@ _Static_assert(sizeof(TesseraFrame) == TESSERA_FRAME_BYTES, "tessera: a frame is
         unsigned long long waiting_microseconds;
     } TesseraJobSubmit;
 
-    // `standing` is the bytes the job's process already allocated on the device as it requested (its CUDA context and
+    // `located` is the bytes the job's process already allocated on the device as it requested (its CUDA context and
     // whatever it retained from an earlier job), which the daemon measured and counted with its declaration; it is
     // reported on admission
     typedef struct
@@ -115,7 +115,7 @@ _Static_assert(sizeof(TesseraFrame) == TESSERA_FRAME_BYTES, "tessera: a frame is
         unsigned long long granted;
         unsigned long long last_peak;
         unsigned long long grown_to;
-        unsigned long long standing;
+        unsigned long long located;
         // the microseconds the submit waited for its answer; a submit that errs with `waited` at or past the request's
         // `waiting_microseconds` found no headroom in time
         unsigned long long waited;

@@ -1,4 +1,4 @@
-where	who	kind	form	gloss
+where	who	type	form	gloss
 front	Katie Sardinha	title	The Grammar of Body-Directed Action Verbs in Kwak̕wala	page 1, carries footnote *
 front	Katie Sardinha	name	Katie Sardinha	author
 front	Katie Sardinha	note	Independent researcher	page 1, under Katie Sardinha
@@ -83,7 +83,7 @@ Table 1 line 22	Kwak̕wala	gloss	‘inchoative’	page 2, Table 1, the Morpheme 
 §1	Katie Sardinha	note	• Interaction with body part suffixes	page 2
 §1	Katie Sardinha	note	• Conclusion	page 2
 §2	Katie Sardinha	heading	2 Basic sentence types	page 2
-§2	Katie Sardinha	note	Two kinds of basic sentences can be constructed using body-directed action verbs: reflexive sentences like in (1), and transitive sentences like in (2). Reflexive sentences lack an object, while transitive sentences have an object in the accusative case. 3	page 2
+§2	Katie Sardinha	note	Two types of basic sentences can be constructed using body-directed action verbs: reflexive sentences like in (1), and transitive sentences like in (2). Reflexive sentences lack an object, while transitive sentences have an object in the accusative case. 3	page 2
 footnote 3	Katie Sardinha	note	Accusative case is marked with =x̱ in the third person. First and second person pronouns in the accusative include gax̱a̱n ‘first person ACC’, gax̱a̱n’s ‘first person plural inclusive ACC’, gax̱a̱nu’x̱w ‘first person plural exclusive ACC’, and loł ‘second person ACC’.	page 2, footnote 3
 footnote 3	Kwak̕wala	cited form	loł	page 2, in italics, ‘second person ACC’
 (1) line 1	Katie Sardinha	note	Reflexive sentences:4	page 2, over the example
@@ -200,7 +200,7 @@ footnote 5	Katie Sardinha	note	There is only one reflexive pronominal in Kwak̕w
 (6b) line 4	Katie Sardinha	translation	Literally: ‘Monica wiped.’	page 5
 (6b) line 5	Katie Sardinha	speaker comment	Speaker’s comment: “For example, you could say didag̱a̱m (‘to face-wipe’).”	page 5, under the example, the consultant not named
 (6b) line 6	Katie Sardinha	citation	(20200614-JN JF)	page 5, under the translation
-§2	Katie Sardinha	note	According to the speaker, the problem with the sentences in (6) is that it is not clear what Simon washed in (6a), or what Monica wiped in (6b). This is because unlike the other verbs in Table 1, the verbs t̕sux̱wa, t̕sux̱w’id ‘to wash’ and dix’id ‘to wipe’ can be used to describe actions directed at objects other than the body. For instance, the verbs t̕sux̱wa and t̕sux̱w’id can also be used to describe washing things like salmonberries (7), clothes, or dishes, while dix’id can also be used to describe wiping different kinds of surfaces, such as floors (8), windows, or tables.	page 5
+§2	Katie Sardinha	note	According to the speaker, the problem with the sentences in (6) is that it is not clear what Simon washed in (6a), or what Monica wiped in (6b). This is because unlike the other verbs in Table 1, the verbs t̕sux̱wa, t̕sux̱w’id ‘to wash’ and dix’id ‘to wipe’ can be used to describe actions directed at objects other than the body. For instance, the verbs t̕sux̱wa and t̕sux̱w’id can also be used to describe washing things like salmonberries (7), clothes, or dishes, while dix’id can also be used to describe wiping different types of surfaces, such as floors (8), windows, or tables.	page 5
 (7) line 1	Kwak̕wala	transcription	la̱’misux̱ t̕sux̱w’i x̱ada ḵ̕a̱mdza̱kw	page 5
 (7) line 2	Kwak̕wala	segmentation	l(a̱) =’m =(w)is =ux̱ t̕sux̱w -(x)’id =x̱ =a =da ḵ̕a̱mdza̱kw	page 5
 (7) line 3	Kwak̕wala	gloss	AUX =VER =and.so =D2 wash -BEC =ACC =D4 =DET salmonberry	page 5
@@ -328,7 +328,7 @@ Table 2 row 6	Katie Sardinha	translation	‘to strike in eye’	page 8, Table 2,
 footnote 9	Katie Sardinha	note	In examples (11d), (11e), (11f), (13d), (13e), (13f), and (16a), the verb root t̕sux̱w- ‘wash’ undergoes CV reduplication along with reduction of the stem vowel. I do not know the meaning associated with this particular type of reduplication.	page 9, footnote 9
 (11d) line 2	Kwak̕wala	segmentation	CV~ t̕sux̱w -(x)t̕sana =ux̱ Shelly =(a̱)x̱	page 9
 (11d) line 3	Kwak̕wala	gloss	RED~ wash -hand =D2 Shelly =V2	page 9
-(11d) line 4	Katie Sardinha	translation	‘Shelly is washing her hands.’	page 9
+(11d) line 4	Katie Sardinha	translation	‘Shelly is washing her passes.’	page 9
 (11d) line 5	Katie Sardinha	citation	(20191205-RDC VF)	page 9, the tag or source at the right of the translation
 (11e) line 1	Kwak̕wala	transcription	lux̱ Monicax̱ ’walas	page 9
 (11e) line 2	Kwak̕wala	segmentation	l(a̱) =ux̱ Monica =(a̱)x̱ ’walas	page 9
@@ -388,7 +388,7 @@ footnote 9	Katie Sardinha	note	In examples (11d), (11e), (11f), (13d), (13e), (1
 (13d) line 4	Kwak̕wala	transcription	xwa̱nukw Monica	page 11
 (13d) line 5	Kwak̕wala	segmentation	xwa̱nukw Monica	page 11
 (13d) line 6	Kwak̕wala	gloss	child Monica	page 11
-(13d) line 7	Katie Sardinha	translation	‘Shelly is washing her child Monica’s hands.’	page 11
+(13d) line 7	Katie Sardinha	translation	‘Shelly is washing her child Monica’s passes.’	page 11
 (13d) line 8	Katie Sardinha	citation	(20191205-RDC VF)	page 11, the tag or source at the right of the translation
 (13e) line 1	Kwak̕wala	transcription	lux̱ Shelly t̕sut̕sa̱x̱wa̱m x̱ux̱ Simonx̱	page 11
 (13e) line 2	Kwak̕wala	segmentation	l(a̱) =ux̱ Shelly CV~ t̕sux̱w -(g̱)a̱m =x̱ =ux̱ Simon =(a̱)x̱	page 11

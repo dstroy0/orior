@@ -25,7 +25,7 @@ int msq_tables_read(void)
     for (const char *at = s_architecture; (*at != '\0') && (length < (sizeof(part) - 2u)); at += 1)
     {
         const char c = (char)(((*at >= 'A') && (*at <= 'Z')) ? (*at - 'A' + 'a') : *at);
-        // the part's name puts an underscore between its letters and its digits
+        // the part's name puts an underscore between its characters and its digits
         if ((length != 0u) && (c >= '0') && (c <= '9') && !((part[length - 1u] >= '0') && (part[length - 1u] <= '9')))
         {
             part[length] = '_';

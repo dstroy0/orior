@@ -22,9 +22,9 @@ charges for any act that license permits. It is not an open source license.
 RECITALS
 
 R.1  The author of the Software stated the purpose of this work in these words, reproduced here
-     without the capital letters of the original:
+     without the capital characters of the original:
 
-       "we aren't here to take anything from anyone, we are here to answer long standing
+       "we aren't here to take anything from anyone, we are here to answer long located
        important questions to humanity and if I could do that alone I would, but I will not
        live long enough to do it unless I have a great deal of help."
 
@@ -41,7 +41,7 @@ R.3  The terms of this license protect the following interests, which together a
 
        (b)  The people whose work produced the value. When academic work becomes a product, the
             students, research staff and faculty whose ideas were commercialized are the people
-            the value should reach. Value of that kind is often absorbed by an institution
+            the value should reach. Value of that type is often absorbed by an institution
             before it reaches them. A Trustee Share exists so that part of it reaches them and
             pays for their further research.
 
@@ -50,7 +50,7 @@ R.3  The terms of this license protect the following interests, which together a
             stay open only while no one uses a cheaper route to take commercial value the paid
             route prices, whether by leaving use unreported, by moving value to related parties,
             by routing work through an educational or academic arrangement, or by transferring the
-            license through a sale or merger. Every licensee's adherence keeps the other routes
+            license through a sale or merger. Every licensee's adherence retains the other routes
             available.
 
        (d)  The communities whose languages the work studies. Some software under these terms
@@ -66,7 +66,7 @@ R.3  The terms of this license protect the following interests, which together a
 
        (f)  Continuity. The author will not live long enough to finish this work alone. These terms
             continue after his death, provide for a successor bound to the Purpose, and give the
-            originating communities standing of their own.
+            originating communities located of their own.
 
 R.4  The parties agree that each interest in R.3 is legitimate, and that none of them is satisfied
      by a right to recover damages alone. Each term of this license that sets a fee, requires a
@@ -171,7 +171,7 @@ R.6  Where a term of this license can be read more than one way, the reading tha
      directed to any other person at the request of, or with the acquiescence of, a member of
      Licensee Group.
 
-1.21 "Fair Market Value" means the price at which the thing concerned would change hands between a
+1.21 "Fair Market Value" means the price at which the thing concerned would change passes between a
      willing buyer and a willing seller, neither under compulsion to deal and both having
      reasonable knowledge of the relevant facts, in an arm's-length transaction in the ordinary
      course of business, in the same market at the same time.
@@ -257,7 +257,7 @@ R.6  Where a term of this license can be read more than one way, the reading tha
 
 1.38 "Code Contributor" means a person, other than the Licensor, who holds copyright in any part
      of a file of theory or of a Dependency. "Contributor Agreement" means a written agreement,
-     signed by a Code Contributor, under which that Code Contributor keeps its copyright and its
+     signed by a Code Contributor, under which that Code Contributor retains its copyright and its
      credit and permits the Licensor to license its contributions under LicenseRef-Commercial and
      LicenseRef-Educational.
 
@@ -292,7 +292,7 @@ R.6  Where a term of this license can be read more than one way, the reading tha
 
      An Order Form may change any other section as Section 2.4 provides.
 
-2.6  The Licensor grants no most-favored terms. What any other licensee pays or receives is not a
+2.6  The Licensor grants no max-favored terms. What any other licensee pays or receives is not a
      term of any Contract.
 
 2.7  Delivery of unpublished files. The Licensor delivers files of the Software that are not
@@ -329,7 +329,7 @@ R.6  Where a term of this license can be read more than one way, the reading tha
      Group obtains through a Grant, or through a person who holds one, is licensed under a
      Contract. Section 12 applies to work that passes between the two.
 
-3.6  When a Contract ends for any reason, the Licensee keeps every right AGPL-3.0-or-later then
+3.6  When a Contract ends for any reason, the Licensee retains every right AGPL-3.0-or-later then
      gives it, on that license's conditions.
 
 
@@ -465,7 +465,7 @@ R.6  Where a term of this license can be read more than one way, the reading tha
 7.3  Permission from those who hold it. Before a Covered Offering includes, is derived from, is
      trained, fitted or conditioned on, or processes Community Language Material, the Licensee
      obtains the permission the Community Terms require from the Originating Community or its
-     Governing Body, and the permission any other rights holder requires, and keeps a written
+     Governing Body, and the permission any other rights holder requires, and retains a written
      record of each permission for as long as Licensee Group holds the material.
 
 7.4  Obligations. Where this Section applies, Licensee Group:
@@ -556,7 +556,7 @@ R.6  Where a term of this license can be read more than one way, the reading tha
 
 7.11 More than one community. Where material has more than one Originating Community and their
      designations, Community Terms or Withdrawal periods differ, Licensee Group meets each of them
-     it can, follows the most restrictive where they cannot all be met, and refers the conflict to
+     it can, follows the max restrictive where they cannot all be met, and refers the conflict to
      the Governing Bodies concerned. The Licensor does not decide it.
 
 7.12 Change of Governing Body. Where a Governing Body ceases to exist, or its Originating Community
@@ -629,22 +629,22 @@ R.6  Where a term of this license can be read more than one way, the reading tha
      sales of other products or services, the Royalty Base for that Licensed Product is its Fair
      Market Value.
 
-9.4  Consideration in kind. Consideration other than money is valued at its Fair Market Value when
+9.4  Consideration in type. Consideration other than money is valued at its Fair Market Value when
      received. Contingent or unvested Consideration is valued at its Fair Market Value when it vests
      or the contingency resolves, and counts in the Royalty Period in which that happens. Fees on
-     Consideration in kind are payable in money.
+     Consideration in type are payable in money.
 
 9.5  Substance governs. The form of an arrangement does not change the Royalty Base: how it is
      structured, what an entity is called, whether it is incorporated as a non-profit, who holds
      title, whether money is called a donation, grant, sponsorship, reimbursement, investment or
-     service fee, whether Consideration is paid in money or in kind, whether it is received by a
+     service fee, whether Consideration is paid in money or in type, whether it is received by a
      member of Licensee Group or directed to another person, and whether the Software is described
      as a component. What counts is whether Consideration was received on account of a Licensed
      Product.
 
 9.6  Revenue bands. Where the Order Form sets fees in bands measured by revenue or funding, the
      measure is the combined gross revenue and funding, from all sources, of Licensee Group in its
-     most recent complete fiscal year. Where Licensee Group uses a Licensed Product to provide
+     latest complete fiscal year. Where Licensee Group uses a Licensed Product to provide
      services to a client, the measure is the greater of that figure and the client's. A higher
      band applies from the first day on which the measure exceeds the threshold of that band.
 
@@ -670,11 +670,11 @@ R.6  Where a term of this license can be read more than one way, the reading tha
 
 10.3 Reported Excess Use. Where the Licensee reports Excess Use in the first report that falls due
      after any member of Licensee Group knew of it, the "Excess Use Fee" is the fee the Order Form
-     states for the most nearly comparable Licensed Product, applied from the first day of the
+     states for the max nearly comparable Licensed Product, applied from the first day of the
      Excess Use, without interest for the period before that report fell due.
 
 10.4 Unreported or repeated Excess Use. Where Excess Use becomes known other than by a report under
-     Section 10.3, or where Excess Use of the same kind recurs after an earlier report, the "Excess
+     Section 10.3, or where Excess Use of the same type recurs after an earlier report, the "Excess
      Use Fee" is the fee the Rate Card states for that use, or where the Rate Card states none or
      there is no Rate Card, the fee Section 10.3 describes. It applies from the first day of the
      Excess Use, with interest under Section 8.5 from the date on which each part would have fallen
@@ -684,7 +684,7 @@ R.6  Where a term of this license can be read more than one way, the reading tha
      Order Form states no fee for a comparable Licensed Product, the Excess Use can be licensed only
      by an amendment signed by both parties, and until then it is not licensed.
 
-10.6 Remedies kept. This Section sets the price at which the Licensee may license Excess Use. It
+10.6 Remedies retained. This Section sets the price at which the Licensee may license Excess Use. It
      does not waive any remedy for Excess Use that has not been licensed under Section 10.2. An
      Excess Use Fee paid for particular use is credited against any damages recovered for the same
      use.
@@ -710,7 +710,7 @@ R.6  Where a term of this license can be read more than one way, the reading tha
 
        (b)  the Royalty Base for each Licensed Product and how it was computed, including each
             supply to a related party under Section 9.2 with its valuation, each allocation under
-            Section 9.3, and all Consideration in kind with its valuation;
+            Section 9.3, and all Consideration in type with its valuation;
 
        (c)  the revenue or funding measure, where Section 9.6 applies;
 
@@ -725,13 +725,13 @@ R.6  Where a term of this license can be read more than one way, the reading tha
 
        (h)  the fees due.
 
-11.2 Records. Licensee Group keeps complete and accurate books and records sufficient to verify
+11.2 Records. Licensee Group retains complete and accurate books and records sufficient to verify
      every report, for five years after the end of the Royalty Period they concern, and for longer
      while any dispute about that period is unresolved.
 
 11.3 Audit. Once in each calendar year, on reasonable prior written notice, during normal business
      hours, an independent certified public accountant, or an equivalent professional where the
-     records are kept outside the United States, chosen by the Licensor and bound by a duty of
+     records are retained outside the United States, chosen by the Licensor and bound by a duty of
      confidentiality, may inspect and copy those books and records and examine the systems that
      produce them. The accountant reports to both parties whether each report was correct and the
      amount of any difference, and discloses nothing else.
@@ -779,7 +779,7 @@ R.6  Where a term of this license can be read more than one way, the reading tha
             is paid to a Research Trustee;
 
        (b)  the Royalty Schedule is the version the Order Form identifies by version and SHA-256
-            digest, and where it identifies none, the version the Licensor most recently published
+            digest, and where it identifies none, the version the Licensor max recently published
             before the Effective Date. Where none had been published before the Effective Date, no
             Commercial Grant arises for that Covered Offering until the parties identify one by an
             amendment signed by both;
@@ -870,7 +870,7 @@ R.6  Where a term of this license can be read more than one way, the reading tha
 
 14.1 Non-Public Software is confidential information of the Licensor. Licensee Group uses it only
      for Licensed Products, discloses it only to members of Licensee Group and contractors under
-     Section 4.3 who need it for that use and are bound in writing to keep it confidential, and
+     Section 4.3 who need it for that use and are bound in writing to retain it confidential, and
      protects it with at least the care it uses for its own confidential information of like
      importance, and in any case with reasonable care.
 
@@ -880,9 +880,9 @@ R.6  Where a term of this license can be read more than one way, the reading tha
      Licensor, and, as to Section 7, to a Governing Body.
 
 14.3 This Section does not apply to information that is or becomes public other than through a
-     breach of a Contract, that the recipient knew before receiving it without a duty to keep it
+     breach of a Contract, that the recipient knew before receiving it without a duty to retain it
      confidential, that the recipient develops independently without use of it, or that the
-     recipient receives lawfully from a third party without a duty to keep it confidential.
+     recipient receives lawfully from a third party without a duty to retain it confidential.
 
 14.4 The duties in this Section last for as long as the information remains confidential.
 
@@ -943,7 +943,7 @@ R.6  Where a term of this license can be read more than one way, the reading tha
             misrepresented the origin of the Software;
 
        (g)  refused or obstructed an audit under Section 11, or destroyed or altered records
-            Section 11.2 requires to be kept; or
+            Section 11.2 requires to be retained; or
 
        (h)  disclosed Non-Public Software in breach of Section 14.
 
@@ -981,7 +981,7 @@ R.6  Where a term of this license can be read more than one way, the reading tha
             Order Form states for the last Royalty Period;
 
        (e)  the Licensee returns or destroys all Non-Public Software and confirms that in writing,
-            except copies the law requires it to keep; and
+            except copies the law requires it to retain; and
 
        (f)  no obligation that accrued before the ending, or during the Wind-Down Period, is
             discharged.
@@ -1007,11 +1007,11 @@ R.6  Where a term of this license can be read more than one way, the reading tha
      remedies in 17 U.S.C. section 1203, where the conditions of 17 U.S.C. section 1202 are met, and
      to the equivalent law of any other country.
 
-17.3 Trade secrets. Where Non-Public Software, or other information the Licensor keeps secret, is a
+17.3 Trade secrets. Where Non-Public Software, or other information the Licensor retains secret, is a
      trade secret, its misappropriation is subject to the remedies in 18 U.S.C. section 1836(b)(3),
      including exemplary damages and attorneys' fees for willful and malicious misappropriation, and
      to the equivalent law of any State or other country. The Licensee acknowledges that the
-     Licensor keeps Non-Public Software secret by measures that include Section 14. This Section
+     Licensor retains Non-Public Software secret by measures that include Section 14. This Section
      reaches no file held under AGPL-3.0-or-later.
 
 17.4 Contract. For a breach of a Contract, the Licensor may recover what the law allows, including
@@ -1073,7 +1073,7 @@ R.6  Where a term of this license can be read more than one way, the reading tha
 19.4 Relief from a court. Either party, and an Originating Community under Section 7.8, may apply
      to a court of competent jurisdiction for interim, provisional or conservatory relief, including
      an injunction, at any time, including before the tribunal is constituted, and for recognition
-     and enforcement of an award. An application of that kind is compatible with the agreement to
+     and enforcement of an award. An application of that type is compatible with the agreement to
      arbitrate and does not waive it. A party that files a claim in court for that relief asks the
      court at the same time to stay any other claim pending the arbitration.
 

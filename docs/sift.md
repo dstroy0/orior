@@ -6,7 +6,7 @@ The Python in [`archive/src/python/engine/nbody/orior/sift/`](https://github.com
 
 **It is a safe filter.** It checks a few of a pattern's points first. Any true match must pass that check. That means no choice of those points (the anchors) can lose a true match. This is proved, and the proof uses no order, no number of dimensions and no alphabet ([Why the count is exact](ENGINE_PROOF.md)). The measurements agree: across 35 rows of text collections, needle lengths and strides, no search ever reported fewer matches than there really were. It can only be wrong in one direction. Any mistake is an over-count, and you can spot one without knowing the right answer.
 
-**Its memory is small.** It keeps `m` bits of state for a pattern of length `m`, no matter how large the alphabet or how many dimensions there are. It builds no index and no table over the alphabet. An alphabet of real numbers, or one too large to list, costs it nothing extra. That is a claim about what it can do. It says nothing about speed.
+**Its memory is small.** It retains `m` bits of state for a pattern of length `m`, no matter how large the alphabet or how many dimensions there are. It builds no index and no table over the alphabet. An alphabet of real numbers, or one too large to list, costs it nothing extra. That is a claim about what it can do. It says nothing about speed.
 
 **It can search with no pattern at all.** Given only raw bytes, it found a multiple of a record period from 512 reads. It scored 92 shifts on the real bytes and 0 on a shuffle of the same bytes.
 
@@ -24,7 +24,7 @@ The Python in [`archive/src/python/engine/nbody/orior/sift/`](https://github.com
 
 That is a hundredfold difference in cycles, and it is not rounding. Both are real runs, and each number belongs to the toolchain that produced it. That's why the bench exists: its output is advice to act on. It also tries every threshold instead of assuming one. Every value from 0.34 to 0.96 scores the same, and the kernel's 0.85 sits inside that range.
 
-**On this data, the needle length part of the rule does nothing.** Scoring flatness alone ties the kernel exactly, with the same rows and the same cycles. The length part changes no answer on any of the 42 rows. Flatness followed by length scores strictly worse than flatness alone, and length alone is worse than both. A setting that nothing reads yet is a hook for later. It is neither removed nor described as not built. It is named here and kept until a row turns up where it helps.
+**On this data, the needle length part of the rule does nothing.** Scoring flatness alone ties the kernel exactly, with the same rows and the same cycles. The length part changes no answer on any of the 42 rows. Flatness followed by length scores strictly worse than flatness alone, and length alone is worse than both. A setting that nothing reads yet is a hook for later. It is neither removed nor described as not built. It is named here and retained until a row turns up where it helps.
 
 The real score is cycles lost, and it turns the row count upside down. Always taking the free order engine is right on 17 of the 42 rows, the fewest of any rule. It still loses fewer cycles than always taking the short-circuiting engine, which is right on 25. Counting rows treats a row where the engines differ by one percent the same as a row where they differ threefold. A rule can be wrong more often and still cost less.
 
@@ -75,7 +75,7 @@ After a build, the scripts run these graders: `test_steer`, `test_adversarial`, 
 
 ## Drawing the object, flat and solid
 
-The renderer draws the object straight from the engine's state. What you see is what the search saw. There are two kinds of output, because a flat sheet and a solid block are different maps, not one map at two sizes. [`rendering.md`](https://github.com/dstroy0/orior/blob/main/theory/workbooks/orior/rendering.md) covers both.
+The renderer draws the object straight from the engine's state. What you see is what the search saw. There are two types of output, because a flat sheet and a solid block are different maps, not one map at two sizes. [`rendering.md`](https://github.com/dstroy0/orior/blob/main/theory/workbooks/orior/rendering.md) covers both.
 
 - `OriorRasterConfig` draws a sheet. You give it a `width` and a `height`, one of four layouts, one of five channels, a rule for cells that several positions land on, and a gain.
 - `OriorVolumeConfig` draws a block. You give it a `width`, a `height` and a `depth`, one of four volume layouts, and the same five channels, the same two rules and the same gain. They point to the same definitions, because a channel means one thing everywhere in this tree.

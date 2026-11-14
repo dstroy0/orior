@@ -60,7 +60,7 @@ typedef struct CliInspectCfg CliInspectCfg;
 #define CLI_INSPECT_ATTRIBUTE 13u
 #define CLI_INSPECT_CLASSES 14u
 
-// how a finding is shown
+// how a finding is displayed
 #define CLI_INSPECT_WARNING 0
 #define CLI_INSPECT_NOTE 1
 
@@ -94,7 +94,7 @@ typedef struct
     unsigned int edits;
 } CliInspectFix;
 
-// What an inspection found: its span, how it is shown, what it states in Markdown, its name, the page that explains
+// What an inspection found: its span, how it is displayed, what it states in Markdown, its name, the page that explains
 // what it checks, NULL where none does, and its fixes
 typedef struct
 {
@@ -161,7 +161,7 @@ typedef struct
     unsigned int calls;
 } CliInspectFunction;
 
-// What a file contains for the inspections, in the storage its holder hands it: its imports, its classes, its
+// What a file contains for the inspections, in the storage its holder passes it: its imports, its classes, its
 // functions, and what it shows alone, the findings, their fixes and edits, the names the others list, and the texts of
 // all; 1 in `full` where one did not fit
 typedef struct
@@ -196,7 +196,7 @@ typedef struct
     int counting;
 } CliFacts;
 
-// What a file's facts stand in once worked out: one movable cell its holder owns, each list at its place in it and
+// What a file's facts are in once worked out: one movable cell its holder owns, each list at its place in it and
 // the texts at `text_at`, with the count of each. A reader reaches the cell's bytes only through the guard's movable
 // reads and compares, by the token `cell`
 typedef struct
@@ -220,7 +220,7 @@ typedef struct
     unsigned int used;
 } CliFactsCell;
 
-// where the record at `index_` of each list of the facts cell `facts_` stands, and where the text at `at_` does
+// where the record at `index_` of each list of the facts cell `facts_` is, and where the text at `at_` does
 #define CLI_FACTS_IMPORT_AT(facts_, index_)                                                                            \
     ((facts_)->import_at + ((unsigned long long)(index_) * sizeof(CliInspectImport)))
 #define CLI_FACTS_CLASS_AT(facts_, index_)                                                                             \
@@ -249,9 +249,9 @@ typedef struct
     unsigned char class_of;
 } CliInspectRun;
 
-// A file as its parse reads it, in the storage its holder hands it: each line's runs, `count` of them from `first`,
+// A file as its parse reads it, in the storage its holder passes it: each line's runs, `count` of them from `first`,
 // every column of the line in one; the regions that fold, by their first and last lines; and the spans Expand
-// Selection steps through; 1 in `full` where one did not fit. A parse handed no storage counts the runs, lines, folds
+// Selection steps through; 1 in `full` where one did not fit. A parse passed no storage counts the runs, lines, folds
 // and spans it would contain, for its holder to take that storage and parse again
 typedef struct
 {
@@ -282,7 +282,7 @@ extern const char *const g_cli_inspect_docstring_forms[4];
 const char *cli_inspect_language_get(const CliInspectCfg *args);
 const char *cli_inspect_text(const CliInspectPoolCfg *args);
 
-// facts made empty over the storage handed them; facts that count what a walk would store and store nothing, so the
+// facts made empty over the storage passed them; facts that count what a walk would store and store nothing, so the
 // walk sizes the capacity the next one fills; and the facts of `size` bytes of a file's text in `language`, where the
 // inspections read the language: 1, or 0 where they do not
 void cli_facts_counting(const CliInspectFactsLanguageCfg *args);
@@ -294,12 +294,12 @@ int cli_inspect_facts(const CliInspectFactsLanguageCfg *args);
 // "codeDescription"}`
 void cli_inspect_finding_write(const CliInspectFactsFindingCfg *args);
 
-// a parse made empty over the storage handed it; and the parse of `size` bytes of a file's text in `language`: 1, or 0
+// a parse made empty over the storage passed it; and the parse of `size` bytes of a file's text in `language`: 1, or 0
 // where the inspections do not read the language
 void cli_parsed_begin(const CliInspectParsedCfg *args);
 int cli_inspect_parse(const CliInspectLanguageTextCfg *args);
 // the spans of `ranges`, `count` of them, that contain `from` to `to` and are more than it, the least first, each once,
-// into `out`, sized for `most`: their count
+// into `out`, sized for `max`: their count
 unsigned int cli_inspect_ranges_at(const CliInspectRangesCfg *args);
 // folds by their first line, each the widest that starts there, one line or more below it, sorted: `count` pairs of
 // `first` and `last` taken in place, their count after
@@ -308,7 +308,7 @@ unsigned int cli_inspect_folds_get(const CliInspectCountCfg *args);
 // a docstring drawn up for the function at or around `line` of `size` bytes of a file's text in `language`, in
 // `form`: the edit that writes it, its text into `text`, and the place to write its summary: 1, or 0 with why given;
 // and the methods of the class at or around `line` sorted by name, each with the comments and decorators over it, the
-// class's other members and its blank lines staying where they stand: the edit that writes the class's body again, its
+// class's other members and its blank lines staying where they are: the edit that writes the class's body again, its
 // text into `text`: 1, or 0 with why given
 int cli_inspect_docstring(const CliInspectLanguageCfg *args);
 int cli_inspect_sort_methods(const CliInspectLanguageCfg *args);
@@ -369,7 +369,7 @@ struct CliInspectRangesCfg
     CliInspectPosition from;
     CliInspectPosition to;
     CliInspectSpan *out_inspect_span_pointer;
-    unsigned int most;
+    unsigned int max;
 };
 
 struct CliInspectFactsLanguageCfg

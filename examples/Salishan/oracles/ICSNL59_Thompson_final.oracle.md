@@ -4,10 +4,10 @@ Extraction of by , ICSNL 59.
 
 Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
-pure corpus, then against this paper's own English laid over that reference. What the paper's
+pure corpus, then against this paper's own English positioned over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
 from the characters that sit outside that English, and word_web.web() built 902 edges over the
-language forms. A person then matched the context: who, kind and gloss for each row, the names,
+language forms. A person then matched the context: who, type and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
 someone reads the paper again and says otherwise.
@@ -16,9 +16,9 @@ WHOSE WORDS THESE ARE
 
 
 
-THE LETTERS
+THE CHARACTERS
 
-Outside the paper's English the engine found these letters and marks: Í à á é í ò ó ú č ŋ š ƛ ǰ ɑ ɔ
+Outside the paper's English the engine found these characters and marks: Í à á é í ò ó ú č ŋ š ƛ ǰ ɑ ɔ
 ə ɛ ɬ ʋ ʌ ʔ ʰ ʷ ʸ ʼ ː ́ ̌ ̓ ̱ θ μ ᶿ ḵ.
 
 THE PAGE AND THE TEXT LAYER
@@ -36,7 +36,7 @@ where    the paper's locator: the title, the front matter, a section, a footnote
 who      the language for an example tier and a cited form; the work cited on an example's
          line, or the speaker for a volunteered translation, for its English; the authors for
          the prose, the tables and the notes
-kind     phonemic       an example tier in a phonemic alphabet
+type     phonemic       an example tier in a phonemic alphabet
          translation    the English of an example
          rule           a line of a rule, a derivation or a tree the authors display
          cited form     a word of the language named in the prose, a note or a table

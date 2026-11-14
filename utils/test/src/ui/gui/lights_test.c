@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // lights_test.c: the window's lights' check: the key light hangs over the wordmark's eye at the top menu's head,
-// above the glass at full strength, and the fill light stands beyond the window's bottom right corner, weaker
+// above the glass at full strength, and the fill light is beyond the window's bottom right corner, weaker
 #include "../../../../../includes/window/lights.h"
 #include "../cli/cli_check.h"
 
@@ -22,7 +22,7 @@ int main(void)
               "the key light hangs over the wordmark's eye at the top menu's head");
     cli_check((lights[0].z > 0.0) && (lights[0].strength == 1.0), "above the glass at full strength");
     cli_check((lights[1].x > (double)LIGHTS_TEST_WIDTH) && (lights[1].y > (double)LIGHTS_TEST_HEIGHT),
-              "the fill light stands beyond the bottom right");
+              "the fill light is beyond the bottom right");
     cli_check((lights[1].z > 0.0) && (lights[1].strength < lights[0].strength), "above the glass, weaker");
     return cli_on_check();
 }

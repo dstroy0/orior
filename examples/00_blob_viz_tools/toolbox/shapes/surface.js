@@ -405,7 +405,7 @@ EV.SURFACES = [
   {
     key: "shell",
     label: "Seashell",
-    note: "a tube on a logarithmic spiral: growth that keeps its shape",
+    note: "a tube on a logarithmic spiral: growth that retains its shape",
     at: EV.surface((u, v, ctx) => {
       let th = u * EV.TAU * 2.2;
       let grow = Math.pow(1.19, th);
@@ -513,7 +513,7 @@ EV.SURFACE_TRANSFORMS = [
   {
     key: "spherize",
     label: "Spherize",
-    note: "every point pushed to one radius: shape gone, sampling kept",
+    note: "every point pushed to one radius: shape gone, sampling retained",
     go: (p, n, ctx) => {
       let u = EV.unit(p);
       return { p: [u[0] * 66, u[1] * 66, u[2] * 66], n: u };

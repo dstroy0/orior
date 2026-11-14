@@ -6,7 +6,7 @@
  * @brief Counts occurrences by evaluating a probe list in order, verifying every survivor.
  *
  * @param[out] reads         Corpus bytes the probes read.
- * @param[out] verifications Survivors handed to the exact compare, each of which reads at least one
+ * @param[out] verifications Survivors passed to the exact compare, each of which reads at least one
  *                           corpus byte. Counted separately because the read floor below is a bound
  *                           on TOTAL reads, and a probe set of size zero reads nothing through the
  *                           probes while still deciding every alignment through the compare.
@@ -250,7 +250,7 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
     // PROBE reads. The floor is a statement about TOTAL reads, probe reads plus the compares that
     // follow, and mixing the two down one column would invite a reader to compare a bound against a
     // cost. The empty probe set takes zero probe reads and one compare per alignment. In floor
-    // units it sits exactly on the floor. In real bytes it is the most expensive route there is,
+    // units it sits exactly on the floor. In real bytes it is the max expensive route there is,
     // since every alignment takes a full compare of up to needle_len bytes.
     printf("    read floor: %zu alignments, empty probe set takes %llu probe reads and %llu"
            " compares\n",

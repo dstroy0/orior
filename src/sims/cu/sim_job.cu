@@ -125,9 +125,9 @@ int sim_job_submit(SimResults *results, const char *name, int count, char *const
     }
     printf("  tessera: %s admitted, %llu bytes reserved; it declared %llu over the %llu its process occupied as it "
            "requested\n",
-           name, ticket.granted, declared, ticket.standing);
+           name, ticket.granted, declared, ticket.located);
     results->job = client;
-    results->job_declared = declared + ticket.standing;
+    results->job_declared = declared + ticket.located;
     return 1;
 }
 

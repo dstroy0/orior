@@ -16,7 +16,7 @@ Bailey, Borwein and Plouffe found that pi has a form that does not need the fron
 
     pi = sum over k of 16^-k * (4/(8k+1) - 2/(8k+4) - 1/(8k+5) - 1/(8k+6))
 
-Because the base is sixteen, multiplying by 16^(n-1) and keeping the fractional part lands exactly
+Because the base is sixteen, multiplying by 16^(n-1) and retention the fractional part lands exactly
 on the nth hexadecimal digit. Every term in the head is then 16^(n-1-k) over (8k+j) reduced modulo
 that same (8k+j), which modular exponentiation gives in log time WITHOUT ever forming the large
 power. The tail falls off geometrically and a handful of terms exhausts it.

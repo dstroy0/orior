@@ -6,9 +6,9 @@
 #include "../command_line/pool.h"
 #include "../text/json_tree.h"
 
-// what a record contains is read for at most so many of its bytes, and in whole where it is at most so many; the most
-// records one read hands, a read of a run of any size taking a bounded capacity and going on from where it stopped at
-// the next; and the most runs viewed at once
+// what a record contains is read for at max so many of its bytes, and in whole where it is at max so many; the max
+// records one read passes, a read of a run of any size taking a bounded capacity and going on from where it stopped at
+// the next; and the max runs viewed at once
 #define CLI_TEXT_SMALL 4096ULL
 
 #define CLI_TEXT_MAX 65536ULL

@@ -1,4 +1,4 @@
-word	kind	names	selected_by_process	selected_by_step	selected_by_branch	selected_by_fulltrace	bits	signed	transpiler	+	-	*	/	%	&	|	^	<<	>>	<	<=	>	>=	==	!=	==0	!=0	<0	&&	||	-x	~x	!x	?:	=	(T)	*p	*p=	f()	.	if	return	goto	label:	switch	{}	T x	//	const	atomic()	+=	-=	*=	/=	%=	&=	|=	^=	<<=	>>=
+word	type	names	selected_by_process	selected_by_step	selected_by_branch	selected_by_fulltrace	bits	signed	transpiler	+	-	*	/	%	&	|	^	<<	>>	<	<=	>	>=	==	!=	==0	!=0	<0	&&	||	-x	~x	!x	?:	=	(T)	*p	*p=	f()	.	if	return	goto	label:	switch	{}	T x	//	const	atomic()	+=	-=	*=	/=	%=	&=	|=	^=	<<=	>>=
 i<n>_t	type	a signed exact integer of n bits, n a power of two					n	1																																																				
 u<n>_t	type	an unsigned exact integer of n bits, n a power of two					n	0																																																				
 efloat<n>	type	an exact float of n bits, its sign, exponent and mantissa held as integers					n																																																					

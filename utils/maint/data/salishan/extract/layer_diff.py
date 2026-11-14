@@ -3,7 +3,7 @@
 usage: python layer_diff.py <stem> <first line text> <last line text>
 
 The text layer of a word-over-gloss page sets each column's word, segmentation and gloss on lines of
-their own, which keeps a gloss like cedar.shakes whole where the glyph rows can break it at a wide
+their own, which retains a gloss like cedar.shakes whole where the glyph rows can break it at a wide
 gap, or run NEG and ??? together at a narrow one. Prints the tokens each side holds that the other
 lacks, with their counts, between the first line opening on first and the next opening on last.
 """

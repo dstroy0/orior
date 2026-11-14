@@ -20,7 +20,7 @@ export const state = {
   levels: new Map(),
   opened: new Set(),
   reading: 0,
-  // The result shown: the connection it came from, its columns, the rows kept here by their index,
+  // The result displayed: the connection it came from, its columns, the rows retained here by their index,
   // how many the server has read and whether it has read them all.
   result: null,
   running: null,

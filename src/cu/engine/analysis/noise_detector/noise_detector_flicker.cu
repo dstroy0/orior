@@ -86,7 +86,7 @@ long noise_flicker_sample(const unsigned short *volume, const unsigned long long
     const unsigned long long frames = extent[0];
     const unsigned long long voxels = extent[1] * extent[2] * extent[3];
     const unsigned long long width = extent[3];
-    // every sum is at most one sample's pairs times the widest square, and so is every total the summary forms
+    // every sum is at max one sample's pairs times the widest square, and so is every total the summary forms
     const int bounded = (frames >= 2ull) && (voxels != 0ull) && (width != 0ull) && (frames <= (~0ull / voxels)) &&
                         ((frames * voxels) <= (~0ull / NOISE_WIDEST_SQUARE));
     if (!NOISE_DETECTOR_CHECK(bounded, extent, error, ENGINE_ERROR_REQUEST))
@@ -178,17 +178,17 @@ static void noise_flicker_summary(const char *name, const unsigned long long ext
     noise_flicker_pooled(sums, pooled);
     printf("  %-24s %llu frames of %llux%llux%llu; means 40 to 199, %llu pairs at lag 1\n", name, extent[0], extent[1],
            extent[2], extent[3], pooled[0][NOISE_FLICKER_PAIRS]);
-    const unsigned int kinds[2][2] = {{NOISE_FLICKER_SQUARES, NOISE_FLICKER_PAIRS},
+    const unsigned int types[2][2] = {{NOISE_FLICKER_SQUARES, NOISE_FLICKER_PAIRS},
                                       {NOISE_FLICKER_NEIGHBOR_SQUARES, NOISE_FLICKER_NEIGHBOR_PAIRS}};
     const char *const labels[2] = {"the frame difference         ", "less its x neighbor's       "};
-    for (unsigned int kind = 0u; kind < 2u; kind += 1u)
+    for (unsigned int type = 0u; type < 2u; type += 1u)
     {
-        printf("    %s", labels[kind]);
+        printf("    %s", labels[type]);
         for (unsigned int lag = 0u; lag < NOISE_FLICKER_LAGS; lag += 1u)
         {
             unsigned long long per_mille = 0ull;
-            if (noise_per_mille(pooled[lag][kinds[kind][0]], pooled[lag][kinds[kind][1]], pooled[0][kinds[kind][0]],
-                                pooled[0][kinds[kind][1]], &per_mille))
+            if (noise_per_mille(pooled[lag][types[type][0]], pooled[lag][types[type][1]], pooled[0][types[type][0]],
+                                pooled[0][types[type][1]], &per_mille))
             {
                 printf(" %6llu", per_mille);
             }

@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: PP-5-001
 #
-# The rarest signature as an anchor, and the one candidate period a necessary condition leaves standing.
+# The rarest signature as an anchor, and the one candidate period a necessary condition leaves located.
 #
 #   Usage:  python examples/particle_physics/5_sift/rarest_anchor_narrows_the_period.py
 #
@@ -24,7 +24,7 @@
 # The one surviving candidate is 32, the lanthanide-actinide repeat and the longest row. It is not an
 # exact period: the sufficiency check below reads the sequence at that lag and finds hydrogen against
 # gallium at the first place. The table has no period, the result the measure stage read from the
-# other side. The necessary condition still did its work, and the rare anchor did most of it.
+# other side. The necessary condition still did its work, and the rare anchor did the majority of it.
 
 import io
 import os
@@ -44,7 +44,7 @@ import manifest  # noqa: E402,F401
 from representation.atom import element  # noqa: E402
 
 # How many anchors of the cascade to detail.
-SHOWN = 8
+DISPLAYED = 8
 
 
 def signature_sequence():
@@ -92,16 +92,16 @@ def main(argv):
     anchors = anchors_by_magnitude(sequence)
     candidates = set(range(1, len(sequence)))
 
-    out.write("\n  THE CASCADE. Candidate periods left standing as each anchor's difference set is met.\n\n")
+    out.write("\n  THE CASCADE. Candidate periods left located as each anchor's difference set is met.\n\n")
     out.write("    %-10s %-10s %-9s %s\n" % ("anchor", "magnitude", "survive", "example lags"))
     out.write("    %-10s %-10s %-9d %s\n"
               % ("start", "", len(candidates), "1 .. %d" % (len(sequence) - 1)))
-    for anchor, magnitude in anchors[:SHOWN]:
+    for anchor, magnitude in anchors[:DISPLAYED]:
         candidates &= difference_set(sequence, anchor)
         listed = " ".join(str(lag) for lag in sorted(candidates)[:8]) if candidates else "none"
         out.write("    %-10s %-10d %-9d %s\n" % (anchor, magnitude, len(candidates), listed))
 
-    for anchor, _ in anchors[SHOWN:]:
+    for anchor, _ in anchors[DISPLAYED:]:
         candidates &= difference_set(sequence, anchor)
 
     survivors = sorted(candidates)

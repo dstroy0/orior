@@ -32,7 +32,7 @@ typedef struct CliDeployCtx CliDeployCtx;
 // the bytes a pool holds, fixed, outside the cellblock
 #define CLI_DEPLOY_POOL_BYTES (8u << 20u)
 
-// the most bytes of a shell line a deployment runs and of the listing of a machine's releases, and of the hashes of the
+// the max bytes of a shell line a deployment runs and of the listing of a machine's releases, and of the hashes of the
 // files a place has
 #define CLI_DEPLOY_LINE (1ull << 20u)
 #define CLI_DEPLOY_HASHES (32ull << 20u)
@@ -82,7 +82,7 @@ typedef struct CliDeployPairNodeStruct
     CliDeployPair pair;
 } CliDeployPairNode;
 
-// A pool: its bytes, fixed and standing with the pool outside the cellblock, so they punch no hole in the persistent
+// A pool: its bytes, fixed and located with the pool outside the cellblock, so they punch no hole in the persistent
 // tier, those used, and whether a place did not fit
 typedef struct
 {
@@ -131,7 +131,7 @@ void cli_deploy_print(const CliDeployCtx *args);
 // (deploy_existing.c)
 void cli_deploy_difference(const CliDeployOldCtx *args);
 
-// `size` bytes placed in `pool` at a multiple of 8: where they stand, NULL with the pool marked refused where a page
+// `size` bytes placed in `pool` at a multiple of 8: where they are, NULL with the pool marked refused where a page
 // could not be taken; `size` bytes of `text` stored there with a 0 after, an empty text where they could not be; and
 // every page of a pool given back, the pool left empty (deploy_read.c)
 void *cli_deploy_on_position(const CliDeployPoolCtx *args);
@@ -150,7 +150,7 @@ void cli_deploy_position_name(const CliDeploySizeCtx *args);
 const char *cli_deploy_position_folder(const CliDeploySizeCtx *args);
 int cli_deploy_remote_run(const CliDeploySizeCtx *args);
 
-// whether `name` fits the glob `pattern`, `*` taking any run of letters and `?` any one; the pattern of `patterns`,
+// whether `name` fits the glob `pattern`, `*` taking any run of characters and `?` any one; the pattern of `patterns`,
 // `count` of them, that leaves out the file at `path` under the folder sent, NULL where none does; and the name of the
 // release made `seconds` after 1970 began, in UTC, which sorts as the releases were made (deploy_gather.c)
 int cli_deploy_fits(const CliDeploySizePatternCtx *args);

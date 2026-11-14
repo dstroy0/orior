@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // sql.h: SQL as the database window reads it before it runs (sql.c reads tokens and statements, sql_does.c what a
-// statement does): the statements of a text, the one a place in it stands in, whether one writes, an UPDATE or a
+// statement does): the statements of a text, the one a place in it is in, whether one writes, an UPDATE or a
 // DELETE that reaches every row of its table, and the object a statement that changes the schema names.
 //
 // The text is read as each database writes it: PostgreSQL's dollar quotes, its `E''` strings and its nested comments;
@@ -88,10 +88,10 @@ typedef struct
     CliSqlSpan span;
 } CliEachSpanCfg;
 
-// each statement of a text handed to `each` in order
+// each statement of a text passed to `each` in order
 void cli_sql_statements(const CliSqlTextLengthCfg *args);
-// the statement of a text the place `at` stands in, into `span`: within it, at its semicolon, or after it on its last
-// line with nothing but spaces and a comment between. 1, or 0 where the place stands in no statement, on a blank line
+// the statement of a text the place `at` is in, into `span`: within it, at its semicolon, or after it on its last
+// line with nothing but spaces and a comment between. 1, or 0 where the place is in no statement, on a blank line
 // or in a comment of its own
 int cli_sql_statement_at(const CliSqlTextCfg *args);
 // what a statement does (sql_does.c); whether running it changes anything the database stores; the query that counts

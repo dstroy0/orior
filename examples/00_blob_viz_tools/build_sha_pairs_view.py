@@ -12,7 +12,7 @@ WHAT IS DRAWN
 The 256 output bits are placed on a sphere as 128 pairs. A pair is a bit and its antipode: the two
 sit at exactly opposite directions. The line joining them is a diameter and passes through the
 center exactly. Nothing else goes into the construction. A generic spiral does not have this. The
-placement is built to have it instead of hoped into it: 128 base directions are laid on a Fibonacci
+placement is built to have it instead of hoped into it: 128 base directions are positioned on a Fibonacci
 spiral, and bit k rides the direction while bit k + 128 rides its negative.
 
 THE LINE IS THE PAIR
@@ -113,7 +113,7 @@ def digest_after(block, rounds):
 def pairs():
     """128 antipodal pairs. Bit k rides a Fibonacci direction, bit k + 128 rides its negative.
 
-    The directions are laid over 128 and never over 256, because the antipode of each is the other
+    The directions are positioned over 128 and never over 256, because the antipode of each is the other
     half of the 256. Laying 256 directions and hoping the halves face off is what does not land on
     the center; giving each of 128 a partner at its exact negative does.
     """
@@ -145,7 +145,7 @@ def main():
     message = option("--message", "")
     block = padded(message.encode("utf-8"))
     if block is None:
-        sys.stderr.write("--message has to fit one block, which is 55 bytes at most\n")
+        sys.stderr.write("--message has to fit one block, which is 55 bytes at max\n")
         return 2
 
     frames = []

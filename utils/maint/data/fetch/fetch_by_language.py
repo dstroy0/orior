@@ -103,13 +103,13 @@ def main():
             print("  %-12s index failed: %s" % (name, str(trouble)[:50]))
             continue
 
-        kept = 0
+        retained = 0
         for number in numbers:
-            if kept >= wanted:
+            if retained >= wanted:
                 break
             target = os.path.join(OUT, "lang_%s_%d.txt" % (name, number))
             if os.path.isfile(target):
-                kept += 1
+                retained += 1
                 continue
             time.sleep(1.0)
             text = body(number)
@@ -117,9 +117,9 @@ def main():
                 continue
             with open(target, "w", encoding="utf-8", newline="") as handle:
                 handle.write(text)
-            kept += 1
+            retained += 1
             print("  lang_%-10s %-8d %d KB" % (name, number, len(text.encode("utf-8")) // 1024))
-        print("  %-12s %d of %d kept\n" % (name, kept, wanted))
+        print("  %-12s %d of %d retained\n" % (name, retained, wanted))
     return 0
 
 

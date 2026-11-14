@@ -56,12 +56,12 @@ int main(int count, char **arguments)
     // compiler turned it into SASS that already runs. What is read here is that SASS: the floor a rearrangement
     // has to beat, and the operations a whole coherent program needs that no single question reaches.
     //
-    // It is listed after the questions, and the order carries weight. A form is keyed by its operation and the kinds
+    // It is listed after the questions, and the order carries weight. A form is keyed by its operation and the types
     // of its operands: the resident's CALL.ABS.NOINC `(cycle_lane) and the division question's
     // CALL.ABS.NOINC `(__cuda_sm20_div_u64) are one form, and the first listing seen retains it. The assembler carries
     // a symbol operand by the text the form was learned with, having no way to write a relocation for another:
     // whichever call is listed first is the only call that assembles. Listing the resident first took that form and
-    // the division question stopped being writable. That limit on symbol operands is real and stands either way;
+    // the division question stopped being writable. That limit on symbol operands is real and is either way;
     // the order prevents it from costing a question that used to pass
     if (sass_list(probe, "resident", &s_sass_resident))
     {

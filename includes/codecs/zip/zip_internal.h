@@ -9,8 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define ZIP_CHECK(condition_, evacaddr_, error_, kind_)                                                                \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_ZIP, (unsigned int)__LINE__, (const void *)(evacaddr_),    \
+#define ZIP_CHECK(condition_, evacaddr_, error_, type_)                                                                \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_ZIP, (unsigned int)__LINE__, (const void *)(evacaddr_),    \
                        (error_))
 
 #define ZIP_IO(condition_, evacaddr_, error_)                                                                          \

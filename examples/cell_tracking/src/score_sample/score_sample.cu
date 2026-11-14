@@ -132,7 +132,7 @@ static int score_print_match(const char *sample, TreeFrame *frames, unsigned int
     const EngineRecordSweep run = {
         rules->print_pair, {sample_prints, sample_prints}, {bodies, bodies}, index, made, weight, &sweep, &error};
     ok = ok && ((made == 0u) || (engine_record_sweep(&run) == (long)made));
-    if (error.kind != ENGINE_ERROR_NONE)
+    if (error.type != ENGINE_ERROR_NONE)
     {
         track_error_report("print match sweep", &error);
     }
@@ -222,7 +222,7 @@ static int score_velocity_sweep(const char *sample, const char *pass, const Tree
     const int ok = (device != NULL) && (host != NULL) &&
                    ((lanes == 0u) || ((engine_record_sweep(&run) == (long)lanes) &&
                                       (engine_record_host(rules->velocity_encode_request, &host_run) == (long)lanes)));
-    if (error.kind != ENGINE_ERROR_NONE)
+    if (error.type != ENGINE_ERROR_NONE)
     {
         track_error_report("velocity sweep", &error);
     }
@@ -244,7 +244,7 @@ static int score_velocity_sweep(const char *sample, const char *pass, const Tree
     }
     if (ok)
     {
-        printf("  %s: velocity %s, %u lanes in %llu us: the climbed lag stands beside the dipole's change on %u (z %u,"
+        printf("  %s: velocity %s, %u lanes in %llu us: the climbed lag is beside the dipole's change on %u (z %u,"
                " y %u, x %u); %u differ from the host\n",
                sample, pass, lanes, sweep, agree[ENGINE_AXES], agree[0], agree[1], agree[2], differ);
     }
@@ -455,7 +455,7 @@ static int score_division(const char *sample, const TreeFrame *frames, unsigned 
     ok = ok && (device != NULL) && (host != NULL) &&
          ((lanes == 0u) || ((engine_record_sweep(&run) == (long)lanes) &&
                             (engine_record_host(rules->division_encode_request, &host_run) == (long)lanes)));
-    if (error.kind != ENGINE_ERROR_NONE)
+    if (error.type != ENGINE_ERROR_NONE)
     {
         track_error_report("division sweep", &error);
     }
@@ -873,7 +873,7 @@ static int score_box(const char *sample, const TreeFrame *frames, unsigned int f
         printf(
             "  %s: at the climbed lag C sums to the climb's retained count on all but %u; the climbed lag is highest in"
             " its neighborhood on all but %u; at the drift C equals the overlap triples on all but %u of %u bodies;"
-            " T* laid out for %u bodies, %u options\n",
+            " T* arranged for %u bodies, %u options\n",
             sample, box.final_score_differ, box.not_highest, drift_differ, drift_queried, starred, placed);
     }
     else
@@ -922,7 +922,7 @@ static int score_box_history(const char *set, const char *sample, const TreeFram
         (engine_entropy_history_read(path, &history, &error) != 0L))
     {
         fprintf(stderr, "  %s: no entropy history (.oapx) to gather the boxes from\n", sample);
-        if (error.kind != ENGINE_ERROR_NONE)
+        if (error.type != ENGINE_ERROR_NONE)
         {
             track_error_report("entropy history read", &error);
         }
@@ -1038,7 +1038,7 @@ static int score_box_history(const char *set, const char *sample, const TreeFram
     }
     if (steps_succeeded)
     {
-        printf("  %s: of %u key nodes on a leaf, %u share their leaf with another key node, on %u leaves; the most on"
+        printf("  %s: of %u key nodes on a leaf, %u share their leaf with another key node, on %u leaves; the max on"
                " one leaf is %u, a leaf of %u voxels\n",
                sample, placed_nodes, shared_nodes, shared_leaves, max_nodes_on_leaf, max_nodes_leaf_voxels);
     }
@@ -1365,8 +1365,8 @@ static int score_marginal(const char *sample, const TreeFrame *frames, unsigned 
                " us; device %s the host\n",
                sample, set.question_count, in_context, alone, error, set.option_count, swept,
                same ? "equals" : "DIFFERS FROM");
-        printf("  %s: of %u key edges queried, the most probable in context lands on the truth for %u (no link is the"
-               " most probable for %u), the heaviest candidate alone for %u, the climb's forward for %u\n",
+        printf("  %s: of %u key edges queried, the max probable in context lands on the truth for %u (no link is the"
+               " max probable for %u), the heaviest candidate alone for %u, the climb's forward for %u\n",
                sample, edges, by_context, by_absent, by_weight, by_climb);
     }
     else
@@ -1485,7 +1485,7 @@ static int score_contact_side(const char *sample, const TreeFrame *frames, unsig
                  (engine_record_host(rules->contact_difference_encode_request, &apart_host_run) == (long)differences) &&
                  (engine_record_sweep(&retained_run) == (long)contacts) &&
                  (engine_record_host(rules->contact_retained_encode_request, &retained_host_run) == (long)contacts)));
-    if (error.kind != ENGINE_ERROR_NONE)
+    if (error.type != ENGINE_ERROR_NONE)
     {
         track_error_report("contact side sweep", &error);
     }
@@ -1586,7 +1586,7 @@ int score_sample(const char *set, const char *source, const char *sample, const 
         (extent[3] > 0xFFFFFFFFull))
     {
         fprintf(stderr, "  %s: its .iapx in %s did not load and prove\n", sample, set);
-        if (error.kind != ENGINE_ERROR_NONE)
+        if (error.type != ENGINE_ERROR_NONE)
         {
             track_error_report("iapx load", &error);
         }
@@ -1805,7 +1805,7 @@ int score_sample(const char *set, const char *source, const char *sample, const 
                 object_leaf_code[tree->peaks[leaf]] = leaf + 1u;
             }
             // three words a run while the frame is walked: its first voxel, its leaf, and its length less one. Entry
-            // 0 takes the writes of voxels outside every leaf. A run stays in its row and is at most a row long
+            // 0 takes the writes of voxels outside every leaf. A run stays in its row and is at max a row long
             runs[0] = 0u;
             runs[1] = 0u;
             runs[2] = 0u;
@@ -1987,7 +1987,7 @@ int score_sample(const char *set, const char *source, const char *sample, const 
         if (ok == 0)
         {
             fprintf(stderr, "  %s: the floor's cloud could not be read from %s\n", sample, cloud_path);
-            if (error.kind != ENGINE_ERROR_NONE)
+            if (error.type != ENGINE_ERROR_NONE)
             {
                 track_error_report("entropy cloud read", &error);
             }

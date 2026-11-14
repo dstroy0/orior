@@ -122,7 +122,7 @@ static void test_error(SimResults *results, const char *name, const unsigned sho
     request.error = &error;
     const long result = period_read(&request);
     sim_check(results,
-              (result == PERIOD_ERROR) && (error.kind == ENGINE_ERROR_REQUEST) &&
+              (result == PERIOD_ERROR) && (error.type == ENGINE_ERROR_REQUEST) &&
                   (error.module == ENGINE_MODULE_PERIOD),
               name);
 }
@@ -132,8 +132,8 @@ int main(int count, char **arguments)
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;
     sim_open(&results, line_buffer);
-    // the most the test places on the device at once: one volume's lanes, an allocation under a page, beside the period
-    // pool grown for the largest volume and the most agreement entries
+    // the max the test places on the device at once: one volume's lanes, an allocation under a page, beside the period
+    // pool grown for the largest volume and the max agreement entries
     const unsigned long long declared =
         DEVICE_POOL_PAGE_BYTES + period_reserve_bytes(TEST_VOXELS_MAX, TEST_ENTRIES_MAX);
     const int admitted = sim_job_submit(&results, "period_test", count, arguments, declared);
@@ -158,7 +158,7 @@ int main(int count, char **arguments)
         {
             for (unsigned int x = 0u; x < 60u; x += 1u)
             {
-                // at most 11 + 12 * 4 + 60 * 47, below 65536
+                // at max 11 + 12 * 4 + 60 * 47, below 65536
                 block_volume[(((z * 48u) + y) * 60u) + x] = (unsigned short)((x % 12u) + (12u * (z % 5u)) + (60u * y));
             }
         }
@@ -180,7 +180,7 @@ int main(int count, char **arguments)
             {
                 for (unsigned int x = 0u; x < 64u; x += 1u)
                 {
-                    // at most 64 + 64 + 2 * 24 + 63, below 65536
+                    // at max 64 + 64 + 2 * 24 + 63, below 65536
                     smooth_volume[(((z * 64u) + y) * 64u) + x] =
                         (unsigned short)(x + y + (2u * z) + (unsigned int)(test_next() % 64ull));
                 }
@@ -306,7 +306,7 @@ int main(int count, char **arguments)
         request.measurement = &measurement;
         request.error = &error;
         sim_check(&results,
-                  (period_read(&request) == PERIOD_ERROR) && (error.kind == ENGINE_ERROR_REQUEST) &&
+                  (period_read(&request) == PERIOD_ERROR) && (error.type == ENGINE_ERROR_REQUEST) &&
                       (error.module == ENGINE_MODULE_PERIOD),
                   "a given band with draws of its own");
         cudaFree(device_lanes);

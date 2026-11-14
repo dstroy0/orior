@@ -5,10 +5,10 @@ of British Columbia, ICSNL 60.
 
 Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
-pure corpus, then against this paper's own English laid over that reference. What the paper's
+pure corpus, then against this paper's own English positioned over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
 from the characters that sit outside that English, and word_web.web() built 3128 edges over the
-language forms. A person then matched the context: who, kind and gloss for each row, the names,
+language forms. A person then matched the context: who, type and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
 someone reads the paper again and says otherwise.
@@ -26,9 +26,9 @@ cites, and Henry Davis for an untagged one. The comments signed Consultant are C
 the Interviewer's question is the author's. The English examples of (39) and (49) are the author's,
 and (54), (66) and (67) are Landau's. The prose, the headings and the notes carry Henry Davis.
 
-THE LETTERS
+THE CHARACTERS
 
-Outside the paper's English the engine found these letters and marks: Ø á í ú č š ƛ ə ɬ ʔ ʕ ʷ ́ ̌ ̓
+Outside the paper's English the engine found these characters and marks: Ø á í ú č š ƛ ə ɬ ʔ ʕ ʷ ́ ̌ ̓
 ̕ ̣ ᶿ ạ. St’át’imcets is written in the variant of the North American Phonetic Alphabet footnote 5
 names, with the glottalization of a resonant as a comma above, U+0313, and the null object as Ø. The
 gloss labels are ASCII capitals in the text layer.
@@ -40,7 +40,7 @@ sets after a stacked mark is closed, except before an opening quote, then NFC, t
 corrections. The text layer sets spaces inside words, wh ich and 200 5a, and the page text closes
 the 181 lines the glyph positions contradict. A space the layer sets where the face or size changes,
 EXCL get.forgotten, stays. The page itself prints some glosses run together, NTSDET and IPFVget, and
-the table keeps them as printed.
+the table retains them as printed.
 
 orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 748
@@ -52,7 +52,7 @@ where    the paper's locator: the title, the front matter, a section, a footnote
 who      the language for an example tier and a cited form; the work cited on an example's
          line, or the speaker for a volunteered translation, for its English; the authors for
          the prose, the tables and the notes
-kind     segmentation   an example tier broken into morphemes
+type     segmentation   an example tier broken into morphemes
          gloss          the morpheme gloss tier of an example
          translation    the English of an example
          speaker comment a speaker's own comment on an example, in their words

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // Review comments: a comment left on a line of a change, as a pull request's review leaves one. Each
-// is kept with the tree, under orior.review and the tree's folder, by the file's path, the line's
-// number and the line's text as it stood. It stands at the line that holds that text nearest the
+// is retained with the tree, under orior.review and the tree's folder, by the file's path, the line's
+// number and the line's text as it was. It is at the line that holds that text nearest the
 // number where the file has moved, or at the number, marked as gone from its line, where no line
 // holds it. A comment is open until it is resolved.
 
@@ -21,7 +21,7 @@ export function comments() {
   }
 }
 
-function keep(list) {
+function retain(list) {
   localStorage.setItem(key(), JSON.stringify(list));
   listeners.forEach((listener) => listener());
 }
@@ -33,18 +33,18 @@ export function onReview(listener) {
 
 export function addComment(path, line, text, body) {
   const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-  keep([...comments(), { id, path, line, text, body, made: Date.now(), done: false }]);
+  retain([...comments(), { id, path, line, text, body, made: Date.now(), done: false }]);
 }
 
 export function removeComment(id) {
-  keep(comments().filter((one) => one.id !== id));
+  retain(comments().filter((one) => one.id !== id));
 }
 
 export function resolveComment(id, done = true) {
-  keep(comments().map((one) => (one.id === id ? { ...one, done } : one)));
+  retain(comments().map((one) => (one.id === id ? { ...one, done } : one)));
 }
 
-// Where a comment stands in `lines`, the file's lines as they are now, and whether its line is gone.
+// Where a comment is in `lines`, the file's lines as they are now, and whether its line is gone.
 export function anchor(comment, lines) {
   if (lines[comment.line] === comment.text) {
     return { line: comment.line, gone: false };

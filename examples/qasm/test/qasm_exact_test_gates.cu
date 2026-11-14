@@ -36,12 +36,12 @@ int qasm_test_function_is(const QasmRationalFunction *value, const char *expecte
 
 int qasm_test_clean(const EngineError *error)
 {
-    return error->kind == ENGINE_ERROR_NONE;
+    return error->type == ENGINE_ERROR_NONE;
 }
 
 int qasm_test_error_here(long status, const EngineError *error)
 {
-    return (status == QASM_ERROR) && (error->kind == ENGINE_ERROR_REQUEST) && (error->module == ENGINE_MODULE_QASM);
+    return (status == QASM_ERROR) && (error->type == ENGINE_ERROR_REQUEST) && (error->module == ENGINE_MODULE_QASM);
 }
 
 // the gates, as mps_qubits.py builds them: [out][in], and [2 t0 + t1][2 s0 + s1]

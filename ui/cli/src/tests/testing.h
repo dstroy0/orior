@@ -25,7 +25,7 @@ typedef struct CliTestingRootCfg CliTestingRootCfg;
 typedef struct CliTestingCfg CliTestingCfg;
 
 // A test: its name as pytest gives it, its file in the tree, its class where it has one, NULL where it has none, its
-// own name, and the line its name stands on, counted from 0
+// own name, and the line its name is on, counted from 0
 typedef struct
 {
     const char *id;
@@ -38,7 +38,7 @@ typedef struct
 // a test written as the window reads one, `{"id", "file", "class", "name", "line"}`
 void cli_test_write(const CliTestingCfg *args);
 
-// the most values one of pytest's rules has, and the bytes all of them take
+// the max values one of pytest's rules has, and the bytes all of them take
 #define CLI_TEST_VALUES 64u
 #define CLI_TEST_RULES_TEXT 8192u
 
@@ -69,7 +69,7 @@ const char *cli_test_rule_value(const CliTestingRulesRuleCfg *args);
 int cli_test_rules_in(const CliTestingRulesCfg *args);
 void cli_test_rules_get(const CliTestingRulesCfg *args);
 
-// whether `size` bytes of `name` match the glob `pattern`, its `*` any run of letters and its `?` any one; and whether
+// whether `size` bytes of `name` match the glob `pattern`, its `*` any run of characters and its `?` any one; and whether
 // they match one of the values of `rule`, a value with neither by starting with it
 int cli_test_glob(const CliTestingSizeCfg *args);
 int cli_test_by_name(const CliTestingRulesRuleSizeCfg *args);
@@ -80,14 +80,14 @@ typedef struct
     const CliTest *test;
 } CliTestEachCfg;
 
-// A test found, handed on with its texts retained while the call lasts
+// A test found, passed on with its texts retained while the call lasts
 typedef void (*CliTestEach)(const CliTestEachCfg *args);
 
-// the tests of one Python file, `size` bytes of its text, at `file` in the tree, each handed to `each` in the order of
+// the tests of one Python file, `size` bytes of its text, at `file` in the tree, each passed to `each` in the order of
 // their lines (testing_found.c)
 void cli_tests_in(const CliTestingRulesTextCfg *args);
 // the Python tests of the tree at `root`, file by file in the order of their paths; and its Python tests, then its
-// Rust tests as cargo_tests.h finds them, each handed to `each` under the finder's lock
+// Rust tests as cargo_tests.h finds them, each passed to `each` under the finder's lock
 void cli_tests_python_find(const CliTestingRootCfg *args);
 void cli_tests_find(const CliTestingRootCfg *args);
 
@@ -235,7 +235,7 @@ EMBED_TABLE_STORAGE CliTestingRootNs cli_testing_root EMBED_UNUSED = {
 #define CLI_TESTS_COVER 3u
 #define CLI_TESTS_STOP 4u
 #define CLI_TESTS_PARALLEL 5u
-// the most bytes of a summary with its end, and of a row's text with its end
+// the max bytes of a summary with its end, and of a row's text with its end
 #define CLI_TESTS_SUMMARY 320u
 #define CLI_TESTS_ROW_TEXT CLI_ERR_MSG_MAX_LEN
 
@@ -283,11 +283,11 @@ int cli_tests_pane_run(const CliTestsPaneCfg *args);
 void cli_tests_pane_stop(const CliTestsPaneCfg *args);
 int cli_tests_pane_running(const CliTestsPaneCfg *args);
 int cli_tests_pane_any_failed(const CliTestsPaneCfg *args);
-// what a run reports, as test_runs.h hands it: a run started marks the tests it was handed running; a result sets its
+// what a run reports, as test_runs.h passes it: a run started marks the tests it was passed running; a result sets its
 // test's outcome, time and message; the coverage lists the files' lines; the end counts the run and leaves no test
 // running; each wakes the window
 void cli_tests_pane_event(const CliEachJsonSizeCfg *args);
-// whether a report came since the last ask, which clears it; and whether a summary stands, a run going or ended
+// whether a report came since the last ask, which clears it; and whether a summary is, a run going or ended
 int cli_tests_pane_changed(const CliTestsPaneCfg *args);
 int cli_tests_pane_said(const CliTestsPaneCfg *args);
 // the summary into `text`, sized CLI_TESTS_SUMMARY: while a run goes the runner, its processes and the tests done,

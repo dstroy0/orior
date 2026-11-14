@@ -5,10 +5,10 @@ Columbia, ICSNL 61.
 
 Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
-pure corpus, then against this paper's own English laid over that reference. What the paper's
+pure corpus, then against this paper's own English positioned over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
 from the characters that sit outside that English, and word_web.web() built 8646 edges over the
-language forms. A person then matched the context: who, kind and gloss for each row, the names,
+language forms. A person then matched the context: who, type and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
 someone reads the paper again and says otherwise.
@@ -26,9 +26,9 @@ its line, Bev Phillips where the tag carries VT, and the author where it carries
 consultant's comment is theirs. The formulas of §5 and §6.2 and their paraphrases, the trees, the
 tables' heads and the prose carry the author.
 
-THE LETTERS
+THE CHARACTERS
 
-Outside the paper's English the engine found these letters and marks: á è é í ó ú ƛ ǝ Ǭ ǰ Ǽ ə ɣ ɬ ʔ
+Outside the paper's English the engine found these characters and marks: á è é í ó ú ƛ ǝ Ǭ ǰ Ǽ ə ɣ ɬ ʔ
 ʕ ʷ ́ ̌ ̓ ̕ ̣ ̨ ͋ α θ λ σ χ ⃗ ∅. The paper writes ɬ and sometimes ł for the lateral fricative,
 kʷaɬtèzetkʷuʔ beside kʷałtèzetkʷuʔ, and c̓ beside c̕ for the glottalized c, c̓úʔsinek beside
 c̕úʔsinek. The formulas write ⃗v for a vector, U+20D7 COMBINING RIGHT ARROW ABOVE, and σ for the
@@ -39,7 +39,7 @@ THE PAGE AND THE TEXT LAYER
 The forms are in NFC, and the check puts the text layer through the same repair: the space the PDF
 sets after a stacked mark is closed, except before an opening quote, then NFC, then 4 page-read
 corrections. The text layer of this paper runs the words of 540 lines together. The source here
-takes each line from whichever of the text layer and the glyph positions keeps more of the page's
+takes each line from whichever of the text layer and the glyph positions retains more of the page's
 spaces. The denotation brackets ⟦ ⟧ come out of the text layer as J and K, the frowning face of (73)
 as h, and the pictograms of the iconographic variables as single glyphs of a picture font, σ(Ǭ) for
 the basket. Pages 2, 3, 4 and 40 were read at 200 to 300 dpi for the spaces the page prints and the
@@ -55,7 +55,7 @@ where    the paper's locator: the title, the front matter, a section, a footnote
 who      the language for an example tier and a cited form; the work cited on an example's
          line, or the speaker for a volunteered translation, for its English; the authors for
          the prose, the tables and the notes
-kind     transcription  an example tier in the orthography
+type     transcription  an example tier in the orthography
          segmentation   an example tier broken into morphemes
          gloss          the morpheme gloss tier of an example
          translation    the English of an example

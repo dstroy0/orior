@@ -8,28 +8,28 @@
 # and more its bound, the listing word 3. A zero lies between two certified points of opposite sign. Theta / pi
 # rises, and its u = theta / pi + 1 lies between the first point's theta / pi less its bound and the second's more its
 # bound, plus 1: an exact interval of integers at 2^-62. A close pair no point falls between is found where |Z| dips
-# and keeps its sign, listed again 64 times finer by pairs with the same brackets. The zeros placed must number N's
+# and retains its sign, listed again 64 times finer by pairs with the same brackets. The zeros placed must number N's
 # difference between two F's, N certified by Turing's method or given where a run of the machine closes over them.
 #
 # Each pair of zeros within 8 has its difference as the interval the two zeros' intervals give, and each eighth of u
 # its pairs whose interval lies in it and those whose interval meets it and another. The steering is by those
 # verdicts: a zero in a pair that meets two eighths is listed again 16 times finer between its two certified points,
 # by pairs with the brackets, and takes the interval about its one change of sign there, for up to ROUNDS rounds. A
-# zero whose two points stand in different cells keeps its interval.
+# zero whose two points are in different cells retains its interval.
 #
 #   Usage:  python examples/0_experimental/exact_zeta_demon.py <binary> <first> <last> [extra] [N at first's F N at last's F]
 #
-# Each zero stands at the midpoint of its interval, an integer at 2^-64, and every curve is read from those integers
+# Each zero is at the midpoint of its interval, an integer at 2^-64, and every curve is read from those integers
 # with no rounding: S between zeros, n - u at the midpoint of the n-th zero and the next; S's correlation over k zeros;
 # S's pull back each zero; the neighbors' correlation of the gaps; the number variance of windows of L on u, from
 # windows starting every half unit; and the pair counts, every pair of zeros within 8 of each other binned by eighths.
 #
-# The arms: the identity:null permutation, DRAWS draws an arm. Arm a shuffles the gaps' order with every gap kept;
-# arm b shuffles them within each run of BLOCK gaps, which keeps S at every BLOCK-th zero. A curve's point stands
+# The arms: the identity:null permutation, DRAWS draws an arm. Arm a shuffles the gaps' order with every gap retained;
+# arm b shuffles them within each run of BLOCK gaps, which retains S at every BLOCK-th zero. A curve's point is
 # above background where no draw reaches it, the real value past every draw's on one side; its reach is the fewer of
 # the draws at or above it and at or below it, and the verdict is whether the reach is 0. A pair count's bin is marked
 # where no draw reaches any count the intervals allow. No number is chosen. The identity permutation gives back every
-# real value, and every draw keeps each run's gaps: both are checked.
+# real value, and every draw retains each run's gaps: both are checked.
 #
 # It sits in 0_experimental and is an entry in the analytic number theory workbook, on its rail. It proves nothing;
 # it reads which of the zeros' curves their gaps alone draw, and which only their order does.
@@ -88,8 +88,8 @@ def bracketed_points(binary, constants, first, last, extra):
 
 def zero_records(binary, constants, points, start, end, wanted, extra):
     """Each zero between points start and end: its interval of u at 2^-62, and the cell, lattice and two lanes of the
-    certified points about it, the lattice None where the two stand in different cells. At every change of certified
-    sign, then in the deepest dips that keep their sign, listed again finer, until they number `wanted`."""
+    certified points about it, the lattice None where the two are in different cells. At every change of certified
+    sign, then in the deepest dips that retain their sign, listed again finer, until they number `wanted`."""
     held = [i for i in range(start, end + 1) if points[i][2] != 0]
     zeros = []
     for a, b in zip(held, held[1:]):
@@ -123,13 +123,13 @@ def zero_records(binary, constants, points, start, end, wanted, extra):
 def narrowed(binary, constants, records, which):
     """The zeros in `which` listed again 2^NARROW times finer between their two certified points, by pairs with the
     brackets, each taking the interval between the certified points about its one change of sign there; a zero whose
-    two points stand in different cells, or whose finer points change sign other than once, keeps its interval."""
+    two points are in different cells, or whose finer points change sign other than once, retains its interval."""
     groups = {}
     for k in which:
         lo, hi, nu, p, ja, jb = records[k]
         if p is not None:
             groups.setdefault((nu, p), []).append(k)
-    out, failed, kept = list(records), 0, 0
+    out, failed, retained = list(records), 0, 0
     for (nu, p), members in groups.items():
         js, spans = [], []
         for k in members:
@@ -142,11 +142,11 @@ def narrowed(binary, constants, records, which):
             signed = [(js[at + i], rows[at + i]) for i in range(count) if rows[at + i][0] != 0]
             changes = [((ja, a), (jb, b)) for (ja, a), (jb, b) in zip(signed, signed[1:]) if a[0] != b[0]]
             one = len(changes) == 1
-            kept += 1 - one
+            retained += 1 - one
             if one:
                 (ja, a), (jb, b) = changes[0]
                 out[k] = (a[2] + ONE, b[3] + ONE, nu, p + NARROW, ja, jb)
-    return out, failed, kept
+    return out, failed, retained
 
 
 def hold(cells, first, last, given):
@@ -212,7 +212,7 @@ def gaps_of(positions):
 
 
 def permuted(positions, rng, block):
-    """The zeros again with their gaps' order shuffled within each run of `block` gaps, every gap kept; the identity
+    """The zeros again with their gaps' order shuffled within each run of `block` gaps, every gap retained; the identity
     where rng is None."""
     gaps = [b - a for a, b in zip(positions, positions[1:])]
     for at in range(0, len(gaps), block) if rng is not None else ():
@@ -226,8 +226,8 @@ def permuted(positions, rng, block):
 
 
 def reach_of(real, draws, above):
-    """The fewer of the draws at or past the real value on each side, and '+' where the real stands above most of
-    them; `above(a, b)` is 1 where a stands above b."""
+    """The fewer of the draws at or past the real value on each side, and '+' where the real is above the majority of
+    them; `above(a, b)` is 1 where a is above b."""
     up = sum(1 - above(real, d) for d in draws)
     down = sum(1 - above(d, real) for d in draws)
     return min(up, down), "+" if up < down else "-"
@@ -327,10 +327,10 @@ def main():
               (turn, REACH, sum(decided), len(open_zeros)))
         if turn == ROUNDS or not open_zeros:
             break
-        records, bad, kept = narrowed(binary, constants, records, sorted(open_zeros))
+        records, bad, retained = narrowed(binary, constants, records, sorted(open_zeros))
         failed += bad
-        print("    listed again %d times finer: %d zeros, %d kept their interval, host checks failed %d" %
-              (1 << NARROW, len(open_zeros), kept, bad))
+        print("    listed again %d times finer: %d zeros, %d retained their interval, host checks failed %d" %
+              (1 << NARROW, len(open_zeros), retained, bad))
     widest = max(b - a for a, b in intervals)
     ordered = all(a0 < a1 and b0 < b1 for (a0, b0), (a1, b1) in zip(intervals, intervals[1:]))
     print("  from cell %d's F, N = %d, to cell %d's, N = %d: %d zeros, each an interval of u, the widest %s, both ends "
@@ -341,20 +341,20 @@ def main():
     real = curves(positions, n_start)
     identity = curves(permuted(positions, None, 1), n_start) == real
     rng = random.Random(20261004)
-    arms, kept = [], True
+    arms, retained = [], True
     for name, block in (("the gaps shuffled", len(positions)), ("the gaps shuffled within runs of %d" % BLOCK, BLOCK)):
         draws = []
         for _ in range(DRAWS):
             drawn = permuted(positions, rng, block)
-            kept = kept and all(sorted(gaps_of(drawn[at:at + block + 1])) == sorted(gaps_of(positions[at:at + block + 1]))
+            retained = retained and all(sorted(gaps_of(drawn[at:at + block + 1])) == sorted(gaps_of(positions[at:at + block + 1]))
                                 for at in range(0, len(positions) - 1, block))
             draws.append(curves(drawn, n_start))
         arms.append((name, draws))
-    print("  the identity permutation gives back every real value: %s; every draw keeps each run's gaps: %s; %d draws "
-          "an arm" % (identity, kept, DRAWS))
+    print("  the identity permutation gives back every real value: %s; every draw retains each run's gaps: %s; %d draws "
+          "an arm" % (identity, retained, DRAWS))
     report(real, arms, positions, (decided, straddling, open_zeros))
     print("  host checks failed: %d" % failed)
-    return int(failed != 0 or not identity or not kept)
+    return int(failed != 0 or not identity or not retained)
 
 
 if __name__ == "__main__":

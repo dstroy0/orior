@@ -45,7 +45,7 @@ static int interface_pipe_read(int pipe_read, InterfaceAnswer *answer, unsigned 
     ssize_t got = read(pipe_read, piece, sizeof(piece));
     while (got > 0)
     {
-        // a read is at most one piece, which is not negative here
+        // a read is at max one piece, which is not negative here
         interface_output_appended(answer, total, piece, (unsigned long long)got);
         got = read(pipe_read, piece, sizeof(piece));
     }
@@ -121,7 +121,7 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     }
     else
     {
-        // the probe is handed the write end on its standard output and error; the read end is the interface's, and
+        // the probe is passed the write end on its standard output and error; the read end is the interface's, and
         // never waits
         int ends[2] = {-1, -1};
         if (pipe(ends) == 0)

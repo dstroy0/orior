@@ -7,8 +7,8 @@
 
 int cli_tex_white(const CliLatexCtx *args)
 {
-    return (args->letter == ' ') || (args->letter == '\t') || (args->letter == '\n') || (args->letter == '\r') ||
-           (args->letter == '\f') || (args->letter == '\v');
+    return (args->character == ' ') || (args->character == '\t') || (args->character == '\n') || (args->character == '\r') ||
+           (args->character == '\f') || (args->character == '\v');
 }
 
 int cli_tex_line(const CliLatexTextCtx *args)
@@ -47,7 +47,7 @@ typedef struct
     const char *line;
     unsigned long long size;
 } LatexTextCtx;
-// `length` bytes and `with`, the case of ASCII letters aside
+// `length` bytes and `with`, the case of ASCII characters aside
 EMBED_INLINE int latex_by_name(const LatexTextCtx *args)
 {
     if (cellul.len(&(CatenaFinitaCfg){.src = args->with, .cap = CLI_POOL_BYTES}) != args->length)
@@ -56,9 +56,9 @@ EMBED_INLINE int latex_by_name(const LatexTextCtx *args)
     }
     for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
-        const char letter =
+        const char character =
             ((args->text[at] >= 'A') && (args->text[at] <= 'Z')) ? (char)(args->text[at] - 'A' + 'a') : args->text[at];
-        if (letter != args->with[at])
+        if (character != args->with[at])
         {
             return 0;
         }
@@ -141,10 +141,10 @@ int cli_tex_count(const CliLatexTextLengthCtx *args)
         return 0;
     }
     unsigned long long sum = 0ULL;
-    for (unsigned long long letter = at; letter < args->length; letter += 1ULL)
+    for (unsigned long long character = at; character < args->length; character += 1ULL)
     {
-        const unsigned long long digit = (unsigned long long)(args->text[letter] - '0');
-        if (sum > (args->most - digit) / 10ULL)
+        const unsigned long long digit = (unsigned long long)(args->text[character] - '0');
+        if (sum > (args->max - digit) / 10ULL)
         {
             return 0;
         }
@@ -160,11 +160,11 @@ int cli_tex_sign(const CliLatexTextLengthValueI64sCtx *args)
     const int negative = (args->length > 0ULL) && (args->text[0] == '-');
     const unsigned long long at = (negative || ((args->length > 0ULL) && (args->text[0] == '+'))) ? 1ULL : 0ULL;
     unsigned long long size = 0ULL;
-    // the most a negative number may be is one past the most a positive one may
-    const unsigned long long most = negative ? 9223372036854775808ULL : 9223372036854775807ULL;
+    // the max a negative number may be is one past the max a positive one may
+    const unsigned long long max = negative ? 9223372036854775808ULL : 9223372036854775807ULL;
     if ((at == args->length) || (args->text[at] == '+') ||
         !EMBED_CALL(cli_latex_text_length_internal.tex_count, CliLatexTextLengthCtx, .text = args->text + at,
-                    .length = args->length - at, .most = most, .value_u64s = &size))
+                    .length = args->length - at, .max = max, .value_u64s = &size))
     {
         return 0;
     }
@@ -198,7 +198,7 @@ EMBED_INLINE int latex_allocs_unicode(const LatexTextCtx *args)
             }
             unsigned long long rest = at + word_size;
             unsigned long long from = rest;
-            while ((from < cut) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->line[from]))
+            while ((from < cut) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .character = args->line[from]))
             {
                 from += 1ULL;
             }
@@ -209,7 +209,7 @@ EMBED_INLINE int latex_allocs_unicode(const LatexTextCtx *args)
                 // the options never closed leave nothing after them
                 rest = (closed != NULL) ? (unsigned long long)(closed - args->line) + 1ULL : cut;
             }
-            while ((rest < cut) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->line[rest]))
+            while ((rest < cut) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .character = args->line[rest]))
             {
                 rest += 1ULL;
             }
@@ -233,12 +233,12 @@ EMBED_INLINE int latex_allocs_unicode(const LatexTextCtx *args)
                 unsigned long long first = name;
                 unsigned long long last = stop;
                 while ((first < last) &&
-                       EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->line[first]))
+                       EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .character = args->line[first]))
                 {
                     first += 1ULL;
                 }
                 while ((last > first) &&
-                       EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->line[last - 1ULL]))
+                       EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .character = args->line[last - 1ULL]))
                 {
                     last -= 1ULL;
                 }
@@ -266,13 +266,13 @@ const char *cli_latex_engine_get(const CliLatexCfg *args)
     while (EMBED_CALL(cli_latex_text_internal.tex_line, CliLatexTextCtx, .text = args->text, .length = args->length,
                       .at = &at, .start = &start, .size_pointer = &size))
     {
-        while ((size > 0ULL) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->text[start]))
+        while ((size > 0ULL) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .character = args->text[start]))
         {
             start += 1ULL;
             size -= 1ULL;
         }
         while ((size > 0ULL) &&
-               EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->text[start + size - 1ULL]))
+               EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .character = args->text[start + size - 1ULL]))
         {
             size -= 1ULL;
         }
@@ -287,15 +287,15 @@ const char *cli_latex_engine_get(const CliLatexCfg *args)
         char engine_name[32];
         unsigned long long len = 0ULL;
         int fits = 1;
-        for (unsigned long long letter = start + 1ULL; letter < start + size; letter += 1ULL)
+        for (unsigned long long character = start + 1ULL; character < start + size; character += 1ULL)
         {
-            if (EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->text[letter]))
+            if (EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .character = args->text[character]))
             {
                 continue;
             }
             if (len + 1ULL < sizeof(engine_name))
             {
-                engine_name[len] = args->text[letter];
+                engine_name[len] = args->text[character];
                 len += 1ULL;
             }
             else

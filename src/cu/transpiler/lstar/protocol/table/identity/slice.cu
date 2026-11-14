@@ -20,31 +20,31 @@ static std::string link_render(const Link &link, std::map<std::string, std::stri
         text += link.marked.substr(mark, next - mark);
         const char part = link.marked[next];
         std::string key;
-        unsigned int kind = 0u;
+        unsigned int type = 0u;
         if (part == '\x01')
         {
             key = link.named[name];
-            kind = (key[0] == 'U') ? 2u : ((key[0] == 'P') ? 1u : 0u);
+            type = (key[0] == 'U') ? 2u : ((key[0] == 'P') ? 1u : 0u);
             name += 1u;
         }
         else if (part == '\x02')
         {
             key = "\x02" + link.literals[literal];
-            kind = 3u;
+            type = 3u;
             literal += 1u;
         }
         else
         {
             key = "\x03" + link.targets[target];
-            kind = 4u;
+            type = 4u;
             target += 1u;
         }
         auto found = names->find(key);
         if (found == names->end())
         {
             static const char *const s_classes[5] = {"r", "p", "ur", "k", "t"};
-            found = names->insert(std::make_pair(key, s_classes[kind] + std::to_string(counts[kind]))).first;
-            counts[kind] += 1u;
+            found = names->insert(std::make_pair(key, s_classes[type] + std::to_string(counts[type]))).first;
+            counts[type] += 1u;
         }
         text += found->second;
         mark = next + 1u;
@@ -76,9 +76,9 @@ std::vector<unsigned long long> window_identities(const Question &question, size
     for (size_t at = first; at < question.chain.size(); at += 1u)
     {
         const std::string text = link_render(question.chain[at], &names, counts) + "\n";
-        for (const char letter : text)
+        for (const char character : text)
         {
-            hash = (hash ^ (unsigned char)letter) * 1099511628211ull;
+            hash = (hash ^ (unsigned char)character) * 1099511628211ull;
         }
         identities.push_back(hash);
     }
@@ -92,7 +92,7 @@ std::string address_text(const std::vector<Question> &questions, unsigned int qu
 
 // The chains of every question, each window of each an identity recorded at its first occurrence, the lowest address it
 // occurs at: every later occurrence reaffirms it at a new address, with the same constituents. A link whose identity
-// first occurs where it stands is a primitive. Each question's chain is read from its first link as the constituents
+// first occurs where it is located is a primitive. Each question's chain is read from its first link as the constituents
 // that came before it, at each link the longest window whose identity first occurs at a lower address, or the link
 // alone where nothing does, and its signature is those constituents in order, each an identity at its address, with
 // the primitive of each link and the literal operands in that order: identity:address with its primitives.
@@ -217,7 +217,7 @@ static int chains_write(const std::vector<Question> &questions, const std::strin
 }
 
 // 1 where questions `one` and `other` are a slice: their listings the same but for one link a side, the two links
-// naming the same registers and read as different kinds, given through `left` and `right`
+// naming the same registers and read as different types, given through `left` and `right`
 int slice_found(const Question &one, const Question &other, const Link **left, const Link **right)
 {
     const std::vector<std::string> first = links_past(one, other);
@@ -228,7 +228,7 @@ int slice_found(const Question &one, const Question &other, const Link **left, c
     }
     *left = &one.links.at(first[0]);
     *right = &other.links.at(second[0]);
-    return ((*left)->registers == (*right)->registers) && ((*left)->kind != (*right)->kind);
+    return ((*left)->registers == (*right)->registers) && ((*left)->type != (*right)->type);
 }
 
 int identity_slice(const char *listing, const char *manifest, const char *stick_path, const std::string &folder,
@@ -261,12 +261,12 @@ int identity_slice(const char *listing, const char *manifest, const char *stick_
             const Link &right = *found_right;
             // each slice a line: its two members, each a question and the position of its link in that question's chain,
             // then the identity, the two links in order, the first member writing the first, then each member's context
-            const int swapped = right.kind < left.kind;
+            const int swapped = right.type < left.type;
             const Question &lead = swapped ? questions[other] : questions[one];
             const Question &rite = swapped ? questions[one] : questions[other];
             const Link &lead_link = swapped ? right : left;
             const Link &rite_link = swapped ? left : right;
-            const std::string identity = lead_link.kind + "\t" + rite_link.kind;
+            const std::string identity = lead_link.type + "\t" + rite_link.type;
             const std::string lead_context = member_context(lead, lead_link.position);
             const std::string rite_context = member_context(rite, rite_link.position);
             run_print(&file, "%s:%s\t%s:%s\t%s\t%s\t%s\n", lead.number.c_str(), lead_link.position.c_str(),

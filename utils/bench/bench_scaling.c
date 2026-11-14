@@ -74,7 +74,7 @@ int main(void)
     static const CorpusKind KINDS[] = {CORPUS_UNIFORM, CORPUS_SKEWED, CORPUS_PERIODIC};
 
     const size_t arm_count = sizeof ARMS / sizeof ARMS[0];
-    const size_t kind_count = sizeof KINDS / sizeof KINDS[0];
+    const size_t type_count = sizeof KINDS / sizeof KINDS[0];
     const size_t length_count = sizeof CORPUS_LENGTHS / sizeof CORPUS_LENGTHS[0];
     const size_t needle_count = sizeof NEEDLE_LENGTHS / sizeof NEEDLE_LENGTHS[0];
     const size_t longest = CORPUS_LENGTHS[length_count - 1u];
@@ -101,7 +101,7 @@ int main(void)
            "cycles_per_alignment,predicted_rate,found\n");
 #endif
 
-    for (size_t which = 0u; which < kind_count; which += 1u)
+    for (size_t which = 0u; which < type_count; which += 1u)
     {
         for (size_t step = 0u; step < length_count; step += 1u)
         {

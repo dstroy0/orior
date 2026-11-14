@@ -1,16 +1,16 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// standing_check.c: one form standing for the encodings that answer as it does, so that the working set contains one
+// located_check.c: one form located for the encodings that answer as it does, so that the working set contains one
 // form for each answer and the widening's turns of a form's bits outside its operands do not fill it
 //
 //   alike      two forms answer alike where their relation, read order, signedness and a frame's reading are one
-//   turned     a form carrying its runs stands for an encoding carrying none that answers alike and differs from it in
+//   turned     a form carrying its runs is for an encoding carrying none that answers alike and differs from it in
 //              bits of the turned range outside its placed runs; one differing inside a placed run, in the key or in
-//              the scheduler's word, or answering another relation, stands alone
+//              the scheduler's word, or answering another relation, is alone
 //   runs       two forms carrying the same runs and answering alike are one form; the same runs placed apart are two
-//   folded     the set folded retains the oldest of the forms one stands for, in their order
+//   folded     the set folded retains the oldest of the forms one is for, in their order
 //
-//     standing_check
+//     located_check
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/khw_learn/khw_learn_internal.h"
 
 static unsigned int s_checks = 0u;
@@ -40,15 +40,15 @@ static KhwAnswered add_form(unsigned long long low, unsigned long long high)
     form.first[0] = 16u;
     form.last[0] = 23u;
     form.place[0] = 2u;
-    form.kind[0] = KHW_KIND_REGISTER;
+    form.type[0] = KHW_KIND_REGISTER;
     form.first[1] = 24u;
     form.last[1] = 31u;
     form.place[1] = 0u;
-    form.kind[1] = KHW_KIND_REGISTER;
+    form.type[1] = KHW_KIND_REGISTER;
     form.first[2] = 32u;
     form.last[2] = 39u;
     form.place[2] = 1u;
-    form.kind[2] = KHW_KIND_REGISTER;
+    form.type[2] = KHW_KIND_REGISTER;
     return form;
 }
 
@@ -94,29 +94,29 @@ int main(void)
     const KhwAnswered turned_key = add_found(add.low ^ (1ull << 3u), add.high);
     const KhwAnswered turned_scheduler = add_found(add.low, add.high ^ (1ull << (110u - 64u)));
     const KhwAnswered turned_twice = add_found(add.low ^ (1ull << 40u) ^ (1ull << 44u), add.high);
-    check_that(khw_form_stands_for(&add, &turned_outside), "turned: a bit outside the placed runs is the form's");
-    check_that(khw_form_stands_for(&add, &turned_twice), "turned: two bits outside the placed runs are the form's");
-    check_that(!khw_form_stands_for(&add, &turned_inside), "turned: a bit inside a placed run stands alone");
-    check_that(!khw_form_stands_for(&add, &turned_key), "turned: a bit of the key stands alone");
-    check_that(!khw_form_stands_for(&add, &turned_scheduler), "turned: a bit of the scheduler's word stands alone");
+    check_that(khw_form_is_for(&add, &turned_outside), "turned: a bit outside the placed runs is the form's");
+    check_that(khw_form_is_for(&add, &turned_twice), "turned: two bits outside the placed runs are the form's");
+    check_that(!khw_form_is_for(&add, &turned_inside), "turned: a bit inside a placed run is alone");
+    check_that(!khw_form_is_for(&add, &turned_key), "turned: a bit of the key is alone");
+    check_that(!khw_form_is_for(&add, &turned_scheduler), "turned: a bit of the scheduler's word is alone");
     KhwAnswered turned_take = turned_outside;
     turned_take.anchor = (unsigned int)LADDER_TAKE;
-    check_that(!khw_form_stands_for(&add, &turned_take), "turned: an encoding answering another relation stands alone");
-    check_that(!khw_form_stands_for(&turned_outside, &turned_twice),
-               "turned: a form carrying no runs stands for nothing");
+    check_that(!khw_form_is_for(&add, &turned_take), "turned: an encoding answering another relation is alone");
+    check_that(!khw_form_is_for(&turned_outside, &turned_twice),
+               "turned: a form carrying no runs is for nothing");
 
     const KhwAnswered add_again = add_form(add.low ^ (1ull << 40u), add.high);
-    check_that(khw_form_stands_for(&add, &add_again), "runs: the same runs answering alike are one form");
+    check_that(khw_form_is_for(&add, &add_again), "runs: the same runs answering alike are one form");
     KhwAnswered add_placed_apart = add_again;
     add_placed_apart.place[1] = 1u;
     add_placed_apart.place[2] = 0u;
-    check_that(!khw_form_stands_for(&add, &add_placed_apart), "runs: the same runs placed apart are two forms");
+    check_that(!khw_form_is_for(&add, &add_placed_apart), "runs: the same runs placed apart are two forms");
     KhwAnswered add_wider = add_again;
     add_wider.last[2] = 40u;
-    check_that(!khw_form_stands_for(&add, &add_wider), "runs: a run of another width is another form");
+    check_that(!khw_form_is_for(&add, &add_wider), "runs: a run of another width is another form");
     KhwAnswered add_fewer = add_again;
     add_fewer.runs = 2u;
-    check_that(!khw_form_stands_for(&add, &add_fewer), "runs: fewer runs are another form");
+    check_that(!khw_form_is_for(&add, &add_fewer), "runs: fewer runs are another form");
 
     KhwAnswered set[6];
     set[0] = add;
@@ -126,15 +126,15 @@ int main(void)
     set[4] = turned_twice;
     set[5] = add_placed_apart;
     const unsigned int folded = khw_forms_folded(set, 6u);
-    check_that(folded == 3u, "folded: three of six stand");
-    check_that((set[0].low == add.low) && (set[0].runs == 3u), "folded: the oldest add stands first");
-    check_that(set[1].frame == (unsigned int)FRAME_NUMBER, "folded: the number form stands second");
-    check_that((folded == 3u) && (set[2].place[1] == 1u), "folded: the add placed apart stands third");
-    check_that(khw_form_stood_for(set, folded, &turned_twice), "folded: the set stands for a turn of its add");
+    check_that(folded == 3u, "folded: three of six are");
+    check_that((set[0].low == add.low) && (set[0].runs == 3u), "folded: the oldest add is first");
+    check_that(set[1].frame == (unsigned int)FRAME_NUMBER, "folded: the number form is second");
+    check_that((folded == 3u) && (set[2].place[1] == 1u), "folded: the add placed apart is third");
+    check_that(khw_form_was_for(set, folded, &turned_twice), "folded: the set is for a turn of its add");
     KhwAnswered take = add_found(add.low ^ (1ull << 40u), add.high);
     take.anchor = (unsigned int)LADDER_TAKE;
-    check_that(!khw_form_stood_for(set, folded, &take), "folded: the set stands for no take");
+    check_that(!khw_form_was_for(set, folded, &take), "folded: the set is for no take");
 
-    printf("standing_check: %u checks, %u failed\n", s_checks, s_failed);
+    printf("located_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;
 }

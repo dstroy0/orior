@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// recording_read.c: a recorded run read from the recorder's lines, its steps, frames, files, threads and raises laid
+// recording_read.c: a recorded run read from the recorder's lines, its steps, frames, files, threads and raises positioned
 // in one movable cell the replay owns with the lines they came from, and what the replay reads of it by index: a step,
 // a frame, a step by frame, a file, a thread, a raise, a name and a line record
 #include "../command_line/pool.h"
@@ -20,11 +20,11 @@ typedef struct
 } ReadCounts;
 CliReplay *g_cli_replay;
 
-// the most bytes of one line of the recording read
+// the max bytes of one line of the recording read
 #define CLI_RECORDING_LINE_TEXT (1ULL << 20u)
 
 // The tables of a recording as it is read, in a cell of the read's own with the text the lines are read from in
-// another: each table's start, and where each stands from the cell's start, which the recording's cell keeps; the
+// another: each table's start, and where each is from the cell's start, which the recording's cell retains; the
 // tables and the text are written into the recording's movable cell as the read ends
 typedef struct
 {
@@ -157,7 +157,7 @@ const char *cli_recording_name(const CliRecordingAtFramesCtx *args)
     return out;
 }
 
-// the whole number written at `at` of `size` bytes of `text`, read up to its first letter that is no digit: the
+// the whole number written at `at` of `size` bytes of `text`, read up to its first character that is no digit: the
 // number, all ones where none is written or it passes an unsigned int
 EMBED_INLINE unsigned int read_digits(const RecordingReadCtx *args)
 {
@@ -220,7 +220,7 @@ EMBED_INLINE void *read_part(const RecordingReadCtx *args)
 }
 
 // the work cell taken for the counts of its `size` bytes of `text` and its parts set into it, the frames and files
-// zero and the names one empty name, each part's place kept on the recording: 1, or 0 with the read holding no tables
+// zero and the names one empty name, each part's place retained on the recording: 1, or 0 with the read holding no tables
 EMBED_INLINE int read_work_alloc(const RecordingReadCtx *args)
 {
     CliRecording *const recording = args->recording;
@@ -280,7 +280,7 @@ EMBED_INLINE int read_work_alloc(const RecordingReadCtx *args)
 }
 
 // `size` bytes of `text`, one line of the recording, read into `json`, a tree sized to it: its array, CLI_JSON_NONE
-// where the line is none or passes the most a line holds
+// where the line is none or passes the max a line holds
 EMBED_INLINE unsigned int record_read(const RecordingReadCtx *args)
 {
     CliJson *const json = args->json;
@@ -310,7 +310,7 @@ void cli_recording_record(const CliRecordingCtx *args)
     {
         return;
     }
-    // the line stands zero-ended in the recording's cell, copied into a cell of this call for the tree's read
+    // the line is zero-ended in the recording's cell, copied into a cell of this call for the tree's read
     const unsigned long long length = g_cli_guard->movable_buf_measure(
         &(CarcerMovableCfg){.cell = recording->cell, .offset = recording->text_at + args->at_u64});
     char *const line =
@@ -339,10 +339,10 @@ EMBED_INLINE unsigned long long read_number(const RecordingReadCtx *args)
     }
     const char *const text = json->text + json->node[node].text;
     unsigned long long value = 0ULL;
-    for (unsigned long long letter = 0ULL; letter < json->node[node].length; letter += 1ULL)
+    for (unsigned long long character = 0ULL; character < json->node[node].length; character += 1ULL)
     {
-        const unsigned long long digit = (unsigned long long)(text[letter] - '0');
-        if ((text[letter] < '0') || (text[letter] > '9') || (value > (~0ULL - digit) / 10ULL))
+        const unsigned long long digit = (unsigned long long)(text[character] - '0');
+        if ((text[character] < '0') || (text[character] > '9') || (value > (~0ULL - digit) / 10ULL))
         {
             return 0ULL;
         }
@@ -366,9 +366,9 @@ EMBED_INLINE unsigned int read_by_name(const RecordingReadCtx *args)
         return 0u;
     }
     const unsigned int place = recording->used;
-    for (unsigned long long letter = 0ULL; letter < length; letter += 1ULL)
+    for (unsigned long long character = 0ULL; character < length; character += 1ULL)
     {
-        args->work->names[place + letter] = (args->slashed && (text[letter] == '\\')) ? '/' : text[letter];
+        args->work->names[place + character] = (args->slashed && (text[character] == '\\')) ? '/' : text[character];
     }
     args->work->names[place + length] = '\0';
     recording->used += (unsigned int)length + 1u;
@@ -449,7 +449,7 @@ EMBED_INLINE unsigned int read_position(const RecordingReadCtx *args)
     return s_depths[args->thread];
 }
 
-// a line read: a step of its frame, as deep as the frame stands in its thread's stack
+// a line read: a step of its frame, as deep as the frame is in its thread's stack
 EMBED_INLINE void read_line(const RecordingReadCtx *args)
 {
     CliRecording *const recording = &g_cli_replay->recording;
@@ -643,12 +643,12 @@ EMBED_INLINE void read_store(const RecordingReadCtx *args)
         const char *const text = whole ? json->text + json->node[code].text : "";
         const unsigned long long length = whole ? json->node[code].length : 0ULL;
         const int negative = (length > 0ULL) && (text[0] == '-');
-        unsigned long long letter = negative ? 1ULL : 0ULL;
-        while (whole && (letter < length))
+        unsigned long long character = negative ? 1ULL : 0ULL;
+        while (whole && (character < length))
         {
-            whole = (text[letter] >= '0') && (text[letter] <= '9') && (value < 922337203685477580LL);
-            value = (value * 10LL) + (long long)(text[letter] - '0');
-            letter += 1ULL;
+            whole = (text[character] >= '0') && (text[character] <= '9') && (value < 922337203685477580LL);
+            value = (value * 10LL) + (long long)(text[character] - '0');
+            character += 1ULL;
         }
         recording->has_code = whole && (length > (negative ? 1ULL : 0ULL));
         recording->code = negative ? -value : value;
@@ -689,7 +689,7 @@ void cli_recording_read(const CliRecordingPathCtx *args)
                             .src = args->path,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
     // the recording's file read into a cell of this call, its lines ended with zero bytes in place of their ends so
-    // each stands as one text in the recording's cell
+    // each is as one text in the recording's cell
     unsigned long long size = 0ULL;
     char *text = EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = args->path, .size_pointer = &size)
                      ? g_cli_guard->temporary_buf_alloc(size + CLI_FILE_SLACK, g_cli_debug_owner)

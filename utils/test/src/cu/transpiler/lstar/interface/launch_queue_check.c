@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // launch_queue_check.c: the interface's launch queue checked: every child process of the tree starts through it, at
-// most INTERFACE_LAUNCHES_AT_ONCE at a time and INTERFACE_LAUNCH_SPACING_MILLISECONDS apart
+// max INTERFACE_LAUNCHES_AT_ONCE at a time and INTERFACE_LAUNCH_SPACING_MILLISECONDS apart
 //
-//   places    eight starts requested at once occupy at most INTERFACE_LAUNCHES_AT_ONCE places at any moment
+//   places    eight starts requested at once occupy at max INTERFACE_LAUNCHES_AT_ONCE places at any moment
 //   spacing   each start follows the one before it by the spacing at least
 //   given     every place taken is given back, and the next eight starts go through
 //
@@ -35,9 +35,9 @@ static void check_that(int passed, const char *what)
     }
 }
 
-// the places occupied at this moment, and the most occupied at any moment
+// the places occupied at this moment, and the max occupied at any moment
 static _Atomic unsigned int s_in_flight = 0u;
-static _Atomic unsigned int s_most_in_flight = 0u;
+static _Atomic unsigned int s_max_in_flight = 0u;
 
 // the moment each start went, in milliseconds
 static unsigned long long s_started_at[CHECK_STARTS];
@@ -74,8 +74,8 @@ static void *check_started(void *argument)
     unsigned long long *const stamp = (unsigned long long *)argument;
     interface_launch_taken();
     const unsigned int in_flight = atomic_fetch_add(&s_in_flight, 1u) + 1u;
-    unsigned int most = atomic_load(&s_most_in_flight);
-    while ((in_flight > most) && !atomic_compare_exchange_weak(&s_most_in_flight, &most, in_flight))
+    unsigned int max = atomic_load(&s_max_in_flight);
+    while ((in_flight > max) && !atomic_compare_exchange_weak(&s_max_in_flight, &max, in_flight))
     {
     }
     *stamp = check_now_milliseconds();
@@ -90,7 +90,7 @@ static void *check_started(void *argument)
 static void check_round(const char *round)
 {
     atomic_store(&s_in_flight, 0u);
-    atomic_store(&s_most_in_flight, 0u);
+    atomic_store(&s_max_in_flight, 0u);
     pthread_t thread[CHECK_STARTS];
     for (unsigned int at = 0u; at < CHECK_STARTS; at += 1u)
     {
@@ -101,9 +101,9 @@ static void check_round(const char *round)
         pthread_join(thread[at], NULL);
     }
     char what[160];
-    snprintf(what, sizeof(what), "%s: at most %u places occupied at once (%u were)", round, INTERFACE_LAUNCHES_AT_ONCE,
-             atomic_load(&s_most_in_flight));
-    check_that(atomic_load(&s_most_in_flight) <= INTERFACE_LAUNCHES_AT_ONCE, what);
+    snprintf(what, sizeof(what), "%s: at max %u places occupied at once (%u were)", round, INTERFACE_LAUNCHES_AT_ONCE,
+             atomic_load(&s_max_in_flight));
+    check_that(atomic_load(&s_max_in_flight) <= INTERFACE_LAUNCHES_AT_ONCE, what);
     // the stamps in order, and the least gap between one and the next
     for (unsigned int at = 1u; at < CHECK_STARTS; at += 1u)
     {

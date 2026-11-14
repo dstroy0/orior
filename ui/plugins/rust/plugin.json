@@ -2,7 +2,7 @@
   "id": "rust",
   "name": "Rust",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "extensions": ["rs"],
   "comments": {"line":"//","block":["/*","*/"]},
   "pairs": ["()","[]","{}"],

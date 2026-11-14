@@ -14,7 +14,7 @@ typedef struct CliCargoTestsTextCtx CliCargoTestsTextCtx;
 typedef struct CliCargoTestsTextSizeCtx CliCargoTestsTextSizeCtx;
 typedef struct CliCargoTestsCtx CliCargoTestsCtx;
 
-// the cells the search for Rust's tests occupies; and a cell of `most` of `width` bytes, or of twice `*capacity` where
+// the cells the search for Rust's tests occupies; and a cell of `max` of `width` bytes, or of twice `*capacity` where
 // that is more, containing the `*capacity` of `cell`, `cell` given back and `*capacity` raised: the cell, or NULL where
 
 // what a token of Rust's text is: a word, `::`, or a sign
@@ -22,20 +22,20 @@ typedef struct CliCargoTestsCtx CliCargoTestsCtx;
 #define CLI_RUST_PATH 1u
 #define CLI_RUST_MARK 2u
 
-// A token: its type, its letter where it is a sign, where its text starts in the file and its bytes where it is a word,
-// and the line it stands on, counted from 0
+// A token: its type, its character where it is a sign, where its text starts in the file and its bytes where it is a word,
+// and the line it is on, counted from 0
 typedef struct
 {
     unsigned int type;
-    unsigned int letter;
+    unsigned int character;
     unsigned long long start;
     unsigned int size;
     unsigned int line;
 } CliRustToken;
 
 // What one file contains for the search: a test, or a module the file names with `mod name;`: where in the capacity's
-// names the modules written in the file it stands in start, joined by `::`, and its name, and the line a test's name
-// stands on
+// names the modules written in the file it is in start, joined by `::`, and its name, and the line a test's name
+// is on
 typedef struct
 {
     int test;
@@ -46,7 +46,7 @@ typedef struct
 
 // What the search reads into: one file's tokens, in a cell of their count; what the files followed contain, stored in
 // turn as each file is followed and let go once it and the files it names are; and the bytes their names take, each in
-// a cell at their most
+// a cell at their max
 typedef struct
 {
     CliRustToken *tokens;
@@ -82,7 +82,7 @@ const CliCargoFirst *cli_cargo_targets(const CliCargoTestsTextSizeCtx *args);
 // the targets cli_cargo_targets found given back, which their next finding does as well (cargo_targets.c)
 void cli_cargo_firsts_free(void);
 
-// the tokens of `size` bytes of Rust, each with the line it stands on: comments, strings and characters passed over,
+// the tokens of `size` bytes of Rust, each with the line it is on: comments, strings and characters passed over,
 // and a lifetime no token, counted and then put into a cell of their count, the cell of the file before given back;
 // what they contain put after what the search contains: the count put; and every cell of the search given back, the
 // search left empty (cargo_scan.c)

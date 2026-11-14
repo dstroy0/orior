@@ -217,7 +217,7 @@ def main():
             if not name.endswith(".py"):
                 continue
             path = os.path.join(base, name)
-            shown = os.path.relpath(path, ROOT).replace("\\", "/")
+            displayed = os.path.relpath(path, ROOT).replace("\\", "/")
             with io.open(
                 path, encoding="utf-8", errors="replace", newline=""
             ) as handle:
@@ -229,16 +229,16 @@ def main():
 
             found = CATALOG.search(text)
             number = found.group(1) if found else None
-            if known.get(shown) and number != known.get(shown):
+            if known.get(displayed) and number != known.get(displayed):
                 said.append(
                     (
                         "catalog",
-                        "header %s, registry %s" % (number or "none", known[shown]),
+                        "header %s, registry %s" % (number or "none", known[displayed]),
                     )
                 )
 
             for cited in USAGE.findall(head):
-                if cited != shown and not os.path.isfile(os.path.join(ROOT, cited)):
+                if cited != displayed and not os.path.isfile(os.path.join(ROOT, cited)):
                     said.append(("usage", "Usage names %s" % cited))
 
             parts = os.path.relpath(path, EXAMPLES).replace("\\", "/").split("/")
@@ -280,16 +280,16 @@ def main():
 
             if said:
                 findings += len(said)
-                out.write("\n  %s  %s\n" % (number or "unnumbered", shown))
-                for kind, why in said:
-                    tally[kind] = tally.get(kind, 0) + 1
-                    out.write("      %-9s %s\n" % (kind, why))
+                out.write("\n  %s  %s\n" % (number or "unnumbered", displayed))
+                for type, why in said:
+                    tally[type] = tally.get(type, 0) + 1
+                    out.write("      %-9s %s\n" % (type, why))
             elif not quiet:
                 tally["clean"] = tally.get("clean", 0) + 1
 
     out.write("\n  %d examples read, %d finding(s)\n" % (scanned, findings))
-    for kind in sorted(tally):
-        out.write("    %-9s %d\n" % (kind, tally[kind]))
+    for type in sorted(tally):
+        out.write("    %-9s %d\n" % (type, tally[type]))
     out.write("\n  Heuristics. A finding is a file worth opening instead of a defect.\n\n")
     out.flush()
     return 0

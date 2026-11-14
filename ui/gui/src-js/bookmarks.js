@@ -3,21 +3,21 @@
 
 // Bookmarks: lines a reader marks to come back to. Go, Toggle Bookmark (Ctrl+F11) sets or clears one
 // on the cursor's line, drawn as a ribbon in the gutter, and Go, Bookmarks (Ctrl+Shift+F11) lists
-// them all in the quick open, each with its line's text, a press going there. They are kept between
+// them all in the quick open, each with its line's text, a press going there. They are retained between
 // visits, by tree.
 
 import { openPalette } from "./palette.js";
 
-const KEPT = "orior.bookmarks";
+const RETAINED = "orior.bookmarks";
 
 const state = { hooks: null, marks: new Map() };
 
 const treeKey = () => document.getElementById("tree-path")?.textContent ?? "";
 
-function keep() {
+function retain() {
   let all = {};
   try {
-    all = JSON.parse(localStorage.getItem(KEPT) ?? "{}") ?? {};
+    all = JSON.parse(localStorage.getItem(RETAINED) ?? "{}") ?? {};
   } catch {
     all = {};
   }
@@ -28,14 +28,14 @@ function keep() {
     }
   }
   all[treeKey()] = mine;
-  localStorage.setItem(KEPT, JSON.stringify(all));
+  localStorage.setItem(RETAINED, JSON.stringify(all));
 }
 
-// Reads the bookmarks kept for the tree that is open.
+// Reads the bookmarks retained for the tree that is open.
 export function loadBookmarks() {
   state.marks = new Map();
   try {
-    const mine = JSON.parse(localStorage.getItem(KEPT) ?? "{}")?.[treeKey()] ?? {};
+    const mine = JSON.parse(localStorage.getItem(RETAINED) ?? "{}")?.[treeKey()] ?? {};
     for (const [path, lines] of Object.entries(mine)) {
       state.marks.set(path, new Set(lines));
     }
@@ -65,7 +65,7 @@ export function toggleBookmark() {
   } else {
     lines.add(at.line);
   }
-  keep();
+  retain();
   state.hooks.repaint();
 }
 

@@ -45,7 +45,7 @@ EMBED_INLINE int findings_file_get(const ServersFindingsCtx *args)
 
 // the findings `items` of the checker `id` stored for the file of `key` and `uri`: 1 where they changed; under the
 // checks' lock. The file's entry is read into a tree with capacity over for the findings copied in, their key and an
-// object made where none was stored, and written into a cell of the most the tree writes to
+// object made where none was stored, and written into a cell of the max the tree writes to
 EMBED_INLINE int findings_append(const ServersFindingsCtx *args)
 {
     const char *key = args->key_read;

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// servers_files.c: the files the editor has open: a file handed to its language's server, to the plugins' servers of
+// servers_files.c: the files the editor has open: a file passed to its language's server, to the plugins' servers of
 // its language and its text to the inspections and the checkers as it opens, each new text given, and the file let go
 // as the editor closes it, the inspections and orior's own reading reading it again as the disk stores it. Where the
 // tree's check is on, a file the editor closes is checked as the disk stores it before its server lets it go. A file
@@ -9,7 +9,7 @@
 #include "../command_line/pool.h"
 #include "servers_internal.h"
 
-// the most files the editor has open
+// the max files the editor has open
 #define CLI_SERVERS_TEXTS 4096u
 // the bytes of a stored text read at a time as it is put on a line
 #define SERVERS_FILES_WINDOW 1024u

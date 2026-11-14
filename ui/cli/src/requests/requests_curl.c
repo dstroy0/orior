@@ -8,7 +8,7 @@
 #include "../text/json_tree.h"
 #include "requests_internal.h"
 
-// the most headers and pieces of data a curl line gives that are read
+// the max headers and pieces of data a curl line gives that are read
 #define CLI_REQUESTS_CURL_MAX 4096u
 // A text of a curl line read: where it is and its length
 typedef struct
@@ -96,7 +96,7 @@ EMBED_INLINE int curl_has(const RequestsCurlCtx *args)
     return 0;
 }
 
-// a header put on the line read: 1, or 0 where it contains the most
+// a header put on the line read: 1, or 0 where it contains the max
 EMBED_INLINE int curl_header(const RequestsCurlCtx *args)
 {
     if (args->read_out->headers == CLI_REQUESTS_CURL_MAX)
@@ -109,7 +109,7 @@ EMBED_INLINE int curl_header(const RequestsCurlCtx *args)
     return 1;
 }
 
-// `size` bytes made into the pool of texts made: where they stand
+// `size` bytes made into the pool of texts made: where they are
 EMBED_INLINE CurlText curl_init(const RequestsCurlCtx *args)
 {
     const CurlText made = {s_curl->made + s_curl->created_line.at, args->size};
@@ -117,7 +117,7 @@ EMBED_INLINE CurlText curl_init(const RequestsCurlCtx *args)
     return made;
 }
 
-// `size` bytes written as a form encodes them, each byte but a letter, a digit and `-_.~` as `%XX`
+// `size` bytes written as a form encodes them, each byte but a character, a digit and `-_.~` as `%XX`
 EMBED_INLINE void curl_encode(const RequestsCurlCtx *args)
 {
     static const char s_hex[] = "0123456789ABCDEF";
@@ -162,7 +162,7 @@ EMBED_INLINE int curl_among(const RequestsCurlCtx *args)
 }
 
 // the header `name: text` of a -H, `value_size` bytes of `value`, put on the line read with each side trimmed: 1, or 0
-// where the line contains the most headers; a value with no colon puts nothing
+// where the line contains the max headers; a value with no colon puts nothing
 EMBED_INLINE int curl_header_line(const RequestsCurlCtx *args)
 {
     const char *const colon =
@@ -187,7 +187,7 @@ EMBED_INLINE int curl_header_line(const RequestsCurlCtx *args)
 }
 
 // a piece of data of a -d or its kin, `value_size` bytes of `value`, put on the body, and for --json the headers that
-// say the body and the answer are JSON where the line names neither: 1, or 0 where the line contains the most headers
+// say the body and the answer are JSON where the line names neither: 1, or 0 where the line contains the max headers
 EMBED_INLINE int curl_data_put(const RequestsCurlCtx *args)
 {
     static const char *const json[2] = {"Content-Type", "Accept"};
@@ -227,7 +227,7 @@ EMBED_INLINE void curl_urlencoded_put(const RequestsCurlCtx *args)
 }
 
 // the form `name=text` of a -F, `value_size` bytes of `value`, put on the line read: 1, or 0 where the line contains
-// the most forms; a value with no `=` puts nothing
+// the max forms; a value with no `=` puts nothing
 EMBED_INLINE int curl_form_put(const RequestsCurlCtx *args)
 {
     const char *const equals =
@@ -250,7 +250,7 @@ EMBED_INLINE int curl_form_put(const RequestsCurlCtx *args)
 }
 
 // the user and password of a -u, `value_size` bytes of `value`, put on the line read as its basic authorization
-// header: 1, or 0 where the line contains the most headers
+// header: 1, or 0 where the line contains the max headers
 EMBED_INLINE int curl_user_put(const RequestsCurlCtx *args)
 {
     const unsigned long long start = s_curl->created_line.at;
@@ -262,7 +262,7 @@ EMBED_INLINE int curl_user_put(const RequestsCurlCtx *args)
 }
 
 // the flag `flag` applied to the line read, `value_size` bytes of `value` its value, `valued` whether it is a flag that
-// takes one; a word that is no flag is the address: 1, or 0 where the line contains the most of what the flag puts
+// takes one; a word that is no flag is the address: 1, or 0 where the line contains the max of what the flag puts
 EMBED_INLINE int curl_flag_applied(const RequestsCurlCtx *args)
 {
     const CurlText flag = args->flag;

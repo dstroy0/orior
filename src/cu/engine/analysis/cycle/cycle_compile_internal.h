@@ -12,7 +12,7 @@
 // straight-line assembly over registers the lane uses, a step that loops on its values a loop of the same forms, and
 // nvJitLink assembles and links it alone, with no compiler between. Where the lane cannot be written so, or its
 // PTX does not build, the lane is C source instead (code_generator("c.krs")), the same lane in c.krs with its file and
-// signs in the thread block's shared memory, file_limbs the most it stores live at once, compiled by NVRTC as
+// signs in the thread block's shared memory, file_limbs the max it stores live at once, compiled by NVRTC as
 // relocatable code and linked alone the same way. A program of any length builds either way. A thread block contains as
 // many threads as its shared memory fits of the C lane's places; a PTX lane takes none. The interpreter above stays the
 // oracle, and the fallback for a program neither way builds, this process cannot load or shared memory cannot fit one
@@ -20,7 +20,7 @@
 //
 // The compiled program runs as a resident program with a block (EngineProgramBlock) in device memory. Its thread blocks
 // take lanes a round at a time from one counter, check in to the block as they go, and leave once the launch has run
-// its time to live or the block's command directs to. The last one out writes where the program stands, and the run
+// its time to live or the block's command directs to. The last one out writes where the program is, and the run
 // launches it again from there until every lane is done: a launch never outlives the display driver's watchdog, and no
 // lane runs twice. The host reads the block only once a launch has ended. Eight switches, read at each load or run:
 // CYCLE_RECORD_INTERPRET=1 retains every program on the interpreter, CYCLE_RECORD_CHECK=1 runs both on every launch and
@@ -76,7 +76,7 @@ struct CycleLinker
 
 extern CycleLinker g_cycle_linker;
 
-// what a lane is written for, one device and one kind of link, named once a process: the device, and the text that
+// what a lane is written for, one device and one type of link, named once a process: the device, and the text that
 // names it with the prelude a C lane opens with, whose hash each program's first line carries. Nothing is compiled
 // for it: every program's text contains its own resident (program_unit), and a program is built alone
 struct CycleTarget

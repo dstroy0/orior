@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // diff_view.h: two texts of a file side by side, as the window draws them over the editor: the older on the left and
 // the newer on the right, each line with its number, the lines the two share level with each other, a line changed
-// standing on both sides, a line put in on the right across from a gap on the left and a line taken out the other way.
-// The two texts come from one of the sources: the shown view's text against the file as the last commit has it, a
-// commit's text against the file as it stands, two commits' texts the older first, a commit's first parent's text
+// located on both sides, a line put in on the right across from a gap on the left and a line taken out the other way.
+// The two texts come from one of the sources: the displayed view's text against the file as the last commit has it, a
+// commit's text against the file as it is, two commits' texts the older first, a commit's first parent's text
 // against the commit's, a text from the clipboard against the file, two files of the tree, and a Local History
 // snapshot against the file. The option set from the settings `diff-space` sets white space aside, each run of it one
 // space and none at a line's ends, as the lines are compared; the option `diff-structure` is not answered enabled.
-// The rows stand in one cell, each the two lines' numbers into the two texts' lines, which stand in one cell of units
-// with their starts; the changes' first rows stand sorted, and a step is a binary search over them. Every sentence
+// The rows are in one cell, each the two lines' numbers into the two texts' lines, which are in one cell of units
+// with their starts; the changes' first rows are sorted, and a step is a binary search over them. Every sentence
 // the bar and the body show is written here (diff_view.c, diff_view_open.c)
 #ifndef DIFF_VIEW_H
 #define DIFF_VIEW_H
@@ -48,12 +48,12 @@ typedef struct CliDiffViewAtRowLengthCfg CliDiffViewAtRowLengthCfg;
 #define CLI_DIFF_VIEW_ADDED ((unsigned int)CLI_RENAMED + 1u)
 #define CLI_DIFF_VIEW_REMOVED ((unsigned int)CLI_RENAMED + 2u)
 
-// the most units of a row's line on one side
+// the max units of a row's line on one side
 #define CLI_DIFF_VIEW_ROW_UNITS 2048u
 
-// A row: what it is; on each side whether a line stands there, the line's number from 0, its units copied into the
+// A row: what it is; on each side whether a line is there, the line's number from 0, its units copied into the
 // row's own units and how many, cut to CLI_DIFF_VIEW_ROW_UNITS; the first of its token marks and how many, and how many
-// review comments stand under it, each none in this view
+// review comments are under it, each none in this view
 typedef struct
 {
     unsigned int type;
@@ -72,7 +72,7 @@ typedef struct
     unsigned short right_units_copied[CLI_DIFF_VIEW_ROW_UNITS];
 } CliDiffViewRow;
 
-// A token mark: the side it stands on, 1 for the right, its first unit and the unit after its last, and what it is
+// A token mark: the side it is on, 1 for the right, its first unit and the unit after its last, and what it is
 typedef struct
 {
     int right;
@@ -81,7 +81,7 @@ typedef struct
     unsigned int type;
 } CliDiffViewMark;
 
-// the view opened from `source` for the tree at `root`: the file at `path`, or the shown view's file where `path` is
+// the view opened from `source` for the tree at `root`: the file at `path`, or the displayed view's file where `path` is
 // NULL, its text the open view's where one is open on it, else the file's own; `other_path` the second file; `id` a
 // commit and `other_id` a second; `size` bytes of `text` the clipboard's; and `at_ms` the snapshot's milliseconds: 1,
 // or 0 with why in `err_msg`, the view open before closed either way; and the view closed, its cells released
@@ -115,7 +115,7 @@ EMBED_TABLE_STORAGE CliDiffViewSourceErrMsgNs cli_diff_view_source_err_msg EMBED
 // the options read from the settings `entries`, white space set aside where `diff-space` reads `aside`; whether
 // `option` is on into `on_out` and whether its box can be pressed into `enabled_out`, white space's while structure is
 // off and structure's never in this view; and `option` turned, where its box can be pressed, its setting saved in
-// orior's folder and the open view laid again from the same sources: the row that stands where the row `at` stood
+// orior's folder and the open view positioned again from the same sources: the row that is where the row `at` was
 void cli_diff_view_option_begin(const CliDiffViewOptionOnCfg *args);
 void cli_diff_view_option_get(const CliDiffViewOptionOnCfg *args);
 unsigned int cli_diff_view_option_toggle(const CliDiffViewOptionOnCfg *args);
@@ -142,10 +142,10 @@ EMBED_TABLE_STORAGE CliDiffViewOptionOnNs cli_diff_view_option_on EMBED_UNUSED =
 };
 
 // how many rows the open view has, none while it has no change; the row `at` into `row`: 1, or 0 past the last; the
-// token marks of the row `at` into `mark`, `marks_max` at most: how many, none in this view; the change stepped to in
-// `direction`, 1 the next and -1 the one before, each wrapping at the ends, or for 0 the change the row `at` stands in
+// token marks of the row `at` into `mark`, `marks_max` at max: how many, none in this view; the change stepped to in
+// `direction`, 1 the next and -1 the one before, each wrapping at the ends, or for 0 the change the row `at` is in
 // or after, found by a binary search over the changes' first rows: the change's first row, the where sentence
-// following; and the sentences, each with its bytes into `length_out`: where the view stands among the changes,
+// following; and the sentences, each with its bytes into `length_out`: where the view is among the changes,
 // `change N of M`, empty while none differ; the bar's text `part`; the summary of a comparison by structure, empty in
 // this view; and the sentence the body shows in place of rows, empty while rows differ
 unsigned int cli_diff_view_rows(const CliDiffViewAtRowLengthCfg *args);

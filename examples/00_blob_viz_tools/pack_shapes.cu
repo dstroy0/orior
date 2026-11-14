@@ -313,7 +313,7 @@ int main(int argc, char **argv)
     cudaMalloc(&flags, (size_t)batch * sizeof(int));
 
     /* One batch first, to measure what the middle distance between two points on this surface is.
-     * The gap is a fraction of that, measured on the same kind of points that are about to be
+     * The gap is a fraction of that, measured on the same type of points that are about to be
      * packed and not on a fresh draw with its own character. */
     make_points<<<(batch + block - 1) / block, block>>>(scratch, batch, dims, shape, seed);
     if (cudaDeviceSynchronize() != cudaSuccess)

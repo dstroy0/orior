@@ -8,8 +8,8 @@ import { mermaidSvg } from "../../gui/src-js/mermaid.js";
 
 const { test, assert } = window.__harness;
 
-test("a diagram of a kind not drawn shows as its text, its kind named, and the same text is drawn once", () => {
-  assert.match(mermaidSvg("quadrantChart\n title A"), /A diagram of the kind quadrantChart is shown as its text/);
+test("a diagram of a type not drawn shows as its text, its type named, and the same text is drawn once", () => {
+  assert.match(mermaidSvg("quadrantChart\n title A"), /A diagram of the type quadrantChart is displayed as its text/);
   const text = "graph TD\n X --> Y";
   assert.equal(mermaidSvg(text), mermaidSvg(text));
 });

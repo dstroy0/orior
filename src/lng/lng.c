@@ -19,8 +19,8 @@
 #include <sys/stat.h>
 #endif
 
-const char *const g_lng_kinds[LNG_KINDS] = {"thing", "doing", "gluing", "record", "ksc", "selection"};
-const char *const g_lng_hol_kinds[LNG_HOL_KINDS] = {"type", "plain", "core op"};
+const char *const g_lng_types[LNG_KINDS] = {"thing", "doing", "gluing", "record", "ksc", "selection"};
+const char *const g_lng_hol_types[LNG_HOL_KINDS] = {"type", "plain", "core op"};
 
 // the last of the selected columns; the operator columns are the ones after it
 static const char s_selected_last[] = "selected_by_fulltrace";
@@ -65,10 +65,10 @@ static const char *const s_hol_as_c[LNG_HOL_AS_C] = {"f()", "(T)", "&&",    "||"
 static const char s_matrix[] = "the state-transition matrix";
 static const char s_high_energy_matrix[] = "the high-energy transition matrix";
 
-// the letters Python's split takes as space
+// the characters Python's split takes as space
 static const char s_space[] = " \t\n\r\v\f\x1c\x1d\x1e\x1f";
 
-// the letters of a name the rulesets write
+// the characters of a name the rulesets write
 static const char s_lower[] = "abcdefghijklmnopqrstuvwxyz_";
 
 // a set of texts for each key of a set: the set of `key` contains the keys, and `set` the set of each at its place
@@ -90,7 +90,7 @@ static void *lng_allocated(void *pointer)
     return pointer;
 }
 
-// `length` letters at `text` copied into an allocation of their own, ended
+// `length` characters at `text` copied into an allocation of their own, ended
 static char *lng_copy(const char *text, size_t length)
 {
     char *const copy = (char *)lng_allocated(malloc(length + 1u));
@@ -111,7 +111,7 @@ static void lng_list_room(LngList *list)
     list->room = room;
 }
 
-// `length` letters at `text` put at `at` in `list`, every text from there one later
+// `length` characters at `text` put at `at` in `list`, every text from there one later
 static void lng_list_insert(LngList *list, unsigned int at, const char *text, size_t length)
 {
     lng_list_room(list);
@@ -194,7 +194,7 @@ int lng_list_same(const LngList *left, const LngList *right)
     return same;
 }
 
-// <0, 0 or >0 as `left` stands before `right`, with them or after them, text by text, the shorter first where one
+// <0, 0 or >0 as `left` is before `right`, with them or after them, text by text, the shorter first where one
 // begins the other
 static int lng_list_order(const LngList *left, const LngList *right)
 {
@@ -336,7 +336,7 @@ static void lng_cells(const char *line, LngList *cells)
     }
 }
 
-// the words of `length` letters at `text` apart by space, appended to `tokens`
+// the words of `length` characters at `text` apart by space, appended to `tokens`
 static void lng_tokens(const char *text, size_t length, LngList *tokens)
 {
     size_t at = 0u;
@@ -480,25 +480,25 @@ void lng_words_of(const char *name, LngList *words)
     }
 }
 
-void lng_table_check(const LngTable *table, const char *const *kinds, unsigned int count, LngList *defects)
+void lng_table_check(const LngTable *table, const char *const *types, unsigned int count, LngList *defects)
 {
     const unsigned int start = lng_operators_start(table);
     LngList seen = {NULL, 0u, 0u};
     for (unsigned int row = 0u; row < table->rows; row += 1u)
     {
         const char *const word = lng_cell_or_none(table, row, "word");
-        const char *const kind = lng_cell_or_none(table, row, "kind");
+        const char *const type = lng_cell_or_none(table, row, "type");
         LngList found = {NULL, 0u, 0u};
-        lng_list_printed(&found, "%s\x1f%s", word, kind);
+        lng_list_printed(&found, "%s\x1f%s", word, type);
         if (lng_set_has(&seen, found.text[0]))
         {
-            lng_list_printed(defects, "%s %s is listed twice", word, kind);
+            lng_list_printed(defects, "%s %s is listed twice", word, type);
         }
         lng_set_add(&seen, found.text[0]);
         lng_list_free(&found);
-        if (!lng_one_of(kind, kinds, count))
+        if (!lng_one_of(type, types, count))
         {
-            lng_list_printed(defects, "%s has the kind %s, which no table names", word, kind);
+            lng_list_printed(defects, "%s has the type %s, which no table names", word, type);
         }
         for (unsigned int at = start; at < table->head.count; at += 1u)
         {
@@ -514,7 +514,7 @@ void lng_table_check(const LngTable *table, const char *const *kinds, unsigned i
     }
     lng_list_free(&seen);
 
-    // each word whose row has a complement, in the order the words first stand, and the last row of it
+    // each word whose row has a complement, in the order the words first are, and the last row of it
     LngList order = {NULL, 0u, 0u};
     unsigned int *const last = (unsigned int *)lng_allocated(calloc((size_t)table->rows + 1u, sizeof(unsigned int)));
     for (unsigned int row = 0u; row < table->rows; row += 1u)
@@ -586,12 +586,12 @@ void lng_table_check(const LngTable *table, const char *const *kinds, unsigned i
     lng_list_free(&order);
 }
 
-// rows of one kind marking the same operators and the same width, sign and type: the kind, the operators, and the
-// words, in the order the rows stand
+// rows of one type marking the same operators and the same width, sign and type: the type, the operators, and the
+// words, in the order the rows are
 typedef struct
 {
     char *key;
-    const char *kind;
+    const char *type;
     LngList operators;
     LngList words;
 } LngGroup;
@@ -610,7 +610,7 @@ void lng_table_findings(const LngTable *table, LngList *findings)
         }
         char *const marked = lng_list_joined(&operators, "\x1e");
         LngList key = {NULL, 0u, 0u};
-        lng_list_printed(&key, "%s\x1f%s\x1f%s\x1f%s\x1f%s", lng_cell_or_none(table, row, "kind"), marked,
+        lng_list_printed(&key, "%s\x1f%s\x1f%s\x1f%s\x1f%s", lng_cell_or_none(table, row, "type"), marked,
                          lng_cell_or_none(table, row, "bits"), lng_cell_or_none(table, row, "signed"),
                          lng_cell_or_none(table, row, "c_type"));
         free(marked);
@@ -622,7 +622,7 @@ void lng_table_findings(const LngTable *table, LngList *findings)
         if (at == groups)
         {
             group[at].key = lng_copy(key.text[0], strlen(key.text[0]));
-            group[at].kind = lng_cell_or_none(table, row, "kind");
+            group[at].type = lng_cell_or_none(table, row, "type");
             group[at].operators = operators;
             groups += 1u;
         }
@@ -633,7 +633,7 @@ void lng_table_findings(const LngTable *table, LngList *findings)
         lng_list_free(&key);
         lng_list_add(&group[at].words, lng_cell_or_none(table, row, "word"));
     }
-    // the groups in the order of their words, a group whose words stand with another's placed after it
+    // the groups in the order of their words, a group whose words are with another's placed after it
     for (unsigned int at = 1u; at < groups; at += 1u)
     {
         unsigned int place = at;
@@ -651,7 +651,7 @@ void lng_table_findings(const LngTable *table, LngList *findings)
         {
             char *const words = lng_list_joined(&group[at].words, ", ");
             char *const operators = lng_list_joined(&group[at].operators, " ");
-            lng_list_printed(findings, "%s are %s words that all mean %s", words, group[at].kind, operators);
+            lng_list_printed(findings, "%s are %s words that all mean %s", words, group[at].type, operators);
             free(words);
             free(operators);
         }
@@ -678,7 +678,7 @@ void lng_table_findings(const LngTable *table, LngList *findings)
             LngList operators = {NULL, 0u, 0u};
             lng_operators_of(table, row, &operators);
             char *const meant = lng_list_joined(&operators, " ");
-            lng_list_printed(&meanings, "%s meaning %s", lng_cell_or_none(table, row, "kind"),
+            lng_list_printed(&meanings, "%s meaning %s", lng_cell_or_none(table, row, "type"),
                              (meant[0] != '\0') ? meant : "no operator");
             free(meant);
             lng_list_free(&operators);
@@ -725,12 +725,12 @@ static int lng_braced_at(const char *text, size_t at, size_t *name, size_t *leng
     {
         return 0;
     }
-    const size_t letters = strspn(&text[at + 1u], s_lower);
-    if (letters == 0u)
+    const size_t characters = strspn(&text[at + 1u], s_lower);
+    if (characters == 0u)
     {
         return 0;
     }
-    size_t end = at + 1u + letters;
+    size_t end = at + 1u + characters;
     if (text[end] == ':')
     {
         const size_t digits = strspn(&text[end + 1u], "0123456789");
@@ -741,7 +741,7 @@ static int lng_braced_at(const char *text, size_t at, size_t *name, size_t *leng
         return 0;
     }
     *name = at + 1u;
-    *length = letters;
+    *length = characters;
     *past = end + 1u;
     return 1;
 }
@@ -849,8 +849,8 @@ void lng_ruleset_words(const char *path, const char *const *line, unsigned int l
     }
 }
 
-// Each line of `file` cut by the blocks of the ruleset's language (klang.h): what of the line stands inside a block's
-// text appended to `inside`, and what stands outside every block, its opener and its closer among the block, appended
+// Each line of `file` cut by the blocks of the ruleset's language (klang.h): what of the line is inside a block's
+// text appended to `inside`, and what is outside every block, its opener and its closer among the block, appended
 // to `outside`, a text each for every line, "" where the line contains none
 static void lng_block_parts(const KfileLines *file, LngList *inside, LngList *outside)
 {
@@ -1030,24 +1030,24 @@ void lng_ksc_words(const char *path, const KfileLines *file, LngMap *used)
     lng_list_free(&outside);
 }
 
-// every name in backticks, `[a-z_]+`, of the `length` letters at `text` put in `set`
+// every name in backticks, `[a-z_]+`, of the `length` characters at `text` put in `set`
 static void lng_ticked(const char *text, size_t length, LngList *set)
 {
     size_t at = 0u;
     while (at < length)
     {
-        size_t letters = 0u;
-        while (((at + 1u + letters) < length) && (strchr(s_lower, text[at + 1u + letters]) != NULL) &&
-               (text[at + 1u + letters] != '\0'))
+        size_t characters = 0u;
+        while (((at + 1u + characters) < length) && (strchr(s_lower, text[at + 1u + characters]) != NULL) &&
+               (text[at + 1u + characters] != '\0'))
         {
-            letters += 1u;
+            characters += 1u;
         }
-        if ((text[at] == '`') && (letters != 0u) && ((at + 1u + letters) < length) && (text[at + 1u + letters] == '`'))
+        if ((text[at] == '`') && (characters != 0u) && ((at + 1u + characters) < length) && (text[at + 1u + characters] == '`'))
         {
-            char *const name = lng_copy(&text[at + 1u], letters);
+            char *const name = lng_copy(&text[at + 1u], characters);
             lng_set_add(set, name);
             free(name);
-            at += letters + 2u;
+            at += characters + 2u;
         }
         else
         {
@@ -1056,7 +1056,7 @@ static void lng_ticked(const char *text, size_t length, LngList *set)
     }
 }
 
-// the part of the `length` letters at `text` from past its `field`th `mark` to the next, or to their end: 1 with its
+// the part of the `length` characters at `text` from past its `field`th `mark` to the next, or to their end: 1 with its
 // start and length, or 0 where they contain fewer marks
 static int lng_field(const char *text, size_t length, char mark, unsigned int field, size_t *start, size_t *size)
 {
@@ -1101,7 +1101,7 @@ void lng_gnascor_lists(const char *text, LngList *thing, LngList *doing, LngList
         size_t start = 0u;
         size_t size = 0u;
         if ((strncmp(line_copy, "| ", 2u) == 0) && (strstr(line_copy, "---") == NULL) &&
-            (strstr(line_copy, "| kind |") == NULL) && lng_field(line_copy, length, '|', 2u, &start, &size))
+            (strstr(line_copy, "| type |") == NULL) && lng_field(line_copy, length, '|', 2u, &start, &size))
         {
             lng_ticked(&line_copy[start], size, thing);
         }
@@ -1287,7 +1287,7 @@ void lng_form_findings(const LngTable *table, const LngList *names, const LngLis
             lng_set_add(claimed, operators.text[at]);
         }
         lng_list_free(&operators);
-        if (strcmp(lng_cell_or_none(table, row, "kind"), "doing") == 0)
+        if (strcmp(lng_cell_or_none(table, row, "type"), "doing") == 0)
         {
             lng_set_add(&doing, word);
         }
@@ -1357,14 +1357,14 @@ void lng_form_findings(const LngTable *table, const LngList *names, const LngLis
     lng_sets_free(&claims);
 }
 
-// the last row of `table` whose word is `word` and whose kind is `kind`, or the table's count of rows where none is
-static unsigned int lng_row_of(const LngTable *table, const char *word, const char *kind)
+// the last row of `table` whose word is `word` and whose type is `type`, or the table's count of rows where none is
+static unsigned int lng_row_of(const LngTable *table, const char *word, const char *type)
 {
     unsigned int found = table->rows;
     for (unsigned int row = 0u; row < table->rows; row += 1u)
     {
         found = ((strcmp(lng_cell_or_none(table, row, "word"), word) == 0) &&
-                 (strcmp(lng_cell_or_none(table, row, "kind"), kind) == 0))
+                 (strcmp(lng_cell_or_none(table, row, "type"), type) == 0))
                     ? row
                     : found;
     }
@@ -1378,7 +1378,7 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
     for (unsigned int row = 0u; row < transpiler->rows; row += 1u)
     {
         lng_set_add(&words, lng_cell_or_none(transpiler, row, "word"));
-        if (strcmp(lng_cell_or_none(transpiler, row, "kind"), "thing") == 0)
+        if (strcmp(lng_cell_or_none(transpiler, row, "type"), "thing") == 0)
         {
             lng_set_add(&things, lng_cell_or_none(transpiler, row, "word"));
         }
@@ -1410,7 +1410,7 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
     LngList found = {NULL, 0u, 0u};
     for (unsigned int row = 0u; row < hol->rows; row += 1u)
     {
-        if (strcmp(lng_cell_or_none(hol, row, "kind"), "type") == 0)
+        if (strcmp(lng_cell_or_none(hol, row, "type"), "type") == 0)
         {
             LngList width = {NULL, 0u, 0u};
             lng_list_printed(&width, "%s\x1f%s", lng_cell_or_none(hol, row, "bits"),
@@ -1440,7 +1440,7 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
     {
         LngList operators = {NULL, 0u, 0u};
         lng_operators_of(hol, row, &operators);
-        const int core = (strcmp(lng_cell_or_none(hol, row, "kind"), "core op") == 0);
+        const int core = (strcmp(lng_cell_or_none(hol, row, "type"), "core op") == 0);
         for (unsigned int at = 0u; at < operators.count; at += 1u)
         {
             lng_set_add(&hol_means, operators.text[at]);
@@ -1475,7 +1475,7 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
     }
     for (unsigned int row = 0u; row < transpiler->rows; row += 1u)
     {
-        if (strcmp(lng_cell_or_none(transpiler, row, "kind"), "doing") != 0)
+        if (strcmp(lng_cell_or_none(transpiler, row, "type"), "doing") != 0)
         {
             continue;
         }
@@ -1584,8 +1584,8 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
         lng_list_free(&transitions);
     }
 
-    // each transition, its table, its past and its present apart by \x1f, which stands before every letter a cell
-    // contains: the keys stand in the order of the three; and the mnemonics each table names it by
+    // each transition, its table, its past and its present apart by \x1f, which is before every character a cell
+    // contains: the keys are in the order of the three; and the mnemonics each table names it by
     LngSets named = {{NULL, 0u, 0u}, NULL, 0u};
     LngSets doing = {{NULL, 0u, 0u}, NULL, 0u};
     for (unsigned int row = 0u; row < table->rows; row += 1u)
@@ -1723,7 +1723,7 @@ typedef struct
 
 // the entry `name` of the folder `folder`, a folder where `folder_exists`: each file under it the walk seeks put in its
 // set where it is a folder, or it where it is a file that ends in a suffix the walk seeks, as a path from the folder
-// the run stands in
+// the run is in
 static void lng_files_under(const char *folder, const LngWalk *walk);
 static void lng_entry_taken(const char *folder, const char *name, int folder_exists, const LngWalk *walk)
 {

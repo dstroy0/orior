@@ -191,7 +191,7 @@ int cubin_safe_admitted_read(const char *bytes, unsigned long long size)
         unsigned long long low = 0ull;
         unsigned long long high = 0ull;
         const char *read = line;
-        if (!line_letters(&read, "lesson ") || !line_letters(&read, "admitted ") || !line_letters(&read, "* ") ||
+        if (!line_characters(&read, "lesson ") || !line_characters(&read, "admitted ") || !line_characters(&read, "* ") ||
             !line_number(&read, 1, &low) || !line_number(&read, 1, &high))
         {
             continue;

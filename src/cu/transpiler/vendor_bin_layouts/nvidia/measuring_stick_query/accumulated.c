@@ -99,11 +99,11 @@ void msq_pieces_cut(MsqListing *listing, const MsqPiece *pieces, size_t count, M
             last += 1u;
         }
         MsqListing view = {&listing->lines[line], last - line, 0u, NULL};
-        if (one->kind == MSQ_PIECE_WORD)
+        if (one->type == MSQ_PIECE_WORD)
         {
             readings[one->index] = msq_listing_at(&view, 0ull);
         }
-        else if (one->kind == MSQ_PIECE_FRAME)
+        else if (one->type == MSQ_PIECE_FRAME)
         {
             memset(&frames[one->index], 0, sizeof(frames[one->index]));
             frames[one->index].listing = view;

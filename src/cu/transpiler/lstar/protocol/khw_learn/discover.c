@@ -119,15 +119,15 @@ static unsigned int khw_register_bits(const char *ksc)
     return bits;
 }
 
-// the most seeds a discover pass queries, the listing's and their variants together
-#define KHW_SEEDS_MOST 4096u
+// the max seeds a discover pass queries, the listing's and their variants together
+#define KHW_SEEDS_MAX 4096u
 
 // `low` and `high` added to the seeds `seed_low` and `seed_high`, `*count` of them, where neither the working set nor
 // the seeds contain it already
 static void khw_seed_added(unsigned long long *seed_low, unsigned long long *seed_high, unsigned int *count,
                            unsigned long long low, unsigned long long high)
 {
-    if (khw_named_already(low, high) || (*count == KHW_SEEDS_MOST))
+    if (khw_named_already(low, high) || (*count == KHW_SEEDS_MAX))
     {
         return;
     }
@@ -156,12 +156,12 @@ static void khw_seed_added(unsigned long long *seed_low, unsigned long long *see
 // carried that answered a relation, into `related`: the pool's `count` questions in their order, each put at the
 // position with the encoding `lows` and `highs` give, a frame candidate where `frame` marks it read for its frame
 // relation and every other read against the register relations. A candidate that answered none and left the second word
-// standing on every case, as a form that writes a predicate does, is put again in a round of its own with the store
+// located on every case, as a form that writes a predicate does, is put again in a round of its own with the store
 // guarded by P0 and read against the predicate relations. The count related
 static unsigned int khw_round_related(const unsigned long long *lows, const unsigned long long *highs, const int *frame,
                                       unsigned int count, KhwAnswered *related)
 {
-    static unsigned int s_again[SCHEDULER_ROUND_MOST];
+    static unsigned int s_again[SCHEDULER_ROUND_MAX];
     unsigned int found = 0u;
     unsigned int again = 0u;
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -176,13 +176,13 @@ static unsigned int khw_round_related(const unsigned long long *lows, const unsi
             related[found] = form;
             found += 1u;
         }
-        else if (!framed && khw_second_word_standing(&s_pool[at]))
+        else if (!framed && khw_second_word_located(&s_pool[at]))
         {
             s_again[again] = at;
             again += 1u;
         }
     }
-    printf("  round: %u answered a relation, %u answered none, %u of those left the second word standing%s\n", found,
+    printf("  round: %u answered a relation, %u answered none, %u of those left the second word located%s\n", found,
            count - found, again, (again != 0u) ? " and are put again with the store guarded by P0" : "");
     if (again == 0u)
     {
@@ -228,7 +228,7 @@ unsigned int khw_seeds_queried(const char *name)
     const unsigned long long probe_high = khw_word_read(&s_kernel_text[s_probe_place * KHW_INSTRUCTION], 8u);
     // the register fields of the instruction word's layout: every field as wide as the last register the part
     // answers the code can name, the walk's answer in the .ksc (`register last`); none where the part has not answered
-    // it, and the kernel's operand runs stand in, which the turns found over two registers and reach only the bits
+    // it, and the kernel's operand runs are in, which the turns found over two registers and reach only the bits
     // that distinguished them
     static ContainerLayout s_layout;
     const unsigned int register_bits = khw_register_bits(s_ksc_path);
@@ -252,17 +252,17 @@ unsigned int khw_seeds_queried(const char *name)
         printf("  khw_write: no classified form contains the probe place's registers, and no seed is queried\n");
         return 0u;
     }
-    // The seeds queried: each of the listing's as it stands, the position's registers in the register fields the
+    // The seeds queried: each of the listing's as it is, the position's registers in the register fields the
     // kernel's form covers, and for each register field it does not cover the same with that field set to the zero
     // register the part answered (fixed zero, Open 6.2), so that a source the position's form does not contain adds
     // nothing; which of these is a form the part decides. A field containing no register, set so, the vendor's reader
     // reads before the part
-    static unsigned long long s_seed_low[KHW_SEEDS_MOST];
-    static unsigned long long s_seed_high[KHW_SEEDS_MOST];
+    static unsigned long long s_seed_low[KHW_SEEDS_MAX];
+    static unsigned long long s_seed_high[KHW_SEEDS_MAX];
     unsigned int seeds = 0u;
     char line[256];
     unsigned long long next = 0ull;
-    while ((seeds < KHW_SEEDS_MOST) && line_read(bytes, size, &next, line, sizeof(line)))
+    while ((seeds < KHW_SEEDS_MAX) && line_read(bytes, size, &next, line, sizeof(line)))
     {
         unsigned long long low = 0ull;
         unsigned long long high = 0ull;
@@ -277,11 +277,11 @@ unsigned int khw_seeds_queried(const char *name)
         for (unsigned int at = 0u; fields_read && (at < s_layout.rows); at += 1u)
         {
             const LayoutRow *const row = &s_layout.row[at];
-            if ((row->kind != (unsigned int)LAYOUT_FIELD) || (row->width != register_bits))
+            if ((row->type != (unsigned int)LAYOUT_FIELD) || (row->width != register_bits))
             {
                 continue;
             }
-            // a field's first bit is below 128 and its width at most that: both fit an unsigned int
+            // a field's first bit is below 128 and its width at max that: both fit an unsigned int
             const unsigned int first = (unsigned int)row->offset;
             const unsigned int last = first + row->width - 1u;
             // a register field is one an operand run of the kernel's form lies within
@@ -323,24 +323,24 @@ unsigned int khw_seeds_queried(const char *name)
     // each read for its relation; one that answers a relation enters the working set discovered
     khw_union_written();
     unsigned int entered = 0u;
-    khw_plan_handed("seed", (unsigned long long)seeds);
-    for (unsigned int first = 0u; first < seeds; first += SCHEDULER_ROUND_MOST)
+    khw_plan_passed("seed", (unsigned long long)seeds);
+    for (unsigned int first = 0u; first < seeds; first += SCHEDULER_ROUND_MAX)
     {
-        const unsigned int last = ((first + SCHEDULER_ROUND_MOST) < seeds) ? (first + SCHEDULER_ROUND_MOST) : seeds;
+        const unsigned int last = ((first + SCHEDULER_ROUND_MAX) < seeds) ? (first + SCHEDULER_ROUND_MAX) : seeds;
         s_pooled = 0u;
         for (unsigned int at = first; at < last; at += 1u)
         {
             khw_pooled(s_probe_place, s_seed_low[at], s_seed_high[at], s_union_word, s_union_cases);
         }
         khw_round_carried();
-        static KhwAnswered s_seed_related[SCHEDULER_ROUND_MOST];
+        static KhwAnswered s_seed_related[SCHEDULER_ROUND_MAX];
         const unsigned int related =
             khw_round_related(s_seed_low + first, s_seed_high + first, NULL, last - first, s_seed_related);
         for (unsigned int at = 0u; (at < related) && (s_names < KHW_FORMS); at += 1u)
         {
             KhwAnswered form = s_seed_related[at];
             // a seed the set's form answers for already, a turn of it, is that form, and enters nowhere
-            if (khw_form_stood_for(s_named, s_names, &form))
+            if (khw_form_was_for(s_named, s_names, &form))
             {
                 continue;
             }
@@ -361,10 +361,10 @@ unsigned int khw_seeds_queried(const char *name)
 // Every form the part answered for widened: each bit outside its operands' runs, its key and the scheduler's word
 // turned, and the turned encoding queried its relation from the top. An operand's run is one with a place in the
 // relation's tuple; a run that carries no word of the tuple is no operand of the relation, and its bits are turned as
-// any other's. A pass turns at most KHW_FORMS encodings, the newest form's first: a form the set gained last is the
+// any other's. A pass turns at max KHW_FORMS encodings, the newest form's first: a form the set gained last is the
 // frontier of the widening, and an older form's turns, which R answers already, fill what is left of the pass. Every
-// turned encoding's relation waits on no other answer, and they are put SCHEDULER_ROUND_MOST to a round. A turned
-// encoding that answers as the form it was turned off does is that form (khw_form_stands_for) and enters the set
+// turned encoding's relation waits on no other answer, and they are put SCHEDULER_ROUND_MAX to a round. A turned
+// encoding that answers as the form it was turned off does is that form (khw_form_is_for) and enters the set
 // nowhere: only one answering another relation, the negate bits' take off an add, is a form of its own. Where
 // `discover` is 0 each that answered a relation is then queried its
 // fields; where it is not 0 it is retained with its fields unqueried, for a cross-check to read its turns before a
@@ -417,10 +417,10 @@ unsigned int khw_widened(unsigned int from, int discover)
     khw_union_written();
     unsigned int frame_cases = 0u;
     const unsigned int (*const frame_word)[2] = khw_frame_cases(&frame_cases);
-    static KhwAnswered s_related[SCHEDULER_ROUND_MOST];
-    for (unsigned int first = 0u; first < turned; first += SCHEDULER_ROUND_MOST)
+    static KhwAnswered s_related[SCHEDULER_ROUND_MAX];
+    for (unsigned int first = 0u; first < turned; first += SCHEDULER_ROUND_MAX)
     {
-        const unsigned int last = ((first + SCHEDULER_ROUND_MOST) < turned) ? (first + SCHEDULER_ROUND_MOST) : turned;
+        const unsigned int last = ((first + SCHEDULER_ROUND_MAX) < turned) ? (first + SCHEDULER_ROUND_MAX) : turned;
         s_pooled = 0u;
         for (unsigned int at = first; at < last; at += 1u)
         {
@@ -441,7 +441,7 @@ unsigned int khw_widened(unsigned int from, int discover)
         {
             KhwAnswered form = s_related[at];
             // a turn the set's form answers for already is that form, and enters nowhere
-            if (khw_form_stood_for(s_named, s_names, &form))
+            if (khw_form_was_for(s_named, s_names, &form))
             {
                 continue;
             }

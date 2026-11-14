@@ -22,7 +22,7 @@ typedef struct
 // requested of it are reported
 #define CLI_CARGO_NAMES_MAX 16000ULL
 
-// the most targets a run reaches
+// the max targets a run reaches
 #define CLI_CARGO_GROUPS 1024u
 
 static CliCargoTests s_tests;

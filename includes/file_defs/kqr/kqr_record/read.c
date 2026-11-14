@@ -1,15 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// read.c: the record read: each line's kind, a line read as a query, the text form read whole, the queries read once
+// read.c: the record read: each line's type, a line read as a query, the text form read whole, the queries read once
 // each, the record read from its file, and the record viewed at a run's queries table
 #include "../../../parsers/line_read.h"
 #include "kqr_internal.h"
 
-// 1 where `line` is of the kind `kind`: its first word, and a space or its end after it
-static int kqr_line_kind(const char *line, const char *kind)
+// 1 where `line` is of the type `type`: its first word, and a space or its end after it
+static int kqr_line_type(const char *line, const char *type)
 {
-    const size_t length = strlen(kind);
-    return (strncmp(line, kind, length) == 0) && ((line[length] == ' ') || (line[length] == '\0'));
+    const size_t length = strlen(type);
+    return (strncmp(line, type, length) == 0) && ((line[length] == ' ') || (line[length] == '\0'));
 }
 
 // the `length` bytes at `text`, as many of them as fit, into `out`, which has room for `room`, and ended
@@ -29,7 +29,7 @@ static size_t kqr_error_put(char *error, size_t room, size_t at, const char *tex
         .out = error, .cap = room, .at = at, .text = text, .text_len = (length < left) ? length : left});
 }
 
-// the query or sample line `line`, past its kind, read into its identity, its answer and where what follows starts:
+// the query or sample line `line`, past its type, read into its identity, its answer and where what follows starts:
 // 1, or 0 where it has no identity or no answer the oracle gives
 static int kqr_line_identity(const char *line, KqrIdentity *identity, unsigned int *answer, const char **rest)
 {
@@ -46,7 +46,7 @@ static int kqr_line_identity(const char *line, KqrIdentity *identity, unsigned i
         end += ((end != NULL) && (word < 6u)) ? 1 : 0;
     }
     char text[256];
-    // the identity stands before its end, which an int counts
+    // the identity is before its end, which an int counts
     if ((end == NULL) || ((size_t)(end - at) >= sizeof(text)))
     {
         return 0;
@@ -95,7 +95,7 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
         }
         const char *rest = NULL;
         unsigned long long words[5] = {0ull, 0ull, 0ull, 0ull, 0ull};
-        if ((number == 1u) && kqr_line_kind(s_line, "kqr"))
+        if ((number == 1u) && kqr_line_type(s_line, "kqr"))
         {
             const char *const named = s_line + 3 + strspn(s_line + 3, " ");
             record->file.record[0].word[0] = kqr_text_number(record, named);
@@ -105,7 +105,7 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
             words[0] = kqr_text_number(record, s_line);
             krep_record_add(&record->file, KQR_COMMENT_RECORD, words, 1u);
         }
-        else if (kqr_line_kind(s_line, "cycle"))
+        else if (kqr_line_type(s_line, "cycle"))
         {
             const char *const after = s_line + 6;
             const size_t length = strcspn(after, " ");
@@ -113,14 +113,14 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
             words[1] = kqr_text_number(record, after + length + ((after[length] == ' ') ? 1u : 0u));
             krep_record_add(&record->file, KQR_CYCLE_RECORD, words, 2u);
         }
-        else if (kqr_line_kind(s_line, "seed") || kqr_line_kind(s_line, "round"))
+        else if (kqr_line_type(s_line, "seed") || kqr_line_type(s_line, "round"))
         {
-            const int seed = kqr_line_kind(s_line, "seed");
+            const int seed = kqr_line_type(s_line, "seed");
             const char *const after = s_line + (seed ? 5 : 6);
             stopped = kqr_number_read(after, strlen(after), 10, &words[0]) ? NULL : "a seed or a round of no number";
             krep_record_add(&record->file, seed ? KQR_SEED_RECORD : KQR_ROUND_RECORD, words, 1u);
         }
-        else if (kqr_line_kind(s_line, "pair"))
+        else if (kqr_line_type(s_line, "pair"))
         {
             const char *field = s_line + 4 + strspn(s_line + 4, " ");
             const size_t first = strcspn(field, " ");
@@ -142,7 +142,7 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
             stopped = (field[0] != '\0') ? NULL : "a pair with no verdict";
             krep_record_add(&pairs, KQR_PAIR_RECORD, words, 5u);
         }
-        else if (kqr_line_kind(s_line, "sample"))
+        else if (kqr_line_type(s_line, "sample"))
         {
             memset(&s_sample, 0, sizeof(s_sample));
             stopped = kqr_line_identity(s_line, &s_sample.identity, &s_sample.answer, &rest)
@@ -154,11 +154,11 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
                 s_sample.nanoseconds = strtoull(rest, &after, 10);
                 char *least_after = NULL;
                 const unsigned long long least = strtoull(after, &least_after, 10);
-                char *most_after = NULL;
-                const unsigned long long most = strtoull(least_after, &most_after, 10);
-                s_sample.launched = ((least_after != after) && (most_after != least_after)) ? 1 : 0;
+                char *max_after = NULL;
+                const unsigned long long max = strtoull(least_after, &max_after, 10);
+                s_sample.launched = ((least_after != after) && (max_after != least_after)) ? 1 : 0;
                 s_sample.least = s_sample.launched ? least : 0ull;
-                s_sample.most = s_sample.launched ? most : 0ull;
+                s_sample.max = s_sample.launched ? max : 0ull;
             }
             else if (stopped == NULL)
             {
@@ -170,7 +170,7 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
                                 kqr_sample_words(record, &s_sample, s_words));
             }
         }
-        else if (kqr_line_kind(s_line, "query"))
+        else if (kqr_line_type(s_line, "query"))
         {
             s_query.words = 0u;
             s_query.refusal[0] = '\0';
@@ -315,7 +315,7 @@ int kqr_viewed_at(KqrRecord *record, const char *path, const char *name, const c
         return 0;
     }
     int ok = krep_viewed_at(path, KQR_TABLE, name, &record->file, error, room);
-    if (ok && (memcmp(record->file.kind, KQR_KIND, 4u) != 0))
+    if (ok && (memcmp(record->file.type, KQR_KIND, 4u) != 0))
     {
         static const char s_no_kqr[] = ": the record in " KQR_TABLE " is no .kqr";
         const size_t error_at = kqr_error_put(error, room, 0u, path, strlen(path));

@@ -47,7 +47,7 @@ extern void test_a_backreference_to_the_opening_quote(void);
 extern void test_the_case_flag_folds_a_literal(void);
 extern void test_the_case_flag_folds_a_range(void);
 extern void test_with_no_case_flag_case_matters(void);
-extern void test_letter_and_number_properties_under_the_u_flag(void);
+extern void test_character_and_number_properties_under_the_u_flag(void);
 extern void test_a_negated_property(void);
 extern void test_case_properties(void);
 extern void test_with_no_u_flag_a_property_is_literal(void);
@@ -166,7 +166,7 @@ int main(void)
   run_test(test_the_case_flag_folds_a_literal, "test_the_case_flag_folds_a_literal", 304);
   run_test(test_the_case_flag_folds_a_range, "test_the_case_flag_folds_a_range", 309);
   run_test(test_with_no_case_flag_case_matters, "test_with_no_case_flag_case_matters", 314);
-  run_test(test_letter_and_number_properties_under_the_u_flag, "test_letter_and_number_properties_under_the_u_flag", 319);
+  run_test(test_character_and_number_properties_under_the_u_flag, "test_character_and_number_properties_under_the_u_flag", 319);
   run_test(test_a_negated_property, "test_a_negated_property", 324);
   run_test(test_case_properties, "test_case_properties", 329);
   run_test(test_with_no_u_flag_a_property_is_literal, "test_with_no_u_flag_a_property_is_literal", 334);

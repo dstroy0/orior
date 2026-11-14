@@ -418,6 +418,6 @@ void coherence_orthogonal(CoherenceResults *results)
 // |x| as an unsigned word, for the row a magnitude-indexed table reads
 unsigned long long coherence_magnitude(long long value)
 {
-    // a negative word negated in unsigned arithmetic is its magnitude, the most negative one included
+    // a negative word negated in unsigned arithmetic is its magnitude, the max negative one included
     return (value < 0ll) ? (0ull - (unsigned long long)value) : (unsigned long long)value;
 }

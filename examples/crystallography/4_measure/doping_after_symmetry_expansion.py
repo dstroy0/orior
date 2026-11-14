@@ -43,7 +43,7 @@
 # reducing into the cell at the origin, landing on whatever real atom sits there. It surfaces as Mo
 # and O sharing a site, which is chemically impossible, and that impossibility is the only thing
 # that announces it. crystal.site_table drops the dum rows, and re-reading both published figures
-# with them kept and dropped moves no period and flips no agreement.
+# with them retained and dropped moves no period and flips no agreement.
 #
 # A THIRD HAS NO DECIMAL,  THIS NEEDED A NEW SCALE
 #
@@ -85,7 +85,7 @@ FAMILIES_FILE = os.path.join(CACHE, "families.tsv")
 # apart. A cell with 192 operations over 400 sites is 76800 placements, and the cost is in the
 # expansion and not in the reading. Declared here as an input instead of applied quietly: the count of
 # entries it holds back is printed.
-MOST_PLACEMENTS = 200000
+MAX_PLACEMENTS = 200000
 
 
 def families():
@@ -106,8 +106,8 @@ def families():
 def sites(text):
     """The deposit's atom sites as exact points, and how many coordinates would not parse.
 
-    A projection of crystal.exact_sites, which is where the reading lives. This one keeps the
-    element and drops the occupancy, then hands the result to the symmetry expansion.
+    A projection of crystal.exact_sites, which is where the reading lives. This one retains the
+    element and drops the occupancy, then passes the result to the symmetry expansion.
     """
     found, skipped = crystal.exact_sites(text)
     return [(position, element) for position, element, _ in found], skipped
@@ -173,7 +173,7 @@ def main():
         row["before"] += before
         before_total += before
 
-        if (len(points) * len(ops)) > MOST_PLACEMENTS:
+        if (len(points) * len(ops)) > MAX_PLACEMENTS:
             held_back += 1
             continue
 
@@ -210,7 +210,7 @@ def main():
         "  errored, a denominator not dividing %d   %d\n" % (symmetry.UNITS, error)
     )
     out.write(
-        "  deferred, over %d placements        %d\n" % (MOST_PLACEMENTS, held_back)
+        "  deferred, over %d placements        %d\n" % (MAX_PLACEMENTS, held_back)
     )
     if skipped_sites:
         out.write(

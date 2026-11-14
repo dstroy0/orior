@@ -88,7 +88,7 @@ def main():
             print("  %-22s no audio frames" % name)
             continue
         wave = numpy.concatenate(pieces)
-        if wave.dtype.kind in "iu":
+        if wave.dtype.type in "iu":
             wave = wave / 32768.0
 
         factor = speedup(filename)

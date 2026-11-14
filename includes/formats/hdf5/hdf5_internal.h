@@ -85,9 +85,9 @@ typedef struct
     char unsupported[HDF5_REASON_CAPACITY];
     unsigned int rank;
     unsigned long long extent[ENGINE_ARRAY_RANK];
-    unsigned long long maximum[ENGINE_ARRAY_RANK];
+    unsigned long long max[ENGINE_ARRAY_RANK];
     unsigned int element_bytes;
-    EngineElementKind element_kind;
+    EngineElementKind element_type;
     int big_endian;
     unsigned long long fill_bytes;
     unsigned char fill[8u];
@@ -169,7 +169,7 @@ typedef struct
     unsigned int record_bytes;
     unsigned int depth;
     unsigned int count_bytes;
-    unsigned long long maximum[HDF5_TREE2_LEVELS + 1u];
+    unsigned long long max[HDF5_TREE2_LEVELS + 1u];
     unsigned int total_bytes[HDF5_TREE2_LEVELS + 1u];
     Hdf5RecordVisit visit;
     void *state;

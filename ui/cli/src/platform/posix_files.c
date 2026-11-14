@@ -191,7 +191,7 @@ int cli_file_append(const CliPathBytesCtx *args)
     int written = 1;
     while (written && (left > 0ULL))
     {
-        // a piece is at most a gibibyte, which a embed_word counts
+        // a piece is at max a gibibyte, which a embed_word counts
         const ssize_t done = write(file, at, (embed_word)((left < (1ULL << 30u)) ? left : (1ULL << 30u)));
         written = done > 0;
         // a count written is positive here

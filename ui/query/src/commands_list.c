@@ -6,7 +6,7 @@
 #include "../../cli/src/text/text.h"
 #include "query_loops.h"
 
-// the most names the bridge's folder contains whole of one set of types, and the longest one
+// the max names the bridge's folder contains whole of one set of types, and the longest one
 #define QUERY_NAMES_MAX 64u
 
 #define QUERY_NAME_MAX_LEN 64u

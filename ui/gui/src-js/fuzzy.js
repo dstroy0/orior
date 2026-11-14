@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Fuzzy matching, as a quick open reads what is typed: the query's letters in order anywhere in the
-// text, case aside, in no more pieces than half its letters or three. A letter scores more at the
-// start of a word or of the file's name and right after the letter before it, and a match in a
+// Fuzzy matching, as a quick open reads what is typed: the query's characters in order anywhere in the
+// text, case aside, in no more pieces than half its characters or three. A character scores more at the
+// start of a word or of the file's name and right after the character before it, and a match in a
 // path's last part outranks one spread over its folders.
 
 const START = /[\s/\\_\-.:@]/;
@@ -17,14 +17,14 @@ function startsWord(text, at) {
 }
 
 // The places in `text` that match `query` and the match's score, or null where it does not match.
-// `from` is where the text's name starts; letters past it score more.
+// `from` is where the text's name starts; characters past it score more.
 export function fuzzy(query, text, from = 0) {
   if (!query) {
     return { score: 0, hits: [] };
   }
   const lower = text.toLowerCase();
   const wanted = query.toLowerCase().replace(/\s+/g, "");
-  // The latest place each letter can stand with the letters after it still fitting.
+  // The latest place each character can are with the characters after it still fitting.
   const latest = new Array(wanted.length);
   let at = lower.length;
   for (let index = wanted.length - 1; index >= 0; index -= 1) {
@@ -38,12 +38,12 @@ export function fuzzy(query, text, from = 0) {
   let score = 0;
   let last = -2;
   for (let index = 0; index < wanted.length; index += 1) {
-    const letter = wanted[index];
-    // The letter right after the one before it, else the first that starts a word, else the first.
-    let found = lower[last + 1] === letter && last >= 0 ? last + 1 : -1;
+    const character = wanted[index];
+    // The character right after the one before it, else the first that starts a word, else the first.
+    let found = lower[last + 1] === character && last >= 0 ? last + 1 : -1;
     let first = -1;
     for (let place = last + 1; found < 0 && place <= latest[index]; place += 1) {
-      if (lower[place] !== letter) {
+      if (lower[place] !== character) {
         continue;
       }
       first = first < 0 ? place : first;
@@ -62,13 +62,13 @@ export function fuzzy(query, text, from = 0) {
     if (found >= from) {
       score += 3;
     }
-    if (text[found] === letter) {
+    if (text[found] === character) {
       score += 1;
     }
     hits.push(found);
     last = found;
   }
-  // A query torn into more pieces than half its letters reads as no match.
+  // A query torn into more pieces than half its characters reads as no match.
   const runs = hits.filter((at, index) => index === 0 || at !== hits[index - 1] + 1).length;
   if (runs > Math.max(3, Math.ceil(wanted.length / 2))) {
     return null;

@@ -39,7 +39,7 @@ int mmio_extent(HANDLE device, unsigned long long *base, unsigned long long *siz
 
 int mmio_read(HANDLE device, unsigned int offset, unsigned int words, unsigned int *out)
 {
-    if ((words == 0u) || (words > MMIO_READ_WORDS_MOST))
+    if ((words == 0u) || (words > MMIO_READ_WORDS_MAX))
     {
         return 0;
     }

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // document_changes.c: a text's changes against its last commit's file answered off one pass of the store's diff each
-// time they are asked for; nothing is kept between asks. A pass hands each change to a reader that keeps the one it
+// time they are asked for; nothing is retained between asks. A pass passes each change to a reader that retains the one it
 // seeks, or marks the lines of a run, and counts them all
 #include "document_changes.h"
 
@@ -32,7 +32,7 @@ typedef struct
 } ChangesCtx;
 
 // the first line the gutter marks a change on: its first newer line, or for lines taken out alone the line above them,
-// the first where none stands above
+// the first where none is above
 EMBED_INLINE unsigned int changes_marked_from(const ChangesCtx *args)
 {
     if (args->change->now_to > args->change->now_from)
@@ -64,7 +64,7 @@ EMBED_INLINE int changes_holds(const ChangesCtx *args)
            (args->line < (unsigned long long)changes_marked_to(args));
 }
 
-// a change handed by the store: counted, kept where it is the one sought, and its marks written over the run
+// a change passed by the store: counted, retained where it is the one sought, and its marks written over the run
 static void changes_passed(const CliEachHunkCfg *args)
 {
     ChangesPass *const pass = args->context;
@@ -227,7 +227,7 @@ int cli_document_change_revert(const CliChangeCfg *args)
     CliShape shape = {0ULL, 0ULL};
     (void)EMBED_CALL(cli_document_text.shape, CliDocumentTextCfg, .key = args->key, .shape = &shape);
     const unsigned long long lines = shape.lines;
-    // the older lines' bytes at the most: three a unit and a line end each, with the line end before them at the text's
+    // the older lines' bytes at max: three a unit and a line end each, with the line end before them at the text's
     // end and the end after them
     unsigned long long bytes = 2ULL;
     for (unsigned int line = change.then_from; line < change.then_to; line += 1u)
@@ -301,6 +301,6 @@ int cli_document_change_revert(const CliChangeCfg *args)
 
 void cli_document_change_revert_end(const CliChangeCfg *args)
 {
-    // the edit's text is this module's temporary take, handed out read-only
+    // the edit's text is this module's temporary take, passed out read-only
     g_cli_guard->persistent_buf_release((void *)(embed_word)args->edit_out->text, g_cli_editor_owner);
 }

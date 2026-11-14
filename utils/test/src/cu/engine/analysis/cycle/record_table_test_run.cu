@@ -45,7 +45,7 @@ void table_step(TableProgram *program, EngineRecordOperation operation, unsigned
     program->count += 1u;
 }
 
-// Lay a program out and load it to the device. Returns the layout's file_limbs, or -1 errored.
+// Position a program out and load it to the device. Returns the layout's file_limbs, or -1 errored.
 static long table_load(TableProgram *program, EngineRecordKey *key, EngineRecordLayout *layout, CycleRecord **record,
                        EngineError *error)
 {

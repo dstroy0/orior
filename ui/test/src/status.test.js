@@ -6,12 +6,12 @@ import { calm, nextSlice, pressed, status, watch, write } from "../../gui/src-js
 const { test, assert, ui } = window.__harness;
 
 test("writing a part sets only the values given", () => {
-  const kept = { ...status.colors };
+  const retained = { ...status.colors };
   try {
     write("colors", { ahead: 42 });
     assert.equal(status.colors.ahead, 42);
   } finally {
-    write("colors", kept);
+    write("colors", retained);
   }
 });
 
@@ -43,7 +43,7 @@ test("watchers hear once a frame, whatever was written in it, until they stop", 
 });
 
 test("the view is pressed while it takes input or moves", () => {
-  const kept = [status.input.active, status.scroll.speed];
+  const retained = [status.input.active, status.scroll.speed];
   try {
     write("input", { active: false });
     write("scroll", { speed: 0 });
@@ -54,8 +54,8 @@ test("the view is pressed while it takes input or moves", () => {
     write("scroll", { speed: 3 });
     assert.equal(pressed(), true);
   } finally {
-    write("input", { active: kept[0] });
-    write("scroll", { speed: kept[1] });
+    write("input", { active: retained[0] });
+    write("scroll", { speed: retained[1] });
   }
 });
 

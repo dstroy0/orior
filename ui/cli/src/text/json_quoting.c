@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // json_quoting.c: a line whose bytes go into a JSON string in another line as it fills, escaped as
-// cli_json_quoted_lossy escapes them, a letter a piece ends inside of carried over to the next, so a text of any length
+// cli_json_quoted_lossy escapes them, a character a piece ends inside of carried over to the next, so a text of any length
 // is quoted into an answer with no capacity of its own
 #include "json_tree.h"
 
@@ -10,8 +10,8 @@ typedef struct
     unsigned char lead;
 } JsonQuotingCtx;
 
-// the bytes a UTF-8 letter takes, by its first byte; a byte that starts none takes one
-EMBED_INLINE unsigned long long json_letter_bytes(const JsonQuotingCtx *args)
+// the bytes a UTF-8 character takes, by its first byte; a byte that starts none takes one
+EMBED_INLINE unsigned long long json_character_bytes(const JsonQuotingCtx *args)
 {
     if ((args->lead >= 0xc0u) && (args->lead <= 0xdfu))
     {
@@ -28,8 +28,8 @@ EMBED_INLINE unsigned long long json_letter_bytes(const JsonQuotingCtx *args)
     return 1ULL;
 }
 
-// `size` bytes of a piece escaped into the quoting's line, the letter the last piece ended inside of made whole from
-// this one's first bytes, and the letter this one ends inside of carried over: 1, or 0 where the line is full
+// `size` bytes of a piece escaped into the quoting's line, the character the last piece ended inside of made whole from
+// this one's first bytes, and the character this one ends inside of carried over: 1, or 0 where the line is full
 static int json_quoting_append(void *context, const char *bytes, size_t size)
 {
     CliJsonQuoting *const quoting = (CliJsonQuoting *)context;
@@ -37,7 +37,7 @@ static int json_quoting_append(void *context, const char *bytes, size_t size)
     unsigned long long left = size;
     if (quoting->count != 0u)
     {
-        const unsigned long long required = EMBED_CALL(json_letter_bytes, JsonQuotingCtx, .lead = quoting->pending[0]);
+        const unsigned long long required = EMBED_CALL(json_character_bytes, JsonQuotingCtx, .lead = quoting->pending[0]);
         while ((quoting->count < required) && (left > 0ULL) && ((*at & 0xc0u) == 0x80u))
         {
             quoting->pending[quoting->count] = *at;
@@ -56,10 +56,10 @@ static int json_quoting_append(void *context, const char *bytes, size_t size)
     unsigned long long whole = left;
     for (unsigned long long back = 1ULL; (back <= 3ULL) && (back <= left); back += 1ULL)
     {
-        const unsigned char letter = at[left - back];
-        if ((letter & 0xc0u) != 0x80u)
+        const unsigned char character = at[left - back];
+        if ((character & 0xc0u) != 0x80u)
         {
-            whole = (EMBED_CALL(json_letter_bytes, JsonQuotingCtx, .lead = letter) > back) ? (left - back) : left;
+            whole = (EMBED_CALL(json_character_bytes, JsonQuotingCtx, .lead = character) > back) ? (left - back) : left;
             break;
         }
     }

@@ -7,7 +7,7 @@
 import { invoke } from "../../gui/src-js/bridge.js";
 import { editing, treeRowShown } from "../../gui/src-js/edit.js";
 import { showPane } from "../../gui/src-js/explorer.js";
-import { shownCard } from "../../gui/src-js/purpose.js";
+import { displayedCard } from "../../gui/src-js/purpose.js";
 import { togglePane } from "../../gui/src-js/sides.js";
 import { showView } from "../../gui/src-js/views.js";
 
@@ -31,13 +31,13 @@ async function settledRow(path) {
     return place !== "" && performance.now() - since >= 400;
   }, 10000).catch((error) => {
     const row = rowOf(path);
-    throw new Error(`${error.message}; row ${row?.dataset.key} at ${place || "nowhere"}, shown ${row?.checkVisibility()}, files shown ${document.getElementById("files")?.checkVisibility()}`);
+    throw new Error(`${error.message}; row ${row?.dataset.key} at ${place || "nowhere"}, displayed ${row?.checkVisibility()}, files displayed ${document.getElementById("files")?.checkVisibility()}`);
   });
   return rowOf(path);
 }
 
-// The card shown for `path`.
-const cardOf = (path) => (shownCard()?.querySelector(".file-card-path")?.textContent === path ? shownCard() : null);
+// The card displayed for `path`.
+const cardOf = (path) => (displayedCard()?.querySelector(".file-card-path")?.textContent === path ? displayedCard() : null);
 
 test("the pointer resting on a file shows what its first comment says and the files that use it", async () => {
   await invoke("file_write", { path: "card_lib.js", text: "// SPDX-License-Identifier: MIT\n\n// Helpers the cards are drawn with.\nexport const one = 1;\n" });
@@ -48,7 +48,7 @@ test("the pointer resting on a file shows what its first comment says and the fi
   showPane("folder");
   await ui.hover(await settledRow("card_lib.js"));
   await ui.waitFor(() => cardOf("card_lib.js")?.querySelector(".file-card-user"), 5000);
-  const card = shownCard();
+  const card = displayedCard();
   assert.equal(card.querySelector(".file-card-path").textContent, "card_lib.js");
   assert.equal(card.querySelector(".file-card-said").textContent, "Helpers the cards are drawn with.");
   assert.equal(card.querySelector(".file-card-head").textContent, "Used by 1 file:");
@@ -57,18 +57,18 @@ test("the pointer resting on a file shows what its first comment says and the fi
   assert.ok(card.getBoundingClientRect().left >= rowOf("card_lib.js").getBoundingClientRect().right, "beside the row");
   await ui.click(card.querySelector(".file-card-user"));
   await ui.waitFor(() => editing().active === "card_main.js", 5000);
-  assert.equal(shownCard(), null, "a press opens the file, and the card goes");
+  assert.equal(displayedCard(), null, "a press opens the file, and the card goes");
   assert.equal(rowOf("card_lib.js").title, "card_lib.js");
 });
 
 test("a file with no comment at its head says so, and the card goes when the pointer leaves", async () => {
-  // the file the card opened takes the window's edges: the explorer is shown again
+  // the file the card opened takes the window's edges: the explorer is displayed again
   togglePane(true, { take: false, pin: true });
   showPane("folder");
   await ui.hover(await settledRow("card_main.js"));
   await ui.waitFor(() => cardOf("card_main.js")?.querySelector(".file-card-head"), 5000);
-  assert.equal(shownCard().querySelector(".file-card-said").textContent, "No comment at its head says what it is for.");
-  assert.equal(shownCard().querySelector(".file-card-head").textContent, "No file of the tree uses it.");
+  assert.equal(displayedCard().querySelector(".file-card-said").textContent, "No comment at its head says what it is for.");
+  assert.equal(displayedCard().querySelector(".file-card-head").textContent, "No file of the tree uses it.");
   await ui.hover(document.getElementById("statusbar"));
-  await ui.waitFor(() => !shownCard(), 2000);
+  await ui.waitFor(() => !displayedCard(), 2000);
 });

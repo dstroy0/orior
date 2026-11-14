@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// spawn_lines.c: a started process's pipe read until it ends and cut into lines, each handed on as it is whole, on
+// spawn_lines.c: a started process's pipe read until it ends and cut into lines, each passed on as it is whole, on
 // every platform through the platform's own read
 #include "../command_line/cli_internal.h"
 

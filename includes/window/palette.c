@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // palette.c: the colors the window draws in, each the value style.css gives its variable in the scheme, but for the
-// bar's resting text, the large name and what the pointer lights, which stand on the luminance ladder under the rung of
+// bar's resting text, the large name and what the pointer lights, which are on the luminance ladder under the rung of
 // what they serve; a translucent color carries the stylesheet's alpha as a byte of 255
 #include "palette.h"
 
@@ -12,7 +12,7 @@
 // the dark scheme: --bg, --surface, --well, --deep; --fg, --fg-2, --fg-3; --line; --signal, --link, --hover, --fail;
 // --ink and --glass-tint, the ink at --bar-opacity; --bar-fg, --bar-title, --bar-title-hover, --bar-bright, --bar-path,
 // --status-fg; --ed-bg at --editor-opacity, --ed-fg, --ed-num, --ed-current, --ed-sel, --ed-sel-idle, --ed-caret,
-// --ed-guide, --ed-same,
+// --ed-guide, --fg at 18% for a table's grid lines, --ed-same,
 // --ed-widget-line, --ed-match, --ed-match-on, --ed-mini-sel, --ed-mini-match, --ed-mini-slider, --ed-mini-slider-on,
 // --plasma-dusk, --fuse-fire, --bar-signal at 18%, --ink at 50%, --ed-error, --ed-warning, --ed-note, --open-fg,
 // --bar-mark, --lifted, the color .wordmark-under's rule makes, --deep at 80% with black and its OKLCH lightness by
@@ -50,6 +50,7 @@ static const GuiPalette s_dark = {
     GUI_RGB(0x2au, 0x25u, 0x60u),
     GUI_RGB(0x6fu, 0xdcu, 0xb4u),
     GUI_RGB(0x24u, 0x21u, 0x4fu),
+    GUI_RGBA(0xe4u, 0xe3u, 0xf5u, 0x2eu),
     GUI_RGBA(0xa4u, 0x8cu, 0xffu, 0x33u),
     GUI_RGB(0x2fu, 0x2au, 0x66u),
     GUI_RGBA(0x6fu, 0xdcu, 0xb4u, 0x38u),
@@ -149,7 +150,7 @@ typedef struct
 } PaletteNamed;
 
 // each color named for what it colors, in the form an editor's theme names a color: the fuse's fire also lines the
-// shown tab, and a file icon's color goes by its hue, as a terminal's does
+// displayed tab, and a file icon's color goes by its hue, as a terminal's does
 #define PALETTE_NAMED(name_, field_) {name_, offsetof(GuiPalette, field_), 0ULL}
 #define PALETTE_NAMED_AT(name_, field_, at_) {name_, offsetof(GuiPalette, field_) + ((at_) * sizeof(GuiColor)), 0ULL}
 static const PaletteNamed s_named[] = {
@@ -184,6 +185,7 @@ static const PaletteNamed s_named[] = {
     PALETTE_NAMED("editor.inactiveSelection", selection_idle),
     PALETTE_NAMED("editor.cursor", caret),
     PALETTE_NAMED("editor.indentGuide", guide),
+    PALETTE_NAMED("tree.tableColumnsBorder", table_line),
     PALETTE_NAMED("editor.foldBackground", same),
     PALETTE_NAMED("editor.findMatch", match_on),
     PALETTE_NAMED("editor.findMatchHighlight", match),

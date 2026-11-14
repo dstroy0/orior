@@ -101,7 +101,7 @@ def prove_axioms(out):
         congruent.add(congruent.add(one, other), third) == congruent.add(one, congruent.add(other, third))
         for one in points for other in points for third in points)
 
-    # a second curve with cyclic torsion, keeping the axioms off any one group shape alone
+    # a second curve with cyclic torsion, retention the axioms off any one group shape alone
     torsion_curve = Curve(0, 1)
     torsion_points = [point(2, 3), point(0, 1), point(-1, 0), point(2, -3), point(0, -1)]
     associativity_two = all(

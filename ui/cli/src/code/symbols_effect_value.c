@@ -29,7 +29,7 @@ typedef struct
     unsigned int *joined_at;
     int refused;
 } CliEffectCalled;
-// the most arguments of one call read, the most leaves one call's value is made of, and the bytes of its joined texts
+// the max arguments of one call read, the max leaves one call's value is made of, and the bytes of its joined texts
 #define CLI_EFFECT_ARGUMENTS 64u
 #define CLI_EFFECT_CALLED_MAX 4096u
 #define CLI_EFFECT_JOINED_CAPACITY (64ULL << 10u)
@@ -61,25 +61,25 @@ EMBED_INLINE int cli_effect_at(const SymbolsEffectValueCtx *args)
            ((args->read_state_read->token[args->read_state_read->at].is & roles) == roles);
 }
 
-// the number a leaf's digits write in the base its leaf names, a letter that is no digit of that base passed over
+// the number a leaf's digits write in the base its leaf names, a character that is no digit of that base passed over
 EMBED_INLINE long long cli_effect_number(const SymbolsEffectValueCtx *args)
 {
     unsigned long long value = 0ULL;
     for (unsigned long long at = 0ULL; at < args->token->length; at += 1ULL)
     {
-        const char letter = args->token->text[at];
+        const char character = args->token->text[at];
         unsigned long long digit;
-        if ((letter >= '0') && (letter <= '9'))
+        if ((character >= '0') && (character <= '9'))
         {
-            digit = (unsigned long long)(letter - '0');
+            digit = (unsigned long long)(character - '0');
         }
-        else if ((letter >= 'a') && (letter <= 'z'))
+        else if ((character >= 'a') && (character <= 'z'))
         {
-            digit = (unsigned long long)(letter - 'a' + 10);
+            digit = (unsigned long long)(character - 'a' + 10);
         }
-        else if ((letter >= 'A') && (letter <= 'Z'))
+        else if ((character >= 'A') && (character <= 'Z'))
         {
-            digit = (unsigned long long)(letter - 'A' + 10);
+            digit = (unsigned long long)(character - 'A' + 10);
         }
         else
         {
@@ -235,7 +235,7 @@ EMBED_INLINE long long cli_effect_call(const SymbolsEffectValueCtx *args)
     const CliEffectMacro macro = effect->macro[args->macro_at];
     CliEffectToken *const value = EMBED_CALL(cli_effect_tokens_get, SymbolsEffectValueCtx, .effect = effect,
                                              .first = macro.first, .count = macro.count);
-    // each leaf of the macro's value stands for itself or for no more leaves than the arguments span
+    // each leaf of the macro's value is for itself or for no more leaves than the arguments span
     const unsigned long long span = (arguments != 0u) ? (unsigned long long)(end[arguments - 1u] - first[0]) : 0ULL;
     const unsigned long long required = ((unsigned long long)macro.count * (span + 1ULL)) + 1ULL;
     const unsigned int capacity = (required < CLI_EFFECT_CALLED_MAX) ? (unsigned int)required : CLI_EFFECT_CALLED_MAX;
@@ -276,7 +276,7 @@ EMBED_INLINE long long cli_effect_call(const SymbolsEffectValueCtx *args)
                                                     .macro = &macro, .token = leaf)
                                        : CLI_EFFECT_ARGUMENTS;
         const int rest = macro.rest && ((leaf->is & CLI_LEAF_REMAINDER) != 0u);
-        // the leaves this one stands for: the argument at the parameter's place, the arguments past them with the
+        // the leaves this one is for: the argument at the parameter's place, the arguments past them with the
         // commas between, or itself
         unsigned int from = 0u;
         unsigned int to = 1u;
@@ -289,7 +289,7 @@ EMBED_INLINE long long cli_effect_call(const SymbolsEffectValueCtx *args)
         }
         else if ((param != CLI_EFFECT_ARGUMENTS) || rest)
         {
-            // a parameter no argument is given for, or the arguments past the parameters where none is, stands for
+            // a parameter no argument is given for, or the arguments past the parameters where none is, is for
             // no leaf
             continue;
         }

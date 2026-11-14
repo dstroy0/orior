@@ -8,14 +8,14 @@
 #
 #   Usage:  python examples/0_experimental/ntt_twiddle_certificate.py
 #
-# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working instead of a stage
+# This reads no corpus. It sits in 0_experimental: an arithmetic result displayed working instead of a stage
 # reading. A number theoretic transform is exact only if its modulus is prime, its stated generator is
 # a primitive root, and the root it builds twiddles from has order exactly the transform length. Each
 # of those is a constant, and a constant taken on trust is a silent wrong answer waiting: the twiddle
 # proof in theory/theory/cryptography/twiddle_constants/main.tex records two of them found in this project by
 # running the check instead of reading the code.
 #
-# Three things are shown. First, the certificate: every modulus used here, the three device primes and
+# Three things are displayed. First, the certificate: every modulus used here, the three device primes and
 # the goldilocks prime from that paper plus the prime the image_transforms translation transform uses,
 # re-derived from scratch. Second, the rejection: a composite of the same Proth shape and a false
 # primitive-root claim error in the same checks that pass the real ones. The checks can fail
@@ -48,7 +48,7 @@ PINNED = [
 def distinct_prime_factors(number):
     """The distinct primes dividing `number`, by trial division. Exact and unbounded.
 
-    The moduli here are at most 64 bits. P-1 factors in well under a second by trial division and
+    The moduli here are at max 64 bits. P-1 factors in well under a second by trial division and
     needs nothing heavier. The primitive-root test below needs only the distinct primes and none of their
     multiplicities.
     """

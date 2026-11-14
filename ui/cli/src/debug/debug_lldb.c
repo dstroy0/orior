@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // debug_lldb.c: orior's script in lldb. Where a watchpoint of orior's sees its bytes change, the program carries on,
-// with a breakpoint of one stop at each place the instruction it stands at can go next, and the first reached stops it
+// with a breakpoint of one stop at each place the instruction it is at can go next, and the first reached stops it
 // and takes the others away. A step from Python into C sets a breakpoint of one stop on every line of the tree's own
 // files, and of the files they name by `#line`, as Cython's do, in the native modules of the tree the process loaded
 #include "debug_internal.h"

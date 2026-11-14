@@ -9,7 +9,7 @@
 #   Usage:  python evidence/proofs/posits/proof_corpus_audit.py
 #
 # Problems in this work are found by reading output, not by a statistic going out of range, and they
-# are of two kinds. A format read as language: line wrapping, publisher markup, a ruled separator,
+# are of two types. A format read as language: line wrapping, publisher markup, a ruled separator,
 # verse numbering, HTML fragments and line width moving an entropy constant. A corpus holding
 # something other than its label: German under Hungarian, English under Latin and Ethereum contracts
 # under a fabrication format.
@@ -96,7 +96,7 @@ def main():
                 notes.append("line wrapped at %d" % middle)
 
         counts = collections.Counter(WORD.findall(text.lower()))
-        top = {word for word, _ in counts.most_common(40)}
+        top = {word for word, _ in counts.max_common(40)}
         claimed = [key for key in NAMED if key in stem]
         if claimed:
             want = FINGERPRINTS[claimed[0]]

@@ -13,7 +13,7 @@ The predictions were written into src/engine/c/sha256/bench/bench_sac.cu before 
     without Choose     a large change, Choose being in T1
     without Majority   little change, Majority being in T2
 
-A removed rotation whose residue still stands would refute the reading of the spectrum outright,
+A removed rotation whose residue still is would refute the reading of the spectrum outright,
 and that comparison is the point of running it.
 
     python utils/maint/radar/radar_assay.py
@@ -152,7 +152,7 @@ def main():
         ("no_addition", (CARRY,), "the carry at 31 goes"),
     ]
 
-    print("  %-14s %-34s %10s %10s %8s" % ("variant", "prediction", "full", "variant", "kept"))
+    print("  %-14s %-34s %10s %10s %8s" % ("variant", "prediction", "full", "variant", "retained"))
     print("  %-14s %-34s %10s %10s %8s"
           % ("-" * 14, "-" * 34, "-" * 10, "-" * 10, "-" * 8))
     for variant, group, says in checks:
@@ -161,8 +161,8 @@ def main():
         if was is None or now is None:
             print("  %-14s %-34s %10s %10s %8s" % (variant, says, "-", "-", "not run"))
             continue
-        kept = (now / was) if was > 0 else 0.0
-        verdict = "GONE" if kept < 0.35 else ("reduced" if kept < 0.8 else "STANDS")
+        retained = (now / was) if was > 0 else 0.0
+        verdict = "GONE" if retained < 0.35 else ("reduced" if retained < 0.8 else "STANDS")
         print("  %-14s %-34s %10.2f %10.2f %8s" % (variant, says, was, now, verdict))
 
     print("\n  GONE confirms the class was that sub-function's channel. STANDS would mean the")

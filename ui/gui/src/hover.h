@@ -12,13 +12,13 @@ typedef struct GuiHoverRasterCfg GuiHoverRasterCfg;
 typedef struct GuiHoverXCfg GuiHoverXCfg;
 typedef struct GuiHoverCfg GuiHoverCfg;
 
-// the box's most width and height in the page's pixels, 36rem by 18rem, and its padding down and across
+// the box's max width and height in the page's pixels, 36rem by 18rem, and its padding down and across
 #define GUI_HOVER_WIDTH 576
 #define GUI_HOVER_HEIGHT 288
 #define GUI_HOVER_PAD_Y 7
 #define GUI_HOVER_PAD_X 11
 
-// The hover: the panel shown, NULL for none, the panels' and read alone; and the box's rectangle where it was drawn
+// The hover: the panel displayed, NULL for none, the panels' and read alone; and the box's rectangle where it was drawn
 // last
 typedef struct
 {
@@ -28,7 +28,7 @@ typedef struct
 
 // a hover showing nothing
 void gui_hover_init(const GuiHoverCfg *args);
-// whether the pixel at x, y stands in the box shown
+// whether the pixel at x, y is in the box displayed
 int gui_hover_holds(const GuiHoverXCfg *args);
 // the box drawn for the word whose first cell is `anchor`, placed under the word's row inside `bounds` at `scale`, its
 // parts as Markdown; the box's rectangle recorded

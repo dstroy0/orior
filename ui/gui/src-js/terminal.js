@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The terminal: a panel under both views with shells in it, opened and closed from the Terminal menu
-// or by Ctrl+`. Each shell is a tab of the panel's strip, named by the folder it stands in; New
+// or by Ctrl+`. Each shell is a tab of the panel's strip, named by the folder it is in; New
 // Terminal opens another beside the rest, and Split shows two side by side. A shell starts the first
 // time its tab shows, in the tree's top folder, and closing the panel leaves every shell running. A
 // shell that ends says so, and the next key starts another in its tab; a tab's × ends its shell and
@@ -11,22 +11,22 @@
 // Keys go to the shell last pressed in, as an xterm sends them. Ctrl+C copies where text is chosen
 // in the panel and interrupts where none is; Ctrl+Shift+C copies and Ctrl+Shift+V pastes. Every
 // other key the panel takes stays out of the rest of the app while the panel holds the keys. The
-// panel's edge drags to make it taller or shorter, and its size is kept between visits.
+// panel's edge drags to make it taller or shorter, and its size is retained between visits.
 //
-// Its place is kept as well: whether the panel is open, each shell's folder, which a shell says as
-// OSC 7 and Git's bash is set to say before each prompt, and its last PLACE_LINES lines, the tab shown
-// and the one beside it, kept a moment after a shell writes and as the window closes. The window
+// Its place is retained as well: whether the panel is open, each shell's folder, which a shell says as
+// OSC 7 and Git's bash is set to say before each prompt, and its last PLACE_LINES lines, the tab displayed
+// and the one beside it, retained a moment after a shell writes and as the window closes. The window
 // started again shows those lines and opens the panel as it was, each shell in its folder.
 
 import { invoke, listen } from "./bridge.js";
 import { clipText, copyText, menuOn } from "./menu.js";
 import { keyText } from "./terminal/keys.js";
-import { PLACE, addTerm, chosen, early, element, fitShown, focusedTerm, heard, keepPlace, keepSoon, openShell, parts, send, showing, state } from "./terminal/shells.js";
+import { PLACE, addTerm, chosen, early, element, fitShown, focusedTerm, heard, retainPlace, retainSoon, openShell, parts, send, showing, state } from "./terminal/shells.js";
 
 // How tall the panel may be dragged is the stylesheet's to say, in its min-height and max-height.
 const HEIGHT = "orior.terminal.height";
 
-// A tab's name: the last folder of the place its shell stands in, after its number.
+// A tab's name: the last folder of the place its shell is in, after its number.
 function nameOf(term, at) {
   const place = term.at ? decodeURIComponent(term.at.replace(/^file:\/\/[^/]*/, "")).replace(/[\\/]+$/, "") : "";
   return `${at + 1} ${place.split(/[\\/]/).pop() || "shell"}`;
@@ -59,7 +59,7 @@ export function drawStrip() {
   );
 }
 
-// Shows the shown tab and the one beside it, each started, and the keys with the one they go to.
+// Shows the displayed tab and the one beside it, each started, and the keys with the one they go to.
 function drawViews() {
   for (const term of state.terms) {
     term.view.hidden = !showing(term);
@@ -90,12 +90,12 @@ function showTerm(term) {
     if (state.beside !== null && state.focused === state.beside) {
       state.beside = term.key;
     } else {
-      state.shown = term.key;
+      state.displayed = term.key;
     }
   }
   toggle(true, false);
   focusTerm(term);
-  keepSoon();
+  retainSoon();
 }
 
 // Ends a tab's shell and closes the tab. The last one closed closes the panel, and the next opening
@@ -109,31 +109,31 @@ function closeTerm(term) {
   if (state.beside === term.key) {
     state.beside = null;
   }
-  if (state.shown === term.key) {
-    state.shown = state.beside ?? state.terms.at(-1)?.key ?? null;
-    if (state.beside === state.shown) {
+  if (state.displayed === term.key) {
+    state.displayed = state.beside ?? state.terms.at(-1)?.key ?? null;
+    if (state.beside === state.displayed) {
       state.beside = null;
     }
   }
   if (state.focused === term.key) {
-    state.focused = state.shown;
+    state.focused = state.displayed;
   }
   if (!state.terms.length) {
     toggle(false);
     const next = addTerm();
-    state.shown = state.focused = next.key;
+    state.displayed = state.focused = next.key;
   }
   drawViews();
-  keepSoon();
+  retainSoon();
 }
 
 
 // Opens the panel or closes it. An open panel takes the keys where `focus` is set, and closing it
-// hands them back to whatever kept them before it opened.
+// passes them back to whatever retained them before it opened.
 function toggle(open = parts.panel.hidden, focus = true) {
   const was = !parts.panel.hidden;
   parts.panel.hidden = !open;
-  keepSoon();
+  retainSoon();
   if (open) {
     const holder = document.activeElement;
     if (!was) {
@@ -197,28 +197,28 @@ export function toggleTerminal(open) {
   toggle(open);
 }
 
-// Terminal, New Terminal: another shell in a tab of its own, shown where the keys were.
+// Terminal, New Terminal: another shell in a tab of its own, displayed where the keys were.
 export function newTerminal() {
   const term = addTerm();
   showTerm(term);
   return term;
 }
 
-// Terminal, Split Terminal: a second shell shown beside the one shown, a new one where every other
-// is shown already; pressed again, the panel shows one shell.
+// Terminal, Split Terminal: a second shell displayed beside the one displayed, a new one where every other
+// is displayed already; pressed again, the panel shows one shell.
 export function splitTerminal() {
   if (state.beside !== null) {
     state.beside = null;
-    state.focused = state.shown;
+    state.focused = state.displayed;
     drawViews();
-    keepSoon();
+    retainSoon();
     return;
   }
   toggle(true, false);
-  const other = state.terms.find((term) => term.key !== state.shown) ?? addTerm();
+  const other = state.terms.find((term) => term.key !== state.displayed) ?? addTerm();
   state.beside = other.key;
   focusTerm(other);
-  keepSoon();
+  retainSoon();
 }
 
 export const terminalSplit = () => state.beside !== null;
@@ -319,7 +319,7 @@ export async function startTerminal() {
     const term = state.terms.find((one) => one.id === payload.id);
     if (term?.screen) {
       heard(term, payload.text);
-      keepSoon();
+      retainSoon();
     } else if (!term) {
       early.set(payload.id, [...(early.get(payload.id) ?? []), payload.text].slice(-64));
     }
@@ -359,26 +359,26 @@ export async function startTerminal() {
   menuOn(parts.panel, terminalItems);
   parts.grip.addEventListener("pointerdown", grip);
   new ResizeObserver(() => requestAnimationFrame(fitShown)).observe(parts.views);
-  window.addEventListener("beforeunload", keepPlace);
-  // The place kept from before the window started: each shell's lines and folder, the tabs shown, and
-  // the panel open as it was. A place kept with one shell, before there were tabs, is that shell's.
-  let kept = null;
+  window.addEventListener("beforeunload", retainPlace);
+  // The place retained from before the window started: each shell's lines and folder, the tabs displayed, and
+  // the panel open as it was. A place retained with one shell, before there were tabs, is that shell's.
+  let retained = null;
   try {
-    kept = JSON.parse(localStorage.getItem(PLACE) ?? "null");
+    retained = JSON.parse(localStorage.getItem(PLACE) ?? "null");
   } catch {
-    kept = null;
+    retained = null;
   }
-  const terms = Array.isArray(kept?.terms) && kept.terms.length ? kept.terms : [{ at: kept?.at, lines: kept?.lines }];
+  const terms = Array.isArray(retained?.terms) && retained.terms.length ? retained.terms : [{ at: retained?.at, lines: retained?.lines }];
   terms.forEach((one) => addTerm(one ?? {}));
   const keyAt = (at) => (Number.isInteger(at) && state.terms[at] ? state.terms[at].key : null);
-  state.shown = keyAt(kept?.shown) ?? state.terms[0].key;
-  state.beside = keyAt(kept?.beside);
-  if (state.beside === state.shown) {
+  state.displayed = keyAt(retained?.displayed) ?? state.terms[0].key;
+  state.beside = keyAt(retained?.beside);
+  if (state.beside === state.displayed) {
     state.beside = null;
   }
-  state.focused = state.shown;
+  state.focused = state.displayed;
   drawViews();
-  if (kept?.open) {
+  if (retained?.open) {
     toggle(true, false);
   }
 }

@@ -7,7 +7,7 @@
 // Over, Step Into, Step Out, Restart and Stop, the session they act on where more than one runs, the
 // exceptions it stops on, and what the program is doing. Under it Frames lists the stopped thread's
 // calls, less those the tree's patterns hide, Variables the chosen frame's scopes with the watches
-// over them and the values kept to compare, and Console the program's output, with a field that
+// over them and the values retained to compare, and Console the program's output, with a field that
 // evaluates in the chosen frame.
 //
 // More than one session runs at once: a file debugged, a test, a process attached to, a program
@@ -17,7 +17,7 @@
 // A breakpoint is set or cleared by a press in the gutter's strip left of a line's number, or F9, and
 // is drawn there as a dot, hollow where the debugger could not bind it to code, marked where it
 // holds a condition or a count of hits, and a diamond where it writes a message in place of stopping;
-// its menu, on a press with the other button, edits these. Breakpoints and watches are kept between
+// its menu, on a press with the other button, edits these. Breakpoints and watches are retained between
 // visits, the breakpoints by tree, and are written out to a file and read back in. Where the program
 // stops, its file opens at the line, which is marked until it runs on; a name the pointer rests on
 // shows its value, opened a level at a time.
@@ -37,12 +37,12 @@ const HEIGHT = "orior.debug.height";
 export const EXCEPTIONS = "orior.debug.exceptions";
 export const STEPPING = "orior.debug.stepping";
 
-// The most lines the console keeps, the most values kept to compare, and how deep and how wide a
-// value kept is read.
+// The max lines the console retains, the max values retained to compare, and how deep and how wide a
+// value retained is read.
 export const CONSOLE_LINES = 5000;
-export const KEPT_MOST = 20;
-export const KEPT_DEPTH = 3;
-export const KEPT_WIDTH = 60;
+export const RETAINED_MAX = 20;
+export const RETAINED_DEPTH = 3;
+export const RETAINED_WIDTH = 60;
 
 export const state = {
   hooks: null,
@@ -55,7 +55,7 @@ export const state = {
   last: null,
   // Breakpoints by tree path: each a Map of file line to { bound, condition, hits, log }.
   breaks: new Map(),
-  // A line the next stop is at, as { path, line }, in a file with no breakpoint of its own, kept
+  // A line the next stop is at, as { path, line }, in a file with no breakpoint of its own, retained
   // until a session stops and marked nowhere.
   once: null,
   watches: [],
@@ -64,9 +64,9 @@ export const state = {
   opened: new Set(),
   closedScopes: new Set(),
   asked: 0,
-  // Values kept to compare with a later stop.
-  kept: [],
-  // What a session told before its start returned, kept to be heard once it is known, and the
+  // Values retained to compare with a later stop.
+  retained: [],
+  // What a session told before its start returned, retained to be heard once it is known, and the
   // number of the last session known.
   early: new Map(),
   newest: 0,
@@ -173,7 +173,7 @@ function heard(message) {
     // A process the program started is debugged as a child of its session.
     const parent = state.sessions.get(id);
     if (parent) {
-      invoke("debug_start", { start: { kind: "child", parent: id, config: body }, options: { breakpoints: allBreakpoints(), exceptions: exceptionsOf("python") ?? defaultExceptions("python"), stepping: { mine_only: steppingOf().mine_only, skip: steppingOf().skip } } })
+      invoke("debug_start", { start: { type: "child", parent: id, config: body }, options: { breakpoints: allBreakpoints(), exceptions: exceptionsOf("python") ?? defaultExceptions("python"), stepping: { mine_only: steppingOf().mine_only, skip: steppingOf().skip } } })
         .then((info) => {
           known(info);
           drawSessions();
@@ -188,7 +188,7 @@ function heard(message) {
 // draws the editor again, and runs a command of the menus.
 export async function startDebug(hooks) {
   state.hooks = hooks;
-  // A session left by a page shown before this one has no window to answer to, and is ended.
+  // A session left by a page displayed before this one has no window to answer to, and is ended.
   invoke("debug_stop", { session: null }).catch(() => {});
   for (const [name, id] of [
     ["panel", "debug"],

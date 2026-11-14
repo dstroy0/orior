@@ -38,11 +38,11 @@ SPECIALS = {
 }
 
 # A table with any cell longer than this is set as records, one row at a time. A longtable breaks
-# only between rows, and a cell this long in a column a third of the text wide fills most of a
+# only between rows, and a cell this long in a column a third of the text wide fills the majority of a
 # page by itself. The cell tracking table has cells of 3,000 characters.
 RECORD_CELL = 600
 
-# The table sizes in order, with each one's point size and \tabcolsep. A column is kept wide
+# The table sizes in order, with each one's point size and \tabcolsep. A column is retained wide
 # enough for its longest word, taken at half an em a character, plus \tabcolsep on each side. The
 # text block is 430pt wide (preamble.tex). A table whose columns cannot all fit steps down a size.
 # The two smallest sizes close the gap between columns too: at ten columns the default 6pt a side
@@ -87,7 +87,7 @@ def link_target(url, chapter):
             and target.stem in chapter.chapters
         ):
             return r"\hyperref[" + label(target.stem) + "]{", "}"
-    # A link out of the research paper, to code or to a file withheld, keeps its words and loses its target.
+    # A link out of the research paper, to code or to a file withheld, retains its words and loses its target.
     return "", ""
 
 
@@ -139,7 +139,7 @@ def inline(value, chapter):
     # The word test is Unicode's. With ASCII's, Π_v c_{f,v} read the underscore after Π as an opening
     # and set "v c" in italics.
     value = re.sub(r"(?<!\w)\\_(\S(?:(?!\\_).)*?)\\_(?![\w\\])", r"\\emph{\1}", value)
-    # A sample name such as 44b6_0113de3b in running text has no break in it, and one stood 40pt
+    # A sample name such as 44b6_0113de3b in running text has no break in it, and one was 40pt
     # into the margin. It may break after an underscore, as a name in code already may.
     value = value.replace(r"\_", r"\_\allowbreak{}")
     # The markdown writes straight double quotes, which Charis sets as two closing quotes. One
@@ -277,7 +277,7 @@ def parse_list(lines, index, chapter):
                 body.append(line.strip())
             index += 1
         items.append(body)
-        # A blank line between two items at the same depth keeps them in one list.
+        # A blank line between two items at the same depth retains them in one list.
         ahead = index
         while ahead < len(lines) and not lines[ahead].strip():
             ahead += 1
@@ -491,11 +491,11 @@ def main():
         order = "\n".join(includes) + "\n"
         if write_if_changed(chapter_dir / "order.tex", order):
             written.append("order.tex")
-        keep = {f"chapter_{source.stem.lower()}.tex" for source in sources} | {"order.tex"}
+        retain = {f"chapter_{source.stem.lower()}.tex" for source in sources} | {"order.tex"}
         for stale in chapter_dir.glob("*.tex"):
             # Every chapter in a research paper this script manages is generated. One with no source is stale.
             # The generated chapters carry no comment line marking them.
-            if stale.name not in keep:
+            if stale.name not in retain:
                 stale.unlink()
                 written.append(f"removed {stale.name}")
         print(f"  {research_paper}: {len(sources)} chapters, {len(written)} files changed")

@@ -29,7 +29,7 @@ typedef struct QueryTablesFolderCtx QueryTablesFolderCtx;
 // the key kernel: three lines whose content the disassembler reads the architecture off, and nothing else
 #define QUERY_TABLES_KEY "__global__ void kernel(float *out) { out[0] = 0; }\n"
 
-// the most architectures nvcc lists
+// the max architectures nvcc lists
 #define QUERY_ARCHITECTURES_MAX 64u
 
 void query_tables_in(const QueryTablesFolderCtx *args);

@@ -22,7 +22,7 @@
 # fault in the Uralic run is not repeated.
 #
 # What is missing and cannot be fixed from this collection: Swahili, the African contact language
-# that bears most on Madagascar, is 1195 characters here. So contact is represented by French, which is
+# that bears max on Madagascar, is 1195 characters here. So contact is represented by French, which is
 # real but is colonial and recent, and the Bantu side of the question is not asked.
 
 import io

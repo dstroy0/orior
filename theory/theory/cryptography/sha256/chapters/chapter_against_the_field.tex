@@ -13,7 +13,7 @@ practical collision, ASIACRYPT 2024~\cite{src:Li-Liu-Wang-Dong-and-Sun-2024} & \
 semi-free-start collision, Li and others~\cite{src:Li-Liu-and-Wang-2024} & \textbf{39} \\
 earlier collisions, Sanadhya and Sarkar 2008~\cite{src:Sanadhya-and-Sarkar-2008} & 23, 24 \\
 this work's forward wall & \textbf{10} \\
-this work's deepest probe of any kind & \(\approx 23\) \\
+this work's deepest probe of any type & \(\approx 23\) \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -22,7 +22,7 @@ That is not a contradiction. It is two different measurements. This work asks ho
 
 \textbf{No null here means ``nothing survives past round twenty-three.''} It means undirected statistics stop seeing there, and something directed reaches thirty-one in practice. The same caveat applies to every refutation here: undirected probing throughout.
 
-The gap is not sensitivity. The spectral fold is sixty-four times as sensitive as the maximum and stops at the same round. The difference is watching against steering.
+The gap is not sensitivity. The spectral fold is sixty-four times as sensitive as the max and stops at the same round. The difference is watching against steering.
 
 \section{Where the agreements fall}
 
@@ -40,7 +40,7 @@ Both avalanche papers group choice, \(\Sigma_1\) and integer addition together a
 
 \section{Carry space is mapped, not empty}
 
-The carry looks like unexplored ground and is the most heavily mapped part of the subject. Lipmaa and Moriai~\cite{src:Lipmaa-and-Moriai} give exact algorithms for the differential probability of addition modulo \(2^n\), in closed form and logarithmic time, reducing the hardest case from \(\Omega(2^{4n})\) to \(\Theta(\log n)\). Additive differential probabilities of exclusive-or, UNAF, bit-vector differential models and work on the non-independence of chained modular additions extend it, with results still appearing in 2025. The thirty-one-step collision is built from that machinery.
+The carry looks like unexplored ground and is the max heavily mapped part of the subject. Lipmaa and Moriai~\cite{src:Lipmaa-and-Moriai} give exact algorithms for the differential probability of addition modulo \(2^n\), in closed form and logarithmic time, reducing the hardest case from \(\Omega(2^{4n})\) to \(\Theta(\log n)\). Additive differential probabilities of exclusive-or, UNAF, bit-vector differential models and work on the non-independence of chained modular additions extend it, with results still appearing in 2025. The thirty-one-step collision is built from that machinery.
 
 The finding that the carry supplies the algebraic degree is therefore a rediscovery of why the field works in carry space instead of a gap in it. The rules there are solved and hard instead of unmapped.
 
@@ -60,7 +60,7 @@ Offered as candidates, not claims, since a literature search cannot prove absenc
 
 \textbf{Constructed differential paths.} Everything here probes and nothing builds. The thirty-one-step result is a designed path. Detection is the weaker instrument by a factor of three in rounds, and that gap is the summary of this work's reach.
 
-\textbf{Message freedom.} A collision attack varies the whole message to steer the path. Mining fixes all but thirty-two bits. Most published technique may not transfer, but that is an argument about applicability and not a measurement.
+\textbf{Message freedom.} A collision attack varies the whole message to steer the path. Mining fixes all but thirty-two bits. Max published technique may not transfer, but that is an argument about applicability and not a measurement.
 
 \textbf{The linear axis}, which needs Walsh masks, not single bits, and is a transform over \(2^{512}\) of them.
 

@@ -56,11 +56,11 @@ long qasm_polynomial_alloc(long long low, unsigned long long count, QasmPolynomi
     polynomial->count = 0u;
     polynomial->coefficients = NULL;
     // the bound is a positive int. It widens to long long exactly and re-signs to unsigned long long exactly
-    const long long maximum = (long long)QASM_EXPONENT_MAX;
-    const int count_ok = (count <= (unsigned long long)maximum);
+    const long long max = (long long)QASM_EXPONENT_MAX;
+    const int count_ok = (count <= (unsigned long long)max);
     // read only once the count is within the bound, below 2^31. It re-signs to long long exactly
     const long long high = count_ok ? (low + (long long)((count > 0ull) ? (count - 1ull) : 0ull)) : 0ll;
-    const int ok = count_ok && (low >= -maximum) && (high <= maximum);
+    const int ok = count_ok && (low >= -max) && (high <= max);
     if (QASM_CHECK(ok, polynomial, error, ENGINE_ERROR_REQUEST) == 0)
     {
         return QASM_ERROR;

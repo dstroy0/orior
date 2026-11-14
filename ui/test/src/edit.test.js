@@ -4,7 +4,7 @@
 // The editor's tabs and files: a zip in the tree opened as a folder, its files read, changed and saved
 // back into it, and a large text stored on the window's side, its changes following it there and its
 // gutter's marks worked out there, the tabs opened again as the tree starts, and a tab back at its
-// saved text, however it got back, marked saved; and the changes not saved kept as a window closes.
+// saved text, however it got back, marked saved; and the changes not saved retained as a window closes.
 
 import { editing, openFile, setVimKeys, vimKeys } from "../../gui/src-js/edit.js";
 import { invoke } from "../../gui/src-js/bridge.js";
@@ -22,7 +22,7 @@ test("a tab back at its saved text shows no change, by a key taken back, an inpu
   view.goTo(0, 5);
   view.focus();
   await ui.type("x");
-  assert.ok(changed(), "a letter typed is a change");
+  assert.ok(changed(), "a character typed is a change");
   await ui.key("Backspace");
   assert.ok(!changed(), "taken back, none");
   // An input method's character, composed and then taken back.

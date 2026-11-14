@@ -9,14 +9,14 @@ const { test, assert } = window.__harness;
 
 const key = (name, modifiers = {}) => ({ key: name, shiftKey: false, altKey: false, ctrlKey: false, metaKey: false, ...modifiers });
 
-test("a letter sends itself, and with Alt it is led by Escape", () => {
+test("a character sends itself, and with Alt it is led by Escape", () => {
   assert.equal(keyText(key("a"), false), "a");
   assert.equal(keyText(key("é"), false), "é");
   assert.equal(keyText(key("a", { altKey: true }), false), "\x1ba");
   assert.equal(keyText(key("a", { metaKey: true }), false), null, "the system's own key is left alone");
 });
 
-test("Ctrl and a letter send its control code, and Ctrl and space, slash and question mark theirs", () => {
+test("Ctrl and a character send its control code, and Ctrl and space, slash and question mark theirs", () => {
   assert.equal(keyText(key("c", { ctrlKey: true }), false), "\x03");
   assert.equal(keyText(key("[", { ctrlKey: true }), false), "\x1b");
   assert.equal(keyText(key(" ", { ctrlKey: true }), false), "\x00");
@@ -24,7 +24,7 @@ test("Ctrl and a letter send its control code, and Ctrl and space, slash and que
   assert.equal(keyText(key("1", { ctrlKey: true }), false), null);
 });
 
-test("the arrows send the cursor's codes, the application's form where it asks, and with a key pressed the kept form", () => {
+test("the arrows send the cursor's codes, the application's form where it asks, and with a key pressed the retained form", () => {
   assert.equal(keyText(key("ArrowUp"), false), "\x1b[A");
   assert.equal(keyText(key("ArrowUp"), true), "\x1bOA");
   assert.equal(keyText(key("ArrowLeft", { ctrlKey: true }), false), "\x1b[1;5D");

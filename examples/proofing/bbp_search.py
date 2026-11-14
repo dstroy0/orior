@@ -14,7 +14,7 @@ WHY THE CONTROL COMES FIRST
 
 A relation search returns a vector for any input whatever, because at finite precision large enough
 integers always cancel something. The screening in relation_search rejects those, but a screen that
-has never been shown passing a true formula is worth nothing - the lesson of every other
+has never been displayed passing a true formula is worth nothing - the lesson of every other
 instrument in this tree tonight.
 
 So the pipeline is aimed first at pi with b=16, s=1, n=8, where the answer has been known since 1996:
@@ -143,7 +143,7 @@ def _check(product):
     if found_ok and known_ok:
         print("  CONTROL PASSES. The search returns an exact relation, and the known formula is")
         print("  exact on the same values. The lattice being searched does contain")
-        print("  the answer. The screen has now been shown passing a true relation as well as")
+        print("  the answer. The screen has now been displayed passing a true relation as well as")
         print("  rejecting false ones, the last thing it needed before being pointed anywhere new.")
         return 0
     if known_ok and not found_ok:
@@ -169,7 +169,7 @@ def main():
                         help="run on the card instead of the host")
     given = parser.parse_args()
 
-    # THE ENGINE IS CHOSEN HERE AND NOWHERE ELSE. One import, one name, handed down through every
+    # THE ENGINE IS CHOSEN HERE AND NOWHERE ELSE. One import, one name, passed down through every
     # call below. Nothing inspects an operand to decide, and nothing can change it from another
     # module. The line that ran is the line that says which machine ran it.
     if given.device:

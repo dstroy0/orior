@@ -239,10 +239,10 @@ def avalanche(rounds, samples, seed=1):
     return leak, swing
 
 
-def place(kind, seed=0x5EED):
+def place(type, seed=0x5EED):
     """A direction per output bit. Spiral spreads them evenly; index stacks them by position."""
     out = []
-    if kind == "index":
+    if type == "index":
         for bit in range(256):
             out.append(
                 (
@@ -270,7 +270,7 @@ def random_place(seed):
 
 
 def summary(rounds, samples):
-    """One line: the leak at this round count, and how far it stands above sampling noise."""
+    """One line: the leak at this round count, and how far it is above sampling noise."""
     leak, swing = avalanche(rounds, samples)
     floor = 0.5 / math.sqrt(samples)
     strongest = max(leak)

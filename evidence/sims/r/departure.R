@@ -88,7 +88,7 @@ orior_departure <- function(seats, seed = 0L,
   }
 
   ratios <- dead[shared] / live[shared]
-  # Sorted by how often each symbol occurs, most frequent first, then the back half taken. That
+  # Sorted by how often each symbol occurs, commonest first, then the back half taken. That
   # back half is the rare half and it is the only part quoted anywhere in this work. Ties on count
   # fall by ratio, descending, because the reference sorts (count, ratio) pairs. A tie straddling
   # the midpoint would otherwise seat a different symbol in the rare half than the reference does.

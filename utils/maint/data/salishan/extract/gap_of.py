@@ -18,7 +18,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 def main():
     stem, number, wanted = sys.argv[1], int(sys.argv[2]), sys.argv[3]
-    # The paper as page_text reads it, its fonts mended or mapped, and a ciphered face reads as letters.
+    # The paper as page_text reads it, its fonts mended or mapped, and a ciphered face reads as characters.
     document = paper_document(stem)[0]
     textpage = document[number - 1].get_textpage()
     glyphs = []

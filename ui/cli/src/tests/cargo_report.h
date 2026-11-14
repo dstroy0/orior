@@ -21,7 +21,7 @@ typedef struct CliCargoReportCfg CliCargoReportCfg;
 int cli_cargo_result_line(const CliCargoReportLineCfg *args);
 
 // each failed test's message and the place it panicked, a path as the compiler wrote it, NULL for none, and a line
-// counted from 1, from the harness's report of its failures, handed to `each`, a test failing twice reported by its
+// counted from 1, from the harness's report of its failures, passed to `each`, a test failing twice reported by its
 // last
 void cli_cargo_failures_each(const CliCargoReportSizeOutCfg *args);
 

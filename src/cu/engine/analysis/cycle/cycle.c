@@ -8,8 +8,8 @@
 
 _Static_assert(ORIOR_EXACT_LIMBS >= 2u, "cycle: a record constant is 64 bits and needs two limbs");
 
-#define CYCLE_CHECK(condition_, evacaddr_, error_, kind_)                                                              \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_CYCLE, (unsigned int)__LINE__, (const void *)(evacaddr_),  \
+#define CYCLE_CHECK(condition_, evacaddr_, error_, type_)                                                              \
+    engine_error_check((condition_), (type_), ENGINE_MODULE_CYCLE, (unsigned int)__LINE__, (const void *)(evacaddr_),  \
                        (error_))
 
 static int cycle_host_fits(const OriorExactInteger *value, unsigned int limbs)
@@ -440,7 +440,7 @@ static unsigned int cycle_host_bit_length(unsigned long long value)
     return length;
 }
 
-// 1 where a sum request is whole: records and sums named, a whole number of runs of at most 2^32 records, the field
+// 1 where a sum request is whole: records and sums named, a whole number of runs of at max 2^32 records, the field
 // inside its record, and the sums wide enough for the field and the run's count beside it. Shared by both routes
 int cycle_record_sum_valid(const CycleRecordSumRequest *request)
 {
@@ -509,7 +509,7 @@ long cycle_record_sum_host(const CycleRecordSumRequest *request)
     return (long)request->count;
 }
 
-// 1 where a sort request is whole: records and order named, a whole number of runs, at most 2^32 records so that every
+// 1 where a sort request is whole: records and order named, a whole number of runs, at max 2^32 records so that every
 // lane is a 32-bit index, and the field inside its record. Shared by both routes
 int cycle_record_sort_valid(const CycleRecordSortRequest *request)
 {
@@ -554,7 +554,7 @@ long cycle_record_sort_host(const CycleRecordSortRequest *request)
     {
         return CYCLE_ERROR;
     }
-    // a run of at most 2^32 records is stored in host memory, its count below SIZE_MAX
+    // a run of at max 2^32 records is stored in host memory, its count below SIZE_MAX
     unsigned int *const spare = (unsigned int *)malloc((size_t)request->group * sizeof(unsigned int));
     if (!CYCLE_CHECK(spare != NULL, request, error, ENGINE_ERROR_RESOURCE))
     {

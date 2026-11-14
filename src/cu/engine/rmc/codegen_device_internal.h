@@ -25,10 +25,10 @@ int layout_same(const EngineRecordLayout *left, const EngineRecordLayout *right)
 // the threads a block of the code generator's kernels runs
 #define CODEGEN_THREADS 256u
 
-// the most a scan or a selection counts, as cub takes its counts
+// the max a scan or a selection counts, as cub takes its counts
 #define CODEGEN_COUNT_MAX 0x7FFFFFFFull
 
-// what the steps leave for the lane's own forms, a word each: the most temporaries, 64-bit temporaries and predicates
+// what the steps leave for the lane's own forms, a word each: the max temporaries, 64-bit temporaries and predicates
 // any step took, 1 where any reads the tables, where a form breaks the lane and where a step is one the lane does not
 // use, and what the last step left taken in each bank, which the lane's own forms go on from
 enum CodegenSummary
@@ -104,13 +104,13 @@ __global__ void codegen_prologue_epilogue(IrProgram program, const unsigned int 
                                           unsigned int first, unsigned int last, int scheduled, unsigned int states,
                                           CodegenParts *parts, MachineInstr *items);
 
-// the result of a schedule: the forms it took, the states, the most cost one state chains and the forms alone over the
+// the result of a schedule: the forms it took, the states, the max cost one state chains and the forms alone over the
 // budget
 struct ScheduleEnd
 {
     unsigned long long count;
     unsigned int states;
-    unsigned int maximum;
+    unsigned int max;
     unsigned int over;
 };
 

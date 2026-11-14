@@ -4,7 +4,7 @@
 // it makes, written out whole, so that the tables it unpacks for one architecture are read off them: the
 // instruction set, stored packed in one block, and the latencies, copied out of the buffer they are unpacked into
 //
-// Built as a shared library and loaded before the C library on Linux (LD_PRELOAD), it stands in for malloc, calloc,
+// Built as a shared library and loaded before the C library on Linux (LD_PRELOAD), it is in for malloc, calloc,
 // realloc, free and memcpy. It records each live block's size and writes a record to stdout as a block of at least
 // TABLES_LEAST bytes is freed, and for each such block still allocated as the program ends: a line `<ptr 0x0 size>`
 // with the block's address in hex and its byte count in decimal, then the block's `size` bytes. Each copy writes a

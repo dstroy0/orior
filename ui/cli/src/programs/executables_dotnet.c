@@ -8,7 +8,7 @@
 #include "../text/text.h"
 #include "executables_internal.h"
 
-// the most places the .NET runtime is looked for, and the most numbers of a version read
+// the max places the .NET runtime is looked for, and the max numbers of a version read
 #define CLI_DOTNET_POSITIONS 8u
 
 #define CLI_DOTNET_NUMBERS 8u

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // ksa.h: the approvals of a file's seal, stored beside it as `<file>.ksa`: a list, each approval one approver's
 // signature, by one of the schemes the table of schemes names, over KSA_CONTEXT and then the seal's trailer, which
-// contains the file's size, the most bytes of a leaf, the count of leaves and the root. An approver's keys are stored
+// contains the file's size, the max bytes of a leaf, the count of leaves and the root. An approver's keys are stored
 // as k-files too, the secret `KSA_SECRET_KIND` and the public `KSA_PUBLIC_KIND`, each the scheme's tag then its bytes.
 //
-//     the k-file head (krep_head.h), kind KSA_KIND
+//     the k-file head (krep_head.h), type KSA_KIND
 //     the count of approvals, one word, low byte first
 //     each approval in turn: the scheme's tag, 4 bytes; the bytes of its public key and of its signature, one word
 //     each, low byte first; the public key; the signature
@@ -30,11 +30,11 @@ extern "C"
 // the bytes every signature is over before the seal's trailer, its zero not among them
 #define KSA_CONTEXT "orior ksg approval 1"
 #define KSA_TAG_BYTES 4u
-// the most approvals of one seal, and the most bytes of any scheme's secret, public key and signature
-#define KSA_APPROVALS_MOST 64u
-#define KSA_SECRET_MOST 64u
-#define KSA_KEY_MOST 64u
-#define KSA_SIGNATURE_MOST 128u
+// the max approvals of one seal, and the max bytes of any scheme's secret, public key and signature
+#define KSA_APPROVALS_MAX 64u
+#define KSA_SECRET_MAX 64u
+#define KSA_KEY_MAX 64u
+#define KSA_SIGNATURE_MAX 128u
 
     // One scheme: its tag and name, the bytes of its secret, its public key and its signature, its public key made
     // from a secret, a message signed, and a signature verified against its public key and message: 1, or 0
@@ -57,8 +57,8 @@ extern "C"
         char tag[KSA_TAG_BYTES];
         unsigned int key_bytes;
         unsigned int signature_bytes;
-        unsigned char key[KSA_KEY_MOST];
-        unsigned char signature[KSA_SIGNATURE_MOST];
+        unsigned char key[KSA_KEY_MAX];
+        unsigned char signature[KSA_SIGNATURE_MAX];
     } KsaApproval;
 
     // the scheme of `name`, or of the 4 bytes of `tag`: it, or NULL where the table has none

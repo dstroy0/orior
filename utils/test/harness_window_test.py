@@ -3,7 +3,7 @@
 """harness.py window test: the window's suite. On Windows the window is the released window in C and is driven as the
 command line drives it, --driver cli: ui/test/cli_sweep.py starts it on a tree and a home of its own on the display
 --monitor numbers, DISPLAY1 where none is, and sends it every command and option of impero, each command that acts
-in the window given its settle and pictured; --only keeps the forms holding its text. The run fails where the window
+in the window given its settle and pictured; --only retains the forms holding its text. The run fails where the window
 ends under a form, a form crashes, or one does not end in its time.
 
 The other drivers run ui/test/src, each module of the window tested by its own file, in a window whose page is loaded
@@ -13,7 +13,7 @@ harness's Linux image on this machine. On macOS, where the web view is WKWebView
 Mac2 driver by the tests of ui/test/appium, through its accessibility tree (harness_appium.py).
 
     harness.py window test [--only TEXT]... [--driver cli|cdp|webdriver|appium] [--docker] [--sanitize address|thread]
-                           [--monitor N] [--monitors] [--no-servers] [--keep-window] [--stop-servers] [--trees FOLDER]
+                           [--monitor N] [--monitors] [--no-servers] [--retain-window] [--stop-servers] [--trees FOLDER]
 
 --sanitize builds the window's C side and links the window under that sanitizer, with clang's runtime, and the window
 runs with its reports written to sanitizer.<pid> in the run's folder; a report fails the run. On Windows the released
@@ -62,9 +62,9 @@ WATCH = "http://localhost:6080/vnc.html?autoconnect=true&resize=scale"
 
 
 def table(path):
-    with open(path, encoding="utf-8") as kept:
-        head = kept.readline().rstrip("\n").split("\t")
-        rows = [line.rstrip("\n").split("\t") for line in kept if line.strip()]
+    with open(path, encoding="utf-8") as retained:
+        head = retained.readline().rstrip("\n").split("\t")
+        rows = [line.rstrip("\n").split("\t") for line in retained if line.strip()]
         return [dict(zip(head, cells + [""] * (len(head) - len(cells)))) for cells in rows]
 
 
@@ -143,7 +143,7 @@ def options_of(words):
     parser.add_argument("--monitor", type=int, default=int(os.environ.get("ORIOR_TEST_MONITOR") or 0), help="the display's number, as the system's settings give it")
     parser.add_argument("--monitors", action="store_true", help="the displays listed, by the number --monitor takes")
     parser.add_argument("--no-servers", action="store_true", help="no test server started here: each is told in the environment")
-    parser.add_argument("--keep-window", action="store_true")
+    parser.add_argument("--retain-window", action="store_true")
     parser.add_argument("--debugger", action="store_true", help="on Windows, the window run under cdb: where it faults, every thread's stack goes to the run's window.log")
     parser.add_argument("--stop-servers", action="store_true", help="every test server taken away")
     parser.add_argument("--trees", default="", help="the folder the run's tree is copied into, where the run's folder lies on a share each file's open crosses: the container's own disk")
@@ -186,7 +186,7 @@ def made_line(number):
 
 def bench_fetched():
     """The files the window is measured on, each fetched where it is not there whole, and the paged file made; the
-    folder, or the error that kept one from it."""
+    folder, or the error that retained one from it."""
     os.makedirs(BENCH_FOLDER, exist_ok=True)
     for row in table(BENCH_TABLE):
         path = os.path.join(BENCH_FOLDER, row["name"])
@@ -349,18 +349,18 @@ def sanitizer_settings(sanitizer, run):
 
 
 def sanitizer_said(run, report):
-    """Each file the sanitizer wrote in the run's folder: how many reports it holds, by kind, into the report's
+    """Each file the sanitizer wrote in the run's folder: how many reports it holds, by type, into the report's
     sayings."""
     for name in sorted(os.listdir(run)):
         if not name.startswith("sanitizer."):
             continue
-        kinds = {}
-        with open(os.path.join(run, name), encoding="utf-8", errors="replace") as kept:
-            for line in kept:
+        types = {}
+        with open(os.path.join(run, name), encoding="utf-8", errors="replace") as retained:
+            for line in retained:
                 if "ERROR: " in line or "WARNING: " in line:
-                    kind = line.split(": ", 2)[-1].split(" ")[0].strip()
-                    kinds[kind] = kinds.get(kind, 0) + 1
-        told = ", ".join("%d %s" % (count, kind) for kind, count in sorted(kinds.items(), key=lambda one: -one[1]))
+                    type = line.split(": ", 2)[-1].split(" ")[0].strip()
+                    types[type] = types.get(type, 0) + 1
+        told = ", ".join("%d %s" % (count, type) for type, count in sorted(types.items(), key=lambda one: -one[1]))
         report.said.append("the sanitizer wrote %s: %s" % (os.path.join(run, name), told or "no report"))
 
 
@@ -456,7 +456,7 @@ def inside_container(passed):
 
 
 def docker_words(passed, env, keys):
-    """The words of docker run for the Linux image: the tree's parts read at /host, the volumes that keep the
+    """The words of docker run for the Linux image: the tree's parts read at /host, the volumes that retain the
     container's copy, its builds and its crates, the runs' folder here where its reports go, the servers' settings as a
     container reaches this machine, and the ssh key's folder where the ssh server came up."""
     words = ["run", "--rm", "--init", "--shm-size=1g", "--add-host", "host.docker.internal:host-gateway", "-p", "127.0.0.1:6080:6080"]
@@ -524,11 +524,11 @@ def cli_driven(options):
     code = subprocess.run(words, stdin=subprocess.DEVNULL).returncode
     runs = findroot.at("build", "ui_test", "cli_sweep")
     latest = max((os.path.join(runs, one) for one in os.listdir(runs)), key=os.path.getmtime) if os.path.isdir(runs) else ""
-    kept = os.path.join(latest, "cli_sweep.json")
-    if code or not os.path.isfile(kept):
+    retained = os.path.join(latest, "cli_sweep.json")
+    if code or not os.path.isfile(retained):
         print("the sweep did not end with its report (exit %d)" % code)
         return 1
-    with open(kept, encoding="utf-8") as handle:
+    with open(retained, encoding="utf-8") as handle:
         records = json.load(handle)
     broken = [one for one in records if "window_ended" in one or one.get("late") or (isinstance(one.get("code"), int) and (one["code"] < 0 or one["code"] >= 0xC0000000))]
     print("window test: %d forms, %d where the window ended, crashed or did not end; %s" % (len(records), len(broken), os.path.join(latest, "cli_sweep.md")))
@@ -563,7 +563,7 @@ def cmd_window_test(a):
     run = os.path.join(RUNS, stamp())
     tree = os.path.join(run, "tree")
     if options.trees:
-        # the trees of the runs before taken away: one run's tree stands in the folder at a time
+        # the trees of the runs before taken away: one run's tree is in the folder at a time
         shutil.rmtree(options.trees, ignore_errors=True)
         tree = os.path.join(options.trees, os.path.basename(run), "tree")
     os.makedirs(run, exist_ok=True)
@@ -678,17 +678,17 @@ def drive(options, run, tree, env, benched, report):
         report.said.append("the window's debugging port: %s" % error)
     finally:
         harness_input.stop_started()
-        if options.keep_window:
-            # the window handed on as a person's own: its calls no longer watched, and its controls close, minimize and
+        if options.retain_window:
+            # the window passed on as a person's own: its calls no longer watched, and its controls close, minimize and
             # maximize it and its links and pickers open as they do outside a run
             try:
-                kept = harness_cdp.Connection(window.page)
-                kept.call("Runtime.enable", timeout=10)
-                kept.evaluate("import(location.origin + '/bridge.js').then((bridge) => bridge.watchCalls(null))", timeout=10)
-                kept.close()
+                retained = harness_cdp.Connection(window.page)
+                retained.call("Runtime.enable", timeout=10)
+                retained.evaluate("import(location.origin + '/bridge.js').then((bridge) => bridge.watchCalls(null))", timeout=10)
+                retained.close()
             except (RuntimeError, TimeoutError, ConnectionError, OSError) as error:
-                print("  the kept window's calls are still watched: %s" % error, flush=True)
-            print("  the window is kept open on port %d" % window.port, flush=True)
+                print("  the retained window's calls are still watched: %s" % error, flush=True)
+            print("  the window is retained open on port %d" % window.port, flush=True)
         else:
             window.close()
             left = test_windows_ended(program)
@@ -700,5 +700,5 @@ def drive(options, run, tree, env, benched, report):
 def register(window):
     """The window suite's command, added to the window group."""
     p = window.add_parser("test", help="the window's suite, ui/test/src, run in a window of the run's own; --help lists its options")
-    # the suite's options are the command's own: main hands them over unparsed, in their order
+    # the suite's options are the command's own: main passes them over unparsed, in their order
     p.set_defaults(fn=cmd_window_test, takes_extra=True)

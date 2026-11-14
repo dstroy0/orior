@@ -6,9 +6,9 @@
 // pile of equal places whose ties pass 2 takes in batches, drawn small frames, and 6031 points against 6031 in a
 // 64 x 256 x 256 view, under the weights 16, 1, 1 and 1, 1, 1. The host numbers the support components by a breadth
 // first walk in gate order and finds them the device's; each gate pair's weight is K - cost, K one more than its
-// component's summed costs, and at least 1. The chosen links are gate pairs, one to one, as many as the most any
-// matching of the gate admits (augmenting paths on the host); on every component of at most 25 gate pairs an
-// enumeration of every matching finds the chosen links' count and cost the most links, then the least cost. The
+// component's summed costs, and at least 1. The chosen links are gate pairs, one to one, as many as the max any
+// matching of the gate admits (augmenting paths on the host); on every component of at max 25 gate pairs an
+// enumeration of every matching finds the chosen links' count and cost the max links, then the least cost. The
 // crossing counts are recounted on the host. A synthetic chain written as .points and .drift runs through
 // sort_link_set: its .links reads back with its header, the predictions p = x + d_t + (x - x_prev - d_{t-1}), their
 // flags, and the chosen links following each body. A .drift of other weights errors and leaves no .links, and so does
@@ -17,7 +17,7 @@
 // what a test covers, and the output reports so. O7's pooling is checked on a hand count, on two counts whose cross
 // products pass 64 bits, on its errors and on drawn counts against the host's min-max form of the regression; a drawn
 // sample of 40 frames sorts plain and with O7, and the pooled .links is checked against the plain one frame pair by
-// frame pair: each cost its distance's level, K - cost, the chosen links the most links at the least cost on every
+// frame pair: each cost its distance's level, K - cost, the chosen links the max links at the least cost on every
 // component, the crossings recounted. The test is one job on the device's tessera daemon, submitted before its first
 // device work.
 //
@@ -45,7 +45,7 @@
 
 #define SORT_TEST_POINTS_MAX 6031u
 
-// a component of at most 25 gate pairs is enumerated whole; a drawn frame of at most 5 points against 5 has at most
+// a component of at max 25 gate pairs is enumerated whole; a drawn frame of at max 5 points against 5 has at max
 // 25. Every drawn component is
 #define SORT_TEST_ENUMERATED_MAX 25u
 
@@ -72,15 +72,15 @@
 // each
 #define SORT_TEST_POINTS_HEAD_WORDS (6u + 2u + (2u * SCAN_READINGS))
 
-// O7's pooling: drawn counts of at most 30 distances, and the host's room for a sample's distinct distances
+// O7's pooling: drawn counts of at max 30 distances, and the host's room for a sample's distinct distances
 #define SORT_TEST_POOL_DRAWS 300u
 
 #define SORT_TEST_POOL_DRAWN_MAX 30u
 
 #define SORT_TEST_DISTANCES_MAX 1024u
 
-// O7's drawn sample: 40 frames of at most 5 points in a 2 x 8 x 8 view, frame 7 empty; a frame pair has at most 25
-// gate pairs, and its .links at most 8 + 39 * (11 + 4 * 5 + 7 * 25) = 8042 words
+// O7's drawn sample: 40 frames of at max 5 points in a 2 x 8 x 8 view, frame 7 empty; a frame pair has at max 25
+// gate pairs, and its .links at max 8 + 39 * (11 + 4 * 5 + 7 * 25) = 8042 words
 #define SORT_TEST_FIRST_FRAMES 40u
 
 #define SORT_TEST_FIRST_POINTS 5u
@@ -178,7 +178,7 @@ typedef struct
     unsigned long long best_cost;
 } SortTestEnumeration;
 
-// every matching of a component's gate pairs, each pair taken or passed over: the most links, then the least cost
+// every matching of a component's gate pairs, each pair taken or passed over: the max links, then the least cost
 static void sort_test_enumerate(SortTestEnumeration *enumeration, unsigned int at, unsigned int taken,
                                 unsigned long long cost)
 {
@@ -233,13 +233,13 @@ static int sort_test_augment(SortTestAugment *augment, unsigned int source, unsi
     return 0;
 }
 
-// the most links any matching of the gate admits, by augmenting paths; the gate is in source order
+// the max links any matching of the gate admits, by augmenting paths; the gate is in source order
 static unsigned int sort_test_max_links(const SortLinks *links, unsigned int sources, unsigned int targets)
 {
     unsigned int *const start = (unsigned int *)calloc((size_t)sources + 2u, sizeof(unsigned int));
     unsigned int *const matched = (unsigned int *)malloc(((size_t)targets + 1u) * sizeof(unsigned int));
     unsigned int *const seen = (unsigned int *)malloc(((size_t)targets + 1u) * sizeof(unsigned int));
-    unsigned int maximum = SORT_TEST_NONE;
+    unsigned int max = SORT_TEST_NONE;
     if ((start != NULL) && (matched != NULL) && (seen != NULL))
     {
         for (unsigned int pair = 0u; pair < links->pairs; pair += 1u)
@@ -256,20 +256,20 @@ static unsigned int sort_test_max_links(const SortLinks *links, unsigned int sou
             seen[target] = SORT_TEST_NONE;
         }
         SortTestAugment augment = {links, start, matched, seen};
-        maximum = 0u;
+        max = 0u;
         for (unsigned int source = 0u; source < sources; source += 1u)
         {
-            maximum += (unsigned int)sort_test_augment(&augment, source, source);
+            max += (unsigned int)sort_test_augment(&augment, source, source);
         }
     }
     free(start);
     free(matched);
     free(seen);
-    return maximum;
+    return max;
 }
 
 // one pair through the sort, checked against the host: the gate by brute force, the components by a breadth first walk,
-// K and the weights, the chosen links, the most links, the enumerated matchings and the crossings
+// K and the weights, the chosen links, the max links, the enumerated matchings and the crossings
 static int sort_test_prove(const SortTestPair *pair, SortLinks *links, SortTestSums *sums)
 {
     const SortPairRequest request = {{pair->weights[0], pair->weights[1], pair->weights[2]},
@@ -761,11 +761,11 @@ static void sort_test_small_draws(SimResults *results, SortLinks *links)
     }
     sim_check(results, ok, "small drawn frames: the gate, K, the matching and the crossings are the host's");
     sim_check(results, sums.enumerated == sums.components,
-              "every small drawn component is enumerated, and the chosen links are its most links at its least cost");
+              "every small drawn component is enumerated, and the chosen links are its max links at its least cost");
     sort_test_sums_print(results, "small drawn frames", &sums);
 }
 
-// 6031 points against 6031, the most a frame of the scanned set contains, in a 64 x 256 x 256 view: most targets lie
+// 6031 points against 6031, the max a frame of the scanned set contains, in a 64 x 256 x 256 view: max targets lie
 // near a prediction and the rest are drawn anywhere
 static void sort_test_large(SimResults *results, SortLinks *links)
 {
@@ -882,14 +882,14 @@ static void sort_test_errors(SimResults *results, SortLinks *links)
 
 static void sort_test_reserve_bytes(SimResults *results)
 {
-    const unsigned long long maximum = sort_reserve_bytes(SORT_TEST_POINTS_MAX);
-    sim_check(results, (maximum != 0ull) && ((maximum % DEVICE_POOL_PAGE_BYTES) == 0ull),
+    const unsigned long long max = sort_reserve_bytes(SORT_TEST_POINTS_MAX);
+    sim_check(results, (max != 0ull) && ((max % DEVICE_POOL_PAGE_BYTES) == 0ull),
               "the gate's pool for 6031 points is whole pages");
     sim_check(results, sort_reserve_bytes(0u) == 0ull, "no points reserve nothing");
     sim_check(results, sort_reserve_bytes(SORT_COUNT_MAX + 1u) == 0ull,
               "points past the matching's bound reserve nothing");
     mmgr_line_put(&results->line, "  the gate reserves ");
-    mmgr_line_decimal(&results->line, maximum, 1u);
+    mmgr_line_decimal(&results->line, max, 1u);
     mmgr_line_put(&results->line, " bytes for 6031 points a frame, ");
     mmgr_line_decimal(&results->line, sort_reserve_bytes(1u), 1u);
     mmgr_line_put(&results->line, " for one\n");
@@ -1224,20 +1224,20 @@ static void sort_test_walk(SimResults *results, const char *set)
     sort_test_put(&words, 0xDEADu);
     ok = ok && sort_test_file(set, "weighed", ".links", &words) && sort_test_file(set, "wide", ".links", &words);
     sim_check(results, ok, "the synthetic set is written: a chain, a chain of other weights, and a wide pair");
-    char shown[ENGINE_PATH_CAPACITY];
-    if (ok && engine_sample_path(shown, sizeof(shown), set, "chain", ".links"))
+    char displayed[ENGINE_PATH_CAPACITY];
+    if (ok && engine_sample_path(displayed, sizeof(displayed), set, "chain", ".links"))
     {
         mmgr_line_put(&results->line, "  the chain's .links, by the restated engine_sample_path: ");
-        mmgr_line_put(&results->line, shown);
+        mmgr_line_put(&results->line, displayed);
         mmgr_line_put(&results->line, "\n");
     }
-    unsigned int maximum = 0u;
+    unsigned int max = 0u;
     char *const every[3] = {(char *)"chain", (char *)"weighed", (char *)"wide"};
     char *const missing[1] = {(char *)"absent"};
-    sim_check(results, ok && sort_points_max(set, every, 3u, &maximum) && (maximum == SORT_TEST_BODIES),
-              "the most points a frame over the synthetic set is 4");
-    sim_check(results, ok && (sort_points_max(set, missing, 1u, &maximum) == 0),
-              "a sample with no .points gives no most points a frame");
+    sim_check(results, ok && sort_points_max(set, every, 3u, &max) && (max == SORT_TEST_BODIES),
+              "the max points a frame over the synthetic set is 4");
+    sim_check(results, ok && (sort_points_max(set, missing, 1u, &max) == 0),
+              "a sample with no .points gives no max points a frame");
     sim_flush(results);
     EngineError error;
     memset(&error, 0, sizeof(error));
@@ -1277,7 +1277,7 @@ static void sort_test_walk(SimResults *results, const char *set)
 }
 
 // the distances' levels as the host works them, apart from the pooling: a distance's pooled share is the least, over
-// every start at or before it, of the most, over every end at or after it, of the summed firsts over the summed pairs
+// every start at or before it, of the max, over every end at or after it, of the summed firsts over the summed pairs
 // from start to end (the min-max form of the regression that never rises), and its level is the number of distinct
 // shares above its own. The sums are below 2^32. Every cross product fits 64 bits
 static void sort_test_levels(const SortFirstCount *counts, unsigned int count, unsigned long long *levels)
@@ -1400,13 +1400,13 @@ static void sort_test_first_pool(SimResults *results)
         }
         sort_test_levels(drawn, count, host);
         const int pooled = sort_first_pool(drawn, count, &blocks, &levels);
-        unsigned long long maximum = 0ull;
+        unsigned long long max = 0ull;
         for (unsigned int at = 0u; at < count; at += 1u)
         {
             ok = ok && pooled && (drawn[at].level == host[at]);
-            maximum = (host[at] > maximum) ? host[at] : maximum;
+            max = (host[at] > max) ? host[at] : max;
         }
-        ok = ok && (levels == (maximum + 1ull)) && (blocks >= levels) && (blocks <= count);
+        ok = ok && (levels == (max + 1ull)) && (blocks >= levels) && (blocks <= count);
         distances += count;
         all_blocks += blocks;
         all_levels += levels;
@@ -1431,7 +1431,7 @@ typedef struct
     int lags[SORT_TEST_FIRST_FRAMES][3];
 } SortTestDrawn;
 
-// O7's drawn sample: each frame at most 5 points on distinct voxels of the view, frame 7 none, and each frame after
+// O7's drawn sample: each frame at max 5 points on distinct voxels of the view, frame 7 none, and each frame after
 // the first a lag drawn in -1 to 1 on each axis
 static void sort_test_first_draw(SortTestDrawn *drawn)
 {
@@ -1587,7 +1587,7 @@ typedef struct
 
 // one frame pair of the pooled .links against the plain one: the pair's counts, its source records word for word, each
 // gate pair's source, target, component and flags but the chosen one the plain's, its cost its distance's level, its
-// weight K - cost, the chosen links one to one and as many as any matching admits, each component's most links at its
+// weight K - cost, the chosen links one to one and as many as any matching admits, each component's max links at its
 // least cost, and the crossings recounted
 static int sort_test_first_pair(const SortTestDrawn *drawn, unsigned int frame, const unsigned int *plain,
                                 const unsigned int *pooled, const SortFirstCount *counts, unsigned int distinct,
@@ -1789,13 +1789,13 @@ static void sort_test_first_walk(SimResults *results, const char *set)
     ok = ok && (at == plain_count);
     sim_check(results, ok,
               "every pooled frame pair is the host's: the plain pair's gate and source records, each cost"
-              " its distance's level, K - cost, and the chosen links the most links at the least cost");
+              " its distance's level, K - cost, and the chosen links the max links at the least cost");
     sim_check(results, ok && (sums.enumerated == sums.components), "every drawn component is enumerated");
     sim_check(results, sums.changed != 0ull, "O7 changes chosen links of the drawn sample's first pass");
-    unsigned long long maximum = 0ull;
+    unsigned long long max = 0ull;
     for (unsigned int one = 0u; ok && (one < distinct); one += 1u)
     {
-        maximum = (levels[one] > maximum) ? levels[one] : maximum;
+        max = (levels[one] > max) ? levels[one] : max;
     }
     mmgr_line_put(&results->line, "  O7's drawn sample: ");
     mmgr_line_decimal(&results->line, sums.pairs, 1u);
@@ -1804,7 +1804,7 @@ static void sort_test_first_walk(SimResults *results, const char *set)
     mmgr_line_put(&results->line, " gate pairs at ");
     mmgr_line_decimal(&results->line, ok ? distinct : 0u, 1u);
     mmgr_line_put(&results->line, " distances pooled to ");
-    mmgr_line_decimal(&results->line, ok ? (maximum + 1ull) : 0ull, 1u);
+    mmgr_line_decimal(&results->line, ok ? (max + 1ull) : 0ull, 1u);
     mmgr_line_put(&results->line, " levels; ");
     mmgr_line_decimal(&results->line, sums.components, 1u);
     mmgr_line_put(&results->line, " components, all enumerated; ");

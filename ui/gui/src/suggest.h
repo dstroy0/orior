@@ -14,9 +14,9 @@ typedef struct GuiSuggestRasterCfg GuiSuggestRasterCfg;
 typedef struct GuiSuggestXCfg GuiSuggestXCfg;
 typedef struct GuiSuggestCfg GuiSuggestCfg;
 
-// the sizes in the page's pixels: a row's height, the list's least and most width, 16rem and 26rem, the detail pane's
-// width, 18rem, and its most height, 14rem, a table's mark, 0.55rem, a row's padding across, 0.55rem, the gap between a
-// row's parts, 0.5rem, the list's padding down, 0.2rem, how far the list's left stands before the prefix's cell, and
+// the sizes in the page's pixels: a row's height, the list's least and max width, 16rem and 26rem, the detail pane's
+// width, 18rem, and its max height, 14rem, a table's mark, 0.55rem, a row's padding across, 0.55rem, the gap between a
+// row's parts, 0.5rem, the list's padding down, 0.2rem, how far the list's left is before the prefix's cell, and
 // the detail's padding
 #define GUI_SUGGEST_ROW 22
 #define GUI_SUGGEST_MIN 256
@@ -31,7 +31,7 @@ typedef struct GuiSuggestCfg GuiSuggestCfg;
 #define GUI_SUGGEST_DETAIL_PAD_X 11
 #define GUI_SUGGEST_DETAIL_PAD_Y 6
 
-// The completion: the panel shown, NULL for none, its rows read from the panels; and the list's rectangle, the rows'
+// The completion: the panel displayed, NULL for none, its rows read from the panels; and the list's rectangle, the rows'
 // and the detail pane's, where they were drawn last
 typedef struct
 {
@@ -43,8 +43,8 @@ typedef struct
 
 // a completion showing nothing
 void gui_suggest_init(const GuiSuggestCfg *args);
-// whether the pixel at x, y stands in the list or its detail pane; and the row's place among the items at x, y into
-// `at`: 1, or 0 where the pixel stands on no row
+// whether the pixel at x, y is in the list or its detail pane; and the row's place among the items at x, y into
+// `at`: 1, or 0 where the pixel is on no row
 int gui_suggest_holds(const GuiSuggestXCfg *args);
 int gui_suggest_row_at(const GuiSuggestXCfg *args);
 // the list drawn for the prefix whose first cell is `anchor`, under its row inside `bounds` at `scale`, the detail

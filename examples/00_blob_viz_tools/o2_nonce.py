@@ -21,10 +21,10 @@ WHERE A SAVING COULD COME FROM, AND THE HOOK THAT WOULD SHOW IT
 
 A saving needs a necessary condition that is CHEAPER than a full hash and that a real winner always
 passes. `--cheap` names one, evaluated without hashing, asked as the first question so only the
-candidates it keeps are ever hashed. If it prunes, the hash count drops below the scan and the ratio
+candidates it retains are ever hashed. If it prunes, the hash count drops below the scan and the ratio
 prints under one. If it is not actually necessary and drops the true winner, the positive control
 below fails, and the run reports the condition unsound instead of crediting it with a saving. That is
-the safety: a cheap condition earns a saving only by keeping every winner, and the known nonce is the
+the safety: a cheap condition earns a saving only by retention every winner, and the known nonce is the
 witness.
 
 THE POSITIVE CONTROL

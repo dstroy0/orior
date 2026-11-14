@@ -31,7 +31,7 @@ typedef struct CliDevcontainerCfg CliDevcontainerCfg;
 typedef struct CliDevcontainerRootNameCfg CliDevcontainerRootNameCfg;
 typedef struct CliDevcontainerPlanAtCfg CliDevcontainerPlanAtCfg;
 
-// the most bytes a plan's texts take, the most entries of one of its lists, and the most commands it runs at a time
+// the max bytes a plan's texts take, the max entries of one of its lists, and the max commands it runs at a time
 #define CLI_PLAN_TEXT (1u << 16u)
 
 #define CLI_PLAN_LIST_MAX 256u

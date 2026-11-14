@@ -10,7 +10,7 @@
 #include "../text/text.h"
 #include "settings_sync_internal.h"
 
-// the most a file of the reader's that travels syncs
+// the max a file of the reader's that travels syncs
 #define CLI_SETTINGS_SYNC_LARGEST (16ULL << 20u)
 
 // the files that travel, each a file or a folder of orior's own folder, by its place there; the settings that stay on
@@ -227,7 +227,7 @@ static unsigned int settings_sync_plain_read(const SettingsSyncCtx *args)
 
 unsigned int cli_settings_sync_settings_get(const CliSettingsSyncWorkStateCtx *args)
 {
-    // a text read beside makes at most as many nodes as its bytes, and at most twice them in text with a 0 after each,
+    // a text read beside makes at max as many nodes as its bytes, and at max twice them in text with a 0 after each,
     // and a copy of what it read takes as much again; the four over are the empty objects either side may be made
     return EMBED_CALL(settings_sync_plain_read, SettingsSyncCtx, .work_state = args->work_state, .text = args->text,
                       .size = args->size, .fresh = 1, .nodes_more = (unsigned int)((2ULL * args->adjacent) + 4ULL),
@@ -402,7 +402,7 @@ int cli_settings_sync_pack(const CliSettingsSyncCfg *args)
             (size > CLI_SETTINGS_SYNC_LARGEST))
         {
             mmgr_line_put(args->err_msg, path);
-            mmgr_line_put(args->err_msg, " is over 16 MB, the most a file that travels syncs");
+            mmgr_line_put(args->err_msg, " is over 16 MB, the max a file that travels syncs");
             EMBED_CALL(settings_sync_release, SettingsSyncCtx, .paths = &s_paths, .work_state = &s_work_state);
             return 0;
         }

@@ -17,7 +17,7 @@
 # count comes back as three from a line drawn through a structure that was measured in a laboratory, the
 # claim holds outside the fields written to demonstrate it.
 #
-# The atoms are laid into a grid and smoothed, which is not a convenience. A structure is observed as a
+# The atoms are positioned into a grid and smoothed, which is not a convenience. A structure is observed as a
 # density and deposited atoms with no smoothing give a grid that is almost entirely empty. The readings
 # would describe the emptiness. Smoothing to a few voxels is what the measurement that produced these
 # coordinates actually resolves.

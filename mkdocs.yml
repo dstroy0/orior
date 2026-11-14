@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
 # Site configuration. The markdown under docs/ is the source and nothing here rewrites it, which
-# keeps a file reading the same on GitHub as it does on the site.
+# retains a file reading the same on GitHub as it does on the site.
 #
 #   pip install mkdocs-material
 #   mkdocs serve     # http://127.0.0.1:8000, rebuilds as you edit

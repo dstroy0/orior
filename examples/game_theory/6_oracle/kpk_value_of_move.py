@@ -10,7 +10,7 @@
 #
 # THE CLAIM. First-move advantage is not a constant. In the smallest ending where the move is not
 # a formality, K+P vs K, the value of the move -- White's result with the move minus White's result
-# if the other side had to move -- is positive in some positions, zero in most, and NEGATIVE in the
+# if the other side had to move -- is positive in some positions, zero in max, and NEGATIVE in the
 # opposition, where being the side to move throws away the win. This file proves it by solving the
 # class and reading the value of the move off the table.
 #
@@ -67,12 +67,12 @@ def normalize(state):
 def is_kpk(board):
     pawns = heavies = minors = 0
     for piece in board:
-        kind = abs(piece)
-        if kind == chess.PAWN:
+        type = abs(piece)
+        if type == chess.PAWN:
             pawns += 1
-        elif kind in (chess.QUEEN, chess.ROOK):
+        elif type in (chess.QUEEN, chess.ROOK):
             heavies += 1
-        elif kind in (chess.BISHOP, chess.KNIGHT):
+        elif type in (chess.BISHOP, chess.KNIGHT):
             minors += 1
     return pawns == 1 and heavies == 0 and minors == 0
 
@@ -105,8 +105,8 @@ def classify_child(child):
         return ("c", DRAW)
     if is_kpk(board):
         return ("r", normalize(child))
-    kinds = {abs(piece) for piece in board if abs(piece) not in (0, chess.KING)}
-    if kinds <= {chess.BISHOP, chess.KNIGHT}:
+    types = {abs(piece) for piece in board if abs(piece) not in (0, chess.KING)}
+    if types <= {chess.BISHOP, chess.KNIGHT}:
         return ("c", DRAW)
     return ("c", promoted_value_to_mover(child))
 
@@ -159,8 +159,8 @@ def solve():
                 continue
             win = unknown = False
             all_loss = True
-            for kind, payload in kids:
-                child_value = payload if kind == "c" else table[payload]
+            for type, payload in kids:
+                child_value = payload if type == "c" else table[payload]
                 if child_value is None:
                     unknown = True
                     all_loss = False

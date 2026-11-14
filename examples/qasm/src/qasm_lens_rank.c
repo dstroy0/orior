@@ -224,7 +224,7 @@ long qasm_lens_read(const QasmLensRequest *request, QasmLensMeasurement *measure
         return QASM_ERROR;
     }
     measurement->raw_rank = raw_rank;
-    // a rank over 256 columns is at most 256
+    // a rank over 256 columns is at max 256
     measurement->complement = QASM_LENS_RAW_BITS - raw_rank;
     // the lift retains the raw columns. Its rank is at least the raw rank
     measurement->lift_extra_rank = lift_rank - raw_rank;

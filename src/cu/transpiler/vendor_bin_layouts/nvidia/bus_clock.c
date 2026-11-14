@@ -10,7 +10,7 @@
 // it are queried, four bytes apart, and `turns` how many reads ADVANCES puts at a word after its first before the word
 // reads as not advancing. Nothing is written to the part: the BAR0 driver reads alone. Each register queried is a line
 // of the run's blob clock.txt, `<offset> <bit> <step>`, the step the word moved by between the reads that differed; the
-// plan handed first, `clock <words>`. The first register that advances is written to the .ksc as `run answers <offset>
+// plan passed first, `clock <words>`. The first register that advances is written to the .ksc as `run answers <offset>
 // clock bus`, in place of the row before it, and the row let go recorded in the .krf beside it. Exit 0 where a clock
 // was found, 1 where none was in the span, 2 where the BAR0 driver was not reached or the words are not these.
 #include "../../../../../includes/file_defs/krf/krf.h"
@@ -25,10 +25,10 @@
 #if defined(_WIN32)
 #include "scaffolding/mmio_read.h"
 
-// the most words one span queries, the lines of clock.txt stored in memory before they are handed
-#define BUS_CLOCK_WORDS_MOST 65536u
+// the max words one span queries, the lines of clock.txt stored in memory before they are passed
+#define BUS_CLOCK_WORDS_MAX 65536u
 
-static char s_lines[BUS_CLOCK_WORDS_MOST * 32u];
+static char s_lines[BUS_CLOCK_WORDS_MAX * 32u];
 
 // the clock's row put in the .ksc at `ksc` in place of any clock row before it, through the run's writer: 1, or 0
 static int bus_clock_recorded(const char *ksc, unsigned int offset)
@@ -67,9 +67,9 @@ int main(int count, char **words)
     const unsigned long long from = strtoull(words[2], NULL, 16);
     const unsigned long long address_given = strtoull(words[3], NULL, 16);
     const unsigned long long turns = strtoull(words[4], NULL, 16);
-    if ((address_given == 0ull) || (address_given > BUS_CLOCK_WORDS_MOST) || ((from % 4ull) != 0ull))
+    if ((address_given == 0ull) || (address_given > BUS_CLOCK_WORDS_MAX) || ((from % 4ull) != 0ull))
     {
-        fprintf(stderr, "orior_bus_clock: from 1 to %u words, from a whole word's offset\n", BUS_CLOCK_WORDS_MOST);
+        fprintf(stderr, "orior_bus_clock: from 1 to %u words, from a whole word's offset\n", BUS_CLOCK_WORDS_MAX);
         return 2;
     }
     HANDLE device = mmio_open();

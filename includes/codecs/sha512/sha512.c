@@ -118,7 +118,7 @@ void sha512_taken(Sha512 *sha, const void *data, size_t bytes)
         const size_t room = SHA512_BLOCK_BYTES - sha->buffered;
         const size_t piece = (left < room) ? left : room;
         memcpy(sha->block + sha->buffered, at, piece);
-        // a piece is at most the block's 128 bytes, which an unsigned int represents
+        // a piece is at max the block's 128 bytes, which an unsigned int represents
         sha->buffered += (unsigned int)piece;
         at += piece;
         left -= piece;

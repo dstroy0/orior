@@ -4,7 +4,7 @@
 #include "unity.h"
 #include "ui/cli/src/comms/comms.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
-#include "ui/cli/src/comms/door.h"
+#include "ui/cli/src/comms/interface.h"
 #include "ui/cli/src/machine/reach.h"
 
 /*=======External Functions This Runner Calls=====*/

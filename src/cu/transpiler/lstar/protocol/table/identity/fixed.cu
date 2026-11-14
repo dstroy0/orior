@@ -5,7 +5,7 @@
 #include "fixed_read.h"
 #include "identity_internal.h"
 
-// the place the least opening begins at, the part's answer in its .ksc, and 0 where none stands
+// the place the least opening begins at, the part's answer in its .ksc, and 0 where none is
 static unsigned int fixed_opening_read(const char *ksc)
 {
     KscFile file = {};
@@ -17,7 +17,7 @@ static unsigned int fixed_opening_read(const char *ksc)
         if (ksc_row_read(file.line[at], "run", &s_row) && (strcmp(s_row.answer, "answers") == 0) &&
             (strcmp(s_row.question, "opening least") == 0))
         {
-            // the row's word is a place, at most eight hex digits
+            // the row's word is a place, at max eight hex digits
             from = (unsigned int)s_row.value;
         }
     }
@@ -88,7 +88,7 @@ static int fixed_alike(FixedQuery *query, const std::vector<unsigned char> &vari
     return alike;
 }
 
-// the blob handed to the run and the channel closed, as every way out does
+// the blob passed to the run and the channel closed, as every way out does
 static void fixed_closed(FixedQuery *query)
 {
     if (!run_closed(&query->table))
@@ -109,7 +109,7 @@ static void fixed_closed(FixedQuery *query)
 // form once changed. What each register contains: for each register n the kernel uses, the probe place's instruction is
 // put with n as its first source and zero as its second, and the stored answer is n's value, read against the thread's
 // number and the case's words (fixed_read.h): `run answers <n> fixed lane_number`, `fixed record`, `fixed index`, `case
-// word 0` and `case word 1`, each kind the lowest register containing it. The place a variant changes is put with its
+// word 0` and `case word 1`, each type the lowest register containing it. The place a variant changes is put with its
 // stall the longest and its yield bit clear, the one way the gate lets an instruction no form contains through and the
 // vendor's reader takes it, as the walks' chains are put. Each query and each reading is a line of the run's blob
 // fixed.txt. 0 where the rows are written or the run is dry, 1 otherwise with the reason printed
@@ -222,7 +222,7 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
     std::vector<std::string> fixed_rows = {row};
     std::vector<std::string> case_rows;
     printf("  zero is register %llu\n", zero);
-    // what each register contains at the probe place, each kind's row the lowest register containing it
+    // what each register contains at the probe place, each type's row the lowest register containing it
     std::vector<unsigned int> word_0(s_question.cases);
     std::vector<unsigned int> word_1(s_question.cases);
     for (unsigned int at = 0u; at < s_question.cases; at += 1u)
@@ -243,16 +243,16 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
             printf("  register %u: refused\n", number);
             continue;
         }
-        const FixedKind kind = fixed_kind(s_question.answered, word_0.data(), word_1.data(), s_question.cases);
-        const char *const question = fixed_kind_question(kind);
+        const FixedKind type = fixed_type(s_question.answered, word_0.data(), word_1.data(), s_question.cases);
+        const char *const question = fixed_type_question(type);
         run_print(&query.table, "register %u contains %s\n", number,
-                  (kind == FIXED_NOTHING) ? "nothing fixed" : question);
-        printf("  register %u: %s\n", number, (kind == FIXED_NOTHING) ? "nothing fixed" : question);
-        if ((kind == FIXED_NOTHING) || (given.count(kind) != 0u))
+                  (type == FIXED_NOTHING) ? "nothing fixed" : question);
+        printf("  register %u: %s\n", number, (type == FIXED_NOTHING) ? "nothing fixed" : question);
+        if ((type == FIXED_NOTHING) || (given.count(type) != 0u))
         {
             continue;
         }
-        given.insert(kind);
+        given.insert(type);
         snprintf(row, sizeof(row), "run answers %08x %s", number, question);
         ((strncmp(question, "fixed", 5u) == 0) ? fixed_rows : case_rows).push_back(row);
     }

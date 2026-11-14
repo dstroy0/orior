@@ -33,15 +33,15 @@ test("Vim starts in normal mode, its caret a block, and the status line shows th
   }
 });
 
-test("in insert mode Vim takes Escape alone; in normal mode it takes letters and leaves the editor the keys Vim gives nothing to", async () => {
+test("in insert mode Vim takes Escape alone; in normal mode it takes characters and leaves the editor the keys Vim gives nothing to", async () => {
   const view = await given("|text");
   view.setVim(true);
   try {
     const save = event("s", { ctrlKey: true });
     assert.equal(view.vim.key(save), false, "Ctrl+S is the editor's");
-    const letter = event("l");
-    assert.equal(view.vim.key(letter), true);
-    assert.ok(letter.prevented());
+    const character = event("l");
+    assert.equal(view.vim.key(character), true);
+    assert.ok(character.prevented());
     assert.equal(view.vim.key(event("ArrowLeft")), true, "an arrow is a motion");
     view.vim.take("i");
     assert.equal(view.vim.key(event("a")), false, "typing in insert mode is the editor's");

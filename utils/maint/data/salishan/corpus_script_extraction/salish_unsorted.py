@@ -15,7 +15,7 @@
 # name why, and hold it out of the ingestion stream until a person has said what it is. A guess costs more
 # than a gap, because a gap is visible and a wrong guess is not.
 #
-# The second kind is found by comparing instead of by parsing. Every token in the source carrying a
+# The second type is found by comparing instead of by parsing. Every token in the source carrying a
 # character the language is written with should appear somewhere in the extraction. A source line
 # holding words that no extracted row holds was not reached. That is the same test coverage_check.py runs,
 # and the number it reports does not change: these lines are flagged instead of classified. They still count
@@ -33,14 +33,14 @@ PAGE = re.compile(r"^===== page (\d+) =====$")
 
 EDGES = ".,!?;:“”‘’\"'()[]…«»"
 
-# The space these papers are represented in, kept under the name this module's callers already use.
+# The space these papers are represented in, retained under the name this module's callers already use.
 # It was defined here as its own union until the copies were noticed; salish_marking holds the
 # one definition and names what is in it.
 MARKS = TEXT_SPACE
 
 # What the reason column holds. The first is a line the classifier reached and could not type. The
 # second is a line no section of the extractor ever looked at.
-UNKNOWN_KIND = "kind unknown"
+UNKNOWN_KIND = "type unknown"
 NOT_REACHED = "not reached"
 
 
@@ -76,7 +76,7 @@ def is_language_token(plain, marks=MARKS):
     """
     if not plain or not any(mark in plain for mark in marks):
         return False
-    # A token needs a letter in it. St'át'imcets writes the glottal stop as the digit 7, which puts
+    # A token needs a character in it. St'át'imcets writes the glottal stop as the digit 7, which puts
     # a digit in the marks above, and without this every page number holding a 7 is a word.
     if not any(symbol.isalpha() for symbol in plain):
         return False
@@ -101,11 +101,11 @@ def covered_tokens(texts, marks=MARKS):
     return held
 
 
-def unreached(source_lines, kept, repair=None, marks=MARKS):
+def unreached(source_lines, retained, repair=None, marks=MARKS):
     """Source lines holding language the extraction does not, each with the page it sits on.
 
     A line counts as reached when every one of its language tokens appears somewhere in the
-    extraction, wherever the extractor happened to keep it. That is deliberately generous: the
+    extraction, wherever the extractor happened to retain it. That is deliberately generous: the
     question here is whether the words got out of the paper, not whether they were filed tidily.
     """
     found = []
@@ -118,7 +118,7 @@ def unreached(source_lines, kept, repair=None, marks=MARKS):
             continue
         if repair is not None:
             trimmed = repair(trimmed)
-        missing = [one for one in language_tokens(trimmed, marks) if one not in kept]
+        missing = [one for one in language_tokens(trimmed, marks) if one not in retained]
         if missing:
             found.append((page, "", NOT_REACHED, " ".join(missing), trimmed))
     return found

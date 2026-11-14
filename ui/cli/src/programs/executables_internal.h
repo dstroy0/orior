@@ -55,7 +55,7 @@ enum
     CLI_TYPE_NONE
 };
 
-// the most programs the tree's scripts make, the most names one script gives, the most bytes of a script read, and how
+// the max programs the tree's scripts make, the max names one script gives, the max bytes of a script read, and how
 // deep in the tree's folders a build script is looked for
 #define CLI_EXECUTABLES_MAX 1024u
 
@@ -81,7 +81,7 @@ typedef struct
     int commonjs;
 } CliExecutable;
 
-// The programs found, `count` of them in a cell of `capacity` at their most, and their places in the order of their
+// The programs found, `count` of them in a cell of `capacity` at their max, and their places in the order of their
 // scripts and then their names, a cell of their count; both released through persistent_buf_release
 typedef struct
 {
@@ -109,7 +109,7 @@ unsigned int cli_executables_type_get(const CliExecutablesNameOutFolderCtx *args
 // a name put after the names, with its second text, where the names contain it not already
 void cli_names_append(const CliExecutablesNameNamesCtx *args);
 
-// whether a letter is ASCII's whitespace; `*length` bytes from `*text` trimmed of whitespace at either end; and
+// whether a character is ASCII's whitespace; `*length` bytes from `*text` trimmed of whitespace at either end; and
 // `length` bytes of `text` into `out`, sized for `capacity` (executables_scan.c)
 int cli_scan_white(const CliExecutablesCtx *args);
 void cli_scan_trim(const CliExecutablesTextLengthCtx *args);
@@ -150,7 +150,7 @@ void cli_zig_exes(const CliExecutablesNamesCtx *args);
 int cli_spec_init(const CliExecutablesTextExeCtx *args);
 void cli_npm_bins(const CliExecutablesNamesTextModuleCtx *args);
 
-// the most build scripts read, and the most folders still to look in
+// the max build scripts read, and the max folders still to look in
 #define CLI_EXECUTABLES_SCRIPTS 4096u
 #define CLI_EXECUTABLES_PENDING 4096u
 
@@ -171,9 +171,9 @@ typedef struct
 } CliWalk;
 
 // `name` joined to `folder` into `out`, sized for CLI_PATH_MAX_LEN: 1, or 0 where it does not fit; whether a folder
-// is one a walk passes; the folders a walk has pending looked through in turn from `top`, each entry handed to
+// is one a walk passes; the folders a walk has pending looked through in turn from `top`, each entry passed to
 // `each`, a folder whose entries set `main` put after those found; a folder put after those pending at `depth`, and a
-// path put after those found, each up to its most: 1, or 0 where it is past the most; a walk's cell taken, its
+// path put after those found, each up to its max: 1, or 0 where it is past the max; a walk's cell taken, its
 // capacities none where it is refused; a walk's cell given back; and every program the tree's build scripts make, by
 // script and then by name (executables_read.c)
 int cli_executables_join(const CliExecutablesNameOutFolderCtx *args);
@@ -224,7 +224,7 @@ int cli_meson_artifact(const CliExecutablesNameOutCtx *args);
 // the warnings file a PyInstaller build of the spec at `spec` wrote, read into a cell of its size given back to
 // g_cli_executables_owner, NULL where there is none or the cell is refused, with the spec's folder into `folder`,
 // which is sized for CLI_PATH_MAX_LEN; and each module that file imports
-// PyInstaller did not find handed to `each` with the text of the modules that import it, `A (top-level), B (delayed)`
+// PyInstaller did not find passed to `each` with the text of the modules that import it, `A (top-level), B (delayed)`
 // (executables_advice.c)
 char *cli_pyinstaller_warn(const CliExecutablesSpecCtx *args);
 void cli_pyinstaller_missing(const CliExecutablesTextEachCtx *args);
@@ -451,7 +451,7 @@ struct CliExecutablesTextLengthCtx
 
 struct CliExecutablesCtx
 {
-    char letter;
+    char character;
 };
 
 typedef struct

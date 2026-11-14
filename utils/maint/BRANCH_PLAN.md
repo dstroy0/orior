@@ -17,7 +17,7 @@ who clones `main` gets the advantage work out of the history whether a single ad
 is present in the working tree, and `git log -p` reads it back in full.
 
 So the split cannot be "branch off the internal work". It has to be **`main` starting over with no
-shared history**, while `internal` keeps everything.
+shared history**, while `internal` retains everything.
 
     internal    the current history, untouched, everything in it
     main        a new ROOT commit containing only the external set, no ancestor in common
@@ -25,7 +25,7 @@ shared history**, while `internal` keeps everything.
 That is an orphan branch. It is not a rewrite: nothing is deleted, nothing is rebased, and `internal`
 still holds every commit it holds now.
 
-## 2. The external set cannot build or verify as it stands
+## 2. The external set cannot build or verify as it is
 
 Two dependencies reach out of the external set into withheld files. Both have to be resolved first or
 `main` ships hollow. That is the thing the gatekeeping test forbids.
@@ -37,7 +37,7 @@ or the device half of the engine does not exist on `main`.
 
 **`natural_constants.py` has to be split.** `digit_engine.py` imports it, and so does `host_bench.py`.
 What they use is entirely general: `pi_machin`, `pi_euler`, `PI_PREFIX`, `golden_angle`,
-`harmonic_unit`, `shown`. Those are the independent series the engine is GRADED AGAINST - without
+`harmonic_unit`, `displayed`. Those are the independent series the engine is GRADED AGAINST - without
 them `digit_engine.py --check` cannot run, and an external repository whose own verification cannot
 run is worth less than nothing.
 

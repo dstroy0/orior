@@ -35,7 +35,7 @@ typedef struct
     CliRunResult run_result;
 } CliRunResultWorkState;
 
-// the empty text a run that gave nothing points at, and the run handed out where the cells cannot meet a run, which
+// the empty text a run that gave nothing points at, and the run passed out where the cells cannot meet a run, which
 // every run refuses
 static char s_nothing[1];
 static CliRunResult s_refused = {s_nothing, 0ULL, s_nothing, 0ULL, 1, -1LL, 0};
@@ -89,7 +89,7 @@ void cli_run_result_free(const CliWordsCtx *args)
     }
 }
 
-// what is left in `pipe` read into a piece of the stack's and dropped, so that the program does not stand blocked on a
+// what is left in `pipe` read into a piece of the stack's and dropped, so that the program does not are blocked on a
 // full pipe
 EMBED_INLINE void cli_pipe_drain(const RanCtx *args)
 {

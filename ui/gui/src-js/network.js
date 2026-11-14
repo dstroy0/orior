@@ -3,7 +3,7 @@
 
 // The network, as net.rs in the command line's crate holds it: tabvla reaches an address only for
 // what the reader asked of it, and sends nothing about the reader. Help, Off the Network holds it off
-// the network entirely, kept as the setting `network`, which a tree's settings file does not set; each
+// the network entirely, retained as the setting `network`, which a tree's settings file does not set; each
 // reach is then refused, saying what it was for. Help, Network… lists every address tabvla has
 // reached, when and what for, this machine's own left out.
 
@@ -18,7 +18,7 @@ function element(tag, props = {}, ...children) {
   return made;
 }
 
-// Whether tabvla is kept off the network.
+// Whether tabvla is retained off the network.
 export function offNetwork() {
   return localStorage.getItem(KEY) === "off";
 }
@@ -42,7 +42,7 @@ export async function showNetwork(sheet) {
   const said = element("p", { className: "network-said" });
   const rows = element("div", { className: "network-rows" });
   const draw = async () => {
-    said.textContent = offNetwork() ? "tabvla is kept off the network: each address it would reach is refused, saying what for." : "tabvla reaches an address only for what you ask of it.";
+    said.textContent = offNetwork() ? "tabvla is retained off the network: each address it would reach is refused, saying what for." : "tabvla reaches an address only for what you ask of it.";
     const reached = await invoke("network_reached").catch(() => []);
     rows.replaceChildren(
       ...(reached.length

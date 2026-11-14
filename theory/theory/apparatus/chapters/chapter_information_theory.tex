@@ -122,17 +122,17 @@ The orior workbook~\cite{src:Quigg-orior-workbook} establishes four principles, 
 
 \subsection{Histogram quantities are free, and everything above is a histogram quantity}
 
-Histogram quantities are permutation invariant. They describe the maximum entropy case and are free. The arrangement remains after that.
+Histogram quantities are permutation invariant. They describe the max entropy case and are free. The arrangement remains after that.
 
 \textbf{Every number the Rényi bench produces is a histogram quantity.} All seven Rényi orders, the Bellare-Kohno balance, the count of holes, the Arikan guessing factor: each is a function of the multiset of bin counts and of nothing besides. Shuffling which value carries which count leaves every one of them exactly unchanged.
 
-The headline result, that SHA256d's output histogram over a completely enumerated \(2^{32}\) nonce domain is that of a random function to six significant figures, is therefore entailed instead of discovered. It is the maximum-entropy case and it was always going to be the answer. That is worth having as a measured fact instead of an assumption, and it is not a finding about the arrangement, because no permutation-invariant quantity can be.
+The headline result, that SHA256d's output histogram over a completely enumerated \(2^{32}\) nonce domain is that of a random function to six significant figures, is therefore entailed instead of discovered. It is the max-entropy case and it was always going to be the answer. That is worth having as a measured fact instead of an assumption, and it is not a finding about the arrangement, because no permutation-invariant quantity can be.
 
 \subsection{The null must delete the property being asked about}
 
 The principle is established on four constructed clouds, lattice or scatter crossed with patterned or random values, where a value-permuting null can only reveal order in the values and a position-moving null can only reveal order in the geometry. The predicted hits fall on a diagonal, and anything off it refutes the principle.
 
-The permutation null over arrangements of a fixed multiset satisfies this exactly for the question asked here: it preserves every count and destroys every position. It deletes the arrangement and keeps the counts. Drawing uniformly from the arrangements of a fixed multiset is the least committal distribution consistent with the observed histogram. It asserts nothing beyond the quantity already measured. Every other background in this work is a model and can be false. This one is the data with one property deleted.
+The permutation null over arrangements of a fixed multiset satisfies this exactly for the question asked here: it preserves every count and destroys every position. It deletes the arrangement and retains the counts. Drawing uniformly from the arrangements of a fixed multiset is the least committal distribution consistent with the observed histogram. It asserts nothing beyond the quantity already measured. Every other background in this work is a model and can be false. This one is the data with one property deleted.
 
 \subsection{A quantity that fails to conserve indicates the instrument}
 
@@ -190,7 +190,7 @@ Each step multiplies the cost by orders of magnitude and returns the same answer
 
 The cost does not merely grow. It floors, with a knee, and the knee's position is derivable.
 
-Checking \(N\) directions means taking a maximum over \(N\) statistics. The threshold a real signal has to clear is the expected largest of \(N\) nulls. Reach goes as \(R(N) = \sqrt{2\ln N}\) minus a slowly varying correction, and cost as \(C(N) \sim N\log N\) in time and \(N\) in memory. Inverting and substituting gives \(N = e^{R^2/2}\) and \(C \sim e^{R^2/2}(R^2/2)\).
+Checking \(N\) directions means taking a max over \(N\) statistics. The threshold a real signal has to clear is the expected largest of \(N\) nulls. Reach goes as \(R(N) = \sqrt{2\ln N}\) minus a slowly varying correction, and cost as \(C(N) \sim N\log N\) in time and \(N\) in memory. Inverting and substituting gives \(N = e^{R^2/2}\) and \(C \sim e^{R^2/2}(R^2/2)\).
 
 \textbf{The cost is exponential in the square of the reach.}
 

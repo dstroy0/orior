@@ -6,8 +6,8 @@
 #include "../../qry/qry_read.h"
 #include "krep_records_internal.h"
 
-// the file the rows among `bytes`, `size` of them, of the key `key` put together into `view`, which stands open and
-// empty of its kind: the rows joined, each whole words, its opening, the numbers its change gives, then its bytes or
+// the file the rows among `bytes`, `size` of them, of the key `key` put together into `view`, which is open and
+// empty of its type: the rows joined, each whole words, its opening, the numbers its change gives, then its bytes or
 // its words. 1, or 0 where a row does not fit the file it puts together or the bytes are not whole rows
 static int krep_rows_viewed(const unsigned char *bytes, unsigned long long size, unsigned long long key, KrepFile *view)
 {
@@ -50,7 +50,7 @@ static int krep_rows_viewed(const unsigned char *bytes, unsigned long long size,
         {
             continue;
         }
-        // a place, a code and a count read here are each at most what an unsigned int represents, as bounded to it
+        // a place, a code and a count read here are each at max what an unsigned int represents, as bounded to it
         const int counted =
             (number[0] <= 0xffffffffull) && (number[1] <= 0xffffffffull) && (number[2] <= 0xffffffffull);
         switch (change)
@@ -85,7 +85,7 @@ static int krep_rows_viewed(const unsigned char *bytes, unsigned long long size,
 
 int krep_viewed(const KrepFile *file, KrepFile *view)
 {
-    krep_open(view, file->kind);
+    krep_open(view, file->type);
     const size_t named = strlen(file->table);
     unsigned long long at = 0ull;
     const QryRecord *record = NULL;
@@ -99,7 +99,7 @@ int krep_viewed(const KrepFile *file, KrepFile *view)
     }
     if (!ok)
     {
-        krep_open(view, file->kind);
+        krep_open(view, file->type);
     }
     return ok;
 }
@@ -112,8 +112,8 @@ static int krep_row_of(const QryRecord *record, const char *table)
 }
 
 // The head row `record` of `table` read: 1 where it heads the file `name`, or any file where `name` is NULL, its
-// kind into `kind`, which has room for five
-static int krep_head_of(const QryRecord *record, const char *table, const char *name, char *kind)
+// type into `type`, which has room for five
+static int krep_head_of(const QryRecord *record, const char *table, const char *name, char *type)
 {
     const unsigned char *const bytes = QRY_RECORD_BLOB(record);
     const unsigned long long size = record->blob_length;
@@ -130,10 +130,10 @@ static int krep_head_of(const QryRecord *record, const char *table, const char *
                                            (memcmp(bytes + named_at, name, (size_t)length) == 0)));
     for (unsigned int at = 0u; sought && (at < 4u); at += 1u)
     {
-        // the kind's four bytes stand the low first in its word
-        kind[at] = (char)((opening[KREP_ROW_OPENING] >> (8u * at)) & 0xffull);
+        // the type's four bytes are the low first in its word
+        type[at] = (char)((opening[KREP_ROW_OPENING] >> (8u * at)) & 0xffull);
     }
-    kind[4] = '\0';
+    type[4] = '\0';
     return sought;
 }
 
@@ -150,20 +150,20 @@ int krep_viewed_at(const char *path, const char *table, const char *name, KrepFi
 {
     unsigned long long size = 0ull;
     const unsigned char *const bytes = qry_member_file_mapped(path, &size);
-    char kind[5] = "";
+    char type[5] = "";
     unsigned long long key = 0ull;
     unsigned long long at = 0ull;
     const QryRecord *record = NULL;
     while ((bytes != NULL) && (key == 0ull) && qry_record_read(bytes, size, &at, &record))
     {
-        key = krep_head_of(record, table, name, kind) ? record->time : 0ull;
+        key = krep_head_of(record, table, name, type) ? record->time : 0ull;
     }
     if (key == 0ull)
     {
         krep_viewed_error(error, room, path, (bytes == NULL) ? "" : ": the table ",
                           (bytes == NULL) ? ": the run could not be read" : table);
     }
-    krep_open(view, (key != 0ull) ? kind : "\0\0\0\0");
+    krep_open(view, (key != 0ull) ? type : "\0\0\0\0");
     int ok = (key != 0ull);
     at = 0ull;
     while (ok && qry_record_read(bytes, size, &at, &record))
@@ -173,7 +173,7 @@ int krep_viewed_at(const char *path, const char *table, const char *name, KrepFi
     if ((key != 0ull) && !ok)
     {
         krep_viewed_error(error, room, path, ": a row of ", table);
-        krep_open(view, kind);
+        krep_open(view, type);
     }
     qry_member_file_unmapped(bytes, size);
     return ok;

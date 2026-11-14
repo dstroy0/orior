@@ -14,7 +14,7 @@ domain, applying the function, and letting the Fourier transform peak on the per
 two controlled steps moving nothing at all because 7^4 mod 15 closes the orbit.
 
 So Shor is not a search accelerator. It is a period finder, and it returns nothing useful when
-handed a function with no period. Wiring it into a nonce search would be wiring a resonator to a
+passed a function with no period. Wiring it into a nonce search would be wiring a resonator to a
 signal that does not oscillate.
 
 THE QUESTION THAT ACTUALLY DECIDES IT, AND IT HAS NEVER BEEN MEASURED HERE
@@ -22,7 +22,7 @@ THE QUESTION THAT ACTUALLY DECIDES IT, AND IT HAS NEVER BEEN MEASURED HERE
 Does the nonce to hash map have a period? If it does, Shor becomes relevant and everything changes.
 If it does not, Shor cannot help and that is settled and not assumed.
 
-This tree's standing constraint is that no projection over the digest reduces the number of
+This tree's located constraint is that no projection over the digest reduces the number of
 evaluations, graded across twenty hypotheses. But PERIODICITY specifically was never tested. The
 claim rests on an argument and not on a measurement. This file measures it.
 
@@ -120,7 +120,7 @@ def _report(samples=SAMPLES):
     print("")
 
     # Fewer samples for the small moduli is wrong: the small moduli are where a period would be
-    # easiest to see AND where the chance rate is highest. They need the most samples.
+    # easiest to see AND where the chance rate is highest. They need the max samples.
     per_modulus = max(2000, samples // len(MODULI))
     total_tests = sum(1 for _m in MODULI for p in PERIODS if p <= per_modulus // 4)
     print("  %d tests in the family. The threshold is 0.05 / %d = %.2e per test."
@@ -169,7 +169,7 @@ def _report(samples=SAMPLES):
         print("  anywhere was %.2e." % worst)
         print("")
         print("  SO SHOR HAS NOTHING TO PEAK ON, and that is measured and not argued.")
-        print("  Its transform finds a period by peaking on it; handed a function whose values at n and")
+        print("  Its transform finds a period by peaking on it; passed a function whose values at n and")
         print("  n + p agree exactly as often as two unrelated values would, it returns a flat")
         print("  distribution and no information.")
     else:
@@ -217,7 +217,7 @@ def _resources():
     print("")
     print("  AND ON REAL QUANTUM HARDWARE IT STILL WOULD NOT HELP, because the resource count is")
     print("  not the obstruction. The obstruction is the measurement above: Shor peaks on a")
-    print("  period, and the map has none. A 67 qubit machine handed an aperiodic function returns")
+    print("  period, and the map has none. A 67 qubit machine passed an aperiodic function returns")
     print("  a flat distribution, correctly and uselessly.")
     print("")
     print("  THE ALGORITHM THAT DOES APPLY IS GROVER, and its accounting is elsewhere in this tree:")
@@ -233,7 +233,7 @@ def _grover():
     """What Grover would buy against the live difficulty. Grover is the right algorithm and it is
     already implemented in qubit_trace.py; this is the accounting it needs to be judged on.
 
-    WHAT IS MEASURED HERE, WHAT IS DERIVED, AND WHAT IS QUOTED. Keeping those apart is the whole
+    WHAT IS MEASURED HERE, WHAT IS DERIVED, AND WHAT IS QUOTED. Retention those apart is the whole
     value of this function, because the conclusion depends on a literature figure that this tree
     has not verified and saying so is not optional.
 
@@ -342,7 +342,7 @@ def _grover():
     # AND THIS IS THE PART THAT DOES NOT DEPEND ON THE QUOTED FIGURE AT ALL.
     print("  THE DECISIVE POINT NEEDS NO HARDWARE ESTIMATE, and it is about parallelism.")
     print("")
-    print("  Mining is a race between many machines, and the two kinds of machine scale")
+    print("  Mining is a race between many machines, and the two types of machine scale")
     print("  differently when you add more of them:")
     print("")
     print("  %10s %22s %22s" % ("machines", "classical speedup", "Grover speedup"))

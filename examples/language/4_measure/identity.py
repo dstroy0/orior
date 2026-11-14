@@ -11,7 +11,7 @@
 # described by the texts that remain, and the left out text goes to the nearest. If the square
 # carries a language, its own texts come home and the scalars were reading a shadow of it.
 #
-# The square is swept over how many ranks it keeps, since keeping more is a finer reading of a
+# The square is swept over how many ranks it retains, since retention more is a finer reading of a
 # smaller part of the alphabet and there is no reason to expect one width to be right.
 
 import io
@@ -51,7 +51,7 @@ def main():
     languages = sorted({row[0] for row in loaded})
     out.write("  %d texts over %d languages. Guessing gets %.1f percent\n\n"
               % (len(loaded), len(languages), 100.0 / len(languages)))
-    out.write("  %-22s %-14s %s\n" % ("ranks kept", "correct", "share"))
+    out.write("  %-22s %-14s %s\n" % ("ranks retained", "correct", "share"))
 
     last = None
     for ranks in RANKS:

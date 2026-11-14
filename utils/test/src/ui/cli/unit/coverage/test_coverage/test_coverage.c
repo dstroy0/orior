@@ -62,7 +62,7 @@ void test_a_pixel_inside_a_rectangle_takes_the_color_whole(void)
     TEST_ASSERT_EQUAL_HEX32(0xffffffffu, s_target[(4u * TEST_WIDTH) + 4u]);
 }
 
-void test_a_pixel_outside_a_rectangle_keeps_its_ground(void)
+void test_a_pixel_outside_a_rectangle_retains_its_ground(void)
 {
     rect_filled(1.0f, 1.0f, 5.0f, 5.0f, 0xffffffffu);
     rendered(0, 0, TEST_WIDTH, TEST_HEIGHT);

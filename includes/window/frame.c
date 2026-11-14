@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// frame.c: the parts laid out for the window's size and scale, and again for the claim's numbers, each part's place
+// frame.c: the parts arranged for the window's size and scale, and again for the claim's numbers, each part's place
 // the page's own arithmetic over them: the bar's and the status bar's margins, the frame's padding and the side_menu's
 // margins as style.css sets them from the claim, the reveals and the insets; a part a window too small leaves no inset
 // for is a rectangle of none
@@ -48,7 +48,7 @@ EMBED_INLINE int frame_share(const FrameCtx *args)
     return (int)((scaled + ((scaled >= 0LL) ? (GUI_FIXED_ONE / 2) : -(GUI_FIXED_ONE / 2))) / GUI_FIXED_ONE);
 }
 
-// `share`, a number of GUI_FIXED_ONE from 0 to it, at the nearest of the parts a fading part's share stands at
+// `share`, a number of GUI_FIXED_ONE from 0 to it, at the nearest of the parts a fading part's share is at
 EMBED_INLINE int frame_part_share(const FrameCtx *args)
 {
     // a share in parts, rounded, is a small count
@@ -122,13 +122,13 @@ EMBED_INLINE int frame_terminal_height(const FrameCtx *args)
     const int share = (window_height * GUI_TERMINAL_MAX_PERCENT) / 100;
     const int leaves = window_height - EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                   .pixels = GUI_TERMINAL_SHELL_MIN, .scale = scale);
-    const int most = (share < leaves) ? share : leaves;
-    const int bounded = (asked < most) ? asked : most;
+    const int max = (share < leaves) ? share : leaves;
+    const int bounded = (asked < max) ? asked : max;
     const int height = (bounded > least) ? bounded : least;
     return (height < args->pixels) ? height : ((args->pixels > 0) ? args->pixels : 0);
 }
 
-// the work's inside laid out: the inside the work less its padding, the terminal's panel across its foot where it is
+// the work's inside arranged: the inside the work less its padding, the terminal's panel across its foot where it is
 // open, drawn down from there by its arrival, above it the side `side_width` pixels of it at the left, the tabs row
 // across the rest, and under it the editor with the map's column at its right, the row and the column away by the
 // claim's numbers
@@ -144,10 +144,10 @@ EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_WORK_PAD_BOTTOM, .scale = scale);
     const int pad_left =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_WORK_PAD_LEFT, .scale = scale);
-    // the tabs row is away while the claim holds and the head's inset is not taken, risen out of the work's head whole
+    // the tabs row is away while the claim holds and its own reveal is not taken, risen out of the work's head whole
     // and faded by the share away; the map is away while the right is not revealed
     const int tabs_share = GUI_FIXED_ONE - EMBED_CALL(frame_share, FrameCtx, .share = claim->claim,
-                                                      .pixels = GUI_FIXED_ONE - claim->inset_top);
+                                                      .pixels = GUI_FIXED_ONE - claim->reveal_tabs);
     const int tabs_whole =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TABS_HEIGHT, .scale = scale);
     const int tabs_height = EMBED_CALL(frame_share, FrameCtx, .share = tabs_share, .pixels = tabs_whole);
@@ -224,15 +224,20 @@ EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
         (GuiRect){args->frame->terminal_views.x, args->frame->terminal_views.y + down,
                   args->frame->terminal_views.width, args->frame->terminal_views.height};
     args->frame->terminal_share = EMBED_CALL(frame_part_share, FrameCtx, .share = GUI_FIXED_ONE - arriving);
-    args->frame->tabs = (GuiRect){args->frame->inside.x + side, args->frame->inside.y, rest, tabs_height};
+    // the tabs row sits a gap under the border line, the gap away with the row: the beads stay clear of the line
+    const int tabs_gap = EMBED_CALL(
+        frame_share, FrameCtx, .share = tabs_share,
+        .pixels = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TABS_GAP, .scale = scale));
+    args->frame->tabs =
+        (GuiRect){args->frame->inside.x + side, args->frame->inside.y + tabs_gap, rest, tabs_height};
     args->frame->tabs_row =
-        (GuiRect){args->frame->tabs.x, args->frame->inside.y + tabs_height - tabs_whole, rest, tabs_whole};
+        (GuiRect){args->frame->tabs.x, args->frame->tabs.y + tabs_height - tabs_whole, rest, tabs_whole};
     args->frame->tabs_share = EMBED_CALL(frame_part_share, FrameCtx, .share = tabs_share);
-    args->frame->editor =
-        (GuiRect){args->frame->tabs.x, args->frame->tabs.y + tabs_height, rest - map, inner_height - tabs_height};
+    args->frame->editor = (GuiRect){args->frame->tabs.x, args->frame->tabs.y + tabs_height, rest - map,
+                                    inner_height - tabs_height - tabs_gap};
     args->frame->map = (GuiRect){args->frame->editor.x + args->frame->editor.width, args->frame->editor.y, map,
                                  args->frame->editor.height};
-    // the map stands whole from its column's left, the claim closing the column sliding it out past the editor's edge
+    // the map is whole from its column's left, the claim closing the column sliding it out past the editor's edge
     args->frame->map_whole =
         (GuiRect){args->frame->map.x, args->frame->map.y, (map_whole > map) ? map_whole : map, args->frame->map.height};
     // the preview beside the text takes the editor's right half, and alone the editor's rectangle, the editor left none
@@ -254,8 +259,8 @@ EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
         args->frame->preview = (GuiRect){editor.x + editor.width, editor.y, 0, 0};
     }
     // The editor's scrollbars take their room from its rectangle, as a scrolling page's do: one down its right side,
-    // standing its standoff in from the work's line and its own thickness down from the text's head, as far as it
-    // stands up from the text's foot, and one along its foot. The text never runs under either
+    // located its standoff in from the work's line and its own thickness down from the text's head, as far as it
+    // is up from the text's foot, and one along its foot. The text never runs under either
     const int bar = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SCROLLBAR_WIDTH, .scale = scale);
     const int standoff =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SCROLLBAR_STANDOFF, .scale = scale);
@@ -275,11 +280,11 @@ EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
     }
 }
 
-// every part laid out for the frame's size, scale, side and claim; and, where this is not itself the resting layout, the
-// bar, its tools, the controls and the strip laid again with no claim into the resting rectangles, where their beads
+// every part arranged for the frame's size, scale, side and claim; and, where this is not itself the resting layout, the
+// bar, its tools, the controls and the strip positioned again with no claim into the resting rectangles, where their beads
 // bake whatever the claim's slides move them to
 static void frame_layout(const FrameCtx *args);
-static void frame_rest_laid(GuiFrame *frame)
+static void frame_rest_positioned(GuiFrame *frame)
 {
     GuiFrame rest = *frame;
     rest.claim.claim = 0;
@@ -307,7 +312,7 @@ static void frame_layout(const FrameCtx *args)
     const int gap = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_FRAME_GAP, .scale = scale);
     const int gap_autohide = EMBED_CALL(frame_share, FrameCtx, .share = c, .pixels = gap);
     // the bar: its top margin runs from none to the bar's height above the window, or the gap below it as the head is
-    // revealed; its sides stand in by the gap at the right and by the wordmark's corner and two gaps at the left
+    // revealed; its sides are in by the gap at the right and by the wordmark's corner and two gaps at the left
     const int top_menu_y = EMBED_CALL(
         frame_share, FrameCtx, .share = c,
         .pixels = EMBED_CALL(frame_share, FrameCtx, .share = claim->reveal_top, .pixels = gap) -
@@ -378,7 +383,7 @@ static void frame_layout(const FrameCtx *args)
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CONTROLS_BEVEL, .scale = scale);
     args->frame->controls_pane =
         (GuiRect){args->frame->controls.x - bevel, controls_y, controls_width + bevel, top_menu_height};
-    // the bar's tools stand left of the controls, their buttons centred on the controls' row, and move with them
+    // the bar's tools are left of the controls, their buttons centred on the controls' row, and move with them
     const int tool = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TOP_MENU_TOOL, .scale = scale);
     const int tool_gap =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TOP_MENU_TOOL_GAP, .scale = scale);
@@ -403,8 +408,8 @@ static void frame_layout(const FrameCtx *args)
         args->frame->controls_pane_share = EMBED_CALL(frame_part_share, FrameCtx, .share = pane_share);
     }
     args->frame->controls_alpha = EMBED_CALL(frame_part_share, FrameCtx, .share = claim->controls_alpha);
-    // The editor's scrollbar stands under the controls' pane as it comes down: its head keeps the standoff from the
-    // work's line that it keeps from the work's top, below the line that bends round the pane
+    // The editor's scrollbar is under the controls' pane as it comes down: its head retains the standoff from the
+    // work's line that it retains from the work's top, below the line that bends round the pane
     if (args->frame->controls_pane_share > 0)
     {
         const int under = args->frame->controls_pane.y + args->frame->controls_pane.height + gap_autohide +
@@ -516,7 +521,7 @@ static void frame_layout(const FrameCtx *args)
                    controls_top + (top_menu_height * GUI_FIXED_ONE)};
     if (!args->rest)
     {
-        frame_rest_laid(args->frame);
+        frame_rest_positioned(args->frame);
     }
 }
 

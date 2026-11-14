@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_sort.c: the sort: no records and one record stand, two records swap, a short run goes by insertion, a long run
+// test_sort.c: the sort: no records and one record are, two records swap, a short run goes by insertion, a long run
 // by the quicksort and a run of one value by the heap's fallback, records of an odd size move whole, every record
 // stays present, and the order given is the order the records end in
 #include "ui/cli/src/text/sort.h"
@@ -50,7 +50,7 @@ static void values_drawn(unsigned int count, unsigned int seed)
     }
 }
 
-// whether `count` values stand in rising order
+// whether `count` values are in rising order
 static int values_rise(unsigned int count)
 {
     for (unsigned int at = 1u; at < count; at += 1u)
@@ -72,7 +72,7 @@ void tearDown(void)
 {
 }
 
-void test_no_records_and_one_record_stand(void)
+void test_no_records_and_one_record_are(void)
 {
     s_values[0] = 7u;
     EMBED_CALL(cli_sort, CliSortCfg, .base = s_values, .count = 0ULL, .size = sizeof(s_values[0]), .order = order_up);
@@ -96,7 +96,7 @@ void test_a_short_run_is_put_in_order(void)
     TEST_ASSERT_TRUE(values_rise(15u));
 }
 
-void test_a_long_run_is_put_in_order_and_keeps_every_record(void)
+void test_a_long_run_is_put_in_order_and_retains_every_record(void)
 {
     values_drawn(SORT_MANY, 29u);
     unsigned long long before = 0ULL;
@@ -191,11 +191,11 @@ void test_every_record_is_present_once_after_a_sort(void)
         TEST_ASSERT_TRUE(s_values[at] < SORT_MANY);
         s_seen[s_values[at]] += 1u;
     }
-    unsigned int most = 0u;
+    unsigned int max = 0u;
     for (unsigned int at = 0u; at < SORT_MANY; at += 1u)
     {
-        most = (s_seen[at] > most) ? s_seen[at] : most;
+        max = (s_seen[at] > max) ? s_seen[at] : max;
     }
     TEST_ASSERT_TRUE(values_rise(SORT_MANY));
-    TEST_ASSERT_TRUE(most >= 1u);
+    TEST_ASSERT_TRUE(max >= 1u);
 }

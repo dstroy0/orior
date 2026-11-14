@@ -5,7 +5,7 @@
 // label drawn, a line of a diagram's text with its comment cut, and the SVG that holds a drawing.
 
 const ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" };
-export const escape = (text) => String(text).replace(/[&<>"]/g, (letter) => ESCAPES[letter]);
+export const escape = (text) => String(text).replace(/[&<>"]/g, (character) => ESCAPES[character]);
 
 const FONT = "14px system-ui, sans-serif";
 

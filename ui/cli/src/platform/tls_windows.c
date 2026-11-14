@@ -92,8 +92,8 @@ long long cli_tls_write(const CliTlsDataCfg *args)
 {
     const unsigned long header = args->tls->sizes.cbHeader;
     const unsigned long trailer = args->tls->sizes.cbTrailer;
-    const unsigned long most = args->tls->sizes.cbMaximumMessage;
-    const unsigned long part = (args->size < most) ? (unsigned long)args->size : most;
+    const unsigned long max = args->tls->sizes.cbMaximumMessage;
+    const unsigned long part = (args->size < max) ? (unsigned long)args->size : max;
     if ((header + part + trailer) > args->tls->message_capacity)
     {
         mmgr_line_put(args->err_msg, "TLS: a record is larger than impero seals");

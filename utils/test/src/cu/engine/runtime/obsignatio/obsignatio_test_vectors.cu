@@ -66,7 +66,7 @@ static int test_hex_nibble(char digit, unsigned int *value)
     }
     if ((digit >= 'a') && (digit <= 'f'))
     {
-        // a hex letter less 'a' lies in 0 to 5
+        // a hex character less 'a' lies in 0 to 5
         *value = (unsigned int)(digit - 'a') + 10u;
         return 1;
     }

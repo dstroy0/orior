@@ -9,7 +9,7 @@
 // is gone is gone with it.
 //
 // A catalog stores its jobs, their params, steps and arguments, and every text they contain in the storage its holder
-// hands it, so the whole catalog and a run's one job are each stored in a capacity of their own and nothing is
+// passes it, so the whole catalog and a run's one job are each stored in a capacity of their own and nothing is
 // allocated
 #ifndef CATALOG_H
 #define CATALOG_H
@@ -66,7 +66,7 @@ typedef struct CliCatalogTextValuesCfg CliCatalogTextValuesCfg;
 //   ENV_BUT key but   no argument: the value of a param, where one is given other than the value named, set under the
 //                     param's key
 //   FOLDER folder     no argument: the step runs in the folder named, a path in the tree, and not its top folder
-//   SOURCE_DATE       no argument: SOURCE_DATE_EPOCH set to the time of the commit the tree stands at, where the tree
+//   SOURCE_DATE       no argument: SOURCE_DATE_EPOCH set to the time of the commit the tree is at, where the tree
 //                     is in git and it is not set
 //   CROSS type        no argument: the C compiler and linker for the system and processor the job's params choose,
 //                     set in the step's environment where they are another machine's, for a build of the type named
@@ -160,9 +160,9 @@ typedef struct
     unsigned int steps;
 } CliJob;
 
-// A catalog: its jobs, params, steps, arguments, lists of texts and texts in the storage handed it, each with how many
+// A catalog: its jobs, params, steps, arguments, lists of texts and texts in the storage passed it, each with how many
 // it contains and how many it may; 1 in `full` where one did not fit; and the count its cell is taken under, NULL where
-// its storage was handed
+// its storage was passed
 typedef struct
 {
     CliJob *job;
@@ -188,7 +188,7 @@ typedef struct
 } CliCatalog;
 
 // The values a job is run with, by param: each key, and its values, `count` of the list from `first`, all texts in the
-// storage handed them
+// storage passed them
 #define CLI_VALUES_KEYS 64u
 
 #define CLI_VALUES_ITEMS 1024u
@@ -207,11 +207,11 @@ typedef struct
     unsigned int used;
 } CliValues;
 
-// a catalog made empty whose lists and texts are taken at their most in one cell counted to `cells`, `jobs_max` jobs
-// at the most; and a catalog emptied of its jobs with its cell kept, for the tree's jobs read into it again
+// a catalog made empty whose lists and texts are taken at their max in one cell counted to `cells`, `jobs_max` jobs
+// at max; and a catalog emptied of its jobs with its cell retained, for the tree's jobs read into it again
 void cli_catalog_alloc(const CliCatalogCellsCfg *args);
 void cli_catalog_emptied(const CliCatalogCellsCfg *args);
-// a catalog made empty over the storage handed it
+// a catalog made empty over the storage passed it
 void cli_catalog_begin(const CliCatalogJobsMaxCfg *args);
 // a text stored in the catalog: where it starts; and the text at a place, the empty text for none
 unsigned int cli_catalog_text(const CliCatalogTextProgramCfg *args);

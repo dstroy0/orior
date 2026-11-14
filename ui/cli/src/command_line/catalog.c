@@ -46,7 +46,7 @@ void cli_catalog_begin(const CliCatalogJobsMaxCfg *args)
     }
 }
 
-// the most jobs, params, steps, arguments and list items, and the bytes of text, of a catalog read
+// the max jobs, params, steps, arguments and list items, and the bytes of text, of a catalog read
 #define CLI_CATALOG_LIST_MAX 16384u
 #define CLI_CATALOG_TEXT_MAX (4u << 20u)
 
@@ -115,7 +115,7 @@ unsigned int cli_catalog_text(const CliCatalogTextProgramCfg *args)
     }
     const unsigned int at = args->catalog->used;
     memor.cpy(&(MemoriaCfg){.dst = args->catalog->text + at, .src = args->text, .bytes = size});
-    // the texts are below the capacity handed, which an unsigned int counts
+    // the texts are below the capacity passed, which an unsigned int counts
     args->catalog->used += (unsigned int)size;
     return at;
 }
@@ -455,7 +455,7 @@ void cli_values_append(const CliCatalogKeyValuesCfg *args)
         args->values_out->count[at] = 0u;
         args->values_out->keys += 1u;
     }
-    // a key's values stand together: those of the keys after it are moved one along
+    // a key's values are together: those of the keys after it are moved one along
     const unsigned int place = args->values_out->first[at] + args->values_out->count[at];
     for (unsigned int item = args->values_out->items; item > place; item -= 1u)
     {

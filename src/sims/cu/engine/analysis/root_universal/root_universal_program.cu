@@ -43,7 +43,7 @@ void root_permutation(unsigned int *table, unsigned int bits, unsigned long long
     }
     for (unsigned int index = entries - 1u; index > 0u; index -= 1u)
     {
-        // the draw below index + 1 is at most index, a position inside the table
+        // the draw below index + 1 is at max index, a position inside the table
         const unsigned int other = (unsigned int)sim_draw_below(key, index, (unsigned long long)index + 1ull);
         const unsigned int temporary = table[index];
         table[index] = table[other];
@@ -59,7 +59,7 @@ void root_program_draw(RootProgram *program, unsigned int floors, unsigned long 
     {
         const unsigned long long counter = 1ull + (3ull * at);
         TowerEdge *const edge = &program->edge[at];
-        // the floor draw is at most floors and the width draw below the width ceiling, both under 2^32
+        // the floor draw is at max floors and the width draw below the width ceiling, both under 2^32
         edge->floor = (unsigned int)sim_draw_below(key, counter, (unsigned long long)floors + 1ull);
         edge->index_bits = 1u + (unsigned int)sim_draw_below(key, counter + 1ull, ROOT_BITS_DRAWN_MAX);
         if ((range_widest != 0) && (at == 0u))
@@ -153,7 +153,7 @@ int root_lift_crystal(SimResults *results, const RootVolume *volume, const Tower
     lift.edges = edges;
     lift.edge_count = edge_count;
     lift.error = &error;
-    int ok = (tower_lift(&lift) == 0L) && (error.kind == ENGINE_ERROR_NONE);
+    int ok = (tower_lift(&lift) == 0L) && (error.type == ENGINE_ERROR_NONE);
     sim_check(results, ok, "tower_lift accepted the edge program");
     ok = ok && sim_status_check(results,
                                 cudaMemcpy(crystal, coefficients, volume->lanes * sizeof(int), cudaMemcpyDeviceToHost),
@@ -182,7 +182,7 @@ int root_crystal_trip(SimResults *results, RootVolume *volume, const TowerEdge *
     lift.edges = edges;
     lift.edge_count = edge_count;
     lift.error = &error;
-    int ok = (tower_lift(&lift) == 0L) && (error.kind == ENGINE_ERROR_NONE);
+    int ok = (tower_lift(&lift) == 0L) && (error.type == ENGINE_ERROR_NONE);
     sim_check(results, ok, "tower_lift accepted the edge program");
     if (ok && (crystal != NULL))
     {
@@ -205,7 +205,7 @@ int root_crystal_trip(SimResults *results, RootVolume *volume, const TowerEdge *
         code.offsets = &offsets;
         code.stream = &stream;
         code.error = &error;
-        ok = (compression_encode(&code) == 0L) && (error.kind == ENGINE_ERROR_NONE);
+        ok = (compression_encode(&code) == 0L) && (error.type == ENGINE_ERROR_NONE);
         sim_check(results, ok, "compression_encode coded the crystal");
     }
     int *device_buffer = NULL;
@@ -226,7 +226,7 @@ int root_crystal_trip(SimResults *results, RootVolume *volume, const TowerEdge *
         decode.count = volume->lanes;
         decode.device_coefficients = device_buffer;
         decode.error = &error;
-        ok = (compression_decode(&decode) == 0L) && (error.kind == ENGINE_ERROR_NONE);
+        ok = (compression_decode(&decode) == 0L) && (error.type == ENGINE_ERROR_NONE);
         sim_check(results, ok, "compression_decode read the crystal back");
     }
     unsigned long long mismatches = 1ull;
@@ -243,7 +243,7 @@ int root_crystal_trip(SimResults *results, RootVolume *volume, const TowerEdge *
         lower.edges = edges;
         lower.edge_count = edge_count;
         lower.error = &error;
-        ok = (tower_lower(&lower) == 0L) && (error.kind == ENGINE_ERROR_NONE);
+        ok = (tower_lower(&lower) == 0L) && (error.type == ENGINE_ERROR_NONE);
         sim_check(results, ok, "tower_lower accepted the edge program");
     }
     if (ok)

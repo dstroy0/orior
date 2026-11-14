@@ -8,7 +8,7 @@
 #
 #   Usage:  python examples/0_experimental/exact_residue_code_detects_uncertainty.py
 #
-# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working instead of a stage
+# This reads no corpus. It sits in 0_experimental: an arithmetic result displayed working instead of a stage
 # reading. It takes a code the coding-theory field already uses and points it at this engine's job. A
 # residue number system carries an integer as its remainders against a set of pairwise coprime moduli,
 # and the Chinese remainder theorem reconstructs the integer from them. Adding REDUNDANT moduli past
@@ -87,9 +87,9 @@ def detect_and_correct(residues, moduli, information):
 
     candidates = []
     for dropped in range(len(moduli)):
-        kept_residues = residues[:dropped] + residues[dropped + 1:]
-        kept_moduli = moduli[:dropped] + moduli[dropped + 1:]
-        recovered = crt(kept_residues, kept_moduli)
+        retained_residues = residues[:dropped] + residues[dropped + 1:]
+        retained_moduli = moduli[:dropped] + moduli[dropped + 1:]
+        recovered = crt(retained_residues, retained_moduli)
         if recovered < limit:
             candidates.append((dropped, recovered))
 

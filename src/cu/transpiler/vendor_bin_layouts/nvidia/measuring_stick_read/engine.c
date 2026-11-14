@@ -83,12 +83,12 @@ static void stick_lane_operations(const char *path, StickNumbers *operations)
             continue;
         }
         const char *const word = text + stick_guard(text);
-        size_t letters = strcspn(word, s_space);
-        while ((letters != 0u) && (word[letters - 1u] == ';'))
+        size_t characters = strcspn(word, s_space);
+        while ((characters != 0u) && (word[characters - 1u] == ';'))
         {
-            letters -= 1u;
+            characters -= 1u;
         }
-        const unsigned int operation = stick_named(word, letters);
+        const unsigned int operation = stick_named(word, characters);
         if (operation != nop)
         {
             stick_number_add(operations, operation);
@@ -96,15 +96,15 @@ static void stick_lane_operations(const char *path, StickNumbers *operations)
     }
 }
 
-// the tab-apart cells of `line`, at most `most` of them, the last containing the rest of the line: their count, each
+// the tab-apart cells of `line`, at max `max` of them, the last containing the rest of the line: their count, each
 // cell a copy at `cell`
-unsigned int stick_cells(const char *line, char **cell, unsigned int most)
+unsigned int stick_cells(const char *line, char **cell, unsigned int max)
 {
     unsigned int count = 0u;
     const char *at = line;
-    while (count < most)
+    while (count < max)
     {
-        const size_t length = ((count + 1u) == most) ? strlen(at) : strcspn(at, "\t");
+        const size_t length = ((count + 1u) == max) ? strlen(at) : strcspn(at, "\t");
         cell[count] = stick_copy(at, length);
         count += 1u;
         if (at[length] != '\t')
@@ -181,7 +181,7 @@ void stick_engine_read(const char *table, const char *directory)
 // then those of sass.ksc beside it
 void stick_ruleset_operations(const char *path, unsigned char **buffer, unsigned int *room)
 {
-    // the folder sass.krs stands in, to its last separator, and its stem, to the dot of its extension
+    // the folder sass.krs is in, to its last separator, and its stem, to the dot of its extension
     const char *slash = NULL;
     for (const char *at = path; *at != '\0'; at += 1)
     {
@@ -238,12 +238,12 @@ void stick_ruleset_operations(const char *path, unsigned char **buffer, unsigned
                     if ((words != 0u) && (strncmp(word, "//", 2u) != 0) && (word[0] != '.') &&
                         (word[words - 1u] != ':'))
                     {
-                        size_t letters = strcspn(word, s_space);
-                        while ((letters != 0u) && (word[letters - 1u] == ';'))
+                        size_t characters = strcspn(word, s_space);
+                        while ((characters != 0u) && (word[characters - 1u] == ';'))
                         {
-                            letters -= 1u;
+                            characters -= 1u;
                         }
-                        const unsigned int operation = stick_named(word, letters);
+                        const unsigned int operation = stick_named(word, characters);
                         if (operation >= *room)
                         {
                             const unsigned int grown = (operation + 1u) * 2u;
@@ -289,7 +289,7 @@ int stick_kernel_order(const void *left, const void *right)
     return strcmp(((const StickKernel *)left)->name, ((const StickKernel *)right)->name);
 }
 
-// <0, 0 or >0 as the name of the operation at `left` stands before, with or after the one at `right`
+// <0, 0 or >0 as the name of the operation at `left` is before, with or after the one at `right`
 int stick_name_order(const void *left, const void *right)
 {
     return strcmp(s_name[*(const unsigned int *)left], s_name[*(const unsigned int *)right]);
@@ -300,13 +300,13 @@ int stick_name_order(const void *left, const void *right)
 size_t stick_escaped(char *record, size_t room, size_t at, const char *text)
 {
     size_t written = at;
-    for (const char *letter = text; *letter != '\0'; letter += 1)
+    for (const char *character = text; *character != '\0'; character += 1)
     {
         written = verba_textus.put_n(&(VerbaTextusCfg){.out = record,
                                                        .cap = room,
                                                        .at = written,
-                                                       .text = (*letter == '|') ? "\\|" : letter,
-                                                       .text_len = (*letter == '|') ? 2u : 1u});
+                                                       .text = (*character == '|') ? "\\|" : character,
+                                                       .text_len = (*character == '|') ? 2u : 1u});
     }
     return written;
 }

@@ -9,7 +9,7 @@
 // The tables are the oracle. A word the tree uses that no table contains is a defect, and so is a table that
 // contradicts itself: a complement that does not point back, a cross into the transpiler that disagrees on width or
 // sign, one transition given two mnemonics in one matrix. A finding is a cell worth a reader's eye: two words of one
-// kind meaning the same operators, one word of two kinds, a doing word whose form writes none of the operators it
+// type meaning the same operators, one word of two types, a doing word whose form writes none of the operators it
 // claims, an operator the form writes that no word of its name claims, an operator the high order language has no word
 // for, one mnemonic over transitions that do different things to the pair.
 #ifndef LNG_H
@@ -49,10 +49,10 @@ extern "C"
         unsigned int room;
     } LngTable;
 
-    // the kinds a word of the transpiler's table is, and a word of the high order language's
-    extern const char *const g_lng_kinds[];
+    // the types a word of the transpiler's table is, and a word of the high order language's
+    extern const char *const g_lng_types[];
 #define LNG_KINDS 6u
-    extern const char *const g_lng_hol_kinds[];
+    extern const char *const g_lng_hol_types[];
 #define LNG_HOL_KINDS 3u
 
     // `text` appended after every text `list` contains
@@ -102,11 +102,11 @@ extern "C"
     void lng_words_of(const char *name, LngList *words);
 
     // Defects of one table taken alone, appended to `defects`: a cell outside its column's values, a row listed twice,
-    // a complement that does not point back or does not negate. `kinds`, `count` of them, are the kinds a row may be
-    void lng_table_check(const LngTable *table, const char *const *kinds, unsigned int count, LngList *defects);
+    // a complement that does not point back or does not negate. `types`, `count` of them, are the types a row may be
+    void lng_table_check(const LngTable *table, const char *const *types, unsigned int count, LngList *defects);
 
-    // Findings of one table taken alone, appended to `findings`: two words of one kind marking the same operators and
-    // the same width, sign and type, and one word listed as two kinds
+    // Findings of one table taken alone, appended to `findings`: two words of one type marking the same operators and
+    // the same width, sign and type, and one word listed as two types
     void lng_table_findings(const LngTable *table, LngList *findings);
 
     // The form names the schema `text` lists, appended to `names`
@@ -128,7 +128,7 @@ extern "C"
     // and the lines of a block of the ruleset's language, its own two among them, are not the ksc's
     void lng_ksc_words(const char *path, const KfileLines *file, LngMap *used);
 
-    // The words gnascor's word map, `text`, lists, by the kind it lists them under, into the sets `thing`, `doing` and
+    // The words gnascor's word map, `text`, lists, by the type it lists them under, into the sets `thing`, `doing` and
     // `gluing`
     void lng_gnascor_lists(const char *text, LngList *thing, LngList *doing, LngList *gluing);
 
@@ -156,7 +156,7 @@ extern "C"
     // named otherwise in the same table, and a mnemonic that is also a state's name
     void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings);
 
-    // Every file of the searched trees, src and utils from the folder the run stands in, ending in one of `suffixes`,
+    // Every file of the searched trees, src and utils from the folder the run is in, ending in one of `suffixes`,
     // `count` of them, as a path from there, into the set `found` stores at the place of the suffix it ends in. The
     // trees are walked once
     void lng_files_ending(const char *const *suffixes, unsigned int count, LngList *found);

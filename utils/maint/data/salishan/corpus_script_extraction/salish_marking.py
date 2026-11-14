@@ -6,18 +6,18 @@
 #
 #   Usage:  from salish_marking import rendered, tagged_spans, is_mixed
 #
-# Every paper is read by its own extractor, because the papers are laid out differently and one rule
+# Every paper is read by its own extractor, because the papers are arranged differently and one rule
 # across all of them takes whichever layout it was written for and mangles the rest without reporting it.
 # What the extractors do share is how a line is marked once it has been found, and that lives here so the
 # convention cannot drift between files.
 #
 # T is the target language. N is anything else. A line is never cut into separate rows: a speaker who
 # moves between her languages inside one sentence said one sentence. The spans are marked in place and
-# in order and the line keeps its identity. That also leaves the switches grouped by line and sortable,
+# in order and the line retains its identity. That also leaves the switches grouped by line and sortable,
 # which is where the boundaries of the morphological system show.
 #
 # Two English-looking tokens in a row are required to open an N span. Several clitics of these languages
-# are written in plain letters, and a single plain token is as likely to be one of those as it is to be
+# are written in plain characters, and a single plain token is as likely to be one of those as it is to be
 # English. Leaving a word inside T is the harmless direction to be wrong in, and a word wrongly pulled out
 # of her sentence is not.
 
@@ -40,14 +40,14 @@ MARKED = "ʔʕɬłƛəχ"
 #
 # Measured over every oracle, counting only tokens that already pass is_language_token under their
 # own paper's marks: applying this test corpus wide would strike 311 distinct tokens the hand
-# extractions hold, 151 of them in 2013_Nater and 152 in 22-Nater-Bella-Coola-tale-10, which is
-# most of what those two papers carry. It would do it silently. The four readers that use it today
-# each apply it inside one paper they were written for, and it is safe where it stands for that.
+# extractions hold, 151 of them in 2013_Nater and 152 in 22-Nater-Bella-Coola-tale-10, the majority
+# of what those two papers carry. It would do it silently. The four readers that use it today
+# each apply it inside one paper they were written for, and it is safe where it is for that.
 CAPS_RUN = re.compile(r"[A-Z]{2,}")
 
 PUNCTUATION = ".,!?;:“”‘’\"'()[]…"
 
-# Typographic ligatures, which are one codepoint standing for two or three letters concatenated
+# Typographic ligatures, which are one codepoint located for two or three characters concatenated
 # mid-word. 476 of them are in five of these papers. They are not a decision about a glyph the way
 # the font substitutions are: ﬁ is fi. This is applied without a test.
 #
@@ -58,7 +58,7 @@ LIGATURES = (("ﬃ", "ffi"), ("ﬄ", "ffl"), ("ﬁ", "fi"), ("ﬂ", "fl"),
 
 
 def unligatured(text):
-    """One line with its typographic ligatures written back out as the letters they stand for."""
+    """One line with its typographic ligatures written back out as the characters they are for."""
     for was, becomes in LIGATURES:
         text = text.replace(was, becomes)
     return text
@@ -88,7 +88,7 @@ PRACTICAL = "7"
 #
 # THIS SET CARRIES NO PHONETIC CONTENT. ɬ and ł are both members because both occur, and nothing
 # here says the two are one sound. A distribution taken over these characters is a distribution over
-# what a transcriber typed. The table that takes a written form and returns the sound it stands for
+# what a transcriber typed. The table that takes a written form and returns the sound it is for
 # is build/experiments/salish_phonemes.py. The Salishan research paper's chapter on going from the page to a
 # distribution over sounds names the three stages, character, segment and sound, and says which tool
 # belongs to each and what a measurement reads if a stage is skipped.
@@ -98,7 +98,7 @@ TEXT_SPACE = MARKED + PRACTICAL + "̓̔̕ʷ˽"
 def looks_english(token, marks=MARKED):
     """A token with no marked character, long enough and vowelled enough to be an English word.
 
-    Two letters is the length of several clitics written in plain letters. The floor is three.
+    Two characters is the length of several clitics written in plain characters. The floor is three.
     """
     plain = bare_token(token)
     if (len(plain) < 3) or (not plain.isascii()) or (not plain.isalpha()):
@@ -143,7 +143,7 @@ DERIVED = "derived"
 
 # Where a line goes when the extractor cannot say what it is. It carries the language. It is not
 # discardable, and nothing is known about it. It is not ingestible either. Naming the category
-# after the tool's own limit keeps that honest: it says a program failed to sort this, not that the
+# after the tool's own limit retains that honest: it says a program failed to sort this, not that the
 # line is doubtful. Each extractor writes these to a file of their own beside its output. A person
 # can then work through them, and they are excluded from the pure stream until someone has.
 UNCLASSIFIED = "unclassifiable by tool"

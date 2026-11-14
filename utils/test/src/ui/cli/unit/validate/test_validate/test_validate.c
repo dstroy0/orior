@@ -7,7 +7,7 @@
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 static const char s_lean_output[] = "{\"severity\":\"error\",\"pos\":{\"line\":3,\"column\":2},\"endPos\":{\"line\":3,\"column\":9},"
-                                    "\"keepFullRange\":false,\"fileName\":\"x.lean\",\"data\":\"(deterministic) timeout at `whnf`, maximum number of "
+                                    "\"retainFullRange\":false,\"fileName\":\"x.lean\",\"data\":\"(deterministic) timeout at `whnf`, max number of "
                                     "heartbeats (200000) has been reached\",\"caption\":\"\"}\n"
                                     "{\"severity\":\"information\",\"pos\":{\"line\":9,\"column\":0},\"endPos\":null,\"fileName\":\"x.lean\","
                                     "\"data\":\"'A.one' depends on axioms: [propext, sorryAx]\",\"caption\":\"\"}\nStack overflow detected. "
@@ -210,7 +210,7 @@ void test_a_theorem_with_no_axioms_is_read(void)
 void test_an_instance_timeout_is_its_own_barrier(void)
 {
     messages_emptied();
-    const CliProverMessage synth = message_of("failed to synthesize\n  Foo\n(deterministic) timeout at `isDefEq`, maximum number of heartbeats (20000) has "
+    const CliProverMessage synth = message_of("failed to synthesize\n  Foo\n(deterministic) timeout at `isDefEq`, max number of heartbeats (20000) has "
                                               "been reached\nUse `set_option synthInstance.maxHeartbeats <num>` to set the limit.",
                                               "runtime.maxHeartbeats");
     TEST_ASSERT_EQUAL_STRING("synthInstance.maxHeartbeats", barrier_of(&synth));

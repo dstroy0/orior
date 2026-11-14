@@ -8,14 +8,14 @@ import { drawMenubar, jobsIn, runCommand, state } from "../menubar.js";
 import { NEEDS } from "./checks.js";
 
 // The menus the bar has a title for: each of commands, and each of jobs that has a job in the tree.
-export function shownMenus() {
-  return laidOut().filter((menu) => !menu.strip && !menu.popup && (menu.items?.length || jobsIn(menu.groups ?? []).length));
+export function displayedMenus() {
+  return positionedOut().filter((menu) => !menu.strip && !menu.popup && (menu.items?.length || jobsIn(menu.groups ?? []).length));
 }
 
 // Menus and a toolbar of the reader's, from menus.json in orior's own folder. Each item names a
 // command of orior's menus, with a label of the reader's where it gives one, or a line, or a list of
-// items under a label of its own. A menu of the reader's named as one of orior's stands in its place,
-// the others stand before Help, and "hide" takes orior's menus away by name. The keys of every
+// items under a label of its own. A menu of the reader's named as one of orior's is in its place,
+// the others are before Help, and "hide" takes orior's menus away by name. The keys of every
 // command stay as orior's menus bind them, wherever the reader's menus put it. The file is read as
 // the window starts and each time it comes back to the front.
 
@@ -38,8 +38,8 @@ function readerItem(given, commands) {
 
 const commandsOf = () => new Map(state.menus.flatMap((menu) => menu.all ?? []).map((item) => [item.command, item]));
 
-// The menus as the bar draws them: orior's, with the reader's laid over them.
-function laidOut() {
+// The menus as the bar draws them: orior's, with the reader's positioned over them.
+function positionedOut() {
   const reader = state.reader;
   if (!reader) {
     return state.menus;
@@ -47,11 +47,11 @@ function laidOut() {
   const commands = commandsOf();
   const own = (Array.isArray(reader.menus) ? reader.menus : []).filter((menu) => typeof menu?.title === "string").map((menu) => ({ title: menu.title, items: (Array.isArray(menu.items) ? menu.items : []).map((one) => readerItem(one, commands)) }));
   const hidden = new Set((Array.isArray(reader.hide) ? reader.hide : []).map(String));
-  const laid = state.menus.map((menu) => own.find((one) => one.title === menu.title) ?? menu).filter((menu) => !hidden.has(menu.title));
+  const positioned = state.menus.map((menu) => own.find((one) => one.title === menu.title) ?? menu).filter((menu) => !hidden.has(menu.title));
   const added = own.filter((one) => !state.menus.some((menu) => menu.title === one.title));
-  const help = laid.findIndex((menu) => menu.title === "Help");
-  laid.splice(help < 0 ? laid.length : help, 0, ...added);
-  return laid;
+  const help = positioned.findIndex((menu) => menu.title === "Help");
+  positioned.splice(help < 0 ? positioned.length : help, 0, ...added);
+  return positioned;
 }
 
 const TOOLBAR = "orior.toolbar";
@@ -63,7 +63,7 @@ export function setToolbarShown(on = !toolbarShown()) {
 }
 
 // The toolbar under the menus: a button for each of the reader's toolbar items, its icon the one it
-// names or its label's first letter, and a line for each "-".
+// names or its label's first character, and a line for each "-".
 function drawToolbar() {
   const bar = document.getElementById("toolbar");
   const list = Array.isArray(state.reader?.toolbar) ? state.reader.toolbar : [];
@@ -95,7 +95,7 @@ export function freshenToolbar() {
   }
 }
 
-// Reads menus.json again, and lays the menus and the toolbar out again where it changed.
+// Reads menus.json again, and positions the menus and the toolbar out again where it changed.
 export async function loadReaderMenus() {
   const text = await invoke("reader_menus_read").catch(() => "");
   if (text === state.readerText) {

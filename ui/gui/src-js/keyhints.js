@@ -4,7 +4,7 @@
 // The keys in sight. Holding Ctrl or Alt alone for HOLD shows, over each button in sight that has
 // keys, the keys that press it: those its aria-keyshortcuts names, or those its title ends with in
 // brackets, as "Explorer (Ctrl+Shift+E)". Letting go, any other key, a press, a wheel or the window
-// going to the back takes them away. Many people never learn a button's keys unless the keys are shown
+// going to the back takes them away. Many people never learn a button's keys unless the keys are displayed
 // where they already look.
 
 // How long Ctrl or Alt is pressed alone before the keys show, in milliseconds: a chord pressed at the
@@ -14,7 +14,7 @@ export const HOLD = 500;
 const MODIFIERS = new Set(["Control", "Alt"]);
 const KEYS = /\(((?:Ctrl|Alt|Shift|Meta|F\d{1,2})(?:\+[^()]+)?)\)$/;
 
-const state = { timer: 0, shown: [] };
+const state = { timer: 0, displayed: [] };
 
 // The keys of `target`, or null where it names none.
 export function keysOf(target) {
@@ -45,19 +45,19 @@ function show() {
     hint.style.left = `${box.left + box.width / 2}px`;
     hint.style.top = `${box.top + box.height / 2}px`;
     document.body.append(hint);
-    state.shown.push(hint);
+    state.displayed.push(hint);
   }
 }
 
 export function hide() {
   window.clearTimeout(state.timer);
   state.timer = 0;
-  state.shown.forEach((hint) => hint.remove());
-  state.shown = [];
+  state.displayed.forEach((hint) => hint.remove());
+  state.displayed = [];
 }
 
-// The hints shown now, each its keys and the point it stands at, for the tests.
-export const hintsShown = () => state.shown.map((hint) => ({ keys: hint.textContent, x: parseFloat(hint.style.left), y: parseFloat(hint.style.top) }));
+// The hints displayed now, each its keys and the point it is at, for the tests.
+export const hintsShown = () => state.displayed.map((hint) => ({ keys: hint.textContent, x: parseFloat(hint.style.left), y: parseFloat(hint.style.top) }));
 
 export function startKeyHints() {
   window.addEventListener(

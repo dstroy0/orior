@@ -38,7 +38,7 @@
 // the pooled ones, and the tail pairs observed.
 //
 // Checks:
-//   1. each program imprints and lays out;
+//   1. each program imprints and arranges;
 //   2. each program loads onto the device and every lane runs it;
 //   3. the host's records of each program equal the device's word for word;
 //   4. the device's sums of each run equal the host's;
@@ -155,8 +155,8 @@ static int suffix_read(const char *path, SuffixSettings *settings, std::vector<S
         for (unsigned long long one = 0ull; one < suffixes + nouns; one += 1ull, at += 1u)
         {
             const std::vector<std::string> fields = (at < lines.size()) ? stage_split(lines[at]) : std::vector<std::string>();
-            const char *kind = (one < suffixes) ? "suffix" : "noun";
-            if ((fields.size() != 3u) || (fields[0] != kind))
+            const char *type = (one < suffixes) ? "suffix" : "noun";
+            if ((fields.size() != 3u) || (fields[0] != type))
             {
                 return 0;
             }
@@ -175,11 +175,11 @@ static int suffix_read(const char *path, SuffixSettings *settings, std::vector<S
     return settings->permutations > 0ull;
 }
 
-// whether the noun's segments end with the suffix's, the noun longer by between `least` and `most` segments
+// whether the noun's segments end with the suffix's, the noun longer by between `least` and `max` segments
 static int suffix_ends(const std::vector<std::string> &noun, const std::vector<std::string> &suffix, size_t least,
-                       size_t most)
+                       size_t max)
 {
-    if ((noun.size() < suffix.size() + least) || (noun.size() > suffix.size() + most))
+    if ((noun.size() < suffix.size() + least) || (noun.size() > suffix.size() + max))
     {
         return 0;
     }
@@ -220,7 +220,7 @@ static void suffix_value_program(unsigned int bits, StageProgram *program)
 
 // a / b as its whole part and six digits, by the digits program; one text per value
 static int suffix_digits(SimResults *job, Stage *stage, const std::vector<StageRational> &values,
-                         std::vector<std::string> *shown, EngineError *error)
+                         std::vector<std::string> *displayed, EngineError *error)
 {
     memset(stage, 0, sizeof(*stage));
     stage->name = "digits";
@@ -232,12 +232,12 @@ static int suffix_digits(SimResults *job, Stage *stage, const std::vector<StageR
     }
     std::vector<std::vector<StageWhole>> out;
     const int ok = stage_rows(job, stage, rows, &out, error);
-    shown->clear();
+    displayed->clear();
     for (size_t at = 0u; ok && (at < out.size()); at += 1u)
     {
         char fraction[16];
         snprintf(fraction, sizeof(fraction), "%06u", out[at][1][0]);
-        shown->push_back(stage_text_of(out[at][0]) + "." + fraction);
+        displayed->push_back(stage_text_of(out[at][0]) + "." + fraction);
     }
     return ok;
 }
@@ -355,7 +355,7 @@ int main(int count, char **arguments)
             }
         }
     }
-    int ok = stage_lay(&job, &count_stage, &error);
+    int ok = stage_position(&job, &count_stage, &error);
     const unsigned long long declared =
         count_lanes * (2ull + (ok ? count_stage.layout.out_limbs : 1u)) * sizeof(unsigned int);
     ok = ok && sim_job_submit(&job, "lexical_suffix_origins", count, arguments, declared);
@@ -382,7 +382,7 @@ int main(int count, char **arguments)
     memset(&pass_stage, 0, sizeof(pass_stage));
     pass_stage.name = "pass";
     suffix_pass_program(count_bits, &pass_stage.program);
-    ok = ok && stage_lay(&job, &pass_stage, &error);
+    ok = ok && stage_position(&job, &pass_stage, &error);
     const unsigned long long pass_lanes = 3ull * runs * language_count;
     const unsigned int pass_limbs = (pass_stage.program.record_bits + 31u) / 32u;
     std::vector<unsigned int> pass_records((size_t)(pass_lanes * pass_limbs), 0u);
@@ -407,7 +407,7 @@ int main(int count, char **arguments)
     memset(&above_stage, 0, sizeof(above_stage));
     above_stage.name = "above";
     stage_above_program(count_bits + 1u, &above_stage.program);
-    ok = ok && stage_lay(&job, &above_stage, &error);
+    ok = ok && stage_position(&job, &above_stage, &error);
     const unsigned long long sets = 2ull * (language_count + 1ull);
     const unsigned long long above_lanes = sets * shuffles;
     const unsigned int above_limbs = (above_stage.program.record_bits + 31u) / 32u;
@@ -521,8 +521,8 @@ int main(int count, char **arguments)
     }
     Stage digits_stage;
     memset(&digits_stage, 0, sizeof(digits_stage));
-    std::vector<std::string> shown;
-    ok = ok && suffix_digits(&job, &digits_stage, printed, &shown, &error);
+    std::vector<std::string> displayed;
+    ok = ok && suffix_digits(&job, &digits_stage, printed, &displayed, &error);
 
     // the tail pairs observed, read from the identity run's bits
     std::vector<std::string> found;
@@ -597,17 +597,17 @@ int main(int count, char **arguments)
 
     if (ok)
     {
-        printf("%s %4s %5s %5s %7s %9s %5s %9s %5s %9s\n", stage_shown("language", 18u, 1).c_str(), "LS", "nouns",
+        printf("%s %4s %5s %5s %7s %9s %5s %9s %5s %9s\n", stage_displayed("language", 18u, 1).c_str(), "LS", "nouns",
                "pairs", "Kinkade", "null mean", "tail", "null mean", "ident", "p (tail)");
         for (size_t at = 0u; at < languages.size(); at += 1u)
         {
             const SuffixLanguage &language = languages[at];
-            printf("%s %4zu %5zu %5s %7s %9.9s %5s %9.9s %5s %9.9s\n", stage_shown(language.name, 18u, 1).c_str(),
+            printf("%s %4zu %5zu %5s %7s %9.9s %5s %9.9s %5s %9.9s\n", stage_displayed(language.name, 18u, 1).c_str(),
                    language.suffixes.size(), language.nouns.size(),
                    stage_text_of(language.observed[SUFFIX_PAIRS]).c_str(),
-                   stage_text_of(language.observed[SUFFIX_KINKADE]).c_str(), shown[at * 3u].c_str(),
-                   stage_text_of(language.observed[SUFFIX_TAIL]).c_str(), shown[at * 3u + 1u].c_str(),
-                   stage_text_of(language.observed[SUFFIX_IDENTICAL]).c_str(), shown[at * 3u + 2u].c_str());
+                   stage_text_of(language.observed[SUFFIX_KINKADE]).c_str(), displayed[at * 3u].c_str(),
+                   stage_text_of(language.observed[SUFFIX_TAIL]).c_str(), displayed[at * 3u + 1u].c_str(),
+                   stage_text_of(language.observed[SUFFIX_IDENTICAL]).c_str(), displayed[at * 3u + 2u].c_str());
         }
         for (unsigned int which = 0u; which < 2u; which += 1u)
         {
@@ -615,10 +615,10 @@ int main(int count, char **arguments)
                 "pooled %s: observed %s, null mean %s, null max %s, p %s/%s = %s over %llu shuffles, %s same-meaning "
                 "pairs\n",
                 names[which], stage_text_of(pooled[0][which * runs]).c_str(),
-                shown[language_count * 3u + which * 2u].c_str(), stage_text_of(left[which][0]).c_str(),
+                displayed[language_count * 3u + which * 2u].c_str(), stage_text_of(left[which][0]).c_str(),
                 stage_text_of(values[language_count + which][0]).c_str(),
                 stage_text_of(values[language_count + which][1]).c_str(),
-                shown[language_count * 3u + which * 2u + 1u].c_str(), shuffles,
+                displayed[language_count * 3u + which * 2u + 1u].c_str(), shuffles,
                 stage_text_of(pooled[0][2u * runs]).c_str());
         }
         for (size_t at = 0u; at < found.size(); at += 1u)

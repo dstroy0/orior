@@ -124,7 +124,7 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
         section_list[index].type = container_value_read(&pattern[at + places.section_type], places.section_type_width);
         section_list[index].goes_at =
             container_value_read(&pattern[at + places.section_offset], places.section_offset_width);
-        // a section that takes no bytes in the file is laid out at no length and retains the size its header gives
+        // a section that takes no bytes in the file is arranged at no length and retains the size its header gives
         const int takes_bytes = container_section_takes_bytes(&places, pattern, at, index);
         section_list[index].bytes = takes_bytes ? &pattern[section_list[index].goes_at] : pattern;
         section_list[index].size =

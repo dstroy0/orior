@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // Extract Function, in Python, JavaScript, Rust and the C family: the lines selected, or an
-// expression on one line, become a function of their own, called where they stood, in one change
+// expression on one line, become a function of their own, called where they was, in one change
 // that undo takes back.
 //
 // The new function takes as parameters the names the selection reads that the function holding it
@@ -12,18 +12,18 @@
 // typed next replaces both.
 //
 // In Python and JavaScript it goes after the outermost definition that holds the selection, or above
-// the selection where the selection stands at the top of the file. In Rust and the C family each
+// the selection where the selection is at the top of the file. In Rust and the C family each
 // parameter and what the function gives back take their types from the language server's hover, and
 // an expression's type from the server's hover on a declaration of it, inferred, that the server is
-// shown for the moment of the question alone. In Rust the new function goes after the one
+// displayed for the moment of the question alone. In Rust the new function goes after the one
 // that holds the selection, a method where the selection reads `self`. A value the selection only
 // reads, that its function reads again after it and that is not copied as a number is, it takes by
 // reference, and by a mutable reference where it is declared `mut` and the selection reaches into
 // it. In the C family the new function goes above the one that holds the selection, where C needs it
-// declared, or after it in a class, and it gives back one value at most.
+// declared, or after it in a class, and it gives back one value at max.
 //
 // A selection that returns, or that breaks out of a loop it does not hold, stays where it is, as
-// does one in Rust that hands an error up with `?`.
+// does one in Rust that passes an error up with `?`.
 
 import { pos } from "./editor/document.js";
 import { endOfSel, startOf } from "./editor/view.js";
@@ -100,7 +100,7 @@ function codeInStrings(text, id) {
 }
 
 // Each name in lines `from` to `to` of the document that is code and not a member, with where it
-// stands and whether it is called there or named as a keyword argument. In Rust and the C family a
+// is and whether it is called there or named as a keyword argument. In Rust and the C family a
 // name in a path, before or after `::`, a macro's name and a lifetime are no names either.
 function namesIn(s, from, to, cols = null) {
   const id = s.language?.id;
@@ -141,7 +141,7 @@ export function freshName(text) {
   return name;
 }
 
-// What the selection holds and what stands about it: its lines or its expression, the function that
+// What the selection holds and what is about it: its lines or its expression, the function that
 // holds it with that function's parameters and its end, the names it takes and the names it gives,
 // or null with the reason said.
 function readSelection(editor, lang) {
@@ -239,7 +239,7 @@ function readSelection(editor, lang) {
   const takes = [];
   for (const found of inside) {
     const { name } = found;
-    if (lang.keeps.has(name) || found.keyword || takes.includes(name) || !before.has(name)) {
+    if (lang.retains.has(name) || found.keyword || takes.includes(name) || !before.has(name)) {
       continue;
     }
     // A name the selection sets on a line above any it reads it on is not taken in. A set that

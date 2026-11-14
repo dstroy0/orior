@@ -14,7 +14,7 @@ CODEGEN_CORE unsigned int ruleset_core_relation_schema_find(const RulesetCoreRel
 {
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (ruleset_core_equal(&relations->text[name.first], name.length, &relations->schema.letters[names[at].first],
+        if (ruleset_core_equal(&relations->text[name.first], name.length, &relations->schema.characters[names[at].first],
                                names[at].length))
         {
             return at;
@@ -32,9 +32,9 @@ CODEGEN_CORE void ruleset_core_relation_schema(RulesetCoreRelations *relations)
     for (unsigned int at = 0u; at < relations->entry_count; at += 1u)
     {
         const RulesetCoreEntry *const entry = &relations->entries[at];
-        const unsigned int list = ruleset_core_relation_gives(entry->kind)    ? 0u
-                                  : (entry->kind == RULESET_CORE_ENTRY_BANK)  ? 1u
-                                  : (entry->kind == RULESET_CORE_ENTRY_FIXED) ? 2u
+        const unsigned int list = ruleset_core_relation_gives(entry->type)    ? 0u
+                                  : (entry->type == RULESET_CORE_ENTRY_BANK)  ? 1u
+                                  : (entry->type == RULESET_CORE_ENTRY_FIXED) ? 2u
                                                                               : 3u;
         if (list == 3u)
         {
@@ -59,12 +59,12 @@ CODEGEN_CORE void ruleset_core_relation_schema(RulesetCoreRelations *relations)
             for (unsigned int at = 0u; (given == 0) && (at < relations->entry_count); at += 1u)
             {
                 const RulesetCoreEntry *const entry = &relations->entries[at];
-                const int kind_fits = (list == 0u)   ? ruleset_core_relation_gives(entry->kind)
-                                      : (list == 1u) ? (entry->kind == RULESET_CORE_ENTRY_BANK)
-                                                     : (entry->kind == RULESET_CORE_ENTRY_FIXED);
-                given = kind_fits &&
+                const int type_fits = (list == 0u)   ? ruleset_core_relation_gives(entry->type)
+                                      : (list == 1u) ? (entry->type == RULESET_CORE_ENTRY_BANK)
+                                                     : (entry->type == RULESET_CORE_ENTRY_FIXED);
+                given = type_fits &&
                         ruleset_core_equal(&relations->text[entry->name.first], entry->name.length,
-                                           &schema->letters[lists[list][named].first], lists[list][named].length);
+                                           &schema->characters[lists[list][named].first], lists[list][named].length);
             }
             if (given == 0)
             {
@@ -81,7 +81,7 @@ CODEGEN_CORE void ruleset_core_relation_counts(RulesetCoreRelations *relations, 
 {
     const unsigned char *const text = relations->text;
     const RulesetCoreEntry *const entry = &relations->entries[at];
-    if (entry->kind != RULESET_CORE_ENTRY_OTHER)
+    if (entry->type != RULESET_CORE_ENTRY_OTHER)
     {
         return;
     }
@@ -93,7 +93,7 @@ CODEGEN_CORE void ruleset_core_relation_counts(RulesetCoreRelations *relations, 
     for (unsigned int other_at = 0u; other_at < relations->entry_count; other_at += 1u)
     {
         const RulesetCoreEntry *const other = &relations->entries[other_at];
-        if ((other->kind != RULESET_CORE_ENTRY_OTHER) || (other->file != entry->file))
+        if ((other->type != RULESET_CORE_ENTRY_OTHER) || (other->file != entry->file))
         {
             continue;
         }
@@ -136,18 +136,18 @@ CODEGEN_CORE void ruleset_core_relation_counts(RulesetCoreRelations *relations, 
 //     writes,
 //                `other` the second name's entry in `from`
 //     COLLAPSES  two names two texts in `from` and one text in `to`, `other` the second name's entry in `from`
-//     KIND       a name `from` gives as one kind and `to` as another, of form, nop, err and construct, `other` the
+//     KIND       a name `from` gives as one type and `to` as another, of form, nop, err and construct, `other` the
 //                entry of `to`
 //     ABSENT     a name `from` gives and no entry of `to` does, which a file of `to` added undoes: open
 //
-// Each of the others is a line a lane cannot be read through as it stands (P8): it is true between two languages that
+// Each of the others is a line a lane cannot be read through as it is (P8): it is true between two languages that
 // each write their own names rightly, and is no verdict on either set
 #define RULESET_CORE_MAP_BREAKS 0u
 #define RULESET_CORE_MAP_COLLAPSES 1u
 #define RULESET_CORE_MAP_KIND 2u
 #define RULESET_CORE_MAP_ABSENT 3u
 #define RULESET_CORE_MAP_KINDS 4u
-#define RULESET_CORE_MAP_OPEN(kind_) ((kind_) == RULESET_CORE_MAP_ABSENT)
+#define RULESET_CORE_MAP_OPEN(type_) ((type_) == RULESET_CORE_MAP_ABSENT)
 
 // the first entry of `to` giving the name `name` of `from`, or RULESET_CORE_NONE where none does
 CODEGEN_CORE unsigned int ruleset_core_map_giver(const RulesetCoreRelations *from, RulesetCoreSpan name,
@@ -156,7 +156,7 @@ CODEGEN_CORE unsigned int ruleset_core_map_giver(const RulesetCoreRelations *fro
     for (unsigned int at = 0u; at < to->entry_count; at += 1u)
     {
         const RulesetCoreEntry *const entry = &to->entries[at];
-        if (ruleset_core_relation_gives(entry->kind) &&
+        if (ruleset_core_relation_gives(entry->type) &&
             ruleset_core_equal(&to->text[entry->name.first], entry->name.length, &from->text[name.first], name.length))
         {
             return at;
@@ -170,15 +170,15 @@ CODEGEN_CORE int ruleset_core_map_same(const RulesetCoreRelations *relations, un
 {
     const RulesetCoreEntry *const left = &relations->entries[one];
     const RulesetCoreEntry *const right = &relations->entries[other];
-    return (left->kind == RULESET_CORE_ENTRY_FORM) && (right->kind == RULESET_CORE_ENTRY_FORM) &&
+    return (left->type == RULESET_CORE_ENTRY_FORM) && (right->type == RULESET_CORE_ENTRY_FORM) &&
            (left->text.length != 0u) && (right->text.length != 0u) &&
            ruleset_core_relation_walk(relations, left, right, 0, 0);
 }
 
 // Every relation of the map from `from` to `to`, both read by ruleset_core_relations, into `maps`, which has room for
-// `capacity`: for each name `from` gives, its kind and whether `to` gives it, and the first earlier name it is one text
+// `capacity`: for each name `from` gives, its type and whether `to` gives it, and the first earlier name it is one text
 // with on one side and two on the other. The count found, those past the capacity counted and not stored; three an
-// entry of `from` at most
+// entry of `from` at max
 CODEGEN_CORE unsigned int ruleset_core_map(const RulesetCoreRelations *from, const RulesetCoreRelations *to,
                                            RulesetCoreRelation *maps, unsigned int capacity)
 {
@@ -186,7 +186,7 @@ CODEGEN_CORE unsigned int ruleset_core_map(const RulesetCoreRelations *from, con
     for (unsigned int at = 0u; at < from->entry_count; at += 1u)
     {
         const RulesetCoreEntry *const entry = &from->entries[at];
-        if (!ruleset_core_relation_gives(entry->kind) || (ruleset_core_relation_giver(from, entry->name) != at))
+        if (!ruleset_core_relation_gives(entry->type) || (ruleset_core_relation_giver(from, entry->name) != at))
         {
             continue;
         }
@@ -195,7 +195,7 @@ CODEGEN_CORE unsigned int ruleset_core_map(const RulesetCoreRelations *from, con
         for (unsigned int earlier = 0u; (giver != RULESET_CORE_NONE) && (earlier < at); earlier += 1u)
         {
             const RulesetCoreEntry *const other = &from->entries[earlier];
-            const unsigned int other_giver = ruleset_core_relation_gives(other->kind)
+            const unsigned int other_giver = ruleset_core_relation_gives(other->type)
                                                  ? ruleset_core_map_giver(from, other->name, to)
                                                  : RULESET_CORE_NONE;
             if ((other_giver == RULESET_CORE_NONE) || (ruleset_core_relation_giver(from, other->name) != earlier))
@@ -204,10 +204,10 @@ CODEGEN_CORE unsigned int ruleset_core_map(const RulesetCoreRelations *from, con
             }
             const int same_from = ruleset_core_map_same(from, at, earlier);
             const int same_to = ruleset_core_map_same(to, giver, other_giver);
-            const int both_forms = (entry->kind == RULESET_CORE_ENTRY_FORM) &&
-                                   (other->kind == RULESET_CORE_ENTRY_FORM) &&
-                                   (to->entries[giver].kind == RULESET_CORE_ENTRY_FORM) &&
-                                   (to->entries[other_giver].kind == RULESET_CORE_ENTRY_FORM);
+            const int both_forms = (entry->type == RULESET_CORE_ENTRY_FORM) &&
+                                   (other->type == RULESET_CORE_ENTRY_FORM) &&
+                                   (to->entries[giver].type == RULESET_CORE_ENTRY_FORM) &&
+                                   (to->entries[other_giver].type == RULESET_CORE_ENTRY_FORM);
             found[0] = ((found[0] == RULESET_CORE_NONE) && both_forms && same_from && !same_to) ? earlier : found[0];
             found[1] = ((found[1] == RULESET_CORE_NONE) && both_forms && !same_from && same_to) ? earlier : found[1];
         }
@@ -216,15 +216,15 @@ CODEGEN_CORE unsigned int ruleset_core_map(const RulesetCoreRelations *from, con
                                                    {RULESET_CORE_MAP_KIND, at, giver},
                                                    {RULESET_CORE_MAP_ABSENT, at, RULESET_CORE_NONE}};
         const int present[4] = {found[0] != RULESET_CORE_NONE, found[1] != RULESET_CORE_NONE,
-                                (giver != RULESET_CORE_NONE) && (to->entries[giver].kind != entry->kind),
+                                (giver != RULESET_CORE_NONE) && (to->entries[giver].type != entry->type),
                                 giver == RULESET_CORE_NONE};
-        for (unsigned int kind = 0u; kind < 4u; kind += 1u)
+        for (unsigned int type = 0u; type < 4u; type += 1u)
         {
-            if (present[kind] != 0)
+            if (present[type] != 0)
             {
                 if (count < capacity)
                 {
-                    maps[count] = candidates[kind];
+                    maps[count] = candidates[type];
                 }
                 count += 1u;
             }
@@ -249,19 +249,19 @@ CODEGEN_CORE void ruleset_core_relations(RulesetCoreRelations *relations)
     }
     for (unsigned int at = 0u; at < relations->entry_count; at += 1u)
     {
-        const unsigned int kind = relations->entries[at].kind;
+        const unsigned int type = relations->entries[at].type;
         ruleset_core_relation_pairs(relations, at);
-        if (kind == RULESET_CORE_ENTRY_FORM)
+        if (type == RULESET_CORE_ENTRY_FORM)
         {
             ruleset_core_relation_form(relations, at);
         }
-        if (kind == RULESET_CORE_ENTRY_CONSTRUCT)
+        if (type == RULESET_CORE_ENTRY_CONSTRUCT)
         {
             ruleset_core_relation_construct(relations, at);
         }
         ruleset_core_relation_counts(relations, at);
     }
-    if (relations->schema.letters != 0)
+    if (relations->schema.characters != 0)
     {
         ruleset_core_relation_schema(relations);
     }

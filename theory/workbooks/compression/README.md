@@ -1,9 +1,9 @@
 # The workbook is the ledger
 
-**Purpose:** One place where every idea the compression lower bound rests on is written down beside what stands behind it. A reader then knows at a glance which claims are proved, which are measured, which are built but unmeasured, and which are still only theory.
+**Purpose:** One place where every idea the compression lower bound rests on is written down beside what is behind it. A reader then knows at a glance which claims are proved, which are measured, which are built but unmeasured, and which are still only theory.
 **Scope:** `workbooks/compression/`. The coder and the hash tree are machine parts, in the engine workbook, `workbooks/engine/` (M9 and M13 of its engine_table.md).
 
-## How an entry is kept
+## How an entry is retained
 
 Every claim carries one status, and the status says what backs it:
 
@@ -13,8 +13,8 @@ Every claim carries one status, and the status says what backs it:
 | **measured** | a number was taken on named samples; the number is given, and whether it survived |
 | **built** | the code exists and runs; no measurement yet says whether it helps |
 | **theory** | stated, not built |
-| **refuted** | measured, and the measurement went against it; kept, with the number, and not tried again blind |
-| **not so** | fails on its own arithmetic or in any machine, before anything is measured; kept, with the reason |
+| **refuted** | measured, and the measurement went against it; retained, with the number, and not tried again blind |
+| **not so** | fails on its own arithmetic or in any machine, before anything is measured; retained, with the reason |
 
 A claim changes status only when a run changes it, and the run is named. Nothing is deleted from the ledger. An idea that failed stays, with the number that failed it.
 

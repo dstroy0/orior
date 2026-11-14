@@ -1,4 +1,4 @@
-"""Print the gap before each glyph around every place a word stands in the text layer, in em, for
+"""Print the gap before each glyph around every place a word is in the text layer, in em, for
 reading whether the page sets a space the rows text lost.
 
 usage: python gap_near.py <stem> <word> [glyphs before] [glyphs after]

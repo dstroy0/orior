@@ -16,7 +16,7 @@ async function vimOn(marked) {
 
 const keys = (view, typed) => (Array.isArray(typed) ? typed : [...typed]).forEach((key) => view.vim.take(key));
 
-test("x, D and dd take out a letter, the rest of the line and the line, and u and Ctrl+R take them back and bring them again", async () => {
+test("x, D and dd take out a character, the rest of the line and the line, and u and Ctrl+R take them back and bring them again", async () => {
   const view = await vimOn("|abc def\nnext\nlast");
   keys(view, "2x");
   assert.equal(view.doc.text(), "c def\nnext\nlast");
@@ -31,7 +31,7 @@ test("x, D and dd take out a letter, the rest of the line and the line, and u an
   view.setVim(false);
 });
 
-test("yy yanks a line and p puts it below, P above, and a register named keeps its own", async () => {
+test("yy yanks a line and p puts it below, P above, and a register named retains its own", async () => {
   const view = await vimOn("|one\ntwo");
   keys(view, "yyjp");
   assert.equal(view.doc.text(), "one\ntwo\none");
@@ -42,7 +42,7 @@ test("yy yanks a line and p puts it below, P above, and a register named keeps i
   view.setVim(false);
 });
 
-test("J joins lines with a space, ~ turns a letter's case, and r replaces one", async () => {
+test("J joins lines with a space, ~ turns a character's case, and r replaces one", async () => {
   const view = await vimOn("|first\n   second");
   keys(view, "J");
   assert.equal(view.doc.text(), "first second");

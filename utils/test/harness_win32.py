@@ -29,7 +29,7 @@ CREATE_SUSPENDED = 0x00000004
 INVALID_HANDLE = wintypes.HANDLE(-1).value
 PAGE_BYTES = 4096
 WORKING_SET_SHARED = 0x100
-SW_SHOWNORMAL = 9
+SW_DISPLAYEDORMAL = 9
 SW_SHOWMAXIMIZED = 3
 SWP_NOSIZE = 0x0001
 SWP_NOZORDER = 0x0004
@@ -455,7 +455,7 @@ def window_rect(handle):
 
 
 class KeyInput(ctypes.Structure):
-    _fields_ = [("kind", wintypes.DWORD), ("key", wintypes.WORD), ("scan", wintypes.WORD), ("flags", wintypes.DWORD),
+    _fields_ = [("type", wintypes.DWORD), ("key", wintypes.WORD), ("scan", wintypes.WORD), ("flags", wintypes.DWORD),
                 ("time", wintypes.DWORD), ("extra", ctypes.POINTER(ctypes.c_ulong)), ("padding", ctypes.c_ubyte * 8)]
 
 
@@ -489,8 +489,8 @@ def _key_names():
     for digit in range(10):
         names["Numpad%d" % digit] = (0x60 + digit, 0)
         names[str(digit)] = (0x30 + digit, 0)
-    for letter in range(26):
-        names[chr(0x41 + letter)] = (0x41 + letter, 0)
+    for character in range(26):
+        names[chr(0x41 + character)] = (0x41 + character, 0)
     return names
 
 
@@ -576,7 +576,7 @@ def _chord(name):
     if key.lower().startswith("0x") and len(key) > 2:
         return modifiers, (int(key, 16) & 0xFF, 0)
     if len(key) == 1 and modifiers and key.upper() in KEY_NAMES and key.isalnum():
-        # a letter or a digit in a chord is its key, the case the chord's Shift gives it
+        # a character or a digit in a chord is its key, the case the chord's Shift gives it
         return modifiers, KEY_NAMES[key.upper()]
     if len(key) == 1:
         if ord(key) > 0xFFFF:
@@ -680,11 +680,11 @@ def keys_sent(handle, names):
 
 def chars_sent(handle, text):
     """Each character of `text` posted to the window as the character typed, its UTF-16 units one message each, a
-    letter past the basic plane its two surrogates, with no key pressed for it."""
+    character past the basic plane its two surrogates, with no key pressed for it."""
     import time
 
-    for letter in text:
-        point = ord(letter)
+    for character in text:
+        point = ord(character)
         units = [point] if point < 0x10000 else [0xD800 + ((point - 0x10000) >> 10), 0xDC00 + ((point - 0x10000) & 0x3FF)]
         for unit in units:
             user32.PostMessageW(handle, WM_CHAR, unit, 1)
@@ -715,9 +715,9 @@ def wheel_units_sent(handle, x, y, units, across=False):
 
 
 def window_moved(handle, left, top):
-    """The window shown normal and moved to (left, top), its size kept, and maximized again where it was."""
+    """The window displayed normal and moved to (left, top), its size retained, and maximized again where it was."""
     maximized = user32.IsZoomed(handle)
-    user32.ShowWindow(handle, SW_SHOWNORMAL)
+    user32.ShowWindow(handle, SW_DISPLAYEDORMAL)
     user32.SetWindowPos(handle, None, left, top, 0, 0, SWP_NOSIZE | SWP_NOZORDER)
     if maximized:
         user32.ShowWindow(handle, SW_SHOWMAXIMIZED)
@@ -740,7 +740,7 @@ def displays():
 
 
 class DisplayConfigHeader(ctypes.Structure):
-    _fields_ = [("kind", ctypes.c_uint32), ("size", ctypes.c_uint32), ("adapter_low", ctypes.c_uint32), ("adapter_high", ctypes.c_int32), ("id", ctypes.c_uint32)]
+    _fields_ = [("type", ctypes.c_uint32), ("size", ctypes.c_uint32), ("adapter_low", ctypes.c_uint32), ("adapter_high", ctypes.c_int32), ("id", ctypes.c_uint32)]
 
 
 class DisplayConfigSourceName(ctypes.Structure):
@@ -755,7 +755,7 @@ class DisplayConfigWhiteLevel(ctypes.Structure):
     _fields_ = [("header", DisplayConfigHeader), ("level", ctypes.c_uint32)]
 
 
-# QueryDisplayConfig's active paths, and the kinds of DisplayConfigGetDeviceInfo asked: a source's GDI name, a target's
+# QueryDisplayConfig's active paths, and the types of DisplayConfigGetDeviceInfo asked: a source's GDI name, a target's
 # advanced color state and its white level for SDR content. A path is 72 bytes, its source's adapter and id at 0 and 8
 # and its target's at 20 and 28; a mode is 64 bytes and is not read.
 QDC_ONLY_ACTIVE_PATHS = 2
@@ -768,7 +768,7 @@ MODE_BYTES = 64
 
 def sdr_white(device):
     """How a display composes SDR content, for the display named `device` as \\\\.\\DISPLAY1: (advanced color on, the
-    linear scRGB value SDR white stands at, 1.0 being 80 nits). Off, or where the system cannot be asked, (False, 1.0)."""
+    linear scRGB value SDR white is at, 1.0 being 80 nits). Off, or where the system cannot be asked, (False, 1.0)."""
     paths_count = ctypes.c_uint32()
     modes_count = ctypes.c_uint32()
     if user32.GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, ctypes.byref(paths_count), ctypes.byref(modes_count)) != 0:
@@ -801,7 +801,7 @@ def screen_pixels(left, top, width, height):
     screen = user32.GetDC(None)
     memory_dc = gdi32.CreateCompatibleDC(screen)
     bitmap = gdi32.CreateCompatibleBitmap(screen, width, height)
-    kept = gdi32.SelectObject(memory_dc, bitmap)
+    retained = gdi32.SelectObject(memory_dc, bitmap)
     gdi32.BitBlt(memory_dc, 0, 0, width, height, screen, left, top, SRCCOPY)
     header = BitmapHeader()
     header.biSize = ctypes.sizeof(BitmapHeader)
@@ -812,7 +812,7 @@ def screen_pixels(left, top, width, height):
     header.biCompression = BI_RGB
     pixels = (ctypes.c_ubyte * (width * height * 4))()
     gdi32.GetDIBits(memory_dc, bitmap, 0, height, pixels, ctypes.byref(header), DIB_RGB_COLORS)
-    gdi32.SelectObject(memory_dc, kept)
+    gdi32.SelectObject(memory_dc, retained)
     gdi32.DeleteObject(bitmap)
     gdi32.DeleteDC(memory_dc)
     user32.ReleaseDC(None, screen)
@@ -830,7 +830,7 @@ def rows_of_bgra(width, height, raw):
 
 
 def rows_scaled(rows, scale):
-    """The rows drawn `scale` times larger, every pixel kept square."""
+    """The rows drawn `scale` times larger, every pixel retained square."""
     scaled = []
     for row in rows:
         line = b"".join(row[at : at + 3] * scale for at in range(0, len(row), 3))
@@ -843,8 +843,8 @@ def png_written(path, rows):
     height = len(rows)
     width = len(rows[0]) // 3 if rows else 0
 
-    def chunk(kind, body):
-        return struct.pack(">I", len(body)) + kind + body + struct.pack(">I", zlib.crc32(kind + body) & 0xFFFFFFFF)
+    def chunk(type, body):
+        return struct.pack(">I", len(body)) + type + body + struct.pack(">I", zlib.crc32(type + body) & 0xFFFFFFFF)
 
     filtered = b"".join(b"\x00" + row for row in rows)
     with open(path, "wb") as out:

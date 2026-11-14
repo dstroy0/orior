@@ -8,7 +8,7 @@
 
 typedef struct
 {
-    char letter;
+    char character;
     const char *url;
     const char *authority;
     unsigned long long size;
@@ -16,10 +16,10 @@ typedef struct
     VerbaLinea *err_msg;
 } RequestsUrlCtx;
 
-// a letter in ASCII's lower case
+// a character in ASCII's lower case
 EMBED_INLINE char url_lower(const RequestsUrlCtx *args)
 {
-    return ((args->letter >= 'A') && (args->letter <= 'Z')) ? (char)(args->letter - 'A' + 'a') : args->letter;
+    return ((args->character >= 'A') && (args->character <= 'Z')) ? (char)(args->character - 'A' + 'a') : args->character;
 }
 
 int cli_requests_number(const CliRequestsTextSizeBaseCtx *args)
@@ -33,21 +33,21 @@ int cli_requests_number(const CliRequestsTextSizeBaseCtx *args)
     }
     for (; at < args->size; at += 1u)
     {
-        const char letter = EMBED_CALL(url_lower, RequestsUrlCtx, .letter = args->text[at]);
+        const char character = EMBED_CALL(url_lower, RequestsUrlCtx, .character = args->text[at]);
         unsigned int digit;
-        if ((letter >= '0') && (letter <= '9'))
+        if ((character >= '0') && (character <= '9'))
         {
-            digit = (unsigned int)(letter - '0');
+            digit = (unsigned int)(character - '0');
         }
-        else if ((args->base == 16u) && (letter >= 'a') && (letter <= 'f'))
+        else if ((args->base == 16u) && (character >= 'a') && (character <= 'f'))
         {
-            digit = (unsigned int)(letter - 'a' + 10);
+            digit = (unsigned int)(character - 'a' + 10);
         }
         else
         {
             digit = 16u;
         }
-        if ((digit >= args->base) || (*value > (args->most - digit) / args->base))
+        if ((digit >= args->base) || (*value > (args->max - digit) / args->base))
         {
             return 0;
         }
@@ -63,7 +63,7 @@ int cli_requests_contains(const CliRequestsTextSizeNeedleCtx *args)
     {
         unsigned long long same = 0ULL;
         while ((same < length) &&
-               (EMBED_CALL(url_lower, RequestsUrlCtx, .letter = args->text[at + same]) == args->needle[same]))
+               (EMBED_CALL(url_lower, RequestsUrlCtx, .character = args->text[at + same]) == args->needle[same]))
         {
             same += 1ULL;
         }
@@ -115,13 +115,13 @@ EMBED_INLINE int url_host(const RequestsUrlCtx *args)
     unsigned long long number = args->address->secure ? 443u : 80u;
     if ((port != NULL) &&
         !EMBED_CALL(cli_requests_text_size_base_internal.number, CliRequestsTextSizeBaseCtx, .text = port,
-                    .size = port_size, .base = 10u, .most = 65535u, .value_u64s = &number))
+                    .size = port_size, .base = 10u, .max = 65535u, .value_u64s = &number))
     {
         mmgr_line_put_n(args->err_msg, port, port_size);
         mmgr_line_put(args->err_msg, " is not a port");
         return 0;
     }
-    // a port read is at most 65535
+    // a port read is at max 65535
     args->address->port = (unsigned int)number;
     if (host_size == 0u)
     {
@@ -159,7 +159,7 @@ int cli_requests_address(const CliRequestsErrMsgUrlCtx *args)
     {
         for (unsigned long long at = 0ULL; at < scheme; at += 1ULL)
         {
-            mmgr_line_ch(args->err_msg, EMBED_CALL(url_lower, RequestsUrlCtx, .letter = args->url[at]));
+            mmgr_line_ch(args->err_msg, EMBED_CALL(url_lower, RequestsUrlCtx, .character = args->url[at]));
         }
         mmgr_line_put(args->err_msg, " is not http or https");
         return 0;
@@ -242,8 +242,8 @@ const CliRequestsText *cli_requests_header(const CliRequestsNameAnswerCtx *args)
         const CliRequestsText *const name_at = &args->answer->header_name[at];
         unsigned long long same = 0ULL;
         while ((name_at->size == length) && (same < length) &&
-               (EMBED_CALL(url_lower, RequestsUrlCtx, .letter = args->answer->head[name_at->at + same]) ==
-                EMBED_CALL(url_lower, RequestsUrlCtx, .letter = args->name[same])))
+               (EMBED_CALL(url_lower, RequestsUrlCtx, .character = args->answer->head[name_at->at + same]) ==
+                EMBED_CALL(url_lower, RequestsUrlCtx, .character = args->name[same])))
         {
             same += 1ULL;
         }

@@ -4,13 +4,13 @@
 # Catalog: PRF-x-006
 #
 # Proof of the boundary posit, stated in theory/workbooks/orior/precision_spread_theory.md section 10: every
-# exact representation has a boundary of one of three kinds, a FORMAT boundary that a larger format
+# exact representation has a boundary of one of three types, a FORMAT boundary that a larger format
 # raises, a MEASUREMENT boundary fixed upstream, and a COMPLETENESS boundary that only more computation
 # crosses. Arithmetic precision moves the first and never the other two.
 #
 #   Usage:  python evidence/proofs/posits/proof_domain_boundaries.py
 #
-# The three kinds are named from a survey of six domains. A survey is not a proof. Three cases are
+# The three types are named from a survey of six domains. A survey is not a proof. Three cases are
 # built here where the boundary is known by construction.
 #
 #   FORMAT       the number theoretic transform's length. A length-n root of unity exists modulo a prime
@@ -146,7 +146,7 @@ def report_completeness(out):
 
 def main():
     out = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", newline="")
-    out.write("  PROOF: every exact representation has a boundary of one of three kinds\n\n")
+    out.write("  PROOF: every exact representation has a boundary of one of three types\n\n")
     fmt = report_format(out)
     measured = report_measurement(out)
     complete = report_completeness(out)

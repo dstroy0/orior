@@ -50,11 +50,11 @@ extern "C"
     // The host's answer of `relation` for the thread `at`, put with the case's two words `word` under the relation's
     // reading `reading`: the word a load reads, 0 or 1; the word of the register a store's variant set, 1 for the
     // second; a number's constant. The answer is the record's two words as one value, the first word low: a lane's
-    // number, a block's, a word loaded or a number stand in the first with the second 0, as the stores before the
+    // number, a block's, a word loaded or a number are in the first with the second 0, as the stores before the
     // probe place leave it; a store leaves the case's second word in the first, as the probe place found it, and the
     // register's word in the second; an exit leaves the fill word in the first; the block size, `dim`, is the threads a
     // block on every case, which the launch alone sets; and a parameter's word, `parameter`, is the count the launch
-    // hands the kernel on every case, its reading the count's place among the parameters. 1, or 0 where the relation is
+    // passes the kernel on every case, its reading the count's place among the parameters. 1, or 0 where the relation is
     // none of the eight
     static inline int frame_answer(unsigned int relation, unsigned int at, const unsigned int *word,
                                    unsigned long long reading, unsigned long long *answered)

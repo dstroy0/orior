@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // A notebook's kernel: a cell run on the kernel the notebook names, started where none runs, what the kernel says
-// heard into the cell's outputs, what it says before the run's id comes back kept for it, and the notebook checked
+// heard into the cell's outputs, what it says before the run's id comes back retained for it, and the notebook checked
 // from the top in a kernel of its own.
 
 import { state } from "../../../gui/src-js/notebook.js";
@@ -17,7 +17,7 @@ const PYTHON = { name: "python3", display_name: "Python 3", language: "python" }
 // Runs `work` with the machine's kernels read as `specs`, a kernel started, run and stopped answered by the test,
 // and the kernels the machine has read again after it.
 async function withKernels(specs, work) {
-  const kept = state.specs;
+  const retained = state.specs;
   state.specs = specs;
   let run = 0;
   calls.answer("kernel_start", () => null);
@@ -26,7 +26,7 @@ async function withKernels(specs, work) {
   try {
     await work();
   } finally {
-    state.specs = kept;
+    state.specs = retained;
   }
 }
 
@@ -58,7 +58,7 @@ test("a cell runs on a kernel started for it, and what the kernel says fills its
   });
 });
 
-test("what the kernel says of a run before its id comes back is kept for it, and an aborted run is not counted", async () => {
+test("what the kernel says of a run before its id comes back is retained for it, and an aborted run is not counted", async () => {
   await withKernels([PYTHON], async () => {
     const book = await openedNotebook("early", [code("x")]);
     const cell = book.cells[0];

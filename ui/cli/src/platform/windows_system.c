@@ -19,7 +19,7 @@ int cli_random_bytes(const CliSizeBytesCtx *args)
     while (supplied < args->size)
     {
         const unsigned long long left = args->size - supplied;
-        // a piece is at most what a ULONG counts
+        // a piece is at max what a ULONG counts
         const ULONG piece = (left > 0xFFFFFFFFull) ? 0xFFFFFFFFul : (ULONG)left;
         if (!RtlGenRandom(into + supplied, piece))
         {
@@ -133,7 +133,7 @@ void cli_clock_civil(const CliClockCivilCtx *args)
     *civil = (CliCivil){local.wYear, local.wMonth, local.wDay, local.wHour, local.wMinute};
 }
 
-// the logon session this process's token stands in, which every log in makes new, its id written in hexadecimal
+// the logon session this process's token is in, which every log in makes new, its id written in hexadecimal
 void cli_logon_by_name(const CliCapacityLogonCtx *args)
 {
     VerbaLinea named = {args->logon, args->capacity_bytes, 0ull};

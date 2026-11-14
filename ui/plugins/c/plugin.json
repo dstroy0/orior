@@ -2,7 +2,7 @@
   "id": "c",
   "name": "C, C++ and CUDA",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "extensions": ["c","h","cu","cuh","cpp","hpp","cc"],
   "comments": {"line":"//","block":["/*","*/"]},
   "pairs": ["()","[]","{}"],

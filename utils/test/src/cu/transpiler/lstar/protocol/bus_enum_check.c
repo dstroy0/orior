@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // bus_enum_check.c: the classify probe and the width probe over memory the test owns, the enumeration region found in a
-// run of kinds, and the classify walk driven over a span of addresses in probes the interface can lose.
+// run of types, and the classify walk driven over a span of addresses in probes the interface can lose.
 //
-//     bus_enum_check <classify_walk>, run inside a run whose records the walk hands its lines to
+//     bus_enum_check <classify_walk>, run inside a run whose records the walk passes its lines to
 //
-// The region finder is put runs of kinds a walk would have read. Given the classify_walk program the walk runs too,
+// The region finder is put runs of types a walk would have read. Given the classify_walk program the walk runs too,
 // over low addresses nothing maps, where every address ends its probe and the region is none.
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/query/bus_enum_walk.h"
 
@@ -24,13 +24,13 @@ static void check_that(int passed, const char *what)
     }
 }
 
-static int find(const unsigned int *kinds, unsigned long long count, unsigned long long *base,
+static int find(const unsigned int *types, unsigned long long count, unsigned long long *base,
                 unsigned long long *stride, unsigned long long *records)
 {
     *base = 0ull;
     *stride = 0ull;
     *records = 0ull;
-    return bus_enum_find(kinds, count, base, stride, records);
+    return bus_enum_find(types, count, base, stride, records);
 }
 
 int main(int count_of_words, char **words)
@@ -42,8 +42,8 @@ int main(int count_of_words, char **words)
     {
         const unsigned int was = owned[at];
         unsigned int read_back = 0u;
-        const unsigned int kind = host_address_probe((unsigned long long)(unsigned long long *)&owned[at], &read_back);
-        check_that(kind == HOST_RETAINS, "memory the test owns retains what the probe puts");
+        const unsigned int type = host_address_probe((unsigned long long)(unsigned long long *)&owned[at], &read_back);
+        check_that(type == HOST_RETAINS, "memory the test owns retains what the probe puts");
         const unsigned int width = host_width_probe((unsigned long long)(unsigned long long *)&owned[at]);
         check_that(width == 0u, "memory sized gives width 0, since it retains the ones it was put");
         check_that(owned[at] == was, "the probe leaves memory it read as it found it");
@@ -114,7 +114,7 @@ int main(int count_of_words, char **words)
     // the classify walk driven over low addresses nothing maps: each ends its probe and reads as nothing
     if (count_of_words == 2)
     {
-        static unsigned int kinds[4] = {0u, 0u, 0u, 0u};
+        static unsigned int types[4] = {0u, 0u, 0u, 0u};
         QueryWalk walk = {0};
         walk.program = words[1];
         walk.from = 0ull;
@@ -125,12 +125,12 @@ int main(int count_of_words, char **words)
         unsigned long long walk_stride = 0ull;
         unsigned long long walk_records = 0ull;
         EngineError error = {0};
-        const int region = bus_enum_walk(&walk, kinds, &walk_base, &walk_stride, &walk_records, &error);
+        const int region = bus_enum_walk(&walk, types, &walk_base, &walk_stride, &walk_records, &error);
         check_that(region == 0, "low addresses nothing maps are no enumeration region");
         int all_nothing = 1;
         for (unsigned int at = 0u; at < 4u; at += 1u)
         {
-            all_nothing = (kinds[at] == HOST_NOTHING) ? all_nothing : 0;
+            all_nothing = (types[at] == HOST_NOTHING) ? all_nothing : 0;
         }
         check_that(all_nothing == 1, "each address a probe queried there ended it and reads as nothing");
     }

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // job_runs.h: the Run pane as the CLI carries it. The tree's jobs listed by their group, each group opened or closed,
 // those whose id, title or about contain the filter typed alone; under the job chosen its file and about, a field
-// each param, the choices of the param focused under it, a row each run of the job and under the run shown its lines,
+// each param, the choices of the param focused under it, a row each run of the job and under the run displayed its lines,
 // each plain with its color spans as the xterm reads them, and the end of a run that ended. A job is started with the
 // form's values, refused with the runner's sentence where they do not do, and stopped; its runs' threads store what
-// they report under a lock and wake the view's thread, whose step takes it into the rows. The rows stand in sections,
+// they report under a lock and wake the view's thread, whose step takes it into the rows. The rows are in sections,
 // each its first row, and a row is found by a binary search over those starts; the counts change as the data changes
 // (job_runs.c the store, the sink and the runs; job_runs_rows.c the sections and the rows; job_runs_form.c the filter
 // and the form)
@@ -24,13 +24,13 @@ typedef struct CliJobRunsFieldCfg CliJobRunsFieldCfg;
 typedef struct CliJobRunsScrollCfg CliJobRunsScrollCfg;
 typedef struct CliJobRunsRunCfg CliJobRunsRunCfg;
 
-// the ended runs of a job retained, the oldest released with its lines past them; and the most bytes the filter or a
+// the ended runs of a job retained, the oldest released with its lines past them; and the max bytes the filter or a
 // field takes with its end
 #define CLI_JOB_RUNS_RETAINED 10u
 #define CLI_JOB_RUNS_FIELD_MAX 4096u
 
 // the rows' types: a group, a job, the chosen job's file and about, a param's field, a choice of the param focused, a
-// run of the chosen job, a line of the run shown, and the end of the run shown where it ended
+// run of the chosen job, a line of the run displayed, and the end of the run displayed where it ended
 #define CLI_JOB_RUN_GROUP 0u
 #define CLI_JOB_RUN_JOB 1u
 #define CLI_JOB_RUN_ABOUT 2u
@@ -41,8 +41,8 @@ typedef struct CliJobRunsRunCfg CliJobRunsRunCfg;
 #define CLI_JOB_RUN_END 7u
 
 // a row's flags: a group open, the job chosen or a choice taken, a run going or a job with one going, a param
-// required, the field that takes the keys, a param's default shown for its empty value, a run that ended with 0, one
-// that ended otherwise or was stopped, and the run shown
+// required, the field that takes the keys, a param's default displayed for its empty value, a run that ended with 0, one
+// that ended otherwise or was stopped, and the run displayed
 #define CLI_JOB_RUN_OPEN 0x001u
 #define CLI_JOB_RUN_CHOSEN 0x002u
 #define CLI_JOB_RUN_LIVE 0x004u
@@ -51,7 +51,7 @@ typedef struct CliJobRunsRunCfg CliJobRunsRunCfg;
 #define CLI_JOB_RUN_DEFAULTED 0x020u
 #define CLI_JOB_RUN_OK 0x040u
 #define CLI_JOB_RUN_FAILED 0x080u
-#define CLI_JOB_RUN_SHOWN 0x100u
+#define CLI_JOB_RUN_DISPLAYED 0x100u
 
 // a line's stream: what a step wrote to its output, to its errors, and the command line a step runs
 #define CLI_JOB_RUN_STDOUT 0u
@@ -65,7 +65,7 @@ typedef struct CliJobRunsRunCfg CliJobRunsRunCfg;
 
 // A row: its type; its text and its bytes, the group's name, the job's title, the file, the param's key, the choice,
 // the run's number and state, the line's plain text or the end's word; a second text and its bytes, the about, the
-// param's value or its default; the guides it stands in; its flags; a line's stream; and a number, the jobs a group
+// param's value or its default; the guides it is in; its flags; a line's stream; and a number, the jobs a group
 // lists or the run's
 typedef struct
 {
@@ -80,7 +80,7 @@ typedef struct
     unsigned long long number;
 } CliJobRunRow;
 
-// A line of the run shown: its plain text and its bytes, its color spans and how many, and its stream
+// A line of the run displayed: its plain text and its bytes, its color spans and how many, and its stream
 typedef struct
 {
     const char *text;
@@ -100,20 +100,20 @@ void cli_job_runs_end(const CliJobRunsWokenCfg *args);
 // starts stores it: its type; its run's number; for its start, its job's id; for a line, its stream and its text; for
 // its end, its exit code where it has one and whether it was stopped
 void cli_job_runs_reported(const CliJobRunsReportCfg *args);
-// the jobs listed anew from `catalog` where it is handed, which then outlives the store's use of it, else from the
+// the jobs listed anew from `catalog` where it is passed, which then outlives the store's use of it, else from the
 // catalog read of the tree at `root`, in the store's own cell; the groups' open flags following their names, and the
 // job chosen following its id, dropped where the catalog no longer lists it
 void cli_job_runs_read(const CliJobRunsRootCfg *args);
 // how many rows the pane has; the row `row_at` into `row_out`: 1, or 0 past the last; the line of the LINE row
 // `row_at` into `line_out`: 1, or 0 where the row is no line; and the row `row_at` pressed: a group opened or closed,
-// a job chosen or let go, a param focused, a choice taken or a choice of many turned, a run shown: 1 where the row
+// a job chosen or let go, a param focused, a choice taken or a choice of many turned, a run displayed: 1 where the row
 // takes the keys
 unsigned int cli_job_runs_row_count(const CliJobRunsRowCfg *args);
 int cli_job_runs_row_read(const CliJobRunsRowCfg *args);
 int cli_job_runs_line_read(const CliJobRunsRowCfg *args);
 int cli_job_runs_row_press(const CliJobRunsRowCfg *args);
 // `length` bytes of `bytes` typed into the field that has the keys, the filter or the param focused; the key
-// `key_name` pressed there, Backspace erasing its last letter: 1 where it was taken; the filter, its bytes into
+// `key_name` pressed there, Backspace erasing its last character: 1 where it was taken; the filter, its bytes into
 // `length_out`; whether the filter is the field that takes the keys; and the keys moved to the filter
 void cli_job_runs_type(const CliJobRunsFieldCfg *args);
 int cli_job_runs_key(const CliJobRunsFieldCfg *args);
@@ -121,11 +121,11 @@ unsigned long long cli_job_runs_filter(const CliJobRunsFieldCfg *args);
 int cli_job_runs_filter_focused(const CliJobRunsFieldCfg *args);
 void cli_job_runs_filter_focus(const CliJobRunsFieldCfg *args);
 // the scroll top that brings the last row into view for a pane `capacity` rows tall scrolled to `scroll_top`, where it
-// stood at the last row before the rows last grew, else `scroll_top`
+// was at the last row before the rows last grew, else `scroll_top`
 unsigned int cli_job_runs_follow(const CliJobRunsScrollCfg *args);
-// the chosen job started in the tree at `root` with the form's values: 1, or 0 with the refusal standing; the run
-// shown stopped where it goes: 1, or 0 where none goes; the refusal of the last start, its bytes into `length_out`,
-// empty where it started; and whether the run shown goes
+// the chosen job started in the tree at `root` with the form's values: 1, or 0 with the refusal located; the run
+// displayed stopped where it goes: 1, or 0 where none goes; the refusal of the last start, its bytes into `length_out`,
+// empty where it started; and whether the run displayed goes
 int cli_job_runs_start(const CliJobRunsRunCfg *args);
 int cli_job_runs_stop(const CliJobRunsRunCfg *args);
 const char *cli_job_runs_refusal(const CliJobRunsRunCfg *args);

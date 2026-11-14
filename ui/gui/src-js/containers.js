@@ -14,7 +14,7 @@ import { menuOn } from "./menu.js";
 // How often the list is read again while the window shows, in milliseconds.
 const REFRESH = 3000;
 
-const state = { hooks: null, timer: 0, kind: "docker", shown: null };
+const state = { hooks: null, timer: 0, type: "docker", displayed: null };
 const parts = {};
 
 function element(tag, props = {}, ...children) {
@@ -40,9 +40,9 @@ function schedule() {
 }
 
 async function refresh() {
-  const type = state.kind;
+  const type = state.type;
   const listed = await invoke(type === "docker" ? "containers_list" : "pods_list").catch((error) => ({ items: [], problem: String(error) }));
-  if (type === state.kind) {
+  if (type === state.type) {
     draw(listed);
   }
   schedule();
@@ -62,7 +62,7 @@ function group(label, count) {
 function row(key, name, detail, status, mark) {
   const button = element("button", { className: `containers-row ${mark}`, type: "button", title: status }, element("span", { className: "containers-dot" }), element("span", { className: "name", textContent: name }), element("span", { className: "detail", textContent: detail }), element("span", { className: "status", textContent: status }));
   button.dataset.key = key;
-  if (state.shown === key) {
+  if (state.displayed === key) {
     button.setAttribute("aria-current", "true");
   }
   button.addEventListener("click", () => logsOf(key));
@@ -77,8 +77,8 @@ function draw(listed) {
   if (listed.problem) {
     nodes.push(element("p", { className: "containers-problem", textContent: listed.problem }));
   } else if (!items.length) {
-    nodes.push(element("p", { className: "containers-problem", textContent: state.kind === "docker" ? "Docker has no containers." : "The cluster has no pods." }));
-  } else if (state.kind === "docker") {
+    nodes.push(element("p", { className: "containers-problem", textContent: state.type === "docker" ? "Docker has no containers." : "The cluster has no pods." }));
+  } else if (state.type === "docker") {
     const projects = [...new Set(items.map((one) => one.project ?? ""))];
     for (const project of projects) {
       const own = items.filter((one) => (one.project ?? "") === project);
@@ -96,17 +96,17 @@ function draw(listed) {
     }
   }
   parts.list.replaceChildren(...nodes);
-  parts.said.textContent = listed.problem ? "" : `${items.length} ${state.kind === "docker" ? "container" : "pod"}${items.length === 1 ? "" : "s"}`;
+  parts.said.textContent = listed.problem ? "" : `${items.length} ${state.type === "docker" ? "container" : "pod"}${items.length === 1 ? "" : "s"}`;
 }
 
 const podOf = (key) => items.find((one) => `${one.namespace}/${one.name}` === key);
 const containerOf = (key) => items.find((one) => one.name === key);
 
 async function logsOf(key, container = null) {
-  state.shown = key;
+  state.displayed = key;
   parts.list.querySelectorAll(".containers-row").forEach((one) => one.toggleAttribute("aria-current", one.dataset.key === key));
   show(`Logs of ${key}${container ? ` (${container})` : ""}`, "");
-  const pod = state.kind === "pods" ? podOf(key) : null;
+  const pod = state.type === "pods" ? podOf(key) : null;
   const read = pod ? invoke("pod_logs", { namespace: pod.namespace, name: pod.name, container: container ?? pod.containers[0] ?? null }) : invoke("container_logs", { name: key });
   show(`Logs of ${key}${container ? ` (${container})` : ""}`, await read.catch((error) => String(error)));
 }
@@ -138,9 +138,9 @@ const quoted = (text) => `'${text.replace(/'/g, "'\\''")}'`;
 // The window shows `type`, Docker's containers or Kubernetes' pods, and reads them again.
 async function showType(type) {
   toggleContainers(true);
-  if (state.kind !== type) {
-    state.kind = type;
-    state.shown = null;
+  if (state.type !== type) {
+    state.type = type;
+    state.displayed = null;
     parts.bar.querySelectorAll(".profile-tab").forEach((one, at) => one.setAttribute("aria-pressed", String((at === 0 ? "docker" : "pods") === type)));
     parts.list.replaceChildren();
     show("", "");
@@ -163,7 +163,7 @@ function shellLine(key, container = null) {
 const typeOf = (key) => (key.includes("/") ? "pods" : "docker");
 
 export const containerCommands = {
-  "containers-kind": ([type]) => showType(type === "pods" ? "pods" : "docker"),
+  "containers-type": ([type]) => showType(type === "pods" ? "pods" : "docker"),
   "containers-read": () => refresh(),
   "container-logs": async ([key, container]) => (await showType(typeOf(key)), logsOf(key, container ?? null)),
   "container-run": async ([name, ...line]) => (await showType("docker"), runIn(name, line.length ? line.join(" ") : null)),
@@ -179,7 +179,7 @@ function rowItems(event) {
   if (!key) {
     return null;
   }
-  if (state.kind === "pods") {
+  if (state.type === "pods") {
     const pod = podOf(key);
     if (!pod) {
       return null;
@@ -209,7 +209,7 @@ function rowItems(event) {
 
 // What the window shows, for the tests: each row's name and state, and the pane's title.
 export function containersShown() {
-  return { kind: state.kind, rows: [...parts.list.querySelectorAll(".containers-row")].map((one) => [one.dataset.key, one.className.replace("containers-row", "").trim()]), title: parts.title.textContent, out: parts.out.textContent };
+  return { type: state.type, rows: [...parts.list.querySelectorAll(".containers-row")].map((one) => [one.dataset.key, one.className.replace("containers-row", "").trim()]), title: parts.title.textContent, out: parts.out.textContent };
 }
 
 // `hooks` asks for a line, opens a terminal running a line, and says a word on the status bar.
@@ -218,10 +218,10 @@ export function startContainers(hooks) {
   parts.panel = document.getElementById("containers");
   const tab = (type, label) => {
     const button = element("button", { className: "profile-tab", type: "button", textContent: label });
-    button.setAttribute("aria-pressed", String(state.kind === type));
+    button.setAttribute("aria-pressed", String(state.type === type));
     button.addEventListener("click", () => {
-      state.kind = type;
-      state.shown = null;
+      state.type = type;
+      state.displayed = null;
       parts.bar.querySelectorAll(".profile-tab").forEach((one) => one.setAttribute("aria-pressed", String(one === button)));
       parts.list.replaceChildren();
       show("", "");

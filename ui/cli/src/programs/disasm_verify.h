@@ -27,8 +27,8 @@ typedef struct CliDisasmVerifySizeTextCfg CliDisasmVerifySizeTextCfg;
 typedef struct CliDisasmVerifyCfg CliDisasmVerifyCfg;
 typedef struct CliDisasmVerifyWordsCfg CliDisasmVerifyWordsCfg;
 
-// the most functions of one module compared, the most units of one function read, the longest mnemonic, and the most
-// bytes of one unit: the longest instruction of the architecture, and the most bytes of one raw run the plugin's
+// the max functions of one module compared, the max units of one function read, the longest mnemonic, and the max
+// bytes of one unit: the longest instruction of the architecture, and the max bytes of one raw run the plugin's
 // script writes
 #define CLI_DISASM_FUNCTIONS 512u
 
@@ -67,7 +67,7 @@ unsigned int cli_disasm_functions_define(const CliDisasmVerifyIrSizeCfg *args);
 // program defines it, else `name` with the suffix link-time optimization gives a promoted local, as name.llvm.1234;
 // into `symbol`, sized for CLI_NAME_MAX_LEN: 1, or 0 where the program has no such symbol
 int cli_disasm_symbol_get(const CliDisasmVerifySizeTextCfg *args);
-// the instructions of the function `symbol` read from llvm-objdump's output with each instruction's bytes shown, `text`
+// the instructions of the function `symbol` read from llvm-objdump's output with each instruction's bytes displayed, `text`
 // of `size` bytes, into `read_state`, whose cell is sized for CLI_DISASM_INSTRUCTIONS: 1, or 0 where the output
 // contains no such function
 int cli_disasm_objdump_read(const CliDisasmVerifySizeCfg *args);
@@ -98,7 +98,7 @@ int cli_disasm_adjacent(const CliDisasmVerifyPathCfg *args);
 int cli_disasm_build(const CliDisasmVerifyCompilerCfg *args);
 // the module's functions listed from its IR: the object lifted with the lifter into the IR file, and the file read for
 // the functions it defines, into `names`: how many; or 0 with why given. With GNU's lifter, `gnu`, the list it prints
-// stands as the IR's definitions
+// is as the IR's definitions
 unsigned int cli_disasm_functions(const CliDisasmVerifyIrCfg *args);
 // the functions' symbols in `program`, listed by `lister`, each of `names` into `symbols`, a function the program
 // does not contain left as an empty symbol: how many contain, or 0 with why given where the lister did not run
@@ -161,7 +161,7 @@ struct CliDisasmVerifyPathCfg
 {
     char *path;
     const char *compiler;
-    const char *const *names_letters;
+    const char *const *names_characters;
     VerbaLinea *err_msg;
 };
 

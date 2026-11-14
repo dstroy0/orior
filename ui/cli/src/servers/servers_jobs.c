@@ -25,7 +25,7 @@ typedef struct
     unsigned long long size;
 } JobsCell;
 
-// the ring over its slots, the jobs' part of the rings block, laid as the process starts; its turnstiles, zeros at
+// the ring over its slots, the jobs' part of the rings block, positioned as the process starts; its turnstiles, zeros at
 // rest; the next ticket a dispatcher takes and the next a worker takes; how many workers have started; the wake the
 // waiters sleep on; and the threads with their places
 static EmbedTicketRing s_ring = {.mask = (1u << CLI_SERVERS_JOBS_RING_SHIFT) - 1u};
@@ -130,7 +130,7 @@ int cli_servers_later_dispatch(const CliServersRunSizeCtx *args)
         return 0;
     }
     const embed_u32 ticket = EMBED_ATOMIC_ADD_32(&s_ticket, 1u);
-    // the slot of the ticket a lap back released first, which keeps every live ticket within one lap of the ring, as
+    // the slot of the ticket a lap back released first, which retains every live ticket within one lap of the ring, as
     // the ring's proofs need; a worker's release wakes the wait
     for (;;)
     {
@@ -152,7 +152,7 @@ int cli_servers_later_dispatch(const CliServersRunSizeCtx *args)
     return 1;
 }
 
-void cli_servers_jobs_laid(void)
+void cli_servers_jobs_positioned(void)
 {
     s_ring.slots =
         (EmbedTicketRingSlot *)(void *)EMBED_CALL(cli_rings.part, CliRingsPartCfg, .part = CLI_RINGS_SERVERS_JOBS);

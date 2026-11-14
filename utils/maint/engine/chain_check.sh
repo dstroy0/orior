@@ -13,12 +13,12 @@
 #   kqr_check        holds R, the .kqr's reader and writer, to what its oracle says of it, on a record it writes and
 #                    on the part's own, written as records and read back as its bytes
 #   who_check        holds a who to what the who table gives, and every write to the who the run records of it
-#   qry_rows_check   holds a row of a table of the run to its who and its columns as handed, and a text of the table
-#                    of texts to its number, handed once
+#   qry_rows_check   holds a row of a table of the run to its who and its columns as passed, and a text of the table
+#                    of texts to its number, passed once
 #   kdecode_check    holds orior_kdecode's select over a run's tables to what the run holds, on the run the checks above wrote
 #   ksc_check        holds the .ksc's reader and writer to what its users read of it, a question's rows replaced under
-#                    a who line, the rows let go handed back, and the part's cost rows put again as it was
-#   krf_check        holds the .krf's reader and writer to what its users read of it: a row a k-file let go kept with
+#                    a who line, the rows let go passed back, and the part's cost rows put again as it was
+#   krf_check        holds the .krf's reader and writer to what its users read of it: a row a k-file let go retained with
 #                    its type, the run's name, the reason and its text, under a who line
 #   frame_check      holds the frame's walk, orior_krs_write's head and fixed lines, the kernel mode's place and a
 #                    register's reading at the position to the .ksc's rows, and orior_krs_write's frame lines to the table of
@@ -26,10 +26,10 @@
 #   frame_relation_check  holds the frame relations' host answers, their tuple places and the thread their fields are
 #                    read at, and the channel's fill word and block to the carrier's own
 #   turning_check    holds a ladder form's turning case: the first case of its relation whose three readings in the
-#                    register pass stand apart, the shift up's (3, 4) among them
-#   standing_check   holds one form standing for the encodings that answer as it does: a turn outside its operands
+#                    register pass are apart, the shift up's (3, 4) among them
+#   located_check   holds one form located for the encodings that answer as it does: a turn outside its operands
 #                    is its, a bit of an operand, the key or the scheduler's word is another's, and the set folded
-#                    keeps the oldest
+#                    retains the oldest
 #   tables_funnel_check  holds the vendor's tables read off a capture of its disassembler: the records, the
 #                    archive's LZ4 blocks unpacked with one window, and the latencies gathered from the copies
 #   tables_read_check  holds the vendor's instruction set read: the classes, their opcodes and fields, the fields
@@ -45,8 +45,8 @@
 #   scheduler_check  holds a round to P13 on the run channel's dry carrier
 #   overseer_check   holds the overseer's conference to its consensus and its lessons, in a run of its own, on a
 #                    carrier that refuses every question and reaches no part
-#   query_interface_check walks asks from inside the cell, every ending kept as the answer of the address that caused it
-#   launch_queue_check holds the interface's launch queue: eight starts asked at once hold at most four places at a
+#   query_interface_check walks asks from inside the cell, every ending retained as the answer of the address that caused it
+#   launch_queue_check holds the interface's launch queue: eight starts asked at once hold at max four places at a
 #                    time, and each start follows the one before it by the spacing at least
 #   query_order_check puts the known order of asks to the host on a clock found by asking, and solves every link
 #   stem_group_check holds the stem membership rule: groups on anchors, the same in every order
@@ -90,8 +90,8 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/frame_relation_check" "$TOP/utils/test/sr
     "${FILE_DEFS_MMGR_FLAGS[@]}" "${FILE_DEFS_LINEA[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/turning_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/turning_check.c" \
     "$TOP/src/cu/transpiler/lstar/protocol/khw_learn/turning.c" || exit 1
-cc -std=c11 -O2 -Wall -Wextra -o "$OUT/standing_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/standing_check.c" \
-    "$TOP/src/cu/transpiler/lstar/protocol/khw_learn/standing.c" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/located_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/located_check.c" \
+    "$TOP/src/cu/transpiler/lstar/protocol/khw_learn/located.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/tables_funnel_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/tables_funnel_check.c" \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/funnel.c" "$TOP/includes/parsers/line_read.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/tables_read_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/tables_read_check.c" \
@@ -190,7 +190,7 @@ fi
 "$OUT/answer_read_check" || exit 1
 "$OUT/frame_relation_check" || exit 1
 "$OUT/turning_check" || exit 1
-"$OUT/standing_check" || exit 1
+"$OUT/located_check" || exit 1
 "$OUT/tables_funnel_check" || exit 1
 "$OUT/tables_read_check" || exit 1
 "$OUT/constant_check" || exit 1
@@ -211,7 +211,7 @@ fi
         "$OUT/ksc_check" "$OUT" "$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.ksc" &&
         "$OUT/kdm_check" "$OUT" "$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.kdm"
 ) || exit 1
-# the file kdm_check handed its run, in its place once that run has ended: it names the run's .qry, the newest
+# the file kdm_check passed its run, in its place once that run has ended: it names the run's .qry, the newest
 newest_run="$(ls -t "$OUT"/kqr_runs/query*.qry | head -1)"
 command -v cygpath > /dev/null && newest_run="$(cygpath -m "$newest_run")"
 if grep -qF "# $newest_run" "$OUT/kdm_check_put.kdm" 2> /dev/null; then
@@ -231,7 +231,7 @@ bash "$TOP/utils/test/src/cu/types/file_defs/kdecode_check.sh" "$newest_run" || 
     run_started "$OUT/scheduler_runs"
     "$OUT/scheduler_check" "$OUT/scheduler_check.dry"
 ) || exit 1
-# the overseer's check in a run of its own, whose writer takes the round the teacher hands critical, ended with the
+# the overseer's check in a run of its own, whose writer takes the round the teacher passes critical, ended with the
 # subshell
 (
     OVERSEER_CARRIER="$OUT/overseer_carrier"
@@ -244,7 +244,7 @@ bash "$TOP/utils/test/src/cu/types/file_defs/kdecode_check.sh" "$newest_run" || 
     "$OUT/overseer_check" "$OVERSEER_CARRIER"
 ) || exit 1
 "$OUT/host_entry_check" || exit 1
-# the two walks in a run of their own, whose records each walk hands its lines in, ended with the subshell
+# the two walks in a run of their own, whose records each walk passes its lines in, ended with the subshell
 (
     source "$TOP/src/cu/transpiler/lstar/protocol/qry_run.sh"
     qry_writer_built "$OUT"

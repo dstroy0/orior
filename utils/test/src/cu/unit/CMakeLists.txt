@@ -8,7 +8,7 @@ cmake_minimum_required(VERSION 3.18)
 
 get_filename_component(ORIOR_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../.." ABSOLUTE)
 set(ORIOR_CU "${ORIOR_ROOT}/src/cu")
-# the second tree of sources, the includes at the top of the tree, and the folder its wrappers and suites stand in
+# the second tree of sources, the includes at the top of the tree, and the folder its wrappers and suites are in
 set(ORIOR_INCLUDES "${ORIOR_ROOT}/includes")
 set(ORIOR_INCLUDES_UNIT "${ORIOR_ROOT}/utils/test/includes/unit")
 

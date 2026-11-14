@@ -1,15 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pair_witness.cu: the lower witness: a pair whose puts queried nothing put at the links of a third form, both
-// forms standing in there and the part's two answers checked against each other
+// forms located in there and the part's two answers checked against each other
 #include "pair.h"
 
-// The lower witness: a pair whose puts queried nothing, neither form standing at a link that carries the cases, is
+// The lower witness: a pair whose puts queried nothing, neither form located at a link that carries the cases, is
 // put at the links of a third form, the first of the bridge's keys whose parameters name every parameter of both
-// and that stands at such a link. Both forms stand in at each of its links, the part answers both over the cases,
+// and that is at such a link. Both forms are in at each of its links, the part answers both over the cases,
 // and the two answers are checked against each other: the first case apart closes the pair as two operations, and
 // alike on every case leaves it open with its count of cases. A link of a shape read before is passed over, and so
-// is one whose writing reaches nothing the part answers, where both stand-ins answer as the chain did as it stood;
+// is one whose writing reaches nothing the part answers, where both stand-ins answer as the chain did as it was;
 // two forms that read nothing but the register they write are answered at the first link left. 1 with the verdict
 // where the part answered both at a link, 0 otherwise
 int PairWork::witness_lower(const std::string &first, const std::string &second, std::string *verdict)
@@ -148,29 +148,29 @@ int PairWork::witness_lower(const std::string &first, const std::string &second,
             std::vector<std::string> second_arguments;
             arguments_of(first_names, first_unified, first_bound, second_names, given, &first_arguments);
             arguments_of(second_names, second_unified, second_bound, first_names, given, &second_arguments);
-            std::string first_standing;
-            std::string second_standing;
+            std::string first_located;
+            std::string second_located;
             unsigned int first_scratch = 0u;
             unsigned int second_scratch = 0u;
             if ((ruleset_opcode(sass, first, first_arguments,
                                 scratch_past(sass, carriers.magnitudes[chain.first].first, &first_scratch),
-                                first_standing) == 0) ||
+                                first_located) == 0) ||
                 (ruleset_opcode(sass, second, second_arguments,
                                 scratch_past(sass, carriers.magnitudes[chain.first].first, &second_scratch),
-                                second_standing) == 0))
+                                second_located) == 0))
             {
                 lower("unwritable");
                 continue;
             }
             // two stand-ins of one text, the pair's binding writing each as the other, query the part for nothing
-            if (first_standing == second_standing)
+            if (first_located == second_located)
             {
                 lower("unchanged");
                 continue;
             }
             const std::string before = chain.second.substr(0u, (size_t)found.position(0));
             const std::string rest = chain.second.substr((size_t)(found.position(0) + found.length(0)));
-            const std::string standings[2] = {before + first_standing + rest, before + second_standing + rest};
+            const std::string standings[2] = {before + first_located + rest, before + second_located + rest};
             std::vector<std::vector<unsigned char>> codes =
                 vendor_assembled(machine, std::vector<std::string>(standings, standings + 2));
             const int assembled = !codes[0].empty() && !codes[1].empty();
@@ -181,8 +181,8 @@ int PairWork::witness_lower(const std::string &first, const std::string &second,
             }
             // a stand-in a lesson of the overseer blocks is answered as blocked, and neither is put
             char overseen[160];
-            if (overseer_blocks(first_standing.c_str(), chain.first.c_str(), overseen, sizeof(overseen)) ||
-                overseer_blocks(second_standing.c_str(), chain.first.c_str(), overseen, sizeof(overseen)))
+            if (overseer_blocks(first_located.c_str(), chain.first.c_str(), overseen, sizeof(overseen)) ||
+                overseer_blocks(second_located.c_str(), chain.first.c_str(), overseen, sizeof(overseen)))
             {
                 lower("overseen");
                 continue;
@@ -190,7 +190,7 @@ int PairWork::witness_lower(const std::string &first, const std::string &second,
             // both put over the pair's cases at the carrier's registers, and again declaring every register where
             // the part refuses one
             std::vector<RunQuestion> sides(2u, RunQuestion());
-            const int dangerous[2] = {form_dangerous(first_standing), form_dangerous(second_standing)};
+            const int dangerous[2] = {form_dangerous(first_located), form_dangerous(second_located)};
             RunQuestion *sides_put[2] = {&sides[0], &sides[1]};
             for (unsigned int side = 0u; side < 2u; side += 1u)
             {
@@ -217,7 +217,7 @@ int PairWork::witness_lower(const std::string &first, const std::string &second,
             {
                 // each side the part refused, or a carrier ended on, calls a conference of its own; a lesson it
                 // teaches blocks the stand-in at the links after this one
-                const std::string *const standings_of[2] = {&first_standing, &second_standing};
+                const std::string *const standings_of[2] = {&first_located, &second_located};
                 const unsigned int scratches[2] = {first_scratch, second_scratch};
                 for (unsigned int side = 0u; side < 2u; side += 1u)
                 {
@@ -225,7 +225,7 @@ int PairWork::witness_lower(const std::string &first, const std::string &second,
                     {
                         conferred(first, second,
                                   "the pair " + first + " " + second + " witnessed at the link " + link_address +
-                                      " of " + third + ", " + ((side == 0u) ? first : second) + " standing there",
+                                      " of " + third + ", " + ((side == 0u) ? first : second) + " located there",
                                   *standings_of[side], chain.first, scratches[side], sides[side], std::string(),
                                   link_address);
                     }
@@ -249,7 +249,7 @@ int PairWork::witness_lower(const std::string &first, const std::string &second,
                 return 1;
             }
             // the link reaches what the part answers where a stand-in's answer leaves the host's for the chain as
-            // it stood at a case: a link whose writing reaches nothing answers alike whatever stands there
+            // it was at a case: a link whose writing reaches nothing answers alike whatever is there
             const std::vector<std::string> &expected = host[chain.first];
             int reaches = 0;
             for (unsigned int at = 0u; at < sides[0].cases; at += 1u)

@@ -95,18 +95,18 @@ def report(out, path):
             lost = 0
             for start, needle in drawn:
                 offsets = pick(needle)
-                kept = survivors(places, needle, offsets)
+                retained = survivors(places, needle, offsets)
 
                 predicted = float(total - NEEDLE)
                 for offset in offsets:
                     predicted *= counts[needle[offset]] / float(total)
 
                 # The needle's own occurrence is not a false positive. The excess is what counts
-                excess = max(len(kept) - (1 if start is not None else 0), 0)
+                excess = max(len(retained) - (1 if start is not None else 0), 0)
                 passed.append(excess)
                 if predicted > 0.0:
                     errors.append(excess / predicted)
-                if (start is not None) and (start not in kept):
+                if (start is not None) and (start not in retained):
                     lost += 1
 
             out.write(

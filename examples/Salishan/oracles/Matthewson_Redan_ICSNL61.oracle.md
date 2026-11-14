@@ -22,7 +22,7 @@ Example 35 in section 5 is not Linda's at all. It is Sam Mitchell's, published i
 Williams 1981 and quoted here to make a point about pronouns.
 
 Linda moves into English inside her own telling, at ‘I'm like, “Cuy.”’ and again in the coda, and
-the paper glosses that as part of the story. Those lines are hers and are kept whole.
+the paper glosses that as part of the story. Those lines are hers and are retained whole.
 
 THE FORMS ARE AS THE PAPER PRINTS THEM, NOT AS THE EXTRACTION BROKE THEM
 
@@ -32,7 +32,7 @@ page.
 
 where    the paper's section, or its own number for a glossed example
 who      who said it
-kind     transcription   a line of the story as Linda told it
+type     transcription   a line of the story as Linda told it
 stage direction Lisa's note on Linda's laughter or gesture, written in St'át'imcets
 translation     the English, Lisa's, checked with Linda
 segmentation    the morpheme line, Lisa's analysis, holding underlying forms

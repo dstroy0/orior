@@ -12,7 +12,7 @@ CODEGEN_CORE unsigned int asm_printer_core_program(AsmPrinterCoreBuild *build)
     build->one = asm_printer_core_constant(build, 1u);
     build->two = asm_printer_core_constant(build, 2u);
     const unsigned int ten = asm_printer_core_constant(build, 10u);
-    const unsigned int zero_letter = asm_printer_core_constant(build, (unsigned int)'0');
+    const unsigned int zero_character = asm_printer_core_constant(build, (unsigned int)'0');
     const unsigned int rows = asm_printer_core_constant(build, ASM_PRINTER_PART_ROWS);
     const unsigned int nothing = asm_printer_core_constant(build, 0u);
     // the record's fields
@@ -93,25 +93,25 @@ CODEGEN_CORE unsigned int asm_printer_core_program(AsmPrinterCoreBuild *build)
     {
         below[atom] = asm_printer_core_below(build, place, start[atom]);
     }
-    // the byte: the letter of the one atom the place lies in, 0 where it lies in none
+    // the byte: the character of the one atom the place lies in, 0 where it lies in none
     unsigned int byte = nothing;
     for (unsigned int atom = 0u; atom < ASM_PRINTER_ATOMS; atom += 1u)
     {
         const unsigned int reached = asm_printer_core_step(build, ENGINE_RECORD_DIFFERENCE, build->one, below[atom]);
         const unsigned int inside = asm_printer_core_step(build, ENGINE_RECORD_PRODUCT, reached, below[atom + 1u]);
         const unsigned int offset = asm_printer_core_step(build, ENGINE_RECORD_DIFFERENCE, place, start[atom]);
-        unsigned int letter = 0u;
+        unsigned int character = 0u;
         if (digited[atom] == 0)
         {
             const unsigned int begins =
                 asm_printer_core_step(build, ENGINE_RECORD_TABLE, word[atom], ASM_PRINTER_TABLE_START);
             const unsigned int at = asm_printer_core_step(build, ENGINE_RECORD_SUM, begins, offset);
-            letter = asm_printer_core_step(build, ENGINE_RECORD_TABLE, at, ASM_PRINTER_TABLE_LETTER);
+            character = asm_printer_core_step(build, ENGINE_RECORD_TABLE, at, ASM_PRINTER_TABLE_CHARACTER);
         }
         else
         {
             // the digit at `offset` from the left is the number over ten to the digits left after it, modulo ten; a
-            // place outside the atom reads some power, never 0, and its letter is not taken
+            // place outside the atom reads some power, never 0, and its character is not taken
             const unsigned int placeholder = placeholder_of[atom];
             const unsigned int last =
                 asm_printer_core_step(build, ENGINE_RECORD_DIFFERENCE, digits[placeholder], build->one);
@@ -121,24 +121,24 @@ CODEGEN_CORE unsigned int asm_printer_core_program(AsmPrinterCoreBuild *build)
             const unsigned int shifted =
                 asm_printer_core_step(build, ENGINE_RECORD_QUOTIENT, number[placeholder], power);
             const unsigned int digit = asm_printer_core_step(build, ENGINE_RECORD_REMAINDER, shifted, ten);
-            letter = asm_printer_core_step(build, ENGINE_RECORD_SUM, digit, zero_letter);
+            character = asm_printer_core_step(build, ENGINE_RECORD_SUM, digit, zero_character);
         }
-        const unsigned int taken = asm_printer_core_step(build, ENGINE_RECORD_PRODUCT, inside, letter);
+        const unsigned int taken = asm_printer_core_step(build, ENGINE_RECORD_PRODUCT, inside, character);
         byte = asm_printer_core_step(build, ENGINE_RECORD_SUM, byte, taken);
     }
     return asm_printer_core_step(build, ENGINE_RECORD_TABLE, byte, ASM_PRINTER_TABLE_BYTE);
 }
 
-// the tables laid out from the words and the parts, each row a word, each table's rows a power of two: 1 where each
+// the tables arranged from the words and the parts, each row a word, each table's rows a power of two: 1 where each
 // fits its capacity, else 0 with the build left full
 CODEGEN_CORE int asm_printer_core_tables(AsmPrinterCoreBuild *build)
 {
     const unsigned int part_bits =
         asm_printer_core_index_bits((unsigned long long)build->parts * ASM_PRINTER_PART_ROWS);
     const unsigned int word_bits = asm_printer_core_index_bits(build->words);
-    const unsigned int letter_bits = asm_printer_core_index_bits(build->letters);
+    const unsigned int character_bits = asm_printer_core_index_bits(build->characters);
     const unsigned int rows[ASM_PRINTER_TABLES] = {1u << part_bits,   1u << word_bits,        1u << word_bits,
-                                                   1u << letter_bits, ASM_PRINTER_POWER_ROWS, ASM_PRINTER_BYTE_ROWS};
+                                                   1u << character_bits, ASM_PRINTER_POWER_ROWS, ASM_PRINTER_BYTE_ROWS};
     for (unsigned int table = 0u; table < ASM_PRINTER_TABLES; table += 1u)
     {
         if (rows[table] > build->table_capacity[table])
@@ -162,16 +162,16 @@ CODEGEN_CORE int asm_printer_core_tables(AsmPrinterCoreBuild *build)
     }
     unsigned int *const length_values = build->values[ASM_PRINTER_TABLE_LENGTH];
     unsigned int *const start_values = build->values[ASM_PRINTER_TABLE_START];
-    unsigned int *const letter_values = build->values[ASM_PRINTER_TABLE_LETTER];
+    unsigned int *const character_values = build->values[ASM_PRINTER_TABLE_CHARACTER];
     for (unsigned int row = 0u; row < rows[ASM_PRINTER_TABLE_LENGTH]; row += 1u)
     {
         length_values[row] = (row < build->words) ? build->word_length[row] : 0u;
         start_values[row] = (row < build->words) ? build->word_start[row] : 0u;
     }
-    // the words' letters lie end to end in number order, as the host laid them out
-    for (unsigned int row = 0u; row < rows[ASM_PRINTER_TABLE_LETTER]; row += 1u)
+    // the words' characters lie end to end in number order, as the host positioned them out
+    for (unsigned int row = 0u; row < rows[ASM_PRINTER_TABLE_CHARACTER]; row += 1u)
     {
-        letter_values[row] = (row < build->letters) ? (unsigned int)build->word_letters[row] : 0u;
+        character_values[row] = (row < build->characters) ? (unsigned int)build->word_characters[row] : 0u;
     }
     // ten to each power a 32-bit word has a digit at, and 1 at the rest, where no lane divides by 0
     unsigned int *const power_values = build->values[ASM_PRINTER_TABLE_POWER];
@@ -193,7 +193,7 @@ CODEGEN_CORE int asm_printer_core_tables(AsmPrinterCoreBuild *build)
     build->tables[ASM_PRINTER_TABLE_PIECE] = {part_bits, ASM_PRINTER_WORD_BITS, piece_values};
     build->tables[ASM_PRINTER_TABLE_LENGTH] = {word_bits, ASM_PRINTER_WORD_BITS, length_values};
     build->tables[ASM_PRINTER_TABLE_START] = {word_bits, ASM_PRINTER_WORD_BITS, start_values};
-    build->tables[ASM_PRINTER_TABLE_LETTER] = {letter_bits, 8u, letter_values};
+    build->tables[ASM_PRINTER_TABLE_CHARACTER] = {character_bits, 8u, character_values};
     // 10^9 is below 2^30
     build->tables[ASM_PRINTER_TABLE_POWER] = {4u, 30u, power_values};
     build->tables[ASM_PRINTER_TABLE_BYTE] = {8u, 8u, byte_values};
@@ -207,17 +207,17 @@ CODEGEN_CORE int asm_printer_core_ended(AsmPrinterCoreBuild *build, unsigned int
     return 0;
 }
 
-// Every word and part a lane the core decides can be written in, laid out before any lane is: each form's parts from
+// Every word and part a lane the core decides can be written in, arranged before any lane is: each form's parts from
 // its pieces, its placeholders four to a part and one part for a form of none, each bank's words around its number,
 // each stored register's word, the minus, the target's hash and the header, whole; then the program, its fields and its
-// tables. 1 where it is laid out, else 0 and how it ended in `end`, ASM_PRINTER_CORE_FULL where a capacity was short
+// tables. 1 where it is arranged, else 0 and how it ended in `end`, ASM_PRINTER_CORE_FULL where a capacity was short
 CODEGEN_CORE int asm_printer_core_ruleset_build(AsmPrinterCoreBuild *build)
 {
     const AsmPrinterCoreRules *const rules = &build->rules;
     build->end = ASM_PRINTER_CORE_OK;
     build->full = 0;
     build->words = 0u;
-    build->letters = 0u;
+    build->characters = 0u;
     build->parts = 0u;
     build->form_part_count = 0u;
     build->placeholder_count = 0u;
@@ -225,12 +225,12 @@ CODEGEN_CORE int asm_printer_core_ruleset_build(AsmPrinterCoreBuild *build)
     const AsmPrinterCoreText *const header = &rules->texts[rules->header_text];
     for (unsigned int at = 0u; at < header->length; at += 1u)
     {
-        if (rules->letters[header->first + at] == 0u)
+        if (rules->characters[header->first + at] == 0u)
         {
             return asm_printer_core_ended(build, ASM_PRINTER_CORE_HEADER);
         }
     }
-    asm_printer_core_word(build, rules->letters, 0u);
+    asm_printer_core_word(build, rules->characters, 0u);
     for (unsigned int form = 0u; form < OPCODE_COUNT; form += 1u)
     {
         if (rules->form_construct[form] != 0u)
@@ -317,7 +317,7 @@ CODEGEN_CORE int asm_printer_core_ruleset_build(AsmPrinterCoreBuild *build)
     {
         return asm_printer_core_ended(build, ASM_PRINTER_CORE_FULL);
     }
-    // each part's lanes, the lengths of its pieces, below 2^16 as the program's layout bounds the letters
+    // each part's lanes, the lengths of its pieces, below 2^16 as the program's layout bounds the characters
     for (unsigned int part = 0u; part < build->parts; part += 1u)
     {
         unsigned int lanes = 0u;
@@ -327,7 +327,7 @@ CODEGEN_CORE int asm_printer_core_ruleset_build(AsmPrinterCoreBuild *build)
         }
         build->part_lanes[part] = lanes;
     }
-    if ((build->letters >= (1u << ASM_PRINTER_TABLE_BITS_MAX)) || (build->words > (1u << ASM_PRINTER_TABLE_BITS_MAX)) ||
+    if ((build->characters >= (1u << ASM_PRINTER_TABLE_BITS_MAX)) || (build->words > (1u << ASM_PRINTER_TABLE_BITS_MAX)) ||
         (((unsigned long long)build->parts * ASM_PRINTER_PART_ROWS) > (1ull << ASM_PRINTER_TABLE_BITS_MAX)))
     {
         return asm_printer_core_ended(build, ASM_PRINTER_CORE_TABLES);

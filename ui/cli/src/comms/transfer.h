@@ -5,10 +5,10 @@
 // means to reach it.
 //
 // A region has no name another process could find. On Windows it is a section of the paging file, and the container
-// makes its handle in the other process itself, as a broker does: a process of the container's hands over a region by
-// the handle it has, and is handed one by a handle made for it, which reads the region and cannot write it. On Linux a
+// makes its handle in the other process itself, as a broker does: a process of the container's passes over a region by
+// the handle it has, and is passed one by a handle made for it, which reads the region and cannot write it. On Linux a
 // region is a memory file sealed against every change once written, and on macOS a file in the reader's own temporary
-// folder, unlinked as soon as it is made; either goes over the door's socket with the frame that names it, and a region
+// folder, unlinked as soon as it is made; either goes over the interface's socket with the frame that names it, and a region
 // from another process is read only once its seals are applied, or on macOS copied whole into a region of this
 // process's own (platform/windows_transfer.c, platform/posix_transfer.c, platform/posix_descriptors.c)
 #ifndef TRANSFER_H
@@ -22,7 +22,7 @@ typedef struct CliTransferRegionBytesCfg CliTransferRegionBytesCfg;
 typedef struct CliTransferSocketCfg CliTransferSocketCfg;
 typedef struct CliTransferSizeCfg CliTransferSizeCfg;
 
-// the least body, in bytes, that goes through the transfer layer, a smaller one going in its frame; and the most a
+// the least body, in bytes, that goes through the transfer layer, a smaller one going in its frame; and the max a
 // region contains
 #define CLI_TRANSFER_SMALL (64u << 10u)
 #define CLI_TRANSFER_MAX (1ull << 30u)
@@ -51,7 +51,7 @@ void cli_region_close(const CliTransferRegionBytesCfg *args);
 int cli_region_free(const CliTransferCfg *args);
 int cli_region_alloc(const CliTransferRegionCfg *args);
 #else
-// the most descriptors retained that came with bytes read and are not yet taken
+// the max descriptors retained that came with bytes read and are not yet taken
 #define CLI_DESCRIPTORS_PENDING_MAX 64u
 
 // The descriptors that came with the bytes read from a socket and are not yet taken, in the order they came, and their

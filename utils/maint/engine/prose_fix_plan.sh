@@ -21,7 +21,7 @@ edit() {
     fi
 }
 
-edit "ends on it: that is what kept 22 holes" "ends on it, and that kept 22 holes"
+edit "ends on it: that is what retained 22 holes" "ends on it, and that retained 22 holes"
 edit "bit-slices, not arithmetic," \
     "bit-slices and not arithmetic,"
 edit "which is why a ruleset can write them at all." "and a ruleset can write them for that reason."
@@ -48,9 +48,9 @@ edit "closed rather than lying" "closed in place of lying"
 edit "(sass_machine_same), so S2R R2, SR_CLOCKLO finds no form" \
     "(sass_machine_same), and S2R R2, SR_CLOCKLO finds no form"
 edit "share nothing, which is what says the reading is the" "share nothing, and that says the reading is the"
-edit "on the next run, so the first reading of this kind was noise" \
-    "on the next run, and the first reading of this kind was noise"
-edit "hides it; real code with occupancy hides most of it," "hides it. Real code with occupancy hides most of it,"
+edit "on the next run, so the first reading of this type was noise" \
+    "on the next run, and the first reading of this type was noise"
+edit "hides it; real code with occupancy hides the majority of it," "hides it. Real code with occupancy hides the majority of it,"
 edit "defeats its own purpose, so it can only be a pattern match" \
     "defeats its own purpose, and it can only be a pattern match"
 edit "the easiest one there is - 400000 turns of one identical body in a tight loop, which is what a

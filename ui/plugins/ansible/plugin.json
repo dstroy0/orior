@@ -2,7 +2,7 @@
   "id": "ansible",
   "name": "Ansible",
   "version": "1.0.0",
-  "kind": "language",
+  "type": "language",
   "extensions": [],
   "paths": [
     "(^|/)roles/[^/]+/(tasks|handlers|defaults|vars|meta)/[^/]+\\.ya?ml$",

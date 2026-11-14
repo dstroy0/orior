@@ -8,7 +8,7 @@
 #
 #   Usage:  python examples/language/6_oracle/control_values.py HallPhillipsICSNL60
 #
-# Everything measured in this work split a word's ambiguity two ways, into which kind of word it is and
+# Everything measured in this work split a word's ambiguity two ways, into which type of word it is and
 # which form of it this is. Reading Lillooet showed a third thing marked on the verb that neither column
 # holds, whether the actor had control of what happened. Hall and Phillips gloss nɬeʔkepmxcín with four
 # values for it, control, limited control, change of state which they name as out of control, and
@@ -64,7 +64,7 @@ def gloss_lines(text):
     lines = text.splitlines()
     skipping = False
     when = 0
-    kept = []
+    retained = []
     for line in lines:
         if KEY.search(line):
             skipping = True
@@ -79,8 +79,8 @@ def gloss_lines(text):
         pieces = [one for one in BOUNDARY.split(line) if one]
         tags = [one for one in pieces if PIECE.fullmatch(one) and len(one) >= 2]
         if len(tags) >= 3:
-            kept.append((line, tags, when))
-    return kept
+            retained.append((line, tags, when))
+    return retained
 
 
 def main():
@@ -95,14 +95,14 @@ def main():
     with open(source, encoding="utf-8", errors="replace") as handle:
         text = handle.read()
 
-    kept = gloss_lines(text)
+    retained = gloss_lines(text)
     counted = {}
-    for line, tags, when in kept:
+    for line, tags, when in retained:
         for tag in tags:
             counted[tag] = counted.get(tag, 0) + 1
 
     out.write("  %s\n" % name)
-    out.write("  %d gloss lines read, the abbreviation key skipped\n" % len(kept))
+    out.write("  %d gloss lines read, the abbreviation key skipped\n" % len(retained))
 
     out.write("\n  what the story marks about control\n")
     out.write("  %-10s %-9s %s\n" % ("value", "count", "what it means"))
@@ -120,7 +120,7 @@ def main():
         out.write("\n  not under control against under control: %.2f to 1\n"
                   % (loose / float(counted["CTR"])))
 
-    spoken = [when for line, tags, when in kept if when > 0]
+    spoken = [when for line, tags, when in retained if when > 0]
     if spoken:
         last = max(spoken)
         bins = 6
@@ -130,7 +130,7 @@ def main():
         for step in range(bins):
             low = step * width
             high = (step + 1) * width
-            here = [tags for line, tags, when in kept
+            here = [tags for line, tags, when in retained
                     if (when >= low) and (when < high or (step == bins - 1 and when <= high))]
             firm = sum(one.count("CTR") for tags in here for one in tags)
             loose = sum(sum(one.count(tag) for tag in ("COS", "LC", "AUT"))

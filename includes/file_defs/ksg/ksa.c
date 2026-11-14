@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// ksa.c: the table of schemes an approval of a seal is made by, and an approval made and verified, as ksa.h lays them
+// ksa.c: the table of schemes an approval of a seal is made by, and an approval made and verified, as ksa.h positions them
 // out. Each scheme signs KSA_CONTEXT and then the seal's trailer
 #include "ksa.h"
 
@@ -8,9 +8,9 @@
 
 #include <string.h>
 
-_Static_assert(ED25519_SEED_BYTES <= KSA_SECRET_MOST, "an Ed25519 seed fits a ksa secret");
-_Static_assert(ED25519_PUBLIC_BYTES <= KSA_KEY_MOST, "an Ed25519 public key fits a ksa key");
-_Static_assert(ED25519_SIGNATURE_BYTES <= KSA_SIGNATURE_MOST, "an Ed25519 signature fits a ksa signature");
+_Static_assert(ED25519_SEED_BYTES <= KSA_SECRET_MAX, "an Ed25519 seed fits a ksa secret");
+_Static_assert(ED25519_PUBLIC_BYTES <= KSA_KEY_MAX, "an Ed25519 public key fits a ksa key");
+_Static_assert(ED25519_SIGNATURE_BYTES <= KSA_SIGNATURE_MAX, "an Ed25519 signature fits a ksa signature");
 
 // the bytes a scheme signs: KSA_CONTEXT, then the seal's trailer
 #define KSA_MESSAGE_BYTES ((sizeof(KSA_CONTEXT) - 1u) + KSG_TRAILER_BYTES)
